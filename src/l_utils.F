@@ -2,6 +2,7 @@
 MODULE L_UTILS
    USE kinds,                 ONLY: dp
    USE termination,           ONLY: stop_memory,stop_program
+   USE timings,               ONLY: timeset,timestop
    IMPLICIT NONE
 
    public :: l_info_type
@@ -75,7 +76,8 @@ CONTAINS
       type(l_info_type) :: l_info
       integer :: la_min,la_max,lb_min,lb_max
       integer :: nthread_l
-      integer :: omp_get_max_threads,ithread
+      integer :: omp_get_max_threads,ithread,handle
+      CALL timeset("init_l_info","I","",handle)
       IF (PRESENT(nthread)) THEN
          nthread_l=nthread
       ELSE
@@ -99,6 +101,7 @@ CONTAINS
       ENDDO
       ENDDO
       ENDDO
+      CALL timestop(0.0_dp,handle)
    END SUBROUTINE
 
    SUBROUTINE destroy_l_info(l_info)

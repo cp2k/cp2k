@@ -30,6 +30,7 @@
 !!     - distributed real space code (JGH 17.07.03)
 !!     - refactoring and new loop ordering (JGH 23.11.03)
 !!     - OpenMP parallelization (JGH 03.12.03)
+!!     - Modified to compute tau (Joost 12.03)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -400,7 +401,6 @@ CONTAINS
     TYPE(lgrid_type)                    :: lgrid
     LOGICAL                             :: my_compute_tau
 !   ---------------------------------------------------------------------------
-    CALL timeset("calculate_rho_elec","I","",handle)
 
     NULLIFY(atomic_kind,cell,dft_control,orb_basis_set,sab_orb_neighbor_list,&
          sab_orb_neighbor_node,deltap,atomic_kind_set,sab_orb,particle_set,&
@@ -416,6 +416,12 @@ CONTAINS
        my_compute_tau = compute_tau
     ELSE
        my_compute_tau = .FALSE.
+    ENDIF
+
+    IF (my_compute_tau) THEN
+       call timeset("calculate_rho_tau","I","",handle)
+    ELSE
+       call timeset("calculate_rho_elec","I","",handle)
     ENDIF
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -814,14 +820,14 @@ CONTAINS
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                       ra,rab,rab2,scale,pab,na1-1,nb1-1,&
                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                      l_info,eps_rho_rspace,lgrid=lgrid,ithread=ithread)
+                      l_info,eps_rho_rspace,lgrid=lgrid,ithread=ithread,compute_tau=my_compute_tau)
                   ELSE
                     CALL collocate_pgf_product_rspace(&
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                       la_max(iset),zeta(ipgf,iset),la_min(iset),&
                       rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                      l_info,eps_rho_rspace,lgrid=lgrid,ithread=ithread)
+                      l_info,eps_rho_rspace,lgrid=lgrid,ithread=ithread,compute_tau=my_compute_tau)
                   END IF
                 ELSE
                   IF (iatom <= jatom) THEN
@@ -830,14 +836,14 @@ CONTAINS
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                       ra,rab,rab2,scale,pab,na1-1,nb1-1,&
                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                      l_info,eps_rho_rspace)
+                      l_info,eps_rho_rspace,compute_tau=my_compute_tau)
                   ELSE
                     CALL collocate_pgf_product_rspace(&
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                       la_max(iset),zeta(ipgf,iset),la_min(iset),&
                       rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                      l_info,eps_rho_rspace)
+                      l_info,eps_rho_rspace,compute_tau=my_compute_tau)
                   END IF
                 END IF
  
@@ -1200,7 +1206,7 @@ CONTAINS
                                           lb_max,zetb,lb_min,&
                                           ra,rab,rab2,scale,pab,o1,o2,&
                                           rsgrid,cube_info,l_info,&
-                                          eps_rho_rspace,lgrid,ithread)
+                                          eps_rho_rspace,lgrid,ithread,compute_tau)
 
     TYPE(realspace_grid_type), INTENT(INOUT), TARGET :: rsgrid
     TYPE(cube_info_type), INTENT(IN)  :: cube_info
@@ -1210,6 +1216,7 @@ CONTAINS
     REAL(KIND = dp), DIMENSION(3), INTENT(IN)   :: ra,rab
     TYPE(lgrid_type),OPTIONAL         :: lgrid
     INTEGER, INTENT(IN), OPTIONAL     :: ithread
+    LOGICAL, INTENT(IN), OPTIONAL     :: compute_tau
 
     REAL(KIND = dp), DIMENSION(:,:), POINTER    :: pab
     INTEGER                              :: o1,o2
@@ -1217,7 +1224,7 @@ CONTAINS
 !   *** Local variables ***
 
     REAL(KIND = dp) :: f,prefactor,radius,zetp
-    INTEGER  :: i,ico,ig,j,jco,jg,k,kg
+    INTEGER  :: i,ico,ig,j,jco,jg,k,kg,ico_l,jco_l
 
     REAL(KIND = dp), DIMENSION(3) :: dr,rap,rbp,roffset,rp,rb
     INTEGER, DIMENSION(3)  :: cubecenter,lb_cube,ng,ub_cube
@@ -1237,8 +1244,11 @@ CONTAINS
     INTEGER, POINTER, DIMENSION(:)  :: sphere_bounds
     REAL(KIND = dp)  :: xa,xb,xap,xbp,polypart,cutoff
     INTEGER  :: start,length,offset,cmax
-    INTEGER  handle
-    INTEGER  ithread_l
+    INTEGER  :: handle
+    INTEGER  :: ithread_l
+    LOGICAL  :: my_compute_tau
+    INTEGER  :: la_min_local,la_max_local, lb_min_local, lb_max_local,o1_local,o2_local
+    REAL(KIND = dp), DIMENSION(:,:), POINTER    :: pab_local
 
 !   ---------------------------------------------------------------------------
 
@@ -1248,7 +1258,11 @@ CONTAINS
        ithread_l=0
     ENDIF
 
-    coef_max=la_max+lb_max+1
+    IF (PRESENT(compute_tau)) THEN
+       my_compute_tau=compute_tau
+    ELSE
+       my_compute_tau=.FALSE.
+    ENDIF
 
     zetp      = zeta + zetb
     f         = zetb/zetp
@@ -1265,6 +1279,92 @@ CONTAINS
       RETURN
     END IF
 
+    ! it's a choice to compute lX_min/max, pab here, 
+    ! this way we get the same radius as we use for the corresponding density
+    IF (my_compute_tau) THEN
+        la_max_local=la_max+1
+        la_min_local=MAX(la_min-1,0)
+        lb_max_local=lb_max+1
+        lb_min_local=MAX(lb_min-1,0)
+        ! create a new pab_local so that mapping pab_local with pgf_a pgf_b
+        ! is equivalent to mapping pab with (nabla pgf_a) . (nabla pgf_b)
+        ! (ddx pgf_a ) (ddx pgf_b) = (a pgf_{a-1} - 2*zeta*pgf_{a+1}*(b pgf_{x-1} - 2 * zetb * pgf_{b+1})
+        ! cleaner would possibly be to touch pzyx directly (avoiding the following allocate)
+        ALLOCATE(pab_local(ncoset(la_max_local),ncoset(lb_max_local)))
+        pab_local = 0.0_dp
+        DO lxa=0,la_max
+        DO lxb=0,lb_max
+           DO lya=0,la_max-lxa
+           DO lyb=0,lb_max-lxb
+              DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
+              DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
+                     ! this element of pab results in 12 elements of pab_local
+                     ico=coset(lxa,lya,lza)
+                     jco=coset(lxb,lyb,lzb)
+                     ! x  (all safe if lxa = 0, as the spurious added terms have zero prefactor)
+
+                     ico_l=coset(MAX(lxa-1,0),lya,lza)
+                     jco_l=coset(MAX(lxb-1,0),lyb,lzb)
+                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+        lxa* lxb*pab(o1+ico,o2+jco)
+                     ico_l=coset(MAX(lxa-1,0),lya,lza)
+                     jco_l=coset(   (lxb+1  ),lyb,lzb)
+                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)-2.0_dp* lxa*zetb*pab(o1+ico,o2+jco)
+                     ico_l=coset(   (lxa+1  ),lya,lza)
+                     jco_l=coset(MAX(lxb-1,0),lyb,lzb)
+                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)-2.0_dp*zeta* lxb*pab(o1+ico,o2+jco)
+                     ico_l=coset(   (lxa+1  ),lya,lza)
+                     jco_l=coset(   (lxb+1  ),lyb,lzb)
+                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+4.0_dp*zeta*zetb*pab(o1+ico,o2+jco)
+
+                     ! y 
+
+                     ico_l=coset(lxa,MAX(lya-1,0),lza)
+                     jco_l=coset(lxb,MAX(lyb-1,0),lzb)
+                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+        lya* lyb*pab(o1+ico,o2+jco)
+                     ico_l=coset(lxa,MAX(lya-1,0),lza)
+                     jco_l=coset(lxb,   (lyb+1  ),lzb)
+                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)-2.0_dp* lya*zetb*pab(o1+ico,o2+jco)
+                     ico_l=coset(lxa,   (lya+1  ),lza)
+                     jco_l=coset(lxb,MAX(lyb-1,0),lzb)
+                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)-2.0_dp*zeta* lyb*pab(o1+ico,o2+jco)
+                     ico_l=coset(lxa,   (lya+1  ),lza)
+                     jco_l=coset(lxb,   (lyb+1  ),lzb)
+                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+4.0_dp*zeta*zetb*pab(o1+ico,o2+jco)
+
+                     ! z 
+
+                     ico_l=coset(lxa,lya,MAX(lza-1,0))
+                     jco_l=coset(lxb,lyb,MAX(lzb-1,0))
+                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+        lza* lzb*pab(o1+ico,o2+jco)
+                     ico_l=coset(lxa,lya,MAX(lza-1,0))
+                     jco_l=coset(lxb,lyb,   (lzb+1  ))
+                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)-2.0_dp* lza*zetb*pab(o1+ico,o2+jco)
+                     ico_l=coset(lxa,lya,   (lza+1  ))
+                     jco_l=coset(lxb,lyb,MAX(lzb-1,0))
+                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)-2.0_dp*zeta* lzb*pab(o1+ico,o2+jco)
+                     ico_l=coset(lxa,lya,   (lza+1  ))
+                     jco_l=coset(lxb,lyb,   (lzb+1  ))
+                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+4.0_dp*zeta*zetb*pab(o1+ico,o2+jco)
+
+              ENDDO
+              ENDDO
+           ENDDO
+           ENDDO
+        ENDDO
+        ENDDO
+        o1_local=0
+        o2_local=0
+    ELSE
+        la_max_local=la_max
+        la_min_local=la_min
+        lb_max_local=lb_max
+        lb_min_local=lb_min
+        pab_local => pab
+        o1_local=o1
+        o2_local=o2
+    ENDIF
+
+    coef_max=la_max_local+lb_max_local+1
 !   *** properties of the grid ***
     dr(:) = rsgrid%dr(:)
     ng(:) = rsgrid%npts(:)
@@ -1280,7 +1380,7 @@ CONTAINS
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
 
 !   *** get the l_info logic and arrays ***
-    CALL return_l_info(l_info,la_min,la_max,lb_min,lb_max,ithread_l,lx_max, &
+    CALL return_l_info(l_info,la_min_local,la_max_local,lb_min_local,lb_max_local,ithread_l,lx_max, &
                        lxy_max,lxyz_max,ly_max,lz_max, &
                        map,polx,poly,polz,dpy,dpz,alpha,pzyx,ipzyx,cmax)
 
@@ -1319,16 +1419,16 @@ CONTAINS
 
 !   *** initialise the p terms and loop logic
     lxyz=0
-    DO lxa=0,la_max
-    DO lxb=0,lb_max
-       DO lya=0,la_max-lxa
-       DO lyb=0,lb_max-lxb
-          DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
-          DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
+    DO lxa=0,la_max_local
+    DO lxb=0,lb_max_local
+       DO lya=0,la_max_local-lxa
+       DO lyb=0,lb_max_local-lxb
+          DO lza=MAX(la_min_local-lxa-lya,0),la_max_local-lxa-lya
+          DO lzb=MAX(lb_min_local-lxb-lyb,0),lb_max_local-lxb-lyb
              lxyz=lxyz+1
              ico=coset(lxa,lya,lza)
              jco=coset(lxb,lyb,lzb)
-             pzyx(lxyz)=prefactor*pab(o1+ico,o2+jco)
+             pzyx(lxyz)=prefactor*pab_local(o1_local+ico,o2_local+jco)
           ENDDO
           ENDDO
        ENDDO
@@ -1343,20 +1443,20 @@ CONTAINS
       zap = EXP(-zetp*rpg**2)
       za  = rpg + rap(3)
       zb  = za  - rab(3)
-      DO lza=0,la_max
+      DO lza=0,la_max_local
        zbp=1.0_dp
-       DO lzb=0,lb_max
+       DO lzb=0,lb_max_local
           dpz(lzb,lza)=zap*zbp
           zbp=zbp*zb
        ENDDO
        zap=zap*za
       ENDDO
-      DO lxa=0,la_max
-      DO lxb=0,lb_max
-       DO lya=0,la_max-lxa
-       DO lyb=0,lb_max-lxb
-          DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
-          DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
+      DO lxa=0,la_max_local
+      DO lxb=0,lb_max_local
+       DO lya=0,la_max_local-lxa
+       DO lyb=0,lb_max_local-lxb
+          DO lza=MAX(la_min_local-lxa-lya,0),la_max_local-lxa-lya
+          DO lzb=MAX(lb_min_local-lxb-lyb,0),lb_max_local-lxb-lyb
              lxyz=lxyz+1
              polz(lxyz,ig)=dpz(lzb,lza)
           ENDDO
@@ -1372,9 +1472,9 @@ CONTAINS
       yap = EXP(-zetp*rpg**2)
       ya  = rpg + rap(2)
       yb  = ya  - rab(2)
-      DO lya=0,la_max
+      DO lya=0,la_max_local
        ybp=1.0_dp
-       DO lyb=0,lb_max
+       DO lyb=0,lb_max_local
           dpy(lyb,lya)=yap*ybp
           ybp=ybp*yb
        ENDDO
@@ -1382,10 +1482,10 @@ CONTAINS
       ENDDO
 
       lxy=0
-      DO lxa=0,la_max
-      DO lxb=0,lb_max
-       DO lya=0,la_max-lxa
-       DO lyb=0,lb_max-lxb
+      DO lxa=0,la_max_local
+      DO lxb=0,lb_max_local
+       DO lya=0,la_max_local-lxa
+       DO lyb=0,lb_max_local-lxb
              lxy=lxy+1
              poly(lxy,ig)=dpy(lyb,lya)
        ENDDO
@@ -1397,8 +1497,8 @@ CONTAINS
 !   *** make the alpha matrix ***
     alpha(:,:)=0.0_dp
     lx=0
-    DO lxa=0,la_max
-    DO lxb=0,lb_max
+    DO lxa=0,la_max_local
+    DO lxb=0,lb_max_local
        lx=lx+1
        binomial_k_lxa=1.0_dp
        a=1.0_dp
@@ -1443,6 +1543,10 @@ CONTAINS
               lxyz_max,coef_max,cmax,ly_max(1),lz_max(1),&
               gridbounds(1,1),map(-cmax,1),sphere_bounds(1))
     END IF
+
+    IF (my_compute_tau) THEN
+       DEALLOCATE(pab_local)
+    ENDIF
 
   END SUBROUTINE collocate_pgf_product_rspace
 

@@ -26,6 +26,8 @@
 !!     JGH [17.07.03] distributed real space code
 !!     JGH [23.11.03] refactoring and new loop ordering
 !!     JGH [04.12.03] OpneMP parallelization of main loops
+!!     Joost VandeVondele (12.2003)
+!!          1) modified to compute tau
 !!
 !!   SOURCE
 !***********************************************************************
@@ -442,8 +444,8 @@ CONTAINS
         my_compute_tau = .FALSE.
     ENDIF
 
-    IF (calculate_forces) THEN
-      CALL timeset("integrate_v_rspace (forces)","I","",handle)
+    IF (my_compute_tau) THEN
+      CALL timeset("integrate_v_tau","I","",handle)
     ELSE
       CALL timeset("integrate_v_rspace","I","",handle)
     END IF
@@ -933,7 +935,7 @@ CONTAINS
                           hab,pab=pab,o1=na1-1,o2=nb1-1, &
                           vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=calculate_forces,&
-                          force_a=force_a,force_b=force_b,ithread=ithread)
+                          force_a=force_a,force_b=force_b,ithread=ithread,compute_tau=my_compute_tau)
                    ELSE
                      CALL integrate_pgf_product_rspace(&
                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
@@ -943,7 +945,7 @@ CONTAINS
                           hab,pab=pab,o1=nb1-1,o2=na1-1, &
                           vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=calculate_forces,&
-                          force_a=force_b,force_b=force_a,ithread=ithread)
+                          force_a=force_b,force_b=force_a,ithread=ithread,compute_tau=my_compute_tau)
                    END IF
                 ELSE
                    IF (iatom <= jatom) THEN
@@ -955,7 +957,7 @@ CONTAINS
                           hab,o1=na1-1,o2=nb1-1,&
                           vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=calculate_forces,&
-                          force_a=force_a,force_b=force_b,ithread=ithread)
+                          force_a=force_a,force_b=force_b,ithread=ithread,compute_tau=my_compute_tau)
                    ELSE
                      CALL integrate_pgf_product_rspace(&
                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
@@ -965,7 +967,7 @@ CONTAINS
                           hab,o1=nb1-1,o2=na1-1,&
                           vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=calculate_forces,&
-                          force_a=force_b,force_b=force_a,ithread=ithread)
+                          force_a=force_b,force_b=force_a,ithread=ithread,compute_tau=my_compute_tau)
                    END IF
                 END IF
 
@@ -1067,7 +1069,7 @@ CONTAINS
                                             cube_info,l_info,hab,pab,o1,o2,&
                                             vratio,eps_gvg_rspace,&
                                             calculate_forces,force_a,force_b,&
-                                            ithread,mytimings)
+                                            ithread,mytimings,compute_tau)
 
     TYPE(realspace_grid_type), POINTER    :: rsgrid
     REAL(KIND = dp), INTENT(IN)           :: eps_gvg_rspace,rab2,zeta,zetb,vratio
@@ -1078,7 +1080,8 @@ CONTAINS
     REAL(KIND = dp), DIMENSION(3), INTENT(INOUT) :: force_a,force_b
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: hab
     REAL(KIND = dp), DIMENSION(:,:), POINTER, OPTIONAL :: pab
-    INTEGER                                     :: o1,o2
+    INTEGER, INTENT(IN)                   :: o1,o2
+    LOGICAL, OPTIONAL, INTENT(IN)         :: compute_tau
 
     LOGICAL, INTENT(IN)                   :: calculate_forces
     INTEGER, OPTIONAL                     :: ithread
@@ -1102,7 +1105,7 @@ CONTAINS
     REAL(KIND = dp) :: dx2,dy2,dz2,dxi,dyi,dzi,cutoff
     INTEGER  :: kgmax,kgmin,jgmax,jgmin,igmax,igmin,j2,jg2,lar(3),lbr(3), &
                 start,length,offset
-    INTEGER  :: la_max_l,la_min_l,lb_min_l
+    INTEGER  :: la_max_l,la_min_l,lb_min_l,lb_max_l
 
     INTEGER, POINTER, DIMENSION(:) :: ly_max,lz_max
     REAL(KIND = dp), POINTER :: pzyx(:), alpha(:,:)
@@ -1114,6 +1117,7 @@ CONTAINS
     INTEGER :: ithread_l
     REAL(KIND = dp) :: t_a_1,t_a_2,t_b_1,t_b_2,t_c_1,t_c_2
     REAL(KIND = dp) :: exp_x2, exp_x1, exp_x0
+    LOGICAL :: my_compute_tau
 
 !   ---------------------------------------------------------------------------
     IF (PRESENT(ithread)) THEN
@@ -1121,19 +1125,36 @@ CONTAINS
     ELSE
        ithread_l=0
     ENDIF
+
+    ! my_compute_tau defaults to .FALSE.
+    IF (PRESENT(compute_tau)) THEN
+       my_compute_tau=compute_tau
+    ELSE
+       my_compute_tau=.FALSE.
+    ENDIF
+
     !IF (ithread_l.eq.0) t_a_1=m_walltime()
 
     IF (calculate_forces) THEN
       la_max_l=la_max+1  ! needed for the derivative of the gaussian, unimportant which one
       la_min_l=MAX(la_min-1,0) ! just in case the la_min,lb_min is not zero
       lb_min_l=MAX(lb_min-1,0)
+      lb_max_l=lb_max
     ELSE
       la_max_l=la_max
       la_min_l=la_min
       lb_min_l=lb_min
+      lb_max_l=lb_max
     END IF
 
-    coef_max=la_max_l+lb_max+1
+    IF (my_compute_tau) THEN
+      la_max_l=la_max_l+1
+      lb_max_l=lb_max_l+1
+      la_min_l=MAX(la_min_l-1,0)
+      lb_min_l=MAX(lb_min_l-1,0)
+    ENDIF
+
+    coef_max=la_max_l+lb_max_l+1
     zetp = zeta + zetb
     f = zetb/zetp
     prefactor = EXP(-zeta*f*rab2)
@@ -1161,7 +1182,7 @@ CONTAINS
        RETURN
     ENDIF
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
-    CALL return_l_info(l_info,la_min_l,la_max_l,lb_min_l,lb_max,ithread_l,lx_max,lxy_max, &
+    CALL return_l_info(l_info,la_min_l,la_max_l,lb_min_l,lb_max_l,ithread_l,lx_max,lxy_max, &
                          lxyz_max,ly_max,lz_max,&
                          map,polx,poly,polz,dpy,dpz,alpha,pzyx,ipzyx,cmax)
 
@@ -1235,18 +1256,18 @@ CONTAINS
       zb  = za  - rab(3)
       DO lza=0,la_max_l
        zbp=1.0_dp
-       DO lzb=0,lb_max
+       DO lzb=0,lb_max_l
           dpz(lzb,lza)=zap*zbp
           zbp=zbp*zb
        ENDDO
        zap=zap*za
       ENDDO
       DO lxa=0,la_max_l
-      DO lxb=0,lb_max
+      DO lxb=0,lb_max_l
        DO lya=0,la_max_l-lxa
-       DO lyb=0,lb_max-lxb
+       DO lyb=0,lb_max_l-lxb
           DO lza=MAX(la_min_l-lxa-lya,0),la_max_l-lxa-lya
-          DO lzb=MAX(lb_min_l-lxb-lyb,0),lb_max-lxb-lyb
+          DO lzb=MAX(lb_min_l-lxb-lyb,0),lb_max_l-lxb-lyb
              lxyz=lxyz+1
              polz(lxyz,ig)=dpz(lzb,lza)
           ENDDO
@@ -1272,7 +1293,7 @@ CONTAINS
       yb  = ya  - rab(2)
       DO lya=0,la_max_l
        ybp=1.0_dp
-       DO lyb=0,lb_max
+       DO lyb=0,lb_max_l
           dpy(lyb,lya)=yap*ybp
           ybp=ybp*yb
        ENDDO
@@ -1281,9 +1302,9 @@ CONTAINS
 
       lxy=0
       DO lxa=0,la_max_l
-      DO lxb=0,lb_max
+      DO lxb=0,lb_max_l
        DO lya=0,la_max_l-lxa
-       DO lyb=0,lb_max-lxb
+       DO lyb=0,lb_max_l-lxb
              lxy=lxy+1
              poly(lxy,ig)=dpy(lyb,lya)
        ENDDO
@@ -1298,7 +1319,7 @@ CONTAINS
     alpha(:,:)=0.0_dp
     lx=0
     DO lxa=0,la_max_l
-    DO lxb=0,lb_max
+    DO lxb=0,lb_max_l
        lx=lx+1
        binomial_k_lxa=1.0_dp
        a=1.0_dp
@@ -1340,7 +1361,7 @@ CONTAINS
     CALL integrate_core(polx(1,-cmax),poly(1,-cmax),polz(1,-cmax),grid(1,1,1),alpha(1,1), &
                         lx_max,lxy_max,lxyz_max,coef_max,cmax, &
                         ly_max(1),lz_max(1),gridbounds(1,1),map(-cmax,1),pzyx(1), &
-                        la_min_l,la_max_l,lb_min_l,lb_max,sphere_bounds(1))
+                        la_min_l,la_max_l,lb_min_l,lb_max_l,sphere_bounds(1))
     !IF (ithread_l.EQ.0)t_b_2=m_walltime()
 
     DO i=1,lxyz_max
@@ -1363,8 +1384,27 @@ CONTAINS
               DO by=0,lb-bx
                 bz = lb - bx - by
                 jco=coset(bx,by,bz)
-                hab(o1+ico,o2+jco) = hab(o1+ico,o2+jco) + pzyx(ipzyx(ax,ay,az,bx,by,bz))
+                IF (my_compute_tau) THEN
+                    hab(o1+ico,o2+jco) = hab(o1+ico,o2+jco) +  &
+                                           ax * bx * pzyx(ipzyx(MAX(ax-1,0),ay,az,MAX(bx-1,0),by,bz)) +  &
+                                           ay * by * pzyx(ipzyx(ax,MAX(ay-1,0),az,bx,MAX(by-1,0),bz)) +  &
+                                           az * bz * pzyx(ipzyx(ax,ay,MAX(az-1,0),bx,by,MAX(bz-1,0)))  &
+                                           - ftza * bx * pzyx(ipzyx(ax+1,ay,az,MAX(bx-1,0),by,bz))  &
+                                           - ftza * by * pzyx(ipzyx(ax,ay+1,az,bx,MAX(by-1,0),bz))  &
+                                           - ftza * bz * pzyx(ipzyx(ax,ay,az+1,bx,by,MAX(bz-1,0)))  &
+                                           - ax * ftzb * pzyx(ipzyx(MAX(ax-1,0),ay,az,bx+1,by,bz))  &
+                                           - ay * ftzb * pzyx(ipzyx(ax,MAX(ay-1,0),az,bx,by+1,bz))  &
+                                           - az * ftzb * pzyx(ipzyx(ax,ay,MAX(az-1,0),bx,by,bz+1)) +  &
+                                           ftza * ftzb * pzyx(ipzyx(ax+1,ay,az,bx+1,by,bz)) + &
+                                           ftza * ftzb * pzyx(ipzyx(ax,ay+1,az,bx,by+1,bz)) + &
+                                           ftza * ftzb * pzyx(ipzyx(ax,ay,az+1,bx,by,bz+1)) 
+                ELSE
+                    hab(o1+ico,o2+jco) = hab(o1+ico,o2+jco) + pzyx(ipzyx(ax,ay,az,bx,by,bz))
+                ENDIF
                 IF (calculate_forces) THEN
+                  IF (my_compute_tau) THEN
+                     CALL stop_program("integrate_pgf_product_rspace","atomic forces and tau not yet implemented")
+                  ENDIF
                   dhab(1) = ftza*pzyx(ipzyx(ax+1,ay,az,bx,by,bz)) -&
                             REAL(ax,dp)*pzyx(ipzyx(MAX(0,ax-1),ay,az,bx,by,bz))
                   dhab(2) = ftza*pzyx(ipzyx(ax,ay+1,az,bx,by,bz)) -&

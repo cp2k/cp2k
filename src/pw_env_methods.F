@@ -433,8 +433,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      ! init l_info
      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
           maxlgto=maxlgto)
-     ! maxlgto+1 to allow for the forces
-     CALL init_l_info(pw_env%l_info,maxlgto+1,cmax)
+     ! maxlgto, +1 to allow for the forces, +1 to allow for tau
+     CALL init_l_info(pw_env%l_info,maxlgto+2,cmax)
      
      ! init auxbas_grid
      DO i=1,ngrid_level

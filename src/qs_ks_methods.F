@@ -823,6 +823,7 @@ END SUBROUTINE qs_ks_did_change
     TYPE(pw_env_type), POINTER :: pw_env
     TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
     TYPE(cell_type), POINTER :: cell
+    REAL(KIND = dp) :: tau_xc_energy
 
     LOGICAL :: failure
     INTEGER :: i
@@ -850,7 +851,6 @@ END SUBROUTINE qs_ks_did_change
     CPPrecondition(rho_struct%rho_r_valid,cp_failure_level,routineP,error,failure)
     IF (dft_control%use_kinetic_energy_density) THEN
         CPPrecondition(ASSOCIATED(v_tau_rspace),cp_failure_level,routineP,error,failure)
-        ! just a zero potential for the time being
         DO i=1,SIZE(v_tau_rspace)
            CALL coeff_zero(v_tau_rspace(i))
         ENDDO
@@ -877,6 +877,19 @@ END SUBROUTINE qs_ks_did_change
               rho_g=rho_struct%rho_g, vxc=v_rspace_new,exc=energy%exc,&
               dft_control=dft_control,&
               cell=cell, pw_pool=auxbas_pw_pool,error=error)
+
+        ! introducing the JV tau-xc, useful for superconducting plasmas and debugging
+        IF (dft_control%use_kinetic_energy_density) THEN
+            tau_xc_energy=0.0_dp
+            DO i=1,SIZE(v_tau_rspace)
+               tau_xc_energy=tau_xc_energy+0.5_dp*1.0D-2*v_tau_rspace(i)%pw%pw_grid%dvol* &
+                                SUM(rho_struct%tau_r(i)%pw%cr3d(:,:,:)**2)
+               v_tau_rspace(i)%pw%cr3d=1.0D-2*rho_struct%tau_r(i)%pw%cr3d 
+            ENDDO
+            write(6,*) "tau xc energy ",tau_xc_energy
+            energy%exc=energy%exc+tau_xc_energy
+        ENDIF
+
       ELSE
          CALL stop_program(routineP,"nspins > 2")
       END IF
