@@ -285,6 +285,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
             ' Maximum angle displacement [degrees]= ',&
             rmangle/pi*180.0E0_dp
        ENDIF
+       WRITE(iw,'(A,A,I5)') " Conformational Moves Rejected Because",&
+          "Box Was Empty: ",moves%empty_conf
        WRITE(iw,*) '-----------------------------------------------',&
       '--------------------------------'
     ENDIF

@@ -139,7 +139,7 @@ MODULE mc_types
       TYPE ( accattempt ), POINTER :: volume
       TYPE ( accattempt ), POINTER :: Quickstep
       REAL(KIND = dp) :: classical_energy,trans_dis,qtrans_dis
-      integer :: empty,grown
+      integer :: empty,grown,empty_conf
   END TYPE mc_moves_type
 
   TYPE accattempt

@@ -344,7 +344,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_atom_translation"
 
-    INTEGER                                  :: handle, i, imol, ipart,&
+    INTEGER                                  :: handle, imol, ipart,&
                                                 istat,nchain,nunits_tot
     LOGICAL                                  :: bond_flag,lclassical,&
       loverlap
@@ -402,7 +402,7 @@ CONTAINS
 
 ! choose if we're changing a bond length or an angle
       CALL RANDOM_NUMBER(rand)
-!      IF (rand .lt. -0.66666667E0_dp) THEN
+
       IF (rand .LT. 0.66666667E0_dp) THEN
 
 ! change a bond length

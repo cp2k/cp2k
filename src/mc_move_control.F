@@ -157,6 +157,7 @@ CONTAINS
       moves%trans_dis=0.0E0_dp
       moves%qtrans_dis=0.0E0_dp
       moves%empty=0
+      moves%empty_conf=0
       moves%grown=0
 !      moves%force_create=1
 
@@ -357,19 +358,21 @@ SUBROUTINE q_move_accept(moves)
  END SUBROUTINE q_move_accept
 
 ! *****************************************************************************
-!!****s* mc_move_control.F/q_move_accept
+!!****s* mc_move_control.F/write_move_stats
 !!
 !!   NAME
-!!     q_move_accept
+!!     write_move_stats
 !!
 !!   FUNCTION
-!!     updates accepted moves in the given structure...assumes you've been
-!!     recording all successful moves in "qsuccesses"...this was done to
-!!     compensate for doing multiple inner moves between Quickstep moves 
-!!     (which determine ultimate acceptance of moves)
+!!     writes the number of accepted and attempted moves to a file for
+!!     the various move types
 !!
 !!   ARGUMENTS
-!!     - moves: the move structure to update
+!!     - moves: the structure containing the move data
+!!     - move_updates: the structure containing the move data since
+!!          the last displacement update
+!!     - nnstep: what step we're on
+!!     - unit: the unit of the file we're writing to
 !!  
 !!   AUTHOR
 !!     MJM
@@ -420,8 +423,10 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
       moves%swap%successes,moves%swap%attempts
     WRITE(unit,'(I6,2X,A,2X,I6)') nnstep,' grown     ',&
       moves%grown
-    WRITE(unit,'(I6,2X,A,2X,I6)') nnstep,' empty     ',&
+    WRITE(unit,'(I6,2X,A,2X,I6)') nnstep,' empty_swap     ',&
       moves%empty
+    WRITE(unit,'(I6,2X,A,2X,I6)') nnstep,' empty_conf     ',&
+      moves%empty_conf
     WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' volume    ',&
       moves%volume%successes,moves%volume%attempts
     WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' Quickstep ',&

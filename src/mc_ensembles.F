@@ -922,23 +922,40 @@ CONTAINS
                   CALL RANDOM_NUMBER(rand)
                   IF(rand .LT. pmtraion) THEN
                      
-!     translate a single atom in the system
+! change the conformation of a molecule
+
+! first, pick a box to do it for
                      CALL RANDOM_NUMBER(rand)
-                     mol=CEILING((nchain(1)+nchain(2))*rand)
-                     mol=3*mol-2
-                     IF (mol .LE. nunits_tot(1)) THEN
+                     IF(rand .LT. 0.75E0_dp) THEN
                         ibox=1
                      ELSE
                         ibox=2
-                        mol=mol-nunits_tot(1)
                      ENDIF
 
-                     box_flag(ibox)=1
-                     CALL mc_atom_translation( mc_par(ibox)%mc_par,&
-                        force_env(ibox)%force_env,moves(ibox)%moves,&
-                        move_updates(ibox)%moves,nnstep,i,mol,&
-                        classical_energy(ibox),error=error)
-                        
+! now pick a molecule, automatically rejecting the move if the
+! box is empty
+                     IF(nchain(ibox) == 0) THEN
+! indicate that we tried a move
+                        moves(ibox)%moves%empty_conf=&
+                           moves(ibox)%moves%empty_conf+1
+                     ELSE
+! pick a molecule in the box
+                        mol=CEILING(nchain(ibox)*rand)
+                        mol=3*mol-2
+!                     IF (mol .LE. nunits_tot(1)) THEN
+!                        ibox=1
+!                     ELSE
+!                        ibox=2
+!                        mol=mol-nunits_tot(1)
+!                     ENDIF
+
+                        box_flag(ibox)=1
+                        CALL mc_atom_translation( mc_par(ibox)%mc_par,&
+                           force_env(ibox)%force_env,moves(ibox)%moves,&
+                           move_updates(ibox)%moves,nnstep,i,mol,&
+                           classical_energy(ibox),error=error)
+                     ENDIF
+
                   ELSEIF(rand .LT. pmtrans) THEN
 !     translate a whole molecule in the system
 !     call a random number to figure out which molecule we're moving...the
