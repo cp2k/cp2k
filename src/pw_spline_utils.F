@@ -3262,8 +3262,8 @@ SUBROUTINE pw_inject_s3(pw_coarse_in,pw_fine_out,coarse_pool,param_section,&
      CALL pw_spline_precond_set_kind(precond,precond_kind,error=error)
      success=find_coeffs(values=pw_coarse_in,coeffs=coeffs,&
           linOp=spl3_nopbc,preconditioner=precond, pool=coarse_pool, &
-          eps_r=1.e-14_dp,eps_x=1.e-14_dp,&
-          max_iter=100,print_section=param_section,error=error)
+          eps_r=eps_r,eps_x=eps_x,&
+          max_iter=max_iter,print_section=param_section,error=error)
 !FM     IF (ifile<7) THEN
 !FM        WRITE(filename,"(a,i6,a)") "c1_coarse-",ifile,".cube"
 !FM        CALL compress(filename,full=.TRUE.)
