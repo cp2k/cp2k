@@ -18,6 +18,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     1) Changed the size work array for syevx (Joost VandeVondele 28.02.02)
+!!     1) Introduced some cholesky guys         (Joost VandeVondele    05.02)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -120,7 +121,10 @@ MODULE qs_blacs
             symmetrise_blacs_matrix,&
             write_blacs_matrix,&
             blacs_diag_mult,&
-            add_blacs_to_block_diag_sm
+            add_blacs_to_block_diag_sm, &
+            blacs_cholesky_decompose, &
+            blacs_cholesky_reduce, &
+            blacs_cholesky_restore
 
 ! *****************************************************************************
 
@@ -645,18 +649,181 @@ CONTAINS
 #endif
   END SUBROUTINE blacs_set_element
 
+!******************************************************************
+! used to replace a symmetric positive def. matrix by its cholesky 
+! decomposition
+!******************************************************************
+
+  SUBROUTINE blacs_cholesky_decompose(matrix,context,globenv)
+   TYPE(blacs_matrix_type), POINTER           :: matrix
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    INTEGER, INTENT(IN)                       :: context
+
+    REAL(wp), DIMENSION(:,:), POINTER         :: a
+    integer                                   :: info,handle
+    INTEGER                                   :: output_unit,source,n
+    LOGICAL                                   :: ionode
+    integer                                   :: nprow,npcol,myprow,mypcol
+    INTEGER, DIMENSION(9)                     :: desca
+
+    CALL timeset("blacs_cholesky_decompose","I","",handle)
+
+    ionode = globenv%ionode
+    output_unit = globenv%scr
+    source = globenv%source
+    n = matrix%nrow_global
+
+#if defined(__parallel)
+    CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
+    a => matrix%p(myprow,mypcol)%block
+    desca(:) = matrix%descriptor(:)
+    CALL pdpotrf('U',n,a,1,1,desca,info)
+
+#else
+
+    a => matrix%p(source,source)%block
+
+    CALL dpotrf('U',n,a,n,info)
+
+#endif
+
+    if (info.ne.0) then
+      CALL stop_program(" blacs_cholesky_decompose","Error dpotrf",globenv)
+    endif
+
+
+    CALL timestop(0.0_wp,handle)
+
+  END  SUBROUTINE blacs_cholesky_decompose
+
+!******************************************************************
+! reduce a matrix pencil A,B to normal form
+! B has to be cholesky decomposed with  blacs_cholesky_decompose
+! before calling this routine
+!******************************************************************
+
+  SUBROUTINE blacs_cholesky_reduce(matrix,matrixb,context,globenv)
+   TYPE(blacs_matrix_type), POINTER           :: matrix,matrixb
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    INTEGER, INTENT(IN)                       :: context
+
+    REAL(wp), DIMENSION(:,:), POINTER         :: a,b
+    integer                                   :: info,itype,handle
+    INTEGER                                   :: output_unit,source,n
+    LOGICAL                                   :: ionode
+    integer                                   :: nprow,npcol,myprow,mypcol
+    INTEGER, DIMENSION(9)                     :: desca,descb
+    REAL(wp)                                  :: scale
+
+    CALL timeset("blacs_cholesky_reduce","I","",handle)
+
+    ionode = globenv%ionode
+    output_unit = globenv%scr
+    source = globenv%source
+    n = matrix%nrow_global
+    itype =1
+
+#if defined(__parallel)
+
+    CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
+    a => matrix%p(myprow,mypcol)%block
+    desca(:) = matrix%descriptor(:)
+    b => matrixb%p(myprow,mypcol)%block
+    descb(:) = matrixb%descriptor(:)
+
+    CALL pdsygst(itype,'U',n,a,1,1,desca,b,1,1,descb,scale,info) 
+    IF (scale .ne. 1.0_wp) THEN
+       ! this is supposed to be one in current version of lapack
+       ! if not, eigenvalues have to be scaled by this number
+       CALL stop_program(" blacs_cholesky_reduce","scale not equal 1",globenv)
+    ENDIF
+#else
+
+    a => matrix%p(source,source)%block
+    b => matrixb%p(source,source)%block
+
+    CALL dsygst(itype,'U',n,a,n,b,n,info)
+
+#endif
+
+    if (info.ne.0) then
+      CALL stop_program(" blacs_cholesky_reduce","Error dsygst",globenv)
+    endif
+
+
+    CALL timestop(0.0_wp,handle)
+
+  END  SUBROUTINE blacs_cholesky_reduce
+
+!******************************************************************
+! restore after blacs_cholesky_reduce
+! matrix should be the eigenvectors
+!******************************************************************
+  SUBROUTINE blacs_cholesky_restore(matrix,neig,matrixb,context,globenv)
+    TYPE(blacs_matrix_type), POINTER          :: matrix,matrixb
+    INTEGER, INTENT(IN)                       :: neig
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    INTEGER, INTENT(IN)                       :: context
+
+    REAL(wp), DIMENSION(:,:), POINTER         :: a,b
+    integer                                   :: info,itype,handle
+    INTEGER                                   :: output_unit,source,n
+    LOGICAL                                   :: ionode
+    REAL(wp)                                  :: alfa
+    integer                                   :: nprow,npcol,myprow,mypcol
+    INTEGER, DIMENSION(9)                     :: desca,descb
+
+    CALL timeset("blacs_cholesky_restore","I","",handle)
+
+    ionode = globenv%ionode
+    output_unit = globenv%scr
+    source = globenv%source
+    n = matrix%nrow_global
+    itype = 1 
+
+#if defined(__parallel)
+
+    CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
+    a => matrix%p(myprow,mypcol)%block
+    desca(:) = matrix%descriptor(:)
+    b => matrixb%p(myprow,mypcol)%block
+    descb(:) = matrixb%descriptor(:)
+    alfa=1.0_wp
+    CALL pdtrsm('L','U','N','N',n,neig,alfa,b,1,1,descb,a,1,1,desca)
+
+#else
+
+    ! notice b is the cholesky guy
+    a => matrix%p(source,source)%block
+    b => matrixb%p(source,source)%block
+    alfa=1.0_wp
+    CALL dtrsm('L','U','N','N',n,neig,alfa,b,n,a,n)
+
+#endif
+
+    CALL timestop(0.0_wp,handle)
+
+  END  SUBROUTINE blacs_cholesky_restore
+   
+
+   
+
 ! *****************************************************************************
 
   SUBROUTINE blacs_syevx(matrix,eigenvectors,eigenvalues,neig,work_syevx,&
-                         context,globenv)
+                         context,globenv,bmatrix)
 
 !   Purpose: Diagonalise the symmetric n by n matrix using the LAPACK library.
+!            if bmatrix present, use general solver, will overwrite bmatrix
+!            with its cholesky decom.
 
 !   History: - Creation (06.06.2001, Matthias Krack)
+!   History: - Mod      (05.2001, Joost VandeVondele)
 
 !   ***************************************************************************
 
     TYPE(blacs_matrix_type), POINTER          :: eigenvectors,matrix
+    TYPE(blacs_matrix_type), POINTER, OPTIONAL:: bmatrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(wp), INTENT(IN)                      :: work_syevx
     INTEGER, INTENT(IN)                       :: context,neig
@@ -674,14 +841,14 @@ CONTAINS
 !   *** Local variables ***
 
     INTEGER  :: handle,info,istat,liwork,lwork,m,mypcol,myprow,n,nb,nn,np0,&
-                npcol,npe,nprow,nq0,nz,output_unit,source
+                npcol,npe,nprow,nq0,nz,output_unit,source,itype
     LOGICAL  :: ionode
 
-    INTEGER, DIMENSION(9) :: desca,descz
+    INTEGER, DIMENSION(9) :: desca,descz,descb
 
     REAL(wp), DIMENSION(:), ALLOCATABLE :: gap,w,work
     INTEGER, DIMENSION(:), ALLOCATABLE  :: iclustr,ifail,iwork
-    REAL(wp), DIMENSION(:,:), POINTER   :: a,z
+    REAL(wp), DIMENSION(:,:), POINTER   :: a,z,b
 
 #if defined(__parallel)
     INTEGER, EXTERNAL  :: iceil,numroc
@@ -746,9 +913,18 @@ CONTAINS
     work(:) = 0.0_wp
 
 !   *** Diagonalise matrix ***
-
-    CALL pdsyevx("V","I","U",n,a,1,1,desca,vl,vu,1,neig,abstol,m,nz,w,orfac,&
+    if (PRESENT(bmatrix)) then
+       itype=1
+       b => bmatrix%p(myprow,mypcol)%block
+       descb(:) = matrix%descriptor(:)
+       CALL pdsygvx(itype,"V","I","U",n,a,1,1,desca,b,1,1,descb,vl,vu,1,neig, &
+                 abstol,m,nz,w,orfac,&
                  z,1,1,descz,work,lwork,iwork,liwork,ifail,iclustr,gap,info)
+    else
+       CALL pdsyevx("V","I","U",n,a,1,1,desca,vl,vu,1,neig,abstol,m,nz,w,orfac,&
+                 z,1,1,descz,work,lwork,iwork,liwork,ifail,iclustr,gap,info)
+    endif
+
 
 !   *** Error handling ***
 
@@ -809,8 +985,15 @@ CONTAINS
 
 !   *** Diagonalise matrix ***
 
-    CALL dsyevx("V","I","U",n,a,n,vl,vu,1,neig,abstol,m,w,z,n,work,lwork,&
+    if (PRESENT(bmatrix)) then
+       itype=1
+       b => bmatrix%p(source,source)%block
+       CALL dsygvx(itype,"V","I","U",n,a,n,b,n,vl,vu,1,neig,abstol,m,w,z,n, &
+                   work,lwork,iwork,ifail,info)
+    else
+       CALL dsyevx("V","I","U",n,a,n,vl,vu,1,neig,abstol,m,w,z,n,work,lwork,&
                 iwork,ifail,info)
+    endif
 
 !   *** Error handling ***
 

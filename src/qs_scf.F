@@ -32,6 +32,8 @@
 !!       (17.04.02,MK)
 !!     - MO level shifting added (22.04.02,MK)
 !!     - Usage of TYPE mo_set_p_type
+!!     - Joost VandeVondele (05.2002)
+!!           added cholesky based diagonalisation
 !!
 !!   SOURCE
 !******************************************************************************
@@ -103,7 +105,10 @@ MODULE qs_scf
                                       power_blacs_matrix,&
                                       replicate_blacs_matrix,&
                                       start_blacs,&
-                                      symmetrise_blacs_matrix
+                                      symmetrise_blacs_matrix, &
+                                      blacs_cholesky_decompose, &
+                                      blacs_cholesky_reduce, &
+                                      blacs_cholesky_restore
   USE qs_collocate_density,     ONLY: calculate_rho_core,&
                                       calculate_rho_elec,&
                                       calculate_total_rho
@@ -183,7 +188,7 @@ MODULE qs_scf
   INTEGER           :: charge,max_scf,nelectron,nrebuild,nrow_block,&
                        ncol_block,nprow,npcol,maxl,ngrid_level,nkind
   LOGICAL           :: gradient_functional,gth_potential_present,orthorhombic,&
-                       rebuild
+                       rebuild,use_cholesky
 
   TYPE(coeff_type), DIMENSION(3) :: nabla_rho_rspace
 
@@ -232,6 +237,8 @@ CONTAINS
     TYPE(blacs_matrix_type), POINTER :: mo_eigenvectors
 
 !   ---------------------------------------------------------------------------
+
+
 
 !   *** Quick return, if no SCF iteration is requested ***
 
@@ -345,6 +352,10 @@ CONTAINS
 
       IF (do_level_shift) THEN
 
+        IF (use_cholesky) THEN
+           stop 'do_level_shift .and. use_cholesky not checked'
+        ENDIF
+
         CALL get_mo_set(mo_set=mo_set,&
                         homo=homo,&
                         nmo=nmo,&
@@ -365,7 +376,6 @@ CONTAINS
       ELSE
 
 !       *** Orthogonalisation matrix: S**(-1/2) ***
-
         CALL orthogonalise_matrix(ortho,scf_work1,scf_work2,context,globenv)
 
       END IF
@@ -827,7 +837,13 @@ CONTAINS
         "Self energy of the core charge distribution:   ",ecore_self
     END IF
 
-    CALL calculate_ortho_matrix(ortho,scf_work2,ndep,context,globenv)
+    if (use_cholesky) then
+       ndep=0
+       CALL copy_sparse_to_blacs_matrix(s%matrix,ortho,context,globenv)
+       CALL blacs_cholesky_decompose(ortho,context,globenv)
+    else
+       CALL calculate_ortho_matrix(ortho,scf_work2,ndep,context,globenv)
+    endif
 
     IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,I10))")&
@@ -902,11 +918,18 @@ CONTAINS
 
     CALL timeset("orthogonalise_matrix","I","",handle)
 
-    CALL get_blacs_matrix_info(matrix=ks,nrow_global=nao)
-    CALL blacs_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp,work,context,&
+    if (use_cholesky) then
+
+       CALL blacs_cholesky_reduce(ks,ortho,context,globenv)
+
+    else
+
+       CALL get_blacs_matrix_info(matrix=ks,nrow_global=nao)
+       CALL blacs_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp,work,context,&
                     globenv)
-    CALL blacs_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,ks,context,&
+       CALL blacs_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,ks,context,&
                     globenv)
+    endif
 
     CALL timestop(0.0_wp,handle)
 
@@ -947,10 +970,20 @@ CONTAINS
 
 !   *** Diagonalise the Kohn-Sham matrix ***
 
-    CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx,context,globenv)
+    IF (use_cholesky) THEN
 
-    CALL blacs_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
+       CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx,context,globenv)
+       CALL blacs_cholesky_restore(work,nmo,ortho,context,globenv)
+       CALL copy_blacs_to_blacs_matrix(work,mo_eigenvectors)
+
+    ELSE
+
+       CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx,context,globenv)
+
+       CALL blacs_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
                     mo_eigenvectors,context,globenv)
+   
+    ENDIF
 
     CALL timestop(0.0_wp,handle)
 
@@ -1188,7 +1221,6 @@ CONTAINS
 
 !     *** It is assumed that work1 holds the upper     ***
 !     *** triangle part of the core Hamiltonian matrix ***
-
       CALL orthogonalise_matrix(ortho,work1,work2,context,globenv)
       CALL eigensolver(work1,mo_set,ortho,work2,context,globenv)
       IF (level_shift /= 0.0_wp) THEN
@@ -1361,6 +1393,7 @@ CONTAINS
     p_mix = 0.4_wp
     smear = 0.0_wp
     work_syevx = 1.0_wp
+    use_cholesky = .true.
 
     CALL start_parser(file_name=globenv%input_file_name,&
                       globenv=globenv,&
@@ -1379,6 +1412,11 @@ CONTAINS
         CALL read_object(eps_diis)
       CASE ("EPS_EIGVAL")
         CALL read_object(eps_eigval)
+        use_cholesky = .false.
+      CASE ("CHOLESKY_ON")
+        use_cholesky = .true.
+      CASE ("CHOLESKY_OFF")
+        use_cholesky = .false.
       CASE ("EPS_SCF")
         CALL read_object(eps_scf)
       CASE ("LEVEL_SHIFT","LSHIFT")
