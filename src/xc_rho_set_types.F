@@ -219,7 +219,7 @@ CONTAINS
 !!     Subroutine xc_rho_cflags_setall(cflags, value, error)
 !!       Type(xc_rho_cflags_type), Intent (OUT):: cflags
 !!       Logical, Intent (IN):: value
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine xc_rho_cflags_setall
 !!
 !!   FUNCTION
@@ -267,7 +267,7 @@ CONTAINS
 !!     Subroutine xc_rho_cflags_or(cflags1, cflags2, error)
 !!       Type(xc_rho_cflags_type), Intent (INOUT):: cflags1
 !!       Type(xc_rho_cflags_type), Intent (IN):: cflags2
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine xc_rho_cflags_or
 !!
 !!   FUNCTION
@@ -317,7 +317,7 @@ CONTAINS
 !!     Subroutine xc_rho_cflags_and(cflags1, cflags2, error)
 !!       Type(xc_rho_cflags_type), Intent (INOUT):: cflags1
 !!       Type(xc_rho_cflags_type), Intent (IN):: cflags2
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine xc_rho_cflags_and
 !!
 !!   FUNCTION
@@ -367,7 +367,7 @@ CONTAINS
 !!     Function xc_rho_cflags_equal(cflags1, cflags2, error) Result(equal)
 !!       Type(xc_rho_cflags_type), Intent (INOUT):: cflags1
 !!       Type(xc_rho_cflags_type), Intent (IN):: cflags2
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!       Logical:: equal
 !!     End Function xc_rho_cflags_equal
 !!
@@ -419,7 +419,7 @@ CONTAINS
 !!         Result(contain)
 !!       Type(xc_rho_cflags_type), Intent (INOUT):: cflags1
 !!       Type(xc_rho_cflags_type), Intent (IN):: cflags2
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!       Logical:: contain
 !!     End Function xc_rho_cflags_contain
 !!
@@ -475,7 +475,7 @@ CONTAINS
 !!       Type(xc_rho_set_type), Pointer:: rho_set
 !!       Integer, Dimension(2,3), Intent (IN):: local_bounds
 !!       Real(Kind=dp), Intent (IN), Optional:: rho_cutoff, drho_cutoff
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine xc_rho_set_create
 !!
 !!   FUNCTION
@@ -541,7 +541,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine xc_rho_set_retain(rho_set, error)
 !!       Type(xc_rho_set_type), Pointer:: rho_set
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine xc_rho_set_retain
 !!
 !!   FUNCTION
@@ -580,7 +580,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine xc_rho_set_release(rho_set, error)
 !!       Type(xc_rho_set_type), Pointer:: rho_set
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine xc_rho_set_release
 !!
 !!   FUNCTION
@@ -708,25 +708,21 @@ CONTAINS
 !!     Subroutine xc_rho_set_get(rho_set, can_return_null, rho, drho,&
 !!         norm_drho, rhoa, rhob, norm_drhoa, norm_drhob, drhoa_drhob,&
 !!         rho_1_3, rhoa_1_3, rhob_1_3, drhoa, drhob, rho_cutoff,&
-!!         drho_cutoff, kinetic, kinetic_a, kinetic_b, error)
+!!         drho_cutoff, kinetic, kinetic_a, kinetic_b, local_bounds, error)
 !!       Type(xc_rho_set_type), Pointer:: rho_set
 !!       Logical, Intent (IN), Optional:: can_return_null
-!!       Real(Kind=dp), Dimension(:,:,:), Pointer, Optional:: rho
-!!       Type(cp_3d_r_p_type), Dimension(:), Pointer, Optional:: drho
-!!       Real(Kind=dp), Dimension(:,:,:), Pointer, Optional:: norm_drho
-!!       Real(Kind=dp), Dimension(:,:,:), Pointer, Optional:: rhoa, rhob
+!!       Real(Kind=dp), Dimension(:,:,:), Optional, Pointer:: rho
+!!       Type(cp_3d_r_p_type), Dimension(:), Optional, Pointer:: drho
+!!       Real(Kind=dp), Dimension(:,:,:), Optional, Pointer:: norm_drho,&
+!!         rhoa, rhob, norm_drhoa, norm_drhob, drhoa_drhob, rho_1_3,&
+!!         rhoa_1_3, rhob_1_3
 !!       Type(cp_3d_r_p_type), Dimension(:), Optional, Pointer:: drhoa,&
 !!         drhob
-!!       Real(Kind=dp), Dimension(:,:,:), Pointer, Optional:: norm_drhoa,&
-!!         norm_drhob
-!!       Real(Kind=dp), Dimension(:,:,:), Pointer, Optional:: drhoa_drhob
-!!       Real(Kind=dp), Dimension(:,:,:), Pointer, Optional:: rho_1_3
-!!       Real(Kind=dp), Dimension(:,:,:), Pointer, Optional:: rhoa_1_3,&
-!!         rhob_1_3
 !!       Real(Kind=dp), Intent (OUT), Optional:: rho_cutoff, drho_cutoff
-!!       Real(Kind=dp), Dimension(:,:,:), Pointer, Optional:: kinetic,&
+!!       Real(Kind=dp), Dimension(:,:,:), Optional, Pointer:: kinetic,&
 !!         kinetic_a, kinetic_b
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Integer, Dimension(:,:), Optional, Pointer:: local_bounds
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine xc_rho_set_get
 !!
 !!   FUNCTION
@@ -880,7 +876,7 @@ CONTAINS
 !!       Type(dft_control_type), Pointer:: dft_control
 !!       Type(cell_type), Pointer:: cell
 !!       Type(pw_pool_type), Pointer:: pw_pool
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine xc_rho_set_update
 !!
 !!   FUNCTION
@@ -922,6 +918,7 @@ CONTAINS
     INTEGER, DIMENSION(3, 3)                 :: nd
     LOGICAL                                  :: failure, gradient_f, &
                                                 my_rho_g_local, my_rho_r_local
+    REAL(kind=dp)                            :: rho_cutoff
     TYPE(pw_p_type), DIMENSION(2)            :: my_rho_r
     TYPE(pw_p_type), DIMENSION(3)            :: drho_r_att
     TYPE(pw_p_type), DIMENSION(3, 2)         :: drho_r
@@ -948,6 +945,7 @@ CONTAINS
          "pw_pool cr3d have different size than expected",error,failure)
     nspins=dft_control%nspins
     rho_set%local_bounds=rho_r(1)%pw%pw_grid%bounds_local
+    rho_cutoff=0.5*rho_set%rho_cutoff
 
 ! some checks
     SELECT CASE(dft_control%nspins)
@@ -1051,6 +1049,7 @@ CONTAINS
           CALL pw_pool_create_pw(pw_pool, my_rho_g,&
                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
                error=error)
+
           CALL pw_copy(rho_g(ispin)%pw,my_rho_g)
           SELECT CASE(dft_control%xc_rho_smooth_id)
           CASE (xc_rho_spline2_smooth)
@@ -1156,7 +1155,7 @@ CONTAINS
        IF (needs%rho_1_3) THEN
           CALL pw_pool_create_cr3d(pw_pool, rho_set%rho_1_3, &
                error=error)
-!FM$omp parallel do private(i,j,k)
+!FM$omp parallel do defaults(none),private(i,j,k), shared(rho_set,my_rho)
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1176,7 +1175,7 @@ CONTAINS
        IF (needs%norm_drho) THEN
           CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drho, &
                error=error)
-!FM$omp parallel do private(i,j,k)
+!$omp parallel do private(i,j,k)
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1224,8 +1223,8 @@ CONTAINS
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
-                   rho_set%rho_1_3(i,j,k)=(rho_r(1)%pw%cr3d(i,j,k)+&
-                        rho_r(2)%pw%cr3d(i,j,k))**f13
+                   rho_set%rho_1_3(i,j,k)=MAX(rho_r(1)%pw%cr3d(i,j,k)+&
+                        rho_r(2)%pw%cr3d(i,j,k),0.0_dp)**f13
                 END DO
              END DO
           END DO
@@ -1239,7 +1238,7 @@ CONTAINS
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
-                   rho_set%rhoa_1_3(i,j,k)=(rho_r(1)%pw%cr3d(i,j,k))**f13
+                   rho_set%rhoa_1_3(i,j,k)=MAX(rho_r(1)%pw%cr3d(i,j,k),0.0_dp)**f13
                 END DO
              END DO
           END DO
@@ -1249,7 +1248,7 @@ CONTAINS
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
-                   rho_set%rhob_1_3(i,j,k)=(rho_r(2)%pw%cr3d(i,j,k))**f13
+                   rho_set%rhob_1_3(i,j,k)=MAX(rho_r(2)%pw%cr3d(i,j,k),0.0_dp)**f13
                 END DO
              END DO
           END DO

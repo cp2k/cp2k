@@ -37,10 +37,15 @@ MODULE xc_derivatives
   USE xc_functionals,                  ONLY: xc_lda,&
                                              xc_lsd,&
                                              xc_set
+  USE xc_lyp_new,                      ONLY: lyp_lda_eval,&
+                                             lyp_lda_info,&
+                                             lyp_lsd_eval,&
+                                             lyp_lsd_info
   USE xc_pade,                         ONLY: pade,&
                                              pade_lda_pw_eval,&
                                              pade_lsd_pw_eval
   USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
+                                             xc_rho_set_get,&
                                              xc_rho_set_type
   USE xc_xbecke88,                     ONLY: xb88_lda_eval,&
                                              xb88_lda_info,&
@@ -68,14 +73,13 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine xc_calc_derivatives(derivative_set, xc_control, order,&
 !!         rhoa, rhob, drhoa, drhob, error)
-!!       Implicit None
 !!       Type(xc_derivative_set_type), Pointer:: derivative_set
 !!       Type(xc_control_type), Intent (IN):: xc_control
 !!       Integer, Intent (IN):: order
 !!       Real(Kind=dp), Dimension(:), Intent (IN):: rhoa
 !!       Real(Kind=dp), Dimension(:), Intent (IN), Optional:: rhob, drhoa,&
 !!         drhob
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine xc_calc_derivatives
 !!
 !!   FUNCTION
@@ -198,13 +202,13 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine xc_functional_get_info(functional, lsd, reference,&
-!!         shortform, needs, error)
+!!         shortform, needs, max_deriv, error)
 !!       Character(Len=*), Intent (IN):: functional
 !!       Logical, Intent (IN):: lsd
-!!       Character(Len=*), Intent (OUT), Optional:: reference
-!!       Character(Len=*), Intent (OUT), Optional:: shortform
+!!       Character(Len=*), Intent (OUT), Optional:: reference, shortform
 !!       Type(xc_rho_cflags_type), Intent (INOUT), Optional:: needs
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Integer, Intent (OUT), Optional:: max_deriv
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine xc_functional_get_info
 !!
 !!   FUNCTION
@@ -266,12 +270,26 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
      CASE("BECKE88_LSD")
         CALL xb88_lsd_info(reference=reference,shortform=shortform,&
              needs=needs, max_deriv=max_deriv, error=error)
+     CASE("LYP")
+        IF (lsd) THEN
+           CALL lyp_lsd_info(reference=reference,shortform=shortform,&
+                needs=needs, max_deriv=max_deriv, error=error)
+        ELSE
+           CALL lyp_lda_info(reference=reference,shortform=shortform,&
+                needs=needs, max_deriv=max_deriv, error=error)
+        END IF
+     CASE("LYP_LDA")
+        CALL lyp_lda_info(reference=reference,shortform=shortform,&
+             needs=needs, max_deriv=max_deriv, error=error)
+     CASE("LYP_LSD")
+        CALL lyp_lsd_info(reference=reference,shortform=shortform,&
+             needs=needs, max_deriv=max_deriv, error=error)
      CASE("PADE")
            CALL pade(reference, shortform, lsd=lsd, needs=needs, error=error)
      CASE("NONE")
         IF (PRESENT(reference)) reference=""
         IF (PRESENT(shortform)) shortform=""
-        if (present(max_deriv)) max_deriv=huge(0)
+        IF (PRESENT(max_deriv)) max_deriv=HUGE(0)
      CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
              message="unknown functional '"//TRIM(functional)//"' in "//&
@@ -295,7 +313,7 @@ END SUBROUTINE xc_functional_get_info
 !!       Type(xc_rho_set_type), Pointer:: rho_set
 !!       Type(xc_derivative_set_type), Pointer:: deriv_set
 !!       Integer, Intent (IN):: deriv_order
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine xc_functional_eval
 !!
 !!   FUNCTION
@@ -329,14 +347,13 @@ END SUBROUTINE xc_functional_get_info
 !!
 !!*** **********************************************************************
 SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
-                              deriv_order, density_cut, gradient_cut, error)
+                              deriv_order, error)
 
     CHARACTER(len=*), INTENT(in)             :: functional
     LOGICAL, INTENT(in)                      :: lsd
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(IN)                      :: deriv_order
-    REAL(KIND=dp), INTENT(IN)                :: density_cut, gradient_cut
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -344,10 +361,14 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: density_cut, gradient_cut
 
   failure=.FALSE.
   
   IF (.NOT. failure) THEN
+     CALL xc_rho_set_get(rho_set,rho_cutoff=density_cut,&
+          drho_cutoff=gradient_cut,error=error)
+
      SELECT CASE(functional)
      CASE("BECKE88")
         IF (lsd) THEN
@@ -362,6 +383,20 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
                 grad_deriv=deriv_order,error=error)
      CASE("BECKE88_LSD")
         CALL xb88_lsd_eval(rho_set=rho_set,deriv_set=deriv_set,&
+                grad_deriv=deriv_order,error=error)
+     CASE("LYP")
+        IF (lsd) THEN
+           CALL lyp_lsd_eval(rho_set=rho_set,deriv_set=deriv_set,&
+                grad_deriv=deriv_order,error=error)
+        ELSE
+           CALL lyp_lda_eval(rho_set=rho_set,deriv_set=deriv_set,&
+                grad_deriv=deriv_order,error=error)
+        END IF
+     CASE("LYP_LDA")
+        CALL lyp_lda_eval(rho_set=rho_set,deriv_set=deriv_set,&
+                grad_deriv=deriv_order,error=error)
+     CASE("LYP_LSD")
+        CALL lyp_lsd_eval(rho_set=rho_set,deriv_set=deriv_set,&
                 grad_deriv=deriv_order,error=error)
      CASE("PADE")
         CALL pade(density_cut)

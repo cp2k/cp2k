@@ -18,7 +18,6 @@
 !******************************************************************************
 
 MODULE cp_control_types
-
   USE band,                            ONLY: band_structure_dealloc_ref,&
                                              band_structure_preinit,&
                                              band_structure_type
@@ -120,6 +119,7 @@ MODULE cp_control_types
      LOGICAL, DIMENSION(3)           :: gradient_functionals, crossterms
      REAL(KIND = dp)                        :: density_cut,&
                                         gradient_cut
+     INTEGER :: functional_routine
   END TYPE xc_control_type
 
   ! *** Control parameters for a TIME-DEPENDENT PERTURBATION calculation ***
@@ -191,6 +191,8 @@ MODULE cp_control_types
   INTEGER, PARAMETER :: xc_deriv_pw=0, xc_deriv_spline2=1,&
        xc_deriv_spline3=2, xc_deriv_spline2_smooth=3,&
        xc_deriv_spline3_smooth=4
+  INTEGER, PARAMETER, PUBLIC :: xc_old_f_routine=0, xc_new_f_routine=1,&
+       xc_test_f_routine=2
   INTEGER, SAVE :: last_dft_control_id=0
 
 ! *** Public data types ***
@@ -229,7 +231,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine dft_control_create(dft_control, error)
 !!       Type(dft_control_type), Pointer:: dft_control
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine dft_control_create
 !!
 !!   FUNCTION
@@ -291,7 +293,7 @@ END SUBROUTINE dft_control_create
 !!   SYNOPSIS
 !!     Subroutine dft_control_retain(dft_control, error)
 !!       Type(dft_control_type), Pointer:: dft_control
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine dft_control_retain
 !!
 !!   FUNCTION
@@ -339,7 +341,7 @@ END SUBROUTINE dft_control_retain
 !!   SYNOPSIS
 !!     Subroutine dft_control_release(dft_control, error)
 !!       Type(dft_control_type), Pointer:: dft_control
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine dft_control_release
 !!
 !!   FUNCTION

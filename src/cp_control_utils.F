@@ -15,7 +15,6 @@
 !******************************************************************************
 
 MODULE cp_control_utils
-
   USE cp_control_types,                ONLY: dft_control_create,&
                                              dft_control_type,&
                                              kg_control_type,&
@@ -27,10 +26,13 @@ MODULE cp_control_utils
                                              xc_deriv_spline2_smooth,&
                                              xc_deriv_spline3,&
                                              xc_deriv_spline3_smooth,&
+                                             xc_new_f_routine,&
+                                             xc_old_f_routine,&
                                              xc_rho_nn10,&
                                              xc_rho_no_smooth,&
                                              xc_rho_spline2_smooth,&
-                                             xc_rho_spline3_smooth
+                                             xc_rho_spline3_smooth,&
+                                             xc_test_f_routine
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
@@ -111,6 +113,7 @@ CONTAINS
 !!  xc_smooth_rho    [ NONE, NN10, SPLINE2, SPLINE3 ](in order of smoothness) !
 !!  xc_deriv         [ PW, SPLINE3, SPLINE2, SPLINE2_SMOOTH, SPLINE3_SMOOTH ] !
 !!                   (in order of growing smoothness)
+!!  functional_routine [ old, new, test ]
 !!                                                                            !
 !!<----------------------------------------------------------------------------
 
@@ -155,6 +158,7 @@ CONTAINS
     dft_control % xc_control % gradient_cut = 1.0E-8_dp
     dft_control % xc_control % gradient_functionals = .FALSE.
     dft_control % xc_control % crossterms = .FALSE.
+    dft_control % xc_control % functional_routine = xc_old_f_routine
 
     SELECT CASE (globenv%run_type)
     CASE ("WAVEFUNCTION OPTIMIZATION","MONTE CARLO")
@@ -277,8 +281,23 @@ CONTAINS
              END SELECT
           CASE ("DERIVE_FUNCTION_RHO")
              CALL read_object(dft_control%derive_function_rho)
+          CASE ("FUNCTIONAL_ROUTINE")
+             CALL read_object(str1,lower_to_upper=.TRUE.)
+             SELECT CASE(str1)
+             CASE ("NEW")
+                dft_control % xc_control % functional_routine = &
+                     xc_new_f_routine
+             CASE ("OLD")
+                dft_control % xc_control % functional_routine = &
+                     xc_old_f_routine
+             CASE ("TEST")
+                dft_control % xc_control % functional_routine = &
+                     xc_test_f_routine
+             CASE DEFAULT
+                CALL stop_parser(routine=routine,message="INVALID_KEYWORD for FUNCTIONAL_ROUTINE "//str1)
+             END SELECT
           CASE DEFAULT
-            CALL stop_parser(routine=routine,message="INVALID_KEYWORD")
+            CALL stop_parser(routine=routine,message="INVALID_KEYWORD "//keyword)
           END SELECT
         END IF
       END DO
@@ -564,8 +583,8 @@ CONTAINS
     INTEGER                                  :: igrid_level, istat, &
                                                 ngrid_level
     LOGICAL                                  :: cutoff_set, multgrid_set, &
-                                                ngrid_set, section_found, &
-                                                progression_set
+                                                ngrid_set, progression_set, &
+                                                section_found
     REAL(KIND=dp)                            :: value
 
 !   ---------------------------------------------------------------------------

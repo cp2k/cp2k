@@ -329,6 +329,7 @@ OBJECTS_GENERIC =\
  xc_functionals_utilities.o\
  xc_ke_gga.o\
  xc_lyp.o\
+ xc_lyp_new.o\
  xc_pade.o\
  xc_perdew86.o\
  xc_perdew_wang.o\
