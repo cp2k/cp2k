@@ -37,7 +37,7 @@ MODULE spherical_harmonics
 ! *****************************************************************************
 
   USE kinds,         ONLY: dbl
-  USE mathconstants, ONLY: pi, fac
+  USE mathconstants, ONLY: pi, fac, maxfac
   USE termination,   ONLY: stop_memory, stop_program
   USE global_types, ONLY : global_environment_type
 
@@ -264,17 +264,18 @@ CONTAINS
       mb = m2
     END IF
 
-    IF ( MOD(la+lb+lp,2) == 0 .AND. la+lb >= lp .AND. lp >= lb-la ) THEN
+    IF ( MOD(la+lb+lp,2) == 0 .AND. la+lb >= lp .AND. lp >= lb-la &
+         .AND. lb-mb >= 0 ) THEN
        ll = (2*lp+1) * (2*la+1) * (2*lb+1)
        pref = 1._dbl/SQRT(4._dbl*pi) * 0.5_dbl * SQRT ( REAL(ll,dbl) * &
-              (fac(lp-mp)/fac(lp+mp)) * &
-              (fac(la-ma)/fac(la+ma)) * (fac(lb-mb)/fac(lb+mb)) )
+              (sfac(lp-mp)/sfac(lp+mp)) * &
+              (sfac(la-ma)/sfac(la+ma)) * (sfac(lb-mb)/sfac(lb+mb)) )
        s = (la+lb+lp)/2
        tmin = MAX ( 0, -lb+la-mp )
        tmax = MIN ( lb+la-mp, lp-mp, la-ma )
-       f1 = REAL( 2 * (-1)**(s-lb-ma), dbl ) * (fac(lb+mb)/fac(lb-mb)) * &
-            fac(la+ma)/(fac(s-lp)*fac(s-lb)) * fac(2*s-2*la)/fac(s-la) * &
-            (fac(s)/fac(2*s+1))
+       f1 = REAL( 2 * (-1)**(s-lb-ma), dbl ) * (sfac(lb+mb)/sfac(lb-mb)) * &
+            sfac(la+ma)/(sfac(s-lp)*sfac(s-lb)) * sfac(2*s-2*la)/sfac(s-la) * &
+            (sfac(s)/sfac(2*s+1))
        f2 = 0._dbl
        DO t=tmin,tmax
          z1 = lp+mp+t
@@ -282,8 +283,7 @@ CONTAINS
          z3 = lp-mp-t
          z4 = lb-la+mp+t
          z5 = la-ma-t
-         f2 = f2 + (-1)**t * (fac(z1)/(fac(t)*fac(z3)))* (fac(z2)/(fac(z4)*fac(z5)))
-!        f2 = f2 + (-1)**t * fac(z1)*fac(z2)/(fac(t)*fac(z3))/(fac(z4)*fac(z5))
+         f2 = f2 + (-1)**t * (sfac(z1)/(sfac(t)*sfac(z3)))* (sfac(z2)/(sfac(z4)*sfac(z5)))
        END DO
        cgc = pref * f1 * f2
     ELSE
@@ -291,6 +291,21 @@ CONTAINS
     END IF
 
   END FUNCTION cgc
+
+  FUNCTION sfac ( n ) RESULT (fval)
+    INTEGER :: n, i
+    REAL ( dbl ) :: fval
+    IF ( n > maxfac ) THEN
+       fval = fac(maxfac)
+       DO i = maxfac+1, n
+          fval = real(i,dbl)*fval
+       END DO
+    ELSE IF ( n >= 0 ) THEN
+       fval = fac(n)
+    ELSE
+       fval = 1._dbl
+    END IF
+  END FUNCTION sfac
 
 ! *****************************************************************************
 

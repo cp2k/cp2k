@@ -423,7 +423,6 @@ SUBROUTINE matmul_test ( globenv )
     tstart = m_cputime ( )
     DO j = 1, ntim
       CALL dgemm ( "N", "N", len, len, len, 1._dbl, ma, len, mb, len, 0._dbl, mc, len )
-      CALL dcopy ( len * len , mc, 1, ma, 1)
     END DO
     tend = m_cputime ( )
     t = tend - tstart
