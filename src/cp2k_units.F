@@ -38,7 +38,7 @@ MODULE cp2k_units
 
   TYPE unit_convert_type
  !    PRIVATE  later
-     REAL ( dbl ) :: mass, fs, kcal, kelvin, degree, bar, wavenum, angstrom, eps0
+     REAL ( dbl ) :: mass, fs, kcal, kelvin, degree, bar, wavenum, angstrom, bohr, eps0
      CHARACTER ( LEN = 10 ) :: e_label, l_label, vol_label,  &
                                temp_label, pres_label,       &
                                angl_label
@@ -94,6 +94,8 @@ SUBROUTINE init_cp2k_units ()
   units % kelvin = boltzmann / joule
 ! angstrom to length AU
   units % angstrom = bohr
+! length AU to angstrom
+  units % bohr = 1.0 / bohr
 ! degrees to radians
   units % degree = twopi / 360.0_dbl
 ! bar to pressure AU

@@ -1193,6 +1193,9 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 1. Read in all the Bonds info from the param file here
+  !      Vbond = Kb(b-b0)^2
+  !      UNITS for Kb: [(kcal/mol)/(A^2)] to [Eh/(AU^2)]
+  !      FACTOR of "2" rolled into Kb
   !-----------------------------------------------------------------------------
   nbond = 0
   label = 'BONDS'
@@ -1219,8 +1222,12 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
                            TRIM(chm_info%bond_b(nbond))," ",&
                            chm_info%bond_k(nbond),&
                            chm_info%bond_r0(nbond)
+       ! Do some units conversion into internal atomic units
        CALL convert_to_cp2k_units("ANGSTROM",length=chm_info%bond_r0(nbond))
        CALL convert_to_cp2k_units("KCAL",energy=chm_info%bond_k(nbond))
+       CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(nbond))
+       CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(nbond))
+       chm_info%bond_k(nbond) = 2.0_dbl * chm_info%bond_k(nbond)
        CALL read_line
      END DO
   END IF
@@ -1228,6 +1235,12 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 2. Read in all the Bends and UB info from the param file here
+  !      Vangle = Ktheta(theta-theta0)^2
+  !      UNITS for Ktheta: [(kcal/mol)/(rad^2)] to [Eh/(rad^2)]
+  !      FACTOR of "2" rolled into Ktheta
+  !      Vub = Kub(S-S0)^2
+  !      UNITS for Kub: [(kcal/mol)/(A^2)] to [Eh/(AU^2)]
+  !      FACTOR of "2" rolled into Kub
   !-----------------------------------------------------------------------------
   nbend = 0
   label = 'ANGLES'
@@ -1266,8 +1279,10 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
                            TRIM(chm_info%bend_c(nbend))," ",&
                            chm_info%bend_k(nbend),&
                            chm_info%bend_theta0(nbend)
+       ! Do some units conversion into internal atomic units
        CALL convert_to_cp2k_units("DEGREE",angle=chm_info%bend_theta0(nbend))
        CALL convert_to_cp2k_units("KCAL",energy=chm_info%bend_k(nbend))
+       chm_info%bend_k(nbend) = 2.0_dbl * chm_info%bend_k(nbend)
        IF (test_next()=='C') THEN
          CALL get_next(chm_info%ub_k(nbend))
          CALL get_next(chm_info%ub_r0(nbend))
@@ -1277,8 +1292,12 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
                              TRIM(chm_info%ub_c(nbend))," ",&
                              chm_info%ub_k(nbend),&
                              chm_info%ub_r0(nbend)
+         ! Do some units conversion into internal atomic units
          CALL convert_to_cp2k_units("ANGSTROM",length=chm_info%ub_r0(nbend))
          CALL convert_to_cp2k_units("KCAL",energy=chm_info%ub_k(nbend))
+         CALL convert_to_cp2k_units("BOHR",length=chm_info%ub_k(nbend))
+         CALL convert_to_cp2k_units("BOHR",length=chm_info%ub_k(nbend))
+         chm_info%ub_k(nbend) = 2.0_dbl * chm_info%ub_k(nbend)
        ELSE
          chm_info%ub_k  = 0.0_dbl
          chm_info%ub_r0 = 0.0_dbl
@@ -1291,6 +1310,8 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 3. Read in all the Dihedrals info from the param file here
+  !      Vtorsion = Kphi(1+COS(n(phi)-delta))
+  !      UNITS for Kphi: [(kcal/mol)] to [Eh]
   !-----------------------------------------------------------------------------
   ntorsion = 0
   label = 'DIHEDRALS'
@@ -1328,6 +1349,7 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
                            chm_info%torsion_k(ntorsion),&
                            chm_info%torsion_m(ntorsion),&
                            chm_info%torsion_cosphi0(ntorsion)
+       ! Do some units conversion into internal atomic units
        CALL convert_to_cp2k_units("DEGREE",&
                                   angle=chm_info%torsion_cosphi0(ntorsion))
        CALL convert_to_cp2k_units("KCAL",energy=chm_info%torsion_k(ntorsion))
@@ -1341,6 +1363,8 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 4. Read in all the Improper info from the param file here
+  !      Vimpr = Kpsi(psi-psi0)^2
+  !      UNITS for Kpsi: [(kcal/mol)/(rad^2)] to [Eh/(rad^2)]
   !-----------------------------------------------------------------------------
   nimpr = 0
   label = 'IMPROPER'
@@ -1375,6 +1399,7 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
                            TRIM(chm_info%impr_d(nimpr))," ",&
                            chm_info%impr_k(nimpr),&
                            chm_info%impr_phi0(nimpr)
+       ! Do some units conversion into internal atomic units
        CALL convert_to_cp2k_units("DEGREE",angle=chm_info%impr_phi0(nimpr))
        CALL convert_to_cp2k_units("KCAL",energy=chm_info%impr_k(nimpr))
        CALL read_line

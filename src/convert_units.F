@@ -108,6 +108,8 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
   IF ( PRESENT ( length ) ) THEN
      IF ( unit_char == 'ANGSTROM' ) &
      length = length * units % angstrom ** ll
+     IF ( unit_char == 'BOHR' ) &
+     length = length * units % bohr ** ll
   ENDIF
 
   IF ( PRESENT ( mass ) ) THEN
