@@ -82,13 +82,10 @@ END SUBROUTINE m_datum
 
 ! *** Flush the output to a logical unit ***
 
-  SUBBROUTINE m_flush(lunit)
-
+  SUBROUTINE m_flush(lunit)
     INTEGER, INTENT(IN) :: lunit
-
 !MK no access to a DEC to check for flush
 !MK CALL flush(lunit)
-
   END SUBROUTINE m_flush
 
 !******************************************************************************
