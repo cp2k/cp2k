@@ -22,27 +22,25 @@
 
 MODULE qs_interactions
 
-  USE kinds, ONLY: dp
-
-  USE atomic_kind_types,        ONLY: atomic_kind_type,&
-                                      get_atomic_kind
-  USE basis_set_types,          ONLY: gto_basis_set_type,&
-                                      get_gto_basis_set,&
-                                      set_gto_basis_set
-  USE dft_types,                ONLY: kg_control_type,&
-                                      qs_control_type
-  USE external_potential_types, ONLY: all_potential_type,&
-                                      elp_potential_type,&
-                                      get_potential,&
-                                      gth_potential_type,&
-                                      set_potential
-  USE global_types,             ONLY: global_environment_type
-  USE orbital_pointers,         ONLY: coset,ncoset
-  USE simulation_cell,          ONLY: cell_type,&
-                                      get_cell
-  USE termination,              ONLY: stop_program
-
-
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE basis_set_types,                 ONLY: gto_basis_set_type,&
+                                             get_gto_basis_set,&
+                                             set_gto_basis_set
+  USE dft_types,                       ONLY: kg_control_type,&
+                                             qs_control_type
+  USE external_potential_types,        ONLY: all_potential_type,&
+                                             elp_potential_type,&
+                                             get_potential,&
+                                             gth_potential_type,&
+                                             set_potential
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE orbital_pointers,                ONLY: coset,ncoset
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_cell
+  USE termination,                     ONLY: stop_program
 
   IMPLICIT NONE
 
@@ -79,10 +77,10 @@ CONTAINS
 
 !   ***************************************************************************
 
+    TYPE(kg_control_type)                         :: kg_control
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(cell_type), POINTER                      :: cell
     TYPE(global_environment_type), INTENT(IN)     :: globenv
-    TYPE(kg_control_type)                         :: kg_control
 
 !   *** Local variables ***
 
@@ -297,14 +295,14 @@ CONTAINS
 
 !   Purpose: Initialize all the atomic kind radii for a given threshold value.
 
-!   History: - Creation (24.06.1999, Matthias Krack)
+!   History: - Creation (24.06.1999,MK)
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(qs_control_type), INTENT(IN)             :: qs_control
     TYPE(cell_type), POINTER                      :: cell
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(global_environment_type), INTENT(IN)     :: globenv
-    TYPE(qs_control_type)                         :: qs_control
 
 !   *** Local variables ***
 
@@ -314,15 +312,17 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
 
     REAL(KIND = dp) :: alpha_core_charge,alpha_ppl,ccore_charge,cerf_ppl,&
-                core_charge_radius,gcca,kind_radius,ppl_radius,ppnl_radius,zeta
-    INTEGER  :: iexp_ppl,ikind,ipgf,iprj_ppnl,iset,ishell,l,lppl,lppnl,&
-                lprj_ppnl,nexp_ppl,nkind,nset
+                       core_charge_radius,gcca,kind_radius,ppl_radius,&
+                       ppnl_radius,zeta
+    INTEGER         :: iexp_ppl,ikind,ipgf,iprj_ppnl,iset,ishell,l,lppl,lppnl,&
+                       lprj_ppnl,nexp_ppl,nkind,nset
 
     REAL(KIND = dp), DIMENSION(:), POINTER     :: alpha_ppnl,cexp_ppl,set_radius
-    INTEGER, DIMENSION(:), POINTER      :: npgf,nprj_ppnl,nshell
     REAL(KIND = dp), DIMENSION(:,:), POINTER   :: cprj_ppnl,pgf_radius,zet
-    INTEGER, DIMENSION(:,:), POINTER    :: lshell
     REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: gcc
+
+    INTEGER, DIMENSION(:,:), POINTER :: lshell
+    INTEGER, DIMENSION(:), POINTER   :: npgf,nprj_ppnl,nshell
 
 !   ---------------------------------------------------------------------------
 
@@ -466,12 +466,12 @@ CONTAINS
 !   Purpose: Write the radii of the core charge distributions to the output
 !            unit.
 
-!   History: - Creation (15.09.2000, Matthias Krack)
+!   History: - Creation (15.09.2000,MK)
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(cell_type), POINTER                      :: cell
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(global_environment_type), INTENT(IN)     :: globenv
 
 !   *** Local variables ***
@@ -480,10 +480,11 @@ CONTAINS
     TYPE(all_potential_type), POINTER :: all_potential
     TYPE(elp_potential_type), POINTER :: elp_potential
     TYPE(gth_potential_type), POINTER :: gth_potential
-    CHARACTER(LEN=60)                 :: name
-    CHARACTER(LEN=8)                  :: unit_of_length_name
-    REAL(KIND = dp)                          :: core_charge_radius,unit_of_length
-    INTEGER                           :: ikind,nkind,output_unit
+
+    CHARACTER(LEN=default_string_length) :: name
+    CHARACTER(LEN=8)                     :: unit_of_length_name
+    REAL(KIND = dp)                      :: core_charge_radius,unit_of_length
+    INTEGER                              :: ikind,nkind,output_unit
 
 !   ---------------------------------------------------------------------------
 
@@ -535,25 +536,29 @@ CONTAINS
 
 !   Purpose: Write the orbital basis function radii to the output unit.
 
-!   History: - Creation (05.06.2000, Matthias Krack)
+!   History: - Creation (05.06.2000,MK)
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(cell_type), POINTER                      :: cell
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(global_environment_type), INTENT(IN)     :: globenv
 
 !   *** Local variables ***
 
     TYPE(atomic_kind_type), POINTER   :: atomic_kind
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
-    CHARACTER(LEN=60)                 :: name
-    CHARACTER(LEN=8)                  :: unit_of_length_name
-    REAL(KIND = dp)                          :: kind_radius,unit_of_length
-    INTEGER                           :: ikind,ipgf,iset,nkind,nset,output_unit
+
+    CHARACTER(LEN=default_string_length) :: name
+    CHARACTER(LEN=8)                     :: unit_of_length_name
+    REAL(KIND = dp)                      :: kind_radius,unit_of_length
+    INTEGER                              :: ikind,ipgf,iset,nkind,nset,&
+                                            output_unit
+
     REAL(KIND = dp), DIMENSION(:), POINTER   :: set_radius
-    INTEGER, DIMENSION(:), POINTER    :: npgf
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: pgf_radius
+
+    INTEGER, DIMENSION(:), POINTER :: npgf
 
 !   ---------------------------------------------------------------------------
 
@@ -637,22 +642,23 @@ CONTAINS
 !            pseudopotential (GTH, local part) to the logical unit number
 !            "output_unit".
 
-!   History: - Creation (06.10.2000, Matthias Krack)
+!   History: - Creation (06.10.2000,MK)
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(cell_type), POINTER                      :: cell
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(global_environment_type), INTENT(IN)     :: globenv
 
 !   *** Local variables ***
 
     TYPE(atomic_kind_type), POINTER   :: atomic_kind
     TYPE(gth_potential_type), POINTER :: gth_potential
-    CHARACTER(LEN=60)                 :: name
-    CHARACTER(LEN=8)                  :: unit_of_length_name
-    REAL(KIND = dp)                          :: ppl_radius,unit_of_length
-    INTEGER                           :: ikind,nkind,output_unit
+
+    CHARACTER(LEN=default_string_length) :: name
+    CHARACTER(LEN=8)                     :: unit_of_length_name
+    REAL(KIND = dp)                      :: ppl_radius,unit_of_length
+    INTEGER                              :: ikind,nkind,output_unit
 
 !   ---------------------------------------------------------------------------
 
@@ -691,22 +697,23 @@ CONTAINS
 !            pseudopotential (GTH, non-local part) to the logical unit number
 !            "output_unit".
 
-!   History: - Creation (06.10.2000, Matthias Krack)
+!   History: - Creation (06.10.2000,MK)
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(cell_type), POINTER                      :: cell
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(global_environment_type), INTENT(IN)     :: globenv
 
 !   *** Local variables ***
 
     TYPE(atomic_kind_type), POINTER   :: atomic_kind
     TYPE(gth_potential_type), POINTER :: gth_potential
-    CHARACTER(LEN=60)                 :: name
-    CHARACTER(LEN=8)                  :: unit_of_length_name
-    REAL(KIND = dp)                          :: ppnl_radius,unit_of_length
-    INTEGER                           :: ikind,nkind,output_unit
+
+    CHARACTER(LEN=default_string_length) :: name
+    CHARACTER(LEN=8)                     :: unit_of_length_name
+    REAL(KIND = dp)                      :: ppnl_radius,unit_of_length
+    INTEGER                              :: ikind,nkind,output_unit
 
 !   ---------------------------------------------------------------------------
 
@@ -737,7 +744,6 @@ CONTAINS
 
   END SUBROUTINE write_ppnl_radii
 
-
 ! *****************************************************************************
 
     FUNCTION exp_radius(l,alpha,threshold,prefactor,epsin) RESULT(radius)
@@ -747,7 +753,7 @@ CONTAINS
 
 !            g(r) = prefactor*r**l*exp(-alpha*r**2) - threshold = 0
 
-!   History: - Creation (26.02.1999, Matthias Krack)
+!   History: - Creation (26.02.1999,MK)
 !            - Modified to bisection to avoid division by zero (01.2002, Joost)
 !            - that means the old version contains bugs .......(04.2002, Joost)
 !              so keep this one ...

@@ -874,8 +874,7 @@ CONTAINS
           CALL reallocate(potential%elec_conf,0,l)
           potential%elec_conf(:) = elec_conf(:)
 
-          potential%z = SUM(elec_conf)
-          potential%zeff = potential%z
+          potential%zeff = SUM(elec_conf)
 
           DEALLOCATE (elec_conf,STAT=istat)
           IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&

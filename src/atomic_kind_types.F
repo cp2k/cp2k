@@ -63,10 +63,12 @@ MODULE atomic_kind_types
                                              gth_potential_type,&
                                              init_potential,&
                                              read_potential,&
+                                             set_potential,&
                                              write_potential
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: int_size,&
-                                             dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
+                                             int_size
   USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                              ncoset
   USE pao_bas_projection_types,        ONLY: cp_proj_dealloc,&
@@ -85,6 +87,7 @@ MODULE atomic_kind_types
                                              uppercase
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+
   IMPLICIT NONE
 
   PRIVATE
@@ -92,7 +95,6 @@ MODULE atomic_kind_types
 ! *** Global parameters (only in this module)
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "atomic_kind_types"
-  INTEGER, PARAMETER          :: max_name_length = 60
 
 ! *** Define the atomic kind types ***
 
@@ -104,9 +106,9 @@ MODULE atomic_kind_types
     TYPE(gto_basis_set_type), POINTER      :: aux_basis_set
     TYPE(gto_basis_set_type), POINTER      :: orb_basis_set
     TYPE(pao_bas_projection_type), POINTER :: pao_bas_proj
-    CHARACTER(LEN=max_name_length)         :: name
+    CHARACTER(LEN=default_string_length)   :: name
     CHARACTER(LEN=2)                       :: element_symbol
-    REAL(KIND = dp)                               :: mass
+    REAL(KIND = dp)                        :: mass
     INTEGER                                :: kind_number,&
                                               natom,&
                                               number_of_grid_points
@@ -270,9 +272,9 @@ CONTAINS
     TYPE(gto_basis_set_type), OPTIONAL, POINTER      :: aux_basis_set,&
                                                         orb_basis_set
     CHARACTER(LEN=2), OPTIONAL, INTENT(OUT)          :: element_symbol
-    CHARACTER(LEN=max_name_length), OPTIONAL,&
+    CHARACTER(LEN=default_string_length), OPTIONAL,&
       INTENT(OUT)                                    :: name
-    REAL(KIND = dp), OPTIONAL, INTENT(OUT)                  :: alpha_core_charge,&
+    REAL(KIND = dp), OPTIONAL, INTENT(OUT)           :: alpha_core_charge,&
                                                         ccore_charge,&
                                                         core_charge_radius,&
                                                         mass,qeff
@@ -836,13 +838,14 @@ CONTAINS
 
     TYPE(cp_error_type)            :: error
     TYPE(cp_sll_int_type), POINTER :: min_bas_sll
-    CHARACTER(LEN=max_name_length) :: aux_basis_set_name,keyword,&
-                                      orb_basis_set_name,potential_name,&
-                                      potential_type
-    CHARACTER(LEN=3)               :: test_result
-    CHARACTER(LEN=2)               :: current_symbol,element_symbol
-    INTEGER                        :: i,ikind,ipos,istat,z, min_b_index
-    LOGICAL                        :: found,section_found, failure
+
+    CHARACTER(LEN=default_string_length) :: aux_basis_set_name,keyword,&
+                                            orb_basis_set_name,&
+                                            potential_name,potential_type
+    CHARACTER(LEN=3)                     :: test_result
+    CHARACTER(LEN=2)                     :: current_symbol,element_symbol
+    INTEGER                              :: i,ikind,ipos,istat,min_b_index,z
+    LOGICAL                              :: failure,found,section_found
 
 !   ---------------------------------------------------------------------------
 
@@ -1013,10 +1016,12 @@ CONTAINS
         CALL allocate_potential(atomic_kind%all_potential)
         CALL read_potential(atomic_kind%element_symbol,potential_name,&
                             atomic_kind%all_potential,globenv)
+        CALL set_potential(atomic_kind%all_potential,z=z)
       CASE ("GTH")
         CALL allocate_potential(atomic_kind%gth_potential)
         CALL read_potential(atomic_kind%element_symbol,potential_name,&
                             atomic_kind%gth_potential,globenv)
+        CALL set_potential(atomic_kind%gth_potential,z=z)
       CASE ("ELP")
         CALL allocate_potential(atomic_kind%elp_potential)
         CALL read_potential(atomic_kind%element_symbol,potential_name,&

@@ -61,7 +61,8 @@ MODULE pao_env_methods
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE pao_bas_projection_types,        ONLY: cp_proj_get,&
                                              pao_bas_projection_type
   USE pao_glob_angles_methods,         ONLY: cp_dealloc,&
@@ -196,7 +197,7 @@ CONTAINS
     INTEGER, DIMENSION(:), ALLOCATABLE :: min_bas_sizes, full_bas_sizes
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     INTEGER, DIMENSION(:), POINTER :: atom_list
-    CHARACTER(len=60) :: name
+    CHARACTER(len=default_string_length) :: name
     TYPE(atomic_kind_type), POINTER :: atomic_kind
     TYPE(cp_subsystem_type), POINTER :: subsys
     TYPE(particle_list_type), POINTER :: particles
