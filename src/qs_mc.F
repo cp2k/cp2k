@@ -190,7 +190,7 @@ CONTAINS
 ! pull all the information together into one environment
       CALL set_mc_env( mc_env, mc_par = mc_par, force_env=force_env)
       CALL mc_traditional_ensemble(mc_env,globenv,error)
-!      CALL mc_traditional_ensemble(mc_par,force_env,globenv,error)
+
   CASE("gemc")
 
 ! prepare the second box
@@ -243,20 +243,25 @@ CONTAINS
       ENDIF
 
 ! check for restart
-      CALL get_mc_par(mc_par_2,lrestart=lrestart,box2_file=box2_file)
+      CALL get_mc_par(mc_par_2,lrestart=lrestart,dat_file=dat_file)
       IF ( lrestart ) THEN
          CALL read_mc_restart(mc_par_2,force_env_2,iw)
+         CALL force_env_release(force_env_2)
+         globenv%input_file_name=dat_file
+         CALL quickstep_create_force_env(force_env_2,globenv,error=error)
       ENDIF
 
 ! pull all the information together into one environment
       CALL set_mc_env( mc_env, mc_par = mc_par, force_env=force_env)
       CALL set_mc_env( mc_env_2, mc_par = mc_par_2,force_env=force_env_2)
 
+! do the calculation
       CALL gemc_nvt(mc_env,mc_env_2,globenv,error)
-!      CALL gemc_nvt(mc_par,mc_par_2,force_env,force_env_2,globenv,error)
 
+! clean up after ourselves
       CALL get_mc_env( mc_env_2, mc_par = mc_par_2,force_env=force_env_2)
 
+      CALL get_mc_par(mc_par_2,box2_file=box2_file)
       globenv%input_file_name=box2_file
       CALL mc_env_release ( mc_env_2, error )
       CALL force_env_release(force_env_2)
