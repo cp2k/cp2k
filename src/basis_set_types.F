@@ -762,7 +762,7 @@ CONTAINS
 
           maxlcgf = MAX(maxlcgf,maxl)
 
-          CALL init_orbital_pointers(maxlcgf)
+          CALL init_orbital_pointers(maxlcgf+1)
 
 !         *** Allocate the global variables ***
 
