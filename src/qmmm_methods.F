@@ -69,7 +69,9 @@ MODULE qmmm_methods
                                              coeff_transform_space,&
                                              coeff_type,&
                                              coeff_zero
-  USE qmmm_types,                      ONLY: qmmm_env_type
+  USE qmmm_types,                      ONLY: qmmm_env_type,&
+                                             qmmm_pot_type,&
+                                             qmmm_pot_p_type
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_create_pw,&
@@ -118,7 +120,7 @@ MODULE qmmm_methods
   PRIVATE
   LOGICAL,        PARAMETER, PRIVATE   :: debug_this_module=.TRUE.
   REAL(KIND=dbl), PARAMETER, PRIVATE   :: Dx = 0.01_dbl    ! Debug Variables
-  REAL(KIND=dbl), PARAMETER, PRIVATE   :: MaxErr = 5.0_dbl ! Debug Variables
+  REAL(KIND=dbl), PARAMETER, PRIVATE   :: MaxErr = 1.0_dbl ! Debug Variables
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qmmm_methods'
   PUBLIC :: qmmm_calculate_energy,&
             qmmm_modify_hartree_pot,&
@@ -313,6 +315,7 @@ CONTAINS
                                       mm_atom_index=qmmm_env%mm_atom_index,&
                                       num_mm_atoms=qmmm_env%num_mm_atoms,&
                                       dvol=rho%rho_r(1)%pw%pw_grid%dvol,&
+                                      Potentials=qmmm_env%Potentials,&
                                       Forces=Forces,&
                                       error=error)
     CASE("GAUSS")
@@ -331,6 +334,7 @@ CONTAINS
                                       eps_mm_rspace=qmmm_env%eps_mm_rspace,&
                                       cube_info=ks_qmmm_env_loc%cube_info,&
                                       pgfs=qmmm_env%pgfs,&
+                                      Potentials=qmmm_env%potentials,&
                                       Forces=Forces,&
                                       error=error)
     CASE("NONE")
@@ -358,6 +362,7 @@ CONTAINS
                               mm_particles=mm_particles,&
                               mm_atom_index=qmmm_env%mm_atom_index,&
                               num_mm_atoms=qmmm_env%num_mm_atoms,&
+                              Potentials=qmmm_env%Potentials,&
                               error=error)                              
     ENDIF
     !
@@ -399,7 +404,7 @@ CONTAINS
 !!*************************************************************************
   SUBROUTINE qmmm_forces_on_grid(rho,v_qmmm,mm_particles,mm_charges,&
        mm_el_pot_radius, mm_atom_index, num_mm_atoms, dvol, Forces,&
-       error)
+       Potentials,error)
     IMPLICIT NONE
     ! Arguments
     TYPE(cp_error_type), INTENT(inout), &
@@ -412,6 +417,7 @@ CONTAINS
     REAL(dbl), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
     INTEGER, INTENT(IN) :: num_mm_atoms
     REAL(KIND=dbl), DIMENSION(:,:), POINTER :: Forces
+    TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER :: Potentials
     ! Local Variables
     INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_on_grid', &
@@ -427,6 +433,7 @@ CONTAINS
                                  num_mm_atoms,&
                                  dvol,&
                                  Forces,&
+                                 Potentials,&
                                  error)
     CALL timestop(0.0_dp,handle)
 
@@ -454,7 +461,8 @@ CONTAINS
 !!
 !!*************************************************************************
   SUBROUTINE qmmm_forces_on_grid_low(v_qmmm,Rho,mm_particles,mm_charges,&
-       mm_el_pot_radius, mm_atom_index,num_mm_atoms,dvol,Forces,error)
+       mm_el_pot_radius, mm_atom_index,num_mm_atoms,dvol,Forces,Potentials,&
+       error)
     Implicit None
     ! Arguments
     TYPE(cp_error_type), INTENT(inout), &
@@ -467,6 +475,7 @@ CONTAINS
     REAL(KIND=dbl), INTENT(IN) :: dvol
     REAL(KIND=dbl), DIMENSION(:,:), POINTER      :: Forces
     INTEGER, INTENT(IN) :: num_mm_atoms
+    TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER :: Potentials
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_on_grid_low', &
          routineP = moduleN//':'//routineN
@@ -474,10 +483,12 @@ CONTAINS
     INTEGER :: handle
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER                   :: n1,n2,n3
-    INTEGER :: i, j, k, Imm, IndMM,jj,my_k,my_j
-    REAL(dbl) :: r, r0, qt, rNexp, rNexp0, rNexp1, r0Nexp, r0Nexp1, dpot
+    INTEGER :: i, j, k, Imm, IndMM,jj,my_k,my_j, Imp, Ipot, ix
+    REAL(dbl) :: r, rc, qt, rx, rx2,rx3,rx4,dx,dpot
     REAL(dbl) :: dr1,dr2,dr3, xs1,xs2,xs3, rv1,rv2,rv3, rt1,rt2,rt3
     REAL(dbl) :: ft1, ft2, ft3, fac
+    REAL(dbl), DIMENSION(:,:), POINTER :: pot0_2
+    TYPE(qmmm_pot_type), POINTER :: Pot
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(mm_particles),cp_failure_level,routineP,error,failure)
@@ -492,59 +503,67 @@ CONTAINS
     dr2 = v_qmmm%pw%pw_grid%dr(2)
     dr3 = v_qmmm%pw%pw_grid%dr(3)
     CALL timeset(routineN,"I","",handle)
+    MainLoopPot: DO Ipot = 1, SIZE(Potentials)
+       Pot    => Potentials(Ipot)%Pot
+       dx     =  Pot%dx 
+       pot0_2 => Pot%pot0_2
+       LoopMM: DO Imp = 1, SIZE(Pot%mm_atom_index)
+          Imm = Pot%mm_atom_index(Imp)
+          IndMM = mm_atom_index(Imm) 
+          rc = mm_el_pot_radius(Imm) 
+          rt1= mm_particles(IndMM)%r(1) 
+          rt2= mm_particles(IndMM)%r(2) 
+          rt3= mm_particles(IndMM)%r(3)
+          ft1 =0.0_dbl
+          ft2 =0.0_dbl
+          ft3 =0.0_dbl
+          qt=mm_charges(Imm)*dvol/dx
+          !$omp parallel do default (none) private( i, j, k, Imm, IndMM,jj,my_k,my_j,&
+          !$omp                            r, rc, qt, 
+          !$omp                   dr1,dr2,dr3, xs1,xs2,xs3, rv1,rv2,rv3, rt1,rt2,rt3,&
+          !$omp                   ft1,ft2,ft3,dpot,fac) shared(Rho,bo,n1,n2,n3)
+          LoopOnGrid: DO k = bo(1,3), bo(2,3)
+             my_k=(k+n3/2)
+             xs3 = REAL(my_k,dbl)*dr3
+             my_j=bo(1,2)+n2/2
+             jj=my_k*n1*n2+my_j*n1
+             xs2 = REAL(my_j,dbl)*dr2
+             rv3 = rt3 - xs3
+             DO j = bo(1,2), bo(2,2)
+                xs1 = (bo(1,1)+n1/2)*dr1
+                rv2 = rt2 - xs2
+                DO i = bo(1,1), bo(2,1)
+                   jj=jj+1
+                   rv1  = rt1 - xs1
+                   r    = SQRT(rv1*rv1 + rv2*rv2 + rv3*rv3)
+                   ix   = FLOOR(r/dx)+1
+                   rx   = (r-REAL(ix-1,dbl)*dx)/dx
+                   rx2  = rx*rx
+                   rx3  = rx2*rx
+                   rx4  = rx3*rx
+                   dpot = &
+                         pot0_2(1,ix  )*(-30._dbl*(rx2+rx4)+60._dbl*rx3)               &
+                        +pot0_2(2,ix  )*(1._dbl-18._dbl*rx2+32._dbl*rx3-15._dbl*rx4)   &
+                        +pot0_2(3,ix  )*(rx-4.5_dbl*rx2+6._dbl*rx3-2.5_dbl*rx4)        &
+                        +pot0_2(1,ix+1)*(30._dbl*(rx2+rx4)-60._dbl*rx3)                &
+                        +pot0_2(2,ix+1)*(-12._dbl*rx2+28._dbl*rx3-15._dbl*rx4)         &
+                        +pot0_2(3,ix+1)*(1.5_dbl*rx2-4._dbl*rx3+2.5_dbl*rx4)
 
-    MainLoopMM: Do Imm = 1, num_mm_atoms
-       IndMM = mm_atom_index(Imm)
-       r0 = mm_el_pot_radius(Imm) 
-       r0Nexp = r0**2
-       r0Nexp = r0Nexp*r0Nexp
-       r0Nexp1 = r0*r0Nexp
-       rt1= mm_particles(IndMM)%r(1) 
-       rt2= mm_particles(IndMM)%r(2) 
-       rt3= mm_particles(IndMM)%r(3)
-       ft1 =0.0_dbl
-       ft2 =0.0_dbl
-       ft3 =0.0_dbl
-       qt=mm_charges(Imm)*dvol
-       !$omp parallel do default (none) private( i, j, k, Imm, IndMM,jj,my_k,my_j,&
-       !$omp                            r, r0, qt, rNexp, rNexp0, rNexp1, r0Nexp, r0Nexp1,&
-       !$omp                   dr1,dr2,dr3, xs1,xs2,xs3, rv1,rv2,rv3, rt1,rt2,rt3,&
-       !$omp                   ft1,ft2,ft3,dpot,fac) shared(Rho,bo,n1,n2,n3)
-       LoopOnGrid: Do k = bo(1,3), bo(2,3)
-          my_k=(k+n3/2)
-          xs3 = real(my_k,dbl)*dr3
-          my_j=bo(1,2)+n2/2
-          jj=my_k*n1*n2+my_j*n1
-          xs2 = REAL(my_j,dbl)*dr2
-          rv3 = rt3 - xs3
-          Do j = bo(1,2), bo(2,2)
-             xs1 = (bo(1,1)+n1/2)*dr1
-             rv2 = rt2 - xs2
-             Do i = bo(1,1), bo(2,1)
-                jj=jj+1
-                rv1 = rt1 - xs1
-                r  = sqrt(rv1*rv1 + rv2*rv2 + rv3*rv3)
-                rNexp  = r**2
-                rNexp0 = rNexp*r
-                rNexp  = rNexp*rNexp
-                rNexp1 = rNexp*r
-                dpot = 4.0_dbl * (rNexp1-r0Nexp1)* rNexp0 -&
-                       5.0_dbl * (rNexp -r0Nexp) * rNexp
-                dpot = dpot / ((rNexp1 - r0Nexp1)**2 * r) 
-                fac= - Rho(jj)* dpot 
-                ft1 = ft1 + fac * rv1
-                ft2 = ft2 + fac * rv2
-                ft3 = ft3 + fac * rv3
-                xs1 = xs1 + dr1
-             End Do
-             xs2 = xs2 + dr2
-          End Do
-       END DO LoopOnGrid
-       Forces(Imm,1) =  ft1 * qt
-       Forces(Imm,2) =  ft2 * qt
-       Forces(Imm,3) =  ft3 * qt
-    END DO MainLoopMM
-
+                   dpot = dpot / r
+                   fac = - Rho(jj)* dpot
+                   ft1 = ft1 + fac * rv1
+                   ft2 = ft2 + fac * rv2
+                   ft3 = ft3 + fac * rv3
+                   xs1 = xs1 + dr1
+                END DO
+                xs2 = xs2 + dr2
+             END DO
+          END DO LoopOnGrid
+          Forces(Imm,1) =  ft1 * qt
+          Forces(Imm,2) =  ft2 * qt
+          Forces(Imm,3) =  ft3 * qt
+       END DO LoopMM
+    END DO MainLoopPot
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_forces_on_grid_low
 !!****f* qmmm_methods/qmmm_forces_with_gaussian [1.0] *
@@ -572,7 +591,7 @@ CONTAINS
   SUBROUTINE qmmm_forces_with_gaussian(rho, mm_particles,&
        mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
        aug_pools, auxbas_grid, coarser_grid, cube_info, para_env,&
-       eps_mm_rspace, pw_pools, pgfs, Forces, error)
+       eps_mm_rspace, pw_pools, pgfs, Forces, Potentials, error)
     IMPLICIT NONE
      ! Arguments
     TYPE(cp_error_type), INTENT(inout), &
@@ -592,6 +611,7 @@ CONTAINS
     TYPE(qmmm_gaussian_p_type), &
          DIMENSION(:), POINTER                   :: pgfs
     REAL(KIND=dbl), DIMENSION(:,:), POINTER      :: Forces
+    TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER :: Potentials
     ! Local Variables
     LOGICAL :: failure
     INTEGER, DIMENSION(3) :: lb, ub
@@ -642,7 +662,7 @@ CONTAINS
     CALL qmmm_forces_with_gaussian_low( grids, mm_particles,&
          mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
          cube_info, para_env, eps_mm_rspace, auxbas_grid, &
-         coarser_grid, pgfs, Forces, aug_pools, error)
+         coarser_grid, pgfs, potentials, Forces, aug_pools, error)
 
     CALL pw_pools_give_back_pws(aug_pools,grids,error=error)
     CALL timestop(0.0_dp,handle)
@@ -674,7 +694,7 @@ CONTAINS
   SUBROUTINE qmmm_forces_with_gaussian_low(grids, mm_particles,&
        mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
        cube_info, para_env, eps_mm_rspace, auxbas_grid, &
-       coarser_grid, pgfs, Forces, aug_pools, error)
+       coarser_grid, pgfs, potentials, Forces, aug_pools, error)
     IMPLICIT NONE
      ! Arguments
     TYPE(cp_error_type), INTENT(inout), &
@@ -692,6 +712,7 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
          POINTER                                 :: aug_pools 
     REAL(KIND=dbl), DIMENSION(:,:), POINTER      :: Forces
+    TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER :: Potentials
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian_low', &
          routineP = moduleN//':'//routineN
@@ -703,6 +724,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp) :: alpha, height, W, dvol
     TYPE(qmmm_gaussian_type), POINTER :: pgf
+    TYPE(qmmm_pot_type), POINTER :: pot
     REAL(KIND=dbl), DIMENSION(:), POINTER    :: xdat, ydat, zdat
     REAL(KIND=dbl), DIMENSION(:), POINTER    :: xder, yder, zder, wrk
     !Statements
@@ -728,15 +750,16 @@ CONTAINS
 !
     Radius: DO IRadTyp = 1, SIZE(pgfs) 
        pgf => pgfs(IRadTyp)%pgf
+       pot => potentials(IRadTyp)%pot
        Gaussian: DO IGauss = 1, pgf%Number_of_Gaussians
           alpha     = 1.0_dbl / pgf%Gk(IGauss)
           alpha     = alpha * alpha
           height    = pgf%Ak(IGauss)
           ilevel    = pgf%grid_level(IGauss)
           dvol      = grids(ilevel)%pw%pw_grid%dvol
-          Atoms: DO Imm = 1, SIZE(pgf%mm_atom_index)
+          Atoms: DO Imm = 1, SIZE(pot%mm_atom_index)
              Icg       =   Icg + 1
-             LIndMM    =   pgf%mm_atom_index(Imm)
+             LIndMM    =   pot%mm_atom_index(Imm)
              IndMM     =   mm_atom_index(LIndMM)
              ra(:)     =   mm_particles(IndMM)%r
              W         =   mm_charges(LIndMM) * height
@@ -820,6 +843,7 @@ CONTAINS
                                         para_env=para_env,&
                                         coarser_grid_level=coarser_grid,&
                                         Forces=Forces,&
+                                        potentials=potentials,&
                                         aug_pools=aug_pools,&
                                         error=error)
 
@@ -851,7 +875,8 @@ CONTAINS
 !!*************************************************************************
   SUBROUTINE qmmm_forces_with_gaussian_LR  (pgfs,grid,num_mm_atoms,mm_charges,mm_atom_index,&
                                             mm_particles,mm_el_pot_radius,para_env,&
-                                            coarser_grid_level,Forces, aug_pools, error)
+                                            coarser_grid_level,Forces, potentials,&
+                                            aug_pools, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(cp_error_type), INTENT(inout), &
@@ -860,6 +885,7 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
          POINTER                                   :: aug_pools 
     TYPE(particle_type), DIMENSION(:), POINTER     :: mm_particles
+    TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER   :: Potentials
     REAL(KIND=dbl), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
     INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
     TYPE(cp_para_env_type), POINTER       :: para_env
@@ -871,17 +897,20 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian_LR', &
          routineP = moduleN//':'//routineN    
     TYPE(qmmm_gaussian_type), POINTER :: pgf
+    TYPE(qmmm_pot_type),POINTER :: pot
     LOGICAL :: failure
     INTEGER :: handle, IRadTyp, Imm
     INTEGER :: IndMM, LIndMM, stat
-    INTEGER :: i, j, k, my_k, my_j, my_i, n1, n2, n3, IdPot
+    INTEGER :: i, j, k, my_k, my_j, my_i, n1, n2, n3, ix
     INTEGER, DIMENSION(2,3)        :: bo
     REAL(KIND=dbl), ALLOCATABLE, DIMENSION(:,:) :: LForces
+    REAL(KIND=dbl), DIMENSION(:,:), POINTER ::pot0_2
     REAL(KIND=dbl), DIMENSION(3)   :: ra
-    REAL(KIND=dbl)               :: ft1, ft2, ft3, Mdpot, fac, dvol
-    REAL(KIND=dbl)               :: qt, rt1, rt2, rt3, r, r2
+    REAL(KIND=dbl)               :: ft1, ft2, ft3, fac, dvol, Term
+    REAL(KIND=dbl)               :: qt, rt1, rt2, rt3, r, r2, dx, rx, rx2
     REAL(KIND=dbl)               :: xs1, rv1, xs2, rv2, xs3, rv3, dr1, dr2, dr3
     ! Statements
+    NULLIFY(pgf)
     CALL timeset(routineN,"I","",handle)
 
     ALLOCATE(LForces(num_mm_atoms,3), stat=stat)
@@ -897,8 +926,11 @@ CONTAINS
 
     Radius: DO IRadTyp = 1, SIZE(pgfs) 
        pgf => pgfs(IRadTyp)%pgf
-       Atoms: DO Imm = 1, SIZE(pgf%mm_atom_index)
-          LIndMM    =   pgf%mm_atom_index(Imm)
+       pot => potentials(IRadTyp)%pot
+       dx     =  Pot%dx 
+       pot0_2 => Pot%pot0_2
+       Atoms: DO Imm = 1, SIZE(pot%mm_atom_index)
+          LIndMM    =   pot%mm_atom_index(Imm)
           IndMM     =   mm_atom_index(LIndMM)
           ra(:)     =   mm_particles(IndMM)%r
           qt        =   mm_charges(LIndMM)
@@ -922,9 +954,15 @@ CONTAINS
                    rv1 = rt1 - xs1
                    r2  = rv1*rv1 + rv2*rv2 + rv3*rv3
                    r   = SQRT(r2)
-                   Idpot = NINT(r/(pgf%LR%dx))
-                   Mdpot  = pgf%LR%dPot(IdPot)
-                   fac = grid%cr3d(i,j,k) * Mdpot 
+                   ix  = FLOOR(r/dx)+1
+                   rx  = (r-REAL(ix-1,dbl)*dx)/dx
+                   rx2 = rx*rx
+                   Term = pot0_2(1,ix  )*(-6._dbl*(rx-rx2))                &
+                         +pot0_2(2,ix  )*(1._dbl-4._dbl*rx+3._dbl*rx2)     &
+                         +pot0_2(1,ix+1)*(6._dbl*(rx-rx2))                 &
+                         +pot0_2(2,ix+1)*(-2._dbl*rx+3._dbl*rx2)
+
+                   fac = grid%cr3d(i,j,k) * Term / r 
                    ft1 = ft1 + fac * rv1
                    ft2 = ft2 + fac * rv2
                    ft3 = ft3 + fac * rv3
@@ -933,7 +971,7 @@ CONTAINS
                 xs2 = xs2 + dr2
              END DO
           END DO LoopOnGrid
-          qt = qt * dvol
+          qt = - qt * dvol / dx
           LForces(LindMM,1) = ft1 * qt
           LForces(LindMM,2) = ft2 * qt
           LForces(LindMM,3) = ft3 * qt
@@ -957,6 +995,7 @@ CONTAINS
                                             mm_el_pot_radius=mm_el_pot_radius,&
                                             coarser_grid_level=coarser_grid_level,&
                                             debug_force=LForces,&
+                                            potentials=potentials,&
                                             para_env=para_env,&
                                             error=error)
     END IF
@@ -989,7 +1028,8 @@ CONTAINS
 !!
 !!*************************************************************************
   SUBROUTINE qmmm_debug_forces(rho,qs_env,qmmm_env,Analytical_Forces,&
-                               mm_particles,mm_atom_index,num_mm_atoms,error)      
+                               mm_particles,mm_atom_index,num_mm_atoms,&
+                               Potentials,error)      
     IMPLICIT NONE
     ! Arguments
     TYPE(pw_type), POINTER                       :: rho
@@ -1002,6 +1042,7 @@ CONTAINS
     INTEGER, INTENT(IN)                          :: num_mm_atoms
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                   :: error
+    TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER :: Potentials
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_debug_forces', &
          routineP = moduleN//':'//routineN      
@@ -1048,6 +1089,7 @@ CONTAINS
                                                 mm_el_pot_radius=qmmm_env%mm_el_pot_radius,&
                                                 mm_atom_index=qmmm_env%mm_atom_index,&
                                                 num_mm_atoms=qmmm_env%num_mm_atoms,&
+                                                Potentials=Potentials,&
                                                 error=error)
              CASE("GAUSS")
                 CALL    qmmm_elec_with_gaussian(v_qmmm=v_qmmm_rspace,&
@@ -1061,6 +1103,7 @@ CONTAINS
                                                 eps_mm_rspace=qmmm_env%eps_mm_rspace,&
                                                 cube_info=ks_qmmm_env_loc%cube_info,&
                                                 pgfs=qmmm_env%pgfs,&
+                                                potentials=potentials,&
                                                 pw_pools=pw_pools,&
                                                 auxbas_grid=qmmm_env%gridlevel_info%auxbas_grid,&
                                                 coarser_grid=qmmm_env%gridlevel_info%coarser_grid,&
@@ -1255,7 +1298,8 @@ CONTAINS
 !!*************************************************************************
   SUBROUTINE debug_qmmm_forces_with_gauss_LR(pgfs,aug_pools, rho, mm_charges, mm_atom_index,&
                                              mm_particles, mm_el_pot_radius, num_mm_atoms,&
-                                             coarser_grid_level, debug_force, para_env, error)
+                                             coarser_grid_level, potentials,&
+                                             debug_force, para_env, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(cp_error_type), INTENT(inout), &
@@ -1267,6 +1311,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
     TYPE(qmmm_gaussian_p_type), &
          DIMENSION(:), POINTER                   :: pgfs
+    TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER :: Potentials
     INTEGER, INTENT(IN) :: coarser_grid_level, num_mm_atoms
     REAL(KIND=dbl), DIMENSION(:,:)               :: debug_force
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -1309,6 +1354,7 @@ CONTAINS
                                                  mm_el_pot_radius=mm_el_pot_radius,&
                                                  para_env=para_env,&
                                                  coarser_grid_level=coarser_grid_level,&
+                                                 potentials=potentials,&
                                                  error=error)             
 
              energy(K) =  pw_integral_ab ( rho, grids(coarser_grid_level)%pw )

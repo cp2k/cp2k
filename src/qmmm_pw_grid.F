@@ -122,7 +122,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER               :: pool
     TYPE(cell_type), POINTER                  :: cell
     LOGICAL :: failure
-    INTEGER :: handle, auxbas_grid, stat
+    INTEGER :: auxbas_grid, stat
     INTEGER :: Ilevel
     TYPE (pw_grid_type), POINTER :: el_struct
     REAL(KIND=dbl), DIMENSION(3) :: Maxdr, Mindr
@@ -199,11 +199,9 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                                   :: error
     ! Local Variables
-    INTEGER :: stat,idir
+    INTEGER :: idir
     LOGICAL :: failure
 
-!    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
     failure = .false.
     IF (.NOT.failure) THEN
 

@@ -52,6 +52,8 @@ MODULE qmmm_gaussian_input
   USE global_types,                    ONLY: global_environment_type
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_program
+  USE string_utilities,                ONLY: uppercase
+  USE physcon,                         ONLY: bohr
   IMPLICIT NONE
   PRIVATE
 
@@ -101,24 +103,45 @@ CONTAINS
     INTEGER :: j, IRad, Nog, stat, Ival , Nval
     LOGICAL ::  Found, Found_Radius, failure
     CHARACTER(LEN=240)                       :: line
-    CHARACTER(len=6)                         :: Ftarget
-    REAL(KIND=dbl)                           :: Radius
+    CHARACTER(len=10)                        :: Ftarget, Units
+    REAL(KIND=dbl)                           :: Radius, fconv
 
 
     Nval = size(qmmm_gaussian_fns)
     Ival = 0
     CALL start_parser(globenv%mm_potential_file_name,globenv)
 
-    Ftarget = "RADIUS"
-
     search_loop: DO
-       If (Ival.eq.Nval) EXIT search_loop
+       Ftarget = "&MM_FIT_POT"
+       IF (Ival.EQ.Nval) EXIT search_loop
        CALL search_object(Ftarget,.TRUE.,found,line)
        IF (Found) THEN
           Ival = Ival + 1
+!
+! Structure example of the MM fit potential file:
+!
+!           &MM_FIT_POT 
+!           RADIUS  0.4 Angstrom
+!           7   
+!           0.223396   0.811453  Bohr
+!           0.306814   1.01988   Bohr
+!           0.254879   1.37404   Bohr
+!           0.188293   1.87929   Bohr
+!           0.136391   2.56745   Bohr
+!           0.100305   3.50033   Bohr
+!           0.0790169  4.82046   Bohr
+!           &END
+!
+
+          CALL read_object  (Ftarget,newline=.TRUE.)
+          CPPostcondition(TRIM(Ftarget)=="RADIUS",cp_failure_level,routineP,error,Failure)
           CALL read_object  (radius)
+          CALL read_object  (units)
+          CALL uppercase (units)
+          fconv = 1.0_dbl
+          IF (TRIM(units).EQ."ANGSTROM") fconv = bohr 
           Found_Radius = .FALSE.
-          radius = radius * qm_cell_small%unit_of_length
+          radius = radius * fconv
           Radius_Loop: DO J=1,SIZE(qmmm_gaussian_fns)
              IF (ABS(radius-qmmm_gaussian_fns(J)%pgf%Elp_Radius).LT.EPSILON(0.0_dbl)) THEN
                 Found_Radius = .TRUE.
@@ -133,10 +156,6 @@ CONTAINS
           IRad = J          
           ! Read  Rmin, Rmax
           CALL read_object(qmmm_gaussian_fns(J)%pgf%Number_of_Gaussians,newline=.TRUE.)
-          CALL read_object(qmmm_gaussian_fns(J)%pgf%Info%Rmin)
-          CALL read_object(qmmm_gaussian_fns(J)%pgf%Info%Rmax)
-          CALL read_object(qmmm_gaussian_fns(J)%pgf%Info%ChiSq)
-          CALL read_object(qmmm_gaussian_fns(J)%pgf%Info%MaxErr)
           ! Allocate Vectors
           NOG = qmmm_gaussian_fns(IRad)%pgf%Number_of_Gaussians
           ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Ak(NOG),stat=stat)
@@ -146,8 +165,13 @@ CONTAINS
           DO J = 1, qmmm_gaussian_fns(IRad)%pgf%Number_of_Gaussians
              CALL read_object(qmmm_gaussian_fns(IRad)%pgf%Ak(J),newline=.TRUE.)
              CALL read_object(qmmm_gaussian_fns(IRad)%pgf%Gk(J))
+             CALL read_object(units)
+             CALL uppercase (units)
+             fconv = 1.0_dbl
+             IF (TRIM(units).EQ."ANGSTROM") fconv = bohr
+             qmmm_gaussian_fns(IRad)%pgf%Ak(J) = qmmm_gaussian_fns(IRad)%pgf%Ak(J) * fconv
+             qmmm_gaussian_fns(IRad)%pgf%Gk(J) = qmmm_gaussian_fns(IRad)%pgf%Gk(J) * fconv
           END DO
-          CALL read_object(qmmm_gaussian_fns(IRad)%pgf%A0,newline=.TRUE.)
        ELSE
 !       *** Stop program, if the end of file is reached ***
           CALL stop_program(routineN,moduleN,__LINE__,"Error in MM_POTENTIAL file",globenv)

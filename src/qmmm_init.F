@@ -109,6 +109,7 @@ MODULE qmmm_init
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
   USE qmmm_gaussian_init,              ONLY: qmmm_gaussian_initialize
   USE qmmm_pw_grid,                    ONLY: qmmm_pw_grid_init
+  USE qmmm_elpot,                      ONLY: qmmm_potential_init
 
   IMPLICIT NONE
   PRIVATE
@@ -274,7 +275,18 @@ CONTAINS
                                      globenv=globenv,&
                                      pw_env=qs_env%pw_env,&
                                      error=error)
-
+       !
+       ! Initialize the MM potential stored on vector
+       !
+       CALL qmmm_potential_init(qmmm_env=qmmm_env,&
+                                qm_cell_small=qm_cell_small,&
+                                mm_cell=mm_cell,&
+                                globenv=globenv,&
+                                pw_env=qs_env%pw_env,&
+                                error=error)
+       !
+       ! Initialize the qmmm_pw_grid
+       !
        CALL qmmm_pw_grid_init(qmmm_env=qmmm_env,&
                               pw_env=qs_env%pw_env,&
                               cell=qm_cell_small,&
@@ -288,7 +300,6 @@ CONTAINS
             qmmm_env=qmmm_env,globenv=globenv,error=error)
 
        CALL qmmm_env_release(qmmm_env, error)
-       !NULLIFY(qm_atom_index,qm_subsys_index)
        DEALLOCATE(qm_atom_type,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF

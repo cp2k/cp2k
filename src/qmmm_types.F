@@ -53,7 +53,7 @@ MODULE qmmm_types
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qmmm_types'
   INTEGER, SAVE, PRIVATE :: last_qmmm_env_id_nr=0
 
-  PUBLIC :: qmmm_env_type, gridlevel_info_type
+  PUBLIC :: qmmm_env_type, gridlevel_info_type, qmmm_pot_type, qmmm_pot_p_type
   PUBLIC :: qmmm_env_retain, qmmm_env_release, qmmm_env_create
 
 !***
@@ -87,6 +87,17 @@ MODULE qmmm_types
      INTEGER                                                 :: coarser_grid
   END TYPE gridlevel_info_type
 
+  TYPE qmmm_pot_type
+     REAL(KIND=dbl), DIMENSION(:,:), POINTER :: Pot0_2
+     REAL(KIND=dbl)  :: Rmax, Rmin, dx, Rc
+     INTEGER         :: npts
+     INTEGER,        DIMENSION(:), POINTER :: mm_atom_index
+  END TYPE qmmm_pot_type
+
+  TYPE qmmm_pot_p_type
+      TYPE(qmmm_pot_type), POINTER :: pot
+  END TYPE qmmm_pot_p_type
+
   TYPE qmmm_env_type
      INTEGER :: ref_count, id_nr
      CHARACTER(len=default_string_length)                    :: qmmm_coupl_type
@@ -99,6 +110,7 @@ MODULE qmmm_types
      INTEGER,        DIMENSION(:), POINTER                   :: mm_atom_index
      REAL(KIND=dbl), DIMENSION(:), POINTER                   :: mm_atom_chrg
      REAL(KIND=dbl), DIMENSION(:), POINTER                   :: mm_el_pot_radius
+     TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER            :: Potentials
      TYPE(gridlevel_info_type)                               :: gridlevel_info
      TYPE(qmmm_gaussian_p_type), DIMENSION(:),POINTER        :: pgfs
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER             :: aug_pools
@@ -149,7 +161,7 @@ SUBROUTINE qmmm_env_create(qmmm_env, error)
      NULLIFY(qmmm_env%qm_atom_index,qmmm_env%qm_subsys_index,&
              qmmm_env%mm_atom_index,qmmm_env%mm_atom_chrg,&
              qmmm_env%pgfs, qmmm_env%maxradius,&
-             qmmm_env%aug_pools )
+             qmmm_env%aug_pools, qmmm_env%potentials )
      qmmm_env%qmmm_coupl_type=" "
      qmmm_env%num_qm_atoms=0
      qmmm_env%num_mm_atoms=0
@@ -276,23 +288,16 @@ SUBROUTINE qmmm_env_release(qmmm_env,error)
                     DEALLOCATE(qmmm_env%pgfs(I)%pgf%grid_level,stat=stat)
                     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
                  END IF                   
-                 IF (ASSOCIATED(qmmm_env%pgfs(I)%pgf%mm_atom_index)) THEN
-                    DEALLOCATE(qmmm_env%pgfs(I)%pgf%mm_atom_index,stat=stat)
-                    CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-                 END IF
-                 IF (ASSOCIATED(qmmm_env%pgfs(I)%pgf%LR%Pot)) THEN
-                    DEALLOCATE(qmmm_env%pgfs(I)%pgf%LR%Pot,stat=stat)
-                    CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-                 END IF
-                 IF (ASSOCIATED(qmmm_env%pgfs(I)%pgf%LR%DPot)) THEN
-                    DEALLOCATE(qmmm_env%pgfs(I)%pgf%LR%Dpot,stat=stat)
-                    CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-                 END IF
                  DEALLOCATE(qmmm_env%pgfs(I)%pgf,stat=stat)
                  CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
               END IF
            END DO
            DEALLOCATE(qmmm_env%pgfs,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(qmmm_env%Potentials)) THEN
+           CALL qmmm_pot_type_dealloc(qmmm_env%Potentials)
+           DEALLOCATE(qmmm_env%Potentials,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
         IF (ASSOCIATED(qmmm_env%aug_pools)) THEN
@@ -304,6 +309,52 @@ SUBROUTINE qmmm_env_release(qmmm_env,error)
   END IF
   NULLIFY(qmmm_env)
 END SUBROUTINE qmmm_env_release
-!***************************************************************************
+
+!!****f* qmmm_types/qmmm_pot_type_dealloc [1.0] *
+!!
+!!   NAME
+!!     qmmm_pot_type_dealloc
+!!
+!!   FUNCTION
+!!     deallocates the qmmm_pot_type structure
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - qmmm_env: the object to release
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!*** **********************************************************************
+SUBROUTINE qmmm_pot_type_dealloc(Potentials, error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER :: Potentials
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+  ! Local Variables
+  CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_pot_type_dealloc', &
+       routineP = moduleN//':'//routineN
+  INTEGER :: I, stat
+
+  
+  DO I = 1, SIZE(Potentials)
+     IF (ASSOCIATED(Potentials(I)%Pot)) THEN
+        IF (ASSOCIATED(Potentials(I)%Pot%pot0_2)) THEN   
+           DEALLOCATE(Potentials(I)%Pot%pot0_2,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)           
+        END IF
+        IF (ASSOCIATED(Potentials(I)%Pot%mm_atom_index)) THEN   
+           DEALLOCATE(Potentials(I)%Pot%mm_atom_index,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)              
+        END IF
+     END IF
+  END DO
+
+END SUBROUTINE qmmm_pot_type_dealloc
 
 END MODULE qmmm_types

@@ -42,8 +42,7 @@ MODULE qmmm_gaussian_init
                                              dbl
   USE memory_utilities,                ONLY: reallocate
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
-                                             qmmm_gaussian_type,&
-                                             LongRange_type
+                                             qmmm_gaussian_type
   USE qmmm_gaussian_input,             ONLY: read_mm_potential
   USE global_types,                    ONLY: global_environment_type
   USE simulation_cell,                 ONLY: cell_type
@@ -115,7 +114,7 @@ CONTAINS
     mm_el_pot_radius => qmmm_env%mm_el_pot_radius 
     qmmm_coupl_type  = qmmm_env%qmmm_coupl_type  
     eps_mm_rspace = qmmm_env%eps_mm_rspace
-    SELECT CASE(qmmm_coupl_type)
+    SELECT CASE(TRIM(qmmm_coupl_type))
     CASE("GAUSS")
        !
        ! Preprocessing...
@@ -145,7 +144,6 @@ CONTAINS
           NULLIFY(qmmm_gaussian_fns(I)%pgf)
           ALLOCATE(qmmm_gaussian_fns(I)%pgf, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-          NULLIFY(qmmm_gaussian_fns(I)%pgf%mm_atom_index)
           NULLIFY(qmmm_gaussian_fns(I)%pgf%Ak)
           NULLIFY(qmmm_gaussian_fns(I)%pgf%Gk)
           NULLIFY(qmmm_gaussian_fns(I)%pgf%grid_level)
@@ -153,18 +151,6 @@ CONTAINS
           ! Default Values
           !
           qmmm_gaussian_fns(I)%pgf%Elp_Radius          = radius(I)
-
-          ALLOCATE(qmmm_gaussian_fns(I)%pgf%mm_atom_index(1),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-          ! Build mm_atom_index List
-          DO J= 1, SIZE(mm_el_pot_radius)
-             IF (radius(I).EQ.mm_el_pot_radius(J)) THEN
-                Ndim = SIZE(qmmm_gaussian_fns(I)%pgf%mm_atom_index) 
-                qmmm_gaussian_fns(I)%pgf%mm_atom_index(Ndim) = J
-                CALL reallocate(qmmm_gaussian_fns(I)%pgf%mm_atom_index,1, Ndim+1)
-             ENDIF
-          END DO
-          CALL reallocate(qmmm_gaussian_fns(I)%pgf%mm_atom_index, 1, Ndim)          
        END DO
        DEALLOCATE(radius,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)      
@@ -195,10 +181,6 @@ CONTAINS
              END IF
           END DO
        END DO       
-
-       CALL qmmm_gaussian_eval_LR(pgfs=qmmm_gaussian_fns,&
-                                  mm_cell=mm_cell,&
-                                  error=error)
        !
        ! End of gaussian initialization...
     CASE DEFAULT
@@ -210,100 +192,5 @@ CONTAINS
 
   END SUBROUTINE qmmm_gaussian_initialize
 
-!!****f* qmmm_gaussian_init/qmmm_gaussian_eval_LR [1.0] *
-!!
-!!   NAME
-!!     qmmm_gaussian_eval_LR
-!!
-!!   FUNCTION
-!!     Initialize the vectors that store the LR information
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2004 created [tlaino]
-!!
-!!*** ********************************************************************** 
-  SUBROUTINE qmmm_gaussian_eval_LR(pgfs, mm_cell, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(qmmm_gaussian_p_type), &
-         DIMENSION(:), POINTER                       :: pgfs
-    TYPE(cell_type), POINTER                         :: mm_cell   
-     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_gaussian_eval_LR', &
-      routineP = moduleN//':'//routineN
-    LOGICAL :: failure
-    TYPE(qmmm_gaussian_type), POINTER                :: pgf
-    TYPE(LongRange_Type), POINTER :: myLR
-    REAL(KIND=dbl) :: Rmax, r, r2
-    REAL(KIND=dbl) :: r0, r0Nexp, r0Nexp1, Gterm, Gdpot
-    REAL(KIND=dbl) :: alpha, height, W, dpot, rNexp, rNexp1, rNexp0
-    INTEGER        :: I, J, Np, stat, IGauss
-    REAL(KIND=dbl), PARAMETER :: dx=0.00001_dbl
-
-
-    Rmax = SQRT(mm_cell%hmat(1,1)**2+&
-                mm_cell%hmat(2,2)**2+&
-                mm_cell%hmat(3,3)**2 ) 
-    NULLIFY(myLR, pgf)
-    DO I = 1, SIZE(pgfs)
-       pgf => pgfs(I)%pgf
-       myLR  => pgfs(I)%pgf%LR
-       Np    =  NINT(Rmax / dx)
-       myLR%dx   = dx
-       myLR%Rmin = dx
-       myLR%Rmax = Rmax
-       myLR%Npts = Np
-       !
-       NULLIFY(myLR%Pot, myLR%DPot)
-       ALLOCATE(myLR%Pot(Np),  stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-       ALLOCATE(myLR%DPot(Np), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-       r0      = pgf%Elp_Radius
-       r0Nexp  = r0**2
-       r0Nexp  = r0Nexp*r0Nexp
-       r0Nexp1 = r0*r0Nexp       
-       DO J = 1, Np
-          r      = REAL(J,dbl)*dx
-          r2     = r * r
-          rNexp  = r**2
-          rNexp0 = rNexp * r 
-          rNexp  = rNexp*rNexp
-          rNexp1 = rNexp*r
-          Gterm  = 0.0_dbl
-          GdPot  = 0.0_dbl
-          DO IGauss = 1, pgf%Number_of_Gaussians
-             alpha  = 1.0_dbl / pgf%Gk(IGauss)
-             alpha  = alpha * alpha
-             height = pgf%Ak(IGauss)
-             W      = height
-             Gterm  = Gterm + W * EXP(-alpha*r2)
-             GdPot  = GdPot - 2.0_dbl * alpha * W * r * EXP(-alpha*r2)
-          END DO
-          Gterm = Gterm + pgf%A0 
-          Gterm = Gterm - 1.0_dbl * (rNexp - r0Nexp)/(rNexp1 - r0Nexp1) 
-          dpot = 4.0_dbl * (rNexp1-r0Nexp1)* rNexp0 - &
-                 5.0_dbl * (rNexp -r0Nexp) * rNexp
-          dpot  = GdPot - dpot / ((rNexp1 - r0Nexp1)**2 ) ! The Real derivative
-          dpot  = dpot / r
-          !
-          myLR%Pot(J)  = Gterm
-          myLR%DPot(J) = Dpot
-       END DO
-
-    END DO
-  END SUBROUTINE qmmm_gaussian_eval_LR
 
 END MODULE qmmm_gaussian_init

@@ -257,6 +257,7 @@ OBJECTS_GENERIC =\
  pw_types.o\
  pws.o\
  qmmm_electrostatic_methods.o\
+ qmmm_elpot.o\
  qmmm_gaussian_init.o\
  qmmm_gaussian_input.o\
  qmmm_gaussian_types.o\

@@ -62,7 +62,9 @@ MODULE qmmm_electrostatic_methods
                                              coeff_transform_space,&
                                              coeff_type,&
                                              coeff_zero
-  USE qmmm_types,                      ONLY: qmmm_env_type
+  USE qmmm_types,                      ONLY: qmmm_env_type,&
+                                             qmmm_pot_type,&
+                                             qmmm_pot_p_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
@@ -102,6 +104,7 @@ MODULE qmmm_electrostatic_methods
                                              pw_zero,&
                                              pw_prolongate_NoPBC
   USE pw_spline_utils,                 ONLY: pw_inject_s3
+  USE erf_fn,                          ONLY: erf
   IMPLICIT NONE
   PRIVATE
 
@@ -188,6 +191,7 @@ CONTAINS
                                        mm_el_pot_radius=qmmm_env%mm_el_pot_radius,&
                                        mm_atom_index=qmmm_env%mm_atom_index,&
                                        num_mm_atoms=qmmm_env%num_mm_atoms,&
+                                       potentials=qmmm_env%Potentials,&
                                        error=error)
     CASE("GAUSS")
        Write(6,'(T3,A)')"QM/MM Coupling computed collocating the Gaussian Potential Functions."
@@ -205,6 +209,7 @@ CONTAINS
                                        pw_pools=pw_pools,&
                                        auxbas_grid=qmmm_env%gridlevel_info%auxbas_grid,&
                                        coarser_grid=qmmm_env%gridlevel_info%coarser_grid,&
+                                       potentials=qmmm_env%Potentials,&
                                        error=error)
     CASE("NONE")
        Write(6,'(T3,A)')"No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
@@ -250,7 +255,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE  qmmm_electrostatic_on_grid(v_qmmm,mm_particles,mm_charges,&
-       mm_el_pot_radius, mm_atom_index,num_mm_atoms,error)
+       mm_el_pot_radius, mm_atom_index,num_mm_atoms, potentials, error)
     Implicit None
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_electrostatic_on_grid', &
          routineP = moduleN//':'//routineN
@@ -258,6 +263,7 @@ CONTAINS
          OPTIONAL                                :: error
     TYPE(coeff_type), INTENT(INOUT)              :: v_qmmm
     TYPE(particle_type), DIMENSION(:), POINTER   :: mm_particles
+    TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER   :: potentials
     INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
     REAL(dbl), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
     INTEGER, INTENT(IN) :: num_mm_atoms
@@ -265,7 +271,7 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
     CALL qmmm_electrostatic_on_grid_low(v_qmmm,v_qmmm%pw%cr3d,&
-       mm_particles,mm_charges,&
+       potentials, mm_particles,mm_charges,&
        mm_el_pot_radius, mm_atom_index,num_mm_atoms,error)
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_electrostatic_on_grid
@@ -292,13 +298,15 @@ CONTAINS
 !!     05.2004 created [tlaino]
 !!
 !!*** ********************************************************************** 
-  SUBROUTINE  qmmm_electrostatic_on_grid_low(v_qmmm,Varray,mm_particles,mm_charges,&
-       mm_el_pot_radius, mm_atom_index,num_mm_atoms,error)
+  SUBROUTINE qmmm_electrostatic_on_grid_low(v_qmmm, Varray, potentials,&
+       mm_particles, mm_charges, mm_el_pot_radius, mm_atom_index, &
+       num_mm_atoms, error)
     Implicit None
     ! Arguments
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                                :: error
     TYPE(coeff_type), INTENT(INOUT)              :: v_qmmm
+    TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER :: potentials
     TYPE(particle_type), DIMENSION(:), POINTER   :: mm_particles
     INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
     REAL(dbl), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
@@ -309,11 +317,13 @@ CONTAINS
     INTEGER :: handle
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER                   :: n1,n2,n3
-    INTEGER :: i, j, k, Imm, IndMM,jj,my_k,my_j
-    REAL(dbl) :: r, r0, qt, rNexp, rNexp1, r0Nexp, r0Nexp1
+    INTEGER :: i, j, k, Imm, IndMM,jj,my_k,my_j, ix, Ipot, Imp
+    REAL(dbl) :: r, rc, qt, dx, rx, rx2, rx3, rx4, rx5
     REAL(dbl) :: dr1,dr2,dr3, xs1,xs2,xs3, rv1,rv2,rv3, rt1,rt2,rt3
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_electrostatic_on_grid_low', &
          routineP = moduleN//':'//routineN
+    REAL(dbl), DIMENSION(:,:), POINTER :: pot0_2
+    TYPE(qmmm_pot_type),       POINTER :: Pot
     ! Statements
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(mm_particles),cp_failure_level,routineP,error,failure)
@@ -328,49 +338,60 @@ CONTAINS
     dr2 = v_qmmm%pw%pw_grid%dr(2)
     dr3 = v_qmmm%pw%pw_grid%dr(3)
     CALL timeset(routineN,"I","",handle)
-    MainLoopMM: Do Imm = 1, num_mm_atoms
-       IndMM = mm_atom_index(Imm)
-       r0 = mm_el_pot_radius(Imm) 
-       r0Nexp = r0**2
-       r0Nexp = r0Nexp*r0Nexp
-       r0Nexp1 = r0*r0Nexp
-       rt1= mm_particles(IndMM)%r(1) 
-       rt2= mm_particles(IndMM)%r(2) 
-       rt3= mm_particles(IndMM)%r(3) 
-       qt=mm_charges(Imm)
-       !$omp parallel do default (none) private( i, j, k, Imm, IndMM,jj,my_k,my_j,&
-       !$omp                            r, r0, qt, rNexp, rNexp1, r0Nexp, r0Nexp1,&
-       !$omp                   dr1,dr2,dr3, xs1,xs2,xs3, rv1,rv2,rv3, rt1,rt2,rt3)&
-       !$omp                            shared(Varray,bo,n1,n2,n3)
-       LoopOnGrid: Do k = bo(1,3), bo(2,3)
-          my_k=(k+n3/2)
-          xs3 = real(my_k,dbl)*dr3
-          my_j=bo(1,2)+n2/2
-          jj=my_k*n1*n2+my_j*n1
-          xs2 = real(my_j,dbl)*dr2
-          rv3 = rt3 - xs3
-          Do j = bo(1,2), bo(2,2)
-             xs1 = (bo(1,1)+n1/2)*dr1
-             rv2 = rt2 - xs2
-             Do i = bo(1,1), bo(2,1)
-                jj=jj+1
-                rv1 = rt1 - xs1
-                r  = sqrt(rv1*rv1 + rv2*rv2 + rv3*rv3)
-                rNexp = r**2
-                rNexp = rNexp*rNexp
-                rNexp1 = rNexp*r
-                Varray(jj)=Varray(jj)+ &
-                                        (-1.0_dbl) * & ! Sign of electrons
-                                        qt* &
-                                        (rNexp - r0Nexp)/(rNexp1 - r0Nexp1)
-                xs1 = xs1 + dr1
-             End Do
-             xs2 = xs2 + dr2
-          End Do
-       End Do LoopOnGrid
-    End Do MainLoopMM
-    CALL timestop(0.0_dp,handle)
+    MainLoopPot: DO Ipot = 1, SIZE(Potentials)
+       Pot    => Potentials(Ipot)%Pot
+       dx     =  Pot%dx 
+       pot0_2 => Pot%pot0_2
+       LoopMM: DO Imp = 1, SIZE(Pot%mm_atom_index)
+          Imm = Pot%mm_atom_index(Imp)
+          IndMM = mm_atom_index(Imm) 
+          rc = mm_el_pot_radius(Imm) 
+          rt1= mm_particles(IndMM)%r(1) 
+          rt2= mm_particles(IndMM)%r(2) 
+          rt3= mm_particles(IndMM)%r(3) 
+          qt=mm_charges(Imm)
+          !$omp parallel do default (none) private( i, j, k, Imm, IndMM,jj,my_k,my_j,&
+          !$omp                            r, rc, qt, ix, rx, rx2, rx3, rx4, rx5,&
+          !$omp                   dr1,dr2,dr3, xs1,xs2,xs3, rv1,rv2,rv3, rt1,rt2,rt3)&
+          !$omp                            shared(Varray,pot0_2,dx,bo,n1,n2,n3)
+          LoopOnGrid: DO k = bo(1,3), bo(2,3)
+             my_k=(k+n3/2)
+             xs3 = REAL(my_k,dbl)*dr3
+             my_j=bo(1,2)+n2/2
+             jj=my_k*n1*n2+my_j*n1
+             xs2 = REAL(my_j,dbl)*dr2
+             rv3 = rt3 - xs3
+             DO j = bo(1,2), bo(2,2)
+                xs1 = (bo(1,1)+n1/2)*dr1
+                rv2 = rt2 - xs2
+                DO i = bo(1,1), bo(2,1)
+                   jj=jj+1
+                   rv1 = rt1 - xs1
+                   r   = SQRT(rv1*rv1 + rv2*rv2 + rv3*rv3)
+                   ix  = FLOOR(r/dx)+1
+                   rx  = (r-REAL(ix-1,dbl)*dx)/dx
+                   rx2 = rx*rx
+                   rx3 = rx2*rx
+                   rx4 = rx3*rx
+                   rx5 = rx4*rx
 
+                   Varray(jj) = Varray(jj) + &
+                        (pot0_2(1,ix  )*(1_dbl-10._dbl*rx3+15._dbl*rx4-6._dbl*rx5) &
+                        +pot0_2(2,ix  )*(rx-6._dbl*rx3+8._dbl*rx4-3._dbl*rx5)      &
+                        +pot0_2(3,ix  )*(0.5_dbl*(rx2-rx5)+1.5_dbl*(-rx3+rx4))     &
+                        +pot0_2(1,ix+1)*(10._dbl*rx3-15._dbl*rx4+6._dbl*rx5)       &
+                        +pot0_2(2,ix+1)*(-4._dbl*(rx3-rx5)+7._dbl*(rx4-rx5))       &
+                        +pot0_2(3,ix+1)*(0.5_dbl*(rx3+rx5)-rx4))                   &
+                        *(-1.0_dbl) * & ! Sign of electrons
+                        qt
+                   xs1 = xs1 + dr1
+                END DO
+                xs2 = xs2 + dr2
+             END DO
+          END DO LoopOnGrid
+       END DO LoopMM
+    END DO MainLoopPot
+    CALL timestop(0.0_dp,handle)
   End SUBROUTINE qmmm_electrostatic_on_grid_low
 
 !!****f* qmmm_electrostatic_methods/qmmm_elec_with_gaussian [1.0] *
@@ -398,15 +419,16 @@ CONTAINS
 !!**************************************************************************
   SUBROUTINE qmmm_elec_with_gaussian(v_qmmm, mm_particles,&
        mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
-       aug_pools, cube_info, para_env, eps_mm_rspace, pgfs, pw_pools, auxbas_grid,&
-       coarser_grid, error)
+       aug_pools, cube_info, para_env, eps_mm_rspace, pgfs, pw_pools,&
+       auxbas_grid, coarser_grid, potentials, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                                :: error
-    TYPE(pw_pool_p_type), POINTER, DIMENSION(:) :: pw_pools, aug_pools
+    TYPE(pw_pool_p_type), POINTER, DIMENSION(:)  :: pw_pools, aug_pools
     TYPE(coeff_type), INTENT(INOUT)              :: v_qmmm
     TYPE(particle_type), DIMENSION(:), POINTER   :: mm_particles
+    TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER :: potentials
     INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
     REAL(dbl), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
     INTEGER, INTENT(IN) :: num_mm_atoms
@@ -440,7 +462,7 @@ CONTAINS
     CALL qmmm_elec_with_gaussian_low( v_qmmm, grids, mm_particles,&
          mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms, cube_info,&
          para_env, eps_mm_rspace, pgfs, auxbas_grid, coarser_grid, pw_pools, aug_pools, &
-         error)
+         potentials, error)
 
     CALL pw_pools_give_back_pws(aug_pools,grids,error=error)
 
@@ -474,7 +496,7 @@ CONTAINS
   SUBROUTINE qmmm_elec_with_gaussian_low( v_qmmm, tmp_grid, mm_particles,&
          mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
          cube_info, para_env, eps_mm_rspace, pgfs, auxbas_grid, coarser_grid,&
-         pw_pools, aug_pools, error)
+         pw_pools, aug_pools, potentials, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(cp_error_type), INTENT(inout), &
@@ -483,6 +505,7 @@ CONTAINS
     TYPE(coeff_type), INTENT(INOUT)              :: v_qmmm
     TYPE(pw_p_type), DIMENSION(:), POINTER       :: tmp_grid
     TYPE(particle_type), DIMENSION(:), POINTER   :: mm_particles
+    TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER :: potentials
     REAL(dbl), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
     INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
     INTEGER, INTENT(IN) :: num_mm_atoms, auxbas_grid, coarser_grid
@@ -499,8 +522,9 @@ CONTAINS
     INTEGER :: Imm, IndMM, LIndMM, IRadTyp, Icg, IGauss
     INTEGER, DIMENSION(3) :: ndim, lb, ub
     REAL(KIND=dp), DIMENSION(3)              :: ra
-    REAL(KIND=dp) :: alpha, height, ConsFac, W
+    REAL(KIND=dp) :: alpha, height, W
     TYPE(qmmm_gaussian_type), POINTER :: pgf
+    TYPE(qmmm_pot_type), POINTER :: pot
     REAL(KIND=dbl), DIMENSION(:), POINTER    :: xdat, ydat, zdat
     !Statements
     NULLIFY(pgf, xdat, ydat, zdat)
@@ -519,28 +543,17 @@ CONTAINS
     ALLOCATE (zdat(ndim(3)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    ! Collocating the Constant Term (Just for Energy Consistency)       
-    ConsFac=0._dbl
-    DO IRadTyp = 1, SIZE(pgfs) 
-       pgf => pgfs(IRadTyp)%pgf
-       DO Imm  = 1, SIZE(pgf%mm_atom_index)
-          LIndMM    =   pgf%mm_atom_index(Imm)
-          ConsFac   = - pgf%A0 * mm_charges(LIndMM) + ConsFac
-       END DO
-    END DO
-    tmp_grid(coarser_grid)%pw%cr3d = ConsFac
-
-!
     Radius: DO IRadTyp = 1, SIZE(pgfs) 
        pgf => pgfs(IRadTyp)%pgf
+       pot => potentials(IRadTyp)%pot 
        Gaussian: DO IGauss = 1, pgf%Number_of_Gaussians
           alpha     = 1.0_dbl / pgf%Gk(IGauss)
           alpha     = alpha * alpha
           height    = pgf%Ak(IGauss)
           ilevel    = pgf%grid_level(IGauss)
-          Atoms: DO Imm = 1, SIZE(pgf%mm_atom_index)
+          Atoms: DO Imm = 1, SIZE(pot%mm_atom_index)
              Icg       =   Icg + 1
-             LIndMM    =   pgf%mm_atom_index(Imm)
+             LIndMM    =   pot%mm_atom_index(Imm)
              IndMM     =   mm_atom_index(LIndMM)
              ra(:)     =   mm_particles(IndMM)%r
              W         =   mm_charges(LIndMM) * height
@@ -582,6 +595,7 @@ CONTAINS
                                         mm_el_pot_radius=mm_el_pot_radius,&
                                         para_env=para_env,&
                                         coarser_grid_level=coarser_grid,&
+                                        potentials=potentials,&
                                         error=error)
 
     ! RealSpace Interpolation
@@ -638,7 +652,7 @@ CONTAINS
 !!**************************************************************************
   SUBROUTINE qmmm_elec_with_gaussian_LR(pgfs, grid, mm_charges,&
        mm_atom_index, mm_particles, mm_el_pot_radius, para_env,&
-       coarser_grid_level, error)
+       coarser_grid_level, potentials, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(cp_error_type), INTENT(inout), &
@@ -646,6 +660,7 @@ CONTAINS
     TYPE(pw_type), POINTER                         :: grid
     TYPE(particle_type), DIMENSION(:), POINTER     :: mm_particles
     REAL(KIND=dbl), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
+    TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER :: potentials
     INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
     TYPE(cp_para_env_type), POINTER       :: para_env
     TYPE(qmmm_gaussian_p_type), &
@@ -655,15 +670,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_LR', &
          routineP = moduleN//':'//routineN    
     TYPE(qmmm_gaussian_type), POINTER :: pgf
+    TYPE(qmmm_pot_type), POINTER :: pot
     INTEGER :: handle, IRadTyp, Imm
-    INTEGER :: IndMM, LIndMM
-    INTEGER :: i, j, k, my_k, my_j, n1, n2, n3, IPot
+    INTEGER :: IndMM, LIndMM, ix
+    INTEGER :: i, j, k, my_k, my_j, n1, n2, n3
     INTEGER, DIMENSION(2,3)        :: bo
+    REAL(KIND=dbl), DIMENSION(:,:), POINTER ::pot0_2
     REAL(KIND=dbl), DIMENSION(3)   :: ra
-    REAL(KIND=dbl)               :: Term
-    REAL(KIND=dbl)               :: qt, rt1, rt2, rt3, r, r2
+    REAL(KIND=dbl)               :: Term, dx
+    REAL(KIND=dbl)               :: qt, rt1, rt2, rt3, r, r2, rx, rx2, rx3
     REAL(KIND=dbl)               :: xs1, rv1, xs2, rv2, xs3, rv3, dr1, dr2, dr3
     ! Statements
+    NULLIFY(pgf)
     CALL timeset(routineN,"I","",handle)
 
     n1  = grid%pw_grid%npts(1)
@@ -677,8 +695,11 @@ CONTAINS
 
     Radius: DO IRadTyp = 1, SIZE(pgfs) 
        pgf => pgfs(IRadTyp)%pgf
-       Atoms: DO Imm = 1, SIZE(pgf%mm_atom_index)
-          LIndMM    =   pgf%mm_atom_index(Imm)
+       pot => potentials(IRadTyp)%pot
+       dx     =  Pot%dx 
+       pot0_2 => Pot%pot0_2
+       Atoms: DO Imm = 1, SIZE(pot%mm_atom_index)
+          LIndMM    =   pot%mm_atom_index(Imm)
           IndMM     =   mm_atom_index(LIndMM)
           ra(:)     =   mm_particles(IndMM)%r
           qt        =   mm_charges(LIndMM)
@@ -695,12 +716,18 @@ CONTAINS
                 xs1 = (bo(1,1)+n1/2)*dr1
                 rv2 = rt2 - xs2
                 DO i =  bo(1,1), bo(2,1)
-                   rv1 = rt1 - xs1
-                   r2  = rv1*rv1 + rv2*rv2 + rv3*rv3
-                   r   = SQRT(r2)
-                   Ipot   = NINT(r/pgf%LR%dx)
-                   Term   = pgf%LR%Pot(Ipot) * qt
-                   grid%cr3d(i,j,k) = grid%cr3d(i,j,k)    + Term  
+                   rv1  = rt1 - xs1
+                   r2   = rv1*rv1 + rv2*rv2 + rv3*rv3
+                   r    = SQRT(r2)
+                   ix  = FLOOR(r/dx)+1
+                   rx  = (r-REAL(ix-1,dbl)*dx)/dx
+                   rx2 = rx*rx
+                   rx3 = rx2*rx                   
+                   Term = pot0_2(1,ix  )*(1._dbl-3._dbl*rx2+2._dbl*rx3)  &
+                         +pot0_2(2,ix  )*(rx-2._dbl*rx2+rx3)             &
+                         +pot0_2(1,ix+1)*(3._dbl*rx2-2._dbl*rx3)         &
+                         +pot0_2(2,ix+1)*(-rx2+rx3)
+                   grid%cr3d(i,j,k) = grid%cr3d(i,j,k) - Term * qt 
                    xs1 = xs1 + dr1
                 END DO
                 xs2 = xs2 + dr2
