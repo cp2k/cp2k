@@ -298,10 +298,11 @@ SUBROUTINE shake_3x3 ( molecule, simpar, ishake )
   REAL ( dbl ) :: idtsq, dtsqby2, dtby2, imass1, imass2, imass3
   REAL ( dbl ) :: sigma, max_sigma
   REAL ( dbl ) :: mass
-  REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, vec, bvec
+  REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, vec
+  REAL ( dbl ), DIMENSION(3,1) :: bvec
   REAL ( dbl ), DIMENSION(3) :: r0_12, r0_23, r0_13
   REAL ( dbl ), DIMENSION(3) :: r1, r2, r3, v1, v2, v3, fc1, fc2, fc3
-  REAL ( dbl ), DIMENSION(3,3) :: amat, ainv
+  REAL ( dbl ), DIMENSION(3,3) :: amat, atemp
   TYPE (linklist_g3x3_constraints), POINTER :: llconst
   TYPE ( atomic_kind_type ), POINTER :: atomic_kind 
   INTEGER :: iconst
@@ -350,25 +351,25 @@ SUBROUTINE shake_3x3 ( molecule, simpar, ishake )
         vec= llconst%lambda(1)*llconst%fc1*(imass1+imass2) + &
              llconst%lambda(2)*imass1*llconst%fc2 - &
              llconst%lambda(3)*imass2*llconst%fc3
-        bvec(1)=llconst%d12*llconst%d12-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
+        bvec(1,1)=llconst%d12*llconst%d12-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
              -DOTPROD_3D(r0_12,r0_12)
         vec= llconst%lambda(1)*llconst%fc1*imass1 + &
              llconst%lambda(2)*(imass1+imass3)*llconst%fc2 + &
              llconst%lambda(3)*imass3*llconst%fc3
-        bvec(2)=llconst%d13*llconst%d13-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
+        bvec(2,1)=llconst%d13*llconst%d13-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
              -DOTPROD_3D(r0_13,r0_13)
         vec= -llconst%lambda(1)*llconst%fc1*imass2 + &
              llconst%lambda(2)*imass3*llconst%fc2 + &
              llconst%lambda(3)*(imass2+imass3)*llconst%fc3
-        bvec(3)=llconst%d23*llconst%d23-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
+        bvec(3,1)=llconst%d23*llconst%d23-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
              -DOTPROD_3D(r0_23,r0_23)
         bvec = bvec * idtsq
 
-! find inverse of amat
-        CALL getinv3x3 ( amat, ainv )
-
 ! get lambda
-        llconst%lambda ( : )=MATVEC_3x3(ainv,bvec)
+        atemp = amat
+        CALL solve_system ( atemp, 3, bvec )
+        llconst%lambda ( : ) = bvec ( :, 1 )
+
         fc1=llconst%lambda(1)*llconst%fc1+ &
              llconst%lambda(2)*llconst%fc2
         fc2=-llconst%lambda(1)*llconst%fc1+ &
@@ -424,11 +425,12 @@ SUBROUTINE shake_roll_3x3(molecule,simpar,r_shake,v_shake,ishake)
 ! Locals
   REAL ( dbl ) :: idtsq, dtsqby2, dtby2, imass1, imass2, imass3, mass
   REAL ( dbl ) :: sigma, max_sigma
-  REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, vec, bvec
+  REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, vec
+  REAL ( dbl ), DIMENSION(3,1) :: bvec
   REAL ( dbl ), DIMENSION(3) :: r0_12, r0_23, r0_13
   REAL ( dbl ), DIMENSION(3) :: r1, r2, r3, v1, v2, v3, fc1, fc2, fc3,  &
   f_roll1, f_roll2, f_roll3
-  REAL ( dbl ), DIMENSION(3,3) :: amat, ainv
+  REAL ( dbl ), DIMENSION(3,3) :: amat, atemp
   TYPE (linklist_g3x3_constraints), POINTER :: llconst
   TYPE ( atomic_kind_type ), POINTER :: atomic_kind 
   INTEGER :: iconst
@@ -483,25 +485,25 @@ SUBROUTINE shake_roll_3x3(molecule,simpar,r_shake,v_shake,ishake)
         vec= llconst%lambda(1)*f_roll1*(imass1+imass2) + &
              llconst%lambda(2)*imass1*f_roll2 - &
              llconst%lambda(3)*imass2*f_roll3
-        bvec(1)=llconst%d12*llconst%d12-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
+        bvec(1,1)=llconst%d12*llconst%d12-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
              -DOTPROD_3D(r0_12,r0_12)
         vec= llconst%lambda(1)*f_roll1*imass1 + &
              llconst%lambda(2)*(imass1+imass3)*f_roll2 + &
              llconst%lambda(3)*imass3*f_roll3
-        bvec(2)=llconst%d13*llconst%d13-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
+        bvec(2,1)=llconst%d13*llconst%d13-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
              -DOTPROD_3D(r0_13,r0_13)
         vec= -llconst%lambda(1)*f_roll1*imass2 + &
              llconst%lambda(2)*imass3*f_roll2 + &
              llconst%lambda(3)*(imass2+imass3)*f_roll3
-        bvec(3)=llconst%d23*llconst%d23-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
+        bvec(3,1)=llconst%d23*llconst%d23-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
              -DOTPROD_3D(r0_23,r0_23)
         bvec=bvec*idtsq
 
-! find inverse of amat
-        CALL getinv3x3 ( amat, ainv )
-
 ! get lambda
-        llconst%lambda ( : ) = MATVEC_3x3 ( ainv, bvec )
+        atemp = amat
+        CALL solve_system ( atemp, 3, bvec )
+        llconst%lambda ( : ) = bvec ( :, 1 )
+
         fc1=llconst%lambda(1)*llconst%fc1+ &
              llconst%lambda(2)*llconst%fc2
         fc2=-llconst%lambda(1)*llconst%fc1+ &
@@ -559,10 +561,10 @@ SUBROUTINE shake_4x6 ( molecule, simpar, ishake )
   REAL ( dbl ) :: sigma, max_sigma
   REAL ( dbl ) :: mass
   REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, r14, r24, r34, vec
-  REAL ( dbl ), DIMENSION ( 6 ) :: bvec, work
+  REAL ( dbl ), DIMENSION ( 6, 1 ) :: bvec
   REAL ( dbl ), DIMENSION(3) :: r0_12, r0_23, r0_13, r0_14, r0_24, r0_34
   REAL ( dbl ), DIMENSION(3) :: r1, r2, r3, r4, v1, v2, v3, v4, fc1, fc2, fc3, fc4
-  REAL ( dbl ), DIMENSION(6,6) :: amat, ainv
+  REAL ( dbl ), DIMENSION(6,6) :: amat, atemp
   TYPE (linklist_g4x6_constraints), POINTER :: llconst
   TYPE ( atomic_kind_type ), POINTER :: atomic_kind 
   INTEGER ::  iconst
@@ -657,51 +659,51 @@ SUBROUTINE shake_4x6 ( molecule, simpar, ishake )
              llconst%lambda(3)*imass1*llconst%fc3 - &
              llconst%lambda(4)*imass2*llconst%fc4 - &
              llconst%lambda(5)*imass2*llconst%fc5 
-        bvec(1)=llconst%d12*llconst%d12-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
+        bvec(1,1)=llconst%d12*llconst%d12-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
              -DOTPROD_3D(r0_12,r0_12)
         vec= llconst%lambda(2)*llconst%fc2*(imass1+imass3) + &
              llconst%lambda(1)*imass1*llconst%fc1 + &
              llconst%lambda(3)*imass1*llconst%fc3 + &
              llconst%lambda(4)*imass3*llconst%fc4 - &
              llconst%lambda(6)*imass3*llconst%fc6 
-        bvec(2)=llconst%d13*llconst%d13-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
+        bvec(2,1)=llconst%d13*llconst%d13-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
              -DOTPROD_3D(r0_13,r0_13)
         vec= llconst%lambda(3)*llconst%fc3*(imass1+imass4) + &
              llconst%lambda(1)*imass1*llconst%fc1 + &
              llconst%lambda(2)*imass1*llconst%fc2 + &
              llconst%lambda(5)*imass4*llconst%fc5 + &
              llconst%lambda(6)*imass4*llconst%fc6 
-        bvec(3)=llconst%d14*llconst%d14-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
+        bvec(3,1)=llconst%d14*llconst%d14-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
              -DOTPROD_3D(r0_14,r0_14)
         vec= llconst%lambda(4)*llconst%fc4*(imass2+imass3) - &
              llconst%lambda(1)*imass2*llconst%fc1 + &
              llconst%lambda(2)*imass3*llconst%fc2 + &
              llconst%lambda(5)*imass2*llconst%fc5 - &
              llconst%lambda(6)*imass3*llconst%fc6 
-        bvec(4)=llconst%d23*llconst%d23-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
+        bvec(4,1)=llconst%d23*llconst%d23-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
              -DOTPROD_3D(r0_23,r0_23)
         vec= llconst%lambda(5)*llconst%fc5*(imass2+imass4) - &
              llconst%lambda(1)*imass2*llconst%fc1 + &
              llconst%lambda(3)*imass4*llconst%fc3 + &
              llconst%lambda(4)*imass2*llconst%fc4 + &
              llconst%lambda(6)*imass4*llconst%fc6 
-        bvec(5)=llconst%d24*llconst%d24-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
+        bvec(5,1)=llconst%d24*llconst%d24-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
              -DOTPROD_3D(r0_24,r0_24)
         vec= llconst%lambda(6)*llconst%fc6*(imass3+imass4) - &
              llconst%lambda(2)*imass3*llconst%fc2 + &
              llconst%lambda(3)*imass4*llconst%fc3 - &
              llconst%lambda(4)*imass3*llconst%fc4 + &
              llconst%lambda(5)*imass4*llconst%fc5 
-        bvec(6)=llconst%d34*llconst%d34-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
+        bvec(6,1)=llconst%d34*llconst%d34-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
              -DOTPROD_3D(r0_34,r0_34)
 
         bvec = bvec * idtsq
 
-! find inverse of amat
-        CALL dgetri ( 6, amat, 6, ipvt, work, 6, info )
-
 ! get lambda
-        llconst%lambda ( : )=MATMUL(amat,bvec)
+        atemp = amat
+        CALL solve_system ( atemp, 6, bvec )
+        llconst%lambda ( : ) = bvec ( :, 1 )
+
         fc1=llconst%lambda(1)*llconst%fc1+ &
              llconst%lambda(2)*llconst%fc2+ &
              llconst%lambda(3)*llconst%fc3
@@ -777,11 +779,11 @@ SUBROUTINE shake_roll_4x6(molecule,simpar,r_shake,v_shake,ishake)
   REAL ( dbl ) :: idtsq, dtsqby2, dtby2, imass1, imass2, imass3, imass4, mass
   REAL ( dbl ) :: sigma, max_sigma
   REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, r14, r24, r34, vec
-  REAL ( dbl ), DIMENSION ( 6 ) :: bvec, work
+  REAL ( dbl ), DIMENSION ( 6, 1 ) :: bvec
   REAL ( dbl ), DIMENSION(3) :: r0_12, r0_23, r0_13, r0_14, r0_24, r0_34
   REAL ( dbl ), DIMENSION(3) :: r1, r2, r3, r4, v1, v2, v3, v4, fc1, fc2, fc3, fc4, &
   f_roll1, f_roll2, f_roll3, f_roll4, f_roll5, f_roll6
-  REAL ( dbl ), DIMENSION(6,6) :: amat, ainv
+  REAL ( dbl ), DIMENSION(6,6) :: amat, atemp
   TYPE (linklist_g4x6_constraints), POINTER :: llconst
   TYPE ( atomic_kind_type ), POINTER :: atomic_kind 
   INTEGER :: iconst
@@ -883,51 +885,51 @@ SUBROUTINE shake_roll_4x6(molecule,simpar,r_shake,v_shake,ishake)
              llconst%lambda(3)*imass1*f_roll3 - &
              llconst%lambda(4)*imass2*f_roll4 - &
              llconst%lambda(5)*imass2*f_roll5 
-        bvec(1)=llconst%d12*llconst%d12-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
+        bvec(1,1)=llconst%d12*llconst%d12-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
              -DOTPROD_3D(r0_12,r0_12)
         vec= llconst%lambda(2)*f_roll2*(imass1+imass3) + &
              llconst%lambda(1)*imass1*f_roll1 + &
              llconst%lambda(3)*imass1*f_roll3 + &
              llconst%lambda(4)*imass3*f_roll4 - &
              llconst%lambda(6)*imass3*f_roll6 
-        bvec(2)=llconst%d13*llconst%d13-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
+        bvec(2,1)=llconst%d13*llconst%d13-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
              -DOTPROD_3D(r0_13,r0_13)
         vec= llconst%lambda(3)*f_roll3*(imass1+imass4) + &
              llconst%lambda(1)*imass1*f_roll1 + &
              llconst%lambda(2)*imass1*f_roll2 + &
              llconst%lambda(5)*imass4*f_roll5 + &
              llconst%lambda(6)*imass4*f_roll6 
-        bvec(3)=llconst%d14*llconst%d14-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
+        bvec(3,1)=llconst%d14*llconst%d14-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
              -DOTPROD_3D(r0_14,r0_14)
         vec= llconst%lambda(4)*f_roll4*(imass2+imass3) - &
              llconst%lambda(1)*imass2*f_roll1 + &
              llconst%lambda(2)*imass3*f_roll2 + &
              llconst%lambda(5)*imass2*f_roll5 - &
              llconst%lambda(6)*imass3*f_roll6 
-        bvec(4)=llconst%d23*llconst%d23-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
+        bvec(4,1)=llconst%d23*llconst%d23-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
              -DOTPROD_3D(r0_23,r0_23)
         vec= llconst%lambda(5)*f_roll5*(imass2+imass4) - &
              llconst%lambda(1)*imass2*f_roll1 + &
              llconst%lambda(3)*imass4*f_roll3 + &
              llconst%lambda(4)*imass2*f_roll4 + &
              llconst%lambda(6)*imass4*f_roll6 
-        bvec(5)=llconst%d24*llconst%d24-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
+        bvec(5,1)=llconst%d24*llconst%d24-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
              -DOTPROD_3D(r0_24,r0_24)
         vec= llconst%lambda(6)*f_roll6*(imass3+imass4) - &
              llconst%lambda(2)*imass3*f_roll2 + &
              llconst%lambda(3)*imass4*f_roll3 - &
              llconst%lambda(4)*imass3*f_roll4 + &
              llconst%lambda(5)*imass4*f_roll5
-        bvec(6)=llconst%d34*llconst%d34-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
+        bvec(6,1)=llconst%d34*llconst%d34-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
              -DOTPROD_3D(r0_34,r0_34)
 
         bvec=bvec*idtsq
 
-! find inverse of amat
-        CALL dgetri ( 6, amat, 6, ipvt, work, 6, info )
-
 ! get lambda
-        llconst%lambda ( : ) = MATMUL ( amat, bvec )
+        atemp = amat
+        CALL solve_system ( atemp, 6, bvec )
+        llconst%lambda ( : ) = bvec ( :, 1 )
+
         fc1=llconst%lambda(1)*llconst%fc1+ &
              llconst%lambda(2)*llconst%fc2+ &
              llconst%lambda(3)*llconst%fc3
@@ -1004,12 +1006,13 @@ SUBROUTINE rattle_roll_3x3(molecule,simpar,r_rattle,veps,max_sigma,irattle)
 ! Locals
   INTEGER :: iconst, info
   REAL ( dbl ) :: idt, dtby2, imass1, imass2, imass3, mass, sigma_dot
-  REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, vec, bvec
+  REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, vec
+  REAL ( dbl ), DIMENSION(3,1) :: bvec
   REAL ( dbl ), DIMENSION(3) :: f_roll1, f_roll2, f_roll3
   REAL ( dbl ), DIMENSION(3) :: v12_0, v23_0, v13_0
   REAL ( dbl ), DIMENSION(3) :: v12, v23, v13
   REAL ( dbl ), DIMENSION(3) :: fc1, fc2, fc3, lambda
-  REAL ( dbl ), DIMENSION(3,3) :: amat, ainv
+  REAL ( dbl ), DIMENSION(3,3) :: amat
   TYPE (linklist_g3x3_constraints), POINTER :: llconst
   TYPE (atomic_kind_type), POINTER :: atomic_kind
 
@@ -1089,16 +1092,14 @@ SUBROUTINE rattle_roll_3x3(molecule,simpar,r_rattle,veps,max_sigma,irattle)
         amat(3,3)=(imass2+imass3)*DOTPROD_3D(r23,f_roll3)
 
 ! construct solution vector
-        bvec ( 1 ) = DOTPROD_3D ( r12, v12_0 + MATVEC_3X3 ( veps, r12 ) )
-        bvec ( 2 ) = DOTPROD_3D ( r13, v13_0 + MATVEC_3X3 ( veps, r13 ) )
-        bvec ( 3 ) = DOTPROD_3D ( r23, v23_0 + MATVEC_3X3 ( veps, r23 ) )
+        bvec ( 1, 1 ) = DOTPROD_3D ( r12, v12_0 + MATVEC_3X3 ( veps, r12 ) )
+        bvec ( 2, 1 ) = DOTPROD_3D ( r13, v13_0 + MATVEC_3X3 ( veps, r13 ) )
+        bvec ( 3, 1 ) = DOTPROD_3D ( r23, v23_0 + MATVEC_3X3 ( veps, r23 ) )
         bvec = -bvec * 2.0_dbl * idt
 
-! find inverse of amat
-        CALL getinv3x3 ( amat, ainv )
-
 ! get lambda
-        lambda ( : ) = MATVEC_3X3 ( ainv, bvec )
+        CALL solve_system ( amat, 3, bvec )
+        lambda ( : ) = bvec ( :, 1 )
         llconst % del_lam = lambda - llconst % lambda
 
 ! update velocities
@@ -1147,10 +1148,11 @@ SUBROUTINE rattle_3x3(molecule,simpar)
 ! Locals
   INTEGER :: iconst
   REAL ( dbl ) :: idt, dtby2, imass1, imass2, imass3, mass
-  REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, vec, bvec
+  REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, vec
+  REAL ( dbl ), DIMENSION(3,1) :: bvec
   REAL ( dbl ), DIMENSION(3) :: v12, v23, v13
   REAL ( dbl ), DIMENSION(3) :: fc1, fc2, fc3
-  REAL ( dbl ), DIMENSION(3,3) :: amat, ainv
+  REAL ( dbl ), DIMENSION(3,3) :: amat
   TYPE (linklist_g3x3_constraints), POINTER :: llconst
   TYPE (atomic_kind_type), POINTER :: atomic_kind
 
@@ -1192,16 +1194,16 @@ SUBROUTINE rattle_3x3(molecule,simpar)
      amat(3,3)=(imass2+imass3)*DOTPROD_3D(r23,llconst%fc3)
 
 ! construct solution vector
-     bvec(1)=DOTPROD_3D(r12,v12)
-     bvec(2)=DOTPROD_3D(r13,v13)
-     bvec(3)=DOTPROD_3D(r23,v23)
+     bvec(1,1)=DOTPROD_3D(r12,v12)
+     bvec(2,1)=DOTPROD_3D(r13,v13)
+     bvec(3,1)=DOTPROD_3D(r23,v23)
      bvec=-bvec*2._dbl*idt
 
-! find inverse of amat
-     CALL getinv3x3(amat,ainv)
 
 ! get lambda
-     llconst%lambda ( : )=MATVEC_3X3(ainv,bvec)
+     CALL solve_system ( amat, 3, bvec )
+     llconst%lambda ( : )=bvec ( :, 1 )
+
      fc1=llconst%lambda(1)*llconst%fc1+ &
           llconst%lambda(2)*llconst%fc2
      fc2=-llconst%lambda(1)*llconst%fc1+ &
@@ -1226,13 +1228,13 @@ SUBROUTINE rattle_4x6(molecule,simpar)
   TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
 
 ! Locals
-  INTEGER :: iconst, info, ipvt ( 6 )
+  INTEGER :: iconst 
   REAL ( dbl ) :: idt, dtby2, imass1, imass2, imass3, imass4, mass
   REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, r14, r24, r34, vec
-  REAL ( dbl ), DIMENSION ( 6 ) :: bvec, work
+  REAL ( dbl ), DIMENSION ( 6, 1 ) :: bvec
   REAL ( dbl ), DIMENSION(3) :: v12, v23, v13, v14, v24, v34
   REAL ( dbl ), DIMENSION(3) :: fc1, fc2, fc3, fc4
-  REAL ( dbl ), DIMENSION(6,6) :: amat, ainv
+  REAL ( dbl ), DIMENSION(6,6) :: amat
   TYPE (linklist_g4x6_constraints), POINTER :: llconst
   TYPE (atomic_kind_type), POINTER :: atomic_kind
 
@@ -1321,19 +1323,18 @@ SUBROUTINE rattle_4x6(molecule,simpar)
      amat(6,6)=(imass3+imass4)*DOTPROD_3D(r34,llconst%fc6)
 
 ! construct solution vector
-     bvec(1)=DOTPROD_3D(r12,v12)
-     bvec(2)=DOTPROD_3D(r13,v13)
-     bvec(3)=DOTPROD_3D(r14,v14)
-     bvec(4)=DOTPROD_3D(r23,v23)
-     bvec(5)=DOTPROD_3D(r24,v24)
-     bvec(6)=DOTPROD_3D(r34,v34)
+     bvec(1,1)=DOTPROD_3D(r12,v12)
+     bvec(2,1)=DOTPROD_3D(r13,v13)
+     bvec(3,1)=DOTPROD_3D(r14,v14)
+     bvec(4,1)=DOTPROD_3D(r23,v23)
+     bvec(5,1)=DOTPROD_3D(r24,v24)
+     bvec(6,1)=DOTPROD_3D(r34,v34)
      bvec=-bvec*2._dbl*idt
 
-! find inverse of amat
-     CALL dgetri ( 6, amat, 6, ipvt, work, 6, info )
-
 ! get lambda
-     llconst%lambda ( : )=MATMUL(amat,bvec)
+     CALL solve_system ( amat, 6, bvec )
+     llconst%lambda ( : )=bvec(:,1)
+
      fc1=llconst%lambda(1)*llconst%fc1+ &
           llconst%lambda(2)*llconst%fc2+ &
           llconst%lambda(3)*llconst%fc3
@@ -1369,16 +1370,17 @@ SUBROUTINE rattle_roll_4x6(molecule,simpar,r_rattle,veps,max_sigma,irattle)
   REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: r_rattle
 
 ! Locals
-  INTEGER :: iconst, info, ipvt ( 6 )
+  INTEGER :: iconst
   REAL ( dbl ) :: idt, dtby2, imass1, imass2, imass3, imass4, mass
   REAL ( dbl ) :: sigma_dot
   REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, r14, r24, r34, vec
-  REAL ( dbl ), DIMENSION ( 6 ) :: bvec, lambda, work
+  REAL ( dbl ), DIMENSION ( 6, 1 ) :: bvec
+  REAL ( dbl ), DIMENSION ( 6 ) :: lambda
   REAL ( dbl ), DIMENSION(3) :: f_roll1, f_roll2, f_roll3, f_roll4, f_roll5, f_roll6
   REAL ( dbl ), DIMENSION(3) :: v12, v23, v13, v14, v24, v34
   REAL ( dbl ), DIMENSION(3) :: v12_0, v23_0, v13_0, v14_0, v24_0, v34_0
   REAL ( dbl ), DIMENSION(3) :: fc1, fc2, fc3, fc4
-  REAL ( dbl ), DIMENSION(6,6) :: amat, ainv
+  REAL ( dbl ), DIMENSION(6,6) :: amat
   TYPE (linklist_g4x6_constraints), POINTER :: llconst
   TYPE (atomic_kind_type), POINTER :: atomic_kind
 
@@ -1525,19 +1527,18 @@ SUBROUTINE rattle_roll_4x6(molecule,simpar,r_rattle,veps,max_sigma,irattle)
         amat(6,6)=(imass3+imass4)*DOTPROD_3D(r34,f_roll6)
 
 ! construct solution vector
-        bvec ( 1 ) = DOTPROD_3D ( r12, v12_0 + MATVEC_3X3 ( veps, r12 ) )
-        bvec ( 2 ) = DOTPROD_3D ( r13, v13_0 + MATVEC_3X3 ( veps, r13 ) )
-        bvec ( 3 ) = DOTPROD_3D ( r14, v14_0 + MATVEC_3X3 ( veps, r14 ) )
-        bvec ( 4 ) = DOTPROD_3D ( r23, v23_0 + MATVEC_3X3 ( veps, r23 ) )
-        bvec ( 5 ) = DOTPROD_3D ( r24, v24_0 + MATVEC_3X3 ( veps, r24 ) )
-        bvec ( 6 ) = DOTPROD_3D ( r34, v34_0 + MATVEC_3X3 ( veps, r34 ) )
+        bvec ( 1, 1 ) = DOTPROD_3D ( r12, v12_0 + MATVEC_3X3 ( veps, r12 ) )
+        bvec ( 2, 1 ) = DOTPROD_3D ( r13, v13_0 + MATVEC_3X3 ( veps, r13 ) )
+        bvec ( 3, 1 ) = DOTPROD_3D ( r14, v14_0 + MATVEC_3X3 ( veps, r14 ) )
+        bvec ( 4, 1 ) = DOTPROD_3D ( r23, v23_0 + MATVEC_3X3 ( veps, r23 ) )
+        bvec ( 5, 1 ) = DOTPROD_3D ( r24, v24_0 + MATVEC_3X3 ( veps, r24 ) )
+        bvec ( 6, 1 ) = DOTPROD_3D ( r34, v34_0 + MATVEC_3X3 ( veps, r34 ) )
         bvec = -bvec * 2.0_dbl * idt
 
-! find inverse of amat
-        CALL dgetri ( 6, amat, 6, ipvt, work, 6, info )
 
 ! get lambda
-        lambda ( : ) = MATMUL ( amat, bvec )
+        CALL solve_system ( amat, 6, bvec )
+        lambda ( : ) = bvec ( :, 1 )
         llconst % del_lam = lambda - llconst % lambda
 
 ! update velocities
