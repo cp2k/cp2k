@@ -80,20 +80,17 @@ CONTAINS
 
 !******************************************************************************
 
-SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, epsilon, alpha, grid_s, grid_b, &
-     dg_gaussian_type, dg_glopar )
+SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
+                               dg_glopar )
 
   IMPLICIT NONE
 
 ! Arguments
   INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts_s
-  REAL ( dbl ), INTENT ( INOUT ) :: epsilon
-  REAL ( dbl ), INTENT ( IN ) :: alpha
   TYPE ( cell_type ), INTENT ( IN ) :: box_b
-  CHARACTER( LEN = * ), INTENT ( IN ) :: dg_gaussian_type
   TYPE ( global_environment_type ), INTENT ( IN ) :: dg_glopar
-
   TYPE ( pw_grid_type ), INTENT ( INOUT ) :: grid_s, grid_b
+  REAL ( dbl ), INTENT ( IN ) :: cutoff_radius
 
 ! Locals
   INTEGER :: nout ( 3 )
@@ -102,31 +99,7 @@ SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, epsilon, alpha, grid_s, grid_b, &
   TYPE ( cell_type ) :: unit_box, box_s
 
 !------------------------------------------------------------------------------
-
-  CALL fft_radix_operations ( npts_s ( 1 ), nout ( 1 ), &
-       operation = FFT_RADIX_NEXT )
-  CALL fft_radix_operations ( npts_s ( 1 ), nout ( 2 ), &
-       operation = FFT_RADIX_NEXT )
-  CALL fft_radix_operations ( npts_s ( 1 ), nout ( 3 ), &
-       operation = FFT_RADIX_NEXT )
-
-  CALL get_cell_param ( box_b, cell_lengths )
-
-  CALL dg_get_spacing ( nout, epsilon, alpha, dg_gaussian_type, dr )
-
-  CALL dg_find_radix ( dr, cell_lengths, grid_b % npts )
-
-  CALL dg_get_epsilon ( nout, dr, alpha, dg_gaussian_type, epsilon )
-
-  grid_b % bounds ( 1, : ) = - grid_b % npts / 2
-  grid_b % bounds ( 2, : ) = + ( grid_b % npts - 1 ) / 2
-  grid_b % grid_span = HALFSPACE
-  grid_s % bounds ( 1, : ) =   -nout ( : ) / 2
-  grid_s % bounds ( 2, : ) = ( +nout ( : ) - 1 ) / 2
-  grid_s % grid_span = HALFSPACE
-  grid_s % npts = nout
-
-  CALL pw_find_cutoff ( grid_b % npts, box_b, cutoff )
+  CALL dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s, grid_b, cutoff )
 
   ecut = 0.5_dbl * cutoff * cutoff
   CALL pw_grid_setup ( box_b, grid_b, cutoff = ecut, &
@@ -150,7 +123,7 @@ SUBROUTINE dg_pol_grid_setup ( box_b, npts_s, cutoff_radius, &
 ! Arguments
   INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts_s
   TYPE ( cell_type ), INTENT ( IN ) :: box_b
-  REAL ( dbl )      , INTENT ( IN ) :: cutoff_radius
+  REAL ( dbl )      , INTENT ( INOUT ) :: cutoff_radius
   TYPE ( global_environment_type ), INTENT ( IN ) :: dg_glopar
   TYPE ( pw_grid_type ), INTENT ( INOUT ) :: grid_s, grid_b
   TYPE ( pw_grid_type ), INTENT ( IN ), OPTIONAL :: grid_ref
@@ -160,7 +133,6 @@ SUBROUTINE dg_pol_grid_setup ( box_b, npts_s, cutoff_radius, &
   TYPE ( cell_type ) :: unit_box, box_s
 
 !------------------------------------------------------------------------------
-
   CALL dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s, grid_b, cutoff )
 
 ! If necessary set up grid with respect to the reference grid
@@ -178,7 +150,7 @@ SUBROUTINE dg_pol_grid_setup ( box_b, npts_s, cutoff_radius, &
 
   CALL dg_set_cell ( grid_s % npts, unit_box, box_s )
 
-  CALL pw_grid_setup ( box_s, grid_s )
+  CALL pw_grid_setup ( box_s, grid_s, symm_usage=.FALSE. )
 
 END SUBROUTINE dg_pol_grid_setup
 
@@ -208,7 +180,7 @@ SUBROUTINE dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s,  &
        operation = FFT_RADIX_NEXT )
 
   CALL get_cell_param ( box_b, cell_lengths )
-  CALL dg_pol_get_spacing ( nout, cutoff_radius, dr )
+  CALL dg_get_spacing ( nout, cutoff_radius, dr )
   CALL dg_find_radix ( dr, cell_lengths, grid_b % npts )
 
 ! In-line code to set grid_b % npts = npts_s if necessary
@@ -238,7 +210,7 @@ SUBROUTINE dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s,  &
 END SUBROUTINE  dg_find_cutoff 
 !******************************************************************************
 
-SUBROUTINE dg_pol_get_spacing ( npts, cutoff_radius, dr )
+SUBROUTINE dg_get_spacing ( npts, cutoff_radius, dr )
 
   IMPLICIT NONE
 
@@ -255,7 +227,7 @@ SUBROUTINE dg_pol_get_spacing ( npts, cutoff_radius, dr )
 
   dr ( : ) = cutoff_radius  / ( REAL ( npts ( : ), dbl ) / 2.0_dbl )                                           
           
- END SUBROUTINE dg_pol_get_spacing
+ END SUBROUTINE dg_get_spacing
 
 !******************************************************************************
 
@@ -281,93 +253,6 @@ SUBROUTINE dg_grid_change ( box_b, grid_b, grid_s )
   CALL pw_grid_change ( box_s, grid_s )
 
 END SUBROUTINE dg_grid_change
-
-!******************************************************************************
-
-SUBROUTINE dg_get_spacing ( npts, epsilon, alpha, dg_gaussian_type, dr )
-
-  IMPLICIT NONE
-
-! Arguments
-  REAL ( dbl ), INTENT ( IN ) :: epsilon, alpha
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: dg_gaussian_type
-
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( OUT ) :: dr
-
-! Locals
-  REAL ( dbl ) :: alphasq, norm
-
-!------------------------------------------------------------------------------
-
-  SELECT CASE ( dg_gaussian_type )
-
-  CASE ( "PME" )  ! use a Gaussian of form N exp(-2*alpha^2*r^2)
-     alphasq = alpha ** 2
-     norm = ( 2.0_dbl * alphasq / pi ) ** ( 1.5_dbl )
-     dr ( : ) = SQRT ( -LOG ( epsilon / norm ) / alphasq / 2.0_dbl ) &
-          / ( REAL ( npts ( : ), dbl ) / 2.0_dbl )
-
-  CASE ( "S" )          ! use a Gaussian of form N exp(-2*alpha^2*r^2)
-     alphasq = alpha ** 2
-     norm = ( 2.0_dbl * alphasq / pi ) ** ( 1.5_dbl )
-     dr ( : ) = SQRT ( -LOG ( epsilon / norm ) / alphasq / 2.0_dbl ) &
-          / ( REAL ( npts ( : ), dbl ) / 2.0_dbl )
-
-  CASE ( "P" )
-     CALL stop_program ( "dg_get_spacing", "'P; gaussian type not defined" )
-
-  CASE DEFAULT
-     CALL stop_program ( "dg_get_spacing",&
-                         "no suitable gaussian type specified" )
-
-  END SELECT
-
-END SUBROUTINE dg_get_spacing
-
-!******************************************************************************
-
-SUBROUTINE dg_get_epsilon ( npts, dr, alpha, dg_gaussian_type, epsilon )
-
-  IMPLICIT NONE
-
-! Arguments
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: dr
-  REAL ( dbl ), INTENT ( IN ) :: alpha
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: dg_gaussian_type
-
-  REAL ( dbl ), INTENT ( OUT ) :: epsilon
-
-! Locals
-  REAL ( dbl ) :: alphasq, norm, rlen
-
-!------------------------------------------------------------------------------
-
-  SELECT CASE ( dg_gaussian_type )
-
-  CASE ( "PME" )  ! use a Gaussian of form N exp(-2*alpha^2*r^2)
-     rlen = MAXVAL ( REAL ( npts, dbl ) * dr ) * 0.5_dbl
-     alphasq = alpha ** 2
-     norm = ( 2.0_dbl * alphasq / pi ) ** ( 1.5_dbl )
-     epsilon = norm * exp ( - 2._dbl * alphasq * rlen * rlen )
-
-  CASE ( "S" )          ! use a Gaussian of form N exp(-2*alpha^2*r^2)
-     rlen = MAXVAL ( REAL ( npts, dbl ) * dr ) * 0.5_dbl
-     alphasq = alpha ** 2
-     norm = ( 2.0_dbl * alphasq / pi ) ** ( 1.5_dbl )
-     epsilon = norm * exp ( - 2._dbl * alphasq * rlen * rlen )
-
-  CASE ( "P" )
-     CALL stop_program ( "dg_get_spacing", "'P; gaussian type not defined" )
-
-  CASE DEFAULT
-     CALL stop_program ( "dg_get_spacing",&
-                         "no suitable gaussian type specified" )
-
-  END SELECT
-
-END SUBROUTINE dg_get_epsilon
 
 !******************************************************************************
 
@@ -501,6 +386,7 @@ SUBROUTINE dg_get_delta ( box, r, npts_s, npts_b, centre, delta )
 
 ! Locals
   REAL ( dbl ), DIMENSION ( 3 ) :: s, grid_i
+  INTEGER, DIMENSION ( 3 ) :: npts
 
 !------------------------------------------------------------------------------
 
@@ -509,7 +395,10 @@ SUBROUTINE dg_get_delta ( box, r, npts_s, npts_b, centre, delta )
   s = s - NINT ( s )
 
 ! find the continuous ``grid'' point (on big grid)
-  grid_i ( 1:3 ) = REAL ( npts_b ( 1:3 ), dbl ) * s ( 1:3 )
+! dbg
+  npts = npts_b/2 * 2
+  grid_i ( 1:3 ) = REAL ( npts ( 1:3 ), dbl ) * s ( 1:3 )
+! dbg
 
 ! find the closest grid point (on big grid)
   centre ( : ) = NINT ( grid_i ( : ) )
