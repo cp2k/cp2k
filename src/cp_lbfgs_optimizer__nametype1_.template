@@ -115,7 +115,7 @@ MODULE cp_lbfgs_optimizer_[nametype1]
 !!     - task: the actual task of the optimizer (in the master it is up to
 !!       date, in case of error also the slaves one get updated. 
 !!     - csave: internal character string used by the lbfgs optimizer,
-!!       present only in the master  
+!!       meaningful only in the master  
 !!     - lsave: logical array used by the lbfgs optimizer, updated only 
 !!       in the master
 !!       On exit with task = 'NEW_X', the following information is
@@ -182,7 +182,7 @@ MODULE cp_lbfgs_optimizer_[nametype1]
   !***************************************************************************
   TYPE cp_lbfgs_opt_[nametype1]_type
      CHARACTER (len=60) :: task
-     CHARACTER (len=60), POINTER :: csave  
+     CHARACTER (len=60) :: csave  
      LOGICAL :: lsave (4)
      INTEGER :: m, print_every, master, max_f_per_iter, status, n_iter
      INTEGER :: ref_count, id_nr
@@ -275,8 +275,6 @@ CONTAINS
        IF (optimizer%master==optimizer%para_env%mepos) THEN
           lenwa= 2 * optimizer%m * n + 4 * n + &
                11 * optimizer%m * optimizer%m + 8 * optimizer%m
-          ALLOCATE( optimizer%csave, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE( optimizer%kind_of_bound(n), optimizer%i_work_array(3*n),&
                optimizer%isave(44), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -302,7 +300,7 @@ CONTAINS
                optimizer%csave, optimizer%lsave, optimizer%isave, &
                optimizer%dsave)
        ELSE
-          NULLIFY( optimizer%csave, &
+          NULLIFY(&
                optimizer%kind_of_bound, optimizer%i_work_array, optimizer%isave,&
                optimizer%lower_bound, optimizer%upper_bound, optimizer%gradient,&
                optimizer%dsave, optimizer%work_array)
@@ -401,10 +399,6 @@ SUBROUTINE cp_opt_[nametype1]_release(optimizer,error)
      IF (optimizer%ref_count==0) THEN
         cp_lbfgs_unit_nr=cp_logger_get_default_unit_nr()
         optimizer%status=6
-        IF (ASSOCIATED(optimizer%csave)) THEN
-           DEALLOCATE(optimizer%csave, stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-        END IF
         IF (ASSOCIATED(optimizer%kind_of_bound)) THEN
            DEALLOCATE(optimizer%kind_of_bound, stat=stat)
            CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
