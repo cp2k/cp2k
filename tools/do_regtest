@@ -111,7 +111,7 @@ echo "--------------------------------------------------------------------------
 
 # *** cvs update src
 cd ${dir_base}/cp2k/src
-cvs update -D ${datum_full} &> out
+cvs update -d -D ${datum_full} &> out
 if (( $? )); then
 echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
 tail -20 out >> ${error_description_file}
@@ -131,7 +131,7 @@ cp ChangeLog ${dir_last}/ChangeLog
 
 # *** cvs update tests
 cd ${dir_base}/cp2k/tests
-cvs update -D ${datum_full} &> out
+cvs update -d -D ${datum_full} &> out
 if (( $? )); then
 echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
 tail -20 out >> ${error_description_file}
