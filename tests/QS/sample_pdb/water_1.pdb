@@ -1,0 +1,7 @@
+REMARK PDB
+REMARK  TITLE                                                                         
+REMARK   DATE:    10/ 2/ 2     11:36:14      CREATED BY USER: ikuo                 
+ATOM      1  O   TIP3    1      -0.757  -5.616  -7.101  1.00  0.00      WAT 
+ATOM      2  H   TIP3    1      -1.206  -5.714  -6.262  1.00  0.00      WAT 
+ATOM      3  H   TIP3    1       0.024  -5.102  -6.896  1.00  0.00      WAT 
+END
