@@ -4,8 +4,8 @@ OBJECTS_GENERIC =\
  ai_kinetic.o\
  ai_nuclear.o\
  ai_overlap.o\
- ai_overlap_new.o\
  ai_overlap3.o\
+ ai_overlap_new.o\
  ai_overlap_ppl.o\
  ai_verfc.o\
  amoeba.o\
@@ -35,6 +35,7 @@ OBJECTS_GENERIC =\
  cp_array_r_utils.o\
  cp_array_utils.o\
  cp_b_matrix_structure.o\
+ cp_block_matrix.o\
  cp_e_rosenbrok_function.o\
  cp_error_handling.o\
  cp_lbfgs.o\
@@ -44,9 +45,9 @@ OBJECTS_GENERIC =\
  cp_linked_list_int.o\
  cp_log_handling.o\
  cp_matrix_utils.o\
+ cp_mpi_env.o\
  cp_output_handling.o\
  cp_sll_int_tests.o\
- cp_sparse_matrix.o\
  cube_utils.o\
  densities.o\
  density_types.o\
@@ -135,6 +136,7 @@ OBJECTS_GENERIC =\
  orbital_transformation_matrices.o\
  output_utilities.o\
  pair_potential.o\
+ pao_bas_projection_types.o\
  pao_env_methods.o\
  pao_glob_angles_methods.o\
  pao_l_angles_methods.o\
@@ -142,7 +144,6 @@ OBJECTS_GENERIC =\
  pao_plain_rot.o\
  pao_plain_rot_tests.o\
  pao_proj_methods.o\
- pao_bas_projection_types.o\
  pao_qs_env_methods.o\
  pao_read_section.o\
  pao_types.o\
@@ -202,8 +203,10 @@ OBJECTS_GENERIC =\
  qs_mo_types.o\
  qs_neighbor_list_types.o\
  qs_neighbor_lists.o\
- qs_overlap.o\
  qs_ot.o\
+ qs_overlap.o\
+ qs_p_build_kernel.o\
+ qs_p_types.o\
  qs_parser.o\
  qs_scf.o\
  radial_grids.o\
@@ -226,11 +229,11 @@ OBJECTS_GENERIC =\
  structure_factor_types.o\
  structure_factors.o\
  structure_types.o\
- tbmd_module.o\
  tbmd_debug.o\
  tbmd_force.o\
  tbmd_initialize.o\
  tbmd_input.o\
+ tbmd_module.o\
  tbmd_types.o\
  termination.o\
  timesl.o\
@@ -242,12 +245,12 @@ OBJECTS_GENERIC =\
  wave_module.o\
  wf_types.o\
  xc.o \
+ xc_cs1.o\
+ xc_exchange_gga.o\
  xc_functionals.o\
  xc_functionals_tests.o\
  xc_functionals_utilities.o\
  xc_ke_gga.o\
- xc_cs1.o\
- xc_exchange_gga.o\
  xc_lyp.o\
  xc_pade.o\
  xc_perdew86.o\
@@ -257,3 +260,4 @@ OBJECTS_GENERIC =\
  xc_thomas_fermi.o\
  xc_vwn.o\
  xc_xalpha.o
+
