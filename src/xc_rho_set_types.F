@@ -49,8 +49,6 @@ MODULE xc_rho_set_types
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
-  USE cp_linked_list_3d_r,             ONLY: cp_sll_3d_r_type,&
-                                             cp_sll_3d_r_dealloc
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_logger_type,&
@@ -153,8 +151,7 @@ MODULE xc_rho_set_types
   TYPE xc_rho_cflags_type
      LOGICAL :: rho, rho_spin, drho, drho_spin,&
           norm_drho, norm_drho_spin, drhoa_drhob,&
-          rho_1_3,rho_spin_1_3, tau, tau_spin, &
-          orbitals, orbitals_spin
+          rho_1_3,rho_spin_1_3, tau, tau_spin
   END TYPE xc_rho_cflags_type
 !!***
   !****************************************************************************
@@ -218,7 +215,6 @@ MODULE xc_rho_set_types
      REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: norm_drho
      REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: rho_1_3
      REAL(kind = dp), DIMENSION(:,:,:), POINTER :: tau
-     TYPE(cp_sll_3d_r_type), POINTER            :: orbitals
      ! for UNrestricted systems
      REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: rhoa, rhob
      TYPE(cp_3d_r_p_type), DIMENSION(3)         :: drhoa, drhob
@@ -226,7 +222,6 @@ MODULE xc_rho_set_types
      REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: drhoa_drhob
      REAL(kind = dp), DIMENSION(:,:,:), POINTER :: rhoa_1_3, rhob_1_3
      REAL(kind = dp), DIMENSION(:,:,:), POINTER :: tau_a, tau_b
-     TYPE(cp_sll_3d_r_type), POINTER            :: orbitals_a, orbitals_b
   END TYPE xc_rho_set_type
 !!***
   !****************************************************************************
@@ -271,8 +266,6 @@ CONTAINS
     cflags%rho_spin_1_3=value
     cflags%tau=value
     cflags%tau_spin=value
-    cflags%orbitals=value
-    cflags%orbitals_spin=value
   END SUBROUTINE xc_rho_cflags_setall
   !***************************************************************************
 
@@ -315,8 +308,6 @@ CONTAINS
     cflags1%rho_spin_1_3=cflags1%rho_spin_1_3.OR.cflags2%rho_spin_1_3
     cflags1%tau=cflags1%tau.OR.cflags2%tau
     cflags1%tau_spin=cflags1%tau_spin.OR.cflags2%tau_spin
-    cflags1%orbitals=cflags1%orbitals.OR.cflags2%orbitals
-    cflags1%orbitals_spin=cflags1%orbitals_spin.OR.cflags2%orbitals_spin
 
   END SUBROUTINE xc_rho_cflags_or
   !***************************************************************************
@@ -360,8 +351,6 @@ CONTAINS
     cflags1%rho_spin_1_3=cflags1%rho_spin_1_3.AND.cflags2%rho_spin_1_3
     cflags1%tau=cflags1%tau.AND.cflags2%tau
     cflags1%tau_spin=cflags1%tau_spin.AND.cflags2%tau_spin
-    cflags1%orbitals=cflags1%orbitals.AND.cflags2%orbitals
-    cflags1%orbitals_spin=cflags1%orbitals_spin.AND.cflags2%orbitals_spin
 
   END SUBROUTINE xc_rho_cflags_and
   !***************************************************************************
@@ -404,9 +393,7 @@ CONTAINS
          (cflags1%rho_1_3.EQV.cflags2%rho_1_3).AND.&
          (cflags1%rho_spin_1_3.EQV.cflags2%rho_spin_1_3).AND.&
          (cflags1%tau.EQV.cflags2%tau).AND.&
-         (cflags1%tau_spin.EQV.cflags2%tau_spin).AND.&
-         (cflags1%orbitals.EQV.cflags2%orbitals).AND.&
-         (cflags1%orbitals_spin.EQV.cflags2%orbitals_spin))
+         (cflags1%tau_spin.EQV.cflags2%tau_spin))
 
   END FUNCTION xc_rho_cflags_equal
   !***************************************************************************
@@ -452,9 +439,7 @@ CONTAINS
          (cflags1%rho_1_3.OR..NOT.cflags2%rho_1_3).AND.&
          (cflags1%rho_spin_1_3.OR..NOT.cflags2%rho_spin_1_3).AND.&
          (cflags1%tau.OR..NOT.cflags2%tau).AND.&
-         (cflags1%tau_spin.OR..NOT.cflags2%tau_spin).AND.&
-         (cflags1%orbitals.OR..NOT.cflags2%orbitals).AND.&
-         (cflags1%orbitals_spin.OR..NOT.cflags2%orbitals_spin))
+         (cflags1%tau_spin.OR..NOT.cflags2%tau_spin))
 
   END FUNCTION xc_rho_cflags_contain
   !***************************************************************************
@@ -503,9 +488,7 @@ CONTAINS
     WRITE(unit=unit_nr,fmt="('   rho_1_3=',l1,',')") cflags%rho_1_3
     WRITE(unit=unit_nr,fmt="('   rho_spin_1_3=',l1,',')") cflags%rho_spin_1_3
     WRITE(unit=unit_nr,fmt="('   tau=',l1,',')") cflags%tau
-    WRITE(unit=unit_nr,fmt="('   tau_spin=',l1,',')") cflags%tau_spin
-    WRITE(unit=unit_nr,fmt="('   orbitals=',l1,',')") cflags%orbitals
-    WRITE(unit=unit_nr,fmt="('   orbitals_spin=',l1)") cflags%orbitals_spin
+    WRITE(unit=unit_nr,fmt="('   tau_spin=',l1)") cflags%tau_spin
     WRITE(unit=unit_nr,fmt="(' }')")
 
   END SUBROUTINE xc_rho_cflags_write
@@ -570,7 +553,6 @@ CONTAINS
        NULLIFY(rho_set%norm_drhoa, rho_set%norm_drhob, &
             rho_set%drhoa_drhob,rho_set%rhoa_1_3,rho_set%rhob_1_3,&
             rho_set%tau,rho_set%tau_a,rho_set%tau_b)
-       NULLIFY(rho_set%orbitals, rho_set%orbitals_a, rho_set%orbitals_b)
     END IF
   END SUBROUTINE xc_rho_set_create
   !***************************************************************************
@@ -733,17 +715,6 @@ CONTAINS
                 CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
              END IF
           END IF
-          IF (rho_set%owns%orbitals) THEN
-             CALL cp_sll_3d_r_dealloc(rho_set%orbitals,error)
-          ELSE
-             NULLIFY(rho_set%orbitals)
-          END IF
-          IF (rho_set%owns%orbitals_spin) THEN
-             CALL cp_sll_3d_r_dealloc(rho_set%orbitals_a,error)
-             CALL cp_sll_3d_r_dealloc(rho_set%orbitals_b,error)
-          ELSE
-             NULLIFY(rho_set%orbitals_a, rho_set%orbitals_b)
-          END IF
           DEALLOCATE(rho_set, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
@@ -774,7 +745,7 @@ CONTAINS
   SUBROUTINE xc_rho_set_get(rho_set, can_return_null, rho, drho, norm_drho,&
        rhoa, rhob, norm_drhoa, norm_drhob, drhoa_drhob,rho_1_3,rhoa_1_3,&
        rhob_1_3,drhoa,drhob,rho_cutoff,drho_cutoff,tau_cutoff,tau,tau_a,&
-       tau_b,orbitals,orbitals_a,orbitals_b,local_bounds,error)
+       tau_b,local_bounds,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     LOGICAL, INTENT(in), OPTIONAL            :: can_return_null
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -792,7 +763,6 @@ CONTAINS
                                                 tau_cutoff
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: tau, tau_a, tau_b
-    TYPE(cp_sll_3d_r_type), POINTER, OPTIONAL :: orbitals,orbitals_a,orbitals_b
     INTEGER, DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: local_bounds
     TYPE(cp_error_type), INTENT(inout), &
@@ -887,18 +857,6 @@ CONTAINS
           tau_b => rho_set%tau_b
           CPPrecondition(my_can_return_null.OR.ASSOCIATED(tau_b),cp_failure_level,routineP,error,failure)
        END IF
-       IF (PRESENT(orbitals)) THEN
-          orbitals => rho_set%orbitals
-          CPPrecondition(my_can_return_null.OR.ASSOCIATED(orbitals),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (PRESENT(orbitals_a)) THEN
-          orbitals_a => rho_set%orbitals_a
-          CPPrecondition(my_can_return_null.OR.ASSOCIATED(orbitals_a),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (PRESENT(orbitals_b)) THEN
-          orbitals_b => rho_set%orbitals_b
-          CPPrecondition(my_can_return_null.OR.ASSOCIATED(orbitals_b),cp_failure_level,routineP,error,failure)
-       END IF
        IF (PRESENT(rho_cutoff)) rho_cutoff=rho_set%rho_cutoff
        IF (PRESENT(drho_cutoff)) drho_cutoff=rho_set%drho_cutoff
        IF (PRESENT(tau_cutoff)) tau_cutoff=rho_set%tau_cutoff
@@ -982,11 +940,6 @@ CONTAINS
        ELSE
           NULLIFY(rho_set%tau)
        END IF
-       IF (rho_set%owns%orbitals) THEN
-          CALL cp_sll_3d_r_dealloc(rho_set%orbitals,error)
-       ELSE
-          NULLIFY(rho_set%orbitals)
-       END IF
        IF (rho_set%owns%rho_spin) THEN
           CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rhoa,&
                accept_non_compatible=.TRUE., error=error)
@@ -1036,12 +989,6 @@ CONTAINS
                accept_non_compatible=.TRUE., error=error)
        ELSE
           NULLIFY(rho_set%tau_a,rho_set%tau_b)
-       END IF
-       IF (rho_set%owns%orbitals_spin) THEN
-          CALL cp_sll_3d_r_dealloc(rho_set%orbitals_a,error)
-          CALL cp_sll_3d_r_dealloc(rho_set%orbitals_b,error)
-       ELSE
-          NULLIFY(rho_set%orbitals_a, rho_set%orbitals_b)
        END IF
 
        CALL xc_rho_cflags_setall(rho_set%has,.FALSE.,error=error)
@@ -1129,7 +1076,7 @@ CONTAINS
     rho_set%local_bounds=rho_r(1)%pw%pw_grid%bounds_local
     rho_cutoff=0.5*rho_set%rho_cutoff
 
-    my_rho_g_local=.FALSE.
+    my_rho_g_local=.false.
     ! some checks
     SELECT CASE(nspins)
     CASE(1)
@@ -1602,9 +1549,6 @@ CONTAINS
        rho_set%tau_b => tau(2)%pw%cr3d
        rho_set%owns%tau_spin=.FALSE.
        rho_set%has%tau_spin=.TRUE.
-    END IF
-
-    IF (needs%orbitals .OR. needs%orbitals_spin) THEN
     END IF
 
     CPPostcondition(xc_rho_cflags_equal(rho_set%has,needs),cp_failure_level,routineP,error,failure)
