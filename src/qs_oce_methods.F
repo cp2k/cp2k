@@ -297,7 +297,7 @@ CONTAINS
                 DO ider =1,maxder
                   is = maxcob*(ider-1)
                   isp =  (ider-1)*maxcob*nsetb
-                  ovs(:,igau+1+is:igau+nco(lshell)+isp) = 0.0_dp
+                  ovs(:,igau+1+isp+m1:igau+nco(lshell)+isp+m1) = 0.0_dp
                 ENDDO
               ENDIF
             ENDDO 
