@@ -143,19 +143,26 @@ MODULE pol_coefs
  SUBROUTINE get_kind_and_part_index (ao, ki, part, flag)
   
    IMPLICIT NONE
-   TYPE (ao_type), INTENT (INOUT)  :: ao
+   TYPE (ao_type), intent(inout)  :: ao
    TYPE (kind_info_type), POINTER, DIMENSION(:) :: ki
    TYPE (particle_type), intent(in), DIMENSION(:) :: part
    LOGICAL, intent (in) :: flag
 
 ! locals
-  INTEGER ::  ncoef, ikind, ipart, ii, icoef, icgf, ncgf, ios
-  TYPE (kind_info_type), POINTER  :: kinfo
+  INTEGER ::  ncoef, ikind, ipart, ii, iat, icoef, icgf, ncgf, natoms, ios
 
    ncoef = size (ao % cr)
+
+   IF (flag) THEN
+      IF (.NOT.ASSOCIATED(ao % kind_info)) THEN         
+         ALLOCATE (ao % kind_info (ncoef), STAT = ios)
+      END IF
+   END IF
+
    DO ikind = 1 , size (ki)
    
-      DO ii = 1, ki(ikind)%natom
+      natoms = ki (ikind ) % natom
+      DO ii = 1, natoms
  
         ipart = ki(ikind)%atom_list(ii)        
 	ncgf = ki(ikind) % orb_basis_set % ncgf 
@@ -164,10 +171,20 @@ MODULE pol_coefs
              icoef  = part ( ipart ) % coef_list( icgf )
 	     ao % coef_to_basis_set ( icoef ) = ikind 
 	     ao % coef_to_part ( icoef ) = ipart 
-	     IF (flag) THEN
-	       ALLOCATE (ao % kind_info (ncoef), STAT = ios)
-	       kinfo =>   ao % kind_info ( icoef )
-	       kinfo => ki (ikind)
+
+             IF (flag) THEN
+               ao % kind_info (icoef) % orb_basis_set => ki (ikind) % orb_basis_set
+               ao % kind_info (icoef) % orb_basis_set_name = ki (ikind) % orb_basis_set_name
+               ao % kind_info (icoef) % number_of_grid_points = ki (ikind) % number_of_grid_points
+               ao % kind_info (icoef) % element_symbol = ki (ikind) % element_symbol
+               ao % kind_info (icoef) % natom = ki (ikind) % natom
+               ao % kind_info (icoef) % z = ki (ikind) % z
+               IF (.NOT.ASSOCIATED(ao % kind_info (icoef) % atom_list)) THEN         
+                 ALLOCATE (ao % kind_info (icoef) % atom_list (natoms) , STAT = ios)
+               END IF
+               DO iat = 1, natoms
+                  ao % kind_info (icoef) % atom_list (iat) = ki (ikind) % atom_list (iat)
+               END DO
 	     END IF
          ENDDO                                
 	 
@@ -176,6 +193,7 @@ MODULE pol_coefs
    END DO	 
 
  END SUBROUTINE get_kind_and_part_index
+
 !------------------------------------------------------------------------------!
 
    END MODULE pol_coefs
