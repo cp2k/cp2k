@@ -21,6 +21,7 @@
 
 MODULE qs_tddfpt_utils
 
+  USE cp_control_types,                ONLY: gapw_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale, &
                                              cp_fm_scale_and_add,&
                                              cp_fm_trace
@@ -37,8 +38,10 @@ MODULE qs_tddfpt_utils
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
+  USE hartree_local_methods,           ONLY: init_coulomb_local
   USE kinds,                           ONLY: dbl
-  USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_environment_types,            ONLY: qs_environment_type, &
+                                             get_qs_env
   USE qs_kpp1_env_methods,             ONLY: kpp1_create
   USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
   USE qs_mo_types,                     ONLY: get_mo_set
@@ -47,7 +50,10 @@ MODULE qs_tddfpt_utils
                                              p_preortho
   USE qs_p_env_types,                  ONLY: p_env_release,&
                                              qs_p_env_type
+  USE qs_rho_atom_methods,             ONLY: init_rho_atom
+  USE qs_rho0_methods,                 ONLY: init_rho0
   USE qs_tddfpt_types
+  USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
@@ -129,7 +135,9 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: psi0d
     TYPE(cp_fm_type), POINTER                :: eigenvectors
+    TYPE(gapw_control_type), POINTER         :: gapw_control
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
+    TYPE(cell_type), POINTER                 :: cell
 
 ! --------------------------------------------------------------------
 
@@ -154,6 +162,21 @@ CONTAINS
     !------------------!
     CALL tddfpt_env_allocate(t_env, p_env, qs_env, glob_env)
     CALL tddfpt_env_init(t_env, p_env, qs_env, glob_env)
+
+    !------------!
+    ! GAPW stuff !
+    !------------!
+    IF(qs_env%dft_control%qs_control%method == "GAPW") THEN
+       CALL get_qs_env(qs_env, cell=cell)
+       
+       gapw_control => qs_env%dft_control%qs_control%gapw_control
+!      *** Allocate and initialize the set of atomic densities ***
+       CALL init_rho_atom(qs_env, gapw_control, glob_env)
+!      *** Allocate and initialize the compensation density rho0 ***
+       CALL init_rho0(qs_env, gapw_control, cell, glob_env)
+!      *** Allocate and Initialize the local coulomb terms (1,2 and 3 centers) ***
+       CALL init_coulomb_local(qs_env, gapw_control,glob_env)
+    ENDIF
 
 
     !----------!
