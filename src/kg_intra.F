@@ -24,10 +24,6 @@ MODULE kg_intra
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: int_size,&
-                   wp => dp,&
-                   wp_size => dp_size
-
   USE atomic_kind_types,        ONLY: atomic_kind_type,&
                                       get_atomic_kind,&
                                       get_atomic_kind_set
@@ -37,6 +33,9 @@ MODULE kg_intra
   USE kg_environment_types,     ONLY: kg_environment_type, &
                                       get_kg_env
   USE kg_force_types,           ONLY: kg_force_type 
+  USE kinds,                    ONLY: int_size,&
+                                      wp => dp,&
+                                      wp_size => dp_size
   USE mathconstants,            ONLY: oorootpi,twopi, pi
   USE molecule_types,           ONLY : molecule_structure_type, particle_node_type, &
                                        linklist_exclusion, linklist_atoms
@@ -52,6 +51,7 @@ MODULE kg_intra
   PRIVATE
 
   PUBLIC :: calculate_ebond_corr
+
 
 ! *****************************************************************************
 
