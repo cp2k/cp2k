@@ -459,16 +459,16 @@ CONTAINS
        call cp_fm_scale_and_add(1.0_wp,mat_t,1.0_wp,zij(2,idim) % matrix)
     ENDDO
     CALL cp_fm_syevd(mat_t,mat_U,evals)
-      DO idim=1,SIZE(zij,2)
-         ! rotate z's
-         CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_wp,zij(1,idim)%matrix,mat_U,0.0_wp,mat_t)
-         CALL cp_fm_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_wp,mat_U,mat_t,0.0_wp,zij(1,idim)%matrix)
-         CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_wp,zij(2,idim)%matrix,mat_U,0.0_wp,mat_t)
-         CALL cp_fm_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_wp,mat_U,mat_t,0.0_wp,zij(2,idim)%matrix)
-      ENDDO
-      ! collect rotation matrix
-      CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_wp,mat_R,mat_U,0.0_wp,mat_t)
-      CALL cp_fm_to_fm(mat_t,mat_R)
+    DO idim=1,SIZE(zij,2)
+       ! rotate z's
+       CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_wp,zij(1,idim)%matrix,mat_U,0.0_wp,mat_t)
+       CALL cp_fm_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_wp,mat_U,mat_t,0.0_wp,zij(1,idim)%matrix)
+       CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_wp,zij(2,idim)%matrix,mat_U,0.0_wp,mat_t)
+       CALL cp_fm_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_wp,mat_U,mat_t,0.0_wp,zij(2,idim)%matrix)
+    ENDDO
+    ! collect rotation matrix
+    CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_wp,mat_R,mat_U,0.0_wp,mat_t)
+    CALL cp_fm_to_fm(mat_t,mat_R)
 
     iterations=0
     tolerance=1.0_wp
