@@ -2946,18 +2946,23 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
       CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_b)
       found = .FALSE.
       DO k=1,SIZE(ffin_info%ff_nonbonded)
-        IF( ( (name_atm_a == ffin_info%ff_nonbonded(k)%at1)   .AND. &
-              (name_atm_b == ffin_info%ff_nonbonded(k)%at2) ) .OR.  &
-            ( (name_atm_a == ffin_info%ff_nonbonded(k)%at1)   .AND. &
-              (name_atm_b == ffin_info%ff_nonbonded(k)%at2) ) ) THEN
+        WRITE(*,*) "TESTING ",TRIM(name_atm_a),TRIM(name_atm_b)," with ",&
+            TRIM(ffin_info%ff_nonbonded(k)%at1),&
+            TRIM(ffin_info%ff_nonbonded(k)%at2)
+        IF(((TRIM(name_atm_a)==TRIM(ffin_info%ff_nonbonded(k)%at1))  .AND. &
+            (TRIM(name_atm_b)==TRIM(ffin_info%ff_nonbonded(k)%at2))) .OR.  &
+           ((TRIM(name_atm_b)==TRIM(ffin_info%ff_nonbonded(k)%at1))  .AND. &
+            (TRIM(name_atm_a)==TRIM(ffin_info%ff_nonbonded(k)%at2))) ) THEN
           potparm(i,j) = ffin_info%ff_nonbonded(k)
+          WRITE(*,*) "FOUND ",TRIM(name_atm_a),TRIM(name_atm_b)
           found = .TRUE.
           EXIT
         END IF
-        IF(.NOT.found) THEN
-          CALL stop_program("topology_force_field_pack","missing pair pot")
-        END IF
       END DO
+      IF(.NOT.found) THEN
+        WRITE(*,*) "NOT FOUND ",TRIM(name_atm_a),TRIM(name_atm_b)
+        CALL stop_program("topology_force_field_pack","missing pair pot")
+      END IF
     END DO
   END DO
 
