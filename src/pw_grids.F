@@ -522,7 +522,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
            DO
              CALL fft_radix_operations ( ntest(1), n(1), FFT_RADIX_NEXT )
              ! we need an even lowest grid
-             IF (MODULO(n(1),2**(1+my_ncommensurate-my_icommensurate)).EQ.0) THEN
+             IF (my_ncommensurate<=1 .OR. MODULO(n(1),2**(1+my_ncommensurate-my_icommensurate)).EQ.0) THEN
                 EXIT
              ELSE
                 ntest(1)=n(1)+1
@@ -530,7 +530,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
            ENDDO
            DO
              CALL fft_radix_operations ( ntest(2), n(2), FFT_RADIX_NEXT )
-             IF (MODULO(n(2),2**(1+my_ncommensurate-my_icommensurate)).EQ.0) THEN
+             IF (my_ncommensurate<=1 .OR. MODULO(n(2),2**(1+my_ncommensurate-my_icommensurate)).EQ.0) THEN
                 EXIT
              ELSE
                 ntest(2)=n(2)+1
@@ -538,7 +538,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
            ENDDO
            DO
              CALL fft_radix_operations ( ntest(3), n(3), FFT_RADIX_NEXT )
-             IF (MODULO(n(3),2**(1+my_ncommensurate-my_icommensurate)).EQ.0) THEN
+             IF (my_ncommensurate<=1 .OR. MODULO(n(3),2**(1+my_ncommensurate-my_icommensurate)).EQ.0) THEN
                 EXIT
              ELSE
                 ntest(3)=n(3)+1
