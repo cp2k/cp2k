@@ -333,7 +333,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(rho_atom_type), POINTER             :: rho_atom
-    REAL(KIND = dp), DIMENSION(ldc,nb)       :: C_h,C_s ! work arrays
     INTEGER, INTENT(IN)                      :: ia,&  ! i atom index 
                                                 ispin, & ! spin index
                                                 na, & ! # spherical contr. iatom
@@ -342,6 +341,7 @@ CONTAINS
                                                 nb, & ! # spherical contr. jatom
                                                 ka, & ! k atom index 
                                                 nsp ! # spherical primitives katom
+    REAL(KIND = dp), DIMENSION(ldc,nb)       :: C_h,C_s ! work arrays
 
     CHARACTER(LEN=*), PARAMETER :: routine = "add_vxca_to_ks"
 
@@ -510,9 +510,9 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(rho_atom_type), POINTER             :: rho_atom
+    INTEGER, INTENT(IN)                      :: ia,ispin,na,ja,ldc,nb,ka,nsp
     REAL(KIND = dp), DIMENSION(ldc,nb)        :: C_h,C_s
     TYPE(qs_force_type)                      :: force
-    INTEGER, INTENT(IN)                      :: ia,ispin,na,ja,ldc,nb,ka,nsp
 
     CHARACTER(LEN=*), PARAMETER :: routine = "add_vxca_forces"
 

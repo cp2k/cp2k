@@ -108,7 +108,8 @@ CONTAINS
     REAL(dp), DIMENSION(:,:,:), POINTER        :: spa_bbt,spa_sbt,spa_tmpt
     REAL(dp), DIMENSION(:,:), POINTER          :: spa_bb,spa_sb,spa_tmp,ovc,ovs
 
-    INTEGER  :: first_col, i, ider, ipgf, iset, isgfb, jset, lpoint, lprj, lsgfb, lshell,  m, maxsoa, maxcob, ic,jc,is,ip, m1,ico,iso,iprjc,iprjs,igau,lx,ly,lz,&
+    INTEGER  :: first_col, i, ider, ipgf, iset, isgfb, jset, lpoint, lprj, lsgfb, lshell, &
+                m, maxsoa, maxcob, ic,jc,is,ip, m1,ico,iso,iprjc,iprjs,igau,lx,ly,lz,&
                 maxder, maxlb, maxlprj, maxnprja, n, nsoatot, ncob, np_car,np_sph, nseta, nsetb, ntotsgfb
 
     INTEGER :: ithread,nthread
@@ -350,10 +351,10 @@ CONTAINS
     TYPE(qs_environment_type), POINTER        :: qs_env
     TYPE(oce_matrix_type), POINTER            :: oce
     TYPE(block_p_type), DIMENSION(:), POINTER :: oceh,oces
-    REAL(KIND = dp), DIMENSION(ldai,ldai,*)   :: ai_work
     INTEGER, INTENT(IN)                       :: ikind, iatom, &
                                                  jkind, jatom, & 
                                                  ldai, nder
+    REAL(KIND = dp), DIMENSION(ldai,ldai,*)   :: ai_work
     REAL(dp), DIMENSION(3), INTENT(IN)        :: rab
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_up_oce"
