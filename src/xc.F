@@ -2308,6 +2308,8 @@ END FUNCTION xc_exc_calc
                      tmp_r(ispin)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
                      stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                tmp_a(ispin)%pw%cr3d = 0.0_dp
+                tmp_b(ispin)%pw%cr3d = 0.0_dp
              END IF
           END DO
        END IF
