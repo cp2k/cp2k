@@ -219,11 +219,11 @@ CONTAINS
     IF (.NOT.globenv%ionode) RETURN
     IF (globenv%print%program_banner) THEN
        
-       WRITE (unit=globenv%scr, fmt="(T2,A79)")&
+       WRITE (unit=globenv%scr, fmt="(2X,A)")&
        "",&
-       "-------------------------------------------------------------------------------",&
-       "-                     Time-dependent calculation started                      -",&
-       "-------------------------------------------------------------------------------",&
+       "-----------------------------------------------------------------------------",&
+       "-                    Time-dependent calculation started                     -",&
+       "-----------------------------------------------------------------------------",&
        ""    
 
     END IF

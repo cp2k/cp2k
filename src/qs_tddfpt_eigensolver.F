@@ -18,40 +18,7 @@
 !!     
 !!****
 MODULE qs_tddfpt_eigensolver
-!TC  USE cp_error_handling,    ONLY : cp_simple_assert
-!TC  USE cp_fm_basic_linalg,   ONLY : cp_fm_gemm, cp_fm_symm, cp_fm_scale_and_add
-!TC  USE cp_fm_cholesky,       ONLY : cp_fm_cholesky_decompose, cp_fm_cholesky_invert
-!TC  USE cp_fm_pool_types,     ONLY : cp_fm_pool_p_type,&
-!TC                                   cp_fm_pool_type,&
-!TC                                   fm_pool_create_matrix_vect,&
-!TC                                   fm_pools_create_matrix_vect,&
-!TC                                   fm_pools_give_back_matrix_vect
-!TC  USE cp_fm_struct,         ONLY : cp_fm_struct_type, &
-!TC                                   cp_fm_struct_create, &
-!TC                                   optimal_blacs_col_block_size, &
-!TC                                   optimal_blacs_row_block_size
-!TC  USE cp_fm_basic_linalg,   ONLY : cp_sm_fm_multiply, &
-!TC                                   cp_fm_trace, cp_fm_scale
-!TC  USE cp_fm_types,          ONLY : cp_full_matrix_p_type, &
-!TC                                   cp_full_matrix_type, &
-!TC                                   cp_fm_create, &
-!TC                                   cp_fm_release, &
-!TC                                   cp_fm_get_element, &
-!TC                                   cp_fm_set_element, &
-!TC                                   cp_fm_set_all
-!TC  USE cp_fm_utils,          ONLY : copy_rep_vec_to_fm, &
-!TC                                   copy_fm_to_rep_vec
-!TC  USE cp_log_handling,      ONLY : cp_to_string
-!TC  USE global_types,         ONLY : global_environment_type
-!TC  USE kinds,                ONLY : dbl
-!TC  USE qs_blacs,             ONLY : cp_sm_plus_fm_fm_t, &
-!TC                                   copy_real_matrix_to_full_matrix, &
-!TC                                   copy_blacs_to_blacs_matrix, &
-!TC                                   blacs_syevd
-!TC  USE qs_environment_types, ONLY : qs_environment_type, get_qs_env
-!TC  USE qs_p_env_methods,     ONLY : p_op_l1, p_op_l2, p_preortho, p_postortho
-!TC  USE qs_p_env_types,       ONLY : qs_p_env_type
-!!TC=======
+
   USE cp_error_handling,               ONLY: cp_simple_assert
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale,&
@@ -106,15 +73,20 @@ MODULE qs_tddfpt_eigensolver
                                              replicate_matrix_structure,&
                                              set_matrix
   USE termination,                     ONLY: stop_program
+
   IMPLICIT NONE
+
+  TYPE cp_fm_struct_p_type
+     TYPE(cp_fm_struct_type), POINTER :: struct
+  END TYPE cp_fm_struct_p_type
 
   INTERFACE tddfpt_es
      MODULE PROCEDURE tddfpt_es_lanczos
   END INTERFACE
 
   CHARACTER(len=*), PARAMETER :: moduleN = "qs_tddfpt_eigensolver"
-  INTEGER, PARAMETER          :: MAX_ITER = 1
-  REAL(kind=dbl), PARAMETER   :: TOLERANCE = 1.0E-9
+  INTEGER, PARAMETER          :: MAX_ITER_GLOBAL = 20
+  REAL(kind=dbl), PARAMETER   :: TOLERANCE = 1.0E-4
 
   PRIVATE
 
@@ -136,7 +108,9 @@ CONTAINS
 
     ! L0CALS
     INTEGER   :: spin, n_spins, &
-                 n_ev, n_kv, n_rows, &
+                 n_ev, n_rows, &
+                 n_kv, n_kv_max, &
+                 max_iter, &
                  n_reortho, &
                  row, col, &
                  i, j, index, &
@@ -147,11 +121,14 @@ CONTAINS
                  tmp, &
                  dot_product, &
                  scale, difference
-    REAL(dbl), DIMENSION(:,:), ALLOCATABLE             :: eigenvals
-    TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: X, R, kv, T, Tev, opkv
-    TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-    LOGICAL                                            :: local
+    REAL(dbl), DIMENSION(:,:), ALLOCATABLE               :: eigenvals
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER       :: ao_mo_fm_pools
+    TYPE(cp_full_matrix_p_type)                          :: T, Tev           
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER   :: X, R
+    TYPE(cp_full_matrix_p_type), DIMENSION(:,:), POINTER :: kv, opkv
+    TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER     :: kv_fm_struct
+    TYPE(cp_fm_struct_type), POINTER                     :: T_fm_struct, &
+                                                            Tev_fm_struct
 
     CHARACTER(len=*), PARAMETER :: routineN = "tddfpt_es_lanczos", &
                                    routineP = moduleN//"/"//routineN
@@ -161,156 +138,87 @@ CONTAINS
     n_spins   = qs_env%dft_control%nspins
     tol       = 1.0E-10
     n_reortho = qs_env%dft_control%tddfpt_control%n_reortho
-    n_kv_fac  = qs_env%dft_control%tddfpt_control%n_kv_fac + n_ev
-    iteration = 0
+    iteration = 1
 
-#if 0
-       spin = 1
-       CALL copy_real_matrix_to_full_matrix(qs_env%k(spin)%matrix, t_env%invS(spin)%matrix)
-       CALL print_fm_matrix(t_env%invS(spin)%matrix, & 
-            p_env%n_ao(spin), p_env%n_ao(spin), &
-            "F-"//TRIM(ADJUSTL(cp_to_string(spin)))//".dat", sym='T')
-       CALL copy_real_matrix_to_full_matrix(qs_env%s(spin)%matrix, t_env%invS(spin)%matrix)
-       CALL print_fm_matrix(t_env%invS(spin)%matrix, & 
-            p_env%n_ao(spin), p_env%n_ao(spin), &
-            "S-"//TRIM(ADJUSTL(cp_to_string(spin)))//".dat", sym='T')
-#endif
-
-    !----------------------------!
-    ! determine number of krylov !
-    ! space vetors to use        ! 
-    !----------------------------!
+    !-----------------------------------------!
+    ! determine the size of the problem       !
+    ! and how many krylov space vetors to use ! 
+    !-----------------------------------------!
     n_rows = 0
     DO spin=1, n_spins
        n_rows = n_rows + p_env%n_ao(spin)*p_env%n_mo(spin)
     END DO
-    n_kv = (n_kv_fac) + (n_ev-1)*(n_kv_fac/2)
-    n_kv = MIN(n_kv, n_rows) ! cannot be bigger than nrows
-
+    n_kv = MAX(3, n_ev) ! how many vectors per iteration
+    max_iter = MIN(( n_rows / n_kv ) * n_kv, MAX_ITER_GLOBAL)
+    n_kv_max = max_iter * n_kv
 
     !----------------------!
     ! allocate the vectors !
     !----------------------!
-    ALLOCATE(eigenvals(n_kv, MAX_ITER))
+    ALLOCATE(eigenvals(n_kv_max, max_iter))
     CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
     CALL fm_pools_create_fm_vect(ao_mo_fm_pools, X, &
-                                     name=routineP//":X")
+                                 name=routineP//":X")
     CALL fm_pools_create_fm_vect(ao_mo_fm_pools, R, &
-                                     name=routineP//":R")
-
-    ALLOCATE(kv(n_spins*n_kv), stat=stat)
-    IF (stat /= 0) CALL stop_program(routineP, "allocation of kv failed", glob_env)
-    DO i=1, n_spins*n_kv
-       spin = MOD(i, n_spins)+1
-       NULLIFY(fm_struct, kv(i)%matrix)
-       CALL cp_fm_struct_create(fm_struct, glob_env%para_env, glob_env%blacs_env, &
-                                p_env%n_ao(spin), p_env%n_mo(spin), &
-                                optimal_blacs_row_block_size, optimal_blacs_col_block_size)
-       CALL cp_fm_create(kv(i)%matrix, fm_struct, routineP//"kv-"//TRIM(cp_to_string(i)))
-    END DO
-    ALLOCATE(opkv(n_spins*n_kv), stat=stat)
-    IF (stat /= 0) CALL stop_program(routineP, "allocation of opkv failed", glob_env)
-    DO i=1, n_spins*n_kv
-       spin = MOD(i, n_spins)+1
-       NULLIFY(fm_struct, opkv(i)%matrix)
-       CALL cp_fm_struct_create(fm_struct, glob_env%para_env, glob_env%blacs_env, &
-                                p_env%n_ao(spin), p_env%n_mo(spin), &
-                                optimal_blacs_row_block_size, optimal_blacs_col_block_size)
-       CALL cp_fm_create(opkv(i)%matrix, fm_struct, routineP//"opkv-"//TRIM(cp_to_string(i)))
-    END DO
-    NULLIFY(fm_struct)
-
-
-    !-----------------------!
-    ! print some statistics !
-    !-----------------------!
-    IF (glob_env%ionode) THEN
-       WRITE (glob_env%scr, '(1X,A,T40,I9)') &
-            "X rows: ", X(1)%matrix%matrix_struct%nrow_global
-       WRITE (glob_env%scr, '(1X,A,T40,I9)') &
-            "X cols: ", X(1)%matrix%matrix_struct%ncol_global
-       WRITE (glob_env%scr, '(1X,A,T40,I9)') &
-            "No. krylov space vectors:", n_kv
-       WRITE (glob_env%scr, *)
-    END IF
-
-
-    !---------------------------------------!
-    ! provide starting vector and normalize !
-    !---------------------------------------!
+                                 name=routineP//":R")
+    ALLOCATE(kv(1:n_kv_max,n_spins), stat=stat)
+    IF (stat /= 0) CALL stop_program(routineP, &
+                                     "allocation of kv failed", glob_env)
+    ALLOCATE(opkv(n_kv_max,n_spins), stat=stat)
+    IF (stat /= 0) CALL stop_program(routineP, &
+                                     "allocation of opkv failed", glob_env)
+    ALLOCATE(kv_fm_struct(n_spins), stat=stat)
+    IF (stat /= 0) CALL stop_program(routineP, &
+                                     "allocation of kv_fm_struct failed", &
+                                     glob_env)
     DO spin=1, n_spins
-       CALL copy_blacs_to_blacs_matrix(t_env%X(1)%spins(spin)%matrix, kv(spin)%matrix)
+       NULLIFY (kv_fm_struct(spin)%struct)
+       CALL cp_fm_struct_create(kv_fm_struct(spin)%struct, glob_env%para_env, &
+                                glob_env%blacs_env, &
+                                p_env%n_ao(spin), p_env%n_mo(spin), &
+                                optimal_blacs_row_block_size, &
+                                optimal_blacs_col_block_size)
     END DO
+    CALL allocate_krylov_vectors(kv, opkv, iteration, n_kv, n_spins, kv_fm_struct)
+
+    DO spin=1, n_spins
+       CALL copy_blacs_to_blacs_matrix(t_env%X(1)%spins(spin)%matrix, &
+                                       X(spin)%matrix)
+    END DO
+
+    IF (glob_env%ionode) THEN
+       WRITE (glob_env%scr, &
+              '(2X,A,2X,A,T69,A)') &
+              "Step", "Vectors", "Convergence"
+       WRITE (glob_env%scr, &
+              '(2X,A)') &
+              "-----------------------------------------------------------------------------"
+    END IF
 
     restart: DO 
 
-       iteration = iteration + 1
-
-       !-------------------------------!
-       ! normalize the starting vector !
-       !-------------------------------!
-       dot_product = 0.0_dbl
-       DO spin=1, n_spins
-          CALL cp_sm_fm_multiply(qs_env%S(spin)%matrix, kv(spin)%matrix, &
-               R(spin)%matrix, &
-               p_env%n_mo(spin), &
-               glob_env%para_env, 1.0_dbl, 0.0_dbl)
-          CALL cp_fm_trace(R(spin)%matrix, kv(spin)%matrix, tmp)
-          dot_product = dot_product + tmp
-       END DO
-       IF (dot_product > tol) THEN
-          DO spin=1, n_spins
-             CALL cp_fm_scale(SQRT(1.0_dbl/dot_product), kv(spin)%matrix)
-          END DO
-       ELSE
-          CALL stop_program(routineP, &
-               "The norm of the provided start vector is smaller than " &
-               //TRIM(cp_to_string(tol)))
-       END IF
-
-       beta = 0.0_dbl ! beta of the first vector is 0
+       krylov: DO j=1, n_kv
        
-       krylov: DO j=1, n_kv-1
-       
-
-          !---------------------------------------------!
-          ! copy current krylov vector to working space !
-          !---------------------------------------------!
-          index = n_spins*(j-1)
-          DO spin=1, n_spins
-             CALL copy_blacs_to_blacs_matrix(kv(index+spin)%matrix, X(spin)%matrix)
-          END DO
+          index = (iteration-1)*n_kv+j
           
-          
-          CALL apply_op(X, R, t_env, p_env, qs_env, glob_env) ! result in X
-
-          !-------------------------------!
-          ! keep result for later use (T) !
-          !-------------------------------!
-          index = n_spins*(j-1)
-          DO spin=1, n_spins
-             CALL copy_blacs_to_blacs_matrix(X(spin)%matrix, opkv(index+spin)%matrix)
-          END DO
-
+          !---------------------------------------!
+          ! apply the operator to working vec and !
+          ! store the result for later use (T)    !
+          !---------------------------------------!
+          IF (j /= 1) THEN
+             CALL apply_op(X, R, t_env, p_env, qs_env, glob_env) ! result in X
+             DO spin=1, n_spins
+                CALL copy_blacs_to_blacs_matrix(X(spin)%matrix, &
+                                                opkv(index-1,spin)%matrix)
+             END DO
+          END IF
 
           DO i=1, n_reortho
-             CALL reorthogonalize(X, kv, qs_env%s, R, j, n_spins, glob_env)
+             CALL reorthogonalize(X, kv, qs_env%s, R, index, n_spins, glob_env)
           END DO
 
-
-          !-------------------------!
-          ! calc beta=transp(X)*S*X !
-          !-------------------------!
-          beta = 0.0_dbl
-          DO spin=1, n_spins
-             CALL cp_sm_fm_multiply(qs_env%S(spin)%matrix, X(spin)%matrix, &
-                  R(spin)%matrix, &
-                  p_env%n_mo(spin), &
-                  glob_env%para_env, 1.0_dbl, 0.0_dbl)
-             CALL cp_fm_trace(R(spin)%matrix, X(spin)%matrix, tmp)
-             beta = beta + tmp
-          END DO
-
+          CALL calc_norm(norm=beta, x=X, tmp_vec=R, &
+                         qs_env=qs_env, glob_env=glob_env)
 
           !-------------!
           ! normalize X ! 
@@ -319,81 +227,95 @@ CONTAINS
              DO spin=1, n_spins
                 CALL cp_fm_scale(SQRT(1._dbl/beta), X(spin)%matrix)
              END DO
-          ELSE
-             ! already converged n_kv=j
-             n_kv = j
-             IF (glob_env%ionode) THEN
-                WRITE (*,*)
-                WRITE (*,*) "Converged with ", n_kv," krylov vectors!"
-                WRITE (*,*)
+          ELSE 
+             IF (index==1) THEN
+                CALL stop_program(routineP, "Initial guess to close to zero.")
+             ELSE
+                ! already converged
+                index = index-1
+                n_kv_max = index
+                IF (glob_env%ionode) THEN
+                   WRITE (*,*)
+                   WRITE (*,*) "Converged with ", index," krylov vectors!"
+                   WRITE (*,*)
+                END IF
+                EXIT krylov
              END IF
-             EXIT krylov
           END IF
-
 
           !---------------------------!
           ! write current vector back !
           !---------------------------!
-          index = n_spins*j
           DO spin=1, n_spins
-             CALL copy_blacs_to_blacs_matrix(X(spin)%matrix, kv(index+spin)%matrix)
+             CALL copy_blacs_to_blacs_matrix(X(spin)%matrix, &
+                                             kv(index,spin)%matrix)
           END DO
 
-
        END DO krylov
+
+       !---------------------------------------!
+       ! compute the last of the Op*kv vectors !
+       !---------------------------------------!
+       DO spin=1, n_spins
+          CALL copy_blacs_to_blacs_matrix(kv(index,spin)%matrix, &
+                                          X(spin)%matrix)
+       END DO
+       CALL apply_op(X, R, t_env, p_env, qs_env, glob_env) ! result in X
+       DO spin=1, n_spins
+          CALL copy_blacs_to_blacs_matrix(X(spin)%matrix, &
+                                         opkv(index,spin)%matrix)
+       END DO
+       
+
+       !--------------------------------------------!
+       ! allocate memory for the T and Tev matrices !
+       !--------------------------------------------!
+       IF (ASSOCIATED(T%matrix)) THEN
+          CALL cp_fm_release(T%matrix)
+       END IF
+       NULLIFY(T_fm_struct)
+       CALL cp_fm_struct_create(T_fm_struct, &
+                                glob_env%para_env, &
+                                glob_env%blacs_env, &
+                                index, index, &
+                                optimal_blacs_row_block_size, &
+                                optimal_blacs_col_block_size)
+       CALL cp_fm_create(T%matrix, &
+                         T_fm_struct, &
+                         routineP//"T")
+       IF (ASSOCIATED(Tev%matrix)) THEN
+          CALL cp_fm_release(Tev%matrix)
+       END IF
+       NULLIFY(Tev_fm_struct)
+       CALL cp_fm_struct_create(Tev_fm_struct, &
+                                glob_env%para_env, &
+                                glob_env%blacs_env, &
+                                index, index, &
+                                optimal_blacs_row_block_size, &
+                                optimal_blacs_col_block_size)
+       CALL cp_fm_create(Tev%matrix, &
+                         Tev_fm_struct, &
+                         routineP//"Tev")
 
 
        !-----------------------------------------!
        ! calc the matrix T = transp(kv)*S*OP(kv) !
        !-----------------------------------------!
-       ALLOCATE(T(1), stat=stat)
-       IF (stat /= 0) CALL stop_program(routineP, "allocation of T failed", glob_env)
-       NULLIFY(fm_struct)
-       CALL cp_fm_struct_create(fm_struct, glob_env%para_env, glob_env%blacs_env, &
-            n_kv, n_kv, &
-            optimal_blacs_row_block_size, optimal_blacs_col_block_size)
-       CALL cp_fm_create(T(1)%matrix, fm_struct, routineP//"T-"//TRIM(cp_to_string(i)))
-       NULLIFY(fm_struct)
-       ALLOCATE(Tev(1), stat=stat)
-       IF (stat /= 0) CALL stop_program(routineP, "allocation of T failed", glob_env)
-       NULLIFY(fm_struct)
-       CALL cp_fm_struct_create(fm_struct, glob_env%para_env, glob_env%blacs_env, &
-            n_kv, n_kv, &
-            optimal_blacs_row_block_size, optimal_blacs_col_block_size)
-       CALL cp_fm_create(Tev(1)%matrix, fm_struct, routineP//"T-"//TRIM(cp_to_string(i)))
-       NULLIFY(fm_struct)
-       DO col=1, n_kv
-          IF (col < n_kv) THEN ! was saved in opkv
-             DO spin=1, n_spins
-                index = n_spins*(col-1) + spin
-                CALL cp_sm_fm_multiply(qs_env%S(spin)%matrix, &
-                     opkv(index)%matrix, &
-                     R(spin)%matrix, &
-                     p_env%n_mo(spin), &
-                     glob_env%para_env, 1.0_dbl, 0.0_dbl)
-             END DO
-          ELSE
-             DO spin=1, n_spins
-                index=n_spins*(col-1)+spin
-                CALL copy_blacs_to_blacs_matrix(kv(index)%matrix, X(spin)%matrix)
-             END DO
-             CALL apply_op(X, R, t_env, p_env, qs_env, glob_env) ! result in X
-             DO spin=1, n_spins
-                CALL cp_sm_fm_multiply(qs_env%S(spin)%matrix, &
-                     X(spin)%matrix, &
-                     R(spin)%matrix, &
-                     p_env%n_mo(spin), &
-                     glob_env%para_env, 1.0_dbl, 0.0_dbl)
-             END DO
-          END IF
-          DO row=1, n_kv
+       DO col=1, index
+          DO spin=1, n_spins
+             CALL cp_sm_fm_multiply(qs_env%S(spin)%matrix, &
+                                    opkv(col,spin)%matrix, &
+                                    R(spin)%matrix, &
+                                    p_env%n_mo(spin), &
+                                    glob_env%para_env, 1.0_dbl, 0.0_dbl)
+          END DO
+          DO row=1, index
              dot_product = 0.0_dbl
              DO spin=1, n_spins
-                index=n_spins*(row-1)+spin
-                CALL cp_fm_trace(kv(index)%matrix, R(spin)%matrix, tmp)
+                CALL cp_fm_trace(kv(row,spin)%matrix, R(spin)%matrix, tmp)
                 dot_product = dot_product + tmp
              END DO
-             CALL cp_fm_set_element(T(1)%matrix, row, col, dot_product)
+             CALL cp_fm_set_element(T%matrix, row, col, dot_product)
           END DO
        END DO
 
@@ -401,66 +323,49 @@ CONTAINS
        !---------------------------!
        ! calc the eigenvalues of T !
        !---------------------------!
-       CALL blacs_syevd(T(1)%matrix, Tev(1)%matrix, eigenvals(:,iteration))
+       CALL blacs_syevd(T%matrix, Tev%matrix, eigenvals(:,iteration))
+
 
        IF (iteration /= 1) THEN
-          difference = eigenvals(n_ev, iteration) - eigenvals(n_ev, iteration-1)
-          IF (glob_env%ionode) WRITE (glob_env%scr, '(1X,I3,A,T20,F19.10)') &
-               iteration, ":", difference
-          IF (ABS(difference) < TOLERANCE) THEN
-             EXIT restart
-          END IF
+          difference = ABS(eigenvals(n_ev,iteration)-eigenvals(n_ev,iteration-1))
+       ELSE
+          difference = 9.9999E99
        END IF
-
-       IF (iteration == MAX_ITER) THEN
-          IF (glob_env%ionode) THEN
-             WRITE (glob_env%scr, '(1X,A)') &
-                  "WARNING: maximum number of iterations reached!"
-          END IF
+       IF (glob_env%ionode) &
+       WRITE (glob_env%scr, &
+              '(2X,I4,2X,I7,T69,ES11.4)') &
+              iteration, index, difference
+       IF (difference < TOLERANCE) THEN
           EXIT restart
        END IF
 
-       !----------------------------!
-       ! give a new starting vector !
-       !----------------------------!
-       DO spin=1, n_spins
-          CALL cp_fm_set_all(X(spin)%matrix, 0.0_dbl)
-       END DO
-       DO row=1, n_kv
-          CALL cp_fm_get_element(Tev(1)%matrix, row, 1, scale,local)
-          ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-          ! this is in order to get the result of the old version of the code
-          ! I am not really sure this is what you intended to be the case in parallel 
-          ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX JOOST XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-          IF (.NOT. local) scale=0.0_dbl                  
-          DO spin=1, n_spins
-             index = n_spins*(row-1) + 1
-             CALL cp_fm_scale_and_add(1.0_dbl, X(spin)%matrix, scale, kv(index)%matrix)
-          END DO
-       END DO
-       DO spin=1, n_spins
-          CALL copy_blacs_to_blacs_matrix(X(spin)%matrix, kv(spin)%matrix)
-       END DO
+       IF (index == n_kv_max) THEN
+          WRITE (*,*) "MAXIMUM NUMBER OF KRYLOV SPACE VECTORS REACHED"
+          EXIT restart
+       END IF
        
+       iteration = iteration + 1
+
+       !--------------------------------------!
+       ! allocate matrizes for next iteration !
+       !--------------------------------------!
+       CALL allocate_krylov_vectors(kv, opkv, iteration, n_kv, n_spins, kv_fm_struct)
 
     END DO restart
 
-
-    !------------------------!
-    ! store results in t_env !
-    !------------------------!
-    ! remains to be done
 
     !-------------------!
     ! Print the results !
     !-------------------!
     IF (glob_env%ionode) THEN
        WRITE (glob_env%scr, *)
-       WRITE (glob_env%scr, '(1X,A,T19,A,T7)') &
+       WRITE (glob_env%scr, *)
+       WRITE (glob_env%scr, '(1X,A,T19,A,T7,A)') &
             "Nr.", "Eigenvalue (hartree)", "Eigenvalue (eV)"
-       DO i=1, MIN(n_ev+1,n_kv)
+       DO i=1, MIN(n_ev+1,n_kv_max)
           WRITE (glob_env%scr, '(1X,I3,T20,F19.10,2X,F19.10)') &
-               i, eigenvals(i, iteration), eigenvals(i, iteration)*27.211_dbl  ! this should use the physcons library !
+               i, eigenvals(i, iteration), eigenvals(i, iteration)*27.211_dbl  
+          ! this should use the physcons library !
        END DO
        WRITE (glob_env%scr, *)
     END IF
@@ -470,14 +375,16 @@ CONTAINS
     !----------!
     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, X)
     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, R)
-    DO i=1, n_spins*n_kv
-       CALL cp_fm_release(kv(i)%matrix)
-       CALL cp_fm_release(opkv(i)%matrix)
+    DO spin=1, n_spins
+       DO i=1, size(kv,spin)
+          CALL cp_fm_release(kv(i,spin)%matrix)
+          CALL cp_fm_release(opkv(i,spin)%matrix)
+       END DO
     END DO
-    CALL cp_fm_release(T(1)%matrix)
-    CALL cp_fm_release(Tev(1)%matrix)
-    DEALLOCATE(kv, opkv, T, Tev, eigenvals)
-    NULLIFY(X, R, kv, opkv, T, Tev)
+    IF (ASSOCIATED(T%matrix)) CALL cp_fm_release(T%matrix)
+    IF (ASSOCIATED(Tev%matrix)) CALL cp_fm_release(Tev%matrix)
+    DEALLOCATE(kv, opkv, eigenvals)
+    NULLIFY(X, R, kv, opkv)
     
   END SUBROUTINE tddfpt_es_lanczos
 
@@ -518,29 +425,17 @@ CONTAINS
 
 
 
-    CHARACTER(LEN=*), PARAMETER                        :: routineN = "apply_op", &
-                                                          routineP = moduleN//"/"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = "apply_op", &
+                                   routineP = moduleN//"/"//routineN
 
     counter = counter + 1
     
     n_spins = qs_env%dft_control%nspins
 
-#if 0
-    spin = 1
-    CALL print_fm_matrix(X(spin)%matrix, & 
-         p_env%n_ao(spin), p_env%n_mo(spin), &
-         "X-"//TRIM(ADJUSTL(cp_to_string(spin)))//".dat")
-#endif
     !------------!
     ! R = HX-SXL !
     !------------!
     CALL p_op_l1(p_env, qs_env, X, R)  ! acts on both spins, result in R
-#if 0
-    CALL print_fm_matrix(R(spin)%matrix, & 
-         p_env%n_ao(spin), p_env%n_mo(spin), &
-         "R-"//TRIM(ADJUSTL(cp_to_string(spin)))//".dat")
-    STOP
-#endif
 
     !-----------------!
     ! calc P1 and     !
@@ -597,17 +492,18 @@ CONTAINS
 
   ! X        : the vector to reorthogonalize
   ! kv       : set of vectors to which to reorthogonalize
-  ! S        : metric of the vectorspace
-  ! m_tmp    : temporary matrix
+  ! S        : metric of the vectorspaceA
+  ! tmp_mat    : temporary matrix
   ! j        : up to which vector of kv to reorthogonalize
   ! n_spins  : number of spins to treat
   ! glob_env : for communication
 
-  SUBROUTINE reorthogonalize(X, kv, S, m_tmp, j, n_spins, glob_env)
+  SUBROUTINE reorthogonalize(X, kv, S, tmp_mat, j, n_spins, glob_env)
 
     IMPLICIT NONE
 
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: X, kv, m_tmp
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: X, tmp_mat
+    TYPE(cp_full_matrix_p_type), DIMENSION(:,:), POINTER :: kv
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER    :: S
     INTEGER, INTENT(IN) :: j, n_spins
     TYPE(global_environment_type), INTENT(in) :: glob_env
@@ -615,24 +511,101 @@ CONTAINS
     INTEGER :: i, index, spin
     REAL(DBL) :: tmp, dot_product
 
-    IF (j<1) RETURN
+    IF (j<=1) RETURN
     DO i=1, j
        dot_product = 0.0_dbl
        DO spin=1, n_spins
-          CALL cp_sm_fm_multiply(S(spin)%matrix, X(spin)%matrix, m_tmp(spin)%matrix, &
+          CALL cp_sm_fm_multiply(S(spin)%matrix, X(spin)%matrix, &
+                                 tmp_mat(spin)%matrix, &
                                  X(spin)%matrix%matrix_struct%ncol_global, &
                                  glob_env%para_env, 1.0_dbl, 0.0_dbl)
-          index = n_spins*(i-1)+spin
-          CALL cp_fm_trace(m_tmp(spin)%matrix, kv(index)%matrix, tmp)
+          CALL cp_fm_trace(tmp_mat(spin)%matrix, kv(i,spin)%matrix, tmp)
           dot_product = dot_product + tmp
        END DO
        DO spin=1, n_spins
-          index = n_spins*(i-1)+spin
           CALL cp_fm_scale_and_add(1.0_dbl, X(spin)%matrix, &
-                                   -1.0_dbl*dot_product, kv(index)%matrix)
+                                   -1.0_dbl*dot_product, kv(i,spin)%matrix)
        END DO
     END DO
   END SUBROUTINE reorthogonalize
+
+! *****************************************************************************
+
+  SUBROUTINE allocate_krylov_vectors(kv, opkv, &
+                                     iteration, n_ev, n_spins, kv_fm_struct)
+
+    IMPLICIT NONE
+
+    ! arguments
+    TYPE(cp_full_matrix_p_type), DIMENSION(:,:), POINTER :: kv, opkv
+    INTEGER, INTENT(IN)                                  :: iteration, &
+                                                            n_ev, &
+                                                            n_spins
+    TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER     :: kv_fm_struct
+
+    ! locals
+    INTEGER                     :: spin, i, index
+    CHARACTER(LEN=80)           :: mat_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = "allocate_krylov_vectors", &
+                                   routineP = moduleN//"/"//routineN
+
+    DO spin=1, n_spins
+       DO i=1, n_ev
+          index = (iteration-1)*n_ev+i
+          NULLIFY(kv(index,spin)%matrix)
+          mat_name = routineP//"kv-"//TRIM(cp_to_string(index))&
+                 //","//TRIM(cp_to_string(spin))
+          CALL cp_fm_create(kv(index,spin)%matrix,  &
+               kv_fm_struct(spin)%struct, mat_name)
+          IF (.NOT.ASSOCIATED(kv(index,spin)%matrix)) &
+               CALL stop_program(routineP, &
+               "Could not alloacte "//TRIM(mat_name)//".")
+          mat_name = routineP//"opkv-"//TRIM(cp_to_string(index))&
+                 //","//TRIM(cp_to_string(spin))
+          CALL cp_fm_create(opkv(index,spin)%matrix, &
+               kv_fm_struct(spin)%struct, mat_name)
+          IF (.NOT.ASSOCIATED(opkv(index,spin)%matrix)) &
+               CALL stop_program(routineP, &
+               "Could not alloacte "//TRIM(mat_name)//".")
+       END DO
+    END DO
+
+  END SUBROUTINE allocate_krylov_vectors
+
+! *****************************************************************************
+
+  !---------------------------------------!
+  ! x must not be changed in this routine !
+  ! tmp_vec may be changed                !
+  !---------------------------------------!
+  SUBROUTINE calc_norm(norm, x, tmp_vec, qs_env, glob_env)
+
+    IMPLICIT NONE
+
+    REAL(KIND=dbl), INTENT(OUT)                        :: norm
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: x, tmp_vec
+    TYPE(qs_environment_type)                          :: qs_env
+    TYPE(global_environment_type)                      :: glob_env
+
+    INTEGER        :: spin, n_spins
+    REAL(KIND=dbl) :: spin_norm
+
+    n_spins = SIZE(x)
+
+    !-------------------------!
+    ! calc beta=transp(X)*S*X !
+    !-------------------------!
+    norm = 0.0_dbl
+    DO spin=1, n_spins
+       CALL cp_sm_fm_multiply(qs_env%S(spin)%matrix, x(spin)%matrix, &
+            tmp_vec(spin)%matrix, &
+            x(spin)%matrix%matrix_struct%ncol_global, &
+            glob_env%para_env, 1.0_dbl, 0.0_dbl)
+       CALL cp_fm_trace(tmp_vec(spin)%matrix, x(spin)%matrix, spin_norm)
+       norm = norm + spin_norm
+    END DO
+
+  END SUBROUTINE calc_norm
 
 ! *****************************************************************************
 
