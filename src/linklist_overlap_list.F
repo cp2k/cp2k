@@ -181,140 +181,135 @@ SUBROUTINE overlap_list(n_images,n_cell,pnode,part,box, &
 ! loop over all distinct i,j pairs of atoms
 !
   ipair=0
-  DO ikind = 1, nkind
-  
-     nat = size (ki(ikind)%atom_list)
+
+  DO i = 1, nnodes  
+     ii = pnode(i) %p%iatom
+     ikind = part (ii) % kind
+     IF (ikind <= 0) CYCLE
      
-     DO iatom = 1, nat 
-
-        ii = ki(ikind)%atom_list(iatom)
-        i = part(ii)%node
-
-        pnode(i) %nsneighbor = 0
-        nexcl = pnode(i) %nexcl
-        IF (nexcl>size(elist)) STOP 'els'
-        ll_exclude => pnode(i) %ex
+     pnode(i) %nsneighbor = 0
+     nexcl = pnode(i) %nexcl
+     IF (nexcl>size(elist)) STOP 'els'
+     ll_exclude => pnode(i) %ex
 
 ! list number of exclusion
-        DO iexclude = 1, nexcl
-           elist(iexclude) = ll_exclude%p%iatom
-           ll_exclude => ll_exclude%next
-        END DO
+     DO iexclude = 1, nexcl
+        elist(iexclude) = ll_exclude%p%iatom
+        ll_exclude => ll_exclude%next
+     END DO
 
 ! sort elist
-        CALL sort(elist,nexcl,ind)
+     CALL sort(elist,nexcl,ind)
 
 !
 ! pnode(i)%sl is the start of the OVERLAP neighbor link_list for
 ! atom i. Let it point to the current position in
 ! the link_list
 !
-        pnode(i) %sl => current_neighbor
+     pnode(i) %sl => current_neighbor
 
 ! first: loop over all particles in the same cell
 
-        DO jkind = 1, nkind
+     DO jkind = 1, nkind
      
-           ll => part(ii) % cell % pTYPE ( jkind ) % ll
+        ll => part(ii) % cell_ol % pTYPE ( jkind ) % ll
 	
-           DO jpart = 1, part(ii) % cell % natoms(jkind )
+        DO jpart = 1, part(ii) % cell_ol % natoms(jkind )
 	
-              j = ll%atom
+           j = ll%atom
 	   
 ! use black/white scheme to avoid double counting
 
-              IF (include_list(ii,j)) THEN
-                 ipair=ipair+1
-                 IF (MAXVAL(n_images(ikind,jkind,:)) /= 0 )  &
-                      current_neighbor%image=>start_list_im(ipair)%image
-		   
+           IF (include_list(ii,j)) THEN
+              ipair=ipair+1
+              IF (MAXVAL(n_images(ikind,jkind,:)) /= 0 )  &
+                current_neighbor%image=>start_list_im(ipair)%image
+  
 ! look for a match in the exclusion list (j in excl of pnode(i))
 
-                 SELECT CASE (nexcl)
+              SELECT CASE (nexcl)
 	      
-                 CASE DEFAULT
+              CASE DEFAULT
 	      
-                    IF ( .NOT. get_match(j,elist,nexcl)) THEN
-                       CALL update_verlet_list(n_images ( ikind, jkind, : ), &
-                            part(j), j, &
-                            pnode(i),hmat,h_inv,perd,rlist_cutsq(ikind,jkind ), &
-                            current_neighbor,list_type)
-                    END IF
+                 IF ( .NOT. get_match(j,elist,nexcl)) THEN
+                    CALL update_verlet_list(n_images ( ikind, jkind, : ), &
+                         part(j), j, &
+                         pnode(i),hmat,h_inv,perd,rlist_cutsq(ikind,jkind ), &
+                         current_neighbor,list_type)
+                 END IF
 
-                 CASE (0)
+              CASE (0)
 	      
                     CALL update_verlet_list(n_images(ikind,jkind,:),part(j),j, &
                          pnode(i),hmat,h_inv,perd,rlist_cutsq(ikind,jkind ), &
                          current_neighbor,list_type)
-                 CASE (1)
-	      
-                    IF ( j/=elist(1)) THEN
-                       CALL update_verlet_list(n_images(ikind,jkind,:), &
-                            part(j),j, &
-                            pnode(i),hmat,h_inv,perd,rlist_cutsq(ikind,jkind ), &
-                            current_neighbor,list_type)
-                    END IF
-                 END SELECT
-              END IF
-              ll => ll%next
-           END DO
+              CASE (1)
+    
+                 IF ( j/=elist(1)) THEN
+                    CALL update_verlet_list(n_images(ikind,jkind,:), &
+                         part(j),j, &
+                         pnode(i),hmat,h_inv,perd,rlist_cutsq(ikind,jkind ), &
+                         current_neighbor,list_type)
+                 END IF
+              END SELECT
+           END IF
+           ll => ll%next
         END DO
+     END DO
 
 ! second: loop over all neighbor cells
 
-        DO jkind = 1, nkind
-   
-           IF (ALL(n_cell==1)) EXIT
-	
-           ncells=SIZE (neighbor(ikind,jkind ) % index, 2)
-	
-           DO k = 1, ncells
-	
-              index(1) = part(ii) % cell_ol % neighbor(ikind,jkind ) %index(1,k)
-              index(2) = part(ii) % cell_ol % neighbor(ikind,jkind ) %index(2,k)
-              index(3) = part(ii) % cell_ol % neighbor(ikind,jkind ) %index(3,k)
-              ll => cell_ll(index(1),index(2),index(3)) % pTYPE ( jkind ) %ll
+     DO jkind = 1, nkind
+
+        IF (ALL(n_cell==1)) EXIT
+
+        ncells=SIZE (neighbor(ikind,jkind ) % index, 2)
+
+        DO k = 1, ncells
+
+           index(1) = part(ii) % cell_ol % neighbor(ikind,jkind ) %index(1,k)
+           index(2) = part(ii) % cell_ol % neighbor(ikind,jkind ) %index(2,k)
+           index(3) = part(ii) % cell_ol % neighbor(ikind,jkind ) %index(3,k)
+           ll => cell_ll(index(1),index(2),index(3)) % pTYPE ( jkind ) %ll
+ 
+           DO jpart = 1, cell_ll(index(1),index(2),index(3)) %natoms(jkind) 
 	   
-              DO jpart = 1, cell_ll(index(1),index(2),index(3)) %natoms(jkind) 
-	   
-                 ipair=ipair+1
-                 j = ll%atom
+              ipair=ipair+1
+              j = ll%atom
 	      
-                 SELECT CASE (nexcl)
-		 
-                 CASE DEFAULT
-		 
-                    IF ( .NOT. get_match(j,elist,nexcl)) THEN
-                       CALL update_verlet_list(n_images(ikind,jkind,:), &
-                            part(j),j, &
-                            pnode(i),hmat,h_inv,perd,rlist_cutsq(ikind,jkind ), &
-                            current_neighbor,list_type)
-                    END IF
-                 CASE (0)
-		 
-                    CALL update_verlet_list(n_images(ikind,jkind,:),part(j),j, &
+              SELECT CASE (nexcl)
+
+              CASE DEFAULT
+
+                 IF ( .NOT. get_match(j,elist,nexcl)) THEN
+                    CALL update_verlet_list(n_images(ikind,jkind,:), &
+                         part(j),j, &
                          pnode(i),hmat,h_inv,perd,rlist_cutsq(ikind,jkind ), &
                          current_neighbor,list_type)
-                 CASE (1)
-		 
-                    IF ( j/=elist(1)) THEN
-                       CALL update_verlet_list(n_images(ikind,jkind,:), &
-                            part(j),j, &
-                            pnode(i),hmat,h_inv,perd,rlist_cutsq(ikind,jkind ), &
-                            current_neighbor,list_type)
-                    END IF
-		    
-                 END SELECT
-                 ll => ll%next
-		 
-              END DO
-	      
-           END DO
-	   
-        END DO
-	
-     END DO
+                 END IF
+              CASE (0)
 
+                 CALL update_verlet_list(n_images(ikind,jkind,:),part(j),j, &
+                      pnode(i),hmat,h_inv,perd,rlist_cutsq(ikind,jkind ), &
+                      current_neighbor,list_type)
+              CASE (1)
+
+                 IF ( j/=elist(1)) THEN
+                    CALL update_verlet_list(n_images(ikind,jkind,:), &
+                         part(j),j, &
+                         pnode(i),hmat,h_inv,perd,rlist_cutsq(ikind,jkind ), &
+                         current_neighbor,list_type)
+                 END IF
+   
+              END SELECT
+              ll => ll%next
+
+           END DO
+	      
+        END DO
+	   
+     END DO
+	
      IF ( first_time .AND. globenv % print_level>4 &
           .OR. globenv % print_level>9) THEN
         IF (globenv % ionode) WRITE (globenv % scr,'(A,i10,T54,A,T71,I10 )' ) &
