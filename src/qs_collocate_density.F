@@ -220,7 +220,7 @@ CONTAINS
     TYPE(gridlevel_info_type), INTENT(IN)       :: gridlevel_info
     TYPE(l_info_type), INTENT(IN)               :: l_info
     TYPE(qs_environment_type), INTENT(IN)       :: qs_env
-    TYPE(real_matrix_p_type), INTENT(IN)        :: p,p_old
+    TYPE(real_matrix_type), POINTER             :: p,p_old
     REAL(wp), INTENT(OUT)                       :: total_rho
     LOGICAL, INTENT(IN)                         :: rebuild
 
@@ -375,12 +375,12 @@ CONTAINS
                                    r=rab(:))
 
             IF (iatom <= jatom) THEN
-              CALL get_block_node(matrix=p%matrix,&
+              CALL get_block_node(matrix=p,&
                                   block_row=iatom,&
                                   block_col=jatom,&
                                   block=p_block)
             ELSE
-              CALL get_block_node(matrix=p%matrix,&
+              CALL get_block_node(matrix=p,&
                                   block_row=jatom,&
                                   block_col=iatom,&
                                   block=p_block)
@@ -411,12 +411,12 @@ CONTAINS
               END IF
             ELSE
               IF (iatom <= jatom) THEN
-                CALL get_block_node(matrix=p_old%matrix,&
+                CALL get_block_node(matrix=p_old,&
                                     block_row=iatom,&
                                     block_col=jatom,&
                                     block=p_old_block)
               ELSE
-                CALL get_block_node(matrix=p_old%matrix,&
+                CALL get_block_node(matrix=p_old,&
                                     block_row=jatom,&
                                     block_col=iatom,&
                                     block=p_old_block)

@@ -209,6 +209,7 @@ OBJECTS_GENERIC =\
  qs_p_build_kernel.o\
  qs_p_types.o\
  qs_parser.o\
+ qs_rho_types.o\
  qs_scf.o\
  radial_grids.o\
  radial_operators.o\
