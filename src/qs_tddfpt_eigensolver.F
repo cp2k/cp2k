@@ -124,10 +124,6 @@ CONTAINS
        ALLOCATE(K_diagonal(K_rows), S_diagonal(K_rows))
        CALL get_matrix_diagonal(qs_env%k(spin)%matrix, K_diagonal)
        CALL get_matrix_diagonal(qs_env%s(spin)%matrix, S_diagonal)
-       !DO i=1, K_rows
-       !   IF (glob_env%ionode) &
-       !        WRITE (*,*) K_diagonal(i), S_diagonal(i)
-       !END DO
        CALL get_mo_set(qs_env%C(spin)%mo_set, eigenvalues=occ_evals)
     END DO
 
@@ -178,8 +174,8 @@ CONTAINS
     !-----------------------!
     CALL davidson_initial_guess(b, n_kv, qs_env, p_env, evals)
     DO i=1, n_kv
-       CALL p_preortho(p_env, qs_env, b(i,:))
        DO j=1, n_reortho
+          CALL p_preortho(p_env, qs_env, b(i,:))
           CALL reorthogonalize(b(i,:), b, Sb, i-1)
        END DO
        CALL normalize(b(i,:), R, qs_env%S, glob_env)
@@ -266,10 +262,17 @@ CONTAINS
                 CALL cp_fm_set_all(b(i,spin)%matrix, 0.0_dbl)
                 DO j=1, n_kv
                    CALL cp_fm_get_element(Us%matrix, i-(iter-1)*n_kv, j, tmp)
-                   CALL cp_fm_scale_and_add(0.0_dbl, b(i,spin)%matrix, &
+                   CALL cp_fm_scale_and_add(1.0_dbl, b(i,spin)%matrix, &
                                             tmp, Ab(j,spin)%matrix)
                    CALL cp_fm_scale_and_add(1.0_dbl, b(i,spin)%matrix, &
                                             -1.0_dbl*evals(j,iter)*tmp, Sb(j,spin)%matrix)
+                END DO
+                DO row=1, p_env%n_ao(spin)
+                   DO col=1, p_env%n_mo(spin)
+                      CALL cp_fm_get_element(b(i,spin)%matrix, row, col, tmp)
+                      tmp = tmp / (K_diagonal(row) - (evals(i-(iter-1)*n_kv,iter-1)+occ_evals(col)))
+                      CALL cp_fm_set_element(b(i,spin)%matrix, row, col, tmp)
+                   END DO
                 END DO
                 IF (qs_env%dft_control%tddfpt_control%invert_S) THEN
                    CALL cp_fm_to_fm(b(i,spin)%matrix, R(spin)%matrix)
@@ -278,23 +281,21 @@ CONTAINS
                         0.0_dbl, b(i,spin)%matrix)
                 END IF
              END DO
-             ! Insert preconditioner here
           ELSE IF (qs_env%dft_control%tddfpt_control%diag_method .EQ. "LANCZOS") THEN
              DO spin=1, n_spins
                 IF (qs_env%dft_control%tddfpt_control%invert_S) THEN
-                CALL cp_fm_symm('L', 'U', p_env%n_ao(spin), p_env%n_mo(spin), &
-                     1.0_dbl, t_env%invS(spin)%matrix, Ab(i-n_kv,spin)%matrix, &
-                     0.0_dbl, b(i,spin)%matrix)
+                   CALL cp_fm_symm('L', 'U', p_env%n_ao(spin), p_env%n_mo(spin), &
+                        1.0_dbl, t_env%invS(spin)%matrix, Ab(i-n_kv,spin)%matrix, &
+                        0.0_dbl, b(i,spin)%matrix)
                 ELSE
                    CALL cp_fm_to_fm(Ab(i-n_kv,spin)%matrix, b(i,spin)%matrix)
-                   ! multiply by an approximate S^-1 here
                 END IF
              END DO
           ELSE
              CALL stop_program(routineP, "Unknown method.");
           END IF
-          CALL p_preortho(p_env, qs_env, b(i,:))
           DO j=1, n_reortho
+             CALL p_preortho(p_env, qs_env, b(i,:))
              CALL reorthogonalize(b(i,:), b, Sb, i-1)
           END DO
           CALL normalize(b(i,:), R, qs_env%S, glob_env)
@@ -361,9 +362,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  ! X        : on input the vector on which to apply the op
-  !            on output the result
-  ! R        : a temporary vector
+  ! X        : the vector on which to apply the op
+  ! R        : the result
   ! t_env    : td-dft environment (mainly control information)
   ! p_env    : perturbation environment (variables)
   !            both of these carry info for the tddfpt calculation

@@ -563,7 +563,7 @@ CONTAINS
     END DO
     norm = SQRT(norm)
     DO spin=1, n_spins
-       CALL cp_fm_scale((1.0_dbl/norm), x(spin)%matrix)
+       CALL cp_fm_scale((1.0_dbl/norm), X(spin)%matrix)
     END DO
 
   END SUBROUTINE normalize
