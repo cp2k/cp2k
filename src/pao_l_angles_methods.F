@@ -534,7 +534,7 @@ contains
 !!   SYNOPSIS
 !!     Subroutine pao_l_ang_get(local_angles, atom_nr, pao_env, unitary_t,&
 !!         cache_valid, size_min_bas, size_full_bas, size_excl_bas,&
-!!         proj_indexes, non_proj_indexes, projection, error)
+!!         proj_indexes, non_proj_indexes, projection, angles, error)
 !!       Type(pao_local_angles_type), Intent (INOUT):: local_angles
 !!       Integer, Optional, Intent (OUT):: atom_nr
 !!       Integer, Optional, Intent (OUT):: size_excl_bas, size_full_bas,&
@@ -546,6 +546,7 @@ contains
 !!       Real(Kind=wp), Dimension(:,:), Pointer, Optional:: unitary_t
 !!       Logical, Intent (OUT), Optional:: cache_valid
 !!       Type(pao_bas_projection_type), Pointer, Optional:: projection
+!!       Real(Kind=wp), Dimension(:), Pointer, Optional:: angles
 !!     End Subroutine pao_l_ang_get
 !!
 !!   FUNCTION
@@ -628,6 +629,7 @@ contains
           end if
        end if
        if (present(angles)) then
+          nullify(angles) ! to do
           call get_qs_env(local_angles%qs_env, pao_env=my_pao_env)
           angles => local_angles%glob_angles%angles(local_angles%begins_at:&
                (my_pao_env%angles_begin_at(local_angles%atom_nr+1)-1))
@@ -980,8 +982,8 @@ contains
     end if debugIf
     failureIf: if (.not. failure) then
        res=glob_angles%angles(local_angles%begins_at + &
-            local_angles%size_min_bas*(min_bas-1) + &
-            excl_bas)
+            local_angles%size_min_bas*(excl_bas-1) + &
+            min_bas)
     else failureIf
        res=-1
     end if failureIf
@@ -1062,8 +1064,8 @@ contains
     end if debugIf
     failureIf: if (.not. failure) then
        glob_angles%angles(local_angles%begins_at + &
-            local_angles%size_min_bas*(min_bas-1) + &
-            excl_bas) = value
+            local_angles%size_min_bas*(excl_bas-1) + &
+            min_bas) = value
     end if failureIf
     nullify(glob_angles)
   end subroutine pao_l_ang_set_angle
@@ -1544,8 +1546,8 @@ function pao_l_ang_get_g_index(local_angles, min_bas, excl_bas, error)&
      CPPrecondition(local_angles%atom_nr>0,cp_failure_level,routineP,error,failure)
   end if
   if (.not. failure) then
-     res = local_angles%begins_at+local_angles%size_min_bas*(min_bas-1)&
-          + excl_bas
+     res = local_angles%begins_at+local_angles%size_min_bas*(excl_bas-1)&
+          + min_bas
   else
      res=-1
   end if
