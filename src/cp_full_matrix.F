@@ -395,6 +395,8 @@ CONTAINS
     CALL dlarnv(1,iseed,n*ncol,a(1,1))
 #endif
 
+    CALL timestop(0.0_wp,handle)
+
   END SUBROUTINE CP_FM_INIT_RANDOM
 ! *****************************************************************************
 

@@ -32,7 +32,7 @@ MODULE qs_mo_types
 
   USE kinds, ONLY: wp => dp,&
                    wp_size => dp_size
-
+  USE cp_para_types,     ONLY: cp_para_env_type, cp_blacs_env_type
   USE atomic_kind_types,    ONLY: atomic_kind_type,&
                                   get_atomic_kind,&
                                   get_atomic_kind_set
@@ -363,7 +363,7 @@ CONTAINS
 
   END SUBROUTINE calculate_w_matrix_sparse
 ! *****************************************************************************
-  SUBROUTINE subspace_eigenvalues_ks(orbitals,ks_matrix,evals_arg,globenv)
+  SUBROUTINE subspace_eigenvalues_ks(orbitals,ks_matrix,evals_arg,para_env,ctxt,ionode,scr)
 
 !   Purpose: Calculates the eigenvalues (ritz values) for a set of orbitals
 !            and rotates them to make them eigenvectors
@@ -373,8 +373,11 @@ CONTAINS
 
     TYPE(real_matrix_type), POINTER           :: ks_matrix
     TYPE(cp_full_matrix_type), POINTER          :: orbitals
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(cp_para_env_type),  POINTER   :: para_env
+    TYPE(cp_blacs_env_type), POINTER   :: ctxt
     REAL(wp), DIMENSION(:),  POINTER, OPTIONAL :: evals_arg
+    LOGICAL, OPTIONAL :: ionode 
+    INTEGER, OPTIONAL :: scr
 
 !   *** Local variables ***
     TYPE(cp_full_matrix_type), POINTER          :: weighted_vectors,h_block,e_vectors
@@ -400,7 +403,7 @@ CONTAINS
                                  nrow_block=nrow_block, &
                                  ncol_block=ncol_block, &
                                  name="weighted_vectors", & 
-                                 globenv=globenv)
+                                 context=ctxt, para_env=para_env)
 
     CALL cp_fm_create2(new_matrix=h_block,&
                                  nrow_global=ncol_global, &
@@ -408,7 +411,7 @@ CONTAINS
                                  nrow_block=nrow_block, &
                                  ncol_block=ncol_block, &
                                  name="h block", &
-                                 globenv=globenv)
+                                 context=ctxt, para_env=para_env)
 
     CALL cp_fm_create2(new_matrix=e_vectors,&
                                  nrow_global=ncol_global, &
@@ -416,11 +419,11 @@ CONTAINS
                                  nrow_block=nrow_block, &
                                  ncol_block=ncol_block, &
                                  name="e_vectors", &
-                                 globenv=globenv)
+                                 context=ctxt, para_env=para_env)
 
     ! h subblock and diag
     CALL cp_sm_fm_multiply(ks_matrix,orbitals,weighted_vectors, &
-                                       ncol_global,para_env=globenv%para_env)
+                                       ncol_global,para_env=para_env)
 
 
     CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_wp, &
@@ -439,19 +442,20 @@ CONTAINS
       evals_arg(:)=evals(:)
 
     ELSE
-
-      IF (globenv%ionode) THEN
+      IF (.NOT. PRESENT(IONODE)) CALL stop_program("subspace evals","IONODE?")
+      IF (.NOT. PRESENT(SCR)) CALL stop_program("subspace evals","SCR?")
+      IF (ionode) THEN
          DO i=1,ncol_global,4
             j=MIN(3,ncol_global-i)
             SELECT CASE (j)
             CASE(3)
-             WRITE(globenv%scr,'(1X,4F12.8)') evals(i:i+j)
+             WRITE(scr,'(1X,4F12.8)') evals(i:i+j)
             CASE(2)
-             WRITE(globenv%scr,'(1X,3F12.8)') evals(i:i+j)
+             WRITE(scr,'(1X,3F12.8)') evals(i:i+j)
             CASE(1)
-             WRITE(globenv%scr,'(1X,2F12.8)') evals(i:i+j)
+             WRITE(scr,'(1X,2F12.8)') evals(i:i+j)
             CASE(0)
-             WRITE(globenv%scr,'(1X,1F12.8)') evals(i:i+j)
+             WRITE(scr,'(1X,1F12.8)') evals(i:i+j)
             END SELECT
          ENDDO
       ENDIF

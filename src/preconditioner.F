@@ -55,7 +55,7 @@ MODULE preconditioner
                                  blacs_column_copy, &
                                  blacs_scale_and_d
                                  
-
+  USE qs_mo_types,         ONLY: calculate_subspace_eigenvalues
   USE global_types,        ONLY: global_environment_type
   USE sparse_matrix_types, ONLY: real_matrix_type, &
                                  replicate_matrix, &
@@ -75,12 +75,13 @@ MODULE preconditioner
 
   PUBLIC  :: preconditioner_type
   PUBLIC  :: init_preconditioner
+  PUBLIC  :: preconditioner_in_use
   PUBLIC  :: destroy_preconditioner
   PUBLIC  :: make_preconditioner
   PUBLIC  :: apply_preconditioner
 
   INTERFACE make_preconditioner
-    MODULE PROCEDURE make_preconditioner_single,make_preconditioner_all
+    MODULE PROCEDURE make_preconditioner_single ! ,make_preconditioner_all
   END INTERFACE
 
   PRIVATE :: make_sparse_diag, make_full_single, make_local_block
@@ -98,6 +99,12 @@ MODULE preconditioner
   END TYPE preconditioner_type
 
 CONTAINS
+
+FUNCTION preconditioner_in_use(preconditioner)
+  TYPE(preconditioner_type) :: preconditioner
+  LOGICAL preconditioner_in_use
+  preconditioner_in_use = .NOT. (preconditioner%in_use .eq. 0)
+END FUNCTION
 
 SUBROUTINE init_preconditioner(preconditioner_env,globenv)
 
@@ -151,17 +158,29 @@ END SUBROUTINE destroy_preconditioner
 !*******************************************************************************
 
 SUBROUTINE make_preconditioner_single(preconditioner_env, use, matrix_h, matrix_s, &
-                                      matrix_t,energy_homo, energy_gap )
+                                      matrix_t,mo_eigenvectors, energy_gap )
 
   TYPE(preconditioner_type)               :: preconditioner_env
   CHARACTER(LEN=*)                                :: use
   TYPE(real_matrix_type), POINTER            :: matrix_h,matrix_s,matrix_t
-  REAL(wp)                                   :: energy_homo,energy_gap
+  TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
+  REAL(wp), DIMENSION(:), POINTER :: eigenvalues_ot
+  REAL(wp)                                   :: energy_gap
+
 
 !----
-  integer handle
+  REAL(wp)                                   :: energy_homo,energy_gap
+  integer handle,k
 
   CALL timeset("make_preconditioner","I","",handle)
+
+  CALL cp_fm_get_info(mo_eigenvectors,ncol_global=k) 
+  allocate(eigenvalues_ot(k))
+  CALL calculate_subspace_eigenvalues(mo_eigenvectors,matrix_h,&
+          eigenvalues_ot,para_env=preconditioner_env%para_env, &
+                         ctxt = preconditioner_env%ctxt)
+  energy_homo=eigenvalues_ot(k)
+  deallocate(eigenvalues_ot)
 
   SELECT CASE (use)
   CASE ("SPARSE_DIAG")
@@ -204,33 +223,33 @@ END SUBROUTINE make_preconditioner_single
 ! V=[UC0 UX] (otherwise the computation of the lagrangian multipliers gets more
 ! difficult than one would like
 !********************************************************************************
-SUBROUTINE make_preconditioner_all(preconditioner_env, use, matrix_h, matrix_s, &
-                                   matrix_c0,matrix_sc0,matrix_hc0, energy_gap )
-
-  TYPE(preconditioner_type)                  :: preconditioner_env
-  CHARACTER(LEN=*)                           :: use
-  TYPE(real_matrix_type), POINTER            :: matrix_h,matrix_s
-  REAL(wp)                                   :: energy_gap
-  TYPE(cp_full_matrix_type), POINTER         :: matrix_c0,matrix_sc0,matrix_hc0
-!----
-  integer handle
-
-  CALL timeset("make_preconditioner","I","",handle)
-
-  SELECT CASE (use)
-  CASE ("FULL_ALL")
-    preconditioner_env%in_use=103
-    CALL make_full_all(preconditioner_env, matrix_h, matrix_s, &
-                   matrix_c0,matrix_sc0,matrix_hc0, energy_gap )
-
-  CASE DEFAULT
-    CALL stop_program("make preconditioner","Type not implemented")
-  END SELECT
-
-  CALL timestop(0.0_wp,handle)
-
-END SUBROUTINE make_preconditioner_all
-
+!SUBROUTINE make_preconditioner_all(preconditioner_env, use, matrix_h, matrix_s, &
+!                                   matrix_c0,matrix_sc0,matrix_hc0, energy_gap )
+!
+!  TYPE(preconditioner_type)                  :: preconditioner_env
+!  CHARACTER(LEN=*)                           :: use
+!  TYPE(real_matrix_type), POINTER            :: matrix_h,matrix_s
+!  REAL(wp)                                   :: energy_gap
+!  TYPE(cp_full_matrix_type), POINTER         :: matrix_c0,matrix_sc0,matrix_hc0
+!!----
+!  integer handle
+!
+!  CALL timeset("make_preconditioner","I","",handle)
+!
+!  SELECT CASE (use)
+!  CASE ("FULL_ALL")
+!    preconditioner_env%in_use=103
+!    CALL make_full_all(preconditioner_env, matrix_h, matrix_s, &
+!                   matrix_c0,matrix_sc0,matrix_hc0, energy_gap )
+!
+!  CASE DEFAULT
+!    CALL stop_program("make preconditioner","Type not implemented")
+!  END SELECT
+!
+!  CALL timestop(0.0_wp,handle)
+!
+!END SUBROUTINE make_preconditioner_all
+!
 !*******************************************************************************
 ! applies a previously created preconditioner to a full matrix
 !*******************************************************************************

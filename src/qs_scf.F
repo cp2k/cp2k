@@ -187,17 +187,17 @@ MODULE qs_scf
   USE qs_core_energies,         ONLY: calculate_ecore,&
                                       calculate_ecore_overlap,&
                                       calculate_ecore_self
-  USE qs_ot,                    ONLY: qs_ot_type,qs_ot_allocate, &
-                                      qs_ot_destroy,qs_ot_init,  &
-                                      qs_ot_get_orbitals,        & 
-                                      qs_ot_get_derivative,      &
-                                      qs_ot_get_p,               &
-                                      qs_ot_mini,                &
+  USE qs_ot,                    ONLY: qs_ot_type, &
                                       qs_ot_new_preconditioner
+
+  USE qs_ot_scf,                ONLY: ot_scf_init,ot_scf_mini, &
+                                      ot_scf_destroy, ot_scf_read_input
+
   USE preconditioner,           ONLY: init_preconditioner, &
                                       destroy_preconditioner, &
                                       make_preconditioner, &
                                       preconditioner_type
+
   USE qs_ot_eigensolver,        ONLY: ot_eigensolver
   USE qs_energy_types,          ONLY: qs_energy_type
   USE cp_array_utils,           ONLY: cp_1d_r_output
@@ -209,7 +209,6 @@ MODULE qs_scf
   PRIVATE
 
   TYPE(qs_ot_type)                  :: qs_ot_env
-  REAL(wp), DIMENSION(:), POINTER   :: evals_ot
   TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: ot_orbs_to_rotate
 
   TYPE(cp_full_matrix_type), POINTER  :: ortho,scf_work1,scf_work2
@@ -277,7 +276,7 @@ CONTAINS
          p_old_rmpv, kinetic
     TYPE(real_matrix_type), POINTER :: pfull
     TYPE(qs_energy_type), POINTER :: energy
-    LOGICAL :: energy_only, rebuild
+    LOGICAL :: energy_only, rebuild, ot_initialized
     TYPE(cp_full_matrix_type), POINTER :: unoccupied_orbs
     TYPE(scf_control_type), POINTER   :: scf_control
 
@@ -291,6 +290,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     NULLIFY(kinetic)
+    ot_initialized=.false.
 
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
@@ -313,8 +313,6 @@ CONTAINS
     ionode = globenv%ionode
     output_unit = globenv%scr
     energy_only = .FALSE.
-
-    
         
     pao=dft_control%qs_control%pao.AND.ASSOCIATED(pao_env)
 
@@ -335,7 +333,6 @@ CONTAINS
     CALL init_scf_run(mo_set=mo_set,&
                       qs_env=qs_env,&
                       globenv=globenv)
-
 
     CALL qs_ks_init(ks_env,qs_env=qs_env,global_env=globenv, error=error)
     CALL qs_ks_did_change(ks_env,qs_env,globenv,p_changed=.TRUE.,error=error)
@@ -367,68 +364,11 @@ CONTAINS
     diis_step = .FALSE.
     rebuild = .TRUE.
 
+    CALL init_preconditioner(ot_preconditioner,globenv)
 
-    IF (scf_control%use_ot) THEN
-
-       CALL get_mo_set(mo_set=mo_set, eigenvectors=mo_eigenvectors)
-
-       CALL cp_fm_get_info(mo_eigenvectors,nrow_block=nrow_block, &
-                                                  ncol_block=ncol_block, &
-                                                  nrow_global=n, &
-                                                  ncol_global=k)
-
-       ALLOCATE(evals_ot(k))
-
-       ! decide settings
-       qs_ot_env%settings%ot_method="CG"
-       qs_ot_env%settings%ot_linesearch=.TRUE.
-       qs_ot_env%settings%ot_diis=.FALSE.
-       qs_ot_env%settings%ds_min=0.15_wp
-       IF (qs_ot_env%settings%ot_method.EQ."QN") THEN
-          qs_ot_env%settings%lbfgs_m=10
-       ELSE
-          qs_ot_env%settings%lbfgs_m=0
-       ENDIF
-       IF (qs_ot_env%settings%ot_diis) THEN
-          qs_ot_env%settings%diis_m=10 
-       ELSE
-          qs_ot_env%settings%diis_m=0
-       ENDIF
-
-       qs_ot_env%settings%n=n 
-       qs_ot_env%settings%k=k 
-       qs_ot_env%settings%ortho_k=k
-       qs_ot_env%settings%nrow_block=nrow_block
-       qs_ot_env%settings%ncol_block=ncol_block
-
-       ! allocate
-       CALL qs_ot_allocate(qs_ot_env,globenv)
-  
-       ! set c0,sc0
-       CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,qs_ot_env%matrix_c0)
-       CALL cp_sm_fm_multiply(s(1)%matrix,qs_ot_env%matrix_c0, &
-                                           qs_ot_env%matrix_sc0,qs_ot_env%settings%k,para_env=globenv%para_env)
-
-       CALL blacs_make_basis(qs_ot_env%matrix_c0,k, &
-                             ortho=qs_ot_env%matrix_sc0,otype="SV")
-
-       ! init
-       CALL qs_ot_init(qs_ot_env,globenv)
-       energy_only=qs_ot_env%energy_only
-
-       ! set x
-       CALL cp_fm_set_all(qs_ot_env%matrix_x,0.0_wp)
-       CALL cp_fm_set_all(qs_ot_env%matrix_sx,0.0_wp)
-
-       ! get c
-       CALL qs_ot_get_p(qs_ot_env%matrix_x,qs_ot_env%matrix_sx,qs_ot_env,globenv)
-       CALL qs_ot_get_orbitals(mo_eigenvectors,qs_ot_env%matrix_x,qs_ot_env,globenv)
-
-       ! and the corresponding density matrix
-       CALL calculate_density_matrix(mo_set,p%matrix,globenv)
-       CALL init_preconditioner(ot_preconditioner,globenv)
-
-    ENDIF
+    if (scf_control%use_ot) then
+       CALL ot_scf_read_input(qs_ot_env,globenv)
+    endif
 
 
     IF (ionode.AND.globenv%print%scf) THEN
@@ -592,55 +532,31 @@ CONTAINS
 
       CASE(2) ! orbital transforms
 
-        IF ( .NOT. energy_only) THEN
-          CALL cp_sm_fm_multiply(ks%matrix,mo_eigenvectors, &
-                                          qs_ot_env%matrix_hc,  &
-                                    qs_ot_env%settings%k,&
-                                    para_env=globenv%para_env)
-          CALL cp_fm_add(4.0_wp,qs_ot_env%matrix_hc,0.0_wp,qs_ot_env%matrix_hc)
-        ENDIF
+        CALL get_mo_set(mo_set=mo_set,eigenvectors=mo_eigenvectors)
 
-        IF (iscf==1) THEN
-          IF (.FALSE.) THEN
-           CALL cp_fm_add(0.25_wp,qs_ot_env%matrix_hc,0.0_wp,qs_ot_env%matrix_hc)
-           CALL make_preconditioner(ot_preconditioner,"FULL_ALL", &
-                                    ks%matrix,s(1)%matrix, &
-                                    qs_ot_env%matrix_c0,  qs_ot_env%matrix_sc0, &
-                                    qs_ot_env%matrix_hc,0.2_wp) 
-           CALL cp_fm_add(4.0_wp,qs_ot_env%matrix_hc,0.0_wp,qs_ot_env%matrix_hc)
-          ELSE
-           ! here we make c0 the ritz vectors, and rotate the corresponding vectors
-           ALLOCATE(ot_orbs_to_rotate(3))
-           ot_orbs_to_rotate(1)%matrix => qs_ot_env%matrix_c0
-           ot_orbs_to_rotate(2)%matrix => qs_ot_env%matrix_hc
-           ot_orbs_to_rotate(3)%matrix => qs_ot_env%matrix_sc0
-           CALL calculate_subspace_eigenvalues(ot_orbs_to_rotate,evals_ot,globenv)
-           evals_ot(:)=evals_ot(:)/4.0_wp
-           DEALLOCATE(ot_orbs_to_rotate)
+        ! might need the KS matrix to init properly, that's why we're here
+        IF (.NOT. ot_initialized) THEN
+           ot_initialized=.TRUE.
+
            CALL make_preconditioner(ot_preconditioner,"FULL_KINETIC", &
                                     ks%matrix,s(1)%matrix,kinetic(1)%matrix, &
-                                    evals_ot(qs_ot_env%settings%k),0.2_wp) 
-          ENDIF 
-          CALL qs_ot_new_preconditioner(qs_ot_env,ot_preconditioner) 
+                                    mo_eigenvectors,0.2_wp) 
+
+           CALL ot_scf_init(mo_eigenvectors,s(1)%matrix,qs_ot_env,globenv)
+
+           CALL qs_ot_new_preconditioner(qs_ot_env,ot_preconditioner) 
         ENDIF
 
-        qs_ot_env%etotal=energy%total
-        CALL qs_ot_mini(qs_ot_env,globenv)
-        delta           =qs_ot_env%delta
-        energy_only     =qs_ot_env%energy_only
+        CALL ot_scf_mini(mo_eigenvectors,ks%matrix,s(1)%matrix,energy%total, &
+                                          energy_only,delta,qs_ot_env,globenv)
 
-        CALL cp_sm_fm_multiply(s(1)%matrix,qs_ot_env%matrix_x, &
-                                     qs_ot_env%matrix_sx, &
-                                     qs_ot_env%settings%k,&
-                                     para_env=globenv%para_env)
-        CALL qs_ot_get_p(qs_ot_env%matrix_x,qs_ot_env%matrix_sx,qs_ot_env,globenv)
-        CALL qs_ot_get_orbitals(mo_eigenvectors,qs_ot_env%matrix_x,qs_ot_env,globenv)
         CALL calculate_density_matrix(mo_set,p%matrix,globenv)
         t2 = cputime()
         IF (ionode.AND.globenv%print%scf) THEN
               WRITE (UNIT=output_unit,&
                  FMT="(T2,I5,2X,A,T20,F6.2,T30,F8.2,T40,2F20.10)")&
-                         iscf,qs_ot_env%OT_METHOD_FULL,qs_ot_env%ds_min,t2 - t1,delta,energy%total
+                         iscf,qs_ot_env%OT_METHOD_FULL,qs_ot_env%ds_min, &
+                                                t2 - t1,delta,energy%total
         END IF
 
 
@@ -664,10 +580,7 @@ CONTAINS
 
     END DO scf_loop
 
-    IF (scf_control%use_ot) THEN
-     CALL qs_ot_destroy(qs_ot_env,globenv)
-     DEALLOCATE(evals_ot)
-    END IF
+    IF (scf_control%use_ot) CALL ot_scf_destroy(qs_ot_env,globenv)
 
     IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
@@ -728,7 +641,9 @@ CONTAINS
       IF (globenv%ionode) WRITE(globenv%scr,*) " "
       IF (globenv%ionode) WRITE(globenv%scr,*) " Eigenvalues of the occupied subspace"
       IF (globenv%ionode) WRITE(globenv%scr,*) " ------------------------------------"
-      CALL calculate_subspace_eigenvalues(mo_eigenvectors,ks%matrix,globenv=globenv)
+      CALL calculate_subspace_eigenvalues(mo_eigenvectors,ks%matrix, &
+              para_env=globenv%para_env,ctxt=globenv%blacs_env,scr=globenv%scr, &
+              ionode=globenv%ionode)
 
       DO ivector=MAX(1,homo-globenv%print%nhomos+1),homo
          ! overwrites rho_rspace with a wavefunction !
@@ -770,9 +685,12 @@ CONTAINS
                           matrix_c=unoccupied_orbs, &
                           matrix_orthogonal_space=mo_eigenvectors, &
                           eps_gradient=scf_control%eps_lumos, &
+                          preconditioner=ot_preconditioner, &
                           iter_max=scf_control%max_iter_lumos,globenv=globenv)
   
-      CALL calculate_subspace_eigenvalues(unoccupied_orbs,ks%matrix,globenv=globenv)
+      CALL calculate_subspace_eigenvalues(unoccupied_orbs,ks%matrix,&
+              para_env=globenv%para_env,ctxt=globenv%blacs_env,scr=globenv%scr, &
+              ionode=globenv%ionode)
 
       DO ivector=1,nlumos
          ! overwrites rho_rspace with a wavefunction !
@@ -784,7 +702,7 @@ CONTAINS
 
          WRITE(filename,'(a13,I5.5,a5)') "WAVEFUNCTION_",homo+ivector,".cube"
          IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
-         WRITE(filename,*) "WAVEFUNCTION ",ivector," i.e. LUMO + ",ivector-1
+         WRITE(filename,*) "WAVEFUNCTION ",homo+ivector," i.e. LUMO + ",ivector-1
          CALL rs_pw_to_cube(ks_env%rho_elec_rspace(1)%pw,21,globenv%ionode,filename)
          IF (globenv%ionode) CLOSE(21)
 
@@ -1319,7 +1237,14 @@ CONTAINS
       CALL get_mo_set(mo_set=mo_set,&
                         eigenvectors=mo_eigenvectors, nmo=nmo)
       CALL cp_fm_init_random(mo_eigenvectors,nmo)
-
+      ! ortho so that one can restart for different positions (basis sets?)
+      CALL replicate_blacs_matrix(mo_eigenvectors,sv,"SV")
+      CALL cp_sm_fm_multiply(s_sparse%matrix,mo_eigenvectors,sv,nmo,&
+           para_env=globenv%para_env)
+      CALL blacs_make_basis(mo_eigenvectors,nmo, &
+                             ortho=sv,otype="SV")
+      CALL cp_fm_release(sv)
+      CALL calculate_density_matrix(mo_set,p%matrix,globenv)
 
      ELSE IF (scf_control%density_guess == "CORE") THEN
 

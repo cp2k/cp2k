@@ -54,7 +54,9 @@ MODULE qs_ot_eigensolver
                                       qs_ot_get_orbitals,        & 
                                       qs_ot_get_derivative,      &
                                       qs_ot_get_p,               &
-                                      qs_ot_mini
+                                      qs_ot_new_preconditioner
+  USE qs_ot_minimizer,          ONLY: ot_mini
+  USE preconditioner,           ONLY: preconditioner_type,preconditioner_in_use
   IMPLICIT NONE
 
 
@@ -71,7 +73,8 @@ CONTAINS
 ! on output c spans the subspace
 ! *****************************************************************************
   SUBROUTINE ot_eigensolver(matrix_h,matrix_s,matrix_orthogonal_space, &
-                                 matrix_c,eps_gradient,iter_max,globenv)
+                                 matrix_c,preconditioner,eps_gradient, &
+                                                       iter_max,globenv)
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(cp_full_matrix_type), POINTER          :: matrix_c
@@ -79,6 +82,7 @@ CONTAINS
     REAL(wp)                                  :: eps_gradient
     TYPE(real_matrix_type), POINTER           :: matrix_h,matrix_s
     INTEGER                                   :: iter_max
+    TYPE(preconditioner_type), TARGET , OPTIONAL  :: preconditioner
 
 !   *** Local variables ***
 
@@ -228,6 +232,16 @@ CONTAINS
     CALL qs_ot_get_p(qs_ot_env%matrix_x,qs_ot_env%matrix_sx,qs_ot_env,globenv)
     CALL qs_ot_get_orbitals(matrix_c,qs_ot_env%matrix_x,qs_ot_env,globenv)
 
+    ! if present preconditioner, use it
+
+    IF (present(preconditioner)) THEN
+       IF (preconditioner_in_use(preconditioner)) THEN
+          CALL qs_ot_new_preconditioner(qs_ot_env,preconditioner) 
+       ELSE
+	  ! we should presumably make one
+       END IF
+    ENDIF
+
 !   *** Eigensolver loop ***
     ieigensolver = 0 
     eigensolver_loop: DO
@@ -245,7 +259,7 @@ CONTAINS
       endif
  
       qs_ot_env%etotal=energy
-      CALL qs_ot_mini(qs_ot_env,globenv)
+      CALL ot_mini(qs_ot_env,globenv)
       delta           =qs_ot_env%delta
       energy_only     =qs_ot_env%energy_only
 
@@ -257,7 +271,13 @@ CONTAINS
       CALL qs_ot_get_p(qs_ot_env%matrix_x,qs_ot_env%matrix_sx,qs_ot_env,globenv)
       CALL qs_ot_get_orbitals(matrix_c,qs_ot_env%matrix_x,qs_ot_env,globenv)
 
-      IF (delta < eps_gradient) EXIT eigensolver_loop
+      IF (delta < eps_gradient) THEN
+          if (globenv%ionode) THEN
+	     write(globenv%scr,*) " Reached convergence in ",ieigensolver, &
+                                  " iterations "
+          endif
+          EXIT eigensolver_loop
+      ENDIF
       IF (ieigensolver .ge. iter_max) THEN
          if (globenv%ionode) then 
            write(globenv%scr,*) "WARNING : did not converge in ot_eigensolver"
