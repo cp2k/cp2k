@@ -376,11 +376,37 @@ CONTAINS
   END SUBROUTINE cp_fm_release
 !***************************************************************************
 
-! *****************************************************************************
-! init ncol vectors of a full matrix with random numbers
-! *****************************************************************************
+!!****f* cp_fm_types/cp_fm_init_random [1.0] *
+!!
+!!   NAME
+!!     cp_fm_init_random
+!!
+!!   SYNOPSIS
+!!     SUBROUTINE cp_fm_init_random(matrix,ncol,start_col,error)
+!!       TYPE(cp_fm_type), POINTER           :: matrix
+!!       INTEGER, INTENT(IN)                          :: ncol
+!!       INTEGER, INTENT(IN), OPTIONAL                :: start_col
+!!       TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+!!     END SUBROUTINE
+!!
+!!   FUNCTION
+!!     fills a matrix with random numbers
+!!
+!!   NOTES
+!!     the value of a_ij is independent of the number of cpus 
+!!
+!!   INPUTS
+!!     matrix :: to be initialized
+!!     ncol :: numbers of cols to fill
+!!     start_col :: starting at coll number
+!!
+!!   AUTHOR
+!!     Joost VandeVondele
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
   SUBROUTINE cp_fm_init_random(matrix,ncol,start_col,error)
-
     TYPE(cp_fm_type), POINTER           :: matrix
     INTEGER, INTENT(IN)                          :: ncol
     INTEGER, INTENT(IN), OPTIONAL                :: start_col
@@ -428,15 +454,37 @@ CONTAINS
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE cp_fm_init_random
-! *****************************************************************************
+
+!!****f* cp_fm_types/cp_fm_set_all [1.0] *
+!!
+!!   NAME
+!!     cp_fm_set_all
+!!
+!!   SYNOPSIS
+!!     SUBROUTINE cp_fm_set_all(matrix,alpha,beta,error)
+!!       TYPE(cp_fm_type), POINTER           :: matrix
+!!       REAL(wp), INTENT(IN)                         :: alpha
+!!       REAL(wp), INTENT(IN), optional               :: beta
+!!       TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+!!     END SUBROUTINT
+!!
+!!   FUNCTION
+!!     set all elements of a matrix to the same value, 
+!!     and optionally the diagonal to a different one
+!!
+!!   NOTES
+!!     can be used to zero a matrix
+!!     can be used to create a unit matrix (I-matrix) alpha=0.0_wp beta=1.0_wp
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
 
   SUBROUTINE cp_fm_set_all(matrix,alpha,beta,error)
-
-!   Purpose: Set the FULL matrix elements to alpha.
-!   if beta is present the diagonal gets the value beta, can be used to create a unit matrix
-
-!   ***************************************************************************
-
     TYPE(cp_fm_type), POINTER           :: matrix
     REAL(wp), INTENT(IN)                         :: alpha
     REAL(wp), INTENT(IN), optional               :: beta
@@ -466,7 +514,9 @@ CONTAINS
 !!     cp_fm_get_element
 !!
 !!   FUNCTION
-!!     return an element of a fm
+!!     returns an element of a fm 
+!!     this value is valid on every cpu
+!!     using this call is expensive
 !!
 !!   ARGUMENTS
 !!     - matrix: the matrix to read
@@ -532,20 +582,37 @@ CONTAINS
 
   END SUBROUTINE cp_fm_get_element
 
-! *****************************************************************************
-
+!!****f* cp_fm_types/cp_fm_set_element [1.0] *
+!!
+!!   NAME
+!!     cp_fm_set_element
+!!
+!!   SYNOPSIS
+!!     SUBROUTINE cp_fm_set_element(matrix,irow_global,icol_global,alpha,error)
+!!       TYPE(cp_fm_type), POINTER          :: matrix
+!!       REAL(wp), INTENT(IN)               :: alpha
+!!       INTEGER, INTENT(IN)                :: icol_global, irow_global
+!!       TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+!!     END SUBROUTINE
+!!
+!!   FUNCTION
+!!     sets an element of a matrix
+!!
+!!   NOTES
+!!     we expect all cpus to have the same arguments in the call to this function
+!!     (otherwise one should use local_data tricks)
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
   SUBROUTINE cp_fm_set_element(matrix,irow_global,icol_global,alpha,error)
-
-!   Purpose: Set the FULL matrix element (irow_global,icol_global) to alpha.
-
-!   History: - Creation (08.06.2001, Matthias Krack)
-
-!   ***************************************************************************
-
     TYPE(cp_fm_type), POINTER          :: matrix
-    REAL(wp), INTENT(IN)                      :: alpha
-    INTEGER, INTENT(IN)                       :: icol_global,&
-         irow_global
+    REAL(wp), INTENT(IN)               :: alpha
+    INTEGER, INTENT(IN)                :: icol_global, irow_global
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local variables ***
@@ -612,6 +679,7 @@ CONTAINS
 !!
 !!   NOTES
 !!     optimized for full column updates and alpha=1.0, beta=0.0
+!!     the new_values need to be valid on all cpus
 !!
 !!   INPUTS
 !!     - new_values: a replicated full matrix with the new values
@@ -777,10 +845,13 @@ CONTAINS
 !!     gets a submatrix of a full matrix
 !!      op(target_m)(1:n_rows,1:n_cols)
 !!      =fm(start_row:start_row+n_rows,start_col:start_col+n_cols)
+!!     target_m is replicated on all cpus
+!!     using this call is expensive
 !!
 !!   NOTES
 !!     optimized for full column updates. Zeros out a little too much
 !!     of target_m
+!!     the target_m is replicated and valid on all cpus
 !!
 !!   INPUTS
 !!     - target_m: a replicated full matrix that will contain the result
@@ -902,33 +973,64 @@ CONTAINS
 
   END SUBROUTINE cp_fm_get_submatrix
 
+
+!!****f* cp_fm_types/cp_fm_get_info [1.0] *
+!!
+!!   NAME
+!!     cp_fm_get_info
+!!
+!!   SYNOPSIS
+!!     SUBROUTINE cp_fm_get_info(matrix,name,nrow_global,ncol_global,&
+!!          nrow_block,ncol_block,nrow_local,ncol_local,&
+!!          row_indices,col_indices,local_data,context,&
+!!          nrow_locals, ncol_locals, matrix_struct,para_env,error)
+!!       TYPE(cp_fm_type), POINTER                  :: matrix
+!!       CHARACTER(LEN=*), OPTIONAL, INTENT(OUT)    :: name
+!!       INTEGER, OPTIONAL, INTENT(OUT)             :: ncol_block,ncol_global,&
+!!                                                     nrow_block,nrow_global,&
+!!                                                     nrow_local,ncol_local
+!!       INTEGER, OPTIONAL, DIMENSION(:), POINTER   :: row_indices,col_indices,&
+!!                                                     nrow_locals, ncol_locals
+!!       TYPE(cp_para_env_type), POINTER, OPTIONAL  :: para_env
+!!       TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
+!!       TYPE(cp_fm_struct_type),POINTER,OPTIONAL   :: matrix_struct
+!!       TYPE(cp_error_type),INTENT(inout),OPTIONAL :: error
+!!       REAL(wp), DIMENSION(:,:),POINTER, OPTIONAL :: local_data
+!!     END SUBROUTINE
+!!
+!!   FUNCTION
+!!      returns all kind of information about the full matrix
+!!
+!!   NOTES
+!!      see also cp_fm_struct for explaination
+!!      - nrow_local, ncol_local, row_indices, col_indices, local_data are hooks for efficient 
+!!        access to the local blacs block 
+!!
+!!   INPUTS
+!!      matrix_a
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
   SUBROUTINE cp_fm_get_info(matrix,name,nrow_global,ncol_global,&
        nrow_block,ncol_block,nrow_local,ncol_local,&
        row_indices,col_indices,local_data,context,&
        nrow_locals, ncol_locals, matrix_struct,para_env,error)
 
-!   Purpose: Return informations about the specified FULL matrix.
-!   the indices vectors are cached.
-!   indices is an array that maps the local indices to the global ones
-!   local data is a little hole to access the blacs block, needed in some rare cases
-!   for efficient use
-
-!   History: - Creation (08.06.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(cp_fm_type), POINTER        :: matrix
-    CHARACTER(LEN=*), OPTIONAL, INTENT(OUT) :: name
-    INTEGER, OPTIONAL, INTENT(OUT)          :: ncol_block,ncol_global,&
-         nrow_block,nrow_global,&
-         nrow_local,ncol_local
+    TYPE(cp_fm_type), POINTER                  :: matrix
+    CHARACTER(LEN=*), OPTIONAL, INTENT(OUT)    :: name
+    INTEGER, OPTIONAL, INTENT(OUT)             :: ncol_block,ncol_global,&
+                                                  nrow_block,nrow_global,&
+                                                  nrow_local,ncol_local
     INTEGER, OPTIONAL, DIMENSION(:), POINTER   :: row_indices,col_indices,&
-         nrow_locals, ncol_locals
-    TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
+                                                  nrow_locals, ncol_locals
+    TYPE(cp_para_env_type), POINTER, OPTIONAL  :: para_env
     TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
-    TYPE(cp_fm_struct_type),POINTER,OPTIONAL :: matrix_struct
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-    REAL(wp), DIMENSION(:,:), POINTER, OPTIONAL :: local_data
+    TYPE(cp_fm_struct_type),POINTER,OPTIONAL   :: matrix_struct
+    TYPE(cp_error_type),INTENT(inout),OPTIONAL :: error
+    REAL(wp), DIMENSION(:,:),POINTER, OPTIONAL :: local_data
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_get_info',&
          routineP=moduleN//':'//routineN
@@ -969,16 +1071,33 @@ CONTAINS
 
   END SUBROUTINE cp_fm_get_info
 
-! *****************************************************************************
 
+!!****f* cp_fm_types/cp_fm_maxval [1.0] *
+!!
+!!   NAME
+!!     cp_fm_maxval
+!!
+!!   SYNOPSIS
+!!     SUBROUTINE cp_fm_maxval(matrix,a_max,error)
+!!       TYPE(cp_fm_type), POINTER        :: matrix
+!!       REAL(wp), INTENT(OUT)                     :: a_max
+!!       TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+!!     END SUBROUTINE
+!!
+!!   FUNCTION
+!!     find the maximum absolute value of the matrix element
+!!     maxval(abs(matrix))
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
   SUBROUTINE cp_fm_maxval(matrix,a_max,error)
-
-!   Purpose: Get the maximum absolute element of a BLACS matrix.
-
-!   History: - Creation (11.06.2001, Matthias Krack)
-
-!   ***************************************************************************
-
     TYPE(cp_fm_type), POINTER        :: matrix
     REAL(wp), INTENT(OUT)                     :: a_max
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -1135,15 +1254,31 @@ CONTAINS
     END IF
   END SUBROUTINE cp_fm_write
 
-! ********************************************************************************
-
+!!****f* cp_fm_types/cp_fm_to_fm_matrix [1.0] *
+!!
+!!   NAME
+!!     cp_fm_to_fm_matrix  ! interface cp_fm_to_fm
+!!
+!!   SYNOPSIS
+!!     SUBROUTINE cp_fm_to_fm_matrix(source,destination,error)
+!!       TYPE(cp_fm_type), POINTER :: source,destination
+!!       TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+!!     END SUBROUTINE
+!!
+!!   FUNCTION
+!!     copy one identically sized matrix in the other
+!!
+!!   NOTES
+!!     see also cp_fm_to_fm_columns
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
   SUBROUTINE cp_fm_to_fm_matrix(source,destination,error)
-
-!   copies a full matrix to an identical sized full matrix 
-!   History: - Creation (08.06.2001, Matthias Krack)
-
-!   ***************************************************************************
-
     TYPE(cp_fm_type), POINTER :: source,destination
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
@@ -1201,7 +1336,30 @@ CONTAINS
    END IF
   END SUBROUTINE cp_fm_to_fm_matrix
 
-
+!!****f* cp_fm_types/cp_fm_to_fm_columns [1.0] *
+!!
+!!   NAME
+!!     cp_fm_to_fm_columns ! interface cp_fm_to_fm
+!!
+!!   SYNOPSIS
+!!     SUBROUTINE cp_fm_to_fm_columns(msource,mtarget,ncol,source_start,target_start)
+!!       TYPE(cp_fm_type), POINTER                 :: msource,mtarget
+!!       INTEGER, INTENT(IN)                       :: ncol
+!!       INTEGER, INTENT(IN), OPTIONAL             :: source_start,target_start
+!!     END SUBROUTINE
+!!
+!!   FUNCTION
+!!     copy just a subset of columns of a fm to a fm
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
   SUBROUTINE cp_fm_to_fm_columns(msource,mtarget,ncol,source_start,target_start)
     TYPE(cp_fm_type), POINTER                 :: msource,mtarget
     INTEGER, INTENT(IN)                       :: ncol
