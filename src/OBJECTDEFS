@@ -148,15 +148,22 @@ OBJECTS_GENERIC =\
  physcon.o\
  pme.o\
  pol_coefs.o\
- pol_debug.o\
+ pol_debug_ao.o\
+ pol_debug_pw.o\
  pol_diis.o\
- pol_electrostatics.o\
- pol_force.o\
- pol_force_numer.o\
+ pol_electrostatics_ao.o\
+ pol_electrostatics_pw.o\
+ pol_force_ao.o\
+ pol_force_pw.o\
+ pol_force_numer_ao.o\
+ pol_force_numer_pw.o\
  pol_grids.o\
- pol_overlap.o\
+ pol_overlap_ao.o\
+ pol_overlap_pw.o\
+ pol_projectors_pw.o\
  pol_setup.o\
- pol_thk.o\
+ pol_thk_ao.o\
+ pol_thk_pw.o\
  potential_types.o\
  potentials.o\
  print_keys.o\
