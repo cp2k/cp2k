@@ -181,6 +181,11 @@ CONTAINS
     ALLOCATE(opkv(max_krylovvec,n_spins), stat=stat)
     IF (stat /= 0) CALL stop_program(routineP, &
                                      "allocation of opkv failed", glob_env)
+    DO spin=1, n_spins
+       DO i=1, max_krylovvec
+          NULLIFY(kv(i,spin)%matrix, opkv(i,spin)%matrix)
+       END DO
+    END DO
     ALLOCATE(residues(n_ev,n_spins), stat=stat)
     IF (stat /= 0) CALL stop_program(routineP, &
                                      "allocation of residues failed", glob_env)
@@ -199,7 +204,6 @@ CONTAINS
     CALL allocate_krylov_vectors(kv, "kv-", iteration, n_kv, n_spins, kv_fm_struct)
     CALL allocate_krylov_vectors(opkv, "opkv-", iteration, n_kv, n_spins, kv_fm_struct)
     CALL allocate_krylov_vectors(residues, "residues-", iteration, n_kv, n_spins, kv_fm_struct)
-    
 
 
     !-----------------------!
@@ -208,13 +212,11 @@ CONTAINS
     CALL calc_initial_guess(X, qs_env, p_env, tddfpt_eigenvalues)
     
 
-
     IF (glob_env%ionode) THEN
        WRITE (glob_env%scr, &
               '(2X,A,2X,A,T69,A)') &
               "Step", "Vectors", "Convergence"
-       WRITE (glob_env%scr, &
-              '(2X,A)') &
+       WRITE (glob_env%scr, '(2X,A)') &
               "-----------------------------------------------------------------------------"
     END IF
 
@@ -403,12 +405,15 @@ CONTAINS
     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, X)
     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, R)
     DO spin=1, n_spins
-       DO i=1, size(kv,spin)
-          CALL cp_fm_release(kv(i,spin)%matrix)
-          CALL cp_fm_release(opkv(i,spin)%matrix)
+       DO i=1, max_krylovvec
+          IF (ASSOCIATED(kv(i,spin)%matrix)) &
+             CALL cp_fm_release(kv(i,spin)%matrix)
+          IF (ASSOCIATED(opkv(i,spin)%matrix)) &
+             CALL cp_fm_release(opkv(i,spin)%matrix)
        END DO
        DO i=1, n_ev
-          CALL cp_fm_release(residues(i,spin)%matrix)
+          IF (ASSOCIATED(residues(i,spin)%matrix)) &
+               CALL cp_fm_release(residues(i,spin)%matrix)
        END DO
     END DO
     IF (ASSOCIATED(T%matrix)) CALL cp_fm_release(T%matrix)
