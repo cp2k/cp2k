@@ -324,7 +324,7 @@ END SUBROUTINE gopt_f_release
 !!       Type(gopt_f_type), Pointer:: gopt_env
 !!       Real(Kind=wp), Dimension(:), Intent (IN):: x
 !!       Real(Kind=wp), Intent (OUT), Optional:: f
-!!       Real(Kind=wp), Intent (OUT), Dimension(:), Optional:: gradient
+!!       Real(Kind=wp), Pointer, Dimension(:), Optional:: gradient
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine gopt_f_eval_at
 !!
@@ -354,7 +354,7 @@ SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, error)
   TYPE(gopt_f_type), POINTER :: gopt_env
   REAL(kind=wp), DIMENSION(:), INTENT(in) :: x
   REAL(kind=wp), INTENT(out), OPTIONAL :: f
-  REAL(kind=wp), INTENT(out), DIMENSION(:), OPTIONAL :: gradient
+  REAL(kind=wp), POINTER, DIMENSION(:), OPTIONAL :: gradient
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -377,7 +377,6 @@ SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, error)
      DO ip=1,subsys(isubsys)%fragment%particles%n_els
         DO idir=1,3
            idg=idg+1
-           CPInvariant(SIZE(gradient)>=idg,cp_failure_level,routineP,error,failure)
            particles(ip)%r(idir)=x(idg)
         END DO
      END DO
@@ -393,19 +392,21 @@ SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, error)
      f=gopt_env%force_env%qs_env%energy%total
   END IF
   IF (PRESENT(gradient)) THEN
-     CALL force_env_get(gopt_env%force_env, subsys=subsys,&
-          error=error)
-     idg=0
-     DO isubsys=1,SIZE(subsys)
-        particles => subsys(isubsys)%fragment%particles%els
-        DO ip=1,subsys(isubsys)%fragment%particles%n_els
-           DO idir=1,3
-              idg=idg+1
-              CPInvariant(SIZE(gradient)>=idg,cp_failure_level,routineP,error,failure)
-              gradient(idg)=-particles(ip)%f(idir)
+     IF (ASSOCIATED(gradient)) THEN ! we are on the master
+        CALL force_env_get(gopt_env%force_env, subsys=subsys,&
+             error=error)
+        idg=0
+        DO isubsys=1,SIZE(subsys)
+           particles => subsys(isubsys)%fragment%particles%els
+           DO ip=1,subsys(isubsys)%fragment%particles%n_els
+              DO idir=1,3
+                 idg=idg+1
+                 CPInvariant(SIZE(gradient)>=idg,cp_failure_level,routineP,error,failure)
+                 gradient(idg)=-particles(ip)%f(idir)
+              END DO
            END DO
         END DO
-     END DO
+     END IF
   END IF
   CALL timestop(0.0_wp,handle)
 END SUBROUTINE gopt_f_eval_at

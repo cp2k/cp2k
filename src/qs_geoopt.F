@@ -26,6 +26,8 @@
 !*****************************************************************************
 MODULE qs_geoopt
 !
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind_set
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -38,6 +40,13 @@ MODULE qs_geoopt
                                              cp_internal_error,&
                                              cp_unimplemented_error,&
                                              cp_unimplemented_error_nr
+  USE cp_fragment_types,               ONLY: cp_fragment_p_type,&
+                                             cp_fragment_type
+  USE cp_lbfgs_optimizer_gopt,         ONLY: cp_lbfgs_opt_gopt_type,&
+                                             cp_opt_gopt_dealloc_ref,&
+                                             cp_opt_gopt_get,&
+                                             cp_opt_gopt_init,&
+                                             cp_opt_gopt_next
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -45,49 +54,49 @@ MODULE qs_geoopt
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind_set
+  USE force_control,                   ONLY: force_env_calculate_force,&
+                                             force_env_create,&
+                                             force_env_get,&
+                                             force_env_release,&
+                                             force_env_type
   USE global_types,                    ONLY: global_environment_type
+  USE gopt_f_types,                    ONLY: gopt_f_create,&
+                                             gopt_f_create_x0,&
+                                             gopt_f_release,&
+                                             gopt_f_retain,&
+                                             gopt_f_type,&
+                                             gopt_param_create,&
+                                             gopt_param_read,&
+                                             gopt_param_release,&
+                                             gopt_param_type
+  USE kinds,                           ONLY: wp=>dp
   USE particle_types,                  ONLY: particle_type
+  USE qs_energy,                       ONLY: qs_energies
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_energy,                       ONLY: qs_energies
-  USE qs_energy_types,                 ONLY: qs_energy_type
+  USE qs_force,                        ONLY: qs_forces
   USE qs_force_types,                  ONLY: init_qs_force,&
                                              qs_force_type
-  USE qs_force,                        ONLY: qs_forces
-  USE force_control,                   ONLY: force_env_create,&
-                                             force_env_release,&
-                                             force_env_type,&
-                                             force_env_calculate_force,&
-                                             force_env_get
-  USE cp_lbfgs_optimizer_gopt, ONLY: cp_opt_gopt_init, cp_lbfgs_opt_gopt_type,&
-       cp_opt_gopt_next, cp_opt_gopt_dealloc_ref, cp_opt_gopt_get
-  USE gopt_f_types, ONLY: gopt_f_type, gopt_f_create,&
-       gopt_f_release, gopt_f_retain, gopt_param_type, gopt_param_create, gopt_param_release,&
-       gopt_param_read, gopt_f_create_x0
-  USE cp_fragment_types, ONLY: cp_fragment_type, cp_fragment_p_type
-  USE kinds,                           ONLY: wp=>dp
-
  IMPLICIT NONE
  PRIVATE
 
- CHARACTER(len=*), PRIVATE, parameter :: moduleN='qs_geoopt'
+ CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_geoopt'
 
  PUBLIC :: qs_geo_opt
  CONTAINS
 
    SUBROUTINE qs_geo_opt(qs_env,globenv, error)
 
-     TYPE(global_environment_type), INTENT(INOUT), target :: globenv
+     TYPE(global_environment_type), INTENT(INOUT), TARGET :: globenv
      TYPE(qs_environment_type), POINTER              :: qs_env
-     TYPE(cp_error_type), INTENT(inout), optional    :: error
+     TYPE(cp_error_type), INTENT(inout), OPTIONAL    :: error
 
 !     *** Local variables ***
 
      TYPE(force_env_type), POINTER                   :: force_env
-     TYPE(gopt_param_type), pointer :: gopt_param
+     TYPE(gopt_param_type), POINTER :: gopt_param
      LOGICAL :: failure, finished
      CHARACTER(len=*), PARAMETER :: routineN='qs_geo_opt',&
           routineP=moduleN//':'//routineN
@@ -128,13 +137,13 @@ MODULE qs_geoopt
 !!
 !!*** **********************************************************************
 SUBROUTINE gopt_do_opt(force_env, gopt_param, globenv, error)
-  TYPE(force_env_type), pointer :: force_env
-  TYPE(gopt_param_type), pointer :: gopt_param
+  TYPE(force_env_type), POINTER :: force_env
+  TYPE(gopt_param_type), POINTER :: gopt_param
   TYPE(global_environment_type), TARGET, INTENT(inout) :: globenv
-  type(cp_error_type), optional, intent(inout) :: error
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure, finished
-  character(len=*), parameter :: routineN='gopt_do_opt',&
+  CHARACTER(len=*), PARAMETER :: routineN='gopt_do_opt',&
         routineP=moduleN//':'//routineN
   TYPE(gopt_f_type), POINTER :: gopt_env
   TYPE(cp_lbfgs_opt_gopt_type) :: optimizer
@@ -142,7 +151,7 @@ SUBROUTINE gopt_do_opt(force_env, gopt_param, globenv, error)
   REAL(kind=wp) :: f
   REAL(kind=wp), DIMENSION(:), POINTER :: x0
 
-  failure=.false.
+  failure=.FALSE.
   NULLIFY(gopt_env, x0)
   
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
@@ -168,7 +177,7 @@ SUBROUTINE gopt_do_opt(force_env, gopt_param, globenv, error)
      END DO
 
      CALL cp_opt_gopt_get(optimizer, f=f, at_end=finished)
-     PRINT *, "pippo f=",f,"status=",optimizer%status
+     PRINT *,"pippo f=",f,"status=",optimizer%status
      CPPostcondition(finished,cp_warning_level,routineP,error,failure)
      CALL cp_opt_gopt_dealloc_ref(optimizer)
      CALL gopt_f_release(gopt_env)     
