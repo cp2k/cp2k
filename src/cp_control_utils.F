@@ -2187,7 +2187,7 @@ END FUNCTION xc_get_routine_label
            crossterms ( 2 ) = CROSS_TERM
         CASE ( "BP", "BP86", "BECKE-PERDEW" )
            functional ( 1 ) = "BECKE88"
-           functional ( 2 ) = "PERDEW86"
+           functional ( 2 ) = "P86C"
            gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
            gradient_functionals ( 2 ) = GRADIENT_FUNCTIONAL
            crossterms ( 2 ) = CROSS_TERM
@@ -2307,7 +2307,7 @@ END FUNCTION xc_get_routine_label
            gradient_functionals ( 2 ) = GRADIENT_FUNCTIONAL
            crossterms ( 2 ) = CROSS_TERM
         CASE ( "P86", "PERDEW86" )
-           functional ( 2 ) = "PERDEW86"
+           functional ( 2 ) = "P86C"
            gradient_functionals ( 2 ) = GRADIENT_FUNCTIONAL
            crossterms ( 2 ) = CROSS_TERM
         CASE default
