@@ -53,6 +53,7 @@ MODULE timings
 
   CHARACTER ( LEN = 80 ) :: clock_name ( max_timer )
   INTEGER :: routine_calls ( max_timer )
+  INTEGER :: routine_stack_depth ( max_timer )
   INTEGER :: clock_status ( max_timer )
   REAL ( dbl ) :: clock_start ( max_timer )
   REAL ( dbl ) :: clock_accu ( max_timer )
@@ -137,6 +138,7 @@ SUBROUTINE timeset ( name, ct, pu, handle )
      wallclock_accu ( handle ) = zero
      perf_count ( handle ) = zero
      routine_calls ( handle ) = 0
+     routine_stack_depth ( handle ) = 0
   END IF
 
 !..start clock (if not yet started, i.e. recursive calls)
@@ -147,6 +149,7 @@ SUBROUTINE timeset ( name, ct, pu, handle )
   END IF
 
   routine_calls ( handle ) = routine_calls ( handle ) + 1
+  routine_stack_depth ( handle ) = routine_stack_depth ( handle ) + stack_size
 
 END SUBROUTINE timeset
 
@@ -241,7 +244,7 @@ SUBROUTINE timeprint(iw,global_print_level)
   INTEGER, INTENT(IN) :: global_print_level,iw
 
 ! Locals
-  REAL(dbl) :: maxtime,mintime,perf
+  REAL(dbl) :: maxtime,mintime,perf,asd
   INTEGER   :: i,j
 
   CHARACTER(LEN=1), DIMENSION(0:1) :: ct = (/"I","E"/)
@@ -269,8 +272,8 @@ SUBROUTINE timeprint(iw,global_print_level)
      WRITE (UNIT=iw,FMT="(T2,A,T35,A,T80,A)") "-","T I M I N G","-"
      WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
      WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
-     WRITE (UNIT=iw,FMT="(T2,A,T36,A,T43,A,T55,A,T69,A)")&
-       "SUBROUTINE","CALLS","CPU TIME T","PERFORMANCE","ELAPSED TIME"
+     WRITE (UNIT=iw,FMT="(T2,A,T32,A,T38,A,T43,A,T55,A,T69,A)")&
+       "SUBROUTINE","CALLS"," ASD","CPU TIME T","PERFORMANCE","ELAPSED TIME"
 
      DO i=num_timer,1,-1
 
@@ -283,16 +286,18 @@ SUBROUTINE timeprint(iw,global_print_level)
          ELSE
            perf = zero
          END IF
+         ! average stack depth
+         asd=DBLE(routine_stack_depth(j))/DBLE(MAX(1,routine_calls(j)))
 
          IF (LEN_TRIM(perf_unit(j)) == 0) THEN
            WRITE (UNIT=iw,&
-                  FMT="(T2,A,T34,I7,T42,F9.2,T52,A,T60,A,T68,F13.2)")&
-             TRIM(clock_name(j)),routine_calls(j),clock_accu(i),&
+                  FMT="(T2,A,T30,I7,T39,F3.1,T42,F9.2,T52,A,T60,A,T68,F13.2)")&
+             TRIM(clock_name(j)),routine_calls(j),ASD,clock_accu(i),&
              ct(clock_type(j)),"---",wallclock_accu(j)
          ELSE
            WRITE (UNIT=iw,&
-                  FMT="(T2,A,T34,I7,T42,F9.2,T52,A,T54,F5.1,T60,A,T68,F13.2)")&
-             TRIM(clock_name(j)),routine_calls(j),clock_accu(i),&
+                  FMT="(T2,A,T30,I7,T39,F3.1,T42,F9.2,T52,A,T54,F5.1,T60,A,T68,F13.2)")&
+             TRIM(clock_name(j)),routine_calls(j),ASD,clock_accu(i),&
              ct(clock_type(j)),perf,TRIM(perf_unit(j)),wallclock_accu(j)
          END IF
        END IF

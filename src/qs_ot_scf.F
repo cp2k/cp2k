@@ -158,10 +158,11 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     CALL finish_parser()
     IF (globenv%ionode) THEN
     write(6,*) ""
-    write(6,*) " ----------------------------------- OT --------------------------------------"
+    write(6,*) " ------------------------------------- OT ----------------------------------------"
     write(6,*) ""
-    write(6,*) " Orbital Transformations "
+    write(6,*) " An efficient orbital transformation method for electronic structure calculations "
     write(6,*) " Joost VandeVondele and Juerg Hutter"
+    write(6,*) " J. Chem. Phys. 118, 4365, 2003"
     write(6,*) ""
     SELECT CASE (qs_ot_env(1)%settings%OT_METHOD)
     CASE ("SD")
@@ -235,8 +236,10 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_ks,matrix_s,energy, &
     LOGICAL                                         :: energy_only
     REAL(wp)                                        :: energy,delta
 
-    INTEGER nspin,ispin
+    INTEGER nspin,ispin,handle
     TYPE(cp_full_matrix_type), POINTER        :: mo_eigenvectors
+
+    CALL timeset("ot_scf_mini","I","",handle)
 
     nspin=SIZE(mo_array)
 
@@ -273,6 +276,8 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_ks,matrix_s,energy, &
        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,eigenvectors=mo_eigenvectors)
        CALL qs_ot_get_orbitals(mo_eigenvectors,qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin),globenv)
     ENDDO
+
+    CALL timestop(0.0_wp,handle)
 
 END SUBROUTINE
 !
