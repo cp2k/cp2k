@@ -225,6 +225,10 @@ CONTAINS
          stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
 
+    ! zero the rep_v_in and rep_v_out matrices
+    CALL dcopy(blocksize*nrow_in, 0.0_wp, 0, rep_v_in, 1)
+    CALL dcopy(blocksize*nrow_out, 0.0_wp, 0, rep_v_out, 1)
+
     DO i=1,ncol,blocksize
        ncol_block=MIN(ncol-i+1,blocksize)
        CALL cp_fm_get_submatrix(v_in,rep_v_in,start_col=i,n_cols=ncol_block,&
