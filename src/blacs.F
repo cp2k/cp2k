@@ -520,28 +520,27 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
       "SUBROUTINE blas_syevx (MODULE blacs)"
-    REAL(wp), PARAMETER         :: orfac = -1.0_wp,&
-                                   vl = 0.0_wp,&
-                                   vu = 0.0_wp
+    REAL(wp), PARAMETER :: abstol = 0.0_wp,&
+                           orfac = -1.0_wp,&
+                           vl = 0.0_wp,&
+                           vu = 0.0_wp
 
 !   *** Local variables ***
 
-    REAL(wp) :: abstol
     INTEGER  :: handle,info,liwork,lwork,m,mypcol,myprow,n,nb,nn,np0,npcol,&
                 npe,nprow,nq0,nz,output_unit,source
     LOGICAL  :: ionode
 
-    REAL(wp), DIMENSION(:), POINTER   :: gap,work
+    REAL(wp), DIMENSION(:), POINTER   :: gap,w,work
     INTEGER, DIMENSION(:), POINTER    :: desca,descz,iclustr,ifail,iwork
     REAL(wp), DIMENSION(:,:), POINTER :: a,z
 
 #if defined(__parallel)
-    REAL(wp), EXTERNAL :: pdlamch
     INTEGER, EXTERNAL  :: iceil,numroc
 #else
-    REAL(wp), EXTERNAL :: dlamch
     INTEGER, EXTERNAL  :: ilaenv
 #endif
+
 !   ---------------------------------------------------------------------------
 
     CALL timeset("blacs_syevx","I","",handle)
@@ -551,6 +550,9 @@ CONTAINS
     source = globenv%source
 
     n = matrix%nrow_global
+
+    NULLIFY (w)
+    w => reallocate(w,1,n)
 #if defined(__parallel)
 
     IF (matrix%nrow_block /= matrix%ncol_block) THEN
@@ -583,15 +585,10 @@ CONTAINS
     iwork => reallocate(iwork,1,liwork)
     work => reallocate(work,1,lwork)
 
-!   *** Set the absolute error tolerance for the eigenvalues ***
-
-    abstol = pdlamch(context,"U")
-
 !   *** Diagonalise matrix ***
 
-    CALL pdsyevx("V","I","U",n,a,1,1,desca,vl,vu,1,neig,abstol,m,nz,&
-                 eigenvalues,orfac,z,1,1,descz,work,lwork,iwork,liwork,ifail,&
-                 iclustr,gap,info)
+    CALL pdsyevx("V","I","U",n,a,1,1,desca,vl,vu,1,neig,abstol,m,nz,w,orfac,&
+                 z,1,1,descz,work,lwork,iwork,liwork,ifail,iclustr,gap,info)
 
 !   *** Error handling ***
 
@@ -636,14 +633,10 @@ CONTAINS
     iwork => reallocate(iwork,1,liwork)
     work => reallocate(work,1,lwork)
 
-!   *** Set the absolute error tolerance for the eigenvalues ***
-
-    abstol = 2.0_wp*dlamch("S")
-
 !   *** Diagonalise matrix ***
 
-    CALL dsyevx("V","I","U",n,a,n,vl,vu,1,neig,abstol,m,eigenvalues,z,n,work,&
-                lwork,iwork,ifail,info)
+    CALL dsyevx("V","I","U",n,a,n,vl,vu,1,neig,abstol,m,w,z,n,work,lwork,&
+                iwork,ifail,info)
 
 !   *** Error handling ***
 
@@ -654,6 +647,9 @@ CONTAINS
     DEALLOCATE (ifail,iwork,work)
 
 #endif
+    eigenvalues(1:neig) = w(1:neig)
+    DEALLOCATE (w)
+
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE blacs_syevx
