@@ -1195,21 +1195,21 @@ END SUBROUTINE deallocate_kg_densities
 
        IF (igrid_level == 1) THEN
          IF (globenv%print%pw_grid_information) THEN
-           CALL pw_grid_setup(cell,pw_grid(igrid_level),cutoff(igrid_level),&
+           CALL pw_grid_setup(cell,pw_grid(igrid_level),cutilev,&
                               pe_group=globenv%group,&
                               info=output_unit)
          ELSE
-           CALL pw_grid_setup(cell,pw_grid(igrid_level),cutoff(igrid_level),&
+           CALL pw_grid_setup(cell,pw_grid(igrid_level),cutilev,&
                               pe_group=globenv%group)
          END IF
        ELSE
          IF (globenv%print%pw_grid_information) THEN
-           CALL pw_grid_setup(cell,pw_grid(igrid_level),cutoff(igrid_level),&
+           CALL pw_grid_setup(cell,pw_grid(igrid_level),cutilev,&
                               pe_group=globenv%group,&
                               info=output_unit,&
                               ref_grid=pw_grid(igrid_level-1))
          ELSE
-           CALL pw_grid_setup(cell,pw_grid(igrid_level),cutoff(igrid_level),&
+           CALL pw_grid_setup(cell,pw_grid(igrid_level),cutilev,&
                               pe_group=globenv%group,&
                               ref_grid=pw_grid(igrid_level-1))
          END IF

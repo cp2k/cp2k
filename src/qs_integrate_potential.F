@@ -141,7 +141,8 @@ MODULE qs_integrate_potential
   END INTERFACE
 
   PUBLIC :: integrate_v_rspace,&
-            integrate_v_core_rspace
+            integrate_v_core_rspace,&
+            integrate_pgf_product_rspace
 
 !!***
 ! *****************************************************************************

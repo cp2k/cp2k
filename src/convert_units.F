@@ -72,6 +72,8 @@ SUBROUTINE convert ( units, simpar, part, box, potparm, &
      simpar%dt = simpar%dt*units%tconv
 ! convert temperature
      simpar%temp_ext = simpar%temp_ext*units%econv
+! convert temperature of coefficents
+     simpar%temp_coef = simpar%temp_coef*units%econv
 ! convert pressure
      simpar%p_ext = simpar%p_ext/units%pconv
 ! convert verlet skin
@@ -91,6 +93,9 @@ SUBROUTINE convert ( units, simpar, part, box, potparm, &
         simpar%tau_cell = simpar%tau_cell*units%tconv
         simpar%tau_nhc = simpar%tau_nhc*units%tconv
      END SELECT
+     IF (simpar % ensemble_coef =='NVT') THEN
+        simpar%tau_nhc_coef = simpar%tau_nhc_coef*units%tconv
+     END IF
   END IF
 
 !! gt units to be fixed !!

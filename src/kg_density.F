@@ -58,7 +58,9 @@ MODULE kg_density
   USE kg_environment_types,   ONLY: get_kg_env,&
                                     kg_environment_type
   USE kg_force_types,              ONLY: kg_force_type
+  USE qs_collocate_density,   ONLY: collocate_pgf_product_rspace
   USE qs_interactions,        ONLY: exp_radius_very_extended
+  USE qs_integrate_potential, ONLY: integrate_pgf_product_rspace
   USE simulation_cell,        ONLY: cell_type,&
                                     pbc
   USE termination,            ONLY: stop_memory,&
@@ -513,6 +515,7 @@ CONTAINS
       CALL get_atomic_kind(atomic_kind=part(iatom)%atomic_kind,&
                                aux_basis_set=aux_basis_set)
 
+      IF (.NOT.ASSOCIATED(aux_basis_set)) CYCLE
       CALL get_gto_basis_set(gto_basis_set=aux_basis_set,&
                              first_sgf=first_sgfa,&
                              lmax=la_max,&
@@ -604,229 +607,6 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE collocate_pgf_product_rspace(la_max,zeta,la_min,&
-                                          lb_max,zetb,lb_min,&
-                                          ra,rab,rab2,scale,pab,o1,o2,&
-                                          rsgrid,cube_info,l_info,eps_rho_rspace)
-
-    TYPE(realspace_grid_type), INTENT(INOUT), TARGET :: rsgrid
-    TYPE(cube_info_type), INTENT(IN)     :: cube_info
-    TYPE(l_info_type), INTENT(IN)        :: l_info
-    REAL(dbl), INTENT(IN)                 :: eps_rho_rspace,rab2,scale,zeta,zetb
-    INTEGER, INTENT(IN)                  :: la_max,la_min,lb_max,lb_min
-    REAL(dbl), DIMENSION(3), INTENT(IN)   :: ra,rab
-
-    REAL(dbl), DIMENSION(:,:), POINTER :: pab
-    INTEGER                            :: o1,o2
-
-!   *** Local variables ***
-
-    REAL(dbl) :: f,prefactor,radius,zetp
-    INTEGER  :: i,ico,ig,j,jco,jg,k,kg
-
-    REAL(dbl), DIMENSION(3) :: dr,rap,rbp,roffset,rp,rb
-    INTEGER, DIMENSION(3)  :: cubecenter,lb_cube,ng,ub_cube
-
-    INTEGER, DIMENSION(:,:), POINTER      :: map
-    REAL(dbl), DIMENSION(:,:,:), POINTER   :: grid
-    INTEGER :: lxyz_max,lxy_max,lx_max,lx,lxb,lya,lyb,lza,lzb,lz,ly,icoef,lxy
-    INTEGER :: coef_max,lxa,lxyz,l,gridbounds(2,3)
-    INTEGER, pointer,dimension(:) :: ly_max,lz_max
-    REAL(dbl) :: a,b,binomial_k_lxa,binomial_l_lxb,zbp,zap,za,zb,ya,yb,yap,ybp,&
-                rpg,s,pg
-
-    REAL(dbl), pointer :: dpx(:,:)
-    REAL(dbl), pointer :: pzyx(:), alpha(:,:)
-    integer,  pointer :: ipzyx(:,:,:,:,:,:)
-    REAL(dbl), pointer :: polz(:,:),dpz(:,:),poly(:,:),dpy(:,:),polx(:,:)
-    INTEGER, pointer, dimension(:)  :: sphere_bounds
-    REAL(dbl)  :: xa,xb,xap,xbp,polypart,cutoff
-    INTEGER  :: start,length,offset,cmax
-    integer  handle
-
-!   ---------------------------------------------------------------------------
-
-
-    coef_max=la_max+lb_max+1
-
-    zetp      = zeta + zetb
-    f         = zetb/zetp
-    prefactor = scale*EXP(-zeta*f*rab2)
-    rap(:)    = f*rab(:)
-    rbp(:)    = rap(:) - rab(:)
-    rp(:)     = ra(:) + rap(:)  
-    rb(:)     = ra(:)+rab(:)
-    cutoff    = 0.0_dbl
-
-    radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,o1,o2,ra=ra,rb=rb,rp=rp,&
-                                    zetp=zetp,eps=eps_rho_rspace,prefactor=prefactor,cutoff=cutoff)
-
-    IF (radius .eq. 0.0_dbl ) THEN
-      RETURN
-    END IF
-
-!   *** properties of the grid ***
-    dr(:) = rsgrid%dr(:)
-    ng(:) = rsgrid%npts(:)
-    grid => rsgrid%r(:,:,:)
-    !dr(:) = pw%pw_grid%dr(:)
-    !ng(:) = pw%pw_grid%npts(:)
-    !grid => pw%cr3d(:,:,:)
-    gridbounds(1,1)=LBOUND(GRID,1)
-    gridbounds(2,1)=UBOUND(GRID,1)
-    gridbounds(1,2)=LBOUND(GRID,2)
-    gridbounds(2,2)=UBOUND(GRID,2)
-    gridbounds(1,3)=LBOUND(GRID,3)
-    gridbounds(2,3)=UBOUND(GRID,3)
-
-!   *** get the sub grid properties for the given radius ***
-    CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
-
-!   *** get the l_info logic and arrays *** ! new ithread var
-    CALL return_l_info(l_info,la_min,la_max,lb_min,lb_max,0,lx_max, &
-                       lxy_max,lxyz_max,ly_max,lz_max, &
-                       map,polx,poly,polz,dpy,dpz,alpha,pzyx,ipzyx,cmax)
-
-!   *** position of the gaussian product
-
-    cubecenter(:) = FLOOR(rp(:)/dr(:))
-    roffset(:)    = rp(:) - REAL(cubecenter(:),dbl)*dr(:)
-!   *** a mapping so that the ig corresponds to the right grid point, also with pbc
-    DO i=1,3
-        start=lb_cube(i)
-        DO
-         offset=MODULO(cubecenter(i)+start,ng(i))+1-start
-         length=MIN(ub_cube(i),ng(i)-offset)-start
-         DO ig=start,start+length
-            map(ig,i) = ig+offset
-         END DO
-         if (start+length.ge.ub_cube(i)) EXIT
-         start=start+length+1
-        END DO
-    ENDDO
-
-!   *** initialise the p terms and loop logic
-    lxyz=0
-    DO lxa=0,la_max
-    DO lxb=0,lb_max
-       DO lya=0,la_max-lxa
-       DO lyb=0,lb_max-lxb
-          DO lza=max(la_min-lxa-lya,0),la_max-lxa-lya
-          DO lzb=max(lb_min-lxb-lyb,0),lb_max-lxb-lyb
-             lxyz=lxyz+1
-             ico=coset(lxa,lya,lza)
-             jco=coset(lxb,lyb,lzb)
-             pzyx(lxyz)=prefactor*pab(o1+ico,o2+jco)
-          ENDDO
-          ENDDO
-       ENDDO
-       ENDDO
-    ENDDO
-    ENDDO
-
- 
-!   *** initialise the pol x,y,z terms
-    DO ig=lb_cube(3),ub_cube(3)
-      lxyz=0
-      rpg = REAL(ig,dbl)*dr(3) - roffset(3)
-      zap = EXP(-zetp*rpg**2)
-      za  = rpg + rap(3)
-      zb  = za  - rab(3)
-      DO lza=0,la_max
-       zbp=1.0_dbl
-       DO lzb=0,lb_max
-          dpz(lzb,lza)=zap*zbp
-          zbp=zbp*zb
-       ENDDO
-       zap=zap*za
-      ENDDO
-      DO lxa=0,la_max
-      DO lxb=0,lb_max
-       DO lya=0,la_max-lxa
-       DO lyb=0,lb_max-lxb
-          DO lza=max(la_min-lxa-lya,0),la_max-lxa-lya
-          DO lzb=max(lb_min-lxb-lyb,0),lb_max-lxb-lyb
-             lxyz=lxyz+1
-             polz(lxyz,ig)=dpz(lzb,lza)
-          ENDDO
-          ENDDO
-       ENDDO
-       ENDDO
-      ENDDO
-      ENDDO 
-    ENDDO
-
-    DO ig=lb_cube(2),ub_cube(2)
-      rpg = REAL(ig,dbl)*dr(2) - roffset(2)
-      yap = EXP(-zetp*rpg**2)
-      ya  = rpg + rap(2)
-      yb  = ya  - rab(2)
-      DO lya=0,la_max
-       ybp=1.0_dbl
-       DO lyb=0,lb_max
-          dpy(lyb,lya)=yap*ybp
-          ybp=ybp*yb
-       ENDDO
-       yap=yap*ya
-      ENDDO
-
-      lxy=0
-      DO lxa=0,la_max
-      DO lxb=0,lb_max
-       DO lya=0,la_max-lxa
-       DO lyb=0,lb_max-lxb
-             lxy=lxy+1
-             poly(lxy,ig)=dpy(lyb,lya)
-       ENDDO
-       ENDDO
-      ENDDO
-      ENDDO
-    ENDDO
-
- 
-!   *** make the alpha matrix ***
-    alpha(:,:)=0.0_dbl
-    lx=0
-    DO lxa=0,la_max
-    DO lxb=0,lb_max
-       lx=lx+1
-       binomial_k_lxa=1.0_dbl
-       a=1.0_dbl
-       DO k=0,lxa
-        binomial_l_lxb=1.0_dbl
-        b=1.0_dbl
-        DO l=0,lxb
-           alpha(lxa-l+lxb-k+1,lx)=alpha(lxa-l+lxb-k+1,lx)+ &
-                             binomial_k_lxa*binomial_l_lxb*a*b
-           binomial_l_lxb=binomial_l_lxb*real(lxb-l,dbl)/real(l+1,dbl)
-           b=b*(rp(1)-(ra(1)+rab(1)))
-        ENDDO
-        binomial_k_lxa=binomial_k_lxa*real(lxa-k,dbl)/real(k+1,dbl)
-        a=a*(-ra(1)+rp(1))
-       ENDDO
-    ENDDO
-    ENDDO
-
-    DO ig=lb_cube(1),ub_cube(1)
-      rpg = REAL(ig,dbl)*dr(1) - roffset(1)
-      pg  = EXP(-zetp*rpg**2)
-      DO icoef=1,coef_max
-         polx(icoef,ig)=pg
-         pg=pg*(rpg)
-      ENDDO
-    ENDDO
-
-!   *** do the loop over the grid
-    CALL collocate_core(pzyx(1),polx(1,-cmax),poly(1,-cmax), &
-                        polz(1,-cmax),grid(1,1,1),alpha(1,1),lx_max,lxy_max,&
-                        lxyz_max,coef_max, &
-                        cmax,ly_max(1),lz_max(1),gridbounds(1,1),&
-                        map(-cmax,1),sphere_bounds(1))
-
-  END SUBROUTINE collocate_pgf_product_rspace
-
-! *****************************************************************************
-
   SUBROUTINE calculate_epc_rspace_forces(v_rspace,cube_info,l_info,kg_env,force)
    
     IMPLICIT NONE
@@ -850,7 +630,8 @@ CONTAINS
     TYPE(cell_type), POINTER        :: cell
     TYPE(dft_control_type), POINTER :: dft_control
 
-    TYPE(realspace_grid_type) :: rs_v
+    TYPE(realspace_grid_type),target:: rs_v
+    TYPE(realspace_grid_type),POINTER:: rs_pot
     REAL(dbl)                  :: alpha_core_charge,ccore_charge,eps_rho_rspace
     INTEGER                   :: atom_a,handle,i,iatom,ikind,istat,&
                                  natom_of_kind
@@ -903,10 +684,11 @@ CONTAINS
         force_a(:) = 0.0_dbl
         force_b(:) = 0.0_dbl
 
+        rs_pot=> rs_v
         CALL integrate_pgf_product_rspace(0,alpha_core_charge,0,&
                                           0,0.0_dbl,0,&
                                           ra,(/0.0_dbl,0.0_dbl,0.0_dbl/),0.0_dbl,&
-                                          rs_v,cube_info,l_info,&
+                                          rs_pot,cube_info,l_info,&
                                           hab,pab,0,0,1.0_dbl,&
                                           eps_rho_rspace,&
                                           .TRUE.,force_a,force_b)
@@ -984,6 +766,7 @@ CONTAINS
     LOGICAL:: calculate_forces
 
     TYPE(REALSPACE_GRID_TYPE), DIMENSION(:), POINTER :: rs_v
+    TYPE(REALSPACE_GRID_TYPE), POINTER :: rs_pot
 
 !   ---------------------------------------------------------------------------
 
@@ -1111,14 +894,16 @@ CONTAINS
 
              igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
 
+             rs_pot=>rs_v(igrid_level)
              CALL integrate_pgf_product_rspace(&
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
                         0, 0.0_dbl,0,&
-                        ra,rab,rab2,rs_v(igrid_level),&
+                        ra,rab,rab2,rs_pot,&
                         cube_info(igrid_level),l_info,&
-                        hab,pab,na1-1,0,&
-                        vratio,eps_gvg_rspace,calculate_forces,&
-                        force_a,force_b)
+                        hab,pab=pab,o1=na1-1,o2=0,&
+                        vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
+                        calculate_forces=calculate_forces,&
+                        force_a=force_a,force_b=force_b)
 
            END DO
 
@@ -1221,6 +1006,7 @@ CONTAINS
     LOGICAL:: calculate_forces
 
     TYPE(REALSPACE_GRID_TYPE), DIMENSION(:), POINTER :: rs_v
+    TYPE(REALSPACE_GRID_TYPE), POINTER :: rs_pot
 
 !   ---------------------------------------------------------------------------
 
@@ -1351,10 +1137,11 @@ CONTAINS
 
              igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
 
+             rs_pot=>rs_v(igrid_level)
              CALL integrate_pgf_product_rspace(&
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
                         0, 0.0_dbl,0,&
-                        ra,rab,rab2,rs_v(igrid_level),&
+                        ra,rab,rab2,rs_pot,&             
                         cube_info(igrid_level),l_info,&
                         hab,pab,na1-1,0,&
                         vratio,eps_gvg_rspace,calculate_forces,&
@@ -1412,270 +1199,5 @@ CONTAINS
 
 ! *****************************************************************************
 
-    SUBROUTINE integrate_pgf_product_rspace(la_max,zeta,la_min,&
-                                            lb_max,zetb,lb_min,&
-                                            ra,rab,rab2,rsgrid,&
-                                            cube_info,l_info,hab,pab,o1,o2,&
-                                            vratio,eps_gvg_rspace,&
-                                            calculate_forces,force_a,force_b)
-
-    TYPE(realspace_grid_type), TARGET, INTENT(IN) :: rsgrid
-    REAL(dbl), INTENT(IN)                  :: eps_gvg_rspace,rab2,zeta,zetb,vratio
-    INTEGER, INTENT(IN)                   :: la_max,la_min,lb_max,lb_min
-    REAL(dbl), DIMENSION(3), INTENT(IN)    :: ra,rab
-    TYPE(cube_info_type),INTENT(IN)       :: cube_info
-    TYPE(l_info_type),INTENT(IN)          :: l_info
-    REAL(dbl), DIMENSION(3), INTENT(INOUT) :: force_a,force_b
-    REAL(dbl), DIMENSION(:,:), POINTER :: hab
-    REAL(dbl), DIMENSION(:,:), POINTER :: pab
-    INTEGER  :: o1,o2
-    LOGICAL, INTENT(IN)                   :: calculate_forces
-
-!   *** Local variables ***
-
-    REAL(dbl) :: f,ftza,ftzb,pij,prefactor,radius,yz,z,zetp
-    INTEGER  :: ax,ay,az,bx,by,bz,handle,i,ico,ig,j,jco,jg,k,kg,la,lb,&
-                lb_cube_min,ub_cube_max,gridbounds(2,3)
-
-    REAL(dbl), DIMENSION(3) :: dhab,dr,rap,rbp,roffset,rp,rb
-    INTEGER, DIMENSION(3)  :: cubecenter,lb_cube,ng,ub_cube
-
-    INTEGER, DIMENSION(:,:), POINTER      :: map
-    REAL(dbl), DIMENSION(:,:,:), POINTER   :: grid
-    INTEGER lxyz_max,lxy_max,lx_max,lx,lxb,lya,lyb,lza,lzb,lz,ly,icoef,lxy
-    INTEGER coef_max,lxa,lxyz,l
-    REAL(dbl) a,b,binomial_k_lxa,binomial_l_lxb,zbp,zap,za,zb,ya,yb,yap,ybp,rpg,s,pg
-    REAL(dbl)  :: xa,xb,xap,xbp,radius2,maxpab
-    REAL(dbl) :: dx2,dy2,dz2,dxi,dyi,dzi,cutoff
-    INTEGER  :: kgmax,kgmin,jgmax,jgmin,igmax,igmin,j2,jg2,lar(3),lbr(3), &
-                start,length,offset
-    INTEGER  :: la_max_l,la_min_l,lb_min_l
-
-    INTEGER, pointer, dimension(:) :: ly_max,lz_max
-    REAL(dbl), pointer :: pzyx(:), alpha(:,:)
-    integer, pointer :: ipzyx(:,:,:,:,:,:)
-    REAL(dbl), pointer :: polz(:,:),dpz(:,:),poly(:,:),dpy(:,:),polx(:,:)
-    REAL(dbl), pointer :: dpx(:,:)
-    INTEGER, pointer, dimension(:)  :: sphere_bounds
-    INTEGER :: cmax
-
-!   ---------------------------------------------------------------------------
-
-    IF (calculate_forces) THEN
-      la_max_l=la_max+1  ! needed for the derivative of the gaussian, unimportant which one
-      la_min_l=MAX(la_min-1,0) ! just in case the la_min,lb_min is not zero
-      lb_min_l=MAX(lb_min-1,0)
-    ELSE
-      la_max_l=la_max
-      la_min_l=la_min
-      lb_min_l=lb_min
-    END IF
-
-    coef_max=la_max_l+lb_max+1
-    zetp = zeta + zetb
-    f = zetb/zetp
-    prefactor = EXP(-zeta*f*rab2)
-!   *** position of the gaussian product
-    rap(:) = f*rab(:)
-    rbp(:) = rap(:) - rab(:)
-    rp(:) = ra(:) + rap(:)  ! this is the gaussian center in real coordinates
-    rb(:) = ra(:) + rab(:)
-
-
-! the cutoff could be vratio instead of 1.0_dbl if not rebuild
-! in this case the minimization goes fine up to the point where the energy is
-! noisy
-    cutoff=1.0_dbl
-    radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,0,0,ra,rb,rp,&
-                                    zetp,eps_gvg_rspace,prefactor*vratio,cutoff)
-
-    IF (radius == 0.0_dbl) RETURN
-    CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
-    ! new ithread var
-    CALL return_l_info(l_info,la_min_l,la_max_l,lb_min_l,lb_max,0,lx_max,lxy_max, &
-                         lxyz_max,ly_max,lz_max,&
-                         map,polx,poly,polz,dpy,dpz,alpha,pzyx,ipzyx,cmax)
-
-!   *** properties of the grid ***
-
-    dr(:) = rsgrid%dr(:)
-    ng(:) = rsgrid%npts(:)
-    grid => rsgrid%r(:,:,:)
-    gridbounds(1,1)=LBOUND(GRID,1)
-    gridbounds(2,1)=UBOUND(GRID,1)
-    gridbounds(1,2)=LBOUND(GRID,2)
-    gridbounds(2,2)=UBOUND(GRID,2)
-    gridbounds(1,3)=LBOUND(GRID,3)
-    gridbounds(2,3)=UBOUND(GRID,3)
-
-    cubecenter(:) = FLOOR(rp(:)/dr(:))
-    roffset(:) = rp(:) - REAL(cubecenter(:),dbl)*dr(:)
-    lb_cube_min = MINVAL(lb_cube(:))
-    ub_cube_max = MAXVAL(ub_cube(:))
-
-!   *** a mapping so that the ig corresponds to the right grid point, also with pbc
-    DO i=1,3
-        start=lb_cube(i)
-        DO
-         offset=MODULO(cubecenter(i)+start,ng(i))+1-start
-         length=MIN(ub_cube(i),ng(i)-offset)-start
-         DO ig=start,start+length
-          map(ig,i) = ig+offset
-         END DO
-         if (start+length.ge.ub_cube(i)) EXIT
-         start=start+length+1
-        END DO
-    ENDDO
-
-!   *** initialise the pol x,y,z terms
-    DO ig=lb_cube(3),ub_cube(3)
-      lxyz=0
-      rpg = REAL(ig,dbl)*dr(3) - roffset(3)
-      zap = EXP(-zetp*rpg**2)
-      za  = rpg + rap(3)
-      zb  = za  - rab(3)
-      DO lza=0,la_max_l
-       zbp=1.0_dbl
-       DO lzb=0,lb_max
-          dpz(lzb,lza)=zap*zbp
-          zbp=zbp*zb
-       ENDDO
-       zap=zap*za
-      ENDDO
-      DO lxa=0,la_max_l
-      DO lxb=0,lb_max
-       DO lya=0,la_max_l-lxa
-       DO lyb=0,lb_max-lxb
-          DO lza=max(la_min_l-lxa-lya,0),la_max_l-lxa-lya
-          DO lzb=max(lb_min_l-lxb-lyb,0),lb_max-lxb-lyb
-             lxyz=lxyz+1
-             polz(lxyz,ig)=dpz(lzb,lza)
-          ENDDO
-          ENDDO
-       ENDDO
-       ENDDO
-      ENDDO
-      ENDDO
-    ENDDO
-
-    DO ig=lb_cube(2),ub_cube(2)
-      rpg = REAL(ig,dbl)*dr(2) - roffset(2)
-      yap = EXP(-zetp*rpg**2)
-      ya  = rpg + rap(2)
-      yb  = ya  - rab(2)
-      DO lya=0,la_max_l
-       ybp=1.0_dbl
-       DO lyb=0,lb_max
-          dpy(lyb,lya)=yap*ybp
-          ybp=ybp*yb
-       ENDDO
-       yap=yap*ya
-      ENDDO
-
-      lxy=0
-      DO lxa=0,la_max_l
-      DO lxb=0,lb_max
-       DO lya=0,la_max_l-lxa
-       DO lyb=0,lb_max-lxb
-             lxy=lxy+1
-             poly(lxy,ig)=dpy(lyb,lya)
-       ENDDO
-       ENDDO
-      ENDDO
-      ENDDO
-    ENDDO
-
-
-!   *** make the alpha matrix ***
-
-    alpha(:,:)=0.0_dbl
-    lx=0
-    DO lxa=0,la_max_l
-    DO lxb=0,lb_max
-       lx=lx+1
-       binomial_k_lxa=1.0_dbl
-       a=1.0_dbl
-       DO k=0,lxa
-        binomial_l_lxb=1.0_dbl
-        b=1.0_dbl
-        DO l=0,lxb
-           alpha(lxa-l+lxb-k+1,lx)=alpha(lxa-l+lxb-k+1,lx)+ &
-                             binomial_k_lxa*binomial_l_lxb*a*b
-           binomial_l_lxb=binomial_l_lxb*real(lxb-l,dbl)/real(l+1,dbl)
-           b=b*(rp(1)-(ra(1)+rab(1)))
-        ENDDO
-        binomial_k_lxa=binomial_k_lxa*real(lxa-k,dbl)/real(k+1,dbl)
-        a=a*(rp(1)-ra(1))
-       ENDDO
-    ENDDO
-    ENDDO
-
-
-    DO ig=lb_cube(1),ub_cube(1)
-      rpg = REAL(ig,dbl)*dr(1) - roffset(1)
-      pg  = EXP(-zetp*rpg**2)
-      DO icoef=1,coef_max
-         polx(icoef,ig)=pg
-         pg=pg*(rpg)
-      ENDDO
-    ENDDO
-
-!   *** do the loop over the grid
-
-    call integrate_core(polx(1,-cmax),poly(1,-cmax),polz(1,-cmax),grid(1,1,1),alpha(1,1), &
-                        lx_max,lxy_max,lxyz_max,coef_max,cmax, &
-                        ly_max(1),lz_max(1),gridbounds(1,1),map(-cmax,1),pzyx(1), &
-                        la_min_l,la_max_l,lb_min_l,lb_max,sphere_bounds(1))
-
-    do i=1,lxyz_max
-       pzyx(i)=pzyx(i)*prefactor
-    enddo
-
-!   *** pzyx contains all the information needed to find the elements of hab
-!   *** and optionally of derivatives of these elements
-
-    ftza = 2.0_dbl*zeta
-    ftzb = 2.0_dbl*zetb
-
-    DO la=la_min,la_max
-      DO ax=0,la
-        DO ay=0,la-ax
-          az = la - ax - ay
-          ico=coset(ax,ay,az)
-          DO lb=lb_min,lb_max
-            DO bx=0,lb
-              DO by=0,lb-bx
-                bz = lb - bx - by
-                jco=coset(bx,by,bz)
-                hab(o1+ico,o2+jco) = hab(o1+ico,o2+jco) + pzyx(ipzyx(ax,ay,az,bx,by,bz))
-                IF (calculate_forces) THEN
-                  dhab(1) = ftza*pzyx(ipzyx(ax+1,ay,az,bx,by,bz)) -&
-                            REAL(ax,dbl)*pzyx(ipzyx(MAX(0,ax-1),ay,az,bx,by,bz))
-                  dhab(2) = ftza*pzyx(ipzyx(ax,ay+1,az,bx,by,bz)) -&
-                            REAL(ay,dbl)*pzyx(ipzyx(ax,MAX(0,ay-1),az,bx,by,bz))
-                  dhab(3) = ftza*pzyx(ipzyx(ax,ay,az+1,bx,by,bz)) -&
-                            REAL(az,dbl)*pzyx(ipzyx(ax,ay,MAX(0,az-1),bx,by,bz))
-                  force_a(:) = force_a(:) + pab(o1+ico,o2+jco)*dhab(:)
-                  dhab(1) = ftzb*(pzyx(ipzyx(ax+1,ay,az,bx,by,bz)) -&
-                                  rab(1)*pzyx(ipzyx(ax,ay,az,bx,by,bz))) -&
-                            REAL(bx,dbl)*pzyx(ipzyx(ax,ay,az,MAX(0,bx-1),by,bz))
-                  dhab(2) = ftzb*(pzyx(ipzyx(ax,ay+1,az,bx,by,bz)) -&
-                                  rab(2)*pzyx(ipzyx(ax,ay,az,bx,by,bz))) -&
-                            REAL(by,dbl)*pzyx(ipzyx(ax,ay,az,bx,MAX(0,by-1),bz))
-                  dhab(3) = ftzb*(pzyx(ipzyx(ax,ay,az+1,bx,by,bz)) -&
-                                  rab(3)*pzyx(ipzyx(ax,ay,az,bx,by,bz))) -&
-                            REAL(bz,dbl)*pzyx(ipzyx(ax,ay,az,bx,by,MAX(0,bz-1)))
-                  force_b(:) = force_b(:) + pab(o1+ico,o2+jco)*dhab(:)
-                END IF
-              END DO
-            END DO
-          END DO
-        END DO
-      END DO
-    END DO
-
-  END SUBROUTINE integrate_pgf_product_rspace
-
-! *****************************************************************************
-
 END MODULE kg_density
+! *****************************************************************************

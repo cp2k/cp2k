@@ -132,7 +132,8 @@ MODULE qs_collocate_density
 
   PUBLIC :: calculate_rho_core,&
             calculate_rho_elec,&
-            calculate_wavefunction
+            calculate_wavefunction,&
+            collocate_pgf_product_rspace
 
 ! *** Public functions ***
 
