@@ -431,12 +431,12 @@ END SUBROUTINE set_energies
           WRITE ( iw, '( A,T61,A )' ) ' ENSEMBLE TYPE                = ', &
                ADJUSTR ( simpar%ensemble)
           WRITE ( iw, '( A,T71,I10 )' ) ' STEP NUMBER                  = ', itimes
-          WRITE ( iw, '( A,T60,1(1X,E20.12) )' ) ' TIME [FS]                    = ', t
+          WRITE ( iw, '( A,T60,1(1X,F20.12) )' ) ' TIME [FS]                    = ', t
           WRITE ( iw, '( A,T60,1(1X,E20.12) )' ) ' CONSERVED QNTY               = ', &
                cons
           WRITE ( iw, '( )' )
           WRITE ( iw, '( T42,A )' ) 'INSTANTANEOUS        AVERAGES'
-          WRITE ( iw, '( A,T39,2(1X,E20.12) )' ) ' CPU [S]                     = ', &
+          WRITE ( iw, '( A,T39,2(1X,F20.2) )' ) ' CPU [S]                      = ', &
                 used_time, averages%avecpu
           WRITE ( iw, '( A,T39,2(1X,E20.12) )' ) ' {E-E0}/E0                    = ', &
                 econs, econs_avg/REAL( delta_t,dp)
