@@ -39,7 +39,7 @@ MODULE qs_diis
   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
-                                             cp_fm_maxval,&
+                                             cp_fm_maxabsval,&
                                              cp_fm_set_all,&
                                              cp_fm_p_type,&
                                              cp_fm_to_fm,&
@@ -378,7 +378,7 @@ CONTAINS
        CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_dp,sc,kc(ispin)%matrix, 0.0_dp,new_errors)
        CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_dp,kc(ispin)%matrix,sc,-1.0_dp,new_errors)
 
-       CALL cp_fm_maxval(new_errors,tmp)
+       CALL cp_fm_maxabsval(new_errors,tmp)
        error_max=MAX(error_max,tmp)
 
     ENDDO

@@ -44,7 +44,7 @@ MODULE qs_localization_methods
                                              cp_fm_get_element,&
                                              cp_fm_get_info,&
                                              cp_fm_init_random,&
-                                             cp_fm_maxval,&
+                                             cp_fm_maxabsval,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
@@ -265,7 +265,7 @@ CONTAINS
     CALL cp_fm_create ( force, zij( 1 ) % matrix % matrix_struct, error = error  )
     CALL cp_fm_set_all ( force, 0._dp, error=error )
     CALL grad_at_0 ( zij, weights, force )
-    CALL cp_fm_maxval ( force, tolerance, error = error )
+    CALL cp_fm_maxabsval ( force, tolerance, error = error )
     CALL cp_fm_release ( force )
   END SUBROUTINE check_tolerance
 ! *****************************************************************************
@@ -728,7 +728,7 @@ CONTAINS
          matrix_G%local_data=REAL(cmat_t1%local_data)
          CALL cp_fm_transpose(matrix_G,matrix_T)
          CALL cp_fm_scale_and_add(  -1.0_dp,matrix_G, 1.0_dp,matrix_T)
-         CALL cp_fm_maxval(matrix_G,tol)
+         CALL cp_fm_maxabsval(matrix_G,tol)
 
 
          ! from here on, minimizing technology

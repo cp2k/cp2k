@@ -98,7 +98,7 @@ MODULE cp_fm_types
             cp_fm_set_submatrix, &     ! set a submatrix to given values
             cp_fm_get_submatrix, &     ! get a submatrix of given values
             cp_fm_init_random, &         
-            cp_fm_maxval, &            ! find the maximum value
+            cp_fm_maxabsval, &            ! find the maximum absolute value
             cp_fm_write, &             ! writes lots of information and data (might need further development) 
             cp_fm_to_fm                ! copy (parts of) a fm to a fm
 
@@ -1082,17 +1082,17 @@ CONTAINS
   END SUBROUTINE cp_fm_get_info
 
 
-!!****f* cp_fm_types/cp_fm_maxval [1.0] *
+!!****f* cp_fm_types/cp_fm_maxabsval [1.0] *
 !!
 !!   NAME
-!!     cp_fm_maxval
+!!     cp_fm_maxabsval
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_fm_maxval(matrix, a_max, error)
+!!     Subroutine cp_fm_maxabsval(matrix, a_max, error)
 !!       Type(cp_fm_type), Pointer:: matrix
 !!       Real(KIND = dp), Intent (OUT):: a_max
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_fm_maxval
+!!     End Subroutine cp_fm_maxabsval
 !!
 !!   FUNCTION
 !!     find the maximum absolute value of the matrix element
@@ -1107,7 +1107,7 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!
 !!*** *********************************************************************
-  SUBROUTINE cp_fm_maxval(matrix,a_max,error)
+  SUBROUTINE cp_fm_maxabsval(matrix,a_max,error)
     TYPE(cp_fm_type), POINTER        :: matrix
     REAL(KIND = dp), INTENT(OUT)                     :: a_max
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -1120,7 +1120,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("cp_fm_maxval","I","",handle)
+    CALL timeset("cp_fm_maxabsval","I","",handle)
 
     my_block => matrix%local_data
 
@@ -1131,7 +1131,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE cp_fm_maxval
+  END SUBROUTINE cp_fm_maxabsval
 
 !!****f* cp_fm_types/cp_fm_write [1.0] *
 !!

@@ -51,7 +51,7 @@ MODULE cp_sm_fm_interactions
                                              cp_fm_struct_write
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
-                                             cp_fm_maxval,&
+                                             cp_fm_maxabsval,&
                                              cp_fm_release,&
                                              cp_fm_retain,&
                                              cp_fm_set_element,&
@@ -1131,7 +1131,7 @@ CONTAINS
           END SELECT
 !FM    CALL cp_fm_scale_and_add(alpha=1.0_dp,matrix_a=tmp_m,matrix_b=v_out,&
 !FM         beta=-1.0_dp,error=error)
-!FM    CALL cp_fm_maxval(tmp_m,diff)
+!FM    CALL cp_fm_maxabsval(tmp_m,diff)
 !FM    IF (logger%para_env%source==logger%para_env%mepos) THEN
 !FM       WRITE(unit=cp_logger_get_default_unit_nr(logger),fmt="(a,e16.8)")&
 !FM            "matrix_multiply diff=",diff
