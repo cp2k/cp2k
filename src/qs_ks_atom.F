@@ -30,8 +30,6 @@ MODULE qs_ks_atom
   USE cp_control_types,                ONLY: tddfpt_singlet
   USE cp_error_handling,               ONLY: cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level
-  USE hartree_local_types,             ONLY: ecoul_1center_type,&
-                                             get_ecoul_1c
   USE kinds,                           ONLY: dp, dp_size, int_size
   USE memory_utilities,                ONLY: reallocate
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -48,7 +46,6 @@ MODULE qs_ks_atom
                                              neighbor_node_type,&
                                              next,&
                                              reduced_3c_list_type
-!                                             qlist_type
   USE qs_oce_types,                    ONLY: oce_matrix_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
@@ -60,7 +57,6 @@ MODULE qs_ks_atom
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-!  USE util,                            ONLY: locate
 
   IMPLICIT NONE
 
@@ -119,8 +115,6 @@ CONTAINS
                                                 sab_orb_neighbor_list_local
     TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(oce_matrix_type), POINTER           :: oce
-    TYPE(ecoul_1center_type), DIMENSION(:), & 
-                                 POINTER     :: ecoul_1c
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(reduced_3c_list_type), &
@@ -134,7 +128,7 @@ CONTAINS
     CALL timeset("update_ks_atom","I"," ",handle)
 
     NULLIFY(atomic_kind_set,force,oce,rho_atom,sab_orb)
-    NULLIFY(orb_basis,ecoul_1c,reduced_3c_oce)
+    NULLIFY(orb_basis,reduced_3c_oce)
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft
@@ -154,12 +148,10 @@ CONTAINS
            force=force,&
            oce=oce, &
            rho_atom_set=rho_atom,&
-           sab_orb=sab_orb,&
-           ecoul_1c=ecoul_1c)
+           sab_orb=sab_orb)
 
     IF (my_tddft) THEN
        rho_atom   => p_env%local_rho_set%rho_atom_set
-       ecoul_1c => p_env%hartree_local%ecoul_1c
     END IF
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxsgf=max_nsgf,&
@@ -308,7 +300,7 @@ CONTAINS
                 END IF
 
                 rho_at => rho_atom(katom)
-                CALL add_vhxca_to_ks(h_block,oce,rho_at,ecoul_1c,ispin, &
+                CALL add_vhxca_to_ks(h_block,oce,rho_at,ispin, &
                                     iatom,nsgfa,jatom,nsgfb,katom,nsoctot,&
                                     factor,C_int_h,C_int_s)
 
@@ -319,7 +311,7 @@ CONTAINS
                   IF(iatom <= jatom) THEN
                     rho_at => rho_atom(katom)
                     force_tmp(1:3,1:3) = 0.0_dp 
-                    CALL add_vhxca_forces(p_block,oce,rho_at,force_tmp,ecoul_1c,&
+                    CALL add_vhxca_forces(p_block,oce,rho_at,force_tmp,&
                                     ispin,iatom,nsgfa,jatom,nsgfb,katom,nsoctot,&
                                     dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,lPC)
                     force(kkind)%vhxc_atom(1:3,ka_kind) = &
@@ -334,7 +326,7 @@ CONTAINS
                   ELSE
                     rho_at => rho_atom(katom)
                     force_tmp(1:3,1:3) = 0.0_dp 
-                    CALL add_vhxca_forces(p_block,oce,rho_at,force_tmp,ecoul_1c,&
+                    CALL add_vhxca_forces(p_block,oce,rho_at,force_tmp,&
                                     ispin,jatom,nsgfb,iatom,nsgfa,katom,nsoctot,&
                                     dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,lPC)
                     force(kkind)%vhxc_atom(1:3,ka_kind) = &
@@ -375,15 +367,13 @@ CONTAINS
   END SUBROUTINE update_ks_atom
 !******************************************************************************
 
-  SUBROUTINE add_vhxca_to_ks(h_block,oce,rho_atom,ecoul_1c,ispin,ia,na,ja,nb,&
+  SUBROUTINE add_vhxca_to_ks(h_block,oce,rho_atom,ispin,ia,na,ja,nb,&
                              ka,nsp,factor,C_int_h,C_int_s)
 
 !   Arguments
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(rho_atom_type), POINTER             :: rho_atom
-    TYPE(ecoul_1center_type), DIMENSION(:), & 
-                                 POINTER     :: ecoul_1c
     INTEGER, INTENT(IN)                      :: ispin, ia, na, ja, nb, ka, &
                                                 nsp
     REAL(KIND=dp), INTENT(IN)                :: factor
@@ -508,7 +498,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE add_vhxca_forces(p_block,oce,rho_atom,force,ecoul_1c,ispin,&
+  SUBROUTINE add_vhxca_forces(p_block,oce,rho_atom,force,ispin,&
                             ia,na,ja,nb,ka,nsp,dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,lPC)
 
 ! *****************************************************************************
@@ -517,8 +507,6 @@ CONTAINS
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(rho_atom_type), POINTER             :: rho_atom
     REAL(dp), DIMENSION(3,3)                 :: force
-    TYPE(ecoul_1center_type), DIMENSION(:), & 
-                                 POINTER     :: ecoul_1c
     INTEGER, INTENT(IN)                      :: ispin, ia, na, ja, nb, ka, &
                                                 nsp
     INTEGER, INTENT(IN)                      :: ldCPC, lPC
