@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+#include "cp_prep_globals.h"
 !!****** cp2k/xc_tpss_p [1.0] *
 !!
 !!   NAME
@@ -21,8 +22,29 @@ MODULE xc_tpss_p
 
 ! *****************************************************************************
 
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_debug,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_unimplemented_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE kinds, ONLY: dbl
   USE xc_tpss_util, ONLY: tpssux, pz_p, tpbec, tpbeca, tpbecs, ccfun
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
+                                             xc_dset_get_derivative
+  USE xc_derivative_types,             ONLY: xc_derivative_get,&
+                                             xc_derivative_type
+  USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
+                                             xc_rho_set_get,&
+                                             xc_rho_set_type
 
   IMPLICIT NONE
 
@@ -30,6 +52,7 @@ MODULE xc_tpss_p
 
 ! *** Global parameters ***
 
+  CHARACTER(len=*), PARAMETER, private :: moduleN="xc_tpss_p"
   REAL(dbl),PARAMETER  :: small = 1.e-14_dbl
   REAL(dbl), PARAMETER :: pi = 3.14159265358979323846264338_dbl
   REAL(dbl), PARAMETER :: f13 = 1._dbl/3._dbl, &
@@ -37,12 +60,241 @@ MODULE xc_tpss_p
                           f83 = 8._dbl*f13, &
                           f1081 = 10._dbl/81._dbl
 
-  PUBLIC :: tpss_p
+  PUBLIC :: tpss_lsd_info, tpss_lsd_eval
 
 !!***
 ! *****************************************************************************
 
 CONTAINS
+
+!!****f* xc_tpss_p/tpss_lsd_info [1.0] *
+!!
+!!   NAME
+!!     tpss_lsd_info
+!!
+!!   FUNCTION
+!!     return various information on the functional
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - reference: string with the reference of the actual functional
+!!     - shortform: string with the shortform of the functional name
+!!     - needs: the components needed by this functional are set to
+!!       true (does not set the unneeded components to false)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE tpss_lsd_info(reference,shortform, needs, max_deriv, error)
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
+    TYPE(xc_rho_cflags_type), &
+      INTENT(inout), OPTIONAL                :: needs
+    INTEGER, INTENT(out), OPTIONAL           :: max_deriv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lsd_info', &
+      routineP = moduleN//':'//routineN
+
+  IF ( PRESENT ( reference ) ) THEN
+     reference = "J. Tao, J.P.Perdew, V.N.Staroverov, E.Scuseria PRL, 91, 146401 (2003) {LSD version}"
+  END IF
+  IF ( PRESENT ( shortform ) ) THEN
+     shortform = "TPSS meta-GGA functional (LSD)"
+  END IF
+  IF (PRESENT(needs)) THEN
+     needs%rho_spin=.TRUE.
+     needs%norm_drho_spin=.TRUE.
+     needs%drhoa_drhob=.TRUE.
+     needs%kinetic_spin=.TRUE.
+  END IF
+  IF (PRESENT(max_deriv)) max_deriv=1
+
+END SUBROUTINE tpss_lsd_info
+!***************************************************************************
+
+!!****f* xc_tpss_p/tpss_lsd_eval [1.0] *
+!!
+!!   NAME
+!!     tpss_lsd_eval
+!!
+!!   FUNCTION
+!!     evaluates the tpss functional (spin polarized)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - rho_set: the density where you want to evaluate the functional
+!!     - deriv_set: place where to store the functional derivatives (they are
+!!       added to the derivatives)
+!!     - grad_deriv: degree of the derivative that should be evalated,
+!!       if positive all the derivatives up to the given degree are evaluated,
+!!       if negative only the given degree is calculated
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+  SUBROUTINE tpss_lsd_eval(rho_set,deriv_set,grad_deriv,error)
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    INTEGER, INTENT(in)                      :: grad_deriv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lsd_eval', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: npoints, handle
+    INTEGER, DIMENSION(:, :), POINTER        :: bo
+    LOGICAL                                  :: failure
+    REAL(kind=dbl)                            :: epsilon_drho, epsilon_rho
+    REAL(kind=dbl), DIMENSION(:, :, :), &
+      POINTER                                :: e_0, e_rhoa, e_rhob, e_ndrhoa,&
+      e_ndrhob,e_kinetic_a,e_kinetic_b,e_drhoa_drhob,&
+      rhoa,rhob,norm_drhoa,norm_drhob,drhoa_drhob, kinetic_a,kinetic_b
+    TYPE(xc_derivative_type), POINTER        :: deriv
+
+    CALL timeset(routineN,"I","",handle)
+    failure=.FALSE.
+    NULLIFY(bo,e_0, e_rhoa, e_rhob, e_ndrhoa,&
+      e_ndrhob,e_kinetic_a,e_kinetic_b,e_drhoa_drhob,&
+      rhoa,rhob,norm_drhoa,norm_drhob,drhoa_drhob, kinetic_a,kinetic_b,deriv)
+
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL xc_rho_set_get(rho_set,rhoa=rhoa,rhob=rhob,kinetic_a=kinetic_a,&
+            kinetic_b=kinetic_b,norm_drhoa=norm_drhoa,norm_drhob=norm_drhob,&
+            drhoa_drhob=drhoa_drhob,&
+            can_return_null=.FALSE.,local_bounds=bo,rho_cutoff=epsilon_rho,&
+            drho_cutoff=epsilon_drho,error=error)
+       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
+
+       deriv => xc_dset_get_derivative(deriv_set,"",&
+            allocate_deriv=.TRUE., error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+
+       deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rhoa,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rhob,error=error)
+
+       deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrhob,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(drhoa_drhob)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_drhoa_drhob,error=error)
+
+       deriv => xc_dset_get_derivative(deriv_set,"(kinetic_a)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_kinetic_a,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(kinetic_b)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_kinetic_b,error=error)
+
+       IF (grad_deriv>1.OR.grad_deriv<-1) THEN
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="derivatives bigger than 1 not implemented", &
+               error=error, error_level=cp_failure_level)
+       END IF
+
+       CALL tpss_p_a(rhoa=rhoa, rhob=rhob, norm_drhoa=norm_drhoa,&
+            norm_drhob=norm_drhob,drhoa_drhob=drhoa_drhob,&
+            kinetic_a=kinetic_a,kinetic_b=kinetic_b,&
+            e_0=e_0,e_rhoa=e_rhoa,e_rhob=e_rhob,e_ndrhoa=e_ndrhoa,&
+            e_ndrhob=e_ndrhob,e_drhoa_drhob=e_drhoa_drhob,&
+            e_kinetic_a=e_kinetic_a, e_kinetic_b=e_kinetic_b,&
+            npoints=npoints,epsilon_rho=epsilon_rho,&
+            epsilon_drho=epsilon_drho, error=error)
+    END IF
+    CALL timestop(0.0_dbl,handle)
+  END SUBROUTINE tpss_lsd_eval
+  !***************************************************************************
+
+!!****f* xc_tpss_p/tpss_p_a [1.0] *
+!!
+!!   NAME
+!!     tpss_p_a
+!!
+!!   FUNCTION
+!!     calculates the tpss functional on 1d arrays
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - npoints: the size of the 1d arrays
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!     The others should be pretty self explaining (otherwise see
+!!     tpss_lsd_eval and the module xc_derivative_desc)
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!*** **********************************************************************
+  SUBROUTINE tpss_p_a(rhoa, rhob, norm_drhoa, norm_drhob,drhoa_drhob, kinetic_a,&
+       kinetic_b,e_0,e_rhoa,e_rhob,e_kinetic_a,e_kinetic_b,e_ndrhoa, e_ndrhob,&
+       e_drhoa_drhob, npoints,epsilon_rho,epsilon_drho, error)
+    REAL(kind=dbl), DIMENSION(*), INTENT(in) :: rhoa,rhob,norm_drhoa,&
+         norm_drhob,drhoa_drhob, kinetic_a,kinetic_b
+    REAL(kind=dbl), DIMENSION(*), INTENT(inout) :: e_0, e_rhoa, e_rhob,&
+         e_ndrhoa, e_ndrhob, e_drhoa_drhob, e_kinetic_a, e_kinetic_b
+    INTEGER, INTENT(in) :: npoints
+    REAL(kind=dbl), INTENT(in) :: epsilon_rho, epsilon_drho
+    type(cp_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    character(len=*), parameter :: routineN='tpss_p_a',&
+         routineP=moduleN//':'//routineN
+    REAL(dbl) :: sx,v1xa,v2xa,v1xb,v2xb,vttxa,vttxb,sc,v1ca,v2ca, &
+         v1cb,v2cb,v2xab,v2cab,vttca,vttcb
+    integer :: ii
+
+    !$omp parallel do default(none) shared(rhoa,rhob,norm_drhoa,&
+    !$omp         norm_drhob,drhoa_drhob, kinetic_a,kinetic_b,&
+    !$omp         e_0, e_rhoa, e_rhob, e_ndrhoa, e_ndrhob, e_drhoa_drhob,&
+    !$omp         e_kinetic_a, e_kinetic_b)
+    !$omp     private(ii,sx,v1xa,v2xa,v1xb,v2xb,vttxa,vttxb,sc,v1ca,v2ca, &
+    !$omp         v1cb,v2cb,v2xab,v2cab,vttca,vttcb)
+    DO ii=1,npoints
+       IF (rhoa(ii)+rhob(ii)>epsilon_rho) then
+          CALL tpss_p(rhoa=rhoa(ii),rhob=rhob(ii),grhoaa=norm_drhoa(ii)**2,&
+               grhobb=norm_drhob(ii)**2,grhoab=drhoa_drhob(ii),&
+               taua=kinetic_a(ii),taub=kinetic_b(ii), &
+               sx=sx,v1xa=v1xa,v2xa=v2xa,v1xb=v1xb,v2xb=v2xb,vttxa=vttxa,vttxb=vttxb,&
+               sc=sc,v1ca=v1ca,v2ca=v2ca,v1cb=v1cb,v2cb=v2cb,v2xab=v2xab,v2cab=v2cab,&
+               vttca=vttca,vttcb=vttcb)  
+          e_0(ii)=e_0(ii)+sx+sc
+          e_rhoa(ii)=e_rhoa(ii)+v1xa+v1ca
+          e_rhob(ii)=e_rhob(ii)+v1xb+v1cb
+          e_ndrhoa(ii)=e_ndrhoa(ii)+v2xa+v2ca ! * norm_drhoa(ii) probably
+          e_ndrhob(ii)=e_ndrhob(ii)+v2xb+v2cb ! * norm_drhob(ii) probably
+          e_drhoa_drhob(ii)=e_drhoa_drhob(ii)+v2xab+v2cab
+          e_kinetic_a(ii)=e_kinetic_a(ii)+vttxa+vttca
+          e_kinetic_b(ii)=e_kinetic_b(ii)+vttxb+vttcb
+       end IF
+  END DO
+END SUBROUTINE tpss_p_a
+!***************************************************************************
 
 ! *****************************************************************************
 
