@@ -1271,26 +1271,26 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
 
     INTEGER :: fm_ncol_global, handle, handle2
     INTEGER :: nprow,npcol,fm_ncol_local, fm_nrow_local
-    INTEGER :: nchunk,chunk_size, gindex
-    INTEGER :: nchunk_local_in,nchunk_local_out
+    INTEGER :: njunk,junk_size, gindex
+    INTEGER :: njunk_local_in,njunk_local_out
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_sm_fm_multiply_2d',&
          routineP=moduleN//':'//routineN
     LOGICAL :: failure, transpose_block
     INTEGER :: sm_ncol_local, myprow,mypcol, stat,&
-         mepos,ip,icol,irow,ipcol,iprow, sm_nrow_local,ichunk,&
-         ichunk_offset, ichunk_ordered, irow_chunk, iblock_atomic,&
+         mepos,ip,icol,irow,ipcol,iprow, sm_nrow_local,ijunk,&
+         ijunk_offset, ijunk_ordered, irow_junk, iblock_atomic,&
          irow_global, iblock, iblock_global, &
-         chunk_in, chunk_out, iblock_row, iblock_col, sbnrow,sbncol,&
-         chunk_recv_in, chunk_recv_out, row_dest, row_src, col_dest,&
+         junk_in, junk_out, iblock_row, iblock_col, sbnrow,sbncol,&
+         junk_recv_in, junk_recv_out, row_dest, row_src, col_dest,&
          col_src, sm_nblock_row, sm_nblock_col, fm_ncol_block, fm_nrow_block,&
          fm_first_prow, fm_first_pcol, ikind
     INTEGER, DIMENSION(4) :: reqs
-    INTEGER, DIMENSION(:), POINTER :: chunk_of_col, ncol_local_of_chunk,&
-         col_offset_in_chunk, row_offset_in_chunk, fm_row_indices, fm_col_indices,&
+    INTEGER, DIMENSION(:), POINTER :: junk_of_col, ncol_local_of_junk,&
+         col_offset_in_junk, row_offset_in_junk, fm_row_indices, fm_col_indices,&
          sm_last_row, n_local_atomic_rows, n_local_atomic_cols,&
          sm_first_row, sm_first_col,sm_last_col, atomic_col_distribution,&
-         atomic_row_distribution, ncol_global_of_chunk
+         atomic_row_distribution, ncol_global_of_junk
     TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER :: local_atomic_rows, local_atomic_cols
     INTEGER, DIMENSION(:,:), POINTER :: blacs2mpi
     REAL(kind=wp), DIMENSION(:,:), POINTER :: sparse_block
@@ -1302,11 +1302,11 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     TYPE (cp_logger_type), POINTER :: logger
 
     CALL timeset(routineN,"I","Gflops",handle)
-    NULLIFY(chunk_of_col, ncol_local_of_chunk,&
-         col_offset_in_chunk, row_offset_in_chunk, fm_row_indices, fm_col_indices,&
+    NULLIFY(junk_of_col, ncol_local_of_junk,&
+         col_offset_in_junk, row_offset_in_junk, fm_row_indices, fm_col_indices,&
          sm_last_row,n_local_atomic_rows, n_local_atomic_cols,&
          sm_first_row, sm_first_col,sm_last_col, atomic_col_distribution,&
-         atomic_row_distribution, ncol_global_of_chunk)
+         atomic_row_distribution, ncol_global_of_junk)
     NULLIFY(local_atomic_rows,local_atomic_cols,blacs2mpi,sparse_block,block_node,&
          v_in,v_out,fm_para_env)
     logger => cp_error_get_logger(error)
@@ -1369,74 +1369,74 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          para_env=fm_para_env,error=error)
     IF (PRESENT(ncol)) fm_ncol_global=ncol
 
-    nchunk        =lcm(nprow,npcol)
-    IF (nchunk==nprow.OR.nchunk==npcol)nchunk=2*nchunk
-    chunk_size = (fm_ncol_global+nchunk-1)/ nchunk
-    nchunk_local_in = nchunk / nprow
-    nchunk_local_out= nchunk / npcol
-    CPPrecondition(nchunk_local_in>1,cp_failure_level,routineP,error,failure)
-    CPPrecondition(nchunk_local_out>1,cp_failure_level,routineP,error,failure)
+    njunk        =lcm(nprow,npcol)
+    IF (njunk==nprow.OR.njunk==npcol)njunk=2*njunk
+    junk_size = (fm_ncol_global+njunk-1)/ njunk
+    njunk_local_in = njunk / nprow
+    njunk_local_out= njunk / npcol
+    CPPrecondition(njunk_local_in>1,cp_failure_level,routineP,error,failure)
+    CPPrecondition(njunk_local_out>1,cp_failure_level,routineP,error,failure)
 
-    ! number of global fm columns belonging to a chunk
-    ALLOCATE(ncol_global_of_chunk(nchunk),stat=stat)
+    ! number of global fm columns belonging to a junk
+    ALLOCATE(ncol_global_of_junk(njunk),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    ncol_global_of_chunk=0
-    DO ichunk=1,nchunk
-       ncol_global_of_chunk(ichunk)=fm_ncol_global/nchunk
-       IF (ichunk<=MODULO(fm_ncol_global,nchunk)) THEN
-          ncol_global_of_chunk(ichunk)=ncol_global_of_chunk(ichunk)+1
+    ncol_global_of_junk=0
+    DO ijunk=1,njunk
+       ncol_global_of_junk(ijunk)=fm_ncol_global/njunk
+       IF (ijunk<=MODULO(fm_ncol_global,njunk)) THEN
+          ncol_global_of_junk(ijunk)=ncol_global_of_junk(ijunk)+1
        END IF
     END DO
 
     ! where in v_out begins the given atomic block
-    ALLOCATE(row_offset_in_chunk(sm_nblock_row),stat=stat)
+    ALLOCATE(row_offset_in_junk(sm_nblock_row),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    row_offset_in_chunk=-HUGE(0)
+    row_offset_in_junk=-HUGE(0)
     sm_nrow_local=0
     DO ikind=1,SIZE(local_atomic_rows)
        DO iblock=1,n_local_atomic_rows(ikind)
           iblock_global=local_atomic_rows(ikind)%array(iblock)
-          row_offset_in_chunk(iblock_global)=sm_nrow_local
+          row_offset_in_junk(iblock_global)=sm_nrow_local
           sm_nrow_local=sm_nrow_local+sm_last_row(iblock_global)-&
                sm_first_row(iblock_global)+1
        END DO
     END DO
 
     ! where in v_in begins the given atomic block
-    ALLOCATE(col_offset_in_chunk(sm_nblock_col),stat=stat)
+    ALLOCATE(col_offset_in_junk(sm_nblock_col),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    col_offset_in_chunk=-HUGE(0)
+    col_offset_in_junk=-HUGE(0)
     sm_ncol_local=0
     DO ikind=1,SIZE(local_atomic_cols)
        DO iblock=1,n_local_atomic_cols(ikind)
           iblock_global=local_atomic_cols(ikind)%array(iblock)
-          col_offset_in_chunk(iblock_global)=sm_ncol_local
+          col_offset_in_junk(iblock_global)=sm_ncol_local
           sm_ncol_local=sm_ncol_local+sm_last_col(iblock_global)-&
                sm_first_col(iblock_global)+1
        END DO
     END DO
 
     ! alloc & init v_in
-    ALLOCATE(v_in (nchunk_local_in+1),stat=stat)
+    ALLOCATE(v_in (njunk_local_in+1),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DO ichunk=1,nchunk_local_in+1
-       ALLOCATE(v_in(ichunk)%array(chunk_size,sm_ncol_local), stat=stat)
+    DO ijunk=1,njunk_local_in+1
+       ALLOCATE(v_in(ijunk)%array(junk_size,sm_ncol_local), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END DO
-    CALL fm2chunk(sm,fm_in,v_in,shift=0,hole_pos=nchunk_local_in+1,&
+    CALL fm2junk(sm,fm_in,v_in,shift=0,hole_pos=njunk_local_in+1,&
          sm_transposed=transpose_sm,alpha=alpha,ncol=fm_ncol_global,&
          error=error)
     alpha_ji=1.0_wp
     IF(antisymmetric) alpha_ji=-1.0_wp
 
     ! alloc & init v_out
-    ALLOCATE(v_out(nchunk_local_out+1),stat=stat)
+    ALLOCATE(v_out(njunk_local_out+1),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DO ichunk=1,nchunk_local_out+1
-       ALLOCATE(v_out(ichunk)%array(chunk_size,sm_nrow_local), stat=stat)
+    DO ijunk=1,njunk_local_out+1
+       ALLOCATE(v_out(ijunk)%array(junk_size,sm_nrow_local), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       v_out(ichunk)%array=0.0_wp
+       v_out(ijunk)%array=0.0_wp
     END DO
 
     row_dest=blacs2mpi(MODULO(myprow-1,nprow),mypcol)
@@ -1446,14 +1446,14 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     
     ! let the magic of the distribution play the game
     flops=0.0_wp
-    DO ichunk=1,nchunk
+    DO ijunk=1,njunk
        ! go circular
        CALL timeset(routineN//"_local","I","Gflops",handle2)
        flops_l=0.0_wp
-       chunk_in =MOD(ichunk-1,nchunk_local_in+1)+1
-       chunk_out=MOD(ichunk-1,nchunk_local_out+1)+1
-       gindex=MODULO(nchunk_local_out*mypcol+nchunk_local_in*myprow+ichunk-1,&
-            nchunk)+1
+       junk_in =MOD(ijunk-1,njunk_local_in+1)+1
+       junk_out=MOD(ijunk-1,njunk_local_out+1)+1
+       gindex=MODULO(njunk_local_out*mypcol+njunk_local_in*myprow+ijunk-1,&
+            njunk)+1
 
        !   *** Traverse all block nodes of the sparse matrix ***
        !   no simple parallel do because we write both the iblock_row and iblock_col
@@ -1475,27 +1475,27 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
                 sbncol=sm%last_col(iblock_col)- &
                      sm%first_col(iblock_col)+1
 
-                flops_l=flops_l+2.0_wp*sbnrow*sbncol*ncol_global_of_chunk(gindex)
+                flops_l=flops_l+2.0_wp*sbnrow*sbncol*ncol_global_of_junk(gindex)
 
                 IF (.NOT.(sm%distribution_2d%row_distribution(iblock_row)==sm%distribution_2d%blacs_env%mepos(1).AND.&
                      sm%distribution_2d%col_distribution(iblock_col)==sm%distribution_2d%blacs_env%mepos(2))) THEN
                    transpose_block=.NOT.transpose_block
                 END IF
                 IF (.NOT.transpose_block) THEN
-                   CALL DGEMM('N','T',ncol_global_of_chunk(gindex),sbnrow,sbncol,1.0_wp, &
-                        v_in(chunk_in)%array(1,col_offset_in_chunk(iblock_col)+1), &
-                        chunk_size, &
+                   CALL DGEMM('N','T',ncol_global_of_junk(gindex),sbnrow,sbncol,1.0_wp, &
+                        v_in(junk_in)%array(1,col_offset_in_junk(iblock_col)+1), &
+                        junk_size, &
                         sparse_block(1,1),SIZE(sparse_block,1), &
-                        1.0_wp,v_out(chunk_out)%array(1,row_offset_in_chunk(iblock_row)+1), &
-                        chunk_size)
+                        1.0_wp,v_out(junk_out)%array(1,row_offset_in_junk(iblock_row)+1), &
+                        junk_size)
                    
                 ELSE
-                   CALL DGEMM('N','N',ncol_global_of_chunk(gindex),sbncol,sbnrow,alpha_ji, &
-                        v_in(chunk_in)%array(1,col_offset_in_chunk(iblock_row)+1), &
-                        chunk_size, &
+                   CALL DGEMM('N','N',ncol_global_of_junk(gindex),sbncol,sbnrow,alpha_ji, &
+                        v_in(junk_in)%array(1,col_offset_in_junk(iblock_row)+1), &
+                        junk_size, &
                         sparse_block(1,1),SIZE(sparse_block,1), &
-                        1.0_wp,v_out(chunk_out)%array(1,row_offset_in_chunk(iblock_col)+1), &
-                        chunk_size)
+                        1.0_wp,v_out(junk_out)%array(1,row_offset_in_junk(iblock_col)+1), &
+                        junk_size)
                 END IF
              END IF
 
@@ -1507,43 +1507,43 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
        flops=flops+flops_l
        CALL timestop(flops_l*1.0e-9,handle2)
 
-       chunk_recv_in=MODULO(chunk_in-2,nchunk_local_in+1)+1
-       chunk_recv_out=MODULO(chunk_out-2,nchunk_local_out+1)+1
+       junk_recv_in=MODULO(junk_in-2,njunk_local_in+1)+1
+       junk_recv_out=MODULO(junk_out-2,njunk_local_out+1)+1
 
-       IF (ichunk>1) CALL mp_waitall(reqs)
-       IF (ichunk==nchunk) EXIT
+       IF (ijunk>1) CALL mp_waitall(reqs)
+       IF (ijunk==njunk) EXIT
 
-       CALL mp_isendrecv(msgin=v_in(chunk_in)%array,dest=row_dest,&
-            msgout=v_in(chunk_recv_in)%array,source=row_src,&
+       CALL mp_isendrecv(msgin=v_in(junk_in)%array,dest=row_dest,&
+            msgout=v_in(junk_recv_in)%array,source=row_src,&
             comm=fm_para_env%group, tag=1, send_request=reqs(1), &
             recv_request=reqs(2))
-       CALL mp_isendrecv(msgin=v_out(chunk_out)%array,dest=col_dest,&
-            msgout=v_out(chunk_recv_out)%array,source=col_src,&
+       CALL mp_isendrecv(msgin=v_out(junk_out)%array,dest=col_dest,&
+            msgout=v_out(junk_recv_out)%array,source=col_src,&
             comm=fm_para_env%group, tag=2, send_request=reqs(3), &
             recv_request=reqs(4))
     ENDDO
 
-    DEALLOCATE(ncol_global_of_chunk,row_offset_in_chunk,col_offset_in_chunk,&
+    DEALLOCATE(ncol_global_of_junk,row_offset_in_junk,col_offset_in_junk,&
          stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
-    DO ichunk=1,SIZE(v_in)
-       DEALLOCATE(v_in(ichunk)%array,stat=stat)
+    DO ijunk=1,SIZE(v_in)
+       DEALLOCATE(v_in(ijunk)%array,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END DO
     DEALLOCATE(v_in, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
     ! reshuffle v_out
-    CALL chunk2fm(sm=sm,fm=fm_out,chunks=v_out,shift=-1,hole_pos=chunk_recv_out,&
+    CALL junk2fm(sm=sm,fm=fm_out,junks=v_out,shift=-1,hole_pos=junk_recv_out,&
          sm_transposed=.NOT.transpose_sm, beta=beta,ncol=fm_ncol_global,error=error)
 
     IF (transpose_sm) THEN
        DEALLOCATE(blacs2mpi,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
-    DO ichunk=1,SIZE(v_out)
-       DEALLOCATE(v_out(ichunk)%array,stat=stat)
+    DO ijunk=1,SIZE(v_out)
+       DEALLOCATE(v_out(ijunk)%array,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END DO
     DEALLOCATE(v_out,stat=stat)
@@ -1587,26 +1587,26 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
 
     INTEGER :: fm_ncol_global, handle, handle2
     INTEGER :: nprow,npcol,fm_ncol_local, fm_nrow_local
-    INTEGER :: nchunk,chunk_size, gindex
-    INTEGER :: nchunk_local_in,nchunk_local_out, ikind
+    INTEGER :: njunk,junk_size, gindex
+    INTEGER :: njunk_local_in,njunk_local_out, ikind
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_sm_plus_fm_fm_t_2d',&
          routineP=moduleN//':'//routineN
     LOGICAL :: failure, transpose_block
     INTEGER :: sm_ncol_local, myprow,mypcol, stat,&
-         mepos,ip,icol,irow,ipcol,iprow, sm_nrow_local,ichunk,&
-         ichunk_offset, ichunk_ordered, irow_chunk, iblock_atomic,&
+         mepos,ip,icol,irow,ipcol,iprow, sm_nrow_local,ijunk,&
+         ijunk_offset, ijunk_ordered, irow_junk, iblock_atomic,&
          irow_global, iblock, iblock_global, &
-         chunk_in, chunk_out, iblock_row, iblock_col, sbnrow,sbncol,&
-         chunk_recv_in, chunk_recv_out, row_dest, row_src, col_dest,&
+         junk_in, junk_out, iblock_row, iblock_col, sbnrow,sbncol,&
+         junk_recv_in, junk_recv_out, row_dest, row_src, col_dest,&
          col_src, sm_nblock_row, sm_nblock_col, fm_ncol_block, fm_nrow_block,&
          fm_first_prow, fm_first_pcol
     INTEGER, DIMENSION(4) :: reqs
-    INTEGER, DIMENSION(:), POINTER :: chunk_of_col, ncol_local_of_chunk,&
-         col_offset_in_chunk, row_offset_in_chunk, fm_row_indices, fm_col_indices,&
+    INTEGER, DIMENSION(:), POINTER :: junk_of_col, ncol_local_of_junk,&
+         col_offset_in_junk, row_offset_in_junk, fm_row_indices, fm_col_indices,&
          n_local_atomic_rows, n_local_atomic_cols,sm_last_row,&
          sm_first_row, sm_first_col,sm_last_col, atomic_col_distribution,&
-         atomic_row_distribution, ncol_global_of_chunk
+         atomic_row_distribution, ncol_global_of_junk
     TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER :: local_atomic_rows, local_atomic_cols
     INTEGER, DIMENSION(:,:), POINTER :: blacs2mpi
     REAL(kind=wp), DIMENSION(:,:), POINTER :: sparse_block
@@ -1620,11 +1620,11 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
 
     CALL timeset(routineN,"I","Gflops",handle)
     logger => cp_error_get_logger(error)
-    NULLIFY(chunk_of_col, ncol_local_of_chunk,&
-         col_offset_in_chunk, row_offset_in_chunk, fm_row_indices, fm_col_indices,&
+    NULLIFY(junk_of_col, ncol_local_of_junk,&
+         col_offset_in_junk, row_offset_in_junk, fm_row_indices, fm_col_indices,&
          n_local_atomic_rows, n_local_atomic_cols,sm_last_row,&
          sm_first_row, sm_first_col,sm_last_col, atomic_col_distribution,&
-         atomic_row_distribution, ncol_global_of_chunk)
+         atomic_row_distribution, ncol_global_of_junk)
     NULLIFY(local_atomic_rows, local_atomic_cols, blacs2mpi,sparse_block,&
          my_matrix_g,block_node,v_in,v_out,fm_para_env)
 
@@ -1670,74 +1670,74 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          para_env=fm_para_env,error=error)
     IF (PRESENT(ncol)) fm_ncol_global=ncol
 
-    nchunk        =lcm(nprow,npcol)
-    IF (nchunk==nprow.OR.nchunk==npcol)nchunk=2*nchunk
-    chunk_size = (fm_ncol_global+nchunk-1)/ nchunk
-    nchunk_local_in = nchunk / nprow
-    nchunk_local_out= nchunk / npcol
+    njunk        =lcm(nprow,npcol)
+    IF (njunk==nprow.OR.njunk==npcol)njunk=2*njunk
+    junk_size = (fm_ncol_global+njunk-1)/ njunk
+    njunk_local_in = njunk / nprow
+    njunk_local_out= njunk / npcol
 
-    CPPrecondition(nchunk_local_in>1,cp_failure_level,routineP,error,failure)
-    CPPrecondition(nchunk_local_out>1,cp_failure_level,routineP,error,failure)
+    CPPrecondition(njunk_local_in>1,cp_failure_level,routineP,error,failure)
+    CPPrecondition(njunk_local_out>1,cp_failure_level,routineP,error,failure)
 
-    ! number of global fm columns belonging to a chunk
-    ALLOCATE(ncol_global_of_chunk(nchunk),stat=stat)
+    ! number of global fm columns belonging to a junk
+    ALLOCATE(ncol_global_of_junk(njunk),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    ncol_global_of_chunk=0
-    DO ichunk=1,nchunk
-       ncol_global_of_chunk(ichunk)=fm_ncol_global/nchunk
-       IF (ichunk<=MODULO(fm_ncol_global,nchunk)) THEN
-          ncol_global_of_chunk(ichunk)=ncol_global_of_chunk(ichunk)+1
+    ncol_global_of_junk=0
+    DO ijunk=1,njunk
+       ncol_global_of_junk(ijunk)=fm_ncol_global/njunk
+       IF (ijunk<=MODULO(fm_ncol_global,njunk)) THEN
+          ncol_global_of_junk(ijunk)=ncol_global_of_junk(ijunk)+1
        END IF
     END DO
 
     ! where in v_out begins the given atomic block
-    ALLOCATE(row_offset_in_chunk(sm_nblock_row),stat=stat)
+    ALLOCATE(row_offset_in_junk(sm_nblock_row),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    row_offset_in_chunk=-HUGE(0)
+    row_offset_in_junk=-HUGE(0)
     sm_nrow_local=0
     DO ikind=1,SIZE(local_atomic_rows)
        DO iblock=1,n_local_atomic_rows(ikind)
           iblock_global=local_atomic_rows(ikind)%array(iblock)
-          row_offset_in_chunk(iblock_global)=sm_nrow_local
+          row_offset_in_junk(iblock_global)=sm_nrow_local
           sm_nrow_local=sm_nrow_local+sm_last_row(iblock_global)-&
                sm_first_row(iblock_global)+1
        END DO
     END DO
 
     ! where in v_in begins the given atomic block
-    ALLOCATE(col_offset_in_chunk(sm_nblock_col),stat=stat)
+    ALLOCATE(col_offset_in_junk(sm_nblock_col),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    col_offset_in_chunk=-HUGE(0)
+    col_offset_in_junk=-HUGE(0)
     sm_ncol_local=0
     DO ikind=1,SIZE(local_atomic_cols)
        DO iblock=1,n_local_atomic_cols(ikind)
           iblock_global=local_atomic_cols(ikind)%array(iblock)
-          col_offset_in_chunk(iblock_global)=sm_ncol_local
+          col_offset_in_junk(iblock_global)=sm_ncol_local
           sm_ncol_local=sm_ncol_local+sm_last_col(iblock_global)-&
                sm_first_col(iblock_global)+1
        END DO
     END DO
 
     ! alloc & init v_in
-    ALLOCATE(v_in (nchunk_local_in+1),stat=stat)
+    ALLOCATE(v_in (njunk_local_in+1),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DO ichunk=1,nchunk_local_in+1
-       ALLOCATE(v_in(ichunk)%array(chunk_size,sm_ncol_local), stat=stat)
+    DO ijunk=1,njunk_local_in+1
+       ALLOCATE(v_in(ijunk)%array(junk_size,sm_ncol_local), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END DO
-    CALL fm2chunk(sm,my_matrix_g,v_in,shift=0,hole_pos=nchunk_local_in+1,&
+    CALL fm2junk(sm,my_matrix_g,v_in,shift=0,hole_pos=njunk_local_in+1,&
          sm_transposed=.FALSE.,alpha=my_alpha,ncol=fm_ncol_global,&
          error=error)
 
     ! alloc & init v_out
-    ALLOCATE(v_out(nchunk_local_out+1),stat=stat)
+    ALLOCATE(v_out(njunk_local_out+1),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DO ichunk=1,nchunk_local_out+1
-       ALLOCATE(v_out(ichunk)%array(chunk_size,sm_nrow_local), stat=stat)
+    DO ijunk=1,njunk_local_out+1
+       ALLOCATE(v_out(ijunk)%array(junk_size,sm_nrow_local), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END DO
-    CALL fm2chunk(sm,matrix_v,v_out,shift=0,hole_pos=nchunk_local_out+1,&
+    CALL fm2junk(sm,matrix_v,v_out,shift=0,hole_pos=njunk_local_out+1,&
          sm_transposed=.TRUE.,alpha=1.0_wp,ncol=fm_ncol_global,&
          error=error)
 
@@ -1748,14 +1748,14 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
 
     ! let the magic of the distribution play the game
     flops=0.0_wp
-    DO ichunk=1,nchunk
+    DO ijunk=1,njunk
        ! go circular
        CALL timeset(routineN//"_local","I","Gflops",handle2)
        flops_l=0.0_wp
-       chunk_in =MOD(ichunk-1,nchunk_local_in+1)+1
-       chunk_out=MOD(ichunk-1,nchunk_local_out+1)+1
-       gindex=MODULO(nchunk_local_out*mypcol+nchunk_local_in*myprow+ichunk-1,&
-            nchunk)+1
+       junk_in =MOD(ijunk-1,njunk_local_in+1)+1
+       junk_out=MOD(ijunk-1,njunk_local_out+1)+1
+       gindex=MODULO(njunk_local_out*mypcol+njunk_local_in*myprow+ijunk-1,&
+            njunk)+1
 
        !   *** Traverse all block nodes of the sparse matrix ***
        !   no simple parallel do because we write both the iblock_row and iblock_col
@@ -1775,7 +1775,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
              sbncol=sm%last_col(iblock_col)- &
                   sm%first_col(iblock_col)+1
 
-             flops_l=flops_l+2.0_wp*sbnrow*sbncol*ncol_global_of_chunk(gindex)
+             flops_l=flops_l+2.0_wp*sbnrow*sbncol*ncol_global_of_junk(gindex)
 
              IF (.NOT.(sm%distribution_2d%row_distribution(iblock_row)==sm%distribution_2d%blacs_env%mepos(1).AND.&
                   sm%distribution_2d%col_distribution(iblock_col)==sm%distribution_2d%blacs_env%mepos(2))) THEN
@@ -1784,19 +1784,19 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
                 transpose_block=.FALSE.
              END IF
              IF (.NOT.transpose_block) THEN
-                CALL DGEMM('T','N',sbnrow,sbncol,ncol_global_of_chunk(gindex),1.0_wp, &
-                     v_out(chunk_out)%array(1,row_offset_in_chunk(iblock_row)+1),&
-                     chunk_size,&
-                     v_in(chunk_in)%array(1,col_offset_in_chunk(iblock_col)+1), &
-                     chunk_size, &
+                CALL DGEMM('T','N',sbnrow,sbncol,ncol_global_of_junk(gindex),1.0_wp, &
+                     v_out(junk_out)%array(1,row_offset_in_junk(iblock_row)+1),&
+                     junk_size,&
+                     v_in(junk_in)%array(1,col_offset_in_junk(iblock_col)+1), &
+                     junk_size, &
                      1.0_wp,sparse_block(1,1),SIZE(sparse_block,1))
 
              ELSE
-                CALL DGEMM('T','N',sbnrow,sbncol,ncol_global_of_chunk(gindex),1.0_wp, &
-                     v_in(chunk_in)%array(1,col_offset_in_chunk(iblock_row)+1), &
-                     chunk_size, &
-                     v_out(chunk_out)%array(1,row_offset_in_chunk(iblock_col)+1), &
-                     chunk_size,&
+                CALL DGEMM('T','N',sbnrow,sbncol,ncol_global_of_junk(gindex),1.0_wp, &
+                     v_in(junk_in)%array(1,col_offset_in_junk(iblock_row)+1), &
+                     junk_size, &
+                     v_out(junk_out)%array(1,row_offset_in_junk(iblock_col)+1), &
+                     junk_size,&
                      1.0_wp,sparse_block(1,1),SIZE(sparse_block,1))
              END IF
 
@@ -1808,35 +1808,35 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
        flops=flops+flops_l
        CALL timestop(flops_l*1.0e-9,handle2)
 
-       chunk_recv_in=MODULO(chunk_in-2,nchunk_local_in+1)+1
-       chunk_recv_out=MODULO(chunk_out-2,nchunk_local_out+1)+1
+       junk_recv_in=MODULO(junk_in-2,njunk_local_in+1)+1
+       junk_recv_out=MODULO(junk_out-2,njunk_local_out+1)+1
 
-       IF (ichunk>1) CALL mp_waitall(reqs)
-       IF (ichunk==nchunk) EXIT
+       IF (ijunk>1) CALL mp_waitall(reqs)
+       IF (ijunk==njunk) EXIT
 
-       CALL mp_isendrecv(msgin=v_in(chunk_in)%array,dest=row_dest,&
-            msgout=v_in(chunk_recv_in)%array,source=row_src,&
+       CALL mp_isendrecv(msgin=v_in(junk_in)%array,dest=row_dest,&
+            msgout=v_in(junk_recv_in)%array,source=row_src,&
             comm=fm_para_env%group, tag=1, send_request=reqs(1), &
             recv_request=reqs(2))
-       CALL mp_isendrecv(msgin=v_out(chunk_out)%array,dest=col_dest,&
-            msgout=v_out(chunk_recv_out)%array,source=col_src,&
+       CALL mp_isendrecv(msgin=v_out(junk_out)%array,dest=col_dest,&
+            msgout=v_out(junk_recv_out)%array,source=col_src,&
             comm=fm_para_env%group, tag=2, send_request=reqs(3), &
             recv_request=reqs(4))
     ENDDO
 
-    DEALLOCATE(ncol_global_of_chunk,row_offset_in_chunk,col_offset_in_chunk,&
+    DEALLOCATE(ncol_global_of_junk,row_offset_in_junk,col_offset_in_junk,&
          stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
-    DO ichunk=1,SIZE(v_in)
-       DEALLOCATE(v_in(ichunk)%array,stat=stat)
+    DO ijunk=1,SIZE(v_in)
+       DEALLOCATE(v_in(ijunk)%array,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END DO
     DEALLOCATE(v_in, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
-    DO ichunk=1,SIZE(v_out)
-       DEALLOCATE(v_out(ichunk)%array,stat=stat)
+    DO ijunk=1,SIZE(v_out)
+       DEALLOCATE(v_out(ijunk)%array,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END DO
     DEALLOCATE(v_out,stat=stat)
@@ -1847,13 +1847,13 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
   END SUBROUTINE cp_sm_plus_fm_fm_t_2d
 !***************************************************************************
 
-!!****f* cp_sm_fm_interactions/chunk_of_fm_index [1.0] *
+!!****f* cp_sm_fm_interactions/junk_of_fm_index [1.0] *
 !!
 !!   NAME
-!!     chunk_of_fm_index
+!!     junk_of_fm_index
 !!
 !!   FUNCTION
-!!     returns the chunk (starting at 1) in which the given global index is using the
+!!     returns the junk (starting at 1) in which the given global index is using the
 !!     distribution size_small+1,size_small+1,...,size_small,size_small,...
 !!
 !!   NOTES
@@ -1862,7 +1862,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
 !!   INPUTS
 !!     - fm_index: index of the full matrix (1 based)
 !!     - fm_size: number of elements of the full matrix
-!!     - nchunk: number of chunks you want
+!!     - njunk: number of junks you want
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -1873,30 +1873,30 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
 !!     08.2003 created [j&f]
 !!
 !!*** **********************************************************************
-  FUNCTION chunk_of_fm_index(fm_index,fm_size,nchunk,error) RESULT(res)
+  FUNCTION junk_of_fm_index(fm_index,fm_size,njunk,error) RESULT(res)
     INTEGER ::res
-    INTEGER, INTENT(in) :: fm_index, fm_size, nchunk
+    INTEGER, INTENT(in) :: fm_index, fm_size, njunk
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='chunk_of_fm_index',&
+    CHARACTER(len=*), PARAMETER :: routineN='junk_of_fm_index',&
          routineP=moduleN//':'//routineN
     INTEGER :: size_small,n_large
 
     failure=.FALSE.
 
     CPPrecondition(fm_index<=fm_size,cp_failure_level,routineP,error,failure)
-    CPPrecondition(nchunk>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(njunk>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(0<fm_index,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       size_small=fm_size/nchunk
-       n_large=MODULO(fm_size,nchunk)
+       size_small=fm_size/njunk
+       n_large=MODULO(fm_size,njunk)
        res=(fm_index-1)/(size_small+1)+1
        IF (res>n_large) res= n_large+(fm_index-1-n_large*(size_small+1))/size_small+1
     ELSE
        res=-HUGE(0)
     END IF
-  END FUNCTION chunk_of_fm_index
+  END FUNCTION junk_of_fm_index
   !***************************************************************************
 
 !!****f* cp_sm_fm_interactions/fm_reshuffle_create_layout [1.0] *
@@ -1922,18 +1922,18 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
 !!
 !!*** **********************************************************************
   SUBROUTINE fm_reshuffle_create_layout(sm,fm, transpose_layout, shift,&
-       ncol,gindex_of_chunk, ncol_global_of_chunk, ipcol_of_chunk_col,&
-       chunk_of_col, ncol_local_of_chunk, pcol_of_fm_row, f2c_send_count, &
-       f2c_recv_count,chunk_on_prow, error)
+       ncol,gindex_of_junk, ncol_global_of_junk, ipcol_of_junk_col,&
+       junk_of_col, ncol_local_of_junk, pcol_of_fm_row, f2c_send_count, &
+       f2c_recv_count,junk_on_prow, error)
     TYPE(real_matrix_type), POINTER :: sm
     TYPE(cp_fm_type), POINTER :: fm
     LOGICAL, INTENT(in) :: transpose_layout
     INTEGER, INTENT(in) :: shift,ncol
-    INTEGER, DIMENSION(:), POINTER :: gindex_of_chunk, ncol_global_of_chunk,&
-         chunk_of_col, ncol_local_of_chunk,&
+    INTEGER, DIMENSION(:), POINTER :: gindex_of_junk, ncol_global_of_junk,&
+         junk_of_col, ncol_local_of_junk,&
          pcol_of_fm_row, f2c_send_count, f2c_recv_count
-    INTEGER, DIMENSION(:,:), POINTER :: chunk_on_prow,&
-         ipcol_of_chunk_col
+    INTEGER, DIMENSION(:,:), POINTER :: junk_on_prow,&
+         ipcol_of_junk_col
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -1941,8 +1941,8 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          routineP=moduleN//':'//routineN
     INTEGER :: myprow, mypcol,fm_ncol_global, iblock, handle, handle1,icol2,bsize,irow2
     INTEGER :: nprow,npcol,fm_ncol_local, fm_nrow_local, ikind
-    INTEGER :: nchunk,chunk_size, ipcol, ichunk, stat, ichunk_offset, icol, iblock_atomic
-    INTEGER :: nchunk_local_in, nchunk_local_out, irow, irow_global, iprow,&
+    INTEGER :: njunk,junk_size, ipcol, ijunk, stat, ijunk_offset, icol, iblock_atomic
+    INTEGER :: njunk_local_in, njunk_local_out, irow, irow_global, iprow,&
          first_g_col,fm_npcol,nl,ss
     INTEGER, DIMENSION(:), POINTER :: fm_row_indices, fm_col_indices,&
          sm_last_row, sm_first_row, sm_first_col,sm_last_col,&
@@ -2040,59 +2040,59 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
        END DO
     END DO
        
-    nchunk        =lcm(nprow,npcol)
-    IF (nchunk==nprow.OR.nchunk==npcol)nchunk=2*nchunk
-    chunk_size = (fm_ncol_global+nchunk-1)/ nchunk
-    nchunk_local_in = nchunk / nprow
-    nchunk_local_out= nchunk / npcol
+    njunk        =lcm(nprow,npcol)
+    IF (njunk==nprow.OR.njunk==npcol)njunk=2*njunk
+    junk_size = (fm_ncol_global+njunk-1)/ njunk
+    njunk_local_in = njunk / nprow
+    njunk_local_out= njunk / npcol
     
-    ! tells you on which processor row is the chunk, depending on pcol
-    ALLOCATE(chunk_on_prow(nchunk,0:npcol-1), stat=stat)
+    ! tells you on which processor row is the junk, depending on pcol
+    ALLOCATE(junk_on_prow(njunk,0:npcol-1), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DO ipcol=0,npcol-1
-       DO ichunk=1,nchunk
-          chunk_on_prow(ichunk,ipcol)=MODULO((2*nchunk+ichunk-1-ipcol*nchunk_local_out-shift)/nchunk_local_in,nprow)
+       DO ijunk=1,njunk
+          junk_on_prow(ijunk,ipcol)=MODULO((2*njunk+ijunk-1-ipcol*njunk_local_out-shift)/njunk_local_in,nprow)
        ENDDO
     ENDDO
 
-    ! global indices of the chunks that are stored locally in v_in
-    ALLOCATE(gindex_of_chunk(nchunk_local_in),stat=stat)
+    ! global indices of the junks that are stored locally in v_in
+    ALLOCATE(gindex_of_junk(njunk_local_in),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    ichunk_offset=nchunk_local_out*mypcol+nchunk_local_in*myprow+shift
-    DO ichunk=1,nchunk_local_in
-       gindex_of_chunk(ichunk)=MODULO(ichunk-1+ichunk_offset,nchunk)+1
+    ijunk_offset=njunk_local_out*mypcol+njunk_local_in*myprow+shift
+    DO ijunk=1,njunk_local_in
+       gindex_of_junk(ijunk)=MODULO(ijunk-1+ijunk_offset,njunk)+1
     END DO
 
-    ! number of global fm columns belonging to a chunk
-    ALLOCATE(ncol_global_of_chunk(nchunk),stat=stat)
+    ! number of global fm columns belonging to a junk
+    ALLOCATE(ncol_global_of_junk(njunk),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    ncol_global_of_chunk=0
-    DO ichunk=1,nchunk
-       ncol_global_of_chunk(ichunk)=fm_ncol_global/nchunk
-       IF (ichunk<=MODULO(fm_ncol_global,nchunk)) THEN
-          ncol_global_of_chunk(ichunk)=ncol_global_of_chunk(ichunk)+1
+    ncol_global_of_junk=0
+    DO ijunk=1,njunk
+       ncol_global_of_junk(ijunk)=fm_ncol_global/njunk
+       IF (ijunk<=MODULO(fm_ncol_global,njunk)) THEN
+          ncol_global_of_junk(ijunk)=ncol_global_of_junk(ijunk)+1
        END IF
     END DO
 
-    ! global indices of the columns in the given chunk
-    ALLOCATE(ipcol_of_chunk_col(chunk_size,nchunk_local_in),stat=stat)
+    ! global indices of the columns in the given junk
+    ALLOCATE(ipcol_of_junk_col(junk_size,njunk_local_in),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    ipcol_of_chunk_col=-HUGE(0)
-    DO ichunk=1,nchunk_local_in
-       nl=MODULO(fm_ncol_global,nchunk)
-       ss=fm_ncol_global/nchunk
-       IF (gindex_of_chunk(ichunk)>nl) THEN
-          first_g_col=nl*(ss+1)+(gindex_of_chunk(ichunk)-nl-1)*ss+1
+    ipcol_of_junk_col=-HUGE(0)
+    DO ijunk=1,njunk_local_in
+       nl=MODULO(fm_ncol_global,njunk)
+       ss=fm_ncol_global/njunk
+       IF (gindex_of_junk(ijunk)>nl) THEN
+          first_g_col=nl*(ss+1)+(gindex_of_junk(ijunk)-nl-1)*ss+1
        ELSE
-          first_g_col=(gindex_of_chunk(ichunk)-1)*(ss+1)+1
+          first_g_col=(gindex_of_junk(ijunk)-1)*(ss+1)+1
        END IF
        CALL cp_assert(first_g_col==&
-            SUM(ncol_global_of_chunk(1:gindex_of_chunk(ichunk)))-&
-            ncol_global_of_chunk(gindex_of_chunk(ichunk))+1,&
+            SUM(ncol_global_of_junk(1:gindex_of_junk(ijunk)))-&
+            ncol_global_of_junk(gindex_of_junk(ijunk))+1,&
             cp_failure_level,cp_assertion_failed,routineP,&
             CPSourceFileRef,&
             error,failure)
@@ -2103,30 +2103,30 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
 #else
        ipcol =0
 #endif
-       DO icol=1,MIN(bsize,ncol_global_of_chunk(gindex_of_chunk(ichunk)))
-          ipcol_of_chunk_col(icol,ichunk)=ipcol
+       DO icol=1,MIN(bsize,ncol_global_of_junk(gindex_of_junk(ijunk)))
+          ipcol_of_junk_col(icol,ijunk)=ipcol
        END DO
-       DO icol=MIN(bsize,ncol_global_of_chunk(gindex_of_chunk(ichunk)))+1,&
-            ncol_global_of_chunk(gindex_of_chunk(ichunk)),fm_ncol_block
+       DO icol=MIN(bsize,ncol_global_of_junk(gindex_of_junk(ijunk)))+1,&
+            ncol_global_of_junk(gindex_of_junk(ijunk)),fm_ncol_block
           ipcol=MODULO(ipcol+1,fm_npcol)
-          DO icol2=icol,MIN(icol+fm_ncol_block-1,ncol_global_of_chunk(gindex_of_chunk(ichunk)))
-             ipcol_of_chunk_col(icol2,ichunk)=ipcol
+          DO icol2=icol,MIN(icol+fm_ncol_block-1,ncol_global_of_junk(gindex_of_junk(ijunk)))
+             ipcol_of_junk_col(icol2,ijunk)=ipcol
           END DO
        END DO
     END DO
 
-    ! number of local fm columns belonging to a chunk
-    ! index of the chunk that owns the given local fm column
-    ALLOCATE(chunk_of_col(fm_ncol_local), ncol_local_of_chunk(nchunk),stat=stat)
+    ! number of local fm columns belonging to a junk
+    ! index of the junk that owns the given local fm column
+    ALLOCATE(junk_of_col(fm_ncol_local), ncol_local_of_junk(njunk),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    ncol_local_of_chunk=0
-    chunk_of_col=-HUGE(0)
+    ncol_local_of_junk=0
+    junk_of_col=-HUGE(0)
     DO icol=1,fm_ncol_local
        IF (fm_col_indices(icol)>fm_ncol_global) EXIT
-       chunk_of_col(icol)=chunk_of_fm_index(fm_col_indices(icol),fm_ncol_global,&
-            nchunk,error=error)
-       ncol_local_of_chunk(chunk_of_col(icol))=ncol_local_of_chunk(chunk_of_col(icol))+1
+       junk_of_col(icol)=junk_of_fm_index(fm_col_indices(icol),fm_ncol_global,&
+            njunk,error=error)
+       ncol_local_of_junk(junk_of_col(icol))=ncol_local_of_junk(junk_of_col(icol))+1
     END DO
 
     ! processor that should receive the given full matrix row
@@ -2148,12 +2148,12 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
     f2c_send_count=0
-    DO ichunk=1,nchunk
+    DO ijunk=1,njunk
        DO irow=1,fm_nrow_local
           ipcol=pcol_of_fm_row(irow)
-          iprow=chunk_on_prow(ichunk,ipcol)
+          iprow=junk_on_prow(ijunk,ipcol)
           f2c_send_count(blacs2mpi(iprow,ipcol))=&
-               f2c_send_count(blacs2mpi(iprow,ipcol))+ncol_local_of_chunk(ichunk)
+               f2c_send_count(blacs2mpi(iprow,ipcol))+ncol_local_of_junk(ijunk)
        END DO
     END DO
  
@@ -2170,13 +2170,13 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
   END SUBROUTINE fm_reshuffle_create_layout
 !***************************************************************************
 
-!!****f* cp_sm_fm_interactions/fm2chunk [1.0] *
+!!****f* cp_sm_fm_interactions/fm2junk [1.0] *
 !!
 !!   NAME
-!!     fm2chunk
+!!     fm2junk
 !!
 !!   FUNCTION
-!!     transfer a full matrix from block cyclic format to chunk format
+!!     transfer a full matrix from block cyclic format to junk format
 !!
 !!   NOTES
 !!     -
@@ -2192,44 +2192,44 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
 !!     08.2003 created [j&f]
 !!
 !!*** **********************************************************************
-  SUBROUTINE fm2chunk(sm,fm,chunks,shift,hole_pos,sm_transposed,&
+  SUBROUTINE fm2junk(sm,fm,junks,shift,hole_pos,sm_transposed,&
        alpha,ncol, error)
 
     TYPE(real_matrix_type), POINTER :: sm
     TYPE(cp_fm_type), POINTER :: fm
-    TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: chunks
+    TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: junks
     INTEGER, INTENT(in) :: shift, hole_pos,ncol
     LOGICAL,INTENT(in) :: sm_transposed
     REAL(kind=wp), INTENT(in) :: alpha
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    INTEGER :: fm_ncol_global, ichunk_in_chunks
+    INTEGER :: fm_ncol_global, ijunk_in_junks
     INTEGER :: nprow,npcol,fm_ncol_local, fm_nrow_local, irow2,bsize
-    INTEGER :: nchunk,chunk_size
-    INTEGER :: nchunk_local_in,nchunk_local_out, fm_nprow, fm_npcol
+    INTEGER :: njunk,junk_size
+    INTEGER :: njunk_local_in,njunk_local_out, fm_nprow, fm_npcol
 
-    CHARACTER(len=*), PARAMETER :: routineN='fm2chunk',&
+    CHARACTER(len=*), PARAMETER :: routineN='fm2junk',&
          routineP=moduleN//':'//routineN
     LOGICAL :: failure
     INTEGER :: myprow,mypcol, stat, handle, handle2,&
-         ip,icol,irow,ipcol,iprow, ichunk,&
-         ichunk_offset, ichunk_ordered, irow_chunk, iblock_atomic,&
+         ip,icol,irow,ipcol,iprow, ijunk,&
+         ijunk_offset, ijunk_ordered, irow_junk, iblock_atomic,&
          first_grow,last_grow, row_offset, iblock, iblock_global, col_offset,&
-         chunk_in, chunk_out, iblock_row, iblock_col, sbnrow,sbncol,&
-         chunk_recv_in, chunk_recv_out, row_dest, row_src, col_dest,&
+         junk_in, junk_out, iblock_row, iblock_col, sbnrow,sbncol,&
+         junk_recv_in, junk_recv_out, row_dest, row_src, col_dest,&
          col_src, sm_nblock_row, sm_nblock_col, fm_ncol_block, fm_nrow_block,&
          fm_first_prow, fm_first_pcol, ikind, iblock_min, ikind_min
-    INTEGER, DIMENSION(:), POINTER :: chunk_of_col, ncol_local_of_chunk,&
+    INTEGER, DIMENSION(:), POINTER :: junk_of_col, ncol_local_of_junk,&
          fm_row_indices, fm_col_indices,&
-         gindex_of_chunk,ncol_global_of_chunk,&
+         gindex_of_junk,ncol_global_of_junk,&
          pcol_of_fm_row, send_count, rcv_offsets, rcv_count, send_c, rcv_c,&
          send_offsets,&
          rcv_pos, n_local_atomic_rows, n_local_atomic_cols,sm_last_row,&
          sm_first_row, sm_first_col,sm_last_col, atomic_col_distribution,&
          atomic_row_distribution, multiindex, ordered_local_atomic_cols
     TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER :: local_atomic_rows, local_atomic_cols
-    INTEGER, DIMENSION(:,:), POINTER :: chunk_on_prow, &
-         blacs2mpi, ipcol_of_chunk_col, fm_blacs2mpi
+    INTEGER, DIMENSION(:,:), POINTER :: junk_on_prow, &
+         blacs2mpi, ipcol_of_junk_col, fm_blacs2mpi
     REAL(kind=wp), DIMENSION(:), POINTER :: send_buffer, rcv_buffer
     REAL(kind=wp), DIMENSION(:,:), POINTER :: sparse_block
     REAL(kind=wp) :: flops, alpha_l
@@ -2243,21 +2243,21 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
 #endif
 
     CALL timeset(routineN,"I","",handle)
-    NULLIFY(chunk_of_col, ncol_local_of_chunk,&
+    NULLIFY(junk_of_col, ncol_local_of_junk,&
          fm_row_indices, fm_col_indices,&
-         gindex_of_chunk,ncol_global_of_chunk,&
+         gindex_of_junk,ncol_global_of_junk,&
          pcol_of_fm_row, send_count, send_c, rcv_c,&
          rcv_offsets, rcv_count, send_offsets,&
          rcv_pos, local_atomic_rows, local_atomic_cols,sm_last_row,&
          sm_first_row, sm_first_col,sm_last_col, atomic_col_distribution,&
          atomic_row_distribution, multiindex)
-    NULLIFY(local_atomic_rows, local_atomic_cols, chunk_on_prow, &
-         blacs2mpi, ipcol_of_chunk_col,send_buffer, rcv_buffer,sparse_block,&
+    NULLIFY(local_atomic_rows, local_atomic_cols, junk_on_prow, &
+         blacs2mpi, ipcol_of_junk_col,send_buffer, rcv_buffer,sparse_block,&
          block_node,fm_para_env)
     logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(sm),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(fm),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(chunks),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(junks),cp_failure_level,routineP,error,failure)
 #ifndef __SCALAPACK
     CPAssert(fm%matrix_struct%para_env%num_pe==1,cp_failure_level,routineP,error,failure)
 #endif
@@ -2320,25 +2320,25 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     CPPrecondition(fm_ncol_global>=ncol,cp_failure_level,routineP,error,failure)
     fm_ncol_global=ncol
     
-    nchunk        =lcm(nprow,npcol)
-    IF (nchunk==nprow.OR.nchunk==npcol)nchunk=2*nchunk
-    chunk_size = (fm_ncol_global+nchunk-1)/ nchunk
-    nchunk_local_in = nchunk / nprow
-    nchunk_local_out= nchunk / npcol
+    njunk        =lcm(nprow,npcol)
+    IF (njunk==nprow.OR.njunk==npcol)njunk=2*njunk
+    junk_size = (fm_ncol_global+njunk-1)/ njunk
+    njunk_local_in = njunk / nprow
+    njunk_local_out= njunk / npcol
 
-    CPPrecondition(SIZE(chunks)>=nchunk_local_in+1,cp_failure_level,routineP,error,failure)
-    DO ichunk=1,SIZE(chunks)
-       CPPrecondition(ASSOCIATED(chunks(ichunk)%array),cp_failure_level,routineP,error,failure)
-       CPPrecondition(SIZE(chunks(ichunk)%array,1)==chunk_size,cp_failure_level,routineP,error,failure)
+    CPPrecondition(SIZE(junks)>=njunk_local_in+1,cp_failure_level,routineP,error,failure)
+    DO ijunk=1,SIZE(junks)
+       CPPrecondition(ASSOCIATED(junks(ijunk)%array),cp_failure_level,routineP,error,failure)
+       CPPrecondition(SIZE(junks(ijunk)%array,1)==junk_size,cp_failure_level,routineP,error,failure)
     END DO
 
     CALL fm_reshuffle_create_layout(sm=sm,fm=fm, transpose_layout=sm_transposed, &
          shift=shift,ncol=fm_ncol_global,&
-         gindex_of_chunk=gindex_of_chunk, ncol_global_of_chunk=ncol_global_of_chunk,&
-         ipcol_of_chunk_col=ipcol_of_chunk_col,&
-         chunk_of_col=chunk_of_col, ncol_local_of_chunk=ncol_local_of_chunk, &
+         gindex_of_junk=gindex_of_junk, ncol_global_of_junk=ncol_global_of_junk,&
+         ipcol_of_junk_col=ipcol_of_junk_col,&
+         junk_of_col=junk_of_col, ncol_local_of_junk=ncol_local_of_junk, &
          pcol_of_fm_row=pcol_of_fm_row, f2c_send_count=send_count,&
-         f2c_recv_count=rcv_count, chunk_on_prow=chunk_on_prow, error=error)
+         f2c_recv_count=rcv_count, junk_on_prow=junk_on_prow, error=error)
 
     ALLOCATE(send_offsets(0:fm_para_env%num_pe-1),rcv_offsets(0:fm_para_env%num_pe-1),&
          send_c(0:fm_para_env%num_pe-1),rcv_c(0:fm_para_env%num_pe-1),&
@@ -2362,7 +2362,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
           IF (fm_col_indices(icol)>fm_ncol_global) EXIT
           DO irow=1,fm_nrow_local
              ipcol=pcol_of_fm_row(irow)
-             iprow=chunk_on_prow(chunk_of_col(icol),ipcol)
+             iprow=junk_on_prow(junk_of_col(icol),ipcol)
              ip=blacs2mpi(iprow,ipcol)
              send_offsets(ip)=send_offsets(ip)+1
              send_buffer(send_offsets(ip))=alpha*fm%local_data(irow,icol)
@@ -2375,7 +2375,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
           IF (fm_col_indices(icol)>fm_ncol_global) EXIT
           DO irow=1,fm_nrow_local
              ipcol=pcol_of_fm_row(irow)
-             iprow=chunk_on_prow(chunk_of_col(icol),ipcol)
+             iprow=junk_on_prow(junk_of_col(icol),ipcol)
              ip=blacs2mpi(iprow,ipcol)
              send_offsets(ip)=send_offsets(ip)+1
              send_buffer(send_offsets(ip))=fm%local_data(irow,icol)
@@ -2400,10 +2400,10 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     rcv_pos=rcv_offsets
     
-    IF (gindex_of_chunk(1)+nchunk_local_in > nchunk) THEN
-       ichunk_offset=nchunk-(gindex_of_chunk(1)-1)
+    IF (gindex_of_junk(1)+njunk_local_in > njunk) THEN
+       ijunk_offset=njunk-(gindex_of_junk(1)-1)
     ELSE
-       ichunk_offset=0
+       ijunk_offset=0
     END IF
 
     ! build a globally ordered array of the local_atomic_cols
@@ -2430,13 +2430,13 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     END DO
 
     rcv_c=rcv_count
-    DO ichunk_ordered=1,nchunk_local_in
-       ichunk=MODULO(ichunk_ordered+ichunk_offset-1,nchunk_local_in)+1
-       ichunk_in_chunks=MODULO(ichunk-1+hole_pos,nchunk_local_in+1)+1
+    DO ijunk_ordered=1,njunk_local_in
+       ijunk=MODULO(ijunk_ordered+ijunk_offset-1,njunk_local_in)+1
+       ijunk_in_junks=MODULO(ijunk-1+hole_pos,njunk_local_in+1)+1
 
-       DO icol=1,ncol_global_of_chunk(gindex_of_chunk(ichunk))
-          irow_chunk=0
-          ipcol = ipcol_of_chunk_col(icol,ichunk)
+       DO icol=1,ncol_global_of_junk(gindex_of_junk(ijunk))
+          irow_junk=0
+          ipcol = ipcol_of_junk_col(icol,ijunk)
           DO iblock_atomic=1,SIZE(ordered_local_atomic_cols)
              first_grow=sm_first_col(ordered_local_atomic_cols(iblock_atomic))
              last_grow=sm_last_col(ordered_local_atomic_cols(iblock_atomic))
@@ -2450,20 +2450,20 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
 #endif
              ip=fm_blacs2mpi(iprow,ipcol)
              DO irow=first_grow,MIN(first_grow+bsize-1,last_grow)
-                irow_chunk=irow_chunk+1
+                irow_junk=irow_junk+1
                 rcv_c(ip)=rcv_c(ip)-1
                 rcv_pos(ip)=rcv_pos(ip)+1
-                chunks(ichunk_in_chunks)%array(icol,irow_chunk)=&
+                junks(ijunk_in_junks)%array(icol,irow_junk)=&
                      rcv_buffer(rcv_pos(ip))
              END DO
              DO irow=MIN(first_grow+bsize-1,last_grow)+1,last_grow,fm_nrow_block
                 iprow=MOD(iprow+1,fm_nprow)
                 ip=fm_blacs2mpi(iprow,ipcol)
                 DO irow2=irow,MIN(irow+fm_nrow_block-1,last_grow)
-                   irow_chunk=irow_chunk+1
+                   irow_junk=irow_junk+1
                    rcv_c(ip)=rcv_c(ip)-1
                    rcv_pos(ip)=rcv_pos(ip)+1
-                   chunks(ichunk_in_chunks)%array(icol,irow_chunk)=&
+                   junks(ijunk_in_junks)%array(icol,irow_junk)=&
                         rcv_buffer(rcv_pos(ip))                      
                 END DO
              END DO
@@ -2483,22 +2483,22 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     DEALLOCATE(send_buffer,send_offsets, send_count, send_c, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-    DEALLOCATE(gindex_of_chunk,ncol_global_of_chunk,ipcol_of_chunk_col, &
-         chunk_of_col,ncol_local_of_chunk,pcol_of_fm_row,chunk_on_prow,stat=stat)
+    DEALLOCATE(gindex_of_junk,ncol_global_of_junk,ipcol_of_junk_col, &
+         junk_of_col,ncol_local_of_junk,pcol_of_fm_row,junk_on_prow,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE fm2chunk
+  END SUBROUTINE fm2junk
 !***************************************************************************
 
 
-!!****f* cp_sm_fm_interactions/chunk2fm [1.0] *
+!!****f* cp_sm_fm_interactions/junk2fm [1.0] *
 !!
 !!   NAME
-!!     chunk2fm
+!!     junk2fm
 !!
 !!   FUNCTION
-!!     transfer a full matrix from chunk format to block cyclic format
+!!     transfer a full matrix from junk format to block cyclic format
 !!
 !!   NOTES
 !!     -
@@ -2514,44 +2514,44 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
 !!     08.2003 created [j&f]
 !!
 !!*** **********************************************************************
-  SUBROUTINE chunk2fm(sm,fm,chunks,shift,hole_pos,sm_transposed,beta,ncol,error)
+  SUBROUTINE junk2fm(sm,fm,junks,shift,hole_pos,sm_transposed,beta,ncol,error)
 
     TYPE(real_matrix_type), POINTER :: sm
     TYPE(cp_fm_type), POINTER :: fm
-    TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: chunks
+    TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: junks
     INTEGER, INTENT(in) :: shift, hole_pos,ncol
     LOGICAL,INTENT(in) :: sm_transposed
     REAL(kind=wp), INTENT(in) :: beta
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    INTEGER :: fm_ncol_global, ichunk_in_chunks
+    INTEGER :: fm_ncol_global, ijunk_in_junks
     INTEGER :: nprow,npcol,fm_ncol_local, fm_nrow_local
-    INTEGER :: nchunk,chunk_size
-    INTEGER :: nchunk_local_in,nchunk_local_out
+    INTEGER :: njunk,junk_size
+    INTEGER :: njunk_local_in,njunk_local_out
 
-    CHARACTER(len=*), PARAMETER :: routineN='chunk2fm',&
+    CHARACTER(len=*), PARAMETER :: routineN='junk2fm',&
          routineP=moduleN//':'//routineN
     LOGICAL :: failure
     INTEGER :: myprow,mypcol, stat,handle, handle1,&
-         ip,icol,irow,ipcol,iprow, ichunk,&
-         ichunk_offset, ichunk_ordered, irow_chunk, iblock_atomic,&
+         ip,icol,irow,ipcol,iprow, ijunk,&
+         ijunk_offset, ijunk_ordered, irow_junk, iblock_atomic,&
          irow_global, row_offset, iblock, iblock_global, col_offset,&
-         chunk_in, chunk_out, iblock_row, iblock_col, sbnrow,sbncol,&
-         chunk_recv_in, chunk_recv_out, row_dest, row_src, col_dest,&
+         junk_in, junk_out, iblock_row, iblock_col, sbnrow,sbncol,&
+         junk_recv_in, junk_recv_out, row_dest, row_src, col_dest,&
          col_src, sm_nblock_row, sm_nblock_col, fm_ncol_block, fm_nrow_block,&
          fm_first_prow, fm_first_pcol, fm_nprow, fm_npcol, first_grow, last_grow,&
          bsize, irow2, ikind, iblock_min, ikind_min
-    INTEGER, DIMENSION(:), POINTER :: chunk_of_col, ncol_local_of_chunk,&
+    INTEGER, DIMENSION(:), POINTER :: junk_of_col, ncol_local_of_junk,&
          fm_row_indices, fm_col_indices,&
-         gindex_of_chunk, ncol_global_of_chunk, &
+         gindex_of_junk, ncol_global_of_junk, &
          pcol_of_fm_row, send_count, rcv_offsets,rcv_count,send_offsets,&
          send_c,rcv_c,&
          send_pos, n_local_atomic_rows, n_local_atomic_cols,sm_last_row,&
          sm_first_row, sm_first_col,sm_last_col, atomic_col_distribution,&
          atomic_row_distribution, multiindex, ordered_local_atomic_cols
     TYPE(cp_1d_i_p_type), POINTER, DIMENSION(:) :: local_atomic_rows, local_atomic_cols
-    INTEGER, DIMENSION(:,:), POINTER :: chunk_on_prow, &
-         blacs2mpi, ipcol_of_chunk_col, fm_blacs2mpi
+    INTEGER, DIMENSION(:,:), POINTER :: junk_on_prow, &
+         blacs2mpi, ipcol_of_junk_col, fm_blacs2mpi
     REAL(kind=wp), DIMENSION(:), POINTER :: send_buffer, rcv_buffer
     REAL(kind=wp), DIMENSION(:,:), POINTER :: sparse_block
     REAL(kind=wp) :: flops, alpha_l
@@ -2570,16 +2570,16 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
 #ifndef __SCALAPACK
     CPAssert(fm%matrix_struct%para_env%num_pe==1,cp_failure_level,routineP,error,failure)
 #endif
-    NULLIFY(chunk_of_col, ncol_local_of_chunk,&
+    NULLIFY(junk_of_col, ncol_local_of_junk,&
          fm_row_indices, fm_col_indices,&
-         gindex_of_chunk, ncol_global_of_chunk, &
+         gindex_of_junk, ncol_global_of_junk, &
          pcol_of_fm_row, send_count,send_c,rcv_c,&
          rcv_offsets, rcv_count, send_offsets,&
          send_pos, n_local_atomic_rows, n_local_atomic_cols,sm_last_row,&
          sm_first_row, sm_first_col,sm_last_col, atomic_col_distribution,&
          atomic_row_distribution, multiindex)
-    NULLIFY(local_atomic_rows, local_atomic_cols, chunk_on_prow, &
-         blacs2mpi, ipcol_of_chunk_col,send_buffer, rcv_buffer,sparse_block,&
+    NULLIFY(local_atomic_rows, local_atomic_cols, junk_on_prow, &
+         blacs2mpi, ipcol_of_junk_col,send_buffer, rcv_buffer,sparse_block,&
          block_node,fm_para_env)
     logger => cp_error_get_logger(error)
     IF (.NOT.sm_transposed) THEN
@@ -2640,20 +2640,20 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     CPPrecondition(fm_ncol_global>=ncol,cp_failure_level,routineP,error,failure)
     fm_ncol_global=ncol
     
-    nchunk        =lcm(nprow,npcol)
-    IF (nchunk==nprow.OR.nchunk==npcol)nchunk=2*nchunk
-    chunk_size = (fm_ncol_global+nchunk-1)/ nchunk
-    nchunk_local_in = nchunk / nprow
-    nchunk_local_out= nchunk / npcol
+    njunk        =lcm(nprow,npcol)
+    IF (njunk==nprow.OR.njunk==npcol)njunk=2*njunk
+    junk_size = (fm_ncol_global+njunk-1)/ njunk
+    njunk_local_in = njunk / nprow
+    njunk_local_out= njunk / npcol
 
     CALL fm_reshuffle_create_layout(sm=sm,fm=fm, transpose_layout=sm_transposed,&
          shift=shift,ncol=fm_ncol_global,&
-         gindex_of_chunk=gindex_of_chunk, ncol_global_of_chunk=ncol_global_of_chunk,&
-         ipcol_of_chunk_col=ipcol_of_chunk_col,&
-         chunk_of_col=chunk_of_col, ncol_local_of_chunk=ncol_local_of_chunk, &
+         gindex_of_junk=gindex_of_junk, ncol_global_of_junk=ncol_global_of_junk,&
+         ipcol_of_junk_col=ipcol_of_junk_col,&
+         junk_of_col=junk_of_col, ncol_local_of_junk=ncol_local_of_junk, &
          pcol_of_fm_row=pcol_of_fm_row, f2c_send_count=rcv_count,&
          f2c_recv_count=send_count,&
-         chunk_on_prow=chunk_on_prow, error=error)
+         junk_on_prow=junk_on_prow, error=error)
 
     ALLOCATE(send_offsets(0:fm_para_env%num_pe-1),rcv_offsets(0:fm_para_env%num_pe-1),&
          send_c(0:fm_para_env%num_pe-1),rcv_c(0:fm_para_env%num_pe-1),&
@@ -2675,10 +2675,10 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     send_pos=send_offsets
 
-    IF (gindex_of_chunk(1)+nchunk_local_in > nchunk) THEN
-       ichunk_offset=nchunk-(gindex_of_chunk(1)-1)
+    IF (gindex_of_junk(1)+njunk_local_in > njunk) THEN
+       ijunk_offset=njunk-(gindex_of_junk(1)-1)
     ELSE
-       ichunk_offset=0
+       ijunk_offset=0
     END IF
 
     ! build a globally ordered array of the local_atomic_cols
@@ -2705,13 +2705,13 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     END DO
 
     send_c=send_count
-    DO ichunk_ordered=1,nchunk_local_in
-       ichunk=MODULO(ichunk_ordered+ichunk_offset-1,nchunk_local_in)+1
-       ichunk_in_chunks=MODULO(ichunk+hole_pos-1,nchunk_local_in+1)+1
+    DO ijunk_ordered=1,njunk_local_in
+       ijunk=MODULO(ijunk_ordered+ijunk_offset-1,njunk_local_in)+1
+       ijunk_in_junks=MODULO(ijunk+hole_pos-1,njunk_local_in+1)+1
 
-       DO icol=1,ncol_global_of_chunk(gindex_of_chunk(ichunk))
-          irow_chunk=0
-          ipcol = ipcol_of_chunk_col(icol,ichunk)
+       DO icol=1,ncol_global_of_junk(gindex_of_junk(ijunk))
+          irow_junk=0
+          ipcol = ipcol_of_junk_col(icol,ijunk)
           DO iblock_atomic=1,SIZE(ordered_local_atomic_cols)
              first_grow=sm_first_col(ordered_local_atomic_cols(iblock_atomic))
              last_grow=sm_last_col(ordered_local_atomic_cols(iblock_atomic))
@@ -2725,21 +2725,21 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
 #endif
              ip=fm_blacs2mpi(iprow,ipcol)
              DO irow=first_grow,MIN(first_grow+bsize-1,last_grow)
-                irow_chunk=irow_chunk+1
+                irow_junk=irow_junk+1
                 send_c(ip)=send_c(ip)-1
                 send_pos(ip)=send_pos(ip)+1
                 send_buffer(send_pos(ip))=&
-                     chunks(ichunk_in_chunks)%array(icol,irow_chunk)
+                     junks(ijunk_in_junks)%array(icol,irow_junk)
              END DO
              DO irow=MIN(first_grow+bsize-1,last_grow)+1,last_grow,fm_nrow_block
                 iprow=MOD(iprow+1,fm_nprow)
                 ip=fm_blacs2mpi(iprow,ipcol)
                 DO irow2=irow,MIN(irow+fm_nrow_block-1,last_grow)
-                irow_chunk=irow_chunk+1
+                irow_junk=irow_junk+1
                 send_c(ip)=send_c(ip)-1
                 send_pos(ip)=send_pos(ip)+1
                 send_buffer(send_pos(ip))=&
-                     chunks(ichunk_in_chunks)%array(icol,irow_chunk)
+                     junks(ijunk_in_junks)%array(icol,irow_junk)
                 END DO
              END DO
              
@@ -2762,7 +2762,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
           IF (fm_col_indices(icol)>fm_ncol_global) EXIT
           DO irow=1,fm_nrow_local
              ipcol=pcol_of_fm_row(irow)
-             iprow=chunk_on_prow(chunk_of_col(icol),ipcol)
+             iprow=junk_on_prow(junk_of_col(icol),ipcol)
              ip=blacs2mpi(iprow,ipcol)
              rcv_offsets(ip)=rcv_offsets(ip)+1
              fm%local_data(irow,icol)=beta*fm%local_data(irow,icol)+rcv_buffer(rcv_offsets(ip))
@@ -2775,7 +2775,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
           IF (fm_col_indices(icol)>fm_ncol_global) EXIT
           DO irow=1,fm_nrow_local
              ipcol=pcol_of_fm_row(irow)
-             iprow=chunk_on_prow(chunk_of_col(icol),ipcol)
+             iprow=junk_on_prow(junk_of_col(icol),ipcol)
              ip=blacs2mpi(iprow,ipcol)
              rcv_offsets(ip)=rcv_offsets(ip)+1
              fm%local_data(irow,icol)=rcv_buffer(rcv_offsets(ip))
@@ -2793,13 +2793,13 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     DEALLOCATE(send_buffer,send_offsets, send_count,send_c,send_pos, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-    DEALLOCATE(chunk_on_prow,ipcol_of_chunk_col,chunk_of_col,ncol_local_of_chunk, &
-        gindex_of_chunk,ncol_global_of_chunk,pcol_of_fm_row, stat=stat)
+    DEALLOCATE(junk_on_prow,ipcol_of_junk_col,junk_of_col,ncol_local_of_junk, &
+        gindex_of_junk,ncol_global_of_junk,pcol_of_fm_row, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
     CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE chunk2fm
+  END SUBROUTINE junk2fm
 !***************************************************************************
 
 END MODULE cp_sm_fm_interactions
