@@ -2251,8 +2251,8 @@ void parwarn(char *meldung, ...){
   va_list args;
 
   va_start(args,meldung); fflush(stdout);
-  fprintf(stderr,"%s: ",command);
-  vfprintf(stderr,meldung,args); fprintf(stderr,"\n"); fflush(stderr);
+  fprintf(stdout,"%s: ",command);
+  vfprintf(stdout,meldung,args); fprintf(stdout,"\n"); fflush(stdout);
   va_end(args);			/* clear-up arg-list */
 }
 
