@@ -102,7 +102,8 @@ MODULE cp_fm_basic_linalg
 
   PUBLIC :: cp_fm_add, cp_sm_fm_multiply, cp_sm_plus_fm_fm_t,&
        cp_fm_gemm, cp_fm_symm, cp_fm_syrk, cp_fm_schur_product,&
-       cp_fm_trace, cp_fm_triangular_multiply, cp_fm_lu_decompose
+       cp_fm_trace, cp_fm_triangular_multiply, cp_fm_lu_decompose, &
+       cp_fm_scale
 !!***
 !****************************************************************************
 CONTAINS
@@ -846,5 +847,41 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
   CALL timestop(0.0_wp,handle)     
   END SUBROUTINE cp_fm_triangular_multiply
 !***************************************************************************
+
+  SUBROUTINE cp_fm_scale(alpha, matrix_a, error)
+
+    TYPE(cp_full_matrix_type), POINTER           :: matrix_a
+    REAL(wp), INTENT(IN)                         :: alpha
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+
+    !   *** Local variables ***
+
+    INTEGER                           :: size_a, handle
+    REAL(wp), DIMENSION(:,:), POINTER :: a
+
+    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_scale',&
+                                   routineP=moduleN//':'//routineN
+    LOGICAL :: failure
+
+    !   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I","",handle)
+
+    failure=.FALSE.
+    NULLIFY(a)
+
+    CPPrecondition(ASSOCIATED(matrix_a),cp_failure_level,routineP,error,failure)
+    CPPrecondition(matrix_a%ref_count>0,cp_failure_level,routineP,error,failure)
+
+    a => matrix_a%local_data
+    size_a = size(a,1)*size(a,2)
+
+    CALL DSCAL(size_a, alpha, a, 1)
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE cp_fm_scale
+
+! *****************************************************************************
 
 END MODULE cp_fm_basic_linalg
