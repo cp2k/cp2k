@@ -1066,7 +1066,7 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
       routineP = moduleN//':'//routineN
     REAL(kind=dp), PARAMETER :: t_1_9 = 1.0_dp/9.0_dp, t_2_3 = 2.0_dp/3.0_dp, &
       t_4_27 = 4.0_dp/27.0_dp, t_4_3 = 4.0_dp/3.0_dp, t_4_9 = 4.0_dp/9.0_dp, &
-      t_8_27 = 8.0_dp/27.0_dp
+      t_8_27 = 8.0_dp/27.0_dp, small=1.0e-20
 
     INTEGER                                  :: ii
     LOGICAL                                  :: failure
@@ -1089,8 +1089,8 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
   cf=0.3_dp*(3._dp*pi*pi)**(2._dp/3._dp)
 
   DO ii=1,npoints
-     my_rhoa=rhoa(ii)
-     my_rhob=rhob(ii)
+     my_rhoa=MAX(rhoa(ii),0.0_dp)
+     my_rhob=MAX(rhob(ii),0.0_dp)
      my_rho=my_rhoa+my_rhob
      IF (my_rho>epsilon_rho) THEN
      my_ndrho=norm_drho(ii)
