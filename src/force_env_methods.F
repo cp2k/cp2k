@@ -155,7 +155,7 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
 
   failure=.FALSE.
   need_f=.TRUE.
-  if (present(calc_force)) need_f=calc_force
+  IF (PRESENT(calc_force)) need_f=calc_force
 
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
@@ -552,19 +552,22 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys_qm,subsys_mm
   INTEGER, DIMENSION(:), POINTER :: qm_atom_index, qm_subsys_index
   INTEGER :: ip, isubsys
+  INTEGER, PARAMETER :: fist_subsys = 1, qs_subsys = 2
   TYPE(particle_type), DIMENSION(:), POINTER :: particles_qm, particles_mm
   REAL(KIND=dp), DIMENSION(3) :: min_coord,max_coord,transl_v
   TYPE(cell_type), POINTER :: qm_cell, mm_cell
   REAL(KIND=dp) :: energy_mm, energy_qm
   TYPE(cp_logger_type), pointer :: logger
   TYPE(section_vals_type), POINTER :: print_key, force_env_section, qmmm_section
+  LOGICAL, SAVE :: do_translate=.TRUE.
+  
 
   min_coord=HUGE(0.0_dp)
   max_coord=-HUGE(0.0_dp)
   failure=.false.
-  need_f=.true.
+  need_f=.TRUE.
   logger => cp_error_get_logger(error)
-  if (present(calc_force)) need_f=calc_force
+  IF (PRESENT(calc_force)) need_f=calc_force
   NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm, qm_cell, mm_cell)
   NULLIFY(print_key, force_env_section, qmmm_section)
   force_env_section => &
@@ -577,9 +580,9 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   CPPrecondition(ASSOCIATED(force_env%qmmm_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(force_env%qmmm_env%ref_count>0,cp_failure_level,routineP,error,failure)
   ! transfer position to qm part
-  CALL force_env_get(force_env%sub_force_env(1)%force_env,&
+  CALL force_env_get(force_env%sub_force_env(fist_subsys)%force_env,&
        cell=mm_cell,subsys=subsys_mm,error=error)
-  CALL force_env_get(force_env%sub_force_env(2)%force_env,&
+  CALL force_env_get(force_env%sub_force_env(qs_subsys)%force_env,&
        cell=qm_cell,subsys=subsys_qm,error=error)
   qm_atom_index => force_env%qmmm_env%qm_atom_index
   qm_subsys_index => force_env%qmmm_env%qm_subsys_index
@@ -597,21 +600,30 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
      min_coord=MIN(min_coord,particles_mm(qm_atom_index(ip))%r)
      max_coord=MAX(max_coord,particles_mm(qm_atom_index(ip))%r)
   END DO
-  !
-  ! Always translate all the system in order to centre the QM system in the box
-  !
-  transl_v = (max_coord + min_coord) / 2.0_dp
-  transl_v(1) = transl_v(1) - qm_cell%hmat(1,1)/2.0_dp
-  transl_v(2) = transl_v(2) - qm_cell%hmat(2,2)/2.0_dp
-  transl_v(3) = transl_v(3) - qm_cell%hmat(3,3)/2.0_dp
+  IF (do_translate) THEN
+     !
+     ! The first time we always translate all the system in order 
+     ! to centre the QM system in the box. For DEBUG run_type after
+     ! the first translation nomore translation have to be done !!
+     !
+     transl_v = (max_coord + min_coord) / 2.0_dp
+     transl_v(1) = transl_v(1) - qm_cell%hmat(1,1)/2.0_dp
+     transl_v(2) = transl_v(2) - qm_cell%hmat(2,2)/2.0_dp
+     transl_v(3) = transl_v(3) - qm_cell%hmat(3,3)/2.0_dp
 
-  DO isubsys=1,SIZE(subsys_mm)     
-     particles_mm => subsys_mm(isubsys)%subsys%particles%els
-     DO ip=1,subsys_mm(isubsys)%subsys%particles%n_els
-        particles_mm(ip)%r = &
-             particles_mm(ip)%r - transl_v
+     IF (logger%para_env%mepos==logger%para_env%source) &
+          WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),fmt='(A)')&
+          " Translating the system in order to center the QM fragment in the QM box."
+
+     DO isubsys=1,SIZE(subsys_mm)     
+        particles_mm => subsys_mm(isubsys)%subsys%particles%els
+        DO ip=1,subsys_mm(isubsys)%subsys%particles%n_els
+           particles_mm(ip)%r = &
+                particles_mm(ip)%r - transl_v
+        END DO
      END DO
-  END DO
+     IF (.NOT.force_env%qmmm_env%center_qm_subsys) do_translate = .FALSE.
+  END IF
   !  CALL force_env_write_variables(force_env, 6, .true., error)
   isubsys=-1
   DO ip=1,SIZE(qm_atom_index)
@@ -623,26 +635,24 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   END DO
 
   ! Initialize ks_qmmm_env
-  CALL ks_qmmm_env_rebuild(qs_env=force_env%sub_force_env(2)%force_env%qs_env,&
+  CALL ks_qmmm_env_rebuild(qs_env=force_env%sub_force_env(qs_subsys)%force_env%qs_env,&
        qmmm_env=force_env%qmmm_env,error=error)
 
   ! Compute the short range QM/MM Electrostatic Potential
-  CALL qmmm_el_coupling(globenv=force_env%sub_force_env(2)%force_env%globenv,&
-       qs_env=force_env%sub_force_env(2)%force_env%qs_env,&
+  CALL qmmm_el_coupling(globenv=force_env%sub_force_env(qs_subsys)%force_env%globenv,&
+       qs_env=force_env%sub_force_env(qs_subsys)%force_env%qs_env,&
        qmmm_env=force_env%qmmm_env,&
        mm_particles=particles_mm,&
        mm_cell=mm_cell,&
        error=error)
 
-  !TL
-  ! Fist: isubsys = 1
-  isubsys = 1
-  CALL force_env_calc_energy_force(force_env%sub_force_env(isubsys)%force_env,&
-       calc_force=calc_force,error=error)
+  ! Fist
+  CALL force_env_calc_energy_force(force_env%sub_force_env(fist_subsys)%force_env,&
+       calc_force=need_f,error=error)
   !
   ! Print Out information on fist energy calculation...
   !
-  CALL force_env_get(force_env%sub_force_env(isubsys)%force_env,&
+  CALL force_env_get(force_env%sub_force_env(fist_subsys)%force_env,&
                      potential_energy=energy_mm,&
                      error=error)
   print_key => section_vals_get_subs_vals(qmmm_section,"fist_derivatives",&
@@ -651,21 +661,23 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
        logger%para_env%mepos==logger%para_env%source) THEN
      WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
           fmt='(/1X,A,F15.9)')"Energy after Fist calculation: ",energy_mm
-     WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
-          fmt='(/1X,A)')"Derivatives on all atoms after Fist calculation: "
-     DO ip=1,SIZE(particles_mm)
-        WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
-             fmt='(1X,3F15.9)')particles_mm(ip)%f
-     END DO
+     IF (need_f) THEN
+        WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
+             fmt='(/1X,A)')"Derivatives on all atoms after Fist calculation: "
+        DO ip=1,SIZE(particles_mm)
+           WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
+                fmt='(1X,3F15.9)')particles_mm(ip)%f
+        END DO
+     END IF
   END IF
   !
-  isubsys = 2
-  CALL force_env_calc_energy_force(force_env%sub_force_env(isubsys)%force_env,&
-       calc_force=calc_force,error=error)
+  ! QS
+  CALL force_env_calc_energy_force(force_env%sub_force_env(qs_subsys)%force_env,&
+       calc_force=need_f,error=error)
   !
   ! Print Out information on QS energy calculation...
   !
-  CALL force_env_get(force_env%sub_force_env(isubsys)%force_env,&
+  CALL force_env_get(force_env%sub_force_env(qs_subsys)%force_env,&
                      potential_energy=energy_qm,&
                      error=error)
 
@@ -675,40 +687,28 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
        logger%para_env%mepos==logger%para_env%source) THEN
      WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&  
           fmt='(/1X,A,F15.9)')"Energy after QS calculation: ",energy_qm
-     WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&  
-          fmt='(/1X,A)')"Derivatives on qm atoms after QS calculation: "
-     DO ip=1,SIZE(particles_qm)
-        WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
-             fmt='(1X,3F15.9)')particles_qm(ip)%f
-     END DO
+     IF (need_f) THEN
+        WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&  
+             fmt='(/1X,A)')"Derivatives on qm atoms after QS calculation: "
+        DO ip=1,SIZE(particles_qm)
+           WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
+                fmt='(1X,3F15.9)')particles_qm(ip)%f
+        END DO
+     END IF
   END IF
   !
   ! QM/MM Interaction Potential forces
   !
-  CALL qmmm_forces(force_env%sub_force_env(2)%force_env%qs_env,&
+  CALL qmmm_forces(force_env%sub_force_env(qs_subsys)%force_env%qs_env,&
        force_env%qmmm_env,particles_mm,&
        mm_cell=mm_cell,&
        calc_force=need_f,error=error)
   !
   ! Print Out information on QS energy calculation...
   !
-  CALL force_env_get(force_env%sub_force_env(isubsys)%force_env,&
+  CALL force_env_get(force_env%sub_force_env(qs_subsys)%force_env,&
                      potential_energy=energy_qm,&
                      error=error)
-
-  print_key => section_vals_get_subs_vals(qmmm_section,"qmmm_derivatives",&
-       error=error)
-  IF (cp_should_output(logger%iter_info,print_key,error=error).AND.&
-       logger%para_env%mepos==logger%para_env%source) THEN
-     WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&  
-          fmt='(/1X,A,F15.9)')"Energy after QMMM calculation: ",energy_qm
-     WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
-          fmt='(/1X,A)')"Derivatives on all atoms after QMMM calculation: "
-     DO ip=1,SIZE(particles_mm)
-        WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
-             fmt='(1X,3F15.9)')particles_mm(ip)%f
-     END DO
-  END IF
 
   IF (need_f) THEN
      isubsys=-1
@@ -720,6 +720,22 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
         particles_mm(qm_atom_index(ip))%f=particles_mm(qm_atom_index(ip))%f+&
              particles_qm(ip)%f
      END DO
+  END IF
+
+  print_key => section_vals_get_subs_vals(qmmm_section,"qmmm_derivatives",&
+       error=error)
+  IF (cp_should_output(logger%iter_info,print_key,error=error).AND.&
+       logger%para_env%mepos==logger%para_env%source) THEN
+     WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&  
+          fmt='(/1X,A,F15.9)')"Energy after QMMM calculation: ",energy_qm
+     IF (need_f) THEN
+        WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
+             fmt='(/1X,A)')"Derivatives on all atoms after QMMM calculation: "
+        DO ip=1,SIZE(particles_mm)
+           WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
+                fmt='(1X,3F15.9)')particles_mm(ip)%f
+        END DO
+     END IF
   END IF
 
 END SUBROUTINE qmmm_energy_and_forces

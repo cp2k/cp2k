@@ -234,7 +234,7 @@ CONTAINS
 
     INTEGER                                  :: handle, Imm, IndMM, ispin, &
                                                 stat
-    LOGICAL                                  :: failure, needs_f
+    LOGICAL                                  :: failure, need_f
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces
     TYPE(coeff_type), POINTER                :: rho_core
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -250,7 +250,8 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    needs_f = PRESENT(calc_force)
+    need_f = .TRUE.
+    IF (PRESENT(calc_force)) need_f = calc_force
     NULLIFY(ks_qmmm_env_loc, rho, pw_env, rho_tot_r, energy, Forces,input_section)
     CALL get_qs_env(qs_env=qs_env,&
          rho=rho,&
@@ -281,7 +282,7 @@ CONTAINS
     energy%total = energy%total +  energy%qmmm_nu
     WRITE(6,'(T3,A,F15.9)')" QM/MM Nuclear Electrostatic Potential :",energy%qmmm_nu
     WRITE(6,'(T3,A,F15.9)')" Total Energy after the QM/MM Calculation :",energy%total
-    IF (needs_f) THEN
+    IF (need_f) THEN
        ALLOCATE(Forces(qmmm_env%num_mm_atoms,3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        !
@@ -365,7 +366,9 @@ CONTAINS
        !
        DO Imm = 1, qmmm_env%num_mm_atoms
           IndMM = qmmm_env%mm_atom_index(Imm)
-          mm_particles(IndMM)%f(:) = Forces(Imm,:) + mm_particles(IndMM)%f(:)
+          ! Hack: In Forces there the gradients indeed...
+          ! Minux sign to take care of this misunderstanding...
+          mm_particles(IndMM)%f(:) = - Forces(Imm,:) + mm_particles(IndMM)%f(:)
        END DO
        DEALLOCATE(Forces, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1204,7 +1207,7 @@ CONTAINS
                                                 mm_cell=mm_cell,&
                                                 error=error)
              CASE(do_qmmm_none)          
-                EXIT Atoms
+                CYCLE Diff
              CASE DEFAULT
                 WRITE(6,'(T3,A)')"Unknown Coupling..."
                 CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -1224,11 +1227,11 @@ CONTAINS
        DO I =  1, num_mm_atoms
           IndMM = mm_atom_index(I)
           Err = 0.0_dp
-          IF (ALL(Num_Forces/= 0.0_dp)) THEN 
-             Err(1) = (Analytical_Forces(I,1)-Num_Forces(I,1))/Num_Forces(I,1)*100.0_dp
-             Err(2) = (Analytical_Forces(I,2)-Num_Forces(I,2))/Num_Forces(I,2)*100.0_dp
-             Err(3) = (Analytical_Forces(I,3)-Num_Forces(I,3))/Num_Forces(I,3)*100.0_dp
-          END IF
+          DO K = 1, 3
+             IF (ABS(Num_Forces(I,K)) >= 1.0E-6_dp) THEN 
+                Err(K) = (Analytical_Forces(I,K)-Num_Forces(I,K))/Num_Forces(I,K)*100.0_dp
+             END IF
+          END DO
           WRITE(*,100)IndMM,Analytical_Forces(I,1),Err(1),&
                             Analytical_Forces(I,2),Err(2),&
                             Analytical_Forces(I,3),Err(3) 

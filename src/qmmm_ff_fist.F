@@ -78,13 +78,14 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
 
-    LOGICAL :: explicit
+    LOGICAL :: explicit, failure
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_coordinate_control', &
          routineP = moduleN//':'//routineN
     TYPE(section_vals_type), POINTER :: qmmm_section
     INTEGER                                  :: handle, iw, iatm,ikind,nkind
     INTEGER, DIMENSION(:), POINTER :: mm_indexes
     
+    failure = .FALSE.
     iw = globenv%scr
     CALL write_checkpoint_information("entering "//routineN,globenv)
     CALL timeset(routineN,'I','',handle)
@@ -111,8 +112,9 @@ CONTAINS
           END DO
        END DO
     ELSE
-       IF((globenv%ionode).AND.(globenv%print%level>0))THEN
-          WRITE(iw,*) "  Exiting  qmmm_coordinate_control:: Skipping QMMM modifications! "
+       IF(globenv%ionode)THEN
+          WRITE(iw,*) "  QMMM calculation requested but namelist not present in input file!"
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END IF
     END IF
 

@@ -118,7 +118,8 @@ MODULE qmmm_init
        section_describe_html, section_describe_index_html, section_vals_type,&
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
   USE input_cp2k, ONLY: RADIUS_QMMM_DEFAULT
-
+  USE fist_environment_types, ONLY: set_fist_env
+  
   IMPLICIT NONE
   PRIVATE
 
@@ -195,15 +196,17 @@ CONTAINS
        DO isubf=1,2
           NULLIFY(sub_force_env(isubf)%force_env)
        END DO
-
        ! Create QM/MM Environment..
        CALL qmmm_env_create(qmmm_env,error=error)
+
+       ! Center the qm subsys into the qm box
+       IF (globenv%run_type == "DEBUG") qmmm_env%center_qm_subsys = .FALSE.
 
        ! First Initialize Fist...
        globenv%program_name="FIST"       
        CALL fist_create_force_env(sub_force_env(1)%force_env, &
-            globenv, error=error)
- 
+            globenv, qmmm=.TRUE., error=error)
+
        CALL force_env_get(sub_force_env(1)%force_env,subsys=subsys_mm,&
             cell=mm_cell,error=error) 
        CPPrecondition(SIZE(subsys_mm)==1,cp_failure_level,routineP,error,failure)
@@ -273,7 +276,7 @@ CONTAINS
        CALL set_qs_env(qs_env,input=force_env_section,error=error)
 
        CALL qs_init_subsys(qs_env,subsystem=subsys_qm,cell=qm_cell_small,&
-            cell_ref=qm_cell_small, use_ref_cell=.FALSE.,qmmm=.true.,&
+            cell_ref=qm_cell_small, use_ref_cell=.FALSE.,qmmm=.TRUE.,&
             globenv=globenv,&
             error=error)
 

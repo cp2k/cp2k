@@ -193,8 +193,9 @@ CONTAINS
        CASE DEFAULT
           DEALLOCATE(qmmm_env%Potentials(K)%Pot)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+          NULLIFY(qmmm_env%Potentials(K)%Pot)
           WRITE(*,'(A)')" QMMM Potential - Spline Interpolation - not Initialized!"
-          EXIT Potential_Type
+          CYCLE Potential_Type
        END SELECT
 
        NULLIFY(mm_atom_index)

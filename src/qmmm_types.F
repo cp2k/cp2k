@@ -99,16 +99,17 @@ MODULE qmmm_types
 
   TYPE qmmm_env_type
      INTEGER :: ref_count, id_nr
+     LOGICAL                                                 :: center_qm_subsys
      INTEGER                                                 :: qmmm_coupl_type
      INTEGER                                                 :: num_qm_atoms
      INTEGER                                                 :: num_mm_atoms
-     REAL(KIND=dp)                                          :: eps_mm_rspace
-     REAL(KIND=dp), DIMENSION(:), POINTER                   :: maxradius
+     REAL(KIND=dp)                                           :: eps_mm_rspace
+     REAL(KIND=dp), DIMENSION(:), POINTER                    :: maxradius
      INTEGER,        DIMENSION(:), POINTER                   :: qm_subsys_index
      INTEGER,        DIMENSION(:), POINTER                   :: qm_atom_index
      INTEGER,        DIMENSION(:), POINTER                   :: mm_atom_index
-     REAL(KIND=dp), DIMENSION(:), POINTER                   :: mm_atom_chrg
-     REAL(KIND=dp), DIMENSION(:), POINTER                   :: mm_el_pot_radius
+     REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_atom_chrg
+     REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius
      TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER            :: Potentials
      TYPE(gridlevel_info_type)                               :: gridlevel_info
      TYPE(qmmm_gaussian_p_type), DIMENSION(:),POINTER        :: pgfs
@@ -161,6 +162,7 @@ SUBROUTINE qmmm_env_create(qmmm_env, error)
              qmmm_env%mm_atom_index,qmmm_env%mm_atom_chrg,&
              qmmm_env%pgfs, qmmm_env%maxradius,&
              qmmm_env%aug_pools, qmmm_env%potentials )
+     qmmm_env%center_qm_subsys = .TRUE.
      qmmm_env%qmmm_coupl_type=do_qmmm_none
      qmmm_env%num_qm_atoms=0
      qmmm_env%num_mm_atoms=0

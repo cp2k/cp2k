@@ -115,7 +115,6 @@ CONTAINS
        IF (Ival.EQ.Nval) EXIT search_loop
        CALL search_object(Ftarget,.TRUE.,found,line)
        IF (Found) THEN
-          Ival = Ival + 1
 !
 ! Structure example of the MM fit potential file:
 !
@@ -131,7 +130,6 @@ CONTAINS
 !           0.0790169  4.82046   Bohr
 !           &END
 !
-
           CALL read_object  (Ftarget,newline=.TRUE.)
           CPPostcondition(TRIM(Ftarget)=="RADIUS",cp_failure_level,routineP,error,Failure)
           CALL read_object  (radius)
@@ -148,10 +146,9 @@ CONTAINS
              END IF
           END DO Radius_Loop
           IF (.NOT.Found_Radius) THEN
-             WRITE(*,'(A,F12.6,A)')"Discrepancies in Radius: ",Radius," definition." 
-             CALL stop_parser(routine=routineN,message="ERROR IN READ_MM_POTENTIAL: "&
-                  //"RADIUS FIELD IN QMMM_GAUSSIAN_TYPE NOT FOUND!")   
+             CYCLE search_loop
           END IF
+          Ival = Ival + 1
           IRad = J          
           ! Read  Rmin, Rmax
           CALL read_object(qmmm_gaussian_fns(J)%pgf%Number_of_Gaussians,newline=.TRUE.)
@@ -173,7 +170,8 @@ CONTAINS
           END DO
        ELSE
 !       *** Stop program, if the end of file is reached ***
-          CALL stop_program(routineN,moduleN,__LINE__,"Error in MM_POTENTIAL file",globenv)
+          WRITE(*,'(A,F12.6,A)')"Discrepancies in Radius: ",Radius," definition." 
+          CALL stop_program(routineN,moduleN,__LINE__,"Radius Value not found in MM_POTENTIAL file",globenv)
        END IF
        
     END DO search_loop

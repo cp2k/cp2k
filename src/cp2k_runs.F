@@ -81,6 +81,7 @@ MODULE cp2k_runs
        check_cp2k_input, parsed_cp2k_input
   USE cp_parser, ONLY: cp_parser_type, parser_create, parser_release
   USE input_parsing, only: section_vals_parse
+  USE qs_debug, ONLY: qs_debug_energy_and_forces
   IMPLICIT NONE
 
   PRIVATE
@@ -246,6 +247,8 @@ CONTAINS
                 CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
                      error=error)
                 CALL tddfpt_calculation(force_env%qs_env, globenv) 
+             CASE ("DEBUG")
+                CALL qs_debug_energy_and_forces(force_env, globenv, error=error)
              CASE DEFAULT
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                      "Invalid run TYPE <"//TRIM(globenv%run_type)//"> was specified, "//&
@@ -273,8 +276,6 @@ CONTAINS
 
                 CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
                      error=error)
-                !        CASE ("DEBUG")
-                !           CALL kg_debug(force_env,error=error)
              END SELECT
              CALL force_env_release(force_env, error=error)
           END IF

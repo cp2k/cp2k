@@ -76,7 +76,8 @@ MODULE cp_control_utils
                                              geo_opt_run,&
                                              mc_run,&
                                              md_run,&
-                                             parsed_cp2k_input
+                                             parsed_cp2k_input,&
+                                             qs_debug
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_get_subs_vals2,&
                                              section_vals_type,&
@@ -393,7 +394,7 @@ CONTAINS
     SELECT CASE (run_id)!FM to rm, ugly!!
     CASE (energy_run,mc_run,energy_force_run)
       dft_control%forces = .FALSE.
-    CASE (md_run,geo_opt_run,electronic_spectra_run)
+    CASE (md_run,geo_opt_run,electronic_spectra_run,qs_debug)
       dft_control%forces = .TRUE.
     CASE DEFAULT
       CALL stop_program(routine,"unknown run type "//TRIM(globenv%run_type))
@@ -551,7 +552,7 @@ CONTAINS
     SELECT CASE (globenv%run_type)
     CASE ("WAVEFUNCTION OPTIMIZATION","MONTE CARLO","ELECTRONIC SPECTRA")
       dft_control%forces = .FALSE.
-    CASE ("MOLECULAR DYNAMICS","GEOMETRY OPTIMIZATION")
+    CASE ("MOLECULAR DYNAMICS","GEOMETRY OPTIMIZATION","DEBUG")
       dft_control%forces = .TRUE.
     CASE DEFAULT
       CALL stop_program(routine,"unknown run type "//TRIM(globenv%run_type))

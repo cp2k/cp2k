@@ -78,7 +78,7 @@ MODULE input_cp2k
   INTEGER, PARAMETER, PUBLIC :: md_init_start=101,md_pos_restart=102,&
        md_pov_vel_restart=103
   INTEGER, PARAMETER, public :: energy_run=1,energy_force_run=2,&
-       md_run=3, geo_opt_run=4,mc_run=5,electronic_spectra_run=6
+       md_run=3, geo_opt_run=4,mc_run=5, electronic_spectra_run=6, qs_debug=7
   INTEGER, PARAMETER, public :: atomic_guess=1,restart_guess=2,random_guess=3,&
        core_guess=4
   INTEGER, PARAMETER, public :: pw_interp=1,linear_interp=2,&
@@ -610,10 +610,10 @@ contains
          default_i_val=energy_force_run,&
          enum_c_vals=s2a( "ENERGY", "ENERGY_FORCE", "MD", "MOLECULAR_DYNAMICS",&
          "GEO_OPT", "GEOMETRY_OPTIMIZATION", "MC", "MONTECARLO",&
-         "SPECTRA", "ELECTRONIC_SPECTRA"),&
+         "SPECTRA", "ELECTRONIC_SPECTRA", "DEBUG"),&
          enum_i_vals=(/energy_run,energy_force_run,md_run,md_run,&
          geo_opt_run,geo_opt_run,mc_run,mc_run,&
-         electronic_spectra_run,electronic_spectra_run/),&
+         electronic_spectra_run,electronic_spectra_run, qs_debug/),&
          error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
