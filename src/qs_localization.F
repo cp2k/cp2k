@@ -1,4 +1,4 @@
-!   CP2K: A general program to perform molecular dynamics simulations         !
+! CP2K: A general program to perform molecular dynamics simulations         !
 
 !!****** cp2k/qs_localization [1.0] *
 !!
@@ -23,6 +23,8 @@
 
 MODULE qs_localization
 ! *****************************************************************************
+  USE atomic_kind_types,               ONLY: atomic_kind_type, &
+                                             get_atomic_kind
   USE coefficient_types,               ONLY: coeff_type
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_lu_decompose
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
@@ -44,6 +46,8 @@ MODULE qs_localization
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE external_potential_types,        ONLY: gth_potential_type, &
+                                             get_potential
   USE global_types,                    ONLY: WANNIER_CRAZY,&
                                              WANNIER_DIRECT,&
                                              WANNIER_JACOBI
@@ -52,7 +56,8 @@ MODULE qs_localization
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_max,&
-                                             mp_minloc
+                                             mp_minloc, & 
+                                             mp_sum
   USE molecule_kind_types,             ONLY: atom_type,&
                                              get_molecule_kind,&
                                              molecule_kind_type
@@ -73,6 +78,7 @@ MODULE qs_localization
                                              direct_mini,&
                                              initialize_weights,&
                                              jacobi_rotations
+  USE qs_parser,                       ONLY: open_file, close_file
   USE simulation_cell,                 ONLY: cell_type,&
                                              pbc
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
@@ -464,13 +470,18 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
     INTEGER :: counter, first_atom, i, iatom, ikind, imol, imol_now, isos, &
       istate, local_location, natom, natom_loc, natom_max, nkind, nmol, nstate
     INTEGER, POINTER                         :: wfc_to_atom_map( : )
-    REAL(KIND=dp)                            :: dr(3), mydist(2), r_pbc( 3 )
+    REAL(KIND=dp)                            :: dr(3), mydist(2), r_pbc( 3 ), dipole(3)
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: dipole_set
+    REAL(KIND=dp), DIMENSION(:),   ALLOCATABLE :: charge_set
     REAL(KIND=dp), POINTER                   :: distance( : ), r( :, : )
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(gth_potential_type), POINTER        :: gth_potential
+    INTEGER                                  :: zeff,output_unit
 
 !---------------------------------------------------------------------------
 !---------------------------------------------------------------------------
@@ -479,6 +490,7 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
   para_env => qs_loc_env % para_env
   local_molecules => qs_loc_env % local_molecules
   nstate = SIZE ( center, 1 )
+
 
   ALLOCATE(wfc_to_atom_map(nstate),STAT=isos)
   IF(isos/=0) CALL stop_memory('wfc_to_molecule','wfc_to_atom_map')
@@ -600,12 +612,78 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
         i = molecule_set(imol_now)%lmi%nstates
         i = i + 1
         molecule_set(imol_now)%lmi%nstates = i
-  
         CALL reallocate(molecule_set(imol_now)%lmi%states,1,i)
         molecule_set(imol_now)%lmi%states(i) = istate
       END IF
     END DO
   END IF
+
+!---------------------------------------------------------------------------
+! figure out dipole of the molecule. 
+! Assume it is neutral (so origin doesn't matter, we take the first atom)
+! if the molecule is larger than half the box there might be a problem folding stuff
+! FIXME this should be moved out of this place
+!---------------------------------------------------------------------------
+  particle_set => qs_loc_env % particle_set
+  para_env => qs_loc_env % para_env
+  local_molecules => qs_loc_env % local_molecules
+  nstate = SIZE ( center, 1 )
+  ALLOCATE(dipole_set(3,SIZE(molecule_set)))
+  ALLOCATE(charge_set(SIZE(molecule_set)))
+  dipole_set=0.0_dp
+  charge_set=0.0_dp
+  nkind = SIZE (local_molecules%n_el)
+  DO ikind=1,nkind ! loop over different molecules
+     nmol = SIZE ( local_molecules%list(ikind)%array )
+     DO imol=1,nmol ! all the molecules of the kind
+        imol_now = local_molecules%list(ikind)%array(imol) ! index in the global array
+        molecule_kind => molecule_set(imol_now)%molecule_kind
+        first_atom = molecule_set(imol_now)%first_atom
+        CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                               natom=natom,atom_list=atom_list)
+        dipole=0.0_dp
+        ! charges of the atoms involved
+        DO iatom=1,natom
+            i=first_atom+iatom-1
+            atomic_kind=>particle_set(i)%atomic_kind
+            CALL get_atomic_kind(atomic_kind,gth_potential=gth_potential)
+            CALL get_potential(gth_potential,zeff=zeff)
+            r_pbc = particle_set(i) % r - particle_set(first_atom) % r
+            r_pbc = pbc ( r_pbc , qs_loc_env%cell )
+            dipole=dipole + zeff*r_pbc
+            charge_set(imol_now)=charge_set(imol_now)+zeff
+        END DO
+        ! charges of the wfc involved
+        DO istate=1,SIZE(molecule_set(imol_now)%lmi%states) 
+           i = molecule_set(imol_now)%lmi%states(istate)
+           r_pbc = center(i,:) - particle_set(first_atom) % r 
+           r_pbc = pbc ( r_pbc , qs_loc_env%cell )
+           dipole=dipole - 2.0_dp * r_pbc ! XXXXXXXXXXXXXXXXXXXX double occupation FIXME XXXXXXXXX (where are the spins?)
+           charge_set(imol_now)=charge_set(imol_now)-2.0_dp
+        ENDDO
+        dipole_set(:,imol_now)=dipole ! a.u.
+     ENDDO
+  ENDDO
+  CALL mp_sum(dipole_set,para_env%group)
+  CALL mp_sum(charge_set,para_env%group)
+  IF (para_env%mepos==para_env%source) THEN
+     CALL open_file(file_name="MOLECULAR_DIPOLES",&
+                        file_action="WRITE",&
+                        file_status="UNKNOWN",&
+                        file_position="APPEND",&
+                        unit_number=output_unit)
+     WRITE(UNIT=output_unit,FMT='(A40)') "# molecule nr, charge, dipole vector, dipole (Debye) "
+     dipole_set=dipole_set*2.541747_dp ! Debye
+     DO I=1,SIZE(dipole_set,2)
+        WRITE(UNIT=output_unit,FMT='(I6,5F12.6)') I,charge_set(I),dipole_set(1:3,I), &
+                                              SQRT(DOT_PRODUCT(dipole_set(1:3,I),dipole_set(1:3,I)))
+     ENDDO
+     CALL close_file(output_unit)
+  ENDIF
+  DEALLOCATE(dipole_set,charge_set)
+!---------------------------------------------------------------------------
+! end of molecular dipole calculation
+!---------------------------------------------------------------------------
 
 !  nkind = SIZE (local_molecules%n_el)
 !  DO ikind=1,nkind
