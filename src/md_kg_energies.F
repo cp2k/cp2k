@@ -21,19 +21,26 @@
 
 MODULE md_kg_energies
   
-!  USE coefficient_types, ONLY : coeff_type
-  USE kg_environment_types, ONLY : kg_thermodynamic_type
-  USE global_types, ONLY: global_environment_type
-  USE kinds, ONLY : dbl
-  USE mathconstants, ONLY : zero
-  USE md, ONLY : simulation_parameters_type, mdio_parameters_type
-  USE message_passing, ONLY : mp_sum, mp_comm_dup
-  USE nose, ONLY : lnhc_parameters_type
-  USE simulation_cell, ONLY : get_cell_param, cell_type
-  USE structure_types, ONLY : structure_type
-  USE termination, ONLY : stop_memory, stop_program
-  USE timings, ONLY : timeset, timestop
-  USE util, ONLY : get_unit
+  USE coefficient_types,                 ONLY : coeff_type
+  USE global_types,                      ONLY : global_environment_type
+  USE kg_environment_types,              ONLY : kg_thermodynamic_type
+  USE kinds,                             ONLY : dbl
+  USE mathconstants,                     ONLY : zero
+  USE md,                                ONLY : simulation_parameters_type,&
+                                                mdio_parameters_type
+  USE md_environment_types,              ONLY : md_environment_type, &
+                                                get_md_env
+  USE message_passing,                   ONLY : mp_sum,&
+                                                mp_comm_dup
+  USE nose,                              ONLY : lnhc_parameters_type
+  USE simulation_cell,                   ONLY : get_cell_param, &
+                                                cell_type
+  USE structure_types,                   ONLY : structure_type
+  USE termination,                       ONLY : stop_memory, &
+                                                stop_program
+  USE timings,                           ONLY : timeset,&
+                                                timestop
+  USE util,                              ONLY : get_unit
 
   IMPLICIT NONE
 
@@ -48,7 +55,7 @@ MODULE md_kg_energies
   CHARACTER ( LEN = 10 ) :: pres_label, e_label, temp_label
   CHARACTER ( LEN = 10 ) :: l_label, vol_label, angl_label
   REAL ( dbl ) :: econs_avg
-  REAL ( dbl ) :: ecore_avg, ehartree_avg, exc_avg, etf_avf
+  REAL ( dbl ) :: ecore_avg, ehartree_avg, exc_avg
   REAL ( dbl ) :: p_conv, temp_conv
   TYPE (average_quantities_type ) :: averages
 
@@ -56,9 +63,9 @@ MODULE md_kg_energies
   INTEGER :: int_group
   CHARACTER (LEN=50) :: crd_file_name, vel_file_name, ptens_file_name, &
                         ener_file_name, temp_file_name, dump_file_name, &
-                        pot_file_name
+                        pot_file_name, coef_file_name
   INTEGER :: crd, vel, pot, ene, tem, scr, coe, pol
-  INTEGER :: icrd, ivel, ipot, iener, itemp, idump, iscreen
+  INTEGER :: icrd, ivel, ipot, iener, itemp, idump, icoef, iscreen
 
   TYPE ( global_environment_type ) :: glob_env
 
@@ -111,8 +118,10 @@ SUBROUTINE set_kg_energies ( globenv, mdio )
   ener_file_name = mdio % ener_file_name
   temp_file_name = mdio % temp_file_name
   dump_file_name = mdio % dump_file_name
+  coef_file_name = mdio % coef_file_name
 
   icrd = mdio % icrd
+  icoef = mdio % icoef
   ivel = mdio % ivel
   ipot = mdio % ipot
   iener = mdio % iener
@@ -181,22 +190,28 @@ END SUBROUTINE set_kg_energies_param
 !******************************************************************************
 
 
-SUBROUTINE md_energy_kg ( itimes, constant, box, nhc_part, &
-                             simpar, struc, thermo )
+SUBROUTINE md_energy_kg ( md_env, thermo )
+
   IMPLICIT NONE
 
 ! Arguments
-  TYPE (cell_type), INTENT ( IN ):: box
+  TYPE ( md_environment_type ), INTENT ( INOUT ) :: md_env
   TYPE (kg_thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  TYPE (simulation_parameters_type ), INTENT ( IN )  :: simpar
-  TYPE (structure_type ), INTENT ( IN ) :: struc
-  TYPE (lnhc_parameters_type ), INTENT ( IN ) :: nhc_part
-  INTEGER, INTENT ( IN ) :: itimes
-  REAL ( dbl ), INTENT ( INOUT ):: constant
 
 ! Locals
-  INTEGER i, j, id, n, l, nnodes, iw, handle
+  
+  INTEGER, POINTER :: itimes
+  REAL (dbl), POINTER :: constant
+  TYPE ( cell_type ), POINTER :: box
+  TYPE ( lnhc_parameters_type ), POINTER :: nhc_part 
+  TYPE ( lnhc_parameters_type ), POINTER :: nhc_coef 
+  TYPE ( simulation_parameters_type ), POINTER :: simpar
+  TYPE ( structure_type ), POINTER :: struc 
+
+  INTEGER i, j, id, n, l, nnodes, ncoef, iw, handle, inuse
   REAL ( dbl ) :: nhc_part_pot, nhc_part_kin
+  REAL ( dbl ) :: coef_temp, coef_kin
+  REAL ( dbl ) :: nhc_coef_pot, nhc_coef_kin
   REAL ( dbl ) :: alpha, epsilon0, qsq, lup, aup
   REAL ( dbl ) :: cons, temp, econs
   REAL ( dbl ), DIMENSION(3) :: cell, ang
@@ -205,8 +220,23 @@ SUBROUTINE md_energy_kg ( itimes, constant, box, nhc_part, &
 !------------------------------------------------------------------------------
 
   CALL timeset ( 'ENERGY', 'E', ' ', handle )
- 
+  CALL get_md_env ( md_env=md_env, itimes=itimes, constant=constant, &
+                            cell=box, simpar=simpar )                  
+  nhc_part => md_env % nhc_part ( 1 )
+  struc => md_env % struc ( 1 )
+
   nnodes = SIZE ( struc % pnode )
+ 
+  IF (ASSOCIATED (struc % coef_vel (1)) ) THEN 
+    nhc_coef => md_env % nhc_coef         
+    inuse = struc % coef_pos ( 1 ) % in_use
+    SELECT CASE ( inuse )
+    CASE ( 402 )
+      ncoef = SIZE ( struc % coef_vel ( 1 ) % ao % cr )
+    CASE ( 401 )
+      ncoef = SIZE ( struc % coef_vel ( 1 ) % pw % cc )
+    END SELECT
+   END IF
 
   IF ( ionode .AND. itimes == 0 ) THEN
      tem = get_unit()
@@ -219,6 +249,10 @@ SUBROUTINE md_energy_kg ( itimes, constant, box, nhc_part, &
      OPEN ( UNIT = vel, FILE = vel_file_name )
      pot = get_unit()
      OPEN ( UNIT = pot, FILE = pot_file_name )
+     IF (ASSOCIATED (struc % coef_vel (1)) ) THEN 
+       coe = get_unit()
+       OPEN ( UNIT = coe, FILE = coef_file_name )
+     END IF
   END IF
 
   iw = scr
@@ -227,6 +261,13 @@ SUBROUTINE md_energy_kg ( itimes, constant, box, nhc_part, &
   
   CALL get_part_temp ( thermo, simpar, temp )
 
+  IF ( ASSOCIATED ( struc % coef_vel ( 1 ) ) ) THEN
+  
+    CALL get_coef_ke ( struc % coef_vel ( 1 ), inuse, ncoef, coef_kin )
+
+    CALL get_coef_temp ( coef_kin, inuse, ncoef, coef_temp )
+
+  ENDIF 
 
   IF (ionode .AND. mod(itimes,itemp)==0) THEN
      WRITE (tem, *) itimes, temp
@@ -243,8 +284,29 @@ SUBROUTINE md_energy_kg ( itimes, constant, box, nhc_part, &
         WRITE (vel,'(i6,3f10.5 )' ) itimes, struc%pnode(i) %p%v
      END DO
   END IF
+
+  IF ( ASSOCIATED ( struc % coef_vel ( 1 ) ) ) THEN
+    IF (ionode .AND. mod(itimes,icoef)==0) THEN
+      SELECT CASE ( struc % coef_pos ( 1 ) % in_use )
+      CASE ( 402 )
+         DO i=1, ncoef
+            WRITE (coe,'(i6,3f20.12 )' ) itimes, struc%coef_pos(1) %ao%cr (i), &
+                   struc%coef_vel(1) %ao%cr (i),  struc%coef_force(1) %ao%cr (i)
+         END DO
+      CASE ( 401 )
+         DO i=1, ncoef
+            WRITE (coe, *) itimes, struc%coef_pos(1)%pw%cc (i), &
+                   struc%coef_vel(1) %pw%cc (i),  struc%coef_force(1) %pw%cc (i)
+         END DO
+      END SELECT
+    END IF
+  END IF
+
   IF ( simpar % ensemble ( 1 : 3 )/= 'NVE' ) &
   CALL get_nhc_energies ( nhc_part, nhc_part_kin, nhc_part_pot )
+
+  IF ( simpar % ensemble_coef ( 1 : 3 )/= 'NVE' ) &
+  CALL get_nhc_energies ( nhc_coef, nhc_coef_kin, nhc_coef_pot )
 
   IF ( simpar % ensemble ( 1 : 3 ) == 'NPT' ) &
   CALL stop_program ( "md_kg_energies", "npt not implemented " )
@@ -255,6 +317,15 @@ SUBROUTINE md_energy_kg ( itimes, constant, box, nhc_part, &
   CASE ( 'NVT')
      cons = thermo%kin + thermo%pot + nhc_part_kin + nhc_part_pot
   END SELECT
+
+  IF  ( ASSOCIATED ( struc % coef_vel ( 1 ) ) ) THEN 
+     SELECT CASE ( simpar % ensemble_coef ( 1 : 3 ) )
+     CASE ( 'NVE')
+        cons = cons + coef_kin
+     CASE ( 'NVT')
+        cons = cons + nhc_coef_kin + nhc_coef_pot + coef_kin
+     END SELECT
+  END IF
 
   IF (itimes==1) THEN
      constant = cons
@@ -279,6 +350,10 @@ SUBROUTINE md_energy_kg ( itimes, constant, box, nhc_part, &
      averages%avexc = thermo%e_xc
      averages%avepot = thermo%pot
      averages%avekin = thermo%kin
+     IF  ( ASSOCIATED ( struc % coef_vel ( 1 ) ) ) THEN 
+       averages%avekinc = coef_kin   
+       averages%avetempc = coef_temp
+     END IF
      econs_avg =  0._dbl
   CASE DEFAULT
      averages%avetemp = (averages%avetemp*real(itimes-1)+temp)/ &
@@ -295,6 +370,12 @@ SUBROUTINE md_energy_kg ( itimes, constant, box, nhc_part, &
           real(itimes)
      averages%avekin = (averages%avekin*real(itimes-1)+thermo%kin)/ &
           real(itimes)
+     IF  ( ASSOCIATED ( struc % coef_vel ( 1 ) ) ) THEN 
+       averages%avekinc = (averages%avekinc*real(itimes-1)+ coef_kin)/ &
+            real(itimes)
+       averages%avetempc = (averages%avetempc*real(itimes-1)+coef_temp)/ &
+            real(itimes)
+     END IF
      econs_avg = econs_avg + abs((cons-constant)/constant)
   END SELECT
 
@@ -328,6 +409,12 @@ SUBROUTINE md_energy_kg ( itimes, constant, box, nhc_part, &
           adjustl(e_label), '= ', thermo%kin
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL TEMPERATURE', &
           adjustl(temp_label), '= ', temp
+     IF  ( ASSOCIATED ( struc % coef_vel ( 1 ) ) ) THEN 
+       WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL COEF KINETIC ENERGY', &
+            adjustl(e_label), '= ', coef_kin
+       WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL COEF TEMPERATURE', &
+            adjustl(temp_label), '= ', coef_temp
+     END IF 
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL VOLUME', &
           adjustl(vol_label), '= ', box%deth
      WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL LNTHS', &
@@ -367,6 +454,12 @@ SUBROUTINE md_energy_kg ( itimes, constant, box, nhc_part, &
           adjustl(e_label), '= ', thermo%kin, averages%avekin
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' TEMPERATURE', &
           adjustl(temp_label), '= ', temp, averages%avetemp
+     IF  ( ASSOCIATED ( struc % coef_vel ( 1 ) ) ) THEN 
+       WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' COEF KINETIC ENERGY', &
+            adjustl(e_label), '= ', coef_kin,  averages%avekinc
+       WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' COEF TEMPERATURE', &
+            adjustl(temp_label), '= ', coef_temp, averages%avetempc
+     END IF
      WRITE ( iw, '( A,A )' ) ' **************************************', &
           '*****************************************'
      WRITE ( iw, '( )' )
@@ -478,22 +571,22 @@ END SUBROUTINE get_part_ke
 
 !******************************************************************************
 !
-!SUBROUTINE get_coef_temp ( ekinc, inuse, ncoef, ctemp )
-!  IMPLICIT NONE
-!  REAL (dbl), INTENT ( IN ) :: ekinc
-!  INTEGER, INTENT ( IN ) :: inuse, ncoef
-!  REAL ( dbl ), INTENT ( OUT ) :: ctemp
+ SUBROUTINE get_coef_temp ( ekinc, inuse, ncoef, ctemp )
+   IMPLICIT NONE
+   REAL (dbl), INTENT ( IN ) :: ekinc
+   INTEGER, INTENT ( IN ) :: inuse, ncoef
+   REAL ( dbl ), INTENT ( OUT ) :: ctemp
 !! locals
 !
-!  SELECT CASE ( inuse )
-!  CASE ( 402 )
-!    ctemp = 2.0_dbl* ekinc / REAL ( ncoef, dbl ) / temp_conv
-!  CASE ( 401 )
-!    ctemp =  ekinc / REAL ( ncoef, dbl ) / temp_conv
-!  CASE DEFAULT
-!     CALL stop_program ( 'get_coef_temp','integrator not implemented')
-!  END SELECT
-!END SUBROUTINE  get_coef_temp
+   SELECT CASE ( inuse )
+   CASE ( 402 )
+     ctemp = 2.0_dbl* ekinc / REAL ( ncoef, dbl ) / temp_conv
+   CASE ( 401 )
+     ctemp =  ekinc / REAL ( ncoef, dbl ) / temp_conv
+   CASE DEFAULT
+      CALL stop_program ( 'get_coef_temp','integrator not implemented')
+   END SELECT
+ END SUBROUTINE  get_coef_temp
 !
 !******************************************************************************
 !!****** md_fist_energies/get_coef_ke [1.0] *
@@ -513,37 +606,38 @@ END SUBROUTINE get_part_ke
 !!   SOURCE
 !******************************************************************************
 !
-!SUBROUTINE get_coef_ke ( coef, inuse, ncoef, ekinc )
-!  IMPLICIT NONE
-!  TYPE ( coeff_type ), INTENT ( IN ) :: coef
-!  INTEGER, INTENT ( IN ) :: inuse, ncoef
-!  REAL ( dbl ), INTENT ( out ) :: ekinc
+ SUBROUTINE get_coef_ke ( coef, inuse, ncoef, ekinc )
+   IMPLICIT NONE
+   TYPE ( coeff_type ), INTENT ( IN ) :: coef
+   INTEGER, INTENT ( IN ) :: inuse, ncoef
+   REAL ( dbl ), INTENT ( out ) :: ekinc
 !
-!  INTEGER :: i
-!  REAL ( dbl ) :: cmass
-!  ekinc = zero
+   INTEGER :: i
+   REAL ( dbl ) :: cmass
+   ekinc = zero
 !
-!  SELECT CASE ( inuse )
-!  CASE ( 402 )
-!    DO i = 1, ncoef 
-!       ekinc = ekinc + 0.5_dbl * coef % ao % mass ( i ) * & 
-!               coef % ao % cr ( i ) * coef % ao % cr ( i )
-!    END DO
-!  CASE ( 401 )
-!    DO i = 1, ncoef 
-!       cmass = coef % pw % mass_cc ( i )
-!       ekinc = ekinc + 0.5_dbl * cmass * &
-!        ( REAL ( coef % pw % cc ( i ) ) * REAL ( coef % pw % cc ( i ) ) + &
-!          AIMAG ( coef % pw % cc ( i ) )* AIMAG ( coef % pw % cc ( i ) ) )
-!    END DO
-!  CASE DEFAULT
-!     CALL stop_program ( 'get_coef_ke','integrator not implemented')
-!  END SELECT 
-!
+   SELECT CASE ( inuse )
+   CASE ( 402 )
+     DO i = 1, ncoef 
+        ekinc = ekinc + 0.5_dbl * coef % ao % mass ( i ) * & 
+                coef % ao % cr ( i ) * coef % ao % cr ( i )
+     END DO
+   CASE ( 401 )
+     DO i = 1, ncoef 
+        cmass = coef % pw % mass_cc ( i )
+        ekinc = ekinc + 0.5_dbl * cmass * &
+         ( REAL ( coef % pw % cc ( i ) ) * REAL ( coef % pw % cc ( i ) ) + &
+           AIMAG ( coef % pw % cc ( i ) )* AIMAG ( coef % pw % cc ( i ) ) )
+     END DO
+   CASE DEFAULT
+      CALL stop_program ( 'get_coef_ke','integrator not implemented')
+   END SELECT 
+ 
 !! sum all contributions to energy over calculated parts on all processors
 !#if defined(__parallel)
 !  CALL mp_sum(ekinc,int_group)
 !#endif
-!END SUBROUTINE get_coef_ke
+ END SUBROUTINE get_coef_ke
 !******************************************************************************
 END MODULE md_kg_energies
+!******************************************************************************
