@@ -933,7 +933,9 @@ CONTAINS
     real(wp) pzyx(lxyz_max)
     real(wp), INTENT(IN) :: alpha(coef_max,lx_max)
 ! help the compiler not to copy the array, but allow optimization on other machines
-#ifdef __PGI
+#if defined(__AIX)
+    real(wp), DIMENSION(:,:,:), POINTER :: grid
+#elif defined(__PGI)
     real(wp), DIMENSION(:,:,:), POINTER :: grid
 #else
     real(wp), INTENT(IN) :: grid(gridbounds(1,1):gridbounds(2,1),&
