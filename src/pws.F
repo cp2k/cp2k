@@ -203,7 +203,7 @@ SUBROUTINE pw_poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress 
     TYPE(coeff_type), INTENT(INOUT), &
       OPTIONAL, TARGET                       :: vhartree
     TYPE(coeff_type), DIMENSION(3), &
-      INTENT(OUT), OPTIONAL                  :: dvhartree
+      INTENT(INOUT), OPTIONAL                :: dvhartree
     REAL(dbl), DIMENSION(3, 3), &
       INTENT(OUT), OPTIONAL                  :: h_stress
 
