@@ -448,9 +448,9 @@ CONTAINS
                         IF (calculate_forces) THEN
                           deab(:) = rab(:)*(eab + f0*EXP(-aab*rab2))/rab2
                           force(ikind)%core_overlap(:,iatom) =&
-                            force(ikind)%core_overlap(:,iatom) - deab(:)
+                            force(ikind)%core_overlap(:,iatom) + deab(:)
                           force(jkind)%core_overlap(:,jatom) =&
-                            force(jkind)%core_overlap(:,jatom) + deab(:)
+                            force(jkind)%core_overlap(:,jatom) - deab(:)
                         END IF
                       END IF
                     END IF
@@ -550,9 +550,9 @@ CONTAINS
                               IF (calculate_forces) THEN
                                 deab(:) = rab(:)*(eab + f0*EXP(-aab*rab2))/rab2
                                 force(ikind)%core_overlap(:,iatom) =&
-                                  force(ikind)%core_overlap(:,iatom) - deab(:)
+                                  force(ikind)%core_overlap(:,iatom) + deab(:)
                                 force(jkind)%core_overlap(:,jatom) =&
-                                  force(jkind)%core_overlap(:,jatom) + deab(:)
+                                  force(jkind)%core_overlap(:,jatom) - deab(:)
                               END IF
                             END IF
                           END IF
