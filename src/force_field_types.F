@@ -171,7 +171,13 @@ MODULE force_field_types
             allocate_impr_kind_set,&
             allocate_onfo_kind_set,&
             init_ff_type,&
-            deallocate_ff_type
+            deallocate_ff_type,&
+            deallocate_bend_kind_set,&
+            deallocate_bond_kind_set,&
+            deallocate_ub_kind_set,&
+            deallocate_torsion_kind_set,&
+            deallocate_impr_kind_set,&
+            deallocate_onfo_kind_set
 
 ! *** Public data types ***
 
@@ -192,13 +198,22 @@ CONTAINS
 
 ! *****************************************************************************
 
+!******************************************************************************
+!!****** force_field_types/allocate_bend_kind_set [1.0] *
+!!
+!!   NAME
+!!     allocate_bend_kind_set
+!!
+!!   FUNCTION
+!!     Allocate and initialize a bend kind set.
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
   SUBROUTINE allocate_bend_kind_set(bend_kind_set,nkind)
-
-!   Purpose: Allocate and initialize a bend kind set.
-
-!   History: - Creation (29.08.2003,MK)
-
-!   ***************************************************************************
 
     TYPE(bend_kind_type), DIMENSION(:), &
       POINTER                                :: bend_kind_set
@@ -215,7 +230,7 @@ CONTAINS
                                      "bend_kind_set",nkind*int_size)
 
     DO ikind=1,nkind
-      bend_kind_set(ikind)%name = ""
+      bend_kind_set(ikind)%name = "UNSET"
       bend_kind_set(ikind)%k = 0.0_dp
       bend_kind_set(ikind)%theta0 = 0.0_dp
       bend_kind_set(ikind)%kind_number = ikind
@@ -225,13 +240,22 @@ CONTAINS
 
 ! *****************************************************************************
 
+!******************************************************************************
+!!****** force_field_types/allocate_bond_kind_set [1.0] *
+!!
+!!   NAME
+!!     allocate_bond_kind_set
+!!
+!!   FUNCTION
+!!     Allocate and initialize a bond kind set.
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
   SUBROUTINE allocate_bond_kind_set(bond_kind_set,nkind)
-
-!   Purpose: Allocate and initialize a bond kind set.
-
-!   History: - Creation (29.08.2003,MK)
-
-!   ***************************************************************************
 
     TYPE(bond_kind_type), DIMENSION(:), &
       POINTER                                :: bond_kind_set
@@ -248,7 +272,7 @@ CONTAINS
                                      "bond_kind_set",nkind*int_size)
 
     DO ikind=1,nkind
-      bond_kind_set(ikind)%name = ""
+      bond_kind_set(ikind)%name = "UNSET"
       bond_kind_set(ikind)%k = 0.0_dp
       bond_kind_set(ikind)%r0 = 0.0_dp
       bond_kind_set(ikind)%kind_number = ikind
@@ -258,13 +282,22 @@ CONTAINS
 
 ! *****************************************************************************
 
+!******************************************************************************
+!!****** force_field_types/allocate_torsion_kind_set [1.0] *
+!!
+!!   NAME
+!!     allocate_torsion_kind_set
+!!
+!!   FUNCTION
+!!     Allocate and initialize a torsion kind set.
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
   SUBROUTINE allocate_torsion_kind_set(torsion_kind_set,nkind)
-
-!   Purpose: Allocate and initialize a torsion kind set.
-
-!   History: - Creation (29.08.2003,MK)
-
-!   ***************************************************************************
 
     TYPE(torsion_kind_type), DIMENSION(:), &
       POINTER                                :: torsion_kind_set
@@ -293,13 +326,22 @@ CONTAINS
 
 ! *****************************************************************************
 
+!******************************************************************************
+!!****** force_field_types/allocate_ub_kind_set [1.0] *
+!!
+!!   NAME
+!!     allocate_ub_kind_set
+!!
+!!   FUNCTION
+!!     Allocate and initialize a ub kind set.
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
   SUBROUTINE allocate_ub_kind_set(ub_kind_set,nkind)
-
-!   Purpose: Allocate and initialize a ub kind set.
-
-!   History: - Creation (29.08.2003,MK)
-
-!   ***************************************************************************
 
     TYPE(ub_kind_type), DIMENSION(:), &
       POINTER                                :: ub_kind_set
@@ -316,7 +358,7 @@ CONTAINS
                                      "ub_kind_set",nkind*int_size)
 
     DO ikind=1,nkind
-      ub_kind_set(ikind)%name = ""
+      ub_kind_set(ikind)%name = "UNSET"
       ub_kind_set(ikind)%k = 0.0_dp
       ub_kind_set(ikind)%r0 = 0.0_dp
       ub_kind_set(ikind)%kind_number = ikind
@@ -326,13 +368,22 @@ CONTAINS
 
 ! *****************************************************************************
 
+!******************************************************************************
+!!****** force_field_types/allocate_impr_kind_set [1.0] *
+!!
+!!   NAME
+!!     allocate_impr_kind_set
+!!
+!!   FUNCTION
+!!     Allocate and initialize a impr kind set.
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
   SUBROUTINE allocate_impr_kind_set(impr_kind_set,nkind)
-
-!   Purpose: Allocate and initialize a impr kind set.
-
-!   History: - Creation (29.08.2003,MK)
-
-!   ***************************************************************************
 
     TYPE(impr_kind_type), DIMENSION(:), &
       POINTER                                :: impr_kind_set
@@ -349,7 +400,7 @@ CONTAINS
                                      "impr_kind_set",nkind*int_size)
 
     DO ikind=1,nkind
-      impr_kind_set(ikind)%name = ""
+      impr_kind_set(ikind)%name = "UNSET"
       impr_kind_set(ikind)%k = 0.0_dp
       impr_kind_set(ikind)%phi0 = 0.0_dp
       impr_kind_set(ikind)%kind_number = ikind
@@ -359,13 +410,21 @@ CONTAINS
 
 ! *****************************************************************************
 
+!!****** force_field_types/allocate_onfo_kind_set [1.0] *
+!!
+!!   NAME
+!!     allocate_onfo_kind_set
+!!
+!!   FUNCTION
+!!     Allocate and initialize a onfo kind set.
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
   SUBROUTINE allocate_onfo_kind_set(onfo_kind_set,nkind)
-
-!   Purpose: Allocate and initialize a onfo kind set.
-
-!   History: - Creation (29.08.2003,MK)
-
-!   ***************************************************************************
 
     TYPE(onfo_kind_type), DIMENSION(:), &
       POINTER                                :: onfo_kind_set
@@ -389,11 +448,6 @@ CONTAINS
   END SUBROUTINE allocate_onfo_kind_set
 
 ! *****************************************************************************
-
-
-
-
-
 
 !******************************************************************************
 !!****** force_field_types/init_force_field [1.0] *
@@ -419,9 +473,6 @@ SUBROUTINE init_ff_type (ff_type)
 
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
-!-----------------------------------------------------------------------------
-!-----------------------------------------------------------------------------
-!-----------------------------------------------------------------------------
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -859,12 +910,219 @@ SUBROUTINE deallocate_ff_type (ff_type)
   END IF
 
 
-
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
 END SUBROUTINE deallocate_ff_type
 
+! *****************************************************************************
+
+!******************************************************************************
+!!****** force_field_types/deallocate_bend_kind_set [1.0] *
+!!
+!!   NAME
+!!     deallocate_bend_kind_set
+!!
+!!   FUNCTION
+!!     Deallocate a bend kind set.
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE deallocate_bend_kind_set(bend_kind_set)
+
+    TYPE(bend_kind_type), DIMENSION(:), &
+      POINTER                                :: bend_kind_set
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_bend_kind_set"
+
+    INTEGER                                  :: istat
+
+!   ---------------------------------------------------------------------------
+
+    DEALLOCATE (bend_kind_set,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "bend_kind_set")
+
+  END SUBROUTINE deallocate_bend_kind_set
+
+! *****************************************************************************
+
+!******************************************************************************
+!!****** force_field_types/deallocate_bond_kind_set [1.0] *
+!!
+!!   NAME
+!!     deallocate_bond_kind_set
+!!
+!!   FUNCTION
+!!     Deallocate a bond kind set.
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE deallocate_bond_kind_set(bond_kind_set)
+
+    TYPE(bond_kind_type), DIMENSION(:), &
+      POINTER                                :: bond_kind_set
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_bond_kind_set"
+
+    INTEGER                                  :: istat
+
+!   ---------------------------------------------------------------------------
+
+    DEALLOCATE (bond_kind_set,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "bond_kind_set")
+
+  END SUBROUTINE deallocate_bond_kind_set
+
+! *****************************************************************************
+
+!******************************************************************************
+!!****** force_field_types/deallocate_torsion_kind_set [1.0] *
+!!
+!!   NAME
+!!     deallocate_torsion_kind_set
+!!
+!!   FUNCTION
+!!     Deallocate a torsion kind set.
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE deallocate_torsion_kind_set(torsion_kind_set)
+
+    TYPE(torsion_kind_type), DIMENSION(:), &
+      POINTER                                :: torsion_kind_set
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_torsion_kind_set"
+
+    INTEGER                                  :: ikind, istat
+
+!   ---------------------------------------------------------------------------
 
 
+    DO ikind=1,SIZE(torsion_kind_set)
+      DEALLOCATE(torsion_kind_set(ikind)%k,STAT=istat)
+      IF(istat/=0) CALL stop_memory(routine_name,"k")
+      DEALLOCATE(torsion_kind_set(ikind)%m,STAT=istat)
+      IF(istat/=0) CALL stop_memory(routine_name,"m")
+      DEALLOCATE(torsion_kind_set(ikind)%cosphi0,STAT=istat)
+      IF(istat/=0) CALL stop_memory(routine_name,"cosphi0")
+    END DO
+
+    DEALLOCATE (torsion_kind_set,STAT=istat)
+    IF(istat/=0) CALL stop_memory(routine_name,"torsion_kind_set")
+
+  END SUBROUTINE deallocate_torsion_kind_set
+
+! *****************************************************************************
+
+!******************************************************************************
+!!****** force_field_types/deallocate_ub_kind_set [1.0] *
+!!
+!!   NAME
+!!     deallocate_ub_kind_set
+!!
+!!   FUNCTION
+!!     Deallocate a ub kind set.
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE deallocate_ub_kind_set(ub_kind_set)
+
+    TYPE(ub_kind_type), DIMENSION(:), &
+      POINTER                                :: ub_kind_set
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_ub_kind_set"
+
+    INTEGER                                  :: istat
+
+!   ---------------------------------------------------------------------------
+
+    DEALLOCATE (ub_kind_set,STAT=istat)
+    IF(istat/=0) CALL stop_memory(routine_name,"ub_kind_set")
+
+  END SUBROUTINE deallocate_ub_kind_set
+
+! *****************************************************************************
+
+!******************************************************************************
+!!****** force_field_types/deallocate_impr_kind_set [1.0] *
+!!
+!!   NAME
+!!     deallocate_impr_kind_set
+!!
+!!   FUNCTION
+!!     Deallocate a impr kind set.
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE deallocate_impr_kind_set(impr_kind_set)
+
+    TYPE(impr_kind_type), DIMENSION(:), &
+      POINTER                                :: impr_kind_set
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_impr_kind_set"
+
+    INTEGER                                  :: istat
+
+!   ---------------------------------------------------------------------------
+
+    DEALLOCATE (impr_kind_set,STAT=istat)
+    IF(istat/=0) CALL stop_memory(routine_name,"impr_kind_set")
+
+  END SUBROUTINE deallocate_impr_kind_set
+
+! *****************************************************************************
+
+!!****** force_field_types/deallocate_onfo_kind_set [1.0] *
+!!
+!!   NAME
+!!     deallocate_onfo_kind_set
+!!
+!!   FUNCTION
+!!     Deallocate a onfo kind set.
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE deallocate_onfo_kind_set(onfo_kind_set)
+
+    TYPE(onfo_kind_type), DIMENSION(:), &
+      POINTER                                :: onfo_kind_set
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_onfo_kind_set"
+
+    INTEGER                                  :: istat
+
+!   ---------------------------------------------------------------------------
+
+    DEALLOCATE (onfo_kind_set,STAT=istat)
+    IF(istat/=0) CALL stop_memory(routine_name,"onfo_kind_set")
+
+  END SUBROUTINE deallocate_onfo_kind_set
+
+! *****************************************************************************
 
 END MODULE force_field_types
