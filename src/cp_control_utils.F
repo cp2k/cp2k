@@ -159,7 +159,7 @@ CONTAINS
        dft_control % xc_control % functionals ( i ) = ""
     END DO
     dft_control % xc_control % density_cut = 1.0E-10_dp
-    dft_control % xc_control % density_smooth_cut_range = 10.0_dp
+    dft_control % xc_control % density_smooth_cut_range = 0.0_dp
     dft_control % xc_control % gradient_cut = 1.0E-10_dp
     dft_control % xc_control % gradient_functionals = .FALSE.
     dft_control % xc_control % crossterms = .FALSE.
