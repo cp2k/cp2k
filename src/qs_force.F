@@ -26,10 +26,6 @@ MODULE qs_force
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
-                                             cp_sm_pool_type,&
-                                             sm_pools_create_matrix_vect,&
-                                             sm_pools_give_back_matrix_vect
   USE dft_types,                       ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type
   USE message_passing,                 ONLY: mp_sum
