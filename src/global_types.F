@@ -273,7 +273,7 @@ CONTAINS
     print_key%v_hartree_cube = key_value(level,(/f,f,f/))
     print_key%cubes = key_value(level,(/f,f,f/))
     print_key%lumos = key_value(level,(/f,f,f/))
-    print_key%mo_orthonormality = key_value(level,(/f,t,t/))
+    print_key%mo_orthonormality = key_value(level,(/f,f,t/))
     print_key%optical_conductivity = key_value(level,(/f,f,f/))
     print_key%homos = key_value(level,(/f,f,f/))
     print_key%nlumos = 4
