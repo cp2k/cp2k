@@ -31,6 +31,10 @@
  constraints
    g3x3 add 1 1 2 3 1.8897268 1.8897268 3.0859239
  end constraints
+ charges
+   O -0.8
+   H 0.4
+ end
  bonds
   harmonic O H 0. 1.8
  end
