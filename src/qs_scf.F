@@ -74,6 +74,18 @@ MODULE qs_scf
                                              cp_error_message,&
                                              cp_error_type,&
                                              cp_internal_error
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                             cp_fm_scale_and_add,&
+                                             cp_fm_symm,&
+                                             cp_fm_trace,&
+                                             cp_fm_upper_to_full
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_reduce,&
+                                             cp_fm_cholesky_restore
+  USE cp_fm_diag,                      ONLY: cp_fm_block_jacobi_classic,&
+                                             cp_fm_power,&
+                                             cp_fm_syevd,&
+                                             cp_fm_syevx
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_get_el_struct
@@ -82,31 +94,16 @@ MODULE qs_scf
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_type,&
+                                             cp_fm_get_element,&
                                              cp_fm_get_info,&
+                                             cp_fm_init_random,&
+                                             cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
-                                             cp_fm_to_fm, &
-                                             cp_fm_init_random,&
                                              cp_fm_set_element,&
-                                             cp_fm_get_element,&
-                                             cp_fm_write, &
-                                             cp_fm_p_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale_and_add,&
-                                             cp_fm_upper_to_full,&
-                                             cp_fm_symm,&
-                                             cp_fm_trace
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply, &
-                                             copy_fm_to_sm,&
-                                             copy_sm_to_fm
-  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
-                                             cp_fm_cholesky_reduce,&
-                                             cp_fm_cholesky_restore
-  USE cp_fm_diag,                      ONLY: cp_fm_syevx, &
-                                             cp_fm_syevd, &
-                                             cp_fm_power, &
-                                             cp_fm_block_jacobi_classic
+                                             cp_fm_to_fm,&
+                                             cp_fm_type,&
+                                             cp_fm_write
   USE cp_lbfgs_optimizer_gerd_f,       ONLY: cp_lbfgs_opt_gerd_f_type,&
                                              cp_opt_gerd_f_dealloc_ref,&
                                              cp_opt_gerd_f_init,&
@@ -121,6 +118,9 @@ MODULE qs_scf
   USE cp_matrix_utils,                 ONLY: cp_sm_output
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE cp_sm_fm_interactions,           ONLY: copy_fm_to_sm,&
+                                             copy_sm_to_fm,&
+                                             cp_sm_fm_multiply
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              cp_sm_pool_type,&
                                              sm_pool_create_matrix,&
@@ -147,12 +147,13 @@ MODULE qs_scf
   USE mathconstants,                   ONLY: fourpi,&
                                              twopi
   USE message_passing,                 ONLY: mp_allgather,&
+                                             mp_bcast,&
                                              mp_max,&
                                              mp_range,&
                                              mp_sum,&
                                              mp_sync
-  USE molecule_types,                  ONLY: molecule_structure_type
   USE molecular_states,                ONLY: construct_molecular_states
+  USE molecule_types,                  ONLY: molecule_structure_type
   USE mulliken,                        ONLY: mulliken_charges
   USE pao_glob_angles_methods,         ONLY: pao_g_ang_get,&
                                              pao_g_ang_set
@@ -218,6 +219,10 @@ MODULE qs_scf
                                              qs_loc_init
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
+  USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
+                                             calculate_orthonormality,&
+                                             calculate_subspace_eigenvalues,&
+                                             make_basis
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                              correct_mo_eigenvalues,&
                                              get_mo_set,&
@@ -227,10 +232,6 @@ MODULE qs_scf
                                              read_mo_set,&
                                              set_mo_occupation,&
                                              write_mo_set
-  USE qs_mo_methods,                   ONLY: make_basis,&
-                                             calculate_density_matrix,&
-                                             calculate_orthonormality,&
-                                             calculate_subspace_eigenvalues
   USE qs_ot,                           ONLY: qs_ot_new_preconditioner,&
                                              qs_ot_type
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
@@ -265,8 +266,8 @@ MODULE qs_scf
   USE scf_control_types,               ONLY: scf_control_type
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell
-  USE sparse_matrix_types,             ONLY: add_matrices,&
-                                             add_all_real_matrix_blocks, &
+  USE sparse_matrix_types,             ONLY: add_all_real_matrix_blocks,&
+                                             add_matrices,&
                                              cp_sm_scale_and_add,&
                                              deallocate_matrix,&
                                              deallocate_matrix_set,&
@@ -513,7 +514,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER   :: dft_control
     REAL(wp) :: diis_error,t1,t2,orthonormality
     INTEGER  :: handle,handle2,output_unit,ispin
-    LOGICAL  :: diis_step,do_level_shift,ionode,&
+    LOGICAL  :: diis_step,do_level_shift,ionode, should_stop,&
          use_jacobi,use_cholesky, failure,energy_only, rebuild
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s,&
          ks, p
@@ -745,6 +746,9 @@ CONTAINS
        END IF
 
 ! ** convergece check
+       IF (qs_env%para_env%source==qs_env%para_env%mepos) &
+            INQUIRE(file="EXIT",exist=should_stop)
+       CALL mp_bcast(should_stop,qs_env%para_env%source,qs_env%para_env%group)
        IF (scf_env%iter_delta < scf_control%eps_scf) THEN
           IF (ionode.AND.logger%print_keys%scf) THEN
              WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
@@ -752,13 +756,21 @@ CONTAINS
           END IF
           CALL timestop(0.0_wp,handle2)
           EXIT scf_loop
-       ELSE IF (scf_env%iter_count == scf_control%max_scf) THEN
+       ELSE IF (should_stop.OR.&
+            scf_env%iter_count == scf_control%max_scf) THEN
           IF (ionode.AND.logger%print_keys%scf) THEN
              WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
                   "*** SCF run NOT converged ***"
           END IF
           CALL timestop(0.0_wp,handle2)
           EXIT scf_loop
+       END IF
+
+!   *** Write restart file ***
+       IF (scf_control%write_restart_each>0.AND.&
+            MODULO(scf_env%iter_count,scf_control%write_restart_each)==0) THEN
+          CALL write_mo_set(c,atomic_kind_set,particle_set,globenv,&
+               id_nr=qs_env%id_nr)
        END IF
 
        IF (.NOT. logger%print_keys%timecumul) t1 = m_walltime()
@@ -772,9 +784,10 @@ CONTAINS
     END DO scf_loop
 
 !   *** Write restart file ***
- 
-     CALL write_mo_set(c,atomic_kind_set,particle_set,globenv,&
-          id_nr=qs_env%id_nr)
+    IF (scf_control%write_restart_each>=0) THEN
+       CALL write_mo_set(c,atomic_kind_set,particle_set,globenv,&
+            id_nr=qs_env%id_nr)
+    END IF
 
     IF (ionode.AND.logger%print_keys%scf) THEN
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
@@ -809,8 +822,10 @@ CONTAINS
     CALL qs_ks_did_change(ks_env,qs_env,rho_changed=.TRUE.,error=error)
 
 ! *** print out info
-    CALL scf_env_post_calc(scf_env=scf_env, qs_env=qs_env, &
-         globenv=globenv, error=error)
+    IF (.NOT.should_stop) THEN
+       CALL scf_env_post_calc(scf_env=scf_env, qs_env=qs_env, &
+            globenv=globenv, error=error)
+    END IF
 
 ! *** cleanup
     CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)

@@ -20,6 +20,8 @@
 !******************************************************************************
 
 MODULE qs_md
+!  USE initialize_molecule_types,       ONLY: initialize_molecule_type
+! cjm   USE util,                            ONLY: get_share
   USE atoms_input,                     ONLY: read_md_restart
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_error_handling,               ONLY: cp_a_l,&
@@ -40,19 +42,18 @@ MODULE qs_md
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE extended_system_dynamics,        ONLY: lnhc_parameters_type, &
+  USE extended_system_dynamics,        ONLY: lnhc_parameters_type,&
                                              npt_info_type
   USE extended_system_types,           ONLY: extended_system_type
-  USE force_control,                   ONLY: force_env_create,&
+  USE force_control,                   ONLY: force_env_calculate_force,&
+                                             force_env_create,&
                                              force_env_release,&
-                                             force_env_type,&
-                                             force_env_calculate_force
+                                             force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE initialize_extended_types,       ONLY: initialize_nhc_baro,&
+                                             initialize_nhc_forces,&
                                              initialize_nhc_part,&
-                                             initialize_npt_type,&
-                                             initialize_nhc_forces
-!  USE initialize_molecule_types,       ONLY: initialize_molecule_type
+                                             initialize_npt_type
   USE input_types,                     ONLY: setup_parameters_type
   USE integrator,                      ONLY: set_integrator
   USE kinds,                           ONLY: int_size,&
@@ -64,13 +65,14 @@ MODULE qs_md
                                              read_md_section,&
                                              simulation_parameters_type,&
                                              virial_type
-  USE md_environment_types,            ONLY: init_md_env,&
+  USE md_environment_types,            ONLY: destroy_md_env,&
+                                             init_md_env,&
                                              md_environment_type,&
                                              set_md_env,&
-                                             destroy_md_env, &
                                              zero_virial
   USE md_qs_energies,                  ONLY: md_energy_qs,&
                                              set_qs_energies
+  USE message_passing,                 ONLY: mp_bcast
   USE molecule_types,                  ONLY: intra_parameters_type,&
                                              molecule_structure_type,&
                                              molecule_type,&
@@ -93,8 +95,6 @@ MODULE qs_md
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-! cjm   USE util,                            ONLY: get_share
-
   USE velocity_verlet_control,         ONLY: velocity_verlet
   IMPLICIT NONE
 
@@ -162,6 +162,7 @@ CONTAINS
 
     INTEGER :: handle,istat,natom,nmolecule
     INTEGER :: nmoltype, nmol, nnodes, nsh
+    LOGICAL :: should_stop
 
 !   ---------------------------------------------------------------------------
 
@@ -297,6 +298,10 @@ CONTAINS
     DO itimes=1,md_env%simpar%nsteps
       CALL velocity_verlet(md_env)
       CALL md_energy_qs(md_env)
+      IF (qs_env%para_env%source==qs_env%para_env%mepos) &
+           INQUIRE(file="EXIT",exist=should_stop)
+      CALL mp_bcast(should_stop,qs_env%para_env%source,qs_env%para_env%group)
+      IF (should_stop) EXIT
     END DO
 
     CALL destroy_md_env(md_env)

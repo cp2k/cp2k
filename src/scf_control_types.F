@@ -94,6 +94,9 @@ MODULE scf_control_types
 !!       the lumos at the end of the scf
 !!     - max_scf: max scf iterations
 !!     - nrebuild: how often to rebuild the operator from scratch
+!!     - write_restart_each: after how many iterations a restart file 
+!!       should be written if the convergence is not yet acheived
+!!       (<0 never, 0 only upon convergence)
 !!     - nrow_block: number of rows of a full matrix block
 !!     - ncol_block: number of of columns in a block of a full matrix
 !!     - id_nr: unique number to identify an scf control
@@ -113,7 +116,7 @@ MODULE scf_control_types
           work_syevx,eps_lumos, eps_diis,eps_jacobi,jacobi_threshold
      INTEGER           :: max_iter_lumos, max_diis
      INTEGER           :: max_scf,nrebuild,nrow_block,&
-          ncol_block,maxl,nkind
+          ncol_block,maxl,nkind, write_restart_each
      LOGICAL           :: gradient_functional,gth_potential_present,&
           rebuild,use_cholesky,use_ot
      INTEGER           :: ref_count,id_nr
@@ -192,6 +195,7 @@ CONTAINS
        scf_control%id_nr=last_scf_c_id_nr
        scf_control%eps_jacobi = 0.0_wp
        scf_control%jacobi_threshold = 1.0E-7_wp
+       scf_control%write_restart_each=10
     END IF
   END SUBROUTINE scf_c_create
 !***************************************************************************
@@ -390,6 +394,8 @@ CONTAINS
              CALL read_object(scf_control%eps_lumos)
           CASE ("MAX_ITER_LUMOS","MAX_ITER_LUMO")
              CALL read_object(scf_control%max_iter_lumos)
+          CASE ("WRITE_RESTART_EACH")
+             CALL read_object(scf_control%write_restart_each)
           END SELECT
        END DO
 
@@ -433,7 +439,7 @@ CONTAINS
 !!
 !!   MODIFICATION HISTORY
 !!     05.2001 created [Matthias]
-!!     09.2002 creaded separated scf_control type [fawzi]
+!!     09.2002 created separated scf_control type [fawzi]
 !!
 !!*** **********************************************************************
   SUBROUTINE scf_c_write_parameters(scf_control,globenv, error)
@@ -458,11 +464,12 @@ CONTAINS
           output_unit = globenv%scr
           WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/)") "SCF PARAMETERS"
           WRITE (UNIT=output_unit,&
-               FMT="(T3,A,/,3(/,T3,A,I5),5(/,T3,A,ES9.2),4(/,T3,A,F5.2))")&
+               FMT="(T3,A,/,4(/,T3,A,I5),5(/,T3,A,ES9.2),4(/,T3,A,F5.2))")&
                "Density guess: "//TRIM(scf_control%density_guess),&
                "nrebuild:          ",scf_control%nrebuild,&
                "max_scf:           ",scf_control%max_scf,&
                "max_diis:          ",scf_control%max_diis,&
+               "write_restart_each:",scf_control%write_restart_each,&
                "eps_scf:           ",scf_control%eps_scf,&
                "eps_diis:          ",scf_control%eps_diis,&
                "eps_eigval:        ",scf_control%eps_eigval,&
