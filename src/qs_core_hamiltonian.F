@@ -1184,7 +1184,7 @@ CONTAINS
 !            *** Build reduced 3-center lists
               IF(.NOT. calculate_forces) &
                 CALL build_reduced_3c_lists(atomic_kind_set, iatom, jatom, jkind,&
-                                          sbc_oce, oce%voce, reduced_3c_oce)
+                                          sbc_oce, oce%voce, reduced_3c_oce, .TRUE.)
 
 !            *** Calculate the coefficients of the one center expansions ***
               CALL set_up_oce(atomic_kind_set,reduced_3c_oce,oce,&
@@ -1198,7 +1198,7 @@ CONTAINS
 !            *** Build reduced 3-center lists
               IF(.NOT. calculate_forces) &
                 CALL build_reduced_3c_lists(atomic_kind_set, iatom, jatom, jkind,&
-                                          sbc_3c, VH_3c_list, reduced_3c_rho0)
+                                          sbc_3c, VH_3c_list, reduced_3c_rho0, .FALSE.)
             END IF
 
             IF (calculate_forces) atom_b = atom_of_kind(jatom)

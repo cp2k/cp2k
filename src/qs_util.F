@@ -116,6 +116,7 @@ MODULE qs_util
             gaussint_sph,&
             symmetric_add,&
             trace_r_AxB, &
+            trace_r_AxB_new, &
             transform_c2s,&
             transform_c2s_new,&
             transform_s2c
@@ -427,6 +428,80 @@ t4=0._dp
     trace_r_AxB=t1+t2+t3+t4
 
   END FUNCTION trace_r_AxB
+! *****************************************************************************
+
+    FUNCTION trace_r_AxB_new(A,lda,ia,ja,B,ldb,ib,jb,m,n)
+
+! *****************************************************************************
+
+    implicit none
+  !in:
+    integer    ,intent(in) :: lda,ldb,m,n
+    real(dp),intent(in)   :: A(lda,*),B(ldb,*)
+    integer,  intent(in)   :: ia,ib, ja, jb
+  !out:
+    real(dp)              :: trace_r_AxB_new
+  !locals:
+    real(dp)              :: t1,t2,t3,t4
+    integer               :: i1,i2,imod,mminus3
+
+! *****************************************************************************
+t1=0._dp
+t2=0._dp
+t3=0._dp
+t4=0._dp
+    imod=modulo(m,4)
+    select case (imod)
+    case (0)
+      do i2=1,n
+        do i1=1,m,4
+          t1=t1+A(i1+ia,i2+ja)*B(i1+ib,i2+jb)
+          t2=t2+A(i1+ia+1,i2+ja)*B(i1+ib+1,i2+jb)
+          t3=t3+A(i1+ia+2,i2+ja)*B(i1+ib+2,i2+jb)
+          t4=t4+A(i1+ia+3,i2+ja)*B(i1+ib+3,i2+jb)
+        enddo
+      enddo
+    case (1)
+      mminus3=m-3
+      do i2=1,n
+        do i1=1,mminus3,4
+          t1=t1+A(i1+ia,i2+ja)*B(i1+ib,i2+jb)
+          t2=t2+A(i1+ia+1,i2+ja)*B(i1+ib+1,i2+jb)
+          t3=t3+A(i1+ia+2,i2+ja)*B(i1+ib+2,i2+jb)
+          t4=t4+A(i1+ia+3,i2+ja)*B(i1+ib+3,i2+jb)
+        enddo
+        t1=t1+A(m+ia,i2+ja)*B(m+ib,i2+jb)
+      enddo
+    case (2)
+      mminus3=m-3
+      do i2=1,n
+        do i1=1,mminus3,4
+          t1=t1+A(i1+ia,i2+ja)*B(i1+ib,i2+jb)
+          t2=t2+A(i1+ia+1,i2+ja)*B(i1+ib+1,i2+jb)
+          t3=t3+A(i1+ia+2,i2+ja)*B(i1+ib+2,i2+jb)
+          t4=t4+A(i1+ia+3,i2+ja)*B(i1+ib+3,i2+jb)
+        enddo
+        t1=t1+A(m-1+ia,i2+ja)*B(m-1+ib,i2+jb)
+        t2=t2+A(m+ia,i2+ja)*B(m+ib,i2+jb)
+      enddo
+    case (3)
+      mminus3=m-3
+      do i2=1,n
+        do i1=1,mminus3,4
+          t1=t1+A(i1+ia,i2+ja)*B(i1+ib,i2+jb)
+          t2=t2+A(i1+ia+1,i2+ja)*B(i1+ib+1,i2+jb)
+          t3=t3+A(i1+ia+2,i2+ja)*B(i1+ib+2,i2+jb)
+          t4=t4+A(i1+ia+3,i2+ja)*B(i1+ib+3,i2+jb)
+        enddo
+        t1=t1+A(m-2+ia,i2+ja)*B(m-2+ib,i2+jb)
+        t2=t2+A(m-1+ia,i2+ja)*B(m-1+ib,i2+jb)
+        t3=t3+A(m+ia,i2+ja)*B(m+ib,i2+jb)
+      enddo
+    end select
+    trace_r_AxB_new=t1+t2+t3+t4
+
+  END FUNCTION trace_r_AxB_new
+
 ! *****************************************************************************
 
   SUBROUTINE transform_c2s(CPC_co,CPC_so,maxl,lm1,lm2)

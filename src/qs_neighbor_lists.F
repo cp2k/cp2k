@@ -562,8 +562,8 @@ CONTAINS
       CALL build_neighbor_lists(sab_orb,atom,cell,r_skin,maxatom_local,&
                  print_subcell_grid,output_unit,&
                  orb_present,orb_present,orb_radius,orb_radius,&
-                 paw_atom_present,rho0_present)
-    END IF
+                 l3c_oce=paw_atom_present, l3c_rho0=rho0_present)
+   END IF
 
 !   *** Put the generated neighbor lists into the QS environment ***
 

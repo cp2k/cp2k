@@ -390,7 +390,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE build_reduced_3c_lists(atomic_kind_set,iatom,jatom,jkind, &
-                                    sbc_list, vlist,reduced_3c_list)
+                                    sbc_list, vlist,reduced_3c_list,pippo)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -401,6 +401,7 @@ CONTAINS
     TYPE(vtriple_type), DIMENSION(:,:), &
                      POINTER                 :: vlist
     INTEGER, INTENT(IN)                      :: iatom, jatom, jkind
+    LOGICAL :: pippo
 
 !   *** Local parameters ***
 
@@ -458,7 +459,7 @@ CONTAINS
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
                             paw_atom=paw_atom)
 
-       IF(.NOT. paw_atom)  CYCLE
+       IF(.NOT. paw_atom .AND. pippo)  CYCLE
 
        sbc_list_neighbor_list =>&
          find_neighbor_list(neighbor_list_set=&

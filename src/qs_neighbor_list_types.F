@@ -516,6 +516,7 @@ CONTAINS
        CALL stop_memory(routine_name,module_name,__LINE__,"reduced_3c_list")
     END IF
     DO ikind= 1,nkind
+      reduced_3c_list(ikind)%nnode = 0
       NULLIFY(reduced_3c_list(ikind)%index_atom)
       NULLIFY(reduced_3c_list(ikind)%rac)
       NULLIFY(reduced_3c_list(ikind)%rac2)

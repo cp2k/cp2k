@@ -377,7 +377,7 @@ MODULE  hartree_local_methods
                            natom=nat,grid_atom=grid_atom,&
                            harmonics=harmonics,ngrid_rad=nr,&
                            max_iso_not0=max_iso_not0,paw_atom=paw_atom)
-
+      IF (.NOT. paw_atom) cycle
       CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&
                              maxso=maxso,npgf=npgf,&
                              nset=nset,zet=zet)

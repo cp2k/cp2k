@@ -402,13 +402,36 @@ CONTAINS
 !     *** Smallest exp. due to eps_iso: concerned as an isolated projector ***
       paw_proj%zisomin(lshell) = gauss_exponent(lshell,rc,eps_iso,1.0_dp)
 
-      isoprj(1:np) = (zet(1:np) >= paw_proj%zisomin(lshell))
+      nisop = 0
+      DO ip = 1, np
+        IF(zet(ip) >= paw_proj%zisomin(lshell)) THEN
+          isoprj(ip) = .TRUE.
+          nisop = nisop + 1
+        ELSE
+          isoprj(ip) = .FALSE.
+        END IF
+      END DO
+ !dbg
+ !   WRITE(*,*) 'lshell ', lshell, ' zisomin ', paw_proj%zisomin(lshell), ' np ', np, 'niso ', nisop
+ !   WRITE(*,*) 'basis exponents'
+ !   DO ip = 1,np
+ !   WRITE(*,*) 'exponent ', ip, zet(ip), ' iso =', isoprj(ip) 
+ !   ENDDO 
+! dbg
+
 
 !     *** Smallest exp. due to eps_fit: where to start geometric progression ***
       zetmin = gauss_exponent(lshell,rc,eps_fit,1.0_dp)
 
 !     *** Generate the projectors by the geometric progression ***
-      x = 2.0_dp
+
+!      WRITE(*,*) 'max fact ', (40.0_dp/zetmin)**(1.0_dp/REAL(np-nisop-1,dp))
+      IF(np-nisop-1 > 2) THEN
+        x = (80.0_dp/zetmin)**(1.0_dp/REAL(np-nisop-1,dp))
+      ELSE
+       x = 2.0_dp
+      END IF
+      IF(x > 2.0_dp) x = 2.0_dp
 
       zetval = zetmin
       DO ip = np,1, -1
@@ -429,6 +452,12 @@ CONTAINS
         ENDIF
       ENDDO
 
+ !dbg
+ !   WRITE(*,*) 'proj exponents'
+ !   DO ip = 1,np
+ !   WRITE(*,*) 'exponent ', ip, zetp(ip), ' iso =', isoprj(ip) 
+ !   ENDDO 
+! dbg
 
 !     *** Build the overlap matrix: <projector|primitive> ***
       prefac = 0.5_dp**(lshell + 2)*rootpi*dfac(2*lshell + 1)
@@ -445,7 +474,12 @@ CONTAINS
            ENDDO
         ENDIF
       ENDDO
-
+!dbg
+!  WRITE(*,*) 'MATRIX to be inverted'
+!  DO ip = 1,np
+!    WRITE(*,'(i4,20(1PE12.4))') ip, (smat(ip,jp),jp = 1,np)
+!  END DO
+!dbg
 !     *** Compute inverse of the transpose ***
       CALL invert_matrix(smat,gcc,error,"T")
 

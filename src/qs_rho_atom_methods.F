@@ -475,6 +475,7 @@ MODULE qs_rho_atom_methods
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            atom_list=a_list,natom=nat_kind,&
                            paw_atom=paw_atom)
+
       IF(.NOT. paw_atom) CYCLE
       DO i = 1,nat_kind
         iatom = a_list(i)
@@ -748,8 +749,10 @@ MODULE qs_rho_atom_methods
     DO iatom = 1,natom
 
        DO ispin = 1,nspins
-         CALL mp_sum(rho_atom(iatom)%cpc_h(ispin)%r_coef,qs_env%para_env%group)
-         CALL mp_sum(rho_atom(iatom)%cpc_s(ispin)%r_coef,qs_env%para_env%group)
+         IF(ASSOCIATED(rho_atom(iatom)%cpc_h(ispin)%r_coef)) THEN
+           CALL mp_sum(rho_atom(iatom)%cpc_h(ispin)%r_coef,qs_env%para_env%group)
+           CALL mp_sum(rho_atom(iatom)%cpc_s(ispin)%r_coef,qs_env%para_env%group)
+         END IF
        ENDDO
 
     END DO
@@ -1050,14 +1053,14 @@ MODULE qs_rho_atom_methods
                     rho_atom_set(iatom)%rho_rad_s_d(3,nspins), &
                     STAT=istat)
           IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-              "cpc_h,cpc_s,drho_rad_h,drho_rad_s,rho_rad_h_d,rho_rad_s_d")
+                               "cpc_h,cpc_s,drho_rad_h,drho_rad_s,rho_rad_h_d,rho_rad_s_d")
+
 
           ALLOCATE (rho_atom_set(iatom)%ga_Vlocal_gb_h(nspins), &
                     rho_atom_set(iatom)%ga_Vlocal_gb_s(nspins), &
                     STAT=istat)
           IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-              "ga_Vlocal_gb_h,ga_Vlocal_gb_s")
-
+                                          "ga_Vlocal_gb_h,ga_Vlocal_gb_s")
 
           IF (paw_atom) THEN 
              istat = 0
