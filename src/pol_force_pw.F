@@ -195,8 +195,10 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
 !
 ! Initializing green function to PW grid
 !
-     IF ( pw_grid % cutoff < big_grid ( iref ) % cutoff ) &
-     CALL stop_program ( 'pol_force_pw', 'PW cutoff too small' )
+     IF ( pw_grid % cutoff < big_grid ( iref ) % cutoff ) THEN
+       WRITE ( *, * ) pw_grid % cutoff, big_grid ( iref ) % cutoff
+       CALL stop_program ( 'pol_force_pw', 'PW cutoff too small' )
+     ENDIF
      CALL pw_green_fn_init ( box % green, pw_grid )
 
   END IF
@@ -218,7 +220,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
      part ( i ) % f ( 2 ) = 0.0_dbl
      part ( i ) % f ( 3 ) = 0.0_dbl
   END DO
-  coef_force % ao % cr (:) = 0.0_dbl
+  coef_force % pw % cc ( : ) = 0.0_dbl
   thermo % pot = 0.0_dbl
   thermo % e_class = 0.0_dbl
   thermo % e_electro = 0.0_dbl
