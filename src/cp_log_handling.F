@@ -74,7 +74,7 @@ MODULE cp_log_handling
   PUBLIC :: cp_note_level, cp_warning_level, cp_failure_level,&
        cp_fatal_level 
 ! default loggers
-  PUBLIC :: cp_get_default_logger, cp_init_default_logger, cp_destroy_default_logger
+  PUBLIC :: cp_get_default_logger, cp_add_default_logger, cp_rm_default_logger
 ! logger routines
   PUBLIC :: cp_logger_create, cp_logger_retain, cp_logger_release,&
        cp_logger_would_log, cp_logger_set,&
@@ -320,7 +320,7 @@ CONTAINS
     IF (opened) THEN
 
       INQUIRE (FILE=TRIM(file_name),NUMBER=unit_number)
-      REWIND (UNIT=unit_number)
+      if (position_string=="REWIND") REWIND (UNIT=unit_number)
 
     ELSE
 
@@ -478,17 +478,18 @@ CONTAINS
    END FUNCTION get_unit_number
 ! *****************************************************************************
 
-!!****f* cp_log_handling/cp_init_default_logger [1.0] *
+!!****f* cp_log_handling/cp_add_default_logger [1.0] *
 !!
 !!   NAME
-!!     cp_init_default_loggers
+!!     cp_add_default_logger
 !!
 !!   FUNCTION
-!!     performs the initializations of the logger.
+!!     adds a default logger.
 !!     MUST be called before logging occours
 !!
 !!   NOTES
-!!     increments a stack of default loggers the latest one will be available within the program
+!!     increments a stack of default loggers the latest one will be
+!!     available within the program
 !!
 !!   INPUTS
 !!     -
@@ -496,61 +497,36 @@ CONTAINS
 !!   AUTHOR
 !!     Fawzi Mohamed
 !!
-!!   MODIFICATION HISTORY
-!!     4.2002 revised [fawzi]
-!!
 !!*** *********************************************************************
-  SUBROUTINE cp_init_default_logger(para_env,print_level,&
-       default_global_unit_nr,default_local_unit_nr, global_filename,&
-       local_filename, close_global_unit_on_dealloc,&
-       close_local_unit_on_dealloc, print_keys, suffix,&
-       template_logger)
-    TYPE(cp_para_env_type), OPTIONAL, &
-      POINTER                                :: para_env
-    INTEGER, INTENT(in)                      :: default_global_unit_nr  ! at least this one must be present (farming)
-    INTEGER, INTENT(in), OPTIONAL            :: print_level, &
-                                                default_local_unit_nr
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: global_filename, &
-                                                local_filename
-    LOGICAL, INTENT(in), OPTIONAL            :: close_global_unit_on_dealloc, &
-                                                close_local_unit_on_dealloc
-    TYPE(print_keys_type), OPTIONAL, TARGET   :: print_keys
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: suffix
-    TYPE(cp_logger_type), OPTIONAL, TARGET   :: template_logger
+  SUBROUTINE cp_add_default_logger(logger)
+    TYPE(cp_logger_type), pointer  :: logger
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_init_default_logger', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_add_default_logger', &
       routineP = moduleN//':'//routineN
 
 
     IF (stack_pointer+1>max_stack_pointer) THEN
-       CALL mp_stop(100,"cp_log_handling:cp_init_default_logger "//&
+       CALL mp_stop(100,routineP//&
             "too many default loggers, increase max_stack_pointer in "//moduleN)
     ENDIF
 
     stack_pointer=stack_pointer+1
     NULLIFY(default_logger_stack(stack_pointer)%cp_default_logger)
 
-    CALL cp_logger_create(default_logger_stack(stack_pointer)%cp_default_logger,&
-            para_env=para_env,print_level=print_level,&
-            default_global_unit_nr=default_global_unit_nr,&
-            default_local_unit_nr=default_local_unit_nr,&
-            global_filename=global_filename,&
-            local_filename=local_filename,&
-            close_global_unit_on_dealloc=close_global_unit_on_dealloc,&
-            close_local_unit_on_dealloc=close_local_unit_on_dealloc,&
-            suffix=suffix, print_keys=print_keys,&
-            template_logger=template_logger)
+    default_logger_stack(stack_pointer)%cp_default_logger => logger
+    call cp_logger_retain(logger)
 
-  END SUBROUTINE cp_init_default_logger
+  END SUBROUTINE cp_add_default_logger
 !**************************************************************************
 
-!!****f* cp_log_handling/cp_destroy_default_logger [1.0] *
+!!****f* cp_log_handling/cp_rm_default_logger [1.0] *
 !!
 !!   NAME
-!!     cp_destroy_default_logger
+!!     cp_rm_default_logger
 !!
 !!   FUNCTION
-!!     the cousing of cp_init_default_logger, decrements the stack, so that the default logger is what it has
+!!     the cousin of cp_add_default_logger, decrements the stack, so that
+!!     the default logger is what it has
 !!     been
 !!
 !!   NOTES
@@ -558,14 +534,12 @@ CONTAINS
 !!   INPUTS
 !!
 !!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     2.2004 created [Joost VandeVondele]
+!!     Joost VandeVondele
 !!
 !!*** *********************************************************************
-  SUBROUTINE cp_destroy_default_logger()
+  SUBROUTINE cp_rm_default_logger()
     IF (stack_pointer-1<0) THEN
-       CALL mp_stop(101,"cp_log_handling:cp_destroy_default_logger"//&
+       CALL mp_stop(101,moduleN//":cp_rm_default_logger"//&
             "can not destroy default logger "//moduleN)
     ENDIF
 
@@ -573,7 +547,7 @@ CONTAINS
     NULLIFY(default_logger_stack(stack_pointer)%cp_default_logger)
     stack_pointer=stack_pointer-1
 
-  END SUBROUTINE
+  END SUBROUTINE cp_rm_default_logger
 
 !!****f* cp_log_handling/cp_get_default_logger [1.0] *
 !!

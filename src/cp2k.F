@@ -68,15 +68,9 @@ PROGRAM cp2k
       CALL m_getarg(1,input_file_name)
   ENDIF
   
-  nullify(para_env)
-  CALL cp_para_env_create(para_env, group=mpi_comm_default,&
-       owns_group=.FALSE.)
-
   ! do a cp2k run with these arguments
-  cp2k_run_OK=cp2k_run(input_file_name,output_unit,para_env)
+  cp2k_run_OK=cp2k_run(input_file_name,output_unit,mpi_comm_default)
   
-  CALL cp_para_env_release(para_env)
-
   ! and finalize the mpi communicator
   CALL mp_world_finalize()
 

@@ -24,11 +24,13 @@
 
 MODULE environment
   USE cp2k_units,                      ONLY: init_cp2k_units
-  USE cp_log_handling,                 ONLY: cp_destroy_default_logger,&
+  USE cp_log_handling,                 ONLY: cp_add_default_logger,&
                                              cp_get_default_logger,&
-                                             cp_init_default_logger,&
+                                             cp_logger_create,&
+                                             cp_logger_release,&
                                              cp_logger_set,&
-                                             cp_logger_type
+                                             cp_logger_type,&
+                                             cp_rm_default_logger
   USE fft_tools,                       ONLY: fft3d,&
                                              init_fft
   USE gamma,                           ONLY: deallocate_md_ftable
@@ -151,6 +153,7 @@ CONTAINS
 
     INTEGER, DIMENSION(:), ALLOCATABLE   :: all_pid
     INTEGER, DIMENSION(:,:), ALLOCATABLE :: all_host
+    TYPE(cp_logger_type), POINTER :: logger
 
 #if defined(__HPM)
 #include "f_hpm.h"    
@@ -161,14 +164,6 @@ CONTAINS
     CALL m_getpid(pid)
     CALL m_getlog(user_name)
     CALL m_hostnm(host_name)
-
-!FM    ! set up the necessary varialbes in globenv
-!FM    CALL mp_environ ( globenv % num_pe, globenv % mepos, globenv % group )
-!FM    globenv % source = 0
-!FM    globenv % ionode = (globenv % mepos==globenv % source)
-!FM    NULLIFY(globenv%para_env)
-!FM    CALL cp_para_env_create (globenv%para_env, group=globenv%group,&
-!FM        owns_group=.FALSE.,source=globenv%source)
 
     ! create a timer_env
     CALL init_timer_env()
@@ -187,10 +182,13 @@ CONTAINS
     ELSE
        output_unit=-1
     END IF
-    CALL cp_init_default_logger(para_env=globenv%para_env,&
+    NULLIFY(logger)
+    CALL cp_logger_create(logger,para_env=globenv%para_env,&
          print_keys=globenv%print, &
          default_global_unit_nr=output_unit, &
          close_global_unit_on_dealloc=.FALSE.)
+    CALL cp_add_default_logger(logger)
+    CALL cp_logger_release(logger)
 
     ionode = globenv%ionode
 
@@ -321,12 +319,13 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE cp2k_read(globenv)
-  TYPE(global_environment_type), pointer :: globenv
-  
-  character(len=*), parameter :: routineN='cp2k_read',&
-        routineP=module_name//':'//routineN
-  TYPE(cp_logger_type), pointer :: logger
-  integer :: output_unit
+    TYPE(global_environment_type), POINTER   :: globenv
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_read', &
+      routineP = module_name//':'//routineN
+
+    INTEGER                                  :: output_unit
+    TYPE(cp_logger_type), POINTER            :: logger
 
     IF (globenv%para_env%source==globenv%para_env%mepos) THEN
        output_unit=globenv%scr
@@ -1119,8 +1118,7 @@ SUBROUTINE cp2k_read(globenv)
 
 !   *** Release message passing environment ***
 
-    CALL cp_destroy_default_logger()
-!FM    CALL cp_para_env_release(globenv%para_env)
+    CALL cp_rm_default_logger()
 
   END SUBROUTINE cp2k_finalize
 

@@ -44,7 +44,7 @@ MODULE integrator
                                              get_dyn_coeff_set
   USE extended_system_dynamics,        ONLY: lnhc
   USE extended_system_types,           ONLY: lnhc_parameters_type
-  USE force_env_methods,               ONLY: force_env_calculate_force
+  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type
   USE global_types,                    ONLY: global_environment_type
@@ -62,13 +62,15 @@ MODULE integrator
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE termination,                     ONLY: stop_memory, stop_program
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 !  USE transformations,                 ONLY: fr2fu,&
-!                                             u2r
-  USE virial_types,                     ONLY : virial_type
 
+!                                             u2r
+
+  USE virial_types,                    ONLY: virial_type
 
   IMPLICIT NONE
 
@@ -828,7 +830,8 @@ END SUBROUTINE set_integrator
     TYPE(dyn_coeff_set_p_type), &
       DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(dyn_coeff_type), POINTER            :: coeffs
-    TYPE(force_env_p_type), DIMENSION(:), POINTER :: force_env_p
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env_p
     TYPE(lnhc_parameters_type), &
       DIMENSION(:), POINTER                  :: nhc_coef
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
@@ -842,7 +845,7 @@ END SUBROUTINE set_integrator
       POINTER                                :: particle_set
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
-    TYPE ( virial_type ), POINTER            :: virial
+    TYPE(virial_type), POINTER               :: virial
 
 !MK TYPE(virial_type), POINTER           :: thermo
 !   ---------------------------------------------------------------------------
@@ -957,8 +960,8 @@ END SUBROUTINE set_integrator
 
 !     *** Update forces ***
 
-      CALL force_env_calculate_force(force_env_p(1)%force_env, &
-                                      box_change=.FALSE.)
+!      CALL force_env_set(force_env_p(1)%force_env,box_changed=.false.)
+      CALL force_env_calc_energy_force(force_env_p(1)%force_env)
 
 !     *** Velocity Verlet (second part) ***
 
@@ -1055,12 +1058,13 @@ END SUBROUTINE set_integrator
   SUBROUTINE isokin ( md_env )
 
     TYPE(md_environment_type), POINTER       :: md_env
+
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "isokin"
 
-    INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
-      isubsys, mass_storage, nmolecule, nmolecule_kind, nparticle, &
-      nparticle_kind, nparticle_local
-    REAL(KIND=dp)                            :: dm, dt, mass
+    INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, isubsys, &
+      nparticle, nparticle_kind, nparticle_local
+    REAL(KIND=dp)                            :: a, b, dm, ds, dt, K, mass, &
+                                                rb, s
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -1070,13 +1074,13 @@ END SUBROUTINE set_integrator
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(force_env_p_type), DIMENSION(:), POINTER :: force_env_p
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env_p
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
-    REAL(KIND=dp)                            :: K,a,b,rb,s,ds
 
 !   ---------------------------------------------------------------------------
 
@@ -1147,8 +1151,8 @@ END SUBROUTINE set_integrator
         work(:,iparticle) = 0.0_dp
       END DO
 
-      CALL force_env_calculate_force(force_env_p(1)%force_env, &
-                                      box_change=.FALSE.)
+!      CALL force_env_set(force_env_p(1)%force_env,box_changed=.false.)
+      CALL force_env_calc_energy_force(force_env_p(1)%force_env)
 
       ! compute K,a,b,s,ds
       CALL get_s_ds()
@@ -1200,9 +1204,9 @@ END SUBROUTINE set_integrator
          CALL mp_sum(b,int_group)
          a=a/(2.0_dp*K)
          b=b/(2.0_dp*K)
-         rb=sqrt(b)
-         s =(a/b)*(cosh(dt*rb/2.0_dp)-1) +sinh(dt*rb/2.0_dp)/rb
-         ds=(a/b)*(sinh(dt*rb/2.0_dp)*rb)+cosh(dt*rb/2.0_dp)
+         rb=SQRT(b)
+         s =(a/b)*(COSH(dt*rb/2.0_dp)-1) +SINH(dt*rb/2.0_dp)/rb
+         ds=(a/b)*(SINH(dt*rb/2.0_dp)*rb)+COSH(dt*rb/2.0_dp)
       END SUBROUTINE get_s_ds
   END SUBROUTINE isokin
 
@@ -1251,7 +1255,8 @@ END SUBROUTINE set_integrator
     TYPE(dyn_coeff_set_p_type), &
       DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(dyn_coeff_type), POINTER            :: coeffs
-    TYPE(force_env_p_type), DIMENSION(:), POINTER :: force_env_p
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env_p
     TYPE(lnhc_parameters_type), &
       DIMENSION(:), POINTER                  :: nhc_coef
     TYPE(lnhc_parameters_type), POINTER      :: nhc( : )
@@ -1382,8 +1387,8 @@ END SUBROUTINE set_integrator
 
 !     *** Update forces ***
 
-      CALL force_env_calculate_force(force_env_p(1)%force_env, &
-                                      box_change=.FALSE.)
+!      CALL force_env_set(force_env_p(1)%force_env,box_changed=.false.)
+      CALL force_env_calc_energy_force(force_env_p(1)%force_env)
 
 !     *** Velocity Verlet (second part) ***
 
@@ -1791,21 +1796,22 @@ END SUBROUTINE set_integrator
 
 SUBROUTINE pressure ( atomic_kind_set, particle_set, local_particles, virial  )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( atomic_kind_type ), DIMENSION ( : ), POINTER :: atomic_kind_set
-  TYPE ( particle_type ), DIMENSION ( : ), POINTER :: particle_set
-  TYPE ( distribution_1d_type ), POINTER :: local_particles
-  TYPE ( virial_type ), INTENT ( INOUT ) :: virial
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(virial_type), INTENT(INOUT)         :: virial
 
-! Locals
-  INTEGER :: i, j, handle, iparticle_kind, nparticle_kind, nnodes
-  INTEGER :: nparticle_local, iparticle_local, iparticle
-  REAL ( dbl ) :: mass, mfl
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
+    INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, j, &
+      nnodes, nparticle_kind, nparticle_local
+    REAL(dbl)                                :: mass, mfl
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+
 !
 !------------------------------------------------------------------------------
+
    IF ( virial % pv_availability ) THEN
      CALL timeset ( 'PRESSURE', 'E', 'Mflops', handle )
      mfl = 0._dbl
@@ -2492,13 +2498,11 @@ END SUBROUTINE pressure
 !******************************************************************************
 SUBROUTINE update_particle_set ( particle_set, int_group,  pos, vel )
                                 
-  IMPLICIT NONE
-  TYPE ( particle_type ), POINTER :: particle_set ( : )
-  REAL ( dbl ), INTENT ( INOUT ), OPTIONAL :: pos ( :, : ), vel ( :, : )
-  INTEGER, INTENT ( IN ) :: int_group
-! locals
-  REAL ( dbl ), ALLOCATABLE, DIMENSION ( :, : ) :: work 
-  INTEGER :: nparticle, iparticle
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    INTEGER, INTENT(IN)                      :: int_group
+    REAL(dbl), INTENT(INOUT), OPTIONAL       :: pos( :, : ), vel( :, : )
+
+    INTEGER                                  :: iparticle, nparticle
 
   nparticle = SIZE ( particle_set )
 

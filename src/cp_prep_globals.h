@@ -106,13 +106,13 @@ call cp_a_l(cond,level,routineP,__LINE__,error)
 #define CPPostconditionNoFail(cond,level,routineP,error) \
 call cp_a_l(cond,level,routineP,__LINE__,error)
 #define CPInvariantNoFail(cond,level,routineP,error) \
-call cp_a_l(cond, level,routineP,__LINE__,error)
+call cp_a_l(cond,level,routineP,__LINE__,error)
 #define CPAssertNoFail(cond,level,routineP,error) \
 call cp_a_l(cond,level,routineP,__LINE__,error)
 #define CPPreconditionNoErr(cond, level, routine_name) \
 call cp_a_l(cond,level,routine_name,__LINE__)
 #define CPPostconditionNoErr(cond, level, routine_name) \
-call cp_assert(cond, level, routine_name ,__LINE__)
+call cp_a_l(cond,level,routine_name ,__LINE__)
 #define CPInvariantNoErr(cond,level,routineP) \
 call cp_a_l(cond, level, routineP,__LINE__)
 #define CPAssertNoErr(cond,level,routineP) \

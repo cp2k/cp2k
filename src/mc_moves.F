@@ -26,28 +26,25 @@ MODULE mc_moves
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsys_set,&
                                              cp_subsystem_p_type
+  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_release,&
                                              force_env_type
-  USE force_env_methods,               ONLY: force_env_calculate_energy
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
                                              dp,&
                                              dp_size
   USE mc_coordinates,                  ONLY: get_center_of_mass,&
                                              mc_classical_energy,&
-                                             mc_coordinate_fold,&
-                                             check_for_overlap
+                                             mc_coordinate_fold
   USE mc_misc,                         ONLY: mc_make_dat_file
   USE mc_move_control,                 ONLY: move_q_reinit,&
                                              q_move_accept
-  USE mc_types,                        ONLY: mc_moves_type,&
-                                             mc_simulation_parameters_type,&
-                                             get_mc_par,&
-                                             set_mc_par
+  USE mc_types,                        ONLY: get_mc_par,&
+                                             mc_moves_type,&
+                                             mc_simulation_parameters_type
   USE message_passing,                 ONLY: mp_bcast
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: write_particle_coordinates
   USE physcon,                         ONLY: angstrom
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE simulation_cell,                 ONLY: cell_type,&
@@ -181,7 +178,7 @@ CONTAINS
 ! calculate the new energy of the system
       IF( .NOT. lclassical_run) THEN
 
-         CALL force_env_calculate_energy(force_env)
+         CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.)
 
          CALL force_env_get(force_env,potential_energy=new_energy,&
          error=error)
@@ -1281,7 +1278,7 @@ CONTAINS
 
       IF (.NOT. lclassical_run) THEN
 
-         CALL force_env_calculate_energy(test_env)
+         CALL force_env_calc_energy_force(test_env,calc_force=.FALSE.)
          CALL force_env_get(test_env,&
             potential_energy=new_energy,error=error)
            

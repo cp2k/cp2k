@@ -61,9 +61,9 @@ MODULE message_passing
   PUBLIC :: mp_group
 
   ! default communicators
-  PUBLIC :: MPI_COMM_SELF
+  PUBLIC :: MPI_COMM_SELF, MPI_COMM_WORLD
 #ifndef __parallel
-  INTEGER, PARAMETER :: MPI_COMM_SELF=0
+  INTEGER, PARAMETER :: MPI_COMM_SELF=0,MPI_COMM_WORLD=0
 #endif
 
   !

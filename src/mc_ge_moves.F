@@ -26,7 +26,7 @@ MODULE mc_ge_moves
                                              cp_subsys_set,&
                                              cp_subsystem_p_type,&
                                              cp_subsystem_pp_type
-  USE force_env_methods,               ONLY: force_env_calculate_energy
+  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
                                              force_env_release,&
@@ -35,29 +35,26 @@ MODULE mc_ge_moves
   USE kinds,                           ONLY: dbl,&
                                              dp,&
                                              dp_size
-  USE mc_coordinates,                  ONLY: get_center_of_mass,&
+  USE mc_coordinates,                  ONLY: generate_cbmc_swap_config,&
+                                             get_center_of_mass,&
                                              mc_classical_energy,&
-                                             mc_coordinate_fold,&
-                                             check_for_overlap,&
-                                             generate_cbmc_swap_config
+                                             mc_coordinate_fold
   USE mc_misc,                         ONLY: mc_make_dat_file
   USE mc_move_control,                 ONLY: move_q_reinit,&
                                              q_move_accept
-  USE mc_types,                        ONLY: mc_averages_type,&
+  USE mc_types,                        ONLY: get_mc_par,&
                                              mc_moves_p_type,&
                                              mc_moves_type,&
                                              mc_simulation_parameters_p_type,&
                                              mc_simulation_parameters_type,&
-                                             get_mc_par,&
                                              set_mc_par
   USE message_passing,                 ONLY: mp_bcast
-  USE mol_new_list_types,              ONLY: mol_new_list_p_type
   USE particle_list_types,             ONLY: particle_list_p_type,&
                                              particle_list_type
   USE physcon,                         ONLY: angstrom
   USE qs_main,                         ONLY: quickstep_create_force_env
-  USE simulation_cell,                 ONLY: cell_type,&
-                                             cell_p_type,&
+  USE simulation_cell,                 ONLY: cell_p_type,&
+                                             cell_type,&
                                              get_cell
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -198,7 +195,7 @@ CONTAINS
       IF(box_flag(1) == 1) THEN
 
          IF(.NOT. lclassical_run) THEN
-            CALL force_env_calculate_energy(force_env_1)
+            CALL force_env_calc_energy_force(force_env_1,calc_force=.FALSE.)
             CALL force_env_get(force_env_1,&
                potential_energy=new_energy(1),error=error)
             IF(lclassical) THEN
@@ -229,7 +226,7 @@ CONTAINS
       ENDIF
       IF(box_flag(2) == 1) THEN
          IF (.NOT. lclassical_run) THEN
-            CALL force_env_calculate_energy(force_env_2)
+            CALL force_env_calc_energy_force(force_env_2,calc_force=.FALSE.)
             CALL force_env_get(force_env_2,&
                potential_energy=new_energy(2),error=error)
             IF(lclassical) THEN
@@ -851,7 +848,7 @@ CONTAINS
 
 ! calculate the energies
       IF (.NOT. lclassical_run) THEN
-         CALL force_env_calculate_energy(insert_env)
+         CALL force_env_calc_energy_force(insert_env,calc_force=.FALSE.)
          CALL force_env_get(insert_env,&
             potential_energy=new_energy(insert_box),error=error)
          IF(lclassical) CALL mc_classical_energy(insert_env,&
@@ -881,7 +878,7 @@ CONTAINS
       ELSE
 
          IF (.NOT. lclassical_run) THEN
-            CALL force_env_calculate_energy(remove_env)
+            CALL force_env_calc_energy_force(remove_env,calc_force=.FALSE.)
             CALL force_env_get(remove_env,&
                potential_energy=new_energy(remove_box),error=error)
             IF(lclassical) CALL mc_classical_energy(remove_env,&
@@ -1482,7 +1479,8 @@ CONTAINS
          ELSE
 
             IF(.NOT. lclassical_run) THEN
-               CALL force_env_calculate_energy(test_env(i)%force_env)
+               CALL force_env_calc_energy_force(test_env(i)%force_env,&
+                    calc_force=.FALSE.)
                CALL force_env_get(test_env(i)%force_env,&
                   potential_energy=new_energy(i),error=error)
             ELSE

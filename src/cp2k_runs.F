@@ -28,8 +28,7 @@ MODULE cp2k_runs
   USE farming_types,                   ONLY: farming_env_type, &
                                              init_farming_env, &
                                              deallocate_farming_env
-  USE force_env_methods,               ONLY: force_env_calculate_energy,&
-       force_env_calculate_force
+  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_type, &
                                              force_env_release,&
                                              force_env_set, force_env_get
@@ -107,7 +106,8 @@ CONTAINS
 !!   INPUTS
 !!     input_file_name : name of the file to be opened for input 
 !!     ouput_unit      : unit to which output should be written
-!!     para_env        : para_env that can be used for the calling group
+!!     mpi_env         : the mpi environement for the run (the caller is
+!!                       responsible to get rid of it)
 !!
 !!   AUTHOR
 !!     Joost VandeVondele
@@ -115,13 +115,12 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!
 !!*** **********************************************************************
-  RECURSIVE FUNCTION cp2k_run(input_file_name,output_unit,para_env) RESULT(cp2k_run_OK)
+  RECURSIVE FUNCTION cp2k_run(input_file_name,output_unit,mpi_comm) RESULT(cp2k_run_OK)
 
     LOGICAL                              :: cp2k_run_OK
 
     CHARACTER(LEN=*), INTENT(IN) :: input_file_name
-    INTEGER         , INTENT(IN) :: output_unit
-    TYPE(cp_para_env_type), pointer :: para_env
+    INTEGER         , INTENT(IN) :: output_unit, mpi_comm
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "cp2k_run",&
                                    routineP=moduleN//':'//routineN  
@@ -133,11 +132,16 @@ CONTAINS
     TYPE(section_type), pointer :: input_structure
     TYPE(section_vals_type), pointer :: input_file
     TYPE(cp_parser_type), pointer :: parser
+    TYPE(cp_para_env_type), pointer :: para_env
     logical :: failure
 
     ! -----------------------------------------------------------------------------
     cp2k_run_OK = .FALSE.
     failure=.false.
+    NULLIFY(para_env)
+    CALL cp_para_env_create(para_env, group=mpi_comm,&
+         owns_group=.false.)
+
     NULLIFY(globenv, force_env )
 
     ! init globenv with the data
@@ -214,7 +218,8 @@ CONTAINS
          CASE ("MOLECULAR DYNAMICS")
             CALL qs_mol_dyn ( force_env, globenv, error=error )
          CASE ("WAVEFUNCTION OPTIMIZATION","ENERGY CALCULATION")
-            CALL force_env_calculate_energy(force_env,error=error)
+            CALL force_env_calc_energy_force(force_env,calc_force=.false.,&
+                 error=error)
          CASE DEFAULT
             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                    "Invalid run TYPE <"//TRIM(globenv%run_type)//"> was specified, "//&
@@ -243,7 +248,8 @@ CONTAINS
             CALL qs_mol_dyn ( force_env, globenv, error=error )
          CASE ("WAVEFUNCTION OPTIMIZATION","ENERGY CALCULATION")
             
-          CALL force_env_calculate_energy(force_env,error=error)
+          CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
+               error=error)
 !        CASE ("DEBUG")
 !           CALL kg_debug(force_env,error=error)
          END SELECT
@@ -256,6 +262,7 @@ CONTAINS
     CALL cp2k_finalize(globenv)
     CPPostconditionNoFail(globenv%ref_count==1,cp_failure_level,routineP,error)
     CALL globenv_release(globenv)
+    CALL cp_para_env_release(para_env)
 #if defined(__HMD)
     IF (globenv%ionode) CALL _dump_allocated(%VAL(0))
 #endif
@@ -306,7 +313,6 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: keyword, str
     character(len=5)                         :: label
     INTEGER                                  :: new_group,new_rank,new_size
-    TYPE(cp_para_env_type), pointer          :: para_env
 
     failure=.FALSE.
     CALL timeset(routineN,'I','',handle)
@@ -333,8 +339,6 @@ CONTAINS
     ELSE
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     ENDIF
-    nullify(para_env)
-    CALL cp_para_env_create(para_env,new_group,error=error)
     IF (globenv%ionode) THEN
         write(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Number of created MPI groups:",ngroups
         write(globenv%scr,FMT="(T2,A,T71,I10)",ADVANCE="NO") "FARMING| Task to group correspondence:"
@@ -402,7 +406,7 @@ CONTAINS
           
               IF (globenv%ionode) write(globenv%scr,FMT="(T2,A,I5.5,A)") " Running Job ",i, &
                         " output to "//TRIM(farming_env%Job_cwd(i))//"/"//TRIM(output_file)
-              run_OK=cp2k_run(TRIM(farming_env%Job_input(i)),output_unit,para_env)
+              run_OK=cp2k_run(TRIM(farming_env%Job_input(i)),output_unit,new_group)
               
               IF (new_rank == 0) THEN
                   CALL close_file(unit_number=output_unit)
@@ -425,9 +429,7 @@ CONTAINS
     ENDDO
 
     ! give back the communicators of the split groups
-    ! CALL mp_comm_free(new_group)
-    CPPrecondition(para_env%ref_count==1,cp_failure_level,routineP,error,failure)
-    call cp_para_env_release(para_env)
+    CALL mp_comm_free(new_group)
     DEALLOCATE(group_distribution,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 

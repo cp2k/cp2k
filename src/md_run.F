@@ -45,15 +45,15 @@ MODULE md_run
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_initialize,&
                                              dyn_coeff_set_p_type
   USE extended_system_types,           ONLY: extended_system_type,&
-                                             lnhc_parameters_type,&
-                                             npt_dealloc,&
-                                             lnhc_dealloc,&
                                              extended_type_init,&
-                                             lnhc_init
-  USE force_env_methods,               ONLY: force_env_calculate_force
+                                             lnhc_dealloc,&
+                                             lnhc_init,&
+                                             lnhc_parameters_type,&
+                                             npt_dealloc
+  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type,&
-                                             force_env_p_type
+                                             force_env_p_type,&
+                                             force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE initialize_extended_types,       ONLY: initialize_nhc_baro,&
                                              initialize_nhc_coef,&
@@ -111,15 +111,17 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE qs_mol_dyn1 ( force_env, globenv, error )
 
-    TYPE(force_env_type), POINTER  :: force_env
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    TYPE(force_env_p_type), DIMENSION(:), POINTER  :: force_env_p
-    INTEGER :: stat
     CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_mol_dyn1", &
       routineP = module_name//':'//routine_name
+
+    INTEGER                                  :: stat
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env_p
 
     ALLOCATE(force_env_p(1), stat=stat)
     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
@@ -138,7 +140,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(force_env_p_type), DIMENSION(:), POINTER  :: force_env_p
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env_p
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -146,9 +149,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_mol_dyn2", &
       routineP = module_name//':'//routine_name
 
-    INTEGER                                  :: handle, i, iset, istat, &
-                                                istep, isubsys, ibead, nbeads,&
-                                                nfixed
+    INTEGER                                  :: handle, i, ibead, iset, &
+                                                istat, istep, isubsys, &
+                                                nbeads, nfixed
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, should_stop
     REAL(KIND=dp)                            :: md_run_start_time, &
@@ -329,16 +332,17 @@ CONTAINS
     CALL get_md_env ( md_env, force_env_p=force_env_p, itimes = itimes, &
                       used_time = used_time ) 
     DO ibead = 1, nbeads
-       CALL force_env_calculate_force ( force_env_p(ibead)%force_env )
+       CALL force_env_calc_energy_force ( force_env_p(ibead)%force_env,&
+            calc_force=.TRUE.)
     END DO
     CALL md_energy ( md_env ) ! inits the print env at itimes == 0
 
     DO istep=1,simpar%nsteps
       CALL velocity_verlet(md_env)
       itimes = itimes + 1
-      do ibead=1,nbeads
+      DO ibead=1,nbeads
         CALL temperature_control(simpar,force_env_p(ibead)%force_env,error)
-      end do
+      END DO
       time_iter_stop=m_walltime()
       used_time = time_iter_stop - time_iter_start
       time_iter_start=time_iter_stop
@@ -507,7 +511,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(force_env_p_type), DIMENSION(:), POINTER  :: force_env_p
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env_p
     LOGICAL, INTENT(OUT)                     :: should_stop
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error

@@ -33,7 +33,8 @@ MODULE global_types
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
+  USE cp_log_handling,                 ONLY: close_file,&
+                                             cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -139,6 +140,7 @@ MODULE global_types
      LOGICAL :: ionode       !! this processor performs global output
      INTEGER :: blacs_grid_layout !! will store the user preference for the blacs grid
     TYPE(section_vals_type), POINTER :: input_file
+    LOGICAL :: close_output_unit
   END TYPE global_environment_type
 !!***
 ! *****************************************************************************
@@ -169,12 +171,13 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE globenv_create(globenv, para_env,  output_unit, &
-       input_file_name, print_keys, error)
+       input_file_name, print_keys, close_output_unit, error)
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(in)                      :: output_unit
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: input_file_name
     TYPE(print_keys_type), OPTIONAL, POINTER :: print_keys
+    LOGICAL, INTENT(in), OPTIONAL            :: close_output_unit
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -193,6 +196,8 @@ CONTAINS
        globenv%id_nr=last_globenv_id
        globenv%ref_count=1
        globenv%para_env=> para_env
+       globenv%close_output_unit=.FALSE.
+       IF(PRESENT(close_output_unit))globenv%close_output_unit=close_output_unit
        CALL cp_para_env_retain(para_env,error=error)
        IF (PRESENT(print_keys)) THEN
           globenv%print => print_keys
@@ -306,14 +311,17 @@ SUBROUTINE globenv_release(globenv, error)
      CPPrecondition(globenv%ref_count>0,cp_failure_level,routineP,error,failure)
      globenv%ref_count=globenv%ref_count-1
      IF (globenv%ref_count==0) THEN
-        IF (globenv%para_env%mepos==globenv%para_env%source) THEN
-           ! this message is here only for debugging, it should go away
-           WRITE(globenv%scr,"(' 000000 goodbye from globenv ',i6,' 000000')")&
-                globenv%id_nr
-        END IF
+!        IF (globenv%para_env%mepos==globenv%para_env%source) THEN
+!           ! this message is here only for debugging, it should go away
+!           WRITE(globenv%scr,"(' 000000 goodbye from globenv ',i6,' 000000')")&
+!                globenv%id_nr
+!        END IF
         CALL section_vals_release(globenv%input_file,error=error)
         CALL cp_para_env_release(globenv%para_env,error=error)
         CALL print_keys_release(globenv%print)
+        IF (globenv%close_output_unit) THEN
+           IF (globenv%ionode) CALL close_file(globenv%scr)
+        END IF
         DEALLOCATE(globenv,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF

@@ -20,10 +20,8 @@
 !******************************************************************************
 
 MODULE fist_main
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
                                              cp_error_get_logger,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
@@ -33,16 +31,16 @@ MODULE fist_main
                                              cp_to_string,&
                                              cp_warning_level
   USE fist_environment,                ONLY: fist_init
-  USE fist_environment_types,           ONLY: fist_env_create, &
-                                             fist_env_release, &
+  USE fist_environment_types,          ONLY: fist_env_create,&
+                                             fist_env_release,&
                                              fist_environment_type
-  USE force_env_types,                 ONLY: force_env_type
   USE force_env_methods,               ONLY: force_env_create
+  USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -91,25 +89,21 @@ CONTAINS
 
 SUBROUTINE fist_create_force_env ( force_env, globenv, error )
 
-  IMPLICIT NONE
 
 ! Argument
-  TYPE ( force_env_type ), POINTER :: force_env
-  TYPE ( global_environment_type ), POINTER :: globenv
-  TYPE ( cp_error_type ), INTENT ( inout ), OPTIONAL :: error
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local parameters *** 
-  CHARACTER(LEN=*), PARAMETER :: routineN = "fist_create_force_env",&
-       routineP=moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = "fist_create_force_env", &
+      routineP = moduleN//":"//routineN
 
-!   *** Local variables ***
+    INTEGER                                  :: handle
+    TYPE(fist_environment_type), POINTER     :: fist_env
 
-  LOGICAL :: failure
-  INTEGER :: handle
-
-  TYPE ( fist_environment_type ), POINTER :: fist_env
-  
 !------------------------------------------------------------------------------
+
   CALL timeset(routineN,"I","",handle)
 
   CALL fist_env_create( fist_env, para_env = globenv%para_env )
@@ -120,8 +114,8 @@ SUBROUTINE fist_create_force_env ( force_env, globenv, error )
   CALL fist_init ( fist_env, globenv, error )
 
   CALL force_env_create ( force_env, fist_env = fist_env, &
-                           para_env = globenv%para_env, globenv = globenv, &
-                           error = error )
+                          globenv = globenv, &
+                          error = error )
 
   CALL fist_env_release ( fist_env, error = error )
     

@@ -3,7 +3,7 @@
 !   Copyright (C) 2000-2003  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 #include "cp_prep_globals.h"
-!!****** cp2k/force_env_types [1.0] *
+!!****** cp2k/force_env_types *
 !!
 !!   NAME
 !!     force_env_types
@@ -12,12 +12,13 @@
 !!     Interface for the force calculations
 !!
 !!   AUTHOR
-!!     CJM & JGH
+!!     fawzi
 !!
 !!   MODIFICATION HISTORY
 !!     cjm, FEB-20-2001: pass variable box_ref
 !!     cjm, SEPT-12-2002: major reorganization
-!!     fawzi, APR-12-2003: introduced force_env
+!!     fawzi, APR-12-2003: introduced force_env (based on the work by CJM&JGH)
+!!     fawzi, NOV-3-2004: reorganized interface for f77 interface
 !!
 !!   SOURCE
 !******************************************************************************
@@ -63,7 +64,8 @@ MODULE force_env_methods
                                              use_qs_force,&
                                              use_qmmm,&
                                              use_list_force
-  USE global_types,                    ONLY: global_environment_type
+  USE global_types,                    ONLY: global_environment_type,&
+       globenv_retain, globenv_release
   USE kg_energy,                       ONLY: kg_energies
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_env_retain,&
@@ -99,7 +101,7 @@ MODULE force_env_methods
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='force_env_methods'
 
   PUBLIC :: force_env_create, &
-       force_env_calculate_force, force_env_calculate_energy,&
+       force_env_calc_energy_force, &
        force_env_set_cell
 
   INTEGER, SAVE, PRIVATE :: last_force_env_id=0
@@ -109,75 +111,86 @@ MODULE force_env_methods
 
 CONTAINS
 
-!!****** force_env_types/force_env_calculate_force [1.0] *
+!!****** force_env_types/force_env_calc_energy_force [1.0] *
 !!
 !!   NAME
-!!     force_env_calculate_force
+!!     force_env_calc_energy_force
 !!
 !!   FUNCTION
-!!     Interface routine for force calculations
+!!     Interface routine for force and energy calculations
+!!
+!!   ARGUMENTS
+!!     - force_env: the force_env of which you want the energy and forces
+!!     - calc_force: if false the forces *might* be left unchanged
+!!       or be unvalid, no guarantee on them is done.Defaults to true
 !!
 !!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 adapted to force_env [fawzi]
+!!     CJM & fawzi
 !!
 !!   SOURCE
 !******************************************************************************
 
-RECURSIVE SUBROUTINE force_env_calculate_force ( force_env, box_change, error )
-  
+RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
+     calc_force, error)
 
     TYPE(force_env_type), POINTER            :: force_env
-    LOGICAL, INTENT(IN), OPTIONAL            :: box_change
+    LOGICAL, INTENT(IN), OPTIONAL            :: calc_force
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calculate_force', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calc_energy_force', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, my_box_change
+    LOGICAL                                  :: failure, my_box_change,&
+         need_f
     INTEGER                                  :: i
 
-! dbg TYPE(fist_environment_type), POINTER :: fist_env
 !------------------------------------------------------------------------------
 
   failure=.FALSE.
-  my_box_change=.FALSE.
-  IF (PRESENT(box_change)) my_box_change=box_change
-!  NULLIFY(fist_env)
+  need_f=.TRUE.
+  if (present(calc_force)) need_f=calc_force
 
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
-
-  SELECT CASE ( force_env%in_use )
-    CASE ( use_fist_force )
+  IF (.NOT.failure) THEN
+     CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF (.NOT.failure) THEN
+     my_box_change=force_env%box_changed
+     
+     SELECT CASE ( force_env%in_use )
+     CASE ( use_fist_force )
         CALL fist_force_control( force_env%fist_env,force_env%virial, &
                                  force_env%globenv, my_box_change )
     CASE ( use_qs_force )
-      CALL qs_forces(force_env%qs_env,force_env%globenv,&
-           neighbor_lists_from_scratch=.TRUE.)
+       IF (.not.need_f) THEN
+          CALL qs_energies(force_env%qs_env,force_env%globenv,&
+               neighbor_lists_from_scratch=.TRUE.)
+       ELSE
+          CALL qs_forces(force_env%qs_env,force_env%globenv,&
+               neighbor_lists_from_scratch=.TRUE.)
+       END IF
     CASE ( use_pol_force )
        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
     CASE ( use_kg_force )
-      CALL kg_force_control ( force_env%kg_env, force_env%globenv )
+       IF (.not.need_f) THEN
+          CALL kg_energies ( force_env%kg_env, force_env%globenv )
+       ELSE
+          CALL kg_force_control ( force_env%kg_env, force_env%globenv )
+       END IF
     CASE ( use_qmmm )
-      CALL qmmm_energy_and_forces(force_env,box_change,.true.,error)
+      CALL qmmm_energy_and_forces(force_env,need_f,error)
     CASE ( use_list_force )
 !HAF: we could split this out into a separate subroutine, but for now:
 !HAF: atm we assume all sub-force_env's share the same para_env, just like QS
       CPPrecondition(ASSOCIATED(force_env%force_env_list),cp_failure_level, routineP,error,failure)
-      DO i = 1, SIZE (force_env%force_env_list)
-         CPPrecondition(ASSOCIATED(force_env%force_env_list(i)%force_env), cp_failure_level,routineP,error,failure)
-         IF (PRESENT(error)) THEN
-            CALL force_env_calculate_force( &
-                 force_env%force_env_list(i)%force_env, my_box_change,error)
-         ELSE
-            CALL force_env_calculate_force( &
-                 force_env%force_env_list(i)%force_env, my_box_change)
-         END IF
-      END DO
+      IF (.NOT.failure) THEN
+         DO i = 1, SIZE (force_env%force_env_list)
+            CPPrecondition(ASSOCIATED(force_env%force_env_list(i)%force_env), cp_failure_level,routineP,error,failure)
+            CALL force_env_calc_energy_force( &
+                 force_env%force_env_list(i)%force_env, need_f,error)
+         END DO
+      END IF
     CASE default
       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
   END SELECT
@@ -185,89 +198,10 @@ RECURSIVE SUBROUTINE force_env_calculate_force ( force_env, box_change, error )
   IF (ASSOCIATED(force_env%meta_env)) THEN
      CALL metadyn_add_forces(force_env%meta_env,force_env, error=error)
   END IF
-
-END SUBROUTINE force_env_calculate_force
+  force_env%box_changed=.false.
+END IF
+END SUBROUTINE force_env_calc_energy_force
 !******************************************************************************
-!!****f* force_env_types/force_env_calculate_energy [1.0] *
-!!
-!!   NAME
-!!     force_env_calculate_energy
-!!
-!!   FUNCTION
-!!     Is guaranteed to updates only the energy of the actual configuration
-!!     (but it *might* also update the force)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - force_env: the en
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-RECURSIVE SUBROUTINE force_env_calculate_energy(force_env, box_change, error)
-    TYPE(force_env_type), POINTER            :: force_env
-    LOGICAL, OPTIONAL                        :: box_change
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calculate_energy', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure, my_box_change
-    INTEGER                                  :: i
-
-!------------------------------------------------------------------------------
-
-  failure=.FALSE.
-  my_box_change=.FALSE.
-  IF (PRESENT(box_change)) my_box_change=box_change
-
-  CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
-
-  SELECT CASE ( force_env%in_use )
-    CASE ( use_fist_force ) ! NOT optimized!
-      CALL fist_force_control ( force_env%fist_env, force_env % virial, &
-                                force_env%globenv, my_box_change )
-    CASE ( use_qs_force )
-      CALL qs_energies(force_env%qs_env,force_env%globenv,&
-           neighbor_lists_from_scratch=.TRUE.)
-    CASE ( use_pol_force )
-       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-    CASE ( use_kg_force ) 
-      CALL kg_energies ( force_env%kg_env, force_env%globenv )
-    CASE (use_qmmm)
-      CALL qmmm_energy_and_forces(force_env,box_change,.false.,error)
-    CASE ( use_list_force )
-!HAF: we could split this out into a separate subroutine, but for now:
-!HAF: atm we assume all sub-force_env's share the same para_env, just like QS
-      CPPrecondition(ASSOCIATED(force_env%force_env_list),cp_failure_level,routineP,error,failure)
-      DO i = 1, SIZE (force_env%force_env_list)
-         CPPrecondition(ASSOCIATED(force_env%force_env_list(i)%force_env),cp_failure_level,routineP,error,failure)
-         IF (PRESENT(error)) THEN
-            CALL force_env_calculate_energy( &
-                 force_env%force_env_list(i)%force_env, my_box_change,error)
-         ELSE
-            CALL force_env_calculate_energy( &
-                 force_env%force_env_list(i)%force_env, my_box_change)
-         END IF
-      END DO
-  END SELECT
-  IF (ASSOCIATED(force_env%meta_env)) THEN
-     CALL metadyn_add_forces(force_env%meta_env,force_env, error=error)
-  END IF
-  
-END SUBROUTINE force_env_calculate_energy
-!***************************************************************************
-
 
 !!****f* force_env_types/force_env_create [1.0] *
 !!
@@ -294,8 +228,8 @@ END SUBROUTINE force_env_calculate_energy
 !!     04.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE force_env_create(force_env,force_env_list,fist_env,qs_env,kg_env,&
-     para_env,globenv,meta_env,sub_force_env,qmmm_env,error)
+SUBROUTINE force_env_create(force_env,globenv,force_env_list,fist_env,&
+     qs_env,kg_env,meta_env,sub_force_env,qmmm_env,error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(force_env_p_type), DIMENSION(:), OPTIONAL, &
       POINTER                                :: force_env_list
@@ -305,10 +239,8 @@ SUBROUTINE force_env_create(force_env,force_env_list,fist_env,qs_env,kg_env,&
       POINTER                                :: qs_env
     TYPE(kg_environment_type), OPTIONAL, &
       POINTER                                :: kg_env
-    TYPE(cp_para_env_type), OPTIONAL, &
-      POINTER                                :: para_env
     TYPE(global_environment_type), &
-      POINTER, OPTIONAL                      :: globenv
+      POINTER                                :: globenv
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
 !!HAF: ARGHHHHH now we have the following new from the main branch.... :
 !!HAF I guess I can delete my version force_env_list now...
@@ -318,7 +250,7 @@ SUBROUTINE force_env_create(force_env,force_env_list,fist_env,qs_env,kg_env,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_type', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_create', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat,isubsys
@@ -332,7 +264,7 @@ SUBROUTINE force_env_create(force_env,force_env_list,fist_env,qs_env,kg_env,&
   failure=.FALSE.
 
   ALLOCATE ( force_env, stat=stat )
-  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
   IF (.NOT. failure) THEN
      NULLIFY ( force_env%subsys, force_env%fist_env, &
                force_env%kg_env, force_env%qs_env,   &
@@ -344,14 +276,11 @@ SUBROUTINE force_env_create(force_env,force_env_list,fist_env,qs_env,kg_env,&
      force_env%id_nr=last_force_env_id
      force_env%ref_count=1
      force_env%in_use=0
+     force_env%box_changed=.false.
 
-     IF (PRESENT(globenv)) THEN
-        force_env%globenv => globenv
-        force_env%para_env => globenv%para_env
-     ELSE
-        CPAssert(PRESENT(para_env),cp_failure_level,routineP,error,failure)
-     END IF
-     IF (PRESENT(para_env)) force_env%para_env => para_env
+     force_env%globenv => globenv
+     CALL globenv_retain(force_env%globenv,error=error)
+     force_env%para_env => globenv%para_env
      CALL cp_para_env_retain(force_env%para_env, error=error)
      IF (PRESENT(force_env_list)) THEN
         IF (ASSOCIATED(force_env_list)) THEN
@@ -385,8 +314,6 @@ SUBROUTINE force_env_create(force_env,force_env_list,fist_env,qs_env,kg_env,&
         END IF
      END IF
      IF (PRESENT(qs_env)) THEN
-        CPPrecondition(PRESENT(globenv),cp_failure_level,routineP,error,failure)
-
         IF (ASSOCIATED(qs_env)) THEN
            CPPrecondition(force_env%in_use==0,cp_failure_level,routineP,error,failure)
            force_env%in_use=use_qs_force
@@ -415,7 +342,6 @@ SUBROUTINE force_env_create(force_env,force_env_list,fist_env,qs_env,kg_env,&
      END IF
      SELECT CASE(force_env%in_use)
      CASE(use_list_force)
-        CPPrecondition(PRESENT(globenv),cp_failure_level,routineP,error,failure)
         j = 0;
 ! get total number of subsystems
         DO i = 1, SIZE(force_env%force_env_list)
@@ -460,7 +386,6 @@ SUBROUTINE force_env_create(force_env,force_env_list,fist_env,qs_env,kg_env,&
         END DO
 
      CASE(use_fist_force)
-        CPPrecondition(PRESENT(globenv),cp_failure_level,routineP,error,failure)
         ALLOCATE ( force_env % subsys ( 1 ), stat = stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         CALL get_fist_env ( force_env % fist_env, &
@@ -584,6 +509,7 @@ RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, error)
              CPSourceFileRef,&
              error,failure)
      END SELECT
+     force_env%box_changed=.true.
   END IF
 END SUBROUTINE force_env_set_cell
 !***************************************************************************
@@ -600,7 +526,7 @@ END SUBROUTINE force_env_set_cell
 !!     -
 !!
 !!   INPUTS
-!!     - calculate_force: if also the forces should be calculated
+!!     - calc_force: if also the forces should be calculated
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -611,14 +537,14 @@ END SUBROUTINE force_env_set_cell
 !!     05.2004 created [fawzi]
 !!
 !!*** **********************************************************************
-RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,box_change,calculate_force,error)
+RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   TYPE(force_env_type), POINTER            :: force_env
-  LOGICAL, INTENT(IN), OPTIONAL            :: box_change, calculate_force
+  LOGICAL, INTENT(IN), OPTIONAL            :: calc_force
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  logical :: failure
+
+  LOGICAL :: failure,need_f
   character(len=*), parameter :: routineN='qmmm_energy_and_forces',&
-        routineP=moduleN//':'//routineN
+       routineP=moduleN//':'//routineN
   TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys_qm,subsys_mm
   INTEGER, DIMENSION(:), POINTER :: qm_atom_index, qm_subsys_index
   INTEGER :: ip, isubsys
@@ -629,6 +555,8 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,box_change,calculate_force
   min_coord=HUGE(0.0_dbl)
   max_coord=-HUGE(0.0_dbl)
   failure=.false.
+  need_f=.true.
+  if (present(calc_force)) need_f=calc_force
   NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm)
 
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
@@ -656,12 +584,12 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,box_change,calculate_force
      min_coord=MIN(min_coord,particles_mm(qm_atom_index(ip))%r)
      max_coord=MAX(max_coord,particles_mm(qm_atom_index(ip))%r)
   END DO
- ! WRITE(*,*)max_coord, min_coord
+  ! WRITE(*,*)max_coord, min_coord
   transl_v = (max_coord + min_coord) / 2.0_dp
   transl_v(1) = transl_v(1) - cell_loc%hmat(1,1)/2.0_dp
   transl_v(2) = transl_v(2) - cell_loc%hmat(2,2)/2.0_dp
   transl_v(3) = transl_v(3) - cell_loc%hmat(3,3)/2.0_dp
-  
+
   DO isubsys=1,SIZE(subsys_mm)     
      particles_mm => subsys_mm(isubsys)%subsys%particles%els
      DO ip=1,subsys_mm(isubsys)%subsys%particles%n_els
@@ -669,7 +597,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,box_change,calculate_force
              particles_mm(ip)%r - transl_v
      END DO
   END DO
-!  CALL force_env_write_variables(force_env, 6, .true., error)
+  !  CALL force_env_write_variables(force_env, 6, .true., error)
   isubsys=-1
   DO ip=1,SIZE(qm_atom_index)
      IF (isubsys/=qm_subsys_index(ip)) THEN
@@ -681,31 +609,31 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,box_change,calculate_force
 
   ! Initialize ks_qmmm_env
   CALL ks_qmmm_env_rebuild(qs_env=force_env%sub_force_env(2)%force_env%qs_env,&
-                        qmmm_env=force_env%qmmm_env,&
-                        error=error)
+       qmmm_env=force_env%qmmm_env,&
+       error=error)
 
   ! Compute the short range QM/MM Electrostatic Potential
   CALL qmmm_el_coupling(globenv=force_env%sub_force_env(2)%force_env%globenv,&
-                        qs_env=force_env%sub_force_env(2)%force_env%qs_env,&
-                        qmmm_env=force_env%qmmm_env,&
-                        mm_particles=particles_mm,&
-                        error=error)
+       qs_env=force_env%sub_force_env(2)%force_env%qs_env,&
+       qmmm_env=force_env%qmmm_env,&
+       mm_particles=particles_mm,&
+       error=error)
 
-  IF (PRESENT(calculate_force).and.calculate_force) THEN
-     !TL
-     ! Fist: isubsys = 1
-     isubsys = 1
-     CALL force_env_calculate_force(force_env%sub_force_env(isubsys)%force_env,&
-          box_change=box_change,error=error)
-     isubsys = 2
-     CALL force_env_calculate_force(force_env%sub_force_env(isubsys)%force_env,&
-          box_change=box_change,error=error)
-     !
-     ! QM/MM Interaction Potential forces
-     !
-     CALL qmmm_forces(force_env%sub_force_env(2)%force_env%qs_env,&
-                        force_env%qmmm_env,particles_mm,error)
-
+  !TL
+  ! Fist: isubsys = 1
+  isubsys = 1
+  CALL force_env_calc_energy_force(force_env%sub_force_env(isubsys)%force_env,&
+       calc_force=calc_force,error=error)
+  isubsys = 2
+  CALL force_env_calc_energy_force(force_env%sub_force_env(isubsys)%force_env,&
+       calc_force=calc_force,error=error)
+  !
+  ! QM/MM Interaction Potential forces
+  !
+  CALL qmmm_forces(force_env%sub_force_env(2)%force_env%qs_env,&
+       force_env%qmmm_env,particles_mm,&
+       calc_force=need_f,error=error)
+  IF (need_f) THEN
      isubsys=-1
      DO ip=1,SIZE(qm_atom_index)
         IF (isubsys/=qm_subsys_index(ip)) THEN
@@ -713,18 +641,8 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,box_change,calculate_force
            particles_mm => subsys_mm(isubsys)%subsys%particles%els
         END IF
         particles_mm(qm_atom_index(ip))%f=particles_mm(qm_atom_index(ip))%f+&
-                                          particles_qm(ip)%f
+             particles_qm(ip)%f
      END DO
-  ELSE
-     !TL
-     !Fist: isubsys = 1
-     isubsys = 1
-     CALL force_env_calculate_energy(force_env%sub_force_env(isubsys)%force_env,&
-          box_change=box_change,error=error) 
-     isubsys = 2
-     CALL force_env_calculate_energy(force_env%sub_force_env(isubsys)%force_env,&
-          box_change=box_change,error=error) 
-     !TL
   END IF
 
 END SUBROUTINE qmmm_energy_and_forces

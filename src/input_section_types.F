@@ -1566,7 +1566,7 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
            END IF
         END IF
         if (.not.my_hide_root) &
-             WRITE(unit=unit_nr,fmt="('&END SECTION ',a)") TRIM(section%name)
+             WRITE(unit=unit_nr,fmt="('&END ',a)") TRIM(section%name)
      END DO
   END IF
   CALL cp_error_dealloc_ref(suberror)

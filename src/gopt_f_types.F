@@ -40,8 +40,7 @@ MODULE gopt_f_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
-  USE force_env_methods,               ONLY: force_env_calculate_energy,&
-                                             force_env_calculate_force
+  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_release,&
                                              force_env_retain,&
@@ -372,13 +371,8 @@ SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, master, para_env, error)
      END IF
   END DO
 
-  IF (PRESENT(gradient)) THEN
-     CALL force_env_calculate_force(gopt_env%force_env,&
-          error=error)
-  ELSE
-     CALL force_env_calculate_energy(gopt_env%force_env,&
-          error=error)
-  END IF
+  CALL force_env_calc_energy_force(gopt_env%force_env,&
+       calc_force=PRESENT(gradient),error=error)
 
   IF (PRESENT(f)) THEN
      CALL force_env_get(gopt_env%force_env,potential_energy=f,&
@@ -569,7 +563,7 @@ SUBROUTINE gopt_param_read(gopt_param, globenv, error)
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=3)                         :: test_result
-    CHARACTER(LEN=60)                        :: keyword,keyword2
+    CHARACTER(LEN=60)                        :: keyword, keyword2
     LOGICAL                                  :: failure, section_found
 
   failure=.FALSE.

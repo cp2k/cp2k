@@ -48,7 +48,8 @@ MODULE force_env_types
   USE fist_environment_types,          ONLY: fist_environment_type,&
                                              fist_env_release, &
                                              get_fist_env
-  USE global_types,                    ONLY: global_environment_type
+  USE global_types,                    ONLY: global_environment_type,&
+       globenv_release
   USE kg_energy_types,                 ONLY: kg_energy_type
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_env_release,&
@@ -105,12 +106,13 @@ MODULE force_env_types
 !!     - fist_env: the fist environment (allocated only if fist is in use)
 !!     - kg_env: the kg environment (allocated only if kg is in use)
 !!     - qs_env: qs_env (activated only if quickstep is in use)
-!!     - globenv: the globenv, it is there only for packward compatibility,
-!!       you are not allowed to use it (it might go away, use para_env instead)
+!!     - globenv: the globenv to have the input that generated this force_env
 !!     - para_env: the parallel environment that contains all the parallel
 !!       environment of the fragments
 !!     - meta_env: the metadynamics environment, allocated if there is
 !!       metadynamics
+!!     - box_changed: if the cell has canged since the last evaluation
+!!       of the forces
 !!
 !!     read-only attributes (get them *only* through force_env_get):
 !!     - subsys: the fragments that build up the actual system.
@@ -133,6 +135,7 @@ MODULE force_env_types
   TYPE force_env_type
 !     PRIVATE
      INTEGER :: id_nr,ref_count,in_use
+     logical :: box_changed
      TYPE ( force_env_p_type ), DIMENSION(:), POINTER :: force_env_list
      TYPE ( fist_environment_type ), POINTER :: fist_env 
      TYPE ( kg_environment_type ), POINTER :: kg_env
@@ -300,7 +303,7 @@ RECURSIVE SUBROUTINE force_env_release(force_env, error)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
         CALL cp_para_env_release(force_env%para_env,error=error)
-        NULLIFY(force_env%globenv)
+        call globenv_release(force_env%globenv)
         ! not deallocated
         CPAssert(.NOT.ASSOCIATED(force_env%kg_env),cp_warning_level,routineP,error,failure)
         CPAssert(.NOT.ASSOCIATED(force_env%fist_env),cp_warning_level,routineP,error,failure)
@@ -325,7 +328,7 @@ END SUBROUTINE force_env_release
 !!     returns various attributes about the force environment
 !!
 !!   NOTES
-!!     the absence of globenv is done on purpose
+!!     -
 !!
 !!   ARGUMENTS
 !!     - force_env: the force environment you what informations about
@@ -342,7 +345,8 @@ END SUBROUTINE force_env_release
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
      fist_env, qs_env, kg_env, meta_env, dyn_coeff_set, subsys, para_env, &
-     potential_energy, kinetic_energy, cell, sub_force_env, qmmm_env, virial, error)
+     potential_energy, kinetic_energy, cell, sub_force_env, qmmm_env, virial,&
+     box_changed, globenv, error)
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(out), OPTIONAL           :: in_use
     TYPE(qs_environment_type), OPTIONAL, &
@@ -366,6 +370,8 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
     TYPE(force_env_p_type), DIMENSION(:), POINTER, OPTIONAL :: sub_force_env
     TYPE(qmmm_env_type), POINTER, OPTIONAL :: qmmm_env
     TYPE ( virial_type ), POINTER, OPTIONAL :: virial
+    LOGICAL, INTENT(out), optional           :: box_changed
+    TYPE(global_environment_type), POINTER, optional :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -502,6 +508,8 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
      IF (PRESENT(sub_force_env)) sub_force_env => force_env%sub_force_env
      if (PRESENT(qmmm_env)) qmmm_env => force_env%qmmm_env
      IF ( PRESENT ( virial ) )   virial => force_env % virial
+     IF (PRESENT(box_changed)) box_changed = force_env%box_changed
+     if (present(globenv)) globenv => force_env%globenv
   END IF
 END SUBROUTINE force_env_get
 !***************************************************************************
@@ -559,7 +567,9 @@ SUBROUTINE force_env_write_variables(force_env, unit_nr, local, error)
   NULLIFY(subsys,cell,atomic_kinds,dyn_coeff_set, particles)
   logger => cp_error_get_logger(error)
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT.failure) THEN
+     CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  END IF
   my_local=.FALSE.
   IF (PRESENT(local)) my_local=local
   should_write=my_local.or.(logger%para_env%mepos==logger%para_env%source)
@@ -678,44 +688,48 @@ END SUBROUTINE force_env_write_variables
 !!
 !!*** **********************************************************************
 SUBROUTINE force_env_read_variables(force_env, unit_nr, local, error)
-    TYPE(force_env_type), POINTER            :: force_env
-    INTEGER, INTENT(in)                      :: unit_nr
-    LOGICAL, INTENT(in), OPTIONAL            :: local
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+  TYPE(force_env_type), POINTER            :: force_env
+  INTEGER, INTENT(in)                      :: unit_nr
+  LOGICAL, INTENT(in), OPTIONAL            :: local
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_read_variables', &
-      routineP = moduleN//':'//routineN
+  CHARACTER(len=*), PARAMETER :: routineN = 'force_env_read_variables', &
+       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, isubsys
-    LOGICAL                                  :: failure, my_local, should_read
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
-    TYPE(particle_list_type), POINTER        :: particles
+  INTEGER                                  :: i, isubsys
+  LOGICAL                                  :: failure, my_local, should_read
+  TYPE(cell_type), POINTER                 :: cell
+  TYPE(cp_logger_type), POINTER            :: logger
+  TYPE(cp_subsystem_p_type), &
+       DIMENSION(:), POINTER                  :: subsys
+  TYPE(particle_list_type), POINTER        :: particles
 
   failure=.FALSE.
   NULLIFY(subsys,cell,particles)
   logger => cp_error_get_logger(error)
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
-  my_local=.FALSE.
-  IF (PRESENT(local)) my_local=local
-  should_read=my_local.or.(logger%para_env%mepos==logger%para_env%source)
-  
-  ! bcast of read data not yet done
-  CPAssert(logger%para_env%num_pe==1,cp_failure_level,routineP,error,failure)
+  IF (.NOT.failure) THEN
+     CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF (.NOT.failure) THEN
+     my_local=.FALSE.
+     IF (PRESENT(local)) my_local=local
+     should_read=my_local.or.(logger%para_env%mepos==logger%para_env%source)
+
+     ! bcast of read data not yet done
+     CPAssert(logger%para_env%num_pe==1,cp_failure_level,routineP,error,failure)
+  END IF
   IF (.NOT. failure) THEN
      CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
-     
+
 !FM cell should be read here
 
      ! method specific global output
      SELECT CASE(force_env%in_use)
      CASE (use_qs_force)
      CASE (use_qmmm)
-!     CASE (use_fist_force)
+        !     CASE (use_fist_force)
      CASE (use_kg_force)
      CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -746,10 +760,10 @@ SUBROUTINE force_env_read_variables(force_env, unit_nr, local, error)
               READ (UNIT=unit_nr,FMT=*) cell%hmat(i,1:3)
            END DO
         CASE (use_qmmm)
-!        CASE (use_fist_force)
-!           DO i = 1, 3
-!              READ (unit_nr,*) force_env%fist_env%rep_env(1)%box_ref%hmat(i,:)
-!           END DO
+           !        CASE (use_fist_force)
+           !           DO i = 1, 3
+           !              READ (unit_nr,*) force_env%fist_env%rep_env(1)%box_ref%hmat(i,:)
+           !           END DO
         CASE (use_kg_force)
            DO i = 1, 3
               READ (UNIT=unit_nr,FMT=*) cell%hmat(i,1:3)            
@@ -795,35 +809,40 @@ END SUBROUTINE force_env_read_variables
 !!     09.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE force_env_set(force_env, meta_env, virial, error)
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
-    TYPE(virial_type), OPTIONAL, POINTER     :: virial
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+SUBROUTINE force_env_set(force_env, meta_env, virial, box_changed, error)
+  TYPE(force_env_type), POINTER            :: force_env
+  TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
+  TYPE(virial_type), OPTIONAL, POINTER     :: virial
+  LOGICAL, OPTIONAL, intent(in)            :: box_changed
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_set', &
-      routineP = moduleN//':'//routineN
+  CHARACTER(len=*), PARAMETER :: routineN = 'force_env_set', &
+       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+  LOGICAL                                  :: failure
 
   failure=.FALSE.
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
-  
-  IF (PRESENT(meta_env)) THEN
-     IF (ASSOCIATED(meta_env)) THEN
-        CALL meta_env_retain(meta_env,error=error)
-     END IF
-     CALL meta_env_release(force_env%meta_env,error=error)
-     force_env%meta_env => meta_env
+  IF (.NOT.failure) THEN
+     CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
   END IF
-  IF (PRESENT(virial)) THEN
-     IF (ASSOCIATED(virial)) THEN
-        CALL virial_retain(virial,error=error)
+  IF (.NOT.failure) THEN
+     IF (PRESENT(meta_env)) THEN
+        IF (ASSOCIATED(meta_env)) THEN
+           CALL meta_env_retain(meta_env,error=error)
+        END IF
+        CALL meta_env_release(force_env%meta_env,error=error)
+        force_env%meta_env => meta_env
      END IF
-     CALL virial_release(force_env%virial,error=error)
-     force_env%virial => virial
+     IF (PRESENT(virial)) THEN
+        IF (ASSOCIATED(virial)) THEN
+           CALL virial_retain(virial,error=error)
+        END IF
+        CALL virial_release(force_env%virial,error=error)
+        force_env%virial => virial
+     END IF
+     IF (PRESENT(box_changed)) force_env%box_changed=box_changed
   END IF
 END SUBROUTINE force_env_set
 !***************************************************************************

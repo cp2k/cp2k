@@ -29,10 +29,9 @@ MODULE mc_ensembles
                                              cp_to_string
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
-  USE force_env_methods,               ONLY: force_env_calculate_energy
+  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
-                                             force_env_retain,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
@@ -40,15 +39,14 @@ MODULE mc_ensembles
                                              dp_size
   USE machine,                         ONLY: m_flush
   USE mc_control,                      ONLY: write_mc_restart
+  USE mc_coordinates,                  ONLY: get_water_data,&
+                                             mc_classical_energy
   USE mc_environment_types,            ONLY: get_mc_env,&
                                              mc_environment_type,&
                                              set_mc_env
   USE mc_ge_moves,                     ONLY: mc_ge_quickstep_move,&
                                              mc_ge_swap_move,&
                                              mc_ge_volume_move
-  USE mc_coordinates,                  ONLY: get_water_data,&
-                                             mc_classical_energy,&
-                                             check_for_overlap
   USE mc_misc,                         ONLY: final_mc_write,&
                                              mc_averages_create,&
                                              mc_averages_release
@@ -61,13 +59,13 @@ MODULE mc_ensembles
                                              mc_molecule_rotation,&
                                              mc_molecule_translation,&
                                              mc_volume_move
-  USE mc_types,                        ONLY: mc_averages_p_type,&
+  USE mc_types,                        ONLY: get_mc_par,&
+                                             mc_averages_p_type,&
                                              mc_averages_type,&
                                              mc_moves_p_type,&
                                              mc_moves_type,&
                                              mc_simulation_parameters_p_type,&
                                              mc_simulation_parameters_type,&
-                                             get_mc_par,&
                                              set_mc_par
   USE message_passing,                 ONLY: mp_bcast
   USE particle_list_types,             ONLY: particle_list_type
@@ -225,7 +223,7 @@ CONTAINS
 
 ! find the energy of the initial configuration
       IF (.NOT. lclassical_run) THEN
-         CALL force_env_calculate_energy(force_env)
+         CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.)
          CALL force_env_get(force_env,potential_energy=old_energy,&
             error=error)
 
@@ -487,7 +485,7 @@ CONTAINS
 
       IF (.NOT. lclassical_run) THEN
  
-         CALL force_env_calculate_energy(force_env)
+         CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.)
          CALL force_env_get(force_env,potential_energy=final_energy,&
             error=error)
    
@@ -714,7 +712,8 @@ CONTAINS
          ELSE
 
             IF (.NOT. lclassical_run) THEN
-               CALL force_env_calculate_energy(force_env(i)%force_env)
+               CALL force_env_calc_energy_force(force_env(i)%force_env,&
+                    calc_force=.FALSE.)
                CALL force_env_get(force_env(i)%force_env,&
                potential_energy=old_energy(i),error=error)
                
@@ -1178,7 +1177,8 @@ CONTAINS
       DO i=1,2
          IF (nchain(i) .NE. 0) THEN
             IF (.NOT. lclassical_run) THEN
-               CALL force_env_calculate_energy(force_env(i)%force_env)
+               CALL force_env_calc_energy_force(force_env(i)%force_env,&
+                    calc_force=.FALSE.)
                CALL force_env_get(force_env(i)%force_env,&
                   potential_energy=final_energy(i),error=error)
             ELSE
