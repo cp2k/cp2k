@@ -1,0 +1,110 @@
+&CP2K
+  PROJECT    h2o
+  PROGRAM    kg
+  IOLEVEL    4
+  RUN_TYPE   MD     
+  FFTLIB     FFTSG
+&END
+
+
+&DFT
+X-FUNCTIONAL  none
+C-FUNCTIONAL  pade 
+KE-FUNCTIONAL tf
+density_cutoff   1.0E-10
+gradient_cutoff   1.0E-10
+&END 
+
+&TOPOLOGY
+nhcopt   GLOBAL
+&END 
+
+&KG
+ cutoff 100.0
+ eps_core_charge 1.0E-96 
+ eps_ppl 1.0E-96
+ eps_pgf_orb 1.0E-16
+ eps_gvg_rspace 1.0E-16
+ eps_rho 1.0E-16
+ method  KG_NOPOL
+ ngrid_level 1
+&END
+
+&FORCE_FIELD
+  constraints
+    g3x3 add 1 1 2 3 1.88 1.88 3.08
+  end constraints
+&END
+
+&PRINT  low
+BASIS_SET
+CORE_CHARGE_RADII
+RADII
+POTENTIALS
+PW_GRID_INFORMATION
+CUBE
+&END
+
+&KIND O 
+BASIS_SET KG-FEDPD-BARKER
+POTENTIAL ELP
+&END
+
+&KIND H
+BASIS_SET KG-FEDPD-BARKER
+POTENTIAL ELP
+&END
+
+&SCF
+ GUESS        RESTART
+ EPS_SCF      1.0E-5
+ MAX_SCF      300    
+ MAX_DIIS     5
+ WRITE_RESTART_EACH 100
+&END
+
+&MD
+  ensemble:      nve                      (nve,nvt,npt_i,npt_f)
+  steps:         5     
+  timestep:    1.0   fs                 time step [fs]
+  temperature:  300.0000                  temperature [K]
+  restart:      init                    start type (pos,posvel)
+  constraints:  off
+  shake:        1.e-10
+  nose_parameter   &
+    length:    1        &
+    Yoshida:   3        &
+    timecon:   1000.  fs   &
+    mts:       2
+  barostat_parameter:   &
+    pressure: 0.        &
+    timecon: 1000.
+  coef_ensemble:    nvt
+  coef_temperature  2.0                  coef temperature
+  coef_storage:     global
+  coef_mass:        250
+  coef_restart: pos
+  coef_nose_parameter   &
+   option:    global &
+   length:    1   &
+   Yoshida:   3   &
+   mts:       2     &
+   timecon:   100 fs
+  print  files          5
+  print  screen         5  
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          12.940  12.940   12.940          
+ SUBCELLS  0.
+&END
+
+&COORD
+ O         -4.5803850683        5.3285581925        1.5549187956  H2O
+ H         -3.7604943795        5.3979691509        0.9957280291  H2O
+ H         -5.1517647165        4.5818585527        1.2298067443  H2O
+ O         -0.0853350645        4.2086283268        0.0698550959  H2O
+ H         -0.4458356760        3.4770174657        0.6395197808  H2O
+ H          0.3947472610        3.8254091463       -0.7127028694  H2O
+&END
