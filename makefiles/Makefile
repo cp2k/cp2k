@@ -141,4 +141,6 @@ endif
 
 ### Load the automatically generated rules of sfmakedepend ###
 
+ifneq ($(strip $(wildcard *.dep)),)
 include $(wildcard *.dep)
+endif
