@@ -299,7 +299,7 @@ MODULE  hartree_local_methods
     CALL get_rho0_mpole(rho0_mpole=rho0_mpole,lmax_0=lmax_0)
     
 
-    ALLOCATE(gexp(max_nr),gsph(max_nr,max_iso),sqrtwr(max_nr),g0_h(max_nr,0:lmax_0))
+    ALLOCATE(gexp(max_nr),gsph(max_nr,max_iso),sqrtwr(max_nr),g0_h_w(max_nr,0:lmax_0))
 
     DO ikind = 1,nkind
 
