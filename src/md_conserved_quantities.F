@@ -25,6 +25,8 @@ MODULE md_conserved_quantities
                                             get_atomic_kind
   USE coefficient_types,             ONLY : coeff_type
   USE cp_para_types,                 ONLY : cp_para_env_type
+  USE extended_system_dynamics,      ONLY : lnhc_parameters_type, &
+                                            npt_info_type
   USE kinds,                         ONLY : dbl
   USE mathconstants,                 ONLY : zero
   USE md,                            ONLY : simulation_parameters_type
@@ -33,8 +35,6 @@ MODULE md_conserved_quantities
                                             set_md_env
   USE message_passing,               ONLY : mp_sum, &
                                             mp_comm_dup
-  USE nose,                          ONLY : lnhc_parameters_type, &
-                                            npt_info_type
   USE simulation_cell,               ONLY : cell_type
   USE structure_types,               ONLY : structure_type
   USE termination,                   ONLY : stop_memory, &

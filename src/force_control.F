@@ -132,9 +132,9 @@ MODULE force_control
      TYPE ( fist_environment_type ), POINTER :: fist_env 
      TYPE ( kg_environment_type ), POINTER :: kg_env
      TYPE ( qs_environment_type ), POINTER :: qs_env ! should get one for every beat in PIMD ?
-     TYPE (particle_1d_a_type), DIMENSION(:), POINTER :: particle_sets
-     TYPE (atomic_kind_1d_a_type), DIMENSION(:), POINTER :: atomic_kind_sets
-     TYPE (cp_local_lists_p_type), DIMENSION(:), POINTER :: local_particles
+     TYPE ( particle_1d_a_type ), DIMENSION(:), POINTER :: particle_sets
+     TYPE ( atomic_kind_1d_a_type ), DIMENSION(:), POINTER :: atomic_kind_sets
+     TYPE ( cp_local_lists_p_type ), DIMENSION(:), POINTER :: local_particles
   END TYPE force_env_type
 !!***
   !****************************************************************************

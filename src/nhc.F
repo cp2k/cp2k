@@ -23,12 +23,14 @@
 MODULE nhc
 
   USE coefficient_types, ONLY : coeff_type, PLANEWAVES, ATOMICORBITALS
+  USE extended_system_dynamics, ONLY : npt_info_type,&
+                                       lnhc_parameters_type,& 
+                                       yoshida_coef
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE md, ONLY : simulation_parameters_type
   USE molecule_types, ONLY : molecule_structure_type, molecule_type
   USE message_passing, ONLY : mp_sum
-  USE nose, ONLY : npt_info_type, lnhc_parameters_type, yoshida_coef
   USE util, ONLY : get_share
   USE termination, ONLY : stop_memory, stop_program
 

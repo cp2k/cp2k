@@ -21,8 +21,8 @@ MODULE kg_main
                                              read_atomic_kind_set,&
                                              write_atomic_kind_set,&
                                              write_gto_basis_sets
-  USE atoms_input,                     ONLY: read_coord_vel,&
-                                             system_type
+  USE atoms_input,                     ONLY: read_atoms_input, &
+                                             read_md_restart
   USE cntl_input,                      ONLY: read_cntl_section
   USE coefficient_types,               ONLY: coeff_type
   USE convert_units,                   ONLY: convert
@@ -32,6 +32,8 @@ MODULE kg_main
                                              write_dft_control,&
                                              write_kg_control
   USE dump,                            ONLY: dump_variables
+  USE extended_system_dynamics,        ONLY: lnhc_parameters_type, &
+                                             npt_info_type
   USE extended_system_types,           ONLY: extended_system_type
   USE force_control,                   ONLY: force_env_calculate_force,&
                                              force_env_create,&
@@ -39,7 +41,7 @@ MODULE kg_main
                                              force_env_type
   USE force_fields,                    ONLY: read_force_field_section
   USE global_types,                    ONLY: global_environment_type
-  USE initialize_extended_types,       ONLY: assign_extended_parameters,&
+  USE initialize_extended_types,       ONLY: initialize_nhc_forces,&
                                              initialize_nhc_baro,&
                                              initialize_nhc_coef,&
                                              initialize_nhc_part,&
@@ -95,7 +97,9 @@ MODULE kg_main
   USE qs_interactions,                 ONLY: init_interaction_radii
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_hinv,&
-                                             init_cell
+                                             init_cell, &
+                                             read_cell, &
+                                             write_cell
   USE string_utilities,                ONLY: integer_to_string,&
                                              xstring
   USE structure_types,                 ONLY: init_structure_type,&
@@ -169,8 +173,7 @@ SUBROUTINE kg ( globenv )
   CHARACTER ( LEN = 5 ) :: tag
   
   TYPE ( atomic_kind_type ), DIMENSION(:), POINTER:: atomic_kind_set
-  TYPE ( cell_type ), POINTER :: box
-  TYPE ( cell_type ), POINTER :: box_ref 
+  TYPE ( cell_type ), POINTER ::  box, box_ref
   TYPE ( coeff_type ), DIMENSION (:), POINTER :: coef_pos
   TYPE ( coeff_type ), DIMENSION (:), POINTER :: coef_vel
   TYPE ( coeff_type ), DIMENSION (:), POINTER :: coef_force
@@ -179,16 +182,17 @@ SUBROUTINE kg ( globenv )
   TYPE ( energy_min_type ) :: energy_min
   TYPE ( intra_parameters_type ) :: intra_param
   TYPE ( kg_environment_type ), POINTER :: kg_env
+  TYPE ( lnhc_parameters_type ), POINTER :: nhc_part, nhc_baro
   TYPE ( md_environment_type ) :: md_env
   TYPE ( mdio_parameters_type ) :: mdio
   TYPE ( molecule_type ), DIMENSION ( : ), POINTER :: mol_setup
   TYPE ( molecule_structure_type ), DIMENSION ( : ), POINTER :: molecule
+  TYPE ( npt_info_type ), DIMENSION ( :, : ), POINTER :: npt_info
   TYPE ( particle_type ), DIMENSION(:), POINTER    :: particle_set
   TYPE ( particle_node_type ), DIMENSION(:), POINTER    :: pnode
   TYPE ( potentialparm_type ), DIMENSION ( :, : ), POINTER :: potparm
   TYPE ( simulation_parameters_type ), POINTER :: simpar
   TYPE ( setup_parameters_type ) :: setup
-  TYPE ( system_type ) :: ainp
   TYPE ( kg_thermodynamic_type ), POINTER :: thermo
   TYPE ( topology_type ) :: topo
   TYPE ( unit_convert_type ) :: units
@@ -198,7 +202,6 @@ SUBROUTINE kg ( globenv )
 
 ! IF( globenv % ionode ) CALL trace_debug ( "START" )
 
-!  CALL timeset ( 'KG_MAIN', 'I', ' ', handle1 )
   CALL timeset ( 'KG_INIT', 'I', ' ', handle2 )
 
   NULLIFY ( kg_env )
@@ -209,11 +212,6 @@ SUBROUTINE kg ( globenv )
   CALL init_kg_env ( kg_env )
 
 ! allocating or nullifying local pointers
-! box
-  ALLOCATE ( box, STAT = isos )
-  IF ( isos /=0 ) CALL stop_memory ( 'allocstruc', 'box', 1 )
-  ALLOCATE ( box_ref, STAT = isos )
-  IF ( isos /=0 ) CALL stop_memory ( 'allocstruc', 'box_ref', 1 )
 ! potparm
   NULLIFY ( potparm )
 ! simpar
@@ -230,6 +228,12 @@ SUBROUTINE kg ( globenv )
   NULLIFY ( coef_pos, coef_vel, coef_force )
   NULLIFY ( dft_control )
   NULLIFY ( particle_set, pnode, molecule )
+  NULLIFY ( nhc_part )
+  NULLIFY ( nhc_baro )
+  NULLIFY ( npt_info )
+  NULLIFY ( mol_setup )
+  NULLIFY ( box )
+  NULLIFY ( box_ref )
 
 ! initialize the virial
   CALL zero_virial ( virial )
@@ -274,18 +278,12 @@ SUBROUTINE kg ( globenv )
   CALL read_force_field_section ( setup, set_fn, intra_param,  &
                                   potparm, globenv )
 
-
 ! read the input of the molecular dynamics section
   CALL read_md_section ( simpar, globenv, mdio )
   simpar % program = globenv % program_name
 
-!..read atomic coordinates, velocities (optional) and the simulation box
-  ainp % rtype = simpar % read_type
-
 ! initialize working units
   CALL set_units ( setup % unit_type, units )
-
-!..1.0e-15 because convert_unit expects time in [fs]^-1 not [s]^-1
 
   CALL convert ( units = units, simpar = simpar, &
                  intra_param = intra_param ) 
@@ -294,9 +292,18 @@ SUBROUTINE kg ( globenv )
 
   project_name = setup % coord_file_name ( ia : ib )
 
-  CALL read_coord_vel ( particle_set, atomic_kind_set, &
-                           ainp, project_name, mol_setup, &
-                           setup%atom_names, globenv )
+!*** Read &COORD section ***
+  CALL read_atoms_input ( particle_set, atomic_kind_set, &
+                          mol_setup, setup % atom_names, globenv )
+
+!*** Read the input section with the cell parameters ***
+
+  CALL read_cell ( box, globenv )
+
+!*** Print the cell parameters ***
+
+  CALL write_cell ( box, globenv )
+
 ! Read the atomic kind set
   CALL read_atomic_kind_set(atomic_kind_set,globenv)
 
@@ -319,42 +326,25 @@ SUBROUTINE kg ( globenv )
 
 ! Print the atomic kind set
   CALL write_atomic_kind_set(atomic_kind_set,globenv)
+
 ! Initialize the atomic data sets completely ***
   CALL init_particle_set(particle_set)
 
-!tmp
-! GT: !!WARNING!!
-! This is only a temporary setup
-! A general fix of the working units is needed !!
-  box%unit_of_length_name = "BOHR"
-  box%unit_of_length = 1.0_dbl
-  box%scaled_coordinates = .FALSE.
-!tmp
-
-  IF (ainp%n > 0) THEN
-    CALL init_cell ( box, ainp % box, &
-                     setup % simulation_cell % perd )
-  ELSE 
-    CALL init_cell ( box, setup % simulation_cell % hmat, &
-                     setup % simulation_cell % perd )
-  END IF
-  box_ref % hmat = setup % reference_cell % hmat
+!..initialize cell parameters
+    box_ref => box
+    box_ref % hmat = setup % reference_cell % hmat
 
 ! If run is a debug.  Make box_ref = box to work under
 ! all ensembles and restart options
   IF ( setup % run_type == 'DEBUG' ) THEN
-    IF (ainp%n > 0) THEN
-      box_ref % hmat = ainp % box
-    ELSE 
-      box_ref % hmat = setup % simulation_cell % hmat
-    END IF
+    box_ref % hmat = setup % simulation_cell % hmat
   ENDIF
 
   CALL init_interaction_radii ( dft_control%kg_control, box, &
                                 atomic_kind_set, globenv)
 
 !..allocate memory for pnodes and molecules
-  CALL allocmem ( ainp, mol_setup, particle_set, pnode, molecule, globenv )
+  CALL allocmem ( mol_setup, particle_set, pnode, molecule, globenv )
 
 ! If polarization is also present, allocate and initialize coefs pointer  
 
@@ -420,16 +410,22 @@ SUBROUTINE kg ( globenv )
   CALL initialize_npt_type ( simpar, globenv, extended_type % npt_info, box )
 
 ! initialize velocities if needed
-  IF ( simpar % read_type == 'POS' .OR. simpar % read_type == 'INIT' ) &
-  CALL initialize_velocities ( simpar, particle_set, globenv )
+  npt_info => extended_type % npt_info 
+  nhc_part => extended_type % nhc_part ( 1 )
+  nhc_baro => extended_type % nhc_baro ( 1 ) 
+  SELECT CASE ( simpar % read_type )
+    CASE ( 'INIT' )
+      CALL initialize_velocities ( simpar, particle_set, globenv )
+    CASE ( 'POS' )
+      CALL read_md_restart ( simpar % read_type, globenv, particle_set,    &
+                             box, box_ref, nhc_part, nhc_baro, npt_info )
+      CALL initialize_velocities ( simpar, particle_set, globenv )
+    CASE DEFAULT
+      CALL read_md_restart ( simpar % read_type, globenv, particle_set,    &
+                             box, box_ref, nhc_part, nhc_baro, npt_info )
+  END SELECT
 
-! Assign extended system variables
-  IF ( simpar % read_type == 'ALL' ) &
-  CALL assign_extended_parameters ( box % deth, simpar % ensemble, ainp, &
-                                    extended_type % npt_info, &
-                                    extended_type % nhc_part (1), &
-                                    extended_type % nhc_baro (1) )
-  CALL release_mem ( ainp )
+  CALL initialize_nhc_forces ( nhc_part, nhc_baro )
 
   CALL set_kg_energies_param ( units % pconv, units % econv, units % l_label, &
        units % vol_label, units % e_label, units % pres_label, &
@@ -705,74 +701,11 @@ END SUBROUTINE control_md_work
 
 !******************************************************************************
 
-
-SUBROUTINE release_mem ( ainp )
-  IMPLICIT NONE
-! Arguments
-  TYPE ( system_type ) :: ainp
-! Local
-  INTEGER :: isos
-
-!..deallocate arrays needed for atom input
-
-  IF ( ASSOCIATED ( ainp % c ) ) THEN
-     DEALLOCATE ( ainp % c, STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'kg_main', 'ainp%c' )
-  END IF
-
-  IF ( ASSOCIATED ( ainp % v ) ) THEN
-     DEALLOCATE ( ainp % v, STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'kg_main', 'ainp%v' )
-  END IF
-
-  IF ( ASSOCIATED ( ainp % eta_part ) ) THEN
-     DEALLOCATE ( ainp % eta_part, STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'kg_main', 'ainp%eta_part' )
-  END IF
-
-  IF ( ASSOCIATED ( ainp % veta_part ) ) THEN
-     DEALLOCATE ( ainp % veta_part, STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'kg_main', 'ainp%veta_part' )
-  END IF
-
-  IF ( ASSOCIATED ( ainp % mass_eta_part ) ) THEN
-     DEALLOCATE ( ainp % mass_eta_part, STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'kg_main', 'ainp%mass_eta_part' )
-  END IF
-
-  IF ( ASSOCIATED ( ainp % eta_baro ) ) THEN
-     DEALLOCATE ( ainp % eta_baro, STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'kg_main', 'ainp%eta_baro' )
-  END IF
-
-  IF ( ASSOCIATED ( ainp % veta_baro ) ) THEN
-     DEALLOCATE ( ainp % veta_baro, STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'kg_main', 'ainp%veta_baro' )
-  END IF
-
-  IF ( ASSOCIATED ( ainp % mass_eta_baro ) ) THEN
-     DEALLOCATE ( ainp % mass_eta_baro, STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'kg_main', 'ainp%mass_eta_baro' )
-  END IF
-
-  IF ( ASSOCIATED ( ainp % veps ) ) THEN
-     DEALLOCATE ( ainp % veps, STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'kg_main', 'ainp%veps' )
-  END IF
-
-  IF ( ASSOCIATED ( ainp % mass_eps ) ) THEN
-     DEALLOCATE ( ainp % mass_eps, STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'kg_main', 'ainp%mass_eps' )
-  END IF 
-END SUBROUTINE release_mem
-!******************************************************************************
-
-SUBROUTINE allocmem ( ainp, mol_setup, part, pnode, molecule, globenv )
+SUBROUTINE allocmem ( mol_setup, part, pnode, molecule, globenv )
 
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( system_type ), INTENT ( IN ) :: ainp
   TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( IN ) :: mol_setup
   TYPE (molecule_structure_type), DIMENSION (:), POINTER :: molecule
   TYPE (particle_type), DIMENSION(:), INTENT (IN) :: part
@@ -785,11 +718,8 @@ SUBROUTINE allocmem ( ainp, mol_setup, part, pnode, molecule, globenv )
 !------------------------------------------------------------------------------
 
   IF ( globenv % num_pe == 1 ) THEN
-     IF ( ainp % n > 0 ) THEN
-        natoms = SIZE ( ainp % c ,2 )
-     ELSE
-        natoms = SIZE ( part  )
-     END IF
+
+     natoms = SIZE ( part  )
 
      ALLOCATE ( pnode ( natoms ), STAT = ios )
      IF ( ios /= 0 ) CALL stop_memory ( 'kg_main', 'pnode', natoms )
@@ -812,11 +742,7 @@ SUBROUTINE allocmem ( ainp, mol_setup, part, pnode, molecule, globenv )
      END IF
   ELSE
 
-     IF ( ainp % n > 0 ) THEN
-        natoms = SIZE ( ainp % c ,2 )
-     ELSE
-        natoms = SIZE ( part  )
-     END IF
+     natoms = SIZE ( part  )
      nmoltype = SIZE ( mol_setup )
      nmol = 0
      nnodes = 0

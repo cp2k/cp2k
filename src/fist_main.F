@@ -20,8 +20,9 @@
 
 MODULE fist_main
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE atoms_input,                     ONLY: read_coord_vel,&
-                                             system_type
+  USE atoms_input,                     ONLY: read_atoms_input, &
+                                             read_md_restart, &
+                                             read_pimd_atoms_input
   USE cntl_input,                      ONLY: read_cntl_section
   USE convert_units,                   ONLY: convert
   USE cp_local_lists_types,            ONLY: cp_ll_build_global_dist,&
@@ -31,6 +32,8 @@ MODULE fist_main
   USE dump,                            ONLY: dump_variables
   USE ewald_parameters_types,          ONLY: ewald_parameters_type
   USE ewalds,                          ONLY: ewald_print
+  USE extended_system_dynamics,        ONLY: lnhc_parameters_type, &
+                                             npt_info_type
   USE extended_system_types,           ONLY: extended_system_type
   USE fist_debug,                      ONLY: fist_debug_control => debug_control
   USE fist_environment_types,          ONLY: fist_environment_type,&
@@ -46,7 +49,7 @@ MODULE fist_main
   USE force_fields,                    ONLY: read_force_field_section
   USE global_types,                    ONLY: global_environment_type
   USE header,                          ONLY: fist_header
-  USE initialize_extended_types,       ONLY: assign_extended_parameters,&
+  USE initialize_extended_types,       ONLY: initialize_nhc_forces,&
                                              initialize_nhc_baro,&
                                              initialize_nhc_part,&
                                              initialize_npt_type
@@ -87,7 +90,9 @@ MODULE fist_main
                                              h_planck
   USE read_pimd,                       ONLY: read_pimd_section
   USE simulation_cell,                 ONLY: get_hinv,&
-                                             init_cell
+                                             read_cell,&
+                                             write_cell,&
+                                             cell_type
   USE string_utilities,                ONLY: integer_to_string,&
                                              xstring
   USE structure_types,                 ONLY: init_structure_type,&
@@ -152,29 +157,33 @@ SUBROUTINE fist ( globenv )
 
 ! Locals
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rcut
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rcut_cgf
-  INTEGER :: handle1, handle2, isos
+  INTEGER :: handle2, isos
   INTEGER :: ibead, beads, ia, ib
-  INTEGER :: n, nll, i
+  INTEGER :: i
   INTEGER :: maxder
 
   CHARACTER ( LEN = 40 ) :: set_fn, project_name
   CHARACTER ( LEN = 5 ) :: tag
   LOGICAL, POINTER :: pimd
   
+  TYPE ( atomic_kind_type ), DIMENSION ( : ), POINTER :: atomic_kind_set
+  TYPE ( particle_type ), POINTER :: particle_set ( : )
+  TYPE ( cell_type ), POINTER :: cell, cell_ref
+
   TYPE ( extended_system_type ) :: extended_type
   TYPE ( ewald_parameters_type ), POINTER :: ewald_param
   TYPE ( fist_environment_type ), POINTER :: fist_env
   TYPE ( intra_parameters_type ) :: intra_param
   TYPE ( linklist_internal_data_type ), POINTER :: ll_data
+  TYPE ( lnhc_parameters_type ), POINTER :: nhc_part, nhc_baro
   TYPE ( md_environment_type ) :: md_env
   TYPE ( mdio_parameters_type ) :: mdio
   TYPE ( molecule_type ), DIMENSION ( : ), POINTER :: mol_setup
+  TYPE ( npt_info_type ), DIMENSION ( :, : ), POINTER :: npt_info
   TYPE ( potentialparm_type ), DIMENSION ( :, : ), POINTER :: potparm
   TYPE ( replica_environment_type ), DIMENSION ( : ), POINTER :: rep_env
   TYPE ( simulation_parameters_type ), POINTER :: simpar
   TYPE ( setup_parameters_type ) :: setup
-  TYPE ( system_type ) :: ainp
   TYPE ( fist_thermodynamic_type ), POINTER :: thermo
   TYPE ( topology_type ) :: topo
   TYPE ( unit_convert_type ) :: units
@@ -184,7 +193,6 @@ SUBROUTINE fist ( globenv )
 
 ! IF( globenv % ionode ) CALL trace_debug ( "START" )
 
-  !CALL timeset ( 'FIST_MAIN', 'I', ' ', handle1 )
   CALL timeset ( 'FIST_INIT', 'I', ' ', handle2 )
   
 ! initialize fist_env
@@ -205,6 +213,15 @@ SUBROUTINE fist ( globenv )
   IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'virial', 0 )
   NULLIFY ( potparm )
   NULLIFY ( rep_env )
+  NULLIFY ( particle_set )
+  NULLIFY ( atomic_kind_set )
+  NULLIFY ( cell )
+  NULLIFY ( cell_ref )
+  NULLIFY ( ll_data )
+  NULLIFY ( nhc_part )
+  NULLIFY ( nhc_baro )
+  NULLIFY ( npt_info )
+  NULLIFY ( mol_setup )
 ! initialize the virial
   CALL zero_virial ( virial )
 ! point from fist_thermo % virial to virial
@@ -222,7 +239,6 @@ SUBROUTINE fist ( globenv )
     beads = 1
     simpar % pimd_params % beads = 0
   END IF
-
 
 ! Allocate particle thermostat for general use with path-integrals
   ALLOCATE ( extended_type % nhc_part ( beads ), STAT = isos )
@@ -270,13 +286,27 @@ SUBROUTINE fist ( globenv )
   CALL read_force_field_section ( setup, set_fn, intra_param, &
                                   potparm, globenv )
 
+!*** Read &COORD section ***
+ 
+  CALL read_atoms_input ( particle_set, atomic_kind_set, &
+                          mol_setup, setup % atom_names, globenv )
+
+!*** Read the input section with the cell parameters ***
+
+  CALL read_cell ( cell, globenv )
+
+!*** Print the cell parameters ***
+
+  CALL write_cell ( cell, globenv )
+
 ! read the input of the molecular dynamics section
 
   CALL read_md_section ( simpar, globenv, mdio )
   simpar % program = globenv % program_name
 
-!..read atomic coordinates, velocities (optional) and the simulation box
-  ainp % rtype = simpar % read_type
+! define project name string
+  CALL xstring ( setup % coord_file_name, ia, ib )
+  project_name = setup % coord_file_name ( ia : ib )
 
 ! initialize working units
   CALL set_units ( setup % unit_type, units )
@@ -291,7 +321,6 @@ SUBROUTINE fist ( globenv )
                  intra_param = intra_param,  &
                  ewald_param = ewald_param )
 
-  CALL xstring ( setup % coord_file_name, ia, ib )
 
 ! Filling up the replica environment one bead at a time
   DO ibead = 1, beads
@@ -299,22 +328,18 @@ SUBROUTINE fist ( globenv )
     IF ( pimd ) THEN
       CALL integer_to_string( ibead, tag )
       project_name = setup % coord_file_name ( ia : ib ) // '_' // ADJUSTL ( tag )
-    ELSE
-      project_name = setup % coord_file_name ( ia : ib )
     END IF
 
-    CALL read_coord_vel ( rep_env (ibead) % part, rep_env ( ibead ) % atomic_kind_set,&
-                          ainp, project_name, mol_setup, setup % atom_names, &
-                          globenv )
+!..initialize particle_set
+    rep_env ( ibead ) % part => particle_set
 
-!..initialize box, perd
-    IF (ainp%n > 0) THEN
-      CALL init_cell ( rep_env ( ibead ) % box, ainp % box, &
-                       setup % simulation_cell % perd )
-    ELSE 
-      CALL init_cell ( rep_env ( ibead ) % box, setup % simulation_cell % hmat, &
-                       setup % simulation_cell % perd )
-    END IF
+!..initialize atomic_kind_set
+    rep_env ( ibead ) % atomic_kind_set => atomic_kind_set
+
+!..initialize cell parameters
+    cell_ref => cell
+    rep_env ( ibead ) % box => cell
+    rep_env ( ibead ) % box_ref => cell_ref
 
 ! dbg TEMPORARY FIX
     rep_env ( ibead ) % box_ref % hmat = setup % reference_cell % hmat
@@ -327,20 +352,18 @@ SUBROUTINE fist ( globenv )
 ! If run is a debug.  Make box_ref = box to work under
 ! all ensembles and restart options
     IF ( setup % run_type == 'DEBUG' ) THEN
-      IF (ainp%n > 0) THEN
-         rep_env ( ibead ) % box_ref % hmat = ainp % box
-      ELSE 
-         rep_env ( ibead ) % box_ref % hmat = setup % simulation_cell % hmat
-      END IF
+      rep_env ( ibead ) % box_ref => cell
     ENDIF
 
 !..allocate memory for atoms and molecules
-    CALL allocmem ( ainp, mol_setup, rep_env ( ibead ), globenv )
+
+    CALL allocmem ( mol_setup, rep_env ( ibead ), globenv )
 
 !..convert the units ( includes part and box ONLY when read_type is 'INIT' )
     IF ( simpar % read_type == 'INIT' ) &
     CALL convert ( units = units, part = rep_env ( ibead ) % part, &
                    box = rep_env ( ibead ) % box )
+
 !..calculate the inverse box matrix now after the unit conversion,
 !  so it also has the right units and assign the reference box
     CALL get_hinv ( rep_env ( ibead ) % box )
@@ -378,21 +401,47 @@ SUBROUTINE fist ( globenv )
     CALL initialize_npt_type ( simpar, globenv, extended_type % npt_info, &
                                rep_env ( ibead ) % box )
 
-
-! initialize velocities if needed
-    IF ( simpar % read_type == 'POS' .OR. simpar % read_type == 'INIT' ) &
-    CALL initialize_velocities ( simpar, rep_env ( ibead ) % part, globenv )
-
-! Assign extended system variables
-    IF ( simpar % read_type == 'ALL' ) &
-    CALL assign_extended_parameters ( rep_env ( ibead ) % box % deth,    &
-                                      simpar % ensemble, ainp,           &
-                                      extended_type % npt_info,           &
-                                      extended_type % nhc_part ( ibead ), &
-                                      extended_type % nhc_baro ( ibead ) )
-
-    CALL release_mem ( ainp )
-
+! initialize velocities and read restart files if needed
+    npt_info => extended_type % npt_info 
+    nhc_part => extended_type % nhc_part ( ibead )
+    nhc_baro => extended_type % nhc_baro ( ibead ) 
+    SELECT CASE ( simpar % read_type )
+    CASE ( 'INIT' )
+      IF ( pimd )  CALL read_pimd_atoms_input ( simpar % read_type, &
+                   globenv, rep_env ( ibead ) % part, rep_env ( ibead ) % box, &
+                   rep_env ( ibead ) % box_ref, nhc_part, nhc_baro, npt_info )
+      CALL initialize_velocities ( simpar, rep_env ( ibead ) % part, globenv )
+    CASE ( 'POS' )
+      IF ( pimd ) THEN
+        CALL read_pimd_atoms_input ( simpar % read_type, globenv, &
+                                    rep_env ( ibead ) %part,      &
+                                    rep_env ( ibead ) % box,      &
+                                    rep_env ( ibead ) % box_ref,  &
+                                    nhc_part, nhc_baro, npt_info )
+      ELSE
+        CALL read_md_restart ( simpar % read_type, globenv, &
+                               rep_env ( ibead ) %part,      &
+                               rep_env ( ibead ) % box,      &
+                               rep_env ( ibead ) % box_ref,  &
+                               nhc_part, nhc_baro, npt_info )
+      ENDIF
+      CALL initialize_velocities ( simpar, rep_env ( ibead ) % part, globenv )
+    CASE DEFAULT
+      IF ( pimd ) THEN
+        CALL read_pimd_atoms_input ( simpar % read_type, globenv, &
+                                    rep_env ( ibead ) %part,      &
+                                    rep_env ( ibead ) % box,      &
+                                    rep_env ( ibead ) % box_ref,  &
+                                    nhc_part, nhc_baro, npt_info )
+      ELSE
+        CALL read_md_restart ( simpar % read_type, globenv, &
+                               rep_env ( ibead ) %part,      &
+                               rep_env ( ibead ) % box,      &
+                               rep_env ( ibead ) % box_ref,  &
+                               nhc_part, nhc_baro, npt_info )
+      ENDIF
+    END SELECT
+    CALL initialize_nhc_forces ( nhc_part, nhc_baro )
   END DO
 
   CALL set_fist_energies_param ( units % pconv, units % econv, units % l_label, &
@@ -404,7 +453,7 @@ SUBROUTINE fist ( globenv )
 
   potparm ( :, : ) % energy_cutoff = 0.0_dbl
   potparm ( :, : ) % e_cutoff_coul = 0.0_dbl
-  CALL spline_nonbond_control ( potparm, rep_env(1)%atomic_kind_set, 2500, ewald_param )
+  CALL spline_nonbond_control ( potparm, rep_env ( 1 ) % atomic_kind_set, 2500, ewald_param )
 
 !..set linklist control parameters
   ALLOCATE ( rcut ( setup % natom_type, setup % natom_type ), STAT = isos )
@@ -419,7 +468,6 @@ SUBROUTINE fist ( globenv )
 
     CALL set_linklist_internal_data ( rep_env ( ibead ) % ll_data ( 1 ), globenv,  &
                                       printlevel = globenv % print_level )
-               
   END DO
 
   DEALLOCATE ( rcut, STAT = isos )
@@ -446,67 +494,6 @@ END SUBROUTINE fist
 !-----------------------------------------------------------------------------!
 ! FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST  !
 !-----------------------------------------------------------------------------!
-
-SUBROUTINE release_mem ( ainp )
-  IMPLICIT NONE
-! Arguments
-  TYPE ( system_type ) :: ainp
-! Local
-  INTEGER :: isos
-
-!..deallocate arrays needed for atom input
-
-  IF ( ASSOCIATED ( ainp % c ) ) THEN
-     DEALLOCATE ( ainp % c, STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'fist_main', 'ainp%c' )
-  END IF
-
-  IF ( ASSOCIATED ( ainp % v ) ) THEN
-     DEALLOCATE ( ainp % v, STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'fist_main', 'ainp%v' )
-  END IF
-
-  IF ( ASSOCIATED ( ainp % eta_part ) ) THEN
-     DEALLOCATE ( ainp % eta_part, STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'fist_main', 'ainp%eta_part' )
-  END IF
-
-  IF ( ASSOCIATED ( ainp % veta_part ) ) THEN
-     DEALLOCATE ( ainp % veta_part, STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'fist_main', 'ainp%veta_part' )
-  END IF
-
-  IF ( ASSOCIATED ( ainp % mass_eta_part ) ) THEN
-     DEALLOCATE ( ainp % mass_eta_part, STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'fist_main', 'ainp%mass_eta_part' )
-  END IF
-
-  IF ( ASSOCIATED ( ainp % eta_baro ) ) THEN
-     DEALLOCATE ( ainp % eta_baro, STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'fist_main', 'ainp%eta_baro' )
-  END IF
-
-  IF ( ASSOCIATED ( ainp % veta_baro ) ) THEN
-     DEALLOCATE ( ainp % veta_baro, STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'fist_main', 'ainp%veta_baro' )
-  END IF
-
-  IF ( ASSOCIATED ( ainp % mass_eta_baro ) ) THEN
-     DEALLOCATE ( ainp % mass_eta_baro, STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'fist_main', 'ainp%mass_eta_baro' )
-  END IF
-
-  IF ( ASSOCIATED ( ainp % veps ) ) THEN
-     DEALLOCATE ( ainp % veps, STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'fist_main', 'ainp%veps' )
-  END IF
-
-  IF ( ASSOCIATED ( ainp % mass_eps ) ) THEN
-     DEALLOCATE ( ainp % mass_eps, STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'fist_main', 'ainp%mass_eps' )
-  END IF 
-END SUBROUTINE release_mem
-!******************************************************************************
 
 SUBROUTINE control_work ( globenv, units, simpar, fist_env, md_env, &
                           extended_type, setup, mdio )
@@ -697,14 +684,13 @@ END SUBROUTINE control_md_work
 
 !******************************************************************************
 
-SUBROUTINE allocmem ( ainp, mol_setup, rep_env, globenv )
+SUBROUTINE allocmem ( mol_setup, rep_env, globenv )
 
   IMPLICIT NONE
 
 ! Arguments
   TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( IN ) :: mol_setup
   TYPE ( replica_environment_type ), INTENT ( INOUT ) :: rep_env
-  TYPE ( system_type ), INTENT ( IN ) :: ainp
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 
 ! Locals
@@ -713,12 +699,7 @@ SUBROUTINE allocmem ( ainp, mol_setup, rep_env, globenv )
 !------------------------------------------------------------------------------
 
   IF ( globenv % num_pe == 1 ) THEN
-     IF ( ainp % n > 0 ) THEN
-        natoms = SIZE ( ainp % c, 2 )
-     ELSE
-        natoms = SIZE ( rep_env % part )
-     END IF
-
+     natoms = SIZE ( rep_env % part )
      ALLOCATE ( rep_env % pnode ( natoms ), STAT = ios )
      IF ( ios /= 0 ) CALL stop_memory ( 'fist_main', 'pnode', natoms )
 
@@ -741,11 +722,6 @@ SUBROUTINE allocmem ( ainp, mol_setup, rep_env, globenv )
   ELSE
 
 !..replicated data
-     IF ( ainp % n > 0 ) THEN
-        natoms = SIZE ( ainp % c, 2  )
-     ELSE
-        natoms = SIZE ( rep_env % part )
-     END IF
      nmoltype = SIZE ( mol_setup )
      nmol = 0
      nnodes = 0

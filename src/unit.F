@@ -108,7 +108,6 @@ SUBROUTINE set_units ( unit_char, units )
      units % e_label = '[hartree]'
 
   ELSE
-
      CALL stop_program ( 'unit', 'unknown unit type' )
 
   END IF

@@ -20,8 +20,8 @@
 !******************************************************************************
 
 MODULE qs_md
+  USE atoms_input,                     ONLY: read_md_restart
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE cntl_input,                      ONLY: read_cntl_section
   USE convert_units,                   ONLY: convert
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
@@ -41,6 +41,8 @@ MODULE qs_md
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE extended_system_dynamics,        ONLY: lnhc_parameters_type, &
+                                             npt_info_type
   USE extended_system_types,           ONLY: extended_system_type
   USE force_control,                   ONLY: force_env_create,&
                                              force_env_release,&
@@ -49,7 +51,8 @@ MODULE qs_md
   USE global_types,                    ONLY: global_environment_type
   USE initialize_extended_types,       ONLY: initialize_nhc_baro,&
                                              initialize_nhc_part,&
-                                             initialize_npt_type
+                                             initialize_npt_type,&
+                                             initialize_nhc_forces
   USE initialize_molecule_types,       ONLY: initialize_molecule_type
   USE input_types,                     ONLY: setup_parameters_type
   USE integrator,                      ONLY: set_integrator
@@ -70,9 +73,6 @@ MODULE qs_md
   USE md_qs_energies,                  ONLY: md_energy_qs,&
                                              set_qs_energies,&
                                              set_qs_energies_param
-  USE molecule_input,                  ONLY: read_molecule_section,&
-                                             read_setup_section,&
-                                             read_topology_section
   USE molecule_types,                  ONLY: intra_parameters_type,&
                                              molecule_structure_type,&
                                              molecule_type,&
@@ -118,7 +118,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_mol_dyn(qs_env,globenv, error)
+  SUBROUTINE qs_mol_dyn ( qs_env, mol_setup, globenv, error )
 
 !   Purpose: Driver routine for MD run using QUICKSTEP.
 
@@ -127,6 +127,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(INOUT) :: globenv
+    TYPE ( molecule_type ), DIMENSION ( : ), POINTER :: mol_setup
     TYPE(qs_environment_type), POINTER           :: qs_env
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
@@ -138,6 +139,8 @@ CONTAINS
 
 !   *** Local variables ***
 
+    TYPE ( lnhc_parameters_type ), POINTER :: nhc_part, nhc_baro
+    TYPE ( npt_info_type ), DIMENSION ( :, : ), POINTER :: npt_info
     TYPE(extended_system_type)  :: extended_type
     TYPE(intra_parameters_type) :: intra_param
     TYPE(md_environment_type)   :: md_env
@@ -147,10 +150,10 @@ CONTAINS
     TYPE(unit_convert_type)     :: units
 
     TYPE(cell_type), POINTER                  :: cell
+    TYPE(cell_type), POINTER                  :: cell_ref
     TYPE(simulation_parameters_type), POINTER :: simpar
 
     TYPE(molecule_structure_type), DIMENSION(:), POINTER :: molecule
-    TYPE(molecule_type), DIMENSION(:), POINTER           :: mol_setup
     TYPE(particle_node_type), DIMENSION(:), POINTER      :: pnode
     TYPE(particle_type), DIMENSION(:), POINTER           :: particle_set
     TYPE(structure_type), DIMENSION(:), POINTER          :: struc
@@ -173,10 +176,10 @@ CONTAINS
 
     CALL timeset(routine_name,"I","",handle)
 
-    NULLIFY (molecule)
-    NULLIFY (mol_setup)
-    NULLIFY (pnode)
-    NULLIFY (energy, wf_history, force_env)
+    NULLIFY ( molecule )
+    NULLIFY ( pnode )
+    NULLIFY ( energy, wf_history, force_env )
+    NULLIFY ( nhc_part, nhc_baro, npt_info )
 
     ALLOCATE (simpar,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"simpar",0)
@@ -186,33 +189,32 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,"virial",0)
     CALL zero_virial(virial)
 
-    CALL read_cntl_section(setup,globenv)
-
-    CALL read_setup_section(mol_setup,setup,globenv)
-
-    CALL read_molecule_section(mol_setup,setup,globenv)
-  
-    CALL read_topology_section(topo,setup,globenv)
-
     CALL read_md_section(simpar,globenv,mdio)
     simpar%program = globenv%program_name
 
+! dbg
+    setup % unit_type = "ATOMIC"
+! dbg
     CALL set_units(setup%unit_type,units)
-    CALL convert(units=units,simpar=simpar)
+    CALL convert(units, simpar=simpar)
 
     ! activate the interpolation
     CALL wfi_create(wf_history, &
          interpolation_method_nr=simpar%qs_md_param%wf_interpolation_method_nr,&
          error=error)
-    CALL set_qs_env(qs_env, wf_history=wf_history, error=error)
+    CALL set_qs_env (qs_env, wf_history=wf_history, error=error)
 
     CALL get_qs_env(qs_env=qs_env,&
                     cell=cell,&
                     particle_set=particle_set,energy=energy)
 
+! Define a reference cell for compatibility with MD restarts
+    cell_ref => cell
+
+!================ THIS NEEDS TO BE MOVED TO QS_ENV===================
     ! just to get a working parallel version.
     ! clearly a full clean-up of fist/qs/kg is needed 
-    natom = SIZE(particle_set)
+    natom = SIZE ( particle_set )
     nmoltype = SIZE ( mol_setup )
     nmol = 0
     nnodes = 0
@@ -228,8 +230,10 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,"molecule",int_size*nmolecule)
 
 
-    CALL initialize_molecule_type(mol_setup,intra_param,pnode,&
-                                  particle_set,molecule,globenv)
+    CALL initialize_molecule_type( mol_setup,intra_param,pnode,&
+                                   particle_set,molecule,globenv )
+    CALL set_qs_env ( qs_env, molecule = molecule, error = error )
+!================ THIS NEEDS TO BE MOVED TO QS_ENV===================
 
     ALLOCATE (extended_type%nhc_part(1),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"nhc_part",0)
@@ -244,10 +248,24 @@ CONTAINS
 
     CALL initialize_npt_type(simpar,globenv,extended_type%npt_info,cell)
 
-    IF ((simpar%read_type == "POS").OR.&
-        (simpar%read_type == "INIT")) THEN
-      CALL initialize_velocities(simpar,particle_set,globenv)
-    END IF
+! initialize velocities and read restart files if needed
+    npt_info => extended_type % npt_info 
+    nhc_part => extended_type % nhc_part ( 1 )
+    nhc_baro => extended_type % nhc_baro ( 1 ) 
+    SELECT CASE ( simpar % read_type )
+    CASE ( 'INIT' )
+      CALL initialize_velocities ( simpar, particle_set, globenv )
+    CASE ( 'POS' )
+      CALL read_md_restart ( simpar % read_type, globenv,   &
+                             particle_set, cell, cell_ref,  &
+                             nhc_part, nhc_baro, npt_info )
+      CALL initialize_velocities ( simpar, particle_set, globenv )
+    CASE DEFAULT
+      CALL read_md_restart ( simpar % read_type, globenv,   &
+                             particle_set, cell, cell_ref,  &
+                             nhc_part, nhc_baro, npt_info )
+    END SELECT
+    CALL initialize_nhc_forces ( nhc_part, nhc_baro )
 
 
     CALL force_env_create(force_env, qs_env=qs_env, error=error)

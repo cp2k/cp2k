@@ -31,6 +31,7 @@ MODULE qs_main
   USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
+  USE molecule_types,                  ONLY: molecule_type
   USE qs_energy,                       ONLY: qs_energies
   USE qs_environment,                  ONLY: qs_finalize,&
                                              qs_init
@@ -84,6 +85,7 @@ CONTAINS
 
     INTEGER              :: handle
     TYPE(cp_blacs_env_type), POINTER :: blacs_env
+    TYPE(molecule_type), DIMENSION(:), POINTER :: mol_setup
 
 !   ---------------------------------------------------------------------------
 
@@ -92,6 +94,7 @@ CONTAINS
     CALL timeset(routine_name,"I","",handle)
 
     NULLIFY(blacs_env)
+    NULLIFY ( mol_setup )
 
 !   *** Initialize the BLACS environment ***
 
@@ -103,14 +106,14 @@ CONTAINS
 !   *** Read the input and the database files and perform further  ***
 !   *** initializations for the setup of the QUICKSTEP environment ***
 
-    CALL qs_init(qs_env,globenv)
+    CALL qs_init( qs_env, mol_setup, globenv )
 
     SELECT CASE (globenv%run_type)
     CASE ("GEOMETRY OPTIMIZATION")
 !      CALL qs_geo_opt(qs_env,globenv)
       CALL qs_forces(qs_env,globenv)
     CASE ("MOLECULAR DYNAMICS")
-      CALL qs_mol_dyn(qs_env,globenv)
+      CALL qs_mol_dyn ( qs_env, mol_setup, globenv )
     CASE ("WAVEFUNCTION OPTIMIZATION")
       CALL qs_energies(qs_env,globenv)
       CALL tddfpt_calculation(qs_env, globenv) ! should possibly go in qs_scf/scf_env_post_calc

@@ -22,14 +22,14 @@ MODULE md_environment_types
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE extended_system_dynamics,        ONLY: lnhc_parameters_type,&
+                                             npt_info_type
   USE force_control,                   ONLY: force_env_release,&
                                              force_env_retain,&
                                              force_env_type
   USE kinds,                           ONLY: dbl
   USE md,                              ONLY: simulation_parameters_type,&
                                              virial_type
-  USE nose,                            ONLY: lnhc_parameters_type,&
-                                             npt_info_type
   USE simulation_cell,                 ONLY: cell_type
   USE structure_types,                 ONLY: structure_type
   IMPLICIT NONE

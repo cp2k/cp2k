@@ -13,7 +13,7 @@
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!     cjm, FEB 20 2001:  added subroutine assign_extended_parameters
+!!     cjm, FEB 20 2001:  added subroutine initialize_extended_parameters
 !!     cjm, MAY 03 2001:  reorganized and added separtate routines for
 !!                        nhc_part, nhc_baro, nhc_ao, npt
 !!   SOURCE
@@ -21,23 +21,22 @@
 
 MODULE initialize_extended_types
 
-  USE atoms_input, ONLY : system_type
   USE coefficient_types, ONLY : coeff_type
+  USE extended_system_dynamics, ONLY : initialize_nhc, lnhc_parameters_type, initialize_npt, &
+                                       npt_info_type
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE md, ONLY : simulation_parameters_type
   USE molecule_types, ONLY : molecule_structure_type, molecule_type
   USE message_passing, ONLY : mp_sum
   USE nhc, ONLY : nhc_particle_setup, nhc_barostat_setup, nhc_coef_setup
-  USE nose, ONLY : initialize_nhc, lnhc_parameters_type, initialize_npt, &
-                   npt_info_type
   USE simulation_cell, ONLY : cell_type
   USE termination, ONLY : stop_program
 
   IMPLICIT NONE
 
   PUBLIC :: initialize_nhc_part, initialize_nhc_baro, initialize_npt_type, &
-            assign_extended_parameters, initialize_nhc_coef
+            initialize_nhc_forces, initialize_nhc_coef
   PRIVATE
 
 !!*****
@@ -82,6 +81,7 @@ SUBROUTINE initialize_npt_type ( simpar, globenv, npt_info, box )
      ALLOCATE ( npt_info ( 1, 1 ), STAT = isos )
      IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
           'failed to allocate npt_info')
+     npt_info  ( :, : ) % eps = LOG ( box % deth ) / 3.0_dbl
 
   CASE ( 'NPT_F')
      ALLOCATE ( npt_info ( 3, 3 ), STAT = isos )
@@ -96,7 +96,7 @@ SUBROUTINE initialize_npt_type ( simpar, globenv, npt_info, box )
 
   IF ( simpar % read_type /= 'ALL' ) &
   CALL initialize_npt ( npt_info, simpar % tau_cell, simpar % temp_ext,  &
-                     box % deth, simpar % nfree, simpar % ensemble, globenv )
+                       box % deth, simpar % nfree, simpar % ensemble, globenv )
 
 END SUBROUTINE initialize_npt_type
 
@@ -252,10 +252,10 @@ END SUBROUTINE initialize_nhc_coef
 
 !!*****
 !******************************************************************************
-!!****** initialize_extended_types/assign_extended_parameters [1.0] *
+!!****** initialize_extended_types/initialize_extended_parameters [1.0] *
 !!
 !!   NAME
-!!     assign_extended_parameters
+!!     initialize_extended_parameters
 !!
 !!   FUNCTION
 !!    Assigns extended parameters from the restart file.
@@ -267,52 +267,16 @@ END SUBROUTINE initialize_nhc_coef
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE assign_extended_parameters ( deth, ensemble, ainp, npt,  &
-                                        nhc_part, nhc_baro )
+SUBROUTINE initialize_nhc_forces ( nhc_part, nhc_baro )
   IMPLICIT NONE
-  CHARACTER ( len = * ), INTENT ( IN ) :: ensemble
-  TYPE ( system_type ), INTENT ( IN ) :: ainp
   TYPE ( lnhc_parameters_type ), INTENT ( OUT ) :: nhc_baro
   TYPE ( lnhc_parameters_type ), INTENT ( OUT ) :: nhc_part
-  TYPE ( npt_info_type ), DIMENSION ( :, : ), INTENT ( OUT ) :: npt
-  REAL ( dbl ), INTENT ( IN ) :: deth
 ! locals
-  INTEGER :: size1, size2, size3, size4, i, j
-! assign nhc_part % eta
-  size1 = SIZE ( nhc_part % nvt, 1 )
-  size2 = SIZE ( nhc_part % nvt, 2 )
-  size3 = SIZE ( ainp % eta_part, 1 )
-  size4 = SIZE ( ainp % eta_part, 2 )
-  IF  ( ( size1 /= 0 ) .AND. ( size2 /= 0 ) ) THEN
-    IF ( ( size1 == size3 ) .AND. ( size2 == size4 ) ) THEN
-      nhc_part % nvt ( :, : ) % eta = ainp % eta_part ( :, : )
-    ELSE
-      CALL stop_program ( 'assign_extended_parameters', 'memory mismatch' )
-    ENDIF
-  ENDIF
-! assign nhc_part % v
-  size3 = SIZE ( ainp % veta_part, 1 )
-  size4 = SIZE ( ainp % veta_part, 2 )
-  IF ( ( size1 /= 0 ) .AND. ( size2 /= 0 ) ) THEN
-    IF ( ( size1 == size3 ) .AND. ( size2 == size4 ) ) THEN
-      nhc_part % nvt ( :, : ) % v = ainp % veta_part ( :, : )
-    ELSE
-      CALL stop_program ( 'assign_extended_parameters', 'memory mismatch' )
-    ENDIF
-  ENDIF
-! assign nhc_part % mass
-  size3 = SIZE ( ainp % mass_eta_part, 1 )
-  size4 = SIZE ( ainp % mass_eta_part, 2 )
-  IF  ( ( size1 /= 0 ) .AND. ( size2 /= 0 ) ) THEN
-    IF ( ( size1 == size3 ) .AND. ( size2 == size4 ) ) THEN
-      nhc_part % nvt ( :, : ) % mass = ainp % mass_eta_part ( :, : )
-    ELSE
-      CALL stop_program ( 'assign_extended_parameters', 'memory mismatch' )
-    ENDIF
-  ENDIF
+  INTEGER :: i, j
+  
 ! assign the forces
-  DO i = 1, size2
-     DO j = 2, size1
+  DO i = 1, SIZE ( nhc_part % nvt, 2 )
+     DO j = 2, SIZE ( nhc_part % nvt, 1 )
         nhc_part % nvt ( j, i ) % f = nhc_part % nvt ( j-1, i ) % mass * &
                                       nhc_part % nvt ( j-1, i ) % v *  &
                                       nhc_part % nvt ( j-1, i ) % v -  &
@@ -321,41 +285,10 @@ SUBROUTINE assign_extended_parameters ( deth, ensemble, ainp, npt,  &
                                      /nhc_part % nvt ( j, i ) % mass
      END DO
   END DO
-! assign nhc_baro % eta
-  size1 = SIZE ( nhc_baro % nvt, 1 )
-  size2 = SIZE ( nhc_baro % nvt, 2 )
-  size3 = SIZE ( ainp % eta_baro, 1 )
-  size4 = SIZE ( ainp % eta_baro, 2 )
-  IF ( ( size1 /= 0 ) .AND. ( size2 /= 0 ) ) THEN
-    IF ( ( size1 == size3 ) .AND. ( size2 == size4 ) ) THEN
-      nhc_baro % nvt ( :, : ) % eta = ainp % eta_baro ( :, : )
-    ELSE
-      CALL stop_program ( 'assign_extended_parameters', 'memory mismatch' )
-    ENDIF
-  ENDIF
-! assign nhc_part % v
-  size3 = SIZE ( ainp % veta_baro, 1 )
-  size4 = SIZE ( ainp % veta_baro, 2 )
-  IF ( ( size1 /= 0 ) .AND. ( size2 /= 0 ) ) THEN
-    IF ( ( size1 == size3 ) .AND. ( size2 == size4 ) ) THEN
-      nhc_baro % nvt ( :, : ) % v = ainp % veta_baro ( :, : )
-    ELSE
-      CALL stop_program ( 'assign_extended_parameters', 'memory mismatch' )
-    ENDIF
-  ENDIF
-! assign nhc_baro % mass
-  size3 = SIZE ( ainp % mass_eta_baro, 1 )
-  size4 = SIZE ( ainp % mass_eta_baro, 2 )
-  IF ( ( size1 /= 0 ) .AND. ( size2 /= 0 ) ) THEN
-    IF ( ( size1 == size3 ) .AND. ( size2 == size4 ) ) THEN
-      nhc_baro % nvt ( :, : ) % mass = ainp % mass_eta_baro ( :, : )
-    ELSE
-      CALL stop_program ( 'assign_extended_parameters', 'memory mismatch' )
-    ENDIF
-  ENDIF
+
 ! assign the forces
-  DO i = 1, size2
-     DO j = 2, size1
+  DO i = 1, SIZE ( nhc_baro % nvt, 2 )
+     DO j = 2, SIZE ( nhc_baro % nvt, 1 )
         nhc_baro % nvt ( j, i ) % f = nhc_baro % nvt ( j-1, i ) % mass * &
                                       nhc_baro % nvt ( j-1, i ) % v *  &
                                       nhc_baro % nvt ( j-1, i ) % v -  &
@@ -365,33 +298,9 @@ SUBROUTINE assign_extended_parameters ( deth, ensemble, ainp, npt,  &
      END DO
   END DO
 
-! assign npt % v
-  size1 = SIZE ( npt, 1 )
-  size2 = SIZE ( npt, 2 )
-  size3 = SIZE ( ainp % veps, 1 )
-  size4 = SIZE ( ainp % veps, 2 )
-  IF ( ( size1 /= 0 ) .AND. ( size2 /= 0 ) ) THEN
-    IF ( ( size1 == size3 ) .AND. ( size2 == size4 ) ) THEN
-      npt ( :, : ) % v = ainp % veps ( :, : )
-    ELSE
-      CALL stop_program ( 'assign_extended_parameters', 'memory mismatch' )
-    ENDIF
-  ENDIF
-! assign npt % mass
-  size3 = SIZE ( ainp % mass_eps, 1 )
-  size4 = SIZE ( ainp % mass_eps, 2 )
-  IF ( ( size1 /= 0 ) .AND. ( size2 /= 0 ) ) THEN
-    IF ( ( size1 == size3 ) .AND. ( size2 == size4 ) ) THEN
-      npt ( :, : ) % mass = ainp % mass_eps ( :, : )
-    ELSE
-      CALL stop_program ( 'assign_extended_parameters', 'memory mismatch' )
-    ENDIF
-  ENDIF
-! assign npt % eps
-  IF ( ensemble == 'NPT_I' ) npt ( :, : ) % eps = LOG ( deth ) / 3.0_dbl
 
 
-END SUBROUTINE assign_extended_parameters
+END SUBROUTINE initialize_nhc_forces
 
 !!*****
 !******************************************************************************

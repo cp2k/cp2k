@@ -22,14 +22,12 @@
 MODULE extended_system_types
 
   USE kinds, ONLY : dbl
-  USE nose, ONLY : lnhc_parameters_type, npt_info_type
+  USE extended_system_dynamics, ONLY : lnhc_parameters_type, npt_info_type
 
   IMPLICIT NONE
 
   PRIVATE
   PUBLIC :: extended_system_type
-
-!  PUBLIC :: npt_info, nhc_part, nhc_baro, nhc_coef
 
   TYPE extended_system_type
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_part  ( : )

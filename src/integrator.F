@@ -35,6 +35,10 @@ MODULE integrator
                                              shake_control,&
                                              shake_roll_control
   USE eigenvalueproblems,              ONLY: diagonalise
+  USE extended_system_dynamics,        ONLY: lnhc,&
+                                             lnhc_parameters_type,&
+                                             npt_info_type,&
+                                             yoshida_coef
   USE force_control,                   ONLY: force_env_calculate_force
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
@@ -50,10 +54,6 @@ MODULE integrator
   USE molecule_types,                  ONLY: linklist_atoms,&
                                              molecule_structure_type,&
                                              particle_node_type
-  USE nose,                            ONLY: lnhc,&
-                                             lnhc_parameters_type,&
-                                             npt_info_type,&
-                                             yoshida_coef
   USE particle_types,                  ONLY: particle_type
   USE simulation_cell,                 ONLY: cell_type
   USE structure_types,                 ONLY: structure_type

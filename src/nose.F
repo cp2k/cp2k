@@ -1,11 +1,10 @@
-!-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/nose [1.0] *
+!!****** cp2k/extended_system_dynamics [1.0] *
 !!
 !!   NAME
-!!     nose
+!!     extended_system_dynamics
 !!
 !!   FUNCTION
 !!
@@ -15,11 +14,12 @@
 !!   MODIFICATION HISTORY
 !!     CJM 20-Feb-2001: Now npt_ifo is allocated to zero when not used
 !!     CJM 11-apr-2001: adding routines to thermostat ao_type 
+!!     CJM 02-Aug-2003: renamed
 !!
 !!   SOURCE
 !******************************************************************************
 
-MODULE nose
+MODULE extended_system_dynamics
  
   USE ao_types, ONLY : ao_type
   USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
@@ -83,7 +83,7 @@ MODULE nose
 
 CONTAINS
 !******************************************************************************
-!!****** nose/lnhc_ao [1.0] *
+!!****** extended_system_dynamics/lnhc_ao [1.0] *
 !!
 !!   NAME
 !!     lnhc_ao
@@ -207,7 +207,7 @@ YOSH:     DO iyosh = 1, nhc % nyosh
 END SUBROUTINE lnhc_ao
 
 !******************************************************************************
-!!****** nose/lnhc_pw [1.0] *
+!!****** extended_system_dynamics/lnhc_pw [1.0] *
 !!
 !!   NAME
 !!     lnhc_pw
@@ -336,7 +336,7 @@ YOSH:     DO iyosh = 1, nhc % nyosh
 END SUBROUTINE lnhc_pw
 
 !******************************************************************************
-!!****** nose/lnhc_barostat [1.0] *
+!!****** extended_system_dynamics/lnhc_barostat [1.0] *
 !!
 !!   NAME
 !!     lnhc_barostat
@@ -487,7 +487,7 @@ SUBROUTINE lnhc_barostat ( nhc, npt, group )
 END SUBROUTINE lnhc_barostat
 
 !******************************************************************************
-!!****** nose/lnhc_particles [1.0] *
+!!****** extended_system_dynamics/lnhc_particles [1.0] *
 !!
 !!   NAME
 !!     lnhc_particles
@@ -639,7 +639,7 @@ SUBROUTINE lnhc_particles ( nhc, pnode, group )
 END SUBROUTINE lnhc_particles
 
 !******************************************************************************
-!!****** nose/initialize_nhc [1.0] *
+!!****** extended_system_dynamics/initialize_nhc [1.0] *
 !!
 !!   NAME
 !!     initialize_nhc
@@ -716,7 +716,7 @@ END SUBROUTINE initialize_nhc
 
 !!*****
 !******************************************************************************
-!!****** nose/initialize_npt [1.0] *
+!!****** extended_system_dynamics/initialize_npt [1.0] *
 !!
 !!   NAME
 !!     initialize_npt
@@ -810,7 +810,7 @@ END SUBROUTINE initialize_npt
 
 !!*****
 !******************************************************************************
-!!****** nose/yoshida_coef [1.0] *
+!!****** extended_system_dynamics/yoshida_coef [1.0] *
 !!
 !!   NAME
 !!     yoshida_coef
@@ -902,6 +902,6 @@ END SUBROUTINE yoshida_coef
 !!*****
 !******************************************************************************
 
-END MODULE nose
+END MODULE extended_system_dynamics
 
 !******************************************************************************

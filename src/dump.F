@@ -21,11 +21,11 @@
 MODULE dump
 
   USE fist_environment_types, ONLY : replica_environment_type
+  USE extended_system_dynamics, ONLY : lnhc_parameters_type, npt_info_type
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE kg_environment_types, ONLY : kg_environment_type
   USE md_environment_types, ONLY : md_environment_type
-  USE nose, ONLY : lnhc_parameters_type, npt_info_type
   USE util, ONLY : get_unit
   USE string_utilities, ONLY : xstring, integer_to_string
 

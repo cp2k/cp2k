@@ -88,6 +88,7 @@ MODULE qs_environment_types
                                              sm_struct_retain
   USE dft_types,                       ONLY: dft_control_type
   USE kinds,                           ONLY: wp => dp
+  USE molecule_types,                  ONLY: molecule_structure_type
   USE pao_types,                       ONLY: pao_env_type
   USE particle_types,                  ONLY: deallocate_particle_set,&
                                              particle_type
@@ -222,6 +223,7 @@ MODULE qs_environment_types
     TYPE(cell_type), POINTER                              :: cell
     TYPE(dft_control_type), POINTER                       :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: c
+    TYPE ( molecule_structure_type ), DIMENSION ( : ), POINTER :: molecule
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_erfc,&
                                                              sac_ppl,sac_ppnl,&
                                                              sbc_ppnl
@@ -276,7 +278,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,sab_orb,&
+  SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,molecule,sab_orb,&
                         sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         pao_env,particle_set,energy,force,h,k,s,w,&
                         rho, pw_env, mpools,&
@@ -298,6 +300,8 @@ CONTAINS
     TYPE(dft_control_type), OPTIONAL, POINTER     :: dft_control
     TYPE(mo_set_p_type),  DIMENSION(:),&
       OPTIONAL, POINTER                           :: c
+    TYPE(molecule_structure_type), &
+       DIMENSION(:), OPTIONAL, POINTER            :: molecule
     TYPE(neighbor_list_set_p_type),&
       DIMENSION(:), OPTIONAL, POINTER             :: sab_orb,sac_erfc,sac_ppl,&
                                                      sac_ppnl,sbc_ppnl
@@ -330,6 +334,7 @@ CONTAINS
     IF (PRESENT(cell)) cell => qs_env%cell
     IF (PRESENT(dft_control)) dft_control => qs_env%dft_control
     IF (PRESENT(c)) c => qs_env%c
+    IF (PRESENT ( molecule ) ) molecule => qs_env % molecule
     IF (PRESENT(sab_orb)) sab_orb => qs_env%sab_orb
     IF (PRESENT(sac_erfc)) sac_erfc => qs_env%sac_erfc
     IF (PRESENT(sac_ppl)) sac_ppl => qs_env%sac_ppl
@@ -382,6 +387,7 @@ CONTAINS
     NULLIFY (qs_env%cell)
     NULLIFY (qs_env%dft_control)
     NULLIFY (qs_env%c)
+    NULLIFY (qs_env%molecule)
     NULLIFY (qs_env%sab_orb)
     NULLIFY (qs_env%sac_erfc)
     NULLIFY (qs_env%sac_ppl)
@@ -419,7 +425,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,sab_orb,&
+  SUBROUTINE set_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,molecule,sab_orb,&
                         sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         pao_env,particle_set,energy,force,h,k,s,w,&
                         pw_env,mpools,rho,kinetic,&
@@ -439,6 +445,8 @@ CONTAINS
     TYPE(dft_control_type), OPTIONAL, POINTER     :: dft_control
     TYPE(mo_set_p_type),  DIMENSION(:),&
       OPTIONAL, POINTER                           :: c
+    TYPE ( molecule_structure_type ),  &
+      DIMENSION ( : ), OPTIONAL, POINTER          :: molecule
     TYPE(neighbor_list_set_p_type),&
       DIMENSION(:), OPTIONAL, POINTER             :: sab_orb,sac_erfc,sac_ppl,&
                                                      sac_ppnl,sbc_ppnl
@@ -468,6 +476,7 @@ CONTAINS
     IF (PRESENT(cell)) qs_env%cell => cell
     IF (PRESENT(dft_control)) qs_env%dft_control => dft_control
     IF (PRESENT(c)) qs_env%c => c
+    IF (PRESENT(molecule)) qs_env%molecule => molecule
     IF (PRESENT(sab_orb)) qs_env%sab_orb => sab_orb
     IF (PRESENT(sac_erfc)) qs_env%sac_erfc => sac_erfc
     IF (PRESENT(sac_ppl)) qs_env%sac_ppl => sac_ppl

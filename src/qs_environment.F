@@ -31,7 +31,10 @@ MODULE qs_environment
                                              read_atomic_kind_set,&
                                              write_atomic_kind_set,&
                                              write_gto_basis_sets
+  USE atoms_input,                     ONLY: read_atoms_input
   USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE cntl_input,                      ONLY: read_cntl_section
+  USE convert_units,                   ONLY: convert
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -69,9 +72,15 @@ MODULE qs_environment
                                              write_qs_control
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
+  USE input_types,                     ONLY: setup_parameters_type
   USE kinds,                           ONLY: int_size,&
                                              wp => dp
   USE machine,                         ONLY: m_flush
+  USE molecule_input,                  ONLY: read_molecule_section,&
+                                             read_setup_section,&
+                                             read_topology_section
+  USE molecule_types,                  ONLY: molecule_type, &
+                                             topology_type
   USE orbital_pointers,                ONLY: init_orbital_pointers
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
   USE pao_read_section,                ONLY: pao_env_init_from_file
@@ -108,6 +117,8 @@ MODULE qs_environment
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE unit,                            ONLY: set_units,&
+                                             unit_convert_type
   IMPLICIT NONE
 
   PRIVATE
@@ -128,7 +139,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_init(qs_env,globenv,error)
+  SUBROUTINE qs_init(qs_env,mol_setup,globenv,error)
 
 !   Purpose: Read the input and the database files for the setup of the
 !            QUICKSTEP environment.
@@ -138,6 +149,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER           :: qs_env
+    TYPE(molecule_type), DIMENSION(:), POINTER   :: mol_setup
     TYPE(global_environment_type), INTENT(INOUT) :: globenv
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
@@ -156,12 +168,14 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
     TYPE(qs_energy_type), POINTER                 :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER    :: force
+    TYPE ( setup_parameters_type )                :: setup
+    TYPE ( topology_type )                        :: topo
     TYPE(scf_control_type), POINTER               :: scf_control
     TYPE(cp_para_env_type), POINTER               :: para_env
     TYPE(cp_blacs_env_type), POINTER              :: blacs_env
     TYPE(cp_fm_struct_type), POINTER              :: fmstruct
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
-
+    TYPE(unit_convert_type)                       :: units
     INTEGER :: handle,ikind,istat,maxl,maxlgto,maxlppl,maxlppnl,&
                nkind,multiplicity,output_unit,&
                n_mo(2), n_ao, nelectron, ispin, nelectron_spin(2)
@@ -190,6 +204,7 @@ CONTAINS
     NULLIFY (energy)
     NULLIFY (force)
     NULLIFY (scf_control,fmstruct, para_env, blacs_env)
+    NULLIFY ( mol_setup )
 
 !   *** Print the Quickstep program banner (copyright and version number) ***
 
@@ -219,13 +234,29 @@ CONTAINS
 
     CALL write_cell(cell,globenv)
 
-!   *** Read the input section with the atomic coordinates ***
+! read from the &CONTROL &SETUP and &MOLECULE section of *.set
 
-    CALL read_particle_set(particle_set,atomic_kind_set,cell,globenv)
+    CALL read_cntl_section ( setup, globenv )
+
+    CALL set_units( setup % unit_type, units )
+
+    CALL read_setup_section ( mol_setup, setup, globenv )
+
+    CALL read_molecule_section ( mol_setup, setup, globenv )
+
+    CALL read_topology_section ( topo, setup, globenv )
+
+!..read atomic coordinates 
+
+    CALL read_atoms_input ( particle_set, atomic_kind_set, &
+                            mol_setup, setup % atom_names, &
+                            globenv )
+
+    CALL convert ( units, part = particle_set )
 
 !   *** Read the atomic kind information ***
 
-    CALL read_atomic_kind_set(atomic_kind_set,globenv)
+    CALL read_atomic_kind_set (atomic_kind_set, globenv )
 
 !   *** Print the unnormalized basis set information (input data) ***
 

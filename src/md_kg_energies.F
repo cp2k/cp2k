@@ -23,6 +23,7 @@
 MODULE md_kg_energies
   
   USE coefficient_types,                 ONLY : coeff_type
+  USE extended_system_dynamics,          ONLY : lnhc_parameters_type
   USE global_types,                      ONLY : global_environment_type
   USE kg_environment_types,              ONLY : kg_thermodynamic_type
   USE kinds,                             ONLY : dbl
@@ -34,7 +35,6 @@ MODULE md_kg_energies
                                                 get_md_env
   USE message_passing,                   ONLY : mp_sum,&
                                                 mp_comm_dup
-  USE nose,                              ONLY : lnhc_parameters_type
   USE simulation_cell,                   ONLY : get_cell_param, &
                                                 cell_type
   USE structure_types,                   ONLY : structure_type
