@@ -2,6 +2,9 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
 !-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
 !!****** cp2k/sparse_matrix_types [1.0] *
 !!
 !!   NAME
@@ -33,6 +36,8 @@ MODULE sparse_matrix_types
   IMPLICIT NONE
 
   PRIVATE
+
+  CHARACTER(LEN=*), PRIVATE, PARAMETER :: moduleN='sparse_matrix_types'
 
 ! *** Define a real matrix data type ***
 
@@ -90,7 +95,8 @@ MODULE sparse_matrix_types
             replicate_matrix_structure,&
             set_matrix,&
             symmetrise_diagonal_blocks,&
-            transfer_matrix
+            transfer_matrix,&
+            remove_block_node
 
 ! *** Public functions ***
 
@@ -166,6 +172,10 @@ MODULE sparse_matrix_types
 
   INTERFACE transfer_matrix
     MODULE PROCEDURE transfer_real_matrix
+  END INTERFACE
+
+  INTERFACE remove_block_node
+     MODULE PROCEDURE remove_real_matrix_block
   END INTERFACE
 
 ! *****************************************************************************
@@ -1589,5 +1599,69 @@ CONTAINS
   END SUBROUTINE transfer_real_matrix
 
 ! *****************************************************************************
+
+!!****f* sparse_matrix_types/remove_real_matrix_block [1.0] *
+!!
+!!   NAME
+!!     remove_real_matrix_block
+!!
+!!   FUNCTION
+!!     removes a block from the matrix
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - matrix: the matrix you remove the block from
+!!     - block_row: the row of the block to remove
+!!     - block_col: the column of the block to remove
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     7.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE remove_real_matrix_block(matrix,block_row, block_col, error)
+    USE cp_log_handling, ONLY: cp_to_string, cp_failure_level, cp_warning_level
+    USE cp_error_handling, ONLY: cp_assert, cp_error_type
+    TYPE(real_matrix_type), POINTER :: matrix
+    INTEGER, INTENT(in) :: block_col, block_row
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure
+    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN='remove_real_matrix_block',&
+         routineP=moduleN//':'//routineN
+    TYPE(real_block_node_type), POINTER :: block_node, old_block
+    NULLIFY(block_node,old_block)
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       block_node => matrix%block_list(block_row)%first_block_node
+       DO WHILE (ASSOCIATED(block_node))
+          IF (block_node%block_col == block_col) EXIT
+          old_block => block_node
+          block_node => block_node%next_block_node
+       END DO
+       IF (ASSOCIATED(block_node)) THEN
+          IF (ASSOCIATED(old_block)) THEN
+             old_block%next_block_node => block_node%next_block_node
+          ELSE
+             matrix%block_list(block_row)%first_block_node => &
+                  block_node%next_block_node
+          END IF
+          DEALLOCATE (block_node%block,stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          DEALLOCATE (block_node,stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       END IF
+    END IF
+  END SUBROUTINE remove_real_matrix_block
+!***************************************************************************
 
 END MODULE sparse_matrix_types
