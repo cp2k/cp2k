@@ -1045,7 +1045,7 @@ END SUBROUTINE pw_prolongate
 ! ******************************************************************************
 SUBROUTINE pw_inject(pw_fine, pw_coarse )
 
-  TYPE(pw_type), INTENT(IN)                :: pw_coarse
+  TYPE(pw_type), INTENT(INOUT)             :: pw_coarse
   TYPE(pw_type), INTENT(INOUT)             :: pw_fine
   INTEGER, DIMENSION(3)                    :: n,lb,ub
   INTEGER                                  :: i,j,k,handle
