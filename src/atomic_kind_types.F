@@ -1403,7 +1403,8 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE set_atomic_kind(atomic_kind,element_symbol,name,mass,kind_number,&
-                             natom,atom_list,pao_bas_proj,paw_atom,hard_radius)
+                             natom,atom_list,pao_bas_proj,paw_atom,hard_radius,&
+                             elp_potential)
 
 !   Purpose: Set the components of an atomic kind data set.
 
@@ -1421,6 +1422,8 @@ CONTAINS
       INTENT(IN), OPTIONAL, TARGET           :: pao_bas_proj
     LOGICAL, INTENT(IN), OPTIONAL            :: paw_atom
     REAL(dp), INTENT(IN), OPTIONAL           :: hard_radius
+    TYPE(elp_potential_type), OPTIONAL, &
+      POINTER                                :: elp_potential
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_atomic_kind"
 
@@ -1460,6 +1463,7 @@ CONTAINS
       IF (PRESENT(pao_bas_proj)) atomic_kind%pao_bas_proj => pao_bas_proj
       IF (PRESENT(paw_atom)) atomic_kind%paw_atom = paw_atom
       IF (PRESENT(hard_radius)) atomic_kind%hard_radius = hard_radius
+      IF (PRESENT(elp_potential)) atomic_kind%elp_potential => elp_potential
 
     ELSE
 

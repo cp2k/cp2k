@@ -29,6 +29,7 @@ MODULE topology_util
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE external_potential_types,        ONLY: elp_potential_type,&
+                                             allocate_potential,&
                                              set_potential
   USE force_field_types,               ONLY: allocate_bond_kind_set,&
                                              allocate_bend_kind_set,&
@@ -1910,6 +1911,9 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     INTEGER                                  :: imolecule,first_atom,last_atom,&
                                                 nbond,nbend,ntorsion
 
+    CHARACTER(LEN=default_string_length)     :: atmname
+    LOGICAL                                  :: found
+
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -2159,27 +2163,53 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 10. ????????????????????????????????????????????
+  ! 10. Set up atomic_kind_set()%elp_potentail%qeff
   !-----------------------------------------------------------------------------
-!  ALLOCATE(charge(topology%natom_type),STAT=istat)
-!  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','charge')
-!  charge(:)=0.0_dbl
-!  IF (globenv%program_name == "FIST") THEN
-!    CALL  init_atomic_kind_set(atomic_kind_set,globenv)
-!    DO ikind=1,topology%natom_type
-!      atomic_kind => atomic_kind_set(ikind)
-!      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                        elp_potential=elp_potential) 
-!      CALL set_potential(potential=elp_potential,&
-!                        qeff=charge(ikind))
-!    END DO
-!  END IF
-!  DEALLOCATE (charge,STAT=istat)
-!  IF (istat /= 0) THEN
-!    CALL stop_memory('topology_coordinate_pack',&
-!              'release work storage')
-!  END IF
+IF(topology%ff) THEN
+  ALLOCATE(charge(SIZE(atomic_kind_set)),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','charge')
+  DO i=1,SIZE(atomic_kind_set)
+    atomic_kind => atomic_kind_set(i)
+    CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                      name=atmname) 
 
+    found = .FALSE.
+
+    DO j=1,SIZE(topology%atom_info%label_atmname)
+      IF(TRIM(topology%atom_info%label_atmname(j))==atmname) THEN
+        charge(i) = topology%atom_info%atm_charge(j)
+      END IF
+    END DO
+
+    ! loop over params from amber
+
+    ! loop over params from charmm
+
+    ! always have the input param last to overwrite all the other ones
+    IF(ASSOCIATED(topology%ffin_info%ff_charge_atm)) THEN
+      DO j=1,SIZE(topology%ffin_info%ff_charge_atm)
+        IF(TRIM(topology%ffin_info%ff_charge_atm(j))==atmname) THEN
+          charge(i) = topology%ffin_info%ff_charge(j)
+          IF(found .AND. PM1) &
+            WRITE(iw,*) "    Multiple Charge declarations: overwriting"
+          found = .TRUE.
+        END IF
+      END DO
+    END IF
+
+    CALL allocate_potential(elp_potential)
+    CALL set_potential(potential=elp_potential,&
+                       qeff=charge(i))
+    CALL set_atomic_kind(atomic_kind=atomic_kind,&
+                         elp_potential=elp_potential)
+
+  END DO
+  DEALLOCATE (charge,STAT=istat)
+  IF (istat /= 0) THEN
+    CALL stop_memory('topology_coordinate_pack',&
+              'release work storage')
+  END IF
+END IF
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -2663,7 +2693,7 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
                            natom=natom,atom_list=atom_list,&
                            nbend=nbend,bend_list=bend_list)
-    IF(nbond>0) THEN
+    IF(nbend>0) THEN
       ALLOCATE(map_bend_kind(nbend),STAT=istat)
       IF (istat /= 0) CALL stop_memory('force_field_pack','map_bend_kind')
       counter=1

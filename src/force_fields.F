@@ -113,6 +113,9 @@ SUBROUTINE read_force_field_section ( topology , globenv )
 !..read in non-bonded interaction information
     CALL input_nonbonded(topology,globenv)
 
+!..read the charges parameters
+    CALL input_charges(topology,globenv)
+
 !..read the bond parameters
     CALL input_bonds(topology,globenv)
 
@@ -290,6 +293,98 @@ SUBROUTINE input_nonbonded(topology,globenv)
   END IF
 
 END SUBROUTINE input_nonbonded
+
+!!*****
+!******************************************************************************
+!!****** force_fields/input_charges [1.0] *
+!!
+!!   NAME
+!!     input_charges
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   NOTES
+!!I---------------------------------------------------------------------------I
+!!I SECTION: &force_field ... &end                                            I
+!!I                                                                           I
+!!I charges
+!!I    ATMNAME1 qeff
+!!I end charges                                                               I
+!!I                                                                           I
+!!I---------------------------------------------------------------------------I
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE input_charges(topology,globenv)
+
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN),OPTIONAL                    :: globenv
+
+    TYPE(force_field_input_info_type),POINTER       :: ffin_info
+    CHARACTER(LEN=default_string_length)              :: label
+    CHARACTER(LEN=default_string_length)              :: string, string2
+    INTEGER                                  :: i, ierror, ilen, iw
+
+  LOGICAL                                  :: PM1, PM2, PM3, PM4
+
+!------------------------------------------------------------------------------
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  END IF
+!------------------------------------------------------------------------------
+
+  ffin_info => topology%ffin_info
+
+!..parse the input section
+  label = '&FORCE_FIELD'
+  CALL search_label ( label, ierror, ignore_case=.TRUE. )
+  IF (ierror == 0 ) THEN
+     CALL read_line
+     DO WHILE (test_next()/='X')
+        ilen = 7
+        CALL get_next(string,ilen)
+        CALL uppercase ( string )
+        IF (index(string,'CHARGES') /= 0 ) THEN
+           i = 0
+           DO
+              CALL read_line
+              ilen = 0
+              CALL get_next(string2,ilen)
+              CALL uppercase(string2)
+              WRITE(*,*) "string2 ",string2
+              IF(string2=="END") EXIT
+
+              i = i + 1
+              CALL reallocate(ffin_info%ff_charge_atm,1,i)
+              CALL reallocate(ffin_info%ff_charge,1,i)
+
+              READ(string2(:),*) ffin_info%ff_charge_atm(i)
+              CALL get_next ( ffin_info%ff_charge(i) )
+
+              WRITE(*,*) "CCCCHARGE ",ffin_info%ff_charge_atm(i)," ",ffin_info%ff_charge(i)
+
+           END DO
+        END IF
+        CALL read_line
+     END DO
+  END IF
+
+END SUBROUTINE input_charges
 
 !!*****
 !******************************************************************************
