@@ -76,7 +76,7 @@ MODULE message_passing
   END INTERFACE
 
   INTERFACE mp_allgather
-     MODULE PROCEDURE mp_allgather_rm3, mp_allgatherv_rv
+     MODULE PROCEDURE mp_allgather_i1, mp_allgather_rm3, mp_allgatherv_rv
   END INTERFACE
 
   INTERFACE mp_sum_scatter
@@ -1878,6 +1878,28 @@ END SUBROUTINE mp_allgather_rm3
 
 ! wrapper for MPI_ALLGATHERV subroutine
 ! one dimensional real arrays
+
+SUBROUTINE mp_allgather_i1(msgout,msgin,gid)
+  IMPLICIT NONE
+  INTEGER, INTENT ( IN ) :: msgout
+  INTEGER, INTENT ( OUT ) :: msgin ( : )
+  INTEGER, INTENT ( IN ) :: gid
+
+  INTEGER :: ierr, scount, rcount
+
+#if defined(__parallel)
+  scount = 1
+  rcount = 1
+  CALL MPI_ALLGATHER(msgout, scount, MPI_INTEGER, &
+                     msgin , rcount, MPI_INTEGER, &
+                     gid, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allgather @ mp_allgather_i1" )
+#else
+  msgin = msgout
+  ierr = 0
+#endif
+END SUBROUTINE mp_allgather_i1
+
 SUBROUTINE mp_allgatherv_rv(msgout,msgin,rcount,rdispl,gid)
   IMPLICIT NONE
   REAL ( dbl ), INTENT ( IN ) :: msgout ( : )
