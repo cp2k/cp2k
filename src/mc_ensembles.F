@@ -225,7 +225,7 @@ CONTAINS
 
 ! find the energy of the initial configuration
 !!!!!!!!!!
-!      CALL force_env_calculate_energy(force_env)
+      CALL force_env_calculate_energy(force_env)
 
       CALL force_env_get(force_env,subsys=oldsys,cell=cell,&
          potential_energy=old_energy,error=error)
@@ -239,7 +239,7 @@ CONTAINS
          CALL mc_classical_energy(force_env,moves%classical_energy,&
                                nchain,1,nchain,6.211D0/angstrom)
 !!!!!!!!!!!
-         old_energy=moves%classical_energy
+!         old_energy=moves%classical_energy
          classical_energy=moves%classical_energy
 
 ! open the files for writing coordinates, average structural data, and
@@ -395,8 +395,8 @@ CONTAINS
 !            WRITE(ene,*) nnstep,old_energy/3.16682968D-6,energy_check
             WRITE(ene,*) nnstep,old_energy,energy_check
 !!!!!!!!!!
-!            CALL write_particle_coordinates(particles_old%els,cell,&
-!                        crd,'XMOL','POS','POSITIONS')
+            CALL write_particle_coordinates(particles_old%els,cell,&
+                        crd,'XMOL','POS','POSITIONS')
 
 ! compute some averages
             averages%molecules=averages%molecules*&
@@ -458,7 +458,7 @@ CONTAINS
 
 ! calculate the final energy
 !!!!!!!!
-!      CALL force_env_calculate_energy(force_env)
+      CALL force_env_calculate_energy(force_env)
 
 ! get the energy
       CALL force_env_get(force_env,potential_energy=final_energy,&
@@ -471,8 +471,8 @@ CONTAINS
                         crd,'XMOL','POS','FINAL')
                         
 !!!!!!!!!!!
-         CALL mc_classical_energy(force_env,final_energy,&
-                              nchain,1,nchain,6.211D0/angstrom)
+!         CALL mc_classical_energy(force_env,final_energy,&
+!                              nchain,1,nchain,6.211D0/angstrom)
 
          WRITE(ene,*) 'Final Energy:                        ',&
                   final_energy,energy_check
@@ -674,35 +674,35 @@ CONTAINS
 
 ! find the energy of the initial configuration
       DO i=1,2
-!!!!!!!!!!!!
-!         CALL force_env_calculate_energy(force_env(i)%force_env)
-         CALL mc_classical_energy(force_env(i)%force_env,&
-            moves(i)%moves%classical_energy,nchain(i),1,&
-            nchain(i),6.211D0/angstrom)
-!!!!!!!!!!
-         old_energy(i)=moves(i)%moves%classical_energy
-         classical_energy(i)=moves(i)%moves%classical_energy
 
+         IF (nchain(i) == 0) THEN
+            old_energy(i)=0.0d0
+            moves(i)%moves%classical_energy=0.0d0
+            classical_energy(i)=moves(i)%moves%classical_energy
+         ELSE
+!!!!!!!!!!
+            CALL force_env_calculate_energy(force_env(i)%force_env)
+            CALL force_env_get(force_env(i)%force_env,&
+               potential_energy=old_energy(i),error=error)
+
+            CALL mc_classical_energy(force_env(i)%force_env,&
+               moves(i)%moves%classical_energy,nchain(i),1,&
+               nchain(i),6.211D0/angstrom)
+!!!!!!!!!!
+!     old_energy(i)=moves(i)%moves%classical_energy
+            classical_energy(i)=moves(i)%moves%classical_energy
+         ENDIF
 
       ENDDO
 
-!!!!!!!!!!!!!
-!      CALL force_env_get(force_env(1)%force_env,subsys=oldsys_1,&
-!         cell=cell_1,&
-!         potential_energy=old_energy(1),error=error)
       CALL force_env_get(force_env(1)%force_env,subsys=oldsys_1,&
-         cell=cell_1,&
-         error=error)
+         cell=cell_1,error=error)
       CALL get_cell(cell_1,abc=abc(:,1))
       CALL cp_subsys_get(oldsys_1(1)%subsys, &
          particles=particles_old_1, error=error)
       
-!      CALL force_env_get(force_env(2)%force_env,subsys=oldsys_2,&
-!         cell=cell_2,&
-!         potential_energy=old_energy(2),error=error)
       CALL force_env_get(force_env(2)%force_env,subsys=oldsys_2,&
-         cell=cell_2,&
-         error=error)
+         cell=cell_2,error=error)
       CALL get_cell(cell_2,abc=abc(:,2))
       CALL cp_subsys_get(oldsys_2(1)%subsys, &
          particles=particles_old_2, error=error)
@@ -1009,32 +1009,32 @@ CONTAINS
 
 !     write the coordinates and energy to a file
 !!!!!!!!!!!
-!            IF (nchain(1) == 0) THEN
-!               WRITE(com_crd,*) ' 0 '
-!               WRITE(com_crd,*) ' POSITIONS BOX 1 '
-!               WRITE(crd(1),*) ' 0 '
-!               WRITE(crd(1),*) ' POSITIONS BOX 1 '
-!            ELSE
-!               CALL write_particle_coordinates(&
-!                  particles_old_1%els,cell_1,com_crd,'XMOL',&
-!                  'POS','POSITIONS BOX 1')
-!               CALL write_particle_coordinates(&
-!                  particles_old_1%els,cell_1,crd(1),'XMOL',&
-!                  'POS','POSITIONS BOX 1')
-!            ENDIF
-!            IF (nchain(2) == 0) THEN
-!               WRITE(com_crd,*) ' 0 '
-!               WRITE(com_crd,*) ' POSITIONS BOX 2 '
-!               WRITE(crd(2),*) ' 0 '
-!               WRITE(crd(2),*) ' POSITIONS BOX 2 '
-!            ELSE
-!               CALL write_particle_coordinates(&
-!                  particles_old_2%els,cell_2,com_crd,'XMOL',&
-!                  'POS','POSITIONS BOX 2')
-!               CALL write_particle_coordinates(&
-!                  particles_old_2%els,cell_2,crd(2),'XMOL',&
-!                  'POS','POSITIONS BOX 2')
-!            ENDIF
+            IF (nchain(1) == 0) THEN
+               WRITE(com_crd,*) ' 0 '
+               WRITE(com_crd,*) ' POSITIONS BOX 1 '
+               WRITE(crd(1),*) ' 0 '
+               WRITE(crd(1),*) ' POSITIONS BOX 1 '
+            ELSE
+               CALL write_particle_coordinates(&
+                  particles_old_1%els,cell_1,com_crd,'XMOL',&
+                  'POS','POSITIONS BOX 1')
+               CALL write_particle_coordinates(&
+                  particles_old_1%els,cell_1,crd(1),'XMOL',&
+                  'POS','POSITIONS BOX 1')
+            ENDIF
+            IF (nchain(2) == 0) THEN
+               WRITE(com_crd,*) ' 0 '
+               WRITE(com_crd,*) ' POSITIONS BOX 2 '
+               WRITE(crd(2),*) ' 0 '
+               WRITE(crd(2),*) ' POSITIONS BOX 2 '
+            ELSE
+               CALL write_particle_coordinates(&
+                  particles_old_2%els,cell_2,com_crd,'XMOL',&
+                  'POS','POSITIONS BOX 2')
+               CALL write_particle_coordinates(&
+                  particles_old_2%els,cell_2,crd(2),'XMOL',&
+                  'POS','POSITIONS BOX 2')
+            ENDIF
            
             
 !     check to see if EXIT file exists...if so, end the calculation
@@ -1093,12 +1093,12 @@ CONTAINS
       DO i=1,2
          IF (nchain(i) .NE. 0) THEN
 !!!!!!!!!!!!!!!!!
-!            CALL force_env_calculate_energy(force_env(i)%force_env)
-!            CALL force_env_get(force_env(i)%force_env,&
-!               potential_energy=final_energy(i),error=error)
-            CALL mc_classical_energy(force_env(i)%force_env,&
-               final_energy(i),nchain(i),1,&
-               nchain(i),6.211D0/angstrom)
+            CALL force_env_calculate_energy(force_env(i)%force_env)
+            CALL force_env_get(force_env(i)%force_env,&
+               potential_energy=final_energy(i),error=error)
+!            CALL mc_classical_energy(force_env(i)%force_env,&
+!               final_energy(i),nchain(i),1,&
+!               nchain(i),6.211D0/angstrom)
          ELSE
             final_energy(i)=0.0D0
          ENDIF
