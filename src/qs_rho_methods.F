@@ -349,7 +349,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, gapw, error)
      ! get tmp grids
 !!     IF(dft_control%qs_control%gapw) rho_struct%soft_valid = .TRUE. 
      DO ispin=1,nspins
-        CALL calculate_rho_elec(p=rho_struct%rho_ao(ispin)%matrix,&
+        CALL calculate_rho_elec(matrix_p=rho_struct%rho_ao(ispin)%matrix,&
              rho=rho_struct%rho_r(ispin),&
              rho_gspace=rho_struct%rho_g(ispin),&
              total_rho=rho_struct%tot_rho_r(ispin),&
@@ -361,7 +361,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, gapw, error)
      ! if needed compute also the kinetic energy density
      IF (dft_control%use_kinetic_energy_density) THEN
          DO ispin=1,nspins
-            CALL calculate_rho_elec(p=rho_struct%rho_ao(ispin)%matrix,&
+            CALL calculate_rho_elec(matrix_p=rho_struct%rho_ao(ispin)%matrix,&
                  rho=rho_struct%tau_r(ispin),&
                  rho_gspace=rho_struct%tau_g(ispin),&
                  total_rho=dum, &  ! presumably not meaningful

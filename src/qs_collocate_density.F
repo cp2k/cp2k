@@ -325,10 +325,10 @@ CONTAINS
 ! both rho,rho_gspace are the new rho,
 ! *****************************************************************************
 
-  SUBROUTINE calculate_rho_elec(p,rho,rho_gspace, total_rho,&
+  SUBROUTINE calculate_rho_elec(matrix_p,rho,rho_gspace, total_rho,&
                                 qs_env, soft_valid,  compute_tau, error)
 
-    TYPE(real_matrix_type), POINTER          :: p
+    TYPE(real_matrix_type), POINTER          :: matrix_p
     TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -514,16 +514,16 @@ CONTAINS
 !   *** Initialize working density matrix ***
 
     CALL allocate_matrix(matrix=deltap,&
-                         nrow=p%nrow,&
-                         ncol=p%ncol,&
-                         nblock_row=p%nblock_row,&
-                         nblock_col=p%nblock_col,&
-                         first_row=p%first_row(:),&
-                         last_row=p%last_row(:),&
-                         first_col=p%first_col(:),&
-                         last_col=p%last_col(:),&
+                         nrow=matrix_p%nrow,&
+                         ncol=matrix_p%ncol,&
+                         nblock_row=matrix_p%nblock_row,&
+                         nblock_col=matrix_p%nblock_col,&
+                         first_row=matrix_p%first_row(:),&
+                         last_row=matrix_p%last_row(:),&
+                         first_col=matrix_p%first_col(:),&
+                         last_col=matrix_p%last_col(:),&
                          matrix_name="DeltaP",&
-                         matrix_symmetry=p%symmetry)
+                         matrix_symmetry=matrix_p%symmetry)
 
     DO ikind=1,nkind
 
@@ -609,7 +609,7 @@ CONTAINS
              END IF
 
              ! bad, should do better loop ordering XXXXXXXXXX
-             CALL get_block_node(matrix=p,&
+             CALL get_block_node(matrix=matrix_p,&
                                  block_row=brow,&
                                  block_col=bcol,&
                                  BLOCK=p_block)
