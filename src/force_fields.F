@@ -104,10 +104,6 @@ MODULE force_fields
 
 CONTAINS
 
-
-
-
-
 !******************************************************************************
 !!****** force_fields/force_field_control [1.0] *
 !!
@@ -694,6 +690,10 @@ SUBROUTINE input_bonds(ff_type,globenv)
                  CALL get_next ( inp_info%bond_b(i), ilen )
                  CALL get_next ( inp_info%bond_k(i) )
                  CALL get_next ( inp_info%bond_r0(i) )
+              !   CALL convert_to_cp2k_units ( "ANGSTROM",  &
+              !                  length = inp_info%bond_r0 ( i ) )
+              !   CALL convert_to_cp2k_units ( "KELVIN",    &
+              !                  bond_k = inp_info%bond_k ( i ) )
               CASE ( 'END')
                  ilen = 0
                  CALL get_next(string2,ilen)
@@ -809,6 +809,8 @@ SUBROUTINE input_bends(ff_type,globenv)
                  CALL get_next ( inp_info%bend_c(i), ilen )
                  CALL get_next ( inp_info%bend_k(i) )
                  CALL get_next ( inp_info%bend_theta0(i) )
+               !  CALL convert_to_cp2k_units ( "KELVIN",  &
+               !                 bend_k = inp_info%bend_k ( i ) )
               CASE ( 'END')
                  ilen = 0
                  CALL get_next(string2,ilen)
@@ -925,6 +927,11 @@ SUBROUTINE input_torsions(ff_type,globenv)
                  CALL get_next ( inp_info%torsion_d(i), ilen )
                  CALL get_next ( inp_info%torsion_k(i) )
                  CALL get_next ( inp_info%torsion_phi0(i) )
+              !   CALL convert_to_cp2k_units ( "KELVIN",  &
+              !                     torsion_a0 = inp_info%torsion_a ( i ), &
+              !                     torsion_a1 = inp_info%torsion_b ( i ), &
+              !                     torsion_a2 = inp_info%torsion_c ( i ), &
+              !                     torsion_a3 = inp_info%torsion_d ( i ), &
               CASE ( 'END')
                  ilen = 0
                  CALL get_next(string2,ilen)

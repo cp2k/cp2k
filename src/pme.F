@@ -94,7 +94,7 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
-                          fg_coulomb, vg_coulomb, pv_g )
+                          vg_coulomb, fg_coulomb, pv_g )
 
 
     TYPE(particle_type), DIMENSION(:), &

@@ -95,6 +95,7 @@ MODULE qs_neighbor_lists
                                                         list_b_mol
     REAL(dp), DIMENSION(:,:), POINTER                :: r_pbc,&
                                                         s_pbc
+    REAL ( dp )                                      :: qeff
   END TYPE local_atoms_type
 
   TYPE subcell_type

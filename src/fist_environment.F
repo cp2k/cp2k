@@ -176,9 +176,10 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL topology_control ( atomic_kind_set, particle_set,&
                           molecule_kind_set, molecule_set,&
                           globenv )
+
   CALL force_field_control ( atomic_kind_set, particle_set,&
-                          molecule_kind_set, molecule_set,&
-                          globenv, potparm = potparm )
+                             molecule_kind_set, molecule_set,&
+                             globenv, potparm = potparm )
 
   CALL particle_list_create ( particles, els_ptr = particle_set, error = error )
   CALL atomic_kind_list_create ( atomic_kinds, els_ptr = atomic_kind_set, error = error )

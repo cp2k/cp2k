@@ -117,10 +117,12 @@ OBJECTS_GENERIC =\
  fftsg_lib.o\
  fftsgi_lib.o\
  fftw_lib.o\
+ fist_debug.o\
  fist_energy_types.o\
  fist_environment.o\
  fist_environment_types.o\
  fist_force.o\
+ fist_force_numer.o\
  fist_intra_force.o\
  fist_main.o\
  fist_neighbor_list_control.o\

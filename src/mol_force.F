@@ -209,7 +209,7 @@ SUBROUTINE force_imp_torsions ( is32, dist1, dist2, u1, u2, iw1, iw2, &
   energy = 0.5_dbl * k * ( phi - phi0 ) * ( phi - phi0 ) 
 
 ! compute fscalar
-  fscalar = - ( phi - phi0 ) * SQRT ( 1._dbl / ( 1 - cosphi * cosphi ) )
+  fscalar = - k * ( phi - phi0 ) * SQRT ( 1._dbl / ( 1 - cosphi * cosphi ) )
 
 ! compute the gradients
   gt1 = ( u2 * iw2 - cosphi * u1 * iw1 ) * iw1

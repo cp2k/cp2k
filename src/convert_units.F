@@ -55,7 +55,8 @@ CONTAINS
 !******************************************************************************
 SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, length,  &
                                    tau_nhc, mass, eps0, l_power, part, box, &
-                                   ff_nonbonded )
+                                   ff_nonbonded, bond_k, bond_r0, bend_k, torsion_a0, &
+                                   torsion_a1, torsion_a2, torsion_a3 )
 
 
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: unit_char
@@ -67,6 +68,9 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
     TYPE(cell_type), INTENT(INOUT), OPTIONAL :: box
     TYPE(pair_potential_type), &
       POINTER,   OPTIONAL                    :: ff_nonbonded ( : )
+    REAL ( dbl ), DIMENSION ( : ), OPTIONAL  :: bond_k, bend_k, bond_r0, &
+                                                torsion_a0, torsion_a1, &
+                                                torsion_a2, torsion_a3
     INTEGER                                  :: i, ll
     TYPE(unit_convert_type), POINTER         :: units
 
@@ -169,44 +173,38 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
   END IF
 
 ! converting bond, bends and torsion and constraint parameters
-!  IF ( PRESENT ( intra_param ) ) THEN
-!    IF ( ASSOCIATED ( intra_param % bond_param )) THEN
-!       IF ( unit_char == 'KCAL' ) THEN
-!         intra_param % bond_param ( : ) % r0 = intra_param % bond_param ( : ) % r0 &
-!                                               *units%angstrom
-!         intra_param % bond_param ( : ) % k = intra_param % bond_param ( : ) % k &
-!                                               *units%kcal/units%angstrom/units%angstrom
-!       ELSEIF ( unit_char == 'KELVIN' ) THEN
-!         intra_param % bond_param ( : ) % r0 = intra_param % bond_param ( : ) % r0 &
-!                                               *units%angstrom
-!         intra_param % bond_param ( : ) % k = intra_param % bond_param ( : ) % k &
-!                                               *units%kelvin/units%angstrom/units%angstrom
-!       ENDIF
-!    END IF
+  IF ( PRESENT ( bond_k ) .AND. PRESENT ( bond_r0 ) ) THEN
+     IF ( unit_char == 'KCAL' ) THEN
+       bond_r0 = bond_r0 * units % angstrom
+       bond_k =  bond_k * units%kcal/units%angstrom/units%angstrom
+     ELSEIF ( unit_char == 'KELVIN' ) THEN
+       bond_r0 = bond_r0 * units%angstrom
+       bond_k =  bond_k * units%kelvin/units%angstrom/units%angstrom
+     ENDIF
+  END IF
 
-!    IF ( ASSOCIATED ( intra_param % bend_param )) THEN
-!       IF ( unit_char == 'KCAL' ) THEN
-!         intra_param % bend_param( : ) % k &
-!         = intra_param % bend_param( : ) % k * units%kcal
-!       ELSEIF ( unit_char == 'KCAL' ) THEN
-!         intra_param % bend_param( : ) % k &
-!         = intra_param % bend_param( : ) % k * units%kelvin
-!       ENDIF
-!    END IF
+  IF ( PRESENT ( bend_k ) ) THEN
+     IF ( unit_char == 'KCAL' ) THEN
+       bend_k = bend_k * units % kcal
+     ELSEIF ( unit_char == 'KELVIN' ) THEN
+       bend_k = bend_k * units%kelvin
+     ENDIF
+  END IF
 
-!    IF ( ASSOCIATED ( intra_param % torsion_param ) ) THEN
-!       IF ( unit_char == 'KCAL' ) THEN
-!         DO i = 0, SIZE ( intra_param % torsion_param(1) % a ) - 1
-!            intra_param % torsion_param( : ) % a(i) =  &
-!            intra_param % torsion_param( : ) % a(i)*units%kcal
-!         END DO
-!       ELSEIF ( unit_char == 'KELVIN' ) THEN
-!         DO i = 0, SIZE ( intra_param % torsion_param(1) % a ) - 1
-!            intra_param % torsion_param( : ) % a(i) =  &
-!            intra_param % torsion_param( : ) % a(i)*units%kelvin
-!         END DO
-!       ENDIF
-!    END IF
+  IF ( PRESENT ( torsion_a0 ) .AND. PRESENT ( torsion_a1 ) &
+       .AND. PRESENT ( torsion_a2 ) .AND. PRESENT ( torsion_a3 ) ) THEN
+     IF ( unit_char == 'KCAL' ) THEN
+        torsion_a0 = torsion_a0 * units%kcal
+        torsion_a1 = torsion_a1 * units%kcal
+        torsion_a2 = torsion_a2 * units%kcal
+        torsion_a3 = torsion_a3 * units%kcal
+     ELSEIF ( unit_char == 'KELVIN' ) THEN
+        torsion_a0 = torsion_a0 * units%kelvin
+        torsion_a1 = torsion_a1 * units%kelvin
+        torsion_a2 = torsion_a2 * units%kelvin
+        torsion_a3 = torsion_a3 * units%kelvin
+     ENDIF
+  END IF
 
 !    IF ( ASSOCIATED ( intra_param % constraint_distance ) ) THEN
 !       IF ( ( unit_char == 'KELVIN' ) .OR. ( unit_char == 'KCAL' ) ) &

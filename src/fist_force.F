@@ -229,7 +229,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
         CALL stop_memory ( 'fist_force', 'fg_coulomb', 3 * natoms )
         fg_coulomb = 0._dbl
         CALL pme_evaluate ( ewald_env, ewald_pw, particle_set, &
-                            fg_coulomb, vg_coulomb, pv_g )
+                            vg_coulomb, fg_coulomb, pv_g )
         CALL mp_sum ( fg_coulomb, globenv % group ) 
      CASE ( "SPME" )
         ! Parallelisation over grids --> allocate all atoms

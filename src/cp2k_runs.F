@@ -11,6 +11,7 @@ MODULE cp2k_runs
   USE environment,                     ONLY: cp2k_finalize,&
                                              cp2k_init,&
                                              cp2k_read
+  USE fist_debug,                      ONLY: fist_debug_control => debug_control
   USE fist_main,                       ONLY: fist_create_force_env
   USE global_types,                    ONLY: global_environment_type,&
        globenv_create, globenv_retain, globenv_release
@@ -231,8 +232,8 @@ CONTAINS
              CALL qs_geo_opt(force_env,globenv,error=error)
           CASE ( "MONTE CARLO" )
              CALL qs_mon_car ( force_env, globenv, error=error )
-!         CASE ( "DEBUG" )
-!            CALL fist_debug ( force_env, error = error )
+          CASE ( "DEBUG" )
+             CALL fist_debug_control ( force_env, globenv )
           END SELECT
           CALL force_env_release(force_env, error=error)
 #if defined(__HMD)

@@ -122,6 +122,7 @@ SUBROUTINE fist_create_force_env ( force_env, globenv, error )
   CALL force_env_create ( force_env, fist_env = fist_env, &
                            para_env = globenv%para_env, globenv = globenv, &
                            error = error )
+
   CALL fist_env_release ( fist_env, error = error )
     
   CALL timestop ( 0.0_dp, handle )
