@@ -13,9 +13,9 @@
 #
 #
 # Example system test
-argon.inp                 0
-water_1.inp               0
-water_2.inp               0
-ethene.inp                0
-butane.inp                0
-deca_ala.inp              0
+argon.inp                 2
+water_1.inp               2
+water_2.inp               2
+ethene.inp                2
+butane.inp                2
+deca_ala.inp              2
