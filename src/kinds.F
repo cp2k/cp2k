@@ -49,6 +49,8 @@ MODULE kinds
   LOGICAL, PARAMETER :: YES = .TRUE., NO = .FALSE.
   LOGICAL, PARAMETER :: TRUE = .TRUE., FALSE = .FALSE.
 
+  integer, parameter :: default_string_length=80
+
 !!*****
 !******************************************************************************
   

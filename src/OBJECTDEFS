@@ -299,6 +299,7 @@ OBJECTS_GENERIC =\
  wf_types.o\
  xc.o \
  xc_cs1.o\
+ xc_derivative_types.o\
  xc_exchange_gga.o\
  xc_functionals.o\
  xc_functionals_tests.o\
