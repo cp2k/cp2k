@@ -188,13 +188,9 @@ CONTAINS
 
     n = SIZE(f) - 2
 
-    IF (ALLOCATED(ab)) DEALLOCATE(ab, stat=ierr)
-    IF (ierr /= 0) CALL stop_memory("radial_solver/diff6p", "ab")
     ALLOCATE(ab(1:7,1:n), stat=ierr)
     IF (ierr /= 0) CALL stop_memory("radial_solver/diff6p", "ab", 7*n)
 
-    IF (ALLOCATED(ipiv)) DEALLOCATE(ipiv, stat=ierr)
-    IF (ierr /= 0) CALL stop_memory("radial_solver/diff6p", "ipiv")
     ALLOCATE(ipiv(1:n), stat=ierr)
     IF (ierr /= 0) CALL stop_memory("radial_solver/diff6p", "ipiv", n)
     

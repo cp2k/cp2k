@@ -5,20 +5,22 @@ MODULE atom_calculations
   USE termination, ONLY : stop_program
   USE radial_util, ONLY : radial_integrate
   USE radial_grids, ONLY : radial_grid_type
-  
+
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: bfsdm, bff, testfsdm, normalize, reportf, count_nodes, &
-       calc_electron_density, guess_ew
-  
-  CONTAINS
+  PUBLIC :: bfsdm, bff, testfsdm, normalize, count_nodes, &
+       calc_electron_density, guess_ew, compute_gse
+
+CONTAINS
 
   !! ===========================================================================
   !! Build the Full Second Derivative Matrix
+  !!
+  !!
   !! ===========================================================================
-  SUBROUTINE bfsdm(a,h,n)
-
+  SUBROUTINE bfsdm(a, h, n)
+    
     IMPLICIT NONE
 
     INTEGER, INTENT(IN) :: n                    ! size of the matrix
@@ -36,9 +38,7 @@ MODULE atom_calculations
     END DO
     a(2,1) = 80.0_dbl; a(2,2) = -150.0_dbl; a(2,3) = 80.0_dbl; a(2,4) = -5.0_dbl
     a(n-1,n) = 80.0_dbl; a(n-1,n-1) = -150.0_dbl; a(n-1,n-2) = 80.0_dbl; a(n-1,n-3) = -5.0_dbl
-!!!    a(1,1) = 720.0_dbl; a(1,2) = -1440.0_dbl; a(1,3) = 720.0_dbl
-!!!    a(n,n) = 720.0_dbl; a(n,n-1) = -1440.0_dbl; a(n,n-2) = 720.0_dbl
-    a(1,1) = -75.0_dbl; a(1,2) = -20.0_dbl; a(1,3) = 70.0_dbl; a(1,4) = -30.0_dbl; a(1,5) = 5.0_dbl
+    a(1,1) = -75._dbl; a(1,2) = -20._dbl; a(1,3) = 70._dbl; a(1,4) = -30._dbl; a(1,5) = 5._dbl
     a(n,n) = a(1,1); a(n,n-1) = a(1,2); a(n,n-2) = a(1,3); a(n,n-3) = a(1,4); a(n,n-4) = a(1,5)
     
     a = a / (h*h*60.0_dbl)
@@ -52,68 +52,71 @@ MODULE atom_calculations
   SUBROUTINE bff(f, n, l, atom, rho)
 
     USE mathconstants, ONLY : pi
+    USE radial_poisson, ONLY : rg_poisson
+    USE density_types, ONLY : density_type
+    USE potential_types, ONLY : potential_type
     
     IMPLICIT NONE
-    
+
+    ! ARGUMENTS
     REAL(DBL), DIMENSION(:), INTENT(OUT) :: f  ! f to compute
     INTEGER, INTENT(IN) :: n, l                ! main and angular quantum number
     TYPE(atom_info), INTENT(IN) :: atom        ! info on the atom to be computed
     REAL(DBL), DIMENSION(:), INTENT(IN) :: rho ! the electron density
 
-
-    ! generally needed
+    ! VARIABLES
+    INTEGER :: errno
     INTEGER :: i,j
     INTEGER :: k, ngp
-    REAL(DBL), DIMENSION(atom%rg%n) :: v
-    REAL(DBL) :: r, w
+    REAL(DBL), DIMENSION(atom%rg%n) :: v       ! potential
+    REAL(DBL) :: r
+    REAL(DBL) :: w                             ! weights of radial transformation
 
-    ! needed for DFT
-    REAL(DBL), DIMENSION(0:atom%rg%n+1) :: y0   ! r times coulomb repulsion potential
-    REAL(DBL), DIMENSION(0:atom%rg%n+1) :: rho_calc ! for the calculations in radial_poission
-                                                ! we need a rho with dimension ngp+2
+    ! needed for XA
+    REAL(DBL), DIMENSION(0:atom%rg%n+1) :: y0  ! r times coulomb repulsion potential
+    REAL(DBL), DIMENSION(0:atom%rg%n+1) :: rho_calc ! electron density (for calc)
 
     ! needed for IPM
-    INTEGER :: totnel                           ! total number of electrons
+    INTEGER :: totnel                          ! total number of electrons
     REAL(DBL) :: omega, etha, xi
 
-    ngp = atom%rg%n
 
-    DO k=1, ngp
-       r = atom%rg%r(k)
-       v(k) = DBLE(l)*(DBLE(l)+1.0_dbl)/(2.0_dbl*r*r)          ! zentrifugal term
-    END DO
+    ! ----------------------------------------------------------
+    ngp = atom%rg%n
+    totnel = SUM(atom%elconf)
+
+    ! zentrifugal term
+    v(1:ngp) = DBLE(l)*(DBLE(l)+1.0_dbl)/(2.0_dbl*atom%rg%r(1:ngp)**2)
 
     SELECT CASE (atom%method)
+
     CASE DEFAULT
 
-    CASE ('DFT')
-       
+       CALL stop_program(&
+            "atom_calculations/bff","Method not implemented")
+
+    CASE ('XA')
+
+       ! solve for the electrostatic potential of the electron density
        rho_calc = 0.0_dbl
        rho_calc(1:ngp) = rho(1:ngp)
-
-       CALL radial_poisson(rho_calc, y0, 0, atom%rg, 'NUMEROV')
-
-!!       do k=1, ngp, ngp/20
-!!          r = atom%rg%r(k)
-!!          write (6,'(1x,3F14.8)') r, y0(k)/r, rho_calc(k)
-!!       end do
-!!       write (6,*) 
-!!       write (6,*)
+       CALL rg_poisson(rho_calc, y0, 0, atom%rg, 'DIFF6P')
 
        DO k=1, ngp
           r = atom%rg%r(k)
-          
-          v(k) = v(k) - DBLE(atom%z)/r ! electron-ion interaction
-          v(k) = v(k) + y0(k)/r        ! electron-electron interaction
-          v(k) = v(k)
+          v(k) = v(k) - DBLE(atom%z)/r     ! electron-core interaction
+          v(k) = v(k) + y0(k)/r            ! electron-electron interaction
+          v(k) = v(k) - atom%mpara(2) * &  ! exchange potential
+               (rho(k)/(4.0_dbl*pi*r**2))**(1.0_dbl/3.0_dbl)
        END DO
        
     CASE ('HF')
        
     CASE ('IPM')
+       CALL stop_program(&
+            "atom_calculations/bff","Method not implemented")
        DO k=1, ngp
           r = atom%rg%r(k)
-          totnel = SUM(atom%nel)
 
           ! N = 2 hardcoded for now
           ! read from a table later
@@ -125,16 +128,9 @@ MODULE atom_calculations
        END DO
 
     CASE ('SIMPLE')
-       totnel = 0
-       DO i=1, n-1
-          totnel = totnel + SUM(atom%elconf(i,:))
-       END DO
-       IF (l>0) totnel = totnel + SUM(atom%elconf(n,0:l-1))
-       !! testing
-       totnel = 0
        DO k=1, ngp
           r = atom%rg%r(k)
-          v(k) = v(k) - DBLE(atom%z - totnel)/r
+          v(k) = v(k) - DBLE(atom%z)/r
        END DO
 
     END SELECT
@@ -142,7 +138,7 @@ MODULE atom_calculations
     ! transform the function for s-space
     DO k=1, ngp
        w = atom%rg%w(k)
-       f(k) = -(atom%rg%wdd(k))/w - (2.0_dbl/(w**4))*v(k)    ! build the f-function (s-space)
+       f(k) = -(atom%rg%wdd(k))/w - (2.0_dbl/(w**4))*v(k)
     END DO
     
   END SUBROUTINE bff
@@ -150,22 +146,27 @@ MODULE atom_calculations
   
   !! ===========================================================================
   !! calculate the electron density
+  !! actually this calculates 4*pi*r^2 * the density
   !! ===========================================================================
   SUBROUTINE calc_electron_density(rho, wf, atom)
     IMPLICIT NONE
     REAL(DBL), DIMENSION(:), INTENT(OUT) :: rho
-    REAL(DBL), DIMENSION(:,:), INTENT(IN) :: wf
+    REAL(DBL), DIMENSION(:,0:), INTENT(IN) :: wf
     TYPE(atom_info), INTENT(IN) :: atom
 
     INTEGER :: n, l ! main and angular quantum numbers
     INTEGER :: k    ! loop index
+    INTEGER :: orbit
     
     rho = 0.0_dbl
     DO k=1, atom%rg%n
        DO n=1, 10
           DO l=0, n-1
-             IF (atom%elconf(n,l) /= 0) &
-                  rho(k) = rho(k) + DBLE(2*(2*l+1)) * wf(k, n*(n-1)/2+1+l)**2
+             IF (atom%elconf(n,l) /= 0) THEN
+                orbit = (n*(n-1))/2+1+l
+                rho(k) = rho(k) + atom%elconf(n,l) * &
+                     (wf(k, orbit))**2
+             END IF
           END DO
        END DO
     END DO
@@ -175,6 +176,8 @@ MODULE atom_calculations
 
   !! ===========================================================================
   !! Test the Second Derivative Matrix (for debugging purposes only)
+  !!
+  !!
   !! ===========================================================================
   SUBROUTINE testfsdm(derivative, rg)
     IMPLICIT NONE
@@ -207,32 +210,6 @@ MODULE atom_calculations
 
 
   !! ===========================================================================
-  !! Diagonalize the matrix
-  !! ===========================================================================
-  SUBROUTINE diagonalize(n, a, eigenvalues, eigenvectors)
-    IMPLICIT NONE
-    ! ARGUMENTS
-    INTEGER, INTENT(IN) :: n                               ! size of involved matrizes
-    REAL(DBL), DIMENSION(n,n), INTENT(INOUT) :: a          ! matrix to diagonalize
-    REAL(DBL), DIMENSION(n,2), INTENT(OUT) :: eigenvalues  ! complex
-    REAL(DBL), DIMENSION(n,n), INTENT(OUT) :: eigenvectors ! the right eigenvectors
-    ! VARIABLES
-    INTEGER :: info                                        !
-    INTEGER, PARAMETER :: lwork = 10                       ! variables needed for lapack call
-    REAL(DBL), DIMENSION(:), ALLOCATABLE :: VR             !
-    REAL(DBL), DIMENSION(lwork*n) :: work                  !
-    ! EXECUTION SECTION
-    CALL dgeev('N', 'V', n, &
-         a, n, &
-         eigenvalues(:,1), eigenvalues(:,2), &
-         vr, 1, &
-         eigenvectors, n, &
-         work, lwork*n, &
-         info)
-  END SUBROUTINE diagonalize
-  
-  
-  !! ===========================================================================
   !! Normalize a function f
   !!
   !! f := f/sqrt(int(|f|^2))
@@ -248,39 +225,17 @@ MODULE atom_calculations
   END SUBROUTINE normalize
 
 
-  !! ===========================================================================
-  !! Report a function
-  !! ===========================================================================
-  SUBROUTINE reportf(f, p, rg)
-    IMPLICIT NONE
-
-    REAL(DBL), DIMENSION(:), INTENT(IN) :: f, p
-    TYPE(radial_grid_type), INTENT(IN) :: rg
-
-    INTEGER :: k, n
-    REAL(DBL) :: r
-
-    n = SIZE(f)
-
-    WRITE (6,'(1X,A3,2X,A12,2X,A10,2X,A10,2X,A10)') "k", "r(k)", "f(k)", "p(k)", "|f-p|/p"
-    WRITE (6,*)
-    DO k=1, n, n/20
-       r = rg%r(k)
-       WRITE (6,'(1X,I3,(A),F12.8,(a),F10.8,(a),F10.8,(a),F10.8)') k, "  ", r, "  ", &
-            f(k), "  ", p(k), "  ", ABS(f(k)-p(k))/p(k)
-    END DO
-    WRITE (6,*)
-  END SUBROUTINE reportf
-
-  
-  ! counts the nuber of nodes in a function f
-  ! f must start positively
-  SUBROUTINE count_nodes(f, nodes)
+  !!===============================================================
+  !! counts the nuber of nodes in a function f
+  !! f must start positively                  
+  !!
+  !!===============================================================
+  SUBROUTINE count_nodes(nodes, f)
 
     IMPLICIT NONE
 
-    REAL(DBL), DIMENSION(:), INTENT(IN) :: f
     INTEGER, INTENT(OUT) :: nodes
+    REAL(DBL), DIMENSION(:), INTENT(IN) :: f
     
     INTEGER :: n, i
     INTEGER :: signum
@@ -294,14 +249,22 @@ MODULE atom_calculations
     nodes = 0
     signum = 1
     DO i=3, n-1
-       IF (int(f(i)/abs(f(i))) /= signum) THEN
-          nodes = nodes + 1
-          signum = int(f(i)/abs(f(i)))
+       IF (INT(f(i)/ABS(f(i))) /= signum) THEN
+          signum = INT(f(i)/ABS(f(i)))
+          IF (ABS(f(i+1)) > ABS(f(i))) THEN
+             nodes = nodes + 1
+          END IF
        END IF
     END DO
-          
+        
   END SUBROUTINE count_nodes
 
+
+  !!===============================================================
+  !!
+  !!
+  !!
+  !!===============================================================
   SUBROUTINE guess_ew(ew, atom)
     
     IMPLICIT NONE
@@ -309,7 +272,7 @@ MODULE atom_calculations
     TYPE(atom_info), INTENT(IN) :: atom        ! 
 
     INTEGER :: n, l                            ! main and angular quantum numbers
-    INTEGER :: counter, index
+    INTEGER :: counter, orbit
 
     counter = 0
     DO n=1, 10 ! arbitrary limit
@@ -317,14 +280,14 @@ MODULE atom_calculations
 
           IF (atom%elconf(n,l) == 0) CYCLE
 
-          index = n*(n-1)/2 + 1 + l
+          orbit = (n*(n-1))/2 + 1 + l
 
           IF (atom%method == 'SIMPLE') THEN
-             ew(index) = -0.5_dbl * (dble(atom%z)/dble(n))**2
+             ew(orbit) = -0.5_dbl * (dble(atom%z)/DBLE(n))**2
           ELSE
-             ew(index) = -0.5_dbl * (dble(atom%z - counter)/dble(n))**2
+             ew(orbit) = -0.5_dbl * (DBLE(atom%z - counter)/DBLE(n))**2
           END IF
-          ew(index) = ew(index) * (1.01_dbl + 0.0_dbl*atom%precision)
+          ew(orbit) = ew(orbit) * 1.05_dbl ! shift the guesses by 5%
 
           ! calculate the running total of electrons
           counter = counter + atom%elconf(n,l)
@@ -332,5 +295,69 @@ MODULE atom_calculations
        END DO
     END DO
   END SUBROUTINE guess_ew
+
+
+  !!===============================================================
+  !!
+  !!
+  !!
+  !!===============================================================
+  SUBROUTINE compute_gse(atom, rho)
+
+    USE mathconstants, ONLY : pi
+    USE radial_poisson, ONLY : rg_poisson
+
+    IMPLICIT NONE
+
+    ! ARGUMENTS
+    TYPE(atom_info), INTENT(INOUT) :: atom
+    REAL(DBL), DIMENSION(:), INTENT(IN) :: rho
+
+    ! VARIABLES
+    REAL(DBL) :: gse
+    REAL(DBL) :: res, alpha, cx
+    REAL(DBL), DIMENSION(0:atom%rg%n+1) :: y0, rho_calc
+    INTEGER :: k, n, l, errno, ngp
+
+    ! ------------------------------------------------------------
+    ngp = atom%rg%n
+
+    gse = 0.0_dbl
+    DO n=1, 10
+       DO l=0, n-1
+          IF (atom%elconf(n,l) /= 0) &
+               gse = gse + atom%elconf(n,l) * atom%oew((n*(n-1))/2 + l + 1)
+       END DO
+    END DO
+
+    SELECT CASE (atom%method)
+       
+    CASE DEFAULT
+       CALL stop_program(&
+            "atom_calculations/compute_gse","Method not implemented")
+       
+    CASE ('SIMPLE')
+       !! nothing to do
+
+    CASE ('XA')
+       rho_calc = 0.0_dbl
+       rho_calc(1:ngp) = rho(1:ngp)
+       CALL rg_poisson(rho_calc, y0, 0, atom%rg, 'NUMEROV')
+       CALL radial_integrate(ngp, &
+            rho*y0/(atom%rg%r(1:ngp)), &
+            atom%rg, res, errno)
+       gse = gse - 0.5_dbl*res
+
+       rho_calc = 0.0_dbl
+       rho_calc(1:ngp) = (rho(1:ngp) / &
+            (4.0_dbl*pi*atom%rg%r(1:ngp)**2))**(4.0_dbl/3.0_dbl)
+       rho_calc(1:ngp) = rho_calc(1:ngp)*(4.0_dbl*pi*atom%rg%r(1:ngp)**2)
+       CALL radial_integrate(ngp, rho_calc(1:ngp), atom%rg, res, errno)
+       gse = gse + 0.25_dbl * atom%mpara(2) * res
+
+    END SELECT
+
+    atom%gse = gse
+  END SUBROUTINE compute_gse
 
 END MODULE atom_calculations

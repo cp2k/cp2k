@@ -69,8 +69,6 @@ SUBROUTINE radial_int_s ( n, f, h, result, ierr )
     result = HUGE ( 0._dbl )
     ierr = -1
   ELSE
-     write (6,*) n, n-1, n-2
-     write (6,*) f(1), f(n), f(2), f(n-1), f(3), f(n-2)
     result = p1 * ( f ( 1 ) + f ( n ) ) + p2 * ( f ( 2 ) + f ( n-1 ) ) + &
              p3 * ( f ( 3 ) + f ( n-2 ) )
     result = result + SUM ( f ( 4:n-3 ) )
@@ -98,8 +96,6 @@ SUBROUTINE radial_int_r ( n, f, rg, result, ierr )
   INTEGER :: stat
 
 !------------------------------------------------------------------------------
-
-  write (6,*) n
 
   ALLOCATE ( fs ( 1:n ), STAT = stat )
   IF ( stat /= 0 ) call stop_memory ( "radial_int_r", "fs", n )

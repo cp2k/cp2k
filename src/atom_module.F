@@ -22,7 +22,6 @@ MODULE atom_module
   USE mathconstants, ONLY : zero
   USE timings, ONLY : timeset, timestop
 
-
   IMPLICIT NONE
 
   PRIVATE
@@ -55,24 +54,16 @@ CONTAINS
     !Locals
     TYPE(atom_info) :: this     ! the atom itself
 
-    CHARACTER(20) :: tempstring
-
     INTEGER :: handle           ! a handle for the timer
-    INTEGER :: i                ! loop variable
 
     !------------------------------------------------------------------------------
     CALL timeset ( 'ATOMIC_CODE', 'I', ' ', handle )
 
     IF ( globenv % ionode ) CALL atom_header ( globenv % scr )
 
-    ! read input file and setup calculations
-    CALL atom_init(this, globenv, .true.)
-
-    ! do calculations
+    CALL atom_init(this, globenv, .false.)
     CALL atom_do_calc(this)
-
     CALL timestop ( zero, handle )
-
     CALL atom_destroy(this)
 
   END SUBROUTINE atomic_code
@@ -82,19 +73,20 @@ CONTAINS
   !!
   !!   FUNCTION
   !!     Does the actual computation
-  !!     (no interactions)
   !!
   !!   HISTORY
   !!     TCH, 28-OCT-2001, began work
+  !!     TCH, 06-DEC-2001, V0.5: calculates Xa method
   !!
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE atom_do_calc(this)
 
-    USE atom_calculations, ONLY : bfsdm, testfsdm, bff, normalize, reportf, count_nodes, &
-         calc_electron_density, guess_ew
+    USE atom_calculations, ONLY : &
+         bfsdm, bff, normalize, count_nodes, &
+         calc_electron_density, guess_ew, compute_gse
     USE radial_util, ONLY : radial_integrate
-    USE termination, ONLY : stop_memory
+    USE termination, ONLY : stop_memory, stop_program
    
     IMPLICIT NONE
     
@@ -104,182 +96,172 @@ CONTAINS
     ! variables
     INTEGER :: errorcode      ! to store an errorcode
     INTEGER :: g, i, j, k     ! loop variables
-    INTEGER :: ngp              ! holds the number of interior grid points
+    INTEGER :: ngp            ! holds the number of interior grid points
     
-    REAL(DBL), DIMENSION(this%rg%n, this%rg%n) :: sdm          ! second derivative matrix 
-    REAL(DBL), DIMENSION(this%rg%n, this%rg%n) :: hm           ! h operator matrix
-    REAL(DBL), DIMENSION(this%rg%n, this%rg%n) :: hcalcm       ! h operator matrix for lapack calculations
-    REAL(DBL), DIMENSION(this%rg%n) :: f
-    REAL(DBL), DIMENSION(this%rg%n) :: rho                     ! electron density
-    REAL(DBL), DIMENSION(55) :: sigma                          ! guess for the eigenvalues
+    REAL(DBL), DIMENSION(1:this%rg%n) :: f
+    REAL(DBL), DIMENSION(0:this%rg%n+1) :: s, t1, t2
+    REAL(DBL), DIMENSION(1:this%rg%n) :: rho  ! 4*pi*r^2 * electron density
 
-    REAL(DBL), DIMENSION(0:this%rg%n+1) :: testwf
-
-    REAL(DBL), DIMENSION(this%rg%n) :: ipiv, y                 ! helpers for the calculations
- 
-    REAL(DBL) :: corr         ! the percentage of sigma to be corrected
-    REAL(DBL) :: corr_tresh   ! the threshold for the corrections to be applied
-    
-    REAL(DBL) :: old_ew       ! store the old eigenwert for sc criterium
-    REAL(DBL) :: w            ! cache for the weights of the radial transformation
-    REAL(DBL) :: fac          ! a shorthand for a factor
-    REAL(DBL) :: r ! DEBUGGING ONLY
-
+    REAL(DBL) :: h2           ! h**2
+    REAL(DBL) :: scale        ! scale factor to match wf in the middle
+    REAL(DBL) :: etot         ! total computed energy from last iteration
+    REAL(DBL) :: ldd          ! logarhytmic derivative difference
+    REAL(DBL) :: ldd1, ldd2
+    REAL(DBL) :: c1, c2       ! parameters for eigenvalue corrections
          
+    INTEGER :: iteration
     INTEGER :: l              ! angular quantum number
     INTEGER :: n              ! main quantum number
-    INTEGER :: orbitnum, counter ! to keep track which orbital we are computing
-    INTEGER :: nodes
+    INTEGER :: orbit          ! to keep track which orbital we are computing
+    INTEGER :: nodes          ! number of nodes in the wavefunction
 
-    CHARACTER(50) :: fmt
+    INTEGER :: mp             ! matching point
 
-    ! parameters
-    corr = 25.0_dbl
-    corr_tresh = 100.0_dbl
+    ! ------------------------------------------------
 
-    ! execution section
+    ! initialisations
+    c1 = 0.1_dbl
+    c2 = 0.01_dbl
+    h2 = this%rg%h**2
     ngp = this%rg%n
-
-    sdm = 0.0_dbl
-    CALL bfsdm(sdm, this%rg%h, ngp)
+    s = 0.0_dbl
+    t1 = 0.0_dbl; t2 = 0.0_dbl
+    mp = 3*ngp/4
+    iteration = 0
 
     ! construct the starting functions
+!!!    DO k = 1, ngp
+!!!       this%orbitals(k,0) = exp(-this%rg%r(k))*this%rg%r(k)**2
+!!!    END DO
+!!!    this%orbitals(:,0) = EXP(-1.0_dbl*this%rg%r(1:ngp))*this%rg%r(1:ngp)**2
+    this%orbitals(:,0) = 1.0_dbl
+    CALL normalize(this%orbitals(:,0), this%rg)
     DO k=1, 55
-       CALL construct_initial_wf(this%orbitals(:,k), this)
+       this%orbitals(:,k) = this%orbitals(:,0)
     END DO
 
     ! approximations for the eigenvalues
-    CALL guess_ew(sigma, this)
+    CALL guess_ew(this%oew, this)
+
+    etot = 0.0_dbl
 
     DO 
+       
+       IF (this%method == 'XA') THEN
+          CALL calc_electron_density(rho, this%orbitals, this)
+       END IF
 
-       IF (this%method == 'DFT') CALL calc_electron_density(rho, this%orbitals, this)
-      
-       DO n = 1, 10
-          DO l=0, n-1
+       n_loop: DO n = 1, 10
+          l_loop: DO l=0, n-1
 
              IF (this%elconf(n,l) == 0) CYCLE
 
-             orbitnum = n*(n-1)/2 + 1 + l
-             WRITE (6,'(1X,3(A,I2))') "n = ", n, "  l = ", l, "  orbitnum = ", orbitnum
-
-             old_ew = sigma(orbitnum)
+             orbit = (n*(n-1))/2 + 1 + l
 
              ! construct the model dependend part of the operator
              CALL bff(f, n, l, this, rho)          
 
-             DO ! until convergance
+             shooting_loop: DO
 
-                hm = sdm
-                DO j=1, ngp
-                   hm(j,j) = hm(j,j) + f(j)
-                   w = this%rg%w(j)
-                   DO i=1, ngp
-                      hm(i,j) = hm(i,j) * w
-                   END DO
-                END DO
-
-                ! build the operator for the eigenvector calculation
-                hcalcm = hm
+                iteration = iteration + 1
+                if (iteration > 100) exit
+                
                 DO k=1, ngp
-                   fac = 2.0_dbl / (this%rg%w(k)**3)
-                   hcalcm(k,k) = hcalcm(k,k) + sigma(orbitnum) * fac
-                   this%orbitals(k,orbitnum) = this%orbitals(k,orbitnum) * fac
+                   f(k) = -1.0_dbl*(f(k) + 2.0_dbl*this%oew(orbit)/(this%rg%w(k)**4))
+                END DO
+                   
+                t1(0) = 0.0_dbl
+                t1(1) = 1.0E-7_dbl
+                t2(ngp+1) = 0.0_dbl
+                t2(ngp) = 0.5E-7_dbl
+!!!                t2(ngp+1) = 0.5-9_dbl
+!!!                t2(ngp) = t2(ngp+1) * EXP(-this%rg%h * SQRT(f(ngp)))
+                
+                ! numerov iteration
+                DO k=2, (mp+1)
+                   t1(k) = t1(k-1) &
+                        * (2.0_dbl+f(k-1)*h2/(1.0_dbl-f(k-1)*h2/12.0_dbl)) &
+                        - t1(k-2)
+                END DO
+                DO k=ngp-1, (mp-1), -1
+                   t2(k) = t2(k+1) &
+                        * (2.0_dbl+f(k+1)*h2/(1.0_dbl-f(k+1)*h2/12.0_dbl)) &
+                        - t2(k+2)
                 END DO
 
-                ! solve the linear equations
-                CALL dgesv(ngp, 1, hcalcm, ngp, ipiv, this%orbitals(:,orbitnum), ngp, errorcode) 
-
-                ! normalize and take the positive solution
-                CALL normalize(this%orbitals(:,orbitnum), this%rg)
-                ! choose the solution that starts positively
-                IF (this%orbitals(1,orbitnum) < 0.0_dbl) this%orbitals(:,orbitnum) = -1.0_dbl * this%orbitals(:,orbitnum) 
-
-                ! now check the number of nodes and adjust the approximation
-                ! to the eigenvalue accordingly
-                ! there should be n-(l+1) nodes in the solution
-                CALL count_nodes(this%orbitals(:,orbitnum), nodes)
-                IF (nodes < n-(l+1)) THEN
-!!                   WRITE (6,'(1X,A,I2,A,F14.8,A,F14.8)') &
-!!                        "Too FEW nodes  : ", nodes, " ", sigma(orbitnum), " -> " , &
-!!                        (1.0_dbl-corr/100.0_dbl) * sigma(orbitnum)
-                   sigma(orbitnum) = (1.0_dbl - corr/100.0_dbl) * sigma(orbitnum)
-                   CALL construct_initial_wf(this%orbitals(:,orbitnum), this)
-                   CYCLE
-                ELSE IF (nodes > n-(l+1)) THEN
-!!                   WRITE (6,'(1X,A,I2,A,F14.8,A,F14.8)') &
-!!                        "Too MANY nodes : ", nodes, " ", sigma(orbitnum), " -> " , &
-!!                        (1.0_dbl+corr/100.0_dbl) * sigma(orbitnum)
-                   sigma(orbitnum) = (1.0_dbl + corr/100.0_dbl) * sigma(orbitnum)
-                   CALL construct_initial_wf(this%orbitals(:,orbitnum), this)
-                   CYCLE
-                END IF
-
-                ! compute the new approximation to the eigenvalue
-                y = 0.0_dbl
-                DO i=1, ngp
-                   DO j=1, ngp
-                      y(i)=y(i) + hm(i,j)*this%orbitals(j,orbitnum)
-                   END DO
-                   y(i) = -1.0_dbl * y(i) * (this%rg%w(i)**3) / 2.0_dbl
+                ! get wP
+                DO k=1, mp+1
+                   t1(k) = t1(k) / (1.0_dbl-h2*f(k)/12.0_dbl)
                 END DO
-                y = y * this%orbitals(:,orbitnum)
-                do k=1, ngp
-                   write (6,*) k, y(k)
-                end do
-                CALL radial_integrate(ngp, this%orbitals(:,orbitnum), this%rg, this%oew(orbitnum), errorcode)   
-                IF (ABS((this%oew(orbitnum) - old_ew)/this%oew(orbitnum)) < this%precision) EXIT
-                old_ew = this%oew(orbitnum)
+                DO k=ngp, (mp-1), -1
+                   t2(k) = t2(k) / (1.0_dbl-h2*f(k)/12.0_dbl)
+                END DO
+                
+                scale = t1(mp) / t2(mp)
+                t2(mp-1:ngp) = scale * t2(mp-1:ngp)
+                s(1:mp) = t1(1:mp)
+                s(mp+1:ngp) = t2(mp+1:ngp)
 
-                ! Correct sigma to improve convergence
-                IF ((sigma(orbitnum) - this%oew(orbitnum))/sigma(orbitnum) > 1.0_dbl) THEN
-!!                   WRITE (6,'(1X,A,F14.8,A,F14.8)') &
-!!                        "Sigma to BIG  : ", sigma(orbitnum), " -> " , &
-!!                        (1.0_dbl - corr/400.0_dbl) * sigma(orbitnum)
-                   sigma(orbitnum) = (1.0_dbl - corr/400.0_dbl) * sigma(orbitnum)
-                ELSE IF ((sigma(orbitnum) - this%oew(orbitnum))/sigma(orbitnum) < -1.0_dbl) THEN
-!!                   WRITE (6,'(1X,A,F14.8,A,F14.8)') &
-!!                        "Sigma to SMALL: ", sigma(orbitnum), " -> " , &
-!!                        (1.0_dbl + corr/400.0_dbl) * sigma(orbitnum)
-                   sigma(orbitnum) = (1.0_dbl + corr/400.0_dbl) * sigma(orbitnum)
-                END IF
+                this%orbitals(1:ngp,orbit) = s(1:ngp) / this%rg%w(1:ngp)
+                CALL normalize(this%orbitals(:,orbit), this%rg)
 
-             END DO
+!!!                DO k=mp-10, mp+10
+!!!                   WRITE (6,*) this%rg%r(k), this%orbitals(k,orbit)
+!!!                END DO
 
-             WRITE (6, '(1X,F16.9)') this%oew(orbitnum)
-             WRITE (6,*)
+!!!                ! number of nodes in wavefunction should be n-(l+1)
+!!!                CALL count_nodes(nodes, this%orbitals(:,orbit))
+!!!                IF (nodes < n-(l+1)) THEN
+!!!                   this%oew(orbit) = (1.0_dbl-c1) * this%oew(orbit)
+!!!                   CYCLE shooting_loop
+!!!                ELSE IF (nodes > n-(l+1)) THEN
+!!!                   this%oew(orbit) = (1.0_dbl+c1) * this%oew(orbit)
+!!!                   CYCLE shooting_loop
+!!!                END IF
 
-          END DO ! l loop
-       END DO ! n loop
+!!!                ldd = (t1(mp+1) - t1(mp-1) - t2(mp+1) + t2(mp-1)) &
+!!!                     / (2.0_dbl * this%rg%h * s(mp))
+!!!                ldd = ((this%orbitals(mp,orbit) - this%orbitals(mp-1,orbit)) &
+!!!                     / (this%rg%r(mp) - this%rg%r(mp-1)) &
+!!!                     - (this%orbitals(mp+1, orbit) - this%orbitals(mp,orbit)) &
+!!!                     / (this%rg%r(mp+1) - this%rg%r(mp))) &
+!!!                     / (this%rg%h * this%orbitals(mp,orbit))
+                ldd1 = (t1(mp+1) - t1(mp-1))/(2.0_dbl*this%rg%h)
+                ldd2 = (t2(mp+1) - t2(mp-1))/(2.0_dbl*this%rg%h)
+                ldd = (ldd1 - ldd2) / s(mp)
+!!!                WRITE (6,'(1X,4ES13.4)') ldd1, ldd2, ldd1-ldd2, (ldd1-ldd2)/s(mp)
+                WRITE (6,'(1X,ES13.4,A,ES13.4)') this%oew(orbit), "  ", ldd
+                IF (ABS(ldd) < this%precision) EXIT shooting_loop
+                this%oew(orbit) = this%oew(orbit) - c2 * ldd
+!!!                EXIT
+             END DO shooting_loop
+
+!!!             CALL normalize(this%orbitals(1:ngp,orbit), this%rg)
+
+!!!             DO k=1, ngp
+!!!                WRITE (6,'(2(1X,F15.7))') this%rg%r(k), this%orbitals(k,orbit)
+!!!             END DO
+
+          END DO l_loop
+!!!!!!!!!!!!!!!!!
+          EXIT
+       END DO n_loop
+
+       CALL compute_gse(this, rho)
 
        ! these methods dont need the self consistency loop
        IF (this%method == 'SIMPLE' .OR. this%method == 'IPM') EXIT
 
+       ! self consistency condition
+       IF (ABS((this%gse - etot)/this%gse) < this%precision) EXIT
+       etot = this%gse
+
     END DO ! self-consistency loop
 
+    WRITE (6,'(1X,A,F10.5)') "GSE: ", this%gse
+
   END SUBROUTINE atom_do_calc
-
-
-  !! ===============================================================
-  !! Fill the initial wavefunctions with a reasonable function.
-  !! The function must be 0 at the inner and outer borders.
-  !! ===============================================================
-  SUBROUTINE construct_initial_wf(f, this)
-
-    USE atom_calculations, ONLY : normalize
-    
-    IMPLICIT NONE
-
-    REAL(DBL), DIMENSION(:), INTENT(OUT) :: f
-    TYPE(atom_info), INTENT(IN) :: this
-
-    INTEGER :: k
-
-    f = exp(-this%rg%r)*this%rg%r**2
-    CALL normalize(f, this%rg)
-    
-  END SUBROUTINE construct_initial_wf
-
+  
 END MODULE atom_module
 
 !******************************************************************************
