@@ -132,6 +132,7 @@ OBJECTS_GENERIC =\
  md.o\
  md_environment_types.o\
  md_fist_energies.o\
+ md_kg_energies.o\
  memory_utilities.o\
  message_passing.o\
  method_specifications.o\
