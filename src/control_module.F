@@ -468,11 +468,11 @@ SUBROUTINE control ( globenv )
 
 
      CALL allocate_pol_coefs ( ncoef, struc ( 1 ) % coef_pos ( 1 ),  &
-             struc ( 1 ) % coef_vel ( 1 ), struc ( 1 ) % coef_force ( 1 ) )
+          struc ( 1 ) % coef_vel ( 1 ), struc ( 1 ) % coef_force ( 1 ) )
 
-     CALL initialize_pol_coefs ( simpar % pol_read_type, struc ( 1 ) % drho_basis_info, &
-              struc ( 1 ) % part, struc ( 1 ) % coef_pos ( 1 ),  &
-              struc ( 1 )% coef_vel ( 1 ), struc ( 1 ) % coef_force ( 1 ) )
+     CALL initialize_pol_coefs ( simpar, struc ( 1 ) % drho_basis_info, &
+          struc ( 1 ) % part, struc ( 1 ) % coef_pos ( 1 ),  &
+          struc ( 1 )% coef_vel ( 1 ), struc ( 1 ) % coef_force ( 1 ), globenv )
 
      CALL initialize_nhc_pol ( simpar, struc ( 1 ) % coef_vel ( 1 ),  &
                                globenv, extended_type % nhc_pol )
@@ -901,6 +901,10 @@ SUBROUTINE control_md_work ( globenv, units, simpar, struc, inter, &
                extended_type % nhc_baro, extended_type % npt_info, & 
                mdio % dump_file_name, globenv, pimd )
           IF ( pimd ) CALL v2ud ( struc, simpar )
+          IF ( coef_flag ) THEN
+              CALL dump_pol_coefs (struc (1) % coef_pos (1) , struc (1) % coef_vel (1), &
+                                   struc (1) % coef_force (1))
+          END IF
      END IF
   END DO
   
