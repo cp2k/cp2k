@@ -90,11 +90,11 @@ MODULE qs_p_env_methods
                                              wp=>dp
   USE qs_blacs,                        ONLY: blacs_scale_and_d,&
                                              copy_blacs_to_blacs_matrix,&
-                                             cp_fm_scale_and_add,&
                                              cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_restore,&
                                              cp_fm_gemm,&
                                              cp_fm_release,&
+                                             cp_fm_scale_and_add,&
                                              cp_fm_symm,&
                                              cp_fm_syrk,&
                                              cp_fm_triangular_multiply,&
@@ -701,7 +701,7 @@ END SUBROUTINE p_env_did_change
           ! S_psi0 = k times psi0d
           CALL cp_sm_fm_multiply(qs_env%k(spin)%matrix, &
                p_env%psi0d(spin)%matrix, &
-               p_env%S_psi0(spin)%matrix, p_env%n_ao(spin), &
+               p_env%S_psi0(spin)%matrix, p_env%n_mo(spin), &
                para_env)
           IF (PRESENT(Hrho_psi0d)) THEN
              CALL cp_fm_scale_and_add(alpha=0.0_wp,matrix_a=Hrho_psi0d(spin)%matrix,&
@@ -896,7 +896,7 @@ END SUBROUTINE p_env_did_change
     CALL fm_pool_create_matrix(ao_maxmo_fm_pool, tmp, error=error)
     
     k_p => qs_env%k(spin)%matrix
-    CALL get_matrix_info(k_p, ncol=ncol)
+    CALL cp_fm_get_info(v, ncol_global=ncol)
     
     IF (p_env%orthogonal_orbitals) THEN
        CALL cp_sm_fm_multiply(k_p, v, res, ncol, para_env)
