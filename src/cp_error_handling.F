@@ -66,7 +66,8 @@ MODULE cp_error_handling
        cp_error_get_print_level, cp_error_get_nr,&
        cp_error_get_logger, cp_error_get_stop_level,&
        cp_error_common_stop, cp_error_handle_error,&
-       cp_error_message, cp_error_propagate_error
+       cp_error_message, cp_error_propagate_error,&
+       cp_error_check
 
 #ifdef FD_DEBUG
 !! global variable to turn on/off the debugging, as i am lazy I use the 
@@ -427,7 +428,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Function cp_error_get_level(error) Result(res)
 !!       Integer:: res
-!!       Type(cp_error_type), Intent (IN):: error
+!!       Type(cp_error_type), Intent (IN), Optional:: error
 !!     End Function cp_error_get_level
 !!
 !!   FUNCTION
@@ -449,9 +450,13 @@ CONTAINS
 !!*** **********************************************************************
   FUNCTION cp_error_get_level(error) RESULT(res)
     INTEGER :: res
-    TYPE(cp_error_type), INTENT(in) :: error
+    TYPE(cp_error_type), INTENT(in), OPTIONAL :: error
 
-    res=error%level
+    IF (PRESENT(error)) THEN
+       res=error%level
+    ELSE
+       res=0
+    END IF
   END FUNCTION cp_error_get_level
 !****************************************************************************
 
@@ -506,7 +511,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Function cp_error_get_nr(error) Result(res)
 !!       Integer:: res
-!!       Type(cp_error_type), Intent (IN):: error
+!!       Type(cp_error_type), Intent (IN), Optional:: error
 !!     End Function cp_error_get_nr
 !!
 !!   FUNCTION
@@ -529,9 +534,13 @@ CONTAINS
   ! pure 
   FUNCTION cp_error_get_nr(error) RESULT(res)
     INTEGER :: res
-    TYPE(cp_error_type), INTENT(in) :: error
-
-    res=error%error_nr
+    TYPE(cp_error_type), INTENT(in), OPTIONAL :: error
+    
+    IF (PRESENT(error)) THEN
+       res=error%error_nr
+    ELSE
+       res=0
+    END IF
   END FUNCTION cp_error_get_nr
 !****************************************************************************
 
@@ -973,6 +982,50 @@ SUBROUTINE cp_unimplemented_error(fromWhere, message, error, error_level)
           fromWhere, "UNIMPLEMENTED", error=error)
   END IF
 END SUBROUTINE cp_unimplemented_error
+!***************************************************************************
+
+!!****f* cp_error_handling/cp_error_check [1.0] *
+!!
+!!   NAME
+!!     cp_error_check
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_error_check(error, failure)
+!!       Type(cp_error_type), Optional, Intent (IN):: error
+!!       Logical, Intent (INOUT), Optional:: failure
+!!     End Subroutine cp_error_check
+!!
+!!   FUNCTION
+!!     if error is present sets failure to true if an error did happen
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: the error to check for failure
+!!     - failure: set to true if there was an error
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     11.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_error_check(error, failure)
+  TYPE(cp_error_type), OPTIONAL, INTENT(in) :: error
+  LOGICAL, INTENT(inout), OPTIONAL :: failure
+  
+  CHARACTER(len=*), PARAMETER :: routineN='cp_error_check',&
+        routineP=moduleN//':'//routineN
+  failure=.FALSE.
+  
+  IF (PRESENT(error).and.PRESENT(failure)) THEN
+     IF (error%error_nr /=0 .OR. error%level /=0) THEN
+        failure=.TRUE.
+     END IF
+  END IF
+END SUBROUTINE cp_error_check
 !***************************************************************************
 
 !!****f* cp2k/m/s *

@@ -20,7 +20,6 @@
 !******************************************************************************
 
 MODULE qs_energy
-
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_para_env,                     ONLY: cp_para_env_from_globenv
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -40,7 +39,6 @@ MODULE qs_energy
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
   IMPLICIT NONE
 
   PRIVATE
@@ -109,7 +107,7 @@ CONTAINS
 
 !   *** init the ks_env
 
-    CALL qs_ks_init(ks_env,qs_env=qs_env,global_env=globenv)
+    CALL qs_ks_init(ks_env,qs_env=qs_env)
 
 !   *** Perform a SCF run ***
 

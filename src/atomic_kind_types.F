@@ -20,50 +20,60 @@
 !******************************************************************************
 
 MODULE atomic_kind_types
-
-  USE kinds, ONLY: int_size,&
-                   wp => dp
-
-  USE basis_set_types,          ONLY: allocate_gto_basis_set,&
-                                      deallocate_gto_basis_set,&
-                                      get_gto_basis_set,&
-                                      gto_basis_set_type,&
-                                      init_aux_basis_set,&
-                                      init_orb_basis_set,&
-                                      read_gto_basis_set,&
-                                      write_aux_basis_set,&
-                                      write_gto_basis_set,&
-                                      write_orb_basis_set
-  USE external_potential_types, ONLY: all_potential_type,&
-                                      allocate_potential,&
-                                      deallocate_potential,&
-                                      epc_potential_type,&
-                                      get_potential,&
-                                      gth_potential_type,&
-                                      init_potential,&
-                                      read_potential,&
-                                      write_potential
-  USE global_types,             ONLY: global_environment_type
-  USE periodic_table,           ONLY: ptable
-  USE qs_parser,                ONLY: finish_parser,&
-                                      read_object,&
-                                      start_parser,&
-                                      test_object
-  USE string_utilities,         ONLY: integer_to_string,&
-                                      uppercase
-  USE termination,              ONLY: stop_memory,&
-                                      stop_program
+  USE basis_set_types,                 ONLY: allocate_gto_basis_set,&
+                                             deallocate_gto_basis_set,&
+                                             get_gto_basis_set,&
+                                             gto_basis_set_type,&
+                                             init_aux_basis_set,&
+                                             init_orb_basis_set,&
+                                             read_gto_basis_set,&
+                                             write_aux_basis_set,&
+                                             write_gto_basis_set,&
+                                             write_orb_basis_set
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_linked_list_int,              ONLY: cp_sll_int_create,&
+                                             cp_sll_int_get_empty,&
+                                             cp_sll_int_insert_ordered,&
+                                             cp_sll_int_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE external_potential_types,        ONLY: all_potential_type,&
+                                             allocate_potential,&
+                                             deallocate_potential,&
+                                             epc_potential_type,&
+                                             get_potential,&
+                                             gth_potential_type,&
+                                             init_potential,&
+                                             read_potential,&
+                                             write_potential
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: int_size,&
+                                             wp => dp
   USE pao_bas_projection_types
-  use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
-       cp_logger_get_default_unit_nr, cp_logger_type
-  use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger
-  USE cp_linked_list_int, only:cp_sll_int_type, cp_sll_int_create, &
-       cp_sll_int_insert_ordered, cp_sll_int_get_empty
-
+  USE periodic_table,                  ONLY: ptable
+  USE qs_parser,                       ONLY: finish_parser,&
+                                             read_object,&
+                                             start_parser,&
+                                             test_object
+  USE string_utilities,                ONLY: integer_to_string,&
+                                             uppercase
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   IMPLICIT NONE
 
   PRIVATE
@@ -239,7 +249,7 @@ CONTAINS
                                                    core_charge_radius,mass,qeff
     INTEGER, OPTIONAL, INTENT(OUT)              :: kind_number,natom,z,zeff
     INTEGER, DIMENSION(:), OPTIONAL, POINTER    :: atom_list
-    type(pao_bas_projection_type), pointer, optional :: pao_bas_proj
+    TYPE(pao_bas_projection_type), POINTER, OPTIONAL :: pao_bas_proj
 
 !   ---------------------------------------------------------------------------
 
@@ -620,8 +630,8 @@ CONTAINS
            p_excl_bas_max=MAX(p_excl_bas_max,p_excl_bas)
            p_full_bas_max=MAX(p_full_bas_max,p_full_bas)
            p_l_angles_max=MAX(p_l_angles_max,p_min_bas*p_excl_bas)
-           p_min_bas_tot=p_min_bas_tot+p_min_bas*size(atomic_kind%atom_list)
-           p_full_bas_tot=p_full_bas_tot+p_full_bas*size(atomic_kind%atom_list)
+           p_min_bas_tot=p_min_bas_tot+p_min_bas*SIZE(atomic_kind%atom_list)
+           p_full_bas_tot=p_full_bas_tot+p_full_bas*SIZE(atomic_kind%atom_list)
         END IF
       END DO
       IF (PRESENT(pao_max_excl_bas)) pao_max_excl_bas=p_excl_bas_max
@@ -732,19 +742,19 @@ CONTAINS
     CHARACTER(LEN=2)               :: current_symbol,element_symbol
     INTEGER                        :: i,ikind,ipos,istat,z, min_b_index
     LOGICAL                        :: found,section_found, failure
-    character(len=3)               :: obj_kind
-    type(cp_sll_int_type), pointer :: min_bas_sll
-    type(cp_error_type)            :: error
+    CHARACTER(len=3)               :: obj_kind
+    TYPE(cp_sll_int_type), POINTER :: min_bas_sll
+    TYPE(cp_error_type)            :: error
 
 !   ---------------------------------------------------------------------------
 
-    failure=.false.
+    failure=.FALSE.
     aux_basis_set_name = ""
     orb_basis_set_name = ""
     potential_name = "ALL"
     z = -1
-    call cp_sll_int_create(min_bas_sll)
-    call cp_error_init(error)
+    CALL cp_sll_int_create(min_bas_sll)
+    CALL cp_error_init(error)
 
     CALL start_parser(file_name=globenv%input_file_name,&
                       globenv=globenv,&
@@ -778,17 +788,17 @@ CONTAINS
         CALL read_object(atomic_kind%mass)
       CASE ("POTENTIAL","POT")
         CALL read_object(potential_name)
-      case ("PAO_MIN_BAS")
-        do
+      CASE ("PAO_MIN_BAS")
+        DO
            obj_kind=test_object()
-           if (obj_kind=='INT') then
-              call read_object(min_b_index)
-              call cp_sll_int_insert_ordered(min_bas_sll,min_b_index,&
+           IF (obj_kind=='INT') THEN
+              CALL read_object(min_b_index)
+              CALL cp_sll_int_insert_ordered(min_bas_sll,min_b_index,&
                    error=error)
-           else
-              exit
-           end if
-        end do
+           ELSE
+              EXIT
+           END IF
+        END DO
       END SELECT
     END DO
 
@@ -896,16 +906,16 @@ CONTAINS
     END IF
 
 !   *** 
-    if (.not.cp_sll_int_get_empty(min_bas_sll)) then
-        call cp_proj_create2(atomic_kind%pao_bas_proj,&
+    IF (.not.cp_sll_int_get_empty(min_bas_sll)) THEN
+        CALL cp_proj_create2(atomic_kind%pao_bas_proj,&
                 proj_indexes=min_bas_sll,&
                 size_full_bas=atomic_kind%orb_basis_set%nsgf,&
                 error=error)
-     else
-        nullify(atomic_kind%pao_bas_proj)
-    end if
-    call cp_dealloc(min_bas_sll,error=error)
-    call cp_error_dealloc_ref(error)
+     ELSE
+        NULLIFY(atomic_kind%pao_bas_proj)
+    END IF
+    CALL cp_dealloc(min_bas_sll,error=error)
+    CALL cp_error_dealloc_ref(error)
 
   END SUBROUTINE read_atomic_kind
 
@@ -958,13 +968,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), POINTER                      :: atomic_kind
+    TYPE(atomic_kind_type), INTENT(inout)                :: atomic_kind
     CHARACTER(LEN=2), OPTIONAL, INTENT(IN)               :: element_symbol
     CHARACTER(LEN=max_name_length), OPTIONAL, INTENT(IN) :: name
     REAL(wp), OPTIONAL, INTENT(IN)                       :: mass
     INTEGER, OPTIONAL, INTENT(IN)                        :: kind_number
     INTEGER, DIMENSION(:), OPTIONAL, INTENT(IN)          :: atom_list
-    TYPE(pao_bas_projection_type), TARGET, INTENT(in),optional :: pao_bas_proj
+    TYPE(pao_bas_projection_type), TARGET, INTENT(in),OPTIONAL :: pao_bas_proj
 
 !   *** Local parameters ***
 

@@ -223,7 +223,7 @@ SUBROUTINE cp_1d_r_output(logger, outputName,&
              fromWhere=routineP,message=" overwriting file '"//filename//"'",&
              error=error)
         CALL open_file(TRIM(filename),file_status="unknown",&
-             file_action="WRITE",&
+             file_action="write",&
              unit_number=unitNr)
 
         IF (PRESENT(comment)) THEN
@@ -388,7 +388,7 @@ SUBROUTINE cp_2d_r_output(logger, outputName, &
              fromWhere=routineP,message=" overwriting file '"//filename//"'",&
              error=error)
         CALL open_file(TRIM(filename),file_status="unknown",&
-             file_action="WRITE",&
+             file_action="write",&
              unit_number=unitNr)
 
         IF (PRESENT(comment)) THEN

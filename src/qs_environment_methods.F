@@ -152,6 +152,12 @@ CONTAINS
 !!   NAME
 !!     qs_env_setup
 !!
+!!   SYNOPSIS
+!!     Subroutine qs_env_setup(qs_env, error)
+!!       Type(qs_environment_type), Intent (INOUT):: qs_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine qs_env_setup
+!!
 !!   FUNCTION
 !!     initializes various components of the qs_env, that need only
 !!     atomic_kind_set, cell, dft_control, scf_control, c(i)%nmo, 
@@ -204,6 +210,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
      ! allocate qs_charges
      CALL qs_charges_create(qs_charges,nspins=dft_control%nspins,error=error)
      CALL set_qs_env(qs_env, qs_charges=qs_charges,error=error)
+     CALL qs_charges_release(qs_charges,error=error)
      
      ! set up pw_env
      CALL qs_env_rebuild_pw_env(qs_env, error=error)
@@ -220,6 +227,13 @@ END SUBROUTINE qs_env_setup
 !!
 !!   NAME
 !!     qs_env_update_s_mstruct
+!!
+!!   SYNOPSIS
+!!     Subroutine qs_env_update_s_mstruct(qs_env, para_env, error)
+!!       Type(qs_environment_type), Intent (INOUT):: qs_env
+!!       Type(cp_para_env_type), Pointer:: para_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine qs_env_update_s_mstruct
 !!
 !!   FUNCTION
 !!     updates the s_mstruct to reflect the new overlap structure,
@@ -316,6 +330,12 @@ END SUBROUTINE qs_env_update_s_mstruct
 !!
 !!   NAME
 !!     qs_env_rebuild_aomo_pools
+!!
+!!   SYNOPSIS
+!!     Subroutine qs_env_rebuild_aomo_pools(qs_env, error)
+!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine qs_env_rebuild_aomo_pools
 !!
 !!   FUNCTION
 !!     rebuilds the pools of the (ao x mo) full matrixes
@@ -424,6 +444,12 @@ END SUBROUTINE qs_env_rebuild_aomo_pools
 !!   NAME
 !!     qs_env_rebuild_pw_env
 !!
+!!   SYNOPSIS
+!!     Subroutine qs_env_rebuild_pw_env(qs_env, error)
+!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine qs_env_rebuild_pw_env
+!!
 !!   FUNCTION
 !!     rebuilds the pw_env in the given qs_env, allocating it if necessary
 !!
@@ -491,6 +517,15 @@ END SUBROUTINE qs_env_rebuild_pw_env
 !!
 !!   NAME
 !!     qs_env_rebuild_rho
+!!
+!!   SYNOPSIS
+!!     Subroutine qs_env_rebuild_rho(qs_env, rho_ao_with_h_mstruct,&
+!!         rebuild_ao, rebuild_grids, error)
+!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
+!!       Logical, Intent (IN), Optional:: rho_ao_with_h_mstruct,&
+!!         rebuild_grids, rebuild_ao
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine qs_env_rebuild_rho
 !!
 !!   FUNCTION
 !!     rebuilds the rho structure, making sure that everything is allocated

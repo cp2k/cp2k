@@ -42,10 +42,10 @@ MODULE qs_environment
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_type,&
-                                             cp_fm_struct_create,&
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
-                                             cp_fm_struct_retain
+                                             cp_fm_struct_retain,&
+                                             cp_fm_struct_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -156,7 +156,7 @@ CONTAINS
     TYPE(scf_control_type), POINTER               :: scf_control
     TYPE(cp_para_env_type), POINTER               :: para_env
     TYPE(cp_blacs_env_type), POINTER              :: blacs_env
-    TYPE(cp_fm_struct_type), POINTER        :: fmstruct
+    TYPE(cp_fm_struct_type), POINTER              :: fmstruct
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
 
     INTEGER :: handle,ikind,istat,lmax,maxl,maxlppl,maxlppnl,nkind,&

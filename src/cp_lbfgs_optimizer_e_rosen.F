@@ -667,7 +667,7 @@ CONTAINS
              ELSE IF (optimizer%task(1:4)=='STOP') THEN
                 optimizer%status=5
                 CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                     routineP,"task became STOP in an unknown way in "//&
+                     routineP,"task became stop in an unknown way in "//&
                      CPSourceFileRef,&
                      error)
              ELSE IF (optimizer%task(1:5)=='ERROR') THEN

@@ -559,7 +559,7 @@ CONTAINS
                    res => res%rest
                 ELSE
                    CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                        routineP, "tried to go past END in "// &
+                        routineP, "tried to go past end in "// &
                         CPSourceFileRef,&
                         error,failure)
                 END IF
@@ -571,7 +571,7 @@ CONTAINS
                       res => res%rest
                    ELSE
                       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                           routineP, "tried to go past END in "// &
+                           routineP, "tried to go past end in "// &
                            CPSourceFileRef,&
                            error,failure)
                    END IF

@@ -73,8 +73,8 @@ MODULE qs_scf
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_get_mstruct
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_type,&
-                                             cp_fm_struct_get
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
+                                             cp_fm_struct_type
   USE cp_lbfgs_optimizer_gerd_f,       ONLY: cp_lbfgs_opt_gerd_f_type,&
                                              cp_opt_gerd_f_dealloc_ref,&
                                              cp_opt_gerd_f_init,&
@@ -393,7 +393,7 @@ CONTAINS
                       globenv=globenv,&
                       error=error)
 
-    CALL qs_ks_did_change(ks_env,qs_env,globenv,p_changed=.TRUE.,error=error)
+    CALL qs_ks_did_change(ks_env,qs_env,p_changed=.TRUE.,error=error)
 
     CALL pao_opt_create(pao_optimizer,pao_obj_f,qs_env,globenv,error)
 
@@ -453,7 +453,7 @@ CONTAINS
         CALL write_sparse_matrix(p%matrix,4,6,qs_env,globenv)
       END IF
 
-      CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,global_env=globenv,&
+      CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,&
            rebuild=rebuild,error=error,&
            calculate_forces=.FALSE.,just_energy=energy_only)
 
@@ -643,7 +643,7 @@ CONTAINS
 
       END SELECT
 
-      CALL qs_ks_did_change(ks_env,qs_env,globenv,p_changed=.TRUE.,error=error)
+      CALL qs_ks_did_change(ks_env,qs_env,p_changed=.TRUE.,error=error)
 
       CALL timestop(0.0_wp,handle2)
 

@@ -19,7 +19,6 @@
 !******************************************************************************
 
 MODULE qs_force
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE checkpoint_handler,              ONLY: write_checkpoint_information
@@ -55,7 +54,6 @@ MODULE qs_force
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
   IMPLICIT NONE
 
   PRIVATE
@@ -163,10 +161,9 @@ CONTAINS
                                        calculate_forces=.TRUE.,&
                                        p=p(1)%matrix,&
                                        w=w)
-    CALL qs_ks_did_change(ks_env,qs_env,globenv,p_changed=.true.)
+    CALL qs_ks_did_change(ks_env,qs_env,p_changed=.TRUE.)
     CALL qs_ks_update_qs_env(ks_env=ks_env,&
                              qs_env=qs_env,&
-                             global_env=globenv,&
                              rebuild=.TRUE.,&
                              calculate_forces=.TRUE.)
 
@@ -298,10 +295,9 @@ CONTAINS
                                        calculate_forces=.TRUE.,&
                                        p=p(1)%matrix,&
                                        w=w)
-    CALL qs_ks_did_change(ks_env,qs_env,globenv,p_changed=.true.)
+    CALL qs_ks_did_change(ks_env,qs_env,p_changed=.TRUE.)
     CALL qs_ks_update_qs_env(ks_env=ks_env,&
                              qs_env=qs_env,&
-                             global_env=globenv,&
                              rebuild=.TRUE.,&
                              calculate_forces=.TRUE.)
 
