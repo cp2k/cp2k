@@ -689,7 +689,7 @@ CONTAINS
         "**                                                                           **",&
         "**                                                ... make the atoms dance   **",&
         "**                                                                           **",&
-        "**            Copyright (C) by CP2K Developers Group (2000 - 2004)           **",&
+        "**            Copyright (C) by CP2K Developers Group (2000 - 2005)           **",&
         "**                                                                           **",&
         "*******************************************************************************",&
         "** G. Lippert, J. Hutter, and M. Parrinello,                                 **",&
