@@ -1,20 +1,14 @@
+#
+# should be called automatically by the Makefile in cp2k/makefiles
+# but it had better work if called manually
+#
+
 .SUFFIXES: .o .c
-
-### Machine dependent ###
-
-CC	= cc
-LDR	= cc
-
-CDEFS	= -Dxxx
-OPT	= -O
-BFLAGS	= 
-CFLAGS	= $(BFLAGS) $(OPT) $(CDEFS)
-LFLAGS	= $(BFLAGS) $(OPT)
-
-LIBS	= 
 OBJECTS	= forlex.o  forpar.tab.o  slist.o
 
-#################################
+ifeq "$(SRCDIR)" ""
+SRCDIR = .
+endif
 vpath %.c $(SRCDIR)
 
 PROG	= forpar.x
@@ -23,10 +17,10 @@ PROG	= forpar.x
 all: $(PROG)
 
 $(PROG): $(OBJECTS)
-	$(LDR) $(LFLAGS) -o $(PROG) $(OBJECTS) $(LIBS)
+	$(CC) -O -o $(PROG) $(OBJECTS) 
 
 %.o: %.c
-	$(CC) -c -I$(SRCDIR) $(CFLAGS) $<
+	$(CC) -O -Dxxx -c -I$(SRCDIR) $<
 
 clean:
 	rm -f *.o
