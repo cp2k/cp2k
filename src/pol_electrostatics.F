@@ -371,6 +371,8 @@ SUBROUTINE electrostatics ( dg_part, dg_coef, part, coeff, box, grid_s,  &
 ! clean up
       CALL coeff_deallocate ( rhos2 )
       CALL coeff_deallocate ( rhos1 )
+      CALL coeff_deallocate ( phi2_r )
+      CALL coeff_deallocate ( phi1_r )
       CALL rs_grid_deallocate ( drpot2 ( 1 : 3 ) )
       CALL rs_grid_deallocate ( drpot1 ( 1 : 3 ) )
       CALL rs_grid_deallocate ( phi2_rs )
