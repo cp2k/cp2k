@@ -26,7 +26,7 @@
 
 MODULE message_passing
   USE kinds,                           ONLY: dbl
-  USE machine,                         ONLY: m_cputime, m_abort
+  USE machine,                         ONLY: m_cputime
   USE parallel_include
 
   IMPLICIT NONE
@@ -34,9 +34,9 @@ MODULE message_passing
   PRIVATE
 
 #ifdef __parallel
-  logical, parameter :: cp2k_is_parallel=.true.
+  LOGICAL, PARAMETER :: cp2k_is_parallel=.TRUE.
 #else
-  logical, parameter :: cp2k_is_parallel=.false.
+  LOGICAL, PARAMETER :: cp2k_is_parallel=.FALSE.
 #endif
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="message_passing"
@@ -59,6 +59,12 @@ MODULE message_passing
 
   ! currently not used
   PUBLIC :: mp_group
+
+  ! default communicators
+  PUBLIC :: MPI_COMM_SELF
+#ifndef __parallel
+  INTEGER, PARAMETER :: MPI_COMM_SELF=0
+#endif
 
   !
   ! interfaces to deal easily with scalars / vectors / matrice / ...
@@ -244,7 +250,8 @@ END SUBROUTINE
 !!   SOURCE
 !!*** **********************************************************************
 SUBROUTINE mp_perf_start()
-    INTEGER                                  :: i, ierr
+    INTEGER                                  :: i
+
   stack_pointer = stack_pointer + 1
   IF (stack_pointer > max_stack_size) THEN
      CALL mp_stop ( stack_pointer, "stack_pointer too large : message_passing @ mp_start" )   
@@ -262,12 +269,10 @@ END SUBROUTINE mp_perf_start
 
 !.. reports the performance counters for the MPI run
 SUBROUTINE mp_perf_end ( mp_comm, scr )
-  INTEGER, INTENT(IN)                      :: mp_comm
-  INTEGER, INTENT(IN)                      :: scr
+    INTEGER, INTENT(IN)                      :: mp_comm, scr
 
-  INTEGER                                  :: i, ierr, iw, &
-                                              numtask, taskid
-  REAL(dbl)                                :: per, vol
+    INTEGER                                  :: i, ierr, iw, numtask, taskid
+    REAL(dbl)                                :: per, vol
 
   ierr = 0
   IF (stack_pointer < 1) THEN
@@ -2124,11 +2129,6 @@ END SUBROUTINE mp_isendrecv_rm2
 !!   NAME
 !!     mp_wait
 !!
-!!   SYNOPSIS
-!!     Subroutine mp_wait(request)
-!!       Integer, Intent (INOUT):: request
-!!     End Subroutine mp_wait
-!!
 !!   FUNCTION
 !!     waits for completion of the given request
 !!
@@ -2168,11 +2168,6 @@ END SUBROUTINE mp_wait
 !!
 !!   NAME
 !!     mp_waitall
-!!
-!!   SYNOPSIS
-!!     Subroutine mp_waitall(requests)
-!!       Integer, Intent (INOUT), Dimension(:):: requests
-!!     End Subroutine mp_waitall
 !!
 !!   FUNCTION
 !!     waits for completion of the given requests
@@ -2248,19 +2243,18 @@ END SUBROUTINE mp_waitall
 SUBROUTINE mp_comm_split(comm,sub_comm,ngroups, group_distribution, &
                     subgroup_min_size, n_subgroups, group_partition)
     INTEGER, INTENT(in)                      :: comm
-    INTEGER, INTENT(out)                     :: sub_comm
-    INTEGER, INTENT(out)                     :: ngroups ! actual number of groups
+    INTEGER, INTENT(out)                     :: sub_comm, ngroups
     INTEGER, DIMENSION(:), POINTER           :: group_distribution
-    INTEGER, INTENT(in), OPTIONAL            :: subgroup_min_size
-    INTEGER, INTENT(in), OPTIONAL            :: n_subgroups
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL :: group_partition
+    INTEGER, INTENT(in), OPTIONAL            :: subgroup_min_size, n_subgroups
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: group_partition
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_split', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: color, i, ierr, j, k, mepos, my_n_subgroups, &
-      my_subgroup_min_size, nnodes, nrest_proc, pos, stat, subgroup_size, &
-      tmp_comm
+    INTEGER                                  :: color, i, ierr, j, k, mepos, &
+                                                my_subgroup_min_size, nnodes
+
+! actual number of groups
 
     IF (.NOT. PRESENT(subgroup_min_size) .AND. .NOT. PRESENT(n_subgroups)) THEN
        CALL mp_stop(1,routineP//" missing arguments ")
