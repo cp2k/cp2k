@@ -33,7 +33,6 @@ MODULE qs_tddfpt_types
                                              cp_fm_release,&
                                              cp_fm_set_all
   USE cp_log_handling,                 ONLY: cp_to_string
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE qs_environment_types,            ONLY: qs_environment_type
   USE hartree_local_types,             ONLY: hartree_local_create,&
@@ -93,14 +92,12 @@ CONTAINS
 !!     Allocate enough memory for the tddfpt_environment_type structure
 !!
 !!***
-  SUBROUTINE tddfpt_env_allocate(t_env, p_env, qs_env, glob_env)
+  SUBROUTINE tddfpt_env_allocate(t_env, p_env, qs_env)
   
 
     TYPE(tddfpt_env_type), INTENT(out)       :: t_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-      INTENT(in)                             :: glob_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_env_allocate', &
       routineP = moduleN//'/'//routineN
@@ -158,12 +155,10 @@ CONTAINS
 !!     To free memory held by a tddftpt_env_type structure
 !!
 !!***
-  SUBROUTINE tddfpt_env_deallocate(t_env, glob_env)
+  SUBROUTINE tddfpt_env_deallocate(t_env)
   
 
     TYPE(tddfpt_env_type), INTENT(inout)     :: t_env
-    TYPE(global_environment_type), &
-      INTENT(in)                             :: glob_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_env_deallocate', &
       routineP = moduleN//'/'//routineN

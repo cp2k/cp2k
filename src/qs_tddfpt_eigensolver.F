@@ -21,6 +21,18 @@ MODULE qs_tddfpt_eigensolver
   USE cp_control_types,                ONLY: tddfpt_control_type,&
                                              tddfpt_davidson,&
                                              tddfpt_lanczos
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                              cp_fm_symm,&
                                              cp_fm_scale_and_add,&
@@ -43,8 +55,7 @@ MODULE qs_tddfpt_eigensolver
   USE qs_mo_types,                     ONLY: get_mo_set
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
-  USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: evolt
   USE qs_environment_types,            ONLY: qs_environment_type,&
                                              get_qs_env
@@ -75,8 +86,6 @@ MODULE qs_tddfpt_eigensolver
   END TYPE cp_fm_struct_p_type
 
   CHARACTER(len=*), PARAMETER :: moduleN = "qs_tddfpt_eigensolver"
-  INTEGER, PARAMETER          :: MAX_ITER_GLOBAL = 20
-  REAL(kind=dbl), PARAMETER   :: TOLERANCE = 1.0E-6
 
   PRIVATE
 
@@ -86,25 +95,25 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE eigensolver(t_env, p_env, qs_env, glob_env)
+  SUBROUTINE eigensolver(t_env, p_env, qs_env, error)
 
     TYPE(tddfpt_env_type), INTENT(INOUT)     :: t_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-      INTENT(in)                             :: glob_env
+    TYPE(cp_error_type), &
+         INTENT(INOUT), OPTIONAL             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = "davidson", &
       routineP = moduleN//"/"//routineN
 
     INTEGER :: col, handle, i, index, iter, j, max_iter, &
-      max_krylovspace_dim, max_krylovvec, n_ev, n_kv, n_reortho, n_spins, &
+      max_krylovspace_dim, max_krylovvec, n_ev, n_kv, n_spins, &
       row, spin, stat
     INTEGER :: K_rows
-    REAL(dbl)                                :: Atilde_ij, tmp, R_norm, convergence
-    REAL(kind=dbl), DIMENSION(:), ALLOCATABLE :: K_diagonal, S_diagonal
-    REAL(kind=dbl), DIMENSION(:), POINTER :: occ_evals
-    REAL(kind=dbl), ALLOCATABLE, &
+    REAL(dp)                                 :: Atilde_ij, tmp, R_norm, convergence
+    REAL(kind=dp), DIMENSION(:), ALLOCATABLE :: K_diagonal, S_diagonal
+    REAL(kind=dp), DIMENSION(:), POINTER     :: occ_evals
+    REAL(kind=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: evals
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: R, X
@@ -118,12 +127,22 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: tilde_fm_struct, Us_fm_struct
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
 
+    TYPE(cp_logger_type), POINTER            :: logger
+    LOGICAL                                  :: ionode, failure
+    INTEGER                                  :: out_unit
+
+    failure   = .FALSE.
+
     CALL timeset(routineN,"I","",handle)
-    NULLIFY(ao_mo_fm_pools, X, R, b, Ab, Sb, tddfpt_control)
+
+    NULLIFY(ao_mo_fm_pools, X, R, b, Ab, Sb, tddfpt_control, logger)
+
     CALL get_qs_env(qs_env, tddfpt_control=tddfpt_control)
+    logger    => cp_error_get_logger(error)
+    ionode    = (logger%para_env%mepos==logger%para_env%source)
+    out_unit  = cp_logger_get_default_unit_nr(logger)
     n_ev      = tddfpt_control%n_ev
     n_spins   = qs_env%dft_control%nspins
-    n_reortho = tddfpt_control%n_reortho
     iter = 1
     DO spin=1, n_spins
        CALL get_matrix_info(qs_env%matrix_ks(spin)%matrix, nrow=K_rows)
@@ -140,7 +159,7 @@ CONTAINS
     !-----------------------------------------!
     max_krylovspace_dim = SUM(p_env%n_ao(1:n_spins)*p_env%n_mo(1:n_spins))
     n_kv = MAX(1, n_ev)
-    max_iter = MIN(( max_krylovspace_dim / n_kv ) * n_kv, MAX_ITER_GLOBAL)
+    max_iter = MIN(( max_krylovspace_dim / n_kv ) * n_kv, tddfpt_control%max_iter)
     max_krylovvec = max_iter * n_kv
 
     !----------------------!
@@ -150,15 +169,16 @@ CONTAINS
     CALL fm_pools_create_fm_vect(ao_mo_fm_pools, X, name=routineP//":X")
     CALL fm_pools_create_fm_vect(ao_mo_fm_pools, R, name=routineP//":R")
 
-    ALLOCATE(evals(max_krylovvec, 0:max_iter))
+    ALLOCATE(evals(max_krylovvec, 0:max_iter), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     ALLOCATE(b(max_krylovvec,n_spins), Ab(max_krylovvec,n_spins), &
              Sb(max_krylovvec,n_spins), stat=stat)
-    IF (stat /= 0) CALL stop_program(routineP, &
-                                     "allocation of kv/opkv failed", glob_env)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     ALLOCATE(kv_fm_struct(n_spins), stat=stat)
-    IF (stat /= 0) CALL stop_program(routineP, &
-                                     "allocation of kv_fm_struct failed", &
-                                     glob_env)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     DO spin=1, n_spins
        NULLIFY (kv_fm_struct(spin)%struct)
        CALL cp_fm_struct_create(kv_fm_struct(spin)%struct, qs_env%para_env, &
@@ -170,7 +190,7 @@ CONTAINS
           NULLIFY(b(i,spin)%matrix, Ab(i,spin)%matrix, Sb(i,spin)%matrix)
        END DO
     END DO
-    CALL allocate_krylov_vectors(b, "b-", iter, n_kv, n_spins, kv_fm_struct)
+    CALL allocate_krylov_vectors(b,  "b-",  iter, n_kv, n_spins, kv_fm_struct)
     CALL allocate_krylov_vectors(Ab, "Ab-", iter, n_kv, n_spins, kv_fm_struct)
     CALL allocate_krylov_vectors(Sb, "Sb-", iter, n_kv, n_spins, kv_fm_struct)
 
@@ -180,30 +200,28 @@ CONTAINS
     !-----------------------!
     CALL davidson_initial_guess(b, n_kv, qs_env, p_env, evals)
     DO i=1, n_kv
-       DO j=1, n_reortho
-          CALL p_preortho(p_env, qs_env, b(i,:))
-          CALL reorthogonalize(b(i,:), b, Sb, i-1)
+       CALL p_preortho(p_env, qs_env, b(i,:))
+       DO j=1, tddfpt_control%n_reortho
+          CALL reorthogonalize(b(i,:), b, Sb, R, i-1)
        END DO
-       CALL normalize(b(i,:), R, qs_env%matrix_s, glob_env)
+       CALL normalize(b(i,:), R, qs_env%matrix_s)
        DO spin=1, n_spins
           CALL cp_fm_to_fm(b(i,spin)%matrix, X(spin)%matrix)
        END DO
-       CALL apply_op(X, Ab(i,:), t_env, p_env, qs_env, glob_env)
+       CALL apply_op(X, Ab(i,:), t_env, p_env, qs_env)
        DO spin=1, n_spins
-          ! not specifying these alphas and betas might be twice as fast in parallel
           CALL cp_sm_fm_multiply(qs_env%matrix_s(spin)%matrix, &
                                  b(i,spin)%matrix, &
                                  Sb(i,spin)%matrix, &
                                  p_env%n_mo(spin), &
-                                 1.0_dbl, 0.0_dbl)
+                                 1.0_dp, 0.0_dp)
        END DO
     END DO
 
-    IF (glob_env%ionode) THEN
-       WRITE (glob_env%scr, &
-              '(2X,A,2X,A,T69,A)') &
+    IF (ionode) THEN
+       WRITE (out_unit, '(2X,A,2X,A,T69,A)') &
               "Step", "Vectors", "Convergence"
-       WRITE (glob_env%scr, '(2X,A)') &
+       WRITE (out_unit, '(2X,A)') &
               "-----------------------------------------------------------------------------"
     END IF
 
@@ -228,7 +246,7 @@ CONTAINS
        !---------------------------------------!
        DO i=1, iter*n_kv
           DO j=1, iter*n_kv
-             Atilde_ij= 0.0_dbl
+             Atilde_ij= 0.0_dp
              DO spin=1, n_spins
                 CALL cp_fm_trace(b(i,spin)%matrix, Ab(j,spin)%matrix, tmp)
                 Atilde_ij = Atilde_ij + tmp
@@ -242,37 +260,36 @@ CONTAINS
        !--------------------!
        CALL cp_fm_syevd(Atilde%matrix, Us%matrix, evals(:,iter))
        DO i=1, n_ev
-          IF (glob_env%ionode) WRITE (*,*) evals(i,iter)
+          IF (ionode) WRITE (out_unit,*) evals(i,iter)
        END DO
 
        !-------------------!
        ! check convergence !
        !-------------------!
-       convergence = ABS(evals(n_ev,iter)-evals(n_ev,iter-1))
-       IF (glob_env%ionode) &
-            WRITE (glob_env%scr, &
-            '(2X,I4,2X,I7,T69,ES11.4)') &
-            iter, iter*n_kv, convergence
-       IF (convergence<TOLERANCE) EXIT iteration
+       convergence = ABS((evals(n_ev,iter)-evals(n_ev,iter-1))/evals(n_ev,iter-1))
+       IF (ionode) WRITE (out_unit, '(2X,I4,2X,I7,T69,ES11.4)') iter, iter*n_kv, convergence
+
+       IF (convergence < tddfpt_control%tolerance) EXIT iteration
        IF (iter == max_iter) EXIT iteration
+
        iter = iter + 1
 
        !-----------------!
        ! add new vectors !
        !-----------------!
-       CALL allocate_krylov_vectors(b, "b-", iter, n_kv, n_spins, kv_fm_struct)
+       CALL allocate_krylov_vectors(b,  "b-",  iter, n_kv, n_spins, kv_fm_struct)
        CALL allocate_krylov_vectors(Ab, "Ab-", iter, n_kv, n_spins, kv_fm_struct)
        CALL allocate_krylov_vectors(Sb, "Sb-", iter, n_kv, n_spins, kv_fm_struct)
        DO i=(iter-1)*n_kv+1, iter*n_kv
           IF (tddfpt_control%diag_method .EQ. tddfpt_davidson) THEN
              DO spin=1, n_spins
-                CALL cp_fm_set_all(b(i,spin)%matrix, 0.0_dbl)
+                CALL cp_fm_set_all(b(i,spin)%matrix, 0.0_dp)
                 DO j=1, n_kv
                    CALL cp_fm_get_element(Us%matrix, i-(iter-1)*n_kv, j, tmp)
-                   CALL cp_fm_scale_and_add(1.0_dbl, b(i,spin)%matrix, &
+                   CALL cp_fm_scale_and_add(1.0_dp, b(i,spin)%matrix, &
                                             tmp, Ab(j,spin)%matrix)
-                   CALL cp_fm_scale_and_add(1.0_dbl, b(i,spin)%matrix, &
-                                            -1.0_dbl*evals(j,iter)*tmp, Sb(j,spin)%matrix)
+                   CALL cp_fm_scale_and_add(1.0_dp, b(i,spin)%matrix, &
+                                            -1.0_dp*evals(j,iter)*tmp, Sb(j,spin)%matrix)
                 END DO
                 DO row=1, p_env%n_ao(spin)
                    DO col=1, p_env%n_mo(spin)
@@ -284,37 +301,37 @@ CONTAINS
                 IF (tddfpt_control%invert_S) THEN
                    CALL cp_fm_to_fm(b(i,spin)%matrix, R(spin)%matrix)
                    CALL cp_fm_symm('L', 'U', p_env%n_ao(spin), p_env%n_mo(spin), &
-                        1.0_dbl, t_env%invS(spin)%matrix, R(spin)%matrix, &
-                        0.0_dbl, b(i,spin)%matrix)
+                        1.0_dp, t_env%invS(spin)%matrix, R(spin)%matrix, &
+                        0.0_dp, b(i,spin)%matrix)
                 END IF
              END DO
           ELSE IF (tddfpt_control%diag_method .EQ. tddfpt_lanczos) THEN
              DO spin=1, n_spins
                 IF (tddfpt_control%invert_S) THEN
                    CALL cp_fm_symm('L', 'U', p_env%n_ao(spin), p_env%n_mo(spin), &
-                        1.0_dbl, t_env%invS(spin)%matrix, Ab(i-n_kv,spin)%matrix, &
-                        0.0_dbl, b(i,spin)%matrix)
+                        1.0_dp, t_env%invS(spin)%matrix, Ab(i-n_kv,spin)%matrix, &
+                        0.0_dp, b(i,spin)%matrix)
                 ELSE
                    CALL cp_fm_to_fm(Ab(i-n_kv,spin)%matrix, b(i,spin)%matrix)
                 END IF
              END DO
           END IF
-          DO j=1, n_reortho
+          DO j=1, tddfpt_control%n_reortho
              CALL p_preortho(p_env, qs_env, b(i,:))
-             CALL reorthogonalize(b(i,:), b, Sb, i-1)
+             CALL reorthogonalize(b(i,:), b, Sb, R, i-1)
           END DO
-          CALL normalize(b(i,:), R, qs_env%matrix_s, glob_env)
+          CALL normalize(b(i,:), R, qs_env%matrix_s)
           DO spin=1, n_spins
              CALL cp_fm_to_fm(b(i,spin)%matrix, X(spin)%matrix)
           END DO
-          CALL apply_op(X, Ab(i,:), t_env, p_env, qs_env, glob_env)
+          CALL apply_op(X, Ab(i,:), t_env, p_env, qs_env)
           DO spin=1, n_spins
              ! not specifying these alphas and betas might be twice as fast in parallel
              CALL cp_sm_fm_multiply(qs_env%matrix_s(spin)%matrix, &
                   b(i,spin)%matrix, &
                   Sb(i,spin)%matrix, &
                   p_env%n_mo(spin), &
-                  1.0_dbl, 0.0_dbl)
+                  1.0_dp, 0.0_dp)
           END DO
        END DO
 
@@ -330,17 +347,16 @@ CONTAINS
     !-------------------!
     ! Print the results !
     !-------------------!
-    IF (glob_env%ionode) THEN
-       WRITE (glob_env%scr, *)
-       WRITE (glob_env%scr, *)
-       WRITE (glob_env%scr, '(1X,A,T19,A,T45,A)') &
-            "Nr.", "Eigenvalue (hartree)", "Eigenvalue (eV)"
+    IF (ionode) THEN
+       WRITE (out_unit, *)
+       WRITE (out_unit, *)
+       WRITE (out_unit, '(1X,A,T19,A,T45,A)') &
+              "Nr.", "Eigenvalue (hartree)", "Eigenvalue (eV)"
        DO i=1, MIN(n_ev,max_krylovvec)
-          WRITE (glob_env%scr, '(1X,I3,T20,F19.10,2X,F19.10)') &
-                                i, evals(i, iter), &
-                                evals(i, iter)*evolt
+          WRITE (out_unit, '(1X,I3,T20,F19.10,2X,F19.10)') &
+                 i, evals(i, iter), evals(i, iter)*evolt
        END DO
-       WRITE (glob_env%scr, *)
+       WRITE (out_unit, *)
     END IF
 
     !----------!
@@ -362,10 +378,11 @@ CONTAINS
              CALL cp_fm_release(Sb(i,spin)%matrix)
        END DO
     END DO
-    DEALLOCATE(b, Ab, Sb, evals, K_diagonal, S_diagonal, kv_fm_struct)
+    DEALLOCATE(b, Ab, Sb, evals, K_diagonal, S_diagonal, kv_fm_struct, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     NULLIFY(X, R, b, Ab, Sb, kv_fm_struct)
     
-    CALL timestop(0.0_dbl, handle)
+    CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE eigensolver
 
@@ -378,14 +395,13 @@ CONTAINS
   !            both of these carry info for the tddfpt calculation
   ! qs_env   : info about a quickstep ground state calculation
 
-  SUBROUTINE apply_op(X, R, t_env, p_env, qs_env, globenv)
+  SUBROUTINE apply_op(X, R, t_env, p_env, qs_env)
 
 
     TYPE(cp_fm_p_type), DIMENSION(:)         :: X, R
     TYPE(tddfpt_env_type), INTENT(INOUT)     :: t_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), INTENT(IN):: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "apply_op", &
       routineP = moduleN//"/"//routineN
@@ -410,23 +426,24 @@ CONTAINS
     !-----------------!
     IF (qs_env%dft_control%tddfpt_control%do_kernel) THEN
        DO spin=1, n_spins
-          CALL set_matrix(p_env%p1(spin)%matrix, value=0.0_dbl) ! optimize?
+          CALL set_matrix(p_env%p1(spin)%matrix, value=0.0_dp) ! optimize?
           CALL cp_sm_plus_fm_fm_t(p_env%p1(spin)%matrix,&
                                   matrix_v=p_env%psi0d(spin)%matrix,&
                                   matrix_g=X(spin)%matrix,&
                                   ncol=p_env%n_mo(spin), &
-                                  alpha=0.5_dbl) 
+                                  alpha=0.5_dp) 
           CALL cp_sm_plus_fm_fm_t(p_env%p1(spin)%matrix,&
                                   matrix_v=X(spin)%matrix,&
                                   matrix_g=p_env%psi0d(spin)%matrix,&
                                   ncol=p_env%n_mo(spin), &
-                                  alpha=0.5_dbl) 
+                                  alpha=0.5_dp) 
        END DO
        CALL p_op_l2(p_env, qs_env, p_env%p1, R, &
-                    alpha=1.0_dbl, beta=1.0_dbl) ! R = beta*R + alpha*K(P1)*C
+                    alpha=1.0_dp, beta=1.0_dp) ! R = beta*R + alpha*K(P1)*C
+       !!CALL p_preortho(p_env, qs_env, R)
     END IF
 
-    CALL timestop(0.0_dbl, handle)
+    CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE apply_op
 

@@ -79,10 +79,6 @@ CONTAINS
 !!   FUNCTION
 !!     Performs the perturbation calculation
 !!
-!!   ARGUMENTS
-!!     - qs_env      - in    - qs environment with ground state
-!!     - glob_env    - in    - global environment
-!!
 !!****
   SUBROUTINE tddfpt_calculation(qs_env, glob_env, error)
 
@@ -110,20 +106,11 @@ CONTAINS
     !---------------------!
     ! some default values !
     !---------------------!
-    tddfpt_control%n_ev = 1
-    tddfpt_control%n_reortho = 2
-    tddfpt_control%do_kernel = .TRUE.
-    tddfpt_control%invert_S = .TRUE.
-    tddfpt_control%res_etype = tddfpt_singlet
-    tddfpt_control%diag_method = tddfpt_lanczos
-    tddfpt_control%oe_corr = oe_none
-    tddfpt_control%sic_method_id = sic_none
-    tddfpt_control%xc_control = qs_env%dft_control%xc_control
 
     CALL read_tddfpt_control(tddfpt_control, qs_env%dft_control, glob_env)
 
     IF (tddfpt_control%oe_corr /= oe_none) THEN
-       CALL orbital_eigenvalue_correction(qs_env, glob_env, error)
+       CALL orbital_eigenvalue_correction(qs_env, error)
     END IF
     
     NULLIFY(p_env)
@@ -135,11 +122,11 @@ CONTAINS
     !---------------------------------------!
     qs_env%ks_env%rho_changed = .FALSE.
 
-    CALL tddfpt_init(p_env, t_env, qs_env, glob_env)
+    CALL tddfpt_init(p_env, t_env, qs_env)
 
-    CALL eigensolver(t_env, p_env, qs_env, glob_env)
+    CALL eigensolver(t_env, p_env, qs_env)
 
-    CALL tddfpt_cleanup(t_env, p_env, glob_env)
+    CALL tddfpt_cleanup(t_env, p_env)
 
     CALL timestop(0.0_dbl, handle)
 
@@ -157,18 +144,15 @@ CONTAINS
   !!      orbital eigenvalues.
   !!
   !!****
-  SUBROUTINE orbital_eigenvalue_correction(qs_env, glob_env, error)
+  SUBROUTINE orbital_eigenvalue_correction(qs_env, error)
     
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-         INTENT(IN), TARGET                  :: glob_env
     TYPE(cp_error_type), &
          INTENT(INOUT), OPTIONAL             :: error
 
     INTEGER                                  :: output_unit, i
     LOGICAL                                  :: failure, ionode
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(global_environment_type), POINTER   :: my_glob_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(scf_control_type), POINTER          :: scf_control
@@ -185,9 +169,8 @@ CONTAINS
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)    
     
     failure = .FALSE.
-    NULLIFY(logger, my_glob_env, scf_env, &
+    NULLIFY(logger, scf_env, &
             dft_control, scf_control, xc_control, tddfpt_control)
-    my_glob_env => glob_env
     logger => cp_error_get_logger(error)
     ionode = (logger%para_env%mepos==logger%para_env%source)
     output_unit = cp_logger_get_default_unit_nr(logger)

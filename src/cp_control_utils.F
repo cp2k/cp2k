@@ -1292,6 +1292,7 @@ CONTAINS
                       start_section_label="TDDFPT",&
                       section_found=section_found)
     
+    t_control%tolerance = 1.0E-5_dp
     t_control%max_iter = 20
     t_control%n_ev = 1
     t_control%n_reortho = 2
@@ -1308,6 +1309,11 @@ CONTAINS
        CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
 
        SELECT CASE (TRIM(keyword))
+
+       CASE ("TOL","TOLERANCE")
+          CALL read_object(t_control%tolerance)
+          IF (t_control%max_iter < 0.0_dp) &
+               CALL stop_parser(routineP, "tolerance must be positive")
 
        CASE ("MAX_ITER")
           CALL read_object(t_control%max_iter)
@@ -1362,7 +1368,7 @@ CONTAINS
                     &//"> for keyword RES_ETYPE")
           END SELECT
 
-       CASE ("DIAG_METHOD")
+       CASE ("DIAG_METHOD","METHOD")
           CALL read_object(field, lower_to_upper=.TRUE.)
           SELECT CASE (TRIM(field))
           CASE ("LANCZOS")

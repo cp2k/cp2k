@@ -3,6 +3,8 @@
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
+#include "cp_prep_globals.h"
+
 !!****m* cp2k/qs_tddfpt_utils *
 !!
 !!   NAME
@@ -23,6 +25,18 @@ MODULE qs_tddfpt_utils
 
   USE cp_control_types,                ONLY: gapw_control_type,&
                                              tddfpt_control_type
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale, &
                                              cp_fm_scale_and_add,&
                                              cp_fm_trace
@@ -122,17 +136,15 @@ CONTAINS
 !!     -
 !!
 !!****
-  SUBROUTINE tddfpt_init(p_env, t_env, qs_env, glob_env)
+  SUBROUTINE tddfpt_init(p_env, t_env, qs_env)
 
 
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(tddfpt_env_type), INTENT(out)       :: t_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-      INTENT(in)                             :: glob_env
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "tddfpt_init", &
-      routineP = moduleN//"/"//routineN
+                                   routineP = moduleN//"/"//routineN
 
 ! --------------------------------------------------------------------
 
@@ -145,8 +157,8 @@ CONTAINS
     !------------------!
     ! create the t_env !
     !------------------!
-    CALL tddfpt_env_allocate(t_env, p_env, qs_env, glob_env)
-    CALL tddfpt_env_init(t_env, p_env, qs_env, glob_env)
+    CALL tddfpt_env_allocate(t_env, p_env, qs_env)
+    CALL tddfpt_env_init(t_env, p_env, qs_env)
 
   END SUBROUTINE tddfpt_init
 
@@ -158,14 +170,12 @@ CONTAINS
 !!     Initialize t_env with meaningfull values.
 !!
 !!***
-  SUBROUTINE tddfpt_env_init(t_env, p_env, qs_env, glob_env)
+  SUBROUTINE tddfpt_env_init(t_env, p_env, qs_env)
 
   
     TYPE(tddfpt_env_type), INTENT(inout)     :: t_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-      INTENT(in)                             :: glob_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_env_init', &
       routineP = moduleN//'/'//routineN
@@ -177,9 +187,6 @@ CONTAINS
     n_spins = qs_env%dft_control%nspins
     
     IF (qs_env%dft_control%tddfpt_control%invert_S) THEN
-       !-------------------------------------------------------!
-       ! Compute the inverse of S using cholesky factorization !
-       !-------------------------------------------------------!
        DO spin=1, n_spins
           CALL copy_sm_to_fm(qs_env%matrix_s(spin)%matrix, t_env%invS(spin)%matrix)
           CALL cp_fm_cholesky_decompose(t_env%invS(spin)%matrix)
@@ -213,20 +220,18 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE tddfpt_cleanup(t_env, p_env, glob_env)
+  SUBROUTINE tddfpt_cleanup(t_env, p_env)
 
 
     TYPE(tddfpt_env_type), INTENT(inout)     :: t_env
     TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(global_environment_type), &
-      INTENT(IN)                             :: glob_env
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "cleanup", &
-      routineP = moduleN//'/'//routineN
+                                   routineP = moduleN//'/'//routineN
 
 ! -------------------------------------------------------------------
 
-    CALL tddfpt_env_deallocate(t_env, glob_env)
+    CALL tddfpt_env_deallocate(t_env)
     CALL p_env_release(p_env)
     
   END SUBROUTINE tddfpt_cleanup
@@ -522,27 +527,31 @@ CONTAINS
 
 ! *****************************************************************************
   
-  SUBROUTINE normalize(X, tmp_vec, metric, glob_env)
+  SUBROUTINE normalize(X, tmp_vec, metric)
 
+    ! ARGUMENTS
     TYPE(cp_fm_p_type), DIMENSION(:)         :: x, tmp_vec
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: metric
-    TYPE(global_environment_type)            :: glob_env
 
+    ! LOCALS
     INTEGER                                  :: n_spins, spin
     REAL(KIND=dbl)                           :: norm, tmp
 
+
     n_spins = SIZE(x)
     norm = 0.0_dbl
+
     DO spin=1, n_spins
        tmp = 0.0_dbl
        CALL cp_sm_fm_multiply(metric(spin)%matrix, X(spin)%matrix, &
-                              tmp_vec(spin)%matrix, &
-                              X(spin)%matrix%matrix_struct%ncol_global, &
-                              1.0_dbl, 0.0_dbl)
+            tmp_vec(spin)%matrix, &
+            X(spin)%matrix%matrix_struct%ncol_global, &
+            1.0_dbl, 0.0_dbl)
        CALL cp_fm_trace(X(spin)%matrix, tmp_vec(spin)%matrix, tmp)
        norm = norm + tmp
     END DO
+
     norm = SQRT(norm)
     DO spin=1, n_spins
        CALL cp_fm_scale((1.0_dbl/norm), X(spin)%matrix)
@@ -556,29 +565,29 @@ CONTAINS
   ! x must not be changed in this routine !
   ! tmp_vec may be changed                !
   !---------------------------------------!
-  SUBROUTINE calc_norm(norm, X, metric, tmp_vec, glob_env)
+  SUBROUTINE calc_norm(norm, X, metric, tmp_vec)
 
 
     TYPE(cp_fm_p_type), DIMENSION(:)         :: x, tmp_vec
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: metric
-    TYPE(global_environment_type)            :: glob_env
     REAL(KIND=dbl), INTENT(OUT)              :: norm
 
     INTEGER :: spin
 
-    CALL dot_prod(norm, X, X, metric, tmp_vec, glob_env)
+    CALL dot_prod(norm, X, X, metric, tmp_vec)
     norm = SQRT(norm)
 
   END SUBROUTINE calc_norm
 
 ! *****************************************************************************
 
-  SUBROUTINE reorthogonalize(X, V_set, SV_set, n)
+  SUBROUTINE reorthogonalize(X, V_set, SV_set, work, n)
 
     TYPE(cp_fm_p_type), DIMENSION(:)         :: X
     TYPE(cp_fm_p_type), DIMENSION(:, :)      :: V_set
     TYPE(cp_fm_p_type), DIMENSION(:, :)      :: SV_set
+    TYPE(cp_fm_p_type), DIMENSION(:)         :: work
     INTEGER, INTENT(IN)                      :: n
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "reorthogonalize", &
@@ -590,11 +599,14 @@ CONTAINS
     CALL timeset(routineN,"I","",time_handle)
 
     n_spins = SIZE(X)
+    DO spin=1, n_spins
+       CALL cp_fm_to_fm(X(spin)%matrix, work(spin)%matrix)
+    END DO
 
     DO i=1, n
        dot_product = 0.0_dbl
        DO spin=1, n_spins
-          CALL cp_fm_trace(X(spin)%matrix, SV_set(i,spin)%matrix, tmp)
+          CALL cp_fm_trace(work(spin)%matrix, SV_set(i,spin)%matrix, tmp)
           dot_product = dot_product + tmp
        END DO
        DO spin=1, n_spins
@@ -609,13 +621,12 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE dot_prod(res, X, Y, metric, tmp_vec, glob_env) 
+  SUBROUTINE dot_prod(res, X, Y, metric, tmp_vec)
 
     REAL(KIND=dbl), INTENT(OUT)      :: res
     TYPE(cp_fm_p_type), DIMENSION(:) :: X, Y, tmp_vec
     TYPE(real_matrix_p_type), DIMENSION(:), &
          POINTER                     :: metric
-    TYPE(global_environment_type)    :: glob_env
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "dot_prod", &
                                    routineP = moduleN//"/"//routineN
