@@ -1432,9 +1432,9 @@ SUBROUTINE nve_ao ( itimes, constant, simpar, inter, thermo, struc, &
   DO i = 1, ncoef
      dtocm = 0.5_dbl * simpar % dt / struc % coef_vel ( 1 ) % ao % mass ( i )
      struc % coef_vel ( 1 ) % ao % cr ( i ) = struc % coef_vel ( 1 ) % ao  % cr ( i ) &
-                     * dtocm * struc % coef_force ( 1 ) % ao % cr ( i )
+                     + dtocm * struc % coef_force ( 1 ) % ao % cr ( i )
      struc % coef_pos ( 1 ) % ao % cr ( i ) = struc % coef_pos ( 1 ) % ao % cr ( i ) &
-             * struc % coef_vel ( 1 ) % ao % cr ( i ) * simpar % dt
+             + struc % coef_vel ( 1 ) % ao % cr ( i ) * simpar % dt
   END DO
 
 #if defined(__parallel)
@@ -1463,7 +1463,7 @@ SUBROUTINE nve_ao ( itimes, constant, simpar, inter, thermo, struc, &
   DO i = 1, ncoef
      dtocm = 0.5_dbl * simpar % dt / struc % coef_vel ( 1 ) % ao % mass ( i )
      struc % coef_vel ( 1 ) % ao % cr ( i ) = struc % coef_vel ( 1 ) % ao % cr ( i ) &
-                      * dtocm * struc % coef_force ( 1 ) % ao % cr ( i )
+                      + dtocm * struc % coef_force ( 1 ) % ao % cr ( i )
   END DO
 
   IF ( simpar % pol_ensemble == "NVT" ) & 
@@ -1557,9 +1557,9 @@ SUBROUTINE nvt_ao ( itimes, constant, simpar, inter, thermo, struc, &
   DO i = 1, ncoef
      dtocm = 0.5_dbl * simpar % dt / struc % coef_vel ( 1 ) % ao % mass ( i )
      struc % coef_vel ( 1 ) % ao % cr ( i ) = struc % coef_vel ( 1 ) % ao  % cr ( i ) &
-                      * dtocm * struc % coef_force ( 1 ) % ao % cr ( i )
+                      + dtocm * struc % coef_force ( 1 ) % ao % cr ( i )
      struc % coef_pos ( 1 ) % ao % cr ( i ) = struc % coef_pos ( 1 ) % ao % cr ( i ) &
-                      * struc % coef_vel ( 1 ) % ao % cr ( i ) * simpar % dt
+                      + struc % coef_vel ( 1 ) % ao % cr ( i ) * simpar % dt
   END DO
 
 #if defined(__parallel)
@@ -1588,7 +1588,7 @@ SUBROUTINE nvt_ao ( itimes, constant, simpar, inter, thermo, struc, &
   DO i = 1, ncoef
      dtocm = 0.5_dbl * simpar % dt / struc % coef_vel ( 1 ) % ao % mass ( i )
      struc % coef_vel ( 1 ) % ao % cr ( i ) = struc % coef_vel ( 1 ) % ao % cr ( i ) &
-                      * dtocm * struc % coef_force ( 1 ) % ao % cr ( i )
+                      + dtocm * struc % coef_force ( 1 ) % ao % cr ( i )
   END DO
 
   IF ( simpar % pol_ensemble == "NVT" ) & 
