@@ -30,8 +30,6 @@ MODULE bfgs_optimizer
                                              start_parser,&
                                              stop_parser,&
                                              test_object
-  USE qs_wf_history_methods,           ONLY: wfi_create
-  USE qs_wf_history_types,             ONLY: qs_wf_history_type
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -76,7 +74,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(qs_wf_history_type), POINTER        :: wf_history
 
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 
@@ -123,13 +120,6 @@ CONTAINS
     ALLOCATE(eigvec(ndf,ndf))
     ALLOCATE(work(ndf))
     ALLOCATE(dr(ndf))
-
-!   *** Initialize wavefunction history ***
-
-    CALL wfi_create(wf_history,&
-                    interpolation_method_nr=&
-                     qs_env%dft_control%qs_control%wf_interpolation_method_nr)
-    CALL set_qs_env (qs_env=qs_env,wf_history=wf_history)
 
 !   *** Store the coordinates ***
 
