@@ -226,7 +226,7 @@ CONTAINS
                                          sac_ppl_neighbor_node,&
                                          sac_ppnl_neighbor_node,&
                                          sbc_ppnl_neighbor_node
-    TYPE(qs_rho_type), POINTER	      :: rho
+    TYPE(qs_rho_type), POINTER        :: rho
     TYPE(scf_control_type), POINTER   :: scf_control
 
     CHARACTER(LEN=6)   :: extension
