@@ -31,7 +31,8 @@ MODULE qs_forces
                                   copy_blacs_to_sparse_matrix,&
                                   deallocate_blacs_matrix,&
                                   get_blacs_matrix_info
-  USE qs_build_ks_matrix,   ONLY: build_kohn_sham_matrix,qs_ks_env_type
+  USE qs_build_ks_matrix,   ONLY: qs_ks_update_qs_env,qs_ks_env_type,&
+       qs_ks_did_change
   USE qs_core_energies,     ONLY: calculate_ecore_overlap
   USE qs_core_hamiltonian,  ONLY: build_core_hamiltonian_matrix
   USE qs_environment_types, ONLY: get_qs_env,&
@@ -152,16 +153,12 @@ CONTAINS
                                        calculate_forces=.TRUE.,&
                                        p=p(1)%matrix,&
                                        w=w)
-
-    CALL build_kohn_sham_matrix(ks_env=ks_env,&
-                                qs_env=qs_env,&
-                                globenv=globenv,&
-                                ks=k,&
-                                p=p,&
-                                p_old=p_old,&
-                                rebuild=.TRUE.,&
-                                nrebuild=1,&
-                                calculate_forces=.TRUE.)
+    call qs_ks_did_change(ks_env,qs_env,globenv,p_changed=.true.)
+    CALL qs_ks_update_qs_env(ks_env=ks_env,&
+         qs_env=qs_env,&
+         global_env=globenv,&
+         rebuild=.TRUE.,&
+         calculate_forces=.TRUE.)
 
     CALL write_forces(force,globenv)
 

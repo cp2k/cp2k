@@ -167,7 +167,7 @@ MODULE qs_scf
        cp_to_string
   use pao_glob_angles_methods,  only: pao_g_ang_get,pao_g_ang_set
   use qs_build_KS_matrix,       only: qs_ks_env_type, qs_ks_init, &
-       qs_ks_dealloc_ref, build_kohn_sham_matrix
+       qs_ks_dealloc_ref, qs_ks_did_change, qs_ks_update_qs_env
   use cp_matrix_utils,          only: cp_sm_output
   USE qs_collocate_density,     ONLY: calculate_rho_core,&
                                       calculate_rho_elec,&
@@ -180,6 +180,7 @@ MODULE qs_scf
                                       qs_ot_get_orbitals,        & 
                                       qs_ot_get_derivative,      &
                                       qs_ot_get_p
+  use qs_energy_types,          only: qs_energy_type
 
   IMPLICIT NONE
 
@@ -199,8 +200,6 @@ MODULE qs_scf
   CHARACTER(LEN=10) :: density_guess
   REAL(wp)          :: eps_eigval,eps_scf,level_shift,p_mix,smear,&
        work_syevx
-!!$       etotal,ex,total_rho_core_rspace,total_rho_elec_rspace,&
-!!$                       total_rho_gspace,total_rho_rspace
   INTEGER           :: charge,max_scf,nelectron,nrebuild,nrow_block,&
                        ncol_block,maxl,nkind
   LOGICAL           :: gradient_functional,gth_potential_present,&
@@ -262,10 +261,7 @@ CONTAINS
     type(real_matrix_p_type), pointer :: ks, p
     type(real_matrix_p_type), dimension(:), pointer :: ks_rmpv, p_rmpv,&
          p_old_rmpv
-    real(kind=wp) :: ex,ec,ecore,ecore_overlap,&
-         ecore_self,ehartree,&
-         total_rho_gspace, total_rho_elec_rspace, etotal, &
-         total_rho_core_rspace, total_rho_rspace
+    type(qs_energy_type), pointer :: energy
     real(kind=wp) :: ot_pos(4),ot_energy(4),nom,denom,ds_min
     real(kind=wp) :: xa,xb,xc,fa,fb,fc,pos,val
     logical :: energy_only
@@ -291,7 +287,7 @@ CONTAINS
                     cell=cell,&
                     dft_control=dft_control,&
                     h=h,&
-                    s=s,&
+                    s=s,energy=energy,&
                     particle_set=particle_set,&
                     pao_env=pao_env)
 
@@ -303,7 +299,6 @@ CONTAINS
                              nelectron=nelectron)
 
     nelectron = nelectron - charge
-    call set_qs_env(qs_env, n_electrons=nelectron)
 
     CALL get_cell(cell=cell)
 
@@ -323,13 +318,10 @@ CONTAINS
 
     CALL init_scf_run(mo_set=mo_set,&
                       qs_env=qs_env,&
-                      globenv=globenv,&
-                      ecore_self=ecore_self,&
-                      ecore_overlap=ecore_overlap)
+                      globenv=globenv)
 
     call qs_ks_init(ks_env,qs_env=qs_env,global_env=globenv, error=error)
-    ks_env%ecore_self=ecore_self ! ugly
-    ks_env%ecore_overlap=ecore_overlap ! ugly
+    call qs_ks_did_change(ks_env,qs_env,globenv,p_changed=.true.,error=error)
 
     call pao_opt_create(pao_optimizer,pao_obj_f,qs_env,globenv,error)
 
@@ -337,13 +329,6 @@ CONTAINS
     p => p_rmpv(1)
     ks => ks_rmpv(1)
 
-    !!FM not nice! mv to qs_build_KS_matrix?
-    CALL calculate_rho_core(ks_env%rho_core,ks_env%cube_info(1),&
-         ks_env%l_info,&
-         total_rho_core_rspace,qs_env,globenv)
-    ks_env%total_rho_core_rspace=total_rho_core_rspace
-    
-    etotal = 0.0_wp
     iscf = 0
     diis_step = .FALSE.
     rebuild = .TRUE.
@@ -410,15 +395,8 @@ CONTAINS
         CALL write_sparse_matrix(p%matrix,4,6,qs_env,globenv)
       END IF
 
-      call build_kohn_sham_matrix(ks_env,qs_env=qs_env,globenv=globenv,&
-           ks=ks_rmpv,p=p_rmpv,p_old=p_old_rmpv,rebuild=rebuild,&
-           nrebuild=nrebuild,ex=ex,ec=ec,ecore=ecore,&
-           ecore_overlap=ecore_overlap,&
-           ecore_self=ecore_self,ehartree=ehartree,&
-           total_rho_gspace=total_rho_gspace, &
-           total_rho_elec_rspace=total_rho_elec_rspace, etotal=etotal, &
-           total_rho_core_rspace=total_rho_core_rspace, &
-           total_rho_rspace=total_rho_rspace,error=error,&
+      call qs_ks_update_qs_env(ks_env,qs_env=qs_env,global_env=globenv,&
+           rebuild=rebuild,error=error,&
            calculate_forces=.FALSE.,just_energy=energy_only)
 
       rebuild = (MODULO(iscf,nrebuild) == 0)
@@ -474,14 +452,14 @@ CONTAINS
            IF (ionode.AND.globenv%print%scf) THEN
               WRITE (UNIT=output_unit,&
                      FMT="(T2,I5,2X,A,T15,E10.2,T30,F8.2,T40,2F20.10)")&
-                     iscf,"DIIS",diis_error,t2 - t1,delta,etotal
+                     iscf,"DIIS",diis_error,t2 - t1,delta,energy%total
            END IF
          ELSE
            CALL density_mixing(ks,p,p_mix,delta,globenv)
            IF (ionode.AND.globenv%print%scf) THEN
              WRITE (UNIT=output_unit,&
                     FMT="(T2,I5,2X,A,T15,F6.2,T30,F8.2,T40,2F20.10)")&
-               iscf,"Mixing",p_mix,t2 - t1,delta,etotal
+               iscf,"Mixing",p_mix,t2 - t1,delta,energy%total
            END IF
          END IF
 
@@ -523,14 +501,14 @@ CONTAINS
            IF (ionode.AND.globenv%print%scf) THEN
               WRITE (UNIT=output_unit,&
                    FMT="(T2,I5,2X,A,T15,E10.2,T30,F8.2,T40,2F20.10)")&
-                   iscf,"DIIS",diis_error,t2 - t1,delta,etotal
+                   iscf,"DIIS",diis_error,t2 - t1,delta,energy%total
            END IF
         ELSE
            CALL density_mixing(ks,p,p_mix,delta,globenv)
            IF (ionode.AND.globenv%print%scf) THEN
               WRITE (UNIT=output_unit,&
                  FMT="(T2,I5,2X,A,T15,F6.2,T30,F8.2,T40,2F20.10)")&
-              iscf,"Mixing",p_mix,t2 - t1,delta,etotal
+              iscf,"Mixing",p_mix,t2 - t1,delta,energy%total
            END IF
         END IF
 
@@ -555,7 +533,7 @@ CONTAINS
 
         IF (.not. OT_LINESEARCH) THEN       ! find a new direction
            if (energy_only) call stop_program("scf","energy only ?")
-           OT_energy(4)=etotal
+           OT_energy(4)=energy%total
 
            SELECT CASE (OT_METHOD)
            CASE ("SD")
@@ -591,7 +569,7 @@ CONTAINS
         ENDIF
 
         IF (OT_LINESEARCH) THEN             ! find a new ds
-           OT_energy(OT_count)=etotal
+           OT_energy(OT_count)=energy%total
 
            SELECT CASE(OT_COUNT)
            CASE (1)
@@ -654,11 +632,13 @@ CONTAINS
         IF (ionode.AND.globenv%print%scf) THEN
               WRITE (UNIT=output_unit,&
                  FMT="(T2,I5,2X,A,T20,F6.2,T30,F8.2,T40,2F20.10)")&
-                         iscf,OT_METHOD_FULL,ds_min,t2 - t1,delta,etotal
+                         iscf,OT_METHOD_FULL,ds_min,t2 - t1,delta,energy%total
         END IF
 
 
       END SELECT
+
+      call qs_ks_did_change(ks_env,qs_env,globenv,p_changed=.true.,error=error)
 
       IF (delta < eps_scf) THEN
         IF (ionode.AND.globenv%print%scf) THEN
@@ -679,19 +659,22 @@ CONTAINS
     IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
         "Total electronic density (r-space): ",&
-        total_rho_elec_rspace,total_rho_elec_rspace + REAL(nelectron,wp),&
+        ks_env%total_rho_rspace-ks_env%total_rho_core_rspace,&
+        ks_env%total_rho_rspace-ks_env%total_rho_core_rspace + REAL(nelectron,wp),&
         "Total core charge density (r-space):",&
-        total_rho_core_rspace,total_rho_core_rspace - REAL(nelectron,wp)
+        ks_env%total_rho_core_rspace,&
+        ks_env%total_rho_core_rspace - REAL(nelectron,wp)
       WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-        "Total charge density (r-space):     ",total_rho_rspace,&
-        "Total charge density (g-space):     ",total_rho_gspace
+        "Total charge density (r-space):     ",ks_env%total_rho_rspace,&
+        "Total charge density (g-space):     ",ks_env%total_rho_gspace
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
-        "Overlap energy of the core charge distribution:",ecore_overlap,&
-        "Self energy of the core charge distribution:   ",ecore_self,&
-        "Core Hamiltonian energy:                       ",ecore,&
-        "Hartree energy:                                ",ehartree,&
-        "Exchange-correlation energy:                   ",ex + ec,&
-        "Total energy:                                  ",etotal
+        "Overlap energy of the core charge distribution:",energy%core_overlap,&
+        "Self energy of the core charge distribution:   ",energy%core_self,&
+        "Core Hamiltonian energy:                       ",energy%core,&
+        "Hartree energy:                                ",energy%hartree,&
+        "Exchange-correlation energy:                   ",energy%exchange +&
+        energy%correlation,&
+        "Total energy:                                  ",energy%total
     END IF
 
 !   *** Undo mixing of the density matrix (restore original density) ***
@@ -705,15 +688,9 @@ CONTAINS
     END IF
 
     IF (globenv%print%kohn_sham_matrix) THEN
-      call build_kohn_sham_matrix(ks_env,qs_env=qs_env,globenv=globenv,&
-           ks=ks_rmpv,p=p_rmpv,p_old=p_old_rmpv,rebuild=rebuild,&
-           nrebuild=nrebuild,ex=ex,ec=ec,ecore=ecore,&
-           ecore_overlap=ecore_overlap,&
-           ecore_self=ecore_self,ehartree=ehartree,&
-           total_rho_gspace=total_rho_gspace, &
-           total_rho_elec_rspace=total_rho_elec_rspace, etotal=etotal, &
-           total_rho_core_rspace=total_rho_core_rspace, &
-           total_rho_rspace=total_rho_rspace,error=error,&
+      call qs_ks_update_qs_env(ks_env,qs_env=qs_env,global_env=globenv,&
+           rebuild=rebuild,&
+           error=error,&
            calculate_forces=.FALSE.)
       CALL write_sparse_matrix(ks%matrix,4,6,qs_env,globenv)
     END IF
@@ -765,7 +742,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_scf_run(mo_set,qs_env,globenv,ecore_self,ecore_overlap)
+  SUBROUTINE init_scf_run(mo_set,qs_env,globenv)
 
 !   Purpose: Initialise a SCF run.
 
@@ -776,7 +753,6 @@ CONTAINS
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
     TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
-    real(kind=wp), intent(out)                :: ecore_self, ecore_overlap
 
 !   *** Local parameters ***
 
@@ -790,6 +766,7 @@ CONTAINS
     INTEGER :: context,handle,homo,ikind,istat,nao,ndep,nmo,npcol,nprow,&
                output_unit
     LOGICAL :: ionode, pao
+    real(kind=wp):: ecore_self, ecore_overlap
 
     INTEGER, DIMENSION(0:globenv%num_pe-1) :: nblock_pe,nelement_pe
     type(real_matrix_p_type), dimension(:), pointer :: k_rmpv, p_rmpv, &
