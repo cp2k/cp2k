@@ -68,7 +68,7 @@ module cp_sp_iterators
 
   !***
   !****************************************************************************
-  !!****s* cp_sparse_matrix_type/cp_sp_local_b_iter_type [1.0] *
+  !!****s* cp_block_matrix_type/cp_sp_local_b_iter_type [1.0] *
   !!
   !!   NAME
   !!     cp_sp_local_b_iter_type
@@ -93,13 +93,13 @@ module cp_sp_iterators
   !***************************************************************************
   type cp_sp_local_b_iter_type
      logical :: initialized, all_blocks
-     type(cp_sparse_matrix_type), pointer :: matrix
+     type(cp_block_matrix_type), pointer :: matrix
      type(cp_matrix_block_iterator) :: iterator
   end type cp_sp_local_b_iter_type
   !!***
   !****************************************************************************
 
-  !!****s* cp_sparse_matrix_type/cp_sp_owned_b_iter_type [1.0] *
+  !!****s* cp_block_matrix_type/cp_sp_owned_b_iter_type [1.0] *
   !!
   !!   NAME
   !!     cp_sp_owned_b_iter_type
@@ -128,7 +128,7 @@ module cp_sp_iterators
   !!***
   !****************************************************************************
 
-  !!****s* cp_sparse_matrix_type/cp_sp_cached_b_iter_type [1.0] *
+  !!****s* cp_block_matrix_type/cp_sp_cached_b_iter_type [1.0] *
   !!
   !!   NAME
   !!     cp_sp_cached_b_iter_type
@@ -157,7 +157,7 @@ module cp_sp_iterators
   !!***
   !****************************************************************************
 
-  !!****s* cp_sparse_matrix_type/cp_sp_g_block_iterator [1.0] *
+  !!****s* cp_block_matrix_type/cp_sp_g_block_iterator [1.0] *
   !!
   !!   NAME
   !!     cp_sp_g_block_iterator
@@ -182,7 +182,7 @@ module cp_sp_iterators
   !***************************************************************************
   type cp_sp_g_block_iterator
      logical :: initialized
-     type(cp_sparse_matrix_type) :: matrix
+     type(cp_block_matrix_type) :: matrix
      integer :: i,j
   end type cp_sp_g_block_iterator
   !!***
@@ -193,7 +193,7 @@ contains
 
   !==== local block iterator ====
 
-  !!****f* cp_sparse_matrix/cp_sp_local_b_iter_init [1.0] *
+  !!****f* cp_sp_iterators/cp_sp_local_b_iter_init [1.0] *
   !!
   !!   NAME
   !!     cp_sp_local_b_iter_init
@@ -221,7 +221,7 @@ contains
   !!*** **********************************************************************
   subroutine cp_sp_local_b_iter_init(iterator,matrix,error)
     type(cp_sp_owned_b_iter_type), intent(out) :: iterator
-    type(cp_sparse_matrix_type), intent(in), target :: matrix
+    type(cp_block_matrix_type), intent(in), target :: matrix
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
@@ -274,7 +274,7 @@ contains
   end subroutine cp_sp_local_b_iter_dealloc_ref
   !***************************************************************************
 
-  !!****f* cp_sparse_matrix/cp_sp_local_b_iter_next [1.0] *
+  !!****f* cp_sp_iterators/cp_sp_local_b_iter_next [1.0] *
   !!
   !!   NAME
   !!     cp_sp_local_b_iter_next
@@ -331,7 +331,7 @@ contains
 
   !=== owned blocks iterator ===
 
-  !!****f* cp_sparse_matrix/cp_sp_owned_b_iter_init [1.0] *
+  !!****f* cp_sp_iterators/cp_sp_owned_b_iter_init [1.0] *
   !!
   !!   NAME
   !!     cp_sp_owned_b_iter_init
@@ -358,7 +358,7 @@ contains
   !!*** **********************************************************************
   subroutine cp_sp_owned_b_iter_init(iterator,matrix,error)
     type(cp_sp_owned_b_iter_type), intent(out) :: iterator
-    type(cp_sparse_matrix_type), intent(in), target :: matrix
+    type(cp_block_matrix_type), intent(in), target :: matrix
     type(cp_error_type), optional, intent(inout) :: error
 
     character(len=*), parameter :: routineN='cp_sp_owned_b_iter_init',&
@@ -408,7 +408,7 @@ contains
 
   !=== cached blocks iterator ===
 
-  !!****f* cp_sparse_matrix/cp_sp_cached_b_iter_init [1.0] *
+  !!****f* cp_sp_iterators/cp_sp_cached_b_iter_init [1.0] *
   !!
   !!   NAME
   !!     cp_sp_cached_b_iter_init
@@ -435,7 +435,7 @@ contains
   !!*** **********************************************************************
   subroutine cp_sp_cached_b_iter_init(iterator,matrix,error)
     type(cp_sp_cached_b_iter_type), intent(out) :: iterator
-    type(cp_sparse_matrix_type), intent(in), target :: matrix
+    type(cp_block_matrix_type), intent(in), target :: matrix
     type(cp_error_type), optional, intent(inout) :: error
 
     character(len=*), parameter :: routineN='cp_sp_cached_b_iter_init',&
