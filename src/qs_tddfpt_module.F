@@ -23,6 +23,8 @@ MODULE qs_tddfpt_module
                                              xc_get_functional
   USE cp_control_types,                ONLY: dft_control_type,&
                                              oe_none,&
+                                             oe_saop,&
+                                             oe_sic,&
                                              sic_none,&
                                              tddfpt_control_type,&
                                              tddfpt_singlet,&
@@ -171,6 +173,7 @@ CONTAINS
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
     TYPE(xc_control_type), POINTER           :: xc_control
 
     ! variables to remember from the environments
@@ -184,7 +187,7 @@ CONTAINS
     
     failure = .FALSE.
     NULLIFY(logger, my_glob_env, scf_env, &
-            dft_control, scf_control, xc_control)
+            dft_control, scf_control, xc_control, tddfpt_control)
     my_glob_env => glob_env
     logger => cp_error_get_logger(error)
     ionode = (logger%para_env%mepos==logger%para_env%source)
@@ -199,7 +202,7 @@ CONTAINS
     END IF
 
     CALL get_qs_env(qs_env, scf_env=scf_env, dft_control=dft_control, &
-                    scf_control=scf_control)
+                    scf_control=scf_control, tddfpt_control=tddfpt_control)
     xc_control => dft_control%xc_control
 
     !-----------------------!
@@ -207,19 +210,22 @@ CONTAINS
     !-----------------------!
     scf_control_max_scf = scf_control%max_scf
     scf_control%max_scf = 1
-    my_xc_control%functionals = xc_control%functionals
-    my_xc_control%gradient_functionals = xc_control%gradient_functionals
-    my_xc_control%crossterms = xc_control%crossterms
-    xc_control%functionals = ""
-    CALL xc_get_functional ( 0, "PBE", xc_control%functionals, &
-                                       xc_control%gradient_functionals, &
-                                       xc_control%crossterms )
-    DO i=1, 3
-       IF (xc_control%functionals(i) == "") THEN 
-          xc_control%functionals(i) = "NONE"
-       END IF
-    END DO
 
+    IF (tddfpt_control%oe_corr == oe_saop) THEN
+       my_xc_control%functionals = xc_control%functionals
+       my_xc_control%gradient_functionals = xc_control%gradient_functionals
+       my_xc_control%crossterms = xc_control%crossterms
+       xc_control%functionals = ""
+       CALL xc_get_functional ( 0, "PBE", xc_control%functionals, &
+                                          xc_control%gradient_functionals, &
+                                          xc_control%crossterms )
+       DO i=1, 3
+          IF (xc_control%functionals(i) == "") THEN 
+             xc_control%functionals(i) = "NONE"
+          END IF
+       END DO
+    ELSE IF (tddfpt_control%oe_corr == oe_sic) THEN
+    END IF
 
     !---------------------------------!
     ! build ks matrix and diagonalize !
@@ -231,9 +237,12 @@ CONTAINS
     ! revert to original parameters !
     !-------------------------------!
     scf_control%max_scf = scf_control_max_scf
-    xc_control%functionals = my_xc_control%functionals
-    xc_control%gradient_functionals = my_xc_control%gradient_functionals
-    xc_control%crossterms = my_xc_control%crossterms
+    IF (tddfpt_control%oe_corr == oe_saop) THEN
+       xc_control%functionals = my_xc_control%functionals
+       xc_control%gradient_functionals = my_xc_control%gradient_functionals
+       xc_control%crossterms = my_xc_control%crossterms
+    ELSE IF (tddfpt_control%oe_corr == oe_sic) THEN
+    END IF
 
   END SUBROUTINE orbital_eigenvalue_correction
 
