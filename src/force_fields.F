@@ -3511,6 +3511,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
   INTEGER                                  :: ig4x6,ng4x6
   INTEGER                                  :: atm_a,atm_b,atm_c,atm_d
   INTEGER                                  :: atm2_a,atm2_b,atm2_c,atm2_d
+  INTEGER                                  :: central
   TYPE(dist_constraint_type), DIMENSION(:), POINTER :: dist_list
   TYPE(g3x3_constraint_type), DIMENSION(:), POINTER :: g3x3_list
   TYPE(g4x6_constraint_type), DIMENSION(:), POINTER :: g4x6_list
@@ -3563,7 +3564,55 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 2. Lets Tag the unwanted bonds due to the use of 3x3
+  ! 2. Lets Tag the unwanted bends due to the use of distance constraint
+  !-----------------------------------------------------------------------------
+  DO ikind=1,SIZE(molecule_kind_set)
+    molecule_kind => molecule_kind_set(ikind)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           ndist=ndist,&
+                           dist_list=dist_list,&
+                           nbend=nbend,&
+                           bend_kind_set=bend_kind_set,&
+                           bend_list=bend_list)
+    DO ibend=1,nbend
+      counter=0
+      unsetme = .FALSE.
+      atm_a = bend_list(ibend)%a
+      atm_b = bend_list(ibend)%b
+      atm_c = bend_list(ibend)%c
+      central = 0
+      DO idist=1,ndist
+        atm2_a = dist_list(idist)%a
+        atm2_b = dist_list(idist)%b
+! Check to see if we have a central bend atom in dist list
+        IF ( central == 0 ) THEN
+          IF ( atm2_a == atm_b ) central = atm2_a
+          IF ( atm2_b == atm_b ) central = atm2_b
+        ENDIF
+! If so, check the other two atoms for a match
+        IF ( atm2_a == central ) THEN 
+          IF(atm2_b==atm_a.OR.atm2_b==atm_c) counter=counter+1
+! If so, check the other two atoms for a match
+        ELSEIF ( atm2_b == central ) THEN
+          IF(atm2_a==atm_a.OR.atm2_a==atm_c) counter=counter+1
+! If not, check the other two atoms for a match
+        ELSE
+          IF(atm2_a==atm_a.OR.atm2_a==atm_c) counter=counter+1
+          IF(atm2_b==atm_a.OR.atm2_b==atm_c) counter=counter+1
+        ENDIF
+      END DO
+! must have central atom to be involved in bend
+      IF ( central /= 0 ) THEN
+        IF(counter>=4) unsetme=.TRUE.
+        IF(unsetme) bend_list(ibend)%name = "UNSET"
+      ENDIF
+    END DO
+  END DO
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 3. Lets Tag the unwanted bonds due to the use of 3x3
   !-----------------------------------------------------------------------------
   DO ikind=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(ikind)
@@ -3592,7 +3641,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 3. Lets Tag the unwanted bends due to the use of 3x3
+  ! 4. Lets Tag the unwanted bends due to the use of 3x3
   !-----------------------------------------------------------------------------
   DO ikind=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(ikind)
@@ -3623,7 +3672,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 4. Lets Tag the unwanted bonds due to the use of 4x6
+  ! 5. Lets Tag the unwanted bonds due to the use of 4x6
   !-----------------------------------------------------------------------------
   DO ikind=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(ikind)
@@ -3653,7 +3702,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 5. Lets Tag the unwanted bends due to the use of 4x6
+  ! 6. Lets Tag the unwanted bends due to the use of 4x6
   !-----------------------------------------------------------------------------
   DO ikind=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(ikind)
@@ -3684,7 +3733,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 6. Count the number of UNSET bond kinds there are
+  ! 7. Count the number of UNSET bond kinds there are
   !-----------------------------------------------------------------------------
   DO ikind=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(ikind)
@@ -3773,7 +3822,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 7. Count the number of UNSET bend kinds there are
+  ! 8. Count the number of UNSET bend kinds there are
   !-----------------------------------------------------------------------------
   DO ikind=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(ikind)
@@ -3864,7 +3913,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 8. Count the number of UNSET Urey-Bradley kinds there are
+  ! 9. Count the number of UNSET Urey-Bradley kinds there are
   !-----------------------------------------------------------------------------
   DO ikind=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(ikind)
@@ -3955,7 +4004,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 9. Count the number of UNSET torsion kinds there are
+  ! 10. Count the number of UNSET torsion kinds there are
   !-----------------------------------------------------------------------------
   DO ikind=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(ikind)
@@ -4064,7 +4113,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 10. Count the number of UNSET improper kinds there are
+  ! 11. Count the number of UNSET improper kinds there are
   !-----------------------------------------------------------------------------
   DO ikind=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(ikind)
