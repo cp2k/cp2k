@@ -762,7 +762,7 @@ CONTAINS
 !$OMP private(sab_orb_neighbor_node,inode,jatom,rab,new_atom_b,atom_b,f0,irow,icol) &
 !$OMP private(rab2,dab,sgfa,jset,ncob,sgfb,f,katom,rbc,rbc2,dbc,atom_c,jco,ico,rprjc) &
 !$OMP private(ibc,sbc_ppnl_neighbor_list,nnode_c,sbc_ppnl_neighbor_node,knode) &
-!$OMP private(cell_c,h_block,p_block,w_block,j,force_a,force_b) &
+!$OMP private(cell_c,h_block,p_block,w_block,j,force_a,force_b,neighbor_att) &
 !$OMP private(sab_orb_neighbor_list_local,sint,tint,vppl,vppnl,vall,ai_work,oceh,oces) &
 !$OMP private(icell,jcell,kcell,idx,n,lppnl,nppnl,cell_c_max,cell_c_min,sac_ppnl_neighbor) &
 !$OMP shared(sbc_ppnl,ikind,jkind,force,return_t_derivatives,return_s_derivatives) &
@@ -771,7 +771,7 @@ CONTAINS
 !$OMP shared(oce,sac_oce,sac_3c,sbc_3c,VH_3c_list,oce_present)&
 !$OMP shared(build_kinetic_energy_matrix,matrix_s,maxder,nder,la_min,rpgfa,zeta) &
 !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ncoa_sum,vppnlt,vallt,sac_ppnl,ppnl_present,all_potential_present) &
-!$OMP shared(vpplt,sac_ppl,nkind,ppl_present,atom_of_kind,sab_orb_neighbor_list) &
+!$OMP shared(vpplt,sac_ppl,nkind,ppl_present,atom_of_kind,sab_orb_neighbor_list,rho0_present) &
 !$OMP shared(nlist,calculate_forces,pabt,workt,sdabt,sabt,habt,la_max,sintt,tintt,oceht,ocest,qs_env)
         ithread = 0
 !$      ithread = omp_get_thread_num()
