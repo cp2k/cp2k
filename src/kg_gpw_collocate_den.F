@@ -219,6 +219,8 @@ CONTAINS
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
 
+    INTEGER                                  :: omp_get_max_threads,&
+                                                omp_get_thread_num
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
@@ -513,7 +515,7 @@ CONTAINS
 !$OMP shared(iatom,jatom,ra,rb,rab,rab2,brow,bcol,p_block) &
 !$OMP shared(maxco,maxsgf_set,ival,num_tasks) &
 !$OMP shared(npgfa,npgfb,ncoset,la_max,lb_max,first_sgfa,first_sgfb) &
-!$OMP shared(nsgfa,nsgfb,sphi_a,sphi_b,dab_local,la_min,lb_min,zeta,zetb) &
+!$OMP shared(nsgfa,nsgfb,sphi_a,sphi_b,la_min,lb_min,zeta,zetb) &
 !$OMP shared(rs_rho,igrid_level,cube_info,l_info,eps_rho_rspace,lgrid,nthread) &
 !$OMP shared(workt,pabt,my_compute_tau,map_consistent)
             ithread = 0
@@ -1122,12 +1124,12 @@ CONTAINS
 !$OMP default(none) &
 !$OMP private(ithread,itask,iset,jset,ncoa,ncob,sgfa,sgfb) &
 !$OMP private(work,hab,pab,istat,ipgf,jpgf,na1,na2,nb1,nb2,scale) &
-!$OMP private(force_a,force_b)
-!$OMP shared(iatom,jatom,ra,rb,rab,rab2,brow,bcol,p_block) &
-!$OMP shared(maxco,maxsgf_set,ival,num_tasks,atasks) &
+!$OMP private(force_a,force_b) &
+!$OMP shared(iatom,jatom,ra,rb,rab,rab2,brow,bcol,p_block,h_block) &
+!$OMP shared(maxco,maxsgf_set,ival,num_tasks,atasks,calculate_forces) &
 !$OMP shared(npgfa,npgfb,ncoset,la_max,lb_max,first_sgfa,first_sgfb) &
-!$OMP shared(nsgfa,nsgfb,sphi_a,sphi_b,dab_local,la_min,lb_min,zeta,zetb) &
-!$OMP shared(rs_v,igrid_level,cube_info,l_info,eps_rho_rspace,nthread) &
+!$OMP shared(nsgfa,nsgfb,sphi_a,sphi_b,la_min,lb_min,eps_gvg_rspace,zeta,zetb) &
+!$OMP shared(rs_v,igrid_level,cube_info,l_info,nthread,nset_pairs) &
 !$OMP shared(workt,habt,pabt,my_compute_tau,map_consistent,forces_mol,iat,jat)
             ithread = 0
 !$          ithread = omp_get_thread_num()

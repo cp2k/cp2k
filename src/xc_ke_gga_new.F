@@ -738,9 +738,7 @@ CONTAINS
 
     p = 0.0044188_dp*b*b
     q = 0.0253_dp*b
-!$omp parallel do private(ip,x,bs,sbs,as,sas,ys,asp,sbs3,asp2,asp3,sbs5,w1) &
-!$omp             private(t1,t3,t4,t11,t12,t13,t16,t19,t22,t24,t25,t33,t34,t36,t39) &
-!$omp             private(t43,t44,t60,t62)
+!$omp parallel do private(ip,x)
     DO ip=1,SIZE(s)
       x = s(ip)
       bs = b*x
@@ -926,7 +924,7 @@ CONTAINS
     f15 = 1.0_dp/15.0_dp
     ff = 1.0_dp
     IF(PRESENT(f2_lsd)) ff = f2_lsd
-!$omp parallel do private(ip,s2,s4,s6,p0,p1,p15,t8,t9,t10,t12,t13,t14,t19,t25)
+!$omp parallel do private(ip)
     DO ip=1,SIZE(s)
       s1 = s(ip)*ff
       s2 = s1 * s1
@@ -994,7 +992,7 @@ CONTAINS
     q = 0.0253_dp*b
     a1 = 0.072_dp * b
     a2 = 2.0_dp**f53 * b
-!$omp parallel do private(ip,x,as,sas,asp,asp2,asp3,bs,ys,sbs,sbs3,sbs5,w1,t0,s1,s2)
+!$omp parallel do private(ip)
     DO ip=1,SIZE(s)
       x = s(ip)
       bs = b*x
@@ -1136,7 +1134,7 @@ CONTAINS
       END DO
     END IF
     IF ( m >= 2 ) THEN
-!$omp parallel do private(ip,x,s1)
+!$omp parallel do private(ip,x)
       DO ip=1,SIZE(s)
         x = s(ip)
         t1 = bb**2     
@@ -1179,7 +1177,7 @@ CONTAINS
       END DO
     END IF
     IF ( m >= 3 ) THEN
-!$omp parallel do private(ip,x,s1,s2,s3)
+!$omp parallel do private(ip,x)
       DO ip=1,SIZE(s)
         x = s(ip)
           t1 = bb**2 
@@ -1287,7 +1285,7 @@ CONTAINS
       END DO
     END IF
     IF ( m >= 2 ) THEN
-!$omp parallel do private(ip,x,s1)
+!$omp parallel do private(ip,x)
       DO ip=1,SIZE(s)
         x = s(ip)
         s1 = (2*a1*a/SQRT(1+a**2*x**2)-a1*x**2*a**3/SQRT(1+a**2*x**2)**3+  &
@@ -1307,7 +1305,7 @@ CONTAINS
       END DO
     END IF
     IF ( m >= 2 ) THEN
-!$omp parallel do private(ip,x,s1,s2,s3)
+!$omp parallel do private(ip,x)
       DO ip=1,SIZE(s)
         x = s(ip)
         s2 = (-4*a1*a**3/SQRT(1+a**2*x**2)**3*x+3*a1*x**3*a**5/         &
