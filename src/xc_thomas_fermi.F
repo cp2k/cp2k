@@ -98,7 +98,8 @@ CONTAINS
 
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     INTEGER                                  :: error, m, mp, mt, mx(0:3,2), n
@@ -148,7 +149,8 @@ CONTAINS
 
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     INTEGER                                  :: error, m, m1, m2, mp, mt, &
@@ -204,7 +206,7 @@ CONTAINS
   SUBROUTINE thomas_fermi_lda_0 ( rho, r13, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, r13
-    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: pot
+    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: pot
 
     INTEGER                                  :: ip, npoints
 
@@ -232,7 +234,7 @@ CONTAINS
   SUBROUTINE thomas_fermi_lda_1 ( rho, r13, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, r13
-    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: pot
+    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: pot
 
     INTEGER                                  :: ip, npoints
     REAL(dbl)                                :: f
@@ -263,7 +265,7 @@ CONTAINS
   SUBROUTINE thomas_fermi_lda_2 ( rho, r13, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, r13
-    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: pot
+    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: pot
 
     INTEGER                                  :: ip, npoints
     REAL(dbl)                                :: f
@@ -294,7 +296,7 @@ CONTAINS
   SUBROUTINE thomas_fermi_lda_3 ( rho, r13, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, r13
-    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: pot
+    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: pot
 
     INTEGER                                  :: ip, npoints
     REAL(dbl)                                :: f
@@ -325,7 +327,7 @@ CONTAINS
   SUBROUTINE thomas_fermi_lsd_0 ( rhoa, rhob, r13a, r13b, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, r13a, r13b
-    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: pot
+    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: pot
 
     INTEGER                                  :: ip, npoints
 
@@ -354,7 +356,8 @@ CONTAINS
   SUBROUTINE thomas_fermi_lsd_1 ( rhoa, rhob, r13a, r13b, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, r13a, r13b
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
 
     INTEGER                                  :: ip, npoints
     REAL(dbl)                                :: f
@@ -386,7 +389,8 @@ CONTAINS
   SUBROUTINE thomas_fermi_lsd_2 ( rhoa, rhob, r13a, r13b, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, r13a, r13b
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
 
     INTEGER                                  :: ip, npoints
     REAL(dbl)                                :: f
@@ -418,7 +422,8 @@ CONTAINS
   SUBROUTINE thomas_fermi_lsd_3 ( rhoa, rhob, r13a, r13b, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, r13a, r13b
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
 
     INTEGER                                  :: ip, npoints
     REAL(dbl)                                :: f
