@@ -772,9 +772,9 @@ CONTAINS
                 dhab(ico,jco,2)=dhab(ico,jco,2)+ &
                                  2.0*zeta*f*rab(2)* &
                                  pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb))
-                if (lxb.ne.0) then
+                if (lya.ne.0) then
                     dhab(ico,jco,2)=dhab(ico,jco,2)+                     &
-                             lxb*pzyx(ipzyx(lxa,lya-1,lza,lxb,lyb,lzb))
+                             lya*pzyx(ipzyx(lxa,lya-1,lza,lxb,lyb,lzb))
                 endif
                 dhab(ico,jco,2)    =dhab(ico,jco,2)+ 2.0*zetp*(1-f)*(        &
                              pzyx(ipzyx(lxa,lya+1,lza,lxb,lyb,lzb))-         &
@@ -785,9 +785,9 @@ CONTAINS
                 dhab(ico,jco,3)=dhab(ico,jco,3)+ &
                                  2.0*zeta*f*rab(3)* &
                                  pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb))
-                if (lxb.ne.0) then
+                if (lza.ne.0) then
                     dhab(ico,jco,3)=dhab(ico,jco,3)+                     &
-                             lxb*pzyx(ipzyx(lxa,lya,lza-1,lxb,lyb,lzb))
+                             lza*pzyx(ipzyx(lxa,lya,lza-1,lxb,lyb,lzb))
                 endif
                 dhab(ico,jco,3)    =dhab(ico,jco,3)+ 2.0*zetp*(1-f)*(        &
                              pzyx(ipzyx(lxa,lya,lza+1,lxb,lyb,lzb))-         &
@@ -811,7 +811,7 @@ CONTAINS
                                  pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb))
                 if (lyb.ne.0) then
                     dhab(ico,jco,5)=dhab(ico,jco,5)+                     &
-                             lxb*pzyx(ipzyx(lxa,lya,lza,lxb,lyb-1,lzb))
+                             lyb*pzyx(ipzyx(lxa,lya,lza,lxb,lyb-1,lzb))
                 endif
                 dhab(ico,jco,5)    =dhab(ico,jco,5)+ 2.0*zetp*f*(            &
                              pzyx(ipzyx(lxa,lya+1,lza,lxb,lyb,lzb))-         &
