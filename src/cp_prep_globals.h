@@ -19,7 +19,11 @@
 
 ! if the following macro is defined the shortest possible form of macro 
 ! expansions is used (but then the error messages are not so meaningful)
-! #define FD_SHORT_EXPANSIONS
+#ifdef  __INTEL
+
+#define FD_SHORT_EXPANSIONS
+
+#endif
 
 #ifndef FD_SHORT_EXPANSIONS
 
