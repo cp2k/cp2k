@@ -75,10 +75,6 @@ CONTAINS
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(tddfpt_env_type)                    :: t_env
 
-! perturbation environment
-! tddfpt environment
-! abort if this calculation is not wanted
-
     IF (.NOT.qs_env%dft_control%do_tddfpt_calculation) RETURN
 
     CALL timeset(routineN,"I","",handle)
