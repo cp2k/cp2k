@@ -47,7 +47,9 @@ MODULE qs_environment
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_retain,&
-                                             cp_fm_struct_type
+                                             cp_fm_struct_type, &
+                                             optimal_blacs_col_block_size, &
+                                             optimal_blacs_row_block_size
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -288,6 +290,10 @@ CONTAINS
     CALL scf_c_create(scf_control)
     CALL scf_c_read_parameters(scf_control,globenv)
     CALL scf_c_write_parameters(scf_control,globenv)
+
+!   *** use the just read block sizes to set the optimal values in cp_fm_struct
+    optimal_blacs_row_block_size=scf_control%nrow_block
+    optimal_blacs_col_block_size=scf_control%ncol_block
 
 !   *** Allocate the data structure for Quickstep energies ***
 

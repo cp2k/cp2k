@@ -22,6 +22,8 @@ MODULE preconditioner
                                              cp_blacs_env_release,&
                                              cp_blacs_env_retain
   USE cp_fm_types,                     ONLY: cp_fm_init_random
+  USE cp_fm_struct,                    ONLY: optimal_blacs_col_block_size, &
+                                             optimal_blacs_row_block_size
   USE cp_para_env,                     ONLY: cp_para_env_from_globenv,&
                                              cp_para_env_release,&
                                              cp_para_env_retain
@@ -652,12 +654,14 @@ SUBROUTINE make_full_single(preconditioner_env, matrix_h, matrix_s, &
 
 ! ---
   TYPE(cp_full_matrix_type), POINTER :: fm_h,fm_s
-  INTEGER, PARAMETER :: nrow_block = 32 ! where do I get them from
-  INTEGER, PARAMETER :: ncol_block = 32 ! where do I get them from
+  ! there are defaults in cp_fm_create
+  INTEGER :: nrow_block 
+  INTEGER :: ncol_block 
   REAL(wp), DIMENSION(:), POINTER :: evals
   INTEGER :: i,n
 ! ---
-
+  nrow_block = optimal_blacs_row_block_size
+  ncol_block = optimal_blacs_col_block_size
   IF (ASSOCIATED(preconditioner_env%full_matrix)) THEN 
      CALL cp_fm_release(preconditioner_env%full_matrix)
   ENDIF
@@ -738,10 +742,12 @@ SUBROUTINE make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
   REAL(wp)                                   :: energy_homo,energy_gap
 
 ! ---
-  INTEGER, PARAMETER :: nrow_block = 32 ! where do I get them from
-  INTEGER, PARAMETER :: ncol_block = 32 ! where do I get them from
+  INTEGER:: nrow_block 
+  INTEGER:: ncol_block 
   INTEGER :: i,n
 ! ---
+  nrow_block = optimal_blacs_row_block_size
+  ncol_block = optimal_blacs_col_block_size
 
   IF (ASSOCIATED(preconditioner_env%full_matrix)) THEN
      CALL cp_fm_release(preconditioner_env%full_matrix)
@@ -771,10 +777,12 @@ SUBROUTINE make_full_kinetic(preconditioner_env, matrix_t, matrix_s, &
   REAL(wp)                                   :: energy_homo,energy_gap,shift
 
 ! ---
-  INTEGER, PARAMETER :: nrow_block = 32 ! where do I get them from
-  INTEGER, PARAMETER :: ncol_block = 32 ! where do I get them from
+  INTEGER:: nrow_block 
+  INTEGER:: ncol_block 
   INTEGER :: i,n
 ! ---
+  nrow_block = optimal_blacs_row_block_size
+  ncol_block = optimal_blacs_col_block_size
 
   IF (ASSOCIATED(preconditioner_env%full_matrix)) THEN
      CALL cp_fm_release(preconditioner_env%full_matrix)
@@ -839,8 +847,8 @@ SUBROUTINE make_full_s_half(preconditioner_env, matrix_h, matrix_s, &
   REAL(wp)                                   :: energy_homo,energy_gap
 
 ! ---
-  INTEGER, PARAMETER :: nrow_block = 32 ! where do I get them from
-  INTEGER, PARAMETER :: ncol_block = 32 ! where do I get them from
+  INTEGER:: nrow_block 
+  INTEGER:: ncol_block 
   INTEGER :: i,n
   TYPE(cp_full_matrix_type), POINTER :: fm_y,fm_yi,fm_z,fm_zi
 
@@ -852,6 +860,8 @@ SUBROUTINE make_full_s_half(preconditioner_env, matrix_h, matrix_s, &
   REAL(wp), DIMENSION(:,:), POINTER :: block_s
   REAL(wp), DIMENSION(:,:), POINTER :: block_pre
 ! ---
+  nrow_block = optimal_blacs_row_block_size
+  ncol_block = optimal_blacs_col_block_size
 
   IF (ASSOCIATED(preconditioner_env%full_matrix)) THEN
      CALL cp_fm_release(preconditioner_env%full_matrix)
@@ -1040,11 +1050,13 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_h, matrix_s, &
 
 ! ---
   TYPE(cp_full_matrix_type), POINTER :: fm_h,fm_s, fm_wvec, fm_evec, fm_xvec, fm_wxvec, fm_block
-  INTEGER, PARAMETER :: nrow_block = 32 ! where do I get them from
-  INTEGER, PARAMETER :: ncol_block = 32 ! where do I get them from
+  INTEGER:: nrow_block 
+  INTEGER:: ncol_block 
   REAL(wp), DIMENSION(:), POINTER :: evals
   INTEGER :: i,n,k,x
 ! ---
+  nrow_block = optimal_blacs_row_block_size
+  ncol_block = optimal_blacs_col_block_size
 
   IF (ASSOCIATED(preconditioner_env%full_matrix)) THEN 
      CALL cp_fm_release(preconditioner_env%full_matrix)

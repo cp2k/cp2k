@@ -68,8 +68,9 @@ MODULE cp_fm_struct
 
 ! the default blacs block sizes
 ! consider using #ifdefs to give them the optimal values
-  INTEGER, PARAMETER :: optimal_blacs_col_block_size=32
-  INTEGER, PARAMETER :: optimal_blacs_row_block_size=32
+! these can be changed using scf_control 
+  INTEGER :: optimal_blacs_col_block_size=32
+  INTEGER :: optimal_blacs_row_block_size=32
 
   PUBLIC :: cp_fm_struct_type
   PUBLIC :: optimal_blacs_row_block_size, optimal_blacs_col_block_size
