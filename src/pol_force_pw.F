@@ -117,6 +117,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   REAL ( dbl ) :: pot_nonbond                                                
   REAL ( dbl ) :: pot_overlap, pot_electrostatics 
   REAL ( dbl ) :: pot_thk                                                
+  REAL ( dbl ) :: e_gsq                                                
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fe_part
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fo_part
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fthk_part
@@ -204,6 +205,14 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
      CALL pw_green_fn_init ( box % green, pw_grid )
 
   END IF
+
+!dbg 
+! initialize coeffs with a gaussian (for debugging purposes)
+  DO i = 1, coef_pos % pw % pw_grid % ngpts_cut
+    e_gsq = exp ( .25 *  coef_pos % pw % pw_grid % gsq ( i ) )
+    coef_pos % pw % cc = CMPLX ( e_gsq, 0 )
+  ENDDO
+!dbg 
 
 !
 ! first check with list_control to update neighbor lists
