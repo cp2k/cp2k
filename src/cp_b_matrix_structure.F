@@ -457,6 +457,7 @@ contains
     failure=.false.
 
     if (cp_debug) then
+       CPPrecondition(associated(d_struct),cp_failure_level,routineP,error,failure)
        CPPrecondition(d_struct%initialized,cp_failure_level,routineP,error,failure)
        CPPrecondition(d_struct%ref_count>0,cp_failure_level,routineP,error,failure)
     end if
