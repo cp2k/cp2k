@@ -591,7 +591,7 @@ CONTAINS
   END SUBROUTINE contract
 
   SUBROUTINE expand ( amat, avec )
-    REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: amat
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT)   :: amat
     REAL(dp), DIMENSION(:), INTENT(IN)       :: avec
 
     amat(1,1) = amat(1,1) + avec( 1)
