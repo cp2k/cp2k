@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   CP2K: A general program to perform molecular dynamics simulations
+!   Copyright (C) 2001 - 2002  CP2K developers group
 !-----------------------------------------------------------------------------!
 !!****** cp2k/timings [1.0] *
 !!
@@ -21,17 +21,26 @@
 
 MODULE timings
 
-  USE kinds, ONLY : dbl
+  USE kinds, ONLY: dbl
 
-  USE mathconstants, ONLY : zero
-  USE string_utilities, ONLY : xstring, uppercase
-  USE termination, ONLY : stop_program
-  USE timesl, ONLY : cputime, walltime
-  USE util, ONLY : sort
-  USE message_passing, ONLY : mp_world_setup
+  USE global_types,     ONLY: global_environment_type
+  USE machine,          ONLY: m_cputime,&
+                              m_flush,&
+                              m_getpid,&
+                              m_walltime
+  USE mathconstants,    ONLY: zero
+  USE message_passing,  ONLY: mp_sync,&
+                              mp_world_setup
+  USE string_utilities, ONLY: compress,&
+                              uppercase,&
+                              xstring
+  USE termination,      ONLY: stop_program
+  USE util,             ONLY: sort
 
   PRIVATE
-  PUBLIC :: timeset, timestop, timeprint, trace_debug, print_stack
+
+  PUBLIC :: timeset, timestop, timeprint, trace_debug, print_stack,&
+            write_cputime
 
 ! subroutine calling stack
   INTEGER, PARAMETER :: max_stack = 5000
@@ -129,8 +138,8 @@ SUBROUTINE timeset ( name, ct, pu, handle )
 
 !..start clock (if not yet started, i.e. recursive calls)
   IF ( clock_status ( handle ) ==0 ) THEN
-     clock_start ( handle ) = cputime ( )
-     wallclock_start ( handle ) = walltime ( )
+     clock_start ( handle ) = m_cputime ( )
+     wallclock_start ( handle ) = m_walltime ( )
      clock_status ( handle ) = 1
   END IF
 
@@ -175,8 +184,8 @@ SUBROUTINE timestop ( perf, handle )
   IF ( handle > num_timer ) THEN
      CALL stop_program ( 'timestop', 'handle > num_timer' )
   ELSE
-     cpt = cputime ( ) - clock_start ( handle )
-     wt = walltime ( ) - wallclock_start ( handle )
+     cpt = m_cputime ( ) - clock_start ( handle )
+     wt = m_walltime ( ) - wallclock_start ( handle )
      clock_accu ( handle ) = clock_accu ( handle ) + cpt
      wallclock_accu ( handle ) = wallclock_accu ( handle ) + wt
      clock_status ( handle ) = 0
@@ -383,6 +392,52 @@ SUBROUTINE print_stack ( iw )
   END DO
 
 END SUBROUTINE print_stack
+
+! *****************************************************************************
+
+  SUBROUTINE write_cputime(checkpoint,globenv)
+
+!   Purpose: Write the current CPU time of all processes in seconds.
+
+!   History: - Creation (25.09.2002,MK)
+
+!   ***************************************************************************
+
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    CHARACTER(LEN=*), INTENT(IN)              :: checkpoint
+
+!   *** Local variables ***
+
+    CHARACTER(LEN=LEN_TRIM(checkpoint)+7)  :: string1
+    CHARACTER(LEN=LEN_TRIM(checkpoint)+51) :: string2
+    INTEGER                                :: group,ipe,mype,npe,output_unit,&
+                                              pid
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%print%cputime) RETURN
+
+    group = globenv%group
+    npe = globenv%num_pe
+    mype = globenv%mepos
+    output_unit = globenv%scr
+
+    CALL m_getpid(pid)
+
+    DO ipe=0,npe-1
+      IF (ipe == mype) THEN
+        WRITE (UNIT=string1,FMT="(I6,A)") ipe,":"//TRIM(checkpoint)
+        string1 = ADJUSTL(string1)
+        WRITE (UNIT=string2,FMT="(A,I8,A,F12.3)")&
+          "CPU time of process",pid," <"//TRIM(string1)//">: ",m_cputime()
+        CALL compress(string2)
+        WRITE (UNIT=output_unit,FMT="(/,T2,A)",ADVANCE="NO") TRIM(string2)
+      END IF
+      CALL m_flush(output_unit)
+      CALL mp_sync(group)
+    END DO
+
+  END SUBROUTINE write_cputime
 
 !!*****
 !******************************************************************************

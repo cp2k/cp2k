@@ -1,7 +1,7 @@
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
 !-----------------------------------------------------------------------------!
-
+!   CP2K: A general program to perform molecular dynamics simulations
+!   Copyright (C) 2001 - 2002  CP2K developers group
+!-----------------------------------------------------------------------------!
 !!****** cp2k/qs_ot_eigensolver [1.0] *
 !!
 !!   NAME
@@ -48,7 +48,6 @@ MODULE qs_ot_eigensolver
                                       stop_program
   USE timings,                  ONLY: timeset,&
                                       timestop
-  USE timesl,                   ONLY: cputime
   USE qs_ot,                    ONLY: qs_ot_type,qs_ot_allocate, &
                                       qs_ot_destroy,qs_ot_init,  &
                                       qs_ot_get_orbitals,        & 

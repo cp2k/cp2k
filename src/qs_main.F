@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
+!   CP2K: A general program to perform molecular dynamics simulations
+!   Copyright (C) 2001 - 2002  CP2K developers group
 !-----------------------------------------------------------------------------!
 !!****** cp2k/qs_main [1.0] *
 !!
@@ -29,8 +29,8 @@ MODULE qs_main
 
   USE kinds, ONLY: wp => dp
 
+  USE checkpoint_handler,   ONLY: write_checkpoint_information
   USE global_types,         ONLY: global_environment_type
-  USE memory_utilities,     ONLY: write_memory
   USE qs_blacs,             ONLY: finish_blacs,&
                                   start_blacs
   USE qs_core_hamiltonian,  ONLY: build_core_hamiltonian_matrix
@@ -39,7 +39,7 @@ MODULE qs_main
   USE qs_init,              ONLY: read_qs_env
   USE qs_build_ks_matrix,   ONLY: qs_ks_env_type
   USE qs_neighbor_lists,    ONLY: build_neighbor_lists,&
-                                  update_neighbor_lists
+                                  rebuild_neighbor_lists
   USE qs_overlap,           ONLY: distribute_overlap_matrix
   USE qs_p_types,           ONLY: qs_p_env_type
   USE qs_scf,               ONLY: scf
@@ -92,15 +92,10 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    CALL write_checkpoint_information("entering "//routine_name,globenv)
+
     CALL timeset(routine_name,"I","",handle)
 
-    CALL write_memory("entering "//routine_name,globenv)
-
-#if defined(__parallel) && (! defined(__BLACS) || ! defined(__SCALAPACK))
-    CALL stop_program(routine,&
-                      "Quickstep needs BLACS and SCALAPACK for parallel runs",&
-                      globenv)
-#endif
 !   *** Initialise BLACS ***
 
     CALL start_blacs(globenv)
@@ -140,9 +135,9 @@ CONTAINS
 
     CALL finish_blacs(globenv)
 
-    CALL write_memory("leaving "//routine_name,globenv)
-
     CALL timestop(0.0_wp,handle)
+
+    CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
   END SUBROUTINE quickstep
 

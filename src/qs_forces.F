@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   CP2K: A general program to perform molecular dynamics simulations
+!   Copyright (C) 2001 - 2002  CP2K developers group
 !-----------------------------------------------------------------------------!
 !!****** cp2k/qs_forces [1.0] *
 !!
@@ -26,9 +26,9 @@ MODULE qs_forces
 
   USE atomic_kind_types,    ONLY: atomic_kind_type,&
                                   get_atomic_kind_set
+  USE checkpoint_handler,   ONLY: write_checkpoint_information
   USE dft_types,            ONLY: dft_control_type
   USE global_types,         ONLY: global_environment_type
-  USE memory_utilities,     ONLY: write_memory
   USE message_passing,      ONLY: mp_sum
   USE qs_blacs,             ONLY: cp_fm_create2,&
                                   cp_full_matrix_type,&
@@ -111,7 +111,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL write_memory("entering "//routine_name,globenv)
+    CALL write_checkpoint_information("entering "//routine_name,globenv)
 
     CALL timeset(routine_name,"I","",handle)
 
@@ -178,7 +178,7 @@ CONTAINS
 
     CALL timestop(0.0_wp,handle)
 
-    CALL write_memory("leaving "//routine_name,globenv)
+    CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
   END SUBROUTINE update_forces
 

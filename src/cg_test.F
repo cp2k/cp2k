@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2002  CP2K developers group                                 !
+!   CP2K: A general program to perform molecular dynamics simulations
+!   Copyright (C) 2001 - 2002  CP2K developers group
 !-----------------------------------------------------------------------------!
 !!****** cp2k/cg_test [1.0] *
 !!
@@ -27,10 +27,10 @@ MODULE cg_test
   USE global_types, ONLY : global_environment_type
   USE lebedev, ONLY : lebedev_grid, init_lebedev_grids, &
                       get_number_of_lebedev_grid
-  USE termination, ONLY : stop_memory, stop_program
-  USE spherical_harmonics, ONLY : clebsch_gordon_init, clebsch_gordon, y_lm
+  USE machine, ONLY: m_cputime
   USE mathconstants, ONLY: pi
-  USE timesl, ONLY: cputime
+  USE spherical_harmonics, ONLY : clebsch_gordon_init, clebsch_gordon, y_lm
+  USE termination, ONLY : stop_memory, stop_program
 
   IMPLICIT NONE
 
@@ -74,9 +74,9 @@ SUBROUTINE clebsch_gordon_test ( globenv )
 
      wa(1:na) = 4._dbl*pi*lebedev_grid(ll)%w(1:na)
 
-     tstart = cputime ( )
+     tstart = m_cputime ( )
      CALL clebsch_gordon_init ( l )
-     tend = cputime ( )
+     tend = m_cputime ( )
      tend = tend - tstart
      WRITE(iw,'(T30,A,T71,F10.3)') " Time for Clebsch-Gordon Table [s] ",tend
      lp = (l**4 + 6*l**3 + 15*l**2 + 18*l + 8)/8

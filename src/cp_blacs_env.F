@@ -389,6 +389,12 @@ end function cp_blacs_env_from_globenv
 
 !   ---------------------------------------------------------------------------
 
+#if defined(__parallel) && (! defined(__BLACS) || ! defined(__SCALAPACK))
+    CALL stop_program(routine,&
+                      "Quickstep needs BLACS and SCALAPACK for parallel runs",&
+                      globenv)
+#endif
+
 #ifdef __parallel
 #ifndef __BLACS
   call cp_assert(.false.,cp_failure_level, cp_assertion_failed,&

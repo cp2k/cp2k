@@ -1,8 +1,7 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2001  CP2K developers group                                 !
+!   CP2K: A general program to perform molecular dynamics simulations
+!   Copyright (C) 2001 - 2002  CP2K developers group
 !-----------------------------------------------------------------------------!
-
 !!****h* cp2k/cp_log_handling [1.0] *
 !!
 !!   NAME
@@ -50,13 +49,12 @@
 MODULE cp_log_handling
   USE output_utilities, ONLY: print_message
   USE qs_parser, ONLY: open_file, close_file
-  USE machine, ONLY: m_flush
+  USE machine, ONLY: m_flush, m_walltime
   USE message_passing, ONLY: mp_comm_free, mp_bcast
   USE termination, ONLY: stop_program
   USE cp_para_types, ONLY: cp_para_env_type
   USE global_types, ONLY: print_key_type, init_print_keys
   USE string_utilities, ONLY: compress_all
-  USE timesl, ONLY: walltime
   USE kinds, ONLY: wp=>dp
   IMPLICIT NONE
   PRIVATE
@@ -251,7 +249,7 @@ CONTAINS
             suffix=suffix, print_keys=print_keys,&
             template_logger=template_logger)
     END IF
-    start_time=walltime()
+    start_time=m_walltime()
     default_logger_initialized=.TRUE.
   END SUBROUTINE cp_init_default_logger
 !**************************************************************************
@@ -783,7 +781,7 @@ CONTAINS
        unitNr=cp_logger_get_unit_nr(lggr,level,fromWhere,local=loc)
        IF (loc .OR. lggr%para_env%mepos==lggr%para_env%source) THEN
           CALL print_message(label//' in '//fromWhere//',t'//&
-               TRIM(ADJUSTL(cp_to_string(walltime()-start_time)))//&
+               TRIM(ADJUSTL(cp_to_string(m_walltime()-start_time)))//&
                ' '//message,unitNr,&
                level, level,level/2)
 ! old (more failsafe, no trim, compress,...) code:

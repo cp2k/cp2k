@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
+!   CP2K: A general program to perform molecular dynamics simulations
+!   Copyright (C) 2001 - 2002  CP2K developers group
 !-----------------------------------------------------------------------------!
 !!****** cp2k/qs_overlap [1.0] *
 !!
@@ -34,8 +34,8 @@ MODULE qs_overlap
                                     get_atomic_kind_set
   USE basis_set_types,        ONLY: get_gto_basis_set,&
                                     gto_basis_set_type
+  USE checkpoint_handler,     ONLY: write_checkpoint_information
   USE global_types,           ONLY: global_environment_type
-  USE memory_utilities,       ONLY: write_memory
   USE message_passing,        ONLY: mp_sum
   USE mathlib,                ONLY: symmetrize_matrix
   USE orbital_pointers,       ONLY: indco,init_orbital_pointers,ncoset,nso
@@ -134,7 +134,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL write_memory("entering "//routine_name,globenv)
+    CALL write_checkpoint_information("entering "//routine_name,globenv)
 
     CALL timeset(routine_name,"I","",handle)
 
@@ -361,7 +361,7 @@ CONTAINS
 
     CALL timestop(0.0_wp,handle)
 
-    CALL write_memory("leaving "//routine_name,globenv)
+    CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
   END SUBROUTINE distribute_overlap_matrix
 
@@ -420,7 +420,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL write_memory("entering "//routine_name,globenv)
+    CALL write_checkpoint_information("entering "//routine_name,globenv)
 
     CALL timeset(routine_name,"I","",handle)
 
@@ -687,7 +687,7 @@ CONTAINS
       END IF
     END IF
 
-    CALL write_memory("leaving "//routine_name,globenv)
+    CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
   END SUBROUTINE build_overlap_matrix
 

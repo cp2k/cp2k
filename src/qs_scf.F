@@ -1,5 +1,6 @@
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations
+!   Copyright (C) 2001 - 2002  CP2K developers group
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
@@ -56,6 +57,7 @@ MODULE qs_scf
   
   USE basis_set_types,          ONLY: get_gto_basis_set,&
                                       gto_basis_set_type
+  USE checkpoint_handler,       ONLY: write_checkpoint_information
   USE coefficient_types,        ONLY: coeff_allocate,&
                                       coeff_copy,&
                                       coeff_transform_space,&
@@ -76,8 +78,8 @@ MODULE qs_scf
   USE l_utils,                  ONLY: destroy_l_info,&
                                       init_l_info,&
                                       l_info_type
+  USE machine,                  ONLY: m_cputime
   USE mathconstants,            ONLY: fourpi,twopi
-  USE memory_utilities,         ONLY: write_memory
   USE message_passing,          ONLY: mp_max,mp_sum,mp_sync,&
                                       mp_range,mp_allgather
   USE particle_types,           ONLY: particle_type
@@ -155,7 +157,6 @@ MODULE qs_scf
                                       stop_program
   USE timings,                  ONLY: timeset,&
                                       timestop
-  USE timesl,                   ONLY: cputime
   USE pao_obj_function,         ONLY: pao_gerd_functional_type,&
        pao_gerd_f_init, pao_gerd_f_dealloc_ref
   USE cp_lbfgs_optimizer_gerd_f,ONLY: cp_lbfgs_opt_gerd_f_type, &
@@ -292,7 +293,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     NULLIFY(kinetic)
-    t1 = cputime()
+    t1 = m_cputime()
     ot_initialized=.false.
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -307,9 +308,10 @@ CONTAINS
          scf_control=scf_control)
     
 !   *** Quick return, if no SCF iteration is requested ***
+
     IF (scf_control%max_scf < 1) RETURN
 
-    CALL write_memory("entering "//routine_name,globenv)
+    CALL write_checkpoint_information("entering "//routine_name,globenv)
 
     CALL timeset(routine_name,"I","",handle)
 
@@ -392,7 +394,7 @@ CONTAINS
 
       iscf = iscf + 1
 
-      if (.NOT. globenv%print%timecumul) t1 = cputime()
+      if (.NOT. globenv%print%timecumul) t1 = m_cputime()
 
       IF (globenv%print%density_matrix.AND.globenv%print%each_scf_step) THEN
         CALL write_sparse_matrix(p%matrix,4,6,qs_env,globenv)
@@ -466,7 +468,7 @@ CONTAINS
                  para_env=globenv%para_env,error=error)
          END IF
 
-         t2 = cputime()
+         t2 = m_cputime()
 
          IF (diis_step) THEN
            CALL density_mixing(p_new,p,1.0_wp,delta,globenv)
@@ -519,7 +521,7 @@ CONTAINS
 
         CALL calculate_density_matrix(mo_set,p_new%matrix,globenv)
       
-        t2 = cputime()
+        t2 = m_cputime()
 
         IF (diis_step) THEN
           CALL density_mixing(p_new,p,1.0_wp,delta,globenv)
@@ -561,7 +563,7 @@ CONTAINS
                                           energy_only,delta,qs_ot_env,globenv)
 
         CALL calculate_density_matrix(mo_set,p%matrix,globenv)
-        t2 = cputime()
+        t2 = m_cputime()
         IF (ionode.AND.globenv%print%scf) THEN
               WRITE (UNIT=output_unit,&
                  FMT="(T2,I5,2X,A,T20,F6.2,T30,F8.2,T40,2F20.10)")&
@@ -766,7 +768,7 @@ CONTAINS
 
     CALL timestop(0.0_wp,handle)
 
-    CALL write_memory("leaving "//routine_name,globenv)
+    CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
   END SUBROUTINE scf
 

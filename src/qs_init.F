@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
+!   CP2K: A general program to perform molecular dynamics simulations
+!   Copyright (C) 2001 - 2002  CP2K developers group
 !-----------------------------------------------------------------------------!
 !!****** cp2k/qs_init [1.0] *
 !!
@@ -14,7 +14,8 @@
 !!
 !!   MODIFICATION HISTORY
 !!     - Merged with the Quickstep MODULE method_specification (17.01.2002,MK)
-!!     - USE statements cleaned, write_memory added (25.09.2002,MK)
+!!     - USE statements cleaned, write_checkpoint_information added
+!!       (25.09.2002,MK)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -30,6 +31,7 @@ MODULE qs_init
                                              read_atomic_kind_set,&
                                              write_atomic_kind_set,&
                                              write_gto_basis_sets
+  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_para_env,                     ONLY: cp_para_env_from_globenv,&
                                              cp_para_env_release,&
                                              cp_para_env_retain
@@ -42,7 +44,6 @@ MODULE qs_init
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE machine,                         ONLY: m_flush
-  USE memory_utilities,                ONLY: write_memory
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
   USE particle_types,                  ONLY: particle_type,&
                                              init_particle_set,&
@@ -128,7 +129,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL write_memory("entering "//routine_name,globenv)
+    CALL write_checkpoint_information("entering "//routine_name,globenv)
 
     CALL timeset(routine_name,"I","",handle)
 
@@ -287,7 +288,7 @@ CONTAINS
 
     CALL timestop(0.0_wp,handle)
 
-    CALL write_memory("leaving "//routine_name,globenv)
+    CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
   END SUBROUTINE read_qs_env
 

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   CP2K: A general program to perform molecular dynamics simulations
+!   Copyright (C) 2001 - 2002  CP2K developers group
 !-----------------------------------------------------------------------------!
 !!****** cp2k/environment [1.0] *
 !!
@@ -26,7 +26,8 @@ MODULE environment
   USE global_types,     ONLY: global_environment_type,&
                               init_print_keys,&
                               DEBUG,HIGH,LOW,MEDIUM,SILENT
-  USE machine,          ONLY: m_hostnm,&
+  USE machine,          ONLY: m_datum,&
+                              m_hostnm,&
                               m_getcwd,&
                               m_getlog,&
                               m_getuid,&
@@ -43,9 +44,6 @@ MODULE environment
   USE string_utilities, ONLY: uppercase
   USE termination,      ONLY: set_error_unit,&
                               stop_program
-  USE timesl,           ONLY: cputime,&
-                              datum,&
-                              walltime
   USE timings,          ONLY: timeprint,&
                               timeset,&
                               timestop
@@ -148,7 +146,7 @@ CONTAINS
     CALL read_print_keys(globenv)
 
     IF (ionode.AND.globenv%print%program_banner) THEN
-      CALL datum(datx)
+      CALL m_datum(datx)
       WRITE (UNIT=output_unit,&
              FMT="(A,T55,A26,/,A,T49,A32,/,A,T71,A10,/,A,T71,I10)")&
         '  **** **** ******  **  PROGRAM STARTED AT ', ADJUSTR ( datx ), &
@@ -343,6 +341,8 @@ CONTAINS
         globenv%print%core_hamiltonian_matrix = print_request
       CASE ("CORE_CHARGE_RADII","CORE_RADII")
         globenv%print%core_charge_radii = print_request
+      CASE ("CPUTIME")
+        globenv%print%cputime = print_request
       CASE ("DENSITY_MATRIX","P_MATRIX")
         globenv%print%density_matrix = print_request
       CASE ("DENSITY_MATRIX_MAGNITUDE")
@@ -436,8 +436,6 @@ CONTAINS
         globenv%print%set_radii = print_request
       CASE ("SPHERICAL_HARMONICS")
         globenv%print%spherical_harmonics = print_request
-      CASE ("TIMING_INFORMATION","TIMING")
-        globenv%print%timing_information = print_request
       CASE ("TITLE")
         globenv%print%title = print_request
       CASE ("TOTAL_NUMBERS")
@@ -569,7 +567,7 @@ SUBROUTINE trailer ( globenv )
 
      WRITE ( iw, '( )' )
 
-     CALL datum ( datx )
+     CALL m_datum ( datx )
 
      IF (globenv%print%program_banner) THEN
        WRITE ( iw, &

@@ -453,7 +453,8 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: group,ipe,mype,npe
+    CHARACTER(LEN=LEN_TRIM(checkpoint)+7) :: string
+    INTEGER                               :: group,ipe,mype,npe
 
 !   ---------------------------------------------------------------------------
 
@@ -464,7 +465,9 @@ CONTAINS
     mype = globenv%mepos
 
     DO ipe=0,npe-1
-      IF (ipe == mype) CALL print_memory(checkpoint)
+      WRITE (UNIT=string,FMT="(I6,A)") ipe,":"//TRIM(checkpoint)
+      string = ADJUSTL(string)
+      IF (ipe == mype) CALL print_memory(string)
       CALL mp_sync(group)
     END DO
 

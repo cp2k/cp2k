@@ -33,7 +33,7 @@ MODULE library_tests
   USE cg_test, ONLY : clebsch_gordon_test
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
-  USE timesl, ONLY : cputime
+  USE machine, ONLY : m_cputime
   USE message_passing, ONLY : mp_sum, mp_max
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
        p_error, get_next, stop_parser, search_label
@@ -242,12 +242,12 @@ SUBROUTINE copy_test ( globenv )
     ntim = MAX ( ntim, 1 )
     ntim = MIN ( ntim, siz * 10000 )
 
-    tstart = cputime ( )
+    tstart = m_cputime ( )
     DO j = 1, ntim
       cb ( : ) = ca ( : )
       ca ( 1 ) = REAL ( j, dbl )
     END DO
-    tend = cputime ( )
+    tend = m_cputime ( )
     t = tend - tstart
     perf = REAL ( ntim, dbl ) * REAL ( len, dbl ) * 1.e-6_dbl / t
 
@@ -312,12 +312,12 @@ SUBROUTINE matmul_test ( globenv )
     ntim = MAX ( ntim, 1 )
     ntim = MIN ( ntim, siz * 200 )
 
-    tstart = cputime ( )
+    tstart = m_cputime ( )
     DO j = 1, ntim
       mc = matmul ( ma, mb )
       ma ( 1, 1 ) = REAL ( j, dbl )
     END DO
-    tend = cputime ( )
+    tend = m_cputime ( )
     t = tend - tstart
     perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
 
@@ -326,12 +326,12 @@ SUBROUTINE matmul_test ( globenv )
        " Matrix multiply test: c = a * b         Size = ",len, perf," Mflop/s"
     END IF
 
-    tstart = cputime ( )
+    tstart = m_cputime ( )
     DO j = 1, ntim
       ma = matmul ( ma, mb )
       ma ( 1, 1 ) = REAL ( j, dbl )
     END DO
-    tend = cputime ( )
+    tend = m_cputime ( )
     t = tend - tstart
     perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
 
@@ -340,12 +340,12 @@ SUBROUTINE matmul_test ( globenv )
        " Matrix multiply test: a = a * b         Size = ",len, perf," Mflop/s"
     END IF
 
-    tstart = cputime ( )
+    tstart = m_cputime ( )
     DO j = 1, ntim
       mc = matmul ( ma, transpose ( mb ) )
       ma ( 1, 1 ) = REAL ( j, dbl )
     END DO
-    tend = cputime ( )
+    tend = m_cputime ( )
     t = tend - tstart
     perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
 
@@ -354,12 +354,12 @@ SUBROUTINE matmul_test ( globenv )
        " Matrix multiply test: c = a * b(T)      Size = ",len, perf," Mflop/s"
     END IF
 
-    tstart = cputime ( )
+    tstart = m_cputime ( )
     DO j = 1, ntim
       mc = matmul ( transpose ( ma ), mb )
       ma ( 1, 1 ) = REAL ( j, dbl )
     END DO
-    tend = cputime ( )
+    tend = m_cputime ( )
     t = tend - tstart
     perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
 
@@ -394,11 +394,11 @@ SUBROUTINE matmul_test ( globenv )
     ntim = MAX ( ntim, 1 )
     ntim = MIN ( ntim, 1000 )
 
-    tstart = cputime ( )
+    tstart = m_cputime ( )
     DO j = 1, ntim
       CALL dgemm ( "N", "N", len, len, len, 1._dbl, ma, len, mb, len, 0._dbl, mc, len )
     END DO
-    tend = cputime ( )
+    tend = m_cputime ( )
     t = tend - tstart
     perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
 
@@ -407,12 +407,12 @@ SUBROUTINE matmul_test ( globenv )
        " Matrix multiply test: c = a * b         Size = ",len, perf," Mflop/s"
     END IF
 
-    tstart = cputime ( )
+    tstart = m_cputime ( )
     DO j = 1, ntim
       CALL dgemm ( "N", "N", len, len, len, 1._dbl, ma, len, mb, len, 0._dbl, mc, len )
       CALL dcopy ( len * len , mc, 1, ma, 1)
     END DO
-    tend = cputime ( )
+    tend = m_cputime ( )
     t = tend - tstart
     perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
 
@@ -421,11 +421,11 @@ SUBROUTINE matmul_test ( globenv )
        " Matrix multiply test: a = a * b         Size = ",len, perf," Mflop/s"
     END IF
 
-    tstart = cputime ( )
+    tstart = m_cputime ( )
     DO j = 1, ntim
       CALL dgemm ( "N", "T", len, len, len, 1._dbl, ma, len, mb, len, 0._dbl, mc, len )
     END DO
-    tend = cputime ( )
+    tend = m_cputime ( )
     t = tend - tstart
     perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
 
@@ -434,11 +434,11 @@ SUBROUTINE matmul_test ( globenv )
        " Matrix multiply test: c = a * b(T)      Size = ",len, perf," Mflop/s"
     END IF
 
-    tstart = cputime ( )
+    tstart = m_cputime ( )
     DO j = 1, ntim
       CALL dgemm ( "T", "N", len, len, len, 1._dbl, ma, len, mb, len, 0._dbl, mc, len )
     END DO
-    tend = cputime ( )
+    tend = m_cputime ( )
     t = tend - tstart
     perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
 
@@ -533,12 +533,12 @@ SUBROUTINE fft_test ( globenv )
           ntim = MAX ( ntim, 1 )
           ntim = MIN ( ntim, 200 )
           scale = 1._dbl / REAL ( len**3, dbl )
-          tstart = cputime ( )
+          tstart = m_cputime ( )
           DO j = 1, ntim
             CALL fft3d ( FWFFT, n, ca )
             CALL fft3d ( BWFFT, n, ca, SCALE = scale )
           END DO
-          tend = cputime ( )
+          tend = m_cputime ( )
           t = tend - tstart
           perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
 
@@ -682,12 +682,12 @@ SUBROUTINE pw_fft_test ( globenv )
   END DO
 
   flops = PRODUCT ( no ) * 30._dbl * LOG ( REAL ( MAXVAL ( no ), dbl ) )
-  tstart = cputime ( )
+  tstart = m_cputime ( )
   DO ip = 1, ntim
     CALL coeff_transform_space ( ca, cb )
     CALL coeff_transform_space ( cb, cc )
   END DO
-  tend = cputime ( )
+  tend = m_cputime ( )
   t = tend - tstart
   perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
 
@@ -744,12 +744,12 @@ SUBROUTINE pw_fft_test ( globenv )
   END DO
 
   flops = PRODUCT ( no ) * 30._dbl * LOG ( REAL ( MAXVAL ( no ), dbl ) )
-  tstart = cputime ( )
+  tstart = m_cputime ( )
   DO ip = 1, ntim
     CALL coeff_transform_space ( ca, cb )
     CALL coeff_transform_space ( cb, cc )
   END DO
-  tend = cputime ( )
+  tend = m_cputime ( )
   t = tend - tstart
   perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
 
@@ -807,12 +807,12 @@ SUBROUTINE pw_fft_test ( globenv )
   END DO
 
   flops = PRODUCT ( no ) * 30._dbl * LOG ( REAL ( MAXVAL ( no ), dbl ) )
-  tstart = cputime ( )
+  tstart = m_cputime ( )
   DO ip = 1, ntim
     CALL coeff_transform_space ( ca, cb )
     CALL coeff_transform_space ( cb, cc )
   END DO
-  tend = cputime ( )
+  tend = m_cputime ( )
   t = tend - tstart
   perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
 
@@ -869,12 +869,12 @@ SUBROUTINE pw_fft_test ( globenv )
   END DO
 
   flops = PRODUCT ( no ) * 30._dbl * LOG ( REAL ( MAXVAL ( no ), dbl ) )
-  tstart = cputime ( )
+  tstart = m_cputime ( )
   DO ip = 1, ntim
     CALL coeff_transform_space ( ca, cb )
     CALL coeff_transform_space ( cb, cc )
   END DO
-  tend = cputime ( )
+  tend = m_cputime ( )
   t = tend - tstart
   perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
 

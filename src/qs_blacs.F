@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 1999-2002  CP2K developers group                            !
+!   CP2K: A general program to perform molecular dynamics simulations
+!   Copyright (C) 2001 - 2002  CP2K developers group
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
@@ -43,6 +43,7 @@ MODULE qs_blacs
                                  real_matrix_type, &
                                  sparse_times_replicated, &
                                  sparse_plus_rep_rept
+  USE machine,             ONLY: m_cputime
   USE message_passing,     ONLY: mp_bcast,&
                                  mp_max,&
                                  mp_sum,&
@@ -52,7 +53,6 @@ MODULE qs_blacs
                                  stop_program
   USE timings,             ONLY: timeset,&
                                  timestop
-  USE timesl,              ONLY: cputime
 
   USE cp_error_handling, ONLY: cp_assert, cp_error_message, cp_error_type,&
        cp_assertion_failed, cp_unimplemented_error, cp_error_get_logger
@@ -2764,8 +2764,8 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
     count_av=0
     count_getrs=0
 
-    time_init_start=cputime()
-    time_full_start=cputime()
+    time_init_start=m_cputime()
+    time_full_start=m_cputime()
 
     rone=1.0_wp
     rzero=0.0_wp
@@ -2882,52 +2882,52 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
     CALL dcopy(n*neig,v,1,vecbuf,1)
 #endif
 
-    time_av_start=cputime()
+    time_av_start=m_cputime()
 #if defined(__SCALAPACK)
 
 #else
     count_av=count_av+neig
     CALL dgemm('N','N',n,neig,n,rone,a,n,vecbuf(1,1),n,rzero,vecbuf(1,nvec+1),n)
 #endif
-    time_av_end=cputime()
+    time_av_end=m_cputime()
     time_av_total=time_av_total+(time_av_end-time_av_start)
 
 ! ****************************************************************************
 ! get the V^T*A*V for the occupied orbitals
 ! ****************************************************************************
-    time_suba_start=cputime()
+    time_suba_start=m_cputime()
 #if defined(__SCALAPACK)
 
 #else
     CALL DGEMM('T','N',neig,neig,n,rone,vecbuf(1,1),n,vecbuf(1,nvec+1),n,rzero,overlap_vv,nvec)
 #endif
-    time_suba_end=cputime()
+    time_suba_end=m_cputime()
     time_suba_total=time_suba_total+(time_suba_end-time_suba_start)
 
 ! ****************************************************************************
 ! diag subblock
 ! ****************************************************************************
-    time_diag_start=cputime()
+    time_diag_start=m_cputime()
 #if defined(__SCALAPACK)
 
 #else
     CALL DSYEVD('V','U',neig,overlap_vv,nvec,evalslold,evwork,levwork,iwork,liwork,info)
 #endif
     IF (info.NE.0) CALL stop_program("jacobi_davidson","dsyevd overlap_vv 1")
-    time_diag_end=cputime()
+    time_diag_end=m_cputime()
     time_diag_total=time_diag_total+(time_diag_end-time_diag_start)
 
 ! ****************************************************************************
 ! rotate vectors
 ! ****************************************************************************
-    time_rot_start=cputime()
+    time_rot_start=m_cputime()
 #if defined(__SCALAPACK)
 
 #else
     CALL DGEMM('N','N',n,neig,neig,rone,vecbuf(1,     1),n,overlap_vv,nvec,rzero,v,n)
     CALL DCOPY(neig*n,v,1,vecbuf(1,1),1)
 #endif
-    time_rot_end=cputime()
+    time_rot_end=m_cputime()
     time_rot_total=time_rot_total+(time_rot_end-time_rot_start)
 
     ! start with the upper part of the spectrum
@@ -2939,7 +2939,7 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 ! ****************************************************************************
 ! we LU decompose the matrix a-shift*I
 ! ****************************************************************************
-    time_getrf_start=cputime()
+    time_getrf_start=m_cputime()
     CALL copy_blacs_to_blacs_matrix(matrix_a,matrix_work)
     lipivot = MAX(n,128) ! somehow too long ...
     ALLOCATE (ipivot(lipivot),stat=istat)
@@ -2966,10 +2966,10 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
     CALL dgetrf(n,n,work,n,ipivot,info)
 #endif
     IF (info.NE.0) CALL stop_program("blacs_jacobi_davidson","problems in getrf")
-    time_getrf_end=cputime()
+    time_getrf_end=m_cputime()
     time_getrf_total=time_getrf_total+(time_getrf_end-time_getrf_start)
 
-    time_init_end=cputime()
+    time_init_end=m_cputime()
     time_init_total=time_init_total+(time_init_end-time_init_start)
 
 ! ****************************************************************************
@@ -2980,7 +2980,7 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
        ! ************************************************************************
        !  extension of the basis
        ! ************************************************************************
-       time_extend_start=cputime()
+       time_extend_start=m_cputime()
        ! copy the needed vectors in place
 #if defined(__SCALAPACK)
 #else
@@ -2991,7 +2991,7 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
        ! *********************************************************************
        ! get (LU)^-1 * vectors
        ! *********************************************************************
-       time_getrs_start=cputime()
+       time_getrs_start=m_cputime()
 #if defined(__SCALAPACK)
 
 #else
@@ -3006,7 +3006,7 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
           count_getrs=count_getrs+nhigh
 #endif
           IF (info.NE.0) CALL stop_program("jacobi_davidson","Dgetrs")
-       time_getrs_end=cputime()
+       time_getrs_end=m_cputime()
        time_getrs_total=time_getrs_total+(time_getrs_end-time_getrs_start)
 
 
@@ -3016,7 +3016,7 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 #if defined(__SCALAPACK)
 
 #else
-       time_ortho_start=cputime()
+       time_ortho_start=m_cputime()
 
        ! ortho to the existing basis vectors
        CALL DGEMM('T','N',neig,nhigh,n,rone,vecbuf(1,1),n,vecbuf(1,neig+1),n,rzero,overlap_vh,neig)
@@ -3035,30 +3035,30 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
        IF (info.NE.0) CALL stop_program("jacobi_davidson","DPOTRF overlap_hh")
        CALL DTRSM('R','U','N','N',n,nhigh,rone,overlap_hh,nhigh,vecbuf(1,neig+1),n)
 
-       time_ortho_end=cputime()
+       time_ortho_end=m_cputime()
        time_ortho_total=time_ortho_total+(time_ortho_end-time_ortho_start)
 #endif
 
        ! *********************************************************************
        ! compute A*vectors for the new set
        ! *********************************************************************
-       time_av_start=cputime()
+       time_av_start=m_cputime()
 #if defined(__SCALAPACK)
 
 #else
        CALL dgemm('N','N',n,nhigh,n,rone,a,n,vecbuf(1,neig+1),n,rzero,vecbuf(1,nvec+neig+1),n)
        count_av=count_av+nhigh
 #endif
-       time_av_end=cputime()
+       time_av_end=m_cputime()
        time_av_total=time_av_total+(time_av_end-time_av_start)
 
-       time_extend_end=cputime()
+       time_extend_end=m_cputime()
        time_extend_total=time_extend_total+(time_extend_end-time_extend_start)
 
        ! *********************************************************************
        ! get v^T*(A*v)
        ! *********************************************************************
-       time_suba_start=cputime()
+       time_suba_start=m_cputime()
 #if defined(__SCALAPACK)
 
 #else
@@ -3071,20 +3071,20 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
        !CALL DGEMM('T','N',nvec,nvec,n,rone,vecbuf(1,1),n,vecbuf(1,nvec+1),n, &
        !                                                  rzero,overlap_vv,nvec)
 #endif
-       time_suba_end=cputime()
+       time_suba_end=m_cputime()
        time_suba_total=time_suba_total+(time_suba_end-time_suba_start)
 
        ! *********************************************************************
        ! diagonalise the matrix v^T*(A*v)
        ! *********************************************************************
-       time_diag_start=cputime()
+       time_diag_start=m_cputime()
 #if defined(__SCALAPACK)
 
 #else
        CALL DSYEVD('V','U',nvec,overlap_vv,nvec,evalsl,evwork,levwork,iwork,liwork,info)
 #endif
        IF (info.NE.0) CALL stop_program("jacobi_davidson","dsyevd overlap_vv")
-       time_diag_end=cputime()
+       time_diag_end=m_cputime()
        time_diag_total=time_diag_total+(time_diag_end-time_diag_start)
 
        ! *********************************************************************
@@ -3119,14 +3119,14 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
        ! *********************************************************************
        ! rotate V, and AV so that the lowest neig are first
        ! *********************************************************************
-       time_rot_start=cputime()
+       time_rot_start=m_cputime()
 #if defined(__SCALAPACK)
 
 #else
        CALL DGEMM('N','N',n,neig,nvec,rone,vecbuf(1,     1),n,overlap_vv,nvec,rzero,v,n)
        CALL DCOPY(neig*n,v,1,vecbuf(1,1),1)
 #endif
-       time_rot_end=cputime()
+       time_rot_end=m_cputime()
        time_rot_total=time_rot_total+(time_rot_end-time_rot_start)
 
        IF (evwork(neig).LE.tol) EXIT
@@ -3136,7 +3136,7 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
     ! *********************************************************************
     ! make the final vectors exactly ortho
     ! *********************************************************************
-    time_ortho_start=cputime()
+    time_ortho_start=m_cputime()
 #if defined(__SCALAPACK)
 
 #else
@@ -3146,7 +3146,7 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
       IF (info.NE.0) CALL stop_program("jacobi_davidson","DPOTRF final wave functions")
       CALL DTRSM('R','U','N','N',n,neig,rone,overlap_vv,nvec,v(1,1),n)
 #endif
-    time_ortho_end=cputime()
+    time_ortho_end=m_cputime()
     time_ortho_total=time_ortho_total+(time_ortho_end-time_ortho_start)
 
     evals(1:neig)=evalsl(1:neig)
@@ -3163,7 +3163,7 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
     DEALLOCATE(to_be_used)
     DEALLOCATE(to_be_used_old)
 
-    time_full_end=cputime()
+    time_full_end=m_cputime()
     time_full_total=time_full_total+(time_full_end-time_full_start)
     WRITE(6,*) "time full    : ", time_full_total
     WRITE(6,*) "time init    : ", time_init_total

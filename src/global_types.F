@@ -22,7 +22,9 @@
 !******************************************************************************
 
 MODULE global_types
-  use cp_para_types, only: cp_para_env_type, cp_blacs_env_type
+
+  USE cp_para_types, ONLY: cp_blacs_env_type,&
+                           cp_para_env_type
 
   IMPLICIT NONE
 
@@ -48,6 +50,7 @@ MODULE global_types
                charge_density_matrix,&
                core_hamiltonian_matrix,&
                core_charge_radii,&
+               cputime,&
                density_matrix,&
                derivatives,&
                dft_control_parameters,&
@@ -85,7 +88,6 @@ MODULE global_types
                scf_energies,&
                set_radii,&
                spherical_harmonics,&
-               timing_information,&
                title,&
                total_densities,&
                total_numbers,&
@@ -162,6 +164,7 @@ CONTAINS
     print_key%charge_density_matrix = key_value(level,(/f,f,t/))
     print_key%core_hamiltonian_matrix = key_value(level,(/f,f,t/))
     print_key%core_charge_radii = key_value(level,(/f,t,t/))
+    print_key%cputime = key_value(level,(/f,f,f/))
     print_key%dft_control_parameters = key_value(level,(/t,t,t/))
     print_key%density_matrix = key_value(level,(/f,f,t/))
     print_key%derivatives = key_value(level,(/f,f,f/))
@@ -197,7 +200,6 @@ CONTAINS
     print_key%scf_energies = key_value(level,(/f,t,t/))
     print_key%set_radii = key_value(level,(/f,f,t/))
     print_key%spherical_harmonics = key_value(level,(/f,f,t/))
-    print_key%timing_information = key_value(level,(/t,t,t/))
     print_key%title = key_value(level,(/t,t,t/))
     print_key%total_densities = key_value(level,(/f,f,t/))
     print_key%total_numbers = key_value(level,(/t,t,t/))

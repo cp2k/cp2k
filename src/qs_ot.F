@@ -1,3 +1,7 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations
+!   Copyright (C) 2001 - 2002  CP2K developers group
+!-----------------------------------------------------------------------------!
 !******************************************************************************
 !!
 !!   NAME
@@ -21,7 +25,6 @@ MODULE qs_ot
   USE kinds, ONLY: wp => dp, wp_size => dp_size
   USE termination,         ONLY: stop_memory, stop_program
   USE timings,             ONLY: timeset, timestop
-  USE timesl,              ONLY: cputime
   USE qs_blacs,            ONLY: cp_full_matrix_type,cp_fm_get_info, &
                                  cp_full_matrix_p_type, &
                                  cp_fm_set_all, cp_fm_syrk, &

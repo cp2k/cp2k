@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
+!   CP2K: A general program to perform molecular dynamics simulations
+!   Copyright (C) 2001 - 2002  CP2K developers group
 !-----------------------------------------------------------------------------!
 !!****** cp2k/qs_neighbor_lists [1.0] *
 !!
@@ -30,10 +30,10 @@ MODULE qs_neighbor_lists
                                       get_atomic_kind_set
   USE basis_set_types,          ONLY: get_gto_basis_set,&
                                       gto_basis_set_type
+  USE checkpoint_handler,       ONLY: write_checkpoint_information
   USE external_potential_types, ONLY: get_potential,&
                                       gth_potential_type
   USE global_types,             ONLY: LOW,global_environment_type
-  USE memory_utilities,         ONLY: write_memory
   USE message_passing,          ONLY: mp_sync
   USE particle_types,           ONLY: particle_type
   USE qs_environment_types,     ONLY: get_qs_env,&
@@ -146,7 +146,8 @@ MODULE qs_neighbor_lists
 ! *** Public subroutines ***
 
   PUBLIC :: build_neighbor_lists,&
-            update_neighbor_lists
+            rebuild_neighbor_lists
+!            update_neighbor_lists
 
 ! *****************************************************************************
 
@@ -182,7 +183,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL write_memory("entering "//routine_name,globenv)
+    CALL write_checkpoint_information("entering "//routine_name,globenv)
 
     CALL timeset(routine_name,"I","",handle)
 
@@ -451,7 +452,7 @@ CONTAINS
 
     CALL timestop(0.0_wp,handle)
 
-    CALL write_memory("leaving "//routine_name,globenv)
+    CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
   END SUBROUTINE build_neighbor_lists
 
@@ -468,8 +469,10 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name =&
+      "build_sab_orb_neighbor_lists"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE build_sab_orb_neighbor_lists (MODULE qs_neighbor_lists)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -478,7 +481,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("build_sab_orb_neighbor_lists","I","",handle)
+    CALL timeset(routine_name,"I","",handle)
 
     IF (ASSOCIATED(sab_orb)) THEN
       DO ab=1,SIZE(sab_orb)
@@ -751,8 +754,10 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name =&
+      "build_gth_ppl_neighbor_lists"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE build_gth_ppl_neighbor_lists (MODULE qs_neighbor_lists)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -760,7 +765,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("build_gth_ppl_neighbor_lists","I","",handle)
+    CALL timeset(routine_name,"I","",handle)
 
     IF (ASSOCIATED(sac_ppl)) THEN
       DO ac=1,SIZE(sac_ppl)
@@ -1023,8 +1028,10 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name =&
+      "build_gth_ppnl_neighbor_lists"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE build_gth_ppnl_neighbor_lists (MODULE qs_neighbor_lists)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -1034,7 +1041,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("build_gth_ppnl_neighbor_lists","I","",handle)
+    CALL timeset(routine_name,"I","",handle)
 
     IF (ASSOCIATED(sca_ppnl)) THEN
       DO cb=1,SIZE(sca_ppnl)
@@ -1505,9 +1512,9 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE update_neighbor_lists(qs_env,globenv)
+  SUBROUTINE rebuild_neighbor_lists(qs_env,globenv)
 
-!   Purpose: Update all the required neighbor lists for Quickstep.
+!   Purpose: Rebuild all the required neighbor lists for Quickstep.
 
 !   History: - Creation (10.09.2002,MK)
 
@@ -1518,14 +1525,13 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "update_neighbor_lists"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "rebuild_neighbor_lists"
     CHARACTER(LEN=*), PARAMETER :: routine =&
       "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
     TYPE(atomic_kind_type), POINTER   :: atomic_kind
-    TYPE(gth_potential_type), POINTER :: gth_potential
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
     INTEGER                           :: handle,nparticle
 
@@ -1533,7 +1539,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL write_memory("entering "//routine_name,globenv)
+    CALL write_checkpoint_information("entering "//routine_name,globenv)
 
     CALL timeset(routine_name,"I","",handle)
 
@@ -1595,7 +1601,6 @@ CONTAINS
       NULLIFY (atoms(ikind)%list)
 
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           gth_potential=gth_potential,&
                            orb_basis_set=orb_basis_set,&
                            natom=natom(ikind),&
                            atom_list=atoms(ikind)%list)
@@ -1625,34 +1630,38 @@ CONTAINS
 
     END DO
 
-!   *** Update the orbital-orbital overlap neighbor lists ***
+!   *** Rebuild the orbital-orbital overlap neighbor lists ***
 
-    CALL update_sab_orb_neighbor_lists()
+    IF (ASSOCIATED(sab_orb)) THEN
 
-    IF (ionode.AND.globenv%print%sab_orb_neighbor_lists) THEN
-      CALL write_neighbor_lists(sab_orb,"ORBITAL ORBITAL NEIGHBOR LISTS")
+      CALL rebuild_sab_orb_neighbor_lists()
+
+      IF (ionode.AND.globenv%print%sab_orb_neighbor_lists) THEN
+        CALL write_neighbor_lists(sab_orb,"ORBITAL ORBITAL NEIGHBOR LISTS")
+      END IF
+
     END IF
 
-!   *** Update the orbital GTH-PPL operator overlap list ***
+!   *** Rebuild the orbital GTH-PPL operator overlap list ***
 
     IF (gth_potential_present) THEN
 
-!      IF (ANY(ppnl_present)) THEN
+      IF (ASSOCIATED(sac_ppl)) THEN
 
-        CALL update_gth_ppl_neighbor_lists()
+        CALL rebuild_gth_ppl_neighbor_lists()
 
         IF (ionode.AND.globenv%print%sac_ppl_neighbor_lists) THEN
           CALL write_neighbor_lists(sac_ppl,"ORBITAL GTH-PPL NEIGHBOR LISTS")
         END IF
 
-!      END IF
+      END IF
 
-!      IF (ANY(ppnl_present)) THEN
+      IF (ASSOCIATED(sca_ppnl)) THEN
 
         ALLOCATE (neighbors(maxatom),STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine,"neighbors",maxatom*int_size)
 
-        CALL update_gth_ppnl_neighbor_lists()
+        CALL rebuild_gth_ppnl_neighbor_lists()
 
         IF (globenv%print%sca_ppnl_neighbor_lists) THEN
           IF (npe == 1) THEN
@@ -1688,7 +1697,7 @@ CONTAINS
           END IF
         END IF
 
-!      END IF
+      END IF
 
     END IF
 
@@ -1722,28 +1731,23 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,"pbc_coord")
 
     IF (gth_potential_present) THEN
-
-!      DEALLOCATE (ppnl_present,STAT=istat)
-!      IF (istat /= 0) CALL stop_memory(routine,"ppnl_present")
-
       IF (ALLOCATED(neighbors)) THEN
         DEALLOCATE (neighbors,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine,"neighbors")
       END IF
-
     END IF
 
     CALL timestop(0.0_wp,handle)
 
-    CALL write_memory("leaving "//routine_name,globenv)
+    CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
-  END SUBROUTINE update_neighbor_lists
+  END SUBROUTINE rebuild_neighbor_lists
 
 ! *****************************************************************************
 
-  SUBROUTINE update_sab_orb_neighbor_lists()
+  SUBROUTINE rebuild_sab_orb_neighbor_lists()
 
-!   Purpose: Update the neighbor lists for the calculation of the orbital-
+!   Purpose: Rebuild the neighbor lists for the calculation of the orbital-
 !            orbital overlap matrix.
 
 !   History: - Creation (10.09.2002,MK)
@@ -1752,8 +1756,10 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name =&
+      "rebuild_sab_orb_neighbor_lists"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE update_sab_orb_neighbor_lists (MODULE qs_neighbor_lists)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -1762,12 +1768,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("update_sab_orb_neighbor_lists","I","",handle)
-
-    IF (.NOT.ASSOCIATED(sab_orb)) THEN
-      CALL stop_program(routine,&
-                        "sab_orb is not associated and cannot be updated")
-    END IF
+    CALL timeset(routine_name,"I","",handle)
 
 !   *** Loop over all atomic kind pairs ***
 
@@ -1996,14 +1997,14 @@ CONTAINS
 
     CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE update_sab_orb_neighbor_lists
+  END SUBROUTINE rebuild_sab_orb_neighbor_lists
 
 ! *****************************************************************************
 
-  SUBROUTINE update_gth_ppl_neighbor_lists()
+  SUBROUTINE rebuild_gth_ppl_neighbor_lists()
 
-!   Purpose: Update the neighbor lists for the calculation of the local part of
-!            the GTH pseudo potential (PPL).
+!   Purpose: Rebuild the neighbor lists for the calculation of the local part
+!            of the GTH pseudo potential (PPL).
 
 !   History: - Creation (17.09.2002,MK)
 
@@ -2011,8 +2012,10 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name =&
+      "rebuild_gth_ppl_neighbor_lists"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE update_gth_ppl_neighbor_lists (MODULE qs_neighbor_lists)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -2020,12 +2023,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("update_gth_ppl_neighbor_lists","I","",handle)
-
-    IF (.NOT.ASSOCIATED(sac_ppl)) THEN
-      CALL stop_program(routine,&
-                        "sac_ppl is not associated and cannot be updated")
-    END IF
+    CALL timeset(routine_name,"I","",handle)
 
 !   *** Loop over all atomic kind pairs ***
 
@@ -2242,13 +2240,13 @@ CONTAINS
 
     CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE update_gth_ppl_neighbor_lists
+  END SUBROUTINE rebuild_gth_ppl_neighbor_lists
 
 ! *****************************************************************************
 
-  SUBROUTINE update_gth_ppnl_neighbor_lists()
+  SUBROUTINE rebuild_gth_ppnl_neighbor_lists()
 
-!   Purpose: Update the neighbor lists for the calculation of the non-local
+!   Purpose: Rebuild the neighbor lists for the calculation of the non-local
 !            part of the GTH pseudo potential (PPNL). Atom c is a PPNL operator
 !            atom, atom a is an atom in the cell(0,0,0), and atom b is an atom
 !            is an atom in any cell(i,j,k).
@@ -2259,8 +2257,10 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name =&
+      "rebuild_gth_ppnl_neighbor_lists"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE update_gth_ppnl_neighbor_lists (MODULE qs_neighbor_lists)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -2270,17 +2270,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("update_gth_ppnl_neighbor_lists","I","",handle)
-
-    IF (.NOT.ASSOCIATED(sca_ppnl)) THEN
-      CALL stop_program(routine,&
-                        "sca_ppnl is not associated and cannot be updated")
-    END IF
-
-    IF (.NOT.ASSOCIATED(scb_ppnl)) THEN
-      CALL stop_program(routine,&
-                        "scb_ppnl is not associated and cannot be updated")
-    END IF
+    CALL timeset(routine_name,"I","",handle)
 
 !   *** Allocate work storage ***
 
@@ -2699,7 +2689,7 @@ CONTAINS
 
     CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE update_gth_ppnl_neighbor_lists
+  END SUBROUTINE rebuild_gth_ppnl_neighbor_lists
 
 ! *****************************************************************************
 

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2002  CP2K developers group                                 !
+!   CP2K: A general program to perform molecular dynamics simulations
+!   Copyright (C) 2001 - 2002  CP2K developers group
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
@@ -52,7 +52,6 @@ MODULE cp_fm_basic_linalg
        stop_program
   USE timings,             ONLY: timeset,&
        timestop
-  USE timesl,              ONLY: cputime
   USE cp_matrix_utils,   ONLY: cp_init, cp_dealloc_ref, cp_next, cp_get, &
        cp_matrix_block_iterator
   USE cp_para_types,     ONLY: cp_para_env_type, cp_blacs_env_type
