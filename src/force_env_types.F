@@ -444,7 +444,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
            CALL get_qs_env(qs_env=my_qs_env,&
                           energy=qs_energy)
            IF (PRESENT(potential_energy)) potential_energy=qs_energy%total
-           NULLIFY(qs_env,qs_energy)
+           NULLIFY(my_qs_env,qs_energy)
         ELSE
           IF (PRESENT(potential_energy)) potential_energy=kg_energy%total        
           IF (PRESENT(kinetic_energy)) kinetic_energy=kg_energy%kin

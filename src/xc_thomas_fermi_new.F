@@ -221,14 +221,14 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), POINTER   :: e_0, e_rho, e_rho_rho, &
                                                 e_rho_rho_rho
     REAL(KIND=dp)                           :: epsilon_rho
-    TYPE(cp_3d_r_p_type), DIMENSION(2)       :: norm_drho, rho, rho_1_3
+    TYPE(cp_3d_r_p_type), DIMENSION(2)       :: rho, rho_1_3
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     NULLIFY(deriv, bo)
     DO i=1,2
-       NULLIFY(norm_drho(i)%array, rho(i)%array, rho_1_3(i)%array)
+       NULLIFY(rho(i)%array, rho_1_3(i)%array)
     END DO
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
@@ -236,10 +236,11 @@ CONTAINS
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
+ 
        CALL xc_rho_set_get(rho_set,rhoa_1_3=rho_1_3(1)%array,&
             rhob_1_3=rho_1_3(2)%array,rhoa=rho(1)%array,&
-            rhob=rho(2)%array,norm_drhoa=norm_drho(1)%array, &
-            norm_drhob=norm_drho(2)%array,rho_cutoff=epsilon_rho,&
+            rhob=rho(2)%array,&
+            rho_cutoff=epsilon_rho,&
             local_bounds=bo, error=error)
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
        CALL thomas_fermi_init(epsilon_rho)

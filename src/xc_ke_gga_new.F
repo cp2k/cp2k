@@ -162,7 +162,7 @@ CONTAINS
        IF (lsd) THEN
           needs%rho_spin=.TRUE.
           needs%rho_spin_1_3=.TRUE.
-          needs%norm_drho=.TRUE.
+          needs%norm_drho_spin=.TRUE.
        ELSE
           needs%rho=.TRUE.
           needs%rho_1_3=.TRUE.
@@ -392,6 +392,7 @@ CONTAINS
        tact = 1.0_dp
 
        DO ispin=1,2
+
           CALL calc_wave_vector ( "p", rho(ispin)%array, norm_drho(ispin)%array, s )
 
           SELECT CASE (functional)
@@ -402,11 +403,17 @@ CONTAINS
           CASE (ke_llp)
              CALL efactor_llp ( s, fs, m )
           CASE (ke_pw86)
-             CALL efactor_pw86 ( s, fs, m )
+             tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
+             CALL efactor_pw86 ( s, fs, m, f2_lsd=tact )
+             tact = 1.0_dp
           CASE (ke_pw91)
-             CALL efactor_pw91 ( s, fs, m, 1 )
+             tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
+             CALL efactor_pw91 ( s, fs, m, 1, f2_lsd=tact )
+             tact = 1.0_dp
           CASE (ke_lc)
-             CALL efactor_pw91 ( s, fs, m, 2 )
+             tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
+             CALL efactor_pw91 ( s, fs, m, 2 , f2_lsd=tact )
+             tact = 1.0_dp
           CASE (ke_t92)
              CALL efactor_t92 ( s, fs, m )
           CASE DEFAULT
@@ -476,6 +483,7 @@ CONTAINS
           END IF
 
        END DO
+
 
        DEALLOCATE ( s, STAT=stat )
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -897,13 +905,14 @@ CONTAINS
 
   END SUBROUTINE efactor_llp
 ! *****************************************************************************
-  SUBROUTINE efactor_pw86 ( s, fs, m )
+  SUBROUTINE efactor_pw86 ( s, fs, m , f2_lsd)
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: s
     REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: fs
     INTEGER, INTENT(IN)                      :: m
+    REAL(dp), OPTIONAL                       :: f2_lsd
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: f15, p0, p1, p15, s2, s4, s6, &
+    REAL(KIND=dp)                                :: f15, ff, p0, p1,p2, p3, p15, s1, s2, s4, s6, &
                                                 t1, t10, t12, t13, t14, t19, &
                                                 t2, t25, t3, t8, t9
 
@@ -911,9 +920,12 @@ CONTAINS
     t2 = 14.0_dp
     t3 = 0.2_dp
     f15 = 1.0_dp/15.0_dp
+    ff = 1.0_dp
+    IF(PRESENT(f2_lsd)) ff = f2_lsd
 !$omp parallel do private(ip,s2,s4,s6,p0,p1,p15,t8,t9,t10,t12,t13,t14,t19,t25)
     DO ip=1,SIZE(s)
-      s2 = s(ip)*s(ip)
+      s1 = s(ip)*ff
+      s2 = s1 * s1
       s4 = s2*s2
       s6 = s2*s4
       SELECT CASE (m)
@@ -922,34 +934,41 @@ CONTAINS
          fs(ip,1) = p0**f15
       CASE (1)
          p0 = 1.0_dp + t1*s2 + t2*s4 + t3*s6
-         p1 = s(ip)*(2.0_dp*t1 + 4.0_dp*t2*s2 + 6.0_dp*t3*s4)
+         p1 = s1*ff*(2.0_dp*t1 + 4.0_dp*t2*s2 + 6.0_dp*t3*s4)
          p15 = p0**f15
          fs(ip,1) = p15
          fs(ip,2) = f15 * p1 * p15/p0
       CASE (2)
          p0 = 1.0_dp + t1*s2 + t2*s4 + t3*s6
-         p1 = s(ip)*(2.0_dp*t1 + 4.0_dp*t2*s2 + 6.0_dp*t3*s4)
+         p1 = s1*ff*(2.0_dp*t1 + 4.0_dp*t2*s2 + 6.0_dp*t3*s4)
+         p2 = ff*ff*(2.0_dp*t1 + 12.0_dp*t2*s2 + 30.0_dp*t3*s4)
          p15 = p0**f15
          fs(ip,1) = p15
          fs(ip,2) = f15 * p1 * p15/p0
-         t9 = p15**2; t10 = t9**2; t12 = t10**2; t13 = t12*t10*t9
-         t25 = p1*p1
-         fs(ip,3) = -14.0_dp/225.0_dp/t13/p0*t25 + &
-                     1.0_dp/t13*(2.0_dp*t1+12*t2*s2+30.0_dp*t3*s4)/15.0_dp
+!         t9 = p15**2; t10 = t9**2; t12 = t10**2; t13 = t12*t10*t9
+!         t25 = p1*p1
+!         fs(ip,3) = -14.0_dp/225.0_dp/t13/p0*t25 + &
+!                     1.0_dp/t13*(2.0_dp*t1+12*t2*s2+30.0_dp*t3*s4)/15.0_dp
+          fs(ip,3) = f15*p15/p0*(p2-14.0_dp/15.0_dp*p1*p1/p0)
       CASE (3)
          p0 = 1.0_dp + t1*s2 + t2*s4 + t3*s6
-         p1 = s(ip)*(2.0_dp*t1 + 4.0_dp*t2*s2 + 6.0_dp*t3*s4)
+         p1 =s1*ff*(2.0_dp*t1 + 4.0_dp*t2*s2 + 6.0_dp*t3*s4)
+         p2 = ff*ff*(2.0_dp*t1 + 12.0_dp*t2*s2 + 30.0_dp*t3*s4)
+         p3 = s1*ff*ff*ff*(24.0_dp*t2+120.0_dp*t3*s2)
          p15 = p0**f15
          fs(ip,1) = p15
          fs(ip,2) = f15 * p1 * p15/p0
-         t9 = p15**2; t10 = t9**2; t12 = t10**2; t13 = t12*t10*t9
-         t25 = p1*p1
-         fs(ip,3) = -14.0_dp/225.0_dp/t13/p0*t25 + &
-                     1.0_dp/t13*(2.0_dp*t1+12*t2*s2+30.0_dp*t3*s4)/15.0_dp
-         t8 = p0**2; t9 = p0**f15; t14 = p0/t9; t19 = s2*s(ip)
-         fs(ip,4) = 406.0_dp/3375.0_dp/t14/t8*p1*p1*p1-14.0_dp/&
-                    75.0_dp/t14/p0*p1*(2*t1+12*t2*s2+30*t3*s4)+&
-                    1/t14*(24*t2*s(ip)+120*t3*t19)*f15
+!         t9 = p15**2; t10 = t9**2; t12 = t10**2; t13 = t12*t10*t9
+!         t25 = p1*p1
+!         fs(ip,3) = -14.0_dp/225.0_dp/t13/p0*t25 + &
+!                     1.0_dp/t13*(2.0_dp*t1+12*t2*s2+30.0_dp*t3*s4)/15.0_dp
+          fs(ip,3) = f15*p15/p0*(p2-14.0_dp/15.0_dp*p1*p1/p0)
+!         t8 = p0**2; t9 = p0**f15; t14 = p0/t9; t19 = s2*s(ip)
+!         fs(ip,4) = 406.0_dp/3375.0_dp/t14/t8*p1*p1*p1-14.0_dp/&
+!                    75.0_dp/t14/p0*p1*(2*t1+12*t2*s2+30*t3*s4)+&
+!                    1/t14*(24*t2*s(ip)+120*t3*t19)*f15
+          fs(ip,4) = f15*p15/p0*(-14.0_dp*f15*p1*p1/p0+14.0_dp*14.0_dp*f15*p1*p1*p1/p0/p0+&
+                     p3-14.0_dp*p2*p1/p0+14.0_dp*p1*p1/p0/p0)
       CASE DEFAULT
          CALL stop_program("efactor_ol1","Illegal order")
       END SELECT
@@ -1040,10 +1059,11 @@ CONTAINS
   END SUBROUTINE efactor_t92
 ! *****************************************************************************
 
-  SUBROUTINE efactor_pw91 ( s, fs, m, pset )
+  SUBROUTINE efactor_pw91 ( s, fs, m, pset , f2_lsd)
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: s
     REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: fs
     INTEGER, INTENT(IN)                      :: m, pset
+    REAL(dp), OPTIONAL                       :: f2_lsd
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                                :: a1, a2, a3, a4, a5, bb, o, &
@@ -1053,7 +1073,7 @@ CONTAINS
                 t31, t33, t35, t37, t38, t39, t40, t44, t47, t48, t50, t51, t53,&
                 t55, t56, t57, t58, t59, t60, t64, t65, t69, t70, t71, t73, t77,&
                 t78, t80,  t82, t90, t93,  t94, t96, t98, t101, t106, t109, t111,&
-                t113, t119, t123, t124
+                t113, t119, t123, t124,ff
 
 ! parameter set 1: Perdew-Wang
 ! parameter set 2: Lembarki-Chermette
@@ -1065,12 +1085,15 @@ CONTAINS
                 0.0809615_dp,100.0_dp,      &
                76.320_dp,      0.57767e-4_dp/)
     o=1.0_dp
-    a1 = pa(1,pset)
-    a2 = pa(2,pset)
-    a3 = pa(3,pset)
-    a4 = pa(4,pset)
-    bb = pa(5,pset)
-    a5 = pa(6,pset)
+    ff = 1.0_dp
+    IF(PRESENT(f2_lsd)) ff = f2_lsd
+    a1 = pa(1,pset)*FF
+    a2 = pa(2,pset)*ff*ff
+    a3 = pa(3,pset)*ff*ff
+    a4 = pa(4,pset)*ff*ff
+    bb = pa(5,pset)*ff
+!   it should be valid also for lsd
+    a5 = pa(6,pset)*ff*ff*ff*ff
     IF ( m >= 0 ) THEN
       DO ip=1,SIZE(s)
         x = s(ip)

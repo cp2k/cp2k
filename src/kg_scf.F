@@ -1196,7 +1196,7 @@ CONTAINS
     INTEGER :: atom_a, group, handle, iatom, ikind, imol, imolecule_kind, &
                iset, isgf, isgfa, ishell, ispin, istat, la, maxl, maxll,&
                n_ao_kind, nao_global, nat_mol, natom, ncaount, ncount, nel_global, &
-               nmo, nmo_kind(2), nmo_max, nmol_local, nmolecule_kind, &
+               nelectron(2), nmo, nmo_kind(2), nmo_max, nmol_local, nmolecule_kind, &
                nset, nspin , qs_env_id , i
 
     INTEGER, ALLOCATABLE, DIMENSION(:)        :: first_sgf
@@ -1420,6 +1420,15 @@ CONTAINS
       CALL get_kg_env(kg_env=kg_env,nao_global=nao_global,&
                       nelectron_global=nel_global,&
                       maxocc_global=maxocc_global)
+      IF(nspin > 1) THEN
+        nelectron(1:2) = FLOOR(REAL(nel_global/nspin,dp))
+        IF(nelectron(1)+nelectron(2) /= nel_global) &
+           nelectron(1) = nelectron(1) + nel_global - (nelectron(1)+nelectron(2))
+      ELSE
+        nelectron(1) = nel_global
+        nelectron(2) = 0
+      END IF
+      
       ALLOCATE (pdiag(nao_global),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       pdiag(:) = 0.0_dp
@@ -1453,9 +1462,10 @@ CONTAINS
             CYCLE
           END IF
 
-          maxll = SIZE(elec_conf) - 1
+          maxll = MIN(SIZE(elec_conf) - 1,maxl)
           econf(:) = 0.0_dp
           econf(0:maxll) = 0.5_dp*maxocc_global(ispin)*REAL(elec_conf(0:maxll),dp)
+
           CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                                  nset=nset,&
                                  nshell=nshell,&
@@ -1498,7 +1508,7 @@ CONTAINS
             IF (sdiag(isgf) > 0.0_dp) pdiag(isgf) = pdiag(isgf)/sdiag(isgf)
           END DO
         ELSE
-          scale = (REAL(nel_global,dp) - trps1)/trps2
+          scale = (REAL(nelectron(ispin),dp) - trps1)/trps2
           DO isgf=1,nao_global 
             IF (pdiag(isgf) < maxocc_global(ispin)) pdiag(isgf) = scale*pdiag(isgf)
           END DO

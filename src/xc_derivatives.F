@@ -40,6 +40,7 @@ MODULE xc_derivatives
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_cs1_new,                      ONLY: cs1_lda_eval,&
@@ -229,6 +230,10 @@ SUBROUTINE xc_functional_get_info_new(functional,lsd,reference,shortform,&
         CALL ke_gga_info(i_param,lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("P86C")
         CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
+        IF(failure) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "BP functional not implemented with LSD")
+        END IF
         CALL p86_lda_info(reference,shortform,needs,max_deriv,error=error)
      CASE("PW92")
         CALL section_vals_val_get(functional,"PARAMETRIZATION",i_val=i_param,&
@@ -395,6 +400,10 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
         CALL ke_gga_info(ke_t92,lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("P86C")
         CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
+        IF(failure) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "BP functional not implemented with LSD")
+        END IF
         CALL p86_lda_info(reference,shortform,needs,max_deriv,error=error)
      CASE("PW","PW92","PW92_PWO")
         CALL perdew_wang_info(pw_orig,lsd,reference,shortform,needs,max_deriv,error=error)
