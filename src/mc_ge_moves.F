@@ -888,14 +888,14 @@ CONTAINS
             classical_energy_new(remove_box)-&
             classical_energy_old(remove_box)
 !!!!!!!!!!!!!!!!!!!!
-         WRITE(6,*) new_energy(insert_box),&
-            old_energy(insert_box),&
-            new_energy(remove_box),&
-            old_energy(remove_box)
-         WRITE(6,*) classical_energy_new(insert_box),&
-            classical_energy_old(insert_box),&
-            classical_energy_new(remove_box),&
-            classical_energy_old(remove_box)
+!         WRITE(6,*) new_energy(insert_box),&
+!            old_energy(insert_box),&
+!            new_energy(remove_box),&
+!            old_energy(remove_box)
+!         WRITE(6,*) classical_energy_new(insert_box),&
+!            classical_energy_old(insert_box),&
+!            classical_energy_new(remove_box),&
+!            classical_energy_old(remove_box)
          wratio=weight_new/weight_old
          w=prefactor*DEXP(-BETA*(del_quickstep_energy-&
             del_classical_energy))*wratio
@@ -1264,6 +1264,13 @@ CONTAINS
 !            vol_dis=5.0d0/angstrom**3
 !!!!!
 ! add to one box, subtract from the other
+            IF(test_cell_length(1)**3+vol_dis .LE. (3.0d0/angstrom)**3) &
+            CALL stop_program(routineN,module_name,__LINE__,&
+            'GE_volume moves are trying to make box 1 smaller than 3')
+            IF(test_cell_length(2)**3-vol_dis .LE. (3.0d0/angstrom)**3) &
+            CALL stop_program(routineN,module_name,__LINE__,&
+            'GE_volume moves are trying to make box 2 smaller than 3')
+
             new_cell_length(1)=(test_cell_length(1)**3+&
                vol_dis)**(1.0d0/3.0d0)
             new_cell_length(2)=(test_cell_length(2)**3-&
