@@ -163,7 +163,7 @@ SUBROUTINE pw_poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress 
   ! do we need to calculate the energy
   IF ( PRESENT ( ehartree ) .AND. PRESENT ( vhartree ) ) THEN
     ehartree = 0.5_dbl * pw_integral_ab ( density % pw, vhartree % pw )
-  ELSE
+  ELSE  IF ( PRESENT ( ehartree ) .AND. .NOT. PRESENT ( vhartree ) ) THEN
     CALL stop_program ( 'pw_poisson_solver', 'Need vhartree for ehartree calculation' )
   ENDIF
 
