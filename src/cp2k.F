@@ -147,8 +147,8 @@ PROGRAM cp2k
        SELECT CASE (globenv%run_type)
        CASE ("MOLECULAR DYNAMICS")
           CALL qs_mol_dyn ( force_env, globenv, error=error )
-!      CASE ("WAVEFUNCTION OPTIMIZATION","ENERGY CALCULATION")
-!         CALL force_env_calculate_energy(force_env,error=error)
+       CASE ("WAVEFUNCTION OPTIMIZATION","ENERGY CALCULATION")
+          CALL force_env_calculate_energy(force_env,error=error)
 !      CASE ("DEBUG")
 !         CALL kg_debug(force_env,error=error)
        END SELECT

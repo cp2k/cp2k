@@ -47,6 +47,7 @@ MODULE force_env_types
                                              cp_subsys_retain,&
                                              cp_subsystem_p_type
   USE global_types,                    ONLY: global_environment_type
+  USE kg_energy,                       ONLY: kg_energies
   USE kg_energy_types,                 ONLY: kg_energy_type
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_env_release,&
@@ -305,8 +306,8 @@ SUBROUTINE force_env_calculate_energy(force_env, box_change, error)
            neighbor_lists_from_scratch=.TRUE.)
     CASE ( use_pol_force )
        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-    CASE ( use_kg_force ) ! NOT optimized!
-      CALL kg_force_control ( force_env%kg_env, force_env%globenv )
+    CASE ( use_kg_force ) 
+      CALL kg_energies ( force_env%kg_env, force_env%globenv )
   END SELECT
 
 END SUBROUTINE force_env_calculate_energy
