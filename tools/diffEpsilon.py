@@ -36,9 +36,10 @@ def getCoreLine(file,lineNr):
     lineNr=lineNr+1
     line=file.readline()
   if scfLineRe.match(line):
+    # removing timing and convergence info (too system dependent)
     # print "found scfLine=",`line`
     groups=scfLineRe.match(line).groups()
-    line=groups[0]+" "+groups[1]+" "+groups[2]+" - "+groups[4]+" "+groups[5]
+    line=groups[0]+" "+groups[1]+" "+groups[2]+" x x "+groups[5]
   if timingRe.match(line):
     while not line=="":
       lineNr=lineNr+1
