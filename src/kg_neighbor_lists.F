@@ -38,7 +38,7 @@ MODULE kg_neighbor_lists
                                              dp_size,&
                                              int_size
   USE particle_types,                  ONLY: particle_type
-  USE qs_environment_types,            ONLY: qs_environment_p_type
+  USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_neighbor_lists,               ONLY: build_gth_ppl_neighbor_lists,&
                                              build_qs_neighbor_lists,&
@@ -440,8 +440,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_kg_neighbor_lists2"
 
     INTEGER                                  :: handle,isub
-    TYPE(qs_environment_p_type), DIMENSION(:), &
-      POINTER                                :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
 
 !   ---------------------------------------------------------------------------
 
@@ -455,9 +454,7 @@ CONTAINS
                     sub_qs_env=qs_env)
 
     IF(ASSOCIATED(qs_env)) THEN
-      DO isub = 1, SIZE(qs_env)
-        CALL build_qs_neighbor_lists(qs_env(isub)%qs_env,globenv)
-      END DO
+      CALL build_qs_neighbor_lists(qs_env,globenv,.TRUE.)
     ELSE
       CALL stop_program(routine_name,module_name,__LINE__,&
             "sub_qs_env not defined")

@@ -2,10 +2,22 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C ) 2000  CP2K developers group                                !
 !-----------------------------------------------------------------------------!
-
+#include "cp_prep_globals.h"
 
 MODULE kg_energy_utils
 
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
@@ -46,10 +58,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'diis_info_create', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+    LOGICAL                                  :: failure, my_box_change
+
     INTEGER                                  :: ikind, ncoef, ncoef_of_kind, &
                                                 stat
     TYPE(dyn_coeff_type), POINTER            :: local_coeffs
 
+    CPPrecondition(ASSOCIATED(dyn_coeff_set),cp_failure_level,routineP,error,failure)
     ALLOCATE(diis_info,stat=stat)
     IF(stat/=0) CALL stop_memory(routineP,"diis_info")
     diis_info%nhist=nhist

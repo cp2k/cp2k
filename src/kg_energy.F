@@ -54,6 +54,7 @@ MODULE kg_energy
   USE kg_ppl,                          ONLY: calculate_drho_ppl,&
                                              calculate_rho0_ppl
   USE kg_rho_types,                    ONLY: kg_rho_type
+! USE kg_scf,                          ONLY: kg_qs_scf
   USE kinds,                           ONLY: dbl
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
@@ -62,6 +63,10 @@ MODULE kg_energy
                                              mp_max
   USE pws,                             ONLY: cleanup_pw_poisson_solver,&
                                              init_pw_poisson_solver
+  USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
+  USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
+  USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE scf_control_types,               ONLY: scf_control_type
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
@@ -78,10 +83,38 @@ MODULE kg_energy
 CONTAINS
 
 !******************************************************************************
-!!****** kg_energy/kg_energies [1.1] *
+SUBROUTINE kg_energies ( kg_env, globenv )
+
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+    TYPE(dft_control_type), POINTER          :: dft_control
+
+!------------------------------------------------------------------------------
+
+    NULLIFY ( dft_control )
+
+    CALL get_kg_env(kg_env=kg_env,&
+                    dft_control=dft_control)
+
+    IF ( dft_control % qs_control % method == "KG_GPW" ) THEN
+
+      CALL kg_qs_energies ( kg_env, globenv )
+
+    ELSE
+
+      CALL kg_std_energies ( kg_env, globenv )
+
+    END IF
+
+END SUBROUTINE kg_energies
+
+!******************************************************************************
+!!****** kg_energy/kg_std_energies [1.1] *
 !!
 !!   NAME
-!!     kg_energies
+!!     kg_std_energies
 !!
 !!   FUNCTION
 !!     Calculates the total potential energy, total force
@@ -92,15 +125,14 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!
 !!*** *************************************************************************
-SUBROUTINE kg_energies ( kg_env, globenv )
-
+SUBROUTINE kg_std_energies ( kg_env, globenv )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE kg_energies (MODULE kg_energy)"
+      routine = "SUBROUTINE kg_std_energies (MODULE kg_energy)"
 
     INTEGER                                  :: handle, handle2, i, isos, &
                                                 iter, output_unit
@@ -115,7 +147,7 @@ SUBROUTINE kg_energies ( kg_env, globenv )
 !------------------------------------------------------------------------------
 
   CALL write_checkpoint_information("entering "//routine,globenv)
-  CALL timeset ( 'kg_energies','I',' ',handle )
+  CALL timeset ( 'kg_std_energies','I',' ',handle )
 
   NULLIFY(atomic_kind_set,dyn_coeff_set,diis_info,scf_control)
   ionode=globenv%ionode
@@ -205,7 +237,59 @@ scf_loop: DO
 
   CALL write_checkpoint_information("leaving "//routine,globenv)
 
-END SUBROUTINE kg_energies
+END SUBROUTINE kg_std_energies
+
+!******************************************************************************
+!!****** kg_energy/kg_qs_energies [1.1] *
+!!
+!!   NAME
+!!     kg_qs_energies
+!!
+!!   FUNCTION
+!!     Calculates the total potential energy, total force
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *************************************************************************
+SUBROUTINE kg_qs_energies ( kg_env, globenv )
+
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+    CHARACTER(LEN=*), PARAMETER :: routine = "kg_qs_energies"
+
+    INTEGER                                  :: handle
+    TYPE(qs_environment_type), POINTER       :: qs_env
+
+!------------------------------------------------------------------------------
+
+    CALL write_checkpoint_information("entering "//routine,globenv)
+    CALL timeset(routine,"I","",handle)
+
+    NULLIFY ( qs_env )
+    CALL get_kg_env(kg_env=kg_env,&
+                    sub_qs_env=qs_env)
+
+    CALL build_qs_neighbor_lists(qs_env,globenv,.TRUE.)
+
+    ! Calculate the overlap and the core Hamiltonian integral matrix
+    CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
+                                       globenv=globenv,&
+                                       calculate_forces=.FALSE.)
+
+    CALL qs_env_update_s_mstruct(qs_env)
+
+    ! Perform a SCF run
+!   CALL kg_qs_scf(kg_env,globenv)
+
+    CALL timestop(0.0_dbl,handle)
+    CALL write_checkpoint_information("leaving "//routine,globenv)
+
+END SUBROUTINE kg_qs_energies
 
 !------------------------------------------------------------------------------
 

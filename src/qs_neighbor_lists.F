@@ -31,6 +31,7 @@ MODULE qs_neighbor_lists
                                              gto_basis_set_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE distribution_2d_types,           ONLY: distribution_2d_type
+  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
   USE global_types,                    ONLY: LOW,&
@@ -43,7 +44,9 @@ MODULE qs_neighbor_lists
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
-  USE particle_types,                  ONLY: particle_type
+  USE molecule_types_new,              ONLY: molecule_type
+  USE particle_types,                  ONLY: exclusion_list_type,&
+                                             particle_type
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                              paw_proj_set_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -87,7 +90,9 @@ MODULE qs_neighbor_lists
   TYPE local_atoms_type
     INTEGER, DIMENSION(:), POINTER                   :: list,&
                                                         list_local_a_index,&
-                                                        list_local_b_index
+                                                        list_local_b_index,&
+                                                        list_a_mol,&
+                                                        list_b_mol
     REAL(dp), DIMENSION(:,:), POINTER                :: r_pbc,&
                                                         s_pbc
   END TYPE local_atoms_type
@@ -122,7 +127,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_qs_neighbor_lists(qs_env,globenv)
+  SUBROUTINE build_qs_neighbor_lists(qs_env,globenv,molecular)
 
 !   Purpose: Build all the required neighbor lists for Quickstep.
 
@@ -134,11 +139,13 @@ CONTAINS
     TYPE(qs_environment_type), INTENT(INOUT) :: qs_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
+    LOGICAL, OPTIONAL                        :: molecular
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_qs_neighbor_lists"
 
     INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, maxatom, &
-      maxatom_local, natom_a, natom_local_a, natom_local_b, nkind, output_unit
+      maxatom_local, natom_a, natom_local_a, natom_local_b, nkind, &
+      output_unit, imol
     LOGICAL                                  :: gth_potential_present, &
                                                 print_subcell_grid,&
                                                 paw_atom_present,paw_atom,&
@@ -156,6 +163,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(distribution_1d_type), POINTER      :: distribution_1d
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
@@ -167,6 +175,11 @@ CONTAINS
                                                 sab_2c,sac_3c,sbc_3c
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    INTEGER, DIMENSION(:), POINTER           :: local_rows_array, &
+                                                local_cols_array
+    LOGICAL                                  :: molecule_only
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
     CHARACTER(20)                            :: name
@@ -181,9 +194,11 @@ CONTAINS
     NULLIFY (atomic_kind_set)
     NULLIFY (cell)
     NULLIFY (distribution_2d)
+    NULLIFY (distribution_1d)
     NULLIFY (gth_potential)
     NULLIFY (orb_basis_set)
     NULLIFY (particle_set)
+    NULLIFY (molecule_set)
     NULLIFY (rho0_mpole)
     NULLIFY (rhoz_set)
     NULLIFY (sab_orb)
@@ -205,6 +220,9 @@ CONTAINS
       print_subcell_grid = .FALSE.
     END IF
 
+    molecule_only = .FALSE.
+    IF ( PRESENT ( molecular ) ) molecule_only = molecular
+
 !   *** Set Verlet skin ***
 
     r_skin = 0.0_dp
@@ -213,7 +231,9 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
                     distribution_2d=distribution_2d,&
+                    local_particles=distribution_1d,&
                     particle_set=particle_set,&
+                    molecule_set=molecule_set,&
                     rho0_mpole=rho0_mpole,&
                     rhoz_set=rhoz_set,&
                     sab_orb=sab_orb,&
@@ -310,6 +330,8 @@ CONTAINS
       NULLIFY (atom(ikind)%list)
       NULLIFY (atom(ikind)%list_local_a_index)
       NULLIFY (atom(ikind)%list_local_b_index)
+      NULLIFY (atom(ikind)%list_a_mol)
+      NULLIFY (atom(ikind)%list_b_mol)
       NULLIFY (atom(ikind)%r_pbc)
       NULLIFY (atom(ikind)%s_pbc)
 
@@ -321,8 +343,17 @@ CONTAINS
                            paw_atom=paw_atom)
 
       natom_a = SIZE(atom(ikind)%list)
-      natom_local_a = distribution_2d%n_local_rows(ikind)
-      natom_local_b = distribution_2d%n_local_cols(ikind)
+      IF ( molecule_only ) THEN
+        natom_local_a = distribution_1d%n_el(ikind)
+        natom_local_b = distribution_1d%n_el(ikind)
+        local_rows_array => distribution_1d%list(ikind)%array
+        local_cols_array => distribution_1d%list(ikind)%array
+      ELSE
+        natom_local_a = distribution_2d%n_local_rows(ikind)
+        natom_local_b = distribution_2d%n_local_cols(ikind)
+        local_rows_array => distribution_2d%local_rows(ikind)%array
+        local_cols_array => distribution_2d%local_cols(ikind)%array
+      END IF
 
       maxatom_local = MAX(maxatom_local,natom_local_a,natom_local_b)
 
@@ -341,17 +372,31 @@ CONTAINS
           IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                            "atom(ikind)%list_local_a_index",&
                                            natom_local_a*int_size)
+          ALLOCATE (atom(ikind)%list_a_mol(natom_local_a),STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                           "atom(ikind)%list_a_mol",&
+                                           natom_local_a*int_size)
+          atom(ikind)%list_a_mol(:) = 0
 
 !         *** Build index vector for mapping ***
 
           DO iatom_local=1,natom_local_a
-            atom_a = distribution_2d%local_rows(ikind)%array(iatom_local)
+            atom_a = local_rows_array(iatom_local)
             DO iatom=1,natom_a
               IF (atom_a == atom(ikind)%list(iatom)) THEN
                 atom(ikind)%list_local_a_index(iatom_local) = iatom
                 EXIT
               END IF
             END DO
+            IF ( molecule_only ) THEN
+              DO imol=1,SIZE(molecule_set)
+                IF ( atom_a >= molecule_set(imol)%first_atom .AND. &
+                     atom_a <= molecule_set(imol)%last_atom ) THEN
+                  atom(ikind)%list_a_mol(iatom_local) = imol
+                  EXIT
+                END IF
+              END DO
+            END IF
           END DO
 
         END IF
@@ -364,17 +409,31 @@ CONTAINS
           IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                            "atom(ikind)%list_local_b_index",&
                                            natom_local_b*int_size)
+          ALLOCATE (atom(ikind)%list_b_mol(natom_local_b),STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                           "atom(ikind)%list_b_mol",&
+                                           natom_local_b*int_size)
+          atom(ikind)%list_b_mol(:) = 0
 
 !         *** Build index vector for mapping ***
 
           DO iatom_local=1,natom_local_b
-            atom_a = distribution_2d%local_cols(ikind)%array(iatom_local)
+            atom_a = local_cols_array(iatom_local)
             DO iatom=1,natom_a
               IF (atom_a == atom(ikind)%list(iatom)) THEN
                 atom(ikind)%list_local_b_index(iatom_local) = iatom
                 EXIT
               END IF
             END DO
+            IF ( molecule_only ) THEN
+              DO imol=1,SIZE(molecule_set)
+                IF ( atom_a >= molecule_set(imol)%first_atom .AND. &
+                     atom_a <= molecule_set(imol)%last_atom ) THEN
+                  atom(ikind)%list_b_mol(iatom_local) = imol
+                  EXIT
+                END IF
+              END DO
+            END IF
           END DO
 
         END IF
@@ -439,10 +498,15 @@ CONTAINS
 
 !   *** Build the orbital-orbital overlap neighbor lists ***
 
-    CALL build_neighbor_lists(sab_orb,atom,cell,r_skin,maxatom_local,&
-                              print_subcell_grid,output_unit,&
-                              orb_present,orb_present,&
-                              orb_radius,orb_radius)
+    IF ( molecule_only ) THEN
+      CALL build_restricted_neighbor_lists(sab_orb,atom,cell,r_skin,&
+                 maxatom_local,print_subcell_grid,output_unit,&
+                 orb_present,orb_present,orb_radius,orb_radius)
+    ELSE
+      CALL build_neighbor_lists(sab_orb,atom,cell,r_skin,maxatom_local,&
+                 print_subcell_grid,output_unit,&
+                 orb_present,orb_present,orb_radius,orb_radius)
+    END IF
 
 !   *** Put the generated neighbor lists into the QS environment ***
 
@@ -459,10 +523,10 @@ CONTAINS
 
       IF (ANY(ppl_present)) THEN
 
-        CALL build_gth_ppl_neighbor_lists(sac_ppl,atom,cell,r_skin,maxatom_local,&
-                                          print_subcell_grid,output_unit,&
-                                          orb_present,ppl_present,&
-                                          orb_radius,ppl_radius)
+        CALL build_gth_ppl_neighbor_lists(sac_ppl,atom,cell,r_skin,&
+                                  maxatom_local,print_subcell_grid,&
+                                  output_unit,orb_present,ppl_present,&
+                                  orb_radius,ppl_radius)
 
 !       *** Put the generated neighbor lists into the QS environment ***
 
@@ -478,9 +542,9 @@ CONTAINS
       IF (ANY(ppnl_present)) THEN
         name = " ORBITAL GTH-PPNL"
         CALL build_gth_ppnl_neighbor_lists(sac_ppnl,sbc_ppnl,atom,cell,r_skin,&
-                                           maxatom,maxatom_local,print_subcell_grid,&
-                                           output_unit,orb_present,ppnl_present,&
-                                           orb_radius,ppnl_radius,name)
+                                      maxatom,maxatom_local,print_subcell_grid,&
+                                      output_unit,orb_present,ppnl_present,&
+                                      orb_radius,ppnl_radius,name)
 
 !       *** Put the generated neighbor lists into the QS environment ***
 
@@ -580,6 +644,16 @@ CONTAINS
         DEALLOCATE (atom(ikind)%list_local_b_index,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                          "atom(ikind)%list_local_b_index")
+      END IF
+      IF (ASSOCIATED(atom(ikind)%list_a_mol)) THEN
+        DEALLOCATE (atom(ikind)%list_a_mol,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                         "atom(ikind)%list_a_mol")
+      END IF
+      IF (ASSOCIATED(atom(ikind)%list_b_mol)) THEN
+        DEALLOCATE (atom(ikind)%list_b_mol,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                         "atom(ikind)%list_b_mol")
       END IF
       IF (ASSOCIATED(atom(ikind)%r_pbc)) THEN
         DEALLOCATE (atom(ikind)%r_pbc,STAT=istat)
@@ -976,6 +1050,277 @@ CONTAINS
 
 ! *****************************************************************************
 
+  SUBROUTINE build_restricted_neighbor_lists(ab,atom,cell,r_skin,maxatom_local,&
+                                  print_subcell_grid,output_unit,&
+                                  present_a,present_b,radius_a,radius_b)
+
+!   Purpose: Build simple pair neighbor lists restricted to molecules.
+
+!   ***************************************************************************
+
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: ab
+    TYPE(local_atoms_type), DIMENSION(:), &
+      INTENT(IN)                             :: atom
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(dp), INTENT(IN)                     :: r_skin
+    INTEGER, INTENT(IN)                      :: maxatom_local
+    LOGICAL, INTENT(IN)                      :: print_subcell_grid
+    INTEGER, INTENT(IN)                      :: output_unit
+    LOGICAL, DIMENSION(:), INTENT(IN)        :: present_a, present_b
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_b
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = &
+                                   "build_restricted_neighbor_lists"
+
+    CHARACTER(LEN=8)                         :: unit_of_length_name
+    INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
+      iatom_subcell, icell, ikind, istat, j, jatom, jatom_local, jcell, &
+      jkind, k, kcell, natom_local_a, natom_local_b, nkind, mol_a, mol_b
+    INTEGER, DIMENSION(3)                    :: cell_a, cell_b, ncell, &
+                                                nsubcell, periodic
+    LOGICAL                                  :: include_ab
+    REAL(dp)                                 :: rab2, rab2_max, rab_max, &
+                                                subcells, unit_of_length
+    REAL(dp), DIMENSION(3)                   :: r, rab, rb, s, sab_max, sb, &
+                                                sb_max, sb_min, sb_pbc
+    TYPE(neighbor_list_p_type), &
+      DIMENSION(maxatom_local)               :: kind_a
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
+    TYPE(subcell_type), DIMENSION(:, :, :), &
+      POINTER                                :: subcell
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routine_name,"I"," ",handle)
+
+!   *** Deallocate the old neighbor list structure ***
+
+    IF (ASSOCIATED(ab)) THEN
+      DO iab=1,SIZE(ab)
+        CALL deallocate_neighbor_list_set(ab(iab)%neighbor_list_set)
+      END DO
+      DEALLOCATE (ab,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"ab")
+    END IF
+
+!   *** Allocate and initialize the new neighbor list structure ***
+
+    nkind = SIZE(atom)
+
+    ALLOCATE (ab(nkind*nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "ab",nkind*nkind*int_size)
+
+    DO iab=1,SIZE(ab)
+      NULLIFY (ab(iab)%neighbor_list_set)
+    END DO
+
+!   *** Load informations about the simulation cell ***
+
+    CALL get_cell(cell=cell,&
+                  periodic=periodic,&
+                  subcells=subcells,&
+                  unit_of_length=unit_of_length,&
+                  unit_of_length_name=unit_of_length_name)
+
+!   *** Print headline ***
+
+    IF (print_subcell_grid) THEN
+      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T29,A,T54,A)")&
+        "SUBCELL GRID FOR THE ORBITAL ORBITAL NEIGHBOR LISTS",&
+        "Atomic kind pair","Grid size",&
+        "Subcell size in "//unit_of_length_name
+    END IF
+
+!   *** Loop over all atomic kind pairs ***
+
+    DO ikind=1,nkind
+
+      IF (.NOT.present_a(ikind)) CYCLE
+
+      IF (.NOT.ASSOCIATED(atom(ikind)%list_local_a_index)) CYCLE
+
+      natom_local_a = SIZE(atom(ikind)%list_local_a_index)
+
+      DO jkind=1,nkind
+
+        IF (.NOT.present_b(jkind)) CYCLE
+
+        iab = ikind + nkind*(jkind - 1)
+
+        IF (.NOT.ASSOCIATED(atom(jkind)%list_local_b_index)) CYCLE
+
+        natom_local_b = SIZE(atom(jkind)%list_local_b_index)
+
+!       *** Calculate the square of the maximum interaction distance ***
+
+        rab_max = radius_a(ikind) + radius_b(jkind) + r_skin
+        rab2_max = rab_max*rab_max
+
+        r(:) = rab_max
+        sab_max(:) = real_to_scaled(r(:),cell)
+
+        ncell(:) = 0
+        nsubcell(:) = MAX(1,NINT(0.5_dp*subcells/sab_max(:)))
+
+!       *** Print subcell information for the current atomic kind pair ***
+
+        IF (print_subcell_grid) THEN
+          s(:) = 1.0_dp/REAL(nsubcell(:),dp)
+          r(:) = scaled_to_real(s(:),cell)
+          WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
+            ikind,jkind,nsubcell(1:3),r(1:3)/unit_of_length
+        END IF
+
+        CALL allocate_neighbor_list_set(neighbor_list_set=&
+                                        ab(iab)%neighbor_list_set,r_max=rab_max)
+        neighbor_list_set => ab(iab)%neighbor_list_set
+
+        cell_a = (/0,0,0/)
+
+!       *** Check, if we have to consider a subcell grid ***
+
+        IF (SUM(nsubcell) == 3) THEN
+
+!         *** Case 1: No subcell grid is needed ***
+
+          DO iatom_local=1,natom_local_a
+            iatom = atom(ikind)%list_local_a_index(iatom_local)
+            atom_a = atom(ikind)%list(iatom)
+            CALL add_neighbor_list(neighbor_list_set=neighbor_list_set,&
+                                   atom=atom_a,&
+                                   cell=cell_a,&
+                                   neighbor_list=kind_a(iatom_local)%neighbor_list)
+          END DO
+
+          DO jatom_local=1,natom_local_b
+
+            jatom = atom(jkind)%list_local_b_index(jatom_local)
+            atom_b = atom(jkind)%list(jatom)
+            mol_b = atom(jkind)%list_b_mol(jatom_local)
+            sb(:) = atom(jkind)%s_pbc(:,jatom)
+            rb(:) = scaled_to_real(sb(:),cell)
+            cell_b = 0
+
+            DO iatom_local=1,natom_local_a
+              iatom = atom(ikind)%list_local_a_index(iatom_local)
+              atom_a = atom(ikind)%list(iatom)
+              mol_a = atom(ikind)%list_a_mol(iatom_local)
+              IF ( mol_a /= mol_b ) CYCLE
+              IF (atom_a > atom_b) THEN
+                include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+              ELSE
+                include_ab = (MODULO(atom_a + atom_b,2) == 0)
+              END IF
+              IF (include_ab) THEN
+                rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
+                r(:) = pbc(rab(:),cell)
+                rab2 = r(1)*r(1) + r(2)*r(2) + r(3)*r(3)
+                IF (rab2 < rab2_max) THEN
+                  CALL add_neighbor_node(&
+                    neighbor_list=kind_a(iatom_local)%neighbor_list,&
+                    neighbor=atom_b,cell=cell_b,r=rab)
+                END IF
+              END IF
+            END DO
+
+          END DO
+
+        ELSE
+
+!         *** Case 2: A subcell grid is needed ***
+
+          CALL allocate_subcell(subcell,nsubcell,maxatom_local)
+
+          DO iatom_local=1,natom_local_a
+            iatom = atom(ikind)%list_local_a_index(iatom_local)
+            atom_a = atom(ikind)%list(iatom)
+            s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_dp
+            i = INT(s(1)*REAL(nsubcell(1),dp) + 1.0_dp)
+            j = INT(s(2)*REAL(nsubcell(2),dp) + 1.0_dp)
+            k = INT(s(3)*REAL(nsubcell(3),dp) + 1.0_dp)
+            i = MIN(MAX(i,1),nsubcell(1))
+            j = MIN(MAX(j,1),nsubcell(2))
+            k = MIN(MAX(k,1),nsubcell(3))
+            subcell(i,j,k)%natom =  subcell(i,j,k)%natom + 1
+            subcell(i,j,k)%atom_list(subcell(i,j,k)%natom) = iatom_local
+            CALL add_neighbor_list(neighbor_list_set=neighbor_list_set,&
+                                   atom=atom_a,&
+                                   cell=cell_a,&
+                                   neighbor_list=kind_a(iatom_local)%neighbor_list)
+          END DO
+
+          DO jatom_local=1,natom_local_b
+
+            jatom = atom(jkind)%list_local_b_index(jatom_local)
+            atom_b = atom(jkind)%list(jatom)
+            mol_b = atom(jkind)%list_b_mol(jatom_local)
+            sb(:) = atom(jkind)%s_pbc(:,jatom)
+            rb(:) = scaled_to_real(sb(:),cell)
+            cell_b(:) = 0
+            sb_min(:) = sb(:) - sab_max(:)
+            sb_max(:) = sb(:) + sab_max(:)
+
+            loop_k: DO k=1,nsubcell(3)
+              loop_j: DO j=1,nsubcell(2)
+                loop_i: DO i=1,nsubcell(1)
+
+                  IF (subcell(i,j,k)%natom == 0) CYCLE
+
+                  IF (sb_max(3) < subcell(i,j,k)%s_min(3)) EXIT loop_k
+                  IF (sb_min(3) >= subcell(i,j,k)%s_max(3)) CYCLE loop_k
+
+                  IF (sb_max(2) < subcell(i,j,k)%s_min(2)) EXIT loop_j
+                  IF (sb_min(2) >= subcell(i,j,k)%s_max(2)) CYCLE loop_j
+
+                  IF (sb_max(1) < subcell(i,j,k)%s_min(1)) EXIT loop_i
+                  IF (sb_min(1) >= subcell(i,j,k)%s_max(1)) CYCLE loop_i
+
+                  DO iatom_subcell=1,subcell(i,j,k)%natom
+                    iatom_local = subcell(i,j,k)%atom_list(iatom_subcell)
+                    iatom = atom(ikind)%list_local_a_index(iatom_local)
+                    atom_a = atom(ikind)%list(iatom)
+                    mol_a = atom(ikind)%list_a_mol(iatom_local)
+                    IF ( mol_a /= mol_b ) CYCLE
+                    IF (atom_a > atom_b) THEN
+                      include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                    ELSE
+                      include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                    END IF
+                    IF (include_ab) THEN
+                      rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
+                      r(:) = pbc(rab(:),cell)
+                      rab2 = r(1)*r(1) + r(2)*r(2) + r(3)*r(3)
+                      IF (rab2 < rab2_max) THEN
+                        CALL add_neighbor_node(&
+                          neighbor_list=kind_a(iatom_local)%neighbor_list,&
+                          neighbor=atom_b,&
+                          cell=cell_b,&
+                          r=rab)
+                      END IF
+                    END IF
+                  END DO
+
+                END DO loop_i
+              END DO loop_j
+            END DO loop_k
+
+          END DO
+
+          CALL deallocate_subcell(subcell)
+
+        END IF
+
+      END DO
+    END DO
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE build_restricted_neighbor_lists
+
+! *****************************************************************************
+
   SUBROUTINE build_gth_ppl_neighbor_lists(ac,atom,cell,r_skin,maxatom_local,&
                                           print_subcell_grid,output_unit,&
                                           present_a,present_c,&
@@ -1112,8 +1457,8 @@ CONTAINS
             ikind,kkind,nsubcell(1:3),r(1:3)/unit_of_length
         END IF
 
-        CALL allocate_neighbor_list_set(neighbor_list_set=ac(iac)%neighbor_list_set,&
-                                        r_max=rac_max)
+        CALL allocate_neighbor_list_set(neighbor_list_set=&
+                                        ac(iac)%neighbor_list_set,r_max=rac_max)
         neighbor_list_set => ac(iac)%neighbor_list_set
 
         cell_a = (/0,0,0/)

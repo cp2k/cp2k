@@ -168,6 +168,8 @@ OBJECTS_GENERIC =\
  kg_ppl.o\
  kg_rho_methods.o\
  kg_rho_types.o\
+ kg_scf.o\
+ kg_scf_types.o\
  kinds.o\
  kinetic.o\
  kpoint_initialization.o\

@@ -66,7 +66,7 @@ MODULE kg_rho_methods
 
   PRIVATE
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='kg_rho_methods'
-  PUBLIC :: kg_rho_create, kg_rho_setup
+  PUBLIC :: kg_rho_create
 
 !-----------------------------------------------------------------------------!
 

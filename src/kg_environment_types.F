@@ -17,6 +17,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!      gt 13-11-03 rewritten           
+!!      JGH 20-05-04 use QS as polarization method
 !!
 !!   SOURCE
 !******************************************************************************
@@ -67,6 +68,9 @@ MODULE kg_environment_types
   USE kg_rho_types,                    ONLY: kg_rho_release,&
                                              kg_rho_retain,&
                                              kg_rho_type
+  USE kg_scf_types,                    ONLY: kg_scf_env_type,&
+                                             kg_scf_env_retain,&
+                                             kg_scf_env_release
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
                                              mol_kind_new_list_release,&
                                              mol_kind_new_list_type
@@ -79,7 +83,9 @@ MODULE kg_environment_types
                                              particle_list_release,&
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE qs_environment_types,            ONLY: qs_environment_p_type
+  USE qs_environment_types,            ONLY: qs_environment_type,&
+                                             qs_env_retain,&
+                                             qs_env_release
   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
                                              neighbor_list_set_p_type
   USE scf_control_types,               ONLY: scf_c_release,&
@@ -96,7 +102,9 @@ MODULE kg_environment_types
 
   TYPE kg_environment_type
     INTEGER :: id_nr, ref_count
+    LOGICAL :: use_ref_cell
     TYPE(cell_type), POINTER                              :: cell
+    TYPE(cell_type), POINTER                              :: cell_ref
     TYPE(cp_blacs_env_type), POINTER                      :: blacs_env
     TYPE(cp_para_env_type), POINTER                       :: para_env
     TYPE(dft_control_type), POINTER                       :: dft_control
@@ -107,9 +115,10 @@ MODULE kg_environment_types
     TYPE(kg_rho_type),POINTER                             :: rho 
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sac_ppl 
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sac_ppl_aux 
+    TYPE(kg_scf_env_type), POINTER                        :: scf_env
     TYPE(scf_control_type),POINTER                        :: scf_control
     TYPE(cp_subsystem_type), POINTER                      :: subsys
-    TYPE(qs_environment_p_type), DIMENSION(:), POINTER    :: sub_qs_env
+    TYPE(qs_environment_type), POINTER                    :: sub_qs_env
   END TYPE kg_environment_type
 
 ! *** Public data types ***
@@ -131,12 +140,13 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_kg_env( kg_env, atomic_kind_set, cell, sub_qs_env, &
-                         dft_control, distribution_2d,&
-                         dyn_coeff_set,energy,force, &
+  SUBROUTINE get_kg_env( kg_env,atomic_kind_set,cell,cell_ref,&
+                         use_ref_cell,sub_qs_env,&
+                         dft_control,distribution_2d,&
+                         dyn_coeff_set,energy,force,&
                          local_particles,local_molecules,&
                          molecule_kind_set,molecule_set,id_nr,para_env,&
-                         blacs_env,particle_set,rho,&
+                         blacs_env,particle_set,rho,scf_env,&
                          sac_ppl,sac_ppl_aux,scf_control,subsys,error)
 
 !   Purpose: Get the KG environment.
@@ -147,10 +157,11 @@ CONTAINS
       TARGET                                 :: kg_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
-    TYPE(cell_type), OPTIONAL, POINTER       :: cell
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
+    LOGICAL, OPTIONAL                        :: use_ref_cell
     TYPE(dft_control_type), OPTIONAL, &
       POINTER                                :: dft_control
-    TYPE(qs_environment_p_type), DIMENSION(:), &
+    TYPE(qs_environment_type), &
       OPTIONAL, POINTER                      :: sub_qs_env
     TYPE(dyn_coeff_set_type), OPTIONAL, &
       POINTER                                :: dyn_coeff_set
@@ -178,6 +189,8 @@ CONTAINS
       DIMENSION(:), OPTIONAL, POINTER        :: sac_ppl, sac_ppl_aux
     TYPE(scf_control_type), OPTIONAL, &
       POINTER                                :: scf_control
+    TYPE(kg_scf_env_type), OPTIONAL, &
+      POINTER                                :: scf_env
     TYPE(cp_subsystem_type), OPTIONAL, &
       POINTER                                :: subsys
     TYPE(cp_error_type), INTENT(INOUT), &
@@ -203,6 +216,8 @@ CONTAINS
 
     IF (PRESENT(blacs_env)) blacs_env => kg_env%blacs_env
     IF (PRESENT(cell)) cell => kg_env%cell
+    IF (PRESENT(cell_ref)) cell_ref => kg_env%cell_ref
+    IF (PRESENT(use_ref_cell)) use_ref_cell = kg_env%use_ref_cell
     IF (PRESENT(dft_control)) dft_control => kg_env % dft_control
     IF (PRESENT(distribution_2d)) distribution_2d => kg_env%distribution_2d
     IF (PRESENT(sub_qs_env)) sub_qs_env => kg_env % sub_qs_env
@@ -212,7 +227,7 @@ CONTAINS
     IF (PRESENT(id_nr)) id_nr=kg_env%id_nr
     IF (PRESENT(subsys)) subsys => kg_env%subsys
     IF (PRESENT(para_env)) para_env => kg_env%para_env
-
+    IF (PRESENT(scf_env)) scf_env => kg_env%scf_env
     IF (PRESENT(rho)) rho => kg_env%rho
     IF (PRESENT(sac_ppl)) sac_ppl => kg_env%sac_ppl
     IF (PRESENT(sac_ppl_aux)) sac_ppl_aux => kg_env%sac_ppl_aux
@@ -249,6 +264,8 @@ CONTAINS
 
     NULLIFY (kg_env%blacs_env)
     NULLIFY (kg_env%cell)
+    NULLIFY (kg_env%cell_ref)
+    kg_env%use_ref_cell = .FALSE.
     NULLIFY (kg_env%dft_control)
     NULLIFY (kg_env%distribution_2d)
     NULLIFY (kg_env%dyn_coeff_set)
@@ -258,6 +275,7 @@ CONTAINS
     NULLIFY (kg_env%sac_ppl)
     NULLIFY (kg_env%sac_ppl_aux)
     NULLIFY (kg_env%scf_control)
+    NULLIFY (kg_env%scf_env)
     NULLIFY (kg_env%subsys)
 
     CALL cp_subsys_create(kg_env%subsys, para_env=para_env, error=error)
@@ -273,11 +291,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_kg_env( kg_env,atomic_kind_set,cell,  &
+  SUBROUTINE set_kg_env( kg_env,atomic_kind_set,cell,cell_ref,use_ref_cell,  &
                          dft_control,distribution_2d,dyn_coeff_set,energy,force, &
                          local_particles,local_molecules,&
                          molecule_kind_set,molecule_set,&
-                         sub_qs_env,particle_set,rho,&
+                         sub_qs_env,particle_set,rho,scf_env,&
                          sac_ppl,sac_ppl_aux,scf_control,subsys,error)
 
 !   Purpose: set the KG environment.
@@ -289,6 +307,8 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell_ref
+    LOGICAL, OPTIONAL                        :: use_ref_cell
     TYPE(dft_control_type), OPTIONAL, &
       POINTER                                :: dft_control
     TYPE(dyn_coeff_set_type), OPTIONAL, &
@@ -305,7 +325,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: molecule_set
-    TYPE(qs_environment_p_type), DIMENSION(:), &
+    TYPE(qs_environment_type), &
       OPTIONAL, POINTER                      :: sub_qs_env
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
@@ -314,6 +334,8 @@ CONTAINS
       DIMENSION(:), OPTIONAL, POINTER        :: sac_ppl, sac_ppl_aux
     TYPE(scf_control_type), OPTIONAL, &
       POINTER                                :: scf_control
+    TYPE(kg_scf_env_type), OPTIONAL, &
+      POINTER                                :: scf_env
     TYPE(cp_subsystem_type), OPTIONAL, &
       POINTER                                :: subsys
     TYPE(cp_error_type), INTENT(INOUT), &
@@ -340,6 +362,12 @@ CONTAINS
        CALL cell_release(kg_env%cell,error=error)
        kg_env%cell => cell
     END IF
+    IF (PRESENT(cell_ref)) THEN
+       CALL cell_retain(cell_ref, error=error)
+       CALL cell_release(kg_env%cell_ref,error=error)
+       kg_env%cell_ref => cell_ref
+    END IF
+    IF (PRESENT(use_ref_cell)) kg_env%use_ref_cell=use_ref_cell
     IF (PRESENT(dft_control)) THEN
        CALL dft_control_retain(dft_control, error=error)
        CALL dft_control_release(kg_env%dft_control, error=error)
@@ -361,6 +389,11 @@ CONTAINS
       IF (ASSOCIATED(rho)) CALL kg_rho_retain(rho,error=error)
       CALL kg_rho_release(kg_env%rho,error=error)
       kg_env%rho => rho
+    END IF
+    IF (PRESENT(scf_env)) THEN 
+       CALL kg_scf_env_retain(scf_env,error=error)
+       CALL kg_scf_env_release(kg_env%scf_env, error=error)
+       kg_env%scf_env => scf_env
     END IF
     IF ( PRESENT ( sac_ppl ) ) kg_env % sac_ppl => sac_ppl
     IF ( PRESENT ( sac_ppl_aux ) ) kg_env % sac_ppl_aux => sac_ppl_aux
@@ -384,7 +417,9 @@ CONTAINS
       CALL atomic_kind_list_release(atomic_kinds,error=error)
     END IF
     IF (PRESENT(sub_qs_env)) THEN
+       CALL qs_env_retain(sub_qs_env,error=error)
        kg_env%sub_qs_env => sub_qs_env
+       CALL qs_env_release(sub_qs_env,error=error)
     END IF
     IF (PRESENT(particle_set)) THEN
       CALL particle_list_create(particles,&
@@ -554,6 +589,7 @@ SUBROUTINE kg_env_release(kg_env,error)
      kg_env%ref_count=kg_env%ref_count-1
      IF (kg_env%ref_count<1) THEN
         CALL cell_release(kg_env%cell)
+        CALL cell_release(kg_env%cell_ref)
         CALL dft_control_release(kg_env%dft_control, error=error)
         IF (ASSOCIATED(kg_env%sac_ppl)) THEN
            DO i=1,SIZE(kg_env%sac_ppl)
@@ -584,6 +620,9 @@ SUBROUTINE kg_env_release(kg_env,error)
         CALL cp_para_env_release(kg_env%para_env,error=error)
         CALL cp_blacs_env_release(kg_env%blacs_env, error=error)
         CALL cp_subsys_release(kg_env%subsys,error=error)
+        IF (ASSOCIATED(kg_env%sub_qs_env)) THEN
+          CALL qs_env_release(kg_env%sub_qs_env,error=error)
+        END IF
         DEALLOCATE(kg_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
