@@ -29,6 +29,7 @@ LIBDIR       = $(MAINLIBDIR)/$(ARCH)
 OBJDIR       = $(MAINOBJDIR)/$(ARCH)
 OBJECTDEFS   = $(SRCDIR)/OBJECTDEFS
 LIB1_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
+SRCENTRY     = $(wildcard $(SRCDIR)/CVS/Entr*)
 
 ### Definition of the multiple targets ###
 
@@ -63,6 +64,7 @@ include $(MACHINEDEFS)
 CPPFLAGS += -D__COMPILE_ARCH="\"$(ARCH)\""\
             -D__COMPILE_DATE="\"$(shell date)\""\
             -D__COMPILE_HOST="\"$(shell hostname)\""\
+            -D__COMPILE_LASTCVS="\"$(shell tail -1 $(SRCDIR)/CVS/Entries)\""\
 	    -I$(SRCDIR)
 
 OBJECTS = $(OBJECTS_GENERIC) $(OBJECTS_ARCHITECTURE)
@@ -131,6 +133,11 @@ distclean:
 
 # lib dependencies
 mltfftsg.o: mltfftsg_tools.o
+
+# to recpp environment.F whenever the CVS/Entries file is updated (and exists)
+ifneq ($(strip $(SRCENTRY)),)
+environment.f90:$(SRCENTRY)
+endif
 
 ### Load the automatically generated rules of sfmakedepend ###
 
