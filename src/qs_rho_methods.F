@@ -69,9 +69,6 @@ MODULE qs_rho_methods
   USE qs_collocate_density,            ONLY: calculate_rho_core,&
                                              calculate_rho_elec,&
                                              calculate_total_rho
-  USE qs_core_energies,                ONLY: calculate_ecore,&
-                                             calculate_ecore_overlap,&
-                                             calculate_ecore_self
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -110,7 +107,7 @@ CONTAINS
 !!     Subroutine qs_rho_rebuild(rho, qs_env, rho_ao_with_h_mstruct,&
 !!         rebuild_ao, rebuild_grids, error)
 !!       Type(qs_rho_type), Pointer:: rho
-!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Logical, Intent (IN), Optional:: rho_ao_with_h_mstruct, rebuild_ao,&
 !!         rebuild_grids
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -147,11 +144,11 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE qs_rho_rebuild(rho, qs_env, rho_ao_with_h_mstruct,&
      rebuild_ao, rebuild_grids, error)
-  TYPE(qs_rho_type), POINTER                       :: rho
-  TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
-  LOGICAL, INTENT(in), OPTIONAL                    :: rho_ao_with_h_mstruct,&
+  TYPE(qs_rho_type), POINTER                    :: rho
+  TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
+  LOGICAL, INTENT(in), OPTIONAL                 :: rho_ao_with_h_mstruct,&
        rebuild_ao, rebuild_grids
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout)     :: error
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout)  :: error
   
   LOGICAL :: failure, my_rho_ao_with_h_struct, my_rebuild_ao, my_rebuild_grids
   CHARACTER(len=*), PARAMETER :: routineN='qs_rho_rebuild',&
@@ -271,13 +268,12 @@ END SUBROUTINE qs_rho_rebuild
 !!     qs_rho_update_rho
 !!
 !!   SYNOPSIS
-!!     Subroutine qs_rho_update_rho(rho_struct, rho_ao_new, qs_env, energy,&
-!!         rebuild, update_rho_ao, error)
+!!     Subroutine qs_rho_update_rho(rho_struct, rho_ao_new, qs_env, rebuild,&
+!!         update_rho_ao, error)
 !!       Type(qs_rho_type), Pointer:: rho_struct
 !!       Type(qs_environment_type), Intent (IN):: qs_env
 !!       Type(real_matrix_p_type), Dimension(:), Intent (IN):: rho_ao_new
 !!       Logical, Intent (IN), Optional:: rebuild, update_rho_ao
-!!       Type(qs_energy_type), Pointer, Optional:: energy
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine qs_rho_update_rho
 !!
@@ -292,7 +288,6 @@ END SUBROUTINE qs_rho_rebuild
 !!     - rho_ao_new: the new value for rho_ao
 !!     - qs_env: the qs_env rho_struct refers to
 !!       the integrated charge in r space
-!!     - qs_energy: the object where to store the energies
 !!     - rebuild: if false builds rho_r by just updating the parts
 !!       of rho that changed with respect to the old density,
 !!       (by default looks at how may updates were done without rebuild).
@@ -309,12 +304,11 @@ END SUBROUTINE qs_rho_rebuild
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
-     energy,rebuild,update_rho_ao, error)
+     rebuild,update_rho_ao, error)
   TYPE(qs_rho_type), POINTER :: rho_struct
   TYPE(qs_environment_type), INTENT(in) :: qs_env
   TYPE(real_matrix_p_type),DIMENSION(:), INTENT(in) :: rho_ao_new
   LOGICAL, INTENT(in),OPTIONAL :: rebuild, update_rho_ao
-  TYPE(qs_energy_type), POINTER, OPTIONAL :: energy
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure, my_rebuild, update_rho_ao_local
@@ -343,17 +337,6 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
      CALL get_qs_env(qs_env, dft_control=dft_control, h=h,&
           s=s,pw_env=pw_env, para_env=para_env)
      nspins=dft_control%nspins
-     ! move update of ecore to some other place ?
-     energy%core=0.0_wp
-     DO ispin=1,nspins
-        CALL calculate_ecore(h=h(1)%matrix,&
-             p=rho_ao_new(ispin)%matrix,&
-             s=s(1)%matrix,&
-             ecore=ecore,&
-             para_env=para_env,&
-             error=error)
-        energy%core=energy%core+ecore
-     END DO
      
      ! decides if to rebuild or just update
      my_rebuild=rho_struct%updates_since_rebuild > rho_struct%rebuild_each

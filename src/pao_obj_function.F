@@ -342,7 +342,8 @@ CONTAINS
           CALL allocate_mo_set(gf_env%mo_set(1)%mo_set,nao=ntot_min_bas,&
                nmo=nelectron/2,&
                nelectron=nelectron,maxocc=2.0_wp)
-          CALL init_mo_set(gf_env%mo_set(1)%mo_set,ao_mo_fm_pools(1)%pool)
+          CALL init_mo_set(gf_env%mo_set(1)%mo_set,ao_mo_fm_pools(1)%pool,&
+               "pao_min_bas_mo")
           gf_env%should_dealloc_mo=.TRUE.
        END IF
        IF (PRESENT(should_dealloc_mo)) &

@@ -125,7 +125,6 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-
 SUBROUTINE xc_calculate_pw_lda ( rho_r, rho_g, vxc, exc, dft_control )
   
   IMPLICIT NONE
@@ -423,8 +422,8 @@ END SUBROUTINE xc_calculate_pw_lda
 
     IF (.NOT. failure) THEN
        gradient_f=dft_control%gradient_functional
-       crossterms=ANY(dft_control%ftags(2,:))
        nspins=dft_control%nspins
+       crossterms=ANY(dft_control%ftags(2,:)).and.nspins>1
 
        IF (gradient_f) THEN
           CPPrecondition(ASSOCIATED(rho_g),cp_failure_level,routineP,error,failure)
@@ -631,6 +630,7 @@ END SUBROUTINE xc_calculate_pw_lda
     IF (.NOT.failure) THEN
        DO ipot=1,npot
           IF (grad_pot(1,ipot).AND.grad_pot(2,ipot)) THEN
+             CPPrecondition(gradient_f,cp_failure_level,routineP,error,failure)
              IF (ndiag_term(ipot)) THEN
                 DO ii=0,ntot
                    pot(ii,ipot)=pot(ii,ipot)/(drgrid(ii,spin_pot(1,ipot))*&
@@ -788,7 +788,7 @@ END SUBROUTINE xc_calculate_pw_lda
                          v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
                               v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
                               rho1_r(spin_pot(2,ipot))%pw%cr3d(i,j,k)*&
-                              pot(ii,ipot)/drgrid(ii,spin_pot(1,ipot))**2
+                              pot(ii,ipot)
                       END DO
                    END DO
                 END DO
@@ -797,14 +797,18 @@ END SUBROUTINE xc_calculate_pw_lda
        END DO
     END IF
 
-! give back drho1_r
     IF (gradient_f) THEN
        IF (.NOT.failure) THEN
+! give back drho1_r
           DO spin=1,nspins
              CALL pw_pool_give_back_pw(pw_pool,drho1_r(spin)%pw,&
                   error=error)
           END DO
           DEALLOCATE(drho1_r,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+! dealloc drgrid
+          DEALLOCATE(drgrid,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
     END IF
@@ -812,12 +816,6 @@ END SUBROUTINE xc_calculate_pw_lda
 ! dealloc pot
     IF (.NOT.failure) THEN
        DEALLOCATE(pot,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-    END IF
-
-! dealloc drgrid
-    IF (.not.failure) THEN
-       DEALLOCATE(drgrid,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
 
@@ -850,7 +848,7 @@ END SUBROUTINE xc_calculate_pw_lda
                 
                 CALL pw_transfer(v_rspace_new(spin)%pw,tmp_g)
                 CALL pw_derive(tmp_g,nd(:,idir))
-                CALL pw_sumup(v_deriv_g,tmp_g)
+                CALL pw_sumup(tmp_g,v_deriv_g)
              END DO
           END IF
 
@@ -862,16 +860,25 @@ END SUBROUTINE xc_calculate_pw_lda
        END IF
        CALL pw_pool_give_back_pw(pw_pool,v_deriv_g,error=error)
 
+       IF (gradient_f) THEN
 ! dealloc drho_r
-       DO spin=1,nspins
-          DO idir=1,3
-             CALL pw_pool_give_back_pw(pw_pool,drho_r(idir,spin)%pw,&
+          DO spin=1,nspins
+             DO idir=1,3
+                CALL pw_pool_give_back_pw(pw_pool,drho_r(idir,spin)%pw,&
+                     error=error)
+             END DO
+          END DO
+          DEALLOCATE(drho_r, stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+! dealloc v_r_to_deriv
+          DO spin=1,nspins
+             CALL pw_pool_give_back_pw(pw_pool,v_r_to_deriv(spin)%pw,&
                   error=error)
           END DO
-       END DO
-       DEALLOCATE(v_rspace_new,drho_r,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-
+          DEALLOCATE(v_r_to_deriv, stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       END IF
+       
 ! dealloc 2nd deriv info
        DEALLOCATE(spin_pot, grad_pot, ndiag_term, stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

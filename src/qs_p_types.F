@@ -82,6 +82,7 @@ MODULE qs_p_types
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
+  USE qs_rho_types,                    ONLY: qs_rho_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              deallocate_matrix_set,&
                                              get_matrix_info,&
@@ -135,6 +136,7 @@ MODULE qs_p_types
      TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: m_epsilon,&
           psi0d, S_psi0
      TYPE(qs_kpp1_env_type), POINTER :: kpp1_env
+     TYPE(qs_rho_type), POINTER :: rho1
      INTEGER, DIMENSION(2) :: n_mo, & ! no of molecular orbitals
                               n_ao    ! no of basis functions
   END TYPE qs_p_env_type

@@ -288,8 +288,6 @@ CONTAINS
 
     IF (.NOT.failure) THEN
        CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
-       CPPrecondition(SIZE(k_p_p1)>=nspins,cp_failure_level,routineP,error,failure)
-
        CALL kpp1_check_i_alloc(kpp1_env,qs_env=qs_env,error=error)
 
        CALL get_qs_env(qs_env=qs_env,&
@@ -299,6 +297,7 @@ CONTAINS
             error=error)
 
        nspins=dft_control%nspins
+       CPPrecondition(SIZE(k_p_p1)>=nspins,cp_failure_level,routineP,error,failure)
        CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     END IF
 

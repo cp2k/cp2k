@@ -260,9 +260,10 @@ CONTAINS
 !!     init_mo_set
 !!
 !!   SYNOPSIS
-!!     Subroutine init_mo_set(mo_set, fm_pool, error)
+!!     Subroutine init_mo_set(mo_set, fm_pool, name, error)
 !!       Type(mo_set_type), Pointer:: mo_set
 !!       Type(cp_fm_pool_type), Pointer:: fm_pool
+!!       Character(Len=*), Intent (IN):: name
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine init_mo_set
 !!
@@ -287,9 +288,10 @@ CONTAINS
 !!     11.2002 rewamped [fawzi]
 !!
 !!*** *********************************************************************
-  SUBROUTINE init_mo_set(mo_set, fm_pool, error)
+  SUBROUTINE init_mo_set(mo_set, fm_pool, name, error)
     TYPE(mo_set_type), POINTER                   :: mo_set
     TYPE(cp_fm_pool_type), POINTER               :: fm_pool
+    CHARACTER(len=*), INTENT(in)                 :: name
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     LOGICAL :: failure
@@ -313,7 +315,7 @@ CONTAINS
     CALL set_mo_occupation(mo_set=mo_set,smear=0.0_wp)
 
     CALL fm_pool_create_matrix(fm_pool,mo_set%eigenvectors,&
-         name="MO EIGENVECTORS",error=error)
+         name=name,error=error)
     CALL cp_fm_get_info(mo_set%eigenvectors, nrow_global=nao, &
          ncol_global=nmo,error=error)
     CPPostcondition(nao>=mo_set%nao,cp_failure_level,routineP,error,failure)
@@ -988,12 +990,13 @@ CONTAINS
   END SUBROUTINE write_mo_set_to_restart_unit
 
 ! *****************************************************************************
-  SUBROUTINE write_mo_set_to_restart_new(mo_set,atomic_kind_set,particle_set,globenv)
+  SUBROUTINE write_mo_set_to_restart_new(mo_set,atomic_kind_set,particle_set,globenv, id_nr)
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(global_environment_type), INTENT(IN)     :: globenv
     TYPE(mo_set_type), POINTER                    :: mo_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
+    INTEGER, INTENT(in)                           :: id_nr
 
 !   *** Local variables ***
     CHARACTER(LEN=6)   :: extension
@@ -1019,7 +1022,12 @@ CONTAINS
 
     IF (globenv%ionode) THEN
 
-      file_name = globenv%restart_file_name
+      IF (id_nr==1) THEN
+         file_name=globenv%restart_file_name
+      ELSE
+         file_name = TRIM(globenv%restart_file_name)//"-"//&
+              ADJUSTL(cp_to_string(id_nr))
+      END IF
       CALL open_file(file_name=file_name,&
                      file_action="WRITE",&
                      file_form="UNFORMATTED",&
@@ -1103,12 +1111,13 @@ CONTAINS
 ! *****************************************************************************
 
 ! *****************************************************************************
-  SUBROUTINE read_mo_set_from_restart_new(mo_set,atomic_kind_set,particle_set,globenv)
+  SUBROUTINE read_mo_set_from_restart_new(mo_set,atomic_kind_set,particle_set,globenv, id_nr)
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(global_environment_type), INTENT(IN)     :: globenv
     TYPE(mo_set_type), POINTER                    :: mo_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
+    INTEGER, INTENT(in)                           :: id_nr
 
 !   *** Local variables ***
     CHARACTER(LEN=6)   :: extension
@@ -1140,8 +1149,12 @@ CONTAINS
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                natom=natom,&
                                nsgf=nsgf)
-
-      file_name = globenv%restart_file_name
+      IF (id_nr==1) THEN
+         file_name=globenv%restart_file_name
+      ELSE
+         file_name = TRIM(globenv%restart_file_name)//"-"//&
+              ADJUSTL(cp_to_string(id_nr))
+      END IF
       CALL open_file(file_name=file_name,&
                      file_action="READ",&
                      file_form="UNFORMATTED",&

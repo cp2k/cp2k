@@ -356,6 +356,7 @@ CONTAINS
 !!   INPUTS
 !!     - pool: the pool from where you get the matrix
 !!     - matrix: will contain the new matrix
+!!     - name: the name for the new matrix (optional)
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -391,6 +392,7 @@ CONTAINS
        END IF
        IF (PRESENT(name)) THEN
           matrix%name=name
+          matrix%print_count=0
        ELSE
           matrix%name="tmp_matrix "//ADJUSTL(cp_to_string(matrix%id_nr))
        END IF

@@ -100,17 +100,73 @@ MODULE cp_fm_types
 !***
 !****************************************************************************
 
+!!****s* cp_fm_types/cp_full_matrix_type [1.0] *
+!!
+!!   NAME
+!!     cp_full_matrix_type
+!!
+!!   FUNCTION
+!!     represent a full matrix
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     - name: the name of the matrix, used for printing
+!!     - id_nr: identification number that makes this matrix unique
+!!     - ref_cont: reference count (see doc/ReferenceCounting.html)
+!!     - print_count: sequential number to make the printed files unique
+!!     - matrix_struct: structure of this matrix
+!!     - local_data: array with the data of the matrix (its contents
+!!       depend on the matrix type used: in parallel runs it will be
+!!       in scalapack format, in sequential, it will simply contain
+!!       the matrix)
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!   SOURCE
+  !***************************************************************************
   TYPE cp_full_matrix_type
 !    PRIVATE
-     CHARACTER(LEN=60) :: name ! remove?
-     INTEGER :: id_nr, ref_count
+     CHARACTER(LEN=60) :: name
+     INTEGER :: id_nr, ref_count, print_count
      TYPE(cp_fm_struct_type), POINTER :: matrix_struct
      REAL(kind=wp), DIMENSION(:,:), POINTER :: local_data
   END TYPE cp_full_matrix_type
+!!***
+  !****************************************************************************
 
+!!****s* cp_fm_types/cp_full_matrix_p_type [1.0] *
+!!
+!!   NAME
+!!     cp_full_matrix_p_type
+!!
+!!   FUNCTION
+!!     just to build arrays of pointers to matrixes
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     - matrix: the pointer to the matrix
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!   SOURCE
+  !***************************************************************************
   TYPE cp_full_matrix_p_type
      TYPE(cp_full_matrix_type), POINTER :: matrix
   END TYPE cp_full_matrix_p_type
+!!***
+  !****************************************************************************
 
 CONTAINS
 
@@ -229,6 +285,7 @@ CONTAINS
        last_fm_id_nr=last_fm_id_nr+1
        matrix%id_nr=last_fm_id_nr
        matrix%ref_count=1
+       matrix%print_count=0
 
        nprow=context%num_pe(1)
        npcol=context%num_pe(2)
@@ -1067,7 +1124,6 @@ CONTAINS
     LOGICAL :: failure, loc, my_long_description
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_write',&
          routineP=moduleN//':'//routineN
-    INTEGER, SAVE :: uniquing_nr=0
     INTEGER :: iostat
     TYPE(cp_logger_type), POINTER :: logger
     TYPE(cp_para_env_type), POINTER :: para_env
@@ -1101,8 +1157,8 @@ CONTAINS
                 WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " ),"
              ELSE
                 WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) &
-                     " local_data=( output to files "//TRIM(filename)//&
-                     TRIM(ADJUSTL(cp_to_string(uniquing_nr)))//")"
+                     " local_data=( output to files "//TRIM(filename)//"-"//&
+                     TRIM(ADJUSTL(cp_to_string(matrix%print_count)))//")"
              END IF
           ELSE IF (loc) THEN
              IF (ASSOCIATED(matrix%local_data)) THEN
@@ -1128,10 +1184,10 @@ CONTAINS
                   error,failure)
           END IF
           IF (.NOT.failure) THEN
-             uniquing_nr=uniquing_nr+1
+             matrix%print_count=matrix%print_count+1
              CALL cp_2d_r_output(logger=logger,&
                   outputName=filename,&
-                  fromWhere=routineP, iter=uniquing_nr,&
+                  fromWhere=routineP, iter=matrix%print_count,&
                   array=matrix%local_data,&
                   comment="proc_row="//&
                   cp_to_string(matrix%matrix_struct%context%mepos(1))//&

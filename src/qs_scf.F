@@ -867,7 +867,8 @@ CONTAINS
 !   *** Write restart file ***
 
     ! CALL write_mo_set(mo_set,globenv)
-    CALL write_mo_set(mo_set,atomic_kind_set,particle_set,globenv)
+    CALL write_mo_set(mo_set,atomic_kind_set,particle_set,globenv,&
+         id_nr=qs_env%id_nr)
 
 !    call pao_opt_dealloc(pao_optimizer,pao_obj_f,qs_env,globenv,error)
 
@@ -950,7 +951,10 @@ CONTAINS
        DO i=1,SIZE(c)
           CALL get_mo_set(c(i)%mo_set,eigenvectors=eigenvectors)
           IF (.NOT.ASSOCIATED(eigenvectors)) THEN
-             CALL init_mo_set(c(i)%mo_set, ao_mo_fm_pools(i)%pool,error=error)
+             CALL init_mo_set(c(i)%mo_set, ao_mo_fm_pools(i)%pool,&
+                  name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
+                  "%mo"//TRIM(ADJUSTL(cp_to_string(i))),&
+                  error=error)
           END IF
        END DO
     END IF
@@ -1065,7 +1069,7 @@ CONTAINS
 
     CALL calculate_first_density_matrix(ortho,mo_set,p_rmpv(1),s(1), &
          scf_work1,scf_work2,globenv,&
-         scf_control=scf_control)
+         scf_control=scf_control, id_nr=qs_env%id_nr)
 
     CALL timestop(0.0_wp,handle)
 
@@ -1299,13 +1303,14 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE calculate_first_density_matrix(ortho,mo_set,p,s_sparse,&
-       work1,work2,globenv,scf_control)
+       work1,work2,globenv,scf_control,id_nr)
 
     TYPE(cp_full_matrix_type), POINTER        :: ortho,work1,work2
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
     TYPE(real_matrix_p_type), INTENT(INOUT)   :: p,s_sparse
     TYPE(scf_control_type), POINTER           :: scf_control
+    INTEGER, INTENT(in)                       :: id_nr!FM ugly, should be removed
 
 !   *** Local parameters ***
 
@@ -1348,7 +1353,8 @@ CONTAINS
       ! CALL read_mo_set(mo_set,globenv)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
       ! particle set should be already init here
-      CALL read_mo_set(mo_set,atomic_kind_set,particle_set,globenv)
+      CALL read_mo_set(mo_set,atomic_kind_set,particle_set,globenv,&
+           id_nr=id_nr)
 
       IF (scf_control%level_shift /= 0.0_wp) THEN
         CALL get_mo_set(mo_set=mo_set,&

@@ -60,6 +60,7 @@ MODULE qs_ks_methods
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
   USE dft_types,                       ONLY: dft_control_type
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
@@ -97,6 +98,9 @@ MODULE qs_ks_methods
   USE qs_collocate_density,            ONLY: calculate_rho_core,&
                                              calculate_rho_elec,&
                                              calculate_total_rho
+  USE qs_core_energies,                ONLY: calculate_ecore,&
+                                             calculate_ecore_overlap,&
+                                             calculate_ecore_self
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
@@ -563,14 +567,19 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
   LOGICAL :: failure, r_build, c_forces, energy_only, did_update
   CHARACTER(len=*), PARAMETER :: routineN='qs_ks_update_qs_env',&
         routineP=moduleN//':'//routineN
-  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: ks,p
+  INTEGER :: ispin
+  REAL(kind=wp) :: ecore
+  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: ks,p, h, s
   TYPE(qs_energy_type), POINTER :: energy
   TYPE(qs_charges_type), POINTER :: qs_charges
   TYPE(cp_logger_type), POINTER :: logger
   TYPE(qs_rho_type), POINTER :: rho
+  TYPE(dft_control_type), POINTER :: dft_control
+  TYPE(cp_para_env_type), POINTER :: para_env
 
   failure=.FALSE.
   did_update=.FALSE.
+  NULLIFY(ks,p,h,s,energy, qs_charges, logger, rho, dft_control, para_env)
   logger => cp_error_get_logger(error)
   r_build=.FALSE.; c_forces=.FALSE.; energy_only = .FALSE.
   IF (PRESENT(just_energy)) energy_only=just_energy
@@ -585,10 +594,23 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
           (c_forces.AND..NOT.ks_env%forces_up_to_date)) THEN
         did_update=.TRUE.
         CALL get_qs_env(qs_env,k=ks,p=p,rho=rho,energy=energy,&
-             qs_charges=qs_charges)
-        CALL qs_rho_update_rho(rho, rho_ao_new=p,qs_env=qs_env,&
-             rebuild=r_build,energy=energy,&
-             error=error)
+             qs_charges=qs_charges, dft_control=dft_control,&
+             h=h,para_env=para_env,s=s,error=error)
+
+        ! update ecore
+        energy%core=0.0_wp
+        DO ispin=1,dft_control%nspins
+           CALL calculate_ecore(h=h(1)%matrix,&
+                p=p(ispin)%matrix,&
+                s=s(1)%matrix,&
+                ecore=ecore,&
+                para_env=para_env,&
+                error=error)
+           energy%core=energy%core+ecore
+        END DO
+
+        CALL qs_rho_update_rho(rho, rho_ao_new=p, qs_env=qs_env,&
+             rebuild=r_build, error=error)
         CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
              ks=ks,&
              rho=rho,energy=energy,rebuild=r_build,&

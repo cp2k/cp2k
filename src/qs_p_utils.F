@@ -114,6 +114,10 @@ MODULE qs_p_utils
                                              p_env_retain,&
                                              qs_kpp1_env_type,&
                                              qs_p_env_type
+  USE qs_rho_methods,                  ONLY: qs_rho_rebuild,&
+                                             qs_rho_update_rho
+  USE qs_rho_types,                    ONLY: qs_rho_release,&
+                                             qs_rho_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              get_matrix_info,&
                                              real_matrix_p_type,&
@@ -201,6 +205,7 @@ CONTAINS
     TYPE(cp_full_matrix_type), POINTER :: qs_env_c
     TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools
     TYPE(cp_para_env_type), POINTER :: para_env
+    TYPE(cp_fm_struct_type), POINTER :: tmp_fmstruct, ao_mo_fmstruct
 
     ! code
 
@@ -214,7 +219,8 @@ CONTAINS
             p_env%m_epsilon, &
             p_env%psi0d, &
             p_env%S_psi0, &
-            p_env%kpp1_env)
+            p_env%kpp1_env,&
+            p_env%rho1)
 
        p_env%ref_count=1
        last_p_env_id=last_p_env_id+1
@@ -231,7 +237,6 @@ CONTAINS
 
        n_spins = qs_env%dft_control%nspins
        DO spin=1, n_spins
-
           IF (PRESENT(psi0d)) THEN
              CALL cp_fm_get_info(psi0d(spin)%matrix, &
                   ncol_global=n_mo, nrow_global=n_ao)
@@ -249,13 +254,26 @@ CONTAINS
             p_env%orthogonal_orbitals=orthogonal_orbitals
        
        CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,matrixes=p_env%S_psi0,&
-            name="p_env_S_psi0", &
-            error=error)
-       CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,&
-            matrixes=p_env%m_epsilon,&
-            name="p_env_m_epsilon", &
+            name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%S_psi0",&
             error=error)
        
+       ! alloc m_epsilon
+       ALLOCATE(p_env%m_epsilon(spin),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO spin=1,n_spins
+          NULLIFY(p_env%m_epsilon(spin)%matrix)
+          ao_mo_fmstruct => fm_pool_get_mstruct(ao_mo_fm_pools(spin)%pool)
+          CALL cp_fm_struct_create(tmp_fmstruct,&
+               nrow_global=p_env%n_mo(spin),&
+               ncol_global=p_env%n_mo(spin),template_fmstruct=ao_mo_fmstruct,&
+               error=error)
+          CALL cp_fm_create(p_env%m_epsilon(spin)%matrix,tmp_fmstruct,&
+               name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
+               "%m_epsilon-"//TRIM(ADJUSTL(cp_to_string(spin))),&
+               error=error)
+          CALL cp_fm_struct_release(tmp_fmstruct,error=error)
+       END DO
+
        IF (PRESENT(psi0d)) THEN
           IF (ASSOCIATED(psi0d)) THEN
              CALL cp_fm_vect_copy(psi0d,p_env%psi0d,error=error)
@@ -263,7 +281,8 @@ CONTAINS
        ELSE IF (.NOT.p_env%orthogonal_orbitals) THEN
           CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,&
                matrixes=p_env%psi0d,&
-               name="p_env_psi0d", &
+               name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
+               "%psi0d", &
                error=error)
        END IF
        
@@ -314,21 +333,29 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure.and..not.ASSOCIATED(p_env%kpp1)) THEN
-       CALL get_qs_env(qs_env,dft_control=dft_control, s=s,error=error)
-       nspins=dft_control%nspins
+    IF (.NOT. failure) THEN
+       IF (.not.ASSOCIATED(p_env%kpp1)) THEN
+          CALL get_qs_env(qs_env,dft_control=dft_control, s=s,error=error)
+          nspins=dft_control%nspins
+          
+          ALLOCATE(p_env%kpp1(nspins),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF (.NOT. failure) THEN
+             name="p_env"//cp_to_string(p_env%id_nr)//"%kpp1-"
+             CALL compress(name)
+             DO ispin=1,nspins
+                NULLIFY(p_env%kpp1(ispin)%matrix)
+                CALL replicate_matrix_structure(s(1)%matrix,&
+                     p_env%kpp1(ispin)%matrix,&
+                     TRIM(name)//ADJUSTL(cp_to_string(ispin)))
+             END DO
+          END IF
 
-       ALLOCATE(p_env%kpp1(nspins),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF (.NOT. failure) THEN
-          name="p_env"//cp_to_string(p_env%id_nr)//"%kpp1-"
-          CALL compress(name)
-          DO ispin=1,nspins
-             NULLIFY(p_env%kpp1(ispin)%matrix)
-             CALL replicate_matrix_structure(s(1)%matrix,&
-                  p_env%kpp1(ispin)%matrix,&
-                  TRIM(name)//ADJUSTL(cp_to_string(ispin)))
-          END DO
+          CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env, error=error)
+       END IF
+       
+       IF (.not.ASSOCIATED(p_env%rho1)) THEN
+          CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env, error=error)
        END IF
     END IF
   END SUBROUTINE p_env_check_i_alloc
@@ -384,6 +411,13 @@ SUBROUTINE p_env_did_change(p_env, s_struct_changed, grid_changed,error)
            END IF
         END IF
      END IF
+
+     IF (PRESENT(grid_changed)) THEN
+        IF (grid_changed) THEN
+           CALL qs_rho_release(p_env%rho1,error=error)
+        END IF
+     END IF
+
      CPPrecondition(ASSOCIATED(p_env%kpp1_env),cp_failure_level,routineP,error,failure)
   END IF
   IF (.not.failure) THEN
@@ -543,6 +577,11 @@ END SUBROUTINE p_env_did_change
                   matrix_g=p_env%psi0d(spin)%matrix,&
                   ncol=p_env%n_mo(spin),error=error)
           END DO
+
+          ! updates rho
+          CALL qs_rho_update_rho(rho_struct=qs_env%rho, &
+               rho_ao_new=p, qs_env=qs_env,&
+               error=error)
           
           ! tells ks_env that p changed
           CALL qs_ks_did_change(ks_env=ks_env,qs_env=qs_env,&
@@ -775,7 +814,7 @@ END SUBROUTINE p_env_did_change
 !!     evaluates res = alpha kpp1 v + beta res
 !!
 !!   NOTES
-!!     -
+!!     qs_env%rho must be up to date
 !!
 !!   INPUTS
 !!     - p_env: the perturbation environment
@@ -794,7 +833,6 @@ END SUBROUTINE p_env_did_change
 !!     02.09.2002 adapted for new qs_p_env_type (TC)
 !!
 !!*** **********************************************************************
-
   SUBROUTINE p_op_l2(p_env, qs_env, v, res, alpha, beta, error)
     
     ! arguments
@@ -809,33 +847,63 @@ END SUBROUTINE p_env_did_change
     LOGICAL                     :: failure
     CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l2',&
                                    routineP = moduleN//':'//routineN
-    INTEGER                     :: spin, n_spins
+    INTEGER                     :: ispin, n_spins, stat
+    REAL(kind=wp) :: my_alpha, my_beta
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p1_new, s
+    TYPE(dft_control_type), POINTER :: dft_control
+    TYPE(cp_para_env_type), POINTER :: para_env
+    TYPE(qs_rho_type), POINTER :: rho
 
     failure=.FALSE.
+    my_alpha=1.0_wp
+    my_beta=0.0_wp
+    NULLIFY(p1_new, s, dft_control, para_env, rho)
+    IF (PRESENT(alpha)) my_alpha=alpha
+    IF (PRESENT(beta)) my_beta=beta
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF (.NOT. failure) THEN
-       
-!!!       do i=1, size(v)
-!!!           call cp_sp_set_to(p_env%P1(spin)%matrix, value=0.0_dbl, error=error)
-!!!       end do
-!!!       call cp_sm_plus_fm_fm_t(p_env%P1(1)%matrix%sm,&
-!!!               p_env%c_ortho(1)%matrix,p_env%psi0d(1)%matrix,&
-!!!               ncol=p_env%n_mo)
-!!!       call cp_sm_plus_fm_fm_t(p_env%P1(1)%matrix%sm,&
-!!!            p_env%psi0d(1)%matrix,p_env%c_ortho(1)%matrix,&
-!!!            ncol=p_env%n_mo)
-!!!       call kpp1_calc_k_p_p1(p_env%kpp1_env,p1=p_env%P1,&
-!!!            kpp1_matrix=p_env%kpp1,&
-!!!            global_env=global_env,error=error)
-!!!       call cp_sp_multiplies_blacs(p_env%kpp1(1)%matrix,C(1)%matrix,&
-!!!            target_m(1)%matrix, alpha=alpha,&
-!!!            beta=beta)
-       n_spins = qs_env%dft_control%nspins
-       DO spin=1, n_spins
-          
+       CALL p_env_check_i_alloc(p_env,qs_env=qs_env,error=error)
+
+       CALL get_qs_env(qs_env,dft_control=dft_control,&
+            para_env=para_env, rho=rho, s=s, error=error)
+       n_spins=dft_control%nspins
+
+       ALLOCATE(p1_new(n_spins),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (.not.failure) THEN
+       DO ispin=1,n_spins
+          NULLIFY(p1_new(ispin)%matrix)
+          CALL replicate_matrix_structure(s(1)%matrix,p1_new(ispin)%matrix,&
+               target_name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
+               "%p1_new-"//TRIM(ADJUSTL(cp_to_string(ispin))))
+          CALL set_matrix(p1_new(ispin)%matrix,&
+               value=0.0_wp)
+          ! optimize?
+          CALL cp_sm_plus_fm_fm_t(p1_new(ispin)%matrix,&
+               matrix_v=v(ispin)%matrix,&
+               matrix_g=p_env%psi0d(ispin)%matrix,&
+               ncol=p_env%n_mo(ispin),error=error)
+          CALL cp_sm_plus_fm_fm_t(p1_new(ispin)%matrix,&
+               matrix_v=p_env%psi0d(ispin)%matrix,&
+               matrix_g=v(ispin)%matrix,&
+               ncol=p_env%n_mo(ispin),error=error)
+       END DO
+       CALL qs_rho_update_rho(rho_struct=p_env%rho1, &
+            rho_ao_new=p1_new,qs_env=qs_env,&
+            error=error)
+       CALL kpp1_calc_k_p_p1(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
+            k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
+            error=error)
+       DO ispin=1,n_spins
+          CALL cp_sm_fm_multiply(sparse_matrix=p_env%kpp1(ispin)%matrix,&
+               v_in=v(ispin)%matrix,v_out=res(ispin)%matrix,&
+               ncol=p_env%n_mo(ispin),&
+               para_env=para_env, &
+               alpha=my_alpha,beta=my_beta,error=error)
        END DO
     END IF
 

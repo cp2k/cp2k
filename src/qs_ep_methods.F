@@ -267,9 +267,12 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
   IF (.not.failure) THEN
      CALL ep_env_create(ep_env,main_qs_env=qs_env, projections=sub_proj,&
           error=error)
+     CALL ep_env_get(ep_env,nspins=nspins,error=error)
+     CALL cp_error_check(error,failure)
   END IF
 
-    IF (cp_debug .AND. debug_this_module) THEN
+  IF (cp_debug .AND. debug_this_module) THEN
+     IF (.not.failure) THEN
        CALL cp_sm_output(logger=logger, &
             outputName="ep_s", &
             fromWhere=routineP, iter=0, &
@@ -284,6 +287,7 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
             para_env=ep_env%main_qs_env%para_env,error=error)
        END DO
     END IF
+ END IF
 
 
   ! energy in subsystem with diag
@@ -667,6 +671,8 @@ SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
         IF (.NOT.ASSOCIATED(eigenvectors)) THEN
            CALL init_mo_set(c(ispin)%mo_set, &
                 qs_env%ao_mo_fm_pools(ispin)%pool,&
+                name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
+                "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                 error=error)
         END IF
      END DO
