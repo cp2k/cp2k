@@ -14,7 +14,9 @@ MODULE cp2k_runs
   USE fist_debug,                      ONLY: fist_debug_control => debug_control
   USE fist_main,                       ONLY: fist_create_force_env
   USE global_types,                    ONLY: global_environment_type,&
-       globenv_create, globenv_retain, globenv_release
+                                             globenv_create,&
+                                             globenv_retain,&
+                                             globenv_release
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: default_string_length, &
                                              default_path_length,&
@@ -23,7 +25,8 @@ MODULE cp2k_runs
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE timings,                         ONLY: trace_debug
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_para_env, ONLY: cp_para_env_create, cp_para_env_release
+  USE cp_para_env,                     ONLY: cp_para_env_create,&
+                                             cp_para_env_release
   USE farming_methods,                 ONLY: farming_parse_input
   USE farming_types,                   ONLY: farming_env_type, &
                                              init_farming_env, &
@@ -64,6 +67,7 @@ MODULE cp2k_runs
                                              meta_env_release
   USE metadynamics,                    ONLY: metadyn_read
   USE qmmm_init,                       ONLY: qmmm_create_force_env
+  USE qs_tddfpt_module,                ONLY: tddfpt_calculation
   USE input_section_types, ONLY: section_type, section_release,&
        section_vals_type, section_vals_release, section_vals_create,&
        section_vals_write
@@ -220,6 +224,10 @@ CONTAINS
          CASE ("WAVEFUNCTION OPTIMIZATION","ENERGY CALCULATION")
             CALL force_env_calc_energy_force(force_env,calc_force=.false.,&
                  error=error)
+         CASE ("ELECTRONIC SPECTRA")
+            CALL force_env_calc_energy_force(force_env,calc_force=.false.,&
+                 error=error)
+            CALL tddfpt_calculation(force_env%qs_env, globenv) 
          CASE DEFAULT
             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                    "Invalid run TYPE <"//TRIM(globenv%run_type)//"> was specified, "//&

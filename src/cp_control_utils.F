@@ -370,7 +370,7 @@ CONTAINS
     dft_control % xc_control % functional_routine = xc_new_f_routine
 
     SELECT CASE (globenv%run_type)
-    CASE ("WAVEFUNCTION OPTIMIZATION","MONTE CARLO")
+    CASE ("WAVEFUNCTION OPTIMIZATION","MONTE CARLO","ELECTRONIC SPECTRA")
       dft_control%forces = .FALSE.
     CASE ("MOLECULAR DYNAMICS","GEOMETRY OPTIMIZATION")
       dft_control%forces = .TRUE.

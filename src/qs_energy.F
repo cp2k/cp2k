@@ -31,7 +31,6 @@ MODULE qs_energy
                                              get_qs_env
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_scf,                          ONLY: scf
-  USE qs_tddfpt_module,                ONLY: tddfpt_calculation
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -105,10 +104,6 @@ CONTAINS
 
     ! *** Perform a SCF run ***
     CALL scf(qs_env,globenv)
-
-    ! *** performs a tddfpt calculation if requested
-    ! should possibly go in qs_scf/scf_env_post_calc
-    CALL tddfpt_calculation(qs_env, globenv) 
 
     CALL timestop(0.0_dp,handle)
 
