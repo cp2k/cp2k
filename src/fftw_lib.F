@@ -542,8 +542,6 @@ SUBROUTINE mltfft ( tin, tout, fsign, scale, n, m, zin, zout )
   CALL fftw_f77_destroy_plan(plan)
   IF ( scale /= 1._dbl ) zout = scale * zout
 
-  CALL fftw_f77_destroy_plan(plan)
-
 #else
 
   fsign = 0
