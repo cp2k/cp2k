@@ -4,6 +4,7 @@
 # DPD (dipole-pseudo-density) Gaussian basis set
 # FEDPD (fully-empirical-dipole-pseudo-density) Gaussian basis set
 # for Kim-Gordon model with frozen densities (sprik-barker parametrization)
+# CPMD: frozen pseudodensities parameterized from CPMD calculations
 #
 ################################################################################
 #
@@ -83,23 +84,11 @@ O KG-FEDPD-BARKER
 #
 ################################################################################
 #
-# Gaussian basis set for cpmd-parameterized polarizable force field MD
-# RHO0 = frozen atomic density     DRHO = polarization density
+# Gaussian basis sets DRHO for KG-POL model                                     
+# DRHO = basis functions for polarization density
 #
 ################################################################################
 #
-#
-I TEST
- 1
- 1  0  0  2  1
-       1.0000000000   1.0000000000
-       0.5000000000 -10.1812820000
-#
-LI TEST
- 1
- 1  0  0  2  1
-       1.0000000000   1.0000000000
-       0.5000000000 -10.1812820000
 I I_DRHO
  2
 1  0  0  5  1
@@ -112,14 +101,6 @@ I I_DRHO
  1.04072963   .11748245E+00
 .36846234     .23436042E-01
 #
-#
-I I_RHO0
-1
-1  0  0  1  1
-.308507157228   -.307732281624E-01
-#
-
-
 LI LI_DRHO
  1
 1  0  0  5  1
@@ -129,12 +110,3 @@ LI LI_DRHO
    .5     .379999954872E-01
     .1    -.638332739087E-03
 #
-LI LI_RHO0
-1
-1  0  0  1  1
-.308507157228   -.307732281624E-01
-#
-LI LI_0
-1
-1  0  0  1  1
-.308507157228   0.307732281624E-16

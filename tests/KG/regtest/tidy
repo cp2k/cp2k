@@ -2,7 +2,9 @@ rm -f *.crd \
  *.ener \
  *.restart \
  *.vel \
- *.cube\
+ *.crd \
+ *.cube \
+ coeffs_dump \
  RESTART \
  HESSIAN \
  bfgs.data\

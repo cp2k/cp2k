@@ -1,0 +1,116 @@
+&CP2K
+  PROJECT    nai
+  PROGRAM    kg
+  IOLEVEL    4
+  RUN_TYPE   WFN_OPT     
+  FFTLIB     FFTSG
+&END
+
+
+&DFT
+X-FUNCTIONAL  none
+C-FUNCTIONAL  pade 
+KE-FUNCTIONAL tf
+density_cutoff   1.0E-10
+gradient_cutoff   1.0E-10
+&END 
+
+&TOPOLOGY
+nhcopt   GLOBAL
+&END 
+
+&KG
+ cutoff 20.0
+ eps_core_charge 1.0E-96 
+ eps_ppl 1.0E-96
+ eps_pgf_orb 1.0E-16
+ eps_gvg_rspace 1.0E-16
+ eps_rho 1.0E-16
+ method  KG_POL
+ ngrid_level 1
+&END
+
+
+&PRINT  low
+BASIS_SET
+CORE_CHARGE_RADII
+RADII
+POTENTIALS
+PW_GRID_INFORMATION
+CUBE
+&END
+
+&KIND Na
+BASIS_SET KG-PDM-CPMD
+POTENTIAL ELP
+&END
+
+&KIND I
+BASIS_SET KG-PDM-CPMD
+AUX_BASIS_SET I_DRHO
+POTENTIAL ELP
+&END
+
+&SCF
+ GUESS        atomic
+ EPS_SCF      1.0E-5
+ MAX_SCF      300    
+ MAX_DIIS     5
+ WRITE_RESTART_EACH 100
+&END
+
+&MD_NEW
+ timestep 1.0
+ ensemble  nvt
+ temperature  300.0000
+ restart      init
+ steps 10
+&KG_COEFF
+  ENSEMBLE NVT
+  NHCOPT GLOBAL
+  storage global
+  temperature 2.0
+  mass 250.0
+  RESTART posvel
+  &NOSE
+   length 1
+   Yoshida 3
+   timeconstant 100.
+   mts 2
+  &END
+&END
+&END
+
+
+&MD
+  output_format: atomic
+  ensemble:      nvt                      (nve,nvt,npt_i,npt_f)
+  steps:         10
+  timestep:    0.5   fs                 time step [fs]
+  temperature:  300.0000                  temperature [K]
+  restart:      init                    start type (pos,posvel)
+  constraints:  off
+  shake:        1.e-10
+  nose_parameter   &
+    length:    1        &
+    Yoshida:   3        &
+    timecon:   1000.  fs   &
+    mts:       2
+  barostat_parameter:   &
+    pressure: 0.        &
+    timecon: 1000.
+  print  files          1
+  print  screen         1  
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          7.940  7.940   7.940          
+ SUBCELLS  0.
+&END
+
+&COORD
+    I      0.05444808     -0.15740044      0.24414683
+   Na      3.31665718     -0.15142475     -0.25449516
+&END
+bondparm COVALENT 0.01
