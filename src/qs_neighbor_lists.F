@@ -58,6 +58,7 @@ MODULE qs_neighbor_lists
                                              add_neighbor_node,&
                                              allocate_neighbor_list_set,&
                                              deallocate_neighbor_list_set,&
+                                             deallocate_reduced_3c_list,&
                                              first_list,&
                                              first_node,&
                                              get_neighbor_list,&
@@ -68,7 +69,8 @@ MODULE qs_neighbor_lists
                                              neighbor_list_set_type,&
                                              neighbor_list_type,&
                                              neighbor_node_type,&
-                                             next
+                                             next,&
+                                             reduced_3c_list_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_mpole_type
   USE simulation_cell,                 ONLY: cell_type,&
@@ -553,7 +555,8 @@ CONTAINS
     ELSE
       CALL build_neighbor_lists(sab_orb,atom,cell,r_skin,maxatom_local,&
                  print_subcell_grid,output_unit,&
-                 orb_present,orb_present,orb_radius,orb_radius)
+                 orb_present,orb_present,orb_radius,orb_radius,&
+                 paw_atom_present,rho0_present)
     END IF
 
 !   *** Put the generated neighbor lists into the QS environment ***
@@ -796,7 +799,8 @@ CONTAINS
 
   SUBROUTINE build_neighbor_lists(ab,atom,cell,r_skin,maxatom_local,&
                                   print_subcell_grid,output_unit,&
-                                  present_a,present_b,radius_a,radius_b)
+                                  present_a,present_b,radius_a,radius_b,&
+                                  l3c_oce, l3c_rho0)
 
 !   Purpose: Build simple pair neighbor lists.
 
@@ -815,6 +819,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, DIMENSION(:), INTENT(IN)        :: present_a, present_b
     REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_b
+    LOGICAL, INTENT(IN), OPTIONAL            :: l3c_oce, l3c_rho0
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_neighbor_lists"
 
@@ -825,6 +830,7 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b, ncell, &
                                                 nsubcell, periodic
     LOGICAL                                  :: include_ab
+    LOGICAL                                  :: my_l3c_oce, my_l3c_rho0
     REAL(dp)                                 :: rab2, rab2_max, rab_max, &
                                                 subcells, unit_of_length
     REAL(dp), DIMENSION(3)                   :: r, rab, rb, s, sab_max, sb, &
@@ -852,6 +858,11 @@ CONTAINS
 !   *** Allocate and initialize the new neighbor list structure ***
 
     nkind = SIZE(atom)
+    my_l3c_oce = .FALSE.
+    IF(PRESENT(l3c_oce)) my_l3c_oce = l3c_oce 
+    my_l3c_rho0 = .FALSE.
+    IF(PRESENT(l3c_rho0)) my_l3c_rho0 = l3c_rho0 
+
 
     ALLOCATE (ab(nkind*nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -991,7 +1002,7 @@ CONTAINS
                           neighbor_list=kind_a(iatom_local)%neighbor_list,&
                           neighbor=atom_b,&
                           cell=cell_b,&
-                          r=rab)
+                          r=rab,l3c_oce=my_l3c_oce,l3c_rho0=my_l3c_rho0,nkind=nkind)
                       END IF
                     END IF
                   END DO
@@ -1093,7 +1104,7 @@ CONTAINS
                                 neighbor_list=kind_a(iatom_local)%neighbor_list,&
                                 neighbor=atom_b,&
                                 cell=cell_b,&
-                                r=rab)
+                                r=rab,l3c_oce=my_l3c_oce,l3c_rho0=my_l3c_rho0,nkind=nkind)
                             END IF
                           END IF
                         END DO

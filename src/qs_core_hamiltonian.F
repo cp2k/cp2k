@@ -121,13 +121,15 @@ MODULE qs_core_hamiltonian
                                              neighbor_list_set_p_type,&
                                              neighbor_list_type,&
                                              neighbor_node_type,&
-                                             next
+                                             next, &
+                                             reduced_3c_list_type
   USE qs_oce_methods,                  ONLY: set_up_oce
   USE qs_oce_types,                    ONLY: allocate_oce_set,&
                                              allocate_vtriple,&
                                              create_oce_set,&
                                              oce_matrix_type, &
                                              prepare_oce_coeff,&
+                                             build_reduced_3c_lists,&
                                              retrieve_sac_list,&
                                              vtriple_type
   USE qs_overlap,                      ONLY: write_matrix_distribution,&
@@ -285,13 +287,16 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_ppl,&
                                                              sac_ppnl,sbc_ppnl,&
-                                                             sac_oce,sac_3c,sbc_3c
+                                                             sac_oce,sbc_oce,&
+                                                             sac_3c,sbc_3c
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: matrix_h,matrix_p,matrix_s, &
                                                              matrix_t,matrix_v,matrix_w
     TYPE(oce_matrix_type), POINTER                        :: oce
     TYPE(vtriple_type), DIMENSION(:,:),POINTER            :: VH_3c_list
+    TYPE(reduced_3c_list_type), DIMENSION(:), POINTER     :: reduced_3c_oce,&
+                                                             reduced_3c_rho0 
 
     REAL(KIND = dp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: h_block,p_block,rpgfa,rpgfb,&
@@ -331,6 +336,7 @@ CONTAINS
     NULLIFY (sac_ppnl)
     NULLIFY (sbc_ppnl)
     NULLIFY (sac_oce)
+    NULLIFY (sbc_oce)
     NULLIFY (sac_3c)
     NULLIFY (sbc_3c)
     NULLIFY (scf_control)
@@ -354,6 +360,7 @@ CONTAINS
                     sac_ppnl=sac_ppnl,&
                     sbc_ppnl=sbc_ppnl,&
                     sac_oce=sac_oce,&
+                    sbc_oce=sbc_oce,&
                     VH_3c_list=VH_3c_list,&
                     sac_3c=sac_3c,&
                     sbc_3c=sbc_3c,&
@@ -1156,10 +1163,17 @@ CONTAINS
             ELSE
               new_atom_b = .FALSE.
             END IF
+
             IF(oce_present) THEN
+              CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
+                                    reduced_3c_oce=reduced_3c_oce)
+!            *** Build reduced 3-center lists
+              CALL build_reduced_3c_lists(atomic_kind_set, iatom, jatom, jkind,&
+                                          sbc_oce, oce%voce, reduced_3c_oce)
+
 !            *** Calculate the coefficients of the one center expansions ***
               CALL set_up_oce(qs_env,oce,ikind,iatom,jkind,jatom,rab,&
-                    oceh,oces,nder)
+                              oceh,oces,nder)
             END IF
 
             IF (calculate_forces) atom_b = atom_of_kind(jatom)

@@ -23,7 +23,7 @@ MODULE qs_oce_types
   USE cp_error_handling,               ONLY: cp_error_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: dp,dp_size,&
                                              int_size
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: indco
@@ -40,7 +40,8 @@ MODULE qs_oce_types
                                              neighbor_list_set_p_type,&
                                              neighbor_list_type,&
                                              neighbor_node_type,&
-                                             next
+                                             next,&
+                                             reduced_3c_list_type
   USE sparse_matrix_types,             ONLY: allocate_matrix,&
                                              allocate_matrix_set,&
                                              deallocate_matrix_set,&
@@ -51,6 +52,8 @@ MODULE qs_oce_types
                                              uppercase
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   USE util,                            ONLY: locate,&
                                              sort
 
@@ -77,7 +80,6 @@ MODULE qs_oce_types
   TYPE oce_matrix_type
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER  :: hardo,softo
     TYPE(vtriple_type), DIMENSION(:,:), POINTER      :: voce 
-    LOGICAL, DIMENSION(:,:), POINTER                 :: block_added
     TYPE(oce_couple), DIMENSION(:,:), POINTER        :: couple
   END TYPE
 
@@ -93,6 +95,7 @@ MODULE qs_oce_types
             deallocate_oce_set, &
             deallocate_vtriple,&
             prepare_oce_coeff,&
+            build_reduced_3c_lists,&
             retrieve_sac_list
 
 !!***
@@ -127,9 +130,6 @@ CONTAINS
 
     CALL allocate_vtriple(oce_set%voce,nkind,natom)
 
-    ALLOCATE(oce_set%block_added(natom,natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"block_added",natom*natom)
-    oce_set%block_added = .FALSE.
     ALLOCATE(oce_set%couple(natom,natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"couple",natom*natom)
     oce_set%couple(1:natom,1:natom)%block_created = .FALSE.
@@ -182,7 +182,6 @@ CONTAINS
     NULLIFY(oce_set%hardo)
     NULLIFY(oce_set%softo)
     NULLIFY(oce_set%voce)
-    NULLIFY(oce_set%block_added)
     NULLIFY(oce_set%couple)
 
   END SUBROUTINE create_oce_set
@@ -208,8 +207,6 @@ CONTAINS
     IF(ASSOCIATED(oce_set%hardo)) CALL deallocate_matrix_set(oce_set%hardo)
     IF(ASSOCIATED(oce_set%softo)) CALL deallocate_matrix_set(oce_set%softo)
     IF(ASSOCIATED(oce_set%voce))  CALL deallocate_vtriple(oce_set%voce)
-    IF(ASSOCIATED(oce_set%block_added)) DEALLOCATE(oce_set%block_added,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"deallocate_block_added",0)
     IF(ASSOCIATED(oce_set%couple)) THEN
        DO i=1,SIZE(oce_set%couple,2)
          DO j = 1,SIZE(oce_set%couple,1)
@@ -392,14 +389,214 @@ CONTAINS
                                       target_symmetry="non symmetric")
     END DO
 
-!   Initialize the control variable block_added
-    oce%block_added(1:natom,1:natom) = .FALSE.
+!   Initialize the control variable couple
     oce%couple(1:natom,1:natom)%block_created = .FALSE.
     oce%couple(1:natom,1:natom)%ndist = 0
 
   END SUBROUTINE prepare_oce_coeff
 
 ! *****************************************************************************
+
+  SUBROUTINE build_reduced_3c_lists(atomic_kind_set,iatom,jatom,jkind, &
+                                    sbc_list, vlist,reduced_3c_list)
+
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(neighbor_list_set_p_type),  &
+                  DIMENSION(:), POINTER      :: sbc_list
+    TYPE(reduced_3c_list_type), &
+                  DIMENSION(:), POINTER      :: reduced_3c_list
+    TYPE(vtriple_type), DIMENSION(:,:), &
+                     POINTER                 :: vlist
+    INTEGER, INTENT(IN)                      :: iatom, jatom, jkind
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "build_reduced_3c_lists"
+
+!   *** Local variables ***
+
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(neighbor_list_type), POINTER        :: sbc_list_neighbor_list
+    TYPE(neighbor_node_type), POINTER        :: sbc_list_neighbor_node
+    TYPE(qlist_type), DIMENSION(:, :, :), &
+      POINTER                                :: tmp_neigh
+    TYPE(qlist_type), POINTER                :: sac_list_neighbor
+
+
+    LOGICAL                                  :: paw_atom
+
+    INTEGER :: handle, i, ibc, iblock, istat, katom, kkind, kkneighbor, kneighbor, &
+               nblock_kkind, nkind, nneighbor, nneighbor_old
+    INTEGER, DIMENSION(3)                    :: cell_c
+    INTEGER, DIMENSION(:), POINTER           :: index_atom
+
+    REAL(KIND=dp)                            :: dac2, dbc2
+    REAL(KIND=dp), DIMENSION(3)              :: rac, rbc
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rac2_tmp, rbc2_tmp
+    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: rac_tmp, rbc_tmp
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routine_name,"I"," ",handle)
+
+    NULLIFY(index_atom, rac_tmp, rac2_tmp, rbc_tmp, rbc2_tmp)
+    nneighbor_old = 0
+    nkind = SIZE(atomic_kind_set,1)
+
+!dbg
+!    write(*,*) 'at ', iatom, jatom, jkind
+!    write(*,*) 'vlist ', ASSOCIATED(vlist),size(vlist,1), size(vlist,2)
+!    write(*,*) 'sbc_list ', ASSOCIATED(sbc_list),size(sbc_list,1)
+!dbg
+
+    DO kkind=1,nkind
+       nblock_kkind = 0
+
+       IF(.NOT.ASSOCIATED(vlist(kkind,iatom)%neighbor)) CYCLE
+
+       ibc = jkind + nkind*(kkind - 1)
+
+       IF (.NOT.ASSOCIATED(sbc_list(ibc)%neighbor_list_set)) CYCLE
+       NULLIFY(sbc_list_neighbor_list)
+
+       sbc_list_neighbor_list =>&
+             find_neighbor_list(neighbor_list_set=&
+             sbc_list(ibc)%neighbor_list_set,&
+             atom=jatom)
+
+       IF (.NOT.ASSOCIATED(sbc_list_neighbor_list)) CYCLE
+
+       atomic_kind => atomic_kind_set(kkind)
+
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                            paw_atom=paw_atom)
+
+       IF(.NOT. paw_atom)  CYCLE
+
+       sbc_list_neighbor_list =>&
+         find_neighbor_list(neighbor_list_set=&
+                         sbc_list(ibc)%neighbor_list_set,atom=jatom)
+
+       CALL get_neighbor_list(neighbor_list=sbc_list_neighbor_list,&
+                                     nnode=nneighbor)
+
+       sbc_list_neighbor_node => first_node(sbc_list_neighbor_list)
+
+!dbg
+!       write(*,*) 'nnode ', nneighbor
+!dbg
+       ! Allocate temporary arrays
+       IF(nneighbor .gt. nneighbor_old) THEN
+         CALL reallocate(rac_tmp,1,3,1,nneighbor)
+         CALL reallocate(rac2_tmp,1,nneighbor)
+         CALL reallocate(rbc_tmp,1,3,1,nneighbor)
+         CALL reallocate(rbc2_tmp,1,nneighbor)
+         CALL reallocate(index_atom,1,nneighbor)
+         nneighbor_old = nneighbor
+       END IF
+
+       knodeloop: DO kneighbor=1,nneighbor
+          CALL get_neighbor_node(neighbor_node=sbc_list_neighbor_node,&
+                            neighbor=katom,&
+                            cell=cell_c,&
+                            r=rbc)
+          dbc2 = rbc(1)*rbc(1)+ rbc(2)*rbc(2) + rbc(3)*rbc(3)
+
+          tmp_neigh => vlist(kkind,iatom)%neighbor
+          DO i=1, 3
+            IF ( (cell_c(i) < LBOUND(tmp_neigh,i)) .OR. &
+                 (cell_c(i) > UBOUND(tmp_neigh,i))) THEN
+              sbc_list_neighbor_node => next(sbc_list_neighbor_node)
+              CYCLE knodeloop
+            END IF
+          END DO
+
+          sac_list_neighbor => vlist(kkind,iatom)%neighbor(cell_c(1),&
+                                                           cell_c(2),&
+                                                           cell_c(3))
+   
+          IF (sac_list_neighbor%n == 0) THEN
+              sbc_list_neighbor_node => next(sbc_list_neighbor_node)
+              CYCLE
+          END IF
+
+!         *** Locate operator atom in the sac_oce neighbor list ***
+
+           kkneighbor = locate(sac_list_neighbor%list,katom)
+!dbg
+! write(*,*) 'kkn ', katom, kkneighbor
+!dbg
+
+           IF (kkneighbor == 0) THEN
+               sbc_list_neighbor_node => next(sbc_list_neighbor_node)
+               CYCLE
+           END IF
+
+           rac(:) = sac_list_neighbor%r(:,kkneighbor)
+           dac2 = rac(1)*rac(1)+ rac(2)*rac(2) + rac(3)*rac(3)
+!dbg
+!  write(*,*) 'dac2 ' , dac2
+!dbg
+
+           ! add one block to the reduced list andd fill in data
+           nblock_kkind = nblock_kkind + 1
+!dbg
+!           write(*,*) nblock_kkind
+!dbg
+
+           rac_tmp(1:3,nblock_kkind) = rac(1:3)
+           rac2_tmp(nblock_kkind) = dac2
+           rbc_tmp(1:3,nblock_kkind) = rbc(1:3)
+           rbc2_tmp(nblock_kkind) = dbc2
+           index_atom(nblock_kkind) = katom
+
+           sbc_list_neighbor_node => next(sbc_list_neighbor_node)
+
+       END DO  knodeloop ! kneighbor
+
+       ! Copy the reduced list data in the reduced list array
+       reduced_3c_list(kkind)%nnode = nblock_kkind 
+       IF(nblock_kkind .gt. 0) THEN
+         ALLOCATE(reduced_3c_list(kkind)%rac(3,nblock_kkind),STAT=istat)
+         ALLOCATE(reduced_3c_list(kkind)%rac2(nblock_kkind),STAT=istat)
+         ALLOCATE(reduced_3c_list(kkind)%rbc(3,nblock_kkind),STAT=istat)
+         ALLOCATE(reduced_3c_list(kkind)%rbc2(nblock_kkind),STAT=istat)
+         IF (istat /= 0 ) THEN
+             CALL stop_memory(routine_name,module_name,__LINE__,&
+                             "reduced_3c_list: rac,rac2,rbc,rbc2",&
+                              8*nblock_kkind*dp_size)
+         END IF
+         ALLOCATE(reduced_3c_list(kkind)%index_atom(nblock_kkind),STAT=istat)
+         IF (istat /= 0 ) THEN
+             CALL stop_memory(routine_name,module_name,__LINE__,&
+                             "reduced_3c_list: index_atom",&
+                              nblock_kkind*int_size)
+         END IF
+         DO iblock = 1,nblock_kkind
+           reduced_3c_list(kkind)%rac(1:3,iblock)=rac_tmp(1:3,iblock)
+           reduced_3c_list(kkind)%rac2(iblock)=rac2_tmp(iblock)
+           reduced_3c_list(kkind)%rbc(1:3,iblock)=rbc_tmp(1:3,iblock)
+           reduced_3c_list(kkind)%rbc2(iblock)=rbc2_tmp(iblock)
+           reduced_3c_list(kkind)%index_atom(iblock)=index_atom(iblock)
+         END DO
+       END IF
+
+    ENDDO  ! kkind
+
+    DEALLOCATE(index_atom, rac_tmp, rac2_tmp, rbc_tmp, rbc2_tmp,STAT=istat)
+    IF (istat /= 0 ) THEN
+             CALL stop_memory(routine_name,module_name,__LINE__,&
+                             "reduced_3c_list: rac,rac2,rbc,rbc2,index_atom")
+    END IF
+
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE build_reduced_3c_lists
+
+! *****************************************************************************
+ 
   SUBROUTINE retrieve_sac_list(vlist,sac_list,iatom,ikind,nkind,globenv)
 
     TYPE(vtriple_type), DIMENSION(:,:), &

@@ -47,12 +47,22 @@ MODULE qs_neighbor_list_types
     INTEGER, DIMENSION(:), POINTER            :: index_list,list
   END TYPE qlist_type
 
+  TYPE reduced_3c_list_type
+    INTEGER                           :: nnode
+    INTEGER, DIMENSION(:),  POINTER   :: index_atom
+    REAL(dp), DIMENSION(:), POINTER   :: rac2, rbc2
+    REAL(dp), DIMENSION(:,:), POINTER :: rac, rbc
+  END TYPE reduced_3c_list_type
+
   TYPE neighbor_node_type
     PRIVATE
     TYPE(neighbor_node_type), POINTER :: next_neighbor_node
     INTEGER                           :: neighbor
     REAL(dp), DIMENSION(3)            :: r,s
     INTEGER, DIMENSION(3)             :: cell
+    TYPE(reduced_3c_list_type),&
+        DIMENSION(:),POINTER          :: reduced_3c_oce,&
+                                         reduced_3c_rho0
   END TYPE neighbor_node_type
 
   TYPE neighbor_list_type
@@ -89,6 +99,7 @@ MODULE qs_neighbor_list_types
             neighbor_list_type,&
             neighbor_node_type,&
             qlist_type,&
+            reduced_3c_list_type,&
             block_p_type
 
 ! *** Public subroutines ***
@@ -99,6 +110,7 @@ MODULE qs_neighbor_list_types
             clean_neighbor_list_set,&
             deallocate_neighbor_list,&
             deallocate_neighbor_list_set,&
+            deallocate_reduced_3c_list,&
             extract_neighbor_list,&
             get_neighbor_list,&
             get_neighbor_list_set,&
@@ -237,7 +249,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE add_neighbor_node(neighbor_list,neighbor,cell,r,s,exclusion_list)
+  SUBROUTINE add_neighbor_node(neighbor_list,neighbor,cell,r,s,exclusion_list,&
+                               l3c_oce,l3c_rho0,nkind)
 
 !   Purpose: Add a new neighbor list node to a neighbor list.
 
@@ -254,10 +267,13 @@ CONTAINS
       OPTIONAL                               :: s
     INTEGER, DIMENSION(:), POINTER, &
       OPTIONAL                               :: exclusion_list
+    LOGICAL, INTENT(IN), OPTIONAL            :: l3c_oce, l3c_rho0
+    INTEGER, INTENT(IN), OPTIONAL            :: nkind
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "add_neighbor_node"
 
-    INTEGER                                  :: iatom, istat
+    INTEGER                                  :: iatom, istat,my_nkind
+    LOGICAL                                  :: my_l3c_oce,my_l3c_rho0
     TYPE(neighbor_node_type), POINTER        :: new_neighbor_node
 
 !   ---------------------------------------------------------------------------
@@ -274,6 +290,13 @@ CONTAINS
           END DO
         END IF
       END IF
+
+      my_l3c_oce = .FALSE.
+      IF(PRESENT(l3c_oce)) my_l3c_oce = l3c_oce
+      my_l3c_rho0 = .FALSE.
+      IF(PRESENT(l3c_rho0)) my_l3c_rho0 = l3c_rho0
+      my_nkind = 0
+      IF(PRESENT(nkind)) my_nkind = nkind
 
       IF (ASSOCIATED(neighbor_list%last_neighbor_node)) THEN
 
@@ -327,6 +350,16 @@ CONTAINS
       new_neighbor_node%cell(:) = cell(:)
       new_neighbor_node%r(:) = r(:)
       IF (PRESENT(s)) new_neighbor_node%s(:) = s(:)
+      IF (my_l3c_oce) THEN
+        CALL create_reduced_3c_list(new_neighbor_node%reduced_3c_oce,my_nkind)
+      ELSE
+          NULLIFY(new_neighbor_node%reduced_3c_oce)
+      END IF
+      IF (my_l3c_rho0) THEN
+        CALL create_reduced_3c_list(new_neighbor_node%reduced_3c_rho0,my_nkind)
+      ELSE
+          NULLIFY(new_neighbor_node%reduced_3c_rho0)
+      END IF
 
 !     *** Update the pointer to the last neighbor node of the neighbor list ***
 
@@ -466,6 +499,76 @@ CONTAINS
 
 ! *****************************************************************************
 
+  SUBROUTINE create_reduced_3c_list(reduced_3c_list,nkind)
+
+    TYPE(reduced_3c_list_type), DIMENSION(:),&
+                               POINTER       :: reduced_3c_list
+    INTEGER, INTENT(IN)                      :: nkind
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "create_reduced_3c_list"
+
+    INTEGER                                  :: istat, ikind
+ 
+!   ---------------------------------------------------------------------------
+
+    IF(ASSOCIATED(reduced_3c_list)) &
+           CALL deallocate_reduced_3c_list(reduced_3c_list)
+    ALLOCATE(reduced_3c_list(nkind),STAT=istat)
+    IF (istat /= 0) THEN
+       CALL stop_memory(routine_name,module_name,__LINE__,"reduced_3c_list")
+    END IF
+    DO ikind= 1,nkind
+      NULLIFY(reduced_3c_list(ikind)%index_atom)
+      NULLIFY(reduced_3c_list(ikind)%rac)
+      NULLIFY(reduced_3c_list(ikind)%rac2)
+      NULLIFY(reduced_3c_list(ikind)%rbc)
+      NULLIFY(reduced_3c_list(ikind)%rbc2)
+    END DO
+
+  END SUBROUTINE create_reduced_3c_list
+
+! *****************************************************************************
+
+  SUBROUTINE deallocate_reduced_3c_list(reduced_3c_list)
+
+    TYPE(reduced_3c_list_type), DIMENSION(:),&
+                               POINTER       :: reduced_3c_list
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_reduced_3c_list"
+
+    INTEGER                                  :: istat, ikind, nkind
+
+!   ---------------------------------------------------------------------------
+
+    IF(ASSOCIATED(reduced_3c_list)) THEN
+
+      nkind = SIZE(reduced_3c_list)
+
+      DO ikind = 1, nkind
+        IF(ASSOCIATED(reduced_3c_list(ikind)%index_atom)) THEN
+          DEALLOCATE(reduced_3c_list(ikind)%index_atom,STAT=istat)
+          DEALLOCATE(reduced_3c_list(ikind)%rac,STAT=istat)
+          DEALLOCATE(reduced_3c_list(ikind)%rac2,STAT=istat)
+          DEALLOCATE(reduced_3c_list(ikind)%rbc,STAT=istat)
+          DEALLOCATE(reduced_3c_list(ikind)%rbc2,STAT=istat)
+          IF (istat /= 0) THEN
+            CALL stop_memory(routine_name,module_name,__LINE__,&
+               "index_atom,rac,rac2,rbc,rbc2")
+          END IF
+        END IF
+      END DO
+
+      DEALLOCATE (reduced_3c_list,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"reduced_3c_list")
+      END IF
+
+    END IF 
+
+  END SUBROUTINE deallocate_reduced_3c_list
+
+! *****************************************************************************
+
   SUBROUTINE deallocate_neighbor_list(neighbor_list)
 
 !   Purpose: Deallocate a neighbor list.
@@ -490,6 +593,10 @@ CONTAINS
 
       DO WHILE (ASSOCIATED(neighbor_node))
         next_neighbor_node => neighbor_node%next_neighbor_node
+        IF(ASSOCIATED(neighbor_node%reduced_3c_oce)) &
+               CALL deallocate_reduced_3c_list(neighbor_node%reduced_3c_oce)
+        IF(ASSOCIATED(neighbor_node%reduced_3c_rho0)) &
+               CALL deallocate_reduced_3c_list(neighbor_node%reduced_3c_rho0)
         DEALLOCATE (neighbor_node,STAT=istat)
         IF (istat /= 0) THEN
           CALL stop_memory(routine_name,module_name,__LINE__,"neighbor_node")
@@ -809,7 +916,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_neighbor_node(neighbor_node,neighbor,cell,r,s)
+  SUBROUTINE get_neighbor_node(neighbor_node,neighbor,cell,r,s,&
+                               reduced_3c_oce,reduced_3c_rho0)
 
 !   Purpose: Return the reqested data of a neighbor node.
 
@@ -823,6 +931,9 @@ CONTAINS
       OPTIONAL                               :: cell
     REAL(dp), DIMENSION(3), INTENT(OUT), &
       OPTIONAL                               :: r, s
+    TYPE(reduced_3c_list_type), &
+        DIMENSION(:), POINTER, OPTIONAL      :: reduced_3c_oce, &
+                                                reduced_3c_rho0
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_neighbor_node"
 
@@ -834,6 +945,10 @@ CONTAINS
       IF (PRESENT(r)) r(:) = neighbor_node%r(:)
       IF (PRESENT(s)) s(:) = neighbor_node%s(:)
       IF (PRESENT(cell)) cell(:) = neighbor_node%cell(:)
+      IF (PRESENT(reduced_3c_oce)) &
+                  reduced_3c_oce => neighbor_node%reduced_3c_oce
+      IF (PRESENT(reduced_3c_rho0)) &
+                  reduced_3c_rho0 => neighbor_node%reduced_3c_rho0
 
     ELSE
 

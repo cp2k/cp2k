@@ -552,7 +552,6 @@ CONTAINS
                                 nder)
 
 !         *** This block has been done ***
-          oce%block_added(katom,iatom) = .TRUE.
           oce%couple(katom,iatom)%block_created = .TRUE.
           oce%couple(katom,iatom)%ndist =oce%couple(katom,iatom)%ndist + 1
           ndist = oce%couple(katom,iatom)%ndist
@@ -620,7 +619,6 @@ CONTAINS
                               rbc,dbc,&
                               nder)
 !         *** This block has been done ***
-          oce%block_added(katom,jatom) = .TRUE.
           oce%couple(katom,jatom)%block_created = .TRUE.
           oce%couple(katom,jatom)%ndist =oce%couple(katom,jatom)%ndist + 1
           ndist = oce%couple(katom,jatom)%ndist
