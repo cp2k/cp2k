@@ -201,7 +201,7 @@ CONTAINS
     COMPLEX(wp), DIMENSION(:), POINTER :: diag
     COMPLEX(wp) :: determinant
 
-    CALL timeset("cp_fm_lu_decompose","I","",handle)
+    CALL timeset("cp_cfm_lu_decompose","I","",handle)
 
     a => matrix_a%local_data
     n = matrix_a%matrix_struct%nrow_global
@@ -233,7 +233,7 @@ CONTAINS
     ! this does just signal a zero diagonal element
     DEALLOCATE(ipivot)
     almost_determinant=determinant ! notice that the sign is random
-
+    CALL timestop(0.0_wp,handle)
   END SUBROUTINE
 
 

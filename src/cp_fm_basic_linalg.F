@@ -832,7 +832,7 @@ CONTAINS
     ! this does just signal a zero diagonal element
     DEALLOCATE(ipivot)
     almost_determinant=determinant ! notice that the sign is random
-
+    CALL timestop(0.0_wp,handle)
   END SUBROUTINE
 
 
