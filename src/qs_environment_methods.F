@@ -735,7 +735,7 @@ SUBROUTINE qs_env_update_h_redundant_pools(qs_env,error)
        
        NULLIFY(qs_env%H_redundant_sm_pools(1)%pool)
        CALL sm_pool_create(qs_env%H_redundant_sm_pools(1)%pool,&
-            matrix_struct=s_mstruct,&
+            matrix_struct=h_mstruct,&
             error=error)
        CALL sm_struct_release(h_mstruct,error=error)
      

@@ -1105,7 +1105,6 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine,"tint")
     END IF
 
-    CALL timestop(0.0_wp,handle)
 
 !   *** Print the overlap integral matrix, if requested ***
 
@@ -1152,6 +1151,7 @@ CONTAINS
     CALL qs_env_update_h_redundant_pools(qs_env)
     
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
+    CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE build_core_hamiltonian_matrix
 
