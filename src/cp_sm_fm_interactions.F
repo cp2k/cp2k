@@ -1668,6 +1668,10 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     njunk        =lcm(nprow,npcol)
     IF (njunk==nprow.OR.njunk==npcol)njunk=2*njunk
     junk_size = (fm_ncol_global+njunk-1)/ njunk
+    IF (junk_size==0) THEN
+       CALL timestop(0._dp,handle)
+       RETURN
+    END IF
     njunk_local_in = njunk / nprow
     njunk_local_out= njunk / npcol
 
@@ -1775,23 +1779,23 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
                 transpose_block=.FALSE.
              END IF
              IF (.NOT.transpose_block) THEN
-
+                
                 CALL DGEMM('T','N',sbnrow,sbncol,ncol_global_of_junk(gindex),1.0_dp, &
                      v_out(junk_out)%array(1,row_offset_in_junk(iblock_row)+1),&
                      junk_size,&
                      v_in(junk_in)%array(1,col_offset_in_junk(iblock_col)+1), &
                      junk_size, &
                      1.0_dp,sparse_block(1,1),SIZE(sparse_block,1))
-
+                
              ELSE
-
+                
                 CALL DGEMM('T','N',sbnrow,sbncol,ncol_global_of_junk(gindex),1.0_dp, &
                      v_in(junk_in)%array(1,col_offset_in_junk(iblock_row)+1), &
                      junk_size, &
                      v_out(junk_out)%array(1,row_offset_in_junk(iblock_col)+1), &
                      junk_size,&
                      1.0_dp,sparse_block(1,1),SIZE(sparse_block,1))
-
+                
              END IF
 
              block_node => next_block_node(block_node)
