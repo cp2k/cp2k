@@ -2755,7 +2755,7 @@ SUBROUTINE prn2lb (n, x, f, g, iprint, itfile, iter, nfgv, nact, &
 2001 FORMAT &
        &  (/,'At iterate',i5,4x,'f= ',1p,d12.5,4x,'|proj g|= ',1p,d12.5)
 
-3001 FORMAT(2(1x,i4),2(1x,i5),2x,a3,1x,i4,1p,2(2x,d7.1),1p,2(1x,d10.3))  
+3001 FORMAT(2(1x,i4),2(1x,i5),2x,a3,1x,i4,1p,2(2x,d7.1),1p,1(1x,d10.3),(1x,d16.9)  
 
   RETURN  
 
