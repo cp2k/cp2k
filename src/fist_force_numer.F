@@ -21,6 +21,7 @@
 
 MODULE fist_force_numer
 
+  USE dg_types, ONLY : dg_type
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE fist_nonbond_force, ONLY : find_image
   USE kinds, ONLY : dbl
@@ -28,7 +29,9 @@ MODULE fist_force_numer
   USE molecule_types, ONLY : molecule_structure_type, linklist_bonds, &
        linklist_bends, linklist_torsions, linklist_exclusion, particle_node_type
   USE mol_force, ONLY : force_bonds, force_bends, force_torsions
+  USE particle_types, ONLY : particle_type
   USE pair_potential, ONLY : potential_f, potentialparm_type
+  USE pme, ONLY : pme_evaluate
   USE pw_grid_types, ONLY : pw_grid_type
   USE pw_grids, ONLY : pw_find_cutoff, pw_grid_setup, &
        pw_grid_construct, pw_grid_destruct
@@ -37,9 +40,10 @@ MODULE fist_force_numer
 
   PRIVATE
   PUBLIC :: force_bond_numer, force_bend_numer, force_torsion_numer, &
-            force_nonbond_numer, force_recip_numer
+            force_nonbond_numer, ewald_force_numer
   PUBLIC :: pv_bond_numer, pv_bend_numer, pv_torsion_numer, ptens_numer
-  PUBLIC :: pvg_numer, de_g_numer, potential_g_numer, energy_recip_numer
+  PUBLIC :: pvg_numer, de_g_numer, potential_g_numer, ewald_energy_numer
+  PUBLIC :: pme_energy_numer, pme_force_numer
 
 !!*****
 !******************************************************************************
@@ -707,10 +711,10 @@ END SUBROUTINE force_nonbond_numer
 
 !!*****
 !******************************************************************************
-!!****** fist_force_numer/force_recip_numer [1.0] *
+!!****** fist_force_numer/ewald_force_numer [1.0] *
 !!
 !!   NAME
-!!     force_recip_numer
+!!     ewald_force_numer
 !!
 !!   FUNCTION
 !!
@@ -723,7 +727,7 @@ END SUBROUTINE force_nonbond_numer
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE force_recip_numer ( ewald_param, pnode, box, pw_grid,  &
+SUBROUTINE ewald_force_numer ( ewald_param, pnode, box, pw_grid,  &
                                numerical_shift, f_numer )
 
   IMPLICIT NONE
@@ -748,11 +752,11 @@ SUBROUTINE force_recip_numer ( ewald_param, pnode, box, pw_grid,  &
 ! allocating
   ngtot = pw_grid % ngpts_cut
   ALLOCATE (sum_igr(ngtot),STAT=isos)
-  IF ( isos /= 0 ) CALL stop_memory ( 'force_recip_numer', 'sum_igr', ngtot )
+  IF ( isos /= 0 ) CALL stop_memory ( 'ewald_force_numer', 'sum_igr', ngtot )
   ALLOCATE (gauss(ngtot),STAT=isos)
-  IF ( isos /= 0 ) CALL stop_memory ( 'force_recip_numer', 'gauss', ngtot )
+  IF ( isos /= 0 ) CALL stop_memory ( 'ewald_force_numer', 'gauss', ngtot )
   ALLOCATE (r_delta(3),STAT=isos)
-  IF ( isos /= 0 ) CALL stop_memory ( 'force_recip_numer', 'r_delta', 3 )
+  IF ( isos /= 0 ) CALL stop_memory ( 'ewald_force_numer', 'r_delta', 3 )
 ! defining alpha and epsilon0
   alpha = ewald_param % alpha
   epsilon0 = ewald_param % eps0
@@ -783,13 +787,13 @@ SUBROUTINE force_recip_numer ( ewald_param, pnode, box, pw_grid,  &
   f_numer = f_numer /  2.0_dbl / numerical_shift
 
   DEALLOCATE (r_delta,STAT=isos)
-  IF ( isos /= 0 ) CALL stop_memory ( 'force_recip_numer','r_delta')
+  IF ( isos /= 0 ) CALL stop_memory ( 'ewald_force_numer','r_delta')
   DEALLOCATE (sum_igr,STAT=isos)
-  IF ( isos /= 0 ) CALL stop_memory ( 'force_recip_numer','sum_igr')
+  IF ( isos /= 0 ) CALL stop_memory ( 'ewald_force_numer','sum_igr')
   DEALLOCATE (gauss,STAT=isos)
-  IF ( isos /= 0 ) CALL stop_memory ( 'force_recip_numer', 'gauss' )
+  IF ( isos /= 0 ) CALL stop_memory ( 'ewald_force_numer', 'gauss' )
 
-END SUBROUTINE force_recip_numer
+END SUBROUTINE ewald_force_numer
 
 !!*****
 !******************************************************************************
@@ -1475,10 +1479,10 @@ END SUBROUTINE de_g_numer
 
 !!*****
 !******************************************************************************
-!!****** fist_force_numer/energy_recip_numer [1.0] *
+!!****** fist_force_numer/pme_force_numer [1.0] *
 !!
 !!   NAME
-!!     energy_recip_numer
+!!     pme_force_numer
 !!
 !!   FUNCTION
 !!
@@ -1491,7 +1495,85 @@ END SUBROUTINE de_g_numer
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE energy_recip_numer ( ewald_param, pnode, box, pw_grid, &
+SUBROUTINE pme_force_numer ( delta, f_part, dg, part, box, grid_s, grid_b,  &
+                             ewald_param )
+  IMPLICIT NONE
+  TYPE ( dg_type ), INTENT ( IN ) :: dg
+  TYPE ( particle_type ), INTENT ( INOUT ), DIMENSION ( : ) :: part
+  TYPE ( cell_type ), INTENT ( IN ) :: box
+  TYPE ( pw_grid_type ), INTENT ( IN ) :: grid_s, grid_b
+  TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
+  REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_part
+  REAL ( dbl ), INTENT ( IN ) :: delta
+
+! locals
+  INTEGER :: natoms, i, id 
+  REAL ( dbl ) :: eplus, eminus
+
+  natoms = SIZE ( part ) 
+  DO i = 1, natoms 
+    DO id = 1, 3
+      part ( i ) % r ( id ) = part ( i ) % r ( id ) + delta 
+      CALL pme_energy_numer ( dg, part, box, grid_s, grid_b, ewald_param, eplus )
+      part ( i ) % r ( id ) = part ( i ) % r ( id ) - 2._dbl * delta 
+      CALL pme_energy_numer ( dg, part, box, grid_s, grid_b, ewald_param, eminus )
+      f_part ( id, i ) = eplus - eminus 
+      part ( i ) % r ( id ) = part ( i ) % r ( id ) + delta 
+    ENDDO
+  ENDDO
+  f_part = f_part / 2._dbl / delta
+   
+END SUBROUTINE pme_force_numer
+
+!!*****
+!******************************************************************************
+!!****** fist_force_numer/pme_energy_numer [1.0] *
+!!
+!!   NAME
+!!     pme_energy_numer
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE pme_energy_numer ( dg, part, box, grid_s, grid_b, ewald_param, energy )
+  IMPLICIT NONE
+  TYPE ( dg_type ), INTENT ( IN ) :: dg
+  TYPE ( particle_type ), INTENT ( IN ), DIMENSION ( : ) :: part
+  TYPE ( cell_type ), INTENT ( IN ) :: box
+  TYPE ( pw_grid_type ), INTENT ( IN ) :: grid_s, grid_b
+  TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
+  REAL ( dbl ), INTENT ( OUT ) :: energy 
+
+  CALL pme_evaluate ( dg, part, box, grid_s, grid_b, ewald_param, energy )
+   
+END SUBROUTINE pme_energy_numer
+!!*****
+!******************************************************************************
+!!****** fist_force_numer/ewald_energy_numer [1.0] *
+!!
+!!   NAME
+!!     ewald_energy_numer
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE ewald_energy_numer ( ewald_param, pnode, box, pw_grid, &
      energy_numer, ngtot )
 
   IMPLICIT NONE
@@ -1515,9 +1597,9 @@ SUBROUTINE energy_recip_numer ( ewald_param, pnode, box, pw_grid, &
 ! allocating
 
   ALLOCATE ( sum_igr ( ngtot ), STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'energy_recip_numer', 'sum_igr', ngtot )
+  IF ( isos /= 0 ) CALL stop_memory ( 'ewald_energy_numer', 'sum_igr', ngtot )
   ALLOCATE ( gauss ( ngtot ), STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'energy_recip_numer', 'gauss', ngtot )
+  IF ( isos /= 0 ) CALL stop_memory ( 'ewald_energy_numer', 'gauss', ngtot )
 
 ! defining alpha and epsilon0
   alpha = ewald_param % alpha
@@ -1531,11 +1613,11 @@ SUBROUTINE energy_recip_numer ( ewald_param, pnode, box, pw_grid, &
        pw_grid % g, ngtot)
   energy_numer = energy_numer/epsilon0/box % deth
   DEALLOCATE (sum_igr,STAT=isos)
-  IF ( isos /= 0 ) CALL stop_memory ( 'energy_recip_numer', 'sum_igr' )
+  IF ( isos /= 0 ) CALL stop_memory ( 'ewald_energy_numer', 'sum_igr' )
   DEALLOCATE (gauss,STAT=isos)
-  IF ( isos /= 0 ) CALL stop_memory ( 'energy_recip_numer', 'gauss' )
+  IF ( isos /= 0 ) CALL stop_memory ( 'ewald_energy_numer', 'gauss' )
 
-END SUBROUTINE energy_recip_numer
+END SUBROUTINE ewald_energy_numer
 
 !!*****
 !******************************************************************************
