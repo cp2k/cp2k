@@ -2,7 +2,7 @@
   PROGRAM   QMMM
   PROJECT   water3
   IOLEVEL   1
-  FFTLIB    FFTW
+  FFTLIB    FFTSG
   RUN_TYPE   md
 &END
 
