@@ -147,7 +147,6 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
-
       CALL timeset(routineN,'I','',handle)
 
       NULLIFY(moves,move_updates,oldsys)
@@ -350,6 +349,7 @@ CONTAINS
             CALL cp_subsys_get(oldsys(1)%subsys, &
                particles=particles_old, error=error)
 
+            WRITE(ene,*) nnstep,old_energy,energy_check
             CALL write_particle_coordinates(particles_old%els,cell,&
                         crd,'XMOL','POS','POSITIONS')
 
