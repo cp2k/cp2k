@@ -41,6 +41,8 @@ MODULE xc_functionals_utilities
                           f53 = 5.0_dbl*f13
   REAL(dbl), PARAMETER :: fxfac = 1.923661050931536319759455_dbl ! 1/(2^(4/3) - 2)
 
+  CHARACTER(len=*), PARAMETER :: moduleN="xc_functionals_utilities"
+
   PUBLIC :: set_util, setup_calculation, calc_rs, calc_rho13, calc_fx, &
             calc_wave_vector, calc_srs, calc_z
 
@@ -305,7 +307,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calc_fx_array ( rhoa, rhob, fx, m )
+  SUBROUTINE calc_fx_array(n, rhoa, rhob, fx, m )
 
 !   ---------------------------------------------------------------------------
 !   spin interpolation function and derivatives
@@ -317,26 +319,31 @@ CONTAINS
 !
 !   ---------------------------------------------------------------------------
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
+    INTEGER, INTENT(IN)                 :: n ! number of points
+    REAL(dbl), DIMENSION(*), INTENT(IN) :: rhoa, rhob
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: fx
-    INTEGER, INTENT(IN) :: m
+    INTEGER, INTENT(IN)                 :: m ! order of derivatives
 
 !   *** Local variables ***
 
-    INTEGER :: n, na, nb, ip
+    INTEGER :: ierr, ip
     REAL(dbl) :: x, rhoab
+
+!   *** Parameters ***
+    CHARACTER(len=*), PARAMETER :: routineN="calc_fx_array", &
+                                   routineP=moduleN//"/"//routineN
 
 !   ---------------------------------------------------------------------------
 
-    na = SIZE ( rhoa )
-    nb = SIZE ( rhob )
-    n = MAX ( na, nb)
-    IF ( n > SIZE(fx,1) .OR. na /= nb ) &
-      CALL stop_program ( "calc_fx", "Incompatible array sizes" )
-    IF ( m > SIZE(fx,2) ) &
-      CALL stop_program ( "calc_fx", "Incompatible array sizes" )
-    IF ( m > 3 ) CALL stop_program ( "calc_fx", "Order too high" )
-
+    IF ( m > 3 ) CALL stop_program (routineP, "Order too high" )
+!!    IF (.NOT.ASSOCIATED(fx)) THEN
+!!       ALLOCATE(fx(n,m+1), STAT=ierr)
+!!       IF (ierr /= 0) CALL stop_memory(routineP, "fx", n*m)
+!!    ELSE
+       IF (SIZE(fx,1)<n) CALL stop_program(routineP, "SIZE(fx,1) too small")
+       IF (SIZE(fx,2)<m) CALL stop_program(routineP, "SIZE(fx,2) too small")
+!!    END IF
+       
 !$omp parallel do private(ip,x,rhoab)
     DO ip = 1, n
       rhoab = rhoa(ip) + rhob(ip)

@@ -309,24 +309,21 @@ END SUBROUTINE xc_derivative_retain
 !!     - desc: a string that describes the derivative (empty string 
 !!       for the function itself, otherwise a string of the form 
 !!       "(rho)(rho)(norm_drhoa)")
-!!     - split_desc: the same as desc but with an array 
-!!       of stings, and a derivative coordinate in each string (the previous
+!!     - split_desc: the same as desc but with an array of strings,
+!!       and a derivative coordinate in each string (the previous
 !!       example would become (/"rho","rho","norm_drhoa"/)
 !!     - order: the order of the derivative
 !!     - deriv_data: the 3d real array with the derivative
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
 !!*** **********************************************************************
 SUBROUTINE xc_derivative_get(deriv,desc,split_desc,&
      order,deriv_data,error)
-  TYPE(xc_derivative_type), POINTER :: deriv
+
+  IMPLICIT NONE
+
+  TYPE(xc_derivative_type), POINTER                            :: deriv
   CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH), POINTER, OPTIONAL :: desc
   CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), POINTER, OPTIONAL :: &
        split_desc

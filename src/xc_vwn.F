@@ -180,7 +180,7 @@ CONTAINS
 
     fx(1:n,1) = rhoa(1:n) + rhob(1:n)
     CALL calc_srs ( fx(:,1), x )
-    CALL calc_fx ( rhoa, rhob, fx, m-1 )
+    CALL calc_fx ( n, rhoa, rhob, fx, m-1 )
 
     IF ( calc(0) .AND. calc(1) ) THEN
        m1=mx(0,1)

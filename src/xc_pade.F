@@ -70,7 +70,7 @@ MODULE xc_pade
 ! *****************************************************************************
 
   INTERFACE pade
-    MODULE PROCEDURE pade_lda, pade_lsd, pade_init, pade_info
+    MODULE PROCEDURE pade_lda_pw, pade_lsd_pw, pade_init, pade_info
   END INTERFACE
 
 !!***
@@ -115,7 +115,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE pade_lda ( derivative_set, rho, pot, order )
+  SUBROUTINE pade_lda_pw(derivative_set, rho, pot, order)
 
 !   ---------------------------------------------------------------------------
 
@@ -147,30 +147,30 @@ CONTAINS
     IF ( calc(0) .AND. calc(1) ) THEN
        m1=mx(0,1)
        m2=mx(1,2)
-       CALL pade_lda_01 ( rho, rs, pot(:,m1:m2) )
+       CALL pade_lda_01(n, rho, rs, pot(:,m1:m1), pot(:,m2:m2))
     ELSE IF ( calc(0) ) THEN
-       CALL pade_lda_0 ( rho, rs, pot(:,1) )
+       CALL pade_lda_0(n, rho, rs, pot(:,1:1))
     ELSE IF ( calc(1) ) THEN
        m1=mx(1,1)
-       CALL pade_lda_1 ( rho, rs, pot(:,m1) )
+       CALL pade_lda_1(n, rho, rs, pot(:,m1:m1))
     END IF
     IF ( calc(2) ) THEN
        m1=mx(2,1)
-       CALL pade_lda_2 ( rho, rs, pot(:,m1) )
+       CALL pade_lda_2(n, rho, rs, pot(:,m1:m1))
     END IF
     IF ( calc(3) ) THEN
        m1=mx(3,1)
-       CALL pade_lda_3 ( rho, rs, pot(:,m1) )
+       CALL pade_lda_3(n, rho, rs, pot(:,m1:m1))
     END IF
 
     DEALLOCATE ( rs, STAT=error )
     IF ( error /= 0 ) CALL stop_memory ( "pade_lda", "rs" )
 
-  END SUBROUTINE pade_lda
+  END SUBROUTINE pade_lda_pw
 
 ! *****************************************************************************
 
-  SUBROUTINE pade_lsd ( derivative_set, rhoa, rhob, pot, order )
+  SUBROUTINE pade_lsd_pw ( derivative_set, rhoa, rhob, pot, order )
 
 !   ---------------------------------------------------------------------------
 
@@ -207,28 +207,32 @@ CONTAINS
     CALL daxpy(n,1.0_dbl,rhob,1,fx,1)
 
     CALL calc_rs ( fx(:,1), rs )
-    CALL calc_fx ( rhoa, rhob, fx, m-1 )
+    CALL calc_fx ( n, rhoa, rhob, fx, m-1 )
 
     IF ( calc(0) .AND. calc(1) ) THEN
        m1=mx(0,1)
        m2=mx(1,2)
-       CALL pade_lsd_01 ( rhoa, rhob, rs, fx, pot(:,m1:m2) )
+       CALL pade_lsd_01 ( n, rhoa, rhob, rs, fx, &
+                          pot(:,m1:m1), pot(:,m1+1:m1+1), pot(:,m2:m2) )
     ELSE IF ( calc(0) ) THEN
-       CALL pade_lsd_0 ( rhoa, rhob, rs, fx, pot(:,1) )
+       CALL pade_lsd_0 ( n, rhoa, rhob, rs, fx, pot(:,1) )
     ELSE IF ( calc(1) ) THEN
        m1=mx(1,1)
        m2=mx(1,2)
-       CALL pade_lsd_1 ( rhoa, rhob, rs, fx, pot(:,m1:m2) )
+       CALL pade_lsd_1 ( n, rhoa, rhob, rs, fx, &
+                         pot(:,m1:m1), pot(:,m2:m2) )
     END IF
     IF ( calc(2) ) THEN
        m1=mx(2,1)
        m2=mx(2,2)
-       CALL pade_lsd_2 ( rhoa, rhob, rs, fx, pot(:,m1:m2) )
+       CALL pade_lsd_2 ( n, rhoa, rhob, rs, fx, &
+                         pot(:,m1:m1), pot(:,m1+1:m1+1), pot(:,m2:m2) )
     END IF
     IF ( calc(3) ) THEN
        m1=mx(3,1)
        m2=mx(3,2)
-       CALL pade_lsd_3 ( rhoa, rhob, rs, fx, pot(:,m1:m2) )
+       CALL pade_lsd_3 ( n, rhoa, rhob, rs, fx, &
+                         pot(:,m1:m1), pot(:,m1+1:m1+1), pot(:,m1+2:m1+2), pot(:,m2:m2) )
     END IF
 
     DEALLOCATE ( fx, STAT=error )
@@ -236,57 +240,46 @@ CONTAINS
     DEALLOCATE ( rs, STAT=error )
     IF ( error /= 0 ) CALL stop_memory ( "pade_lsd", "rs" )
 
-  END SUBROUTINE pade_lsd
+  END SUBROUTINE pade_lsd_pw
 
 ! *****************************************************************************
 
-  SUBROUTINE pade_lda_0 ( rho, rs, pot )
+  SUBROUTINE pade_lda_0(n, rho, rs, pot)
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, rs
-    REAL(dbl), DIMENSION(:), INTENT(INOUT)  :: pot
+    INTEGER, INTENT(IN)                    :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)    :: rho, rs
+    REAL(dbl), DIMENSION(*), INTENT(INOUT) :: pot
 
-    INTEGER :: ip, npoints
+    INTEGER :: ip
     REAL(dbl) :: p, q, epade
 !   ---------------------------------------------------------------------------
 
-    npoints = SIZE ( rho )
-    IF ( npoints > SIZE(pot) ) &
-       CALL stop_program ( "pade_lda_0", "Inconsistent array sizes" )
-
 !$omp parallel do private(ip,p,q,epade)
-    DO ip = 1, npoints
-
+    DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
-
          p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
          q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
          epade = -p/q
          pot(ip) = pot(ip) + epade*rho(ip)
-
       END IF
-
     END DO
 
   END SUBROUTINE pade_lda_0
 
 ! *****************************************************************************
 
-  SUBROUTINE pade_lda_1 ( rho, rs, pot )
+  SUBROUTINE pade_lda_1(n, rho, rs, pot)
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, rs
-    REAL(dbl), DIMENSION(:), INTENT(INOUT)  :: pot
+    INTEGER, INTENT(IN)                    :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)    :: rho, rs
+    REAL(dbl), DIMENSION(*), INTENT(INOUT) :: pot
 
-    INTEGER :: ip, npoints
+    INTEGER :: ip
     REAL(dbl) :: p, q, dp, dq, epade, depade
 !   ---------------------------------------------------------------------------
 
-    npoints = SIZE ( rho )
-    IF ( npoints > SIZE(pot) ) &
-       CALL stop_program ( "pade_lda_1", "Inconsistent array sizes" )
-
 !$omp parallel do private(ip,p,q,epade,dp,dq,depade)
-    DO ip = 1, npoints
-
+    DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
 
          p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
@@ -300,29 +293,24 @@ CONTAINS
          pot(ip) = pot(ip) + epade + depade
 
       END IF
-
     END DO
 
   END SUBROUTINE pade_lda_1
 
 ! *****************************************************************************
 
-  SUBROUTINE pade_lda_01 ( rho, rs, pot )
+  SUBROUTINE pade_lda_01(n, rho, rs, pot0, pot1)
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, rs
-    REAL(dbl), DIMENSION(:,:), INTENT(INOUT)  :: pot
+    INTEGER, INTENT(IN)                    :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)    :: rho, rs
+    REAL(dbl), DIMENSION(*), INTENT(INOUT) :: pot0, pot1
 
-    INTEGER :: ip, npoints
+    INTEGER :: ip
     REAL(dbl) :: p, q, dp, dq, epade, depade
 !   ---------------------------------------------------------------------------
 
-    npoints = SIZE ( rho )
-    IF ( npoints > SIZE(pot,1) ) &
-       CALL stop_program ( "pade_lda_01", "Inconsistent array sizes" )
-
 !$omp parallel do private(ip,p,q,epade,dp,dq,depade)
-    DO ip = 1, npoints
-
+    DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
 
          p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
@@ -333,33 +321,28 @@ CONTAINS
          dq = b1 + (2.0_dbl*b2 + (3.0_dbl*b3 + 4.0_dbl*b4*rs(ip))*rs(ip))*rs(ip)
          depade = f13 * rs(ip) * (dp*q - p*dq) / (q*q)
 
-         pot(ip,1) = pot(ip,1) + epade * rho(ip)
-         pot(ip,2) = pot(ip,2) + epade + depade
+         pot0(ip) = pot0(ip) + epade * rho(ip)
+         pot1(ip) = pot1(ip) + epade + depade
 
       END IF
-
     END DO
 
   END SUBROUTINE pade_lda_01
 
 ! *****************************************************************************
 
-  SUBROUTINE pade_lda_2 ( rho, rs, pot )
+  SUBROUTINE pade_lda_2(n, rho, rs, pot)
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, rs
-    REAL(dbl), DIMENSION(:), INTENT(INOUT)  :: pot
+    INTEGER, INTENT(IN)                    :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)    :: rho, rs
+    REAL(dbl), DIMENSION(*), INTENT(INOUT) :: pot
 
-    INTEGER :: ip, npoints
+    INTEGER :: ip
     REAL(dbl) :: p, q, dp, dq, d2p, d2q, rsr, t1, t2, t3
-!   ---------------------------------------------------------------------------
-
-    npoints = SIZE ( rho )
-    IF ( npoints > SIZE(pot) ) &
-       CALL stop_program ( "pade_lda_2", "Inconsistent array sizes" )
+ !   ---------------------------------------------------------------------------
 
 !$omp parallel do private(ip,p,q,dp,dq,d2p,d2q,rsr,t1,t2,t3)
-    DO ip = 1, npoints
-
+    DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
 
          p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
@@ -379,30 +362,25 @@ CONTAINS
          pot(ip) = pot(ip) - f13 * ( f23*t1 + f13*t2*rs(ip) + f23*t3*rs(ip) ) * rsr
 
       END IF
-
     END DO
 
   END SUBROUTINE pade_lda_2
 
 ! *****************************************************************************
 
-  SUBROUTINE pade_lda_3 ( rho, rs, pot )
+  SUBROUTINE pade_lda_3(n, rho, rs, pot)
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, rs
-    REAL(dbl), DIMENSION(:), INTENT(INOUT)  :: pot
+    INTEGER, INTENT(IN)                    :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)    :: rho, rs
+    REAL(dbl), DIMENSION(*), INTENT(INOUT) :: pot
 
-    INTEGER :: ip, npoints
+    INTEGER :: ip
     REAL(dbl) :: ab1, ab2, ab3, rsr1, rsr2, rsr3
     REAL(dbl) :: p, q, dp, dq, d2p, d2q, d3p, d3q
 !   ---------------------------------------------------------------------------
 
-    npoints = SIZE ( rho )
-    IF ( npoints > SIZE(pot) ) &
-       CALL stop_program ( "pade_lda_2", "Inconsistent array sizes" )
-
 !$omp parallel do private(ip,p,q,dp,dq,d2p,d2q,d3p,d3q,ab1,ab2,ab3,rsr1,rsr2,rsr3)
-    DO ip = 1, npoints
-
+    DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
 
          p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
@@ -428,31 +406,27 @@ CONTAINS
          pot(ip) = pot(ip) + rsr1*ab1 + rsr2*ab2 + rsr3*ab3
 
       END IF
-
     END DO
 
   END SUBROUTINE pade_lda_3
 
 ! *****************************************************************************
 
-  SUBROUTINE pade_lsd_0 ( rhoa, rhob, rs, fx, pot )
+  SUBROUTINE pade_lsd_0(n, rhoa, rhob, rs, fx, pot0 )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, rs
+    INTEGER, INTENT(IN)                  :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)  :: rhoa, rhob, rs
     REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
-    REAL(dbl), DIMENSION(:), INTENT(INOUT)  :: pot
+    REAL(dbl), DIMENSION(*), INTENT(INOUT)  :: pot0
 
-    INTEGER :: ip, npoints
+    INTEGER :: ip
     REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
     REAL(dbl) :: p, q, rhoab
 !   ---------------------------------------------------------------------------
 
-    npoints = SIZE ( rhoa )
-    IF ( npoints > SIZE(pot,1) ) &
-       CALL stop_program ( "pade_lsd_0", "Inconsistent array sizes" )
-
 !$omp parallel do private(ip,rhoab,p,q) &
 !$omp private(fa0,fa1,fa2,fa3,fb1,fb2,fb3,fb4)
-    DO ip = 1, npoints
+    DO ip = 1, n
 
       rhoab = rhoa(ip) + rhob(ip)
 
@@ -470,7 +444,7 @@ CONTAINS
          p = fa0 + (fa1 + (fa2 + fa3*rs(ip))*rs(ip))*rs(ip)
          q = (fb1 + (fb2 + (fb3 + fb4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
 
-         pot(ip) = pot(ip) - p/q*rhoab
+         pot0(ip) = pot0(ip) - p/q*rhoab
 
       END IF
 
@@ -480,24 +454,20 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE pade_lsd_1 ( rhoa, rhob, rs, fx, pot )
+  SUBROUTINE pade_lsd_1 ( n, rhoa, rhob, rs, fx, pota, potb )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, rs
+    REAL(dbl), DIMENSION(*), INTENT(IN)  :: rhoa, rhob, rs
     REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
-    REAL(dbl), DIMENSION(:,:), INTENT(INOUT)  :: pot
+    REAL(dbl), DIMENSION(*), INTENT(INOUT)  :: pota, potb
 
-    INTEGER :: ip, npoints
+    INTEGER :: ip, n
     REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
     REAL(dbl) :: p, q, dp, dq, xp, xq, rhoab, dr, dx, dc
 !   ---------------------------------------------------------------------------
 
-    npoints = SIZE ( rhoa )
-    IF ( npoints > SIZE(pot,1) ) &
-       CALL stop_program ( "pade_lsd_1", "Inconsistent array sizes" )
-
 !$omp parallel do private(ip,rhoab,p,q,dp,dq,xp,xq,dr,dx,dc) &
 !$omp private(fa0,fa1,fa2,fa3,fb1,fb2,fb3,fb4)
-    DO ip = 1, npoints
+    DO ip = 1, n
 
       rhoab = rhoa(ip) + rhob(ip)
 
@@ -524,8 +494,8 @@ CONTAINS
          dx = 2._dbl*(xp*q - p*xq)/(q*q)*fx(ip,2)/rhoab
          dc = f13*rs(ip)*dr - p/q
 
-         pot(ip,1) = pot(ip,1) + dc - dx*rhob(ip)
-         pot(ip,2) = pot(ip,2) + dc + dx*rhoa(ip)
+         pota(ip) = pota(ip) + dc - dx*rhob(ip)
+         potb(ip) = potb(ip) + dc + dx*rhoa(ip)
 
       END IF
 
@@ -535,24 +505,21 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE pade_lsd_01 ( rhoa, rhob, rs, fx, pot )
+  SUBROUTINE pade_lsd_01 ( n, rhoa, rhob, rs, fx, pot0, pota, potb )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, rs
+    INTEGER, INTENT(IN)                    :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)    :: rhoa, rhob, rs
     REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
-    REAL(dbl), DIMENSION(:,:), INTENT(INOUT)  :: pot
+    REAL(dbl), DIMENSION(*), INTENT(INOUT) :: pot0, pota, potb
 
-    INTEGER :: ip, npoints
+    INTEGER :: ip
     REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
     REAL(dbl) :: p, q, dp, dq, xp, xq, rhoab, dr, dx, dc
 !   ---------------------------------------------------------------------------
 
-    npoints = SIZE ( rhoa )
-    IF ( npoints > SIZE(pot,1) ) &
-       CALL stop_program ( "pade_lsd_01", "Inconsistent array sizes" )
-
 !$omp parallel do private(ip,rhoab,p,q,dp,dq,xp,xq,dr,dx,dc) &
 !$omp private(fa0,fa1,fa2,fa3,fb1,fb2,fb3,fb4)
-    DO ip = 1, npoints
+    DO ip = 1, n
 
       rhoab = rhoa(ip) + rhob(ip)
 
@@ -579,9 +546,9 @@ CONTAINS
          dx = 2._dbl*(xp*q - p*xq)/(q*q)*fx(ip,2)/rhoab
          dc = f13*rs(ip)*dr - p/q
 
-         pot(ip,1) = pot(ip,1) - p/q*rhoab
-         pot(ip,2) = pot(ip,2) + dc - dx*rhob(ip)
-         pot(ip,3) = pot(ip,3) + dc + dx*rhoa(ip)
+         pot0(ip) = pot0(ip) - p/q*rhoab
+         pota(ip) = pota(ip) + dc - dx*rhob(ip)
+         potb(ip) = potb(ip) + dc + dx*rhoa(ip)
 
       END IF
 
@@ -591,26 +558,23 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE pade_lsd_2 ( rhoa, rhob, rs, fx, pot )
+  SUBROUTINE pade_lsd_2 (n, rhoa, rhob, rs, fx, potaa, potab, potbb )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, rs
+    INTEGER, INTENT(IN)                    :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)    :: rhoa, rhob, rs
     REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
-    REAL(dbl), DIMENSION(:,:), INTENT(INOUT)  :: pot
+    REAL(dbl), DIMENSION(*), INTENT(INOUT) :: potaa, potab, potbb
 
-    INTEGER :: ip, npoints
+    INTEGER :: ip
     REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
     REAL(dbl) :: p, q, dp, dq, xp, xq, rhoab, dr, dx, dc
     REAL(dbl) :: d2p, d2q, dxp, dxq, drr, dxr, dxx, xt, yt, or
 !   ---------------------------------------------------------------------------
 
-    npoints = SIZE ( rhoa )
-    IF ( npoints > SIZE(pot,1) ) &
-       CALL stop_program ( "pade_lsd_2", "Inconsistent array sizes" )
-
 !$omp parallel do private(ip,rhoab,p,q,dp,dq,d2p,d2q,xp,xq,dxp,dxq,dr,drr) &
 !$omp private(dx,dxx,dxr,or,xt,yt) &
 !$omp private(fa0,fa1,fa2,fa3,fb1,fb2,fb3,fb4)
-    DO ip = 1, npoints
+    DO ip = 1, n
 
       rhoab = rhoa(ip) + rhob(ip)
 
@@ -652,15 +616,15 @@ CONTAINS
          yt = rhob(ip)*or
          xt = rhoa(ip)*or
 
-         pot(ip,1) = pot(ip,1) + f23*f13*dr*rs(ip)*or - f13*f13*drr*rs(ip)*rs(ip)*or &
+         potaa(ip) = potaa(ip) + f23*f13*dr*rs(ip)*or - f13*f13*drr*rs(ip)*rs(ip)*or &
                      + f43*rs(ip)*fx(ip,2)*dxr*yt*or &
                      - 4._dbl*fx(ip,2)*fx(ip,2)*dxx*yt*yt*or &
                      - 4._dbl*dx*fx(ip,3)*yt*yt*or
-         pot(ip,2) = pot(ip,2) + f23*f13*dr*rs(ip)*or - f13*f13*drr*rs(ip)*rs(ip)*or &
+         potab(ip) = potab(ip) + f23*f13*dr*rs(ip)*or - f13*f13*drr*rs(ip)*rs(ip)*or &
                      + f23*rs(ip)*fx(ip,2)*dxr*(yt-xt)*or &
                      + 4._dbl*fx(ip,2)*fx(ip,2)*dxx*xt*yt*or &
                      + 4._dbl*dx*fx(ip,3)*xt*yt*or
-         pot(ip,3) = pot(ip,3) + f23*f13*dr*rs(ip)*or - f13*f13*drr*rs(ip)*rs(ip)*or &
+         potbb(ip) = potbb(ip) + f23*f13*dr*rs(ip)*or - f13*f13*drr*rs(ip)*rs(ip)*or &
                      - f43*rs(ip)*fx(ip,2)*dxr*xt*or &
                      - 4._dbl*fx(ip,2)*fx(ip,2)*dxx*xt*xt*or &
                      - 4._dbl*dx*fx(ip,3)*xt*xt*or
@@ -673,13 +637,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE pade_lsd_3 ( rhoa, rhob, rs, fx, pot )
+  SUBROUTINE pade_lsd_3 ( n, rhoa, rhob, rs, fx, potaaa, potaab, potabb, potbbb )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, rs
+    INTEGER, INTENT(IN)                    :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)    :: rhoa, rhob, rs
     REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
-    REAL(dbl), DIMENSION(:,:), INTENT(INOUT)  :: pot
+    REAL(dbl), DIMENSION(*), INTENT(INOUT) :: potaaa, potaab, potabb, potbbb
 
-    INTEGER :: ip, npoints
+    INTEGER :: ip
     REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
     REAL(dbl) :: p, q, dp, dq, xp, xq, rhoab, dr, dx, dc
     REAL(dbl) :: d2p, d2q, dxp, dxq, drr, dxr, dxx, xt, yt, or
@@ -687,16 +652,12 @@ CONTAINS
     REAL(dbl) :: drrr, dxrr, dxxr, dxxx
 !   ---------------------------------------------------------------------------
 
-    npoints = SIZE ( rhoa )
-    IF ( npoints > SIZE(pot,1) ) &
-       CALL stop_program ( "pade_lsd_3", "Inconsistent array sizes" )
-
     IF ( .NOT. debug_flag ) CALL stop_program("pade_lsd_3","Routine not tested")
 
 !$omp parallel do private(ip,fa0,fa1,fa2,fa3,fb1,fb2,fb3,fb4) &
 !$omp  private(p,q,dp,dq,xp,xq,rhoab,dr,dx,dc,d2p,d2q,dxp,dxq,drr,dxr,dxx) &
 !$omp  private(xt,yt,or,d3p,d3q,d2xp,d2xq,drrr,dxrr,dxxr,dxxx)
-    DO ip = 1, npoints
+    DO ip = 1, n
 
       rhoab = rhoa(ip) + rhob(ip)
 
@@ -752,13 +713,13 @@ CONTAINS
          yt = rhob(ip)*or
          xt = rhoa(ip)*or
 
-         pot(ip,1) = pot(ip,1) + 8._dbl/27._dbl*dr*rs(ip)*or*or + &
+         potaaa(ip) = potaaa(ip) + 8._dbl/27._dbl*dr*rs(ip)*or*or + &
                      1._dbl/9._dbl*drr*rs(ip)*rs(ip)*or*or + &
                      1._dbl/27._dbl*drrr*rs(ip)**3*or*or + &
                      dxr*or*or*yt*rs(ip)*(-8._dbl/3._dbl*fx(ip,2)+4._dbl*fx(ip,3)*yt) 
-         pot(ip,2) = pot(ip,2) + 0._dbl
-         pot(ip,3) = pot(ip,3) + 0._dbl
-         pot(ip,4) = pot(ip,4) + 0._dbl
+         potaab(ip) = potaab(ip) + 0._dbl
+         potabb(ip) = potabb(ip) + 0._dbl
+         potbbb(ip) = potbbb(ip) + 0._dbl
 
       END IF
 

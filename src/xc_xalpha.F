@@ -50,7 +50,7 @@ MODULE xc_xalpha
 ! *****************************************************************************
 
   INTERFACE xalpha
-    MODULE PROCEDURE xalpha_lda, xalpha_lsd, xalpha_init, xalpha_info
+    MODULE PROCEDURE xalpha_lda_pw, xalpha_lsd_pw, xalpha_init, xalpha_info
   END INTERFACE
 
 ! *****************************************************************************
@@ -96,7 +96,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lda ( derivative_set, rho, pot, order )
+  SUBROUTINE xalpha_lda_pw(derivative_set, rho, pot, order)
 
 !   ---------------------------------------------------------------------------
 
@@ -126,29 +126,33 @@ CONTAINS
     
     CALL calc_rho13 ( rho, r13 )
     IF ( calc(0) ) THEN
-       CALL xalpha_lda_0 ( rho, r13, pot(:,1) )
+       CALL xalpha_lda_0(n, rho, r13, &
+                        pot(:,1:1))
     END IF
     IF ( calc(1) ) THEN
        m = mx(1,1)
-       CALL xalpha_lda_1 ( rho, r13, pot(:,m) )
+       CALL xalpha_lda_1(n, rho, r13, &
+                         pot(:,m:m))
     END IF
     IF ( calc(2) ) THEN
        m = mx(2,1)
-       CALL xalpha_lda_2 ( rho, r13, pot(:,m) )
+       CALL xalpha_lda_2(n, rho, r13, &
+                         pot(:,m:m))
     END IF
     IF ( calc(3) ) THEN
        m = mx(3,1)
-       CALL xalpha_lda_3 ( rho, r13, pot(:,m) )
+       CALL xalpha_lda_3(n, rho, r13, &
+                         pot(:,m:m))
     END IF
 
     DEALLOCATE ( r13, STAT=error )
     IF ( error /= 0 ) CALL stop_memory ( "xalpha_lda", "rs" )
 
-  END SUBROUTINE xalpha_lda
+  END SUBROUTINE xalpha_lda_pw
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lsd ( derivative_set, rhoa, rhob, pot, order )
+  SUBROUTINE xalpha_lsd_pw ( derivative_set, rhoa, rhob, pot, order )
 
 !   ---------------------------------------------------------------------------
 
@@ -181,22 +185,26 @@ CONTAINS
     CALL calc_rho13 ( rhoa, r13a )
     CALL calc_rho13 ( rhob, r13b )
     IF ( calc(0) ) THEN
-       CALL xalpha_lsd_0 ( rhoa, rhob, r13a, r13b, pot(:,1) )
+       CALL xalpha_lsd_0(n, rhoa, rhob, r13a, r13b, &
+                         pot(:,1))
     END IF
     IF ( calc(1) ) THEN
        m1 = mx(1,1)
        m2 = mx(1,2)
-       CALL xalpha_lsd_1 ( rhoa, rhob, r13a, r13b, pot(:,m1:m2) )
+       CALL xalpha_lsd_1(n, rhoa, rhob, r13a, r13b, &
+                         pot(:,m1:m1), pot(:,m2:m2))
     END IF
     IF ( calc(2) ) THEN
        m1 = mx(2,1)
        m2 = mx(2,2)
-       CALL xalpha_lsd_2 ( rhoa, rhob, r13a, r13b, pot(:,m1:m2) )
+       CALL xalpha_lsd_2(n, rhoa, rhob, r13a, r13b, &
+                         pot(:,m1:m1), pot(:,m2:m2))
     END IF
     IF ( calc(3) ) THEN
        m1 = mx(3,1)
        m2 = mx(3,2)
-       CALL xalpha_lsd_3 ( rhoa, rhob, r13a, r13b, pot(:,m1:m2) )
+       CALL xalpha_lsd_3(n, rhoa, rhob, r13a, r13b, &
+                         pot(:,m1:m1), pot(:,m2:m2))
     END IF
 
     DEALLOCATE ( r13a, STAT=error )
@@ -204,139 +212,108 @@ CONTAINS
     DEALLOCATE ( r13b, STAT=error )
     IF ( error /= 0 ) CALL stop_memory ( "xalpha_lsd", "r13b" )
 
-  END SUBROUTINE xalpha_lsd
+  END SUBROUTINE xalpha_lsd_pw
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lda_0 ( rho, r13, pot )
+  SUBROUTINE xalpha_lda_0(n, rho, r13, pot)
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, r13
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN)                  :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)  :: rho, r13
+    REAL(dbl), DIMENSION(*), INTENT(OUT) :: pot
 
-    INTEGER :: ip, npoints
+    INTEGER :: ip
 !   ---------------------------------------------------------------------------
 
-    npoints = SIZE ( rho )
-    IF ( npoints > SIZE(pot) ) &
-       CALL stop_program ( "xalpha_lda_0", "Inconsistent array sizes" )
-
 !$omp parallel do private(ip)
-    DO ip = 1, npoints
-
+    DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
-
          pot(ip) = pot(ip) + flda*r13(ip)*rho(ip)
-
       END IF
-
     END DO
 
   END SUBROUTINE xalpha_lda_0
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lda_1 ( rho, r13, pot )
+  SUBROUTINE xalpha_lda_1(n, rho, r13, pot)
+    
+    INTEGER, INTENT(IN)                  :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)  :: rho, r13
+    REAL(dbl), DIMENSION(*), INTENT(OUT) :: pot
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, r13
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
-
-    INTEGER :: ip, npoints
+    INTEGER :: ip
     REAL ( dbl ) :: f
 !   ---------------------------------------------------------------------------
-
-    npoints = SIZE ( rho )
-    IF ( npoints > SIZE(pot) ) &
-       CALL stop_program ( "xalpha_lda_1", "Inconsistent array sizes" )
 
     f = f43 * flda
 
 !$omp parallel do private(ip)
-    DO ip = 1, npoints
-
+    DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
-
          pot(ip) = pot(ip) + f * r13(ip)
-
       END IF
-
     END DO
 
   END SUBROUTINE xalpha_lda_1
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lda_2 ( rho, r13, pot )
+  SUBROUTINE xalpha_lda_2(n, rho, r13, pot)
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, r13
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN)                  :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)  :: rho, r13
+    REAL(dbl), DIMENSION(*), INTENT(OUT) :: pot
 
-    INTEGER :: ip, npoints
+    INTEGER :: ip
     REAL ( dbl ) :: f
 !   ---------------------------------------------------------------------------
-
-    npoints = SIZE ( rho )
-    IF ( npoints > SIZE(pot) ) &
-       CALL stop_program ( "xalpha_lda_2", "Inconsistent array sizes" )
 
     f = f13 * f43 * flda
 
 !$omp parallel do private(ip)
-    DO ip = 1, npoints
-
+    DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
-
          pot(ip) = pot(ip) + f * r13(ip) / rho(ip)
-
       END IF
-
     END DO
 
   END SUBROUTINE xalpha_lda_2
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lda_3 ( rho, r13, pot )
+  SUBROUTINE xalpha_lda_3(n, rho, r13, pot)
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, r13
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN)                  :: n
+    REAL(dbl), DIMENSION(*), INTENT(IN)  :: rho, r13
+    REAL(dbl), DIMENSION(*), INTENT(OUT) :: pot
 
-    INTEGER :: ip, npoints
+    INTEGER :: ip
     REAL ( dbl ) :: f
 !   ---------------------------------------------------------------------------
-
-    npoints = SIZE ( rho )
-    IF ( npoints > SIZE(pot) ) &
-       CALL stop_program ( "xalpha_lda_3", "Inconsistent array sizes" )
 
     f = -f23 * f13 * f43 * flda
 
 !$omp parallel do private(ip)
-    DO ip = 1, npoints
-
+    DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
-
          pot(ip) = pot(ip) + f * r13(ip) / ( rho(ip) * rho(ip) )
-
       END IF
-
     END DO
 
   END SUBROUTINE xalpha_lda_3
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lsd_0 ( rhoa, rhob, r13a, r13b, pot )
+  SUBROUTINE xalpha_lsd_0 ( n, rhoa, rhob, r13a, r13b, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, r13a, r13b
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN)                  :: n ! number of points in array 
+    REAL(dbl), DIMENSION(*), INTENT(IN)  :: rhoa, rhob, r13a, r13b
+    REAL(dbl), DIMENSION(*), INTENT(OUT) :: pot
 
     INTEGER :: ip, npoints
     REAL(dbl) :: f
 !   ---------------------------------------------------------------------------
-
-    npoints = SIZE ( rhoa )
-    IF ( npoints > SIZE(pot,1) ) &
-       CALL stop_program ( "xalpha_lsd_0", "Inconsistent array sizes" )
 
 !$omp parallel do private(ip)
     DO ip = 1, npoints
@@ -354,29 +331,26 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lsd_1 ( rhoa, rhob, r13a, r13b, pot )
+  SUBROUTINE xalpha_lsd_1 ( n, rhoa, rhob, r13a, r13b, pota, potb )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, r13a, r13b
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN)                  :: n ! number of points in array 
+    REAL(dbl), DIMENSION(*), INTENT(IN)  :: rhoa, rhob, r13a, r13b
+    REAL(dbl), DIMENSION(*), INTENT(OUT) :: pota, potb
 
-    INTEGER :: ip, npoints
+    INTEGER :: ip
     REAL(dbl) :: f
 !   ---------------------------------------------------------------------------
-
-    npoints = SIZE ( rhoa )
-    IF ( npoints > SIZE(pot,1) ) &
-       CALL stop_program ( "xalpha_lsd_1", "Inconsistent array sizes" )
 
     f = f43 * flsd
 
 !$omp parallel do private(ip)
-    DO ip = 1, npoints
+    DO ip = 1, n
 
       IF ( rhoa(ip) > eps_rho ) THEN
-         pot(ip,1) = pot(ip,1) + f * r13a(ip)
+         pota(ip) = pota(ip) + f * r13a(ip)
       END IF
       IF ( rhob(ip) > eps_rho ) THEN
-         pot(ip,2) = pot(ip,2) + f * r13b(ip)
+         potb(ip) = potb(ip) + f * r13b(ip)
       END IF
 
     END DO
@@ -385,29 +359,26 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lsd_2 ( rhoa, rhob, r13a, r13b, pot )
+  SUBROUTINE xalpha_lsd_2 ( n, rhoa, rhob, r13a, r13b, potaa, potbb )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, r13a, r13b
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN)                  :: n ! number of points in array 
+    REAL(dbl), DIMENSION(*), INTENT(IN)  :: rhoa, rhob, r13a, r13b
+    REAL(dbl), DIMENSION(*), INTENT(OUT) :: potaa, potbb
 
-    INTEGER :: ip, npoints
+    INTEGER :: ip
     REAL(dbl) :: f
 !   ---------------------------------------------------------------------------
-
-    npoints = SIZE ( rhoa )
-    IF ( npoints > SIZE(pot,1) ) &
-       CALL stop_program ( "xalpha_lsd_2", "Inconsistent array sizes" )
 
     f = f13 * f43 * flsd
 
 !$omp parallel do private(ip)
-    DO ip = 1, npoints
+    DO ip = 1, n
 
       IF ( rhoa(ip) > eps_rho ) THEN
-         pot(ip,1) = pot(ip,1) + f * r13a(ip)/rhoa(ip)
+         potaa(ip) = potaa(ip) + f * r13a(ip)/rhoa(ip)
       END IF
       IF ( rhob(ip) > eps_rho ) THEN
-         pot(ip,2) = pot(ip,2) + f * r13b(ip)/rhob(ip)
+         potbb(ip) = potbb(ip) + f * r13b(ip)/rhob(ip)
       END IF
 
     END DO
@@ -416,29 +387,26 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lsd_3 ( rhoa, rhob, r13a, r13b, pot )
+  SUBROUTINE xalpha_lsd_3 ( n, rhoa, rhob, r13a, r13b, potaaa, potbbb )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, r13a, r13b
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    INTEGER, INTENT(IN)                  :: n ! number of points in array 
+    REAL(dbl), DIMENSION(*), INTENT(IN)  :: rhoa, rhob, r13a, r13b
+    REAL(dbl), DIMENSION(*), INTENT(OUT) :: potaaa, potbbb
 
-    INTEGER :: ip, npoints
+    INTEGER :: ip
     REAL(dbl) :: f
 !   ---------------------------------------------------------------------------
-
-    npoints = SIZE ( rhoa )
-    IF ( npoints > SIZE(pot,1) ) &
-       CALL stop_program ( "xalpha_lsd_3", "Inconsistent array sizes" )
 
     f = -f23 * f13 * f43 * flsd
 
 !$omp parallel do private(ip)
-    DO ip = 1, npoints
+    DO ip = 1, n
 
       IF ( rhoa(ip) > eps_rho ) THEN
-         pot(ip,1) = pot(ip,1) + f * r13a(ip)/(rhoa(ip)*rhoa(ip))
+         potaaa(ip) = potaaa(ip) + f * r13a(ip)/(rhoa(ip)*rhoa(ip))
       END IF
       IF ( rhob(ip) > eps_rho ) THEN
-         pot(ip,2) = pot(ip,2) + f * r13b(ip)/(rhob(ip)*rhob(ip))
+         potbbb(ip) = potbbb(ip) + f * r13b(ip)/(rhob(ip)*rhob(ip))
       END IF
 
     END DO
