@@ -83,7 +83,8 @@ CONTAINS
 
 SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
      drho_basis_info, rho0_basis_info, coef_pos, coef_vel, coef_force, &
-     thermo, potparm, empparm, ewald_param, fc_global, lldata, debug)
+     thermo, potparm, empparm, ewald_param, box_change, fc_global, lldata,&
+     debug)
 
   IMPLICIT NONE
 
@@ -102,6 +103,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   TYPE ( potentialparm_type ), DIMENSION ( :,: ), INTENT ( IN ) :: potparm
   TYPE ( empirical_parameter_type ), DIMENSION ( : ), INTENT ( IN ) :: empparm
   TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
+  LOGICAL, INTENT ( IN ) :: box_change
   TYPE ( global_environment_type ), INTENT ( IN ) :: fc_global
   TYPE ( linklist_internal_data_type), DIMENSION (:), INTENT (INOUT) :: lldata
   TYPE ( debug_variables_type ), INTENT ( OUT ), OPTIONAL :: debug
@@ -219,8 +221,8 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
 
 ! get overlap forces
 
-  CALL force_overlap( coef_pos % ao, drho_basis_info, part, pnode, box, thermo, & 
-                       empparm, fo_coef, fo_part, pot_overlap, fc_global)
+  CALL force_overlap( coef_pos % ao, drho_basis_info, part, pnode, box, & 
+                       empparm, pot_overlap, fo_coef, fo_part )
 
 ! get first order hk contribution
 
