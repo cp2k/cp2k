@@ -374,8 +374,8 @@ CONTAINS
            CALL stop_program("qs_environment"," LSD : Try to use a different multiplicity") 
         nelectron_spin(1) = (nelectron + multiplicity - 1)/2
         nelectron_spin(2) = (nelectron - multiplicity + 1)/2
-!MK        nelectron_spin(1)=nelectron-nelectron/2
-!MK        nelectron_spin(2)=nelectron/2
+        IF (nelectron_spin(2).le.0) &
+           CALL stop_program("qs_environment"," LSD : too few electrons for this multiplicity : NYI")
         n_mo(1) = nelectron_spin(1)
         n_mo(2) = nelectron_spin(2)
      ENDIF
