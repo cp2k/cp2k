@@ -515,7 +515,7 @@ t4=0._dp
     CHARACTER(len=*), PARAMETER :: routineN = 'transform_c2s_new', &
       routineP = module_name//':'//routineN
 
-    INTEGER           :: ico, istat, iso, l,ncgf,nsgf,ldc,lds
+    INTEGER           :: ico, iso, istat, ldc, lds
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE :: work
 
 ! *****************************************************************************
@@ -558,7 +558,7 @@ t4=0._dp
     CHARACTER(len=*), PARAMETER :: routine_name = 'transform_c2s', &
       routineP = module_name//':'//routine_name
 
-    INTEGER           :: ico, istat, iso, l,ncgf,nsgf
+    INTEGER           ::  istat
     INTEGER :: ic1,ic2,ico,is1,is2,iso,l,lx,ly,lz,nc1,nc2,ns1,ns2
     REAL(dp), DIMENSION(:,:), ALLOCATABLE :: matsc
 
