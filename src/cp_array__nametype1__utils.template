@@ -32,7 +32,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_array_[nametype1]_utils
-  USE kinds, ONLY: wp=>dp
+  USE kinds, ONLY: dp
   USE cp_log_handling, ONLY: cp_to_string, cp_failure_level, cp_warning_level,&
        cp_note_level, cp_log, cp_logger_type, cp_logger_generate_filename
   USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_assert, cp_a_l, &
@@ -304,7 +304,7 @@ SUBROUTINE cp_1d_[nametype1]_output(logger, outputName,&
         CALL close_file(unitNr)
      END IF
   END IF
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE cp_1d_[nametype1]_output
 !***************************************************************************
 
@@ -460,7 +460,7 @@ SUBROUTINE cp_2d_[nametype1]_output(logger, outputName, &
         CALL close_file(unitNr)
      END IF
   END IF
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE cp_2d_[nametype1]_output
 !***************************************************************************
 
@@ -605,7 +605,7 @@ SUBROUTINE cp_3d_[nametype1]_output(logger, outputName, &
         CALL close_file(unitNr)
      END IF
   END IF
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE cp_3d_[nametype1]_output
 !***************************************************************************
 

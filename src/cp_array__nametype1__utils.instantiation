@@ -1,6 +1,6 @@
 [
 {'nametype1':'r',
-'type1':'real(kind=wp)', 
+'type1':'real(kind=dp)', 
 'USE':'',
 'defaultFormatType1':'"(es14.6)"',
 'lessQ':'CP_R_LESS_Q',

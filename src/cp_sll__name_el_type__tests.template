@@ -34,7 +34,7 @@ module cp_sll_[name_el_type]_tests
        cp_error_dealloc_ref, cp_error_message, cp_assert, cp_a_l,&
        cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
        cp_error_get_logger
-  use kinds, only: wp=>dp
+  use kinds, only: dp
   use global_types, only: global_environment_type
   use cp_array_utils, only: cp_output
   use cp_linked_list_[name_el_type]
