@@ -54,7 +54,9 @@ MODULE semi_empirical_utils
             read_se_param,&
             set_se_param,&
             write_se_param,&
-            se_param_set_default,expand,contract
+            se_param_set_default,&
+            expand,&
+            contract
 
 !!***
 ! *****************************************************************************

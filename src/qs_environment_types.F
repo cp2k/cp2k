@@ -324,7 +324,7 @@ CONTAINS
                         id_nr,local_particles,local_molecules,&
                         distribution_2d,molecule_kind_set,molecule_set,&
                         subsys,error,oce,rho_atom_set,&
-                        rho0_atom_set,rho0_mpole,&
+                        rho0_atom_set,rho0_mpole,nddo_mpole,&
                         rhoz_set,ecoul_1c,VH_3c_list,rho0_s_rs,rho0_s_gs, &
                         requires_mo_derivs,mo_derivs)
 
@@ -397,6 +397,7 @@ CONTAINS
     TYPE(rho0_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho0_atom_set
     TYPE(rho0_mpole_type), OPTIONAL, POINTER :: rho0_mpole
+    TYPE(rho0_mpole_type), OPTIONAL, POINTER :: nddo_mpole
     TYPE(rhoz_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rhoz_set
     TYPE(ecoul_1center_type), DIMENSION(:), &
@@ -476,6 +477,8 @@ CONTAINS
        CALL get_local_rho(qs_env%local_rho_set, rho0_atom_set=rho0_atom_set)
     IF (PRESENT(rho0_mpole)) &
          CALL get_local_rho(qs_env%local_rho_set,  rho0_mpole=rho0_mpole)
+    IF (PRESENT(nddo_mpole)) &
+         CALL get_local_rho(qs_env%local_rho_set,  nddo_mpole=nddo_mpole)
     IF (PRESENT(rhoz_set)) & 
          CALL get_local_rho(qs_env%local_rho_set, rhoz_set=rhoz_set)
     IF (PRESENT(ecoul_1c)) &
@@ -595,7 +598,7 @@ CONTAINS
                         wf_history,scf_env,&
                         distribution_2d,dft_section,input,&
                         subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,&
-                        rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,error, &
+                        nddo_mpole,rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,error, &
                         requires_mo_derivs,mo_derivs)
 
 !   Purpose: Set the QUICKSTEP environment.
@@ -648,6 +651,7 @@ CONTAINS
     TYPE(rho0_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho0_atom_set
     TYPE(rho0_mpole_type), OPTIONAL, POINTER :: rho0_mpole
+    TYPE(rho0_mpole_type), OPTIONAL, POINTER :: nddo_mpole
     TYPE(rhoz_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rhoz_set
     REAL(dp), OPTIONAL                       :: rhoz_tot
@@ -767,6 +771,9 @@ CONTAINS
     END IF
     IF (PRESENT(rho0_mpole)) THEN
         CALL set_local_rho(qs_env%local_rho_set,rho0_mpole=rho0_mpole)
+    END IF
+    IF (PRESENT(nddo_mpole)) THEN
+        CALL set_local_rho(qs_env%local_rho_set,nddo_mpole=nddo_mpole)
     END IF
     IF (PRESENT(rhoz_set)) THEN
         CALL set_local_rho(qs_env%local_rho_set,rhoz_set=rhoz_set)

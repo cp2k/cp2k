@@ -850,14 +850,17 @@ CONTAINS
               qs_control%method = "MNDO"
               qs_control%semi_empirical = .TRUE.
               qs_control%se_control%orthogonal_basis = .TRUE.
+              qs_control%se_control%ewald = .TRUE.
             CASE ("AM1")
               qs_control%method = "AM1"
               qs_control%semi_empirical = .TRUE.
               qs_control%se_control%orthogonal_basis = .TRUE.
+              qs_control%se_control%ewald = .TRUE.
             CASE ("PM3")
               qs_control%method = "PM3"
               qs_control%semi_empirical = .TRUE.
               qs_control%se_control%orthogonal_basis = .TRUE.
+              qs_control%se_control%ewald = .TRUE.
             CASE DEFAULT
               CALL stop_parser(routine,"Invalid method <"//TRIM(keyword)//&
                                        "> specified for METHOD")

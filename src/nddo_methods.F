@@ -20,8 +20,12 @@ MODULE nddo_methods
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
+                                             set_atomic_kind,&
                                              get_atomic_kind_set
-  USE cp_control_types,                ONLY: dft_control_type
+  USE basis_set_types,                 ONLY: sto_basis_set_type,&
+                                             get_sto_basis_set
+  USE cp_control_types,                ONLY: dft_control_type,&
+                                             semi_empirical_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -39,9 +43,14 @@ MODULE nddo_methods
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: pi,fourpi,fac,dfac
+  USE memory_utilities,                ONLY: reallocate
+  USE orbital_pointers,                ONLY: ncoset,nsoset,nco,nso,indco
+  USE orbital_transformation_matrices, ONLY: orbtramat
   USE particle_types,                  ONLY: particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
+                                             set_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
@@ -55,6 +64,14 @@ MODULE nddo_methods
                                              neighbor_node_type,&
                                              next
   USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho0_ggrid,                   ONLY: put_rho0_s_on_grid
+  USE qs_rho0_types,                   ONLY: allocate_multipoles,&
+                                             allocate_rho0_atom,&
+                                             allocate_rho0_mpole,&
+                                             initialize_mpole_rho,&
+                                             rho0_mpole_type, &
+                                             rho0_atom_type
+  USE qs_util,                         ONLY: gaussint_sph,exp_radius
   USE semi_empirical_integrals,        ONLY: drotint,&
                                              rotint
   USE semi_empirical_types,            ONLY: semi_empirical_type
@@ -64,7 +81,10 @@ MODULE nddo_methods
   USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              cp_sm_sm_trace,&
+                                             first_block_node,&
                                              get_block_node,&
+                                             next_block_node,&
+                                             real_block_node_type,&
                                              real_matrix_p_type,&
                                              transfer_matrix
   USE timings,                         ONLY: timeset,&
@@ -76,7 +96,7 @@ MODULE nddo_methods
 
   CHARACTER(LEN=*), PARAMETER :: moduleN = "nddo_methods"
 
-  PUBLIC :: build_nddo_fock_matrix
+  PUBLIC :: build_nddo_fock_matrix, init_rho0_nddo
 
   INTERFACE fock1
     MODULE PROCEDURE rfock1, ufock1
@@ -408,13 +428,14 @@ CONTAINS
 
        END DO ! ikind
 
+       energy%hartree=0._dp
        IF (ewald) THEN
          ! calculate Coulomb long range forces
          CALL nddo_ewald (ks_env,qs_env,ks_matrix,rho,energy,&
               calculate_forces,just_energy,error)
        END IF
 
-       energy%hartree=-energy%core
+       energy%hartree=energy%hartree-energy%core
        DO ispin=1,nspins
           CALL cp_sm_sm_trace(ks_matrix(ispin)%matrix,&
                               matrix_p(ispin)%matrix,ecoul,para_env,error)
@@ -1062,26 +1083,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'nddo_ewald', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ikind, natom, nkind, &
-                                                output_unit
+    INTEGER                                  :: handle,output_unit
     LOGICAL                                  :: failure, ionode
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(qs_force_type), DIMENSION(:), &
-      POINTER                                :: force
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p
-    TYPE(semi_empirical_type), POINTER       :: se_kind_a
+    TYPE(atomic_kind_type), DIMENSION(:), &
+                               POINTER       :: atomic_kind_set
+    TYPE(rho0_mpole_type),     POINTER       :: nddo_mpole
+    REAL(KIND=dp)                            :: tot_rs_int
 
 ! -----------------------------------------------------------------------------
 
     failure=.FALSE.
-    NULLIFY(matrix_p,particle_set,logger)
+    NULLIFY(nddo_mpole,atomic_kind_set,logger)
 
     CALL timeset(routineN,"I","",handle)
 
@@ -1094,37 +1107,306 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
-                    dft_control=dft_control,&
-                    particle_set=particle_set,&
-                    force=force)
-
-    matrix_p => rho%rho_ao
-
-    IF ( .NOT. failure ) THEN
-       IF (SIZE(matrix_p) == 2) THEN
-          CALL cp_sm_scale_and_add(matrix_p(1)%matrix, 1.0_dp,&
-               matrix_p(2)%matrix,1.0_dp)
-       END IF
-
-       nkind = SIZE(atomic_kind_set)
-
-       DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               natom=natom,&
-                               se_parameter=se_kind_a)
-       END DO
-
-       IF (SIZE(matrix_p) == 2) THEN
-          CALL cp_sm_scale_and_add(matrix_p(1)%matrix,1.0_dp,&
-               matrix_p(2)%matrix,-1.0_dp)
-       END IF
-
-    END IF
+                    nddo_mpole=nddo_mpole)
+    CALL calc_nddo_mpoles(qs_env,rho,atomic_kind_set,nddo_mpole,error)
+    CALL put_rho0_s_on_grid(qs_env,atomic_kind_set,nddo_mpole,tot_rs_int,error)
 
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE nddo_ewald
+
+! *****************************************************************************
+
+  SUBROUTINE calc_nddo_mpoles(qs_env,rho,atomic_kind_set,nddo_mpole,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(atomic_kind_type), DIMENSION(:), &
+                               POINTER       :: atomic_kind_set
+    TYPE(rho0_mpole_type), POINTER           :: nddo_mpole
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'calc_nddo_mpoles', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle,output_unit,lmax0
+    LOGICAL                                  :: failure
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_p
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pblock
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    INTEGER                                  :: ikind,nkind,iatom,natom,iat,&
+                                                lx,ly,lz,is,ic,ico,lshell,iso
+    REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: Qlm_gg
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: Qlm,Qlm_cart
+    REAL(KIND=dp)                            :: op
+
+! -----------------------------------------------------------------------------
+
+    failure=.FALSE.
+
+    matrix_p => rho%rho_ao
+    IF (SIZE(matrix_p) == 2) THEN
+      CALL cp_sm_scale_and_add(matrix_p(1)%matrix, 1.0_dp,&
+           matrix_p(2)%matrix,1.0_dp)
+    END IF
+
+    nkind = SIZE(atomic_kind_set)
+    DO ikind=1,nkind
+       atomic_kind => atomic_kind_set(ikind)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,natom=natom,&
+                            atom_list=atom_list)
+       Qlm_gg => nddo_mpole%mp_gau(ikind)%Qlm_gg
+       lmax0=nddo_mpole%lmax0_kind(ikind)/2
+       DO iat=1,natom
+          iatom = atom_list(iat)
+          CALL get_block_node(matrix=matrix_p(1)%matrix,&
+                              block_row=iatom,block_col=iatom,&
+                              BLOCK=pblock)
+          Qlm => nddo_mpole%mp_rho(iatom)%Qlm_s
+          DO is=1,SIZE(Qlm)
+            Qlm(is)=fourpi*SUM(pblock(:,:)*Qlm_gg(:,:,is))
+          END DO
+          Qlm(1)=Qlm(1)+nddo_mpole%mp_rho(iatom)%Qlm_z
+          Qlm_cart => nddo_mpole%mp_rho(iatom)%Qlm_car_s
+          Qlm_cart = 0._dp
+          DO lshell = 0,lmax0
+            DO ic = 1,nco(lshell)
+              ico = ic + ncoset(lshell-1)
+              lx = indco(1,ico)
+              ly = indco(2,ico)
+              lz = indco(3,ico)
+              op = SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)*fourpi/&
+                   dfac(2*lshell+1))
+              DO is = 1,nso(lshell)
+                iso = is + nsoset(lshell-1)
+                Qlm_cart(ico) = Qlm_cart(ico) + orbtramat(lshell)%c2s(is,ic)&
+                                *Qlm(iso)*nddo_mpole%norm_g0l_s(lshell)/op
+              END DO
+            END DO
+          END DO
+       END DO
+    END DO
+
+    IF (SIZE(matrix_p) == 2) THEN
+      CALL cp_sm_scale_and_add(matrix_p(1)%matrix, 1.0_dp,&
+           matrix_p(2)%matrix,-1.0_dp)
+    END IF
+
+  END SUBROUTINE calc_nddo_mpoles
+
+! *****************************************************************************
+
+  SUBROUTINE init_rho0_nddo(qs_env, se_control, error)
+
+    ! ARGUMENTS
+    TYPE(qs_environment_type), POINTER         :: qs_env
+    TYPE(semi_empirical_control_type), POINTER :: se_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                                 :: error   
+
+    ! PARAMETERS
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_rho0_nddo', &
+      routineP = moduleN//':'//routineN
+
+    ! LOCALS
+    TYPE(atomic_kind_type), DIMENSION(:), &
+                            POINTER          :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(rho0_mpole_type), POINTER           :: nddo_mpole
+    TYPE(rho0_atom_type), DIMENSION(:), &
+                           POINTER           :: rho0_atom_set
+    TYPE(semi_empirical_type), POINTER       :: se_kind
+    REAL(dp)                                 :: ecut,max_rpgf0_s,r_s,&
+                                                eps_gauss,z0
+    INTEGER  ::  nkind,natom,ikind,natorb,nat_kind,nchan_s,nchan_c,iatom,&
+                 zeff,iat,istat,l
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    REAL(dp), DIMENSION(:,:,:), POINTER      :: Qlm_gg
+    LOGICAL                                  :: failure
+!   ---------------------------------------------------------------------------
+
+    NULLIFY(atomic_kind_set)
+    NULLIFY(atom_kind)
+    NULLIFY(dft_control)
+    NULLIFY(nddo_mpole)
+    NULLIFY(rho0_atom_set)
+
+    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
+                    dft_control=dft_control)
+
+    ecut = dft_control%qs_control%cutoff 
+    eps_gauss = dft_control%qs_control%se_control%eps_gauss
+    z0 = dft_control%qs_control%se_control%alpha_gauss
+    nkind = SIZE(atomic_kind_set,1)
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,natom=natom)
+
+    !   Initialize the multipole and the compensation charge type 
+    CALL allocate_rho0_mpole(nddo_mpole)
+    CALL allocate_rho0_atom(rho0_atom_set,natom)
+
+    !   Allocate the multipole set
+    CALL allocate_multipoles(nddo_mpole%mp_rho,natom,nddo_mpole%mp_gau,nkind)
+    CALL reallocate(nddo_mpole%lmax0_kind,1,nkind)
+
+    nddo_mpole%lmax_0 = 0
+    DO ikind = 1,nkind
+      atom_kind => atomic_kind_set(ikind)
+      CALL get_atomic_kind(atomic_kind=atom_kind,natom=nat_kind,&
+                           atom_list=atom_list,&
+                           se_parameter=se_kind)
+      CALL get_se_param(se_parameter=se_kind,natorb=natorb,zeff=zeff)
+
+      nddo_mpole%lmax0_kind(ikind) = 2*(NINT(SQRT(REAL(natorb,dp)))-1)
+      CALL set_atomic_kind(atomic_kind=atom_kind,&
+                           lmax_rho0 = nddo_mpole%lmax0_kind(ikind))
+      nddo_mpole%lmax_0 = max(nddo_mpole%lmax_0,nddo_mpole%lmax0_kind(ikind))
+
+      nchan_s = nsoset(nddo_mpole%lmax0_kind(ikind))
+      nchan_c = ncoset(nddo_mpole%lmax0_kind(ikind))
+
+      DO iat = 1,nat_kind
+        iatom = atom_list(iat)
+        CALL initialize_mpole_rho(nddo_mpole%mp_rho(iatom),nchan_s,nchan_c,zeff)
+      END DO
+
+      ALLOCATE(nddo_mpole%mp_gau(ikind)%g0_h(1,1),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(nddo_mpole%mp_gau(ikind)%g0_s(1,1),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(nddo_mpole%mp_gau(ikind)%Vg0_h(1,1),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+      ! Calculate multipoles given by the product of 2 STO functions
+      ALLOCATE(nddo_mpole%mp_gau(ikind)%Qlm_gg(natorb,natorb,nchan_s),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      Qlm_gg => nddo_mpole%mp_gau(ikind)%Qlm_gg
+      CALL calculate_sto_mpoles(Qlm_gg,se_kind%basis,error)
+    END DO   ! ikind
+
+    nddo_mpole%zet0_s = se_control%alpha_gauss
+
+    ! Allocate and calculate the normalization factors for g0_lm_s
+    CALL reallocate(nddo_mpole%norm_g0l_s,0,nddo_mpole%lmax_0)
+    DO l = 0,nddo_mpole%lmax_0
+      nddo_mpole%norm_g0l_s(l) = (2._dp*REAL(l,dp)+1._dp)/&
+                                 ( fourpi*gaussint_sph(nddo_mpole%zet0_s,2*l))
+    END DO
+
+    max_rpgf0_s = 0
+    DO ikind = 1,nkind
+      r_s = 0.0_dp
+      DO l = 0,nddo_mpole%lmax0_kind(ikind)
+        r_s = max(r_s, exp_radius(l,z0,eps_gauss,1._dp))
+      END DO
+
+      nddo_mpole%mp_gau(ikind)%rpgf0_s = r_s
+      max_rpgf0_s = MAX(max_rpgf0_s,r_s)
+    END DO
+    nddo_mpole%max_rpgf0_s = max_rpgf0_s
+
+    CALL set_qs_env(qs_env=qs_env, nddo_mpole = nddo_mpole, &
+                    rho0_atom_set=rho0_atom_set)
+
+  END SUBROUTINE init_rho0_nddo
+
+! *****************************************************************************
+
+  SUBROUTINE calculate_sto_mpoles(Qlm,sto_basis,error)
+
+    REAL(dp), DIMENSION(:,:,:), INTENT(OUT) :: Qlm
+    TYPE(sto_basis_set_type), POINTER       :: sto_basis
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                                 :: error   
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_sto_mpoles', &
+      routineP = moduleN//':'//routineN
+    INTEGER                                    :: nshell,maxlq
+    INTEGER, DIMENSION(:), POINTER             :: nq,lq
+    REAL(KIND=dp), DIMENSION(:), POINTER       :: zeta
+    REAL(KIND=dp)                              :: ofp,zet1,zet2,zk1,zk2,&
+                                                  qq0,qq1,qq2,o5p,otp,ot3p
+    INTEGER                                    :: l1,l2,n1,n2,m,k1,k2,&
+                                                  i1,i2,i1start,i2start
+    LOGICAL                                    :: failure
+
+    CALL get_sto_basis_set(sto_basis_set=sto_basis,nshell=nshell,&
+         nq=nq,lq=lq,zet=zeta,maxlq=maxlq)
+
+    Qlm = 0._dp
+    ofp = 1._dp/SQRT(fourpi)
+    o5p = 1._dp/SQRT(5._dp*pi)
+    otp = 1._dp/SQRT(20._dp*pi)
+    ot3p = 1._dp/SQRT(20._dp/3._dp*pi)
+
+    i1start=0
+    DO i1=1,nshell
+      n1=nq(i1)
+      l1=lq(i1)
+      zet1=zeta(i1)
+      zk1=fac(2*n1)**(-0.5_dp)*(2._dp*zet1)**(n1+0.5_dp)
+      i2start=0
+      DO i2=1,nshell
+        n2=nq(i2)
+        l2=lq(i2)
+        zet2=zeta(i2)
+        zk2=fac(2*n2)**(-0.5_dp)*(2._dp*zet2)**(n2+0.5_dp)
+        IF ( l1==0 .AND. l2==0 ) THEN
+          k1=i1start+1
+          k2=i2start+1
+          m=n1+n2
+          qq0=zk1*zk2*fac(m)*(zet1+zet2)**(-m-1)
+          Qlm(k1,k2,1) = ofp*qq0
+        ELSEIF ( l1==0 .AND. l2==1 ) THEN
+          k1=i1start+1
+          k2=i2start
+          m=n1+n2+1
+          qq1=zk1*zk2*fac(m)*(zet1+zet2)**(-m-1)
+          Qlm(k1,k2+1,2) = ofp*qq1
+          Qlm(k1,k2+2,3) = ofp*qq1
+          Qlm(k1,k2+3,4) = ofp*qq1
+        ELSEIF ( l1==1 .AND. l2==0 ) THEN
+          k1=i1start
+          k2=i2start+1
+          m=n1+n2+1
+          qq1=zk1*zk2*fac(m)*(zet1+zet2)**(-m-1)
+          Qlm(k1+1,k2,2) = ofp*qq1
+          Qlm(k1+2,k2,3) = ofp*qq1
+          Qlm(k1+3,k2,4) = ofp*qq1
+        ELSEIF ( l1==1 .AND. l2==1 ) THEN
+          k1=i1start
+          k2=i2start
+          m=n1+n2
+          qq0=zk1*zk2*fac(m)*(zet1+zet2)**(-m-1)
+          m=n1+n2+2
+          qq2=zk1*zk2*fac(m)*(zet1+zet2)**(-m-1)
+          Qlm(k1+1,k2+1,1) = ofp*qq0
+          Qlm(k1+2,k2+2,1) = ofp*qq0
+          Qlm(k1+3,k2+3,1) = ofp*qq0
+          Qlm(k1+3,k2+3,7) = o5p*qq0
+          Qlm(k1+1,k2+2,6) = ot3p*qq2
+          Qlm(k1+3,k2+2,8) = ot3p*qq2
+          Qlm(k1+2,k2+1,6) = ot3p*qq2
+          Qlm(k1+2,k2+3,8) = ot3p*qq2
+          Qlm(k1+1,k2+1,7) = -otp*qq2
+          Qlm(k1+1,k2+1,9) = -otp*qq2
+          Qlm(k1+3,k2+3,7) = -otp*qq2
+          Qlm(k1+3,k2+3,9) = otp*qq2
+          Qlm(k1+1,k2+3,5) = ot3p*qq2
+          Qlm(k1+3,k2+1,5) = ot3p*qq2
+        ELSE
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
+        i2start=i2start+2*l2+1
+      END DO
+      i1start=i1start+2*l1+1
+    END DO
+
+  END SUBROUTINE calculate_sto_mpoles
 
 ! *****************************************************************************
 

@@ -326,10 +326,10 @@ MODULE qs_rho0_ggrid
 
 ! *****************************************************************************
 
-  SUBROUTINE rho0_s_grid_create(qs_env, local_rho, tddft, error)
+  SUBROUTINE rho0_s_grid_create(qs_env, rho0_mpole, tddft, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(local_rho_type), POINTER            :: local_rho
+    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -339,7 +339,6 @@ MODULE qs_rho0_ggrid
 
     INTEGER                                  :: stat, igrid
     LOGICAL                                  :: failure, my_tddft
-    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(coeff_type), POINTER                :: rho_rs,rho_gs
     TYPE(pw_env_type), POINTER               :: new_pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -351,20 +350,21 @@ MODULE qs_rho0_ggrid
   my_tddft = .FALSE.
   IF(PRESENT(tddft)) my_tddft = tddft
 
-  NULLIFY(new_pw_env,auxbas_pw_pool,rho0_mpole,rho_rs,rho_gs)
-
-! reallocate rho0 on the global grid in real and reciprocal space
+  NULLIFY(new_pw_env)
   CALL get_qs_env(qs_env, pw_env=new_pw_env)
-  rho0_mpole => local_rho%rho0_mpole
-  rho_rs => local_rho%rho0_mpole%rho0_s_rs
-  rho_gs => local_rho%rho0_mpole%rho0_s_gs 
-!  CALL get_qs_env(qs_env, pw_env=new_pw_env, rho0_mpole=rho0_mpole,&
-!                  rho0_s_rs=rho_rs, rho0_s_gs=rho_gs)
   CPPrecondition(ASSOCIATED(new_pw_env),cp_failure_level,routineP,error,failure)
 
+  NULLIFY(auxbas_pw_pool)
   CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
+  CPPrecondition(ASSOCIATED(auxbas_pw_pool),cp_failure_level,routineP,error,failure)
 
-! rho0 density in real space
+  ! reallocate rho0 on the global grid in real and reciprocal space
+  NULLIFY(rho_rs,rho_gs)
+  CPPrecondition(ASSOCIATED(rho0_mpole),cp_failure_level,routineP,error,failure)
+  rho_rs => rho0_mpole%rho0_s_rs
+  rho_gs => rho0_mpole%rho0_s_gs 
+
+  ! rho0 density in real space
   IF (ASSOCIATED(rho_rs)) THEN
      CALL coeff_deallocate(rho_rs)
      DEALLOCATE(rho_rs,stat=stat)
@@ -379,7 +379,7 @@ MODULE qs_rho0_ggrid
      rho0_mpole%rho0_s_rs => rho_rs
   END IF 
 
-! rho0 density in reciprocal space
+  ! rho0 density in reciprocal space
   IF (ASSOCIATED(rho_gs)) THEN
      CALL coeff_deallocate(rho_gs)
      DEALLOCATE(rho_gs,stat=stat)
@@ -396,8 +396,6 @@ MODULE qs_rho0_ggrid
   END IF
 
   IF(my_tddft) THEN
-!    zet = rho0_mpole%zet0_s*2.0_dp
-!    igrid =  gaussian_gridlevel(new_pw_env%gridlevel_info,zet)
     rho0_mpole%igrid_zet0_s = qs_env%local_rho_set%rho0_mpole%igrid_zet0_s
   END IF
 

@@ -65,6 +65,7 @@ MODULE qs_local_rho_types
   TYPE local_rho_type
     TYPE(rho_atom_type), DIMENSION(:), POINTER            :: rho_atom_set
     TYPE(rho0_mpole_type), POINTER                        :: rho0_mpole
+    TYPE(rho0_mpole_type), POINTER                        :: nddo_mpole
     TYPE(rho0_atom_type), DIMENSION(:), POINTER           :: rho0_atom_set
     TYPE(rhoz_type),  DIMENSION(:), POINTER               :: rhoz_set
     REAL(dp)                                              :: rhoz_tot
@@ -203,7 +204,7 @@ MODULE qs_local_rho_types
 
 ! ******************************************************************************
   SUBROUTINE  get_local_rho(local_rho_set,rho_atom_set,rho0_atom_set,&
-                            rho0_mpole,rhoz_set)
+                            rho0_mpole,nddo_mpole,rhoz_set)
 
     TYPE(local_rho_type), INTENT(IN), TARGET     :: local_rho_set
     TYPE(rho_atom_type), DIMENSION(:),  &
@@ -211,6 +212,7 @@ MODULE qs_local_rho_types
     TYPE(rho0_atom_type), DIMENSION(:), &
                               OPTIONAL, POINTER  :: rho0_atom_set
     TYPE(rho0_mpole_type),     OPTIONAL, POINTER :: rho0_mpole
+    TYPE(rho0_mpole_type),     OPTIONAL, POINTER :: nddo_mpole
     TYPE(rhoz_type), DIMENSION(:), &
                          OPTIONAL, POINTER       :: rhoz_set
 
@@ -221,6 +223,7 @@ MODULE qs_local_rho_types
     IF (PRESENT(rho_atom_set)) rho_atom_set => local_rho_set%rho_atom_set
     IF (PRESENT(rho0_atom_set)) rho0_atom_set => local_rho_set%rho0_atom_set
     IF (PRESENT(rho0_mpole))  rho0_mpole =>  local_rho_set%rho0_mpole
+    IF (PRESENT(nddo_mpole))  nddo_mpole =>  local_rho_set%nddo_mpole
     IF (PRESENT(rhoz_set))  rhoz_set => local_rho_set%rhoz_set
 
   END SUBROUTINE get_local_rho
@@ -247,6 +250,7 @@ MODULE qs_local_rho_types
     NULLIFY (local_rho_set%rho_atom_set)
     NULLIFY (local_rho_set%rho0_atom_set)
     NULLIFY (local_rho_set%rho0_mpole)
+    NULLIFY (local_rho_set%nddo_mpole)
     NULLIFY (local_rho_set%rhoz_set)
 
   END SUBROUTINE local_rho_set_create
@@ -278,6 +282,10 @@ MODULE qs_local_rho_types
         CALL deallocate_rho0_mpole(local_rho_set%rho0_mpole)
       END IF
 
+      IF (ASSOCIATED(local_rho_set%nddo_mpole)) THEN
+        CALL deallocate_rho0_mpole(local_rho_set%nddo_mpole)
+      END IF
+
       IF(ASSOCIATED(local_rho_set%rhoz_set)) THEN
         CALL deallocate_rhoz(local_rho_set%rhoz_set)
       ENDIF
@@ -291,7 +299,7 @@ MODULE qs_local_rho_types
 ! ******************************************************************************
 
   SUBROUTINE set_local_rho(local_rho_set,rho_atom_set,rho0_atom_set,&
-                            rho0_mpole,rhoz_set)
+                            rho0_mpole,nddo_mpole,rhoz_set)
 
     TYPE(local_rho_type), INTENT(INout), TARGET     :: local_rho_set
     TYPE(rho_atom_type), DIMENSION(:),  &
@@ -299,6 +307,7 @@ MODULE qs_local_rho_types
     TYPE(rho0_atom_type), DIMENSION(:), &
                                  OPTIONAL, POINTER  :: rho0_atom_set
     TYPE(rho0_mpole_type),        OPTIONAL, POINTER :: rho0_mpole
+    TYPE(rho0_mpole_type),        OPTIONAL, POINTER :: nddo_mpole
     TYPE(rhoz_type),  DIMENSION(:), &
                             OPTIONAL, POINTER       :: rhoz_set
 
@@ -325,6 +334,13 @@ MODULE qs_local_rho_types
          CALL deallocate_rho0_mpole(local_rho_set%rho0_mpole)
        ENDIF
        local_rho_set%rho0_mpole => rho0_mpole
+    END IF 
+
+    IF (PRESENT(nddo_mpole)) THEN
+       IF(ASSOCIATED(local_rho_set%nddo_mpole)) THEN
+         CALL deallocate_rho0_mpole(local_rho_set%nddo_mpole)
+       ENDIF
+       local_rho_set%nddo_mpole => nddo_mpole
     END IF 
 
     IF (PRESENT(rhoz_set)) THEN

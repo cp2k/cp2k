@@ -207,7 +207,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(pw_grid_type), POINTER              :: old_pw_grid, pw_grid
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
-    TYPE(rho0_mpole_type),      POINTER      :: rho0_mpole
+    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole, nddo_mpole
 
 ! should be be avoided (see later)
 
@@ -246,6 +246,17 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole)
         CPPostcondition(ASSOCIATED(rho0_mpole),cp_failure_level,routineP,error,failure)
         CALL get_rho0_mpole(rho0_mpole=rho0_mpole,&
+                         zet0_s=zet0_s,max_rpgf0_s=max_rpgf0_s)
+     ELSEIF(qs_env%dft_control%qs_control%se_control%ewald) THEN
+        IF (ASSOCIATED(pw_env%l_info_rho0)) THEN
+           CALL l_info_release(pw_env%l_info_rho0,error)
+        ELSE
+           ALLOCATE(pw_env%l_info_rho0,stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        END IF
+        CALL get_qs_env(qs_env=qs_env,nddo_mpole=nddo_mpole)
+        CPPostcondition(ASSOCIATED(nddo_mpole),cp_failure_level,routineP,error,failure)
+        CALL get_rho0_mpole(rho0_mpole=nddo_mpole,&
                          zet0_s=zet0_s,max_rpgf0_s=max_rpgf0_s)
      ELSE
         NULLIFY(pw_env%l_info_rho0)
@@ -356,6 +367,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      IF(qs_env%dft_control%qs_control%gapw) THEN
         igrid_zet0_s = gaussian_gridlevel(pw_env%gridlevel_info,2.0_dp*zet0_s)
         rho0_mpole%igrid_zet0_s = igrid_zet0_s
+     ELSEIF(qs_env%dft_control%qs_control%se_control%ewald) THEN
+        igrid_zet0_s = gaussian_gridlevel(pw_env%gridlevel_info,2.0_dp*zet0_s)
+        nddo_mpole%igrid_zet0_s = igrid_zet0_s
      END IF
 
      DEALLOCATE(radius,stat=stat)
@@ -379,8 +393,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      DO igrid_level=1,ngrid_level
         IF (.NOT. dft_control%qs_control%map_paa) maxradius=0.0_dp
 
-        ! Take into account the radius of the soft compnsation charge rho0_soft1
-        IF(qs_env%dft_control%qs_control%gapw) THEN
+        ! Take into account the radius of the soft compensation charge rho0_soft1
+        IF(qs_env%dft_control%qs_control%gapw .OR. &
+           qs_env%dft_control%qs_control%se_control%ewald) THEN
            IF(igrid_zet0_s == igrid_level ) maxradius=MAX(maxradius,max_rpgf0_s)
         END IF
 
@@ -457,7 +472,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
           maxlgto=maxlgto)
      CALL init_l_info(pw_env%l_info,maxlgto+2,cmax)
 
-     IF( dft_control%qs_control%gapw) THEN
+     IF( dft_control%qs_control%gapw .OR. &
+         dft_control%qs_control%se_control%ewald ) THEN
         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
              lmax_rho0 = lmax_rho0)
         IF (lmax_rho0+1 <= maxlgto+2) THEN

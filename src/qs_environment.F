@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2001 - 2002  CP2K developers group
+!   Copyright (C) 2001 - 2004  CP2K developers group
 !-----------------------------------------------------------------------------!
 !!****** cp2k/qs_environment [1.0] *
 !!
@@ -40,7 +40,8 @@ MODULE qs_environment
   USE cntl_input,                      ONLY: read_cntl_section
   USE cp_control_types,                ONLY: dft_control_release,&
                                              dft_control_type,&
-                                             gapw_control_type
+                                             gapw_control_type,&
+                                             semi_empirical_control_type
   USE cp_control_utils,                ONLY: read_dft_control,&
                                              read_qs_control,&
                                              write_dft_control,&
@@ -74,6 +75,7 @@ MODULE qs_environment
   USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                              write_molecule_kind_set
   USE molecule_types_new,              ONLY: molecule_type
+  USE nddo_methods,                    ONLY: init_rho0_nddo
   USE orbital_pointers,                ONLY: init_orbital_pointers
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
   USE particle_list_types,             ONLY: particle_list_create,&
@@ -95,6 +97,7 @@ MODULE qs_environment
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                              mo_set_p_type,&
                                              get_mo_set
+  USE qs_rho0_types,                   ONLY: rho0_mpole_type
   USE qs_rho0_ggrid,                   ONLY: rho0_s_grid_create
   USE qs_rho0_methods,                 ONLY: init_rho0
   USE qs_rho_atom_methods,             ONLY: init_rho_atom
@@ -275,6 +278,10 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(setup_parameters_type)              :: setup
     TYPE(cp_fm_p_type), POINTER, DIMENSION(:):: mo_derivs
+    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
+    TYPE(rho0_mpole_type), POINTER           :: nddo_mpole
+    TYPE(semi_empirical_control_type), &
+      POINTER                                :: se_control
 
 !   ---------------------------------------------------------------------------
 
@@ -499,6 +506,13 @@ CONTAINS
       CALL init_rho0(qs_env,gapw_control,cell,error=error)
 !     *** Allocate and Initialize the local coulomb terms (1,2 and 3 centers) ***
       CALL init_coulomb_local(qs_env,gapw_control)
+    ELSE IF(dft_control%qs_control%semi_empirical) THEN
+      se_control => dft_control%qs_control%se_control
+      SELECT CASE ( dft_control%qs_control%method )
+        CASE DEFAULT
+        CASE ("AM1","PM3","MNDO")
+          CALL init_rho0_nddo(qs_env, se_control, error)
+      END SELECT
     ENDIF
 
 !   *** Allocate the MO data types ***
@@ -619,8 +633,15 @@ CONTAINS
     CALL qs_env_setup(qs_env,error)
 
 !   Allocate and Initialie rho0 soft on the global grid
-    IF(dft_control%qs_control%method == "GAPW") & 
-      CALL rho0_s_grid_create(qs_env, qs_env%local_rho_set, error=error)
+    IF(dft_control%qs_control%method == "GAPW") THEN 
+      CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole)
+      CALL rho0_s_grid_create(qs_env, rho0_mpole, error=error)
+    END IF
+!   Allocate grid 
+    IF(dft_control%qs_control%se_control%ewald) THEN 
+      CALL get_qs_env(qs_env=qs_env,nddo_mpole=nddo_mpole)
+      CALL rho0_s_grid_create(qs_env, nddo_mpole, error=error)
+    END IF
 
     IF (ionode) CALL m_flush(output_unit)
 
