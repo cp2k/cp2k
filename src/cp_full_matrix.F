@@ -776,12 +776,14 @@ CONTAINS
 
   SUBROUTINE cp_fm_get_info(matrix,name,nrow_global,ncol_global,&
        nrow_block,ncol_block,nrow_local,ncol_local,&
-       row_indices,col_indices,context,&
+       row_indices,col_indices,local_data,context,&
        matrix_struct,error)!,para_env)
 
 !   Purpose: Return informations about the specified BLACS matrix.
 !   the indices vectors are cached.
 !   indices is an array that maps the local indices to the global ones
+!   local data is a little hole to access the blacs block, needed in some rare cases
+!   for efficient use
 
 !   History: - Creation (08.06.2001, Matthias Krack)
 
@@ -797,6 +799,7 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
     TYPE(cp_f_matrix_struct_type),POINTER,OPTIONAL :: matrix_struct
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    REAL(wp), DIMENSION(:,:), POINTER, OPTIONAL :: local_data
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_get_info',&
          routineP=moduleN//':'//routineN
@@ -816,6 +819,7 @@ CONTAINS
     IF (PRESENT(ncol_block)) ncol_block = matrix%matrix_struct%ncol_block
     IF (PRESENT(context)) context => matrix%matrix_struct%context
     IF (PRESENT(matrix_struct)) matrix_struct => matrix%matrix_struct
+    IF (PRESENT(local_data)) local_data => matrix%local_data ! not hiding things anymore :-(
 
     ctxt => matrix%matrix_struct%context
     myprow=ctxt%mepos(1)
