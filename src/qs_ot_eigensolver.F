@@ -249,7 +249,7 @@ CONTAINS
                                      para_env=globenv%para_env)
       CALL cp_fm_trace(matrix_c,qs_ot_env(1)%matrix_hc,energy)
       IF (.NOT. energy_only) THEN
-       CALL cp_fm_scale_and_add(2.0_wp,qs_ot_env(1)%matrix_hc,0.0_wp,qs_ot_env(1)%matrix_hc)
+       CALL cp_fm_scale_and_add(2.0_wp,qs_ot_env(1)%matrix_hc)
       ENDIF
  
       qs_ot_env(1)%etotal=energy
