@@ -226,15 +226,15 @@ CONTAINS
 !!       Type(cp_para_env_type), Pointer:: para_env
 !!       Type(cp_e_rosenbrok_f_type), Pointer:: obj_funct
 !!       Real(Kind=dp), Dimension(:), Intent (IN):: x0
-!!       Integer, Intent (IN), Optional:: m, print_every, master,&
-!!         max_f_per_iter
-!!       Real(Kind=dp), Intent (IN), Optional:: wanted_projected_gradient,&
-!!         wanted_relative_f_delta
-!!       Real(Kind=dp), Intent (IN), Dimension(size(x0)), Optional::&
+!!       Integer, Intent (IN), Optional:: m, print_every
+!!       Real(Kind=dp), Intent (IN), Optional:: wanted_relative_f_delta,&
+!!         wanted_projected_gradient
+!!       Real(Kind=dp), Dimension(size(x0)), Intent (IN), Optional::&
 !!         lower_bound, upper_bound
-!!       Integer, Intent (IN), Dimension(size(x0)), Optional::&
+!!       Integer, Dimension(size(x0)), Intent (IN), Optional::&
 !!         kind_of_bound
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Integer, Intent (IN), Optional:: master, max_f_per_iter
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_opt_e_rosen_create
 !!
 !!   FUNCTION
@@ -363,7 +363,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine cp_opt_e_rosen_retain(optimizer, error)
 !!       Type(cp_lbfgs_opt_e_rosen_type), Pointer:: optimizer
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_opt_e_rosen_retain
 !!
 !!   FUNCTION
@@ -412,7 +412,7 @@ END SUBROUTINE cp_opt_e_rosen_retain
 !!   SYNOPSIS
 !!     Subroutine cp_opt_e_rosen_release(optimizer, error)
 !!       Type(cp_lbfgs_opt_e_rosen_type), Pointer:: optimizer
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_opt_e_rosen_release
 !!
 !!   FUNCTION
@@ -519,18 +519,21 @@ END SUBROUTINE cp_opt_e_rosen_release
 !!         kind_of_bound, master, actual_projected_gradient, n_var, n_iter,&
 !!         status, max_f_per_iter, at_end, is_master, last_f, f, error)
 !!       Type(cp_lbfgs_opt_e_rosen_type), Pointer:: optimizer
-!!       Type(cp_para_env_type), Pointer, Optional:: para_env
-!!       Type(cp_e_rosenbrok_f_type), Pointer, Optional:: obj_funct
-!!       Real(Kind=dp), Dimension(:), Pointer, Optional:: x
-!!       Integer, Intent (OUT), Optional:: m, print_every, n_var, n_iter,&
-!!         master, status, max_f_per_iter, id_nr
-!!       Logical, Intent (OUT), Optional:: is_master, at_end
-!!       Real(Kind=dp), Intent (OUT), Optional:: wanted_projected_gradient,&
-!!         wanted_relative_f_delta, actual_projected_gradient, last_f, f
-!!       Real(Kind=dp), Pointer, Dimension(:), Optional:: lower_bound,&
+!!       Type(cp_para_env_type), Optional, Pointer:: para_env
+!!       Type(cp_e_rosenbrok_f_type), Optional, Pointer:: obj_funct
+!!       Integer, Intent (OUT), Optional:: m, print_every, id_nr
+!!       Real(Kind=dp), Intent (OUT), Optional:: wanted_relative_f_delta,&
+!!         wanted_projected_gradient
+!!       Real(Kind=dp), Dimension(:), Optional, Pointer:: x, lower_bound,&
 !!         upper_bound
-!!       Integer, Pointer, Dimension(:), Optional:: kind_of_bound
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Integer, Dimension(:), Optional, Pointer:: kind_of_bound
+!!       Integer, Intent (OUT), Optional:: master
+!!       Real(Kind=dp), Intent (OUT), Optional:: actual_projected_gradient
+!!       Integer, Intent (OUT), Optional:: n_var, n_iter, status,&
+!!         max_f_per_iter
+!!       Logical, Intent (OUT), Optional:: at_end, is_master
+!!       Real(Kind=dp), Intent (OUT), Optional:: last_f, f
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_opt_e_rosen_get
 !!
 !!   FUNCTION
@@ -651,7 +654,7 @@ END SUBROUTINE cp_opt_e_rosen_release
 !!       Real(Kind=dp), Intent (OUT), Optional:: f, last_f,&
 !!         projected_gradient
 !!       Logical, Intent (OUT), Optional:: converged
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_opt_e_rosen_step
 !!
 !!   FUNCTION
@@ -925,8 +928,8 @@ END SUBROUTINE cp_opt_e_rosen_release
 !!       Real(Kind=dp), Intent (OUT), Optional:: f, last_f,&
 !!         projected_gradient
 !!       Logical, Intent (OUT), Optional:: converged
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!       Logical:: res
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Function cp_opt_e_rosen_next
 !!
 !!   FUNCTION
@@ -990,7 +993,7 @@ END SUBROUTINE cp_opt_e_rosen_release
 !!   SYNOPSIS
 !!     Subroutine cp_opt_e_rosen_stop(optimizer, error)
 !!       Type(cp_lbfgs_opt_e_rosen_type), Pointer:: optimizer
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_opt_e_rosen_stop
 !!
 !!   FUNCTION

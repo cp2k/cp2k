@@ -151,7 +151,7 @@ CONTAINS
 !!     Subroutine fm_pool_create(pool, el_struct, error)
 !!       Type(cp_fm_pool_type), Pointer:: pool
 !!       Type(cp_fm_struct_type), Pointer:: el_struct
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine fm_pool_create
 !!
 !!   FUNCTION
@@ -359,8 +359,8 @@ CONTAINS
 !!     Subroutine fm_pool_create_fm(pool, element, name, error)
 !!       Type(cp_fm_pool_type), Pointer:: pool
 !!       Type(cp_fm_type), Pointer:: element
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!       Character(Len=*), Intent (IN), Optional:: name
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine fm_pool_create_fm
 !!
 !!   FUNCTION
@@ -436,8 +436,8 @@ CONTAINS
 !!       Type(cp_fm_pool_type), Pointer:: pool
 !!       Integer, Intent (IN):: n_elements
 !!       Type(cp_fm_p_type), Dimension(:), Pointer:: elements
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!       Character(Len=*), Intent (IN), Optional:: name
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine fm_pool_create_fm_vect
 !!
 !!   FUNCTION
@@ -512,7 +512,7 @@ CONTAINS
 !!     Subroutine fm_pool_give_back_fm(pool, element, error)
 !!       Type(cp_fm_pool_type), Pointer:: pool
 !!       Type(cp_fm_type), Pointer:: element
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine fm_pool_give_back_fm
 !!
 !!   FUNCTION
@@ -583,7 +583,7 @@ CONTAINS
 !!     Subroutine fm_pool_give_back_fm_vect(pool, elements, error)
 !!       Type(cp_fm_pool_type), Pointer:: pool
 !!       Type(cp_fm_p_type), Dimension(:), Pointer:: elements
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine fm_pool_give_back_fm_vect
 !!
 !!   FUNCTION
@@ -649,9 +649,9 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Function fm_pool_get_el_struct(pool, error) Result(res)
-!!       Type(cp_fm_struct_type), Pointer:: res
 !!       Type(cp_fm_pool_type), Pointer:: pool
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!       Type(cp_fm_struct_type), Pointer:: res
 !!     End Function fm_pool_get_el_struct
 !!
 !!   FUNCTION
@@ -706,7 +706,7 @@ END FUNCTION fm_pool_get_el_struct
 !!     Subroutine fm_pools_copy(source_pools, target_pools, error)
 !!       Type(cp_fm_pool_p_type), Dimension(:), Pointer:: source_pools,&
 !!         target_pools
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine fm_pools_copy
 !!
 !!   FUNCTION
@@ -764,7 +764,7 @@ END SUBROUTINE fm_pools_copy
 !!   SYNOPSIS
 !!     Subroutine fm_pools_dealloc(pools, error)
 !!       Type(cp_fm_pool_p_type), Dimension(:), Pointer:: pools
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine fm_pools_dealloc
 !!
 !!   FUNCTION
@@ -817,7 +817,7 @@ END SUBROUTINE fm_pools_dealloc
 !!   SYNOPSIS
 !!     Subroutine fm_pools_flush_cache(pools, error)
 !!       Type(cp_fm_pool_p_type), Dimension(:), Pointer:: pools
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine fm_pools_flush_cache
 !!
 !!   FUNCTION
@@ -870,8 +870,8 @@ END SUBROUTINE fm_pools_flush_cache
 !!     Subroutine fm_pools_create_fm_vect(pools, elements, name, error)
 !!       Type(cp_fm_pool_p_type), Dimension(:), Pointer:: pools
 !!       Type(cp_fm_p_type), Dimension(:), Pointer:: elements
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!       Character(Len=*), Intent (IN), Optional:: name
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine fm_pools_create_fm_vect
 !!
 !!   FUNCTION
@@ -948,7 +948,7 @@ END SUBROUTINE fm_pools_create_fm_vect
 !!     Subroutine fm_pools_give_back_fm_vect(pools, elements, error)
 !!       Type(cp_fm_pool_p_type), Dimension(:), Pointer:: pools
 !!       Type(cp_fm_p_type), Dimension(:), Pointer:: elements
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine fm_pools_give_back_fm_vect
 !!
 !!   FUNCTION
