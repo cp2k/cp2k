@@ -2218,7 +2218,8 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       ! QM/MM modifications
       !
       IF (only_qm) THEN
-         bond_list(j)%bond_kind%k  = 0.0_dp
+         bond_list(j)%name = "UNSET"
+!         bond_list(j)%bond_kind%k  = 0.0_dp
       END IF
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
@@ -2320,7 +2321,8 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       ! QM/MM modifications
       !
       IF (only_qm) THEN
-         bend_list(j)%bend_kind%k  = 0.0_dp
+         bend_list(j)%name = "UNSET"
+!         bend_list(j)%bend_kind%k  = 0.0_dp
       END IF
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
@@ -2423,7 +2425,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       ! QM/MM modifications
       !
       IF (only_qm) THEN
-         ub_list(j)%ub_kind%k      = 0.0_dp
+         ub_list(j)%name = "UNSET"
       END IF
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
@@ -2503,11 +2505,39 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
             torsion_list(j)%torsion_kind%cosphi0(imul) = chm_info%torsion_cosphi0(k)
             torsion_list(j)%torsion_kind%nmul = imul
             IF(found .AND. PM1) &
-               WRITE(iw,'(A,4A10)') "    Multiple Torsion for:",name_atm_a,name_atm_b,&
-                                                                name_atm_c,name_atm_d
+               WRITE(iw,'(A,4A10)') "     Multiple Torsion for: ",&
+                                    name_atm_a,name_atm_b,&
+                                    name_atm_c,name_atm_d
             found = .TRUE.
           END IF
         END DO
+        IF(.NOT.found) THEN
+          DO k=1,SIZE(chm_info%torsion_a)
+            IF( ((TRIM(chm_info%torsion_a(k))==TRIM("X")) .AND. &
+                 (TRIM(chm_info%torsion_b(k))==TRIM(name_atm_b)) .AND. &
+                 (TRIM(chm_info%torsion_c(k))==TRIM(name_atm_c)) .AND. &
+                 (TRIM(chm_info%torsion_d(k))==TRIM("X"))) .OR. &
+                ((TRIM(chm_info%torsion_a(k))==TRIM("X")) .AND. &
+                 (TRIM(chm_info%torsion_b(k))==TRIM(name_atm_c)) .AND. &
+                 (TRIM(chm_info%torsion_c(k))==TRIM(name_atm_b)) .AND. &
+                 (TRIM(chm_info%torsion_d(k))==TRIM("X"))) ) THEN
+              imul = torsion_list(j)%torsion_kind%nmul + 1
+              CALL reallocate(torsion_list(j)%torsion_kind%k,1,imul)
+              CALL reallocate(torsion_list(j)%torsion_kind%m,1,imul)
+              CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,imul)
+              torsion_list(j)%torsion_kind%name    = "CHARMM"
+              torsion_list(j)%torsion_kind%k(imul) = chm_info%torsion_k(k)
+              torsion_list(j)%torsion_kind%m(imul) = chm_info%torsion_m(k)
+              torsion_list(j)%torsion_kind%cosphi0(imul) = chm_info%torsion_cosphi0(k)
+              torsion_list(j)%torsion_kind%nmul = imul
+              IF(PM1) &
+                 WRITE(iw,'(A,4A10)') "     Wildcard Torsion for: ",&
+                                      name_atm_a,name_atm_b,&
+                                      name_atm_c,name_atm_d
+              found = .TRUE.
+            END IF
+          END DO
+        END IF
       END IF
 
       ! always have the input param last to overwrite all the other ones
@@ -2533,25 +2563,17 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       END IF
 
       IF(.NOT.found) THEN
-        IF(PM1) WRITE(iw,*) "    Torsion ",j," : ",&
+        IF(PM1) WRITE(iw,*) "    Torsion PARAM not found ",j," : ",&
                             TRIM(name_atm_a)," ",&
                             TRIM(name_atm_b)," ",&
                             TRIM(name_atm_c)," ",&
                             TRIM(name_atm_d)
-        !CALL stop_program("FF_pack","missing torsion parm")
-
       END IF
       !
       ! QM/MM modifications
       !
       IF (only_qm) THEN
-         IF (torsion_list(j)%torsion_kind%nmul .NE. 0) THEN
-            DO imul = 1, torsion_list(j)%torsion_kind%nmul
-               torsion_list(j)%torsion_kind%k(imul) = 0.0_dp
-            END DO
-         ELSE
-            torsion_list(j)%torsion_kind%k      = 0.0_dp
-         END IF
+        torsion_list(j)%name = "UNSET"
       END IF
      END IF
 
@@ -2670,7 +2692,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
      ! QM/MM modifications
      !
      IF (only_qm) THEN
-        impr_list(j)%impr_kind%k            = 0.0_dp
+        impr_list(j)%name = "UNSET"
      END IF
 
     END DO
@@ -3210,7 +3232,8 @@ SUBROUTINE force_field_qeff_output (particle_set,atomic_kind_set,&
     atomic_kind => particle_set(iatom)%atomic_kind
     CALL get_atomic_kind(atomic_kind=atomic_kind,&
                          name=atmname,qeff=qeff)
-    IF(PM2) WRITE(iw,*) "      atom ",iatom," ",TRIM(atmname)," charge = ",qeff
+    IF(PM2) WRITE(iw,*) "      atom ",iatom," ",TRIM(atmname),&
+                        " charge = ",qeff
     qeff_sum = qeff_sum + qeff
   END DO
   IF(PM1) WRITE(iw,*) "    Total system charge = ",qeff_sum
@@ -3422,7 +3445,6 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
       END DO
     END DO
   END DO
-
 
 
   !-----------------------------------------------------------------------------
@@ -3684,7 +3706,8 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
       IF(SUM(bad2)/=0) THEN
         counter = SIZE(ub_list)-SUM(bad2)
         ALLOCATE(new_ub_list(counter),STAT=istat)
-        IF(istat/=0) CALL stop_memory('clean_intra_force_kind','new_ub_list')
+        IF(istat/=0) &
+          CALL stop_memory('clean_intra_force_kind','new_ub_list')
         counter=0
         DO iub=1,SIZE(ub_list)
           IF(bad2(iub)==0) THEN
@@ -3728,7 +3751,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
                            torsion_kind_set=torsion_kind_set,&
                            torsion_list=torsion_list)
    IF(ntorsion>0) THEN
-    IF(PM1) WRITE(iw,*) "    Mol(",ikind,") Old IMPROPER Count: ",&
+    IF(PM1) WRITE(iw,*) "    Mol(",ikind,") Old TORSION Count: ",&
                         SIZE(torsion_list),SIZE(torsion_kind_set)
     NULLIFY(bad1,bad2)
     ALLOCATE(bad1(SIZE(torsion_kind_set)),STAT=istat)
@@ -3756,6 +3779,18 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
         IF(bad1(itorsion)==0) THEN
           counter=counter+1
           new_torsion_kind_set(counter)= torsion_kind_set(itorsion)     
+          i = SIZE(torsion_kind_set(itorsion)%m)
+          j = SIZE(torsion_kind_set(itorsion)%k)
+          k = SIZE(torsion_kind_set(itorsion)%cosphi0)
+          ALLOCATE(new_torsion_kind_set(counter)%m(i),STAT=istat)
+          IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','m')
+          ALLOCATE(new_torsion_kind_set(counter)%k(i),STAT=istat)
+          IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','k')
+          ALLOCATE(new_torsion_kind_set(counter)%cosphi0(i),STAT=istat)
+          IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','cosphi0')
+          new_torsion_kind_set(counter)%m= torsion_kind_set(itorsion)%m
+          new_torsion_kind_set(counter)%k= torsion_kind_set(itorsion)%k
+          new_torsion_kind_set(counter)%cosphi0= torsion_kind_set(itorsion)%cosphi0     
         END IF
       END DO
       counter=0
@@ -3771,7 +3806,8 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
       IF(SUM(bad2)/=0) THEN
         counter = SIZE(torsion_list)-SUM(bad2)
         ALLOCATE(new_torsion_list(counter),STAT=istat)
-        IF(istat/=0) CALL stop_memory('clean_intra_force_kind','new_torsion_list')
+        IF(istat/=0) &
+          CALL stop_memory('clean_intra_force_kind','new_torsion_list')
         counter=0
         DO itorsion=1,SIZE(torsion_list)
           IF(bad2(itorsion)==0) THEN
@@ -3799,7 +3835,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
       IF(istat/=0) CALL stop_memory('clean_intra_force_kind','torsion_kind_set')
       DEALLOCATE(torsion_list,STAT=istat)
       IF(istat/=0) CALL stop_memory('clean_intra_force_kind','torsion_list')
-      IF(PM1) WRITE(iw,*) "    Mol(",ikind,") New IMPROPER Count: ",&
+      IF(PM1) WRITE(iw,*) "    Mol(",ikind,") New TORSION Count: ",&
                           SIZE(new_torsion_list),SIZE(new_torsion_kind_set)
     END IF
     DEALLOCATE(bad1,STAT=istat)
