@@ -1049,8 +1049,8 @@ CONTAINS
 
 ! check for empty boxes...need to be careful because we can't build
 ! a force_env with no particles
-      lempty(:)=.FALSE.
       DO i=1,2
+         lempty(i)=.FALSE.
          IF(nchain(i)==0) THEN
             lempty(i)=.TRUE.
          ENDIF
@@ -1096,10 +1096,11 @@ CONTAINS
                classical_energy_test(i)=0.0d0
                classical_energy_original(i)=0.0d0
 
-! don't have any old coordiantes, so let's make some up
-               r(1:3,1,i) = (/ 0.576135d0, 0.969636d0,1.0678366d0 /)
-               r(1:3,2,i) = (/ 0.178637d0, 1.613209d0, 0.426837d0 /)
-               r(1:3,3,i) = (/ 0.466322d0, 1.3840462d0, 1.96186d0 /)
+! don't have any old coordiantes, so let's make some up...these are in
+! atomic units
+               r(1:3,1,i) = (/ 1.088738d0, 1.8323472d0,2.0179184d0 /)
+               r(1:3,2,i) = (/ 0.337575d0, 3.0485244d0, 0.80660535d0 /)
+               r(1:3,3,i) = (/ 0.8812212d0, 2.615469d0, 3.707380d0 /)
 
 ! make the new dat file
                CALL mc_make_dat_file(r(:,:,i),3,&
@@ -1135,8 +1136,10 @@ CONTAINS
       DO i=1,2
 ! make a test environment that we can alter to calculate the energy
          globenv%input_file_name=dat_file(i)
+         IF(ionode) WRITE(6,*) 'fucking hell'
          CALL quickstep_create_force_env(test_env(i)%force_env, &
             globenv, error=error)
+         IF(ionode) WRITE(6,*) 'fucking hell2'
 
 ! grab the coords so we can change them
          CALL force_env_get(test_env(i)%force_env,&
@@ -1292,9 +1295,9 @@ CONTAINS
                new_energy(i)=0.0d0
                
 ! don't have any old coordiantes, so let's make some up
-               r(1:3,1,i) = (/ 0.576135d0, 0.969636d0,1.0678366d0 /)
-               r(1:3,2,i) = (/ 0.178637d0, 1.613209d0, 0.426837d0 /)
-               r(1:3,3,i) = (/ 0.466322d0, 1.3840462d0, 1.96186d0 /)
+               r(1:3,1,i) = (/ 1.088738d0, 1.8323472d0,2.0179184d0 /)
+               r(1:3,2,i) = (/ 0.337575d0, 3.0485244d0, 0.80660535d0 /)
+               r(1:3,3,i) = (/ 0.8812212d0, 2.615469d0, 3.707380d0 /)
 
 ! make the new dat file
                CALL mc_make_dat_file(r(:,:,i),3,&
@@ -1357,7 +1360,7 @@ CONTAINS
          ENDIF
 
 !!!!!!!!!!!
-         w=1.0D0
+!         w=1.0D0
 !         w=0.0D0
 !!!!!!!!!!!
          IF ( w .GE. 1.0d0 ) THEN

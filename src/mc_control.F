@@ -262,9 +262,9 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
          ALLOCATE (r(3,3),STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
             "r",3*3*dp_size)
-         r(1:3,1) = (/ 0.576135d0, 0.969636d0,1.0678366d0 /)
-         r(1:3,2) = (/ 0.178637d0, 1.613209d0, 0.426837d0 /)
-         r(1:3,3) = (/ 0.466322d0, 1.3840462d0, 1.96186d0 /)
+         r(1:3,1) = (/ 1.088738d0, 1.8323472d0,2.0179184d0 /)
+         r(1:3,2) = (/ 0.337575d0, 3.0485244d0, 0.80660535d0 /)
+         r(1:3,3) = (/ 0.8812212d0, 2.615469d0, 3.707380d0 /)
 
          CALL close_file(unit_number=unit)
 
