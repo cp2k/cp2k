@@ -483,7 +483,7 @@ SUBROUTINE sm_struct_add_local_block(sm_struct, block_row, block_col, error)
      CPAssert(ASSOCIATED(row_att),cp_failure_level,routineP,error,failure)
      DO WHILE (.TRUE.)
         IF (.not.ASSOCIATED(row_att%next_row)) EXIT
-        IF (row_att%next_row%row>=block_row) EXIT
+        IF (row_att%next_row%row > block_row) EXIT
         row_att => row_att%next_row
      END DO
      CPPostcondition(ASSOCIATED(row_att),cp_failure_level,routineP,error,failure)
@@ -497,12 +497,13 @@ SUBROUTINE sm_struct_add_local_block(sm_struct, block_row, block_col, error)
         new_node%next_row => row_att%next_row
         row_att%next_row => new_node
         NULLIFY(new_node%next_col)
+        row_att => new_node
      END IF
   END IF
   IF (.NOT. failure) THEN
      DO WHILE (.TRUE.)
         IF (.not.ASSOCIATED(row_att%next_col)) EXIT
-        IF (row_att%next_col%col>=block_col) EXIT
+        IF (row_att%next_col%col > block_col) EXIT
         row_att => row_att%next_col
      END DO
   END IF
@@ -512,7 +513,7 @@ SUBROUTINE sm_struct_add_local_block(sm_struct, block_row, block_col, error)
      CPAssert(ASSOCIATED(col_att),cp_failure_level,routineP,error,failure)
      DO WHILE (.TRUE.)
         IF (.not.ASSOCIATED(col_att%next_col)) EXIT
-        IF (col_att%next_col%col>=block_col) EXIT
+        IF (col_att%next_col%col > block_col) EXIT
         col_att => col_att%next_col
      END DO
      CPPostcondition(ASSOCIATED(col_att),cp_failure_level,routineP,error,failure)
@@ -526,12 +527,13 @@ SUBROUTINE sm_struct_add_local_block(sm_struct, block_row, block_col, error)
         new_node%next_col => col_att%next_col
         col_att%next_col => new_node
         NULLIFY(new_node%next_row)
+        col_att => new_node
      END IF
   END IF
   IF (.NOT. failure) THEN
      DO WHILE (.TRUE.)
         IF (.not.ASSOCIATED(col_att%next_row)) EXIT
-        IF (col_att%next_row%row>=block_row) EXIT
+        IF (col_att%next_row%row > block_row) EXIT
         col_att => col_att%next_row
      END DO
   END IF
@@ -547,10 +549,10 @@ SUBROUTINE sm_struct_add_local_block(sm_struct, block_row, block_col, error)
         new_node%row=block_row
         sm_struct%n_local_blocks=sm_struct%n_local_blocks+1
         new_node%pos=sm_struct%n_local_blocks
-        new_node%next_col => col_att%next_col
-        col_att%next_col => new_node
-        new_node%next_row => row_att%next_row
-        row_att%next_row => new_node
+        new_node%next_col => row_att%next_col
+        row_att%next_col => new_node
+        new_node%next_row => col_att%next_row
+        col_att%next_row => new_node
      END IF
   END IF
 

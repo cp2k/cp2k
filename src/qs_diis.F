@@ -315,7 +315,7 @@ CONTAINS
     TYPE(scf_control_type), POINTER     :: scf_control
 
     INTEGER :: handle,ib,istat,jb,nao,nb,nb1,nmo,output_unit,&
-         max_diis,nspin,ispin
+         nspin,ispin
     LOGICAL :: ionode, failure
     REAL(wp) :: eps_diis,tmp
 
@@ -331,7 +331,6 @@ CONTAINS
 
     CALL timeset("scf_diis","I","",handle)
 
-    tmp = 0.0_wp
     nspin=SIZE(mo_array)
     failure=.FALSE.
     NULLIFY(c,scf_control,s,new_errors,old_errors,parameters,matrix_struct,a,b)
@@ -344,12 +343,10 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,s=s,scf_control=scf_control)
 
-    !    max_diis=scf_control%max_diis
-    max_diis = diis_buffer%nbuffer
     eps_diis=scf_control%eps_diis
 
     !   *** Quick return, if no DIIS is requested ***
-    IF (max_diis < 1) THEN
+    IF ( diis_buffer%nbuffer < 1) THEN
        CALL timestop(0.0_wp,handle)
        RETURN
     END IF
