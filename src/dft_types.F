@@ -101,6 +101,35 @@ MODULE dft_types
      REAL(wp) :: e_cutoff_dual
   END TYPE wave_control_type
 
+! *** Control parameters for a TIME-DEPENDENT PERTURBATION calculation ***
+
+!!****s* dft_types/tddfpt_control_type
+!!
+!! NAME
+!!   tddfpt_control_type
+!!
+!! FUNCTION
+!!   A type that holds controling information for a time-dependent
+!!   perturbation calculation.
+!!
+!! ATTRIBUTES
+!!   - n_ev      : number of eigenvalues to calculate
+!!   - n_kv_fac  : number to determine the number of krylov space
+!!                 vectors to compute (which is also dependent on n_ev)
+!!   - n_reortho : how many time to reorthogonalize (in the lanczos algorithm)
+!!   - do_kernel : wether to evaluate the kernel (this is a debugging option)
+!!   - restricted_excitations_type : { SINGLET | TRIPLET } which excitations
+!!                 to calculate
+!!
+!!***
+  TYPE tddfpt_control_type
+     INTEGER :: n_ev
+     INTEGER :: n_kv_fac 
+     INTEGER :: n_reortho
+     LOGICAL :: do_kernel
+     CHARACTER(LEN=7) :: restricted_excitations_type
+  END TYPE tddfpt_control_type
+
 ! *** Control parameters for a DFT calculation ***
 
   TYPE xc_grid_type
@@ -114,6 +143,7 @@ MODULE dft_types
      TYPE(band_structure_type)       :: band
      TYPE(kg_control_type)           :: kg_control
      TYPE(qs_control_type)           :: qs_control
+     TYPE(tddfpt_control_type)       :: tddfpt_control
      TYPE(wave_control_type)         :: wave_control
      TYPE(xc_grid_type)              :: integration_grid
      CHARACTER(LEN=40), DIMENSION(3) :: functional
@@ -129,17 +159,21 @@ MODULE dft_types
      LOGICAL, DIMENSION (2,3)        :: ftags
   END TYPE dft_control_type
 
+  CHARACTER(LEN=*), PARAMETER :: moduleN = "dft_types"
+
 ! *** Public data types ***
 
   PUBLIC :: dft_control_type, xc_grid_type,&
             kg_control_type, qs_control_type,&
-            wave_control_type, pw_grid_option
+            wave_control_type, tddfpt_control_type, &
+            pw_grid_option
 
 ! *** Public subroutines ***
 
   PUBLIC :: read_dft_control,&
             read_kg_control,&
             read_qs_control,&
+            read_tddfpt_control,&
             read_wave_control,&
             write_dft_control,&
             write_kg_control,&
@@ -743,6 +777,95 @@ CONTAINS
   END SUBROUTINE read_qs_control
 
 ! *****************************************************************************
+
+  SUBROUTINE read_tddfpt_control(t_control, glob_env)
+
+    IMPLICIT NONE
+
+    ! arguments
+    TYPE(tddfpt_control_type)                 :: t_control
+    TYPE(global_environment_type), INTENT(in) :: glob_env
+
+    ! locals
+    LOGICAL                                   :: section_found
+    CHARACTER(LEN=60)                         :: keyword, field
+    INTEGER                                   :: error, length
+
+    CHARACTER(len=*), PARAMETER               :: routineN = "read_tddfpt_control", &
+                                                 routineP = moduleN//"/"//routineN
+
+    ! -------------------------------------------------------------------
+
+    t_control%n_ev      = 1
+    t_control%n_kv_fac  = 20
+    t_control%n_reortho = 2
+    t_control%do_kernel = .TRUE.
+    t_control%restricted_excitations_type = "SINGLET"
+
+    section_found = .FALSE.
+    
+    CALL start_parser(file_name=glob_env%input_file_name,&
+                      globenv=glob_env,&
+                      start_section_label="TDDFPT",&
+                      section_found=section_found)
+
+    DO WHILE (section_found.AND.(test_object(newline=.TRUE.) /= "EOS"))
+
+       CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
+
+       SELECT CASE (TRIM(keyword))
+
+       CASE ("NEV", "N_EV", "EV")
+          CALL read_object(t_control%n_ev)
+          IF (t_control%n_ev < 1) &
+               CALL stop_parser(routineP, "number of eignvalues must be >= 1")
+
+       CASE ("NKVFAC", "NKV", "N_KV_FAC")
+          CALL read_object(t_control%n_kv_fac)
+          IF (t_control%n_kv_fac < 1) &
+               CALL stop_parser(routineP, "krylov vectors factor must be >= 1")
+          
+       CASE ("NREORTHO", "REORTHO", "N_REORTHO", &
+             "REORTHOGONALIZATIONS")
+          CALL read_object(t_control%n_reortho)
+          IF (t_control%n_reortho < 1) &
+               CALL stop_parser(routineP, "no. of reortho. steps must  be >= 1")
+
+       CASE ("KERNEL")
+          CALL read_object(field, lower_to_upper=.TRUE.)
+          SELECT CASE (TRIM(field))
+          CASE ("Y", "YES") 
+             t_control%do_kernel = .TRUE.
+          CASE ("N", "NO")
+             t_control%do_kernel = .FALSE.
+          CASE DEFAULT
+             t_control%do_kernel = .TRUE.
+          END SELECT
+
+       CASE ("RES_E_TYPE", &
+             "RESTRICTED_EXCITATIONS_TYPE")
+          CALL read_object(field, lower_to_upper=.TRUE.)
+          SELECT CASE (TRIM(field))
+          CASE ("SINGLET", "S")
+             t_control%restricted_excitations_type = "SINGLET"
+          CASE ("TRIPLET", "T")
+             t_control%restricted_excitations_type = "TRIPLET"
+          CASE DEFAULT
+             t_control%restricted_excitations_type = "SINGLET"
+          END SELECT
+
+       CASE DEFAULT
+          CALL stop_parser(routineP, "unrecognized option <"//TRIM(keyword)//">")
+
+      END SELECT
+
+   END DO
+   
+   CALL finish_parser()
+    
+  END SUBROUTINE read_tddfpt_control
+
+!   ***************************************************************************
 
   SUBROUTINE read_wave_control(wave_control,globenv)
 
