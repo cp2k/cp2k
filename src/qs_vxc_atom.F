@@ -60,7 +60,8 @@ MODULE qs_vxc_atom
   USE util,                            ONLY: get_limit
   USE xc_atom,                         ONLY: vxc_of_r_new,&
                                              xc_2nd_deriv_of_r,&
-                                             xc_rho_set_atom_update
+                                             xc_rho_set_atom_update,&
+                                             fill_rho_set
   USE xc_derivatives,                  ONLY: xc_functional_get_info
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_create,&
@@ -77,7 +78,7 @@ MODULE qs_vxc_atom
 
   CHARACTER(LEN=*), PRIVATE, PARAMETER :: module_name='qs_vxc_atom'
 
-  PUBLIC :: calculate_vxc_atom, calculate_xc_2nd_deriv_atom
+  PUBLIC :: calculate_vxc_atom, calculate_xc_2nd_deriv_atom, calc_rho_angular
 
 !******************************************************************************
 
@@ -117,13 +118,11 @@ CONTAINS
     TYPE(xc_derivative_set_type), &
                              POINTER    :: deriv_set
     TYPE(xc_rho_cflags_type)            :: needs
-    TYPE(xc_rho_set_type), POINTER      :: rho_set
+    TYPE(xc_rho_set_type), POINTER      :: rho_set_h, rho_set_s
 
-    REAL(dp), DIMENSION(:), POINTER     :: weight 
+    REAL(dp), DIMENSION(:,:), POINTER   :: weight 
     REAL(dp), DIMENSION(:,:), &
                               POINTER   :: rho_h,rho_s
-    REAL(dp), DIMENSION(:,:), &
-                              POINTER   :: oodrho_h,oodrho_s
     REAL(dp), DIMENSION(:,:,:), &
                               POINTER   :: vxc_h,vxc_s
     REAL(dp), DIMENSION(:,:,:,:), &
@@ -131,7 +130,7 @@ CONTAINS
     REAL(dp), DIMENSION(:,:,:,:), &
                               POINTER   :: drho_h,drho_s
     LOGICAL                             :: gradient_f,lsd,paw_atom
-    REAL(dp)                            :: exc_h,exc_s,rad,urad,usin_ia,rtot
+    REAL(dp)                            :: exc_h,exc_s
     INTEGER                             :: bo(2),handle,i,ia,iat,iatom, ierr,&
                                            ifunc,ikind,ipot,ir,iso,ispin,&
                                            istat,lp,mepos,na,natom,nkind,&
@@ -152,7 +151,7 @@ CONTAINS
     NULLIFY(grid_atom,harmonics)
     NULLIFY(atom_list)
     NULLIFY(deriv_set)
-    NULLIFY(rho_set)
+    NULLIFY(rho_set_h, rho_set_s)
 
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
@@ -171,7 +170,7 @@ CONTAINS
    energy%exc1 = 0.0_dp
 
 !  Nullify some pointers fro work-arrays
-   NULLIFY(rho_h,drho_h,rho_s,drho_s,weight,oodrho_h,oodrho_s)
+   NULLIFY(rho_h,drho_h,rho_s,drho_s,weight)
    NULLIFY(vxc_h,vxc_s,vxg_h,vxg_s)
 
 !  Here starts the loop over all the atoms
@@ -183,7 +182,6 @@ CONTAINS
                         harmonics=harmonics,grid_atom=grid_atom)
      IF(.NOT. paw_atom) CYCLE
 
-
      nr = grid_atom%nr
      na = grid_atom%ng_sphere
 
@@ -194,11 +192,15 @@ CONTAINS
 !    The other to dimensions  are set to size equal 1
      bounds(1:2,1:3) = 1
      bounds(2,1) = na
+     bounds(2,2) = nr
 
      ! create a place where to put the derivatives
      CALL xc_dset_create(deriv_set, local_bounds=bounds, error=error)
      ! create the place where to store the argument for the functionals
-     CALL xc_rho_set_create(rho_set,bounds,rho_cutoff=xc_control%density_cut,&
+     CALL xc_rho_set_create(rho_set_h,bounds,rho_cutoff=xc_control%density_cut,&
+            drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
+            error=error)
+     CALL xc_rho_set_create(rho_set_s,bounds,rho_cutoff=xc_control%density_cut,&
             drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
             error=error)
      ! assesses the argument needed by the functionals
@@ -207,20 +209,27 @@ CONTAINS
         CALL xc_functional_get_info(xc_control%functionals(ifunc),lsd=lsd,&
              needs=needs, error=error)
      END DO
+     IF (needs%drho .OR. needs%drho_spin .OR. &
+         needs%norm_drho .OR. needs%norm_drho_spin) THEN
+        IF (lsd) THEN
+           needs%drho_spin=.TRUE.
+        ELSE
+           needs%drho=.TRUE.
+        END IF
+     END IF
      ! allocate the required 3d arrays where to store rho and drho
-     CALL xc_rho_set_atom_update(rho_set,needs,nspins,bounds)
+     CALL xc_rho_set_atom_update(rho_set_h,needs,nspins,bounds)
+     CALL xc_rho_set_atom_update(rho_set_s,needs,nspins,bounds)
      
      CALL reallocate(rho_h,1,na,1,nspins)
      CALL reallocate(rho_s,1,na,1,nspins)
-     CALL reallocate(weight,1,na)
+     CALL reallocate(weight,1,na,1,nr)
      CALL reallocate(vxc_h,1,na,1,nr,1,nspins)
      CALL reallocate(vxc_s,1,na,1,nr,1,nspins)
   
      IF (gradient_f) THEN
         CALL reallocate(drho_h,1,4,1,na,1,nr,1,nspins)
         CALL reallocate(drho_s,1,4,1,na,1,nr,1,nspins)
-        CALL reallocate(oodrho_h,1,na,1,nspins)
-        CALL reallocate(oodrho_s,1,na,1,nspins)
         CALL reallocate(vxg_h,1,3,1,na,1,nr,1,nspins)
         CALL reallocate(vxg_s,1,3,1,na,1,nr,1,nspins)
      END IF
@@ -251,46 +260,31 @@ CONTAINS
                            rho_rad_s=r_s)
        END IF
 
-       rtot = 0.0_dp
-
        DO ir = 1,nr
-
          CALL calc_rho_angular(grid_atom, harmonics, nspins, gradient_f,&
-                               xc_control%gradient_cut, &
-                               ir, r_h, r_s, rho_h, rho_s, &
-                               dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s,  &
-                               oodrho_h, oodrho_s, error)
+                               ir, r_h, r_s, rho_h, rho_s, dr_h, dr_s, &
+                               r_h_d, r_s_d, drho_h, drho_s, error)
+         CALL fill_rho_set(rho_set_h,lsd,nspins,needs,rho_h,drho_h,na,ir,error)
+         CALL fill_rho_set(rho_set_s,lsd,nspins,needs,rho_s,drho_s,na,ir,error)
+         DO ia=1, na
+            weight(ia,ir) = grid_atom%wr(ir)*grid_atom%wa(ia)
+         END DO
+      END DO
 
-         weight = grid_atom%wr(ir)*grid_atom%wa(1:na)
-! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!        *** hard atom density ***
+      !-------------------!
+      ! hard atom density !
+      !-------------------!
+      CALL vxc_of_r_new(xc_control, rho_set_h, deriv_set, 1, needs, weight, &
+                        lsd, na, nr, exc_h, vxc_h, vxg_h, error=error)
+      rho_atom%exc_h = rho_atom%exc_h + exc_h
 
-!        Use the new routine to calculate the xc derivatives
-!        rho_h and drho_h are given for the radial point ir and
-!        all the na points on the angular grid
-         CALL vxc_of_r_new(xc_control = xc_control,&
-                           rho_set=rho_set,deriv_set=deriv_set,deriv_order=1,needs=needs,&
-                           rho=rho_h,drho=drho_h,oodrho=oodrho_h,w=weight,&
-                           lsd=lsd,na=na,ir_pnt=ir,&
-                           exc=exc_h,vxc=vxc_h,vxg=vxg_h,error=error)
+      !-------------------!
+      ! soft atom density !
+      !-------------------!
+      CALL vxc_of_r_new(xc_control, rho_set_s, deriv_set, 1, needs, weight, &
+                        lsd, na, nr, exc_s, vxc_s, vxg_s, error=error)
+      rho_atom%exc_s = rho_atom%exc_s + exc_s
 
-!        *** Sum up the exc contribution  to exc_h ***
-         rho_atom%exc_h = rho_atom%exc_h + exc_h
-
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!        *** soft atom density ***
-!        Use the new routine to calculate the xc derivatives
-         CALL vxc_of_r_new(xc_control=xc_control,&
-                           rho_set=rho_set,deriv_set=deriv_set,deriv_order=1,needs=needs,&
-                           rho=rho_s,drho=drho_s,oodrho=oodrho_s,w=weight,&
-                           lsd=lsd,na=na,ir_pnt=ir,&
-                           exc=exc_s,vxc=vxc_s,vxg=vxg_s, error=error)
-
-!        *** Sum up the exc contribution  to exc_s ***
-         rho_atom%exc_s = rho_atom%exc_s + exc_s
-
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-       END DO  !nr 
 
 !      *** Add contributions to the exc energy 
        energy%exc1 = energy%exc1 + rho_atom%exc_h - rho_atom%exc_s
@@ -312,7 +306,8 @@ CONTAINS
 
 !    Release the xc structure used to store the xc derivatives
      CALL xc_dset_release(deriv_set, error=error)
-     CALL xc_rho_set_release(rho_set,error=error)
+     CALL xc_rho_set_release(rho_set_h,error=error)
+     CALL xc_rho_set_release(rho_set_s,error=error)
 
    ENDDO ! ikind
 
@@ -322,7 +317,7 @@ CONTAINS
    IF (istat /= 0)  CALL stop_memory(routine_name,module_name,__LINE__,&
         "rho_h,rho_s,weight,vxc_h,vxc_s")
    IF (gradient_f) THEN
-      DEALLOCATE(drho_h,drho_s,oodrho_h,oodrho_s,vxg_h,vxg_s,STAT=istat)
+      DEALLOCATE(drho_h,drho_s,vxg_h,vxg_s,STAT=istat)
       IF (istat /= 0)   CALL stop_memory(routine_name,module_name,__LINE__,&
            "drho_h,drho_s,oodrho_h,oodrho_s,vxg_h,vxg_s")
    END IF
@@ -361,7 +356,8 @@ CONTAINS
    TYPE(rho_atom_coeff),DIMENSION(:,:),&
         POINTER                        :: r_h_d, r1_h_d, r_s_d, r1_s_d
    TYPE(rho_atom_type),  POINTER       :: rho_atom, rho1_atom
-   TYPE(xc_rho_set_type), POINTER      :: rho_set, rho1_set
+   TYPE(xc_rho_set_type), POINTER      :: rho_set_h, rho1_set_h
+   TYPE(xc_rho_set_type), POINTER      :: rho_set_s, rho1_set_s
    TYPE(xc_control_type), POINTER      :: xc_control
    INTEGER                             :: i, iso, stat, asize
    INTEGER                             :: atom, iatom, natom
@@ -374,10 +370,10 @@ CONTAINS
    LOGICAL                             :: gradient_functional, failure
    LOGICAL                             :: lsd, paw_atom
    REAL(KIND=dp)                       :: rtot, rad, urad, usin_ia, exc
-   REAL(KIND=dp), DIMENSION(:), POINTER:: weight 
    REAL(KIND=dp), DIMENSION(:,:), &
-        POINTER                        :: rho_h, rho_s, oodrho_h, oodrho_s, &
-                                          rho1_h, rho1_s, oodrho1_h, oodrho1_s
+        POINTER                        :: weight 
+   REAL(KIND=dp), DIMENSION(:,:), &
+        POINTER                        :: rho_h, rho_s, rho1_h, rho1_s
    REAL(KIND=dp), DIMENSION(:,:,:,:), &
         POINTER                        :: drho_h, drho1_h, drho_s, drho1_s
    REAL(KIND=dp), DIMENSION(:,:,:), &
@@ -391,8 +387,8 @@ CONTAINS
 
    failure = .FALSE.
    NULLIFY(atomic_kind_set, dft_control, energy, para_env, xc_control)
-   NULLIFY(rho_h, rho_s, drho_h, drho_s, oodrho_h, oodrho_s, weight)
-   NULLIFY(rho1_h, rho1_s, drho1_h, drho1_s, oodrho1_h, oodrho1_s)
+   NULLIFY(rho_h, rho_s, drho_h, drho_s, weight)
+   NULLIFY(rho1_h, rho1_s, drho1_h, drho1_s)
    NULLIFY(vxc_h, vxc_s, vxg_h, vxg_s)
    CALL get_qs_env(qs_env=qs_env,&
                    dft_control=dft_control,&
@@ -433,13 +429,20 @@ CONTAINS
       ! The other to dimensions  are set to size equal 1.
       bounds(1:2,1:3) = 1
       bounds(2,1) = na
+      bounds(2,2) = nr
 
-      NULLIFY(deriv_set, rho_set, rho1_set)
+      NULLIFY(deriv_set, rho_set_h, rho_set_s, rho1_set_h, rho1_set_s)
       CALL xc_dset_create(deriv_set, local_bounds=bounds, error=error)
-      CALL xc_rho_set_create(rho_set,bounds,rho_cutoff=xc_control%density_cut,&
+      CALL xc_rho_set_create(rho_set_h,bounds,rho_cutoff=xc_control%density_cut,&
                              drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
                              error=error)
-      CALL xc_rho_set_create(rho1_set,bounds,rho_cutoff=xc_control%density_cut,&
+      CALL xc_rho_set_create(rho_set_s,bounds,rho_cutoff=xc_control%density_cut,&
+                             drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
+                             error=error)
+      CALL xc_rho_set_create(rho1_set_h,bounds,rho_cutoff=xc_control%density_cut,&
+                             drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
+                             error=error)
+      CALL xc_rho_set_create(rho1_set_s,bounds,rho_cutoff=xc_control%density_cut,&
                              drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
                              error=error)
 
@@ -467,11 +470,15 @@ CONTAINS
 
       ! allocate the required 3d arrays where to store rho and drho
       IF (nspins == 1 .AND. .NOT. lsd) THEN
-         CALL xc_rho_set_atom_update(rho_set, needs, 1, bounds)
-         CALL xc_rho_set_atom_update(rho1_set, needs, 1, bounds)
+         CALL xc_rho_set_atom_update(rho_set_h, needs, 1, bounds)
+         CALL xc_rho_set_atom_update(rho1_set_h, needs, 1, bounds)
+         CALL xc_rho_set_atom_update(rho_set_s, needs, 1, bounds)
+         CALL xc_rho_set_atom_update(rho1_set_s, needs, 1, bounds)
       ELSE
-         CALL xc_rho_set_atom_update(rho_set, needs, 2, bounds)
-         CALL xc_rho_set_atom_update(rho1_set, needs, 2, bounds)
+         CALL xc_rho_set_atom_update(rho_set_h, needs, 2, bounds)
+         CALL xc_rho_set_atom_update(rho1_set_h, needs, 2, bounds)
+         CALL xc_rho_set_atom_update(rho_set_s, needs, 2, bounds)
+         CALL xc_rho_set_atom_update(rho1_set_s, needs, 2, bounds)
       END IF
 
       ALLOCATE(rho_h(1:na,1:nspins), rho1_h(1:na,1:nspins), &
@@ -482,15 +489,12 @@ CONTAINS
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       vxc_h = 0.0_dp ; vxc_s = 0.0_dp
 
-      ALLOCATE(weight(1:na), stat=stat)
+      ALLOCATE(weight(1:na,1:nr), stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       
       IF (gradient_functional) THEN
          ALLOCATE(drho_h(1:4,1:na,1:nr,1:nspins), drho1_h(1:4,1:na,1:nr,1:nspins), &
                   drho_s(1:4,1:na,1:nr,1:nspins), drho1_s(1:4,1:na,1:nr,1:nspins), stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         ALLOCATE(oodrho_h(1:na,1:nspins), oodrho1_h(1:na,1:nspins), &
-                  oodrho_s(1:na,1:nspins), oodrho1_s(1:na,1:nspins), stat=stat)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
          ALLOCATE(vxg_h(1:3,1:na,1:nr,1:nspins), vxg_s(1:3,1:na,1:nr,1:nspins), stat=stat)
@@ -536,43 +540,31 @@ CONTAINS
 
          DO ir = 1,nr
 
-            CALL calc_rho_angular(grid_atom, harmonics, nspins, &
-                                  gradient_functional, xc_control%gradient_cut, &
-                                  ir, r_h, r_s, rho_h, rho_s, &
-                                  dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s, oodrho_h, oodrho_s, &
-                                  error)
-            CALL calc_rho_angular(grid_atom, harmonics, nspins, &
-                                  gradient_functional, xc_control%gradient_cut, &
-                                  ir, r1_h, r1_s, rho1_h, rho1_s, &
-                                  dr1_h, dr1_s, r1_h_d, r1_s_d, drho1_h, drho1_s, oodrho1_h, oodrho1_s, &
-                                  error)
-            weight(1:na) = grid_atom%wr(ir)*grid_atom%wa(1:na)
+            CALL calc_rho_angular(grid_atom, harmonics, nspins, gradient_functional, &
+                                  ir, r_h, r_s, rho_h, rho_s, dr_h, dr_s, r_h_d, r_s_d, &
+                                  drho_h, drho_s, error)
+            CALL calc_rho_angular(grid_atom, harmonics, nspins, gradient_functional, &
+                                  ir, r1_h, r1_s, rho1_h, rho1_s, dr1_h, dr1_s, r1_h_d, r1_s_d, &
+                                  drho1_h, drho1_s, error)
 
-            ! hard atom density 
-            CALL xc_2nd_deriv_of_r(dft_control=dft_control, &
-                                   rho_set=rho_set, rho1_set=rho1_set, &
-                                   deriv_set=deriv_set, needs=needs, &
-                                   rho=rho_h, drho=drho_h, oodrho=oodrho_h, &
-                                   rho1=rho1_h, drho1=drho1_h, oodrho1=oodrho1_h, &
-                                   w=weight, ir=ir, &
-                                   exc=exc, vxc=vxc_h, vxg=vxg_h, error=error)
+            CALL fill_rho_set(rho_set_h,lsd,nspins,needs,rho_h,drho_h,na,ir,error)
+            CALL fill_rho_set(rho1_set_h,lsd,nspins,needs,rho1_h,drho1_h,na,ir,error)
+            CALL fill_rho_set(rho_set_s,lsd,nspins,needs,rho_s,drho_s,na,ir,error)
+            CALL fill_rho_set(rho1_set_s,lsd,nspins,needs,rho1_s,drho1_s,na,ir,error)
 
-            ! Sum up the exc contribution  to exc_h
-            rho_atom%exc_h = rho_atom%exc_h + exc
-
-            ! atom density
-            CALL xc_2nd_deriv_of_r(dft_control=dft_control,&
-                                   rho_set=rho_set, rho1_set=rho1_set, &
-                                   deriv_set=deriv_set, needs=needs,&
-                                   rho=rho_s, drho=drho_s, oodrho=oodrho_s, &
-                                   rho1=rho1_s, drho1=drho1_s, oodrho1=oodrho1_s, &
-                                   w=weight, ir=ir,&
-                                   exc=exc, vxc=vxc_s, vxg=vxg_s, error=error)
-
-            ! Sum up the exc contribution  to exc_s
-            rho_atom%exc_s = rho_atom%exc_s + exc
-
+            DO ia=1, na
+               weight(ia,ir) = grid_atom%wr(ir)*grid_atom%wa(ia)
+            END DO
          END DO
+
+         CALL xc_2nd_deriv_of_r(dft_control=dft_control, &
+                                rho_set=rho_set_h, rho1_set=rho1_set_h, &
+                                deriv_set=deriv_set, needs=needs, &
+                                w=weight, exc=exc, vxc=vxc_h, vxg=vxg_h, error=error)
+         CALL xc_2nd_deriv_of_r(dft_control=dft_control, &
+                                rho_set=rho_set_s, rho1_set=rho1_set_s, &
+                                deriv_set=deriv_set, needs=needs, &
+                                w=weight, exc=exc, vxc=vxc_s, vxg=vxg_s, error=error)
 
          atom_kind => atomic_kind_set(ikind)
          IF(gradient_functional) THEN
@@ -591,16 +583,18 @@ CONTAINS
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       NULLIFY(rho_h, rho_s, weight)
       IF (gradient_functional) THEN
-         DEALLOCATE(drho_h, drho_s, oodrho_h, oodrho_s, vxg_h, vxg_s, stat=stat)
+         DEALLOCATE(drho_h, drho_s, vxg_h, vxg_s, stat=stat)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         DEALLOCATE(drho1_h, drho1_s, oodrho1_h, oodrho1_s, stat=stat)
+         DEALLOCATE(drho1_h, drho1_s, stat=stat)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         NULLIFY(drho_h, drho_s, oodrho_h, oodrho_s)
+         NULLIFY(drho_h, drho_s, drho1_h, drho1_s, vxg_h, vxc_s)
       END IF
 
       CALL xc_dset_release(deriv_set, error=error)
-      CALL xc_rho_set_release(rho_set,error=error)
-      CALL xc_rho_set_release(rho1_set,error=error)
+      CALL xc_rho_set_release(rho_set_h,error=error)
+      CALL xc_rho_set_release(rho1_set_h,error=error)
+      CALL xc_rho_set_release(rho_set_s,error=error)
+      CALL xc_rho_set_release(rho1_set_s,error=error)
 
    END DO
 
@@ -608,17 +602,15 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calc_rho_angular(grid_atom, harmonics, nspins, grad_func, grad_cut, &
+  SUBROUTINE calc_rho_angular(grid_atom, harmonics, nspins, grad_func, &
                               ir, r_h, r_s, rho_h, rho_s, &
-                              dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s, &
-                              oodrho_h, oodrho_s, error)
+                              dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s, error)
 
    ! ARGUMENTS
    TYPE(grid_atom_type), POINTER       :: grid_atom
    TYPE(harmonics_atom_type), POINTER  :: harmonics
    INTEGER, INTENT(IN)                 :: nspins
    LOGICAL, INTENT(IN)                 :: grad_func
-   REAL(KIND=dp), INTENT(IN)           :: grad_cut
    INTEGER, INTENT(IN)                 :: ir
    TYPE(rho_atom_coeff),DIMENSION(:),& 
         POINTER                        :: r_h,r_s
@@ -630,8 +622,6 @@ CONTAINS
         POINTER                        :: r_h_d,r_s_d
    REAL(KIND=dp), DIMENSION(:,:,:,:), &
         POINTER                        :: drho_h,drho_s
-   REAL(KIND=dp), DIMENSION(:,:), &
-        POINTER                        :: oodrho_h, oodrho_s
    TYPE(cp_error_type), INTENT(inout), &
         OPTIONAL                       :: error
 
@@ -657,8 +647,6 @@ CONTAINS
       CPPostcondition(ASSOCIATED(r_s_d),cp_failure_level,routineP,error,failure)
       CPPostcondition(ASSOCIATED(drho_h),cp_failure_level,routineP,error,failure)
       CPPostcondition(ASSOCIATED(drho_s),cp_failure_level,routineP,error,failure)
-      CPPostcondition(ASSOCIATED(oodrho_h),cp_failure_level,routineP,error,failure)
-      CPPostcondition(ASSOCIATED(oodrho_s),cp_failure_level,routineP,error,failure)
    END IF
    
    IF (failure) RETURN
@@ -682,7 +670,6 @@ CONTAINS
    END DO  ! ispin
 
    IF(grad_func) THEN
-      oodrho_h = 0.0_dp ; oodrho_s = 0.0_dp
       DO ispin = 1,nspins
          DO iso = 1,harmonics%max_iso_not0
             DO ia = 1,na
@@ -731,21 +718,11 @@ CONTAINS
                     drho_h(1,ia,ir,ispin)*drho_h(1,ia,ir,ispin)+& 
                     drho_h(2,ia,ir,ispin)*drho_h(2,ia,ir,ispin)+&
                     drho_h(3,ia,ir,ispin)*drho_h(3,ia,ir,ispin))
-               IF(drho_h(4,ia,ir,ispin) > grad_cut ) THEN
-                  oodrho_h(ia,ispin) = 1.0_dp/drho_h(4,ia,ir,ispin)
-               ELSE
-                  oodrho_h(ia,ispin) =  0.0_dp
-               END IF
-               
+
                drho_s(4,ia,ir,ispin) = SQRT(&
                     drho_s(1,ia,ir,ispin)*drho_s(1,ia,ir,ispin)+& 
                     drho_s(2,ia,ir,ispin)*drho_s(2,ia,ir,ispin)+&
                     drho_s(3,ia,ir,ispin)*drho_s(3,ia,ir,ispin))
-               IF(drho_h(4,ia,ir,ispin) > grad_cut ) THEN
-                  oodrho_s(ia,ispin) = 1.0_dp/drho_s(4,ia,ir,ispin)
-               ELSE
-                  oodrho_s(ia,ispin) =  0.0_dp
-               END IF
 
             END DO  ! ia
          END DO  ! iso

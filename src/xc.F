@@ -1,3 +1,4 @@
+
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2001 - 2002  CP2K developers group                          !
@@ -2096,7 +2097,7 @@ END FUNCTION xc_exc_calc
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_calc_2nd_deriv_new(v_xc, &
-       deriv_set, rho_set, rho1_set, pw_pool, dft_control, gapw, vxg, ir, error)
+       deriv_set, rho_set, rho1_set, pw_pool, dft_control, gapw, vxg, error)
 
     ! ARGUMENTS
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_xc
@@ -2107,7 +2108,6 @@ END FUNCTION xc_exc_calc
     LOGICAL, INTENT(IN), OPTIONAL            :: gapw
     REAL(kind=dp), DIMENSION(:,:,:,:), &
          POINTER, OPTIONAL                   :: vxg
-    INTEGER, INTENT(IN), OPTIONAL            :: ir
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -2117,10 +2117,10 @@ END FUNCTION xc_exc_calc
 
     ! LOCALS
     INTEGER                                  :: handle, i, idir, ispin, j, k, &
-                                                nspins, stat, output_unit
+                                                nspins, stat, ia, ir
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3, 3)                 :: nd
-    LOGICAL                                  :: failure, gradient_f, lsd, my_gapw, ionode
+    LOGICAL                                  :: failure, gradient_f, lsd, my_gapw
     REAL(KIND=dp)                            :: dr1dr, fac
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: deriv_data, e_drhoa, e_drhob, &
@@ -2129,7 +2129,6 @@ END FUNCTION xc_exc_calc
     TYPE(cp_3d_r_p_type), DIMENSION(:), &
       POINTER                                :: drho, drho1, drho1a, drho1b, &
                                                 drhoa, drhob
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_p_type)                          :: tmp_t, v_drho
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: tmp_a, tmp_b, tmp_r, tmp_r2
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
@@ -2143,9 +2142,6 @@ END FUNCTION xc_exc_calc
     failure=.FALSE.
     NULLIFY(tmp_r, tmp_r2, tmp_a, tmp_b, e_drhoa, e_drhob, e_norm_drho,&
             tddfpt_control)
-    logger => cp_error_get_logger(error)
-    ionode = (logger%para_env%mepos==logger%para_env%source)
-    output_unit = cp_logger_get_default_unit_nr(logger)
     tddfpt_control => dft_control%tddfpt_control
 
     my_gapw = .FALSE.
@@ -2157,7 +2153,6 @@ END FUNCTION xc_exc_calc
     CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
     IF (my_gapw) THEN
        CPPrecondition(PRESENT(vxg),cp_failure_level,routineP,error,failure)
-       CPPrecondition(PRESENT(ir),cp_failure_level,routineP,error,failure)
     END IF
 
     IF (.NOT. failure) THEN
@@ -2197,7 +2192,6 @@ END FUNCTION xc_exc_calc
     bo = rho_set%local_bounds
 
     IF (lsd) THEN
-
 
        !-------------------!
        ! UNrestricted case !
@@ -2739,37 +2733,37 @@ END FUNCTION xc_exc_calc
        IF (gradient_f) THEN
 
           IF (my_gapw) THEN
-             !$omp parallel do private(i,dr1dr)
-             DO idir=1, 3
-                DO i = bo(1,1), bo(2,1)
-                   DO ispin=1, nspins
-                      vxg(idir,i,ir,ispin) = &
-                           tmp_a(ispin)%pw%cr3d(i,1,1) * drhoa(idir)%array(i,1,1) + &
-                           tmp_b(ispin)%pw%cr3d(i,1,1) * drhob(idir)%array(i,1,1)
-                   END DO
-                   IF (ASSOCIATED(e_drhoa)) THEN
-                      vxg(idir,i,ir,1) = vxg(idir,i,ir,1) - &
-                                         e_drhoa(i,j,k) * drho1a(idir)%array(i,1,1)
-                   END IF
-                   IF (nspins /= 1 .AND. ASSOCIATED(e_drhob)) THEN
-                      vxg(idir,i,ir,2) = vxg(idir,i,ir,2) - &
-                                         e_drhob(i,1,1) * drho1b(idir)%array(i,1,1)
-                   END IF
-                   IF (ASSOCIATED(e_norm_drho)) THEN
-                      IF (nspins /= 1) THEN
+             !$omp parallel do private(ia,idir,ispin)
+             DO ir = bo(1,2), bo(2,2)
+                DO ia = bo(1,1), bo(2,1)
+                   DO idir = 1,3
+                      DO ispin=1, nspins
+                         vxg(idir,ia,ir,ispin) = &
+                              tmp_a(ispin)%pw%cr3d(ia,ir,1) * drhoa(idir)%array(ia,ir,1) + &
+                              tmp_b(ispin)%pw%cr3d(ia,ir,1) * drhob(idir)%array(ia,ir,1)
+                      END DO
+                      IF (ASSOCIATED(e_drhoa)) THEN
                          vxg(idir,i,ir,1) = vxg(idir,i,ir,1) - &
-                              e_norm_drho(i,1,1) * drho1b(idir)%array(i,1,1)
-                         vxg(idir,i,ir,2) = vxg(idir,i,ir,2) - &
-                              e_norm_drho(i,1,1) * drho1a(idir)%array(i,1,1)
-                      ELSE
-                         vxg(idir,i,ir,1) = vxg(idir,i,ir,1) - &
-                              fac * e_norm_drho(i,1,1) * drho1b(idir)%array(i,1,1)                         
+                              e_drhoa(ia,ir,1) * drho1a(idir)%array(ia,ir,1)
                       END IF
-                   END IF
+                      IF (nspins /= 1 .AND. ASSOCIATED(e_drhob)) THEN
+                         vxg(idir,i,ir,2) = vxg(idir,i,ir,2) - &
+                              e_drhob(ia,ir,1) * drho1b(idir)%array(ia,ir,1)
+                      END IF
+                      IF (ASSOCIATED(e_norm_drho)) THEN
+                         IF (nspins /= 1) THEN
+                            vxg(idir,ia,ir,1) = vxg(idir,ia,ir,1) - &
+                                 e_norm_drho(ia,ir,1) * drho1b(idir)%array(ia,ir,1)
+                            vxg(idir,ia,ir,2) = vxg(idir,ia,ir,2) - &
+                                 e_norm_drho(ia,ir,1) * drho1a(idir)%array(ia,ir,1)
+                         ELSE
+                            vxg(idir,ia,ir,1) = vxg(idir,ia,ir,1) - &
+                                 fac * e_norm_drho(ia,ir,1) * drho1b(idir)%array(ia,ir,1)                         
+                         END IF
+                      END IF
+                   END DO
                 END DO
              END DO
-
-
           ELSE
 
 
@@ -3009,15 +3003,14 @@ END FUNCTION xc_exc_calc
 
              DO idir=1,3
                 !$omp parallel do private(i)
-                DO i = bo(1,1), bo(2,1)
-                   vxg(idir,i,ir,1) = drho(idir)%array(i,1,1)*v_drho%pw%cr3d(i,1,1)
-                END DO
-                IF (ASSOCIATED(e_norm_drho)) THEN
-                   !$omp parallel do private(i)
-                   DO i = bo(1,1), bo(2,1)
-                      vxg(idir,i,ir,1) = vxg(idir,i,ir,1) - drho1(idir)%array(i,1,1)*e_norm_drho(i,1,1)
+                DO ia = bo(1,1), bo(2,1)
+                   DO ir = bo(1,2), bo(2,2)
+                      vxg(idir,ia,ir,1) = drho(idir)%array(ia,ir,1)*v_drho%pw%cr3d(ia,ir,1)
+                      IF (ASSOCIATED(e_norm_drho)) THEN
+                         vxg(idir,ia,ir,1) = vxg(idir,ia,ir,1) - drho1(idir)%array(ia,ir,1)*e_norm_drho(ia,ir,1)
+                      END IF
                    END DO
-                END IF
+                END DO
              END DO
              
           ELSE
@@ -3187,19 +3180,18 @@ END FUNCTION xc_exc_calc
 
     bo = rho_r(1)%pw%pw_grid%bounds_local
     
-    CALL divide_by_norm_drho(deriv_set, rho_set, bo, lsd, error)
+    CALL divide_by_norm_drho(deriv_set, rho_set, lsd, error)
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE xc_prep_2nd_deriv_new
 
   !***************************************************************************
 
-  SUBROUTINE divide_by_norm_drho(deriv_set, rho_set, bo, lsd, error)
+  SUBROUTINE divide_by_norm_drho(deriv_set, rho_set, lsd, error)
 
     ! ARGUMENTS
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_set_type), POINTER           :: rho_set
-    INTEGER, DIMENSION(2, 3), INTENT(IN)     :: bo
     LOGICAL, INTENT(IN)                      :: lsd
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -3210,6 +3202,7 @@ END FUNCTION xc_exc_calc
     CHARACTER(len=MAX_LABEL_LENGTH), &
       DIMENSION(:), POINTER                  :: split_desc
     INTEGER                                  :: order, idesc, i, j, k
+    INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: drho_cutoff
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
@@ -3223,6 +3216,7 @@ END FUNCTION xc_exc_calc
 
     failure = .FALSE.
 
+    bo = rho_set%local_bounds
     CALL xc_rho_set_get(rho_set, drho_cutoff=drho_cutoff, error=error)
 
     pos => deriv_set%derivs

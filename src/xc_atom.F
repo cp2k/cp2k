@@ -75,7 +75,7 @@ MODULE xc_atom
 
   CHARACTER(LEN=*), PRIVATE, PARAMETER :: module_name='xc_atom'
 
-  PUBLIC :: vxc_of_r_new, xc_rho_set_atom_update, xc_2nd_deriv_of_r
+  PUBLIC :: vxc_of_r_new, xc_rho_set_atom_update, xc_2nd_deriv_of_r, fill_rho_set
 
 !******************************************************************************
 
@@ -83,8 +83,8 @@ CONTAINS
 
 !******************************************************************************
 
-  SUBROUTINE vxc_of_r_new(xc_control,rho_set,deriv_set,deriv_order,needs,rho,drho,oodrho,w,&
-                          lsd,na,ir_pnt,exc,vxc,vxg,error)
+  SUBROUTINE vxc_of_r_new(xc_control,rho_set,deriv_set,deriv_order,needs,w,&
+                          lsd,na,nr,exc,vxc,vxg,error)
 
 ! This routine updates rho_set by giving to it the rho and drho that are needed.
 ! Since for the local densities rho1_h and rho1_s local grids are used it is not possible
@@ -101,12 +101,9 @@ CONTAINS
     TYPE(xc_derivative_set_type), POINTER         :: deriv_set
     INTEGER, INTENT(in)                           :: deriv_order
     TYPE(xc_rho_cflags_type), INTENT(in)          :: needs
-    REAL(dp), DIMENSION(:,:),  POINTER            :: rho 
-    REAL(dp), DIMENSION(:,:,:,:),  POINTER        :: drho 
-    REAL(dp), DIMENSION(:,:),  POINTER            :: oodrho 
-    REAL(dp), DIMENSION(:),  POINTER              :: w 
+    REAL(dp), DIMENSION(:,:),  POINTER            :: w 
     LOGICAL, INTENT(IN)                           :: lsd
-    INTEGER, INTENT(IN)                           :: na,ir_pnt
+    INTEGER, INTENT(IN)                           :: na, nr
     REAL(dp)                                      :: exc
     REAL(dp), DIMENSION(:,:,:), POINTER           :: vxc
     REAL(dp), DIMENSION(:,:,:,:), POINTER         :: vxg
@@ -114,34 +111,24 @@ CONTAINS
       OPTIONAL                                    :: error
 
     CHARACTER(LEN=*), PARAMETER                   :: routine_name = "vxc_of_r_new",&
-                                         routineP = module_name//':'//routine_name
+                                                     routineP = module_name//':'//routine_name
 
 
     TYPE(cp_sll_xc_deriv_type), POINTER           :: pos
     TYPE(xc_derivative_type), POINTER             :: deriv_att
-    REAL(KIND=dp), PARAMETER                      :: f13 = (1.0_dp/3.0_dp)
-    REAL(dp)                                      :: drho_cutoff
-    REAL(dp), DIMENSION(:,:,:), POINTER           :: deriv_data, norm_drho
-    INTEGER :: handle, i, ia, idir, ispin, nspins, order
+    REAL(KIND=dp)                                 :: drho_cutoff
+    REAL(dp), DIMENSION(:,:,:), POINTER           :: deriv_data
+    INTEGER                                       :: handle, i, ia, ir, idir
     LOGICAL                                       :: failure, gradient_f
-    CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH)     :: desc
-    CHARACTER(len=30), DIMENSION(2), PARAMETER    :: &
-      norm_drho_spin_name = (/ "(norm_drhoa)", "(norm_drhob)" /)
-
 
 !   ***************************************************************************
 
     CALL timeset(routine_name,"I"," ",handle)
     failure = .FALSE.
-
-    nspins = 1
-    IF(lsd) nspins = 2
-
+    
     gradient_f=(needs%drho_spin.OR.needs%norm_drho_spin.OR.&
                 needs%drhoa_drhob.OR.needs%drho.OR.needs%norm_drho)
-
-    CALL fill_rho_set(rho_set,lsd,nspins,needs,rho,drho,oodrho,w,na,ir_pnt,error)
-
+    
 !  Calculate the derivatives
     DO i=1,SIZE(xc_control%functionals)
        CALL xc_functional_eval(xc_control%functionals(i), &
@@ -151,98 +138,131 @@ CONTAINS
             deriv_order=deriv_order, &
             error=error)
     END DO
+    CALL xc_rho_set_get(rho_set, drho_cutoff=drho_cutoff, error=error)
 
    NULLIFY (deriv_data)
 !  EXC energy
    deriv_att => xc_dset_get_derivative(deriv_set,"", error=error)
-   CPPrecondition(ASSOCIATED(deriv_att),cp_failure_level,routineP,error,failure)
-   CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
-   exc = SUM( deriv_data(:,1,1)*w(:))
-   deriv_data = 0.0_dp   ! put to zero
-   NULLIFY (deriv_data)
+   IF (ASSOCIATED(deriv_att)) THEN
+      CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
+      exc = 0.0_dp
+      DO ir = 1, nr
+         DO ia = 1, na
+            exc = exc + deriv_data(ia,ir,1)*w(ia,ir)
+         END DO
+      END DO
+      deriv_data = 0.0_dp   ! put to zero
+      NULLIFY (deriv_data)
+   END IF
 !  Derivative with respect to the density
    IF(lsd) THEN
      deriv_att => xc_dset_get_derivative(deriv_set, "(rhoa)")
      IF (ASSOCIATED(deriv_att)) THEN
        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
-       DO ia = 1,na
-         vxc(ia,ir_pnt,1) = deriv_data(ia,1,1)*w(ia)
-       END DO
+       vxc(:,:,1) = deriv_data(:,:,1)*w(:,:)
        NULLIFY (deriv_data)
      END IF
      deriv_att => xc_dset_get_derivative(deriv_set, "(rhob)")
      IF (ASSOCIATED(deriv_att)) THEN
        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
-       DO ia = 1,na
-         vxc(ia,ir_pnt,2) = deriv_data(ia,1,1)*w(ia)
-       END DO
+       vxc(:,:,2) = deriv_data(:,:,1)*w(:,:)
        NULLIFY(deriv_data)
+     END IF
+     deriv_att => xc_dset_get_derivative(deriv_set, "(rho)")
+     IF(ASSOCIATED(deriv_att)) THEN
+        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
+        vxc(:,:,1) = vxc(:,:,1) + deriv_data(:,:,1)*w(:,:)
+        vxc(:,:,2) = vxc(:,:,2) + deriv_data(:,:,1)*w(:,:)
+        NULLIFY (deriv_data)
      END IF
    ELSE
      deriv_att => xc_dset_get_derivative(deriv_set, "(rho)")
      IF (ASSOCIATED(deriv_att)) THEN
        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
-       DO ia = 1,na
-         vxc(ia,ir_pnt,1) = deriv_data(ia,1,1)*w(ia)
-       END DO
+       vxc(:,:,1) = deriv_data(:,:,1)*w(:,:)
        NULLIFY (deriv_data)
      END IF
    END IF
 
-   deriv_att => xc_dset_get_derivative(deriv_set, "(rho)")
-   IF(lsd .AND. ASSOCIATED(deriv_att)) THEN
-     CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
-     DO ia = 1,na
-       vxc(ia,ir_pnt,1) = vxc(ia,ir_pnt,1) + deriv_data(ia,1,1)*w(ia)
-       vxc(ia,ir_pnt,2) = vxc(ia,ir_pnt,2) + deriv_data(ia,1,1)*w(ia)
-     END DO
-     NULLIFY (deriv_data)
-   END IF
 
 !  Derivatives with respect to the gradient
    IF (lsd) THEN
-     DO ispin = 1,nspins
-       deriv_att => xc_dset_get_derivative(deriv_set, norm_drho_spin_name(ispin))
-       IF (ASSOCIATED(deriv_att)) THEN
-          CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
-          DO ia = 1,na
-            vxg(1:3,ia,ir_pnt,ispin) = drho(1:3,ia,ir_pnt,ispin)*&
-                       deriv_data(ia,1,1)*w(ia)*oodrho(ia,ispin)
-          END DO
-          NULLIFY (deriv_data)
-       END IF
-     END DO
+      deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drhoa)")
+      IF (ASSOCIATED(deriv_att)) THEN
+         CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
+         DO ir = 1, nr
+            DO ia = 1, na
+               DO idir=1, 3
+                  IF (rho_set%norm_drho(ia,ir,1) > drho_cutoff) THEN
+                     vxg(idir,ia,ir,1) = rho_set%drhoa(idir)%array(ia,ir,1) * &
+                                         deriv_data(ia,ir,1)*w(ia,ir) / &
+                                         rho_set%norm_drhoa(ia,ir,1)
+                  ELSE
+                     vxg(idir,ia,ir,1) = 0.0_dp
+                  END IF
+               END DO
+            END DO
+         END DO
+         NULLIFY(deriv_data)
+      END IF
+      deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drhob)")
+      IF (ASSOCIATED(deriv_att)) THEN
+         CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
+         DO ir = 1, nr
+            DO ia = 1, na
+               DO idir=1, 3
+                  IF (rho_set%norm_drho(ia,ir,1) > drho_cutoff) THEN
+                     vxg(idir,ia,ir,2) = rho_set%drhob(idir)%array(ia,ir,1) * &
+                                         deriv_data(ia,ir,1)*w(ia,ir) / &
+                                         rho_set%norm_drhob(ia,ir,1)
+                  ELSE
+                     vxg(idir,ia,ir,2) = 0.0_dp
+                  END IF
+               END DO
+            END DO
+         END DO
+         NULLIFY(deriv_data)
+      END IF
+      ! Cross Terms
+      deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drho)")
+      IF(ASSOCIATED(deriv_att)) THEN
+         CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
+         DO ir = 1, nr 
+            DO ia = 1, na
+               DO idir = 1, 3
+                  IF (rho_set%norm_drho(ia,ir,1) > drho_cutoff) THEN
+                     vxg(idir,ia,ir,1:2) = vxg(idir,ia,ir,1:2) + &
+                          (rho_set%drhoa(idir)%array(ia,ir,1) + rho_set%drhob(idir)%array(ia,ir,1)) * &
+                          deriv_data(ia,ir,1)*w(ia,ir)/rho_set%norm_drho(ia,ir,1)
+                  END IF
+               END DO
+            END DO
+         END DO
+         NULLIFY (deriv_data)
+      END IF
    ELSE
-     deriv_att => xc_dset_get_derivative(deriv_set,"(norm_drho)")
-     IF (ASSOCIATED(deriv_att)) THEN
-       CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
-       DO ia = 1,na
-         vxg(1:3,ia,ir_pnt,1) = drho(1:3,ia,ir_pnt,1)*&
-                    deriv_data(ia,1,1)*w(ia)*oodrho(ia,1)
-       END DO
-       NULLIFY (deriv_data)
-     END IF
+      deriv_att => xc_dset_get_derivative(deriv_set,"(norm_drho)")
+      IF (ASSOCIATED(deriv_att)) THEN
+         CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
+         DO ir = 1, nr
+            DO ia = 1, na
+               IF (rho_set%norm_drho(ia,ir,1) > drho_cutoff) THEN
+                  DO idir=1, 3
+                     vxg(idir,ia,ir,1) = rho_set%drho(idir)%array(ia,ir,1) * &
+                                         deriv_data(ia,ir,1)*w(ia,ir) / &
+                                         rho_set%norm_drho(ia,ir,1)
+                  END DO
+               ELSE
+                  vxg(1:3,ia,ir,1) = 0.0_dp
+               END IF
+            END DO
+         END DO
+         NULLIFY (deriv_data)
+      END IF
    END IF
 
-!  Cross Terms
-   deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drho)")
-   IF(lsd .AND. ASSOCIATED(deriv_att)) THEN
-     CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
-     CALL xc_rho_set_get(rho_set=rho_set,norm_drho=norm_drho,drho_cutoff=drho_cutoff)
-     CPPrecondition(ASSOCIATED(norm_drho),cp_failure_level,routineP,error,failure)
 
-     DO ia = 1,na
-      vxg(1:3,ia,ir_pnt,1) = vxg(1:3,ia,ir_pnt,1) +&
-           (drho(1:3,ia,ir_pnt,1)+drho(1:3,ia,ir_pnt,2))* &
-           deriv_data(ia,1,1)*w(ia)/MAX(norm_drho(ia,1,1),drho_cutoff)
-      vxg(1:3,ia,ir_pnt,2) = vxg(1:3,ia,ir_pnt,2) +&
-           (drho(1:3,ia,ir_pnt,1)+drho(1:3,ia,ir_pnt,2))* &
-           deriv_data(ia,1,1)*w(ia)/MAX(norm_drho(ia,1,1),drho_cutoff)
-     END DO
-     NULLIFY (deriv_data)
-   END IF
-
-!  Put to zero the arrays for the derivatives to be ready for the next call to this routin
+!  Put to zero the arrays for the derivatives to be ready for the next call to this routine
    pos => deriv_set%derivs
    DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att, error=error)) 
      deriv_att%deriv_data=0.0_dp
@@ -255,8 +275,7 @@ CONTAINS
 !   ***************************************************************************
 
   SUBROUTINE xc_2nd_deriv_of_r(dft_control, rho_set, rho1_set, deriv_set, needs, &
-                               rho, drho, oodrho, rho1, drho1, oodrho1, &
-                               w, ir, exc, vxc, vxg, error)
+                               w, exc, vxc, vxg, error)
 
 ! As input of this routine one gets rho and drho on a one dimensional grid. 
 ! The grid is the angular grid corresponding to a given point ir on the radial grid.
@@ -271,11 +290,7 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER                :: rho1_set
     TYPE(xc_derivative_set_type), POINTER         :: deriv_set
     TYPE(xc_rho_cflags_type), INTENT(in)          :: needs
-    REAL(dp), DIMENSION(:,:),  POINTER            :: rho, rho1 
-    REAL(dp), DIMENSION(:,:,:,:),  POINTER        :: drho, drho1 
-    REAL(dp), DIMENSION(:,:),  POINTER            :: oodrho, oodrho1 
-    REAL(dp), DIMENSION(:),  POINTER              :: w 
-    INTEGER, INTENT(IN)                           :: ir
+    REAL(dp), DIMENSION(:,:),  POINTER            :: w 
     REAL(dp)                                      :: exc
     REAL(dp), DIMENSION(:,:,:), POINTER           :: vxc
     REAL(dp), DIMENSION(:,:,:,:), POINTER         :: vxg
@@ -286,33 +301,21 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER                   :: routine_name = "xc_2nd_deriv_of_r",&
                                                      routineP = module_name//':'//routine_name
 
-
-    TYPE(cp_logger_type), POINTER                 :: logger
     TYPE(cp_sll_xc_deriv_type), POINTER           :: pos
     TYPE(pw_p_type), DIMENSION(:), POINTER        :: vxc_pw
     TYPE(pw_pool_type), POINTER                   :: pw_pool
     TYPE(xc_control_type), POINTER                :: xc_control
     TYPE(xc_derivative_type), POINTER             :: deriv_att
-    REAL(KIND=dp), PARAMETER                      :: f13 = (1.0_dp/3.0_dp)
     REAL(dp)                                      :: drho_cutoff
-    REAL(dp), DIMENSION(:,:,:), POINTER           :: deriv_data, norm_drho
-    INTEGER                                       :: handle, i, ia, idir, ispin, nspins, &
-                                                     n_deriv, order, stat, output_unit
-    INTEGER, DIMENSION(2,3)                       :: bounds
-    LOGICAL                                       :: failure, gradient_f, lsd, tddft, ionode
+    REAL(dp), DIMENSION(:,:,:), POINTER           :: deriv_data
+    INTEGER                                       :: handle, i, ispin, nspins, stat
+    LOGICAL                                       :: failure, lsd
 
     !   ***************************************************************************
 
     CALL timeset(routine_name,"I"," ",handle)
     failure = .FALSE.
     
-    logger => cp_error_get_logger(error)
-    ionode = (logger%para_env%mepos==logger%para_env%source)
-    output_unit = cp_logger_get_default_unit_nr(logger)
-
-    gradient_f=(needs%drho_spin.OR.needs%norm_drho_spin.OR.&
-                needs%drhoa_drhob.OR.needs%drho.OR.needs%norm_drho)
-
     nspins = dft_control%nspins
     xc_control => dft_control%xc_control
     lsd = (nspins==2)
@@ -323,10 +326,7 @@ CONTAINS
           lsd = .TRUE. 
        END IF
     END IF
-    bounds = rho_set%local_bounds
-
-    CALL fill_rho_set(rho_set,lsd,nspins,needs,rho,drho,oodrho,w,bounds(2,1),ir,error)
-    CALL fill_rho_set(rho1_set,lsd,nspins,needs,rho1,drho1,oodrho1,w,bounds(2,1),ir,error)
+    CALL xc_rho_set_get(rho_set, drho_cutoff=drho_cutoff, error=error)
 
     !  Calculate the derivatives
     DO i=1,SIZE(xc_control%functionals)
@@ -338,14 +338,12 @@ CONTAINS
                                error=error)
     END DO
 
-    CALL divide_by_norm_drho(deriv_set, rho_set, bounds, lsd, error)
+    CALL divide_by_norm_drho(deriv_set, rho_set, lsd, error)
 
     ! multiply by -w
     pos => deriv_set%derivs
     DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att,error=error))
-       DO ia=1, bounds(2,1)
-          deriv_att%deriv_data(ia,1,1) = -w(ia)*deriv_att%deriv_data(ia,1,1)
-       END DO
+       deriv_att%deriv_data(:,:,1) = -w(:,:)*deriv_att%deriv_data(:,:,1)
     END DO
 
     NULLIFY(pw_pool)
@@ -354,10 +352,10 @@ CONTAINS
     DO ispin=1, nspins
        ALLOCATE(vxc_pw(ispin)%pw, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       vxc_pw(ispin)%pw%cr3d => vxc(:,ir:ir,ispin:ispin)
+       vxc_pw(ispin)%pw%cr3d => vxc(:,:,ispin:ispin)
     END DO
 
-    CALL xc_calc_2nd_deriv_new(vxc_pw, deriv_set, rho_set, rho1_set, pw_pool, dft_control, .TRUE., vxg, ir,error)
+    CALL xc_calc_2nd_deriv_new(vxc_pw, deriv_set, rho_set, rho1_set, pw_pool, dft_control, .TRUE., vxg, error)
 
     DO ispin=1, nspins
        DEALLOCATE(vxc_pw(ispin)%pw, stat=stat)
@@ -529,7 +527,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-  SUBROUTINE fill_rho_set(rho_set,lsd,nspins,needs,rho,drho,oodrho,w,na,ir,error)
+  SUBROUTINE fill_rho_set(rho_set,lsd,nspins,needs,rho,drho,na,ir,error)
 
     ! ARGUMENTS
     TYPE(xc_rho_set_type), POINTER                :: rho_set
@@ -538,8 +536,6 @@ CONTAINS
     TYPE(xc_rho_cflags_type), INTENT(in)          :: needs
     REAL(dp), DIMENSION(:,:),  POINTER            :: rho 
     REAL(dp), DIMENSION(:,:,:,:),  POINTER        :: drho 
-    REAL(dp), DIMENSION(:,:),  POINTER            :: oodrho 
-    REAL(dp), DIMENSION(:),  POINTER              :: w 
     INTEGER, INTENT(IN)                           :: na, ir
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                    :: error
@@ -548,7 +544,7 @@ CONTAINS
     INTEGER                                       :: ia, idir, my_nspins
     LOGICAL                                       :: failure
     LOGICAL                                       :: gradient_f, tddft_split
-    REAL(dp), DIMENSION(:,:), POINTER             :: tau
+    REAL(dp), DIMENSION(:,:,:), POINTER           :: tau
 
     ! PARAMETERS
     REAL(KIND=dp), PARAMETER                      :: f13 = (1.0_dp/3.0_dp)
@@ -590,7 +586,7 @@ CONTAINS
        ! Give rho to 1/3  
        IF (needs%rho_1_3) THEN
           DO ia = 1,na
-             rho_set%rho_1_3(ia,1,1) = MAX(rho(ia,1),0.0_dp)**f13
+             rho_set%rho_1_3(ia,ir,1) = MAX(rho(ia,1),0.0_dp)**f13
           END DO
           rho_set%owns%rho_1_3=.TRUE.
           rho_set%has%rho_1_3=.TRUE.
@@ -598,7 +594,7 @@ CONTAINS
        ! Give the density
        IF (needs%rho) THEN
           DO ia = 1,na
-             rho_set%rho(ia,1,1) = rho(ia,1)
+             rho_set%rho(ia,ir,1) = rho(ia,1)
           END DO
           rho_set%owns%rho=.TRUE.
           rho_set%has%rho=.TRUE.
@@ -606,7 +602,7 @@ CONTAINS
        ! Give the norm of the gradient of the density
        IF (needs%norm_drho) THEN
           DO ia = 1,na
-             rho_set%norm_drho(ia,1,1) = drho(4,ia,ir,1)
+             rho_set%norm_drho(ia,ir,1) = drho(4,ia,ir,1)
           END DO
           rho_set%owns%norm_drho=.TRUE.
           rho_set%has%norm_drho=.TRUE.
@@ -615,7 +611,7 @@ CONTAINS
        IF (needs%drho) THEN
           DO idir = 1,3
              DO ia = 1,na
-                rho_set%drho(idir)%array(ia,1,1) = drho(idir,ia,ir,1)
+                rho_set%drho(idir)%array(ia,ir,1) = drho(idir,ia,ir,1)
              END DO
           END DO
           rho_set%owns%drho=.TRUE.
@@ -627,11 +623,11 @@ CONTAINS
           ! this should never be the case unless you use LDA functionals with LSD
           IF (.NOT.tddft_split) THEN
              DO ia = 1,na
-                rho_set%rho(ia,1,1) = rho(ia,1)+rho(ia,2)
+                rho_set%rho(ia,ir,1) = rho(ia,1)+rho(ia,2)
              END DO
           ELSE
              DO ia = 1,na
-                rho_set%rho(ia,1,1) = rho(ia,1)
+                rho_set%rho(ia,ir,1) = rho(ia,1)
              END DO
           END IF
           rho_set%owns%rho=.TRUE.
@@ -641,11 +637,11 @@ CONTAINS
        IF (needs%rho_1_3) THEN
           IF (.NOT.tddft_split) THEN
              DO ia = 1,na
-                rho_set%rho_1_3(ia,1,1) = MAX(rho(ia,1)+rho(ia,2),0.0_dp)**f13
+                rho_set%rho_1_3(ia,ir,1) = MAX(rho(ia,1)+rho(ia,2),0.0_dp)**f13
              END DO
           ELSE
              DO ia = 1,na
-                rho_set%rho_1_3(ia,1,1) = MAX(rho(ia,1),0.0_dp)**f13
+                rho_set%rho_1_3(ia,ir,1) = MAX(rho(ia,1),0.0_dp)**f13
              END DO
           END IF
           rho_set%owns%rho_1_3=.TRUE.
@@ -655,13 +651,13 @@ CONTAINS
        IF (needs%rho_spin_1_3) THEN
           IF (.NOT.tddft_split) THEN
              DO ia = 1,na
-                rho_set%rhoa_1_3(ia,1,1) = MAX(rho(ia,1),0.0_dp)**f13
-                rho_set%rhob_1_3(ia,1,1) = MAX(rho(ia,2),0.0_dp)**f13
+                rho_set%rhoa_1_3(ia,ir,1) = MAX(rho(ia,1),0.0_dp)**f13
+                rho_set%rhob_1_3(ia,ir,1) = MAX(rho(ia,2),0.0_dp)**f13
              END DO
           ELSE
              DO ia = 1,na
-                rho_set%rhoa_1_3(ia,1,1) = MAX(0.5_dp*rho(ia,1),0.0_dp)**f13
-                rho_set%rhob_1_3(ia,1,1) = rho_set%rhoa_1_3(ia,1,1)
+                rho_set%rhoa_1_3(ia,ir,1) = MAX(0.5_dp*rho(ia,1),0.0_dp)**f13
+                rho_set%rhob_1_3(ia,ir,1) = rho_set%rhoa_1_3(ia,ir,1)
              END DO
           END IF
           rho_set%owns%rho_spin_1_3=.TRUE.
@@ -671,13 +667,13 @@ CONTAINS
        IF (needs%rho_spin) THEN
           IF (.NOT.tddft_split) THEN
              DO ia = 1,na
-                rho_set%rhoa(ia,1,1) = rho(ia,1)
-                rho_set%rhob(ia,1,1) = rho(ia,2)
+                rho_set%rhoa(ia,ir,1) = rho(ia,1)
+                rho_set%rhob(ia,ir,1) = rho(ia,2)
              END DO
           ELSE
              DO ia = 1,na
-                rho_set%rhoa(ia,1,1) = 0.5_dp*rho(ia,1)
-                rho_set%rhob(ia,1,1) = rho_set%rhoa(ia,1,1)
+                rho_set%rhoa(ia,ir,1) = 0.5_dp*rho(ia,1)
+                rho_set%rhob(ia,ir,1) = rho_set%rhoa(ia,ir,1)
              END DO
           END IF
           rho_set%owns%rho_spin=.TRUE.
@@ -687,15 +683,15 @@ CONTAINS
        IF (needs%norm_drho) THEN
           IF (.NOT.tddft_split) THEN
              DO ia = 1,na
-                rho_set%norm_drho(ia,1,1) = SQRT(&
+                rho_set%norm_drho(ia,ir,1) = SQRT(&
                      (drho(1,ia,ir,1)+drho(1,ia,ir,2))**2+&
                      (drho(2,ia,ir,1)+drho(2,ia,ir,2))**2+&
                      (drho(3,ia,ir,1)+drho(3,ia,ir,2))**2)
              END DO
           ELSE
              DO ia = 1,na
-                rho_set%norm_drho(ia,1,1) = drho(4,ia,ir,1)
-!!                rho_set%norm_drho(ia,1,1) = SQRT(&
+                rho_set%norm_drho(ia,ir,1) = drho(4,ia,ir,1)
+!!                rho_set%norm_drho(ia,ir,1) = SQRT(&
 !!                     (drho(1,ia,ir,1))**2+&
 !!                     (drho(2,ia,ir,1))**2+&
 !!                     (drho(3,ia,ir,1))**2)
@@ -708,13 +704,13 @@ CONTAINS
        IF (needs%norm_drho_spin) THEN
           IF (.NOT.tddft_split) THEN
              DO ia = 1,na
-                rho_set%norm_drhoa(ia,1,1) = drho(4,ia,ir,1)
-                rho_set%norm_drhob(ia,1,1) = drho(4,ia,ir,2)
+                rho_set%norm_drhoa(ia,ir,1) = drho(4,ia,ir,1)
+                rho_set%norm_drhob(ia,ir,1) = drho(4,ia,ir,2)
              END DO
           ELSE
              DO ia = 1,na
-                rho_set%norm_drhoa(ia,1,1) = 0.5_dp*drho(4,ia,ir,1)
-                rho_set%norm_drhob(ia,1,1) = rho_set%norm_drhoa(ia,1,1)
+                rho_set%norm_drhoa(ia,ir,1) = 0.5_dp*drho(4,ia,ir,1)
+                rho_set%norm_drhob(ia,ir,1) = rho_set%norm_drhoa(ia,ir,1)
              END DO
           END IF
           rho_set%owns%norm_drho_spin=.TRUE.
@@ -724,15 +720,15 @@ CONTAINS
        IF (needs%drhoa_drhob) THEN
           IF (.NOT.tddft_split) THEN
              DO ia =1,na
-                rho_set%drhoa_drhob(ia,1,1) =&
+                rho_set%drhoa_drhob(ia,ir,1) =&
                      (drho(1,ia,ir,1)*drho(1,ia,ir,2))+&
                      (drho(2,ia,ir,1)*drho(2,ia,ir,2))+&
                      (drho(3,ia,ir,1)*drho(3,ia,ir,2))   
              END DO
           ELSE
              DO ia =1,na
-                rho_set%drhoa_drhob(ia,1,1) = 0.25_dp * drho(4,ia,ir,1)**2
-!!                rho_set%drhoa_drhob(ia,1,1) =&
+                rho_set%drhoa_drhob(ia,ir,1) = 0.25_dp * drho(4,ia,ir,1)**2
+!!                rho_set%drhoa_drhob(ia,ir,1) =&
 !!                     (0.25_dp*drho(1,ia,ir,1)**2)+&
 !!                     (0.25_dp*drho(2,ia,ir,1)**2)+&
 !!                     (0.25_dp*drho(3,ia,ir,1)**2)   
@@ -746,13 +742,13 @@ CONTAINS
           IF (.NOT.tddft_split) THEN
              DO idir = 1,3
                 DO ia = 1,na
-                   rho_set%drho(idir)%array(ia,1,1) = drho(idir,ia,ir,1)+drho(idir,ia,ir,2)
+                   rho_set%drho(idir)%array(ia,ir,1) = drho(idir,ia,ir,1)+drho(idir,ia,ir,2)
                 END DO
              END DO
           ELSE
              DO idir = 1,3
                 DO ia = 1,na
-                   rho_set%drho(idir)%array(ia,1,1) = drho(idir,ia,ir,1)
+                   rho_set%drho(idir)%array(ia,ir,1) = drho(idir,ia,ir,1)
                 END DO
              END DO
           END IF
@@ -764,15 +760,15 @@ CONTAINS
           IF (.NOT.tddft_split) THEN
              DO idir = 1,3
                 DO ia = 1,na
-                   rho_set%drhoa(idir)%array(ia,1,1) = drho(idir,ia,ir,1)
-                   rho_set%drhob(idir)%array(ia,1,1) = drho(idir,ia,ir,2)
+                   rho_set%drhoa(idir)%array(ia,ir,1) = drho(idir,ia,ir,1)
+                   rho_set%drhob(idir)%array(ia,ir,1) = drho(idir,ia,ir,2)
                 END DO
              END DO
           ELSE
              DO idir = 1,3
                 DO ia = 1,na
-                   rho_set%drhoa(idir)%array(ia,1,1) = 0.5_dp*drho(idir,ia,ir,1)
-                   rho_set%drhob(idir)%array(ia,1,1) = rho_set%drhoa(idir)%array(ia,1,1)
+                   rho_set%drhoa(idir)%array(ia,ir,1) = 0.5_dp*drho(idir,ia,ir,1)
+                   rho_set%drhob(idir)%array(ia,ir,1) = rho_set%drhoa(idir)%array(ia,ir,1)
                 END DO
              END DO
           END IF
@@ -792,13 +788,13 @@ CONTAINS
     IF (needs%tau) THEN
        IF (my_nspins==2) THEN
           DO ia = 1,na
-             rho_set%tau(ia,1,1) = tau(ia,1)+tau(ia,2)
+             rho_set%tau(ia,ir,1) = tau(ia,ir,1)+tau(ia,ir,2)
           END DO
           rho_set%owns%tau=.TRUE.
           rho_set%has%tau=.TRUE.
        ELSE
           DO ia = 1,na
-             rho_set%tau(ia,1,1) = tau(ia,1)
+             rho_set%tau(ia,ir,1) = tau(ia,ir,1)
           END DO
           rho_set%owns%tau=.TRUE.
           rho_set%has%tau=.TRUE.
@@ -806,8 +802,8 @@ CONTAINS
     END IF
     IF (needs%tau_spin) THEN
        DO ia = 1,na
-          rho_set%tau_a(ia,1,1) = tau(ia,1)
-          rho_set%tau_b(ia,1,1) = tau(ia,2)
+          rho_set%tau_a(ia,ir,1) = tau(ia,ir,1)
+          rho_set%tau_b(ia,ir,1) = tau(ia,ir,2)
        END DO
        rho_set%owns%tau_spin=.TRUE.
        rho_set%has%tau_spin=.TRUE.
