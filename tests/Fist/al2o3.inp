@@ -7,8 +7,14 @@
 &END
 
 &EWALD
+  units angstrom
   ewald_type     ewald    ( pme_gauss, ewald_gauss )
   ewald_param    .368 21   ( alpha, [gmax,{ns_max,epsilon}])
+&END
+
+&TOPOLOGY
+ FORCEFIELD ON
+ NHCOPT MOLECULE
 &END
 
 &MD
@@ -38,15 +44,15 @@
 &END
 
 &FORCE_FIELD
-  charge 
+  charges
      AL 1.2
      O -0.8
-  end charge
+  end 
   nonbonded
      williams AL AL    2.518e14  10.925  20.13e5  8.5
      williams AL O     128.7e8    8.35     .005e6 8.5
      williams O O      1.136e7    2.76    2.023e6 8.5
-  end nonbonded
+  end 
 &END
 
 &COORD
