@@ -76,14 +76,18 @@ MODULE qs_scf
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_get_mstruct
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_get,&
+                                             cp_fm_struct_release,&
                                              cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_create
   USE cp_lbfgs_optimizer_gerd_f,       ONLY: cp_lbfgs_opt_gerd_f_type,&
                                              cp_opt_gerd_f_dealloc_ref,&
                                              cp_opt_gerd_f_init,&
                                              cp_opt_gerd_f_next
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_log,&
+                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -261,13 +265,13 @@ MODULE qs_scf
 ! *** Global parameters ***
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "qs_scf"
+  INTEGER, PARAMETER :: pao_mehod_nr=0, diagonalisation_method_nr=1,&
+       ot_method_nr=2
+  LOGICAL, PARAMETER, PRIVATE :: debug_this_module=.FALSE.
 
 ! *** Global variables ***
 
-!FM  TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-!FM  TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
-
-  LOGICAL, PARAMETER, PRIVATE :: debug_this_module=.FALSE.
+  INTEGER, SAVE, PRIVATE :: last_scf_env_id=0
 
 ! *** Public subroutines ***
 
@@ -320,6 +324,8 @@ SUBROUTINE scf_env_create(scf_env, qs_env, error)
   IF (.NOT. failure) THEN
      scf_env%ref_count=1
      scf_env%print_count=0
+     last_scf_env_id=last_scf_env_id+1
+     scf_env%id_nr=last_scf_env_id
      NULLIFY(scf_env%scf_work1, scf_env%scf_work2, scf_env%ortho,&
           scf_env%p_new)
   END IF
@@ -391,9 +397,11 @@ END SUBROUTINE scf
 !!     perform an scf loop
 !!
 !!   NOTES
-!!     -
+!!     globenv should be removed
 !!
 !!   ARGUMENTS
+!!     - scf_env: the scf_env where to perform the scf procedure
+!!     - qs_env: the qs_env, the scf_env lives in
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -483,6 +491,7 @@ END SUBROUTINE scf
          pfull, energy, unoccupied_orbs,scf_control,kinetic,h,s, ks_env,&
          atomic_kind_set, particle_set,&
          scf_work1,scf_work2, ortho)
+    logger => cp_error_get_logger(error)
     t1 = m_cputime()
     ot_initialized=.FALSE.
     failure=.FALSE.
@@ -513,7 +522,7 @@ END SUBROUTINE scf
     ionode = globenv%ionode
     output_unit = globenv%scr
     energy_only = .FALSE.
-        
+    
     pao=dft_control%qs_control%pao.AND.ASSOCIATED(pao_env)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -533,15 +542,19 @@ END SUBROUTINE scf
     CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
                       globenv=globenv,&
                       error=error)
+
     scf_work1 => scf_env%scf_work1
     scf_work2 => scf_env%scf_work2
     ortho => scf_env%ortho
 
+    CALL get_qs_env(qs_env,p=p_rmpv, k=ks_rmpv,rho=rho,c=c)
+
+    CALL calculate_first_density_matrix(ortho,c,p_rmpv,s(1), &
+         scf_work1,scf_work2,globenv,&
+         scf_control=scf_control, id_nr=qs_env%id_nr, qs_env=qs_env)
     CALL qs_ks_did_change(ks_env,qs_env,p_changed=.TRUE.,error=error)
 
     CALL pao_opt_create(pao_optimizer,pao_obj_f,qs_env,globenv,error)
-
-    CALL get_qs_env(qs_env,p=p_rmpv, k=ks_rmpv,rho=rho,c=c)
 
     NULLIFY(p_new)
     ALLOCATE(p_new(dft_control%nspins))
@@ -604,17 +617,13 @@ END SUBROUTINE scf
 
       rebuild = (MODULO(iscf,scf_control%nrebuild) == 0)
 
-                  type_switch=1 ! default with diagonalisation
-      IF (pao)    type_switch=0
-      IF (scf_control%use_ot) type_switch=2
-
       ispin=1
       ks => ks_rmpv(ispin)
       p => p_rmpv(ispin)
       mo_set => c(ispin)%mo_set
 
-      SELECT CASE (type_switch)
-      CASE (0) ! pao
+      SELECT CASE (scf_env%method)
+      CASE (pao_mehod_nr) ! pao
 
         IF (dft_control%nspins.ne.1) CALL stop_program(routine,"NYI")
 
@@ -707,7 +716,7 @@ END SUBROUTINE scf
            END IF
          END IF
 
-      CASE(1) ! diagonalisation (default)
+      CASE(diagonalisation_method_nr) ! diagonalisation (default)
 
         DO ispin=1,dft_control%nspins 
            CALL copy_real_matrix_to_full_matrix(ks_rmpv(ispin)%matrix,scf_work1(ispin)%matrix)
@@ -780,7 +789,7 @@ END SUBROUTINE scf
                   iscf,TRIM(method),method_par,t2 - t1,delta,energy%total
         END IF
 
-      CASE(2) ! orbital transforms
+      CASE(ot_method_nr) ! orbital transforms
 
         ! in case of LSD the first spin qs_ot_env will drive the minimization
 
@@ -875,12 +884,12 @@ END SUBROUTINE scf
 !   *** Undo mixing of the density matrix (restore original density) ***
  
     DO ispin=1,dft_control%nspins 
-     SELECT CASE (type_switch)
-     CASE (0) ! pao
+     SELECT CASE (scf_env%method)
+     CASE (pao_mehod_nr) ! pao
        IF (.NOT.diis_step) CALL transfer_matrix(p_new(ispin)%matrix,p_rmpv(ispin)%matrix)
-     CASE (1) ! diagonalisation
+     CASE (diagonalisation_method_nr) ! diagonalisation
        IF (.NOT.diis_step) CALL transfer_matrix(p_new(ispin)%matrix,p_rmpv(ispin)%matrix)
-     CASE (2)
+     CASE (ot_method_nr)
      END SELECT
     ENDDO
 
@@ -1192,150 +1201,59 @@ END SUBROUTINE scf
 
 !   *** Local variables ***
 
-    TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
-    TYPE(mo_set_type), POINTER         :: mo_set
-
-    INTEGER :: handle,homo,ikind,istat,nao,ndep,nmo,npcol,nprow,&
-               output_unit, nrow_block, ncol_block,i
-    LOGICAL :: ionode, pao, gth_potential_present, failure
-    REAL(kind=wp):: ecore_self, ecore_overlap
-
-    INTEGER, DIMENSION(0:globenv%num_pe-1) :: nblock_pe,nelement_pe
-    INTEGER :: ispin,nelectron_spin
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k_rmpv, p_rmpv
+    INTEGER :: handle,homo,nao,ndep,ispin,nelectron_spin,&
+               output_unit
+    LOGICAL :: ionode, gth_potential_present, failure
     TYPE(scf_control_type), POINTER :: scf_control
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(cp_fm_pool_p_type),DIMENSION(:), POINTER :: ao_mo_fm_pools
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s
-    TYPE(cp_fm_struct_type), POINTER :: ao_mo_mstruct
-    TYPE(cp_full_matrix_type), POINTER :: eigenvectors
     TYPE(dft_control_type), POINTER   :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: scf_work1
     TYPE(cp_full_matrix_type), POINTER  :: ortho,scf_work2
+    TYPE(pao_env_type), POINTER :: pao_env
+    TYPE(cp_logger_type), POINTER :: logger
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("init_scf_run","I","",handle)
 
-    NULLIFY(k_rmpv, p_rmpv, scf_control, atomic_kind_set,&
-         ao_mo_fm_pools,h,s, scf_work1, scf_work2, ortho)
+    NULLIFY(scf_control,atomic_kind_set,h,s,dft_control,c,scf_work1,&
+         ortho,scf_work2,pao_env)
     failure=.FALSE.
+    logger => cp_error_get_logger(error)
     CALL get_qs_env(qs_env=qs_env,&
                     scf_control=scf_control,&
                     dft_control=dft_control,&
                     atomic_kind_set=atomic_kind_set,&
                     c=c,&
-                    k=k_rmpv,&
-                    p=p_rmpv,&
-                    ao_mo_fm_pools=ao_mo_fm_pools,&
-                    h=h,s=s)
+                    h=h,s=s, pao_env=pao_env)
+
+    ! sets the method
+    scf_env%method=diagonalisation_method_nr ! default with diagonalisation
+    IF (dft_control%qs_control%pao.AND.ASSOCIATED(pao_env)) THEN
+       scf_env%method=pao_mehod_nr
+    END IF
+    IF (scf_control%use_ot) scf_env%method=ot_method_nr
+
+    CALL scf_env_check_i_alloc(scf_env=scf_env, qs_env=qs_env, error=error)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              gth_potential_present=gth_potential_present)
 
-    nrow_block = scf_control%nrow_block
-    ncol_block = scf_control%ncol_block
+    ionode = logger%para_env%source == logger%para_env%mepos
+    output_unit = cp_logger_get_default_unit_nr(logger,local=.FALSE.)
 
-    ionode = globenv%ionode
-    output_unit = globenv%scr
-
-!   *** Get the dimension of the full SCF matrices, ***
-!   *** i.e. the total number of atomic orbitals    ***
-
-!   *** Initializes the MOs ***
-    CPPrecondition(ASSOCIATED(c),cp_failure_level,routine,error,failure)
-    IF (.NOT.failure) THEN
-       DO i=1,SIZE(c)
-          CALL get_mo_set(c(i)%mo_set,eigenvectors=eigenvectors)
-          IF (.NOT.ASSOCIATED(eigenvectors)) THEN
-             CALL init_mo_set(c(i)%mo_set, ao_mo_fm_pools(i)%pool,&
-                  name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
-                  "%mo"//TRIM(ADJUSTL(cp_to_string(i))),&
-                  error=error)
-          END IF
-       END DO
-    END IF
-
-!   *** Get BLACS block size of the MO eigenvector matrix      ***
-!   *** which has to fit to the other distributed SCF matrices ***
-
-    mo_set => c(1)%mo_set
-    CALL get_mo_set(mo_set=mo_set,&
-                    eigenvectors=mo_eigenvectors,&
-                    nao=nao)
-
-    CALL cp_fm_get_info(matrix=mo_eigenvectors,&
-                               nrow_block=nrow_block,&
-                               ncol_block=ncol_block)
-
-!   *** Allocate the distributed SCF matrices ***
-  
-    NULLIFY(scf_env%scf_work1)
-    ALLOCATE(scf_env%scf_work1(dft_control%nspins))
     scf_work1 => scf_env%scf_work1
-
-    CALL cp_fm_create2(new_matrix=scf_env%scf_work1(1)%matrix,&
-                               nrow_global=nao,&
-                               ncol_global=nao,&
-                               nrow_block=nrow_block,&
-                               ncol_block=ncol_block,&
-                               name="SCF WORK MATRIX 1",&
-                               globenv=globenv)
-
-    IF (.NOT.scf_control%use_ot) THEN
-      DO ispin=2,dft_control%nspins
-       CALL cp_fm_create2(new_matrix=scf_env%scf_work1(ispin)%matrix,&
-                               nrow_global=nao,&
-                               ncol_global=nao,&
-                               nrow_block=nrow_block,&
-                               ncol_block=ncol_block,&
-                               name="SCF WORK MATRIX 1",&
-                               globenv=globenv)
-      ENDDO
-      CALL cp_fm_create2(new_matrix=scf_env%ortho,&
-                                 nrow_global=nao,&
-                                 ncol_global=nao,&
-                                 nrow_block=nrow_block,&
-                                 ncol_block=ncol_block,&
-                                 name="ORTHOGONALIZATION MATRIX",&
-                                 globenv=globenv)
-      CALL cp_fm_create2(new_matrix=scf_env%scf_work2,&
-                                 nrow_global=nao,&
-                                 ncol_global=nao,&
-                                 nrow_block=nrow_block,&
-                                 ncol_block=ncol_block,&
-                                 name="SCF WORK MATRIX 2",&
-                                 globenv=globenv)
     scf_work2 => scf_env%scf_work2
     ortho => scf_env%ortho
-      
-    END IF
-
-!   *** Allocate k and p and put them in the QS environment ***
-
-    CALL allocate_matrix_set(k_rmpv,dft_control%nspins)
-    CALL allocate_matrix_set(p_rmpv,dft_control%nspins)
-    CALL set_qs_env(qs_env=qs_env,&
-                    k=k_rmpv,&
-                    p=p_rmpv)
-
-    DO ispin=1,dft_control%nspins
-       NULLIFY (k_rmpv(ispin)%matrix)
-       CALL replicate_matrix_structure(s(1)%matrix,k_rmpv(ispin)%matrix,&
-                                       "KOHN-SHAM MATRIX")
-       NULLIFY (p_rmpv(ispin)%matrix)
-       CALL replicate_matrix_structure(s(1)%matrix,p_rmpv(ispin)%matrix,&
-                                       "DENSITY MATRIX")
-    ENDDO
-
 
 !   *** Redistribute the core Hamiltonian matrix in ***
 !   *** order to eliminate redundant atomic blocks  ***
 
     CALL copy_real_matrix_to_full_matrix(h(1)%matrix,scf_work1(1)%matrix)
 
-    IF ((globenv%num_pe > 1).AND.gth_potential_present) THEN
+    IF ((qs_env%para_env%num_pe > 1).AND.gth_potential_present) THEN
       CALL deallocate_matrix(h(1)%matrix)
       CALL replicate_matrix_structure(s(1)%matrix,h(1)%matrix,&
                                       "CORE HAMILTONIAN MATRIX")
@@ -1343,41 +1261,33 @@ END SUBROUTINE scf
       CALL set_qs_env(qs_env,h=h)
     END IF
 
-    IF (scf_control%use_ot) THEN 
+    IF (scf_env%method==ot_method_nr) THEN 
         CALL cp_fm_release(scf_work1(1)%matrix)
         DEALLOCATE(scf_work1)
-        NULLIFY(scf_work1)
+        NULLIFY(scf_work1, scf_env%scf_work1)
     ENDIF
 
 !   *** done redistribute ***
 
+    ! update ecore
     CALL calculate_ecore_self(qs_env)
     CALL calculate_ecore_overlap(qs_env,globenv,.FALSE.)
-
-    ecore_overlap = qs_env%energy%core_overlap
-    ecore_self = qs_env%energy%core_self
-
-    IF (ionode.AND.globenv%print%scf_energies) THEN
+    IF (ionode.AND.logger%print_keys%scf_energies) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
-        "Overlap energy of the core charge distribution:",ecore_overlap,&
-        "Self energy of the core charge distribution:   ",ecore_self
+           "Overlap energy of the core charge distribution:",&
+           qs_env%energy%core_overlap,&
+           "Self energy of the core charge distribution:   ",&
+           qs_env%energy%core_self
     END IF
 
-    ndep=0
-    IF (.NOT. scf_control%use_ot) THEN
-     IF (scf_control%use_cholesky .OR. scf_control%use_arpack) THEN
-       CALL copy_real_matrix_to_full_matrix(s(1)%matrix,ortho)
-       CALL cp_fm_cholesky_decompose(ortho)
-     ELSE
-       CALL calculate_ortho_matrix(ortho,s(1)%matrix,scf_work2,ndep,globenv,&
-            scf_control%eps_eigval,scf_control%work_syevx)
-     ENDIF
-    ENDIF
-
-    IF (ionode.AND.globenv%print%scf) THEN
+    ! updates the total number of electrons
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             nelectron=scf_env%nelectron)
+    scf_env%nelectron = scf_env%nelectron - dft_control%charge
+    ! print occupation numbers
+    IF (ionode.AND.logger%print_keys%scf) THEN
       DO ispin=1,dft_control%nspins
-        mo_set => c(ispin)%mo_set
-        CALL get_mo_set(mo_set=mo_set,&
+        CALL get_mo_set(mo_set=c(ispin)%mo_set,&
                         homo=homo, &
                         nelectron=nelectron_spin, &
                         nao=nao)
@@ -1390,25 +1300,185 @@ END SUBROUTINE scf
       ENDDO
     END IF
 
-    IF (globenv%print%ortho_matrix) THEN
+    ! calc ortho matrix
+    ndep=0
+    IF (.NOT. scf_control%use_ot) THEN
+     IF (scf_control%use_cholesky .OR. scf_control%use_arpack) THEN
+       CALL copy_real_matrix_to_full_matrix(s(1)%matrix,ortho)
+       CALL cp_fm_cholesky_decompose(ortho)
+     ELSE
+       CALL calculate_ortho_matrix(ortho,s(1)%matrix,scf_work2,ndep,globenv,&
+            scf_control%eps_eigval,scf_control%work_syevx)
+     ENDIF
+    ENDIF
+    IF (logger%print_keys%ortho_matrix) THEN
       CALL write_blacs_matrix(ortho,4,6,qs_env,globenv)
     END IF
 
     ! we need a copy the core matrix for every spin..
     IF (dft_control%nspins.eq.2) THEN
-    IF (.NOT. scf_control%use_ot) THEN
-       CALL copy_blacs_to_blacs_matrix(scf_work1(1)%matrix,scf_work1(2)%matrix)
+       IF (.NOT. scf_control%use_ot) THEN
+          CALL copy_blacs_to_blacs_matrix(scf_work1(1)%matrix,&
+               scf_work1(2)%matrix)
+       ENDIF
     ENDIF
-    ENDIF
-    CALL calculate_first_density_matrix(ortho,c,p_rmpv,s(1), &
-             scf_work1,scf_work2,globenv,&
-             scf_control=scf_control, id_nr=qs_env%id_nr, qs_env=qs_env)
 
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE init_scf_run
 
 ! *****************************************************************************
+
+!!****f* qs_scf/scf_env_check_i_alloc [1.0] *
+!!
+!!   NAME
+!!     scf_env_check_i_alloc
+!!
+!!   FUNCTION
+!!     checks the allocation status of the needed matrixes, and if necessary
+!!     allocate them
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - scf_env: the scf_env to be checked
+!!     - qs_env: the qs_env, the scf_env lives in
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     02.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,error)
+    TYPE(qs_scf_env_type), POINTER :: scf_env
+    TYPE(qs_environment_type), POINTER        :: qs_env
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+ 
+    CHARACTER(LEN=*), PARAMETER :: routineN = "scf_env_check_i_alloc",&
+         routineP = routineN//":"//module_name
+    INTEGER :: stat,nao,ispin,handle
+    LOGICAL :: failure
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k
+    TYPE(cp_fm_pool_p_type),DIMENSION(:), POINTER :: ao_mo_fm_pools
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
+    TYPE(cp_fm_struct_type), POINTER :: ao_mo_fmstruct, ao_ao_fmstruct
+    TYPE(cp_full_matrix_type), POINTER :: eigenvectors
+    TYPE(dft_control_type), POINTER   :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I","",handle)
+
+    NULLIFY(k,ao_mo_fm_pools, s, ao_mo_fmstruct, ao_ao_fmstruct,&
+         eigenvectors, dft_control, c)
+    failure=.FALSE.
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    dft_control=dft_control,&
+                    c=c,&
+                    k=k,&
+                    ao_mo_fm_pools=ao_mo_fm_pools,&
+                    s=s)
+
+!   *** finish initialization of the MOs ***
+    CPPrecondition(ASSOCIATED(c),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       DO ispin=1,SIZE(c)
+          CALL get_mo_set(c(ispin)%mo_set,eigenvectors=eigenvectors)
+          IF (.NOT.ASSOCIATED(eigenvectors)) THEN
+             CALL init_mo_set(c(ispin)%mo_set,&
+                  ao_mo_fm_pools(ispin)%pool,&
+                  name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
+                  "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+                  error=error)
+          END IF
+       END DO
+    END IF
+
+!   *** Allocate the distributed SCF matrices ***
+  
+    IF (.not.ASSOCIATED(scf_env%scf_work1).OR. &
+         .not.ASSOCIATED(scf_env%scf_work2).OR.&
+         .not.ASSOCIATED(scf_env%ortho)) THEN
+
+       ao_mo_fmstruct => fm_pool_get_mstruct(ao_mo_fm_pools(1)%pool,&
+            error=error)
+       CALL get_mo_set(c(1)%mo_set,nao=nao)
+       CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct,&
+            nrow_global=nao, ncol_global=nao,&
+            template_fmstruct=ao_mo_fmstruct, error=error)
+
+
+       IF (.not.ASSOCIATED(scf_env%scf_work1)) THEN
+          IF (scf_env%method/=ot_method_nr) THEN
+             ALLOCATE(scf_env%scf_work1(dft_control%nspins), stat=stat)
+          ELSE
+             ALLOCATE(scf_env%scf_work1(1), stat=stat)
+          END IF
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO ispin=1,SIZE(scf_env%scf_work1)
+             NULLIFY(scf_env%scf_work1(ispin)%matrix)
+             CALL cp_fm_create(scf_env%scf_work1(ispin)%matrix,&
+                  matrix_struct=ao_ao_fmstruct,&
+                  name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+                  "WORK_MATRIX-1-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+                  error=error)
+          ENDDO
+       END IF
+       IF (.not.ASSOCIATED(scf_env%ortho).and.scf_env%method/=ot_method_nr) THEN
+          CALL cp_fm_create(scf_env%ortho,&
+               matrix_struct=ao_ao_fmstruct,&
+               name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+               "ORTHO_MATRIX",&
+               error=error)
+       END IF
+       IF (.not.ASSOCIATED(scf_env%scf_work2).AND.&
+            scf_env%method/=ot_method_nr) THEN
+          CALL cp_fm_create(scf_env%scf_work2,&
+               matrix_struct=ao_ao_fmstruct,&
+               name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+               "WORK_MATRIX-2",&
+               error=error)
+       END IF
+       CALL cp_fm_struct_release(ao_ao_fmstruct,error=error)
+
+    END IF
+
+!   *** Allocate k and p and put them in the QS environment ***
+
+    IF (.not.ASSOCIATED(k)) THEN
+       CALL allocate_matrix_set(k,dft_control%nspins)
+       DO ispin=1,dft_control%nspins
+          NULLIFY (k(ispin)%matrix)
+          CALL replicate_matrix_structure(s(1)%matrix,k(ispin)%matrix,&
+               "SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+               "KOHN-SHAM_MATRIX-"//TRIM(ADJUSTL(cp_to_string(ispin))))
+       END DO
+       CALL set_qs_env(qs_env=qs_env,&
+                    k=k)
+    END IF
+
+    IF (.not.ASSOCIATED(scf_env%p_new)) THEN
+       CALL allocate_matrix_set(scf_env%p_new,dft_control%nspins)
+       DO ispin=1,dft_control%nspins
+          NULLIFY (scf_env%p_new(ispin)%matrix)
+          CALL replicate_matrix_structure(s(1)%matrix,&
+               scf_env%p_new(ispin)%matrix,&
+               "DENSITY MATRIX")
+       END DO
+       CALL set_qs_env(qs_env=qs_env,&
+                    p=scf_env%p_new)
+    END IF
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE scf_env_check_i_alloc
+!***************************************************************************
 
   SUBROUTINE calculate_ortho_matrix(ortho,s,work,ndep,globenv,eps_eigval,&
        work_syevx)
@@ -1900,6 +1970,47 @@ END SUBROUTINE scf
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE calculate_first_density_matrix
+
+!!****f* qs_scf/scf_env_initial_rho_setup [1.0] *
+!!
+!!   NAME
+!!     scf_env_initial_rho_setup
+!!
+!!   FUNCTION
+!!     Initializes rho and the mos, so that an scf cycle can start
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - scf_env: the scf env in which to do the scf
+!!     - qs_env: the qs env the scf_env lives in
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     02.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE scf_env_initial_rho_setup(scf_env, qs_env, error)
+  TYPE(qs_scf_env_type), POINTER :: scf_env
+  TYPE(qs_environment_type), POINTER :: qs_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='scf_env_initial_rho_setup',&
+       routineP=module_name//':'//routineN
+
+  failure=.FALSE.
+  
+  IF (.NOT. failure) THEN
+     
+  END IF
+END SUBROUTINE scf_env_initial_rho_setup
+!***************************************************************************
 
 !!****f* qs_scf/pao_opt_create [1.0] *
 !!

@@ -79,7 +79,7 @@ MODULE qs_scf_types
 !!     -
 !!
 !!   ATTRIBUTES
-!!     -
+!!     - method: 0: pao, 1: diagonalization (default), 2: orbital transforms
 !!
 !!   AUTHOR
 !!     fawzi
@@ -90,10 +90,11 @@ MODULE qs_scf_types
 !!   SOURCE
   !***************************************************************************
 TYPE qs_scf_env_type
-   INTEGER :: ref_count, print_count
+   INTEGER :: ref_count, id_nr, print_count
    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: scf_work1
    TYPE(cp_full_matrix_type), POINTER  :: ortho,scf_work2
    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p_new
+   INTEGER :: nelectron, method
 END TYPE qs_scf_env_type
 !!***
   !****************************************************************************

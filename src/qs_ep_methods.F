@@ -323,18 +323,18 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
   CALL ep_env_transfer_psi0(ep_env, error=error)
 
   CALL p_env_psi0_changed(ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
-       Hrho_psi0d=ep_env%pi_Hrho_psi0d, error=error)
+       Hrho_psi0d=ep_env%m_pi_Hrho_psi0d, error=error)
 
   CALL p_postortho(p_env=ep_env%main_p_env,qs_env=ep_env%main_qs_env,&
-          v=ep_env%pi_Hrho_psi0d, &
+          v=ep_env%m_pi_Hrho_psi0d, &
           n_cols=ep_env%main_p_env%n_mo,&
           error=error)
   DO ispin=1,SIZE(mos)
      CALL get_mo_set(mos(ispin)%mo_set,lfomo=lfomo, &
           nmo=nmo, maxocc=maxocc)
      IF (lfomo>nmo) THEN
-        CALL cp_fm_add(alpha=maxocc,&
-             matrix_a=ep_env%pi_Hrho_psi0d(ispin)%matrix,error=error)
+        CALL cp_fm_add(alpha=-maxocc,&
+             matrix_a=ep_env%m_pi_Hrho_psi0d(ispin)%matrix,error=error)
      ELSE
         CALL cp_unimplemented_error(fromWhere=routineP,&
              message="symmetrized onesided smearing to do",&
@@ -343,7 +343,7 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
   END DO
 
   IF (print_ep_matrixes) THEN
-     CALL cp_fm_vect_write(matrixes=ep_env%pi_Hrho_psi0d, &
+     CALL cp_fm_vect_write(matrixes=ep_env%m_pi_Hrho_psi0d, &
           unit_nr=cp_logger_get_default_unit_nr(logger), &
           long_description=.TRUE.,&
           local=.FALSE., error=error)
@@ -378,14 +378,14 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
 
   CALL stupid_solve(ep_env,eps_r=1.0e-5_wp,error=error)
 
-  ! calculate the energy correction
+  ! calculate the energy correction (half from bra part, half from ket part)
   e_corr=0.0_wp
   DO ispin=1,nspins
-     CALL cp_fm_trace(matrix_a=ep_env%pi_Hrho_psi0d(ispin)%matrix,&
+     CALL cp_fm_trace(matrix_a=ep_env%m_pi_Hrho_psi0d(ispin)%matrix,&
           matrix_b=ep_env%psi1(ispin)%matrix,trace=e_corr_s,error=error)
-     e_corr=e_corr+e_corr_s
+     e_corr=e_corr-e_corr_s
   END DO
-  e_corr=e_corr/2.0
+  e_corr=e_corr
   WRITE(unit=unit_nr,fmt="(a,es16.10)")" ep energy correction = ", e_corr
 
   IF (print_ep_matrixes) THEN
@@ -505,7 +505,7 @@ END SUBROUTINE qs_ep_calculation
 
     IF (.NOT. failure) THEN
        NULLIFY(ep_env%sub_qs_env, ep_env%sub_proj, ep_env%main_qs_env,&
-            ep_env%main_p_env, ep_env%pi_Hrho_psi0d, ep_env%psi1,&
+            ep_env%main_p_env, ep_env%m_pi_Hrho_psi0d, ep_env%psi1,&
             ep_env%precond)
        nsub=SIZE(projections)
        CALL get_qs_env(main_qs_env, dft_control=dft_control, &
@@ -673,12 +673,12 @@ END SUBROUTINE qs_ep_calculation
        CALL p_env_create(ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
             orthogonal_orbitals=.FALSE.,error=error)
 
-       ! alloc pi_Hrho_psi0d
+       ! alloc m_pi_Hrho_psi0d
        CALL get_qs_env(ep_env%main_qs_env, ao_mo_fm_pools=ao_mo_fm_pools,&
             error=error)
-       CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,ep_env%pi_Hrho_psi0d,&
+       CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,ep_env%m_pi_Hrho_psi0d,&
             name="ep_env"//TRIM(ADJUSTL(cp_to_string(ep_env%id_nr)))//&
-            "%pi_Hrho_psi0d",error=error)
+            "%m_pi_Hrho_psi0d",error=error)
        ! alloc psi1
        CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,ep_env%psi1,&
             name="ep_env"//TRIM(ADJUSTL(cp_to_string(ep_env%id_nr)))//"%psi1",&
@@ -1018,7 +1018,7 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
              v=ep_env%psi1, res=r,error=error)
         DO ispin=1,nspins
            CALL cp_fm_add(alpha=-1.0_wp,matrix_a=r(ispin)%matrix,&
-                beta=1.0_wp,matrix_b=ep_env%pi_Hrho_psi0d(ispin)%matrix,&
+                beta=1.0_wp,matrix_b=ep_env%m_pi_Hrho_psi0d(ispin)%matrix,&
                 error=error)
         END DO
 !FM        CALL cp_fm_vect_write(matrixes=r, &
@@ -1219,7 +1219,7 @@ SUBROUTINE p_op_ep(p_env, qs_env, v, res, error)
         routineP=moduleN//':'//routineN
   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
   TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mos
-  REAL(kind=wp) :: maxocc, beta
+  REAL(kind=wp) :: maxocc, scale_factor
   INTEGER :: lfomo,nmo, ispin
 
   failure=.FALSE.
@@ -1233,20 +1233,20 @@ SUBROUTINE p_op_ep(p_env, qs_env, v, res, error)
           v=v, res=res,error=error)
      CALL get_mo_set(mos(1)%mo_set,lfomo=lfomo, nmo=nmo, maxocc=maxocc)
      IF (lfomo>nmo) THEN
-        beta=maxocc
+        scale_factor=maxocc
         DO ispin=2,SIZE(mos)
            CALL get_mo_set(mos(ispin)%mo_set,lfomo=lfomo, &
                 nmo=nmo, maxocc=maxocc)
-           CPAssert(beta==maxocc,cp_failure_level,routineP,error,failure)
+           CPAssert(scale_factor==maxocc,cp_failure_level,routineP,error,failure)
         END DO
+        CALL p_op_l2(p_env=p_env, qs_env=qs_env,&
+             v=v, res=res,&
+             alpha=scale_factor,beta=scale_factor,error=error)
      ELSE
         CALL cp_unimplemented_error(fromWhere=routineP,&
              message="symmetrized onesided smearing to do",&
              error=error)
      END IF
-     CALL p_op_l2(p_env=p_env, qs_env=qs_env,&
-          v=v, res=res,&
-          alpha=1.0_wp,beta=beta,error=error)
      CALL p_postortho(p_env=p_env, qs_env=qs_env, v=res, n_cols=p_env%n_mo,&
           error=error)
   END IF
