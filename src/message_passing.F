@@ -209,7 +209,8 @@ END SUBROUTINE mp_world_init
 SUBROUTINE mp_world_finalize()
 #if defined(__parallel)
   INTEGER :: ierr
-  CALL mp_sync ( MPI_COMM_WORLD )
+  CALL mpi_barrier ( MPI_COMM_WORLD,ierr ) ! call mpi directly to avoid 0 stack pointer
+  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_barrier @ mp_world_finalize" )
   CALL mpi_finalize ( ierr )
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_finalize @ mp_world_finalize" )
 #endif
