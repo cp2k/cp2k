@@ -491,7 +491,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_low', &
          routineP = moduleN//':'//routineN
     LOGICAL :: failure
-    INTEGER :: stat, handle, ithread, ilevel, igrid
+    INTEGER :: stat, handle, ithread, ilevel, igrid, coarser_grid_level
     INTEGER :: Imm, IndMM, LIndMM, IRadTyp, Icg, IGauss
     INTEGER, dimension(3) :: ndim
     REAL(KIND=dp), DIMENSION(3)              :: ra
@@ -502,10 +502,11 @@ CONTAINS
     NULLIFY(pgf, xdat, ydat, zdat)
     CALL timeset(routineN,"I","",handle)
 
-    ithread = 0
-    Icg     = 0
-    ndim    = 0
-    DO igrid=1,SIZE(tmp_grid)
+    ithread            = 0
+    Icg                = 0
+    ndim               = 0
+    coarser_grid_level = SIZE(tmp_grid)
+    DO igrid = auxbas_grid, coarser_grid_level
        ndim = MAX(tmp_grid(igrid)%rs_grid%npts,ndim)
     END DO
     ALLOCATE (xdat(ndim(1)), STAT=stat)
@@ -524,24 +525,25 @@ CONTAINS
           ConsFac   = - pgf%A0 * mm_charges(LIndMM) + ConsFac
        END DO
     END DO
-    tmp_grid(1)%rs_grid%r = ConsFac
+    tmp_grid(coarser_grid_level)%rs_grid%r = ConsFac
 
 !
-    DO IRadTyp = 1, SIZE(pgfs) 
+    Radius: DO IRadTyp = 1, SIZE(pgfs) 
        pgf => pgfs(IRadTyp)%pgf
        WRITE(*,'(A,F12.6)')' Collocating MM Potential with Radius: ', pgf%Elp_Radius
-       DO IGauss = 1, pgf%Number_of_Gaussians
+       Gaussian: DO IGauss = 1, pgf%Number_of_Gaussians
           alpha     = 1.0_dbl / pgf%Gk(IGauss)
           alpha     = alpha * alpha
           height    = pgf%Ak(IGauss)
+          ilevel    = pgf%grid_level(IGauss)
+          IF (ilevel.EQ.coarser_grid_level) CYCLE Gaussian
           WRITE(*,'(5X,A,I5)')' Collocating Gaussian Number:',IGauss
-          DO Imm = 1, SIZE(pgf%mm_atom_index)
+          Atoms: DO Imm = 1, SIZE(pgf%mm_atom_index)
              Icg       =   Icg + 1
              LIndMM    =   pgf%mm_atom_index(Imm)
              IndMM     =   mm_atom_index(LIndMM)
              ra(:)     =   mm_particles(IndMM)%r
              W         =   mm_charges(LIndMM) * height
-             ilevel=pgf%grid_level(IGauss)
              WRITE(*,'(10X,I5,A,I5,A,3F12.6,A,F12.6,A,F12.6)')&
                   Icg,' MM Atom:',IndMM,&
                   ' x,y,z:',ra(1), ra(2), ra(3),&
@@ -559,9 +561,9 @@ CONTAINS
                                             xdat=xdat,&
                                             ydat=ydat,&
                                             zdat=zdat)                          
-          END DO
-       END DO
-    END DO
+          END DO Atoms
+       END DO Gaussian
+    END DO Radius
 
     IF (ASSOCIATED(xdat)) THEN
        DEALLOCATE (xdat, STAT=stat)
@@ -576,8 +578,19 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
 
+    ! Long Range Part of the QM/MM Potential with Gaussians
+    CALL qmmm_elec_with_gaussian_LR    (pgfs=pgfs,&
+                                        grid=tmp_grid(coarser_grid_level)%rs_grid,&
+                                        mm_charges=mm_charges,&
+                                        mm_atom_index=mm_atom_index,&
+                                        mm_particles=mm_particles,&
+                                        mm_el_pot_radius=mm_el_pot_radius,&
+                                        para_env=para_env,&
+                                        coarser_grid_level=coarser_grid_level,&
+                                        error=error)
+
     ! RealSpace Interpolation
-    DO Ilevel = SIZE(tmp_grid), auxbas_grid+1, -1
+    DO Ilevel = coarser_grid_level, auxbas_grid+1, -1
        CALL rs_prolongate_NoPBC(tmp_grid(Ilevel  )%rs_grid,&
                                 tmp_grid(Ilevel-1)%rs_grid,&
                                 error)
@@ -586,5 +599,131 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qmmm_elec_with_gaussian_low
+
+!!****f* qmmm_electrostatic_methods/qmmm_elec_with_gaussian_LR [1.0] *
+!!
+!!   NAME
+!!     qmmm_electrostatic_with gaussian_LR
+!!
+!!   FUNCTION
+!!     Compute the QM/MM electrostatic Interaction collocating 
+!!     (1/R - Sum_NG Gaussians) on the coarser grid level.
+!!     Long Range QM/MM Electrostatic Potential with Gaussian - Low Level
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     07.2004 created [tlaino]
+!!
+!!**************************************************************************
+  SUBROUTINE qmmm_elec_with_gaussian_LR(pgfs, grid, mm_charges,&
+       mm_atom_index, mm_particles, mm_el_pot_radius, para_env,&
+       coarser_grid_level, error)
+    IMPLICIT NONE
+    ! Arguments
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                                  :: error
+    TYPE(realspace_grid_type), POINTER             :: grid
+    TYPE(particle_type), DIMENSION(:), POINTER     :: mm_particles
+    REAL(KIND=dbl), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
+    INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
+    TYPE(cp_para_env_type), POINTER       :: para_env
+    TYPE(qmmm_gaussian_p_type), &
+         DIMENSION(:), POINTER                   :: pgfs
+    INTEGER, INTENT(IN) :: coarser_grid_level
+    ! Local Variables
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_LR', &
+         routineP = moduleN//':'//routineN    
+    TYPE(qmmm_gaussian_type), POINTER :: pgf
+    INTEGER :: handle, IRadTyp, IGauss, Imm
+    INTEGER :: IndMM, LIndMM, Ilevel
+    INTEGER :: i, j, k, my_k, my_j, n1, n2, n3, jj
+    INTEGER, DIMENSION(2,3)        :: bo
+    REAL(KIND=dbl), DIMENSION(3)   :: ra
+    REAL(KIND=dbl)               :: W, height, alpha, Gterm
+    REAL(KIND=dbl)               :: qt, rt1, rt2, rt3, r, r0, r2, r0Nexp, r0Nexp1
+    REAL(KIND=dbl)               :: xs1, rv1, xs2, rv2, xs3, rv3, rNexp, rNexp1, dr1, dr2, dr3
+    ! Statements
+    CALL timeset(routineN,"I","",handle)
+
+    n1  = grid%npts(1)
+    n2  = grid%npts(2)
+    n3  = grid%npts(3)
+    dr1 = grid%dr(1) 
+    dr2 = grid%dr(2) 
+    dr3 = grid%dr(3) 
+    bo(1,1) = grid%lb(1)
+    bo(2,1) = grid%ub(1)
+    bo(1,2) = grid%lb(2)
+    bo(2,2) = grid%ub(2)
+    bo(1,3) = grid%lb(3)
+    bo(2,3) = grid%ub(3)
+    Radius: DO IRadTyp = 1, SIZE(pgfs) 
+       pgf => pgfs(IRadTyp)%pgf
+       r0      = pgf%Elp_Radius
+       r0Nexp  = r0**2
+       r0Nexp  = r0Nexp*r0Nexp
+       r0Nexp1 = r0*r0Nexp
+       Atoms: DO Imm = 1, SIZE(pgf%mm_atom_index)
+          LIndMM    =   pgf%mm_atom_index(Imm)
+          IndMM     =   mm_atom_index(LIndMM)
+          ra(:)     =   mm_particles(IndMM)%r
+          qt        =   mm_charges(LIndMM)
+          rt1 = ra(1)
+          rt2 = ra(2)
+          rt3 = ra(3)
+          jj  = 0
+          LoopOnGrid: DO k = bo(1,3), bo(2,3)
+             my_k = (k+n3/2)
+             xs3  = REAL(my_k,dbl)*dr3
+             my_j = bo(1,2)+n2/2
+             jj   = my_k*n1*n2 + my_j*n1
+             xs2 = REAL(my_j,dbl)*dr2
+             rv3 = rt3 - xs3
+             DO j =  bo(1,2), bo(2,2)
+                xs1 = (bo(1,1)+n1/2)*dr1
+                rv2 = rt2 - xs2
+                DO i =  bo(1,1), bo(2,1)
+                   jj=jj+1
+                   rv1 = rt1 - xs1
+                   r2  = rv1*rv1 + rv2*rv2 + rv3*rv3
+                   r   = SQRT(r2)
+                   rNexp  = r**2
+                   rNexp  = rNexp*rNexp
+                   rNexp1 = rNexp*r
+                   Gterm  = 0.0_dbl
+                   Gaussian: DO IGauss = 1, pgf%Number_of_Gaussians
+                      ilevel    = pgf%grid_level(IGauss)
+                      IF (ilevel.EQ.coarser_grid_level) CYCLE Gaussian
+                      alpha  = 1.0_dbl / pgf%Gk(IGauss)
+                      alpha  = alpha * alpha
+                      height = pgf%Ak(IGauss)
+                      W      = qt * height
+                      Gterm  = Gterm + W * EXP(-alpha*r2)
+                   END DO Gaussian
+                   Gterm = Gterm + pgf%A0 * qt
+                   grid%r(i,j,k) = grid%r(i,j,k)    + &
+                                  (-1.0_dbl) * qt * &
+                                  (rNexp - r0Nexp)/(rNexp1 - r0Nexp1) + Gterm
+
+                   xs1 = xs1 + dr1
+                END DO
+                xs2 = xs2 + dr2
+             END DO
+          END DO LoopOnGrid
+       END DO Atoms
+    END DO Radius
+
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE qmmm_elec_with_gaussian_LR
+
 
 End MODULE qmmm_electrostatic_methods

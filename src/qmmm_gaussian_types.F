@@ -68,10 +68,17 @@ MODULE qmmm_gaussian_types
      REAL(KIND=dbl)  :: MaxErr, ChiSq     
   END TYPE Info_Pot_Type
 
+  TYPE LongRange_Type
+     REAL(KIND=dbl), DIMENSION(:), POINTER :: Pot
+     REAL(KIND=dbl)  :: Rmin, Rmax, dx
+     INTEGER         :: npts
+  END TYPE LongRange_Type
+
   TYPE qmmm_gaussian_type
      INTEGER :: number_of_gaussians
      REAL(KIND=dbl)  :: Elp_Radius
      TYPE(Info_Pot_Type)  :: Info
+     TYPE(LongRange_Type) :: LR
      REAL(KIND=dbl)  :: A0 
      REAL(KIND=dbl), DIMENSION(:), POINTER :: Ak, Gk
      INTEGER, DIMENSION(:), pointer :: grid_level
@@ -108,7 +115,8 @@ MODULE qmmm_gaussian_types
 
   PUBLIC  :: qmmm_gaussian_type,&
              qmmm_gaussian_p_type,&
-             Info_Pot_type
+             Info_Pot_type,&
+             LongRange_Type
 
 END MODULE qmmm_gaussian_types
 
