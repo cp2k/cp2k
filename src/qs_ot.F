@@ -645,6 +645,9 @@ SUBROUTINE qs_ot_rot_mat_derivative(qs_ot_env)
     CALL cp_fm_scale_and_add(-1.0_dp,qs_ot_env%matrix_buf1,+1.0_dp,qs_ot_env%matrix_buf2)
     CALL cp_fm_to_fm(qs_ot_env%matrix_buf1,qs_ot_env%rot_mat_gx) 
 
+    CALL cp_cfm_release(cmat_buf1)
+    CALL cp_cfm_release(cmat_buf2)
+
     CALL timestop(0.0_dp,handle)
 CONTAINS 
     FUNCTION cint(e1,e2)
