@@ -433,7 +433,7 @@ CONTAINS
        bo = rho_r(1)%pw%pw_grid%bounds_local
        ntot = PRODUCT ( n )
 
-       CALL xc_derivative_set_create(derivative_set, dft_control%xc_control, ntot, error=error)
+       CALL xc_derivative_set_create(derivative_set, ntot, error=error)
 
        ALLOCATE(rgrid(ntot,nspins),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -672,22 +672,22 @@ CONTAINS
        SELECT CASE (nspins)
        CASE (1)
           if (gradient_f) then
-             CALL xc_calc_derivatives(derivative_set, 1, &
+             CALL xc_calc_derivatives(derivative_set, dft_control%xc_control, 1, &
                   rhoa=rgrid(:,1), drhoa=drgrid(:,1), &
                   error=error)
           else
-             CALL xc_calc_derivatives(derivative_set, 1, &
+             CALL xc_calc_derivatives(derivative_set, dft_control%xc_control, 1, &
                   rgrid(:,1), &
                   error=error)
           end if
        CASE (2)
           if (gradient_f) then
-             CALL xc_calc_derivatives(derivative_set, 1, &
+             CALL xc_calc_derivatives(derivative_set, dft_control%xc_control, 1, &
                   rhoa=rgrid(:,1), drhoa=drgrid(:,1), &
                   rhob=rgrid(:,2), drhob=drgrid(:,2), &
                   error=error)
           else
-             CALL xc_calc_derivatives(derivative_set, 1, &
+             CALL xc_calc_derivatives(derivative_set, dft_control%xc_control, 1, &
                   rhoa=rgrid(:,1), &
                   rhob=rgrid(:,2), &
                   error=error)
@@ -1031,7 +1031,7 @@ CONTAINS
        ntot = PRODUCT ( n )
 
        if (.not.associated(derivative_set)) &
-            call xc_derivative_set_create(derivative_set, dft_control%xc_control, ntot, error=error)
+            call xc_derivative_set_create(derivative_set, ntot, error=error)
 
        ALLOCATE(rgrid(ntot,nspins),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1110,12 +1110,12 @@ CONTAINS
              CALL dscal (ntot, 0.5_dp, rgrid(:,1), 1)
              IF (ANY(xc_control%gradient_functionals)) THEN
                 CALL dscal(ntot, 0.5_dp, drgrid(:,1), 1)
-                CALL xc_calc_derivatives(derivative_set, -2, &
+                CALL xc_calc_derivatives(derivative_set, dft_control%xc_control, -2, &
                                          rhoa=rgrid(:,1), drhoa=drgrid(:,1), &
                                          rhob=rgrid(:,1), drhob=drgrid(:,1), &
                                          error=error)
              ELSE
-                CALL xc_calc_derivatives(derivative_set, -2, &
+                CALL xc_calc_derivatives(derivative_set, dft_control%xc_control, -2, &
                                          rhoa=rgrid(:,1), &
                                          rhob=rgrid(:,1), &
                                          error=error)
@@ -1124,11 +1124,11 @@ CONTAINS
           ELSE
              IF (ANY(xc_control%gradient_functionals)) THEN
                 CALL dscal(ntot, 0.5_dp, drgrid(:,1), 1)
-                CALL xc_calc_derivatives(derivative_set, -2, &
+                CALL xc_calc_derivatives(derivative_set, dft_control%xc_control, -2, &
                                          rhoa=rgrid(:,1), drhoa=drgrid(:,1), &
                                          error=error)
              ELSE
-                CALL xc_calc_derivatives(derivative_set, -2, &
+                CALL xc_calc_derivatives(derivative_set, dft_control%xc_control, -2, &
                                          rhoa=rgrid(:,1), &
                                          error=error)
              END IF
