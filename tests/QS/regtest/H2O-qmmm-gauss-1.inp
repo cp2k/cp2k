@@ -95,16 +95,12 @@ H    -2.090603     1.352766     1.597519    H2O3
 &END
 
 &FORCE_EVAL
-        &DFT
-	   &MGRID
-              &INTERPOLATOR
-		EPS_R 1.0e-14
-		EPS_X 1.0e-14
-                MAXITER 100
-	      &END INTERPOLATOR
-           &END MGRID
-        &END DFT
         &QMMM
+         &INTERPOLATOR
+	    EPS_R 1.0e-14
+	    EPS_X 1.0e-14
+            MAXITER 100
+	 &END INTERPOLATOR
          ECOUPL GAUSS
          NOCENTER
          ABC_QM  6.0 6.0 6.0
