@@ -4,6 +4,46 @@
  FFTLIB       FFTSG
 &END
 
+&CNTL
+ SIMULATION     md
+ UNITS          atomic
+&END
+
+&SETUP
+  molecule            
+    name     Oxygen
+    nummol   1
+  end molecule
+
+  molecule            
+    name     Hydrogen
+    nummol   2
+  end molecule
+
+  cell
+    parameter 10.000  0.000   0.000 &
+              0.000   10.000   0.000 &
+              0.000   0.000    10.000
+  end cell
+&END
+
+&MOLECULES
+
+  Oxygen
+    numat     1
+    atom     O 1 16.00 0.0
+  end Oxygen
+
+  Hydrogen
+    numat     1
+    atom     H 1 1.00 0.0
+  end Hydrogen
+
+&END
+
+&TOPOLOGY
+&END
+
 &DFT
  FUNCTIONAL   Pade
 &END
@@ -37,7 +77,7 @@
 &END
 
 &COORD
- H   0.000000   -0.757136    0.520545
  O   0.000000    0.000000   -0.065587
+ H   0.000000   -0.757136    0.520545
  H   0.000000    0.757136    0.520545
 &END
