@@ -2782,7 +2782,7 @@ CONTAINS
 
   SUBROUTINE get_blacs_matrix_info(matrix,name,nrow_global,ncol_global,&
                                    nrow_block,ncol_block,nrow_local,ncol_local,&
-                                   row_indices,col_indices,context,globenv)
+                                   row_indices,col_indices,globenv)
 
 !   Purpose: Return informations about the specified BLACS matrix.
 !   always allocates the indices vector if present.
@@ -2799,9 +2799,8 @@ CONTAINS
                                                nrow_local,ncol_local
     INTEGER, OPTIONAL, DIMENSION(:), POINTER:: row_indices,col_indices
     TYPE(global_environment_type), INTENT(IN), OPTIONAL :: globenv
-    INTEGER, OPTIONAL, INTENT(IN)           :: context
 
-    INTEGER source,i,nprow,npcol,myprow,mypcol
+    INTEGER source,i,nprow,npcol,myprow,mypcol,context
 #if defined(__parallel)
     INTEGER indxl2g
 #endif
@@ -2814,10 +2813,13 @@ CONTAINS
     IF (PRESENT(nrow_block)) nrow_block = matrix%nrow_block
     IF (PRESENT(ncol_block)) ncol_block = matrix%ncol_block
 
+    IF (present(globenv)) THEN
+        source=globenv%source
+        context=globenv%context
+    ENDIF
+
     IF (present(nrow_local)) THEN
       IF (.not. present(globenv)) CALL stop_program("get_blacs_matrix_info","globenv")
-      IF (.not. present(context)) CALL stop_program("get_blacs_matrix_info","context")
-      source=globenv%source
 #if defined(__parallel)
           CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
           nrow_local = matrix%p(myprow,mypcol)%nrow_local
@@ -2828,8 +2830,6 @@ CONTAINS
 
     IF (present(ncol_local)) THEN
       IF (.not. present(globenv)) CALL stop_program("get_blacs_matrix_info","globenv")
-      IF (.not. present(context)) CALL stop_program("get_blacs_matrix_info","context")
-      source=globenv%source
 #if defined(__parallel)
           CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
           ncol_local = matrix%p(myprow,mypcol)%ncol_local
@@ -2840,8 +2840,6 @@ CONTAINS
 
     IF (present(row_indices)) THEN
        IF (.not. present(globenv)) CALL stop_program("get_blacs_matrix_info","globenv")
-       IF (.not. present(context)) CALL stop_program("get_blacs_matrix_info","context")
-       source=globenv%source
 #if defined(__parallel)
        CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
        allocate(row_indices(matrix%p(myprow,mypcol)%nrow_local))
@@ -2858,8 +2856,6 @@ CONTAINS
 
     IF (present(col_indices)) THEN
        IF (.not. present(globenv)) CALL stop_program("get_blacs_matrix_info","globenv")
-       IF (.not. present(context)) CALL stop_program("get_blacs_matrix_info","context")
-       source=globenv%source
 #if defined(__parallel)
        CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
        allocate(col_indices(matrix%p(myprow,mypcol)%ncol_local))
