@@ -333,6 +333,8 @@ CONTAINS
 
     CALL get_cell(cell=cell,abc=abc)
 
+    ! shouldn't this call something like green function init ?!
+    cell%green%p3m=.FALSE.
     cell%green%special_dimension = 0
     cell%green%radius = 0.0_dp
     cell%green%slab_size = 0.0_dp
