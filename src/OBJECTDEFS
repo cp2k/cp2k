@@ -171,6 +171,7 @@ OBJECTS_GENERIC =\
  mc_misc.o\
  mc_move_control.o\
  mc_moves.o\
+ mc_types.o\
  md.o\
  md_conserved_quantities.o\
  md_energies.o\

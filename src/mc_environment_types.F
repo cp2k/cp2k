@@ -30,7 +30,7 @@ MODULE mc_environment_types
   USE force_env_types,                 ONLY: force_env_release,&
                                              force_env_retain,&
                                              force_env_type
-  USE mc_control,                      ONLY: mc_simulation_parameters_type
+  USE mc_types,                        ONLY: mc_simulation_parameters_type
 
   IMPLICIT NONE
 

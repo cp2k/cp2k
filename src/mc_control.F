@@ -26,8 +26,11 @@ MODULE mc_control
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
   USE mathconstants,                   ONLY: pi
+  USE mc_misc,                         ONLY: mc_make_dat_file
+  USE mc_types,                        ONLY: mc_simulation_parameters_type
   USE parser,                          ONLY: get_next,&
                                              p_error,&
                                              parser_end,&
@@ -45,80 +48,22 @@ MODULE mc_control
   USE simulation_cell,                 ONLY: cell_type
   USE string_utilities,                ONLY: uppercase,&
                                              xstring
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 
   IMPLICIT NONE
 
   PRIVATE 
-  PUBLIC :: read_mc_section, mc_simulation_parameters_type,&
-            write_mc_restart,read_mc_restart,&
-            mc_simulation_parameters_p_type
+! *** Global parameters ***
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "mc_control"
+
+  PUBLIC :: read_mc_section, &
+            write_mc_restart,read_mc_restart
 
 
 !****************************************************************************
-
-  TYPE mc_simulation_parameters_type
-     INTEGER :: nstep
-     INTEGER :: iprint
-     INTEGER :: iupvolume
-     INTEGER :: iuptrans
-     INTEGER :: iblock
-     INTEGER :: nbox
-     INTEGER :: nchain
-     INTEGER :: nunits
-     INTEGER :: nunits_tot
-     INTEGER :: nmolty
-     INTEGER :: nmoves
-     INTEGER :: nvolmoves
-     INTEGER :: crd
-     INTEGER :: ene
-     INTEGER :: rm
-     INTEGER :: cl
-     INTEGER :: diff
-     INTEGER :: data
-     INTEGER :: nstart
-     INTEGER :: source
-     INTEGER :: group
-     LOGICAL :: lclassical
-     LOGICAL :: ionode
-     LOGICAL :: restart
-     CHARACTER ( LEN = 3 ) :: lstop
-     CHARACTER ( LEN = 20 ) :: ensemble
-     CHARACTER ( LEN = 40 ) :: restart_file
-     CHARACTER ( LEN = 40 ) :: molecules_file
-     CHARACTER ( LEN = 40 ) :: moves_file
-     CHARACTER ( LEN = 40 ) :: coords_file
-     CHARACTER ( LEN = 40 ) :: energy_file
-     CHARACTER ( LEN = 40 ) :: displacement_file
-     CHARACTER ( LEN = 40 ) :: cell_file
-     CHARACTER ( LEN = 40 ) :: dat_file
-     CHARACTER ( LEN = 40 ) :: data_file
-     CHARACTER ( LEN = 200 ) :: box2_file
-     CHARACTER ( LEN = 50 ) :: program
-     REAL ( dp ) :: rmvolume
-     REAL ( dp ) :: rmbond
-     REAL ( dp ) :: rmangle
-     REAL ( dp ) :: rmrot
-     REAL ( dp ) :: rmtrans
-     REAL ( dp ) :: temp
-     REAL ( dp ) :: pressure
-     REAL ( dp ) :: pmswap
-     REAL ( dp ) :: pmvolume
-     REAL ( dp ) :: pmtraion
-     REAL ( dp ) :: pmtrans
-     REAL ( dp ) :: BETA
-     REAL ( dp ) :: epsilon
-     REAL ( dp ) :: sigma
-     REAL ( dp ) :: charge
-  END TYPE mc_simulation_parameters_type
-
-  TYPE mc_simulation_parameters_p_type
-      TYPE (mc_simulation_parameters_type),POINTER :: mc_par
-  END TYPE mc_simulation_parameters_p_type
-
-!!***
-!******************************************************************************
 
 CONTAINS
 
@@ -359,7 +304,7 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
      WRITE ( iw, '( A,T44,A )' ) ' MC| Name of output data file:',&
                    TRIM(mc_par % data_file)
      WRITE ( iw, '( A,T44,A )' ) ' MC| Name of output molecules file:',&
-                   TRIM(mc_par % molecules_file)
+                   TRIM(mc_par %molecules_file)
      WRITE ( iw, '( A,T44,A )' ) ' MC| Name of output moves file:',&
                    TRIM(mc_par % moves_file)
      WRITE ( iw, '( A,T44,A )' ) ' MC| Name of output energy file:',&
@@ -499,9 +444,13 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, force_env )
 
   WRITE(unit,'(F10.6)') cell%hmat(1,1)*angstrom  ! in angstroms
   WRITE(unit,*)
-  DO ipart=1,mc_par%nunits_tot
-      WRITE(unit,'(1X,3(F15.10,3X))') &
-                 particles%els(ipart)%r(1:3)*angstrom
+  DO ipart=1,mc_par%nunits_tot,mc_par%nunits
+      WRITE(unit,'(1X,A,1X,3(F15.10,3X),A)') &
+                 'O ',particles%els(ipart)%r(1:3)*angstrom,' H2O'
+      WRITE(unit,'(1X,A,1X,3(F15.10,3X),A)') &
+                 'H ',particles%els(ipart+1)%r(1:3)*angstrom,' H2O'
+      WRITE(unit,'(1X,A,1X,3(F15.10,3X),A)') &
+                 'H ',particles%els(ipart+2)%r(1:3)*angstrom,' H2O'
   ENDDO
   CLOSE(unit)
 
@@ -547,11 +496,11 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
 
     CHARACTER(LEN=*), PARAMETER          :: routineN = "read_mc_restart"
 
-    CHARACTER(LEN=20)                        :: ensemble
+    CHARACTER(LEN=20)                        :: ensemble,chardum
     INTEGER                              :: handle, ipart, nunits_tot,&
-                                                unit
+                                                unit,istat
     REAL(KIND=dp)                            :: box_length, temp
-    REAL(KIND=dp), DIMENSION(1:3)            :: r
+    REAL(KIND=dp), DIMENSION(:,:),ALLOCATABLE       :: r
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type)                      :: error
     TYPE(cp_subsystem_p_type), &
@@ -560,65 +509,87 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
-  CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,'I','',handle)
 
 ! open the file and read some simulation parameters
-  CALL open_file(file_name=mc_par%restart_file,unit_number=unit,&
-                 file_action='READ',file_status='OLD')
+      CALL open_file(file_name=mc_par%restart_file,unit_number=unit,&
+         file_action='READ',file_status='OLD')
 
-  READ(unit,*) mc_par%nstart
-  READ(unit,*) temp,nunits_tot
-  READ(unit,*) ensemble
+      READ(unit,*) mc_par%nstart
+      READ(unit,*) temp,nunits_tot
+      READ(unit,*) ensemble
+
+! allocate the array holding the coordiantes
+      ALLOCATE (r(3,nunits_tot),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+         "r",3*nunits_tot*dp_size)
 
 ! do some checking
-  IF(ABS(temp - mc_par%temp) .GT. 0.01d0) THEN
-      WRITE(iw,*) 'The temperature in the restart file is ',&
-            'not the same as the input file.'
-      WRITE(iw,*) 'Input file temp =',mc_par%temp
-      WRITE(iw,*) 'Restart file temp =',temp
-      STOP
-  ENDIF
-  IF(nunits_tot .NE. mc_par%nunits_tot) THEN
-      WRITE(iw,*) 'The total number of units in the restart file is ',&
-            'not the same as the input file.'
-      WRITE(iw,*) 'Input file units =',mc_par%nunits_tot
-      WRITE(iw,*) 'Restart file units =',nunits_tot
-      STOP
-  ENDIF
-  IF(ensemble .NE. mc_par%ensemble) THEN
-      WRITE(iw,*) 'The ensemble in the restart file is ',&
-            'not the same as the input file.'
-      WRITE(iw,*) 'Input file ensemble =',mc_par%ensemble
-      WRITE(iw,*) 'Restart file ensemble =',ensemble
-      STOP
-  ENDIF
+      IF(ABS(temp - mc_par%temp) .GT. 0.01d0) THEN
+         IF(mc_par%ionode) THEN
+            WRITE(iw,*) 'The temperature in the restart file is ',&
+               'not the same as the input file.'
+            WRITE(iw,*) 'Input file temp =',mc_par%temp
+            WRITE(iw,*) 'Restart file temp =',temp
+         ENDIF
+         STOP
+      ENDIF
+      IF(nunits_tot .NE. mc_par%nunits_tot) THEN
+         IF(mc_par%ionode) THEN
+            WRITE(iw,*) 'The total number of units in the restart ',&
+            'file is not the same as the input file.'
+            WRITE(iw,*) 'Input file units =',mc_par%nunits_tot
+            WRITE(iw,*) 'Restart file units =',nunits_tot
+         ENDIF
+         mc_par%nunits_tot=nunits_tot
+         mc_par%nchain=mc_par%nunits_tot/mc_par%nunits
+!     STOP
+      ENDIF
+      IF(ensemble .NE. mc_par%ensemble) THEN
+         IF(mc_par%ionode) THEN
+            WRITE(iw,*) 'The ensemble in the restart file is ',&
+               'not the same as the input file.'
+            WRITE(iw,*) 'Input file ensemble =',mc_par%ensemble
+            WRITE(iw,*) 'Restart file ensemble =',ensemble
+         ENDIF
+         STOP
+      ENDIF
 
 ! get the cell length and coordinates
-  CALL force_env_get(force_env,cell=cell,subsys=subsys,&
-                         error=error) 
-  CALL cp_subsys_get(subsys(1)%subsys, &
-             particles=particles, error=error)
+      CALL force_env_get(force_env,cell=cell,subsys=subsys,&
+         error=error) 
+      CALL cp_subsys_get(subsys(1)%subsys, &
+         particles=particles, error=error)
 
-  READ(unit,*)  box_length ! in angstroms
-  IF(ABS(box_length - cell%hmat(1,1)*angstrom) .GT. 0.0001d0 ) THEN
-      WRITE(iw,*) 'The cell length in the restart file is ',&
-            'not the same as the input file.  Change the restart file.'
-      WRITE(iw,*) 'Input file cell length =',cell%hmat(1,1)*angstrom
-      WRITE(iw,*) 'Restart file cell length =',box_length
-      STOP
-  ENDIF
-
-  READ(unit,*)
+      READ(unit,*)  box_length  ! in angstroms
+      IF(ABS(box_length - cell%hmat(1,1)*angstrom) .GT. 0.0001d0 ) THEN
+         IF (mc_par%ionode) THEN
+            WRITE(iw,*) 'The cell length in the restart file is ',&
+               'not the same as the input file.'
+            WRITE(iw,*) 'Input file cell length =',cell%hmat(1,1)*angstrom
+            WRITE(iw,*) 'Restart file cell length =',box_length
+         ENDIF
+!     STOP
+      ENDIF
+      
+      READ(unit,*)
 ! read in the particle coordinates
-  DO ipart=1,mc_par%nunits_tot
-      READ(unit,*) r(1:3)
-      particles%els(ipart)%r(1:3)=r(1:3)/angstrom
-  ENDDO
-  CLOSE(unit)
+      DO ipart=1,mc_par%nunits_tot
+         READ(unit,*) chardum,r(1:3,ipart),chardum
+         r(1:3,ipart)=r(1:3,ipart)/angstrom
+      ENDDO
+      CLOSE(unit)
+      
+! write the dat file so we can make a new force_env
+      IF(mc_par%ionode) &
+         CALL mc_make_dat_file(r(:,:),mc_par%nunits_tot,&
+         box_length,mc_par%dat_file)
 
 ! end the timing
-  CALL timestop(0.0d0,handle)
+      CALL timestop(0.0d0,handle)
 
+! deallcoate
+      DEALLOCATE(r)
 
 END SUBROUTINE read_mc_restart
 

@@ -24,8 +24,9 @@ MODULE mc_misc
   USE kinds,                           ONLY: dbl,&
                                              dp
   USE mathconstants,                   ONLY: pi
-  USE mc_control,                      ONLY: mc_simulation_parameters_type
-  USE mc_move_control,                 ONLY: mc_moves_type
+  USE mc_types,                        ONLY: mc_simulation_parameters_type,&
+                                             mc_moves_type,&
+                                             mc_averages_type
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: angstrom,&
                                              n_avogadro
@@ -40,23 +41,10 @@ MODULE mc_misc
 
   PRIVATE :: nonbonded_energy
   PUBLIC :: get_water_data,final_mc_write,mc_classical_energy,&
-            mc_averages_type,mc_averages_p_type,init_mc_averages,&
+            init_mc_averages,&
             get_center_of_mass,mc_make_dat_file,mc_coordinate_fold
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "mc_misc"
-
-  TYPE mc_averages_type
-      REAL(KIND = dp) :: ave_energy
-      REAL(KIND = dp) :: ave_energy_squared
-      REAL(KIND = dp) :: ave_cell_length
-      REAL(KIND = dp) :: bond1
-      REAL(KIND = dp) :: bond2
-      REAL(KIND = dp) :: angle
-      REAL(KIND = dp) :: molecules
-  END TYPE mc_averages_type
-  TYPE mc_averages_p_type
-      TYPE (mc_averages_type),POINTER :: averages
-  END TYPE mc_averages_p_type
 
 !******************************************************************************
 
@@ -310,17 +298,19 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
                    averages%bond2*angstrom
     WRITE(iw,'(A,T66,F15.8)') " Average H-O-H angle [degrees]:",&
                    averages%angle
-    IF (mc_par%pmswap .GT. 0.0D0) &
-      WRITE(iw,'(A,T66,F15.8)') " Average number of molecules:",&
+    IF (mc_par%pmswap .GT. 0.0D0) THEN
+       WRITE(iw,'(A,T66,F15.8)') " Average number of molecules:",&
                    averages%molecules
-    IF (averages%ave_cell_length .NE. 0.0d0) THEN
-       WRITE(iw,'(A,A,T68,F13.10)') " Average Density ",&
+    ELSE
+       averages%molecules=mc_par%nchain
+    ENDIF
+    WRITE(iw,'(A,A,T68,F13.10)') " Average Density ",&
                "[g/cm^3]:",1.0d0/(averages%ave_cell_length)**3&
                       *mc_par%nchain/&
                       (angstrom)**3*(1.0d8)**3/n_avogadro*18.0184d0
-       WRITE(iw,'(A,A,T67,F14.10)') " Average Cell Length ",&
+    WRITE(iw,'(A,A,T67,F14.10)') " Average Cell Length ",&
                "[angstroms]:",averages%ave_cell_length*angstrom
-    ENDIF
+
     WRITE(iw,*)
 
 ! write out acceptance rates for the moves
@@ -545,6 +535,27 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
                    '------------------------------------'
        ENDIF
 
+! now volume moves
+       IF (moves%volume%attempts .GT. 0 .AND. mc_par%nvolmoves .GT. 1)&
+             THEN
+          moves%classical_volume%attempts=&
+             moves%classical_volume%attempts
+          moves%classical_volume%successes=&
+             moves%classical_volume%successes
+          WRITE(iw,'(A,T43,A)') " Volume Changes",&
+            "Attempted       Accepted       Percent"
+          WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+            moves%classical_volume%attempts,&
+            moves%classical_volume%successes,&
+            real(moves%classical_volume%successes,dbl)/ &
+            real(moves%classical_volume%attempts,dbl)*100.0d0
+          WRITE(iw,'(A,T71,F10.5)') &
+           ' Maximum Volume displacement [angstroms^3] = ',&
+                     mc_par%rmvolume*(angstrom)**3
+          WRITE(iw,*) '-------------------------------------------',&
+                   '------------------------------------'
+       ENDIF
+
     ENDIF
 
 
@@ -606,11 +617,12 @@ END SUBROUTINE final_mc_write
 !!
 !!*****************************************************************************
 SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
-                                 mc_par, nstart, nend ,rcut)
+                                 mc_par, nstart, nend ,rrcut,cell_length)
 
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), INTENT(OUT)               :: classical_energy_new
-    REAL(KIND=dp), INTENT(IN)               :: rcut
+    REAL(KIND=dp), INTENT(IN)               :: rrcut    
+    REAL(KIND=dp), INTENT(IN),OPTIONAL         :: cell_length
     INTEGER, INTENT(IN)               :: nstart,nend
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
@@ -623,7 +635,7 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
     REAL(KIND=dp) :: box_length, charge_energy, dist, &
               LJ_energy, unit_energy,&
               stretch_energy,bend_energy,mag_HH,kstretch,OH_bond1,&
-              OH_bond2
+              OH_bond2,rcut,rijx,rijy,rijz
     REAL(KIND=dp), DIMENSION(1:3)            :: charges, min_IJ, RIJ,&
                                  kbend,HH,OH1,OH2
     TYPE(cp_subsystem_p_type), &
@@ -658,26 +670,28 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
       CALL cp_subsys_get(oldsys(1)%subsys, &
             particles=particles, error=error)
 
-      box_length=cell%hmat(1,1)
+      IF( PRESENT(cell_length)) THEN
+         box_length=cell_length
+      ELSE
+         box_length=cell%hmat(1,1)
+      ENDIF
 
-!      IF (box_length .GT. 15.6d0/angstrom) THEN
-!         rcut=7.8d0/angstrom    ! always the same for this potential
-!      ELSE
-!         rcut=box_length/2.0d0
-!      ENDIF
-
-!      rcut=7.8d0/angstrom ! we're now using multiple images
+!!!!!!!!!!
+      rcut=rrcut
+      rcut=7.8d0/angstrom
+!!!!!!!!!!
 
 ! put the coordinates into an easier matrix to manipulate
       DO imol=1,mc_par%nchain
          r(1:3,1,imol)=particles%els(imol*3-2)%r(1:3)
          r(1:3,2,imol)=particles%els(imol*3-1)%r(1:3)
          r(1:3,3,imol)=particles%els(imol*3)%r(1:3)
-!         if(mc_par%ionode) WRITE(6,*) 'One ',r(1:3,1,imol)*angstrom
-!         if(mc_par%ionode) WRITE(6,*) 'Two ',r(1:3,2,imol)*angstrom
-!         if(mc_par%ionode) WRITE(6,*) 'Three ',r(1:3,3,imol)*angstrom
+!         if(mc_par%ionode) WRITE(16,*) 'One ',r(1:3,1,imol)*angstrom
+!         if(mc_par%ionode) WRITE(16,*) 'Two ',r(1:3,2,imol)*angstrom
+!         if(mc_par%ionode) WRITE(16,*) 'Three ',r(1:3,3,imol)*angstrom
       ENDDO
 
+!      if(mc_par%ionode) WRITE(16,*) rcut,box_length
 ! we need to calculate the energy of this configuration
 ! first, let's calculate intramolecular (bending and stretching)
       DO imol=nstart,nend
@@ -721,11 +735,6 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
          DO jmol=jstart,mc_par%nchain
             IF(imol == jmol) CYCLE
 
-! now let's triple loop over all the boxes touching the simulation box
-!            DO m=-1,1
-!                DO n=-1,1
-!                  DO o=-1,1
-
 ! find the minimum image distance between oxygens
             RIJ(1)=r(1,1,imol)-r(1,1,jmol)-box_length*ANINT(&
                (r(1,1,imol)-r(1,1,jmol))/box_length)
@@ -733,20 +742,19 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
                (r(2,1,imol)-r(2,1,jmol))/box_length)
             RIJ(3)=r(3,1,imol)-r(3,1,jmol)-box_length*ANINT(&
                (r(3,1,imol)-r(3,1,jmol))/box_length)
-!            RIJ(1)=r(1,1,imol)-r(1,1,jmol)-box_length*m
-!            RIJ(2)=r(2,1,imol)-r(2,1,jmol)-box_length*n
-!            RIJ(3)=r(3,1,imol)-r(3,1,jmol)-box_length*o
             
             dist=DSQRT(DOT_PRODUCT(RIJ,RIJ))
 
             IF (dist < rcut ) THEN
-!               ipart=1
-!               jpart=1
                lcalc_charge = .true.
                CALL nonbonded_energy(dist,unit_energy,1)
                LJ_energy=LJ_energy+unit_energy               
                charge_energy=charge_energy+charges(1)&
                    *charges(1)/(dist) 
+!                    WRITE(14,*) r(1,1,imol)*angstrom,r(1,1,jmol)*angstrom
+!                    WRITE(14,*) r(2,1,imol)*angstrom,r(2,1,jmol)*angstrom
+!                    WRITE(14,*) r(3,1,imol)*angstrom,r(3,1,jmol)*angstrom
+ !           WRITE(14,*) dist
             ELSE
                lcalc_charge=.false.
             ENDIF
@@ -756,21 +764,27 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
                   IF (ipart == 1 .AND. jpart == 1) CYCLE
 
 ! find the minimum image distance
-                  RIJ(1)=r(1,ipart,imol)-r(1,jpart,jmol)-box_length&
-                    *ANINT((r(1,ipart,imol)-r(1,jpart,jmol))/box_length)
-                  RIJ(2)=r(2,ipart,imol)-r(2,jpart,jmol)-box_length&
-                    *ANINT((r(2,ipart,imol)-r(2,jpart,jmol))/box_length)
-                  RIJ(3)=r(3,ipart,imol)-r(3,jpart,jmol)-box_length&
-                    *ANINT((r(3,ipart,imol)-r(3,jpart,jmol))/box_length)
-!                  RIJ(1)=r(1,ipart,imol)-r(1,jpart,jmol)-box_length*m
-!                  RIJ(2)=r(2,ipart,imol)-r(2,jpart,jmol)-box_length*n
-!                  RIJ(3)=r(3,ipart,imol)-r(3,jpart,jmol)-box_length*o                  
+                  rijx=r(1,ipart,imol)-r(1,jpart,jmol)
+                  rijy=r(2,ipart,imol)-r(2,jpart,jmol)
+                  rijz=r(3,ipart,imol)-r(3,jpart,jmol)
+                  RIJ(1)=rijx - box_length*DINT(rijx/box_length+&
+                     DSIGN(0.5D0,rijx))
+                  RIJ(2)=rijy - box_length*DINT(rijy/box_length+&
+                     DSIGN(0.5D0,rijy))
+                  RIJ(3)=rijz - box_length*DINT(rijz/box_length+&
+                     DSIGN(0.5D0,rijz))
+
                   dist=DSQRT(DOT_PRODUCT(RIJ,RIJ))
 
 ! LJ energy
                   IF ( dist < rcut ) THEN
                      ntij=(ipart-1)*10 + jpart
                      CALL nonbonded_energy(dist,unit_energy,ntij)
+
+!                    WRITE(14,*) r(1,ipart,imol)*angstrom,r(1,jpart,jmol)*angstrom
+!                    WRITE(14,*) r(2,ipart,imol)*angstrom,r(2,jpart,jmol)*angstrom
+!                    WRITE(14,*) r(3,ipart,imol)*angstrom,r(3,jpart,jmol)*angstrom
+!            WRITE(14,*) dist
                      LJ_energy=LJ_energy+unit_energy
                   ENDIF
 
@@ -782,24 +796,18 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 
                ENDDO
             ENDDO
- !        ENDDO
- !     ENDDO
- !     ENDDO
          ENDDO
       ENDDO
 
 ! sum up the total energy
       classical_energy_new=bend_energy+&
                 stretch_energy+LJ_energy+charge_energy
-                
-!      WRITE(mc_par%diff,*) 'bending',bend_energy,classical_energy_new 
 !      classical_energy_new=LJ_energy+charge_energy
-!      IF (nstart == 12) THEN
+ 
 !      if(mc_par%ionode) WRITE(6,*) 'enegies =',classical_energy_new/3.16682968D-6,LJ_energy/3.16682968D-6,&
 !                 charge_energy/3.16682968D-6,bend_energy/3.16682968D-6,&
 !                 stretch_energy/3.16682968D-6
-!      STOP
-!      ENDIF
+
 ! scale the total energy to get classical vs. Quickstep energy diffs closer
 !      classical_energy_new=classical_energy_new*1.5d0
 
@@ -862,24 +870,24 @@ SUBROUTINE nonbonded_energy(dist,ljfake,ntij)
       IF (index == 0) WRITE(6,*) 'index =',index
 
 ! --- these pshift make the potential zero at 7.8 angstroms
-!      pshift(1)=0.127827d0 ! Hartree
-!      pshift(2)=2.22408d0
-!      pshift(3)=0.256530d0
+      pshift(1)=0.127827d0 ! Hartree
+      pshift(2)=2.22408d0
+      pshift(3)=0.256530d0
 ! --- these make it zero at 6.211 angstroms
-      pshift(1)=0.128426d0 ! Hartree
-      pshift(2)=2.223850d0
-      pshift(3)=0.256652d0
+!      pshift(1)=0.128426d0 ! Hartree
+!      pshift(2)=2.223850d0
+!      pshift(3)=0.256652d0
       m(1) = 0.0d0   ! Hartree/a.u.
       m(2) = -0.00437054d0
       m(3) = 0.00377391d0
 ! --- these b make the potential zero at 7.8 angstroms
-!      b(1) = 1.0d23 ! Hartree
-!      b(2) = 0.0313652d0
-!      b(3) = -0.0206204d0
-! --- these b make the potential zero at 6.211 angstroms
       b(1) = 1.0d23 ! Hartree
-      b(2) = 0.0311350d0
-      b(3) = -0.0204983d0
+      b(2) = 0.0313652d0
+      b(3) = -0.0206204d0
+! --- these b make the potential zero at 6.211 angstroms
+!      b(1) = 1.0d23 ! Hartree
+!      b(2) = 0.0311350d0
+!      b(3) = -0.0204983d0
       r_core(1)=0.9d0 ! a.u.
       r_core(2)=2.95d0
       r_core(3)=3.165d0
@@ -1006,30 +1014,30 @@ SUBROUTINE get_center_of_mass ( coordinates,natom,center_of_mass,&
 END SUBROUTINE get_center_of_mass
 
 !******************************************************************************
-!!****s* mc_misc.F/get_center_of_mass
+!!****s* mc_misc.F/mc_make_dat_file
 !!
 !!   NAME
-!!     get_center_of_mass
+!!     mc_make_dat_file
 !!
 !!   SYNOPSIS
-!!     Subroutine get_center_of_mass (coordinates,natom,center_of_mass,mass)
-!!           Real(Kind=dp), Dimension(1:3),Intent(OUT)
-!!                                                 :: center_of_mass
+!!     Subroutine mc_make_dat_file(coordinates,natoms,box_length,filename)
+!!           Character(Len=*),Intent(IN)           :: filename
 !!           Real(Kind=dp), Dimension(:,:),Intent(IN)
 !!                                                 :: coordinates
 !!           Real(Kind=dp), Dimension(:),Intent(IN)
-!!                                                 :: mass
-!!           Integer, Intent(IN)                   :: natom
-!!     End Subroutine get_center_of_mass
+!!                                                 :: box_length
+!!           Integer, Intent(IN)                   :: natoms
+!!     End Subroutine mc_make_dat_file
 !!
 !!   FUNCTION
-!!     calculates the center of mass of a given molecule
+!!     writes a new input file that CP2K can read in for when we want
+!!     to change a force env (change molecules or cell length)
 !!
 !!   ARGUMENTS
-!!     - natom: the total number of atoms
-!!     - coordinates: the coordiantes of the atoms in the molecule
-!!     - mass: the mass of the atoms in the molecule
-!!     - center_of_mass: the coordinates of the center of mass
+!!     - natoms: the total number of atoms
+!!     - coordinates: the coordiantes of the atoms in the force_env (a.u.)
+!!     - box_length: the length of the simulation box (angstrom)
+!!     - filename: the name of the file to write to
 !!
 !!   AUTHOR
 !!     MJM
@@ -1076,6 +1084,10 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
       WRITE(unit,*) ' XC_DERIV      SPLINE2_smooth'
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
+!      WRITE(unit,*) "&TOPOLOGY"
+!      WRITE(unit,*) ' BONDPARM COVALENT   1.6'
+!      WRITE(unit,*) "&END"
+!      WRITE(unit,*) 
       WRITE(unit,*) "&QS"
       WRITE(unit,*) ' CUTOFF       280'
       WRITE(unit,*) "&END"
@@ -1096,17 +1108,17 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
       WRITE(unit,*) 
       WRITE(unit,*) "&CELL"
       WRITE(unit,*) ' UNIT         ANGSTROM'
-      WRITE(unit,'(A,3(F7.3,2X))') ' ABC          ',&
+      WRITE(unit,'(A,3(F12.8,2X))') ' ABC          ',&
          box_length,box_length,box_length
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
       WRITE(unit,*) "&COORD"
       DO iatom=1,natoms,3
-         WRITE(unit,'(A,3(F22.15,2X),A)') ' O  ',&
+         WRITE(unit,'(A,3(F24.18,2X),A)') ' O  ',&
             coordinates(1:3,iatom)*angstrom,'  H2O'
-         WRITE(unit,'(A,3(F22.15,2X),A)') ' H  ',&
+         WRITE(unit,'(A,3(F24.18,2X),A)') ' H  ',&
             coordinates(1:3,iatom+1)*angstrom,'  H2O'
-         WRITE(unit,'(A,3(F22.15,2X),A)') ' H  ',&
+         WRITE(unit,'(A,3(F24.18,2X),A)') ' H  ',&
             coordinates(1:3,iatom+2)*angstrom,'  H2O'
       ENDDO
       WRITE(unit,*) "&END"
@@ -1121,30 +1133,28 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
 END SUBROUTINE mc_make_dat_file
 
 !******************************************************************************
-!!****s* mc_misc.F/get_center_of_mass
+!!****s* mc_misc.F/mc_coordinate_fold
 !!
 !!   NAME
-!!     get_center_of_mass
+!!     mc_coordinate_fold
 !!
 !!   SYNOPSIS
-!!     Subroutine get_center_of_mass (coordinates,natom,center_of_mass,mass)
-!!           Real(Kind=dp), Dimension(1:3),Intent(OUT)
-!!                                                 :: center_of_mass
-!!           Real(Kind=dp), Dimension(:,:),Intent(IN)
+!!     Subroutine mc_coordinate_fold(coordinates,natoms,box_length)
+!!           Real(Kind=dp), Dimension(:,:),Intent(INOUT)
 !!                                                 :: coordinates
-!!           Real(Kind=dp), Dimension(:),Intent(IN)
-!!                                                 :: mass
-!!           Integer, Intent(IN)                   :: natom
-!!     End Subroutine get_center_of_mass
+!!           Real(Kind=dp),Intent(IN)
+!!                                                 :: box_length
+!!           Integer, Intent(IN)                   :: natoms
+!!     End Subroutine mc_coordinate_fold
 !!
 !!   FUNCTION
-!!     calculates the center of mass of a given molecule
+!!     folds all the coordinates into the center simulation box using
+!!     a center of mass cutoff
 !!
 !!   ARGUMENTS
-!!     - natom: the total number of atoms
-!!     - coordinates: the coordiantes of the atoms in the molecule
-!!     - mass: the mass of the atoms in the molecule
-!!     - center_of_mass: the coordinates of the center of mass
+!!     - natoms: the total number of atoms
+!!     - coordinates: the coordiantes of the atoms in the system
+!!     - box_length: the length of the simulation box
 !!
 !!   AUTHOR
 !!     MJM

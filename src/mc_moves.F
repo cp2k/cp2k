@@ -38,13 +38,15 @@ MODULE mc_moves
   USE kinds,                           ONLY: dbl,&
                                              dp
   USE mathconstants,                   ONLY: pi
-  USE mc_control,                      ONLY: mc_simulation_parameters_type
-  USE mc_misc,                         ONLY: mc_averages_type,&
-                                             mc_classical_energy
+  USE mc_misc,                         ONLY: mc_classical_energy,&
+                                             mc_coordinate_fold,&
+                                             get_center_of_mass,&
+                                             mc_make_dat_file
   USE mc_move_control,                 ONLY: mc_move_update,&
-                                             mc_moves_type,&
                                              move_q_reinit,&
                                              q_move_accept
+  USE mc_types,                        ONLY: mc_moves_type,&
+                                             mc_simulation_parameters_type
   USE message_passing,                 ONLY: mp_bcast
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: angstrom
@@ -77,7 +79,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine mc_Quickstep_move(mc_par,force_env,moves,move_updates,
 !!                                  energy_check,r_old,nnstep,old_energy,
-!!                                  averages,error)
+!!                                  error)
 !!           Type(mc_simulation_parameters_type),Pointer
 !!                                                 :: mc_par
 !!           Type(force_env_type), Pointer         :: force_env
@@ -87,7 +89,6 @@ CONTAINS
 !!                Intent(INOUT)                    :: r_old
 !!           Integer,Intent(IN)                    :: nnstep
 !!           Real(Kind=dp), Intent(INOUT)          :: old_energy
-!!           Type(mc_averages_type), Pointer       :: averages
 !!           Type(cp_error_type), Intent(INOUT),Optional
 !!                                                 :: error
 !!     End Subroutine mc_Quickstep_move
@@ -112,8 +113,6 @@ CONTAINS
 !!     - nnstep: how many times the energy averages have been taken
 !!     - old_energy: the energy of the last accepted move involving a
 !!                   Quickstep calculation
-!!     - averages: the structure that keeps track of the running averages
-!!                 in the system
 !!
 !!   AUTHOR
 !!     MJM
@@ -122,7 +121,7 @@ CONTAINS
 
   SUBROUTINE mc_Quickstep_move (mc_par,force_env,moves,&
                         move_updates,energy_check,r_old,&
-                        nnstep,old_energy,averages,&
+                        nnstep,old_energy,&
                         error)
 
 !   ***************************************************************************
@@ -137,13 +136,12 @@ CONTAINS
       INTENT(INOUT)                          :: r_old
     INTEGER, INTENT(IN)                      :: nnstep
     REAL(KIND=dp), INTENT(INOUT)             :: old_energy
-    TYPE(mc_averages_type), POINTER          :: averages
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER        :: routineN = "mc_Quickstep_move"
 
-    INTEGER                                  :: handle,iparticle, istep
+    INTEGER                                  :: handle,iparticle
     REAL(KIND=dp)                            :: classical_energy_new, &
                                                 classical_energy_old, &
                                                 new_energy, rand, w
@@ -161,8 +159,6 @@ CONTAINS
 
 ! in serial
       IF (mc_par%ionode) THEN
-! create a new variable to keep averages correct
-         istep=nnstep-mc_par%nstart
 
 ! record the attempt
          moves%Quickstep%attempts=moves%Quickstep%attempts+1
@@ -195,7 +191,9 @@ CONTAINS
 !            WRITE(mc_par%diff,*) nnstep,new_energy,old_energy,&
 !                classical_energy_new,classical_energy_old,mc_par%BETA
                  
+!!!!!!!!!!!!!!!!!!!!!!!
 !            w=0.0D0
+!!!!!!!!!!!!!!!!!!!!!!!
          ELSE
             w=dexp(-mc_par%BETA*(new_energy-old_energy))
          ENDIF
@@ -213,7 +211,7 @@ CONTAINS
 ! broadcast these numbers, to make sure we're on the same page
       CALL mp_bcast(rand,mc_par%source,mc_par%group)      
       CALL mp_bcast(w,mc_par%source,mc_par%group)      
-!      WRITE(6,*) nnstep,w,rand,'dkjfls'
+
       IF (rand .lt. w) THEN
 
 ! go back to serial
@@ -232,15 +230,6 @@ CONTAINS
 ! update energies
             energy_check=energy_check+(new_energy-old_energy)
             old_energy=new_energy
-            averages%ave_energy=averages%ave_energy*&
-                     REAL(istep-1,dbl)&
-                     /REAL(istep,dbl)+old_energy/&
-                     REAL(istep,dbl)
-! and heat capacity
-            averages%ave_energy_squared=averages%ave_energy_squared*&
-               REAL(istep-1,dbl)/&
-               REAL(istep,dbl)+old_energy**2/&
-               REAL(istep,dbl)
 
 ! update coordinates
             DO iparticle=1,mc_par%nunits_tot
@@ -261,17 +250,6 @@ CONTAINS
  ! reject the move
             CALL move_q_reinit(moves)
             CALL move_q_reinit(move_updates)
-
-            averages%ave_energy=averages%ave_energy*&
-               REAL(istep-1,dbl)/&
-               REAL(istep,dbl)+old_energy/&
-               REAL(istep,dbl)
-
-! and heat capacity
-            averages%ave_energy_squared=averages%ave_energy_squared*&
-               REAL(istep-1,dbl)/&
-               REAL(istep,dbl)+old_energy**2&
-               /REAL(istep,dbl)
 
 ! back to parallel
          ENDIF
@@ -615,10 +593,8 @@ CONTAINS
       ENDIF
 
 ! do the move
-!      WRITE(6,*) 'mol =',mol
+
       DO iparticle=mol,mol+2
-!         particles%els(iparticle)%r(i)=&
-!             r(mol,iparticle)+dis_mol
          particles%els(iparticle)%r(i)=&
              particles%els(iparticle)%r(i)+dis_mol
       ENDDO
@@ -669,7 +645,6 @@ CONTAINS
 
       ENDIF
 
-!      WRITE(1600,*) classical_energy/3.16682968D-6
 
 ! end the timing
   CALL timestop(0.0d0,handle)
@@ -905,15 +880,9 @@ CONTAINS
 ! accept the move
             moves%rot%qsuccesses=moves%rot%qsuccesses+1
             move_updates%rot%successes=move_updates%rot%successes+1
-!            WRITE(6,*) classical_energy/3.16682968D-6,classical_energy_new/3.16682968D-6,&
-!               classical_energy_old/3.16682968D-6
             classical_energy=classical_energy+classical_energy_new-&
                                  classical_energy_old
-!            classical_energy=classical_energy_new
-!            IF (classical_energy_new/3.16682968D-6 .GT. 100000.0d0) &
-!               WRITE(1000,*) 'accept ',classical_energy/3.16682968D-6,&
-!                 classical_energy_new/3.16682968D-6,&
-!                 classical_energy_old/3.16682968D-6,imol
+
          ELSE
 
 ! reject the move
@@ -925,14 +894,10 @@ CONTAINS
                particles%els(ipart)%r(1:3)=r(1:3,ipart)
             ENDDO
             CALL cp_subsys_set(subsys(1)%subsys,particles=particles)
-!            WRITE(1000,*) 'reject ',classical_energy/3.16682968D-6,&
-!                 classical_energy_new/3.16682968D-6,&
-!                 classical_energy_old/3.16682968D-6,imol
+
          ENDIF
 
       ENDIF
-
-!      WRITE(1600,*) classical_energy/3.16682968D-6
 
 ! end the timing
   CALL timestop(0.0d0,handle)
@@ -947,7 +912,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine mc_volume_move ( mc_par,force_env, moves,move_updates,nnstep,
-!!                                 averages,old_energy,
+!!                                 old_energy,
 !!                                 globenv,energy_check,r_old,error)
 !!           Type(mc_simulation_parameters_type),Pointer
 !!                                                 :: mc_par
@@ -964,7 +929,6 @@ CONTAINS
 !!           Real(Kind=dp),Dimension(1:3, 1:mc_par%nunits_tot),
 !!                Intent(INOUT)                    :: r_old
 !!           Real(Kind=dp), Intent(INOUT)          :: old_energy
-!!           Type(mc_averages_type), Pointer       :: averages
 !!     End Subroutine mc_volume_move
 !!
 !!   FUNCTION
@@ -989,8 +953,6 @@ CONTAINS
 !!              Quickstep calculation
 !!     - old_energy: the energy of the last accepted move involving a
 !!                   Quickstep calculation
-!!     - averages: the structure that keeps track of the running averages
-!!                 in the system
 !!                                 
 !!
 !!   AUTHOR
@@ -999,7 +961,7 @@ CONTAINS
 !!*****************************************************************************
 
   SUBROUTINE mc_volume_move ( mc_par,force_env, moves,move_updates,&
-                        nnstep,averages,old_energy,&
+                        nnstep,old_energy,&
                         globenv,&
                         energy_check,r_old,error)
 
@@ -1008,7 +970,6 @@ CONTAINS
     TYPE(global_environment_type), POINTER :: globenv
     REAL(KIND = dp),INTENT(INOUT) :: old_energy,energy_check
     TYPE(mc_moves_type),POINTER  :: moves,move_updates
-    TYPE(mc_averages_type),POINTER  :: averages
     TYPE(force_env_type), POINTER :: force_env
     INTEGER,INTENT(IN)      :: nnstep
     TYPE(cp_error_type),OPTIONAL,INTENT(INOUT) :: error
@@ -1025,286 +986,295 @@ CONTAINS
 
 !   *** Local variables ***
     REAL(KIND = dp) ::                 rand,dis_length,w,new_energy,&
-                                       old_length,max_error,vol,&
-                                       density_old,new_cell_length,&
+                                       new_cell_length,&
+                                       test_cell_length,&
                                        old_cell_length,&
-                                       rand_beta_factor,weight,&
-                                       classical_energy_new,beta_sum,&
-                                       classical_energy_old
+                                       classical_energy_new,&
+                                       classical_energy_test
     TYPE(force_env_type), POINTER :: test_env
     TYPE(particle_list_type), POINTER :: particles_old
-    TYPE(particle_list_type), POINTER :: particles
+    TYPE(particle_list_type), POINTER :: particles_test
     TYPE(cp_subsystem_p_type),DIMENSION(:),POINTER :: oldsys,&
-                                                      newsys
-    TYPE(cell_type), POINTER :: cell,cell_new
-    REAL(KIND =dp),DIMENSION(1:mc_par%nvolmoves) ::   beta_factor,&
-                           vol_dis,trial_energy
+                                                      testsys
+    TYPE(cell_type), POINTER :: cell_old,cell_test
+    REAL(KIND =dp) ::             vol_dis,classical_energy_original,&
+                                  classical_energy_diff
     REAL(KIND =dp),DIMENSION(1:3,1:mc_par%nunits_tot) :: r
-    REAL(KIND =dp),DIMENSION(1:3,1:mc_par%nunits_tot,&
-                                     1:mc_par%nvolmoves) :: r_trial
-    REAL(KIND =dp),DIMENSION(1:3,1:3) ::       h_matrix,new_h,&
-                                               new_h_inverse
+    REAL(KIND =dp),DIMENSION(1:3,1:mc_par%nunits) :: r_mol
     REAL(KIND=dp),DIMENSION(1:3)  :: diff,center_of_mass,&
                                      center_of_mass_new
-    INTEGER :: handle,istep,imol,i,ivolmove,itrial,choosen
+    INTEGER :: handle,imol,i,ivolmove
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-  CALL timeset(routineN,'I','',handle)
-
-! rewrite a variable so the averages aren't thrown off
-      istep=nnstep-mc_par%nstart
+      CALL timeset(routineN,'I','',handle)
 
 ! nullify some pointers
-      NULLIFY(test_env,particles_old,particles,oldsys)
+      NULLIFY(test_env,particles_old,particles_test,oldsys,testsys)
 
-! update the volume move max displacement, if necessary
-      IF (MOD(istep,mc_par%iupvolume*&
-               mc_par%nchain) == 0 ) THEN
-         CALL mc_move_update(mc_par,move_updates,"volume",nnstep)
-         IF (mc_par%ionode) WRITE(mc_par%rm,*) nnstep,' rmvolume = ',&
-                 mc_par%rmvolume*(angstrom)**3,' angstroms^3'
+      IF (mc_par%ionode) THEN
+! record the attempt
+         moves%volume%attempts=moves%volume%attempts+1
+         move_updates%volume%attempts=move_updates%volume%attempts+1
       ENDIF
 
-! record the attempt
-      moves%volume%attempts=moves%volume%attempts+1
-      move_updates%volume%attempts=move_updates%volume%attempts+1
-
-! now let's grab the cell length and change it 
-      CALL force_env_get(force_env,cell=cell,&
-                         error=error)
-
-! create the old h matrix
-      h_matrix(:,:)=cell%hmat(:,:)
-
-! find the old cell length
-      old_cell_length=cell%hmat(1,1)
-
-! create the new h matrix
-      new_h(:,:)=0.0d0
-      new_h(1,1)=old_cell_length
-      new_h(2,2)=old_cell_length
-      new_h(3,3)=old_cell_length
-
-! create the new environment to change particle coordinates
-      CALL quickstep_create_force_env(test_env, globenv, &
-                   new_h_matrix=new_h,error=error)
-      CALL force_env_get(force_env,subsys=oldsys,&
+! now let's grab the cell length and particle positions
+      CALL force_env_get(force_env,subsys=oldsys,cell=cell_old,&
                             error=error)
       CALL cp_subsys_get(oldsys(1)%subsys, &
              particles=particles_old, error=error)
-      CALL force_env_get(test_env,subsys=newsys,&
-          cell=cell_new,error=error)
-      CALL cp_subsys_get(newsys(1)%subsys, &
-             particles=particles, error=error)
 
-! save the old coordinates if we're biasing classically
-      IF (mc_par%lclassical) THEN
+! find the old cell length
+      old_cell_length=cell_old%hmat(1,1)
+      test_cell_length=cell_old%hmat(1,1)
+
+      IF (mc_par%ionode) THEN
+
+! find the old classical energy
+         CALL mc_classical_energy(force_env,&
+            classical_energy_original,mc_par,1,mc_par%nchain,&
+            6.211d0/angstrom,cell_length=old_cell_length)
+
+         classical_energy_test=classical_energy_original
+
+! save the old coordiantes
          DO imol=1,mc_par%nunits_tot
-            r(1:3,imol)=particles%els(imol)%r(1:3)
+            r(1:3,imol)=particles_old%els(imol)%r(1:3)
          ENDDO
+
+! fold the coordinates into the central box
+         CALL mc_coordinate_fold(r(:,:),mc_par%nunits,&
+             test_cell_length)
+
+! make the new dat file
+         CALL mc_make_dat_file(r(:,:),mc_par%nunits_tot,&
+            test_cell_length*angstrom,mc_par%dat_file)
       ENDIF
 
-! zero the Boltzmann weight counter
-      weight = 0.0d0         
+! make a test environment that we can alter to calculate the energy
+      globenv%input_file_name=mc_par%dat_file
+      CALL quickstep_create_force_env(test_env, globenv, error=error)
 
-      DO ivolmove=1,mc_par%nvolmoves
+! grab the coords so we can change them
+      CALL force_env_get(test_env,subsys=testsys,error=error)
+      CALL cp_subsys_get(testsys(1)%subsys, &
+             particles=particles_test, error=error)
+
+! now do some classical moves to find a good move
+      IF (mc_par%ionode) THEN
+
+! now do a series of volume moves, accepting or rejecting each one based on
+!    the fake potential
+        DO ivolmove=1,mc_par%nvolmoves
 
 ! call a random number to figure out how far we're moving
-         CALL random_number(rand)
-         vol_dis(ivolmove)=mc_par%rmvolume*(rand-0.5d0)*2.0d0
-         new_cell_length=(vol_dis(ivolmove)+&
-             old_cell_length**3)**(1.0d0/3.0d0)
+            CALL random_number(rand)
+            vol_dis=mc_par%rmvolume*(rand-0.5d0)*2.0d0
+            new_cell_length=(vol_dis+&
+               test_cell_length**3)**(1.0d0/3.0d0)
+
+            DO imol=1,mc_par%nunits_tot
+               r(1:3,imol)=particles_test%els(imol)%r(1:3)
+            ENDDO
 
 ! now we need to scale the coordinates of all the molecules by the
 ! center of mass, using the minimum image (not all molecules are in
 ! the central box)
 
-! reset the coordinates
-         CALL cp_subsys_get(newsys(1)%subsys, &
-             particles=particles, error=error)
-         DO imol=1,mc_par%nunits_tot
-             particles%els(imol)%r(1:3)=r(1:3,imol)
-             r_trial(1:3,imol,ivolmove)=0.0d0
-         ENDDO
-         
 ! now we need to scale the coordinates of all the molecules by the
 ! center of mass
-         DO imol=1,mc_par%nchain*mc_par%nunits,3
+            DO imol=1,mc_par%nchain*mc_par%nunits,3
 
-! find the center of mass and make sure it's in the central box
-            DO i=1,3
-               center_of_mass(i)=(particles_old%els(imol)%r(i)*mass(1)+&
-                  particles_old%els(imol+1)%r(i)*mass(2)+&
-                  particles_old%els(imol+2)%r(i)*mass(3))/mass_tot
-               center_of_mass_new(i)=center_of_mass(i)-old_cell_length*&
-                  FLOOR( center_of_mass(i)/old_cell_length)
-            ENDDO
+! save the particle coords
+               DO i=1,mc_par%nunits
+                  r_mol(1:3,i)=particles_test%els(i)%r(1:3)
+               ENDDO
 
-! scale the center of mass and determine the vector that points from the old COM
-! to the new one
-            center_of_mass_new(1:3)=center_of_mass_new(1:3)*&
-                     new_cell_length/old_cell_length
-            DO i=1,3
-               diff(i)=center_of_mass_new(i)-center_of_mass(i)
-            ENDDO
+! now find the center of mass
+               CALL get_center_of_mass(r_mol(:,:),mc_par%nunits,&
+                  center_of_mass(:),mass(:))
+               
+! scale the center of mass and determine the vector that points from the
+!    old COM to the new one
+               center_of_mass_new(1:3)=center_of_mass(1:3)*&
+                  new_cell_length/test_cell_length
+               DO i=1,3
+                  diff(i)=center_of_mass_new(i)-center_of_mass(i)
+               ENDDO
          
 ! now change the particle positions
-            DO i=1,3
-               particles%els(imol)%r(i)=particles_old%els(imol)%r(i)&
-                  +diff(i)
-               particles%els(imol+1)%r(i)=&
-                 particles_old%els(imol+1)%r(i)+diff(i)
-               particles%els(imol+2)%r(i)=&
-                 particles_old%els(imol+2)%r(i)+diff(i)
-               r_trial(i,imol,ivolmove)=particles%els(imol)%r(i)
-               r_trial(i,imol+1,ivolmove)=particles%els(imol+1)%r(i)
-               r_trial(i,imol+2,ivolmove)=particles%els(imol+2)%r(i)
-               
+               DO i=1,3
+                  particles_test%els(imol)%r(i)=&
+                     particles_test%els(imol)%r(i)+diff(i)
+                  particles_test%els(imol+1)%r(i)=&
+                     particles_test%els(imol+1)%r(i)+diff(i)
+                  particles_test%els(imol+2)%r(i)=&
+                     particles_test%els(imol+2)%r(i)+diff(i)
+               ENDDO
             ENDDO
-         ENDDO
         
-         CALL cp_subsys_set(newsys(1)%subsys,particles=particles)
+            CALL cp_subsys_set(testsys(1)%subsys,&
+               particles=particles_test)
 
-! find and store the classical energy, if we're biasing classically
-         IF (mc_par % lclassical .AND. mc_par % nvolmoves .GT. 1) THEN
-!            CALL mc_classical_energy(test_env,trial_energy(ivolmove),&
-!                mc_par)
-                beta_factor(ivolmove) = &
-                           DEXP(-mc_par%BETA*trial_energy(ivolmove))
-                weight = weight + beta_factor(ivolmove)
+! find and store the classical energy
+            CALL mc_classical_energy(test_env,&
+               classical_energy_new,mc_par,1,mc_par%nchain,&
+               6.211d0/angstrom,cell_length=new_cell_length)
+
+            IF (mc_par % nvolmoves .GT. 1) THEN
+
+! determine the acceptance of the move
+               w=dexp(-mc_par%BETA*(classical_energy_new-&
+                  classical_energy_test-REAL(mc_par%nchain,dbl)/&
+                  mc_par%BETA*3.0d0*&
+                  DLOG(new_cell_length/test_cell_length) + &
+                  mc_par%pressure*(new_cell_length**3-&
+                  test_cell_length**3)))
+               
+               IF ( w .GE. 1.0d0 ) THEN
+                  w=1.0d0
+                  rand=0.0D0
+               ELSE
+                  CALL random_number(rand)
+               ENDIF
+               
+               IF (rand .LT. w ) THEN
+
+                  move_updates%classical_volume%attempts=&
+                     move_updates%classical_volume%attempts+1
+                  move_updates%classical_volume%successes=&
+                     move_updates%classical_volume%successes+1
+                  moves%classical_volume%attempts=&
+                     moves%classical_volume%attempts+1
+                  moves%classical_volume%successes=&
+                     moves%classical_volume%successes+1
+         
+! update energy and cell length
+                  test_cell_length=new_cell_length
+                  classical_energy_test=classical_energy_new
+
+               ELSE
+
+                  move_updates%classical_volume%attempts=&
+                     move_updates%classical_volume%attempts+1
+                  moves%classical_volume%attempts=&
+                     moves%classical_volume%attempts+1
+
+! revert back to old coords                      
+                  DO imol=1,mc_par%nunits_tot
+                     particles_test%els(imol)%r(1:3)=r(1:3,imol)
+                  ENDDO
+                  CALL cp_subsys_set(testsys(1)%subsys,&
+                     particles=particles_test)
+               ENDIF
+            
+            ELSE
+               test_cell_length=new_cell_length
+               classical_energy_test=classical_energy_new
+            ENDIF
+            
+         ENDDO
+
+! determine the overall energy difference
+         IF (mc_par%nvolmoves .GT. 1 ) THEN
+            classical_energy_diff=classical_energy_test-&
+               classical_energy_original
+         ELSE
+            classical_energy_diff=0.0d0
          ENDIF
 
-      ENDDO
+         new_energy=classical_energy_test
 
-! now pick one of the configurations at random
-      IF (mc_par % lclassical .AND. mc_par % nvolmoves .GT. 1) THEN
-         CALL random_number(rand)
-         rand_beta_factor = weight * rand
-         beta_sum = 0.0d0
-         DO itrial=1,mc_par % nvolmoves
-            beta_sum=beta_sum + beta_factor(ivolmove)
-            IF (rand_beta_factor .LT. beta_sum ) THEN
-               choosen=itrial
-               EXIT
-            ENDIF
+! make the new dat file
+         DO imol=1,mc_par%nunits_tot
+            r(1:3,imol)=particles_test%els(imol)%r(1:3)
          ENDDO
 
-         classical_energy_new=trial_energy(choosen)
+         CALL mc_make_dat_file(r(:,:),mc_par%nunits_tot,&
+            test_cell_length*angstrom,mc_par%dat_file)
 
-      ELSE
-         choosen=1
-         classical_energy_new=0.0d0
-         classical_energy_old=0.0d0
+! back to parallel
       ENDIF
-
-! create the new h matrix
-      new_cell_length=(vol_dis(choosen)+&
-          old_cell_length**3)**(1.0d0/3.0d0)
-      new_h(:,:)=0.0d0
-      new_h(1,1)=new_cell_length
-      new_h(2,2)=new_cell_length
-      new_h(3,3)=new_cell_length
 
 ! set the coordinates and the energy
       CALL force_env_release(test_env,error=error)
-      CALL cp_subsys_release(newsys(1)%subsys)
-      CALL quickstep_create_force_env(test_env, globenv,&
-          new_h_matrix=new_h,error=error)
-      CALL force_env_get(test_env,subsys=newsys,&
-          error=error)
-      CALL cp_subsys_get(newsys(1)%subsys, &
-          particles=particles, error=error)
-      DO imol=1,mc_par%nunits_tot
-         particles%els(imol)%r(1:3)=r_trial(1:3,imol,choosen)
-      ENDDO
-      CALL cp_subsys_set(newsys(1)%subsys,particles=particles)
+      CALL cp_subsys_release(testsys(1)%subsys)
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! this could cause problems on various platforms!!!!!!!!!!!!!!!!
-!      CALL mc_energy_restart(test_env,new_energy)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      CALL force_env_calculate_energy(test_env)
+      globenv%input_file_name=mc_par%dat_file
+      CALL quickstep_create_force_env(test_env, globenv, error=error)
+
+!      CALL force_env_calculate_energy(test_env)
 
 ! now grab the coords and the energy
-      CALL force_env_get(force_env,&
-          potential_energy=new_energy,error=error)
+!      CALL force_env_get(test_env,&
+!          potential_energy=new_energy,error=error)
 
+      IF (mc_par%ionode) THEN
 ! accept or reject the move
-!      vol=cell%hmat(1,1)**3
-      w=dexp(-mc_par%BETA*((new_energy-old_energy)-&
-        (classical_energy_new-classical_energy_old)-&
-        REAL(mc_par%nchain,dbl)/mc_par%BETA*3.0d0*&
-           DLOG(new_cell_length/old_cell_length) &
-        + mc_par%pressure*(new_cell_length**3-old_cell_length**3)))
+         IF (mc_par%nvolmoves .GT. 1) THEN
+            w=dexp(-mc_par%BETA*((new_energy-old_energy)-&
+               classical_energy_diff))
+         ELSE
 
-      IF ( w .GE. 1.0d0 ) THEN
-         w=1.0d0
-         rand=0.0D0
-      ELSE
-         CALL random_number(rand)
+            w=dexp(-mc_par%BETA*((new_energy-old_energy)-&
+               REAL(mc_par%nchain,dbl)/mc_par%BETA*3.0d0*&
+               DLOG(test_cell_length/old_cell_length) &
+               + mc_par%pressure*(test_cell_length**3-&
+               old_cell_length**3)))
+            
+         ENDIF
+
+         IF ( w .GE. 1.0d0 ) THEN
+            w=1.0d0
+            rand=0.0D0
+         ELSE
+            CALL random_number(rand)
+         ENDIF
+
       ENDIF
+
+      CALL mp_bcast(rand,mc_par%source,mc_par%group)
+      CALL mp_bcast(w,mc_par%source,mc_par%group)
 
       IF (rand .lt. w) THEN
 
 ! write cell length, volume, density, and trial displacement to a file
-         IF(globenv%ionode) THEN
-            WRITE(mc_par%cl,*) nnstep,new_cell_length*angstrom,&
-             (new_energy-old_energy),-REAL(mc_par%nchain,dbl)/&
-             mc_par%BETA*3.0d0*DLOG(new_cell_length/&
-             old_cell_length), &
-             mc_par%pressure*(new_cell_length**3-old_cell_length**3),&
-             vol_dis*(angstrom)**3,rand
-         ENDIF
-
+         IF(mc_par%ionode) THEN
+            WRITE(mc_par%cl,*) nnstep,test_cell_length*angstrom,&
+               (new_energy-old_energy),classical_energy_diff,&
+               -REAL(mc_par%nchain,dbl)/&
+               mc_par%BETA*3.0d0*DLOG(test_cell_length/&
+               old_cell_length), &
+               mc_par%pressure*(test_cell_length**3-old_cell_length**3),&
+               vol_dis*(angstrom)**3,rand
+               
 ! accept the move
-         moves%volume%successes=moves%volume%successes+1
-         move_updates%volume%successes=move_updates%volume%successes+1
+            moves%volume%successes=moves%volume%successes+1
+            move_updates%volume%successes=move_updates%volume%successes+1
 
 ! update energies
-         energy_check=energy_check+(new_energy-old_energy)
-         old_energy=new_energy
-         averages%ave_energy=averages%ave_energy*REAL(istep-1,dbl)&
-                    /REAL(istep,dbl)+old_energy/REAL(istep,dbl)
-! and heat capacity
-         averages%ave_energy_squared=averages%ave_energy_squared*&
-               REAL(istep-1,dbl)/&
-               REAL(istep,dbl)+old_energy**2/&
-               REAL(istep,dbl)
+            energy_check=energy_check+(new_energy-old_energy)
+            old_energy=new_energy
 
-! update coordinates and cell lengths
-         CALL force_env_retain(force_env)
+! and classical energy
+            IF ( mc_par % lclassical) moves%classical_energy=&
+                  classical_energy_test
+
+! and the coordiantes
+            CALL force_env_get(test_env,subsys=testsys,error=error)
+            CALL cp_subsys_get(testsys(1)%subsys, &
+               particles=particles_test, error=error)
+
+            DO imol=1,mc_par%nchain
+               r_old(1:3,imol)=particles_test%els(imol)%r(1:3)
+            ENDDO
+
+         ENDIF
+
+! switch the force env to the new env
          CALL force_env_release(force_env,error=error)
          CALL cp_subsys_release(oldsys(1)%subsys)
-         CALL quickstep_create_force_env(force_env, globenv,&
-                   new_h_matrix=new_h,error=error)
-         CALL force_env_get(force_env,subsys=oldsys,&
-                            error=error)
-         CALL cp_subsys_get(oldsys(1)%subsys, &
-             particles=particles_old, error=error)
-!              WRITE(6,*) 'KDFLSSDJKf'
-!         CALL force_env_set_cell(force_env,cell_new,error=error)
-!               WRITE(6,*) 'KDFLSSDJKf'
-         DO imol=1,mc_par%nunits_tot
-            particles_old%els(imol)%r(1:3)= &
-                  particles%els(imol)%r(1:3)
-            r_old(1:3,imol)= particles%els(imol)%r(1:3)
-         ENDDO
-         CALL cp_subsys_set(oldsys(1)%subsys,particles=particles_old)
-
-! update cell length
-         averages%ave_cell_length=averages%ave_cell_length*&
-                 REAL(moves%volume%attempts-1,dbl)/&
-                 REAL(moves%volume%attempts,dbl)+new_cell_length/&
-                 REAL(moves%volume%attempts,dbl)
-
-! update the classical energy, if need be
-         IF ( mc_par % lclassical) THEN
-!            CALL mc_classical_energy(force_env,&
-!                                         moves%classical_energy,&
-!                                         mc_par)
-            classical_energy_old=moves%classical_energy
-         ENDIF
+         force_env => test_env
 
       ELSE
 
@@ -1312,37 +1282,25 @@ CONTAINS
 ! write cell length, volume, density, and trial displacement to a file
          IF (globenv%ionode) THEN
             WRITE(mc_par%cl,*) nnstep,old_cell_length*angstrom,&
-             (new_energy-old_energy),-REAL(mc_par%nchain,dbl)/&
-             mc_par%BETA*3.0d0*DLOG(new_cell_length/&
-             old_cell_length), &
-             mc_par%pressure*(new_cell_length**3-old_cell_length**3),&
-             vol_dis*(angstrom)**3,rand
+               (new_energy-old_energy),classical_energy_diff,&
+               -REAL(mc_par%nchain,dbl)/&
+               mc_par%BETA*3.0d0*DLOG(test_cell_length/&
+               old_cell_length),mc_par%pressure*&
+               (test_cell_length**3-old_cell_length**3),&
+               vol_dis*(angstrom)**3,rand
+
          ENDIF
 
-! update energy 
-         averages%ave_energy=averages%ave_energy*REAL(istep-1,dbl)/&
-                      REAL(istep,dbl)+old_energy/REAL(istep,dbl)
-! and heat capacity
-         averages%ave_energy_squared=averages%ave_energy_squared*&
-               REAL(istep-1,dbl)/&
-               REAL(istep,dbl)+old_energy**2/&
-               REAL(istep,dbl)
 
-! and cell length
-         averages%ave_cell_length=averages%ave_cell_length*&
-                 REAL(moves%volume%attempts-1,dbl)/&
-                 REAL(moves%volume%attempts,dbl)+old_cell_length/&
-                 REAL(moves%volume%attempts,dbl)
+! release some memory
+         CALL force_env_release(test_env,error=error)
+         CALL cp_subsys_release(testsys(1)%subsys)
 
       ENDIF
 
-! release some memory
-      CALL force_env_release(test_env,error=error)
-      CALL cp_subsys_release(newsys(1)%subsys)
 
 ! end the timing
-  CALL timestop(0.0d0,handle)
-
+      CALL timestop(0.0d0,handle)
 
   END SUBROUTINE mc_volume_move
 
@@ -1522,8 +1480,7 @@ CONTAINS
       OH_between(1:3)=OH1(1:3)/old_length1-OH2(1:3)/old_length2
       old_angle=DACOS(DOT_PRODUCT(OH1,OH2)/(old_length1*old_length2))
       new_angle=old_angle+dis_angle
-!      WRITE(mc_par%diff,*) 'new angle ',new_angle/3.14159265358979323D0*180.0d0
-!      WRITE(mc_par%diff,*) 'old angle ',old_angle/3.14159265358979323D0*180.0d0,dis_angle/3.14159265358979323D0*180.0d0
+
       DO i=1,3
          bisector(i)=OH1(i)/old_length1+& ! not yet normalized
                  OH2(i)/old_length2

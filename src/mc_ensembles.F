@@ -40,24 +40,17 @@ MODULE mc_ensembles
   USE kinds,                           ONLY: dbl,dp,&
                                              dp_size
   USE machine,                         ONLY: m_flush
-  USE mc_control,                      ONLY: mc_simulation_parameters_type,&
-                                             mc_simulation_parameters_p_type,&
-                                             read_mc_section,&
-                                             write_mc_restart
+  USE mc_control,                      ONLY: write_mc_restart
   USE mc_environment_types,            ONLY: get_mc_env,&
                                              set_mc_env,&
                                              mc_environment_type
   USE mc_misc,                         ONLY: final_mc_write,&
                                              get_water_data,&
                                              init_mc_averages,&
-                                             mc_averages_type,&
-                                             mc_averages_p_type,&
                                              mc_classical_energy
   USE mc_move_control,                 ONLY: init_mc_moves,&
                                              write_move_stats,&
                                              mc_moves_release,&
-                                             mc_moves_type,&
-                                             mc_moves_p_type,&
                                              mc_move_update
   USE mc_moves,                        ONLY: mc_Quickstep_move,&
                                              mc_atom_translation,&
@@ -67,6 +60,12 @@ MODULE mc_ensembles
   USE mc_ge_moves,                     ONLY: mc_ge_quickstep_move,&
                                              mc_ge_volume_move,&
                                              mc_ge_swap_move
+  USE mc_types,                        ONLY: mc_simulation_parameters_type,&
+                                             mc_simulation_parameters_p_type,&
+                                             mc_averages_type,&
+                                             mc_averages_p_type,&
+                                             mc_moves_type,&
+                                             mc_moves_p_type
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sync,&
                                              mp_wait
@@ -137,10 +136,12 @@ CONTAINS
                                                 mol,data,istat,j,&
                                                 move_unit
     LOGICAL                               :: PM0, PM1, PM2, PM3, PM4, &
-                                              should_stop,ionode,exists
+                                              should_stop,ionode,exists,&
+                                              should_retain
     REAL(KIND=dp)                    :: energy_check, initial_energy, &
                                          old_energy, rand,final_energy,&
-                                         classical_energy
+                                         classical_energy,&
+                                         classical_energy_new
     TYPE(mc_averages_type), POINTER          :: averages
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_subsystem_p_type), &
@@ -226,7 +227,7 @@ CONTAINS
          CALL mc_classical_energy(force_env,moves%classical_energy,&
                                mc_par,1,mc_par%nchain,6.211D0/angstrom)
          old_energy=moves%classical_energy
-         classical_energy=old_energy
+         classical_energy=moves%classical_energy
 
 ! open the files for writing coordinates, average structural data, and
 ! maxiumum displacements
@@ -264,13 +265,6 @@ CONTAINS
             r_old(1:3,iparticle)=particles_old%els(iparticle)%r(1:3)
          ENDDO
 
-! find the classical energy if need be
-         IF (mc_par % lclassical) THEN
-            CALL mc_classical_energy(force_env,classical_energy,&
-                               mc_par,1,mc_par%nchain,6.211D0/angstrom)
-            moves%classical_energy=classical_energy
-         ENDIF
-
 ! back to parallel mode
       ENDIF
 
@@ -286,12 +280,20 @@ CONTAINS
          CALL mp_bcast(rand,mc_par%source,mc_par%group)
 
          IF (rand .lt. mc_par % pmvolume) THEN
+!            if(mc_par%ionode) WRITE(11,*) nnstep,old_energy
             CALL mc_volume_move( mc_par,force_env,moves,move_updates,&
-                        nnstep,averages,old_energy,&
+                        nnstep,old_energy,&
                         globenv,&
                         energy_check,r_old,&
                         error=error)
-         ELSE
+!            if(mc_par%ionode) WRITE(11,*) nnstep,old_energy
+! make sure the pointers are pointing correctly since the subsys may
+!    have changed
+         CALL force_env_get(force_env,subsys=oldsys,error=error)
+         CALL cp_subsys_get(oldsys(1)%subsys,&
+            particles=particles_old, error=error)
+
+        ELSE
             particle_positions(:,:)=0.0d0
 ! we want to do all this in serial
             IF( mc_par % ionode ) THEN
@@ -327,7 +329,6 @@ CONTAINS
                         move_updates,nnstep,i,mol,classical_energy,&
                         error=error)
                   ENDIF
-!                  WRITE(ene,*) i,classical_energy/3.16682968D-6
 
                ENDDO
 
@@ -352,26 +353,36 @@ CONTAINS
 ! now do a Quickstep calculation to see if we accept the sequence
             CALL mc_Quickstep_move(mc_par,force_env,moves,&
                         move_updates,energy_check,r_old,&
-                        nnstep,old_energy,averages,&
-                        error=error)
+                        nnstep,old_energy,error=error)
 
          ENDIF
 
 
          IF(ionode) THEN
-!            WRITE(ene,*) nnstep,classical_energy/3.16682968D-6
-!            WRITE(ene,*) nnstep,old_energy/3.16682968D-6
             WRITE(ene,*) nnstep,old_energy,energy_check
-!            CALL force_env_get(force_env,subsys=oldsys,cell=cell,&
-!               error=error)
-!            CALL cp_subsys_get(oldsys(1)%subsys, &
-!               particles=particles_old, error=error)
+            CALL force_env_get(force_env,subsys=oldsys,cell=cell,&
+               error=error)
+            CALL cp_subsys_get(oldsys(1)%subsys, &
+               particles=particles_old, error=error)
 !            CALL write_particle_coordinates(particles_old%els,cell,&
 !                        crd,'XMOL','POS','POSITIONS')
 
+! compute some averages
+            averages%ave_energy=averages%ave_energy*&
+                     REAL(nnstep-1,dbl)&
+                     /REAL(nnstep,dbl)+old_energy/&
+                     REAL(nnstep,dbl)
+
+            averages%ave_cell_length=averages%ave_cell_length*&
+                     REAL(nnstep-1,dbl)&
+                     /REAL(nnstep,dbl)+cell%hmat(1,1)/&
+                     REAL(nnstep,dbl)
+
+            WRITE(mc_par%cl,*) nnstep,averages%ave_cell_length*angstrom
+
 ! find bond lengths and angle for current water config
-            CALL get_water_data( force_env,averages,nnstep-mc_par%nstart,&
-                           mc_par%nchain,data)
+            CALL get_water_data(force_env,averages,&
+               nnstep-mc_par%nstart,mc_par%nchain,data)
 
 ! write the move statistics to file
             CALL write_move_stats(moves,move_updates,nnstep,move_unit)
@@ -401,7 +412,6 @@ CONTAINS
                CALL mc_move_update(mc_par,move_updates,"volume",nnstep)
             ENDIF
 
-
          ENDIF
 
          CALL mp_bcast(should_stop,mc_par%source,mc_par%group)
@@ -413,6 +423,10 @@ CONTAINS
 
 ! calculate the final energy
 !      CALL force_env_calculate_energy(force_env)
+
+! get the energy
+      CALL force_env_get(force_env,potential_energy=final_energy,&
+         error=error)
    
 ! do some stuff in serial
       IF (mc_par % ionode) THEN
@@ -445,8 +459,14 @@ CONTAINS
 ! back to parallel
       ENDIF
 
-! recombine the mc_env
-      CALL set_mc_env( mc_env, mc_par = mc_par, force_env=force_env)
+      IF (mc_par%ionode)THEN
+         IF( moves%volume%successes .GT. 0) &
+               should_retain=.TRUE.
+      ENDIF
+
+      IF (should_retain) THEN
+         CALL force_env_retain(force_env)
+      ENDIF
 
 ! deallocate some stuff
       CALL cp_subsys_release(oldsys(1)%subsys)

@@ -37,19 +37,19 @@ MODULE mc_ge_moves
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
                                              dp
-  USE mc_control,                      ONLY: mc_simulation_parameters_type,&
-                                             mc_simulation_parameters_p_type
-  USE mc_misc,                         ONLY: mc_averages_type,&
-                                             mc_averages_p_type,&
-                                             mc_classical_energy,&
+  USE mc_misc,                         ONLY: mc_classical_energy,&
                                              mc_coordinate_fold,&
                                              get_center_of_mass,&
                                              mc_make_dat_file
   USE mc_move_control,                 ONLY: mc_move_update,&
-                                             mc_moves_p_type,&
-                                             mc_moves_type,&
                                              move_q_reinit,&
                                              q_move_accept
+  USE mc_types,                        ONLY: mc_simulation_parameters_type,&
+                                             mc_simulation_parameters_p_type,&
+                                             mc_averages_type,&
+                                             mc_averages_p_type,&
+                                             mc_moves_p_type,&
+                                             mc_moves_type
   USE message_passing,                 ONLY: mp_bcast
   USE mol_new_list_types,              ONLY: mol_new_list_p_type
   USE molecule_kind_types,             ONLY: get_molecule_kind

@@ -26,8 +26,10 @@ MODULE mc_move_control
                                              force_env_type
   USE kinds,                           ONLY: dbl,&
                                              dp
-  USE mc_control,                      ONLY: mc_simulation_parameters_type
   USE mathconstants,                   ONLY: pi
+  USE mc_types,                        ONLY: mc_simulation_parameters_type,&
+                                             mc_moves_type,&
+                                             accattempt
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -42,37 +44,10 @@ MODULE mc_move_control
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "mc_move_control"
 
-  PUBLIC :: mc_moves_type, mc_moves_p_type,init_mc_moves, accattempt,&
+  PUBLIC :: init_mc_moves, &
            mc_move_update,move_q_reinit,q_move_accept,mc_moves_release,&
            write_move_stats
  
-! *** Types ***
-  TYPE mc_moves_type
-      TYPE ( accattempt ), POINTER :: classical_bond
-      TYPE ( accattempt ), POINTER :: classical_angle
-      TYPE ( accattempt ), POINTER :: classical_trans
-      TYPE ( accattempt ), POINTER :: classical_rot
-      TYPE ( accattempt ), POINTER :: bond
-      TYPE ( accattempt ), POINTER :: angle
-      TYPE ( accattempt ), POINTER :: trans
-      TYPE ( accattempt ), POINTER :: rot
-      TYPE ( accattempt ), POINTER :: swap
-      TYPE ( accattempt ), POINTER :: volume
-      TYPE ( accattempt ), POINTER :: Quickstep
-      REAL(KIND = dp) :: classical_energy,trans_dis,qtrans_dis
-      integer :: empty,grown
-  END TYPE mc_moves_type
-
-  TYPE accattempt
-      INTEGER :: successes
-      INTEGER :: qsuccesses
-      INTEGER :: attempts
-  END TYPE accattempt
-
-  TYPE mc_moves_p_type
-      TYPE(mc_moves_type), POINTER :: moves
-  END TYPE mc_moves_p_type
-
 ! *****************************************************************************
 
 CONTAINS
@@ -140,6 +115,9 @@ CONTAINS
       ALLOCATE (moves%classical_rot,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%classical_rot",0)
+      ALLOCATE (moves%classical_volume,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%classical_volume",0)
       ALLOCATE (moves%volume,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%volume",0)
@@ -158,6 +136,8 @@ CONTAINS
       moves%classical_trans%successes=0
       moves%classical_rot%attempts=0
       moves%classical_rot%successes=0
+      moves%classical_volume%attempts=0
+      moves%classical_volume%successes=0
 
       moves%bond%attempts=0
       moves%bond%successes=0
@@ -251,6 +231,9 @@ CONTAINS
       DEALLOCATE (moves%classical_rot,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%classical_rot",0)
+      DEALLOCATE (moves%classical_volume,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%classical_volume",0)
       DEALLOCATE (moves%volume,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%volume",0)
@@ -440,6 +423,9 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
     WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' classical_rot       ',&
       move_updates%classical_rot%successes+move_updates%rot%successes,&
       move_updates%classical_rot%attempts+move_updates%rot%attempts
+    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' classical_volume    ',&
+      moves%classical_volume%successes,&
+      moves%classical_volume%attempts
     WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' bond      ',&
       moves%bond%successes,moves%bond%attempts
     WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' angle     ',&
@@ -680,22 +666,22 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
 ! update the maximum displacement for volume displacement
 
 ! first account for the extreme cases
-         IF ( move_updates%volume%successes == 0 ) THEN
+         IF ( move_updates%classical_volume%successes == 0 ) THEN
             mc_par%rmvolume=mc_par%rmvolume/2.0d0
 
-         ELSEIF ( move_updates%volume%successes == &
-                 move_updates%volume%attempts ) THEN
+         ELSEIF ( move_updates%classical_volume%successes == &
+                 move_updates%classical_volume%attempts ) THEN
             mc_par%rmvolume=mc_par%rmvolume*2.0d0
          ELSE
 ! now for the middle case
             mc_par%rmvolume=mc_par%rmvolume*((&
-                   REAL(move_updates%volume%successes,dbl)&
-                  /REAL(move_updates%volume%attempts,dbl))/0.5d0)
+                REAL(move_updates%classical_volume%successes,dbl)&
+               /REAL(move_updates%classical_volume%attempts,dbl))/0.5d0)
          ENDIF
 
 ! clear the counters
-         move_updates%volume%attempts=0
-         move_updates%volume%successes=0
+         move_updates%classical_volume%attempts=0
+         move_updates%classical_volume%successes=0
 
       END SELECT
 

@@ -30,10 +30,10 @@ MODULE qs_mc
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type
+                                             force_env_type,&
+                                             force_env_release
   USE global_types,                    ONLY: global_environment_type
-  USE mc_control,                      ONLY: mc_simulation_parameters_type,&
-                                             read_mc_restart,&
+  USE mc_control,                      ONLY: read_mc_restart,&
                                              read_mc_section
   USE mc_ensembles,                    ONLY: gemc_nvt,&
                                              mc_traditional_ensemble
@@ -41,6 +41,7 @@ MODULE qs_mc
                                              mc_env_create,&
                                              mc_environment_type,&
                                              set_mc_env
+  USE mc_types,                        ONLY: mc_simulation_parameters_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type
@@ -166,6 +167,10 @@ CONTAINS
 ! check for restart
   IF ( mc_par % restart ) THEN
       CALL read_mc_restart(mc_par,force_env,iw)
+! release the old force env and make the new one
+      CALL force_env_release(force_env)
+      globenv%input_file_name=mc_par%dat_file
+      CALL quickstep_create_force_env(force_env,globenv,error=error)      
   ENDIF
 
 ! now perform the calculation
