@@ -16,6 +16,7 @@
 !!     - qs_control_type extended (18.01.2002,MK)
 !!     - added pao (18.04.02,fawzi)
 !!     - new xc code (31.05.02,jgh)
+!!     - qs section revised (29.08.02,jgh)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -61,6 +62,7 @@ MODULE dft_types
                                        progression_factor,&
                                        relative_cutoff
     LOGICAL                         :: gapw,gpw,pao
+    REAL(wp)                        :: cutoff
     REAL(wp), DIMENSION(:), POINTER :: e_cutoff
   END TYPE qs_control_type
 
@@ -254,6 +256,28 @@ CONTAINS
   END SUBROUTINE read_dft_control
 
 ! *****************************************************************************
+!!>----------------------------------------------------------------------------
+!!  SECTION: &qs ... &end                                                     !
+!!                                                                            !
+!!  CUTOFF                 : ecut                                             !
+!!  MULTI-GRID             : ngrid e1 e2 e3 ...                               !
+!!  EPS_DEFAULT            : eps                                              !
+!!  EPS_CORE_CHARGE        : eps                                              !
+!!  EPS_GVG_RSPACE         : eps                                              !
+!!  EPS_PGF_AUX            : eps                                              !
+!!  EPS_PGF_ORB            : eps                                              !
+!!  EPS_PPL                : eps                                              !
+!!  EPS_PPNL               : eps                                              !
+!!  EPS_RHO                : eps                                              !
+!!  EPS_RHO_GSPACE         : eps                                              !
+!!  EPS_RHO_RSPACE         : eps                                              !
+!!  PROGRESSION_FACTOR     : eprog                                            !
+!!  RELATIVE_CUTOFF        : relcut                                           !
+!!  NGRID_LEVEL            : ngrid                                            !
+!!  METHOD                 : [GPW, GAPW]                                      !
+!!  PAO                                                                       !
+!!                                                                            !
+!!<----------------------------------------------------------------------------
 
   SUBROUTINE read_qs_control(qs_control,globenv)
 
@@ -278,6 +302,7 @@ CONTAINS
     REAL(wp)          :: value
     INTEGER           :: igrid_level,istat,ngrid_level
     LOGICAL           :: section_found
+    LOGICAL           :: cutoff_set, multgrid_set, ngrid_set
 
 !   ---------------------------------------------------------------------------
 
@@ -297,15 +322,10 @@ CONTAINS
     qs_control%gapw = .FALSE.
     qs_control%gpw = .TRUE.
     qs_control%pao = .FALSE.
-    ngrid_level = 4
-    ALLOCATE (qs_control%e_cutoff(ngrid_level),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"qs_control%e_cutoff",&
-                                     ngrid_level*wp_size)
-    qs_control%e_cutoff(1) = 160.0_wp
-    DO igrid_level=2,ngrid_level
-      qs_control%e_cutoff(igrid_level) = qs_control%e_cutoff(igrid_level-1)/&
-                                         qs_control%progression_factor
-    END DO
+!
+    cutoff_set = .FALSE.
+    multgrid_set = .FALSE.
+    ngrid_set = .FALSE.
 
 !   *** Read the input section ***
 
@@ -319,17 +339,24 @@ CONTAINS
       SELECT CASE (TRIM(keyword))
       CASE ("DENSITY_CUTOFF","E_CUTOFF","ECUTOFF","CUTOFF","ECUT")
         CALL read_object(value)
-        qs_control%e_cutoff(1) = MAX(0.01_wp,0.5_wp*value)
-        DO igrid_level=2,ngrid_level
-          test_result = test_object()
-          IF ((test_result == "INT").OR.(test_result == "FLT")) THEN
-            CALL read_object(value)
-            qs_control%e_cutoff(igrid_level) = MAX(0.01_wp,0.5_wp*value)
-          ELSE
-            qs_control%e_cutoff(igrid_level) =&
-              qs_control%e_cutoff(igrid_level-1)/qs_control%progression_factor
-          END IF
+        qs_control%cutoff = MAX(0.01_wp,0.5_wp*value)
+        cutoff_set = .TRUE.
+      CASE ("MULTI_GRID","MULTGRID","MGRID")
+        CALL read_object(igrid_level)
+        IF ( ngrid_set ) THEN
+           IF ( igrid_level /= ngrid_level ) CALL stop_parser(routine,&
+              "Inconsistent values for number of multi grids")
+        END IF
+        ngrid_level = igrid_level
+        ngrid_set = .TRUE.
+        ALLOCATE (qs_control%e_cutoff(ngrid_level),STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"qs_control%e_cutoff",&
+                                         ngrid_level*wp_size)
+        DO igrid_level=1,ngrid_level
+          CALL read_object(value)
+          qs_control%e_cutoff(igrid_level) = MAX(0.01_wp,0.5_wp*value)
         END DO
+        multgrid_set = .TRUE.
       CASE ("EPS_DEFAULT")
         CALL read_object(value)
         qs_control%eps_core_charge = value
@@ -368,17 +395,7 @@ CONTAINS
         qs_control%relative_cutoff = MAX(10.0_wp,value)
       CASE ("NGRID_LEVEL","NGRID")
         CALL read_object(ngrid_level)
-        value = qs_control%e_cutoff(1)
-        DEALLOCATE (qs_control%e_cutoff,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"qs_control%e_cutoff")
-        ALLOCATE (qs_control%e_cutoff(ngrid_level),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"qs_control%e_cutoff",&
-                                         ngrid_level*wp_size)
-        qs_control%e_cutoff(1) = value
-        DO igrid_level=2,ngrid_level
-          qs_control%e_cutoff(igrid_level) =&
-            qs_control%e_cutoff(igrid_level-1)/qs_control%progression_factor
-        END DO
+        ngrid_set = .TRUE.
       CASE ("METHOD")
         CALL read_object(string,lower_to_upper=.TRUE.)
         SELECT CASE (string)
@@ -399,6 +416,44 @@ CONTAINS
     END DO
 
     CALL finish_parser()
+
+!   set defaults for cutoff and multigrids if not yet done
+    IF ( .NOT. cutoff_set ) THEN
+      IF ( .NOT. multgrid_set ) THEN
+        qs_control%cutoff = MAX(0.01_wp,0.5_wp*320._wp)
+      ELSE
+        qs_control%cutoff = qs_control%e_cutoff(1)
+      END IF
+    END IF
+    IF ( .NOT. ngrid_set ) ngrid_level = 4
+    IF ( .NOT. multgrid_set ) THEN
+      ALLOCATE (qs_control%e_cutoff(ngrid_level),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"qs_control%e_cutoff",&
+                                       ngrid_level*wp_size)
+      qs_control%e_cutoff(1) = qs_control%cutoff
+      DO igrid_level=2,ngrid_level
+        qs_control%e_cutoff(igrid_level) = qs_control%e_cutoff(igrid_level-1) &
+            / qs_control%progression_factor
+      END DO
+    ELSE
+      ! set cutoff to smallest value in multgrid available with >= cutoff
+      DO igrid_level=ngrid_level,1,-1
+        IF ( qs_control%cutoff <= qs_control%e_cutoff(igrid_level) ) THEN
+          qs_control%cutoff = qs_control%e_cutoff(igrid_level)
+          EXIT
+        END IF
+        ! set largest grid value to cutoff
+        IF ( igrid_level == 1) THEN
+          qs_control%cutoff = qs_control%e_cutoff(1)
+        END IF
+      END DO
+    END IF
+    ! check that multigrids are ordered
+    DO igrid_level=2,ngrid_level
+      IF ( qs_control%e_cutoff(igrid_level) > qs_control%e_cutoff(igrid_level-1) ) THEN
+         CALL stop_program (routine,"Multi grids not ordered")
+      END IF
+    END DO
 
   END SUBROUTINE read_qs_control
 
@@ -564,9 +619,11 @@ CONTAINS
           "QS| Density cutoff [a.u.]:",qs_control%e_cutoff(1)
       ELSE
         WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
-          "QS| Density cutoff [a.u.]: 1) grid level",qs_control%e_cutoff(1)
+          "QS| Density cutoff [a.u.]:",qs_control%cutoff
+        WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+          "QS| Multi grid cutoff [a.u.]: 1) grid level",qs_control%e_cutoff(1)
         WRITE (UNIT=output_unit,FMT="(T2,A,I3,A,T71,F10.1)")&
-          ("QS|                      ",igrid_level,") grid level",&
+          ("QS|                         ",igrid_level,") grid level",&
            qs_control%e_cutoff(igrid_level),&
            igrid_level=2,SIZE(qs_control%e_cutoff))
       END IF
