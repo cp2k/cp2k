@@ -127,7 +127,7 @@ SUBROUTINE velocity_verlet ( md_env )
                         "integrator not implemented for QUICKSTEP")
     END SELECT
   CASE ( KIM_GORDON )
-    IF (ASSOCIATED (  md_env % struc ( 1 ) % coef_pos ( 1 ) ) ) THEN 
+    IF (ASSOCIATED (  md_env % struc ( 1 ) % coef_pos  ) ) THEN 
       SELECT CASE ( md_env % simpar % ensemble )
       CASE DEFAULT
          CALL stop_program ( 'velocity_verlet','integrator not implemented for KG')

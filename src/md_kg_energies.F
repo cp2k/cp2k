@@ -227,7 +227,7 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
 
   nnodes = SIZE ( struc % pnode )
  
-  IF (ASSOCIATED (struc % coef_vel (1)) ) THEN 
+  IF (ASSOCIATED (struc % coef_vel ) ) THEN 
     nhc_coef => md_env % nhc_coef         
     inuse = struc % coef_pos ( 1 ) % in_use
     SELECT CASE ( inuse )
@@ -249,7 +249,7 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
      OPEN ( UNIT = vel, FILE = vel_file_name )
      pot = get_unit()
      OPEN ( UNIT = pot, FILE = pot_file_name )
-     IF (ASSOCIATED (struc % coef_vel (1)) ) THEN 
+     IF (ASSOCIATED (struc % coef_vel ) ) THEN 
        coe = get_unit()
        OPEN ( UNIT = coe, FILE = coef_file_name )
      END IF
@@ -261,7 +261,7 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
   
   CALL get_part_temp ( thermo, simpar, temp )
 
-  IF ( ASSOCIATED ( struc % coef_vel ( 1 ) ) ) THEN
+  IF ( ASSOCIATED ( struc % coef_vel  ) ) THEN
   
     CALL get_coef_ke ( struc % coef_vel ( 1 ), inuse, ncoef, coef_kin )
 
@@ -285,7 +285,7 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
      END DO
   END IF
 
-  IF ( ASSOCIATED ( struc % coef_vel ( 1 ) ) ) THEN
+  IF ( ASSOCIATED ( struc % coef_vel  ) ) THEN
     IF (ionode .AND. mod(itimes,icoef)==0) THEN
       SELECT CASE ( struc % coef_pos ( 1 ) % in_use )
       CASE ( 402 )
@@ -318,7 +318,7 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
      cons = thermo%kin + thermo%pot + nhc_part_kin + nhc_part_pot
   END SELECT
 
-  IF  ( ASSOCIATED ( struc % coef_vel ( 1 ) ) ) THEN 
+  IF  ( ASSOCIATED ( struc % coef_vel  ) ) THEN 
      SELECT CASE ( simpar % ensemble_coef ( 1 : 3 ) )
      CASE ( 'NVE')
         cons = cons + coef_kin
@@ -350,7 +350,7 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
      averages%avexc = thermo%e_xc
      averages%avepot = thermo%pot
      averages%avekin = thermo%kin
-     IF  ( ASSOCIATED ( struc % coef_vel ( 1 ) ) ) THEN 
+     IF  ( ASSOCIATED ( struc % coef_vel ) ) THEN 
        averages%avekinc = coef_kin   
        averages%avetempc = coef_temp
      END IF
@@ -370,7 +370,7 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
           real(itimes)
      averages%avekin = (averages%avekin*real(itimes-1)+thermo%kin)/ &
           real(itimes)
-     IF  ( ASSOCIATED ( struc % coef_vel ( 1 ) ) ) THEN 
+     IF  ( ASSOCIATED ( struc % coef_vel ) ) THEN 
        averages%avekinc = (averages%avekinc*real(itimes-1)+ coef_kin)/ &
             real(itimes)
        averages%avetempc = (averages%avetempc*real(itimes-1)+coef_temp)/ &
@@ -409,7 +409,7 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
           adjustl(e_label), '= ', thermo%kin
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL TEMPERATURE', &
           adjustl(temp_label), '= ', temp
-     IF  ( ASSOCIATED ( struc % coef_vel ( 1 ) ) ) THEN 
+     IF  ( ASSOCIATED ( struc % coef_vel  ) ) THEN 
        WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL COEF KINETIC ENERGY', &
             adjustl(e_label), '= ', coef_kin
        WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL COEF TEMPERATURE', &
@@ -454,7 +454,7 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
           adjustl(e_label), '= ', thermo%kin, averages%avekin
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' TEMPERATURE', &
           adjustl(temp_label), '= ', temp, averages%avetemp
-     IF  ( ASSOCIATED ( struc % coef_vel ( 1 ) ) ) THEN 
+     IF  ( ASSOCIATED ( struc % coef_vel ) ) THEN 
        WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' COEF KINETIC ENERGY', &
             adjustl(e_label), '= ', coef_kin,  averages%avekinc
        WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' COEF TEMPERATURE', &
