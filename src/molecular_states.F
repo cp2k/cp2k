@@ -39,7 +39,6 @@ MODULE molecular_states
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: DEBUG,&
                                              global_environment_type
   USE kinds,                           ONLY: int_size,&
