@@ -78,13 +78,6 @@ MODULE qs_vxc_atom
 
   PUBLIC :: calculate_vxc_atom, calculate_xc_2nd_deriv_atom
 
-
-!******************************************************************************
-
-  INTERFACE calculate_gaVxcgb
-    MODULE PROCEDURE gaVxcgb_noGC,gaVxcgb_GC
-  END INTERFACE
-
 !******************************************************************************
 
 CONTAINS
@@ -307,10 +300,10 @@ CONTAINS
 
        atom_kind => atomic_kind_set(ikind)
        IF(gradient_f) THEN
-         CALL calculate_gaVxcgb(vxc_h,vxc_s,vxg_h,vxg_s,atom_kind,&
-                                      rho_atom,drho_h,drho_s,nspins)
+         CALL gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,atom_kind,&
+                         rho_atom,drho_h,drho_s,nspins)
        ELSE
-         CALL calculate_gaVxcgb(vxc_h,vxc_s,atom_kind,rho_atom,nspins)
+         CALL gaVxcgb_noGC(vxc_h,vxc_s,atom_kind,rho_atom,nspins)
        ENDIF
 
        NULLIFY(r_h,r_s,dr_h,dr_s)
@@ -481,20 +474,14 @@ CONTAINS
       ALLOCATE(rho_h(1:na,1:nspins), rho1_h(1:na,1:nspins), &
                rho_s(1:na,1:nspins), rho1_s(1:na,1:nspins), stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      asize = SIZE(rho_h,1)*SIZE(rho_h,2)
-      CALL DCOPY(asize, 0.0_dp, 0, rho_h, 1)
-      CALL DCOPY(asize, 0.0_dp, 0, rho_s, 1)
-      CALL DCOPY(asize, 0.0_dp, 0, rho1_h, 1)
-      CALL DCOPY(asize, 0.0_dp, 0, rho1_s, 1)
+
       ALLOCATE(vxc_h(1:na,1:nr,1:nspins), vxc_s(1:na,1:nr,1:nspins), stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      asize = SIZE(vxc_h,1)*SIZE(vxc_h,2)*SIZE(vxc_h,3)
-      CALL DCOPY(asize, 0.0_dp, 0, vxc_h, 1)
-      CALL DCOPY(asize, 0.0_dp, 0, vxc_s, 1)
+      vxc_h = 0.0_dp ; vxc_s = 0.0_dp
+
       ALLOCATE(weight(1:na), stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      asize = SIZE(weight,1)
-      CALL DCOPY(asize, 0.0_dp, 0, weight, 1)
+      
       IF (gradient_functional) THEN
          ALLOCATE(drho_h(1:4,1:na,1:nr,1:nspins), drho1_h(1:4,1:na,1:nr,1:nspins), &
                   drho_s(1:4,1:na,1:nr,1:nspins), drho1_s(1:4,1:na,1:nr,1:nspins), stat=stat)
@@ -502,16 +489,11 @@ CONTAINS
          ALLOCATE(oodrho_h(1:na,1:nspins), oodrho1_h(1:na,1:nspins), &
                   oodrho_s(1:na,1:nspins), oodrho1_s(1:na,1:nspins), stat=stat)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         asize = SIZE(oodrho_h,1)*SIZE(oodrho_h,2)
-         CALL DCOPY(asize, 0.0_dp, 0, oodrho_h, 1)
-         CALL DCOPY(asize, 0.0_dp, 0, oodrho_s, 1)
-         CALL DCOPY(asize, 0.0_dp, 0, oodrho1_h, 1)
-         CALL DCOPY(asize, 0.0_dp, 0, oodrho1_s, 1)
+
          ALLOCATE(vxg_h(1:3,1:na,1:nr,1:nspins), vxg_s(1:3,1:na,1:nr,1:nspins), stat=stat)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         asize = SIZE(vxg_h,1)*SIZE(vxg_h,2)*SIZE(vxg_h,3)*SIZE(vxg_h,4)
-         CALL DCOPY(asize, 0.0_dp, 0, vxg_h, 1)
-         CALL DCOPY(asize, 0.0_dp, 0, vxg_s, 1)
+         vxg_h = 0.0_dp
+         vxg_s = 0.0_dp
       END IF
 
       ! parallelization
@@ -538,11 +520,8 @@ CONTAINS
                               rho_rad_h=r1_h, rho_rad_s=r1_s, &
                               drho_rad_h=dr1_h, drho_rad_s=dr1_s, &
                               rho_rad_h_d=r1_h_d, rho_rad_s_d=r1_s_d)
-            asize = SIZE(drho_h,1)*SIZE(drho_h,2)*SIZE(drho_h,3)*SIZE(drho_h,4)
-            CALL DCOPY(asize, 0.0_dp, 0, drho_h, 1)
-            CALL DCOPY(asize, 0.0_dp, 0, drho_s, 1)
-            CALL DCOPY(asize, 0.0_dp, 0, drho1_h, 1)
-            CALL DCOPY(asize, 0.0_dp, 0, drho1_s, 1)
+            drho_h = 0.0_dp ; drho_s = 0.0_dp
+            drho1_h = 0.0_dp ; drho1_s = 0.0_dp
          ELSE
             CALL get_rho_atom(rho_atom=rho_atom, &
                               rho_rad_h=r_h, rho_rad_s=r_s)
@@ -594,10 +573,10 @@ CONTAINS
 
          atom_kind => atomic_kind_set(ikind)
          IF(gradient_functional) THEN
-            CALL calculate_gaVxcgb(vxc_h,vxc_s,vxg_h,vxg_s,atom_kind,&
-                                   rho1_atom, drho_h, drho_s, nspins)
+            CALL gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,atom_kind,&
+                            rho1_atom, drho_h, drho_s, nspins)
          ELSE
-            CALL calculate_gaVxcgb(vxc_h, vxc_s, atom_kind, rho1_atom, nspins)
+            CALL gaVxcgb_noGC(vxc_h, vxc_s, atom_kind, rho1_atom, nspins)
          ENDIF
          
          NULLIFY(r_h,r_s,dr_h,dr_s)
@@ -684,9 +663,7 @@ CONTAINS
    na = grid_atom%ng_sphere
    rad = grid_atom%rad(ir)
    urad = grid_atom%oorad2l(ir,1)
-   asize = SIZE(rho_h,1)*SIZE(rho_h,2)
-   CALL DCOPY(asize, 0.0_dp, 0, rho_h, 1)
-   CALL DCOPY(asize, 0.0_dp, 0, rho_s, 1)
+   rho_h = 0.0_dp ; rho_s = 0.0_dp
 
    DO ispin = 1,nspins
       DO iso = 1,harmonics%max_iso_not0
@@ -702,9 +679,7 @@ CONTAINS
    END DO  ! ispin
 
    IF(grad_func) THEN
-      asize = SIZE(oodrho_h,1)*SIZE(oodrho_h,2)
-      CALL DCOPY(asize, 0.0_dp, 0, oodrho_h, 1)
-      CALL DCOPY(asize, 0.0_dp, 0, oodrho_s, 1)
+      oodrho_h = 0.0_dp ; oodrho_s = 0.0_dp
       DO ispin = 1,nspins
          DO iso = 1,harmonics%max_iso_not0
             DO ia = 1,na
@@ -1021,9 +996,10 @@ CONTAINS
                        "matso_h,matso_s",2*nsoset(maxl)*nsoset(maxl)*dp_size)
 
     CALL get_rho_atom(rho_atom=rho_atom, ga_Vlocal_gb_h=int_hh,ga_Vlocal_gb_s=int_ss)
+    
 
     DO ispin=1,nspins
-
+       
     g1 = 0.0_dp
     g2 = 0.0_dp
     m1 = 0
