@@ -20,13 +20,7 @@
 !******************************************************************************
 
 MODULE qs_parser
-! *****************************************************************************
-! icol             : Number of the current column in the current input line
-! icol1            : First column of the current input string
-! icol2            : Last column of the current input string
-! input_line_number: Number of the current input line read from the input file
-! input_unit       : Logical unit number of the input file
-! *****************************************************************************
+
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: wp => dp
   USE message_passing,                 ONLY: mp_bcast,&
@@ -46,6 +40,8 @@ MODULE qs_parser
 
   INTEGER, PARAMETER :: max_file_name_length = 200,&
                         max_line_length = 240
+
+! *** Global variables ***
 
   CHARACTER(LEN=4) :: default_end_section_label = "END",&
                       default_separators = ",:;="
@@ -69,6 +65,12 @@ MODULE qs_parser
   CHARACTER(LEN=max_file_name_length) :: input_file_name
   CHARACTER(LEN=max_line_length)      :: input_line
 
+! icol             : Number of the current column in the current input line
+! icol1            : First column of the current input string
+! icol2            : Last column of the current input string
+! input_line_number: Number of the current input line read from the input file
+! input_unit       : Logical unit number of the input file
+
   INTEGER :: group,icol,icol1,icol2,input_line_number,output_unit,source
   LOGICAL :: first_separator,ionode
 
@@ -90,8 +92,10 @@ MODULE qs_parser
 ! *****************************************************************************
 
   INTERFACE read_object
-    MODULE PROCEDURE read_integer_object,read_real_object,read_string_object,&
-         read_logical_object
+    MODULE PROCEDURE read_integer_object,&
+                     read_logical_object,&
+                     read_real_object,&
+                     read_string_object
   END INTERFACE
 
 !!***
@@ -604,6 +608,75 @@ CONTAINS
 
 ! *****************************************************************************
 
+  SUBROUTINE read_logical_object(object,newline,skip_lines)
+
+!   Purpose: Read a string representing logical object.
+
+!   History: - Creation (01.04.2003,FM)
+!            - New version (08.07.2003,MK)
+
+!   ***************************************************************************
+
+    LOGICAL, INTENT(OUT)          :: object
+    INTEGER, INTENT(IN), OPTIONAL :: skip_lines
+    LOGICAL, INTENT(IN), OPTIONAL :: newline
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_logical_object"
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+
+!   *** Local variables ***
+
+    CHARACTER(LEN=max_line_length) :: input_string
+    INTEGER                        :: input_string_length,nline
+
+!   ---------------------------------------------------------------------------
+
+    IF (PRESENT(skip_lines)) THEN
+      nline = skip_lines
+    ELSE
+      nline = 0
+    END IF
+
+    IF (PRESENT(newline)) THEN
+      IF (newline) nline = nline + 1
+    END IF
+
+    CALL get_next_input_line(nline)
+
+    CALL get_next_input_string()
+
+    input_string_length = icol2 - icol1 + 1
+
+    IF (input_string_length == 0) THEN
+      icol1 = icol
+      icol2 = icol
+      CALL stop_parser(routine,&
+                       "A string representing a logical object was expected, "//&
+                       "found end of line")
+    ELSE
+      input_string(:input_string_length) = input_line(icol1:icol2)
+    END IF
+
+    CALL uppercase(input_string)
+
+    SELECT CASE (TRIM(input_string))
+    CASE ("0","F",".F.","FALSE",".FALSE.","N","NO","OFF")
+      object = .FALSE.
+    CASE ("1","T",".T.","TRUE",".TRUE.","Y","YES","ON")
+      object = .TRUE.
+    CASE DEFAULT
+      CALL stop_parser(routine,&
+                       "A string representing a logical object was expected, "//&
+                       "found <"//TRIM(input_string)//">")
+    END SELECT
+
+  END SUBROUTINE read_logical_object
+
+! *****************************************************************************
+
   SUBROUTINE read_next_input_line(nline,ifail)
 
 !   Purpose: Read the next line from a logical unit "unit" (I/O node only).
@@ -671,9 +744,13 @@ CONTAINS
 !       *** Ignore empty lines ***
 
         IF (icomment > 0) THEN
-          IF (LEN_TRIM(input_line(:icomment-1)) == 0) iline = iline - 1
+!MK xlf 8.1.1 bug -> len_trim returns -1 for an empty string
+!         IF (LEN_TRIM(input_line(:icomment-1)) == 0) iline = iline - 1
+          IF (LEN_TRIM(input_line(:icomment-1)) <= 0) iline = iline - 1
         ELSE
-          IF (LEN_TRIM(input_line) == 0) iline = iline - 1
+!MK xlf 8.1.1 bug -> len_trim returns -1 for an empty string
+!         IF (LEN_TRIM(input_line) == 0) iline = iline - 1
+          IF (LEN_TRIM(input_line) <= 0) iline = iline - 1
         END IF
 
       END DO
@@ -852,59 +929,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE read_string_object
-
-!!****f* qs_parser/read_logical_object [1.0] *
-!!
-!!   NAME
-!!     read_logical_object
-!!
-!!   FUNCTION
-!!     reads a logical value (0,1,true,false,t,f,yes,no,y,n)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE read_logical_object(value)
-  LOGICAL, INTENT(out) :: value
-  
-  CHARACTER(len=*), PARAMETER :: routineN='read_logical_object',&
-        routineP=module_name//':'//routineN
-
-  CHARACTER(len=20) :: stringVal
-  
-  CALL read_string_object(stringVal, lower_to_upper=.TRUE.,&
-       newline=.FALSE.,skip_lines=0)
-  SELECT CASE(stringVal(1:1))
-  CASE ("0")
-     value=.FALSE.
-  CASE("1")
-     value=.TRUE.
-  CASE("N")
-     value=.FALSE.
-  CASE("Y")
-     value=.TRUE.
-  CASE("F")
-     value=.FALSE.
-  CASE("T")
-     value=.TRUE.
-  CASE default
-     CALL stop_program(routineP,&
-        error_message="parsin error, expected a logical value but found '"//&
-        stringVal//"'")
-  END SELECT
-END SUBROUTINE read_logical_object
-!***************************************************************************
 
 ! *****************************************************************************
 
