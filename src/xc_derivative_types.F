@@ -9,24 +9,26 @@
 !!     xc_derivative_types
 !!
 !!   FUNCTION
-!!     
+!!     Provides types for the management of the xc-functionals and
+!!     their derivatives.
 !!
 !!   NOTES
 !!     
 !!     
 !!****
 module xc_derivative_types
-  use kinds, only: wp => dp
-  use cp_error_handling, only:cp_error_type, cp_a_l, cp_assert, cp_error_get_logger
-  use cp_log_handling, only: cp_logger_type, cp_failure_level, cp_warning_level, cp_to_string,&
-       cp_logger_get_default_unit_nr
+
+  use kinds,              only: wp => dp
+  use cp_error_handling,  only: cp_error_type, cp_a_l, cp_assert, cp_error_get_logger
+  use cp_log_handling,    only: cp_logger_type, cp_failure_level, cp_warning_level, &
+                                cp_to_string, cp_logger_get_default_unit_nr
+  use xc_derivative_desc, only: MAX_DERIVATIVE_DESC_LENGTH, &
+                                standardize_dervitative_desc
 
   implicit none
 
   private
 
-  integer, parameter :: xc_max_label_length=10,xc_max_deriv=4,&
-       xc_max_derivative_desc_length=(xc_max_label_length+2)*xc_max_deriv
   character(len=*), parameter, private :: moduleN='xc_derivative_types'
 
 !!****t* cp2k/xc_derivative_type  *
@@ -35,17 +37,15 @@ module xc_derivative_types
 !!     xc_derivative_type
 !!
 !!   FUNCTION
-!!     
+!!     A node of a linked list contains the actual derivative together
+!!     with a string describing it.
 !!
-!!   NOTES
-!!     
-!!     
 !!****
 type xc_derivative_type
-   integer :: ref_count, id_nr
-   character(len=xc_max_derivative_desc_length) :: derivative_description
-   real(kind=wp), dimension(:), pointer :: derivative
-   type(xc_derivative_type), pointer :: next
+   integer                                   :: ref_count, id_nr
+   character(len=MAX_DERIVATIVE_DESC_LENGTH) :: derivative_desc
+   real(kind=wp), dimension(:), pointer      :: derivative
+   type(xc_derivative_type), pointer         :: next
 end type xc_derivative_type
 
 !!****t* cp2k/xc_derivative_set_type  *
@@ -54,11 +54,9 @@ end type xc_derivative_type
 !!     xc_derivative_set_type
 !!
 !!   FUNCTION
-!!     
+!!     A derivative set contains the different derivatives of a xc-functional
+!!     in form of a linked list
 !!
-!!   NOTES
-!!     
-!!     
 !!****
 type xc_derivative_set_type
    integer :: ref_count, id_nr, deriv_size
@@ -67,117 +65,8 @@ end type xc_derivative_set_type
 
 
 contains
-! *****************************************************************************
-
-!!****f* xc_derivative_types/standardize_dervitative_desc *
-!!
-!!   NAME
-!!     standardize_dervitative_desc
-!!
-!!   FUNCTION
-!!     returns a unique string for a given derivative string
-!!
-!!   SYNOPSIS
-!!     -
-!!
-!!   ARGUMENTS
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!****
- function standardize_dervitative_desc(deriv_desc, error) result(res)
-    character(len=*), intent(in) :: deriv_desc
-    type(cp_error_type), intent(inout), optional :: error
-    character(len=xc_max_derivative_desc_length) :: res
-
-    logical :: failure
-    character(len=*), parameter :: routineN='standardize_dervitative_desc',&
-         routineP=moduleN//':'//routineN
-    character(len=xc_max_label_length), dimension(:), pointer :: deriv_array
-
-    integer :: i, pos, l_label
-    logical :: ordered
-    character(len=xc_max_label_length) :: tmp
-
-    deriv_array => create_split_derivative_desc(deriv_desc, error=error)
-
-    ordered=.false.
-    do while(.not.ordered)
-       ordered=.true.
-       do i=1,size(deriv_array)-1
-          if (deriv_array(i)>deriv_array(i+1)) then
-             tmp=deriv_array(i+1)
-             deriv_array(i+1)=deriv_array(i)
-             deriv_array(i)=tmp
-             ordered=.false.
-          end if
-       end do
-    end do
-    
-    res=""
-    pos=1
-    do i=1,size(deriv_array)
-       l_label=len_trim(deriv_array(i))
-       res(pos:pos+l_label+1)='('//deriv_array(i)(1:l_label)//')'
-       pos=pos+l_label+2
-    end do
-
-  end function standardize_dervitative_desc
-
-  !!****f* xc_derivative_types/create_split_derivative_desc [1.0] *
-  !!
-  !!   NAME
-  !!     create_split_derivative_desc
-  !!
-  !!   FUNCTION
-  !!     -
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     error: variable to control error logging, stopping,... 
-  !!            see module cp_error_handling 
-  !!
-  !!*** *********************************************************************
-  function create_split_derivative_desc(deriv_desc, error) result(res)
-    implicit none
-    character(len=*), intent(in) :: deriv_desc
-    type(cp_error_type), intent(inout), optional :: error
-    character(len=xc_max_label_length), dimension(:), pointer :: res
-
-    logical :: failure
-    character(len=*), parameter :: routineN='create_split_derivative_desc',&
-         routineP=moduleN//':'//routineN
-    integer :: nderiv, i, j, stat
-
-    nderiv=0
-    do i=1,len(deriv_desc)
-       if (deriv_desc(i:i)=='(') then
-          nderiv=nderiv+1
-       end if
-    end do
-
-    allocate(res(nderiv),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    nderiv=0
-    do i=1,len(deriv_desc)
-       if (deriv_desc(i:i)=='(') then
-          nderiv=nderiv+1
-          do j=i+1,len(deriv_desc)
-             if (deriv_desc(j:j)==')') exit
-          end do
-          res(nderiv)=deriv_desc(i+1:j-1)
-       end if
-    end do
-    
-  end function create_split_derivative_desc
 
 ! *****************************************************************************
-
 
 !!****f* xc_derivative_types/xc_dset_get_derivative [1.0] *
 !!
@@ -213,7 +102,7 @@ function xc_dset_get_derivative(deriv_set, deriv_desc, allocate_deriv, error)&
   logical :: failure, my_allocate_deriv
   character(len=*), parameter :: routineN='xc_dset_get_derivative',&
         routineP=moduleN//':'//routineN
-  character(len=xc_max_derivative_desc_length) :: std_deriv_desc
+  character(len=MAX_DERIVATIVE_DESC_LENGTH) :: std_deriv_desc
   type(xc_derivative_type), pointer :: pos
 
   failure=.false.
@@ -226,7 +115,7 @@ function xc_dset_get_derivative(deriv_set, deriv_desc, allocate_deriv, error)&
   if (.not. failure) then
      pos => deriv_set%first
      do while(associated(pos))
-        if (pos%derivative_description==std_deriv_desc) then
+        if (pos%derivative_desc==std_deriv_desc) then
            res => pos
            exit
         end if
