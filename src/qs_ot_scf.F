@@ -87,6 +87,8 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     qs_ot_env(1)%settings%line_search_method="2PNT"
     qs_ot_env(1)%settings%ds_min=0.15_dp
     qs_ot_env(1)%settings%energy_gap=0.2_dp
+    qs_ot_env(1)%settings%eps_taylor=1.0E-16_dp
+    qs_ot_env(1)%settings%max_taylor=4 
 
     CALL start_parser(file_name=globenv%input_file_name,&
                       globenv=globenv,&
@@ -153,6 +155,10 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
                CALL read_object(qs_ot_env(1)%settings%ds_min)
           CASE ("ENERGY_GAP")
                CALL read_object(qs_ot_env(1)%settings%energy_gap)
+          CASE ("EPS_TAYLOR")
+               CALL read_object(qs_ot_env(1)%settings%eps_taylor)
+          CASE ("MAX_TAYLOR")
+               CALL read_object(qs_ot_env(1)%settings%max_taylor)
           CASE DEFAULT
                IF (globenv%ionode) WRITE(globenv%scr,*) keyword
                CALL stop_program("READ OTSCF","KEYWORD UNKNOWN")
@@ -161,61 +167,63 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     ENDIF
     CALL finish_parser()
     IF (globenv%ionode) THEN
-    WRITE(6,*) ""
-    WRITE(6,*) " ----------------------------------- OT --------------------------------------"
-    WRITE(6,*) ""
-    WRITE(6,*) " An efficient orbital transformation method "
-    WRITE(6,*) " for electronic structure calculations "
-    WRITE(6,*) " Joost VandeVondele and Juerg Hutter"
-    WRITE(6,*) " J. Chem. Phys. 118, 4365, 2003"
-    WRITE(6,*) ""
+    WRITE(6,'(A)') " "
+    WRITE(6,'(A)') "  ----------------------------------- OT --------------------------------------"
+    WRITE(6,'(A)') " "
+    WRITE(6,'(A)') "  An efficient orbital transformation method "
+    WRITE(6,'(A)') "  for electronic structure calculations "
+    WRITE(6,'(A)') "  Joost VandeVondele and Juerg Hutter"
+    WRITE(6,'(A)') "  J. Chem. Phys. 118, 4365, 2003"
+    WRITE(6,'(A)') " "
     SELECT CASE (qs_ot_env(1)%settings%OT_METHOD)
     CASE ("SD")
-         WRITE(6,*) " minimizer      : SD             : steepest descent"
+         WRITE(6,'(A)') "  minimizer      : SD             : steepest descent"
     CASE ("CG")
-         WRITE(6,*) " minimizer      : CG             : conjugate gradient"
+         WRITE(6,'(A)') "  minimizer      : CG             : conjugate gradient"
     CASE ("DIIS")
-         WRITE(6,*) " minimizer      : DIIS           : direct inversion in the iterative subspace"
-         WRITE(6,*) "                           using : ",qs_ot_env(1)%settings%diis_m," diis vectors"
+         WRITE(6,'(A)') "  minimizer      : DIIS           : direct inversion in the iterative subspace"
+         WRITE(6,'(A,I3,A)') "                            using : ",qs_ot_env(1)%settings%diis_m," diis vectors"
     CASE DEFAULT
-         WRITE(6,*) " minimizer      :      ",qs_ot_env(1)%settings%OT_METHOD," : UNKNOWN"
+         WRITE(6,'(3A)') "  minimizer      :      ",qs_ot_env(1)%settings%OT_METHOD," : UNKNOWN"
     END SELECT
     SELECT CASE (qs_ot_env(1)%settings%preconditioner_type)
     CASE ("FULL_SINGLE")
-         WRITE(6,*) " preconditioner : FULL_SINGLE    : diagonalization based "
+         WRITE(6,'(A)') "  preconditioner : FULL_SINGLE    : diagonalization based "
     CASE ("FULL_KINETIC")
-         WRITE(6,*) " preconditioner : FULL_KINETIC   : cholesky inversion of T + eS"
+         WRITE(6,'(A)') "  preconditioner : FULL_KINETIC   : cholesky inversion of T + eS"
     CASE ("FULL_S_INVERSE")
-         WRITE(6,*) " preconditioner : FULL_S_INVERSE : cholesky inversion of S"
+         WRITE(6,'(A)') "  preconditioner : FULL_S_INVERSE : cholesky inversion of S"
     CASE ("SPARSE_DIAG")
-         WRITE(6,*)  &
-           " preconditioner : SPARSE_DIAG    : diagonal atomic block diagonalization"
+         WRITE(6,'(A)')  &
+           "  preconditioner : SPARSE_DIAG    : diagonal atomic block diagonalization"
     CASE ("NONE")
-         WRITE(6,*) " preconditioner : NONE  "
+         WRITE(6,'(A)') "  preconditioner : NONE  "
     CASE DEFAULT 
-         WRITE(6,*) " preconditioner : ",qs_ot_env(1)%settings%preconditioner_type," : UNKNOWN"
+         WRITE(6,'(3A)') "  preconditioner : ",qs_ot_env(1)%settings%preconditioner_type," : UNKNOWN"
     END SELECT
     IF (qs_ot_env(1)%settings%OT_METHOD .EQ."SD".OR.qs_ot_env(1)%settings%OT_METHOD.EQ."CG") THEN
        SELECT CASE (qs_ot_env(1)%settings%line_search_method)
          CASE ("2PNT")
-                    WRITE(6,*) " line search    : 2PNT           : 2 energies, one gradient "
+                    WRITE(6,'(A)') "  line search    : 2PNT           : 2 energies, one gradient "
          CASE ("3PNT")
-                    WRITE(6,*) " line search    : 3PNT           : 3 energies "
+                    WRITE(6,'(A)') "  line search    : 3PNT           : 3 energies "
          CASE ("GOLD")
-                    WRITE(6,*) " line search    : GOLD           : bracketing and golden section search "
-                    WRITE(6,*) "                  target relative accuracy : ", &
+                    WRITE(6,'(A)') "  line search    : GOLD           : bracketing and golden section search "
+                    WRITE(6,'(A,F14.8)') "                   target relative accuracy : ", &
                                qs_ot_env(1)%settings%gold_target
          CASE ("NONE")
-                    WRITE(6,*) " line search    : NONE "
+                    WRITE(6,'(A)') "  line search    : NONE "
          CASE DEFAULT
-                    WRITE(6,*) " line search : ", &
+                    WRITE(6,'(3A)') "  line search : ", &
                                qs_ot_env(1)%settings%line_search_method," : UNKNOWN"
        END SELECT
     ENDIF
-    WRITE(6,*) " stepsize       :",qs_ot_env(1)%settings%ds_min
-    WRITE(6,*) " energy_gap     :",qs_ot_env(1)%settings%energy_gap
-    WRITE(6,*) " "
-    WRITE(6,*) " ----------------------------------- OT --------------------------------------"
+    WRITE(6,'(A,F14.8)') "  stepsize       :",qs_ot_env(1)%settings%ds_min
+    WRITE(6,'(A,F14.8)') "  energy_gap     :",qs_ot_env(1)%settings%energy_gap
+    WRITE(6,'(A,E14.5)') "  eps_taylor     :",qs_ot_env(1)%settings%eps_taylor
+    WRITE(6,'(A,I14)') "  max_taylor     :",qs_ot_env(1)%settings%max_taylor
+    WRITE(6,'(A)') "  "
+    WRITE(6,'(A)') "  ----------------------------------- OT --------------------------------------"
     ENDIF
  
     DO ispin=2,nspin

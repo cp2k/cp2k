@@ -124,6 +124,8 @@ CONTAINS
     qs_ot_env(1)%settings%diis_m=7 
     qs_ot_env(1)%settings%n=n 
     qs_ot_env(1)%settings%k=k 
+    qs_ot_env(1)%settings%eps_taylor=1.0E-16_dp
+    qs_ot_env(1)%settings%max_taylor=4
     IF (ortho) THEN
        CALL cp_fm_get_info(matrix_orthogonal_space,&
                                   ncol_global=ortho_space_k)

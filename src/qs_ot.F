@@ -1,4 +1,3 @@
-
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations
 !   Copyright (C) 2001 - 2002  CP2K developers group
@@ -16,7 +15,7 @@
 !!     Joost VandeVondele (06.2002)
 !!
 !!   MODIFICATION HISTORY
-!!     None
+!!     Added Taylor expansion based computation of the matrix functions (01.2004)
 !!
 !!   SOURCE
 !!
@@ -36,6 +35,7 @@ MODULE qs_ot
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_maxabsval,&
+                                             cp_fm_maxabsrownorm,& 
                                              cp_fm_to_fm, &
                                              cp_fm_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
@@ -66,8 +66,7 @@ MODULE qs_ot
   PUBLIC  :: qs_ot_get_derivative
   PUBLIC  :: qs_ot_destroy
   PUBLIC  :: qs_ot_new_preconditioner
-
-  PRIVATE :: qs_ot_p2m
+  PRIVATE :: qs_ot_p2m_diag
   PRIVATE :: qs_ot_sinc
 
   ! notice, this variable needs to be copyable !
@@ -82,6 +81,8 @@ MODULE qs_ot
        REAL(KIND = dp)   :: gold_target
        INTEGER           :: n,k,nrow_block,ncol_block
        INTEGER           :: ortho_k
+       REAL(kind = dp)   :: eps_taylor ! minimum accuracy of the taylor expansion
+       INTEGER           :: max_taylor ! maximum order of the taylor expansion before switching to diagonalization
   END TYPE qs_ot_settings_type
 
   TYPE qs_ot_type
@@ -136,19 +137,22 @@ MODULE qs_ot
      REAL(KIND = dp), DIMENSION(:,:), POINTER  :: ls_diis
      REAL(KIND = dp), DIMENSION(:,:), POINTER  :: lss_diis
      REAL(KIND = dp), DIMENSION(:),   POINTER  :: c_diis
-     INTEGER,  DIMENSION(:),   POINTER  :: ipivot
+     INTEGER,  DIMENSION(:),   POINTER         :: ipivot
 
-     REAL(KIND = dp)    :: ot_pos(53),ot_energy(53),ot_grad(53) ! HARD LIMIT FOR THE LS
-     INTEGER :: line_search_left,line_search_right,line_search_mid
+     REAL(KIND = dp)  :: ot_pos(53),ot_energy(53),ot_grad(53) ! HARD LIMIT FOR THE LS
+     INTEGER          :: line_search_left,line_search_right,line_search_mid
      INTEGER          :: line_search_count
      LOGICAL          :: line_search_might_be_done
-     REAL(KIND = dp)    :: delta,gnorm,gnorm_old,etotal,gradient
+     REAL(KIND = dp)  :: delta,gnorm,gnorm_old,etotal,gradient
      LOGICAL          :: energy_only
      INTEGER          :: diis_iter
      CHARACTER(LEN=8) :: OT_METHOD_FULL
      INTEGER          :: OT_count
-     REAL(KIND = dp)         :: ds_min
+     REAL(KIND = dp)  :: ds_min
 
+     LOGICAL          :: do_taylor 
+     INTEGER          :: taylor_order
+     REAL(KIND = dp)  :: largest_eval_upper_bound
 
   END TYPE qs_ot_type
 
@@ -371,19 +375,20 @@ SUBROUTINE qs_ot_destroy(qs_ot_env)
 
 END SUBROUTINE qs_ot_destroy
 !*******************************************************************************
-! computes p=x*S*x
+! computes p=x*S*x and the matrix functionals related matrices
 !*******************************************************************************
 SUBROUTINE qs_ot_get_p(matrix_x,matrix_sx,qs_ot_env)
 
   TYPE(cp_fm_type), POINTER          :: matrix_sx,matrix_x
-  TYPE(qs_ot_type)                          :: qs_ot_env
+  TYPE(qs_ot_type)                   :: qs_ot_env
 
+  REAL(KIND = dp) , PARAMETER        :: rone=1.0_dp , rzero=0.0_dp
+  INTEGER                            :: n,k,handle
 
-
-  REAL(KIND = dp) , PARAMETER            :: rone=1.0_dp , rzero=0.0_dp
-  INTEGER                         :: n,k,handle
-  REAL(KIND = dp)                        :: timedum
-
+  TYPE(cp_fm_type), POINTER          :: cp_fm_test1,cp_fm_test2
+  REAL(KIND = dp)                    :: dum
+  NULLIFY(cp_fm_test1)
+  NULLIFY(cp_fm_test2)
   CALL timeset("qs_ot_get_p","I","",handle)
 
   n=qs_ot_env%settings%n
@@ -393,17 +398,55 @@ SUBROUTINE qs_ot_get_p(matrix_x,matrix_sx,qs_ot_env)
   CALL cp_fm_gemm('T','N',k,k,n,rone,matrix_x,matrix_sx,rzero,& 
                            qs_ot_env%matrix_p)
 
-  CALL qs_ot_p2m(qs_ot_env)
+! get an upper bound for the largest eigenvalue
+  CALL cp_fm_maxabsrownorm(qs_ot_env%matrix_p, qs_ot_env % largest_eval_upper_bound)
+
+  CALL decide_strategy(qs_ot_env)
+
+  IF (qs_ot_env % do_taylor) THEN
+      CALL qs_ot_p2m_taylor(qs_ot_env) 
+  ELSE
+      CALL qs_ot_p2m_diag(qs_ot_env)
+  ENDIF
 
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE qs_ot_get_p
 
 !*******************************************************************************
+! 
+! decide strategy
+! tries to decide if the taylor expansion of cos(sqrt(xsx)) converges rapidly enough
+! to make a taylor expansion of the functions cos(sqrt(xsx)) and sin(sqrt(xsx))/sqrt(xsx)
+! and their derivatives faster than their computation based on diagonalization
+! since xsx can be very small, especially during dynamics, only a few terms might indeed be needed
+! we find the necessary order N to have largest_eval_upper_bound**(N+1)/(2(N+1))! < eps_taylor
+! 
+!*******************************************************************************
+SUBROUTINE decide_strategy(qs_ot_env)
+  TYPE(qs_ot_type)                          :: qs_ot_env
+
+  INTEGER                                   :: N
+  REAL(KIND=dp)                             :: num_error
+
+  qs_ot_env % do_taylor = .FALSE.
+  N=0
+  num_error=qs_ot_env % largest_eval_upper_bound / ( 2.0_dp )
+  DO WHILE (num_error > qs_ot_env % settings % eps_taylor .AND. N < 1000)
+     N=N+1
+     num_error=num_error * qs_ot_env % largest_eval_upper_bound / REAL(( 2*N+1 )*(2*N+2),KIND=dp)
+  END DO
+  qs_ot_env % taylor_order = N
+  IF ( qs_ot_env % taylor_order <= qs_ot_env % settings % max_taylor) THEN
+       qs_ot_env % do_taylor = .TRUE.
+  ENDIF
+
+END SUBROUTINE
+
+!*******************************************************************************
 ! c=c0*cos(p^0.5)+x*sin(p^0.5)*p^(-0.5)
 ! this assumes that x is already ortho to S*C0, and that p is x*p*x
 !*******************************************************************************
-
 SUBROUTINE qs_ot_get_orbitals(matrix_c, matrix_x, qs_ot_env)
 
   TYPE(qs_ot_type)                          :: qs_ot_env
@@ -436,6 +479,65 @@ END SUBROUTINE qs_ot_get_orbitals
 !*******************************************************************************
 SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
                                                qs_ot_env)
+  TYPE(cp_fm_type), POINTER          :: matrix_hc,matrix_x
+  TYPE(cp_fm_type), POINTER          :: matrix_sx,matrix_gx
+  TYPE(qs_ot_type)                          :: qs_ot_env
+
+  REAL(KIND = dp) , PARAMETER        :: rone=1.0_dp , rzero=0.0_dp
+  INTEGER                            :: n,k,handle,ortho_k
+  TYPE(cp_fm_type), POINTER          :: matrix_target
+
+  CALL timeset("qs_ot_get_derivative","I","",handle)
+
+  IF (qs_ot_env % do_taylor) THEN
+     CALL qs_ot_get_derivative_taylor(matrix_hc,matrix_x,matrix_sx,matrix_gx,qs_ot_env)
+  ELSE
+     CALL qs_ot_get_derivative_diag(matrix_hc,matrix_x,matrix_sx,matrix_gx,qs_ot_env)
+  ENDIF
+
+  ! and make it orthogonal
+  n=qs_ot_env%settings%n
+  k=qs_ot_env%settings%k
+  ortho_k=qs_ot_env%settings%ortho_k
+
+  IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN
+      matrix_target => qs_ot_env%matrix_psc0
+  ELSE
+      matrix_target => qs_ot_env%matrix_sc0
+  ENDIF
+  ! first make the matrix os if not yet valid
+  IF (.NOT. qs_ot_env%os_valid) THEN
+     ! this assumes that the preconditioner is a single matrix
+     ! that maps sc0 onto psc0
+     IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN
+        CALL apply_preconditioner(qs_ot_env%preconditioner, qs_ot_env%matrix_sc0, &
+                               qs_ot_env%matrix_psc0 )
+     ENDIF
+     CALL cp_fm_gemm('T','N',ortho_k,ortho_k,n,rone,&
+                     qs_ot_env%matrix_sc0,matrix_target, &
+                     rzero,qs_ot_env%matrix_os)
+     CALL cp_fm_cholesky_decompose(qs_ot_env%matrix_os)
+     CALL cp_fm_cholesky_invert(qs_ot_env%matrix_os)
+     qs_ot_env%os_valid=.TRUE.
+  ENDIF
+
+  CALL cp_fm_gemm('T','N',ortho_k,k,n,rone,matrix_target,matrix_gx, &
+                      rzero,qs_ot_env%matrix_buf1_ortho)
+
+  CALL cp_fm_symm('L','U',ortho_k,k,rone,qs_ot_env%matrix_os,&
+                      qs_ot_env%matrix_buf1_ortho, &
+                      rzero,qs_ot_env%matrix_buf2_ortho)
+
+  CALL cp_fm_gemm('N','N',n,k,ortho_k,-rone,qs_ot_env%matrix_sc0, &
+                     qs_ot_env%matrix_buf2_ortho, &
+                      rone,matrix_gx)
+
+  CALL timestop(0.0_dp,handle)
+
+END SUBROUTINE qs_ot_get_derivative
+
+SUBROUTINE qs_ot_get_derivative_diag(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
+                                               qs_ot_env)
 
   TYPE(cp_fm_type), POINTER          :: matrix_hc,matrix_x
   TYPE(cp_fm_type), POINTER          :: matrix_sx,matrix_gx
@@ -447,12 +549,11 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
   INTEGER                         :: n,k,handle,ortho_k
   TYPE(cp_fm_type), POINTER :: matrix_target
 
-  CALL timeset("qs_ot_get_derivative","I","",handle)
+  CALL timeset("qs_ot_get_derivative_diag","I","",handle)
 
   n=qs_ot_env%settings%n
   k=qs_ot_env%settings%k
   ortho_k=qs_ot_env%settings%ortho_k
-
 
   ! go for the derivative now
   ! this de/dc*(dX/dx)*sinp
@@ -468,7 +569,6 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
   ! get the schur product of O_uv*B_uv
   CALL cp_fm_schur_product(qs_ot_env%matrix_buf2,qs_ot_env%matrix_sinp_b, &
                                    qs_ot_env%matrix_buf3)
-
 
   ! overlap hc*c0
   CALL cp_fm_gemm('T','N',k,k,n,rone,matrix_hc,qs_ot_env%matrix_c0,rzero, &
@@ -501,43 +601,151 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
   CALL cp_fm_gemm('N','N',n,k,k,rone,matrix_sx,qs_ot_env%matrix_buf3, &
                                           rone,matrix_gx)
  
-  ! and make it orthogonal
-  IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN
-      matrix_target => qs_ot_env%matrix_psc0
-  ELSE
-      matrix_target => qs_ot_env%matrix_sc0
+  CALL timestop(0.0_dp,handle)
+
+END SUBROUTINE qs_ot_get_derivative_diag
+
+!*******************************************************************************
+! compute the derivative of the taylor expansion below
+!*******************************************************************************
+SUBROUTINE qs_ot_get_derivative_taylor(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
+                                               qs_ot_env)
+
+  TYPE(cp_fm_type), POINTER          :: matrix_hc,matrix_x
+  TYPE(cp_fm_type), POINTER          :: matrix_sx,matrix_gx
+  TYPE(qs_ot_type)                          :: qs_ot_env
+
+! locals 
+
+  REAL(KIND = dp) , PARAMETER            :: rone=1.0_dp , rzero=0.0_dp
+  INTEGER                         :: n,k,handle,ortho_k,i
+  TYPE(cp_fm_type), POINTER :: matrix_target
+  TYPE(cp_fm_type), POINTER          :: matrix_left, matrix_right
+  REAL(KIND = dp) :: cosfactor,sinfactor
+
+  CALL timeset("qs_ot_get_derivative_taylor","I","",handle)
+
+  n=qs_ot_env%settings%n
+  k=qs_ot_env%settings%k
+  ortho_k=qs_ot_env%settings%ortho_k
+
+  ! go for the derivative now
+  ! this de/dc*(dX/dx)*sinp i.e. zeroth order
+  CALL cp_fm_gemm('N','N',n,k,k,rone,matrix_hc,qs_ot_env%matrix_sinp,rzero,matrix_gx)
+
+  IF (qs_ot_env % taylor_order .le. 0) THEN
+      CALL timestop(0.0_dp,handle)
+      RETURN
   ENDIF
-  ! first make the matrix os if not yet valid
-  IF (.NOT. qs_ot_env%os_valid) THEN
-     ! this assumes that the preconditioner is a single matrix
-     ! that maps sc0 onto psc0
-     IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN
-        CALL apply_preconditioner(qs_ot_env%preconditioner, qs_ot_env%matrix_sc0, &
-                               qs_ot_env%matrix_psc0 )
-     ENDIF
-     CALL cp_fm_gemm('T','N',ortho_k,ortho_k,n,rone,&
-                     qs_ot_env%matrix_sc0,matrix_target, &
-                     rzero,qs_ot_env%matrix_os)
-     CALL cp_fm_cholesky_decompose(qs_ot_env%matrix_os)
-     CALL cp_fm_cholesky_invert(qs_ot_env%matrix_os)
-     qs_ot_env%os_valid=.TRUE.
+
+  ! we store the matrix that will multiply sx in matrix_r
+  CALL cp_fm_set_all(qs_ot_env%matrix_r,rzero)
+
+  ! just better names for matrix_cosp_b and matrix_sinp_b (they are buffer space here)
+  matrix_left  => qs_ot_env%matrix_cosp_b
+  matrix_right => qs_ot_env%matrix_sinp_b
+
+  ! overlap hc*x and add its transpose to matrix_left
+  CALL cp_fm_gemm('T','N',k,k,n,rone,matrix_hc,matrix_x,rzero,matrix_left)
+  CALL cp_fm_transpose(matrix_left,qs_ot_env%matrix_buf1)
+  CALL cp_fm_scale_and_add(1.0_dp,matrix_left,1.0_dp,qs_ot_env%matrix_buf1)
+  CALL cp_fm_to_fm(matrix_left,matrix_right)
+
+  ! first order
+  sinfactor=-1.0_dp/(2.0_dp*3.0_dp)
+  CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_r,sinfactor,matrix_left)
+
+  !      M
+  !    OM+MO
+  ! OOM+OMO+MOO
+  !   ... 
+  DO i=2, qs_ot_env % taylor_order
+     sinfactor=sinfactor * (-1.0_dp)/REAL(2*i * (2*i+1),KIND=dp)
+     CALL cp_fm_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_p,matrix_left,rzero,qs_ot_env%matrix_buf1)
+     CALL cp_fm_gemm('N','N',k,k,k,rone,matrix_right,qs_ot_env%matrix_p,rzero,matrix_left)
+     CALL cp_fm_to_fm(matrix_left,matrix_right)
+     CALL cp_fm_scale_and_add(1.0_dp,matrix_left,1.0_dp,qs_ot_env%matrix_buf1)
+     CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_r,sinfactor,matrix_left)
+  ENDDO
+
+  ! overlap hc*c0 and add its transpose to matrix_left
+  CALL cp_fm_gemm('T','N',k,k,n,rone,matrix_hc,qs_ot_env%matrix_c0,rzero,matrix_left)
+  CALL cp_fm_transpose(matrix_left,qs_ot_env%matrix_buf1)
+  CALL cp_fm_scale_and_add(1.0_dp,matrix_left,1.0_dp,qs_ot_env%matrix_buf1)
+  CALL cp_fm_to_fm(matrix_left,matrix_right)
+
+  ! first order
+  cosfactor=-1.0_dp/(1.0_dp*2.0_dp)
+  CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_r,cosfactor,matrix_left)
+
+  !      M
+  !    OM+MO
+  ! OOM+OMO+MOO
+  !   ... 
+  DO i=2, qs_ot_env % taylor_order
+     cosfactor=cosfactor * (-1.0_dp)/REAL(2*i * (2*i-1),KIND=dp)
+     CALL cp_fm_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_p,matrix_left,rzero,qs_ot_env%matrix_buf1)
+     CALL cp_fm_gemm('N','N',k,k,k,rone,matrix_right,qs_ot_env%matrix_p,rzero,matrix_left)
+     CALL cp_fm_to_fm(matrix_left,matrix_right)
+     CALL cp_fm_scale_and_add(1.0_dp,matrix_left,1.0_dp,qs_ot_env%matrix_buf1)
+     CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_r,cosfactor,matrix_left)
+  ENDDO
+
+  ! and add to the derivative
+  CALL cp_fm_gemm('N','N',n,k,k,rone,matrix_sx,qs_ot_env%matrix_r,rone,matrix_gx)
+ 
+  CALL timestop(0.0_dp,handle)
+
+END SUBROUTINE qs_ot_get_derivative_taylor
+
+!*******************************************************************************
+! computes a taylor expansion. 
+!*******************************************************************************
+SUBROUTINE qs_ot_p2m_taylor(qs_ot_env)
+  TYPE(qs_ot_type)                           :: qs_ot_env
+
+  ! locals
+  INTEGER  :: handle,k,i
+  REAL(KIND = dp), PARAMETER :: rone=1.0_dp, rzero=0.0_dp
+  REAL(KIND = dp) :: cosfactor,sinfactor
+  CALL timeset("qs_ot_p2m_taylor","I","",handle)
+
+  ! zeroth order
+  CALL cp_fm_set_all(qs_ot_env%matrix_cosp,rzero,rone)
+  CALL cp_fm_set_all(qs_ot_env%matrix_sinp,rzero,rone)
+  IF (qs_ot_env% taylor_order .le. 0) THEN
+      CALL timestop(0.0_dp,handle)
+      RETURN
   ENDIF
 
+  ! first order
+  cosfactor=-1.0_dp/(1.0_dp*2.0_dp)
+  sinfactor=-1.0_dp/(2.0_dp*3.0_dp)
+  CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_cosp,cosfactor,qs_ot_env%matrix_p)
+  CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_sinp,sinfactor,qs_ot_env%matrix_p)
+  IF (qs_ot_env% taylor_order .le. 1) THEN
+      CALL timestop(0.0_dp,handle)
+      RETURN
+  ENDIF
 
-  CALL cp_fm_gemm('T','N',ortho_k,k,n,rone,matrix_target,matrix_gx, &
-                      rzero,qs_ot_env%matrix_buf1_ortho)
+  ! other orders
+  k=qs_ot_env%settings%k
+  CALL cp_fm_to_fm(qs_ot_env%matrix_p,qs_ot_env%matrix_r)
 
-  CALL cp_fm_symm('L','U',ortho_k,k,rone,qs_ot_env%matrix_os,&
-                      qs_ot_env%matrix_buf1_ortho, &
-                      rzero,qs_ot_env%matrix_buf2_ortho)
-
-  CALL cp_fm_gemm('N','N',n,k,ortho_k,-rone,qs_ot_env%matrix_sc0, &
-                     qs_ot_env%matrix_buf2_ortho, &
-                      rone,matrix_gx)
+  DO i=2, qs_ot_env%taylor_order
+     ! new power of p
+     CALL cp_fm_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_p,qs_ot_env%matrix_r,rzero,qs_ot_env%matrix_buf1)
+     CALL cp_fm_to_fm(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r)
+     ! add to the taylor expansion so far
+     cosfactor=cosfactor * (-1.0_dp)/REAL(2*i * (2*i-1),KIND=dp)
+     sinfactor=sinfactor * (-1.0_dp)/REAL(2*i * (2*i+1),KIND=dp)
+     CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_cosp,cosfactor,qs_ot_env%matrix_r)
+     CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_sinp,sinfactor,qs_ot_env%matrix_r)
+  ENDDO
 
   CALL timestop(0.0_dp,handle)
 
-END SUBROUTINE qs_ot_get_derivative
+END SUBROUTINE qs_ot_p2m_taylor
 
 !*******************************************************************************
 ! given p, computes  - eigenstuff (matrix_r,evals)
@@ -546,14 +754,15 @@ END SUBROUTINE qs_ot_get_derivative
 !                    cosp_b_ij=(1/(2pii) * int(cos(z^1/2)/((z-eval(i))*(z-eval(j))))
 !                    sinp_b_ij=(1/(2pii) * int(z^(-1/2)*sin(z^1/2)/((z-eval(i))*(z-eval(j))))
 !*******************************************************************************
-SUBROUTINE qs_ot_p2m(qs_ot_env)
+SUBROUTINE qs_ot_p2m_diag(qs_ot_env)
 
   TYPE(qs_ot_type)                           :: qs_ot_env
   ! locals
-  INTEGER  :: k,i,j
+  INTEGER  :: k,i,j,handle
   REAL(KIND = dp) :: dum,a,b,timedum
   REAL(KIND = dp), PARAMETER :: rone=1.0_dp, rzero=0.0_dp
 
+  CALL timeset("qs_ot_p2m_diag","I","",handle)
 
   k=qs_ot_env%settings%k 
   CALL cp_fm_to_fm(qs_ot_env%matrix_p,qs_ot_env%matrix_buf1)
@@ -601,8 +810,9 @@ SUBROUTINE qs_ot_p2m(qs_ot_env)
     ENDDO
   ENDDO
 
+  CALL timestop(0.0_dp,handle)
 
-END SUBROUTINE qs_ot_p2m
+END SUBROUTINE qs_ot_p2m_diag
 
 !*******************************************************************************
 ! computes sin(x)/x for all values of the argument
