@@ -40,8 +40,8 @@ module pao_l_angles_methods
        copy_matrix, real_matrix_p_type,&
        allocate_matrix, deallocate_matrix, get_matrix_info, get_block_node,&
        add_block_node, put_block_node
-  use cp_sparse_matrix, only: cp_sparse_matrix_type, cp_sparse_matrix_p_type,&
-       cp_get_matrix
+  use cp_block_matrix, only: cp_block_matrix_type, cp_block_matrix_p_type,&
+       cp_get_matrix, cp_sp_get
   use pao_bas_projection_types, only: pao_bas_projection_type, cp_proj_get
   use pao_plain_rot, only: cp_left_compose_p_rot
   use qs_environment_types, only: qs_environment_type, get_qs_env
@@ -86,7 +86,7 @@ module pao_l_angles_methods
        pao_l_ang_get_p_indexes, pao_l_ang_get_p_index, &
        pao_l_ang_get_non_p_indexes, pao_l_ang_get_non_p_index,&
        pao_l_ang_get_unitary_t, pao_l_ang_set_unitary_t, &
-       pao_l_ang_get_g_index
+       pao_l_ang_get_g_index, pao_guarantee_owned_NUi
 
 ! ============== interfaces ===========
 
@@ -1337,7 +1337,7 @@ contains
 
     logical :: failure
     character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_set_unitary_t'
-    type(cp_sparse_matrix_type), pointer :: full_u_t
+    type(cp_block_matrix_type), pointer :: full_u_t
     real(kind=wp), dimension(:,:), pointer :: unitary_t_ptr
     failure=.false.
 
@@ -1471,7 +1471,7 @@ contains
     logical :: failure
     character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_get_unitary_t'
     integer :: i
-    type(cp_sparse_matrix_type), pointer :: unitary_t
+    type(cp_block_matrix_type), pointer :: unitary_t
     failure=.false.
     nullify(res)
 
@@ -1664,7 +1664,7 @@ function pao_l_ang_get_NUi_injection(local_angles, error) result(res)
   integer :: stat, max_full_bas, i, max_min_bas
   integer, save :: iter=0
   integer, dimension(:), pointer :: proj_indexes
-  type(cp_sparse_matrix_type), pointer :: NUi_injection
+  type(cp_block_matrix_type), pointer :: NUi_injection
   type(pao_env_type), pointer :: pao_env
   real(kind=wp), dimension(:,:), pointer :: n_m,u_m
   failure=.false.
@@ -1752,5 +1752,68 @@ function pao_l_ang_get_NUi_injection(local_angles, error) result(res)
 end function pao_l_ang_get_NUi_injection
 !***************************************************************************
 
+!!****f* pao_l_angles_methods/pao_guarantee_owned_NUi [1.0] *
+!!
+!!   NAME
+!!     pao_guarantee_owned_NUi
+!!
+!!   FUNCTION
+!!     guarantees that every processor has the blocks of NUi he owns
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - global_angles: the global angles that has the NUi that must be
+!!       guaranteed
+!!     - qs_env: the qs enironement in which the global_angles lives
+!!     - global_env: the global environement
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine pao_guarantee_owned_NUi(glob_angles, qs_env,&
+     global_env,error)
+  type(pao_glob_angles_type), intent(inout), target :: glob_angles
+  type(qs_environment_type), intent(in), target :: qs_env
+  type(global_environment_type), intent(in), target :: global_env
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  integer :: i, n_block_rows
+  character(len=*), parameter :: routineN='pao_guarantee_owned_NUi',&
+        routineP=moduleN//':'//routineN
+  type(pao_local_angles_type) :: local_angles
+  type(cp_block_matrix_type), pointer :: NUi_injection
+  real(kind=wp), dimension(:,:), pointer :: NUi_block
+  nullify(NUi_block, NUi_injection)
+  failure=.false.
+  
+  CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
+  if (.not. failure) then
+     call pao_g_ang_get(glob_angles,qs_env=qs_env,&
+          global_env=global_env,NUi_injection=NUi_injection,&
+          error=error)
+
+     CPPrecondition(associated(NUi_injection),cp_failure_level,routineP,error,failure)
+     call pao_l_ang_init(local_angles,glob_angles=glob_angles, qs_env=qs_env,&
+          global_env=global_env, atom_nr=1, error=error)
+     call cp_sp_get(NUi_injection, n_block_rows=n_block_rows,error=error)
+     do i=1,n_block_rows
+        if (NUi_injection%matrix_struct%distribution%block_owner(i,i) == &
+             NUi_injection%mpi_env%mepos) then
+           call pao_l_ang_set(local_angles, atom_nr=i,error=error)
+           NUi_block => pao_l_ang_get_NUi_injection(local_angles,error=error)
+        end if
+     end do
+  end if
+end subroutine pao_guarantee_owned_NUi
+!***************************************************************************
 
 end module pao_l_angles_methods
