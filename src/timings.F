@@ -20,25 +20,26 @@
 !******************************************************************************
 
 MODULE timings
-  
+
   USE kinds, ONLY : dbl
+
   USE mathconstants, ONLY : zero
-  USE stop_program, ONLY : stop_prg
   USE string_utilities, ONLY : xstring, uppercase
+  USE termination, ONLY : stop_program
   USE timesl, ONLY : cputime, walltime
   USE util, ONLY : sort
-  
+
   PRIVATE
   PUBLIC :: timeset, timestop, timeprint, trace_debug, print_stack
-  
+
 !!subroutine calling stack
   INTEGER, PARAMETER :: max_stack = 100
   INTEGER :: stack_size
   CHARACTER ( LEN = 30 ) :: routine_stack ( max_stack ), routine_name
-  
+
 !!subroutine timing and performance information
   INTEGER, PARAMETER :: max_timer = 200
-  
+
   CHARACTER ( LEN = 30 ) :: clock_name ( max_timer )
   INTEGER :: routine_calls ( max_timer )
   INTEGER :: clock_status ( max_timer )
@@ -50,10 +51,10 @@ MODULE timings
   REAL ( dbl ) :: perf_count ( max_timer )
   CHARACTER ( LEN = 10 ) :: perf_unit ( max_timer )
   INTEGER :: num_timer = 0
-  
+
   INTEGER :: iod = 0
   LOGICAL :: trace = .false.
- 
+
 !!*****
 !******************************************************************************
 
@@ -66,7 +67,7 @@ CONTAINS
 !!     timeset
 !!
 !!   FUNCTION
-!!     Start timer 
+!!     Start timer
 !!
 !!   AUTHOR
 !!     JGH
@@ -78,24 +79,24 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE timeset ( name, ct, pu, handle )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   CHARACTER ( LEN = * ), INTENT ( IN ) :: name
   CHARACTER ( LEN = 1 ), INTENT ( IN ) :: ct    ! Clock type [0|1]
   CHARACTER ( LEN = * ), INTENT ( IN ) :: pu    ! Performance unit
   INTEGER, INTENT ( OUT ) :: handle
-  
+
 ! Locals
   INTEGER :: i
-  
+
 !------------------------------------------------------------------------------
-  
+
 !..add name to subroutine stack
   stack_size = stack_size + 1
   routine_stack ( stack_size ) = name
-  
+
 !..if debug mode echo the subroutine name
   IF ( trace ) write ( iod, '(A,A,A)') &
      " >>>>> ",TRIM(name)," started ..."
@@ -106,7 +107,7 @@ SUBROUTINE timeset ( name, ct, pu, handle )
   DO i = 1, num_timer
      IF ( routine_name == clock_name ( i ) ) handle = i
   END DO
-  
+
   IF ( handle == 0 ) THEN
 !..new timer started
      num_timer = num_timer + 1
@@ -121,27 +122,27 @@ SUBROUTINE timeset ( name, ct, pu, handle )
      perf_count ( handle ) = zero
      routine_calls ( handle ) = 0
   END IF
-  
+
 !..start clock (if not yet started, i.e. recursive calls)
   IF ( clock_status ( handle ) ==0 ) THEN
      clock_start ( handle ) = cputime ( )
      wallclock_start ( handle ) = walltime ( )
      clock_status ( handle ) = 1
   END IF
-  
+
   routine_calls ( handle ) = routine_calls ( handle ) + 1
-  
+
 END SUBROUTINE timeset
 
 !!*****
 !******************************************************************************
-!!****** timings/timestop [1.0] *
+!!****** timings/timeset [1.0] *
 !!
 !!   NAME
-!!     timestop
+!!     timeset
 !!
 !!   FUNCTION
-!!     End timer 
+!!     End timer
 !!
 !!   AUTHOR
 !!     JGH
@@ -153,21 +154,21 @@ END SUBROUTINE timeset
 !******************************************************************************
 
 SUBROUTINE timestop ( perf, handle )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   REAL ( dbl ) :: perf
   INTEGER :: handle
-  
+
 ! Locals
   REAL ( dbl ) :: cpt, wt
   INTEGER :: i
-  
+
 !------------------------------------------------------------------------------
-  
+
   IF ( handle > num_timer ) THEN
-     CALL stop_prg ( 'timestop', 'handle > num_timer' )
+     CALL stop_program ( 'timestop', 'handle > num_timer' )
   ELSE
      cpt = cputime ( ) - clock_start ( handle )
      wt = walltime ( ) - wallclock_start ( handle )
@@ -175,7 +176,7 @@ SUBROUTINE timestop ( perf, handle )
      wallclock_accu ( handle ) = wallclock_accu ( handle ) + wt
      clock_status ( handle ) = 0
      perf_count ( handle ) = perf_count ( handle ) + perf
-     
+
      DO i = 1, num_timer
         IF ( clock_status ( i ) == 1 .AND. clock_type ( i ) == 1 ) THEN
            clock_start ( i ) = clock_start ( i ) + cpt
@@ -186,11 +187,11 @@ SUBROUTINE timestop ( perf, handle )
 !..if debug mode echo the subroutine name
   IF ( trace ) write ( iod, '(A,A,A)') &
      " <<<<< ",TRIM(routine_stack(stack_size))," ... ended"
-     
+
 !..remove name from subroutine stack
      stack_size = stack_size - 1
   END IF
-  
+
 END SUBROUTINE timestop
 
 !!*****
@@ -213,27 +214,27 @@ END SUBROUTINE timestop
 !******************************************************************************
 
 SUBROUTINE timeprint ( iw, global_print_level )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER :: iw, global_print_level
-  
+
 ! Locals
   INTEGER :: index ( max_timer ), i, j, ia, ie
   REAL ( dbl ) :: maxtime, mintime, perf
   CHARACTER ( LEN = 17 ) :: sname
   CHARACTER ( LEN = 6 ) :: punit
   CHARACTER ( LEN = 1 ) :: blank = ' ', ct ( 0 : 1 ) = (/ 'I', 'E' /)
-  
+
 !------------------------------------------------------------------------------
-  
+
   IF ( num_timer > 0 .AND. global_print_level >= 0 ) THEN
-     
+
      CALL sort ( clock_accu, num_timer, index )
-     
+
      maxtime = clock_accu ( index ( num_timer ) )
-     
+
      IF ( global_print_level > 10 ) THEN
         mintime = zero
      ELSE IF ( global_print_level > 5 ) THEN
@@ -241,7 +242,7 @@ SUBROUTINE timeprint ( iw, global_print_level )
      ELSE
         mintime = maxtime * 0.02_dbl
      END IF
-     
+
      WRITE ( iw, '( /, 1X, 79("-") )' )
      WRITE ( iw, '( " -", 77X, "-" )' )
      WRITE ( iw, '( " -", 32X, A, 32X, "-" )' ) ' T I M I N G '
@@ -249,18 +250,18 @@ SUBROUTINE timeprint ( iw, global_print_level )
      WRITE ( iw, '( 1X, 79("-"), / )' )
      WRITE ( iw, '( A, A, A )' ) ' SUBROUTINE', '        CALLS      ', &
           ' CPU TIME T        PERFORMANCE        ELAPSED TIME'
-     
+
      DO i = num_timer, 1, -1
-        
+
         j = index ( i )
         IF ( clock_accu ( j ) > mintime ) THEN
-           
+
            IF ( clock_accu ( i ) > zero ) THEN
               perf = perf_count ( j ) / clock_accu ( i )
            ELSE
               perf = zero
            END IF
-           
+
            sname = blank
            ia = 0
            ie = 0
@@ -268,9 +269,9 @@ SUBROUTINE timeprint ( iw, global_print_level )
            ie = min ( ia+16-1, ie )
            sname ( 1 : ie-ia+1 ) = clock_name ( j ) ( ia : ie )
            punit = blank
-           
+
            CALL xstring ( perf_unit ( j ), ia, ie )
-           
+
            IF ( ia > ie ) THEN
               punit = '---   '
               WRITE ( iw, &
@@ -288,10 +289,10 @@ SUBROUTINE timeprint ( iw, global_print_level )
            END IF
         END IF
      END DO
-     
+
      WRITE ( iw, '( 1X, 79("-"), / )' )
   END IF
-  
+
 END SUBROUTINE timeprint
 
 !!*****
@@ -316,14 +317,14 @@ END SUBROUTINE timeprint
 SUBROUTINE trace_debug ( set, iw )
 
   IMPLICIT NONE
-  
+
 ! Arguments
   CHARACTER (len=*) :: set
   INTEGER, OPTIONAL :: iw
 
 ! Locals
   INTEGER :: ia, ie
-  
+
   CALL uppercase(set)
   CALL xstring ( set, ia, ie )
   IF ( set(ia:ie) == "START") THEN
@@ -331,7 +332,7 @@ SUBROUTINE trace_debug ( set, iw )
   ELSEIF ( set(ia:ie) == "STOP" ) THEN
     trace = .false.
   ELSE
-    call stop_prg ("trace_debug","unknown action")
+    call stop_program ("trace_debug","unknown action")
   ENDIF
   IF ( PRESENT ( iw ) ) iod = iw
 
@@ -359,16 +360,16 @@ END SUBROUTINE trace_debug
 SUBROUTINE print_stack ( iw )
 
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER, OPTIONAL :: iw
 
 ! Locals
   INTEGER :: io, i
-  
+
   io = 0
   IF ( PRESENT ( iw ) ) io = iw
-  
+
   WRITE ( io , '(/,A)') " ===== Routine Calling Stack ===== "
   DO i = stack_size, 1, -1
      WRITE ( io, '(T10,A)') ADJUSTL( routine_stack ( i ) )

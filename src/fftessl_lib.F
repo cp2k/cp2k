@@ -14,28 +14,28 @@
 !!     JGH 30-Nov-2000
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH 20-Feb-2001 : mltfft, mfft2d routines added
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE fftessl_lib
-  
+
   USE kinds, ONLY: dbl
-  USE stop_program, ONLY : stop_memory, stop_prg
+  USE termination, ONLY : stop_memory
   USE util, ONLY : sort
-  
-  IMPLICIT NONE 
-  
+
+  IMPLICIT NONE
+
   PRIVATE
-  PUBLIC :: fft3d
+  PUBLIC :: fft3d, mltfft, mfft2d
   PUBLIC :: fft_get_lengths
-  
+
 !!*****
 !******************************************************************************
 
 CONTAINS
-  
+
 !******************************************************************************
 !!****** fftessl_lib/fft_get_lengths [1.0] *
 !!
@@ -72,7 +72,7 @@ SUBROUTINE fft_get_lengths ( data, max_length )
 !------------------------------------------------------------------------------
 
 ! compute ndata
- 
+
   maxn_twos = 15
   maxn_threes = 2
   maxn_fives = 1
@@ -82,7 +82,7 @@ SUBROUTINE fft_get_lengths ( data, max_length )
   maxn = MIN ( max_length, 37748736 )
 
   ndata = 0
-  DO h = 0, maxn_twos
+  DO h = 1, maxn_twos
      nmax = HUGE(0) / 2**h
      DO i = 0, maxn_threes
         DO j = 0, maxn_fives
@@ -109,7 +109,7 @@ SUBROUTINE fft_get_lengths ( data, max_length )
 
   ndata = 0
   data ( : ) = 0
-  DO h = 0, maxn_twos
+  DO h = 1, maxn_twos
      nmax = HUGE(0) / 2**h
      DO i = 0, maxn_threes
         DO j = 0, maxn_fives
@@ -141,10 +141,10 @@ END SUBROUTINE fft_get_lengths
 
 !!*****
 !******************************************************************************
-!!****** fftessl_lib/fft_3d [1.0] *
+!!****** fftessl_lib/fft3d [1.0] *
 !!
 !!   NAME
-!!     fft_3d
+!!     fft3d
 !!
 !!   FUNCTION
 !!     Routine with wrapper for all 3dfft call:
@@ -160,39 +160,39 @@ END SUBROUTINE fft_get_lengths
 !******************************************************************************
 
 SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER, INTENT ( INOUT ) :: fsign
   REAL ( dbl ), INTENT ( IN ), OPTIONAL :: scale
   INTEGER, DIMENSION ( : ), INTENT ( IN ) :: n
   COMPLEX ( dbl ), DIMENSION(:,:,:), INTENT ( INOUT ) :: zg
   COMPLEX ( dbl ), DIMENSION(:,:,:), INTENT ( INOUT ), OPTIONAL :: zg_out
-  
+
 ! Locals
   INTEGER :: sign_fft, ldx, ldy, ldz, ldox, ldoy, ldoz, ierr
   INTEGER :: nx, ny, nz, na1, na2, isos, naux
   COMPLEX ( dbl ), DIMENSION(:), ALLOCATABLE :: aux
   LOGICAL :: fft_in_place
-  
+
 !------------------------------------------------------------------------------
-  
+
   IF ( PRESENT ( zg_out ) ) THEN
      fft_in_place = .false.
   ELSE
      fft_in_place = .true.
   END IF
-  
+
   sign_fft = fsign
 
   nx = n ( 1 )
   ny = n ( 2 )
   nz = n ( 3 )
 
-  ldx = SIZE ( zg (:,1,1) )
-  ldy = SIZE ( zg (1,:,1) )
-  ldz = SIZE ( zg (1,1,:) )
+  ldx = SIZE ( zg, 1 )
+  ldy = SIZE ( zg, 2 )
+  ldz = SIZE ( zg, 3 )
   
   IF( MAX ( ny, nz ) < 252 ) THEN
      IF( nx <= 2048 ) THEN
@@ -206,7 +206,7 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
         na2 = 60000 + ( 2 * nz + 256 ) * ( MIN ( 64, nx * ny ) + 4.56 )
      ELSE
         na1 = 60000 + 4.56 * nx + ( 2 * ny + 256 ) * ( MIN ( 64, nx ) + 4.56 )
-        naux = 60000 + 4.56 * nx + ( 2 * nz + 256 ) * ( MIN ( 64, nx * ny ) + 4.56 )
+        na2 = 60000 + 4.56 * nx + ( 2 * nz + 256 ) * ( MIN ( 64, nx * ny ) + 4.56 )
      END IF
      IF( ny >= 252 .AND. nz < 252 ) THEN
         naux=na1
@@ -222,19 +222,17 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
   ALLOCATE ( aux ( naux ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'fft3d','aux',naux )
 
-!    sign_fft = fsign
-
   IF ( fft_in_place ) THEN
 
     CALL dcft3(zg,ldx,ldx*ldy,zg,ldx,ldx*ldy,nx,ny,nz,sign_fft,scale,aux,naux)
 
   ELSE
 
-    ldox = SIZE ( zg_out (:,1,1) )
-    ldoy = SIZE ( zg_out (1,:,1) )
-    ldoz = SIZE ( zg_out (1,1,:) )
+    ldox = SIZE ( zg_out, 1 )
+    ldoy = SIZE ( zg_out, 2 )
+    ldoz = SIZE ( zg_out, 3 )
 
-    CALL dcft3(zg,ldx,ldx*ldy,zg_out,ldox,ldox*ldoz,nx,ny,nz,sign_fft,scale,aux,naux)
+    CALL dcft3(zg,ldx,ldx*ldy,zg_out,ldox,ldox*ldoy,nx,ny,nz,sign_fft,scale,aux,naux)
 
   END IF
 
@@ -248,6 +246,130 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
 #endif
 
 END SUBROUTINE fft3d
+
+!!*****
+!******************************************************************************
+!!****** fftessl_lib/mfft2d [1.0] *
+!!
+!!   NAME
+!!     mfft2d
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH (11-Feb-2001)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE mfft2d ( rin, rout, fsign, scale, n1, n2, nm, zin, zout )
+
+  IMPLICIT NONE
+
+! Arguments
+  CHARACTER ( LEN = * ), INTENT ( IN ) :: rin, rout
+  INTEGER, INTENT ( INOUT ) :: fsign
+  REAL ( dbl ), INTENT ( IN ) :: scale
+  INTEGER, INTENT ( IN ) :: n1, n2, nm
+  COMPLEX ( dbl ), DIMENSION(:,:,:), INTENT ( IN ) :: zin
+  COMPLEX ( dbl ), DIMENSION(:,:,:), INTENT ( OUT ) :: zout
+
+! Locals
+  INTEGER :: li1, li2, li3, lo1, lo2, lo3, ierr, sign_fft
+  INTEGER ::  i1, i2, i3, o1, o2, o3
+  INTEGER :: naux1, naux2, inc1x, inc2x, inc1y, inc2y, init, i
+  COMPLEX ( dbl ), DIMENSION(:), ALLOCATABLE :: aux1, aux2
+  REAL ( dbl ) :: r, s
+
+!------------------------------------------------------------------------------
+
+  sign_fft = fsign
+
+  li1 = SIZE ( zin, 1 )
+  li2 = SIZE ( zin, 2 )
+  li3 = SIZE ( zin, 3 )
+
+  lo1 = SIZE ( zout, 1 )
+  lo2 = SIZE ( zout, 2 )
+  lo3 = SIZE ( zout, 3 )
+
+  IF( MAX ( n1, n2 ) < 2048 ) THEN
+     naux1 = 40000
+  ELSE
+     naux1 = 40000 + NINT ( 2.28_dbl * REAL ( n1 + n2, dbl ) )
+  END IF
+  IF( MAX ( n1, n2 ) < 252 ) THEN
+     naux2 = 20000
+  ELSE
+     r = REAL ( MAX ( n1, n2 ), dbl )
+     s = REAL ( MIN ( 64, n1, n2 ), dbl )
+     naux2 = 20000 + NINT ( ( 2._dbl * r + 256._dbl ) * ( s + 2.28_dbl ) )
+  END IF
+
+  IF ( rin(1:1) == "T" .OR. rin(1:1) == "t" ) THEN
+    inc1x = li1
+    inc2x = li1*li2
+  ELSE
+    inc1x = 1
+    inc2x = li1
+  END IF
+  IF ( rout(1:1) == "T" .OR. rout(1:1) == "t" ) THEN
+    inc1y = lo1
+    inc2y = lo1*lo2
+  ELSE
+    inc1y = 1
+    inc2y = lo1
+  END IF
+
+#if defined ( __FFTESSL )
+
+  ALLOCATE ( aux1 ( naux1 ), STAT = ierr )
+  IF ( ierr /= 0 ) CALL stop_memory ( 'mfft2d','aux1',naux1 )
+  ALLOCATE ( aux2 ( naux2 ), STAT = ierr )
+  IF ( ierr /= 0 ) CALL stop_memory ( 'mfft2d','aux1',naux2 )
+
+  init = 1
+  CALL dcft2(init,zin,inc1x,inc2x,zout,inc1y,inc2y, &
+             n1,n2,sign_fft,scale,aux1,naux1,aux2,naux2)
+  init = 0
+  DO i = 1, nm
+    IF ( rin(1:1) == "T" .OR. rin(1:1) == "t" ) THEN
+      i1 = i
+      i2 = 1
+      i3 = 1
+    ELSE
+      i1 = 1
+      i2 = 1
+      i3 = i
+    END IF
+    IF ( rout(1:1) == "T" .OR. rout(1:1) == "t" ) THEN
+      o1 = i
+      o2 = 1
+      o3 = 1
+    ELSE
+      o1 = 1
+      o2 = 1
+      o3 = i
+    END IF
+    CALL dcft2(init,zin(i1,i2,i3),inc1x,inc2x,zout(o1,o2,o3),inc1y,inc2y, &
+               n1,n2,sign_fft,scale,aux1,naux1,aux2,naux2)
+  END DO
+
+  DEALLOCATE ( aux1, STAT = ierr )
+  IF ( ierr /= 0 ) CALL stop_memory ( 'mfft2d','aux1' )
+  DEALLOCATE ( aux2, STAT = ierr )
+  IF ( ierr /= 0 ) CALL stop_memory ( 'mfft2d','aux2' )
+
+#else
+
+  fsign = 0
+
+#endif
+
+END SUBROUTINE mfft2d
 
 !!*****
 !******************************************************************************
@@ -268,12 +390,12 @@ END SUBROUTINE fft3d
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE mltfft ( fsign, trans, scale, n, m, zin, zout )
+SUBROUTINE mltfft ( tin, tout, fsign, scale, n, m, zin, zout )
   
   IMPLICIT NONE
   
 ! Arguments
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: trans
+  CHARACTER ( LEN = * ), INTENT ( IN ) :: tin, tout
   INTEGER, INTENT ( INOUT ) :: fsign
   REAL ( dbl ), INTENT ( IN ) :: scale
   INTEGER, INTENT ( IN ) :: n, m
@@ -281,18 +403,63 @@ SUBROUTINE mltfft ( fsign, trans, scale, n, m, zin, zout )
   COMPLEX ( dbl ), DIMENSION(:,:), INTENT ( OUT ) :: zout
   
 ! Locals
-  INTEGER :: ldi, lmi, ldo, lmo
+  INTEGER :: ldi, lmi, ldo, lmo, init, isign, ierr
+  INTEGER :: naux1, naux2, inc1x, inc2x, inc1y, inc2y
+  COMPLEX ( dbl ), DIMENSION(:), ALLOCATABLE :: aux1, aux2
   
 !------------------------------------------------------------------------------
   
-  ldi = SIZE ( zin (:,1) )
-  lmi = SIZE ( zin (1,:) )
-  ldo = SIZE ( zin (:,1) )
-  lmo = SIZE ( zin (1,:) )
+  ldi = SIZE ( zin, 1 )
+  lmi = SIZE ( zin, 2 )
+  ldo = SIZE ( zout, 1 )
+  lmo = SIZE ( zout, 2 )
   
+  IF( n < 2048 ) THEN
+     naux1 = 20000
+  ELSE
+     naux1 = 20000 + NINT ( 2.28_dbl * REAL ( n, dbl ) )
+  END IF
+  IF ( tin(1:1) == "T" .OR. tin(1:1) == "t" .OR. &
+       tout(1:1) == "T" .OR. tout(1:1) == "t" ) THEN
+     naux1 = naux1 + ( 2 * n + 256 ) * MIN ( 64, n )
+  END IF
+  naux2 = naux1
+
+  IF ( tin(1:1) == "T" .OR. tin(1:1) == "t" ) THEN
+    inc1x = ldi
+    inc2x = 1
+  ELSE
+    inc1x = 1
+    inc2x = ldi
+  END IF
+  IF ( tout(1:1) == "T" .OR. tout(1:1) == "t" ) THEN
+    inc1y = ldo
+    inc2y = 1
+  ELSE
+    inc1y = 1
+    inc2y = ldo
+  END IF
+
+  isign = fsign
+
 #if defined ( __FFTESSL )
 
-  stop " fftessl_lib "
+  ALLOCATE ( aux1 ( naux1 ), STAT = ierr )
+  IF ( ierr /= 0 ) CALL stop_memory ( 'mltfft','aux1',naux1 )
+  ALLOCATE ( aux2 ( naux2 ), STAT = ierr )
+  IF ( ierr /= 0 ) CALL stop_memory ( 'mltfft','aux1',naux2 )
+
+  init = 1
+  CALL DCFT ( init, zin, inc1x, inc2x, zout, inc1y, inc2y, &
+              n, m, isign, scale, aux1, naux1, aux2, naux2 )
+  init = 0
+  CALL DCFT ( init, zin, inc1x, inc2x, zout, inc1y, inc2y, &
+              n, m, isign, scale, aux1, naux1, aux2, naux2 )
+
+  DEALLOCATE ( aux1, STAT = ierr )
+  IF ( ierr /= 0 ) CALL stop_memory ( 'mltfft','aux1' )
+  DEALLOCATE ( aux2, STAT = ierr )
+  IF ( ierr /= 0 ) CALL stop_memory ( 'mltfft','aux2' )
 
 #else
 

@@ -18,7 +18,7 @@
 !******************************************************************************
 
 MODULE cntl_input
-  
+
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE global_types, ONLY : global_environment_type
   USE input_types, ONLY : setup_parameters_type
@@ -26,10 +26,10 @@ MODULE cntl_input
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
        cfield, p_error, get_real, get_int, stop_parser
   USE string_utilities, ONLY : uppercase, xstring
-  
+
   PRIVATE
   PUBLIC :: read_cntl_section
-  
+
 !!*****
 !******************************************************************************
 
@@ -67,22 +67,22 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE read_cntl_section ( setup, ewald_param, globenv )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( setup_parameters_type ), INTENT ( INOUT ) :: setup
   TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-  
+
 ! Locals
   INTEGER :: ierror, ilen, ia, ie, i, j, n, iw, source, group
   CHARACTER ( LEN = 20 ) :: string, str2
   CHARACTER ( LEN = 5 ) :: label
   CHARACTER ( LEN = 3 ), PARAMETER :: yn ( 0:1 ) = (/ ' NO', 'YES' /)
-  
+
 !------------------------------------------------------------------------------
-  
+
 !..defaults
   setup % run_type = 'MD'
   setup % unit_type = 'KELVIN'
@@ -97,9 +97,9 @@ SUBROUTINE read_cntl_section ( setup, ewald_param, globenv )
   CALL xstring(globenv % project_name,ia,ie)
   setup % set_file_name = globenv % project_name(ia:ie) // '.set'
   setup % input_file_name = globenv % project_name(ia:ie) // '.dat'
-  
+
   iw = globenv % scr
-     
+
 !..parse the input section
   label = '&CNTL'
   CALL parser_init(globenv % input_file_name,label,ierror,globenv)
@@ -149,11 +149,11 @@ SUBROUTINE read_cntl_section ( setup, ewald_param, globenv )
               ewald_param % ewald_type = 'spme'
               CALL uppercase(ewald_param % ewald_type )
            END SELECT
-              
+
 ! if no type specified, assume ewald
         CASE ( 'EWALD_PA')
            ewald_param % alpha = get_real()
-           SELECT CASE (ewald_param % ewald_type ( 1:3)) 
+           SELECT CASE (ewald_param % ewald_type ( 1:3))
            CASE DEFAULT
               ewald_param % gmax = get_int()
            CASE ( 'PME')
@@ -172,27 +172,27 @@ SUBROUTINE read_cntl_section ( setup, ewald_param, globenv )
            IF ( str2(1:2) == "ON" ) setup%symmetry=.true.
            IF ( str2(1:3) == "OFF" ) setup%symmetry=.false.
         CASE ( 'SET_FILE')
-           ilen = 20
+           ilen = 40
            CALL cfield(setup % set_file_name,ilen)
         CASE ( 'INPUT_FI')
-           ilen = 20
+           ilen = 40
            CALL cfield(setup % input_file_name,ilen)
         END SELECT
-        
+
 ! check for trailing rubbish
         CALL read_line
      END DO
-     
+
   END IF
   CALL parser_end
 !..end of parsing the input section
-     
+
 !..write some information to output
-  IF (globenv % ionode) THEN
+  IF ( globenv % ionode ) THEN
      IF ( globenv % print_level >= 0 ) THEN
-        WRITE ( iw, '( A, T71, A )' ) &
+        WRITE ( iw, '( A, T61, A )' ) &
              ' CONTROL| Run type ', ADJUSTR ( setup % run_type )
-        WRITE ( iw, '( A, T71, A )' ) &
+        WRITE ( iw, '( A, T61, A )' ) &
              ' CONTROL| Unit type ', ADJUSTR ( setup % unit_type )
         WRITE ( iw, '( A, T78, A )' ) ' CONTROL| Periodic in X direction ', &
              yn(setup % perd(1))
@@ -205,16 +205,16 @@ SUBROUTINE read_cntl_section ( setup, ewald_param, globenv )
         ELSE
            WRITE (iw,'(A,T78,A)') ' CONTROL| Use of symmetry ',' No'
         END IF
-        WRITE ( iw, '( A, T61, A )' ) ' CONTROL| Set file name', &
+        WRITE ( iw, '( A, T41, A )' ) ' CONTROL| Set file name', &
              ADJUSTR ( setup % set_file_name )
-        WRITE ( iw, '( A, T61, A )' ) ' CONTROL| Input file name', &
+        WRITE ( iw, '( A, T41, A )' ) ' CONTROL| Input file name', &
              ADJUSTR ( setup % input_file_name )
         WRITE ( iw, '( A, T76, I5 )' ) &
              ' CONTROL| Print level ', globenv % print_level
         WRITE ( iw, '( )' )
      END IF
   END IF
-  
+
 END SUBROUTINE read_cntl_section
 
 !!*****

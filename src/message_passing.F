@@ -16,46 +16,55 @@
 !!   MODIFICATION HISTORY
 !!     JGH (2-1-2001): New error handling
 !!                     Performance tools
+!!     JGH (14-Jan-2001): New routines mp_comm_compare, mp_cart_coords, 
+!!                                     mp_rank_compare, mp_transpose
+!!     JGH (6-Feb-2001): New routines mp_comm_free
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE message_passing
-  
+
   USE kinds, ONLY : dbl
   USE timesl, ONLY : cputime
   USE parallel_include
-  
+
   PRIVATE
   PUBLIC :: mp_start, mp_end, mp_world_setup, mp_group, mp_cart_create, &
        mp_bcast, mp_stop, mp_sum, mp_max, mp_min, mp_sync, mp_environ, &
-       mp_gather, mp_comm_compare
+       mp_gather, mp_comm_compare, mp_cart_coords, mp_rank_compare, &
+       mp_transpose, mp_dims_create, mp_cart_rank, mp_cart_sub, mp_comm_free
   
   INTERFACE mp_bcast
      MODULE PROCEDURE mp_bcast_i1, mp_bcast_r1, mp_bcast_c1, mp_bcast_z, &
           mp_bcast_iv, mp_bcast_rv, mp_bcast_cv, mp_bcast_l, mp_bcast_rm, &
           mp_bcast_cm, mp_bcast_im
   END INTERFACE
-  
+
   INTERFACE mp_sum
      MODULE PROCEDURE mp_sum_i1, mp_sum_r1, mp_sum_c1, mp_sum_iv, &
-          mp_sum_rv, mp_sum_cv, mp_sum_im, mp_sum_rm, mp_sum_cm
+          mp_sum_rv, mp_sum_cv, mp_sum_im, mp_sum_rm, mp_sum_cm, &
+          mp_sum_im3
   END INTERFACE
-  
+
   INTERFACE mp_max
      MODULE PROCEDURE mp_max_i, mp_max_iv, mp_max_r, mp_max_rv
   END INTERFACE
-  
+
   INTERFACE mp_min
      MODULE PROCEDURE mp_min_i, mp_min_iv, mp_min_r, mp_min_rv
   END INTERFACE
-  
+
   INTERFACE mp_gather
      MODULE PROCEDURE mp_gather_i, mp_gather_iv, mp_gather_r, mp_gather_rv
   END INTERFACE
-  
+
   INTERFACE mp_environ
      MODULE PROCEDURE mp_environ_l, mp_environ_c
+  END INTERFACE
+
+  INTERFACE mp_transpose
+     MODULE PROCEDURE mp_transpose_c22v, mp_transpose_i
   END INTERFACE
 
   TYPE mp_perf_type
@@ -65,11 +74,11 @@ MODULE message_passing
     REAL ( dbl ) :: time
   END TYPE mp_perf_type
 
-  INTEGER, PARAMETER :: MAX_PERF = 5
+  INTEGER, PARAMETER :: MAX_PERF = 6
   TYPE ( mp_perf_type ), DIMENSION ( MAX_PERF ) :: mp_perf
   CHARACTER ( LEN = 20 ), PARAMETER :: sname ( MAX_PERF ) =  &
    (/"MP_Group            ", "MP_Bcast            ", "MP_Allreduce        ", &
-     "MP_Gather           ", "MP_Sync             "/)
+     "MP_Gather           ", "MP_Sync             ", "MP_Transpose        "/)
   REAL ( dbl ) :: t_start, t_end
   INTEGER :: intlen, reallen, charlen, loglen
 
@@ -79,15 +88,15 @@ MODULE message_passing
 CONTAINS
 
 !******************************************************************************
-  
+
 !..mp_start
 SUBROUTINE mp_start()
-  
+
   IMPLICIT NONE
-  
+
 ! Locals
   INTEGER :: ierr, i
-  
+
   ierr = 0
 #if defined(__parallel)
   CALL mpi_init ( ierr )
@@ -106,22 +115,22 @@ SUBROUTINE mp_start()
   loglen  = intlen
   charlen = 1
 #endif
-  
+
 END SUBROUTINE mp_start
 
 !******************************************************************************
 
 !..mp_end
 SUBROUTINE mp_end ( scr )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER, INTENT ( IN ), OPTIONAL :: scr
 ! Locals
   INTEGER :: ierr, i, iw, numtask, taskid, groupid
   REAL ( dbl ) :: vol, per
-  
+
   ierr = 0
 #if defined(__parallel)
   CALL mp_world_setup ( numtask, taskid, groupid )
@@ -142,7 +151,7 @@ SUBROUTINE mp_end ( scr )
     WRITE ( iw, '( A, A, A )' ) ' ROUTINE', '             CALLS ', &
             ' TOT TIME [s]  AVE VOLUME [Bytes]  PERFORMANCE [MB/s]'
     DO i = 1, MAX_PERF
-  
+
       IF ( mp_perf ( i ) % count > 0 ) THEN
         vol = mp_perf ( i ) % msg_size / REAL ( mp_perf ( i ) % count, dbl )
         IF ( mp_perf ( i ) % time > 0._dbl ) THEN
@@ -165,26 +174,26 @@ SUBROUTINE mp_end ( scr )
     WRITE ( iw, '( 1X, 79("-"), / )' )
   END IF
 #endif
-  
+
 END SUBROUTINE mp_end
 
 !******************************************************************************
 
 !..mp_stop
 SUBROUTINE mp_stop ( ierr, prg_code )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER, INTENT ( IN ) :: ierr
   CHARACTER ( LEN=* ) :: prg_code
-  
+
 ! Locals
   INTEGER :: numtask, taskid, groupid, len
 #if defined(__parallel)
   CHARACTER ( LEN = MPI_MAX_ERROR_STRING ) :: error_string
 #endif
-  
+
   CALL mp_world_setup ( numtask, taskid, groupid )
 
   WRITE(*,'(/,A,T71,I10,/)') ' CP2K| Stopped by processor number',taskid
@@ -198,22 +207,22 @@ SUBROUTINE mp_stop ( ierr, prg_code )
 
   STOP "mp_stop"
 
-  
+
 END SUBROUTINE mp_stop
 
 !******************************************************************************
 
 !..mp_sync
 SUBROUTINE mp_sync ( group )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER, INTENT ( IN ) :: group
-  
+
 ! Locals
   INTEGER :: ierr
-  
+
 #if defined(__parallel)
   t_start = cputime ( )
   CALL mpi_barrier ( group, ierr )
@@ -222,22 +231,22 @@ SUBROUTINE mp_sync ( group )
   t_end = cputime ( )
   mp_perf ( 5 ) % time = mp_perf ( 5 ) % time + ( t_end - t_start )
 #endif
-  
+
 END SUBROUTINE mp_sync
 
 !******************************************************************************
 
 !..mp_world_setup
 SUBROUTINE mp_world_setup ( numtask, taskid, groupid )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER, INTENT ( OUT ) :: numtask, taskid, groupid
-  
+
 ! Locals
   INTEGER :: ierr
-  
+
   ierr = 0
   numtask = 1
   taskid = 0
@@ -245,39 +254,39 @@ SUBROUTINE mp_world_setup ( numtask, taskid, groupid )
 #if defined(__parallel)
   CALL mpi_comm_rank ( MPI_COMM_WORLD, taskid, ierr )
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_rank @ mp_world_setup" )
-  
+
   CALL mpi_comm_size ( MPI_COMM_WORLD, numtask, ierr )
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_world_setup" )
   groupid = MPI_COMM_WORLD
 #endif
-  
+
 END SUBROUTINE mp_world_setup
 
 !******************************************************************************
 
 !..mp_environ
 SUBROUTINE mp_environ_l ( numtask, taskid, groupid )
- 
+
   IMPLICIT NONE
- 
+
 ! Arguments
   INTEGER, INTENT ( IN ) :: groupid
   INTEGER, INTENT ( OUT ) :: numtask, taskid
- 
+
 ! Locals
   INTEGER :: ierr
- 
+
   ierr = 0
   numtask = 1
   taskid = 0
 #if defined(__parallel)
   CALL mpi_comm_rank ( groupid, taskid, ierr )
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_rank @ mp_environ_l" )
- 
+
   CALL mpi_comm_size ( groupid, numtask, ierr )
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_environ_l" )
 #endif
- 
+
 END SUBROUTINE mp_environ_l
 
 SUBROUTINE mp_environ_c ( numtask, dims, task_coor, groupid )
@@ -289,7 +298,8 @@ SUBROUTINE mp_environ_c ( numtask, dims, task_coor, groupid )
   INTEGER, INTENT ( OUT ) :: numtask, task_coor ( 2 ), dims ( 2 )
 
 ! Locals
-  INTEGER :: ierr, rank,periods ( 2 )
+  INTEGER :: ierr, rank
+  LOGICAL :: periods ( 2 )
 
   ierr = 0
   numtask = 1
@@ -309,69 +319,69 @@ END SUBROUTINE mp_environ_c
 
 !..mp_group
 SUBROUTINE mp_group(group_list,group_size,base_group,groupid)
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER, INTENT ( IN ) :: group_list ( : ), group_size, base_group
   INTEGER, INTENT ( OUT ) :: groupid
-  
+
 ! Locals
   INTEGER :: base, newgroup, ierr
-  
+
   ierr = 0
   groupid = base_group
 #if defined(__parallel)
   t_start = cputime ( )
   CALL mpi_comm_group ( base_group, base, ierr )
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_group @ mp_group" )
-  
+
   CALL mpi_group_incl ( base, group_size, group_list, newgroup, ierr )
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_group_incl @ mp_group" )
-  
+
   CALL mpi_comm_create ( base_group, newgroup, groupid, ierr )
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_create @ mp_group" )
   mp_perf ( 2 ) % count = mp_perf ( 2 ) % count + 1
   t_end = cputime ( )
   mp_perf ( 1 ) % time = mp_perf ( 1 ) % time + ( t_end - t_start )
 #endif
-  
+
 END SUBROUTINE mp_group
 
 !******************************************************************************
 
 !..mp_cart_create
 SUBROUTINE mp_cart_create ( comm_old, ndims, dims, pos, comm_cart )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER, INTENT ( IN ) :: comm_old, ndims
   INTEGER, INTENT ( INOUT ) :: dims ( : )
   INTEGER, INTENT ( OUT ) :: pos ( : ), comm_cart
-  
+
 ! Locals
   INTEGER :: ierr, nodes
   LOGICAL :: period(1:ndims), reorder
-  
+
   ierr = 0
   pos ( 1:ndims ) = 1
   comm_cart = comm_old
 #if defined(__parallel)
-  
+
   t_start = cputime ( )
   CALL mpi_comm_size ( comm_old, nodes, ierr )
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_cart_create" )
-  
+
   CALL mpi_dims_create ( nodes, ndims, dims, ierr )
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_dims_create @ mp_cart_create" )
-  
+
   reorder = .TRUE.
   period = .TRUE.
   CALL mpi_cart_create ( comm_old, ndims, dims, period, reorder, comm_cart, &
        ierr )
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_create @ mp_cart_create" )
-  
+
   CALL mpi_cart_get ( comm_cart, ndims, dims, period, pos, ierr )
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_get @ mp_cart_create" )
   mp_perf ( 2 ) % count = mp_perf ( 2 ) % count + 1
@@ -383,18 +393,41 @@ END SUBROUTINE mp_cart_create
 
 !******************************************************************************
 
+!..mp_cart_coords 
+SUBROUTINE mp_cart_coords ( comm, rank, coords)
+
+  IMPLICIT NONE
+
+! Arguments
+  INTEGER, INTENT ( IN ) :: comm, rank
+  INTEGER, DIMENSION ( : ), INTENT ( OUT ) :: coords
+
+! Locals
+  INTEGER :: ierr, m
+
+  ierr = 0
+  m = SIZE ( coords )
+#if defined(__parallel)
+  CALL mpi_cart_coords ( comm, rank, m, coords, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_cart_coords @ mp_cart_coords" )
+#endif
+
+END SUBROUTINE mp_cart_coords
+
+!******************************************************************************
+
 !..mp_comm_compare
 SUBROUTINE mp_comm_compare ( comm1, comm2, result)
- 
+
   IMPLICIT NONE
- 
+
 ! Arguments
   INTEGER, INTENT ( IN ) :: comm1, comm2
   INTEGER, INTENT ( OUT ) :: result
- 
+
 ! Locals
   INTEGER :: ierr, iout
- 
+
   ierr = 0
   result = 0
 #if defined(__parallel)
@@ -407,13 +440,206 @@ END SUBROUTINE mp_comm_compare
 
 !******************************************************************************
 
+!..mp_cart_sub
+SUBROUTINE mp_cart_sub ( comm, rdim, sub_comm )
+
+  IMPLICIT NONE
+
+! Arguments
+  INTEGER, INTENT ( IN ) :: comm
+  LOGICAL, DIMENSION ( : ), INTENT ( IN ) :: rdim
+  INTEGER, INTENT ( OUT ) :: sub_comm
+
+! Locals
+  INTEGER :: ierr
+
+  ierr = 0
+#if defined(__parallel)
+  CALL mpi_cart_sub ( comm, rdim, sub_comm, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_cart_sub @ mp_cart_sub" )
+#endif
+
+END SUBROUTINE mp_cart_sub
+
+!******************************************************************************
+
+!..mp_comm_free
+SUBROUTINE mp_comm_free ( comm )
+
+  IMPLICIT NONE
+
+! Arguments
+  INTEGER, INTENT ( IN ) :: comm
+
+! Locals
+  INTEGER :: ierr
+
+  ierr = 0
+#if defined(__parallel)
+  CALL mpi_comm_free ( comm, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_free @ mp_comm_free" )
+#endif
+
+END SUBROUTINE mp_comm_free
+
+
+!******************************************************************************
+
+!..mp_rank_compare
+SUBROUTINE mp_rank_compare ( comm1, comm2, rank )
+
+  IMPLICIT NONE
+
+! Arguments
+  INTEGER, INTENT ( IN ) :: comm1, comm2
+  INTEGER, DIMENSION ( : ), INTENT ( OUT ) :: rank
+
+! Locals
+  INTEGER :: ierr, n1, n2, n, g1, g2, i
+  INTEGER, DIMENSION ( : ), ALLOCATABLE :: rin
+
+  ierr = 0
+  rank = 0
+#if defined(__parallel)
+  CALL mpi_comm_size ( comm1, n1, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_size @ mp_rank_compare" )
+  CALL mpi_comm_size ( comm2, n2, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_size @ mp_rank_compare" )
+  n = MAX ( n1, n2 )
+  CALL mpi_comm_group ( comm1, g1, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_group @ mp_rank_compare" )
+  CALL mpi_comm_group ( comm2, g2, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_group @ mp_rank_compare" )
+  ALLOCATE ( rin ( 0 : n - 1 ), STAT = ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_rank_compare" )
+  DO i = 0, n-1
+    rin ( i ) = i
+  END DO
+  CALL mpi_group_translate_ranks ( g1, n, rin, g2, rank, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, &
+      "mpi_group_translate_rank @ mp_rank_compare" )
+  DEALLOCATE ( rin, STAT = ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( 0, "deallocate @ mp_rank_compare" )
+#endif
+
+END SUBROUTINE mp_rank_compare
+
+!******************************************************************************
+
+!..mp_dims_create
+SUBROUTINE mp_dims_create ( nodes, dims )
+
+  IMPLICIT NONE
+
+! Arguments
+  INTEGER, INTENT ( IN ) :: nodes
+  INTEGER, DIMENSION ( : ), INTENT ( INOUT ) :: dims
+
+! Locals
+  INTEGER :: ndim, ierr
+
+#if defined(__parallel)
+  ndim = SIZE ( dims )
+  CALL mpi_dims_create ( nodes, ndim, dims ,ierr)
+  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_dims_create @ mp_dims_create" )
+#else
+  dims = 1
+#endif
+
+END SUBROUTINE mp_dims_create
+
+!******************************************************************************
+
+!..mp_cart_rank
+SUBROUTINE mp_cart_rank ( group, pos, rank )
+
+  IMPLICIT NONE
+
+! Arguments
+  INTEGER, INTENT ( IN ) :: group
+  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: pos
+  INTEGER, INTENT ( OUT ) :: rank
+
+! Locals
+  INTEGER :: ierr
+
+#if defined(__parallel)
+  CALL mpi_cart_rank ( group, pos, rank, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_rank @ mp_cart_rank" )
+#else
+  rank = 1
+#endif
+
+END SUBROUTINE mp_cart_rank
+!******************************************************************************
+
+!..mp_transpose
+SUBROUTINE mp_transpose_c22v ( sb, scount, sdispl, rb, rcount, rdispl, group )
+
+  IMPLICIT NONE
+
+! Arguments
+  COMPLEX ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: sb
+  COMPLEX ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: rb
+  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: scount, sdispl,rcount, rdispl
+  INTEGER, INTENT ( IN ) :: group
+
+! Locals
+  INTEGER :: ierr, msglen
+
+  ierr = 0
+#if defined(__parallel)
+  t_start = cputime ( )
+  CALL mpi_alltoallv ( sb, scount, sdispl, MPI_DOUBLE_COMPLEX, &
+                       rb, rcount, rdispl, MPI_DOUBLE_COMPLEX, group, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_transpose_c23v" )
+  mp_perf ( 6 ) % count = mp_perf ( 6 ) % count + 1
+  msglen = SUM ( scount ) + SUM ( rcount )
+  mp_perf ( 6 ) % msg_size = mp_perf ( 6 ) % msg_size + msglen * 2 * reallen
+  t_end = cputime ( )
+  mp_perf ( 6 ) % time = mp_perf ( 6 ) % time + ( t_end - t_start )
+#endif
+
+END SUBROUTINE mp_transpose_c22v
+
+SUBROUTINE mp_transpose_i ( sb, rb, count, group )
+
+  IMPLICIT NONE
+
+! Arguments
+  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: sb
+  INTEGER, DIMENSION ( : ), INTENT ( OUT ) :: rb
+  INTEGER, INTENT ( IN ) :: count, group
+
+! Locals
+  INTEGER :: ierr, msglen, np
+
+  ierr = 0
+#if defined(__parallel)
+  t_start = cputime ( )
+  CALL mpi_alltoall ( sb, count, MPI_INTEGER, &
+                      rb, count, MPI_INTEGER, group, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ mp_transpose_i" )
+  mp_perf ( 6 ) % count = mp_perf ( 6 ) % count + 1
+  CALL mpi_comm_size ( group, np, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_transpose_i" )
+  msglen = 2 * count * np
+  mp_perf ( 6 ) % msg_size = mp_perf ( 6 ) % msg_size + msglen * intlen
+  t_end = cputime ( )
+  mp_perf ( 6 ) % time = mp_perf ( 6 ) % time + ( t_end - t_start )
+#endif
+
+END SUBROUTINE mp_transpose_i
+
+!******************************************************************************
+
 !..mp_bcast
 SUBROUTINE mp_bcast_i1(msg,source,gid)
   IMPLICIT NONE
   INTEGER :: msg
   INTEGER :: source, gid
   INTEGER :: msglen, ierr
-  
+
   ierr = 0
   msglen = 1
 #if defined(__parallel)
@@ -431,7 +657,7 @@ SUBROUTINE mp_bcast_iv(msg,source,gid)
   INTEGER :: msg ( : )
   INTEGER :: source, gid
   INTEGER :: msglen, ierr
-  
+
   ierr = 0
   msglen = size(msg)
 #if defined(__parallel)
@@ -449,7 +675,7 @@ SUBROUTINE mp_bcast_im(msg,source,gid)
   INTEGER :: msg ( :, : )
   INTEGER :: source, gid
   INTEGER :: msglen, ierr
-  
+
   ierr = 0
   msglen = size(msg)
 #if defined(__parallel)
@@ -467,7 +693,7 @@ SUBROUTINE mp_bcast_r1(msg,source,gid)
   REAL ( dbl ) :: msg
   INTEGER :: msglen, source, gid
   INTEGER :: ierr
-  
+
   ierr = 0
   msglen = 1
 #if defined(__parallel)
@@ -485,7 +711,7 @@ SUBROUTINE mp_bcast_rv(msg,source,gid)
   REAL ( dbl ) :: msg ( : )
   INTEGER :: source, gid
   INTEGER :: msglen, ierr
-  
+
   ierr = 0
   msglen = size(msg)
 #if defined(__parallel)
@@ -503,7 +729,7 @@ SUBROUTINE mp_bcast_rm(msg,source,gid)
   REAL ( dbl ) :: msg ( :, : )
   INTEGER :: source, gid
   INTEGER :: msglen, ierr
-  
+
   ierr = 0
   msglen = size(msg)
 #if defined(__parallel)
@@ -521,7 +747,7 @@ SUBROUTINE mp_bcast_c1(msg,source,gid)
   COMPLEX ( dbl ) :: msg
   INTEGER :: source, gid
   INTEGER :: msglen, ierr
-  
+
   ierr = 0
   msglen = 1
 #if defined(__parallel)
@@ -539,7 +765,7 @@ SUBROUTINE mp_bcast_cv(msg,source,gid)
   COMPLEX ( dbl ) :: msg ( : )
   INTEGER :: source, gid
   INTEGER :: msglen, ierr
-  
+
   ierr = 0
   msglen = size(msg)
 #if defined(__parallel)
@@ -557,7 +783,7 @@ SUBROUTINE mp_bcast_cm(msg,source,gid)
   COMPLEX ( dbl ) :: msg ( :, : )
   INTEGER :: source, gid
   INTEGER :: msglen, ierr
-  
+
   ierr = 0
   msglen = size(msg)
 #if defined(__parallel)
@@ -575,7 +801,7 @@ SUBROUTINE mp_bcast_l(msg,source,gid)
   LOGICAL :: msg
   INTEGER :: source, gid
   INTEGER :: msglen, ierr
-  
+
   ierr = 0
   msglen = 1
 #if defined(__parallel)
@@ -594,7 +820,7 @@ SUBROUTINE mp_bcast_z(msg,source,gid)
   INTEGER :: source, gid
   INTEGER :: msglen, ierr, i
   INTEGER, ALLOCATABLE :: imsg ( : )
-  
+
   ierr = 0
   msglen = len(msg)
 #if defined(__parallel)
@@ -629,7 +855,7 @@ SUBROUTINE mp_sum_i1(msg,gid)
   INTEGER, INTENT ( INOUT ) :: msg
   INTEGER, INTENT ( IN ) :: gid
   INTEGER :: msglen, res, ierr
-  
+
   msglen = 1
 #if defined(__parallel)
   t_start = cputime ( )
@@ -686,13 +912,37 @@ SUBROUTINE mp_sum_im(msg,gid)
   mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_sum_im
+SUBROUTINE mp_sum_im3(msg,gid)
+  IMPLICIT NONE
+  INTEGER, INTENT ( INOUT ) :: msg ( :, :, : )
+  INTEGER, INTENT ( IN ) :: gid
+  INTEGER :: msglen, m1, m2, m3, ierr
+  INTEGER, ALLOCATABLE :: res ( :, :, : )
+#if defined(__parallel)
+  t_start = cputime ( )
+  msglen = size(msg)
+  m1 = size(msg(:,1,1))
+  m2 = size(msg(1,:,1))
+  m3 = size(msg(1,1,:))
+  ALLOCATE (res(m1,m2,m3),STAT=ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_im3" )
+  CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
+  msg = res
+  DEALLOCATE (res)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_im3" )
+  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
+  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * intlen
+  t_end = cputime ( )
+  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+#endif
+END SUBROUTINE mp_sum_im3
 SUBROUTINE mp_sum_r1(msg,gid)
   IMPLICIT NONE
   REAL ( dbl ), INTENT ( INOUT ) :: msg
   INTEGER, INTENT ( IN ) :: gid
   INTEGER :: msglen, ierr
   REAL ( dbl ) :: res
-  
+
   msglen = 1
 #if defined(__parallel)
   t_start = cputime ( )
@@ -758,7 +1008,7 @@ SUBROUTINE mp_sum_c1(msg,gid)
   INTEGER, INTENT ( IN ) :: gid
   INTEGER :: msglen, ierr
   COMPLEX ( dbl ) :: res
-  
+
   msglen = 2
 #if defined(__parallel)
   t_start = cputime ( )
@@ -1004,6 +1254,8 @@ SUBROUTINE mp_gather_i(msg,msg_gather,root,gid)
   mp_perf ( 4 ) % msg_size = mp_perf ( 4 ) % msg_size + msglen * intlen
   t_end = cputime ( )
   mp_perf ( 4 ) % time = mp_perf ( 4 ) % time + ( t_end - t_start )
+#else
+  msg_gather = msg
 #endif
 END SUBROUTINE mp_gather_i
 
@@ -1024,6 +1276,8 @@ SUBROUTINE mp_gather_iv(msg,msg_gather,root,gid)
   mp_perf ( 4 ) % msg_size = mp_perf ( 4 ) % msg_size + msglen * intlen
   t_end = cputime ( )
   mp_perf ( 4 ) % time = mp_perf ( 4 ) % time + ( t_end - t_start )
+#else
+  msg_gather = msg
 #endif
 END SUBROUTINE mp_gather_iv
 
@@ -1044,6 +1298,8 @@ SUBROUTINE mp_gather_r(msg,msg_gather,root,gid)
   mp_perf ( 4 ) % msg_size = mp_perf ( 4 ) % msg_size + msglen * reallen
   t_end = cputime ( )
   mp_perf ( 4 ) % time = mp_perf ( 4 ) % time + ( t_end - t_start )
+#else
+  msg_gather = msg
 #endif
 END SUBROUTINE mp_gather_r
 
@@ -1064,6 +1320,8 @@ SUBROUTINE mp_gather_rv(msg,msg_gather,root,gid)
   mp_perf ( 4 ) % msg_size = mp_perf ( 4 ) % msg_size + msglen * reallen
   t_end = cputime ( )
   mp_perf ( 4 ) % time = mp_perf ( 4 ) % time + ( t_end - t_start )
+#else
+  msg_gather = msg
 #endif
 END SUBROUTINE mp_gather_rv
 

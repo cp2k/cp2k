@@ -17,23 +17,25 @@
 !!
 !!   SOURCE
 !******************************************************************************
-! 
+!
     MODULE brillouin
-! 
+!
 !------------------------------------------------------------------------------!
+
       USE kinds, ONLY : dbl
+
       USE global_types, ONLY : global_environment_type
-      USE stop_program, ONLY : stop_prg, stop_memory
-      USE string_utilities, ONLY : uppercase
       USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
         cfield, p_error, get_real, get_int, stop_parser
+      USE string_utilities, ONLY : uppercase
+      USE termination, ONLY : stop_memory, stop_program
 !
       IMPLICIT NONE
-! 
+!
       PRIVATE
 !
       PUBLIC :: kpoint_type, brillouin_info, kpoint_input
-! 
+!
       TYPE kpoint_type
         CHARACTER (len=20) :: scheme
         INTEGER :: nk(3)
@@ -121,7 +123,7 @@
               SELECT CASE (str2)
               CASE DEFAULT
                 CALL p_error()
-                CALL stop_prg('kpoint_input','Scheme: unknown option')
+                CALL stop_program("kpoint_input","Scheme: unknown option")
               CASE ('GAMMA')
                 kp%scheme = str2
               CASE ('MONKHORST-PACK')

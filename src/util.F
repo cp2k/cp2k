@@ -22,41 +22,41 @@
 MODULE util
 
   USE kinds, ONLY : dbl
-  
+
   IMPLICIT NONE
-  
+
   PRIVATE
   PUBLIC :: sort, ran2, get_unit, gasdev, close_unit, &
        get_share, get_limit, include_list, getinv3x3,  &
        matmul_3x3, dotprod_3d, crossprod_3d, matvec_3x3, &
        transpose_3d
-  
+
   INTERFACE sort
      MODULE PROCEDURE sort2, sort2i
   END INTERFACE
 
 !******************************************************************************
-  
+
 CONTAINS
 
 !******************************************************************************
 
 SUBROUTINE sort2 ( arr, n, index )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER, INTENT ( IN ) :: n
   REAL ( dbl ), INTENT ( INOUT ) :: arr(1:n)
   INTEGER, INTENT ( OUT ) :: index(1:n)
-  
+
 ! Local
   INTEGER, PARAMETER :: m = 7, nstack = 50
   INTEGER :: i, l, ib, ir, jstack, k, istack(1:nstack), itemp, j
   REAL ( dbl ) :: a, temp
-  
+
 !------------------------------------------------------------------------------
-  
+
   DO i = 1, n
      index(i) = i
   END DO
@@ -146,29 +146,29 @@ SUBROUTINE sort2 ( arr, n, index )
         l = i
      END IF
   END IF
-  
+
   GO TO 1
-  
+
 END SUBROUTINE sort2
 
 !******************************************************************************
 
 SUBROUTINE sort2i ( iarr, n, index )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER, INTENT ( IN ) :: n
   INTEGER, INTENT ( INOUT ) :: iarr(1:n)
   INTEGER, INTENT ( OUT ) :: index(1:n)
-  
+
 ! Locals
   INTEGER, PARAMETER :: m = 7, nstack = 50
   INTEGER :: i, l, ib, ir, jstack, k, j
   INTEGER :: a, temp, istack(1:nstack), itemp
-  
+
 !------------------------------------------------------------------------------
-  
+
   DO i = 1, n
      index(i) = i
   END DO
@@ -258,9 +258,9 @@ SUBROUTINE sort2i ( iarr, n, index )
         l = i
      END IF
   END IF
-  
+
   GO TO 1
-  
+
 END SUBROUTINE sort2i
 
 !******************************************************************************
@@ -270,13 +270,13 @@ END SUBROUTINE sort2i
 !!>   then do not alter idum from successive calls
 
 FUNCTION ran2 ( idum, icontrol )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER, INTENT ( INOUT ) :: idum
   INTEGER, OPTIONAL, INTENT ( IN ) :: icontrol
-  
+
 ! Locals
   REAL ( dbl ) :: ran2
   INTEGER :: im1, im2, imm1, ia1, ia2, iq1, iq2, ir1, ir2, ntab, ndiv
@@ -287,16 +287,16 @@ FUNCTION ran2 ( idum, icontrol )
   INTEGER idum2, j, k, iv(ntab), iy, iounit
   SAVE iv, iy, idum2
   DATA idum2/123456789/, iv/ntab*0/, iy/0/, iounit/10/
-  
+
 !------------------------------------------------------------------------------
-  
+
 !
 !       if icontrol=0, generate a random number normally
 !       if icontrol=1, load old random number table, dont get a new #
 !       if icontrol=2, save current random number table and dont get a
 !                      new random number
 !
-  
+
   IF ( .NOT. PRESENT ( icontrol)) THEN
      IF (idum<=0) THEN
         idum = max(-idum,1)
@@ -339,29 +339,29 @@ FUNCTION ran2 ( idum, icontrol )
      WRITE (iounit,*) idum2
      CLOSE (iounit)
   END IF
-  
+
 END FUNCTION ran2
 
 !******************************************************************************
 
 FUNCTION gasdev(idum)
-  
+
   IMPLICIT NONE
-  
+
 ! Return value
   REAL ( dbl ) :: gasdev
-  
+
 ! Arguments
   INTEGER, INTENT ( INOUT ) :: idum
-  
+
 ! Locals
   REAL ( dbl ) :: v1, v2, r, fac, gset
   INTEGER :: iset
   DATA iset/0/
   SAVE iset, gset
-  
+
 !------------------------------------------------------------------------------
-  
+
   IF (iset==0) THEN
 1    CONTINUE
      v1 = 2._dbl*ran2(idum) - 1.0_dbl
@@ -376,23 +376,23 @@ FUNCTION gasdev(idum)
      gasdev = gset
      iset = 0
   END IF
-  
+
 END FUNCTION gasdev
 
 !******************************************************************************
 
 FUNCTION get_unit() RESULT (unit)
-  
+
   IMPLICIT NONE
-  
+
 ! Return value
   INTEGER :: unit
-  
+
 ! Locals
   LOGICAL :: exists
-  
+
 !------------------------------------------------------------------------------
-  
+
 !..find a not associated unit
   unit = 10
   DO
@@ -401,31 +401,31 @@ FUNCTION get_unit() RESULT (unit)
      IF ( .NOT. exists) EXIT
      unit = unit + 1
   END DO
-  
+
 END FUNCTION get_unit
 
 !******************************************************************************
 
 SUBROUTINE close_unit ( u1, u2 )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER, INTENT ( IN ) :: u1, u2
-  
+
 ! Locals
   INTEGER :: iunit
   LOGICAL :: exists
-  
+
 !------------------------------------------------------------------------------
-  
+
 !..close all open units from u1 to u2
   DO iunit = u1, u2
      exists = .FALSE.
      INQUIRE (unit=iunit,opened=exists)
      IF (exists) CLOSE (iunit)
   END DO
-  
+
 END SUBROUTINE close_unit
 
 !******************************************************************************
@@ -433,21 +433,21 @@ END SUBROUTINE close_unit
 !..divide m entries into n parts, return size of part me
 
 FUNCTION get_share ( m, n, me ) RESULT ( nme )
-  
+
   IMPLICIT NONE
-  
+
 ! Return value
   INTEGER :: nme
 
 ! Arguments
   INTEGER, INTENT ( IN ) :: m, n, me
-  
+
 ! Locals
   INTEGER :: nl, nu
   REAL ( dbl ) :: part
-  
+
 !------------------------------------------------------------------------------
-  
+
   part = float(m)/float(n)
   nl = nint(float(me)*part) + 1
   nu = nint(float(me+1)*part)
@@ -455,7 +455,7 @@ FUNCTION get_share ( m, n, me ) RESULT ( nme )
   nu = min(m,nu)
   nme = nu - nl + 1
   nme = max(nme,0)
-  
+
 END FUNCTION get_share
 
 !******************************************************************************
@@ -463,43 +463,43 @@ END FUNCTION get_share
 !..divide m entries into n parts, return size of part me
 
 FUNCTION get_limit(m,n,me) RESULT (nlim)
-  
+
   IMPLICIT NONE
-  
+
 ! Return value
   INTEGER :: nlim ( 2 )
-  
+
 ! Arguments
   INTEGER, INTENT ( IN ) :: m, n, me
-  
+
 ! Locals
   INTEGER :: nl, nu
   REAL ( dbl ) :: part
-  
+
 !------------------------------------------------------------------------------
-  
+
   part = float(m)/float(n)
   nl = nint(float(me)*part) + 1
   nu = nint(float(me+1)*part)
   nlim(1) = max(1,nl)
   nlim(2) = min(m,nu)
-  
+
 END FUNCTION get_limit
 
 !******************************************************************************
 
 FUNCTION include_list(i,j) RESULT (doit)
-  
+
   IMPLICIT NONE
-  
+
 ! Return value
   LOGICAL :: doit
-  
+
 ! Arguments
   INTEGER, INTENT ( IN ) :: i, j
-  
+
 !------------------------------------------------------------------------------
-  
+
   IF ( i >= j ) THEN
      doit = mod(i+j,2) == 0
   ELSE IF (i < j) THEN
@@ -507,24 +507,24 @@ FUNCTION include_list(i,j) RESULT (doit)
   ELSE
      doit = .FALSE.
   END IF
-  
+
 END FUNCTION include_list
 
 !******************************************************************************
 
 SUBROUTINE getinv3x3 ( hmat, hmati )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   REAL ( dbl ), DIMENSION (3,3), INTENT ( IN ) :: hmat
   REAL ( dbl ), DIMENSION (3,3), INTENT ( OUT ) :: hmati
-  
+
 ! Locals
   REAL ( dbl ) :: odet, det
-  
+
 !------------------------------------------------------------------------------
-  
+
   det = hmat(1,1)*(hmat(2,2)*hmat(3,3)-hmat(2,3)*hmat(3,2)) + &
        hmat(1,2)*(hmat(2,3)*hmat(3,1)-hmat(2,1)*hmat(3,3)) + &
        hmat(1,3)*(hmat(2,1)*hmat(3,2)-hmat(2,2)*hmat(3,1))
@@ -538,110 +538,110 @@ SUBROUTINE getinv3x3 ( hmat, hmati )
   hmati(3,1) = (hmat(2,1)*hmat(3,2)-hmat(3,1)*hmat(2,2))*odet
   hmati(2,3) = (hmat(1,3)*hmat(2,1)-hmat(2,3)*hmat(1,1))*odet
   hmati(3,2) = (hmat(3,1)*hmat(1,2)-hmat(3,2)*hmat(1,1))*odet
-  
+
 END SUBROUTINE getinv3x3
 
 !******************************************************************************
 
 FUNCTION matvec_3x3 ( mat, vec )
-  
+
   IMPLICIT NONE
-  
+
 ! Return value
   REAL ( dbl ), DIMENSION(3) :: matvec_3x3
-  
+
 ! Arguments
   REAL ( dbl ), DIMENSION(3,3), INTENT ( IN ) :: mat
   REAL ( dbl ), DIMENSION(3), INTENT ( IN ) :: vec
-  
+
 !------------------------------------------------------------------------------
-  
+
   matvec_3x3(1)=mat(1,1)*vec(1)+mat(1,2)*vec(2)+mat(1,3)*vec(3)
   matvec_3x3(2)=mat(2,1)*vec(1)+mat(2,2)*vec(2)+mat(2,3)*vec(3)
   matvec_3x3(3)=mat(3,1)*vec(1)+mat(3,2)*vec(2)+mat(3,3)*vec(3)
-  
+
 END FUNCTION matvec_3x3
 
 !******************************************************************************
 
 FUNCTION dotprod_3d ( vec1, vec2 )
-  
+
   IMPLICIT NONE
-  
+
 ! Return value
   REAL ( dbl ) :: dotprod_3d
-  
+
 ! Arguments
   REAL ( dbl ), DIMENSION(3), INTENT ( IN ) :: vec1,vec2
-    
+
 !------------------------------------------------------------------------------
-  
+
   dotprod_3d = &
        vec1 ( 1 ) * vec2 ( 1 ) &
        + vec1 ( 2 ) * vec2 ( 2 ) &
        + vec1 ( 3 ) * vec2 ( 3 )
-  
+
 END FUNCTION dotprod_3d
 
 !******************************************************************************
 
 FUNCTION crossprod_3d ( vec1, vec2 )
-  
+
   IMPLICIT NONE
-  
+
 ! Return value
   REAL ( dbl ), DIMENSION ( 3 ) :: crossprod_3d
-  
+
 ! Arguments
   REAL ( dbl ), DIMENSION ( 3 ), INTENT ( IN ) :: vec1, vec2
-  
+
 !------------------------------------------------------------------------------
-  
+
   crossprod_3d ( 1 ) = vec1(2) * vec2(3) - vec1(3) * vec2(2)
   crossprod_3d ( 2 ) = vec1(3) * vec2(1) - vec1(1) * vec2(3)
   crossprod_3d ( 3 ) = vec1(1) * vec2(2) - vec1(2) * vec2(1)
-  
+
 END FUNCTION crossprod_3d
 
 !******************************************************************************
 
 FUNCTION transpose_3d ( mat )
-  
+
   IMPLICIT NONE
-  
+
 ! Return value
   REAL ( dbl ), DIMENSION(3,3) :: transpose_3d
-  
+
 ! Arguments
   REAL ( dbl ), DIMENSION(3,3), INTENT ( IN ) :: mat
-  
+
 ! Locals
   INTEGER :: i, j
-  
+
 !------------------------------------------------------------------------------
-  
+
   DO i = 1, 3
      DO j = 1, 3
         transpose_3d ( j, i ) = mat ( i, j )
      END DO
   END DO
-  
+
 END FUNCTION transpose_3d
 
 !******************************************************************************
 
 FUNCTION matmul_3x3 ( mat1, mat2 )
-  
+
   IMPLICIT NONE
-  
+
 ! Return value
   REAL ( dbl ), DIMENSION ( 3, 3 ) :: matmul_3x3
-  
+
 ! Arguments
   REAL ( dbl ), DIMENSION ( 3, 3 ), INTENT ( IN ) :: mat1, mat2
-  
+
 !------------------------------------------------------------------------------
-  
+
   matmul_3x3(1,1)=mat1(1,1)*mat2(1,1)+mat1(1,2)*mat2(2,1)+mat1(1,3)*mat2(3,1)
   matmul_3x3(1,2)=mat1(1,1)*mat2(1,2)+mat1(1,2)*mat2(2,2)+mat1(1,3)*mat2(3,2)
   matmul_3x3(1,3)=mat1(1,1)*mat2(1,3)+mat1(1,2)*mat2(2,3)+mat1(1,3)*mat2(3,3)
@@ -651,7 +651,7 @@ FUNCTION matmul_3x3 ( mat1, mat2 )
   matmul_3x3(3,1)=mat1(3,1)*mat2(1,1)+mat1(3,2)*mat2(2,1)+mat1(3,3)*mat2(3,1)
   matmul_3x3(3,2)=mat1(3,1)*mat2(1,2)+mat1(3,2)*mat2(2,2)+mat1(3,3)*mat2(3,2)
   matmul_3x3(3,3)=mat1(3,1)*mat2(1,3)+mat1(3,2)*mat2(2,3)+mat1(3,3)*mat2(3,3)
-  
+
 END FUNCTION matmul_3x3
 
 !******************************************************************************

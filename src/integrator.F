@@ -22,12 +22,14 @@
 
 MODULE integrator
   
+  USE brillouin, ONLY : kpoint_type
   USE constraint, ONLY: shake_control, rattle_control, pv_constraint, getold, &
       shake_roll_control, rattle_roll_control
-  USE global_types, ONLY: global_environment_type
+  USE dft_types, ONLY : dft_control_type
   USE eigenvalueproblems, ONLY : diagonalise
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE force_control, ONLY : force
+  USE global_types, ONLY: global_environment_type
   USE kinds, ONLY : dbl
   USE linklist_control, ONLY : get_ll_parm
   USE mathconstants, ONLY : pi, zero
@@ -39,16 +41,16 @@ MODULE integrator
   USE nose, ONLY : lnhc_parameters_type, npt_info_type, lnhc
   USE particle_types, ONLY : particle_type
   USE simulation_cell, ONLY : get_cell_param
-  USE stop_program, ONLY : stop_prg, stop_memory
   USE structure_types, ONLY : structure_type, interaction_type
+  USE termination, ONLY : stop_memory, stop_program
   USE timings, ONLY : timeset, timestop
   USE util, ONLY : get_unit, matvec_3x3, matmul_3x3, transpose_3d
-  
+
   IMPLICIT NONE
-  
+
   PRIVATE
   PUBLIC :: velocity_verlet, force, energy, set_energy_parm, set_integrator
-  
+
   TYPE old_variables_type
      REAL ( dbl ), POINTER, DIMENSION ( :, : ) :: v
      REAL ( dbl ), POINTER, DIMENSION ( :, : ) :: r
@@ -56,27 +58,27 @@ MODULE integrator
      REAL ( dbl ), POINTER, DIMENSION ( :, : ) :: veps
      REAL ( dbl ), POINTER, DIMENSION ( :, : ) :: h
   END TYPE old_variables_type
-  
+
   TYPE ( old_variables_type ) :: old
-  
+
   TYPE average_quantities_type
      REAL ( dbl ) :: avetemp, avepot, avekin, avevol, aveca, avecb, avecc
      REAL ( dbl ) :: aveal, avebe, avega, avepress, avekincoef
   END TYPE average_quantities_type
-  
+
   CHARACTER ( LEN = 10 ) :: pres_label, e_label, temp_label
   CHARACTER ( LEN = 10 ) :: l_label, vol_label, angl_label
   REAL ( dbl ) :: econs_avg
   REAL ( dbl ) :: p_conv, temp_conv
   TYPE (average_quantities_type ) :: averages
-  
+
   LOGICAL :: ionode
   INTEGER :: int_group
   CHARACTER (LEN=50) :: crd_file_name, vel_file_name, ptens_file_name, &
                         ener_file_name, temp_file_name, dump_file_name
   INTEGER :: crd, vel, ptn, ene, tem, scr
   INTEGER :: icrd, ivel, iptens, iener, itemp, idump, iscreen
-  
+
   TYPE ( global_environment_type ) :: intenv
 
 !!*****
@@ -102,10 +104,10 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE velocity_verlet ( itimes, constant, simpar, inter, &
-     thermo, struc, ewald_param, nhc_part, nhc_baro, npt )
+     thermo, struc, ewald_param, nhc_part, nhc_baro, npt, dft_control, kp )
   
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER, INTENT ( IN ) :: itimes
   REAL ( dbl ), INTENT ( INOUT ) :: constant
@@ -116,6 +118,8 @@ SUBROUTINE velocity_verlet ( itimes, constant, simpar, inter, &
   TYPE ( npt_info_type ), INTENT ( INOUT ), DIMENSION ( :, : ) :: npt
   TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
   TYPE ( interaction_type ), INTENT ( IN ) :: inter
+  TYPE ( dft_control_type ) :: dft_control
+  TYPE ( kpoint_type ), INTENT ( IN ) :: kp
   
   INTEGER :: handle
 
@@ -123,23 +127,25 @@ SUBROUTINE velocity_verlet ( itimes, constant, simpar, inter, &
   CALL timeset ( 'VERLET', 'I', ' ', handle )
   SELECT CASE ( simpar % ensemble )
   CASE DEFAULT
-     CALL stop_prg ( 'velocity_verlet','integrator not implemented')
+     CALL stop_program ( 'velocity_verlet','integrator not implemented')
   CASE ( 'NVE')
-     CALL nve(itimes,constant,simpar,inter,thermo,struc,ewald_param)
+     CALL nve ( itimes, constant, simpar, inter, thermo, struc, ewald_param, &
+          dft_control, kp )
   CASE ( 'NVT')
-     CALL nvt(itimes,constant,simpar,inter,thermo,struc,ewald_param,nhc_part)
+     CALL nvt ( itimes, constant, simpar, inter, thermo, struc, ewald_param, &
+          nhc_part, dft_control, kp )
   CASE ( 'NPT_I')
      CALL npt_i(itimes,constant,simpar,inter,thermo,struc,ewald_param, &
-                nhc_part,nhc_baro,npt)
+                nhc_part,nhc_baro,npt, dft_control, kp )
   CASE ( 'NPT_F')
      CALL npt_f(itimes,constant,simpar,inter,thermo,struc,ewald_param, &
-                nhc_part,nhc_baro,npt)
+                nhc_part,nhc_baro,npt, dft_control, kp )
   END SELECT
 
   CALL energy(itimes,constant,simpar,struc,thermo,nhc_part,nhc_baro,npt)
 
   CALL timestop ( zero, handle )
-  
+
 END SUBROUTINE velocity_verlet
 
 !!*****
@@ -168,26 +174,26 @@ END SUBROUTINE velocity_verlet
 
 SUBROUTINE set_integrator ( globenv, mdio )
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE(mdio_parameters_type), INTENT (IN) :: mdio
   TYPE ( global_environment_type ), INTENT (IN) :: globenv
-  
+
 !------------------------------------------------------------------------------
-  
-  intenv = globenv 
+
+  intenv = globenv
 
   ionode = globenv % ionode
   int_group = globenv % group
   scr = globenv % scr
-  
+
   crd_file_name = mdio % crd_file_name
   vel_file_name = mdio % vel_file_name
   ptens_file_name = mdio % ptens_file_name
   ener_file_name = mdio % ener_file_name
   temp_file_name = mdio % temp_file_name
   dump_file_name = mdio % dump_file_name
-  
+
   icrd = mdio % icrd
   ivel = mdio % ivel
   iptens = mdio % iptens
@@ -195,7 +201,7 @@ SUBROUTINE set_integrator ( globenv, mdio )
   itemp = mdio % itemp
   idump = mdio % idump
   iscreen = mdio % iscreen
-  
+
 END SUBROUTINE set_integrator
 
 !!*****
@@ -217,16 +223,16 @@ END SUBROUTINE set_integrator
 !******************************************************************************
 
 SUBROUTINE set_energy_parm ( pconv, tempconv, l, vol, e, pres, temp, angl )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   REAL ( dbl ), INTENT ( IN ), OPTIONAL :: pconv, tempconv
   CHARACTER ( LEN = 10 ), INTENT ( IN ), OPTIONAL :: l, vol, e
   CHARACTER ( LEN = 10 ), INTENT ( IN ), OPTIONAL :: pres, temp, angl
-  
+
 !------------------------------------------------------------------------------
-  
+
   IF ( PRESENT ( pconv)) p_conv = pconv
   IF ( PRESENT ( tempconv)) temp_conv = tempconv
   IF ( PRESENT ( l)) l_label = l
@@ -260,9 +266,9 @@ END SUBROUTINE set_energy_parm
 
 SUBROUTINE energy ( itimes, constant, simpar, struc, thermo,  &
                     nhc_part, nhc_baro, npt )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER, INTENT ( IN ) :: itimes
   REAL ( dbl ), INTENT ( INOUT ) :: constant
@@ -271,7 +277,7 @@ SUBROUTINE energy ( itimes, constant, simpar, struc, thermo,  &
   TYPE (thermodynamic_type ), INTENT ( INOUT ) :: thermo
   TYPE (lnhc_parameters_type ), INTENT ( INOUT ) :: nhc_part, nhc_baro
   TYPE (npt_info_type ), INTENT ( INOUT ), DIMENSION ( :, : ) :: npt
-  
+
 ! Locals
   INTEGER i, j, id, n, l, nnodes, iw, handle
   REAL ( dbl ) :: nhc_part_pot, nhc_part_kin, baro_kin, baro_pot
@@ -280,11 +286,11 @@ SUBROUTINE energy ( itimes, constant, simpar, struc, thermo,  &
   REAL ( dbl ) :: cons, temp, econs
   REAL ( dbl ), DIMENSION(3) :: cell, ang
   REAL ( dbl ) :: pv_scalar
-  
+
 !------------------------------------------------------------------------------
-  
+
   CALL timeset ( 'ENERGY', 'E', ' ', handle )
-  
+
   IF ( ionode .AND. itimes == 0 ) THEN
      tem = get_unit()
      OPEN ( UNIT = tem, FILE = temp_file_name )
@@ -297,7 +303,7 @@ SUBROUTINE energy ( itimes, constant, simpar, struc, thermo,  &
      ptn = get_unit()
      OPEN ( UNIT = ptn, FILE = ptens_file_name )
   END IF
-  
+
   iw = scr
   thermo % kin = zero
   nnodes = SIZE ( struc % pnode )
@@ -306,71 +312,71 @@ SUBROUTINE energy ( itimes, constant, simpar, struc, thermo,  &
           %pnode(i)%p%v(1)*struc%pnode(i)%p%v(1)+struc%pnode(i)%p%v(2)*struc &
           %pnode(i)%p%v(2)+struc%pnode(i)%p%v(3)*struc%pnode(i)%p%v(3))
   END DO
-  
+
 ! sum all contributions to energy over calculated parts on all processors
 #if defined(__parallel)
   CALL mp_sum(thermo%kin,int_group)
 #endif
-  
+
   temp = 2.0_dbl*thermo%kin/float(simpar%nfree)/temp_conv
   IF (ionode .AND. mod(itimes,itemp)==0) THEN
      WRITE (tem, *) itimes, temp
   END IF
-  
+
   IF (ionode .AND. mod(itimes,iptens)==0) THEN
      DO i=1,3
         WRITE (ptn,*) itimes, (thermo%ptens(i,j), j=1,3)
      END DO
   END IF
-  
+
   IF (ionode .AND. mod(itimes,icrd)==0) THEN
      DO i=1, nnodes
-        WRITE (crd,'(i6,3(x,f12.5) )' ) itimes, struc%pnode(i) %p%r
+        WRITE (crd,'(i6,3(2x,f12.5) )' ) itimes, struc%pnode(i) %p%r
      END DO
   END IF
-  
+
 IF (ionode .AND. mod(itimes,ivel)==0) THEN
      DO i=1, nnodes
         WRITE (vel,'(i6,3f10.5 )' ) itimes, struc%pnode(i) %p%v
      END DO
   END IF
-  
+
   IF (simpar%ensemble/='NVE') THEN
      nhc_part_kin = 0.0_dbl
      nhc_part_pot = 0.0_dbl
      DO n = 1, nhc_part % num_nhc
         DO l = 1, nhc_part % nhc_len
            nhc_part_kin = nhc_part_kin +  &
-	   0.5_dbl * nhc_part % nvt ( l, n ) % mass * &
-	   nhc_part % nvt ( l, n ) % v * nhc_part % nvt ( l, n ) % v 
+           0.5_dbl * nhc_part % nvt ( l, n ) % mass * &
+           nhc_part % nvt ( l, n ) % v * nhc_part % nvt ( l, n ) % v
 
            nhc_part_pot = nhc_part_pot + nhc_part % nvt ( l, n ) % nkt *  &
-	                  nhc_part % nvt ( l, n ) % eta
+                          nhc_part % nvt ( l, n ) % eta
         END DO
      END DO
 #if defined(__parallel)
-     IF (nhcp%dis_type=='DIS_REP') THEN
+     IF (nhc_part%dis_type=='DIS_REP') THEN
         CALL mp_sum(nhc_part_kin,int_group)
         CALL mp_sum(nhc_part_pot,int_group)
      END IF
 #endif
   END IF
-  
+
   IF (simpar%ensemble (1:3 ) == 'NPT' ) THEN
      nhc_baro_kin = 0.0_dbl
      nhc_baro_pot = 0.0_dbl
      DO n = 1, nhc_baro % num_nhc
         DO l = 1, nhc_baro % nhc_len
            nhc_baro_kin = nhc_baro_kin +  &
-	   0.5_dbl * nhc_baro % nvt ( l, n ) % mass * &
-	   nhc_baro % nvt ( l, n ) % v * nhc_baro % nvt ( l, n ) % v 
+           0.5_dbl * nhc_baro % nvt ( l, n ) % mass * &
+           nhc_baro % nvt ( l, n ) % v * nhc_baro % nvt ( l, n ) % v
 
            nhc_baro_pot = nhc_baro_pot + nhc_baro % nvt ( l, n ) % nkt *  &
-	                  nhc_baro % nvt ( l, n ) % eta
+                          nhc_baro % nvt ( l, n ) % eta
         END DO
      END DO
 #if defined(__parallel)
-     IF (nhcp%dis_type=='DIS_REP') THEN
+     IF (nhc_part%dis_type=='DIS_REP') THEN
         CALL mp_sum(nhc_baro_kin,int_group)
         CALL mp_sum(nhc_baro_pot,int_group)
      END IF
@@ -387,20 +393,20 @@ IF (ionode .AND. mod(itimes,ivel)==0) THEN
      DO i = 1, 3
         DO j = 1, 3
            baro_kin = baro_kin + 0.5_dbl * npt ( i, j ) % v *  &
-	              npt ( i, j ) % v * npt(i,j) % mass
+                      npt ( i, j ) % v * npt(i,j) % mass
         END DO
      END DO
   END IF
-  
+
   IF (simpar%ensemble(1:3)=='NPT') THEN
 #if defined(__parallel)
-     IF (nhc%dis_type=='DIS_REP') THEN
+     IF (nhc_baro%dis_type=='DIS_REP') THEN
         CALL mp_sum(baro_kin,int_group)
         CALL mp_sum(baro_pot,int_group)
      END IF
 #endif
   END IF
-  
+
   SELECT CASE ( simpar % ensemble ( 1 : 3 ) )
   CASE ( 'NVE')
      cons = thermo%kin + thermo%pot
@@ -410,21 +416,21 @@ IF (ionode .AND. mod(itimes,ivel)==0) THEN
      cons = thermo%kin + thermo%pot + nhc_part_kin + nhc_part_pot  &
             + nhc_baro_kin + nhc_baro_pot + baro_kin + baro_pot
   END SELECT
-  
+
   IF (itimes==1) THEN
      constant = cons
   END IF
   IF (itimes /= 0 ) econs = abs((cons-constant)/constant)
-  
+
 ! cell parameters:
   CALL get_cell_param ( struc % box, cell, ang )
-  
+
 ! initializing pv_const=0
-  IF (itimes==0) THEN 
+  IF (itimes==0) THEN
      thermo%pv_const = 0._dbl
      CALL pressure(struc%pnode,thermo)
   END IF
-  
+
 ! computing the scalar pressure
   pv_scalar = 0._dbl
   DO i = 1, 3
@@ -432,7 +438,7 @@ IF (ionode .AND. mod(itimes,ivel)==0) THEN
   END DO
   pv_scalar = pv_scalar/3._dbl/struc%box%deth
   pv_scalar = pv_scalar*p_conv
-  
+
 ! average quantities:
   SELECT CASE (itimes)
   CASE (0)
@@ -476,11 +482,11 @@ IF (ionode .AND. mod(itimes,ivel)==0) THEN
           real(itimes)
      econs_avg = econs_avg + abs((cons-constant)/constant)
   END SELECT
-  
+
   IF (ionode .AND. (mod(itimes,iener)==0) .AND. (itimes /= 0 )) THEN
      WRITE (ene, *) itimes, econs, econs_avg/real(itimes)
   END IF
-  
+
   IF (itimes==0 .AND. ionode) THEN
      WRITE ( iw, '( )' )
      WRITE ( iw, '( A,A )' ) ' ******************************** ', &
@@ -502,10 +508,10 @@ IF (ionode .AND. mod(itimes,ivel)==0) THEN
      WRITE ( iw, '( A,A )' ) ' ******************************** ', &
           'GO CP2K GO! **********************************'
   END IF
-  
+
   IF ( ( itimes /= 0 ) .AND. ( MOD ( itimes, iscreen ) == 0 ) &
        .AND. ionode ) THEN
-     
+
      WRITE ( iw, '( )' )
      WRITE ( iw, '( A,A )' ) ' **************************************', &
           '*****************************************'
@@ -549,9 +555,9 @@ IF (ionode .AND. mod(itimes,ivel)==0) THEN
           '*****************************************'
      WRITE ( iw, '( )' )
   END IF
-  
+
   CALL timestop ( zero, handle )
-  
+
 END SUBROUTINE energy
 
 !!*****
@@ -560,83 +566,8 @@ END SUBROUTINE energy
 ! nve integrator for particle positions & momenta
 !    velocity Verlet
 
-SUBROUTINE nve(itimes,constant,simpar,inter,thermo,struc,ewald_param)
-  IMPLICIT NONE
-  INTEGER, INTENT ( IN ) :: itimes
-  REAL ( dbl ), INTENT ( INOUT ) :: constant
-  TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE (thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  TYPE (structure_type ), INTENT ( INOUT ) :: struc
-  TYPE (ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  TYPE (interaction_type ), INTENT ( IN ) :: inter
-  
-  INTEGER :: i, nnodes
-  REAL ( dbl ) :: dtom
-  
-!------------------------------------------------------------------------------
-  
-  IF ( simpar % constraint ) CALL getold ( struc % molecule )
-  
-!
-! first half of velocity verlet
-!
-  nnodes = size(struc%pnode)
-  DO i = 1, nnodes
-     dtom = 0.5_dbl*simpar%dt/struc%pnode(i) %p%prop%mass
-     struc%pnode(i) %p%v(1) = struc%pnode(i) %p%v(1) + &
-          dtom*struc%pnode(i) %p%f(1)
-     struc%pnode(i) %p%v(2) = struc%pnode(i) %p%v(2) + &
-          dtom*struc%pnode(i) %p%f(2)
-     struc%pnode(i) %p%v(3) = struc%pnode(i) %p%v(3) + &
-          dtom*struc%pnode(i) %p%f(3)
-     struc%pnode(i) %p%r(1) = struc%pnode(i) %p%r(1) + &
-          struc%pnode(i) %p%v(1)*simpar%dt
-     struc%pnode(i) %p%r(2) = struc%pnode(i) %p%r(2) + &
-          struc%pnode(i) %p%v(2)*simpar%dt
-     struc%pnode(i) %p%r(3) = struc%pnode(i) %p%r(3) + &
-          struc%pnode(i) %p%v(3)*simpar%dt
-  END DO
-  
-  IF (simpar%constraint) CALL shake_control(struc%molecule,simpar)
-#if defined(__parallel)
-  CALL update_structure(struc,'POS')
-#endif
-  
-!
-! get new forces
-!
-  CALL force ( struc, inter, thermo, simpar, ewald_param, intenv )
-  
-!
-! second half of velocity verlet
-!
-  DO i = 1, nnodes
-     dtom = 0.5_dbl*simpar%dt/struc%pnode(i) %p%prop%mass
-     struc%pnode(i) %p%v(1) = struc%pnode(i) %p%v(1) + &
-          dtom*struc%pnode(i) %p%f(1)
-     struc%pnode(i) %p%v(2) = struc%pnode(i) %p%v(2) + &
-          dtom*struc%pnode(i) %p%f(2)
-     struc%pnode(i) %p%v(3) = struc%pnode(i) %p%v(3) + &
-          dtom*struc%pnode(i) %p%f(3)
-  END DO
-  
-  IF (simpar%constraint) CALL rattle_control(struc%molecule,simpar)
-#if defined(__parallel)
-  CALL update_structure(struc,'VEL')
-#endif
-  
-! updating the virial
-  IF (simpar%constraint) CALL pv_constraint(struc%molecule,thermo, &
-                                            'FULL',int_group )
-  
-  CALL pressure(struc%pnode,thermo)
-  
-END SUBROUTINE nve
-
-!******************************************************************************
-
-SUBROUTINE nvt(itimes,constant,simpar,inter,thermo,struc, &
-     ewald_param,nhc)
+SUBROUTINE nve ( itimes, constant, simpar, inter, thermo, struc, ewald_param, &
+     dft_control, kp )
   
   IMPLICIT NONE
   
@@ -646,20 +577,19 @@ SUBROUTINE nvt(itimes,constant,simpar,inter,thermo,struc, &
   TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
   TYPE (thermodynamic_type ), INTENT ( INOUT ) :: thermo
   TYPE (structure_type ), INTENT ( INOUT ) :: struc
-  TYPE (lnhc_parameters_type ), INTENT ( INOUT ) :: nhc
   TYPE (ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
   TYPE (interaction_type ), INTENT ( IN ) :: inter
+  TYPE ( dft_control_type ) :: dft_control
+  TYPE ( kpoint_type ), INTENT ( IN ) :: kp
   
-! Locals
+! Local
   INTEGER :: i, nnodes
   REAL ( dbl ) :: dtom
-  
+
 !------------------------------------------------------------------------------
-  
-  CALL lnhc ( nhc, struc % pnode, int_group )
-  
+
   IF ( simpar % constraint ) CALL getold ( struc % molecule )
-  
+
 !
 ! first half of velocity verlet
 !
@@ -679,16 +609,17 @@ SUBROUTINE nvt(itimes,constant,simpar,inter,thermo,struc, &
      struc%pnode(i) %p%r(3) = struc%pnode(i) %p%r(3) + &
           struc%pnode(i) %p%v(3)*simpar%dt
   END DO
-  
-  IF ( simpar % constraint ) CALL shake_control ( struc % molecule, simpar )
+
+  IF (simpar%constraint) CALL shake_control(struc%molecule,simpar)
 #if defined(__parallel)
-  CALL update_structure ( struc, 'POS' )
+  CALL update_structure(struc,'POS')
 #endif
-  
+
 !
 ! get new forces
 !
-  CALL force ( struc, inter, thermo, simpar, ewald_param, intenv )
+  CALL force ( struc, inter, thermo, simpar, ewald_param, intenv, &
+       dft_control, kp )
   
 !
 ! second half of velocity verlet
@@ -702,29 +633,115 @@ SUBROUTINE nvt(itimes,constant,simpar,inter,thermo,struc, &
      struc%pnode(i) %p%v(3) = struc%pnode(i) %p%v(3) + &
           dtom*struc%pnode(i) %p%f(3)
   END DO
-  
-  IF ( simpar % constraint ) CALL rattle_control ( struc % molecule, simpar )
-  
-  CALL lnhc ( nhc, struc % pnode, int_group )
-  
+
+  IF (simpar%constraint) CALL rattle_control(struc%molecule,simpar)
 #if defined(__parallel)
   CALL update_structure(struc,'VEL')
 #endif
+
+! updating the virial
+  IF (simpar%constraint) CALL pv_constraint(struc%molecule,thermo, &
+                                            'FULL',int_group )
+
+  CALL pressure(struc%pnode,thermo)
+
+END SUBROUTINE nve
+
+!******************************************************************************
+
+SUBROUTINE nvt ( itimes, constant, simpar, inter, thermo, struc, &
+     ewald_param, nhc, dft_control, kp )
   
+  IMPLICIT NONE
+
+! Arguments
+  INTEGER, INTENT ( IN ) :: itimes
+  REAL ( dbl ), INTENT ( INOUT ) :: constant
+  TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
+  TYPE (thermodynamic_type ), INTENT ( INOUT ) :: thermo
+  TYPE (structure_type ), INTENT ( INOUT ) :: struc
+  TYPE (lnhc_parameters_type ), INTENT ( INOUT ) :: nhc
+  TYPE (ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
+  TYPE (interaction_type ), INTENT ( IN ) :: inter
+  TYPE ( dft_control_type ) :: dft_control
+  TYPE ( kpoint_type ), INTENT ( IN ) :: kp
+  
+! Locals
+  INTEGER :: i, nnodes
+  REAL ( dbl ) :: dtom
+
+!------------------------------------------------------------------------------
+
+  CALL lnhc ( nhc, struc % pnode, int_group )
+
+  IF ( simpar % constraint ) CALL getold ( struc % molecule )
+
+!
+! first half of velocity verlet
+!
+  nnodes = SIZE ( struc % pnode )
+  DO i = 1, nnodes
+     dtom = 0.5_dbl * simpar%dt / struc%pnode(i)%p%prop%mass
+     struc%pnode(i) %p%v(1) = struc%pnode(i) %p%v(1) + &
+          dtom*struc%pnode(i) %p%f(1)
+     struc%pnode(i) %p%v(2) = struc%pnode(i) %p%v(2) + &
+          dtom*struc%pnode(i) %p%f(2)
+     struc%pnode(i) %p%v(3) = struc%pnode(i) %p%v(3) + &
+          dtom*struc%pnode(i) %p%f(3)
+     struc%pnode(i) %p%r(1) = struc%pnode(i) %p%r(1) + &
+          struc%pnode(i) %p%v(1)*simpar%dt
+     struc%pnode(i) %p%r(2) = struc%pnode(i) %p%r(2) + &
+          struc%pnode(i) %p%v(2)*simpar%dt
+     struc%pnode(i) %p%r(3) = struc%pnode(i) %p%r(3) + &
+          struc%pnode(i) %p%v(3)*simpar%dt
+  END DO
+
+  IF ( simpar % constraint ) CALL shake_control ( struc % molecule, simpar )
+#if defined(__parallel)
+  CALL update_structure ( struc, 'POS' )
+#endif
+
+!
+! get new forces
+!
+  CALL force ( struc, inter, thermo, simpar, ewald_param, intenv, &
+       dft_control, kp )
+  
+!
+! second half of velocity verlet
+!
+  DO i = 1, nnodes
+     dtom = 0.5_dbl*simpar%dt/struc%pnode(i) %p%prop%mass
+     struc%pnode(i) %p%v(1) = struc%pnode(i) %p%v(1) + &
+          dtom*struc%pnode(i) %p%f(1)
+     struc%pnode(i) %p%v(2) = struc%pnode(i) %p%v(2) + &
+          dtom*struc%pnode(i) %p%f(2)
+     struc%pnode(i) %p%v(3) = struc%pnode(i) %p%v(3) + &
+          dtom*struc%pnode(i) %p%f(3)
+  END DO
+
+  IF ( simpar % constraint ) CALL rattle_control ( struc % molecule, simpar )
+
+  CALL lnhc ( nhc, struc % pnode, int_group )
+
+#if defined(__parallel)
+  CALL update_structure(struc,'VEL')
+#endif
+
 ! updating the virial
   IF (simpar%constraint) CALL pv_constraint(struc%molecule,thermo, &
                                             'FULL',int_group )
   CALL pressure(struc%pnode,thermo)
-  
+
 END SUBROUTINE nvt
 
 !******************************************************************************
 
 SUBROUTINE npt_i ( itimes, constant, simpar, inter, thermo, struc, &
-     ewald_param, nhc_part, nhc_baro, npt )
+     ewald_param, nhc_part, nhc_baro, npt, dft_control, kp )
   
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER, INTENT ( IN ) :: itimes
   REAL ( dbl ), INTENT ( INOUT ) :: constant
@@ -735,6 +752,8 @@ SUBROUTINE npt_i ( itimes, constant, simpar, inter, thermo, struc, &
   TYPE (npt_info_type ), INTENT ( INOUT ), DIMENSION ( :, : ) :: npt
   TYPE (ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
   TYPE (interaction_type ), INTENT ( IN ) :: inter
+  TYPE ( dft_control_type ) :: dft_control
+  TYPE ( kpoint_type ), INTENT ( IN ) :: kp
   
 ! Locals
   INTEGER :: i, ii,  nnodes, iroll
@@ -746,15 +765,15 @@ SUBROUTINE npt_i ( itimes, constant, simpar, inter, thermo, struc, &
   REAL ( dbl ) :: arg_v, poly_v, scale_v, kin, fdotr, infree
   REAL ( dbl ), DIMENSION (3) :: vector_r, vector_v
   LOGICAL :: first
-  
+
 !------------------------------------------------------------------------------
   infree = 1.0_dbl / REAL ( simpar % nfree, dbl ) 
 
 
-  
+
 ! initialize eps_0 the first time through
   IF ( itimes == 1 ) eps_0 = npt(1,1) % eps
-  
+
 
 ! Nose-Hoover for the Barostat
      CALL lnhc ( nhc_baro, npt, int_group )
@@ -770,12 +789,12 @@ SUBROUTINE npt_i ( itimes, constant, simpar, inter, thermo, struc, &
   END IF
 
   SR: DO WHILE (abs(roll_tol)>=1.E-10_dbl) ! SHAKE-ROLL LOOP
-     
+
      IF (simpar%constraint) THEN
         CALL set( struc, npt, 'B' )
      END IF
      CALL get_veps ( npt, simpar, struc, thermo, infree )
-     
+
 !
 ! first half of velocity verlet
 !
@@ -787,7 +806,7 @@ SUBROUTINE npt_i ( itimes, constant, simpar, inter, thermo, struc, &
              (1._dbl + 3._dbl * infree ) )*( 0.25_dbl * npt ( 1, 1 ) % v * &
               simpar % dt * ( 1._dbl + 3._dbl * infree ) )
      poly_v = 1._dbl + e2*arg_v + e4*arg_v*arg_v + e6*arg_v**3 + e8*arg_v**4
-     
+
      scale_r = EXP( 0.5_dbl * simpar % dt * npt ( 1, 1 ) %v )
      scale_v = EXP( -0.25_dbl * simpar % dt * npt ( 1, 1 ) % v * &
                   (1._dbl + 3._dbl * infree ) )
@@ -812,7 +831,7 @@ SUBROUTINE npt_i ( itimes, constant, simpar, inter, thermo, struc, &
      roll_tol = 0._dbl
      vector_r ( : ) = scale_r * poly_r
      vector_v ( : ) = scale_v * poly_v
-     
+
      IF ( simpar%constraint ) CALL shake_roll_control(struc%molecule,simpar, &
           thermo,roll_tol,iroll,vector_r,vector_v,int_group )
   END DO SR
@@ -820,21 +839,22 @@ SUBROUTINE npt_i ( itimes, constant, simpar, inter, thermo, struc, &
 ! Update eps:
   npt ( :, : ) % eps =  npt ( :, : ) % eps &
                        + simpar % dt * npt ( :, : ) % v
-     
+
 ! Update h_mat
   struc % box % hmat ( :, : ) = struc % box % hmat ( :, : ) &
        * EXP ( npt ( 1, 1 ) % eps - eps_0 )
 
   eps_0 =  npt ( 1, 1 ) % eps
-  
+
 #if defined(__parallel)
   CALL update_structure(struc,'POS')
 #endif
-  
+
 !
 ! get new forces
 !
-  CALL force(struc,inter,thermo,simpar,ewald_param,intenv)
+  CALL force ( struc, inter, thermo, simpar, ewald_param, intenv, &
+       dft_control, kp )
   
 !
 ! second half of velocity verlet
@@ -856,7 +876,7 @@ SUBROUTINE npt_i ( itimes, constant, simpar, inter, thermo, struc, &
      iroll = 1
      CALL set( struc, npt, 'F' )
   END IF
-  
+
   RR: DO WHILE (abs(roll_tol)>=1.E-10_dbl) ! RATTLE-ROLL LOOP
      roll_tol = 0._dbl
      IF (simpar%constraint) CALL rattle_roll_setup ( npt, struc, &
@@ -872,14 +892,14 @@ SUBROUTINE npt_i ( itimes, constant, simpar, inter, thermo, struc, &
   CALL lnhc ( nhc_part, struc%pnode, int_group )
 ! Nose-Hoover for the Barostat
   CALL lnhc ( nhc_baro, npt, int_group )
-  
+
 
 #if defined(__parallel)
   CALL update_structure(struc,'VEL')
 #endif
 
   CALL pressure(struc%pnode,thermo)
-  
+
 END SUBROUTINE npt_i
 
 !******************************************************************************
@@ -888,19 +908,19 @@ END SUBROUTINE npt_i
 !    the full VIRIAL (PV)
 
 SUBROUTINE pressure ( pnode, thermo )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
   TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  
+
 ! Locals
   INTEGER :: i, j, iatom, nnodes, handle
   REAL ( dbl ) :: mfl
-  
+
 !------------------------------------------------------------------------------
-  
+
   CALL timeset ( 'PRESSURE', 'E', 'Mflops', handle )
 
   thermo%pv_kin = 0._dbl
@@ -915,14 +935,14 @@ SUBROUTINE pressure ( pnode, thermo )
      END DO
   END DO
   mfl = REAL( 9 * nnodes, dbl ) * 2._dbl * 1.e-6_dbl
-  
+
 #if defined(__parallel)
   CALL mp_sum(thermo%pv_kin,int_group)
 #endif
-  
+
 ! total virial
   thermo%ptens = thermo%pv + thermo%pv_kin + thermo%pv_const
-  
+
   CALL timestop ( mfl, handle )
 
 END SUBROUTINE pressure
@@ -930,20 +950,20 @@ END SUBROUTINE pressure
 !******************************************************************************
 
 SUBROUTINE update_structure(struc,task)
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE (structure_type ), INTENT ( INOUT ) :: struc
   CHARACTER ( LEN = * ), INTENT ( IN ) :: task
-  
+
 ! Locals
   REAL ( dbl ), ALLOCATABLE, DIMENSION ( :, : ) :: atot
   INTEGER :: natoms, ios, imol, atombase, iat, i, handle
   TYPE (linklist_atoms), POINTER :: current_atom
-  
+
 !------------------------------------------------------------------------------
-  
+
   CALL timeset ( 'UPDATE_STRUCTURE', 'E', ' ', handle )
 
   natoms = size(struc%part)
@@ -966,11 +986,11 @@ SUBROUTINE update_structure(struc,task)
         current_atom => current_atom%next
      END DO
   END DO
-  
+
 #ifdef __parallel
   CALL mp_sum(atot,int_group)
 #endif
-  
+
   IF (task=='POS') THEN
      DO iat = 1, natoms
         struc%part(iat) %r(1) = atot(1,iat)
@@ -984,31 +1004,31 @@ SUBROUTINE update_structure(struc,task)
         struc%part(iat) %v(3) = atot(3,iat)
      END DO
   END IF
-  
+
   DEALLOCATE ( atot, STAT = ios )
   IF ( ios /= 0 ) CALL stop_memory ( 'update_structure', 'atot' )
 
   CALL timestop ( zero, handle )
-  
+
 END SUBROUTINE update_structure
 
 !******************************************************************************
 
 SUBROUTINE set(struc,npt,char)
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE (structure_type ), INTENT ( INOUT ) :: struc
   TYPE (npt_info_type ), DIMENSION ( :, : ), INTENT ( INOUT ) :: npt
   CHARACTER ( LEN = * ), INTENT ( IN ) :: char
-  
+
 ! Locals
   INTEGER :: idim
   INTEGER :: isos
-  
+
 !------------------------------------------------------------------------------
-  
+
   isos = 0
   IF ( .NOT. ASSOCIATED ( old % v ) ) &
     ALLOCATE ( old % v ( SIZE ( struc % part ), 3 ), STAT = isos )
@@ -1025,7 +1045,7 @@ SUBROUTINE set(struc,npt,char)
   IF ( .NOT. ASSOCIATED ( old % h ) ) &
     ALLOCATE (old%h(SIZE(struc%box%hmat,1), SIZE(struc%box%hmat,2)),STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%h', 0 )
-  
+
   SELECT CASE (char)
   CASE ( 'F') ! forward assigning the old
      DO idim = 1, 3
@@ -1044,16 +1064,16 @@ SUBROUTINE set(struc,npt,char)
      npt ( :, : ) % v = old % veps ( :, : )
      struc % box % hmat ( :, : )=old % h ( :, : )
   END SELECT
-  
+
 END SUBROUTINE set
 
 !******************************************************************************
 
 SUBROUTINE npt_f ( itimes, constant, simpar, inter, thermo, struc, &
-     ewald_param, nhc_part, nhc_baro, npt )
+     ewald_param, nhc_part, nhc_baro, npt, dft_control, kp )
   
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER, INTENT ( IN ) :: itimes
   REAL ( dbl ), INTENT ( INOUT ) :: constant
@@ -1064,6 +1084,8 @@ SUBROUTINE npt_f ( itimes, constant, simpar, inter, thermo, struc, &
   TYPE ( npt_info_type ), INTENT ( INOUT ), DIMENSION ( :, : ) :: npt
   TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
   TYPE ( interaction_type ), INTENT ( IN ) :: inter
+  TYPE ( dft_control_type ) :: dft_control
+  TYPE ( kpoint_type ), INTENT ( IN ) :: kp
   
 ! Locals
   INTEGER :: i, j, nnodes, iroll
@@ -1076,7 +1098,7 @@ SUBROUTINE npt_f ( itimes, constant, simpar, inter, thermo, struc, &
   REAL ( dbl ), DIMENSION (3) :: arg_r, poly_r, scale_r, e_val, ur, uv, uf
   REAL ( dbl ), DIMENSION (3) :: arg_v, poly_v, scale_v
   LOGICAL :: first
-  
+
 !------------------------------------------------------------------------------
   infree = 1.0_dbl / REAL ( simpar % nfree, dbl ) 
   
@@ -1089,18 +1111,18 @@ SUBROUTINE npt_f ( itimes, constant, simpar, inter, thermo, struc, &
      CALL set(struc, npt, 'F' )
   END IF
 
-  
+
 ! Nose-Hoover for the Barostat
      CALL lnhc ( nhc_baro, npt, int_group )
 ! Nose-Hoover for the Particles
      CALL lnhc ( nhc_part, struc%pnode, int_group )
 
   SR: DO WHILE (abs(roll_tol)>=1.E-10_dbl) ! SHAKE-ROLL LOOP
-     
+
      IF (simpar%constraint) THEN
         CALL set ( struc, npt, 'B' )
      END IF
-     
+
      CALL get_veps ( npt, simpar, struc, thermo, infree )
 
      trvg = npt ( 1, 1) % v  + npt ( 2, 2 ) % v + npt ( 3, 3 ) % v 
@@ -1114,7 +1136,7 @@ SUBROUTINE npt_f ( itimes, constant, simpar, inter, thermo, struc, &
 ! first half of velocity verlet
 !
      arg_r ( : ) =  0.5_dbl * e_val ( : ) * simpar % dt * &
-                    0.5_dbl * e_val ( : ) * simpar % dt 
+                    0.5_dbl * e_val ( : ) * simpar % dt
      poly_r = 1._dbl + e2*arg_r + e4*arg_r*arg_r + e6*arg_r**3 + e8*arg_r**4
      scale_r ( : ) = EXP ( 0.5_dbl * simpar % dt * e_val ( : ) )
 
@@ -1123,7 +1145,7 @@ SUBROUTINE npt_f ( itimes, constant, simpar, inter, thermo, struc, &
      poly_v = 1._dbl + e2*arg_v + e4*arg_v*arg_v + e6*arg_v**3 + e8*arg_v**4
      scale_v ( : ) = EXP ( -0.25_dbl * simpar % dt * ( &
                            e_val ( : ) + trvg * infree ) )
-     
+
      nnodes = size(struc%pnode)
      DO i = 1, nnodes
         dtom = 0.5_dbl*simpar%dt/struc%pnode(i) %p%prop%mass
@@ -1137,22 +1159,22 @@ SUBROUTINE npt_f ( itimes, constant, simpar, inter, thermo, struc, &
         uv(3) = uv(3)*scale_v(3)*scale_v(3) + uf(3)*scale_v(3)*poly_v(3)*dtom
 
         ur(1) = ur(1)*scale_r(1)*scale_r(1) +  &
-	        uv(1)*scale_r(1)*poly_r(1)*simpar%dt
+                uv(1)*scale_r(1)*poly_r(1)*simpar%dt
         ur(2) = ur(2)*scale_r(2)*scale_r(2) +  &
-	        uv(2)*scale_r(2)*poly_r(2)*simpar%dt
+                uv(2)*scale_r(2)*poly_r(2)*simpar%dt
         ur(3) = ur(3)*scale_r(3)*scale_r(3) +  &
-	        uv(3)*scale_r(3)*poly_r(3)*simpar%dt
+                uv(3)*scale_r(3)*poly_r(3)*simpar%dt
 
         struc % pnode ( i ) % p % r ( : ) = MATVEC_3x3 ( u, ur )
         struc % pnode ( i ) % p % v ( : ) = MATVEC_3x3 ( u, uv )
      END DO
-     
+
      roll_tol = 0.0_dbl
      IF ( simpar % constraint ) CALL shake_roll_control ( struc % molecule, &
           simpar, thermo,roll_tol,iroll,scale_r*poly_r,scale_v*poly_v,  &
-	  int_group ,u)
+          int_group ,u)
   END DO SR
-  
+
 ! Update h_mat
 
   uh = MATMUL_3X3 ( TRANSPOSE_3D ( u ), struc % box % hmat )
@@ -1164,15 +1186,16 @@ SUBROUTINE npt_f ( itimes, constant, simpar, inter, thermo, struc, &
   END DO
 
   struc % box % hmat = matmul_3x3 ( u, uh )
-  
+
 #if defined(__parallel)
   CALL update_structure(struc,'POS')
 #endif
-  
+
 !
 ! get new forces
 !
-  CALL force ( struc, inter, thermo, simpar, ewald_param, intenv )
+  CALL force ( struc, inter, thermo, simpar, ewald_param, intenv, &
+       dft_control, kp )
   
 !
 ! second half of velocity verlet
@@ -1188,32 +1211,32 @@ SUBROUTINE npt_f ( itimes, constant, simpar, inter, thermo, struc, &
 
      struc%pnode(i) %p%v ( : ) = MATVEC_3x3(u,uv)
   END DO
-  
+
   IF (simpar%constraint) THEN
      roll_tol = -1.0E+10_dbl
      first = .TRUE.
      iroll = 1
      CALL set ( struc, npt, 'F' )
   END IF
-  
+
   RR: DO WHILE ( ABS ( roll_tol ) >= 1.0E-10_dbl ) ! RATTLE-ROLL LOOP
      roll_tol = 0.0_dbl
      IF ( simpar%constraint ) CALL rattle_roll_setup ( npt, struc, &
         thermo, simpar, scale_v * poly_v, roll_tol, iroll, infree, first )
 
      CALL get_veps ( npt, simpar, struc, thermo, infree )
-     
+
   END DO RR
-  
+
 #if defined(__parallel)
   CALL update_structure(struc,'VEL')
 #endif
-  
+
 ! Nose-Hoover for the Particles
   CALL lnhc ( nhc_part, struc%pnode, int_group )
 ! Nose-Hoover for the Barostat
   CALL lnhc ( nhc_baro, npt, int_group )
-  
+
   CALL pressure(struc%pnode,thermo)
 
 END SUBROUTINE npt_f
@@ -1222,9 +1245,9 @@ END SUBROUTINE npt_f
 
 SUBROUTINE rattle_roll_setup ( npt, struc, thermo, simpar, vector_v,  &
                                roll_tol, iroll, infree, first )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
   TYPE ( structure_type ), INTENT ( INOUT ) :: struc
@@ -1235,17 +1258,17 @@ SUBROUTINE rattle_roll_setup ( npt, struc, thermo, simpar, vector_v,  &
   REAL ( dbl ), INTENT ( IN ) :: infree
   REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: vector_v
   INTEGER, INTENT ( INOUT ) :: iroll
-  
+
 ! Locals
   TYPE ( npt_info_type ), DIMENSION ( 3, 3 ) :: npt_loc
-  
+
 !------------------------------------------------------------------------------
-  
+
   IF ( first ) THEN
     CALL get_veps ( npt, simpar, struc, thermo, infree )
   END IF
   first = .FALSE.
-  
+
 ! assigning local variable
   SELECT CASE ( simpar % ensemble )
   CASE ( 'NPT_I' )
@@ -1258,7 +1281,7 @@ SUBROUTINE rattle_roll_setup ( npt, struc, thermo, simpar, vector_v,  &
     npt_loc ( 2, 2 ) % mass = npt ( 1, 1 ) % mass
     npt_loc ( 3, 3 ) % mass = npt ( 1, 1 ) % mass
   CASE ( 'NPT_F' )
-    npt_loc = npt  
+    npt_loc = npt
   END SELECT
 
 ! resetting
@@ -1266,8 +1289,8 @@ SUBROUTINE rattle_roll_setup ( npt, struc, thermo, simpar, vector_v,  &
   CALL set ( struc, npt, 'B' )
   CALL rattle_roll_control( struc%molecule, simpar, thermo, npt_loc % v, &
                             npt_loc % mass, roll_tol, iroll, vector_v,  &
-			    int_group )
-  
+                            int_group )
+
 END SUBROUTINE rattle_roll_setup
 
 !******************************************************************************
@@ -1293,13 +1316,13 @@ SUBROUTINE get_veps ( npt, simpar, struc, thermo, infree )
   unit(2,2) = 1.0_dbl
   unit(3,3) = 1.0_dbl
 
-  nnodes = SIZE ( struc % pnode ) 
+  nnodes = SIZE ( struc % pnode )
   DO i = 1, 3
      DO j = 1, 3
         DO iatom = 1, nnodes
            pv_kin ( i, j ) = pv_kin ( i, j ) + &
                 struc % pnode ( iatom ) % p % prop % mass * &
-	        struc % pnode ( iatom ) % p % v ( i )* &
+                struc % pnode ( iatom ) % p % v ( i )* &
                 struc % pnode ( iatom ) % p % v ( j )
         END DO
      END DO
@@ -1332,9 +1355,9 @@ SUBROUTINE get_veps ( npt, simpar, struc, thermo, infree )
        kin = kin +  pv_kin ( ii, ii )
      END DO
      npt ( :, : ) % f = thermo % pv ( :, : ) +  &
-                        thermo % pv_const ( :, : )  -  & 
-			unit ( :, : ) * simpar % p_ext * struc % box % deth & 
-	          	+ infree * unit ( :, : ) * kin 
+                        thermo % pv_const ( :, : )  -  &
+                        unit ( :, : ) * simpar % p_ext * struc % box % deth &
+                        + infree * unit ( :, : ) * kin
   ENDIF
 
 ! update barostat velocities

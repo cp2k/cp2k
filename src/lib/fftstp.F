@@ -24,7 +24,7 @@ SUBROUTINE fftstp ( mm, nfft, m, nn, n, zin, zout, &
                   r, r1, r2, r3, r4, r5, r6, r7, r8, cr2, cr3, cr4, cr5, &
                   ci2, ci3, ci4, ci5, ur1, ur2, ur3, ui1, ui2, ui3, &
                   vr1, vr2, vr3, vi1, vi2, vi3, cm, cp, dm, dp, &
-                  am, ap, bm, bp,s25, s34, r34, r25, sin2, sin4, bbs
+                  am, ap, bm, bp,s25, s34, r34, r25, sin2, sin4
   REAL ( dbl ), PARAMETER :: rt2i = 0.7071067811865475_dbl  ! sqrt(0.5)
   REAL ( dbl ), PARAMETER :: bb = 0.8660254037844387_dbl  ! sqrt(3)/2
   REAL ( dbl ), PARAMETER :: cos2 = 0.3090169943749474_dbl ! cos(2*pi/5)
@@ -38,7 +38,7 @@ SUBROUTINE fftstp ( mm, nfft, m, nn, n, zin, zout, &
   atb = after * before
 
   IF ( now == 4 ) THEN
-    IF ( isign == 1 ) THEN 
+    IF ( isign == 1 ) THEN
       ia = 1
       nin1 = ia - after
       nout1 = ia - atn
@@ -66,15 +66,15 @@ SUBROUTINE fftstp ( mm, nfft, m, nn, n, zin, zout, &
           zout ( 1, j, nout3 ) = r - s
           r = r1 - r3
           s = s2 - s4
-          zout ( 1, j, nout2 ) = r - s 
+          zout ( 1, j, nout2 ) = r - s
           zout ( 1, j, nout4 ) = r + s
           r = s1 + s3
           s = s2 + s4
-          zout ( 2, j, nout1 ) = r + s 
+          zout ( 2, j, nout1 ) = r + s
           zout ( 2, j, nout3 ) = r - s
           r = s1 - s3
           s = r2 - r4
-          zout ( 2, j, nout2 ) = r + s 
+          zout ( 2, j, nout2 ) = r + s
           zout ( 2, j, nout4 ) = r - s
         END DO
       END DO
@@ -111,15 +111,15 @@ SUBROUTINE fftstp ( mm, nfft, m, nn, n, zin, zout, &
               zout ( 1, j, nout3 ) = r - s
               r = r1 - r3
               s = s2 - s4
-              zout ( 1, j, nout2 ) = r - s 
+              zout ( 1, j, nout2 ) = r - s
               zout ( 1, j, nout4 ) = r + s
               r = s1 + s3
               s = s2 + s4
-              zout ( 2, j, nout1 ) = r + s 
+              zout ( 2, j, nout1 ) = r + s
               zout ( 2, j, nout3 ) = r - s
               r = s1 - s3
               s = r2 - r4
-              zout ( 2, j, nout2 ) = r + s 
+              zout ( 2, j, nout2 ) = r + s
               zout ( 2, j, nout4 ) = r - s
             END DO
           END DO
@@ -166,15 +166,15 @@ SUBROUTINE fftstp ( mm, nfft, m, nn, n, zin, zout, &
               zout ( 1, j, nout3 ) = r - s
               r = r1 - r3
               s = s2 - s4
-              zout ( 1, j, nout2 ) = r - s 
+              zout ( 1, j, nout2 ) = r - s
               zout ( 1, j, nout4 ) = r + s
               r = s1 + s3
               s = s2 + s4
-              zout ( 2, j, nout1 ) = r + s 
+              zout ( 2, j, nout1 ) = r + s
               zout ( 2, j, nout3 ) = r - s
               r = s1 - s3
               s = r2 - r4
-              zout ( 2, j, nout2 ) = r + s 
+              zout ( 2, j, nout2 ) = r + s
               zout ( 2, j, nout4 ) = r - s
             END DO
           END DO
@@ -324,7 +324,7 @@ SUBROUTINE fftstp ( mm, nfft, m, nn, n, zin, zout, &
       END DO
     END IF
   ELSE IF ( now == 8 ) THEN
-    IF ( isign == -1 ) THEN 
+    IF ( isign == -1 ) THEN
       ia = 1
       nin1 = ia - after
       nout1 = ia - atn
@@ -509,8 +509,7 @@ SUBROUTINE fftstp ( mm, nfft, m, nn, n, zin, zout, &
         END DO
       END DO
     END IF
-  ELSE IF ( now == 3 ) THEN 
-    bbs = bb * REAL ( isign, dbl )
+  ELSE IF ( now == 3 ) THEN
     ia = 1
     nin1 = ia - after
     nout1 = ia - atn
@@ -534,11 +533,11 @@ SUBROUTINE fftstp ( mm, nfft, m, nn, n, zin, zout, &
         zout ( 2, j, nout1 ) = s + s1
         r1 = r1 - 0.5_dbl * r
         s1 = s1 - 0.5_dbl * s
-        r2 = bbs * ( r2 - r3 )
-        s2 = bbs * ( s2 - s3 )
-        zout ( 1, j, nout2 ) = r1 - s2 
+        r2 = bb * ( r2 - r3 )
+        s2 = bb * ( s2 - s3 )
+        zout ( 1, j, nout2 ) = r1 - s2
         zout ( 2, j, nout2 ) = s1 + r2
-        zout ( 1, j, nout3 ) = r1 + s2 
+        zout ( 1, j, nout3 ) = r1 + s2
         zout ( 2, j, nout3 ) = s1 - r2
       END DO
     END DO
@@ -568,11 +567,11 @@ SUBROUTINE fftstp ( mm, nfft, m, nn, n, zin, zout, &
               zout ( 2, j, nout1 ) = s + s1
               r1 = r1 - 0.5_dbl * r
               s1 = s1 - 0.5_dbl * s
-              r2 = bbs*(r2-r3)
-              s2 = bbs*(s2-s3)
-              zout ( 1, j, nout2 ) = r1 - s2 
+              r2 = bb*(r2-r3)
+              s2 = bb*(s2-s3)
+              zout ( 1, j, nout2 ) = r1 - s2
               zout ( 2, j, nout2 ) = s1 + r2
-              zout ( 1, j, nout3 ) = r1 + s2 
+              zout ( 1, j, nout3 ) = r1 + s2
               zout ( 2, j, nout3 ) = s1 - r2
             END DO
           END DO
@@ -599,11 +598,11 @@ SUBROUTINE fftstp ( mm, nfft, m, nn, n, zin, zout, &
               zout ( 2, j, nout1 ) = s + s1
               r1 = r1 - 0.5_dbl * r
               s1 = s1 - 0.5_dbl * s
-              r2 = bbs * ( r2 - r3 )
-              s2 = bbs * ( s2 - s3 )
-              zout ( 1, j, nout2 ) = r1 - s2 
+              r2 = bb * ( r2 - r3 )
+              s2 = bb * ( s2 - s3 )
+              zout ( 1, j, nout2 ) = r1 - s2
               zout ( 2, j, nout2 ) = s1 + r2
-              zout ( 1, j, nout3 ) = r1 + s2 
+              zout ( 1, j, nout3 ) = r1 + s2
               zout ( 2, j, nout3 ) = s1 - r2
             END DO
           END DO
@@ -627,18 +626,18 @@ SUBROUTINE fftstp ( mm, nfft, m, nn, n, zin, zout, &
               r2 = ( r - s ) * rt2i
               s2 = ( r + s ) * rt2i
               r3 = -zin ( 2, j, nin3 )
-              s3 = zin ( 1, j, nin3 ) 
+              s3 = zin ( 1, j, nin3 )
               r = r2 + r3
               s = s2 + s3
               zout ( 1, j, nout1 ) = r + r1
               zout ( 2, j, nout1 ) = s + s1
               r1 = r1 - 0.5_dbl * r
               s1 = s1 - 0.5_dbl * s
-              r2 = bbs * ( r2 - r3 )
-              s2 = bbs * ( s2 - s3 )
-              zout ( 1, j, nout2 ) = r1 - s2 
+              r2 = bb * ( r2 - r3 )
+              s2 = bb * ( s2 - s3 )
+              zout ( 1, j, nout2 ) = r1 - s2
               zout ( 2, j, nout2 ) = s1 + r2
-              zout ( 1, j, nout3 ) = r1 + s2 
+              zout ( 1, j, nout3 ) = r1 + s2
               zout ( 2, j, nout3 ) = s1 - r2
             END DO
           END DO
@@ -667,11 +666,11 @@ SUBROUTINE fftstp ( mm, nfft, m, nn, n, zin, zout, &
               zout ( 2, j, nout1 ) = s + s1
               r1 = r1 - 0.5_dbl * r
               s1 = s1 - 0.5_dbl * s
-              r2 = bbs * ( r2 - r3 )
-              s2 = bbs * ( s2 - s3 )
-              zout ( 1, j, nout2 ) = r1 - s2 
+              r2 = bb * ( r2 - r3 )
+              s2 = bb * ( s2 - s3 )
+              zout ( 1, j, nout2 ) = r1 - s2
               zout ( 2, j, nout2 ) = s1 + r2
-              zout ( 1, j, nout3 ) = r1 + s2 
+              zout ( 1, j, nout3 ) = r1 + s2
               zout ( 2, j, nout3 ) = s1 - r2
             END DO
           END DO
@@ -710,11 +709,11 @@ SUBROUTINE fftstp ( mm, nfft, m, nn, n, zin, zout, &
             zout ( 2, j, nout1 ) = s + s1
             r1 = r1 - 0.5_dbl * r
             s1 = s1 - 0.5_dbl * s
-            r2 = bbs * ( r2 - r3 )
-            s2 = bbs * ( s2 - s3 )
-            zout ( 1, j, nout2 ) = r1 - s2 
+            r2 = bb * ( r2 - r3 )
+            s2 = bb * ( s2 - s3 )
+            zout ( 1, j, nout2 ) = r1 - s2
             zout ( 2, j, nout2 ) = s1 + r2
-            zout ( 1, j, nout3 ) = r1 + s2 
+            zout ( 1, j, nout3 ) = r1 + s2
             zout ( 2, j, nout3 ) = s1 - r2
           END DO
         END DO
@@ -801,7 +800,7 @@ SUBROUTINE fftstp ( mm, nfft, m, nn, n, zin, zout, &
               r2 = ( r - s ) * rt2i
               s2 = ( r + s ) * rt2i
               r3 = -zin ( 2, j, nin3 )
-              s3 = zin ( 1, j, nin3 )  
+              s3 = zin ( 1, j, nin3 )
               r = zin ( 1, j, nin4 )
               s = zin ( 2, j, nin4 )
               r4 = -( r + s ) * rt2i
@@ -972,7 +971,6 @@ SUBROUTINE fftstp ( mm, nfft, m, nn, n, zin, zout, &
       END IF
     END DO
   ELSE IF ( now == 6 ) THEN
-    bbs = bb * REAL ( isign, dbl )
     ia = 1
     nin1 = ia - after
     nout1 = ia - atn
@@ -1004,11 +1002,11 @@ SUBROUTINE fftstp ( mm, nfft, m, nn, n, zin, zout, &
         s1 = s1 - 0.5_dbl * s
         r = r2 - r3
         s = s2 - s3
-        ur2 = r1 - s * bbs
-        ui2 = s1 + r * bbs
-        ur3 = r1 + s * bbs
-        ui3 = s1 - r * bbs
-        
+        ur2 = r1 - s * bb
+        ui2 = s1 + r * bb
+        ur3 = r1 + s * bb
+        ui3 = s1 - r * bb
+
         r2 = zin ( 1, j, nin6 )
         s2 = zin ( 2, j, nin6 )
         r3 = zin ( 1, j, nin2 )
@@ -1023,11 +1021,11 @@ SUBROUTINE fftstp ( mm, nfft, m, nn, n, zin, zout, &
         s1 = s1 - 0.5_dbl * s
         r = r2 - r3
         s = s2 - s3
-        vr2 = r1 - s * bbs
-        vi2 = s1 + r * bbs
-        vr3 = r1 + s * bbs
-        vi3 = s1 - r * bbs
-        
+        vr2 = r1 - s * bb
+        vi2 = s1 + r * bb
+        vr3 = r1 + s * bb
+        vi3 = s1 - r * bb
+
         zout ( 1, j, nout1 ) = ur1 + vr1
         zout ( 2, j, nout1 ) = ui1 + vi1
         zout ( 1, j, nout5 ) = ur2 + vr2

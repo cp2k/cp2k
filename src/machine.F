@@ -39,13 +39,13 @@ MODULE machine
   USE machine_absoft, ONLY : m_walltime, m_cputime, m_datum,  &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg
 #endif
-  
+
   IMPLICIT NONE
-  
+
   PRIVATE
   PUBLIC :: m_walltime, m_cputime, m_datum
   PUBLIC :: m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg
-  
+
 !
 ! FUNCTION m_cputime()
 ! FUNCTION m_walltime()

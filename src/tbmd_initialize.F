@@ -17,20 +17,20 @@
 !!
 !!   SOURCE
 !******************************************************************************
-! 
-    MODULE tbmd_initialize
-! 
-!------------------------------------------------------------------------------!
-      USE kinds, ONLY : dbl
-      USE stop_program, ONLY : stop_memory
-      USE tbmd_types, ONLY : tbatom_param_type, tb_hopping_type
-      USE particle_types, ONLY : particle_type
 !
+    MODULE tbmd_initialize
+
+      USE kinds, ONLY : dbl
+
+      USE particle_types, ONLY : particle_type
+      USE tbmd_types, ONLY : tbatom_param_type, tb_hopping_type
+      USE termination, ONLY : stop_memory
+
       IMPLICIT NONE
-! 
+
       PRIVATE
       PUBLIC :: tbmd_init, tb_get_numel, tb_get_basize
-! 
+!
 !!*****
 !------------------------------------------------------------------------------!
 !
@@ -60,7 +60,7 @@
         TYPE (tb_hopping_type), DIMENSION(:,:), INTENT (INOUT) :: tbhop
         INTEGER :: iat, jat, i, j, k, n, ii, ni, nj, is, js, ju, ios
         INTEGER :: natom_type
-! 
+!
 ! count number of atoms per atom type
         natom_type = size(tbatom)
         DO iat = 1, natom_type
@@ -129,7 +129,7 @@
             END DO
           END DO
         END DO
-! 
+!
       END SUBROUTINE tbmd_init
 !!*****
 !------------------------------------------------------------------------------!

@@ -20,18 +20,18 @@
 !******************************************************************************
 
 MODULE radial_solver
-  
+
   USE kinds, ONLY : dbl
-  USE stop_program, ONLY : stop_prg, stop_memory
-  
+  USE termination, ONLY : stop_memory, stop_program
+
   IMPLICIT NONE
-  
+
   PRIVATE
   PUBLIC :: numerov, diff5p
 
 !!*****
 !-----------------------------------------------------------------------------!
-  
+
 CONTAINS
 
 !-----------------------------------------------------------------------------!
@@ -53,20 +53,20 @@ CONTAINS
 !-----------------------------------------------------------------------------!
 
   SUBROUTINE numerov ( f, g, w, corr )
-  
+
 !Arguments
   REAL ( dbl ), DIMENSION ( 0: ), INTENT ( IN ) :: f
   REAL ( dbl ), DIMENSION ( 0: ), INTENT ( INOUT ) :: g
   REAL ( dbl ), DIMENSION ( 0: ), INTENT ( IN ) :: w
   REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: corr
-  
+
 !Locals
   INTEGER :: n, ierr, info, i
   REAL ( dbl ) :: e, ww
   INTEGER, DIMENSION ( : ), ALLOCATABLE :: ipiv
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: ab
   REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: s
-  
+
 !------------------------------------------------------------------------------
 
   n = SIZE ( f ) - 2
@@ -97,7 +97,7 @@ CONTAINS
   END DO
 
   CALL DGBSV ( n, 1, 1, 1, ab, 4, ipiv, s, n, info )
-  IF ( info /= 0 ) call stop_prg ( "numerov", "DGBSV: info /= 0" )
+  IF ( info /= 0 ) call stop_program ( "numerov", "DGBSV: info /= 0" )
   g ( 1:n ) = s ( 1:n )
 
   DEALLOCATE ( ab, STAT = ierr )

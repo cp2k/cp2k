@@ -1,32 +1,154 @@
-OBJECTS_GENERIC	= \
-atom_module.o atoms_input.o band.o brillouin.o cntl_input.o \
-coefficients.o coefficient_types.o \
-constraint.o control_module.o convert_units.o \
-dgs.o dg_rho0s.o dg_types.o \
-dump.o cp2k.o cp2k_input.o environment.o \
-eigenvalueproblems.o erf_fn.o global_types.o header.o \
-ewalds.o ewald_parameters_types.o \
-fermi.o fft_tools.o fftessl_lib.o fftsg_lib.o fftw_lib.o \
-fftsgi_lib.o fist_debug.o \
-fist_force.o fist_force_numer.o \
-fist_intra_force.o fist_nonbond_force.o force_control.o \
-force_fields.o integrator.o input_types.o \
-initialize_particle_types.o initialize_molecule_types.o \
-initialize_extended_types.o lapack.o \
-k290.o kinds.o kpoint_initialization.o kpoints.o \
-library_tests.o linklists.o linklist_control.o \
-linklist_cell_types.o linklist_cell_list.o \
-linklist_types.o \
-linklist_utilities.o linklist_verlet_list.o machine.o \
-mathconstants.o mol_force.o molecule_types.o \
-molecule_input.o md.o message_passing.o nhc.o nose.o \
-output_utilities.o \
-pair_potential.o particle_lists.o particle_types.o \
-periodic_table.o parallel.o parallel_include.o parser.o \
-physcon.o pme.o pws.o pw_types.o pw_grids.o \
-pw_grid_types.o radial_grids.o radial_poisson.o radial_solver.o \
-radial_operators.o radial_util.o simulation_cell.o splines.o \
-stop_program.o string_utilities.o structure_factors.o \
-structure_factor_types.o structure_types.o timesl.o \
-tbmd_debug.o tbmd_force.o tbmd_initialize.o \
-tbmd_input.o tbmd_types.o timings.o unit.o util.o
+OBJECTS_GENERIC =\
+ ai_coulomb.o\
+ ai_kinetic.o\
+ ai_nuclear.o\
+ ai_overlap.o\
+ ai_overlap_ppl.o\
+ ai_verfc.o\
+ amoeba.o\
+ atom_module.o\
+ atomic_kinds.o\
+ atoms.o\
+ atoms_input.o\
+ band.o\
+ basis_set_types.o\
+ bessel_lib.o\
+ brillouin.o\
+ cell_parameters.o\
+ cntl_input.o\
+ coefficient_types.o\
+ coefficients.o\
+ constraint.o\
+ control_module.o\
+ convert_units.o\
+ core_hamiltonian.o\
+ cp2k.o\
+ cp2k_input.o\
+ densities.o\
+ density_types.o\
+ dft_structure_control.o\
+ dft_input.o\
+ dft_types.o\
+ dg_rho0s.o\
+ dg_types.o\
+ dgs.o\
+ dump.o\
+ eigenvalueproblems.o\
+ environment.o\
+ erf_fn.o\
+ ewald_parameters_types.o\
+ ewalds.o\
+ external_potential_types.o\
+ fermi.o\
+ fft_tools.o\
+ fftessl_lib.o\
+ fftsg_lib.o\
+ fftsgi_lib.o\
+ fftw_lib.o\
+ fist_debug.o\
+ fist_force.o\
+ fist_force_numer.o\
+ fist_input.o\
+ fist_intra_force.o\
+ fist_nonbond_force.o\
+ force_control.o\
+ force_fields.o\
+ functionals.o\
+ gamma.o\
+ global_types.o\
+ greens_fn.o\
+ hartree.o\
+ header.o\
+ initialize_extended_types.o\
+ initialize_molecule_types.o\
+ initialize_particle_types.o\
+ input_types.o\
+ input_utilities.o\
+ integrator.o\
+ interactions.o\
+ k290.o\
+ kinds.o\
+ kinetic.o\
+ kpoint_initialization.o\
+ kpoints.o\
+ lapack.o\
+ library_tests.o\
+ linklist_cell_list.o\
+ linklist_cell_types.o\
+ linklist_control.o\
+ linklist_types.o\
+ linklist_utilities.o\
+ linklist_verlet_list.o\
+ linklists.o\
+ machine.o\
+ mathconstants.o\
+ mathlib.o\
+ matrix_types.o\
+ md.o\
+ memory_utilities.o\
+ message_passing.o\
+ method_specifications.o\
+ mol_force.o\
+ molecule_input.o\
+ molecule_types.o\
+ neighbor_list_types.o\
+ nhc.o\
+ nl.o\
+ nl_utilities.o\
+ nose.o\
+ nrutil.o\
+ occupations.o\
+ om_utilities.o\
+ orbital_pointers.o\
+ orbital_symbols.o\
+ orbital_transformation_matrices.o\
+ output_utilities.o\
+ pair_potential.o\
+ parallel.o\
+ parallel_include.o\
+ parser.o\
+ particle_lists.o\
+ particle_types.o\
+ periodic_table.o\
+ physcon.o\
+ pme.o\
+ potential_types.o\
+ potentials.o\
+ print_keys.o\
+ pw_grid_types.o\
+ pw_grids.o\
+ pw_types.o\
+ pw_xc.o\
+ pws.o\
+ radial_grids.o\
+ radial_operators.o\
+ radial_poisson.o\
+ radial_solver.o\
+ radial_util.o\
+ readin.o\
+ simulation_cell.o\
+ slater_koster.o\
+ slater_koster_matr.o\
+ slater_koster_test.o\
+ slater_koster_util.o\
+ spherical_harmonics.o\
+ splines.o\
+ spme.o\
+ start_program_run.o\
+ string_utilities.o\
+ structure_factor_types.o\
+ structure_factors.o\
+ structure_types.o\
+ tbmd_debug.o\
+ tbmd_force.o\
+ tbmd_initialize.o\
+ tbmd_input.o\
+ tbmd_types.o\
+ termination.o\
+ timesl.o\
+ timings.o\
+ unit.o\
+ util.o\
+ wf_types.o\
+ wfs.o\
+ xc.o

@@ -19,20 +19,21 @@
 !******************************************************************************
 
 MODULE radial_operators
-  
+
   USE kinds, ONLY : dbl
+
   USE radial_grids, ONLY : radial_grid_type
   USE radial_util, ONLY : radial_diff, radial_integrate
-  USE stop_program, ONLY : stop_prg, stop_memory
-  
+  USE termination, ONLY : stop_memory, stop_program
+
   IMPLICIT NONE
-  
+
   PRIVATE
   PUBLIC :: rad_kinetic, rad_potential
 
 !!*****
 !-----------------------------------------------------------------------------!
-  
+
 CONTAINS
 
 !-----------------------------------------------------------------------------!
@@ -53,14 +54,14 @@ CONTAINS
 !-----------------------------------------------------------------------------!
 
   SUBROUTINE rad_kinetic ( p1, p2, l, rg, result )
-  
+
 ! Kinetic energy integral < f1 T f2 > where p1 = r^(l+1) f1 and p2 = r^(l+1) f2
 !Arguments
     REAL ( dbl ), DIMENSION ( 0: ), INTENT ( IN ) :: p1, p2
     INTEGER, INTENT ( IN ) :: l
     TYPE ( radial_grid_type ), INTENT ( IN ) :: rg
     REAL ( dbl ), INTENT ( OUT ) :: result
-  
+
 !Locals
     INTEGER :: i, n, ierr
     REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: dp1, dp2, f
@@ -77,21 +78,21 @@ CONTAINS
     IF ( ierr /= 0 ) call stop_memory ( "rad_kinetic", "f", n+2 )
 
     CALL radial_diff ( n+2, p1, dp1, 1, rg, ierr )
-    IF ( ierr /= 0 ) call stop_prg ( "rad_kinetic", "radial_diff", "dp1" )
+    IF ( ierr /= 0 ) call stop_program ( "rad_kinetic", "radial_diff: dp1" )
     CALL radial_diff ( n+2, p2, dp2, 1, rg, ierr )
-    IF ( ierr /= 0 ) call stop_prg ( "rad_kinetic", "radial_diff", "dp2" )
+    IF ( ierr /= 0 ) call stop_program ( "rad_kinetic", "radial_diff: dp2" )
 
     f = dp1 * dp2
     CALL radial_integrate ( n+2, f, rg, int, ierr )
-    IF ( ierr /= 0 ) call stop_prg ( "rad_kinetic", "radial_integrate", "f" )
+    IF ( ierr /= 0 ) call stop_program ( "rad_kinetic", "radial_integrate: f" )
     result = 0.5_dbl * int
     IF ( l > 0 ) THEN
       f ( 0 ) = 0._dbl
       DO i = 1, n+1
-        f ( i ) = p1 ( i ) * p2 ( i ) / rg % r ( i ) ** 2 
+        f ( i ) = p1 ( i ) * p2 ( i ) / rg % r ( i ) ** 2
       END DO
       CALL radial_integrate ( n+2, f, rg, int, ierr )
-      IF ( ierr /= 0 ) call stop_prg ( "rad_kinetic", "radial_integrate", "l" )
+      IF ( ierr /= 0 ) call stop_program ( "rad_kinetic", "radial_integrate: l" )
       result = result + 0.5_dbl * REAL ( l*(l+1), dbl ) * int
     END IF
 
@@ -123,15 +124,15 @@ CONTAINS
 !-----------------------------------------------------------------------------!
 
   SUBROUTINE rad_potential ( p1, p2, v, rg, result )
-  
-! Calculates the integral < f1 V f2 > 
+
+! Calculates the integral < f1 V f2 >
 ! It is assumed that the s=0 term has been included correctly into V(s=0)
 ! This is only a problem if V(s->0) = s^2 or worse
 !Arguments
     REAL ( dbl ), DIMENSION ( 0: ), INTENT ( IN ) :: p1, p2, v
     TYPE ( radial_grid_type ), INTENT ( IN ) :: rg
     REAL ( dbl ), INTENT ( OUT ) :: result
-  
+
 !Locals
     INTEGER :: i, n, ierr
     REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: f
@@ -143,9 +144,9 @@ CONTAINS
     ALLOCATE ( f ( 0:n+1 ), STAT = ierr )
     IF ( ierr /= 0 ) call stop_memory ( "rad_potential", "f", n+2 )
 
-    f = p1 * p2 * V 
+    f = p1 * p2 * V
     CALL radial_integrate ( n+2, f, rg, int, ierr )
-    IF ( ierr /= 0 ) call stop_prg ( "rad_potential", "radial_integrate" )
+    IF ( ierr /= 0 ) call stop_program ( "rad_potential", "radial_integrate" )
     result = int
 
     DEALLOCATE ( f, STAT = ierr )

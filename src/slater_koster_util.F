@@ -35,7 +35,7 @@
 !
 !------------------------------------------------------------------------------!
       SUBROUTINE sph(l,r,gsl)
-! Spherical Harmonics up to f functions 
+! Spherical Harmonics up to f functions
 ! There is a factor sqrt(4*PI)/sqrt(2*l+1) omitted
         IMPLICIT NONE
         INTEGER, INTENT (IN) :: l

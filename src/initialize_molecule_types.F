@@ -19,7 +19,7 @@
 !******************************************************************************
 
 MODULE initialize_molecule_types
-  
+
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE linklists, ONLY : atom_link_list, exclusion, bond_link_list, &
@@ -29,12 +29,12 @@ MODULE initialize_molecule_types
        particle_node_type, molecule_structure_type
   USE particle_types, ONLY : particle_type, particle_prop_type
   USE util, ONLY : get_limit
-  
+
   IMPLICIT NONE
-  
+
   PUBLIC :: initialize_molecule_type
   PRIVATE
-  
+
 !!*****
 !******************************************************************************
 
@@ -44,7 +44,7 @@ CONTAINS
 !!****** initialize_molecule_types/initialize_molecule_type [1.0] *
 !!
 !!   NAME
-!!     initialize_molecule_type
+!!     initialize_molecule_types
 !!
 !!   FUNCTION
 !!
@@ -59,7 +59,7 @@ CONTAINS
 
 SUBROUTINE initialize_molecule_type ( mol_setup, intra_param, &
      pnode, part, molecule, globenv )
-  
+
   IMPLICIT NONE
   TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( IN ) :: mol_setup
   TYPE ( intra_parameters_type ), INTENT ( IN ) :: intra_param
@@ -68,12 +68,12 @@ SUBROUTINE initialize_molecule_type ( mol_setup, intra_param, &
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
        molecule
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
-  
+
 ! Locals
   INTEGER :: imol, i, j, k, atombase, iat, nlim ( 2 ), iw, nmol_type
-  
+
 !------------------------------------------------------------------------------
-  
+
   iw = globenv % scr
   IF ( globenv % num_pe == 1 ) THEN
      imol = 0
@@ -102,9 +102,9 @@ SUBROUTINE initialize_molecule_type ( mol_setup, intra_param, &
      DO iat = 1, size(pnode)
         pnode(iat) %p => part(iat)
      END DO
-     
+
   ELSE
-     
+
      imol = 0
      atombase = 1
      nmol_type = SIZE ( mol_setup )
@@ -132,7 +132,7 @@ SUBROUTINE initialize_molecule_type ( mol_setup, intra_param, &
         atombase = atombase &
              + mol_setup(i) % num_mol * mol_setup(i) % molpar % natom
      END DO
-     
+
      k = 0
      DO imol = 1, size(molecule)
         atombase = molecule(imol) % atombase - 1
@@ -142,30 +142,30 @@ SUBROUTINE initialize_molecule_type ( mol_setup, intra_param, &
         END DO
      END DO
   END IF
-  
+
 !..atom link list
   CALL atom_link_list(molecule,pnode)
-  
+
 !..initialize bonds
   CALL bond_link_list(pnode,molecule,mol_setup,intra_param % bond_param)
-  
+
 !..initialize bends
   CALL bend_link_list(pnode,molecule,mol_setup,intra_param % bend_param)
-  
+
 !..initialize torsions
   CALL torsion_link_list(pnode,molecule,mol_setup,intra_param % torsion_param)
-  
+
 !..initialize distance constraints
   CALL distconst_link_list(pnode,molecule,mol_setup, &
        intra_param % constraint_distance)
-  
+
 !..initialize g3x3 constraints
   CALL g3x3_link_list(pnode,molecule,mol_setup, &
        intra_param % constraint_distance)
-  
+
 !..create exclusion list
   CALL exclusion(molecule,pnode)
-  
+
 END SUBROUTINE initialize_molecule_type
 
 !!*****

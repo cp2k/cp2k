@@ -20,22 +20,23 @@
 !******************************************************************************
 
 MODULE cp2k_input
-  
-  USE global_types, ONLY : global_environment_type
+
   USE kinds, ONLY : dbl
+
+  USE fft_tools, ONLY : init_fft
+  USE global_types, ONLY : global_environment_type
   USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
        cfield, p_error, get_real, get_int
-  USE stop_program, ONLY : stop_prg
   USE string_utilities, ONLY : uppercase, xstring
-  USE fft_tools, ONLY : init_fft
-  
+  USE termination, ONLY : stop_program
+
   PRIVATE
   PUBLIC :: read_cp2k_section
 
 !!*****
 !******************************************************************************
-  
+
 CONTAINS
 
 !******************************************************************************
@@ -68,23 +69,23 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE read_cp2k_section ( globenv )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-  
+
 ! Locals
   INTEGER :: ierror, ilen, iw, source, allgrp, i1, i2
   CHARACTER ( LEN = 6 ) :: string
   CHARACTER ( LEN = 5 ) :: label
-  
+
 ! ..defaults
   globenv%program_name = 'NONE'
   globenv%project_name = 'project'
   globenv%print_level = 0
   globenv%default_fft_library = 'FFTSG'
-  
+
    iw = globenv % scr
 ! ..parse the input section
    label = '&CP2K'
@@ -96,27 +97,27 @@ SUBROUTINE read_cp2k_section ( globenv )
         WRITE ( iw, '( a )' ) ' No input section &CP2K found '
 
    ELSE
-        
+
       CALL read_line()
       DO WHILE ( test_next() /= 'X' )
          ilen = 6
          CALL cfield ( string, ilen )
          CALL uppercase ( string )
-         
+
          SELECT CASE (string)
          CASE DEFAULT
             CALL p_error()
-            CALL stop_prg( 'input_cntl','unknown option')
-            
+            CALL stop_program('input_cntl','unknown option')
+
          CASE ( 'PROGRA' )
             ilen = 0
             CALL cfield ( globenv % program_name, ilen )
             CALL uppercase ( globenv % program_name )
-            
+
          CASE ( 'PROJEC' )
             ilen = 0
             CALL cfield ( globenv % project_name, ilen )
-            
+
          CASE ( 'IOLEVE' )
             globenv%print_level = get_int()
 
@@ -126,21 +127,21 @@ SUBROUTINE read_cp2k_section ( globenv )
             CALL uppercase ( globenv % default_fft_library )
 
          END SELECT
-         
+
          CALL read_line()
       END DO
-      
+
    END IF
    CALL parser_end
 ! ..end of parsing the input section
-     
+
    IF ( globenv % program_name == 'QUICKSTEP' ) globenv % program_name = 'QS'
 
 ! initialize FFT library
    CALL xstring ( globenv % default_fft_library, i1, i2 )
    CALL init_fft ( fftlib = globenv % default_fft_library ( i1:i2 ) )
 
-     
+
    IF ( globenv % ionode ) THEN
 ! ..write some information to output
      WRITE ( iw, '( A, T41, A )' ) ' CP2K| Program name ', &
@@ -159,7 +160,7 @@ SUBROUTINE read_cp2k_section ( globenv )
           globenv % mepos
      WRITE (iw,*)
   END IF
-  
+
 END SUBROUTINE read_cp2k_section
 
 !!*****

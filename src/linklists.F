@@ -28,20 +28,20 @@ MODULE linklists
        linklist_dist_constraints, linklist_g3x3_constraints,  &
        linklist_neighbor, linklist_exclusion, particle_node_type, &
        molecule_type
-  USE stop_program, ONLY : stop_prg, stop_memory
-  
+  USE termination, ONLY : stop_memory, stop_program
+
   IMPLICIT NONE
-  
+
   PRIVATE
   PUBLIC :: atom_link_list, exclusion, bond_link_list, bend_link_list
   PUBLIC :: torsion_link_list, distconst_link_list, g3x3_link_list
   PUBLIC :: bonds, bends, torsions, dist_constraints, g3x3_constraints
-  
+
   LOGICAL :: bonds, bends, torsions, dist_constraints, g3x3_constraints
 
 !!*****
 !******************************************************************************
-  
+
 CONTAINS
 
 !******************************************************************************
@@ -63,22 +63,22 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE atom_link_list ( molecule, pnode )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
        molecule
   TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ), TARGET :: &
        pnode
-  
+
 ! Locals
   INTEGER :: imol, iatom, jatom
   TYPE ( linklist_atoms ), POINTER :: current_ll_atom
   INTEGER :: ios
-  
+
 !------------------------------------------------------------------------------
-  
+
   ALLOCATE ( current_ll_atom, STAT = ios )
   IF ( ios /= 0 ) CALL stop_memory( 'atom_link_list', 'current_ll_atom', 0 )
   jatom = 1
@@ -93,7 +93,7 @@ SUBROUTINE atom_link_list ( molecule, pnode )
         jatom = jatom + 1
      END DO
   END DO
-  
+
 END SUBROUTINE atom_link_list
 
 !!*****
@@ -116,15 +116,15 @@ END SUBROUTINE atom_link_list
 !******************************************************************************
 
 SUBROUTINE exclusion(molecule,pnode)
-  
+
 ! Routine to compute the exclusion list
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE (molecule_structure_type ), INTENT ( IN ), DIMENSION ( : ) :: molecule
   TYPE (particle_node_type ), INTENT ( INOUT ), DIMENSION ( : ) :: pnode
-  
+
 ! Locals
   TYPE (linklist_exclusion), POINTER :: current_excl
   TYPE (linklist_atoms), POINTER :: ll_atom
@@ -139,9 +139,9 @@ SUBROUTINE exclusion(molecule,pnode)
   INTEGER :: natoms_mol, nbonds_mol, nbends_mol, ntorsions_mol, &
              ndist_mol, n3x3_mol
   LOGICAL :: match
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! allocating local variables containting intra atoms
   ALLOCATE (bond(2),STAT=ios)
   IF ( ios /= 0 ) CALL stop_memory( 'exclusion','bond', 2 )
@@ -149,19 +149,19 @@ SUBROUTINE exclusion(molecule,pnode)
   IF ( ios /= 0 ) CALL stop_memory( 'exclusion','bend', 3 )
   ALLOCATE (torsion(4),STAT=ios)
   IF ( ios /= 0 ) CALL stop_memory( 'exclusion','torsion', 4 )
-  
+
 ! allocating the exclusion pointer
   ALLOCATE (current_excl,STAT=ios)
   IF ( ios /= 0 ) CALL stop_memory( 'exclusion', 'current_excl', 0 )
-  
+
 ! initialize the nexcl counter for all atoms
   pnode%nexcl = 0
-  
+
 ! looping through all of the molecules
   jnode = 0
-  
+
   MLOOP: DO imol = 1, size(molecule)
-     
+
 ! assigning local variables
      natoms_mol = molecule(imol) %natoms_mol
      nbonds_mol = molecule(imol) %nbonds_mol
@@ -169,24 +169,24 @@ SUBROUTINE exclusion(molecule,pnode)
      ntorsions_mol = molecule(imol) %ntorsions_mol
      ndist_mol = molecule(imol) %ndistconst_mol
      n3x3_mol = molecule(imol) %ng3x3const_mol
-     
+
 ! pointing local pointers to the start of the list
      ll_atom => molecule(imol) %ll_atoms
-     
+
 ! looping over all the atoms in molecule imol
      ALOOP: DO iatom = 1, natoms_mol
         jnode = jnode + 1
-        
+
 ! finding the current atom in the molecule
         jatom = ll_atom%part%p%iatom
         pnode(jnode) %ex => current_excl
         ll_bond => molecule(imol) %ll_bonds
-        
+
 ! doing the bonds
         BONDL: DO ibond = 1, nbonds_mol
            bond(1) = ll_bond%p1%iatom
            bond(2) = ll_bond%p2%iatom
-           
+
 ! checking to see if jatom is bonded
            match=.FALSE.
            DO ii = 1, 2
@@ -211,7 +211,7 @@ SUBROUTINE exclusion(molecule,pnode)
            END IF BONDIF
            ll_bond => ll_bond%next
         END DO BONDL
-        
+
 ! doing the bends
         ll_bend => molecule(imol) %ll_bends
         BENDL: DO ibend = 1, nbends_mol
@@ -241,7 +241,7 @@ SUBROUTINE exclusion(molecule,pnode)
            END IF BENDIF
            ll_bend => ll_bend%next
         END DO BENDL
-        
+
 ! doing the torsions
         ll_torsion => molecule(imol) %ll_torsions
         TORSL: DO itorsion = 1, ntorsions_mol
@@ -272,13 +272,13 @@ SUBROUTINE exclusion(molecule,pnode)
            END IF TORSIF
            ll_torsion => ll_torsion%next
         END DO TORSL
-        
+
 ! doing the distance constraints
         ll_dist => molecule(imol) %ll_dist_const
         DISTL: DO idist = 1, ndist_mol
            bond(1) = ll_dist%p1%iatom
            bond(2) = ll_dist%p2%iatom
-           
+
 ! checking to see if jatom is bonded
            DO ii = 1, 2
               IF (jatom==bond(ii)) THEN
@@ -302,14 +302,14 @@ SUBROUTINE exclusion(molecule,pnode)
            END IF DISTIF
            ll_dist => ll_dist%next
         END DO DISTL
-        
+
 ! doing the group constraints
         ll_g3x3 => molecule(imol) %ll_g3x3_const
         G3X3L: DO ig3x3 = 1, n3x3_mol
            bend(1) = ll_g3x3%p1%iatom
            bend(2) = ll_g3x3%p2%iatom
            bend(3) = ll_g3x3%p3%iatom
-           
+
 ! checking to see if jatom is bonded
            DO ii = 1, 3
               IF (jatom==bend(ii)) THEN
@@ -336,7 +336,7 @@ SUBROUTINE exclusion(molecule,pnode)
         ll_atom => ll_atom%next
      END DO ALOOP
   END DO MLOOP
-  
+
 ! deallocating
   DEALLOCATE (bond,STAT=ios)
   IF ( ios /= 0 ) CALL stop_memory ( 'exclusion','bond')
@@ -344,7 +344,7 @@ SUBROUTINE exclusion(molecule,pnode)
   IF ( ios /= 0 ) CALL stop_memory ( 'exclusion','bend')
   DEALLOCATE (torsion,STAT=ios)
   IF ( ios /= 0 ) CALL stop_memory ( 'exclusion','torsion')
-  
+
 END SUBROUTINE exclusion
 
 !!*****
@@ -365,22 +365,22 @@ END SUBROUTINE exclusion
 !******************************************************************************
 
 SUBROUTINE checklist(pnode,match,jatom,ipart)
-  
+
 ! checks to see if excluded particle is already in the list
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE (particle_node_type ), INTENT ( IN ) :: pnode
   INTEGER, INTENT ( IN ) :: ipart, jatom
   LOGICAL, INTENT ( OUT ) :: match
-  
+
 ! Locals
   TYPE ( linklist_exclusion ), POINTER :: ll_exclude
   INTEGER :: i
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! initialize match
   match = .FALSE.
 !BIGIF:  IF ((jatom==ipart) .OR. (ipart<jatom)) THEN
@@ -396,43 +396,43 @@ SUBROUTINE checklist(pnode,match,jatom,ipart)
         ll_exclude => ll_exclude%next
      END DO LOOP
   END IF BIGIF
-  
+
 END SUBROUTINE checklist
 
 !!*****
 !******************************************************************************
 
 FUNCTION getnode ( molecule, atom ) RESULT ( node )
-  
+
   IMPLICIT NONE
-  
+
 ! Return value
   INTEGER :: node
-  
+
 ! Arguments
   TYPE (molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
   INTEGER, INTENT ( IN ) :: atom
-  
+
 ! Locals
   INTEGER :: imol
-  
+
 !------------------------------------------------------------------------------
-  
+
   node = 0
   DO imol = 1, SIZE ( molecule )
      IF ( molecule ( imol ) % atombase + molecule ( imol ) % natoms_mol &
           > atom ) THEN
-        
+
         IF ( molecule ( imol ) % atombase > atom ) &
-             CALL stop_prg ( "getnode", "error in atombase" )
-        
+             CALL stop_program ( "getnode", "error in atombase" )
+
         node = node + ( atom - molecule ( imol ) % atombase + 1 )
-        
+
         EXIT
      END IF
      node = node + molecule(imol) % natoms_mol
   END DO
-  
+
 END FUNCTION getnode
 
 !******************************************************************************
@@ -454,9 +454,9 @@ END FUNCTION getnode
 !******************************************************************************
 
 SUBROUTINE bond_link_list ( pnode, molecule, mol_setup, bond_parm )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( particle_node_type ), INTENT ( INOUT ), DIMENSION ( : ), TARGET :: &
        pnode
@@ -465,17 +465,17 @@ SUBROUTINE bond_link_list ( pnode, molecule, mol_setup, bond_parm )
   TYPE ( molecule_type ), INTENT ( IN ) :: mol_setup ( : )
   TYPE ( bond_parameters_type ), INTENT ( IN ), DIMENSION ( :, : ), &
        TARGET :: bond_parm
-  
+
 ! Locals
   INTEGER :: imol, jmol, nmol, ibond, nb, atombase, pTYPE ( 2 )
   INTEGER :: index ( 2 ), ios
   TYPE ( linklist_bonds ), POINTER :: current_ll_bonds
-  
+
 !------------------------------------------------------------------------------
-  
+
   ALLOCATE (current_ll_bonds,STAT=ios)
   IF ( ios /= 0 ) CALL stop_memory ( 'bond_link_list', 'current_ll_bonds', 0 )
-  
+
   bonds = .FALSE.
   nmol = size(molecule)
   atombase = 0
@@ -486,9 +486,9 @@ SUBROUTINE bond_link_list ( pnode, molecule, mol_setup, bond_parm )
      molecule(imol) %nbonds_mol = nb
      molecule(imol) %ll_bonds => current_ll_bonds
      DO ibond = 1, nb
-        
+
 !
-! index(1) and index(2) are the part array indices 
+! index(1) and index(2) are the part array indices
 ! of the first and second atoms in
 ! the ibond bond pair. pTYPE ( 1) and pTYPE ( 2) are their atom types.
 !
@@ -507,7 +507,7 @@ SUBROUTINE bond_link_list ( pnode, molecule, mol_setup, bond_parm )
      END DO
      atombase = atombase + mol_setup(jmol) %molpar%natom
   END DO
-  
+
 END SUBROUTINE bond_link_list
 
 !!*****
@@ -530,9 +530,9 @@ END SUBROUTINE bond_link_list
 !******************************************************************************
 
 SUBROUTINE bend_link_list ( pnode, molecule, mol_setup, bend_parm )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ), TARGET :: &
        pnode
@@ -541,17 +541,17 @@ SUBROUTINE bend_link_list ( pnode, molecule, mol_setup, bend_parm )
   TYPE ( molecule_type ), INTENT ( IN ) :: mol_setup ( : )
   TYPE ( bend_parameters_type ), DIMENSION (:,:,:), INTENT ( IN ), &
        TARGET :: bend_parm
-  
+
 ! Locals
   INTEGER :: imol, jmol, nmol, ibend, nb, atombase, pTYPE ( 3 )
   INTEGER :: index ( 3 ), ios
   TYPE ( linklist_bends ), POINTER :: current_ll_bends
-  
+
 !------------------------------------------------------------------------------
-  
+
   ALLOCATE (current_ll_bends,STAT=ios)
   IF ( ios /= 0 ) CALL stop_memory ( 'bend_link_list', 'current_ll_bends', 0 )
-  
+
   bends = .FALSE.
   nmol = size(molecule)
   atombase = 0
@@ -562,7 +562,7 @@ SUBROUTINE bend_link_list ( pnode, molecule, mol_setup, bend_parm )
      molecule(imol) %nbends_mol = nb
      molecule(imol) %ll_bends => current_ll_bends
      DO ibend = 1, nb
-        
+
 !
 ! index(1),index(2) and index(3) are the part array indices of the
 !    first, second and third atoms in
@@ -587,7 +587,7 @@ SUBROUTINE bend_link_list ( pnode, molecule, mol_setup, bend_parm )
      END DO
      atombase = atombase + mol_setup(jmol) %molpar%natom
   END DO
-  
+
 END SUBROUTINE bend_link_list
 
 !!*****
@@ -610,9 +610,9 @@ END SUBROUTINE bend_link_list
 !******************************************************************************
 
 SUBROUTINE torsion_link_list ( pnode, molecule, mol_setup, torsion_parm )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ), TARGET :: &
        pnode
@@ -621,18 +621,18 @@ SUBROUTINE torsion_link_list ( pnode, molecule, mol_setup, torsion_parm )
   TYPE ( molecule_type ), INTENT ( IN ) :: mol_setup ( : )
   TYPE ( torsion_parameters_type ), INTENT ( IN ), DIMENSION (:,:,:,:), &
        TARGET :: torsion_parm
-  
+
 ! Locals
   INTEGER :: imol, jmol, nmol, itorsion, nb, atombase, pTYPE ( 4 )
   INTEGER :: index ( 4 ), ios
   TYPE (linklist_torsions), POINTER :: current_ll_torsions
-  
+
 !------------------------------------------------------------------------------
-  
+
   ALLOCATE (current_ll_torsions,STAT=ios)
   IF ( ios /= 0 ) &
        CALL stop_memory ( 'torsion_link_list', 'current_ll_torsions', 0 )
-  
+
   torsions = .FALSE.
   nmol = size(molecule)
   atombase = 0
@@ -643,14 +643,14 @@ SUBROUTINE torsion_link_list ( pnode, molecule, mol_setup, torsion_parm )
      molecule(imol) %ntorsions_mol = nb
      molecule(imol) %ll_torsions => current_ll_torsions
      DO itorsion = 1, nb
-        
+
 !
 ! index(1),index(2),index(3) and index(4) are the part array indices of the
 ! first,second,third and fourth atoms in
 ! the itorsion torsion quartet. pTYPE ( 1), pTYPE ( 2), pTYPE ( 3)
 ! and pTYPE ( 4) are their atom types.
 !
-        
+
         index(1) = atombase + mol_setup(jmol) %molpar%torsions(1,itorsion)
         index(2) = atombase + mol_setup(jmol) %molpar%torsions(2,itorsion)
         index(3) = atombase + mol_setup(jmol) %molpar%torsions(3,itorsion)
@@ -673,7 +673,7 @@ SUBROUTINE torsion_link_list ( pnode, molecule, mol_setup, torsion_parm )
      END DO
      atombase = atombase + mol_setup(jmol) %molpar%natom
   END DO
-  
+
 END SUBROUTINE torsion_link_list
 
 !!*****
@@ -697,9 +697,9 @@ END SUBROUTINE torsion_link_list
 
 SUBROUTINE distconst_link_list ( pnode, molecule, mol_setup, &
      constraint_distance )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( particle_node_type ), INTENT ( INOUT ), DIMENSION ( : ), TARGET :: &
        pnode
@@ -708,18 +708,18 @@ SUBROUTINE distconst_link_list ( pnode, molecule, mol_setup, &
   TYPE ( molecule_type ), INTENT ( IN ) :: mol_setup ( : )
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ), TARGET :: &
        constraint_distance
-  
+
 ! Locals
   INTEGER :: imol, jmol, nmol, idcon, nb, atombase, pTYPE ( 2 )
   INTEGER :: index ( 2 ), ios
   TYPE ( linklist_dist_constraints ), POINTER :: current_ll_dconst
-  
+
 !------------------------------------------------------------------------------
-  
+
   ALLOCATE (current_ll_dconst,STAT=ios)
   IF ( ios /= 0 ) &
        CALL stop_memory ( 'distconst_link_list', 'current_ll_dconst', 0 )
-  
+
   dist_constraints = .FALSE.
   nmol = size(molecule)
   atombase = 0
@@ -730,7 +730,7 @@ SUBROUTINE distconst_link_list ( pnode, molecule, mol_setup, &
      molecule(imol) %ndistconst_mol = nb
      molecule(imol) %ll_dist_const => current_ll_dconst
      DO idcon = 1, nb
-        
+
 !
 ! index(1) and index(2) are the part array indices of the
 ! first and second atoms in
@@ -745,16 +745,17 @@ SUBROUTINE distconst_link_list ( pnode, molecule, mol_setup, &
         current_ll_dconst%distance => constraint_distance(pTYPE ( 1), &
              pTYPE ( 2))
         current_ll_dconst%lambda = 0._dbl
+        current_ll_dconst%fc ( : ) = 0._dbl
         ALLOCATE (current_ll_dconst%next,STAT=ios)
         IF ( ios /= 0 ) CALL stop_memory ( 'distconst_link_list', &
              'current_ll_dconst%next', 0 )
-        
+
         current_ll_dconst => current_ll_dconst % next
      END DO
-     
+
      atombase = atombase + mol_setup ( jmol ) % molpar % natom
   END DO
-  
+
 END SUBROUTINE distconst_link_list
 
 !!*****
@@ -777,9 +778,9 @@ END SUBROUTINE distconst_link_list
 !******************************************************************************
 
 SUBROUTINE g3x3_link_list ( pnode, molecule, mol_setup, constraint_distance )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ), TARGET :: &
        pnode
@@ -792,16 +793,16 @@ SUBROUTINE g3x3_link_list ( pnode, molecule, mol_setup, constraint_distance )
   INTEGER :: imol, jmol, nmol, ig3x3, nb, atombase, pTYPE ( 3 )
   INTEGER :: index ( 3 ), ios
   TYPE ( linklist_g3x3_constraints ), POINTER :: current_ll_g3x3
-  
+
 !------------------------------------------------------------------------------
-  
+
   ALLOCATE ( current_ll_g3x3, STAT = ios )
   IF ( ios /= 0 ) CALL stop_memory ( 'g3x3_link_list', 'current_ll_g3x3', 0 )
-  
+
   g3x3_constraints = .FALSE.
   nmol = size ( molecule )
   atombase = 0
-  
+
   DO imol = 1, nmol
      jmol = molecule(imol) % moltype
      nb = mol_setup(jmol) % molpar % n3x3con
@@ -809,7 +810,7 @@ SUBROUTINE g3x3_link_list ( pnode, molecule, mol_setup, constraint_distance )
      molecule(imol) %ng3x3const_mol = nb
      molecule(imol) %ll_g3x3_const => current_ll_g3x3
      DO ig3x3 = 1, nb
-        
+
 !
 ! index(1),index(2) and index(3) are the part array indices of the
 !    first,second and third atoms in
@@ -828,17 +829,20 @@ SUBROUTINE g3x3_link_list ( pnode, molecule, mol_setup, constraint_distance )
         current_ll_g3x3%d13 => constraint_distance(pTYPE ( 1), pTYPE ( 3))
         current_ll_g3x3%d23 => constraint_distance(pTYPE ( 2), pTYPE ( 3))
         current_ll_g3x3%lambda ( : ) = 0.0_dbl
-        
+        current_ll_g3x3%fc1 ( : ) = 0.0_dbl
+        current_ll_g3x3%fc2 ( : ) = 0.0_dbl
+        current_ll_g3x3%fc3 ( : ) = 0.0_dbl
+
         ALLOCATE ( current_ll_g3x3 % next, STAT = ios )
         IF ( ios /= 0 ) &
              CALL stop_memory ( 'g3x3_link_list', 'current_ll_g3x3%next', 0 )
-        
+
         current_ll_g3x3 => current_ll_g3x3 % next
      END DO
-     
+
      atombase = atombase + mol_setup ( jmol ) % molpar % natom
   END DO
-  
+
 END SUBROUTINE g3x3_link_list
 
 !!*****

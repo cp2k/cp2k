@@ -18,21 +18,21 @@
 !******************************************************************************
 
 MODULE dg_rho0s
-  
+
   USE coefficient_types, ONLY : coeff_type, coeff_allocate, coeff_zero, &
        PW_REALDATA3D
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : pi
   USE pw_grid_types, ONLY : pw_grid_type
-  USE stop_program, ONLY : stop_prg
-  
+  USE termination, ONLY : stop_program
+
   IMPLICIT NONE
 
   PRIVATE
   PUBLIC:: dg_rho0_type, dg_rho0_setup
 
   ! type = type of gaussian (PME)
-  ! grid = grid number 
+  ! grid = grid number
   ! gcc = Gaussian contraction coefficient
   ! zet = Gaussian exponent
   TYPE dg_rho0_type
@@ -40,49 +40,54 @@ MODULE dg_rho0s
      INTEGER :: grid
      REAL ( dbl ), DIMENSION ( : ), POINTER :: gcc
      REAL ( dbl ), DIMENSION ( : ), POINTER :: zet
-     TYPE ( coeff_type ) :: density 
+     TYPE ( coeff_type ) :: density
   END TYPE dg_rho0_type
 
 !!*****
 !******************************************************************************
-  
+
 CONTAINS
 
 !******************************************************************************
 
 SUBROUTINE dg_rho0_setup ( dg_rho0, pw_grid )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( dg_rho0_type ), INTENT ( INOUT ) :: dg_rho0
   TYPE ( pw_grid_type ), INTENT ( IN ) :: pw_grid
-  
+
 ! Locals
-      
+
 !------------------------------------------------------------------------------
-  
+
   SELECT CASE ( dg_rho0 % type )
-  CASE ( "PME", "EWALD" )
+  CASE ( "EWALD" )
     CALL coeff_allocate ( dg_rho0 % density, pw_grid, PW_REALDATA3D )
     CALL dg_rho0_pme_gauss ( dg_rho0 % density, dg_rho0 % zet ( 1 ) )
-    
+  CASE ( "PME" )
+    CALL coeff_allocate ( dg_rho0 % density, pw_grid, PW_REALDATA3D )
+    CALL dg_rho0_pme_gauss ( dg_rho0 % density, dg_rho0 % zet ( 1 ) )
+  CASE ( "SPME" )
+    CALL coeff_allocate ( dg_rho0 % density, pw_grid, PW_REALDATA3D )
+    CALL dg_rho0_pme_gauss ( dg_rho0 % density, dg_rho0 % zet ( 1 ) )
   CASE DEFAULT
-    CALL stop_prg ( 'dg_rho0_setup', 'type not implemented' )
+    CALL stop_program ( 'dg_rho0_setup', 'type not implemented' )
   END SELECT
-  
+
 END SUBROUTINE dg_rho0_setup
 
 !******************************************************************************
 
 SUBROUTINE dg_rho0_pme_gauss ( dg_rho0, alpha )
-  
+
   IMPLICIT NONE
 
 ! Arguments
   TYPE ( coeff_type ), INTENT ( INOUT ), TARGET :: dg_rho0
   REAL ( dbl ), INTENT ( IN ) :: alpha
-  
+
 ! Locals
   TYPE ( pw_grid_type ), POINTER :: pw_grid
   INTEGER :: l0, m0, n0
@@ -92,48 +97,48 @@ SUBROUTINE dg_rho0_pme_gauss ( dg_rho0, alpha )
   INTEGER, DIMENSION ( :, : ), POINTER :: bds
   INTEGER, DIMENSION ( : ), POINTER :: ghat
   REAL ( dbl ), DIMENSION ( :, :, : ), POINTER :: rho0
-  
+
 !------------------------------------------------------------------------------
-  
-  const = 1.0_dbl / ( 8.0_dbl * alpha ** 2 ) 
-  
+
+  const = 1.0_dbl / ( 8.0_dbl * alpha ** 2 )
+
   pw_grid => dg_rho0 % pw % pw_grid
   bds => pw_grid % bounds
-  
+
   IF ( -bds ( 1, 1 ) == bds ( 2, 1 ) ) THEN
     l0 = IMPOSSIBLE
   ELSE
     l0 = bds ( 1, 1 )
   END IF
-  
+
   IF ( -bds ( 1, 2 ) == bds ( 2, 2 ) ) THEN
     m0 = IMPOSSIBLE
   ELSE
     m0 = bds ( 1, 2 )
   END IF
-  
+
   IF ( -bds ( 1, 3 ) == bds ( 2, 3 ) ) THEN
     n0 = IMPOSSIBLE
   ELSE
     n0 = bds ( 1, 3 )
   END IF
-  
+
   CALL coeff_zero ( dg_rho0 )
-  
+
   rho0 => dg_rho0 % pw % cr3d
-  
+
   DO gpt = 1, pw_grid % ngpts_cut
     ghat => pw_grid % g_hat ( :, gpt )
-    
+
     lp = pw_grid % mapl % pos ( ghat ( 1 ) )
     ln = pw_grid % mapl % neg ( ghat ( 1 ) )
     mp = pw_grid % mapm % pos ( ghat ( 2 ) )
     mn = pw_grid % mapm % neg ( ghat ( 2 ) )
     np = pw_grid % mapn % pos ( ghat ( 3 ) )
     nn = pw_grid % mapn % neg ( ghat ( 3 ) )
-    
+
     e_gsq = EXP ( -const * pw_grid % gsq ( gpt ) ) / pw_grid % vol
-    
+
     !*apsi
     lp = lp + bds ( 1, 1 )
     mp = mp + bds ( 1, 2 )
@@ -141,17 +146,17 @@ SUBROUTINE dg_rho0_pme_gauss ( dg_rho0, alpha )
     ln = ln + bds ( 1, 1 )
     mn = mn + bds ( 1, 2 )
     nn = nn + bds ( 1, 3 )
-    
+
     rho0 ( lp, mp, np ) = e_gsq
     rho0 ( ln, mn, nn ) = e_gsq
-    
+
     IF ( ghat ( 1 ) == l0 .OR. ghat ( 2 ) == m0 .OR. ghat ( 3 ) == n0 ) THEN
       rho0 ( lp, mp, np ) = 0.0_dbl
       rho0 ( ln, mn, nn ) = 0.0_dbl
     END IF
-    
+
   END DO
-  
+
 END SUBROUTINE dg_rho0_pme_gauss
 
 !******************************************************************************

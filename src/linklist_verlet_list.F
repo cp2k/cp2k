@@ -19,9 +19,10 @@
 !******************************************************************************
 
 MODULE linklist_verlet_list
-  
-  USE global_types, ONLY : global_environment_type
+
   USE kinds, ONLY : dbl
+
+  USE global_types, ONLY : global_environment_type
   USE linklist_cell_types, ONLY : cell_neighborlist_type, &
        neighbor_cells_type, cell_atoms_linklist_type
   USE linklist_utilities, ONLY : get_match, update_verlet_list,  &
@@ -31,15 +32,15 @@ MODULE linklist_verlet_list
   USE message_passing, ONLY : mp_max, mp_min, mp_sum
   USE particle_types, ONLY : particle_type
   USE simulation_cell, ONLY : cell_type
-  USE stop_program, ONLY : stop_memory
+  USE termination, ONLY : stop_memory
   USE timings, ONLY : timeset, timestop
   USE util, ONLY : include_list, sort
-  
+
   IMPLICIT NONE
-  
+
   PRIVATE
   PUBLIC :: verlet_list
-  
+
 !!*****
 !******************************************************************************
 
@@ -52,13 +53,13 @@ CONTAINS
 SUBROUTINE verlet_list(natom_types,n_images,n_cell,pnode,part,box, &
      verlet_skin,rlist_cut,rlist_cutsq,neighbor, &
      cell_ll,start_list_nl,start_list_im, globenv)
-  
+
   IMPLICIT NONE
-  
+
 !
 ! neighbor_list lists all the neighbors of all atoms
 !
-  
+
 ! Arguments
   TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ), TARGET :: &
        pnode
@@ -77,7 +78,7 @@ SUBROUTINE verlet_list(natom_types,n_images,n_cell,pnode,part,box, &
   INTEGER, DIMENSION ( :, :, : ), POINTER :: n_images
   INTEGER, DIMENSION ( : ), INTENT ( IN ) :: n_cell
   INTEGER, INTENT ( IN ) :: natom_types
-  
+
 ! Locals
   TYPE (cell_atoms_linklist_type ), POINTER :: ll
   INTEGER :: i, ii, j, natoms, nnodes, handle, ipair
@@ -91,16 +92,16 @@ SUBROUTINE verlet_list(natom_types,n_images,n_cell,pnode,part,box, &
   REAL ( dbl ), DIMENSION (3) :: perd
   REAL ( dbl ), DIMENSION (3,3) :: hmat, h_inv
   LOGICAL :: first_time
-  
+
 !
 ! the following lines are used for the link_list of
 ! neighbors
 !
   TYPE (linklist_neighbor), POINTER :: current_neighbor
   TYPE (linklist_exclusion), POINTER :: ll_exclude
-  
+
 !------------------------------------------------------------------------------
-  
+
 !
 ! if we are entering this subroutine for the first time
 ! create the start of the link_list of neighbors.
@@ -110,36 +111,36 @@ SUBROUTINE verlet_list(natom_types,n_images,n_cell,pnode,part,box, &
 !
   CALL timeset ( 'VERLET_LIST', 'I', 'KIs', handle )
   fis = 0.0_dbl
-  
+
   ALLOCATE (elist(els),STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'verlet_list', 'elist', els )
-  
+
   ALLOCATE (ind(els),STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'verlet_list', 'ind', els )
-  
+
 ! local copies of box parameters
   hmat = box%hmat
   h_inv = box%h_inv
   perd = box%perd
   nnodes = size(pnode)
   natoms = size(part)
-  
+
   first_time = .NOT. ASSOCIATED ( n_images )
-  
+
   IF ( first_time ) THEN
-     
+
 ! compute the number of images for a given cut-off
      ALLOCATE ( n_images ( natom_types, natom_types, 3 ), STAT = isos )
      IF ( isos /= 0 ) CALL stop_memory ( 'verlet list', &
           'n_images', 3 * natom_types ** 2 )
-     
+
      CALL number_of_image_cells ( box, n_images, verlet_skin, rlist_cut )
-     
+
 ! allocate the start of the lists
      ALLOCATE (start_list_nl,STAT=isos)
      IF ( isos /= 0 ) CALL stop_memory ( 'verlet_list', 'start_list', 0 )
      NULLIFY (start_list_nl%next)
-     
+
      IF (MAXVAL(n_images) /= 0 ) THEN
         npairs=natoms*(natoms+1)/2
         ALLOCATE(start_list_im(npairs),STAT=isos)
@@ -151,9 +152,9 @@ SUBROUTINE verlet_list(natom_types,n_images,n_cell,pnode,part,box, &
            NULLIFY (start_list_im(ipair)%image%next)
         END DO
      END IF
-     
+
   END IF
-  
+
   IF (first_time .AND. globenv % print_level > 4 &
        .OR. globenv % print_level > 9 ) THEN
      IF (globenv % ionode) WRITE (globenv % scr,'(A,T71,i10 )' ) &
@@ -161,12 +162,12 @@ SUBROUTINE verlet_list(natom_types,n_images,n_cell,pnode,part,box, &
      IF (globenv % ionode) WRITE (globenv % scr,'(A,T71,i10 )' ) &
           ' verlet_list| # of atom nodes : ', nnodes
   END IF
-  
+
 !
 ! let the current_neighbor point to the start of the list
 !
   current_neighbor => start_list_nl
-  
+
 !
 ! loop over all distinct i,j pairs of atoms
 !
@@ -178,23 +179,23 @@ SUBROUTINE verlet_list(natom_types,n_images,n_cell,pnode,part,box, &
      nexcl = pnode(i) %nexcl
      IF (nexcl>size(elist)) STOP 'els'
      ll_exclude => pnode(i) %ex
-     
+
 ! list number of exclusion
      DO iexclude = 1, nexcl
         elist(iexclude) = ll_exclude%p%iatom
         ll_exclude => ll_exclude%next
      END DO
-     
+
 ! sort elist
      CALL sort(elist,nexcl,ind)
-     
+
 !
 ! pnode(i)%nl is the start of the neighbor link_list for
 ! atom i. Let it point to the current position in
 ! the link_list
 !
      pnode(i) %nl => current_neighbor
-     
+
 ! first: loop over all particles in the same cell
      DO jtype = 1, natom_types
         ll => part(ii) % cell % pTYPE ( jtype ) % ll
@@ -230,10 +231,10 @@ SUBROUTINE verlet_list(natom_types,n_images,n_cell,pnode,part,box, &
            ll => ll%next
         END DO
      END DO
-     
+
 ! second: loop over all neighbor cells
      DO jtype = 1, natom_types
-        IF (ALL(n_cell==1)) EXIT 
+        IF (ALL(n_cell==1)) EXIT
         ncells=SIZE (neighbor(itype,jtype ) % index, 2)
         DO k = 1, ncells
            index(1) = part(ii) % cell % neighbor(itype,jtype ) %index(1,k)
@@ -268,23 +269,23 @@ SUBROUTINE verlet_list(natom_types,n_images,n_cell,pnode,part,box, &
            END DO
         END DO
      END DO
-     
+
      IF ( first_time .AND. globenv % print_level>4 &
           .OR. globenv % print_level>9) THEN
         IF (globenv % ionode) WRITE (globenv % scr,'(A,i10,T54,A,T71,I10 )' ) &
              ' verlet_list| Atom :', i, ' # of neighbors:', &
              pnode(i) %nneighbor
      END IF
-     
+
   END DO
-  
+
 !
 ! write some info on the neighbor lists to output
 !
   nloc = sum(pnode ( : )%nneighbor)
   IF ( first_time .AND. globenv % print_level > 4 &
        .OR. globenv % print_level > 9 ) THEN
-     
+
 #if defined(__parallel)
      nsum = nloc
      CALL mp_sum(nsum,globenv%group)
@@ -308,15 +309,15 @@ SUBROUTINE verlet_list(natom_types,n_images,n_cell,pnode,part,box, &
 #endif
   END IF
   fis = nloc * 1.0E-3_dbl
-  
+
   CALL timestop(fis,handle)
-  
+
   DEALLOCATE (elist,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'verlet_list', 'elist' )
-  
+
   DEALLOCATE (ind,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'verlet_list', 'ind' )
-  
+
 END SUBROUTINE verlet_list
 
 !******************************************************************************

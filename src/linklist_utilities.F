@@ -19,14 +19,15 @@
 !******************************************************************************
 
 MODULE linklist_utilities
-  
+
   USE kinds, ONLY : dbl
+
   USE molecule_types, ONLY : particle_node_type, linklist_neighbor, &
        linklist_images
   USE particle_types, ONLY : particle_type
   USE simulation_cell, ONLY : get_cell_param, cell_type
-  USE stop_program, ONLY : stop_memory
-  
+  USE termination, ONLY : stop_memory
+
   IMPLICIT NONE
 
   PUBLIC :: get_match, update_verlet_list, &
@@ -197,7 +198,7 @@ MODULE linklist_utilities
         DO icell=-n_images(1), n_images(1)
 ! exclude the center cell
           IF (icell==0.AND.jcell==0.AND.kcell==0) CYCLE
- 
+
           vec ( : )=(/icell,jcell,kcell/)
 
           CALL update_image_list(s,current_neighbor%nimages,vec, &
@@ -231,7 +232,7 @@ MODULE linklist_utilities
             n_images(itype,jtype,id) =  &
             CEILING(list_cut(itype,jtype )/cell_lengths(id))
           END IF
-        END DO 
+        END DO
       END DO
     END DO
   END SUBROUTINE number_of_image_cells

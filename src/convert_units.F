@@ -28,25 +28,25 @@ MODULE convert_units
   USE physcon, ONLY : joule, evolt, boltzmann
   USE simulation_cell, ONLY : cell_type
   USE unit, ONLY : unit_convert_type
-  
+
   IMPLICIT NONE
-  
+
   PRIVATE
   PUBLIC :: convert
-  
+
 !!*****
 !-----------------------------------------------------------------------------!
 
 CONTAINS
-  
+
 !-----------------------------------------------------------------------------!
 !
 ! routine to convert input variables from external units to internal units
 SUBROUTINE convert ( units, simpar, part, pstat, box, potparm, &
      intra_param, ewald_param )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE (unit_convert_type ), INTENT ( IN ) :: units
   TYPE (simulation_parameters_type ), INTENT ( INOUT ), OPTIONAL :: simpar
@@ -56,27 +56,27 @@ SUBROUTINE convert ( units, simpar, part, pstat, box, potparm, &
   TYPE (ewald_parameters_type ), INTENT ( INOUT ), OPTIONAL :: ewald_param
   TYPE (potentialparm_type ), INTENT ( INOUT ), OPTIONAL :: potparm ( :, : )
   TYPE (particle_prop_type ), INTENT ( INOUT ), OPTIONAL :: pstat ( : )
-  
+
 ! Locals
   REAL ( dbl ), PARAMETER :: permittivity = 8.854187817E-12_dbl
   REAL ( dbl ) :: conv2k
   INTEGER :: i
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! convert hmat
   IF ( PRESENT ( box)) box%hmat = box%hmat*units%lconv
-  
+
   IF ( PRESENT ( simpar)) THEN
 ! convert time
      simpar%dt = simpar%dt*units%tconv
 ! convert temperature
      simpar%temp_ext = simpar%temp_ext*units%econv
-! convert pressure 
+! convert pressure
      simpar%p_ext = simpar%p_ext/units%pconv
 ! convert verlet skin
      simpar%verlet_skin = simpar%verlet_skin*units%lconv
-     
+
 ! converting extended system time constants
      SELECT CASE (simpar%ensemble)
      CASE ( 'NVT')
@@ -89,14 +89,14 @@ SUBROUTINE convert ( units, simpar, part, pstat, box, potparm, &
         simpar%tau_nhc = simpar%tau_nhc*units%tconv
      END SELECT
   END IF
-  
+
   IF ( PRESENT ( pstat)) THEN
 ! convert mass
      DO i = 1, size(pstat)
         pstat(i) %mass = pstat(i) %mass*units%mconv
      END DO
   END IF
-  
+
   IF ( PRESENT ( part)) THEN
 ! convert position
      DO i = 1, size(part)
@@ -105,7 +105,7 @@ SUBROUTINE convert ( units, simpar, part, pstat, box, potparm, &
         part(i) %r(3) = part(i) %r(3)*units%lconv
      END DO
   END IF
-  
+
   IF ( PRESENT ( potparm)) THEN
 ! convert LJ parameters
      potparm ( :, : ) %lj%epsilon = potparm ( :, : ) %lj%epsilon*units%econv
@@ -141,9 +141,9 @@ SUBROUTINE convert ( units, simpar, part, pstat, box, potparm, &
 !           tbhop(i,j) %gsp(:) %rt = tbhop(i,j) %gsp(:) %rt*units%lconv
 !         END DO
 !       END DO
-!   
-! note: e_cutoff_coul and energy_cutoff do not need to be converted 
-! because ewald_correction and the initialization of the energy_cutoff 
+!
+! note: e_cutoff_coul and energy_cutoff do not need to be converted
+! because ewald_correction and the initialization of the energy_cutoff
 ! are called later and the cut-off will be computed in the appropriate units
 !
 ! convert electrostatic parameters
@@ -151,17 +151,17 @@ SUBROUTINE convert ( units, simpar, part, pstat, box, potparm, &
      ewald_param % eps0 = permittivity*units%eps0
      ewald_param % alpha = ewald_param % alpha/units % lconv
   END IF
-  
+
   IF ( PRESENT ( intra_param)) THEN
 ! converting bond, bends and torsion and constraint parameters
      intra_param % bond_param ( :, : ) % r0 = intra_param % bond_param ( :, : ) % r0 &
           *units%lconv
      intra_param % bond_param ( :, : ) % k = intra_param % bond_param ( :, : ) % k &
           * units%econv/units%lconv/units%lconv
-     
+
      intra_param % bend_param(:,:,:) % k &
           = intra_param % bend_param(:,:,:) % k * units%econv
-     
+
      DO i = 0, SIZE ( intra_param % torsion_param(1,1,1,1) % a ) - 1
         intra_param % torsion_param(:,:,:,:) % a(i) =  &
              intra_param % torsion_param(:,:,:,:) % a(i)*units%econv
@@ -169,7 +169,7 @@ SUBROUTINE convert ( units, simpar, part, pstat, box, potparm, &
      intra_param % constraint_distance ( :, : ) &
           = intra_param % constraint_distance ( :, : ) * units%lconv
   END IF
-  
+
 END SUBROUTINE convert
 
 !******************************************************************************

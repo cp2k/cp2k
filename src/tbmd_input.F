@@ -20,24 +20,26 @@
     MODULE tbmd_input
 
       USE kinds, ONLY : dbl
-      USE tbmd_types, ONLY : tbatom_param_type, tb_hopping_type
-      USE stop_program, ONLY : stop_prg, stop_memory
-      USE string_utilities, ONLY : uppercase, xstring, &
-        str_search, str_comp, make_tuple
+
+      USE global_types, ONLY : global_environment_type
+      USE input_types, ONLY : setup_parameters_type
       USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
         cfield, p_error, get_real, get_int, stop_parser
-      USE input_types, ONLY : setup_parameters_type
-      USE global_types, ONLY : global_environment_type
+      USE string_utilities, ONLY : uppercase, xstring, &
+        str_search, str_comp, make_tuple
+      USE tbmd_types, ONLY : tbatom_param_type, tb_hopping_type
+      USE termination, ONLY : stop_memory, stop_program
+
       IMPLICIT NONE
-! 
+!
       PRIVATE
       PUBLIC :: read_tb_hamiltonian, read_tb_hopping_elements
-! 
+!
 !!*****
 !------------------------------------------------------------------------------!
-! 
+!
     CONTAINS
-! 
+!
 !------------------------------------------------------------------------------!
 !!****** tbmd_input/read_tb_hamiltonian [1.0] *
 !!
@@ -223,7 +225,7 @@ SUBROUTINE read_tb_hopping_elements ( setup, atom_names, tbatom, tbhop, tbmdpar 
   ALLOCATE (tbhop(iat,iat),STAT=ios)
   IF (ios/=0) CALL stop_memory('read_tb_hopping_elements', &
           'allocation of array tbhop failed',iat*iat)
-!..calculate number of non-zero integrals 
+!..calculate number of non-zero integrals
   DO i = 1, iat
     DO j = 1, iat
       n = 0
@@ -320,13 +322,13 @@ SUBROUTINE read_tb_hopping_elements ( setup, atom_names, tbatom, tbhop, tbmdpar 
               DO kk = 0, min(l1,l2)
                 nk = nk + 1
                 IF (tbhop(i,j)%lls(1,nk)/=l1) &
-                  CALL stop_prg('read_tb_hopping_elements', &
+                  CALL stop_program('read_tb_hopping_elements', &
                   'ordering of H matrix elements wrong')
                 IF (tbhop(i,j)%lls(2,nk)/=l2) &
-                  CALL stop_prg('read_tb_hopping_elements', &
+                  CALL stop_program('read_tb_hopping_elements', &
                   'ordering of H matrix elements wrong')
                 IF (tbhop(i,j)%lls(3,nk)/=kk) &
-                  CALL stop_prg('read_tb_hopping_elements', &
+                  CALL stop_program('read_tb_hopping_elements', &
                   'ordering of H matrix elements wrong')
               END DO
             END DO
@@ -356,7 +358,7 @@ SUBROUTINE read_tb_hopping_elements ( setup, atom_names, tbatom, tbhop, tbmdpar 
                 ' NA=', tbhop(i,j) %gsp(k) %na, ' NB=', &
                 tbhop(i,j) %gsp(k) %nb
             ELSE
-              CALL stop_prg('read_tb_hopping_elements','unknown type')
+              CALL stop_program('read_tb_hopping_elements','unknown type')
             END IF
           END DO
         END DO

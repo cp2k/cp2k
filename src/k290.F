@@ -22,21 +22,23 @@
 !!
 !!   SOURCE
 !******************************************************************************
-! 
+!
     MODULE k290
-! 
+!
 !------------------------------------------------------------------------------!
+
       USE kinds, ONLY : dbl
-      USE stop_program, ONLY : stop_prg, stop_memory
+
       USE string_utilities, ONLY : xstring
+      USE termination, ONLY : stop_memory, stop_program
       USE timings, ONLY : timeset, timestop
 !
       IMPLICIT NONE
-! 
+!
       PRIVATE
 !
       PUBLIC :: set_k290, set_k290_atoms, kp_sym_gen
-! 
+!
       INTEGER :: plevel = 0, istriz = -1
       INTEGER :: punit = 6
       INTEGER :: nat, nsp, iq1, iq2, iq3, nkpoint, ntvec
@@ -461,9 +463,9 @@
           IF (abs(istriz)/=1) THEN
             WRITE (iout,'(" invalid switch for symmetrization",I10)') istriz
             WRITE (*,'(" invalid switch for symmetrization",I10)') istriz
-            CALL stop_prg('K290','istriz wrong argument')
+            CALL stop_program('K290','istriz wrong argument')
           END IF
-          WRITE (iout,'(" symmetrization switch: ",I3,$)') istriz
+          WRITE (iout,'(" symmetrization switch: ",I3)',ADVANCE="NO") istriz
           IF (istriz==1) THEN
             WRITE (iout,'(" (symmetrization of Monkhorst-Pack mesh)")')
           ELSE
@@ -487,7 +489,7 @@
               WRITE (iout,*) ' K290| Number of rotations for crystal lattice', &
                 nc
               WRITE (iout,*) ' K290| No duplication found'
-              CALL stop_prg('ERROR', &
+              CALL stop_program('ERROR', &
                 'something is wrong in group determination')
             END IF
             nc = nc0
@@ -1212,31 +1214,31 @@
         IF (ihg<6) THEN
           IF (nc==0) THEN
             WRITE (*,'(" ATFTM1! IHG=",A," NC=",I2)') icst(ihg), nc
-            CALL stop_prg('ATFTM1','NUMBER OF ROTATION NULL')
+            CALL stop_program('ATFTM1','NUMBER OF ROTATION NULL')
 !       Triclinic system
           ELSE IF (nc==1) THEN
 !         IB=1
-            indpg = & !1 (c1)                                 
+            indpg = & !1 (c1)
               1
           ELSE IF (nc==2 .AND. ib(2)==25) THEN
 !         IB=1 25
-            indpg = & !<1>(ci)                                
+            indpg = & !<1>(ci)
               2
           ELSE IF (nc==2 .AND. (ib(2)==4 .OR. & !         Monoclinic system
               ib(2)==2 .OR. & !         IB=1 4 (z-axis) OR
               ib(2)==3)) & !         IB=1 2 (x-axis) OR
               THEN
 !         IB=1 3 (y-axis)
-!2[001]                                 
-!2[100]                                 
-!2[010]                               
-            indpg = & !2 (c2)                                 
+!2[001]
+!2[100]
+!2[010]
+            indpg = & !2 (c2)
               3
           ELSE IF (nc==2 .AND. (ib(2)==28 .OR. ib(2)==26 .OR. ib(2)==27)) THEN
 !         IB=1 28 (z-axis) OR
 !         IB=1 26 (x-axis) OR
 !         IB=1 27 (y-axis)
-            indpg = & !m (c1h)                                
+            indpg = & !m (c1h)
               4
           ELSE IF (nc==4 .AND. (ib(4)==28 .OR. & !         IB=1  4 25 28 (z-axis)  OR
               ib(4)==27 .OR. & !         IB=1  2 25 26 (x-axis)  OR
@@ -1244,74 +1246,74 @@
               ib(4)==37 .OR. & !         IB=1 13 25 37 (-xy-axis)OR
               ib(4)==40)) & !         IB=1 16 25 40 (xy-axis)
               THEN
-!2[001]                                 
-!2[010]                                 
-!2[100]                                 
-!-2[-110]                               
-!2[110]                              
-            indpg = & !2/m(c2h)                               
+!2[001]
+!2[010]
+!2[100]
+!-2[-110]
+!2[110]
+            indpg = & !2/m(c2h)
               5
           ELSE IF (nc==4 .AND. (ib(4)==15 .OR. ib(4)==20 .OR. ib(4)==24)) THEN
 !         Tetragonal system
 !         IB=1 4 14 15 (z-axis) OR
 !         IB=1 2 19 20 (x-axis) OR
 !         IB=1 3 22 24 (y-axis)
-            indpg = & !4 (c4)                                 
+            indpg = & !4 (c4)
               11
           ELSE IF (nc==4 .AND. (ib(4)==39 .OR. ib(4)==44 .OR. ib(4)==48)) THEN
 !         IB=1 4 38 39 (z-axis) OR
 !         IB=1 2 43 44 (x-axis) OR
 !         IB=1 3 46 48 (y-axis)
-            indpg = & !<4>(s4)                                
+            indpg = & !<4>(s4)
               12
           ELSE IF (nc==8 .AND. ((ib(3)==14 .AND. ib(8)==39) .OR. (ib(3)==19 &
               .AND. ib(8)==44) .OR. (ib(3)==22 .AND. ib(8)==48))) THEN
 !         IB=1 4 14 15 28 25 38 39 (z-axis) OR
 !         IB=1 2 19 20 26 25 43 44 (x-axis) OR
 !         IB=1 3 22 24 27 25 46 48 (y-axis)
-            indpg = & !422(d4)                                
+            indpg = & !422(d4)
               13
           ELSE IF (nc==8 .AND. ib(4)==4 .AND. (ib(8)==16 .OR. ib( &
               8)==20 .OR. ib(8)==24)) THEN
 !         IB=1 2 3 4 13 14 15 16 (z-axis) OR
 !         IB=1 2 3 4 17 19 20 18 (x-axis) OR
 !         IB=1 2 3 4 21 22 24 23 (y-axis)
-            indpg = & !4/m(c4h)                               
+            indpg = & !4/m(c4h)
               14
           ELSE IF (nc==8 .AND. (ib(8)==40 .OR. ib(8)==42 .OR. ib(8)==47)) THEN
 !         IB=1 4 14 15 26 27 37 40 (z-axis) OR
 !         IB=1 2 19 20 28 27 41 42 (x-axis) OR
 !         IB=1 3 22 24 26 28 45 47 (y-axis)
-            indpg = & !4mm(c4v)                               
+            indpg = & !4mm(c4v)
               15
           ELSE IF (nc==8 .AND. ((ib(3)==13 .AND. ib(8)==39) .OR. (ib(3)==17 &
               .AND. ib(8)==44) .OR. (ib(3)==21 .AND. ib(8)==48))) THEN
 !         IB=1 4 13 16 26 27 38 39 (z-axis) OR
 !         IB=1 2 17 18 28 27 43 44 (x-axis) OR
 !         IB=1 3 21 23 26 28 46 48 (y-axis)
-            indpg = & !<4>2m(d2d)                             
+            indpg = & !<4>2m(d2d)
               16
           ELSE IF (nc==16 .AND. (ib(16)==40 .OR. ib(16)==44 .OR. ib(16)==48)) &
               THEN
 !         IB=1 2 3 4 13 14 15 16 25 26 27 28 37 38 39 40 (z-axis) OR
 !         IB=1 2 3 4 17 19 20 18 25 26 27 28 41 43 44 42 (x-axis) OR
 !         IB=1 2 3 4 21 22 24 23 25 26 27 28 45 46 48 47 (y-axis)
-            indpg = & !4/mmm(d4h)                             
+            indpg = & !4/mmm(d4h)
               17
           ELSE IF (nc==4 .AND. (ib(4)==4)) THEN
 !         Orthorhombic system
 !         IB=1 2  3  4
-            indpg = & !222(d2)                                
+            indpg = & !222(d2)
               25
           ELSE IF (nc==4 .AND. (ib(4)==27 .OR. ib(4)==28)) THEN
 !         IB=1 3 26 27 (z-axis) OR
 !         IB=1 2 27 28 (x-axis) OR
 !         IB=1 4 26 28 (y-axis) OR
-            indpg = & !mm2(c2v)                               
+            indpg = & !mm2(c2v)
               26
           ELSE IF (nc==8) THEN
 !         IB=1 2 3 4 25 26 27 28
-            indpg = & !mmm(d2h)                               
+            indpg = & !mmm(d2h)
               27
           ELSE IF (nc==12 .AND. (ib(12)==12 .OR. ib(12)==47 .OR. ib(12)==45)) &
               THEN
@@ -1319,26 +1321,26 @@
 !         IB=1 2  3  4  5  6  7  8  9 10 11 12 OR
 !         IB=1 5 11 13 18 23 25 30 35 37 42 47 OR
 !         IB=1 8 10 16 18 21 25 32 34 40 42 45
-            indpg = & !23 (t)                                 
+            indpg = & !23 (t)
               28
           ELSE IF (nc==24 .AND. ib(24)==36) THEN
 !         IB= 1  2  3  4  5  6  7  8  9 10 11 12
 !            25 26 27 28 29 30 31 32 33 34 35 36
-            indpg = & !m3 (th)                                
+            indpg = & !m3 (th)
               29
           ELSE IF (nc==24 .AND. ib(24)==24) THEN
 !         IB=1 2 3 4 5 6 7 8 9 10 11 12
 !           13 14 15 16 17 18 19 20 21 22 23 24
-            indpg = & !432 (o)                                
+            indpg = & !432 (o)
               30
           ELSE IF (nc==24 .AND. ib(24)==48) THEN
 !         IB=1 2 3 4 5 6 7 8 9 10 11 12
 !           37 38 39 40 41 42 43 45 46 47 48
-            indpg = & !<4>3m(td)                              
+            indpg = & !<4>3m(td)
               31
           ELSE IF (nc==48) THEN
 !         IB=1..48
-            indpg = & !m3m(oh)                                
+            indpg = & !m3m(oh)
               32
           ELSE
 !          WRITE(*,'(" ATFTM1! IHG=",A," NC=",I2)') ICST(IHG),NC
@@ -1350,80 +1352,80 @@
         ELSE IF (ihg>=6) THEN
           IF (nc==0) THEN
             WRITE (*,'(" ATFTM1! IHG=",A," NC=",I2)') icst(ihg), nc
-            CALL stop_prg('ATFTM1','NUMBER OF ROTATION NULL')
+            CALL stop_program('ATFTM1','NUMBER OF ROTATION NULL')
 !       Triclinic system
           ELSE IF (nc==1) THEN
 !         IB=1
-            indpg = & !1 (c1)                                 
+            indpg = & !1 (c1)
               1
           ELSE IF (nc==2 .AND. ib(2)==13) THEN
 !         IB=1 13
-            indpg = & !<1>(ci)                                
+            indpg = & !<1>(ci)
               2
           ELSE IF (nc==2 .AND. (ib(2)==4)) & !         Monoclinic system
               THEN
 !         IB=1 4
-!2[001]                               
-            indpg = & !2 (c2)                                 
+!2[001]
+            indpg = & !2 (c2)
               3
           ELSE IF (nc==2 .AND. (ib(2)==16)) THEN
 !         IB=1 16
-            indpg = & !m (c1h)                                
+            indpg = & !m (c1h)
               4
           ELSE IF (nc==4 .AND. (ib(4)==24 .OR. ib(4)==20)) THEN
 !         IB=1 12 13 24 OR
 !         IB=1  8 13 20
-            indpg = & !2/m(c2h)                               
+            indpg = & !2/m(c2h)
               5
           ELSE IF (nc==3 .AND. ib(3)==5) THEN
 !         Trigonal system
 !         IB=1 3 5
-            indpg = & !3 (c3)                                 
+            indpg = & !3 (c3)
               6
           ELSE IF (nc==6 .AND. ib(6)==17) THEN
 !         IB=1 13 15 17 35
-            indpg = & !<3>(c3i)                               
+            indpg = & !<3>(c3i)
               7
           ELSE IF (nc==6 .AND. ib(6)==11) THEN
 !         IB=1 7 9 11 35
-            indpg = & !32 (d3)                                
+            indpg = & !32 (d3)
               8
           ELSE IF (nc==6 .AND. ib(6)==23) THEN
 !         IB=1 3 5 19 21 23
-            indpg = & !3m (c3v)                               
+            indpg = & !3m (c3v)
               9
           ELSE IF (nc==12 .AND. ib(12)==23) THEN
 !         IB=1 3 5 7 9 11 13 15 17 19 21 23
-            indpg = & !<3>m(d3d)                              
+            indpg = & !<3>m(d3d)
               10
           ELSE IF (nc==6 .AND. ib(6)==6) THEN
 !         Hexagonal system
 !         IB=1 2 3 4 5 6
-            indpg = & !6 (c6)                                 
+            indpg = & !6 (c6)
               18
           ELSE IF (nc==6 .AND. ib(6)==18) THEN
 !         IB=1 3 5 14 16 18
-            indpg = & !<6>(c3h)                               
+            indpg = & !<6>(c3h)
               19
           ELSE IF (nc==12 .AND. ib(12)==18) THEN
 !         IB=1 2 3 4 5 6 13 14 15 16 17 18
-            indpg = & !6/m(c6h)                               
+            indpg = & !6/m(c6h)
               20
           ELSE IF (nc==12 .AND. ib(12)==12) THEN
 !         IB=1 2 3 4 5 6 7 8 9 10 11 12
-            indpg = & !622(d6)                                
+            indpg = & !622(d6)
               21
           ELSE IF (nc==12 .AND. ib(2)==2 .AND. ib(12)==24) THEN
 !         IB=1 2 3 4 5 6 19 20 21 22 23 24
-            indpg = & !6mm(c6v)                               
+            indpg = & !6mm(c6v)
               22
           ELSE IF (nc==12 .AND. ib(2)==3 .AND. ib(12)==24) THEN
 !         IB=1 3 5 7 9 11 14 16 18 20 22 24
-            indpg = & !<6>m2(d3h)                             
+            indpg = & !<6>m2(d3h)
               23
           ELSE IF (nc==24) THEN
 !         IB=1..24
-            indpg = & !6/mmm(d6h)                             
+            indpg = & !6/mmm(d6h)
               24
           ELSE
 !         Probably a sub-group of 24
@@ -1610,7 +1612,7 @@
 !          AI(I,J) ARE THE RECIPROCAL LATTICE VECTORS,
 !                  B(I) = AI(I,J),J=1,2,3
 !        DELTA     REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
-!       
+!
 !        OUTPUT:
 !          ORIGIN(1:3) Give standard origin (cartesian coordinates)
 !                   Give the standard origin with smallest coordinates
@@ -2148,7 +2150,7 @@
           DO i = 1, imesh
             CALL mesh(iout,wva,i,igarb0,igarbg,nkpoint,nhash,list,rlist,delta)
             IF (mod(i,2)==1) THEN
-              WRITE (iout,'(1X,I5,3F10.4,$)') i, wva
+              WRITE (iout,'(1X,I5,3F10.4)',ADVANCE="NO") i, wva
             ELSE
               WRITE (iout,'(1X,I5,3F10.4)') i, wva
             END IF
@@ -2301,7 +2303,7 @@
           WRITE (iout,'(5(4X,"IK -> SK"))')
           DO i = 1, imesh
             iplace = includ(i)/2
-            WRITE (iout,'(1X,I5,1X,I5,$)') i, iplace
+            WRITE (iout,'(1X,I5,1X,I5)',ADVANCE="NO") i, iplace
             IF (mod(i,5)==0) WRITE (iout,*)
           END DO
           IF (mod(j-1,5)/=0) WRITE (iout,*)
@@ -2317,14 +2319,14 @@
             wva, ' GENERATED FROM ', wvk, ' IN THE BASIC MESH', &
             ' BY ROTATION NO. ', ibrav(iop), ' IS OUTSIDE THE 1BZ'
         END IF
-        CALL stop_prg('SPPT2','VECTOR OUTSIDE THE 1BZ')
+        CALL stop_program('SPPT2','VECTOR OUTSIDE THE 1BZ')
 !------------------------------------------------------------------------------!
 470     CONTINUE
         IF (iout>0) THEN
           WRITE (iout,'(A,/)') ' SUBROUTINE SPPT2 *** FATAL ERROR ***'
           WRITE (iout,*) 'MESH SIZE EXCEEDS NKPOINT=', nkpoint
         END IF
-        CALL stop_prg('SPPT2','MESH SIZE EXCEEDED')
+        CALL stop_program('SPPT2','MESH SIZE EXCEEDED')
 !------------------------------------------------------------------------------!
 490     CONTINUE
         IF (iout>0) THEN
@@ -2333,17 +2335,17 @@
             wva, ' GENERATED FROM ', wvk, ' IN THE BASIC MESH', &
             ' BY ROTATION NO. ', ib(n), ' IS NOT IN THE LIST'
         END IF
-        CALL stop_prg('SPPT2','VECTOR NOT IN THE LIST')
+        CALL stop_program('SPPT2','VECTOR NOT IN THE LIST')
       END SUBROUTINE sppt2
 !------------------------------------------------------------------------------!
       SUBROUTINE mesh(iout,wvk,iplace,igarb0,igarbg,nmesh,nhash,list,rlist, &
           delta)
 !------------------------------------------------------------------------------!
 !        MESH MAINTAINS A LIST OF VECTORS FOR PLACEMENT AND/OR LOOKUP
-!       
+!
 !        ADDITIONAL ENTRY POINTS: REMOVE .... REMOVE VECTOR FROM LIST
 !                                 GARBAG .... WAS VECTOR REMOVED ?
-!       
+!
 !        WVK ....... VECTOR
 !        IPLACE .... ON INPUT: -2 MEANS: INITIALIZE  THE LIST
 !                                        (AND RETURN)
@@ -2407,7 +2409,7 @@
           WRITE (*,'(2A,/,A)') &
             ' SUBROUTINE MESH *** FATAL ERROR *** LINKED LIST', &
             ' TOO LONG ***', ' CHOOSE A BETTER HASH-FUNCTION'
-          CALL stop_prg('MESH','WARNING')
+          CALL stop_program('MESH','WARNING')
 !       WVK was not found
 130       CONTINUE
           IF (iplace==-1) THEN
@@ -2421,7 +2423,7 @@
               WRITE (*,'(A)') 'SUBROUTINE MESH *** FATAL ERROR ***'
               WRITE (*,'(A,I10,A,/,A,3F10.5)') ' ISTORE=', istore, &
                 ' EXCEEDS DIMENSIONS', ' WVK = ', wvk
-              CALL stop_prg('MESH','WARNING')
+              CALL stop_program('MESH','WARNING')
             END IF
             list(istore) = nil
             DO i = 1, 3
@@ -2463,7 +2465,7 @@
       SUBROUTINE remove(wvk,iplace,igarb0,igarbg,nmesh,nhash,list,rlist,delta)
 !------------------------------------------------------------------------------!
 !        ENTRY POINT FOR REMOVING A WAVEVECTOR
-!       
+!
 !        INPUT:
 !          WVK(3)
 !          DELTA   REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
@@ -2522,7 +2524,7 @@
           ipoint = list(ihash)
         END DO
 !     List too long
-        CALL stop_prg('MESH','LIST TOO LONG')
+        CALL stop_program('MESH','LIST TOO LONG')
       END SUBROUTINE remove
 !------------------------------------------------------------------------------!
       SUBROUTINE garbag(wvk,iplace,igarb0,nmesh,nhash,list,rlist,delta)
@@ -2532,7 +2534,7 @@
 !        INPUT:
 !          WVK(3)
 !          DELTA      REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
-!       
+!
 !        OUTPUT:
 !          IPLACE  ..... I > 0 IS THE PLACE IN THE GARBAGE LIST
 !                            0 IF WVK NOT AMONG THE GARBAGE
@@ -2571,7 +2573,7 @@
           ipoint = list(ihash)
         END DO
 !     List too long
-        CALL stop_prg('GARBAG','LIST TOO LONG')
+        CALL stop_program('GARBAG','LIST TOO LONG')
       END SUBROUTINE garbag
 !------------------------------------------------------------------------------!
       SUBROUTINE bzrduc(wvk,a1,a2,a3,b1,b2,b3,rsdir,nrsdir,nplane,delta)
@@ -2623,7 +2625,7 @@
 !     Fatal error
         WRITE (*,'(A,/,A,3F10.4,A)') ' SUBROUTINE BZRDUC *** FATAL ERROR ***', &
           ' WAVEVECTOR ', wvk, ' COULD NOT BE REDUCED TO THE 1BZ'
-        CALL stop_prg('BZRDUC','WARNING')
+        CALL stop_program('BZRDUC','WARNING')
 !------------------------------------------------------------------------------!
 !     The reduced vector
 210     CONTINUE
@@ -2760,7 +2762,7 @@
           WRITE (iout,'(A)') ' SUBROUTINE BZDEFI *** FATAL ERROR ***'
           WRITE (iout,'(" TOO MANY PLANES, NRSDIR = ",I5)') nrsdir
         END IF
-        CALL stop_prg('BZDEFI','WARNING')
+        CALL stop_program('BZDEFI','WARNING')
       END SUBROUTINE bzdefi
 !------------------------------------------------------------------------------!
       SUBROUTINE invmat(a,info)

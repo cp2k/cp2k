@@ -19,7 +19,7 @@
 !******************************************************************************
 
 MODULE tbmd_debug
-  
+
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE fist_force_numer, ONLY : force_nonbond_numer, force_recip_numer, &
        ptens_numer, pvg_numer, potential_g_numer, de_g_numer, &
@@ -33,16 +33,16 @@ MODULE tbmd_debug
   USE particle_types, ONLY : particle_type
   USE pair_potential, ONLY : potentialparm_type, ener_coul
   USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE
-  USE pw_grids, ONLY : pw_find_cutoff, pw_grid_setup
+  USE pw_grids, ONLY : pw_find_cutoff, pw_grid_setup, pw_grid_construct
   USE simulation_cell, ONLY : cell_type
-  USE stop_program, ONLY : stop_memory, stop_prg
+  USE termination, ONLY : stop_memory
   USE linklist_types, ONLY : linklist_internal_data_type
-  
+
   IMPLICIT NONE
-  
+
   PRIVATE
   PUBLIC :: debug_control
-  
+
 !!*****
 !******************************************************************************
 
@@ -55,7 +55,7 @@ CONTAINS
 !!     debug_control
 !!
 !!   FUNCTION
-!!     Routine to execute numerical tests for debugging 
+!!     Routine to execute numerical tests for debugging
 !!
 !!   AUTHOR
 !!     JGH
@@ -67,10 +67,10 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
-     thermo, potparm, ensemble, lldata )
-  
+     box_ref, thermo, potparm, ensemble, lldata )
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
   TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
@@ -79,10 +79,11 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
   TYPE ( potentialparm_type ), INTENT ( IN ), DIMENSION ( :, : ) :: potparm
   TYPE ( molecule_structure_type ), INTENT ( IN ), DIMENSION ( : ) :: molecule
   TYPE ( cell_type ), INTENT ( INOUT ) :: box
+  TYPE ( cell_type ), INTENT ( IN ) :: box_ref
   TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
   CHARACTER ( LEN = * ), INTENT ( IN ) :: ensemble
   TYPE ( linklist_internal_data_type ) :: lldata
-  
+
 ! Locals
   TYPE ( debug_variables_type ) :: dbg
   TYPE ( pw_grid_type ) :: ewald_grid
@@ -95,9 +96,9 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: f_bc, f_real
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: f_numer
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rel, diff
-  
+
 !------------------------------------------------------------------------------
-  
+
   iw = globenv % scr
   ir = 5
   WRITE ( iw, '( 16x,A )' ) &
@@ -105,7 +106,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
   WRITE ( iw, '( 16x,A )' ) '                   BEGIN DEBUG'
   WRITE ( iw, '( 16x,A )' ) &
        '***************************************************'
-  
+
 ! allocating all arrays involved with debug
   natoms = SIZE ( pnode )
   IF ( .NOT. ALLOCATED ( diff ) ) ALLOCATE ( diff ( 3, natoms ), STAT = isos )
@@ -120,17 +121,17 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
        CALL stop_memory ( "debug_control", "f_nonbond", 3 * natoms )
   ALLOCATE ( dbg % f_g ( 3, natoms ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_g", 3 * natoms )
-  
-! call to analytical nonbond force routine: 
-  CALL force_control ( molecule, pnode, part, box, thermo, & 
+
+! call to analytical nonbond force routine:
+  CALL force_control ( molecule, pnode, part, box, box_ref, thermo, &
        potparm, ewald_param, ensemble, globenv, lldata, dbg )
-  
+
 ! Debug real-space nonbond
   WRITE ( iw, '( A )' ) &
        ' DO YOU WANT TO DEBUG YOUR REAL SPACE NON-BOND (1=yes)?'
   READ ( ir, * ) iflag
   IF ( iflag == 1 ) THEN
-     
+
 ! get numerical force for the nonbond
      WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
      READ ( ir, * ) delta
@@ -147,19 +148,19 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
           energy_numer
      WRITE ( iw, '( A, T61, E20.14 )' ) ' NON BOND ANAL  ENERGY = ', &
           dbg % pot_nonbond
-     
+
 ! computing the absolute value of the differences in the forces
      diff = ABS ( dbg % f_nonbond - f_numer )
      rel = diff / dbg % f_nonbond
-     
+
 ! find the maximum difference and the relative and absolute errors.
      WRITE ( iw, '( A, T61, E20.14 )' ) &
           ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
      WRITE ( iw, '( A, T61, E20.14 )' ) &
           ' MAXIMUM RELATIVE ERROR = ', MAXVAL ( rel )
-     
-! write out the particle number and forces of 
-!    the max absolute and relative error         
+
+! write out the particle number and forces of
+!    the max absolute and relative error
      dum = MAXLOC ( diff )
      WRITE ( iw, '( A, T71, I10 )' ) &
           ' NON BOND PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum(2)
@@ -167,7 +168,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
           ' F ANAL NONBOND =', dbg % f_nonbond ( :, dum ( 2 ) )
      WRITE ( iw, '( A,T21,3G20.14 )' ) &
           ' F NUMR NONBOND =', f_numer ( :, dum ( 2 ) )
-     
+
      dum = MAXLOC ( rel )
      WRITE ( iw, '( A,T71,I10 )' ) &
           ' NON BOND PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
@@ -176,21 +177,22 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
      WRITE ( iw, '( A,T21,3G20.14 )' ) &
           ' F NUMR NONBOND =', f_numer ( :, dum ( 2 ) )
   END IF
-  
-! Debug g-space 
+
+! Debug g-space
  IF ( ewald_param % ewald_type /= 'NONE' ) THEN
     WRITE ( iw, '( A )' ) ' DO YOU WANT TO DEBUG YOUR G-SPACE (1=yes)?'
     READ ( ir, * ) iflag
     IF ( iflag == 1 ) THEN
+       CALL pw_grid_construct ( ewald_grid )
        gmax = ewald_param % gmax
        ewald_grid % bounds ( 1, : ) = -gmax / 2
        ewald_grid % bounds ( 2, : ) = +gmax / 2
        npts_s = (/ gmax, gmax, gmax /)
        ewald_grid % grid_span = HALFSPACE
-        
-       CALL pw_find_cutoff ( npts_s, box, cutoff )
-        
-       CALL pw_grid_setup( box, ewald_grid, cutoff)
+
+       CALL pw_find_cutoff ( npts_s, box_ref, cutoff )
+
+       CALL pw_grid_setup( box_ref, ewald_grid, cutoff, fft_usage = .FALSE. )
 
        WRITE ( iw, '( A )' ) &
             ' DO YOU WANT TO DEBUG YOUR G-SPACE ENERGIES (1=yes)?'
@@ -200,8 +202,8 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
                ewald_grid % ngpts_cut
           WRITE ( iw, '( A, T71, F10.4 )' ) 'ALPHA= ', &
                ewald_param % alpha
-          CALL energy_recip_numer ( ewald_param, pnode, box,  &
-	          ewald_grid, energy_numer, ewald_grid % ngpts_cut )
+          CALL energy_recip_numer ( ewald_param, pnode, box_ref,  &
+                  ewald_grid, energy_numer, ewald_grid % ngpts_cut )
           WRITE ( iw, '( A, T61, G20.14 )' ) 'G-SPACE ANAL ENERGY = ', &
                dbg % pot_g
           WRITE ( iw, '( A, T61, G20.14 )' ) &
@@ -220,22 +222,22 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
           ELSE
              WRITE ( iw, '( A, T71, F10.6 )' ) ' DELTA = ', delta
           END IF
-          
-          CALL force_recip_numer ( ewald_param, pnode, box, ewald_grid, &
-	                           delta, f_numer )
-          
+
+          CALL force_recip_numer ( ewald_param, pnode, box_ref, ewald_grid, &
+                                   delta, f_numer )
+
 ! computing the absolute value of the differences in the forces
           diff = ABS ( dbg % f_g - f_numer )
           rel = diff / dbg % f_g
-          
+
 ! find the maximum difference and the relative and absolute errors.
           WRITE ( iw, '( A,T61,G20.14 )' ) &
                'MAXIMUM ABSOLUTE ERROR = ', maxval(diff)
           WRITE ( iw, '( A,T61,G20.14 )' ) &
                'MAXIMUM RELATIVE ERROR = ', maxval(rel)
-!          
-! write out the particle number and forces of the max absolute  
-! and relative error         
+!
+! write out the particle number and forces of the max absolute
+! and relative error
           dum = MAXLOC ( diff )
           WRITE ( iw, '( A,T71,I10 )' ) &
                ' PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum(2)
@@ -243,7 +245,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
                dbg % f_g(:,dum(2))
           WRITE ( iw, '( A,T21,3G20.14 )' ) ' F_NUMR G-SPACE =', &
                f_numer(:,dum(2))
-          
+
           dum = MAXLOC ( rel )
           WRITE ( iw, '( A,T71,I10 )' ) &
                'PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
@@ -252,12 +254,12 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
           WRITE ( iw, '( A,T21,3G20.14 )' ) ' F_NUMR G-SPACE =', &
                f_numer(:,dum(2))
        END IF
-       
+
        WRITE ( iw, '( A )' ) &
             ' DO YOU WANT TO DEBUG YOUR G-SPACE VIRIAL (1=yes)?'
        READ ( ir, * ) iflag
        IF ( iflag == 1 ) THEN
-!          
+!
 ! get numerical virial
           WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
           READ ( ir, * ) delta
@@ -268,9 +270,9 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
           ELSE
              WRITE ( iw, '( A,T71,F10.6 )' ) ' DELTA = ', delta
           END IF
-          CALL pvg_numer ( ewald_param, pnode, box, &
-	                   ewald_grid, pv_test, delta )
-          
+          CALL pvg_numer ( ewald_param, pnode, box_ref, &
+                           ewald_grid, pv_test, delta )
+
 ! writing out the virials
           WRITE ( iw, '( A )' ) ' PV G-SPACE NUMERICAL'
           DO i = 1, 3
@@ -283,13 +285,13 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
        END IF
     END IF
  END IF
- 
+
 ! Debug real-space virial
   WRITE ( iw, '( A )' ) &
        ' DO YOU WANT TO DEBUG YOUR NON BOND (REAL SPACE) VIRIAL (1=yes)?'
   READ ( ir, * ) iflag
   IF ( iflag == 1 ) THEN
-!    
+!
 ! get numerical virial
      WRITE ( iw, '( A )' ) 'ENTER A DELTA LESS THAN 1'
      READ ( ir, * ) delta
@@ -301,7 +303,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
         WRITE ( iw, '( A, T71, F10.6 )' ) ' DELTA = ', delta
      END IF
      CALL ptens_numer ( ewald_param, pnode, box, potparm, pv_test, delta )
-!    
+!
 ! writing out the virials
      WRITE ( iw, '( A )' ) ' PV NUMERICAL'
      DO i = 1, 3
@@ -312,7 +314,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
         WRITE ( iw, '( T21,3G20.14 )' ) dbg % pv_nonbond(i,:)
      END DO
   END IF
-  
+
   WRITE ( iw, '( )' )
   WRITE ( iw, '( 16x, A )' ) &
        '***************************************************'

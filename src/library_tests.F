@@ -15,33 +15,44 @@
 !!
 !!   MODIFICATION HISTORY
 !!     30-Nov-2000 (JGH) added input 
+!!     02-Jan-2001 (JGH) Parallel FFT
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE library_tests
   
-  USE kinds, ONLY : dbl
-  USE fft_tools, ONLY : init_fft, get_fft_library, fft3d, &
-                 fft_radix_operations, FWFFT, BWFFT, FFT_RADIX_CLOSEST
+  USE coefficient_types, ONLY : coeff_type, coeff_allocate, coeff_deallocate, &
+      coeff_zero, coeff_transform_space
+  USE fft_tools, ONLY : init_fft, get_fft_library, fft1dm, fft2dm, fft3d, &
+                 fft_radix_operations, FWFFT, BWFFT, FFT_RADIX_CLOSEST, &
+                 FFT_RADIX_NEXT, FFT_RADIX_NEXT_ODD
   USE global_types, ONLY : global_environment_type
+  USE kinds, ONLY : dbl
   USE machine, ONLY : m_cputime
-  USE stop_program, ONLY : stop_memory
+  USE message_passing, ONLY : mp_sum, mp_max
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
        cfield, p_error, get_real, get_int, stop_parser
+  USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE, FULLSPACE
+  USE pw_grids, ONLY : pw_grid_setup, pw_grid_construct, pw_grid_destruct, &
+       pw_find_cutoff
+  USE pw_types, ONLY : COMPLEXDATA3D, COMPLEXDATA1D, &
+       REALDATA3D, REALDATA1D, REALSPACE, RECIPROCALSPACE
+  USE simulation_cell, ONLY : cell_type, get_hinv, get_cell_param
+  USE termination, ONLY : stop_memory
   USE string_utilities, ONLY : uppercase
-  
+
   IMPLICIT NONE
-  
+
   PRIVATE
   PUBLIC :: lib_test
 
-  INTEGER :: runtest ( 100 ) 
+  INTEGER :: runtest ( 100 )
   REAL ( dbl ) :: max_memory
 
 !!*****
 !******************************************************************************
-  
+
 CONTAINS
 
 !******************************************************************************
@@ -63,10 +74,10 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE lib_test ( globenv )
-  
+
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 
-  INTEGER :: iw 
+  INTEGER :: iw
 
   iw = globenv % scr
   IF ( globenv % ionode ) THEN
@@ -82,6 +93,8 @@ SUBROUTINE lib_test ( globenv )
   IF ( runtest ( 2 ) /= 0 ) CALL matmul_test ( globenv )
 !
   IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( globenv )
+!
+  IF ( runtest ( 4 ) /= 0 ) CALL pw_fft_test ( globenv )
 
 END SUBROUTINE lib_test
 
@@ -109,6 +122,7 @@ END SUBROUTINE lib_test
 !!I    COPY     n                                                             I
 !!I    MATMUL   n                                                             I
 !!I    FFT      n                                                             I
+!!I    PW_FFT   n                                                             I
 !!I                                                                           I
 !!I---------------------------------------------------------------------------I
 !!
@@ -152,6 +166,8 @@ SUBROUTINE test_input ( globenv )
            runtest ( 2 ) = get_int ()
         CASE ( 'FFT' )
            runtest ( 3 ) = get_int ()
+        CASE ( 'PW_FFT' )
+           runtest ( 4 ) = get_int ()
         END SELECT
         CALL read_line
      END DO
@@ -180,7 +196,7 @@ END SUBROUTINE test_input
 !!
 !!   NOTES
 !!     The results of these tests allow to determine the size of the cache
-!!     of the CPU. This can be used to optimize the performance of the 
+!!     of the CPU. This can be used to optimize the performance of the
 !!     FFTSG library.
 !!
 !!   SOURCE
@@ -205,7 +221,7 @@ SUBROUTINE copy_test ( globenv )
     IF ( ierr /= 0 ) EXIT
     ALLOCATE ( cb ( len ), STAT = ierr )
     IF ( ierr /= 0 ) EXIT
-    
+
     CALL random_number ( ca )
     ntim = NINT ( 1.e7_dbl / REAL ( len, dbl ) )
     ntim = MAX ( ntim, 1 )
@@ -274,7 +290,7 @@ SUBROUTINE matmul_test ( globenv )
     IF ( ierr /= 0 ) EXIT
     ALLOCATE ( mc ( len, len ), STAT = ierr )
     IF ( ierr /= 0 ) EXIT
-   
+
     CALL random_number ( ma )
     CALL random_number ( mb )
     ntim = NINT ( 1.e8_dbl / ( 2._dbl * REAL ( len, dbl )**3 ) )
@@ -449,10 +465,10 @@ SUBROUTINE fft_test ( globenv )
 
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 
-  COMPLEX ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: ca, cb, cc
+  COMPLEX ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: ca, cb, cc, cd
   REAL ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: ra
   COMPLEX ( dbl ), DIMENSION ( 4, 4, 4 ) :: zz
-  INTEGER :: len, ntim, iw, ierr, i, j, it, n(3), iall
+  INTEGER :: len, ntim, iw, ierr, i, j, it, n(3), iall, m
   REAL ( dbl ) :: perf, tstart, tend, t, flops, scale, tdiff
   INTEGER :: radix_in, radix_out, stat, siz
   INTEGER :: ndate ( 3 ) = (/ 12, 48, 96 /)
@@ -463,7 +479,7 @@ SUBROUTINE fft_test ( globenv )
   IF ( globenv % ionode ) WRITE ( iw, '(//,A,/)' ) " Test of 3D-FFT "
   siz = ABS ( runtest ( 3 ) )
 
-  DO iall = 1, 100 
+  DO iall = 1, 100
     SELECT CASE ( iall )
     CASE DEFAULT
       EXIT
@@ -496,7 +512,7 @@ SUBROUTINE fft_test ( globenv )
           CALL random_number ( ra )
           ca = ra
           CALL random_number ( ra )
-          ca = ca + CMPLX ( 0._dbl, 1._dbl ) * ra
+          ca = ca + CMPLX ( 0._dbl, 1._dbl, dbl ) * ra
           flops = REAL ( len**3, dbl ) * 15._dbl * LOG ( REAL ( len, dbl ) )
           ntim = NINT ( siz * 1.e7_dbl / flops )
           ntim = MAX ( ntim, 1 )
@@ -510,7 +526,7 @@ SUBROUTINE fft_test ( globenv )
           tend = m_cputime ( )
           t = tend - tstart
           perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
-    
+
           IF ( globenv % ionode ) THEN
             WRITE ( iw, '(T2,A,A,i6,T59,F14.4,A)' ) &
              adjustr(method)," test (in-place)    Size = ",len, perf," Mflop/s"
@@ -563,7 +579,7 @@ SUBROUTINE fft_test ( globenv )
                "         Input array is not changed in out-of-place FFT !"
       END IF
       IF ( globenv % ionode ) WRITE ( iw, * )
-  
+
       DEALLOCATE ( ra , STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ra" )
       DEALLOCATE ( ca , STAT = ierr )
@@ -573,10 +589,303 @@ SUBROUTINE fft_test ( globenv )
       DEALLOCATE ( cc , STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "cc" )
     END IF
-    IF ( globenv % ionode ) WRITE ( iw, * )
   END DO
 
 END SUBROUTINE fft_test
+
+!******************************************************************************
+!!****** library_tests/pw_fft_test [1.0] *
+!!
+!!   NAME
+!!     pw_fft_test
+!!
+!!   FUNCTION
+!!     Tests the performance of PW calls to FFT routines
+!!
+!!   AUTHOR
+!!     JGH  1-JAN-2001
+!!
+!!   MODIFICATION HISTORY
+!!     JGH  6-Feb-2001 : Test and performance code
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE pw_fft_test ( globenv )
+
+  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+
+  REAL ( dbl ), PARAMETER :: toler = 1.e-11_dbl
+  TYPE ( pw_grid_type ) :: grid
+  TYPE ( coeff_type ) :: ca, cb, cc
+  TYPE ( cell_type ) :: box
+  REAL ( dbl ), DIMENSION ( 3 ) :: cell_length
+  INTEGER, DIMENSION ( 3 ) :: np, no
+  REAL ( dbl ) :: gsq, tim, perf, r, tstart, tend, t, flops, em, et, cutoff
+  INTEGER :: ierr, nn, ig, ip, ntim, iw
+
+!..the unit cell
+  box % hmat = RESHAPE ( (/10._dbl,0._dbl,0._dbl,0._dbl,8._dbl,0._dbl,&
+                           0._dbl,0._dbl,7._dbl/), (/3,3/) )
+  CALL get_hinv ( box )
+
+!..set fft lib
+  CALL init_fft ( globenv % default_fft_library )
+
+  ntim = MIN ( globenv % num_pe, 25 )
+  tim = 1._dbl
+  perf = 100.e6_dbl
+  r = ( tim * perf / 150._dbl )  ** 0.33333_dbl
+  np ( 1 ) = NINT ( r * 1.5_dbl )
+  np ( 2 ) = NINT ( r )
+  np ( 3 ) = NINT ( r * 0.666_dbl )
+
+!..Test 1
+  call pw_grid_construct ( grid )
+  grid % grid_span = FULLSPACE
+  grid % para % rs_dims = 1
+  grid % bounds ( 1, : ) = -np / 2
+  grid % bounds ( 2, : ) = ( np - 1 ) / 2
+
+  CALL pw_grid_setup ( box, grid, pe_group = globenv % group, &
+                       info = globenv % scr )
+  no = grid % npts
+
+  CALL coeff_allocate ( ca, grid, COMPLEXDATA1D )
+  CALL coeff_allocate ( cb, grid, COMPLEXDATA3D )
+  CALL coeff_allocate ( cc, grid, COMPLEXDATA1D )
+  CALL coeff_zero ( ca )
+  CALL coeff_zero ( cb )
+  CALL coeff_zero ( cc )
+
+  ca % pw % in_space = RECIPROCALSPACE
+  nn = SIZE ( ca % pw % cc ( : ) )
+  DO ig = 1, nn
+    gsq = grid % gsq ( ig )
+    ca  % pw % cc ( ig ) = exp ( - gsq )
+  END DO
+
+  flops = PRODUCT ( no ) * 30._dbl * LOG ( REAL ( MAXVAL ( no ), dbl ) )
+  tstart = m_cputime ( )
+  DO ip = 1, ntim
+    CALL coeff_transform_space ( ca, cb )
+    CALL coeff_transform_space ( cb, cc )
+  END DO
+  tend = m_cputime ( )
+  t = tend - tstart
+  perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
+
+  em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
+  et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
+  CALL mp_sum ( et, globenv % group )
+  CALL mp_max ( em, globenv % group )
+
+  IF ( em > toler .OR. et > toler ) THEN
+    CALL coeff_transform_space ( ca, cb, .TRUE. )
+    CALL coeff_transform_space ( cb, cc, .TRUE. )
+  ENDIF
+
+  CALL coeff_deallocate ( ca )
+  CALL coeff_deallocate ( cb )
+  CALL coeff_deallocate ( cc )
+ 
+  CALL pw_grid_destruct ( grid )
+
+  IF ( globenv % ionode ) THEN
+    iw = globenv % scr
+    WRITE ( iw, * )
+    WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
+    WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
+    WRITE ( iw, '(A,T67,F14.0)' ) &
+      " Parallel FFT Tests: Performance [Mflops] ", perf
+    WRITE ( iw, * )
+  END IF
+
+!..Test 2
+  call pw_grid_construct ( grid )
+  grid % grid_span = HALFSPACE
+  grid % bounds ( 1, : ) = -np / 2
+  grid % bounds ( 2, : ) = ( np - 1 ) / 2
+
+  CALL pw_grid_setup ( box, grid, pe_group = globenv % group, &
+                       info = globenv % scr )
+  no = grid % npts
+
+  CALL coeff_allocate ( ca, grid, COMPLEXDATA1D )
+  CALL coeff_allocate ( cb, grid, REALDATA3D )
+  CALL coeff_allocate ( cc, grid, COMPLEXDATA1D )
+  CALL coeff_zero ( ca )
+  CALL coeff_zero ( cb )
+  CALL coeff_zero ( cc )
+
+  ca % pw % in_space = RECIPROCALSPACE
+  nn = SIZE ( ca % pw % cc ( : ) )
+  DO ig = 1, nn
+    gsq = grid % gsq ( ig )
+    ca  % pw % cc ( ig ) = exp ( - gsq )
+  END DO
+
+  flops = PRODUCT ( no ) * 30._dbl * LOG ( REAL ( MAXVAL ( no ), dbl ) )
+  tstart = m_cputime ( )
+  DO ip = 1, ntim
+    CALL coeff_transform_space ( ca, cb )
+    CALL coeff_transform_space ( cb, cc )
+  END DO
+  tend = m_cputime ( )
+  t = tend - tstart
+  perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
+
+  em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
+  et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
+  CALL mp_sum ( et, globenv % group )
+  CALL mp_max ( em, globenv % group )
+
+  IF ( em > toler .OR. et > toler ) THEN
+    CALL coeff_transform_space ( ca, cb, .TRUE. )
+    CALL coeff_transform_space ( cb, cc, .TRUE. )
+  ENDIF
+
+  CALL coeff_deallocate ( ca )
+  CALL coeff_deallocate ( cb )
+  CALL coeff_deallocate ( cc )
+ 
+  CALL pw_grid_destruct ( grid )
+
+  IF ( globenv % ionode ) THEN
+    iw = globenv % scr
+    WRITE ( iw, * )
+    WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
+    WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
+    WRITE ( iw, '(A,T67,F14.0)' ) &
+      " Parallel FFT Tests: Performance [Mflops] ", perf
+    WRITE ( iw, * )
+  END IF
+
+!..Test 3
+  call pw_grid_construct ( grid )
+  grid % grid_span = FULLSPACE
+!this should be HALFSPACE but does not work at the moment?
+! grid % grid_span = HALFSPACE
+
+  CALL pw_find_cutoff ( np, box, cutoff )
+  cutoff = cutoff * cutoff
+
+  CALL pw_grid_setup ( box, grid, cutoff = cutoff, pe_group = globenv % group, &
+                       info = globenv % scr )
+  no = grid % npts
+
+  CALL coeff_allocate ( ca, grid, COMPLEXDATA1D )
+  CALL coeff_allocate ( cb, grid, REALDATA3D )
+  CALL coeff_allocate ( cc, grid, COMPLEXDATA1D )
+  CALL coeff_zero ( ca )
+  CALL coeff_zero ( cb )
+  CALL coeff_zero ( cc )
+
+  ca % pw % in_space = RECIPROCALSPACE
+  nn = SIZE ( ca % pw % cc ( : ) )
+  DO ig = 1, nn
+    gsq = grid % gsq ( ig )
+    ca  % pw % cc ( ig ) = exp ( - gsq )
+  END DO
+
+  flops = PRODUCT ( no ) * 30._dbl * LOG ( REAL ( MAXVAL ( no ), dbl ) )
+  tstart = m_cputime ( )
+  DO ip = 1, ntim
+    CALL coeff_transform_space ( ca, cb )
+    CALL coeff_transform_space ( cb, cc )
+  END DO
+  tend = m_cputime ( )
+  t = tend - tstart
+  perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
+
+  em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
+  et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
+  CALL mp_sum ( et, globenv % group )
+  CALL mp_max ( em, globenv % group )
+
+  IF ( em > toler .OR. et > toler ) THEN
+    CALL coeff_transform_space ( ca, cb, .TRUE. )
+    CALL coeff_transform_space ( cb, cc, .TRUE. )
+  ENDIF
+
+  CALL coeff_deallocate ( ca )
+  CALL coeff_deallocate ( cb )
+  CALL coeff_deallocate ( cc )
+ 
+  CALL pw_grid_destruct ( grid )
+
+  IF ( globenv % ionode ) THEN
+    iw = globenv % scr
+    WRITE ( iw, * )
+    WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
+    WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
+    WRITE ( iw, '(A,T67,F14.0)' ) &
+      " Parallel FFT Tests: Performance [Mflops] ", perf
+    WRITE ( iw, * )
+  END IF
+
+!..Test 4
+  call pw_grid_construct ( grid )
+  grid % grid_span = FULLSPACE
+  grid % para % rs_dims = 1
+  CALL pw_find_cutoff ( np, box, cutoff )
+  cutoff = cutoff * cutoff
+
+  CALL pw_grid_setup ( box, grid, cutoff = cutoff, pe_group = globenv % group, &
+                       info = globenv % scr )
+  no = grid % npts
+
+  CALL coeff_allocate ( ca, grid, COMPLEXDATA1D )
+  CALL coeff_allocate ( cb, grid, COMPLEXDATA3D )
+  CALL coeff_allocate ( cc, grid, COMPLEXDATA1D )
+  CALL coeff_zero ( ca )
+  CALL coeff_zero ( cb )
+  CALL coeff_zero ( cc )
+
+  ca % pw % in_space = RECIPROCALSPACE
+  nn = SIZE ( ca % pw % cc ( : ) )
+  DO ig = 1, nn
+    gsq = grid % gsq ( ig )
+    ca  % pw % cc ( ig ) = exp ( - gsq )
+  END DO
+
+  flops = PRODUCT ( no ) * 30._dbl * LOG ( REAL ( MAXVAL ( no ), dbl ) )
+  tstart = m_cputime ( )
+  DO ip = 1, ntim
+    CALL coeff_transform_space ( ca, cb )
+    CALL coeff_transform_space ( cb, cc )
+  END DO
+  tend = m_cputime ( )
+  t = tend - tstart
+  perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
+
+  em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
+  et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
+  CALL mp_sum ( et, globenv % group )
+  CALL mp_max ( em, globenv % group )
+
+  IF ( em > toler .OR. et > toler ) THEN
+    CALL coeff_transform_space ( ca, cb, .TRUE. )
+    CALL coeff_transform_space ( cb, cc, .TRUE. )
+  ENDIF
+
+  CALL coeff_deallocate ( ca )
+  CALL coeff_deallocate ( cb )
+  CALL coeff_deallocate ( cc )
+ 
+  CALL pw_grid_destruct ( grid )
+
+  IF ( globenv % ionode ) THEN
+    iw = globenv % scr
+    WRITE ( iw, * )
+    WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
+    WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
+    WRITE ( iw, '(A,T67,F14.0)' ) &
+      " Parallel FFT Tests: Performance [Mflops] ", perf
+    WRITE ( iw, * )
+  END IF
+
+END SUBROUTINE pw_fft_test
 
 !!*****
 !******************************************************************************

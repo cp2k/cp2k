@@ -2,13 +2,13 @@
 ! Copyright by Stefan Goedecker, Lausanne, Switzerland, August 1, 1991
 ! modified by Stefan Goedecker, Cornell, Ithaca, USA, March 25, 1994
 ! modified by Stefan Goedecker, Stuttgart, Germany, October 6, 1995
-! Commercial use is prohibited 
+! Commercial use is prohibited
 ! without the explicit permission of the author.
 !-----------------------------------------------------------------------------!
 
 SUBROUTINE ctrig ( n, trig, after, before, now, isign, ic )
 
-  IMPLICIT NONE 
+  IMPLICIT NONE
 
   INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
 

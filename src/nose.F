@@ -13,36 +13,37 @@
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     CJM 20-Feb-2001: Now npt_ifo is allocated to zero when
+!!     not used
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE nose
-  
+
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE molecule_types, ONLY : particle_node_type
   USE message_passing, ONLY : mp_bcast, mp_sum
-  USE stop_program, ONLY : stop_prg
+  USE termination, ONLY : stop_program
   USE timings, ONLY : timeset, timestop
   USE util, ONLY : gasdev
-  
+
   IMPLICIT NONE
-  
+
   PRIVATE
   PUBLIC :: lnhc, initial_npt, initial_nhc
   PUBLIC :: lnhc_parameters_type, nhc_info_type, npt_info_type
   PUBLIC :: yoshida_coef
   PUBLIC :: particle_kinetic_type, particle_scale_type
-  
+
   TYPE npt_info_type
      REAL ( dbl ) :: eps
      REAL ( dbl ) :: v
      REAL ( dbl ) :: f
      REAL ( dbl ) :: mass
   END TYPE npt_info_type
-  
+
   TYPE nhc_info_type
      REAL ( dbl ) :: eta
      REAL ( dbl ) :: v
@@ -50,15 +51,15 @@ MODULE nose
      REAL ( dbl ) :: nkt
      REAL ( dbl ) :: mass
   END TYPE nhc_info_type
-  
+
   TYPE particle_kinetic_type
      REAL ( dbl ), POINTER :: point
   END TYPE particle_kinetic_type
-  
+
   TYPE particle_scale_type
      REAL ( dbl ), POINTER :: point
   END TYPE particle_scale_type
-  
+
   TYPE lnhc_parameters_type
      CHARACTER ( LEN = 10 ) :: dis_type
      INTEGER :: nyosh, nc, nhc_len, num_nhc
@@ -70,10 +71,10 @@ MODULE nose
      REAL ( dbl ), POINTER :: s_kin ( : )
   END TYPE lnhc_parameters_type
 
-  INTERFACE lnhc     
+  INTERFACE lnhc
      MODULE PROCEDURE lnhc_particles, lnhc_barostat
   END INTERFACE
-  
+
 !!*****
 !******************************************************************************
 
@@ -98,26 +99,26 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE lnhc_barostat ( nhc, npt, group )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( lnhc_parameters_type ), INTENT ( INOUT ) :: nhc
   TYPE ( npt_info_type ), DIMENSION ( :, : ), INTENT ( INOUT ) :: npt
   INTEGER, INTENT ( IN ) :: group
-  
+
 ! Locals
   INTEGER :: i, j, nnodes, inc, iyosh, n, inhc, handle, nx1, nx2, ncoef
   REAL ( dbl ) :: scale, flops
-  
+
 !------------------------------------------------------------------------------
-  
+
   CALL timeset('LNHC','I','Mflops',handle)
   flops = 0.0_dbl
-  
+
   nx1 = SIZE ( nhc % nvt, 1 )
   nx2 = SIZE ( nhc % nvt, 2 )
-  
+
 ! get force on first thermostat for all the chains in the system.
   nhc % v_scale = 1.0_dbl
   nhc % s_kin = 0.0_dbl
@@ -148,12 +149,12 @@ SUBROUTINE lnhc_barostat ( nhc, npt, group )
 ! perform multiple time stepping using Yoshida
   NCLOOP: DO inc = 1, nhc % nc
      YOSH: DO iyosh = 1, nhc % nyosh
-        
+
 ! update velocity on the last thermostat in the chain    ! O1
         nhc % nvt(nhc % nhc_len,:) % v = nhc % nvt(nhc % nhc_len,:) % v + &
              nhc % nvt(nhc % nhc_len,:) % f*0.25_dbl*nhc % dt_yosh(iyosh)
         flops = flops + REAL ( 3 * nx2, dbl )
-        
+
 ! update velocity of other thermostats on chain (from nhc_len-1 to 1)  ! O2
         DO n = 1, nhc % num_nhc
            DO inhc = nhc % nhc_len - 1, 1, -1
@@ -181,7 +182,7 @@ SUBROUTINE lnhc_barostat ( nhc, npt, group )
         flops = flops + REAL(nhc % num_nhc*4)
 ! the core of the operator ------ END ------
 
-! update the force on first thermostat again (since particle velocities 
+! update the force on first thermostat again (since particle velocities
 ! have changed)
         DO n = 1, nhc % num_nhc
            nhc % nvt(1,n) % f = (nhc % s_kin(n)*nhc % v_scale(n)*nhc % v_scale(n &
@@ -220,13 +221,13 @@ SUBROUTINE lnhc_barostat ( nhc, npt, group )
     DO j = 1,  SIZE ( npt, 2 )
       ncoef = ncoef + 1
       npt ( i, j ) % v = npt ( i, j ) % v * nhc % p_scale( 1, ncoef ) % point
-    END DO 
+    END DO
   END DO
   flops = flops + REAL ( ncoef, dbl )
-  
+
   flops = flops * 1.E-6_dbl
   CALL timestop(flops,handle)
-  
+
 END SUBROUTINE lnhc_barostat
 
 !******************************************************************************
@@ -248,26 +249,26 @@ END SUBROUTINE lnhc_barostat
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE lnhc_particles ( nhc, pnode, group )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( lnhc_parameters_type ), INTENT ( INOUT ) :: nhc
   TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ) :: pnode
   INTEGER, INTENT ( IN ) :: group
-  
+
 ! Locals
   INTEGER :: i, nnodes, inc, iyosh, n, inhc, handle, nx1, nx2
   REAL ( dbl ) :: scale, flops
-  
+
 !------------------------------------------------------------------------------
-  
+
   CALL timeset('LNHC','I','Mflops',handle)
   flops = 0.0_dbl
-  
+
   nx1 = SIZE ( nhc % nvt, 1 )
   nx2 = SIZE ( nhc % nvt, 2 )
-  
+
 ! get force on first thermostat for all the chains in the system.
   nhc % v_scale = 1.0_dbl
   nhc % s_kin = 0.0_dbl
@@ -299,12 +300,12 @@ SUBROUTINE lnhc_particles ( nhc, pnode, group )
 ! perform multiple time stepping using Yoshida
   NCLOOP: DO inc = 1, nhc % nc
      YOSH: DO iyosh = 1, nhc % nyosh
-        
+
 ! update velocity on the last thermostat in the chain    ! O1
         nhc % nvt(nhc % nhc_len,:) % v = nhc % nvt(nhc % nhc_len,:) % v + &
              nhc % nvt(nhc % nhc_len,:) % f*0.25_dbl*nhc % dt_yosh(iyosh)
         flops = flops + REAL ( 3 * nx2, dbl )
-        
+
 ! update velocity of other thermostats on chain (from nhc_len-1 to 1)  ! O2
         DO n = 1, nhc % num_nhc
            DO inhc = nhc % nhc_len - 1, 1, -1
@@ -332,7 +333,7 @@ SUBROUTINE lnhc_particles ( nhc, pnode, group )
         flops = flops + REAL(nhc % num_nhc*4)
 ! the core of the operator ------ END ------
 
-! update the force on first thermostat again (since particle velocities 
+! update the force on first thermostat again (since particle velocities
 ! have changed)
         DO n = 1, nhc % num_nhc
            nhc % nvt(1,n) % f = (nhc % s_kin(n)*nhc % v_scale(n)*nhc % v_scale(n &
@@ -372,10 +373,10 @@ SUBROUTINE lnhc_particles ( nhc, pnode, group )
      pnode(i) % p % v(3) = pnode(i) % p % v(3)*nhc % p_scale(3,i) % point
   END DO
   flops = flops + REAL ( nnodes*3, dbl )
-  
+
   flops = flops * 1.E-6_dbl
   CALL timestop(flops,handle)
-  
+
 END SUBROUTINE lnhc_particles
 
 !******************************************************************************
@@ -422,9 +423,9 @@ SUBROUTINE initial_nhc(nhc,tau_nhc,temp_ext, globenv )
   akin = 0.0_dbl
   DO i = 1, nhc % num_nhc
      DO j = 1, nhc % nhc_len
-        akin = akin + 0.5_dbl * ( nhc % nvt ( j , i ) % mass * & 
-	                          nhc % nvt ( j , i ) % v * &
-				  nhc % nvt ( j , i ) % v )
+        akin = akin + 0.5_dbl * ( nhc % nvt ( j , i ) % mass * &
+                                  nhc % nvt ( j , i ) % v * &
+                                  nhc % nvt ( j , i ) % v )
      END DO
   END DO
   number = nhc % num_nhc
@@ -451,7 +452,7 @@ SUBROUTINE initial_nhc(nhc,tau_nhc,temp_ext, globenv )
         nhc % nvt(j,i) % f = nhc % nvt(j,i) % f/nhc % nvt(j,i) % mass
      END DO
   END DO
-  
+
 END SUBROUTINE initial_nhc
 
 !!*****
@@ -477,39 +478,32 @@ END SUBROUTINE initial_nhc
 
 SUBROUTINE initial_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
      globenv )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
-  TYPE ( npt_info_type ), DIMENSION ( :, : ), POINTER :: npt
+  TYPE ( npt_info_type ), DIMENSION ( :, : ), INTENT ( OUT ) :: npt
   REAL ( dbl ), INTENT ( IN ) :: tau_cell, temp_ext, deth
   CHARACTER ( LEN = 20 ), INTENT ( IN ) :: ensemble
   INTEGER, INTENT ( IN ) :: nfree
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-  
+
 ! Locals
   INTEGER :: i, j, number, isos
   REAL ( dbl ) :: akin, temp, v
-  
+
 !------------------------------------------------------------------------------
-  
 ! first initializing the mass of the nhc variables
   SELECT CASE ( ensemble )
   CASE ( 'NPT_I')
-     ALLOCATE ( npt ( 1, 1 ), STAT = isos )
-     IF ( isos /= 0 ) CALL stop_prg ( 'initial_npt', &
-          'failed to allocate npt')
      npt ( :, : ) % mass = REAL ( nfree + 3, dbl ) &
           * temp_ext * tau_cell ** 2
-     
+
   CASE ( 'NPT_F')
-     ALLOCATE ( npt ( 3, 3 ), STAT = isos )
-     IF ( isos /= 0 ) CALL stop_prg ( 'initial_npt', &
-          'failed to allocate npt')
      npt ( :, : ) % mass = REAL ( nfree + 3, dbl ) &
           * temp_ext * tau_cell ** 2 / 3.0_dbl
   END SELECT
-  
+
 ! initializing velocities
   DO i = 1, size ( npt,1)
      DO j = i, size ( npt,2)
@@ -523,7 +517,7 @@ SUBROUTINE initial_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
         npt(i,j) % v = v
      END DO
   END DO
-  
+
   akin = 0.0_dbl
   DO i = 1, SIZE( npt,1 )
      DO j = 1, SIZE( npt,2 )
@@ -531,25 +525,28 @@ SUBROUTINE initial_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
              (j,i) % v)
      END DO
   END DO
+
   number = SIZE ( npt, 1 ) * SIZE ( npt, 2 )
-  
+
 ! scale velocities to get the correct initial temperature
-  temp = 2.0_dbl * akin / REAL ( number, dbl )
-  temp = sqrt(temp_ext/temp)
+  IF ( number /= 0 ) THEN
+    temp = 2.0_dbl * akin / REAL ( number, dbl )
+    temp = sqrt(temp_ext/temp)
+  ENDIF
   DO i = 1, size(npt,1)
      DO j = i, size(npt,2)
         npt(j,i) % v = temp * npt(j,i) % v
         npt(i,j) % v = npt(j,i) % v
 ! dbg ISOTROPIC LIMIT
 !         npt(j,i) % v = 0._dbl
-!	write (*, *) 'INTIAL v_eps', npt(j,i) % v
+!       write (*, *) 'INTIAL v_eps', npt(j,i) % v
 ! dbg ISOTROPIC LIMIT
      END DO
   END DO
-  
+
 ! initialize the position
   IF ( ensemble == 'NPT_I' ) npt ( :, : ) % eps = LOG ( deth ) / 3.0_dbl
-  
+
 END SUBROUTINE initial_npt
 
 !!*****
@@ -575,21 +572,21 @@ END SUBROUTINE initial_npt
 !******************************************************************************
 
 SUBROUTINE yoshida_coef ( nhc, dt )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( lnhc_parameters_type ), INTENT ( INOUT ) :: nhc
   REAL ( dbl ), INTENT ( IN ) :: dt
-  
+
 ! Locals
   REAL ( dbl ), DIMENSION (nhc % nyosh) :: yosh_wt
-  
+
 !------------------------------------------------------------------------------
-  
+
   SELECT CASE (nhc % nyosh)
   CASE DEFAULT
-     CALL stop_prg ( 'yoshida_coef', 'Value not available' )
+     CALL stop_program ( 'yoshida_coef', 'Value not available' )
   CASE (1)
      yosh_wt(1) = 1.0_dbl
   CASE (3)
@@ -640,7 +637,7 @@ SUBROUTINE yoshida_coef ( nhc, dt )
      yosh_wt(15) = yosh_wt(1)
   END SELECT
   nhc % dt_yosh = dt * yosh_wt / REAL ( nhc % nc, dbl )
-  
+
 END SUBROUTINE yoshida_coef
 
 !!*****

@@ -19,7 +19,7 @@
 !******************************************************************************
 
 MODULE atom_module
-  
+
   USE global_types, ONLY : global_environment_type
   USE header, ONLY : atom_header
   USE kinds, ONLY : dbl
@@ -31,15 +31,15 @@ MODULE atom_module
   USE radial_poisson, ONLY : rg_poisson
   USE radial_util, ONLY : radial_integrate, radial_diff
 !deb
-  
+
   IMPLICIT NONE
-  
+
   PRIVATE
   PUBLIC :: atomic_code
 
 !!*****
 !-----------------------------------------------------------------------------!
-  
+
 CONTAINS
 
 !-----------------------------------------------------------------------------!
@@ -60,16 +60,16 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE atomic_code ( globenv )
-  
+
     IMPLICIT NONE
 
 !Arguments
     TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-  
+
 !Locals
     REAL ( dbl ) :: xx
     INTEGER :: handle
-  
+
 !deb
   REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: f,df,fp,p
   REAL ( dbl ) :: h, x, res, erf, z, b(3), rmax
@@ -79,7 +79,7 @@ CONTAINS
 !------------------------------------------------------------------------------
 
     CALL timeset ( 'ATOMIC_CODE', 'I', ' ', handle )
-  
+
     IF ( globenv % ionode ) CALL atom_header ( globenv % scr )
 
 !debdebdebdebdeb
@@ -140,12 +140,12 @@ CONTAINS
     do i = 0, n+1
       write(99,*) fp(i),p(i)
     enddo
- 
-    deallocate ( f,df,fp,p ) 
+
+    deallocate ( f,df,fp,p )
 !debdebdebdebdeb
-  
+
     CALL timestop ( zero, handle )
-  
+
   END SUBROUTINE atomic_code
 
 !!*****

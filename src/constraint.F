@@ -18,58 +18,58 @@
 !******************************************************************************
 
 MODULE constraint
-  
+
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE md, ONLY : simulation_parameters_type, thermodynamic_type
   USE molecule_types, ONLY : molecule_structure_type, &
        linklist_dist_constraints, linklist_g3x3_constraints
   USE message_passing, ONLY : mp_sum
-  USE stop_program, ONLY : stop_prg
+  USE termination, ONLY : stop_program
   USE timings, ONLY : timeset, timestop
   USE util, ONLY : getinv3x3, dotprod_3d, matvec_3x3, matmul_3x3, transpose_3d
-  
+
   IMPLICIT NONE
-  
+
   PRIVATE
   PUBLIC :: shake_control, rattle_control, pv_constraint, getold
   PUBLIC :: shake_roll_control, rattle_roll_control
 
 !!*****
 !******************************************************************************
-  
+
 CONTAINS
 
 !******************************************************************************
 
 SUBROUTINE shake_control(molecule,simpar)
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
        molecule
   TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
-  
+
 ! Locals
   REAL ( dbl ) :: max_sigma
   INTEGER :: imol, iconst, ishake, nmol, handle
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! initialize locals
   CALL timeset ( 'SHAKE_CONTROL', 'I', ' ', handle )
-  
+
   nmol = SIZE ( molecule )
   MOL: DO imol = 1, nmol
-     
+
 ! 3x3
      IF (molecule(imol)%ng3x3const_mol /= 0 ) THEN
         CALL shake_3x3(molecule(imol),simpar,ishake)
      END IF
-     
+
      ishake = 0
-     
+
 ! dist
      IF (molecule(imol)%ndistconst_mol /= 0 ) THEN
         max_sigma = -1.0E+10_dbl
@@ -80,39 +80,39 @@ SUBROUTINE shake_control(molecule,simpar)
         END DO CONS
      END IF
   END DO MOL
-  
+
   CALL timestop ( 0.0_dbl, handle )
-  
+
 END SUBROUTINE shake_control
 
 !******************************************************************************
 
 SUBROUTINE rattle_control ( molecule, simpar )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
        molecule
   TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
-  
+
 ! Locals
   REAL ( dbl ) :: max_sigma
   INTEGER :: imol, iconst, nmol, irattle, handle
-  
+
 !------------------------------------------------------------------------------
-  
+
   CALL timeset ( 'RATTLE_CONTROL', 'I', ' ', handle )
 ! initialize locals
   nmol = SIZE ( molecule )
-  
+
   MOL: DO imol = 1, nmol
 ! 3x3
      IF ( molecule ( imol ) % ng3x3const_mol /= 0 ) THEN
         CALL rattle_3x3 ( molecule ( imol ), simpar )
      END IF
      irattle = 0
-     
+
 ! dist
      IF ( molecule ( imol ) % ndistconst_mol /= 0 ) THEN
         max_sigma = -1.0E+10_dbl
@@ -123,18 +123,18 @@ SUBROUTINE rattle_control ( molecule, simpar )
         END DO CONS
      END IF
   END DO MOL
-  
+
   CALL timestop ( 0.0_dbl, handle )
-  
+
 END SUBROUTINE rattle_control
 
 !******************************************************************************
 
 SUBROUTINE shake_roll_control ( molecule, simpar, thermo, roll_tol, iroll, &
      vector_r, vector_v, group, u )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( molecule_structure_type ), INTENT ( INOUT ), DIMENSION ( : ) :: &
        molecule
@@ -145,33 +145,33 @@ SUBROUTINE shake_roll_control ( molecule, simpar, thermo, roll_tol, iroll, &
   INTEGER, INTENT ( INOUT ) :: iroll
   INTEGER, INTENT ( IN ) :: group
   REAL ( dbl ), INTENT ( IN ), OPTIONAL, DIMENSION ( :, : ) :: u
-  
+
 ! Locals
   REAL ( dbl ) :: max_sigma
   INTEGER :: imol, iconst, ishake, nmol, handle
   REAL ( dbl ), DIMENSION ( 3, 3 ) :: r_shake, v_shake
-  
+
 !------------------------------------------------------------------------------
-  
+
   CALL timeset ( 'SHAKE_ROLL', 'I', ' ', handle )
-  
+
 ! setting up for roll
   IF ( simpar % ensemble == 'NPT_I' ) THEN
      CALL get_roll_matrix ('SHAKE', r_shake, v_shake, vector_r, vector_v )
   ELSE IF ( simpar % ensemble == 'NPT_F' ) THEN
      CALL get_roll_matrix ('SHAKE', r_shake, v_shake, vector_r, vector_v, u )
   END IF
-  
+
 ! initialize locals
   nmol = SIZE ( molecule )
   MOL: DO imol = 1, nmol
-     
+
 ! 3x3
      IF (molecule(imol)%ng3x3const_mol /= 0 ) THEN
         CALL shake_roll_3x3(molecule(imol),simpar,r_shake,v_shake,ishake)
      END IF
      ishake = 0
-     
+
 ! dist
      IF (molecule(imol)%ndistconst_mol /= 0 ) THEN
         max_sigma = -1.0E+10_dbl
@@ -182,21 +182,21 @@ SUBROUTINE shake_roll_control ( molecule, simpar, thermo, roll_tol, iroll, &
         END DO CONS
      END IF
   END DO MOL
-  
+
   IF ( simpar % ensemble == 'NPT_I' ) &
        CALL check_tol ( roll_tol, iroll, 'SHAKE', r_shake )
-  
+
   CALL timestop ( 0.0_dbl, handle )
-  
+
 END SUBROUTINE shake_roll_control
 
 !******************************************************************************
 
 SUBROUTINE rattle_roll_control ( molecule, simpar, thermo, veps, mass, &
      roll_tol, iroll, vector, group, u )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( molecule_structure_type ), INTENT ( INOUT ), DIMENSION ( : ) :: &
        molecule
@@ -209,52 +209,52 @@ SUBROUTINE rattle_roll_control ( molecule, simpar, thermo, veps, mass, &
   REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ), OPTIONAL :: u
   INTEGER, INTENT ( INOUT ) :: iroll
   INTEGER, INTENT ( IN ) :: group
-  
+
 ! Locals
   REAL ( dbl ) :: max_sigma, feps
   INTEGER :: imol, iconst, irattle, nmol, handle
   REAL ( dbl ), DIMENSION ( 3, 3 ) :: r_rattle
-  
+
 !------------------------------------------------------------------------------
-  
+
   CALL timeset( 'RATTLE_ROLL','I',' ',handle)
- 
+
 ! setting up for roll
   IF ( simpar % ensemble == 'NPT_I' ) THEN
      CALL get_roll_matrix ('RATTLE', v_shake=r_rattle, vector_v=vector )
   ELSE IF ( simpar % ensemble == 'NPT_F' ) THEN
      CALL get_roll_matrix ('RATTLE', v_shake=r_rattle, vector_v=vector, u=u )
   END IF
-  
+
 ! initialize locals
   irattle = 0
   nmol = SIZE ( molecule )
   max_sigma = -1.0E+10_dbl
 
-  
+
 ! Initialize scale and r_rattle
   CONS: DO WHILE (abs(max_sigma)>=simpar%shake_tol)
      irattle = irattle + 1
      max_sigma = 0._dbl
      MOL: DO imol = 1, nmol
         IF ( molecule ( imol ) % ndistconst_mol /= 0 ) THEN
-           
+
 ! dist
            CALL rattle_roll ( molecule ( imol ), simpar, r_rattle, veps, &
-	                     max_sigma, irattle )
+                             max_sigma, irattle )
         ELSE IF ( molecule ( imol ) % ng3x3const_mol /= 0 ) THEN
-           
+
 ! 3x3
            CALL rattle_roll_3x3 ( molecule ( imol ), simpar, r_rattle, veps, &
-	                          max_sigma, irattle )
+                                  max_sigma, irattle )
         END IF
      END DO MOL
-     
+
 ! update veps
      IF ( irattle /= 1 ) CALL update_veps ( molecule, &
           veps, mass, thermo, simpar % ensemble, simpar % dt, group )
   END DO CONS
-  
+
   CALL check_tol ( roll_tol, iroll, 'RATTLE', veps = veps )
 
   CALL timestop ( 0.0_dbl, handle )
@@ -264,14 +264,14 @@ END SUBROUTINE rattle_roll_control
 !******************************************************************************
 
 SUBROUTINE shake_3x3 ( molecule, simpar, ishake )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE (molecule_structure_type ), INTENT ( INOUT ) :: molecule
   TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
   INTEGER, INTENT ( OUT ) :: ishake
-  
+
 ! Locals
   REAL ( dbl ) :: idtsq, dtsqby2, dtby2, imass1, imass2, imass3
   REAL ( dbl ) :: sigma, max_sigma
@@ -281,9 +281,9 @@ SUBROUTINE shake_3x3 ( molecule, simpar, ishake )
   REAL ( dbl ), DIMENSION(3,3) :: amat, ainv
   TYPE (linklist_g3x3_constraints), POINTER :: llconst
   INTEGER :: info, iconst
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! define local variables
   dtsqby2 = simpar%dt*simpar%dt*.5_dbl
   idtsq = 1._dbl/simpar%dt/simpar%dt
@@ -300,7 +300,7 @@ SUBROUTINE shake_3x3 ( molecule, simpar, ishake )
      llconst%fc1 = -2._dbl*(llconst%rold1-llconst%rold2)
      llconst%fc2 = -2._dbl*(llconst%rold1-llconst%rold3)
      llconst%fc3 = -2._dbl*(llconst%rold2-llconst%rold3)
-     
+
 ! construct matrix
      amat(1,1)=(imass1+imass2)*DOTPROD_3D(r0_12,llconst%fc1)
      amat(1,2)=imass1*DOTPROD_3D(r0_12,llconst%fc2)
@@ -311,7 +311,7 @@ SUBROUTINE shake_3x3 ( molecule, simpar, ishake )
      amat(3,1)=-imass2*DOTPROD_3D(r0_23,llconst%fc1)
      amat(3,2)=imass3*DOTPROD_3D(r0_23,llconst%fc2)
      amat(3,3)=(imass3+imass2)*DOTPROD_3D(r0_23,llconst%fc3)
-     
+
 ! Iterate until convergence:
      max_sigma = -1.0E+10_dbl
      CONS: DO WHILE (abs(max_sigma)>=simpar%shake_tol)
@@ -333,10 +333,10 @@ SUBROUTINE shake_3x3 ( molecule, simpar, ishake )
         bvec(3)=llconst%d23*llconst%d23-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
              -DOTPROD_3D(r0_23,r0_23)
         bvec = bvec * idtsq
-        
+
 ! find inverse of amat
         CALL getinv3x3 ( amat, ainv )
-        
+
 ! get lambda
         llconst%lambda ( : )=MATVEC_3x3(ainv,bvec)
         fc1=llconst%lambda(1)*llconst%fc1+ &
@@ -354,43 +354,43 @@ SUBROUTINE shake_3x3 ( molecule, simpar, ishake )
         r12=r1-r2
         r13=r1-r3
         r23=r2-r3
-        
+
 ! compute the tolerance:
-        sigma = dot_product(r12,r12) - llconst%d12*llconst%d12 
+        sigma = dot_product(r12,r12) - llconst%d12*llconst%d12
         max_sigma=MAX(max_sigma,ABS(sigma))
-        sigma = dot_product(r13,r13) - llconst%d13*llconst%d13 
+        sigma = dot_product(r13,r13) - llconst%d13*llconst%d13
         max_sigma=MAX(max_sigma,ABS(sigma))
-        sigma = dot_product(r23,r23) - llconst%d23*llconst%d23 
+        sigma = dot_product(r23,r23) - llconst%d23*llconst%d23
         max_sigma=MAX(max_sigma,ABS(sigma))
      END DO CONS
-     
+
 ! update positions with full multiplier
      llconst%p1%r = r1
      llconst%p2%r = r2
      llconst%p3%r = r3
-     
+
 ! update velocites with full multiplier
      llconst%p1%v = v1
      llconst%p2%v = v2
      llconst%p3%v = v3
      llconst => llconst%next
-     
+
   END DO
-  
+
 END SUBROUTINE shake_3x3
 
 !******************************************************************************
 
 SUBROUTINE shake_roll_3x3(molecule,simpar,r_shake,v_shake,ishake)
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE (molecule_structure_type ), INTENT ( INOUT ) :: molecule
   TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: r_shake, v_shake
   INTEGER, INTENT ( OUT ) :: ishake
-  
+
 ! Locals
   REAL ( dbl ) :: idtsq, dtsqby2, dtby2, imass1, imass2, imass3
   REAL ( dbl ) :: sigma, max_sigma
@@ -401,15 +401,15 @@ SUBROUTINE shake_roll_3x3(molecule,simpar,r_shake,v_shake,ishake)
   REAL ( dbl ), DIMENSION(3,3) :: amat, ainv
   TYPE (linklist_g3x3_constraints), POINTER :: llconst
   INTEGER :: info, iconst
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! define local variables
   dtsqby2 = simpar%dt*simpar%dt*.5_dbl
   idtsq = 1._dbl/simpar%dt/simpar%dt
   dtby2 = simpar%dt*.5_dbl
   llconst => molecule%ll_g3x3_const
-  
+
   DO iconst = 1, molecule%ng3x3const_mol
      ishake=0
      r0_12=llconst%p1%r-llconst%p2%r
@@ -421,12 +421,12 @@ SUBROUTINE shake_roll_3x3(molecule,simpar,r_shake,v_shake,ishake)
      llconst%fc1 = -2._dbl*(llconst%rold1-llconst%rold2)
      llconst%fc2 = -2._dbl*(llconst%rold1-llconst%rold3)
      llconst%fc3 = -2._dbl*(llconst%rold2-llconst%rold3)
-     
-! rotate fconst:  
+
+! rotate fconst:
      f_roll1 = matvec_3x3 ( r_shake, llconst % fc1 )
      f_roll2 = matvec_3x3 ( r_shake, llconst % fc2 )
      f_roll3 = matvec_3x3 ( r_shake, llconst % fc3 )
-     
+
 ! construct matrix
      amat(1,1)=(imass1+imass2)*DOTPROD_3D(r0_12,f_roll1)
      amat(1,2)=imass1*DOTPROD_3D(r0_12,f_roll2)
@@ -437,7 +437,7 @@ SUBROUTINE shake_roll_3x3(molecule,simpar,r_shake,v_shake,ishake)
      amat(3,1)=-imass2*DOTPROD_3D(r0_23,f_roll1)
      amat(3,2)=imass3*DOTPROD_3D(r0_23,f_roll2)
      amat(3,3)=(imass3+imass2)*DOTPROD_3D(r0_23,f_roll3)
-     
+
 ! Iterate until convergence:
      max_sigma = -1.0E+10_dbl
      CONS: DO WHILE (abs(max_sigma)>=simpar%shake_tol)
@@ -459,10 +459,10 @@ SUBROUTINE shake_roll_3x3(molecule,simpar,r_shake,v_shake,ishake)
         bvec(3)=llconst%d23*llconst%d23-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
              -DOTPROD_3D(r0_23,r0_23)
         bvec=bvec*idtsq
-        
+
 ! find inverse of amat
         CALL getinv3x3 ( amat, ainv )
-        
+
 ! get lambda
         llconst%lambda ( : ) = MATVEC_3x3 ( ainv, bvec )
         fc1=llconst%lambda(1)*llconst%fc1+ &
@@ -480,37 +480,37 @@ SUBROUTINE shake_roll_3x3(molecule,simpar,r_shake,v_shake,ishake)
         r12=r1-r2
         r13=r1-r3
         r23=r2-r3
-        
+
 ! compute the tolerance:
-        sigma = dot_product(r12,r12) - llconst%d12*llconst%d12 
+        sigma = dot_product(r12,r12) - llconst%d12*llconst%d12
         max_sigma=MAX(max_sigma,ABS(sigma))
-        sigma = dot_product(r13,r13) - llconst%d13*llconst%d13 
+        sigma = dot_product(r13,r13) - llconst%d13*llconst%d13
         max_sigma=MAX(max_sigma,ABS(sigma))
-        sigma = dot_product(r23,r23) - llconst%d23*llconst%d23 
+        sigma = dot_product(r23,r23) - llconst%d23*llconst%d23
         max_sigma=MAX(max_sigma,ABS(sigma))
      END DO CONS
-     
+
 ! update positions with full multiplier
      llconst%p1%r = r1
      llconst%p2%r = r2
      llconst%p3%r = r3
-     
+
 ! update velocites with full multiplier
      llconst%p1%v = v1
      llconst%p2%v = v2
      llconst%p3%v = v3
      llconst => llconst%next
-     
+
   END DO
-  
+
 END SUBROUTINE shake_roll_3x3
 
 !******************************************************************************
 
 SUBROUTINE rattle_roll_3x3(molecule,simpar,r_rattle,veps,max_sigma,irattle)
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE (molecule_structure_type ), INTENT ( INOUT ) :: molecule
   TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
@@ -518,7 +518,7 @@ SUBROUTINE rattle_roll_3x3(molecule,simpar,r_rattle,veps,max_sigma,irattle)
   INTEGER, INTENT ( IN ) :: irattle
   REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: veps
   REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: r_rattle
-  
+
 ! Locals
   INTEGER :: iconst, info
   REAL ( dbl ) :: idt, dtby2, imass1, imass2, imass3, sigma_dot
@@ -529,9 +529,9 @@ SUBROUTINE rattle_roll_3x3(molecule,simpar,r_rattle,veps,max_sigma,irattle)
   REAL ( dbl ), DIMENSION(3) :: fc1, fc2, fc3, lambda
   REAL ( dbl ), DIMENSION(3,3) :: amat, ainv
   TYPE (linklist_g3x3_constraints), POINTER :: llconst
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! define local variables
   idt = 1._dbl/simpar%dt
   dtby2 = simpar%dt*.5_dbl
@@ -559,9 +559,9 @@ SUBROUTINE rattle_roll_3x3(molecule,simpar,r_rattle,veps,max_sigma,irattle)
         llconst => llconst%next
      END DO
      max_sigma = -1.0E+10_dbl
-     
+
   ELSE
-     
+
      llconst => molecule%ll_g3x3_const
      DO iconst = 1, molecule%ng3x3const_mol
         v12_0=llconst%vold1-llconst%vold2
@@ -576,12 +576,12 @@ SUBROUTINE rattle_roll_3x3(molecule,simpar,r_rattle,veps,max_sigma,irattle)
         llconst%fc1 = -2._dbl*(llconst%p1%r-llconst%p2%r)
         llconst%fc2 = -2._dbl*(llconst%p1%r-llconst%p3%r)
         llconst%fc3 = -2._dbl*(llconst%p2%r-llconst%p3%r)
-        
+
 ! roll the fc
         f_roll1 = MATVEC_3x3 ( r_rattle, llconst % fc1 )
         f_roll2 = MATVEC_3x3 ( r_rattle, llconst % fc2 )
         f_roll3 = MATVEC_3x3 ( r_rattle, llconst % fc3 )
-        
+
 ! construct matrix
         amat(1,1)=(imass1+imass2)*DOTPROD_3D(r12,f_roll1)
         amat(1,2)=imass1*DOTPROD_3D(r12,f_roll2)
@@ -592,20 +592,20 @@ SUBROUTINE rattle_roll_3x3(molecule,simpar,r_rattle,veps,max_sigma,irattle)
         amat(3,1)=-imass2*DOTPROD_3D(r23,f_roll1)
         amat(3,2)=imass3*DOTPROD_3D(r23,f_roll2)
         amat(3,3)=(imass2+imass3)*DOTPROD_3D(r23,f_roll3)
-        
+
 ! construct solution vector
         bvec ( 1 ) = DOTPROD_3D ( r12, v12_0 + MATVEC_3X3 ( veps, r12 ) )
         bvec ( 2 ) = DOTPROD_3D ( r13, v13_0 + MATVEC_3X3 ( veps, r13 ) )
         bvec ( 3 ) = DOTPROD_3D ( r23, v23_0 + MATVEC_3X3 ( veps, r23 ) )
         bvec = -bvec * 2.0_dbl * idt
-        
+
 ! find inverse of amat
         CALL getinv3x3 ( amat, ainv )
-        
+
 ! get lambda
         lambda ( : ) = MATVEC_3X3 ( ainv, bvec )
         llconst % del_lam = lambda - llconst % lambda
-        
+
 ! update velocities
         fc1 = llconst % del_lam ( 1 ) * f_roll1 + &
               llconst % del_lam ( 2 ) * f_roll2
@@ -613,11 +613,11 @@ SUBROUTINE rattle_roll_3x3(molecule,simpar,r_rattle,veps,max_sigma,irattle)
                llconst % del_lam ( 3 ) * f_roll3
         fc3 = -llconst % del_lam ( 2 ) * f_roll2 - &
                llconst % del_lam ( 3 ) * f_roll3
- 
+
         llconst % p1 % v = llconst % p1 % v + imass1 * dtby2 * fc1
         llconst % p2 % v = llconst % p2 % v + imass2 * dtby2 * fc2
         llconst % p3 % v = llconst % p3 % v + imass3 * dtby2 * fc3
-        
+
 ! computing the convergence of the sigma_dot
         v12 = llconst % p1 % v - llconst % p2 % v
         sigma_dot=2._dbl*DOTPROD_3D(r12,v12+MATVEC_3X3(veps,r12))
@@ -634,21 +634,21 @@ SUBROUTINE rattle_roll_3x3(molecule,simpar,r_rattle,veps,max_sigma,irattle)
         llconst%lambda=lambda
         llconst => llconst%next
      END DO
-     
+
   END IF
-  
+
 END SUBROUTINE rattle_roll_3x3
 
 !******************************************************************************
 
 SUBROUTINE rattle_3x3(molecule,simpar)
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE (molecule_structure_type ), INTENT ( INOUT ) :: molecule
   TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
-  
+
 ! Locals
   INTEGER :: iconst, info
   REAL ( dbl ) :: idt, dtby2, imass1, imass2, imass3
@@ -657,9 +657,9 @@ SUBROUTINE rattle_3x3(molecule,simpar)
   REAL ( dbl ), DIMENSION(3) :: fc1, fc2, fc3
   REAL ( dbl ), DIMENSION(3,3) :: amat, ainv
   TYPE (linklist_g3x3_constraints), POINTER :: llconst
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! define local variables
   idt = 1._dbl/simpar%dt
   dtby2 = simpar%dt*.5_dbl
@@ -677,7 +677,7 @@ SUBROUTINE rattle_3x3(molecule,simpar)
      llconst%fc1 = -2._dbl*(llconst%p1%r-llconst%p2%r)
      llconst%fc2 = -2._dbl*(llconst%p1%r-llconst%p3%r)
      llconst%fc3 = -2._dbl*(llconst%p2%r-llconst%p3%r)
-     
+
 ! construct matrix
      amat(1,1)=(imass1+imass2)*DOTPROD_3D(r12,llconst%fc1)
      amat(1,2)=imass1*DOTPROD_3D(r12,llconst%fc2)
@@ -688,16 +688,16 @@ SUBROUTINE rattle_3x3(molecule,simpar)
      amat(3,1)=-imass2*DOTPROD_3D(r23,llconst%fc1)
      amat(3,2)=imass3*DOTPROD_3D(r23,llconst%fc2)
      amat(3,3)=(imass2+imass3)*DOTPROD_3D(r23,llconst%fc3)
-     
+
 ! construct solution vector
      bvec(1)=DOTPROD_3D(r12,v12)
      bvec(2)=DOTPROD_3D(r13,v13)
      bvec(3)=DOTPROD_3D(r23,v23)
      bvec=-bvec*2._dbl*idt
-     
+
 ! find inverse of amat
      CALL getinv3x3(amat,ainv)
-     
+
 ! get lambda
      llconst%lambda ( : )=MATVEC_3X3(ainv,bvec)
      fc1=llconst%lambda(1)*llconst%fc1+ &
@@ -711,16 +711,16 @@ SUBROUTINE rattle_3x3(molecule,simpar)
      llconst%p3%v=llconst%p3%v+imass3*dtby2*fc3
      llconst => llconst%next
   END DO
-  
+
 END SUBROUTINE rattle_3x3
 
 !******************************************************************************
 
 SUBROUTINE shake(molecule,simpar,max_sigma,ishake)
-  
+
 ! updates the multiplier one molecule type at a time
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE (molecule_structure_type ), INTENT ( INOUT ) :: molecule
   TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
@@ -730,9 +730,9 @@ SUBROUTINE shake(molecule,simpar,max_sigma,ishake)
   REAL ( dbl ), DIMENSION (3) :: fc_t, r12
   TYPE (linklist_dist_constraints), POINTER :: llconst
   INTEGER :: imol, iconst
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! define local variables
   dtsqby2 = simpar%dt*simpar%dt*.5_dbl
   dtby2 = simpar%dt*.5_dbl
@@ -742,13 +742,13 @@ SUBROUTINE shake(molecule,simpar,max_sigma,ishake)
         imass1 = 1._dbl/llconst%p1%prop%mass
         imass2 = 1._dbl/llconst%p2%prop%mass
         llconst%fc = -2._dbl*(llconst%rold1-llconst%rold2)
-        
+
 ! update positions with full multiplier
         llconst%p1%r = llconst%p1%r + imass1*dtsqby2*llconst%lambda* &
              llconst%fc
         llconst%p2%r = llconst%p2%r - imass2*dtsqby2*llconst%lambda* &
              llconst%fc
-        
+
 ! update velocites with full multiplier
         llconst%p1%v = llconst%p1%v + imass1*dtby2*llconst%lambda*llconst% &
              fc
@@ -756,17 +756,17 @@ SUBROUTINE shake(molecule,simpar,max_sigma,ishake)
              fc
         llconst => llconst%next
      END DO
-     
+
   ELSE
-     
+
      llconst => molecule%ll_dist_const
      DO iconst = 1, molecule%ndistconst_mol
-        
+
 ! computing the constraint
         r12 = llconst%p1%r - llconst%p2%r
         llconst%sigma = dot_product(r12,r12) - llconst%distance*llconst% &
              distance
-        
+
 ! computing fc(dt)
         fc_t = -2._dbl*(llconst%p1%r-llconst%p2%r)
         imass1 = 1._dbl/llconst%p1%prop%mass
@@ -775,19 +775,19 @@ SUBROUTINE shake(molecule,simpar,max_sigma,ishake)
         fdotf_sum = fdotf*imass1 + fdotf*imass2
         del_lam = 2._dbl*llconst%sigma/(simpar%dt*simpar%dt*fdotf_sum)
         llconst%lambda = llconst%lambda + del_lam
-        
+
 ! update positions by delta_lam
         llconst%p1%r = llconst%p1%r + imass1*dtsqby2*del_lam*llconst%fc
         llconst%p2%r = llconst%p2%r - imass2*dtsqby2*del_lam*llconst%fc
-        
+
 ! update velocites by delta_lam
         llconst%p1%v = llconst%p1%v + imass1*dtby2*del_lam*llconst%fc
         llconst%p2%v = llconst%p2%v - imass2*dtby2*del_lam*llconst%fc
         llconst => llconst%next
      END DO
   END IF
-  
-! computing the constraint and value of tolerance 
+
+! computing the constraint and value of tolerance
   llconst => molecule%ll_dist_const
   DO iconst = 1, molecule%ndistconst_mol
      r12 = llconst%p1%r - llconst%p2%r
@@ -796,30 +796,30 @@ SUBROUTINE shake(molecule,simpar,max_sigma,ishake)
      max_sigma = max(abs(llconst%sigma),max_sigma)
      llconst => llconst%next
   END DO
-  
+
 END SUBROUTINE shake
 
 !******************************************************************************
 
 SUBROUTINE rattle ( molecule, simpar, max_sigma, irattle )
-  
+
 ! updates the multiplier one molecule type at a time
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE (molecule_structure_type ), INTENT ( INOUT ) :: molecule
   TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
   REAL ( dbl ), INTENT ( INOUT ) :: max_sigma
   INTEGER, INTENT ( IN ) :: irattle
-  
+
 ! Locals
   REAL ( dbl ) :: dtby2, imass1, imass2, fdotf, fdotf_sum, del_lam
   REAL ( dbl ), DIMENSION (3) :: r12, v12
   TYPE (linklist_dist_constraints), POINTER :: llconst
   INTEGER :: imol, iconst
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! define local variables
   dtby2 = simpar%dt*.5_dbl
   IF (irattle==1) THEN
@@ -829,7 +829,7 @@ SUBROUTINE rattle ( molecule, simpar, max_sigma, irattle )
         imass1 = 1._dbl/llconst%p1%prop%mass
         imass2 = 1._dbl/llconst%p2%prop%mass
         llconst%fc = -2._dbl*(llconst%p1%r-llconst%p2%r)
-        
+
 ! update velocites with full multiplier
         llconst%p1%v = llconst%p1%v + imass1*dtby2*llconst%lambda*llconst% &
              fc
@@ -837,17 +837,17 @@ SUBROUTINE rattle ( molecule, simpar, max_sigma, irattle )
              fc
         llconst => llconst%next
      END DO
-     
+
   ELSE
-     
+
      llconst => molecule%ll_dist_const
      DO iconst = 1, molecule%ndistconst_mol
-        
+
 ! computing sigma
         r12 = llconst%p1%r - llconst%p2%r
         v12 = llconst%p1%v - llconst%p2%v
         llconst%sigma = 2._dbl*dot_product(r12,v12)
-        
+
 ! computing f(dt)
         llconst%fc = -2._dbl*(llconst%p1%r-llconst%p2%r)
         imass1 = 1._dbl/llconst%p1%prop%mass
@@ -856,18 +856,18 @@ SUBROUTINE rattle ( molecule, simpar, max_sigma, irattle )
         fdotf_sum = fdotf*imass1 + fdotf*imass2
         del_lam = 2._dbl*llconst%sigma/(simpar%dt*fdotf_sum)
         llconst%lambda = llconst%lambda + del_lam
-        
+
 !update velocites with del_lam
         llconst%p1%v = llconst%p1%v + imass1*dtby2*del_lam*llconst%fc
         llconst%p2%v = llconst%p2%v - imass2*dtby2*del_lam*llconst%fc
         llconst => llconst%next
      END DO
   END IF
-  
+
 ! computing the constraint and value of the tolerance
   llconst => molecule%ll_dist_const
   DO iconst = 1, molecule%ndistconst_mol
-     
+
 ! computing the updated constraint
      r12 = llconst%p1%r - llconst%p2%r
      v12 = llconst%p1%v - llconst%p2%v
@@ -875,7 +875,7 @@ SUBROUTINE rattle ( molecule, simpar, max_sigma, irattle )
      max_sigma = max(abs(llconst%sigma),max_sigma)
      llconst => llconst%next
   END DO
-  
+
 END SUBROUTINE rattle
 
 !******************************************************************************
@@ -883,9 +883,9 @@ END SUBROUTINE rattle
 SUBROUTINE rattle_roll(molecule,simpar,r_rattle,veps,max_sigma,irattle)
 
 ! updates the multiplier one molecule type at a time
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE (molecule_structure_type ), INTENT ( INOUT ) :: molecule
   TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
@@ -893,15 +893,15 @@ SUBROUTINE rattle_roll(molecule,simpar,r_rattle,veps,max_sigma,irattle)
   REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: r_rattle
   INTEGER, INTENT ( IN ) :: irattle
   REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: veps
-  
+
 ! Locals
   REAL ( dbl ) :: dtby2, imass1, imass2, fdotf, fdotf_sum, del_lam
   REAL ( dbl ), DIMENSION (3) :: r12, v12, f_roll
   TYPE (linklist_dist_constraints), POINTER :: llconst
   INTEGER :: imol, iconst, isos
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! define local variables
   dtby2 = simpar % dt * 0.5_dbl
   IF ( irattle == 1 ) THEN
@@ -910,30 +910,30 @@ SUBROUTINE rattle_roll(molecule,simpar,r_rattle,veps,max_sigma,irattle)
         imass1 = 1._dbl / llconst % p1 % prop % mass
         imass2 = 1._dbl / llconst % p2 % prop % mass
         llconst % fc = -2._dbl * ( llconst % p1 % r - llconst % p2 % r )
-        
+
 ! update velocites with full multiplier
         llconst % p1 % v = llconst % p1 % v + imass1 * dtby2 *  &
-	          llconst % lambda * MATVEC_3X3 ( r_rattle, llconst% fc )
+                  llconst % lambda * MATVEC_3X3 ( r_rattle, llconst% fc )
         llconst % p2 % v = llconst % p2 % v - imass2 * dtby2 *  &
-	          llconst % lambda * MATVEC_3X3 ( r_rattle, llconst% fc )
+                  llconst % lambda * MATVEC_3X3 ( r_rattle, llconst% fc )
         llconst => llconst % next
      END DO
      max_sigma = -1.E+10_dbl
-     
+
   ELSE
      llconst => molecule % ll_dist_const
-     
+
      DO iconst = 1, molecule % ndistconst_mol
-        
+
 ! assign local variable
 
         r12 = llconst % p1 % r - llconst % p2 % r
-        
+
 ! Roll fc
 
         llconst % fc = -2._dbl * r12
         f_roll = MATVEC_3x3 ( r_rattle, llconst % fc )
-        
+
 ! computing sigma
         v12 ( : ) = llconst % p1 % v + MATVEC_3X3 ( veps, llconst % p1 % r ) &
              - llconst % p2 % v - MATVEC_3X3 ( veps, llconst % p2 % r )
@@ -944,19 +944,19 @@ SUBROUTINE rattle_roll(molecule,simpar,r_rattle,veps,max_sigma,irattle)
         fdotf_sum = fdotf * imass1 + fdotf * imass2
         llconst % del_lam = 2._dbl * llconst % sigma / ( simpar % dt * fdotf_sum )
         llconst % lambda = llconst % lambda + llconst % del_lam
-        
+
 !update true velocites with del_lam
         llconst % p1 % v = llconst % p1 % v + imass1 * dtby2 *  &
-	                   llconst % del_lam * f_roll
+                           llconst % del_lam * f_roll
         llconst % p2 % v = llconst % p2 % v - imass2 * dtby2 *  &
-	                   llconst % del_lam * f_roll
+                           llconst % del_lam * f_roll
         llconst => llconst % next
      END DO
-     
+
 ! computing the constraint and value of the tolerance
      llconst => molecule % ll_dist_const
      DO iconst = 1, molecule % ndistconst_mol
-        
+
 ! computing the updated constraint
         r12 = llconst % p1 % r - llconst % p2 % r
         v12 ( : ) = llconst % p1 % v + MATVEC_3X3 ( veps, llconst % p1 % r ) &
@@ -966,25 +966,25 @@ SUBROUTINE rattle_roll(molecule,simpar,r_rattle,veps,max_sigma,irattle)
         llconst => llconst % next
      END DO
   END IF
-  
+
 END SUBROUTINE rattle_roll
 
 !******************************************************************************
 
 SUBROUTINE getold(molecule)
-  
+
   IMPLICIT NONE
 
 ! Arguments
   TYPE (molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: molecule
-  
+
 ! Locals
   INTEGER :: imol, iconst
   TYPE (linklist_dist_constraints), POINTER :: ll_dist
   TYPE (linklist_g3x3_constraints), POINTER :: ll_g3x3
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! saves all of the old variables
   DO imol = 1, size(molecule)
      ll_dist => molecule(imol) % ll_dist_const
@@ -997,7 +997,7 @@ SUBROUTINE getold(molecule)
         ll_dist % rold2 ( 3 ) = ll_dist % p2 % r ( 3 )
         ll_dist => ll_dist%next
      END DO
-     
+
      ll_g3x3 => molecule(imol) % ll_g3x3_const
      DO iconst = 1, molecule(imol) % ng3x3const_mol
         ll_g3x3 % rold1 ( 1 ) = ll_g3x3 % p1 % r ( 1 )
@@ -1011,49 +1011,49 @@ SUBROUTINE getold(molecule)
         ll_g3x3 % rold3 ( 3 ) = ll_g3x3 % p3 % r ( 3 )
         ll_g3x3 => ll_g3x3%next
      END DO
-     
+
   END DO
-  
+
 END SUBROUTINE getold
 
 !******************************************************************************
 
 SUBROUTINE pv_constraint ( molecule, thermo, char, group )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
   TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
   CHARACTER ( LEN = * ), INTENT ( IN ) :: char
   INTEGER, INTENT ( IN ) :: group
-  
+
 ! Locals
   REAL ( dbl ) :: lambda, pv ( 3, 3 ), lambda_3x3 ( 3 )
   REAL ( dbl ) :: fc1 ( 3 ), fc2 ( 3 ), fc3 ( 3 )
   TYPE ( linklist_dist_constraints ), POINTER :: llconst
   TYPE ( linklist_g3x3_constraints ), POINTER :: ll3x3
   INTEGER :: imol, iconst
-  
+
 !------------------------------------------------------------------------------
-  
+
   pv = 0.0_dbl
   DO imol = 1, size(molecule)
-     
+
 ! dist
      llconst => molecule(imol) %ll_dist_const
      DO iconst = 1, molecule(imol) %ndistconst_mol
-        
+
         SELECT CASE (char)
         CASE ( 'FULL')
 !  pv gets updated with FULL multiplier
            lambda = llconst%lambda
-           
+
         CASE ( 'DEL')
 !  pv gets updated with del_lam
            lambda = llconst%del_lam
         END SELECT
-        
+
 !pv(1,1)
         pv(1,1) = pv(1,1) + lambda*llconst%fc(1)*llconst%p1%r(1)
         pv(1,1) = pv(1,1) - lambda*llconst%fc(1)*llconst%p2%r(1)
@@ -1063,7 +1063,7 @@ SUBROUTINE pv_constraint ( molecule, thermo, char, group )
 !pv(1,3)
         pv(1,3) = pv(1,3) + lambda*llconst%fc(1)*llconst%p1%r(3)
         pv(1,3) = pv(1,3) - lambda*llconst%fc(1)*llconst%p2%r(3)
-!pv(2,1) 
+!pv(2,1)
         pv(2,1) = pv(2,1) + lambda*llconst%fc(2)*llconst%p1%r(1)
         pv(2,1) = pv(2,1) - lambda*llconst%fc(2)*llconst%p2%r(1)
 !pv(2,2)
@@ -1083,28 +1083,28 @@ SUBROUTINE pv_constraint ( molecule, thermo, char, group )
         pv(3,3) = pv(3,3) - lambda*llconst%fc(3)*llconst%p2%r(3)
         llconst => llconst%next
      END DO
-     
+
 ! 3x3
      ll3x3 => molecule(imol)%ll_g3x3_const
      DO iconst = 1, molecule(imol)%ng3x3const_mol
-        
+
         SELECT CASE (char)
         CASE ( 'FULL')
 !  pv gets updated with FULL multiplier
            lambda_3x3 = ll3x3%lambda
-           
+
         CASE ( 'DEL')
 !  pv gets updated with del_lam
            lambda_3x3 = ll3x3%del_lam
         END SELECT
-        
+
         fc1=lambda_3x3(1)*ll3x3%fc1+ &
              lambda_3x3(2)*ll3x3%fc2
         fc2=-lambda_3x3(1)*ll3x3%fc1+ &
              lambda_3x3(3)*ll3x3%fc3
         fc3=-lambda_3x3(2)*ll3x3%fc2- &
              lambda_3x3(3)*ll3x3%fc3
-        
+
 !pv(1,1)
         pv(1,1) = pv(1,1) + fc1(1)*ll3x3%p1%r(1)
         pv(1,1) = pv(1,1) + fc2(1)*ll3x3%p2%r(1)
@@ -1117,7 +1117,7 @@ SUBROUTINE pv_constraint ( molecule, thermo, char, group )
         pv(1,3) = pv(1,3) + fc1(1)*ll3x3%p1%r(3)
         pv(1,3) = pv(1,3) + fc2(1)*ll3x3%p2%r(3)
         pv(1,3) = pv(1,3) + fc3(1)*ll3x3%p3%r(3)
-!pv(2,1) 
+!pv(2,1)
         pv(2,1) = pv(2,1) + fc1(2)*ll3x3%p1%r(1)
         pv(2,1) = pv(2,1) + fc2(2)*ll3x3%p2%r(1)
         pv(2,1) = pv(2,1) + fc3(2)*ll3x3%p3%r(1)
@@ -1141,42 +1141,42 @@ SUBROUTINE pv_constraint ( molecule, thermo, char, group )
         pv(3,3) = pv(3,3) + fc1(3)*ll3x3%p1%r(3)
         pv(3,3) = pv(3,3) + fc2(3)*ll3x3%p2%r(3)
         pv(3,3) = pv(3,3) + fc3(3)*ll3x3%p3%r(3)
-        
+
         ll3x3 => ll3x3%next
      END DO
-     
+
   END DO
-  
+
 #if defined(__parallel)
   CALL mp_sum ( pv, group )
 #endif
-  
+
   thermo % pv_const = pv
-  
+
 END SUBROUTINE pv_constraint
 
 !******************************************************************************
 
 SUBROUTINE shake_roll(molecule,simpar,r_shake,v_shake,max_sigma,ishake)
-  
+
 ! updates the multiplier one molecule type at a time
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE (molecule_structure_type ), INTENT ( INOUT ) :: molecule
   TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
   REAL ( dbl ), INTENT ( INOUT ) :: max_sigma
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: r_shake, v_shake
   INTEGER, INTENT ( IN ) :: ishake
-  
+
 ! Locals
   REAL ( dbl ) :: dtsqby2, dtby2, imass1, imass2, fdotf, fdotf_sum
   REAL ( dbl ), DIMENSION (3) :: fc_t, r12, f_roll_r, f_roll_v
   TYPE (linklist_dist_constraints), POINTER :: llconst
   INTEGER :: imol, iconst
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! define local variables
   dtsqby2 = simpar%dt*simpar%dt*.5_dbl
   dtby2 = simpar%dt*.5_dbl
@@ -1186,37 +1186,37 @@ SUBROUTINE shake_roll(molecule,simpar,r_shake,v_shake,max_sigma,ishake)
         imass1 = 1._dbl/llconst%p1%prop%mass
         imass2 = 1._dbl/llconst%p2%prop%mass
         llconst%fc = -2._dbl*(llconst%rold1-llconst%rold2)
-        
-! rotate fconst:  
+
+! rotate fconst:
         f_roll_r = MATVEC_3X3 ( r_shake, llconst % fc )
         f_roll_v = MATVEC_3X3 ( v_shake, llconst % fc )
-        
+
 ! update positions with full multiplier
         llconst%p1%r = llconst%p1%r + imass1*dtsqby2*llconst%lambda*f_roll_r
         llconst%p2%r = llconst%p2%r - imass2*dtsqby2*llconst%lambda*f_roll_r
-        
+
 ! update velocites with full multiplier
         llconst%p1%v = llconst%p1%v + imass1*dtby2*llconst%lambda*f_roll_v
         llconst%p2%v = llconst%p2%v - imass2*dtby2*llconst%lambda*f_roll_v
         llconst => llconst%next
      END DO
-     
+
   ELSE
-     
+
      llconst => molecule%ll_dist_const
      DO iconst = 1, molecule%ndistconst_mol
-        
+
 ! computing the constraint
         r12 = llconst % p1 % r - llconst % p2 % r
         llconst%sigma = DOTPROD_3D ( r12, r12 ) - &
-	               llconst % distance * llconst % distance
-        
+                       llconst % distance * llconst % distance
+
 ! computing fc(dt)
         fc_t = -2._dbl*(llconst%p1%r-llconst%p2%r)
         imass1 = 1._dbl/llconst%p1%prop%mass
         imass2 = 1._dbl/llconst%p2%prop%mass
-        
-! rotate fc: 
+
+! rotate fc:
         f_roll_r = MATVEC_3X3 ( r_shake, llconst % fc )
         f_roll_v = MATVEC_3X3 ( v_shake, llconst % fc )
         fdotf = DOTPROD_3D ( f_roll_r, fc_t )
@@ -1224,23 +1224,23 @@ SUBROUTINE shake_roll(molecule,simpar,r_shake,v_shake,max_sigma,ishake)
         llconst%del_lam = 2._dbl*llconst%sigma/(simpar%dt*simpar%dt* &
              fdotf_sum)
         llconst % lambda = llconst % lambda + llconst % del_lam
-        
+
 ! update positions by delta_lam
         llconst%p1%r = llconst%p1%r + imass1*dtsqby2*llconst%del_lam* &
              f_roll_r
         llconst%p2%r = llconst%p2%r - imass2*dtsqby2*llconst%del_lam* &
              f_roll_r
-        
+
 ! update velocites by delta_lam
         llconst%p1%v = llconst%p1%v + imass1*dtby2*llconst%del_lam*f_roll_v
         llconst%p2%v = llconst%p2%v - imass2*dtby2*llconst%del_lam*f_roll_v
-        
+
         llconst => llconst%next
      END DO
-     
+
   END IF
-  
-! computing the constraint and value of tolerance 
+
+! computing the constraint and value of tolerance
   llconst => molecule % ll_dist_const
   DO iconst = 1, molecule % ndistconst_mol
      r12 = llconst % p1 % r - llconst % p2 % r
@@ -1254,16 +1254,16 @@ END SUBROUTINE shake_roll
 !******************************************************************************
 
 SUBROUTINE check_tol(roll_tol,iroll,char,matrix,veps)
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   REAL ( dbl ), INTENT ( OUT ) :: roll_tol
   INTEGER, INTENT ( INOUT ) :: iroll
   REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ), OPTIONAL :: matrix
   REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ), OPTIONAL :: veps
   CHARACTER ( LEN = * ), INTENT ( IN ) :: char
-  
+
 ! Locals
   REAL ( dbl ), DIMENSION (3,3), SAVE :: matrix_old
   REAL ( dbl ), DIMENSION (3,3), SAVE :: veps_old
@@ -1271,9 +1271,9 @@ SUBROUTINE check_tol(roll_tol,iroll,char,matrix,veps)
   REAL ( dbl ), DIMENSION (3,3) :: diff_shake
   REAL ( dbl ) :: local_tol
   INTEGER :: imol, iconst
-  
+
 !------------------------------------------------------------------------------
-  
+
   SELECT CASE ( char )
   CASE ( 'SHAKE' )
      IF (iroll==1) THEN
@@ -1287,51 +1287,51 @@ SUBROUTINE check_tol(roll_tol,iroll,char,matrix,veps)
         matrix_old = matrix
      END IF
      iroll = iroll + 1
-     
+
   CASE ( 'RATTLE' )
      IF (iroll==1) THEN
         veps_old = veps
         roll_tol = -1.E+10_dbl
      ELSE
         roll_tol = 0._dbl
-        
+
 ! compute tolerance on veps
 
         diff_rattle = ABS ( veps - veps_old )
         local_tol = MAXVAL ( diff_rattle )
         roll_tol = MAX ( roll_tol, local_tol )
-	veps_old = veps
+        veps_old = veps
 
      END IF
      iroll = iroll + 1
 
   END SELECT
-  
+
 END SUBROUTINE check_tol
 
 !******************************************************************************
 
 SUBROUTINE get_roll_matrix(char,r_shake,v_shake,vector_r,vector_v,u)
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ), OPTIONAL :: r_shake,v_shake
   REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ), OPTIONAL :: vector_r, vector_v
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ), OPTIONAL :: u
   CHARACTER ( len = * ), INTENT ( IN ) :: char
-  
+
 ! Locals
   INTEGER :: i
   REAL ( dbl ), DIMENSION (3,3) :: diag
-  
+
 !------------------------------------------------------------------------------
-  
+
   IF ( PRESENT ( r_shake ) ) r_shake = 0.0_dbl
   IF ( PRESENT ( v_shake ) ) v_shake = 0.0_dbl
   diag = 0.0_dbl
-  
-  SELECT CASE ( char )  
+
+  SELECT CASE ( char )
   CASE ( 'SHAKE' )
     IF ( PRESENT ( u ) .AND. PRESENT ( vector_v ) .AND.  &
                              PRESENT ( vector_r ) ) THEN
@@ -1343,7 +1343,7 @@ SUBROUTINE get_roll_matrix(char,r_shake,v_shake,vector_r,vector_v,u)
        diag ( 2, 2 ) = vector_v ( 2 )
        diag ( 3, 3 ) = vector_v ( 3 )
        v_shake = MATMUL_3X3 ( MATMUL_3X3 ( u, diag ), TRANSPOSE_3D ( u ) )
-       diag = matmul_3x3 ( r_shake, v_shake ) 
+       diag = matmul_3x3 ( r_shake, v_shake )
        r_shake = diag
     ELSEIF ( .NOT. PRESENT ( u ) .AND. PRESENT ( vector_v ) .AND.  &
                              PRESENT ( vector_r ) ) THEN
@@ -1352,7 +1352,7 @@ SUBROUTINE get_roll_matrix(char,r_shake,v_shake,vector_r,vector_v,u)
           v_shake ( i, i ) = vector_v ( i )
        END DO
     ELSE
-       CALL stop_prg ( "get_roll_matrix", "not sufficient parameters" )
+       CALL stop_program ( "get_roll_matrix", "not sufficient parameters" )
     END IF
   CASE ( 'RATTLE' )
     IF ( PRESENT ( u ) .AND. PRESENT ( vector_v ) ) THEN
@@ -1365,18 +1365,18 @@ SUBROUTINE get_roll_matrix(char,r_shake,v_shake,vector_r,vector_v,u)
           v_shake ( i, i ) = vector_v ( i )
        END DO
     ELSE
-       CALL stop_prg ( "get_roll_matrix", "not sufficient parameters" )
+       CALL stop_program ( "get_roll_matrix", "not sufficient parameters" )
     END IF
   END SELECT
-  
+
 END SUBROUTINE get_roll_matrix
 
 !******************************************************************************
 
 SUBROUTINE update_veps ( molecule, veps, mass, thermo, ensemble, dt, group )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( INOUT ) :: veps
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: mass
@@ -1385,12 +1385,12 @@ SUBROUTINE update_veps ( molecule, veps, mass, thermo, ensemble, dt, group )
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
   CHARACTER ( LEN = * ), INTENT ( IN ) :: ensemble
   INTEGER, INTENT ( IN ) :: group
-  
+
 ! Locals
   REAL ( dbl ) :: feps
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! increment pressure pv_const
   CALL pv_constraint ( molecule, thermo, 'DEL', group )
 
@@ -1405,7 +1405,7 @@ SUBROUTINE update_veps ( molecule, veps, mass, thermo, ensemble, dt, group )
      veps ( :, : ) = veps ( :, : ) +  0.5_dbl *  dt *  &
                      thermo % pv_const ( :, : ) / mass ( :, : )
   END IF
-  
+
 END SUBROUTINE update_veps
 
 !******************************************************************************

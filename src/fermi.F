@@ -17,20 +17,22 @@
 !!
 !!   SOURCE
 !******************************************************************************
-! 
+!
     MODULE fermi
-! 
+!
 !------------------------------------------------------------------------------!
+
       USE kinds, ONLY : dbl
-      USE stop_program, ONLY : stop_prg
+
+      USE termination, ONLY : stop_program
       USE physcon, ONLY : boltzmann, joule
 !
       IMPLICIT NONE
-! 
+!
       PRIVATE
 
       PUBLIC :: fermi_distribution_type, init_fermi_dist, fermi_info
-! 
+!
       TYPE fermi_distribution_type
         REAL (dbl) :: electronic_temp
         REAL (dbl) :: betael
@@ -108,17 +110,17 @@
 !..test the current setting and adjust defaults
 !..number of electrons at least 1
         IF (fdist%nel<1) THEN
-          CALL stop_prg('INIT_FERMI_DIST','Number of electrons < 1')
+          CALL stop_program('INIT_FERMI_DIST','Number of electrons < 1')
         END IF
 !..if lda only singlet states
         IF (fdist%spin_polarization==0 .AND. fdist%multiplicity/=1) THEN
-          CALL stop_prg('INIT_FERMI_DIST','LDA: multiplicity has to be 1')
+          CALL stop_program('INIT_FERMI_DIST','LDA: multiplicity has to be 1')
         END IF
 !..set number of alpha and beta electrons
         IF (fdist%spin_polarization==1) THEN
           m = fdist%multiplicity
           IF (mod(nel+m-1,2)/=0) THEN
-            CALL stop_prg('INIT_FERMI_DIST','NEL incons. with multiplicity')
+            CALL stop_program('INIT_FERMI_DIST','NEL incons. with multiplicity')
           END IF
           fdist%nalpha = (nel+m-1)/2
           fdist%nbeta = nel - fdist%nalpha
@@ -133,7 +135,7 @@
             fdist%nb = fdist%nbeta
             m = fdist%nstate - (fdist%na+fdist%nb)
             IF (m<0) THEN
-              CALL stop_prg('INIT_FERMI_DIST','Not enough states')
+              CALL stop_program('INIT_FERMI_DIST','Not enough states')
             END IF
             fdist%na = fdist%na + (m+1)/2
             fdist%nb = fdist%nb + m/2
@@ -141,7 +143,7 @@
             fdist%na = fdist%nstate
             fdist%nb = 0
             IF (fdist%nstate<(fdist%nel+1)/2) THEN
-              CALL stop_prg('INIT_FERMI_DIST','Not enough states')
+              CALL stop_program('INIT_FERMI_DIST','Not enough states')
             END IF
           END IF
         ELSE
@@ -156,7 +158,7 @@
               fdist%nb = 0
             END IF
           ELSE
-            CALL stop_prg('INIT_FERMI_DIST','If etemp /= 0', &
+            CALL stop_program('INIT_FERMI_DIST','If etemp /= 0 =>'//&
               ' number of states has to be specified')
           END IF
         END IF

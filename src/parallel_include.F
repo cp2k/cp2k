@@ -18,9 +18,9 @@ c     Include file for MPI
 c
         INCLUDE 'mpif.h'
 #endif
-        
+
         PUBLIC
-        
+
         INTEGER :: nothing
-        
+
       END MODULE parallel_include

@@ -20,7 +20,7 @@
 !******************************************************************************
 
 MODULE force_fields
-  
+
   USE kinds, ONLY : dbl
   USE global_types, ONLY : global_environment_type
   USE input_types, ONLY : setup_parameters_type
@@ -35,23 +35,23 @@ MODULE force_fields
        cfield, p_error, get_real, get_int, stop_parser
   USE string_utilities, ONLY : uppercase, xstring, str_search,  &
        str_comp, make_tuple
-  USE stop_program, ONLY : stop_prg, stop_memory
-  
+  USE termination, ONLY : stop_memory, stop_program
+
   IMPLICIT NONE
-  
+
   PRIVATE
   PUBLIC :: read_force_field_section
-  
+
 !*apsi* Because of a feature(?) in DEC compiler
   PUBLIC :: ATOMNAMESLENGTH
   INTEGER, PARAMETER :: ATOMNAMESLENGTH = 20
-  
+
   INTEGER :: scr
   TYPE ( global_environment_type ) :: globenv
 
 !!*****
 !******************************************************************************
-  
+
 CONTAINS
 
 !******************************************************************************
@@ -74,9 +74,9 @@ CONTAINS
 
 SUBROUTINE read_force_field_section ( setup, mol_setup, set_fn, intra_param, &
      potparm, atom_names, pstat, globenv_input )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
   CHARACTER ( LEN = ATOMNAMESLENGTH ), DIMENSION ( : ), POINTER :: atom_names
@@ -86,17 +86,17 @@ SUBROUTINE read_force_field_section ( setup, mol_setup, set_fn, intra_param, &
   TYPE (particle_prop_type ), DIMENSION ( : ), POINTER :: pstat
   TYPE (setup_parameters_type ), INTENT ( INOUT ) :: setup
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv_input
-  
+
 ! Locals
   INTEGER :: i, j, n, natom_types, ios, nmol_type, iw
-  
+
 !------------------------------------------------------------------------------
-  
+
   globenv = globenv_input
   scr = globenv % scr
-  
+
   iw = scr
-  
+
 !..count total number of molecules and atoms
   setup % nmol = 0
   setup % natoms = 0
@@ -109,12 +109,12 @@ SUBROUTINE read_force_field_section ( setup, mol_setup, set_fn, intra_param, &
      setup % natom_type = setup % natom_type +  &
           mol_setup(i) % molpar % natom_type
   END DO
-  
+
 !..generate unique atom list
   ALLOCATE ( atom_names ( setup % natom_type ), STAT = ios )
   IF ( ios /= 0 ) CALL stop_memory ( 'input_fist', &
        'atom_names', setup % natom_type )
-  
+
   n = 0
   DO i = 1, nmol_type
      DO j = 1, mol_setup(i) % molpar % natom
@@ -124,16 +124,16 @@ SUBROUTINE read_force_field_section ( setup, mol_setup, set_fn, intra_param, &
         END IF
      END DO
   END DO
-  
-  IF ( n /= setup % natom_type ) CALL stop_prg ( 'input_fist', &
+
+  IF ( n /= setup % natom_type ) CALL stop_program ( 'input_fist', &
        'natom_type mismatch' )
-  
+
 !..define pstat to hold all information (static) on different particle types
   ALLOCATE ( pstat ( setup % natom_type ), STAT = ios )
   IF ( ios /= 0 ) CALL stop_memory ( 'input_fist', &
        'pstat', setup % natom_type )
   natom_types = SIZE ( atom_names )
-  
+
   DO i = 1, nmol_type
      DO j = 1, mol_setup(i) % molpar % natom
         n = str_search(atom_names,natom_types,mol_setup(i) % molpar % aname(j))
@@ -142,27 +142,27 @@ SUBROUTINE read_force_field_section ( setup, mol_setup, set_fn, intra_param, &
         pstat(n) % ptype = n
      END DO
   END DO
-  
+
 !..read in non-bonded interaction information
   natom_types = size(atom_names)
   ALLOCATE (potparm(natom_types,natom_types),STAT=ios)
   IF ( ios /= 0 ) CALL stop_memory ( 'fist_input', &
        'potparm', natom_types ** 2 )
   CALL input_nonbonded(potparm,atom_names,set_fn)
-  
+
 !..read the bond parameters
   CALL input_bonds(intra_param % bond_param,atom_names,set_fn)
-  
+
 !..read the bend parameters
   CALL input_bends(intra_param % bend_param,atom_names,set_fn)
-  
+
 !..read the torsion parameters
   CALL input_torsions(intra_param % torsion_param,atom_names,set_fn)
-  
+
 !..read the distance constraint parameters
   CALL input_distance_constraints ( intra_param % constraint_distance, &
        atom_names, set_fn )
-  
+
 END SUBROUTINE read_force_field_section
 
 !!*****
@@ -196,14 +196,14 @@ END SUBROUTINE read_force_field_section
 !******************************************************************************
 
 SUBROUTINE input_nonbonded ( potparm, atom_names, set_fn )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE (potentialparm_type ), INTENT ( INOUT ) :: potparm ( :, : )
   CHARACTER ( LEN = * ), INTENT ( IN ) :: atom_names ( : )
   CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
-  
+
 ! Locals
   INTEGER :: ios, i, i1, i2, msglen, np, iw, source, allgrp
   INTEGER :: ierror, ilen, natom_types
@@ -213,9 +213,9 @@ SUBROUTINE input_nonbonded ( potparm, atom_names, set_fn )
   CHARACTER ( LEN = 12 ) :: label
   REAL ( dbl ) :: epsilon, sigma, rcut, a, b, c, c0, c1, c2, d
   REAL ( dbl ) :: vr0, dc, m, mc
-  
+
 !------------------------------------------------------------------------------
-  
+
   natom_types = SIZE ( atom_names )
   np = 0
   DO i1 = 1, natom_types
@@ -224,7 +224,7 @@ SUBROUTINE input_nonbonded ( potparm, atom_names, set_fn )
         CALL uppercase(potparm(i1,i2) %type )
      END DO
   END DO
-  
+
 ! initialize parameters in potparm
   potparm ( :, : ) % lj % epsilon = 0._dbl
   potparm ( :, : ) % lj % sigma6 = 0._dbl
@@ -343,7 +343,7 @@ SUBROUTINE input_nonbonded ( potparm, atom_names, set_fn )
      END DO
   END IF
   CALL parser_end
-     
+
 !..write some information to output
   IF (globenv%ionode) THEN
      IF (globenv % print_level>=0 .AND. np>0) THEN
@@ -388,7 +388,7 @@ SUBROUTINE input_nonbonded ( potparm, atom_names, set_fn )
         WRITE ( iw, '( )' )
      END IF
   END IF
-  
+
 END SUBROUTINE input_nonbonded
 
 !!*****
@@ -427,12 +427,12 @@ END SUBROUTINE input_nonbonded
 
 SUBROUTINE input_bonds(bond_parm,atom_names,set_fn)
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE (bond_parameters_type ), POINTER :: bond_parm ( :, : )
   CHARACTER ( LEN = * ), INTENT ( IN ) :: atom_names ( : )
   CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
-  
+
 ! Locals
   INTEGER :: i1, i2, ierror, ilen, ios
   INTEGER :: nb, iw, allgrp, source, natom_types
@@ -441,15 +441,15 @@ SUBROUTINE input_bonds(bond_parm,atom_names,set_fn)
   CHARACTER ( LEN = 40 ) :: string, string2
   CHARACTER ( LEN = 12 ) :: label
   REAL ( dbl ) :: bp1, bp2
-  
+
 !------------------------------------------------------------------------------
-  
+
   natom_types=SIZE(atom_names)
   nb = 0
   ALLOCATE (bond_parm(natom_types,natom_types),STAT=ios)
   IF ( ios /= 0 ) CALL stop_memory ( 'input_bonds', &
        'bond_parm', natom_types ** 2 )
-  
+
   bond_parm ( :, : ) %type = 'null'
   bond_parm ( :, : ) %r0 = 0._dbl
   bond_parm ( :, : ) %k = 0._dbl
@@ -506,7 +506,7 @@ SUBROUTINE input_bonds(bond_parm,atom_names,set_fn)
      END DO
   END IF
   CALL parser_end
-     
+
 !..write some information to output
   IF ( globenv % ionode ) THEN
      IF (globenv % print_level>=0 .AND. nb>0) THEN
@@ -526,7 +526,7 @@ SUBROUTINE input_bonds(bond_parm,atom_names,set_fn)
         WRITE ( iw, '( )' )
      END IF
   END IF
-  
+
 END SUBROUTINE input_bonds
 
 !!*****
@@ -564,14 +564,14 @@ END SUBROUTINE input_bonds
 !******************************************************************************
 
 SUBROUTINE input_bends ( bend_parm, atom_names, set_fn )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE (bend_parameters_type ), POINTER  :: bend_parm(:,:,:)
   CHARACTER ( LEN = * ), INTENT ( IN ) :: atom_names ( : )
   CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
-  
+
 ! Locals
   INTEGER :: i1, i2, i3, ierror, ilen, ios
   INTEGER ::  nb, iw, allgrp, source, natom_types
@@ -579,9 +579,9 @@ SUBROUTINE input_bends ( bend_parm, atom_names, set_fn )
   CHARACTER ( LEN = 40 ) :: string, string2
   CHARACTER ( LEN = 12 ) :: label
   REAL ( dbl ) :: bp1, bp2, torad, todeg
-  
+
 !------------------------------------------------------------------------------
-  
+
   natom_types=SIZE(atom_names)
   nb = 0
   torad = pi / 180.0_dbl
@@ -592,7 +592,7 @@ SUBROUTINE input_bends ( bend_parm, atom_names, set_fn )
   bend_parm(:,:,:) %type = 'null'
   bend_parm(:,:,:) %theta0 = 0._dbl
   bend_parm(:,:,:) %k = 0._dbl
-  
+
   iw = scr
 !..parse the input section
   label = '&FORCE_FIELD'
@@ -650,7 +650,7 @@ SUBROUTINE input_bends ( bend_parm, atom_names, set_fn )
      END DO
   END IF
   CALL parser_end
-     
+
 !..write some information to output
   IF ( globenv % ionode ) THEN
      IF (globenv % print_level>=0 .AND. nb>0) THEN
@@ -661,7 +661,7 @@ SUBROUTINE input_bends ( bend_parm, atom_names, set_fn )
                  IF (index(bend_parm(i1,i2,i3)%type,'HARMONIC') /= 0 ) THEN
                     WRITE ( iw, '( A,T30,A,T37,A,T44,A,T58,A,T71,F10.2 )' ) &
                          ' FORCE FIELD| harmonic', &
-                         adjustl(atom_names(i1)), adjustl(atom_names(i2)), adjustl(atom_names(i3)), & 
+                         adjustl(atom_names(i1)), adjustl(atom_names(i2)), adjustl(atom_names(i3)), &
                          'theta0 [deg]', bend_parm(i1,i2,i3) %theta0*todeg
                     WRITE ( iw, '( A,T58,A,T71,F10.2 )' ) ' FORCE FIELD| ', &
                          '       k [K]', bend_parm(i1,i2,i3) %k
@@ -672,7 +672,7 @@ SUBROUTINE input_bends ( bend_parm, atom_names, set_fn )
         WRITE ( iw, '( )' )
      END IF
   END IF
-  
+
 END SUBROUTINE input_bends
 
 !!*****
@@ -711,14 +711,14 @@ END SUBROUTINE input_bends
 !******************************************************************************
 
 SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( torsion_parameters_type ), POINTER :: torsion_parm ( :, :, :, : )
   CHARACTER ( LEN = * ), INTENT ( IN ) :: atom_names ( : )
   CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
-  
+
 ! Locals
   INTEGER :: i, i1, i2, i3, i4, ierror, ilen, ios
   INTEGER :: nb, iw, allgrp, source, natom_types
@@ -726,9 +726,9 @@ SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
   CHARACTER ( LEN = 40 ) :: string, string2
   CHARACTER ( LEN = 12 ) :: label
   REAL ( dbl ), DIMENSION (0:3) :: tp
-  
+
 !------------------------------------------------------------------------------
-  
+
   natom_types=SIZE(atom_names)
   nb = 0
   ALLOCATE ( &
@@ -740,9 +740,9 @@ SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
   DO i = 0, SIZE ( torsion_parm(1,1,1,1) % a ) - 1
      torsion_parm(:,:,:,:) %a(i) = 0._dbl
   END DO
-  
+
   iw = scr
-     
+
 !..parse the input section
   label = '&FORCE_FIELD'
   CALL parser_init(set_fn,label,ierror,globenv)
@@ -753,7 +753,7 @@ SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
         WRITE ( iw, '( A )' ) set_fn
      END IF
      CALL stop_parser( 'input_torsion', '&FORCE_FIELD' )
-        
+
   ELSE
      CALL read_line
      DO WHILE (test_next()/='X')
@@ -811,7 +811,7 @@ SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
      END DO
   END IF
   CALL parser_end()
-     
+
 !..write some information to output
   IF ( globenv % ionode ) THEN
      IF ( globenv % print_level >= 0 .AND. nb > 0 ) THEN
@@ -844,7 +844,7 @@ SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
         WRITE ( iw, '( )' )
      END IF
   END IF
-  
+
 END SUBROUTINE input_torsions
 
 !!*****
@@ -880,14 +880,14 @@ END SUBROUTINE input_torsions
 
 SUBROUTINE input_distance_constraints ( constraint_distance, atom_names, &
      set_fn )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   REAL ( dbl ), POINTER :: constraint_distance ( :, : )
   CHARACTER ( LEN = * ), INTENT ( IN ) :: atom_names ( : )
   CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
-  
+
 ! Locals
   INTEGER :: i1, i2, ierror, ilen, ios
   INTEGER :: nb, iw, allgrp, source, natom_types
@@ -895,18 +895,18 @@ SUBROUTINE input_distance_constraints ( constraint_distance, atom_names, &
   CHARACTER ( LEN = 40 ) :: string, string2, string2_tmp
   CHARACTER ( LEN = 12 ) :: label
   REAL ( dbl ) :: dp
-  
+
 !------------------------------------------------------------------------------
-  
+
   natom_types=SIZE(atom_names)
   nb = 0
   ALLOCATE (constraint_distance(natom_types,natom_types),STAT=ios)
   IF ( ios /= 0 ) CALL stop_memory ( 'input_distance_constraints', &
        'constraint_distance', natom_types ** 2 )
   constraint_distance ( :, : ) = 0.0_dbl
-  
+
   iw = scr
-     
+
 !..parse the input section
   label = '&FORCE_FIELD'
   CALL parser_init(set_fn,label,ierror,globenv)
@@ -922,17 +922,17 @@ SUBROUTINE input_distance_constraints ( constraint_distance, atom_names, &
         ilen = 7
         CALL cfield ( string, ilen )
         CALL uppercase ( string )
-        
+
         IF ( INDEX ( string, 'DISTCON' ) /= 0 ) THEN
            DO
               CALL read_line()
-              
+
               ilen = 0
               CALL cfield ( string2, ilen )
               string2_tmp = string2
               CALL uppercase ( string2_tmp )
               IF ( INDEX ( string2_tmp, 'END' ) /= 0 ) EXIT
-              
+
               at1 = string2
               nb = nb + 1
               ilen = 0
@@ -952,7 +952,7 @@ SUBROUTINE input_distance_constraints ( constraint_distance, atom_names, &
      END DO
   END IF
   CALL parser_end
-     
+
 !..write some information to output
   IF ( globenv % ionode ) THEN
      IF ( globenv % print_level >= 0 .AND. nb > 0 ) THEN
@@ -971,7 +971,7 @@ SUBROUTINE input_distance_constraints ( constraint_distance, atom_names, &
         WRITE ( iw, '()' )
      END IF
   END IF
-  
+
 END SUBROUTINE input_distance_constraints
 
 !!*****

@@ -19,7 +19,7 @@
 !******************************************************************************
 
 MODULE linklist_types
-  
+
   USE linklist_cell_types, ONLY : cell_neighborlist_type, &
        cell_atoms_linklist_type, &
        neighbor_cells_type
@@ -29,10 +29,10 @@ MODULE linklist_types
   USE kinds, ONLY : dbl
 
   IMPLICIT NONE
-  
+
   PRIVATE
   PUBLIC :: linklist_internal_data_type
-  
+
   TYPE linklist_internal_data_type
      TYPE ( cell_neighborlist_type ), DIMENSION (:,:,:), POINTER :: pp_cell_ll
      TYPE ( cell_atoms_linklist_type ), DIMENSION (:,:,:,:), POINTER  :: &
@@ -54,7 +54,7 @@ MODULE linklist_types
      REAL ( dbl ) :: lup, aup
      REAL ( dbl ), DIMENSION ( :, : ), POINTER :: r_last_update
   END TYPE linklist_internal_data_type
-  
+
 END MODULE linklist_types
 
 !******************************************************************************

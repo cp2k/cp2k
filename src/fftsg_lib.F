@@ -19,21 +19,21 @@
 !******************************************************************************
 
 MODULE fftsg_lib
-  
+
   USE kinds, ONLY: dbl
-  USE stop_program, ONLY : stop_memory, stop_prg
-  
-  IMPLICIT NONE 
-  
+  USE termination, ONLY : stop_program, stop_memory
+
+  IMPLICIT NONE
+
   PRIVATE
-  PUBLIC :: fft3d, mltfft
+  PUBLIC :: fft3d, mfft2d, mltfft
   PUBLIC :: fft_get_lengths
-  
+
 !!*****
 !******************************************************************************
 
 CONTAINS
-  
+
 !******************************************************************************
 !!****** fftsg_lib/fft_get_lengths [1.0] *
 !!
@@ -53,15 +53,15 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE fft_get_lengths ( data, max_length )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER, INTENT ( IN ) :: max_length
   INTEGER, DIMENSION ( : ), POINTER :: data
-  
+
 ! Locals
-  INTEGER, PARAMETER :: rlen = 82 
+  INTEGER, PARAMETER :: rlen = 82
   INTEGER, DIMENSION ( rlen ), PARAMETER :: radix = &
    (/ 2, 4, 5, 6, 8, 9, 12, 15, 16, 18, 20, 24, 25, 27, 30, 32, 36, 40, &
      45, 48, 54, 60, 64, 72, 75, 80, 81, 90, 96, 100, 108, 120, 125, 128, &
@@ -70,30 +70,30 @@ SUBROUTINE fft_get_lengths ( data, max_length )
      512, 540, 576, 600, 625, 640, 648, 675, 720, 729, 750, 768, 800, 810, &
      864, 900, 960, 972, 1000, 1024 /)
   INTEGER :: i, allocstat, ndata
-  
+
 !------------------------------------------------------------------------------
-  
+
   ndata = 0
   DO i = 1, rlen
     IF ( radix ( i ) > max_length ) EXIT
     ndata = ndata + 1
   END DO
-  
+
   ALLOCATE ( data ( ndata ), STAT = allocstat )
   IF ( allocstat /= 0 ) THEN
      CALL stop_memory ( "fft_get_lengths", "data", ndata )
   END IF
-  
+
   data ( 1:ndata ) = radix ( 1:ndata )
-  
+
 END SUBROUTINE fft_get_lengths
 
 !!*****
 !******************************************************************************
-!!****** fftsg_lib/fft_3d [1.0] *
+!!****** fftsg_lib/fft3d [1.0] *
 !!
 !!   NAME
-!!     fft_3d
+!!     fft3d
 !!
 !!   FUNCTION
 !!     Routine with wrapper for all 3dfft call:
@@ -109,39 +109,39 @@ END SUBROUTINE fft_get_lengths
 !******************************************************************************
 
 SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER, INTENT ( INOUT ) :: fsign
   REAL ( dbl ), INTENT ( IN ), OPTIONAL :: scale
   INTEGER, DIMENSION ( : ), INTENT ( IN ) :: n
   COMPLEX ( dbl ), DIMENSION(:,:,:), INTENT ( INOUT ) :: zg
   COMPLEX ( dbl ), DIMENSION(:,:,:), INTENT ( INOUT ), OPTIONAL :: zg_out
-  
+
 ! Locals
   INTEGER :: sign_fft, ldx, ldy, ldz, ldox, ldoy, ldoz, ierr
   INTEGER :: nx, ny, nz
   COMPLEX ( dbl ), DIMENSION(:), ALLOCATABLE :: xf, yf
   LOGICAL :: fft_in_place
-  
+
 !------------------------------------------------------------------------------
-  
+
   IF ( PRESENT ( zg_out ) ) THEN
      fft_in_place = .false.
   ELSE
      fft_in_place = .true.
   END IF
-  
+
   sign_fft = fsign
 
   nx = n ( 1 )
   ny = n ( 2 )
   nz = n ( 3 )
 
-  ldx = SIZE ( zg (:,1,1) )
-  ldy = SIZE ( zg (1,:,1) )
-  ldz = SIZE ( zg (1,1,:) )
+  ldx = SIZE ( zg, 1 )
+  ldy = SIZE ( zg, 2 )
+  ldz = SIZE ( zg, 3 )
   
 #if defined ( __FFTSG )
 
@@ -171,9 +171,9 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
 
   ELSE
 
-    ldox = SIZE ( zg_out (:,1,1) )
-    ldoy = SIZE ( zg_out (1,:,1) )
-    ldoz = SIZE ( zg_out (1,1,:) )
+    ldox = SIZE ( zg_out, 1 )
+    ldoy = SIZE ( zg_out, 2 )
+    ldoz = SIZE ( zg_out, 3 )
 
     ALLOCATE ( xf ( ldx*ldy*ldz ), STAT = ierr )
     IF ( ierr /= 0 ) call stop_memory ( "fft3d", "xf", ldx*ldy*ldz )
@@ -205,6 +205,92 @@ END SUBROUTINE fft3d
 
 !!*****
 !******************************************************************************
+!!****** fftsg_lib/mfft2d [1.0] *
+!!
+!!   NAME
+!!     mfft2d
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH (15-Jan-2001)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE mfft2d ( rin, rout, fsign, scale, n1, n2, nm, zin, zout )
+
+  IMPLICIT NONE
+
+! Arguments
+  CHARACTER ( LEN = * ), INTENT ( IN ) :: rin, rout
+  INTEGER, INTENT ( INOUT ) :: fsign
+  REAL ( dbl ), INTENT ( IN ) :: scale
+  INTEGER, INTENT ( IN ) :: n1, n2, nm
+  COMPLEX ( dbl ), DIMENSION(:,:,:), INTENT ( IN ) :: zin
+  COMPLEX ( dbl ), DIMENSION(:,:,:), INTENT ( OUT ) :: zout
+  
+! Locals
+  COMPLEX ( dbl ), DIMENSION(:), ALLOCATABLE :: xf
+  INTEGER :: li1, li2, li3, lo1, lo2, lo3, ll, ierr, sign_fft
+  
+!------------------------------------------------------------------------------
+  
+#if defined ( __FFTSG )
+
+  sign_fft = fsign
+
+  li1 = SIZE ( zin, 1 )
+  li2 = SIZE ( zin, 2 )
+  li3 = SIZE ( zin, 3 )
+  lo1 = SIZE ( zout, 1 )
+  lo2 = SIZE ( zout, 2 )
+  lo3 = SIZE ( zout, 3 )
+
+  ll = MAX ( li1*li2*li3, lo1*lo2*lo3 )
+  ALLOCATE ( xf ( ll ), STAT = ierr )
+  IF ( ierr /= 0 ) call stop_memory ( "mfft2d", "xf", ll )
+
+  IF ( rin(1:1) == "T" .OR.  rin(1:1) == "t" ) THEN
+    IF ( rout(1:1) == "T" .OR.  rout(1:1) == "t" ) THEN
+!..T-T
+      CALL stop_program ( "mfft2d@fftsg_lib","T-T case not implemented")
+    ELSE
+!..T-N
+      CALL mltfftsg ( "T", "N", zin, li1*li2, li3, xf, li3, li1*li2, &
+                      n2, li1*li2, sign_fft, 1._dbl )
+      CALL mltfftsg ( "T", "N", xf, li1*li3, li2, zout, lo1, lo2*lo3, &
+                      n1, li1*li3, sign_fft, scale )
+    END IF
+  ELSE
+    IF ( rout(1:1) == "T" .OR.  rout(1:1) == "t" ) THEN
+!..N-T
+      CALL mltfftsg ( "N", "T", zin, li1, li2*li3, xf, li2*li3, li1, &
+                      n1, li2*li3, sign_fft, 1._dbl )
+      CALL mltfftsg ( "N", "T", xf, li2, li1*li3, zout, lo1*lo2, lo3, &
+                      n2, li1*li3, sign_fft, scale )
+    ELSE
+!..N-N
+      CALL stop_program ( "mfft2d@fftsg_lib","N-N case not implemented")
+    END IF
+  END IF
+
+  DEALLOCATE ( xf, STAT = ierr )
+  IF ( ierr /= 0 ) call stop_memory ( "mfft2d", "xf" )
+
+#else
+
+  fsign = 0
+
+#endif
+
+END SUBROUTINE mfft2d
+
+!!*****
+!******************************************************************************
 !!****** fftsg_lib/mltfft [1.0] *
 !!
 !!   NAME
@@ -222,12 +308,12 @@ END SUBROUTINE fft3d
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE mltfft ( fsign, trans, scale, n, m, zin, zout )
+SUBROUTINE mltfft ( tin, tout, fsign, scale, n, m, zin, zout )
   
   IMPLICIT NONE
-  
+
 ! Arguments
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: trans
+  CHARACTER ( LEN = * ), INTENT ( IN ) :: tin, tout
   INTEGER, INTENT ( INOUT ) :: fsign
   REAL ( dbl ), INTENT ( IN ) :: scale
   INTEGER, INTENT ( IN ) :: n, m
@@ -239,14 +325,14 @@ SUBROUTINE mltfft ( fsign, trans, scale, n, m, zin, zout )
   
 !------------------------------------------------------------------------------
   
-  ldi = SIZE ( zin (:,1) )
-  lmi = SIZE ( zin (1,:) )
-  ldo = SIZE ( zin (:,1) )
-  lmo = SIZE ( zin (1,:) )
-  
 #if defined ( __FFTSG )
 
-  CALL mltfftsg ( 'N', trans, zin, ldi, lmi, zout, ldo, lmo, &
+  ldi = SIZE ( zin, 1 )
+  lmi = SIZE ( zin, 2 )
+  ldo = SIZE ( zout, 1 )
+  lmo = SIZE ( zout, 2 )
+
+  CALL mltfftsg ( tin, tout, zin, ldi, lmi, zout, ldo, lmo, &
                   n, m, fsign, scale )
 
 #else

@@ -17,22 +17,24 @@
 !!
 !!   SOURCE
 !******************************************************************************
-! 
+!
     MODULE band
-! 
+!
 !------------------------------------------------------------------------------!
+
       USE kinds, ONLY : dbl
-      USE stop_program, ONLY : stop_prg, stop_memory
+
       USE brillouin, ONLY : kpoint_type
       USE fermi, ONLY : fermi_distribution_type
+      USE termination, ONLY : stop_memory, stop_program
 !
       IMPLICIT NONE
-! 
+!
       PRIVATE
 !
       PUBLIC :: band_structure_type, init_band_structure, band_structure_info, &
         adjust_mu, occupation
-! 
+!
       TYPE band_structure_type
         TYPE (fermi_distribution_type), POINTER :: fd
         TYPE (kpoint_type), POINTER :: kpt
@@ -112,7 +114,7 @@
         TYPE (band_structure_type), INTENT (IN) :: bs
         INTEGER, INTENT (IN) :: punit
         INTEGER :: i, ik, left, nm, nk
-        LOGICAL :: nokp 
+        LOGICAL :: nokp
 
         WRITE (punit,'(/,1x,79("-"))')
         WRITE (punit,'(" -",77x,"-")')
@@ -202,8 +204,8 @@
           amu1 = -2._dbl*abs(amu1)
         END DO
         rhint2 = rhoint(bs,amu2)
-        IF (rhint2<0._dbl) CALL stop_prg('ADJUST_MU', &
-          'failed to find chem. potential','number of states is too small')
+        IF (rhint2<0._dbl) CALL stop_program("ADJUST_MU", &
+          "failed to find chem. potential: number of states is too small")
         damu = amu2 - amu1
         amu = amu1
 !
@@ -231,7 +233,7 @@
           damu = amu2 - amu1
         END DO
         IF (damu>delta) THEN
-          CALL stop_prg('ADJUST_MU','failed to find chem. potential')
+          CALL stop_program("ADJUST_MU","failed to find chem. potential")
         END IF
         bs%fd%mu = amu
 !

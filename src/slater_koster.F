@@ -153,7 +153,7 @@
         DO i = 1, m
           T = T + dot_product(A(:,i),B(:,i))
         END DO
-        
+
       END FUNCTION trace_AB
 !------------------------------------------------------------------------------!
     END MODULE slater_koster

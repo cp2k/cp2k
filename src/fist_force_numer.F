@@ -20,7 +20,7 @@
 !******************************************************************************
 
 MODULE fist_force_numer
-  
+
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE fist_nonbond_force, ONLY : find_image
   USE kinds, ONLY : dbl
@@ -30,16 +30,17 @@ MODULE fist_force_numer
   USE mol_force, ONLY : force_bonds, force_bends, force_torsions
   USE pair_potential, ONLY : potential_f, potentialparm_type
   USE pw_grid_types, ONLY : pw_grid_type
-  USE pw_grids, ONLY : pw_find_cutoff, pw_grid_setup
+  USE pw_grids, ONLY : pw_find_cutoff, pw_grid_setup, &
+       pw_grid_construct, pw_grid_destruct
   USE simulation_cell, ONLY : cell_type, pbc, get_hinv, get_cell_param
-  USE stop_program, ONLY : stop_memory
-  
+  USE termination, ONLY : stop_memory
+
   PRIVATE
   PUBLIC :: force_bond_numer, force_bend_numer, force_torsion_numer, &
             force_nonbond_numer, force_recip_numer
   PUBLIC :: pv_bond_numer, pv_bend_numer, pv_torsion_numer, ptens_numer
   PUBLIC :: pvg_numer, de_g_numer, potential_g_numer, energy_recip_numer
-  
+
 !!*****
 !******************************************************************************
 
@@ -65,41 +66,41 @@ CONTAINS
 
 SUBROUTINE force_bond_numer ( molecule, f_bond_numer, pot_bond, &
      numerical_shift )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: f_bond_numer
   REAL ( dbl ), INTENT ( OUT ) :: pot_bond
   REAL ( dbl ), INTENT ( IN ) :: numerical_shift
-  
+
 ! Locals
   TYPE ( linklist_bonds ), POINTER :: llbond
   INTEGER :: imol, ibond, idim, atom1, atom2
   REAL ( dbl ), DIMENSION (3) :: rij, rij_minus_delta, rij_plus_delta
   REAL ( dbl ) :: e0, ep, em, fscalar
   REAL ( dbl ), DIMENSION (3) :: delta
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! initializing the forces
   f_bond_numer = 0.0_dbl
   pot_bond = 0.0_dbl
   MOL: DO imol = 1, SIZE ( molecule )
      llbond => molecule(imol) % ll_bonds
-     
+
      BOND: DO ibond = 1, molecule(imol) % nbonds_mol
         atom1 = llbond % index(1)
         atom2 = llbond % index(2)
         rij = llbond % p1 % r - llbond % p2 % r
         delta = 0.0_dbl
-        
+
 ! get the energy
         CALL force_bonds ( rij, llbond % bond_param % r0, &
              llbond % bond_param % k, e0, fscalar )
         pot_bond = pot_bond + e0
-        
+
 ! get the forces
         DO idim = 1, 3
            delta(idim) = numerical_shift
@@ -113,13 +114,13 @@ SUBROUTINE force_bond_numer ( molecule, f_bond_numer, pot_bond, &
            f_bond_numer(idim,atom2) = f_bond_numer(idim,atom2) - (em-ep)
            delta = 0.0_dbl
         END DO
-        
+
         llbond => llbond % next
      END DO BOND
   END DO MOL
-  
+
   f_bond_numer = f_bond_numer / ( 2.0_dbl * numerical_shift )
-  
+
 END SUBROUTINE force_bond_numer
 
 !!*****
@@ -143,15 +144,15 @@ END SUBROUTINE force_bond_numer
 
 SUBROUTINE force_bend_numer ( molecule, f_bend_numer, pot_bend, &
      numerical_shift )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: f_bend_numer
   REAL ( dbl ), INTENT ( OUT ) :: pot_bend
   REAL ( dbl ), INTENT ( IN ) :: numerical_shift
-  
+
 ! Locals
   TYPE ( linklist_bends ), POINTER :: llbend
   INTEGER :: idim, imol, ibend, atom1, atom2, atom3
@@ -163,15 +164,15 @@ SUBROUTINE force_bend_numer ( molecule, f_bend_numer, pot_bend, &
   REAL ( dbl ), DIMENSION (3) :: b12, b12_plus_delta, b12_minus_delta
   REAL ( dbl ), DIMENSION (3) :: b32, b32_plus_delta, b32_minus_delta
   REAL ( dbl ), DIMENSION (3) :: delta
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! initializing the forces
   f_bend_numer = 0.0_dbl
   pot_bend = 0.0_dbl
   MOL: DO imol = 1, SIZE ( molecule )
      llbend => molecule(imol) % ll_bends
-     
+
      BEND: DO ibend = 1, molecule(imol) % nbends_mol
         atom1 = llbend % index(1)
         atom2 = llbend % index(2)
@@ -184,13 +185,13 @@ SUBROUTINE force_bend_numer ( molecule, f_bend_numer, pot_bend, &
         id32 = 1.0_dbl/d32
         dist = dot_product(b12,b32)
         theta = acos(dist*id12*id32)
-        
+
 ! get the energy
         CALL force_bends ( b12, b32, d12, d32, id12, id32, dist, theta, &
              llbend % bend_param % theta0, llbend % bend_param % k, &
              g1, g2, g3, e0, fscalar )
         pot_bend = pot_bend + e0
-        
+
 ! get the force on atom1 and atom2
         delta = 0.0_dbl
         DO idim = 1, 3
@@ -215,7 +216,7 @@ SUBROUTINE force_bend_numer ( molecule, f_bend_numer, pot_bend, &
            f_bend_numer(idim,atom2) = f_bend_numer(idim,atom2) - (em-ep)
            delta = 0.0_dbl
         END DO
-        
+
 ! get the force on atom3 and atom2
         delta = 0.0_dbl
         DO idim = 1, 3
@@ -240,13 +241,13 @@ SUBROUTINE force_bend_numer ( molecule, f_bend_numer, pot_bend, &
            f_bend_numer(idim,atom2) = f_bend_numer(idim,atom2) - (em-ep)
            delta = 0.0_dbl
         END DO
-        
+
         llbend => llbend % next
      END DO BEND
   END DO MOL
-  
+
   f_bend_numer = f_bend_numer / ( 2.0_dbl * numerical_shift )
-  
+
 END SUBROUTINE force_bend_numer
 
 !!*****
@@ -270,15 +271,15 @@ END SUBROUTINE force_bend_numer
 
 SUBROUTINE force_torsion_numer ( molecule, f_torsion_numer, pot_torsion, &
      numerical_shift )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: f_torsion_numer
   REAL ( dbl ), INTENT ( OUT ) :: pot_torsion
   REAL ( dbl ), INTENT ( IN ) :: numerical_shift
-  
+
 ! Locals
   TYPE ( linklist_torsions ), POINTER :: lltorsion
   INTEGER :: idim, imol, itorsion, atom1, atom2, atom3, atom4
@@ -293,15 +294,15 @@ SUBROUTINE force_torsion_numer ( molecule, f_torsion_numer, pot_torsion, &
   REAL ( dbl ), DIMENSION (3) :: u1, u2, u1m, u2m, u1p, u2p
   REAL ( dbl ), DIMENSION (3) :: gt1, gt2, gt3, gt4
   REAL ( dbl ), DIMENSION (3) :: delta
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! initializing the forces
   f_torsion_numer = 0.0_dbl
   pot_torsion = 0.0_dbl
   MOL: DO imol = 1, SIZE ( molecule )
      lltorsion => molecule(imol) % ll_torsions
-     
+
      torsion: DO itorsion = 1, molecule(imol) % ntorsions_mol
         atom1 = lltorsion % index(1)
         atom2 = lltorsion % index(2)
@@ -320,12 +321,12 @@ SUBROUTINE force_torsion_numer ( molecule, f_torsion_numer, pot_torsion, &
         w2 = sqrt(dot_product(u2,u2))
         iw1 = 1._dbl/w1
         iw2 = 1._dbl/w2
-        
+
 ! get the energy
         CALL force_torsions(is32,dist1,dist2,u1,u2,iw1,iw2, &
              lltorsion%torsion_param%a,gt1,gt2,gt3,gt4,e0,fscalar)
         pot_torsion = pot_torsion + e0
-        
+
 ! get the force on atom1 and atom2
         delta = 0.0_dbl
         DO idim = 1, 3
@@ -360,7 +361,7 @@ SUBROUTINE force_torsion_numer ( molecule, f_torsion_numer, pot_torsion, &
            f_torsion_numer(idim,atom2) = f_torsion_numer(idim,atom2) - (em-ep)
            delta = 0.0_dbl
         END DO
-        
+
 ! get the force on atom3 and atom2
         delta = 0.0_dbl
         DO idim = 1, 3
@@ -395,7 +396,7 @@ SUBROUTINE force_torsion_numer ( molecule, f_torsion_numer, pot_torsion, &
            f_torsion_numer(idim,atom2) = f_torsion_numer(idim,atom2) - (em-ep)
            delta = 0.0_dbl
         END DO
-        
+
 ! get the force on atom4 and atom3
         delta = 0.0_dbl
         DO idim = 1, 3
@@ -430,13 +431,13 @@ SUBROUTINE force_torsion_numer ( molecule, f_torsion_numer, pot_torsion, &
            f_torsion_numer(idim,atom3) = f_torsion_numer(idim,atom3) - (em-ep)
            delta = 0.0_dbl
         END DO
-        
+
         lltorsion => lltorsion % next
      END DO torsion
   END DO MOL
-  
+
   f_torsion_numer = f_torsion_numer / ( 2.0_dbl * numerical_shift )
-  
+
 END SUBROUTINE force_torsion_numer
 
 !!*****
@@ -447,7 +448,7 @@ END SUBROUTINE force_torsion_numer
 !!     force_nonbond_numer
 !!
 !!   FUNCTION
-!!     Computes the force and the potential of the minimum image, 
+!!     Computes the force and the potential of the minimum image,
 !!     and the pressure tensor
 !!
 !!   AUTHOR
@@ -461,9 +462,9 @@ END SUBROUTINE force_torsion_numer
 
 SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
      numerical_shift, f_numer, energy_numer )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
   TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
@@ -472,7 +473,7 @@ SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_numer
   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
   REAL ( dbl ), INTENT ( IN ) :: numerical_shift
-  
+
 ! Locals
   INTEGER :: i, j, ii, jj, iatomtype, jatomtype
   INTEGER :: icell,jcell,kcell,itype,jtype,id
@@ -486,17 +487,17 @@ SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
   INTEGER, DIMENSION ( :, :, : ), ALLOCATABLE :: n_images
   TYPE ( linklist_exclusion ), POINTER :: ll_exclude
   LOGICAL :: match
-  
+
 !------------------------------------------------------------------------------
-  
+
   n = SIZE ( potparm ( :, 1 ) )
   IF ( .NOT. ALLOCATED ( n_images ) ) &
        ALLOCATE ( n_images ( n, n, 3 ), STAT = isos )
   IF ( isos /= 0 ) &
        CALL stop_memory ( 'force_nonbond_numer', 'n_images', n * n * 3 )
-  
+
   CALL get_cell_param ( box, cell )
-  
+
   DO itype=1, n
      DO jtype=1, n
         rcut = SQRT ( potparm ( itype, jtype ) % rcutsq )
@@ -510,10 +511,10 @@ SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
         END DO
      END DO
   END DO
-  
+
   energy_numer = 0.0_dbl
   f_numer = 0.0_dbl
-  
+
   delta = 0.0_dbl
 !
 ! starting the force loop
@@ -531,7 +532,7 @@ SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
            jatomtype = pnode(j) % p % prop % ptype
            qj = pnode(j) % p % prop % charge
            rij = pnode(j) % p % r - ri
-           
+
 !
 ! imaging,transform back to unscaled distances and get potential and force
 !
@@ -539,7 +540,7 @@ SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
               rij = pbc(rij,box)
            END IF
            rijsq = dot_product(rij,rij)
-           
+
            IF ( rijsq <= potparm ( iatomtype, jatomtype ) % rcutsq ) THEN
 ! pointing to the start of the exclusion list of particle i
               ll_exclude => pnode(i) % ex
@@ -557,7 +558,7 @@ SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
                     delta(id) = numerical_shift
                     rij_minus_delta_sq = dot_product(rij-delta,rij-delta)
                     rij_plus_delta_sq = dot_product(rij+delta,rij+delta)
-   		    IF (qi==0.AND.qj==0) THEN
+                    IF (qi==0.AND.qj==0) THEN
                       CALL potential_f(rij_minus_delta_sq,potparm,qi,qj, &
                          iatomtype, jatomtype, energy_minus )
                       CALL potential_f(rij_plus_delta_sq,potparm,qi,qj, &
@@ -579,11 +580,11 @@ SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
                    CALL potential_f ( rijsq, potparm, qi, qj, &
                       iatomtype, jatomtype, energy, ewald_param )
                  ENDIF
-                 
+
                  energy_numer = energy_numer + energy
               END IF NOTMATCH
            END IF
-           
+
            zz = n_images ( iatomtype, jatomtype, 3 )
            yy = n_images ( iatomtype, jatomtype, 2 )
            xx = n_images ( iatomtype, jatomtype, 1 )
@@ -596,12 +597,12 @@ SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
            s(3) = box % h_inv(3,1)*rij(1) &
                 + box % h_inv(3,2)*rij(2) &
                 + box % h_inv(3,3)*rij(3)
-           
+
            DO kcell = -zz, zz
               DO jcell = -yy, yy
                  DO icell = -xx, xx
                     IF ( icell == 0 .AND. jcell == 0 .AND. kcell == 0 ) CYCLE
-                    
+
                     vec ( : ) = (/ icell, jcell, kcell /)
                     CALL find_image(s,perd,vec,box % hmat,rijsq,rij)
                     IF ( rijsq <= potparm(iatomtype,jatomtype ) % rcutsq ) THEN
@@ -627,7 +628,7 @@ SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
                                - (energy_plus-energy_minus)
                           delta = 0.0_dbl
                        END DO DIM_LOOP2
-                       
+
                        IF (qi==0.AND.qj==0) THEN
                          CALL potential_f ( rijsq, potparm, qi, qj, &
                             iatomtype, jatomtype, energy )
@@ -640,7 +641,7 @@ SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
                  END DO
               END DO
            END DO
-           
+
         ELSE IF (i==j) THEN
 ! search images if needed
            zz=n_images(iatomtype,iatomtype,3)
@@ -677,7 +678,7 @@ SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
                                - (energy_plus-energy_minus)
                           delta = 0.0_dbl
                        END DO DIM_LOOP3
-                       
+
                        IF (qi==0.AND.qj==0) THEN
                          CALL potential_f ( rijsq, potparm, qi, qj, &
                             iatomtype, jatomtype, energy )
@@ -691,17 +692,17 @@ SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
               END DO
            END DO
         END IF
-        
+
      END DO JLOOP
   END DO ILOOP
-  
+
 ! computing long range corrections to the potential
 !when we get the system for handling multiple potentials
 !we will add the long range correction
 !        energy_numer=energy_numer+lrc*(1./box % deth)
-  
+
   f_numer = f_numer/(2.0_dbl*numerical_shift)
-  
+
 END SUBROUTINE force_nonbond_numer
 
 !!*****
@@ -724,9 +725,9 @@ END SUBROUTINE force_nonbond_numer
 
 SUBROUTINE force_recip_numer ( ewald_param, pnode, box, pw_grid,  &
                                numerical_shift, f_numer )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( cell_type ), INTENT ( IN ) :: box
   TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
@@ -734,14 +735,14 @@ SUBROUTINE force_recip_numer ( ewald_param, pnode, box, pw_grid,  &
   TYPE ( pw_grid_type ), INTENT ( IN ) :: pw_grid
   REAL ( dbl ), INTENT ( IN ) :: numerical_shift
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( INOUT ) :: f_numer
-  
+
 ! Locals
   COMPLEX ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: sum_igr
   REAL ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: gauss
   REAL ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: r_delta
   REAL ( dbl ) :: alpha, epsilon0, ep, em, charge
   INTEGER :: gpt, i, idim, natoms, ngtot, isos, lp, mp, np
-  
+
 !------------------------------------------------------------------------------
 
 ! allocating
@@ -752,17 +753,17 @@ SUBROUTINE force_recip_numer ( ewald_param, pnode, box, pw_grid,  &
   IF ( isos /= 0 ) CALL stop_memory ( 'force_recip_numer', 'gauss', ngtot )
   ALLOCATE (r_delta(3),STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'force_recip_numer', 'r_delta', 3 )
-! defining alpha and epsilon0 
+! defining alpha and epsilon0
   alpha = ewald_param % alpha
   epsilon0 = ewald_param % eps0
-  
+
 ! first initialize the arrays gauss and sum_igr
   CALL potential_g_numer ( ep, pnode, sum_igr, gauss, alpha,  &
                            pw_grid % g, ngtot )
-  
-! initializing numerical force 
+
+! initializing numerical force
   f_numer( :, : ) = 0.0_dbl
-  
+
 ! computing the numerical force on each atom
   natoms = size(pnode)
   DO i = 1, natoms
@@ -771,23 +772,23 @@ SUBROUTINE force_recip_numer ( ewald_param, pnode, box, pw_grid,  &
      DO idim = 1, 3
         r_delta(idim) = r_delta(idim) + numerical_shift
         CALL de_g_numer(ep, sum_igr, gauss, pnode(i) % p % r ,  &
-	                r_delta, charge, pw_grid % g, ngtot)
+                        r_delta, charge, pw_grid % g, ngtot)
         r_delta(idim) = r_delta(idim) - 2.0_dbl*numerical_shift
         CALL de_g_numer(em, sum_igr, gauss, pnode(i) % p % r ,  &
-	                r_delta, charge, pw_grid % g, ngtot)
+                        r_delta, charge, pw_grid % g, ngtot)
         f_numer(idim,i) = ( em - ep ) / epsilon0 / box % deth
         r_delta(idim) = r_delta(idim) + numerical_shift
      END DO
   END DO
   f_numer = f_numer /  2.0_dbl / numerical_shift
-  
+
   DEALLOCATE (r_delta,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'force_recip_numer','r_delta')
   DEALLOCATE (sum_igr,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'force_recip_numer','sum_igr')
   DEALLOCATE (gauss,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'force_recip_numer', 'gauss' )
-  
+
 END SUBROUTINE force_recip_numer
 
 !!*****
@@ -810,25 +811,25 @@ END SUBROUTINE force_recip_numer
 !******************************************************************************
 
 SUBROUTINE pv_bond_numer ( molecule, pv_test, box, pnode, delta )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
   TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
   TYPE ( cell_type ), INTENT ( IN ) :: box
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: pv_test
   REAL ( dbl ), INTENT ( IN ) :: delta
-  
+
 ! Locals
   TYPE ( cell_type ) :: box_local
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: x, s
   REAL ( dbl ), DIMENSION ( 3, 3 ) :: dvdh
   REAL ( dbl ) :: idelta, vm, vp, vnb
   INTEGER :: i, j, k, ii, jj, natoms, isos
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! assigning the local variables
   natoms = size(pnode)
   ALLOCATE (x(3,natoms),STAT=isos)
@@ -840,7 +841,7 @@ SUBROUTINE pv_bond_numer ( molecule, pv_test, box, pnode, delta )
      s(:,i) = matmul(box % h_inv,pnode(i) % p % r)
   END DO
   box_local = box
-  
+
 ! Initializing pv_test
   pv_test = 0.0_dbl
 ! Defining the increments
@@ -848,28 +849,28 @@ SUBROUTINE pv_bond_numer ( molecule, pv_test, box, pnode, delta )
   LOOP1: DO ii = 1, 3
      LOOP2: DO jj = 1, 3
         box_local % hmat(ii,jj) = box_local % hmat(ii,jj) + delta
-        
+
 ! get inverse
         CALL get_hinv(box_local)
-        
+
 ! get coords from perturbed hmat
         DO i = 1, natoms
            x(:,i) = matmul(box_local % hmat,s(:,i))
         END DO
         CALL potential_bond(molecule,x,vp)
-        
-! tweak again 
+
+! tweak again
         box_local % hmat(ii,jj) = box_local % hmat(ii,jj) - 2.0_dbl*delta
-        
+
 ! get inverse
         CALL get_hinv ( box_local )
-        
+
 ! get coords from perturbed hmat
         DO i = 1, natoms
            x(:,i) = matmul(box_local % hmat,s(:,i))
         END DO
         CALL potential_bond(molecule,x,vm)
-        
+
 ! calculate the derivative
         dvdh(ii,jj) = (vm-vp)*idelta
 ! resetting the hmat
@@ -880,7 +881,7 @@ SUBROUTINE pv_bond_numer ( molecule, pv_test, box, pnode, delta )
         END DO
      END DO LOOP2
   END DO LOOP1
-  
+
 ! computing pv_test
   DO i = 1, 3
      DO j = 1, 3
@@ -889,12 +890,12 @@ SUBROUTINE pv_bond_numer ( molecule, pv_test, box, pnode, delta )
         END DO
      END DO
   END DO
-  
+
   DEALLOCATE (x,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'pv_bond_numer', 'x' )
   DEALLOCATE (s,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'pv_bond_numer', 's' )
-  
+
 END SUBROUTINE pv_bond_numer
 
 !!*****
@@ -917,25 +918,25 @@ END SUBROUTINE pv_bond_numer
 !******************************************************************************
 
 SUBROUTINE pv_bend_numer(molecule,pv_test,box,pnode,delta)
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( molecule_structure_type ), INTENT ( IN ), DIMENSION ( : ) :: molecule
   TYPE ( particle_node_type ), INTENT ( IN ), DIMENSION ( : ) :: pnode
   TYPE ( cell_type ), INTENT ( IN ) :: box
   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: pv_test
   REAL ( dbl ), INTENT ( IN ) :: delta
-  
+
 ! Locals
   TYPE (cell_type) :: box_local
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: x, s
   REAL ( dbl ), DIMENSION (3,3) :: dvdh
   REAL ( dbl ) :: idelta, vm, vp, vnb
   INTEGER :: i, j, k, ii, jj, natoms, isos
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! assigning the local variables
   natoms = size(pnode)
   ALLOCATE (x(3,natoms),STAT=isos)
@@ -947,10 +948,10 @@ SUBROUTINE pv_bend_numer(molecule,pv_test,box,pnode,delta)
      s(:,i) = matmul(box % h_inv,pnode(i) % p % r)
   END DO
   box_local = box
-  
+
 ! Initializing pv_test
   pv_test = 0.0_dbl
-  
+
 ! Defining the increments
   idelta = 1.0_dbl/(2.0_dbl*delta)
   LOOP1: DO ii = 1, 3
@@ -963,7 +964,7 @@ SUBROUTINE pv_bend_numer(molecule,pv_test,box,pnode,delta)
            x(:,i) = matmul(box_local % hmat,s(:,i))
         END DO
         CALL potential_bend(molecule,x,vp)
-! tweak again 
+! tweak again
         box_local % hmat(ii,jj) = box_local % hmat(ii,jj) - 2.0_dbl*delta
 ! get inverse
         CALL get_hinv(box_local)
@@ -982,7 +983,7 @@ SUBROUTINE pv_bend_numer(molecule,pv_test,box,pnode,delta)
         END DO
      END DO LOOP2
   END DO LOOP1
-  
+
 ! computing pv_test
   DO i = 1, 3
      DO j = 1, 3
@@ -991,12 +992,12 @@ SUBROUTINE pv_bend_numer(molecule,pv_test,box,pnode,delta)
         END DO
      END DO
   END DO
-  
+
   DEALLOCATE (x,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'pv_bend_numer', 'x' )
   DEALLOCATE (s,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'pv_bend_numer', 's' )
-  
+
 END SUBROUTINE pv_bend_numer
 
 !!*****
@@ -1019,25 +1020,25 @@ END SUBROUTINE pv_bend_numer
 !******************************************************************************
 
 SUBROUTINE pv_torsion_numer(molecule,pv_test,box,pnode,delta)
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( molecule_structure_type ), INTENT ( IN ), DIMENSION ( : ) :: molecule
   TYPE ( particle_node_type ), INTENT ( IN ), DIMENSION ( : ) :: pnode
   TYPE ( cell_type ), INTENT ( IN ) :: box
   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: pv_test
   REAL ( dbl ), INTENT ( IN ) :: delta
-  
+
 ! Locals
   TYPE (cell_type) :: box_local
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: x, s
   REAL ( dbl ), DIMENSION (3,3) :: dvdh
   REAL ( dbl ) :: idelta, vm, vp, vnb
   INTEGER :: i, j, k, ii, jj, natoms, isos
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! assigning the local variables
   natoms = size(pnode)
   ALLOCATE (x(3,natoms),STAT=isos)
@@ -1049,10 +1050,10 @@ SUBROUTINE pv_torsion_numer(molecule,pv_test,box,pnode,delta)
      s(:,i) = matmul(box % h_inv,pnode(i) % p % r)
   END DO
   box_local = box
-  
+
 ! Initializing pv_test
   pv_test = 0.0_dbl
-  
+
 ! Defining the increments
   idelta = 1.0_dbl/(2.0_dbl*delta)
   LOOP1: DO ii = 1, 3
@@ -1065,7 +1066,7 @@ SUBROUTINE pv_torsion_numer(molecule,pv_test,box,pnode,delta)
            x(:,i) = matmul(box_local % hmat,s(:,i))
         END DO
         CALL potential_torsion(molecule,x,vp)
-! tweak again 
+! tweak again
         box_local % hmat(ii,jj) = box_local % hmat(ii,jj) - 2.0_dbl*delta
 ! get inverse
         CALL get_hinv(box_local)
@@ -1084,7 +1085,7 @@ SUBROUTINE pv_torsion_numer(molecule,pv_test,box,pnode,delta)
         END DO
      END DO LOOP2
   END DO LOOP1
-  
+
 ! computing pv_test
   DO i = 1, 3
      DO j = 1, 3
@@ -1093,12 +1094,12 @@ SUBROUTINE pv_torsion_numer(molecule,pv_test,box,pnode,delta)
         END DO
      END DO
   END DO
-  
+
   DEALLOCATE (x,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'pv_torsion_numer', 'x' )
   DEALLOCATE (s,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'pv_torsion_numer', 's' )
-  
+
 END SUBROUTINE pv_torsion_numer
 
 !!*****
@@ -1123,7 +1124,7 @@ END SUBROUTINE pv_torsion_numer
 SUBROUTINE ptens_numer(ewald_param,pnode,box,potparm,pv_test,delta)
 
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
   TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
@@ -1131,49 +1132,49 @@ SUBROUTINE ptens_numer(ewald_param,pnode,box,potparm,pv_test,delta)
   REAL ( dbl ), INTENT ( IN ) :: delta
   REAL ( dbl ), DIMENSION ( 3, 3 ), INTENT ( OUT ) :: pv_test
   TYPE ( potentialparm_type ), DIMENSION ( :, : ), INTENT ( IN ) :: potparm
-  
+
 ! Locals
   TYPE ( cell_type ) :: box_local
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: x, s
   REAL ( dbl ), DIMENSION (3,3) :: dvdh
   REAL ( dbl ) :: idelta, vm, vp, vnb
   INTEGER :: i, j, k, ii, jj, natoms, isos
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! assigning the local variables
   natoms = size(pnode)
   ALLOCATE (x(3,natoms),STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'ptens_numer', 'x', 3 * natoms )
   ALLOCATE (s(3,natoms),STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'ptens_numer', 's', 3 * natoms )
-  
+
   DO i = 1, natoms
      x(:,i) = pnode(i) % p % r ( : )
      s(:,i) = matmul(box % h_inv,pnode(i) % p % r)
   END DO
   box_local = box
-  
+
 ! Initializing pv_test
   pv_test = 0.0_dbl
-  
+
 ! Defining the increments
   idelta = 1.0_dbl / (2.0_dbl * delta )
   LOOP1: DO ii = 1, 3
      LOOP2: DO jj = 1, 3
         box_local % hmat(ii,jj) = box_local % hmat(ii,jj) + delta
-        
+
 ! get inverse
         CALL get_hinv(box_local)
-        
+
 ! get coords from perturbed hmat
         DO i = 1, natoms
            x(:,i) = matmul(box_local % hmat,s(:,i))
         END DO
         CALL getv_ptens(ewald_param,pnode,x,vnb,box_local,potparm)
         vp = vnb
-        
-! tweak again 
+
+! tweak again
         box_local % hmat(ii,jj) = box_local % hmat(ii,jj) - 2.0_dbl*delta
         CALL get_hinv(box_local)
         DO i = 1, natoms
@@ -1181,10 +1182,10 @@ SUBROUTINE ptens_numer(ewald_param,pnode,box,potparm,pv_test,delta)
         END DO
         CALL getv_ptens(ewald_param,pnode,x,vnb,box_local,potparm)
         vm = vnb
-        
+
 ! calculate the derivative
         dvdh(ii,jj) = (vm-vp)*idelta
-        
+
 ! resetting the hmat
         box_local % hmat(ii,jj) = box_local % hmat(ii,jj) + delta
         CALL get_hinv(box_local)
@@ -1193,7 +1194,7 @@ SUBROUTINE ptens_numer(ewald_param,pnode,box,potparm,pv_test,delta)
         END DO
      END DO LOOP2
   END DO LOOP1
-  
+
 ! computing pv_test
   DO i = 1, 3
      DO j = 1, 3
@@ -1202,12 +1203,12 @@ SUBROUTINE ptens_numer(ewald_param,pnode,box,potparm,pv_test,delta)
         END DO
      END DO
   END DO
-  
+
   DEALLOCATE (x,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory( 'ptens_numer', 'x' )
   DEALLOCATE (s,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory( 'ptens_numer', 's' )
-  
+
 END SUBROUTINE ptens_numer
 
 !!*****
@@ -1230,9 +1231,9 @@ END SUBROUTINE ptens_numer
 !******************************************************************************
 
 SUBROUTINE pvg_numer(ewald_param,pnode,box,pw_grid,pv_test,delta)
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
   TYPE ( pw_grid_type ), INTENT ( IN ) :: pw_grid
@@ -1240,7 +1241,7 @@ SUBROUTINE pvg_numer(ewald_param,pnode,box,pw_grid,pv_test,delta)
   TYPE ( cell_type ), INTENT ( IN ) :: box
   REAL ( dbl ), INTENT ( IN ) :: delta
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: pv_test
-  
+
 ! Locals
   TYPE ( pw_grid_type ) :: pw_grid_local
   TYPE ( cell_type ) :: box_local
@@ -1252,7 +1253,7 @@ SUBROUTINE pvg_numer(ewald_param,pnode,box,pw_grid,pv_test,delta)
   REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: gauss
   COMPLEX ( dbl ), DIMENSION ( : ), ALLOCATABLE :: sum_igr
   INTEGER :: i, j, k, ii, jj, natoms, isos, gmax, npts_s(3), ngtot
-  
+
 !------------------------------------------------------------------------------
 
 ! allocating
@@ -1266,7 +1267,7 @@ SUBROUTINE pvg_numer(ewald_param,pnode,box,pw_grid,pv_test,delta)
   IF ( isos /= 0 ) CALL stop_memory ( 'pvg_numer', 'gauss', ngtot )
   ALLOCATE (pnode_local(natoms),STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'pvg_numer', 'pnode_local', natoms )
-  
+
 ! assigning the local variables
   box_local = box
   pnode_local = pnode
@@ -1274,65 +1275,68 @@ SUBROUTINE pvg_numer(ewald_param,pnode,box,pw_grid,pv_test,delta)
   DO i = 1, natoms
      s(:,i) = matmul(box % h_inv,pnode(i) % p % r)
   END DO
-  
+
 ! defining alpha and epsilon0 (see ewald.f for details)
   alpha = ewald_param % alpha
   epsilon0 = ewald_param % eps0
-  
+
 ! Initializing pv_test
   pv_test = 0.0_dbl
 
   gmax = ewald_param % gmax
   npts_s = (/ gmax, gmax, gmax /)
   CALL pw_find_cutoff ( npts_s, box, cutoff )
-  
+
 ! Defining the increments
   idelta = 1.0_dbl/(2.0_dbl*delta)
   LOOP1: DO ii = 1, 3
      LOOP2: DO jj = 1, 3
         box_local % hmat(ii,jj) = box_local % hmat(ii,jj) + delta
-        
+
 ! get inverse
         CALL get_hinv(box_local)
-        
+
 ! recompute new partical postions from old scaled coords.
         DO i = 1, natoms
            pnode_local(i) % p % r = matmul(box_local % hmat,s(:,i))
         END DO
-        
+
 ! compute the g-vectors
+        CALL pw_grid_construct( pw_grid_local )
         CALL pw_grid_setup( box_local, pw_grid_local, cutoff)
-        
+
         CALL potential_g_numer ( vp, pnode_local, sum_igr, gauss, alpha, &
              pw_grid_local % g, ngtot )
         vp = vp / ( epsilon0 * box_local % deth )
-        
-! tweak again 
+
+! tweak again
         box_local % hmat(ii,jj) = box_local % hmat(ii,jj) - 2.0_dbl * delta
-        
+
 ! get inverse
         CALL get_hinv ( box_local )
-        
+
 ! recompute new partical postions from old scaled coords.
         DO i = 1, natoms
            pnode_local(i) % p % r = matmul(box_local % hmat,s(:,i))
         END DO
-        
+
 ! compute the g-vectors
         CALL pw_grid_setup( box_local, pw_grid_local, cutoff)
 
         CALL potential_g_numer ( vm, pnode_local, sum_igr, gauss, alpha, &
              pw_grid_local % g, ngtot )
         vm = vm / epsilon0 / box_local % deth
-        
+
+        CALL pw_grid_destruct( pw_grid_local )
+
 ! calculate the derivative
         dvdh ( ii, jj ) = ( vm - vp ) * idelta
-        
+
 ! resetting the hmat
         box_local % hmat(ii,jj) = box_local % hmat(ii,jj) + delta
      END DO LOOP2
   END DO LOOP1
-  
+
 ! computing pv_test
   DO i = 1, 3
      DO j = 1, 3
@@ -1341,14 +1345,14 @@ SUBROUTINE pvg_numer(ewald_param,pnode,box,pw_grid,pv_test,delta)
         END DO
      END DO
   END DO
-  
+
   DEALLOCATE (s,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory( 'pvg_numer', 's' )
   DEALLOCATE (sum_igr,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory( 'pvg_numer', 'sum_igr' )
   DEALLOCATE (gauss,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory( 'pvg_numer', 'gauss' )
-  
+
 END SUBROUTINE pvg_numer
 
 !!*****
@@ -1371,9 +1375,9 @@ END SUBROUTINE pvg_numer
 
 SUBROUTINE potential_g_numer(energy,pnode,sum_igr,gauss,alpha, &
      glocal,ngtot)
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE (particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
   REAL ( dbl ), INTENT ( OUT ) :: energy
@@ -1382,13 +1386,13 @@ SUBROUTINE potential_g_numer(energy,pnode,sum_igr,gauss,alpha, &
   COMPLEX ( dbl ), INTENT ( OUT ), DIMENSION ( : ) :: sum_igr
   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( : ) :: gauss
   INTEGER, INTENT ( IN ) :: ngtot
-  
+
 ! Locals
   REAL ( dbl ) :: gdotr, gsq, charge
   INTEGER :: iatom, ig, natoms
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! numerical energy
   natoms = SIZE ( pnode )
   energy = 0.0_dbl
@@ -1400,14 +1404,14 @@ SUBROUTINE potential_g_numer(energy,pnode,sum_igr,gauss,alpha, &
      DO iatom = 1, natoms
         gdotr = DOT_PRODUCT(pnode(iatom) % p % r ( : ), glocal(:,ig))
         charge = pnode(iatom) % p % prop % charge
-        sum_igr(ig) = sum_igr(ig) + charge*CMPLX(COS(gdotr),SIN(gdotr))
+        sum_igr(ig) = sum_igr(ig) + charge*CMPLX(COS(gdotr),SIN(gdotr),dbl)
      END DO
-     
+
 ! computing the potential energy
      energy = energy + gauss(ig)* REAL ( sum_igr ( ig ) *  &
-                                        CONJG( sum_igr ( ig ) ) )
+                                        CONJG( sum_igr ( ig ) ), dbl )
   END DO
-  
+
 END SUBROUTINE potential_g_numer
 
 !!*****
@@ -1430,9 +1434,9 @@ END SUBROUTINE potential_g_numer
 
 SUBROUTINE de_g_numer(energy,sum_igr,gauss,r,r_delta,charge,glocal, &
      igtot)
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   REAL ( dbl ), INTENT ( IN ) :: charge
   COMPLEX ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: sum_igr
@@ -1441,14 +1445,14 @@ SUBROUTINE de_g_numer(energy,sum_igr,gauss,r,r_delta,charge,glocal, &
   REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: glocal
   REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: r, r_delta
   INTEGER, INTENT ( IN ) :: igtot
-  
+
 ! Locals
   INTEGER :: ig
   REAL ( dbl ) :: gdotr, gdotr_delta, gsq
   COMPLEX ( dbl ) :: sum
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! initialize energy
   energy =  0._dbl
   sum = ( 0._dbl, 0._dbl )
@@ -1459,12 +1463,13 @@ SUBROUTINE de_g_numer(energy,sum_igr,gauss,r,r_delta,charge,glocal, &
      gdotr = DOT_PRODUCT ( r ( : ), glocal ( :, ig ) )
      gdotr_delta = DOT_PRODUCT ( r_delta ( : ), glocal ( :, ig ) )
 ! subtract off exp(ig.r) and add exp(ig.(r+delta))
-     sum = sum_igr ( ig ) - charge * CMPLX ( COS( gdotr ), SIN( gdotr ) ) + &
-          charge * CMPLX( COS( gdotr_delta ), SIN( gdotr_delta ) )
+     sum = sum_igr ( ig ) - charge * &
+           CMPLX ( COS( gdotr ), SIN( gdotr ), dbl ) + &
+           charge * CMPLX( COS( gdotr_delta ), SIN( gdotr_delta ), dbl )
 ! recompute energy
-     energy = energy + gauss(ig) * REAL ( sum * CONJG ( sum ) )
+     energy = energy + gauss(ig) * REAL ( sum * CONJG ( sum ), dbl )
   END DO
-  
+
 END SUBROUTINE de_g_numer
 
 !!*****
@@ -1487,9 +1492,9 @@ END SUBROUTINE de_g_numer
 
 SUBROUTINE energy_recip_numer ( ewald_param, pnode, box, pw_grid, &
      energy_numer, ngtot )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
   TYPE ( pw_grid_type ), INTENT ( IN ):: pw_grid
@@ -1497,13 +1502,13 @@ SUBROUTINE energy_recip_numer ( ewald_param, pnode, box, pw_grid, &
   TYPE ( cell_type ), INTENT ( IN ) :: box
   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
   INTEGER, INTENT ( IN ) :: ngtot
-  
+
 ! Locals
   COMPLEX ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: sum_igr
   REAL ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: gauss
   REAL ( dbl ) :: alpha, epsilon0
   INTEGER :: ig, i, idim, isos, lp, mp, np
-  
+
 !------------------------------------------------------------------------------
 
 ! allocating
@@ -1516,10 +1521,10 @@ SUBROUTINE energy_recip_numer ( ewald_param, pnode, box, pw_grid, &
 ! defining alpha and epsilon0
   alpha = ewald_param % alpha
   epsilon0 = ewald_param % eps0
-  
+
 ! initializing numerical energy
   energy_numer = 0.0_dbl
-  
+
 ! computing the energy
   CALL potential_g_numer(energy_numer,pnode,sum_igr,gauss,alpha, &
        pw_grid % g, ngtot)
@@ -1528,7 +1533,7 @@ SUBROUTINE energy_recip_numer ( ewald_param, pnode, box, pw_grid, &
   IF ( isos /= 0 ) CALL stop_memory ( 'energy_recip_numer', 'sum_igr' )
   DEALLOCATE (gauss,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'energy_recip_numer', 'gauss' )
-  
+
 END SUBROUTINE energy_recip_numer
 
 !!*****
@@ -1551,22 +1556,22 @@ END SUBROUTINE energy_recip_numer
 !******************************************************************************
 
 SUBROUTINE potential_bond ( molecule, x, energy )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   REAL ( dbl ), INTENT ( OUT ) :: energy
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: x
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
-  
+
 ! Locals
   REAL ( dbl ), DIMENSION ( 3 ) :: rij
   REAL ( dbl ) :: e0, fscalar
   INTEGER :: imol, ibond
   TYPE ( linklist_bonds ), POINTER :: llbond
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! initializing
   energy = 0.0_dbl
   MOL: DO imol = 1, SIZE ( molecule )
@@ -1579,7 +1584,7 @@ SUBROUTINE potential_bond ( molecule, x, energy )
         llbond => llbond % next
      END DO BOND
   END DO MOL
-  
+
 END SUBROUTINE potential_bond
 
 !!*****
@@ -1602,22 +1607,22 @@ END SUBROUTINE potential_bond
 !******************************************************************************
 
 SUBROUTINE potential_bend ( molecule, x, energy )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   REAL ( dbl ), INTENT ( OUT ) :: energy
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: x
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
-  
+
 ! Locals
   REAL ( dbl ), DIMENSION (3) :: b12, b32, g1, g2, g3
   REAL ( dbl ) :: d12, d32, id12, id32, dist, theta, e0, fscalar
   INTEGER :: imol, ibend
   TYPE ( linklist_bends ), POINTER :: llbend
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! initializing
   energy = 0.0_dbl
   MOL: DO imol = 1, SIZE ( molecule )
@@ -1638,7 +1643,7 @@ SUBROUTINE potential_bend ( molecule, x, energy )
         llbend => llbend % next
      END DO BEND
   END DO MOL
-  
+
 END SUBROUTINE potential_bend
 
 !!*****
@@ -1661,22 +1666,22 @@ END SUBROUTINE potential_bend
 !******************************************************************************
 
 SUBROUTINE potential_torsion ( molecule, x, energy )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   REAL ( dbl ), INTENT ( OUT ) :: energy
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: x
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
-  
+
 ! Locals
   REAL ( dbl ), DIMENSION (3) :: t12, t32, t43, u1, u2, gt1, gt2, gt3, gt4
   REAL ( dbl ) :: s32, is32, dist1, dist2, w1, w2, iw1, iw2, e0, fscalar
   INTEGER :: imol, itorsion
   TYPE ( linklist_torsions ), POINTER :: lltorsion
-  
+
 !------------------------------------------------------------------------------
-  
+
 ! initializing
   energy = 0.0_dbl
   MOL: DO imol = 1, SIZE ( molecule )
@@ -1701,7 +1706,7 @@ SUBROUTINE potential_torsion ( molecule, x, energy )
         lltorsion => lltorsion % next
      END DO torsion
   END DO MOL
-  
+
 END SUBROUTINE potential_torsion
 
 !!*****
@@ -1723,9 +1728,9 @@ END SUBROUTINE potential_torsion
 !******************************************************************************
 
 SUBROUTINE getv_ptens ( ewald_param, pnode, x, vnb, box, potparm )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: x
   REAL ( dbl ), INTENT ( INOUT ) :: vnb
@@ -1733,7 +1738,7 @@ SUBROUTINE getv_ptens ( ewald_param, pnode, x, vnb, box, potparm )
   TYPE (particle_node_type ), INTENT ( IN ), DIMENSION ( : ) :: pnode
   TYPE (potentialparm_type), INTENT ( IN ), DIMENSION ( :, : ) :: potparm
   TYPE (ewald_parameters_type), INTENT (IN) :: ewald_param
-  
+
 ! Locals
   INTEGER :: i, j, ii, jj, iatomtype, jatomtype, iexclude, natoms, id
   INTEGER :: zz,yy,xx
@@ -1743,16 +1748,16 @@ SUBROUTINE getv_ptens ( ewald_param, pnode, x, vnb, box, potparm )
   TYPE (linklist_exclusion), POINTER :: ll_exclude
   LOGICAL :: match
   INTEGER, DIMENSION ( :, :, : ), ALLOCATABLE :: ncell
-  
+
 !------------------------------------------------------------------------------
-  
+
   n = SIZE ( potparm ( :, 1 ) )
-  
+
   isos = 0
   IF ( .NOT. ALLOCATED ( ncell ) ) ALLOCATE ( ncell ( n, n, 3 ), STAT = isos )
   IF ( isos /= 0 ) &
        CALL stop_memory ( 'force_nonbond_numer', 'ncell', n * n * 3 )
-  
+
   CALL get_cell_param ( box, cell )
   DO itype = 1, n
      DO jtype = 1, n
@@ -1767,12 +1772,12 @@ SUBROUTINE getv_ptens ( ewald_param, pnode, x, vnb, box, potparm )
         END DO
      END DO
   END DO
-  
+
 !
 ! initializing the potential energy
 !
   vnb = 0.0_dbl
-  
+
 !
 ! starting the loop
 !
@@ -1780,7 +1785,7 @@ SUBROUTINE getv_ptens ( ewald_param, pnode, x, vnb, box, potparm )
   CALL get_cell_param ( box, cell )
   perd = box % perd
   natoms = size(pnode)
-  ILOOP: DO i = 1, natoms 
+  ILOOP: DO i = 1, natoms
      iatomtype = pnode(i) % p % prop % ptype
      qi = pnode(i) % p % prop % charge
      ri = x(:,i)
@@ -1789,22 +1794,22 @@ SUBROUTINE getv_ptens ( ewald_param, pnode, x, vnb, box, potparm )
            jatomtype = pnode(j) % p % prop % ptype
            qj = pnode(j) % p % prop % charge
            rij = x(:,j) - ri
-           
+
 !
 ! imaging,transform back to unscaled distances and get potential
 !
            IF ( MAXVAL ( ncell ( iatomtype, jatomtype, : ) ) == 0 ) THEN
               rij = pbc ( rij, box )
            END IF
-           
+
            rijsq = DOT_PRODUCT ( rij, rij )
-           
+
            IF ( rijsq <= potparm ( iatomtype, jatomtype ) % rcutsq ) THEN
-              
+
 ! pointing to the start of the exclusion list of particle i
               ll_exclude => pnode(i) % ex
               match = .FALSE.
-              
+
               EXCL: DO iexclude = 1, pnode(i) % nexcl
                  IF (ll_exclude % p % iatom==j) THEN
                     match = .TRUE.
@@ -1812,7 +1817,7 @@ SUBROUTINE getv_ptens ( ewald_param, pnode, x, vnb, box, potparm )
                  END IF
                  ll_exclude => ll_exclude % next
               END DO EXCL
-              
+
               NOTMATCH: IF ( .NOT. match) THEN
                  IF (qi==0.AND.qj==0) THEN
                    CALL potential_f ( rijsq, potparm, qi, qj, &
@@ -1821,13 +1826,13 @@ SUBROUTINE getv_ptens ( ewald_param, pnode, x, vnb, box, potparm )
                    CALL potential_f ( rijsq, potparm, qi, qj, &
                       iatomtype, jatomtype, energy, ewald_param )
                  ENDIF
-!     
+!
 ! summing up the potential energy
 !
                  vnb = vnb + energy
               END IF NOTMATCH
            END IF
-           
+
 ! searching images if needed
            zz = ncell(iatomtype,jatomtype,3)
            yy = ncell(iatomtype,jatomtype,2)
@@ -1861,7 +1866,7 @@ SUBROUTINE getv_ptens ( ewald_param, pnode, x, vnb, box, potparm )
                  END DO
               END DO
            END DO
-           
+
         ELSE IF ( i == j ) THEN
 ! search images if needed
            zz = ncell(iatomtype,iatomtype,3)
@@ -1872,7 +1877,7 @@ SUBROUTINE getv_ptens ( ewald_param, pnode, x, vnb, box, potparm )
               DO jcell = -yy,yy
                  DO icell = -xx,xx
                     IF ( icell == 0 .AND. jcell == 0 .AND. kcell == 0 ) CYCLE
-                    
+
                     vec ( : ) = (/ icell, jcell, kcell /)
                     CALL find_image ( s, perd, vec, box % hmat, rijsq, rij )
                     IF ( rijsq <= potparm ( iatomtype, iatomtype ) % rcutsq ) &
@@ -1886,15 +1891,15 @@ SUBROUTINE getv_ptens ( ewald_param, pnode, x, vnb, box, potparm )
                       ENDIF
                       vnb = vnb + energy
                     END IF
-                    
+
                  END DO
               END DO
            END DO
         END IF
-        
+
      END DO JLOOP
   END DO ILOOP
-  
+
 END SUBROUTINE getv_ptens
 
 !!*****

@@ -17,16 +17,18 @@
 !!
 !!   SOURCE
 !******************************************************************************
-! 
+!
     MODULE kpoint_initialization
-! 
+!
 !------------------------------------------------------------------------------!
+
       USE kinds, ONLY : dbl
+
       USE brillouin, ONLY : kpoint_type
-      USE stop_program, ONLY : stop_memory
-      USE particle_types, ONLY : particle_type
       USE global_types, ONLY : global_environment_type
       USE k290, ONLY : set_k290, set_k290_atoms, kp_sym_gen
+      USE particle_types, ONLY : particle_type
+      USE termination, ONLY : stop_memory
 !
       IMPLICIT NONE
 !

@@ -18,7 +18,7 @@
 !******************************************************************************
 
 MODULE molecule_input
-  
+
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : pi, zero
@@ -26,23 +26,23 @@ MODULE molecule_input
   USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
        cfield, p_error, get_real, get_int, stop_parser
-  USE stop_program, ONLY : stop_prg, stop_memory
   USE string_utilities, ONLY : uppercase, xstring, str_search, &
        str_comp, make_tuple
-  
+  USE termination, ONLY : stop_memory, stop_program
+
   IMPLICIT NONE
-  
+
   PRIVATE
   PUBLIC :: read_setup_section, read_molecule_section, charge, multiplicity
-  
+
 ! total charge of the system
-  
+
   REAL ( dbl ) :: charge
-  
+
 ! multiplicity of the system
-  
+
   INTEGER :: multiplicity
-  
+
 !!*****
 !******************************************************************************
 
@@ -80,26 +80,26 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE read_setup_section ( mol_setup, set_fn, globenv )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( molecule_type ), DIMENSION ( : ), POINTER :: mol_setup
   CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
-  
+
 ! Locals
   INTEGER :: ierror, ilen, iw, source, group, icount, nmol_type, ios, i
   CHARACTER ( LEN = 20 ) :: string, string2
   CHARACTER ( LEN = 6 ) :: label
-  
+
 !------------------------------------------------------------------------------
-  
+
   charge = 0.0_dbl
   multiplicity = 0
   iw = globenv % scr
   icount = 0
-     
+
 !..parse the input section
   label = '&SETUP'
   CALL parser_init ( set_fn, label, ierror, globenv )
@@ -130,10 +130,10 @@ SUBROUTINE read_setup_section ( mol_setup, set_fn, globenv )
                 'mol_setup', nmol_type )
         CASE ( 'MOLECULE')
            IF ( .NOT. ASSOCIATED ( mol_setup ) ) &
-                CALL stop_prg ( 'read_setup_section', &
+                CALL stop_program ( 'read_setup_section', &
                 'number of molecule types not yet specified')
            icount = icount + 1
-           IF (icount>nmol_type ) CALL stop_prg ( 'read_setup_section', &
+           IF (icount>nmol_type ) CALL stop_program ( 'read_setup_section', &
                 'too many molecule types specified')
            DO
               CALL read_line
@@ -164,7 +164,7 @@ SUBROUTINE read_setup_section ( mol_setup, set_fn, globenv )
      END DO
   END IF
   CALL parser_end
-     
+
 !..write some information to output
   IF ( globenv % ionode ) THEN
      IF (globenv%print_level>=0) THEN
@@ -185,7 +185,7 @@ SUBROUTINE read_setup_section ( mol_setup, set_fn, globenv )
         WRITE ( iw, '()' )
      END IF
   END IF
-  
+
 END SUBROUTINE read_setup_section
 
 !!*****
@@ -224,14 +224,14 @@ END SUBROUTINE read_setup_section
 !******************************************************************************
 
 SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( INOUT ) :: mol_setup
   CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
-  
+
 ! Locals
   INTEGER :: ierror, ilen, iw, source, group, icount, nmol_type, ios
   INTEGER :: i, j, imol, na, nat, j1, j2, nf, nt, ie, ia, i1, i2, i3, i4
@@ -241,11 +241,11 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
   CHARACTER ( LEN = 20 ), DIMENSION ( : ), ALLOCATABLE :: molname
   CHARACTER ( LEN = 20 ), DIMENSION ( : ), ALLOCATABLE :: tuple
   CHARACTER ( LEN = 80 ) :: bl = ' '
-  
+
 !------------------------------------------------------------------------------
-  
+
   nmol_type = SIZE ( mol_setup )
-  
+
   iw = globenv % scr
   ALLOCATE ( molname ( nmol_type ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'read_molecule_section', &
@@ -253,7 +253,7 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
   DO i = 1, nmol_type
      molname(i) = mol_setup(i) %molpar%name
   END DO
-     
+
 !..parse the input section
   label = '&MOLEC'
   CALL parser_init(set_fn,label,ierror,globenv)
@@ -277,18 +277,18 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
            mol_setup(imol) %molpar%ntorsions = 0
            mol_setup(imol) %molpar%ndcon = 0
            mol_setup(imol) %molpar%n3x3con = 0
-           
+
            DO
               CALL read_line
               ilen = 6
               CALL cfield(string2,ilen)
               CALL uppercase ( string2 )
-              
+
               SELECT CASE (string2)
               CASE DEFAULT
                  CALL p_error()
                  CALL stop_parser ( 'read_molecule_section','unknown option')
-                 
+
               CASE ( 'NUMAT')
                  na = get_int()
                  mol_setup(imol) %molpar%natom = na
@@ -305,7 +305,7 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
                  IF ( ios /= 0 ) CALL stop_memory &
                       ( 'read_molecule_section', 'acharge', na )
                  nat = 0
-                 
+
               CASE ( 'ATOM' )
                  IF ( nat < 0 ) CALL stop_parser ( 'read_molecule_section', &
                       'aweight' ) !TMPTMPTMP
@@ -316,7 +316,7 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
                  CALL cfield(mol_setup(imol)%molpar%alabel(nat),ilen)
                  mol_setup(imol) %molpar%aweight(nat) = get_real()
                  mol_setup(imol) %molpar%acharge(nat) = get_real()
-                 
+
               CASE ( 'BONDS')
                  mol_setup(imol) %molpar%nbonds = get_int()
                  na = mol_setup(imol) %molpar%nbonds
@@ -329,7 +329,7 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
                        mol_setup(imol) %molpar%bonds(2,i) = get_int()
                     END DO
                  END IF
-                 
+
               CASE ( 'BENDS')
                  mol_setup(imol) %molpar%nbends = get_int()
                  na = mol_setup(imol) %molpar%nbends
@@ -343,7 +343,7 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
                        mol_setup(imol) %molpar%bends(3,i) = get_int()
                     END DO
                  END IF
-                 
+
               CASE ( 'TORSIO')
                  mol_setup(imol) %molpar%ntorsions = get_int()
                  na = mol_setup(imol) %molpar%ntorsions
@@ -360,7 +360,7 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
                        mol_setup(imol) %molpar%torsions(4,i) = get_int()
                     END DO
                  END IF
-                 
+
               CASE ( 'DISTCO')
                  mol_setup(imol) %molpar%ndcon = get_int()
                  na = mol_setup(imol) %molpar%ndcon
@@ -373,7 +373,7 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
                        mol_setup(imol) %molpar%ndc(2,i) = get_int()
                     END DO
                  END IF
-                 
+
               CASE ( '3X3CON')
                  mol_setup(imol) %molpar%n3x3con = get_int()
                  na = mol_setup(imol) %molpar%n3x3con
@@ -387,15 +387,15 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
                        mol_setup(imol) %molpar%n3x3c(3,i) = get_int()
                     END DO
                  END IF
-                 
+
               CASE ( 'END')
                  ilen = 0
                  CALL cfield(string2,ilen)
                  EXIT
               END SELECT
-              
+
            END DO
-              
+
 !..count number of atom types
            mol_setup(imol) %molpar%natom_type = 1
            DO i = 2, mol_setup(imol) %molpar%natom
@@ -414,10 +414,10 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
      END DO
   END IF
   CALL parser_end
-     
+
   DEALLOCATE (molname,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'read_molecule_section', 'molname')
-     
+
 ! ..write some information to output
   IF (globenv%ionode) THEN
      IF (globenv%print_level>=0) THEN
@@ -437,7 +437,7 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
                    mol_setup(imol) %molpar%aweight(i), &
                    mol_setup(imol) %molpar%acharge(i)
            END DO
-           
+
            na = mol_setup(imol) %molpar%nbonds
            IF (na>0) THEN
               WRITE ( iw, '( A,T71,I10 )' ) ' MOLECULE| Number of bonds ', &
@@ -460,7 +460,7 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
               IF ( isos /= 0 ) CALL stop_memory ( 'read_molecule_section', &
                    'tuple' )
            END IF
-           
+
            na = mol_setup(imol) %molpar%nbends
            IF (na>0) THEN
               WRITE ( iw, '( A,T71,I10 )' ) ' MOLECULE| Number of bends ', &
@@ -483,7 +483,7 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
               IF ( isos /= 0 ) CALL stop_memory ( 'read_molecule_section', &
                    'tuple')
            END IF
-           
+
            na = mol_setup(imol) %molpar%ntorsions
            IF (na>0) THEN
               WRITE ( iw, '( A,T71,I10 )' ) ' MOLECULE| Number of torsions ', &
@@ -506,7 +506,7 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
               IF ( isos /= 0 ) CALL stop_memory ( 'read_molecule_section', &
                    'tuple')
            END IF
-           
+
            na = mol_setup(imol) %molpar%ndcon
            IF (na>0) THEN
               WRITE ( iw, '( A,T71,I10 )' ) &
@@ -530,7 +530,7 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
               IF ( isos /= 0 ) CALL stop_memory ( 'read_molecule_section', &
                    'tuple')
            END IF
-           
+
            na = mol_setup(imol) %molpar%n3x3con
            IF (na>0) THEN
               WRITE ( iw, '( A,T71,I10 )' ) &
@@ -558,7 +558,7 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
         END DO
      END IF
   END IF
-  
+
 END SUBROUTINE read_molecule_section
 
 !!*****

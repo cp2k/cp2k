@@ -22,14 +22,15 @@
 MODULE radial_util
 
   USE kinds, ONLY : dbl
+
   USE radial_grids, ONLY : radial_grid_type
-  USE stop_program, ONLY : stop_memory
-  
+  USE termination, ONLY : stop_memory
+
   IMPLICIT NONE
-  
+
   PRIVATE
   PUBLIC :: radial_diff, radial_integrate
-  
+
   INTERFACE radial_diff
      MODULE PROCEDURE radial_diff_r, radial_diff_s
   END INTERFACE
@@ -59,7 +60,7 @@ SUBROUTINE radial_int_s ( n, f, h, result, ierr )
 ! Locals
   REAL ( dbl ), PARAMETER :: p1 = 0.375_dbl, &
                              p2 = 1.16666666666666666667_dbl, &
-                             p3 = 0.95833333333333333333_dbl 
+                             p3 = 0.95833333333333333333_dbl
 
 ! Simpson's integration rule '''
 !------------------------------------------------------------------------------
@@ -177,7 +178,7 @@ SUBROUTINE radial_diff_s ( n, f, df, order, stat )
                  + 9.5_dbl * f ( n-2 ) - 26._dbl * t * f ( n-1 ) &
                  + 35._dbl * z * f ( n )
       stat = 0
-    END SELECT 
+    END SELECT
   ENDIF
 
 END SUBROUTINE radial_diff_s

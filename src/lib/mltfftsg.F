@@ -111,19 +111,19 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, &
       IMPLICIT NONE
       INTEGER ncache
 #if defined ( __T3E )
-      ncache = 1024*8 
+      ncache = 1024*8
 #elif defined ( __SX5 ) || defined ( __T90 )
-      ncache = 1024*128 
+      ncache = 1024*128
 #elif defined ( __ALPHA )
-      ncache = 1024*8 
+      ncache = 1024*8
 #elif defined ( __SGI )
-      ncache = 1024*4 
+      ncache = 1024*4
 #elif defined ( __POWER2 )
-      ncache = 1024*10 
+      ncache = 1024*10
 #elif defined ( __HP )
-      ncache = 1024*64 
+      ncache = 1024*64
 #else
-      ncache = 1024*2 
+      ncache = 1024*2
 #endif
 
     END FUNCTION get_cache_size

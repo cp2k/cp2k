@@ -19,7 +19,7 @@
 !******************************************************************************
 
 MODULE md
-  
+
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE message_passing, ONLY : mp_bcast
@@ -28,13 +28,13 @@ MODULE md
   USE particle_types, ONLY : particle_type
   USE string_utilities, ONLY : uppercase, xstring
   USE util, ONLY : gasdev
-  
+
   IMPLICIT NONE
-  
+
   PRIVATE
-  PUBLIC :: read_md_section, simulation_parameters_type, &  
+  PUBLIC :: read_md_section, simulation_parameters_type, &
        initialize_velocities, thermodynamic_type, mdio_parameters_type
-  
+
   TYPE simulation_parameters_type
      INTEGER :: nsteps
      REAL ( dbl ) :: dt
@@ -55,13 +55,13 @@ MODULE md
      REAL ( dbl ) :: shake_tol
      REAL ( dbl ) :: verlet_skin
   END TYPE simulation_parameters_type
-  
+
   TYPE thermodynamic_type
      REAL ( dbl ), DIMENSION ( 3, 3 ) :: ptens, pv_kin, pv, pv_const
      REAL ( dbl ) :: kin, pot, gspace, e_self, e_neut, e_bonded
      LOGICAL :: ptens_aval
   END TYPE thermodynamic_type
-  
+
   TYPE mdio_parameters_type
      INTEGER :: icrd, ivel, iptens, iener, itemp, idump, iscreen
      CHARACTER ( LEN = 50 ) :: crd_file_name
@@ -71,7 +71,7 @@ MODULE md
      CHARACTER ( LEN = 50 ) :: temp_file_name
      CHARACTER ( LEN = 50 ) :: dump_file_name
   END TYPE mdio_parameters_type
-  
+
 !!*****
 !******************************************************************************
 
@@ -136,21 +136,21 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE read_md_section ( simpar, mdpar, mdio )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( simulation_parameters_type ), INTENT ( OUT ) :: simpar
   TYPE ( global_environment_type ), INTENT ( IN ) :: mdpar
   TYPE ( mdio_parameters_type ), INTENT ( OUT ) :: mdio
-  
+
 ! Locals
   INTEGER :: ierror, ilen, msglen, ia, ie, iw, allgrp, source
   CHARACTER ( LEN = 20 ) :: string
   CHARACTER ( LEN = 5 ) :: label
-  
+
 !------------------------------------------------------------------------------
-  
+
 !..defaults
   simpar % ensemble = 'NVE'
   simpar % nsteps = 0
@@ -167,9 +167,9 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % tau_nhc = 1000.0_dbl
   simpar % tau_cell = 1000.0_dbl
   simpar % verlet_skin = 1.0_dbl
-  
+
   iw = mdpar % scr
-     
+
 !..filenames
   CALL xstring ( mdpar % project_name, ia, ie )
   mdio % crd_file_name = mdpar % project_name(ia:ie) // '.crd'
@@ -178,7 +178,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   mdio % ener_file_name = mdpar % project_name(ia:ie) // '.ener'
   mdio % temp_file_name = mdpar % project_name(ia:ie) // '.temp'
   mdio % dump_file_name = mdpar % project_name(ia:ie) // '.dump'
-     
+
 !..print frequency
   mdio % icrd = 1
   mdio % ivel = 1
@@ -187,7 +187,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   mdio % itemp = 1
   mdio % idump = 1
   mdio % iscreen = 1
-     
+
 !..parse the input section
   label = '&MD'
   CALL parser_init(mdpar % input_file_name,label,ierror,mdpar)
@@ -200,58 +200,58 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
         ilen = 6
         CALL cfield ( string, ilen )
         CALL uppercase ( string )
-        
+
         SELECT CASE ( string )
         CASE DEFAULT
            CALL p_error()
            CALL stop_parser ( 'read_md_section', 'unknown option' )
-           
+
         CASE ( 'ENSEMB' )
            ilen = 0
            CALL cfield ( string, ilen )
            CALL uppercase ( string )
            simpar % ensemble = string ( 1:ilen )
-           
+
         CASE ( 'STEPS' )
            simpar % nsteps = get_int()
-           
+
         CASE ( 'VERLET' )
            simpar % verlet_skin = get_real()
-           
+
         CASE ( 'CELL' )
            simpar % n_cell(1) = get_int()
            simpar % n_cell(2) = get_int()
            simpar % n_cell(3) = get_int()
-           
+
         CASE ( 'TIMEST' )
            simpar % dt = get_real()
-           
+
         CASE ( 'TEMPER' )
            simpar % temp_ext = get_real()
-           
+
         CASE ( 'RESTAR' )
            ilen = 0
            CALL cfield ( string, ilen )
            CALL uppercase ( string )
            simpar % read_type = string ( 1:ilen )
-           
+
         CASE ( 'CONSTR' )
            ilen = 0
            CALL cfield ( string, ilen )
            CALL uppercase ( string )
            IF ( string(1:2)=='ON' ) simpar % constraint = .TRUE.
            IF ( string(1:3)=='OFF' ) simpar % constraint = .FALSE.
-           
+
         CASE ( 'SHAKE' )
            simpar % shake_tol = get_real()
-           
+
         CASE ( 'NOSE_P' )
            DO WHILE ( test_next() == 'C' )
-              
+
               ilen = 6
               CALL cfield ( string, ilen )
               CALL uppercase ( string )
-              
+
               SELECT CASE ( string )
               CASE DEFAULT
                  CALL p_error()
@@ -267,14 +267,14 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  simpar % nc = get_int()
               END SELECT
            END DO
-           
+
         CASE ( 'BAROST' )
            DO WHILE ( test_next() == 'C' )
-              
+
               ilen = 6
               CALL cfield ( string, ilen )
               CALL uppercase ( string )
-              
+
               SELECT CASE ( string )
               CASE DEFAULT
                  CALL p_error()
@@ -286,14 +286,14 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  simpar % p_ext = get_real()
               END SELECT
            END DO
-           
+
         CASE ( 'FILES' )
            DO WHILE ( test_next() == 'C' )
-              
+
               ilen = 6
               CALL cfield ( string, ilen )
               CALL uppercase ( string )
-              
+
               SELECT CASE ( string )
               CASE DEFAULT
                  CALL p_error()
@@ -328,23 +328,23 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  CALL cfield ( mdio % dump_file_name, ilen )
               END SELECT
            END DO
-           
+
         CASE ( 'PRINT' )
            DO WHILE ( test_next() == 'C' )
-              
+
               ilen = 6
               CALL cfield ( string, ilen )
               CALL uppercase ( string )
-              
+
               SELECT CASE ( string )
               CASE DEFAULT
                  CALL p_error()
                  CALL stop_parser ( 'read_md_section%print', &
                       'unknown suboption' )
-                 
+
               CASE ( 'SCREEN' )
                  mdio % iscreen = get_int()
-                 
+
               CASE ( 'FILES' )
                  ia = get_int()
                  mdio % icrd = ia
@@ -370,11 +370,11 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
         END SELECT
         CALL read_line
      END DO
-        
+
   END IF
   CALL parser_end
 !..end of parsing the input section
-     
+
 !..write some information to output
   IF (mdpar % ionode .AND. mdpar % print_level>=0) THEN
      WRITE ( iw, '( A )' ) ' MD| Molecular Dynamics Protocol '
@@ -430,7 +430,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
           ADJUSTR ( mdio % dump_file_name ( 1:50 ) )
      WRITE (iw,*)
   END IF
-  
+
 END SUBROUTINE read_md_section
 
 !!*****
@@ -453,14 +453,14 @@ END SUBROUTINE read_md_section
 !******************************************************************************
 
 SUBROUTINE initialize_velocities ( simpar, part, mdpar )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
   TYPE ( particle_type ), INTENT ( INOUT ), DIMENSION ( : ) :: part
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: mdpar
-  
+
 ! Locals
   INTEGER :: i, id, natoms, iw
   REAL ( dbl ), DIMENSION ( 3 ) :: vcom
@@ -468,21 +468,21 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
   REAL ( dbl ) :: denom, sc, mass
   REAL ( dbl ) :: akin, temp
   LOGICAL :: domdec
-  
+
 !------------------------------------------------------------------------------
-  
+
   iw = mdpar % scr
   IF (mdpar % ionode .AND. mdpar % print_level>1) THEN
      WRITE ( iw, '( A, A, A )' ) ' **********************', &
           ' begin of velocity initialization ', '***********************'
   END IF
-  
+
 ! Initializing parameters
   sum = 0.0_dbl
   vcom = 0.0_dbl
   denom = 0.0_dbl
   natoms = SIZE ( part )
-  
+
 ! initializing velocities
   IF (mdpar % ionode) THEN
      DO i = 1, natoms
@@ -497,9 +497,9 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
         akin = akin + 0.5_dbl*(mass*part(i) % v(2)*part(i) % v(2))
         akin = akin + 0.5_dbl*(mass*part(i) % v(3)*part(i) % v(3))
      END DO
-     
+
      temp = 2.0_dbl * akin / REAL ( simpar % nfree, dbl )
-     
+
 ! scale velocities to get the correct initial temperature
      sc = SQRT ( simpar % temp_ext / temp )
      DO i = 1, natoms
@@ -507,7 +507,7 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
         part(i) % v(2) = sc*part(i) % v(2)
         part(i) % v(3) = sc*part(i) % v(3)
      END DO
-     
+
 ! Computing the COM velocities
      DO i = 1, natoms
         mass = part(i) % prop % mass
@@ -516,7 +516,7 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
         vcom(3) = vcom(3) + mass*part(i) % v(3)
         denom = denom + mass
      END DO
-     
+
 ! Moving the velocities so that the COM velocity is zero
      vcom = vcom / denom
      DO i = 1, natoms
@@ -525,13 +525,13 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
         sum ( : ) = sum ( : ) + mass*part(i) % v ( : )
      END DO
   END IF
-  
+
 #if defined(__parallel)
   DO i = 1, natoms
      CALL mp_bcast(part(i) % v,mdpar % source,mdpar % group)
   END DO
 #endif
-  
+
   IF ( mdpar % ionode .AND. mdpar % print_level > 1 ) THEN
      WRITE ( iw, '( A, T69, E12.6 )' ) &
           ' Centre of mass velocity in direction x:', sum ( 1 )
@@ -542,7 +542,7 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
      WRITE ( iw, '( A, A, A, / )' ) ' ***********************', &
           ' end of velocity initialization ', '************************'
   END IF
-  
+
 END SUBROUTINE initialize_velocities
 
 !!*****

@@ -21,13 +21,14 @@
 !******************************************************************************
 
 MODULE radial_grids
-  
+
   USE kinds, ONLY : dbl
+
   USE string_utilities, ONLY : uppercase
-  USE stop_program, ONLY : stop_prg, stop_memory
-  
+  USE termination, ONLY : stop_memory, stop_program
+
   IMPLICIT NONE
-  
+
   PRIVATE
   PUBLIC :: radial_grid_type, init_radial_grid
 
@@ -45,7 +46,7 @@ MODULE radial_grids
 
 !!*****
 !-----------------------------------------------------------------------------!
-  
+
 CONTAINS
 
 !-----------------------------------------------------------------------------!
@@ -67,7 +68,7 @@ CONTAINS
 !-----------------------------------------------------------------------------!
 
   SUBROUTINE init_radial_grid ( rg, type, n, z, b, rmax )
-  
+
 !Arguments
   TYPE ( radial_grid_type ), INTENT ( OUT ) :: rg
   CHARACTER ( LEN = * ), INTENT ( IN ) :: type
@@ -75,11 +76,11 @@ CONTAINS
   REAL ( dbl ), INTENT ( IN ) :: z
   REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ), OPTIONAL :: b
   REAL ( dbl ), INTENT ( IN ), OPTIONAL :: rmax
-  
+
 !Locals
   REAL ( dbl ) :: ab, t, tm, t0, s, p, abt, ts2, tt
   INTEGER :: ierr, m, i
-  
+
 !------------------------------------------------------------------------------
 
   ALLOCATE ( rg % r ( 0:n+1 ), STAT = ierr )
@@ -90,7 +91,7 @@ CONTAINS
   IF ( ierr /= 0 ) call stop_memory ( "init_radial_grid", "rg % wdd", n+2 )
 
   rg % type = type
-  CALL uppercase ( rg % type ) 
+  CALL uppercase ( rg % type )
   rg % n = n
   rg % z = z
   rg % h = 1._dbl / REAL ( n + 1, dbl )
@@ -106,11 +107,11 @@ CONTAINS
   ELSE
     rg % b = 1._dbl
   END IF
-  
+
   SELECT CASE ( rg % type )
 
   CASE DEFAULT
-    call stop_prg ( "init_radial_grid", "Variable transformation unknown" )
+    call stop_program ( "init_radial_grid", "Variable transformation unknown" )
 
   CASE ( "RATIONAL" )
     rg % form = "(b/Z)[Ts/(1-Ts)]"
@@ -150,7 +151,7 @@ CONTAINS
     rg % form = "Rmax*s"
     DO i = 0, n+1
       s = REAL ( i, dbl ) / REAL ( n + 1, dbl )
-      rg % r ( i ) = s * rmax 
+      rg % r ( i ) = s * rmax
     END DO
     rg % w ( 0:n+1 ) = SQRT ( 1._dbl / rg % rmax )
     rg % wdd ( 0:n+1 ) = 0._dbl
@@ -165,6 +166,7 @@ CONTAINS
     tm = ( z * rg % rmax + rg % b(1) ) ** p
     t = tm - t0
     abt = SQRT ( p * rg % b(1)**p * ab / t )
+!bug : check for the correct value of s!!!!!!!!!!!!!!!!!!!!!!!!!!!
     tt = ( ( t * s ) / rg % b(1) ** p + 1._dbl )
     DO i = 0, n+1
       s = REAL ( i, dbl ) / REAL ( n + 1, dbl )
@@ -193,7 +195,7 @@ CONTAINS
     rg % closed = .FALSE.
 
   END SELECT
-  
+
   END SUBROUTINE init_radial_grid
 
 !!*****

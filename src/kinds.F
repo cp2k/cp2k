@@ -34,14 +34,18 @@ MODULE kinds
   IMPLICIT NONE
   
   PRIVATE
-  PUBLIC :: sp, dp, qp, dbl, sgl, print_kind_info
+  PUBLIC :: sp, dp, qp, dbl, sgl, print_kind_info, dp_size, sp_size, int_size
   PUBLIC :: YES, NO
   
   INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
   INTEGER, PARAMETER :: sgl = SELECTED_REAL_KIND ( 6, 30 )
   INTEGER, PARAMETER :: qp = SELECTED_REAL_KIND ( 24, 60 )
   INTEGER, PARAMETER :: sp = sgl, dp = dbl
-  
+
+  INTEGER, PARAMETER :: dp_size = 8,&
+                        int_size = BIT_SIZE(0)/8,&
+                        sp_size = 4
+
   LOGICAL, PARAMETER :: YES = .TRUE., NO = .FALSE.
   LOGICAL, PARAMETER :: TRUE = .TRUE., FALSE = .FALSE.
 

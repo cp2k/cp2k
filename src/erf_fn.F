@@ -131,7 +131,7 @@ SUBROUTINE CALERF(ARG,RESULT,JINT)
 !  Latest modification: March 19, 1990
 !
 !------------------------------------------------------------------
-  
+
   USE KINDS, ONLY : dbl
   IMPLICIT NONE
   INTEGER I,JINT
@@ -205,9 +205,9 @@ SUBROUTINE CALERF(ARG,RESULT,JINT)
   DATA Q /2.56852019228982242E+00_dbl,1.87295284992346047E+00_dbl, &
        5.27905102951428412E-1_dbl,6.05183413124413191E-2_dbl, &
        2.33520497626869185E-3_dbl/
-  
+
 !------------------------------------------------------------------
-  
+
   X = ARG
   Y = ABS(X)
   IF (Y <= THRESH) THEN
@@ -309,7 +309,7 @@ FUNCTION ERF(X)
   REAL ( dbl ) :: X, RESULT
 
 !------------------------------------------------------------------
-  
+
   JINT = 0
   CALL CALERF(X,RESULT,JINT)
   ERF = RESULT

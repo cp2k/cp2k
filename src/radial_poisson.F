@@ -20,21 +20,22 @@
 !******************************************************************************
 
 MODULE radial_poisson
-  
+
   USE kinds, ONLY : dbl
-  USE stop_program, ONLY : stop_prg, stop_memory
+
   USE radial_grids, ONLY : radial_grid_type
   USE radial_solver, ONLY : numerov, diff5p
   USE radial_util, ONLY : radial_integrate
-  
+  USE termination, ONLY : stop_memory, stop_program
+
   IMPLICIT NONE
-  
+
   PRIVATE
   PUBLIC :: rg_poisson
 
 !!*****
 !-----------------------------------------------------------------------------!
-  
+
 CONTAINS
 
 !-----------------------------------------------------------------------------!
@@ -56,20 +57,20 @@ CONTAINS
 !-----------------------------------------------------------------------------!
 
   SUBROUTINE rg_poisson ( rho, vh, nu, rg, method )
-  
+
 !Arguments
   REAL ( dbl ), DIMENSION ( 0: ), INTENT ( IN ) :: rho
   REAL ( dbl ), DIMENSION ( 0: ), INTENT ( OUT ) :: vh
   INTEGER, INTENT ( IN ) :: nu
   TYPE ( radial_grid_type ), INTENT ( IN ) :: rg
   CHARACTER ( LEN=* ), OPTIONAL :: method
-  
+
 !Locals
   REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: f, g
   REAL ( dbl ) :: corr ( 3 )
   REAL ( dbl ) :: rn, h12, h60, res
   INTEGER :: n, ierr, i
-  
+
 !------------------------------------------------------------------------------
 
   n = rg % n
@@ -81,7 +82,7 @@ CONTAINS
   corr = 0._dbl
   g = ( rg % r ** nu ) * rho / ( rg % w ** 2 )
   CALL radial_integrate ( n+2, g, rg % h, res, ierr )
-  IF ( ierr /= 0 ) call stop_prg ( "radial_poisson", "radial_integrate" )
+  IF ( ierr /= 0 ) call stop_program ( "radial_poisson", "radial_integrate" )
   corr ( 3 ) = res * rg % w ( n+1 ) / rg % rmax ** nu
   vh ( 0 ) = 0._dbl
   vh ( n+1 ) = corr ( 3 ) / rg % w ( n+1 )
@@ -99,7 +100,7 @@ CONTAINS
   IF ( PRESENT ( method ) ) THEN
     SELECT CASE ( method )
     CASE DEFAULT
-      CALL stop_prg ( "radial_poisson", "method unknown", method )
+      CALL stop_program("radial_poisson","method <"//TRIM(method)//"> unknown")
     CASE ( "NUMEROV" )
       h12 = rg % h**2 / 12._dbl
       f = h12 * f

@@ -17,48 +17,49 @@
 !!     none
 !!
 !!   NOTES
-!!---------------------------------------------------------------------------- 
-!!          F R E E - F O R M A T  I N P U T  R O U T I N E S                  
-!!                                                                             
-!! Function    INSCAN(iunit,label) : looks for an input dection started by     
-!!                                   label un file associated with unit iunit  
-!! Subroutine  READ_LINE(iunit) : reads an input line, physical end of lines   
-!!                                can be masked by a & character, no further   
-!!                                characters are alowed to the right           
-!! Function    TEST_NEXT() : tests contains of next input field, return values 
-!!                           are : E (blank); C (text); N (number);            
-!!                                 K (bracket); S (! comment); X (&END);       
-!!                                 O all other                                 
-!! Subroutine  CFIELD(string,length) : extracts the next field from the        
-!!                                     input line, at most length charcters    
-!!                                     are returned in string, if length is 0  
-!!                                     the full field is returned, possible    
-!!                                     field seperators are: blank, comma,     
-!!                                     colon, semicolon, bracket, equal sign   
-!! Subroutine  P_ERROR : writes out current input line and current position    
-!!                       within the line, does not stop code                   
-!! Function    GET_INT() : read an integer from the input line                 
-!! Function    GET_REAL() : read an real value from the input line             
-!! Function    GET_ARRAY(I,J) : read an array field [I:J] or [I]               
-!!---------------------------------------------------------------------------- 
+!!----------------------------------------------------------------------------
+!!          F R E E - F O R M A T  I N P U T  R O U T I N E S
+!!
+!! Function    INSCAN(iunit,label) : looks for an input dection started by
+!!                                   label un file associated with unit iunit
+!! Subroutine  READ_LINE(iunit) : reads an input line, physical end of lines
+!!                                can be masked by a & character, no further
+!!                                characters are alowed to the right
+!! Function    TEST_NEXT() : tests contains of next input field, return values
+!!                           are : E (blank); C (text); N (number);
+!!                                 K (bracket); S (! comment); X (&END);
+!!                                 O all other
+!! Subroutine  CFIELD(string,length) : extracts the next field from the
+!!                                     input line, at most length charcters
+!!                                     are returned in string, if length is 0
+!!                                     the full field is returned, possible
+!!                                     field seperators are: blank, comma,
+!!                                     colon, semicolon, bracket, equal sign
+!! Subroutine  P_ERROR : writes out current input line and current position
+!!                       within the line, does not stop code
+!! Function    GET_INT() : read an integer from the input line
+!! Function    GET_REAL() : read an real value from the input line
+!! Function    GET_ARRAY(I,J) : read an array field [I:J] or [I]
+!!----------------------------------------------------------------------------
 !!
 !!   SOURCE
-!----------------------------------------------------------------------------- 
+!-----------------------------------------------------------------------------
 
 MODULE parser
-  
+
   USE kinds, ONLY : dbl
+
   USE global_types, ONLY : global_environment_type
   USE mathconstants, ONLY : zero, one
-  USE stop_program, ONLY : stop_prg
   USE string_utilities, ONLY : uppercase, compress
+  USE termination, ONLY : stop_program
   USE util, ONLY : get_unit
   USE message_passing, ONLY : mp_bcast, mp_sync
-  
+
   PRIVATE
   PUBLIC :: parser_init, parser_end, read_line, test_next, cfield, &
        p_error, get_int, get_real, stop_parser
-  
+
   INTEGER, PARAMETER :: max_line = 20
   CHARACTER ( LEN = 132 ) :: inp_line(max_line)
   INTEGER :: num_inp_line
@@ -66,7 +67,7 @@ MODULE parser
   INTEGER :: iunit
   CHARACTER ( LEN = 1 ), PARAMETER :: newline = '&'
   CHARACTER ( LEN = 1 ), PARAMETER :: blank = ' '
-  
+
   TYPE(global_environment_type) :: parenv
   LOGICAL :: parallel_io, ionode
 
@@ -85,11 +86,11 @@ SUBROUTINE parser_init ( file_name, label, ierr, globenv )
   CHARACTER ( LEN = 132 ) :: line
   INTEGER :: ios
   LOGICAL :: exists
-  
+
 !------------------------------------------------------------------------------
-  
+
   ierr = 0
-  
+
 ! setup parameters for parallel parser
   IF ( Present(globenv) ) THEN
     ionode = globenv%ionode
@@ -99,19 +100,19 @@ SUBROUTINE parser_init ( file_name, label, ierr, globenv )
     ionode = .true.
     parallel_io = .false.
   ENDIF
-  
+
   IF(ionode) THEN
 
 !..find a not associated unit
     iunit = get_unit()
     line = blank
-  
+
 !..check the file name
     INQUIRE ( FILE = file_name, EXIST = exists )
     IF ( .NOT. exists ) ierr = 1
-  
+
     CALL uppercase ( label )
-  
+
     IF ( ierr == 0 ) THEN
 !..look for the label
        OPEN (unit=iunit,file=file_name)
@@ -136,11 +137,11 @@ END SUBROUTINE parser_init
 !******************************************************************************
 
 SUBROUTINE parser_end
-  
+
   IMPLICIT NONE
-  
+
   IF(ionode) CLOSE ( UNIT = iunit )
-  
+
 END SUBROUTINE parser_end
 
 !******************************************************************************
@@ -151,9 +152,9 @@ SUBROUTINE read_line
   CHARACTER ( LEN = 132 ) :: line
   CHARACTER ( LEN = 1 ) :: last
   LOGICAL :: comment
-  
+
 !------------------------------------------------------------------------------
-  
+
   IF(ionode) THEN
 
 !..skip all empty lines
@@ -163,12 +164,12 @@ SUBROUTINE read_line
        IF ( ios /= 0 ) CALL stop_parser ( 'read_line','error while reading file')
        llen = len_trim(line)
     END DO
-  
+
 !..now read the input line
     last = line(llen:llen)
     num_inp_line = 1
     inp_line(num_inp_line) = line
-  
+
     DO WHILE (last==newline)
        IF (num_inp_line>=max_line) CALL stop_parser ( 'read_line','max_line')
        READ (iunit,iostat=ios,fmt='(a )' ) line
@@ -178,13 +179,13 @@ SUBROUTINE read_line
        num_inp_line = num_inp_line + 1
        inp_line(num_inp_line) = line
     END DO
-  
+
 !..delete newline characters
     DO i = 1, num_inp_line - 1
        llen = len_trim(inp_line(i))
        inp_line(i) (llen:llen) = blank
     END DO
-  
+
 !..delete empty lines
     j = 0
     DO i = 1, num_inp_line
@@ -194,9 +195,9 @@ SUBROUTINE read_line
           IF (j/=i) inp_line(j) = inp_line(i)
        END IF
     END DO
-  
+
     num_inp_line = j
-  
+
 !..convert all delimiter characters to blanks
     DO i = 1, num_inp_line
        llen = len_trim(inp_line(i))
@@ -214,12 +215,12 @@ SUBROUTINE read_line
           END SELECT
        END DO
     END DO
-  
+
 !..delete multiple blanks
     DO i = 1, num_inp_line
        CALL compress ( inp_line ( i ) )
     END DO
-  
+
 !..delete comment sections
     DO i = 1, num_inp_line
        line = blank
@@ -238,7 +239,7 @@ SUBROUTINE read_line
           END IF
        END DO
     END DO
-  
+
 !..add line seperators
     DO i = 1, num_inp_line - 1
        llen = len_trim(inp_line(i))
@@ -258,24 +259,24 @@ SUBROUTINE read_line
       CALL mp_bcast(inp_line(i),parenv%source,parenv%group)
     END DO
   END IF
-  
+
 !..initialize pointers
   p_line = 1
   p_char = 1
-  
+
 END SUBROUTINE read_line
 
 !******************************************************************************
 
 FUNCTION test_next()
-  
+
   IMPLICIT NONE
-  
+
 ! Locals
   CHARACTER ( LEN = 1 ) :: test_next
-  
+
 !------------------------------------------------------------------------------
-  
+
   SELECT CASE (inp_line(p_line)(p_char:p_char))
   CASE (blank)
      test_next = 'E'
@@ -308,19 +309,19 @@ END FUNCTION test_next
 !******************************************************************************
 
 SUBROUTINE cfield ( string, length )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   CHARACTER ( LEN = * ), INTENT ( INOUT ) :: string
   INTEGER, INTENT ( INOUT ) :: length
-  
+
 ! Locals
   CHARACTER ( LEN = 1 ) :: char1
   INTEGER :: l, ll, i, ii
-  
+
 !------------------------------------------------------------------------------
-  
+
   string = blank
   IF (length==0) length = 999
   l = len(inp_line(p_line)(p_char:))
@@ -352,12 +353,12 @@ SUBROUTINE cfield ( string, length )
      END IF
      ii = i
   END DO
-  
+
   IF (inp_line(p_line)(p_char:p_char)=='$' .AND. p_char==l) THEN
      p_line = p_line + 1
      p_char = 1
   END IF
-  
+
   IF (length==999) length = len_trim(string)
 
 END SUBROUTINE cfield
@@ -365,17 +366,17 @@ END SUBROUTINE cfield
 !******************************************************************************
 
 SUBROUTINE p_error ( ioutunit )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER, INTENT ( IN ), OPTIONAL :: ioutunit
-  
+
 ! Locals
   INTEGER :: i, llen, iout
-  
+
 !------------------------------------------------------------------------------
-  
+
   IF ( PRESENT ( ioutunit ) ) THEN
      iout = ioutunit
   ELSEIF ( parallel_io ) THEN
@@ -389,49 +390,49 @@ SUBROUTINE p_error ( ioutunit )
     WRITE (iout,'(a )' ) ' The last line read was : '
     DO i = 1, num_inp_line
        llen = len_trim(inp_line(i))
-       WRITE (iout,'(x,a )' ) inp_line(i) (1:llen)
+       WRITE (iout,'(1x,a )' ) inp_line(i) (1:llen)
     END DO
     WRITE (iout,'(a )' ) ' The current position in the line is:'
     llen = len_trim(inp_line(p_line))
-    WRITE (iout,'(x,a )' ) inp_line(p_line) (p_char:llen)
+    WRITE (iout,'(1x,a )' ) inp_line(p_line) (p_char:llen)
   END IF
   IF ( parallel_io ) call mp_sync(parenv%group)
-  
+
 END SUBROUTINE p_error
 
 !******************************************************************************
 
 FUNCTION get_int() RESULT (int)
   IMPLICIT NONE
-  
+
 ! Return value
   INTEGER :: int
-  
+
 ! Localse
   REAL ( dbl ) :: rival
-  
+
 !------------------------------------------------------------------------------
-  
+
   rival = get_real()
   int = NINT ( rival )
   IF ( ABS ( int - rival ) > EPSILON ( rival ) ) THEN
      CALL p_error()
      CALL stop_parser ( 'get_int','not an integer field')
   END IF
-  
+
 END FUNCTION get_int
 
 !******************************************************************************
 
 FUNCTION get_real() RESULT ( reval )
-  
+
   IMPLICIT NONE
-  
+
 !..most general format :  I((sign)_._E(sign)_/(sign)_._E(sign)_)
-  
+
 ! Return value
   REAL ( dbl ) :: reval
-  
+
 ! Locals
   REAL ( dbl ) :: xx, v1, v2
   REAL ( dbl ), SAVE :: value
@@ -440,9 +441,9 @@ FUNCTION get_real() RESULT ( reval )
   CHARACTER ( LEN = 256 ) :: string
   INTEGER :: ie, llen, state, ii
   REAL ( dbl ) :: s1, s2, e1, e2, se1, se2, x1, x2, y1, y2
-  
+
 !------------------------------------------------------------------------------
-  
+
   IF (repetition) THEN
      reval = value
      rep_num = rep_num - 1
@@ -592,7 +593,7 @@ FUNCTION get_real() RESULT ( reval )
            ii = ii + 1
         END SELECT
      END DO
-     
+
      v1 = s1*(x1+y1)*10._dbl**(se1*e1)
      v2 = s2*(x2+y2)*10._dbl**(se2*e2)
      IF (abs(v2)<epsilon(v2)) THEN
@@ -602,28 +603,28 @@ FUNCTION get_real() RESULT ( reval )
      value = v1/v2
   END IF
   reval = value
-  
+
 END FUNCTION get_real
 
 !******************************************************************************
 
 SUBROUTINE get_num ( string, result, rlen )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   REAL ( dbl ), INTENT ( OUT ) :: result
   CHARACTER ( LEN = * ), INTENT ( IN ) :: string
   INTEGER, INTENT ( OUT ) :: rlen
-  
+
 ! Locals
   REAL ( dbl ) :: sign, new
   INTEGER :: istart, llen, i
-  
+
   REAL ( dbl ), PARAMETER :: ten = 10.0_dbl
-  
+
 !------------------------------------------------------------------------------
-  
+
   result = zero
   llen = len_trim(string)
   IF (llen==0) THEN
@@ -643,7 +644,7 @@ SUBROUTINE get_num ( string, result, rlen )
      istart = 1
      rlen = 0
   END IF
-  
+
   DO i = istart, llen
      SELECT CASE (string(i:i))
      CASE ( '0')
@@ -681,47 +682,47 @@ SUBROUTINE get_num ( string, result, rlen )
      END SELECT
      result = ten*result + new
   END DO
-  
+
   result = sign * result
-  
+
 END SUBROUTINE get_num
 
 !******************************************************************************
 
 SUBROUTINE get_array ( ia, ie )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER, INTENT ( OUT ) :: ia, ie
-  
+
 ! Locals
   CHARACTER ( LEN = 256 ) :: string
   INTEGER :: llen, i
   REAL ( dbl ) :: rval
-  
+
 !------------------------------------------------------------------------------
-  
+
   IF ( test_next() /= 'K' ) THEN
      CALL p_error()
      CALL stop_parser ( 'get_array','not an array field')
   END IF
-  
+
   CALL afield ( string )
-  
+
   llen = len_trim ( string )
   string(1:1) = blank
   IF ( string ( llen:llen ) /= ']' ) THEN
      CALL p_error()
      CALL stop_parser ( 'get_array','not an array field')
   END IF
-  
+
   string ( llen:llen ) = blank
   string = ADJUSTL ( string )
   rval = zero
   CALL get_num ( string ( 1: ), rval, llen )
   ia = NINT ( rval )
-  
+
   i = SCAN ( string, ':' )
   IF ( i ==0 ) THEN
      ie = ia
@@ -730,36 +731,36 @@ SUBROUTINE get_array ( ia, ie )
      CALL get_num ( string ( i: ), rval, llen )
      ie = NINT ( rval )
   END IF
-  
+
 END SUBROUTINE get_array
 
 !******************************************************************************
 
 SUBROUTINE afield ( str )
-  
+
 ! Arguments
   CHARACTER ( LEN = * ), INTENT ( OUT ) :: str
-  
+
 ! Locals
   INTEGER :: i, l, ii
-  
+
 !------------------------------------------------------------------------------
-  
+
   str = blank
-  
+
   l = len(inp_line(p_line)(p_char:))
   DO i = 1, l
      str(i:i) = inp_line(p_line) (p_char+i-1:p_char+i-1)
      IF (str(i:i)==']') EXIT
   END DO
-  
+
   l = len_trim(str)
   IF (str(l:l)/=']') THEN
      CALL p_error ()
      CALL stop_parser ( 'afield','not an array field')
   END IF
   p_char = p_char + l
-  
+
   l = len_trim(inp_line(p_line))
   DO i = p_char, l
      IF (inp_line(p_line)(i:i)==blank .OR. inp_line(p_line)(i:i)==',' &
@@ -776,12 +777,12 @@ SUBROUTINE afield ( str )
      END IF
      ii = i
   END DO
-  
+
   IF (inp_line(p_line)(p_char:p_char)=='$' .AND. p_char==l) THEN
      p_line = p_line + 1
      p_char = 1
   END IF
-  
+
 END SUBROUTINE afield
 
 !******************************************************************************
@@ -794,10 +795,10 @@ SUBROUTINE stop_parser ( routine, comment )
   CHARACTER ( LEN = * ), INTENT ( IN ) :: routine, comment
 
   IF ( parallel_io) THEN
-    IF ( ionode ) CALL stop_prg( routine, comment )
+    IF ( ionode ) CALL stop_program( routine, comment )
     CALL mp_sync ( parenv % group )
   ELSE
-    CALL stop_prg( routine, comment )
+    CALL stop_program( routine, comment )
   END IF
 
 END SUBROUTINE stop_parser

@@ -19,32 +19,35 @@
 !******************************************************************************
 
 MODULE coefficient_types
-  
+
   USE kinds, ONLY : dbl
   USE pw_grid_types, ONLY : pw_grid_type
-  USE pw_types, ONLY : pw_type, pw_zero, pw_allocate, pw_deallocate, &
+  USE pw_types, ONLY : pw_type, pw_zero, pw_copy, &
+       pw_add, pw_sumup, pw_subtract, pw_reduce, &
+       pw_allocate, pw_deallocate, &
        pw_fft_wrap, REALDATA1D, COMPLEXDATA1D, REALDATA3D, COMPLEXDATA3D, &
        NOSPACE, REALSPACE, RECIPROCALSPACE
-  USE stop_program, ONLY : stop_prg
-  
+  USE termination, ONLY : stop_program
+
   IMPLICIT NONE
   
   PRIVATE
   PUBLIC :: coeff_type, coeff_allocate, coeff_deallocate, coeff_zero
+  PUBLIC :: coeff_copy, coeff_add, coeff_sumup, coeff_subtract, coeff_reduce
   PUBLIC :: coeff_transform_space
   PUBLIC :: PLANEWAVES, ATOMICORBITALS
   PUBLIC :: PW_REALDATA1D, PW_COMPLEXDATA1D, PW_REALDATA3D, PW_COMPLEXDATA3D
   PUBLIC :: PW_NOSPACE, PW_REALSPACE, PW_RECIPROCALSPACE
-  
+
   ! 'group_id' to grid?
   TYPE coeff_type
      INTEGER :: in_use
      TYPE ( pw_type ) :: pw
   END TYPE coeff_type
-  
+
   ! Flags for the structure member 'in_use'
   INTEGER, PARAMETER :: PLANEWAVES = 401, ATOMICORBITALS = 402
-  
+
   INTERFACE coeff_allocate
      MODULE PROCEDURE &
           coeff_allocate_from_coeff, coeff_allocate_from_grid
@@ -55,11 +58,11 @@ MODULE coefficient_types
           coeff_transform_c1, coeff_transform_c1c2, coeff_transform_c1pw2, &
           coeff_transform_pw1c2
   END INTERFACE
-  
+
   ! Flags for 'integral'
   PUBLIC :: SQUARE, SQUAREROOT
   INTEGER, PARAMETER :: SQUARE = 391, SQUAREROOT = 392
-  
+
   INTEGER, PARAMETER :: PW_REALDATA1D = REALDATA1D
   INTEGER, PARAMETER :: PW_COMPLEXDATA1D = COMPLEXDATA1D
   INTEGER, PARAMETER :: PW_REALDATA3D = REALDATA3D
@@ -71,103 +74,103 @@ MODULE coefficient_types
 
 !!*****
 !******************************************************************************
-  
+
 CONTAINS
 
 !******************************************************************************
 
 SUBROUTINE coeff_allocate_from_coeff ( c_out, c_model, use_basis )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( coeff_type ), INTENT ( IN ), TARGET :: c_model
   TYPE ( coeff_type ), INTENT ( OUT ) :: c_out
   INTEGER, INTENT ( IN ), OPTIONAL :: use_basis
-  
+
 ! Locals
   INTEGER :: use_data
-  
+
 !------------------------------------------------------------------------------
-  
+
   IF ( PRESENT ( use_basis ) ) THEN
      IF ( use_basis == PLANEWAVES ) THEN
         c_out % in_use = PLANEWAVES
         CALL pw_allocate ( c_out % pw, c_model % pw % pw_grid, &
              use_data = c_model % pw % in_use )
-        
+
      ELSE IF ( use_basis == PW_REALDATA1D .or. use_basis == PW_COMPLEXDATA1D &
           .or. use_basis == PW_REALDATA3D .or. use_basis == PW_COMPLEXDATA3D &
           ) THEN
-        
+
         c_out % in_use = PLANEWAVES
-        
+
         CALL pw_allocate ( c_out % pw, c_model % pw % pw_grid, &
              use_data = use_basis )
-        
+
      ELSE
-        CALL stop_prg ( "coeff_allocate_from_coeff", &
+        CALL stop_program ( "coeff_allocate_from_coeff", &
              "no suitable data with use_basis" )
-        
+
      END IF
-     
+
   ELSE
      use_data = c_model % pw % in_use
      IF ( use_data == PW_REALDATA1D .or. use_data == PW_COMPLEXDATA1D .or. &
           use_data == PW_REALDATA3D .or. use_data == PW_COMPLEXDATA3D ) THEN
-        
+
         c_out % in_use = PLANEWAVES
         CALL pw_allocate ( c_out % pw, c_model % pw % pw_grid, &
              use_data = c_model % pw % in_use )
-        
+
      ELSE
-        CALL stop_prg ( "coeff_allocate_from_coeff", &
+        CALL stop_program ( "coeff_allocate_from_coeff", &
              "no suitable data without use_basis" )
      END IF
   END IF
-  
+
 END SUBROUTINE coeff_allocate_from_coeff
 
 !******************************************************************************
 
 SUBROUTINE coeff_allocate_from_grid ( c_out, pw_grid, use_data )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( pw_grid_type ), INTENT ( IN ), OPTIONAL :: pw_grid
   INTEGER, INTENT ( IN ) :: use_data
   TYPE ( coeff_type ), INTENT ( OUT ) :: c_out
-  
+
 ! Locals
-  
+
 !------------------------------------------------------------------------------
-  
+
   IF ( PRESENT ( pw_grid ) ) THEN
      c_out % in_use = PLANEWAVES
      CALL pw_allocate ( c_out % pw, pw_grid, use_data )
   ELSE
-     CALL stop_prg ( "coeff_allocate_from_grid", "no suitable grid" )
+     CALL stop_program ( "coeff_allocate_from_grid", "no suitable grid" )
   END IF
-  
+
 END SUBROUTINE coeff_allocate_from_grid
 
 !******************************************************************************
 
 SUBROUTINE coeff_deallocate ( coeff )
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( coeff_type ), INTENT ( INOUT ) :: coeff
-  
+
 !------------------------------------------------------------------------------
-  
+
   IF ( coeff % in_use == PLANEWAVES ) THEN
      CALL pw_deallocate ( coeff % pw )
   ELSE
-     CALL stop_prg ( "coeff_deallocate", "no valid data type" )
+     CALL stop_program ( "coeff_deallocate", "no valid data type" )
   END IF
-  
+
 END SUBROUTINE coeff_deallocate
 
 !******************************************************************************
@@ -183,10 +186,107 @@ SUBROUTINE coeff_zero ( coeff )
   IF ( coeff % in_use == PLANEWAVES ) THEN
      CALL pw_zero ( coeff % pw )
   ELSE
-     CALL stop_prg ( "coeff_zero", "no valid data type" )
+     CALL stop_program ( "coeff_zero", "no valid data type" )
   END IF
   
 END SUBROUTINE coeff_zero
+
+!******************************************************************************
+
+SUBROUTINE coeff_copy ( coeff1, coeff2 )
+  IMPLICIT NONE
+  
+! Arguments
+  TYPE ( coeff_type ), INTENT ( IN ) :: coeff1
+  TYPE ( coeff_type ), INTENT ( INOUT ) :: coeff2
+  
+!------------------------------------------------------------------------------
+  
+  IF ( coeff1 % in_use == PLANEWAVES .AND. coeff2 % in_use == PLANEWAVES ) THEN
+     CALL pw_copy ( coeff1 % pw, coeff2 % pw )
+  ELSE
+     CALL stop_program ( "coeff_copy", "no valid data type" )
+  END IF
+  
+END SUBROUTINE coeff_copy
+
+!******************************************************************************
+
+SUBROUTINE coeff_add ( coeff1, coeff2, coeff3 )
+  IMPLICIT NONE
+  
+! Arguments
+  TYPE ( coeff_type ), INTENT ( IN ) :: coeff1, coeff2
+  TYPE ( coeff_type ), INTENT ( INOUT ) :: coeff3
+  
+!------------------------------------------------------------------------------
+  
+  IF ( coeff1 % in_use == PLANEWAVES .AND. coeff2 % in_use == PLANEWAVES &
+       .AND. coeff3 % in_use == PLANEWAVES ) THEN
+     CALL pw_add ( coeff1 % pw, coeff2 % pw, coeff3 % pw )
+  ELSE
+     CALL stop_program ( "coeff_add", "no valid data type" )
+  END IF
+  
+END SUBROUTINE coeff_add
+
+!******************************************************************************
+
+SUBROUTINE coeff_sumup ( coeff1, coeff2 )
+  IMPLICIT NONE
+  
+! Arguments
+  TYPE ( coeff_type ), INTENT ( IN ) :: coeff1
+  TYPE ( coeff_type ), INTENT ( INOUT ) :: coeff2
+  
+!------------------------------------------------------------------------------
+  
+  IF ( coeff1 % in_use == PLANEWAVES .AND. coeff2 % in_use == PLANEWAVES ) THEN
+     CALL pw_sumup ( coeff1 % pw, coeff2 % pw )
+  ELSE
+     CALL stop_program ( "coeff_sumup", "no valid data type" )
+  END IF
+  
+END SUBROUTINE coeff_sumup
+
+!******************************************************************************
+
+SUBROUTINE coeff_subtract ( coeff1, coeff2, coeff3 )
+  IMPLICIT NONE
+  
+! Arguments
+  TYPE ( coeff_type ), INTENT ( IN ) :: coeff1, coeff2
+  TYPE ( coeff_type ), INTENT ( INOUT ) :: coeff3
+  
+!------------------------------------------------------------------------------
+  
+  IF ( coeff1 % in_use == PLANEWAVES .AND. coeff2 % in_use == PLANEWAVES &
+       .AND. coeff2 % in_use == PLANEWAVES ) THEN
+     CALL pw_subtract ( coeff1 % pw, coeff2 % pw, coeff3 % pw )
+  ELSE
+     CALL stop_program ( "coeff_subtract", "no valid data type" )
+  END IF
+  
+END SUBROUTINE coeff_subtract
+
+!******************************************************************************
+
+SUBROUTINE coeff_reduce ( coeff1, coeff2 )
+  IMPLICIT NONE
+  
+! Arguments
+  TYPE ( coeff_type ), INTENT ( IN ) :: coeff1
+  TYPE ( coeff_type ), INTENT ( INOUT ) :: coeff2
+  
+!------------------------------------------------------------------------------
+  
+  IF ( coeff1 % in_use == PLANEWAVES .AND. coeff2 % in_use == PLANEWAVES ) THEN
+     CALL pw_reduce ( coeff1 % pw, coeff2 % pw )
+  ELSE
+     CALL stop_program ( "coeff_reduce", "no valid data type" )
+  END IF
+  
+END SUBROUTINE coeff_reduce
 
 !******************************************************************************
 !!****** coefficient_types/coeff_transform [1.0] *
@@ -201,88 +301,108 @@ END SUBROUTINE coeff_zero
 !!     JGH (4-Jan-2001)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (9-Feb-2001) added optional debug flag
 !!
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE coeff_transform_c1 ( c1 )
+SUBROUTINE coeff_transform_c1 ( c1, debug )
   
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( coeff_type ), INTENT ( INOUT ), TARGET :: c1
+  LOGICAL, INTENT ( IN ), OPTIONAL :: debug
   
 !------------------------------------------------------------------------------
-  
+
 !..check if we are dealing with plane waves and call the correct routine
   IF ( c1 % in_use == PLANEWAVES ) THEN
-    CALL pw_fft_wrap ( c1 % pw )
+    IF ( PRESENT ( debug ) ) THEN
+      CALL pw_fft_wrap ( c1 % pw, debug )
+    ELSE
+      CALL pw_fft_wrap ( c1 % pw )
+    ENDIF
   ELSE
-    CALL stop_prg ( "coeff_transform_c1", "not implemented")
+    CALL stop_program ( "coeff_transform_c1", "not implemented")
   END IF
 
 END SUBROUTINE coeff_transform_c1
 
 !******************************************************************************
 
-SUBROUTINE coeff_transform_c1c2 ( c1, c2 )
+SUBROUTINE coeff_transform_c1c2 ( c1, c2, debug )
   
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( coeff_type ), INTENT ( IN ) :: c1
   TYPE ( coeff_type ), INTENT ( INOUT ) :: c2
+  LOGICAL, INTENT ( IN ), OPTIONAL :: debug
   
 !------------------------------------------------------------------------------
-  
+
 !..check if we are dealing with plane waves and call the correct routine
   IF ( c1 % in_use == PLANEWAVES  .AND. c2 % in_use == PLANEWAVES ) THEN
-    CALL pw_fft_wrap ( c1 % pw, c2 % pw )
+    IF ( PRESENT ( debug ) ) THEN
+      CALL pw_fft_wrap ( c1 % pw, c2 % pw, debug )
+    ELSE
+      CALL pw_fft_wrap ( c1 % pw, c2 % pw )
+    END IF
   ELSE
-    CALL stop_prg ( "coeff_transform_c1c2", "not implemented")
+    CALL stop_program ( "coeff_transform_c1c2", "not implemented")
   END IF
 
 END SUBROUTINE coeff_transform_c1c2
 
 !******************************************************************************
 
-SUBROUTINE coeff_transform_c1pw2 ( c1, pw2 )
+SUBROUTINE coeff_transform_c1pw2 ( c1, pw2, debug )
   
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( coeff_type ), INTENT ( IN ) :: c1
   TYPE ( pw_type ), INTENT ( INOUT ) :: pw2
+  LOGICAL, INTENT ( IN ), OPTIONAL :: debug
 
 !------------------------------------------------------------------------------
-  
+
 !..check if we are dealing with plane waves and call the correct routine
   IF ( c1 % in_use == PLANEWAVES ) THEN
-    CALL pw_fft_wrap ( c1 % pw, pw2 )
+    IF ( PRESENT ( debug ) ) THEN
+      CALL pw_fft_wrap ( c1 % pw, pw2, debug )
+    ELSE
+      CALL pw_fft_wrap ( c1 % pw, pw2 )
+    END IF
   ELSE
-    CALL stop_prg ( "coeff_transform_c1pw2", "not implemented" )
+    CALL stop_program ( "coeff_transform_c1pw2", "not implemented" )
   END IF
 
 END SUBROUTINE coeff_transform_c1pw2
 
 !******************************************************************************
 
-SUBROUTINE coeff_transform_pw1c2 ( pw1, c2 )
+SUBROUTINE coeff_transform_pw1c2 ( pw1, c2, debug )
   
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( pw_type ), INTENT ( IN ) :: pw1
   TYPE ( coeff_type ), INTENT ( INOUT ) :: c2
+  LOGICAL, INTENT ( IN ), OPTIONAL :: debug
   
 !------------------------------------------------------------------------------
-  
+
 !..check if we are dealing with plane waves and call the correct routine
   IF ( c2 % in_use == PLANEWAVES ) THEN
-    CALL pw_fft_wrap ( pw1, c2 % pw )
+    IF ( PRESENT ( debug ) ) THEN
+      CALL pw_fft_wrap ( pw1, c2 % pw, debug )
+    ELSE
+      CALL pw_fft_wrap ( pw1, c2 % pw )
+    END IF
   ELSE
-    CALL stop_prg ( "coeff_transform_pw1c2", "not implemented" )
+    CALL stop_program ( "coeff_transform_pw1c2", "not implemented" )
   END IF
 
 END SUBROUTINE coeff_transform_pw1c2

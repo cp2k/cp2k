@@ -27,9 +27,10 @@ MODULE spherical_harmonics
 
 ! *****************************************************************************
 
-  USE kinds,              ONLY: dbl
-  USE mathconstants,      ONLY: pi, fac
-  USE stop_program,       ONLY: stop_prg, stop_memory
+  USE kinds,         ONLY: dbl
+
+  USE mathconstants, ONLY: pi, fac
+  USE termination,   ONLY: stop_memory, stop_program
 
   IMPLICIT NONE
 
@@ -52,7 +53,7 @@ CONTAINS
   SUBROUTINE rvy_lm ( r, y, l, m )
 !
 ! Real Spherical Harmonics
-!                   _                   _ 
+!                   _                   _
 !                  |  [(2l+1)(l-|m|)!]   |1/2 m         cos(m p)   m>=0
 !  Y_lm ( t, p ) = |---------------------|   P_l(cos(t))
 !                  |[2Pi(1+d_m0)(l+|m|)!]|              sin(|m| p) m<0
@@ -68,15 +69,15 @@ CONTAINS
 
   SELECT CASE ( l )
   CASE ( : -1 )
-    call stop_prg("y_lm","Negative l value")
+    call stop_program("y_lm","Negative l value")
   CASE ( 0 )
     pf = SQRT ( 1._dbl / ( 4._dbl * pi ) )
-    IF ( m /= 0 )  call stop_prg("y_lm","l = 0","m value out of bounds")
+    IF ( m /= 0 )  call stop_program("y_lm","l = 0 and m value out of bounds")
     y(:) = pf
   CASE ( 1 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_prg("y_lm","l = 1","m value out of bounds")
+      call stop_program("y_lm","l = 1 and m value out of bounds")
     CASE ( 1 )
       pf = - SQRT ( 3._dbl / ( 4._dbl * pi ) )
       y ( : ) = pf * r ( 1, : )
@@ -90,7 +91,7 @@ CONTAINS
   CASE ( 2 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_prg("y_lm","l = 2","m value out of bounds")
+      call stop_program("y_lm","l = 2 and m value out of bounds")
     CASE ( 2 )
       pf = SQRT ( 15._dbl / ( 16._dbl * pi ) )
       y ( : ) = pf * ( r ( 1, : ) * r ( 1, : ) - r ( 2, : ) * r ( 2, : ) )
@@ -110,7 +111,7 @@ CONTAINS
   CASE ( 3 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_prg("y_lm","l = 3","m value out of bounds")
+      call stop_program("y_lm","l = 3 and m value out of bounds")
     CASE ( 3 )
       pf = - SQRT ( 35._dbl / ( 32._dbl * pi ) )
       y ( : ) = pf * r ( 1, : ) * ( r ( 1, : )**2 - 3._dbl * r ( 2, : )**2 )
@@ -134,7 +135,7 @@ CONTAINS
       y ( : ) = pf * r ( 2, : ) * ( 3._dbl * r ( 1, : )**2 - r ( 2, : )**2 )
     END SELECT
   CASE DEFAULT
-    IF ( m < -l .OR. m > l ) call stop_prg("y_lm","m value out of bounds")
+    IF ( m < -l .OR. m > l ) call stop_program("y_lm","m value out of bounds")
     lpm = fac ( l + ABS ( m ) )
     lmm = fac ( l - ABS ( m ) )
     IF ( m == 0 ) THEN
@@ -193,15 +194,15 @@ CONTAINS
 
   SELECT CASE ( l )
   CASE ( : -1 )
-    call stop_prg("y_lm","Negative l value")
+    call stop_program("y_lm","Negative l value")
   CASE ( 0 )
     pf = SQRT ( 1._dbl / ( 4._dbl * pi ) )
-    IF ( m /= 0 )  call stop_prg("y_lm","l = 0","m value out of bounds")
+    IF ( m /= 0 )  call stop_program("y_lm","l = 0 and m value out of bounds")
     y = pf
   CASE ( 1 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_prg("y_lm","l = 1","m value out of bounds")
+      call stop_program("y_lm","l = 1 and m value out of bounds")
     CASE ( 1 )
       pf = - SQRT ( 3._dbl / ( 4._dbl * pi ) )
       y = pf * r ( 1 )
@@ -215,7 +216,7 @@ CONTAINS
   CASE ( 2 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_prg("y_lm","l = 2","m value out of bounds")
+      call stop_program("y_lm","l = 2 and m value out of bounds")
     CASE ( 2 )
       pf = SQRT ( 15._dbl / ( 16._dbl * pi ) )
       y = pf * ( r ( 1 ) * r ( 1 ) - r ( 2 ) * r ( 2 ) )
@@ -235,7 +236,7 @@ CONTAINS
   CASE ( 3 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_prg("y_lm","l = 3","m value out of bounds")
+      call stop_program("y_lm","l = 3 and m value out of bounds")
     CASE ( 3 )
       pf = - SQRT ( 35._dbl / ( 32._dbl * pi ) )
       y = pf * r ( 1 ) * ( r ( 1 )**2 - 3._dbl * r ( 2 )**2 )
@@ -259,7 +260,7 @@ CONTAINS
       y = pf * r ( 2 ) * ( 3._dbl * r ( 1 )**2 - r ( 2 )**2 )
     END SELECT
   CASE DEFAULT
-    IF ( m < -l .OR. m > l ) call stop_prg("y_lm","m value out of bounds")
+    IF ( m < -l .OR. m > l ) call stop_program("y_lm","m value out of bounds")
     lpm = fac ( l + ABS ( m ) )
     lmm = fac ( l - ABS ( m ) )
     IF ( m == 0 ) THEN
@@ -300,10 +301,10 @@ CONTAINS
   SUBROUTINE cvy_lm ( r, y, l, m )
 !
 ! Real Spherical Harmonics
-!                   _                _ 
-!                  | [(2l+1)(l-|m|)!] |1/2 m  
+!                   _                _
+!                  | [(2l+1)(l-|m|)!] |1/2 m
 !  Y_lm ( t, p ) = |------------------|   P_l(cos(t)) Exp[ i m p ]
-!                  |  [4Pi(l+|m|)!]|  |        
+!                  |  [4Pi(l+|m|)!]|  |
 !
 ! Input: r == (x,y,z) : normalised    x^2 + y^2 + z^2 = 1
 !
@@ -317,15 +318,15 @@ CONTAINS
   n = SIZE ( r ( 1, : ) )
   SELECT CASE ( l )
   CASE ( : -1 )
-    call stop_prg("y_lm","Negative l value")
+    call stop_program("y_lm","Negative l value")
   CASE ( 0 )
     pf = SQRT ( 1._dbl / ( 4._dbl * pi ) )
-    IF ( m /= 0 )  call stop_prg("y_lm","l = 0","m value out of bounds")
+    IF ( m /= 0 )  call stop_program("y_lm","l = 0 and m value out of bounds")
     y(:) = pf
   CASE ( 1 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_prg("y_lm","l = 1","m value out of bounds")
+      call stop_program("y_lm","l = 1 and m value out of bounds")
     CASE ( 1 )
       pf = - SQRT ( 3._dbl / ( 8._dbl * pi ) )
       DO i = 1, n
@@ -347,7 +348,7 @@ CONTAINS
   CASE ( 2 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_prg("y_lm","l = 2","m value out of bounds")
+      call stop_program("y_lm","l = 2 and m value out of bounds")
     CASE ( 2 )
       pf = SQRT ( 15._dbl / ( 32._dbl * pi ) )
       DO i = 1, n
@@ -383,7 +384,7 @@ CONTAINS
   CASE ( 3 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_prg("y_lm","l = 3","m value out of bounds")
+      call stop_program("y_lm","l = 3 and m value out of bounds")
     CASE ( 3 )
       pf = - SQRT ( 35._dbl / ( 64._dbl * pi ) )
       DO i = 1, n
@@ -431,7 +432,7 @@ CONTAINS
       END DO
     END SELECT
   CASE DEFAULT
-    IF ( m < -l .OR. m > l ) call stop_prg("y_lm","m value out of bounds")
+    IF ( m < -l .OR. m > l ) call stop_program("y_lm","m value out of bounds")
     lpm = fac ( l + ABS ( m ) )
     lmm = fac ( l - ABS ( m ) )
     t = 4._dbl * pi
@@ -474,10 +475,10 @@ CONTAINS
   SUBROUTINE ccy_lm ( r, y, l, m )
 !
 ! Real Spherical Harmonics
-!                   _                _ 
-!                  | [(2l+1)(l-|m|)!] |1/2 m  
+!                   _                _
+!                  | [(2l+1)(l-|m|)!] |1/2 m
 !  Y_lm ( t, p ) = |------------------|   P_l(cos(t)) Exp[ i m p ]
-!                  |  [4Pi(l+|m|)!]|  |        
+!                  |  [4Pi(l+|m|)!]|  |
 !
 ! Input: r == (x,y,z) : normalised    x^2 + y^2 + z^2 = 1
 !
@@ -490,15 +491,15 @@ CONTAINS
 
   SELECT CASE ( l )
   CASE ( : -1 )
-    call stop_prg("y_lm","Negative l value")
+    call stop_program("y_lm","Negative l value")
   CASE ( 0 )
     pf = SQRT ( 1._dbl / ( 4._dbl * pi ) )
-    IF ( m /= 0 )  call stop_prg("y_lm","l = 0","m value out of bounds")
+    IF ( m /= 0 )  call stop_program("y_lm","l = 0 and m value out of bounds")
     y = pf
   CASE ( 1 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_prg("y_lm","l = 1","m value out of bounds")
+      call stop_program("y_lm","l = 1 and m value out of bounds")
     CASE ( 1 )
       pf = - SQRT ( 3._dbl / ( 8._dbl * pi ) )
       yp = r ( 1 )
@@ -516,7 +517,7 @@ CONTAINS
   CASE ( 2 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_prg("y_lm","l = 2","m value out of bounds")
+      call stop_program("y_lm","l = 2 and m value out of bounds")
     CASE ( 2 )
       pf = SQRT ( 15._dbl / ( 32._dbl * pi ) )
       yp = ( r ( 1 ) * r ( 1 ) - r ( 2 ) * r ( 2 ) )
@@ -544,7 +545,7 @@ CONTAINS
   CASE ( 3 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_prg("y_lm","l = 3","m value out of bounds")
+      call stop_program("y_lm","l = 3 and m value out of bounds")
     CASE ( 3 )
       pf = - SQRT ( 35._dbl / ( 64._dbl * pi ) )
       yp = r ( 1 ) * ( r ( 1 )**2 - 3._dbl * r ( 2 )**2 )
@@ -580,7 +581,7 @@ CONTAINS
       y = pf * CMPLX ( yp, -ym, dbl )
     END SELECT
   CASE DEFAULT
-    IF ( m < -l .OR. m > l ) call stop_prg("y_lm","m value out of bounds")
+    IF ( m < -l .OR. m > l ) call stop_program("y_lm","m value out of bounds")
     lpm = fac ( l + ABS ( m ) )
     lmm = fac ( l - ABS ( m ) )
     t = 4._dbl * pi
@@ -625,17 +626,17 @@ CONTAINS
   REAL(dbl) :: plm
   INTEGER :: mm, err, im, il
   REAL(dbl) :: pmm, somx2, fact, pmmp1, pll
- 
-  IF ( ABS ( x ) > 1._dbl ) call stop_prg("legendre","x value > 1")
+
+  IF ( ABS ( x ) > 1._dbl ) call stop_program("legendre","x value > 1")
   SELECT CASE ( l )
   CASE ( : -1 )
-    call stop_prg("legendre","Negative l value")
+    call stop_program("legendre","Negative l value")
   CASE ( 0 )
     plm = 1._dbl
   CASE ( 1 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      call stop_prg("legendre","l = 1","m value out of bounds")
+      call stop_program("legendre","l = 1 and m value out of bounds")
     CASE ( 1 )
       plm = - SQRT ( 1._dbl - x * x )
     CASE ( 0 )
@@ -644,7 +645,7 @@ CONTAINS
   CASE ( 2 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      call stop_prg("legendre","l = 2","m value out of bounds")
+      call stop_program("legendre","l = 2 and m value out of bounds")
     CASE ( 2 )
       plm = 3._dbl * ( 1._dbl - x * x )
     CASE ( 1 )
@@ -655,7 +656,7 @@ CONTAINS
   CASE ( 3 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      call stop_prg("legendre","l = 3","m value out of bounds")
+      call stop_program("legendre","l = 3 and m value out of bounds")
     CASE ( 3 )
       plm = - 15._dbl * ( 1._dbl - x * x ) ** 1.5_dbl
     CASE ( 2 )
@@ -668,7 +669,7 @@ CONTAINS
   CASE ( 4 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      call stop_prg("legendre","l = 4","m value out of bounds")
+      call stop_program("legendre","l = 4 and m value out of bounds")
     CASE ( 4 )
       plm = 105._dbl * ( 1._dbl - x * x ) ** 2
     CASE ( 3 )
@@ -683,7 +684,7 @@ CONTAINS
   CASE ( 5 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      call stop_prg("legendre","l = 5","m value out of bounds")
+      call stop_program("legendre","l = 5 and m value out of bounds")
     CASE ( 5 )
       plm = - 945._dbl * ( 1._dbl - x * x ) ** 2.5_dbl
     CASE ( 4 )
@@ -701,7 +702,7 @@ CONTAINS
   CASE ( 6 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      call stop_prg("legendre","l = 6","m value out of bounds")
+      call stop_program("legendre","l = 6 and m value out of bounds")
     CASE ( 6 )
       plm = 10395._dbl * ( 1._dbl - x * x ) ** 3
     CASE ( 5 )
@@ -723,7 +724,7 @@ CONTAINS
     END SELECT
   CASE DEFAULT
     mm = ABS ( m )
-    IF ( mm > l ) call stop_prg ( " legendre ","m out of bounds" )
+    IF ( mm > l ) call stop_program ( " legendre ","m out of bounds" )
 ! use recurence from numerical recipies
     pmm = 1._dbl
     IF ( mm > 0 ) THEN
@@ -770,7 +771,7 @@ CONTAINS
   END FUNCTION choose
 
 ! *****************************************************************************
- 
+
   FUNCTION cosn ( n, c, s )
 
   INTEGER, INTENT ( IN ) :: n
@@ -792,7 +793,7 @@ CONTAINS
   END FUNCTION cosn
 
 ! *****************************************************************************
- 
+
   FUNCTION sinn ( n, c, s )
 
   INTEGER, INTENT ( IN ) :: n
@@ -814,6 +815,6 @@ CONTAINS
   END FUNCTION sinn
 
 ! *****************************************************************************
- 
+
 END MODULE spherical_harmonics
 

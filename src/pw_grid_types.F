@@ -36,6 +36,7 @@ MODULE pw_grid_types
 ! info on parallelisation
   TYPE pw_para_type
      INTEGER :: mode                 ! 0 = local ; 1 = distributed
+     LOGICAL :: ray_distribution     ! block or pencil distribution
      INTEGER :: group                ! MPI group id
      INTEGER :: my_pos               ! Position within group
      INTEGER :: group_size           ! # of Processors in group
@@ -45,8 +46,10 @@ MODULE pw_grid_types
      INTEGER, DIMENSION (:,:), POINTER :: yzq    ! local inverse pointer of yzp 
      INTEGER, DIMENSION (:), POINTER :: nyzray   ! number of g-space rays (pe)
      INTEGER :: rs_group             ! real space group (2-dim cart)
+     INTEGER :: rs_mpo               ! real space group position     
      INTEGER, DIMENSION (2) :: rs_dims    ! real space group dimensions
-     INTEGER, DIMENSION (2) :: rs_pos     ! real space group positions
+     INTEGER, DIMENSION (2) :: rs_pos     ! real space group positions in grid
+     INTEGER, DIMENSION (:,:,:,:), POINTER :: bo ! list of axis distribution
   END TYPE pw_para_type
 
   ! all you always wanted to know about grids, but were...
@@ -73,7 +76,6 @@ MODULE pw_grid_types
      INTEGER :: first_gne0                        ! first g index /= 0 [1/2]
      INTEGER :: nglengths                         ! # different lengths/shells
      REAL ( dbl ), DIMENSION ( : ), POINTER :: glsq   ! squared vector lengths
-     INTEGER, DIMENSION ( : ), POINTER :: glidx   ! index to the full arrays
      INTEGER :: identifier                        ! tag of this grid
      LOGICAL :: spherical                         ! spherical cutoff?
   END TYPE pw_grid_type

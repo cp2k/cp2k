@@ -24,8 +24,8 @@ MODULE dg_types
 
 ! Information on the assignment function for Ewald
   TYPE dg_type
-    INTEGER :: grid_index 
-    INTEGER :: nparts            
+    INTEGER :: grid_index
+    INTEGER :: nparts
     TYPE ( dg_rho0_type ) :: dg_rho0
     TYPE ( particle_list_type ), POINTER :: plist
   END TYPE dg_type

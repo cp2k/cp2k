@@ -12,36 +12,47 @@
 !!   AUTHOR
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!   cjm, Feb-20-2001 : added all the extended variables to
+!!   system_type
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE atoms_input
-  
+
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
        cfield, p_error, get_real, get_int
-  USE stop_program, ONLY : stop_prg, stop_memory
   USE string_utilities, ONLY : xstring, uppercase
+  USE termination, ONLY : stop_memory, stop_program
   USE util, ONLY : get_unit
-  
+
   IMPLICIT NONE
-  
+
   PRIVATE
   PUBLIC :: read_coord_vel, system_type
-  
+
   TYPE system_type
-     REAL ( dbl ) :: box(3,3)
+     REAL ( dbl ) :: box ( 3, 3 ), box_ref ( 3, 3 )
      CHARACTER ( LEN = 3 ) :: ptype
      CHARACTER ( LEN = 20 ) :: rtype
-     INTEGER :: n
+     INTEGER :: n, size1_nvt_part, size2_nvt_part
+     INTEGER :: size1_nvt_baro, size2_nvt_baro
+     INTEGER :: size1_npt, size2_npt
      REAL ( dbl ), POINTER :: c ( :, : )
      REAL ( dbl ), POINTER :: v ( :, : )
+     REAL ( dbl ), POINTER :: veps ( :, : )
+     REAL ( dbl ), POINTER :: mass_eps ( :, : )
+     REAL ( dbl ), POINTER :: eta_part ( :, : )
+     REAL ( dbl ), POINTER :: veta_part ( :, : )
+     REAL ( dbl ), POINTER :: mass_eta_part ( :, : )
+     REAL ( dbl ), POINTER :: eta_baro ( :, : )
+     REAL ( dbl ), POINTER :: veta_baro ( :, : )
+     REAL ( dbl ), POINTER :: mass_eta_baro ( :, : )
   END TYPE system_type
-  
+
 !!*****
 !******************************************************************************
 
@@ -58,7 +69,9 @@ CONTAINS
 !!   AUTHOR
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!   MODIFICATION HISTORY
+!!   cjm, Feb-20-2001 : broadcasts extended variables in
+!!   system_type
 !!
 !!  OPTIONS
 !!    either read the section &atoms in the input file or
@@ -76,24 +89,36 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE read_coord_vel ( atype, filen, globenv )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   TYPE ( system_type ), INTENT ( INOUT ) :: atype
   CHARACTER ( LEN = * ), INTENT ( INOUT ) :: filen
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
-  
+
 ! Locals
   INTEGER :: ierror, ilen, iw, source, allgrp, ia, ie, i, ios
+  INTEGER :: size1, size2
   CHARACTER ( LEN = 6 ) :: string
   CHARACTER ( LEN = 5 ) :: label
-  
+
 !------------------------------------------------------------------------------
-  
+
   iw = globenv % scr
-     
+
 !..defaults
+  NULLIFY ( atype % c )
+  NULLIFY ( atype % v )
+  NULLIFY ( atype % veps )
+  NULLIFY ( atype % mass_eps )
+  NULLIFY ( atype % eta_part )
+  NULLIFY ( atype % veta_part )
+  NULLIFY ( atype % mass_eta_part )
+  NULLIFY ( atype % eta_baro )
+  NULLIFY ( atype % veta_baro )
+  NULLIFY ( atype % mass_eta_baro )
+
 !..parse the input section
   label = '&ATOMS'
   CALL parser_init ( globenv % input_file_name, label, ierror, globenv )
@@ -115,6 +140,7 @@ SUBROUTINE read_coord_vel ( atype, filen, globenv )
      source = globenv % source
      allgrp = globenv % group
      CALL mp_bcast ( atype % box, source, allgrp )
+     CALL mp_bcast ( atype % box_ref, source, allgrp )
      CALL mp_bcast ( atype % ptype, source, allgrp )
      CALL mp_bcast ( atype % rtype, source, allgrp )
      CALL mp_bcast ( atype % n, source, allgrp )
@@ -130,16 +156,61 @@ SUBROUTINE read_coord_vel ( atype, filen, globenv )
         END IF
         CALL mp_bcast ( atype % v, source, allgrp )
      END IF
+     IF ( atype % rtype == 'ALL' ) THEN
+        IF ( .NOT. globenv % ionode ) THEN
+           ALLOCATE (atype % v(1:3,1:atype % n),STAT=ios)
+           IF ( ios /= 0 ) CALL stop_memory ( 'ATOM', 'atype%v', 3 * atype % n )
+           size1 = atype % size1_nvt_part
+           size2 = atype % size2_nvt_part
+           ALLOCATE (atype % veta_part (size1, size2 ),STAT=ios)
+           IF ( ios /= 0 )  &
+            CALL stop_memory ( 'ATOM', 'atype%veta_part', size1 * size2 )
+           ALLOCATE (atype % eta_part (size1, size2 ),STAT=ios)
+           IF ( ios /= 0 )  &
+            CALL stop_memory ( 'ATOM', 'atype%eta_part', size1 * size2 )
+           ALLOCATE (atype % mass_eta_part (size1, size2 ),STAT=ios)
+           IF ( ios /= 0 )  &
+            CALL stop_memory ( 'ATOM', 'atype%mass_eta_part', size1 * size2 )
+           ALLOCATE (atype % veta_baro (size1, size2 ),STAT=ios)
+           size1 = atype % size1_nvt_baro
+           size2 = atype % size2_nvt_baro
+           IF ( ios /= 0 )  &
+            CALL stop_memory ( 'ATOM', 'atype%veta_baro', size1 * size2 )
+           ALLOCATE (atype % eta_baro (size1, size2 ),STAT=ios)
+           IF ( ios /= 0 )  &
+            CALL stop_memory ( 'ATOM', 'atype%eta_baro', size1 * size2 )
+           ALLOCATE (atype % mass_eta_baro (size1, size2 ),STAT=ios)
+           IF ( ios /= 0 )  &
+            CALL stop_memory ( 'ATOM', 'atype%mass_eta_baro', size1 * size2 )
+           size1 = atype % size1_npt
+           size2 = atype % size2_npt
+           ALLOCATE (atype % veps (size1, size2 ),STAT=ios)
+           IF ( ios /= 0 )  &
+            CALL stop_memory ( 'ATOM', 'atype%veps', size1 * size2 )
+           ALLOCATE (atype % mass_eps (size1, size2 ),STAT=ios)
+           IF ( ios /= 0 )  &
+            CALL stop_memory ( 'ATOM', 'atype%mass_eps', size1 * size2 )
+        END IF
+        CALL mp_bcast ( atype % v, source, allgrp )
+        CALL mp_bcast ( atype % veta_part, source, allgrp )
+        CALL mp_bcast ( atype % eta_part, source, allgrp )
+        CALL mp_bcast ( atype % veta_baro, source, allgrp )
+        CALL mp_bcast ( atype % eta_baro, source, allgrp )
+        CALL mp_bcast ( atype % veps, source, allgrp )
+        CALL mp_bcast ( atype % mass_eps, source, allgrp )
+        CALL mp_bcast ( atype % mass_eta_part, source, allgrp )
+        CALL mp_bcast ( atype % mass_eta_baro, source, allgrp )
+     END IF
 #endif
-        
+
      ELSE
 
-        CALL stop_prg ( 'atom','this part of the code not yet written' )
-        
+        CALL stop_program ( 'atom','this part of the code not yet written' )
+
      END IF
      CALL parser_end
 !..end of parsing the input section
-     
+
 !..write some information to output
      IF (globenv%ionode .and. globenv%print_level>0) THEN
         WRITE ( iw, '( A )' ) ' ATOM| Box parameters [Angstrom]'
@@ -160,117 +231,225 @@ SUBROUTINE read_coord_vel ( atype, filen, globenv )
         END IF
         WRITE ( iw, '()' )
      END IF
-  
+
 END SUBROUTINE read_coord_vel
 
 !!*****
 !******************************************************************************
 
 SUBROUTINE read_file ( filen, atype )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   CHARACTER ( LEN = * ) :: filen
   TYPE ( system_type ), INTENT ( INOUT ) :: atype
-  
+
 ! Locals
-  INTEGER :: iunit, i, j, ios
+  INTEGER :: iunit, i, j, ios, size1, size2
   LOGICAL :: exists
-  
+
 !------------------------------------------------------------------------------
-  
+
   INQUIRE ( FILE = filen, EXIST = exists )
   IF ( exists ) THEN
      iunit = get_unit()
      OPEN ( iunit, file = filen )
      READ ( iunit, * ) atype % n
-        
+
      ALLOCATE ( atype % c ( 1:3, 1:atype % n ), STAT = ios )
      IF ( ios /= 0 ) CALL stop_memory ( 'ATOM', 'atype%c', 3 * atype % n )
      NULLIFY ( atype % v )
-     
-     IF ( atype % rtype == 'POS' ) THEN
+
+     IF ( atype % rtype == 'INIT' ) THEN
         DO i = 1, atype % n
            READ ( iunit, * ) atype % c ( 1:3, i )
         END DO
         READ ( iunit, * ) atype % box ( 1, 1:3 )
         READ ( iunit, * ) atype % box ( 2, 1:3 )
         READ ( iunit, * ) atype % box ( 3, 1:3 )
-        
+
+     ELSE IF ( atype % rtype == 'POS' )THEN
+        DO i = 1, atype % n
+           READ ( iunit, * ) atype % c ( 1:3, i )
+        END DO
+        READ ( iunit, * ) atype % box ( 1, 1:3 )
+        READ ( iunit, * ) atype % box ( 2, 1:3 )
+        READ ( iunit, * ) atype % box ( 3, 1:3 )
+
+        READ ( iunit, * ) atype % box_ref ( 1, 1:3 )
+        READ ( iunit, * ) atype % box_ref ( 2, 1:3 )
+        READ ( iunit, * ) atype % box_ref ( 3, 1:3 )
      ELSE IF ( atype % rtype == 'POSVEL' ) THEN
         ALLOCATE ( atype % v ( 1:3, 1:atype % n ), STAT = ios )
         IF ( ios /= 0 ) &
              CALL stop_memory ( 'ATOM', 'atype%v', 3 * atype % n )
-        
+
         DO i = 1, atype % n
            READ ( iunit, * ) atype % c ( 1:3, i )
         END DO
         READ ( iunit, * ) atype % box ( 1, 1:3 )
         READ ( iunit, * ) atype % box ( 2, 1:3 )
         READ ( iunit, * ) atype % box ( 3, 1:3 )
+
+        READ ( iunit, * ) atype % box_ref ( 1, 1:3 )
+        READ ( iunit, * ) atype % box_ref ( 2, 1:3 )
+        READ ( iunit, * ) atype % box_ref ( 3, 1:3 )
         DO i = 1, atype % n
            READ ( iunit, * ) atype % v ( 1:3, i )
         END DO
-        
+     ELSE IF ( atype % rtype == 'ALL' ) THEN
+        ALLOCATE ( atype % v ( 1:3, 1:atype % n ), STAT = ios )
+        IF ( ios /= 0 ) &
+             CALL stop_memory ( 'ATOM', 'atype%v', 3 * atype % n )
+
+        DO i = 1, atype % n
+           READ ( iunit, * ) atype % c ( 1:3, i )
+        END DO
+        READ ( iunit, * ) atype % box ( 1, 1:3 )
+        READ ( iunit, * ) atype % box ( 2, 1:3 )
+        READ ( iunit, * ) atype % box ( 3, 1:3 )
+
+        READ ( iunit, * ) atype % box_ref ( 1, 1:3 )
+        READ ( iunit, * ) atype % box_ref ( 2, 1:3 )
+        READ ( iunit, * ) atype % box_ref ( 3, 1:3 )
+        DO i = 1, atype % n
+           READ ( iunit, * ) atype % v ( 1:3, i )
+        END DO
+! particle thermostat positions and velocities
+        READ ( iunit, * ) atype % size1_nvt_part, atype % size2_nvt_part
+        size1 = atype % size1_nvt_part
+        size2 = atype % size2_nvt_part
+        ALLOCATE ( atype % veta_part ( size1, size2 ), STAT = ios )
+        IF ( ios /= 0 ) &
+             CALL stop_memory ( 'ATOM', 'atype%veta_part', size1 * size2 )
+        ALLOCATE ( atype % eta_part ( size1, size2 ), STAT = ios )
+        IF ( ios /= 0 ) &
+             CALL stop_memory ( 'ATOM', 'atype%eta_part', size1 * size2 )
+        ALLOCATE ( atype % mass_eta_part ( size1, size2 ), STAT = ios )
+        IF ( ios /= 0 ) &
+             CALL stop_memory ( 'ATOM', 'atype%mass_eta_part', size1 * size2 )
+        DO i = 1, size1
+          DO j = 1, size2
+            READ ( iunit, * ) atype % eta_part ( i, j )
+          ENDDO
+        ENDDO
+        DO i = 1, size1
+          DO j = 1, size2
+            READ ( iunit, * ) atype % veta_part ( i, j )
+          ENDDO
+        ENDDO
+        DO i = 1, size1
+          DO j = 1, size2
+            READ ( iunit, * ) atype % mass_eta_part ( i, j )
+          ENDDO
+        ENDDO
+! barostat thermostat positions and velocities
+        READ ( iunit, * ) atype % size1_nvt_baro, atype % size2_nvt_baro
+        size1 = atype % size1_nvt_baro
+        size2 = atype % size2_nvt_baro
+        ALLOCATE ( atype % veta_baro ( size1, size2 ), STAT = ios )
+        IF ( ios /= 0 ) &
+             CALL stop_memory ( 'ATOM', 'atype%veta_baro', size1 * size2 )
+        ALLOCATE ( atype % eta_baro ( size1, size2 ), STAT = ios )
+        IF ( ios /= 0 ) &
+             CALL stop_memory ( 'ATOM', 'atype%eta_baro', size1 * size2 )
+        ALLOCATE ( atype % mass_eta_baro ( size1, size2 ), STAT = ios )
+        IF ( ios /= 0 ) &
+             CALL stop_memory ( 'ATOM', 'atype%mass_eta_baro', size1 * size2 )
+        DO i = 1, size1
+          DO j = 1, size2
+            READ ( iunit, * ) atype % eta_baro ( i, j )
+          ENDDO
+        ENDDO
+        DO i = 1, size1
+          DO j = 1, size2
+            READ ( iunit, * ) atype % veta_baro ( i, j )
+          ENDDO
+        ENDDO
+        DO i = 1, size1
+          DO j = 1, size2
+            READ ( iunit, * ) atype % mass_eta_baro ( i, j )
+          ENDDO
+        ENDDO
+! barostat velocities
+        READ ( iunit, * ) atype % size1_npt, atype % size2_npt
+        size1 = atype % size1_npt
+        size2 = atype % size2_npt
+        ALLOCATE ( atype % veps ( size1, size2 ), STAT = ios )
+        IF ( ios /= 0 ) &
+             CALL stop_memory ( 'ATOM', 'atype%veps', size1 * size2 )
+        DO i = 1, size1
+          DO j = 1, size2
+            READ ( iunit, * ) atype % veps ( i, j )
+          ENDDO
+        ENDDO
+        ALLOCATE ( atype % mass_eps ( size1, size2 ), STAT = ios )
+        IF ( ios /= 0 ) &
+             CALL stop_memory ( 'ATOM', 'atype%mass_eps', size1 * size2 )
+        DO i = 1, size1
+          DO j = 1, size2
+            READ ( iunit, * ) atype % mass_eps ( i, j )
+          ENDDO
+        ENDDO
      ELSE
-        CALL stop_prg ( 'ATOM', 'this rtype not programmed' )
+        CALL stop_program ( 'ATOM', 'this rtype not programmed' )
      END IF
 
   ELSE
-     
-     CALL stop_prg ( 'ATOM', 'No information on atoms found ' )
+
+     CALL stop_program ( 'ATOM', 'No information on atoms found ' )
 
   END IF
-  
+
 END SUBROUTINE read_file
 
 !******************************************************************************
 
 SUBROUTINE print_c ( iw, c )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER, INTENT ( IN ) :: iw
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: c
-  
+
 ! Locals
   INTEGER :: i, n
-  
+
 !------------------------------------------------------------------------------
-  
+
   n = SIZE ( c, 2 )
   WRITE ( iw, '( A )' ) ' ATOM| Atom coordinates [Angstrom]'
   DO i = 1, n
      WRITE ( iw, '( A, T26, I10, 3F15.5 )' ) ' ATOM| ', i, c ( :, i )
   END DO
-  
+
 END SUBROUTINE print_c
 
 !******************************************************************************
 
 SUBROUTINE print_cv ( iw, c, v )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER, INTENT ( IN ) :: iw
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: c
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: v
-  
+
 ! Locals
   INTEGER :: i, n
-  
+
 !------------------------------------------------------------------------------
-  
+
   n = SIZE ( c, 2 )
   WRITE ( iw, '( A )' ) ' ATOM| Atom coordinates [Angstrom]'
   DO i = 1, n
      WRITE ( iw, '( A, T8, I8, 3F10.4, 5X, 3F10.4 )' ) &
           ' ATOM| ', i, c ( :, i ), v ( :, i )
   END DO
-  
+
 END SUBROUTINE print_cv
 
 !******************************************************************************

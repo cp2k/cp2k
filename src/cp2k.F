@@ -42,16 +42,22 @@
 
 PROGRAM cp2k
   
+  USE atom_module,ONLY : atomic_code
+  USE control_module, ONLY : control
   USE cp2k_input, ONLY : read_cp2k_section
   USE environment, ONLY : initialisation, trailer
-  USE control_module, ONLY : control
   USE global_types, ONLY : global_environment_type
-  USE library_tests,ONLY : lib_test
-  USE atom_module,ONLY : atomic_code
   USE kinds, ONLY : dbl, print_kind_info
+  USE library_tests,ONLY : lib_test
   USE parallel, ONLY : start_parallel, end_parallel
-  USE physcon, ONLY : print_physcon
-  
+  USE physcon, ONLY : write_physcon
+  USE termination,  ONLY: stop_program
+
+  USE core_hamiltonian,  ONLY: build_core_hamiltonian_matrix
+  USE nl,                ONLY: build_neighbor_list_sets
+  USE readin,            ONLY: read_files
+  USE start_program_run, ONLY: start_qs_program_run
+
   IMPLICIT NONE
   
   TYPE ( global_environment_type ) :: globenv
@@ -67,22 +73,47 @@ PROGRAM cp2k
   IF ( globenv % ionode .AND. globenv % print_level > 9 ) &
        CALL print_kind_info ( globenv % scr )
   IF ( globenv % ionode .AND. globenv % print_level > 4 ) &
-       CALL print_physcon ( globenv % scr )
+       CALL write_physcon ( globenv % scr )
   
-  IF ( globenv % program_name == 'FIST' .OR. &
-       globenv % program_name == 'TBMD' ) THEN
+  SELECT CASE ( globenv % program_name )
+
+  CASE DEFAULT
+
+     CALL stop_program ( "cp2k", "No valid program name given "&
+                         //globenv % program_name )
+
+  CASE ( "FIST", "TBMD", "WAVE" )
 
      CALL control ( globenv )
      
-  ELSE IF ( globenv % program_name == 'ATOM' ) THEN
+  CASE ( "QUICKSTEP", "QS" )
+
+!   *** Initialize the Quickstep program run ***
+
+    CALL start_qs_program_run(globenv)
+
+!   *** Read the input and the database files ***
+!   *** and perform further initializations   ***
+
+    CALL read_files(globenv)
+
+!   *** Build neighbor list sets ***
+
+    CALL build_neighbor_list_sets(globenv)
+
+!   *** Calculate the core Hamiltonian integral matrix ***
+
+    CALL build_core_hamiltonian_matrix(globenv)
+
+  CASE ( "ATOM" )
 
      CALL atomic_code ( globenv )
 
-  ELSE IF ( globenv % program_name == 'TEST' ) THEN
+  CASE ( "TEST" )
 
      CALL lib_test ( globenv )
 
-  END IF
+  END SELECT
   
   CALL end_parallel ( )
   

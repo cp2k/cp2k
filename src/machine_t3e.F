@@ -135,11 +135,11 @@ END MODULE machine_t3e
 
 !*apsi* Since this one does not exist...
 SUBROUTINE gsyev ( jobz, uplo, n, a, lda, w, work, lwork, info )
-  USE stop_program, ONLY : stop_prg
+  USE termination, ONLY : stop_program
   IMPLICIT NONE
   CHARACTER :: jobz, uplo
   INTEGER :: INFO, LDA, LWORK, N
   REAL ( KIND = 4 ) :: A( LDA, * ), W( * ), WORK( * )
   
-  CALL stop_prg ( "gsyev", "not defined" )
+  CALL stop_program ( "gsyev", "not defined" )
 END SUBROUTINE gsyev
