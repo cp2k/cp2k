@@ -24,6 +24,7 @@ MODULE topology
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atoms_input,                     ONLY: read_atoms_input
   USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE force_fields,                    ONLY: read_force_field_section
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -488,19 +489,27 @@ SUBROUTINE force_field_control(topology,globenv)
   !-----------------------------------------------------------------------------
   ! 2. Read in the force field from the corresponding locations
   !-----------------------------------------------------------------------------
-  SELECT CASE (topology%ff_type)
-  CASE ("CHM")
-    !CALL read_coordinate_chm (r,label_resname,label_atmname,&
-    !                          topology,globenv)
-    CALL stop_program ("force_field_control",&
-                       "force field type not implemented")
-  CASE ("AMB")
-    CALL stop_program ("force_field_control",&
-                       "force field type not implemented")
-  CASE DEFAULT
-    !CALL stop_program ("force_field_control",&
-    !                   "force field type not implemented")
-  END SELECT
+  IF(topology%ff) THEN
+    SELECT CASE (topology%ff_type)
+    CASE ("CHM")
+      CALL stop_program ("force_field_control",&
+                         "force field type not implemented")
+    CASE ("AMB")
+      CALL stop_program ("force_field_control",&
+                         "force field type not implemented")
+    CASE DEFAULT
+      CALL stop_program ("force_field_control",&
+                         "force field type not implemented")
+    END SELECT
+  END IF
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 3. Parse the input for force field section and append any info
+  !-----------------------------------------------------------------------------
+  CALL read_force_field_section(topology,globenv)
+
 
 
   IF((globenv%ionode).AND.(globenv%print%level>0))THEN

@@ -139,6 +139,7 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
   NULLIFY(topology%atm_charge)
   NULLIFY(topology%occup)
   NULLIFY(topology%beta)
+  NULLIFY(topology%element)
 
   CALL reallocate(topology%label_molname,1,nblock_atom)
   CALL reallocate(topology%label_resname,1,nblock_atom)
@@ -148,6 +149,7 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
   CALL reallocate(topology%atm_charge,1,nblock_atom)
   CALL reallocate(topology%occup,1,nblock_atom)
   CALL reallocate(topology%beta,1,nblock_atom)
+  CALL reallocate(topology%element,1,nblock_atom)
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -179,24 +181,22 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
         CALL reallocate(topology%atm_charge,1,natom+nblock_atom)
         CALL reallocate(topology%occup,1,natom+nblock_atom)
         CALL reallocate(topology%beta,1,natom+nblock_atom)
+        CALL reallocate(topology%element,1,natom+nblock_atom)
       END IF
     END IF
 
     SELECT CASE (record)
     CASE ("ATOM") 
       topology%label_molname(natom) = 'MOL'
-      symbol = line(77:78)
-      IF(symbol == '') THEN
-        READ(line(13:16),*) topology%label_atmname(natom)
-      ELSE
-        topology%label_atmname(natom) = symbol
-      END IF
-      READ(line(18:20),*) topology%label_resname(natom)
-      READ(line(31:38),*) topology%r(1,natom)
-      READ(line(39:46),*) topology%r(2,natom)
-      READ(line(47:54),*) topology%r(3,natom)
-      READ(line(55:60),*) topology%occup
-      READ(line(61:66),*) topology%beta
+      READ(line(13:16),*) topology%label_atmname(natom)
+      READ(line(18:20),*,IOSTAT=istat) topology%label_resname(natom)
+      READ(line(31:38),*,IOSTAT=istat) topology%r(1,natom)
+      READ(line(39:46),*,IOSTAT=istat) topology%r(2,natom)
+      READ(line(47:54),*,IOSTAT=istat) topology%r(3,natom)
+      READ(line(55:60),*,IOSTAT=istat) topology%occup
+      READ(line(61:66),*,IOSTAT=istat) topology%beta
+      READ(line(77:78),*,IOSTAT=istat) topology%element(natom)
+      WRITE(*,*) natom,line(13:16),line(77:78)
       topology%atm_mass(natom)  =0.0_dbl
       topology%atm_charge(natom)=0.0_dbl
       IF(PM2) WRITE(iw,'(5X,A4,3F8.3,A4)') &

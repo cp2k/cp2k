@@ -231,65 +231,6 @@ SUBROUTINE read_topology_section ( topology, globenv )
               CALL stop_parser( 'read_topology_section', &
                                 'unknown option nhc opt' )
            END IF
-        CASE ('CONATOM')
-           topology%constraint=.TRUE.
-           topology%const_atom=.TRUE.
-           CALL stop_program ( "read_topology_section", &
-               "CONATOM not done yet " )
-        CASE ('CONHYDR')
-           topology%constraint=.TRUE.
-           topology%const_hydr=.TRUE.
-           CALL stop_program ( "read_topology_section", &
-               "CONHYDR will not work until force field is completed " )
-        CASE ('CONDIST')
-           topology%constraint=.TRUE.
-           topology%const_dist=.TRUE.
-           ilen = 40
-           CALL get_next(str2,ilen)
-           CALL uppercase(str2)
-           IF (str2 == "ADD") THEN
-             i=topology%nconst_dist + 1
-             CALL reallocate(topology%const_dist_mol,1,i)
-             CALL reallocate(topology%const_dist_a,1,i)
-             CALL reallocate(topology%const_dist_b,1,i)
-             CALL reallocate(topology%const_dist_dab,1,i)
-             CALL get_next(topology%const_dist_mol(i))
-             CALL get_next(topology%const_dist_a(i))
-             CALL get_next(topology%const_dist_b(i))
-             CALL get_next(topology%const_dist_dab(i))
-             topology%nconst_dist = i
-           ELSE
-              CALL p_error()
-              CALL stop_parser( 'read_topology_section', &
-                                'unknown option in conatom' )
-           ENDIF
-        CASE ('CONG3X3')
-           topology%constraint=.TRUE.
-           topology%const_33=.TRUE.
-           ilen = 40
-           CALL get_next(str2,ilen)
-           CALL uppercase(str2)
-           IF (str2 == "ADD") THEN
-             i=topology%nconst_g33 + 1
-             CALL reallocate(topology%const_g33_mol,1,i)
-             CALL reallocate(topology%const_g33_a,1,i)
-             CALL reallocate(topology%const_g33_b,1,i)
-             CALL reallocate(topology%const_g33_c,1,i)
-             CALL reallocate(topology%const_g33_dab,1,i)
-             CALL reallocate(topology%const_g33_dac,1,i)
-             CALL reallocate(topology%const_g33_dbc,1,i)
-             CALL get_next(topology%const_g33_mol(i))
-             CALL get_next(topology%const_g33_a(i))
-             CALL get_next(topology%const_g33_b(i))
-             CALL get_next(topology%const_g33_c(i))
-             CALL get_next(topology%const_g33_dab(i))
-             CALL get_next(topology%const_g33_dac(i))
-             CALL get_next(topology%const_g33_dbc(i))
-           ELSE
-              CALL p_error()
-              CALL stop_parser( 'read_topology_section', &
-                                'unknown option in conatom' )
-           ENDIF
         CASE DEFAULT
            CALL stop_program ( "read_topology_section", &
                "Unknown option "//string )

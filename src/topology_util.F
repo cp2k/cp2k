@@ -939,7 +939,13 @@ SUBROUTINE topology_generate_bond(topology,globenv)
   IF(istat/=0) CALL stop_memory('generate_bond','vdw_radius',natom)
 !------------------------------------------------------------------------------
   DO iatom=1,natom
-    atm_symbol(iatom) = topology%label_atmname(iatom)
+    atm_symbol(iatom) = ''
+    IF(ASSOCIATED(topology%element)) THEN
+      atm_symbol(iatom) = topology%element(iatom)
+    END IF
+    IF(atm_symbol(iatom) == '') THEN
+      atm_symbol(iatom) = topology%label_atmname(iatom)
+    END IF
   END DO
 !------------------------------------------------------------------------------
   !Set up the arrays that we need for this routine
@@ -2444,16 +2450,17 @@ SUBROUTINE topology_force_field_pack ( molecule_kind_set,molecule_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! X. Determine the number of unique bond kind and allocate bond_kind_set
+  ! 1. Determine the number of unique bond kind and allocate bond_kind_set
   !-----------------------------------------------------------------------------
   DO i=1,SIZE(molecule_kind_set)
-    counter=0
     molecule_kind => molecule_kind_set(i)
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
                            natom=natom,atom_list=atom_list,&
                            nbond=nbond,bond_list=bond_list)
     ALLOCATE(map_bond_kind(nbond),STAT=istat)
     IF (istat /= 0) CALL stop_memory('force_field_pack','map_bond_kind')
+    counter=1
+    map_bond_kind(1) = 1
     DO j=1,nbond
       atm_a = bond_list(j)%a
       atomic_kind => atom_list(atm_a)%atomic_kind
@@ -2500,16 +2507,17 @@ SUBROUTINE topology_force_field_pack ( molecule_kind_set,molecule_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! X. Determine the number of unique bend kind and allocate bend_kind_set
+  ! 2. Determine the number of unique bend kind and allocate bend_kind_set
   !-----------------------------------------------------------------------------
   DO i=1,SIZE(molecule_kind_set)
-    counter=0
     molecule_kind => molecule_kind_set(i)
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
                            natom=natom,atom_list=atom_list,&
                            nbend=nbend,bend_list=bend_list)
     ALLOCATE(map_bend_kind(nbend),STAT=istat)
     IF (istat /= 0) CALL stop_memory('force_field_pack','map_bend_kind')
+    counter=1
+    map_bend_kind(1) = 1
     DO j=1,nbend
       atm_a = bend_list(j)%a
       atomic_kind => atom_list(atm_a)%atomic_kind
@@ -2567,7 +2575,7 @@ SUBROUTINE topology_force_field_pack ( molecule_kind_set,molecule_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! X. Determine the number of unique torsion kind and allocate torsion_kind_set
+  ! 3. Determine the number of unique torsion kind and allocate torsion_kind_set
   !-----------------------------------------------------------------------------
   DO i=1,SIZE(molecule_kind_set)
     counter=0
@@ -2644,7 +2652,7 @@ SUBROUTINE topology_force_field_pack ( molecule_kind_set,molecule_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! X. BONDS
+  ! 4. BONDS
   !-----------------------------------------------------------------------------
   DO i=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(i)
@@ -2680,7 +2688,7 @@ SUBROUTINE topology_force_field_pack ( molecule_kind_set,molecule_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! X. BENDS
+  ! 5. BENDS
   !-----------------------------------------------------------------------------
   DO i=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(i)
@@ -2722,7 +2730,7 @@ SUBROUTINE topology_force_field_pack ( molecule_kind_set,molecule_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! X. TORSION
+  ! 6. TORSION
   !-----------------------------------------------------------------------------
   DO i=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(i)
