@@ -281,6 +281,7 @@ CONTAINS
     xc_control = qs_env%dft_control%xc_control
     IF (dft_control%do_tddfpt_calculation) &
          xc_control = qs_env%dft_control%tddfpt_control%xc_control
+    NULLIFY(deriv_set, rho_set, rho1_set)
     ! NEW CODE ENDS
 
 
