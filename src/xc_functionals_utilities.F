@@ -44,7 +44,7 @@ MODULE xc_functionals_utilities
   CHARACTER(len=*), PARAMETER :: moduleN="xc_functionals_utilities"
 
   PUBLIC :: set_util, setup_calculation, calc_rs, calc_rho13, calc_fx, &
-            calc_wave_vector, calc_srs, calc_z, calc_rs_pw
+            calc_wave_vector, calc_srs, calc_z, calc_rs_pw, calc_srs_pw
 
   INTERFACE calc_fx
      MODULE PROCEDURE calc_fx_array, calc_fx_single
@@ -235,6 +235,32 @@ CONTAINS
 
 ! *****************************************************************************
 
+    SUBROUTINE calc_srs_pw ( rho, x, n )
+
+!   ---------------------------------------------------------------------------
+!   rs parameter : f*rho**(-1/3)
+!   x = sqrt(rs)
+!   ---------------------------------------------------------------------------
+
+    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho
+    REAL(dbl), DIMENSION(*), INTENT(OUT)     :: x
+    INTEGER, INTENT(in)                      :: n
+
+    INTEGER                                  :: ip
+
+!   ---------------------------------------------------------------------------
+
+    CALL calc_rs_pw ( rho, x, n )
+
+!$omp parallel do private(ip)
+    DO ip = 1, n
+      x(ip) = SQRT(x(ip))
+    END DO
+
+  END SUBROUTINE calc_srs_pw
+
+! *****************************************************************************
+
     SUBROUTINE calc_srs ( rho, x )
 
 !   ---------------------------------------------------------------------------
@@ -254,7 +280,7 @@ CONTAINS
 
 !$omp parallel do private(ip)
     DO ip = 1, n
-      x(ip) = sqrt(x(ip))
+      x(ip) = SQRT(x(ip))
     END DO
 
   END SUBROUTINE calc_srs
@@ -296,7 +322,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CHARACTER(len=*), INTENT(IN)             :: tag
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho
+    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, grho
     REAL(dbl), DIMENSION(:), INTENT(OUT)     :: s
 
     INTEGER                                  :: ip, n
@@ -310,11 +336,11 @@ CONTAINS
     IF ( tag(1:1)=="u" .OR. tag(1:1)=="U" ) fac = fac*(2._dbl)**f13
     IF ( tag(1:1)=="r" .OR. tag(1:1)=="R" ) fac = fac*(2._dbl)**f13
 
-    n = SIZE ( rho )
-    IF ( n > SIZE(s) ) &
-      CALL stop_program ( "calc_wave_vector", "Incompatible array sizes" )
-    IF ( n > SIZE(grho) ) &
-      CALL stop_program ( "calc_wave_vector", "Incompatible array sizes" )
+    n = SIZE ( s ) !FM it was size(rho)
+    !FM IF ( n > SIZE(s) ) &
+    !FM   CALL stop_program ( "calc_wave_vector", "Incompatible array sizes" )
+    !FM IF ( n > SIZE(grho) ) &
+    !FM   CALL stop_program ( "calc_wave_vector", "Incompatible array sizes" )
 
 !$omp parallel do private(ip)
     DO ip = 1, n

@@ -24,7 +24,6 @@ MODULE xc_tpss_p
 
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_debug,&
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type,&
@@ -34,8 +33,7 @@ MODULE xc_tpss_p
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE kinds, ONLY: dbl
-  USE xc_tpss_util, ONLY: tpssux, pz_p, tpbec, tpbeca, tpbecs, ccfun
+  USE kinds,                           ONLY: dbl
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -45,6 +43,11 @@ MODULE xc_tpss_p
   USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
                                              xc_rho_set_get,&
                                              xc_rho_set_type
+  USE xc_tpss_util,                    ONLY: ccfun,&
+                                             pz_p,&
+                                             tpbeca,&
+                                             tpbecs,&
+                                             tpssux
 
   IMPLICIT NONE
 
@@ -52,7 +55,7 @@ MODULE xc_tpss_p
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, private :: moduleN="xc_tpss_p"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="xc_tpss_p"
   REAL(dbl),PARAMETER  :: small = 1.e-14_dbl
   REAL(dbl), PARAMETER :: pi = 3.14159265358979323846264338_dbl
   REAL(dbl), PARAMETER :: f13 = 1._dbl/3._dbl, &
@@ -111,7 +114,7 @@ SUBROUTINE tpss_lsd_info(reference,shortform, needs, max_deriv, error)
      needs%rho_spin=.TRUE.
      needs%norm_drho_spin=.TRUE.
      needs%drhoa_drhob=.TRUE.
-     needs%kinetic_spin=.TRUE.
+     needs%tau_spin=.TRUE.
   END IF
   IF (PRESENT(max_deriv)) max_deriv=1
 
@@ -153,29 +156,28 @@ END SUBROUTINE tpss_lsd_info
     CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lsd_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: npoints, handle
+    INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dbl)                            :: epsilon_drho, epsilon_rho
-    REAL(kind=dbl), DIMENSION(:, :, :), &
-      POINTER                                :: e_0, e_rhoa, e_rhob, e_ndrhoa,&
-      e_ndrhob,e_kinetic_a,e_kinetic_b,e_drhoa_drhob,&
-      rhoa,rhob,norm_drhoa,norm_drhob,drhoa_drhob, kinetic_a,kinetic_b
+    REAL(kind=dbl)                           :: epsilon_drho, epsilon_rho
+    REAL(kind=dbl), DIMENSION(:, :, :), POINTER :: drhoa_drhob, e_0, &
+      e_drhoa_drhob, e_ndrhoa, e_ndrhob, e_rhoa, e_rhob, e_tau_a, e_tau_b, &
+      norm_drhoa, norm_drhob, rhoa, rhob, tau_a, tau_b
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     NULLIFY(bo,e_0, e_rhoa, e_rhob, e_ndrhoa,&
-      e_ndrhob,e_kinetic_a,e_kinetic_b,e_drhoa_drhob,&
-      rhoa,rhob,norm_drhoa,norm_drhob,drhoa_drhob, kinetic_a,kinetic_b,deriv)
+      e_ndrhob,e_tau_a,e_tau_b,e_drhoa_drhob,&
+      rhoa,rhob,norm_drhoa,norm_drhob,drhoa_drhob, tau_a,tau_b,deriv)
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL xc_rho_set_get(rho_set,rhoa=rhoa,rhob=rhob,kinetic_a=kinetic_a,&
-            kinetic_b=kinetic_b,norm_drhoa=norm_drhoa,norm_drhob=norm_drhob,&
+       CALL xc_rho_set_get(rho_set,rhoa=rhoa,rhob=rhob,tau_a=tau_a,&
+            tau_b=tau_b,norm_drhoa=norm_drhoa,norm_drhob=norm_drhob,&
             drhoa_drhob=drhoa_drhob,&
             can_return_null=.FALSE.,local_bounds=bo,rho_cutoff=epsilon_rho,&
             drho_cutoff=epsilon_drho,error=error)
@@ -202,12 +204,12 @@ END SUBROUTINE tpss_lsd_info
             allocate_deriv=.TRUE.,error=error)
        CALL xc_derivative_get(deriv,deriv_data=e_drhoa_drhob,error=error)
 
-       deriv => xc_dset_get_derivative(deriv_set,"(kinetic_a)",&
+       deriv => xc_dset_get_derivative(deriv_set,"(tau_a)",&
             allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_kinetic_a,error=error)
-       deriv => xc_dset_get_derivative(deriv_set,"(kinetic_b)",&
+       CALL xc_derivative_get(deriv,deriv_data=e_tau_a,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(tau_b)",&
             allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_kinetic_b,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_tau_b,error=error)
 
        IF (grad_deriv>1.OR.grad_deriv<-1) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -217,10 +219,10 @@ END SUBROUTINE tpss_lsd_info
 
        CALL tpss_p_a(rhoa=rhoa, rhob=rhob, norm_drhoa=norm_drhoa,&
             norm_drhob=norm_drhob,drhoa_drhob=drhoa_drhob,&
-            kinetic_a=kinetic_a,kinetic_b=kinetic_b,&
+            tau_a=tau_a,tau_b=tau_b,&
             e_0=e_0,e_rhoa=e_rhoa,e_rhob=e_rhob,e_ndrhoa=e_ndrhoa,&
             e_ndrhob=e_ndrhob,e_drhoa_drhob=e_drhoa_drhob,&
-            e_kinetic_a=e_kinetic_a, e_kinetic_b=e_kinetic_b,&
+            e_tau_a=e_tau_a, e_tau_b=e_tau_b,&
             npoints=npoints,epsilon_rho=epsilon_rho,&
             epsilon_drho=epsilon_drho, error=error)
     END IF
@@ -251,35 +253,41 @@ END SUBROUTINE tpss_lsd_info
 !!     Fawzi Mohamed
 !!
 !!*** **********************************************************************
-  SUBROUTINE tpss_p_a(rhoa, rhob, norm_drhoa, norm_drhob,drhoa_drhob, kinetic_a,&
-       kinetic_b,e_0,e_rhoa,e_rhob,e_kinetic_a,e_kinetic_b,e_ndrhoa, e_ndrhob,&
+  SUBROUTINE tpss_p_a(rhoa, rhob, norm_drhoa, norm_drhob,drhoa_drhob, tau_a,&
+       tau_b,e_0,e_rhoa,e_rhob,e_tau_a,e_tau_b,e_ndrhoa, e_ndrhob,&
        e_drhoa_drhob, npoints,epsilon_rho,epsilon_drho, error)
-    REAL(kind=dbl), DIMENSION(*), INTENT(in) :: rhoa,rhob,norm_drhoa,&
-         norm_drhob,drhoa_drhob, kinetic_a,kinetic_b
-    REAL(kind=dbl), DIMENSION(*), INTENT(inout) :: e_0, e_rhoa, e_rhob,&
-         e_ndrhoa, e_ndrhob, e_drhoa_drhob, e_kinetic_a, e_kinetic_b
-    INTEGER, INTENT(in) :: npoints
-    REAL(kind=dbl), INTENT(in) :: epsilon_rho, epsilon_drho
-    type(cp_error_type), optional, intent(inout) :: error
+    REAL(kind=dbl), DIMENSION(*), INTENT(in) :: rhoa, rhob, norm_drhoa, &
+                                                norm_drhob, drhoa_drhob, &
+                                                tau_a, tau_b
+    REAL(kind=dbl), DIMENSION(*), &
+      INTENT(inout)                          :: e_0, e_rhoa, e_rhob, e_tau_a, &
+                                                e_tau_b, e_ndrhoa, e_ndrhob, &
+                                                e_drhoa_drhob
+    INTEGER, INTENT(in)                      :: npoints
+    REAL(kind=dbl), INTENT(in)               :: epsilon_rho, epsilon_drho
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='tpss_p_a',&
-         routineP=moduleN//':'//routineN
-    REAL(dbl) :: sx,v1xa,v2xa,v1xb,v2xb,vttxa,vttxb,sc,v1ca,v2ca, &
-         v1cb,v2cb,v2xab,v2cab,vttca,vttcb
-    integer :: ii
+    CHARACTER(len=*), PARAMETER :: routineN = 'tpss_p_a', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ii
+    REAL(dbl)                                :: sc, sx, v1ca, v1cb, v1xa, &
+                                                v1xb, v2ca, v2cab, v2cb, &
+                                                v2xa, v2xab, v2xb, vttca, &
+                                                vttcb, vttxa, vttxb
 
     !$omp parallel do default(none) shared(rhoa,rhob,norm_drhoa,&
-    !$omp         norm_drhob,drhoa_drhob, kinetic_a,kinetic_b,&
+    !$omp         norm_drhob,drhoa_drhob, tau_a,tau_b,&
     !$omp         e_0, e_rhoa, e_rhob, e_ndrhoa, e_ndrhob, e_drhoa_drhob,&
-    !$omp         e_kinetic_a, e_kinetic_b)
+    !$omp         e_tau_a, e_tau_b)
     !$omp     private(ii,sx,v1xa,v2xa,v1xb,v2xb,vttxa,vttxb,sc,v1ca,v2ca, &
     !$omp         v1cb,v2cb,v2xab,v2cab,vttca,vttcb)
     DO ii=1,npoints
-       IF (rhoa(ii)+rhob(ii)>epsilon_rho) then
+       IF (rhoa(ii)+rhob(ii)>epsilon_rho) THEN
           CALL tpss_p(rhoa=rhoa(ii),rhob=rhob(ii),grhoaa=norm_drhoa(ii)**2,&
                grhobb=norm_drhob(ii)**2,grhoab=drhoa_drhob(ii),&
-               taua=kinetic_a(ii),taub=kinetic_b(ii), &
+               taua=tau_a(ii),taub=tau_b(ii), &
                sx=sx,v1xa=v1xa,v2xa=v2xa,v1xb=v1xb,v2xb=v2xb,vttxa=vttxa,vttxb=vttxb,&
                sc=sc,v1ca=v1ca,v2ca=v2ca,v1cb=v1cb,v2cb=v2cb,v2xab=v2xab,v2cab=v2cab,&
                vttca=vttca,vttcb=vttcb)  
@@ -289,9 +297,9 @@ END SUBROUTINE tpss_lsd_info
           e_ndrhoa(ii)=e_ndrhoa(ii)+v2xa+v2ca ! * norm_drhoa(ii) probably
           e_ndrhob(ii)=e_ndrhob(ii)+v2xb+v2cb ! * norm_drhob(ii) probably
           e_drhoa_drhob(ii)=e_drhoa_drhob(ii)+v2xab+v2cab
-          e_kinetic_a(ii)=e_kinetic_a(ii)+vttxa+vttca
-          e_kinetic_b(ii)=e_kinetic_b(ii)+vttxb+vttcb
-       end IF
+          e_tau_a(ii)=e_tau_a(ii)+vttxa+vttca
+          e_tau_b(ii)=e_tau_b(ii)+vttxb+vttcb
+       END IF
   END DO
 END SUBROUTINE tpss_p_a
 !***************************************************************************
@@ -302,11 +310,15 @@ END SUBROUTINE tpss_p_a
                         sx,v1xa,v2xa,v1xb,v2xb,vttxa,vttxb,sc,v1ca,v2ca, &
                         v1cb,v2cb,v2xab,v2cab,vttca,vttcb)
 
-        REAL(dbl), INTENT(IN) :: rhoa,rhob,grhoaa,grhobb,grhoab,taua,taub
-        REAL(dbl), INTENT(OUT):: sx,v1xa,v2xa,v1xb,v2xb,vttxa,vttxb,sc,v1ca,v2ca, &
-                                 v1cb,v2cb,v2xab,v2cab,vttca,vttcb
+    REAL(dbl), INTENT(IN)                    :: rhoa, rhob, grhoaa, grhobb, &
+                                                grhoab, taua, taub
+    REAL(dbl), INTENT(OUT)                   :: sx, v1xa, v2xa, v1xb, v2xb, &
+                                                vttxa, vttxb, sc, v1ca, v2ca, &
+                                                v1cb, v2cb, v2xab, v2cab, &
+                                                vttca, vttcb
 
-        REAL(dbl) :: rho,grho,tau,sxx,v1x,v2x,vtt
+    REAL(dbl)                                :: grho, rho, sxx, tau, v1x, &
+                                                v2x, vtt
 
         IF(rhoa > small .OR. rhob > small) THEN
 !         Exchange part
@@ -371,15 +383,16 @@ END SUBROUTINE tpss_p_a
       SUBROUTINE tpsspc(rhoa,rhob,grhoaa,grhobb,grhoab,taua,taub, &
                         sc,v1ca,v2ca,v1cb,v2cb,v2cab,vtta,vttb)
 
-        REAL(dbl), INTENT(IN) :: rhoa,rhob,grhoaa,grhobb,grhoab,taua,taub
-        REAL(dbl), INTENT(OUT):: sc,v1ca,v2ca,v1cb,v2cb,v2cab,vtta,vttb
+    REAL(dbl), INTENT(IN)                    :: rhoa, rhob, grhoaa, grhobb, &
+                                                grhoab, taua, taub
+    REAL(dbl), INTENT(OUT)                   :: sc, v1ca, v2ca, v1cb, v2cb, &
+                                                v2cab, vtta, vttb
 
-        REAL(dbl), PARAMETER :: d = 2.80_dbl
+    REAL(dbl), PARAMETER                     :: d = 2.80_dbl
 
-        REAL(dbl) :: rho,grho,tau,z,dzdr,rdzdt,dzdg,e,&
-                     dedra,dedrb,dedga,dedgb,dedgab,dedz
-        REAL(dbl) :: op,edaz,edbz,ro,to,eta,rs,ec,vca,vcb
-        INTEGER   :: iflg
+    INTEGER                                  :: iflg
+    REAL(dbl) :: dedga, dedgab, dedgb, dedra, dedrb, dedz, dzdg, dzdr, e, ec, &
+      edaz, edbz, eta, grho, op, rdzdt, rho, ro, rs, tau, to, vca, vcb, z
 
         rho = rhoa + rhob
         grho = grhoaa + 2._dbl*grhoab + grhobb
@@ -426,16 +439,17 @@ END SUBROUTINE tpss_p_a
       SUBROUTINE revpkzbp(rhoa,rhob,grhoaa,grhobb,grhoab,z,e, &
                          dedra,dedrb,dedga,dedgb,dedgab,dedz)
 
-        REAL(dbl), INTENT(IN) :: rhoa,rhob,grhoaa,grhobb,grhoab,z
-        REAL(dbl), INTENT(OUT):: e,dedra,dedrb,dedga,dedgb,dedgab,dedz
+    REAL(dbl), INTENT(IN)                    :: rhoa, rhob, grhoaa, grhobb, &
+                                                grhoab, z
+    REAL(dbl), INTENT(OUT)                   :: e, dedra, dedrb, dedga, &
+                                                dedgb, dedgab, dedz
 
-        REAL(dbl),PARAMETER :: C00=0.54_dbl
-  
-        REAL(dbl) :: sc,v1ca,v2ca,v1cb,v2cb,v2cab,sca,tv1ca,tv2ca,scb,tv1cb,tv2cb
-        REAL(dbl) :: eca,t1a,t2a,t2aba,txaba,tyaba
-        REAL(dbl) :: ecb,t1b,t2b,t2abb,txabb,tyabb
-        REAL(dbl) :: cxe,dcdra,dcdrb,dcdgaa,dcdgbb,dcdgab
-        REAL(dbl) :: rho,ef1,ef2,e2
+    REAL(dbl), PARAMETER                     :: C00 = 0.54_dbl
+
+    REAL(dbl) :: cxe, dcdgaa, dcdgab, dcdgbb, dcdra, dcdrb, e2, eca, ecb, &
+      ef1, ef2, rho, sc, sca, scb, t1a, t1b, t2a, t2aba, t2abb, t2b, tv1ca, &
+      tv1cb, tv2ca, tv2cb, txaba, txabb, tyaba, tyabb, v1ca, v1cb, v2ca, &
+      v2cab, v2cb
 
         CALL tpbecs(rhoa,rhob,grhoaa,grhoab,grhobb,sc,v1ca,v2ca,v1cb,v2cb,v2cab)
         CALL tpbeca(rhoa,grhoaa,sca,tv1ca,tv2ca)

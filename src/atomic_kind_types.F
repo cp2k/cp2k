@@ -36,6 +36,7 @@ MODULE atomic_kind_types
                                              write_orb_basis_set
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
+                                             cp_assertion_failed,&
                                              cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
                                              cp_error_init,&
@@ -109,6 +110,7 @@ MODULE atomic_kind_types
                                               natom,&
                                               number_of_grid_points
     INTEGER, DIMENSION(:), POINTER         :: atom_list
+    REAL(KIND=dp), DIMENSION(2)            :: ldaCoreRadius
   END TYPE atomic_kind_type
 
   TYPE atomic_kind_p_type
@@ -184,6 +186,7 @@ CONTAINS
       atomic_kind_set(ikind)%kind_number = 0
       atomic_kind_set(ikind)%natom = 0
       atomic_kind_set(ikind)%number_of_grid_points = 0
+      atomic_kind_set(ikind)%ldaCoreRadius = 0.0_dp
     END DO
 
   END SUBROUTINE allocate_atomic_kind_set
@@ -256,7 +259,7 @@ CONTAINS
                              element_symbol,name,mass,kind_number,natom,&
                              atom_list,alpha_core_charge,ccore_charge,&
                              core_charge_radius,ncgf,nsgf,z,zeff,qeff,&
-                             pao_bas_proj)
+                             pao_bas_proj,ldaCoreRadius)
 
 !   Purpose: Get informations about an atomic kind.
 
@@ -286,6 +289,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: qeff
     TYPE(pao_bas_projection_type), &
       OPTIONAL, POINTER                      :: pao_bas_proj
+    REAL(kind=dp), DIMENSION(2), &
+      INTENT(out), OPTIONAL                  :: ldaCoreRadius
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_atomic_kind"
 
@@ -388,6 +393,7 @@ CONTAINS
         END IF
       END IF
       IF (PRESENT(pao_bas_proj)) pao_bas_proj => atomic_kind%pao_bas_proj
+      IF (PRESENT(ldaCoreRadius)) ldaCoreRadius = atomic_kind%ldaCoreRadius
 
     ELSE
 
@@ -410,7 +416,8 @@ CONTAINS
                                  npgf,nset,nsgf,nshell,&
                                  all_potential_present,gth_potential_present,&
                                  elp_potential_present,&
-                                 atom_of_kind,kind_of,natom_of_kind,maxder)
+                                 atom_of_kind,kind_of,natom_of_kind,maxder,&
+                                 max_ldaCoreRadius)
 
 !   Purpose: Get informations about an atomic kind set.
 
@@ -432,14 +439,17 @@ CONTAINS
       OPTIONAL                               :: atom_of_kind, kind_of, &
                                                 natom_of_kind
     INTEGER, INTENT(IN), OPTIONAL            :: maxder
+    REAL(kind=dp), DIMENSION(2), &
+      INTENT(out), OPTIONAL                  :: max_ldaCoreRadius
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_atomic_kind_set"
 
-    INTEGER, DIMENSION(:), POINTER           :: n_ppl
     INTEGER :: atom_a, iatom, ikind, imax, n, nkind, p_excl_bas, &
       p_excl_bas_max, p_full_bas, p_full_bas_max, p_full_bas_tot, &
       p_l_angles_max, p_min_bas, p_min_bas_max, p_min_bas_tot, zeff
+    INTEGER, DIMENSION(:), POINTER           :: n_ppl
     LOGICAL                                  :: pao
+    REAL(kind=dp), DIMENSION(2)              :: ldaCoreRadius
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(elp_potential_type), POINTER        :: elp_potential
@@ -502,7 +512,11 @@ CONTAINS
                              elp_potential=elp_potential,&
                              gth_potential=gth_potential,&
                              aux_basis_set=aux_basis_set,&
-                             orb_basis_set=orb_basis_set)
+                             orb_basis_set=orb_basis_set,&
+                             ldaCoreRadius=ldaCoreRadius)
+        IF (PRESENT(max_ldaCoreRadius)) THEN
+           max_ldaCoreRadius=MAX(max_ldaCoreRadius,ldaCoreRadius)
+        END IF
         IF (PRESENT(maxatom)) THEN
           maxatom = MAX(maxatom,atomic_kind%natom)
         END IF
@@ -843,15 +857,15 @@ CONTAINS
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_atomic_kind"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_atomic_kind", &
+      routineP = module_name//':'//routine_name
 
     CHARACTER(LEN=2)                         :: current_symbol, element_symbol
     CHARACTER(LEN=3)                         :: test_result
-    CHARACTER(LEN=default_string_length)     :: aux_basis_set_name, keyword, &
-                                                orb_basis_set_name, norm_sym, &
-                                                potential_name, potential_type
-    INTEGER                                  :: i, ipos, min_b_index, z, &
-                                                naux, norb
+    CHARACTER(LEN=default_string_length) :: aux_basis_set_name, keyword, &
+      norm_sym, orb_basis_set_name, potential_name, potential_type
+    INTEGER                                  :: i, ipos, min_b_index, naux, &
+                                                norb, z
     LOGICAL                                  :: failure, section_found
     TYPE(cp_error_type)                      :: error
     TYPE(cp_sll_int_type), POINTER           :: min_bas_sll
@@ -954,6 +968,17 @@ CONTAINS
                 EXIT
               END IF
             END DO
+          CASE ("LDA_CORE_RADIUS")
+             CALL read_object(atomic_kind%ldaCoreRadius(2))
+              test_result = test_object()
+              IF (test_result == "INT" .OR. test_result=="FLT") THEN
+                 atomic_kind%ldaCoreRadius(1)=atomic_kind%ldaCoreRadius(2)
+                 CALL read_object(atomic_kind%ldaCoreRadius(2))
+                 CALL cp_assert(atomic_kind%ldaCoreRadius(1)<&
+                      atomic_kind%ldaCoreRadius(2), cp_failure_level,&
+                      cp_assertion_failed,routineP,&
+                      "internal ldaCoreRadius> ldaCoreRadius",error,failure)
+              END IF
           CASE DEFAULT
             CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
           END SELECT
@@ -1235,6 +1260,10 @@ CONTAINS
         WRITE (UNIT=output_unit,FMT="(/,T2,I2,A,/,/,T6,A,I6)")&
           atomic_kind%kind_number,". Atomic kind: "//TRIM(atomic_kind%name),&
           "Number of atoms of this atomic kind in the cell: ",atomic_kind%natom
+        IF (atomic_kind%ldaCoreRadius(2)>0.0_dp) THEN
+           WRITE(UNIT=output_unit,fmt="(t6,a,f8.3,f8.3)")&
+                "Lda core radius = ",atomic_kind%ldaCoreRadius
+        END IF
         CALL write_orb_basis_set(atomic_kind%orb_basis_set,globenv)
         CALL write_aux_basis_set(atomic_kind%aux_basis_set,globenv)
         CALL write_potential(atomic_kind%all_potential,globenv)
@@ -1369,14 +1398,15 @@ CONTAINS
   SUBROUTINE attach_atomic_kind_set(new_atomic_kind_set,atomic_kind_set)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: new_atomic_kind_set,&
+      POINTER                                :: new_atomic_kind_set, &
                                                 atomic_kind_set
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "attach_atomic_kind_set"
 
-    INTEGER                                  :: nset, iset
+    INTEGER                                  :: iset, nset
 
 !   ---------------------------------------------------------------------------
+
     IF (ASSOCIATED(atomic_kind_set) .AND. &
         ASSOCIATED(new_atomic_kind_set) ) THEN
 
@@ -1434,6 +1464,8 @@ CONTAINS
         new_atomic_kind_set(iset)%number_of_grid_points = &
             atomic_kind_set(iset)%number_of_grid_points
         new_atomic_kind_set(iset)%natom = 0
+        new_atomic_kind_set(iset)%ldaCoreRadius= &
+             atomic_kind_set(iset)%ldaCoreRadius
         NULLIFY(new_atomic_kind_set(iset)%atom_list)
 
       END DO
@@ -1456,7 +1488,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "detach_atomic_kind_set"
 
-    INTEGER                                  :: iset, nset, istat
+    INTEGER                                  :: iset, istat, nset
 
 !   ---------------------------------------------------------------------------
 
@@ -1476,6 +1508,7 @@ CONTAINS
         atomic_kind_set(iset)%kind_number = 0
         atomic_kind_set(iset)%number_of_grid_points = 0
         atomic_kind_set(iset)%natom = 0
+        atomic_kind_set(iset)%ldaCoreRadius=0.0_dp
         IF ( ASSOCIATED(atomic_kind_set(iset)%atom_list) ) THEN
           DEALLOCATE(atomic_kind_set(iset)%atom_list,STAT=istat)
           IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&

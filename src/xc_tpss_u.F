@@ -24,7 +24,6 @@ MODULE xc_tpss_u
 
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_debug,&
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type,&
@@ -34,8 +33,7 @@ MODULE xc_tpss_u
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE kinds, ONLY: dbl
-  USE xc_tpss_util, ONLY: tpssux, pz_u, tpbec, tpbeca
+  USE kinds,                           ONLY: dbl
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -45,6 +43,10 @@ MODULE xc_tpss_u
   USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
                                              xc_rho_set_get,&
                                              xc_rho_set_type
+  USE xc_tpss_util,                    ONLY: pz_u,&
+                                             tpbec,&
+                                             tpbeca,&
+                                             tpssux
 
   IMPLICIT NONE
 
@@ -52,7 +54,7 @@ MODULE xc_tpss_u
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, private :: moduleN="xc_tpss_u"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="xc_tpss_u"
   REAL(dbl),PARAMETER  :: small = 1.e-14_dbl
   REAL(dbl), PARAMETER :: pi = 3.14159265358979323846264338_dbl
   REAL(dbl), PARAMETER :: f13 = 1._dbl/3._dbl, &
@@ -111,7 +113,7 @@ SUBROUTINE tpss_lda_info(reference,shortform, needs, max_deriv, error)
   IF (PRESENT(needs)) THEN
      needs%rho=.TRUE.
      needs%norm_drho=.TRUE.
-     needs%kinetic=.TRUE.
+     needs%tau=.TRUE.
   END IF
   IF (PRESENT(max_deriv)) max_deriv=1
 
@@ -153,26 +155,25 @@ END SUBROUTINE tpss_lda_info
     CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lda_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: npoints, handle
+    INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dbl)                            :: epsilon_drho, epsilon_rho
+    REAL(kind=dbl)                           :: epsilon_drho, epsilon_rho
     REAL(kind=dbl), DIMENSION(:, :, :), &
-      POINTER                                :: e_0, e_rho, e_ndrho,&
-      e_kinetic,&
-      rho,norm_drho,kinetic
+      POINTER                                :: e_0, e_ndrho, e_rho, e_tau, &
+                                                norm_drho, rho, tau
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    NULLIFY(bo,e_0, e_ndrho, e_rho, e_kinetic, norm_drho, rho, kinetic,deriv)
+    NULLIFY(bo,e_0, e_ndrho, e_rho, e_tau, norm_drho, rho, tau,deriv)
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL xc_rho_set_get(rho_set,rho=rho,kinetic=kinetic, norm_drho=norm_drho,&
+       CALL xc_rho_set_get(rho_set,rho=rho,tau=tau, norm_drho=norm_drho,&
             can_return_null=.FALSE.,local_bounds=bo,rho_cutoff=epsilon_rho,&
             drho_cutoff=epsilon_drho,error=error)
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
@@ -189,9 +190,9 @@ END SUBROUTINE tpss_lda_info
             allocate_deriv=.TRUE.,error=error)
        CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
 
-       deriv => xc_dset_get_derivative(deriv_set,"(kinetic)",&
+       deriv => xc_dset_get_derivative(deriv_set,"(tau)",&
             allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_kinetic,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_tau,error=error)
 
        IF (grad_deriv>1.OR.grad_deriv<-1) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -199,8 +200,8 @@ END SUBROUTINE tpss_lda_info
                error=error, error_level=cp_failure_level)
        END IF
 
-       CALL tpss_u_a(rho=rho, norm_drho=norm_drho,kinetic=kinetic,&
-            e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,e_kinetic=e_kinetic,&
+       CALL tpss_u_a(rho=rho, norm_drho=norm_drho,tau=tau,&
+            e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,e_tau=e_tau,&
             npoints=npoints,epsilon_rho=epsilon_rho,&
             epsilon_drho=epsilon_drho, error=error)
     END IF
@@ -231,33 +232,34 @@ END SUBROUTINE tpss_lda_info
 !!     Fawzi Mohamed
 !!
 !!*** **********************************************************************
-  SUBROUTINE tpss_u_a(rho, norm_drho,kinetic,e_0,e_rho,e_ndrho,e_kinetic,&
+  SUBROUTINE tpss_u_a(rho, norm_drho,tau,e_0,e_rho,e_ndrho,e_tau,&
        npoints,epsilon_rho, epsilon_drho, error)
-    REAL(kind=dbl), DIMENSION(*), INTENT(in) :: rho,norm_drho,&
-         kinetic
-    REAL(kind=dbl), DIMENSION(*), INTENT(inout) :: e_0, e_rho,&
-         e_ndrho, e_kinetic
-    INTEGER, INTENT(in) :: npoints
-    REAL(kind=dbl), INTENT(in) :: epsilon_rho, epsilon_drho
-    type(cp_error_type), optional, intent(inout) :: error
+    REAL(kind=dbl), DIMENSION(*), INTENT(in) :: rho, norm_drho, tau
+    REAL(kind=dbl), DIMENSION(*), &
+      INTENT(inout)                          :: e_0, e_rho, e_ndrho, e_tau
+    INTEGER, INTENT(in)                      :: npoints
+    REAL(kind=dbl), INTENT(in)               :: epsilon_rho, epsilon_drho
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='tpss_u_a',&
-         routineP=moduleN//':'//routineN
-    REAL(dbl):: sx,v1x,v2x,vttx,sc,v1c,v2c,vttc
-    integer :: ii
+    CHARACTER(len=*), PARAMETER :: routineN = 'tpss_u_a', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ii
+    REAL(dbl)                                :: sc, sx, v1c, v1x, v2c, v2x, &
+                                                vttc, vttx
 
     !$omp parallel do default(none) shared(rho,norm_drho,&
-    !$omp          kinetic,e_0, e_rho, e_ndrho, e_kinetic) &
+    !$omp          tau,e_0, e_rho, e_ndrho, e_tau) &
     !$omp      private(ii,sx,v1x,v2x,vttx,sc,v1c,v2c,vttc)
     DO ii=1,npoints
        IF (rho(ii)>epsilon_rho) THEN
-          CALL tpss_u(rho=rho(ii),grho=norm_drho(ii)**2,tau=kinetic(ii),&
+          CALL tpss_u(rho=rho(ii),grho=norm_drho(ii)**2,tau=tau(ii),&
                sx=sx,v1x=v1x,v2x=v2x,vttx=vttx,sc=sc,v1c=v1c,v2c=v2c,vttc=vttc)
           e_0(ii)=e_0(ii)+sx+sc
           e_rho(ii)=e_rho(ii)+v1x+v1c
           e_ndrho(ii)=e_ndrho(ii)+v2x+v2c ! * norm_drho(ii) probably
-          e_kinetic(ii)=e_kinetic(ii)+vttx+vttc
+          e_tau(ii)=e_tau(ii)+vttx+vttc
        END IF
     END DO
   END SUBROUTINE tpss_u_a
@@ -267,8 +269,9 @@ END SUBROUTINE tpss_lda_info
 
       SUBROUTINE tpss_u(rho,grho,tau,sx,v1x,v2x,vttx,sc,v1c,v2c,vttc)
 
-        REAL(dbl), INTENT(IN) :: rho,grho,tau
-        REAL(dbl), INTENT(OUT):: sx,v1x,v2x,vttx,sc,v1c,v2c,vttc
+    REAL(dbl), INTENT(IN)                    :: rho, grho, tau
+    REAL(dbl), INTENT(OUT)                   :: sx, v1x, v2x, vttx, sc, v1c, &
+                                                v2c, vttc
 
         IF ( rho > small ) THEN
 !         Exchange part
@@ -294,20 +297,22 @@ END SUBROUTINE tpss_lda_info
       SUBROUTINE tpssuc(rho,grho,tau,sc,v1c,v2c,vttc)
 !       correlation part of TPSS functional 
 
-        REAL(dbl), INTENT(IN) :: rho,grho,tau
-        REAL(dbl), INTENT(OUT):: sc,v1c,v2c,vttc
+    REAL(dbl), INTENT(IN)                    :: rho, grho, tau
+    REAL(dbl), INTENT(OUT)                   :: sc, v1c, v2c, vttc
 
-        REAL(dbl),PARAMETER   :: d = 2.8e0_dbl
+    REAL(dbl), PARAMETER                     :: d = 2.8e0_dbl
 
-        REAL(dbl)  :: z,dzdr,dzdg,dzdt,e,dedr,dedg,dedz,dedt,edrt,edgt,op,ro,rs
-        INTEGER    :: iflg
+    INTEGER                                  :: iflg
+    REAL(dbl)                                :: dedg, dedr, dedt, dedz, dzdg, &
+                                                dzdr, dzdt, e, edgt, edrt, &
+                                                op, ro, rs, z
 
 ! -----------------------------------------------------------------------------
 
         IF ( ABS(tau) > small .AND. grho > small ) THEN
           z    = 0.125_dbl*grho/rho/tau
           dzdr = -z/rho
-          dzdg = 2._dbl*z/sqrt(grho)
+          dzdg = 2._dbl*z/SQRT(grho)
           dzdt = -z/tau
           CALL revpkzb(rho,grho,z,e,dedr,dedg,dedz)
           dedt = dedz*dzdt
@@ -318,12 +323,12 @@ END SUBROUTINE tpss_lda_info
           sc  = rho * e * op
           v1c = (e + rho*edrt)*op + ro * (edrt*z+3._dbl*e*dzdr)
           v2c = rho*edgt*op + ro * (edgt*z+3._dbl*e*dzdg)
-          v2c = v2c/sqrt(grho)
+          v2c = v2c/SQRT(grho)
           vttc = rho*dedt*op + ro * (dedt*z+3._dbl*e*dzdt)
         ELSE
           rs   = (3._dbl/(4._dbl*pi*rho))**(1._dbl/3._dbl)
           iflg = 2
-          if(rs.lt.1.0_dbl) iflg=1
+          IF(rs.lt.1.0_dbl) iflg=1
           CALL pz_u(rs,e,v1c,iflg)
           sc   = rho * e
           v2c  = 0._dbl
@@ -337,13 +342,14 @@ END SUBROUTINE tpss_lda_info
       SUBROUTINE revpkzb(rho,grho,z,e,dedr,dedg,dedz)
 !       Revised PKZB tau correlation functional
 
-        REAL(dbl), INTENT(IN) :: rho,grho,z
-        REAL(dbl), INTENT(OUT):: e,dedr,dedg,dedz
+    REAL(dbl), INTENT(IN)                    :: rho, grho, z
+    REAL(dbl), INTENT(OUT)                   :: e, dedr, dedg, dedz
 
-        REAL(dbl),PARAMETER   :: c00 = 0.53_dbl
-        REAL(dbl),PARAMETER   :: c0p = 1.53_dbl
+    REAL(dbl), PARAMETER                     :: c00 = 0.53_dbl, c0p = 1.53_dbl
 
-        REAL(dbl)  :: ecpbe,v1c,v2c,ecpbea,v1ca,v2ca,tecpbe,tv1c,tv2c,z2,t1
+    REAL(dbl)                                :: ecpbe, ecpbea, t1, tecpbe, &
+                                                tv1c, tv2c, v1c, v1ca, v2c, &
+                                                v2ca, z2
 
 ! -----------------------------------------------------------------------------
 

@@ -108,7 +108,7 @@ CONTAINS
 !!       Type(xc_derivative_type), Pointer:: derivative
 !!       Character(Len=*), Intent (IN):: desc
 !!       Real(Kind=dp), Dimension(:,:,:), Pointer:: cr3d_ptr
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine xc_derivative_create
 !!
 !!   FUNCTION
@@ -170,7 +170,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine xc_derivative_retain(deriv, error)
 !!       Type(xc_derivative_type), Pointer:: deriv
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine xc_derivative_retain
 !!
 !!   FUNCTION
@@ -219,8 +219,8 @@ END SUBROUTINE xc_derivative_retain
 !!   SYNOPSIS
 !!     Subroutine xc_derivative_release(derivative, pw_pool, error)
 !!       Type(xc_derivative_type), Pointer:: derivative
-!!       Type(pw_pool_type), Pointer, Optional:: pw_pool
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(pw_pool_type), Optional, Pointer:: pw_pool
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine xc_derivative_release
 !!
 !!   FUNCTION
@@ -287,15 +287,16 @@ END SUBROUTINE xc_derivative_retain
 !!
 !!   SYNOPSIS
 !!     Subroutine xc_derivative_get(deriv, desc, split_desc, order,&
-!!         deriv_data, error)
+!!         deriv_data, accept_null_data, error)
 !!       Type(xc_derivative_type), Pointer:: deriv
-!!       Character(Len=max_derivative_desc_length), Pointer, Optional::&
+!!       Character(Len=max_derivative_desc_length), Optional, Intent (OUT)::&
 !!         desc
-!!       Character(Len=max_label_length), Dimension(:), Pointer, Optional::&
+!!       Character(Len=max_label_length), Dimension(:), Optional, Pointer::&
 !!         split_desc
 !!       Integer, Intent (OUT), Optional:: order
-!!       Real(Kind=dp), Dimension(:,:,:), Pointer, Optional:: deriv_data
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Real(Kind=dp), Dimension(:,:,:), Optional, Pointer:: deriv_data
+!!       Logical, Intent (IN), Optional:: accept_null_data
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine xc_derivative_get
 !!
 !!   FUNCTION
@@ -324,13 +325,13 @@ SUBROUTINE xc_derivative_get(deriv,desc,split_desc,&
     TYPE(xc_derivative_type), POINTER        :: deriv
     CHARACTER&
       (len=MAX_DERIVATIVE_DESC_LENGTH), &
-      OPTIONAL, POINTER                      :: desc
+      INTENT(out), OPTIONAL                  :: desc
     CHARACTER(len=MAX_LABEL_LENGTH), &
       DIMENSION(:), OPTIONAL, POINTER        :: split_desc
     INTEGER, INTENT(out), OPTIONAL           :: order
     REAL(kind=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: deriv_data
-    LOGICAL, intent(in), OPTIONAL            :: accept_null_data
+    LOGICAL, INTENT(in), OPTIONAL            :: accept_null_data
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -346,7 +347,7 @@ SUBROUTINE xc_derivative_get(deriv,desc,split_desc,&
   CPPrecondition(ASSOCIATED(deriv),cp_failure_level,routineP,error,failure)
   CPPrecondition(deriv%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     IF (PRESENT(desc)) desc => deriv%desc
+     IF (PRESENT(desc)) desc = deriv%desc
      IF (PRESENT(split_desc)) split_desc => deriv%split_desc
      IF (PRESENT(deriv_data)) THEN
         deriv_data => deriv%deriv_data
@@ -370,7 +371,7 @@ END SUBROUTINE xc_derivative_get
 !!       Type(xc_derivative_type), Pointer:: deriv
 !!       Integer, Intent (IN):: unit_nr
 !!       Logical, Intent (IN), Optional:: long_description
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine xc_derivative_write
 !!
 !!   FUNCTION

@@ -38,6 +38,7 @@ MODULE qs_force_types
                                          overlap,&
                                          rho_core,&
                                          rho_elec,&
+                                         other,&
                                          total
   END TYPE qs_force_type
 
@@ -115,6 +116,10 @@ CONTAINS
       ALLOCATE (qs_force(ikind)%rho_elec(3,n),STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routine,"qs_force(ikind)%rho_elec",3*n*dp_size)
+      END IF
+      ALLOCATE (qs_force(ikind)%other(3,n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine,"qs_force(ikind)%other",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%total(3,n),STAT=istat)
       IF (istat /= 0) THEN
@@ -202,6 +207,13 @@ CONTAINS
         END IF
       END IF
 
+      IF (ASSOCIATED(qs_force(ikind)%other)) THEN
+        DEALLOCATE (qs_force(ikind)%other,STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routine,"qs_force%other")
+        END IF
+      END IF
+
       IF (ASSOCIATED(qs_force(ikind)%total)) THEN
         DEALLOCATE (qs_force(ikind)%total,STAT=istat)
         IF (istat /= 0) THEN
@@ -249,6 +261,7 @@ CONTAINS
       qs_force(ikind)%overlap(:,:) = 0.0_dp
       qs_force(ikind)%rho_core(:,:) = 0.0_dp
       qs_force(ikind)%rho_elec(:,:) = 0.0_dp
+      qs_force(ikind)%other(:,:) = 0.0_dp
       qs_force(ikind)%total(:,:) = 0.0_dp
     END DO
 

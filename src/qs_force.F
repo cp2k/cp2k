@@ -131,6 +131,11 @@ CONTAINS
 
     natom = SIZE(particle_set)
 
+    ! zero out the forces
+    DO iatom=1,natom
+       particle_set(iatom)%f=0.0_dp
+    END DO
+  
     ALLOCATE (atom_of_kind(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
 
@@ -208,7 +213,9 @@ CONTAINS
       ! Things should have the right name
       ! The minus sign below is a hack
       ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      particle_set(iatom)%f(1:3) = -force(ikind)%total(1:3,i)
+      force(ikind)%other(1:3,i)=-particle_set(iatom)%f(1:3)
+      force(ikind)%total(1:3,i)=force(ikind)%total(1:3,i)+force(ikind)%other(1:3,i)
+      particle_set(iatom)%f =-force(ikind)%total(1:3,i)
     END DO
 
     CALL write_forces(force,atomic_kind_set,globenv)
@@ -310,6 +317,7 @@ CONTAINS
         iatom,ikind,"  core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
         iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
         iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+        iatom,ikind,"         other",qs_force(ikind)%other(1:3,i),&
         iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
         grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
     END DO

@@ -899,6 +899,12 @@ contains
                error=error)
           CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho(2)%array,error=error)
        END IF
+       IF (grad_deriv>3.OR.grad_deriv<-3) THEN
+          call cp_unimplemented_error(fromWhere=routineP, &
+               message="derivatives bigger than 3 not implemented", &
+               error=error, error_level=cp_failure_level)
+       END IF
+
 
        DO ispin=1,2
           CALL xb88_lsd_calc(&

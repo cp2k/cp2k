@@ -73,6 +73,8 @@ MODULE xc_exchange_gga
 
 CONTAINS
 
+
+
 ! *****************************************************************************
 
   SUBROUTINE xgga_init ( cutoff )
@@ -176,7 +178,8 @@ CONTAINS
   SUBROUTINE b88_u ( derivative_set, rho, grho, pot, order )
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho
-    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_u ( derivative_set, 1, rho, grho, pot, order )
@@ -184,7 +187,8 @@ CONTAINS
   SUBROUTINE b88_p ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob
-    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_p ( derivative_set, 1, rhoa, rhob, grhoa, grhob, pot, order )
@@ -193,7 +197,8 @@ CONTAINS
   SUBROUTINE pw86_u ( derivative_set, rho, grho, pot, order )
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho
-    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_u ( derivative_set, 2, rho, grho, pot, order )
@@ -201,7 +206,8 @@ CONTAINS
   SUBROUTINE pw86_p ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob
-    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_p ( derivative_set, 2, rhoa, rhob, grhoa, grhob, pot, order )
@@ -210,7 +216,8 @@ CONTAINS
   SUBROUTINE pw91_u ( derivative_set, rho, grho, pot, order )
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho
-    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_u ( derivative_set, 3, rho, grho, pot, order )
@@ -218,7 +225,8 @@ CONTAINS
   SUBROUTINE pw91_p ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob
-    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_p ( derivative_set, 3, rhoa, rhob, grhoa, grhob, pot, order )
@@ -227,7 +235,8 @@ CONTAINS
   SUBROUTINE pbex_u ( derivative_set, rho, grho, pot, order )
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho
-    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_u ( derivative_set, 4, rho, grho, pot, order )
@@ -235,7 +244,8 @@ CONTAINS
   SUBROUTINE pbex_p ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob
-    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_p ( derivative_set, 4, rhoa, rhob, grhoa, grhob, pot, order )
@@ -244,7 +254,8 @@ CONTAINS
   SUBROUTINE revpbex_u ( derivative_set, rho, grho, pot, order )
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho
-    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_u ( derivative_set, 5, rho, grho, pot, order )
@@ -252,7 +263,8 @@ CONTAINS
   SUBROUTINE revpbex_p ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob
-    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_p ( derivative_set, 5, rhoa, rhob, grhoa, grhob, pot, order )
@@ -261,7 +273,8 @@ CONTAINS
   SUBROUTINE optx_u ( derivative_set, rho, grho, pot, order )
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho
-    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_u ( derivative_set, 6, rho, grho, pot, order )
@@ -269,7 +282,8 @@ CONTAINS
   SUBROUTINE optx_p ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob
-    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     CALL x_p ( derivative_set, 6, rhoa, rhob, grhoa, grhob, pot, order )
@@ -284,7 +298,8 @@ CONTAINS
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     INTEGER, INTENT(IN)                      :: functional
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho
-    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     INTEGER                                  :: error, m, m1, m2, mp, mt, &
@@ -369,7 +384,8 @@ CONTAINS
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     INTEGER, INTENT(IN)                      :: functional
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob
-    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     INTEGER                                  :: error, m, m1, m2, mp, mt, &
@@ -497,7 +513,7 @@ CONTAINS
 
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, r13
     REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: fs
-    REAL(dbl), DIMENSION(:), INTENT(INOUT)     :: pot
+    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: pot
 
     INTEGER                                  :: ip, npoints
 
@@ -524,7 +540,8 @@ CONTAINS
 
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, r13, s
     REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: fs
-    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
 
     INTEGER                                  :: ip, npoints
     REAL(dbl)                                :: a0, a1, sx, sy
@@ -559,7 +576,8 @@ CONTAINS
 
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, r13, s
     REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: fs
-    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
 
     INTEGER                                  :: ip, npoints
     REAL(dbl)                                :: a0, a1, a2, sx, sxx, sxy, sy
@@ -600,7 +618,8 @@ CONTAINS
 
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, r13, s
     REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: fs
-    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pot
 
     INTEGER                                  :: ip, npoints
     REAL(dbl)                                :: a0, a1, a2, a3, sx, sxx, &
@@ -650,7 +669,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE efactor_b88 ( s, fs, m )
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: s
-    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: fs
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: fs
     INTEGER, INTENT(IN)                      :: m
 
     INTEGER                                  :: ip
@@ -737,7 +757,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE efactor_pw86 ( s, fs, m )
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: s
-    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: fs
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: fs
     INTEGER, INTENT(IN)                      :: m
 
     INTEGER                                  :: ip

@@ -53,6 +53,7 @@ MODULE qs_ks_methods
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_subsystem_types,              ONLY: cp_subsystem_type
   USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
@@ -394,7 +395,7 @@ CONTAINS
        ! if just energy, we could do with just the xc energy (OT LS)
        CALL calculate_xc_potential(qs_env=qs_env,&
             v_rspace_new=v_rspace_new, v_tau_rspace=v_tau_rspace, &
-            error=error)
+            calculate_forces=calculate_forces, error=error)
 
        energy%total = energy%core_overlap + energy%core_self + &
             energy%core + energy%hartree + energy%exc
@@ -694,12 +695,14 @@ END SUBROUTINE qs_ks_did_change
 !!     - moved to qs_ks_methods [fawzi]
 !!
 !!*** *********************************************************************
-  SUBROUTINE calculate_xc_potential(v_rspace_new,v_tau_rspace,qs_env,error)
+  SUBROUTINE calculate_xc_potential(v_rspace_new,v_tau_rspace,qs_env,&
+       calculate_forces, error)
     TYPE(coeff_type), DIMENSION(:), &
       INTENT(inout)                          :: v_rspace_new
     TYPE(coeff_type), DIMENSION(:), POINTER  :: v_tau_rspace
     TYPE(qs_environment_type), INTENT(in), &
       TARGET                                 :: qs_env
+    LOGICAL, INTENT(in), OPTIONAL            :: calculate_forces
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -710,6 +713,7 @@ END SUBROUTINE qs_ks_did_change
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tau_xc_energy
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -722,13 +726,14 @@ END SUBROUTINE qs_ks_did_change
 
     failure=.FALSE.
     NULLIFY(dft_control,rho_struct,energy,pw_env,auxbas_pw_pool,&
-         cell)
+         cell, subsys)
 
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
                     rho=rho_struct,&
                     pw_env=pw_env,&
                     energy=energy,&
+                    subsys=subsys,&
                     cell=cell)
 
     ! test if the real space density is available
@@ -762,7 +767,8 @@ END SUBROUTINE qs_ks_did_change
          CALL xc_calculate_pw2(rho_r=rho_struct%rho_r,&
               rho_g=rho_struct%rho_g, vxc=v_rspace_new,exc=energy%exc,&
               dft_control=dft_control,&
-              cell=cell, pw_pool=auxbas_pw_pool,error=error)
+              cell=cell, pw_pool=auxbas_pw_pool,atoms=subsys,&
+              calculate_forces=calculate_forces,error=error)
 
         ! introducing the JV tau-xc, useful for superconducting plasmas and debugging
         IF (dft_control%use_kinetic_energy_density) THEN

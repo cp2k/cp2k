@@ -20,6 +20,7 @@ MODULE cp_control_utils
                                              qs_control_type,&
                                              tddfpt_control_type,&
                                              wave_control_type,&
+                                             xc_debug_new_routine,&
                                              xc_deriv_fd,&
                                              xc_deriv_nn10_smooth,&
                                              xc_deriv_nn50_smooth,&
@@ -36,8 +37,7 @@ MODULE cp_control_utils
                                              xc_rho_spline2_smooth,&
                                              xc_rho_spline3_smooth,&
                                              xc_test_f_routine,&
-                                             xc_test_lsd_f_routine,&
-                                             xc_debug_new_routine
+                                             xc_test_lsd_f_routine
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_check,&
@@ -73,6 +73,8 @@ MODULE cp_control_utils
                                              stop_program
   USE xc_derivatives,                  ONLY: xc_functional_get_info
   USE xc_functionals,                  ONLY: xc_get_functional
+  USE xc_rho_set_types,                ONLY: xc_rho_cflags_setall,&
+                                             xc_rho_cflags_type
 
   IMPLICIT NONE
 
@@ -136,10 +138,14 @@ CONTAINS
     CHARACTER(LEN=3)                         :: test_result
     CHARACTER(LEN=60)                        :: keyword, str1, str2, string
     INTEGER                                  :: i
-    LOGICAL                                  :: section_found, xc_fun_set
+    LOGICAL                                  :: failure, section_found, &
+                                                xc_fun_set
+    TYPE(cp_error_type)                      :: sub_error
+    TYPE(xc_rho_cflags_type)                 :: needs
 
 !   ---------------------------------------------------------------------------
 
+    failure=.FALSE.
     IF (.NOT.ASSOCIATED(dft_control)) THEN
        CALL dft_control_create(dft_control, error=error)
     END IF
@@ -339,6 +345,43 @@ CONTAINS
        dft_control % xc_control % functionals ( 1 ) = "SLATER"
        dft_control % xc_control % functionals ( 2 ) = "PZ"
     END IF
+    
+    IF (.NOT.failure) THEN
+       ! assess the needs of the requested functionals
+       CALL xc_rho_cflags_setall(needs,.FALSE.,error=error)
+       CALL cp_error_init(sub_error,stop_level=cp_fatal_level, &
+            print_level=cp_fatal_level,template_error=error)
+       DO i=1,SIZE(dft_control % xc_control % functionals)
+          IF ( dft_control % xc_control % functionals(i) /= "NONE") THEN
+             CALL xc_functional_get_info(&
+                  functional=dft_control % xc_control % functionals(i),&
+                  lsd=(dft_control % nspins /= 1),&
+                  needs=needs, error=sub_error)
+             CALL cp_error_check(sub_error,failure)
+             
+             IF (failure) THEN
+                failure=.FALSE.
+                CALL cp_error_reset(sub_error)
+             END IF
+          END IF
+       END DO
+       CALL cp_error_dealloc_ref(sub_error)
+       
+       ! sets the flag that the kinetic energy needs to be calculated
+       ! if some functional needs it
+       dft_control % use_kinetic_energy_density=&
+            dft_control % use_kinetic_energy_density .OR.&
+            needs%tau .OR. needs%tau_spin
+       ! fills in the old structure (I would like to remove it)
+       dft_control % xc_control % gradient_functionals=&
+            dft_control % xc_control % gradient_functionals.OR.&
+            needs%norm_drho .OR. needs%norm_drho_spin .OR.&
+            needs%drho .OR. needs%drho_spin
+       ! presence of crossterms cannot be determined before evaluating
+       ! the functional
+    END IF
+
+    dft_control % use_kinetic_energy_density = .FALSE.
 
     CALL finish_parser()
 
@@ -946,6 +989,9 @@ CONTAINS
        !      CALL xc_print_info ( output_unit, dft_control % xc_control % functionals, &
        !                          dft_control % nspins /= 1 )
        IF (.NOT.failure) THEN
+          WRITE (output_unit, fmt="(' FUNCTIONAL| ROUTINE=',a)")&
+               TRIM(xc_get_routine_label(dft_control % xc_control&
+               % functional_routine))
           CALL cp_error_init(sub_error,stop_level=cp_fatal_level, &
                print_level=cp_fatal_level,template_error=error)
           DO i=1,SIZE(dft_control % xc_control % functionals)
@@ -956,9 +1002,6 @@ CONTAINS
                      reference=reference, error=sub_error)
                 CALL cp_error_check(sub_error,failure)
 
-                WRITE (output_unit, fmt="(' FUNCTIONAL| ROUTINE=',a)")&
-                     TRIM(xc_get_routine_label(dft_control % xc_control&
-                     % functional_routine))
                 WRITE (output_unit, fmt="(' FUNCTIONAL| ',a,':')")&
                      TRIM(dft_control % xc_control % functionals(i))
                 IF (failure) THEN

@@ -24,8 +24,8 @@
 !!       spin density
 !!     - drhoa_drhob: scalar product between the gradient of rhoa and the
 !!       grandient of rhob
-!!     - kinetic: the local kinetic part
-!!     - kinetic_a, kinetic_b: the kinetic part of the different spins
+!!     - tau: the local kinetic part
+!!     - tau_a, tau_b: the kinetic part of the different spins
 !!
 !!   AUTHOR
 !!     thomas & fawzi
@@ -143,7 +143,6 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Function create_split_derivative_desc(deriv_desc, error) Result(res)
-!!       Implicit None
 !!       Character(Len=*), Intent (IN):: deriv_desc
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!       Character(Len=max_label_length), Dimension(:), Pointer:: res
