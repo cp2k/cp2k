@@ -199,29 +199,35 @@ MODULE pol_coefs
 
       CALL initialize_coef_velocities ( simpar, c_vel, globenv )
 
-      OPEN (unit=666,file='coefficent.rst',status='unknown')
       SELECT CASE ( c_pos % in_use )
       CASE ( ATOMICORBITALS )
+      ncoef = size (c_pos%ao%cr(:))
+      OPEN (unit=666,file='coefficent.rst',status='unknown')
         DO icoef = 1, ncoef
           READ (666,*) c_pos % ao % cr ( icoef )
         END DO
+      CLOSE (666)                                         
       CASE ( PLANEWAVES )
+      ncoef = size (c_pos%pw%cc(:))
+      OPEN (unit=666,file='coefficent.rst',status='unknown')
         DO icoef = 1, ncoef
           READ (666,*) c_pos % pw % cc ( icoef )
         END DO
-      END SELECT 
       CLOSE (666)                                         
+      END SELECT 
 
     CASE ("POSVEL")
 
       OPEN (unit=666,file='coefficent.rst',status='unknown')
       SELECT CASE ( c_pos % in_use )
       CASE ( ATOMICORBITALS )
+      ncoef = size (c_pos%ao%cr(:))
         DO icoef = 1, ncoef
           READ (666,*)  c_pos % ao % cr ( icoef ),  c_vel % ao % cr ( icoef )
           c_vel % ao % mass ( icoef ) = simpar % pol_mass
         END DO
       CASE ( PLANEWAVES )
+      ncoef = size (c_pos%pw%cc(:))
         DO icoef = 1, ncoef
           READ (666,*)  c_pos % pw % cc ( icoef ),  c_vel % pw % cc ( icoef )
           c_vel % pw % mass_cc ( icoef ) = CMPLX ( simpar % pol_mass,  &
