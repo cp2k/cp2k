@@ -384,8 +384,9 @@ CONTAINS
     END SELECT
 
     !$omp parallel do default(none) shared(rho,norm_drho,cxss,ccss,&
-    !$omp         ccab,cx_vwn_e, cx_vwn_v, rsfac, two13,epsilon_rho) &
-    !$omp       private(ii,dgcabddrho, dgcabdrho, dgcabds, dgcssddrho, &
+    !$omp         ccab,cx_vwn_e, cx_vwn_v, rsfac, two13,epsilon_rho,npoints, &
+    !$omp         e_0,e_rho,e_ndrho)&
+    !$omp       private(ii, dgcabddrho, dgcabdrho, dgcabds, dgcssddrho, &
     !$omp         dgcssdrho, dgcssds, dgdrs, dgxssddrho, dgxssdrho, dgxssds,&
     !$omp         drhos, drsdrho, ecab, ecss, exss, g, gcab, gcss, gs2, &
     !$omp         gxss, p, q, rho13, rho43, rhos, rhos13, rhos43, rs, rs12,&

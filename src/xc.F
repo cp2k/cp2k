@@ -2277,7 +2277,7 @@ SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
            CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,&
                 error=error)
            !$omp parallel do default(none) shared(bo,vxc,deriv_data)&
-                !$omp             private(k,j,i,tmp)
+           !$omp private(k,j,i)
            DO k = bo(1,3), bo(2,3)
               DO j = bo(1,2), bo(2,2)
                  DO i = bo(1,1), bo(2,1)

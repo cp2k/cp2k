@@ -380,7 +380,7 @@ contains
     SELECT CASE(grad_deriv)
     CASE (0)
        !$omp parallel do default(none)&
-       !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
+       !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
        !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
        !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
        !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
@@ -407,7 +407,7 @@ contains
        END DO
     CASE (1)
        !$omp parallel do default(none)&
-       !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
+       !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
        !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
        !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
        !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
@@ -453,7 +453,7 @@ contains
        END DO
     CASE (-1)
        !$omp parallel do default(none)&
-       !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
+       !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
        !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
        !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
        !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
@@ -496,7 +496,7 @@ contains
        END DO
     CASE (2)
        !$omp parallel do default(none)&
-       !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
+       !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
        !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
        !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
        !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
@@ -569,7 +569,7 @@ contains
        END DO
     CASE (-2)
        !$omp parallel do default(none)&
-       !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
+       !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
        !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
        !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
        !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
@@ -634,7 +634,7 @@ contains
        END DO
     CASE default
        !$omp parallel do default(none)&
-       !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
+       !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
        !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
        !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
        !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7,grad_deriv)&
@@ -996,7 +996,7 @@ contains
 
        SELECT CASE(grad_deriv)
        CASE(0)
-          !$omp parallel do default(none),shared(c,rho_spin, rho_1_3_spin,&
+          !$omp parallel do default(none),shared(npoints,c,rho_spin, rho_1_3_spin,&
           !$omp norm_drho_spin,epsilon_rho43,e_0,my_epsilon_rho,&
           !$omp e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
           !$omp e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
@@ -1025,7 +1025,7 @@ contains
              END IF
           END DO
        CASE (1)
-          !$omp parallel do default(none),shared(c,rho_spin, rho_1_3_spin,&
+          !$omp parallel do default(none),shared(npoints,c,rho_spin, rho_1_3_spin,&
           !$omp norm_drho_spin,epsilon_rho43,e_0,my_epsilon_rho,&
           !$omp e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
           !$omp e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
@@ -1070,7 +1070,7 @@ contains
              END IF
           END DO
        CASE default
-          !$omp parallel do default(none),shared(c,rho_spin, rho_1_3_spin,&
+          !$omp parallel do default(none),shared(npoints,c,rho_spin, rho_1_3_spin,&
           !$omp norm_drho_spin,epsilon_rho43,e_0,my_epsilon_rho,&
           !$omp e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
           !$omp e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
