@@ -227,7 +227,7 @@ CONTAINS
            CALL xc_get_order ( .FALSE., gradient_functionals(ifun), .FALSE., &
                                gradient_correction, .FALSE., order, ind(1:lp) )
            DO i = 1, lp
-             CALL daxpy ( np, 1._dbl, locpot(1,i), 1, derivative_set%data(1,ind(i)), 1 )
+             CALL daxpy ( np, 1._dbl, locpot(1,i), 1, derivative_set%data(1,ind(i)-1), 1 )
            END DO
          END IF
        END DO
@@ -302,7 +302,7 @@ CONTAINS
               CALL xc_get_order ( .TRUE., gradient_functionals(ifun), crossterms(ifun), &
                    gradient_correction, cross_term, order, ind(1:lp) )
               DO i = 1, lp
-                 CALL daxpy ( np, 1._dbl, locpot(1,i), 1, derivative_set%data(1,ind(i)), 1 )
+                 CALL daxpy ( np, 1._dbl, locpot(1,i), 1, derivative_set%data(1,ind(i)-1), 1 )
               END DO
            END IF
         END DO
