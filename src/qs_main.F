@@ -36,7 +36,9 @@ MODULE qs_main
   USE qs_environment_types, ONLY: qs_environment_type
   USE qs_forces,            ONLY: update_forces
   USE qs_init,              ONLY: read_qs_env
-  USE qs_neighbor_lists,    ONLY: build_neighbor_lists
+  USE qs_build_ks_matrix,   ONLY: qs_ks_env_type
+  USE qs_neighbor_lists,    ONLY: build_neighbor_lists,&
+                                  update_neighbor_lists
   USE qs_overlap,           ONLY: distribute_overlap_matrix
   USE qs_p_types,           ONLY: qs_p_env_type
   USE qs_scf,               ONLY: scf
@@ -44,8 +46,6 @@ MODULE qs_main
   USE timings,              ONLY: timeset,&
                                   timestop
   USE termination,          ONLY: stop_program
-
-  USE qs_build_ks_matrix, ONLY: qs_ks_env_type
 
   IMPLICIT NONE
 
@@ -71,6 +71,11 @@ CONTAINS
 
     TYPE(global_environment_type), INTENT(INOUT) :: globenv
 
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE quickstep (MODULE qs_main)"
+
 !   *** Local variables ***
 
     TYPE(qs_ks_env_type) :: ks_env
@@ -82,10 +87,13 @@ CONTAINS
     CALL timeset("Quickstep","I","",handle)
 
 #if defined(__parallel) && (! defined(__BLACS) || ! defined(__SCALAPACK))
-    CALL stop_program("qs_main:quickstep",&
-         "quikstep need blacs and scalapack for parallel runs",globenv)
+    CALL stop_program(routine,&
+                      "Quickstep needs BLACS and SCALAPACK for parallel runs",&
+                      globenv)
+
 #endif
 !   *** Initialise BLACS ***
+
     CALL start_blacs(globenv)
 
 !   *** Read the input and the database files and perform further  ***

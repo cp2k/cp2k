@@ -14,7 +14,7 @@
 !!     Matthias Krack (08.10.1999,26.03.2002)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     - List update for sab_orb neighbor list (10.09.2002,MK)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -41,6 +41,7 @@ MODULE qs_neighbor_lists
   USE qs_neighbor_list_types,   ONLY: add_neighbor_list,&
                                       add_neighbor_node,&
                                       allocate_neighbor_list_set,&
+                                      deallocate_neighbor_nodes,&
                                       find_neighbor_list,&
                                       first_list,&
                                       first_node,&
@@ -48,11 +49,13 @@ MODULE qs_neighbor_lists
                                       get_neighbor_list_set,&
                                       get_neighbor_node,&
                                       neighbor_list_p_type,&
-                                      neighbor_list_set_type,&
                                       neighbor_list_set_p_type,&
+                                      neighbor_list_set_type,&
                                       neighbor_list_type,&
+                                      neighbor_node_p_type,&
                                       neighbor_node_type,&
-                                      next
+                                      next,&
+                                      set_neighbor_node
   USE simulation_cell,          ONLY: cell_type,&
                                       get_cell,&
                                       pbc,&
@@ -118,11 +121,13 @@ MODULE qs_neighbor_lists
 
   TYPE(atoms_type), DIMENSION(:), ALLOCATABLE           :: atoms
   TYPE(neighbor_list_p_type), DIMENSION(:), ALLOCATABLE :: kind_a
+  TYPE(neighbor_node_p_type), DIMENSION(:), ALLOCATABLE :: node_a
   TYPE(pbc_coord_type), DIMENSION(:), ALLOCATABLE       :: pbc_coord
   REAL(wp), DIMENSION(:), ALLOCATABLE                   :: orb_radius,&
                                                            ppl_radius,&
                                                            ppnl_radius
-  INTEGER, DIMENSION(:), ALLOCATABLE                    :: natom,neighbors
+  INTEGER, DIMENSION(:), ALLOCATABLE                    :: atom_of_kind,&
+                                                           natom,neighbors
   LOGICAL, DIMENSION(:), ALLOCATABLE                    :: orb_present,&
                                                            ppl_present,&
                                                            ppnl_present
@@ -132,7 +137,8 @@ MODULE qs_neighbor_lists
 
 ! *** Public subroutines ***
 
-  PUBLIC :: build_neighbor_lists
+  PUBLIC :: build_neighbor_lists,&
+            update_neighbor_lists
 
 ! *****************************************************************************
 
@@ -142,7 +148,7 @@ CONTAINS
 
   SUBROUTINE build_neighbor_lists(qs_env,globenv)
 
-!   Purpose: Build all the required neighbor lists.
+!   Purpose: Build all the required neighbor lists for Quickstep.
 
 !   History: - Creation (28.08.2000, MK)
 
@@ -501,7 +507,9 @@ CONTAINS
             scaled_to_real(1.0_wp/REAL(ngrid(:),wp),cell)/unit_of_length
         END IF
 
-        CALL allocate_neighbor_list_set(sab_orb(ab)%neighbor_list_set)
+        CALL allocate_neighbor_list_set(neighbor_list_set=&
+                                          sab_orb(ab)%neighbor_list_set,&
+                                        r_max=rab_max)
         neighbor_list_set => sab_orb(ab)%neighbor_list_set
 
         cell_a = (/0,0,0/)
@@ -1588,6 +1596,456 @@ CONTAINS
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE build_scb_ppnl_neighbor_lists
+
+! *****************************************************************************
+
+  SUBROUTINE update_neighbor_lists(qs_env,globenv)
+
+!   Purpose: Update all the required neighbor lists for Quickstep.
+
+!   History: - Creation (10.09.2002,MK)
+
+!   ***************************************************************************
+
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE update_neighbor_lists (MODULE qs_neighbor_lists)"
+
+!   *** Local variables ***
+
+    TYPE(atomic_kind_type), POINTER   :: atomic_kind
+    TYPE(gth_potential_type), POINTER :: gth_potential
+    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
+    INTEGER                           :: handle,nparticle
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("update_neighbor_lists","I","",handle)
+
+    group = globenv%group
+    ionode = globenv%ionode
+    mype = globenv%mepos
+    npe = globenv%num_pe
+    output_unit = globenv%scr
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    cell=cell,&
+                    particle_set=particle_set,&
+                    sab_orb=sab_orb,&
+                    sac_ppl=sac_ppl,&
+                    sca_ppnl=sca_ppnl,&
+                    scb_ppnl=scb_ppnl)
+
+    nparticle = SIZE(particle_set)
+
+    ALLOCATE (atom_of_kind(nparticle),STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine,"atom_of_kind",nparticle*int_size)
+    END IF
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             atom_of_kind=atom_of_kind,&
+                             gth_potential_present=gth_potential_present,&
+                             maxatom=maxatom)
+
+    CALL get_cell(cell=cell)
+
+!   *** Allocate work storage ***
+
+    ALLOCATE (kind_a(maxatom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"kind_a",maxatom*int_size)
+
+    ALLOCATE (node_a(maxatom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"node_a",maxatom*int_size)
+
+    nkind = SIZE(atomic_kind_set)
+
+    ALLOCATE (natom(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"natom",nkind*int_size)
+
+    ALLOCATE (atoms(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"atoms",nkind*int_size)
+
+    ALLOCATE (pbc_coord(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"pbc_coord",nkind*int_size)
+
+!   *** Calculate PBC coordinates ***
+
+    DO ikind=1,nkind
+
+      atomic_kind => atomic_kind_set(ikind)
+
+      NULLIFY (atoms(ikind)%list)
+
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           gth_potential=gth_potential,&
+                           orb_basis_set=orb_basis_set,&
+                           natom=natom(ikind),&
+                           atom_list=atoms(ikind)%list)
+
+      IF (ASSOCIATED(orb_basis_set)) THEN
+
+        ALLOCATE (pbc_coord(ikind)%r(3,natom(ikind)),STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"pbc_coord(ikind)%r",&
+                                         3*natom(ikind)*wp_size)
+        ALLOCATE (pbc_coord(ikind)%s(3,natom(ikind)),STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"pbc_coord(ikind)%s",&
+                                         3*natom(ikind)*wp_size)
+
+        DO iatom=1,natom(ikind)
+          atom_a = atoms(ikind)%list(iatom)
+          ra_pbc(:) = pbc(particle_set(atom_a)%r(:),cell)
+          pbc_coord(ikind)%r(:,iatom) = ra_pbc(:)
+          pbc_coord(ikind)%s(:,iatom) = real_to_scaled(ra_pbc(:),cell)
+        END DO
+
+      ELSE
+
+        NULLIFY (pbc_coord(ikind)%r)
+        NULLIFY (pbc_coord(ikind)%s)
+
+      END IF
+
+    END DO
+
+!   *** Build the orbital-orbital overlap neighbor lists ***
+
+    CALL update_sab_orb_neighbor_lists(sab_orb)
+
+    IF (ionode.AND.globenv%print%sab_orb_neighbor_lists) THEN
+      CALL write_neighbor_lists(sab_orb,"SAB_ORB NEIGHBOR LISTS")
+    END IF
+
+!   *** Release work storage ***
+
+    DEALLOCATE (natom,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"natom")
+
+    DO ikind=1,nkind
+      NULLIFY (atoms(ikind)%list)
+      IF (ASSOCIATED(pbc_coord(ikind)%r)) THEN
+        DEALLOCATE (pbc_coord(ikind)%r,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"pbc_coord(ikind)%r")
+      END IF
+      IF (ASSOCIATED(pbc_coord(ikind)%s)) THEN
+        DEALLOCATE (pbc_coord(ikind)%s,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"pbc_coord(ikind)%s")
+      END IF
+    END DO
+
+    DEALLOCATE (atom_of_kind,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
+
+    DEALLOCATE (atoms,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"atoms")
+
+    DEALLOCATE (pbc_coord,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"pbc_coord")
+
+    DEALLOCATE (kind_a,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"kind_a")
+
+    DEALLOCATE (node_a,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"kind_a")
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE update_neighbor_lists
+
+! *****************************************************************************
+
+  SUBROUTINE update_sab_orb_neighbor_lists(sab_orb)
+
+!   Purpose: Update the neighbor lists for the calculation of the orbital-
+!            orbital overlap matrix.
+
+!   History: - Creation (10.09.2002,MK)
+
+!   ***************************************************************************
+
+    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE update_sab_orb_neighbor_lists (MODULE qs_neighbor_lists)"
+
+!   *** Local variables ***
+
+    INTEGER :: ab,handle,natom_a
+    LOGICAL :: equal_kinds
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("update_sab_orb_neighbor_lists","I","",handle)
+
+    IF (.NOT.ASSOCIATED(sab_orb)) THEN
+      CALL stop_program(routine,&
+                        "sab_orb is not associated and cannot be updated")
+    END IF
+
+!   *** Loop over all atomic kind pairs ***
+
+    DO ikind=1,nkind
+      DO jkind=ikind,nkind
+
+        ab = ikind + jkind*(jkind - 1)/2
+
+        neighbor_list_set => sab_orb(ab)%neighbor_list_set
+
+        IF (.NOT.ASSOCIATED(neighbor_list_set)) CYCLE
+
+        equal_kinds = (ikind == jkind)
+
+        CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
+                                   r_max=rab_max)
+        rab2_max = rab_max*rab_max
+
+        r(:) = rab_max
+        sab_max(:) = real_to_scaled(r(:),cell)
+
+        ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
+        ngrid(:) = MAX(1,NINT(0.5_wp*REAL(nsubcell,wp)/sab_max(:)))
+
+        cell_a = (/0,0,0/)
+
+!       *** Check, if we have to consider a subcell grid ***
+
+        IF (SUM(ngrid) == 3) THEN
+
+          neighbor_list => first_list(neighbor_list_set)
+
+          DO WHILE (ASSOCIATED(neighbor_list))
+            CALL get_neighbor_list(neighbor_list=neighbor_list,&
+                                   atom=atom_a)
+            iatom = atom_of_kind(atom_a)
+            kind_a(iatom)%neighbor_list => neighbor_list
+            node_a(iatom)%neighbor_node => first_node(neighbor_list)
+            neighbor_list => next(neighbor_list)
+          END DO
+
+          DO jatom=1,natom(jkind)
+
+            atom_b = atoms(jkind)%list(jatom)
+            sb_pbc(:) = pbc_coord(jkind)%s(:,jatom)
+
+            DO icell=-ncell(1),ncell(1)
+              cell_b(1) = icell
+              DO jcell=-ncell(2),ncell(2)
+                cell_b(2) = jcell
+                DO kcell=-ncell(3),ncell(3)
+                  cell_b(3) = kcell
+
+                  sb(:) = sb_pbc(:) + REAL(cell_b(:),wp)
+                  rb(:) = scaled_to_real(sb(:),cell)
+
+                  IF (equal_kinds) THEN
+                    natom_a = jatom
+                  ELSE
+                    natom_a = natom(ikind)
+                  END IF
+
+                  DO iatom=1,natom_a
+                    rab(:) = rb(:) - pbc_coord(ikind)%r(:,iatom)
+                    rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                    IF (rab2 < rab2_max) THEN
+                      IF (ASSOCIATED(node_a(iatom)%neighbor_node)) THEN
+                        CALL set_neighbor_node(&
+                          neighbor_node=node_a(iatom)%neighbor_node,&
+                          neighbor=atom_b,&
+                          cell=cell_b,&
+                          r=rab(:))
+                      ELSE
+                        CALL add_neighbor_node(&
+                          neighbor_list=kind_a(iatom)%neighbor_list,&
+                          neighbor=atom_b,&
+                          cell=cell_b,&
+                          r=rab(:))
+                      END IF
+                      node_a(iatom)%neighbor_node =>&
+                        next(node_a(iatom)%neighbor_node)
+                    END IF
+                  END DO
+
+                END DO
+              END DO
+            END DO
+
+          END DO
+
+        ELSE
+
+          ALLOCATE (grid_min(3,ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
+          IF (istat /= 0) THEN
+            CALL stop_memory(routine,"grid_min",3*PRODUCT(ngrid)*wp_size)
+          END IF
+
+          ALLOCATE (grid_max(3,ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
+          IF (istat /= 0) THEN
+            CALL stop_memory(routine,"grid_max",3*PRODUCT(ngrid)*wp_size)
+          END IF
+
+          ALLOCATE (nijk(ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
+          IF (istat /= 0) THEN
+            CALL stop_memory(routine,"nijk",PRODUCT(ngrid)*int_size)
+          END IF
+          nijk(:,:,:) = 0
+
+          ALLOCATE (ijk(natom(ikind),ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
+          IF (istat /= 0) THEN
+            CALL stop_memory(routine,"ijk",&
+                             natom(ikind)*PRODUCT(ngrid)*int_size)
+          END IF
+
+          DO igrid=1,ngrid(1)
+            a_min = REAL(igrid-1,wp)/REAL(ngrid(1),wp) - 0.5_wp
+            a_max = REAL(igrid,wp)/REAL(ngrid(1),wp) - 0.5_wp
+            DO jgrid=1,ngrid(2)
+              b_min = REAL(jgrid-1,wp)/REAL(ngrid(2),wp) - 0.5_wp
+               b_max = REAL(jgrid,wp)/REAL(ngrid(2),wp) - 0.5_wp
+              DO kgrid=1,ngrid(3)
+                c_min = REAL(kgrid-1,wp)/REAL(ngrid(3),wp) - 0.5_wp
+                c_max = REAL(kgrid,wp)/REAL(ngrid(3),wp) - 0.5_wp
+                grid_min(:,igrid,jgrid,kgrid) = (/a_min,b_min,c_min/)
+                grid_max(:,igrid,jgrid,kgrid) = (/a_max,b_max,c_max/)
+              END DO
+            END DO
+          END DO
+
+          neighbor_list => first_list(neighbor_list_set)
+
+          DO WHILE (ASSOCIATED(neighbor_list))
+            CALL get_neighbor_list(neighbor_list=neighbor_list,&
+                                   atom=atom_a)
+            iatom = atom_of_kind(atom_a)
+            sa_pbc(:) = pbc_coord(ikind)%s(:,iatom)
+            igrid = MAX(1,CEILING((sa_pbc(1) + 0.5_wp)*ngrid(1)))
+            jgrid = MAX(1,CEILING((sa_pbc(2) + 0.5_wp)*ngrid(2)))
+            kgrid = MAX(1,CEILING((sa_pbc(3) + 0.5_wp)*ngrid(3)))
+            nijk(igrid,jgrid,kgrid) = nijk(igrid,jgrid,kgrid) + 1
+            ijk(nijk(igrid,jgrid,kgrid),igrid,jgrid,kgrid) = iatom
+            kind_a(iatom)%neighbor_list => neighbor_list
+            node_a(iatom)%neighbor_node => first_node(neighbor_list)
+            neighbor_list => next(neighbor_list)
+          END DO
+
+          DO jatom=1,natom(jkind)
+
+            atom_b = atoms(jkind)%list(jatom)
+            sb_pbc(:) = pbc_coord(jkind)%s(:,jatom)
+
+            DO icell=-ncell(1),ncell(1)
+              cell_b(1) = icell
+              DO jcell=-ncell(2),ncell(2)
+                cell_b(2) = jcell
+                DO kcell=-ncell(3),ncell(3)
+                  cell_b(3) = kcell
+
+                  sb(:) = sb_pbc(:) + REAL(cell_b(:),wp)
+                  rb(:) = scaled_to_real(sb(:),cell)
+                  sb_min(:) = sb(:) - sab_max(:)
+                  sb_max(:) = sb(:) + sab_max(:)
+
+                  IF (sb_max(1) < grid_min(1,1,1,1)) CYCLE
+                  IF (sb_max(2) < grid_min(2,1,1,1)) CYCLE
+                  IF (sb_max(3) < grid_min(3,1,1,1)) CYCLE
+
+                  igrid = ngrid(1)
+                  jgrid = ngrid(2)
+                  kgrid = ngrid(3)
+
+                  IF (sb_min(1) >= grid_max(1,igrid,jgrid,kgrid)) CYCLE
+                  IF (sb_min(2) >= grid_max(2,igrid,jgrid,kgrid)) CYCLE
+                  IF (sb_min(3) >= grid_max(3,igrid,jgrid,kgrid)) CYCLE
+
+                  DO igrid=1,ngrid(1)
+                    DO jgrid=1,ngrid(2)
+                      DO kgrid=1,ngrid(3)
+
+                        IF (nijk(igrid,jgrid,kgrid) == 0) CYCLE
+
+                        IF (sb_max(1) < grid_min(1,igrid,jgrid,kgrid)) CYCLE
+                        IF (sb_max(2) < grid_min(2,igrid,jgrid,kgrid)) CYCLE
+                        IF (sb_max(3) < grid_min(3,igrid,jgrid,kgrid)) CYCLE
+
+                        IF (sb_min(1) >= grid_max(1,igrid,jgrid,kgrid)) CYCLE
+                        IF (sb_min(2) >= grid_max(2,igrid,jgrid,kgrid)) CYCLE
+                        IF (sb_min(3) >= grid_max(3,igrid,jgrid,kgrid)) CYCLE
+
+                        DO iijk=1,nijk(igrid,jgrid,kgrid)
+                          iatom = ijk(iijk,igrid,jgrid,kgrid)
+                          IF (equal_kinds) THEN
+                            IF (jatom < iatom) CYCLE
+                          END IF
+                          rab(:) = rb(:) - pbc_coord(ikind)%r(:,iatom)
+                          rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                          IF (rab2 < rab2_max) THEN
+                            IF (ASSOCIATED(node_a(iatom)%neighbor_node)) THEN
+                              CALL set_neighbor_node(&
+                                neighbor_node=node_a(iatom)%neighbor_node,&
+                                neighbor=atom_b,&
+                                cell=cell_b,&
+                                r=rab(:))
+                            ELSE
+                              CALL add_neighbor_node(&
+                                neighbor_list=kind_a(iatom)%neighbor_list,&
+                                neighbor=atom_b,&
+                                cell=cell_b,&
+                                r=rab(:))
+                            END IF
+                            node_a(iatom)%neighbor_node =>&
+                              next(node_a(iatom)%neighbor_node)
+                          END IF
+                        END DO
+
+                      END DO
+                    END DO
+                  END DO
+
+                END DO
+              END DO
+            END DO
+
+          END DO
+
+!         *** Remove unused neighbor, if there were less neighbors ***
+!         *** found w.r.t. the previous neighbor build             ***
+
+          DO iatom=1,natom(ikind)
+            CALL deallocate_neighbor_nodes(kind_a(iatom)%neighbor_list,&
+                                           node_a(iatom)%neighbor_node)
+          END DO
+
+!         *** Release work storage ***
+
+          DEALLOCATE (grid_min,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine,"grid_min")
+
+          DEALLOCATE (grid_max,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine,"grid_max")
+
+          DEALLOCATE (nijk,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine,"nijk")
+
+          DEALLOCATE (ijk,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine,"ijk")
+
+        END IF
+
+      END DO
+    END DO
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE update_sab_orb_neighbor_lists
+
 
 ! *****************************************************************************
 

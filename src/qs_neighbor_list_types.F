@@ -55,8 +55,13 @@ MODULE qs_neighbor_list_types
   TYPE neighbor_list_set_type
     PRIVATE
     TYPE(neighbor_list_type), POINTER :: first_neighbor_list
+    REAL(wp)                          :: r_max
     INTEGER                           :: nlist
   END TYPE neighbor_list_set_type
+
+  TYPE neighbor_node_p_type
+    TYPE(neighbor_node_type), POINTER :: neighbor_node
+  END TYPE neighbor_node_p_type
 
   TYPE neighbor_list_p_type
     TYPE(neighbor_list_type), POINTER :: neighbor_list
@@ -72,6 +77,7 @@ MODULE qs_neighbor_list_types
             neighbor_list_set_type,&
             neighbor_list_set_p_type,&
             neighbor_list_type,&
+            neighbor_node_p_type,&
             neighbor_node_type
 
 ! *** Public subroutines ***
@@ -81,10 +87,13 @@ MODULE qs_neighbor_list_types
             add_neighbor_nodes,&
             allocate_neighbor_list_set,&
             deallocate_neighbor_list_set,&
+            deallocate_neighbor_nodes,&
             extract_neighbor_list,&
             get_neighbor_list,&
             get_neighbor_list_set,&
-            get_neighbor_node
+            get_neighbor_node,&
+            set_neighbor_list,&
+            set_neighbor_node
 
 ! *** Public functions ***
 
@@ -268,7 +277,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE allocate_neighbor_list_set(neighbor_list_set)
+  SUBROUTINE allocate_neighbor_list_set(neighbor_list_set,r_max)
 
 !   Purpose: Allocate and initialize a set of neighbor lists.
 
@@ -277,6 +286,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
+    REAL(wp), OPTIONAL                    :: r_max
 
 !   *** Local parameters ***
 
@@ -308,7 +318,51 @@ CONTAINS
 
     neighbor_list_set%nlist = 0
 
+!   *** Initialize the maximum interaction radius (optional) ***
+
+    IF (PRESENT(r_max)) THEN
+      neighbor_list_set%r_max = r_max
+    ELSE
+      neighbor_list_set%r_max = 0.0_wp
+    END IF
+
   END SUBROUTINE allocate_neighbor_list_set
+
+! *****************************************************************************
+
+  SUBROUTINE deallocate_neighbor_nodes(neighbor_list,neighbor_node)
+
+!   Purpose: Deallocate all neighbor nodes of a neighbor list starting from
+!            the supplied neighbor node.
+
+!   History: - Creation (10.09.2002,MK)
+
+!   ***************************************************************************
+
+    TYPE(neighbor_list_type), POINTER :: neighbor_list
+    TYPE(neighbor_node_type), POINTER :: neighbor_node
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE deallocate_neighbor_nodes (MODULE qs_neighbor_list_types)"
+
+!   *** Local variables ***
+
+    TYPE(neighbor_node_type), POINTER :: next_neighbor_node
+    INTEGER                           :: istat
+
+!   ---------------------------------------------------------------------------
+
+    DO WHILE (ASSOCIATED(neighbor_node))
+      next_neighbor_node => neighbor_node%next_neighbor_node
+      DEALLOCATE (neighbor_node,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"neighbor_node")
+      neighbor_list%nnode = neighbor_list%nnode - 1
+      neighbor_node => next_neighbor_node
+    END DO
+
+  END SUBROUTINE deallocate_neighbor_nodes
 
 ! *****************************************************************************
 
@@ -330,7 +384,7 @@ CONTAINS
 !   *** Local variables ***
 
     TYPE(neighbor_list_type), POINTER :: neighbor_list,next_neighbor_list
-    TYPE(neighbor_node_type), POINTER :: neighbor_node,next_neighbor_node
+    TYPE(neighbor_node_type), POINTER :: neighbor_node
     INTEGER                           :: istat
 
 !   ---------------------------------------------------------------------------
@@ -340,12 +394,7 @@ CONTAINS
     DO WHILE (ASSOCIATED(neighbor_list))
       next_neighbor_list => neighbor_list%next_neighbor_list
       neighbor_node => neighbor_list%first_neighbor_node
-      DO WHILE (ASSOCIATED(neighbor_node))
-        next_neighbor_node => neighbor_node%next_neighbor_node
-        DEALLOCATE (neighbor_node,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"neighbor_node")
-        neighbor_node => next_neighbor_node
-      END DO
+      CALL deallocate_neighbor_nodes(neighbor_list,neighbor_node)
       DEALLOCATE (neighbor_list,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"neighbor_list")
       neighbor_list => next_neighbor_list
@@ -554,7 +603,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_neighbor_list_set(neighbor_list_set,nlist)
+  SUBROUTINE get_neighbor_list_set(neighbor_list_set,r_max,nlist)
 
 !   Purpose: Return the components of a neighbor list set.
 
@@ -563,10 +612,12 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
+    REAL(wp), OPTIONAL, INTENT(OUT)       :: r_max
     INTEGER, OPTIONAL, INTENT(OUT)        :: nlist
 
 !   ---------------------------------------------------------------------------
 
+    IF (PRESENT(r_max)) r_max = neighbor_list_set%r_max
     IF (PRESENT(nlist)) nlist = neighbor_list_set%nlist
 
   END SUBROUTINE get_neighbor_list_set
@@ -672,6 +723,70 @@ CONTAINS
     next_node => neighbor_node%next_neighbor_node
 
   END FUNCTION next_neighbor_node
+
+! *****************************************************************************
+
+  SUBROUTINE set_neighbor_list(neighbor_list,atom,cell)
+
+!   Purpose: Set the reqested data of a neighbor list.
+
+!   History: - Creation (10.09.2002,MK)
+
+!   ***************************************************************************
+
+    TYPE(neighbor_list_type), POINTER           :: neighbor_list
+    INTEGER, OPTIONAL, INTENT(IN)               :: atom
+    INTEGER, DIMENSION(3), OPTIONAL, INTENT(IN) :: cell
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE set_neighbor_list (MODULE qs_neighbor_list_types)"
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(neighbor_list)) THEN
+      IF (PRESENT(atom)) neighbor_list%atom = atom
+      IF (PRESENT(cell)) neighbor_list%cell(:) = cell(:)
+    ELSE
+      CALL stop_program(routine,&
+                        "The requested neighbor list is not associated")
+    END IF
+
+  END SUBROUTINE set_neighbor_list
+
+! *****************************************************************************
+
+  SUBROUTINE set_neighbor_node(neighbor_node,neighbor,r,cell)
+
+!   Purpose: Set the reqested data of a neighbor node.
+
+!   History: - Creation (10.09.2002,MK)
+
+!   ***************************************************************************
+
+    TYPE(neighbor_node_type), POINTER            :: neighbor_node
+    INTEGER, OPTIONAL, INTENT(IN)                :: neighbor
+    REAL(wp), DIMENSION(3), OPTIONAL, INTENT(IN) :: r
+    INTEGER, DIMENSION(3), OPTIONAL, INTENT(IN)  :: cell
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE set_neighbor_node (MODULE qs_neighbor_list_types)"
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(neighbor_node)) THEN
+      IF (PRESENT(neighbor)) neighbor_node%neighbor = neighbor
+      IF (PRESENT(r)) neighbor_node%r(:) = r(:)
+      IF (PRESENT(cell)) neighbor_node%cell(:) = cell(:)
+    ELSE
+      CALL stop_program(routine,&
+                        "The requested neighbor node is not associated")
+    END IF
+
+  END SUBROUTINE set_neighbor_node
 
 ! *****************************************************************************
 
