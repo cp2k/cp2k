@@ -377,7 +377,9 @@ contains
        case (2)
           res=.false.
           if (debug_this_module .and. cp_debug) then
-             forall (i=1:size(c_env%R)) c_env%R(i,i)=c_env%R(i,i)-1
+             do i=1,size(c_env%R)
+                c_env%R(i,i)=c_env%R(i,i)-1
+             end do
              err=cp_sup_norm_matrix(c_env%R)
              if (err>2*size(c_env%R)*epsilon(0.0_wp)) then
                 call cp_error_message(cp_warning_level,routineP,&
