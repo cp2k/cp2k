@@ -231,7 +231,7 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: check, failure
 
   failure=.FALSE.
   
@@ -380,7 +380,11 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
                 "keyword type",error,failure)
            IF (keyword%type_of_var==enum_t) THEN
               IF (keyword%enum%strict) THEN
-                 CALL cp_assert(any(keyword%default_value%i_val(1)==keyword%enum%i_vals),cp_failure_level,&
+                 check = .FALSE.
+                 DO i=1, SIZE(keyword%enum%i_vals)
+                    check = check .OR. (keyword%default_value%i_val(1)==keyword%enum%i_vals(i))
+                 END DO
+                 CALL cp_assert(check,cp_failure_level,&
                          cp_assertion_failed,routineP,"default value not in enumeration : "//keyword%names(1), &
                            error,failure) 
               ENDIF
@@ -397,7 +401,11 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
            keyword%n_var=SIZE(keyword%default_value%i_val)
         CASE(enum_t)
            IF (keyword%enum%strict) THEN
-              CALL cp_assert(any(keyword%default_value%i_val(1)==keyword%enum%i_vals),cp_failure_level,&
+              check = .FALSE.
+              DO i=1, SIZE(keyword%enum%i_vals)
+                 check = check .OR. (keyword%default_value%i_val(1)==keyword%enum%i_vals(i))
+              END DO
+              CALL cp_assert(check,cp_failure_level,&
                       cp_assertion_failed,routineP,"default value not in enumeration : "//keyword%names(1), &
                           error,failure) 
            ENDIF
