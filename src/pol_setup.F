@@ -24,12 +24,13 @@ MODULE pol_setup
   
   USE atomic_kinds, ONLY :  kind_info_type
   USE basis_set_types, ONLY : read_basis_set, allocate_basis_set, &
-                              deallocate_basis_set
+                              deallocate_basis_set, gto_basis_set_type
   USE force_fields, ONLY : ATOMNAMESLENGTH 
   USE global_types,             ONLY: global_environment_type
   USE kinds, ONLY : dbl
   USE interactions, ONLY :  exp_radius
   USE molecule_types , ONLY : molecule_type, read_basis_type 
+  USE orbital_pointers,  ONLY: coset,nco,ncoset,nso
   USE particle_types, ONLY : particle_type
   USE string_utilities, ONLY : str_search
   USE termination, ONLY : stop_memory, stop_program
@@ -160,13 +161,13 @@ MODULE pol_setup
     nkind = number_of_kinds
 
     IF (nkind >= 0) THEN
-      ALLOCATE (ki ( nkind ),STAT=istat)
+      ALLOCATE (ki(nkind),STAT=istat)
       IF (istat /= 0) CALL stop_memory("allocate_pol_basis_info","ki(nkind)",0)
       DO ikind=1,nkind
-        NULLIFY ( ki ( ikind ) % aux_basis_set )
-        NULLIFY ( ki ( ikind ) % orb_basis_set )
-        NULLIFY ( ki ( ikind ) % atom_list )
-        NULLIFY ( ki ( ikind ) % elec_conf )
+        NULLIFY (ki ( ikind ) % aux_basis_set)
+        NULLIFY (ki ( ikind ) % orb_basis_set)
+        NULLIFY (ki ( ikind ) % atom_list)
+        NULLIFY (ki ( ikind) % elec_conf)
       END DO
     ELSE
       CALL stop_program("allocate_pol_basis_info",&
@@ -204,12 +205,14 @@ MODULE pol_setup
       string=molinfo(ikind)%aname
       itype = str_search(atom_names,nt,string)  
  
-      CALL get_atom_list(ki(ikind),part,itype)
+      CALL get_atom_list(ki(ikind),part,itype,ikind)
 
       CALL allocate_basis_set(ki(ikind)%orb_basis_set)
  
       CALL read_basis_set(ki(ikind)%element_symbol,ki(ikind)%orb_basis_set_name, &
                         ki(ikind)%orb_basis_set, globenv)
+
+      CALL init_cphi(ki(ikind)% orb_basis_set)			
 			
       CALL get_radii(ki(ikind), moliNFo(ikind)%eps)			
 
@@ -218,13 +221,14 @@ MODULE pol_setup
   END SUBROUTINE initialize_pol_basis_info                                           
   
 !------------------------------------------------------------------------------!
-  SUBROUTINE get_atom_list(ki,part,itype)
+  SUBROUTINE get_atom_list(ki,part,itype,ikind)
   
     IMPLICIT NONE
 
     TYPE(kind_info_type), INTENT(inout) :: ki
     TYPE(particle_type), DIMENSION(:), INTENT(inout) :: part
     INTEGER, INTENT(in) :: itype
+    INTEGER, INTENT(in) :: ikind
 ! locals
     INTEGER :: isos,i,icount
     icount=0
@@ -237,6 +241,7 @@ MODULE pol_setup
     icount=0
     DO i=1, SIZE(part)
       IF (part(i)%prop%ptype==itype) THEN
+        part(i) % kind = ikind
         icount=icount+1
         ki%atom_list(icount)=i
       ENDIF
@@ -342,6 +347,45 @@ MODULE pol_setup
     END DO
 
   END SUBROUTINE get_rcutsq_cgf
+
+! *****************************************************************************
+
+  SUBROUTINE init_cphi(orb_basis_set)
+
+!   Purpose: Initialize the matrices for the transformation of primitive
+!            Cartesian Gaussian-type functions to contracted Cartesian
+!            (cphi)  Gaussian-type functions.
+
+!   ***************************************************************************
+ 
+ 
+    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
+ 
+!   *** Local variables ***
+ 
+    INTEGER :: first_cgf,first_sgf,icgf,ico,ipgf,iset,ishell,l,n,ncgf,nsgf
+ 
+!   ---------------------------------------------------------------------------
+ 
+!   *** Build the Cartesian transformation matrix "cphi" ***
+ 
+    DO iset=1,orb_basis_set%nset
+      n = ncoset(orb_basis_set%lmax(iset))
+      DO ishell=1,orb_basis_set%nshell(iset)
+        DO icgf=orb_basis_set%first_cgf(ishell,iset),&
+                orb_basis_set%last_cgf(ishell,iset)
+          ico = coset(orb_basis_set%lx(icgf),&
+                      orb_basis_set%ly(icgf),&
+                      orb_basis_set%lz(icgf))
+          DO ipgf=1,orb_basis_set%npgf(iset)
+            orb_basis_set%cphi(ico,icgf) = orb_basis_set%gcc(ipgf,ishell,iset)
+            ico = ico + n
+          END DO
+        END DO
+      END DO
+    END DO
+ 
+  END SUBROUTINE init_cphi
 
 !------------------------------------------------------------------------------!
 
