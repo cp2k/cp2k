@@ -125,13 +125,32 @@ MODULE cp_log_handling
 !!     DO NOT USE THE INTERNAL COMPONENTS DIRECTLY!!!
 !!
 !!   ATTRIBUTES
-!!     - to do
+!!     - id_nr: unique number to identify the logger
+!!     - ref_count: reference count (see cp2k/doc/ReferenceCounting.html)
 !!     - print_level: the level starting at which something gets printed
+!!     - default_local_unit_nr: default unit for local logging (-1 if not
+!!       yet initialized). Local logging guarantee to each task its own
+!!       file.
+!!     - default_global_unit_nr: default unit for global logging
+!!       (-1 if not yet initialized). This unit is valid only on the 
+!!       processor with %para_env%mepos==%para_env%source.
 !!     - para_env: the parallel environement for the output.
 !!       this might be a super environment of your computation environment
 !!       i.e. be very careful not to do global operations like broadcast
 !!       with a subset of its processors (use your computation environment
-!!       instread
+!!       instead).
+!!     - close_local_unit_on_dealloc: if the local unit should be closed
+!!       when this logger is deallocated
+!!     - close_global_unit_on_dealloc: whether the global unit should be
+!!       closed when this logger is deallocated
+!!     - suffix: a short string that is used as suffix in all the filenames
+!!       created by this logger. Can be used to guarantee the unicity of
+!!       generated filename
+!!     - local_filename: the root of the name of the file used for local
+!!       logging
+!!     - global_filename: the root of the name of the file used for 
+!!       global logging
+!!     - print_keys: print keys that tell what should be logged/outputted
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
