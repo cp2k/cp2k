@@ -52,6 +52,7 @@ MODULE qmmm_init
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
                                              force_env_type
+  USE force_fields,                    ONLY: force_field_control
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
@@ -85,7 +86,6 @@ MODULE qmmm_init
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: connectivity_control,&
-                                             force_field_control,&
                                              coordinate_control
   USE topology_pdb,                    ONLY: write_coordinate_pdb
   USE topology_psf,                    ONLY: write_topology_psf
@@ -443,7 +443,7 @@ CONTAINS
        !-----------------------------------------------------------------------------
        ! 6. Read in force field informations
        !-----------------------------------------------------------------------------
-       CALL force_field_control(topology,globenv)
+       !CALL force_field_control(topology,globenv)
 
 
        !-----------------------------------------------------------------------------

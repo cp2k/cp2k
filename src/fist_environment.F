@@ -30,7 +30,7 @@ MODULE fist_environment
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
-
+  USE force_fields,                    ONLY: force_field_control
   USE global_types,                    ONLY: global_environment_type
   USE ewalds,                          ONLY: ewald_self
   USE ewald_environment_types,         ONLY: ewald_environment_type, &
@@ -174,6 +174,9 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 
 ! topology
   CALL topology_control ( atomic_kind_set, particle_set,&
+                          molecule_kind_set, molecule_set,&
+                          globenv )
+  CALL force_field_control ( atomic_kind_set, particle_set,&
                           molecule_kind_set, molecule_set,&
                           globenv, potparm = potparm )
 

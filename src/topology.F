@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2001  CP2K developers group                                 !
+!   Copyright (C) 2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/topology_control [1.0] *
 !!
@@ -11,7 +11,6 @@
 !!     Control for reading in different topologies and coordinates
 !!
 !!   AUTHOR
-!!     IKUO 08.01.2003
 !!
 !!   MODIFICATION HISTORY
 !!     none
@@ -24,20 +23,17 @@ MODULE topology
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atoms_input,                     ONLY: read_atoms_input
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE force_fields,                    ONLY: read_force_field_amber,&
-                                             read_force_field_charmm,&
-                                             read_force_field_section
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
-  USE pair_potential_types,            ONLY: pair_potential_type
   USE particle_types,                  ONLY: particle_type
   USE simulation_cell,                 ONLY: read_cell
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE topology_input,                  ONLY: read_topology_section
+  USE topology_input,                  ONLY: read_constraints_section,&
+                                             read_topology_section
   USE topology_pdb,                    ONLY: read_coordinate_pdb,&
                                              write_coordinate_pdb
   USE topology_psf,                    ONLY: read_topology_psf,&
@@ -49,7 +45,6 @@ MODULE topology
   USE topology_util,                   ONLY: topology_connectivity_pack,&
                                              topology_constraint_pack,&
                                              topology_coordinate_pack,&
-                                             topology_force_field_pack,&
                                              topology_generate_bend,&
                                              topology_generate_bond,&
                                              topology_generate_dihe,&
@@ -62,7 +57,9 @@ MODULE topology
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology"
 
   PRIVATE
-  PUBLIC :: topology_control, connectivity_control, force_field_control,&
+
+  PUBLIC :: topology_control, &
+            connectivity_control, &
             coordinate_control
 
 !!*****
@@ -89,27 +86,19 @@ CONTAINS
 !******************************************************************************
 SUBROUTINE topology_control (atomic_kind_set,particle_set,&
                              molecule_kind_set,molecule_set,&
-                             globenv,potparm)
+                             globenv)
 
+  TYPE(atomic_kind_type), DIMENSION(:), POINTER    :: atomic_kind_set
+  TYPE(particle_type), DIMENSION(:), POINTER       :: particle_set
+  TYPE(molecule_kind_type), DIMENSION(:), POINTER  :: molecule_kind_set
+  TYPE(molecule_type), DIMENSION(:), POINTER       :: molecule_set
+  TYPE(global_environment_type), INTENT(IN)        :: globenv
 
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
-    TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
-    TYPE(pair_potential_type), OPTIONAL, &
-      POINTER                                :: potparm( :, : )
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'topology_control', &
+  CHARACTER(len=*), PARAMETER :: routineN = 'topology_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iw
-    TYPE(topology_parameters_type)           :: topology
+  INTEGER                                          :: handle, iw
+  TYPE(topology_parameters_type)                   :: topology
 
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
@@ -147,25 +136,23 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 4. Read in the coordinates
+  ! 4. Read in the constraints section
+  !-----------------------------------------------------------------------------
+  CALL read_constraints_section(topology,globenv)
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 5. Read in the coordinates
   !-----------------------------------------------------------------------------
   CALL coordinate_control(topology,globenv)
 
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 5. Read in or generate the molecular connectivity
+  ! 6. Read in or generate the molecular connectivity
   !-----------------------------------------------------------------------------
   CALL connectivity_control(topology,globenv)
-
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 6. Read in force field informations
-  !-----------------------------------------------------------------------------
-  IF(topology%ff) THEN
-    CALL force_field_control(topology,globenv)
-  END IF
 
 
   !-----------------------------------------------------------------------------
@@ -187,28 +174,15 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 9. Pack everything into the atomic types
+  ! 9. Deal with the constraint stuff if requested
   !-----------------------------------------------------------------------------
-  IF((topology%ff).AND.(PRESENT(potparm))) THEN
-      CALL topology_force_field_pack(particle_set,atomic_kind_set,&
-                                     molecule_kind_set,molecule_set,&
-                                     topology,globenv,potparm)
-  END IF
+  CALL topology_constraint_pack(molecule_kind_set,molecule_set,&
+                                topology,globenv)
 
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 10. Deal with the constraint stuff if requested
-  !-----------------------------------------------------------------------------
-  IF(topology%constraint) THEN
-    CALL topology_constraint_pack(molecule_kind_set,molecule_set,&
-                                  topology,globenv)
-  END IF
-
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 11. Dump the topology informations
+  ! 10. Dump the topology informations
   !-----------------------------------------------------------------------------
   IF(topology%dump_topology) THEN
     CALL write_topology_psf(topology,globenv)
@@ -218,10 +192,9 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 12. Cleanup the topology structure type
+  ! 11. Cleanup the topology structure type
   !-----------------------------------------------------------------------------
   CALL deallocate_topology(topology)
-
 
 
   IF((globenv%ionode).AND.(globenv%print%level>0))THEN
@@ -230,7 +203,6 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
 
   CALL timestop(0.0_dbl,handle)
   CALL write_checkpoint_information("leaving "//routineN,globenv)
-  !CALL stop_program ("topology_control","program check")
 
 
 !-------------------------------------------------------------------------------
@@ -318,8 +290,15 @@ SUBROUTINE connectivity_control(topology,globenv)
     CALL stop_program ("connectivity_control",&
                        "gromos not implemented yet...")
   CASE DEFAULT
-    SELECT CASE (topology%ff_type)
-    CASE ("CHM")
+    CALL topology_generate_bond(topology,globenv)
+    CALL topology_generate_bend(topology,globenv)
+    CALL topology_generate_ub(topology,globenv)
+    CALL topology_generate_dihe(topology,globenv)
+    CALL topology_generate_impr(topology,globenv)
+    CALL topology_generate_onfo(topology,globenv)
+    CALL topology_generate_molecule(topology,globenv)
+    IF(topology%reorder_atom) THEN
+      CALL topology_reorder_atoms(topology,globenv)
       CALL topology_generate_bond(topology,globenv)
       CALL topology_generate_bend(topology,globenv)
       CALL topology_generate_ub(topology,globenv)
@@ -327,29 +306,7 @@ SUBROUTINE connectivity_control(topology,globenv)
       CALL topology_generate_impr(topology,globenv)
       CALL topology_generate_onfo(topology,globenv)
       CALL topology_generate_molecule(topology,globenv)
-      IF(topology%reorder_atom) THEN
-        CALL topology_reorder_atoms(topology,globenv)
-        CALL topology_generate_bond(topology,globenv)
-        CALL topology_generate_bend(topology,globenv)
-        CALL topology_generate_ub(topology,globenv)
-        CALL topology_generate_dihe(topology,globenv)
-        CALL topology_generate_impr(topology,globenv)
-        CALL topology_generate_onfo(topology,globenv)
-        CALL topology_generate_molecule(topology,globenv)
-      END IF
-    CASE DEFAULT
-      CALL topology_generate_bond(topology,globenv)
-      CALL topology_generate_bend(topology,globenv)
-      CALL topology_generate_dihe(topology,globenv)
-      CALL topology_generate_molecule(topology,globenv)
-      IF(topology%reorder_atom) THEN
-        CALL topology_reorder_atoms(topology,globenv)
-        CALL topology_generate_bond(topology,globenv)
-        CALL topology_generate_bend(topology,globenv)
-        CALL topology_generate_dihe(topology,globenv)
-        CALL topology_generate_molecule(topology,globenv)
-      END IF
-    END SELECT
+    END IF
   END SELECT
 
 
@@ -460,105 +417,6 @@ SUBROUTINE coordinate_control(topology,globenv)
 !-------------------------------------------------------------------------------
 END SUBROUTINE coordinate_control
 
-
-
-
-!******************************************************************************
-!!****** topology/force_field_control [1.0] *
-!!
-!!   NAME
-!!     force_field_control
-!!
-!!   FUNCTION
-!!     1. If reading in from external file, make sure its there first
-!!     2. Read in the force_field from the corresponding locations
-!!
-!!   AUTHOR
-!!     IKUO 08.11.2003
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-SUBROUTINE force_field_control(topology,globenv)
-
-
-    TYPE(topology_parameters_type), &
-      INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'force_field_control', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, iw
-    LOGICAL                                  :: found
-
-!-------------------------------------------------------------------------------
-!-------------------------------------------------------------------------------
-
-  iw = globenv%scr
-  CALL write_checkpoint_information("entering "//routineN,globenv)
-  CALL timeset(routineN,'I','',handle)
-  IF((globenv%ionode).AND.(globenv%print%level>0))THEN
-    WRITE(iw,*) "  Entering force_field_control"
-  END IF
-
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 1. If reading in from external file, make sure its there first
-  !-----------------------------------------------------------------------------
-  IF((topology%ff).AND.(topology%ff_type/="ON")) THEN
-    !------------------------------------------------------
-    !Make sure the file really do exist before proceding
-    IF(globenv%ionode) THEN
-      INQUIRE(FILE=topology%ff_file_name,EXIST=found)
-      IF(found) THEN
-      ELSE
-        CALL stop_program ("force_field_control","force field file missing")
-      END IF
-    END IF
-  END IF
-
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 2. Read in the force field from the corresponding locations
-  !-----------------------------------------------------------------------------
-  IF((topology%ff).AND.(topology%ff_type/="ON")) THEN
-    SELECT CASE (topology%ff_type)
-    CASE ("CHM")
-      CALL read_force_field_charmm(topology,globenv)
-    CASE ("AMB")
-      CALL stop_program ("force_field_control",&
-                         "force field type not implemented")
-      CALL read_force_field_amber(topology,globenv)
-    CASE DEFAULT
-      CALL stop_program ("force_field_control",&
-                         "force field type not implemented")
-    END SELECT
-  END IF
-
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 3. Parse the input for force field section and append any info
-  !-----------------------------------------------------------------------------
-  CALL read_force_field_section(topology,globenv)
-
-
-
-  IF((globenv%ionode).AND.(globenv%print%level>0))THEN
-    WRITE(iw,*) "  Exiting  force_field_control"
-  END IF
-
-  CALL timestop(0.0_dbl,handle)
-  CALL write_checkpoint_information("leaving "//routineN,globenv)
-!-------------------------------------------------------------------------------
-!-------------------------------------------------------------------------------
-END SUBROUTINE force_field_control
 
 END MODULE topology
 
