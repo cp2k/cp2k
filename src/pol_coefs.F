@@ -31,6 +31,7 @@ MODULE pol_coefs
   USE particle_types, ONLY : particle_type
   USE md, ONLY : simulation_parameters_type
   USE molecule_types , ONLY : molecule_type, read_basis_type 
+  USE pol_projectors_scale, ONLY :  get_proj_scale_factor
   USE pw_types, ONLY : COMPLEXDATA1D, pw_allocate, pw_zero
   USE pw_grid_types, ONLY : pw_grid_type
   USE termination, ONLY : stop_memory
@@ -243,6 +244,7 @@ MODULE pol_coefs
    IF ( PRESENT ( proj ) ) THEN
      kind_flag = .TRUE.
      CALL get_kind_and_part_index ( proj % ao, ki, part, kind_flag)
+     CALL get_proj_scale_factor ( proj % ao, ki, part)
    ELSE
      kind_flag = .TRUE.
      CALL get_kind_and_part_index ( c_pos % ao, ki, part, kind_flag)
