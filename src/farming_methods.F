@@ -46,8 +46,65 @@ CONTAINS
     INTEGER :: stat,i 
     LOGICAL :: found,failure
     CHARACTER(LEN=default_string_length) :: dum
+    CHARACTER(LEN=60)                        :: keyword
     failure=.FALSE.
 
+!
+!  &FARMING section sets options for the farming 
+!    group_size  ! wished number of MPI tasks per group
+!    ngroups     ! wished number of groups 
+!  &END FARMING 
+!
+   farming_env%group_size_wish_set=.FALSE.
+   farming_env%ngroup_wish_set    =.FALSE.
+   CALL start_parser(file_name=globenv%input_file_name,&
+                      globenv=globenv,&
+                      start_section_label="FARMING",section_found=found)
+   IF (found) THEN 
+   DO
+        test_result = test_object()
+        IF (test_result /= "EOL") THEN
+          CALL read_object(keyword)
+          CALL stop_parser(routine=routineN,message="INVALID_KEYWORD")
+        END IF
+        test_result = test_object(newline=.TRUE.)
+        IF (test_result == "EOS") THEN
+          EXIT
+        ELSE IF (test_result == "EOF") THEN
+          CALL stop_parser(routine=routineN,message="EOF")
+        ELSE
+          CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
+          SELECT CASE (TRIM(keyword))
+          CASE("GROUP_SIZE")
+            IF (farming_env%ngroup_wish_set) & 
+               CALL stop_parser(routine=routineN,message="specify one of GROUP_SIZE or NGROUPS ")
+            CALL read_object(farming_env%group_size_wish)
+            farming_env%group_size_wish_set=.TRUE.
+          CASE("NGROUPS","NGROUP") 
+            IF (farming_env%group_size_wish_set) & 
+               CALL stop_parser(routine=routineN,message="specify one of GROUP_SIZE or NGROUPS ")
+            CALL read_object(farming_env%ngroup_wish)
+            farming_env%ngroup_wish_set=.TRUE.
+          CASE DEFAULT
+            CALL stop_parser(routine=routineN,message="INVALID_KEYWORD "&
+                 //keyword)
+          END SELECT
+        ENDIF
+   END DO
+   ENDIF
+   CALL finish_parser()
+   ! set a default if nothing given
+   IF (.NOT. farming_env%ngroup_wish_set .AND. .NOT. farming_env%group_size_wish_set) THEN
+      farming_env%group_size_wish_set=.TRUE.
+      farming_env%group_size_wish    = 8 ! groups of 8 CPUs are beautiful (on HPCx ;-)
+   ENDIF
+!
+!   &JOBS section gives the list of jobs
+!      running_dir1 input_file_name3
+!      running_dir2 input_file_name3
+!      running_dir3 input_file_name3
+!   &END 
+!
     ! count the number of jobs first
     farming_env % njobs = 0
     CALL start_parser(file_name=globenv%input_file_name,&

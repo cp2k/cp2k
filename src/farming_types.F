@@ -21,10 +21,15 @@ MODULE farming_types
   PUBLIC :: farming_env_type
 
   TYPE farming_env_type
+     INTEGER :: group_size_wish
+     LOGICAL :: group_size_wish_set
+     INTEGER :: ngroup_wish
+     LOGICAL :: ngroup_wish_set
      CHARACTER(LEN=default_string_length)                        :: cwd        ! directory we started from
      INTEGER                                                     :: Njobs      ! how many jobs to run
      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: Job_cwd    ! list of directories to go to
      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: Job_input  ! name of the input file to use
+     INTEGER, DIMENSION(:), POINTER                              :: Job_group  ! number of the target group
   END TYPE farming_env_type
 
 END MODULE farming_types

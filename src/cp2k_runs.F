@@ -37,7 +37,10 @@ MODULE cp2k_runs
   USE geo_opt,                         ONLY: qs_geo_opt
   USE md_run,                          ONLY: qs_mol_dyn 
   USE machine,                         ONLY: print_memory,m_chdir,m_getcwd
-  USE message_passing,                 ONLY: mp_sync
+  USE message_passing,                 ONLY: mp_sync, &
+                                             mp_environ, &
+                                             mp_comm_split, &
+                                             mp_comm_free
   USE qs_mc,                           ONLY: qs_mon_car
   USE qs_parser,                       ONLY: open_file,close_file
   USE trajana_methods,                 ONLY: trajana
@@ -227,6 +230,9 @@ CONTAINS
     TYPE(farming_env_type), POINTER          :: farming_env
     INTEGER                                  :: stat,i,ierr,output_unit,handle
     CHARACTER(LEN=default_string_length)     :: output_file
+    INTEGER, DIMENSION(:), POINTER           :: group_distribution
+    INTEGER                                  :: ngroups
+    INTEGER                                  :: new_group,new_rank,new_size
 
     failure=.FALSE.
     CALL timeset(routineN,'I','',handle)
@@ -235,49 +241,85 @@ CONTAINS
 
     ALLOCATE(farming_env,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
     ! remember where we started
     CALL m_getcwd(farming_env%cwd)
-
     CALL farming_parse_input(farming_env,globenv,error)
     IF (globenv%ionode) THEN
         write(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Number of jobs found",farming_env%njobs
+        IF (farming_env%ngroup_wish_set) THEN
+           write(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Ngroup wish:",farming_env%ngroup_wish
+        ENDIF
+        IF (farming_env%group_size_wish_set) THEN
+           write(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Group size wish:", &
+                 farming_env%group_size_wish
+        ENDIF
+    ENDIF
+
+    ! split the current communicator 
+    ALLOCATE(group_distribution(0:globenv%num_pe-1),STAT=stat) 
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (farming_env%group_size_wish_set) THEN
+       CALL mp_comm_split(globenv%group,new_group,ngroups,group_distribution,&
+               subgroup_min_size=farming_env%group_size_wish)
+    ELSE IF (farming_env%ngroup_wish_set) THEN
+       CALL mp_comm_split(globenv%group,new_group,ngroups,group_distribution,&
+               n_subgroups=farming_env%ngroup_wish)
+    ELSE
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    ENDIF
+    IF (globenv%ionode) THEN
+        write(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Number of created MPI groups:",ngroups
+        write(globenv%scr,FMT="(T2,A,T71,I10)",ADVANCE="NO") "FARMING| Task to group correspondence:"
+        DO i=0,globenv%num_pe-1
+           IF (MODULO(i,4)==0) write(globenv%scr,*)
+           write(globenv%scr,FMT='(A3,I4,A3,I4,A1)',ADVANCE="NO") "  (",i," : ",group_distribution(i),")"
+        END DO
+        write(globenv%scr,*)
+    ENDIF
+    IF (globenv%ionode) THEN
         write(globenv%scr,FMT="(T2,A)") "FARMING| List of jobs : "
         DO i=1,farming_env%njobs
          write(globenv%scr,FMT=*) "Job: ",i," Dir: ",TRIM(farming_env%Job_cwd(i))," Input: ", &
-           TRIM(farming_env%Job_input(i))
+           TRIM(farming_env%Job_input(i))," MPI group:", MODULO(i-1,ngroups)
         ENDDO
     ENDIF
 
-    ! this still requires a real farming step, sequential execution right now
     DO i=1,farming_env%njobs
-       ! change to the new working directory
-       CALL m_chdir(TRIM(farming_env%Job_cwd(i)),ierr)
+       ! this farms out the jobs
+       IF (MODULO(i-1,ngroups)==group_distribution(globenv%mepos)) THEN
+          ! change to the new working directory
+          CALL m_chdir(TRIM(farming_env%Job_cwd(i)),ierr)
 
-       ! generate a fresh call to cp2k_run
-       IF (ierr==0) THEN
-           write(output_file,'(A12,I5.5)') "FARMING_OUT_",i
-           CALL open_file(file_name=TRIM(output_file),&
-                 file_action="WRITE",&
-                 file_status="UNKNOWN",&
-                 unit_number=output_unit)
-           IF (globenv%ionode) write(globenv%scr,FMT="(T2,A,I5.5,A)") " Running Job ",i, &
-                     " output to "//TRIM(farming_env%Job_cwd(i))//"/"//TRIM(output_file)
-           run_OK=cp2k_run(TRIM(farming_env%Job_input(i)),output_unit,globenv%group)
-           CALL close_file(unit_number=output_unit)
-       ELSE ! problem if just one node does not change...
-           IF (globenv%ionode) write(globenv%scr,FMT="(T2,A,A)") &
-                  " ... Failed to change dir to "//TRIM(farming_env%Job_cwd(i))
+          ! generate a fresh call to cp2k_run
+          IF (ierr==0) THEN
+              write(output_file,'(A12,I5.5)') "FARMING_OUT_",i
+              CALL open_file(file_name=TRIM(output_file),&
+                    file_action="WRITE",&
+                    file_status="UNKNOWN",&
+                    unit_number=output_unit)
+              IF (globenv%ionode) write(globenv%scr,FMT="(T2,A,I5.5,A)") " Running Job ",i, &
+                        " output to "//TRIM(farming_env%Job_cwd(i))//"/"//TRIM(output_file)
+              run_OK=cp2k_run(TRIM(farming_env%Job_input(i)),output_unit,new_group)
+              CALL close_file(unit_number=output_unit)
+          ELSE ! problem if just one node does not change...
+              IF (globenv%ionode) write(globenv%scr,FMT="(T2,A,A)") &
+                     " ... Failed to change dir to "//TRIM(farming_env%Job_cwd(i))
+          ENDIF
+
+          ! change to the original working directory
+          CALL m_chdir(TRIM(farming_env%cwd),ierr)
+          IF (ierr/=0) THEN
+              IF (globenv%ionode) write(globenv%scr,FMT="(T2,A,A)") &
+                         " ... Failed to change back home to "//TRIM(farming_env%cwd)
+          ENDIF
+
        ENDIF
-
-       ! change to the original working directory
-       CALL m_chdir(TRIM(farming_env%cwd),ierr)
-       IF (ierr/=0) THEN
-           IF (globenv%ionode) write(globenv%scr,FMT="(T2,A,A)") &
-                      " ... Failed to change back home to "//TRIM(farming_env%cwd)
-       ENDIF
-
     ENDDO
+
+    ! give back the communicators of the split groups
+    CALL mp_comm_free(new_group)
+    DEALLOCATE(group_distribution,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL mp_sync(globenv%group)
 
