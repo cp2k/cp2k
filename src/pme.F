@@ -177,7 +177,7 @@ SUBROUTINE pme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
        f_stress ( j, i ) = f_stress ( i, j )
     END DO
   END DO
-  ffa = ( grid_b % vol / fourpi ) * ( 0.5_dbl / dg % dg_rho0 % zet ( 1 ) ) ** 2
+  ffa = ( 1.0_dbl / fourpi ) * ( 0.5_dbl / dg % dg_rho0 % zet ( 1 ) ) ** 2
   f_stress = -ffa * f_stress
   pv_g = inv_fourpi_eps0 * ( h_stress + f_stress )
 
