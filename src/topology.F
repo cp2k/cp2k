@@ -155,28 +155,6 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   CALL coordinate_control(topology,globenv)
 
   !-----------------------------------------------------------------------------
-  ! Teodoro 11.2004:
-  !
-  ! The Idea behind the implementation of the QM/MM in Fist is to  define
-  ! independently from the topology e/o PDB input file new atom types for
-  ! QM  atoms. 
-  ! We then modify the force_field_pack routine so to nullify all qm internal
-  ! interactions, keep the proper QM/MM internal fields, non-bonded, etc..
-  !
-  ! Two main routines:
-  !    - qmmm_coordinate_control
-  !    - qmmm_ff_precond_only_qm (use in force_fields.F)
-  !-----------------------------------------------------------------------------
-  ! 5.bis. Check if QM/MM and perform the required modifications
-  !-----------------------------------------------------------------------------
-  IF (PRESENT(qmmm)) THEN
-     IF (qmmm) THEN
-        IF (.NOT.PRESENT(qmmm_env)) &
-             CALL stop_program("Error in qmmm_env in Fist","Illdefined subroutine!")     
-        CALL qmmm_coordinate_control(topology, globenv, qmmm_env, error)
-     END IF
-  END IF
-  !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 6. Read in or generate the molecular connectivity
   !-----------------------------------------------------------------------------
@@ -301,7 +279,7 @@ SUBROUTINE connectivity_control(topology,globenv,qmmm,qmmm_env,error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw
-    LOGICAL                                  :: found
+    LOGICAL                                  :: found, my_qmmm
 
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
@@ -313,7 +291,8 @@ SUBROUTINE connectivity_control(topology,globenv,qmmm,qmmm_env,error)
   IF((globenv%ionode).AND.(globenv%print%level>0))THEN
     WRITE(iw,*) "  Entering connectivity_control"
   END IF
-
+  my_qmmm = .FALSE.
+  IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm = qmmm
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -345,16 +324,7 @@ SUBROUTINE connectivity_control(topology,globenv,qmmm,qmmm_env,error)
     CALL read_topology_mc(topology,globenv)
   CASE ("PSF")
     CALL read_topology_psf(topology,globenv)
-    !
-    IF (PRESENT(qmmm)) THEN
-       IF (qmmm) THEN
-          IF (.NOT.PRESENT(qmmm_env)) &
-               CALL stop_program("Error in qmmm_env in Fist","Illdefined subroutine!")
-          CALL qmmm_coordinate_control(topology, globenv, qmmm_env, error)
-       END IF
-    END IF
-    !
-    CALL topology_generate_molecule(topology,globenv)
+    CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,error)
   CASE ("GROMOS")
     !WRITE(iw,*) 'Using topology file ',topology%conn_file_name
     !CALL read_topology_gromos(molecule_set,topology,globenv)
@@ -368,7 +338,7 @@ SUBROUTINE connectivity_control(topology,globenv,qmmm,qmmm_env,error)
     CALL topology_generate_dihe(topology,globenv)
     CALL topology_generate_impr(topology,globenv)
     CALL topology_generate_onfo(topology,globenv)
-    CALL topology_generate_molecule(topology,globenv)
+    CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,error)
     IF(topology%reorder_atom) THEN
       CALL topology_reorder_atoms(topology,globenv)
       CALL topology_set_atm_mass(topology,globenv)
@@ -378,7 +348,7 @@ SUBROUTINE connectivity_control(topology,globenv,qmmm,qmmm_env,error)
       CALL topology_generate_dihe(topology,globenv)
       CALL topology_generate_impr(topology,globenv)
       CALL topology_generate_onfo(topology,globenv)
-      CALL topology_generate_molecule(topology,globenv)
+      CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,error)
     END IF
   CASE ("OFF")
     CALL topology_set_atm_mass(topology,globenv)
@@ -387,12 +357,15 @@ SUBROUTINE connectivity_control(topology,globenv,qmmm,qmmm_env,error)
     CALL topology_generate_dihe(topology,globenv)
     CALL topology_generate_impr(topology,globenv)
     CALL topology_generate_onfo(topology,globenv)
-    CALL topology_generate_molecule(topology,globenv)
+    CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,error)
   CASE DEFAULT
     CALL stop_program ("connectivity_control",&
                        "no default")
   END SELECT
 
+  IF (my_qmmm) THEN
+     CALL qmmm_coordinate_control(topology, globenv, qmmm_env, error)
+  END IF
 
   IF((globenv%ionode).AND.(globenv%print%level>0))THEN
     WRITE(iw,*) "  Exiting  connectivity_control"

@@ -323,13 +323,17 @@ END SUBROUTINE topology_reorder_atoms
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE topology_generate_molecule(topology,globenv)
+SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
 
 
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
       INTENT(IN), OPTIONAL                   :: globenv
+    TYPE(qmmm_env_mm_type), POINTER, OPTIONAL :: qmmm_env
+    LOGICAL, INTENT(in), OPTIONAL            :: qmmm
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error    
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_molecule', &
       routineP = moduleN//':'//routineN
@@ -340,9 +344,10 @@ SUBROUTINE topology_generate_molecule(topology,globenv)
     INTEGER                                  :: first, iatom, iiatom, iii, &
                                                 inum, istat, itype, iw, last, &
                                                 natom, nbond, nnum, ntype
+    INTEGER                                  :: ifirst, ilast, myind, iatm
     INTEGER, POINTER                         :: checkme(:)
-    LOGICAL                                  :: PM1, PM2, PM3, PM4
-
+    LOGICAL                                  :: PM1, PM2, PM3, PM4, my_qmmm, do_again
+    LOGICAL                                  :: prev_diff_mol_typ, succ_diff_mol_typ
 !------------------------------------------------------------------------------
 
   PM1 = .FALSE.
@@ -367,6 +372,11 @@ SUBROUTINE topology_generate_molecule(topology,globenv)
   itype = 0
   nnum = 1
   inum = 0
+  !
+  ! QM/MM coordinate_control
+  ! 
+  my_qmmm = .FALSE.
+  IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm = qmmm
 
   natom = topology%natoms
   nbond = 0
@@ -456,6 +466,64 @@ SUBROUTINE topology_generate_molecule(topology,globenv)
 
   DEALLOCATE(checkme,STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_generate_molecule','checkme')
+
+  IF (my_qmmm) THEN
+     do_again = .FALSE.
+     DO myind = 1, SIZE(qmmm_env%qm_atom_index)
+        ifirst = qmmm_env%qm_atom_index(myind)
+        ilast  = ifirst
+        DO WHILE ((atom_info%map_mol_num(ifirst) == atom_info%map_mol_num(ilast)).AND.&
+                  (atom_info%map_mol_typ(ifirst) == atom_info%map_mol_typ(ilast)).AND.&
+                  ifirst >= 2)
+           ifirst = ifirst - 1
+        END DO
+        IF ( ifirst >= 2 ) ifirst = ifirst + 1
+        DO WHILE ((atom_info%map_mol_num(ifirst) == atom_info%map_mol_num(ilast)).AND.&
+                  (atom_info%map_mol_typ(ifirst) == atom_info%map_mol_typ(ilast)).AND.&
+                  ilast <= natom-1)
+           ilast = ilast + 1
+        END DO
+        IF ( ilast <= natom-1 ) ilast = ilast - 1
+        DO iatm = ifirst, ilast
+           atom_info%label_molname(iatm) = "_QM_"//&
+                TRIM(atom_info%label_molname(iatm))
+        END DO
+        DO iatm = ilast+1, natom
+           IF ( ANY(qmmm_env%qm_atom_index == iatm) ) do_again = .TRUE.
+           WRITE(*,*)iatm,atom_info%map_mol_typ(iatm), atom_info%map_mol_num(iatm)
+        END DO
+        DO iatm = ifirst, ilast
+           atom_info%map_mol_num(iatm) = 1
+        END DO
+        IF (ilast /= natom) THEN
+           inum = atom_info%map_mol_num(ilast+1)
+           DO iatm = ilast+1, natom
+              IF (atom_info%map_mol_num(iatm) == 1) EXIT
+              atom_info%map_mol_num(iatm) = atom_info%map_mol_num(iatm) - inum +1
+           END DO
+        END IF
+
+        IF (ifirst == 1) THEN 
+           prev_diff_mol_typ = .TRUE.
+           succ_diff_mol_typ =  atom_info%map_mol_typ(ilast) /= atom_info%map_mol_typ(ilast+1)
+        ELSEIF (ilast == natom) THEN
+           prev_diff_mol_typ =  atom_info%map_mol_typ(ifirst) /= atom_info%map_mol_typ(ifirst-1)           
+           succ_diff_mol_typ = .TRUE.
+        ELSE
+           prev_diff_mol_typ =  atom_info%map_mol_typ(ifirst) /= atom_info%map_mol_typ(ifirst-1)
+           succ_diff_mol_typ =  atom_info%map_mol_typ(ilast) /= atom_info%map_mol_typ(ilast+1)
+        END IF
+
+        IF (prev_diff_mol_typ) ifirst = ilast + 1
+        IF (.NOT.succ_diff_mol_typ) THEN 
+           DO iatm = ifirst, natom
+              atom_info%map_mol_typ(iatm) =  atom_info%map_mol_typ(iatm) + 1
+           END DO
+        END IF
+        IF (.NOT.do_again) EXIT
+     END DO
+  END IF
+
 
   IF(PM4) THEN
     DO iatom=1,natom

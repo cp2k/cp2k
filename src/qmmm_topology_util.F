@@ -100,26 +100,6 @@ CONTAINS
     ! setting ilast and ifirst for QM molecule
     !
     CPPostcondition(SIZE(qmmm_env%qm_atom_index) /= 0,cp_failure_level,routineP,error,failure)
-    DO myind = 1, SIZE(qmmm_env%qm_atom_index)
-       ifirst = qmmm_env%qm_atom_index(myind)
-       ilast  = ifirst
-       DO WHILE (topology%atom_info%label_molname(ifirst) == topology%atom_info%label_molname(ilast)&
-            .AND.ifirst >= 2)
-          ifirst = ifirst - 1
-       END DO
-       IF (topology%atom_info%label_molname(ifirst) /= topology%atom_info%label_molname(ilast))&
-            ifirst = ifirst + 1
-       DO WHILE (topology%atom_info%label_molname(ifirst) == topology%atom_info%label_molname(ilast)&
-            .AND.ilast <= SIZE(topology%atom_info%label_molname)-1)
-          ilast = ilast + 1
-       END DO
-       IF (topology%atom_info%label_molname(ifirst) /= topology%atom_info%label_molname(ilast))&        
-            ilast = ilast - 1
-       DO iatm = ifirst, ilast
-          topology%atom_info%label_molname(iatm) = "_QM_"//&
-               TRIM(topology%atom_info%label_molname(iatm))
-       END DO
-    END DO
     DO iatm = 1, SIZE(qmmm_env%qm_atom_index)
        topology%atom_info%label_atmname(qmmm_env%qm_atom_index(iatm)) = "_QM_"//&
             TRIM(topology%atom_info%label_atmname(qmmm_env%qm_atom_index(iatm)))
