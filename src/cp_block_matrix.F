@@ -234,8 +234,7 @@ contains
 !!         should_dealloc_matrix, b_rep_is_primary,&
 !!         allocate_nonsparse_blocks, error)
 !!       Type(cp_block_matrix_type), Pointer:: matrix
-!!       Type(cp_b_matrix_struct_type), Intent (IN), Target::&
-!!         matrix_struct
+!!       Type(cp_b_matrix_struct_type), Intent (IN), Target:: matrix_struct
 !!       Type(real_matrix_type), Optional, Intent (IN), Target:: u_matrix
 !!       Logical, Intent (IN), Optional:: should_dealloc_matrix,&
 !!         b_rep_is_primary, allocate_nonsparse_blocks
@@ -1153,8 +1152,7 @@ end subroutine cp_sp_block_handle_init
 !!     Subroutine cp_sp_array_create(matrixes, n_matrixes, matrix_struct,&
 !!         b_rep_is_primary, allocate_nonsparse_blocks, error)
 !!       Type(cp_block_matrix_p_type), Dimension(:), Pointer:: matrixes
-!!       Type(cp_b_matrix_struct_type), Intent (IN), Target::&
-!!         matrix_struct
+!!       Type(cp_b_matrix_struct_type), Intent (IN), Target:: matrix_struct
 !!       Integer, Intent (IN):: n_matrixes
 !!       Logical, Intent (IN), Optional:: b_rep_is_primary,&
 !!         allocate_nonsparse_blocks
@@ -1524,12 +1522,11 @@ end subroutine cp_sp_check_distribution
 !!     cp_sp_get
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_sp_get(matrix, matrix_struct, distribution,&
-!!         dimensions, sparsity, n_block_rows, n_block_cols, n_rows, n_cols,&
-!!         frozen, b_rep_is_primary, id_nr, error)
+!!     Subroutine cp_sp_get(matrix, matrix_struct, distribution, dimensions,&
+!!         sparsity, n_block_rows, n_block_cols, n_rows, n_cols, frozen,&
+!!         b_rep_is_primary, id_nr, error)
 !!       Type(cp_block_matrix_type), Pointer:: matrix
-!!       Type(cp_b_matrix_struct_type), Pointer, Optional::&
-!!         matrix_struct
+!!       Type(cp_b_matrix_struct_type), Pointer, Optional:: matrix_struct
 !!       Type(cp_b_distribution_type), Pointer, Optional:: distribution
 !!       Type(cp_b_dims_type), Pointer, Optional:: dimensions
 !!       Logical, Dimension(:,:), Pointer, Optional:: sparsity

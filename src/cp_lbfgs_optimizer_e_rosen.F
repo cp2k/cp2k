@@ -34,7 +34,7 @@
 module cp_lbfgs_optimizer_e_rosen
   use cp_lbfgs, only: setulb, cp_lbfgs_unit_nr
   use cp_error_handling, only: cp_assert, cp_error_message, cp_error_type,&
-        cp_assertion_failed, cp_get_logger
+        cp_assertion_failed, cp_error_get_logger
   use cp_log_handling, only: cp_to_string, cp_warning_level, cp_failure_level,&
         cp_std_out_unit_nr, cp_logger_get_default_unit_nr
   use kinds, only: wp=>dp
@@ -256,7 +256,8 @@ contains
 
     if (.not. failure) then
        ! quite a hack (redirect the lbfgs output)
-       cp_lbfgs_unit_nr=cp_logger_get_default_unit_nr(cp_get_logger(error))
+       cp_lbfgs_unit_nr=cp_logger_get_default_unit_nr(&
+            cp_error_get_logger(error))
        n=size(x0)
        optimizer%m=4
        if (present(m)) optimizer%m=m

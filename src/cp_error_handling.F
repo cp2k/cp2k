@@ -743,7 +743,7 @@ contains
          'err='//adjustl(cp_to_string(error%error_nr))//message, error)
 
     if (error%level >= error%stop_level) then
-       logger => cp_error_get_logger(error) 
+       logger => cp_error_get_logger(error)
        mepos=logger%para_env%mepos
        call cp_error_common_stop(fromWhere//' processor '//&
             cp_to_string(mepos)//' ',message)

@@ -62,6 +62,16 @@ contains
 !!   NAME
 !!     cp_blacs_env_create
 !!
+!!   SYNOPSIS
+!!     Subroutine cp_blacs_env_create(blacs_env, group, owns_group, source,&
+!!         error)
+!!       Type(cp_blacs_env_type), Pointer:: blacs_env
+!!       Integer, Intent (IN):: group
+!!       Logical, Intent (IN), Optional:: owns_group
+!!       Integer, Dimension(2), Intent (IN), Optional:: source
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_blacs_env_create
+!!
 !!   FUNCTION
 !!     allocates and initializes a type that represent a blacs context
 !!
@@ -136,6 +146,12 @@ end subroutine cp_blacs_env_create
 !!   NAME
 !!     cp_blacs_env_retain
 !!
+!!   SYNOPSIS
+!!     Subroutine cp_blacs_env_retain(blacs_env, error)
+!!       Type(cp_blacs_env_type), Pointer:: blacs_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_blacs_env_retain
+!!
 !!   FUNCTION
 !!     retains the given blacs env
 !!
@@ -174,6 +190,12 @@ end subroutine cp_blacs_env_retain
 !!
 !!   NAME
 !!     cp_blacs_env_release
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_blacs_env_release(blacs_env, error)
+!!       Type(cp_blacs_env_type), Pointer:: blacs_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_blacs_env_release
 !!
 !!   FUNCTION
 !!     releases the given blacs_env
@@ -224,6 +246,13 @@ end subroutine cp_blacs_env_release
 !!
 !!   NAME
 !!     cp_blacs_env_write
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_blacs_env_write(blacs_env, unit_nr, error)
+!!       Type(cp_blacs_env_type), Pointer:: blacs_env
+!!       Integer, Intent (IN):: unit_nr
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_blacs_env_write
 !!
 !!   FUNCTION
 !!     writes the description of the given blacs env
@@ -288,6 +317,13 @@ end subroutine cp_blacs_env_write
 !!
 !!   NAME
 !!     cp_blacs_env_from_globenv
+!!
+!!   SYNOPSIS
+!!     Function cp_blacs_env_from_globenv(global_env, error) Result(res)
+!!       Type(cp_blacs_env_type), Pointer:: res
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Function cp_blacs_env_from_globenv
 !!
 !!   FUNCTION
 !!     returns the blacs environment stored in the given global_env.

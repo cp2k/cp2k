@@ -55,41 +55,41 @@ module cp_f_matrix_struct
 !***
 !****************************************************************************
 
-  !!****s* qs_blacs/cp_f_matrix_struct_type [1.0] *
-  !!
-  !!   NAME
-  !!     cp_f_matrix_struct_type
-  !!
-  !!   FUNCTION
-  !!     keeps the information about the structure of a full matrix
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     - para_env:
-  !!     - context:
-  !!     - descriptor:
-  !!     - ncol_block:
-  !!     - nrow_block:
-  !!     - nrow_global:
-  !!     - ncol_block
-  !!     - ncol_global
-  !!     - first_p_pos
-  !!     - row_indices
-  !!     - col_indices
-  !!     - nrow_local
-  !!     - ncol_local
-  !!     - id_nr
-  !!     - ref_count
-  !!
-  !!   AUTHOR
-  !!     Fawzi Mohamed
-  !!
-  !!   MODIFICATION HISTORY
-  !!     08.2002 created [fawzi]
-  !!
-  !!   SOURCE
+!!****s* qs_blacs/cp_f_matrix_struct_type [1.0] *
+!!
+!!   NAME
+!!     cp_f_matrix_struct_type
+!!
+!!   FUNCTION
+!!     keeps the information about the structure of a full matrix
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     - para_env:
+!!     - context:
+!!     - descriptor:
+!!     - ncol_block:
+!!     - nrow_block:
+!!     - nrow_global:
+!!     - ncol_block
+!!     - ncol_global
+!!     - first_p_pos
+!!     - row_indices
+!!     - col_indices
+!!     - nrow_local
+!!     - ncol_local
+!!     - id_nr
+!!     - ref_count
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!   SOURCE
   !***************************************************************************
   type cp_f_matrix_struct_type
      type(cp_para_env_type), pointer :: para_env
@@ -106,7 +106,7 @@ module cp_f_matrix_struct
           nrow_local, ncol_local
      integer :: id_nr, ref_count
   end type cp_f_matrix_struct_type
-  !!***
+!!***
   !****************************************************************************
 
 contains
@@ -115,6 +115,20 @@ contains
 !!
 !!   NAME
 !!     cp_fmstruct_create
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_fmstruct_create(fmstruct, para_env, nrow_global,&
+!!         ncol_global, nrow_block, ncol_block, context, descriptor,&
+!!         first_p_pos, error)
+!!       Type(cp_f_matrix_struct_type), Pointer:: fmstruct
+!!       Type(cp_para_env_type), Pointer:: para_env
+!!       Integer, Intent (IN):: nrow_global, ncol_global, nrow_block,&
+!!         ncol_block
+!!       Type(cp_blacs_env_type), Pointer:: context
+!!       Integer, Dimension(9), Intent (IN), Optional:: descriptor
+!!       Integer, Optional, Dimension(2):: first_p_pos
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_fmstruct_create
 !!
 !!   FUNCTION
 !!     allocates and initializes a full matrix structure
@@ -162,6 +176,13 @@ subroutine cp_fmstruct_create(fmstruct,para_env,nrow_global,ncol_global,&
   integer :: stat
   failure=.false.
   
+#if defined(__parallel) && ! defined(__SCALAPACK)
+  call cp_assert(.false.,cp_failure_level,cp_assertion_failed,&
+       routineP,"full matrixes need scalapack for parallel runs "//&
+       CPSourceFileRef,&
+       error)
+#endif
+
   allocate(fmstruct,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   if (.not. failure) then
@@ -238,6 +259,12 @@ end subroutine cp_fmstruct_create
 !!   NAME
 !!     cp_fmstruct_retain
 !!
+!!   SYNOPSIS
+!!     Subroutine cp_fmstruct_retain(fmstruct, error)
+!!       Type(cp_f_matrix_struct_type), Pointer:: fmstruct
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_fmstruct_retain
+!!
 !!   FUNCTION
 !!     retains a full matrix structure
 !!
@@ -277,6 +304,12 @@ end subroutine cp_fmstruct_retain
 !!
 !!   NAME
 !!     cp_fmstruct_release
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_fmstruct_release(fmstruct, error)
+!!       Type(cp_f_matrix_struct_type), Pointer:: fmstruct
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_fmstruct_release
 !!
 !!   FUNCTION
 !!     releases a full matrix structure
@@ -332,6 +365,14 @@ end subroutine cp_fmstruct_release
 !!
 !!   NAME
 !!     cp_fmstruct_equivalent
+!!
+!!   SYNOPSIS
+!!     Function cp_fmstruct_equivalent(fmstruct1, fmstruct2, error)&
+!!         Result(res)
+!!       Type(cp_f_matrix_struct_type), Pointer:: fmstruct1, fmstruct2
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Logical:: res
+!!     End Function cp_fmstruct_equivalent
 !!
 !!   FUNCTION
 !!     returns true if the two matrix structures are equivalent, false
