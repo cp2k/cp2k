@@ -267,12 +267,11 @@ END SUBROUTINE p_env_retain
        CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
        p_env%ref_count=p_env%ref_count-1
        IF (p_env%ref_count<1) THEN
-          NULLIFY(p_env%kpp1_env)
           CALL kpp1_release(p_env%kpp1_env, error)
           CALL cp_fm_vect_dealloc(p_env%S_psi0, error=error)
           CALL cp_fm_vect_dealloc(p_env%m_epsilon, error=error)
           CALL cp_fm_vect_dealloc(p_env%psi0d, error=error)
-          CALL deallocate_matrix_set(p_env%kpp1)
+          IF (ASSOCIATED(p_env%kpp1)) CALL deallocate_matrix_set(p_env%kpp1)
        END IF
     END IF
     NULLIFY(p_env)
