@@ -36,7 +36,7 @@ MODULE global_types
                         DEBUG = 4
 
   TYPE print_key_type
-    INTEGER :: level
+    INTEGER :: level,precision
     LOGICAL :: angles,&
                atomic_coordinates,&
                basic_data_types,&
@@ -48,10 +48,12 @@ MODULE global_types
                core_hamiltonian_matrix,&
                core_charge_radii,&
                density_matrix,&
+               derivatives,&
                dft_control_parameters,&
                diis_information,&
                distribution,&
                each_scf_step,&
+               forces,&
                hartree_matrix,&
                interatomic_distances,&
                kind_radii,&
@@ -83,7 +85,8 @@ MODULE global_types
                timing_information,&
                title,&
                total_densities,&
-               total_numbers
+               total_numbers,&
+               w_matrix
   END TYPE print_key_type
 
   TYPE global_environment_type
@@ -149,9 +152,11 @@ CONTAINS
     print_key%core_charge_radii = key_value(level,(/f,t,t/))
     print_key%dft_control_parameters = key_value(level,(/t,t,t/))
     print_key%density_matrix = key_value(level,(/f,f,t/))
+    print_key%derivatives = key_value(level,(/f,f,f/))
     print_key%diis_information = key_value(level,(/f,f,t/))
     print_key%distribution = key_value(level,(/f,t,t/))
     print_key%each_scf_step = key_value(level,(/f,f,t/))
+    print_key%forces = key_value(level,(/f,f,f/))
     print_key%hartree_matrix = key_value(level,(/f,t,t/))
     print_key%interatomic_distances = key_value(level,(/f,f,t/))
     print_key%kind_radii = key_value(level,(/f,t,t/))
@@ -184,6 +189,7 @@ CONTAINS
     print_key%title = key_value(level,(/t,t,t/))
     print_key%total_densities = key_value(level,(/f,f,t/))
     print_key%total_numbers = key_value(level,(/t,t,t/))
+    print_key%w_matrix = key_value(level,(/f,f,f/))
 
   END SUBROUTINE init_print_keys
 

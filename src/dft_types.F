@@ -25,17 +25,18 @@ MODULE dft_types
   USE kinds, ONLY: wp => dp,&
                    wp_size => dp_size
 
-  USE band,         ONLY: band_structure_type
-  USE global_types, ONLY: global_environment_type
-  USE qs_parser,    ONLY: finish_parser,&
-                          read_object,&
-                          start_parser,&
-                          stop_parser,&
-                          test_object
-  USE termination,  ONLY: stop_memory,&
-                          stop_program
-  USE pw_grid_types, ONLY : pw_grid_type
-  USE xc_functionals, ONLY : xc_get_functional, xc_print_info
+  USE band,           ONLY: band_structure_type
+  USE global_types,   ONLY: global_environment_type
+  USE pw_grid_types,  ONLY: pw_grid_type
+  USE qs_parser,      ONLY: finish_parser,&
+                            read_object,&
+                            start_parser,&
+                            stop_parser,&
+                            test_object
+  USE termination,    ONLY: stop_memory,&
+                            stop_program
+  USE xc_functionals, ONLY: xc_get_functional,&
+                            xc_print_info
 
   IMPLICIT NONE
 
@@ -80,17 +81,18 @@ MODULE dft_types
   END TYPE xc_grid_type
 
   TYPE dft_control_type
-     TYPE(qs_control_type)     :: qs_control
-     TYPE(wave_control_type)   :: wave_control
-     TYPE(band_structure_type) :: band
-     INTEGER                   :: nspins
-     CHARACTER(LEN=40),DIMENSION(3) :: functional
-     REAL(wp)                  :: density_cut
-     REAL(wp)                  :: gradient_cut
-     LOGICAL                   :: gradient_functional
-     LOGICAL, DIMENSION ( 2, 3 ) :: ftags
-     LOGICAL                   :: smooth_gradient
-     TYPE(xc_grid_type)        :: integration_grid
+     TYPE(band_structure_type)       :: band
+     TYPE(qs_control_type)           :: qs_control
+     TYPE(wave_control_type)         :: wave_control
+     TYPE(xc_grid_type)              :: integration_grid
+     CHARACTER(LEN=40), DIMENSION(3) :: functional
+     REAL(wp)                        :: density_cut,&
+                                        gradient_cut
+     INTEGER                         :: nspins
+     LOGICAL                         :: forces,&
+                                        gradient_functional,&
+                                        smooth_gradient
+     LOGICAL, DIMENSION (2,3)        :: ftags
   END TYPE dft_control_type
 
 ! *** Public data types ***
@@ -172,6 +174,7 @@ CONTAINS
     dft_control % integration_grid % pw_default = .TRUE.
     dft_control % integration_grid % pw_cutoff  = -1._wp
     dft_control % integration_grid % pw_mesh    = -1_wp
+    dft_control % forces = .FALSE.
 
 !   *** Read the input section ***
 
@@ -225,6 +228,8 @@ CONTAINS
         CALL read_object(dft_control%nspins)
       CASE ("SPIN_POLARISATION","SPIN_POLARIZATION","LSD")
         dft_control%nspins = 2
+      CASE ("FORCES")
+        dft_control%forces = .TRUE.
       END SELECT
     END DO
 
@@ -467,7 +472,13 @@ CONTAINS
 
       output_unit = globenv%scr
 
-      CALL xc_print_info ( output_unit, dft_control % functional )
+      IF (dft_control%forces) THEN
+        WRITE (UNIT=output_unit,FMT="(/,T2,A,T78,A)")&
+          "DFT| Force calculation","YES"
+      ELSE
+        WRITE (UNIT=output_unit,FMT="(/,T2,A,T78,A)")&
+          "DFT| Force calculation"," NO"
+      END IF
 
       IF ( dft_control % nspins == 1 ) then
          !do nothing
@@ -495,6 +506,8 @@ CONTAINS
               WRITE ( output_unit, '( A, T67, F10.1, "a.u." )' ) &
               " DFT| XC mesh (PW density)", dft_control % integration_grid % pw_cutoff
       END IF
+
+      CALL xc_print_info ( output_unit, dft_control % functional )
 
     END IF
 

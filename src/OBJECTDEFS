@@ -4,6 +4,7 @@ OBJECTS_GENERIC =\
  ai_kinetic.o\
  ai_nuclear.o\
  ai_overlap.o\
+ ai_overlap_new.o\
  ai_overlap3.o\
  ai_overlap_ppl.o\
  ai_verfc.o\
@@ -190,6 +191,7 @@ OBJECTS_GENERIC =\
  qs_core_hamiltonian.o\
  qs_diis.o\
  qs_environment_types.o\
+ qs_force_types.o\
  qs_init.o\
  qs_integrate_potential.o\
  qs_interactions.o\

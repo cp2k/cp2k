@@ -14,6 +14,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     - mo_set_p_type added to qs_env (23.04.02,MK)
+!!     - qs_force_type added to qs_env (05.06.02,MK)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -22,12 +23,13 @@ MODULE qs_environment_types
 
   USE atomic_kind_types,      ONLY: atomic_kind_type
   USE dft_types,              ONLY: dft_control_type
+  USE pao_types,              ONLY: pao_env_type
   USE particle_types,         ONLY: particle_type
+  USE qs_force_types,         ONLY: qs_force_type
   USE qs_mo_types,            ONLY: mo_set_p_type
   USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
   USE simulation_cell,        ONLY: cell_type
   USE sparse_matrix_types,    ONLY: real_matrix_p_type
-  USE pao_types,              ONLY: pao_env_type
 
   IMPLICIT NONE
 
@@ -35,17 +37,18 @@ MODULE qs_environment_types
 
   TYPE qs_environment_type
     PRIVATE
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
     TYPE(cell_type), POINTER                              :: cell
     TYPE(dft_control_type), POINTER                       :: dft_control
-    TYPE(real_matrix_p_type), POINTER                     :: h,s
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: k,p,p_old
     TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: c
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_erfc,&
                                                              sac_ppl,sca_ppnl,&
                                                              scb_ppnl
     TYPE(pao_env_type), POINTER                           :: pao_env
+    TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
+    TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: h,k,p,p_old,s
+!MK should be removed:
     INTEGER                                               :: n_electrons
   END TYPE qs_environment_type
 
@@ -65,9 +68,9 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_qs_env(qs_env,cell,dft_control,h,s,k,p,c,atomic_kind_set,&
-                        particle_set,sab_orb,sac_erfc,sac_ppl,sca_ppnl,&
-                        scb_ppnl,pao_env,natoms, n_electrons, p_old)
+  SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,sab_orb,&
+                        sac_erfc,sac_ppl,sca_ppnl,scb_ppnl,pao_env,&
+                        particle_set,force,h,k,p,p_old,s,natoms,n_electrons)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -76,42 +79,45 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(qs_environment_type), INTENT(IN)       :: qs_env
-    TYPE(cell_type), OPTIONAL, POINTER          :: cell
-    TYPE(dft_control_type), OPTIONAL, POINTER   :: dft_control
-    TYPE(real_matrix_p_type), OPTIONAL, POINTER :: h,s
-    TYPE(real_matrix_p_type), DIMENSION(:),&
-      OPTIONAL, POINTER                         :: k,p,p_old
-    TYPE(mo_set_p_type),  DIMENSION(:),&
-      OPTIONAL, POINTER                         :: c
     TYPE(atomic_kind_type), DIMENSION(:),&
       OPTIONAL, POINTER                         :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:),&
-      OPTIONAL, POINTER                         :: particle_set
+    TYPE(cell_type), OPTIONAL, POINTER          :: cell
+    TYPE(dft_control_type), OPTIONAL, POINTER   :: dft_control
+    TYPE(mo_set_p_type),  DIMENSION(:),&
+      OPTIONAL, POINTER                         :: c
     TYPE(neighbor_list_set_p_type),&
       DIMENSION(:), OPTIONAL, POINTER           :: sab_orb,sac_erfc,sac_ppl,&
                                                    sca_ppnl,scb_ppnl
     TYPE(pao_env_type), OPTIONAL, POINTER       :: pao_env
-    INTEGER, INTENT(OUT), OPTIONAL              :: natoms, n_electrons
+    TYPE(particle_type), DIMENSION(:),&
+      OPTIONAL, POINTER                         :: particle_set
+    TYPE(qs_force_type), DIMENSION(:),&
+      OPTIONAL, POINTER                         :: force
+    TYPE(real_matrix_p_type), DIMENSION(:),&
+      OPTIONAL, POINTER                         :: h,k,p,p_old,s
+    INTEGER, INTENT(OUT), OPTIONAL              :: natoms,n_electrons
 
 !   ---------------------------------------------------------------------------
 
+    IF (PRESENT(atomic_kind_set)) atomic_kind_set => qs_env%atomic_kind_set
     IF (PRESENT(cell)) cell => qs_env%cell
     IF (PRESENT(dft_control)) dft_control => qs_env%dft_control
-    IF (PRESENT(h)) h => qs_env%h
-    IF (PRESENT(s)) s => qs_env%s
-    IF (PRESENT(k)) k => qs_env%k
-    IF (PRESENT(p)) p => qs_env%p
     IF (PRESENT(c)) c => qs_env%c
-    IF (PRESENT(atomic_kind_set)) atomic_kind_set => qs_env%atomic_kind_set
-    IF (PRESENT(particle_set)) particle_set => qs_env%particle_set
     IF (PRESENT(sab_orb)) sab_orb => qs_env%sab_orb
     IF (PRESENT(sac_erfc)) sac_erfc => qs_env%sac_erfc
     IF (PRESENT(sac_ppl)) sac_ppl => qs_env%sac_ppl
     IF (PRESENT(sca_ppnl)) sca_ppnl => qs_env%sca_ppnl
     IF (PRESENT(scb_ppnl)) scb_ppnl => qs_env%scb_ppnl
     IF (PRESENT(pao_env)) pao_env => qs_env%pao_env
-    IF (PRESENT(natoms)) natoms = size(qs_env%particle_set)
-    IF (PRESENT(p_old)) p_old => qs_env%p_old    
+    IF (PRESENT(particle_set)) particle_set => qs_env%particle_set
+    IF (PRESENT(force)) force => qs_env%force
+    IF (PRESENT(h)) h => qs_env%h
+    IF (PRESENT(k)) k => qs_env%k
+    IF (PRESENT(p)) p => qs_env%p
+    IF (PRESENT(p_old)) p_old => qs_env%p_old
+    IF (PRESENT(s)) s => qs_env%s
+!MK should be retrieved directly
+    IF (PRESENT(natoms)) natoms = SIZE(qs_env%particle_set)
     IF (PRESENT(n_electrons)) n_electrons = qs_env%n_electrons
 
   END SUBROUTINE get_qs_env
@@ -130,31 +136,31 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    NULLIFY (qs_env%atomic_kind_set)
     NULLIFY (qs_env%cell)
     NULLIFY (qs_env%dft_control)
-    NULLIFY (qs_env%h)
-    NULLIFY (qs_env%s)
-    NULLIFY (qs_env%k)
-    NULLIFY (qs_env%p)
     NULLIFY (qs_env%c)
-    NULLIFY (qs_env%atomic_kind_set)
-    NULLIFY (qs_env%particle_set)
     NULLIFY (qs_env%sab_orb)
     NULLIFY (qs_env%sac_erfc)
     NULLIFY (qs_env%sac_ppl)
     NULLIFY (qs_env%sca_ppnl)
     NULLIFY (qs_env%scb_ppnl)
     NULLIFY (qs_env%pao_env)
+    NULLIFY (qs_env%particle_set)
+    NULLIFY (qs_env%force)
+    NULLIFY (qs_env%h)
+    NULLIFY (qs_env%k)
+    NULLIFY (qs_env%p)
     NULLIFY (qs_env%p_old)
-    qs_env%n_electrons=-1
+    NULLIFY (qs_env%s)
 
   END SUBROUTINE init_qs_env
 
 ! *****************************************************************************
 
-  SUBROUTINE set_qs_env(qs_env,cell,dft_control,h,s,k,p,c,atomic_kind_set,&
-                        particle_set,sab_orb,sac_erfc,sac_ppl,sca_ppnl,&
-                        scb_ppnl,pao_env,n_electrons,p_old)
+  SUBROUTINE set_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,sab_orb,&
+                        sac_erfc,sac_ppl,sca_ppnl,scb_ppnl,pao_env,&
+                        particle_set,force,h,k,p,p_old,s,n_electrons)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -162,42 +168,44 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), INTENT(OUT)      :: qs_env
-    TYPE(cell_type), OPTIONAL, POINTER          :: cell
-    TYPE(dft_control_type), OPTIONAL, POINTER   :: dft_control
-    TYPE(real_matrix_p_type), OPTIONAL, POINTER :: h,s
-    TYPE(real_matrix_p_type), DIMENSION(:),&
-      OPTIONAL, POINTER                         :: k,p,p_old
-    TYPE(mo_set_p_type),  DIMENSION(:),&
-      OPTIONAL, POINTER                         :: c
+    TYPE(qs_environment_type), INTENT(OUT)    :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:),&
-      OPTIONAL, POINTER                         :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:),&
-      OPTIONAL, POINTER                         :: particle_set
+      OPTIONAL, POINTER                       :: atomic_kind_set
+    TYPE(cell_type), OPTIONAL, POINTER        :: cell
+    TYPE(dft_control_type), OPTIONAL, POINTER :: dft_control
+    TYPE(mo_set_p_type),  DIMENSION(:),&
+      OPTIONAL, POINTER                       :: c
     TYPE(neighbor_list_set_p_type),&
-      DIMENSION(:), OPTIONAL, POINTER           :: sab_orb,sac_erfc,sac_ppl,&
-                                                     sca_ppnl,scb_ppnl
-    TYPE(pao_env_type), OPTIONAL, POINTER       :: pao_env
-    INTEGER, INTENT(in), OPTIONAL               :: n_electrons
+      DIMENSION(:), OPTIONAL, POINTER         :: sab_orb,sac_erfc,sac_ppl,&
+                                                 sca_ppnl,scb_ppnl
+    TYPE(pao_env_type), OPTIONAL, POINTER     :: pao_env
+    TYPE(particle_type), DIMENSION(:),&
+      OPTIONAL, POINTER                       :: particle_set
+    TYPE(qs_force_type), DIMENSION(:),&
+      OPTIONAL, POINTER                       :: force
+    TYPE(real_matrix_p_type), DIMENSION(:),&
+      OPTIONAL, POINTER                       :: h,k,p,p_old,s
+    INTEGER, INTENT(IN), OPTIONAL             :: n_electrons
 
 !   ---------------------------------------------------------------------------
 
+    IF (PRESENT(atomic_kind_set)) qs_env%atomic_kind_set => atomic_kind_set
     IF (PRESENT(cell)) qs_env%cell => cell
     IF (PRESENT(dft_control)) qs_env%dft_control => dft_control
-    IF (PRESENT(h)) qs_env%h => h
-    IF (PRESENT(s)) qs_env%s => s
-    IF (PRESENT(k)) qs_env%k => k
-    IF (PRESENT(p)) qs_env%p => p
-    IF (PRESENT(p_old)) qs_env%p_old => p_old
     IF (PRESENT(c)) qs_env%c => c
-    IF (PRESENT(atomic_kind_set)) qs_env%atomic_kind_set => atomic_kind_set
-    IF (PRESENT(particle_set)) qs_env%particle_set => particle_set
     IF (PRESENT(sab_orb)) qs_env%sab_orb => sab_orb
     IF (PRESENT(sac_erfc)) qs_env%sac_erfc => sac_erfc
     IF (PRESENT(sac_ppl)) qs_env%sac_ppl => sac_ppl
     IF (PRESENT(sca_ppnl)) qs_env%sca_ppnl => sca_ppnl
     IF (PRESENT(scb_ppnl)) qs_env%scb_ppnl => scb_ppnl
     IF (PRESENT(pao_env)) qs_env%pao_env => pao_env
+    IF (PRESENT(particle_set)) qs_env%particle_set => particle_set
+    IF (PRESENT(force)) qs_env%force => force
+    IF (PRESENT(h)) qs_env%h => h
+    IF (PRESENT(k)) qs_env%k => k
+    IF (PRESENT(p)) qs_env%p => p
+    IF (PRESENT(p_old)) qs_env%p_old => p_old
+    IF (PRESENT(s)) qs_env%s => s
     IF (PRESENT(n_electrons)) qs_env%n_electrons = n_electrons
 
   END SUBROUTINE set_qs_env

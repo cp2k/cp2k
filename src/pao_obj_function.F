@@ -241,8 +241,8 @@ contains
 #else
        gf_env%blacs_context=0
 #endif
-       call get_qs_env(gf_env%qs_env, s=full_overlap_m, pao_env=pao_env,&
-            atomic_kind_set=atomic_kind_set, natoms=n_atoms)
+!MK       call get_qs_env(gf_env%qs_env, s=full_overlap_m, pao_env=pao_env,&
+!MK            atomic_kind_set=atomic_kind_set, natoms=n_atoms)
        call pao_qs_env_get(gf_env%qs_env, global_env=global_env,&
             pao_tot_full_bas=ntot_full_bas,&
             pao_tot_min_bas=ntot_min_bas,&
@@ -527,8 +527,8 @@ contains
     if (.not.failure) then
        gf_env%n_eval = gf_env%n_eval+1
        ! get actual min_hamiltonian_m and min_overlap_m
-       call get_qs_env(gf_env%qs_env,pao_env=pao_env,&
-            k=full_h_rmpv, s=full_s_rmp, natoms=n_atom)
+!MK       call get_qs_env(gf_env%qs_env,pao_env=pao_env,&
+!MK            k=full_h_rmpv, s=full_s_rmp, natoms=n_atom)
        CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
        if (cp_debug .and. debug_this_module) then
           call cp_1d_r_output(logger=cp_error_get_logger(error),&

@@ -280,7 +280,7 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
      if (present(s_changed)) s_c=s_changed
      if (present(full_reset)) full_r=full_reset
      if (s_c.or.full_r) then
-        call get_qs_env(qs_env, s=overlap_rmp)
+!MK        call get_qs_env(qs_env, s=overlap_rmp)
         ! invalidate min_density_m
         pao_env%min_d_m_valid=.false.
         do i=1,size(pao_env%min_density_m)

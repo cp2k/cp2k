@@ -1,7 +1,7 @@
 ! ***************************************************************
 MODULE L_UTILS
    USE kinds,                 ONLY: wp => dp
-   USE termination,           ONLY: stop_program
+   USE termination,           ONLY: stop_memory,stop_program
    IMPLICIT NONE
 
    public :: l_info_type
@@ -84,8 +84,7 @@ CONTAINS
    SUBROUTINE destroy_l_info(l_info)
       IMPLICIT NONE
       type(l_info_type) :: l_info
-      integer :: la_min,la_max,lb_min,lb_max
-
+      integer :: istat,la_min,la_max,lb_min,lb_max
       DO lb_max=0,l_info%lmax
       DO lb_min=0,lb_max
       DO la_max=0,l_info%lmax
@@ -95,7 +94,8 @@ CONTAINS
       ENDDO
       ENDDO
       ENDDO
-      deallocate(l_info%data)
+      deallocate(l_info%data,STAT=istat)
+      IF (istat /= 0) CALL stop_memory("destroy_l_info","l_info%data")
    END SUBROUTINE
 
    SUBROUTINE init_l_set_info_type(la_min,la_max,lb_min,lb_max,cmax,l_set_info)
@@ -162,10 +162,12 @@ CONTAINS
 
    SUBROUTINE destroy_l_set_info_type(l_set_info)
       TYPE(l_set_info_type) :: l_set_info
+      INTEGER :: istat
       deallocate(l_set_info%ly_max,l_set_info%lz_max,l_set_info%map,&
                  l_set_info%polz,l_set_info%poly,l_set_info%polx,&
                  l_set_info%dpy,l_set_info%dpz,l_set_info%pzyx,&
-                 l_set_info%ipzyx,l_set_info%alpha)
+                 l_set_info%ipzyx,l_set_info%alpha,STAT=istat)
+      IF (istat /= 0) CALL stop_memory("destroy_l_set_info_type","l_set_info%")
    END SUBROUTINE
     
 END MODULE

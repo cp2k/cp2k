@@ -31,11 +31,12 @@ MODULE qs_core_energies
                                       get_atomic_kind,&
                                       get_atomic_kind_set
   USE global_types,             ONLY: LOW,global_environment_type
-  USE mathconstants,            ONLY: twopi
+  USE mathconstants,            ONLY: oorootpi,twopi
   USE message_passing,          ONLY: mp_sum
   USE particle_types,           ONLY: particle_type
   USE qs_environment_types,     ONLY: get_qs_env,&
                                       qs_environment_type
+  USE qs_force_types,           ONLY: qs_force_type
   USE simulation_cell,          ONLY: cell_type,&
                                       get_cell,&
                                       pbc,&
@@ -46,7 +47,7 @@ MODULE qs_core_energies
                                       get_matrix_info,&
                                       next_block_node,&
                                       real_block_node_type,&
-                                      real_matrix_p_type
+                                      real_matrix_type
   USE termination,              ONLY: stop_memory
   USE timings,                  ONLY: timeset,&
                                       timestop
@@ -75,7 +76,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(real_matrix_p_type), INTENT(IN)      :: h,p
+    TYPE(real_matrix_type), POINTER           :: h,p
     REAL(wp), INTENT(OUT)                     :: ecore
 
 !   *** Local variables ***
@@ -93,12 +94,12 @@ CONTAINS
 
     ecore = 0.0_wp
 
-    CALL get_matrix_info(matrix=h%matrix,&
+    CALL get_matrix_info(matrix=h,&
                          nblock_row=nblock_row)
 
     DO iblock_row=1,nblock_row
 
-      h_block_node => first_block_node(matrix=h%matrix,&
+      h_block_node => first_block_node(matrix=h,&
                                        block_row=iblock_row)
 
       DO WHILE (ASSOCIATED(h_block_node))
@@ -107,7 +108,7 @@ CONTAINS
                             block_col=iblock_col,&
                             block=h_block)
 
-        CALL get_block_node(matrix=p%matrix,&
+        CALL get_block_node(matrix=p,&
                             block_row=iblock_row,&
                             block_col=iblock_col,&
                             block=p_block)
@@ -140,17 +141,20 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_ecore_overlap(ecore_overlap,qs_env,globenv)
+  SUBROUTINE calculate_ecore_overlap(ecore_overlap,qs_env,globenv,&
+                                     calculate_forces)
 
 !   Purpose: Calculate the overlap energy of the core charge distribution.
 
-!   History: - Creation (30.04.2001, Matthias Krack)
+!   History: - Creation (30.04.2001,MK)
+!            - Force calculation added (03.06.2002,MK)
 
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(qs_environment_type), INTENT(IN)     :: qs_env
+    TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
     REAL(wp), INTENT(OUT)                     :: ecore_overlap
+    LOGICAL, INTENT(IN)                       :: calculate_forces
 
 !   *** Local parameters ***
 
@@ -170,8 +174,8 @@ CONTAINS
     CHARACTER(LEN=8)                :: unit_of_length_name
     REAL(wp)                        :: a_max,a_min,aab,&
                                        b_max,b_min,&
-                                       c_max,c_min,dab,&
-                                       rab_max,rab2,rab2_max,&
+                                       c_max,c_min,dab,eab,f0,&
+                                       rab_max,rab2,rab2_max,rootaab,&
                                        unit_of_length,zab
     INTEGER                         :: atom_a,handle,iatom,icell,igrid,iijk,&
                                        ikind,istat,jatom,jcell,jgrid,jkind,&
@@ -179,12 +183,13 @@ CONTAINS
                                        nsubcell,output_unit
     LOGICAL                         :: equal_kinds,ionode
 
-    REAL(wp), DIMENSION(3) :: r,ra_pbc,rab,rb,sa_pbc,sab,sab_max,sb,sb_max,&
-                              sb_min,sb_pbc
+    REAL(wp), DIMENSION(3) :: deab,r,ra_pbc,rab,rb,sa_pbc,sab,sab_max,sb,&
+                              sb_max,sb_min,sb_pbc
     INTEGER, DIMENSION(3)  :: cell_b,ncell,ngrid,periodic
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
+    TYPE(qs_force_type), DIMENSION(:), POINTER    :: force
     INTEGER, DIMENSION(:), POINTER                :: atom_list
 
     TYPE(pbc_coord_type), DIMENSION(:), ALLOCATABLE :: pbc_coord
@@ -206,7 +211,8 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
-                    particle_set=particle_set)
+                    particle_set=particle_set,&
+                    force=force)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxatom=maxatom)
@@ -269,12 +275,24 @@ CONTAINS
         IF (istat /= 0) CALL stop_memory(routine,"pbc_coord(ikind)%s",&
                                          3*natom(ikind)*wp_size)
 
+
         DO iatom=1,natom(ikind)
           atom_a = atom_list(iatom)
           ra_pbc(:) = pbc(particle_set(atom_a)%r(:),cell)
           pbc_coord(ikind)%r(:,iatom) = ra_pbc(:)
           pbc_coord(ikind)%s(:,iatom) = real_to_scaled(ra_pbc(:),cell)
         END DO
+
+        IF (calculate_forces) THEN
+          IF (.NOT.ASSOCIATED(force(ikind)%core_overlap)) THEN
+            ALLOCATE (force(ikind)%core_overlap(3,natom(ikind)),STAT=istat)
+            IF (istat /= 0) THEN
+              CALL stop_memory(routine,"force(ikind)%core_overlap",&
+                               3*natom(ikind)*wp_size)
+            END IF
+          END IF
+          force(ikind)%core_overlap(:,:) = 0.0_wp
+        END IF
 
       END IF
 
@@ -300,8 +318,10 @@ CONTAINS
 
         equal_kinds = (ikind == jkind)
 
-        aab = SQRT(alpha(ikind)*alpha(jkind)/(alpha(ikind) + alpha(jkind)))
         zab = REAL(zeff(ikind)*zeff(jkind),wp)
+        aab = alpha(ikind)*alpha(jkind)/(alpha(ikind) + alpha(jkind))
+        rootaab = SQRT(aab)
+        f0 = 2.0_wp*oorootpi*zab*rootaab
 
 !       *** Calculate the square of the maximum interaction distance ***
 
@@ -352,7 +372,15 @@ CONTAINS
                     rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                     IF (rab2 < rab2_max) THEN
                       dab = SQRT(rab2)
-                      ecore_overlap = ecore_overlap + zab*erfc(aab*dab)/dab
+                      eab = zab*erfc(rootaab*dab)/dab
+                      ecore_overlap = ecore_overlap + eab
+                      IF (calculate_forces) THEN
+                        deab(:) = rab(:)*(eab + f0*exp(-aab*rab2))/rab2
+                        force(ikind)%core_overlap(:,iatom) =&
+                          force(ikind)%core_overlap(:,iatom) - deab(:)
+                        force(jkind)%core_overlap(:,jatom) =&
+                          force(jkind)%core_overlap(:,jatom) + deab(:)
+                      END IF
                     END IF
                   END DO
 
@@ -463,6 +491,15 @@ CONTAINS
                             dab = SQRT(rab2)
                             ecore_overlap = ecore_overlap +&
                                             zab*erfc(aab*dab)/dab
+                            eab = zab*erfc(rootaab*dab)/dab
+                            ecore_overlap = ecore_overlap + eab
+                            IF (calculate_forces) THEN
+                              deab(:) = rab(:)*(eab + f0*exp(-aab*rab2))/rab2
+                              force(ikind)%core_overlap(:,iatom) =&
+                                force(ikind)%core_overlap(:,iatom) - deab(:)
+                              force(jkind)%core_overlap(:,jatom) =&
+                                force(jkind)%core_overlap(:,jatom) + deab(:)
+                            END IF
                           END IF
                         END DO
 

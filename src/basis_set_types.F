@@ -252,7 +252,7 @@ CONTAINS
                                lmin,lx,ly,lz,m,ncgf_set,npgf,nsgf_set,nshell,&
                                cphi,pgf_radius,sphi,zet,first_cgf,first_sgf,l,&
                                last_cgf,last_sgf,n,gcc,maxco,maxl,maxpgf,&
-                               maxsgf_set,maxshell,npgf_sum,nshell_sum)
+                               maxsgf_set,maxshell,npgf_sum,nshell_sum,maxder)
 
 !   Purpose: Get informations about a Gaussian-type orbital (GTO) basis set.
 
@@ -282,6 +282,7 @@ CONTAINS
                                                           last_cgf,&
                                                           last_sgf,n
     REAL(wp), DIMENSION(:,:,:), OPTIONAL, POINTER      :: gcc
+    INTEGER, OPTIONAL, INTENT(IN)                      :: maxder
 
 !   *** Local parameters ***
 
@@ -290,7 +291,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: iset,nshella
+    INTEGER :: iset,nder,nshella
 
 !   ---------------------------------------------------------------------------
 
@@ -327,9 +328,14 @@ CONTAINS
       IF (PRESENT(gcc)) gcc => gto_basis_set%gcc
       IF (PRESENT(maxco)) THEN
         maxco = 0
+        IF (PRESENT(maxder)) THEN
+          nder = maxder
+        ELSE
+          nder = 0
+        END IF
         DO iset=1,gto_basis_set%nset
           maxco = MAX(maxco,gto_basis_set%npgf(iset)*&
-                            ncoset(gto_basis_set%lmax(iset)))
+                            ncoset(gto_basis_set%lmax(iset)+nder))
         END DO
       END IF
       IF (PRESENT(maxl)) THEN

@@ -54,13 +54,13 @@ MODULE qs_integrate_potential
   USE l_utils,                ONLY: l_info_type,&
                                     return_l_info
   USE mathconstants,          ONLY: pi,twopi
-  USE mathlib,                ONLY: symmetrize_matrix
   USE message_passing,        ONLY: mp_sum
   USE orbital_pointers,       ONLY: coset,indco,ncoset,nso
   USE particle_types,         ONLY: particle_type
   USE pw_types,               ONLY: pw_type
   USE qs_environment_types,   ONLY: get_qs_env,&
                                     qs_environment_type
+  USE qs_force_types,         ONLY: qs_force_type
   USE qs_interactions,        ONLY: exp_radius_very_extended
   USE qs_neighbor_list_types, ONLY: first_list,&
                                     first_node,&
@@ -90,7 +90,8 @@ MODULE qs_integrate_potential
 
 ! *** Public subroutines ***
 
-  PUBLIC :: integrate_v_rspace,integrate_v_core_rspace
+  PUBLIC :: integrate_v_rspace,&
+            integrate_v_core_rspace
 
 ! *****************************************************************************
 
@@ -98,9 +99,117 @@ CONTAINS
 
 ! *****************************************************************************
 
+  SUBROUTINE integrate_v_core_rspace(v_rspace,cube_info,l_info,qs_env)
+
+    TYPE(coeff_type), INTENT(INOUT)          :: v_rspace
+    TYPE(cube_info_type), INTENT(IN)         :: cube_info
+    TYPE(l_info_type), INTENT(IN)            :: l_info
+    TYPE(qs_environment_type), INTENT(INOUT) :: qs_env
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE integrate_v_core_rspace (MODULE qs_integrate_potential)"
+
+!   *** Local variables ***
+
+    TYPE(atomic_kind_type), POINTER :: atomic_kind
+    TYPE(cell_type), POINTER        :: cell
+    TYPE(dft_control_type), POINTER :: dft_control
+
+    TYPE(realspace_grid_type) :: rs_v
+    REAL(wp)                  :: alpha_core_charge,ccore_charge,eps_rho_rspace
+    INTEGER                   :: atom_a,handle,i,iatom,ikind,istat,&
+                                 natom_of_kind
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
+    TYPE(qs_force_type), DIMENSION(:), POINTER    :: force
+    INTEGER, DIMENSION(:), POINTER                :: atom_list
+
+    REAL(wp), DIMENSION(3)     :: force_a,force_b,ra
+    INTEGER, DIMENSION(3)      :: nsmax
+    REAL(wp), DIMENSION(1,1)   :: hab,pab
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("integrate_v_core_rspace","I","",handle)
+
+    nsmax(:) = 100
+    CALL rs_grid_setup(rs_v,v_rspace%pw%pw_grid,nsmax)
+    CALL rs_grid_allocate(rs_v)
+    CALL rs_pw_transfer(rs_v,v_rspace%pw,"BACKWARD")
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    cell=cell,&
+                    dft_control=dft_control,&
+                    particle_set=particle_set,&
+                    force=force)
+
+    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+
+    DO ikind=1,SIZE(atomic_kind_set)
+      atomic_kind => atomic_kind_set(ikind)
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           natom=natom_of_kind)
+      IF (.NOT.ASSOCIATED(force(ikind)%rho_core)) THEN
+        ALLOCATE (force(ikind)%rho_core(3,natom_of_kind),STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routine,"force(ikind)%rho_core",&
+                           3*natom_of_kind*wp_size)
+        END IF
+      END IF
+      force(ikind)%rho_core(:,:) = 0.0_wp
+    END DO
+
+    DO ikind=1,SIZE(atomic_kind_set)
+
+      atomic_kind => atomic_kind_set(ikind)
+
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           natom=natom_of_kind,&
+                           atom_list=atom_list,&
+                           alpha_core_charge=alpha_core_charge,&
+                           ccore_charge=ccore_charge)
+
+      pab(1,1) = -ccore_charge
+
+      DO iatom=1,natom_of_kind
+
+        atom_a = atom_list(iatom)
+        ra(:)  = pbc(particle_set(atom_a)%r,cell)
+
+        hab(1,1) = 0.0_wp
+        force_a(:) = 0.0_wp
+        force_b(:) = 0.0_wp
+
+        CALL integrate_pgf_product_rspace(0,alpha_core_charge,0,&
+                                          0,0.0_wp,0,&
+                                          ra,(/0.0_wp,0.0_wp,0.0_wp/),0.0_wp,&
+                                          rs_v,cube_info,l_info,&
+                                          hab(1,1),pab(1,1),1.0_wp,&
+                                          eps_rho_rspace,&
+                                          .TRUE.,force_a,force_b)
+
+        force(ikind)%rho_core(:,iatom) =&
+          force(ikind)%rho_core(:,iatom) + force_a(:)
+
+      END DO
+
+    END DO
+
+    CALL rs_grid_deallocate(rs_v)
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE integrate_v_core_rspace
+
+! *****************************************************************************
+
   SUBROUTINE integrate_v_rspace(v_rspace,v_gspace,gridlevel_info,&
                                 v_rspace_old,cube_info,l_info,rebuild,&
-                                p,h,qs_env,globenv)
+                                p,h,qs_env,globenv,calculate_forces)
 
     TYPE(coeff_type), DIMENSION(:), POINTER     :: v_rspace,v_gspace
     TYPE(coeff_type), INTENT(INOUT)             :: v_rspace_old
@@ -111,7 +220,7 @@ CONTAINS
     TYPE(qs_environment_type), INTENT(IN)       :: qs_env
     TYPE(real_matrix_p_type), INTENT(IN)        :: p
     TYPE(real_matrix_p_type), INTENT(INOUT)     :: h
-    LOGICAL, INTENT(IN)                         :: rebuild
+    LOGICAL, INTENT(IN)                         :: calculate_forces,rebuild
 
 !   *** Local parameters ***
 
@@ -130,35 +239,35 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
+    TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
 
     REAL(wp) :: dab,eps_gvg_rspace,kind_radius_b,maxvdiff,maxvnew,&
                 old_gvg_factor,rab2,scale,vratio,zetp,dum,move,v0,vp,vm
-    INTEGER  :: ab,first_pgfb,first_setb,handle,iatom,ico,igrid_level,ikind,&
-                ineighbor,ipgf,iset,ishell,istat,jatom,jco,jkind,jpgf,jset,&
-                jshell,katom,maxco,maxsgf_set,na1,na2,nb1,nb2,ncoa,ncob,nkind,&
-                nneighbor,nseta,nsetb,sgfa,sgfb
+    INTEGER  :: ab,atom_a,atom_b,handle,iatom,ico,igrid_level,ikind,&
+                ineighbor,ipgf,iset,ishell,istat,jatom,jco,jkind,jpgf,&
+                jset,jshell,katom,maxco,maxsgf_set,na1,na2,natom,&
+                natom_of_kind,nb1,nb2,ncoa,ncob,nkind,nneighbor,&
+                nseta,nsetb,sgfa,sgfb
 
-    REAL(wp), DIMENSION(3) :: ra,rab,rb
+    REAL(wp), DIMENSION(3) :: force_a,force_b,ra,rab,rb
+
+    INTEGER, DIMENSION(:), ALLOCATABLE :: atom_of_kind
 
     REAL(wp), DIMENSION(:,:), ALLOCATABLE :: hab,pab,work
-    REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: dhab
-    integer                                 :: i,id
 
     REAL(wp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
-    INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,lb_max,lb_min,npgfa,&
-                                         npgfb,nsgfa,nsgfb
+    INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,lb_max,lb_min,&
+                                         npgfa,npgfb,nsgfa,nsgfb
     REAL(wp), DIMENSION(:,:), POINTER :: h_block,rpgfa,rpgfb,p_block,&
                                          sphi_a,sphi_b,zeta,zetb
     INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
-    LOGICAL                           :: force
     INTEGER, DIMENSION(3)             :: nsmax
+
     TYPE(REALSPACE_GRID_TYPE), DIMENSION(:), POINTER :: rs_v
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("integrate_v_rspace","I","",handle)
-
-    force=.false.
 
 !   *** Get difference potential ***
 
@@ -201,7 +310,7 @@ CONTAINS
        call rs_grid_setup(rs_v(igrid_level),v_rspace(igrid_level)%pw%pw_grid, &
             nsmax)
        call rs_grid_allocate(rs_v(igrid_level))
-       call rs_pw_transfer(rs_v(igrid_level),v_rspace(igrid_level)%pw,& 
+       call rs_pw_transfer(rs_v(igrid_level),v_rspace(igrid_level)%pw,&
                            "BACKWARD")
     ENDDO
 
@@ -210,7 +319,34 @@ CONTAINS
                     cell=cell,&
                     dft_control=dft_control,&
                     particle_set=particle_set,&
-                    sab_orb=sab_orb)
+                    sab_orb=sab_orb,&
+                    force=force)
+
+    nkind = SIZE(atomic_kind_set)
+    natom = SIZE(particle_set)
+
+    IF (calculate_forces) THEN
+      ALLOCATE (atom_of_kind(natom),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                               atom_of_kind=atom_of_kind)
+      DO ikind=1,nkind
+        atomic_kind => atomic_kind_set(ikind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             orb_basis_set=orb_basis_set,&
+                             natom=natom_of_kind)
+        IF (ASSOCIATED(orb_basis_set)) THEN
+          IF (.NOT.ASSOCIATED(force(ikind)%rho_elec)) THEN
+            ALLOCATE (force(ikind)%rho_elec(3,natom_of_kind),STAT=istat)
+            IF (istat /= 0) THEN
+              CALL stop_memory(routine,"force(ikind)%rho_elec",&
+                               3*natom_of_kind*wp_size)
+            END IF
+          END IF
+          force(ikind)%rho_elec(:,:) = 0.0_wp
+        END IF
+      END DO
+    END IF
 
     eps_gvg_rspace = dft_control%qs_control%eps_gvg_rspace
 
@@ -223,16 +359,11 @@ CONTAINS
     ALLOCATE (hab(maxco,maxco),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"hab",maxco*maxco*wp_size)
 
-    ALLOCATE (dhab(maxco,maxco,6),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"dhab",6*maxco*maxco*wp_size)
-
     ALLOCATE (pab(maxco,maxco),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*maxco*wp_size)
 
     ALLOCATE (work(maxco,maxsgf_set),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"work",maxco*maxsgf_set*wp_size)
-
-    nkind = SIZE(atomic_kind_set)
 
     DO ikind=1,nkind
 
@@ -286,6 +417,8 @@ CONTAINS
           CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list,&
                                  atom=iatom)
 
+          IF (calculate_forces) atom_a = atom_of_kind(iatom)
+
           ra(:) = pbc(particle_set(iatom)%r,cell)
 
           sab_orb_neighbor_node => first_node(sab_orb_neighbor_list)
@@ -295,6 +428,12 @@ CONTAINS
             CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
                                    neighbor=jatom,&
                                    r=rab(:))
+
+            IF (calculate_forces) THEN
+              atom_b = atom_of_kind(jatom)
+              force_a(:) = 0.0_wp
+              force_b(:) = 0.0_wp
+            END IF
 
             IF (iatom <= jatom) THEN
               CALL get_block_node(matrix=h%matrix,&
@@ -339,13 +478,7 @@ CONTAINS
               ncoa = npgfa(iset)*ncoset(la_max(iset))
               sgfa = first_sgfa(1,iset)
 
-              IF (iatom == jatom) THEN
-                first_setb = iset
-              ELSE
-                first_setb = 1
-              END IF
-
-              DO jset=first_setb,nsetb
+              DO jset=1,nsetb
 
                 IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
 
@@ -388,26 +521,6 @@ CONTAINS
                   END DO
                 END IF
 
-                if (force) then
-                 IF (iatom <= jatom) THEN
-                  DO i=1,6
-                   DO jco=1,ncob
-                    DO ico=1,ncoa
-                      dhab(ico,jco,i) = 0.0_wp
-                    END DO
-                   END DO
-                  END DO
-                 ELSE
-                  DO i=1,6
-                   DO jco=1,ncoa
-                    DO ico=1,ncob
-                      dhab(ico,jco,i) = 0.0_wp
-                    END DO
-                   END DO
-                  END DO
-                 END IF
-                endif
-
                 DO ipgf=1,npgfa(iset)
 
                   IF (rpgfa(ipgf,iset) + set_radius_b(jset) < dab) CYCLE
@@ -433,7 +546,8 @@ CONTAINS
                         ra,rab,rab2,rs_v(igrid_level),&
                         cube_info(igrid_level),l_info,&
                         hab(na1:na2,nb1:nb2),pab(na1:na2,nb1:nb2),&
-                        vratio,eps_gvg_rspace,force,dhab(na1:na2,nb1:nb2,1:6))
+                        vratio,eps_gvg_rspace,calculate_forces,&
+                        force_a,force_b)
                     ELSE
                       CALL integrate_pgf_product_rspace(&
                         lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
@@ -441,7 +555,8 @@ CONTAINS
                         rb,-rab,rab2,rs_v(igrid_level),&
                         cube_info(igrid_level),l_info,&
                         hab(nb1:nb2,na1:na2),pab(nb1:nb2,na1:na2),&
-                        vratio,eps_gvg_rspace,force,dhab(nb1:nb2,na1:na2,1:6))
+                        vratio,eps_gvg_rspace,calculate_forces,&
+                        force_b,force_a)
                     END IF
 
                   END DO
@@ -474,8 +589,15 @@ CONTAINS
 
             END DO
 
-            IF (iatom == jatom) THEN
-              CALL symmetrize_matrix(h_block,"upper_to_lower")
+!           *** Update forces ***
+
+            IF (calculate_forces) THEN
+              force(ikind)%rho_elec(:,atom_a) =&
+                force(ikind)%rho_elec(:,atom_a) + 2.0_wp*force_a(:)
+              IF (iatom /= jatom) THEN
+                force(jkind)%rho_elec(:,atom_b) =&
+                  force(jkind)%rho_elec(:,atom_b) + 2.0_wp*force_b(:)
+              END IF
             END IF
 
             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
@@ -489,8 +611,8 @@ CONTAINS
       END DO
 
     END DO
-  
-    DO igrid_level=1,gridlevel_info%ngrid_levels 
+
+    DO igrid_level=1,gridlevel_info%ngrid_levels
        call rs_grid_deallocate(rs_v(igrid_level))
     ENDDO
 
@@ -498,15 +620,17 @@ CONTAINS
 
     DEALLOCATE (hab,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"hab")
- 
-    DEALLOCATE (dhab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"dhab")
 
     DEALLOCATE (pab,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"pab")
 
     DEALLOCATE (work,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"work")
+
+    IF (calculate_forces) THEN
+      DEALLOCATE (atom_of_kind,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
+    END IF
 
 !   *** Reconstruct the potential ***
 
@@ -522,134 +646,31 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE integrate_v_core_rspace(v_rspace,cube_info,l_info,qs_env,globenv)
-
-    TYPE(coeff_type)     :: v_rspace
-    TYPE(cube_info_type) :: cube_info
-    TYPE(global_environment_type), INTENT(IN)   :: globenv
-    TYPE(l_info_type), INTENT(IN)               :: l_info
-    TYPE(qs_environment_type), INTENT(IN)       :: qs_env
-
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE integrate_v_core_rspace (MODULE qs_integrate_potential)"
-
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER   :: atomic_kind
-    TYPE(cell_type), POINTER          :: cell
-    TYPE(dft_control_type), POINTER   :: dft_control
-
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
-    INTEGER, DIMENSION(:), POINTER                        :: atom_list
-    TYPE(realspace_grid_type)                             :: rs_v
-    INTEGER, DIMENSION(3)                                 :: nsmax
-
-    REAL(wp) :: alpha,eps_rho_rspace
-    INTEGER  :: atom_a,handle,iatom,ikind,natom
-
-    REAL(wp), DIMENSION(3)     :: ra
-    REAL(wp), DIMENSION(1,1)   :: hab,pab
-    REAL(wp), DIMENSION(1,1,6) :: dhab
-    integer                                 :: i
-
-    LOGICAL                           :: force
-
-!   ---------------------------------------------------------------------------
-
-    REAL(wp) :: total_sum
-
-    force=.false.
-
-    if (.not. force) return
-
-    total_sum = 0.0_wp
-
-    CALL timeset("integrate_v_core_rspace","I","",handle)
-
-    nsmax(:)=100
-    call rs_grid_setup(rs_v,v_rspace%pw%pw_grid, nsmax)
-    call rs_grid_allocate(rs_v)
-    call rs_pw_transfer(rs_v,v_rspace%pw,"BACKWARD")
-
-    CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    cell=cell,&
-                    dft_control=dft_control,&
-                    particle_set=particle_set)
-
-    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-
-    DO ikind=1,SIZE(atomic_kind_set)
-
-      atomic_kind => atomic_kind_set(ikind)
-
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           natom=natom,&
-                           atom_list=atom_list,&
-                           alpha_core_charge=alpha,&
-                           ccore_charge=pab(1,1))
-
-      DO iatom=1,natom
-
-        atom_a = atom_list(iatom)
-        ra(:)  = pbc(particle_set(atom_a)%r,cell)
-
-        hab(1,1)=0.0_wp
-        dhab(1,1,:)=0.0_wp
- 
-        CALL integrate_pgf_product_rspace(&
-                 0,alpha,0,0,0.0_wp,0,&
-                 ra,(/0.0_wp,0.0_wp,0.0_wp/),0.0_wp,rs_v,&
-                 cube_info,l_info,&
-                 hab(1,1),pab(1,1),&
-                 1.0_wp,eps_rho_rspace,force,dhab(1,1,1:6))
-
-        ! total sum is the hartree energy of the core density
-        ! notice, pab is the charge of the atom
-        total_sum=total_sum-0.5_wp*hab(1,1)*pab(1,1)*v_rspace%pw%pw_grid%dvol
-
-      END DO
-
-    END DO
-
-    call rs_grid_deallocate(rs_v)
-
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE integrate_v_core_rspace
-
-! *****************************************************************************
-
     SUBROUTINE integrate_pgf_product_rspace(la_max,zeta,la_min,&
                                             lb_max,zetb,lb_min,&
                                             ra,rab,rab2,rsgrid,&
                                             cube_info,l_info,hab,pab,&
-                                            vratio,eps_gvg_rspace,force,dhab)
+                                            vratio,eps_gvg_rspace,&
+                                            calculate_forces,force_a,force_b)
 
-    IMPLICIT NONE
-
-    TYPE(realspace_grid_type), TARGET, INTENT(IN)  :: rsgrid
-    REAL(wp), INTENT(IN)               :: eps_gvg_rspace,rab2,zeta,zetb,vratio
-    INTEGER, INTENT(IN)                :: la_max,la_min,lb_max,lb_min
-    REAL(wp), DIMENSION(3), INTENT(IN) :: ra,rab
-    TYPE(cube_info_type),INTENT(IN)    :: cube_info
-    TYPE(l_info_type),INTENT(IN)       :: l_info
-
+    TYPE(realspace_grid_type), TARGET, INTENT(IN) :: rsgrid
+    REAL(wp), INTENT(IN)                  :: eps_gvg_rspace,rab2,zeta,zetb,vratio
+    INTEGER, INTENT(IN)                   :: la_max,la_min,lb_max,lb_min
+    REAL(wp), DIMENSION(3), INTENT(IN)    :: ra,rab
+    TYPE(cube_info_type),INTENT(IN)       :: cube_info
+    TYPE(l_info_type),INTENT(IN)          :: l_info
+    REAL(wp), DIMENSION(3), INTENT(INOUT) :: force_a,force_b
     REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(INOUT) :: hab
-    REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max),6), INTENT(INOUT) :: dhab
     REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(IN) :: pab
-    LOGICAL, INTENT(IN)                :: force
+    LOGICAL, INTENT(IN)                   :: calculate_forces
 
 !   *** Local variables ***
 
-    REAL(wp) :: f,pij,prefactor,radius,yz,z,zetp
+    REAL(wp) :: f,ftza,ftzb,pij,prefactor,radius,yz,z,zetp
     INTEGER  :: ax,ay,az,bx,by,bz,handle,i,ico,ig,j,jco,jg,k,kg,la,lb,&
                 lb_cube_min,ub_cube_max,gridbounds(2,3)
 
-    REAL(wp), DIMENSION(3) :: dr,rap,rbp,roffset,rp,rb
+    REAL(wp), DIMENSION(3) :: dhab,dr,rap,rbp,roffset,rp,rb
     INTEGER, DIMENSION(3)  :: cubecenter,lb_cube,ng,ub_cube
 
     INTEGER, DIMENSION(:,:), POINTER      :: map
@@ -663,7 +684,6 @@ CONTAINS
                 start,length,offset
     INTEGER  :: la_max_l,la_min_l,lb_min_l
 
-
     INTEGER, pointer, dimension(:) :: ly_max,lz_max
     REAL(wp), pointer :: pzyx(:), alpha(:,:)
     integer, pointer :: ipzyx(:,:,:,:,:,:)
@@ -674,15 +694,15 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    if (force) then
-       la_max_l=la_max+1  ! needed for the derivative of the gaussian, unimportant which one
-       la_min_l=MAX(la_min-1,0) ! just in case the la_min,lb_min is not zero
-       lb_min_l=MAX(lb_min-1,0)
-    else
-       la_max_l=la_max
-       la_min_l=la_min
-       lb_min_l=lb_min
-    endif
+    IF (calculate_forces) THEN
+      la_max_l=la_max+1  ! needed for the derivative of the gaussian, unimportant which one
+      la_min_l=MAX(la_min-1,0) ! just in case the la_min,lb_min is not zero
+      lb_min_l=MAX(lb_min-1,0)
+    ELSE
+      la_max_l=la_max
+      la_min_l=la_min
+      lb_min_l=lb_min
+    END IF
 
     coef_max=la_max_l+lb_max+1
     zetp = zeta + zetb
@@ -845,99 +865,46 @@ CONTAINS
 
 !   *** pzyx contains all the information needed to find the elements of hab
 !   *** and optionally of derivatives of these elements
-    lxyz=0
-    DO lxa=0,la_max
-    DO lxb=0,lb_max
-       DO lya=0,la_max-lxa
-       DO lyb=0,lb_max-lxb
-          DO lza=max(la_min-lxa-lya,0),la_max-lxa-lya
-          DO lzb=max(lb_min-lxb-lyb,0),lb_max-lxb-lyb
-             ico=coset(lxa,lya,lza)
-             jco=coset(lxb,lyb,lzb)
-             hab(ico,jco)=hab(ico,jco)+pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb))
-             ! we now compute the derivatives of these matrix elements 
-             if (force) then
-                ! XXXX first component
-                dhab(ico,jco,1)=dhab(ico,jco,1)+ &
-                                 2.0*zeta*f*rab(1)* &
-                                 pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb))
-                if (lxa.ne.0) then
-                    dhab(ico,jco,1)=dhab(ico,jco,1)-                     &
-                             lxa*pzyx(ipzyx(lxa-1,lya,lza,lxb,lyb,lzb))
-                endif
-                dhab(ico,jco,1)    =dhab(ico,jco,1)+ 2.0*zetp*(1-f)*(        &
-                             pzyx(ipzyx(lxa+1,lya,lza,lxb,lyb,lzb))-         &
-                             pzyx(ipzyx(lxa  ,lya,lza,lxb,lyb,lzb))*f*rab(1) )
 
-                ! XXXX second component
-                dhab(ico,jco,2)=dhab(ico,jco,2)+ &
-                                 2.0*zeta*f*rab(2)* &
-                                 pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb))
-                if (lya.ne.0) then
-                    dhab(ico,jco,2)=dhab(ico,jco,2)-                     &
-                             lya*pzyx(ipzyx(lxa,lya-1,lza,lxb,lyb,lzb))
-                endif
-                dhab(ico,jco,2)    =dhab(ico,jco,2)+ 2.0*zetp*(1-f)*(        &
-                             pzyx(ipzyx(lxa,lya+1,lza,lxb,lyb,lzb))-         &
-                             pzyx(ipzyx(lxa,lya  ,lza,lxb,lyb,lzb))*f*rab(2) )
+    ftza = 2.0_wp*zeta
+    ftzb = 2.0_wp*zetb
 
-
-                ! XXXX third component
-                dhab(ico,jco,3)=dhab(ico,jco,3)+ &
-                                 2.0*zeta*f*rab(3)* &
-                                 pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb))
-                if (lza.ne.0) then
-                    dhab(ico,jco,3)=dhab(ico,jco,3)-                     &
-                             lza*pzyx(ipzyx(lxa,lya,lza-1,lxb,lyb,lzb))
-                endif
-                dhab(ico,jco,3)    =dhab(ico,jco,3)+ 2.0*zetp*(1-f)*(        &
-                             pzyx(ipzyx(lxa,lya,lza+1,lxb,lyb,lzb))-         &
-                             pzyx(ipzyx(lxa,lya,lza  ,lxb,lyb,lzb))*f*rab(3) )
-
-                ! XXXX first component, second center
-                dhab(ico,jco,4)=dhab(ico,jco,4)- &
-                                 2.0*zeta*f*rab(1)* &
-                                 pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb))
-                if (lxb.ne.0) then
-                    dhab(ico,jco,4)=dhab(ico,jco,4)-                     &
-                             lxb*pzyx(ipzyx(lxa,lya,lza,lxb-1,lyb,lzb))
-                endif
-                dhab(ico,jco,4)    =dhab(ico,jco,4)+ 2.0*zetp*f*(            &
-                             pzyx(ipzyx(lxa+1,lya,lza,lxb,lyb,lzb))-         &
-                             pzyx(ipzyx(lxa  ,lya,lza,lxb,lyb,lzb))*f*rab(1) )
-
-                ! XXXX second component, second center
-                dhab(ico,jco,5)=dhab(ico,jco,5)- &
-                                 2.0*zeta*f*rab(2)* &
-                                 pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb))
-                if (lyb.ne.0) then
-                    dhab(ico,jco,5)=dhab(ico,jco,5)-                     &
-                             lyb*pzyx(ipzyx(lxa,lya,lza,lxb,lyb-1,lzb))
-                endif
-                dhab(ico,jco,5)    =dhab(ico,jco,5)+ 2.0*zetp*f*(            &
-                             pzyx(ipzyx(lxa,lya+1,lza,lxb,lyb,lzb))-         &
-                             pzyx(ipzyx(lxa,lya  ,lza,lxb,lyb,lzb))*f*rab(2) )
-
-                ! XXXX third component, second center
-                dhab(ico,jco,6)=dhab(ico,jco,6)- &
-                                 2.0*zeta*f*rab(3)* &
-                                 pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb))
-                if (lzb.ne.0) then
-                    dhab(ico,jco,6)=dhab(ico,jco,6)-                     &
-                             lzb*pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb-1))
-                endif
-                dhab(ico,jco,6)    =dhab(ico,jco,6)+ 2.0*zetp*f*(            &
-                             pzyx(ipzyx(lxa,lya,lza+1,lxb,lyb,lzb))-         &
-                             pzyx(ipzyx(lxa,lya,lza  ,lxb,lyb,lzb))*f*rab(3) )
-
-             endif ! force
-          ENDDO
-          ENDDO
-       ENDDO
-       ENDDO
-    ENDDO
-    ENDDO
-
+    DO la=la_min,la_max
+      DO ax=0,la
+        DO ay=0,la-ax
+          az = la - ax - ay
+          ico=coset(ax,ay,az)
+          DO lb=lb_min,lb_max
+            DO bx=0,lb
+              DO by=0,lb-bx
+                bz = lb - bx - by
+                jco=coset(bx,by,bz)
+                hab(ico,jco) = hab(ico,jco) + pzyx(ipzyx(ax,ay,az,bx,by,bz))
+                IF (calculate_forces) THEN
+                  dhab(1) = ftza*pzyx(ipzyx(ax+1,ay,az,bx,by,bz)) -&
+                            REAL(ax,wp)*pzyx(ipzyx(MAX(0,ax-1),ay,az,bx,by,bz))
+                  dhab(2) = ftza*pzyx(ipzyx(ax,ay+1,az,bx,by,bz)) -&
+                            REAL(ay,wp)*pzyx(ipzyx(ax,MAX(0,ay-1),az,bx,by,bz))
+                  dhab(3) = ftza*pzyx(ipzyx(ax,ay,az+1,bx,by,bz)) -&
+                            REAL(az,wp)*pzyx(ipzyx(ax,ay,MAX(0,az-1),bx,by,bz))
+                  force_a(:) = force_a(:) + pab(ico,jco)*dhab(:)
+                  dhab(1) = ftzb*(pzyx(ipzyx(ax+1,ay,az,bx,by,bz)) -&
+                                  rab(1)*pzyx(ipzyx(ax,ay,az,bx,by,bz))) -&
+                            REAL(bx,wp)*pzyx(ipzyx(ax,ay,az,MAX(0,bx-1),by,bz))
+                  dhab(2) = ftzb*(pzyx(ipzyx(ax,ay+1,az,bx,by,bz)) -&
+                                  rab(2)*pzyx(ipzyx(ax,ay,az,bx,by,bz))) -&
+                            REAL(by,wp)*pzyx(ipzyx(ax,ay,az,bx,MAX(0,by-1),bz))
+                  dhab(3) = ftzb*(pzyx(ipzyx(ax,ay,az+1,bx,by,bz)) -&
+                                  rab(3)*pzyx(ipzyx(ax,ay,az,bx,by,bz))) -&
+                            REAL(bz,wp)*pzyx(ipzyx(ax,ay,az,bx,by,MAX(0,bz-1)))
+                  force_b(:) = force_b(:) + pab(ico,jco)*dhab(:)
+                END IF
+              END DO
+            END DO
+          END DO
+        END DO
+      END DO
+    END DO
 
   END SUBROUTINE integrate_pgf_product_rspace
 
@@ -972,7 +939,7 @@ CONTAINS
 
     real(wp) radius2,dz2,dy2
     integer kg,kgmax,k,jgmax,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,kg2,jg2
-    integer lx,ly,lz,lxy,lxyz,icoef,lxa,lxb,lya,lyb,lza,lzb,ico,jco,i2,sci
+    integer lx,ly,lz,lxy,lxyz,icoef,ico,jco,i2,sci
     real(wp) s1,s2,s3,s4,s5,s6,s7,s8,s9,sa,g1,g2
     real(wp) s1k,s2k,s3k,s4k,s5k,s6k,s7k,s8k,s9k,sak,g1k,g2k
     real(wp) r1,r2,r3,r4,r5,r6

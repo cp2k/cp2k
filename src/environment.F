@@ -243,6 +243,10 @@ CONTAINS
 
     globenv%print%level = LOW
 
+!   *** Modify the default precision of flexible format output ***
+
+    globenv%print%precision = 0
+
     CALL start_parser(file_name=globenv%input_file_name,&
                       globenv=globenv,&
                       start_section_label="PRINT",&
@@ -316,12 +320,16 @@ CONTAINS
         globenv%print%core_charge_radii = print_request
       CASE ("DENSITY_MATRIX","P_MATRIX")
         globenv%print%density_matrix = print_request
+      CASE ("DERIVATIVES")
+        globenv%print%derivatives = print_request
       CASE ("DIIS_INFORMATION","DIIS_INFO","DIIS")
         globenv%print%diis_information = print_request
       CASE ("DISTRIBUTION")
         globenv%print%distribution = print_request
       CASE ("EACH_SCF_STEP")
         globenv%print%each_scf_step = print_request
+      CASE ("FORCES")
+        globenv%print%forces = print_request
       CASE ("HARTREE_MATRIX")
         globenv%print%hartree_matrix = print_request
       CASE ("INTERATOMIC_DISTANCES","DISTANCES")
@@ -365,6 +373,8 @@ CONTAINS
         globenv%print%ppl_radii = print_request
       CASE ("PPNL_RADII")
         globenv%print%ppnl_radii = print_request
+      CASE ("PRECISION")
+        CALL read_object(globenv%print%precision)
       CASE ("PROGRAM_BANNER","BANNER")
         globenv%print%program_banner = print_request
       CASE ("PROGRAM_RUN_INFORMATION","PROGRAM_RUN_INFO","RUN_INFO")
@@ -405,6 +415,8 @@ CONTAINS
         globenv%print%total_numbers = print_request
       CASE ("TOTAL_DENSITIES")
         globenv%print%total_densities = print_request
+      CASE ("W_MATRIX","WMATRIX")
+        globenv%print%w_matrix = print_request
       END SELECT
 
     END DO

@@ -118,7 +118,11 @@ CONTAINS
 
     co => reallocate(co,0,maxl,0,maxl,0,maxl)
 
-    coset => reallocate(coset,0,maxl,0,maxl,0,maxl)
+    coset => reallocate(coset,-1,maxl,-1,maxl,-1,maxl)
+
+    coset(-1,:,:) = 1
+    coset(:,-1,:) = 1
+    coset(:,:,-1) = 1
 
     DO lx=0,maxl
       DO ly=0,maxl

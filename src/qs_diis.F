@@ -160,10 +160,11 @@ CONTAINS
 !   *** Local variables ***
 
     TYPE(blacs_matrix_type), POINTER  :: c
-    TYPE(real_matrix_p_type), POINTER :: s
 
     INTEGER :: handle,ib,istat,jb,nao,nb,nb1,nmo,nparameter,output_unit
     LOGICAL :: ionode
+
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
 
     REAL(wp), DIMENSION(:), ALLOCATABLE :: ev
     REAL(wp), DIMENSION(:,:), POINTER   :: a,b
@@ -208,7 +209,7 @@ CONTAINS
                     globenv)
 
     new_errors => scf_diis_buffer%error(ib)%blacs_matrix
-    CALL copy_sparse_to_blacs_matrix(s%matrix,new_errors,context,globenv)
+    CALL copy_sparse_to_blacs_matrix(s(1)%matrix,new_errors,context,globenv)
     CALL blacs_symm("L","U",nao,nmo,2.0_wp,new_errors,c,0.0_wp,sc,context,&
                     globenv)
 

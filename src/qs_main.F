@@ -34,8 +34,7 @@ MODULE qs_main
   USE qs_environment_types, ONLY: qs_environment_type
   USE qs_init,              ONLY: read_qs_env
   USE qs_neighbor_lists,    ONLY: build_qs_neighbor_lists
-  USE qs_overlap,           ONLY: build_overlap_matrix,&
-                                  distribute_overlap_matrix
+  USE qs_overlap,           ONLY: distribute_overlap_matrix
   USE qs_scf,               ONLY: scf
   USE timings,              ONLY: timeset,&
                                   timestop
@@ -87,7 +86,7 @@ CONTAINS
 
 !   *** Calculate the overlap and the core Hamiltonian integral matrix ***
 
-    CALL build_core_hamiltonian_matrix(qs_env,globenv)
+    CALL build_core_hamiltonian_matrix(qs_env,globenv,.FALSE.)
 
 !   *** Perform a SCF run ***
 

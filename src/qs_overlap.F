@@ -28,7 +28,7 @@ MODULE qs_overlap
                    wp => dp,&
                    wp_size => dp_size
 
-  USE ai_overlap,             ONLY: overlap
+  USE ai_overlap_new,         ONLY: overlap
   USE atomic_kind_types,      ONLY: atomic_kind_type,&
                                     get_atomic_kind,&
                                     get_atomic_kind_set
@@ -37,11 +37,15 @@ MODULE qs_overlap
   USE global_types,           ONLY: global_environment_type
   USE message_passing,        ONLY: mp_sum
   USE mathlib,                ONLY: symmetrize_matrix
-  USE orbital_pointers,       ONLY: ncoset,nso
+  USE orbital_pointers,       ONLY: indco,init_orbital_pointers,ncoset,nso
+  USE orbital_symbols,        ONLY: cgf_symbol
   USE particle_types,         ONLY: particle_type
   USE qs_blacs,               ONLY: blacs_matrix_type,&
                                     copy_blacs_to_full_matrix,&
                                     get_blacs_matrix_info
+  USE qs_environment_types,   ONLY: get_qs_env,&
+                                    qs_environment_type,&
+                                    set_qs_env
   USE qs_neighbor_list_types, ONLY: first_list,&
                                     first_node,&
                                     get_neighbor_list,&
@@ -51,19 +55,22 @@ MODULE qs_overlap
                                     neighbor_list_type,&
                                     neighbor_node_type,&
                                     next
-  USE qs_environment_types,   ONLY: get_qs_env,&
-                                    qs_environment_type,&
-                                    set_qs_env
   USE sparse_matrix_types,    ONLY: add_block_node,&
                                     allocate_matrix,&
+                                    allocate_matrix_set,&
                                     copy_sparse_to_full_matrix,&
                                     deallocate_matrix,&
                                     get_block_node,&
                                     get_matrix_info,&
                                     real_matrix_p_type,&
-                                    real_matrix_type
-  USE termination,            ONLY: stop_memory
-  USE timings,                ONLY: timeset,timestop
+                                    real_matrix_type,&
+                                    replicate_matrix_structure
+  USE string_utilities,       ONLY: compress,&
+                                    uppercase
+  USE termination,            ONLY: stop_memory,&
+                                    stop_program
+  USE timings,                ONLY: timeset,&
+                                    timestop
 
   IMPLICIT NONE
 
@@ -104,16 +111,17 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
     TYPE(neighbor_list_type), POINTER :: sab_orb_neighbor_list
     TYPE(neighbor_node_type), POINTER :: sab_orb_neighbor_node
-    TYPE(real_matrix_p_type), POINTER :: s
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: s
 
-    INTEGER :: ab,group,handle,iatom,ij,ikind,ipe,istat,jatom,jkind,jpe,mype,&
-               n,natom,nkind,npack,npe,nsgf,nsgfa,nsgfb,output_unit,&
-               sum_nblock_pe
-    LOGICAL :: ionode
+    CHARACTER(LEN=60) :: name
+    INTEGER           :: ab,group,handle,i,iatom,ij,ikind,ipe,istat,jatom,&
+                         jkind,jpe,mype,n,natom,nder,nkind,npack,npe,nsgf,&
+                         nsgfa,nsgfb,output_unit,sum_nblock_pe
+    LOGICAL           :: ionode
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: nblock,nblock_pe,nelement,nelement_pe
 
@@ -130,8 +138,8 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set,&
-                    s=s,&
-                    sab_orb=sab_orb)
+                    sab_orb=sab_orb,&
+                    s=s)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -157,10 +165,17 @@ CONTAINS
 
 !   *** Allocate the overlap matrix (we start always from scratch) ***
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             nsgf=nsgf)
+    IF (globenv%print%overlap_matrix.AND.globenv%print%derivatives) THEN
+      nder = 1
+    ELSE
+      nder = 0
+    END IF
 
-    CALL allocate_matrix(matrix_set=s,&
+    CALL allocate_matrix_set(s,ncoset(nder))
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
+
+    CALL allocate_matrix(matrix=s(1)%matrix,&
                          nblock_row=natom,&
                          nblock_col=natom,&
                          nrow=nsgf,&
@@ -255,13 +270,24 @@ CONTAINS
           nblock_pe(ipe) = nblock_pe(ipe) + nblock(ij)
           nelement_pe(ipe) = nelement_pe(ipe) + nelement(ij)
 
-          IF (ipe == mype) CALL add_block_node(matrix=s%matrix,&
+          IF (ipe == mype) CALL add_block_node(matrix=s(1)%matrix,&
                                                block_row=iatom,&
                                                block_col=jatom)
 
         END IF
 
       END DO
+    END DO
+
+    DO i=2,SIZE(s)
+      name = cgf_symbol(1,indco(1:3,i))(4:)//&
+             " DERIVATIVE OF THE OVERLAP MATRIX"
+      CALL compress(name)
+      CALL uppercase(name)
+      CALL replicate_matrix_structure(source=s(1)%matrix,&
+                                      target=s(i)%matrix,&
+                                      target_name=name,&
+                                      target_symmetry="antisymmetric")
     END DO
 
 !   *** Put the overlap matrix into the QS environment ***
@@ -286,7 +312,7 @@ CONTAINS
       nblock_pe(:) = 0
       nelement_pe(:) = 0
 
-      CALL get_matrix_info(matrix=s%matrix,&
+      CALL get_matrix_info(matrix=s(1)%matrix,&
                            nblock_allocated=nblock_pe(mype),&
                            nelement_allocated=nelement_pe(mype))
 
@@ -353,15 +379,17 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
     TYPE(neighbor_list_type), POINTER :: sab_orb_neighbor_list
     TYPE(neighbor_node_type), POINTER :: sab_orb_neighbor_node
-    TYPE(real_matrix_p_type), POINTER :: s
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: s
 
     REAL(wp) :: dab,rab2
-    INTEGER  :: ab,first_setb,handle,iatom,ikind,ineighbor,ipgf,iset,ishell,&
-                istat,jatom,jkind,jpgf,jset,jshell,katom,maxco,maxsgf,ncoa,&
-                ncob,nkind,nneighbor,nseta,nsetb,sgfa,sgfb
+    INTEGER  :: ab,da_max,first_setb,handle,i,iatom,iblock,ikind,ineighbor,&
+                ipgf,iset,ishell,istat,jatom,jkind,jpgf,jset,jshell,katom,&
+                maxco,maxder,maxl,maxsgf,ncoa,ncob,nder,nkind,nneighbor,nseta,&
+                nsetb,sgfa,sgfb
+    LOGICAL  :: return_derivatives
 
     REAL(wp), DIMENSION(3)                :: rab
     REAL(wp), DIMENSION(:,:), ALLOCATABLE :: sab,work
@@ -369,9 +397,14 @@ CONTAINS
     REAL(wp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
     INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,lb_max,lb_min,npgfa,&
                                          npgfb,nsgfa,nsgfb
-    REAL(wp), DIMENSION(:,:), POINTER :: rpgfa,rpgfb,s_block,sphi_a,sphi_b,&
-                                         zeta,zetb
+    REAL(wp), DIMENSION(:,:), POINTER :: rpgfa,rpgfb,sphi_a,sphi_b,zeta,zetb
     INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
+
+    TYPE block_p_type
+      REAL(wp), DIMENSION(:,:), POINTER :: block
+    END TYPE block_p_type
+
+    TYPE(block_p_type), DIMENSION(:), ALLOCATABLE :: sint
 
 !   ---------------------------------------------------------------------------
 
@@ -382,17 +415,35 @@ CONTAINS
                     sab_orb=sab_orb,&
                     s=s)
 
+    return_derivatives = (globenv%print%overlap_matrix.AND.&
+                          globenv%print%derivatives)
+
+    IF (return_derivatives) THEN
+      nder = 1
+    ELSE
+      nder = 0
+    END IF
+
+    maxder = ncoset(nder)
+
 !   *** Allocate work storage ***
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxco=maxco,&
+                             maxl=maxl,&
                              maxsgf=maxsgf)
 
-    ALLOCATE (sab(maxco,maxco),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"sab",maxco*maxco*wp_size)
+    CALL init_orbital_pointers(maxl+nder)
+
+    ALLOCATE (sab(maxco,maxco*maxder),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"sab",maxco*maxco*maxder*wp_size)
+    sab(:,:) = 0.0_wp
 
     ALLOCATE (work(maxco,maxsgf),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"work",maxco*maxsgf*wp_size)
+
+    ALLOCATE (sint(SIZE(s)),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"sint",SIZE(s)*int_size)
 
     nkind = SIZE(atomic_kind_set)
 
@@ -456,24 +507,38 @@ CONTAINS
                                    r=rab(:))
 
             IF (iatom <= jatom) THEN
-              CALL get_block_node(matrix=s%matrix,&
+              CALL get_block_node(matrix=s(1)%matrix,&
                                   block_row=iatom,&
                                   block_col=jatom,&
-                                  block=s_block)
+                                  block=sint(1)%block)
             ELSE
-              CALL get_block_node(matrix=s%matrix,&
+              CALL get_block_node(matrix=s(1)%matrix,&
                                   block_row=jatom,&
                                   block_col=iatom,&
-                                  block=s_block)
+                                  block=sint(1)%block)
             END IF
 
 !           *** Check, if the atomic block has to be ***
 !           *** calculated by the current processor  ***
 
-            IF (.NOT.ASSOCIATED(s_block)) THEN
+            IF (.NOT.ASSOCIATED(sint(1)%block)) THEN
               sab_orb_neighbor_node => next(sab_orb_neighbor_node)
               CYCLE
             END IF
+
+            DO i=2,SIZE(s)
+              IF (iatom <= jatom) THEN
+                CALL get_block_node(matrix=s(i)%matrix,&
+                                    block_row=iatom,&
+                                    block_col=jatom,&
+                                    block=sint(i)%block)
+              ELSE
+                CALL get_block_node(matrix=s(i)%matrix,&
+                                    block_row=jatom,&
+                                    block_col=iatom,&
+                                    block=sint(i)%block)
+              END IF
+            END DO
 
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
             dab = SQRT(rab2)
@@ -496,13 +561,21 @@ CONTAINS
                 ncob = npgfb(jset)*ncoset(lb_max(jset))
                 sgfb = first_sgfb(1,jset)
 
+!               *** No derivatives are needed for the diagonal blocks ***
+
+                IF (iatom == jatom) THEN
+                  da_max = 0
+                ELSE
+                  da_max = nder
+                END IF
+
 !               *** Calculate the primitive overlap integrals ***
 
                 CALL overlap(la_max(iset),zeta(1:npgfa(iset),iset),&
                              rpgfa(1:npgfa(iset),iset),la_min(iset),&
                              lb_max(jset),zetb(1:npgfb(jset),jset),&
                              rpgfb(1:npgfb(jset),jset),lb_min(jset),&
-                             rab,rab2,sab)
+                             rab,rab2,dab,sab,da_max,return_derivatives)
 
 !               *** Contraction step (overlap matrix) ***
 
@@ -510,17 +583,43 @@ CONTAINS
                            1.0_wp,sab(1,1),SIZE(sab,1),&
                            sphi_b(1,sgfb),SIZE(sphi_b,1),&
                            0.0_wp,work(1,1),SIZE(work,1))
-
                 IF (iatom <= jatom) THEN
                   CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
                              1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                              work(1,1),SIZE(work,1),&
-                             1.0_wp,s_block(sgfa,sgfb),SIZE(s_block,1))
+                             1.0_wp,sint(1)%block(sgfa,sgfb),&
+                             SIZE(sint(1)%block,1))
                 ELSE
                   CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
                              1.0_wp,work(1,1),SIZE(work,1),&
                              sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                             1.0_wp,s_block(sgfb,sgfa),SIZE(s_block,1))
+                             1.0_wp,sint(1)%block(sgfb,sgfa),&
+                             SIZE(sint(1)%block,1))
+                END IF
+
+!               *** Contraction step (derivatives of the overlap matrix) ***
+
+                IF (iatom /= jatom) THEN
+                  DO i=2,SIZE(s)
+                    iblock = (i - 1)*SIZE(sab,1) + 1
+                    CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
+                               1.0_wp,sab(1,iblock),SIZE(sab,1),&
+                               sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                               0.0_wp,work(1,1),SIZE(work,1))
+                    IF (iatom <= jatom) THEN
+                      CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
+                                 1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                 work(1,1),SIZE(work,1),&
+                                 1.0_wp,sint(i)%block(sgfa,sgfb),&
+                                 SIZE(sint(i)%block,1))
+                    ELSE
+                      CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
+                                 -1.0_wp,work(1,1),SIZE(work,1),&
+                                 sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                 1.0_wp,sint(i)%block(sgfb,sgfa),&
+                                 SIZE(sint(i)%block,1))
+                    END IF
+                  END DO
                 END IF
 
               END DO
@@ -529,7 +628,10 @@ CONTAINS
 !           *** Symmetrize the diagonal blocks ***
 
             IF (iatom == jatom) THEN
-              CALL symmetrize_matrix(s_block,"upper_to_lower")
+              CALL symmetrize_matrix(sint(1)%block,"upper_to_lower")
+              DO i=2,SIZE(s)
+                sint(i)%block(:,:) = 0.0_wp
+              END DO
             END IF
 
             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
@@ -545,22 +647,26 @@ CONTAINS
 
 !   *** Release work storage ***
 
-    IF (ALLOCATED(sab)) THEN
-      DEALLOCATE (sab,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"sab")
-    END IF
+    DEALLOCATE (sab,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"sab")
 
-    IF (ALLOCATED(work)) THEN
-      DEALLOCATE (work,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"work")
-    END IF
+    DEALLOCATE (work,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"work")
+
+    DEALLOCATE (sint,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"sint")
 
     CALL timestop(0.0_wp,handle)
 
 !   *** Print the overlap matrix, if requested ***
 
     IF (globenv%print%overlap_matrix) THEN
-      CALL write_sparse_matrix(s%matrix,4,6,qs_env,globenv)
+      CALL write_sparse_matrix(s(1)%matrix,4,6,qs_env,globenv)
+      IF (globenv%print%derivatives) THEN
+        DO i=2,SIZE(s)
+          CALL write_sparse_matrix(s(i)%matrix,4,6,qs_env,globenv)
+        END DO
+      END IF
     END IF
 
   END SUBROUTINE build_overlap_matrix
@@ -596,7 +702,8 @@ CONTAINS
     CHARACTER(LEN=35) :: fmtstr2
     CHARACTER(LEN=2)  :: element_symbol
     INTEGER           :: from,iatom,icol,irow,iset,isgf,iso,ishell,istat,jcol,&
-                         l,left,natom,ncol,nset,nsgf,output_unit,right,to,width
+                         l,left,natom,ncol,ndigits,nset,nsgf,output_unit,&
+                         right,to,width
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
@@ -635,10 +742,12 @@ CONTAINS
 
 !   *** Write the variable format strings ***
 
-    width = before + after + 3
+    ndigits = after + globenv%print%precision
+
+    width = before + ndigits + 3
     ncol = INT(56/width)
 
-    right = MAX((after-2),1)
+    right = MAX((ndigits-2),1)
     left =  width - right - 5
 
     WRITE (UNIT=fmtstr1(11:12),FMT="(I2)") ncol
@@ -647,7 +756,7 @@ CONTAINS
 
     WRITE (UNIT=fmtstr2(22:23),FMT="(I2)") ncol
     WRITE (UNIT=fmtstr2(29:30),FMT="(I2)") width - 1
-    WRITE (UNIT=fmtstr2(32:33),FMT="(I2)") after
+    WRITE (UNIT=fmtstr2(32:33),FMT="(I2)") ndigits
 
 !   *** Write the matrix in the selected format ***
 
@@ -721,7 +830,8 @@ CONTAINS
     CHARACTER(LEN=35) :: fmtstr2
     CHARACTER(LEN=2)  :: element_symbol
     INTEGER           :: from,iatom,icol,irow,iset,isgf,iso,ishell,istat,jcol,&
-                         l,left,natom,ncol,nset,nsgf,output_unit,right,to,width
+                         l,left,natom,ncol,ndigits,nset,nsgf,output_unit,&
+                         right,to,width
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
@@ -746,6 +856,8 @@ CONTAINS
       CALL symmetrize_matrix(matrix,"upper_to_lower")
     ELSE IF (symmetry == "antisymmetric") THEN
       CALL symmetrize_matrix(matrix,"anti_upper_to_lower")
+    ELSE
+      CALL stop_program(routine,"Invalid matrix structure")
     END IF
 
     CALL mp_sum(matrix,globenv%group)
@@ -770,10 +882,12 @@ CONTAINS
 
 !   *** Write the variable format strings ***
 
-    width = before + after + 3
+    ndigits = after + globenv%print%precision
+
+    width = before + ndigits + 3
     ncol = INT(56/width)
 
-    right = MAX((after-2),1)
+    right = MAX((ndigits-2),1)
     left =  width - right - 5
 
     WRITE (UNIT=fmtstr1(11:12),FMT="(I2)") ncol
@@ -782,7 +896,7 @@ CONTAINS
 
     WRITE (UNIT=fmtstr2(22:23),FMT="(I2)") ncol
     WRITE (UNIT=fmtstr2(29:30),FMT="(I2)") width - 1
-    WRITE (UNIT=fmtstr2(32:33),FMT="(I2)") after
+    WRITE (UNIT=fmtstr2(32:33),FMT="(I2)") ndigits
 
 !   *** Write the matrix in the selected format ***
 

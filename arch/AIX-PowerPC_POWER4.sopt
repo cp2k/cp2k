@@ -8,8 +8,7 @@ AR       = ar -r -X64
 DFLAGS   = -D__AIX -D__ESSL -D__FFTSG -D__FFTESSL
 CPPFLAGS = -C $(DFLAGS) -P
 FCFLAGS  = -WF,-C,-D__AIX,-D__ESSL,-D__FFTSG,-D__FFTESSL\
-           -O2 -q64 -qalias=noaryovrlp -qarch=pwr4 -qcache=auto -qmaxmem=-1\
-           -qtune=pwr4 -w
+           -O2 -q64 -qarch=pwr4 -qcache=auto -qmaxmem=-1 -qtune=pwr4
 LDFLAGS  = $(FCFLAGS) -L/users/krack/lib/SP4/64 -L/apps/mass/lib -bnoquiet
 LIBS     = -llapack3 -lessl -lmass -lhm
 

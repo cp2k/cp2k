@@ -27,7 +27,7 @@
 !!     C. Hartwigsen, S. Goedecker and J. Hutter, Phys. Rev. B 58, 3641 (1998)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     - Derivatives added (17.05.2002,MK)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -58,10 +58,12 @@ MODULE ai_overlap_ppl
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: wp => dp
+  USE kinds, ONLY: wp => dp,&
+                   wp_size => dp_size
 
   USE mathconstants,    ONLY: pi
   USE orbital_pointers, ONLY: coset,ncoset
+  USE termination,      ONLY: stop_memory
 
   IMPLICIT NONE
 
@@ -77,10 +79,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE overlap_ppl(la_max,zeta,rpgfa,la_min,&
-                         lb_max,zetb,rpgfb,lb_min,&
+  SUBROUTINE overlap_ppl(la_max_set,zeta,rpgfa,la_min_set,&
+                         lb_max_set,zetb,rpgfb,lb_min_set,&
                          cexp_ppl,zetc,rpgfc,&
-                         rab,rab2,dab,rac,rac2,dac,rbc,rbc2,dbc,vab)
+                         rab,rab2,dab,&
+                         rac,rac2,dac,&
+                         rbc,rbc2,dbc,&
+                         vab,da_max,db_max,return_derivatives,&
+                         pab,force_a,force_b)
 
 !   Purpose: Calculation of three-center overlap integrals <a|c|b> over
 !            Cartesian Gaussian functions for the local part of the Goedecker
@@ -94,26 +100,74 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), INTENT(IN)                      :: dab,dac,dbc,rab2,rac2,rbc2,&
-                                                 rpgfc,zetc
-    INTEGER, INTENT(IN)                       :: la_max,la_min,lb_max,lb_min
-    REAL(wp), DIMENSION(3), INTENT(IN)        :: rab,rac,rbc
-    REAL(wp), DIMENSION(:), INTENT(IN)        :: cexp_ppl,rpgfa,rpgfb,zeta,zetb
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT)   :: vab
+    REAL(wp), INTENT(IN)                           :: dab,dac,dbc,rab2,rac2,&
+                                                      rbc2,rpgfc,zetc
+    INTEGER, INTENT(IN)                            :: da_max,db_max,&
+                                                      la_max_set,la_min_set,&
+                                                      lb_max_set,lb_min_set
+    REAL(wp), DIMENSION(3), INTENT(IN)             :: rab,rac,rbc
+    REAL(wp), DIMENSION(:), INTENT(IN)             :: cexp_ppl,rpgfa,rpgfb,&
+                                                      zeta,zetb
+    REAL(wp), DIMENSION(:,:), INTENT(INOUT)        :: vab
+    LOGICAL, INTENT(IN)                            :: return_derivatives
+
+    REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: pab
+    REAL(wp), DIMENSION(3), OPTIONAL, INTENT(OUT)  :: force_a,force_b
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE overlap_ppl (MODULE ai_overlap_ppl)"
 
 !   *** Local variables ***
 
-    REAL(wp) :: f0,f1,f2,f3,fc,fx,fy,fz,rcg2,rcp2,zetg,zetp
-    INTEGER  :: ax,ay,az,bx,by,bz,c,coa,coax,coay,coaz,i,ipgf,j,jpgf,la,&
-                la_start,lb,lc,na,nb,nexp_ppl,npgfa,npgfb
+    REAL(wp) :: f0,f1,f2,f3,fax,fay,faz,fbx,fby,fbz,fc,ftz,rcg2,rcp2,zetg,zetp
+    INTEGER  :: ax,ay,az,bx,by,bz,c,cda,cdax,cday,cdaz,cdb,cdbx,cdby,cdbz,coa,&
+                coam2x,coam2y,coam2z,coamx,coamy,coamz,coapx,coapy,coapz,cob,&
+                cobm2x,cobm2y,cobm2z,cobmx,cobmy,cobmz,cobpx,cobpy,cobpz,da,&
+                dax,day,daz,db,dbx,dby,dbz,i,ipgf,istat,j,jk,jpgf,jstart,k,la,&
+                la_max,la_min,la_start,lb,lb_max,lb_min,lc,na,nb,maxder,&
+                nexp_ppl,npgfa,npgfb
+    LOGICAL  :: calculate_force_a,calculate_force_b
 
     REAL(wp), DIMENSION(3) :: rag,rbg,rcg,rcp
 
-    REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max),SIZE(cexp_ppl)) :: sabc
+    REAL(wp), DIMENSION(:,:,:,:), ALLOCATABLE :: s
 
 !   ---------------------------------------------------------------------------
 
+    IF (PRESENT(pab)) THEN
+      IF (PRESENT(force_a)) THEN
+        calculate_force_a = .TRUE.
+        force_a(:) = 0.0_wp
+      ELSE
+        calculate_force_a = .FALSE.
+      END IF
+      IF (PRESENT(force_b)) THEN
+        calculate_force_b = .TRUE.
+        force_b(:) = 0.0_wp
+      ELSE
+        calculate_force_b = .FALSE.
+      END IF
+    ELSE
+      calculate_force_a = .FALSE.
+      calculate_force_b = .FALSE.
+    END IF
+
+    la_max = la_max_set + da_max
+    la_min = MAX(0,la_min_set-da_max)
+
+    lb_max = lb_max_set + db_max
+    lb_min = MAX(0,lb_min_set-db_max)
+
     nexp_ppl = SIZE(cexp_ppl)
+    maxder = ncoset(MAX(da_max,db_max))
+
+    ALLOCATE (s(ncoset(la_max),ncoset(lb_max),nexp_ppl,maxder),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"s",ncoset(la_max)*&
+                                                 ncoset(lb_max)*&
+                                                 nexp_ppl*maxder*wp_size)
+
     npgfa = SIZE(zeta)
     npgfb = SIZE(zetb)
 
@@ -126,7 +180,7 @@ CONTAINS
 !     *** Screening ***
 
       IF (rpgfa(ipgf) + rpgfc < dac) THEN
-        na = na + ncoset(la_max)
+        na = na + ncoset(la_max_set)
         CYCLE
       END IF
 
@@ -138,7 +192,7 @@ CONTAINS
 
         IF ((rpgfb(jpgf) + rpgfc < dbc).OR.&
             (rpgfa(ipgf) + rpgfb(jpgf) < dab)) THEN
-          nb = nb + ncoset(lb_max)
+          nb = nb + ncoset(lb_max_set)
           CYCLE
         END IF
 
@@ -157,7 +211,7 @@ CONTAINS
 
 !       *** Calculate the basic three-center overlap integral [s|s|s] ***
 
-        sabc(1,1,1) = f0*EXP(-(zeta(ipgf)*f1*rab2 + zetc*zetg*rcp2/zetp))
+        s(1,1,1,1) = f0*EXP(-(zeta(ipgf)*f1*rab2 + zetc*zetg*rcp2/zetp))
 
 !       *** Recurrence steps: [s|s|s] -> [a|s|s] ***
 
@@ -169,9 +223,9 @@ CONTAINS
 
 !         *** [p|s|s] = (Gi - Ai)*[s|s|s]  (i = x,y,z) ***
 
-          sabc(2,1,1) = rag(1)*sabc(1,1,1)
-          sabc(3,1,1) = rag(2)*sabc(1,1,1)
-          sabc(4,1,1) = rag(3)*sabc(1,1,1)
+          s(2,1,1,1) = rag(1)*s(1,1,1,1)
+          s(3,1,1,1) = rag(2)*s(1,1,1,1)
+          s(4,1,1,1) = rag(3)*s(1,1,1,1)
 
 !         *** [a|s|s] = (Gi - Ai)*[a-1i|s|s] + f2*Ni(a-1i)*[a-2i|s|s] ***
 
@@ -179,36 +233,36 @@ CONTAINS
 
 !           *** Increase the angular momentum component z of function a ***
 
-            sabc(coset(0,0,la),1,1) =&
-              rag(3)*sabc(coset(0,0,la-1),1,1) +&
-              f2*REAL(la-1,wp)*sabc(coset(0,0,la-2),1,1)
+            s(coset(0,0,la),1,1,1) =&
+              rag(3)*s(coset(0,0,la-1),1,1,1) +&
+              f2*REAL(la-1,wp)*s(coset(0,0,la-2),1,1,1)
 
 !           *** Increase the angular momentum component y of function a ***
 
             az = la - 1
-            sabc(coset(0,1,az),1,1) = rag(2)*sabc(coset(0,0,az),1,1)
+            s(coset(0,1,az),1,1,1) = rag(2)*s(coset(0,0,az),1,1,1)
 
             DO ay=2,la
               az = la - ay
-              sabc(coset(0,ay,az),1,1) =&
-                rag(2)*sabc(coset(0,ay-1,az),1,1) +&
-                f2*REAL(ay-1,wp)*sabc(coset(0,ay-2,az),1,1)
+              s(coset(0,ay,az),1,1,1) =&
+                rag(2)*s(coset(0,ay-1,az),1,1,1) +&
+                f2*REAL(ay-1,wp)*s(coset(0,ay-2,az),1,1,1)
             END DO
 
 !           *** Increase the angular momentum component x of function a ***
 
             DO ay=0,la-1
               az = la - 1 - ay
-              sabc(coset(1,ay,az),1,1) = rag(1)*sabc(coset(0,ay,az),1,1)
+              s(coset(1,ay,az),1,1,1) = rag(1)*s(coset(0,ay,az),1,1,1)
             END DO
 
             DO ax=2,la
               f3 = f2*REAL(ax-1,wp)
               DO ay=0,la-ax
                 az = la - ax - ay
-                sabc(coset(ax,ay,az),1,1) =&
-                  rag(1)*sabc(coset(ax-1,ay,az),1,1) +&
-                  f3*sabc(coset(ax-2,ay,az),1,1)
+                s(coset(ax,ay,az),1,1,1) =&
+                  rag(1)*s(coset(ax-1,ay,az),1,1,1) +&
+                  f3*s(coset(ax-2,ay,az),1,1,1)
               END DO
             END DO
 
@@ -235,12 +289,12 @@ CONTAINS
                 DO ay=0,la-ax
                   az = la - ax - ay
                   coa = coset(ax,ay,az)
-                  coax = coset(ax+1,ay,az)
-                  coay = coset(ax,ay+1,az)
-                  coaz = coset(ax,ay,az+1)
-                  sabc(coa,2,1) = sabc(coax,1,1) - rab(1)*sabc(coa,1,1)
-                  sabc(coa,3,1) = sabc(coay,1,1) - rab(2)*sabc(coa,1,1)
-                  sabc(coa,4,1) = sabc(coaz,1,1) - rab(3)*sabc(coa,1,1)
+                  coapx = coset(ax+1,ay,az)
+                  coapy = coset(ax,ay+1,az)
+                  coapz = coset(ax,ay,az+1)
+                  s(coa,2,1,1) = s(coapx,1,1,1) - rab(1)*s(coa,1,1,1)
+                  s(coa,3,1,1) = s(coapy,1,1,1) - rab(2)*s(coa,1,1,1)
+                  s(coa,4,1,1) = s(coapz,1,1,1) - rab(3)*s(coa,1,1,1)
                 END DO
               END DO
             END DO
@@ -250,29 +304,29 @@ CONTAINS
 !           *** [a|s|p] = (Gi - Bi)*[a|s|s] + f2*Ni(a)*[a-1i|s|s] ***
 
             DO ax=0,la_max
-              fx = f2*REAL(ax,wp)
+              fax = f2*REAL(ax,wp)
               DO ay=0,la_max-ax
-                fy = f2*REAL(ay,wp)
+                fay = f2*REAL(ay,wp)
                 az = la_max - ax - ay
-                fz = f2*REAL(az,wp)
+                faz = f2*REAL(az,wp)
                 coa = coset(ax,ay,az)
                 IF (ax == 0) THEN
-                  sabc(coa,2,1) = rbg(1)*sabc(coa,1,1)
+                  s(coa,2,1,1) = rbg(1)*s(coa,1,1,1)
                 ELSE
-                  coax = coset(ax-1,ay,az)
-                  sabc(coa,2,1) = rbg(1)*sabc(coa,1,1) + fx*sabc(coax,1,1)
+                  coamx = coset(ax-1,ay,az)
+                  s(coa,2,1,1) = rbg(1)*s(coa,1,1,1) + fax*s(coamx,1,1,1)
                 END IF
                 IF (ay == 0) THEN
-                  sabc(coa,3,1) = rbg(2)*sabc(coa,1,1)
+                  s(coa,3,1,1) = rbg(2)*s(coa,1,1,1)
                 ELSE
-                  coay = coset(ax,ay-1,az)
-                  sabc(coa,3,1) = rbg(2)*sabc(coa,1,1) + fy*sabc(coay,1,1)
+                  coamy = coset(ax,ay-1,az)
+                  s(coa,3,1,1) = rbg(2)*s(coa,1,1,1) + fay*s(coamy,1,1,1)
                 END IF
                 IF (az == 0) THEN
-                  sabc(coa,4,1) = rbg(3)*sabc(coa,1,1)
+                  s(coa,4,1,1) = rbg(3)*s(coa,1,1,1)
                 ELSE
-                  coaz = coset(ax,ay,az-1)
-                  sabc(coa,4,1) = rbg(3)*sabc(coa,1,1) + fz*sabc(coaz,1,1)
+                  coamz = coset(ax,ay,az-1)
+                  s(coa,4,1,1) = rbg(3)*s(coa,1,1,1) + faz*s(coamz,1,1,1)
                 END IF
               END DO
             END DO
@@ -298,17 +352,17 @@ CONTAINS
 
 !                   *** Shift of angular momentum component z from a to b ***
 
-                    sabc(coset(ax,ay,az),coset(0,0,lb),1) =&
-                      sabc(coset(ax,ay,az+1),coset(0,0,lb-1),1) -&
-                      rab(3)*sabc(coset(ax,ay,az),coset(0,0,lb-1),1)
+                    s(coset(ax,ay,az),coset(0,0,lb),1,1) =&
+                      s(coset(ax,ay,az+1),coset(0,0,lb-1),1,1) -&
+                      rab(3)*s(coset(ax,ay,az),coset(0,0,lb-1),1,1)
 
 !                   *** Shift of angular momentum component y from a to b ***
 
                     DO by=1,lb
                       bz = lb - by
-                      sabc(coset(ax,ay,az),coset(0,by,bz),1) =&
-                        sabc(coset(ax,ay+1,az),coset(0,by-1,bz),1) -&
-                        rab(2)*sabc(coset(ax,ay,az),coset(0,by-1,bz),1)
+                      s(coset(ax,ay,az),coset(0,by,bz),1,1) =&
+                        s(coset(ax,ay+1,az),coset(0,by-1,bz),1,1) -&
+                        rab(2)*s(coset(ax,ay,az),coset(0,by-1,bz),1,1)
                     END DO
 
 !                   *** Shift of angular momentum component x from a to b ***
@@ -316,9 +370,9 @@ CONTAINS
                     DO bx=1,lb
                       DO by=0,lb-bx
                         bz = lb - bx - by
-                        sabc(coset(ax,ay,az),coset(bx,by,bz),1) =&
-                          sabc(coset(ax+1,ay,az),coset(bx-1,by,bz),1) -&
-                          rab(1)*sabc(coset(ax,ay,az),coset(bx-1,by,bz),1)
+                        s(coset(ax,ay,az),coset(bx,by,bz),1,1) =&
+                          s(coset(ax+1,ay,az),coset(bx-1,by,bz),1,1) -&
+                          rab(1)*s(coset(ax,ay,az),coset(bx-1,by,bz),1,1)
                       END DO
                     END DO
 
@@ -333,52 +387,52 @@ CONTAINS
 !             ***           f2*Ni(b-1i)*[a|s|b-2i]   ***
 
               DO ax=0,la_max
-                fx = f2*REAL(ax,wp)
+                fax = f2*REAL(ax,wp)
                 DO ay=0,la_max-ax
-                  fy = f2*REAL(ay,wp)
+                  fay = f2*REAL(ay,wp)
                   az = la_max - ax - ay
-                  fz = f2*REAL(az,wp)
+                  faz = f2*REAL(az,wp)
 
 !                 *** Shift of angular momentum component z from a to b ***
 
                   f3 = f2*REAL(lb-1,wp)
 
                   IF (az == 0) THEN
-                    sabc(coset(ax,ay,az),coset(0,0,lb),1) =&
-                      rbg(3)*sabc(coset(ax,ay,az),coset(0,0,lb-1),1) +&
-                      f3*sabc(coset(ax,ay,az),coset(0,0,lb-2),1)
+                    s(coset(ax,ay,az),coset(0,0,lb),1,1) =&
+                      rbg(3)*s(coset(ax,ay,az),coset(0,0,lb-1),1,1) +&
+                      f3*s(coset(ax,ay,az),coset(0,0,lb-2),1,1)
                   ELSE
-                    sabc(coset(ax,ay,az),coset(0,0,lb),1) =&
-                      rbg(3)*sabc(coset(ax,ay,az),coset(0,0,lb-1),1) +&
-                      fz*sabc(coset(ax,ay,az-1),coset(0,0,lb-1),1) +&
-                      f3*sabc(coset(ax,ay,az),coset(0,0,lb-2),1)
+                    s(coset(ax,ay,az),coset(0,0,lb),1,1) =&
+                      rbg(3)*s(coset(ax,ay,az),coset(0,0,lb-1),1,1) +&
+                      faz*s(coset(ax,ay,az-1),coset(0,0,lb-1),1,1) +&
+                      f3*s(coset(ax,ay,az),coset(0,0,lb-2),1,1)
                   END IF
 
 !                 *** Shift of angular momentum component y from a to b ***
 
                   IF (ay == 0) THEN
                     bz = lb - 1
-                    sabc(coset(ax,ay,az),coset(0,1,bz),1) =&
-                      rbg(2)*sabc(coset(ax,ay,az),coset(0,0,bz),1)
+                    s(coset(ax,ay,az),coset(0,1,bz),1,1) =&
+                      rbg(2)*s(coset(ax,ay,az),coset(0,0,bz),1,1)
                     DO by=2,lb
                       bz = lb - by
                       f3 = f2*REAL(by-1,wp)
-                      sabc(coset(ax,ay,az),coset(0,by,bz),1) =&
-                        rbg(2)*sabc(coset(ax,ay,az),coset(0,by-1,bz),1) +&
-                        f3*sabc(coset(ax,ay,az),coset(0,by-2,bz),1)
+                      s(coset(ax,ay,az),coset(0,by,bz),1,1) =&
+                        rbg(2)*s(coset(ax,ay,az),coset(0,by-1,bz),1,1) +&
+                        f3*s(coset(ax,ay,az),coset(0,by-2,bz),1,1)
                     END DO
                   ELSE
                     bz = lb - 1
-                    sabc(coset(ax,ay,az),coset(0,1,bz),1) =&
-                      rbg(2)*sabc(coset(ax,ay,az),coset(0,0,bz),1) +&
-                      fy*sabc(coset(ax,ay-1,az),coset(0,0,bz),1)
+                    s(coset(ax,ay,az),coset(0,1,bz),1,1) =&
+                      rbg(2)*s(coset(ax,ay,az),coset(0,0,bz),1,1) +&
+                      fay*s(coset(ax,ay-1,az),coset(0,0,bz),1,1)
                     DO by=2,lb
                       bz = lb - by
                       f3 = f2*REAL(by-1,wp)
-                      sabc(coset(ax,ay,az),coset(0,by,bz),1) =&
-                        rbg(2)*sabc(coset(ax,ay,az),coset(0,by-1,bz),1) +&
-                        fy*sabc(coset(ax,ay-1,az),coset(0,by-1,bz),1) +&
-                        f3*sabc(coset(ax,ay,az),coset(0,by-2,bz),1)
+                      s(coset(ax,ay,az),coset(0,by,bz),1,1) =&
+                        rbg(2)*s(coset(ax,ay,az),coset(0,by-1,bz),1,1) +&
+                        fay*s(coset(ax,ay-1,az),coset(0,by-1,bz),1,1) +&
+                        f3*s(coset(ax,ay,az),coset(0,by-2,bz),1,1)
                     END DO
                   END IF
 
@@ -387,33 +441,33 @@ CONTAINS
                   IF (ax == 0) THEN
                     DO by=0,lb-1
                       bz = lb - 1 - by
-                      sabc(coset(ax,ay,az),coset(1,by,bz),1) =&
-                        rbg(1)*sabc(coset(ax,ay,az),coset(0,by,bz),1)
+                      s(coset(ax,ay,az),coset(1,by,bz),1,1) =&
+                        rbg(1)*s(coset(ax,ay,az),coset(0,by,bz),1,1)
                     END DO
                     DO bx=2,lb
                       f3 = f2*REAL(bx-1,wp)
                       DO by=0,lb-bx
                         bz = lb - bx - by
-                        sabc(coset(ax,ay,az),coset(bx,by,bz),1) =&
-                          rbg(1)*sabc(coset(ax,ay,az),coset(bx-1,by,bz),1) +&
-                          f3*sabc(coset(ax,ay,az),coset(bx-2,by,bz),1)
+                        s(coset(ax,ay,az),coset(bx,by,bz),1,1) =&
+                          rbg(1)*s(coset(ax,ay,az),coset(bx-1,by,bz),1,1) +&
+                          f3*s(coset(ax,ay,az),coset(bx-2,by,bz),1,1)
                       END DO
                     END DO
                   ELSE
                     DO by=0,lb-1
                       bz = lb - 1 - by
-                      sabc(coset(ax,ay,az),coset(1,by,bz),1) =&
-                        rbg(1)*sabc(coset(ax,ay,az),coset(0,by,bz),1) +&
-                        fx*sabc(coset(ax-1,ay,az),coset(0,by,bz),1)
+                      s(coset(ax,ay,az),coset(1,by,bz),1,1) =&
+                        rbg(1)*s(coset(ax,ay,az),coset(0,by,bz),1,1) +&
+                        fax*s(coset(ax-1,ay,az),coset(0,by,bz),1,1)
                     END DO
                     DO bx=2,lb
                       f3 = f2*REAL(bx-1,wp)
                       DO by=0,lb-bx
                         bz = lb - bx - by
-                        sabc(coset(ax,ay,az),coset(bx,by,bz),1) =&
-                          rbg(1)*sabc(coset(ax,ay,az),coset(bx-1,by,bz),1) +&
-                          fx*sabc(coset(ax-1,ay,az),coset(bx-1,by,bz),1) +&
-                          f3*sabc(coset(ax,ay,az),coset(bx-2,by,bz),1)
+                        s(coset(ax,ay,az),coset(bx,by,bz),1,1) =&
+                          rbg(1)*s(coset(ax,ay,az),coset(bx-1,by,bz),1,1) +&
+                          fax*s(coset(ax-1,ay,az),coset(bx-1,by,bz),1,1) +&
+                          f3*s(coset(ax,ay,az),coset(bx-2,by,bz),1,1)
                       END DO
                     END DO
                   END IF
@@ -435,9 +489,9 @@ CONTAINS
 
 !           *** [s|s|p] = (Gi - Bi)*[s|s|s] ***
 
-            sabc(1,2,1) = rbg(1)*sabc(1,1,1)
-            sabc(1,3,1) = rbg(2)*sabc(1,1,1)
-            sabc(1,4,1) = rbg(3)*sabc(1,1,1)
+            s(1,2,1,1) = rbg(1)*s(1,1,1,1)
+            s(1,3,1,1) = rbg(2)*s(1,1,1,1)
+            s(1,4,1,1) = rbg(3)*s(1,1,1,1)
 
 !           *** [s|s|b] = (Gi - Bi)*[s|s|b-1i] + f2*Ni(b-1i)*[s|s|b-2i] ***
 
@@ -445,36 +499,36 @@ CONTAINS
 
 !             *** Increase the angular momentum component z of function b ***
 
-              sabc(1,coset(0,0,lb),1) =&
-                rbg(3)*sabc(1,coset(0,0,lb-1),1) +&
-                f2*REAL(lb-1,wp)*sabc(1,coset(0,0,lb-2),1)
+              s(1,coset(0,0,lb),1,1) =&
+                rbg(3)*s(1,coset(0,0,lb-1),1,1) +&
+                f2*REAL(lb-1,wp)*s(1,coset(0,0,lb-2),1,1)
 
 !             *** Increase the angular momentum component y of function b ***
 
               bz = lb - 1
-              sabc(1,coset(0,1,bz),1) = rbg(2)*sabc(1,coset(0,0,bz),1)
+              s(1,coset(0,1,bz),1,1) = rbg(2)*s(1,coset(0,0,bz),1,1)
 
               DO by=2,lb
                 bz = lb - by
-                sabc(1,coset(0,by,bz),1) =&
-                  rbg(2)*sabc(1,coset(0,by-1,bz),1) +&
-                  f2*REAL(by-1,wp)*sabc(1,coset(0,by-2,bz),1)
+                s(1,coset(0,by,bz),1,1) =&
+                  rbg(2)*s(1,coset(0,by-1,bz),1,1) +&
+                  f2*REAL(by-1,wp)*s(1,coset(0,by-2,bz),1,1)
               END DO
 
 !             *** Increase the angular momentum component x of function b ***
 
               DO by=0,lb-1
                 bz = lb - 1 - by
-                sabc(1,coset(1,by,bz),1) = rbg(1)*sabc(1,coset(0,by,bz),1)
+                s(1,coset(1,by,bz),1,1) = rbg(1)*s(1,coset(0,by,bz),1,1)
               END DO
 
               DO bx=2,lb
                 f3 = f2*REAL(bx-1,wp)
                 DO by=0,lb-bx
                   bz = lb - bx - by
-                  sabc(1,coset(bx,by,bz),1) =&
-                    rbg(1)*sabc(1,coset(bx-1,by,bz),1) +&
-                    f3*sabc(1,coset(bx-2,by,bz),1)
+                  s(1,coset(bx,by,bz),1,1) =&
+                    rbg(1)*s(1,coset(bx-1,by,bz),1,1) +&
+                    f3*s(1,coset(bx-2,by,bz),1,1)
                 END DO
               END DO
 
@@ -497,13 +551,12 @@ CONTAINS
           CASE (2)
             rcg(:) = -zetg*(zeta(ipgf)*rac(:) + zetb(jpgf)*rbc(:))
             rcg2 = rcg(1)*rcg(1) + rcg(2)*rcg(2) + rcg(3)*rcg(3)
-            sabc(1,1,2) = (1.5_wp*zetg + rcg2)*sabc(1,1,1)
+            s(1,1,2,1) = (1.5_wp*zetg + rcg2)*s(1,1,1,1)
           CASE (3)
-            sabc(1,1,3) = (2.5_wp*zetg + rcg2)*sabc(1,1,2) +&
-                          rcg2*zetg*sabc(1,1,1)
+            s(1,1,3,1) = (2.5_wp*zetg + rcg2)*s(1,1,2,1) + rcg2*zetg*s(1,1,1,1)
           CASE (4)
-            sabc(1,1,4) = (3.5_wp*zetg + rcg2)*sabc(1,1,3) +&
-                          2.0_wp*rcg2*zetg*(sabc(1,1,2) + zetg*sabc(1,1,1))
+            s(1,1,4,1) = (3.5_wp*zetg + rcg2)*s(1,1,3,1) +&
+                         2.0_wp*rcg2*zetg*(s(1,1,2,1) + zetg*s(1,1,1,1))
           END SELECT
 
 !         *** Recurrence steps: [s|c|s] -> [a|c|s] ***
@@ -515,12 +568,12 @@ CONTAINS
 !           *** [p|c|s] = (Gi - Ai)*[s|c|s] +                          ***
 !           ***           f2*Ni(c)*([p|c-2i|s] - (Ci - Ai)*[s|c-2i|s]) ***
 
-            sabc(2,1,c) = rag(1)*sabc(1,1,c) +&
-                          fc*(sabc(2,1,c-1) - rac(1)*sabc(1,1,c-1))
-            sabc(3,1,c) = rag(2)*sabc(1,1,c) +&
-                          fc*(sabc(3,1,c-1) - rac(2)*sabc(1,1,c-1))
-            sabc(4,1,c) = rag(3)*sabc(1,1,c) +&
-                          fc*(sabc(4,1,c-1) - rac(3)*sabc(1,1,c-1))
+            s(2,1,c,1) = rag(1)*s(1,1,c,1) +&
+                          fc*(s(2,1,c-1,1) - rac(1)*s(1,1,c-1,1))
+            s(3,1,c,1) = rag(2)*s(1,1,c,1) +&
+                          fc*(s(3,1,c-1,1) - rac(2)*s(1,1,c-1,1))
+            s(4,1,c,1) = rag(3)*s(1,1,c,1) +&
+                          fc*(s(4,1,c-1,1) - rac(3)*s(1,1,c-1,1))
 
 !           *** [a|c|s] = (Gi - Ai)*[a-1i|c|s] +                          ***
 !           ***           f2*Ni(a-1i)*[a-2i|c|s] +                        ***
@@ -530,48 +583,48 @@ CONTAINS
 
 !             *** Increase the angular momentum component z of function a ***
 
-              sabc(coset(0,0,la),1,c) =&
-                rag(3)*sabc(coset(0,0,la-1),1,c) +&
-                f2*REAL(la-1,wp)*sabc(coset(0,0,la-2),1,c) +&
-                fc*(sabc(coset(0,0,la),1,c-1) -&
-                    rac(3)*sabc(coset(0,0,la-1),1,c-1))
+              s(coset(0,0,la),1,c,1) =&
+                rag(3)*s(coset(0,0,la-1),1,c,1) +&
+                f2*REAL(la-1,wp)*s(coset(0,0,la-2),1,c,1) +&
+                fc*(s(coset(0,0,la),1,c-1,1) -&
+                    rac(3)*s(coset(0,0,la-1),1,c-1,1))
 
 !             *** Increase the angular momentum component y of function a ***
 
               az = la - 1
-              sabc(coset(0,1,az),1,c) =&
-                rag(2)*sabc(coset(0,0,az),1,c) +&
-                fc*(sabc(coset(0,1,az),1,c-1) -&
-                    rac(2)*sabc(coset(0,0,az),1,c-1))
+              s(coset(0,1,az),1,c,1) =&
+                rag(2)*s(coset(0,0,az),1,c,1) +&
+                fc*(s(coset(0,1,az),1,c-1,1) -&
+                    rac(2)*s(coset(0,0,az),1,c-1,1))
 
               DO ay=2,la
                 az = la - ay
-                sabc(coset(0,ay,az),1,c) =&
-                  rag(2)*sabc(coset(0,ay-1,az),1,c) +&
-                  f2*REAL(ay-1,wp)*sabc(coset(0,ay-2,az),1,c) +&
-                  fc*(sabc(coset(0,ay,az),1,c-1) -&
-                      rac(2)*sabc(coset(0,ay-1,az),1,c-1))
+                s(coset(0,ay,az),1,c,1) =&
+                  rag(2)*s(coset(0,ay-1,az),1,c,1) +&
+                  f2*REAL(ay-1,wp)*s(coset(0,ay-2,az),1,c,1) +&
+                  fc*(s(coset(0,ay,az),1,c-1,1) -&
+                      rac(2)*s(coset(0,ay-1,az),1,c-1,1))
               END DO
 
 !             *** Increase the angular momentum component x of function a ***
 
               DO ay=0,la-1
                 az = la - 1 - ay
-                sabc(coset(1,ay,az),1,c) =&
-                  rag(1)*sabc(coset(0,ay,az),1,c) +&
-                  fc*(sabc(coset(1,ay,az),1,c-1) -&
-                      rac(1)*sabc(coset(0,ay,az),1,c-1))
+                s(coset(1,ay,az),1,c,1) =&
+                  rag(1)*s(coset(0,ay,az),1,c,1) +&
+                  fc*(s(coset(1,ay,az),1,c-1,1) -&
+                      rac(1)*s(coset(0,ay,az),1,c-1,1))
               END DO
 
               DO ax=2,la
                 f3 = f2*REAL(ax-1,wp)
                 DO ay=0,la-ax
                   az = la - ax - ay
-                  sabc(coset(ax,ay,az),1,c) =&
-                    rag(1)*sabc(coset(ax-1,ay,az),1,c) +&
-                    f3*sabc(coset(ax-2,ay,az),1,c) +&
-                    fc*(sabc(coset(ax,ay,az),1,c-1) -&
-                        rac(1)*sabc(coset(ax-1,ay,az),1,c-1))
+                  s(coset(ax,ay,az),1,c,1) =&
+                    rag(1)*s(coset(ax-1,ay,az),1,c,1) +&
+                    f3*s(coset(ax-2,ay,az),1,c,1) +&
+                    fc*(s(coset(ax,ay,az),1,c-1,1) -&
+                        rac(1)*s(coset(ax-1,ay,az),1,c-1,1))
                 END DO
               END DO
 
@@ -595,15 +648,15 @@ CONTAINS
                 DO ax=0,la
                   DO ay=0,la-ax
                     az = la - ax - ay
-                    sabc(coset(ax,ay,az),2,c) =&
-                      sabc(coset(ax+1,ay,az),1,c) -&
-                      rab(1)*sabc(coset(ax,ay,az),1,c)
-                    sabc(coset(ax,ay,az),3,c) =&
-                      sabc(coset(ax,ay+1,az),1,c) -&
-                      rab(2)*sabc(coset(ax,ay,az),1,c)
-                    sabc(coset(ax,ay,az),4,c) =&
-                      sabc(coset(ax,ay,az+1),1,c) -&
-                      rab(3)*sabc(coset(ax,ay,az),1,c)
+                    s(coset(ax,ay,az),2,c,1) =&
+                      s(coset(ax+1,ay,az),1,c,1) -&
+                      rab(1)*s(coset(ax,ay,az),1,c,1)
+                    s(coset(ax,ay,az),3,c,1) =&
+                      s(coset(ax,ay+1,az),1,c,1) -&
+                      rab(2)*s(coset(ax,ay,az),1,c,1)
+                    s(coset(ax,ay,az),4,c,1) =&
+                      s(coset(ax,ay,az+1),1,c,1) -&
+                      rab(3)*s(coset(ax,ay,az),1,c,1)
                   END DO
                 END DO
               END DO
@@ -615,46 +668,46 @@ CONTAINS
 !             ***           f2*Ni(c)*([a|c-2i|p] - (Ci - Bi)*[a|c-2i|s]) ***
 
               DO ax=0,la_max
-                fx = f2*REAL(ax,wp)
+                fax = f2*REAL(ax,wp)
                 DO ay=0,la_max-ax
-                  fy = f2*REAL(ay,wp)
+                  fay = f2*REAL(ay,wp)
                   az = la_max - ax - ay
-                  fz = f2*REAL(az,wp)
+                  faz = f2*REAL(az,wp)
                   IF (ax == 0) THEN
-                    sabc(coset(ax,ay,az),2,c) =&
-                      rbg(1)*sabc(coset(ax,ay,az),1,c) +&
-                      fc*(sabc(coset(ax,ay,az),2,c-1) -&
-                          rbc(1)*sabc(coset(ax,ay,az),1,c-1))
+                    s(coset(ax,ay,az),2,c,1) =&
+                      rbg(1)*s(coset(ax,ay,az),1,c,1) +&
+                      fc*(s(coset(ax,ay,az),2,c-1,1) -&
+                          rbc(1)*s(coset(ax,ay,az),1,c-1,1))
                   ELSE
-                    sabc(coset(ax,ay,az),2,c) =&
-                      rbg(1)*sabc(coset(ax,ay,az),1,c) +&
-                      fx*sabc(coset(ax-1,ay,az),1,c) +&
-                      fc*(sabc(coset(ax,ay,az),2,c-1) -&
-                          rbc(1)*sabc(coset(ax,ay,az),1,c-1))
+                    s(coset(ax,ay,az),2,c,1) =&
+                      rbg(1)*s(coset(ax,ay,az),1,c,1) +&
+                      fax*s(coset(ax-1,ay,az),1,c,1) +&
+                      fc*(s(coset(ax,ay,az),2,c-1,1) -&
+                          rbc(1)*s(coset(ax,ay,az),1,c-1,1))
                   END IF
                   IF (ay == 0) THEN
-                    sabc(coset(ax,ay,az),3,c) =&
-                      rbg(2)*sabc(coset(ax,ay,az),1,c) +&
-                      fc*(sabc(coset(ax,ay,az),3,c-1) -&
-                          rbc(2)*sabc(coset(ax,ay,az),1,c-1))
+                    s(coset(ax,ay,az),3,c,1) =&
+                      rbg(2)*s(coset(ax,ay,az),1,c,1) +&
+                      fc*(s(coset(ax,ay,az),3,c-1,1) -&
+                          rbc(2)*s(coset(ax,ay,az),1,c-1,1))
                   ELSE
-                    sabc(coset(ax,ay,az),3,c) =&
-                      rbg(2)*sabc(coset(ax,ay,az),1,c) +&
-                      fy*sabc(coset(ax,ay-1,az),1,c) +&
-                      fc*(sabc(coset(ax,ay,az),3,c-1) -&
-                          rbc(2)*sabc(coset(ax,ay,az),1,c-1))
+                    s(coset(ax,ay,az),3,c,1) =&
+                      rbg(2)*s(coset(ax,ay,az),1,c,1) +&
+                      fay*s(coset(ax,ay-1,az),1,c,1) +&
+                      fc*(s(coset(ax,ay,az),3,c-1,1) -&
+                          rbc(2)*s(coset(ax,ay,az),1,c-1,1))
                   END IF
                   IF (az == 0) THEN
-                    sabc(coset(ax,ay,az),4,c) =&
-                      rbg(3)*sabc(coset(ax,ay,az),1,c) +&
-                      fc*(sabc(coset(ax,ay,az),4,c-1) -&
-                          rbc(3)*sabc(coset(ax,ay,az),1,c-1))
+                    s(coset(ax,ay,az),4,c,1) =&
+                      rbg(3)*s(coset(ax,ay,az),1,c,1) +&
+                      fc*(s(coset(ax,ay,az),4,c-1,1) -&
+                          rbc(3)*s(coset(ax,ay,az),1,c-1,1))
                   ELSE
-                    sabc(coset(ax,ay,az),4,c) =&
-                      rbg(3)*sabc(coset(ax,ay,az),1,c) +&
-                      fz*sabc(coset(ax,ay,az-1),1,c) +&
-                      fc*(sabc(coset(ax,ay,az),4,c-1) -&
-                          rbc(3)*sabc(coset(ax,ay,az),1,c-1))
+                    s(coset(ax,ay,az),4,c,1) =&
+                      rbg(3)*s(coset(ax,ay,az),1,c,1) +&
+                      faz*s(coset(ax,ay,az-1),1,c,1) +&
+                      fc*(s(coset(ax,ay,az),4,c-1,1) -&
+                          rbc(3)*s(coset(ax,ay,az),1,c-1,1))
                   END IF
                 END DO
               END DO
@@ -680,17 +733,17 @@ CONTAINS
 
 !                     *** Shift of angular momentum component x from a to b ***
 
-                      sabc(coset(ax,ay,az),coset(0,0,lb),c) =&
-                        sabc(coset(ax,ay,az+1),coset(0,0,lb-1),c) -&
-                        rab(3)*sabc(coset(ax,ay,az),coset(0,0,lb-1),c)
+                      s(coset(ax,ay,az),coset(0,0,lb),c,1) =&
+                        s(coset(ax,ay,az+1),coset(0,0,lb-1),c,1) -&
+                        rab(3)*s(coset(ax,ay,az),coset(0,0,lb-1),c,1)
 
 !                     *** Shift of angular momentum component y from a to b ***
 
                       DO by=1,lb
                         bz = lb - by
-                        sabc(coset(ax,ay,az),coset(0,by,bz),c) =&
-                          sabc(coset(ax,ay+1,az),coset(0,by-1,bz),c) -&
-                          rab(2)*sabc(coset(ax,ay,az),coset(0,by-1,bz),c)
+                        s(coset(ax,ay,az),coset(0,by,bz),c,1) =&
+                          s(coset(ax,ay+1,az),coset(0,by-1,bz),c,1) -&
+                          rab(2)*s(coset(ax,ay,az),coset(0,by-1,bz),c,1)
                       END DO
 
 !                     *** Shift of angular momentum component z from a to b ***
@@ -698,9 +751,9 @@ CONTAINS
                       DO bx=1,lb
                         DO by=0,lb-bx
                           bz = lb - bx - by
-                          sabc(coset(ax,ay,az),coset(bx,by,bz),c) =&
-                            sabc(coset(ax+1,ay,az),coset(bx-1,by,bz),c) -&
-                            rab(1)*sabc(coset(ax,ay,az),coset(bx-1,by,bz),c)
+                          s(coset(ax,ay,az),coset(bx,by,bz),c,1) =&
+                            s(coset(ax+1,ay,az),coset(bx-1,by,bz),c,1) -&
+                            rab(1)*s(coset(ax,ay,az),coset(bx-1,by,bz),c,1)
                         END DO
                       END DO
 
@@ -717,66 +770,66 @@ CONTAINS
 !               ***                     (Ci - Bi)*[a|c-2i|b-1i]) ***
 
                 DO ax=0,la_max
-                  fx = f2*REAL(ax,wp)
+                  fax = f2*REAL(ax,wp)
                   DO ay=0,la_max-ax
-                    fy = f2*REAL(ay,wp)
+                    fay = f2*REAL(ay,wp)
                     az = la_max - ax - ay
-                    fz = f2*REAL(az,wp)
+                    faz = f2*REAL(az,wp)
 
 !                   *** Shift of angular momentum component z from a to b ***
 
                     f3 = f2*REAL(lb-1,wp)
 
                     IF (az == 0) THEN
-                      sabc(coset(ax,ay,az),coset(0,0,lb),c) =&
-                        rbg(3)*sabc(coset(ax,ay,az),coset(0,0,lb-1),c) +&
-                        f3*sabc(coset(ax,ay,az),coset(0,0,lb-2),c) +&
-                        fc*(sabc(coset(ax,ay,az),coset(0,0,lb),c-1) -&
-                            rbc(3)*sabc(coset(ax,ay,az),coset(0,0,lb-1),c-1))
+                      s(coset(ax,ay,az),coset(0,0,lb),c,1) =&
+                        rbg(3)*s(coset(ax,ay,az),coset(0,0,lb-1),c,1) +&
+                        f3*s(coset(ax,ay,az),coset(0,0,lb-2),c,1) +&
+                        fc*(s(coset(ax,ay,az),coset(0,0,lb),c-1,1) -&
+                            rbc(3)*s(coset(ax,ay,az),coset(0,0,lb-1),c-1,1))
                     ELSE
-                      sabc(coset(ax,ay,az),coset(0,0,lb),c) =&
-                        rbg(3)*sabc(coset(ax,ay,az),coset(0,0,lb-1),c) +&
-                        fz*sabc(coset(ax,ay,az-1),coset(0,0,lb-1),c) +&
-                        f3*sabc(coset(ax,ay,az),coset(0,0,lb-2),c) +&
-                        fc*(sabc(coset(ax,ay,az),coset(0,0,lb),c-1) -&
-                            rbc(3)*sabc(coset(ax,ay,az),coset(0,0,lb-1),c-1))
+                      s(coset(ax,ay,az),coset(0,0,lb),c,1) =&
+                        rbg(3)*s(coset(ax,ay,az),coset(0,0,lb-1),c,1) +&
+                        faz*s(coset(ax,ay,az-1),coset(0,0,lb-1),c,1) +&
+                        f3*s(coset(ax,ay,az),coset(0,0,lb-2),c,1) +&
+                        fc*(s(coset(ax,ay,az),coset(0,0,lb),c-1,1) -&
+                            rbc(3)*s(coset(ax,ay,az),coset(0,0,lb-1),c-1,1))
                     END IF
 
 !                   *** Shift of angular momentum component y from a to b ***
 
                     IF (ay == 0) THEN
                       bz = lb - 1
-                      sabc(coset(ax,ay,az),coset(0,1,bz),c) =&
-                        rbg(2)*sabc(coset(ax,ay,az),coset(0,0,bz),c) +&
-                        fc*(sabc(coset(ax,ay,az),coset(0,1,bz),c-1) -&
-                            rbc(2)*sabc(coset(ax,ay,az),coset(0,0,bz),c-1))
+                      s(coset(ax,ay,az),coset(0,1,bz),c,1) =&
+                        rbg(2)*s(coset(ax,ay,az),coset(0,0,bz),c,1) +&
+                        fc*(s(coset(ax,ay,az),coset(0,1,bz),c-1,1) -&
+                            rbc(2)*s(coset(ax,ay,az),coset(0,0,bz),c-1,1))
                       DO by=2,lb
                         bz = lb - by
                         f3 = f2*REAL(by-1,wp)
-                        sabc(coset(ax,ay,az),coset(0,by,bz),c) =&
-                          rbg(2)*sabc(coset(ax,ay,az),coset(0,by-1,bz),c) +&
-                          f3*sabc(coset(ax,ay,az),coset(0,by-2,bz),c) +&
-                          fc*(sabc(coset(ax,ay,az),coset(0,by,bz),c-1) -&
-                              rbc(2)*sabc(coset(ax,ay,az),&
-                                          coset(0,by-1,bz),c-1))
+                        s(coset(ax,ay,az),coset(0,by,bz),c,1) =&
+                          rbg(2)*s(coset(ax,ay,az),coset(0,by-1,bz),c,1) +&
+                          f3*s(coset(ax,ay,az),coset(0,by-2,bz),c,1) +&
+                          fc*(s(coset(ax,ay,az),coset(0,by,bz),c-1,1) -&
+                              rbc(2)*s(coset(ax,ay,az),&
+                                          coset(0,by-1,bz),c-1,1))
                       END DO
                     ELSE
                       bz = lb - 1
-                      sabc(coset(ax,ay,az),coset(0,1,bz),c) =&
-                        rbg(2)*sabc(coset(ax,ay,az),coset(0,0,bz),c) +&
-                        fy*sabc(coset(ax,ay-1,az),coset(0,0,bz),c) +&
-                        fc*(sabc(coset(ax,ay,az),coset(0,1,bz),c-1) -&
-                            rbc(2)*sabc(coset(ax,ay,az),coset(0,0,bz),c-1))
+                      s(coset(ax,ay,az),coset(0,1,bz),c,1) =&
+                        rbg(2)*s(coset(ax,ay,az),coset(0,0,bz),c,1) +&
+                        fay*s(coset(ax,ay-1,az),coset(0,0,bz),c,1) +&
+                        fc*(s(coset(ax,ay,az),coset(0,1,bz),c-1,1) -&
+                            rbc(2)*s(coset(ax,ay,az),coset(0,0,bz),c-1,1))
                       DO by=2,lb
                         bz = lb - by
                         f3 = f2*REAL(by-1,wp)
-                        sabc(coset(ax,ay,az),coset(0,by,bz),c) =&
-                          rbg(2)*sabc(coset(ax,ay,az),coset(0,by-1,bz),c) +&
-                          fy*sabc(coset(ax,ay-1,az),coset(0,by-1,bz),c) +&
-                          f3*sabc(coset(ax,ay,az),coset(0,by-2,bz),c) +&
-                          fc*(sabc(coset(ax,ay,az),coset(0,by,bz),c-1) -&
-                              rbc(2)*sabc(coset(ax,ay,az),&
-                                          coset(0,by-1,bz),c-1))
+                        s(coset(ax,ay,az),coset(0,by,bz),c,1) =&
+                          rbg(2)*s(coset(ax,ay,az),coset(0,by-1,bz),c,1) +&
+                          fay*s(coset(ax,ay-1,az),coset(0,by-1,bz),c,1) +&
+                          f3*s(coset(ax,ay,az),coset(0,by-2,bz),c,1) +&
+                          fc*(s(coset(ax,ay,az),coset(0,by,bz),c-1,1) -&
+                              rbc(2)*s(coset(ax,ay,az),&
+                                          coset(0,by-1,bz),c-1,1))
                       END DO
                     END IF
 
@@ -785,44 +838,44 @@ CONTAINS
                     IF (ax == 0) THEN
                       DO by=0,lb-1
                         bz = lb - 1 - by
-                        sabc(coset(ax,ay,az),coset(1,by,bz),c) =&
-                          rbg(1)*sabc(coset(ax,ay,az),coset(0,by,bz),c) +&
-                          fc*(sabc(coset(ax,ay,az),coset(1,by,bz),c-1) -&
-                              rbc(1)*sabc(coset(ax,ay,az),coset(0,by,bz),c-1))
+                        s(coset(ax,ay,az),coset(1,by,bz),c,1) =&
+                          rbg(1)*s(coset(ax,ay,az),coset(0,by,bz),c,1) +&
+                          fc*(s(coset(ax,ay,az),coset(1,by,bz),c-1,1) -&
+                              rbc(1)*s(coset(ax,ay,az),coset(0,by,bz),c-1,1))
                       END DO
                       DO bx=2,lb
                         f3 = f2*REAL(bx-1,wp)
                         DO by=0,lb-bx
                           bz = lb - bx - by
-                          sabc(coset(ax,ay,az),coset(bx,by,bz),c) =&
-                            rbg(1)*sabc(coset(ax,ay,az),coset(bx-1,by,bz),c) +&
-                            f3*sabc(coset(ax,ay,az),coset(bx-2,by,bz),c) +&
-                            fc*(sabc(coset(ax,ay,az),coset(bx,by,bz),c-1) -&
-                                rbc(1)*sabc(coset(ax,ay,az),&
-                                            coset(bx-1,by,bz),c-1))
+                          s(coset(ax,ay,az),coset(bx,by,bz),c,1) =&
+                            rbg(1)*s(coset(ax,ay,az),coset(bx-1,by,bz),c,1) +&
+                            f3*s(coset(ax,ay,az),coset(bx-2,by,bz),c,1) +&
+                            fc*(s(coset(ax,ay,az),coset(bx,by,bz),c-1,1) -&
+                                rbc(1)*s(coset(ax,ay,az),&
+                                            coset(bx-1,by,bz),c-1,1))
                         END DO
                       END DO
                     ELSE
                       DO by=0,lb-1
                         bz = lb - 1 - by
-                        sabc(coset(ax,ay,az),coset(1,by,bz),c) =&
-                          rbg(1)*sabc(coset(ax,ay,az),coset(0,by,bz),c) +&
-                          fx*sabc(coset(ax-1,ay,az),coset(0,by,bz),c) +&
-                          fc*(sabc(coset(ax,ay,az),coset(1,by,bz),c-1) -&
-                                rbc(1)*sabc(coset(ax,ay,az),&
-                                            coset(0,by,bz),c-1))
+                        s(coset(ax,ay,az),coset(1,by,bz),c,1) =&
+                          rbg(1)*s(coset(ax,ay,az),coset(0,by,bz),c,1) +&
+                          fax*s(coset(ax-1,ay,az),coset(0,by,bz),c,1) +&
+                          fc*(s(coset(ax,ay,az),coset(1,by,bz),c-1,1) -&
+                                rbc(1)*s(coset(ax,ay,az),&
+                                            coset(0,by,bz),c-1,1))
                       END DO
                       DO bx=2,lb
                         f3 = f2*REAL(bx-1,wp)
                         DO by=0,lb-bx
                           bz = lb - bx - by
-                          sabc(coset(ax,ay,az),coset(bx,by,bz),c) =&
-                            rbg(1)*sabc(coset(ax,ay,az),coset(bx-1,by,bz),c) +&
-                            fx*sabc(coset(ax-1,ay,az),coset(bx-1,by,bz),c) +&
-                            f3*sabc(coset(ax,ay,az),coset(bx-2,by,bz),c) +&
-                            fc*(sabc(coset(ax,ay,az),coset(bx,by,bz),c-1) -&
-                                rbc(1)*sabc(coset(ax,ay,az),&
-                                            coset(bx-1,by,bz),c-1))
+                          s(coset(ax,ay,az),coset(bx,by,bz),c,1) =&
+                            rbg(1)*s(coset(ax,ay,az),coset(bx-1,by,bz),c,1) +&
+                            fax*s(coset(ax-1,ay,az),coset(bx-1,by,bz),c,1) +&
+                            f3*s(coset(ax,ay,az),coset(bx-2,by,bz),c,1) +&
+                            fc*(s(coset(ax,ay,az),coset(bx,by,bz),c-1,1) -&
+                                rbc(1)*s(coset(ax,ay,az),&
+                                            coset(bx-1,by,bz),c-1,1))
                         END DO
                       END DO
                     END IF
@@ -843,12 +896,12 @@ CONTAINS
 !             *** [s|c|p] = (Gi - Bi)*[s|c|s] +                          ***
 !             ***           f2*Ni(c)*([s|c-2i|p] - (Ci - Bi)*[s|c-2i|s]) ***
 
-              sabc(1,2,c) = rbg(1)*sabc(1,1,c) +&
-                            fc*(sabc(1,2,c-1) - rbc(1)*sabc(1,1,c-1))
-              sabc(1,3,c) = rbg(2)*sabc(1,1,c) +&
-                            fc*(sabc(1,3,c-1) - rbc(2)*sabc(1,1,c-1))
-              sabc(1,4,c) = rbg(3)*sabc(1,1,c) +&
-                            fc*(sabc(1,4,c-1) - rbc(3)*sabc(1,1,c-1))
+              s(1,2,c,1) = rbg(1)*s(1,1,c,1) +&
+                            fc*(s(1,2,c-1,1) - rbc(1)*s(1,1,c-1,1))
+              s(1,3,c,1) = rbg(2)*s(1,1,c,1) +&
+                            fc*(s(1,3,c-1,1) - rbc(2)*s(1,1,c-1,1))
+              s(1,4,c,1) = rbg(3)*s(1,1,c,1) +&
+                            fc*(s(1,4,c-1,1) - rbc(3)*s(1,1,c-1,1))
 
 !             *** [s|c|b] = (Gi - Bi)*[s|c|b-1i] +                          ***
 !             ***           f2*Ni(b-1i)*[s|c|b-2i] +                        ***
@@ -858,48 +911,48 @@ CONTAINS
 
 !               *** Increase the angular momentum component z of function b ***
 
-                sabc(1,coset(0,0,lb),c) =&
-                  rbg(3)*sabc(1,coset(0,0,lb-1),c) +&
-                  f2*REAL(lb-1,wp)*sabc(1,coset(0,0,lb-2),c) +&
-                  fc*(sabc(1,coset(0,0,lb),c-1) -&
-                      rbc(3)*sabc(1,coset(0,0,lb-1),c-1))
+                s(1,coset(0,0,lb),c,1) =&
+                  rbg(3)*s(1,coset(0,0,lb-1),c,1) +&
+                  f2*REAL(lb-1,wp)*s(1,coset(0,0,lb-2),c,1) +&
+                  fc*(s(1,coset(0,0,lb),c-1,1) -&
+                      rbc(3)*s(1,coset(0,0,lb-1),c-1,1))
 
 !               *** Increase the angular momentum component y of function b ***
 
                 bz = lb - 1
-                sabc(1,coset(0,1,bz),c) =&
-                  rbg(2)*sabc(1,coset(0,0,bz),c) +&
-                  fc*(sabc(1,coset(0,1,bz),c-1) -&
-                      rbc(2)*sabc(1,coset(0,0,bz),c-1))
+                s(1,coset(0,1,bz),c,1) =&
+                  rbg(2)*s(1,coset(0,0,bz),c,1) +&
+                  fc*(s(1,coset(0,1,bz),c-1,1) -&
+                      rbc(2)*s(1,coset(0,0,bz),c-1,1))
 
                 DO by=2,lb
                   bz = lb - by
-                  sabc(1,coset(0,by,bz),c) =&
-                    rbg(2)*sabc(1,coset(0,by-1,bz),c) +&
-                    f2*REAL(by-1,wp)*sabc(1,coset(0,by-2,bz),c) +&
-                    fc*(sabc(1,coset(0,by,bz),c-1) -&
-                        rbc(2)*sabc(1,coset(0,by-1,bz),c-1))
+                  s(1,coset(0,by,bz),c,1) =&
+                    rbg(2)*s(1,coset(0,by-1,bz),c,1) +&
+                    f2*REAL(by-1,wp)*s(1,coset(0,by-2,bz),c,1) +&
+                    fc*(s(1,coset(0,by,bz),c-1,1) -&
+                        rbc(2)*s(1,coset(0,by-1,bz),c-1,1))
                 END DO
 
 !               *** Increase the angular momentum component x of function b ***
 
                 DO by=0,lb-1
                   bz = lb - 1 - by
-                  sabc(1,coset(1,by,bz),c) =&
-                    rbg(1)*sabc(1,coset(0,by,bz),c) +&
-                    fc*(sabc(1,coset(1,by,bz),c-1) -&
-                        rbc(1)*sabc(1,coset(0,by,bz),c-1))
+                  s(1,coset(1,by,bz),c,1) =&
+                    rbg(1)*s(1,coset(0,by,bz),c,1) +&
+                    fc*(s(1,coset(1,by,bz),c-1,1) -&
+                        rbc(1)*s(1,coset(0,by,bz),c-1,1))
                 END DO
 
                 DO bx=2,lb
                   f3 = f2*REAL(bx-1,wp)
                   DO by=0,lb-bx
                     bz = lb - bx - by
-                    sabc(1,coset(bx,by,bz),c) =&
-                      rbg(1)*sabc(1,coset(bx-1,by,bz),c) +&
-                      f3*sabc(1,coset(bx-2,by,bz),c) +&
-                      fc*(sabc(1,coset(bx,by,bz),c-1) -&
-                          rbc(1)*sabc(1,coset(bx-1,by,bz),c-1))
+                    s(1,coset(bx,by,bz),c,1) =&
+                      rbg(1)*s(1,coset(bx-1,by,bz),c,1) +&
+                      f3*s(1,coset(bx-2,by,bz),c,1) +&
+                      fc*(s(1,coset(bx,by,bz),c-1,1) -&
+                          rbc(1)*s(1,coset(bx-1,by,bz),c-1,1))
                   END DO
                 END DO
 
@@ -911,24 +964,198 @@ CONTAINS
 
         END DO
 
-!       *** Add the contribution of the current pair ***
-!       *** of primitive Gaussian-type functions     ***
+!       *** Store the primitive three-center overlap integrals ***
 
         DO c=1,nexp_ppl
-          DO j=ncoset(lb_min-1)+1,ncoset(lb_max)
-            DO i=ncoset(la_min-1)+1,ncoset(la_max)
-              vab(na+i,nb+j) = vab(na+i,nb+j) + cexp_ppl(c)*sabc(i,j,c)
+          DO j=ncoset(lb_min_set-1)+1,ncoset(lb_max_set)
+            DO i=ncoset(la_min_set-1)+1,ncoset(la_max_set)
+              vab(na+i,nb+j) = vab(na+i,nb+j) + cexp_ppl(c)*s(i,j,c,1)
             END DO
           END DO
         END DO
 
-        nb = nb + ncoset(lb_max)
+!       *** Calculate the requested derivatives with respect  ***
+!       *** to the nuclear coordinates of the atomic center a ***
+
+        DO da=0,da_max-1
+          ftz = 2.0_wp*zeta(ipgf)
+          DO dax=0,da
+            DO day=0,da-dax
+              daz = da - dax - day
+              cda = coset(dax,day,daz)
+              cdax = coset(dax+1,day,daz)
+              cday = coset(dax,day+1,daz)
+              cdaz = coset(dax,day,daz+1)
+
+!             *** [da/dAi|c|b] = 2*zeta*[a+1i|c|b] - Ni(a)[a-1i|c|b] ***
+
+              DO c=1,nexp_ppl
+                DO la=0,la_max-da-1
+                  DO ax=0,la
+                    fax = REAL(ax,wp)
+                    DO ay=0,la-ax
+                      fay = REAL(ay,wp)
+                      az = la - ax - ay
+                      faz = REAL(az,wp)
+                      coa = coset(ax,ay,az)
+                      coamx = coset(ax-1,ay,az)
+                      coamy = coset(ax,ay-1,az)
+                      coamz = coset(ax,ay,az-1)
+                      coapx = coset(ax+1,ay,az)
+                      coapy = coset(ax,ay+1,az)
+                      coapz = coset(ax,ay,az+1)
+                      DO lb=lb_min_set,lb_max_set
+                        DO bx=0,lb
+                          DO by=0,lb-bx
+                            bz = lb - bx - by
+                            cob = coset(bx,by,bz)
+                            s(coa,cob,c,cdax) = ftz*s(coapx,cob,c,cda) -&
+                                                fax*s(coamx,cob,c,cda)
+                            s(coa,cob,c,cday) = ftz*s(coapy,cob,c,cda) -&
+                                                fay*s(coamy,cob,c,cda)
+                            s(coa,cob,c,cdaz) = ftz*s(coapz,cob,c,cda) -&
+                                                faz*s(coamz,cob,c,cda)
+                          END DO
+                        END DO
+                      END DO
+                    END DO
+                  END DO
+                END DO
+              END DO
+
+            END DO
+          END DO
+        END DO
+
+!       *** Return all the calculated derivatives of the primitive ***
+!       *** three-center overlap integrals w.r.t. atomic center a, ***
+!       *** if requested                                           ***
+
+        IF (return_derivatives) THEN
+          DO k=2,ncoset(da_max)
+            jstart = (k - 1)*SIZE(vab,1)
+            DO c=1,nexp_ppl
+              DO j=ncoset(lb_min_set-1)+1,ncoset(lb_max_set)
+                jk = jstart + j
+                DO i=ncoset(la_min_set-1)+1,ncoset(la_max_set)
+                  vab(na+i,nb+jk) = vab(na+i,nb+jk) + cexp_ppl(c)*s(i,j,c,k)
+                END DO
+              END DO
+            END DO
+          END DO
+        END IF
+
+!       *** Calculate the force contribution for the atomic center a ***
+
+        IF (calculate_force_a) THEN
+          DO k=1,3
+            DO c=1,nexp_ppl
+              DO j=ncoset(lb_min_set-1)+1,ncoset(lb_max_set)
+                DO i=ncoset(la_min_set-1)+1,ncoset(la_max_set)
+                  force_a(k) = force_a(k) + pab(na+i,nb+j)*&
+                                            cexp_ppl(c)*s(i,j,c,k+1)
+                END DO
+              END DO
+            END DO
+          END DO
+        END IF
+
+!       *** Calculate the requested derivatives with respect  ***
+!       *** to the nuclear coordinates of the atomic center b ***
+
+        DO db=0,db_max-1
+          ftz = 2.0_wp*zetb(jpgf)
+          DO dbx=0,db
+            DO dby=0,db-dbx
+              dbz = db - dbx - dby
+              cdb = coset(dbx,dby,dbz)
+              cdbx = coset(dbx+1,dby,dbz)
+              cdby = coset(dbx,dby+1,dbz)
+              cdbz = coset(dbx,dby,dbz+1)
+
+!             *** [a|c|db/dBi] = 2*zetb*[a|c|b+1i] - Ni(b)[a|c|b-1i] ***
+
+              DO c=1,nexp_ppl
+                DO lb=0,lb_max-db-1
+                  DO bx=0,lb
+                    fbx = REAL(bx,wp)
+                    DO by=0,lb-bx
+                      fby = REAL(by,wp)
+                      bz = lb - bx - by
+                      fbz = REAL(bz,wp)
+                      cob = coset(bx,by,bz)
+                      cobmx = coset(bx-1,by,bz)
+                      cobmy = coset(bx,by-1,bz)
+                      cobmz = coset(bx,by,bz-1)
+                      cobpx = coset(bx+1,by,bz)
+                      cobpy = coset(bx,by+1,bz)
+                      cobpz = coset(bx,by,bz+1)
+                      DO la=la_min_set,la_max_set
+                        DO ax=0,la
+                          DO ay=0,la-ax
+                            az = la - ax - ay
+                            coa = coset(ax,ay,az)
+                            s(coa,cob,c,cdbx) = ftz*s(coa,cobpx,c,cdb) -&
+                                                fbx*s(coa,cobmx,c,cdb)
+                            s(coa,cob,c,cdby) = ftz*s(coa,cobpy,c,cdb) -&
+                                                fby*s(coa,cobmy,c,cdb)
+                            s(coa,cob,c,cdbz) = ftz*s(coa,cobpz,c,cdb) -&
+                                                fbz*s(coa,cobmz,c,cdb)
+                          END DO
+                        END DO
+                      END DO
+                    END DO
+                  END DO
+                END DO
+              END DO
+
+            END DO
+          END DO
+        END DO
+
+!       *** Return all the calculated derivatives of the primitive ***
+!       *** three-center overlap integrals w.r.t. atomic center b, ***
+!       *** if requested                                           ***
+
+        IF (return_derivatives) THEN
+          DO k=2,ncoset(db_max)
+            jstart = (ncoset(da_max) + k - 2)*SIZE(vab,1)
+            DO c=1,nexp_ppl
+              DO j=ncoset(lb_min_set-1)+1,ncoset(lb_max_set)
+                jk = jstart + j
+                DO i=ncoset(la_min_set-1)+1,ncoset(la_max_set)
+                  vab(na+i,nb+jk) = vab(na+i,nb+jk) + cexp_ppl(c)*s(i,j,c,k)
+                END DO
+              END DO
+            END DO
+          END DO
+        END IF
+
+!       *** Calculate the force contribution for the atomic center b ***
+
+        IF (calculate_force_b) THEN
+          DO k=1,3
+            DO c=1,nexp_ppl
+              DO j=ncoset(lb_min_set-1)+1,ncoset(lb_max_set)
+                DO i=ncoset(la_min_set-1)+1,ncoset(la_max_set)
+                  force_b(k) = force_b(k) + pab(na+i,nb+j)*&
+                                            cexp_ppl(c)*s(i,j,c,k+1)
+                END DO
+              END DO
+            END DO
+          END DO
+        END IF
+
+        nb = nb + ncoset(lb_max_set)
 
       END DO
 
-      na = na + ncoset(la_max)
+      na = na + ncoset(la_max_set)
 
     END DO
+
+    DEALLOCATE (s,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"s")
 
   END SUBROUTINE overlap_ppl
 

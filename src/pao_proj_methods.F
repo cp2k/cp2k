@@ -614,7 +614,7 @@ contains
     !call timeset(routineN//','//moduleN,'I',"",handle)
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
     if (.not. failure) then
-       call get_qs_env(qs_env,k=full_h,s=full_s,pao_env=pao_env)
+!MK       call get_qs_env(qs_env,k=full_h,s=full_s,pao_env=pao_env)
        CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
     end if
     if (.not.failure) then

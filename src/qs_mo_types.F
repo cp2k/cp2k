@@ -20,6 +20,8 @@
 !!     - calculate_density_matrix moved from qs_scf to here (22.04.02,MK)
 !!     - mo_set_p_type added (23.04.02,MK)
 !!     - PRIVATE attribute set for TYPE mo_set_type (23.04.02,MK)
+!!     - calculate_w_matrix added for the calculation of the Pulay forces
+!!       (23.05.02,MK)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -38,6 +40,7 @@ MODULE qs_mo_types
                                   gto_basis_set_type
   USE qs_blacs,             ONLY: allocate_blacs_matrix,&
                                   blacs_matrix_type,&
+                                  blacs_set_all,&
                                   blacs_syrk,&
                                   copy_blacs_to_full_matrix,&
                                   deallocate_blacs_matrix,&
@@ -83,6 +86,7 @@ MODULE qs_mo_types
 
   PUBLIC :: allocate_mo_set,&
             calculate_density_matrix,&
+            calculate_w_matrix,&
             correct_mo_eigenvalues,&
             deallocate_mo_set,&
             get_mo_set,&
@@ -210,6 +214,43 @@ CONTAINS
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE calculate_density_matrix
+
+! *****************************************************************************
+
+  SUBROUTINE calculate_w_matrix(mo_set,w_matrix,context,globenv)
+
+!   Purpose: Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
+!            and the MO occupation numbers.
+
+!   History: - Creation (23.05.2002,MK)
+
+!   ***************************************************************************
+
+    TYPE(blacs_matrix_type), POINTER          :: w_matrix
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(mo_set_type), POINTER                :: mo_set
+    INTEGER, INTENT(IN)                       :: context
+
+!   *** Local variables ***
+
+    REAL(wp) :: eigocc
+    INTEGER  :: handle,imo
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("calculate_w_matrix","I","",handle)
+
+    CALL blacs_set_all(w_matrix,0.0_wp,context,globenv)
+
+    DO imo=1,mo_set%homo
+      eigocc = mo_set%eigenvalues(imo)*mo_set%occupation_numbers(imo)
+      CALL blacs_syrk("U","N",1,eigocc,mo_set%eigenvectors,1,imo,1.0_wp,&
+                      w_matrix,context,globenv)
+    END DO
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE calculate_w_matrix
 
 ! *****************************************************************************
 

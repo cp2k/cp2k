@@ -8,8 +8,7 @@ AR       = ar -r
 DFLAGS   = -D__AIX -D__ESSL -D__FFTSG -D__FFTESSL -D__parallel
 CPPFLAGS = -C $(DFLAGS) -P
 FCFLAGS  = -WF,-C,-D__AIX,-D__ESSL,-D__FFTSG,-D__FFTESSL,-D__parallel\
-           -O3 -qalias=noaryovrlp -qarch=pwr3 -qcache=auto -qmaxmem=-1\
-           -qtune=pwr3 -w
+           -O2 -qarch=pwr3 -qcache=auto -qmaxmem=-1 -qtune=pwr3
 LDFLAGS  = $(FCFLAGS) -L/users/krack/lib/SP3/32 -bmaxdata:0x80000000 -bnoquiet
 LIBS     = -lscalapack -lblacsF77init -lblacs\
            -llapack3 -lessl -lmass -lhm

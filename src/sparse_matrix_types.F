@@ -109,8 +109,7 @@ MODULE sparse_matrix_types
   END INTERFACE
 
   INTERFACE allocate_matrix
-    MODULE PROCEDURE allocate_real_matrix1,allocate_real_matrix2,&
-                     allocate_full_real_matrix
+    MODULE PROCEDURE allocate_real_matrix,allocate_full_real_matrix
   END INTERFACE
 
   INTERFACE allocate_matrix_set
@@ -122,7 +121,7 @@ MODULE sparse_matrix_types
   END INTERFACE
 
   INTERFACE deallocate_matrix
-    MODULE PROCEDURE deallocate_real_matrix1,deallocate_real_matrix2
+    MODULE PROCEDURE deallocate_real_matrix
   END INTERFACE
 
   INTERFACE deallocate_matrix_row
@@ -158,8 +157,7 @@ MODULE sparse_matrix_types
   END INTERFACE
 
   INTERFACE replicate_matrix_structure
-    MODULE PROCEDURE replicate_real_matrix_struct1,&
-                     replicate_real_matrix_struct2
+    MODULE PROCEDURE replicate_real_matrix_structure
   END INTERFACE
 
   INTERFACE set_matrix
@@ -318,53 +316,9 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE allocate_real_matrix1(matrix_set,nrow,ncol,nblock_row,nblock_col,&
-                                   first_row,last_row,first_col,last_col,&
-                                   matrix_name,matrix_symmetry)
-
-!   Purpose: Allocate and initialize a real matrix at the real_matrix_p_type
-!            level.
-
-!   History: - Creation (13.03.2002, MK)
-
-!   ***************************************************************************
-
-    TYPE(real_matrix_p_type), POINTER :: matrix_set
-    CHARACTER(LEN=*), INTENT(IN)      :: matrix_name,matrix_symmetry
-    INTEGER, INTENT(IN)               :: nblock_row,nblock_col,ncol,nrow
-
-    INTEGER, DIMENSION(nblock_row), INTENT(IN) :: first_row,last_row
-    INTEGER, DIMENSION(nblock_col), INTENT(IN) :: first_col,last_col
-
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE allocate_real_matrix1 (MODULE sparse_matrix_types)"
-
-!   *** Local variables ***
-
-    INTEGER :: istat
-
-!   ---------------------------------------------------------------------------
-
-    IF (ASSOCIATED(matrix_set)) CALL deallocate_matrix(matrix_set)
-
-    ALLOCATE (matrix_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"matrix_set",0)
-
-    NULLIFY (matrix_set%matrix)
-
-    CALL allocate_matrix(matrix_set%matrix,nrow,ncol,nblock_row,nblock_col,&
-                         first_row,last_row,first_col,last_col,matrix_name,&
-                         matrix_symmetry)
-
-  END SUBROUTINE allocate_real_matrix1
-
-! *****************************************************************************
-
-  SUBROUTINE allocate_real_matrix2(matrix,nrow,ncol,nblock_row,nblock_col,&
-                                   first_row,last_row,first_col,last_col,&
-                                   matrix_name,matrix_symmetry)
+  SUBROUTINE allocate_real_matrix(matrix,nrow,ncol,nblock_row,nblock_col,&
+                                  first_row,last_row,first_col,last_col,&
+                                  matrix_name,matrix_symmetry)
 
 !   Purpose: Allocate and initialize a real matrix at the real_matrix_type
 !            level.
@@ -383,7 +337,7 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE allocate_real_matrix2 (MODULE sparse_matrix_types)"
+      "SUBROUTINE allocate_real_matrix (MODULE sparse_matrix_types)"
 
 !   *** Local variables ***
 
@@ -442,7 +396,7 @@ CONTAINS
       NULLIFY (matrix%block_list(irow)%first_block_node)
     END DO
 
-  END SUBROUTINE allocate_real_matrix2
+  END SUBROUTINE allocate_real_matrix
 
 ! *****************************************************************************
 
@@ -772,40 +726,40 @@ CONTAINS
   END SUBROUTINE copy_real_matrix
 
 ! *****************************************************************************
-
-  SUBROUTINE deallocate_real_matrix1(matrix_set)
-
-!   Purpose: Deallocate a real matrix at the real_matrix_p_type level.
-
-!   History: - Creation (13.03.2002, MK)
-
-!   ***************************************************************************
-
-    TYPE(real_matrix_p_type), POINTER :: matrix_set
-
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE deallocate_real_matrix1 (MODULE sparse_matrix_types)"
-
-!   *** Local variables ***
-
-    INTEGER :: istat
-
-!   ---------------------------------------------------------------------------
-
-    IF (.NOT.ASSOCIATED(matrix_set)) RETURN
-
-    CALL deallocate_matrix(matrix_set%matrix)
-
-    DEALLOCATE (matrix_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"matrix_set")
-
-  END SUBROUTINE deallocate_real_matrix1
-
+!MK
+!MK  SUBROUTINE deallocate_real_matrix1(matrix_set)
+!MK
+!MK!   Purpose: Deallocate a real matrix at the real_matrix_p_type level.
+!MK
+!MK!   History: - Creation (13.03.2002, MK)
+!MK
+!MK!   ***************************************************************************
+!MK
+!MK    TYPE(real_matrix_p_type), POINTER :: matrix_set
+!MK
+!MK!   *** Local parameters ***
+!MK
+!MK    CHARACTER(LEN=*), PARAMETER :: routine =&
+!MK      "SUBROUTINE deallocate_real_matrix1 (MODULE sparse_matrix_types)"
+!MK
+!MK!   *** Local variables ***
+!MK
+!MK    INTEGER :: istat
+!MK
+!MK!   ---------------------------------------------------------------------------
+!MK
+!MK    IF (.NOT.ASSOCIATED(matrix_set)) RETURN
+!MK
+!MK    CALL deallocate_matrix(matrix_set%matrix)
+!MK
+!MK    DEALLOCATE (matrix_set,STAT=istat)
+!MK    IF (istat /= 0) CALL stop_memory(routine,"matrix_set")
+!MK
+!MK  END SUBROUTINE deallocate_real_matrix1
+!MK
 ! *****************************************************************************
 
-  SUBROUTINE deallocate_real_matrix2(matrix)
+  SUBROUTINE deallocate_real_matrix(matrix)
 
 !   Purpose: Deallocate a real matrix at the real_matrix_type level.
 
@@ -818,7 +772,7 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE deallocate_real_matrix2 (MODULE sparse_matrix_types)"
+      "SUBROUTINE deallocate_real_matrix (MODULE sparse_matrix_types)"
 
 !   *** Local variables ***
 
@@ -850,7 +804,7 @@ CONTAINS
     DEALLOCATE (matrix,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,matrix%name)
 
-  END SUBROUTINE deallocate_real_matrix2
+  END SUBROUTINE deallocate_real_matrix
 
 ! *****************************************************************************
 
@@ -1327,7 +1281,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE replicate_real_matrix_struct1(source,target,target_name)
+  SUBROUTINE replicate_real_matrix_structure(source,target,target_name,&
+                                             target_symmetry)
 
 !   Purpose: Replicate the matrix structure of the existing matrix source. The
 !            new matrix target with the name target_name has the same
@@ -1337,91 +1292,20 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(real_matrix_p_type), POINTER :: source,target
-    CHARACTER(LEN=*), INTENT(IN)      :: target_name
+    TYPE(real_matrix_type), POINTER        :: source,target
+    CHARACTER(LEN=*), INTENT(IN)           :: target_name
+    CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: target_symmetry
 
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE replicate_real_matrix_struct1 (MODULE sparse_matrix_types)"
+      "SUBROUTINE replicate_real_matrix_structure (MODULE sparse_matrix_types)"
 
 !   *** Local variables ***
 
     TYPE(real_block_node_type), POINTER :: block_node
-
-    INTEGER :: iblock_col,iblock_row
-
-!   ---------------------------------------------------------------------------
-
-!   *** Check the association status of the source matrix ***
-
-    IF (.NOT.ASSOCIATED(source)) THEN
-      CALL stop_program(routine,&
-                        "The source matrix set pointer is not associated")
-    END IF
-
-!   *** Allocate a new matrix structure ***
-
-    CALL allocate_matrix(matrix_set=target,&
-                         nrow=source%matrix%nrow,&
-                         ncol=source%matrix%ncol,&
-                         nblock_row=source%matrix%nblock_row,&
-                         nblock_col=source%matrix%nblock_col,&
-                         first_row=source%matrix%first_row(:),&
-                         last_row=source%matrix%last_row(:),&
-                         first_col=source%matrix%first_col(:),&
-                         last_col=source%matrix%last_col(:),&
-                         matrix_name=target_name,&
-                         matrix_symmetry=source%matrix%symmetry)
-
-!   *** Initialize all block nodes ***
-
-    DO iblock_row=1,source%matrix%nblock_row
-
-      block_node => first_block_node(source%matrix,iblock_row)
-
-      DO WHILE (ASSOCIATED(block_node))
-
-        CALL get_block_node(block_node=block_node,&
-                            block_col=iblock_col)
-
-        CALL add_block_node(matrix=target%matrix,&
-                            block_row=iblock_row,&
-                            block_col=iblock_col)
-
-        block_node => next_block_node(block_node)
-
-      END DO
-
-    END DO
-
-  END SUBROUTINE replicate_real_matrix_struct1
-
-! *****************************************************************************
-
-  SUBROUTINE replicate_real_matrix_struct2(source,target,target_name)
-
-!   Purpose: Replicate the matrix structure of the existing matrix source. The
-!            new matrix target with the name target_name has the same
-!            structure.
-
-!   History: - Creation (17.11.2000, MK)
-
-!   ***************************************************************************
-
-    TYPE(real_matrix_type), POINTER :: source,target
-    CHARACTER(LEN=*), INTENT(IN)    :: target_name
-
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE replicate_real_matrix_struct2 (MODULE sparse_matrix_types)"
-
-!   *** Local variables ***
-
-    TYPE(real_block_node_type), POINTER :: block_node
-
-    INTEGER :: iblock_col,iblock_row
+    CHARACTER(LEN=40)                   :: matrix_symmetry
+    INTEGER                             :: iblock_col,iblock_row
 
 !   ---------------------------------------------------------------------------
 
@@ -1429,6 +1313,12 @@ CONTAINS
 
     IF (.NOT.ASSOCIATED(source)) THEN
       CALL stop_program(routine,"The source matrix pointer is not associated")
+    END IF
+
+    IF (PRESENT(target_symmetry)) THEN
+      matrix_symmetry = target_symmetry
+    ELSE
+      matrix_symmetry = source%symmetry
     END IF
 
 !   *** Allocate a new matrix structure ***
@@ -1443,7 +1333,7 @@ CONTAINS
                          first_col=source%first_col(:),&
                          last_col=source%last_col(:),&
                          matrix_name=target_name,&
-                         matrix_symmetry=source%symmetry)
+                         matrix_symmetry=matrix_symmetry)
 
 !   *** Initialize all block nodes ***
 
@@ -1466,7 +1356,7 @@ CONTAINS
 
     END DO
 
-  END SUBROUTINE replicate_real_matrix_struct2
+  END SUBROUTINE replicate_real_matrix_structure
 
 ! *****************************************************************************
 

@@ -301,12 +301,12 @@ CONTAINS
   SUBROUTINE get_atomic_kind_set(atomic_kind_set,maxatom,maxcgf,maxco,maxl,&
                                  maxlppl,maxlppnl,maxpgf,maxppnl,maxsgf,&
                                  maxsgf_set,maxshell,pao_max_min_bas,&
-                                 pao_max_full_bas, pao_max_excl_bas,&
-                                 pao_tot_min_bas, pao_tot_full_bas,&
-                                 pao_tot_excl_bas, pao_max_l_angles,&
+                                 pao_max_full_bas,pao_max_excl_bas,&
+                                 pao_tot_min_bas,pao_tot_full_bas,&
+                                 pao_tot_excl_bas,pao_max_l_angles,&
                                  natom,nelectron,ncgf,npgf,nset,nsgf,nshell,&
                                  all_potential_present,gth_potential_present,&
-                                 kind_of)
+                                 atom_of_kind,kind_of,maxder)
 
 !   Purpose: Get informations about an atomic kind set.
 
@@ -330,7 +330,8 @@ CONTAINS
                                                      npgf,nset,nsgf,nshell
     LOGICAL, OPTIONAL, INTENT(OUT)                :: all_potential_present,&
                                                      gth_potential_present
-    INTEGER, DIMENSION(:), OPTIONAL, INTENT(OUT)  :: kind_of
+    INTEGER, DIMENSION(:), OPTIONAL, INTENT(OUT)  :: atom_of_kind,kind_of
+    INTEGER, OPTIONAL, INTENT(IN)                 :: maxder
 
 !   *** Local parameters ***
 
@@ -344,9 +345,11 @@ CONTAINS
     TYPE(gth_potential_type), POINTER :: gth_potential
     TYPE(gto_basis_set_type), POINTER :: aux_basis_set,orb_basis_set
     INTEGER                           :: atom_a,iatom,ikind,imax,n,nkind,zeff,&
-         p_min_bas, p_min_bas_max, p_excl_bas, p_excl_bas_max, p_full_bas,&
-         p_full_bas_max, p_min_bas_tot, p_full_bas_tot, p_l_angles_max
-    logical                           :: pao
+                                         p_min_bas,p_min_bas_max,p_excl_bas,&
+                                         p_excl_bas_max,p_full_bas,&
+                                         p_full_bas_max,p_min_bas_tot,&
+                                         p_full_bas_tot,p_l_angles_max
+    LOGICAL                           :: pao
 
     REAL(wp), DIMENSION(:,:), POINTER :: zet
 
@@ -423,11 +426,21 @@ CONTAINS
         END IF
         IF (PRESENT(maxco)) THEN
           IF (ASSOCIATED(aux_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=aux_basis_set,maxco=imax)
+            IF (PRESENT(maxder)) THEN
+              CALL get_gto_basis_set(gto_basis_set=aux_basis_set,&
+                                     maxco=imax,maxder=maxder)
+            ELSE
+              CALL get_gto_basis_set(gto_basis_set=aux_basis_set,maxco=imax)
+            END IF
             maxco = MAX(maxco,imax)
           END IF
           IF (ASSOCIATED(orb_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxco=imax)
+            IF (PRESENT(maxder)) THEN
+              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                     maxco=imax,maxder=maxder)
+            ELSE
+              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxco=imax)
+            END IF
             maxco = MAX(maxco,imax)
           END IF
         END IF
@@ -537,6 +550,12 @@ CONTAINS
           IF (ASSOCIATED(gth_potential)) THEN
             gth_potential_present = .TRUE.
           END IF
+        END IF
+        IF (PRESENT(atom_of_kind)) THEN
+          DO iatom=1,atomic_kind%natom
+            atom_a = atomic_kind%atom_list(iatom)
+            atom_of_kind(atom_a) = iatom
+          END DO
         END IF
         IF (PRESENT(kind_of)) THEN
           DO iatom=1,atomic_kind%natom

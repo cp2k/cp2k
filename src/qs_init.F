@@ -45,6 +45,8 @@ MODULE qs_init
   USE qs_environment_types,            ONLY: init_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_force_types,                  ONLY: allocate_qs_force,&
+                                             qs_force_type
   USE qs_interactions,                 ONLY: init_interaction_radii
   USE qs_scf,                          ONLY: read_scf_parameters,&
                                              write_scf_parameters
@@ -84,11 +86,12 @@ CONTAINS
 
 !   *** Local variables ***
 
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(cell_type), POINTER                      :: cell
     TYPE(dft_control_type), POINTER               :: dft_control
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
     TYPE(pao_env_type), POINTER                   :: pao_env
+    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
+    TYPE(qs_force_type), DIMENSION(:), POINTER    :: force
 
     INTEGER :: handle,lmax,maxl,maxlppl,maxlppnl
 
@@ -98,7 +101,12 @@ CONTAINS
 
 !   *** Initialise the QUICKSTEP environment ***
 
-    NULLIFY (cell,dft_control,atomic_kind_set,particle_set, pao_env)
+    NULLIFY (atomic_kind_set)
+    NULLIFY (cell)
+    NULLIFY (dft_control)
+    NULLIFY (pao_env)
+    NULLIFY (particle_set)
+    NULLIFY (force)
 
     CALL init_qs_env(qs_env)
 
@@ -198,14 +206,21 @@ CONTAINS
 
     CALL write_scf_parameters(globenv)
 
+!   *** Allocate the force data structure ***
+
+    IF (dft_control%forces) THEN
+      CALL allocate_qs_force(force,SIZE(atomic_kind_set))
+    END IF
+
 !   *** Get the current QUICKSTEP environment ***
 
     CALL set_qs_env(qs_env=qs_env,&
-                    dft_control=dft_control,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
+                    dft_control=dft_control,&
+                    pao_env=pao_env,&
                     particle_set=particle_set,&
-                    pao_env=pao_env)
+                    force=force)
 
 !   *** Read the pao section ***
     if (dft_control%qs_control%pao) then
@@ -260,9 +275,9 @@ CONTAINS
         "**                                                                           **",&
         "**                                                ... make the atoms dance   **",&
         "**                                                                           **",&
-        "**                         Version 3.0 (June 2001)                           **",&
+        "**                         Version 3.1 (June 2002)                           **",&
         "**                                                                           **",&
-        "**             Copyright (C) by CP2K Developers Group (2000 - 2002)          **",&
+        "**            Copyright (C) by CP2K Developers Group (2000 - 2002)           **",&
         "**                                                                           **",&
         "*******************************************************************************",&
         "*******************************************************************************"
