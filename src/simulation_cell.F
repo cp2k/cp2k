@@ -579,7 +579,7 @@ CONTAINS
     cell%unit_of_length = 1.0_wp
     cell%orthorhombic = .TRUE.
     cell%scaled_coordinates = .FALSE.
-    cell%subcells = 1.5_wp
+    cell%subcells = 2.0_wp
     cell%perd(:) = 1
     cell%hmat(:,:) = 0.0_wp
     cell%h_inv(:,:) = 0.0_wp
