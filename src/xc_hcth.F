@@ -85,13 +85,13 @@ CONTAINS
     INTEGER, INTENT(in)                      :: iparset
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
-      INTENT(inout), OPTIONAL                :: needs
+         INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'hcth93_lda_info', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     SELECT CASE(iparset)
     CASE(93)
@@ -101,6 +101,14 @@ CONTAINS
        END IF
        IF ( PRESENT ( shortform ) ) THEN
           shortform = "HCTH/93 xc energy functional (LDA)"
+       END IF
+    CASE(120)
+       IF ( PRESENT ( reference ) ) THEN
+          reference = "A. D. Boese, N. L. Doltsinis, N. C. Handy, and M. Sprik, J. Chem. Phys. 112, 1670 (2000);"//&
+               " HCTH/120 xc functional {LDA version}"
+       END IF
+       IF ( PRESENT ( shortform ) ) THEN
+          shortform = "HCTH/120 xc energy functional (LDA)"
        END IF
     CASE(147)
        IF ( PRESENT ( reference ) ) THEN
