@@ -29,7 +29,8 @@ MODULE xc_derivative_set_types
                                              cp_assert,&
                                              cp_error_get_logger,&
                                              cp_error_message,&
-                                             cp_error_type
+                                             cp_error_type,&
+                                             cp_assertion_failed
   USE cp_linked_list_xc_deriv,         ONLY: cp_sll_xc_deriv_dealloc,&
                                              cp_sll_xc_deriv_insert_ordered,&
                                              cp_sll_xc_deriv_next,&
@@ -43,7 +44,11 @@ MODULE xc_derivative_set_types
   USE pw_pool_types,                   ONLY: pw_pool_create_cr3d,&
                                              pw_pool_release,&
                                              pw_pool_retain,&
-                                             pw_pool_type
+                                             pw_pool_type,&
+                                             pw_pool_create
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_grids, only: pw_grid_construct,&
+       pw_grid_release
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_derivative_desc,              ONLY: MAX_DERIVATIVE_DESC_LENGTH,&
@@ -194,10 +199,11 @@ CONTAINS
 !!                 see module cp_error_handling 
 !!
 !!*** **********************************************************************
-  SUBROUTINE xc_dset_create(derivative_set, pw_pool, error)
+  SUBROUTINE xc_dset_create(derivative_set, pw_pool, local_bounds, error)
 
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
-    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(pw_pool_type), POINTER, optional    :: pw_pool
+    INTEGER, DIMENSION(2,3), OPTIONAL        :: local_bounds
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -206,6 +212,7 @@ CONTAINS
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
+    TYPE(pw_grid_type), pointer              :: pw_grid
 
     failure=.FALSE.
     
@@ -220,8 +227,24 @@ CONTAINS
        derivative_set%ref_count  = 1
        derivative_set_last_id_nr      = derivative_set_last_id_nr + 1
        derivative_set%id_nr      = derivative_set_last_id_nr
-       derivative_set%pw_pool => pw_pool
-       CALL pw_pool_retain(pw_pool, error=error)
+       IF (PRESENT(pw_pool)) THEN
+          derivative_set%pw_pool => pw_pool
+          CALL pw_pool_retain(pw_pool, error=error)
+          IF (PRESENT(local_bounds)) THEN
+             CALL cp_assert(ALL(pw_pool%pw_grid%bounds_local==local_bounds),&
+                  cp_failure_level,cp_assertion_failed,routineP,&
+                  "incompatible local_bounds and pw_pool",error,failure)
+          END IF
+       ELSE
+          !FM ugly hack, should be replaced by a pool only for 3d arrays
+          CPPrecondition(PRESENT(local_bounds),cp_failure_level,routineP,error,failure)
+          ALLOCATE(pw_grid,stat=stat)
+          call pw_grid_construct(pw_grid)
+          pw_grid%bounds_local=local_bounds
+          NULLIFY(derivative_set%pw_pool)
+          CALL pw_pool_create(derivative_set%pw_pool, pw_grid, error=error)
+          CALL pw_grid_release(pw_grid,error=error)
+       END IF
     END IF
 
   END SUBROUTINE xc_dset_create
