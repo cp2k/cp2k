@@ -31,7 +31,6 @@
 !******************************************************************************
 
 MODULE qs_mo_types
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -62,11 +61,13 @@ MODULE qs_mo_types
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE global_types,                    ONLY: LOW,global_environment_type
+  USE global_types,                    ONLY: LOW,&
+                                             global_environment_type
   USE kinds,                           ONLY: int_size,&
                                              wp => dp,&
                                              wp_size => dp_size
-  USE message_passing,                 ONLY: mp_bcast,mp_sum
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_sum
   USE orbital_pointers,                ONLY: nso
   USE output_utilities,                ONLY: print_warning
   USE particle_types,                  ONLY: particle_type
@@ -324,7 +325,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_density_matrix_blacs(mo_set,density_matrix,globenv)
+  SUBROUTINE calculate_density_matrix_blacs(mo_set,density_matrix,error)
 
 !   Purpose: Calculate the density matrix from the MO eigenvectors and the
 !            MO occupation numbers.
@@ -334,8 +335,8 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cp_full_matrix_type), POINTER        :: density_matrix
-    TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local variables ***
 
@@ -343,7 +344,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("calculate_density_matrix","I","",handle)
+    CALL timeset("calculate_density_matrix_blacs","I","",handle)
 
     CALL cp_fm_syrk("U","N",mo_set%lfomo-1,mo_set%maxocc,mo_set%eigenvectors,&
                     1,1,0.0_wp,density_matrix)
@@ -361,7 +362,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_density_matrix_sparse(mo_set,density_matrix,globenv)
+  SUBROUTINE calculate_density_matrix_sparse(mo_set,density_matrix,error)
 
 !   Purpose: Calculate the density matrix
 
@@ -371,8 +372,8 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER           :: density_matrix
-    TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local variables ***
 
@@ -380,7 +381,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("calculate_density_matrix","I","",handle)
+    CALL timeset("calculate_density_matrix_sparse","I","",handle)
 
     CALL set_matrix(density_matrix,0.0_wp)
 

@@ -212,7 +212,7 @@ CONTAINS
        nspins=dft_control%nspins
 
        ks_env%s_mstruct_changed=.TRUE.
-       ks_env%p_changed=.TRUE.
+       ks_env%rho_changed=.TRUE.
        ks_env%forces_up_to_date=.FALSE.
        ks_env%n_evals=0
        ks_env%ref_count=1
@@ -603,7 +603,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
   CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
   IF (.NOT. failure) THEN
-     IF (ks_env%p_changed .OR. ks_env%s_mstruct_changed .OR.&
+     IF (ks_env%rho_changed .OR. ks_env%s_mstruct_changed .OR.&
           (c_forces.AND..NOT.ks_env%forces_up_to_date)) THEN
         did_update=.TRUE.
         CALL get_qs_env(qs_env,k=ks,rho=rho,energy=energy,&
@@ -634,7 +634,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
              calculate_forces=c_forces,just_energy=energy_only,&
              error=error)
         IF(.NOT.energy_only) THEN
-           ks_env%p_changed=.FALSE.
+           ks_env%rho_changed=.FALSE.
            ks_env%s_mstruct_changed=.FALSE.
            ks_env%forces_up_to_date=.NOT.c_forces
         END IF
@@ -662,10 +662,10 @@ END SUBROUTINE qs_ks_update_qs_env
 !!
 !!   SYNOPSIS
 !!     Subroutine qs_ks_did_change(ks_env, qs_env, s_mstruct_changed,&
-!!         p_changed, full_reset, error)
+!!         rho_changed, full_reset, error)
 !!       Type(qs_ks_env_type), Pointer:: ks_env
 !!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
-!!       Logical, Intent (IN), Optional:: s_mstruct_changed, p_changed,&
+!!       Logical, Intent (IN), Optional:: s_mstruct_changed, rho_changed,&
 !!         full_reset
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine qs_ks_did_change
@@ -684,7 +684,7 @@ END SUBROUTINE qs_ks_update_qs_env
 !!     - s_mstruct_changed: if true it means that the structure of the
 !!       overlap matrix has changed
 !!       (atoms have moved)
-!!     - p_changed: if true it means that the density has changed
+!!     - rho_changed: if true it means that the density has changed
 !!     - full_reset: if true everything has changed
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
@@ -697,10 +697,10 @@ END SUBROUTINE qs_ks_update_qs_env
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_ks_did_change(ks_env,qs_env,s_mstruct_changed,&
-     p_changed,full_reset,error)
+     rho_changed,full_reset,error)
   TYPE(qs_ks_env_type), POINTER :: ks_env
   TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
-  LOGICAL, INTENT(in), OPTIONAL :: s_mstruct_changed, p_changed, full_reset
+  LOGICAL, INTENT(in), OPTIONAL :: s_mstruct_changed, rho_changed, full_reset
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -711,8 +711,8 @@ SUBROUTINE qs_ks_did_change(ks_env,qs_env,s_mstruct_changed,&
   CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     IF (PRESENT(p_changed)) THEN
-        IF (p_changed) ks_env%p_changed=.TRUE.
+     IF (PRESENT(rho_changed)) THEN
+        IF (rho_changed) ks_env%rho_changed=.TRUE.
      END IF
      IF (PRESENT(s_mstruct_changed)) THEN
         IF (s_mstruct_changed) THEN

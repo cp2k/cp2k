@@ -199,6 +199,7 @@ CONTAINS
        pool%id_nr=last_sm_pool_id_nr
        pool%ref_count=1
        NULLIFY(pool%cache)
+       PRINT *, routineP, "id=",pool%id_nr,"ref_count=",pool%ref_count,"pippo"
     END IF
   END SUBROUTINE sm_pool_create
 !***************************************************************************
@@ -237,6 +238,7 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
+       PRINT *, routineP, " id=",pool%id_nr,"ref_count=",pool%ref_count,"pippo"
        CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
 
        pool%ref_count=pool%ref_count+1
@@ -281,6 +283,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
     CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
+       PRINT *, routineP, "id=",pool%id_nr,"ref_count=",pool%ref_count,"pippo"
        iterator => pool%cache
        DO
           IF (.NOT.cp_sll_sm_next(iterator,el_att=m_att)) EXIT
@@ -328,11 +331,15 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(pool)) THEN
+       PRINT *, routineP, " id=",pool%id_nr,"ref_count=",pool%ref_count,"pippo"
        CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
        pool%ref_count=pool%ref_count-1
-       IF (pool%ref_count<1) THEN
+       IF (pool%ref_count==0) THEN
+
+          pool%ref_count=1
           CALL sm_pool_flush_cache(pool,error=error)
           CALL sm_struct_release(pool%matrix_struct,error=error)
+          pool%ref_count=0
 
           DEALLOCATE(pool,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
@@ -568,7 +575,7 @@ CONTAINS
 !FM    END IF
 
     IF (.NOT. failure) THEN
-!FM       CPPreconditionNoFail(matrix%ref_count==1,cp_warning_level,routineP,error)
+       CPPreconditionNoFail(matrix%ref_count==1,cp_warning_level,routineP,error)
        CALL cp_sll_sm_insert_el(pool%cache, element=matrix)
     END IF
     NULLIFY(matrix)
@@ -959,6 +966,9 @@ SUBROUTINE sm_pools_give_back_matrix_vect(pools,matrixes,error)
              matrixes(i)%matrix,error=error)
      END DO
   END IF
+  DEALLOCATE(matrixes,stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  NULLIFY(matrixes)
 END SUBROUTINE sm_pools_give_back_matrix_vect
 !***************************************************************************
 

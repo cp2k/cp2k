@@ -240,7 +240,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_sll_pw_create(sll,first_el,rest,error)
     TYPE(cp_sll_pw_type), POINTER :: sll
-    type(pw_type), target, OPTIONAL :: first_el
+    type(pw_type), pointer, OPTIONAL :: first_el
     TYPE(cp_sll_pw_type), POINTER, OPTIONAL :: rest
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
@@ -373,7 +373,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_sll_pw_set(sll,first_el,rest,error)
     TYPE(cp_sll_pw_type), POINTER :: sll
-    type(pw_type), target, OPTIONAL :: first_el
+    type(pw_type), pointer, OPTIONAL :: first_el
     TYPE(cp_sll_pw_type), POINTER, OPTIONAL :: rest
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
@@ -732,7 +732,7 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_pw_set_el_at(sll,index,value,error)
-    type(pw_type), target :: value
+    type(pw_type), pointer :: value
     TYPE(cp_sll_pw_type), POINTER :: sll
     INTEGER, INTENT(in) :: index
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -833,7 +833,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   SUBROUTINE cp_sll_pw_insert_el(sll,element,error)
     TYPE(cp_sll_pw_type), POINTER :: sll
-    type(pw_type), target:: element
+    type(pw_type), pointer:: element
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -921,7 +921,7 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_pw_insert_el_at(sll,element,index,error)
-    type(pw_type), target :: element
+    type(pw_type), pointer :: element
     INTEGER, INTENT(in) :: index
     TYPE(cp_sll_pw_type), POINTER :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -1303,7 +1303,7 @@ END FUNCTION cp_sll_pw_from_array
 SUBROUTINE cp_sll_pw_insert_ordered(sll,el,insert_equals,&
      did_insert,pos,error)
   TYPE(cp_sll_pw_type), POINTER :: sll
-  type(pw_type), target :: el
+  type(pw_type), pointer :: el
   LOGICAL, OPTIONAL, INTENT(in) :: insert_equals
   LOGICAL, OPTIONAL, INTENT(out) :: did_insert
   TYPE(cp_sll_pw_type), POINTER, OPTIONAL :: pos
@@ -1384,12 +1384,12 @@ END SUBROUTINE cp_sll_pw_insert_ordered
 SUBROUTINE cp_sll_pw_insert_ordered2(sll,el,compare_function,&
      insert_equals,error)
   TYPE(cp_sll_pw_type), POINTER :: sll
-  type(pw_type), target :: el
+  type(pw_type), pointer :: el
   INTERFACE
      FUNCTION compare_function(el1,el2)
        USE pw_types, ONLY: pw_type, pw_p_type, pw_write
        INTEGER :: compare_function
-       type(pw_type), target :: el1,el2
+       type(pw_type), pointer :: el1,el2
      END FUNCTION compare_function
   END INTERFACE
   LOGICAL, OPTIONAL, INTENT(in) :: insert_equals
@@ -1463,7 +1463,7 @@ END SUBROUTINE cp_sll_pw_insert_ordered2
 FUNCTION cp_sll_pw_contains(sll,el,ordered,error) RESULT(res)
   LOGICAL ::res
   TYPE(cp_sll_pw_type), POINTER :: sll
-  type(pw_type), target :: el
+  type(pw_type), pointer :: el
   LOGICAL, INTENT(in), OPTIONAL :: ordered
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
@@ -1530,12 +1530,12 @@ FUNCTION cp_sll_pw_contains2(sll,el,compare_function,ordered,error)&
      RESULT(res)
   LOGICAL ::res
   TYPE(cp_sll_pw_type), POINTER :: sll
-  type(pw_type), target :: el
+  type(pw_type), pointer :: el
   INTERFACE
      FUNCTION compare_function(el1,el2)
        USE pw_types, ONLY: pw_type, pw_p_type, pw_write
        INTEGER :: compare_function
-       type(pw_type), target :: el1,el2
+       type(pw_type), pointer :: el1,el2
      END FUNCTION compare_function
   END INTERFACE
   LOGICAL, INTENT(in), OPTIONAL :: ordered
@@ -1590,7 +1590,7 @@ END FUNCTION cp_sll_pw_contains2
 !  nametype1 = "pw"
 !  type1 = "type(pw_type),pointer"
 !  type1arrayEl = "type(pw_p_type)"
-!  type1in = "type(pw_type), target"
+!  type1in = "type(pw_type), pointer"
 !  type1out = "type(pw_type), pointer"
 !  write_el = "pw_write"
 

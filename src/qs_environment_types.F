@@ -823,55 +823,44 @@ SUBROUTINE qs_env_update_h_redundant_pools(qs_env,error)
   CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(qs_env%S_sm_pools),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
+     CALL sm_pools_dealloc(qs_env%H_redundant_sm_pools,&
+          error=error) ! try to update ?
+
      CALL get_atomic_kind_set(atomic_kind_set=qs_env%atomic_kind_set,&
           gth_potential_present=gth_potential_present)
+
      IF ((qs_env%para_env%num_pe == 1).OR..NOT.gth_potential_present) THEN
-        IF (ASSOCIATED(qs_env%H_redundant_sm_pools)) THEN
-           CALL sm_pools_dealloc(qs_env%H_redundant_sm_pools,&
-                error=error)
-        END IF
         CALL sm_pools_copy(qs_env%S_sm_pools,qs_env%H_redundant_sm_pools,&
              error=error)
      ELSE
-        IF (ASSOCIATED(qs_env%H_redundant_sm_pools)) THEN
-           h_mstruct => sm_pool_get_mstruct(qs_env%H_redundant_sm_pools(1)%pool,&
-                error=error)
-           CALL sm_struct_clear_local_blocks(h_mstruct,error=error)
-        ELSE
-           s_mstruct => sm_pool_get_mstruct(qs_env%S_sm_pools(1)%pool,error=error)
-           CALL sm_struct_create(h_mstruct, &
-                block_begins_at_row=s_mstruct%block_begins_at_row,&
-                block_begins_at_col=s_mstruct%block_begins_at_col,&
-                para_env=s_mstruct%para_env, symmetry="symmetric",&
-                error=error)
-           NULLIFY(s_mstruct)
-        END IF
+        s_mstruct => sm_pool_get_mstruct(qs_env%S_sm_pools(1)%pool,error=error)
+        CALL sm_struct_create(h_mstruct, &
+             block_begins_at_row=s_mstruct%block_begins_at_row,&
+             block_begins_at_col=s_mstruct%block_begins_at_col,&
+             para_env=s_mstruct%para_env, symmetry="symmetric",&
+             error=error)
+        NULLIFY(s_mstruct)
         
         CALL sm_struct_add_sm_local_blocks(h_mstruct,&
              matrix=qs_env%h(1)%matrix,&
              error=error)  
         
-        IF (.NOT.ASSOCIATED(qs_env%H_redundant_sm_pools)) THEN
-           ALLOCATE(qs_env%H_redundant_sm_pools(SIZE(qs_env%S_sm_pools)),&
-                stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(qs_env%H_redundant_sm_pools(SIZE(qs_env%S_sm_pools)),&
+             stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        
+        NULLIFY(qs_env%H_redundant_sm_pools(1)%pool)
+        CALL sm_pool_create(qs_env%H_redundant_sm_pools(1)%pool,&
+             matrix_struct=h_mstruct,&
+             error=error)
+        CALL sm_struct_release(h_mstruct,error=error)
            
-           NULLIFY(qs_env%H_redundant_sm_pools(1)%pool)
-           CALL sm_pool_create(qs_env%H_redundant_sm_pools(1)%pool,&
-                matrix_struct=h_mstruct,&
+        DO ispin=2,SIZE(qs_env%H_redundant_sm_pools)
+           qs_env%H_redundant_sm_pools(ispin)%pool => &
+                qs_env%H_redundant_sm_pools(1)%pool
+           CALL sm_pool_retain(qs_env%H_redundant_sm_pools(ispin)%pool,&
                 error=error)
-           CALL sm_struct_release(h_mstruct,error=error)
-           
-           DO ispin=2,SIZE(qs_env%H_redundant_sm_pools)
-              qs_env%H_redundant_sm_pools(ispin)%pool => &
-                   qs_env%H_redundant_sm_pools(1)%pool
-              CALL sm_pool_retain(qs_env%H_redundant_sm_pools(ispin)%pool,&
-                   error=error)
-           END DO
-        ELSE
-           NULLIFY(h_mstruct)
-           CALL sm_pools_flush_cache(qs_env%H_redundant_sm_pools,error=error)
-        END IF
+        END DO
         ! in future should set qs_env%h(:)%matrix_structure
      END IF
   END IF

@@ -100,6 +100,7 @@ MODULE qs_scf
                                              sm_pool_create_matrix,&
                                              sm_pool_give_back_matrix,&
                                              sm_pools_create_matrix_vect,&
+                                             sm_pools_flush_cache,&
                                              sm_pools_give_back_matrix_vect
   USE cube_utils,                      ONLY: cube_info_type,&
                                              destroy_cube_info,&
@@ -116,8 +117,8 @@ MODULE qs_scf
   USE l_utils,                         ONLY: destroy_l_info,&
                                              init_l_info,&
                                              l_info_type
-  USE machine,                         ONLY: m_walltime,&
-                                             m_flush
+  USE machine,                         ONLY: m_flush,&
+                                             m_walltime
   USE mathconstants,                   ONLY: fourpi,&
                                              twopi
   USE message_passing,                 ONLY: mp_allgather,&
@@ -248,6 +249,11 @@ MODULE qs_scf
   USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                              scf_env_release,&
                                              scf_env_retain
+  USE qs_wf_history_methods,           ONLY: wfi_extrapolate,&
+                                             wfi_update
+  USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
+                                             qs_wf_snapshot_p_type,&
+                                             qs_wf_snapshot_type
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
   USE scf_control_types,               ONLY: scf_control_type
   USE simulation_cell,                 ONLY: cell_type,&
@@ -693,7 +699,7 @@ CONTAINS
              END IF
 
              CALL calculate_density_matrix(c(ispin)%mo_set,&
-                  scf_env%p_new(ispin)%matrix,globenv)
+                  scf_env%p_new(ispin)%matrix,error=error)
 
           ENDDO
 
@@ -705,7 +711,8 @@ CONTAINS
                energy_only,scf_env%iter_delta,scf_env%qs_ot_env,globenv)
 
           DO ispin=1,dft_control%nspins
-             CALL calculate_density_matrix(c(ispin)%mo_set,scf_env%p_new(ispin)%matrix,globenv)
+             CALL calculate_density_matrix(c(ispin)%mo_set,&
+                  scf_env%p_new(ispin)%matrix,error=error)
           ENDDO
 
           scf_env%iter_method=scf_env%qs_ot_env(1)%OT_METHOD_FULL
@@ -748,7 +755,7 @@ CONTAINS
 ! ** update qs_env%rho
        CALL qs_rho_update_rho(rho, rho_ao_new=scf_env%p_new, qs_env=qs_env,&
             rebuild=rebuild, error=error)
-       CALL qs_ks_did_change(ks_env,qs_env,p_changed=.TRUE.,error=error)      
+       CALL qs_ks_did_change(ks_env,qs_env,rho_changed=.TRUE.,error=error)      
 
        CALL timestop(0.0_wp,handle2)
 
@@ -789,7 +796,7 @@ CONTAINS
 ! ** update qs_env%rho
     CALL qs_rho_update_rho(rho, rho_ao_new=scf_env%p_new, qs_env=qs_env,&
          rebuild=rebuild, error=error)
-    CALL qs_ks_did_change(ks_env,qs_env,p_changed=.TRUE.,error=error)
+    CALL qs_ks_did_change(ks_env,qs_env,rho_changed=.TRUE.,error=error)
 
 ! *** print out info
     CALL scf_env_post_calc(scf_env=scf_env, qs_env=qs_env, &
@@ -1234,7 +1241,7 @@ CONTAINS
     IF (.not.ASSOCIATED(scf_env%p_new)) THEN
        CALL sm_pools_create_matrix_vect(S_sm_pools,scf_env%p_new,&
             name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-            "DENSITY-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+            "DENSITY",&
             error=error)
     END IF
 
@@ -1602,7 +1609,8 @@ CONTAINS
           CALL blacs_make_basis(mo_eigenvectors,homo, &
                ortho=sv,otype="SV")
           CALL cp_fm_release(sv)
-          CALL calculate_density_matrix(mo_array(ispin)%mo_set,p_rmpv(ispin)%matrix,globenv)
+          CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
+               p_rmpv(ispin)%matrix,error=error)
        ENDDO
 
     ELSE IF (scf_control%density_guess == "RANDOM") THEN
@@ -1618,7 +1626,8 @@ CONTAINS
           CALL blacs_make_basis(mo_eigenvectors,nmo, &
                ortho=sv,otype="SV")
           CALL cp_fm_release(sv)
-          CALL calculate_density_matrix(mo_array(ispin)%mo_set,p_rmpv(ispin)%matrix,globenv)
+          CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
+               p_rmpv(ispin)%matrix,error=error)
        ENDDO
 
     ELSE IF (scf_control%density_guess == "CORE") THEN
@@ -1647,7 +1656,8 @@ CONTAINS
                   eigenvectors=mo_eigenvectors)
              CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
           END IF
-          CALL calculate_density_matrix(mo_array(ispin)%mo_set,p_rmpv(ispin)%matrix,globenv)
+          CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
+               p_rmpv(ispin)%matrix,error=error)
        ENDDO
 
     ELSE IF (scf_control%density_guess == "ATOMIC") THEN
@@ -1810,10 +1820,9 @@ CONTAINS
     TYPE(global_environment_type), INTENT(in), TARGET :: globenv
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    LOGICAL :: failure
+    LOGICAL :: failure, extrapolated
     CHARACTER(len=*), PARAMETER :: routineN='scf_env_initial_rho_setup',&
          routineP=moduleN//':'//routineN
-
     INTEGER :: handle
 
     CALL timeset(routineN,"I","",handle)
@@ -1822,16 +1831,20 @@ CONTAINS
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       IF (.FALSE.) THEN
-! wf extrapolation to do
-       ELSE
+       extrapolated=.FALSE.
+       IF (ASSOCIATED(qs_env%wf_history)) THEN
+          CALL wfi_extrapolate(qs_env%wf_history, &
+               qs_env=qs_env, dt=1.0_wp, extrapolated=extrapolated,&
+               error=error)
+       END IF
+       IF (.NOT.extrapolated) THEN
           CALL calculate_first_density_matrix(scf_env=scf_env,qs_env=qs_env,&
                globenv=globenv, error=error)
 ! update qs_env%rho
           CALL qs_rho_update_rho(qs_env%rho, rho_ao_new=scf_env%p_new,&
                qs_env=qs_env,&
                rebuild=.TRUE., error=error)
-          CALL qs_ks_did_change(qs_env%ks_env,qs_env,p_changed=.TRUE.,&
+          CALL qs_ks_did_change(qs_env%ks_env,qs_env,rho_changed=.TRUE.,&
                error=error)
 
        END IF
@@ -1914,6 +1927,11 @@ CONTAINS
        CALL get_qs_env(qs_env,dft_control=dft_control,&
             c=c,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
             rho=rho,k=ks_rmpv,scf_control=scf_control,s=s,error=error)
+
+       IF (ASSOCIATED(qs_env%wf_history)) THEN
+          CALL wfi_update(qs_env%wf_history,qs_env=qs_env,dt=1.0_wp,&
+               error=error)
+       END IF
 
 !   *** Write last wavefunction to screen ??????? ***
 
@@ -2157,7 +2175,7 @@ CONTAINS
           NULLIFY(Pfull) 
           CALL Replicate_matrix(S(1)%matrix,Pfull,"Full Density Matrix",.FALSE.)
           CALL Add_all_real_matrix_blocks(Pfull,Globenv)
-          CALL Calculate_density_matrix(c(1)%mo_set,Pfull,Globenv)
+          CALL Calculate_density_matrix(c(1)%mo_set,Pfull,error=error)
           CALL Write_blocks_maxabsval(Pfull,File_unit)
           CALL Deallocate_matrix(Pfull)
           CALL Close_file(Unit_number=File_unit)
@@ -2233,6 +2251,7 @@ CONTAINS
        IF (ASSOCIATED(scf_env%p_new)) THEN
           CALL sm_pools_give_back_matrix_vect(S_sm_pools,scf_env%p_new,&
                error=error)
+          CALL sm_pools_flush_cache(S_sm_pools,error=error)
        END IF
 
 ! *** method dependent cleanup
@@ -2311,6 +2330,7 @@ SUBROUTINE scf_env_did_change(scf_env,qs_env,s_mstruct_changed,error)
   CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      IF (ASSOCIATED(scf_env%p_new)) THEN
+        PRINT *, routineP, "pippo"
         CALL deallocate_matrix_set(scf_env%p_new)
      END IF
   END IF

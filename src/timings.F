@@ -20,24 +20,21 @@
 !******************************************************************************
 
 MODULE timings
-
-  USE kinds, ONLY: dbl
-
-  USE global_types,     ONLY: global_environment_type
-  USE machine,          ONLY: m_cputime,&
-                              m_flush,&
-                              m_getpid,&
-                              m_walltime,&
-                              print_memory
-  USE mathconstants,    ONLY: zero
-  USE message_passing,  ONLY: mp_sync,&
-                              mp_world_setup
-  USE string_utilities, ONLY: compress,&
-                              uppercase,&
-                              xstring
-  USE termination,      ONLY: stop_program
-  USE util,             ONLY: sort
-
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE machine,                         ONLY: m_cputime,&
+                                             m_flush,&
+                                             m_getpid,&
+                                             m_walltime,&
+                                             print_memory
+  USE mathconstants,                   ONLY: zero
+  USE message_passing,                 ONLY: mp_sync,&
+                                             mp_world_setup
+  USE string_utilities,                ONLY: compress,&
+                                             uppercase,&
+                                             xstring
+  USE termination,                     ONLY: stop_program
+  USE util,                            ONLY: sort
   PRIVATE
 
   PUBLIC :: timeset, timestop, timeprint, trace_debug, print_stack,&
@@ -47,6 +44,7 @@ MODULE timings
   INTEGER, PARAMETER :: max_stack = 5000
   INTEGER :: stack_size
   CHARACTER ( LEN = 80 ) :: routine_stack ( max_stack ), routine_name
+  INTEGER :: handle_stack (max_stack)=0
 
 ! subroutine timing and performance information
   INTEGER, PARAMETER :: max_timer = 5000
@@ -65,7 +63,7 @@ MODULE timings
   INTEGER :: num_timer = 0
 
   INTEGER :: iod = 6
-  LOGICAL :: trace = .false.
+  LOGICAL :: trace = .FALSE.
   CHARACTER ( LEN = 15 ) :: astring, bstring
 
 !!*****
@@ -78,6 +76,15 @@ CONTAINS
 !!
 !!   NAME
 !!     timeset
+!!
+!!   SYNOPSIS
+!!     Subroutine timeset(name, ct, pu, handle)
+!!       Implicit None
+!!       Character(Len=*), Intent (IN):: name
+!!       Character(Len=1), Intent (IN):: ct
+!!       Character(Len=*), Intent (IN):: pu
+!!       Integer, Intent (OUT):: handle
+!!     End Subroutine timeset
 !!
 !!   FUNCTION
 !!     Start timer
@@ -113,8 +120,8 @@ SUBROUTINE timeset ( name, ct, pu, handle )
   routine_stack ( stack_size ) = name
 
 !..if debug mode echo the subroutine name
-  write(sformat,*) "(A,",MAX(1,3*stack_size-9),"X,I4,1X,A,A)"
-  IF ( trace ) write ( mystring, sformat) &
+  WRITE(sformat,*) "(A,",MAX(1,3*stack_size-9),"X,I4,1X,A,A)"
+  IF ( trace ) WRITE ( mystring, sformat) &
      astring,stack_size,TRIM( routine_stack ( stack_size )),"       start"
   IF ( trace ) CALL print_memory(TRIM(mystring))
 
@@ -140,7 +147,7 @@ SUBROUTINE timeset ( name, ct, pu, handle )
      routine_calls ( handle ) = 0
      routine_stack_depth ( handle ) = 0
   END IF
-
+ 
 !..start clock (if not yet started, i.e. recursive calls)
   IF ( clock_status ( handle ) ==0 ) THEN
      clock_start ( handle ) = m_cputime ( )
@@ -151,6 +158,8 @@ SUBROUTINE timeset ( name, ct, pu, handle )
   routine_calls ( handle ) = routine_calls ( handle ) + 1
   routine_stack_depth ( handle ) = routine_stack_depth ( handle ) + stack_size
 
+  handle_stack (stack_size) = handle
+
 END SUBROUTINE timeset
 
 !!*****
@@ -159,6 +168,15 @@ END SUBROUTINE timeset
 !!
 !!   NAME
 !!     timeset
+!!
+!!   SYNOPSIS
+!!     Subroutine timeset(name, ct, pu, handle)
+!!       Implicit None
+!!       Character(Len=*), Intent (IN):: name
+!!       Character(Len=1), Intent (IN):: ct
+!!       Character(Len=*), Intent (IN):: pu
+!!       Integer, Intent (OUT):: handle
+!!     End Subroutine timeset
 !!
 !!   FUNCTION
 !!     End timer
@@ -188,6 +206,12 @@ SUBROUTINE timestop ( perf, handle )
 
 !------------------------------------------------------------------------------
 
+  IF ( handle /= handle_stack (stack_size) ) THEN
+     CALL stop_program ( 'timestop', 'mismatched timestop '//&
+          TRIM(routine_stack(stack_size)) )
+  END IF
+  handle_stack (stack_size)=0
+     
   IF ( handle > num_timer ) THEN
      CALL stop_program ( 'timestop', 'handle > num_timer' )
   ELSE
@@ -206,8 +230,8 @@ SUBROUTINE timestop ( perf, handle )
      END DO
 
 !..if debug mode echo the subroutine name
-  write(sformat,*) "(A,",MAX(1,3*stack_size-9),"X,I4,1X,A,F12.3)"
-  IF ( trace ) write ( mystring, sformat) &
+  WRITE(sformat,*) "(A,",MAX(1,3*stack_size-9),"X,I4,1X,A,F12.3)"
+  IF ( trace ) WRITE ( mystring, sformat) &
      bstring,stack_size,TRIM(routine_stack(stack_size)),cpt
   IF ( trace ) CALL print_memory(TRIM(mystring ))
 
@@ -223,6 +247,12 @@ END SUBROUTINE timestop
 !!
 !!   NAME
 !!     timeprint
+!!
+!!   SYNOPSIS
+!!     Subroutine timeprint(iw, global_print_level)
+!!       Implicit None
+!!       Integer, Intent (IN):: global_print_level, iw
+!!     End Subroutine timeprint
 !!
 !!   FUNCTION
 !!     Print accumulated information on timers
@@ -277,7 +307,7 @@ SUBROUTINE timeprint(iw,global_print_level)
 
      DO i=num_timer,1,-1
 
-       j = index(i)
+       j = INDEX(i)
 
        IF (wallclock_accu(i) > mintime) THEN
 
@@ -316,6 +346,13 @@ END SUBROUTINE timeprint
 !!
 !!   NAME
 !!     trace_debug
+!!
+!!   SYNOPSIS
+!!     Subroutine trace_debug(set, iw)
+!!       Implicit None
+!!       Character(Len=*):: set
+!!       Integer, Optional:: iw
+!!     End Subroutine trace_debug
 !!
 !!   FUNCTION
 !!     Set routine tracer
@@ -371,6 +408,12 @@ END SUBROUTINE trace_debug
 !!
 !!   NAME
 !!     print_stack
+!!
+!!   SYNOPSIS
+!!     Subroutine print_stack(iw)
+!!       Implicit None
+!!       Integer, Optional:: iw
+!!     End Subroutine print_stack
 !!
 !!   FUNCTION
 !!     Print current routine stack

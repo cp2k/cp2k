@@ -384,17 +384,17 @@ END SUBROUTINE cp_sm_scale_and_add
 
           CALL get_block_node(block_node=block_node,&
                               block_col=iblock_col,&
-                              block=c_block)
+                              BLOCK=c_block)
 
           CALL get_block_node(matrix=a,&
                               block_row=iblock_row,&
                               block_col=iblock_col,&
-                              block=a_block)
+                              BLOCK=a_block)
 
           CALL get_block_node(matrix=b,&
                               block_row=iblock_row,&
                               block_col=iblock_col,&
-                              block=b_block)
+                              BLOCK=b_block)
 
           IF (ASSOCIATED(a_block)) THEN
             IF (ASSOCIATED(b_block)) THEN
@@ -426,17 +426,17 @@ END SUBROUTINE cp_sm_scale_and_add
 
           CALL get_block_node(block_node=block_node,&
                               block_col=iblock_col,&
-                              block=c_block)
+                              BLOCK=c_block)
 
           CALL get_block_node(matrix=a,&
                               block_row=iblock_row,&
                               block_col=iblock_col,&
-                              block=a_block)
+                              BLOCK=a_block)
 
           CALL get_block_node(matrix=b,&
                               block_row=iblock_row,&
                               block_col=iblock_col,&
-                              block=b_block)
+                              BLOCK=b_block)
 
           IF (ASSOCIATED(a_block)) THEN
             IF (ASSOCIATED(b_block)) THEN
@@ -1268,8 +1268,10 @@ END SUBROUTINE cp_sm_scale_and_add
 
 !   ---------------------------------------------------------------------------
 
+    PRINT *, "deallocating matrix, pippo"
     IF (.NOT.ASSOCIATED(matrix)) RETURN
 
+    PRINT *, " deallocate_id=",matrix%id_nr," pippo"
     DO iblock_row=1,matrix%nblock_row
       CALL deallocate_matrix_row(matrix,iblock_row)
     END DO

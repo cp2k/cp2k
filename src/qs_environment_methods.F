@@ -80,6 +80,7 @@ MODULE qs_environment_methods
                                              sm_pool_get_mstruct,&
                                              sm_pool_release,&
                                              sm_pool_retain,&
+                                             sm_pools_dealloc,&
                                              sm_pools_flush_cache
   USE cp_sm_struct,                    ONLY: cp_sm_struct_type,&
                                              sm_struct_clear_local_blocks,&
@@ -276,7 +277,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='qs_env_update_s_mstruct',&
         routineP=moduleN//':'//routineN
-  INTEGER :: n_atoms, stat, ispin
+  INTEGER :: n_atoms, stat, ispin, handle
   INTEGER, DIMENSION(:), ALLOCATABLE :: block_begins_at
   INTEGER, DIMENSION(:), POINTER :: first_row, first_col, last_row, last_col
   TYPE(cp_para_env_type), POINTER :: para_env
@@ -284,6 +285,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
   TYPE(dft_control_type), POINTER :: dft_control
   TYPE(cp_logger_type), POINTER :: logger
 
+  CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
   NULLIFY(first_row, first_col, last_row, last_col, para_env,s_mstruct,&
        dft_control)
@@ -296,25 +298,22 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
   n_atoms=SIZE(qs_env%particle_set)
   
   ! *** rebuilds the S_sm_pools ***
-  IF (ASSOCIATED(qs_env%S_sm_pools)) THEN
-     s_mstruct => sm_pool_get_mstruct(qs_env%S_sm_pools(1)%pool,error=error)
-     CALL sm_struct_clear_local_blocks(s_mstruct,error=error)
-  ELSE
-     ALLOCATE(block_begins_at(n_atoms+1), stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     block_begins_at(1:n_atoms)=qs_env%particle_set(1:n_atoms)%first_sgf
-     block_begins_at(n_atoms+1)=qs_env%particle_set(n_atoms)%last_sgf+1
-     
-     CALL sm_struct_create(s_mstruct, &
-          block_begins_at_row=block_begins_at,&
-          block_begins_at_col=block_begins_at,&
-          para_env=para_env, symmetry="symmetric",&
-          error=error)
+  CALL sm_pools_dealloc(qs_env%S_sm_pools,error=error) ! update instread?
 
-     DEALLOCATE(block_begins_at,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-  END IF
-
+  ALLOCATE(block_begins_at(n_atoms+1), stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  block_begins_at(1:n_atoms)=qs_env%particle_set(1:n_atoms)%first_sgf
+  block_begins_at(n_atoms+1)=qs_env%particle_set(n_atoms)%last_sgf+1
+  
+  CALL sm_struct_create(s_mstruct, &
+       block_begins_at_row=block_begins_at,&
+       block_begins_at_col=block_begins_at,&
+       para_env=para_env, symmetry="symmetric",&
+       error=error)
+  
+  DEALLOCATE(block_begins_at,stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  
   CALL get_matrix_info(qs_env%s(1)%matrix,first_row=first_row,&
        last_row=last_row, first_col=first_col,&
        last_col=last_col)
@@ -346,24 +345,19 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
        matrix=qs_env%s(1)%matrix,&
        error=error)
   
-  IF (.not.ASSOCIATED(qs_env%S_sm_pools)) THEN
-     ALLOCATE(qs_env%S_sm_pools(dft_control%nspins),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     
-     NULLIFY(qs_env%S_sm_pools(1)%pool)
-     CALL sm_pool_create(qs_env%S_sm_pools(1)%pool,matrix_struct=s_mstruct,&
-          error=error)
-     CALL sm_struct_release(s_mstruct,error=error)
-     
-     DO ispin=2,dft_control%nspins
-        qs_env%S_sm_pools(ispin)%pool => qs_env%S_sm_pools(1)%pool
-        CALL sm_pool_retain(qs_env%S_sm_pools(ispin)%pool,error=error)
-     END DO
-  ELSE
-     NULLIFY(s_mstruct)
-     CALL sm_pools_flush_cache(qs_env%S_sm_pools)
-  END IF
-
+  ALLOCATE(qs_env%S_sm_pools(dft_control%nspins),stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  
+  NULLIFY(qs_env%S_sm_pools(1)%pool)
+  CALL sm_pool_create(qs_env%S_sm_pools(1)%pool,matrix_struct=s_mstruct,&
+       error=error)
+  CALL sm_struct_release(s_mstruct,error=error)
+  
+  DO ispin=2,dft_control%nspins
+     qs_env%S_sm_pools(ispin)%pool => qs_env%S_sm_pools(1)%pool
+     CALL sm_pool_retain(qs_env%S_sm_pools(ispin)%pool,error=error)
+  END DO
+ 
   ! *** removes h, k , kinetic (that have the wrong structure)
   IF (ASSOCIATED(qs_env%h))&
        CALL deallocate_matrix_set(qs_env%h)
@@ -397,7 +391,9 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
           s_mstruct_changed=.TRUE.,&
           error=error)
   END IF
-  
+
+  CALL timestop(0.0_wp,handle)
+
 END SUBROUTINE qs_env_update_s_mstruct
 !***************************************************************************
 

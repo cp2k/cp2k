@@ -41,7 +41,7 @@
 {
  'nametype1':'pw', 
  'type1':'type(pw_type),pointer', 
- 'type1in':'type(pw_type), target',
+ 'type1in':'type(pw_type), pointer',
  'type1out':'type(pw_type), pointer',
  'USE':'USE pw_types, ONLY: pw_type, pw_p_type, pw_write',
  'defines':
@@ -61,7 +61,7 @@
 {
  'nametype1':'fm', 
  'type1':'type(cp_full_matrix_type),pointer', 
- 'type1in':'type(cp_full_matrix_type), target',
+ 'type1in':'type(cp_full_matrix_type), pointer',
  'type1out':'type(cp_full_matrix_type), pointer',
  'USE':
 """USE cp_fm_types, ONLY: cp_full_matrix_type, cp_full_matrix_p_type,&
@@ -83,7 +83,7 @@
 {
  'nametype1':'sm', 
  'type1':'type(real_matrix_type),pointer', 
- 'type1in':'type(real_matrix_type), target',
+ 'type1in':'type(real_matrix_type), pointer',
  'type1out':'type(real_matrix_type), pointer',
  'USE':
 """USE sparse_matrix_types, ONLY: real_matrix_type, real_matrix_p_type,&
@@ -106,7 +106,7 @@ USE cp_matrix_utils, ONLY: cp_sm_write""",
 {
  'nametype1':'rs_grid', 
  'type1':'type(realspace_grid_type),pointer', 
- 'type1in':'type(realspace_grid_type), target',
+ 'type1in':'type(realspace_grid_type), pointer',
  'type1out':'type(realspace_grid_type), pointer',
  'USE':
 """USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&

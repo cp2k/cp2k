@@ -241,7 +241,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_sll_rs_grid_create(sll,first_el,rest,error)
     TYPE(cp_sll_rs_grid_type), POINTER :: sll
-    type(realspace_grid_type), target, OPTIONAL :: first_el
+    type(realspace_grid_type), pointer, OPTIONAL :: first_el
     TYPE(cp_sll_rs_grid_type), POINTER, OPTIONAL :: rest
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
@@ -374,7 +374,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_sll_rs_grid_set(sll,first_el,rest,error)
     TYPE(cp_sll_rs_grid_type), POINTER :: sll
-    type(realspace_grid_type), target, OPTIONAL :: first_el
+    type(realspace_grid_type), pointer, OPTIONAL :: first_el
     TYPE(cp_sll_rs_grid_type), POINTER, OPTIONAL :: rest
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
@@ -733,7 +733,7 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_rs_grid_set_el_at(sll,index,value,error)
-    type(realspace_grid_type), target :: value
+    type(realspace_grid_type), pointer :: value
     TYPE(cp_sll_rs_grid_type), POINTER :: sll
     INTEGER, INTENT(in) :: index
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -834,7 +834,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   SUBROUTINE cp_sll_rs_grid_insert_el(sll,element,error)
     TYPE(cp_sll_rs_grid_type), POINTER :: sll
-    type(realspace_grid_type), target:: element
+    type(realspace_grid_type), pointer:: element
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -922,7 +922,7 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_rs_grid_insert_el_at(sll,element,index,error)
-    type(realspace_grid_type), target :: element
+    type(realspace_grid_type), pointer :: element
     INTEGER, INTENT(in) :: index
     TYPE(cp_sll_rs_grid_type), POINTER :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -1304,7 +1304,7 @@ END FUNCTION cp_sll_rs_grid_from_array
 SUBROUTINE cp_sll_rs_grid_insert_ordered(sll,el,insert_equals,&
      did_insert,pos,error)
   TYPE(cp_sll_rs_grid_type), POINTER :: sll
-  type(realspace_grid_type), target :: el
+  type(realspace_grid_type), pointer :: el
   LOGICAL, OPTIONAL, INTENT(in) :: insert_equals
   LOGICAL, OPTIONAL, INTENT(out) :: did_insert
   TYPE(cp_sll_rs_grid_type), POINTER, OPTIONAL :: pos
@@ -1385,13 +1385,13 @@ END SUBROUTINE cp_sll_rs_grid_insert_ordered
 SUBROUTINE cp_sll_rs_grid_insert_ordered2(sll,el,compare_function,&
      insert_equals,error)
   TYPE(cp_sll_rs_grid_type), POINTER :: sll
-  type(realspace_grid_type), target :: el
+  type(realspace_grid_type), pointer :: el
   INTERFACE
      FUNCTION compare_function(el1,el2)
        USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
     rs_grid_write
        INTEGER :: compare_function
-       type(realspace_grid_type), target :: el1,el2
+       type(realspace_grid_type), pointer :: el1,el2
      END FUNCTION compare_function
   END INTERFACE
   LOGICAL, OPTIONAL, INTENT(in) :: insert_equals
@@ -1465,7 +1465,7 @@ END SUBROUTINE cp_sll_rs_grid_insert_ordered2
 FUNCTION cp_sll_rs_grid_contains(sll,el,ordered,error) RESULT(res)
   LOGICAL ::res
   TYPE(cp_sll_rs_grid_type), POINTER :: sll
-  type(realspace_grid_type), target :: el
+  type(realspace_grid_type), pointer :: el
   LOGICAL, INTENT(in), OPTIONAL :: ordered
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
@@ -1532,13 +1532,13 @@ FUNCTION cp_sll_rs_grid_contains2(sll,el,compare_function,ordered,error)&
      RESULT(res)
   LOGICAL ::res
   TYPE(cp_sll_rs_grid_type), POINTER :: sll
-  type(realspace_grid_type), target :: el
+  type(realspace_grid_type), pointer :: el
   INTERFACE
      FUNCTION compare_function(el1,el2)
        USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
     rs_grid_write
        INTEGER :: compare_function
-       type(realspace_grid_type), target :: el1,el2
+       type(realspace_grid_type), pointer :: el1,el2
      END FUNCTION compare_function
   END INTERFACE
   LOGICAL, INTENT(in), OPTIONAL :: ordered
@@ -1595,7 +1595,7 @@ END FUNCTION cp_sll_rs_grid_contains2
 !  nametype1 = "rs_grid"
 !  type1 = "type(realspace_grid_type),pointer"
 !  type1arrayEl = "type(realspace_grid_p_type)"
-!  type1in = "type(realspace_grid_type), target"
+!  type1in = "type(realspace_grid_type), pointer"
 !  type1out = "type(realspace_grid_type), pointer"
 !  write_el = "rs_grid_write"
 

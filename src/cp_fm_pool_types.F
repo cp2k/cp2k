@@ -322,9 +322,11 @@ CONTAINS
     IF (ASSOCIATED(pool)) THEN
        CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
        pool%ref_count=pool%ref_count-1
-       IF (pool%ref_count<1) THEN
+       IF (pool%ref_count==0) THEN
+          pool%ref_count=1
           CALL fm_pool_flush_cache(pool,error=error)
           CALL cp_fm_struct_release(pool%matrix_struct,error=error)
+          pool%ref_count=0
 
           DEALLOCATE(pool,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)

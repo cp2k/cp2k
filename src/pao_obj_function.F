@@ -652,8 +652,7 @@ CONTAINS
             globenv=g_env)
 
        CALL calculate_density_matrix(mo_set=gf_env%mo_set(1)%mo_set,&
-            density_matrix=gf_env%min_blacs_2,&
-            globenv=g_env)
+            density_matrix=gf_env%min_blacs_2)
        
        CALL copy_full_matrix_to_real_matrix(gf_env%min_blacs_2,&
             min_density_m)

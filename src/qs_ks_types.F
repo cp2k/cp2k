@@ -93,7 +93,7 @@ MODULE qs_ks_types
 !!   ATTRIBUTES
 !!     - s_mstruct_changed: if the sparsity structure of s in qs_env where this
 !!       ks_env lives has changed
-!!     - p_changed: if the rho stored in the qs_env has changed
+!!     - rho_changed: if the rho stored in the qs_env has changed
 !!     - forces_up_to_date: if the 
 !!
 !!   AUTHOR
@@ -109,7 +109,7 @@ MODULE qs_ks_types
 !***************************************************************************
   TYPE qs_ks_env_type
      LOGICAL :: s_mstruct_changed, &
-                p_changed, &
+                rho_changed, &
                 forces_up_to_date
      INTEGER :: n_evals, &
                 id_nr, ref_count

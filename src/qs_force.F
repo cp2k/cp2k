@@ -152,7 +152,7 @@ CONTAINS
        ! to do calculate redundant density
        CALL sm_pools_create_matrix_vect(qs_env%H_redundant_sm_pools,p)
        DO ispin=1,SIZE(c)
-          CALL calculate_density_matrix(c(ispin)%mo_set,p(ispin)%matrix,globenv)
+          CALL calculate_density_matrix(c(ispin)%mo_set,p(ispin)%matrix)
        END DO
     ELSE
        p => rho%rho_ao
@@ -196,7 +196,7 @@ CONTAINS
        NULLIFY(p)
     END IF
 
-!FM    CALL qs_ks_did_change(ks_env,qs_env,p_changed=.TRUE.)
+!FM    CALL qs_ks_did_change(ks_env,qs_env,rho_changed=.TRUE.)
     CALL qs_ks_update_qs_env(ks_env=ks_env,&
                              qs_env=qs_env,&
                              rebuild=.TRUE.,&

@@ -51,6 +51,10 @@ MODULE qs_wf_history_types
   USE kinds,                           ONLY: wp=>dp
   USE pw_types,                        ONLY: pw_p_type,&
                                              pw_type
+  USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
+                                             deallocate_matrix_set,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -58,6 +62,11 @@ MODULE qs_wf_history_types
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_wf_history_types'
+
+  INTEGER, PARAMETER, PUBLIC :: wfi_use_guess_method_nr=0,&
+       wfi_use_previous_p_method_nr=1, wfi_use_previous_rho_r_method_nr=2,&
+       wfi_linear_wf_method_nr=3, wfi_linear_p_method_nr=4,&
+       wfi_linear_ps_method_nr=5
 
   PUBLIC :: qs_wf_snapshot_type, qs_wf_snapshot_p_type, &
        qs_wf_history_type
@@ -82,7 +91,9 @@ MODULE qs_wf_history_types
 !!     - wf: the wavefunctions
 !!     - rho_r: the density in r space
 !!     - rho_g: the density in g space
-!!     - time: the time of the snapshot (wrf to te previous snapshot!)
+!!     - rho_ao: the density in ao space
+!!     - overlap: the overlap matrix
+!!     - dt: the time of the snapshot (wrf to te previous snapshot!)
 !!     - id_nr: unique identification number
 !!     - ref_count: reference count (see doc/ReferenceCounting.html)
 !!
@@ -98,7 +109,8 @@ MODULE qs_wf_history_types
      TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: wf
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_r
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g
-     REAL(kind=wp) :: time
+     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao,overlap
+     REAL(kind=wp) :: dt
      INTEGER :: id_nr, ref_count
   END TYPE qs_wf_snapshot_type
 !!***
@@ -151,10 +163,10 @@ MODULE qs_wf_history_types
 !!     - last_state_index: index of the latest snapshot
 !!     - past_states: array with the past states (index starts at
 !!       last_state_index)
-!!     - interpolation_method: the method used to extrapolate the new start
-!!       state for qs
-!!     - actual_time: actual time of the state stored in the qs_env
-!!       (wrt. to the latest snapshot)
+!!     - interpolation_method_nr: the tag of the method used to
+!!       extrapolate the new start state for qs
+!!     - snapshot_count: number of snapshot taken so far (cumulative,
+!!       can be bigger than the history depth)
 !!
 !!   AUTHOR
 !!     fawzi
@@ -165,11 +177,11 @@ MODULE qs_wf_history_types
 !!   SOURCE
 !***************************************************************************
   TYPE qs_wf_history_type
-     INTEGER :: id_nr, ref_count, memory_depth, last_state_index
-     LOGICAL :: store_wf, store_rho_r, store_rho_g
+     INTEGER :: id_nr, ref_count, memory_depth, last_state_index, &
+          interpolation_method_nr, snapshot_count
+     LOGICAL :: store_wf, store_rho_r, store_rho_g, store_rho_ao,&
+          store_overlap
      TYPE(qs_wf_snapshot_p_type), DIMENSION(:), POINTER :: past_states
-     CHARACTER(len=60) :: interpolation_method
-     REAL(kind=wp) :: actual_time
   END TYPE qs_wf_history_type
 !!***
 !****************************************************************************
@@ -273,10 +285,17 @@ SUBROUTINE wfs_release(snapshot,error)
            DEALLOCATE(snapshot%wf,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
+        IF (ASSOCIATED(snapshot%rho_ao)) THEN
+           CALL deallocate_matrix_set(snapshot%rho_ao)
+        END IF
+        IF (ASSOCIATED(snapshot%overlap)) THEN
+           CALL deallocate_matrix_set(snapshot%overlap)
+        END IF
         DEALLOCATE(snapshot,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
   END IF
+  NULLIFY(snapshot)
 END SUBROUTINE wfs_release
 !***************************************************************************
 
@@ -383,6 +402,7 @@ SUBROUTINE wfi_release(wf_history,error)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
   END IF
+  NULLIFY(wf_history)
 END SUBROUTINE wfi_release
 !***************************************************************************
 
@@ -434,16 +454,68 @@ FUNCTION wfi_get_snapshot(wf_history, index, error) RESULT(res)
   CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(ASSOCIATED(wf_history%past_states),cp_failure_level,routineP,error,failure)
-     IF (index<SIZE(wf_history%past_states)) THEN
+     IF (index>wf_history%memory_depth.OR.index>wf_history%snapshot_count) THEN
         CPPrecondition(.FALSE.,cp_warning_level,routineP,error,failure)
      END IF
   END IF
   IF (.not.failure) THEN
      res => wf_history%past_states(&
-          MOD(index+wf_history%last_state_index-2,&
-          SIZE(wf_history%past_states))+1)%snapshot
+          MOD(wf_history%memory_depth-index+wf_history%last_state_index,&
+          wf_history%memory_depth)+1)%snapshot
   END IF
 END FUNCTION wfi_get_snapshot
+!***************************************************************************
+
+!!****f* qs_wf_history_types/wfi_clear_history [1.0] *
+!!
+!!   NAME
+!!     wfi_clear_history
+!!
+!!   FUNCTION
+!!     clears the history taken so far
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - wf_history: the history to clear
+!!     - flush_buffer: if the memory of the buffer should be released
+!!       defaults to false
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     05.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE wfi_clear_history(wf_history,flush_buffer,error)
+  TYPE(qs_wf_history_type), POINTER :: wf_history
+  LOGICAL, INTENT(in), OPTIONAL :: flush_buffer
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure, my_flush_buffer
+  CHARACTER(len=*), PARAMETER :: routineN='wfi_clear_history',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: i
+
+  failure=.FALSE.
+  my_flush_buffer=.FALSE.
+  IF (PRESENT(flush_buffer)) my_flush_buffer=flush_buffer
+  
+  CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,error,failure)
+  CPPrecondition(wf_history%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     wf_history%snapshot_count=0
+     IF (my_flush_buffer) THEN
+        DO i=1,SIZE(wf_history%past_states)
+           CALL wfs_release(wf_history%past_states(i)%snapshot,error=error)
+        END DO
+     END IF
+  END IF
+END SUBROUTINE wfi_clear_history
 !***************************************************************************
 
 END MODULE qs_wf_history_types

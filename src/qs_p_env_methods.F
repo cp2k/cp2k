@@ -684,7 +684,7 @@ END SUBROUTINE p_env_did_change
 
           ! tells ks_env that p changed
           CALL qs_ks_did_change(ks_env=ks_env,qs_env=qs_env,&
-               p_changed=.TRUE., error=error)
+               rho_changed=.TRUE., error=error)
           
        END IF
 

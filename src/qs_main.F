@@ -27,6 +27,7 @@
 
 MODULE qs_main
   USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE cp_blacs_env,                    ONLY: start_blacs
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE qs_energy,                       ONLY: qs_energies
@@ -42,7 +43,6 @@ MODULE qs_main
   USE timings,                         ONLY: timeset,&
                                              timestop,&
                                              trace_debug
-  use cp_blacs_env, only: start_blacs
   IMPLICIT NONE
 
   PRIVATE
@@ -121,7 +121,7 @@ CONTAINS
                                 TRIM(globenv%program_name),globenv)
     END SELECT
 
-!    CALL tddfpt_calculation(qs_env, globenv)
+    CALL tddfpt_calculation(qs_env, globenv)
 
     CALL qs_finalize(qs_env,globenv)
 
