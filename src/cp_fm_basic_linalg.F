@@ -162,8 +162,21 @@ CONTAINS
     CPPrecondition(ASSOCIATED(matrix_a),cp_failure_level,routineP,error,failure)
     CPPrecondition(matrix_a%ref_count>0,cp_failure_level,routineP,error,failure)
 
-!!TC    myprow=matrix_a%matrix_struct%context%mepos(1)
-!!TC    mypcol=matrix_a%matrix_struct%context%mepos(2)
+    IF (PRESENT(beta)) THEN
+       CPPrecondition(PRESENT(matrix_b),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(matrix_b),cp_failure_level,routineP,error,failure)
+       CPPrecondition(matrix_b%ref_count>0,cp_failure_level,routineP,error,failure)
+       IF (matrix_a%id_nr==matrix_b%id_nr) THEN
+          CALL cp_assert(matrix_a%id_nr/=matrix_b%id_nr, &
+                         cp_warning_level, cp_assertion_failed, &
+                         fromWhere=routineP, &
+                         message="Bad use of routine. Call cp_fm_scale instead: "// &
+                         CPSourceFileRef, &
+                         error=error, failure=failure)
+          CALL cp_fm_scale(alpha+beta, matrix_a, error=error)
+          RETURN
+       END IF
+    END IF
 
     a => matrix_a%local_data
     size_a = size(a,1)*size(a,2)
@@ -171,9 +184,6 @@ CONTAINS
     IF (alpha /= 1.0_wp) CALL dscal ( size_a, alpha, a, 1)
 
     IF (my_beta /= 0.0_wp) THEN
-       CPPrecondition(PRESENT(matrix_b),cp_failure_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(matrix_b),cp_failure_level,routineP,error,failure)
-       CPPrecondition(matrix_b%ref_count>0,cp_failure_level,routineP,error,failure)
        CALL cp_assert(matrix_a%matrix_struct%context%group==&
             matrix_b%matrix_struct%context%group,cp_failure_level,&
             cp_assertion_failed,fromWhere=routineP,&
