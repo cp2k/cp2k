@@ -222,6 +222,7 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,para_env,context)
 
    IF (qs_ot_env%settings%ot_method.eq."DIIS") THEN
       ALLOCATE(qs_ot_env%ls_diis(m_diis+1,m_diis+1))
+      qs_ot_env%ls_diis=0.0_dp
       ALLOCATE(qs_ot_env%lss_diis(m_diis+1,m_diis+1))
       ALLOCATE(qs_ot_env%c_diis(m_diis+1))
       ALLOCATE(qs_ot_env%ipivot(m_diis+1))
