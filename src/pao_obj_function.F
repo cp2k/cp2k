@@ -59,13 +59,12 @@ module pao_obj_function
   use pao_qs_env_methods, only: pao_qs_env_get!, cp_get_b_projection
   use cp_matrix_utils, only: cp_matrix_block_iterator, cp_matrix_b_i_init,&
        cp_next, cp_next, cp_matrix_b_i_dealloc_ref,cp_d_struct_create,&
-       cp_init_diagonal_blocks, cp_get, cp_init, cp_set_to
+       cp_init_diagonal_blocks, cp_get, cp_init, cp_set_to, cp_sm_output
   use cp_b_matrix_structure, only: cp_b_matrix_struct_type
   use sparse_matrix_types, only: real_matrix_p_type, real_matrix_type,&
        get_matrix_info
   use atomic_kind_types, only: atomic_kind_type, get_atomic_kind_set
   use cp_array_utils, only: cp_1d_r_output
-  use qs_overlap, only: write_sparse_matrix
 !  use pao_utils
   implicit none
   private
@@ -165,6 +164,7 @@ module pao_obj_function
      type(cp_sparse_matrix_type), pointer :: diag_matrix, full_work_m,&
           min_work_m
      integer, dimension(:), pointer :: d_struct
+     type(global_environment_type), pointer :: global_env
   end type pao_gerd_functional_type
 !!***
 !****************************************************************************
@@ -226,7 +226,7 @@ contains
     logical :: failure
     character(len=*), parameter :: routineP='pao_obj_function:pao_gerd_f_init'
     integer :: ntot_min_bas, ntot_full_bas, i, stat, nelectron, n_atoms
-    type(real_matrix_p_type), pointer:: full_overlap_m
+    type(real_matrix_p_type), dimension(:), pointer:: full_overlap_m
     type(real_matrix_type), pointer :: diagMatrix
     type(cp_b_matrix_struct_type), pointer :: min_bas_m_struct, full_bas_m_struct
     type(pao_env_type), pointer :: pao_env
@@ -234,6 +234,7 @@ contains
     failure=.false.
 
     gf_env%qs_env => qs_env
+    gf_env%global_env => global_env
     gf_env%n_eval = 0
     if (.not.failure) then
 #ifdef __parallel
@@ -241,8 +242,8 @@ contains
 #else
        gf_env%blacs_context=0
 #endif
-!MK       call get_qs_env(gf_env%qs_env, s=full_overlap_m, pao_env=pao_env,&
-!MK            atomic_kind_set=atomic_kind_set, natoms=n_atoms)
+       call get_qs_env(gf_env%qs_env, s=full_overlap_m, pao_env=pao_env,&
+            atomic_kind_set=atomic_kind_set, natoms=n_atoms)
        call pao_qs_env_get(gf_env%qs_env, global_env=global_env,&
             pao_tot_full_bas=ntot_full_bas,&
             pao_tot_min_bas=ntot_min_bas,&
@@ -299,7 +300,7 @@ contains
        call cp_create(gf_env%diag_matrix,global_env=global_env,&
             matrix_structure=full_bas_m_struct)
        call cp_d_struct_create(gf_env%d_struct,&
-            matrix=full_overlap_m%matrix,&
+            matrix=full_overlap_m(1)%matrix,&
             global_env=global_env,error=error)
        diagMatrix => cp_get_matrix(gf_env%diag_matrix) ! for xlf...
        call cp_init_diagonal_blocks(diagMatrix,&
@@ -375,6 +376,7 @@ contains
           deallocate(gf_env%mo_set,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        end if
+       nullify(gf_env%global_env)
        gf_env%initialized=.false.
     end if
   end subroutine pao_gerd_f_dealloc_ref
@@ -504,8 +506,7 @@ contains
     type(cp_matrix_block_iterator) :: block_iterator
     !type(cp_sparse_matrix_type) :: full_pao_m, min_pao_m
 
-    type(real_matrix_p_type), pointer :: full_s_rmp
-    type(real_matrix_p_type), dimension(:), pointer :: full_h_rmpv
+    type(real_matrix_p_type), dimension(:), pointer :: full_h_rmpv,full_s_rmpv
     type(cp_sparse_matrix_p_type), dimension(:), pointer :: min_d_smpv
     type(real_matrix_type), pointer :: min_density_m
 
@@ -521,14 +522,15 @@ contains
     type(real_matrix_type), pointer :: diagMatrix
     call cp_init(iError, template_error=error)
     nullify(diagMatrix)
+    g_env => gf_env%global_env
     failure=.false.
     
     CPAssert(cp_valid(gf_env,error=error),cp_failure_level,routineP,error,failure)
     if (.not.failure) then
        gf_env%n_eval = gf_env%n_eval+1
        ! get actual min_hamiltonian_m and min_overlap_m
-!MK       call get_qs_env(gf_env%qs_env,pao_env=pao_env,&
-!MK            k=full_h_rmpv, s=full_s_rmp, natoms=n_atom)
+       call get_qs_env(gf_env%qs_env,pao_env=pao_env,&
+            k=full_h_rmpv, s=full_s_rmpv, natoms=n_atom)
        CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
        if (cp_debug .and. debug_this_module) then
           call cp_1d_r_output(logger=cp_error_get_logger(error),&
@@ -558,10 +560,14 @@ contains
        h_matrix => h_matrixes(1)%matrix
        s_matrix => s_matrixes(1)%matrix
        if (cp_debug .and. debug_this_module) then
-          print *, "min h"
-          call write_sparse_matrix(h_matrix%matrix,4,6,gf_env%qs_env,g_env)
-          print *, "min s"
-          call write_sparse_matrix(s_matrix%matrix,4,6,gf_env%qs_env,g_env)
+          call cp_sm_output(logger=cp_error_get_logger(error), &
+               outputName="obj_f_min_h", &
+               fromWhere=routineP, iter=gf_env%n_eval, matrix=h_matrix%matrix,&
+               global_env=g_env,error=error)
+          call cp_sm_output(logger=cp_error_get_logger(error), &
+               outputName="obj_f_min_s", &
+               fromWhere=routineP, iter=gf_env%n_eval, matrix=s_matrix%matrix,&
+               global_env=g_env,error=error)
        end if
 
 
@@ -669,7 +675,7 @@ contains
 
           call copy_sparse_to_blacs_matrix(cp_get_matrix(gf_env%full_work_m),&
                gf_env%scf_work2, gf_env%blacs_context, g_env)
-          call copy_sparse_to_blacs_matrix(cp_get_matrix(s_matrix),&
+          call copy_sparse_to_blacs_matrix(full_s_rmpv(1)%matrix,&
                gf_env%scf_work1, gf_env%blacs_context, g_env)
           call blacs_gemm('N','N',full_bas_size,full_bas_size,full_bas_size,&
                1.0_wp,gf_env%scf_work1,gf_env%scf_work2,0.0_wp,&
@@ -679,8 +685,10 @@ contains
                global_env=g_env,d_struct=gf_env%d_struct, error=error)
 
           if (cp_debug .and. debug_this_module) then
-             print *, "df/du_{i,j}"
-             call write_sparse_matrix(diagMatrix,4,6,gf_env%qs_env,g_env)
+             call cp_sm_output(logger=cp_error_get_logger(error), &
+                  outputName="obj_f_df_du", &
+                  fromWhere=routineP, iter=gf_env%n_eval, matrix=diagMatrix,&
+                  global_env=g_env,error=error)
           end if
           
           ! ** gradient = df/du_{i,j} du_{i,j}/dtheta_k
