@@ -410,6 +410,8 @@ SUBROUTINE fist_nonbond_env_release(fist_nonbond_env,error)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         ENDIF
         NULLIFY (fist_nonbond_env% rlist_cutsq )
+        deallocate(fist_nonbond_env, STAT=stat)
+        CPPrecondition(stat==0,cp_warning_level,routineP,error,failure)
      END IF
   END IF
   NULLIFY(fist_nonbond_env)

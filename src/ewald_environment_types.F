@@ -367,8 +367,10 @@ SUBROUTINE ewald_env_release(ewald_env,error)
      ewald_env%ref_count=ewald_env%ref_count-1
      IF (ewald_env%ref_count<1) THEN
        CALL cp_para_env_release ( ewald_env % para_env, error )
+        DEALLOCATE (  ewald_env, stat = stat )
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)       
      ENDIF
-  END IF
+  END IF      
   NULLIFY(ewald_env)
 END SUBROUTINE ewald_env_release
 !***************************************************************************

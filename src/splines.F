@@ -183,6 +183,8 @@ SUBROUTINE spline_env_release(spline_env,error)
         NULLIFY ( spline_env % spltab )
         NULLIFY ( spline_env % spline_table )
         NULLIFY ( spline_env % potparm ) 
+        DEALLOCATE (  spline_env , stat = stat )
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)        
      END IF
   END IF
   NULLIFY ( spline_env )

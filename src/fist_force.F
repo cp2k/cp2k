@@ -61,8 +61,6 @@ MODULE fist_force
           pv_bend, pv_torsion, pv_imptors, pv_onef, pv_ub
   END TYPE debug_variables_type
 
-  REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: f_nonbond
-
 !******************************************************************************
 
  CONTAINS
@@ -129,8 +127,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   TYPE ( cell_type ), POINTER          :: cell
   TYPE ( ewald_pw_type ),   POINTER          :: ewald_pw
   TYPE ( ewald_environment_type ),   POINTER :: ewald_env
-
-  LOGICAL :: first_time
+  REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: f_nonbond
+  LOGICAL,SAVE :: first_time=.true.
 
 
   CALL timeset ( 'FORCE','I',' ',handle )
@@ -152,23 +150,9 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   DO ikind = 1, nparticle_kind
      nlocal_particles = nlocal_particles + local_particles%n_el(ikind) 
   ENDDO 
-
-  first_time = .NOT. ALLOCATED ( f_nonbond )
-
-  IF ( .NOT. ALLOCATED ( f_nonbond )  ) THEN
-    ALLOCATE ( f_nonbond ( 3, natoms ), STAT = isos )
-    IF ( isos /= 0 ) &
-       CALL stop_memory ( 'fist_force', 'f_nonbond', 3 * natoms )
-  ELSE IF ( SIZE ( f_nonbond, 2  ) < natoms ) THEN
-    DEALLOCATE ( f_nonbond, STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'fist_force', 'f_nonbond' )
-    ALLOCATE ( f_nonbond ( 3,natoms ), STAT = isos )
-    IF ( isos /= 0 ) &
-    CALL stop_memory ( 'fist_force', 'f_nonbond', 3 * natoms )
-! change in system, do a full reinitialisation
-    first_time = .TRUE.
-  END IF
-
+  ALLOCATE ( f_nonbond ( 3, natoms ), STAT = isos )
+  IF ( isos /= 0 ) &
+      CALL stop_memory ( 'fist_force', 'f_nonbond', 3 * natoms )
 
 ! reinitialize the gspace for the new box
   IF ( ( box_change ) .OR. ( first_time ) ) THEN
@@ -411,7 +395,10 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
     DEALLOCATE ( f_total, STAT = isos )
     IF ( isos /= 0 ) CALL stop_memory ( 'fist_force', 'f_total' )
   END IF
-
+  DEALLOCATE ( f_nonbond, STAT = isos )
+  IF ( isos /= 0 ) &
+      CALL stop_memory ( 'fist_force', 'f_nonbond', 3 * natoms )
+  first_time = .false.
   CALL timestop ( zero, handle )
 
 END SUBROUTINE fist_force_control

@@ -161,7 +161,6 @@ SUBROUTINE ewald_pw_create ( ewald_pw, cell, cell_ref, ewald_env, error )
      NULLIFY ( ewald_pw % cell ) 
      NULLIFY ( ewald_pw % cell_ref ) 
      CALL dg_create ( dg, error )
-     CALL dg_retain ( dg, error )
      ewald_pw % dg => dg 
      ewald_pw%ref_count=1
      last_ewald_pw_id_nr=last_ewald_pw_id_nr+1
@@ -209,6 +208,8 @@ END SUBROUTINE ewald_pw_create
       CALL cell_release ( ewald_pw % cell, error )
       CALL cell_release ( ewald_pw % cell_ref, error )
       CALL dg_release ( ewald_pw % dg, error )
+      DEALLOCATE (  ewald_pw , stat = stat )
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
   END IF
   NULLIFY ( ewald_pw )
@@ -284,11 +285,12 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
                          o_spline=o_spline,&
                          epsilon = epsilon )
     ALLOCATE(pw_big_grid,pw_small_grid,stat=stat)
+    CALL pw_grid_construct( pw_small_grid )
+    CALL pw_grid_construct( pw_big_grid )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     SELECT CASE ( ewald_type )
     CASE ( "EWALD" )
        ! set up EWALD "Classic"
-       CALL pw_grid_construct ( pw_big_grid )
        IF ( gmax == 2 * ( gmax / 2 ) ) THEN
           IF ( ionode ) &
             CALL stop_program ( "initialize_ewalds", "gmax has to be odd" )
@@ -308,12 +310,8 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
        ewald_pw % pw_big_pool => pw_pool
        CALL pw_pool_retain ( ewald_pw % pw_big_pool )
        CALL pw_pool_release ( pw_pool )
-       CALL pw_grid_release ( pw_big_grid, error )
     CASE ( "PME" )
        ! set up PME, the double grid method
-       CALL pw_grid_construct( pw_small_grid )
-       CALL pw_grid_construct( pw_big_grid )
-
        npts_s ( : ) = ns_max
 ! compute cut-off radius
        alphasq = alpha ** 2
@@ -342,20 +340,15 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
        ewald_pw % pw_big_pool => pw_pool
        CALL pw_pool_retain ( ewald_pw % pw_big_pool )
        CALL pw_pool_release ( pw_pool )
-       CALL pw_grid_release ( pw_big_grid, error )
 
        NULLIFY ( pw_pool )
        CALL pw_pool_create( pw_pool, pw_grid = pw_small_grid )     
        ewald_pw%pw_small_pool => pw_pool
        CALL pw_pool_retain ( ewald_pw % pw_small_pool )
        CALL pw_pool_release ( pw_pool )
-       CALL pw_grid_release ( pw_small_grid, error )
-
-
 
     CASE ( "SPME" )
      ! set up SPME
-       CALL pw_grid_construct( pw_big_grid )
        npts_s = (/ gmax, gmax, gmax /)
        CALL pw_find_cutoff ( npts_s, cell_ref, cutoff )
        pw_big_grid % grid_span = HALFSPACE
@@ -380,7 +373,6 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
        ewald_pw%pw_big_pool => pw_pool
        CALL pw_pool_retain ( ewald_pw % pw_big_pool )
        CALL pw_pool_release ( pw_pool )
-       CALL pw_grid_release ( pw_big_grid, error )
     CASE ( "NONE" )
     CASE DEFAULT
        CALL stop_program ( "ewald_pw_init", "option not implemented" )
@@ -391,6 +383,8 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
     CALL cell_release ( ewald_pw % cell_ref )
     ewald_pw % cell => cell
     ewald_pw % cell_ref => cell_ref
+    CALL pw_grid_release ( pw_small_grid, error )
+    CALL pw_grid_release ( pw_big_grid, error )
   ENDIF
 
   CALL timestop(0.0_dbl,handle)

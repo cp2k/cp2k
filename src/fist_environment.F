@@ -26,6 +26,7 @@ MODULE fist_environment
   USE cp_error_handling,               ONLY: cp_error_type
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
                                              cp_subsys_set,&
+                                             cp_subsys_release,&
                                              cp_subsystem_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
@@ -197,6 +198,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL cell_release(cell_ref,error=error)
   CALL ewald_env_release ( ewald_env, error )
   CALL fist_nonbond_env_release ( fist_nonbond_env, error )
+  CALL cp_subsys_release(subsystem,error=error)
 
   CALL timestop(0.0_dbl,handle)
  
@@ -249,10 +251,10 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   molecule_set => subsystem % molecules_new % els
   molecule_kind_set => subsystem % molecule_kinds_new % els
 
-  NULLIFY ( thermo, ewald_pw )
+  NULLIFY ( thermo, ewald_pw, local_molecules, local_particles)
 
 ! Create the fist_energy_type
-  ALLOCATE ( thermo )
+  call allocate_fist_energy( thermo )
 
 ! Print the atomic kind set
   CALL write_atomic_kind_set(atomic_kind_set,globenv)

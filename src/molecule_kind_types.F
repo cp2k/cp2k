@@ -29,7 +29,9 @@ MODULE molecule_kind_types
                                              impr_kind_type,&
                                              onfo_kind_type,&
                                              torsion_kind_type,&
-                                             ub_kind_type
+                                             ub_kind_type,&
+                                             deallocate_ub_kind_set,&
+                                             deallocate_onfo_kind_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
@@ -253,9 +255,10 @@ CONTAINS
       routine_name = "deallocate_molecule_kind_set"
 
     INTEGER                                  :: imolecule_kind, istat, &
-                                                nmolecule_kind
+                                                nmolecule_kind, i
 
 !   ---------------------------------------------------------------------------
+
 
     IF (ASSOCIATED(molecule_kind_set)) THEN
 
@@ -291,6 +294,9 @@ CONTAINS
                               "molecule_kind_set(imolecule_kind)%ub_list")
            END IF
         END IF
+        IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%ub_kind_set)) THEN
+           call deallocate_ub_kind_set(molecule_kind_set(imolecule_kind)%ub_kind_set)
+        END IF        
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%impr_list)) THEN
            DEALLOCATE (molecule_kind_set(imolecule_kind)%impr_list,STAT=istat)
            IF (istat /= 0) THEN
@@ -299,6 +305,9 @@ CONTAINS
            END IF
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%onfo_list)) THEN
+           do i = 1, size(molecule_kind_set(imolecule_kind)%onfo_list)
+              call deallocate_onfo_kind_type(molecule_kind_set(imolecule_kind)%onfo_list(i)%onfo_kind)
+           end do
            DEALLOCATE (molecule_kind_set(imolecule_kind)%onfo_list,STAT=istat)
            IF (istat /= 0) THEN
              CALL stop_memory(routine_name,module_name,__LINE__,&

@@ -53,7 +53,8 @@ MODULE fist_environment_types
   USE ewald_pw_types,                  ONLY: ewald_pw_type, &
                                              ewald_pw_retain, &
                                              ewald_pw_release
-  USE fist_energy_types,               ONLY: fist_energy_type
+  USE fist_energy_types,               ONLY: fist_energy_type,&
+                                             deallocate_fist_energy
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type, &
                                              fist_nonbond_env_retain, &
                                              fist_nonbond_env_release
@@ -498,7 +499,11 @@ SUBROUTINE fist_env_release(fist_env,error)
         CALL ewald_pw_release(fist_env%ewald_pw)
         CALL ewald_env_release(fist_env%ewald_env)
         CALL cp_para_env_release(fist_env%para_env,error=error)
+        call deallocate_fist_energy(fist_env%thermo)
+
         CALL fist_nonbond_env_release ( fist_env % fist_nonbond_env, error = error )
+
+        CALL cp_subsys_release(fist_env%subsys,error=error)
         DEALLOCATE(fist_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF

@@ -40,6 +40,7 @@ MODULE dg_rho0_types
                                              coeff_allocate, &
                                              coeff_deallocate, &
                                              coeff_zero, &
+                                             coeff_init,&
                                              PW_REALDATA3D, &
                                              PW_COMPLEXDATA3D 
   USE kinds, ONLY: dbl, default_string_length
@@ -165,6 +166,7 @@ CONTAINS
     last_dg_rho0_id_nr=last_dg_rho0_id_nr+1
     dg_rho0%id_nr=last_dg_rho0_id_nr
     dg_rho0%ref_count=1
+    call coeff_init(dg_rho0%density,error=error)
 
   END SUBROUTINE dg_rho0_create
 !***************************************************************************
@@ -259,13 +261,19 @@ SUBROUTINE dg_rho0_release(dg_rho0, error)
      CPPreconditionNoFail(dg_rho0%ref_count>0,cp_failure_level,routineP,error)
      dg_rho0%ref_count=dg_rho0%ref_count-1
      IF (dg_rho0%ref_count==0) THEN
-        IF ( ASSOCIATED ( dg_rho0 % gcc ) ) DEALLOCATE ( dg_rho0 % gcc, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        IF ( ASSOCIATED ( dg_rho0 % zet ) ) DEALLOCATE ( dg_rho0 % zet, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        IF ( ASSOCIATED ( dg_rho0 % gcc ) ) THEN 
+           DEALLOCATE ( dg_rho0 % gcc, stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF ( ASSOCIATED ( dg_rho0 % zet ) ) then
+           DEALLOCATE ( dg_rho0 % zet, stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
         CALL coeff_deallocate ( dg_rho0 % density )
         NULLIFY ( dg_rho0 % gcc )
         NULLIFY ( dg_rho0 % zet )
+        DEALLOCATE (  dg_rho0 , stat = stat )
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
   END IF
   NULLIFY(dg_rho0)

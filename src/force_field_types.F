@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2003  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
+#include "cp_prep_globals.h"
 !!****** cp2k/force_field_types [1.0] *
 !!
 !!   NAME
@@ -22,20 +23,32 @@
 !******************************************************************************
 
 MODULE force_field_types
-
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE kinds,                           ONLY: dp,&
                                              dbl,&
                                              default_string_length,&
                                              int_size
   USE pair_potential_types,            ONLY: pair_potential_type
-  USE splines,                         ONLY: spline_environment_type
+  USE splines,                         ONLY: spline_environment_type,&
+                                             spline_env_release
   USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "force_field_types"
+  CHARACTER(LEN=*), PARAMETER :: moduleN = "force_field_types"
+  
 
 ! *** Define the derived structure types ***
 
@@ -174,10 +187,8 @@ MODULE force_field_types
             deallocate_ff_type,&
             deallocate_bend_kind_set,&
             deallocate_bond_kind_set,&
-            deallocate_ub_kind_set,&
             deallocate_torsion_kind_set,&
-            deallocate_impr_kind_set,&
-            deallocate_onfo_kind_set
+            deallocate_impr_kind_set
 
 ! *** Public data types ***
 
@@ -185,8 +196,10 @@ MODULE force_field_types
             bond_kind_type,&
             impr_kind_type,&
             onfo_kind_type,&
+            deallocate_onfo_kind_type,&
             torsion_kind_type,&
             ub_kind_type,&
+            deallocate_ub_kind_set,&
             amber_info_type,&
             charmm_info_type,&
             input_info_type,&
@@ -226,7 +239,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     ALLOCATE (bend_kind_set(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
                                      "bend_kind_set",nkind*int_size)
 
     DO ikind=1,nkind
@@ -268,7 +281,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     ALLOCATE (bond_kind_set(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
                                      "bond_kind_set",nkind*int_size)
 
     DO ikind=1,nkind
@@ -310,7 +323,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     ALLOCATE (torsion_kind_set(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
                                      "torsion_kind_set",nkind*int_size)
 
     DO ikind=1,nkind
@@ -354,7 +367,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     ALLOCATE (ub_kind_set(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
                                      "ub_kind_set",nkind*int_size)
 
     DO ikind=1,nkind
@@ -366,7 +379,6 @@ CONTAINS
 
   END SUBROUTINE allocate_ub_kind_set
 
-! *****************************************************************************
 
 !******************************************************************************
 !!****** force_field_types/allocate_impr_kind_set [1.0] *
@@ -396,7 +408,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     ALLOCATE (impr_kind_set(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
                                      "impr_kind_set",nkind*int_size)
 
     DO ikind=1,nkind
@@ -409,6 +421,8 @@ CONTAINS
   END SUBROUTINE allocate_impr_kind_set
 
 ! *****************************************************************************
+
+
 
 !!****** force_field_types/allocate_onfo_kind_set [1.0] *
 !!
@@ -437,7 +451,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     ALLOCATE (onfo_kind_set(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
                                      "onfo_kind_set",nkind*int_size)
 
     DO ikind=1,nkind
@@ -943,7 +957,7 @@ END SUBROUTINE deallocate_ff_type
 !   ---------------------------------------------------------------------------
 
     DEALLOCATE (bend_kind_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
                                      "bend_kind_set")
 
   END SUBROUTINE deallocate_bend_kind_set
@@ -977,7 +991,7 @@ END SUBROUTINE deallocate_ff_type
 !   ---------------------------------------------------------------------------
 
     DEALLOCATE (bond_kind_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
                                      "bond_kind_set")
 
   END SUBROUTINE deallocate_bond_kind_set
@@ -1042,22 +1056,19 @@ END SUBROUTINE deallocate_ff_type
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE deallocate_ub_kind_set(ub_kind_set)
-
+  subroutine deallocate_ub_kind_set(ub_kind_set, error)
     TYPE(ub_kind_type), DIMENSION(:), &
-      POINTER                                :: ub_kind_set
+         POINTER                                :: ub_kind_set
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_ub_kind_set"
+    CHARACTER(len=*), PARAMETER :: routineN='deallocate_ub_kind_set',&
+         routineP=moduleN//':'//routineN
+    INTEGER                                  ::  stat
 
-    INTEGER                                  :: istat
+    deallocate(ub_kind_set, STAT=stat)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
-!   ---------------------------------------------------------------------------
-
-    DEALLOCATE (ub_kind_set,STAT=istat)
-    IF(istat/=0) CALL stop_memory(routine_name,"ub_kind_set")
-
-  END SUBROUTINE deallocate_ub_kind_set
-
+  end subroutine deallocate_ub_kind_set
 ! *****************************************************************************
 
 !******************************************************************************
@@ -1107,22 +1118,20 @@ END SUBROUTINE deallocate_ff_type
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE deallocate_onfo_kind_set(onfo_kind_set)
+  subroutine deallocate_onfo_kind_type(onfo_kind, error)
+    implicit none
+    TYPE(onfo_kind_type),  pointer :: onfo_kind
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    integer :: stat
+    CHARACTER(len=*), PARAMETER :: routineN='deallocate_onfo_kind_type',&
+         routineP=moduleN//':'//routineN
 
-    TYPE(onfo_kind_type), DIMENSION(:), &
-      POINTER                                :: onfo_kind_set
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_onfo_kind_set"
-
-    INTEGER                                  :: istat
-
-!   ---------------------------------------------------------------------------
-
-    DEALLOCATE (onfo_kind_set,STAT=istat)
-    IF(istat/=0) CALL stop_memory(routine_name,"onfo_kind_set")
-
-  END SUBROUTINE deallocate_onfo_kind_set
-
+    write(*,*)"DEALLOCATE_ONFO_KIND_TYPE"
+    call spline_env_release(onfo_kind%spline_env, error)
+    deallocate(onfo_kind, STAT=stat)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    nullify(onfo_kind)
+  end subroutine deallocate_onfo_kind_type
 ! *****************************************************************************
 
 END MODULE force_field_types

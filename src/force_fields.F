@@ -97,6 +97,7 @@ MODULE force_fields
   USE splines,                         ONLY: spline_environment_type, &
                                              spline_env_create, &
                                              spline_env_release, &
+                                             spline_env_retain,&
                                              spline_env_set
   USE string_utilities,                ONLY: str_search,&
                                              uppercase
@@ -2679,6 +2680,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
 
     END DO
   END DO
+  NULLIFY(spline_bond_env)
   CALL spline_env_create(spline_bond_env, error)
   CALL spline_env_set(spline_bond_env,potparm=potparm_bond)
   CALL spline_nonbond_control(spline_bond_env,atomic_kind_set)
@@ -2729,6 +2731,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       IF(ASSOCIATED(chm_info%nonbond_a)) THEN
         onfo_list(j)%onfo_kind%name   = ""
         onfo_list(j)%onfo_kind%spline_env   => spline_bond_env
+        call spline_env_retain(spline_bond_env,error=error)
       END IF
 
       ! always have the input param last to overwrite all the other ones
@@ -2929,7 +2932,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   CALL fist_nonbond_env_create(fist_nonbond_env,spline_nonbond_env,&
                                SIZE(atomic_kind_set),error)
   CALL spline_env_release (spline_nonbond_env,error)
-
+  call spline_env_release (spline_bond_env,error)
 
 
 !------------------------------------------------------------------------------
