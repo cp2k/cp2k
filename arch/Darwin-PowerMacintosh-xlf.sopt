@@ -1,6 +1,6 @@
 PERL     = perl
 CC       = cc
-CPP      = /usr/libexec/gcc/darwin/ppc/2.95.2/cpp
+CPP      = cpp -xassembler-with-cpp
 FC       = xlf95 -qsuffix=f=f90
 LD       = xlf95
 AR       = ar -r

@@ -1,8 +1,7 @@
 PERL     = perl
 CC       = cc
-CPP      = cpp -traditional
+CPP      = cpp -xassembler-with-cpp
 FC       = f90 -ffree
-FC_fixed = f90 -ffixed
 LD       = f90
 AR       = ar -r
 RANLIB   = ranlib

@@ -1,6 +1,6 @@
 PERL     = perl
 CC       = cc
-CPP      = cpp -traditional
+CPP      = cpp -xassembler-with-cpp
 FC       = f90 -ffree
 LD       = f90
 AR       = ar -r
