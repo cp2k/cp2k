@@ -1036,20 +1036,20 @@ CONTAINS
        SELECT CASE (TRIM(content))
          CASE ("POS")
           r(:) = particle_set(iatom)%r(:)*angstrom
-          WRITE (iunit,"(T2,A2,X,3F20.10)") element_symbol,r(1:3)
+          WRITE (iunit,"(T2,A2,1X,3F20.10)") element_symbol,r(1:3)
         CASE ("VEL")
-          WRITE (iunit,"(T2,A2,X,3F20.10)") element_symbol,&
+          WRITE (iunit,"(T2,A2,1X,3F20.10)") element_symbol,&
                                             particle_set(iatom)%v(1:3)
         CASE ("FORCE")
-          WRITE (iunit,"(T2,A2,X,3F20.10)") element_symbol,&
+          WRITE (iunit,"(T2,A2,1X,3F20.10)") element_symbol,&
                                             particle_set(iatom)%f(1:3)
         CASE ("POS_VEL")
           r(:) = particle_set(iatom)%r(:)*angstrom
-          WRITE (iunit,"(T2,A2,X,6F20.10)") element_symbol,r(1:3),&
+          WRITE (iunit,"(T2,A2,1X,6F20.10)") element_symbol,r(1:3),&
                                             particle_set(iatom)%v(1:3)
         CASE ("POS_VEL_FORCE")
           r(:) = particle_set(iatom)%r(:)*angstrom
-          WRITE (iunit,"(T2,A2,X,9F20.10)") element_symbol,r(1:3),&
+          WRITE (iunit,"(T2,A2,1X,9F20.10)") element_symbol,r(1:3),&
                                             particle_set(iatom)%v(1:3),&
                                             particle_set(iatom)%f(1:3)
         END SELECT
