@@ -131,12 +131,15 @@ MODULE qs_blacs
             blacs_diag_mult,&
             add_blacs_to_block_diag_sm, &
             blacs_cholesky_decompose, &
+            blacs_cholesky_invert, &
             blacs_cholesky_reduce, &
             blacs_cholesky_restore, &
             blacs_jacobi_davidson, & 
             blacs_column_copy, &
             blacs_make_basis, &
-            blacs_init_random
+            blacs_init_random, &
+            blacs_schur_product, &
+            blacs_transpose
 
 ! *****************************************************************************
 
@@ -774,7 +777,7 @@ CONTAINS
 ! check input ...
     IF (present(pmatrix)) THEN
        IF (.not. present(work)) THEN
-          call stop_program("make_basis","pmatrix needs work space !?")
+	   call stop_program("make_basis","pmatrix needs work space !?")
        ENDIF
     ENDIF
     IF (present(ortho)) THEN
@@ -841,8 +844,11 @@ CONTAINS
        ! U*V should be used
        IF (present(ortho)) THEN
 #if defined(__parallel)
+         o => ortho%p(myprow,mypcol)%block
+         desco(:) = ortho%descriptor(:)
          CALL PDTRMM('L','U','N','N',n,ncol,rone,o,1,1,desco,a,1,1,desca)
 #else
+         o => ortho%p(source,source)%block
          CALL DTRMM('L','U','N','N',n,ncol,rone,o,n,a,n)
 #endif
        ENDIF
@@ -895,7 +901,8 @@ CONTAINS
     REAL(wp), DIMENSION(:,:), POINTER :: a
     INTEGER :: nprow,npcol,myprow,mypcol,nrow_block,ncol_block
     INTEGER, DIMENSION(9) :: desca
-    INTEGER, DIMENSION(4) :: ISEED
+    INTEGER, DIMENSION(4),SAVE :: ISEED
+    LOGICAL, SAVE :: FIRST = .true.
     INTEGER :: irow_global,icol_global,irow_local,icol_local,iprow,ipcol
 
     CALL timeset("blacs_init_random","I","",handle)
@@ -905,10 +912,13 @@ CONTAINS
 
 #if defined(__parallel)
     CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
-    ISEED(1)=myprow
-    ISEED(2)=mypcol
-    ISEED(3)=2
-    ISEED(4)=1 ! last one has to be odd
+    IF (FIRST) THEN
+       ISEED(1)=myprow
+       ISEED(2)=mypcol
+       ISEED(3)=2
+       ISEED(4)=1 ! last one has to be odd
+       FIRST=.false.
+    ENDIF
     a => matrix%p(myprow,mypcol)%block
     desca(:)=matrix%descriptor(:)
     do i=1,ncol
@@ -919,10 +929,13 @@ CONTAINS
      ENDIF
     enddo 
 #else
-    ISEED(1)=4
-    ISEED(2)=3
-    ISEED(3)=2
-    ISEED(4)=1 ! last one has to be odd
+    IF (FIRST) THEN
+       ISEED(1)=4
+       ISEED(2)=3
+       ISEED(3)=2
+       ISEED(4)=1 ! last one has to be odd
+       FIRST=.false.
+    ENDIF
     a => matrix%p(source,source)%block
     CALL dlarnv(1,iseed,n*ncol,a)
 #endif
@@ -1110,6 +1123,52 @@ CONTAINS
 
 #endif
   END SUBROUTINE blacs_set_element
+
+!******************************************************************
+! used to replace the cholesky decomposition by the inverse
+!******************************************************************
+  SUBROUTINE blacs_cholesky_invert(matrix,context,globenv)
+   TYPE(blacs_matrix_type), POINTER           :: matrix
+
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    INTEGER, INTENT(IN)                       :: context
+
+    REAL(wp), DIMENSION(:,:), POINTER         :: a
+    integer                                   :: info,handle
+    INTEGER                                   :: source,n
+    integer                                   :: nprow,npcol,myprow,mypcol
+    INTEGER, DIMENSION(9)                     :: desca
+
+    CALL timeset("blacs_cholesky_invert","I","",handle)
+
+    source = globenv%source
+    n = matrix%nrow_global
+
+#if defined(__parallel)
+    CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
+    a => matrix%p(myprow,mypcol)%block
+    desca(:) = matrix%descriptor(:)
+    CALL pdpotri('U',n,a,1,1,desca,info)
+
+#else
+
+    a => matrix%p(source,source)%block
+
+    CALL dpotri('U',n,a,n,info)
+
+#endif
+
+    if (info.ne.0) then
+      CALL stop_program(" blacs_cholesky_invert","Error dpotri",globenv)
+    endif
+
+
+    CALL timestop(0.0_wp,handle)
+
+  END  SUBROUTINE blacs_cholesky_invert
+
+
+
 
 !******************************************************************
 ! used to replace a symmetric positive def. matrix by its cholesky 
@@ -1646,6 +1705,60 @@ CONTAINS
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE blacs_syrk
+
+! *****************************************************************************
+
+  SUBROUTINE blacs_schur_product(matrix_a,matrix_b,matrix_c,context,globenv)
+
+!   Purpose: Calculate the schur product of two matrices
+
+!   ***************************************************************************
+
+    TYPE(blacs_matrix_type), POINTER          :: matrix_a,matrix_b,matrix_c
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    INTEGER, INTENT(IN)                       :: context
+
+!   *** Local variables ***
+
+    INTEGER :: group,handle,icol_local,irow_local,mypcol,myprow,ncol_local,&
+               npcol,nprow,nrow_local,source
+
+    REAL(wp), DIMENSION(:,:), POINTER :: a,b,c
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("blacs_schur_product","I","",handle)
+
+    group = globenv%group
+    source = globenv%source
+#if defined(__parallel)
+
+    CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
+
+#else
+
+    myprow = source
+    mypcol = source
+
+#endif
+    a => matrix_a%p(myprow,mypcol)%block
+    b => matrix_b%p(myprow,mypcol)%block
+    c => matrix_c%p(myprow,mypcol)%block
+
+    nrow_local = matrix_a%p(myprow,mypcol)%nrow_local
+    ncol_local = matrix_a%p(myprow,mypcol)%ncol_local
+
+    DO icol_local=1,ncol_local
+      DO irow_local=1,nrow_local
+        c(irow_local,icol_local) = a(irow_local,icol_local)*b(irow_local,icol_local)
+      END DO
+    END DO
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE blacs_schur_product
+
+! *****************************************************************************
 
 ! *****************************************************************************
 
@@ -2834,6 +2947,52 @@ CONTAINS
 
 #endif
   END SUBROUTINE start_blacs
+!************************************************************
+  SUBROUTINE blacs_transpose(matrix,matrixt,context,globenv)
+! matrixt=matrix^T ! assumes no symmetry
+!***************************************************************************
+
+    TYPE(blacs_matrix_type), POINTER          :: matrix,matrixt
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    INTEGER, INTENT(IN)                       :: context
+
+!   *** Local variables ***
+
+    INTEGER :: handle,icol_global,icol_local,ipcol,iprow,irow_global,&
+               irow_local,mypcol,myprow,ncol_block,ncol_global,ncol_local,&
+               npcol,nprow,nrow_block,nrow_global,nrow_local,source
+
+    INTEGER, DIMENSION(9) :: desca,descc
+
+    REAL(wp), DIMENSION(:,:), POINTER :: a,c
+    INTEGER :: i,j
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("blacs_transpose","I","",handle)
+
+    source = globenv%source
+    nrow_global = matrix%nrow_global
+    ncol_global = matrix%ncol_global
+#if defined(__parallel)
+    CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
+    a => matrix%p(myprow,mypcol)%block
+    desca(:) = matrix%descriptor(:)
+    c => matrixt%p(myprow,mypcol)%block
+    descc(:) = matrixt%descriptor(:)
+    CALL pdtran(nrow_global,ncol_global,1.0_wp,a,1,1,desca,0.0_wp,c,1,1,descc)
+#else
+    a => matrix%p(source,source)%block
+    c => matrixt%p(source,source)%block
+    DO j=1,ncol_global
+     DO i=1,nrow_global
+        c(j,i)=a(i,j)
+     ENDDO
+    ENDDO
+#endif
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE blacs_transpose
 
 ! *****************************************************************************
 
