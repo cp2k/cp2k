@@ -1,0 +1,267 @@
+#!/bin/bash
+
+#
+# this script should perform a cvs update of qs sources and test directory,
+# a make realclean followed by make sdbg
+# execution of all files found by TEST_FILES in the directories given by cp2k/tests/TEST_DIRS
+# a new directory is automatically created containing the outputs (TEST-xxx)
+# and will be compared to the last succesful run made so far (LAST-xxx)
+# an error summary can be found in TEST-xxx
+#
+#
+# prerequisites :
+# a clean directory with a copy of cp2k that can be compiled by doing make in cp2k/makefiles
+# this script in that directory
+# i.e. mkdir testing
+#      cvs co cp2k
+#      cp cp2k/tools/do_regtest .
+# (assuming that cp2k/arch/.. is fine for your machine)
+# install :
+# set the variables below to what they have to be for your compiler/machine/dir
+#
+# run :
+# simply
+#     do_regtest
+#
+
+# *** defined variables, might need modification
+# *** e.g. dir_triplet should be the one of the current compiler
+# *** parallel runs might need an mpi_run prefix , or -llfile llfile postfix
+dir_base=/home/jv244/nightly_testing
+cp2k_version=sdbg
+dir_triplet=Linux-i686-nag
+cp2k_prefix=${dir_base}/cp2k/exe/${dir_triplet}/cp2k.${cp2k_version}
+cp2k_postfix=
+make=make
+
+# *** should be automatic
+datum_full=`date --iso-8601="seconds"`
+datum_short=`date --iso-8601`
+dir_last=${dir_base}/LAST-${dir_triplet}-${cp2k_version}
+dir_out=${dir_base}/TEST-${dir_triplet}-${cp2k_version}-${datum_short}
+changelog_diff=${dir_out}/ChangeLog.diff
+error_description_file=${dir_out}/error_summary
+rm -fR ${error_description_file}
+touch  ${error_description_file}
+
+# *** defined functions
+function end_test() {
+echo "--------------------------------------------------------------------------"
+date
+echo "*************************** testing ended ********************************"
+exit $1
+}
+
+# *** a small error in the latest "Total Energy:"
+function do_test_1(){
+ output_new=$1
+ output_old=$2
+ error_file=$3
+ e1=`grep "Total energy:" ${output_old} | tail -1 | awk '{print $3}'`
+ e2=`grep "Total energy:" ${output_new} | tail -1 | awk '{print $3}'`
+ big=`echo "${e1} ${e2}" | awk '{v=sqrt((($1-$2)/$2)^2); if (v>1.0E-14) printf("%16.8e",v); else printf("0") ;}'`
+ case ${big} in
+ 0)
+  # ok, same energy
+  return 0 ;;
+ *)
+  # nope too large
+  echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_file}
+  echo "${output_new} : energy difference too large ${e1} ${e2} ${big}" >> ${error_file}
+  echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_file}
+  return 1 ;;
+ esac 
+}
+
+# *** select which test to run
+function do_test() {
+ which_test=$1
+ output_new=$2
+ output_old=$3
+ error_file=$4
+ case ${which_test} in
+ 0) 
+   #just be happy you executed
+   return 0;;
+ 1)
+   #test the last total energy
+   do_test_1 ${output_new} ${output_old} ${error_file}
+   return $? ;;
+ *)
+   echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_file}
+   echo "${output_new} : Unknown Test" >> ${error_file}
+   echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_file}
+   return 112 ;;
+ esac
+}
+
+# *** start testing
+echo "*************************** testing started ******************************"
+echo " started on " `date`
+echo " checking version -D ${datum_full} "
+echo "--------------------------------------------------------------------------"
+
+mkdir -p ${dir_out}
+mkdir -p ${dir_last}
+
+# *** cvs update src
+cd ${dir_base}/cp2k/src
+cvs update -D ${datum_full} &> out
+if (( $? )); then
+echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+tail -20 out >> ${error_description_file}
+echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+echo "error happened : no cvs update ... bailing out"
+end_test 1
+fi
+echo "cvs src update went fine"
+cp2k_lines=`wc *.F | tail -1 |  awk '{print $1}'`
+echo "cp2k is now ${cp2k_lines} lines .F"
+${dir_base}/cp2k/tools/cvs2cl.pl &> out
+diff ChangeLog ${dir_last}/ChangeLog > ${changelog_diff}
+echo "------------------------changelog diff------------------------------------"
+cat ${changelog_diff}
+echo "--------------------------------------------------------------------------"
+cp ChangeLog ${dir_last}/ChangeLog
+
+# *** cvs update tests
+cd ${dir_base}/cp2k/tests
+cvs update -D ${datum_full} &> out
+if (( $? )); then
+echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+tail -20 out >> ${error_description_file}
+echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+echo "error happened : no cvs update ... bailing out"
+end_test 2
+else
+echo "cvs tests update went fine"
+fi
+
+# *** make realclean
+cd ${dir_base}/cp2k/makefiles
+${make} realclean VERSION=${cp2k_version} &> out
+if (( $? )); then
+echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+tail -20 out >> ${error_description_file}
+echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+echo "error happened : make realclean VERSION=${cp2k_version} ... bailing out"
+end_test 3
+else
+echo "make realclean VERSION=${cp2k_version} went fine"
+fi
+
+# *** from here failures are likely to be bugs in cp2k
+echo "-------------------------compiling cp2k-----------------------------------"
+cd ${dir_base}/cp2k/makefiles
+${make} VERSION=${cp2k_version} &> out
+if (( $? )); then
+echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+tail -40 out >> ${error_description_file}
+echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+echo "error happened : make realclean VERSION=${cp2k_version} ... bailing out"
+echo "error happened : make VERSION=${cp2k_version} "
+end_test 4
+else
+compile_warnings=`grep "Warning:" out | wc | tail -1 |  awk '{print $1}'`
+echo "make VERSION=${cp2k_version} went fine (${compile_warnings} warnings)"
+fi
+echo "-------------------------regtesting cp2k----------------------------------"
+
+# *** now start testing 
+# *** for a given directory we do a run on all files in TEST_FILES and
+# *** do the test as indicated by the number
+# *** files are run in order so that they can e.g. restart
+out_runtime_errors=""
+out_wrong_results=""
+n_runtime_error=0
+n_wrong_results=0
+n_correct=0
+n_tests=0
+n_new=0
+
+dirs=`cat ${dir_base}/cp2k/tests/TEST_DIRS | grep -v "#"`
+for dir in ${dirs};
+do
+  cd ${dir_base}/cp2k/tests/${dir}
+  mkdir -p ${dir_out}/${dir}
+  mkdir -p ${dir_last}/${dir}
+
+  echo "Running tests in ${dir_base}/cp2k/tests/${dir}"
+  ntest=`grep -v "#" TEST_FILES | awk '{c=c+1}END{print c}'`
+  for ((itest=1;itest<=ntest;itest++));
+  do
+     n_tests=$((n_tests+1))
+     this_test=""
+     input_file=`grep -v "#" TEST_FILES | awk -v itest=$itest '{c=c+1;if (c==itest) print $1}'`
+     # just one test right now, but this should generalize
+     test_types=`grep -v "#" TEST_FILES | awk -v itest=$itest '{c=c+1;if (c==itest) print $2}'`
+     output_file=${dir_out}/${dir}/${input_file}.out
+     output_last=${dir_last}/${dir}/${input_file}.out
+     ${cp2k_prefix} ${input_file} ${cp2k_postfix} &> ${output_file}
+
+     # *** cp2k failed obviously
+     if (( $? )); then
+        echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+        echo ${output_file} >> ${error_description_file}
+        tail -40 ${output_file} >> ${error_description_file}
+        echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+        this_test="RUNTIME FAIL"
+        n_runtime_error=$((n_runtime_error+1))
+        failed_tests="${failed_tests} ${output_file}"
+     else 
+        # *** but didn't end !?
+        grep -q "PROGRAM ENDED AT" ${output_file}
+        if (( $? )); then
+           echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+           echo ${output_file} >> ${error_description_file}
+           tail -40 ${output_file} >> ${error_description_file}
+           echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+           this_test="RUNTIME FAIL"
+           n_runtime_error=$((n_runtime_error+1))
+           failed_tests="${failed_tests} ${output_file}"
+        else
+           # *** still running, you must be joking...
+           # *** see if we manage to pass the testing
+           # *** but only if we can compare
+           if [ -f ${output_last} ]; then
+              for test_type in ${test_types};
+              do
+                 do_test ${test_type} ${output_file} ${output_last} ${error_description_file}
+                 if (( $? )); then
+                    this_test="WRONG RESULT TEST ${test_type}"
+                    n_wrong_results=$((n_wrong_results+1))
+                    # *** no further testing
+                    break;
+                 else
+                    n_correct=$((n_correct+1))
+                    this_test="OK"
+                 fi
+              done
+           else
+              this_test="NEW"
+              n_new=$((n_new+1))
+           fi
+           case ${this_test} in
+           "OK" | "NEW" )
+                timing=`grep "CP2K   " ${output_file} | awk '{printf("%6.2f",$4)}'`
+                this_test="${this_test} (${timing} sec)"
+           esac
+        fi
+     fi
+     printf "%40s %20s\n" "${dir}/${input_file}" "${this_test}"
+     # Keep the output up-to-date
+     case ${this_test} in
+     "OK" | "NEW" )
+        cp ${output_file} ${output_last} ;;
+     esac
+  done
+done
+echo "--------------------------------------------------------------------------"
+cat "${error_description_file}"
+echo "--------------------------------- summary --------------------------------"
+printf "number of FAILED  tests %d\n" ${n_runtime_error}
+printf "number of WRONG   tests %d\n" ${n_wrong_results}
+printf "number of CORRECT tests %d\n" ${n_correct}
+printf "number of NEW     tests %d\n" ${n_new}
+printf "number of         tests %d\n" ${n_tests}
+end_test 0
