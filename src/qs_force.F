@@ -325,7 +325,12 @@ CONTAINS
     DO iatom=1,natom
       ikind = kind_of(iatom)
       i = atom_of_kind(iatom)
-      particle_set(iatom)%f(1:3) = force(ikind)%total(1:3,i)
+      ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      ! the force is - dE/dR, it seems that what is called force is actually the gradient
+      ! is that true ? In that case things should have the right name
+      ! The minus sign below is a hack
+      ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      particle_set(iatom)%f(1:3) = - force(ikind)%total(1:3,i)
     END DO
 
     CALL write_forces(force,atomic_kind_set,globenv)
