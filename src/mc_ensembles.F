@@ -25,10 +25,12 @@ MODULE mc_ensembles
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_error_get_logger,&
-                                             cp_error_type
+                                             cp_error_type, &
+                                             cp_assert
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_get_default_unit_nr,&
-                                             cp_logger_type
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_subsystem_types,              ONLY: cp_subsystem_p_type,&
                                              cp_subsys_get,&
                                              cp_subsys_set,&
