@@ -209,6 +209,7 @@ CONTAINS
       NULLIFY (molecule_kind_set(imolecule_kind)%bend_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%dist_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%ub_list)
+      NULLIFY (molecule_kind_set(imolecule_kind)%ub_kind_set)
       NULLIFY (molecule_kind_set(imolecule_kind)%impr_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%onfo_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%g3x3_list)
