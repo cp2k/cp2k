@@ -1382,6 +1382,7 @@ CONTAINS
         CALL read_object(eps_scf)
       CASE ("LEVEL_SHIFT","LSHIFT")
         CALL read_object(level_shift)
+        IF (level_shift /= 0.0_wp) use_cholesky = .FALSE.
       CASE ("MAX_DIIS")
         CALL read_object(max_diis)
       CASE ("MAX_SCF")
