@@ -215,8 +215,10 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
   iw = globenv % scr
   NULLIFY ( massive_atom_list ) 
 
-  SELECT CASE ( simpar % ensemble ( 1 : 3 ) )
-    CASE ( 'NVE' )
+  SELECT CASE ( TRIM(simpar % ensemble) )
+    CASE DEFAULT
+      CALL stop_program ( 'nhc_particle_setup', 'unknown ensemble '//TRIM(simpar % ensemble) )
+    CASE ( 'NVE', 'ISOKIN' )
      ALLOCATE ( nhc % nvt ( 0, 0 ), STAT = isos )
      IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'nhc%nvt', 0 )
      nhc % nyosh = 0

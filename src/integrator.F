@@ -18,6 +18,7 @@
 !!     JGH (15-Mar-2001) : Pass logical for box change to force routine
 !!     Harald Forbert (Apr-2001): added path integral routine nvt_pimd
 !!     CJM (15-Apr-2001) : added coef integrators and energy routines
+!!     Joost VandeVondele (Juli-2003): simple version of isokinetic ensemble
 !!
 !!   SOURCE
 !******************************************************************************
@@ -90,7 +91,7 @@ MODULE integrator
 
   TYPE ( global_environment_type ) :: glob_env
 
-  PUBLIC :: set_integrator, nve, nvt! , pressure
+  PUBLIC :: set_integrator, nve, nvt, isokin! , pressure
 
 !******************************************************************************
 
@@ -1026,6 +1027,185 @@ END SUBROUTINE set_integrator
 
   END SUBROUTINE nve
 !!*****
+!******************************************************************************
+!!****** integrator/isokin [1.0] *
+!!
+!!   NAME
+!!     isokin
+!!
+!!   FUNCTION
+!!     simplest version of the isokinetic gaussian thermostat
+!!
+!!   NOTES
+!!     - time reversible, and conserves the kinetic energy to machine precision
+!!     - is not yet supposed to work for e.g. constraints, our the extended version
+!!       of this thermostat
+!!       see:
+!!        - Zhang F. , JCP 106, 6102 (1997)
+!!        - Minary P. et al, JCP 118, 2510 (2003)
+!!
+!!   AUTHOR
+!!     Joost VandeVondele
+!!
+!!   MODIFICATION HISTORY
+!!     - Created [2004-07]
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE isokin ( md_env )
+
+    TYPE(md_environment_type), POINTER       :: md_env
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "isokin"
+
+    INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
+      isubsys, mass_storage, nmolecule, nmolecule_kind, nparticle, &
+      nparticle_kind, nparticle_local
+    REAL(KIND=dp)                            :: dm, dt, mass
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: work
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(force_env_p_type), DIMENSION(:), POINTER :: force_env_p
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
+    REAL(KIND=dp)                            :: K,a,b,rb,s,ds
+
+!   ---------------------------------------------------------------------------
+
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p)
+                    
+    dt = simpar%dt
+
+    IF (SIZE(force_env_p)/=1) THEN
+       CALL stop_program("isokin","integrator",__LINE__,&
+       "MD_ENV with more than (or less) than one force_env not supported atm!")
+    END IF
+    CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys)
+
+    IF (SIZE(subsys)/=1) THEN
+       ! presumably one just needs to get e.g. kinetic energy of the full system by looping 
+       ! over the subsystems
+       CALL stop_program("isokin","integrator",__LINE__,&
+       "force_env with more than (or less) than one subsys not supported atm!")
+    END IF
+
+    IF (simpar%constraint) THEN
+        CALL stop_program("isokin","integrator",__LINE__,&
+             "Constraints not yet implemented")
+    ENDIF
+
+    do_subsys: DO isubsys=1,SIZE(subsys)
+
+      CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
+                        atomic_kinds=atomic_kinds,&
+                        local_particles=local_particles,&
+                        particles=particles )
+
+      nparticle_kind = atomic_kinds%n_els
+      atomic_kind_set => atomic_kinds%els
+      nparticle = particles%n_els
+      particle_set => particles%els
+
+!     *** Allocate work storage for positions and velocities ***
+      ALLOCATE (work(3,nparticle),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "work",3*nparticle*dp_size)
+      work(:,:) = 0.0_dp
+
+      ! compute K,a,b,s,ds
+      CALL get_s_ds()
+
+!     *** 'Velocity Verlet' (first part) ***
+      DO iparticle_kind=1,nparticle_kind
+        atomic_kind => atomic_kind_set(iparticle_kind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        dm = s/mass
+        nparticle_local = local_particles%n_el(iparticle_kind)
+        DO iparticle_local=1,nparticle_local
+          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+          particle_set(iparticle)%v(:) = (1.0_dp/ds)*( particle_set(iparticle)%v(:) +&
+                                                       dm*particle_set(iparticle)%f(:) )
+          work(:,iparticle) = particle_set(iparticle)%r(:) +&
+                              dt*particle_set(iparticle)%v(:)
+        END DO
+      END DO
+
+!     *** Broadcast the new particle positions ***
+
+      CALL mp_sum(work,int_group)
+
+      DO iparticle=1,nparticle
+        particle_set(iparticle)%r(:) = work(:,iparticle)
+        work(:,iparticle) = 0.0_dp
+      END DO
+
+      CALL force_env_calculate_force(force_env_p(1)%force_env, &
+                                      box_change=.FALSE.)
+
+      ! compute K,a,b,s,ds
+      CALL get_s_ds()
+
+!     *** Velocity Verlet (second part) ***
+
+      DO iparticle_kind=1,nparticle_kind
+        atomic_kind => atomic_kind_set(iparticle_kind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        dm = s/mass
+        nparticle_local = local_particles%n_el(iparticle_kind)
+        DO iparticle_local=1,nparticle_local
+          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+          work ( :, iparticle ) = (1.0_dp/ds)*( particle_set(iparticle)%v(:) +&
+                                                dm*particle_set(iparticle)%f(:))
+        END DO
+      END DO
+
+!     *** Broadcast the new particle velocities ***
+
+      CALL mp_sum(work,int_group)
+
+      DO iparticle=1,nparticle
+        particle_set(iparticle)%v(:) = work(:,iparticle)
+      END DO
+
+      DEALLOCATE (work,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"work")
+
+    END DO do_subsys
+  CONTAINS
+      SUBROUTINE get_s_ds()
+         K=0.0_dp
+         a=0.0_dp
+         b=0.0_dp
+         DO iparticle_kind=1,nparticle_kind
+           atomic_kind => atomic_kind_set(iparticle_kind)
+           CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+           nparticle_local = local_particles%n_el(iparticle_kind)
+           DO iparticle_local=1,nparticle_local
+             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+             K=K+ 0.5_dp*mass *DOT_PRODUCT(particle_set(iparticle)%v(:),particle_set(iparticle)%v(:))
+             a=a+              DOT_PRODUCT(particle_set(iparticle)%v(:),particle_set(iparticle)%f(:))
+             b=b+(1.0_dp/mass)*DOT_PRODUCT(particle_set(iparticle)%f(:),particle_set(iparticle)%f(:))
+           END DO
+         END DO
+         CALL mp_sum(K,int_group)
+         CALL mp_sum(a,int_group)
+         CALL mp_sum(b,int_group)
+         a=a/(2.0_dp*K)
+         b=b/(2.0_dp*K)
+         rb=sqrt(b)
+         s =(a/b)*(cosh(dt*rb/2.0_dp)-1) +sinh(dt*rb/2.0_dp)/rb
+         ds=(a/b)*(sinh(dt*rb/2.0_dp)*rb)+cosh(dt*rb/2.0_dp)
+      END SUBROUTINE get_s_ds
+  END SUBROUTINE isokin
+
 !******************************************************************************
 !!****** integrator/nvt [1.0] *
 !!

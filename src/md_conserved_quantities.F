@@ -46,6 +46,7 @@ MODULE md_conserved_quantities
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE simulation_cell,                 ONLY: cell_type
+  USE termination,                     ONLY: stop_program
 
   IMPLICIT NONE
 
@@ -113,6 +114,7 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
     TYPE(md_ener_type)                       :: md_ener
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
+    CHARACTER(LEN=*), PARAMETER              :: RoutineN="compute_conserved_quantity"
 
 !------------------------------------------------------------------------------
 
@@ -130,7 +132,12 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
 
   md_ener % temp = 2.0_dbl * md_ener % ekin / REAL ( simpar%nfree, dbl )
   
-  SELECT CASE ( simpar % ensemble ( 1 : 3 ) )
+  SELECT CASE ( TRIM(simpar % ensemble)  )
+  CASE DEFAULT
+    ! hence, should be implemented 
+    CALL stop_program( RoutineN, 'Unknown Ensemble')
+  CASE ( 'ISOKIN' )
+    cons = md_ener % ekin
   CASE ( 'NVE')
     CALL get_econs_nve (md_env, md_ener, cons, int_grp)
   CASE ( 'NVT')

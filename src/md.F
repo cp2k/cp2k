@@ -168,7 +168,7 @@ CONTAINS
 !!I                                                                           I
 !!I output_format[xmol,atomic...]        format for the output of pos,vel,    I
 !!I                                      forces, default is XMOL.             I
-!!I ensemble:    [nve,nvt]               ensemble type                        I
+!!I ensemble:    [nve,nvt,isokin]        ensemble type                        I
 !!I coef_ensemble:    [nve,nvt]          ensemble type for coefficients       I
 !!I coef_storage [global,kind,atom,coef] type of effective mass storage       I
 !!I steps:       n                       total number of steps                I
@@ -686,6 +686,9 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
              ' MD| Pressure [',simpar % units % press,'] ', simpar % p_ext
         WRITE ( iw, '( A,A4,A, T71, F10.4 )' ) &
              ' MD| Barostat time constant [',simpar % units % tau_cell,'] ', simpar % tau_cell
+     END IF
+     IF ( simpar % ensemble ( 1:6 ) == 'ISOKIN' ) THEN
+        WRITE ( iw, '( A )' ) ' MD| Simulation in the isokinetic ensemble'
      END IF
      IF ( simpar % constraint ) THEN
         WRITE ( iw, '( A )' ) ' MD| Constraints activated '
