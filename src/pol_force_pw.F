@@ -29,7 +29,7 @@ MODULE pol_force_pw
   USE kinds, ONLY : dbl
   USE linklist_control, ONLY : list_control
   USE mathconstants, ONLY : pi, zero
-  USE md, ONLY : thermodynamic_type
+  USE md, ONLY : thermodynamic_type, simulation_parameters_type
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type, &
        linklist_neighbor, linklist_exclusion, linklist_bonds, &
        linklist_bends, linklist_torsions
@@ -83,7 +83,7 @@ CONTAINS
 SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
      drho_basis_info, rho0_basis_info, coef_pos, coef_vel, coef_force, &
      proj, pw_grid, thermo, potparm, empparm, ewald_param, box_change, &
-     fc_global, lldata, debug)
+     fc_global, lldata, simpar, debug)
 
   IMPLICIT NONE
 
@@ -107,6 +107,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   LOGICAL, INTENT ( IN ) :: box_change
   TYPE ( global_environment_type ), INTENT ( IN ) :: fc_global
   TYPE ( linklist_internal_data_type), DIMENSION (:), INTENT (INOUT) :: lldata
+  TYPE ( simulation_parameters_type ), intent (IN) :: simpar
   TYPE ( debug_variables_type ), INTENT ( OUT ), OPTIONAL :: debug
 
 ! Locals
@@ -203,17 +204,27 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
 !
 ! Initializing pw coefficients from scratch if needed
 !
-!!      CALL initialize_coef_pw ( dg_proj, coef_pos % pw, part, box, small_grid,  &
-!!                            big_grid, ewald_param )
-!dbg 
-! initialize coeffs with a gaussian (for debugging purposes)
-   DO i = 1, coef_pos % pw % pw_grid % ngpts_cut
-     e_gsq = exp ( .25 *  coef_pos % pw % pw_grid % gsq ( i ) )
-     coef_pos % pw % cc (i) = CMPLX ( e_gsq, 0 )
-     coef_pos % pw % cc (1) = CMPLX ( 0.0, 0 )
-   ENDDO
-!dbg 
-
+     IF (simpar%pol_read_type=='INIT') THEN
+        SELECT CASE (simpar%pol_init_type)
+        CASE DEFAULT
+           CALL stop_program ( 'pol_force_pw', 'not implemented' )
+        CASE ("AO")
+! initialize coeffs with superposition of ao basis functions
+           CALL initialize_coef_pw ( dg_proj, coef_pos % pw, part, box, small_grid,  &
+                                     big_grid, ewald_param )
+           DO i = 1, coef_pos % pw % pw_grid % ngpts_cut
+              coef_pos % pw % cc (i) = box % deth * coef_pos % pw % cc (i)
+              coef_pos % pw % cc (1) = CMPLX ( 0.0, 0 )
+           END DO
+        CASE ("GAUS")
+! initialize coeffs with a gaussian
+           DO i = 1, coef_pos % pw % pw_grid % ngpts_cut
+              e_gsq = exp ( .25 *  coef_pos % pw % pw_grid % gsq ( i ) )
+              coef_pos % pw % cc (i) = CMPLX ( e_gsq, 0 )
+              coef_pos % pw % cc (1) = CMPLX ( 0.0, 0 )
+           ENDDO
+        END SELECT
+     END IF
 !
   END IF
 
