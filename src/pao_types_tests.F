@@ -117,8 +117,8 @@ contains
 !!FM         min_bas_rows=.false.)
 !!FM    call cp_set(pao_env, angles_att=glob_angles)
 !!FM
-!!FM    CPAssert(cp_validate(pao_env,error=error),cp_warning_level,routineP,error,failure)
-!!FM    CPAssert(cp_validate(local_angles,error=error),cp_warning_level,routineP,error,failure)
+!!FMCPAssert(cp_validate(pao_env,error=error),cp_warning_level,routineP,error,failure)
+!!FMCPAssert(cp_validate(local_angles,error=error),cp_warning_level,routineP,error,failure)
 !!FM    call cp_dealloc_ref(pao_env,error=error)
 !!FM    call cp_dealloc_ref(local_angles,error=error)
 !!FM
@@ -200,7 +200,7 @@ contains
 !!FM          call cp_init(pao_env, nr_min_bas=minB, nr_full_bas=fullB, &
 !!FM               global_env=glob_env,error=error)
 !!FM          call cp_set(pao_env,error=error) ! just to be sure
-!!FM          CPPostcondition(cp_valid(pao_env,error=error),cp_warning_level,routineP,error,failure)
+!!FMCPPostcondition(cp_valid(pao_env,error=error),cp_warning_level,routineP,error,failure)
 !!FM       end if
 !!FM       deallocate(minB,fullB,stat=stat) !just to be sure...
 !!FM       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
