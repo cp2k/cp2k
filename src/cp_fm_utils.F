@@ -48,12 +48,12 @@ CONTAINS
   
     IMPLICIT NONE
 
-  	! arguments
+  ! arguments
     TYPE(cp_full_matrix_type), POINTER :: mat_a
     INTEGER, INTENT(in)                :: col_a
     REAL(dbl), DIMENSION(:), POINTER   :: vec_b
   
-  	! locals
+  ! locals
     INTEGER :: stat
     INTEGER :: a_row_global, a_col_global, &
                a_row_block, a_col_block, &

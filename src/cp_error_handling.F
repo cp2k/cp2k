@@ -1128,14 +1128,14 @@ END SUBROUTINE cp_error_check
   
     IMPLICIT NONE
 
-  	! arguments
+        ! arguments
     LOGICAL, INTENT(in)          :: condition
     CHARACTER(len=*), INTENT(in) :: routineP
     INTEGER, INTENT(in)          :: line
   
-  	! locals
+  ! locals
   
-  	! code
+  ! code
     IF (.NOT.condition) THEN
        WRITE (*,*) "======== ASSERTION FAILED ========"
        WRITE (*,*) routineP, ": ", cp_to_string(line)

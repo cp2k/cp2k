@@ -91,14 +91,14 @@ CONTAINS
   
     IMPLICIT NONE
 
-  	! arguments
+  ! arguments
     INTEGER, INTENT(in)                           :: n_ev
     REAL(dbl), DIMENSION(:,:), POINTER            :: eval
     TYPE(cp_full_matrix_type), POINTER            :: evec
     TYPE(global_environment_type), INTENT(in)     :: glob_env
     TYPE(op_tddfpt_type), INTENT(inout), OPTIONAL :: op_tddfpt
   
-  	! locals
+  ! locals
     INTEGER   :: ev, stat
     INTEGER   :: op_present        ! how many optional operators are present
     CHARACTER(len=*), PARAMETER :: routineN = "arpack_diag_n", &
