@@ -65,7 +65,6 @@ MODULE qs_environment_types
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: h,k,p,p_old,s
     TYPE(cp_b_matrix_struct_type), POINTER                :: s_mstruct
     TYPE(qs_rho_type), POINTER                            :: rho
-    INTEGER                                               :: n_spins
   END TYPE qs_environment_type
 
 ! *** Public data types ***
@@ -88,7 +87,7 @@ CONTAINS
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,sab_orb,&
                         sac_erfc,sac_ppl,sca_ppnl,scb_ppnl,pao_env,&
                         particle_set,energy,force,h,k,p,p_old,s, s_mstruct,&
-                        rho, n_spins)
+                        rho)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -117,7 +116,6 @@ CONTAINS
     TYPE(cp_b_matrix_struct_type), OPTIONAL,&
          POINTER                                :: s_mstruct
     TYPE(qs_rho_type), OPTIONAL, POINTER        :: rho
-    INTEGER, OPTIONAL                           :: n_spins
 !   ---------------------------------------------------------------------------
 
     IF (PRESENT(atomic_kind_set)) atomic_kind_set => qs_env%atomic_kind_set
@@ -140,7 +138,6 @@ CONTAINS
     IF (PRESENT(s)) s => qs_env%s
     IF (PRESENT(s_mstruct)) s_mstruct => qs_env%s_mstruct
     IF (PRESENT(rho)) rho => qs_env%rho
-    IF (PRESENT(n_spins)) n_spins = qs_env%n_spins
 
   END SUBROUTINE get_qs_env
 
@@ -178,7 +175,6 @@ CONTAINS
     NULLIFY (qs_env%s)
     NULLIFY (qs_env%s_mstruct)
     NULLIFY (qs_env%rho)
-    qs_env%n_spins = 0
 
   END SUBROUTINE init_qs_env
 
@@ -186,7 +182,7 @@ CONTAINS
 
   SUBROUTINE set_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,sab_orb,&
                         sac_erfc,sac_ppl,sca_ppnl,scb_ppnl,pao_env,&
-                        particle_set,energy,force,h,k,p,p_old,s, n_spins)
+                        particle_set,energy,force,h,k,p,p_old,s)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -212,7 +208,6 @@ CONTAINS
       OPTIONAL, POINTER                       :: force
     TYPE(real_matrix_p_type), DIMENSION(:),&
       OPTIONAL, POINTER                       :: h,k,p,p_old,s
-    INTEGER, OPTIONAL                         :: n_spins
 
 !   ---------------------------------------------------------------------------
 
@@ -234,8 +229,6 @@ CONTAINS
     IF (PRESENT(p)) qs_env%p => p
     IF (PRESENT(p_old)) qs_env%p_old => p_old
     IF (PRESENT(s)) qs_env%s => s
-    qs_env%n_spins = 1
-    IF (PRESENT(n_spins)) qs_env%n_spins = n_spins
 
   END SUBROUTINE set_qs_env
 
