@@ -100,12 +100,14 @@ SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s,  &
   TYPE ( coeff_type ) :: rho0, drho, coeff_dummy 
   REAL ( dbl ) :: inv_fourpi_eps0
   REAL ( dbl ) :: e_rho0_rho0, e_drho_drho, e_rho0_drho
-  REAL ( dbl ) :: ivol
+  REAL ( dbl ) :: ivol, vol
   LOGICAL :: first_time, match
 
 !------------------------------------------------------------------------------
  
-  ivol = 1._dbl / box % deth
+!  ivol = 1._dbl / box % deth
+   ivol = 1._dbl 
+   vol = box%deth
 
 !-------------- INITIALISATION ---------------------
 
@@ -224,6 +226,9 @@ SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s,  &
   CALL coeff_allocate ( phi2_r, pw % pw_grid, use_data = PW_COMPLEXDATA1D )
   phi2_r % pw % in_space = PW_RECIPROCALSPACE
 
+  CALL coeff_allocate ( coeff_dummy , pw % pw_grid, use_data = PW_COMPLEXDATA1D )
+  coeff_dummy % pw % in_space = PW_RECIPROCALSPACE
+
   CALL init_pw_poisson_solver ( box % green )
 
   CALL calculate_hartree ( rho0, e_rho0_rho0, phi1_r )
@@ -242,14 +247,16 @@ SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s,  &
 
   IF ( PRESENT ( f_coef ) )  THEN 
 
-    f_coef = - ivol * inv_fourpi_eps0 *  &
-               CMPLX ( 2._dbl * REAL ( phi2_r % pw % cc, dbl ), &
-                       2._dbl * AIMAG ( phi2_r % pw % cc ), dbl )
+    CALL pw_add ( phi1_r % pw, phi2_r % pw, coeff_dummy % pw )  
 
+    f_coef = - vol * inv_fourpi_eps0 *  &
+               CMPLX ( 2._dbl * REAL ( coeff_dummy % pw % cc, dbl ), &
+                       2._dbl * AIMAG ( coeff_dummy % pw % cc ), dbl )
   ENDIF 
 
   CALL coeff_deallocate ( phi2_r )
   CALL coeff_deallocate ( phi1_r )
+  CALL coeff_deallocate ( coeff_dummy )
  
   IF ( PRESENT ( f_part ) ) THEN
     DO gt = 1, ngt
@@ -457,7 +464,8 @@ SUBROUTINE force_part_evaluate ( dg,  drpot1, drpot2, part, force, box, &
   CALL timeset ( 'FORCE_EVALUATE_PART', 'I', ' ', handle )
 
   inv_fourpi_eps0 = 1.0_dbl / ( fourpi * ewald_param % eps0 )
-  ivol = 1._dbl / box % deth
+!  ivol = 1._dbl / box % deth
+  ivol = 1._dbl 
 
 ! initialize the forces
   dvols = rhos1 % pw % pw_grid % dvol * inv_fourpi_eps0
