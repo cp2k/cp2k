@@ -608,6 +608,19 @@ contains
        is_master=optimizer%master==optimizer%global_env%mepos
        do
           ifMaster: if (is_master) then
+             if (optimizer%task(1:7)=='RESTART') then
+                ! restart the optimizer
+                optimizer%status=0
+                optimizer%task='START'
+                call setulb (size(optimizer%x), optimizer%m, optimizer%x, &
+                     optimizer%lower_bound, optimizer%upper_bound, &
+                     optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
+                     optimizer%wanted_relative_f_delta, &
+                     optimizer%wanted_projected_gradient, optimizer%work_array, &
+                     optimizer%i_work_array, optimizer%task, optimizer%print_every,&
+                     optimizer%csave, optimizer%lsave, optimizer%isave, &
+                     optimizer%dsave)
+             end if
              if (optimizer%task(1:2)=='FG') then
                 if (optimizer%isave(36)>optimizer%max_f_per_iter) then
                    optimizer%task='STOP: CPU, hit max f eval in iter'
