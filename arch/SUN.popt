@@ -1,0 +1,16 @@
+PERL     = perl
+CC       = tmcc
+CPP      = cpp
+FC       = tmf90 -free
+FC_fixed = tmf90 
+LD       = tmf90
+AR       = ar -r
+CPPFLAGS = -traditional -C  -D__FFTSG -D__SUN -D__parallel  -P
+FCFLAGS  = -O2 -xarch=v8plusa -dalign -fsimple=2 -fns -D__FFTSG -D__SUN -D__parallel
+LDFLAGS  = $(FCFLAGS) 
+LIBS     =  -xlang=f77 -xlic_lib=sunperf -lmpi  /home/local/vondele/SCALAPACK/libscalapack.a  /home/local/vondele/BLACS/LIB/blacsF77init_MPI-SUN4SOL2-0.a  /home/local/vondele/BLACS/LIB/blacs_MPI-SUN4SOL2-0.a  /home/local/vondele/BLACS/LIB/blacsF77init_MPI-SUN4SOL2-0.a
+
+
+OBJECTS_ARCHITECTURE = machine_sun.o
+
+
