@@ -64,6 +64,7 @@ MODULE topology_util
   USE particle_types,                  ONLY: allocate_particle_set,&
                                              particle_type
   USE periodic_table,                  ONLY: ptable
+  USE physcon,                         ONLY: massunit
   USE simulation_cell,                 ONLY: pbc
   USE string_utilities,                ONLY: integer_to_string,&
                                              str_search
@@ -1987,6 +1988,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   !-----------------------------------------------------------------------------
   DO i=1,topology%natom_type
     atomic_kind => atomic_kind_set(i)
+    mass = mass * massunit
     CALL set_atomic_kind(atomic_kind=atomic_kind,kind_number=i,&
                          name=atom_info%atom_names(i),mass=mass(i)) 
   END DO
