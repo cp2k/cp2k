@@ -333,7 +333,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule, &
          END DO
       END DO
 
-    ELSE IF ( nhc % dis_type == 'INTRA_REP' ) THEN
+    ELSE IF ( nhc % dis_type == 'INTER_REP' ) THEN
       ALLOCATE ( const_mol ( nkind ), STAT = isos )
       IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'const_mol', nkind ) 
       ALLOCATE ( tot_const ( nkind ), STAT = isos )
@@ -344,6 +344,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule, &
       IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'point', nkind*2) 
 
       atm_offset = 0
+
       DO ikind = 1, nkind
         molecule_kind => molecule_kind_set ( ikind )
         CALL get_molecule_kind ( molecule_kind, natom=natom, ndist = ndcon, &
@@ -354,7 +355,6 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule, &
         point ( 1, ikind ) = atm_offset + 1 
         point ( 2, ikind ) = atm_offset + natom * nmol_local_of_kind ( ikind )
       END DO
-
     ENDIF
 
     IF ( .NOT. simpar % constraint ) THEN
@@ -457,7 +457,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule, &
           END IF
         END DO
       END DO
-    ELSEIF ( nhc % dis_type == 'DIS_INTER' ) THEN    
+    ELSEIF ( nhc % dis_type == 'INTER_REP' ) THEN    
       DO ikind = 1, nkind
 ! doing global thermostat option
         molecule_kind => molecule_kind_set ( ikind )
