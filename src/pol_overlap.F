@@ -44,7 +44,6 @@ MODULE pol_overlap
                                       next_block_node,&
                                       real_block_node_type,&
                                       real_matrix_set_type
-  USE md,                       ONLY : thermodynamic_type
   USE memory_utilities,         ONLY: reallocate
   USE method_specifications,    ONLY: maxder
   USE molecule_types,           ONLY : particle_node_type, &
@@ -72,8 +71,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE force_overlap(ao, kind_info, part, pnode, box, thermo, empparm, &
-                           fo_coef, fo_part, energy, globenv)
+  SUBROUTINE force_overlap ( ao, kind_info, part, pnode, box, empparm, &
+                           energy, fo_coef, fo_part )
 
 !   ***************************************************************************
 
@@ -81,13 +80,11 @@ CONTAINS
   TYPE ( kind_info_type ),  INTENT (IN), DIMENSION (:) :: kind_info
   TYPE ( particle_type ), INTENT (IN),  dimension (:) :: part
   TYPE ( particle_node_type ), INTENT (INOUT),  dimension (:) :: pnode
-  TYPE ( cell_type ), INTENT ( INOUT ) :: box
-  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
+  TYPE ( cell_type ), INTENT ( IN ) :: box
   TYPE ( empirical_parameter_type ), DIMENSION ( : ), INTENT ( IN ) :: empparm
+  REAL ( dbl ), INTENT(OUT) :: energy
   REAL ( dbl ), DIMENSION (:), INTENT(INOUT) :: fo_coef
   REAL ( dbl ), DIMENSION (:,:), INTENT(INOUT), OPTIONAL :: fo_part
-  REAL ( dbl ), INTENT(OUT) :: energy
-  TYPE(global_environment_type), INTENT(IN) :: globenv
 
 ! locals
 
@@ -227,8 +224,8 @@ CONTAINS
 
 ! initialize forces
 
-  fo_coef = 0._dbl
   IF ( PRESENT ( fo_part ) ) fo_part = 0._dbl
+  fo_coef = 0._dbl
 
 ! intialize images
 
@@ -388,17 +385,19 @@ CONTAINS
 !         here the contribution to the forces  on atoms and coeffs given
 !         from each atom_block is calculated
 
-        CALL get_forces_on_coefs(ao,kind_info,fo_coef,energy,empparm,atom_block, &
-                                  part,ipart,jpart,iset,jset)
+          CALL get_forces_on_coefs(ao,kind_info,fo_coef,energy,empparm,atom_block, &
+                                      part,ipart,jpart,iset,jset)
 
-        IF (forces.AND.(iatom/=jatom))  CALL get_forces_on_atoms (ao,kind_info, fo_part, &
-                               empparm, atom_block, part, ipart, jpart, iset, jset)                        
+          IF ( ( PRESENT ( fo_part ) ) .AND. forces .AND. (iatom /= jatom) )  THEN
+             CALL get_forces_on_part (ao, kind_info, fo_part, empparm, &
+                                       atom_block, part, ipart, jpart, iset, jset)                        
+          END IF
            
+        END DO
+
       END DO
 
-    END DO
-
-    current_neighbor => current_neighbor % next          
+      current_neighbor => current_neighbor % next          
 
     END DO
   END DO
@@ -699,7 +698,7 @@ CONTAINS
  END SUBROUTINE get_forces_on_coefs
 
 !--------------------------------------------------------------------------------------
-  SUBROUTINE get_forces_on_atoms(ao,kind_info,fo_part,empparm,atom_block, &
+  SUBROUTINE get_forces_on_part(ao,kind_info,fo_part,empparm,atom_block, &
                                    part,ipart,jpart,iset,jset)
 !--------------------------------------------------------------------------------------
 
@@ -760,7 +759,7 @@ CONTAINS
  
   END DO
 
- END SUBROUTINE get_forces_on_atoms
+ END SUBROUTINE get_forces_on_part
 
 ! *****************************************************************************
 
