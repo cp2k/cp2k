@@ -1136,10 +1136,8 @@ CONTAINS
       DO i=1,2
 ! make a test environment that we can alter to calculate the energy
          globenv%input_file_name=dat_file(i)
-         IF(ionode) WRITE(6,*) 'fucking hell'
          CALL quickstep_create_force_env(test_env(i)%force_env, &
             globenv, error=error)
-         IF(ionode) WRITE(6,*) 'fucking hell2'
 
 ! grab the coords so we can change them
          CALL force_env_get(test_env(i)%force_env,&
