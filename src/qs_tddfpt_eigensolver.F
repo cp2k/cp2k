@@ -41,7 +41,6 @@ MODULE qs_tddfpt_eigensolver
                                              cp_fm_p_type,&
                                              cp_fm_type
   USE cp_log_handling,                 ONLY: cp_to_string
-  USE dft_types,                       ONLY: tddfpt_control_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
@@ -79,10 +78,6 @@ MODULE qs_tddfpt_eigensolver
      TYPE(cp_fm_struct_type), POINTER :: struct
   END TYPE cp_fm_struct_p_type
 
-  INTERFACE tddfpt_es
-     MODULE PROCEDURE tddfpt_es_lanczos
-  END INTERFACE
-
   CHARACTER(len=*), PARAMETER :: moduleN = "qs_tddfpt_eigensolver"
   INTEGER, PARAMETER          :: MAX_ITER_GLOBAL = 20
   REAL(kind=dbl), PARAMETER   :: TOLERANCE = 1.0E-5
@@ -95,14 +90,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE tddfpt_es_lanczos(t_env, p_env, qs_env, glob_env)
+  SUBROUTINE tddfpt_es(t_env, p_env, qs_env, glob_env)
     
     IMPLICIT NONE
 
     ! ARGUMENTS
     TYPE(tddfpt_env_type), INTENT(INOUT)      :: t_env
     TYPE(qs_p_env_type), POINTER              :: p_env
-    TYPE(qs_environment_type), INTENT(IN), TARGET     :: qs_env
+    TYPE(qs_environment_type), INTENT(IN)     :: qs_env
     TYPE(global_environment_type), INTENT(in) :: glob_env
 
     ! L0CALS
@@ -132,7 +127,6 @@ CONTAINS
     TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER     :: kv_fm_struct
     TYPE(cp_fm_struct_type), POINTER                     :: T_fm_struct, &
                                                             Tev_fm_struct
-    TYPE(tddfpt_control_type), POINTER                  :: tddfpt_control
 
 
     CHARACTER(len=*), PARAMETER :: routineN = "tddfpt_es_lanczos", &
@@ -140,12 +134,11 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
 
-    NULLIFY(ao_mo_fm_pools, X, R, kv, tddfpt_control)
-    tddfpt_control => qs_env%dft_control%tddfpt_control
-    n_ev      = tddfpt_control%n_ev
+    NULLIFY(ao_mo_fm_pools, X, R, kv )
+    n_ev      = qs_env%dft_control%tddfpt_control%n_ev
     n_spins   = qs_env%dft_control%nspins
     tol       = 1.0E-10
-    n_reortho = tddfpt_control%n_reortho
+    n_reortho = qs_env%dft_control%tddfpt_control%n_reortho
     iteration = 1
 
     !-----------------------------------------!
@@ -411,7 +404,7 @@ CONTAINS
     
     CALL timestop(0.0_dbl, handle)
 
-  END SUBROUTINE tddfpt_es_lanczos
+  END SUBROUTINE tddfpt_es
 
 ! *****************************************************************************
 

@@ -16,24 +16,18 @@
 !!****
 
 MODULE qs_tddfpt_module
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                             cp_fm_struct_release,&
-                                             cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_release,&
-                                             cp_fm_p_type,&
-                                             cp_fm_type
   USE dft_types,                       ONLY: read_tddfpt_control
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_p_env_types,                  ONLY: p_env_release,&
                                              qs_p_env_type
-  USE qs_tddfpt_eigensolver
-  USE qs_tddfpt_types
-  USE qs_tddfpt_utils
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE qs_tddfpt_eigensolver,           ONLY: tddfpt_es
+  USE qs_tddfpt_types,                 ONLY: tddfpt_env_type
+  USE qs_tddfpt_utils,                 ONLY: tddfpt_cleanup, &
+                                             tddfpt_init, &
+                                             tddfpt_write_banner
+
   USE timings,                         ONLY: timeset, timestop
 
   IMPLICIT NONE
@@ -72,19 +66,14 @@ CONTAINS
     IMPLICIT NONE
 
     ! arguments
-    TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
+    TYPE(qs_environment_type), INTENT(inout)         :: qs_env
     TYPE(global_environment_type), INTENT(in)        :: glob_env
 
     ! locals
     TYPE(qs_p_env_type), POINTER           :: p_env         ! perturbation environment
     TYPE(tddfpt_env_type)                  :: t_env         ! tddfpt environment
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: v ! temporary storage
 
-    INTEGER                                :: stat, handle
-    INTEGER                                :: n_ev, n_spins ! cache values
-    INTEGER                                :: ev, spin      ! loop indices
-    LOGICAL                                :: evstat        ! status of the eigenvalues
-    REAL(DBL), DIMENSION(:,:), POINTER     :: val_x, val_y  ! 
+    INTEGER                                :: handle
 
     CHARACTER(len=*), PARAMETER            :: routineN = 'tddfpt_calculation', &
                                               routineP = moduleN//'/'//routineN
