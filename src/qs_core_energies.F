@@ -20,7 +20,7 @@
 !******************************************************************************
 
 MODULE qs_core_energies
-! *****************************************************************************
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -66,12 +66,17 @@ MODULE qs_core_energies
                                              next_block_node,&
                                              real_block_node_type,&
                                              real_matrix_type
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
 
   PRIVATE
+
+! *** Global parameters ***
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_core_energies"
 
   PUBLIC :: calculate_ecore,&
             calculate_ecore_overlap,&
@@ -88,7 +93,9 @@ CONTAINS
 
 !   Purpose: Calculate the core Hamiltonian energy which includes the kinetic
 !            and the potential energy of the electrons. It is assumed, that
-!            the core Hamiltonia
+!            the core Hamiltonian matrix h and the density matrix p have the
+!            same sparse matrix structure (same atomic blocks and block
+!            ordering)
 
 !   History: - Creation (03.05.2001,MK)
 !            - simplified taking advantage of new non-redundant matrix
@@ -100,18 +107,24 @@ CONTAINS
     TYPE(real_matrix_type), POINTER :: h,p
     REAL(wp), INTENT(OUT)           :: ecore
 
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_ecore"
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+
 !   *** Local variables ***
 
     TYPE(real_block_node_type), POINTER :: h_block_node,p_block_node
 
     REAL(wp) :: ecore_block
-    INTEGER  :: handle,i,iblock_col,iblock_row,j,nblock_row
+    INTEGER  :: handle,i,iblock_col,iblock_row,j,jblock_col,nblock_row
 
     REAL(wp), DIMENSION(:,:), POINTER :: h_block,p_block
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("calculate_ecore","I","",handle)
+    CALL timeset(routine_name,"I","",handle)
 
     ecore = 0.0_wp
 
@@ -128,7 +141,15 @@ CONTAINS
                             block_col=iblock_col,&
                             block=h_block)
 
-        CALL get_block_node(block_node=p_block_node,block=p_block)
+        CALL get_block_node(block_node=p_block_node,&
+                            block_col=jblock_col,&
+                            block=p_block)
+
+        IF (jblock_col /= iblock_col) THEN
+          CALL stop_program(routine,&
+                            "The matrix structures of the core Hamiltonian "//&
+                            "and the density matrix does not match.")
+        END IF
 
         ecore_block = 0.0_wp
 
@@ -174,8 +195,11 @@ CONTAINS
 
 !   *** Local parameters ***
 
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_ecore_overlap"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE calculate_ecore_overlap (MODULE qs_core_energies)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local data types ***
 
@@ -220,7 +244,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("calculate_ecore_overlap","I","",handle)
+    CALL timeset(routine_name,"I","",handle)
 
     ionode = globenv%ionode
     output_unit = globenv%scr
