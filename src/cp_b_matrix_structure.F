@@ -945,7 +945,7 @@ contains
                size(m_struct%b_dims%block_begins_at_col)-1),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           if (.not.failure) then
-             sparsity=.false.
+             m_struct%sparsity=.false.
           end if
        end if
     end if
