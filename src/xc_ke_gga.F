@@ -610,7 +610,7 @@ CONTAINS
     INTEGER :: ip, npoints
     REAL ( dbl ) :: a0, a1, sx, sy
 !   ---------------------------------------------------------------------------
-
+    fs=0.0_dbl
     npoints = SIZE ( rho )
     IF ( npoints > SIZE(pot) ) &
        CALL stop_program ( "kex_p_1", "Inconsistent array sizes" )
@@ -645,7 +645,7 @@ CONTAINS
     INTEGER :: ip, npoints
     REAL ( dbl ) :: a0, a1, a2, sx, sxx, sy, sxy
 !   ---------------------------------------------------------------------------
-
+    fs=0.0_dbl
     npoints = SIZE ( rho )
     IF ( npoints > SIZE(pot) ) &
        CALL stop_program ( "kex_p_2", "Inconsistent array sizes" )
@@ -686,7 +686,7 @@ CONTAINS
     INTEGER :: ip, npoints
     REAL ( dbl ) :: a0, a1, a2, a3, sx, sxx, sxxx, sy, sxy, sxxy
 !   ---------------------------------------------------------------------------
-
+    fs=0.0_dbl
     npoints = SIZE ( rho )
     IF ( npoints > SIZE(pot) ) &
        CALL stop_program ( "kex_u_3", "Inconsistent array sizes" )
