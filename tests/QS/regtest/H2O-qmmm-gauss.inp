@@ -16,19 +16,20 @@
   print  screen       1
 &END
 
-&QMMM
-QM_ATOMS 3
-H 2
-2 3
-O 1
-1 
-ECOUPL GAUSS
-ABC_QM  5.0 5.0 5.0
-RADIUS
-O 0.78
-H 0.44
-END
-&END
+&FORCE_EVAL
+        &QMMM
+         ECOUPL GAUSS
+         ABC_QM  5.0 5.0 5.0
+         &QM_KIND H
+          mm_index 2 3
+          radius 0.44
+         &END QM_KIND
+         &QM_KIND O
+          mm_index 1
+          radius 0.78
+         &END QM_KIND
+        &END QMMM
+&END FORCE_EVAL
 
 &TOPOLOGY
  FORCEFIELD ON
