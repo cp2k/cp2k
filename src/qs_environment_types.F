@@ -28,7 +28,7 @@ MODULE qs_environment_types
   USE coefficient_types,               ONLY: coeff_deallocate,&
                                              coeff_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
-                                             cp_blacs_env_retain
+                                             cp_blacs_env_create
   USE cp_control_types,                ONLY: dft_control_release,&
                                              dft_control_retain,&
                                              dft_control_type
@@ -136,7 +136,6 @@ MODULE qs_environment_types
 ! *** Public subroutines ***
 
   PUBLIC :: get_qs_env,&
-            init_qs_env,&
             set_qs_env,&
             qs_env_create, qs_env_retain, qs_env_release,&
             qs_env_reorthogonalize_vectors
@@ -405,7 +404,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_qs_env(qs_env,para_env, blacs_env, error)
+  SUBROUTINE init_qs_env(qs_env,para_env, error)
 
 !   Purpose: Initialise the QUICKSTEP environment.
 
@@ -415,7 +414,6 @@ CONTAINS
 
     TYPE(qs_environment_type), INTENT(OUT)   :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -452,8 +450,8 @@ CONTAINS
     CALL cp_subsys_create(qs_env%subsys, para_env=para_env, error=error)
     CALL cp_para_env_retain(para_env,error=error)
     qs_env%para_env => para_env
-    CALL cp_blacs_env_retain(blacs_env,error=error)
-    qs_env%blacs_env => blacs_env
+    CALL cp_blacs_env_create(qs_env%blacs_env,qs_env%para_env,error=error)
+
     qs_env%ref_count=1
     last_qs_env_id_nr=last_qs_env_id_nr+1
     qs_env%id_nr=last_qs_env_id_nr
@@ -685,8 +683,6 @@ CONTAINS
 !!   ARGUMENTS
 !!     - qs_env: the object to create
 !!     - para_env: the parallel environement for the qs_env
-!!     - blacs_env: the blacs env for the qs_env (for full matrixes,
-!!       it must be coerent with the para_env)
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -697,10 +693,9 @@ CONTAINS
 !!     12.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE qs_env_create(qs_env,para_env,blacs_env,error)
+SUBROUTINE qs_env_create(qs_env,para_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -715,8 +710,7 @@ SUBROUTINE qs_env_create(qs_env,para_env,blacs_env,error)
   ALLOCATE(qs_env, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     CALL init_qs_env(qs_env,para_env=para_env, blacs_env=blacs_env,&
-          error=error)
+     CALL init_qs_env(qs_env,para_env=para_env, error=error)
   END IF
 END SUBROUTINE qs_env_create
 !***************************************************************************

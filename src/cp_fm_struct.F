@@ -281,7 +281,7 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
   END IF
   IF (.NOT.failure) THEN
      IF (.NOT.PRESENT(template_fmstruct)) &
-          fmstruct%first_p_pos=fmstruct%context%source
+          fmstruct%first_p_pos=(/0,0/)
      IF (PRESENT(first_p_pos)) fmstruct%first_p_pos=first_p_pos
 
      fmstruct%nrow_locals=0

@@ -35,7 +35,6 @@ MODULE qs_main
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE force_env_types,                 ONLY: force_env_create,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -87,11 +86,10 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE quickstep_create_force_env(force_env,blacs_env,globenv,&
+  SUBROUTINE quickstep_create_force_env(force_env,globenv,&
                      new_h_matrix,error)
 
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(global_environment_type), POINTER   :: globenv
     REAL(dp), DIMENSION(1:3, 1:3), &
       INTENT(IN), OPTIONAL                   :: new_h_matrix
@@ -107,17 +105,13 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
 
-    CALL qs_env_create(qs_env,para_env=globenv%para_env,&
-         blacs_env=blacs_env)
+    CALL qs_env_create(qs_env,para_env=globenv%para_env)
+         
 
 !   *** Read the input and the database files and perform further  ***
 !   *** initializations for the setup of the QUICKSTEP environment ***
 
-    IF(PRESENT(new_h_matrix)) THEN
-        CALL qs_init( qs_env, globenv, new_h_matrix=new_h_matrix, error=error )
-     ELSE
-        CALL qs_init( qs_env, globenv, error=error )
-    ENDIF
+    CALL qs_init( qs_env, globenv, new_h_matrix=new_h_matrix, error=error )
 
     CALL force_env_create(force_env, qs_env=qs_env, globenv=globenv,&
          error=error)

@@ -508,7 +508,7 @@ END SUBROUTINE qs_ep_calculation
        DO isub=1,nsub
           CALL qs_env_create(ep_env%sub_qs_env(isub)%qs_env,&
                para_env=para_env,&
-               blacs_env=blacs_env,error=error)
+               error=error)
 
           ep_env%sub_proj(isub)%projection => projections(isub)%projection
           CALL p_proj_retain(ep_env%sub_proj(isub)%projection, error=error)

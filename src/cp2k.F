@@ -7,7 +7,7 @@
 !!I---------------------------------------------------------------------------I
 !!I                                                                           I
 !!I CP2K: A general program to perform molecular dynamics simulations         I
-!!I Copyright (C) 2000  CP2K developers group                                 I
+!!I Copyright (C) 2000,2001,2002,2003,2004  CP2K developers group             I
 !!I                                                                           I
 !!I This program is free software; you can redistribute it and/or modify      I
 !!I it under the terms of the GNU General Public License as published by      I
@@ -53,8 +53,7 @@ PROGRAM cp2k
   USE qs_main,                         ONLY: quickstep_create_force_env
   !  USE qs_ep_methods,                   ONLY: ep_create_force_env
   USE timings,                         ONLY: trace_debug
-  USE cp_blacs_env, ONLY: start_blacs, end_blacs
-  use cp_para_types, ONLY: cp_para_env_type, cp_blacs_env_type
+  use cp_para_types, ONLY: cp_para_env_type
   USE force_env_types, ONLY: force_env_type, force_env_calculate_energy, force_env_release
   USE cp_log_handling, ONLY: cp_logger_type, cp_failure_level, cp_logger_create, cp_logger_release, cp_to_string
   USE cp_error_handling, ONLY: cp_error_type, cp_a_l, cp_assert, cp_error_init, cp_error_dealloc_ref, cp_assertion_failed
@@ -72,14 +71,13 @@ PROGRAM cp2k
   TYPE(global_environment_type), pointer :: globenv
   TYPE(cp_error_type) :: error
   TYPE(force_env_type), pointer :: force_env
-  TYPE(cp_blacs_env_type), pointer :: blacs_env
   INTEGER :: handle, stat, i
   logical :: failure
 
   ! -----------------------------------------------------------------------------
 
   failure=.false.
-  NULLIFY(globenv, force_env, blacs_env)
+  NULLIFY(globenv, force_env )
   ALLOCATE(globenv,stat=stat)
   IF (stat/=0) STOP "cp2k:cp2k, glob_env allocation"
 
@@ -97,14 +95,9 @@ PROGRAM cp2k
   CASE ("KG")
      CALL kg_create_force_env(force_env, globenv, error=error)
   CASE ("QS")
-     !   *** Initialize the BLACS environment ***
-     CALL start_blacs(blacs_env,globenv)
-     CALL quickstep_create_force_env(force_env, blacs_env, globenv, error=error)
+     CALL quickstep_create_force_env(force_env, globenv, error=error)
   CASE ("EP")
-     !   *** Initialize the BLACS environment ***
-     CALL start_blacs(blacs_env,globenv)
-
-     !     CALL ep_create_force_env(force_env, blacs_env, globenv, error=error)
+     !     CALL ep_create_force_env(force_env,  globenv, error=error)
   CASE ("TEST")
      CALL lib_test(globenv)
   CASE default
@@ -123,7 +116,7 @@ PROGRAM cp2k
        CASE ("GEOMETRY OPTIMIZATION")
           CALL qs_geo_opt(force_env,globenv,error=error)
        CASE ("MONTE CARLO")
-         CALL qs_mon_car ( force_env, blacs_env, globenv, error=error )
+         CALL qs_mon_car ( force_env, globenv, error=error )
        CASE ("MOLECULAR DYNAMICS")
           CALL qs_mol_dyn ( force_env, globenv, error=error )
        CASE ("WAVEFUNCTION OPTIMIZATION","ENERGY CALCULATION")
@@ -136,7 +129,7 @@ PROGRAM cp2k
        END SELECT
        CALL force_env_release(force_env, error=error)
 #if defined(__HMD)
-       CALL _dump_allocated(%VAL(0))
+       IF (globenv%ionode) CALL _dump_allocated(%VAL(0))
 #endif
      ELSE IF(globenv%program_name=="KG") THEN
        SELECT CASE (globenv%run_type)
@@ -149,19 +142,6 @@ PROGRAM cp2k
        END SELECT
        CALL force_env_release(force_env, error=error)
      END IF
-     ! method specific cleanup
-     SELECT CASE (globenv%program_name)
-     CASE ("ATOM")
-     CASE ("FIST")
-     CASE ("KG")
-     CASE ("QS")
-        !   *** Release BLACS environment ***
-        CALL end_blacs(blacs_env,globenv)
-     CASE ("EP")
-        !   *** Release BLACS environment ***
-        CALL end_blacs(blacs_env,globenv)
-     CASE ("TEST")
-     END SELECT
   END IF
 
   CALL cp_error_dealloc_ref(error)

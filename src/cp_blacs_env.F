@@ -21,6 +21,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     08.2002 created [fawzi]
+!!     02.2004 modified to associate a blacs_env with a given para_env
 !!
 !!   SOURCE
 !****************************************************************************
@@ -70,7 +71,7 @@ MODULE cp_blacs_env
 
   PUBLIC :: cp_blacs_env_type ! make it accessible only through cp_para_types?
   PUBLIC :: cp_blacs_env_create, cp_blacs_env_retain, cp_blacs_env_release
-  PUBLIC :: start_blacs, end_blacs, cp_blacs_env_write, get_blacs_info
+  PUBLIC :: cp_blacs_env_write, get_blacs_info
 !***
 !****************************************************************************
 CONTAINS
@@ -121,10 +122,7 @@ CONTAINS
 !!     Subroutine cp_blacs_env_create(blacs_env, group, para_env,&
 !!         owns_group, source, error)
 !!       Type(cp_blacs_env_type), Pointer:: blacs_env
-!!       Integer, Intent (IN):: group
 !!       Type(cp_para_env_type), Pointer:: para_env
-!!       Logical, Intent (IN), Optional:: owns_group
-!!       Integer, Dimension(2), Intent (IN), Optional:: source
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_blacs_env_create
 !!
@@ -136,10 +134,7 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - blacs_env: the type to initialize
-!!     - group: the id of the blacs context
-!!     - owns_group: if this type owns the group and should release it
-!!       (via blacs_gridexit) when deallocated
-!!     - source: position of a special processor (defaults to (0,0))
+!!     - para_env : the para_env for which a blacs env should be created
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -150,14 +145,9 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_blacs_env_create(blacs_env,group,para_env,owns_group,&
-     source,error)
+SUBROUTINE cp_blacs_env_create(blacs_env,para_env,error)
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
-    INTEGER, INTENT(in)                      :: group
     TYPE(cp_para_env_type), POINTER          :: para_env
-    LOGICAL, INTENT(in), OPTIONAL            :: owns_group
-    INTEGER, DIMENSION(2), INTENT(in), &
-      OPTIONAL                               :: source
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -166,6 +156,9 @@ SUBROUTINE cp_blacs_env_create(blacs_env,group,para_env,owns_group,&
 
     INTEGER                                  :: ipcol, iprow, stat
     LOGICAL                                  :: failure
+    INTEGER                                  :: nprow, npcol, npe,ipe
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: pcol, pcon, prow
+    INTEGER                                  :: blacs_grid_layout
 
   failure=.FALSE.
 
@@ -173,41 +166,72 @@ SUBROUTINE cp_blacs_env_create(blacs_env,group,para_env,owns_group,&
 #ifndef __BLACS
   CALL cp_assert(.FALSE.,cp_failure_level, cp_assertion_failed,&
        fromWhere=routineP,message="to USE the blacs environment "//&
-       "(used by full matrices) you need the blacs library "//&
+       "you need the blacs library : recompile with -D__BLACS (and link blacs) "//&
        CPSourceFileRef,&
        error=error)
 #endif
 #endif
+  CPPrecondition(.NOT.ASSOCIATED(blacs_env),cp_failure_level,routineP,error,failure)
 
   ALLOCATE(blacs_env,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     blacs_env%group=group
-     blacs_env%owns_group=.TRUE.
+     blacs_env%group=0
      blacs_env%ref_count=1
-     blacs_env%mepos=0
-     blacs_env%num_pe=1
-     blacs_env%source=0
+     blacs_env%mepos(:)=0
+     blacs_env%num_pe(:)=1
      blacs_env%my_pid=0
      blacs_env%n_pid=1
-     IF (PRESENT(owns_group)) blacs_env%owns_group=owns_group
-     IF (PRESENT(source)) THEN
-        blacs_env%source=source
-     END IF
      CALL cp_para_env_retain(para_env,error=error)
      blacs_env%para_env => para_env
+
 #ifdef __BLACS
-     CALL cp_blacs_pinfo(blacs_env%my_pid,blacs_env%n_pid)
+     ! get the number of cpus for this blacs grid
+     blacs_env%my_pid = para_env%mepos
+     blacs_env%n_pid  = para_env%num_pe
+     nprow=1
+     npcol=1
+     npe  =blacs_env%n_pid
+     ! get the layout of this grid
+
+     ! hard code for the time being the grid layout
+     blacs_grid_layout=BLACS_GRID_SQUARE
+     ! XXXXXX
+     SELECT CASE (blacs_grid_layout)
+     CASE (BLACS_GRID_SQUARE)
+       IF (nprow*npcol /= npe) THEN
+         DO ipe=CEILING(SQRT(REAL(npe,dp))),npe
+           IF (MODULO(npe,ipe) == 0) THEN
+             nprow = ipe
+             npcol = npe/nprow
+             EXIT
+           END IF
+         END DO
+       END IF
+     CASE (BLACS_GRID_ROW)
+        nprow = 1
+        npcol = npe
+     CASE (BLACS_GRID_COL)
+        nprow = npe
+        npcol = 1
+     END SELECT
+
+     ! blacs_env%group will be set to the blacs context for this blacs env, this is not the same as the MPI context
+     blacs_env%group=para_env%group
+     CALL cp_blacs_gridinit(blacs_env%group,"Row-major",nprow,npcol)
+
+     ! fill in the info one needs
      CALL cp_blacs_gridinfo(blacs_env%group,blacs_env%num_pe(1),&
           blacs_env%num_pe(2),blacs_env%mepos(1),blacs_env%mepos(2))
 #endif
+
+     ! generate the mappings blacs2mpi and mpi2blacs 
      ALLOCATE(blacs_env%blacs2mpi(0:blacs_env%num_pe(1)-1,0:blacs_env%num_pe(2)-1),&
           stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      blacs_env%blacs2mpi=0
      blacs_env%blacs2mpi(blacs_env%mepos(1),blacs_env%mepos(2))=para_env%mepos
      CALL mp_sum(blacs_env%blacs2mpi,para_env%group)
-
      ALLOCATE(blacs_env%mpi2blacs(2,0:para_env%num_pe-1),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      blacs_env%mpi2blacs=-1
@@ -315,11 +339,7 @@ SUBROUTINE cp_blacs_env_release(blacs_env,error)
      CPPrecondition(blacs_env%ref_count>0,cp_failure_level,routineP,error,failure)
      blacs_env%ref_count=blacs_env%ref_count-1
      IF (blacs_env%ref_count<1) THEN
-        IF (blacs_env%owns_group) THEN
-#ifdef __BLACS
-           CALL cp_blacs_gridexit(blacs_env%group)
-#endif
-        END IF
+        CALL cp_blacs_gridexit(blacs_env%group)
         CALL cp_para_env_release(blacs_env%para_env,error=error)
         DEALLOCATE(blacs_env%mpi2blacs, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -380,18 +400,11 @@ SUBROUTINE cp_blacs_env_write(blacs_env, unit_nr, error)
   failure=.FALSE.
   
   IF (ASSOCIATED(blacs_env)) THEN
-     WRITE (unit=unit_nr,&
-          fmt="(' <cp_blacs_env>:{ owns_group=',l1,',')",&
-          iostat=iostat) blacs_env%owns_group
-     CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
      WRITE (unit=unit_nr,fmt="('  group=',i10,', ref_count=',i10,',')",&
           iostat=iostat) blacs_env%group, blacs_env%ref_count
      CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
      WRITE (unit=unit_nr,fmt="('  mepos=(',i8,',',i8,'),')",&
           iostat=iostat) blacs_env%mepos(1), blacs_env%mepos(2)
-     CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-     WRITE (unit=unit_nr,fmt="('  source=(',i8,',',i8,'),')",&
-          iostat=iostat) blacs_env%source(1), blacs_env%source(2)
      CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
      WRITE (unit=unit_nr,fmt="('  num_pe=(',i8,',',i8,'),')",&
           iostat=iostat) blacs_env%num_pe(1), blacs_env%num_pe(2)
@@ -421,204 +434,5 @@ SUBROUTINE cp_blacs_env_write(blacs_env, unit_nr, error)
   CALL m_flush(unit_nr)
 END SUBROUTINE cp_blacs_env_write
 !***************************************************************************
-
-!***************************************************************************
-
-  SUBROUTINE start_blacs(blacs_env,globenv)
-
-    ! here we will need improvement, we want a blacs context for the given MPI group, which might be a subset
-    ! of all the processes. Here, we get a grid for MPI_WORLD by default (I think).
-    ! blacs_gridmap and related might be the way to go.
-
-!   Purpose: Initialize a BLACS process grid. The BLACS context is returned.
-
-!   History: - Creation (22.05.2001, Matthias Krack)
-
-!   ***************************************************************************
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
-    TYPE(global_environment_type), &
-      INTENT(INOUT)                          :: globenv
-
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE start_blacs (MODULE cp_blacs_env)"
-
-    INTEGER                                  :: context, group, ipe, istat, &
-                                                mypcol, mype, myprow, npcol, &
-                                                npe, nprow, output_unit
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: pcol, pcon, prow
-    LOGICAL                                  :: ionode
-    TYPE(cp_error_type)                      :: error
-
-!   ---------------------------------------------------------------------------
-
-    CALL cp_error_init(error)
-#if defined(__parallel) && (! defined(__BLACS) || ! defined(__SCALAPACK))
-    CALL stop_program(routine,&
-                      "Quickstep needs BLACS and SCALAPACK for parallel runs",&
-                      globenv)
-#endif
-
-#ifdef __parallel
-#ifndef __BLACS
-  CALL cp_assert(.FALSE.,cp_failure_level, cp_assertion_failed,&
-       fromWhere=routine,message="to USE the blacs environment "//&
-       "(used by full matrices) you need the blacs library "//&
-       CPSourceFileRef,&
-       error=error)
-#endif
-#endif
-
-    group = globenv%group
-    ionode = globenv%ionode
-    output_unit = globenv%scr
-    context = 0
-    npcol = 0
-    nprow = 0
-#if defined(__BLACS)
-    ! here we will need improvement, we want a blacs context for the given MPI group, which might be a subset
-    ! of all the processes. Here, we get a grid for MPI_WORLD by default (I think).
-    ! blacs_gridmap and related might be the way to go.
-    CALL cp_blacs_pinfo(mype,npe)
-    CALL cp_blacs_get(-1,0,context)
-
-    SELECT CASE (globenv%blacs_grid_layout)
-    CASE (BLACS_GRID_SQUARE) 
-      IF (nprow*npcol /= npe) THEN
-        DO ipe=CEILING(SQRT(REAL(npe,dp))),npe
-          IF (MODULO(npe,ipe) == 0) THEN
-            nprow = ipe
-            npcol = npe/nprow
-            EXIT
-          END IF
-        END DO
-      END IF
-    CASE (BLACS_GRID_ROW)
-       nprow = 1
-       npcol = npe
-    CASE (BLACS_GRID_COL)
-       nprow = npe
-       npcol = 1
-    END SELECT
-
-    CALL cp_blacs_gridinit(context,"Row-major",nprow,npcol)
-    CALL cp_blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
-
-    IF (globenv%print%blacs_info) THEN
-
-      ALLOCATE (prow(0:npe-1),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"prow",npe*int_size)
-      prow(:) = 0
-      ALLOCATE (pcol(0:npe-1),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"pcol",npe*int_size)
-      pcol(:) = 0
-      ALLOCATE (pcon(0:npe-1),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"pcon",npe*int_size)
-      pcon(:) = 0
-
-      prow(mype) = myprow
-      pcol(mype) = mypcol
-      pcon(mype) = context
-
-      CALL mp_sum(prow,group)
-      CALL mp_sum(pcol,group)
-      CALL mp_sum(pcon,group)
-
-      IF (ionode) THEN
-        WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,(T3,A,T32,I6))")&
-          "BLACS INFORMATION (BLACS started)",&
-          "Number of processes:         ",nprow*npcol,&
-          "Number of process rows:      ",nprow,&
-          "Number of process columns:   ",npcol
-        WRITE (UNIT=output_unit,FMT="(/,T3,A,/)")&
-          "Process   Process row   Process column   BLACS context"
-        WRITE (UNIT=output_unit,FMT="(T4,I6,T18,I6,T35,I6,T45,I12)")&
-          (ipe,prow(ipe),pcol(ipe),pcon(ipe),ipe=0,npe-1)
-      END IF
-
-      DEALLOCATE (prow,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"prow")
-      DEALLOCATE (pcol,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"pcol")
-      DEALLOCATE (pcon,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"pcon")
-
-    END IF
-
-#endif
-    CALL cp_blacs_env_create(blacs_env,group = context, para_env=globenv%para_env)
-
-  END SUBROUTINE start_blacs
-
-! *****************************************************************************
-
-  SUBROUTINE end_blacs(blacs_env,globenv)
-
-!   Purpose: Release the resources of a BLACS context.
-
-!   History: - Creation (22.05.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
-    TYPE(global_environment_type), &
-      INTENT(INOUT)                          :: globenv
-
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE end_blacs (MODULE cp_blacs_env)"
-
-    INTEGER                                  :: group, ipe, istat, mype, npe, &
-                                                output_unit
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: pcon
-    LOGICAL                                  :: ionode
-    TYPE(cp_blacs_env_type), POINTER         :: context
-
-!   ---------------------------------------------------------------------------
-
-    group = globenv%group
-    ionode = globenv%ionode
-    output_unit = globenv%scr
-    context => blacs_env
-#if defined(__BLACS)
-
-    IF (globenv%print%blacs_info) THEN
-
-      npe=context%n_pid
-      mype=context%my_pid
-
-      ALLOCATE (pcon(0:npe-1),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"pcon",npe*int_size)
-      pcon(:) = 0
-
-      pcon(mype) = context%group
-
-      CALL mp_sum(pcon,group)
-
-      IF (ionode) THEN
-        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
-          "BLACS INFORMATION (BLACS finished)"
-        WRITE (UNIT=output_unit,FMT="(/,T3,A,/)")&
-          " PE   BLACS context"
-        WRITE (UNIT=output_unit,FMT="(I5,T10,I12)")&
-          (ipe,pcon(ipe),ipe=0,npe-1)
-      END IF
-
-      DEALLOCATE (pcon,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"pcon")
-
-    END IF
-
-    CALL mp_sync(group)
-
-    CALL cp_blacs_env_release(blacs_env)
-    !    CALL cp_blacs_gridexit(context)
-
-    !globenv%context = 0
-    !globenv%nprow = 0
-    !globenv%npcol = 0
-
-#endif
-  END SUBROUTINE end_blacs
-
-! *****************************************************************************
 
 END MODULE cp_blacs_env

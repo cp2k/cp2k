@@ -225,7 +225,7 @@ CONTAINS
               CALL mc_volume_move( mc_par,force_env,moves,move_updates,&
                         nnstep,averages,old_energy,&
                         classical_energy_old,globenv,&
-                        blacs_env,energy_check,r_old,&
+                        energy_check,r_old,&
                         error=error)
       ELSE
          DO i=1,mc_par%nmoves

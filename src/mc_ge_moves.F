@@ -22,7 +22,6 @@
 
 MODULE mc_ge_moves
   USE cp_error_handling,               ONLY: cp_error_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_set,&
@@ -311,7 +310,7 @@ CONTAINS
 !**********************************************************************
   SUBROUTINE mc_ge_volume_move ( mc_par,force_env, moves,move_updates,&
                         nnstep,averages,old_energy,globenv,&
-                        blacs_env,energy_check,r_old,error)
+                        energy_check,r_old,error)
 
 !   Purpose: A move changing the size of the box
 
@@ -320,7 +319,6 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(global_environment_type), POINTER :: globenv
-    TYPE(cp_blacs_env_type), POINTER :: blacs_env
     REAL(KIND = dp),INTENT(INOUT) :: old_energy,energy_check
     TYPE(mc_moves_type),POINTER  :: moves,move_updates
     TYPE(mc_averages_type),POINTER  :: averages
@@ -400,7 +398,7 @@ CONTAINS
       new_h(3,3)=new_cell_length
 
 ! create the new environment to change particle coordinates
-      CALL quickstep_create_force_env(test_env, blacs_env, globenv, &
+      CALL quickstep_create_force_env(test_env, globenv, &
                    new_h_matrix=new_h,error=error)
       moves%force_create=moves%force_create+1
       CALL force_env_get(force_env,subsys=oldsys,&
@@ -477,7 +475,7 @@ CONTAINS
 ! update coordinates and cell lengths
          CALL force_env_release(force_env,error=error)
          CALL cp_subsys_release(oldsys(1)%subsys)
-         CALL quickstep_create_force_env(force_env, blacs_env, globenv,&
+         CALL quickstep_create_force_env(force_env, globenv,&
                    new_h_matrix=new_h,error=error)
          moves%force_create=moves%force_create+1
          CALL force_env_get(force_env,subsys=oldsys,&

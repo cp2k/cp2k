@@ -18,10 +18,7 @@
 
 MODULE qs_mc
   USE cp2k_units,                      ONLY: init_cp2k_units
-  USE cp_blacs_env,                    ONLY: start_blacs,&
-                                             end_blacs
   USE cp_error_handling,               ONLY: cp_error_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE force_env_types,                 ONLY: force_env_get,&
@@ -81,13 +78,11 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-  SUBROUTINE qs_mon_car ( force_env, blacs_env, globenv, error )
+  SUBROUTINE qs_mon_car ( force_env, globenv, error )
 
 
 ! Argument
     TYPE(force_env_type), POINTER            :: force_env,force_env_2
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env_2
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -156,8 +151,7 @@ CONTAINS
   SELECT CASE(mc_par % ensemble)
   CASE("traditional")
 ! pull all the information together into one environment
-      CALL set_mc_env( mc_env, mc_par = mc_par, force_env=force_env,&
-                   blacs_env=blacs_env)
+      CALL set_mc_env( mc_env, mc_par = mc_par, force_env=force_env)
       CALL mc_traditional_ensemble(mc_env,globenv,error)
   CASE("GEMC-NVT")
 
@@ -173,9 +167,7 @@ CONTAINS
  
 ! read the input of the Monte Carlo section
       globenv%input_file_name=mc_par%box2_file
-      CALL start_blacs(blacs_env_2,globenv)
-      CALL quickstep_create_force_env(force_env_2,blacs_env_2,globenv,&
-                   error=error)
+      CALL quickstep_create_force_env(force_env_2,globenv,error=error)
 
       IF (globenv % ionode .AND. globenv % print_level>=0) THEN
          WRITE(iw,*)
@@ -216,16 +208,12 @@ CONTAINS
       ENDIF
 
 ! pull all the information together into one environment
-      CALL set_mc_env( mc_env, mc_par = mc_par, force_env=force_env,&
-                   blacs_env=blacs_env)
-      CALL set_mc_env( mc_env_2, mc_par = mc_par_2,&
-                   force_env=force_env_2,&
-                   blacs_env=blacs_env_2)
+      CALL set_mc_env( mc_env, mc_par = mc_par, force_env=force_env)
+      CALL set_mc_env( mc_env_2, mc_par = mc_par_2,force_env=force_env_2)
 
      CALL gemc_nvt(mc_env,mc_env_2,globenv,error)
 
       globenv%input_file_name=mc_env%mc_par%box2_file
-      CALL end_blacs( blacs_env_2,globenv )
       globenv%input_file_name=mc_env_2%mc_par%box2_file
       CALL mc_env_release ( mc_env, error )
                    
