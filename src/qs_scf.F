@@ -164,6 +164,7 @@ MODULE qs_scf
                                              blacs_block_jacobi_classic,&
                                              blacs_get_element,&
                                              blacs_make_basis,&
+                                             blacs_syevd,&
                                              blacs_syevx,&
                                              copy_blacs_to_blacs_matrix,&
                                              copy_full_matrix_to_real_matrix,&
@@ -650,13 +651,13 @@ CONTAINS
              IF (use_jacobi) THEN
                 scf_env%iter_method = "DIIS/Jacobi"
              ELSE
-                scf_env%iter_method = "DIIS/SYEVX"
+                scf_env%iter_method = "DIIS/Diag."
              END IF
           ELSE
              IF (use_jacobi) THEN
                 scf_env%iter_method = "Mixing/Jacobi"
              ELSE
-                scf_env%iter_method = "Mixing/SYEVX"
+                scf_env%iter_method = "Mixing/Diag."
              END IF
           END IF
 
@@ -1283,7 +1284,7 @@ CONTAINS
          smear
 
 !   *** Local variables ***
-    INTEGER :: handle,imo,nao,nmo,homo,ncv,handle1,handle2
+    INTEGER :: handle,imo,nao,nmo,homo,ncv
     TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
     REAL(wp), DIMENSION(:), POINTER    :: mo_eigenvalues
     TYPE(op_symv_type)                 :: arpack_op
@@ -1312,21 +1313,15 @@ CONTAINS
        CALL cp_fm_cholesky_reduce(ks,ortho)
 
        IF (use_jacobi) THEN
-          CALL timeset("blacs_syevx (nmo)","I","",handle1)
-          CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
-          CALL timestop(0.0_wp,handle1)
+          CALL blacs_syevd(ks,work,mo_eigenvalues)
           use_cholesky = .FALSE.
           CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
           CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
        ELSE IF (smear /= 0.0_wp) THEN
-          CALL timeset("blacs_syevx (nmo)","I","",handle1)
-          CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
-          CALL timestop(0.0_wp,handle1)
+          CALL blacs_syevd(ks,work,mo_eigenvalues)
           CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
        ELSE
-          CALL timeset("blacs_syevx (homo)","I","",handle2)
           CALL blacs_syevx(ks,work,mo_eigenvalues,homo,work_syevx)
-          CALL timestop(0.0_wp,handle2)
           CALL cp_fm_cholesky_restore(work,homo,ortho,mo_eigenvectors,"SOLVE")
        END IF
 
@@ -1375,9 +1370,7 @@ CONTAINS
           END DO
        END IF
 
-       CALL timeset("blacs_syevx (nmo)","I","",handle1)
-       CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
-       CALL timestop(0.0_wp,handle1)
+       CALL blacs_syevd(ks,work,mo_eigenvalues)
 
        CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
             mo_eigenvectors)
