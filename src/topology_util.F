@@ -67,6 +67,7 @@ MODULE topology_util
   USE physcon,                         ONLY: massunit
   USE simulation_cell,                 ONLY: pbc
   USE string_utilities,                ONLY: integer_to_string,&
+                                             uppercase,&
                                              str_search
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -651,6 +652,9 @@ SUBROUTINE topology_generate_bond(topology,globenv)
   TYPE(connectivity_info_type),POINTER     :: conn_info
 
     CHARACTER(LEN=2), POINTER                :: atm_symbol(:)
+    CHARACTER(LEN=2)                         :: upper_sym_1,upper_sym_2
+    LOGICAL                                  :: element_found
+    INTEGER                                  :: ielem_found
     INTEGER                                  :: first, i, iatom, ibond, &
                                                 ielem, istat, iw, j, jatom, &
                                                 k, last, natom, nbond, nelem, &
@@ -713,20 +717,31 @@ SUBROUTINE topology_generate_bond(topology,globenv)
 
   DO iatom=1,natom
     nelem = UBOUND(ptable,1)
+    element_found=.FALSE.
+    ielem_found=0
+    upper_sym_1=atm_symbol(iatom)
+    CALL uppercase(upper_sym_1)
     DO ielem=1,nelem 
-      IF(ptable(ielem)%symbol==atm_symbol(iatom)) THEN
-
-        covalent_radius(iatom) = ptable(ielem)%covalent_radius
-        CALL convert_to_cp2k_units("ANGSTROM",length=covalent_radius(iatom))
-
-        vdw_radius(iatom) = ptable(ielem)%vdw_radius
-        CALL convert_to_cp2k_units("ANGSTROM",length=vdw_radius(iatom))
-
-        atom_info%atm_mass(iatom) = ptable(ielem)% amass
-        IF(PM2) WRITE(iw,'(7X,A,A5)') "iatom = ",ptable(ielem)%symbol
+      upper_sym_2=ptable(ielem)%symbol
+      CALL uppercase(upper_sym_2)
+      IF(upper_sym_1 == upper_sym_2)THEN
+        element_found=.TRUE.
+        ielem_found=ielem
         !EXIT
       END IF
     END DO
+    IF (.NOT. element_found) THEN
+        WRITE(iw,'(A)') "WARNING : topology_generate_bond: The element " &
+                        //atm_symbol(iatom)//" was not found in the periodic table"
+    ENDIF
+    covalent_radius(iatom) = ptable(ielem_found)%covalent_radius
+    CALL convert_to_cp2k_units("ANGSTROM",length=covalent_radius(iatom))
+
+    vdw_radius(iatom) = ptable(ielem_found)%vdw_radius
+    CALL convert_to_cp2k_units("ANGSTROM",length=vdw_radius(iatom))
+
+    atom_info%atm_mass(iatom) = ptable(ielem_found)% amass
+    IF(PM2) WRITE(iw,'(7X,A,A5)') "iatom = ",ptable(ielem_found)%symbol
   END DO
 !------------------------------------------------------------------------------
   !Find bonds according to periodic table
