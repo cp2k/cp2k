@@ -74,9 +74,10 @@ CONTAINS
     TYPE ( cp_complex_full_matrix_type ), POINTER :: c_rmat
     TYPE ( cp_complex_full_matrix_p_type ), POINTER, DIMENSION(:) :: c_zij
 
-    REAL ( KIND = wp ) :: tolerance, st, ct, mii ( 2, 3 ), mjj ( 2, 3 ), mij ( 2, 3 )
+    REAL ( KIND = wp ) :: tolerance, st, ct 
+    COMPLEX (KIND = wp ) :: mii ( 3 ), mjj ( 3 ), mij ( 3 )
     REAL ( KIND = wp ) :: theta
-    INTEGER :: istate, jstate, idim, nstate, isos,sweeps
+    INTEGER :: istate, jstate, idim, nstate, isos
     TYPE ( cp_error_type ) :: error
     TYPE ( cp_full_matrix_type ), POINTER :: matrix_r, matrix_i
     COMPLEX( KIND = wp ) :: dum
@@ -84,12 +85,9 @@ CONTAINS
     NULLIFY(rmat,c_rmat,c_zij)
     ALLOCATE(c_zij(SIZE(zij,2)))
 
-!Create the rotation matrix
     CALL cp_fm_create ( rmat, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
-! Initialize rotation to the unit matrix
     CALL cp_fm_set_all ( rmat, 0._wp, 1._wp, error )
 
-!Create the complex rotation matrix and z matrices, and avoid using z
     CALL cp_cfm_create ( c_rmat, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
     CALL cp_cfm_set_all ( c_rmat, (0._wp,0._wp) , (1._wp,0._wp) )
     DO idim=1,SIZE(c_zij)
@@ -99,44 +97,29 @@ CONTAINS
                     zij(2,idim) % matrix % local_data, wp )
     ENDDO
 
-! get nstate
     CALL cp_fm_get_info ( rmat , nrow_global = nstate, error = error )
     tolerance = 1e10_wp
     sweeps = 0
+! do jacobi sweeps until converged
     DO WHILE ( tolerance >= 1.0e-6_wp )
       sweeps = sweeps + 1
-! ROTATE ROTATE ROTATE ROTATE ROTATE ROTATE ROTATE ROTATE ROTATE ROTATE ROTATE ROTATE 
       DO istate = 1, nstate
-! get real and imaginary parts
-        DO idim = 1, SIZE ( c_zij, 1 )
-          CALL cp_cfm_get_element ( c_zij(idim) % matrix, istate, istate, dum )
-          mii (1,idim) = REAL(dum,wp)
-          mii (2,idim) = AIMAG(dum)
-        END DO
         DO jstate = istate + 1, nstate
-! get real and imaginary parts
           DO idim = 1, SIZE ( c_zij, 1 )
-            CALL cp_cfm_get_element ( c_zij(idim) % matrix, istate, jstate, dum )
-            mij (1,idim) = REAL(dum,wp)
-            mij (2,idim) = AIMAG(dum)
-            CALL cp_cfm_get_element ( c_zij(idim) % matrix, jstate, jstate, dum )
-            mjj (1,idim) = REAL(dum,wp)
-            mjj (2,idim) = AIMAG(dum)
+            CALL cp_cfm_get_element ( c_zij(idim) % matrix, istate, istate, mii(idim) )
+            CALL cp_cfm_get_element ( c_zij(idim) % matrix, istate, jstate, mij(idim) )
+            CALL cp_cfm_get_element ( c_zij(idim) % matrix, jstate, jstate, mjj(idim) )
           END DO 
-! get the optimal angle
-          CALL get_angle ( mii, mjj, mij, zij, weights, theta )
+          CALL get_angle ( mii, mjj, mij, weights, theta )
           st = DSIN ( theta )
           ct = DCOS ( theta )
-! rotate the ZIJ
           CALL rotate_zij ( istate, jstate, st, ct, c_zij )
-! update the Unitary matrix, rmat
           CALL rotate_rmat ( istate, jstate, st, ct, c_rmat )
         END DO
       END DO
-! Check tolerance
       CALL check_tolerance ( c_zij, weights, tolerance )
     END DO
-! Rotate the orbitals XXXXXXXXXXXXXXXXXX
+
     DO idim=1,SIZE(c_zij)
        zij(1,idim) % matrix % local_data =  REAL ( c_zij(idim)%matrix% local_data , wp )
        zij(2,idim) % matrix % local_data = AIMAG ( c_zij(idim)%matrix% local_data )
@@ -147,7 +130,7 @@ CONTAINS
     CALL cp_cfm_release( c_rmat )
     CALL rotate_orbitals ( rmat, vectors ) 
     CALL cp_fm_release ( rmat )
-! DONE ROTATE DONE ROTATE DONE ROTATE DONE ROTATE DONE ROTATE DONE ROTATE DONE ROTATE 
+
   END SUBROUTINE jacobi_rotations
 ! *****************************************************************************
   SUBROUTINE rotate_zij ( istate, jstate, st, ct, zij )
@@ -164,22 +147,17 @@ CONTAINS
 #endif
 
     st_cmplx = CMPLX ( st, 0._wp, wp )
-    ! XXXXXXXXXX is nstate equal M_X ??
     CALL cp_cfm_get_info ( zij ( 1 ) % matrix, nrow_global = nstate, error = error )
     DO  idim = 1, 3
 #if defined(__SCALAPACK)
       desc(:) = zij(idim) % matrix %matrix_struct%descriptor(:)
-      CALL pzrot( nstate , zij(idim) % matrix % local_data (1,1) , istate, 1, desc, 1, &
-                  zij(idim) % matrix % local_data (1,1) , jstate, 1, desc, 1, ct, st_cmplx )
+      CALL pzrot( nstate , zij(idim) % matrix % local_data (1,1) , 1 , istate, desc, 1, &
+                  zij(idim) % matrix % local_data (1,1) , 1, jstate,  desc, 1, ct, st_cmplx )
+      CALL pzrot( nstate , zij(idim) % matrix % local_data (1,1) , istate , 1, desc, nstate, &
+                  zij(idim) % matrix % local_data (1,1) , jstate, 1, desc, nstate, ct, st_cmplx )
 #else
       CALL zrot( nstate, zij(idim) % matrix % local_data ( 1, istate ), 1, &
                  zij(idim) % matrix % local_data ( 1, jstate ), 1, ct, st_cmplx )
-#endif
-#if defined(__SCALAPACK)
-      desc(:) = zij(idim) % matrix %matrix_struct%descriptor(:)
-      CALL pzrot( nstate , zij(idim) % matrix % local_data (1,1) , 1, istate, desc, nstate, &
-                  zij(idim) % matrix % local_data (1,1) , 1, jstate, desc, nstate, ct, st_cmplx )
-#else
       stride = SIZE(zij(idim) % matrix % local_data,1)
       CALL zrot( nstate, zij(idim) %matrix % local_data ( istate, 1 ), stride, &
                  zij(idim) %matrix % local_data ( jstate, 1 ), stride, ct, st_cmplx )
@@ -212,10 +190,9 @@ CONTAINS
 #endif
   END SUBROUTINE rotate_rmat
 ! *****************************************************************************
-  SUBROUTINE get_angle ( mii, mjj, mij, zij, weights, theta )
+  SUBROUTINE get_angle ( mii, mjj, mij,  weights, theta )
     IMPLICIT NONE
-    TYPE ( cp_full_matrix_p_type ) :: zij ( :, : )
-    REAL ( KIND = wp ), INTENT ( IN ) :: mii ( :, : ), mjj ( :, : ), mij ( :, : )
+    COMPLEX ( KIND = wp ), INTENT ( IN ) :: mii ( : ), mjj ( : ), mij ( : )
     REAL ( KIND = wp ), INTENT ( IN ) :: weights ( : )
     REAL ( KIND = wp ), INTENT ( OUT ) :: theta
 ! Locals
@@ -225,9 +202,9 @@ CONTAINS
     a12 = 0._wp
     b12 = 0._wp
     DO idim = 1, 3
-      z11 = CMPLX ( mii ( 1, idim ), mii ( 2, idim ), wp )
-      z22 = CMPLX ( mjj ( 1, idim ), mjj ( 2, idim ), wp )
-      z12 = CMPLX ( mij ( 1, idim ), mij ( 2, idim ), wp )
+      z11 = mii(idim) 
+      z22 = mjj(idim) 
+      z12 = mij(idim)
       a12 = a12 + weights ( idim ) * REAL ( CONJG ( z12 ) * ( z11 - z22 ), wp )
       b12 = b12 + weights ( idim ) * (  z12 * CONJG ( z12 ) -  &
             0.25_wp * ( z11 - z22 ) * ( CONJG ( z11 ) - CONJG ( z22 ) ) ) 
@@ -309,9 +286,7 @@ CONTAINS
         DO idim = 1, 3
           zii = diag(row_indices(istate),idim)
           zjj = diag(col_indices(jstate),idim)
-          ! CALL cp_cfm_get_element(matrix_p(idim)%matrix,istate,istate,zii)
-          ! CALL cp_cfm_get_element(matrix_p(idim)%matrix,jstate,jstate,zjj)
-          CALL cp_cfm_get_element(matrix_p(idim)%matrix,istate,jstate,zij)
+          zij = matrix_p(idim)%matrix %local_data(istate,jstate)
           grad_ij = grad_ij + weights ( idim ) * &
                     REAL ( 4.0_wp * CONJG ( zij ) * ( zjj - zii ), wp )
         END DO
