@@ -283,9 +283,9 @@ contains
           matrix%matrix => u_matrix
        else
           if (matrix%matrix_struct%symmetric) then
-             m_symm='SYMMETRIC'
+             m_symm='symmetric'
           else
-             m_symm='NONE'
+             m_symm='none'
           end if
           b_dims => matrix%matrix_struct%b_dims
           block_rows=size(b_dims%block_begins_at_row)-1
