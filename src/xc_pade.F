@@ -85,7 +85,7 @@ MODULE xc_pade
 
   CHARACTER(LEN=*), PARAMETER :: moduleN = "xc_pade"
 
-  PUBLIC :: pade, pade_lda_pw_eval
+  PUBLIC :: pade, pade_lda_pw_eval, pade_lsd_pw_eval
 
   REAL(dbl) :: eps_rho
   LOGICAL :: debug_flag
@@ -144,8 +144,7 @@ CONTAINS
        IF (.NOT. PRESENT(lsd)) &
             CALL stop_program(routineP, "Arguments mismatch")
        IF (lsd) THEN
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                         message="not yet implemented", error=error)
+          needs%rho_spin = .TRUE.
        ELSE
           needs%rho = .TRUE.
        END IF
@@ -212,8 +211,6 @@ CONTAINS
 
   SUBROUTINE pade_lda_pw_eval(deriv_set, rho_set, order, error)
 
-    IMPLICIT NONE
-
     TYPE(xc_derivative_set_type), POINTER :: deriv_set
     TYPE(xc_rho_set_type), POINTER :: rho_set
     INTEGER, INTENT(IN), OPTIONAL :: order
@@ -233,7 +230,6 @@ CONTAINS
     IF (order >= 0) calc(0:order) = .TRUE.
     IF (order < 0) calc(-order) = .TRUE.
 
-!    n = (bo(2,1)-bo(1,1))*(bo(2,2)-bo(1,2))*(bo(2,3)-bo(1,3))
     n = PRODUCT(rho_set%local_bounds(2,:)-rho_set%local_bounds(1,:)+(/1,1,1/))
     ALLOCATE ( rs(n), STAT=stat )
     IF ( stat /= 0 ) CALL stop_memory ( "pade_lda", "rs", n )
@@ -280,75 +276,165 @@ CONTAINS
 
   SUBROUTINE pade_lsd ( derivative_set, rhoa, rhob, pot, order )
 
-!   ---------------------------------------------------------------------------
-
     TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
     REAL(dbl), DIMENSION(:,:), INTENT(INOUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
-!   *** Local variables ***
-
     LOGICAL   :: calc(0:4)
-    REAL(dbl), DIMENSION(:), ALLOCATABLE :: rs
-    REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: fx
-    INTEGER :: n, error, m, mp, mt, mx(0:3,2), m1, m2
+    REAL(dbl) :: rs
+    REAL(dbl), DIMENSION(4) :: fx
+    INTEGER :: i, n, error, m, mp, mt, mx(0:3,2), m1, m2
 
 !   ---------------------------------------------------------------------------
 
     CALL setup_calculation(order,mx,calc,201)
+
+    n  = SIZE ( rhoa )
     mp = SIZE ( pot, 2 )
-    m = ABS(order)
+    m  = ABS(order)
     mt = mx(m,2)
-    IF ( mt > mp ) CALL stop_program ( "pade_lsd", &
-       "Size of POT array too small" )
 
-    n = SIZE ( rhoa )
-    ALLOCATE ( rs(n), STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "pade_lsd", "rs", n )
-    m = ABS ( order ) + 1
-    ALLOCATE ( fx(n,m), STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "pade_lsd", "fx", n*m )
-
-!TC    fx(1:n,1) = rhoa(1:n) + rhob(1:n)
-    CALL dcopy(n,rhoa,1,fx,1)
-    CALL daxpy(n,1.0_dbl,rhob,1,fx,1)
-
-    CALL calc_rs ( fx(:,1), rs )
-    CALL calc_fx ( n, rhoa, rhob, fx, m-1 )
-
-    IF ( calc(0) .AND. calc(1) ) THEN
-       m1=mx(0,1)
-       m2=mx(1,2)
-       CALL pade_lsd_01 ( n, rhoa, rhob, rs, fx, &
-                          pot(:,m1:m1), pot(:,m1+1:m1+1), pot(:,m2:m2) )
-    ELSE IF ( calc(0) ) THEN
-       CALL pade_lsd_0 ( n, rhoa, rhob, rs, fx, pot(:,1) )
-    ELSE IF ( calc(1) ) THEN
-       m1=mx(1,1)
-       m2=mx(1,2)
-       CALL pade_lsd_1 ( n, rhoa, rhob, rs, fx, &
-                         pot(:,m1:m1), pot(:,m2:m2) )
-    END IF
-    IF ( calc(2) ) THEN
-       m1=mx(2,1)
-       m2=mx(2,2)
-       CALL pade_lsd_2 ( n, rhoa, rhob, rs, fx, &
-                         pot(:,m1:m1), pot(:,m1+1:m1+1), pot(:,m2:m2) )
-    END IF
-    IF ( calc(3) ) THEN
-       m1=mx(3,1)
-       m2=mx(3,2)
-       CALL pade_lsd_3 ( n, rhoa, rhob, rs, fx, &
-                         pot(:,m1:m1), pot(:,m1+1:m1+1), pot(:,m1+2:m1+2), pot(:,m2:m2) )
-    END IF
-
-    DEALLOCATE ( fx, STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "pade_lsd", "fx" )
-    DEALLOCATE ( rs, STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "pade_lsd", "rs" )
+    IF ( mt > mp ) &
+         CALL stop_program("pade_lsd", "Size of POT array too small")
+    IF ( n > SIZE(pot,1) ) &
+         CALL stop_program("pade_lsd", "Size of POT array too small")
+ 
+!$omp parallel do private(i,fx,rs,m1,m2)
+    DO i=1, n
+       fx(1) = rhoa(i) + rhob(i)
+   
+       CALL calc_rs ( fx(1), rs )
+       CALL calc_fx ( rhoa(i), rhob(i), fx, m )
+   
+       IF ( calc(0) .AND. calc(1) ) THEN
+          m1=mx(0,1)
+          m2=mx(1,2)
+          CALL pade_lsd_01 ( rhoa(i), rhob(i), rs, fx, &
+                             pot(i,m1), pot(i,m1+1), pot(i,m2) )
+       ELSE IF ( calc(0) ) THEN
+          CALL pade_lsd_0 ( rhoa(i), rhob(i), rs, fx, pot(i,1) )
+       ELSE IF ( calc(1) ) THEN
+          m1=mx(1,1)
+          m2=mx(1,2)
+          CALL pade_lsd_1 ( rhoa(i), rhob(i), rs, fx, &
+                            pot(i,m1), pot(i,m2) )
+       END IF
+       IF ( calc(2) ) THEN
+          m1=mx(2,1)
+          m2=mx(2,2)
+          CALL pade_lsd_2 ( rhoa(i), rhob(i), rs, fx, &
+                            pot(i,m1), pot(i,m1+1), pot(i,m2) )
+       END IF
+       IF ( calc(3) ) THEN
+          m1=mx(3,1)
+          m2=mx(3,2)
+          CALL pade_lsd_3 ( rhoa(i), rhob(i), rs, fx, &
+                            pot(i,m1), pot(i,m1+1), pot(i,m1+2), pot(i,m2) )
+       END IF
+    END DO
 
   END SUBROUTINE pade_lsd
+
+! *****************************************************************************
+
+  SUBROUTINE pade_lsd_pw_eval ( deriv_set, rho_set, order, error )
+
+    TYPE(xc_derivative_set_type), POINTER        :: deriv_set
+    TYPE(xc_rho_set_type), POINTER               :: rho_set
+    INTEGER, INTENT(IN), OPTIONAL                :: order
+    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+
+    INTEGER :: i, j, k
+    LOGICAL   :: calc(0:4)
+    REAL(dbl) :: rs, rhoa, rhob
+    REAL(dbl), DIMENSION(4) :: fx
+    REAL(KIND = dbl), DIMENSION(:,:,:), POINTER :: e_0, &
+                                                   e_ra, e_rb, &
+                                                   e_rara, e_rarb, e_rbrb, &
+                                                   e_rarara, e_rararb, e_rarbrb, e_rbrbrb
+    TYPE(xc_derivative_type), POINTER :: deriv
+
+
+!   ---------------------------------------------------------------------------
+
+    calc = .FALSE.
+    IF (order >= 0) calc(0:order) = .TRUE.
+    IF (order < 0) calc(-order) = .TRUE.
+
+    IF (calc(0)) THEN
+       deriv => xc_dset_get_derivative(deriv_set, "", &
+                                       allocate_deriv=.TRUE., error=error)
+       call xc_derivative_get(deriv,deriv_data=e_0,error=error)
+    END IF
+    IF (calc(1)) THEN
+       deriv => xc_dset_get_derivative(deriv_set, "(rhoa)", &
+                                       allocate_deriv=.TRUE., error=error)
+       call xc_derivative_get(deriv,deriv_data=e_ra,error=error)
+       deriv => xc_dset_get_derivative(deriv_set, "(rhob)", &
+                                       allocate_deriv=.TRUE., error=error)
+       call xc_derivative_get(deriv,deriv_data=e_rb,error=error)
+    END IF
+    IF (calc(2)) THEN
+       deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)", &
+                                       allocate_deriv=.TRUE., error=error)
+       call xc_derivative_get(deriv,deriv_data=e_rara,error=error)
+       deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhob)", &
+                                       allocate_deriv=.TRUE., error=error)
+       call xc_derivative_get(deriv,deriv_data=e_rarb,error=error)
+       deriv => xc_dset_get_derivative(deriv_set, "(rhob)(rhob)", &
+                                       allocate_deriv=.TRUE., error=error)
+       call xc_derivative_get(deriv,deriv_data=e_rbrb,error=error)
+    END IF
+    IF (calc(3)) THEN
+       deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)(rhoa)", &
+                                       allocate_deriv=.TRUE., error=error)
+       call xc_derivative_get(deriv,deriv_data=e_rarara,error=error)
+       deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)(rhob)", &
+                                       allocate_deriv=.TRUE., error=error)
+       call xc_derivative_get(deriv,deriv_data=e_rararb,error=error)
+       deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhob)(rhob)", &
+                                       allocate_deriv=.TRUE., error=error)
+       call xc_derivative_get(deriv,deriv_data=e_rarbrb,error=error)
+       deriv => xc_dset_get_derivative(deriv_set, "(rhob)(rhob)(rhob)", &
+                                       allocate_deriv=.TRUE., error=error)
+       call xc_derivative_get(deriv,deriv_data=e_rbrbrb,error=error)
+    END IF
+
+!$omp parallel do private(i,j,k,fx,m1,m2,rhoa,rhob,rs)
+    DO i=rho_set%local_bounds(1,1), rho_set%local_bounds(2,1)
+       DO j=rho_set%local_bounds(1,2), rho_set%local_bounds(2,2)
+          DO k=rho_set%local_bounds(1,3), rho_set%local_bounds(2,3)
+       
+             rhoa = rho_set%rhoa(i,j,k)
+             rhob = rho_set%rhob(i,j,k)
+             fx(1) = rhoa + rhob
+   
+             CALL calc_rs ( fx(1), rs )
+             CALL calc_fx ( rhoa, rhob, fx, ABS(order) )
+   
+             IF ( calc(0) .AND. calc(1) ) THEN
+                CALL pade_lsd_01 ( rhoa, rhob, rs, fx, &
+                                   e_0(i,j,k), e_ra(i,j,k), e_rb(i,j,k) )
+             ELSE IF ( calc(0) ) THEN
+                CALL pade_lsd_0 ( rhoa, rhob, rs, fx, e_0(i,j,k) )
+             ELSE IF ( calc(1) ) THEN
+                CALL pade_lsd_1 ( rhoa, rhob, rs, fx, &
+                                  e_ra(i,j,k), e_rb(i,j,k) )
+             END IF
+             IF ( calc(2) ) THEN
+                CALL pade_lsd_2 ( rhoa, rhob, rs, fx, &
+                                  e_rara(i,j,k), e_rarb(i,j,k), e_rbrb(i,j,k) )
+             END IF
+             IF ( calc(3) ) THEN
+                CALL pade_lsd_3 ( rhoa, rhob, rs, fx, &
+                                  e_rarara(i,j,k), e_rararb(i,j,k), e_rarbrb(i,j,k), e_rbrbrb(i,j,k) )
+             END IF
+          END DO
+       END DO
+    END DO
+       
+  END SUBROUTINE pade_lsd_pw_eval
 
 ! *****************************************************************************
 
@@ -520,158 +606,138 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE pade_lsd_0(n, rhoa, rhob, rs, fx, pot0 )
+  SUBROUTINE pade_lsd_0(rhoa, rhob, rs, fx, pot0 )
 
-    INTEGER, INTENT(IN)                  :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)  :: rhoa, rhob, rs
-    REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)  :: pot0
+    REAL(dbl), INTENT(IN)               :: rhoa, rhob, rs
+    REAL(dbl), DIMENSION(:), INTENT(IN) :: fx
+    REAL(dbl), INTENT(INOUT)            :: pot0
 
     INTEGER :: ip
     REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
     REAL(dbl) :: p, q, rhoab
 !   ---------------------------------------------------------------------------
 
-!$omp parallel do private(ip,rhoab,p,q) &
-!$omp private(fa0,fa1,fa2,fa3,fb1,fb2,fb3,fb4)
-    DO ip = 1, n
 
-      rhoab = rhoa(ip) + rhob(ip)
+      rhoab = rhoa + rhob
 
       IF ( rhoab > eps_rho ) THEN
 
-         fa0 = a0 + fx(ip,1)*da0
-         fa1 = a1 + fx(ip,1)*da1
-         fa2 = a2 + fx(ip,1)*da2
-         fa3 = a3 + fx(ip,1)*da3
-         fb1 = b1 + fx(ip,1)*db1
-         fb2 = b2 + fx(ip,1)*db2
-         fb3 = b3 + fx(ip,1)*db3
-         fb4 = b4 + fx(ip,1)*db4
+         fa0 = a0 + fx(1)*da0
+         fa1 = a1 + fx(1)*da1
+         fa2 = a2 + fx(1)*da2
+         fa3 = a3 + fx(1)*da3
+         fb1 = b1 + fx(1)*db1
+         fb2 = b2 + fx(1)*db2
+         fb3 = b3 + fx(1)*db3
+         fb4 = b4 + fx(1)*db4
 
-         p = fa0 + (fa1 + (fa2 + fa3*rs(ip))*rs(ip))*rs(ip)
-         q = (fb1 + (fb2 + (fb3 + fb4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+         p = fa0 + (fa1 + (fa2 + fa3*rs)*rs)*rs
+         q = (fb1 + (fb2 + (fb3 + fb4*rs)*rs)*rs)*rs
 
-         pot0(ip) = pot0(ip) - p/q*rhoab
+         pot0 = pot0 - p/q*rhoab
 
       END IF
-
-    END DO
 
   END SUBROUTINE pade_lsd_0
 
 ! *****************************************************************************
 
-  SUBROUTINE pade_lsd_1 ( n, rhoa, rhob, rs, fx, pota, potb )
+  SUBROUTINE pade_lsd_1 ( rhoa, rhob, rs, fx, pota, potb )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)  :: rhoa, rhob, rs
-    REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)  :: pota, potb
+    REAL(dbl), INTENT(IN)  :: rhoa, rhob, rs
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: fx
+    REAL(dbl), INTENT(INOUT)  :: pota, potb
 
     INTEGER :: ip, n
     REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
     REAL(dbl) :: p, q, dp, dq, xp, xq, rhoab, dr, dx, dc
 !   ---------------------------------------------------------------------------
 
-!$omp parallel do private(ip,rhoab,p,q,dp,dq,xp,xq,dr,dx,dc) &
-!$omp private(fa0,fa1,fa2,fa3,fb1,fb2,fb3,fb4)
-    DO ip = 1, n
-
-      rhoab = rhoa(ip) + rhob(ip)
+      rhoab = rhoa + rhob
 
       IF ( rhoab > eps_rho ) THEN
 
-         fa0 = a0 + fx(ip,1)*da0
-         fa1 = a1 + fx(ip,1)*da1
-         fa2 = a2 + fx(ip,1)*da2
-         fa3 = a3 + fx(ip,1)*da3
-         fb1 = b1 + fx(ip,1)*db1
-         fb2 = b2 + fx(ip,1)*db2
-         fb3 = b3 + fx(ip,1)*db3
-         fb4 = b4 + fx(ip,1)*db4
+         fa0 = a0 + fx(1)*da0
+         fa1 = a1 + fx(1)*da1
+         fa2 = a2 + fx(1)*da2
+         fa3 = a3 + fx(1)*da3
+         fb1 = b1 + fx(1)*db1
+         fb2 = b2 + fx(1)*db2
+         fb3 = b3 + fx(1)*db3
+         fb4 = b4 + fx(1)*db4
 
-         p = fa0 + (fa1 + (fa2 + fa3*rs(ip))*rs(ip))*rs(ip)
-         q = (fb1 + (fb2 + (fb3 + fb4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
-         dp = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs(ip))*rs(ip)
+         p = fa0 + (fa1 + (fa2 + fa3*rs)*rs)*rs
+         q = (fb1 + (fb2 + (fb3 + fb4*rs)*rs)*rs)*rs
+         dp = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs)*rs
          dq = fb1 + (2.0_dbl*fb2 + (3.0_dbl*fb3 + &
-                     4.0_dbl*fb4*rs(ip))*rs(ip))*rs(ip)
-         xp = da0 + (da1 + (da2 + da3*rs(ip))*rs(ip))*rs(ip)
-         xq = (db1 + (db2 + (db3 + db4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+                     4.0_dbl*fb4*rs)*rs)*rs
+         xp = da0 + (da1 + (da2 + da3*rs)*rs)*rs
+         xq = (db1 + (db2 + (db3 + db4*rs)*rs)*rs)*rs
 
          dr = (dp*q - p*dq)/(q*q)
-         dx = 2._dbl*(xp*q - p*xq)/(q*q)*fx(ip,2)/rhoab
-         dc = f13*rs(ip)*dr - p/q
+         dx = 2._dbl*(xp*q - p*xq)/(q*q)*fx(2)/rhoab
+         dc = f13*rs*dr - p/q
 
-         pota(ip) = pota(ip) + dc - dx*rhob(ip)
-         potb(ip) = potb(ip) + dc + dx*rhoa(ip)
+         pota = pota + dc - dx*rhob
+         potb = potb + dc + dx*rhoa
 
       END IF
-
-    END DO
 
   END SUBROUTINE pade_lsd_1
 
 ! *****************************************************************************
 
-  SUBROUTINE pade_lsd_01 ( n, rhoa, rhob, rs, fx, pot0, pota, potb )
+  SUBROUTINE pade_lsd_01 ( rhoa, rhob, rs, fx, pot0, pota, potb )
 
-    INTEGER, INTENT(IN)                    :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)    :: rhoa, rhob, rs
-    REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
-    REAL(dbl), DIMENSION(*), INTENT(INOUT) :: pot0, pota, potb
+    REAL(dbl), INTENT(IN)    :: rhoa, rhob, rs
+    REAL(dbl), DIMENSION(:), INTENT(IN) :: fx
+    REAL(dbl), INTENT(INOUT) :: pot0, pota, potb
 
     INTEGER :: ip
     REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
     REAL(dbl) :: p, q, dp, dq, xp, xq, rhoab, dr, dx, dc
 !   ---------------------------------------------------------------------------
 
-!$omp parallel do private(ip,rhoab,p,q,dp,dq,xp,xq,dr,dx,dc) &
-!$omp private(fa0,fa1,fa2,fa3,fb1,fb2,fb3,fb4)
-    DO ip = 1, n
-
-      rhoab = rhoa(ip) + rhob(ip)
+      rhoab = rhoa + rhob
 
       IF ( rhoab > eps_rho ) THEN
 
-         fa0 = a0 + fx(ip,1)*da0
-         fa1 = a1 + fx(ip,1)*da1
-         fa2 = a2 + fx(ip,1)*da2
-         fa3 = a3 + fx(ip,1)*da3
-         fb1 = b1 + fx(ip,1)*db1
-         fb2 = b2 + fx(ip,1)*db2
-         fb3 = b3 + fx(ip,1)*db3
-         fb4 = b4 + fx(ip,1)*db4
+         fa0 = a0 + fx(1)*da0
+         fa1 = a1 + fx(1)*da1
+         fa2 = a2 + fx(1)*da2
+         fa3 = a3 + fx(1)*da3
+         fb1 = b1 + fx(1)*db1
+         fb2 = b2 + fx(1)*db2
+         fb3 = b3 + fx(1)*db3
+         fb4 = b4 + fx(1)*db4
 
-         p = fa0 + (fa1 + (fa2 + fa3*rs(ip))*rs(ip))*rs(ip)
-         q = (fb1 + (fb2 + (fb3 + fb4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
-         dp = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs(ip))*rs(ip)
+         p = fa0 + (fa1 + (fa2 + fa3*rs)*rs)*rs
+         q = (fb1 + (fb2 + (fb3 + fb4*rs)*rs)*rs)*rs
+         dp = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs)*rs
          dq = fb1 + (2.0_dbl*fb2 + (3.0_dbl*fb3 + &
-                     4.0_dbl*fb4*rs(ip))*rs(ip))*rs(ip)
-         xp = da0 + (da1 + (da2 + da3*rs(ip))*rs(ip))*rs(ip)
-         xq = (db1 + (db2 + (db3 + db4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+                     4.0_dbl*fb4*rs)*rs)*rs
+         xp = da0 + (da1 + (da2 + da3*rs)*rs)*rs
+         xq = (db1 + (db2 + (db3 + db4*rs)*rs)*rs)*rs
 
          dr = (dp*q - p*dq)/(q*q)
-         dx = 2._dbl*(xp*q - p*xq)/(q*q)*fx(ip,2)/rhoab
-         dc = f13*rs(ip)*dr - p/q
+         dx = 2._dbl*(xp*q - p*xq)/(q*q)*fx(2)/rhoab
+         dc = f13*rs*dr - p/q
 
-         pot0(ip) = pot0(ip) - p/q*rhoab
-         pota(ip) = pota(ip) + dc - dx*rhob(ip)
-         potb(ip) = potb(ip) + dc + dx*rhoa(ip)
+         pot0 = pot0 - p/q*rhoab
+         pota = pota + dc - dx*rhob
+         potb = potb + dc + dx*rhoa
 
       END IF
-
-    END DO
 
   END SUBROUTINE pade_lsd_01
 
 ! *****************************************************************************
 
-  SUBROUTINE pade_lsd_2 (n, rhoa, rhob, rs, fx, potaa, potab, potbb )
+  SUBROUTINE pade_lsd_2 (rhoa, rhob, rs, fx, potaa, potab, potbb )
 
-    INTEGER, INTENT(IN)                    :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)    :: rhoa, rhob, rs
-    REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
-    REAL(dbl), DIMENSION(*), INTENT(INOUT) :: potaa, potab, potbb
+    REAL(dbl), INTENT(IN)    :: rhoa, rhob, rs
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: fx
+    REAL(dbl), INTENT(INOUT) :: potaa, potab, potbb
 
     INTEGER :: ip
     REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
@@ -679,40 +745,35 @@ CONTAINS
     REAL(dbl) :: d2p, d2q, dxp, dxq, drr, dxr, dxx, xt, yt, or
 !   ---------------------------------------------------------------------------
 
-!$omp parallel do private(ip,rhoab,p,q,dp,dq,d2p,d2q,xp,xq,dxp,dxq,dr,drr) &
-!$omp private(dx,dxx,dxr,or,xt,yt) &
-!$omp private(fa0,fa1,fa2,fa3,fb1,fb2,fb3,fb4)
-    DO ip = 1, n
-
-      rhoab = rhoa(ip) + rhob(ip)
+      rhoab = rhoa + rhob
 
       IF ( rhoab > eps_rho ) THEN
 
-         fa0 = a0 + fx(ip,1)*da0
-         fa1 = a1 + fx(ip,1)*da1
-         fa2 = a2 + fx(ip,1)*da2
-         fa3 = a3 + fx(ip,1)*da3
-         fb1 = b1 + fx(ip,1)*db1
-         fb2 = b2 + fx(ip,1)*db2
-         fb3 = b3 + fx(ip,1)*db3
-         fb4 = b4 + fx(ip,1)*db4
+         fa0 = a0 + fx(1)*da0
+         fa1 = a1 + fx(1)*da1
+         fa2 = a2 + fx(1)*da2
+         fa3 = a3 + fx(1)*da3
+         fb1 = b1 + fx(1)*db1
+         fb2 = b2 + fx(1)*db2
+         fb3 = b3 + fx(1)*db3
+         fb4 = b4 + fx(1)*db4
 
-         p = fa0 + (fa1 + (fa2 + fa3*rs(ip))*rs(ip))*rs(ip)
-         q = (fb1 + (fb2 + (fb3 + fb4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+         p = fa0 + (fa1 + (fa2 + fa3*rs)*rs)*rs
+         q = (fb1 + (fb2 + (fb3 + fb4*rs)*rs)*rs)*rs
 
-         dp = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs(ip))*rs(ip)
+         dp = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs)*rs
          dq = fb1 + (2.0_dbl*fb2 + (3.0_dbl*fb3 + &
-                     4.0_dbl*fb4*rs(ip))*rs(ip))*rs(ip)
+                     4.0_dbl*fb4*rs)*rs)*rs
 
-         d2p = 2.0_dbl*fa2 + 6.0_dbl*fa3*rs(ip)
-         d2q = 2.0_dbl*fb2 + (6.0_dbl*fb3 + 12.0_dbl*fb4*rs(ip))*rs(ip)
+         d2p = 2.0_dbl*fa2 + 6.0_dbl*fa3*rs
+         d2q = 2.0_dbl*fb2 + (6.0_dbl*fb3 + 12.0_dbl*fb4*rs)*rs
 
-         xp = da0 + (da1 + (da2 + da3*rs(ip))*rs(ip))*rs(ip)
-         xq = (db1 + (db2 + (db3 + db4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+         xp = da0 + (da1 + (da2 + da3*rs)*rs)*rs
+         xq = (db1 + (db2 + (db3 + db4*rs)*rs)*rs)*rs
 
-         dxp = da1 + (2.0_dbl*da2 + 3.0_dbl*da3*rs(ip))*rs(ip)
+         dxp = da1 + (2.0_dbl*da2 + 3.0_dbl*da3*rs)*rs
          dxq = db1 + (2.0_dbl*db2 + (3.0_dbl*db3 + &
-                     4.0_dbl*db4*rs(ip))*rs(ip))*rs(ip)
+                     4.0_dbl*db4*rs)*rs)*rs
 
          dr = (dp*q - p*dq)/(q*q)
          drr = (d2p*q*q-p*q*d2q-2._dbl*dp*q*dq+2._dbl*p*dq*dq)/(q*q*q)
@@ -721,36 +782,33 @@ CONTAINS
          dxr = (dxp*q*q+dp*xq*q-xp*dq*q-p*dxq*q-2._dbl*dp*q*xq+2._dbl*p*dq*xq)/(q*q*q)
 
          or = 1._dbl/rhoab
-         yt = rhob(ip)*or
-         xt = rhoa(ip)*or
+         yt = rhob*or
+         xt = rhoa*or
 
-         potaa(ip) = potaa(ip) + f23*f13*dr*rs(ip)*or - f13*f13*drr*rs(ip)*rs(ip)*or &
-                     + f43*rs(ip)*fx(ip,2)*dxr*yt*or &
-                     - 4._dbl*fx(ip,2)*fx(ip,2)*dxx*yt*yt*or &
-                     - 4._dbl*dx*fx(ip,3)*yt*yt*or
-         potab(ip) = potab(ip) + f23*f13*dr*rs(ip)*or - f13*f13*drr*rs(ip)*rs(ip)*or &
-                     + f23*rs(ip)*fx(ip,2)*dxr*(yt-xt)*or &
-                     + 4._dbl*fx(ip,2)*fx(ip,2)*dxx*xt*yt*or &
-                     + 4._dbl*dx*fx(ip,3)*xt*yt*or
-         potbb(ip) = potbb(ip) + f23*f13*dr*rs(ip)*or - f13*f13*drr*rs(ip)*rs(ip)*or &
-                     - f43*rs(ip)*fx(ip,2)*dxr*xt*or &
-                     - 4._dbl*fx(ip,2)*fx(ip,2)*dxx*xt*xt*or &
-                     - 4._dbl*dx*fx(ip,3)*xt*xt*or
+         potaa = potaa + f23*f13*dr*rs*or - f13*f13*drr*rs*rs*or &
+                     + f43*rs*fx(2)*dxr*yt*or &
+                     - 4._dbl*fx(2)*fx(2)*dxx*yt*yt*or &
+                     - 4._dbl*dx*fx(3)*yt*yt*or
+         potab = potab + f23*f13*dr*rs*or - f13*f13*drr*rs*rs*or &
+                     + f23*rs*fx(2)*dxr*(yt-xt)*or &
+                     + 4._dbl*fx(2)*fx(2)*dxx*xt*yt*or &
+                     + 4._dbl*dx*fx(3)*xt*yt*or
+         potbb = potbb + f23*f13*dr*rs*or - f13*f13*drr*rs*rs*or &
+                     - f43*rs*fx(2)*dxr*xt*or &
+                     - 4._dbl*fx(2)*fx(2)*dxx*xt*xt*or &
+                     - 4._dbl*dx*fx(3)*xt*xt*or
 
       END IF
-
-    END DO
 
   END SUBROUTINE pade_lsd_2
 
 ! *****************************************************************************
 
-  SUBROUTINE pade_lsd_3 ( n, rhoa, rhob, rs, fx, potaaa, potaab, potabb, potbbb )
+  SUBROUTINE pade_lsd_3 ( rhoa, rhob, rs, fx, potaaa, potaab, potabb, potbbb )
 
-    INTEGER, INTENT(IN)                    :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)    :: rhoa, rhob, rs
-    REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
-    REAL(dbl), DIMENSION(*), INTENT(INOUT) :: potaaa, potaab, potabb, potbbb
+    REAL(dbl), INTENT(IN)    :: rhoa, rhob, rs
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: fx
+    REAL(dbl), INTENT(INOUT) :: potaaa, potaab, potabb, potbbb
 
     INTEGER :: ip
     REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
@@ -762,46 +820,41 @@ CONTAINS
 
     IF ( .NOT. debug_flag ) CALL stop_program("pade_lsd_3","Routine not tested")
 
-!$omp parallel do private(ip,fa0,fa1,fa2,fa3,fb1,fb2,fb3,fb4) &
-!$omp  private(p,q,dp,dq,xp,xq,rhoab,dr,dx,dc,d2p,d2q,dxp,dxq,drr,dxr,dxx) &
-!$omp  private(xt,yt,or,d3p,d3q,d2xp,d2xq,drrr,dxrr,dxxr,dxxx)
-    DO ip = 1, n
-
-      rhoab = rhoa(ip) + rhob(ip)
+      rhoab = rhoa + rhob
 
       IF ( rhoab > eps_rho ) THEN
 
-         fa0 = a0 + fx(ip,1)*da0
-         fa1 = a1 + fx(ip,1)*da1
-         fa2 = a2 + fx(ip,1)*da2
-         fa3 = a3 + fx(ip,1)*da3
-         fb1 = b1 + fx(ip,1)*db1
-         fb2 = b2 + fx(ip,1)*db2
-         fb3 = b3 + fx(ip,1)*db3
-         fb4 = b4 + fx(ip,1)*db4
+         fa0 = a0 + fx(1)*da0
+         fa1 = a1 + fx(1)*da1
+         fa2 = a2 + fx(1)*da2
+         fa3 = a3 + fx(1)*da3
+         fb1 = b1 + fx(1)*db1
+         fb2 = b2 + fx(1)*db2
+         fb3 = b3 + fx(1)*db3
+         fb4 = b4 + fx(1)*db4
 
-         p = fa0 + (fa1 + (fa2 + fa3*rs(ip))*rs(ip))*rs(ip)
-         q = (fb1 + (fb2 + (fb3 + fb4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+         p = fa0 + (fa1 + (fa2 + fa3*rs)*rs)*rs
+         q = (fb1 + (fb2 + (fb3 + fb4*rs)*rs)*rs)*rs
 
-         dp = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs(ip))*rs(ip)
+         dp = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs)*rs
          dq = fb1 + (2.0_dbl*fb2 + (3.0_dbl*fb3 + &
-                     4.0_dbl*fb4*rs(ip))*rs(ip))*rs(ip)
+                     4.0_dbl*fb4*rs)*rs)*rs
 
-         d2p = 2.0_dbl*fa2 + 6.0_dbl*fa3*rs(ip)
-         d2q = 2.0_dbl*fb2 + (6.0_dbl*fb3 + 12.0_dbl*fb4*rs(ip))*rs(ip)
+         d2p = 2.0_dbl*fa2 + 6.0_dbl*fa3*rs
+         d2q = 2.0_dbl*fb2 + (6.0_dbl*fb3 + 12.0_dbl*fb4*rs)*rs
 
          d3p = 6.0_dbl*fa3
-         d3q = 6.0_dbl*fb3 + 24.0_dbl*fb4*rs(ip)
+         d3q = 6.0_dbl*fb3 + 24.0_dbl*fb4*rs
 
-         xp = da0 + (da1 + (da2 + da3*rs(ip))*rs(ip))*rs(ip)
-         xq = (db1 + (db2 + (db3 + db4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
+         xp = da0 + (da1 + (da2 + da3*rs)*rs)*rs
+         xq = (db1 + (db2 + (db3 + db4*rs)*rs)*rs)*rs
 
-         dxp = da1 + (2.0_dbl*da2 + 3.0_dbl*da3*rs(ip))*rs(ip)
+         dxp = da1 + (2.0_dbl*da2 + 3.0_dbl*da3*rs)*rs
          dxq = db1 + (2.0_dbl*db2 + (3.0_dbl*db3 + &
-                     4.0_dbl*db4*rs(ip))*rs(ip))*rs(ip)
+                     4.0_dbl*db4*rs)*rs)*rs
 
-         d2xp = 2.0_dbl*da2 + 6.0_dbl*da3*rs(ip)
-         d2xq = 2.0_dbl*db2 + (6.0_dbl*db3 + 12.0_dbl*db4*rs(ip))*rs(ip)
+         d2xp = 2.0_dbl*da2 + 6.0_dbl*da3*rs
+         d2xq = 2.0_dbl*db2 + (6.0_dbl*db3 + 12.0_dbl*db4*rs)*rs
 
          dr = (dp*q - p*dq)/(q*q)
          drr = (d2p*q*q-p*q*d2q-2._dbl*dp*q*dq+2._dbl*p*dq*dq)/(q*q*q)
@@ -818,20 +871,18 @@ CONTAINS
                 2._dbl*dq*dq*q*xp-6._dbl*dq*dq*p*xq+2._dbl*d2q*q*p*xq)/(q*q*q*q)
 
          or = 1._dbl/rhoab
-         yt = rhob(ip)*or
-         xt = rhoa(ip)*or
+         yt = rhob*or
+         xt = rhoa*or
 
-         potaaa(ip) = potaaa(ip) + 8._dbl/27._dbl*dr*rs(ip)*or*or + &
-                     1._dbl/9._dbl*drr*rs(ip)*rs(ip)*or*or + &
-                     1._dbl/27._dbl*drrr*rs(ip)**3*or*or + &
-                     dxr*or*or*yt*rs(ip)*(-8._dbl/3._dbl*fx(ip,2)+4._dbl*fx(ip,3)*yt) 
-         potaab(ip) = potaab(ip) + 0._dbl
-         potabb(ip) = potabb(ip) + 0._dbl
-         potbbb(ip) = potbbb(ip) + 0._dbl
+         potaaa = potaaa + 8._dbl/27._dbl*dr*rs*or*or + &
+                     1._dbl/9._dbl*drr*rs*rs*or*or + &
+                     1._dbl/27._dbl*drrr*rs**3*or*or + &
+                     dxr*or*or*yt*rs*(-8._dbl/3._dbl*fx(2)+4._dbl*fx(3)*yt) 
+         potaab = potaab + 0._dbl
+         potabb = potabb + 0._dbl
+         potbbb = potbbb + 0._dbl
 
       END IF
-
-    END DO
 
   END SUBROUTINE pade_lsd_3
 

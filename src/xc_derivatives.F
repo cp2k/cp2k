@@ -38,7 +38,9 @@ MODULE xc_derivatives
                                              xc_lda,&
                                              xc_lsd,&
                                              xc_set
-  USE xc_pade,                         ONLY: pade_lda_pw_eval, pade
+  USE xc_pade,                         ONLY: pade_lda_pw_eval, &
+                                             pade_lsd_pw_eval, &
+                                             pade
   USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
                                              xc_rho_set_type
   USE xc_xbecke88,                     ONLY: xb88_lda_eval,&
@@ -266,12 +268,7 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
         CALL xb88_lsd_info(reference=reference,shortform=shortform,&
              needs=needs, max_deriv=max_deriv, error=error)
      CASE("PADE")
-        IF (lsd) THEN
-           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                message="not yet implemented", error=error)
-        ELSE
-           CALL pade(reference, shortform, lsd=.FALSE., needs=needs, error=error)
-        END IF
+           CALL pade(reference, shortform, lsd=lsd, needs=needs, error=error)
      CASE("NONE")
         IF (PRESENT(reference)) reference=""
         IF (PRESENT(shortform)) shortform=""
@@ -369,8 +366,7 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
      CASE("PADE")
         CALL pade(density_cut)
         IF (lsd) THEN
-           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                message="not yet implemented", error=error)
+           CALL pade_lsd_pw_eval(deriv_set, rho_set, deriv_order, error=error)
         ELSE
            CALL pade_lda_pw_eval(deriv_set, rho_set, deriv_order, error=error)
         END IF
