@@ -13,7 +13,7 @@
 !!     JGH (18-Mar-2001)
 !!
 !!   MODIFICATION HISTORY
-!!     JGH (18-Mar-2001) : New routine rs_grid_zero
+!!     JGH (22-May-2002) : New routine rs_grid_zero
 !!
 !!   NOTES
 !!     Basic type for real space grid methods
@@ -26,7 +26,7 @@ MODULE realspace_grid_types
   USE kinds, ONLY : dbl
   USE message_passing, ONLY : mp_cart_create, mp_comm_free, mp_comm_dup, &
       mp_sum, mp_max, mp_min, mp_cart_sub, mp_cart_shift, mp_sendrecv, &
-      mp_bcast
+      mp_bcast, mp_allgather, mp_sum_scatter
   USE pw_types, ONLY : pw_type, REALDATA1D, COMPLEXDATA1D, &
       REALDATA3D, COMPLEXDATA3D
   USE pw_grid_types, ONLY : pw_grid_type
@@ -456,6 +456,11 @@ SUBROUTINE rs_pw_transfer ( rs, pw, dir )
    LOGICAL :: subdim ( 2 )
    REAL ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: buffer
 
+   INTEGER :: np, ip, ix, iy, iz, ii, nma
+   REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: rlocal, rbuffer
+   INTEGER, DIMENSION ( : ), ALLOCATABLE :: rcount, rdispl
+   INTEGER, DIMENSION (:,:,:), POINTER :: bo
+
 !-----------------------------------------------------------------------------!
    call timeset("rs_pw_transfer",'I',' ',handle)
    IF ( rs % identifier /= pw % pw_grid % identifier ) THEN
@@ -473,51 +478,92 @@ SUBROUTINE rs_pw_transfer ( rs, pw, dir )
      IF ( rs % group_dim ( 1 ) == 1 ) THEN
        !Only one type of grid, this is easy
 
-       pbo => pw % pw_grid % bounds_local
+       np = pw % pw_grid % para % group_size
+       ALLOCATE ( rcount ( 0 : np - 1 ), rdispl ( 0 : np - 1 ), STAT = ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "rcount", 2*np )
+       nn = SIZE ( pw % cr3d )
+       ALLOCATE ( rlocal ( nn ), STAT = ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "rlocal", nn )
+       bo => pw % pw_grid % para % bo (:,:,:,1)
+       pbo => pw % pw_grid % bounds
+       DO ip = 1, np
+         rcount ( ip-1 ) = PRODUCT ( bo(2,:,ip) - bo(1,:,ip) + 1 )
+       END DO
+       nma = MAXVAL ( rcount ( 0 : np - 1 ) )
+       ALLOCATE ( rbuffer ( np*nma ), STAT = ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "rbuffer", np*nn )
+       rdispl ( 0 ) = 0
+       DO ip = 1, np - 1
+         rdispl ( ip ) = rdispl ( ip - 1 ) + rcount ( ip-1 )
+       END DO
+
        IF ( dir == "FORWARD" ) THEN
 
-         !We first sum the full array, this could be optimised 
-         CALL mp_sum ( rs % r, rs % group )
+         DO ip = 1, np
+            ii = rdispl ( ip-1 )
+            lb = pbo(1,:)+bo(1,:,ip)-1
+            ub = pbo(1,:)+bo(2,:,ip)-1
+            DO iz = lb(3), ub(3)
+              DO iy = lb(2), ub(2)
+                DO ix = lb(1), ub(1)
+                  ii=ii+1
+                  rbuffer(ii) = rs%r(ix,iy,iz)
+                END DO
+              END DO
+            END DO
+         END DO
 
-         !Now copy the local section from the RS Grid to the PW Grid
+         CALL mp_sum_scatter ( rbuffer, rlocal, rcount(0:np-1), &
+                               pw % pw_grid % para % group )
+
          IF ( pw % in_use == REALDATA3D ) THEN
-           pw % cr3d ( pbo(1,1):pbo(2,1), pbo(1,2):pbo(2,2), &
-                       pbo(1,3):pbo(2,3) ) = &
-              rs % r ( pbo(1,1):pbo(2,1), pbo(1,2):pbo(2,2), &
-                       pbo(1,3):pbo(2,3) )
+           CALL dcopy ( nn, rlocal, 1, pw % cr3d, 1 )
          ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
-           pw % cc3d ( pbo(1,1):pbo(2,1), pbo(1,2):pbo(2,2), &
-                       pbo(1,3):pbo(2,3) ) = &
-                CMPLX ( rs % r ( pbo(1,1):pbo(2,1), pbo(1,2):pbo(2,2), &
-                       pbo(1,3):pbo(2,3) ), KIND = dbl )
+           CALL copy_rc ( nn, rlocal, pw % cc3d )
          ELSE
-           CALL stop_program ( "rs_pw_transfer", "Pw type not compatible" )
+           CALL stop_program ( "rs_pw_transfer", "PW type not compatible" )
          END IF
  
        ELSEIF ( dir == "BACKWARD" ) THEN
 
-         rs % r = 0._dbl
          IF ( pw % in_use == REALDATA3D ) THEN
-           rs % r ( pbo(1,1):pbo(2,1), pbo(1,2):pbo(2,2), &
-                    pbo(1,3):pbo(2,3) ) = &
-                pw % cr3d ( pbo(1,1):pbo(2,1), pbo(1,2):pbo(2,2), &
-                            pbo(1,3):pbo(2,3) )
+            CALL dcopy ( nn, pw % cr3d, 1, rlocal, 1 )
          ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
-           rs % r ( pbo(1,1):pbo(2,1), pbo(1,2):pbo(2,2), &
-                    pbo(1,3):pbo(2,3) ) = &
-                REAL ( pw % cr3d ( pbo(1,1):pbo(2,1), pbo(1,2):pbo(2,2), &
-                            pbo(1,3):pbo(2,3) ), dbl )
+            CALL dcopy ( nn, pw % cr3d, 2, rlocal, 1 )
          ELSE
-           CALL stop_program ( "rs_pw_transfer", "Pw type not compatible" )
+            CALL stop_program ( "rs_pw_transfer", "PW type not compatible" )
          END IF
 
-         !We sum the full array, this could be optimised 
-         CALL mp_sum ( rs % r, rs % group )
+         CALL mp_allgather ( rlocal, rbuffer, rcount(0:np-1), rdispl(0:np-1), &
+                             pw % pw_grid % para % group )
+
+         DO ip = 1, np
+            ii = rdispl ( ip-1 )
+            lb = pbo(1,:)+bo(1,:,ip)-1
+            ub = pbo(1,:)+bo(2,:,ip)-1
+            DO iz = lb(3), ub(3)
+              DO iy = lb(2), ub(2)
+                DO ix = lb(1), ub(1)
+                  ii=ii+1
+                  rs%r(ix,iy,iz) = rbuffer(ii)
+                END DO
+              END DO
+            END DO
+         END DO
 
        ELSE
+
          CALL stop_program ( "rs_pw_transfer", &
               "Parameter dir ="//dir//" not allowed" )
+
        END IF
+
+       DEALLOCATE ( rcount, rdispl, STAT = ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "rcount" )
+       DEALLOCATE ( rlocal, STAT = ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "rlocal" )
+       DEALLOCATE ( rbuffer, STAT = ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "rbuffer" )
 
      ELSE
        !Both grids are distributed, we have to do some reshuffling of data
@@ -620,19 +666,20 @@ SUBROUTINE rs_pw_transfer ( rs, pw, dir )
    ELSE
 
      ! non parallel case
+     nn = SIZE ( rs % r )
      IF ( dir == "FORWARD" ) THEN
        IF ( pw % in_use == REALDATA3D ) THEN
-         pw % cr3d = rs % r
+         CALL dcopy ( nn, rs % r, 1, pw % cr3d, 1 )
        ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
-         pw % cc3d = CMPLX ( rs % r, KIND = dbl )
+         CALL copy_rc ( nn, rs % r, pw % cr3d )
        ELSE
          CALL stop_program ( "rs_pw_transfer", "Pw type not compatible" )
        END IF
      ELSEIF ( dir == "BACKWARD" ) THEN
        IF ( pw % in_use == REALDATA3D ) THEN
-         rs % r = pw % cr3d
+         CALL dcopy ( nn, pw % cr3d, 1, rs % r, 1 )
        ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
-         rs % r = REAL ( pw % cc3d, dbl )
+         CALL copy_cr ( nn, pw % cr3d, rs % r )
        ELSE
          CALL stop_program ( "rs_pw_transfer", "Pw type not compatible" )
        END IF

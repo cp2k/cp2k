@@ -36,7 +36,8 @@ MODULE message_passing
        mp_bcast, mp_stop, mp_sum, mp_max, mp_min, mp_sync, mp_environ, &
        mp_gather, mp_comm_compare, mp_cart_coords, mp_rank_compare, &
        mp_transpose, mp_dims_create, mp_cart_rank, mp_cart_sub, mp_comm_free, &
-       mp_comm_dup, mp_cart_shift, mp_sendrecv, mp_range, mp_allgather
+       mp_comm_dup, mp_cart_shift, mp_sendrecv, mp_range, mp_allgather, &
+       mp_sum_scatter
   
   INTERFACE mp_bcast
      MODULE PROCEDURE mp_bcast_i1, mp_bcast_r1, mp_bcast_c1, mp_bcast_z, &
@@ -63,7 +64,11 @@ MODULE message_passing
   END INTERFACE
 
   INTERFACE mp_allgather
-     MODULE PROCEDURE mp_allgather_rm3
+     MODULE PROCEDURE mp_allgather_rm3, mp_allgatherv_rv
+  END INTERFACE
+
+  INTERFACE mp_sum_scatter
+     MODULE PROCEDURE mp_sum_scatter_rv
   END INTERFACE
 
   INTERFACE mp_environ
@@ -1586,6 +1591,56 @@ SUBROUTINE mp_allgather_rm3(mepos,num_pe,elements,msg,gid)
   ierr = 0
 #endif
 END SUBROUTINE mp_allgather_rm3
+
+! wrapper for MPI_ALLGATHERV subroutine
+! one dimensional real arrays
+SUBROUTINE mp_allgatherv_rv(msgout,msgin,rcount,rdispl,gid)
+  IMPLICIT NONE
+  REAL ( dbl ), INTENT ( IN ) :: msgout ( : )
+  REAL ( dbl ), INTENT ( OUT ) :: msgin ( : )
+  INTEGER, INTENT ( IN ) :: rcount ( : ), rdispl ( : )
+  INTEGER, INTENT ( IN ) :: gid
+
+  INTEGER :: ierr, scount
+
+#if defined(__parallel)
+  scount = SIZE ( msgout )
+  CALL MPI_ALLGATHERV(msgout, scount, MPI_DOUBLE_PRECISION, msgin, rcount, &
+                      rdispl, MPI_DOUBLE_PRECISION, gid, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allgatherv @ mp_allgatherv_rv" )
+#else
+  msgin = msgout
+  ierr = 0
+#endif
+END SUBROUTINE mp_allgatherv_rv
+
+!******************************************************************************
+! wrapper for MPI_REDUCE_SCATTER subroutine
+! one dimensional real arrays
+SUBROUTINE mp_sum_scatter_rv(msgout,msgin,rcount,gid)
+  IMPLICIT NONE
+  REAL ( dbl ), INTENT ( IN ) :: msgout ( : )
+  REAL ( dbl ), INTENT ( OUT ) :: msgin ( : )
+  INTEGER, INTENT ( IN ) :: rcount ( : )
+  INTEGER, INTENT ( IN ) :: gid
+
+  INTEGER :: ierr
+
+#if defined(__parallel)
+  t_start = cputime ( )
+  CALL MPI_REDUCE_SCATTER(msgout, msgin, rcount, MPI_DOUBLE_PRECISION, MPI_SUM, &
+                          gid, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce_scatter @ mp_sum_scatter_rv" )
+
+  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
+  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + rcount(1) * reallen*2
+  t_end = cputime ( )
+  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+#else
+  msgin = msgout
+  ierr = 0
+#endif
+END SUBROUTINE mp_sum_scatter_rv
 
 !******************************************************************************
 

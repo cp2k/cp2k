@@ -1528,7 +1528,8 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
   nm = MAXVAL ( nray ( 0 : np - 1 ) )
   ALLOCATE ( rr ( nm * nx, 0 : np - 1 ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "x_to_yz", "rr", np*nm*nx )
-  rr = 0._dbl
+  nr = SIZE ( rr )
+  CALL dcopy ( 2*nr, 0._dbl, 0, rr, 1 )
   
   nr = nray ( my_pos )
   DO ip = 0, np - 1
@@ -1546,7 +1547,8 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
 
   CALL mp_transpose ( sb, scount, sdispl, rr, rcount, rdispl, group )
 
-  tb = 0._dbl
+  nx = SIZE ( tb )
+  CALL dcopy ( 2*nx, 0._dbl, 0, tb, 1 )
   nx = bo ( 2, 1, mpr ) - bo ( 1, 1, mpr ) + 1
   DO ip = 0, np - 1
     nr = nray ( ip )
@@ -1621,7 +1623,8 @@ SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb )
   nm = MAXVAL ( nray ( 0 : np - 1 ) )
   ALLOCATE ( rr ( nm * nx, 0 : np - 1 ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_x", "rr", np*nm*nx )
-  rr = 0._dbl
+  nx = SIZE ( rr )
+  CALL dcopy ( 2*nx, 0._dbl, 0, rr, 1 )
   
   nx = bo ( 2, 1, mpr ) - bo ( 1, 1, mpr ) + 1
   DO ip = 0, np - 1
