@@ -1,4 +1,15 @@
- gloria@baal has created process number                                    32576
+ gloria@baal has created process number                                    34872
+
+  **** **** ******  **  PROGRAM STARTED AT              Fri Feb 27 14:28:58 2004
+ ***** ** ***  *** **   PROGRAM STARTED ON                                  baal
+ **    ****   ******    PROGRAM STARTED BY                                gloria
+ ***** **    ** ** **   PROGRAM PROCESS ID                                 34872
+  **** **  *******  **  PROGRAM STARTED IN   /home/chem/gloria/cp2k/tests/KG/LiI
+
+ CP2K| Program compiled at                       Fri Feb 27 14:12:04 TZ=CET 2004
+ CP2K| Program compiled on                                                  baal
+ CP2K| Program compiled for                                   AIX-PowerPC_POWER3
+ CP2K| Last CVS entry                 xc_xbecke88.F/1.8/Fri Feb 27 13:10:05 2004
 
  IO| Input file name                                               input_solid32
  IO| Output file name                                                   (stdout)
@@ -8,128 +19,6 @@
  IO| Potential file name                                               POTENTIAL
  IO| Restart file name                                                   RESTART
  IO| Coordinate file name                                          input_solid32
-
-  **** **** ******  **  PROGRAM STARTED AT              Fri Feb 27 13:41:45 2004
- ***** ** ***  *** **   PROGRAM STARTED ON                                  baal
- **    ****   ******    PROGRAM STARTED BY                                gloria
- ***** **    ** ** **   PROGRAM PROCESS ID                                 32576
-  **** **  *******  **  PROGRAM STARTED IN   /home/chem/gloria/cp2k/tests/KG/LiI
-
- CP2K| Program compiled at                       Wed Feb 18 16:10:04 TZ=CET 2004
- CP2K| Program compiled on                                                  baal
- CP2K| Program compiled for                                   AIX-PowerPC_POWER3
- CP2K| Last CVS entry                 xc_xbecke88.F/1.6/Wed Feb 18 15:07:17 2004
- CP2K| Program name                                                           KG
- CP2K| Project name                                                          lii
- CP2K| Default FFT library                                                 FFTSG
- CP2K| Run type                                               MOLECULAR DYNAMICS
- CP2K| Global print level                                                      4
- CP2K| Total number of message passing processes                               1
- CP2K| Number of threads for this process                                      1
- CP2K| This output is from process                                             0
-
-
- DFT| Force calculation                                                      YES
- DFT| Cutoffs: density                                               0.10000E-09
- DFT|          gradient                                              0.10000E-09
- DFT| XC density smoothing                                                  NONE
- DFT| XC derivatives                                                          PW
- DFT| XC mesh (PW density)                                               default
- FUNCTIONAL| Exchange Functional                                            NONE
- FUNCTIONAL| Correlation Functional                                         PADE
-              S. Goedecker, M. Teter and J. Hutter, Phys. Rev. B 54, 1703 (1996)
- FUNCTIONAL| Kinetic Energy Functional                                        TF
-                       Thomas-Fermi kinetic energy functional: see Parr and Yang
-                           *** WARNING : THIS FUNCTIONAL IS NOT FULLY TESTED ***
-
- KG| Method:                                                            KG_NOPOL
- KG| Number of grid levels:                                                    1
- QS| Density plane wave grid type                        NON-SPHERICAL FULLSPACE
- KG| Density cutoff [a.u.]:                                                 80.0
- KG| Grid level progression factor:                                          2.0
- KG| Relative density cutoff [a.u.]:                                        25.0
- KG| Interaction thresholds: eps_pgf_orb:                                1.0E-16
- KG|                         eps_core_charge:                            1.0E-96
- KG|                         eps_rho_gspace:                             1.0E-16
- KG|                         eps_rho_rspace:                             1.0E-16
- KG|                         eps_gvg_rspace:                             1.0E-16
-
- CELL| Volume [ANGSTROM**3]:                                            1736.654
- CELL| Vector a [ANGSTROM]:      12.020     0.000     0.000    |a| =      12.020
- CELL| Vector b [ANGSTROM]:       0.000    12.020     0.000    |b| =      12.020
- CELL| Vector c [ANGSTROM]:       0.000     0.000    12.020    |c| =      12.020
- CELL| Angle (b,c) [degree]:                                              90.000
- CELL| Angle (a,c) [degree]:                                              90.000
- CELL| Angle (a,b) [degree]:                                              90.000
- CELL| Grid size for subcell generation                                    0.000
- Entering topology_control
-   Entering read_topology_section
-   Exiting  read_topology_section
-   Entering coordinate_control
-   Exiting  coordinate_control
-   Entering connectivity_control
-     Entering topology_generate_bond
-     Exiting  topology_generate_bond
-     Entering topology_generate_bend
-     Exiting  topology_generate_bend
-     Entering topology_generate_dihe
-     Exiting  topology_generate_dihe
-     Entering topology_generate_molecule
-     Exiting  topology_generate_molecule
-   Exiting  connectivity_control
-   Entering topology_connectivity_pack
-   Exiting  topology_connectivity_pack
-   Entering topology_coordinate_pack
-   Exiting  topology_coordinate_pack
- Exiting  topology_control
-
-
- Current input file: POTENTIAL
-
- ERROR in line 61, column 12:
-
-     2    5
-            ^
-
-
- ****************************************************
- *** ERROR in read_real_object (MODULE qs_parser) ***
- ****************************************************
-
- *** A real type object was expected, found end of line ***
-
- *** Program stopped at line number 845 of MODULE qs_parser ***
-
- ===== Routine Calling Stack ===== 
-
-            3 kg_init
-            2 kg_create_force_env
-            1 CP2K
-
- CP2K| Stopped by process number                                               0
- CP2K| Abnormal program termination
-
- gloria@baal has created process number                                    34826
-
- IO| Input file name                                               input_solid32
- IO| Output file name                                                   (stdout)
- IO| Error file name                                                    (stdout)
- IO| Library path                                                             ./
- IO| Basis set file name                                               BASIS_SET
- IO| Potential file name                                               POTENTIAL
- IO| Restart file name                                                   RESTART
- IO| Coordinate file name                                          input_solid32
-
-  **** **** ******  **  PROGRAM STARTED AT              Fri Feb 27 13:43:57 2004
- ***** ** ***  *** **   PROGRAM STARTED ON                                  baal
- **    ****   ******    PROGRAM STARTED BY                                gloria
- ***** **    ** ** **   PROGRAM PROCESS ID                                 34826
-  **** **  *******  **  PROGRAM STARTED IN   /home/chem/gloria/cp2k/tests/KG/LiI
-
- CP2K| Program compiled at                       Wed Feb 18 16:10:04 TZ=CET 2004
- CP2K| Program compiled on                                                  baal
- CP2K| Program compiled for                                   AIX-PowerPC_POWER3
- CP2K| Last CVS entry                 xc_xbecke88.F/1.6/Wed Feb 18 15:07:17 2004
  CP2K| Program name                                                           KG
  CP2K| Project name                                                          lii
  CP2K| Default FFT library                                                 FFTSG
@@ -405,7 +294,7 @@
   Exchange-correlation energy:                               147.62489839856605
   Total energy:                                             -595.62644328175747
 
-   -MD-       5       5.000         0.092411670       308.796443865      -595.626443282      -595.534031611     -0.000004303117           12.690000
+   -MD-       5       5.000         0.092411670       308.796443865      -595.626443282      -595.534031611     -0.000004303117           12.740000
 
 
   Total electronic density (r-space):        320.0000000000
@@ -463,7 +352,7 @@
   Exchange-correlation energy:                               147.61891386188239
   Total energy:                                             -595.63870335457921
 
-   -MD-      10      10.000         0.104669569       349.756590699      -595.638703355      -595.534033785     -0.000006477029           12.690000
+   -MD-      10      10.000         0.104669569       349.756590699      -595.638703355      -595.534033785     -0.000006477029           12.740000
 
 
   Total electronic density (r-space):        320.0000000000
@@ -521,7 +410,7 @@
   Exchange-correlation energy:                               147.60886620273172
   Total energy:                                             -595.65526819905995
 
-   -MD-      15      15.000         0.121230076       405.094033441      -595.655268199      -595.534038123     -0.000010814981           12.680000
+   -MD-      15      15.000         0.121230076       405.094033441      -595.655268199      -595.534038123     -0.000010814981           12.740000
 
 
   Total electronic density (r-space):        320.0000000000
@@ -579,7 +468,7 @@
   Exchange-correlation energy:                               147.59826525337650
   Total energy:                                             -595.66981419346530
 
-   -MD-      20      20.000         0.135788412       453.741161058      -595.669814193      -595.534025782      0.000001526427           12.670000
+   -MD-      20      20.000         0.135788412       453.741161058      -595.669814193      -595.534025782      0.000001526427           12.740000
 
 
   Total electronic density (r-space):        320.0000000000
@@ -637,7 +526,7 @@
   Exchange-correlation energy:                               147.58996496522616
   Total energy:                                             -595.67782675082049
 
-   -MD-      25      25.000         0.143785864       480.464894435      -595.677826751      -595.534040887     -0.000013578586           12.690000
+   -MD-      25      25.000         0.143785864       480.464894435      -595.677826751      -595.534040887     -0.000013578586           12.740000
 
 
   ---------------------------------
@@ -652,31 +541,31 @@
  -                                                                             -
  -------------------------------------------------------------------------------
  SUBROUTINE                    CALLS  ASD CPU TIME T  PERFORMANCE   ELAPSED TIME
- CP2K                              1  1.0   341.28 I       ---            342.61
- qs_mol_dyn                        1  2.0   330.59 I   0.0                331.40
- FORCE                            26  4.0   330.50 I   0.0                330.50
- velocity_verlet                  25  3.0   317.32 I   0.0                317.08
- fft_wrap_pw1pw2_all             156  5.8   162.69 I   0.0                162.59
- fft_wrap_pw1pw2_2               156  6.8   162.65 I   0.0                162.53
- fft3d_s                         157  7.8   116.53 I  81.1 Mflops         116.49
- calculate_density                26  5.0    92.44 I   0.0                 92.38
- calculate_v_rspace_forces        26  5.0    85.87 I   0.0                 85.84
- xc_calculate_pw_old              26  5.0    68.76 I   0.0                 68.86
- xc_calc_derivatives              26  6.0    66.90 I   0.0                 66.97
- calculate_epc_density            26  5.0    31.02 I   0.0                 31.05
- pw_gather                        78  8.0    19.49 I   3.5 Mcopy           19.54
- pw_scatter                       78  7.6    19.32 I   3.6 Mcopy           19.28
- kg_create_force_env               1  2.0    10.66 I   0.0                 11.16
- kg_init                           1  3.0    10.66 I   0.0                 11.14
- kg_rho_setup                      2  4.0    10.57 I   0.0                 11.04
- init_grid                         2  5.0     6.98 I   0.0                  7.46
- pw_grid_setup                     2  6.0     6.98 I   0.0                  7.43
- calculate_rho0_pp                26  5.0     7.16 I   0.0                  7.13
+ CP2K                              1  1.0   342.53 I       ---            343.95
+ qs_mol_dyn                        1  2.0   331.94 I   0.0                333.39
+ FORCE                            26  4.0   331.81 I   0.0                331.78
+ velocity_verlet                  25  3.0   318.66 I   0.0                318.61
+ fft_wrap_pw1pw2_all             156  5.8   162.41 I   0.0                162.44
+ fft_wrap_pw1pw2_2               156  6.8   162.37 I   0.0                162.44
+ fft3d_s                         157  7.8   116.08 I  81.5 Mflops         115.99
+ calculate_density                26  5.0    92.86 I   0.0                 92.90
+ calculate_v_rspace_forces        26  5.0    86.25 I   0.0                 86.24
+ xc_calculate_pw_old              26  5.0    68.83 I   0.0                 68.87
+ xc_calc_derivatives              26  6.0    67.00 I   0.0                 67.06
+ calculate_epc_density            26  5.0    31.58 I   0.0                 31.51
+ pw_gather                        78  8.0    19.75 I   3.5 Mcopy           19.79
+ pw_scatter                       78  7.6    19.45 I   3.5 Mcopy           19.49
+ kg_init                           1  3.0    10.56 I   0.0                 10.52
+ kg_create_force_env               1  2.0    10.56 I   0.0                 10.52
+ kg_rho_setup                      2  4.0    10.49 I   0.0                 10.45
+ calculate_rho0_pp                26  5.0     7.14 I   0.0                  7.16
+ pw_grid_setup                     2  6.0     6.90 I   0.0                  6.90
+ init_grid                         2  5.0     6.90 I   0.0                  6.90
  -------------------------------------------------------------------------------
 
-  **** **** ******  **  PROGRAM ENDED AT                Fri Feb 27 13:49:40 2004
+  **** **** ******  **  PROGRAM ENDED AT                Fri Feb 27 14:34:42 2004
  ***** ** ***  *** **   PROGRAM RAN ON                                      baal
  **    ****   ******    PROGRAM RAN BY                                    gloria
- ***** **    ** ** **   PROGRAM PROCESS ID                                 34826
+ ***** **    ** ** **   PROGRAM PROCESS ID                                 34872
   **** **  *******  **  PROGRAM STARTED IN   /home/chem/gloria/cp2k/tests/KG/LiI
 
