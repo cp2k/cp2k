@@ -833,8 +833,11 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    line = ""
     line2 = ""
+    symbol = ""
     symbol2 = ""
+    bsname = ""
     bsname2 = ""
 
     gto_basis_set%name = basis_set_name
