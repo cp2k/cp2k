@@ -62,14 +62,13 @@ MODULE qs_ep_methods
   USE global_types,                    ONLY: DEBUG,&
                                              global_environment_type
   USE kinds,                           ONLY: wp=>dp
+  USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_release,&
                                              pw_env_retain,&
                                              pw_env_type
-  USE qs_build_KS_matrix,              ONLY: qs_ks_dealloc_ref,&
+  USE qs_build_KS_matrix,              ONLY: qs_ks_create,&
                                              qs_ks_did_change,&
-                                             qs_ks_env_type,&
-                                             qs_ks_init,&
                                              qs_ks_update_qs_env
   USE qs_charges_types,                ONLY: qs_charges_create,&
                                              qs_charges_release,&
@@ -91,6 +90,10 @@ MODULE qs_ep_methods
                                              init_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_ks_types,                     ONLY: qs_ks_env_p_type,&
+                                             qs_ks_env_type,&
+                                             qs_ks_release,&
+                                             qs_ks_retain
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                              calculate_density_matrix,&
                                              calculate_subspace_eigenvalues,&
@@ -104,6 +107,12 @@ MODULE qs_ep_methods
                                              write_mo_set
   USE qs_neighbor_lists,               ONLY: build_neighbor_lists
   USE qs_overlap,                      ONLY: distribute_overlap_matrix
+  USE qs_p_sparse_psi,                 ONLY: p_proj_create,&
+                                             p_proj_release,&
+                                             p_proj_retain,&
+                                             p_proj_transfer_blacs_to_f,&
+                                             qs_p_projection_p_type,&
+                                             qs_p_projection_type
   USE scf_control_types,               ONLY: scf_c_release,&
                                              scf_c_retain,&
                                              scf_control_type
@@ -156,7 +165,7 @@ CONTAINS
 !!     11.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE qs_ep_calculation(qs_env,globenv,error)
+  SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
     TYPE(qs_environment_type), INTENT(inout),TARGET :: qs_env
     TYPE(global_environment_type), INTENT(inout), TARGET :: globenv
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -167,7 +176,7 @@ CONTAINS
     TYPE(qs_environment_type), DIMENSION(1:2) :: sub_qs_env
     TYPE(qs_ks_env_type), DIMENSION(1:2) :: sub_ks_env
     INTEGER :: ikind, isub_qs, iatom, natoms, natoms_kind, ispin, stat,&
-         handle, nat1, nat2, n_ao, n_mo, nelectron
+         handle, nat1, nat2, n_ao, n_mo, nelectron, next_cgf, next_sgf
     INTEGER, DIMENSION(:), POINTER :: atom_list, atom_list1, atom_list2
     TYPE(dft_control_type), POINTER :: dft_control
     TYPE(scf_control_type), POINTER :: scf_control
@@ -178,8 +187,14 @@ CONTAINS
     TYPE(cp_full_matrix_type), POINTER :: eigenvectors
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(qs_charges_type), POINTER :: qs_charges
+    TYPE(qs_p_projection_p_type), DIMENSION(:), POINTER :: sub_proj
+    TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
+    TYPE(qs_ks_env_type), POINTER :: ks_env
 
     failure=.FALSE.
+    NULLIFY(atom_list, atom_list1, atom_list2,dft_control,scf_control,&
+         para_env,c,k,p,h,s,logger,eigenvectors,atomic_kind_set,qs_charges,&
+         sub_proj, particle_set)
     logger => cp_error_get_logger(error)
 
     CALL timeset(routineN,"I","",handle)
@@ -191,7 +206,7 @@ CONTAINS
 
     CALL distribute_overlap_matrix(qs_env,globenv)
     para_env => qs_env%para_env ! cp_para_env_from_globenv(globenv)
-    CALL qs_env_update_s_mstruct(qs_env,para_env=para_env)
+    CALL qs_env_update_s_mstruct(qs_env)
 
     !   *** Calculate the overlap and the core Hamiltonian integral matrix ***
 
@@ -205,9 +220,14 @@ CONTAINS
 
     !   *** init the ks_env
 
-    !    CALL qs_ks_init(ks_env,qs_env=qs_env,global_env=globenv)
+    CALL get_qs_env(qs_env, ks_env=ks_env)
+    IF (.not.ASSOCIATED(ks_env)) THEN
+       CALL qs_ks_create(ks_env,qs_env=qs_env)
+       CALL set_qs_env(qs_env, ks_env=ks_env)
+    END IF
 
     !   *** Initializes the MOs ***
+    CALL get_qs_env(qs_env,c=c)
     CPPrecondition(ASSOCIATED(c),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        DO ispin=1,SIZE(c)
@@ -268,12 +288,12 @@ CONTAINS
     sub_qs_env(2)%particle_set = qs_env%particle_set((natoms/2+1):natoms)
 
     ALLOCATE(sub_qs_env(1)%atomic_kind_set(SIZE(qs_env%atomic_kind_set)),&
-         sub_qs_env(2)%particle_set(SIZE(qs_env%atomic_kind_set)),&
+         sub_qs_env(2)%atomic_kind_set(SIZE(qs_env%atomic_kind_set)),&
          stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DO isub_qs=1,2
-       sub_qs_env(isub_qs)%atomic_kind_set = qs_env%atomic_kind_set
+!       sub_qs_env(isub_qs)%atomic_kind_set = qs_env%atomic_kind_set
        sub_qs_env(isub_qs)%cell => qs_env%cell
        sub_qs_env(isub_qs)%dft_control => qs_env%dft_control
        sub_qs_env(isub_qs)%scf_control => qs_env%scf_control
@@ -284,7 +304,7 @@ CONTAINS
 
     ! atomic_kind_set setup
     CALL cp_log(logger,cp_note_level,routineP,&
-         "atomic kind setup "//cp_to_string(isub_qs))
+         "atomic kind setup")
     DO ikind=1,SIZE(qs_env%atomic_kind_set)
        CALL get_atomic_kind(qs_env%atomic_kind_set(ikind),&
             atom_list=atom_list)
@@ -298,6 +318,7 @@ CONTAINS
             stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+       nat1=0; nat2=0
        DO iatom=1,SIZE(atom_list)
           IF (atom_list(iatom) <= natoms/2) THEN
              nat1=nat1+1
@@ -316,6 +337,24 @@ CONTAINS
             atom_list=atom_list1)
        CALL set_atomic_kind(sub_qs_env(2)%atomic_kind_set(ikind),&
             atom_list=atom_list2)
+    END DO
+
+    DO isub_qs=1,2
+       particle_set => sub_qs_env(isub_qs)%particle_set
+       next_cgf=1
+       next_sgf=1
+       DO iatom=1,SIZE(particle_set)
+          particle_set(iatom)%last_cgf=next_cgf+particle_set(iatom)%last_cgf-&
+               particle_set(iatom)%first_cgf
+          particle_set(iatom)%first_cgf=next_cgf
+          next_cgf=particle_set(iatom)%last_cgf+1
+          particle_set(iatom)%last_sgf=next_sgf+particle_set(iatom)%last_sgf-&
+               particle_set(iatom)%first_sgf
+          particle_set(iatom)%first_sgf=next_sgf
+          next_sgf=particle_set(iatom)%last_sgf+1
+          !FM cgf_aux not initialized! (at the Moment unused)
+          particle_set(iatom)%iatom=iatom
+       END DO
     END DO
 
     DO isub_qs=1,2
@@ -359,16 +398,20 @@ CONTAINS
 
     END DO
 
-    ! energy in subsistem with diag
+    ! energy in subsystem with diag
     DO isub_qs=1,2
        CALL cp_log(logger,cp_note_level,routineP,&
             "Diagonalization of subsystem "//ADJUSTL(cp_to_string(isub_qs)))
-       CALL qs_energies(sub_qs_env(isub_qs),globenv,sub_ks_env(isub_qs))
+       CALL qs_energies(sub_qs_env(isub_qs),globenv)
     END DO
 
     ! perturbative approach for complete system
     CALL cp_log(logger,cp_note_level,routineP,&
          "Starting perturbation")
+
+    ALLOCATE(atom_list1(natoms/2),atom_list2((natoms+1)/2),stat=stat)
+!FM    call p_proj_create(sub_proj(isub_qs)%projection, &
+!FM         atoms=, proj_indexes, particle_set, error)
 
     CALL timestop(0.0_wp,handle)
 

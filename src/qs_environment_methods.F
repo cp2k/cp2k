@@ -108,9 +108,6 @@ MODULE qs_environment_methods
                                              cp_sm_fm_multiply,&
                                              optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size
-  USE qs_build_ks_matrix,              ONLY: qs_ks_did_change,&
-                                             qs_ks_env_type,&
-                                             qs_ks_update_qs_env
   USE qs_charges_types,                ONLY: qs_charges_create,&
                                              qs_charges_release,&
                                              qs_charges_retain,&
@@ -229,9 +226,8 @@ END SUBROUTINE qs_env_setup
 !!     qs_env_update_s_mstruct
 !!
 !!   SYNOPSIS
-!!     Subroutine qs_env_update_s_mstruct(qs_env, para_env, error)
+!!     Subroutine qs_env_update_s_mstruct(qs_env, error)
 !!       Type(qs_environment_type), Intent (INOUT):: qs_env
-!!       Type(cp_para_env_type), Pointer:: para_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine qs_env_update_s_mstruct
 !!
@@ -257,9 +253,8 @@ END SUBROUTINE qs_env_setup
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE qs_env_update_s_mstruct(qs_env,para_env,error)
+SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
   TYPE(qs_environment_type), INTENT(inout)     :: qs_env
-  TYPE(cp_para_env_type), POINTER              :: para_env
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -268,9 +263,13 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,para_env,error)
   INTEGER :: n_atoms, stat
   INTEGER, DIMENSION(:), ALLOCATABLE :: block_sizes
   INTEGER, DIMENSION(:), POINTER :: first_row, first_col, last_row, last_col
+  TYPE(cp_para_env_type), POINTER :: para_env
+
   failure=.FALSE.
+  NULLIFY(first_row, first_col, last_row, last_col, para_env)
   
   IF (ASSOCIATED(qs_env%s_mstruct)) CALL cp_bmstruct_release(qs_env%s_mstruct)
+  CALL get_qs_env(qs_env, para_env=para_env, error=error)
   n_atoms=SIZE(qs_env%particle_set)
   ALLOCATE(block_sizes(n_atoms),stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

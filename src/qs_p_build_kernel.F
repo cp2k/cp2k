@@ -94,9 +94,6 @@ MODULE qs_p_build_kernel
   USE pws,                             ONLY: cleanup_pw_poisson_solver,&
                                              init_pw_poisson_solver,&
                                              pw_poisson_solver
-  USE qs_build_ks_matrix,              ONLY: qs_ks_did_change,&
-                                             qs_ks_env_type,&
-                                             qs_ks_update_qs_env
   USE qs_charges_types,                ONLY: qs_charges_create,&
                                              qs_charges_release,&
                                              qs_charges_type

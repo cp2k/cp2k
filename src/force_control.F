@@ -21,24 +21,20 @@
 !******************************************************************************
 
 MODULE force_control
-
-  USE fist_environment_types, ONLY : fist_environment_type
-  USE fist_force, ONLY : fist_force_control => force_control
-  USE global_types, ONLY : global_environment_type
-  USE kg_environment_types, ONLY : kg_environment_type
-  USE kg_force, ONLY : kg_force_control => force_control
-  USE kinds, ONLY : dbl
-  USE qs_build_ks_matrix, ONLY : qs_ks_env_type
-  USE qs_environment_types, ONLY : qs_environment_type
-  USE qs_force, ONLY: qs_forces_update
-  USE termination, ONLY : stop_program
-
+  USE fist_environment_types,          ONLY: fist_environment_type
+  USE fist_force,                      ONLY: fist_force_control => force_control
+  USE global_types,                    ONLY: global_environment_type
+  USE kg_environment_types,            ONLY: kg_environment_type
+  USE kg_force,                        ONLY: kg_force_control => force_control
+  USE kinds,                           ONLY: dbl
+  USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_force,                        ONLY: qs_forces_update
+  USE termination,                     ONLY: stop_program
   IMPLICIT NONE
 
   TYPE ( fist_environment_type ), POINTER :: fist_env 
   TYPE ( kg_environment_type ), POINTER :: kg_env
   TYPE ( qs_environment_type ), POINTER :: qs_env
-  TYPE ( qs_ks_env_type ), POINTER :: ks_env
 
   INTEGER, PARAMETER :: FIST=501, QUICKSTEP=502, POL=503, KIM_GORDON=504 
   INTEGER :: in_use
@@ -55,6 +51,13 @@ CONTAINS
 !!
 !!   NAME
 !!     force
+!!
+!!   SYNOPSIS
+!!     Subroutine force(globenv, box_change)
+!!       Implicit None
+!!       Type(global_environment_type), Intent (IN):: globenv
+!!       Logical, Intent (IN):: box_change
+!!     End Subroutine force
 !!
 !!   FUNCTION
 !!     Interface routine for force calculations
@@ -102,7 +105,7 @@ SUBROUTINE force ( globenv, box_change )
                                     box_change, globenv )
       END SELECT 
     CASE ( QUICKSTEP )
-      CALL qs_forces_update(qs_env,globenv,ks_env)
+      CALL qs_forces_update(qs_env,globenv)
     CASE ( POL )
     CASE ( KIM_GORDON )
       CALL kg_force_control ( kg_env, globenv )
@@ -116,6 +119,14 @@ END SUBROUTINE force
 !!   NAME
 !!     set_force_env
 !!
+!!   SYNOPSIS
+!!     Subroutine set_force_env(fist_env_type, kg_env_type, qs_env_type)
+!!       Implicit None
+!!       Type(fist_environment_type), Target, Optional:: fist_env_type
+!!       Type(kg_environment_type), Target, Optional:: kg_env_type
+!!       Type(qs_environment_type), Target, Optional:: qs_env_type
+!!     End Subroutine set_force_env
+!!
 !!   FUNCTION
 !!     sets the globals for the force routine
 !!
@@ -126,13 +137,11 @@ END SUBROUTINE force
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE set_force_env ( fist_env_type, kg_env_type, qs_env_type, ks_env_type )
+SUBROUTINE set_force_env ( fist_env_type, kg_env_type, qs_env_type )
   IMPLICIT NONE
   TYPE ( fist_environment_type ), TARGET, OPTIONAL :: fist_env_type
   TYPE ( kg_environment_type ), TARGET, OPTIONAL :: kg_env_type
   TYPE ( qs_environment_type ), TARGET, OPTIONAL :: qs_env_type
-  TYPE ( qs_ks_env_type ), TARGET, OPTIONAL :: ks_env_type
-
 
 ! Classical MD
   IF ( PRESENT ( fist_env_type ) ) THEN
@@ -147,9 +156,8 @@ SUBROUTINE set_force_env ( fist_env_type, kg_env_type, qs_env_type, ks_env_type 
   ENDIF
 
 ! Quickstep
-  IF ( PRESENT ( qs_env_type ) .AND. PRESENT ( ks_env_type ) ) THEN
+  IF ( PRESENT ( qs_env_type ) ) THEN
      qs_env => qs_env_type
-     ks_env => ks_env_type
      in_use = QUICKSTEP
   ENDIF
 

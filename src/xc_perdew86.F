@@ -75,6 +75,8 @@ CONTAINS
     eps_rho = cutoff
     CALL set_util ( cutoff )
 
+    CALL perdew_zunger('ORIG',cutoff)
+
     IF ( PRESENT ( debug ) ) THEN
        debug_flag = debug
     ELSE

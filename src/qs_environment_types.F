@@ -73,6 +73,9 @@ MODULE qs_environment_types
                                              qs_charges_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+                                             qs_ks_release,&
+                                             qs_ks_retain
   USE qs_mo_types,                     ONLY: mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_release,&
@@ -106,60 +109,61 @@ MODULE qs_environment_types
 !!***
 !****************************************************************************
 
-  !!****t* qs_environment_types/qs_environment_type [1.0] *
-  !!
-  !!   NAME
-  !!     qs_environment_type
-  !!
-  !!   FUNCTION
-  !!     contains all the info nedeed by quickstep to do dft scf
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     - atomic_kind_set: array with infos about the species (atomic_kinds)
-  !!       present in the system
-  !!     - cell: the simulation cell (box)
-  !!     - dft_control: object that contains the values of various parameters
-  !!       relevant to a dft calculation
-  !!     - c: the molecular orbitals, in LSD array with the different spins
-  !!     - sab_orb,sac_erfc,sac_ppl,sca_ppnl,scb_ppnl : various neighbor
-  !!       lists (Matthias expand this??)
-  !!     - pao_env: things nedeed by the pao method
-  !!     - particle_set: info on the atoms you simulate, pos,...
-  !!     - energy: place where the energies calculated are stored
-  !!     - h: core hamiltonian (h(1)), if needed by the calculation also
-  !!       its derivatives wrt. x,y, and z (h(2:4))
-  !!     - k: Khon-Sham matrix (filtred by the structure of S).
-  !!       with LSD an array with the differents orbitals
-  !!     - p: the density matrix (filtred by the structure of S).
-  !!       with LSD an array with the differents orbitals
-  !!     - s: the overlap matrix (s(1)), if needed by the calculation also
-  !!       its derivatives wrt. x,y, and z (s(2:4))
-  !!     - kinetic: kinetic part of h
-  !!     - s_mstruct: structure of s
-  !!     - rho: the (old) density, in various representations (ao+grid)
-  !!     - scf_control: various parameters relevant to the scf cycle
-  !!     - ao_mo_fm_pools: pools with (ao x mo) full matrixes (same order as
-  !!       c).
-  !!     - pw_env: various things to create and get info on the grids used
-  !!       by qs
-  !!     - para_env: parallel environement that should be  used to do the qs
-  !!       related calculations
-  !!     - blacs_env: parallel environement needed by scalapack (full matrixes)
-  !!     - rho_core: a grid with the charges of the cores of the atoms in the
-  !!       reciprocal (g) space
-  !!     - qs_charges: an object where to put the charges that are present on 
-  !!       the various grids
-  !!
-  !!   AUTHOR
-  !!     Matthias Krack
-  !!
-  !!   MODIFICATION HISTORY
-  !!     11.2002 added doc and attribute description [fawzi]
-  !!
-  !!*** *********************************************************************
+!!****t* qs_environment_types/qs_environment_type [1.0] *
+!!
+!!   NAME
+!!     qs_environment_type
+!!
+!!   FUNCTION
+!!     contains all the info nedeed by quickstep to do dft scf
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     - atomic_kind_set: array with infos about the species (atomic_kinds)
+!!       present in the system
+!!     - cell: the simulation cell (box)
+!!     - dft_control: object that contains the values of various parameters
+!!       relevant to a dft calculation
+!!     - c: the molecular orbitals, in LSD array with the different spins
+!!     - sab_orb,sac_erfc,sac_ppl,sca_ppnl,scb_ppnl : various neighbor
+!!       lists (Matthias expand this??)
+!!     - pao_env: things nedeed by the pao method
+!!     - particle_set: info on the atoms you simulate, pos,...
+!!     - energy: place where the energies calculated are stored
+!!     - h: core hamiltonian (h(1)), if needed by the calculation also
+!!       its derivatives wrt. x,y, and z (h(2:4))
+!!     - k: Khon-Sham matrix (filtred by the structure of S).
+!!       with LSD an array with the differents orbitals
+!!     - p: the density matrix (filtred by the structure of S).
+!!       with LSD an array with the differents orbitals
+!!     - s: the overlap matrix (s(1)), if needed by the calculation also
+!!       its derivatives wrt. x,y, and z (s(2:4))
+!!     - kinetic: kinetic part of h
+!!     - s_mstruct: structure of s
+!!     - rho: the (old) density, in various representations (ao+grid)
+!!     - scf_control: various parameters relevant to the scf cycle
+!!     - ao_mo_fm_pools: pools with (ao x mo) full matrixes (same order as
+!!       c).
+!!     - pw_env: various things to create and get info on the grids used
+!!       by qs
+!!     - para_env: parallel environement that should be  used to do the qs
+!!       related calculations
+!!     - blacs_env: parallel environement needed by scalapack (full matrixes)
+!!     - rho_core: a grid with the charges of the cores of the atoms in the
+!!       reciprocal (g) space
+!!     - qs_charges: an object where to put the charges that are present on 
+!!       the various grids
+!!     - ks_env: environement for the calculation of the Kohn Sham matrix
+!!
+!!   AUTHOR
+!!     Matthias Krack
+!!
+!!   MODIFICATION HISTORY
+!!     11.2002 added doc and attribute description [fawzi]
+!!
+!!*** *********************************************************************
   TYPE qs_environment_type
 !   PRIVATE
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
@@ -183,6 +187,7 @@ MODULE qs_environment_types
     TYPE(cp_blacs_env_type), POINTER                      :: blacs_env
     TYPE(coeff_type), POINTER                             :: rho_core
     TYPE(qs_charges_type), POINTER                        :: qs_charges
+    TYPE(qs_ks_env_type), POINTER                         :: ks_env
   END TYPE qs_environment_type
 ! *****************************************************************************
 
@@ -195,7 +200,7 @@ CONTAINS
                         particle_set,energy,force,h,k,p,s, s_mstruct,&
                         rho, ao_mo_fm_pools,ao_maxmo_fm_pool, pw_env, &
                         para_env, blacs_env, scf_control,&
-                        kinetic,qs_charges, rho_core, error)
+                        kinetic,qs_charges, rho_core, ks_env,error)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -233,6 +238,7 @@ CONTAINS
     TYPE(scf_control_type), OPTIONAL, POINTER   :: scf_control
     TYPE(qs_charges_type), OPTIONAL, POINTER    :: qs_charges
     TYPE(coeff_type), OPTIONAL, POINTER         :: rho_core
+    TYPE(qs_ks_env_type), OPTIONAL, POINTER     :: ks_env
     TYPE(cp_error_type), OPTIONAL,INTENT(inout) :: error
 !   ---------------------------------------------------------------------------
 
@@ -271,6 +277,7 @@ CONTAINS
     IF (PRESENT(scf_control)) scf_control => qs_env%scf_control
     IF (PRESENT(rho_core)) rho_core => qs_env%rho_core
     IF (PRESENT(qs_charges)) qs_charges => qs_env%qs_charges
+    IF (PRESENT(ks_env)) ks_env => qs_env%ks_env
 
   END SUBROUTINE get_qs_env
 
@@ -316,6 +323,7 @@ CONTAINS
     NULLIFY (qs_env%scf_control)
     NULLIFY (qs_env%qs_charges)
     NULLIFY (qs_env%rho_core)
+    NULLIFY (qs_env%ks_env)
 
     CALL cp_para_env_retain(para_env,error=error)
     qs_env%para_env => para_env
@@ -329,7 +337,7 @@ CONTAINS
                         sac_erfc,sac_ppl,sca_ppnl,scb_ppnl,pao_env,&
                         particle_set,energy,force,h,k,p,s,&
                         pw_env,ao_mo_fm_pools,rho,kinetic,&
-                        scf_control,qs_charges,rho_core,error)
+                        scf_control,qs_charges,rho_core, ks_env, error)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -362,6 +370,7 @@ CONTAINS
     TYPE(scf_control_type), OPTIONAL, POINTER :: scf_control
     TYPE(qs_charges_type), OPTIONAL, POINTER  :: qs_charges
     TYPE(coeff_type), POINTER, OPTIONAL       :: rho_core
+    TYPE(qs_ks_env_type), POINTER, OPTIONAL   :: ks_env
     TYPE(cp_error_type),INTENT(inout),OPTIONAL:: error
 
     TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: new_ao_mo_fm_pools
@@ -415,6 +424,11 @@ CONTAINS
        CALL qs_charges_retain(qs_charges,error=error)
        CALL qs_charges_release(qs_env%qs_charges,error=error)
        qs_env%qs_charges => qs_charges
+    END IF
+    IF (PRESENT(ks_env)) THEN ! accept also null pointers?
+       CALL qs_ks_retain(ks_env, error=error)
+       CALL qs_ks_release(qs_env%ks_env, error=error)
+       qs_env%ks_env => ks_env
     END IF
   END SUBROUTINE set_qs_env
 

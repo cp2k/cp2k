@@ -57,10 +57,10 @@ MODULE qs_p_utils
                                              fm_pool_give_back_matrix,&
                                              fm_pools_create_matrix_vect,&
                                              fm_pools_give_back_matrix_vect
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_type,&
-                                             cp_fm_struct_create,&
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_get,&
-                                             cp_fm_struct_release
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_create2,&
                                              cp_full_matrix_p_type,&
@@ -97,9 +97,6 @@ MODULE qs_p_utils
                                              optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size,&
                                              replicate_blacs_matrix
-  USE qs_build_ks_matrix,              ONLY: qs_ks_did_change,&
-                                             qs_ks_env_type,&
-                                             qs_ks_update_qs_env
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_p_build_kernel,               ONLY: kpp1_calc_k_p_p1
@@ -124,6 +121,15 @@ CONTAINS
 !!
 !!   NAME
 !!     p_op_l1
+!!
+!!   SYNOPSIS
+!!     Subroutine p_op_l1(p_env, v, res, error)
+!!       Implicit None
+!!       Type(qs_p_env_type), Intent (IN):: p_env
+!!       Type(cp_full_matrix_p_type), Dimension(:), Intent (IN):: v
+!!       Type(cp_full_matrix_p_type), Dimension(:), Intent (INOUT):: res
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine p_op_l1
 !!
 !!   FUNCTION
 !!     Evaluates Fv - Sv(epsilon) and stores it in res
@@ -183,6 +189,16 @@ CONTAINS
 !!
 !!   NAME
 !!     p_op_l1_spin
+!!
+!!   SYNOPSIS
+!!     Subroutine p_op_l1_spin(p_env, spin, v, res, error)
+!!       Implicit None
+!!       Type(qs_p_env_type), Intent (IN):: p_env
+!!       Integer, Intent (IN):: spin
+!!       Type(cp_full_matrix_type), Pointer:: v
+!!       Type(cp_full_matrix_type), Pointer:: res
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine p_op_l1_spin
 !!
 !!   FUNCTION
 !!     Evaluates Fv - Sv(epsilon) and stores it in res for a given spin
@@ -253,6 +269,15 @@ CONTAINS
 !!
 !!   NAME
 !!     p_op_l2
+!!
+!!   SYNOPSIS
+!!     Subroutine p_op_l2(p_env, v, res, alpha, beta, error)
+!!       Type(qs_p_env_type), Intent (INOUT):: p_env
+!!       Type(cp_full_matrix_p_type), Dimension(:), Intent (IN):: v
+!!       Type(cp_full_matrix_p_type), Dimension(:), Intent (INOUT):: res
+!!       Real(Kind=dbl), Intent (IN), Optional:: alpha, beta
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine p_op_l2
 !!
 !!   FUNCTION
 !!     evaluates res = alpha K_P_P1 v + beta res
@@ -326,6 +351,15 @@ CONTAINS
 !!
 !!   NAME
 !!     p_preortho
+!!
+!!   SYNOPSIS
+!!     Subroutine p_preortho(p_env, v, n_cols, error)
+!!       Implicit None
+!!       Type(qs_p_env_type), Intent (IN):: p_env
+!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: v
+!!       Integer, Dimension(:), Intent (IN), Optional:: n_cols
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine p_preortho
 !!
 !!   FUNCTION
 !!     does a preorthogonalization of the given matrix:
@@ -449,6 +483,15 @@ CONTAINS
 !!
 !!   NAME
 !!     p_postortho
+!!
+!!   SYNOPSIS
+!!     Subroutine p_postortho(p_env, v, n_cols, error)
+!!       Implicit None
+!!       Type(qs_p_env_type), Intent (IN):: p_env
+!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: v
+!!       Integer, Dimension(:), Intent (IN), Optional:: n_cols
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine p_postortho
 !!
 !!   FUNCTION
 !!     does a postorthogonalization on the given matrix vector:

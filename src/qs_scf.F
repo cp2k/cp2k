@@ -172,10 +172,7 @@ MODULE qs_scf
                                              replicate_blacs_matrix,&
                                              symmetrise_blacs_matrix,&
                                              w_blacs_matrix => write_blacs_matrix
-  USE qs_build_KS_matrix,              ONLY: qs_ks_dealloc_ref,&
-                                             qs_ks_did_change,&
-                                             qs_ks_env_type,&
-                                             qs_ks_init,&
+  USE qs_build_ks_matrix,              ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_rho_core,&
@@ -191,6 +188,10 @@ MODULE qs_scf
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_ks_types,                     ONLY: qs_ks_env_p_type,&
+                                             qs_ks_env_type,&
+                                             qs_ks_release,&
+                                             qs_ks_retain
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                              calculate_density_matrix,&
                                              calculate_subspace_eigenvalues,&
@@ -280,11 +281,10 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE scf(ks_env,qs_env,globenv,error)
+  SUBROUTINE scf(qs_env,globenv,error)
 
     TYPE(global_environment_type), INTENT(IN)  :: globenv
     TYPE(qs_environment_type), INTENT(INOUT)   :: qs_env
-    TYPE(qs_ks_env_type), INTENT(INOUT)        :: ks_env
     TYPE(cp_error_type),INTENT(inout),OPTIONAL :: error
 
 !   *** Local parameters ***
@@ -330,6 +330,7 @@ CONTAINS
     TYPE(coeff_type), DIMENSION(:), POINTER :: mgrid_rspace, mgrid_gspace
     TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
     TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
+    TYPE(qs_ks_env_type), POINTER :: ks_env
 
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=200) :: file_name
@@ -342,7 +343,7 @@ CONTAINS
 
     NULLIFY(mo_eigenvectors,pao_obj_f,pao_optimizer,pao_env,min_density_m,&
          min_mo,full_mo, ks, p, ks_rmpv, p_rmpv,qs_charges, &
-         pfull, energy, unoccupied_orbs,scf_control,kinetic,h,s)
+         pfull, energy, unoccupied_orbs,scf_control,kinetic,h,s, ks_env)
     t1 = m_cputime()
     ot_initialized=.FALSE.
     failure=.FALSE.
@@ -358,6 +359,7 @@ CONTAINS
          pao_env=pao_env,&
          pw_env=pw_env,&
          qs_charges=qs_charges,&
+         ks_env=ks_env,&
          scf_control=scf_control)
     
 !   *** Quick return, if no SCF iteration is requested ***

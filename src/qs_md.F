@@ -20,7 +20,6 @@
 !******************************************************************************
 
 MODULE qs_md
-
   USE atoms_input,                     ONLY: set_particle_properties
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cntl_input,                      ONLY: read_cntl_section
@@ -29,8 +28,8 @@ MODULE qs_md
   USE force_control,                   ONLY: force,&
                                              set_force_env
   USE global_types,                    ONLY: global_environment_type
-  USE initialize_extended_types,       ONLY: initialize_nhc_part,&
-                                             initialize_nhc_baro,&
+  USE initialize_extended_types,       ONLY: initialize_nhc_baro,&
+                                             initialize_nhc_part,&
                                              initialize_npt_type
   USE initialize_molecule_types,       ONLY: initialize_molecule_type
   USE input_types,                     ONLY: setup_parameters_type
@@ -57,23 +56,21 @@ MODULE qs_md
                                              topology_type
   USE particle_types,                  ONLY: particle_prop_type,&
                                              particle_type
-  USE qs_build_ks_matrix,              ONLY: qs_ks_env_type
   USE qs_energy,                       ONLY: qs_energies
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force,                        ONLY: qs_forces
   USE simulation_cell,                 ONLY: cell_type
-  USE structure_types,                 ONLY: structure_type,&
-                                             init_structure_type,&
-                                             set_structure_type
+  USE structure_types,                 ONLY: init_structure_type,&
+                                             set_structure_type,&
+                                             structure_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE unit,                            ONLY: unit_convert_type,&
-                                             set_units
+  USE unit,                            ONLY: set_units,&
+                                             unit_convert_type
   USE velocity_verlet_control,         ONLY: velocity_verlet
-
   IMPLICIT NONE
 
   PRIVATE
@@ -90,7 +87,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_mol_dyn(qs_env,globenv,ks_env)
+  SUBROUTINE qs_mol_dyn(qs_env,globenv)
 
 !   Purpose: Driver routine for MD run using QUICKSTEP.
 
@@ -100,7 +97,6 @@ CONTAINS
 
     TYPE(global_environment_type), INTENT(INOUT) :: globenv
     TYPE(qs_environment_type), INTENT(INOUT)     :: qs_env
-    TYPE(qs_ks_env_type), INTENT(INOUT)          :: ks_env
 
 !   *** Local parameters ***
 
@@ -200,8 +196,7 @@ CONTAINS
       CALL initialize_velocities(simpar,particle_set,globenv)
     END IF
 
-    CALL set_force_env(qs_env_type=qs_env,&
-                       ks_env_type=ks_env)
+    CALL set_force_env(qs_env_type=qs_env)
 
     CALL init_md_env(md_env)
 
@@ -223,10 +218,10 @@ CONTAINS
     itimes => md_env%itimes
     itimes = 0
 
-    CALL qs_forces(qs_env,globenv,ks_env)
+    CALL qs_forces(qs_env,globenv)
 
     DO itimes=1,md_env%simpar%nsteps
-print*,"Step: :",itimes," of ",md_env%simpar%nsteps
+PRINT*,"Step: :",itimes," of ",md_env%simpar%nsteps
       CALL velocity_verlet(md_env)
 
     END DO

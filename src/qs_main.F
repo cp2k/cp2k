@@ -29,7 +29,6 @@ MODULE qs_main
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
-  USE qs_build_ks_matrix,              ONLY: qs_ks_env_type
   USE qs_energy,                       ONLY: qs_energies
   USE qs_environment,                  ONLY: qs_finalize,&
                                              qs_init
@@ -79,7 +78,6 @@ CONTAINS
 
 !   *** Local variables ***
 
-    TYPE(qs_ks_env_type) :: ks_env  
     INTEGER              :: handle
 
 !   ---------------------------------------------------------------------------
@@ -95,13 +93,13 @@ CONTAINS
 
     SELECT CASE (globenv%run_type)
     CASE ("GEOMETRY OPTIMIZATION")
-!      CALL qs_geo_opt(qs_env,globenv,ks_env)
-      CALL qs_forces(qs_env,globenv,ks_env)
+!      CALL qs_geo_opt(qs_env,globenv)
+      CALL qs_forces(qs_env,globenv)
     CASE ("MOLECULAR DYNAMICS")
-      CALL qs_mol_dyn(qs_env,globenv,ks_env)
+      CALL qs_mol_dyn(qs_env,globenv)
     CASE ("WAVEFUNCTION OPTIMIZATION")
-      CALL qs_energies(qs_env,globenv,ks_env)
-    CASE ("PE")
+      CALL qs_energies(qs_env,globenv)
+    CASE ("EP")
       CALL qs_ep_calculation(qs_env,globenv)
     CASE DEFAULT
       CALL stop_program(routine,"Invalid run TYPE <"//&
@@ -110,7 +108,7 @@ CONTAINS
                                 TRIM(globenv%program_name),globenv)
     END SELECT
 
-    CALL tddfpt_calculation(qs_env, ks_env, globenv)
+    CALL tddfpt_calculation(qs_env, globenv)
 
     CALL qs_finalize(qs_env,globenv)
 

@@ -23,7 +23,6 @@
 !******************************************************************************
 
 MODULE environment
-
   USE fft_tools,                       ONLY: fft3d,&
                                              init_fft
   USE global_types,                    ONLY: DEBUG,&
@@ -54,7 +53,8 @@ MODULE environment
                                              start_parser,&
                                              stop_parser,&
                                              test_object
-  USE string_utilities,                ONLY: uppercase, compress
+  USE string_utilities,                ONLY: compress,&
+                                             uppercase
   USE termination,                     ONLY: set_error_unit,&
                                              stop_program
   USE timings,                         ONLY: timeprint,&
@@ -62,7 +62,6 @@ MODULE environment
                                              timestop,&
                                              trace_debug
   USE util,                            ONLY: ran2
-
   IMPLICIT NONE
 
   PRIVATE
@@ -95,6 +94,11 @@ CONTAINS
 !!
 !!   NAME
 !!     cp2k_init
+!!
+!!   SYNOPSIS
+!!     Subroutine cp2k_init(globenv)
+!!       Type(global_environment_type), Intent (INOUT):: globenv
+!!     End Subroutine cp2k_init
 !!
 !!   FUNCTION
 !!     Initializes a CP2K run (setting of the global environment variables)
@@ -460,7 +464,7 @@ CONTAINS
           CASE ("LUMO","LUMOS")
             globenv%print%lumos = print_request
             IF (test_object() == "INT") CALL read_object(globenv%print%nlumos)
-            if (globenv%print%nlumos <= 0) globenv%print%nlumos = 4
+            IF (globenv%print%nlumos <= 0) globenv%print%nlumos = 4
           CASE ("HOMO","HOMOS")
             globenv%print%homos = print_request
             IF (test_object() == "INT") CALL read_object(globenv%print%nhomos)
@@ -721,6 +725,8 @@ CONTAINS
       globenv%run_type = "MOLECULAR DYNAMICS"
     CASE ("WAVEFUNCTION_OPTIMIZATION","WFN_OPT")
       globenv%run_type = "WAVEFUNCTION OPTIMIZATION"
+    CASE ("EP")
+      globenv%run_type = "EP"
     CASE (" ")
       CALL stop_program(routine,"No RUN_TYPE was specified in the "//&
                                 TRIM(start_section_label)//" section",globenv)
@@ -768,6 +774,11 @@ CONTAINS
 !!
 !!   NAME
 !!     cp2k_finalize
+!!
+!!   SYNOPSIS
+!!     Subroutine cp2k_finalize(globenv)
+!!       Type(global_environment_type), Intent (INOUT):: globenv
+!!     End Subroutine cp2k_finalize
 !!
 !!   FUNCTION
 !!     Writes final timings and banner for CP2K

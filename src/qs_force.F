@@ -29,7 +29,6 @@ MODULE qs_force
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE qs_build_ks_matrix,              ONLY: qs_ks_did_change,&
-                                             qs_ks_env_type,&
                                              qs_ks_update_qs_env
   USE qs_core_energies,                ONLY: calculate_ecore_overlap
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
@@ -39,6 +38,8 @@ MODULE qs_force
                                              qs_environment_type
   USE qs_force_types,                  ONLY: init_qs_force,&
                                              qs_force_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_p_type,&
+                                             qs_ks_env_type
   USE qs_mo_types,                     ONLY: calculate_w_matrix,&
                                              mo_set_p_type,&
                                              mo_set_type
@@ -73,7 +74,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_forces(qs_env,globenv,ks_env)
+  SUBROUTINE qs_forces(qs_env,globenv)
 
 !   Purpose: Calculate the Quickstep forces.
 
@@ -83,7 +84,6 @@ CONTAINS
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
-    TYPE(qs_ks_env_type), INTENT(INOUT)       :: ks_env
 
 !   *** Local parameters ***
 
@@ -104,6 +104,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
     TYPE(qs_force_type), DIMENSION(:), POINTER      :: force
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,p,s
+    TYPE(qs_ks_env_type), POINTER                   :: ks_env
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: atom_of_kind,kind_of
 
@@ -112,8 +113,9 @@ CONTAINS
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 
     CALL timeset(routine_name,"I","",handle)
+    NULLIFY(atomic_kind_set, c, particle_set, force, k, p, s, ks_env)
 
-    CALL qs_energies(qs_env,globenv,ks_env)
+    CALL qs_energies(qs_env,globenv)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -122,6 +124,7 @@ CONTAINS
                     c=c,&
                     k=k,&
                     rho=rho,&
+                    ks_env=ks_env,&
                     force=force)
 
     natom = SIZE(particle_set)
@@ -207,7 +210,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_forces_update(qs_env,globenv,ks_env)
+  SUBROUTINE qs_forces_update(qs_env,globenv)
 
 !   Purpose: Calculate the Quickstep forces.
 
@@ -217,7 +220,6 @@ CONTAINS
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
-    TYPE(qs_ks_env_type), INTENT(INOUT)       :: ks_env
 
 !   *** Local parameters ***
 
@@ -238,6 +240,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
     TYPE(qs_force_type), DIMENSION(:), POINTER      :: force
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,p,s
+    TYPE(qs_ks_env_type), POINTER                   :: ks_env
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: atom_of_kind,kind_of
 
@@ -247,7 +250,7 @@ CONTAINS
 
     CALL timeset(routine_name,"I","",handle)
 
-    CALL qs_energies_update(qs_env,globenv,ks_env)
+    CALL qs_energies_update(qs_env,globenv)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -256,6 +259,7 @@ CONTAINS
                     c=c,&
                     k=k,&
                     rho=rho,&
+                    ks_env=ks_env,&
                     force=force)
 
     natom = SIZE(particle_set)

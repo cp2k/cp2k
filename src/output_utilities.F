@@ -22,7 +22,6 @@
 !******************************************************************************
 
 MODULE output_utilities
-
   IMPLICIT NONE
 
   PRIVATE
@@ -42,6 +41,14 @@ CONTAINS
 !!
 !!   NAME
 !!     print_message
+!!
+!!   SYNOPSIS
+!!     Subroutine print_message(message, output_unit, declev, before,&
+!!         after)
+!!       Character(Len=*), Intent (IN):: message
+!!       Integer, Intent (IN):: output_unit
+!!       Integer, Optional, Intent (IN):: after, before, declev
+!!     End Subroutine print_message
 !!
 !!   AUTHOR
 !!     Matthias Krack
@@ -112,7 +119,8 @@ CONTAINS
 
 !   *** Calculate appropriate row length ***
 
-    rowlen = MIN(msglen,msglen/nrow,rowlen)
+
+ rowlen = MIN(msglen,rowlen)
 
 !   *** Generate the blank lines before the message ***
 
@@ -216,6 +224,12 @@ CONTAINS
 !!
 !!   NAME
 !!     print_warning
+!!
+!!   SYNOPSIS
+!!     Subroutine print_warning(routine, message, output_unit)
+!!       Character(Len=*), Intent (IN):: message, routine
+!!       Integer, Optional, Intent (IN):: output_unit
+!!     End Subroutine print_warning
 !!
 !!   AUTHOR
 !!     Matthias Krack

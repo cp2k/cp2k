@@ -11,7 +11,7 @@
 !!     qs_p_types
 !!
 !!   FUNCTION
-!!     basis types for the calcualtion of the perturbation of density theory.
+!!     basis types for the calculation of the perturbation of density theory.
 !!
 !!   NOTES
 !!     -
@@ -91,9 +91,6 @@ MODULE qs_p_types
                                              optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size,&
                                              replicate_blacs_matrix
-  USE qs_build_ks_matrix,              ONLY: qs_ks_did_change,&
-                                             qs_ks_env_type,&
-                                             qs_ks_update_qs_env
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -115,40 +112,40 @@ MODULE qs_p_types
 !***
 !****************************************************************************
 
-  !!****s* qs_p_build_kernel/qs_K_P_P1_env_type [1.0] *
-  !!
-  !!   NAME
-  !!     qs_K_P_P1_env_type
-  !!
-  !!   FUNCTION
-  !!     environement that keeps the informations and temporary
-  !!     val to build the K_P_P1 kernel matrix
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     - ref_count: reference count (how may objects are sharing this one)
-  !!     - v_rspace: potential in r space. This is used to do an update only
-  !!       of what has changed. Useful if P1 converges to some density
-  !!       (you spare in the grid-ao conversion).
-  !!       With LSD contains the various orbitals.
-  !!     - v_ao: the potential in the ao basis (used togheter with v_rspace
-  !!       to update only what changed
-  !!     - rebuild_each: how often a full rebuild should be performed
-  !!     - updates_since_rebuild: how many updates have been done since the
-  !!       last rebuild (if -1, forcces the rebuild)
-  !!     - id_nr: identification number, unique for each kpp1 env
-  !!     - iter: counter for the iteration number
-  !!
-  !!   AUTHOR
-  !!     Fawzi Mohamed
-  !!
-  !!   MODIFICATION HISTORY
-  !!     07.2002 created [fawzi]
-  !!     11.2002 ref-count, actually used to calculate [fawzi]
-  !!
-  !!   SOURCE
+!!****s* qs_p_build_kernel/qs_K_P_P1_env_type [1.0] *
+!!
+!!   NAME
+!!     qs_K_P_P1_env_type
+!!
+!!   FUNCTION
+!!     environement that keeps the informations and temporary
+!!     val to build the K_P_P1 kernel matrix
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     - ref_count: reference count (how may objects are sharing this one)
+!!     - v_rspace: potential in r space. This is used to do an update only
+!!       of what has changed. Useful if P1 converges to some density
+!!       (you spare in the grid-ao conversion).
+!!       With LSD contains the various orbitals.
+!!     - v_ao: the potential in the ao basis (used togheter with v_rspace
+!!       to update only what changed
+!!     - rebuild_each: how often a full rebuild should be performed
+!!     - updates_since_rebuild: how many updates have been done since the
+!!       last rebuild (if -1, forcces the rebuild)
+!!     - id_nr: identification number, unique for each kpp1 env
+!!     - iter: counter for the iteration number
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!s
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!     11.2002 ref-count, actually used to calculate [fawzi]
+!!
+!!   SOURCE
   !***************************************************************************
   TYPE qs_K_P_P1_env_type
      INTEGER :: ref_count, rebuild_each, updates_since_rebuild, id_nr,&
@@ -156,7 +153,7 @@ MODULE qs_p_types
      TYPE(coeff_type), DIMENSION(:), POINTER :: v_rspace
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: v_ao
   END TYPE qs_K_P_P1_env_type
-  !!***
+!!***
   !****************************************************************************
 
 !!****s* qs_p_types/qs_p_env_type [1.0] *
@@ -190,7 +187,6 @@ MODULE qs_p_types
           K_P_P1
      TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: m_epsilon,&
           psi0d, S_psi0
-     TYPE(qs_ks_env_type), POINTER :: ks_env
      TYPE(qs_K_P_P1_env_type), POINTER :: K_P_P1_env
      TYPE(qs_environment_type), POINTER :: qs_env
      INTEGER, DIMENSION(2) :: n_mo, & ! no of molecular orbitals
@@ -207,6 +203,20 @@ CONTAINS
 !!   NAME
 !!     p_env_init
 !!
+!!   SYNOPSIS
+!!     Subroutine p_env_init(p_env, qs_env, k_p_p1_env, glob_env, psi0d,&
+!!         orthogonal_orbitals, error)
+!!       Implicit None
+!!       Type(qs_p_env_type), Intent (OUT):: p_env
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
+!!       Type(qs_k_p_p1_env_type), Intent (IN), Target:: k_p_p1_env
+!!       Type(global_environment_type), Intent (IN), Target:: glob_env
+!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer, Optional::&
+!!         psi0d
+!!       Logical, Intent (IN), Optional:: orthogonal_orbitals
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine p_env_init
+!!
 !!   FUNCTION
 !!     initializes the perturbation environment (no setup)
 !!
@@ -216,7 +226,6 @@ CONTAINS
 !!   INPUTS
 !!     - p_env: the environment to initialize
 !!     - qs_env: the qs_environment for the full system
-!!     - ks_env: the environment that builds the ks matrix (and H_rho)
 !!     - K_P_P1_env: the environment that builds the second order
 !!       perturbation kernel.
 !!     - glob_env: the global environment
@@ -231,7 +240,7 @@ CONTAINS
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE p_env_init(p_env, qs_env, ks_env, K_P_P1_env, glob_env,&
+  SUBROUTINE p_env_init(p_env, qs_env, K_P_P1_env, glob_env,&
                         psi0d, orthogonal_orbitals, error)
 
     IMPLICIT NONE
@@ -239,7 +248,6 @@ CONTAINS
     ! arguments
     TYPE(qs_p_env_type), INTENT(out)                          :: p_env
     TYPE(qs_environment_type), INTENT(in), TARGET             :: qs_env
-    TYPE(qs_ks_env_type), INTENT(in), TARGET                  :: ks_env
     TYPE(qs_K_P_P1_env_type), INTENT(in), TARGET              :: K_P_P1_env
     TYPE(global_environment_type), INTENT(in), TARGET         :: glob_env
     TYPE(cp_full_matrix_p_type), DIMENSION(:),POINTER, OPTIONAL :: psi0d
@@ -266,12 +274,10 @@ CONTAINS
             p_env%m_epsilon, &
             p_env%psi0d, &
             p_env%S_psi0, &
-            p_env%ks_env, &
             p_env%K_P_P1_env, &
             p_env%qs_env)
 
     p_env%qs_env => qs_env
-    p_env%ks_env => ks_env
     p_env%K_P_P1_env => K_P_P1_env
 
     CALL get_qs_env(qs_env, ao_mo_fm_pools=ao_mo_fm_pools,para_env=para_env)
@@ -362,8 +368,8 @@ CONTAINS
 
     IF (.NOT. failure) THEN
        NULLIFY(p_env%K_P_P1_env)
-       !! call qs_K_P_P1_env_dealloc_ref(p_env%K_P_P1_env, error)
-       NULLIFY(p_env%qs_env, p_env%ks_env)
+!! call qs_K_P_P1_env_dealloc_ref(p_env%K_P_P1_env, error)
+       NULLIFY(p_env%qs_env)
        CALL cp_fm_vect_dealloc(p_env%S_psi0, error=error)
        CALL cp_fm_vect_dealloc(p_env%m_epsilon, error=error)
        CALL cp_fm_vect_dealloc(p_env%psi0d, error=error)

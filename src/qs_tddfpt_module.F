@@ -28,26 +28,29 @@
 !!****
 
 MODULE qs_tddfpt_module
-
-  USE cp_fm_struct,   ONLY : cp_fm_struct_type, &
-                                   cp_fm_struct_create, cp_fm_struct_release, &
-                                   optimal_blacs_col_block_size, optimal_blacs_row_block_size
-  USE cp_fm_types,       ONLY : cp_full_matrix_type, cp_full_matrix_p_type, &
-                                   cp_fm_create, cp_fm_release
-  USE cp_fm_utils,          ONLY : copy_fm_col_to_fm
-  USE global_types,         ONLY : global_environment_type
-  USE kinds,                ONLY : dbl
-  USE qs_arpack,            ONLY : arpack_diag_n
-  USE qs_arpack_tddfpt,     ONLY : op_tddfpt_type, setup_op_tddfpt
-  USE qs_build_ks_matrix,   ONLY : qs_ks_env_type
-  USE qs_environment_types, ONLY : qs_environment_type
-  USE qs_p_types,           ONLY : qs_p_env_type
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type,&
+                                             optimal_blacs_col_block_size,&
+                                             optimal_blacs_row_block_size
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_release,&
+                                             cp_full_matrix_p_type,&
+                                             cp_full_matrix_type
+  USE cp_fm_utils,                     ONLY: copy_fm_col_to_fm
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE qs_arpack,                       ONLY: arpack_diag_n
+  USE qs_arpack_tddfpt,                ONLY: op_tddfpt_type,&
+                                             setup_op_tddfpt
+  USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_p_types,                      ONLY: qs_p_env_type
+  USE qs_tddfpt_types,                 ONLY: real_2d_array_p_type,&
+                                             tddfpt_env_allocate,&
+                                             tddfpt_env_deallocate,&
+                                             tddfpt_env_type
   USE qs_tddfpt_utils
-  USE qs_tddfpt_types,      ONLY : tddfpt_env_deallocate, tddfpt_env_allocate, &
-                                   tddfpt_env_type,  &
-                                   real_2d_array_p_type
-  USE termination,          ONLY : stop_memory
-
+  USE termination,                     ONLY: stop_memory
   IMPLICIT NONE
 
   INTEGER, PARAMETER :: n_ev = 1 ! the number of eigenvalues to calculate
@@ -67,12 +70,18 @@ CONTAINS
 !!   NAME
 !!     tddfpt_calculation
 !!
+!!   SYNOPSIS
+!!     Subroutine tddfpt_calculation(qs_env, glob_env)
+!!       Implicit None
+!!       Type(qs_environment_type), Intent (IN):: qs_env
+!!       Type(global_environment_type), Intent (IN):: glob_env
+!!     End Subroutine tddfpt_calculation
+!!
 !!   FUNCTION
 !!     Performs the perturbation calculation
 !!
 !!   ARGUMENTS
 !!     - qs_env      - in    - qs environment with ground state
-!!     - ks_env      - in    - KS matrix environment
 !!     - glob_env    - in    - global environment
 !!
 !!   MODIFICATION HISTORY
@@ -82,12 +91,11 @@ CONTAINS
 !!     
 !!
 !!****
-  SUBROUTINE tddfpt_calculation(qs_env, ks_env, glob_env)
+  SUBROUTINE tddfpt_calculation(qs_env, glob_env)
 
     IMPLICIT NONE
 
     ! arguments
-    TYPE(qs_ks_env_type), INTENT(in)          :: ks_env
     TYPE(qs_environment_type), INTENT(in)     :: qs_env
     TYPE(global_environment_type), INTENT(in) :: glob_env
 
@@ -106,7 +114,7 @@ CONTAINS
 
     CALL tddfpt_write_banner(glob_env)
 
-    CALL tddfpt_init(p_env, t_env, qs_env, ks_env, n_ev, glob_env)
+    CALL tddfpt_init(p_env, t_env, qs_env, n_ev, glob_env)
 
     CALL create_v_matrix(v, p_env, n_ev, glob_env)
 
@@ -230,8 +238,8 @@ CONTAINS
     IMPLICIT NONE
 
     ! arguments
-    TYPE(qs_p_env_type), intent(inout)        :: p_env
-    TYPE(tddfpt_env_type), intent(inout)      :: t_env
+    TYPE(qs_p_env_type), INTENT(inout)        :: p_env
+    TYPE(tddfpt_env_type), INTENT(inout)      :: t_env
     TYPE(global_environment_type), INTENT(IN) :: glob_env
 
     ! locals

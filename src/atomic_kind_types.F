@@ -968,7 +968,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), INTENT(inout)                :: atomic_kind
+    TYPE(atomic_kind_type), INTENT(inout), TARGET        :: atomic_kind
     CHARACTER(LEN=2), OPTIONAL, INTENT(IN)               :: element_symbol
     CHARACTER(LEN=max_name_length), OPTIONAL, INTENT(IN) :: name
     REAL(wp), OPTIONAL, INTENT(IN)                       :: mass

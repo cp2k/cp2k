@@ -60,6 +60,9 @@ MODULE qs_p_sparse_psi
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_sparse_psi'
   INTEGER, SAVE, PRIVATE :: last_proj_id_nr=0
 
+  PUBLIC :: qs_p_projection_type, qs_p_projection_p_type
+  PUBLIC :: p_proj_create, p_proj_retain, p_proj_release, &
+       p_proj_transfer_blacs_to_f
 !***
 !****************************************************************************
 
@@ -96,12 +99,51 @@ MODULE qs_p_sparse_psi
 !!***
   !****************************************************************************
 
+!!****s* qs_p_sparse_psi/qs_p_projection_p_type [1.0] *
+!!
+!!   NAME
+!!     qs_p_projection_p_type
+!!
+!!   FUNCTION
+!!     to be able to build array of pointers to projections
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     - projection: the projection in this object
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     11.2002 created [fawzi]
+!!
+!!   SOURCE
+  !***************************************************************************
+  TYPE qs_p_projection_p_type
+     TYPE(qs_p_projection_type), POINTER :: projection
+  END TYPE qs_p_projection_p_type
+!!***
+  !****************************************************************************
+
 CONTAINS
 
 !!****f* qs_p_sparse_psi/p_proj_create [1.0] *
 !!
 !!   NAME
 !!     p_proj_create
+!!
+!!   SYNOPSIS
+!!     Subroutine p_proj_create(p_proj, atoms, proj_indexes, particle_set,&
+!!         error)
+!!       Type(qs_p_projection_type), Pointer:: p_proj
+!!       Integer, Dimension(:), Intent (IN):: atoms
+!!       Integer, Dimension(:), Intent (IN), Optional:: proj_indexes
+!!       Type(particle_type), Dimension(:), Intent (IN), Optional::&
+!!         particle_set
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine p_proj_create
 !!
 !!   FUNCTION
 !!     allocates and initializes a qs_p_projection_type
@@ -186,6 +228,12 @@ END SUBROUTINE p_proj_create
 !!   NAME
 !!     p_proj_retain
 !!
+!!   SYNOPSIS
+!!     Subroutine p_proj_retain(p_proj, error)
+!!       Type(qs_p_projection_type), Pointer:: p_proj
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine p_proj_retain
+!!
 !!   FUNCTION
 !!     augments the retain count by one, to be called to hold a shared copy
 !!     of this object
@@ -228,6 +276,12 @@ END SUBROUTINE p_proj_retain
 !!
 !!   NAME
 !!     p_proj_release
+!!
+!!   SYNOPSIS
+!!     Subroutine p_proj_release(p_proj, error)
+!!       Type(qs_p_projection_type), Pointer:: p_proj
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine p_proj_release
 !!
 !!   FUNCTION
 !!     decreases the retain count by one, deleting the objecs when it hits 0.
@@ -278,6 +332,16 @@ END SUBROUTINE p_proj_release
 !!
 !!   NAME
 !!     p_proj_transfer_blacs_to_f
+!!
+!!   SYNOPSIS
+!!     Subroutine p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
+!!         start_col_full, start_col_min, ncol, error)
+!!       Type(qs_p_projection_type), Pointer:: p_proj
+!!       Type(cp_full_matrix_type), Pointer:: min_m, full_m
+!!       Integer, Intent (IN), Optional:: start_col_min, start_col_full,&
+!!         ncol
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine p_proj_transfer_blacs_to_f
 !!
 !!   FUNCTION
 !!     injects the columns of a blacs matrix of the minimal system

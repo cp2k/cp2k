@@ -20,7 +20,6 @@
 !!****
 
 MODULE qs_tddfpt_utils
-
   USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type
   USE cp_block_matrix,                 ONLY: cp_block_matrix_type,&
                                              cp_sp_create
@@ -32,7 +31,6 @@ MODULE qs_tddfpt_utils
   USE qs_blacs,                        ONLY: cp_full_matrix_p_type,&
                                              cp_full_matrix_type,&
                                              replicate_blacs_matrix
-  USE qs_build_ks_matrix,              ONLY: qs_ks_env_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_mo_types,                     ONLY: get_mo_set
@@ -64,6 +62,16 @@ CONTAINS
 !!   NAME
 !!     tddfpt_init
 !!
+!!   SYNOPSIS
+!!     Subroutine tddfpt_init(p_env, t_env, qs_env, n_ev, glob_env)
+!!       Implicit None
+!!       Type(qs_p_env_type), Intent (OUT):: p_env
+!!       Type(tddfpt_env_type), Intent (OUT):: t_env
+!!       Type(qs_environment_type), Intent (IN):: qs_env
+!!       Integer:: n_ev
+!!       Type(global_environment_type), Intent (IN):: glob_env
+!!     End Subroutine tddfpt_init
+!!
 !!   FUNCTION
 !!     Initialize some necessary structures for a tddfpt calculation.
 !!
@@ -72,7 +80,6 @@ CONTAINS
 !!     - t_env    : tddfpt environment to be initialized
 !!     - qs_env   : Quickstep environment with the results of a
 !!                  ground state calcualtion
-!!     - ks_env   : Kohn-Sham environment already initialized
 !!     - n_ev     : number of eigenvalues to calculate
 !!     - glob_env : global environment
 !!
@@ -83,7 +90,7 @@ CONTAINS
 !!     10-2002, TCH, created
 !!
 !!****
-  SUBROUTINE tddfpt_init(p_env, t_env, qs_env, ks_env, n_ev, glob_env)
+  SUBROUTINE tddfpt_init(p_env, t_env, qs_env, n_ev, glob_env)
 
     IMPLICIT NONE
 
@@ -91,12 +98,11 @@ CONTAINS
     TYPE(qs_p_env_type), INTENT(out)          :: p_env
     TYPE(tddfpt_env_type), INTENT(out)        :: t_env 
     TYPE(qs_environment_type), INTENT(in)     :: qs_env
-    TYPE(qs_ks_env_type), INTENT(in)          :: ks_env
     INTEGER                                   :: n_ev
     TYPE(global_environment_type), INTENT(in) :: glob_env
 
     ! locals
-    TYPE(qs_K_P_P1_env_type), pointer         :: kpp1_env
+    TYPE(qs_K_P_P1_env_type), POINTER         :: kpp1_env
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: psi0d
     TYPE(cp_full_matrix_type), POINTER        :: eigenvectors
     INTEGER                                   :: n_spins, spin, stat
@@ -110,14 +116,14 @@ CONTAINS
     n_spins = qs_env%dft_control%nspins
 
     ALLOCATE(psi0d(n_spins), stat=stat)
-    if (stat /= 0) call stop_memory(routineP, "psi0d", n_spins)
+    IF (stat /= 0) CALL stop_memory(routineP, "psi0d", n_spins)
 
     DO spin=1, n_spins
        CALL get_mo_set(qs_env%C(spin)%mo_set, eigenvectors=eigenvectors)
        psi0d(spin)%matrix => eigenvectors
     END DO
 
-    CALL p_env_init(p_env, qs_env, ks_env, kpp1_env, glob_env, &
+    CALL p_env_init(p_env, qs_env, kpp1_env, glob_env, &
                     psi0d, .TRUE.)
 
     CALL tddfpt_env_allocate(t_env, p_env, n_ev, glob_env)
