@@ -1,8 +1,28 @@
 &CP2K
  PROGRAM      Quickstep
- IOLEVEL      10
+ PROJECT      H2O-2048
+ IOLEVEL      30
  FFTLIB       FFTESSL
- RUN_TYPE     GEO_OPT
+ RUN_TYPE     MD
+&END
+
+&IO
+ BASIS_SET_FILE ./BASIS_SET
+ POTENTIAL_FILE ../POTENTIAL
+#RESTART_FILE   ./H2O-2048.rst
+&END
+
+&MD
+  ensemble:     nve                    (nve,nvt,npt_i,npt_f)
+  steps:        10
+  timestep:     0.5                    time step [fs]
+  temperature:  300.0                  temperature [K]
+  restart:      init                   start type (pos,posvel)
+  constraints:  off
+  shake:        1.0E-10
+  verlet_skin:  1
+  print files   1
+  print screen  1
 &END
 
 &DFT
@@ -10,26 +30,34 @@
 &END
 
 &QS
- CUTOFF       200
+ CUTOFF       280
+ EPS_DEFAULT  1.0E-12
+ WF_INTERPOLATION PS 3
 &END
 
 &SCF
  GUESS        ATOMIC
+#GUESS        RESTART
+#EPS_SCF      1.0E-7
+#OT
+&END
+
+&OTSCF
+ MINIMIZER DIIS
 &END
 
 &PRINT low
  NO_COORDINATES
- DISTRIBUTION
 &END
 
 &KIND H
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH
+ BASIS_SET    TZV2P-GTH
+ POTENTIAL    GTH-PADE-q1
 &END
 
 &KIND O
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH
+ BASIS_SET    TZV2P-GTH
+ POTENTIAL    GTH-PADE-q6
 &END
 
 &CELL
@@ -37,8 +65,8 @@
  ABC          39.4680  39.4680  39.4680
 &END
 
-&COORD
 # 2048 H2O (TIP5P,1bar,300K) a = 39.4680
+&COORD
 O      38.815691       1.990231       7.954609
 O       7.841300       3.261911      10.448196
 O       2.305340      10.008123      17.398133
