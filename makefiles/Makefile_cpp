@@ -1,0 +1,117 @@
+# makefile that separates precompilation from compilation.
+# precompilation generates .f90 files (thus avoiding problems
+# with case insensitve filesystems)
+
+.SUFFIXES: .F .d .o .f90 .for
+
+CP2KHOME  = $(HOME)/cp2k
+ARCH      = $(shell $(CP2KHOME)/tools/get_arch_code)
+VERSION   = sopt
+SMAKE     = $(MAKE) -r
+PMAKE     = $(SMAKE) -j
+LIB1      = cp2klib
+
+### Dependent variables ###
+
+ARCHDIR      = $(CP2KHOME)/arch
+MAINEXEDIR   = $(CP2KHOME)/exe
+MAINLIBDIR   = $(CP2KHOME)/lib
+MAINOBJDIR   = $(CP2KHOME)/obj
+SRCDIR       = $(CP2KHOME)/src
+SRCDIRS      = $(SRCDIR):$(SRCDIR)/lib:$(SRCDIR)/pao
+TOOLDIR      = $(CP2KHOME)/tools
+MAKEFILE     = $(CP2KHOME)/makefiles/Makefile_cpp
+FORPAR       = $(CP2KHOME)/tools/forpar.x -chkint
+SFMAKEDEPEND = $(CP2KHOME)/tools/sfmakedepend -m int -s -f
+MACHINEDEFS  = $(ARCHDIR)/$(ARCH).$(VERSION)
+PROG         = $(EXEDIR)/cp2k.$(VERSION)
+EXEDIR       = $(MAINEXEDIR)/$(ARCH)
+LIBDIR       = $(MAINLIBDIR)/$(ARCH)
+OBJDIR       = $(MAINOBJDIR)/$(ARCH)
+OBJECTDEFS   = $(SRCDIR)/OBJECTDEFS
+LIB1_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
+
+### Definition of the multiple targets ###
+
+VERSION_TARGETS = sopt sdbg popt pdbg
+CLEAN_TARGETS   = sopt/clean sdbg/clean popt/clean pdbg/clean\
+                  sopt/realclean sdbg/realclean popt/realclean pdbg/realclean
+
+### Master rules ###
+
+$(VERSION_TARGETS):
+	@cd $(EXEDIR) || mkdir -p $(EXEDIR)
+	@cd $(OBJDIR)/$@ || mkdir -p $(OBJDIR)/$@
+	@cd $(LIBDIR)/$@ || mkdir -p $(LIBDIR)/$@
+	$(SMAKE) -C $(TOOLDIR)
+	$(SMAKE) -C $(OBJDIR)/$@ -f $(MAKEFILE) VERSION=$@ dependencies
+	$(PMAKE) -C $(OBJDIR)/$@ -f $(MAKEFILE) VERSION=$@ all
+
+$(CLEAN_TARGETS):
+	$(SMAKE) -f $(MAKEFILE) -C $(OBJDIR)/$(@D) -f $(MAKEFILE) VERSION=$(@D) $(@F)
+
+include $(OBJECTDEFS)
+
+include $(MACHINEDEFS)
+
+OBJECTS = $(OBJECTS_GENERIC) $(OBJECTS_ARCHITECTURE)
+
+LIB1_OBJECTS = ctrig.o fftpre.o fftrot.o fftstp.o mltfftsg.o fast.o
+
+DEPENDENCIES = $(OBJECTS:.o=.d)
+
+LIBRARIES = -L$(LIBDIR)/$(VERSION) -l$(LIB1) $(LIBS)
+
+.SECONDARY: $(OBJECTS:.o=.f90) $(LIB1_OBJECTS:.o=.f90) parallel_include.f90
+
+### Slave rules ###
+
+dependencies: $(DEPENDENCIES)
+
+all: $(PROG)
+
+$(PROG): $(OBJECTS) $(LIB1_ARCHIVE)
+	$(LD) $(LDFLAGS) -o $(PROG) $(OBJECTS) $(LIBRARIES)
+
+$(LIB1_ARCHIVE): $(LIB1_OBJECTS)
+	$(AR) $(LIB1_ARCHIVE) $(LIB1_OBJECTS)
+ifneq ($(RANLIB),)
+	$(RANLIB) $(LIB1_ARCHIVE)
+endif
+
+vpath %.F $(SRCDIRS)
+
+%.f90: %.F
+	$(CPP) $(CPPFLAGS) -I$(SRCDIR) $< > $*.f90
+
+%.o: %.f90
+	$(FC) -c $(FCFLAGS) $<
+
+%.d: %.f90
+	$(CPP) $(CPPFLAGS) -P $< > $*.for
+	$(FORPAR) $*.for
+	$(PERL) $(SFMAKEDEPEND) $*.d $*.for
+	@rm -f $*.d.old
+
+parallel_include.o: parallel_include.f90
+	$(FC_fixed) -c $(FCFLAGS) $*.f90
+
+parallel_include.d: parallel_include.f90
+	$(CPP) $(CPPFLAGS) -P $< > $*.for
+	-$(FORPAR) -fix $*.for
+	$(PERL) $(SFMAKEDEPEND) $*.d $*.for
+	@rm -f $*.d.old
+
+clean:
+	rm -f *.o *.mod
+
+realclean: clean
+	rm -f $(PROG) *.f90 *.d *.int *~ *.lst
+
+distclean:
+	rm -rf $(MAINEXEDIR) $(MAINLIBDIR) $(MAINOBJDIR)
+	$(SMAKE) -C $(TOOLDIR) realclean
+
+### Load the automatically generated rules of sfmakedepend ###
+
+include $(wildcard *.d)
