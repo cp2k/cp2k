@@ -463,7 +463,7 @@ CONTAINS
              
           ELSE
              DO ispin=1,nspins
-                ! add oly v_hartree
+                ! add only v_hartree
                 CALL integrate_v_rspace(v_rspace=ks_env%v_hartree_rspace,&
                      p=rho%rho_ao(ispin),h=ks_matrix(ispin), qs_env=qs_env,&
                      calculate_forces=calculate_forces,&
