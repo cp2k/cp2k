@@ -73,9 +73,11 @@ MODULE qs_simple_md
 
   TYPE simple_md_env_type
     REAL(wp) :: temperature,&
-                time_step
+                time_step,&
+                tolerance
     INTEGER  :: first_step,&
                 max_step
+    LOGICAL  :: no_com
   END TYPE simple_md_env_type
 
   PUBLIC :: simple_md
@@ -312,22 +314,88 @@ CONTAINS
         e_kinetic = e_kinetic + 0.5_wp*mass*v2
       END DO
 
-      e_com = 0.5_wp*(v_com(1)*v_com(1) +&
-                      v_com(2)*v_com(2) +&
-                      v_com(3)*v_com(3))/total_mass
+      v_com(:) = v_com(:)/total_mass
+
+      IF (simple_md_env%no_com) THEN
+        e_kinetic = 0.0_wp
+        v_com_new(:) = 0.0_wp
+        DO ikind=1,nkind
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               atom_list=atom_list,&
+                               mass=mass)
+          v2 = 0.0_wp
+          natom = SIZE(atom_list)
+          DO iatom=1,natom
+            atom = atom_list(iatom)
+            particle_set(atom)%v(:) = particle_set(atom)%v(:) - v_com(:)
+            v2 = v2 + particle_set(atom)%v(1)*particle_set(atom)%v(1) +&
+                      particle_set(atom)%v(2)*particle_set(atom)%v(2) +&
+                      particle_set(atom)%v(3)*particle_set(atom)%v(3)
+            v_com_new(:) = v_com_new(:) + mass*particle_set(atom)%v(:)
+          END DO
+          e_kinetic = e_kinetic + 0.5_wp*mass*v2
+        END DO
+        v_com(:) = v_com_new(:)/total_mass
+      END IF
+
+      e_com = 0.5_wp*total_mass*(v_com(1)*v_com(1) +&
+                                 v_com(2)*v_com(2) +&
+                                 v_com(3)*v_com(3))
       e_thermal = e_kinetic - e_com
+
+      CALL get_qs_env(qs_env=qs_env,energy=energy)
 
       temperature = 2.0_wp*e_thermal/REAL(dof,wp)
 
-      CALL get_qs_env(qs_env=qs_env,energy=energy)
+!     *** Scale temperature to reference temperture, if requested ***
+
+      IF (simple_md_env%tolerance > 0.0_wp) THEN
+        IF (ABS(simple_md_env%temperature - temperature) >&
+            simple_md_env%tolerance) THEN
+          scale = SQRT(simple_md_env%temperature/temperature)
+          e_kinetic = 0.0_wp
+          v_com(:) = 0.0_wp
+          DO ikind=1,nkind
+            atomic_kind => atomic_kind_set(ikind)
+            CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                 atom_list=atom_list,&
+                                 mass=mass)
+            v2 = 0.0_wp
+            natom = SIZE(atom_list)
+            DO iatom=1,natom
+              atom = atom_list(iatom)
+              particle_set(atom)%v(:) = scale*particle_set(atom)%v(:)
+              v2 = v2 + particle_set(atom)%v(1)*particle_set(atom)%v(1) +&
+                        particle_set(atom)%v(2)*particle_set(atom)%v(2) +&
+                        particle_set(atom)%v(3)*particle_set(atom)%v(3)
+              v_com(:) = v_com(:) + mass*particle_set(atom)%v(:)
+            END DO
+            e_kinetic = e_kinetic + 0.5_wp*mass*v2
+          END DO
+          v_com(:) = v_com(:)/total_mass
+          e_com = 0.5_wp*total_mass*(v_com(1)*v_com(1) +&
+                                     v_com(2)*v_com(2) +&
+                                     v_com(3)*v_com(3))
+          e_thermal = e_kinetic - e_com
+          IF (ionode) THEN
+            WRITE (UNIT=output_unit,FMT="(/,T2,A,F10.2,A)")&
+              "Temperature scaled to reference temperature:",&
+              simple_md_env%temperature*kelvin," K"
+          END IF
+        END IF
+      END IF
 
       IF (istep == simple_md_env%first_step) e0 = e_kinetic + energy%total
 
       IF (ionode) THEN
-        WRITE (UNIT=output_unit,FMT="(/,(T2,A,F20.12))")&
+        temperature = 2.0_wp*e_thermal/REAL(dof,wp)
+        WRITE (UNIT=output_unit,FMT="(/,T2,A,F10.2,A,/,/,(T2,A,F20.12))")&
+          "Temperature     = ",temperature*kelvin," K",&
           "Center of mass motion: x =",v_com(1),&
           "                       y =",v_com(2),&
           "                       z =",v_com(3)
+        temperature = 2.0_wp*e_kinetic/REAL(dof,wp)
         WRITE (UNIT=output_unit,FMT="(/,T2,A,F10.2,A,/,/,(T2,A,F20.12,A))")&
           "Temperature     = ",temperature*kelvin," K",&
           "E(thermal)      = ",e_thermal," a.u.",&
@@ -374,8 +442,10 @@ CONTAINS
 
     simple_md_env%first_step = 0
     simple_md_env%max_step = 100
+    simple_md_env%no_com = .FALSE.
     simple_md_env%temperature = 300.0_wp/kelvin ! 300 K -> a.u.
     simple_md_env%time_step = 1.0_wp/femtoseconds ! 1 fs -> a.u.
+    simple_md_env%tolerance = 0.0_wp
 
     CALL start_parser(file_name=globenv%input_file_name,&
                       globenv=globenv,&
@@ -399,6 +469,8 @@ CONTAINS
           SELECT CASE (TRIM(keyword))
           CASE ("FIRST_STEP")
             CALL read_object(simple_md_env%first_step,lower_to_upper=.TRUE.)
+          CASE ("NO_COM")
+            simple_md_env%no_com = .TRUE.
           CASE ("MAX_STEP")
             CALL read_object(simple_md_env%max_step,lower_to_upper=.TRUE.)
           CASE ("TEMPERATURE","T")
@@ -407,6 +479,9 @@ CONTAINS
           CASE ("TIME_STEP")
             CALL read_object(simple_md_env%time_step,lower_to_upper=.TRUE.)
             simple_md_env%time_step = simple_md_env%time_step/femtoseconds
+          CASE ("TEMPERATURE_TOLERANCE","TOLERANCE")
+            CALL read_object(simple_md_env%tolerance,lower_to_upper=.TRUE.)
+            simple_md_env%tolerance = simple_md_env%tolerance/kelvin
           CASE DEFAULT
             CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
           END SELECT
