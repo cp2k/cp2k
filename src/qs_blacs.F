@@ -274,7 +274,7 @@ CONTAINS
        allocate(matrix%p(context%mepos(1),context%mepos(2))%block &
             (nrow_local,ncol_local),stat=stat)
 
-       call dscal(nrow_local*ncol_local,0.0_wp,&
+       call dcopy(nrow_local*ncol_local,0.0_wp,0,&
             matrix%p(context%mepos(1),context%mepos(2))%block,1)
        !matrix%p(myprow,mypcol)%block(:,:) = 0.0_wp
        
@@ -4425,7 +4425,7 @@ end subroutine deallocate_blacs_matrix_vect
 #if defined(__SCALAPACK)
 
 #else
-       CALL DSCAL(nvec*nvec,rzero,overlap_vv,1)
+       CALL DCOPY(nvec*nvec,rzero,0,overlap_vv,1)
        DO i=1,neig
           overlap_vv(i,i)=evalslold(i)
        ENDDO
