@@ -355,6 +355,8 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set,deriv_set,&
      CASE("BECKE88_LSD")
         CALL xb88_lsd_eval(rho_set=rho_set,deriv_set=deriv_set,&
                 grad_deriv=grad_deriv,error=error)
+     CASE("PADE")
+!TC        CALL pade_pw_eval(rho_set, deriv_set, grad_deriv, error=error)
      CASE("NONE")
         !
      CASE default
