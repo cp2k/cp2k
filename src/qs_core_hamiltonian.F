@@ -227,8 +227,8 @@ CONTAINS
     REAL(wp) :: dab,dac,dbc,f,f0,rab2,rac2,rbc2
     INTEGER  :: ab,ac,atom_a,atom_b,atom_c,first_col,handle,&
                 i,iatom,ikind,ilist,inode,ipgf,iset,ishell,istat,jatom,jkind,&
-                jpgf,jset,jshell,katom,kkind,knode,maxco,maxdco,maxl,maxppnl,&
-                natom,natom_of_kind,ncoa,ncob,nlist,nneighbor,nnode,nseta,&
+                jpgf,jset,jshell,katom,kkind,knode,maxblock,maxco,maxdco,maxl,&
+                maxppnl,natom,natom_of_kind,ncoa,ncob,nlist,nneighbor,nnode,nseta,&
                 nsetb,sgfa,sgfb
     LOGICAL  :: gth_potential_present,ppnl_present,&
                 return_s_derivatives,return_t_derivatives
@@ -408,6 +408,7 @@ CONTAINS
 
     ldsab = MAX(maxco,maxppnl)
     ldwork = MAX(ldsab,maxsgf)
+    maxblock = MAX(SIZE(s),maxder)
 
     ALLOCATE (hab(maxco,maxco*maxder),STAT=istat)
     IF (istat /= 0) THEN
@@ -415,9 +416,9 @@ CONTAINS
     END IF
     hab(:,:) = 0.0_wp
 
-    ALLOCATE (sab(ldsab,ldsab*SIZE(s)),STAT=istat)
+    ALLOCATE (sab(ldsab,ldsab*maxblock),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"sab",ldsab*ldsab*SIZE(s)*wp_size)
+      CALL stop_memory(routine,"sab",ldsab*ldsab*maxblock*wp_size)
     END IF
     sab(:,:) = 0.0_wp
 
