@@ -1116,12 +1116,12 @@ END SUBROUTINE xc_prep_2nd_deriv1
           DO spin=1,nspins
              DO idir=1,3
                 NULLIFY(drho_r(idir,spin)%pw)
-                CALL pw_pool_create_pw(pw_pool,drho_r(i,spin)%pw, &
+                CALL pw_pool_create_pw(pw_pool,drho_r(idir,spin)%pw, &
                      use_data=REALDATA3D, in_space=REALSPACE, &
                      error=error)
                 CALL pw_copy ( rho_g(spin)%pw, tmp_g )
                 CALL pw_derive ( tmp_g, nd(:,idir) )
-                CALL pw_transfer ( tmp_g, drho_r(i,spin)%pw )
+                CALL pw_transfer ( tmp_g, drho_r(idir,spin)%pw )
              END DO
           END DO
           CALL pw_pool_give_back_pw(pw_pool,tmp_g,&
