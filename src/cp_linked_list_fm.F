@@ -1579,25 +1579,25 @@ END FUNCTION cp_sll_fm_contains2
 ! files are almost the same (multi-line use change it a bit)
 ! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ)]
 ! ARGS:
+!  = = "=>"
 !  USE = 
 !    "USE cp_fm_types, ONLY: cp_full_matrix_type, cp_full_matrix_p_type,&
 !             cp_fm_write"
-!  nametype1 = "fm"
 !  array= = "=>"
-!  type1 = "type(cp_full_matrix_type),pointer"
-!  write_el = "cp_fm_write"
-!  type1in = "type(cp_full_matrix_type), target"
 !  arrayEl = "%matrix"
-!  equalQ = "CP_SLL_FM_EQUAL_Q"
-!  type1out = "type(cp_full_matrix_type), pointer"
 !  defines = 
 !    "! less not much meningful...
 !     #define CP_SLL_FM_LESS_Q(el1,el2) ( el1 %id_nr < el2 %id_nr )
 !     #define CP_SLL_FM_EQUAL_Q(el1,el2) ( el1 %id_nr == el2 %id_nr )
 !     "
-!  = = "=>"
+!  equalQ = "CP_SLL_FM_EQUAL_Q"
 !  lessQ = "CP_SLL_FM_LESS_Q"
+!  nametype1 = "fm"
+!  type1 = "type(cp_full_matrix_type),pointer"
 !  type1arrayEl = "type(cp_full_matrix_p_type)"
+!  type1in = "type(cp_full_matrix_type), target"
+!  type1out = "type(cp_full_matrix_type), pointer"
+!  write_el = "cp_fm_write"
 
 
 END MODULE cp_linked_list_fm

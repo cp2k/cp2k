@@ -1576,23 +1576,23 @@ END FUNCTION cp_sll_pw_contains2
 ! files are almost the same (multi-line use change it a bit)
 ! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ)]
 ! ARGS:
+!  = = "=>"
 !  USE = "USE pw_types, ONLY: pw_type, pw_p_type, pw_write"
-!  nametype1 = "pw"
 !  array= = "=>"
-!  type1 = "type(pw_type),pointer"
-!  write_el = "pw_write"
-!  type1in = "type(pw_type), target"
 !  arrayEl = "%pw"
-!  equalQ = "CP_SLL_PW_EQUAL_Q"
-!  type1out = "type(pw_type), pointer"
 !  defines = 
 !    "! less not much meaningful...
 !     #define CP_SLL_PW_LESS_Q(el1,el2) ( el1 %id_nr < el2 %id_nr )
 !     #define CP_SLL_PW_EQUAL_Q(el1,el2) ( el1 %id_nr == el2 %id_nr )
 !     "
-!  = = "=>"
+!  equalQ = "CP_SLL_PW_EQUAL_Q"
 !  lessQ = "CP_SLL_PW_LESS_Q"
+!  nametype1 = "pw"
+!  type1 = "type(pw_type),pointer"
 !  type1arrayEl = "type(pw_p_type)"
+!  type1in = "type(pw_type), target"
+!  type1out = "type(pw_type), pointer"
+!  write_el = "pw_write"
 
 
 END MODULE cp_linked_list_pw

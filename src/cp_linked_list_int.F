@@ -1575,22 +1575,22 @@ END FUNCTION cp_sll_int_contains2
 ! files are almost the same (multi-line use change it a bit)
 ! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ)]
 ! ARGS:
+!  = = "="
 !  USE = "USE cp_array_i_utils, ONLY: cp_i_write"
-!  nametype1 = "int"
 !  array= = "="
-!  type1 = "integer"
-!  write_el = "cp_i_write"
-!  type1in = "integer, intent(in)"
 !  arrayEl = ""
-!  equalQ = "CP_SLL_I_EQUAL_Q"
-!  type1out = "integer, intent(out)"
 !  defines = 
 !    "#define CP_SLL_I_LESS_Q(el1,el2) ( el1 < el2 )
 !     #define CP_SLL_I_EQUAL_Q(el1,el2) ( el1 == el2 )
 !     "
-!  = = "="
+!  equalQ = "CP_SLL_I_EQUAL_Q"
 !  lessQ = "CP_SLL_I_LESS_Q"
+!  nametype1 = "int"
+!  type1 = "integer"
 !  type1arrayEl = "integer"
+!  type1in = "integer, intent(in)"
+!  type1out = "integer, intent(out)"
+!  write_el = "cp_i_write"
 
 
 END MODULE cp_linked_list_int
