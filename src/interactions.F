@@ -738,7 +738,7 @@ CONTAINS
       "FUNCTION exp_radius (MODULE mathlib)"
 
     REAL(wp), PARAMETER :: epsiter = 1.0E-12_wp
-    INTEGER, PARAMETER  :: maxiter = 50
+    INTEGER, PARAMETER  :: maxiter = 500
 
 !   *** Local variables ***
 
