@@ -361,7 +361,6 @@ SUBROUTINE read_constraints_section(topology,globenv)
            CALL stop_program ( "read_constraints_section", &
                "CONHYDR will not work until force field is completed " )
         ELSE IF ( INDEX ( string, 'DIST' ) /= 0 ) THEN
-           CALL read_line()
            topology%constraint=.TRUE.
            topology%const_dist=.TRUE.
            ilen = 40

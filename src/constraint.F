@@ -1799,7 +1799,7 @@ SUBROUTINE shake( molecule, particle_set, pos, vel, simpar, max_sigma, ishake )
 ! computing the constraint
         index_a = dist_list ( iconst ) % a + first_atom -1
         index_b = dist_list ( iconst ) % b + first_atom -1
-        r12 = particle_set ( index_a ) % r -  particle_set ( index_b ) % r
+        r12 = pos ( :, index_a )  -  pos ( :, index_b )
         ldist ( iconst ) % sigma = DOT_PRODUCT(r12,r12) - dist_list ( iconst ) % dab * &
                                                           dist_list ( iconst ) % dab
 ! computing fc(dt)
@@ -2401,7 +2401,7 @@ SUBROUTINE shake_roll( molecule, particle_set, pos, vel, r_shake, v_shake, &
 ! computing the constraint
         index_a = dist_list ( iconst ) % a + first_atom -1
         index_b = dist_list ( iconst ) % b + first_atom -1
-        r12 = particle_set ( index_a ) % r -  particle_set ( index_b ) % r
+        r12 = pos ( :, index_a ) -  pos ( :, index_b )
         ldist ( iconst ) % sigma = DOT_PRODUCT(r12,r12) - dist_list ( iconst ) % dab * &
                                                           dist_list ( iconst ) % dab
 ! computing fc(dt)
