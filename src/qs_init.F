@@ -93,7 +93,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
     TYPE(qs_force_type), DIMENSION(:), POINTER    :: force
 
-    INTEGER :: handle,lmax,maxl,maxlppl,maxlppnl
+    INTEGER :: handle,lmax,maxl,maxlppl,maxlppnl,nkind
 
 !   ---------------------------------------------------------------------------
 
@@ -209,7 +209,8 @@ CONTAINS
 !   *** Allocate the force data structure ***
 
     IF (dft_control%forces) THEN
-      CALL allocate_qs_force(force,SIZE(atomic_kind_set))
+      nkind = SIZE(atomic_kind_set)
+      CALL allocate_qs_force(force,nkind)
     END IF
 
 !   *** Get the current QUICKSTEP environment ***

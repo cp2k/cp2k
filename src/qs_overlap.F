@@ -117,6 +117,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: s
 
+    CHARACTER(LEN=12) :: cgfsym
     CHARACTER(LEN=60) :: name
     INTEGER           :: ab,group,handle,i,iatom,ij,ikind,ipe,istat,jatom,&
                          jkind,jpe,mype,n,natom,nder,nkind,npack,npe,nsgf,&
@@ -280,8 +281,8 @@ CONTAINS
     END DO
 
     DO i=2,SIZE(s)
-      name = cgf_symbol(1,indco(1:3,i))(4:)//&
-             " DERIVATIVE OF THE OVERLAP MATRIX"
+      cgfsym = cgf_symbol(1,indco(1:3,i))
+      name = cgfsym(4:)//" DERIVATIVE OF THE OVERLAP MATRIX"
       CALL compress(name)
       CALL uppercase(name)
       CALL replicate_matrix_structure(source=s(1)%matrix,&
@@ -441,9 +442,13 @@ CONTAINS
 
     ALLOCATE (work(maxco,maxsgf),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"work",maxco*maxsgf*wp_size)
+    work(:,:) = 0.0_wp
 
     ALLOCATE (sint(SIZE(s)),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"sint",SIZE(s)*int_size)
+    DO i=1,SIZE(sint)
+      NULLIFY (sint(i)%block)
+    END DO
 
     nkind = SIZE(atomic_kind_set)
 

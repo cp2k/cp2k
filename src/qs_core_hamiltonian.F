@@ -148,6 +148,8 @@ MODULE qs_core_hamiltonian
   TYPE(atomic_kind_type), POINTER   :: atomic_kind
   TYPE(gth_potential_type), POINTER :: gth_potential
   TYPE(gto_basis_set_type), POINTER :: orb_basis_set
+  CHARACTER(LEN=12)                 :: cgfsym
+  CHARACTER(LEN=60)                 :: name
   INTEGER                           :: ldsab,maxder,maxl,maxsgf,nder,nkind
 
 
@@ -205,8 +207,6 @@ CONTAINS
     TYPE(neighbor_node_type), POINTER :: sab_orb_neighbor_node,&
                                          sac_ppl_neighbor_node
 
-    CHARACTER(LEN=60) :: name
-
     REAL(wp) :: dab,dac,dbc,f,f0,rab2,rac2,rbc2
     INTEGER  :: ab,ac,atom_a,atom_b,atom_c,da_max,db_max,first_col,first_setb,&
                 handle,i,iatom,ikind,inode,ipgf,iset,ishell,istat,jatom,jkind,&
@@ -259,7 +259,7 @@ CONTAINS
       IF (.NOT.PRESENT(p)) THEN
         CALL stop_program(routine,"The optional argument p "//&
                                   "(density matrix) has to be specified "//&
-                                  "fo rthe force calculation")
+                                  "for the force calculation")
       END IF
       IF (.NOT.PRESENT(w)) THEN
         CALL stop_program(routine,"The optional argument w "//&
@@ -311,9 +311,9 @@ CONTAINS
         END IF
       END DO
       nder = 1
-    ELSE
-      nder = 0
     END IF
+
+    IF (globenv%print%derivatives) nder = 1
 
     maxder = ncoset(nder)
 
@@ -341,8 +341,8 @@ CONTAINS
                                       target_name="KINETIC ENERGY MATRIX")
 
       DO i=2,SIZE(t)
-        name = cgf_symbol(1,indco(1:3,i))(4:)//&
-               " DERIVATIVE OF THE KINETIC ENERGY MATRIX"
+        cgfsym = cgf_symbol(1,indco(1:3,i))
+        name = cgfsym(4:)//" DERIVATIVE OF THE KINETIC ENERGY MATRIX"
         CALL compress(name)
         CALL uppercase(name)
         CALL replicate_matrix_structure(source=t(1)%matrix,&
@@ -400,6 +400,7 @@ CONTAINS
     IF (istat /= 0) THEN
       CALL stop_memory(routine,"work",ldsab*ldsab*maxder*wp_size)
     END IF
+    work(:,:) = 0.0_wp
 
     IF (calculate_forces) THEN
       ALLOCATE (pab(maxco,maxco),STAT=istat)
@@ -413,10 +414,16 @@ CONTAINS
     IF (istat /= 0) THEN
       CALL stop_memory(routine,"sint",SIZE(s)*int_size)
     END IF
+    DO i=1,SIZE(sint)
+      NULLIFY (sint(i)%block)
+    END DO
 
     IF (globenv%print%kinetic_energy_matrix) THEN
       ALLOCATE (tint(SIZE(t)),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"sint",SIZE(t)*int_size)
+      DO i=1,SIZE(tint)
+        NULLIFY (tint(i)%block)
+      END DO
     END IF
 
     IF (gth_potential_present) THEN
@@ -1017,7 +1024,13 @@ CONTAINS
 
 !   *** Add the V(non-local) contribution of the GTH pseudo potential ***
 
-    IF (gth_potential_present) CALL add_vppnl(calculate_forces,p)
+    IF (gth_potential_present) THEN
+      IF (calculate_forces) THEN
+        CALL add_vppnl(p)
+      ELSE
+        CALL add_vppnl()
+      END IF
+    END IF
 
 !   *** Put the core Hamiltonian matrix in the QS environment ***
 
@@ -1110,7 +1123,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE add_vppnl(calculate_forces,p)
+  SUBROUTINE add_vppnl(p)
 
 !   Purpose: Add the non-local contribution of the GTH pseudo potential to the
 !            core Hamiltonian matrix.
@@ -1120,7 +1133,6 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(real_matrix_type), OPTIONAL, POINTER :: p
-    LOGICAL, INTENT(IN)                       :: calculate_forces
 
 !   *** Local parameters ***
 
@@ -1132,13 +1144,12 @@ CONTAINS
     TYPE(neighbor_list_type), POINTER :: sca_neighbor_list,scb_neighbor_list
     TYPE(neighbor_node_type), POINTER :: sca_neighbor_node,scb_neighbor_node
 
-    CHARACTER(LEN=60) :: name
-    REAL(wp)          :: dca,f,f0,rca2
-    INTEGER           :: atom_a,atom_b,atom_c,current_kind,first_col,&
-                         first_prjc,handle,i,iatom,ikind,iset,istat,jatom,&
-                         jkind,katom,kkind,l,lc_max,lc_min,lppnl,na,natom,&
-                         nb,ncoa,ncoc,nppnl,nprjc,nseta,nsgf,prjc,sgfa
-    LOGICAL           :: ppnl_present
+    REAL(wp) :: dca,f,f0,rca2
+    INTEGER  :: atom_a,atom_b,atom_c,current_kind,first_col,first_prjc,handle,&
+                i,iatom,ikind,iset,istat,jatom,jkind,katom,kkind,l,lc_max,&
+                lc_min,lppnl,na,natom,nb,ncoa,ncoc,nppnl,nprjc,nseta,nsgf,&
+                prjc,sgfa
+    LOGICAL  :: calculate_forces,ppnl_present
 
     REAL(wp), DIMENSION(1) :: rprjc,zetc
     INTEGER, DIMENSION(1)  :: first_prj,last_prj
@@ -1172,20 +1183,36 @@ CONTAINS
     CALL allocate_matrix_set(sca,maxder)
     CALL allocate_matrix_set(scb,maxder)
 
-    ALLOCATE (v_block(maxsgf,maxsgf),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"v_block",maxsgf*maxsgf*wp_size)
+    IF (PRESENT(p)) THEN
+      calculate_forces = .TRUE.
+      ALLOCATE (v_block(maxsgf,maxsgf),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"v_block",maxsgf*maxsgf*wp_size)
+      v_block(:,:) = 0.0_wp
+    END IF
 
     ALLOCATE (scaint(maxder),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"scaint",maxder*int_size)
+    DO i=1,SIZE(scaint)
+      NULLIFY (scaint(i)%block)
+    END DO
 
     ALLOCATE (scbint(maxder),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"scbint",maxder*int_size)
+    DO i=1,SIZE(scbint)
+      NULLIFY (scbint(i)%block)
+    END DO
 
     ALLOCATE (ca(maxder),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"ca",maxder*int_size)
+    DO i=1,SIZE(ca)
+      NULLIFY (ca(i)%block_node)
+    END DO
 
     ALLOCATE (cb(maxder),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"cb",maxder*int_size)
+    DO i=1,SIZE(cb)
+      NULLIFY (cb(i)%block_node)
+    END DO
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              natom=natom,&
@@ -1240,8 +1267,8 @@ CONTAINS
                            matrix_symmetry="no symmetry")
 
       DO i=2,maxder
-        name = cgf_symbol(1,indco(1:3,i))(4:)//&
-               " DERIVATIVE OF THE SCA GTH-PPNL OVERLAP MATRIX ROW"
+        cgfsym = cgf_symbol(1,indco(1:3,i))
+        name = cgfsym(4:)//" DERIVATIVE OF THE SCA GTH-PPNL OVERLAP MATRIX ROW"
         CALL compress(name)
         CALL uppercase(name)
         CALL replicate_matrix_structure(source=sca(1)%matrix,&
@@ -1265,8 +1292,8 @@ CONTAINS
                            matrix_symmetry="no symmetry")
 
       DO i=2,maxder
-        name = cgf_symbol(1,indco(1:3,i))(4:)//&
-               " DERIVATIVE OF THE SCB GTH-PPNL OVERLAP MATRIX ROW"
+        cgfsym = cgf_symbol(1,indco(1:3,i))
+        name = cgfsym(4:)//" DERIVATIVE OF THE SCB GTH-PPNL OVERLAP MATRIX ROW"
         CALL compress(name)
         CALL uppercase(name)
         CALL replicate_matrix_structure(source=scb(1)%matrix,&
@@ -1763,8 +1790,10 @@ CONTAINS
     CALL deallocate_matrix_set(sca)
     CALL deallocate_matrix_set(scb)
 
-    DEALLOCATE (v_block,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"vab")
+    IF (calculate_forces) THEN
+      DEALLOCATE (v_block,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"vab")
+    END IF
 
     DEALLOCATE (scaint,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"scaint")
