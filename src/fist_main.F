@@ -95,7 +95,7 @@ SUBROUTINE fist_create_force_env ( force_env, globenv, error )
 
 ! Argument
   TYPE ( force_env_type ), POINTER :: force_env
-  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+  TYPE ( global_environment_type ), POINTER :: globenv
   TYPE ( cp_error_type ), INTENT ( inout ), OPTIONAL :: error
 
 !   *** Local parameters *** 

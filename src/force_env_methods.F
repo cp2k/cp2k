@@ -308,7 +308,7 @@ SUBROUTINE force_env_create(force_env,force_env_list,fist_env,qs_env,kg_env,&
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
     TYPE(global_environment_type), &
-      INTENT(inout), OPTIONAL, TARGET        :: globenv
+      POINTER, OPTIONAL                      :: globenv
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
 !!HAF: ARGHHHHH now we have the following new from the main branch.... :
 !!HAF I guess I can delete my version force_env_list now...
