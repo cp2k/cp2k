@@ -1,0 +1,15 @@
+PERL     = perl
+CC       = cc
+CPP      = /usr/ccs/lib/cpp -P
+FC       = xlf90
+FC_fixed = xlf90 -qfixed
+LD       = xlf90
+AR       = ar -r
+CPPFLAGS = -C -D__AIX -D__ESSL -D__FFTSG  -D__FFTESSL -P
+FCFLAGS  = -O3 -WF,-C,-D__AIX,-D__ESSL,-D__FFTSG,-D__FFTESSL,-P\
+           -qarch=pwr3 -qtune=pwr3 -qmaxmem=-1 -qcache=auto 
+LDFLAGS  = $(FCFLAGS) -L/home/vondele/mass -L/home/vondele/lapack/\
+           -bmaxdata:2048000000 -bnoquiet -bmaxstack:512000000 
+LIBS     = -lmass -llapack -lessl -lhm
+
+OBJECTS_ARCHITECTURE = machine_aix.o
