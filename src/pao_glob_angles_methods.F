@@ -582,7 +582,8 @@ contains
                   stop_level=max(cp_failure_level,&
                   cp_error_get_stop_level(iError)))
              if (associated(source%angles)) then
-                call cp_1d_r_guarantee_size(glob_angles%angles,size(source%angles),&
+                call cp_1d_r_guarantee_size(glob_angles%angles,&
+                     size(source%angles),init=0.0_wp,&
                      error=iError)
                 call cp_assert(cp_error_get_level(iError)<cp_failure_level,&
                      cp_error_get_level(iError),cp_assertion_failed,routineP,&
@@ -612,7 +613,7 @@ contains
        end if
        if (present(angles)) then
           call cp_1d_r_guarantee_size(glob_angles%angles,size(angles),&
-               error=iError)
+               init=0.0_wp,error=iError)
           call cp_assert(cp_error_get_level(iError)<cp_failure_level,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "error in cp_guarantee_size called in "//&
@@ -625,12 +626,12 @@ contains
        if (present(angles_val)) then
           call cp_1d_r_guarantee_size(glob_angles%angles,&
                pao_env%angles_begin_at(size(pao_env%angles_begin_at)),&
-               error=iError)
+               init=0.0_wp,error=iError)
           call cp_error_propagate_error(iError,routineP,&
                message="error in cp_guarantee_size called in "//&
                CPSourceFileRef,&
                error=error,failure_level=cp_failure_level,failure=failure)
-          glob_angles%angles=angles_val
+          glob_angles%angles(:)=angles_val
        end if
        call pao_g_angles_set_unitary_t(glob_angles,&
             ut_calculated=ut_calculated,&
@@ -649,7 +650,7 @@ contains
        if (.not.failure) then
           call cp_1d_r_guarantee_size(glob_angles%angles,&
                pao_env%angles_begin_at(size(pao_env%angles_begin_at)),&
-               error=error)
+               init=0.0_wp,error=error)
        end if
     end if failureIf
     call cp_dealloc_ref(iError,error=error)
