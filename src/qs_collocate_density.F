@@ -351,7 +351,7 @@ CONTAINS
     INTEGER, DIMENSION(:,:,:), POINTER  :: tasks
     INTEGER, DIMENSION(:,:), POINTER    :: tasks_local, ival, latom
     INTEGER, DIMENSION(:), POINTER      :: ntasks
-    INTEGER, PARAMETER                  :: max_tasks = 2000, add_tasks = 1000
+    INTEGER, PARAMETER                  :: max_tasks = 200, add_tasks = 100
     INTEGER                             :: curr_tasks
 !   ---------------------------------------------------------------------------
     CALL timeset("calculate_rho_elec","I","",handle)
@@ -616,24 +616,34 @@ CONTAINS
           is_last = 0
           js_last = 0
           n = ntasks ( igrid_level )
-          IF ( n > SIZE ( ival, 2 ) ) THEN
+          IF ( n > SIZE ( tasks_local, 2 ) ) THEN
               DEALLOCATE (tasks_local,STAT=istat)
               IF (istat /= 0) CALL stop_memory(routine,"tasks_local")
-              DEALLOCATE (ival,STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"ival")
-              DEALLOCATE (latom,STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"latom")
-              DEALLOCATE (dab_local,STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"dab_local")
               ALLOCATE (tasks_local(2,n),STAT=istat)
               IF (istat /= 0) CALL stop_memory(routine,"tasks_local",2*n)
+          END IF
+
+          IF ( n > SIZE ( ival, 2 ) ) THEN
+              DEALLOCATE (ival,STAT=istat)
+              IF (istat /= 0) CALL stop_memory(routine,"ival")
               ALLOCATE (ival(6,n),STAT=istat)
               IF (istat /= 0) CALL stop_memory(routine,"ival",6*n)
+          END IF
+
+          IF ( n > SIZE ( latom, 2 ) ) THEN
+              DEALLOCATE (latom,STAT=istat)
+              IF (istat /= 0) CALL stop_memory(routine,"latom")
               ALLOCATE (latom(2,n),STAT=istat)
               IF (istat /= 0) CALL stop_memory(routine,"latom",2*n)
+          END IF
+
+          IF ( n > SIZE ( dab_local, 2 ) ) THEN
+              DEALLOCATE (dab_local,STAT=istat)
+              IF (istat /= 0) CALL stop_memory(routine,"dab_local")
               ALLOCATE (dab_local(3,n),STAT=istat)
               IF (istat /= 0) CALL stop_memory(routine,"dab_local",3*n)
           END IF
+
           tasks_local=0
           tasks_local(1:2,1:n) = tasks(1:2,1:n,igrid_level)
           ival(1:6,1:n) = tasks(3:8,1:n,igrid_level)
