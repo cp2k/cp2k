@@ -405,8 +405,7 @@ CONTAINS
 
        ! get c
        CALL qs_ot_get_p(qs_ot_env%matrix_x,qs_ot_env%matrix_sx,qs_ot_env,globenv)
-       CALL qs_ot_get_orbitals(qs_ot_env%matrix_c,qs_ot_env%matrix_x,qs_ot_env,globenv)
-       CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_c,mo_eigenvectors)
+       CALL qs_ot_get_orbitals(mo_eigenvectors,qs_ot_env%matrix_x,qs_ot_env,globenv)
 
        ! and the corresponding density matrix
        !CALL calculate_density_matrix(mo_set,scf_work1,globenv)
@@ -562,7 +561,7 @@ CONTAINS
       CASE(2) ! orbital transforms
 
         IF ( .not. energy_only) THEN
-          CALL sparse_times_blacs(ks%matrix,qs_ot_env%matrix_c, &
+          CALL sparse_times_blacs(ks%matrix,mo_eigenvectors, &
                                           qs_ot_env%matrix_hc,  &
                                     qs_ot_env%settings%k,globenv)
           CALL blacs_add(4.0_wp,qs_ot_env%matrix_hc,0.0_wp,qs_ot_env%matrix_hc,globenv)
@@ -577,12 +576,7 @@ CONTAINS
                                      qs_ot_env%matrix_sx, &
                                      qs_ot_env%settings%k,globenv)
         CALL qs_ot_get_p(qs_ot_env%matrix_x,qs_ot_env%matrix_sx,qs_ot_env,globenv)
-        CALL qs_ot_get_orbitals(qs_ot_env%matrix_c,qs_ot_env%matrix_x,qs_ot_env,globenv)
-        CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_c,mo_eigenvectors)
-
-        !CALL calculate_density_matrix(mo_set,scf_work1,globenv)
-        !CALL copy_blacs_to_sparse_matrix(scf_work1,p%matrix,globenv)
-        !CALL symmetrise_diagonal_blocks(p%matrix)
+        CALL qs_ot_get_orbitals(mo_eigenvectors,qs_ot_env%matrix_x,qs_ot_env,globenv)
         CALL calculate_density_matrix(mo_set,p%matrix,globenv)
         t2 = cputime()
         IF (ionode.AND.globenv%print%scf) THEN
@@ -643,8 +637,9 @@ CONTAINS
 
 !   *** Save last density matrix in redundant form for the force calculation ***
 
-    CALL copy_blacs_to_sparse_matrix(scf_work1,p_old%matrix,globenv)
-    CALL symmetrise_diagonal_blocks(p_old%matrix)
+    !CALL copy_blacs_to_sparse_matrix(scf_work1,p_old%matrix,globenv)
+    !CALL symmetrise_diagonal_blocks(p_old%matrix)
+    CALL calculate_density_matrix(mo_set,p_old%matrix,globenv)
 
 !   *** Write last wavefunction ***
 
