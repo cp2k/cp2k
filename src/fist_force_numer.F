@@ -252,7 +252,7 @@ SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecule
         atomic_kind => particle_set ( index_a ) % atomic_kind
         CALL get_atomic_kind ( atomic_kind, kind_number =  akind )
         index_b = onfo_list ( ibond ) % b + first_atom - 1
-        atomic_kind => particle_set ( index_a ) % atomic_kind
+        atomic_kind => particle_set ( index_b ) % atomic_kind
         CALL get_atomic_kind ( atomic_kind, kind_number =  bkind )
         rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
 ! get the energy
@@ -272,8 +272,8 @@ SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecule
            rab2_plus_delta = DOT_PRODUCT ( rij + delta, rij + delta )
            CALL potential_f ( rab2_plus_delta, potparm, 0._dbl, 0._dbl, &
                              akind, bkind, ep )
-           f_numer(idim,index_a) = f_numer(idim,index_a) + (em-ep)
-           f_numer(idim,index_b) = f_numer(idim,index_b) - (em-ep)
+           f_numer(idim,index_a) = f_numer(idim,index_a) - (em-ep)
+           f_numer(idim,index_b) = f_numer(idim,index_b) + (em-ep)
            delta = 0.0_dbl
         END DO
 
@@ -2380,7 +2380,7 @@ SUBROUTINE potential_onefour ( molecule_set, molecule_kind_set, local_molecules,
         atomic_kind => particle_set ( index_a ) % atomic_kind
         CALL get_atomic_kind ( atomic_kind, kind_number =  akind )
         index_b = onfo_list ( ibond ) % b + first_atom - 1
-        atomic_kind => particle_set ( index_a ) % atomic_kind
+        atomic_kind => particle_set ( index_b ) % atomic_kind
         CALL get_atomic_kind ( atomic_kind, kind_number =  bkind )
         rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
         rab2 = DOT_PRODUCT ( rij, rij )

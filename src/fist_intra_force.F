@@ -142,6 +142,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
   pot_urey_bradley =  0._dbl
   pot_torsion =  0._dbl
   pot_imp_torsion =  0._dbl
+  pot_onef =  0._dbl
 
   nkind = SIZE ( molecule_kind_set )
   MOL: DO ikind = 1, nkind
@@ -394,12 +395,12 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                            akind, bkind, energy, fscalar )
         pot_onef = pot_onef + energy
         particle_set ( index_a )% f = particle_set ( index_a ) % f &
-                                      -rij * fscalar
-        particle_set ( index_b )% f = particle_set ( index_b ) % f &
                                       +rij * fscalar
+        particle_set ( index_b )% f = particle_set ( index_b ) % f &
+                                      -rij * fscalar
 
 ! computing the pressure tensor
-        CALL get_pv_bond ( -rij * fscalar, rij * fscalar, &
+        CALL get_pv_bond ( rij * fscalar, -rij * fscalar, &
                            particle_set ( index_a ) % r,  &
                            particle_set ( index_b ) % r,  &
                            pv_onef )
