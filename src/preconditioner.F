@@ -148,11 +148,11 @@ END SUBROUTINE destroy_preconditioner
 ! might overwrite matrix_h, matrix_t
 !*******************************************************************************
 
-SUBROUTINE make_preconditioner_single(preconditioner_env, USE, matrix_h, matrix_s, &
+SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h, matrix_s, &
                                       matrix_t,mo_eigenvectors, energy_gap )
 
     TYPE(preconditioner_type)                :: preconditioner_env
-    CHARACTER(LEN=*)                         :: USE
+    CHARACTER(LEN=*)                         :: precon_type
     TYPE(real_matrix_type), POINTER          :: matrix_h, matrix_s, matrix_t
     TYPE(cp_fm_type), POINTER                :: mo_eigenvectors
     REAL(KIND=dp)                            :: energy_gap
@@ -167,13 +167,14 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, USE, matrix_h, matrix_
 
   CALL cp_fm_get_info(mo_eigenvectors,ncol_global=k) 
   ALLOCATE(eigenvalues_ot(k))
+  ! XXXXXXXXXXXXXXXXxx makes MOs eigenstates, dangerous for non-equivalent guys...
   CALL calculate_subspace_eigenvalues(mo_eigenvectors,matrix_h,&
           eigenvalues_ot,para_env=preconditioner_env%para_env, &
-                         ctxt = preconditioner_env%ctxt)
+                         do_rotation = .FALSE. ) 
   energy_homo=eigenvalues_ot(k)
   DEALLOCATE(eigenvalues_ot)
 
-  SELECT CASE (USE)
+  SELECT CASE (precon_type)
   CASE ("SPARSE_DIAG")
     preconditioner_env%in_use=1
     CALL make_sparse_diag(preconditioner_env, matrix_h, matrix_s, &

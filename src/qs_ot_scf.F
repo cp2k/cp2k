@@ -250,7 +250,6 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     WRITE(globenv%scr,'(A,F14.8)') "  energy_gap     :",qs_ot_env(1)%settings%energy_gap
     WRITE(globenv%scr,'(A,E14.5)') "  eps_taylor     :",qs_ot_env(1)%settings%eps_taylor
     WRITE(globenv%scr,'(A,I14)') "  max_taylor     :",qs_ot_env(1)%settings%max_taylor
-    WRITE(globenv%scr,'(A,I14)') "  max_taylor     :",qs_ot_env(1)%settings%max_taylor
     WRITE(globenv%scr,'(A)') "  "
     WRITE(globenv%scr,'(A)') "  ----------------------------------- OT --------------------------------------"
     ENDIF
@@ -288,6 +287,7 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_ks,matrix_s,energy, &
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     REAL(KIND=dp), DIMENSION(:), POINTER     :: scaling_factor
     INTEGER                                  :: k,n
+    CHARACTER(LEN=*), PARAMETER              :: RoutineN="ot_scf_mini"
 
     CALL timeset("ot_scf_mini","I","",handle)
 
@@ -300,6 +300,14 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_ks,matrix_s,energy, &
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,eigenvectors=mo_eigenvectors, &
                           occupation_numbers=occupation_numbers )
 
+          ! check the user has rotation on if using non-equivalent MOs
+          IF (ANY(occupation_numbers.NE.occupation_numbers(1))) THEN
+             IF (.NOT. qs_ot_env(ispin)%settings%do_rotation) THEN
+                CALL stop_program(RoutineN, &
+                       "The ROTATION keyword is required for OT with non-equal occupation numbers")            
+             ENDIF
+          ENDIF
+
           CALL cp_sm_fm_multiply(matrix_ks(ispin)%matrix,mo_eigenvectors,&
                                        qs_ot_env(ispin)%matrix_hc,&
                                        k, para_env=globenv%para_env)
@@ -307,7 +315,6 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_ks,matrix_s,energy, &
           ALLOCATE(scaling_factor(SIZE(occupation_numbers))) 
           scaling_factor=2.0_dp*occupation_numbers
           CALL cp_fm_column_scale(qs_ot_env(ispin)%matrix_hc,scaling_factor) 
-          write(6,'(5F10.5)') scaling_factor
           DEALLOCATE(scaling_factor)
 
           IF (qs_ot_env(1)%settings%do_rotation) THEN

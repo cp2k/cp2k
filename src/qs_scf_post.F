@@ -258,8 +258,8 @@ CONTAINS
              IF (globenv%ionode) WRITE(globenv%scr,*) " ---------------------------------------------"
              CALL calculate_subspace_eigenvalues(mo_eigenvectors,&
                   ks_rmpv(ispin)%matrix,mo_eigenvalues, &
-                  para_env=qs_env%para_env,ctxt=qs_env%blacs_env,scr=globenv%scr, &
-                  ionode=globenv%ionode)
+                  para_env=qs_env%para_env,scr=globenv%scr, &
+                  ionode=globenv%ionode, do_rotation=.TRUE.)
 
              IF (globenv%print%cubes) THEN
                 DO ivector=MAX(1,homo-globenv%print%nhomos+1),homo
@@ -304,9 +304,8 @@ CONTAINS
                 ENDIF
                 IF (globenv%ionode) WRITE(globenv%scr,*) " ---------------------------------------------"
                 CALL calculate_subspace_eigenvalues(mo_eigenvectors,ks_rmpv(ispin)%matrix, &
-                     mo_eigenvalues, &
-                     para_env=qs_env%para_env,ctxt=qs_env%blacs_env,scr=globenv%scr, &
-                     ionode=globenv%ionode)
+                     mo_eigenvalues, para_env=qs_env%para_env,scr=globenv%scr, &
+                     ionode=globenv%ionode, do_rotation=.TRUE.)
              ENDIF
              NULLIFY(mo_localized)
              CALL cp_fm_create(mo_localized,mo_eigenvectors%matrix_struct)
@@ -387,8 +386,7 @@ CONTAINS
                   size_ortho_space=homo)
 
              CALL calculate_subspace_eigenvalues(unoccupied_orbs(ispin)%matrix,ks_rmpv(ispin)%matrix,&
-                  unoccupied_evals(ispin)%evals, &
-                  para_env=qs_env%para_env,ctxt=qs_env%blacs_env,scr=globenv%scr, &
+                  unoccupied_evals(ispin)%evals, para_env=qs_env%para_env,scr=globenv%scr, &
                   ionode=globenv%ionode)
 
              IF (globenv%print%localization) THEN
@@ -534,6 +532,8 @@ CONTAINS
     CHARACTER(LEN=200) :: file_name
     INTEGER            :: file_unit
     REAL(KIND=dp)      :: s_square_ideal,s_square
+    LOGICAL            :: all_equal
+    REAL(KIND=dp), DIMENSION(:), POINTER :: occupation_numbers
 
     failure=.FALSE.
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,&
@@ -569,6 +569,19 @@ CONTAINS
           IF (globenv%ionode) WRITE(UNIT=output_unit,fmt='(/,(T3,A,T60,F20.10))') &
                "Integrated absolute spin density  : ",total_abs_spin_dens
           CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
+          !
+          ! XXX Fix Me XXX
+          ! should be extended to the case where added MOs are present 
+          !
+          all_equal=.TRUE.
+          DO ispin=1,dft_control%nspins
+             CALL get_mo_set(mo_set=mos(ispin)%mo_set,occupation_numbers=occupation_numbers)
+             all_equal=all_equal .AND. ALL(occupation_numbers.EQ.occupation_numbers(1))
+          ENDDO
+          IF (.NOT. all_equal) THEN
+             IF (globenv%ionode) WRITE(UNIT=output_unit,fmt='(T3,A)') &
+                   "Warning: S**2 computation does not yet treat empty/fractional orbitals"
+          ENDIF
           CALL compute_s_square(mos=mos, matrix_s=matrix_s, s_square=s_square, s_square_ideal=s_square_ideal)
           IF (globenv%ionode) WRITE(UNIT=output_unit,fmt='(T3,A,T60,2F10.5)') &
                "Ideal and single determinant S**2 : ",s_square_ideal,s_square

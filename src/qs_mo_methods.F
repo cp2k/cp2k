@@ -71,7 +71,7 @@ MODULE qs_mo_methods
   END INTERFACE
 
   INTERFACE calculate_subspace_eigenvalues
-    MODULE PROCEDURE subspace_eigenvalues_ks ! outdated ,subspace_eigenvalues_vec
+    MODULE PROCEDURE subspace_eigenvalues_ks 
   END INTERFACE
 
   INTERFACE calculate_w_matrix
@@ -481,9 +481,35 @@ CONTAINS
 
   END SUBROUTINE calculate_w_matrix_2
 
+
+!!****f* qs_mo_methods/subspace_eigenvalues_ks *
+!!
+!!   NAME
+!!     subspace_eigenvalues_ks
+!!
+!!   FUNCTION
+!!     computes ritz values of a set of orbitals given a ks_matrix 
+!!     rotates the orbitals into eigenstates depending on do_rotation
+!!     writes the evals to the screen depending on ionode/scr
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!    - orbitals    : S-orthonormal orbitals
+!!    - ks_matrix   : Kohn-Sham matrix
+!!    - para_env    : of the Kohn-Sham matrix
+!!    - evals_arg   : optional, filled with the evals
+!!    - ionode/scr  : if present write to unit scr where ionode
+!!    - do_rotation : optional rotate orbitals if .TRUE. (default)
+!!
+!!   MODIFICATION HISTORY
+!!     08.2004 documented and added do_rotation [Joost VandeVondele]
+!!
+!!   SOURCE
+!!*** **********************************************************************
 ! *****************************************************************************
 
-  SUBROUTINE subspace_eigenvalues_ks(orbitals,ks_matrix,evals_arg,para_env,ctxt,ionode,scr)
+  SUBROUTINE subspace_eigenvalues_ks(orbitals,ks_matrix,evals_arg,para_env,ionode,scr,do_rotation)
 
 !   Purpose: Calculates the eigenvalues (ritz values) for a set of orbitals
 !            and rotates them to make them eigenvectors
@@ -497,9 +523,9 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: evals_arg
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_blacs_env_type), POINTER         :: ctxt
-    LOGICAL, OPTIONAL                        :: ionode
-    INTEGER, OPTIONAL                        :: scr
+    LOGICAL, OPTIONAL, INTENT(IN)            :: ionode
+    INTEGER, OPTIONAL, INTENT(IN)            :: scr
+    LOGICAL, OPTIONAL, INTENT(IN)            :: do_rotation
 
     INTEGER                                  :: handle, i, j, ncol_block, &
                                                 ncol_global, nrow_block, &

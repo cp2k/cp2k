@@ -389,12 +389,6 @@ SUBROUTINE do_line_search_2pnt(qs_ot_env)
    qs_ot_env(1)%line_search_might_be_done=.false.
    qs_ot_env(1)%energy_only=.true.
 
-   IF (qs_ot_env(1)%settings%do_rotation) THEN
-      ! requires that we compute the gradient variable (i.e. gradient along the line search) correctly
-      ! needs to be implemented
-      CALL stop_program("do_line_search_2pnt","2PNT needs to be implemented for rotation")
-   ENDIF
-
    ! a three point interpolation based on the energy
    qs_ot_env(1)%line_search_count=qs_ot_env(1)%line_search_count+1
    count=qs_ot_env(1)%line_search_count
