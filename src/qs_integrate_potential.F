@@ -297,7 +297,7 @@ CONTAINS
   SUBROUTINE integrate_v_rspace_light(v_rspace,matrix_v,qs_env)
 
     TYPE(coeff_type)                            :: v_rspace
-    TYPE(real_matrix_p_type), INTENT(OUT)       :: matrix_v
+    TYPE(real_matrix_p_type), INTENT(INOUT)       :: matrix_v
     TYPE(qs_environment_type), INTENT(IN)       :: qs_env
 
     TYPE(coeff_type), DIMENSION(:), POINTER     :: mgrid_gspace, &
