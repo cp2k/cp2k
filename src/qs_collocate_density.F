@@ -106,8 +106,6 @@ MODULE qs_collocate_density
                                              pw_pool_init_coeff,&
                                              pw_pool_type
   USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
-  USE pw_types,                        ONLY: REALDATA3D,&
-                                             REALSPACE
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_interactions,                 ONLY: exp_radius_very_extended
