@@ -521,6 +521,7 @@ CONTAINS
 !!  COMMENSURATE           : grids are commensurate in realspace              !
 !!  REALSPACE_MGRIDS       : use realspace techniques for multigriding        !
 !!  MAP_PAA                : map diagonal blocks on the highest grid          !
+!!  MAP_CONSISTENT         : fully consistent realspace integration           !
 !!  EPS_DEFAULT            : eps                                              !
 !!  EPS_CORE_CHARGE        : eps                                              !
 !!  EPS_GVG_RSPACE         : eps                                              !
@@ -590,6 +591,7 @@ CONTAINS
     qs_control%commensurate_mgrids = .FALSE.
     qs_control%realspace_mgrids = .FALSE.
     qs_control%map_paa = .FALSE.
+    qs_control%map_consistent = .FALSE.
 !
     cutoff_set = .FALSE.
     multgrid_set = .FALSE.
@@ -628,6 +630,8 @@ CONTAINS
             qs_control%commensurate_mgrids = .TRUE.
           CASE ("MAP_PAA")
             qs_control%map_paa = .TRUE.
+          CASE ("MAP_CONSISTENT")
+            qs_control%map_consistent = .TRUE.
           CASE ("MULTI_GRID","MULTGRID","MGRID")
             CALL read_object(igrid_level)
             IF ( ngrid_set ) THEN
@@ -1203,6 +1207,10 @@ CONTAINS
         "QS| Grid level progression factor:",qs_control%progression_factor
       WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
         "QS| Relative density cutoff [a.u.]:",qs_control%relative_cutoff
+      IF (qs_control%map_consistent) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A)")&
+            "QS| Consistent realspace mapping and integration "
+      ENDIF
       WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
         "QS| Interaction thresholds: eps_pgf_orb:",&
         qs_control%eps_pgf_orb,&

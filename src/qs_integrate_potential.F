@@ -32,6 +32,7 @@
 !!     Joost VandeVondele (12.2003)
 !!          1) modified to compute tau
 !!     Joost removed incremental build feature
+!!     Joost introduced map consistent
 !!
 !!   SOURCE
 !***********************************************************************
@@ -129,6 +130,8 @@ MODULE qs_integrate_potential
   IMPLICIT NONE
 
   PRIVATE
+
+  INTEGER :: debug_count=0
 
 ! *** Public subroutines ***
 
@@ -350,7 +353,7 @@ CONTAINS
     TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace, mgrid_temp_rspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure,map_consistent
     INTEGER                                  :: auxbas_grid,j,k
     TYPE(gridlevel_info_type)                :: gridlevel_info
     TYPE(l_info_type)                        :: l_info
@@ -359,6 +362,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
     failure=.FALSE.
+
+    debug_count=debug_count+1
 
 ! default, if compute_tau is not present we assume it is false
     IF (PRESENT(compute_tau)) THEN
@@ -470,8 +475,13 @@ CONTAINS
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
     END IF
-
-    eps_gvg_rspace = dft_control%qs_control%eps_gvg_rspace
+    
+    map_consistent=dft_control%qs_control%map_consistent
+    IF (map_consistent) THEN
+      eps_gvg_rspace = dft_control%qs_control%eps_rho_rspace ! needs to be consistent with rho_rspace
+    ELSE
+      eps_gvg_rspace = dft_control%qs_control%eps_gvg_rspace
+    ENDIF
 
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -794,7 +804,7 @@ CONTAINS
 !$OMP shared(deltap,calculate_forces,atom_of_kind,ival,npgfa,npgfb,la_max,lb_max) &
 !$OMP shared(first_sgfa,first_sgfb,sphi_a,sphi_b,maxco,maxsgf_set,dab_local) &
 !$OMP shared(ncoset,zeta,zetb,la_min,lb_min,rs_v,cube_info,l_info,eps_gvg_rspace) &
-!$OMP shared(force,ikind,jkind,igrid_level,nsgfa,nsgfb,pabt,habt,workt,my_compute_tau)
+!$OMP shared(force,ikind,jkind,igrid_level,nsgfa,nsgfb,pabt,habt,workt,my_compute_tau,map_consistent)
           ithread = 0
 !$        ithread = omp_get_thread_num()
           nalimit = get_limit(natom_pairs,nthread,ithread)
@@ -893,7 +903,8 @@ CONTAINS
                           hab,pab=pab,o1=na1-1,o2=nb1-1, &
                           eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=calculate_forces,&
-                          force_a=force_a,force_b=force_b,ithread=ithread,compute_tau=my_compute_tau)
+                          force_a=force_a,force_b=force_b,ithread=ithread,&
+                          compute_tau=my_compute_tau,map_consistent=map_consistent)
                    ELSE
                      CALL integrate_pgf_product_rspace(&
                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
@@ -903,7 +914,8 @@ CONTAINS
                           hab,pab=pab,o1=nb1-1,o2=na1-1, &
                           eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=calculate_forces,&
-                          force_a=force_b,force_b=force_a,ithread=ithread,compute_tau=my_compute_tau)
+                          force_a=force_b,force_b=force_a,ithread=ithread,&
+                          compute_tau=my_compute_tau,map_consistent=map_consistent)
                    END IF
                 ELSE
                    IF (iatom <= jatom) THEN
@@ -915,7 +927,8 @@ CONTAINS
                           hab,o1=na1-1,o2=nb1-1,&
                           eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=calculate_forces,&
-                          force_a=force_a,force_b=force_b,ithread=ithread,compute_tau=my_compute_tau)
+                          force_a=force_a,force_b=force_b,ithread=ithread,&
+                          compute_tau=my_compute_tau,map_consistent=map_consistent)
                    ELSE
                      CALL integrate_pgf_product_rspace(&
                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
@@ -925,7 +938,8 @@ CONTAINS
                           hab,o1=nb1-1,o2=na1-1,&
                           eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=calculate_forces,&
-                          force_a=force_b,force_b=force_a,ithread=ithread,compute_tau=my_compute_tau)
+                          force_a=force_b,force_b=force_a,ithread=ithread, &
+                          compute_tau=my_compute_tau,map_consistent=map_consistent)
                    END IF
                 END IF
 
@@ -1018,7 +1032,7 @@ CONTAINS
                                             cube_info,l_info,hab,pab,o1,o2,&
                                             eps_gvg_rspace,&
                                             calculate_forces,force_a,force_b,&
-                                            ithread,mytimings,compute_tau)
+                                            ithread,mytimings,compute_tau,map_consistent)
 
     INTEGER, INTENT(IN)                      :: la_max
     REAL(KIND=dp), INTENT(IN)                :: zeta
@@ -1041,6 +1055,7 @@ CONTAINS
     INTEGER, OPTIONAL                        :: ithread
     REAL(KIND=dp), DIMENSION(10), OPTIONAL   :: mytimings
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau
+    LOGICAL, INTENT(IN), OPTIONAL            :: map_consistent
 
     INTEGER :: ax, ay, az, bx, by, bz, cmax, coef_max, gridbounds(2,3), i, &
       ico, icoef, ig, ithread_l, jco, k, l, la, la_max_l, la_min_l, lb, &
@@ -1051,7 +1066,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: ly_max, lz_max, sphere_bounds
     INTEGER, DIMENSION(:, :), POINTER        :: map
     INTEGER, POINTER                         :: ipzyx(:,:,:,:,:,:)
-    LOGICAL                                  :: my_compute_tau
+    LOGICAL                                  :: my_compute_tau,my_map_consistent
     REAL(KIND=dp) :: a, axpm0, b, binomial_k_lxa, binomial_l_lxb, cutoff, &
       exp_x0, exp_x1, exp_x2, f, ftza, ftzb, pabval, pg, prefactor, radius, &
       rpg, ya, yap, yb, ybp, za, zap, zb, zbp, zetp
@@ -1063,7 +1078,6 @@ CONTAINS
                                                 poly(:,:), polz(:,:), pzyx(:)
 
 !   ---------------------------------------------------------------------------
-
     IF (PRESENT(ithread)) THEN
        ithread_l=ithread
     ELSE
@@ -1076,6 +1090,12 @@ CONTAINS
        my_compute_tau=compute_tau
     ELSE
        my_compute_tau=.FALSE.
+    ENDIF
+    ! use identical radii for integrate and collocate ?
+    IF (PRESENT(map_consistent)) THEN
+       my_map_consistent=map_consistent
+    ELSE
+       my_map_consistent=.FALSE.
     ENDIF
 
     !IF (ithread_l.eq.0) t_a_1=m_walltime()
@@ -1109,13 +1129,19 @@ CONTAINS
     rp(:) = ra(:) + rap(:)  ! this is the gaussian center in real coordinates
     rb(:) = ra(:) + rab(:)
 
-    cutoff=1.0_dp
-    IF (PRESENT(pab)) THEN
-    radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,o1,o2,ra,rb,rp,&
-                                    zetp,eps_gvg_rspace,prefactor,cutoff)
+    IF (my_map_consistent) THEN ! still assumes that eps_gvg_rspace=eps_rho_rspace
+       cutoff=1.0_dp
+       radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,ra=ra,rb=rb,rp=rp,&
+               zetp=zetp,eps=eps_gvg_rspace,prefactor=prefactor,cutoff=cutoff)
     ELSE
-    radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,ra=ra,rb=rb,rp=rp,&
-            zetp=zetp,eps=eps_gvg_rspace,prefactor=prefactor,cutoff=cutoff)
+       cutoff=1.0_dp
+       IF (PRESENT(pab)) THEN
+          radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,o1,o2,ra,rb,rp,&
+                                       zetp,eps_gvg_rspace,prefactor,cutoff)
+       ELSE
+          radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,ra=ra,rb=rb,rp=rp,&
+               zetp=zetp,eps=eps_gvg_rspace,prefactor=prefactor,cutoff=cutoff)
+       ENDIF
     ENDIF
 
     IF (radius == 0.0_dp) THEN
@@ -1123,6 +1149,7 @@ CONTAINS
        !IF (ithread_l.EQ.0) mytimings(1)=mytimings(1)+(t_a_2-t_a_1)
        RETURN
     ENDIF
+
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
     CALL return_l_info(l_info,la_min_l,la_max_l,lb_min_l,lb_max_l,ithread_l,lx_max,lxy_max, &
                          lxyz_max,ly_max,lz_max,&

@@ -96,6 +96,7 @@ MODULE cp_control_types
     LOGICAL                         :: commensurate_mgrids
     LOGICAL                         :: realspace_mgrids
     LOGICAL                         :: map_paa
+    LOGICAL                         :: map_consistent
     LOGICAL                         :: gapw,gpw,pao
     REAL(KIND = dp)                        :: cutoff
     REAL(KIND = dp), DIMENSION(:), POINTER :: e_cutoff

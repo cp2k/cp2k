@@ -36,6 +36,7 @@
 !!     - Modified to compute tau (Joost 12.03)
 !!     - removed the incremental density rebuild (Joost 01.04)
 !!     - introduced realspace multigridding (Joost 02.04)
+!!     - introduced map_consistent (Joost 02.04)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -162,6 +163,8 @@ MODULE qs_collocate_density
   END TYPE lgrid_type
 
   PUBLIC :: lgrid_type
+
+  INTEGER :: debug_count=0
 
 !!***
 ! *****************************************************************************
@@ -387,7 +390,7 @@ CONTAINS
     TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace, mgrid_temp_rspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, map_consistent
     TYPE(gridlevel_info_type)                :: gridlevel_info
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
@@ -404,6 +407,8 @@ CONTAINS
          tasks,tasks_local,ival,latom,ntasks,asets,atasks,pabt,workt,mgrid_rspace,&
          mgrid_gspace,pw_pools)
     NULLIFY(mgrid_temp_rspace)
+
+    debug_count=debug_count+1
 
     ! by default, do not compute the kinetic energy density (tau)
     ! if compute_tau, all grids referening to rho are actually tau
@@ -464,6 +469,7 @@ CONTAINS
     END DO
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+    map_consistent = dft_control%qs_control%map_consistent
     nthread = 1
 !$  nthread = omp_get_max_threads()
 
@@ -593,6 +599,7 @@ CONTAINS
                 bcol = iatom
              END IF
 
+             ! bad, should do better loop ordering XXXXXXXXXX
              CALL get_block_node(matrix=p,&
                                  block_row=brow,&
                                  block_col=bcol,&
@@ -613,10 +620,12 @@ CONTAINS
              CALL add_block_node ( deltap, brow, bcol, pblock )
 
              pblock = p_block
-   
-             IF ( ALL ( 100.0_dp*ABS(pblock) < eps_rho_rspace) ) THEN
-               sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-               CYCLE
+  
+             IF (.NOT. map_consistent) THEN
+                IF ( ALL ( 100.0_dp*ABS(pblock) < eps_rho_rspace) ) THEN
+                  sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+                  CYCLE
+                END IF
              END IF
 
              rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
@@ -759,7 +768,7 @@ CONTAINS
 !$OMP shared(deltap,npgfa,npgfb,ncoset,la_max,lb_max,first_sgfa,first_sgfb) &
 !$OMP shared(nsgfa,nsgfb,sphi_a,sphi_b,dab_local,la_min,lb_min,zeta,zetb) &
 !$OMP shared(rs_rho,igrid_level,cube_info,l_info,eps_rho_rspace,lgrid,nthread) &
-!$OMP shared(workt,pabt,my_compute_tau)
+!$OMP shared(workt,pabt,my_compute_tau,map_consistent)
           ithread = 0
 !$        ithread = omp_get_thread_num()
           nalimit = get_limit(natom_pairs,nthread,ithread)
@@ -838,14 +847,16 @@ CONTAINS
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                       ra,rab,rab2,scale,pab,na1-1,nb1-1,&
                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                      l_info,eps_rho_rspace,lgrid=lgrid,ithread=ithread,compute_tau=my_compute_tau)
+                      l_info,eps_rho_rspace,lgrid=lgrid,ithread=ithread, &
+                      compute_tau=my_compute_tau,map_consistent=map_consistent)
                   ELSE
                     CALL collocate_pgf_product_rspace(&
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                       la_max(iset),zeta(ipgf,iset),la_min(iset),&
                       rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                      l_info,eps_rho_rspace,lgrid=lgrid,ithread=ithread,compute_tau=my_compute_tau)
+                      l_info,eps_rho_rspace,lgrid=lgrid,ithread=ithread, &
+                      compute_tau=my_compute_tau,map_consistent=map_consistent)
                   END IF
                 ELSE
                   IF (iatom <= jatom) THEN
@@ -854,14 +865,16 @@ CONTAINS
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                       ra,rab,rab2,scale,pab,na1-1,nb1-1,&
                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                      l_info,eps_rho_rspace,compute_tau=my_compute_tau)
+                      l_info,eps_rho_rspace,compute_tau=my_compute_tau, &
+                      map_consistent=map_consistent)
                   ELSE
                     CALL collocate_pgf_product_rspace(&
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                       la_max(iset),zeta(ipgf,iset),la_min(iset),&
                       rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                      l_info,eps_rho_rspace,compute_tau=my_compute_tau)
+                      l_info,eps_rho_rspace,compute_tau=my_compute_tau, &
+                      map_consistent=map_consistent)
                   END IF
                 END IF
  
@@ -1242,7 +1255,8 @@ CONTAINS
                                           lb_max,zetb,lb_min,&
                                           ra,rab,rab2,scale,pab,o1,o2,&
                                           rsgrid,cube_info,l_info,&
-                                          eps_rho_rspace,lgrid,ithread,compute_tau)
+                                          eps_rho_rspace,lgrid,ithread,&
+                                          compute_tau,map_consistent)
 
     INTEGER, INTENT(IN)                      :: la_max
     REAL(KIND=dp), INTENT(IN)                :: zeta
@@ -1261,6 +1275,7 @@ CONTAINS
     TYPE(lgrid_type), OPTIONAL               :: lgrid
     INTEGER, INTENT(IN), OPTIONAL            :: ithread
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau
+    LOGICAL, INTENT(IN), OPTIONAL            :: map_consistent
 
     INTEGER :: cmax, coef_max, gridbounds(2,3), i, ico, ico_l, icoef, ig, &
       ithread_l, jco, jco_l, k, l, la_max_local, la_min_local, lb_max_local, &
@@ -1271,7 +1286,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: ly_max, lz_max, sphere_bounds
     INTEGER, DIMENSION(:, :), POINTER        :: map
     INTEGER, POINTER                         :: ipzyx(:,:,:,:,:,:)
-    LOGICAL                                  :: my_compute_tau
+    LOGICAL                                  :: my_compute_tau, my_map_consistent
     REAL(KIND=dp) :: a, b, binomial_k_lxa, binomial_l_lxb, cutoff, f, pg, &
       prefactor, radius, rpg, ya, yap, yb, ybp, za, zap, zb, zbp, zetp
     REAL(KIND=dp), DIMENSION(3)              :: dr, rap, rb, rbp, roffset, rp
@@ -1290,6 +1305,14 @@ CONTAINS
        ithread_l=0
     ENDIF
 
+    ! use identical radii for integrate and collocate ?
+    IF (PRESENT(map_consistent)) THEN
+       my_map_consistent=map_consistent
+    ELSE
+       my_map_consistent=.FALSE.
+    ENDIF
+
+
     IF (PRESENT(compute_tau)) THEN
        my_compute_tau=compute_tau
     ELSE
@@ -1298,18 +1321,28 @@ CONTAINS
 
     zetp      = zeta + zetb
     f         = zetb/zetp
-    prefactor = scale*EXP(-zeta*f*rab2)
     rap(:)    = f*rab(:)
     rbp(:)    = rap(:) - rab(:)
     rp(:)     = ra(:) + rap(:)  
     rb(:)     = ra(:)+rab(:)
-    cutoff    = 0.0_dp
-    radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,o1,o2,ra,rb,rp,&
-                                    zetp,eps_rho_rspace,prefactor,cutoff)
+
+    IF (my_map_consistent) THEN
+       cutoff    = 1.0_dp
+       prefactor = EXP(-zeta*f*rab2)
+       radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,ra=ra,rb=rb,rp=rp,&
+                                       zetp=zetp,eps=eps_rho_rspace,prefactor=prefactor,cutoff=cutoff)
+       prefactor = scale*EXP(-zeta*f*rab2)
+    ELSE
+       cutoff    = 0.0_dp
+       prefactor = scale*EXP(-zeta*f*rab2)
+       radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,o1,o2,ra,rb,rp,&
+                                       zetp,eps_rho_rspace,prefactor,cutoff)
+    ENDIF
 
     IF (radius .EQ. 0.0_dp ) THEN
       RETURN
     END IF
+
 
     ! it's a choice to compute lX_min/max, pab here, 
     ! this way we get the same radius as we use for the corresponding density
