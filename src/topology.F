@@ -24,9 +24,9 @@ MODULE topology
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atoms_input,                     ONLY: read_atoms_input
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE force_fields,                    ONLY: read_force_field_section,&
+  USE force_fields,                    ONLY: read_force_field_amber,&
                                              read_force_field_charmm,&
-                                             read_force_field_amber
+                                             read_force_field_section
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -58,7 +58,7 @@ MODULE topology
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology"
 
   PRIVATE
-  PUBLIC :: topology_control
+  PUBLIC :: topology_control, connectivity_control, force_field_control
 
 !!*****
 !******************************************************************************
@@ -97,8 +97,8 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
       POINTER                                :: molecule_set
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
-    TYPE ( pair_potential_type ), &
-      OPTIONAL, POINTER                      :: potparm ( :, : )
+    TYPE(pair_potential_type), OPTIONAL, &
+      POINTER                                :: potparm( :, : )
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_control', &
       routineP = moduleN//':'//routineN
