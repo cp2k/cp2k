@@ -56,7 +56,7 @@ MODULE  hartree_local_3centers
                                              neighbor_list_type,&
                                              neighbor_node_type,&
                                              next,&
-                                             qlist_type
+                                             reduced_3c_list_type
   USE qs_oce_types,                    ONLY: vtriple_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
@@ -73,8 +73,7 @@ MODULE  hartree_local_3centers
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: get_limit, &
-                                             locate
+  USE util,                            ONLY: get_limit!, &
 
   IMPLICIT NONE
 
@@ -119,25 +118,20 @@ MODULE  hartree_local_3centers
     TYPE(neighbor_list_set_p_type), &
                          DIMENSION(:), POINTER :: sab_orb,sbc_3c
     TYPE(neighbor_list_type),     POINTER      :: sab_orb_neighbor_list,&
-                                                  sab_orb_neighbor_list_local,&
-                                                  sbc_3c_neighbor_list
-    TYPE(neighbor_node_type),     POINTER      :: sab_orb_neighbor_node,&
-                                                  sbc_3c_neighbor_node
+                                                  sab_orb_neighbor_list_local
+    TYPE(neighbor_node_type),     POINTER      :: sab_orb_neighbor_node
     TYPE(cp_para_env_type), POINTER            :: para_env
     TYPE(particle_type), DIMENSION(:), &
                                      POINTER   :: particle_set
-    TYPE(qlist_type), DIMENSION(:, :, :), &
-                                       POINTER :: tmp_neighbor
-    TYPE(qlist_type),             POINTER      :: sac_3c_neighbor 
     TYPE(qs_force_type), DIMENSION(:), POINTER :: force
+    TYPE(reduced_3c_list_type), DIMENSION(:), &
+                                  POINTER      :: reduced_3c_rho0
     TYPE(rho0_mpole_type),        POINTER      :: rho0_mpole 
     TYPE(rho_atom_type), DIMENSION(:), &
                                      POINTER   :: rho_atom_set
     TYPE(rho_atom_type),       POINTER         :: rho_atom
     TYPE(rho_atom_coeff), DIMENSION(:), &
         POINTER                                :: int_local_h,int_local_s
-    TYPE(vtriple_type), DIMENSION(:,:),&
-                                  POINTER      :: VH_3c_list
     REAL(dp) :: alpha_core, c1, dab, fac, ieqj, rab(3), rab2, rac(3), rac2, &
                 rbc(3), rbc2,  rpgf0_s, r_V0, trace, z0_h, z0_s, zhard 
     REAL(dp), DIMENSION(:),       POINTER      :: ng0_h, ng0_s
@@ -157,15 +151,14 @@ MODULE  hartree_local_3centers
     REAL(dp), DIMENSION(:,:,:),   POINTER      :: Int_abc
     REAL(dp), DIMENSION(:,:,:), POINTER        :: Int_dab_sum, Int_adb_sum
 
-    INTEGER :: ab, bc, bo(2), handle, iatom,  i_atom, i, ic, ico, icol, &
+    INTEGER :: ab, bo(2), handle, iatom,  i_atom, i, ic, ico, icol, &
                idir, ifs1, ifs2, ikind, ilist, inode, irow, iset1, iset2,&
                is, iso, istat, ispin_bis, jatom, j_atom, jkind, katom, kat, k_atom, &
-               kkind, kneighbor, knode, l0_kkind, lmax_0, lshell, lx, ly, lz,&
+               kkind, knode, l0_kkind, lmax_0, lshell, lx, ly, lz,&
                m1, m2, maxch0, maxco_global, maxcoa, maxcob, maxder, &
                maxsoc, maxsgf, maxsgf_set, mepos, nat, natom, nchan0_car,&
                nchan0_sph, nco1, nco2, ncotota, ncototb, nkind, nlist, nnode, nnode_c,&
                ns1, ns2, nsgfa, nsgfb, nseta, nsetb, nsetc, nsototc, num_pe, nz1, nz2
-    INTEGER, DIMENSION(3)                      :: cell_c
     INTEGER, DIMENSION(:),        POINTER      :: atom_list,la_max,la_min,&
                                                   lb_max,lb_min,&
                                                   npgfa,npgfb,nsgfa_set,nsgfb_set
@@ -178,7 +171,7 @@ MODULE  hartree_local_3centers
 
     NULLIFY(atomic_kind_set,cell)
     NULLIFY( para_env,particle_set,rho0_mpole)
-    NULLIFY(sab_orb,sbc_3c,VH_3c_list)
+    NULLIFY(sab_orb,reduced_3c_rho0)
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft
@@ -199,8 +192,7 @@ MODULE  hartree_local_3centers
                     particle_set=particle_set,&
                     rho0_mpole=rho0_mpole,&
                     rho_atom_set=rho_atom_set,&
-                    VH_3c_list=VH_3c_list,&
-                    sab_orb=sab_orb,sbc_3c=sbc_3c)
+                    sab_orb=sab_orb)
 
     IF (my_tddft) THEN
        rho0_mpole   => p_env%local_rho_set%rho0_mpole
@@ -329,7 +321,8 @@ MODULE  hartree_local_3centers
 
             CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
                                    neighbor=jatom,&
-                                   r=rab)
+                                   r=rab,&
+                                   reduced_3c_rho0=reduced_3c_rho0)
 
             rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
             dab = sqrt(rab2)
@@ -473,19 +466,6 @@ MODULE  hartree_local_3centers
             END IF
 
             DO kkind=1,nkind
-              IF(.NOT.ASSOCIATED(VH_3c_list(kkind,iatom)%neighbor)) CYCLE
-
-              bc = jkind + nkind*(kkind - 1)
-
-              IF (.NOT.ASSOCIATED(sbc_3c(bc)%neighbor_list_set)) CYCLE
-              NULLIFY(sbc_3c_neighbor_list)
-
-              sbc_3c_neighbor_list =>&
-                         find_neighbor_list(neighbor_list_set=&
-                         sbc_3c(bc)%neighbor_list_set,&
-                         atom=jatom)
-
-              IF (.NOT.ASSOCIATED(sbc_3c_neighbor_list)) CYCLE
 
               CALL get_rho0_mpole(rho0_mpole=rho0_mpole,ikind=kkind,&
                                   l0_ikind=l0_kkind,&
@@ -499,8 +479,6 @@ MODULE  hartree_local_3centers
                                    paw_atom=paw_atom,&
                                    alpha_core_charge=alpha_core)
 
-              CALL get_neighbor_list(neighbor_list=sbc_3c_neighbor_list,&
-                                     nnode=nnode_c)
               IF(paw_atom)THEN
                 normhard(0:l0_kkind) = ng0_h(0:l0_kkind)
                 zhard = z0_h
@@ -511,48 +489,19 @@ MODULE  hartree_local_3centers
                 zhard =  alpha_core
               END IF
 
-              sbc_3c_neighbor_node => first_node(sbc_3c_neighbor_list)
+              nnode_c = reduced_3c_rho0(kkind)%nnode
+              DO knode=1,nnode_c
 
-              knodeloop: DO knode=1,nnode_c
+                katom = reduced_3c_rho0(kkind)%index_atom(knode)
+                rac(1:3) = reduced_3c_rho0(kkind)%rac(1:3,knode)
+                rac2 = reduced_3c_rho0(kkind)%rac2(knode)
+                rbc(1:3) = reduced_3c_rho0(kkind)%rbc(1:3,knode)
+                rbc2 = reduced_3c_rho0(kkind)%rbc2(knode)
 
-                 CALL get_neighbor_node(neighbor_node=sbc_3c_neighbor_node,&
-                      neighbor=katom,&
-                      cell=cell_c,&
-                      r=rbc)
-
-
-                 rbc2= rbc(1)*rbc(1) + rbc(2)*rbc(2) + rbc(3)*rbc(3) 
-                 
-                 tmp_neighbor => VH_3c_list(kkind,iatom)%neighbor
-                 DO i=1, 3
-                    IF ( (cell_c(i) < LBOUND(tmp_neighbor,i)) .OR. &
-                         (cell_c(i) > UBOUND(tmp_neighbor,i))) THEN
-                       sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
-                       CYCLE knodeloop
-                   END IF
-                END DO
-                sac_3c_neighbor => VH_3c_list(kkind,iatom)%neighbor(cell_c(1),&
-                     cell_c(2),&
-                     cell_c(3))
-                IF(sac_3c_neighbor%n == 0) THEN
-                   sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
-                   CYCLE knodeloop
-                END IF
-                
-                kneighbor = locate(sac_3c_neighbor%list,katom)
-                
-                IF (kneighbor == 0) THEN
-                   sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
-                   CYCLE knodeloop
-                END IF
-                rac(:) =sac_3c_neighbor%r(:,kneighbor)
-                rac2= rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3) 
-                
                 IF(ABS(rac(1)-(rab(1) + rbc(1)))   > EPS .OR. &
                      ABS(rac(2)-(rab(2) + rbc(2))) > EPS .OR. &
                      ABS(rac(3)-(rab(3) + rbc(3))) > EPS ) THEN
-                   sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
-                   CYCLE knodeloop
+                    CYCLE
                 END IF
                 
                 Int_abc = 0.0_dp
@@ -736,8 +685,7 @@ MODULE  hartree_local_3centers
                                   ns1,ns1,ns2)
                 END DO  ! ico
 
-                sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
-              END DO knodeloop  ! knode
+              END DO  ! knode
             END DO  !kkind
 
             sab_orb_neighbor_node => next(sab_orb_neighbor_node)

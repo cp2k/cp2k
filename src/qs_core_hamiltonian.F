@@ -1177,6 +1177,14 @@ CONTAINS
                               oceh,oces,nder)
             END IF
 
+            IF(rho0_present) THEN
+              CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
+                                    reduced_3c_rho0=reduced_3c_rho0)
+!            *** Build reduced 3-center lists
+              CALL build_reduced_3c_lists(atomic_kind_set, iatom, jatom, jkind,&
+                                          sbc_3c, VH_3c_list, reduced_3c_rho0)
+            END IF
+
             IF (calculate_forces) atom_b = atom_of_kind(jatom)
 
 !           *** Use the symmetry of the first derivatives ***

@@ -399,7 +399,6 @@ MODULE qs_rho_atom_methods
       jatom, jkind, katom, kkind, kneighbor, last_jatom, last_katom, max_gau, max_nsgf, &
       maxsoc, natom, nat_kind, nkind, nlist, nnode, nnode_c, nsetc,  &
       nsgfa, nsgfb, nsoctot, nspins
-    INTEGER, DIMENSION(3)                    :: cell_c
     INTEGER, DIMENSION(:), POINTER           :: a_list
     LOGICAL                                  :: new_atom_b, new_atom_c, paw_atom
     REAL(KIND=dp), ALLOCATABLE, &

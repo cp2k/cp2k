@@ -481,14 +481,12 @@ MODULE qs_rho0_methods
 
       rho0_mpole%zet0_h =  0.1_dp
       DO
-        radius=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_h,eps_fit,1.0_dp)
+!        radius=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_h,eps_fit,1.0_dp)
+        radius=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_h,eps_Vrho0,1.0_dp)
         IF (radius<=rc_min) EXIT
         rho0_mpole%zet0_h=rho0_mpole%zet0_h+0.1_dp 
       END DO
 
-!dbg
-      rho0_mpole%zet0_h = 10._dp
-!dbg
     END IF
 
     IF(gapw_control%alpha0_soft_from_input) THEN
@@ -501,7 +499,8 @@ MODULE qs_rho0_methods
 
       rho0_mpole%zet0_s = 0.25_dp/rho0_mpole%zet0_h
       DO
-        gcut=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_s,eps_fit,1.0_dp)
+!        gcut=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_s,eps_fit,1.0_dp)
+        gcut=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_s,eps_Vrho0,1.0_dp)
         IF (gcut<=SQRT(2.0_dp*ecut)) EXIT
         rho0_mpole%zet0_s=rho0_mpole%zet0_s*1.1_dp 
       END DO
