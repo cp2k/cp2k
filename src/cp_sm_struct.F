@@ -338,6 +338,7 @@ SUBROUTINE sm_nodes_dealloc(sm_nodes,error)
         END DO
         pos_att => next_row
      END DO
+     NULLIFY(sm_nodes)
   END IF
 END SUBROUTINE sm_nodes_dealloc
 !***************************************************************************
