@@ -1,3 +1,5 @@
 #
 # just add file names for which the reference needs to be reset below, with some comment
 #
+# checkin by marcella, fixes bugs in ke functionals
+h2o.inp
