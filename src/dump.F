@@ -165,7 +165,7 @@ CONTAINS
   !-----------------------------------------------------------------------------
   ! nhc_part%eta  
   !-----------------------------------------------------------------------------
-  ALLOCATE(eta(tot_nhcneed*nhc_len), STAT = isos )
+  ALLOCATE(eta(tot_nhcneed), STAT = isos )
   IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
                                'failed to allocate eta')
   DO iproc=1,para_env%num_pe
@@ -177,6 +177,7 @@ CONTAINS
         DO j=1,num_nhc
           counter=counter+1
           work(counter)=nhc_part(1)%nvt(i,j)%eta
+          index = nhc_part ( 1 ) % index ( j )
         END DO
       END DO
     ELSE
@@ -195,7 +196,7 @@ CONTAINS
   !-----------------------------------------------------------------------------
   ! nhc_part % veta   
   !-----------------------------------------------------------------------------
-  ALLOCATE(veta(tot_nhcneed*nhc_len), STAT = isos )
+  ALLOCATE(veta(tot_nhcneed), STAT = isos )
   IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
                                'failed to allocate veta')
   DO iproc=1,para_env%num_pe
@@ -207,6 +208,7 @@ CONTAINS
         DO j=1,num_nhc
           counter=counter+1
           work(counter)=nhc_part(1)%nvt(i,j)%v
+          index = nhc_part ( 1 ) % index ( j )
         END DO
       END DO
     ELSE
@@ -225,7 +227,7 @@ CONTAINS
   !-----------------------------------------------------------------------------
   ! nhc_part % force
   !-----------------------------------------------------------------------------
-  ALLOCATE(fnhc(tot_nhcneed*nhc_len), STAT = isos )
+  ALLOCATE(fnhc(tot_nhcneed), STAT = isos )
   IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
                                'failed to allocate fnhc')
   DO iproc=1,para_env%num_pe
@@ -237,6 +239,7 @@ CONTAINS
         DO j=1,num_nhc
           counter=counter+1
           work(counter)=nhc_part(1)%nvt(i,j)%f
+          index = nhc_part ( 1 ) % index ( j )
         END DO
       END DO
     ELSE
@@ -255,7 +258,7 @@ CONTAINS
   !-----------------------------------------------------------------------------
   ! nhc_part % mass
   !-----------------------------------------------------------------------------
-  ALLOCATE(mnhc(tot_nhcneed*nhc_len), STAT = isos)
+  ALLOCATE(mnhc(tot_nhcneed), STAT = isos)
   IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
                                'failed to allocate mnhc')
   DO iproc=1,para_env%num_pe
@@ -267,6 +270,7 @@ CONTAINS
         DO j=1,num_nhc
           counter=counter+1
           work(counter)=nhc_part(1)%nvt(i,j)%mass
+          index = nhc_part ( 1 ) % index ( j )
         END DO
       END DO
     ELSE
@@ -286,9 +290,20 @@ CONTAINS
        ( nhc_part ( 1 ) % dis_type == 'NONE') ) THEN
     IF (para_env%mepos==para_env%source) THEN
 
+!000
+       size1 = SIZE(nhc_part(1)%nvt,1)
+       size2 = SIZE(nhc_part(1)%nvt,2)
+
+       DO i=1,size1
+         DO j=1,size2
+           WRITE (*,*) nhc_part(1)%nvt(i,j)%eta
+         END DO
+       END DO
+!000
+       size1 = SIZE(nhc_part(1)%nvt,1)
        size1 = SIZE(eta)
 
-       WRITE (UNIT=dump_unit,FMT=*) nhc_len, num_nhc
+       WRITE (UNIT=dump_unit,FMT=*) nhc_len, tot_nhcneed/nhc_len
 
        DO i=1,size1
         WRITE (UNIT=dump_unit,FMT=*) eta ( i )
