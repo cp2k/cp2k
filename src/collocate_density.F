@@ -13,9 +13,10 @@
 !!
 !!   AUTHOR
 !!     Matthias Krack (03.04.2001)
+!!     1) Joost VandeVondele (01.2002)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     1) rewrote collocate for increased accuracy and speed
 !!
 !!   SOURCE
 !******************************************************************************
@@ -31,7 +32,8 @@ MODULE collocate_density
   USE basis_set_types,     ONLY: gto_basis_set_type,maxco,maxsgf,maxsgf_set
   USE coefficient_types,   ONLY: coeff_type
   USE global_types,        ONLY: global_environment_type
-  USE interactions,        ONLY: eps_rho_gspace,eps_rho_rspace,exp_radius
+  USE interactions,        ONLY: eps_rho_gspace,eps_rho_rspace,exp_radius,&
+                                 exp_radius_very_extended
   USE matrix_types,        ONLY: get_block_node,&
                                  real_matrix_set_type
   USE memory_utilities,    ONLY: reallocate
@@ -48,8 +50,10 @@ MODULE collocate_density
                                  next_neighbor_node
   USE nl,                  ONLY: orb_neighbor_list_set
   USE orbital_pointers,    ONLY: coset,indco,ncoset
-  USE pw_types,            ONLY: pw_type
+  USE pw_types,            ONLY: pw_type, pw_copy, pw_allocate, pw_deallocate
   USE timings,             ONLY: timeset,timestop
+  USE cube_utils,          ONLY: return_cube,cube_info_type
+  USE l_utils,          ONLY: return_l_info,l_info_type
 
   IMPLICIT NONE
 
@@ -72,10 +76,12 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_rho_core(rho,total_rho,globenv)
+  SUBROUTINE calculate_rho_core(rho,cube_info,l_info,total_rho,globenv)
 
     TYPE(coeff_type), INTENT(INOUT)           :: rho
     TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(cube_info_type), INTENT(IN)          :: cube_info
+    TYPE(l_info_type), INTENT(IN)          :: l_info
     REAL(wp), INTENT(OUT)                     :: total_rho
 
 !   *** Local variables ***
@@ -106,7 +112,8 @@ CONTAINS
         ELSE IF (ASSOCIATED(rho%pw%cr3d)) THEN
           CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_wp,0,ra,&
                                             (/0.0_wp,0.0_wp,0.0_wp/),&
-                                            0.0_wp,-1.0_wp,pab,rho%pw)
+                                            0.0_wp,-1.0_wp,pab,rho%pw,cube_info,l_info)
+
         END IF
 
       END DO
@@ -127,11 +134,15 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_rho_elec(p,rho,total_rho,nproduct,globenv)
+  SUBROUTINE calculate_rho_elec(p,p_old,rebuild_rho,rho,cube_info,l_info, &
+                                total_rho,nproduct,globenv)
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(coeff_type), INTENT(INOUT)           :: rho
-    TYPE(real_matrix_set_type), INTENT(IN)    :: p
+    TYPE(cube_info_type), INTENT(IN)          :: cube_info
+    TYPE(l_info_type), INTENT(IN)             :: l_info
+    TYPE(real_matrix_set_type), INTENT(IN)    :: p,p_old
+    LOGICAL, INTENT(IN)                       :: rebuild_rho
     REAL(wp), INTENT(OUT)                     :: total_rho
     INTEGER, INTENT(OUT)                      :: nproduct
 
@@ -152,8 +163,10 @@ CONTAINS
     REAL(wp), DIMENSION(3) :: ra,rab
 
     INTEGER, DIMENSION(:), POINTER    :: lb_grid,orb_neighbors
+    integer :: mycounter
     REAL(wp), DIMENSION(:), POINTER   :: orb_r2,rpgfa,rpgfb,zeta,zetb
-    REAL(wp), DIMENSION(:,:), POINTER :: orb_r,p_block,pab,s_block,work
+    REAL(wp), DIMENSION(:,:), POINTER :: orb_r,p_block,pab,pab_old,s_block, &
+                                         work,p_old_block
 
 !   ---------------------------------------------------------------------------
 
@@ -164,9 +177,13 @@ CONTAINS
 !   *** Allocate work storage ***
 
     NULLIFY (pab,work)
-
     pab => reallocate(pab,1,maxco,1,maxco)
     work => reallocate(work,1,maxco,1,maxsgf_set)
+     
+    if (.not.rebuild_rho) then 
+      NULLIFY (pab_old)
+      pab_old => reallocate(pab_old,1,maxco,1,maxco)
+    endif
 
     NULLIFY (orb_neighbor_list,orb_neighbors,orb_r,orb_r2)
 
@@ -195,7 +212,9 @@ CONTAINS
 
 !       *** Skip all atomic blocks in the lower triangle matrix ***
 
+
         IF (iatom > jatom) CYCLE
+
 
         jkind = atom_info(jatom)%kind
         first_jsgf = atom_info(jatom)%first_sgf
@@ -206,14 +225,23 @@ CONTAINS
         nsetb = basis_set_b%nset
         radius_kind_b = basis_set_b%kind_radius
 
+
         CALL get_block_node(matrix=p%matrix,&
                             block_row=iatom,&
                             block_col=jatom,&
                             block=p_block)
 
-        IF (.NOT.ASSOCIATED(p_block)) CYCLE
 
-        IF (MAXVAL(ABS(p_block(:,:))) < 1.0E-14_wp) CYCLE
+        IF (.NOT.ASSOCIATED(p_block)) CYCLE
+        IF (rebuild_rho) then
+           IF (MAXVAL(ABS(p_block(:,:))) < 1.0E-18_wp) CYCLE
+        ELSE
+           CALL get_block_node(matrix=p_old%matrix,&
+                            block_row=iatom,&
+                            block_col=jatom,&
+                            block=p_old_block)
+           IF (MAXVAL(ABS(p_block(:,:)-p_old_block(:,:))) < 1.0E-18_wp) CYCLE
+        ENDIF
 
         DO iset=1,nseta
 
@@ -267,6 +295,20 @@ CONTAINS
                        work(1,1),SIZE(work,1),basis_set_b%sphi(1,first_sgfb),&
                        SIZE(basis_set_b%sphi,1),0.0_wp,pab(1,1),SIZE(pab,1))
 
+            if (.not.rebuild_rho) then
+              CALL dgemm("N","N",ncoa,nsgfb,nsgfa,1.0_wp,&
+                       basis_set_a%sphi(1,first_sgfa),&
+                       SIZE(basis_set_a%sphi,1),&
+                       p_old_block(first_sgfa,first_sgfb),SIZE(p_old_block,1),&
+                       0.0_wp,work(1,1),SIZE(work,1))
+              CALL dgemm("N","T",ncoa,ncob,nsgfb,1.0_wp,&
+                       work(1,1),SIZE(work,1),basis_set_b%sphi(1,first_sgfb),&
+                       SIZE(basis_set_b%sphi,1),0.0_wp,pab_old(1,1),SIZE(pab_old,1))
+
+              pab(:,:)=pab(:,:)-pab_old(:,:)
+            endif
+
+
             DO ipgf=1,npgfa
 
               IF (rpgfa(ipgf) + radius_set_b < dab) CYCLE
@@ -306,7 +348,7 @@ CONTAINS
                                                     lb_max,zetb(jpgf),lb_min,&
                                                     ra,rab,rab2,scale,&
                                                     pab(na1:na2,nb1:nb2),&
-                                                    rho%pw)
+                                                    rho%pw,cube_info,l_info)
                 END IF
 
               END DO
@@ -321,11 +363,15 @@ CONTAINS
 
       orb_neighbor_list => next_neighbor_list(orb_neighbor_list)
 
-    END DO
+    ENDDO
 
 !   *** Release work storage ***
 
     DEALLOCATE (pab,work)
+
+    if (.not.rebuild_rho) then
+      deallocate(pab_old) 
+    endif
 
     CALL mp_sum(npgf_product,globenv%group)
 
@@ -563,9 +609,11 @@ CONTAINS
 
   SUBROUTINE collocate_pgf_product_rspace(la_max,zeta,la_min,&
                                           lb_max,zetb,lb_min,&
-                                          ra,rab,rab2,scale,pab,pw)
+                                          ra,rab,rab2,scale,pab,pw,cube_info,l_info)
 
     TYPE(pw_type), TARGET, INTENT(INOUT) :: pw
+    TYPE(cube_info_type), INTENT(IN)     :: cube_info
+    TYPE(l_info_type), INTENT(IN)        :: l_info
     REAL(wp), INTENT(IN)                 :: rab2,scale,zeta,zetb
     INTEGER, INTENT(IN)                  :: la_max,la_min,lb_max,lb_min
     REAL(wp), DIMENSION(3), INTENT(IN)   :: ra,rab
@@ -578,148 +626,596 @@ CONTAINS
     INTEGER  :: ax,ay,az,bx,by,bz,handle,i,ico,ig,j,jco,jg,k,kg,la,lb,&
                 lb_cube_min,ub_cube_max
 
-    REAL(wp), DIMENSION(3) :: dr,rap,rbp,roffset,rp
+    REAL(wp), DIMENSION(3) :: dr,rap,rbp,roffset,rp,rb
     INTEGER, DIMENSION(3)  :: cubecenter,lb_cube,ng,ub_cube,ub_grid
 
-    REAL(wp), DIMENSION(:), POINTER       :: rag,rbg,rpg
     INTEGER, DIMENSION(:,:), POINTER      :: map
     REAL(wp), DIMENSION(:,:,:), POINTER   :: grid
-    REAL(wp), DIMENSION(:,:,:,:), POINTER :: cubeaxis
-
+    INTEGER lxyz_max,lxy_max,lx_max,lx,lxb,lya,lyb,lza,lzb,lz,ly,icoef,lxy
+    INTEGER coef_max,lxa,lxyz,l,gridbounds(2,3),lar(3),lbr(3)
+    INTEGER, pointer,dimension(:) :: ly_max,lz_max
+    REAL(wp), allocatable :: pzyx(:), alpha(:,:), pa(:), pb(:)
+    REAL(wp), allocatable :: polz(:,:),dpz(:,:),poly(:,:),dpy(:,:),polx(:,:),polx2(:,:)
+    REAL(wp) a,b,binomial_k_lxa,binomial_l_lxb,zbp,zap,za,zb,ya,yb,yap,ybp,rpg,s,pg
+    REAL(wp) , allocatable :: dpx(:,:)
+    REAL(wp)  :: xa,xb,xap,xbp,radius2,polypart,radius_l,cutoff
+    REAL(wp) :: dx2,dy2,dz2,dxi,dyi,dzi
+    INTEGER  :: kgmax,jgmax,jgmin,igmax,j2,jg2,handle2
+    INTEGER, pointer, dimension(:)  :: sphere_bounds
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("collocate_pgf_product_rspace","I","",handle)
+    coef_max=la_max+lb_max+1
+    SELECT CASE (coef_max)
+    CASE(1)
+      CALL timeset("collocate_pgf_rspace_1","I","",handle)
+    CASE(2)
+      CALL timeset("collocate_pgf_rspace_2","I","",handle)
+    CASE(3)
+      CALL timeset("collocate_pgf_rspace_3","I","",handle)
+    CASE(4)
+      CALL timeset("collocate_pgf_rspace_4","I","",handle)
+    CASE(5)
+      CALL timeset("collocate_pgf_rspace_5","I","",handle)
+    CASE DEFAULT
+      CALL timeset("collocate_pgf_rspace_SLOW","I","",handle)
+    END SELECT
 
-    zetp = zeta + zetb
-    f = zetb/zetp
+    zetp      = zeta + zetb
+    f         = zetb/zetp
     prefactor = scale*EXP(-zeta*f*rab2)
+    rap(:)    = f*rab(:)
+    rbp(:)    = rap(:) - rab(:)
+    rp(:)     = ra(:) + rap(:)  
+    rb(:)     = ra(:)+rab(:)
+    cutoff    = 0.0_wp
 
-    radius = exp_radius(0,zetp,eps_rho_rspace,prefactor)
+    radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,ra,rb,rp, &
+                   zetp,eps_rho_rspace,prefactor,cutoff)
 
-    IF (radius == 0.0_wp) THEN
+    IF (radius .eq. 0.0_wp ) THEN
       CALL timestop(0.0_wp,handle)
       RETURN
     END IF
 
+!   *** irrelevant ? ***
     npgf_product = npgf_product + (ncoset(la_max) - ncoset(la_min-1))*&
                                   (ncoset(lb_max) - ncoset(lb_min-1))
 
+!   *** get the sub grid properties for the given radius ***
+    CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
+
+!   *** get the l_info logic and arrays ***
+    CALL return_l_info(l_info,la_min,la_max,lb_min,lb_max,lx_max, &
+                                     lxy_max,lxyz_max,ly_max,lz_max)
+
+!   *** properties of the grid ***
     dr(:) = pw%pw_grid%dr(:)
     ng(:) = pw%pw_grid%npts(:)
     ub_grid(:) = pw%pw_grid%bounds(2,:)
     grid => pw%cr3d(:,:,:)
+    gridbounds(1,1)=LBOUND(GRID,1)
+    gridbounds(2,1)=UBOUND(GRID,1)
+    gridbounds(1,2)=LBOUND(GRID,2)
+    gridbounds(2,2)=UBOUND(GRID,2)
+    gridbounds(1,3)=LBOUND(GRID,3)
+    gridbounds(2,3)=UBOUND(GRID,3)
 
-    rap(:) = f*rab(:)
-    rbp(:) = rap(:) - rab(:)
-    rp(:) = ra(:) + rap(:)
+!   *** position of the gaussian product
+
     cubecenter(:) = FLOOR(rp(:)/dr(:))
-    roffset(:) = rp(:) - REAL(cubecenter(:),wp)*dr(:)
-    lb_cube(:) = FLOOR(-radius/dr(:))
-    ub_cube(:) = CEILING(radius/dr(:))
+    roffset(:)    = rp(:) - REAL(cubecenter(:),wp)*dr(:)
+    lb_cube_min   = MINVAL(lb_cube(:))
+    ub_cube_max   = MAXVAL(ub_cube(:))
 
-!   *** Calculate the Gaussian function values for each cube axis ***
-
-    lb_cube_min = MINVAL(lb_cube(:))
-    ub_cube_max = MAXVAL(ub_cube(:))
-
-    NULLIFY (cubeaxis,map,rag,rbg,rpg)
-
-    cubeaxis => reallocate(cubeaxis,lb_cube_min,ub_cube_max,1,3,0,la_max,&
-                           0,lb_max)
+    NULLIFY(map)
     map => reallocate(map,lb_cube_min,ub_cube_max,1,3)
-    rag => reallocate(rag,lb_cube_min,ub_cube_max)
-    rbg => reallocate(rbg,lb_cube_min,ub_cube_max)
-    rpg => reallocate(rpg,lb_cube_min,ub_cube_max)
+    allocate(pzyx(lxyz_max),&
+    polz(lxyz_max,lb_cube(3):ub_cube(3)),&
+    poly(lxy_max,lb_cube(2):ub_cube(2)),&
+    polx(coef_max,lb_cube(1):ub_cube(1)),&
+    alpha(coef_max,lx_max),&
+    dpz(0:lb_max,0:la_max),&
+    dpy(0:lb_max,0:la_max))
 
+!   *** a mapping so that the ig corresponds to the right grid point, also with pbc
     DO i=1,3
-
-      DO ig=lb_cube(i),ub_cube(i)
-        map(ig,i) = MODULO(cubecenter(i) + ig,ng(i)) + 1
-        rpg(ig) = REAL(ig,wp)*dr(i) - roffset(i)
-        cubeaxis(ig,i,0,0) = EXP(-zetp*rpg(ig)**2)
-      END DO
-
-      IF (la_max > 0) THEN
         DO ig=lb_cube(i),ub_cube(i)
-          rag(ig) = rap(i) + rpg(ig)
-          cubeaxis(ig,i,1,0) = rag(ig)*cubeaxis(ig,i,0,0)
+          map(ig,i) = MODULO(cubecenter(i) + ig,ng(i)) + 1
         END DO
-        DO la=2,la_max
-          DO ig=lb_cube(i),ub_cube(i)
-            cubeaxis(ig,i,la,0) = rag(ig)*cubeaxis(ig,i,la-1,0)
-          END DO
-        END DO
-        IF (lb_max > 0) THEN
-          DO ig=lb_cube(i),ub_cube(i)
-            rbg(ig) = rag(ig) - rab(i)
-          END DO
-          DO la=0,la_max
-            DO lb=1,lb_max
-              DO ig=lb_cube(i),ub_cube(i)
-                cubeaxis(ig,i,la,lb) = rbg(ig)*cubeaxis(ig,i,la,lb-1)
-              END DO
-            END DO
-          END DO
-        END IF
-      ELSE
-        IF (lb_max > 0) THEN
-          DO ig=lb_cube(i),ub_cube(i)
-            rbg(ig) = rbp(i) + rpg(ig)
-            cubeaxis(ig,i,0,1) = rbg(ig)*cubeaxis(ig,i,0,0)
-          END DO
-          DO lb=2,lb_max
-            DO ig=lb_cube(i),ub_cube(i)
-              cubeaxis(ig,i,0,lb) = rbg(ig)*cubeaxis(ig,i,0,lb-1)
-            END DO
-          END DO
-        END IF
-      END IF
+    ENDDO
 
-    END DO
+!   *** initialise the p terms and loop logic
+    lxyz=0
+    DO lxa=0,la_max
+    DO lxb=0,lb_max
+       DO lya=0,la_max-lxa
+       DO lyb=0,lb_max-lxb
+          DO lza=max(la_min-lxa-lya,0),la_max-lxa-lya
+          DO lzb=max(lb_min-lxb-lyb,0),lb_max-lxb-lyb
+             lxyz=lxyz+1
+             ico=coset(lxa,lya,lza)
+             jco=coset(lxb,lyb,lzb)
+             pzyx(lxyz)=prefactor*pab(ico,jco)
+          ENDDO
+          ENDDO
+       ENDDO
+       ENDDO
+    ENDDO
+    ENDDO
 
-!   *** Add the current Gaussian function product to grid ***
+ 
+!   *** initialise the pol x,y,z terms
+    DO ig=lb_cube(3),ub_cube(3)
+      lxyz=0
+      rpg = REAL(ig,wp)*dr(3) - roffset(3)
+      zap = EXP(-zetp*rpg**2)
+      za  = rpg + rap(3)
+      zb  = za  - rab(3)
+      DO lza=0,la_max
+       zbp=1.0_wp
+       DO lzb=0,lb_max
+          dpz(lzb,lza)=zap*zbp
+          zbp=zbp*zb
+       ENDDO
+       zap=zap*za
+      ENDDO
+      DO lxa=0,la_max
+      DO lxb=0,lb_max
+       DO lya=0,la_max-lxa
+       DO lyb=0,lb_max-lxb
+          DO lza=max(la_min-lxa-lya,0),la_max-lxa-lya
+          DO lzb=max(lb_min-lxb-lyb,0),lb_max-lxb-lyb
+             lxyz=lxyz+1
+             polz(lxyz,ig)=dpz(lzb,lza)
+          ENDDO
+          ENDDO
+       ENDDO
+       ENDDO
+      ENDDO
+      ENDDO 
+    ENDDO
 
-    DO ico=ncoset(la_min-1)+1,ncoset(la_max)
+    DO ig=lb_cube(2),ub_cube(2)
+      rpg = REAL(ig,wp)*dr(2) - roffset(2)
+      yap = EXP(-zetp*rpg**2)
+      ya  = rpg + rap(2)
+      yb  = ya  - rab(2)
+      DO lya=0,la_max
+       ybp=1.0_wp
+       DO lyb=0,lb_max
+          dpy(lyb,lya)=yap*ybp
+          ybp=ybp*yb
+       ENDDO
+       yap=yap*ya
+      ENDDO
 
-      ax = indco(1,ico)
-      ay = indco(2,ico)
-      az = indco(3,ico)
+      lxy=0
+      DO lxa=0,la_max
+      DO lxb=0,lb_max
+       DO lya=0,la_max-lxa
+       DO lyb=0,lb_max-lxb
+             lxy=lxy+1
+             poly(lxy,ig)=dpy(lyb,lya)
+       ENDDO
+       ENDDO
+      ENDDO
+      ENDDO
+    ENDDO
 
-      DO jco=ncoset(lb_min-1)+1,ncoset(lb_max)
+ 
+!   *** make the alpha matrix ***
+    alpha(:,:)=0.0_wp
+    lx=0
+    DO lxa=0,la_max
+    DO lxb=0,lb_max
+       lx=lx+1
+       binomial_k_lxa=1.0_wp
+       a=1.0_wp
+       DO k=0,lxa
+        binomial_l_lxb=1.0_wp
+        b=1.0_wp
+        DO l=0,lxb
+           alpha(lxa-l+lxb-k+1,lx)=alpha(lxa-l+lxb-k+1,lx)+ &
+                             binomial_k_lxa*binomial_l_lxb*a*b
+           binomial_l_lxb=binomial_l_lxb*real(lxb-l,wp)/real(l+1,wp)
+           b=b*(rp(1)-(ra(1)+rab(1)))
+        ENDDO
+        binomial_k_lxa=binomial_k_lxa*real(lxa-k,wp)/real(k+1,wp)
+        a=a*(-ra(1)+rp(1))
+       ENDDO
+    ENDDO
+    ENDDO
 
-        pij = prefactor*pab(ico,jco)
+    DO ig=lb_cube(1),ub_cube(1)
+      rpg = REAL(ig,wp)*dr(1) - roffset(1)
+      pg  = EXP(-zetp*rpg**2)
+      DO icoef=1,coef_max
+         polx(icoef,ig)=pg
+         pg=pg*(rpg)
+      ENDDO
+    ENDDO
 
-        IF (ABS(pij) < eps_rho_rspace) CYCLE
+!   *** do the loop over the grid
 
-        bx = indco(1,jco)
-        by = indco(2,jco)
-        bz = indco(3,jco)
+    CALL collocate_core(pzyx,polx,poly,polz,grid,alpha,lx_max,lxy_max,&
+                lxyz_max,coef_max, &
+                lb_cube,ub_cube,ly_max,lz_max,gridbounds,lb_cube_min,&
+                ub_cube_max,map,sphere_bounds)
 
-        DO kg=lb_cube(3),ub_cube(3)
-          k = map(kg,3)
-          z = pij*cubeaxis(kg,3,az,bz)
-          IF (ABS(z) < eps_rho_rspace) CYCLE
-          DO jg=lb_cube(2),ub_cube(2)
-            j = map(jg,2)
-            yz = cubeaxis(jg,2,ay,by)*z
-            IF (ABS(yz) < eps_rho_rspace) CYCLE
-            DO ig=lb_cube(1),ub_cube(1)
-              i = map(ig,1)
-              grid(i,j,k) = grid(i,j,k) + cubeaxis(ig,1,ax,bx)*yz
-            END DO
-          END DO
-        END DO
-
-      END DO
-
-    END DO
-
-    DEALLOCATE (cubeaxis,map,rag,rbg,rpg)
+    deallocate(map,&
+    pzyx,alpha,&
+    polz,&
+    dpz,&
+    dpy,poly,polx)
 
     CALL timestop(0.0_wp,handle)
-
   END SUBROUTINE collocate_pgf_product_rspace
 
-! *****************************************************************************
+! ***********************************************************************************************
+  SUBROUTINE collocate_core(pzyx,polx,   &
+                poly,polz,grid,alpha,lx_max,lxy_max,lxyz_max,coef_max, &
+                lb_cube,ub_cube,ly_max,lz_max,gridbounds,lb_cube_min,&
+                ub_cube_max,map,sphere_bounds)
+  IMPLICIT NONE
+    integer, INTENT(IN) ::  lx_max,lxy_max,lxyz_max,coef_max,lb_cube(3),ub_cube(3)
+    integer, INTENT(IN) ::  ly_max(lx_max),lz_max(lxy_max)
+    integer, INTENT(IN) ::  lb_cube_min,ub_cube_max,map(lb_cube_min:ub_cube_max,1:3)
+    integer, INTENT(IN) ::  gridbounds(2,3)
+    real(wp), INTENT(IN) :: pzyx(lxyz_max)
+    real(wp), INTENT(IN) :: polz(lxyz_max,lb_cube(3):ub_cube(3))
+    real(wp), INTENT(IN) :: poly(lxy_max,lb_cube(2):ub_cube(2))
+    real(wp), INTENT(IN) :: polx(coef_max,lb_cube(1):ub_cube(1)) 
+    real(wp), INTENT(IN) :: alpha(coef_max,lx_max)
+    real(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1),gridbounds(1,2):gridbounds(2,2),gridbounds(1,3):gridbounds(2,3))
 
+    real(wp) coef(coef_max,4)
+    real(wp) pyx(2,lxy_max)
+    integer :: sphere_bounds(:)
+
+    integer kg,kgmax,k,jgmax,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2
+    integer lx,ly,lz,lxy,lxyz,icoef,sci
+    real(wp) s1,s2,s3,s4,s5,s6,s7,s8,s9,sa,g1,g2
+    real(wp) s1k,s2k,s3k,s4k,s5k,s6k,s7k,s8k,s9k,sak,g1k,g2k
+
+    sci=1
+    kgmin=sphere_bounds(sci)
+    sci=sci+1
+    kgmax=sphere_bounds(sci)
+    sci=sci+1
+    DO kg=kgmin,kgmax,2
+       k=map(kg,3)
+       k2=map(kg+1,3)
+       pyx(:,:)=0.0_wp
+       lxyz=0
+       DO lxy=1,lxy_max
+          DO lz=1,lz_max(lxy)
+             lxyz=lxyz+1
+             pyx(1,lxy)=pyx(1,lxy)+pzyx(lxyz)*polz(lxyz,kg)
+             pyx(2,lxy)=pyx(2,lxy)+pzyx(lxyz)*polz(lxyz,kg+1)
+          ENDDO
+       ENDDO
+       jgmin=sphere_bounds(sci)
+       sci=sci+1
+       jgmax=sphere_bounds(sci)
+       sci=sci+1
+       DO jg=jgmin,jgmax,2
+          j=map(jg,2)
+          j2=map(jg+1,2)
+          igmin=sphere_bounds(sci)
+          sci=sci+1
+          igmax=sphere_bounds(sci)
+          sci=sci+1
+
+          SELECT CASE (coef_max)
+          CASE(1)
+             s1=0.0_wp
+             s2=0.0_wp
+             s1k=0.0_wp
+             s2k=0.0_wp
+             lxy=0
+             DO ly=1,ly_max(1)
+                lxy=lxy+1
+                s1=s1+pyx(1,lxy)*poly(lxy,jg)
+                s2=s2+pyx(1,lxy)*poly(lxy,jg+1)
+                s1k=s1k+pyx(2,lxy)*poly(lxy,jg)
+                s2k=s2k+pyx(2,lxy)*poly(lxy,jg+1)
+             ENDDO
+             s1=alpha(1,1)*s1
+             s2=alpha(1,1)*s2
+             s1k=alpha(1,1)*s1k
+             s2k=alpha(1,1)*s2k
+             DO ig=igmin,igmax
+                i=map(ig,1)
+                grid(i,j,k)   = grid(i,j,k) + s1*polx(1,ig)
+                grid(i,j2,k)  = grid(i,j2,k)+ s2*polx(1,ig)
+                grid(i,j,k2)  = grid(i,j,k2) + s1k*polx(1,ig)
+                grid(i,j2,k2) = grid(i,j2,k2)+ s2k*polx(1,ig)
+             END DO
+          CASE(2)
+             lxy=0
+             s1=0.0_wp
+             s2=0.0_wp
+             s3=0.0_wp
+             s4=0.0_wp
+             s1k=0.0_wp
+             s2k=0.0_wp
+             s3k=0.0_wp
+             s4k=0.0_wp
+             DO lx=1,2
+              g1=0.0_wp
+              g2=0.0_wp
+              g1k=0.0_wp
+              g2k=0.0_wp
+              DO ly=1,ly_max(lx)
+                 lxy=lxy+1
+                 g1=g1+pyx(1,lxy)*poly(lxy,jg)
+                 g2=g2+pyx(1,lxy)*poly(lxy,jg+1)
+                 g1k=g1k+pyx(2,lxy)*poly(lxy,jg)
+                 g2k=g2k+pyx(2,lxy)*poly(lxy,jg+1)
+              ENDDO
+              s1=s1+alpha(1,lx)*g1
+              s2=s2+alpha(2,lx)*g1
+              s3=s3+alpha(1,lx)*g2
+              s4=s4+alpha(2,lx)*g2
+              s1k=s1k+alpha(1,lx)*g1k
+              s2k=s2k+alpha(2,lx)*g1k
+              s3k=s3k+alpha(1,lx)*g2k
+              s4k=s4k+alpha(2,lx)*g2k
+             ENDDO
+             DO ig=igmin,igmax
+                i=map(ig,1)
+                grid(i,j,k) = grid(i,j,k)+ s1*polx(1,ig) + & 
+                                           s2*polx(2,ig)
+                grid(i,j2,k) = grid(i,j2,k)+ s3*polx(1,ig) + & 
+                                             s4*polx(2,ig)
+                grid(i,j,k2) = grid(i,j,k2)+ s1k*polx(1,ig) + & 
+                                           s2k*polx(2,ig)
+                grid(i,j2,k2) = grid(i,j2,k2)+ s3k*polx(1,ig) + & 
+                                             s4k*polx(2,ig)
+             END DO
+          CASE(3)
+             lxy=0
+             s1=0.0_wp
+             s2=0.0_wp
+             s3=0.0_wp
+             s4=0.0_wp
+             s5=0.0_wp
+             s6=0.0_wp
+             s1k=0.0_wp
+             s2k=0.0_wp
+             s3k=0.0_wp
+             s4k=0.0_wp
+             s5k=0.0_wp
+             s6k=0.0_wp
+             DO lx=1,lx_max
+              g1=0.0_wp
+              g2=0.0_wp
+              g1k=0.0_wp
+              g2k=0.0_wp
+              DO ly=1,ly_max(lx)
+                 lxy=lxy+1
+                 g1=g1+pyx(1,lxy)*poly(lxy,jg)
+                 g2=g2+pyx(1,lxy)*poly(lxy,jg+1)
+                 g1k=g1k+pyx(2,lxy)*poly(lxy,jg)
+                 g2k=g2k+pyx(2,lxy)*poly(lxy,jg+1)
+              ENDDO
+              s1=s1+alpha(1,lx)*g1
+              s2=s2+alpha(2,lx)*g1
+              s3=s3+alpha(3,lx)*g1
+              s4=s4+alpha(1,lx)*g2
+              s5=s5+alpha(2,lx)*g2
+              s6=s6+alpha(3,lx)*g2
+              s1k=s1k+alpha(1,lx)*g1k
+              s2k=s2k+alpha(2,lx)*g1k
+              s3k=s3k+alpha(3,lx)*g1k
+              s4k=s4k+alpha(1,lx)*g2k
+              s5k=s5k+alpha(2,lx)*g2k
+              s6k=s6k+alpha(3,lx)*g2k
+             ENDDO
+             DO ig=igmin,igmax
+                i=map(ig,1)
+                grid(i,j,k) = grid(i,j,k)+ s1*polx(1,ig) + &
+                                           s2*polx(2,ig) + &
+                                           s3*polx(3,ig)
+                grid(i,j2,k) = grid(i,j2,k)+ s4*polx(1,ig) + &
+                                             s5*polx(2,ig) + &
+                                             s6*polx(3,ig)
+                grid(i,j,k2) = grid(i,j,k2)+ s1k*polx(1,ig) + &
+                                           s2k*polx(2,ig) + &
+                                           s3k*polx(3,ig)
+                grid(i,j2,k2) = grid(i,j2,k2)+ s4k*polx(1,ig) + &
+                                             s5k*polx(2,ig) + &
+                                             s6k*polx(3,ig)
+             END DO
+          CASE(4)
+             s1=0.0_wp
+             s2=0.0_wp
+             s3=0.0_wp
+             s4=0.0_wp
+             s5=0.0_wp
+             s6=0.0_wp
+             s7=0.0_wp
+             s8=0.0_wp
+             s1k=0.0_wp
+             s2k=0.0_wp
+             s3k=0.0_wp
+             s4k=0.0_wp
+             s5k=0.0_wp
+             s6k=0.0_wp
+             s7k=0.0_wp
+             s8k=0.0_wp
+             lxy=0
+             DO lx=1,lx_max
+              g1=0.0_wp
+              g2=0.0_wp
+              g1k=0.0_wp
+              g2k=0.0_wp
+              DO ly=1,ly_max(lx)
+                 lxy=lxy+1
+                 g1=g1+pyx(1,lxy)*poly(lxy,jg)
+                 g2=g2+pyx(1,lxy)*poly(lxy,jg+1)
+                 g1k=g1k+pyx(2,lxy)*poly(lxy,jg)
+                 g2k=g2k+pyx(2,lxy)*poly(lxy,jg+1)
+              ENDDO
+              s1=s1+alpha(1,lx)*g1
+              s2=s2+alpha(2,lx)*g1
+              s3=s3+alpha(3,lx)*g1
+              s4=s4+alpha(4,lx)*g1
+              s5=s5+alpha(1,lx)*g2
+              s6=s6+alpha(2,lx)*g2
+              s7=s7+alpha(3,lx)*g2
+              s8=s8+alpha(4,lx)*g2
+              s1k=s1k+alpha(1,lx)*g1k
+              s2k=s2k+alpha(2,lx)*g1k
+              s3k=s3k+alpha(3,lx)*g1k
+              s4k=s4k+alpha(4,lx)*g1k
+              s5k=s5k+alpha(1,lx)*g2k
+              s6k=s6k+alpha(2,lx)*g2k
+              s7k=s7k+alpha(3,lx)*g2k
+              s8k=s8k+alpha(4,lx)*g2k
+             ENDDO
+             DO ig=igmin,igmax
+                i=map(ig,1)
+                grid(i,j,k) = grid(i,j,k)+ s1*polx(1,ig) + &
+                                           s2*polx(2,ig) + &
+                                           s3*polx(3,ig) + &
+                                           s4*polx(4,ig)
+                grid(i,j2,k) = grid(i,j2,k)+ s5*polx(1,ig) + &
+                                             s6*polx(2,ig) + &
+                                             s7*polx(3,ig) + &
+                                             s8*polx(4,ig)
+                grid(i,j,k2) = grid(i,j,k2)+ s1k*polx(1,ig) + &
+                                           s2k*polx(2,ig) + &
+                                           s3k*polx(3,ig) + &
+                                           s4k*polx(4,ig)
+                grid(i,j2,k2) = grid(i,j2,k2)+ s5k*polx(1,ig) + &
+                                             s6k*polx(2,ig) + &
+                                             s7k*polx(3,ig) + &
+                                             s8k*polx(4,ig)
+             END DO
+          CASE(5)
+             lxy=0
+             s1=0.0_wp
+             s2=0.0_wp
+             s3=0.0_wp
+             s4=0.0_wp
+             s9=0.0_wp
+             s5=0.0_wp
+             s6=0.0_wp
+             s7=0.0_wp
+             s8=0.0_wp
+             sa=0.0_wp
+             s1k=0.0_wp
+             s2k=0.0_wp
+             s3k=0.0_wp
+             s4k=0.0_wp
+             s9k=0.0_wp
+             s5k=0.0_wp
+             s6k=0.0_wp
+             s7k=0.0_wp
+             s8k=0.0_wp
+             sak=0.0_wp
+             DO lx=1,lx_max
+              g1=0.0_wp
+              g2=0.0_wp
+              g1k=0.0_wp
+              g2k=0.0_wp
+              DO ly=1,ly_max(lx)
+                 lxy=lxy+1
+                 g1=g1+pyx(1,lxy)*poly(lxy,jg)
+                 g2=g2+pyx(1,lxy)*poly(lxy,jg+1)
+                 g1k=g1k+pyx(2,lxy)*poly(lxy,jg)
+                 g2k=g2k+pyx(2,lxy)*poly(lxy,jg+1)
+              ENDDO
+              s1=s1+alpha(1,lx)*g1
+              s2=s2+alpha(2,lx)*g1
+              s3=s3+alpha(3,lx)*g1
+              s4=s4+alpha(4,lx)*g1
+              s9=s9+alpha(5,lx)*g1
+              s5=s5+alpha(1,lx)*g2
+              s6=s6+alpha(2,lx)*g2
+              s7=s7+alpha(3,lx)*g2
+              s8=s8+alpha(4,lx)*g2
+              sa=sa+alpha(5,lx)*g2
+              s1k=s1k+alpha(1,lx)*g1k
+              s2k=s2k+alpha(2,lx)*g1k
+              s3k=s3k+alpha(3,lx)*g1k
+              s4k=s4k+alpha(4,lx)*g1k
+              s9k=s9k+alpha(5,lx)*g1k
+              s5k=s5k+alpha(1,lx)*g2k
+              s6k=s6k+alpha(2,lx)*g2k
+              s7k=s7k+alpha(3,lx)*g2k
+              s8k=s8k+alpha(4,lx)*g2k
+              sak=sak+alpha(5,lx)*g2k
+             ENDDO
+             DO ig=igmin,igmax
+                i=map(ig,1)
+                grid(i,j,k) = grid(i,j,k)+ s1*polx(1,ig) + &
+                                           s2*polx(2,ig) + &
+                                           s3*polx(3,ig) + &
+                                           s4*polx(4,ig) + &
+                                           s9*polx(5,ig)
+                grid(i,j2,k) = grid(i,j2,k)+ s5*polx(1,ig) + &
+                                             s6*polx(2,ig) + &
+                                             s7*polx(3,ig) + &
+                                             s8*polx(4,ig) + &
+                                             sa*polx(5,ig)
+                grid(i,j,k2) = grid(i,j,k2)+ s1k*polx(1,ig) + &
+                                           s2k*polx(2,ig) + &
+                                           s3k*polx(3,ig) + &
+                                           s4k*polx(4,ig) + &
+                                           s9k*polx(5,ig)
+                grid(i,j2,k2) = grid(i,j2,k2)+ s5k*polx(1,ig) + &
+                                             s6k*polx(2,ig) + &
+                                             s7k*polx(3,ig) + &
+                                             s8k*polx(4,ig) + &
+                                             sak*polx(5,ig)
+             END DO
+
+          CASE DEFAULT
+             coef(:,:)=0.0
+             lxy=0
+             DO lx=1,lx_max
+              g1=0.0_wp
+              g2=0.0_wp
+              g1k=0.0_wp
+              g2k=0.0_wp
+              DO ly=1,ly_max(lx)
+                 lxy=lxy+1
+                 g1=g1+pyx(1,lxy)*poly(lxy,jg)
+                 g2=g2+pyx(1,lxy)*poly(lxy,jg+1)
+                 g1k=g1k+pyx(2,lxy)*poly(lxy,jg)
+                 g2k=g2k+pyx(2,lxy)*poly(lxy,jg+1)
+              ENDDO
+              DO icoef=1,coef_max
+                 coef(icoef,1)=coef(icoef,1)+alpha(icoef,lx)*g1
+                 coef(icoef,2)=coef(icoef,2)+alpha(icoef,lx)*g2
+                 coef(icoef,3)=coef(icoef,3)+alpha(icoef,lx)*g1k
+                 coef(icoef,4)=coef(icoef,4)+alpha(icoef,lx)*g2k
+              ENDDO
+             ENDDO
+             DO ig=igmin,igmax
+                i=map(ig,1)
+                s1=0.0_wp
+                s2=0.0_wp
+                s1k=0.0_wp
+                s2k=0.0_wp
+                DO icoef=1,coef_max
+                  s1=s1+coef(icoef,1)*polx(icoef,ig)
+                  s2=s2+coef(icoef,2)*polx(icoef,ig)
+                  s1k=s1k+coef(icoef,3)*polx(icoef,ig)
+                  s2k=s2k+coef(icoef,4)*polx(icoef,ig)
+                ENDDO
+                grid(i,j,k) = grid(i,j,k)     + s1
+                grid(i,j2,k) = grid(i,j2,k)   + s2
+                grid(i,j,k2) = grid(i,j,k2)   + s1k
+                grid(i,j2,k2) = grid(i,j2,k2) + s2k
+             END DO
+          END SELECT
+       END DO
+    END DO
+
+  END SUBROUTINE
+
+! *****************************************************************************
 END MODULE collocate_density

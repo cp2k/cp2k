@@ -34,6 +34,7 @@ OBJECTS_GENERIC =\
  core_hamiltonian.o\
  cp2k.o\
  cp2k_input.o\
+ cube_utils.o\
  densities.o\
  density_types.o\
  dft_input.o\
@@ -106,6 +107,7 @@ OBJECTS_GENERIC =\
  linklist_utilities.o\
  linklist_verlet_list.o\
  linklists.o\
+ l_utils.o\
  machine.o\
  mathconstants.o\
  mathlib.o\
@@ -189,6 +191,8 @@ OBJECTS_GENERIC =\
  tbmd_input.o\
  tbmd_types.o\
  termination.o\
+ tfw_functional.o\
+ thomas_fermi_functional.o\
  timesl.o\
  timings.o\
  topology.o\

@@ -14,7 +14,9 @@
 !!     Matthias Krack (30.04.2001)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     1) Joost VandeVondele (02.2002)
+!!           added code for : incremental (pab and gvg) update
+!!                            initialisation (init_cube, l_info)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -33,6 +35,7 @@ MODULE qs_scf
                                    blacs_matrix_type,&
                                    blacs_set_all,&
                                    blacs_set_element,&
+                                   blacs_get_element,&
                                    blacs_syevx,&
                                    blacs_symm,&
                                    blacs_syrk,&
@@ -46,7 +49,8 @@ MODULE qs_scf
                                    symmetrise_blacs_matrix
   USE coefficient_types,     ONLY: coeff_allocate,&
                                    coeff_type,&
-                                   coeff_zero
+                                   coeff_zero,&
+                                   coeff_copy
   USE core_energies,         ONLY: calculate_ecore,&
                                    calculate_ecore_overlap,&
                                    calculate_ecore_self
@@ -88,6 +92,10 @@ MODULE qs_scf
   USE termination,           ONLY: stop_program
   USE timings,               ONLY: timeset,timestop
   USE timesl,                ONLY: cputime
+  USE cube_utils,            ONLY: cube_info_type,init_cube_info, & 
+                                   destroy_cube_info
+  USE l_utils,               ONLY: l_info_type,init_l_info, & 
+                                   destroy_l_info
 
   IMPLICIT NONE
 
@@ -95,10 +103,13 @@ MODULE qs_scf
 
   TYPE(blacs_matrix_type)    :: ortho,scf_work1,scf_work2
   TYPE(coeff_type)           :: drho_rspace,rho_gspace,rho_rspace,v_rspace,&
-                                vxcg_rspace,work_gspace,work_rspace
+                                vxcg_rspace,work_gspace,work_rspace,&
+                                rho_rspace_old,v_rspace_old
   TYPE(mo_set_type)          :: alpha_mo
-  TYPE(real_matrix_set_type) :: ks,p
+  TYPE(real_matrix_set_type) :: ks,p,p_old,gvg
   TYPE(pw_grid_type)         :: pw_grid
+  TYPE(cube_info_type)       :: cube_info
+  TYPE(l_info_type)          :: l_info
 
   CHARACTER(LEN=10) :: density_guess = "CORE"
   REAL(wp)          :: ec = 0.0_wp,&
@@ -117,11 +128,16 @@ MODULE qs_scf
                        total_rho_rspace = 0.0_wp,&
                        work_syevx = 0.0_wp
   INTEGER           :: max_scf = 50,&
+                       nrebuild_rho = 5, &
+                       nrebuild_gvg = 5, &
                        nelectron = 0,&
                        nrow_block = 32,&
                        ncol_block = 32,&
                        nprow = 0,&
                        npcol = 0
+
+  logical           :: rebuild_rho = .true.
+  logical           :: rebuild_gvg = .true.
 
   TYPE(coeff_type), DIMENSION(3) :: nabla_rho_rspace
 
@@ -155,6 +171,10 @@ CONTAINS
 !   *** Local variables ***
 
     REAL(wp) :: delta,diis_error,t1,t2
+    REAL(wp) :: maxradius
+    PARAMETER (maxradius=40.0D0)
+    integer  :: maxl
+    PARAMETER (maxl=4)
     INTEGER  :: context,handle,iscf,output_unit
     LOGICAL  :: diis_step,ionode
 
@@ -172,6 +192,10 @@ CONTAINS
     CALL init_functionals()
 
     CALL init_grid(globenv)
+  
+    CALL init_cube_info(cube_info,rho_rspace%pw%pw_grid%dr(:),maxradius)
+
+    CALL init_l_info(l_info,maxl)
 
     IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
@@ -183,6 +207,8 @@ CONTAINS
     etotal = 0.0_wp
     iscf = 0
     diis_step = .FALSE.
+    rebuild_rho = .true.
+    rebuild_gvg = .true.
 
     IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,&
@@ -202,6 +228,17 @@ CONTAINS
       END IF
 
       CALL build_kohn_sham_matrix(globenv)
+
+      if (MODULO(iscf,nrebuild_rho).eq.0) then
+         rebuild_rho=.true.
+      else
+         rebuild_rho=.false.
+      endif
+      if (MODULO(iscf,nrebuild_gvg).eq.0) then
+         rebuild_gvg=.true.
+      else
+         rebuild_gvg=.false.
+      endif
 
       IF (globenv%print%kohn_sham_matrix.AND.globenv%print%each_scf_step) THEN
         CALL write_spherical_matrix(ks%matrix,4,6,globenv)
@@ -300,6 +337,9 @@ CONTAINS
 
     CALL write_mo_set(alpha_mo,context,globenv)
 
+    CALL destroy_cube_info(cube_info)
+    CALL destroy_l_info(l_info)
+
     CALL finish_blacs(context,globenv)
 
     CALL timestop(0.0_wp,handle)
@@ -332,10 +372,16 @@ CONTAINS
 
     CALL calculate_ecore(h,p,ecore,globenv)
 
-    CALL coeff_zero(rho_rspace)
+    if (rebuild_rho) then
+      CALL coeff_zero(rho_rspace)
+    else
+      CALL coeff_copy(rho_rspace_old,rho_rspace)
+    endif
 
-    CALL calculate_rho_elec(p,rho_rspace,total_rho_elec_rspace,nproduct,&
-                            globenv)
+    CALL calculate_rho_elec(p,p_old,rebuild_rho,rho_rspace,cube_info,l_info, &
+                  total_rho_elec_rspace,nproduct,globenv)
+
+    CALL coeff_copy(rho_rspace,rho_rspace_old) ! keep a copy of the old density
 
     IF (ionode.AND.globenv%print%total_densities) THEN
       WRITE (UNIT=output_unit,FMT="(/,T3,A,I10)")&
@@ -351,7 +397,7 @@ CONTAINS
 
     CALL calculate_xc_potential(globenv)
 
-    CALL calculate_rho_core(rho_rspace,total_rho_rspace,globenv)
+    CALL calculate_rho_core(rho_rspace,cube_info,l_info,total_rho_rspace,globenv)
 
     total_rho_core_rspace = total_rho_rspace - total_rho_elec_rspace
 
@@ -393,12 +439,15 @@ CONTAINS
 
     CALL copy_matrix(h%matrix,ks%matrix)
 
-    CALL integrate_v_rspace(v_rspace,ks,nproduct,globenv)
+    CALL integrate_v_rspace(p,v_rspace,v_rspace_old,cube_info,l_info,rebuild_gvg,&
+                             gvg,ks,nproduct,globenv)
 
     IF (ionode.AND.globenv%print%total_densities) THEN
       WRITE (UNIT=output_unit,FMT="(/,T3,A,I10)")&
         "Number of integrated products (r-space):",nproduct
     END IF
+
+    CALL copy_matrix(p%matrix,p_old%matrix) ! keep a copy of the old density matrix
 
     CALL timestop(0.0_wp,handle)
 
@@ -449,6 +498,8 @@ CONTAINS
 
     CALL coeff_allocate(rho_rspace,pw_grid,REALDATA3D)
     rho_rspace%pw%in_space = REALSPACE
+    CALL coeff_allocate(rho_rspace_old,pw_grid,REALDATA3D)
+    rho_rspace_old%pw%in_space = REALSPACE
 
     IF (xc_info%gradient_functional) THEN
       DO i=1,3
@@ -466,6 +517,8 @@ CONTAINS
 
     CALL coeff_allocate(v_rspace,pw_grid,REALDATA3D)
     v_rspace%pw%in_space = REALSPACE
+    CALL coeff_allocate(v_rspace_old,pw_grid,REALDATA3D)
+    v_rspace_old%pw%in_space = REALSPACE
 
 !   *** Build g vectors ***
 
@@ -604,6 +657,11 @@ CONTAINS
 
     NULLIFY (p%matrix)
     CALL replicate_matrix_structure(h%matrix,p%matrix,"DENSITY MATRIX")
+
+    NULLIFY (p_old%matrix)
+    CALL replicate_matrix_structure(h%matrix,p_old%matrix,"OLD DENSITY MATRIX")
+    NULLIFY (gvg%matrix)
+    CALL replicate_matrix_structure(h%matrix,gvg%matrix,"POTENTIAL MATRIX")
 
     CALL calculate_ecore_self(ecore_self)
     CALL calculate_ecore_overlap(ecore_overlap,globenv)
@@ -1147,111 +1205,138 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_first_density_matrix(ortho,mo,p,work1,work2,context,&
-                                            globenv)
-
-    TYPE(blacs_matrix_type), INTENT(IN)       :: ortho
-    TYPE(blacs_matrix_type), INTENT(INOUT)    :: work1,work2
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(mo_set_type), INTENT(INOUT)          :: mo
-    TYPE(real_matrix_set_type), INTENT(INOUT) :: p
-    INTEGER, INTENT(IN)                       :: context
-
-!   *** Local variables ***
-
-    TYPE(gto_basis_set_type), POINTER :: basis_set_a
-
-    REAL(wp) :: paa
-    INTEGER  :: atoma,first_sgfa,handle,iatom,ikind,iset,isgf,isgfa,ishell,la,&
-                last_sgfa,nelec,restart_unit
-
-    INTEGER, DIMENSION(:), POINTER :: elec_conf
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset("calculate_first_density_matrix","I","",handle)
-
-    CALL blacs_set_all(work1,0.0_wp,context,globenv)
-
-    IF (density_guess == "RESTART") THEN
-
-      CALL read_mo_set(mo,context,globenv)
-      CALL calculate_density_matrix(mo,work1,context,globenv)
-      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,context,globenv)
-      CALL symmetrise_diagonal_blocks(p%matrix)
-
-    ELSE IF (density_guess == "CORE") THEN
-
-!     *** It is assumed that work1 holds the upper     ***
-!     *** triangle part of the core Hamiltonian matrix ***
-
-!MK if only gemm is used
-!     CALL symmetrise_blacs_matrix(work1,work2,context,globenv)
-      CALL orthogonalise_matrix(ortho,work1,work2,context,globenv)
-      CALL eigensolver(work1,mo,ortho,work2,context,globenv)
-      CALL calculate_density_matrix(mo,work1,context,globenv)
-      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,context,globenv)
-      CALL symmetrise_diagonal_blocks(p%matrix)
-
-    ELSE IF (density_guess == "ATOMIC") THEN
-
-      NULLIFY (elec_conf)
-      elec_conf => reallocate(elec_conf,0,maxlcgf)
-
-      DO ikind=1,nkind
-
-        IF (ASSOCIATED(kind_info(ikind)%all_potential)) THEN
-          DO la=0,SIZE(kind_info(ikind)%elec_conf)-1
-            elec_conf(la) = kind_info(ikind)%elec_conf(la)
-          END DO
-        ELSE IF (ASSOCIATED(kind_info(ikind)%gth_potential)) THEN
-          DO la=0,SIZE(kind_info(ikind)%gth_potential%elec_conf)-1
-            elec_conf(la) = kind_info(ikind)%gth_potential%elec_conf(la)
-          END DO
-        END IF
-
-        basis_set_a => kind_info(ikind)%orb_basis_set
-
-        DO iset=1,basis_set_a%nset
-          DO ishell=1,basis_set_a%nshell(iset)
-            la = basis_set_a%l(ishell,iset)
-            nelec = 4*la + 2
-            IF (elec_conf(la) > 0) THEN
-              IF (elec_conf(la) >= nelec) THEN
-                paa = 2.0_wp
-                elec_conf(la) = elec_conf(la) - nelec
-              ELSE
-                paa = REAL(2*elec_conf(la),wp)/REAL(nelec,wp)
-                elec_conf(la) = 0
-              END IF
-              first_sgfa = basis_set_a%first_sgf(ishell,iset)
-              last_sgfa = basis_set_a%last_sgf(ishell,iset)
-              DO isgfa=first_sgfa,last_sgfa
-                DO iatom=1,kind_info(ikind)%natom
-                  atoma = kind_info(ikind)%atom_list(iatom)
-                  isgf = atom_info(atoma)%first_sgf + isgfa - 1
-                  CALL blacs_set_element(work1,isgf,isgf,paa,context,globenv)
-                END DO
-              END DO
-            END IF
-          END DO
-        END DO
-
-      END DO
-
-      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,context,globenv)
-
-    ELSE
-
-      CALL stop_program("SUBROUTINE calculate_first_density_matrix "//&
-                        "(MODULE qs_scf)",&
-                        "An invalid keyword for the initial density "//&
-                        "guess was specified")
-
-    END IF
-
-  END SUBROUTINE calculate_first_density_matrix
-
+  SUBROUTINE calculate_first_density_matrix(ortho,mo,p,work1,work2,context,& 
+                                            globenv) 
+ 
+    TYPE(blacs_matrix_type), INTENT(IN)       :: ortho 
+    TYPE(blacs_matrix_type), INTENT(INOUT)    :: work1,work2 
+    TYPE(global_environment_type), INTENT(IN) :: globenv 
+    TYPE(mo_set_type), INTENT(INOUT)          :: mo 
+    TYPE(real_matrix_set_type), INTENT(INOUT) :: p 
+    INTEGER, INTENT(IN)                       :: context 
+ 
+!   *** Local variables *** 
+ 
+    TYPE(gto_basis_set_type), POINTER :: basis_set_a 
+ 
+    REAL(wp) :: paa,saa,sum 
+    INTEGER  :: atoma,first_sgfa,handle,iatom,ikind,iset,isgf,isgfa,ishell,la,& 
+                last_sgfa,nelec,restart_unit 
+ 
+    INTEGER, DIMENSION(:), POINTER :: elec_conf 
+ 
+!   --------------------------------------------------------------------------- 
+ 
+    CALL timeset("calculate_first_density_matrix","I","",handle) 
+ 
+    CALL blacs_set_all(work1,0.0_wp,context,globenv) 
+ 
+    IF (density_guess == "RESTART") THEN 
+ 
+      CALL read_mo_set(mo,context,globenv) 
+      CALL calculate_density_matrix(mo,work1,context,globenv) 
+      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,context,globenv) 
+      CALL symmetrise_diagonal_blocks(p%matrix) 
+ 
+    ELSE IF (density_guess == "CORE") THEN 
+ 
+!     *** It is assumed that work1 holds the upper     *** 
+!     *** triangle part of the core Hamiltonian matrix *** 
+ 
+!MK if only gemm is used 
+!     CALL symmetrise_blacs_matrix(work1,work2,context,globenv) 
+      CALL orthogonalise_matrix(ortho,work1,work2,context,globenv) 
+      CALL eigensolver(work1,mo,ortho,work2,context,globenv) 
+      CALL calculate_density_matrix(mo,work1,context,globenv) 
+      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,context,globenv) 
+      CALL symmetrise_diagonal_blocks(p%matrix) 
+ 
+    ELSE IF (density_guess == "ATOMIC") THEN 
+ 
+      sum = 0.0_wp 
+ 
+      CALL copy_sparse_to_blacs_matrix(s%matrix,work2,context,globenv) 
+ 
+      NULLIFY (elec_conf) 
+      elec_conf => reallocate(elec_conf,0,maxlcgf) 
+ 
+      DO ikind=1,nkind 
+ 
+        IF (ASSOCIATED(kind_info(ikind)%all_potential)) THEN 
+          DO la=0,SIZE(kind_info(ikind)%elec_conf)-1 
+            elec_conf(la) = kind_info(ikind)%elec_conf(la) 
+          END DO 
+        ELSE IF (ASSOCIATED(kind_info(ikind)%gth_potential)) THEN 
+          DO la=0,SIZE(kind_info(ikind)%gth_potential%elec_conf)-1 
+            elec_conf(la) = kind_info(ikind)%gth_potential%elec_conf(la) 
+          END DO 
+        END IF 
+ 
+        basis_set_a => kind_info(ikind)%orb_basis_set 
+ 
+        DO iset=1,basis_set_a%nset 
+          DO ishell=1,basis_set_a%nshell(iset) 
+            la = basis_set_a%l(ishell,iset) 
+            nelec = 4*la + 2 
+            IF (elec_conf(la) > 0) THEN 
+              IF (elec_conf(la) >= nelec) THEN 
+                paa = 2.0_wp 
+                elec_conf(la) = elec_conf(la) - nelec 
+              ELSE 
+                paa = REAL(2*elec_conf(la),wp)/REAL(nelec,wp) 
+                elec_conf(la) = 0 
+              END IF 
+              first_sgfa = basis_set_a%first_sgf(ishell,iset) 
+              last_sgfa = basis_set_a%last_sgf(ishell,iset) 
+              DO isgfa=first_sgfa,last_sgfa 
+                DO iatom=1,kind_info(ikind)%natom 
+                  atoma = kind_info(ikind)%atom_list(iatom) 
+                  isgf = atom_info(atoma)%first_sgf + isgfa - 1 
+                  CALL blacs_set_element(work1,isgf,isgf,paa,context,globenv) 
+                  CALL blacs_get_element(work2,isgf,isgf,saa,context,globenv) 
+                  sum = sum + paa*saa 
+                END DO 
+              END DO 
+            END IF 
+          END DO 
+        END DO 
+ 
+      END DO 
+ 
+      saa = REAL(nelectron,wp)/sum 
+ 
+      DO ikind=1,nkind 
+        basis_set_a => kind_info(ikind)%orb_basis_set 
+        DO iset=1,basis_set_a%nset 
+          DO ishell=1,basis_set_a%nshell(iset) 
+            first_sgfa = basis_set_a%first_sgf(ishell,iset) 
+            last_sgfa = basis_set_a%last_sgf(ishell,iset) 
+            DO isgfa=first_sgfa,last_sgfa 
+              DO iatom=1,kind_info(ikind)%natom 
+                atoma = kind_info(ikind)%atom_list(iatom) 
+                isgf = atom_info(atoma)%first_sgf + isgfa - 1 
+                CALL blacs_get_element(work1,isgf,isgf,paa,context,globenv) 
+                paa = paa*saa 
+                CALL blacs_set_element(work1,isgf,isgf,paa,context,globenv) 
+              END DO 
+            END DO 
+          END DO 
+        END DO 
+      END DO 
+ 
+      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,context,globenv) 
+ 
+    ELSE 
+ 
+      CALL stop_program("SUBROUTINE calculate_first_density_matrix "//& 
+                        "(MODULE qs_scf)",& 
+                        "An invalid keyword for the initial density "//& 
+                        "guess was specified") 
+ 
+    END IF 
+ 
+  END SUBROUTINE calculate_first_density_matrix 
+ 
 ! *****************************************************************************
 
   SUBROUTINE read_scf_parameters(start_section,end_section,globenv)
@@ -1285,6 +1370,8 @@ CONTAINS
     eps_diis = 0.1_wp
     max_diis = 4
     max_scf = 50
+    nrebuild_rho = 5
+    nrebuild_gvg = 5
     nprow = 0
     npcol = 0
     nrow_block = 32
@@ -1324,6 +1411,10 @@ CONTAINS
           CALL read_object(max_diis)
         CASE ("MAX_SCF")
           CALL read_object(max_scf)
+        CASE ("NREBUILD_RHO")
+          CALL read_object(nrebuild_rho)
+        CASE ("NREBUILD_GVG")
+          CALL read_object(nrebuild_gvg)
         CASE ("BLOCKSIZE")
           CALL read_object(nrow_block)
           ncol_block = nrow_block
@@ -1371,12 +1462,14 @@ CONTAINS
 
     WRITE (UNIT=lunit,FMT="(/,/,T2,A,/)") "SCF PARAMETERS"
 
-    WRITE (UNIT=lunit,FMT="(T3,A,/,T3,A,I5,2(/,T3,A,ES9.2),/,T3,A,F5.2)")&
+    WRITE (UNIT=lunit,FMT="(T3,A,/,T3,A,I5,2(/,T3,A,ES9.2),/,T3,A,F5.2,/,T3,A,I5,/,T3,A,I5)")&
       "density guess: "//TRIM(density_guess),&
       "max_scf:      ",max_scf,&
       "eps_scf:      ",eps_scf,&
       "eps_eigval:   ",eps_eigval,&
-      "p_mix:        ",p_mix
+      "p_mix:        ",p_mix,&
+      "nrebuild_rho: ",nrebuild_rho,&
+      "nrebuild_gvg: ",nrebuild_gvg
 
     IF (max_diis > 0) THEN
       WRITE (UNIT=lunit,FMT="(T3,A,I5,/,T3,A,ES9.2)")&

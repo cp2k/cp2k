@@ -1351,10 +1351,11 @@ SUBROUTINE fft_wrap_pw1 ( pw1, debug )
   LOGICAL, INTENT ( IN ), OPTIONAL :: debug
 
 ! Local
-  INTEGER :: dir, out_space
+  INTEGER :: dir, out_space, handle
   REAL ( dbl ) :: norm
   LOGICAL :: test
 !------------------------------------------------------------------------------
+  CALL timeset("fft_wrap_pw1","I","",handle)
 
   IF ( PRESENT ( debug ) ) THEN
     test = debug
@@ -1387,7 +1388,7 @@ SUBROUTINE fft_wrap_pw1 ( pw1, debug )
     CALL stop_program ( "fft_wrap_pw1", "In place FFT only possible for "//&
                     "replicated data with COMPLEXDATA3D structure" )
   END IF
-
+  CALL timestop(0.0_dbl,handle) 
 END SUBROUTINE fft_wrap_pw1
 
 
@@ -1408,11 +1409,12 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
   COMPLEX ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: grays
   REAL ( dbl ) :: norm
   INTEGER, DIMENSION ( : ), POINTER :: n
-  INTEGER :: dir, out_space, ierr, nrays, my_pos, nloc ( 3 ), handle
+  INTEGER :: dir, out_space, ierr, nrays, my_pos, nloc ( 3 ), handle, i,j,k
   CHARACTER ( LEN = 9 ) :: mode
   LOGICAL :: test
   
 !------------------------------------------------------------------------------
+  CALL timeset("fft_wrap_pw1pw2","I","",handle)
 
   NULLIFY ( c_in )
   NULLIFY ( c_out )
@@ -1471,6 +1473,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
          WRITE ( *,'(A,T66,A)') "  out space ","RECIPROCALSPACE"
       WRITE ( *,'(A,T66,E15.6)') "  scale factor",norm
     END IF
+
 
     SELECT CASE ( mode )
       CASE DEFAULT
@@ -1579,6 +1582,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
       WRITE ( *,'(A,T66,E15.6)') "  scale factor",norm
     END IF
 
+
     my_pos = pw1 % pw_grid % para % my_pos
     nrays = pw1 % pw_grid % para % nyzray ( my_pos )
     ALLOCATE ( grays ( n(1), nrays ), STAT = ierr )
@@ -1662,6 +1666,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
   IF ( test .AND. pw1 % pw_grid % para % group_head ) THEN
       WRITE ( *,'(A)') " End of FFT Protocol "
   END IF
+  CALL timestop(0.0_dbl,handle) 
 
 END SUBROUTINE fft_wrap_pw1pw2
 

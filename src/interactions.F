@@ -14,6 +14,7 @@
 !!     Matthias Krack (12.07.2000)
 !!
 !!   MODIFICATION HISTORY
+!!     Joost VandeVondele : added exp_radius_very_extended
 !!     none
 !!
 !!   SOURCE
@@ -40,6 +41,7 @@ MODULE interactions
 ! SUBROUTINE write_ppnl_radii(lunit)
 
 ! FUNCTION exp_radius(l,alpha,threshold,prefactor) RESULT(radius)
+! FUNCTION exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,ra,rb,rp,zetp,eps,prefactor,cutoff) result(radius)
 
 ! *****************************************************************************
 
@@ -56,6 +58,8 @@ MODULE interactions
                                    nkind
   USE global_types,          ONLY: global_environment_type
   USE method_specifications, ONLY: allchem,gpw
+  USE orbital_pointers,      ONLY: coset,indco,ncoset
+  USE timings,               ONLY: timeset,timestop
 
   IMPLICIT NONE
 
@@ -67,12 +71,14 @@ MODULE interactions
               eps_ppl,&
               eps_ppnl,&
               eps_rho_gspace,&
-              eps_rho_rspace
+              eps_rho_rspace,&
+              eps_gvg
 
 ! *** Public variables ***
 
   PUBLIC :: eps_rho_gspace,&
-            eps_rho_rspace
+            eps_rho_rspace,&
+            eps_gvg
 
 ! *** Public subroutines ***
 
@@ -83,6 +89,7 @@ MODULE interactions
 ! *** Public functions ***
 
   PUBLIC :: exp_radius
+  PUBLIC :: exp_radius_very_extended
 
 ! *****************************************************************************
 
@@ -130,6 +137,7 @@ CONTAINS
     eps_ppnl = 1.0E-12_wp
     eps_rho_gspace = 1.0E-8_wp
     eps_rho_rspace = 1.0E-8_wp
+    eps_gvg= 1.0E-8_wp
 
     CALL start_input_session(globenv%input_file_name,globenv)
 
@@ -155,6 +163,7 @@ CONTAINS
           eps_ppnl = eps_default
           eps_rho_gspace = eps_default
           eps_rho_rspace = eps_default
+          eps_gvg = eps_default
         CASE ("EPS_CORE_CHARGE")
           CALL read_object(eps_core_charge)
         CASE ("EPS_PGF_AUX")
@@ -168,10 +177,15 @@ CONTAINS
         CASE ("EPS_RHO")
           CALL read_object(eps_rho_gspace)
           eps_rho_rspace = eps_rho_gspace
+          eps_gvg = eps_rho_rspace
         CASE ("EPS_RHO_GSPACE")
           CALL read_object(eps_rho_gspace)
+          eps_gvg = eps_rho_gspace
         CASE ("EPS_RHO_RSPACE")
           CALL read_object(eps_rho_rspace)
+          eps_gvg = eps_rho_rspace
+        CASE ("EPS_GVG")
+          CALL read_object(eps_gvg)
         CASE DEFAULT
           IF (keyword == end_section) THEN
             EXIT
@@ -224,9 +238,10 @@ CONTAINS
         "eps_ppnl:",eps_ppnl
     END IF
 
-    WRITE (UNIT=lunit,FMT="(T3,A,T20,ES8.1)")&
+    WRITE (UNIT=lunit,FMT="(T3,A,ES8.1,/,T3,A,ES8.1,/,T3,A,ES8.1)")&
       "eps_rho_rspace:",eps_rho_rspace,&
-      "eps_rho_gspace:",eps_rho_gspace
+      "eps_rho_gspace:",eps_rho_gspace,&
+      "eps_gvg:",eps_gvg
 
   END SUBROUTINE write_interaction_thresholds
 
@@ -699,7 +714,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  FUNCTION exp_radius(l,alpha,threshold,prefactor) RESULT(radius)
+    FUNCTION exp_radius(l,alpha,threshold,prefactor) RESULT(radius)
 
 !   Purpose: The radius of a primitive Gaussian function for a given threshold
 !            is calculated.
@@ -707,6 +722,7 @@ CONTAINS
 !            g(r) = prefactor*r**l*exp(-alpha*r**2) - threshold = 0
 
 !   History: - Creation (26.02.1999, Matthias Krack)
+!            - Modified to bisection to avoid division by zero (01.2002, Joost)
 
 !   ***************************************************************************
 
@@ -717,11 +733,9 @@ CONTAINS
 !   radius   : Calculated radius of the Gaussian function.
 !   threshold: Threshold for radius.
 
-!   delta  : Newton-Raphson step length.
-!   dg     : Derivative of g.
-!   epsiter: Convergence criterion of the Newton-Raphson iteration.
+!   epsiter: Convergence criterion.
 !   g      : The function g(r).
-!   maxiter: Maximum number of Newton-Raphson iterations.
+!   maxiter: Maximum number of iterations.
 
 !   ***************************************************************************
 
@@ -737,12 +751,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routine =&
       "FUNCTION exp_radius (MODULE mathlib)"
 
-    REAL(wp), PARAMETER :: epsiter = 1.0E-12_wp
+    REAL(wp), PARAMETER :: epsiter = 1.0E-2_wp
     INTEGER, PARAMETER  :: maxiter = 500
 
 !   *** Local variables ***
 
-    REAL(wp) :: a,ar2,d,delta,dg,g,r,t
+    REAL(wp) :: a,ar2,d,delta,dg,g,r,t,rlow,rhigh,rmid
     INTEGER  :: iter
 
 !   ---------------------------------------------------------------------------
@@ -777,9 +791,7 @@ CONTAINS
     END IF
 
 !   *** Calculate the Maximum g(r) ***
-
     r = SQRT(0.5_wp*REAL(l,wp)/a)
-
     ar2 = a*r*r
 
     IF (l == 0) THEN
@@ -788,50 +800,109 @@ CONTAINS
       g = d*r**l*EXP(-ar2)
     END IF
 
-    IF (t < g) THEN
-
-!     *** Ensure that the iteration starts on ***
-!     *** the right-hand side of the maximum  ***
-
-      r = 2.0_wp*r
-
-    ELSE
-
-!     *** The radius is zero, if threshold >= Maximum g(r) ***
-
+    IF (t > g) THEN
       RETURN
-
     END IF
 
-    t = t/d
+    rlow  = r
+    rhigh = 2.0*rlow+1.0
+    iter=0
+    DO 
+       iter=iter+1
+       if (iter.gt.maxiter) CALL stop_program(routine,"Maximum number of iterations exceeded")
+       g = d*rhigh**l*EXP(-a*rhigh**2)
+       if (g < t) exit
+       rlow = rhigh
+       rhigh =  2.0*rlow+1.0 
+    ENDDO
 
-    IF (l == 0) THEN
-
-!     *** Analytical expression for l = 0 ***
-
-      radius = SQRT(-LOG(t)/a)
-
-    ELSE
-
-!     *** Find outer radius for l > 0 by Newton-Raphson procedure ***
-
-      DO iter=1,maxiter
-        ar2 = a*r*r
-        g = r**l*EXP(-ar2) - t
-        dg = (REAL(l,wp) - 2.0_wp*ar2)*r**(l-1)*EXP(-ar2)
-        delta = g/dg
-        r = r - SIGN(MIN(ABS(delta),0.5_wp*r),delta)
-        IF (ABS(delta) < epsiter) THEN
-          radius = r
-          RETURN
-        END IF
-      END DO
-
-      CALL stop_program(routine,"Maximum number of iterations exceeded")
-
-    END IF
-
+    DO iter=1,maxiter
+       rmid= (rlow+rhigh)*0.5_wp
+       ar2 = a*rmid*rmid
+       g   = d*rmid**l*EXP(-ar2)
+       if  (g.lt.t) then
+           rhigh=rmid
+       else
+           rlow=rmid
+       endif
+       IF (ABS(rhigh-rlow).lt.epsiter) THEN
+          radius=rhigh
+          return
+       ENDIF
+    ENDDO 
+    CALL stop_program(routine,"Maximum number of iterations exceeded")
+     
   END FUNCTION exp_radius
+!***********************************************************************************
+! provides a radius that is keeping into account all the angular momentum components
+! given the product of the two gaussians, and their original centers
+!******
+  FUNCTION exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,ra,rb,rp, &
+                                    zetp,eps,prefactor,cutoff) result(radius)
+  implicit none
+
+  integer ,INTENT(IN)     :: la_min,la_max,lb_min,lb_max
+  real(wp) ,INTENT(IN)    :: ra(3),rb(3),rp(3),zetp,eps,prefactor
+  real(wp) ,INTENT(IN)    :: cutoff,pab(ncoset(la_max),ncoset(lb_max))
+  real(wp)    :: radius
+  integer     :: lxa,lxb,lya,lyb,lza,lzb,la(3),lb(3),ico,jco,handle
+  real(wp)    :: prefactor_local
+  real(wp) polycoef(0:60),coef(0:20,3),bini,binj,s1,s2
+  integer d,i,j,k
+
+  CALL timeset("rad","I","",handle)
+  radius=0.0_wp
+  polycoef(:)=0.0_wp
+  DO lxa=0,la_max
+  DO lxb=0,lb_max
+     DO lya=0,la_max-lxa
+     DO lyb=0,lb_max-lxb
+        DO lza=max(la_min-lxa-lya,0),la_max-lxa-lya
+        DO lzb=max(lb_min-lxb-lyb,0),lb_max-lxb-lyb
+           la=(/lxa,lya,lza/)
+           lb=(/lxb,lyb,lzb/)
+           ico=coset(lxa,lya,lza)
+           jco=coset(lxb,lyb,lzb)
+           prefactor_local=prefactor*MAX(ABS(pab(ico,jco)),cutoff)
+           coef(:,:)=0.0_wp
+           DO d=1,3
+             bini=1.0_wp
+             s1=1.0_wp
+             DO i=0,la(d)
+                binj=1.0_wp
+                s2=1.0_wp
+                DO j=0,lb(d)
+                  coef(la(d)+lb(d)-i-j,d)=coef(la(d)+lb(d)-i-j,d)+bini*binj*s1*s2
+                  binj=(binj*(lb(d)-j))/(j+1)
+                  s2=s2*(rb(d)-rp(d))
+                ENDDO
+                bini=(bini*(la(d)-i))/(i+1)
+                s1=s1*(ra(d)-rp(d))
+              ENDDO
+           ENDDO
+           DO i=0,la(1)+lb(1)
+           DO j=0,la(2)+lb(2)
+           DO k=0,la(3)+lb(3)
+              polycoef(i+j+k)=max(polycoef(i+j+k),abs(prefactor_local*coef(i,1)*coef(j,2)*coef(k,3)))
+           ENDDO
+           ENDDO
+           ENDDO
+
+        ENDDO
+        ENDDO
+     ENDDO
+     ENDDO
+  ENDDO
+  ENDDO
+  DO i=0,la_max+lb_max
+        radius=max(radius,exp_radius(i,zetp,eps,polycoef(i)) )
+  ENDDO
+  CALL timestop(0.0_wp,handle)
+  END FUNCTION
+
+! *****************************************************************************
+
+
 
 ! *****************************************************************************
 

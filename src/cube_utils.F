@@ -1,0 +1,176 @@
+! for a given dr() this will provide the bounds to be used if 
+! one wants to go over a sphere-subregion of given radius
+
+MODULE cube_utils
+
+  USE kinds, ONLY: wp => dp
+  USE timings,               ONLY: timeset,timestop
+  USE termination,           ONLY: stop_program
+
+  IMPLICIT NONE
+
+  public :: cube_info_type
+  public :: cube_ptr
+  public :: init_cube_info
+  public :: destroy_cube_info
+  public :: return_cube
+
+  TYPE :: cube_ptr
+       integer, pointer, dimension(:) :: p
+  END TYPE cube_ptr
+
+  TYPE :: cube_info_type
+     integer                      :: max_radius
+     real(wp)                     :: dr(3),drmin,drsafe
+     integer, pointer             :: lb_cube(:,:)
+     integer, pointer             :: ub_cube(:,:)
+     TYPE(cube_ptr), pointer, dimension(:)  :: sphere_bounds
+     integer, pointer             :: sphere_bounds_count(:)
+  END TYPE cube_info_type
+
+CONTAINS
+  SUBROUTINE return_cube(info,radius,lb_cube,ub_cube,sphere_bounds)
+  IMPLICIT NONE
+    TYPE (cube_info_type)    :: info
+    real(wp)                 :: radius
+    integer                  :: lb_cube(3),ub_cube(3)
+    integer,dimension(:),pointer :: sphere_bounds
+    integer                  :: imr
+
+    imr=MAX(1,CEILING((radius+info%drsafe)/info%drmin))
+    if (imr.gt.info%max_radius) then
+        CALL stop_program("return_cube","called with max_radius to large")
+    endif
+    lb_cube(:)       = info%lb_cube(:,imr)
+    ub_cube(:)       = info%ub_cube(:,imr)
+    sphere_bounds => info%sphere_bounds(imr)%p
+
+  RETURN
+  END SUBROUTINE return_cube
+
+  SUBROUTINE destroy_cube_info(info)
+  IMPLICIT NONE
+    integer i
+    TYPE (cube_info_type) :: info
+    deallocate(info%lb_cube,info%ub_cube,&
+               info%sphere_bounds_count)
+    do i=1,info%max_radius
+       deallocate(info%sphere_bounds(i)%p)
+    enddo
+    deallocate(info%sphere_bounds)
+  RETURN
+  END SUBROUTINE
+
+  SUBROUTINE init_cube_info(info,dr,max_radius)
+  IMPLICIT NONE
+    TYPE (cube_info_type) :: info 
+    real(wp)       :: dr(3)
+    real(wp)       :: max_radius
+  
+    real(wp)       :: drmin,drsafe,dxi,dyi,dzi,dz2,dy2
+    real(wp)       :: radius,radius2
+    integer        :: imr,i,k,kgmin,kgmax,kg2,kg,jgmin
+    integer        :: jgmax,jg2,jg,igmin,igmax,handle
+    CALL timeset("init_cube_info","I","",handle) 
+    info%dr = dr
+    drmin = MINVAL(dr)
+    info%drmin=drmin
+    drsafe=1.01*sqrt(dr(1)**2+dr(2)**2+dr(3)**2)
+    info%drsafe=drsafe
+    imr=CEILING((max_radius+drsafe)/drmin)
+    info%max_radius=imr
+    dzi=1.0_wp/dr(3)
+    dyi=1.0_wp/dr(2)
+    dxi=1.0_wp/dr(1)
+    dz2=(dr(3))**2
+    dy2=(dr(2))**2
+
+    NULLIFY(info%lb_cube,info%ub_cube,&
+            info%sphere_bounds_count,info%sphere_bounds)
+    allocate(info%lb_cube(3,imr),info%ub_cube(3,imr), &
+             info%sphere_bounds_count(imr),info%sphere_bounds(imr))
+
+!   count and allocate
+    DO i=1,imr
+      k=1
+      radius=imr*drmin
+      radius2=radius**2
+      kgmin=FLOOR(-dzi*radius)
+      kgmax=-kgmin+1
+      k=k+1
+      k=k+1
+      DO kg=kgmin,kgmax,2
+         kg2=MIN(kg*kg,(kg+1)*(kg+1))
+           if (radius2-kg2*dz2.le.0) then
+          jgmin=0
+          jgmax=1
+         else
+            jgmin=FLOOR(-dyi*sqrt(radius2-kg2*dz2))
+          jgmax=-jgmin+1
+         endif
+         k=k+1
+         k=k+1
+         DO jg=jgmin,jgmax,2
+          jg2=MIN(jg*jg,(jg+1)*(jg+1))
+          if (radius2-kg2*dz2-jg2*dy2.le.0) then
+               igmin=0
+             igmax=1
+            else
+             igmin=FLOOR(-dxi*sqrt(radius2-kg2*dz2-jg2*dy2))
+             igmax=-igmin+1
+          endif
+          k=k+1
+          k=k+1
+         ENDDO
+      ENDDO
+      info%sphere_bounds_count(i)=k-1
+      allocate(info%sphere_bounds(i)%p(info%sphere_bounds_count(i)))
+    ENDDO
+
+!   init sphere_bounds array
+    do i=1,imr 
+      k=1
+      radius=i*drmin
+      info%lb_cube(:,i)=FLOOR(-radius/dr(:))-2
+      info%ub_cube(:,i)=CEILING(radius/dr(:))+3
+      radius2=radius**2
+      kgmin=FLOOR(-dzi*radius)
+      kgmax=-kgmin+1
+      info%sphere_bounds(i)%p(k)=kgmin
+      k=k+1
+      info%sphere_bounds(i)%p(k)=kgmax
+      k=k+1
+      DO kg=kgmin,kgmax,2
+         kg2=MIN(kg*kg,(kg+1)*(kg+1))
+         if (radius2-kg2*dz2.le.0) then
+          jgmin=0
+          jgmax=1
+         else
+          jgmin=FLOOR(-dyi*sqrt(radius2-kg2*dz2))
+          jgmax=-jgmin+1
+         endif
+         info%sphere_bounds(i)%p(k)=jgmin
+         k=k+1
+         info%sphere_bounds(i)%p(k)=jgmax
+         k=k+1
+         DO jg=jgmin,jgmax,2
+          jg2=MIN(jg*jg,(jg+1)*(jg+1))
+          if (radius2-kg2*dz2-jg2*dy2.le.0) then
+             igmin=0
+             igmax=1
+          else
+             igmin=FLOOR(-dxi*sqrt(radius2-kg2*dz2-jg2*dy2))
+             igmax=-igmin+1
+          endif
+          info%sphere_bounds(i)%p(k)=igmin
+          k=k+1
+          info%sphere_bounds(i)%p(k)=igmax
+          k=k+1
+         ENDDO
+      ENDDO
+    enddo
+  CALL timestop(0.0_wp,handle)
+  RETURN
+  END SUBROUTINE
+END MODULE
+! ***************************************************************
