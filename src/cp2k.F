@@ -122,8 +122,9 @@ PROGRAM cp2k
            WRITE (output_unit,'(T5,A)') '--check, -c    : '//'perform a syntax check of [input_file].'
            WRITE (output_unit,'(T5,A)') '--echo , -e    : '//'echos [input_file], and makes all defaults explicit.'
            WRITE (output_unit,'(T5,A)') '--help, -h     : '//'writes this message'
-           WRITE (output_unit,'(T5,A)') '--html-manual  : '//'writes a html reference manual of the input.' 
-           WRITE (output_unit,'(T5,A)') '                 '//'in the current directory.'
+           WRITE (output_unit,'(T5,A)') '--html-manual  : '//'writes a html reference manual of the cp2k input file.' 
+           WRITE (output_unit,'(T5,A)') '                 '//'in the current directory. index.html is a good starting'
+           WRITE (output_unit,'(T5,A)') '                 '//'point for browsing.'
            WRITE (output_unit,'(T5,a)') ''    
         END IF
      ELSE IF (check) then
