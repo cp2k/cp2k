@@ -98,6 +98,8 @@ MODULE qs_environment_methods
                                              sm_struct_release,&
                                              sm_struct_retain,&
                                              sm_struct_write
+  USE distribution_2D_types,           ONLY: distribution_2D_type, &
+                                             distribution_2D_create
   USE dft_types,                       ONLY: dft_control_type
   USE global_types,                    ONLY: LOW,global_environment_type
   USE kinds,                           ONLY: int_size,&
@@ -147,12 +149,6 @@ MODULE qs_environment_methods
                                              scf_c_retain,&
                                              scf_control_type
   USE simulation_cell,                 ONLY: cell_type
-  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             deallocate_matrix_set,&
-                                             get_matrix_info,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type,&
-                                             replicate_matrix_structure
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -217,6 +213,7 @@ SUBROUTINE qs_env_setup(qs_env,error,globenv)
   TYPE(scf_control_type), POINTER               :: scf_control
   TYPE(qs_charges_type), POINTER                :: qs_charges
   TYPE(cp_para_env_type), POINTER               :: para_env
+  TYPE(distribution_2D_type), POINTER           :: distribution_2D
   INTEGER :: n_mo, n_ao
 
   failure=.FALSE.
@@ -246,7 +243,8 @@ SUBROUTINE qs_env_setup(qs_env,error,globenv)
 
      ! create local_particles
      CALL rr_local_particles_create(atomic_kind_set,qs_env%local_rows,&
-                                    qs_env%local_cols,qs_env%blacs_env,globenv)
+                                    qs_env%local_cols,qs_env%distribution_2D,&
+                                    qs_env%blacs_env,globenv)
   END IF
 
 END SUBROUTINE qs_env_setup
@@ -311,14 +309,6 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
   CALL mpools_rebuild_s_sm_pools(qs_env%mpools,s=qs_env%s,&
        nspins=dft_control%nspins,particle_set=qs_env%particle_set,&
        para_env=para_env, error=error)
-
-!MK  ! *** removes h, k , kinetic (that have the wrong structure)
-!MK  IF (ASSOCIATED(qs_env%h))&
-!MK       CALL deallocate_matrix_set(qs_env%h)
-!MK  IF (ASSOCIATED(qs_env%k))&
-!MK       CALL deallocate_matrix_set(qs_env%k)
-!MK  IF (ASSOCIATED(qs_env%kinetic))&
-!MK       CALL deallocate_matrix_set(qs_env%kinetic)
 
   ! *** updates rho core ***
   CPPrecondition(ASSOCIATED(qs_env%rho_core),cp_failure_level,routineP,error,failure)
@@ -541,7 +531,8 @@ END SUBROUTINE qs_env_update_rho_core
 !!     distributes the particles
 !!
 !!   NOTES
-!!     -
+!!     - presumably not the right thing, as they are distributed over a row/a col of cpus
+!!       i.e. global lists based on this info are wrong
 !!
 !!   ARGUMENTS
 !!     - local_rows: local atomic block rows (equivalent to local particles)
@@ -560,10 +551,11 @@ END SUBROUTINE qs_env_update_rho_core
 !!*** **********************************************************************
 
   SUBROUTINE rr_local_particles_create(atomic_kind_set,local_rows,local_cols,&
-                                       blacs_env,globenv)
+                                       distribution_2D,blacs_env,globenv)
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(cp_blacs_env_type), POINTER              :: blacs_env
+    TYPE(distribution_2D_type), POINTER           :: distribution_2D
     TYPE(cp_local_lists_type), POINTER            :: local_rows,local_cols
     TYPE(global_environment_type), INTENT(IN)     :: globenv
 
@@ -596,6 +588,8 @@ END SUBROUTINE qs_env_update_rho_core
                                                   nparticle,&
                                                   nrow,nrow_old
     INTEGER, DIMENSION(:), POINTER             :: atom_list
+    INTEGER, DIMENSION(:), POINTER             :: row_distribution,col_distribution
+    INTEGER                                    :: natom_total
 
 !   ---------------------------------------------------------------------------
 
@@ -635,6 +629,17 @@ END SUBROUTINE qs_env_update_rho_core
 
     ALLOCATE (natom_local_col(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"natom_local_col",nkind*int_size)
+
+    natom_total = 0
+    DO ikind=1,nkind
+      atomic_kind => atomic_kind_set(ikind)
+      NULLIFY (atom_list)
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           atom_list=atom_list)
+      natom_total = natom_total + SIZE(atom_list)
+    ENDDO
+    ALLOCATE(row_distribution(natom_total)) 
+    ALLOCATE(col_distribution(natom_total)) 
 
     DO ikind=1,nkind
 
@@ -710,6 +715,7 @@ END SUBROUTINE qs_env_update_rho_core
           IF (nrow(j) < nrow(i)) i = j
         END DO
         nrow(i) = nrow(i) + nsgf
+        row_distribution(atom_list(iatom)) = i - 1 ! generate blacs rows
         IF (i == myprow) THEN
           iatom_local = iatom_local + 1
           local_atom(ikind)%list_local_row(iatom_local) = atom_list(iatom)
@@ -734,6 +740,7 @@ END SUBROUTINE qs_env_update_rho_core
           IF (ncol(j) < ncol(i)) i = j
         END DO
         ncol(i) = ncol(i) + nsgf
+        col_distribution(atom_list(iatom)) = i - 1 ! generate blacs cols
         IF (i == mypcol) THEN
           iatom_local = iatom_local + 1
           local_atom(ikind)%list_local_col(iatom_local) = atom_list(iatom)
@@ -741,6 +748,10 @@ END SUBROUTINE qs_env_update_rho_core
       END DO
 
     END DO
+
+!   *** generate the distribution_2D structure
+    CALL distribution_2D_create(distribution_2D, row_distribution, &
+                                col_distribution, blacs_env)
 
 !   *** Create the local particle structure for block rows and columns ***
 
@@ -898,6 +909,12 @@ END SUBROUTINE qs_env_update_rho_core
 
     DEALLOCATE (natom_local_col,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"natom_local_col")
+
+    DEALLOCATE (row_distribution,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"row_distribution")
+
+    DEALLOCATE (col_distribution,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"col_distribution")
 
   END SUBROUTINE rr_local_particles_create
 

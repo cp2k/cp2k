@@ -1032,7 +1032,7 @@ CONTAINS
 
     DO ishift=0,num_pe-1
        CALL sparse_times_local(sparse_matrix,local_v_in,local_v_out,&
-            ncol_loc(MODULO(mepos-ishift,num_pe)), ncol_max, para_env=para_env,alpha=alpha_l)
+            ncol_loc(MODULO(mepos-ishift,num_pe)), ncol_max, alpha=alpha_l)
        CALL mp_shift(local_v_in,para_env%group)
        CALL mp_shift(local_v_out,para_env%group)
     ENDDO

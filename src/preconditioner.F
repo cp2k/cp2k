@@ -56,8 +56,7 @@ MODULE preconditioner
                                              wp_size => dp_size
   USE message_passing,                 ONLY: mp_sum
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
-  USE sparse_matrix_types,             ONLY: add_all_real_matrix_blocks,&
-                                             add_block_node,&
+  USE sparse_matrix_types,             ONLY: add_block_node,&
                                              add_matrices,&
                                              deallocate_matrix,&
                                              first_block_node,&

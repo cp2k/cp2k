@@ -53,9 +53,6 @@ MODULE qs_rho_types
   USE kinds,                           ONLY: wp=>dp
   USE l_utils,                         ONLY: l_info_type
   USE sparse_matrix_types,             ONLY: add_matrices,&
-                                             allocate_matrix,&
-                                             allocate_matrix_set,&
-                                             deallocate_matrix,&
                                              deallocate_matrix_set,&
                                              first_block_node,&
                                              get_block_node,&

@@ -119,9 +119,6 @@ MODULE qs_kpp1_env_methods
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell
   USE sparse_matrix_types,             ONLY: add_matrices,&
-                                             allocate_matrix,&
-                                             allocate_matrix_set,&
-                                             deallocate_matrix,&
                                              deallocate_matrix_set,&
                                              first_block_node,&
                                              get_block_node,&

@@ -53,8 +53,7 @@ MODULE qs_ot
                                              cp_blacs_env_type
   USE cp_fm_diag,                      ONLY: cp_fm_syevd, &
                                              cp_fm_syevx
-  USE sparse_matrix_types,             ONLY: add_all_real_matrix_blocks,&
-                                             add_block_node,&
+  USE sparse_matrix_types,             ONLY: add_block_node,&
                                              deallocate_matrix,&
                                              first_block_node,&
                                              get_block_node,&

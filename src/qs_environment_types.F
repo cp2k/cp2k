@@ -70,6 +70,8 @@ MODULE qs_environment_types
   USE cp_matrix_utils,                 ONLY: sm_struct_add_sm_local_blocks
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_retain, &
+                                             cp_blacs_env_release
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
@@ -87,6 +89,9 @@ MODULE qs_environment_types
                                              sm_struct_release,&
                                              sm_struct_retain
   USE dft_types,                       ONLY: dft_control_type
+  USe distribution_2D_types,           ONLY: distribution_2D_type,&
+                                             distribution_2D_retain, &
+                                             distribution_2D_release
   USE kinds,                           ONLY: wp => dp
   USE molecule_types,                  ONLY: molecule_structure_type
   USE pao_types,                       ONLY: pao_env_type
@@ -207,6 +212,7 @@ MODULE qs_environment_types
 !!     - mpools: all the pools of matrixes
 !!     - local_rows,local_cols: lists with the indexes of the matrix rows,cols that are
 !!       local to the actual processor (a list for each kind)
+!!     - distribution_2D_type in a more advanced variant should maybe replace local_rows / local_cols
 !!     
 !!   AUTHOR
 !!     Matthias Krack
@@ -245,6 +251,7 @@ MODULE qs_environment_types
     TYPE(qs_matrix_pools_type), POINTER                   :: mpools
     TYPE(cp_local_lists_type), POINTER                    :: local_rows,&
                                                              local_cols
+    TYPE(distribution_2D_type), POINTER                   :: distribution_2D
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -285,7 +292,8 @@ CONTAINS
                         para_env, blacs_env, scf_control,&
                         kinetic,qs_charges, rho_core, ks_env,&
                         wf_history,scf_env,&
-                        id_nr,local_rows,local_cols,error)
+                        id_nr,local_rows,local_cols,&
+                        distribution_2D,error)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -326,6 +334,7 @@ CONTAINS
     TYPE(qs_scf_env_type), OPTIONAL, POINTER      :: scf_env
     INTEGER, INTENT(out), OPTIONAL                :: id_nr
     TYPE(cp_local_lists_type), OPTIONAL, POINTER  :: local_rows,local_cols
+    TYPE(distribution_2D_type), OPTIONAL, POINTER :: distribution_2D
     TYPE(cp_error_type), OPTIONAL,INTENT(INOUT)   :: error
 
 !   ---------------------------------------------------------------------------
@@ -363,6 +372,7 @@ CONTAINS
     IF (PRESENT(id_nr)) id_nr=qs_env%id_nr
     IF (PRESENT(local_rows)) local_rows => qs_env%local_rows
     IF (PRESENT(local_cols)) local_cols => qs_env%local_cols
+    IF (PRESENT(distribution_2D)) distribution_2D => qs_env%distribution_2D
 
   END SUBROUTINE get_qs_env
 
@@ -413,6 +423,7 @@ CONTAINS
     NULLIFY (qs_env%scf_env)
     NULLIFY (qs_env%local_rows)
     NULLIFY (qs_env%local_cols)
+    NULLIFY (qs_env%distribution_2D)
 
     CALL cp_para_env_retain(para_env,error=error)
     qs_env%para_env => para_env
@@ -430,7 +441,7 @@ CONTAINS
                         pao_env,particle_set,energy,force,h,k,s,w,&
                         pw_env,mpools,rho,kinetic,&
                         scf_control,qs_charges,rho_core, ks_env,&
-                        wf_history,scf_env,local_rows,local_cols,error)
+                        wf_history,scf_env,local_rows,local_cols,distribution_2D,error)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -468,6 +479,7 @@ CONTAINS
     TYPE(qs_scf_env_type), OPTIONAL, POINTER      :: scf_env
     TYPE(qs_matrix_pools_type), OPTIONAL, POINTER :: mpools
     TYPE(cp_local_lists_type), OPTIONAL, POINTER  :: local_rows,local_cols
+    TYPE(distribution_2D_type), OPTIONAL, POINTER :: distribution_2D
     TYPE(cp_error_type), OPTIONAL, INTENT(INOUT)  :: error
 
 !   ---------------------------------------------------------------------------
@@ -529,7 +541,7 @@ CONTAINS
     END IF
     IF (PRESENT(mpools)) THEN
        CALL mpools_retain(mpools,error=error)
-       CALL mpools_release(qs_env%mpools, error=error)
+       CALL mpools_release(qs_env%mpools, error=error) 
        qs_env%mpools => mpools
     END IF
     IF (PRESENT(local_rows)) THEN
@@ -542,6 +554,11 @@ CONTAINS
       CALL cp_ll_release(qs_env%local_cols,error=error)
       qs_env%local_cols => local_cols
     END IF
+    IF (PRESENT(distribution_2D)) THEN
+       CALL distribution_2D_retain(distribution_2D)
+       CALL distribution_2D_release(qs_env%distribution_2D) 
+       qs_env%distribution_2D => distribution_2D
+    ENDIF
 
   END SUBROUTINE set_qs_env
 
@@ -779,7 +796,9 @@ SUBROUTINE qs_env_release(qs_env,error)
         NULLIFY(qs_env%cell, qs_env%dft_control,qs_env%pao_env)
         CALL wfi_release(qs_env%wf_history,error=error)
         CALL scf_env_release(qs_env%scf_env, error=error)
-
+        IF (ASSOCIATED(qs_env%distribution_2D)) THEN
+           CALL distribution_2D_release(qs_env%distribution_2D)
+        ENDIF
         DEALLOCATE(qs_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF

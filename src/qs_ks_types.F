@@ -52,7 +52,6 @@ MODULE qs_ks_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: wp=>dp
   USE sparse_matrix_types,             ONLY: add_matrices,&
-                                             allocate_matrix,&
                                              deallocate_matrix,&
                                              first_block_node,&
                                              get_block_node,&

@@ -264,10 +264,8 @@ MODULE qs_scf
   USE scf_control_types,               ONLY: scf_control_type
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell
-  USE sparse_matrix_types,             ONLY: add_all_real_matrix_blocks,&
-                                             add_matrices,&
-                                             allocate_matrix,&
-                                             allocate_matrix_set,&
+  USE sparse_matrix_types,             ONLY: add_matrices,&
+                                             add_all_real_matrix_blocks, &
                                              cp_sm_scale_and_add,&
                                              deallocate_matrix,&
                                              deallocate_matrix_set,&
@@ -2268,25 +2266,25 @@ CONTAINS
        END IF
 
        IF (Globenv%print%density_matrix_magnitude) THEN
-          IF (Globenv%num_pe > 1) THEN
-             WRITE (Unit=Extension,Fmt="(I6)") Globenv%mepos
-             File_name = "P_magnitude"//"."//ADJUSTL(Extension)
+          IF (globenv%num_pe > 1) THEN
+             WRITE (unit=extension,fmt="(I6)") globenv%mepos
+             file_name = "P_magnitude"//"."//ADJUSTL(extension)
           ELSE
-             File_name = "P_magnitude"
+             file_name = "P_magnitude"
           END IF
-          CALL Open_file(File_name=File_name,&
-               File_action="Write",&
-               File_form="Formatted",&
-               File_status="Replace",&
-               Unit_number=File_unit)
+          CALL open_file(file_name=file_name,&
+               file_action="Write",&
+               file_form="Formatted",&
+               file_status="Replace",&
+               unit_number=file_unit)
 
-          NULLIFY(Pfull) 
-          CALL Replicate_matrix(S(1)%matrix,Pfull,"Full Density Matrix",.FALSE.)
-          CALL Add_all_real_matrix_blocks(Pfull,Globenv)
-          CALL Calculate_density_matrix(c(1)%mo_set,Pfull,error=error)
-          CALL Write_blocks_maxabsval(Pfull,File_unit)
-          CALL Deallocate_matrix(Pfull)
-          CALL Close_file(Unit_number=File_unit)
+          NULLIFY(pfull) 
+          CALL replicate_matrix(S(1)%matrix,Pfull,"Full Density Matrix",.FALSE.)
+          CALL add_all_real_matrix_blocks(Pfull,Globenv)
+          CALL calculate_density_matrix(c(1)%mo_set,Pfull,error=error)
+          CALL write_blocks_maxabsval(Pfull,File_unit)
+          CALL deallocate_matrix(Pfull)
+          CALL close_file(Unit_number=File_unit)
        ENDIF
        IF (Globenv%print%kohn_sham_matrix) THEN
           CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&

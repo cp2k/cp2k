@@ -62,13 +62,7 @@ MODULE qs_tddfpt_eigensolver
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_tddfpt_types
   USE qs_tddfpt_utils
-  USE sparse_matrix_types,             ONLY: add_all_real_matrix_blocks,&
-                                             allocate_matrix,&
-                                             deallocate_matrix,&
-                                             get_matrix_info,&
-                                             real_matrix_p_type,&
-                                             replicate_matrix_structure,&
-                                             set_matrix
+  USE sparse_matrix_types,             ONLY: set_matrix
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset, timestop
 
@@ -434,7 +428,6 @@ CONTAINS
     INTEGER                                            :: v_rows, v_cols
     INTEGER, SAVE                                      :: counter = 0
     REAL(DBL)                                          :: trace
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER    :: p1
     INTEGER                                            :: nrows, ncols, &
                                                           nblock_rows, nblock_cols
     INTEGER, DIMENSION(:), POINTER                     :: first_row, last_row, &

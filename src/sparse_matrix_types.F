@@ -23,6 +23,7 @@
 !******************************************************************************
 
 MODULE sparse_matrix_types
+
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -36,12 +37,11 @@ MODULE sparse_matrix_types
                                              cp_logger_type,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE distribution_2D_types,           ONLY: distribution_2D_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
                                              wp => dp,&
                                              wp_size => dp_size
-  USE message_passing,                 ONLY: mp_sum
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -81,7 +81,8 @@ MODULE sparse_matrix_types
                                                          first_row,&
                                                          last_col,&
                                                          last_row
-    !TYPE(cp_sm_struct_type), pointer                  :: matrix_struct
+    !TYPE(cp_sm_struct_type), pointer                 :: matrix_struct
+    TYPE(distribution_2D_type), POINTER               :: distribution_2D
   END TYPE real_matrix_type
 
   TYPE real_matrix_p_type
@@ -93,7 +94,8 @@ MODULE sparse_matrix_types
   PUBLIC :: real_block_node_type,&
             real_matrix_p_type,&
             real_matrix_type,&
-            real_block_list_type
+            real_block_list_type, &
+            distribution_2D_type
 
 ! *** Public subroutines ***
 
@@ -144,7 +146,7 @@ MODULE sparse_matrix_types
   END INTERFACE
 
   INTERFACE allocate_matrix
-    MODULE PROCEDURE allocate_real_matrix,allocate_full_real_matrix
+    MODULE PROCEDURE allocate_real_matrix 
   END INTERFACE
 
   INTERFACE allocate_matrix_set
@@ -220,7 +222,6 @@ MODULE sparse_matrix_types
 CONTAINS
 
 ! *****************************************************************************
-
 !!****f* sparse_matrix_types/cp_sm_scale_and_add [1.0] *
 !!
 !!   NAME
@@ -664,6 +665,8 @@ END SUBROUTINE cp_sm_scale_and_add
     ALLOCATE (matrix,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,matrix%name,0)
 
+    NULLIFY(matrix%distribution_2D)
+
     ALLOCATE (matrix%block_list(nblock_row),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,matrix%name,0)
     
@@ -747,90 +750,7 @@ END SUBROUTINE cp_sm_scale_and_add
     END DO
 
   END SUBROUTINE allocate_real_matrix_set
-
-! *****************************************************************************
-
-  SUBROUTINE allocate_full_real_matrix(matrix,nrow,ncol,matrix_name,&
-                                       matrix_symmetry)
-
-!   Purpose: Allocate and initialize a real matrix structure with only one
-!            block.
-
-!   History: - Creation (10.07.2000, MK)
-
-!   ***************************************************************************
-
-    TYPE(real_matrix_type), POINTER :: matrix
-    CHARACTER(LEN=*), INTENT(IN)    :: matrix_name,matrix_symmetry
-    INTEGER, INTENT(IN)             :: ncol,nrow
-
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE allocate_full_real_matrix (MODULE sparse_matrix_types)"
-
-!   *** Local variables ***
-
-    INTEGER :: istat
-
-!   ---------------------------------------------------------------------------
-
-!   *** Deallocate the old matrix ***
-
-    IF (ASSOCIATED(matrix)) CALL deallocate_matrix(matrix)
-
-!   *** Allocate a set of block lists ***
-
-    ALLOCATE (matrix,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,matrix%name,0)
-
-    ALLOCATE (matrix%block_list(1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,matrix%name,0)
-
-    matrix%name = matrix_name
-    matrix%symmetry = matrix_symmetry
-
-    matrix%nblock_row = 1
-    matrix%nblock_col = 1
-
-    matrix%nrow = nrow
-    matrix%ncol = ncol
-
-    ALLOCATE (matrix%first_row(1),STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routine,"matrix%first_row",int_size)
-    END IF
-    matrix%first_row(1) = 1
-
-    ALLOCATE (matrix%last_row(1),STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routine,"matrix%last_row",int_size)
-    END IF
-    matrix%last_row(1) = nrow
-
-    ALLOCATE (matrix%first_col(1),STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routine,"matrix%first_col",int_size)
-    END IF
-    matrix%first_col(1) = 1
-
-    ALLOCATE (matrix%last_col(1),STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routine,"matrix%last_col",int_size)
-    END IF
-    matrix%last_col(1) = ncol
-
-    NULLIFY (matrix%block_list(1)%first_block_node)
-    matrix%block_list(1)%nblock_node = 0
-
-    CALL add_real_matrix_block(matrix=matrix,&
-                               block_row=1,&
-                               block_col=1)
-
-  END SUBROUTINE allocate_full_real_matrix
-
-! *****************************************************************************
-
+!******************************************************************
   SUBROUTINE copy_local_sm_to_replicated_fm(sparse_matrix,fm)
 
 !   Purpose: copy to local blocks of a sparse matrix in a replicated full matrix (why ??)
@@ -922,12 +842,10 @@ END SUBROUTINE cp_sm_scale_and_add
 ! Joost VandeVondele july 2002
 ! *****************************************************************************
   ! notice, adding a beta is incompatible with the definition of this function
-  SUBROUTINE sparse_times_local(sparse_matrix,rep_v_in,rep_v_out,ncol,nblock,para_env,block_owner, alpha)
+  SUBROUTINE sparse_times_local(sparse_matrix,rep_v_in,rep_v_out,ncol,nblock, alpha)
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
     REAL(wp), DIMENSION(:,:), POINTER :: rep_v_in,rep_v_out
     INTEGER, INTENT(IN)               :: ncol,nblock
-    TYPE(cp_para_env_type), POINTER   :: para_env
-    INTEGER, DIMENSION(:,:), OPTIONAL :: block_owner
     REAL(wp), OPTIONAL :: alpha
 
 !   *** Local parameters ***
@@ -1013,13 +931,7 @@ END SUBROUTINE cp_sm_scale_and_add
                             block=sparse_block)
         
         owner=.TRUE.
-        IF (PRESENT(block_owner)) THEN
-           owner = (block_owner(iblock_row,iblock_col)==para_env%mepos)
-        END IF
-        
         IF (owner) THEN
-           ! write(17+para_env%mepos,*) maxval(abs(sparse_block))
-           
            sbnrow=sparse_matrix%last_row(iblock_row)- &
                 sparse_matrix%first_row(iblock_row)+1
            sbncol=sparse_matrix%last_col(iblock_col)- &

@@ -125,7 +125,6 @@ MODULE qs_integrate_potential
   USE simulation_cell,                 ONLY: cell_type,&
                                              pbc
   USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             allocate_matrix,&
                                              cp_sm_get_block_list,&
                                              cp_sm_scale_and_add,&
                                              deallocate_matrix,&

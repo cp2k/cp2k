@@ -116,7 +116,6 @@ MODULE qs_ks_methods
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell
   USE sparse_matrix_types,             ONLY: add_matrices,&
-                                             allocate_matrix,&
                                              deallocate_matrix,&
                                              first_block_node,&
                                              get_block_node,&
