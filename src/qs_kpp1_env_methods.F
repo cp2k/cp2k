@@ -528,7 +528,7 @@ CONTAINS
     real(KIND = dp):: scaling, my_diff
 
     nullify(ks_2,s,dft_control,qs_energy)
-    my_diff=1.0e-6
+    my_diff=1.0e-6_dp
     if (present(diff)) my_diff=diff
     call allocate_qs_energy(qs_energy)
 

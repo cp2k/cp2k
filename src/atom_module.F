@@ -195,7 +195,7 @@ CONTAINS
                 CALL radial_normalize(atom%shells(n)%orbits(l)%wf(1:np), ac%rg)
 
                 ! exit condition
-                IF ( ABS(ldd) < 1.E-5 ) EXIT shooting
+                IF ( ABS(ldd) < 1.E-5_dbl ) EXIT shooting
                 
                 ! otherwise calculate new ev and reshoot
                 ! "crush" the logarhitmic derivative difference
@@ -218,7 +218,7 @@ CONTAINS
 
        eg = calculate_energy( atom, ac, rho )
        WRITE (6,'(1X,A,F14.6)') "ground state energy : ", eg
-       IF (ABS(eg - eg_li) < 1.E-4) THEN
+       IF (ABS(eg - eg_li) < 1.E-4_dbl) THEN
           EXIT self_consistent
        END IF
        eg_li = eg

@@ -204,7 +204,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
     WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
     READ ( ir, * ) delta
     IF ( delta >= 1 .OR. delta <= 0 ) THEN
-      delta = 1.E-5
+      delta = 1.E-5_dbl
       WRITE ( iw, '(A,T71,F10.6)' ) &
         ' DELTA ( changed to default ) = ', delta
     ELSE
@@ -271,7 +271,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
     WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
     READ ( ir, * ) delta
     IF ( delta >= 1 .OR. delta <= 0 ) THEN
-      delta = 1.E-5
+      delta = 1.E-5_dbl
       WRITE ( iw, '(A,T71,F10.6)' ) &
         ' DELTA (changed to default) = ', delta
     ELSE
@@ -340,7 +340,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
     WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
     READ ( ir, * ) delta
     IF ( delta >= 1 .OR. delta <= 0 ) THEN
-      delta = 1.E-5
+      delta = 1.E-5_dbl
       WRITE ( iw, '(A,T71,F10.6)' ) &
         ' DELTA ( changed to default ) = ', delta
     ELSE

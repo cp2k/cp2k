@@ -280,9 +280,9 @@ FUNCTION ran2 ( idum, icontrol )
   REAL ( dbl ) :: ran2
   INTEGER :: im1, im2, imm1, ia1, ia2, iq1, iq2, ir1, ir2, ntab, ndiv
   REAL ( dbl ) am, eps, rnmx
-  PARAMETER (im1=2147483563,im2=2147483399,am=1./im1,imm1=im1-1, &
+  PARAMETER (im1=2147483563,im2=2147483399,am=1.0_dbl/im1,imm1=im1-1, &
        ia1=40014,ia2=40692,iq1=53668,iq2=52774,ir1=12211,ir2=3791,ntab=32, &
-       ndiv=1+imm1/ntab,eps=1.2E-7,rnmx=1.-eps)
+       ndiv=1+imm1/ntab,eps=1.2E-7_dbl,rnmx=1._dbl-eps)
   INTEGER idum2, j, k, iv(ntab), iy, iounit
   SAVE iv, iy, idum2
   DATA idum2/123456789/, iv/ntab*0/, iy/0/, iounit/10/

@@ -138,8 +138,8 @@ CONTAINS
     CHARACTER(len=60) :: name
     failure=.FALSE.
     errorLogger => cp_error_get_logger(error)
-    wanted_subspace_pos_precision=1.0e-4
-    wanted_in_subspace_precision=1.0e-4
+    wanted_subspace_pos_precision=1.0d-4
+    wanted_in_subspace_precision=1.0d-4
 
     CALL get_qs_env(qs_env, pao_env=pao_env)
     IF (PRESENT(section_label)) THEN

@@ -326,8 +326,8 @@ CONTAINS
                 2._dbl*a*b*x**5*c*ecx*odx*odx*d+&
                 2._dbl*a*b*x**5*ecx*odx*odx*odx*d*d
          bx  = 1._dbl+7._dbl/3._dbl*(c*x+d*x*odx)
-         dbx = 7./3.*(c+d*odx-d**2*x*odx**2)
-         d2bx = 14./3.*d*d*(-odx**2+d*x*odx**3)
+         dbx = 7._dbl/3._dbl*(c+d*odx-d**2*x*odx**2)
+         d2bx = 14._dbl/3._dbl*d*d*(-odx**2+d*x*odx**3)
          dab = dax*bx+ax*dbx
          d2ab = d2ax*bx+2*dax*dbx+ax*d2bx
          pot(ip,1) = pot(ip,1) + f13*x**4*(-f23*dlda+f13*x*d2lda+&
@@ -385,8 +385,8 @@ CONTAINS
                 3*a*b*x**5*c**2*ecx*odx**2*d-6*a*b*x**5*c*ecx*odx**3*d**2-&
                 6*a*b*x**5*ecx*odx**4*d**3
          bx  = 1._dbl+7._dbl/3._dbl*(c*x+d*x*odx)
-         dbx = 7./3.*(c+d*odx-d**2*x*odx**2)
-         d2bx = 14./3.*d*d*(-odx**2+d*x*odx**3)
+         dbx = 7._dbl/3._dbl*(c+d*odx-d**2*x*odx**2)
+         d2bx = 14._dbl/3._dbl*d*d*(-odx**2+d*x*odx**3)
          d3bx = 14*d**3*(odx**3-d*x*odx**4)
          dab = dax*bx+ax*dbx
          d2ab = d2ax*bx+2*dax*dbx+ax*d2bx

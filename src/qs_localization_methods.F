@@ -707,7 +707,7 @@ CONTAINS
              lk=(0.0_dp,-1.0_dp)*evals(col_indices(icol))
              IF (ABS(ll-lk).lt.0.5_dp) THEN ! use a series expansion to avoid loss of precision
                 tmp=1.0_dp
-                cmat_B%local_data(irow,icol)=0.0
+                cmat_B%local_data(irow,icol)=0.0_dp
                 DO i=1,16
                    cmat_B%local_data(irow,icol)=cmat_B%local_data(irow,icol)+tmp
                    tmp=tmp*(ll-lk)/(i+1)
@@ -744,7 +744,7 @@ CONTAINS
             !write(17,*) matrix_A%local_data(:,:)
             !write(18,*) matrix_G%local_data(:,:)
             IF (matrix_A%matrix_struct%para_env%mepos .EQ. 0 ) WRITE(6,*) line_searches,Iterations,Omega,tol,ds_min
-            IF (tol.lt.1.0E-3)  EXIT
+            IF (tol.lt.1.0E-3_dp)  EXIT
 
             IF (.TRUE.) THEN ! do conjugate gradient CG
                 CALL cp_fm_trace(matrix_G,matrix_G_old,normg_cross)

@@ -237,7 +237,7 @@ SUBROUTINE dg_rho0_s_cgf ( dg_rho0, zet, gcc )
   DO icg = 1, ncg
 
      const = 1.0_dbl / ( 4.0_dbl * zet ( icg ) )
-     coef  = ( gcc ( icg ) * pi ** 1.5 ) / zet ( icg )**1.5
+     coef  = ( gcc ( icg ) * pi ** 1.5_dbl ) / zet ( icg )**1.5_dbl
 
      rho0(l0,m0,n0)  =  rho0(l0,m0,n0)  + coef * 1._dbl / pw_grid % vol
 

@@ -159,8 +159,8 @@ SUBROUTINE read_atoms_input ( topology, globenv )
 
 
        !Future user optional inputs
-       topology%atm_mass(natom) = 0.0 
-       topology%atm_charge(natom) = 0.0 
+       topology%atm_mass(natom) = 0.0_dbl 
+       topology%atm_charge(natom) = 0.0_dbl 
 
      call read_line
      END DO

@@ -842,7 +842,7 @@ CONTAINS
           DO ispin=1,SIZE(scf_env%p_new)
              IF (my_invert) THEN
                 CPPrecondition(scf_env%p_mix/=0.0_dp,cp_failure_level,routineP,error,failure)
-                IF (scf_env%p_mix/=1.0) THEN
+                IF (scf_env%p_mix/=1.0_dp) THEN
                    CALL cp_sm_scale_and_add(matrix_a=scf_env%p_new(ispin)%matrix,&
                         alpha=1.0_dp/scf_env%p_mix,&
                         matrix_b=qs_env%rho%rho_ao(ispin)%matrix,&

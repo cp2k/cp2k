@@ -605,7 +605,7 @@ SUBROUTINE fft_test ( globenv )
       cc = ca
       CALL fft3d ( FWFFT, n, ca, cb )
       tdiff = MAXVAL ( ABS ( ca - cc ) )
-      IF ( tdiff > 1.e-12 ) THEN
+      IF ( tdiff > 1.d-12 ) THEN
         IF ( globenv % ionode ) &
         WRITE ( iw, '(T2,A,A,A)' ) adjustr(method),"         FWFFT ", &
                "             Input array is changed in out-of-place FFT !"
@@ -617,7 +617,7 @@ SUBROUTINE fft_test ( globenv )
       ca = cc
       CALL fft3d ( BWFFT, n, ca, cb )
       tdiff = MAXVAL ( ABS ( ca - cc ) )
-      IF ( tdiff > 1.e-12 ) THEN
+      IF ( tdiff > 1.d-12 ) THEN
         IF ( globenv % ionode ) &
         WRITE ( iw, '(T2,A,A,A)' ) adjustr(method),"         BWFFT ", &
                "             Input array is changed in out-of-place FFT !"

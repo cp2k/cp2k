@@ -130,7 +130,7 @@ CONTAINS
     NULLIFY(ao_mo_fm_pools, X, R, kv )
     n_ev      = qs_env%dft_control%tddfpt_control%n_ev
     n_spins   = qs_env%dft_control%nspins
-    tol       = 1.0E-10
+    tol       = 1.0E-10_dbl
     n_reortho = qs_env%dft_control%tddfpt_control%n_reortho
     iteration = 1
 

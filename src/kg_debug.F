@@ -187,7 +187,7 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
     WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
     READ ( ir, * ) delta
     IF ( delta >= 1 .OR. delta <= 0 ) THEN
-      delta = 1.E-5
+      delta = 1.D-5
       WRITE ( iw, '(A,T71,F10.6)' ) &
         ' DELTA ( changed to default ) = ', delta
     ELSE
@@ -271,7 +271,7 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
     WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
     READ ( ir, * ) delta
     IF ( delta >= 1 .OR. delta <= 0 ) THEN
-      delta = 1.E-5
+      delta = 1.D-5
       WRITE ( iw, '(A,T71,F10.6)' ) &
         ' DELTA ( changed to default ) = ', delta
     ELSE
@@ -344,7 +344,7 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
     WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
     READ ( ir, * ) delta
     IF ( delta >= 1 .OR. delta <= 0 ) THEN
-      delta = 1.E-5
+      delta = 1.D-5
       WRITE ( iw, '(A,T71,F10.6)' ) &
         ' DELTA ( changed to default ) = ', delta
     ELSE
@@ -426,7 +426,7 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
     WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
     READ ( ir, * ) delta
     IF ( delta >= 1 .OR. delta <= 0 ) THEN
-      delta = 1.E-5
+      delta = 1.D-5
       WRITE ( iw, '(A,T71,F10.6)' ) &
         ' DELTA ( changed to default ) = ', delta
     ELSE
@@ -500,7 +500,7 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
     WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
     READ ( ir, * ) delta
     IF ( delta >= 1 .OR. delta <= 0 ) THEN
-      delta = 1.E-5
+      delta = 1.D-5
       WRITE ( iw, '(A,T71,F10.6)' ) &
         ' DELTA ( changed to default ) = ', delta
     ELSE
@@ -584,7 +584,7 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
     WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
     READ ( ir, * ) delta
     IF ( delta >= 1 .OR. delta <= 0 ) THEN
-      delta = 1.E-5
+      delta = 1.D-5
       WRITE ( iw, '(A,T71,F10.6)' ) &
         ' DELTA ( changed to default ) = ', delta
     ELSE
@@ -662,7 +662,7 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
     WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
     READ ( ir, * ) delta
     IF ( delta >= 1 .OR. delta <= 0 ) THEN
-      delta = 1.E-5
+      delta = 1.D-5
       WRITE ( iw, '(A,T71,F10.6)' ) &
         ' DELTA ( changed to default ) = ', delta
     ELSE
@@ -740,7 +740,7 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
     WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
     READ ( ir, * ) delta
     IF ( delta >= 1 .OR. delta <= 0 ) THEN
-      delta = 1.E-5
+      delta = 1.D-5
       WRITE ( iw, '(A,T71,F10.6)' ) &
         ' DELTA ( changed to default ) = ', delta
     ELSE

@@ -774,7 +774,7 @@ SUBROUTINE topology_generate_bond(topology,globenv)
 
         topology%atm_mass(iatom) = ptable(ielem)% amass
         !Need to figure out the correct charge!!!
-        topology%atm_charge(iatom) = 0.0
+        topology%atm_charge(iatom) = 0.0_dbl
         IF(PM2) WRITE(iw,'(7X,A,A5)') "iatom = ",ptable(ielem)%symbol
         !EXIT
       END IF
@@ -792,7 +792,7 @@ SUBROUTINE topology_generate_bond(topology,globenv)
       rr = pbc ( dr, topology%cell )
       r2 = DOT_PRODUCT(rr,rr)
 
-      IF(r2 <= 0.01) THEN
+      IF(r2 <= 0.01_dbl) THEN
         CALL stop_program ("topology_generate_bond",&
                            "bond distance between atoms less then 0.1")
       END IF
@@ -1842,7 +1842,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   !-----------------------------------------------------------------------------
   ALLOCATE(charge(topology%natom_type),STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','charge')
-  charge(:)=0.0
+  charge(:)=0.0_dbl
   IF (globenv%program_name == "FIST") THEN
     CALL  init_atomic_kind_set(atomic_kind_set,globenv)
     DO ikind=1,topology%natom_type

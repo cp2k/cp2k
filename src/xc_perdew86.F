@@ -333,7 +333,7 @@ CONTAINS
          d2p = 2._dbl*b
          q = 1._dbl+c*r+d*r*r+1.e4_dbl*b*r*r*r
          dq = c+2._dbl*d*r+3.e4_dbl*b*r*r
-         d2q = 2._dbl*d+6.e4*b*r
+         d2q = 2._dbl*d+6.e4_dbl*b*r
          cr= pc1 + p/q
          dcr = (dp*q-p*dq)/(q*q) * (-f13*r*or)
          d2cr = (d2p*q*q-p*q*d2q-2*dp*dq*q+2*p*dq*dq)/(q*q*q)*(f13*r*or)**2 + &

@@ -101,16 +101,16 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
    occ_max=MAXVAL(occupied_evals)
    unocc_min=MINVAL(unoccupied_evals)
    unocc_max=MAXVAL(unoccupied_evals)
-   emin=(unocc_min-occ_max-1.0E-3)
+   emin=(unocc_min-occ_max-1.0E-3_dp)
    ! old strategy ....
    ! we retain only these transitions that have an energy in the range
    ! where all transitions are computed (i.e. as soon as we start neglecting HOMO -> unoccupied,
    ! we stop recording other transitions)
-   emax=MAX((unocc_max-occ_max),emin+1.0E-3)
+   emax=MAX((unocc_max-occ_max),emin+1.0E-3_dp)
    ! the other option is to compute the full spectrum anyway. 
    ! the advantage of this option is that it allows for alligning the spectrum with
    ! experiment, using features from low occupied bands.
-   emax=MAX((unocc_max-occ_min),emin)+1.0E-3
+   emax=MAX((unocc_max-occ_min),emin)+1.0E-3_dp
    dE_bin=(emax-emin)/npoints
    DO component=1,3
       result=0.0_dp

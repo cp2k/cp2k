@@ -839,7 +839,7 @@ CONTAINS
     END IF
 
     rlow  = r
-    rhigh = 2.0*rlow+1.0
+    rhigh = 2.0_dp*rlow+1.0_dp
     iter=0
     DO 
        iter=iter+1
@@ -847,7 +847,7 @@ CONTAINS
        g = d*rhigh**l*EXP(-a*rhigh**2)
        if (g < t) exit
        rlow = rhigh
-       rhigh =  2.0*rlow+1.0 
+       rhigh =  2.0_dp*rlow+1.0_dp 
     ENDDO
 
     DO iter=1,maxiter

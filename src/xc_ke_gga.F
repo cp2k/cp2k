@@ -934,7 +934,7 @@ CONTAINS
 
     p = 0.0055_dbl*b*b
     q = 0.0253_dbl*b
-    a1 = 0.072 * b
+    a1 = 0.072_dbl * b
     a2 = 2._dbl**f53 * b
 !$omp parallel do private(ip,x,as,sas,asp,asp2,asp3,bs,ys,sbs,sbs3,sbs5,w1,w2,t0,s1,s2)
     DO ip=1,SIZE(s)

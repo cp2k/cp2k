@@ -270,7 +270,7 @@
               e = 0.5_dbl * (fdist%multiplicity - 1)
               IF ( fdist%fixedspinmoment_amount > 1.E30_dbl ) THEN
                 fdist%fixedspinmoment_amount = e
-              ELSEIF ( ABS(e-fdist%fixedspinmoment_amount) > 1.E-10 ) THEN
+              ELSEIF ( ABS(e-fdist%fixedspinmoment_amount) > 1.E-10_dbl ) THEN
                 CALL stop_program('INIT_FERMI_DIST','Inconsistent spin moments')
               END IF
             ELSEIF ( fdist%fixedspinmoment_amount < 1.E30_dbl ) THEN

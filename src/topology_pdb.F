@@ -181,8 +181,8 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
     CALL convert_to_cp2k_units("ANGSTROM",length=topology%r(3,iatom))
     topology%label_resname(iatom)=tmp_resname(iatom)
     topology%label_atmname(iatom)=tmp_atmname(iatom)
-    topology%atm_mass(iatom)  =0.0
-    topology%atm_charge(iatom)=0.0
+    topology%atm_mass(iatom)  =0.0_dbl
+    topology%atm_charge(iatom)=0.0_dbl
   END DO
 
   topology%natoms = natom

@@ -149,8 +149,8 @@ CONTAINS
 
           SELECT CASE (nspin)
           CASE(1)
-          WRITE(scr,'(I6,A2,A2,F12.6)') iblock,"  ",element_symbol,zeff-2.0*charges(iblock,1)
-          total_charge=total_charge+ zeff-2.0*charges(iblock,1)
+          WRITE(scr,'(I6,A2,A2,F12.6)') iblock,"  ",element_symbol,zeff-2.0_dp*charges(iblock,1)
+          total_charge=total_charge+ zeff-2.0_dp*charges(iblock,1)
           CASE DEFAULT
           WRITE(scr,'(I6,A2,A2,2F12.6)') iblock,"  ",element_symbol, &
                       zeff-(charges(iblock,1)+charges(iblock,2)),(charges(iblock,1)-charges(iblock,2))

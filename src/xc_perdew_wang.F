@@ -42,7 +42,7 @@ MODULE xc_perdew_wang
   REAL(DBL), DIMENSION(-1:1) :: c0, c1, c2, c3
   REAL(DBL), DIMENSION(-1:1) :: d0, d1
   REAL(DBL), PARAMETER :: &
-       epsilon = 5.E-13, &
+       epsilon = 5.E-13_dbl, &
        fpp = 0.584822362263464620726223866376013788782_dbl ! d^2f(0)/dz^2
   REAL(DBL) :: eps_rho
 

@@ -315,7 +315,7 @@ SUBROUTINE do_line_search_3pnt(qs_ot_env)
              qs_ot_env(1)%OT_pos(count+1)=MAX(MAXVAL(qs_ot_env(1)%OT_pos(1:3))*0.01_dp, &
                                                  MIN(pos,MAXVAL(qs_ot_env(1)%OT_pos(1:3))*4.0_dp))
          else  ! just take an extended step
-             qs_ot_env(1)%OT_pos(count+1)=MAXVAL(qs_ot_env(1)%OT_pos(1:3))*2.0
+             qs_ot_env(1)%OT_pos(count+1)=MAXVAL(qs_ot_env(1)%OT_pos(1:3))*2.0_dp
          endif
          qs_ot_env(1)%energy_only=.false.
          qs_ot_env(1)%line_search_might_be_done=.true.

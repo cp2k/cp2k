@@ -808,11 +808,11 @@ CONTAINS
             ! setting EPS_DEFAULT = ESP_SCF**2 should allow for convergence 
             ! the /100 is used to set some of the parameters to a stricter value
             ! because they seem computationally not very expensive
-            qs_control%eps_core_charge = value/100.0 
+            qs_control%eps_core_charge = value/100.0_dp
             qs_control%eps_pgf_aux = SQRT(value) ! unknown to me
             qs_control%eps_pgf_orb = SQRT(value)
-            qs_control%eps_ppl = value/100.0
-            qs_control%eps_ppnl = value/100.0
+            qs_control%eps_ppl = value/100.0_dp
+            qs_control%eps_ppnl = value/100.0_dp
             qs_control%eps_rho_gspace = value
             qs_control%eps_rho_rspace = value
             qs_control%eps_gvg_rspace = SQRT(value)

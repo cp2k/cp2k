@@ -562,8 +562,8 @@ SUBROUTINE gopt_param_create(gopt_param,error)
      gopt_param%max_h_rank=5
      gopt_param%max_f_per_iter=20
      gopt_param%max_iter=200
-     gopt_param%wanted_proj_gradient=1.0e-5
-     gopt_param%wanted_rel_f_error=1.0e5
+     gopt_param%wanted_proj_gradient=1.0e-5_dp
+     gopt_param%wanted_rel_f_error=1.0e5_dp
      gopt_param%method='BFGS'
      gopt_param%hesrest=.FALSE.
      gopt_param%atmfix = .FALSE.
