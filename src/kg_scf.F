@@ -202,7 +202,7 @@ CONTAINS
                     scf_control=scf_control)
 
     ALLOCATE(scf_env, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
     IF (.NOT. failure) THEN
        scf_env%ref_count=1
        scf_env%print_count=0

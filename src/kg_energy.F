@@ -100,7 +100,7 @@ MODULE kg_energy
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: kg_energies
+  PUBLIC :: kg_energies , kg_qs_energies
 
 !******************************************************************************
 
@@ -119,8 +119,7 @@ SUBROUTINE kg_energies ( kg_env, globenv )
 
     NULLIFY ( dft_control )
 
-    CALL get_kg_env(kg_env=kg_env,&
-                    dft_control=dft_control)
+    CALL get_kg_env(kg_env=kg_env, dft_control=dft_control)
 
     IF ( dft_control % qs_control % method == "KG_GPW" ) THEN
 
@@ -135,13 +134,15 @@ SUBROUTINE kg_energies ( kg_env, globenv )
 END SUBROUTINE kg_energies
 
 !******************************************************************************
-!!****** kg_energy/kg_std_energies [1.1] *
+
+!!****f** kg_energy/kg_std_energies [1.1] *
 !!
 !!   NAME
 !!     kg_std_energies
 !!
 !!   FUNCTION
 !!     Calculates the total potential energy, total force
+!!     for the standard kg method
 !!
 !!   AUTHOR
 !!     gt         
@@ -280,13 +281,27 @@ scf_loop: DO
 END SUBROUTINE kg_std_energies
 
 !******************************************************************************
-!!****** kg_energy/kg_qs_energies [1.1] *
+
+!!****f* kg_energy/kg_qs_energies [1.1] *
 !!
 !!   NAME
 !!     kg_qs_energies
 !!
 !!   FUNCTION
 !!     Calculates the total potential energy, total force
+!!     using the KG GPW method. This implies the calculation of the 
+!!     GPW KS energy  and the KS matrix via qs_ks_build_kohn_sham_matrix
+!!     where the KE energy correction is added to be able to treat the
+!!     molecule separatedly in the construction of the density.
+!!     In the SCF iteration the optimization of the wavefunctions is
+!!     done by the standard diagonalization of the diagonal blocks
+!!     of the MO matrix. Each block is handled independently 
+!!     This is possible because the wavefunctions located 
+!!     on different molecules are orthogonal by construction.
+!!   
+!!    INPUTS
+!!      - kg_env: Kg environment which contains the qs envirement as subenvironment
+!!      - globenv: global environment 
 !!
 !!   AUTHOR
 !!     JGH

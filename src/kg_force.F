@@ -56,6 +56,7 @@ MODULE kg_force
                                              calculate_vp_rspace_forces
   USE kg_energy_types,                 ONLY: init_kg_energy,&
                                              kg_energy_type
+  USE kg_energy,                       ONLY: kg_qs_energies
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
   USE kg_force_types,                  ONLY: init_kg_force,&
@@ -73,6 +74,7 @@ MODULE kg_force
   USE machine,                         ONLY: m_flush
   USE mathconstants,                   ONLY: zero
   USE message_passing,                 ONLY: mp_sum
+  USE mulliken,                        ONLY: mulliken_restraint
   USE particle_types,                  ONLY: particle_type
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
@@ -84,8 +86,25 @@ MODULE kg_force
                                              pw_p_type
   USE pws,                             ONLY: cleanup_pw_poisson_solver,&
                                              init_pw_poisson_solver
+  USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type,&
+                                             set_qs_env
+  USE qs_force,                        ONLY: write_forces
+  USE qs_force_types,                  ONLY: zero_qs_force,&
+                                             qs_force_type
+  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_overlap,                      ONLY: write_sparse_matrix
+  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE scf_control_types,               ONLY: scf_control_type
+  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
+                                             deallocate_matrix_set,&
+                                             real_matrix_p_type,&
+                                             replicate_matrix_structure, &
+                                             set_matrix
   USE simulation_cell,                 ONLY: cell_type
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory,stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: xc_vxc_pw_create1
@@ -93,6 +112,11 @@ MODULE kg_force
   IMPLICIT NONE
 
   PRIVATE
+
+! *** Global parameters ***
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "kg_force"
+
   PUBLIC :: kg_force_control
 
 !******************************************************************************
@@ -142,9 +166,12 @@ SUBROUTINE kg_force_control ( kg_env, globenv,error )
   kgpol = dft_control % qs_control % polarization
  
   IF (kgpol) THEN
-    CALL kgpol_calculate_forces (kg_env, globenv)
+    CALL kgpol_calculate_forces ( kg_env, globenv)
+  ELSEIF ( dft_control % qs_control % method == "KG_GPW" ) THEN
+    ! The qs_forces are calculated therefore kg_forces are not allocated here
+    CALL kg_qs_calculate_forces( kg_env, globenv )
   ELSE
-    CALL kg_calculate_forces (kg_env, globenv )
+    CALL kg_calculate_forces ( kg_env, globenv )
   END IF
   END SUBROUTINE kg_force_control
 
@@ -737,6 +764,228 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
  CALL write_checkpoint_information("leaving "//routine,globenv)
 
 END SUBROUTINE kg_calculate_forces
+
+!******************************************************************************
+
+!!****f* kg_force/kg_qs_calculate_forces [1.0] *
+!!
+!!   NAME
+!!     kg_qs_calculate_forces
+!!
+!!   FUNCTION
+!!     Calculates the total potential energy, total force
+!!     using the KG GPW method. This implies the calculation of the 
+!!     GPW KS energy  and the KS matrix via qs_ks_build_kohn_sham_matrix
+!!     where the KE energy correction is added to be able to treat the
+!!     molecule separatedly in the construction of the density.
+!!     In the SCF iteration the optimization of the wavefunctions is
+!!     done by the standard diagonalization of the diagonal blocks
+!!     of the MO matrix. Each block is handled independently 
+!!     This is possible because the wavefunctions located 
+!!     on different molecules are orthogonal by construction.
+!!
+!!   NOTES
+!!     Even if it is a KG method energies and forces are of the type qs_energy and qs_force
+!!     because the calculation goes through the QS routines for GPW.
+!!     Therefore the kg_energy and kg_force remain not allocated.
+!!     An additional term has been added in either qs_energy and qs_force, which
+!!     is called    kg_gpw_ekin_mol and contains the contributions from the 
+!!     correction calculated as by the kinetic energy functional applied to 
+!!     the molecular densities.
+!!   
+!!   INPUTS
+!!      - kg_env: Kg environment which contains the qs envirement as subenvironment
+!!      - globenv: global environment 
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     created 11-02-05
+!!
+!!*** *************************************************************************
+
+  SUBROUTINE kg_qs_calculate_forces( kg_env, globenv )
+
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "kg_qs_calculate_forces",&
+      routineP = module_name//':'//routine_name
+
+    INTEGER                                  :: handle, i, iatom, ikind, &
+                                                ispin, istat, natom, nspins
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
+    LOGICAL                                  :: failure
+
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_error_type)                      :: error
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s, matrix_w
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(scf_control_type), POINTER          :: scf_control
+
+!------------------------------------------------------------------------------
+
+    CALL write_checkpoint_information("entering "//routineP,globenv)
+
+    CALL timeset(routine_name,"I","",handle)
+
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(kg_env),cp_failure_level,routineP,error,failure)
+
+    NULLIFY( qs_env )
+    CALL get_kg_env(kg_env=kg_env, sub_qs_env=qs_env, error=error)
+
+    NULLIFY (atomic_kind_set)
+    NULLIFY (dft_control)
+    NULLIFY (force)
+    NULLIFY (matrix_ks)
+    NULLIFY (ks_env)
+    NULLIFY (particle_set)
+    NULLIFY (matrix_s)
+    NULLIFY (scf_control)
+    NULLIFY (matrix_w)
+    NULLIFY (rho)
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    dft_control=dft_control,&
+                    force=force,&
+                    particle_set=particle_set,&
+                    scf_control=scf_control)
+
+    natom = SIZE(particle_set)
+
+    ! zero out the forces
+    DO iatom=1,natom
+       particle_set(iatom)%f=0.0_dp
+    END DO
+
+    IF((dft_control%qs_control%method=="GAPW") .OR. &
+        dft_control%qs_control%semi_empirical) CALL stop_program(routineP,&
+         "KG_GPW is not implemented with GAPW or with semiempirical method" )
+
+    ALLOCATE (atom_of_kind(natom),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE (kind_of(natom),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             atom_of_kind=atom_of_kind,&
+                             kind_of=kind_of)
+
+    CALL zero_qs_force(force)
+
+    ! Do the SCF calculation for KG GPW
+    CALL kg_qs_energies(kg_env,globenv)
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    matrix_ks=matrix_ks, ks_env=ks_env, matrix_s=matrix_s, rho=rho)
+
+    nspins = dft_control%nspins
+
+    CALL allocate_matrix_set(matrix_w,nspins)
+
+    DO ispin=1,nspins
+      CALL replicate_matrix_structure(matrix_s(1)%matrix,&
+                         matrix_w(ispin)%matrix,"W MATRIX")
+      IF (qs_env%dft_control%restricted .AND. ispin>1) THEN
+         ! not very elegant, indeed ...
+         CALL set_matrix(matrix_w(ispin)%matrix,0.0_dp)
+      ELSE
+         IF (scf_control%use_ot) THEN
+            CALL stop_program(routineP,"KG_GPW is not implemented with  OT method")
+         ELSE
+         ! Here I should construct the W matrix starting from the molecukar mos
+         END IF
+      END IF
+      IF (globenv%print%w_matrix) THEN
+          CALL write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,globenv)
+      END IF
+    END DO
+
+!   *** from an eventual mulliken restraint
+    IF (dft_control%qs_control%mulliken_restraint) THEN
+        CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
+                                globenv%para_env,matrix_s(1)%matrix, rho%rho_ao,w_matrix=matrix_w)
+    ENDIF
+    CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w)
+
+    CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
+                                       globenv=globenv,&
+                                       calculate_forces=.TRUE.)
+
+! ** here qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date
+! *** compute grid-based forces ***
+     CALL qs_ks_update_qs_env(ks_env=ks_env,qs_env=qs_env, kg_env=kg_env,&
+                              error=error,&
+                              calculate_forces=.TRUE.) 
+
+!   *** distribute forces ***
+    DO ikind=1,SIZE(force)
+      CALL mp_sum(force(ikind)%overlap,globenv%group)
+      CALL mp_sum(force(ikind)%kinetic,globenv%group)
+      CALL mp_sum(force(ikind)%gth_ppl,globenv%group)
+      CALL mp_sum(force(ikind)%gth_ppnl,globenv%group)
+      CALL mp_sum(force(ikind)%core_overlap,globenv%group)
+      CALL mp_sum(force(ikind)%rho_core,globenv%group)
+      CALL mp_sum(force(ikind)%rho_elec,globenv%group)
+      CALL mp_sum(force(ikind)%kg_gpw_ekin_mol,globenv%group)
+      force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
+                                force(ikind)%core_overlap(:,:) +&
+                                force(ikind)%gth_ppl(:,:) +&
+                                force(ikind)%gth_ppnl(:,:) +&
+                                force(ikind)%kinetic(:,:) +&
+                                force(ikind)%overlap(:,:) +&
+                                force(ikind)%rho_core(:,:) +&
+                                force(ikind)%rho_elec(:,:) +&
+                                force(ikind)%kg_gpw_ekin_mol(:,:) 
+    END DO
+
+    DO iatom=1,natom
+      ikind = kind_of(iatom)
+      i = atom_of_kind(iatom)
+      ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      ! the force is - dE/dR, what is called force is actually the gradient
+      ! Things should have the right name
+      ! The minus sign below is a hack
+      ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      force(ikind)%other(1:3,i)=-particle_set(iatom)%f(1:3)
+      force(ikind)%total(1:3,i)=force(ikind)%total(1:3,i)+force(ikind)%other(1:3,i)
+      IF (particle_set(iatom)%is_fixed) THEN
+        particle_set(iatom)%f = 0.0_dp
+      ELSE
+        particle_set(iatom)%f = -force(ikind)%total(1:3,i)
+      END IF
+    END DO
+
+    CALL write_forces(force,atomic_kind_set,3,globenv)
+
+    CALL deallocate_matrix_set(matrix_w)
+    CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w)
+
+    DEALLOCATE (atom_of_kind,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    DEALLOCATE (kind_of,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(0.0_dp,handle)
+
+    CALL write_checkpoint_information("leaving "//routineP,globenv)
+
+  END SUBROUTINE kg_qs_calculate_forces
 
 !******************************************************************************
 

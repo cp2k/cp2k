@@ -40,6 +40,7 @@ MODULE qs_energy_types
                 hartree_1c,&
                 hartree_2c,&
                 hartree_3c,&
+                kg_gpw_ekin_mol,&
                 qmmm_el,&
                 qmmm_nu,&
                 mulliken,&
@@ -147,6 +148,7 @@ CONTAINS
       qs_energy%hartree_1c = 0.0_dp
       qs_energy%hartree_2c = 0.0_dp
       qs_energy%hartree_3c = 0.0_dp
+      qs_energy%kg_gpw_ekin_mol = 0.0_dp
       qs_energy%mulliken = 0.0_dp
       qs_energy%total = 0.0_dp
     ELSE

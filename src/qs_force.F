@@ -67,7 +67,7 @@ MODULE qs_force
 
 ! *** Public subroutines ***
 
-  PUBLIC :: qs_forces
+  PUBLIC :: qs_forces, write_forces
 
 !!***
 ! *****************************************************************************
@@ -403,6 +403,22 @@ CONTAINS
             iatom,ikind," all_potential",qs_force(ikind)%all_potential(1:3,i),&
             iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
             iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
+            grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
+        END DO
+     CASE (3)
+        DO iatom=1,natom
+          ikind = kind_of(iatom)
+          i = atom_of_kind(iatom)
+          WRITE (UNIT=output_unit,FMT=fmtstr2)&
+            iatom,ikind,"        overlap",qs_force(ikind)%overlap(1:3,i),&
+            iatom,ikind,"        kinetic",qs_force(ikind)%kinetic(1:3,i),&
+            iatom,ikind,"        gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
+            iatom,ikind,"       gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
+            iatom,ikind,"   core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
+            iatom,ikind,"       rho_core",qs_force(ikind)%rho_core(1:3,i),&
+            iatom,ikind,"       rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+            iatom,ikind,"kg_gpw_ekin_mol",qs_force(ikind)%kg_gpw_ekin_mol(1:3,i),&
+            iatom,ikind,"          total",qs_force(ikind)%total(1:3,i)
             grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
         END DO
     END SELECT

@@ -44,6 +44,7 @@ MODULE qs_force_types
                                          g0s_Vh_elec,&
                                          hartree_2c,&
                                          hartree_3c,&
+                                         kg_gpw_ekin_mol,&
                                          other,&
                                          total
   END TYPE qs_force_type
@@ -142,6 +143,10 @@ CONTAINS
       ALLOCATE (qs_force(ikind)%hartree_3c(3,n),STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routine,"qs_force(ikind)%hartree_3c",3*n*dp_size)
+      END IF
+      ALLOCATE (qs_force(ikind)%kg_gpw_ekin_mol(3,n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine,"qs_force(ikind)%kg_gpw_ekin_mol",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%other(3,n),STAT=istat)
       IF (istat /= 0) THEN
@@ -268,6 +273,13 @@ CONTAINS
         END IF
       END IF
 
+      IF (ASSOCIATED(qs_force(ikind)%kg_gpw_ekin_mol)) THEN
+        DEALLOCATE (qs_force(ikind)%kg_gpw_ekin_mol,STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routine,"qs_force%kg_gpw_ekin_mol")
+        END IF
+      END IF
+
       IF (ASSOCIATED(qs_force(ikind)%other)) THEN
         DEALLOCATE (qs_force(ikind)%other,STAT=istat)
         IF (istat /= 0) THEN
@@ -327,6 +339,7 @@ CONTAINS
       qs_force(ikind)%g0s_Vh_elec(:,:) = 0.0_dp
       qs_force(ikind)%hartree_2c(:,:) = 0.0_dp
       qs_force(ikind)%hartree_3c(:,:) = 0.0_dp
+      qs_force(ikind)%kg_gpw_ekin_mol(:,:) = 0.0_dp
       qs_force(ikind)%other(:,:) = 0.0_dp
       qs_force(ikind)%total(:,:) = 0.0_dp
     END DO
