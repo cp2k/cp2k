@@ -3350,7 +3350,7 @@ END SUBROUTINE blacs_scale_and_d
 ! *****************************************************************************
 
 
-  SUBROUTINE blacs_block_jacobi_classic(matrix,eigenvectors,thresh,&
+  SUBROUTINE blacs_block_jacobi_classic(matrix,eigenvectors,eigval,thresh,&
                                         start_sec_block)
 !
 !   Purpose: Calculates Block diagonalizazion from full symmetric matrix
@@ -3361,6 +3361,7 @@ END SUBROUTINE blacs_scale_and_d
 !   ***************************************************************************
 
     TYPE(cp_full_matrix_type), POINTER        :: eigenvectors,matrix
+    REAL(wp), INTENT(IN)                      :: eigval(:)
     INTEGER, INTENT(IN)                       :: start_sec_block  ! Gibt an wo der zweite Block BEGINNT
     REAL(wp), INTENT(IN)                      :: thresh ! thresh: Ein Element wird nur rotiert, wenn es groesser als thresh ist.         
 
@@ -3375,9 +3376,10 @@ END SUBROUTINE blacs_scale_and_d
     REAL(wp), DIMENSION (:),ALLOCATABLE :: c_ip
 
 #if defined(__SCALAPACK)
-    INTEGER, EXTERNAL  :: numroc,indxl2g
+    INTEGER, EXTERNAL  :: numroc,indxl2g,indxg2l
     INTEGER :: myprow,mypcol,nprow,npcol,ictxt_loc,block_dim_row,block_dim_col,info,ev_row_block_size,iam,counter,status,ierr
-    INTEGER :: source,allgrp,mynumrows,ictxt,temp_row,temp_col,temp_nprow,temp_npcol,mype,npe,a_row,a_col,a_nb,a_mb,iglob,jglob
+    INTEGER :: source,allgrp,mynumrows,ictxt,temp_row,temp_col,temp_nprow,temp_npcol,mype,npe,a_row,a_col,a_nb,a_mb,iglob,jglob,&
+               i_loc,j_loc
     INTEGER, DIMENSION(9) :: desca,descz,desc_a_block, desc_ev_loc
     REAL(wp), ALLOCATABLE :: A_loc(:,:), EV_loc(:,:),diagonale(:)
     TYPE(cp_blacs_env_type), POINTER    :: context
@@ -3407,31 +3409,31 @@ END SUBROUTINE blacs_scale_and_d
     EV => eigenvectors%local_data
     descz(:) = eigenvectors%matrix_struct%descriptor(:)
     
-    ALLOCATE(diagonale(N),STAT=status)
-    IF(status > 0) THEN
-      WRITE (*,*) 'Allok-Error fuer die Diagonale!'
-    ENDIF  
-    diagonale(:) = 0.0_wp
-
-    ! Extrahiere Diagonale der Matrix 
-    ! Dazu guckt jeder in seinem lokalen Block und schict dann diese Diagonalteile samt INdexe an den Master
-
-    a_row = SIZE(A,1)
-    a_col = SIZE(A,2)
-    a_mb  = desca(5)
-    a_nb  = desca(6)
-
-    DO J=1,a_col
-      DO I=1,a_row
-        iglob = indxl2g(I,a_mb,myprow,0,nprow)
-        jglob = indxl2g(J,a_nb,mypcol,0,npcol)
-        IF(iglob==jglob) diagonale(iglob) = a(i,j)
-      ENDDO
-    ENDDO                
-
-    ! Hole die Diagonalteile zusammen...
-    
-     CALL mp_sum(diagonale,allgrp)
+!MK    ALLOCATE(diagonale(N),STAT=status)
+!MK    IF(status > 0) THEN
+!MK      WRITE (*,*) 'Allok-Error fuer die Diagonale!'
+!MK    ENDIF  
+!MK    diagonale(:) = 0.0_wp
+!MK
+!MK    ! Extrahiere Diagonale der Matrix 
+!MK    ! Dazu guckt jeder in seinem lokalen Block und schict dann diese Diagonalteile samt INdexe an den Master
+!MK
+!MK    a_row = SIZE(A,1)
+!MK    a_col = SIZE(A,2)
+!MK    a_mb  = desca(5)
+!MK    a_nb  = desca(6)
+!MK
+!MK    DO J=1,a_col
+!MK      DO I=1,a_row
+!MK        iglob = indxl2g(I,a_mb,myprow,0,nprow)
+!MK        jglob = indxl2g(J,a_nb,mypcol,0,npcol)
+!MK        IF(iglob==jglob) diagonale(iglob) = a(i,j)
+!MK      ENDDO
+!MK    ENDDO                
+!MK
+!MK    ! Hole die Diagonalteile zusammen...
+!MK    
+!MK     CALL mp_sum(diagonale,allgrp)
 
     ! Kopiere den Block, der wegrotiert werden soll zunaechst auf den Masterprozessor, und anschliessend
     ! per Broadcast an alle Prozis
@@ -3453,11 +3455,12 @@ END SUBROUTINE blacs_scale_and_d
     CALL descinit(desc_a_block,block_dim_row,block_dim_col,block_dim_row,&
                   block_dim_col,0,0,ictxt_loc,block_dim_row,info)
     
-    ! Jetzt sind eigentlich nur im Master-Prozess Daten reingekommen
-    CALL pdgemr2d(block_dim_row,block_dim_col,A,1,1,desca,A_loc,1,1,desc_a_block,ictxt)
+    CALL pdgemr2d(block_dim_row,block_dim_col,A,1,1,desca,A_loc,1,1,&
+                  desc_a_block,ictxt)
 
-    CALL mp_bcast (A_loc,0, allgrp )
-  
+    ! Jetzt sind eigentlich nur im Master-Prozess Daten reingekommen
+    CALL mp_bcast(A_loc,0,allgrp)
+
     ! Da nun jeder ueber den oberen Block verfuegt, koennen wir jetzt die Eigenvektoren so umsortieren, dass
     ! man ein NN*1 Prozessgrid hat, und somit jeder Prozessor ueber ein Buendel von Zeilel verfuegt,
     ! die selbst unabhaengig modifizieren darf.
@@ -3468,34 +3471,24 @@ END SUBROUTINE blacs_scale_and_d
     mynumrows = NUMROC(N,ev_row_block_size,iam,0,NPROW*NPCOL)
  
     ALLOCATE(EV_loc(mynumrows,N),c_ip(mynumrows))
-        
+
     CALL descinit(desc_ev_loc,N,N,ev_row_block_size,N,0,0,ictxt_loc,&
                   mynumrows,info)
 
-!   *** START Diagonalising matrix ***
-!   *** START Diagonalising matrix ***
-       
-    ! 'Q zur Einheitsmatrix machen!'
-    CALL blacs_gridinfo(ictxt_loc,nprow,npcol,myprow,mypcol)
-    
-       DO J=1,N
-         DO I=1,mynumrows
-           IF(indxl2g(I,ev_row_block_size,myprow,0,nprow)==indxl2g(J,N,mypcol,0,npcol)) THEN
-             EV_loc(I,J) = 1.0_wp ;
-           ELSE  
-             EV_loc(I,J) = 0.0_wp ;
-           ENDIF
-         ENDDO
-       ENDDO                
+    CALL pdgemr2d(N,N,EV,1,1,descz,EV_loc,1,1,desc_ev_loc,ictxt)
 
-        
+!   *** START Diagonalising matrix ***
+!   *** START Diagonalising matrix ***
+
     ! Eigentliche Blockdiagonalisierung
+
     DO q=start_sec_block,N
       DO p=1,(start_sec_block-1)
     
           IF(ABS(A_loc(p,q))>thresh) THEN         
   
-          tau = (diagonale(q)-diagonale(p))/(2.0_wp*A_loc(p,q));
+!MK          tau = (diagonale(q)-diagonale(p))/(2.0_wp*A_loc(p,q))
+          tau = (eigval(q)-eigval(p))/(2.0_wp*A_loc(p,q))
     
           tan_theta = SIGN(1.0_wp,tau)/(ABS(tau)+SQRT(1.0_wp+tau*tau));
     
@@ -3532,10 +3525,10 @@ END SUBROUTINE blacs_scale_and_d
 
     ! Nun muessen die Eigenvektoren wieder in die alte Verteilung zurueckverschickt werden.
     ! Verschicke EVs zurueck!'
-    CALL pdgemr2d(N,N,EV_loc,1,1,desc_ev_loc,EV,1,1,descz,ictxt_loc)
+    CALL pdgemr2d(N,N,EV_loc,1,1,desc_ev_loc,EV,1,1,descz,ictxt)
 
     ! Speicher freigeben
-    DEALLOCATE(A_loc,EV_loc,c_ip,diagonale)
+    DEALLOCATE(A_loc,EV_loc,c_ip)
 
     ! ...und tschuess!
     
@@ -3552,22 +3545,16 @@ END SUBROUTINE blacs_scale_and_d
 !   *** START Diagonalising matrix ***
 !   *** START Diagonalising matrix ***
       
-       tan_theta = 0.0_wp;
-       tau       = 0.0_wp;
+    tan_theta = 0.0_wp;
+    tau       = 0.0_wp;
        
-       ! Q zur Einheitsmatrix machen
-       EV = 0.0_wp ;
-       FORALL (I=1:N)
-         EV(I,I)=1.0_wp
-       END FORALL
-       
-          
     DO q=start_sec_block,N
       DO p=1,(start_sec_block-1)
     
           IF(ABS(A(p,q))>thresh) THEN         
   
-          tau = (A(q,q)-A(p,p))/(2.0_wp*A(p,q));
+!MK          tau = (A(q,q)-A(p,p))/(2.0_wp*A(p,q))
+          tau = (eigval(q)-eigval(p))/(2.0_wp*A(p,q))
     
           tan_theta = SIGN(1.0_wp,tau)/(ABS(tau)+SQRT(1.0_wp+tau*tau));
     

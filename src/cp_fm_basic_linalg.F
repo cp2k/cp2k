@@ -342,7 +342,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE cp_fm_gemm(transa,transb,m,n,k,alpha,matrix_a,matrix_b,beta,&
-       matrix_c,error)
+       matrix_c,error,b_first_col)
 
 !   Purpose: BLACS interface to the BLAS routine dgemm.
 
@@ -354,11 +354,12 @@ CONTAINS
     CHARACTER(LEN=1), INTENT(IN)              :: transa,transb
     REAL(wp), INTENT(IN)                      :: alpha,beta
     INTEGER, INTENT(IN)                       :: k,m,n
+    INTEGER, OPTIONAL, INTENT(IN)             :: b_first_col
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local variables ***
 
-    INTEGER :: handle,lda,ldb,ldc
+    INTEGER :: handle,j,lda,ldb,ldc
 
     INTEGER, DIMENSION(9) :: desca,descb,descc
 
@@ -373,6 +374,12 @@ CONTAINS
     b => matrix_b%local_data
     c => matrix_c%local_data
 
+    IF (PRESENT(b_first_col)) THEN
+      j = b_first_col
+    ELSE
+      j = 1
+    END IF
+
 #if defined(__SCALAPACK)
 
     desca(:) = matrix_a%matrix_struct%descriptor(:)
@@ -381,9 +388,8 @@ CONTAINS
 
     flops=2.0_wp*(1E-9_wp*m*n*k)/(matrix_a%matrix_struct%context%num_pe(1)*&
          matrix_a%matrix_struct%context%num_pe(2))
-    CALL pdgemm(transa,transb,m,n,k,alpha,a(1,1),1,1,desca,b(1,1),1,1, &
-         descb,beta,c(1,1),1,1,&
-         descc)
+    CALL pdgemm(transa,transb,m,n,k,alpha,a(1,1),1,1,desca,b(1,1),1,j,&
+                descb,beta,c(1,1),1,j,descc)
 #else
 
     lda = SIZE(a,1)
@@ -391,7 +397,7 @@ CONTAINS
     ldc = SIZE(c,1)
 
     flops=2.0_wp*(1E-9_wp*m*n*k)
-    CALL dgemm(transa,transb,m,n,k,alpha,a(1,1),lda,b(1,1),ldb,beta,c(1,1),ldc)
+    CALL dgemm(transa,transb,m,n,k,alpha,a(1,1),lda,b(1,j),ldb,beta,c(1,j),ldc)
 
 #endif
     CALL timestop(flops,handle)

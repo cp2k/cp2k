@@ -1276,7 +1276,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: ks,ortho,work
+    TYPE(cp_full_matrix_type), POINTER        :: ks,ortho,work
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
     LOGICAL, INTENT(INOUT)                    :: use_cholesky
@@ -1312,79 +1312,74 @@ CONTAINS
 
     IF (use_cholesky) THEN
 
-       CALL cp_fm_cholesky_reduce(ks,ortho)
-       IF (use_jacobi) THEN
-         CALL blacs_syevx(ks,work,mo_eigenvalues,nao,work_syevx)
-         use_cholesky = .FALSE.
-         CALL cp_fm_cholesky_restore(work,nao,ortho,mo_eigenvectors,"SOLVE")
-         CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
+      CALL cp_fm_cholesky_reduce(ks,ortho)
+      IF (use_jacobi) THEN
+        CALL blacs_syevx(ks,work,mo_eigenvalues,nao,work_syevx)
+        use_cholesky = .FALSE.
+        CALL cp_fm_cholesky_restore(work,nao,ortho,mo_eigenvectors,"SOLVE")
+        CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
       ELSE
-         CALL blacs_syevx(ks,work,mo_eigenvalues,homo,work_syevx)
-         CALL cp_fm_cholesky_restore(work,homo,ortho,mo_eigenvectors,"SOLVE")
-       END IF
+        CALL blacs_syevx(ks,work,mo_eigenvalues,homo,work_syevx)
+        CALL cp_fm_cholesky_restore(work,homo,ortho,mo_eigenvectors,"SOLVE")
+      END IF
 
-    ELSEIF (use_arpack) THEN ! not really recommended, since rather slow, except for huge basis sets
+    ELSE IF (use_arpack) THEN ! not really recommended, since rather slow, except for huge basis sets
 
 !TC       ncv = nmo + 64
-       ncv = nmo*2
-       CALL cp_fm_cholesky_reduce(ks,ortho)
+      ncv = nmo*2
+      CALL cp_fm_cholesky_reduce(ks,ortho)
        
-       CALL setup_op_symv(arpack_op, ks, work, .FALSE.)
-       CALL arpack_diag_sy(work,mo_eigenvalues,nmo,ncv,.FALSE.,globenv, &
-                           op_symv=arpack_op)
+      CALL setup_op_symv(arpack_op, ks, work, .FALSE.)
+      CALL arpack_diag_sy(work,mo_eigenvalues,nmo,ncv,.FALSE.,globenv, &
+                          op_symv=arpack_op)
 
-       CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
+      CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
+
+    ELSE IF (use_jacobi) THEN
+
+      CALL cp_fm_symm("L","U",nao,homo,1.0_wp,ks,mo_eigenvectors,0.0_wp,work)
+      CALL cp_fm_gemm("T","N",homo,nao-homo,nao,1.0_wp,work,mo_eigenvectors,&
+                      0.0_wp,ks,b_first_col=homo+1)
+
+!     epsi =1e-11
+!     Anz_max=4
+!     N=ks%matrix_struct%nrow_global
+
+!     *** Scale the elements with the inverse ***
+!     *** difference of the old eigenvalues   ***
+
+!     CALL blacs_block_jacobi_scaled(ks,work,mo_eigenvalues,&
+!                                    jacobi_threshold,homo+1)
+
+!     *** Klassisches Jacobi-Block-Verfrahren ***
+!     *** Rotiere Elemente nur, wenn sie groesser als thresh sind ***
+
+      CALL blacs_block_jacobi_classic(ks,mo_eigenvectors,mo_eigenvalues,&
+                                      jacobi_threshold,homo+1)
 
     ELSE
 
-       CALL cp_fm_get_info(matrix=ks,nrow_global=nao)
+      CALL cp_fm_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp,work)
+      CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,ks)
 
-!MK    CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_wp,ks,ortho,0.0_wp,work)
-       CALL cp_fm_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp,work)
-       CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,ks)
- 
-       IF (do_level_shift) THEN
-         DO imo=homo+1,nmo
-            CALL blacs_add_to_element(ks,imo,imo,level_shift)
-         END DO
-       ENDIF
+      IF (do_level_shift) THEN
+        DO imo=homo+1,nmo
+          CALL blacs_add_to_element(ks,imo,imo,level_shift)
+        END DO
+      END IF
 
-       IF (use_jacobi) THEN
+      CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
 
-!        epsi =1e-11
-!        Anz_max=4
-!        N=ks%matrix_struct%nrow_global
+      CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,&
+                      mo_eigenvectors)
 
-!        *** Scale the elements with the inverse ***
-!        *** difference of the old eigenvalues   ***
+      IF (do_level_shift) CALL correct_mo_eigenvalues(mo_set,level_shift)
 
-!        CALL blacs_block_jacobi_scaled(ks,work,mo_eigenvalues,&
-!                                       jacobi_threshold,homo+1)
+!     *** Use last MO set as orthogonalization matrix ***
 
-!        *** Klassisches Jacobi-Block-Verfrahren ***
-!        *** Rotiere Elemente nur, wenn sie groesser als thresh sind ***
+      CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
 
-         CALL blacs_block_jacobi_classic(ks,work,jacobi_threshold,homo+1)
-
-       ELSE
-
-         CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
-
-       END IF
-
-       CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
-                        mo_eigenvectors)
-
-       IF (do_level_shift) CALL correct_mo_eigenvalues(mo_set,level_shift)
-
-!      *** Use last MO set as orthogonalization matrix ***
-
-       IF ((do_level_shift).OR.(eps_jacobi /= 0.0_wp)) THEN
-         CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
-       END IF
-
-    ENDIF
-    ! write(6,*) "evals syevx",mo_eigenvalues(1:nmo)
+    END IF
 
     CALL timestop(0.0_wp,handle)
 
