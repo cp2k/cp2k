@@ -1390,7 +1390,7 @@ SUBROUTINE topology_pack(bond_a,bond_b,theta_a,theta_b,theta_c,&
     mol_setup(i)%molpar%natom=j
     mol_setup(i)%molpar%natom_type=1
     DO j=2,mol_setup(i)%molpar%natom
-      IF(.NOT.(label_atmname(j-1)==label_atmname(j))) THEN
+      IF(.NOT.(label_atmname(first+j-1)==label_atmname(first+j))) THEN
         mol_setup(i)%molpar%natom_type = mol_setup(i)%molpar%natom_type + 1
       END IF
     END DO
