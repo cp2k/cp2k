@@ -157,12 +157,13 @@ MODULE qs_scf
   use pao_qs_env_methods,       only: pao_qs_env_did_change
   use cp_error_handling,        only: cp_error_type, cp_assert, &
        cp_error_message, cp_error_init, cp_error_dealloc_ref, cp_debug,&
-       cp_internal_error
+       cp_internal_error, cp_error_get_logger
   use cp_log_handling,          only: cp_failure_level, cp_warning_level,&
        cp_to_string
   use pao_glob_angles_methods,  only: pao_g_ang_get,pao_g_ang_set
   use qs_build_KS_matrix,       only: qs_ks_env_type, qs_ks_init, &
        qs_ks_dealloc_ref, build_kohn_sham_matrix
+  use cp_matrix_utils,          only: cp_sm_output
   USE qs_collocate_density,     ONLY: calculate_rho_core,&
                                       calculate_rho_elec,&
                                       calculate_total_rho
@@ -192,6 +193,7 @@ MODULE qs_scf
                        ncol_block,maxl,nkind
   LOGICAL           :: gradient_functional,gth_potential_present,&
                        rebuild,use_cholesky,use_arpack
+  logical, parameter, private :: debug_this_module=.true.
 
   character(len=*), private, parameter :: moduleN="qs_scf"
 
@@ -293,6 +295,13 @@ CONTAINS
         "SCF WAVEFUNCTION OPTIMIZATION"
     END IF
 
+    if (cp_debug .and. debug_this_module) then
+       call cp_sm_output(logger=cp_error_get_logger(error), &
+            outputName="scf_s", &
+            fromWhere=routine, iter=0, matrix=s(1)%matrix,&
+            global_env=globenv,error=error)
+    end if
+
     CALL init_scf_run(mo_set=mo_set,&
                       qs_env=qs_env,&
                       globenv=globenv,&
@@ -355,6 +364,16 @@ CONTAINS
       rebuild = (MODULO(iscf,nrebuild) == 0)
 
       paoIf: if (pao) then
+         if (cp_debug .and. debug_this_module) then
+            call cp_sm_output(logger=cp_error_get_logger(error), &
+                 outputName="scf_ks", &
+                 fromWhere=routine, iter=iscf, matrix=ks%matrix,&
+                 global_env=globenv,error=error)
+            call cp_sm_output(logger=cp_error_get_logger(error),&
+                 outputName="scf_p", &
+                 fromWhere=routine, iter=iscf, matrix=p%matrix,&
+                 global_env=globenv,error=error)
+         end if
          call pao_qs_env_did_change(qs_env,global_env=globenv,h_changed=.true.)
          if (.not.cp_opt_gerd_f_next(pao_optimizer,f=pao_f,last_f=pao_last_f,&
               projected_gradient=pao_actual_grad, error=error)) then
