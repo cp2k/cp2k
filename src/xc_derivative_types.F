@@ -26,6 +26,7 @@ module xc_derivative_types
                                 cp_to_string, cp_logger_get_default_unit_nr
   use xc_derivative_desc, only: MAX_DERIVATIVE_DESC_LENGTH, &
                                 standardize_dervitative_desc
+  USE cp_array_r_utils,   only: cp_3d_r_p_type
 
   implicit none
 
