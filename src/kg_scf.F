@@ -450,7 +450,7 @@ CONTAINS
                                 error=error,&
                                 calculate_forces=.FALSE.,&
                                 just_energy=energy_only)
-
+ stop 'first ks'
        DO ispin=1,dft_control%nspins
 
           IF (logger%print_keys%density_matrix.AND.&
@@ -972,16 +972,27 @@ CONTAINS
 
 ! *** method dependent initializations ***
     SELECT CASE (scf_env%method)
-    CASE (general_diag_method_nr)
-       IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN       
-         CALL kg_diis_b_create(scf_env%scf_diis_buffer,&
-                               kg_fm%kg_fm_mol_set,&
-                               nbuffer=scf_control%max_diis,&
-                               nspins = dft_control%nspins,&
-                               error=error)
-       END IF
-       CALL kg_diis_b_clear(scf_env%scf_diis_buffer,error=error)
-    CASE DEFAULT
+      CASE DEFAULT
+        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                 routineP,"unknown scf method method:"//&
+                 cp_to_string(scf_env%method),error,failure)
+      CASE (general_diag_method_nr)
+         IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN       
+           CALL kg_diis_b_create(scf_env%scf_diis_buffer,&
+                                 kg_fm%kg_fm_mol_set,&
+                                 nbuffer=scf_control%max_diis,&
+                                 nspins = dft_control%nspins,&
+                                 error=error)
+         END IF
+         CALL kg_diis_b_clear(scf_env%scf_diis_buffer,error=error)
+
+      CASE (special_diag_method_nr)
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               "Special_diag_method_nr not implemented with KG_GPW yet")
+      CASE (ot_method_nr)
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               "Ot_method_nr not implemented with KG_GPW yet")
+
     END SELECT
 
    ELSE
@@ -1444,6 +1455,7 @@ CONTAINS
 !     do i =1,n_ao_kind
 !       write(*,'(I4,23f10.5)') i,aux_matrix(i,1:n_ao_kind) 
 !     end do
+! stop 'h_core'
 ! dbg
           DO ispin=1,nspin
             NULLIFY(mo_set,mo_coeff)
@@ -1695,7 +1707,6 @@ CONTAINS
           CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
                error=error)
-stop ' after calc rho'
        END IF
     END IF
 

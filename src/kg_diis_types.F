@@ -52,7 +52,8 @@ module kg_diis_types
   public :: kg_diis_buffer_type, mol_diis_block_type, mol_diis_buffer_set_type
 
 ! Publilc Procedures
-  public :: get_mol_diis_set, init_mol_diis_block, kg_diis_b_retain, kg_diis_b_release, set_mol_diis_set
+  public :: allocate_diis_block, get_mol_diis_set, init_mol_diis_set,&
+            kg_diis_b_retain, kg_diis_b_release, set_mol_diis_set
 
 !****************************************************************************
 
@@ -152,7 +153,7 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     12.2003 created 
 !!
-!!*** **********************************************************************
+!!*************************************************************************
   SUBROUTINE kg_diis_b_release(diis_buffer,error)
 
     TYPE(kg_diis_buffer_type), POINTER       :: diis_buffer
@@ -233,6 +234,60 @@ CONTAINS
     END IF
 
   END SUBROUTINE get_mol_diis_set
+
+!***************************************************************************
+  SUBROUTINE allocate_diis_block(mol_diis_buffer_set,nmol_global,nmol_local,error)
+
+    TYPE(mol_diis_buffer_set_type), POINTER       :: mol_diis_buffer_set
+    INTEGER, INTENT(IN)                           :: nmol_global, nmol_local
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                                    :: error
+
+     CHARACTER(len=*), PARAMETER :: routine_name ="init_mol_diis_set"
+
+    INTEGER :: imol, istat
+    LOGICAL :: failure
+    
+    failure = .FALSE.
+    CPPostcondition(ASSOCIATED(mol_diis_buffer_set),cp_failure_level,routine_name,error,failure)
+
+    IF(ASSOCIATED(mol_diis_buffer_set%mol_diis_block)) &
+       CALL distroy_mol_diis_block(mol_diis_buffer_set%mol_diis_block)
+
+    ALLOCATE(mol_diis_buffer_set%mol_diis_block(nmol_local), STAT = istat)
+    CPPostcondition(istat==0,cp_failure_level,routine_name,error,failure)
+
+    mol_diis_buffer_set%nmol_global = nmol_global
+    mol_diis_buffer_set%nmol_local = nmol_local
+    
+    CALL init_mol_diis_block(mol_diis_buffer_set,nmol_local,error)
+
+  END SUBROUTINE allocate_diis_block
+
+!***************************************************************************
+
+  SUBROUTINE init_mol_diis_set(mol_diis_buffer_set,nmol_kind,error)
+
+    TYPE(mol_diis_buffer_set_type), DIMENSION(:),&
+      POINTER                                     :: mol_diis_buffer_set
+    INTEGER, INTENT(IN)                           :: nmol_kind
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                                    :: error 
+
+    CHARACTER(len=*), PARAMETER :: routine_name ="init_mol_diis_set"
+
+    INTEGER :: ikind
+    LOGICAL :: failure
+    
+    failure = .FALSE.
+    CPPostcondition(ASSOCIATED(mol_diis_buffer_set),cp_failure_level,routine_name,error,failure)
+    DO ikind = 1,nmol_kind
+
+      NULLIFY(mol_diis_buffer_set(ikind)%mol_diis_block)
+
+    END DO
+
+  END SUBROUTINE init_mol_diis_set
 
 !***************************************************************************
 
@@ -331,14 +386,14 @@ CONTAINS
 
     mol_diis_block => mol_diis_buffer_set%mol_diis_block
     nsize = SIZE(mol_diis_block,1)
-    CPPostcondition(nsize/=nmol_local,cp_failure_level,routine_name,error,failure)
+    CPPostcondition(nsize==nmol_local,cp_failure_level,routine_name,error,failure)
 
     DO imol = 1, nmol_local
       NULLIFY(mol_diis_block(imol)%ks_buffer)
       NULLIFY(mol_diis_block(imol)%er_buffer)
       NULLIFY(mol_diis_block(imol)%b_buffer)
+      mol_diis_block(imol)%mol_error_max = 0.0_dp
     END DO
-    mol_diis_block%mol_error_max = 0.0_dp
 
   END SUBROUTINE init_mol_diis_block
 

@@ -949,6 +949,11 @@ CONTAINS
           CALL init_aux_basis_set(atomic_kind%aux_basis_set)
         END IF
       ELSE IF (globenv%program_name == "KG") THEN
+        IF (ASSOCIATED(atomic_kind%gth_potential).AND. PRESENT(method))THEN
+          IF(method == "KG_GPW")&  
+          CALL init_potential(atomic_kind%gth_potential)
+        END IF
+
         IF (ASSOCIATED(atomic_kind%orb_basis_set))THEN
           IF(atomic_kind%orb_basis_set%norm_type < 0) THEN
             IF(PRESENT(method)) THEN

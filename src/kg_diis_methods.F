@@ -34,12 +34,12 @@ MODULE kg_diis_methods
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE kg_diis_types,                   ONLY: init_mol_diis_block,&
+  USE kg_diis_types,                   ONLY: allocate_diis_block,&
+                                             init_mol_diis_set,&
                                              kg_diis_buffer_type,&
                                              mol_diis_block_type,&
                                              mol_diis_buffer_set_type,&
-                                             get_mol_diis_set,&
-                                             set_mol_diis_set
+                                             get_mol_diis_set
   USE kg_gpw_fm_mol_methods,           ONLY: calculate_mol_density_matrix,&
                                              fm_mol_eigensolver
   USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type,&
@@ -156,7 +156,7 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(scf_diis_buffer),cp_failure_level,routine_name,error,failure)
-    CPPrecondition(scf_diis_buffer%ref_count>1,cp_failure_level,routine_name,error,failure)
+    CPPrecondition(scf_diis_buffer%ref_count>=1,cp_failure_level,routine_name,error,failure)
     IF (.NOT. failure) THEN
        scf_diis_buffer%ncall=0
     END IF
@@ -187,8 +187,6 @@ CONTAINS
     LOGICAL :: failure
     TYPE(kg_fm_mol_set_type), POINTER          :: fm_mol_set
     TYPE(mol_diis_buffer_set_type), POINTER    :: diis_set
-    TYPE(mol_diis_block_type), DIMENSION(:),&
-      POINTER                                  :: diis_block
 
     failure=.FALSE.
 
@@ -202,25 +200,23 @@ CONTAINS
       scf_diis_buffer%ref_count=1
       scf_diis_buffer%nspins = nspins
       nmol_kind =SIZE(kg_fm_mol_set,1)
+      NULLIFY(scf_diis_buffer%mol_diis_buffer_set)
+
       ALLOCATE(scf_diis_buffer%mol_diis_buffer_set(nmol_kind), STAT = istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CALL init_mol_diis_set(scf_diis_buffer%mol_diis_buffer_set,nmol_kind)
 
       DO ikind = 1,nmol_kind
         fm_mol_set => kg_fm_mol_set(ikind)
         CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set,natom=natom, &
                                nmol_kind_global=nmol_global,&
                                nmolecule_local=nmol_local)
+
         NULLIFY(diis_set)
         diis_set => scf_diis_buffer%mol_diis_buffer_set(ikind)
-        ALLOCATE(diis_block(nmol_local), STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        CALL set_mol_diis_set(mol_diis_buffer_set=diis_set,&
-                              nmol_global=nmol_global,nmol_local=nmol_local,&
-                              mol_diis_block=diis_block)
-        CALL init_mol_diis_block(diis_set,nmol_local,error)
+        CALL allocate_diis_block(diis_set,nmol_global,nmol_local)
 
       END DO   ! ikind
-      
     END IF
 
   END SUBROUTINE kg_diis_b_create
