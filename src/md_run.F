@@ -352,6 +352,15 @@ CONTAINS
 
     CALL md_env_release ( md_env, error )
 
+    ! just deallocate this stuff ?? 
+    ! seem to need proper init / destroy subroutines ... to be fixed
+    DEALLOCATE(extended_type%nhc_part,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(extended_type%nhc_baro,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(simpar,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
     CALL timestop(0.0_dp,handle)
 
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
