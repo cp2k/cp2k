@@ -74,6 +74,7 @@ MODULE qs_environment_methods
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
                                              wp=>dp
+  USE particle_types,                  ONLY: particle_type
   USE pw_env_methods,                  ONLY: pw_env_create,&
                                              pw_env_rebuild
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -92,10 +93,6 @@ MODULE qs_environment_methods
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_type
-  USE qs_charges_types,                ONLY: qs_charges_type,&
-                                             qs_charges_retain,&
-                                             qs_charges_release
-  USE qs_collocate_density,            ONLY: calculate_rho_core
   USE qs_blacs,                        ONLY: cp_fm_add,&
                                              cp_fm_create2,&
                                              cp_fm_gemm,&
@@ -111,6 +108,11 @@ MODULE qs_environment_methods
   USE qs_build_ks_matrix,              ONLY: qs_ks_did_change,&
                                              qs_ks_env_type,&
                                              qs_ks_update_qs_env
+  USE qs_charges_types,                ONLY: qs_charges_create,&
+                                             qs_charges_release,&
+                                             qs_charges_retain,&
+                                             qs_charges_type
+  USE qs_collocate_density,            ONLY: calculate_rho_core
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -136,17 +138,87 @@ MODULE qs_environment_methods
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_environment_methods'
 
   PUBLIC :: qs_env_update_s_mstruct, qs_env_rebuild_pw_env,&
-    qs_env_rebuild_aomo_pool, qs_env_rebuild_rho
+       qs_env_rebuild_aomo_pool, qs_env_rebuild_rho, qs_env_setup
 !***
 !****************************************************************************
 CONTAINS
+
+!!****f* qs_environment_methods/qs_env_setup [1.0] *
+!!
+!!   NAME
+!!     qs_env_setup
+!!
+!!   FUNCTION
+!!     initializes various components of the qs_env, that need only
+!!     atomic_kind_set, cell, dft_control, scf_control and 
+!!     particle_set to be initialized.
+!!     The previous components of qs_env must be valid.
+!!     Initializes pools, charges and pw_env.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - qs_env: the qs_env to set up
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     10.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE qs_env_setup(qs_env,error)
+  TYPE(qs_environment_type), INTENT(inout)                :: qs_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout)            :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='qs_env_setup',&
+        routineP=moduleN//':'//routineN
+  TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+  TYPE(cell_type), POINTER                      :: cell
+  TYPE(dft_control_type), POINTER               :: dft_control
+  TYPE(scf_control_type), POINTER               :: scf_control
+  TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
+  TYPE(qs_charges_type), POINTER                :: qs_charges
+  TYPE(cp_f_matrix_struct_type), POINTER        :: fmstruct
+  INTEGER :: n_mo, n_ao
+  failure=.FALSE.
+  
+  CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set,&
+       cell=cell, dft_control=dft_control, scf_control=scf_control,&
+       particle_set=particle_set, error=error)
+  CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(particle_set),cp_failure_level,routineP,error,failure)
+
+  IF (.NOT. failure) THEN
+     ! allocate qs_charges
+     CALL qs_charges_create(qs_charges,nspins=dft_control%nspins,error=error)
+     CALL set_qs_env(qs_env, qs_charges=qs_charges,error=error)
+     
+     ! set up pw_env
+     CALL qs_env_rebuild_pw_env(qs_env, error=error)
+     
+  END IF
+END SUBROUTINE qs_env_setup
+!***************************************************************************
+
+
 !!****f* qs_environment_types/qs_env_update_s_mstruct [1.0] *
 !!
 !!   NAME
 !!     qs_env_update_s_mstruct
 !!
 !!   FUNCTION
-!!     updates the s_mstruct to reflect the new overlap structure
+!!     updates the s_mstruct to reflect the new overlap structure,
+!!     and also updates rho_core distribution.
+!!     Should be called after the atoms have moved and the new overlap
+!!     has been calculated.
 !!
 !!   NOTES
 !!     -
@@ -219,16 +291,27 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,para_env,error)
        para_env=para_env,&
        sample_matrix=qs_env%s(1)%matrix,&
        error=error)
+  
+  ! *** updates rho core ***
+  CPPrecondition(ASSOCIATED(qs_env%rho_core),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(qs_env%pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL calculate_rho_core(qs_env%rho_core,qs_env%pw_env%cube_info(1),&
+          qs_env%pw_env%l_info,&
+          qs_env%qs_charges%total_rho_core_rspace,qs_env,error=error)
+  END IF
+  
 END SUBROUTINE qs_env_update_s_mstruct
 !***************************************************************************
 
-!!****f* qs_environment_types/qs_env_rebuild_fm_pools [1.0] *
+!!****f* qs_environment_types/qs_env_rebuild_aomo_pool [1.0] *
 !!
 !!   NAME
-!!     qs_env_rebuild_fm_pools
+!!     qs_env_rebuild_aomo_pool
 !!
 !!   FUNCTION
-!!     rebuilds the pools of the full matrixes
+!!     rebuilds the pools of the (ao x mo) full matrixes
 !!
 !!   NOTES
 !!     -
@@ -380,9 +463,9 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rho, rho_ao_with_h_mstruct, error)
   TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
   TYPE(cp_b_matrix_struct_type), POINTER :: s_mstruct
   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s, rho_ao
-  TYPE(coeff_type), DIMENSION(:), POINTER :: rho_g, rho_r
+  TYPE(coeff_type), DIMENSION(:), POINTER :: rho_g, rho_elec_r
   INTEGER :: rebuild_each, stat
-  NULLIFY(h,rho_ao,rho_r,rho_g)
+  NULLIFY(h,rho_ao,rho_elec_r,rho_g)
   rebuild_each=5
   failure=.FALSE.
   
@@ -404,7 +487,7 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rho, rho_ao_with_h_mstruct, error)
   ! creates the new rho
   ! - rho_ao
   CALL allocate_matrix_set(rho_ao,1)
-  ALLOCATE(rho_g(1),rho_r(1),stat=stat)
+  ALLOCATE(rho_g(1),rho_elec_r(1),stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   NULLIFY (rho_ao(1)%matrix)
   IF (hstruct) THEN
@@ -414,14 +497,14 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rho, rho_ao_with_h_mstruct, error)
      CALL replicate_matrix_structure(s(1)%matrix,rho_ao(1)%matrix,&
           "RHO%RHO_AO DENSITY MATRIX")
   END IF
-  ! rho_r/rho_g
+  ! rho_elec_r/rho_g
   CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
-  CALL pw_pool_init_coeff(auxbas_pw_pool,rho_r(1),REALDATA3D)
+  CALL pw_pool_init_coeff(auxbas_pw_pool,rho_elec_r(1),REALDATA3D)
   CALL pw_pool_init_coeff(auxbas_pw_pool,rho_g(1),COMPLEXDATA1D)
-  rho_r(1)%pw%in_space = REALSPACE
+  rho_elec_r(1)%pw%in_space = REALSPACE
   rho_g(1)%pw%in_space = RECIPROCALSPACE
   ! rho
-  CALL qs_rho_create(new_rho,rho_ao_ptr=rho_ao,rho_r_ptr=rho_r,&
+  CALL qs_rho_create(new_rho,rho_ao_ptr=rho_ao,rho_elec_r_ptr=rho_elec_r,&
        rho_g_ptr=rho_g,rebuild_each=rebuild_each,error=error)
   
   ! sets result to the newly created rho

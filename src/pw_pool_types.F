@@ -435,9 +435,10 @@ CONTAINS
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='pw_pool_alloc_pw',&
          routineP=moduleN//':'//routineN
-    INTEGER :: stat
+    INTEGER :: stat, handle
     failure=.FALSE.
 
+    CALL timeset(routineN,"I","",handle)
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
     CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
 
@@ -484,6 +485,7 @@ CONTAINS
           END IF
        END IF
     END IF
+    CALL timestop(0.0_wp,handle)
 
   END FUNCTION pw_pool_alloc_pw
 !***************************************************************************
@@ -521,9 +523,10 @@ CONTAINS
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='pw_pool_give_back_pw',&
          routineP=moduleN//':'//routineN
-    INTEGER :: stat
+    INTEGER :: stat, handle
     failure=.FALSE.
 
+    CALL timeset(routineN,"I","",handle)
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
     CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(pw),cp_warning_level,routineP,error,failure)
@@ -563,6 +566,7 @@ CONTAINS
 
     END IF
     NULLIFY(pw)
+    CALL timestop(0.0_wp, handle)
   END SUBROUTINE pw_pool_give_back_pw
 !***************************************************************************
 
@@ -594,11 +598,12 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_pool_init_coeff(pool, coeff, use_data, mass_flag, error)
+SUBROUTINE pw_pool_init_coeff(pool, coeff, use_data, mass_flag, in_space,error)
     TYPE(pw_pool_type), POINTER :: pool
     TYPE(coeff_type), INTENT(out) :: coeff
     INTEGER, INTENT(in) :: use_data
     LOGICAL, INTENT(in), OPTIONAL :: mass_flag
+    INTEGER, INTENT(in), OPTIONAL :: in_space
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -613,6 +618,8 @@ SUBROUTINE pw_pool_init_coeff(pool, coeff, use_data, mass_flag, error)
      coeff%pw => pw_pool_alloc_pw(pool,use_data,mass_flag=mass_flag,&
           error=error)
      coeff%in_use=PLANEWAVES
+     coeff%pw%in_space=0
+     IF (PRESENT(in_space)) coeff%pw%in_space=in_space
   END IF
 END SUBROUTINE pw_pool_init_coeff
 !***************************************************************************
@@ -643,7 +650,7 @@ END SUBROUTINE pw_pool_init_coeff
 !!*** **********************************************************************
 SUBROUTINE pw_pool_give_back_coeff(pool,coeff,error)
   TYPE(pw_pool_type), POINTER :: pool
-  TYPE(coeff_type), INTENT(in) :: coeff
+  TYPE(coeff_type), INTENT(inout) :: coeff
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -652,6 +659,7 @@ SUBROUTINE pw_pool_give_back_coeff(pool,coeff,error)
   failure=.FALSE.
   
   CALL pw_pool_give_back_pw(pool,coeff%pw)
+  coeff%in_use=0
 END SUBROUTINE pw_pool_give_back_coeff
 !***************************************************************************
 
@@ -684,11 +692,12 @@ END SUBROUTINE pw_pool_give_back_coeff
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_pools_init_coeffs(pools, coeffs, use_data,&
-     mass_flag, error)
+     mass_flag, in_space, error)
   TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pools
   TYPE(coeff_type), DIMENSION(:), INTENT(out)    :: coeffs
   INTEGER, INTENT(in) :: use_data
   LOGICAL, INTENT(in), OPTIONAL :: mass_flag
+  INTEGER, INTENT(in), OPTIONAL :: in_space
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -702,7 +711,7 @@ SUBROUTINE pw_pools_init_coeffs(pools, coeffs, use_data,&
   IF (.NOT. failure) THEN
      DO i=1,SIZE(pools)
         CALL pw_pool_init_coeff(pools(i)%pool,coeffs(i),use_data,&
-             mass_flag=mass_flag,error=error)
+             mass_flag=mass_flag,in_space=in_space,error=error)
      END DO
   END IF
 END SUBROUTINE pw_pools_init_coeffs
@@ -733,23 +742,22 @@ END SUBROUTINE pw_pools_init_coeffs
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_pools_give_back_coeffs(pools, coeffs, error)
-  TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pools
-  TYPE(coeff_type), DIMENSION(:) :: coeffs
+  TYPE(pw_pool_p_type), DIMENSION(:), POINTER  :: pools
+  TYPE(coeff_type), DIMENSION(:), INTENT(inout):: coeffs
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
+
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='pw_pools_give_back_coeffs',&
-        routineP=moduleN//':'//routineN
+       routineP=moduleN//':'//routineN
   INTEGER :: i
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
   CPPrecondition(SIZE(pools)==SIZE(coeffs),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      DO i=1,SIZE(pools)
         CALL pw_pool_give_back_coeff(pools(i)%pool,coeffs(i),error=error)
      END DO
-     coeffs(i)%in_use=0
   END IF
 END SUBROUTINE pw_pools_give_back_coeffs
 !***************************************************************************

@@ -215,6 +215,7 @@ OBJECTS_GENERIC =\
  qs_p_types.o\
  qs_p_utils.o\
  qs_parser.o\
+ qs_rho_methods.o\
  qs_rho_types.o\
  qs_scf.o\
  qs_tddfpt_module.o\

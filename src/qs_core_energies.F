@@ -20,39 +20,54 @@
 !******************************************************************************
 
 MODULE qs_core_energies
-
 ! *****************************************************************************
-
-  USE kinds, ONLY: int_size,&
-                   wp => dp,&
-                   wp_size => dp_size
-
-  USE atomic_kind_types,        ONLY: atomic_kind_type,&
-                                      get_atomic_kind,&
-                                      get_atomic_kind_set
-  USE global_types,             ONLY: LOW,global_environment_type
-  USE mathconstants,            ONLY: oorootpi,twopi
-  USE message_passing,          ONLY: mp_sum
-  USE particle_types,           ONLY: particle_type
-  USE qs_environment_types,     ONLY: get_qs_env,&
-                                      qs_environment_type
-  USE qs_energy_types,          ONLY: qs_energy_type
-  USE qs_force_types,           ONLY: qs_force_type
-  USE simulation_cell,          ONLY: cell_type,&
-                                      get_cell,&
-                                      pbc,&
-                                      real_to_scaled,&
-                                      scaled_to_real
-  USE sparse_matrix_types,      ONLY: first_block_node,&
-                                      get_block_node,&
-                                      get_matrix_info,&
-                                      next_block_node,&
-                                      real_block_node_type,&
-                                      real_matrix_type
-  USE termination,              ONLY: stop_memory
-  USE timings,                  ONLY: timeset,&
-                                      timestop
-
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE global_types,                    ONLY: LOW,&
+                                             global_environment_type
+  USE kinds,                           ONLY: int_size,&
+                                             wp => dp,&
+                                             wp_size => dp_size
+  USE mathconstants,                   ONLY: oorootpi,&
+                                             twopi
+  USE message_passing,                 ONLY: mp_sum
+  USE particle_types,                  ONLY: particle_type
+  USE qs_energy_types,                 ONLY: qs_energy_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
+  USE qs_force_types,                  ONLY: qs_force_type
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_cell,&
+                                             pbc,&
+                                             real_to_scaled,&
+                                             scaled_to_real
+  USE sparse_matrix_types,             ONLY: first_block_node,&
+                                             get_block_node,&
+                                             get_matrix_info,&
+                                             next_block_node,&
+                                             real_block_node_type,&
+                                             real_matrix_type
+  USE termination,                     ONLY: stop_memory
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
 
   PRIVATE
@@ -67,7 +82,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_ecore(h,p,s,ecore,globenv)
+  SUBROUTINE calculate_ecore(h,p,s,ecore,para_env,error)
 
 !   Purpose: Calculate the core Hamiltonian energy which includes the kinetic
 !            and the potential energy of the electrons.
@@ -76,9 +91,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(cp_para_env_type), POINTER           :: para_env
     TYPE(real_matrix_type), POINTER           :: h,p,s
     REAL(wp), INTENT(OUT)                     :: ecore
+    TYPE(cp_error_type),INTENT(inout),OPTIONAL:: error
 
 !   *** Local variables ***
 
@@ -111,12 +127,12 @@ CONTAINS
         CALL get_block_node(matrix=h,&
                             block_row=iblock_row,&
                             block_col=iblock_col,&
-                            block=h_block)
+                            BLOCK=h_block)
 
         CALL get_block_node(matrix=p,&
                             block_row=iblock_row,&
                             block_col=iblock_col,&
-                            block=p_block)
+                            BLOCK=p_block)
 
         ecore_block = 0.0_wp
 
@@ -138,7 +154,7 @@ CONTAINS
 
     END DO
 
-    CALL mp_sum(ecore,globenv%group)
+    CALL mp_sum(ecore,para_env%group)
 
     CALL timestop(0.0_wp,handle)
 
@@ -380,7 +396,7 @@ CONTAINS
                       eab = zab*erfc(rootaab*dab)/dab
                       ecore_overlap = ecore_overlap + eab
                       IF (calculate_forces) THEN
-                        deab(:) = rab(:)*(eab + f0*exp(-aab*rab2))/rab2
+                        deab(:) = rab(:)*(eab + f0*EXP(-aab*rab2))/rab2
                         force(ikind)%core_overlap(:,iatom) =&
                           force(ikind)%core_overlap(:,iatom) - deab(:)
                         force(jkind)%core_overlap(:,jatom) =&
@@ -499,7 +515,7 @@ CONTAINS
                             eab = zab*erfc(rootaab*dab)/dab
                             ecore_overlap = ecore_overlap + eab
                             IF (calculate_forces) THEN
-                              deab(:) = rab(:)*(eab + f0*exp(-aab*rab2))/rab2
+                              deab(:) = rab(:)*(eab + f0*EXP(-aab*rab2))/rab2
                               force(ikind)%core_overlap(:,iatom) =&
                                 force(ikind)%core_overlap(:,iatom) - deab(:)
                               force(jkind)%core_overlap(:,jatom) =&

@@ -33,7 +33,9 @@ MODULE qs_main
   USE kinds,                           ONLY: wp => dp
   USE qs_blacs,                        ONLY: finish_blacs,&
                                              start_blacs
-  USE qs_build_ks_matrix,              ONLY: qs_ks_env_type
+  USE qs_build_ks_matrix,              ONLY: qs_ks_dealloc_ref,&
+                                             qs_ks_env_type,&
+                                             qs_ks_init
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_environment_methods,          ONLY: qs_env_rebuild_rho,&
                                              qs_env_update_s_mstruct
@@ -125,11 +127,14 @@ CONTAINS
     
 !   *** Updates rho structure
     
-    call qs_env_rebuild_rho(qs_env=qs_env)
+    CALL qs_env_rebuild_rho(qs_env=qs_env)
+
+!   *** init the ks_env
+
+    CALL qs_ks_init(ks_env,qs_env=qs_env,global_env=globenv)
 
 !   *** Perform a SCF run ***
 
-    ks_env%initialized = .FALSE.
     CALL scf(ks_env,qs_env,globenv)
 
 !   *** TD calculation ***
@@ -139,6 +144,8 @@ CONTAINS
 !   *** Calculate forces ***
 
     CALL update_forces(ks_env,qs_env,globenv)
+
+    CALL qs_ks_dealloc_ref(ks_env)
 
 !   *** Release BLACS ***
 

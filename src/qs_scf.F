@@ -128,6 +128,18 @@ MODULE qs_scf
                                              preconditioner_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
+                                             pw_pool_init_coeff,&
+                                             pw_pool_p_type,&
+                                             pw_pool_type,&
+                                             pw_pools_give_back_coeffs,&
+                                             pw_pools_init_coeffs
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             COMPLEXDATA3D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_type
   USE qs_arpack,                       ONLY: arpack_diag_sy
   USE qs_arpack_full,                  ONLY: op_symv_type,&
                                              setup_op_symv
@@ -165,6 +177,7 @@ MODULE qs_scf
                                              qs_ks_env_type,&
                                              qs_ks_init,&
                                              qs_ks_update_qs_env
+  USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_rho_core,&
                                              calculate_rho_elec,&
                                              calculate_total_rho,&
@@ -250,7 +263,7 @@ MODULE qs_scf
   TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
 
   INTEGER :: nelectron
-  LOGICAL, PARAMETER, PRIVATE :: debug_this_module=.TRUE.
+  LOGICAL, PARAMETER, PRIVATE :: debug_this_module=.FALSE.
 
 ! *** Public variables ***
 
@@ -311,6 +324,11 @@ CONTAINS
     TYPE(scf_control_type), POINTER   :: scf_control
     TYPE(cp_logger_type), POINTER :: logger
     TYPE(pw_env_type), POINTER :: pw_env
+    TYPE(qs_charges_type), POINTER :: qs_charges
+    TYPE(coeff_type) :: wf_r, wf_g
+    TYPE(coeff_type), DIMENSION(:), POINTER :: mgrid_rspace, mgrid_gspace
+    TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
+    TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
 
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=200) :: file_name
@@ -322,10 +340,11 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     NULLIFY(mo_eigenvectors,pao_obj_f,pao_optimizer,pao_env,min_density_m,&
-         min_mo,full_mo, ks, p, ks_rmpv, p_rmpv, &
+         min_mo,full_mo, ks, p, ks_rmpv, p_rmpv,qs_charges, &
          pfull, energy, unoccupied_orbs,scf_control,kinetic,h,s)
     t1 = m_cputime()
     ot_initialized=.FALSE.
+    failure=.FALSE.
 
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
@@ -337,6 +356,7 @@ CONTAINS
          particle_set=particle_set,&
          pao_env=pao_env,&
          pw_env=pw_env,&
+         qs_charges=qs_charges,&
          scf_control=scf_control)
     
 !   *** Quick return, if no SCF iteration is requested ***
@@ -372,7 +392,6 @@ CONTAINS
                       globenv=globenv,&
                       error=error)
 
-    CALL qs_ks_init(ks_env,qs_env=qs_env,global_env=globenv, error=error)
     CALL qs_ks_did_change(ks_env,qs_env,globenv,p_changed=.TRUE.,error=error)
 
     CALL pao_opt_create(pao_optimizer,pao_obj_f,qs_env,globenv,error)
@@ -648,14 +667,16 @@ CONTAINS
     IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
         "Total electronic density (r-space): ",&
-        ks_env%total_rho_rspace-ks_env%total_rho_core_rspace,&
-        ks_env%total_rho_rspace-ks_env%total_rho_core_rspace + REAL(nelectron,wp),&
+        SUM(qs_charges%total_rho_elec_rspace),&
+        SUM(qs_charges%total_rho_elec_rspace)+ REAL(nelectron,wp),&
         "Total core charge density (r-space):",&
-        ks_env%total_rho_core_rspace,&
-        ks_env%total_rho_core_rspace - REAL(nelectron,wp)
+        qs_charges%total_rho_core_rspace,&
+        qs_charges%total_rho_core_rspace - REAL(nelectron,wp)
       WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-        "Total charge density (r-space):     ",ks_env%total_rho_rspace,&
-        "Total charge density (g-space):     ",ks_env%total_rho_gspace
+        "Total charge density (r-space):     ",&
+        SUM(qs_charges%total_rho_elec_rspace)+&
+        qs_charges%total_rho_core_rspace,&
+        "Total charge density (g-space):     ",qs_charges%total_rho_gspace
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
         "Overlap energy of the core charge distribution:",energy%core_overlap,&
         "Self energy of the core charge distribution:   ",energy%core_self,&
@@ -689,7 +710,7 @@ CONTAINS
     IF (globenv%print%e_density_cube) THEN
       ! write the electron density
       IF (globenv%ionode) OPEN(UNIT=21,FILE="E_DENSITY.cube")
-      CALL rs_pw_to_cube(rho%rho_r(1)%pw,21,globenv%ionode,"ELECTRON DENSITY")
+      CALL rs_pw_to_cube(rho%rho_elec_r(1)%pw,21,globenv%ionode,"ELECTRON DENSITY")
       IF (globenv%ionode) CLOSE(21)
     ENDIF
 
@@ -700,6 +721,27 @@ CONTAINS
       IF (globenv%ionode) CLOSE(21)
     ENDIF
 
+    IF (globenv%print%homos .OR. globenv%print%lumos) THEN
+       ! gets the tmp grids
+       CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+            pw_pools=pw_pools)
+       CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
+            use_data = REALDATA3D,&
+            in_space = REALSPACE, error=error)
+       CALL pw_pool_init_coeff(auxbas_pw_pool,wf_g,&
+            use_data = COMPLEXDATA1D,&
+            in_space = RECIPROCALSPACE, error=error)
+       ALLOCATE(mgrid_rspace(SIZE(pw_pools)), mgrid_gspace(SIZE(pw_pools)),&
+            stat=istat)
+       CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
+       CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
+            use_data = COMPLEXDATA1D,&
+            in_space = RECIPROCALSPACE, error=error)
+       CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
+            use_data = REALDATA3D,&
+            in_space = REALSPACE, error=error)
+    END IF
     IF (globenv%print%homos) THEN
       ! write eigenvalues and a set of cubes
       CALL get_mo_set(mo_set=mo_set,eigenvectors=mo_eigenvectors,homo=homo)
@@ -711,10 +753,9 @@ CONTAINS
               ionode=globenv%ionode)
 
       DO ivector=MAX(1,homo-globenv%print%nhomos+1),homo
-         ! overwrites rho_rspace with a wavefunction !
-         CALL calculate_wavefunction(mo_eigenvectors,ivector,rho%rho_r(1), &
-                                     ks_env%rho_gspace(1),ks_env%mgrid_rspace,&
-                                     ks_env%mgrid_gspace,&
+         CALL calculate_wavefunction(mo_eigenvectors,ivector,wf_r, &
+                                     wf_g,mgrid_rspace,&
+                                     mgrid_gspace,&
                                      pw_env%gridlevel_info,pw_env%cube_info, &
                                      pw_env%l_info,&
                                      qs_env,globenv)
@@ -722,7 +763,7 @@ CONTAINS
          WRITE(filename,'(a13,I5.5,a5)') "WAVEFUNCTION_",ivector,".cube"
          IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
          WRITE(filename,*) "WAVEFUNCTION ",ivector," i.e. HOMO - ",ivector-homo
-         CALL rs_pw_to_cube(rho%rho_r(1)%pw,21,globenv%ionode,filename)
+         CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,filename)
          IF (globenv%ionode) CLOSE(21)
       ENDDO
     ENDIF
@@ -759,22 +800,39 @@ CONTAINS
               ionode=globenv%ionode)
 
       DO ivector=1,nlumos
-         ! overwrites rho_rspace with a wavefunction !
-         CALL calculate_wavefunction(unoccupied_orbs,ivector,rho%rho_r(1), &
-                                     ks_env%rho_gspace(1),ks_env%mgrid_rspace,ks_env%mgrid_gspace,&
-                                     pw_env%gridlevel_info,pw_env%cube_info, &
-                                     pw_env%l_info,&
-                                     qs_env,globenv)
+         CALL calculate_wavefunction(mo_vectors=unoccupied_orbs,&
+              ivector=ivector,rho=wf_r, &
+              rho_gspace=wf_g,&
+              mgrid_rspace=mgrid_rspace,&
+              mgrid_gspace=mgrid_gspace,&
+              gridlevel_info=pw_env%gridlevel_info,&
+              cube_info=pw_env%cube_info, &
+              l_info=pw_env%l_info,&
+              qs_env=qs_env,globenv=globenv)
 
          WRITE(filename,'(a13,I5.5,a5)') "WAVEFUNCTION_",homo+ivector,".cube"
          IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
          WRITE(filename,*) "WAVEFUNCTION ",homo+ivector," i.e. LUMO + ",ivector-1
-         CALL rs_pw_to_cube(rho%rho_r(1)%pw,21,globenv%ionode,filename)
+         CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,filename)
          IF (globenv%ionode) CLOSE(21)
 
       ENDDO
-    ENDIF
+   ENDIF
 
+   IF (globenv%print%lumos .OR. globenv%print%homos) THEN
+      ! put back the grids
+      CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r,&
+           error=error)
+      CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_g,&
+           error=error)
+      CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
+           error=error)
+      CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
+           error=error)
+      DEALLOCATE(mgrid_rspace, mgrid_gspace, stat=istat)
+      CPPostconditionNoFail(istat==0,cp_warning_level,routine,error)
+      
+   END IF
     IF (scf_control%use_ot) THEN
        CALL destroy_preconditioner(ot_preconditioner)
     ENDIF
@@ -822,8 +880,6 @@ CONTAINS
     CALL write_mo_set(mo_set,atomic_kind_set,particle_set,globenv)
 
 !    call pao_opt_dealloc(pao_optimizer,pao_obj_f,qs_env,globenv,error)
-
-!    call qs_ks_dealloc_ref(ks_env, qs_env=qs_env, global_env=globenv, error=error)
 
     CALL timestop(0.0_wp,handle)
 

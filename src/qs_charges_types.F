@@ -80,10 +80,8 @@ MODULE qs_charges_types
   !***************************************************************************
   TYPE qs_charges_type
      INTEGER :: ref_count
-     REAL(kind=wp) :: total_rho_core_rspace, &
-          total_rho_elec_rspace, &
-          total_rho_rspace, &
-          total_rho_gspace
+     REAL(kind=wp) :: total_rho_core_rspace, total_rho_gspace
+     REAL(kind=wp), DIMENSION(:), POINTER :: total_rho_elec_rspace
   END TYPE qs_charges_type
   !!***
   !****************************************************************************
@@ -113,11 +111,13 @@ CONTAINS
 !!     10.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE qs_charges_create(qs_charges,total_rho_core_rspace, &
-     total_rho_elec_rspace, total_rho_rspace, total_rho_gspace, error)
+SUBROUTINE qs_charges_create(qs_charges,nspins,total_rho_core_rspace, &
+     total_rho_elec_rspace, total_rho_gspace, error)
   TYPE(qs_charges_type), POINTER :: qs_charges
-  REAL(kind=wp), INTENT(in), OPTIONAL :: total_rho_core_rspace, &
-          total_rho_elec_rspace, total_rho_rspace, total_rho_gspace
+  INTEGER, INTENT(in) :: nspins
+  REAL(kind=wp), DIMENSION(:), INTENT(in), OPTIONAL :: total_rho_elec_rspace
+  REAL (kind=wp), INTENT(in), OPTIONAL :: total_rho_core_rspace, &
+       total_rho_gspace
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -129,16 +129,17 @@ SUBROUTINE qs_charges_create(qs_charges,total_rho_core_rspace, &
   ALLOCATE(qs_charges, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
+     NULLIFY(qs_charges%total_rho_elec_rspace)
+     ALLOCATE(qs_charges%total_rho_elec_rspace(nspins), stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF (.NOT.failure) THEN
      qs_charges%total_rho_core_rspace=0.0_wp
      IF (PRESENT(total_rho_core_rspace)) &
           qs_charges%total_rho_core_rspace=total_rho_core_rspace
      qs_charges%total_rho_elec_rspace=0.0_wp
      IF (PRESENT(total_rho_elec_rspace)) &
           qs_charges%total_rho_elec_rspace=total_rho_elec_rspace
-     qs_charges%total_rho_rspace=qs_charges%total_rho_elec_rspace+&
-          qs_charges%total_rho_core_rspace
-     IF (PRESENT(total_rho_rspace)) &
-          qs_charges%total_rho_rspace=total_rho_rspace
      qs_charges%total_rho_gspace=0.0_wp
      IF (PRESENT(total_rho_gspace)) &
           qs_charges%total_rho_gspace=total_rho_gspace
@@ -224,6 +225,8 @@ SUBROUTINE qs_charges_release(qs_charges, error)
      CPPrecondition(qs_charges%ref_count>0,cp_failure_level,routineP,error,failure)
      qs_charges%ref_count=qs_charges%ref_count-1
      IF (qs_charges%ref_count<1) THEN
+        DEALLOCATE(qs_charges%total_rho_elec_rspace, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         DEALLOCATE(qs_charges,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF

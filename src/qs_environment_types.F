@@ -106,10 +106,8 @@ MODULE qs_environment_types
     TYPE(cp_b_matrix_struct_type), POINTER                :: s_mstruct
     TYPE(qs_rho_type), POINTER                            :: rho
     TYPE(scf_control_type), POINTER                       :: scf_control
-
     TYPE(cp_fm_pool_type), POINTER                        :: ao_mo_fm_pool
     TYPE(pw_env_type), POINTER                            :: pw_env
-
     TYPE(cp_para_env_type), POINTER                       :: para_env
     TYPE(coeff_type), POINTER                             :: rho_core
     TYPE(qs_charges_type), POINTER                        :: qs_charges
@@ -242,7 +240,6 @@ CONTAINS
     NULLIFY (qs_env%pw_env)
     NULLIFY (qs_env%scf_control)
     NULLIFY (qs_env%qs_charges)
-    CALL qs_charges_create(qs_env%qs_charges)
     NULLIFY (qs_env%rho_core)
 
     CALL cp_para_env_retain(para_env,error=error)
