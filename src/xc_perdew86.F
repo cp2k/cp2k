@@ -23,7 +23,7 @@ MODULE xc_perdew86
 ! *****************************************************************************
 
   USE kinds, ONLY: dbl
-  USE xc_derivative_types, ONLY: xc_derivative_set_type
+  USE xc_derivative_set_types, ONLY: xc_derivative_set_type
   USE xc_functionals_utilities, ONLY: set_util, setup_calculation, calc_rs
   USE xc_perdew_zunger, ONLY : perdew_zunger
   USE termination, ONLY: stop_memory, stop_program

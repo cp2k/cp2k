@@ -85,9 +85,9 @@ MODULE qs_kpp1_env_types
                                              pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xc_derivative_types,             ONLY: xc_derivative_set_type, &
-                                             xc_derivative_set_create, &
-                                             xc_derivative_set_release
+  USE xc_derivative_set_types,             ONLY: xc_derivative_set_type, &
+                                             xc_dset_create, &
+                                             xc_dset_release
   
   IMPLICIT NONE
   PRIVATE
@@ -250,7 +250,7 @@ CONTAINS
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           end if
           if (associated(kpp1_env%derivative_set)) then
-             call xc_derivative_set_release(kpp1_env%derivative_set, error=error)
+             call xc_dset_release(kpp1_env%derivative_set, error=error)
              nullify(kpp1_env%derivative_set)
           end if
           if (associated(kpp1_env%spin_pot)) then

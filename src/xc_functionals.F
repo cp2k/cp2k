@@ -23,31 +23,30 @@
 !******************************************************************************
 
 MODULE xc_functionals
+!MK *** Just a link to the old routine to have PBE ***
+!MK
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_error_type,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE functionals,                     ONLY: init_functionals,&
+                                             pbe_c,&
+                                             pbe_x
   USE kinds,                           ONLY: dbl
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE xc_cs1,                          ONLY: cs1
-  USE xc_derivative_types,             ONLY: xc_derivative_set_type
+  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type
   USE xc_exchange_gga,                 ONLY: b88,&
                                              optx,&
                                              pbex,&
                                              revpbex,&
                                              x_pw86,&
                                              x_pw91
-!MK *** Just a link to the old routine to have PBE ***
-  USE functionals,                     ONLY: init_functionals,&
-                                             pbe_c,&
-                                             pbe_x
-!MK
   USE xc_functionals_utilities,        ONLY: setup_calculation
   USE xc_ke_gga,                       ONLY: ke_pw86,&
                                              ke_pw91,&

@@ -24,24 +24,18 @@
 
 MODULE xc
   USE coefficient_types,               ONLY: PLANEWAVES,&
-                                             coeff_copy,&
-                                             coeff_sumup,&
-                                             coeff_transform_space,&
-                                             coeff_type,&
-                                             coeff_zero
-  USE cp_array_r_utils,                ONLY: cp_3d_r_output
+                                             coeff_type
+  USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
                                              cp_error_type,&
-                                             cp_internal_error,&
                                              cp_unimplemented_error,&
                                              cp_unimplemented_error_nr
+  USE cp_linked_list_xc_deriv,         ONLY: cp_sll_xc_deriv_next,&
+                                             cp_sll_xc_deriv_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -49,54 +43,40 @@ MODULE xc
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_output_handling,              ONLY: cp_finished_output,&
-                                             cp_unitnr_for_output,&
-                                             cp_would_output
   USE dft_types,                       ONLY: dft_control_type,&
-                                             xc_control_type, &
+                                             xc_control_type,&
                                              xc_deriv_pw,&
                                              xc_deriv_spline2,&
                                              xc_deriv_spline2_smooth,&
                                              xc_deriv_spline3,&
                                              xc_deriv_spline3_smooth,&
+                                             xc_rho_nn10,&
                                              xc_rho_no_smooth,&
                                              xc_rho_spline2_smooth,&
-                                             xc_rho_spline3_smooth,&
-                                             xc_rho_nn10
+                                             xc_rho_spline3_smooth
   USE kinds,                           ONLY: dbl,&
                                              dp
-  USE mathconstants,                   ONLY: twopi
   USE message_passing,                 ONLY: mp_sum
-  USE pw_grid_types,                   ONLY: pw_grid_type
-  USE pw_grids,                        ONLY: pw_grid_compare
-  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                             pw_pool_give_back_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_cr3d,&
+                                             pw_pool_create_pw,&
+                                             pw_pool_give_back_cr3d,&
                                              pw_pool_give_back_pw,&
-                                             pw_pool_init_coeff,&
-                                             pw_pool_p_type,&
-                                             pw_pool_type,&
-                                             pw_pools_give_back_coeffs,&
-                                             pw_pools_init_coeffs
-  USE pw_spline_utils,                 ONLY: pw_spline2_deriv_g,&
-                                             pw_spline2_deriv_r,&
+                                             pw_pool_type
+  USE pw_spline_utils,                 ONLY: nn10_coeffs,&
+                                             pw_nn_smear_g,&
+                                             pw_spline2_deriv_g,&
                                              pw_spline2_evaluate_values_g,&
                                              pw_spline2_interpolate_values_g,&
-                                             pw_spline2_test_coeff,&
                                              pw_spline3_deriv_g,&
-                                             pw_spline3_deriv_r,&
                                              pw_spline3_evaluate_values_g,&
                                              pw_spline3_interpolate_values_g,&
-                                             pw_spline3_test_coeff,&
-                                             pw_spline_scale_deriv,&
-                                             pw_nn_smear_g
+                                             pw_spline_scale_deriv
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             COMPLEXDATA3D,&
-                                             NOSPACE,&
-                                             REALDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_copy,&
+                                             pw_create,&
                                              pw_derive,&
                                              pw_p_type,&
                                              pw_sumup,&
@@ -104,16 +84,27 @@ MODULE xc
                                              pw_type,&
                                              pw_zero
   USE simulation_cell,                 ONLY: cell_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xc_derivative_types,             ONLY: xc_derivative_set_type, &
-                                             xc_derivative_set_create, &
-                                             xc_derivative_set_release
-  USE xc_derivatives,                  ONLY: xc_calc_derivatives
-  USE xc_functionals,                  ONLY: xc_calculate_lsd,&
-                                             xc_create_2nd_deriv_info
+  USE xc_derivative_desc,              ONLY: MAX_DERIVATIVE_DESC_LENGTH,&
+                                             MAX_LABEL_LENGTH
+  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
+                                             xc_dset_create,&
+                                             xc_dset_get_derivative,&
+                                             xc_dset_release
+  USE xc_derivative_types,             ONLY: xc_derivative_get,&
+                                             xc_derivative_type
+  USE xc_derivatives,                  ONLY: xc_calc_derivatives,&
+                                             xc_functional_eval,&
+                                             xc_functional_get_info
+  USE xc_functionals,                  ONLY: xc_create_2nd_deriv_info
+  USE xc_rho_set_types,                ONLY: xc_rho_cflags_setall,&
+                                             xc_rho_cflags_type,&
+                                             xc_rho_set_create,&
+                                             xc_rho_set_get,&
+                                             xc_rho_set_release,&
+                                             xc_rho_set_type,&
+                                             xc_rho_set_update
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: xc_calculate_pw_new, xc_calculate_pw1, xc_calculate_pw2, &
@@ -123,56 +114,56 @@ MODULE xc
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='xc'
 
-  !!*****
+!!*****
   !******************************************************************************
 
 CONTAINS
 
   !******************************************************************************
 
-  !!****f* xc/xc_calculate_pw1 [1.0] *
-  !!
-  !!   NAME
-  !!     xc_calculate_pw1
-  !!
-  !!   SYNOPSIS
-  !!     Subroutine xc_calculate_pw1(rho_r, rho_g, vxc, exc, dft_control,&
-  !!         pw_pool, error)
-  !!       Type(pw_type), Pointer:: rho_r
-  !!       Type(pw_type), Pointer:: rho_g
-  !!       Type(pw_type), Pointer:: vxc
-  !!       Real(KIND = dp), Intent (OUT):: exc
-  !!       Type(dft_control_type), Intent (IN), Target:: dft_control
-  !!       Type(pw_pool_type), Pointer:: pw_pool
-  !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-  !!     End Subroutine xc_calculate_pw1
-  !!
-  !!   FUNCTION
-  !!     Exchange and Correlation functional calculations.
-  !!     Facility call of xc_calculate_pw_new with non-arrays.
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - rho_r: the value of the density in the real space
-  !!     - rho_g: value of the density in the g space (needs to be associated
-  !!       only for gradient corrections)
-  !!     - vxc: will contain the resulting xc potential, has to be 
-  !!       already allocated
-  !!     - exc: the xc energy
-  !!     - dft_control: varius parameter (number of spin...)
-  !!     - pw_pool: the pool for the grids
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Fawzi Mohamed
-  !!
-  !!   MODIFICATION HISTORY
-  !!     2.2003 created [fawzi]
-  !!
-  !!*** **********************************************************************
+!!****f* xc/xc_calculate_pw1 [1.0] *
+!!
+!!   NAME
+!!     xc_calculate_pw1
+!!
+!!   SYNOPSIS
+!!     Subroutine xc_calculate_pw1(rho_r, rho_g, vxc, exc, dft_control,&
+!!         pw_pool, error)
+!!       Type(pw_type), Pointer:: rho_r
+!!       Type(pw_type), Pointer:: rho_g
+!!       Type(pw_type), Pointer:: vxc
+!!       Real(Kind=dp), Intent (OUT):: exc
+!!       Type(dft_control_type), Intent (IN), Target:: dft_control
+!!       Type(pw_pool_type), Pointer:: pw_pool
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine xc_calculate_pw1
+!!
+!!   FUNCTION
+!!     Exchange and Correlation functional calculations.
+!!     Facility call of xc_calculate_pw_new with non-arrays.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - rho_r: the value of the density in the real space
+!!     - rho_g: value of the density in the g space (needs to be associated
+!!       only for gradient corrections)
+!!     - vxc: will contain the resulting xc potential, has to be 
+!!       already allocated
+!!     - exc: the xc energy
+!!     - dft_control: varius parameter (number of spin...)
+!!     - pw_pool: the pool for the grids
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     2.2003 created [fawzi]
+!!
+!!*** **********************************************************************
   SUBROUTINE xc_calculate_pw1(rho_r,rho_g,vxc,exc,dft_control,&
        pw_pool,error)
     TYPE(pw_type), POINTER                       :: rho_r
@@ -220,56 +211,56 @@ CONTAINS
   END SUBROUTINE xc_calculate_pw1
   !***************************************************************************
 
-  !!****f* xc/xc_calculate_pw2 [1.0] *
-  !!
-  !!   NAME
-  !!     xc_calculate_pw2
-  !!
-  !!   SYNOPSIS
-  !!     Subroutine xc_calculate_pw2(rho_r, rho_g, vxc, exc, dft_control,&
-  !!         cell, pw_pool, error)
-  !!       Type(coeff_type), Dimension(:), Intent (IN):: rho_r
-  !!       Type(coeff_type), Dimension(:), Pointer:: rho_g
-  !!       Type(coeff_type), Dimension(:), Intent (OUT):: vxc
-  !!       Real(KIND = dp), Intent (OUT):: exc
-  !!       Type(dft_control_type), Pointer:: dft_control
-  !!       Type(cell_type), Pointer:: cell
-  !!       Type(pw_pool_type), Pointer:: pw_pool
-  !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-  !!     End Subroutine xc_calculate_pw2
-  !!
-  !!   FUNCTION
-  !!     Exchange and Correlation functional calculations.
-  !!     Facility call of xc_calculate_pw_new with coeff_arrays
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - rho_r: the value of the density in the real space
-  !!     - rho_g: value of the density in the g space (needs to be associated
-  !!       only for gradient corrections)
-  !!     - vxc: will contain the resulting xc potential, has to be 
-  !!       already allocated
-  !!     - exc: the xc energy
-  !!     - dft_control: varius parameter (number of spin...)
-  !!     - pw_pool: the pool for the grids
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   MODIFICATION HISTORY
-  !!     02.2003 created [fawzi]
-  !!
-  !!*** **********************************************************************
+!!****f* xc/xc_calculate_pw2 [1.0] *
+!!
+!!   NAME
+!!     xc_calculate_pw2
+!!
+!!   SYNOPSIS
+!!     Subroutine xc_calculate_pw2(rho_r, rho_g, vxc, exc, dft_control,&
+!!         cell, pw_pool, error)
+!!       Type(coeff_type), Dimension(:), Intent (IN):: rho_r
+!!       Type(coeff_type), Dimension(:), Pointer:: rho_g
+!!       Type(coeff_type), Dimension(:), Intent (INOUT):: vxc
+!!       Real(Kind=dp), Intent (OUT):: exc
+!!       Type(dft_control_type), Pointer:: dft_control
+!!       Type(cell_type), Pointer:: cell
+!!       Type(pw_pool_type), Pointer:: pw_pool
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine xc_calculate_pw2
+!!
+!!   FUNCTION
+!!     Exchange and Correlation functional calculations.
+!!     Facility call of xc_calculate_pw_new with coeff_arrays
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - rho_r: the value of the density in the real space
+!!     - rho_g: value of the density in the g space (needs to be associated
+!!       only for gradient corrections)
+!!     - vxc: will contain the resulting xc potential, has to be 
+!!       already allocated
+!!     - exc: the xc energy
+!!     - dft_control: varius parameter (number of spin...)
+!!     - pw_pool: the pool for the grids
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     02.2003 created [fawzi]
+!!
+!!*** **********************************************************************
   SUBROUTINE xc_calculate_pw2(rho_r,rho_g,vxc,exc,dft_control,&
        cell,pw_pool,error)
     TYPE(coeff_type),DIMENSION(:), INTENT(in)    :: rho_r
     TYPE(coeff_type),DIMENSION(:), POINTER       :: rho_g
-    TYPE(coeff_type),DIMENSION(:), INTENT(INout)   :: vxc
-    REAL(KIND = dp), INTENT(out)                   :: exc
+    TYPE(coeff_type),DIMENSION(:), INTENT(INout) :: vxc
+    REAL(KIND = dp), INTENT(out)                 :: exc
     TYPE(dft_control_type), POINTER              :: dft_control
     TYPE(cell_type), POINTER                     :: cell
     TYPE(pw_pool_type), POINTER                  :: pw_pool
@@ -319,53 +310,53 @@ CONTAINS
   END SUBROUTINE xc_calculate_pw2
   !***************************************************************************
 
-  !!****f* xc/xc_calculate_pw_new [1.0] *
-  !!
-  !!   NAME
-  !!     xc_calculate_pw_new
-  !!
-  !!   SYNOPSIS
-  !!     Subroutine xc_calculate_pw_new(rho_r, rho_g, vxc, exc, dft_control,&
-  !!         cell, pw_pool, error)
-  !!       Type(pw_p_type), Dimension(:), Intent (INOUT), Target:: rho_r
-  !!       Type(pw_p_type), Dimension(:), Pointer:: rho_g
-  !!       Type(pw_p_type), Dimension(:), Intent (OUT):: vxc
-  !!       Real(KIND = dp), Intent (OUT):: exc
-  !!       Type(dft_control_type), Pointer:: dft_control
-  !!       Type(cell_type), Pointer:: cell
-  !!       Type(pw_pool_type), Pointer:: pw_pool
-  !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-  !!     End Subroutine xc_calculate_pw_new
-  !!
-  !!   FUNCTION
-  !!     Exchange and Correlation functional calculations
-  !!
-  !!   NOTES
-  !!     functional that need ||grad(rho_a+rho_b)|| (tot_grad=.true.)
-  !!     not implemented (none available in cp2k when this was written).
-  !!     Also mixed LDA/LSD functional are not supported
-  !!
-  !!   ARGUMENTS
-  !!     - rho_r: the value of the density in the real space
-  !!     - rho_g: value of the density in the g space (needs to be associated
-  !!       only for gradient corrections)
-  !!     - vxc: will contain the resulting xc potential, has to be 
-  !!       already allocated
-  !!     - exc: the xc energy
-  !!     - dft_control: varius parameter (number of spin...)
-  !!     - pw_pool: the pool for the grids
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi; based LDA version of JGH, based on earlier version of apsi
-  !!
-  !!   MODIFICATION HISTORY
-  !!     JGH (13-Jun-2002): adaptation to new functionals
-  !!     Fawzi (11.2002): drho_g(1:3)->drho_g
-  !!     Fawzi (1.2003). lsd version
-  !!
-  !!*** **********************************************************************
+!!****f* xc/xc_calculate_pw_new [1.0] *
+!!
+!!   NAME
+!!     xc_calculate_pw_new
+!!
+!!   SYNOPSIS
+!!     Subroutine xc_calculate_pw_new(rho_r, rho_g, vxc, exc, dft_control,&
+!!         cell, pw_pool, error)
+!!       Type(pw_p_type), Dimension(:), Intent (INOUT), Target:: rho_r
+!!       Type(pw_p_type), Dimension(:), Pointer:: rho_g
+!!       Type(pw_p_type), Dimension(:), Intent (INOUT):: vxc
+!!       Real(Kind=dp), Intent (OUT):: exc
+!!       Type(dft_control_type), Pointer:: dft_control
+!!       Type(cell_type), Pointer:: cell
+!!       Type(pw_pool_type), Pointer:: pw_pool
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine xc_calculate_pw_new
+!!
+!!   FUNCTION
+!!     Exchange and Correlation functional calculations
+!!
+!!   NOTES
+!!     functional that need ||grad(rho_a+rho_b)|| (tot_grad=.true.)
+!!     not implemented (none available in cp2k when this was written).
+!!     Also mixed LDA/LSD functional are not supported
+!!
+!!   ARGUMENTS
+!!     - rho_r: the value of the density in the real space
+!!     - rho_g: value of the density in the g space (needs to be associated
+!!       only for gradient corrections)
+!!     - vxc: will contain the resulting xc potential, has to be 
+!!       already allocated
+!!     - exc: the xc energy
+!!     - dft_control: varius parameter (number of spin...)
+!!     - pw_pool: the pool for the grids
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi; based LDA version of JGH, based on earlier version of apsi
+!!
+!!   MODIFICATION HISTORY
+!!     JGH (13-Jun-2002): adaptation to new functionals
+!!     Fawzi (11.2002): drho_g(1:3)->drho_g
+!!     Fawzi (1.2003). lsd version
+!!
+!!*** **********************************************************************
   SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
        cell,pw_pool,error)
     TYPE(pw_p_type),DIMENSION(:), INTENT(inout), TARGET :: rho_r
@@ -390,12 +381,9 @@ CONTAINS
     TYPE(pw_type), POINTER :: tmp_g, tmp_r, vxc_g, my_rho_g, my_rho_r
     TYPE(pw_p_type), DIMENSION(3) :: drho_r_att
     TYPE(pw_p_type), DIMENSION(:,:), POINTER :: drho_r
-    type(xc_derivative_set_type), pointer :: derivative_set
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL ( KIND = dp ) , DIMENSION (:,:), ALLOCATABLE :: rgrid, drgrid
     REAL ( KIND = dp ) :: eps_rho,alpha
-    REAL ( KIND = dp ), PARAMETER, dimension(4) :: nn10_coeffs=&
-         (/ 125._dp/216._dp, 25._dp/432._dp, 5._dp/864._dp, 1._dp/1728._dp /)
-    ! factor 10 between subsequent values
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -432,7 +420,7 @@ CONTAINS
        bo = rho_r(1)%pw%pw_grid%bounds_local
        ntot = PRODUCT ( n )
 
-       CALL xc_derivative_set_create(derivative_set, ntot, error=error)
+       CALL xc_dset_create(derivative_set, pw_pool=pw_pool, error=error)
 
        ALLOCATE(rgrid(ntot,nspins),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -670,27 +658,27 @@ CONTAINS
 
        SELECT CASE (nspins)
        CASE (1)
-          if (gradient_f) then
+          IF (gradient_f) THEN
              CALL xc_calc_derivatives(derivative_set, dft_control%xc_control, 1, &
                   rhoa=rgrid(:,1), drhoa=drgrid(:,1), &
                   error=error)
-          else
+          ELSE
              CALL xc_calc_derivatives(derivative_set, dft_control%xc_control, 1, &
                   rgrid(:,1), &
                   error=error)
-          end if
+          END IF
        CASE (2)
-          if (gradient_f) then
+          IF (gradient_f) THEN
              CALL xc_calc_derivatives(derivative_set, dft_control%xc_control, 1, &
                   rhoa=rgrid(:,1), drhoa=drgrid(:,1), &
                   rhob=rgrid(:,2), drhob=drgrid(:,2), &
                   error=error)
-          else
+          ELSE
              CALL xc_calc_derivatives(derivative_set, dft_control%xc_control, 1, &
                   rhoa=rgrid(:,1), &
                   rhob=rgrid(:,2), &
                   error=error)
-          end if
+          END IF
        CASE default
           CALL cp_unimplemented_error(fromWhere=routineP,&
                message='ONLY 1 or 2 spin supported '//&
@@ -846,7 +834,7 @@ CONTAINS
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
 
-       CALL xc_derivative_set_release(derivative_set, error=error)
+       CALL xc_dset_release(derivative_set, error=error)
     END IF
 
     CALL timestop(0.0_dp,handle)
@@ -854,27 +842,570 @@ CONTAINS
   END SUBROUTINE xc_calculate_pw_new
   !***************************************************************************
 
-  !!****f* xc/xc_prep_2nd_deriv1 [1.0] *
-  !!
-  !!   NAME
-  !!     xc_prep_2nd_deriv1
-  !!
-  !!   FUNCTION
-  !!     facility call of xc_prep_2nd_deriv with coeff arrays
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!*** **********************************************************************
+!!****f* xc/xc_calculate_pw_new2 [1.0] *
+!!
+!!   NAME
+!!     xc_calculate_pw_new2
+!!
+!!   SYNOPSIS
+!!     Subroutine xc_calculate_pw_new2(rho_r, rho_g, vxc, exc, dft_control,&
+!!         cell, pw_pool, error)
+!!       Type(pw_p_type), Dimension(:), Intent (INOUT), Target:: rho_r
+!!       Type(pw_p_type), Dimension(:), Pointer:: rho_g
+!!       Type(pw_p_type), Dimension(:), Intent (OUT):: vxc
+!!       Real(KIND = dp), Intent (OUT):: exc
+!!       Type(dft_control_type), Pointer:: dft_control
+!!       Type(cell_type), Pointer:: cell
+!!       Type(pw_pool_type), Pointer:: pw_pool
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine xc_calculate_pw_new
+!!
+!!   FUNCTION
+!!     Exchange and Correlation functional calculations
+!!
+!!   NOTES
+!!     functional that need ||grad(rho_a+rho_b)|| (tot_grad=.true.)
+!!     not implemented (none available in cp2k when this was written).
+!!     Also mixed LDA/LSD functional are not supported
+!!
+!!   ARGUMENTS
+!!     - rho_r: the value of the density in the real space
+!!     - rho_g: value of the density in the g space (needs to be associated
+!!       only for gradient corrections)
+!!     - vxc: will contain the resulting xc potential, has to be 
+!!       already allocated
+!!     - exc: the xc energy
+!!     - dft_control: varius parameter (number of spin...)
+!!     - pw_pool: the pool for the grids
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi; based LDA version of JGH, based on earlier version of apsi
+!!
+!!   MODIFICATION HISTORY
+!!     JGH (13-Jun-2002): adaptation to new functionals
+!!     Fawzi (11.2002): drho_g(1:3)->drho_g
+!!     Fawzi (1.2003). lsd version
+!!     Fawzi (11.2003): version using the new xc interface
+!!
+!!*** **********************************************************************
+  SUBROUTINE xc_calculate_pw_new2(rho_r,rho_g,vxc,exc,dft_control,&
+       cell,pw_pool,error)
+    TYPE(pw_p_type),DIMENSION(:), INTENT(inout), TARGET :: rho_r
+    TYPE(pw_p_type),DIMENSION(:), POINTER        :: rho_g
+    TYPE(pw_p_type),DIMENSION(:), INTENT(inout)    :: vxc
+    REAL(KIND = dp), INTENT(out)                   :: exc
+    TYPE(dft_control_type), POINTER              :: dft_control
+    TYPE(cell_type), POINTER                     :: cell
+    TYPE(pw_pool_type), POINTER                  :: pw_pool
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    CHARACTER(len=30), DIMENSION(2),PARAMETER :: norm_drho_spin_name=&
+         (/ "(norm_drhoa)", "(norm_drhob)" /)
+
+    LOGICAL :: failure, gradient_f, crossterms, my_rho_r_local,my_rho_g_local, lsd,&
+         zero_result
+    INTEGER :: nspins, ii, i, j, k, ntot, ngrad_spins, handle, stat, ispin,&
+         ipot, idir, npot, ifun, order
+    CHARACTER(len=*), PARAMETER :: routineN='xc_calculate_pw_new2',&
+         routineP=moduleN//':'//routineN
+    INTEGER, DIMENSION (3,3) :: nd 
+    INTEGER, DIMENSION (2,3) :: bo
+    TYPE(cp_logger_type), POINTER :: logger
+    TYPE(pw_type), POINTER :: tmp_g, tmp_r, vxc_g
+    TYPE(pw_p_type), DIMENSION(3) :: pw_to_deriv
+    TYPE(pw_p_type), DIMENSION(2) :: vxc_to_deriv
+    REAL (kind = dp), DIMENSION(:,:,:), POINTER :: norm_drho_spin, norm_drho
+    TYPE(cp_3d_r_p_type), DIMENSION(:), POINTER :: drho_spin, drhoa, drhob, drho
+    TYPE(cp_sll_xc_deriv_type), POINTER :: pos
+    TYPE(xc_derivative_set_type), POINTER :: deriv_set
+    TYPE(xc_derivative_type), POINTER :: deriv_att
+    REAL(kind=dp), DIMENSION(:,:,:), POINTER :: deriv_data
+    TYPE(xc_rho_set_type), POINTER :: rho_set
+    TYPE(xc_rho_cflags_type) :: needs
+    TYPE(xc_control_type), POINTER :: xc_control
+    REAL ( KIND = dp ) :: ndr,tmp,drho_cutoff, rho_cutoff
+    CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH), POINTER :: desc
+    CHARACTER(len=MAX_LABEL_LENGTH+2) :: my_desc
+
+    CALL timeset(routineN,"I","",handle)
+    failure=.FALSE.
+    NULLIFY(tmp_g, tmp_r, vxc_g, norm_drho_spin, norm_drho, drho_spin, drhoa,&
+         drhob, pos,deriv_set,rho_set)
+    logger => cp_error_get_logger(error)
+    nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
+    DO idir=1,3
+       NULLIFY(pw_to_deriv(idir)%pw)
+    END DO
+    DO i=1,2
+       NULLIFY(vxc_to_deriv(i)%pw)
+    END DO
+    xc_control => dft_control%xc_control
+
+    CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
+!FM    CPPrecondition(associated(vxc),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       gradient_f=ANY(dft_control%xc_control%gradient_functionals) !use needs to check for it?
+       nspins=dft_control%nspins
+       lsd=(nspins/=1)
+       IF (lsd) THEN
+          CPPrecondition(nspins==2,cp_failure_level,routineP,error,failure)
+       END IF
+
+       CPPrecondition(SIZE(vxc)==nspins,cp_failure_level,routineP,error,failure)
+    END IF
+
+    CALL cp_assert(dft_control%integration_grid%pw_default,&
+         cp_failure_level,cp_unimplemented_error_nr,routineP,&
+         "calculation on a special grid unimplemented "//&
+         CPSourceFileRef,&
+         error,failure)
+
+    IF (.NOT.failure) THEN
+       bo = rho_r(1)%pw%pw_grid%bounds_local
+
+       ! give back the vxc arrays, we could use them as temporary
+       DO ispin=1,nspins
+          CALL pw_pool_give_back_cr3d(pw_pool,vxc(ispin)%pw%cr3d,error=error)
+       END DO
+
+       ! create a place where to put the derivatives
+       CALL xc_dset_create(deriv_set, pw_pool, error=error)
+
+       ! create the place where to store the argument for the functionals
+       CALL xc_rho_set_create(rho_set,bo,rho_cutoff=xc_control%density_cut,&
+            drho_cutoff=xc_control%gradient_cut,error=error)
+
+       ! asseses the argument needed by the functionals
+       CALL xc_rho_cflags_setall(needs,.FALSE.,error=error)
+       DO i=1,SIZE(xc_control%functionals)
+          CALL xc_functional_get_info(xc_control%functionals(i),lsd=lsd,&
+               needs=needs,&
+               error=error)
+       END DO
+
+       ! adds the ones needed for vxc calculation
+       IF (needs%drho.or.needs%drho_spin.or.needs%norm_drho.or.&
+            needs%norm_drho_spin) THEN
+          IF (lsd) THEN
+             needs%drho_spin=.TRUE.
+          ELSE
+             needs%drho=.TRUE.
+          END IF
+       END IF
+
+       ! calculate the agruments needed by the functionals
+       CALL xc_rho_set_update(rho_set, rho_r, rho_g, needs,&
+            dft_control,cell,pw_pool,error)
+
+       ! evaluate the functionals
+       DO i=1,SIZE(xc_control%functionals)
+          CALL xc_functional_eval(xc_control%functionals(i),lsd=lsd,&
+               rho_set=rho_set,deriv_set=deriv_set,&
+               grad_deriv=1,error=error)
+       END DO
+    END IF
+
+    IF (.NOT.failure) THEN
+
+       ! check for unknown derivatives
+       pos => deriv_set%derivs
+       DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att,error=error))
+          CALL xc_derivative_get(deriv_att,order=order,&
+               desc=desc,&
+               error=error)
+          IF (order==1) THEN
+             IF (lsd) THEN
+                SELECT CASE(desc)
+                CASE("(rho)","(rhoa)","(rhob)","(norm_drho)","(norm_drhoa)",&
+                     "(norm_drhob)")
+                   !
+                CASE default
+                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                        "unknown functional derivative (LSD): '"//&
+                        desc//"' in "//&
+                        CPSourceFileRef,&
+                        error,failure)
+                END SELECT
+             ELSE
+                SELECT CASE(desc)
+                CASE("(rho)","(norm_drho)")
+                   !
+                CASE default
+                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                        "unknown functional derivative (LDA): '"//&
+                        desc//"' in "//&
+                        CPSourceFileRef,&
+                        error,failure)
+                END SELECT
+             END IF
+          END IF
+       END DO
+
+       ! 0-deriv -> value of exc
+       deriv_att => xc_dset_get_derivative(deriv_set, "")
+       CPPrecondition(ASSOCIATED(deriv_att),cp_failure_level,routineP,error,failure)
+       CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,&
+            error=error)
+       exc = SUM ( deriv_data )*rho_r(1)%pw%pw_grid%dvol
+       IF ( rho_r(1)%pw%pw_grid%para%mode == 1 ) THEN
+          CALL mp_sum ( exc, rho_r(1)%pw%pw_grid%para%group )
+       END IF
+       CALL pw_pool_give_back_cr3d(pw_pool,deriv_att%deriv_data,error=error)
+
+       ! recover the vxc arrays
+       IF (lsd) THEN
+          deriv_att => xc_dset_get_derivative(deriv_set, "(rhoa)")
+          IF (ASSOCIATED(deriv_att)) THEN
+             vxc(1)%pw%cr3d => deriv_att%deriv_data
+             NULLIFY(deriv_att%deriv_data)
+          ELSE
+             CALL pw_pool_create_cr3d(pw_pool,vxc(1)%pw%cr3d,error=error)
+             vxc(1)%pw%cr3d=0.0_dp
+          END IF
+
+          deriv_att => xc_dset_get_derivative(deriv_set, "(rhob)")
+          IF (ASSOCIATED(deriv_att)) THEN
+             vxc(2)%pw%cr3d => deriv_att%deriv_data
+             NULLIFY(deriv_att%deriv_data)
+          ELSE
+             CALL pw_pool_create_cr3d(pw_pool,vxc(2)%pw%cr3d,error=error)
+             vxc(2)%pw%cr3d=0.0_dp
+          END IF
+       ELSE
+          deriv_att => xc_dset_get_derivative(deriv_set, "(rho)")
+          IF (ASSOCIATED(deriv_att)) THEN
+             vxc(1)%pw%cr3d => deriv_att%deriv_data
+             NULLIFY(deriv_att%deriv_data)
+          ELSE
+             CALL pw_pool_create_cr3d(pw_pool,vxc(1)%pw%cr3d,error=error)
+             vxc(1)%pw%cr3d=0.0_dp
+          END IF
+       END IF
+
+       deriv_att => xc_dset_get_derivative(deriv_set, "(rho)")
+       IF (ASSOCIATED(deriv_att)) THEN
+          CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,&
+               error=error)
+          IF (lsd) THEN ! otherwise already taken care in vxc recovery
+             !$omp parallel do private(k,j,i,tmp)
+             DO k = bo(1,3), bo(2,3)
+                DO j = bo(1,2), bo(2,2)
+                   DO i = bo(1,1), bo(2,1)
+                      tmp=0.5*deriv_data(i,j,k)
+                      vxc(1)%pw%cr3d(i,j,k) = tmp
+                      vxc(2)%pw%cr3d(i,j,k) = tmp
+                   END DO
+                END DO
+             END DO
+          END IF
+          CALL pw_pool_give_back_cr3d(pw_pool,deriv_att%deriv_data,&
+               error=error)
+          NULLIFY(deriv_att%deriv_data)
+       END IF
+
+       ! rhoa,rhob already taken care of in vxc recovery
+
+       deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drho)")
+       IF (ASSOCIATED(deriv_att)) THEN
+          CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,&
+               error=error)
+          CALL pw_create(tmp_r,pw_pool%pw_grid,&
+               use_data=REALDATA3D,in_space=REALSPACE,&
+               cr3d_ptr=deriv_data, error=error)
+
+          CALL xc_rho_set_get(rho_set,norm_drho=norm_drho,&
+               drho=drho,drhoa=drhoa,drhob=drhob,rho_cutoff=rho_cutoff,&
+               drho_cutoff=drho_cutoff,&
+               can_return_null=.TRUE., error=error)
+          IF (ASSOCIATED(norm_drho)) THEN
+             !$omp parallel do private(k,j,i)
+             DO k = bo(1,3), bo(2,3)
+                DO j = bo(1,2), bo(2,2)
+                   DO i = bo(1,1), bo(2,1)
+                      IF (norm_drho(i,j,k)>drho_cutoff) THEN
+                         deriv_data(i,j,k)=-deriv_data(i,j,k)/&
+                              norm_drho(i,j,k)
+                      ELSE
+                         deriv_data(i,j,k)=0.0_dp
+                      END IF
+                   END DO
+                END DO
+             END DO
+          ELSE IF (ASSOCIATED(drho)) THEN
+             !$omp parallel do private(k,j,i,ndr)
+             DO k = bo(1,3), bo(2,3)
+                DO j = bo(1,2), bo(2,2)
+                   DO i = bo(1,1), bo(2,1)
+                      ndr=SQRT(drho(1)%array(i,j,k)**2+&
+                           drho(2)%array(i,j,k)**2+&
+                           drho(3)%array(i,j,k)**2)
+                      IF (ndr>drho_cutoff) THEN
+                         deriv_data(i,j,k)=-deriv_data(i,j,k)/ndr
+                      ELSE
+                         deriv_data(i,j,k)=0.0_dp
+                      END IF
+                   END DO
+                END DO
+             END DO
+          ELSE
+             CPPrecondition(ASSOCIATED(drhoa),cp_failure_level,routineP,error,failure)
+             CPPrecondition(ASSOCIATED(drhob),cp_failure_level,routineP,error,failure)
+             !$omp parallel do private(k,j,i,ndr)
+             DO k = bo(1,3), bo(2,3)
+                DO j = bo(1,2), bo(2,2)
+                   DO i = bo(1,1), bo(2,1)
+                      ndr=SQRT((drhoa(1)%array(i,j,k)+drhob(1)%array(i,j,k))**2+&
+                           (drhoa(2)%array(i,j,k)+drhob(2)%array(i,j,k))**2+&
+                           (drhoa(3)%array(i,j,k)+drhob(3)%array(i,j,k))**2)
+                      IF (ndr>drho_cutoff) THEN
+                         deriv_data(i,j,k)=-deriv_data(i,j,k)/ndr
+                      ELSE
+                         deriv_data(i,j,k)=0.0_dp
+                      END IF
+                   END DO
+                END DO
+             END DO
+          END IF
+
+          vxc_to_deriv(1)%pw => tmp_r
+          NULLIFY(tmp_r,deriv_att%deriv_data)
+
+          IF (lsd) THEN
+             CALL pw_pool_create_pw(pw_pool,vxc_to_deriv(2)%pw,&
+                  use_data=REALDATA3D,in_space=REALSPACE,&
+                  error=error)
+             CALL pw_copy(vxc_to_deriv(1)%pw,vxc_to_deriv(2)%pw)
+          END IF
+       END IF
+
+       DO ispin=1,nspins
+
+          deriv_att => xc_dset_get_derivative(deriv_set, norm_drho_spin_name(ispin))
+          IF (ASSOCIATED(deriv_att)) THEN
+             CPPrecondition(lsd,cp_failure_level,routineP,error,failure)
+             CALL pw_create(tmp_r,pw_pool%pw_grid,&
+                  use_data=REALDATA3D,in_space=REALSPACE,&
+                  cr3d_ptr=deriv_data, error=error)
+
+             IF (ispin==1) THEN
+                CALL xc_rho_set_get(rho_set,norm_drhoa=norm_drho_spin,&
+                     drhoa=drho_spin,rho_cutoff=rho_cutoff,&
+                     drho_cutoff=drho_cutoff,&
+                     can_return_null=.TRUE., error=error)
+             ELSE
+                CALL xc_rho_set_get(rho_set,norm_drhob=norm_drho_spin,&
+                     drhob=drho_spin,rho_cutoff=rho_cutoff,&
+                     drho_cutoff=drho_cutoff,&
+                     can_return_null=.TRUE., error=error)
+             END IF
+             CPPrecondition(ASSOCIATED(drho_spin),cp_failure_level,routineP,error,failure)
+             IF (ASSOCIATED(norm_drho_spin)) THEN
+                !$omp parallel do private(k,j,i)
+                DO k = bo(1,3), bo(2,3)
+                   DO j = bo(1,2), bo(2,2)
+                      DO i = bo(1,1), bo(2,1)
+                         IF (norm_drho_spin(i,j,k)>drho_cutoff) THEN
+                            deriv_data(i,j,k)=&
+                                 deriv_data(i,j,k)/norm_drho_spin(i,j,k)
+                         ELSE
+                            deriv_data(i,j,k)=0.0_dp
+                         END IF
+                      END DO
+                   END DO
+                END DO
+             ELSE
+                !$omp parallel do private(k,j,i,ndr,idir)
+                DO k = bo(1,3), bo(2,3)
+                   DO j = bo(1,2), bo(2,2)
+                      DO i = bo(1,1), bo(2,1)
+                         ndr=SQRT(&
+                              drho_spin(1)%array(i,j,k)**2+&
+                              drho_spin(2)%array(i,j,k)**2+&
+                              drho_spin(3)%array(i,j,k)**2)
+                         IF (ndr>drho_cutoff) THEN
+                            deriv_data(i,j,k)=&
+                                 deriv_data(i,j,k)/ndr
+                         ELSE
+                            deriv_data(i,j,k)=0.0_dp
+                         END IF
+                      END DO
+                   END DO
+                END DO
+             END IF
+
+             IF (ASSOCIATED(vxc_to_deriv(ispin)%pw)) THEN
+                CALL pw_sumup(tmp_r,vxc_to_deriv(ispin)%pw)
+                CALL pw_pool_give_back_pw(pw_pool,tmp_r,error=error)
+             ELSE
+                vxc_to_deriv(ispin)%pw => tmp_r
+                NULLIFY(tmp_r)
+             END IF
+             NULLIFY(deriv_att%deriv_data)
+          END IF
+
+          ! filter vxc
+          IF (rho_r(1)%pw%pw_grid%spherical.OR.&
+               dft_control%xc_rho_smooth_id/=xc_rho_no_smooth) THEN
+             CALL pw_pool_create_pw(pw_pool,vxc_g,&
+                  use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+                  error=error)
+             CALL pw_transfer ( vxc(ispin)%pw, vxc_g )
+          END IF
+
+          IF (ASSOCIATED(vxc_to_deriv(1)%pw)) THEN
+             ! partial integration
+             DO idir=1,3
+                !$omp parallel do private(k,j,i)
+                DO k = bo(1,3), bo(2,3)
+                   DO j = bo(1,2), bo(2,2)
+                      DO i = bo(1,1), bo(2,1)
+                         drho_spin(idir)%array(i,j,k)=&
+                              vxc_to_deriv(ispin)%pw%cr3d(i,j,k)*&
+                              drho_spin(idir)%array(i,j,k)
+                      END DO
+                   END DO
+                END DO
+
+                CALL pw_create(pw_to_deriv(idir)%pw,pw_grid=vxc(1)%pw%pw_grid,&
+                     cr3d_ptr=drho_spin(idir)%array,&
+                     use_data=REALDATA3D,in_space=REALSPACE,&
+                     error=error)
+                NULLIFY(drho_spin(idir)%array)
+             END DO
+
+             IF (dft_control%xc_deriv_method_id/=xc_deriv_pw) THEN
+                CALL pw_spline_scale_deriv(pw_to_deriv, cell=cell,&
+                     transpose=.TRUE.,&
+                     error=error)
+             END IF
+
+             IF (.NOT.ASSOCIATED(vxc_g)) THEN
+                CALL pw_pool_create_pw(pw_pool,vxc_g,&
+                     use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+                     error=error)
+                zero_result=.TRUE.
+             ELSE
+                zero_result=.FALSE.
+             END IF
+
+             DO idir = 1,3
+                IF (zero_result .AND. idir==1) THEN
+                   tmp_g => vxc_g
+                ELSE
+                   CALL pw_pool_create_pw(pw_pool,tmp_g,&
+                        use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+                        error=error)
+                END IF
+
+                CALL pw_transfer ( pw_to_deriv(idir)%pw, tmp_g )
+
+                SELECT CASE(dft_control%xc_deriv_method_id)
+                CASE (xc_deriv_pw)
+                   CALL pw_derive ( tmp_g, nd(:,idir) )
+                CASE (xc_deriv_spline2)
+                   CALL pw_spline2_interpolate_values_g(tmp_g,error=error)
+                   CALL pw_spline2_deriv_g ( tmp_g, idir=idir, error=error )
+                CASE (xc_deriv_spline2_smooth)
+                   CALL pw_spline2_deriv_g ( tmp_g, idir=idir, error=error )
+                CASE (xc_deriv_spline3)
+                   CALL pw_spline3_interpolate_values_g(tmp_g,error=error)
+                   CALL pw_spline3_deriv_g ( tmp_g, idir=idir, error=error )
+                CASE (xc_deriv_spline3_smooth)
+                   CALL pw_spline3_deriv_g ( tmp_g, idir=idir, error=error )
+                CASE default
+                   CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+                END SELECT
+
+                IF (zero_result .AND. idir==1) THEN
+                   NULLIFY(tmp_g)
+                ELSE
+                   CALL pw_sumup ( tmp_g, vxc_g )
+                   CALL pw_pool_give_back_pw(pw_pool,tmp_g,error=error)
+                END IF
+                CALL pw_pool_give_back_pw(pw_pool,pw_to_deriv(idir)%pw,error=error)
+             END DO
+
+             CALL pw_pool_give_back_pw(pw_pool,vxc_to_deriv(ispin)%pw,error=error)
+          END IF
+
+          IF (ASSOCIATED(vxc_g)) THEN
+             ! final smoothing if rho was smoothed
+             SELECT CASE(dft_control%xc_rho_smooth_id)
+             CASE (xc_rho_no_smooth)
+             CASE (xc_rho_spline2_smooth)
+                CALL pw_spline2_evaluate_values_g(vxc_g,error=error)
+             CASE (xc_rho_spline3_smooth)
+                CALL pw_spline3_evaluate_values_g(vxc_g,error=error)
+             CASE (xc_rho_nn10)
+                CALL pw_nn_smear_g(vxc_g,&
+                     nn10_coeffs,error=error)
+             CASE default
+                CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+             END SELECT
+
+             ! transform back vxc
+             IF (rho_r(1)%pw%pw_grid%spherical.OR.&
+                  dft_control%xc_rho_smooth_id/=xc_rho_no_smooth) THEN
+                CALL pw_transfer ( vxc_g, vxc(ispin)%pw )
+             ELSE
+                CALL pw_pool_create_pw(pw_pool, tmp_r,&
+                     use_data=REALDATA3D, in_space=REALSPACE,&
+                     error=error)
+                CALL pw_transfer ( vxc_g, tmp_r )
+                CALL pw_sumup ( tmp_r, vxc(ispin)%pw )
+                CALL pw_pool_give_back_pw(pw_pool, tmp_r, error=error)
+             END IF
+             CALL pw_pool_give_back_pw(pw_pool,vxc_g,error=error)
+          END IF
+
+       END DO
+       CALL xc_rho_set_release(rho_set, error=error)
+       CALL xc_dset_release(deriv_set, error=error)
+    END IF
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE xc_calculate_pw_new2
+  !***************************************************************************
+
+!!****f* xc/xc_prep_2nd_deriv1 [1.0] *
+!!
+!!   NAME
+!!     xc_prep_2nd_deriv1
+!!
+!!   SYNOPSIS
+!!     Subroutine xc_prep_2nd_deriv1(derivative_set, rho_r, rho_g,&
+!!         dft_control, pw_pool, drho_r, spin_pot, grad_pot, ndiag_term,&
+!!         error)
+!!       Type(xc_derivative_set_type), Pointer:: derivative_set
+!!       Type(coeff_type), Dimension(:), Pointer:: rho_r, rho_g
+!!       Type(dft_control_type), Pointer:: dft_control
+!!       Type(pw_p_type), Dimension(:,:), Pointer:: drho_r
+!!       Integer, Dimension(:,:), Pointer:: spin_pot
+!!       Logical, Dimension(:,:), Pointer:: grad_pot
+!!       Logical, Dimension(:), Pointer:: ndiag_term
+!!       Type(pw_pool_type), Pointer:: pw_pool
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine xc_prep_2nd_deriv1
+!!
+!!   FUNCTION
+!!     facility call of xc_prep_2nd_deriv with coeff arrays
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!*** **********************************************************************
   SUBROUTINE xc_prep_2nd_deriv1(derivative_set,rho_r,rho_g,dft_control,pw_pool,&
        drho_r,spin_pot,grad_pot,ndiag_term,error)
 
     ! arguments
-    type(xc_derivative_set_type), pointer :: derivative_set
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     TYPE(coeff_type), DIMENSION(:), POINTER :: rho_r, rho_g
     TYPE(dft_control_type), POINTER :: dft_control
     TYPE(pw_p_type), DIMENSION(:,:),POINTER :: drho_r
@@ -925,33 +1456,49 @@ CONTAINS
   END SUBROUTINE xc_prep_2nd_deriv1
   !***************************************************************************
 
-  !!****f* qs_kpp1_env_methods/xc_prep_2nd_deriv [1.0] *
-  !!
-  !!   NAME
-  !!     xc_prep_2nd_deriv
-  !!
-  !!   FUNCTION
-  !!     Does the first prepartions for the calculation of the 2nd deriv
-  !!     done by xc_calc_2nd_deriv
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - derivative_set: contains the result
-  !!     - rho_r,rho_g: point where to evaluate the (functional) derivative
-  !!       of exc in r and g space
-  !!     - dft_control: informations about the functional that should be
-  !!       derived
-  !!     - drho_r(idir,ispin) :: derivative of rho_r in the direction x,y,z
-  !!       in the r space (allocated if the xc potential is gradient corrected)
-  !!     - spin_pot, grad_pot, ndiag_term: info about the content of pot
-  !!       (allocated, see xc_create_2nd_deriv_info)
-  !!     - pw_pool: the pool for the grids
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!*** **********************************************************************
+!!****f* qs_kpp1_env_methods/xc_prep_2nd_deriv [1.0] *
+!!
+!!   NAME
+!!     xc_prep_2nd_deriv
+!!
+!!   SYNOPSIS
+!!     Subroutine xc_prep_2nd_deriv(derivative_set, rho_r, rho_g,&
+!!         dft_control, pw_pool, drho_r, spin_pot, grad_pot, ndiag_term,&
+!!         error)
+!!       Implicit None
+!!       Type(xc_derivative_set_type), Pointer:: derivative_set
+!!       Type(pw_p_type), Dimension(:), Pointer:: rho_r, rho_g
+!!       Type(dft_control_type), Pointer:: dft_control
+!!       Type(pw_p_type), Dimension(:,:), Pointer:: drho_r
+!!       Integer, Dimension(:,:), Pointer:: spin_pot
+!!       Logical, Dimension(:,:), Pointer:: grad_pot
+!!       Logical, Dimension(:), Pointer:: ndiag_term
+!!       Type(pw_pool_type), Pointer:: pw_pool
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine xc_prep_2nd_deriv
+!!
+!!   FUNCTION
+!!     Does the first prepartions for the calculation of the 2nd deriv
+!!     done by xc_calc_2nd_deriv
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - derivative_set: contains the result
+!!     - rho_r,rho_g: point where to evaluate the (functional) derivative
+!!       of exc in r and g space
+!!     - dft_control: informations about the functional that should be
+!!       derived
+!!     - drho_r(idir,ispin) :: derivative of rho_r in the direction x,y,z
+!!       in the r space (allocated if the xc potential is gradient corrected)
+!!     - spin_pot, grad_pot, ndiag_term: info about the content of pot
+!!       (allocated, see xc_create_2nd_deriv_info)
+!!     - pw_pool: the pool for the grids
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!*** **********************************************************************
   SUBROUTINE xc_prep_2nd_deriv(derivative_set, &
                                rho_r, rho_g, dft_control, pw_pool, &
                                drho_r, spin_pot, grad_pot, ndiag_term, &
@@ -960,7 +1507,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! arguments
-    type(xc_derivative_set_type), pointer :: derivative_set
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_r, rho_g
     TYPE(dft_control_type), POINTER :: dft_control
     TYPE(pw_p_type), DIMENSION(:,:),POINTER :: drho_r
@@ -1002,11 +1549,11 @@ CONTAINS
 
     IF (.NOT. failure) THEN
 
-       if (dft_control%do_tddfpt_calculation) then
+       IF (dft_control%do_tddfpt_calculation) THEN
           xc_control = dft_control%tddfpt_control%xc_control
-       else
+       ELSE
           xc_control = dft_control%xc_control
-       endif
+       ENDIF
 
        nspins     = dft_control%nspins
        do_restricted_tddfpt  = (dft_control%do_tddfpt_calculation .AND. (nspins==1))
@@ -1029,8 +1576,8 @@ CONTAINS
        bo = rho_r(1)%pw%pw_grid%bounds_local  
        ntot = PRODUCT ( n )
 
-       if (.not.associated(derivative_set)) &
-            call xc_derivative_set_create(derivative_set, ntot, error=error)
+       IF (.not.ASSOCIATED(derivative_set)) &
+            CALL xc_dset_create(derivative_set, pw_pool, error=error)
 
        ALLOCATE(rgrid(ntot,nspins),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1153,7 +1700,7 @@ CONTAINS
 
     ! divide the potential by the gradient where necessary
     IF (.NOT.failure) THEN
-       DO ipot=1,size(grad_pot,2)
+       DO ipot=1,SIZE(grad_pot,2)
           IF (grad_pot(1,ipot).AND.grad_pot(2,ipot)) THEN
              CPPrecondition(ANY(xc_control%gradient_functionals),cp_failure_level,routineP,error,failure)
              IF (ndiag_term(ipot)) THEN
@@ -1253,50 +1800,66 @@ CONTAINS
   END SUBROUTINE xc_prep_2nd_deriv
   !***************************************************************************
 
-  !!****f* xc/xc_calc_2nd_deriv1 [1.0] *
-  !!
-  !!   NAME
-  !!     xc_calc_2nd_deriv1
-  !!
-  !!   FUNCTION
-  !!     Facility call of xc_calc_2nd_deriv with coeff arrays
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - rho_r: point where to evaluate the (functional) derivative
-  !!       of exc in r space
-  !!     - drho_r(idir,ispin): derivatives of rho_r in in the x,y,z
-  !!       directions in r-space (should be allocated only if you use a
-  !!       gradient corrected xc potential)
-  !!     - rho1_r, rho1_g: direction of the first derivative in r and g space
-  !!     - pot: the derivative of the potential, already divised by the gradient
-  !!       if nedeed (grad_pot true).
-  !!     - spin_pot, grad_pot, ndiag_term: info about the content of pot
-  !!       (see xc_create_2nd_deriv_info)
-  !!     - dft_control: informations about the functional that should be
-  !!       derived
-  !!     - v_rspace_new: will contain the new potential. The array iterates
-  !!       on the spins. The grids must be already present.
-  !!     - pw_pool: the pool for the grids
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   MODIFICATION HISTORY
-  !!     02.2003 created [fawzi]
-  !!
-  !!*** **********************************************************************
+!!****f* xc/xc_calc_2nd_deriv1 [1.0] *
+!!
+!!   NAME
+!!     xc_calc_2nd_deriv1
+!!
+!!   SYNOPSIS
+!!     Subroutine xc_calc_2nd_deriv1(derivative_set, rho_r, drho_r, rho1_r,&
+!!         rho1_g, spin_pot, grad_pot, ndiag_term, dft_control,&
+!!         v_rspace_new, pw_pool, error)
+!!       Type(xc_derivative_set_type), Pointer:: derivative_set
+!!       Type(coeff_type), Dimension(:), Pointer:: rho_r, rho1_r, rho1_g
+!!       Type(pw_p_type), Dimension(:,:), Pointer:: drho_r
+!!       Integer, Dimension(:,:), Pointer:: spin_pot
+!!       Logical, Dimension(:,:), Pointer:: grad_pot
+!!       Logical, Dimension(:), Pointer:: ndiag_term
+!!       Type(dft_control_type), Pointer:: dft_control
+!!       Type(coeff_type), Dimension(:), Pointer:: v_rspace_new
+!!       Type(pw_pool_type), Pointer:: pw_pool
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine xc_calc_2nd_deriv1
+!!
+!!   FUNCTION
+!!     Facility call of xc_calc_2nd_deriv with coeff arrays
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - rho_r: point where to evaluate the (functional) derivative
+!!       of exc in r space
+!!     - drho_r(idir,ispin): derivatives of rho_r in in the x,y,z
+!!       directions in r-space (should be allocated only if you use a
+!!       gradient corrected xc potential)
+!!     - rho1_r, rho1_g: direction of the first derivative in r and g space
+!!     - pot: the derivative of the potential, already divised by the gradient
+!!       if nedeed (grad_pot true).
+!!     - spin_pot, grad_pot, ndiag_term: info about the content of pot
+!!       (see xc_create_2nd_deriv_info)
+!!     - dft_control: informations about the functional that should be
+!!       derived
+!!     - v_rspace_new: will contain the new potential. The array iterates
+!!       on the spins. The grids must be already present.
+!!     - pw_pool: the pool for the grids
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     02.2003 created [fawzi]
+!!
+!!*** **********************************************************************
   SUBROUTINE xc_calc_2nd_deriv1(derivative_set, &
        rho_r,drho_r,rho1_r,rho1_g,&
        spin_pot,grad_pot,ndiag_term,dft_control,&
        v_rspace_new,pw_pool,error)
 
     ! arguments
-    TYPE(xc_derivative_set_type), pointer :: derivative_set
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     TYPE(coeff_type), DIMENSION(:), POINTER :: rho_r, rho1_r, rho1_g
     TYPE(pw_p_type), DIMENSION(:,:),POINTER :: drho_r
     INTEGER, DIMENSION(:,:), POINTER :: spin_pot
@@ -1361,45 +1924,62 @@ CONTAINS
   END SUBROUTINE xc_calc_2nd_deriv1
   !***************************************************************************
 
-  !!****f* qs_kpp1_env_methods/xc_calc_2nd_deriv [1.0] *
-  !!
-  !!   NAME
-  !!     xc_calc_2nd_deriv
-  !!
-  !!   FUNCTION
-  !!     Does the first prepartions for the calculation of the 2nd deriv
-  !!     Calculates the second derivative of E_xc at rho in the direction
-  !!     rho1  (if you see the second derivative as bilinear form)
-  !!     partial_rho|_(rho=rho) partial_rho|_(rho=rho) E_xc drho(rho1)drho
-  !!     The other direction is still indetermined, thus it returns
-  !!     a potential (partial integration is performed to reduce it to
-  !!     function of rho, removing the dependence from its partial derivs)
-  !!
-  !!   NOTES
-  !!     drho_r, spin_pot, grad_pot, ndiag_term, should be as returned by
-  !!     xc_prep_2nd_deriv.
-  !!
-  !!   INPUTS
-  !!     - derivative_set: object containing the potentials
-  !!     - rho_r: point where to evaluate the (functional) derivative
-  !!       of exc in r space
-  !!     - drho_r(idir,ispin): derivatives of rho_r in in the x,y,z
-  !!       directions in r-space (should be allocated only if you use a
-  !!       gradient corrected xc potential)
-  !!     - rho1_r, rho1_g: direction of the first derivative in r and g space
-  !!     - pot: the derivative of the potential, already divised by the gradient
-  !!       if nedeed (grad_pot true).
-  !!     - spin_pot, grad_pot, ndiag_term: info about the content of pot
-  !!       (see xc_create_2nd_deriv_info)
-  !!     - dft_control: informations about the functional that should be
-  !!       derived
-  !!     - v_rspace_new: will contain the new potential. The array iterates
-  !!       on the spins. The grids must be already present.
-  !!     - pw_pool: the pool for the grids
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!*** **********************************************************************
+!!****f* qs_kpp1_env_methods/xc_calc_2nd_deriv [1.0] *
+!!
+!!   NAME
+!!     xc_calc_2nd_deriv
+!!
+!!   SYNOPSIS
+!!     Subroutine xc_calc_2nd_deriv(derivative_set, rho_r, drho_r, rho1_r,&
+!!         rho1_g, spin_pot, grad_pot, ndiag_term, dft_control,&
+!!         v_rspace_new, pw_pool, error)
+!!       Implicit None
+!!       Type(xc_derivative_set_type), Pointer:: derivative_set
+!!       Type(pw_p_type), Dimension(:), Pointer:: rho_r, rho1_r, rho1_g
+!!       Type(pw_p_type), Dimension(:,:), Pointer:: drho_r
+!!       Integer, Dimension(:,:), Pointer:: spin_pot
+!!       Logical, Dimension(:,:), Pointer:: grad_pot
+!!       Logical, Dimension(:), Pointer:: ndiag_term
+!!       Type(dft_control_type), Pointer:: dft_control
+!!       Type(coeff_type), Dimension(:), Pointer:: v_rspace_new
+!!       Type(pw_pool_type), Pointer:: pw_pool
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine xc_calc_2nd_deriv
+!!
+!!   FUNCTION
+!!     Does the first prepartions for the calculation of the 2nd deriv
+!!     Calculates the second derivative of E_xc at rho in the direction
+!!     rho1  (if you see the second derivative as bilinear form)
+!!     partial_rho|_(rho=rho) partial_rho|_(rho=rho) E_xc drho(rho1)drho
+!!     The other direction is still indetermined, thus it returns
+!!     a potential (partial integration is performed to reduce it to
+!!     function of rho, removing the dependence from its partial derivs)
+!!
+!!   NOTES
+!!     drho_r, spin_pot, grad_pot, ndiag_term, should be as returned by
+!!     xc_prep_2nd_deriv.
+!!
+!!   INPUTS
+!!     - derivative_set: object containing the potentials
+!!     - rho_r: point where to evaluate the (functional) derivative
+!!       of exc in r space
+!!     - drho_r(idir,ispin): derivatives of rho_r in in the x,y,z
+!!       directions in r-space (should be allocated only if you use a
+!!       gradient corrected xc potential)
+!!     - rho1_r, rho1_g: direction of the first derivative in r and g space
+!!     - pot: the derivative of the potential, already divised by the gradient
+!!       if nedeed (grad_pot true).
+!!     - spin_pot, grad_pot, ndiag_term: info about the content of pot
+!!       (see xc_create_2nd_deriv_info)
+!!     - dft_control: informations about the functional that should be
+!!       derived
+!!     - v_rspace_new: will contain the new potential. The array iterates
+!!       on the spins. The grids must be already present.
+!!     - pw_pool: the pool for the grids
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!*** **********************************************************************
   SUBROUTINE xc_calc_2nd_deriv(derivative_set, &
        rho_r, drho_r, rho1_r, rho1_g, &
        spin_pot, grad_pot, ndiag_term, dft_control, &
@@ -1408,7 +1988,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! arguments
-    type(xc_derivative_set_type), pointer        :: derivative_set
+    TYPE(xc_derivative_set_type), POINTER        :: derivative_set
     TYPE(pw_p_type), DIMENSION(:), POINTER       :: rho_r, rho1_r, rho1_g
     TYPE(pw_p_type), DIMENSION(:,:),POINTER      :: drho_r
     INTEGER, DIMENSION(:,:), POINTER             :: spin_pot
@@ -1457,11 +2037,11 @@ CONTAINS
     CPPrecondition(ASSOCIATED(ndiag_term),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
 
-       if (dft_control%do_tddfpt_calculation) then
+       IF (dft_control%do_tddfpt_calculation) THEN
           xc_control = dft_control%tddfpt_control%xc_control
-       else
+       ELSE
           xc_control = dft_control%xc_control
-       endif
+       ENDIF
 
        nspins     = dft_control%nspins
        do_restricted_tddfpt  = (dft_control%do_tddfpt_calculation .AND. (nspins==1))

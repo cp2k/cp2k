@@ -144,4 +144,23 @@ USE cp_array_r_utils, only: cp_3d_r_p_type, cp_3d_r_write""",
  'lessQ':'CP_SLL_R_LESS_Q',
  'equalQ':'CP_SLL_R_EQUAL_Q',
  'write_el':'cp_3d_r_write'
+},
+{
+ 'nametype1':'xc_deriv', 
+ 'type1':'type(xc_derivative_type),pointer', 
+ 'type1in':'type(xc_derivative_type),pointer',
+ 'type1out':'type(xc_derivative_type),pointer',
+ 'USE':
+"""USE xc_derivative_types, only: xc_derivative_type,xc_derivative_p_type,xc_derivative_write""",
+ 'defines':
+"""#define CP_SLL_DERIV_LESS_Q(el1,el2) ( size(el1%split_desc)<size(el2%split_desc).or.(size(el1%split_desc)==size(el2%split_desc).and.el1%desc<el2%desc) )
+#define CP_SLL_DERIV_EQUAL_Q(el1,el2) ( el1%desc == el2%desc )
+""",
+ '=':'=>',
+ 'type1arrayEl':'type(xc_derivative_p_type)',
+ 'array=':'=>',
+ 'arrayEl':'%deriv',
+ 'lessQ':'CP_SLL_DERIV_LESS_Q',
+ 'equalQ':'CP_SLL_DERIV_EQUAL_Q',
+ 'write_el':'xc_derivative_write'
 }]

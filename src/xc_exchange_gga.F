@@ -20,15 +20,15 @@
 !!*** *************************************************************************
 
 MODULE xc_exchange_gga
-
 ! *****************************************************************************
-
-  USE kinds, ONLY: dbl
-  USE xc_derivative_types, ONLY: xc_derivative_set_type
-  USE xc_functionals_utilities, ONLY: set_util, calc_rho13, setup_calculation, &
-                                      calc_wave_vector
-  USE termination, ONLY: stop_memory, stop_program
-
+  USE kinds,                           ONLY: dbl
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type
+  USE xc_functionals_utilities,        ONLY: calc_rho13,&
+                                             calc_wave_vector,&
+                                             set_util,&
+                                             setup_calculation
   IMPLICIT NONE
 
   PRIVATE
@@ -708,8 +708,8 @@ CONTAINS
     DO ip=1,SIZE(s)
       x = s(ip) * f0
       bs = beta*x
-      sbs = sqrt(x*x+1._dbl)
-      as = log(x+sbs)
+      sbs = SQRT(x*x+1._dbl)
+      as = LOG(x+sbs)
       sas = x*as
       ys =  1._dbl/(1._dbl+q*sas)
       SELECT CASE (m)
@@ -737,9 +737,9 @@ CONTAINS
                     + 3._dbl*q - sbs) - sbs))
       t1 = q*x
       t2 = x**2
-      t4 = sqrt(1+t2)
+      t4 = SQRT(1+t2)
       t5 = x+t4
-      t6 = log(t5)
+      t6 = LOG(t5)
       t8 = 1+t1*t6
       t9 = t8**2
       t10 = 1/t9
@@ -897,8 +897,8 @@ CONTAINS
 !$omp parallel do private(ip,x)
       DO ip=1,SIZE(s)
         x = s(ip)
-        fs(ip,1) = (o+a1*x*log(a*x+sqrt(o+a**2*x**2))+a2-a3*exp(-a4*x**2)*x**2)&
-                   /(o+a1*x*log(a*x+sqrt(o+a**2*x**2))+b1*x**4)
+        fs(ip,1) = (o+a1*x*LOG(a*x+SQRT(o+a**2*x**2))+a2-a3*EXP(-a4*x**2)*x**2)&
+                   /(o+a1*x*LOG(a*x+SQRT(o+a**2*x**2))+b1*x**4)
       END DO
     END IF
     IF ( m >= 1 ) THEN
@@ -906,67 +906,67 @@ CONTAINS
       DO ip=1,SIZE(s)
         x = s(ip)
         fs(ip,2) =&
-           (a1*log(a*x+sqrt(o+a**2*x**2))+a1*x*a/sqrt(o+a**2*x**2)+2*a3*       &
-           a4*x**3*exp(-a4*x**2)-2*a3*exp(-a4*x**2)*x)/(o+a1*x*log(a*x+sqrt(o  &
-           +a**2*x**2))+b1*x**4)-(o+a1*x*log(a*x+sqrt(o+a**2*x**2))+a2-a3*exp  &
-           (-a4*x**2)*x**2)/(o+a1*x*log(a*x+sqrt(o+a**2*x**2))+b1*x**4)**2*(a1 &
-           *log(a*x+sqrt(o+a**2*x**2))+a1*x*a/sqrt(o+a**2*x**2)+4*b1*x**3)
+           (a1*LOG(a*x+SQRT(o+a**2*x**2))+a1*x*a/SQRT(o+a**2*x**2)+2*a3*       &
+           a4*x**3*EXP(-a4*x**2)-2*a3*EXP(-a4*x**2)*x)/(o+a1*x*LOG(a*x+SQRT(o  &
+           +a**2*x**2))+b1*x**4)-(o+a1*x*LOG(a*x+SQRT(o+a**2*x**2))+a2-a3*exp  &
+           (-a4*x**2)*x**2)/(o+a1*x*LOG(a*x+SQRT(o+a**2*x**2))+b1*x**4)**2*(a1 &
+           *LOG(a*x+SQRT(o+a**2*x**2))+a1*x*a/SQRT(o+a**2*x**2)+4*b1*x**3)
       END DO
     END IF
     IF ( m >= 2 ) THEN
 !$omp parallel do private(ip,x,s1)
       DO ip=1,SIZE(s)
         x = s(ip)
-        s1 = (2*a1*a/sqrt(1+a**2*x**2)-a1*x**2*a**3/sqrt(1+a**2*x**2)**3+  &
-             10*a3*a4*x**2*exp(-a4*x**2)-4*a3*a4**2*x**4*exp(-a4*x**2)     &
-             -2*a3*exp(-a4*x**2))/(1+a1*x*log(a*x+sqrt(1+a**2*x**2))+      &
-             b1*x**4)-2*(a1*log(a*x+sqrt(1+a**2*x**2))+a1*x*a/sqrt(1+a**2*x**2) &
-             +2*a3*a4*x**3*exp(-a4*x**2)-2*a3*exp(-a4*x**2)*x)/(1+a1*x*    &
-             log(a*x+sqrt(1+a**2*x**2))+b1*x**4)**2*(a1*log(a*x+sqrt(1+a**2*x**2))&
-             +a1*x*a/sqrt(1+a**2*x**2)+4*b1*x**3)
+        s1 = (2*a1*a/SQRT(1+a**2*x**2)-a1*x**2*a**3/SQRT(1+a**2*x**2)**3+  &
+             10*a3*a4*x**2*EXP(-a4*x**2)-4*a3*a4**2*x**4*EXP(-a4*x**2)     &
+             -2*a3*EXP(-a4*x**2))/(1+a1*x*LOG(a*x+SQRT(1+a**2*x**2))+      &
+             b1*x**4)-2*(a1*LOG(a*x+SQRT(1+a**2*x**2))+a1*x*a/SQRT(1+a**2*x**2) &
+             +2*a3*a4*x**3*EXP(-a4*x**2)-2*a3*EXP(-a4*x**2)*x)/(1+a1*x*    &
+             LOG(a*x+SQRT(1+a**2*x**2))+b1*x**4)**2*(a1*LOG(a*x+SQRT(1+a**2*x**2))&
+             +a1*x*a/SQRT(1+a**2*x**2)+4*b1*x**3)
         fs(ip,3) =&
-             s1+2*(1+a1*x*log(a*x+sqrt(1+a**2*x**2))+a2-a3*exp(-a4*x**2)*x**2)&
-             /(1+a1*x*log(a*x+sqrt(1+a**2*x**2))+b1*x**4)**3*(a1*log(a*x+     &
-             sqrt(1+a**2*x**2))+a1*x*a/sqrt(1+a**2*x**2)+4*b1*x**3)**2-       &
-             (1+a1*x*log(a*x+sqrt(1+a**2*x**2))+a2-a3*exp(-a4*x**2)*x**2)     &
-             /(1+a1*x*log(a*x +sqrt(1+a**2*x**2))+b1*x**4)**2*(2*a1*a/        &
-             sqrt(1+a**2*x**2)-a1*x**2*a**3/sqrt(1+a**2*x**2)**3+12*b1*x**2)
+             s1+2*(1+a1*x*LOG(a*x+SQRT(1+a**2*x**2))+a2-a3*EXP(-a4*x**2)*x**2)&
+             /(1+a1*x*LOG(a*x+SQRT(1+a**2*x**2))+b1*x**4)**3*(a1*LOG(a*x+     &
+             SQRT(1+a**2*x**2))+a1*x*a/SQRT(1+a**2*x**2)+4*b1*x**3)**2-       &
+             (1+a1*x*LOG(a*x+SQRT(1+a**2*x**2))+a2-a3*EXP(-a4*x**2)*x**2)     &
+             /(1+a1*x*LOG(a*x +SQRT(1+a**2*x**2))+b1*x**4)**2*(2*a1*a/        &
+             SQRT(1+a**2*x**2)-a1*x**2*a**3/SQRT(1+a**2*x**2)**3+12*b1*x**2)
       END DO
     END IF
     IF ( m >= 3 ) THEN
 !$omp parallel do private(ip,x,s1,s2,s3)
       DO ip=1,SIZE(s)
         x = s(ip)
-        s2 = (-4*a1*a**3/sqrt(1+a**2*x**2)**3*x+3*a1*x**3*a**5/         &
-             sqrt(1+a**2*x**2)**5+24*a3*a4*x*exp(-a4*x**2)-36*a3*a4**2* &
-             x**3*exp(-a4*x**2)+8*a3*a4**3*x**5*exp(-a4*x**2))/(1+a1*x* &
-             log(a*x+sqrt(1+a**2*x**2))+b1*x**4)
-        s3 = -3*(2*a1*a/sqrt(1+a**2*x**2)-a1*x**2*a**3/sqrt(1+a**2*     &
-             x**2)**3+10*a3*a4*x**2*exp(-a4*x**2)-4*a3*a4**2*x**4*      &
-             exp(-a4*x**2)-2*a3*exp(-a4*x**2))/(1+a1*x*log(a*x+         &
-             sqrt(1+a**2*x**2))+b1*x**4)**2*(a1*log(a*x+sqrt(1+a**2*    &
-             x**2))+a1*x*a/sqrt(1+a**2*x**2)+4*b1*x**3)+6*(a1*log(a*x+  &
-             sqrt(1+a**2*x**2))+a1*x*a/sqrt(1+a**2*x**2)+2*a3*a4*x**3*  &
-             exp(-a4*x**2)-2*a3*exp(-a4*x**2)*x)/(1+a1*x*log(a*x+       &
-             sqrt(1+a**2*x**2))+b1*x**4)**3*(a1*log(a*x+sqrt(1+a**2*    &
-             x**2))+a1*x*a/sqrt(1+a**2*x**2)+4*b1*x**3)**2
+        s2 = (-4*a1*a**3/SQRT(1+a**2*x**2)**3*x+3*a1*x**3*a**5/         &
+             SQRT(1+a**2*x**2)**5+24*a3*a4*x*EXP(-a4*x**2)-36*a3*a4**2* &
+             x**3*EXP(-a4*x**2)+8*a3*a4**3*x**5*EXP(-a4*x**2))/(1+a1*x* &
+             LOG(a*x+SQRT(1+a**2*x**2))+b1*x**4)
+        s3 = -3*(2*a1*a/SQRT(1+a**2*x**2)-a1*x**2*a**3/SQRT(1+a**2*     &
+             x**2)**3+10*a3*a4*x**2*EXP(-a4*x**2)-4*a3*a4**2*x**4*      &
+             EXP(-a4*x**2)-2*a3*EXP(-a4*x**2))/(1+a1*x*LOG(a*x+         &
+             SQRT(1+a**2*x**2))+b1*x**4)**2*(a1*LOG(a*x+SQRT(1+a**2*    &
+             x**2))+a1*x*a/SQRT(1+a**2*x**2)+4*b1*x**3)+6*(a1*LOG(a*x+  &
+             SQRT(1+a**2*x**2))+a1*x*a/SQRT(1+a**2*x**2)+2*a3*a4*x**3*  &
+             EXP(-a4*x**2)-2*a3*EXP(-a4*x**2)*x)/(1+a1*x*LOG(a*x+       &
+             SQRT(1+a**2*x**2))+b1*x**4)**3*(a1*LOG(a*x+SQRT(1+a**2*    &
+             x**2))+a1*x*a/SQRT(1+a**2*x**2)+4*b1*x**3)**2
         s1 = s2+s3
-        s2 = s1-3*(a1*log(a*x+sqrt(1+a**2*x**2))+a1*x*a/sqrt(1+a**2*x**2) &
-             +2*a3*a4*x**3*exp(-a4*x**2)-2*a3*exp(-a4*x**2)*x)/(1+a1*x*   &
-             log(a*x+sqrt(1+a**2*x**2))+b1*x**4)**2*(2*a1*a/sqrt(1+a**2*  &
-             x**2)-a1*x**2*a**3/sqrt(1+a**2*x**2)**3+12*b1*x**2)
-        s3 = s2-6*(1+a1*x*log(a*x+sqrt(1+a**2*x**2))+a2-a3*exp(-a4*x**2)* &
-             x**2)/(1+a1*x*log(a*x+sqrt(1+a**2*x**2))+b1*x**4)**4*(a1*    &
-             log(a*x+sqrt(1+a**2*x**2))+a1*x*a/sqrt(1+a**2*x**2)+4*b1*x**3)**3
+        s2 = s1-3*(a1*LOG(a*x+SQRT(1+a**2*x**2))+a1*x*a/SQRT(1+a**2*x**2) &
+             +2*a3*a4*x**3*EXP(-a4*x**2)-2*a3*EXP(-a4*x**2)*x)/(1+a1*x*   &
+             LOG(a*x+SQRT(1+a**2*x**2))+b1*x**4)**2*(2*a1*a/SQRT(1+a**2*  &
+             x**2)-a1*x**2*a**3/SQRT(1+a**2*x**2)**3+12*b1*x**2)
+        s3 = s2-6*(1+a1*x*LOG(a*x+SQRT(1+a**2*x**2))+a2-a3*EXP(-a4*x**2)* &
+             x**2)/(1+a1*x*LOG(a*x+SQRT(1+a**2*x**2))+b1*x**4)**4*(a1*    &
+             LOG(a*x+SQRT(1+a**2*x**2))+a1*x*a/SQRT(1+a**2*x**2)+4*b1*x**3)**3
         fs(ip,4) =&
-             s3+6*(1+a1*x*log(a*x+sqrt(1+a**2*x**2))+a2-a3*exp(-a4*x**2)  &
-             *x**2)/(1+a1*x*log(a*x+sqrt(1+a**2*x**2))+b1*x**4)**3*(a1*   &
-             log(a*x+sqrt(1+a**2*x**2))+a1*x*a/sqrt(1+a**2*x**2)+4*b1*    &
-             x**3)*(2*a1*a/sqrt(1+a**2*x**2)-a1*x**2*a**3/sqrt(1+a**2*    &
-             x**2)**3+12*b1*x**2)-(1+a1*x*log(a*x+sqrt(1+a**2*x**2))+a2-  &
-             a3*exp(-a4*x**2)*x**2)/(1+a1*x*log(a*x+sqrt(1+a**2*x**2))+   &
-             b1*x**4)**2*(-4*a1*a**3/sqrt(1+a**2*x**2)**3*x+3*a1*x**3*    &
-             a**5/sqrt(1+a**2*x**2)**5+24*b1*x)
+             s3+6*(1+a1*x*LOG(a*x+SQRT(1+a**2*x**2))+a2-a3*EXP(-a4*x**2)  &
+             *x**2)/(1+a1*x*LOG(a*x+SQRT(1+a**2*x**2))+b1*x**4)**3*(a1*   &
+             LOG(a*x+SQRT(1+a**2*x**2))+a1*x*a/SQRT(1+a**2*x**2)+4*b1*    &
+             x**3)*(2*a1*a/SQRT(1+a**2*x**2)-a1*x**2*a**3/SQRT(1+a**2*    &
+             x**2)**3+12*b1*x**2)-(1+a1*x*LOG(a*x+SQRT(1+a**2*x**2))+a2-  &
+             a3*EXP(-a4*x**2)*x**2)/(1+a1*x*LOG(a*x+SQRT(1+a**2*x**2))+   &
+             b1*x**4)**2*(-4*a1*a**3/SQRT(1+a**2*x**2)**3*x+3*a1*x**3*    &
+             a**5/SQRT(1+a**2*x**2)**5+24*b1*x)
       END DO
     END IF
 

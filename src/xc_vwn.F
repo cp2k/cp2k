@@ -25,15 +25,15 @@
 !!*** *************************************************************************
 
 MODULE xc_vwn
-
 ! *****************************************************************************
-
-  USE kinds, ONLY: dbl
-  USE xc_derivative_types, ONLY: xc_derivative_set_type
-  USE xc_functionals_utilities, ONLY: set_util, calc_srs, calc_fx, &
-                                      setup_calculation
-  USE termination, ONLY: stop_memory, stop_program
-
+  USE kinds,                           ONLY: dbl
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type
+  USE xc_functionals_utilities,        ONLY: calc_fx,&
+                                             calc_srs,&
+                                             set_util,&
+                                             setup_calculation
   IMPLICIT NONE
 
   PRIVATE
@@ -236,8 +236,8 @@ CONTAINS
          px = x(ip)*x(ip)+b*x(ip)+c
          dpx = 2._dbl*x(ip)+b
          at = 2._dbl/q*ATAN(q/dpx)
-         ln1 = log(x(ip)*x(ip)/px)
-         ln2 = log((x(ip)-x0)**2/px)
+         ln1 = LOG(x(ip)*x(ip)/px)
+         ln2 = LOG((x(ip)-x0)**2/px)
          pot(ip) = pot(ip) + a * ( ln1 + b*at - b*x0/px* ( ln2 + xb * at ) ) * rho(ip)
       END IF
 
@@ -271,9 +271,9 @@ CONTAINS
          at = 2._dbl/q*ATAN(q/dpx)
          pa = 4._dbl*x(ip)*x(ip)+4._dbl*b*x(ip)+b*b+q*q
          dat= -4._dbl/pa
-         ln1 = log(x(ip)*x(ip)/px)
+         ln1 = LOG(x(ip)*x(ip)/px)
          dln1 = (b*x(ip)+2._dbl*c)/(x(ip)*px)
-         ln2 = log((x(ip)-x0)**2/px)
+         ln2 = LOG((x(ip)-x0)**2/px)
          dln2 = (b*x(ip)+2._dbl*c+2._dbl*x0*x(ip)+x0*b)/((x(ip)-x0)*px)
          ex = a * ( ln1 + b*at - b*x0/px* ( ln2 + xb * at ) )
          dex = a * ( dln1 + b*dat + b*x0*dpx/(px*px) * ( ln2 + xb * at ) - &
@@ -311,9 +311,9 @@ CONTAINS
          at = 2._dbl/q*ATAN(q/dpx)
          pa = 4._dbl*x(ip)*x(ip)+4._dbl*b*x(ip)+b*b+q*q
          dat= -4._dbl/pa
-         ln1 = log(x(ip)*x(ip)/px)
+         ln1 = LOG(x(ip)*x(ip)/px)
          dln1 = (b*x(ip)+2._dbl*c)/(x(ip)*px)
-         ln2 = log((x(ip)-x0)**2/px)
+         ln2 = LOG((x(ip)-x0)**2/px)
          dln2 = (x(ip)*(b+2._dbl*x0)+2._dbl*c+x0*b)/((x(ip)-x0)*px)
          ex = a * ( ln1 + b*at - b*x0/px* ( ln2 + xb * at ) )
          dex = a * ( dln1 + b*dat + b*x0*dpx/(px*px) * ( ln2 + xb * at ) - &
@@ -357,10 +357,10 @@ CONTAINS
          pa = 4._dbl*x(ip)*x(ip)+4._dbl*b*x(ip)+b*b+q*q
          dat= -4._dbl/pa
          d2at= 16._dbl*dpx/(pa*pa)
-         ln1 = log(x(ip)*x(ip)/px)
+         ln1 = LOG(x(ip)*x(ip)/px)
          dln1 = (b*x(ip)+2._dbl*c)/(x(ip)*px)
          d2ln1 = b/(x(ip)*px) - (b*x(ip)+2._dbl*c)/(x(ip)*px)**2 * (px+x(ip)*dpx)
-         ln2 = log((x(ip)-x0)**2/px)
+         ln2 = LOG((x(ip)-x0)**2/px)
          dln2 = (x(ip)*xb+2._dbl*c+x0*b)/((x(ip)-x0)*px)
          d2ln2 = xb/((x(ip)-x0)*px)-(x(ip)*xb+2._dbl*c+x0*b)/((x(ip)-x0)*px)**2 &
                  * (px+(x(ip)-x0)*dpx)
@@ -410,7 +410,7 @@ CONTAINS
          dat= -4._dbl/pa
          d2at= 16._dbl*dpx/(pa*pa)
          d3at= 32._dbl/(pa*pa)*(1._dbl-4._dbl*dpx*dpx/pa)
-         ln1 = log(x(ip)*x(ip)/px)
+         ln1 = LOG(x(ip)*x(ip)/px)
          ax = b*x(ip)+2._dbl*c
          bx = x(ip)*px
          dbx = px + x(ip)*dpx
@@ -418,7 +418,7 @@ CONTAINS
          dln1 = ax/bx
          d2ln1 = (b*bx-ax*dbx)/(bx*bx)
          d3ln1 = -ax*d2bx/(bx*bx) - 2._dbl*d2ln1*dbx/bx
-         ln2 = log((x(ip)-x0)**2/px)
+         ln2 = LOG((x(ip)-x0)**2/px)
          cx = x(ip)*xb+2._dbl*c+x0*b
          dx = (x(ip)-x0)*px
          ddx = px + (x(ip)-x0)*dpx

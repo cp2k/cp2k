@@ -19,19 +19,11 @@
 !******************************************************************************
 
 MODULE kg_kxc
-  USE coefficient_types,               ONLY: coeff_transform_space,&
-                                             coeff_type
+  USE coefficient_types,               ONLY: coeff_type
   USE dft_types,                       ONLY: dft_control_type
   USE functionals
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
-  USE mathconstants,                   ONLY: pi,&
-                                             zero
-  USE message_passing,                 ONLY: mp_allgather,&
-                                             mp_max,&
-                                             mp_range,&
-                                             mp_sum,&
-                                             mp_sync
+  USE mathconstants,                   ONLY: pi
   USE pw_pool_types,                   ONLY: pw_pool_type
   USE pw_types,                        ONLY: pw_type
   USE termination,                     ONLY: stop_memory,&
@@ -39,11 +31,10 @@ MODULE kg_kxc
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: xc_calculate_pw1
-  USE xc_derivative_types,             ONLY: xc_derivative_set_type, &
-                                             xc_derivative_set_create, &
-                                             xc_derivative_set_release
+  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
+                                             xc_dset_create,&
+                                             xc_dset_release
   USE xc_derivatives,                  ONLY: xc_calc_derivatives
-
   IMPLICIT NONE
 
   PRIVATE
@@ -168,7 +159,7 @@ CONTAINS
        e_xc,dft_control,pw_pool)
 
   CALL xc_calculate_derivatives (rho_r%pw,rhop_r%pw,v_r%pw,v1_r%pw, &
-                             v2_r%pw, e1_xc, e2_xc, dft_control)
+                             v2_r%pw, e1_xc, e2_xc, dft_control, pw_pool)
  
   e1_xc =  rho_r%pw%pw_grid%dvol*e1_xc      
   e2_xc =  0.5_dbl*rho_r%pw%pw_grid%dvol*e2_xc      
@@ -188,7 +179,7 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,dft_control )
+SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,dft_control, pw_pool )
 
   IMPLICIT NONE
 
@@ -201,6 +192,7 @@ SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,dft_control )
   REAL (dbl), INTENT (out) :: e1
   REAL (dbl), INTENT (out) :: e2
   TYPE(dft_control_type), INTENT(IN) :: dft_control
+  TYPE(pw_pool_type), POINTER :: pw_pool
 
 ! Local
   REAL ( dbl ) , DIMENSION (:), ALLOCATABLE :: rgrid
@@ -255,7 +247,7 @@ SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,dft_control )
      CALL stop_program(routineP, "not yet implemented")
   END IF
 
-  CALL xc_derivative_set_create(derivative_set, ntot)
+  CALL xc_dset_create(derivative_set, pw_pool)
   CALL xc_calc_derivatives(derivative_set, dft_control%xc_control, order, rgrid)
   ! copy back to structure
   IF ( spezgrid ) THEN
@@ -284,12 +276,12 @@ SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,dft_control )
      DEALLOCATE ( rgrid, STAT = stat )
      IF ( stat /= 0 ) CALL stop_memory ( routineP, "rgrid" )
   END IF
-  CALL xc_derivative_set_release(derivative_set)
+  CALL xc_dset_release(derivative_set)
 
 END SUBROUTINE xc_calculate_derivatives
 
 !******************************************************************************
 
-END MODULE kg_kxc  
+END MODULE kg_kxc
 
 !******************************************************************************

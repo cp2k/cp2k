@@ -25,15 +25,15 @@
 !******************************************************************************
 
 MODULE xc_pade
-
 ! *****************************************************************************
-
-  USE kinds, ONLY: dbl
-  USE xc_derivative_types, ONLY: xc_derivative_set_type
-  USE xc_functionals_utilities, ONLY: set_util, calc_rs, calc_fx, &
-                                      setup_calculation
-  USE termination, ONLY: stop_memory, stop_program
-
+  USE kinds,                           ONLY: dbl
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type
+  USE xc_functionals_utilities,        ONLY: calc_fx,&
+                                             calc_rs,&
+                                             set_util,&
+                                             setup_calculation
   IMPLICIT NONE
 
   PRIVATE

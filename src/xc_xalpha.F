@@ -23,14 +23,14 @@
 !!*** *************************************************************************
 
 MODULE xc_xalpha
-
 ! *****************************************************************************
-
-  USE kinds, ONLY: dbl
-  USE xc_derivative_types, ONLY: xc_derivative_set_type
-  USE xc_functionals_utilities, ONLY: set_util, calc_rho13, setup_calculation
-  USE termination, ONLY: stop_memory, stop_program
-
+  USE kinds,                           ONLY: dbl
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type
+  USE xc_functionals_utilities,        ONLY: calc_rho13,&
+                                             set_util,&
+                                             setup_calculation
   IMPLICIT NONE
 
   PRIVATE
@@ -59,15 +59,15 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_init ( cutoff, parameter )
+  SUBROUTINE xalpha_init ( cutoff, PARAMETER )
 
     REAL(dbl), INTENT(IN) :: cutoff
-    REAL(dbl), INTENT(IN), OPTIONAL :: parameter
+    REAL(dbl), INTENT(IN), OPTIONAL :: PARAMETER
 
     eps_rho = cutoff
     CALL set_util ( cutoff )
-    IF ( PRESENT ( parameter ) ) THEN
-      xparam = parameter
+    IF ( PRESENT ( PARAMETER ) ) THEN
+      xparam = PARAMETER
     ELSE
       xparam = 2._dbl / 3._dbl
     END IF

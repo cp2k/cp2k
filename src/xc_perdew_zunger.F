@@ -29,14 +29,16 @@
 !!****
 
 MODULE xc_perdew_zunger
-  
-  USE xc_derivative_types, ONLY: xc_derivative_set_type
-  USE xc_functionals_utilities, ONLY : calc_fx, calc_rs, set_util, calc_z
-  USE kinds, ONLY : dbl
-  USE mathconstants, ONLY : zero
-  USE termination, ONLY : stop_program
-  USE timings, ONLY : timeset, timestop
-  
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: zero
+  USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type
+  USE xc_functionals_utilities,        ONLY: calc_fx,&
+                                             calc_rs,&
+                                             calc_z,&
+                                             set_util
   IMPLICIT NONE
 
   LOGICAL :: initialized = .FALSE.
@@ -704,14 +706,14 @@ CONTAINS
     CALL calc_g(r(0), 1, e1(0:order_), order_)
     CALL calc_z(a, b, z(:,:), order_)
 
-    !! calculate first partial derivatives
+!! calculate first partial derivatives
     IF (order_ >= 1) THEN
        r(1) = (-1._dbl/3._dbl)*r(0)/rho
        tr = e0(1) + (e1(1)-e0(1))*f(0)
        tz = (e1(0)-e0(0))*f(1)
     END IF
     
-    !! calculate second partial derivatives
+!! calculate second partial derivatives
     IF (order_ >= 2) THEN
        r(2) = (-4._dbl/3._dbl)*r(1)/rho
        trr = e0(2) + (e1(2)-e0(2))*f(0)
@@ -719,7 +721,7 @@ CONTAINS
        tzz = (e1(0)-e0(0))*f(2)
     END IF
     
-    !! calculate third derivatives
+!! calculate third derivatives
     IF (order_ >= 3) THEN
        r(3) = (-7._dbl/3._dbl)*r(2)/rho
        trrr = e0(3) + (e1(3)-e0(3))*f(0)

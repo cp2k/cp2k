@@ -55,7 +55,7 @@ MODULE pw_types
 
   PRIVATE
   PUBLIC :: pw_type, pw_p_type
-  PUBLIC :: pw_allocate, pw_deallocate, pw_retain, pw_release
+  PUBLIC :: pw_allocate, pw_deallocate, pw_retain, pw_release, pw_create
   PUBLIC :: pw_zero, pw_gather, pw_scatter
   PUBLIC :: pw_copy, pw_add, pw_sumup, pw_subtract, pw_reduce, pw_transfer
   PUBLIC :: pw_derive, pw_sumup_square, pw_fft_wrap, pw_write
@@ -2397,6 +2397,80 @@ SUBROUTINE pw_release(pw, error)
   END IF
   NULLIFY(pw)
 END SUBROUTINE pw_release
+!***************************************************************************
+
+!!****f* pw_types/pw_create [1.0] *
+!!
+!!   NAME
+!!     pw_create
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_create(pw, pw_grid, use_data, in_space, mass_flag,&
+!!         cr3d_ptr, error)
+!!       Type(pw_type), Pointer:: pw
+!!       Type(pw_grid_type), Pointer:: pw_grid
+!!       Integer, Intent (IN):: use_data
+!!       Integer, Intent (IN), Optional:: in_space
+!!       Logical, Intent (IN), Optional:: mass_flag
+!!       Real(Kind=dbl), Dimension(:,:,:), Pointer, Optional:: cr3d_ptr
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_create
+!!
+!!   FUNCTION
+!!     allocates and initializes pw_type
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - pw: the type that will bw allocated and initialized
+!!     - use_data: which kind of data will be used
+!!     - in_space: in which space the pw is (real or reciprocal)
+!!     - mass_flag: if mass should be allocated
+!!     - cr3d_ptr: pointer with the cr3d data (make sense only if 
+!!       use_data==REALDATA3D)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     11.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, mass_flag, cr3d_ptr, error)
+  TYPE(pw_type), POINTER :: pw
+  TYPE(pw_grid_type), POINTER :: pw_grid
+  INTEGER, INTENT(in) :: use_data
+  INTEGER, INTENT(in), OPTIONAL :: in_space
+  LOGICAL, INTENT(in), OPTIONAL :: mass_flag
+  REAL(kind=dbl), DIMENSION(:,:,:), POINTER, OPTIONAL :: cr3d_ptr
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  INTEGER :: stat
+  CHARACTER(len=*), PARAMETER :: routineN='pw_create',&
+        routineP=moduleN//':'//routineN
+
+  failure=.FALSE.
+  
+  ALLOCATE(pw,stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     IF (PRESENT(cr3d_ptr)) THEN
+        CPPrecondition(.NOT.ASSOCIATED(cr3d_ptr).OR.(use_data==REALDATA3D),cp_failure_level,routineP,error,failure)
+        CALL pw_allocate(pw, pw_grid, use_data=use_data, &
+             mass_flag=mass_flag,cr3d_ptr=cr3d_ptr)
+     ELSE
+        CALL pw_allocate(pw, pw_grid, use_data=use_data, &
+             mass_flag=mass_flag)
+     END IF
+
+     pw%in_space=0
+     IF (PRESENT(in_space)) pw%in_space=in_space
+  END IF
+END SUBROUTINE pw_create
 !***************************************************************************
 
 END MODULE pw_types

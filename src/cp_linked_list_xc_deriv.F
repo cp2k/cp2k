@@ -4,14 +4,13 @@
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
-! less not much meningful... and defines oly a partial ordering.
-#define CP_SLL_R_LESS_Q(el1,el2) ( all(el1 < el2) )
-#define CP_SLL_R_EQUAL_Q(el1,el2) ( all(el1 == el2) )
+#define CP_SLL_DERIV_LESS_Q(el1,el2) ( size(el1%split_desc)<size(el2%split_desc).or.(size(el1%split_desc)==size(el2%split_desc).and.el1%desc<el2%desc) )
+#define CP_SLL_DERIV_EQUAL_Q(el1,el2) ( el1%desc == el2%desc )
 
-!!****h* cp2k/cp_linked_list_3d_r [1.0] *
+!!****h* cp2k/cp_linked_list_xc_deriv [1.0] *
 !!
 !!   NAME
-!!     cp_linked_list_3d_r
+!!     cp_linked_list_xc_deriv
 !!
 !!   FUNCTION
 !!     describes a generic linked list template.
@@ -36,7 +35,7 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-MODULE cp_linked_list_3d_r
+MODULE cp_linked_list_xc_deriv
   USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
        cp_warning_level, cp_note_level, cp_to_string, cp_log,&
        cp_logger_get_default_unit_nr, cp_logger_type
@@ -48,16 +47,15 @@ MODULE cp_linked_list_3d_r
        cp_unitnr_for_output, cp_write_output
   USE kinds, ONLY: dp
   USE timings, ONLY: timeset, timestop
-  USE kinds, only: dp
-USE cp_array_r_utils, only: cp_3d_r_p_type, cp_3d_r_write
+  USE xc_derivative_types, only: xc_derivative_type,xc_derivative_p_type,xc_derivative_write
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_linked_list_3d_r'
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_linked_list_xc_deriv'
 
 ! type
-  PUBLIC :: cp_sll_3d_r_type
+  PUBLIC :: cp_sll_xc_deriv_type
 ! common methods
   PUBLIC :: cp_create, cp_dealloc, cp_get, cp_set, cp_next, cp_output
 ! special get
@@ -71,106 +69,106 @@ USE cp_array_r_utils, only: cp_3d_r_p_type, cp_3d_r_write
   PUBLIC :: cp_dealloc_node, cp_write
 
   ! underlying routines
-  PUBLIC :: cp_sll_3d_r_create, cp_sll_3d_r_dealloc,&
-       cp_sll_3d_r_dealloc_node,cp_sll_3d_r_set,&
-       cp_sll_3d_r_get,cp_sll_3d_r_next,&
-       cp_sll_3d_r_get_first_el, cp_sll_3d_r_get_rest,&
-       cp_sll_3d_r_get_empty, cp_sll_3d_r_get_length,&
-       cp_sll_3d_r_get_el_at, cp_sll_3d_r_set_el_at,&
-       cp_sll_3d_r_insert_el, cp_sll_3d_r_insert_el_at,&
-       cp_sll_3d_r_rm_first_el, cp_sll_3d_r_rm_el_at,&
-       cp_sll_3d_r_rm_all_el, cp_sll_3d_r_output,&
-       cp_sll_3d_r_write, cp_sll_3d_r_to_array,&
-       cp_sll_3d_r_from_array, cp_sll_3d_r_insert_ordered,&
-       cp_sll_3d_r_insert_ordered2
+  PUBLIC :: cp_sll_xc_deriv_create, cp_sll_xc_deriv_dealloc,&
+       cp_sll_xc_deriv_dealloc_node,cp_sll_xc_deriv_set,&
+       cp_sll_xc_deriv_get,cp_sll_xc_deriv_next,&
+       cp_sll_xc_deriv_get_first_el, cp_sll_xc_deriv_get_rest,&
+       cp_sll_xc_deriv_get_empty, cp_sll_xc_deriv_get_length,&
+       cp_sll_xc_deriv_get_el_at, cp_sll_xc_deriv_set_el_at,&
+       cp_sll_xc_deriv_insert_el, cp_sll_xc_deriv_insert_el_at,&
+       cp_sll_xc_deriv_rm_first_el, cp_sll_xc_deriv_rm_el_at,&
+       cp_sll_xc_deriv_rm_all_el, cp_sll_xc_deriv_output,&
+       cp_sll_xc_deriv_write, cp_sll_xc_deriv_to_array,&
+       cp_sll_xc_deriv_from_array, cp_sll_xc_deriv_insert_ordered,&
+       cp_sll_xc_deriv_insert_ordered2
 
 ! creation of an object (from a pointer)
   INTERFACE cp_create
-     MODULE PROCEDURE cp_sll_3d_r_create
+     MODULE PROCEDURE cp_sll_xc_deriv_create
   END INTERFACE
 ! destruction of an object (from a pointer)
   INTERFACE cp_dealloc
-     MODULE PROCEDURE cp_sll_3d_r_dealloc
+     MODULE PROCEDURE cp_sll_xc_deriv_dealloc
   END INTERFACE
 ! destruction only of the node (low level)
   INTERFACE cp_dealloc_node
-     MODULE PROCEDURE cp_sll_3d_r_dealloc_node
+     MODULE PROCEDURE cp_sll_xc_deriv_dealloc_node
   END INTERFACE
 ! modifies attributes of an object
   INTERFACE cp_set
-     MODULE PROCEDURE cp_sll_3d_r_set
+     MODULE PROCEDURE cp_sll_xc_deriv_set
   END INTERFACE
 ! returns attributes of an object
   INTERFACE cp_get
-     MODULE PROCEDURE cp_sll_3d_r_get
+     MODULE PROCEDURE cp_sll_xc_deriv_get
   END INTERFACE
 ! iterates to the next element
   INTERFACE cp_next
-     MODULE PROCEDURE cp_sll_3d_r_next
+     MODULE PROCEDURE cp_sll_xc_deriv_next
   END INTERFACE
 ! returns the first element
   INTERFACE cp_get_first_el
-     MODULE PROCEDURE cp_sll_3d_r_get_first_el
+     MODULE PROCEDURE cp_sll_xc_deriv_get_first_el
   END INTERFACE
 ! returns the rest of the list
   INTERFACE cp_get_rest
-     MODULE PROCEDURE cp_sll_3d_r_get_rest
+     MODULE PROCEDURE cp_sll_xc_deriv_get_rest
   END INTERFACE
 ! returns if the list is empty
   INTERFACE cp_get_empty
-     MODULE PROCEDURE cp_sll_3d_r_get_empty
+     MODULE PROCEDURE cp_sll_xc_deriv_get_empty
   END INTERFACE
 ! returns the length of the list
   INTERFACE cp_get_length
-     MODULE PROCEDURE cp_sll_3d_r_get_length
+     MODULE PROCEDURE cp_sll_xc_deriv_get_length
   END INTERFACE
 ! returns the element at the given position
   INTERFACE cp_get_element_at
-     MODULE PROCEDURE cp_sll_3d_r_get_el_at
+     MODULE PROCEDURE cp_sll_xc_deriv_get_el_at
   END INTERFACE
 ! sets the element at the given position
   INTERFACE cp_set_element_at
-     MODULE PROCEDURE cp_sll_3d_r_set_el_at
+     MODULE PROCEDURE cp_sll_xc_deriv_set_el_at
   END INTERFACE
 ! inserts one element call cp_insert(list,element,...)
   INTERFACE cp_insert
-     MODULE PROCEDURE cp_sll_3d_r_insert_el
+     MODULE PROCEDURE cp_sll_xc_deriv_insert_el
   END INTERFACE
   INTERFACE cp_insert_ordered
-     MODULE PROCEDURE cp_sll_3d_r_insert_ordered,&
-          cp_sll_3d_r_insert_ordered2
+     MODULE PROCEDURE cp_sll_xc_deriv_insert_ordered,&
+          cp_sll_xc_deriv_insert_ordered2
   END INTERFACE
   INTERFACE cp_insert_at
-     MODULE PROCEDURE cp_sll_3d_r_insert_el_at
+     MODULE PROCEDURE cp_sll_xc_deriv_insert_el_at
   END INTERFACE
 ! removes an element
   INTERFACE cp_remove_el
-     MODULE PROCEDURE cp_sll_3d_r_rm_first_el, &
-          cp_sll_3d_r_rm_el_at
+     MODULE PROCEDURE cp_sll_xc_deriv_rm_first_el, &
+          cp_sll_xc_deriv_rm_el_at
   END INTERFACE
 ! removes the first el
   INTERFACE cp_remove_first_el
-     MODULE PROCEDURE cp_sll_3d_r_rm_first_el
+     MODULE PROCEDURE cp_sll_xc_deriv_rm_first_el
   END INTERFACE
 ! remove all the elments
   INTERFACE cp_remove_all
-     MODULE PROCEDURE cp_sll_3d_r_rm_all_el
+     MODULE PROCEDURE cp_sll_xc_deriv_rm_all_el
   END INTERFACE
 ! outputs the list
   INTERFACE cp_output
-     MODULE PROCEDURE cp_sll_3d_r_output
+     MODULE PROCEDURE cp_sll_xc_deriv_output
   END INTERFACE
 ! writes the list (low-level)
   INTERFACE cp_write
-     MODULE PROCEDURE cp_sll_3d_r_write
+     MODULE PROCEDURE cp_sll_xc_deriv_write
   END INTERFACE
 !!***
 !****************************************************************************
 
-!!****s* cp2k/cp_sll_3d_r_type [1.0] *
+!!****s* cp2k/cp_sll_xc_deriv_type [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_type
+!!     cp_sll_xc_deriv_type
 !!
 !!   FUNCTION
 !!     represent a single linked list that stores pointers to the elements
@@ -204,11 +202,11 @@ USE cp_array_r_utils, only: cp_3d_r_p_type, cp_3d_r_write
 !!
 !!   SOURCE
 !***************************************************************************
-  TYPE cp_sll_3d_r_type
+  TYPE cp_sll_xc_deriv_type
      LOGICAL :: initialized
-     real(kind=dp),dimension(:,:,:),pointer :: first_el
-     TYPE(cp_sll_3d_r_type), POINTER :: rest
-  END TYPE cp_sll_3d_r_type
+     type(xc_derivative_type),pointer :: first_el
+     TYPE(cp_sll_xc_deriv_type), POINTER :: rest
+  END TYPE cp_sll_xc_deriv_type
 !!***
 !****************************************************************************
 
@@ -216,10 +214,10 @@ CONTAINS
 
 ! =========== creation / distruction ========
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_create [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_create [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_create
+!!     cp_sll_xc_deriv_create
 !!
 !!   FUNCTION
 !!    allocates and initializes a single linked list
@@ -241,16 +239,16 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_3d_r_create(sll,first_el,rest,error)
-    TYPE(cp_sll_3d_r_type), POINTER :: sll
-    real(kind=dp),dimension(:,:,:), pointer, OPTIONAL :: first_el
-    TYPE(cp_sll_3d_r_type), POINTER, OPTIONAL :: rest
+  SUBROUTINE cp_sll_xc_deriv_create(sll,first_el,rest,error)
+    TYPE(cp_sll_xc_deriv_type), POINTER :: sll
+    type(xc_derivative_type),pointer, OPTIONAL :: first_el
+    TYPE(cp_sll_xc_deriv_type), POINTER, OPTIONAL :: rest
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_3d_r:cp_sll_3d_r_create'
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_xc_deriv:cp_sll_xc_deriv_create'
     INTEGER :: stat
-    TYPE(cp_sll_3d_r_type), POINTER :: empty_list
+    TYPE(cp_sll_xc_deriv_type), POINTER :: empty_list
     failure=.FALSE.
 
     IF (.NOT.PRESENT(first_el)) THEN
@@ -267,13 +265,13 @@ CONTAINS
        END IF
     END IF
     IF (failure) NULLIFY(sll)
-  END SUBROUTINE cp_sll_3d_r_create
+  END SUBROUTINE cp_sll_xc_deriv_create
 !***************************************************************************
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_dealloc [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_dealloc [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_dealloc
+!!     cp_sll_xc_deriv_dealloc
 !!
 !!   FUNCTION
 !!     deallocates the singly linked list starting at sll.
@@ -295,22 +293,22 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_3d_r_dealloc(sll,error)
-    TYPE(cp_sll_3d_r_type), POINTER :: sll
+  SUBROUTINE cp_sll_xc_deriv_dealloc(sll,error)
+    TYPE(cp_sll_xc_deriv_type), POINTER :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_3d_r/cp_sll_3d_r_dealloc'
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_xc_deriv/cp_sll_xc_deriv_dealloc'
 
-    CALL cp_sll_3d_r_rm_all_el(sll,error)
-  END SUBROUTINE cp_sll_3d_r_dealloc
+    CALL cp_sll_xc_deriv_rm_all_el(sll,error)
+  END SUBROUTINE cp_sll_xc_deriv_dealloc
 !***************************************************************************
 
 ! * low-level *
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_dealloc_node [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_dealloc_node [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_dealloc_node
+!!     cp_sll_xc_deriv_dealloc_node
 !!
 !!   FUNCTION
 !!     deallocates a node of a singly linked list (low level)
@@ -330,12 +328,12 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_3d_r_dealloc_node(sll,error)
-    TYPE(cp_sll_3d_r_type), POINTER :: sll
+  SUBROUTINE cp_sll_xc_deriv_dealloc_node(sll,error)
+    TYPE(cp_sll_xc_deriv_type), POINTER :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_3d_r/cp_sll_3d_r_dealloc_node'
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_xc_deriv/cp_sll_xc_deriv_dealloc_node'
     INTEGER:: stat
     failure=.FALSE.
 
@@ -343,15 +341,15 @@ CONTAINS
     sll%initialized=.false.
     DEALLOCATE(sll, stat=stat)
     CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-  END SUBROUTINE cp_sll_3d_r_dealloc_node
+  END SUBROUTINE cp_sll_xc_deriv_dealloc_node
 !***************************************************************************
 
 ! ============= get/set ============
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_set [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_set [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_set
+!!     cp_sll_xc_deriv_set
 !!
 !!   FUNCTION
 !!     sets tha various attributes of a single linked list
@@ -375,19 +373,19 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_3d_r_set(sll,first_el,rest,error)
-    TYPE(cp_sll_3d_r_type), POINTER :: sll
-    real(kind=dp),dimension(:,:,:), pointer, OPTIONAL :: first_el
-    TYPE(cp_sll_3d_r_type), POINTER, OPTIONAL :: rest
+  SUBROUTINE cp_sll_xc_deriv_set(sll,first_el,rest,error)
+    TYPE(cp_sll_xc_deriv_type), POINTER :: sll
+    type(xc_derivative_type),pointer, OPTIONAL :: first_el
+    TYPE(cp_sll_xc_deriv_type), POINTER, OPTIONAL :: rest
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_3d_r:cp_set_sll_3d_r'
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_xc_deriv:cp_set_sll_xc_deriv'
     failure=.FALSE.
 
     IF (.NOT.ASSOCIATED(sll)) THEN
        IF (PRESENT(first_el)) THEN
-          CALL cp_sll_3d_r_create(sll,first_el,rest,error)
+          CALL cp_sll_xc_deriv_create(sll,first_el,rest,error)
        ELSE
           CPAssert(.NOT.PRESENT(rest),cp_failure_level,routineP,error,failure)
        END IF
@@ -398,13 +396,13 @@ CONTAINS
           IF (PRESENT(rest)) sll%rest => rest
        END IF
     END IF
-  END SUBROUTINE cp_sll_3d_r_set
+  END SUBROUTINE cp_sll_xc_deriv_set
 !***************************************************************************
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_get [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_get [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_get
+!!     cp_sll_xc_deriv_get
 !!
 !!   FUNCTION
 !!     returns various attributes from the linked list
@@ -427,16 +425,16 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_3d_r_get(sll,first_el,rest,empty,length,error)
-    TYPE(cp_sll_3d_r_type), POINTER :: sll
-    real(kind=dp),dimension(:,:,:), pointer, OPTIONAL :: first_el
-    TYPE(cp_sll_3d_r_type), OPTIONAL, POINTER :: rest
+  SUBROUTINE cp_sll_xc_deriv_get(sll,first_el,rest,empty,length,error)
+    TYPE(cp_sll_xc_deriv_type), POINTER :: sll
+    type(xc_derivative_type),pointer, OPTIONAL :: first_el
+    TYPE(cp_sll_xc_deriv_type), OPTIONAL, POINTER :: rest
     LOGICAL, OPTIONAL, INTENT(out) :: empty
     INTEGER, INTENT(out), OPTIONAL :: length
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_3d_r:cp_sll_3d_r_get'
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_xc_deriv:cp_sll_xc_deriv_get'
     failure=.FALSE.
 
     IF (.NOT.ASSOCIATED(sll)) THEN
@@ -451,16 +449,16 @@ CONTAINS
           IF (PRESENT(rest)) rest => sll%rest
           IF (PRESENT(empty)) empty = .FALSE.
           IF (PRESENT(length)) &
-               length = cp_sll_3d_r_get_length(sll,error=error)
+               length = cp_sll_xc_deriv_get_length(sll,error=error)
        END IF
     END IF
-  END SUBROUTINE cp_sll_3d_r_get
+  END SUBROUTINE cp_sll_xc_deriv_get
 !***************************************************************************
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_get_first_el [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_get_first_el [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_get_first_el
+!!     cp_sll_xc_deriv_get_first_el
 !!
 !!   FUNCTION
 !!     returns the first element stored in the list
@@ -480,13 +478,13 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  FUNCTION cp_sll_3d_r_get_first_el(sll,error) RESULT(res)
-    TYPE(cp_sll_3d_r_type), POINTER :: sll
+  FUNCTION cp_sll_xc_deriv_get_first_el(sll,error) RESULT(res)
+    TYPE(cp_sll_xc_deriv_type), POINTER :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    real(kind=dp),dimension(:,:,:),pointer :: res
+    type(xc_derivative_type),pointer :: res
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_3d_r:cp_sll_3d_r_get_first'
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_xc_deriv:cp_sll_xc_deriv_get_first'
     failure=.FALSE.
 
     IF (cp_debug) THEN
@@ -498,13 +496,13 @@ CONTAINS
     IF (.NOT. failure) THEN
        res => sll%first_el
     END IF
-  END FUNCTION cp_sll_3d_r_get_first_el
+  END FUNCTION cp_sll_xc_deriv_get_first_el
 !***************************************************************************
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_get_rest [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_get_rest [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_get_rest
+!!     cp_sll_xc_deriv_get_rest
 !!
 !!   FUNCTION
 !!     returns the rest of the list
@@ -526,14 +524,14 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  FUNCTION cp_sll_3d_r_get_rest(sll, iter, error) RESULT(res)
-    TYPE(cp_sll_3d_r_type), POINTER :: sll
+  FUNCTION cp_sll_xc_deriv_get_rest(sll, iter, error) RESULT(res)
+    TYPE(cp_sll_xc_deriv_type), POINTER :: sll
     INTEGER, OPTIONAL :: iter
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    TYPE(cp_sll_3d_r_type), POINTER :: res
+    TYPE(cp_sll_xc_deriv_type), POINTER :: res
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_3d_r:cp_sll_3d_r_get_first'
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_xc_deriv:cp_sll_xc_deriv_get_first'
     INTEGER :: i
     failure=.FALSE.
 
@@ -574,13 +572,13 @@ CPSourceFileRef,&
           NULLIFY(res)
        END IF
     END IF
-  END FUNCTION cp_sll_3d_r_get_rest
+  END FUNCTION cp_sll_xc_deriv_get_rest
 !***************************************************************************
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_get_empty [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_get_empty [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_get_empty
+!!     cp_sll_xc_deriv_get_empty
 !!
 !!   FUNCTION
 !!     -
@@ -600,23 +598,23 @@ CPSourceFileRef,&
 !!     none
 !!
 !!*** **********************************************************************
-  FUNCTION cp_sll_3d_r_get_empty(sll,error) RESULT(res)
+  FUNCTION cp_sll_xc_deriv_get_empty(sll,error) RESULT(res)
     LOGICAL :: res
-    TYPE(cp_sll_3d_r_type), POINTER :: sll
+    TYPE(cp_sll_xc_deriv_type), POINTER :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_3d_r:cp_sll_3d_r_get_empty'
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_xc_deriv:cp_sll_xc_deriv_get_empty'
     failure=.FALSE.
 
     res = .NOT.ASSOCIATED(sll)
-  END FUNCTION cp_sll_3d_r_get_empty
+  END FUNCTION cp_sll_xc_deriv_get_empty
 !***************************************************************************
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_get_length [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_get_length [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_get_length
+!!     cp_sll_xc_deriv_get_length
 !!
 !!   FUNCTION
 !!     returns the length of the list
@@ -636,14 +634,14 @@ CPSourceFileRef,&
 !!     none
 !!
 !!*** **********************************************************************
-  FUNCTION cp_sll_3d_r_get_length(sll,error) RESULT(res)
-    TYPE(cp_sll_3d_r_type), INTENT(in), TARGET :: sll
+  FUNCTION cp_sll_xc_deriv_get_length(sll,error) RESULT(res)
+    TYPE(cp_sll_xc_deriv_type), INTENT(in), TARGET :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
     INTEGER ::res
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_3d_r/cp_sll_3d_r_get_length'
-    TYPE(cp_sll_3d_r_type), POINTER :: iterator
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_xc_deriv/cp_sll_xc_deriv_get_length'
+    TYPE(cp_sll_xc_deriv_type), POINTER :: iterator
     failure=.FALSE.
 
     res=0
@@ -656,13 +654,13 @@ CPSourceFileRef,&
           EXIT
        END IF
     END DO
-  END FUNCTION cp_sll_3d_r_get_length
+  END FUNCTION cp_sll_xc_deriv_get_length
 !***************************************************************************
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_get_el_at [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_get_el_at [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_get_el_at
+!!     cp_sll_xc_deriv_get_el_at
 !!
 !!   FUNCTION
 !!     returns the element at the given index
@@ -683,36 +681,36 @@ CPSourceFileRef,&
 !!     none
 !!
 !!*** **********************************************************************
-  FUNCTION cp_sll_3d_r_get_el_at(sll,index,error) RESULT(res)
-    real(kind=dp),dimension(:,:,:),pointer :: res
-    TYPE(cp_sll_3d_r_type), POINTER :: sll
+  FUNCTION cp_sll_xc_deriv_get_el_at(sll,index,error) RESULT(res)
+    type(xc_derivative_type),pointer :: res
+    TYPE(cp_sll_xc_deriv_type), POINTER :: sll
     INTEGER, INTENT(in) :: index
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_3d_r/cp_sll_3d_r_get_el_at'
-    TYPE(cp_sll_3d_r_type), POINTER :: pos
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_xc_deriv/cp_sll_xc_deriv_get_el_at'
+    TYPE(cp_sll_xc_deriv_type), POINTER :: pos
     failure=.FALSE.
 
     IF (cp_debug) THEN
        CPPrecondition(index>0.OR.index==-1,cp_failure_level,routineP,error,failure)
     END IF
     IF (index==-1) THEN
-       pos => cp_sll_3d_r_get_rest(sll, iter=-1,error=error)
+       pos => cp_sll_xc_deriv_get_rest(sll, iter=-1,error=error)
     ELSE
-       pos => cp_sll_3d_r_get_rest(sll, iter=index-1,error=error)
+       pos => cp_sll_xc_deriv_get_rest(sll, iter=index-1,error=error)
     END IF
     CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        res => pos%first_el
     END IF
-  END FUNCTION cp_sll_3d_r_get_el_at
+  END FUNCTION cp_sll_xc_deriv_get_el_at
 !***************************************************************************
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_set_el_at [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_set_el_at [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_set_el_at
+!!     cp_sll_xc_deriv_set_el_at
 !!
 !!   FUNCTION
 !!     sets the element at the given index
@@ -735,35 +733,35 @@ CPSourceFileRef,&
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_3d_r_set_el_at(sll,index,value,error)
-    real(kind=dp),dimension(:,:,:), pointer :: value
-    TYPE(cp_sll_3d_r_type), POINTER :: sll
+  SUBROUTINE cp_sll_xc_deriv_set_el_at(sll,index,value,error)
+    type(xc_derivative_type),pointer :: value
+    TYPE(cp_sll_xc_deriv_type), POINTER :: sll
     INTEGER, INTENT(in) :: index
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_3d_r/cp_sll_3d_r_set_el_at'
-    TYPE(cp_sll_3d_r_type), POINTER :: pos
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_xc_deriv/cp_sll_xc_deriv_set_el_at'
+    TYPE(cp_sll_xc_deriv_type), POINTER :: pos
     failure=.FALSE.
 
     IF (index==-1) THEN
-       pos => cp_sll_3d_r_get_rest(sll, iter=-1,error=error)
+       pos => cp_sll_xc_deriv_get_rest(sll, iter=-1,error=error)
     ELSE
-       pos => cp_sll_3d_r_get_rest(sll, iter=index-1,error=error)
+       pos => cp_sll_xc_deriv_get_rest(sll, iter=index-1,error=error)
     END IF
     CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        pos%first_el => value
     END IF
-  END SUBROUTINE cp_sll_3d_r_set_el_at
+  END SUBROUTINE cp_sll_xc_deriv_set_el_at
 !***************************************************************************
 
 ! * iteration *
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_next [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_next [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_next
+!!     cp_sll_xc_deriv_next
 !!
 !!   FUNCTION
 !!     returns true if the actual element is valid (i.e. iterator ont at end)
@@ -785,14 +783,14 @@ CPSourceFileRef,&
 !!     none
 !!
 !!*** **********************************************************************
-  FUNCTION cp_sll_3d_r_next(iterator,el_att,error) RESULT(res)
-    TYPE(cp_sll_3d_r_type), POINTER :: iterator
+  FUNCTION cp_sll_xc_deriv_next(iterator,el_att,error) RESULT(res)
+    TYPE(cp_sll_xc_deriv_type), POINTER :: iterator
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    real(kind=dp),dimension(:,:,:), pointer, OPTIONAL :: el_att
+    type(xc_derivative_type),pointer, OPTIONAL :: el_att
     LOGICAL :: res
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_3d_r:cp_sll_3d_r_next'
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_xc_deriv:cp_sll_xc_deriv_next'
     failure=.FALSE.
 
     IF (ASSOCIATED(iterator)) THEN
@@ -805,15 +803,15 @@ CPSourceFileRef,&
     ELSE
        res=.FALSE.
     END IF
-  END FUNCTION cp_sll_3d_r_next
+  END FUNCTION cp_sll_xc_deriv_next
 !***************************************************************************
 
 ! ============ structure modifications ============
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_insert_el [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_insert_el [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_insert_el
+!!     cp_sll_xc_deriv_insert_el
 !!
 !!   FUNCTION
 !!     insert an element at the beginning of the list
@@ -835,28 +833,28 @@ CPSourceFileRef,&
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_3d_r_insert_el(sll,el,error)
-    TYPE(cp_sll_3d_r_type), POINTER :: sll
-    real(kind=dp),dimension(:,:,:), pointer:: el
+  SUBROUTINE cp_sll_xc_deriv_insert_el(sll,el,error)
+    TYPE(cp_sll_xc_deriv_type), POINTER :: sll
+    type(xc_derivative_type),pointer:: el
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_3d_r:cp_sll_3d_r_add_el'
-    TYPE(cp_sll_3d_r_type), POINTER :: newSlot
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_xc_deriv:cp_sll_xc_deriv_add_el'
+    TYPE(cp_sll_xc_deriv_type), POINTER :: newSlot
     INTEGER :: stat
     failure=.FALSE.
     NULLIFY(newSlot)
 
-    CALL cp_sll_3d_r_create(newSlot,first_el=el,&
+    CALL cp_sll_xc_deriv_create(newSlot,first_el=el,&
          rest=sll,error=error)
     sll => newSlot
-  END SUBROUTINE cp_sll_3d_r_insert_el
+  END SUBROUTINE cp_sll_xc_deriv_insert_el
 !***************************************************************************
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_rm_first_el [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_rm_first_el [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_rm_first_el
+!!     cp_sll_xc_deriv_rm_first_el
 !!
 !!   FUNCTION
 !!     remove the first element of the linked list
@@ -876,32 +874,32 @@ CPSourceFileRef,&
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_3d_r_rm_first_el(sll,error)
-    TYPE(cp_sll_3d_r_type), POINTER :: sll
+  SUBROUTINE cp_sll_xc_deriv_rm_first_el(sll,error)
+    TYPE(cp_sll_xc_deriv_type), POINTER :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_3d_r/cp_sll_3d_r_rm_first_el'
-    TYPE(cp_sll_3d_r_type), POINTER :: node_to_rm
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_xc_deriv/cp_sll_xc_deriv_rm_first_el'
+    TYPE(cp_sll_xc_deriv_type), POINTER :: node_to_rm
     failure=.FALSE.
     node_to_rm => sll
 
     IF (ASSOCIATED(sll)) THEN
        sll => sll%rest
-       CALL cp_sll_3d_r_dealloc_node(node_to_rm,error=error)
+       CALL cp_sll_xc_deriv_dealloc_node(node_to_rm,error=error)
     ELSE
        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
             routineP,"tried to remove first el of an empty list in "//&
 CPSourceFileRef,&
             error,failure)
     END IF
-  END SUBROUTINE cp_sll_3d_r_rm_first_el
+  END SUBROUTINE cp_sll_xc_deriv_rm_first_el
 !***************************************************************************
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_insert_el_at [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_insert_el_at [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_insert_el_at
+!!     cp_sll_xc_deriv_insert_el_at
 !!
 !!   FUNCTION
 !!     inserts the element at the given index
@@ -924,37 +922,37 @@ CPSourceFileRef,&
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_3d_r_insert_el_at(sll,el,index,error)
-    real(kind=dp),dimension(:,:,:), pointer :: el
+  SUBROUTINE cp_sll_xc_deriv_insert_el_at(sll,el,index,error)
+    type(xc_derivative_type),pointer :: el
     INTEGER, INTENT(in) :: index
-    TYPE(cp_sll_3d_r_type), POINTER :: sll
+    TYPE(cp_sll_xc_deriv_type), POINTER :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_3d_r/cp_sll_3d_r_insert_el_at'
-    TYPE(cp_sll_3d_r_type), POINTER :: pos
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_xc_deriv/cp_sll_xc_deriv_insert_el_at'
+    TYPE(cp_sll_xc_deriv_type), POINTER :: pos
     failure=.FALSE.
 
     IF (index==1) THEN
-       CALL cp_sll_3d_r_insert_el(sll,el,error=error)
+       CALL cp_sll_xc_deriv_insert_el(sll,el,error=error)
     ELSE
        IF (index==-1) THEN
-          pos => cp_sll_3d_r_get_rest(sll, iter=-1,error=error)
+          pos => cp_sll_xc_deriv_get_rest(sll, iter=-1,error=error)
        ELSE
-          pos => cp_sll_3d_r_get_rest(sll, iter=index-1,error=error)
+          pos => cp_sll_xc_deriv_get_rest(sll, iter=index-1,error=error)
        END IF
        CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
        IF (.NOT.failure) THEN
-          CALL cp_sll_3d_r_insert_el(pos%rest,el,error=error)
+          CALL cp_sll_xc_deriv_insert_el(pos%rest,el,error=error)
        END IF
     END IF
-  END SUBROUTINE cp_sll_3d_r_insert_el_at
+  END SUBROUTINE cp_sll_xc_deriv_insert_el_at
 !***************************************************************************
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_rm_el_at [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_rm_el_at [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_rm_el_at
+!!     cp_sll_xc_deriv_rm_el_at
 !!
 !!   FUNCTION
 !!     removes the element at the given index
@@ -976,39 +974,39 @@ CPSourceFileRef,&
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_3d_r_rm_el_at(sll,index,error)
-    TYPE(cp_sll_3d_r_type), POINTER :: sll
+  SUBROUTINE cp_sll_xc_deriv_rm_el_at(sll,index,error)
+    TYPE(cp_sll_xc_deriv_type), POINTER :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
     INTEGER, INTENT(in)::index
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_3d_r/cp_sll_3d_r_remove_el_at'
-    TYPE(cp_sll_3d_r_type), POINTER :: pos
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_xc_deriv/cp_sll_xc_deriv_remove_el_at'
+    TYPE(cp_sll_xc_deriv_type), POINTER :: pos
     failure=.FALSE.
     
     IF (cp_debug) THEN
        CPPrecondition(index>0.OR.index==-1,cp_failure_level,routineP,error,failure)
     END IF
     IF (index==1) THEN
-       CALL cp_sll_3d_r_rm_first_el(sll,error=error)
+       CALL cp_sll_xc_deriv_rm_first_el(sll,error=error)
     ELSE
        IF (index==-1) THEN
-          pos => cp_sll_3d_r_get_rest(sll, iter=-1,error=error)
+          pos => cp_sll_xc_deriv_get_rest(sll, iter=-1,error=error)
        ELSE
-          pos => cp_sll_3d_r_get_rest(sll, iter=index-2,error=error)
+          pos => cp_sll_xc_deriv_get_rest(sll, iter=index-2,error=error)
        END IF
        CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
        IF (.NOT.failure) THEN
-          CALL cp_sll_3d_r_rm_first_el(pos%rest,error=error)
+          CALL cp_sll_xc_deriv_rm_first_el(pos%rest,error=error)
        END IF
     END IF
-  END SUBROUTINE cp_sll_3d_r_rm_el_at
+  END SUBROUTINE cp_sll_xc_deriv_rm_el_at
 !***************************************************************************
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_rm_all_el [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_rm_all_el [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_rm_all_el
+!!     cp_sll_xc_deriv_rm_all_el
 !!
 !!   FUNCTION
 !!     removes all the elements from the list
@@ -1028,13 +1026,13 @@ CPSourceFileRef,&
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_3d_r_rm_all_el(sll,error)
-    TYPE(cp_sll_3d_r_type), POINTER :: sll
+  SUBROUTINE cp_sll_xc_deriv_rm_all_el(sll,error)
+    TYPE(cp_sll_xc_deriv_type), POINTER :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_3d_r/cp_sll_3d_r_rm_all_el'
-    TYPE(cp_sll_3d_r_type), POINTER :: next_node, actual_node
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_xc_deriv/cp_sll_xc_deriv_rm_all_el'
+    TYPE(cp_sll_xc_deriv_type), POINTER :: next_node, actual_node
     INTEGER:: stat
     failure=.FALSE.
 
@@ -1042,19 +1040,19 @@ CPSourceFileRef,&
     DO
        IF (.NOT.ASSOCIATED(actual_node)) EXIT
        next_node => cp_get_rest(actual_node,error=error)
-       CALL cp_sll_3d_r_dealloc_node(actual_node,error=error)
+       CALL cp_sll_xc_deriv_dealloc_node(actual_node,error=error)
        actual_node => next_node
     END DO
     NULLIFY(sll)
-  END SUBROUTINE cp_sll_3d_r_rm_all_el
+  END SUBROUTINE cp_sll_xc_deriv_rm_all_el
 !***************************************************************************
 
 ! ========= output =========
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_output [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_output [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_output
+!!     cp_sll_xc_deriv_output
 !!
 !!   FUNCTION
 !!     outputs the contents of the list as a comma separated parentized list
@@ -1084,20 +1082,20 @@ CPSourceFileRef,&
 !!     08.2002 added local/global output [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_3d_r_output(logger, outputName,&
+  SUBROUTINE cp_sll_xc_deriv_output(logger, outputName,&
        fromWhere, iter, sll,comment,local, finish, error)
     TYPE(cp_logger_type),POINTER ::logger
     CHARACTER(len=*) , INTENT(in) :: outputName
     CHARACTER(len=*), INTENT(in):: fromWhere
     INTEGER, INTENT(in) :: iter
-    TYPE(cp_sll_3d_r_type), POINTER :: sll
+    TYPE(cp_sll_xc_deriv_type), POINTER :: sll
     CHARACTER(len=*), INTENT(in),OPTIONAL :: comment
     LOGICAL, INTENT(in), OPTIONAL :: local, finish
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure, loc, fin
     INTEGER :: handle, unitNr, iostat
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sll_3d_r_output',&
+    CHARACTER(len=*), PARAMETER :: routineN='cp_sll_xc_deriv_output',&
          routineP=moduleN//':'//routineN
     failure=.FALSE.; loc=.FALSE.; fin=.TRUE.
   
@@ -1116,7 +1114,7 @@ CPSourceFileRef,&
              WRITE(unit=unitNr,fmt='(" ",a,a)',iostat=iostat) '# ',comment
              CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
           END IF
-          CALL cp_sll_3d_r_write(sll,unit_nr=unitNr,error=error)
+          CALL cp_sll_xc_deriv_write(sll,unit_nr=unitNr,error=error)
 
           IF (fin) THEN
              CALL cp_finished_output(logger, outputName, fromWhere, iter,&
@@ -1125,13 +1123,13 @@ CPSourceFileRef,&
        END IF
     END IF
     CALL timestop(0.0_dp,handle)
-  END SUBROUTINE cp_sll_3d_r_output
+  END SUBROUTINE cp_sll_xc_deriv_output
 !***************************************************************************
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_write [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_write [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_write
+!!     cp_sll_xc_deriv_write
 !!
 !!   FUNCTION
 !!     writes the list as a comma separated parentized list to the given
@@ -1153,30 +1151,30 @@ CPSourceFileRef,&
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_3d_r_write(sll,unit_nr,error)
-    TYPE(cp_sll_3d_r_type), POINTER :: sll
+  SUBROUTINE cp_sll_xc_deriv_write(sll,unit_nr,error)
+    TYPE(cp_sll_xc_deriv_type), POINTER :: sll
     INTEGER, INTENT(in) :: unit_nr
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    TYPE(cp_sll_3d_r_type), POINTER :: iterator
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sll_3d_r_write',&
+    TYPE(cp_sll_xc_deriv_type), POINTER :: iterator
+    CHARACTER(len=*), PARAMETER :: routineN='cp_sll_xc_deriv_write',&
          routineP=moduleN//':'//routineN
-    real(kind=dp),dimension(:,:,:),pointer :: el
+    type(xc_derivative_type),pointer :: el
     failure=.FALSE.
     iterator => sll
   
     DO
-       IF (.NOT.cp_sll_3d_r_next(iterator,el_att=el,error=error)) EXIT
-       CALL cp_3d_r_write(el, unit_nr=unit_nr, error=error)
+       IF (.NOT.cp_sll_xc_deriv_next(iterator,el_att=el,error=error)) EXIT
+       CALL xc_derivative_write(el, unit_nr=unit_nr, error=error)
     END DO
-  END SUBROUTINE cp_sll_3d_r_write
+  END SUBROUTINE cp_sll_xc_deriv_write
 !***************************************************************************
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_to_array [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_to_array [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_to_array
+!!     cp_sll_xc_deriv_to_array
 !!
 !!   FUNCTION
 !!     returns a newly allocated array with the same contents as
@@ -1197,37 +1195,37 @@ CPSourceFileRef,&
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-FUNCTION cp_sll_3d_r_to_array(sll,error) RESULT(res)
-  TYPE(cp_sll_3d_r_type), POINTER :: sll
+FUNCTION cp_sll_xc_deriv_to_array(sll,error) RESULT(res)
+  TYPE(cp_sll_xc_deriv_type), POINTER :: sll
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  type(cp_3d_r_p_type), DIMENSION(:), POINTER :: res
+  type(xc_derivative_p_type), DIMENSION(:), POINTER :: res
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_3d_r_to_array',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_xc_deriv_to_array',&
         routineP=moduleN//':'//routineN
   INTEGER :: len,stat,i
-  TYPE(cp_sll_3d_r_type), POINTER :: iter
+  TYPE(cp_sll_xc_deriv_type), POINTER :: iter
   failure=.FALSE.
   
-  len=cp_sll_3d_r_get_length(sll,error)
+  len=cp_sll_xc_deriv_get_length(sll,error)
   ALLOCATE(res(len),stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      iter => sll
      DO i=1,len
-        res(len)%array => iter%first_el
-        IF (.NOT.(cp_sll_3d_r_next(iter,error=error).OR.i==len)) THEN
+        res(len)%deriv => iter%first_el
+        IF (.NOT.(cp_sll_xc_deriv_next(iter,error=error).OR.i==len)) THEN
            CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
         END IF
      END DO
   END IF
-END FUNCTION cp_sll_3d_r_to_array
+END FUNCTION cp_sll_xc_deriv_to_array
 !***************************************************************************
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_from_array [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_from_array [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_from_array
+!!     cp_sll_xc_deriv_from_array
 !!
 !!   FUNCTION
 !!     returns a linked list with the same contents as the given array
@@ -1247,38 +1245,38 @@ END FUNCTION cp_sll_3d_r_to_array
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-FUNCTION cp_sll_3d_r_from_array(array,error) RESULT(res)
-  type(cp_3d_r_p_type), DIMENSION(:), INTENT(in) :: array
+FUNCTION cp_sll_xc_deriv_from_array(array,error) RESULT(res)
+  type(xc_derivative_p_type), DIMENSION(:), INTENT(in) :: array
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  TYPE(cp_sll_3d_r_type), POINTER :: res
+  TYPE(cp_sll_xc_deriv_type), POINTER :: res
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_3d_r_from_array',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_xc_deriv_from_array',&
         routineP=moduleN//':'//routineN
   INTEGER :: i
-  TYPE(cp_sll_3d_r_type), POINTER :: last_el
+  TYPE(cp_sll_xc_deriv_type), POINTER :: last_el
   failure=.FALSE.
   
   NULLIFY(res,last_el)
   IF (SIZE(array)>0) THEN
-     CALL cp_sll_3d_r_create(res,&
-          first_el=array(1)%array,&
+     CALL cp_sll_xc_deriv_create(res,&
+          first_el=array(1)%deriv,&
           error=error)
      last_el => res
   END IF
   DO i=2,SIZE(array)
-     CALL cp_sll_3d_r_create(last_el%rest,&
-          first_el=array(i)%array,&
+     CALL cp_sll_xc_deriv_create(last_el%rest,&
+          first_el=array(i)%deriv,&
           error=error)
      last_el => last_el%rest
   END DO
-END FUNCTION cp_sll_3d_r_from_array
+END FUNCTION cp_sll_xc_deriv_from_array
 !***************************************************************************
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_insert_ordered [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_insert_ordered [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_insert_ordered
+!!     cp_sll_xc_deriv_insert_ordered
 !!
 !!   FUNCTION
 !!     insert an element mantaining the order
@@ -1304,19 +1302,19 @@ END FUNCTION cp_sll_3d_r_from_array
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_sll_3d_r_insert_ordered(sll,el,insert_equals,&
+SUBROUTINE cp_sll_xc_deriv_insert_ordered(sll,el,insert_equals,&
      did_insert,pos,error)
-  TYPE(cp_sll_3d_r_type), POINTER :: sll
-  real(kind=dp),dimension(:,:,:), pointer :: el
+  TYPE(cp_sll_xc_deriv_type), POINTER :: sll
+  type(xc_derivative_type),pointer :: el
   LOGICAL, OPTIONAL, INTENT(in) :: insert_equals
   LOGICAL, OPTIONAL, INTENT(out) :: did_insert
-  TYPE(cp_sll_3d_r_type), POINTER, OPTIONAL :: pos
+  TYPE(cp_sll_xc_deriv_type), POINTER, OPTIONAL :: pos
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure,i_eq
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_3d_r_insert_ordered',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_xc_deriv_insert_ordered',&
         routineP=moduleN//':'//routineN
-  TYPE(cp_sll_3d_r_type), POINTER :: iter
+  TYPE(cp_sll_xc_deriv_type), POINTER :: iter
   failure=.FALSE.
   i_eq=.FALSE.
   
@@ -1325,14 +1323,14 @@ SUBROUTINE cp_sll_3d_r_insert_ordered(sll,el,insert_equals,&
 
   IF (PRESENT(insert_equals)) i_eq=insert_equals
   IF (.NOT.ASSOCIATED(sll)) THEN
-     CALL cp_sll_3d_r_create(sll,first_el=el,error=error)
+     CALL cp_sll_xc_deriv_create(sll,first_el=el,error=error)
      IF (PRESENT(did_insert)) did_insert=.TRUE.
      IF (PRESENT(pos)) pos=>sll
-  ELSE IF (.NOT.CP_SLL_R_LESS_Q(sll%first_el,el)) THEN
+  ELSE IF (.NOT.CP_SLL_DERIV_LESS_Q(sll%first_el,el)) THEN
      CPPrecondition(sll%initialized,cp_failure_level,routineP,error,failure)
      IF (PRESENT(pos)) pos=>sll
-     IF (i_eq.OR.CP_SLL_R_LESS_Q(el,sll%first_el)) THEN
-        CALL cp_sll_3d_r_insert_el(sll,el,error=error)
+     IF (i_eq.OR.CP_SLL_DERIV_LESS_Q(el,sll%first_el)) THEN
+        CALL cp_sll_xc_deriv_insert_el(sll,el,error=error)
         IF (PRESENT(did_insert)) did_insert=.TRUE.
         IF (PRESENT(pos)) pos=>sll
      END IF
@@ -1341,30 +1339,30 @@ SUBROUTINE cp_sll_3d_r_insert_ordered(sll,el,insert_equals,&
      iter => sll
      DO
         IF (.NOT.ASSOCIATED(iter%rest)) THEN
-           CALL cp_sll_3d_r_insert_el(iter%rest,el,error=error)
+           CALL cp_sll_xc_deriv_insert_el(iter%rest,el,error=error)
            IF (PRESENT(did_insert)) did_insert=.TRUE.
            IF (PRESENT(pos)) pos=>iter%rest
            EXIT
-        ELSE IF (.NOT.CP_SLL_R_LESS_Q(iter%rest%first_el,el)) THEN
+        ELSE IF (.NOT.CP_SLL_DERIV_LESS_Q(iter%rest%first_el,el)) THEN
            IF (PRESENT(pos)) pos=>iter
-           IF (i_eq.OR. CP_SLL_R_LESS_Q(el,iter%rest%first_el)) THEN
-              CALL cp_sll_3d_r_insert_el(iter%rest,el,error=error)
+           IF (i_eq.OR. CP_SLL_DERIV_LESS_Q(el,iter%rest%first_el)) THEN
+              CALL cp_sll_xc_deriv_insert_el(iter%rest,el,error=error)
               IF (PRESENT(did_insert)) did_insert=.TRUE.
               IF (PRESENT(pos)) pos=>iter%rest
            END IF
            EXIT
         END IF
-        CPInvariant(cp_sll_3d_r_next(iter),cp_failure_level,routineP,error,failure)
+        CPInvariant(cp_sll_xc_deriv_next(iter),cp_failure_level,routineP,error,failure)
      END DO
      CPAssert(ASSOCIATED(iter),cp_failure_level,routineP,error,failure)
   END IF
-END SUBROUTINE cp_sll_3d_r_insert_ordered
+END SUBROUTINE cp_sll_xc_deriv_insert_ordered
 !***************************************************************************
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_insert_ordered2 [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_insert_ordered2 [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_insert_ordered2
+!!     cp_sll_xc_deriv_insert_ordered2
 !!
 !!   FUNCTION
 !!     insert an element mantaining the order defined by a user given function
@@ -1390,28 +1388,27 @@ END SUBROUTINE cp_sll_3d_r_insert_ordered
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_sll_3d_r_insert_ordered2(sll,el,compare_function,&
+SUBROUTINE cp_sll_xc_deriv_insert_ordered2(sll,el,compare_function,&
      insert_equals,did_insert,pos,error)
-  TYPE(cp_sll_3d_r_type), POINTER :: sll
-  real(kind=dp),dimension(:,:,:), pointer :: el
+  TYPE(cp_sll_xc_deriv_type), POINTER :: sll
+  type(xc_derivative_type),pointer :: el
   INTERFACE
      FUNCTION compare_function(el1,el2)
-       USE kinds, only: dp
-USE cp_array_r_utils, only: cp_3d_r_p_type, cp_3d_r_write
+       USE xc_derivative_types, only: xc_derivative_type,xc_derivative_p_type,xc_derivative_write
        INTEGER :: compare_function
-       real(kind=dp),dimension(:,:,:), pointer :: el1,el2
+       type(xc_derivative_type),pointer :: el1,el2
      END FUNCTION compare_function
   END INTERFACE
   LOGICAL, OPTIONAL, INTENT(in) :: insert_equals
   LOGICAL, OPTIONAL, INTENT(out) :: did_insert
-  TYPE(cp_sll_3d_r_type), POINTER, OPTIONAL :: pos
+  TYPE(cp_sll_xc_deriv_type), POINTER, OPTIONAL :: pos
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure,i_eq
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_3d_r_insert_ordered2',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_xc_deriv_insert_ordered2',&
         routineP=moduleN//':'//routineN
   INTEGER :: comp
-  TYPE(cp_sll_3d_r_type), POINTER :: iter
+  TYPE(cp_sll_xc_deriv_type), POINTER :: iter
   failure=.FALSE.
   i_eq=.FALSE.
   
@@ -1420,7 +1417,7 @@ USE cp_array_r_utils, only: cp_3d_r_p_type, cp_3d_r_write
 
   IF (PRESENT(insert_equals)) i_eq=insert_equals
   IF (.NOT.ASSOCIATED(sll)) THEN
-     CALL cp_sll_3d_r_create(sll,first_el=el,error=error)
+     CALL cp_sll_xc_deriv_create(sll,first_el=el,error=error)
      IF (PRESENT(did_insert)) did_insert=.TRUE.
      IF (PRESENT(pos)) pos=>iter%rest
      RETURN
@@ -1428,7 +1425,7 @@ USE cp_array_r_utils, only: cp_3d_r_p_type, cp_3d_r_write
   comp=compare_function(sll%first_el,el)
   IF (comp>=0) THEN
      IF (i_eq.OR.comp/=0) THEN
-        CALL cp_sll_3d_r_insert_el(sll,el,error=error)
+        CALL cp_sll_xc_deriv_insert_el(sll,el,error=error)
         IF (PRESENT(did_insert)) did_insert=.TRUE.
         IF (PRESENT(pos)) pos=>iter%rest
      END IF
@@ -1436,7 +1433,7 @@ USE cp_array_r_utils, only: cp_3d_r_p_type, cp_3d_r_write
      iter => sll
      DO
         IF (.NOT.ASSOCIATED(iter%rest)) THEN
-           CALL cp_sll_3d_r_insert_el(iter%rest,el,error=error)
+           CALL cp_sll_xc_deriv_insert_el(iter%rest,el,error=error)
            IF (PRESENT(did_insert)) did_insert=.TRUE.
            IF (PRESENT(pos)) pos=>iter%rest
            EXIT
@@ -1444,23 +1441,23 @@ USE cp_array_r_utils, only: cp_3d_r_p_type, cp_3d_r_write
         comp=compare_function(iter%rest%first_el,el)
         IF (comp>=0) THEN
            IF (i_eq.OR. comp/=0) THEN
-              CALL cp_sll_3d_r_insert_el(iter%rest,el,error=error)
+              CALL cp_sll_xc_deriv_insert_el(iter%rest,el,error=error)
               IF (PRESENT(did_insert)) did_insert=.TRUE.
               IF (PRESENT(pos)) pos=>iter%rest
            END IF
            EXIT
         END IF
-        CPInvariant(cp_sll_3d_r_next(iter),cp_failure_level,routineP,error,failure)
+        CPInvariant(cp_sll_xc_deriv_next(iter),cp_failure_level,routineP,error,failure)
      END DO
      CPAssert(ASSOCIATED(iter),cp_failure_level,routineP,error,failure)
   END IF
-END SUBROUTINE cp_sll_3d_r_insert_ordered2
+END SUBROUTINE cp_sll_xc_deriv_insert_ordered2
 !***************************************************************************
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_contains [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_contains [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_contains
+!!     cp_sll_xc_deriv_contains
 !!
 !!   FUNCTION
 !!     returns true if the list contains the given element
@@ -1483,18 +1480,18 @@ END SUBROUTINE cp_sll_3d_r_insert_ordered2
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-FUNCTION cp_sll_3d_r_contains(sll,el,ordered,error) RESULT(res)
+FUNCTION cp_sll_xc_deriv_contains(sll,el,ordered,error) RESULT(res)
   LOGICAL ::res
-  TYPE(cp_sll_3d_r_type), POINTER :: sll
-  real(kind=dp),dimension(:,:,:), pointer :: el
+  TYPE(cp_sll_xc_deriv_type), POINTER :: sll
+  type(xc_derivative_type),pointer :: el
   LOGICAL, INTENT(in), OPTIONAL :: ordered
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure,ord
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_3d_r_contains',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_xc_deriv_contains',&
         routineP=moduleN//':'//routineN
-  TYPE(cp_sll_3d_r_type), POINTER :: iter
-  real(kind=dp),dimension(:,:,:),pointer :: el_att
+  TYPE(cp_sll_xc_deriv_type), POINTER :: iter
+  type(xc_derivative_type),pointer :: el_att
   failure=.FALSE.; ord=.FALSE.
   res=.FALSE.
   
@@ -1502,28 +1499,28 @@ FUNCTION cp_sll_3d_r_contains(sll,el,ordered,error) RESULT(res)
   IF (PRESENT(ordered)) ord=ordered
   IF (ord) THEN
      DO
-        IF (.NOT.cp_sll_3d_r_next(iter,el_att=el_att,error=error)) EXIT
-        IF (.NOT.CP_SLL_R_LESS_Q(el_att,el)) THEN
-           res=.NOT.CP_SLL_R_LESS_Q(el,el_att)
+        IF (.NOT.cp_sll_xc_deriv_next(iter,el_att=el_att,error=error)) EXIT
+        IF (.NOT.CP_SLL_DERIV_LESS_Q(el_att,el)) THEN
+           res=.NOT.CP_SLL_DERIV_LESS_Q(el,el_att)
            RETURN
         END IF
      END DO
   ELSE
      DO
-        IF (.NOT.cp_sll_3d_r_next(iter,el_att=el_att,error=error)) EXIT
-        IF (.NOT.CP_SLL_R_EQUAL_Q(el_att,el)) THEN
+        IF (.NOT.cp_sll_xc_deriv_next(iter,el_att=el_att,error=error)) EXIT
+        IF (.NOT.CP_SLL_DERIV_EQUAL_Q(el_att,el)) THEN
            res=.TRUE.
            RETURN
         END IF
      END DO
   END IF
-END FUNCTION cp_sll_3d_r_contains
+END FUNCTION cp_sll_xc_deriv_contains
 !***************************************************************************
 
-!!****f* cp_linked_list_3d_r/cp_sll_3d_r_contains [1.0] *
+!!****f* cp_linked_list_xc_deriv/cp_sll_xc_deriv_contains [1.0] *
 !!
 !!   NAME
-!!     cp_sll_3d_r_contains
+!!     cp_sll_xc_deriv_contains
 !!
 !!   FUNCTION
 !!     returns true if the list contains the given element
@@ -1549,17 +1546,16 @@ END FUNCTION cp_sll_3d_r_contains
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-FUNCTION cp_sll_3d_r_contains2(sll,el,compare_function,ordered,error)&
+FUNCTION cp_sll_xc_deriv_contains2(sll,el,compare_function,ordered,error)&
      RESULT(res)
   LOGICAL ::res
-  TYPE(cp_sll_3d_r_type), POINTER :: sll
-  real(kind=dp),dimension(:,:,:), pointer :: el
+  TYPE(cp_sll_xc_deriv_type), POINTER :: sll
+  type(xc_derivative_type),pointer :: el
   INTERFACE
      FUNCTION compare_function(el1,el2)
-       USE kinds, only: dp
-USE cp_array_r_utils, only: cp_3d_r_p_type, cp_3d_r_write
+       USE xc_derivative_types, only: xc_derivative_type,xc_derivative_p_type,xc_derivative_write
        INTEGER :: compare_function
-       real(kind=dp),dimension(:,:,:), pointer :: el1,el2
+       type(xc_derivative_type),pointer :: el1,el2
      END FUNCTION compare_function
   END INTERFACE
   LOGICAL, INTENT(in), OPTIONAL :: ordered
@@ -1567,17 +1563,17 @@ USE cp_array_r_utils, only: cp_3d_r_p_type, cp_3d_r_write
   
   LOGICAL :: failure
   INTEGER :: comp
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_3d_r_contains2',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_xc_deriv_contains2',&
         routineP=moduleN//':'//routineN
-  TYPE(cp_sll_3d_r_type), POINTER :: iter
-  real(kind=dp),dimension(:,:,:),pointer :: el_att
+  TYPE(cp_sll_xc_deriv_type), POINTER :: iter
+  type(xc_derivative_type),pointer :: el_att
   failure=.FALSE.
   res=.FALSE.
   
   iter => sll
   IF (ordered) THEN
      DO
-        IF (.NOT.cp_sll_3d_r_next(iter,el_att=el_att,error=error)) EXIT
+        IF (.NOT.cp_sll_xc_deriv_next(iter,el_att=el_att,error=error)) EXIT
         comp=compare_function(el_att,el)
         IF (comp>=0) THEN
            res= comp==0
@@ -1586,14 +1582,14 @@ USE cp_array_r_utils, only: cp_3d_r_p_type, cp_3d_r_write
      END DO
   ELSE
      DO
-        IF (.NOT.cp_sll_3d_r_next(iter,el_att=el_att,error=error)) EXIT
+        IF (.NOT.cp_sll_xc_deriv_next(iter,el_att=el_att,error=error)) EXIT
         IF (compare_function(el_att,el)==0) THEN
            res=.TRUE.
            RETURN
         END IF
      END DO
   END IF
-END FUNCTION cp_sll_3d_r_contains2
+END FUNCTION cp_sll_xc_deriv_contains2
 !***************************************************************************
 
 ! template def put here so that line numbers in template and derived 
@@ -1601,25 +1597,22 @@ END FUNCTION cp_sll_3d_r_contains2
 ! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ)]
 ! ARGS:
 !  = = "=>"
-!  USE = 
-!    "USE kinds, only: dp
-!     USE cp_array_r_utils, only: cp_3d_r_p_type, cp_3d_r_write"
+!  USE = "USE xc_derivative_types, only: xc_derivative_type,xc_derivative_p_type,xc_derivative_write"
 !  array= = "=>"
-!  arrayEl = "%array"
+!  arrayEl = "%deriv"
 !  defines = 
-!    "! less not much meningful... and defines oly a partial ordering.
-!     #define CP_SLL_R_LESS_Q(el1,el2) ( all(el1 < el2) )
-!     #define CP_SLL_R_EQUAL_Q(el1,el2) ( all(el1 == el2) )
+!    "#define CP_SLL_DERIV_LESS_Q(el1,el2) ( size(el1%split_desc)<size(el2%split_desc).or.(size(el1%split_desc)==size(el2%split_desc).and.el1%desc<el2%desc) )
+!     #define CP_SLL_DERIV_EQUAL_Q(el1,el2) ( el1%desc == el2%desc )
 !     "
-!  equalQ = "CP_SLL_R_EQUAL_Q"
-!  lessQ = "CP_SLL_R_LESS_Q"
-!  nametype1 = "3d_r"
-!  type1 = "real(kind=dp),dimension(:,:,:),pointer"
-!  type1arrayEl = "type(cp_3d_r_p_type)"
-!  type1in = "real(kind=dp),dimension(:,:,:), pointer"
-!  type1out = "real(kind=dp),dimension(:,:,:), pointer"
-!  write_el = "cp_3d_r_write"
+!  equalQ = "CP_SLL_DERIV_EQUAL_Q"
+!  lessQ = "CP_SLL_DERIV_LESS_Q"
+!  nametype1 = "xc_deriv"
+!  type1 = "type(xc_derivative_type),pointer"
+!  type1arrayEl = "type(xc_derivative_p_type)"
+!  type1in = "type(xc_derivative_type),pointer"
+!  type1out = "type(xc_derivative_type),pointer"
+!  write_el = "xc_derivative_write"
 
 
-END MODULE cp_linked_list_3d_r
+END MODULE cp_linked_list_xc_deriv
 

@@ -28,13 +28,13 @@
 !!****
 
 MODULE xc_perdew_wang
-
-  USE xc_derivative_types, ONLY: xc_derivative_set_type
-  USE xc_functionals_utilities, ONLY : calc_fx, calc_rs, set_util, calc_z
-  USE kinds, ONLY : dbl
-  USE mathconstants, ONLY : zero
-  USE termination, ONLY : stop_program
-  
+  USE kinds,                           ONLY: dbl
+  USE termination,                     ONLY: stop_program
+  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type
+  USE xc_functionals_utilities,        ONLY: calc_fx,&
+                                             calc_rs,&
+                                             calc_z,&
+                                             set_util
   IMPLICIT NONE
 
   LOGICAL :: initialized = .FALSE.
@@ -260,8 +260,8 @@ CONTAINS
     DO k=1, n
        
        IF ( rho(k) > eps_rho ) THEN
-         !! order_ is positive as it must be in this case:
-         !! ec(:,2) needs ed(:,1) for example
+!! order_ is positive as it must be in this case:
+!! ec(:,2) needs ed(:,1) for example
          CALL pw_lda_ed_loc(rho(k), ed, order_)
   
          m = 0
@@ -440,7 +440,7 @@ CONTAINS
        rho = rhoa(k) + rhob(k)
        IF ( rho > eps_rho ) THEN
 
-         !! order_ is positive as it must be
+!! order_ is positive as it must be
          CALL pw_lsd_ed_loc(rhoa(k), rhob(k), ed, order_)
 
          m=0
@@ -739,7 +739,7 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
     CALL calc_g(r(0), 1, e1(0:order_), order_)
     CALL calc_z(a, b, z(0:order_,0:order_), order_)
     
-    !! calculate first partial derivatives
+!! calculate first partial derivatives
     IF (order_ >= 1) THEN
        r(1) = (-1._dbl/3._dbl)*r(0)/rho
        tr = e0(1) &
@@ -753,7 +753,7 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
             + (e1(0)-e0(0))*f(0)*4._dbl*z(0,0)**3
     END IF
     
-    !! calculate second partial derivatives
+!! calculate second partial derivatives
     IF (order_ >= 2) THEN
        r(2) = (-4._dbl/3._dbl)*r(1)/rho
        trr = e0(2) &
@@ -774,7 +774,7 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
             + (e1(0)-e0(0))*f(0)*12._dbl*z(0,0)**2
     END IF
     
-    !! calculate third derivatives
+!! calculate third derivatives
     IF (order_ >= 3) THEN
        
        r(3) = (-7._dbl/3._dbl)*r(2)/rho

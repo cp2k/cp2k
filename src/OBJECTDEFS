@@ -62,6 +62,7 @@ OBJECTS_GENERIC =\
  cp_linked_list_pw.o\
  cp_linked_list_rs.o\
  cp_linked_list_sm.o\
+ cp_linked_list_xc_deriv.o\
  cp_log_handling.o\
  cp_matrix_utils.o\
  cp_output_handling.o\
@@ -310,14 +311,15 @@ OBJECTS_GENERIC =\
  topology_psf.o\
  topology_types.o\
  topology_util.o\
- transformations.o\
  trajana_methods.o\
+ transformations.o\
  util.o\
  velocity_verlet_control.o\
  wf_types.o\
  xc.o\
  xc_cs1.o\
  xc_derivative_desc.o\
+ xc_derivative_set_types.o\
  xc_derivative_types.o\
  xc_derivatives.o\
  xc_exchange_gga.o\
@@ -330,7 +332,9 @@ OBJECTS_GENERIC =\
  xc_perdew86.o\
  xc_perdew_wang.o\
  xc_perdew_zunger.o\
+ xc_rho_set_types.o\
  xc_tfw.o\
  xc_thomas_fermi.o\
  xc_vwn.o\
- xc_xalpha.o
+ xc_xalpha.o\
+ xc_xbecke88.o

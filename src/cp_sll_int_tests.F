@@ -47,7 +47,7 @@ MODULE cp_sll_int_tests
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER, PRIVATE, PARAMETER :: moduleN='cp_sll_int_tests'
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_sll_int_tests'
 
   PUBLIC :: cp_test_int_sll
 

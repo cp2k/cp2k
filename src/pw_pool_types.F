@@ -68,7 +68,7 @@ MODULE pw_pool_types
                                              COMPLEXDATA3D,&
                                              REALDATA1D,&
                                              REALDATA3D,&
-                                             pw_allocate,&
+                                             pw_create,&
                                              pw_release,&
                                              pw_type
   USE timings,                         ONLY: timeset,&
@@ -83,7 +83,8 @@ MODULE pw_pool_types
   PUBLIC :: pw_pool_type, pw_pool_p_type
   PUBLIC :: pw_pool_create, pw_pool_retain, pw_pool_release,&
        pw_pool_create_pw, pw_pool_give_back_pw, pw_pool_give_back_coeff,&
-       pw_pool_init_coeff, pw_pool_flush_cache, pw_pool_write
+       pw_pool_init_coeff, pw_pool_flush_cache, pw_pool_write,&
+       pw_pool_create_cr3d, pw_pool_give_back_cr3d
   PUBLIC :: pw_pools_init_coeffs, pw_pools_give_back_coeffs,&
        pw_pools_copy, pw_pools_dealloc, pw_pools_flush_cache
 !!***
@@ -524,9 +525,7 @@ CONTAINS
     END SELECT
 
     IF (.NOT.ASSOCIATED(pw)) THEN
-       ALLOCATE(pw,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL pw_allocate(pw, pool%pw_grid, use_data=use_data, &
+       CALL pw_create(pw, pool%pw_grid, use_data=use_data, &
             mass_flag=mass_flag, cr3d_ptr=cr3d_ptr)
     END IF
 
@@ -536,7 +535,7 @@ CONTAINS
                routineP,"mass not cached in pool"//&
                CPSourceFileRef,&
                error=error)
-
+          
           IF (use_data==REALDATA1D) THEN
              IF (.NOT.ASSOCIATED(pw%mass_cr)) THEN
                 ALLOCATE(pw%mass_cr(pw % pw_grid % ngpts_cut_local),&
@@ -698,6 +697,13 @@ CONTAINS
 !!   NAME
 !!     pw_pool_create_cr3d
 !!
+!!   SYNOPSIS
+!!     Subroutine pw_pool_create_cr3d(pw_pool, cr3d, error)
+!!       Type(pw_pool_type), Pointer:: pw_pool
+!!       Real(Kind=dp), Dimension(:,:,:), Pointer:: cr3d
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_pool_create_cr3d
+!!
 !!   FUNCTION
 !!     returns a 3d real array of coefficents as the one used by pw with
 !!     REALDATA3D, allocating it if none is present in the pool
@@ -762,6 +768,15 @@ END SUBROUTINE pw_pool_create_cr3d
 !!
 !!   NAME
 !!     pw_pool_give_back_cr3d
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_pool_give_back_cr3d(pw_pool, cr3d,&
+!!         accept_non_compatible, error)
+!!       Type(pw_pool_type), Pointer:: pw_pool
+!!       Real(Kind=dp), Dimension(:,:,:), Pointer:: cr3d
+!!       Logical, Intent (IN), Optional:: accept_non_compatible
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_pool_give_back_cr3d
 !!
 !!   FUNCTION
 !!     returns a 3d real array of coefficents as the one used by pw with

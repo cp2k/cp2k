@@ -46,18 +46,35 @@
 !******************************************************************************
 
 MODULE xc_functionals_tests
-
 ! *****************************************************************************
-
-  USE kinds, ONLY: dbl
-  USE global_types, ONLY : global_environment_type
-  USE xc_derivative_types, ONLY: xc_derivative_set_type
-  USE xc_functionals, ONLY : b88, x_pw86, x_pw91, pbex, revpbex, optx, &
-                             ol1, ol2, llp, ke_pw86, ke_pw91, lc, t92, &
-                             lyp, pade, xalpha, thomas_fermi, tfw, vwn, &
-                             perdew_wang, perdew_zunger, perdew86, cs1
-  USE termination, ONLY : stop_memory, stop_program
-
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type
+  USE xc_functionals,                  ONLY: b88,&
+                                             cs1,&
+                                             ke_pw86,&
+                                             ke_pw91,&
+                                             lc,&
+                                             llp,&
+                                             lyp,&
+                                             ol1,&
+                                             ol2,&
+                                             optx,&
+                                             pade,&
+                                             pbex,&
+                                             perdew86,&
+                                             perdew_wang,&
+                                             perdew_zunger,&
+                                             revpbex,&
+                                             t92,&
+                                             tfw,&
+                                             thomas_fermi,&
+                                             vwn,&
+                                             x_pw86,&
+                                             x_pw91,&
+                                             xalpha
   IMPLICIT NONE
 
   PRIVATE
@@ -99,6 +116,11 @@ CONTAINS
 !!   NAME
 !!     xc_functional_test
 !!
+!!   SYNOPSIS
+!!     Subroutine xc_functional_test(globenv)
+!!       Type(global_environment_type), Intent (IN):: globenv
+!!     End Subroutine xc_functional_test
+!!
 !!   FUNCTION
 !!     Tests XC-functional derivaties by finite derivatives
 !!
@@ -130,9 +152,9 @@ SUBROUTINE xc_functional_test ( globenv )
 
      CALL allocate_arrays
 
-     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
      ! Test LDA functionals
-     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
      WRITE (iw,'(/,A,/)') " *** TEST OF LDA FUNCTIONALS *** "
      WRITE (iw,'(A,E10.3)') " Relative step size for finite difference ",rrho
      !
@@ -158,9 +180,9 @@ SUBROUTINE xc_functional_test ( globenv )
      END DO
      !
 
-     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
      ! Test GGA-LDA functionals
-     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
      WRITE (iw,'(/,A,/)') " *** TEST OF GGA-LDA FUNCTIONALS *** "
      WRITE (iw,'(A,E10.3)') " Relative step size for finite difference ",rrho
      !
@@ -197,16 +219,16 @@ SUBROUTINE xc_functional_test ( globenv )
        !
      END DO
      !
-     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
      ! Test LSD functionals
-     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
      WRITE (iw,'(/,A,/)') " *** TEST OF LSD FUNCTIONALS *** "
      WRITE (iw,'(A,E10.3)') " Relative step size for finite difference ",rrho
      !
      DO i=1,n
        r = 0.01_dbl + (i-1)*25._dbl/n
        rhorefa(i)=5.e3 * EXP(-r)
-       rhorefb(i)=3.e3 * EXP(-r)*(1._dbl-0.1_dbl*sin(r))
+       rhorefb(i)=3.e3 * EXP(-r)*(1._dbl-0.1_dbl*SIN(r))
      END DO
      rhoref = 2._dbl*rhorefa
      !
@@ -259,9 +281,9 @@ SUBROUTINE xc_functional_test ( globenv )
        END IF
      END DO
      !
-     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
      ! Test GGA-LSD functionals
-     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
      WRITE (iw,'(/,A,/)') " *** TEST OF GGA-LSD FUNCTIONALS *** "
      WRITE (iw,'(A,E10.3)') " Relative step size for finite difference ",rrho
      !
@@ -269,8 +291,8 @@ SUBROUTINE xc_functional_test ( globenv )
        r = 0.1_dbl + (i-1)*25._dbl/n
        rhorefa(i)=3.e3 * EXP(-r)
        grhorefa(i)=7.e3 * EXP(-r)
-       rhorefb(i)=3.e3 * EXP(-r)*(1._dbl-0.1*sin(r))
-       grhorefb(i)=7.e3 * EXP(-r)*(1._dbl-0.1*sin(r))
+       rhorefb(i)=3.e3 * EXP(-r)*(1._dbl-0.1*SIN(r))
+       grhorefb(i)=7.e3 * EXP(-r)*(1._dbl-0.1*SIN(r))
        grhorefab(i)=(grhorefa(i)+grhorefb(i))*0.5_dbl
      END DO
      rhoref = 2._dbl*rhorefa

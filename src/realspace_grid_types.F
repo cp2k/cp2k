@@ -29,55 +29,46 @@
 
 MODULE realspace_grid_types
   USE cp_error_handling,               ONLY: cp_a_l,&
-       cp_assert,&
-       cp_assertion_failed,&
-       cp_debug,&
-       cp_error_check,&
-       cp_error_dealloc_ref,&
-       cp_error_get_logger,&
-       cp_error_init,&
-       cp_error_message,&
-       cp_error_type,&
-       cp_internal_error,&
-       cp_unimplemented_error
+                                             cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_unimplemented_error
   USE cp_log_handling,                 ONLY: cp_failure_level,&
-       cp_fatal_level,&
-       cp_log,&
-       cp_logger_get_default_unit_nr,&
-       cp_logger_type,&
-       cp_note_level,&
-       cp_to_string,&
-       cp_warning_level
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE kinds,                           ONLY: dbl
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast,&
-       mp_cart_create,&
-       mp_cart_shift,&
-       mp_cart_sub,&
-       mp_comm_dup,&
-       mp_comm_free,&
-       mp_environ,&
-       mp_max,&
-       mp_min,&
-       mp_sendrecv,&
-       mp_sum, &
-       mp_sync, &
-       mp_shift
+                                             mp_cart_create,&
+                                             mp_cart_shift,&
+                                             mp_cart_sub,&
+                                             mp_comm_dup,&
+                                             mp_comm_free,&
+                                             mp_environ,&
+                                             mp_max,&
+                                             mp_min,&
+                                             mp_sendrecv,&
+                                             mp_shift,&
+                                             mp_sum
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-       COMPLEXDATA3D,&
-       REALDATA1D,&
-       REALDATA3D,&
-       pw_type
-  USE simulation_cell,                 ONLY: cell_type
+                                             COMPLEXDATA3D,&
+                                             REALDATA1D,&
+                                             REALDATA3D,&
+                                             pw_type
   USE sparse_matrix_types,             ONLY: add_block_node,&
-       get_block_node,&
-       get_matrix_info,&
-       real_matrix_type
+                                             get_block_node,&
+                                             real_matrix_type
   USE termination,                     ONLY: stop_memory,&
-       stop_program
+                                             stop_program
   USE timings,                         ONLY: timeset,&
-       timestop
+                                             timestop
   USE util,                            ONLY: get_limit
   IMPLICIT NONE
 
@@ -140,21 +131,21 @@ MODULE realspace_grid_types
 CONTAINS
 
   !******************************************************************************
-  !!****** realspace_grid_types/rs_grid_allocate [1.0] *
-  !!
-  !!   NAME
-  !!     rs_grid_allocate
-  !!
-  !!   FUNCTION
-  !!     Allocate real space grids
-  !!
-  !!   AUTHOR
-  !!     JGH (18-Mar-2001)
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!   SOURCE
+!!****** realspace_grid_types/rs_grid_allocate [1.0] *
+!!
+!!   NAME
+!!     rs_grid_allocate
+!!
+!!   FUNCTION
+!!     Allocate real space grids
+!!
+!!   AUTHOR
+!!     JGH (18-Mar-2001)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
   !******************************************************************************
 
   SUBROUTINE rs_grid_allocate_1 ( rs )
@@ -216,21 +207,21 @@ CONTAINS
 
   !*****
   !******************************************************************************
-  !!****** realspace_grid_types/rs_grid_deallocate [1.0] *
-  !!
-  !!   NAME
-  !!     rs_grid_deallocate
-  !!
-  !!   FUNCTION
-  !!     Deallocate real space grids
-  !!
-  !!   AUTHOR
-  !!     JGH (18-Mar-2001)
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!   SOURCE
+!!****** realspace_grid_types/rs_grid_deallocate [1.0] *
+!!
+!!   NAME
+!!     rs_grid_deallocate
+!!
+!!   FUNCTION
+!!     Deallocate real space grids
+!!
+!!   AUTHOR
+!!     JGH (18-Mar-2001)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
   !******************************************************************************
 
   SUBROUTINE rs_grid_deallocate_1 ( rs )
@@ -284,21 +275,21 @@ CONTAINS
 
   !*****
   !******************************************************************************
-  !!****** realspace_grid_types/rs_grid_setup [1.0] *
-  !!
-  !!   NAME
-  !!     rs_grid_setup
-  !!
-  !!   FUNCTION
-  !!     Determine the setup of real space grids
-  !!
-  !!   AUTHOR
-  !!     JGH (18-Mar-2001)
-  !!
-  !!   MODIFICATION HISTORY
-  !!     JGH (08-Jun-2003) : nsmax <= 0 indicates fully replicated grid
-  !!
-  !!   SOURCE
+!!****** realspace_grid_types/rs_grid_setup [1.0] *
+!!
+!!   NAME
+!!     rs_grid_setup
+!!
+!!   FUNCTION
+!!     Determine the setup of real space grids
+!!
+!!   AUTHOR
+!!     JGH (18-Mar-2001)
+!!
+!!   MODIFICATION HISTORY
+!!     JGH (08-Jun-2003) : nsmax <= 0 indicates fully replicated grid
+!!
+!!   SOURCE
   !******************************************************************************
 
   SUBROUTINE rs_grid_setup_1 ( rs, pw_grid, nsmax, iounit )
@@ -499,30 +490,30 @@ CONTAINS
 
   !*****
   !******************************************************************************
-  !!****** realspace_grid_types/rs_pw_transfer [1.0] *
-  !!
-  !!   NAME
-  !!     rs_pw_transfer
-  !!
-  !!   SYNOPSIS
-  !!     Subroutine rs_pw_transfer(rs, pw, dir)
-  !!       Type(realspace_grid_type), Intent (INOUT):: rs
-  !!       Type(pw_type), Target, Intent (INOUT):: pw
-  !!       Character(Len=*), Intent (IN):: dir
-  !!     End Subroutine rs_pw_transfer
-  !!
-  !!   FUNCTION
-  !!     Copy a function from/to a PW grid type to/from a real
-  !!     space type 
-  !!
-  !!   AUTHOR
-  !!     JGH (18-Mar-2001)
-  !!
-  !!   MODIFICATION HISTORY
-  !!     JGH (15-Feb-2003) reduced additional memory usage
-  !!     Joost VandeVondele (Sep-2003) moved from sum/bcast to shift
-  !!
-  !!   SOURCE
+!!****** realspace_grid_types/rs_pw_transfer [1.0] *
+!!
+!!   NAME
+!!     rs_pw_transfer
+!!
+!!   SYNOPSIS
+!!     Subroutine rs_pw_transfer(rs, pw, dir)
+!!       Type(realspace_grid_type), Intent (INOUT):: rs
+!!       Type(pw_type), Target, Intent (INOUT):: pw
+!!       Character(Len=*), Intent (IN):: dir
+!!     End Subroutine rs_pw_transfer
+!!
+!!   FUNCTION
+!!     Copy a function from/to a PW grid type to/from a real
+!!     space type 
+!!
+!!   AUTHOR
+!!     JGH (18-Mar-2001)
+!!
+!!   MODIFICATION HISTORY
+!!     JGH (15-Feb-2003) reduced additional memory usage
+!!     Joost VandeVondele (Sep-2003) moved from sum/bcast to shift
+!!
+!!   SOURCE
   !******************************************************************************
 
   SUBROUTINE rs_pw_transfer ( rs, pw, dir )
@@ -1257,11 +1248,15 @@ END SUBROUTINE rs_grid_release
 !!     rs_get_my_tasks
 !!
 !!   SYNOPSIS
-!!     Subroutine rs_get_my_tasks ( rs, tasks, tasks_local, npme )
-!!       TYPE ( realspace_grid_type ), INTENT ( IN ) :: rs
-!!       INTEGER, DIMENSION ( :, : ), POINTER :: tasks, tasks_local
-!!       INTEGER, INTENT ( OUT ) :: npme
-!!     End Subroutine rs_get_my_tasks 
+!!     Subroutine rs_get_my_tasks(rs, tasks, npme, ival, rval, pmat, pcor)
+!!       Type(realspace_grid_type), Intent (IN):: rs
+!!       Integer, Dimension(:,:), Pointer:: tasks
+!!       Integer, Intent (OUT):: npme
+!!       Integer, Dimension(:,:), Pointer, Optional:: ival
+!!       Real(Kind=dbl), Dimension(:,:), Pointer, Optional:: rval
+!!       Type(real_matrix_type), Pointer, Optional:: pmat
+!!       Integer, Dimension(:,:), Pointer, Optional:: pcor
+!!     End Subroutine rs_get_my_tasks
 !!
 !!   FUNCTION
 !!     Assembles tasks to be performed on local grid
@@ -1342,13 +1337,13 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
 
     ! allocate local arrays
     ALLOCATE(tlist(2,npmax),STAT=stat)
-    IF (stat/=0) call stop_memory("get_my_tasks","tlist",2*npmax)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","tlist",2*npmax)
     tlist(1:2,1:npme)=tasks(1:2,1:npme)
     tlist(1:2,npme+1:npmax)=0
     IF ( PRESENT ( ival ) ) THEN
       n1 = SIZE ( ival, 1 )
       ALLOCATE(ilist(n1,npmax),STAT=stat)
-      IF (stat/=0) call stop_memory("get_my_tasks","ilist",n1*npmax)
+      IF (stat/=0) CALL stop_memory("get_my_tasks","ilist",n1*npmax)
       ilist(1:n1,1:npme)=ival(1:n1,1:npme)
       ilist(1:n1,npme+1:npmax)=0
       ival=0
@@ -1356,7 +1351,7 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
     IF ( PRESENT ( rval ) ) THEN
       n1 = SIZE ( rval, 1 )
       ALLOCATE(rlist(n1,npmax),STAT=stat)
-      IF (stat/=0) call stop_memory("get_my_tasks","rlist",n1*npmax)
+      IF (stat/=0) CALL stop_memory("get_my_tasks","rlist",n1*npmax)
       rlist(1:n1,1:npme)=rval(1:n1,1:npme)
       rlist(1:n1,npme+1:npmax)=0._dbl
       rval=0._dbl
@@ -1364,14 +1359,14 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
     IF ( matrix ) THEN
       n1 = SIZE ( pcor, 1 )
       ALLOCATE(plist(n1,npmax),STAT=stat)
-      IF (stat/=0) call stop_memory("get_my_tasks","plist",n1*npmax)
+      IF (stat/=0) CALL stop_memory("get_my_tasks","plist",n1*npmax)
       plist(1:n1,1:npme)=pcor(1:n1,1:npme)
       plist(1:n1,npme+1:npmax)=0
       ALLOCATE(pls(n1,npmax),STAT=stat)
-      IF (stat/=0) call stop_memory("get_my_tasks","pls",n1*npmax)
+      IF (stat/=0) CALL stop_memory("get_my_tasks","pls",n1*npmax)
       pls = 0
       ALLOCATE(ppack(npmax),STAT=stat)
-      IF (stat/=0) call stop_memory("get_my_tasks","ppack",npmax)
+      IF (stat/=0) CALL stop_memory("get_my_tasks","ppack",npmax)
     END IF
 
     ! keep tasks to be processed locally
@@ -1405,7 +1400,7 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
         npmax = ileft
         CALL mp_max ( npmax, subgroup )
         IF ( npmax > nppp ) &
-          call stop_program ( "get_my_tasks","npmax too large")
+          CALL stop_program ( "get_my_tasks","npmax too large")
         IF ( npmax == 0 ) EXIT
         ! send/receive tasks
         CALL mp_shift ( tlist ( 1:2, 1:npmax ), subgroup )
@@ -1459,7 +1454,7 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
         END IF
       END DO
       ! now distribute matrix blocks
-      IF ( matrix .AND. isend /= 0 ) then
+      IF ( matrix .AND. isend /= 0 ) THEN
         ! eliminate double entries
         IF ( ic > 1 ) THEN
           j=1
@@ -1487,7 +1482,7 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
           CALL get_block_node(matrix=pmat,&
                               block_row=arow,&
                               block_col=acol,&
-                              block=p_block)
+                              BLOCK=p_block)
           IF ( .NOT. ASSOCIATED ( p_block ) ) THEN
             j = j + 1
             pcor(:,j) = pcor(:,i)
@@ -1515,22 +1510,22 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
           CALL stop_program ( "get_my_tasks", "left over tasks" )
 
     DEALLOCATE(tlist,STAT=stat)
-    IF (stat/=0) call stop_memory("get_my_tasks","tlist")
+    IF (stat/=0) CALL stop_memory("get_my_tasks","tlist")
     IF ( PRESENT ( ival ) ) THEN
       DEALLOCATE(ilist,STAT=stat)
-      IF (stat/=0) call stop_memory("get_my_tasks","ilist")
+      IF (stat/=0) CALL stop_memory("get_my_tasks","ilist")
     END IF
     IF ( PRESENT ( rval ) ) THEN
       DEALLOCATE(rlist,STAT=stat)
-      IF (stat/=0) call stop_memory("get_my_tasks","rlist")
+      IF (stat/=0) CALL stop_memory("get_my_tasks","rlist")
     END IF
     IF ( matrix ) THEN
       DEALLOCATE(plist,STAT=stat)
-      IF (stat/=0) call stop_memory("get_my_tasks","plist")
+      IF (stat/=0) CALL stop_memory("get_my_tasks","plist")
       DEALLOCATE(pls,STAT=stat)
-      IF (stat/=0) call stop_memory("get_my_tasks","pls")
+      IF (stat/=0) CALL stop_memory("get_my_tasks","pls")
       DEALLOCATE(ppack,STAT=stat)
-      IF (stat/=0) call stop_memory("get_my_tasks","ppack")
+      IF (stat/=0) CALL stop_memory("get_my_tasks","ppack")
     END IF
 
     ! Release the communicator

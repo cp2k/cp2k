@@ -26,54 +26,28 @@
 !!   SOURCE
 !****************************************************************************
 MODULE pw_spline_utils
-  USE cp_array_r_utils,                ONLY: cp_1d_r_output,&
-                                             cp_3d_r_output
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_check,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE message_passing,                 ONLY: mp_sum
-  USE pw_grid_types,                   ONLY: FULLSPACE,&
-                                             pw_grid_type
-  USE pw_grids,                        ONLY: pw_grid_compare
-  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                             pw_pool_give_back_coeff,&
-                                             pw_pool_give_back_pw,&
-                                             pw_pool_init_coeff,&
-                                             pw_pool_p_type,&
-                                             pw_pool_type,&
-                                             pw_pools_give_back_coeffs,&
-                                             pw_pools_init_coeffs
+  USE pw_grid_types,                   ONLY: FULLSPACE
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             COMPLEXDATA3D,&
-                                             NOSPACE,&
-                                             REALDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_copy,&
-                                             pw_derive,&
                                              pw_p_type,&
-                                             pw_sumup,&
-                                             pw_transfer,&
-                                             pw_type,&
-                                             pw_zero
+                                             pw_type
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -82,6 +56,10 @@ MODULE pw_spline_utils
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pw_spline_utils'
+
+    REAL ( KIND = dp ), PUBLIC, PARAMETER, DIMENSION(4) :: nn10_coeffs=&
+         (/ 125._dp/216._dp, 25._dp/432._dp, 5._dp/864._dp, 1._dp/1728._dp /)
+    ! factor 10 between subsequent values
 
   PUBLIC :: pw_spline3_interpolate_values_g, pw_spline3_evaluate_values_g,&
        pw_spline3_deriv_r, pw_spline3_deriv_g, pw_spline3_test_coeff
@@ -407,6 +385,13 @@ CONTAINS
 !!   NAME
 !!     pw_nn_smear_g
 !!
+!!   SYNOPSIS
+!!     Subroutine pw_nn_smear_g(spline_g, coeffs, error)
+!!       Type(pw_type), Pointer:: spline_g
+!!       Real(Kind=dp), Dimension(4), Intent (IN):: coeffs
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_nn_smear_g
+!!
 !!   FUNCTION
 !!     calculates the FFT of the values of a nearest neighbor smearing
 !!
@@ -436,14 +421,14 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE pw_nn_smear_g(spline_g,coeffs,error)
     TYPE(pw_type),POINTER :: spline_g
-    REAL(KIND = dp), DIMENSION(4), intent(in) :: coeffs
+    REAL(KIND = dp), DIMENSION(4), INTENT(in) :: coeffs
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='pw_nn_smear_g',&
          routineP=moduleN//':'//routineN
     REAL (KIND = dp) :: c23, c_val, coeff
-    REAL (KIND = dp), dimension(4) :: r_coeffs
+    REAL (KIND = dp), DIMENSION(4) :: r_coeffs
     REAL (KIND = dp), DIMENSION(:), ALLOCATABLE :: cosIVals,cosJVals, cosKVals
     INTEGER, DIMENSION(3) :: n,n_tot
     INTEGER :: ii,i, j, k, handle, stat
@@ -980,7 +965,7 @@ CONTAINS
 !!       Type(pw_p_type), Dimension(3):: deriv_vals_r
 !!       Type(cell_type), Pointer:: cell
 !!       Logical, Intent (IN), Optional:: transpose
-!!       Real(KIND = dp), Intent (IN), Optional:: scale
+!!       Real(Kind=dp), Intent (IN), Optional:: scale
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pw_spline_scale_deriv
 !!
