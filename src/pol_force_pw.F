@@ -343,9 +343,12 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
 
   DO i = 1, nnodes
      ii = pnode ( i ) % p % iatom
-     f_total ( 1, ii ) = f_total ( 1, ii ) + fe_part ( 1, i ) + fo_part ( 1, i )
-     f_total ( 2, ii ) = f_total ( 2, ii ) + fe_part ( 2, i ) + fo_part ( 2, i )
-     f_total ( 3, ii ) = f_total ( 3, ii ) + fe_part ( 3, i ) + fo_part ( 3, i )
+     f_total ( 1, ii ) = f_total ( 1, ii ) + fe_part ( 1, i ) +  &
+                         fo_part ( 1, i ) + fthk_part ( 1, i )
+     f_total ( 2, ii ) = f_total ( 2, ii ) + fe_part ( 2, i ) +  &
+                         fo_part ( 2, i ) + fthk_part ( 2, i )
+     f_total ( 3, ii ) = f_total ( 3, ii ) + fe_part ( 3, i ) +  & 
+                         fo_part ( 3, i ) + fthk_part ( 3, i )
   END DO
 
   IF ( PRESENT ( debug )  ) THEN
