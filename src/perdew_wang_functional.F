@@ -9,9 +9,9 @@
 !!     perdew_wang_functional
 !!
 !!   FUNCTION
-!!     Calculate the Perdew-Wang correlation potential and its
-!!     derivatives with respect to the spin-up and spin-down
-!!     densities up to 3rd order.
+!!     Calculate the Perdew-Wang correlation potential and 
+!!     energy density and ist derivatives with respect to
+!!     the spin-up and spin-down densities up to 3rd order.
 !!
 !!   SYNOPSIS
 !!     perdew_wang ( method, cutoff )
@@ -45,7 +45,7 @@ MODULE perdew_wang_functional
 
   PRIVATE
 
-  PUBLIC :: perdew_wang
+  PUBLIC :: perdew_wang, perdew_wang_energy_density
 
   INTERFACE perdew_wang
      MODULE PROCEDURE pw_info, pw_init, pw_lda, pw_lsd
@@ -227,14 +227,18 @@ CONTAINS
 
     IF (PRESENT(order)) order_ = order
 
-    !! check order_ with an assertion here instead
-    IF (order_ >= 0) THEN
-       calc(0:order_) = .TRUE.
-       m = order_ + 1
+    IF (ABS(order_) <= 3) THEN
+       IF (order_ >= 0) THEN
+          calc(0:order_) = .TRUE.
+          m = order_ + 1
+       ELSE
+          order_ = -1 * order_
+          calc(order_) = .TRUE.
+          m = 1
+       END IF
     ELSE
-       order_ = -1 * order_
-       calc(order_) = .TRUE.
-       m = 1
+       CALL stop_program("perdew_wang_functional/pw_lda", &
+            "parameter order must be between -3 and 3")
     END IF
 
     n = SIZE(rho)
@@ -317,10 +321,17 @@ CONTAINS
 
     n = SIZE(rho)
     IF (PRESENT(order)) order_ = order
-    IF (order_ >= 0) THEN
-       m = order_ + 1
+
+
+    IF (ABS(order_) <= 3) THEN
+       IF (order_ >= 0) THEN
+          m = order_ + 1
+       ELSE
+          m = 1
+       END IF
     ELSE
-       m = 1
+       CALL stop_program("perdew_zunger_functional/pz", &
+            "parameter order must be between -3 and 3")
     END IF
 
     IF (SIZE(ed,1) < n) &
@@ -388,6 +399,7 @@ CONTAINS
     IF (PRESENT(order)) order_ = order
     IF (ABS(order_) > 3) CALL stop_program("perdew_wang_functional/pw_lsd", &
          "order must be between -3 and 3")
+
     IF (order_ > 0) THEN
        calc(0:order_) = .TRUE.
        m = SUM((/ (k+1,k=0,order_) /))
@@ -488,13 +500,17 @@ CONTAINS
     REAL(DBL) :: rho
 
     IF (PRESENT(order)) order_ = order
-    IF (ABS(order_) > 3) CALL stop_program("perdew_wang_functional/pw_lsd", &
-         "order must be between -3 and 3")
-    IF (order_ > 0) THEN
-       m = SUM((/ (k+1,k=0,order_) /))
+
+    IF (ABS(order_) <= 3) THEN
+       IF (order_ > 0) THEN
+          m = SUM((/ (k+1,k=0,order_) /))
+       ELSE
+          m = 1
+       END IF
     ELSE
-       m = 1
-    END IF   
+       CALL stop_program("perdew_wang_functional/pz", &
+            "parameter order must be between -3 and 3")
+    END IF
 
     n = SIZE(rhoa)
     IF (SIZE(ed,1) < n) &
