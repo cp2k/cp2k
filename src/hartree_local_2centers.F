@@ -495,7 +495,6 @@ MODULE  hartree_local_2centers
       END DO  ! idir
 
     ELSE
-  WRITE(*,'(4f16.8)')r0_a ,r0_b, r0_a +r0_b,sqrt(rab2)
 
       ene_2c = 0.0_dp
 

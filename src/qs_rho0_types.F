@@ -18,11 +18,12 @@ MODULE qs_rho0_types
 
   USE coefficient_types,               ONLY: coeff_deallocate,&
                                              coeff_type
+  USE erf_fn,                          ONLY: erf
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
+                                             dp,dp_size,&
                                              int_size
-  USE mathconstants,                   ONLY: rootpi
+  USE mathconstants,                   ONLY: fourpi,rootpi,pi
   USE memory_utilities,                ONLY: reallocate
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
@@ -30,6 +31,8 @@ MODULE qs_rho0_types
                                              get_cell
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE whittaker,                       ONLY: whittaker_c0,&
+                                             whittaker_ci
   IMPLICIT NONE
 
   PRIVATE
@@ -51,7 +54,7 @@ MODULE qs_rho0_types
 
   TYPE mpole_gau_overlap
     REAL(dp), DIMENSION(:,:,:), POINTER         :: Qlm_gg 
-    REAL(dp), DIMENSION(:,:), POINTER           :: g0_h, g0_s
+    REAL(dp), DIMENSION(:,:), POINTER           :: g0_h, g0_s, vg0_h
     REAL(dp)                                    :: rpgf0_h, rpgf0_s
     REAL(dp)                                    :: r_V0hmV0s
   END TYPE mpole_gau_overlap
@@ -73,7 +76,8 @@ MODULE qs_rho0_types
 
   TYPE rho0_atom_type
     TYPE(rho_atom_coeff), POINTER               :: rho0_rad_h, &
-                                                   rho0_rad_s
+                                                   rho0_rad_s, &
+                                                   vrho0_rad_h
   END TYPE rho0_atom_type
 
 ! Public Types
@@ -134,6 +138,7 @@ CONTAINS
       NULLIFY(mp_gau(ikind)%Qlm_gg)
       NULLIFY(mp_gau(ikind)%g0_h)
       NULLIFY(mp_gau(ikind)%g0_s)
+      NULLIFY(mp_gau(ikind)%vg0_h)
       mp_gau(ikind)%rpgf0_h = 0.0_dp
       mp_gau(ikind)%rpgf0_s = 0.0_dp
       mp_gau(ikind)%r_V0hmV0s = 0.0_dp
@@ -165,6 +170,7 @@ CONTAINS
     DO iat = 1,natom 
       NULLIFY(rho0_set(iat)%rho0_rad_h) 
       NULLIFY(rho0_set(iat)%rho0_rad_s)
+      NULLIFY(rho0_set(iat)%vrho0_rad_h) 
     ENDDO
 
   END SUBROUTINE allocate_rho0_atom
@@ -193,6 +199,12 @@ CONTAINS
     rho0_atom%rho0_rad_s%r_coef = 0.0_dp
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                             "rho0_rad_s",int_size)
+
+    ALLOCATE(rho0_atom%vrho0_rad_h,STAT=istat)
+    ALLOCATE (rho0_atom%vrho0_rad_h%r_coef(1:nr,1:nchannels),STAT=istat)
+    rho0_atom%vrho0_rad_h%r_coef = 0.0_dp
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                            "vrho0_rad_h",int_size)
 
   END SUBROUTINE allocate_rho0_atom_rad
 ! ******************************************************************************
@@ -236,39 +248,60 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_g0"
 
     INTEGER                             :: ir, istat, l, lmax, nr
-    REAL(dp)                            :: z_h, z_s
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: gh_tmp, gs_tmp 
+    REAL(dp)                            :: c1,prefactor, root_z_h, z_h, z_s
+    REAL(dp), DIMENSION(:), ALLOCATABLE :: erf_z_h, gexp, gh_tmp, gs_tmp, int1, int2
 
 !   ---------------------------------------------------------------------------
 
     nr = grid_atom%nr
     lmax = rho0_mpole%lmax0_kind(ik)
     z_h = rho0_mpole%zet0_h
+    root_z_h = SQRT(z_h)
     z_s = rho0_mpole%zet0_s
 
 !   Allocate g0
     CALL reallocate(rho0_mpole%mp_gau(ik)%g0_h,1,nr,0,lmax)
     CALL reallocate(rho0_mpole%mp_gau(ik)%g0_s,1,nr,0,lmax)
+    CALL reallocate(rho0_mpole%mp_gau(ik)%vg0_h,1,nr,0,lmax)
 
-    ALLOCATE(gh_tmp(nr),gs_tmp(nr),STAT=istat)
+    ALLOCATE(gexp(nr),gh_tmp(nr),gs_tmp(nr),erf_z_h(nr),int1(nr),int2(nr),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "gh_tmp,gs_tmp")
-    gh_tmp = 0.0_dp
-    gs_tmp = 0.0_dp
+                              "gexp,gh_tmp,gs_tmp,erf_z_h,in1,int2",6*nr*dp_size)
 
     gh_tmp(1:nr) = EXP(-z_h*grid_atom%rad2(1:nr))
     gs_tmp(1:nr) = EXP(-z_s*grid_atom%rad2(1:nr))
+
+    DO ir = 1,nr
+      erf_z_h(ir) = erf(grid_atom%rad(ir)*root_z_h)
+    END DO
 
     DO ir =1,nr
       IF(gh_tmp(ir) < 1.0E-30_dp) gh_tmp(ir) = 0.0_dp
       IF(gs_tmp(ir) < 1.0E-30_dp) gs_tmp(ir) = 0.0_dp
     END DO
 
+    gexp(1:nr) = gh_tmp(1:nr)
+
     rho0_mpole%mp_gau(ik)%g0_h(1:nr,0) = gh_tmp(1:nr)* &
                                          rho0_mpole%norm_g0l_h(0)
 
     rho0_mpole%mp_gau(ik)%g0_s(1:nr,0) = gs_tmp(1:nr)* &
                                          rho0_mpole%norm_g0l_s(0)
+
+
+    CALL whittaker_c0(int1,grid_atom%rad,gh_tmp,erf_z_h,z_h,0,nr)
+    CALL whittaker_ci(int2,grid_atom%rad,gh_tmp,z_h,0,nr)
+
+    prefactor = fourpi*rho0_mpole%norm_g0l_h(0)
+
+    c1 = SQRT(pi*pi*pi/(z_h*z_h*z_h))*rho0_mpole%norm_g0l_h(0)
+
+    DO ir = 1,nr
+!      int1(ir) = grid_atom%oorad2l(ir,1)*int1(ir)
+      int1(ir) = int1(ir)/grid_atom%rad(ir)
+!      rho0_mpole%mp_gau(ik)%vg0_h(ir,0) = prefactor*(int1(ir)+int2(ir))
+      rho0_mpole%mp_gau(ik)%vg0_h(ir,0) = c1*erf_z_h(ir)*grid_atom%oorad2l(ir,1)
+    END DO
 
     DO l = 1,lmax
       gh_tmp(1:nr) = gh_tmp(1:nr)*grid_atom%rad(1:nr)
@@ -278,9 +311,21 @@ CONTAINS
       gs_tmp(1:nr) = gs_tmp(1:nr)*grid_atom%rad(1:nr)
       rho0_mpole%mp_gau(ik)%g0_s(1:nr,l) = gs_tmp(1:nr)* &
                                            rho0_mpole%norm_g0l_s(l)
+
+      prefactor = fourpi/(2.0_dp*l+1.0_dp)*rho0_mpole%norm_g0l_h(l)
+!      CALL whittaker_c0(int1,grid_atom%rad,gh_tmp,erf_z_h,z_h,2*l,nr)
+      CALL whittaker_c0(int1,grid_atom%rad,gexp,erf_z_h,z_h,2*l,nr)
+      DO ir = 1,nr
+        int1(ir) = grid_atom%oorad2l(ir,l+1)*int1(ir)
+        rho0_mpole%mp_gau(ik)%vg0_h(ir,l) = prefactor*(int1(ir)+&
+                                      int2(ir)*grid_atom%rad2l(ir,l))
+      END DO
+ 
     END DO  ! l
 
-    DEALLOCATE (gh_tmp,gs_tmp)
+    DEALLOCATE (gexp,erf_z_h,gh_tmp,gs_tmp,int1,int2,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gexp,gh_tmp,gs_tmp,erf_z_h,int1,int2")
 
   END SUBROUTINE calculate_g0
 
@@ -313,6 +358,10 @@ CONTAINS
       DEALLOCATE(mp_gau(ikind)%g0_s, STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                       "mp_gau(ikind)%g0_s")
+
+      DEALLOCATE(mp_gau(ikind)%vg0_h, STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                      "mp_gau(ikind)%vg0_h")
     END DO
 
     DEALLOCATE(mp_gau, STAT=istat)
@@ -377,6 +426,10 @@ CONTAINS
         IF(ASSOCIATED(rho0_atom_set(iat)%rho0_rad_s)) THEN
           DEALLOCATE (rho0_atom_set(iat)%rho0_rad_s%r_coef)
           DEALLOCATE (rho0_atom_set(iat)%rho0_rad_s)
+        ENDIF
+        IF(ASSOCIATED(rho0_atom_set(iat)%vrho0_rad_h)) THEN
+          DEALLOCATE (rho0_atom_set(iat)%vrho0_rad_h%r_coef)
+          DEALLOCATE (rho0_atom_set(iat)%vrho0_rad_h)
         ENDIF
       ENDDO
 
@@ -449,7 +502,7 @@ CONTAINS
   END SUBROUTINE deallocate_rho0_mpole
 
 ! ******************************************************************************
-  SUBROUTINE get_rho0_mpole(rho0_mpole, g0_h, g0_s, iat, ikind, lmax_0, l0_ikind,&
+  SUBROUTINE get_rho0_mpole(rho0_mpole, g0_h, g0_s, vg0_h, iat, ikind, lmax_0, l0_ikind,&
                             lmax0_kind, mp_gau_ikind, mp_rho, norm_g0l_h, norm_g0l_s,&
                             Qlm_gg, Qlm_car_h,Qlm_car_s,Qlm_tot, zet0_h, zet0_s, &
                             igrid_zet0_s, rpgf0_h,rpgf0_s,r_V0hmV0s)
@@ -466,7 +519,7 @@ CONTAINS
                                                     norm_g0l_s
     REAL(dp), DIMENSION(:), OPTIONAL,POINTER     :: Qlm_car_h, Qlm_car_s
     REAL(dp), DIMENSION(:), OPTIONAL,POINTER     :: Qlm_tot
-    REAL(dp), DIMENSION(:,:), OPTIONAL,POINTER   :: g0_h, g0_s
+    REAL(dp), DIMENSION(:,:), OPTIONAL,POINTER   :: g0_h, g0_s, vg0_h
     REAL(dp), DIMENSION(:,:,:), OPTIONAL, & 
                                        POINTER   :: Qlm_gg
     INTEGER, DIMENSION(:),  OPTIONAL,POINTER     :: lmax0_kind
@@ -493,6 +546,7 @@ CONTAINS
         IF(PRESENT(mp_gau_ikind)) mp_gau_ikind => rho0_mpole%mp_gau(ikind)
         IF(PRESENT(g0_h))         g0_h => rho0_mpole%mp_gau(ikind)%g0_h
         IF(PRESENT(g0_s))         g0_s => rho0_mpole%mp_gau(ikind)%g0_s
+        IF(PRESENT(vg0_h))        vg0_h => rho0_mpole%mp_gau(ikind)%vg0_h
         IF(PRESENT(Qlm_gg))       Qlm_gg => rho0_mpole%mp_gau(ikind)%Qlm_gg
         IF(PRESENT(rpgf0_h))      rpgf0_h = rho0_mpole%mp_gau(ikind)%rpgf0_h
         IF(PRESENT(rpgf0_s))      rpgf0_s = rho0_mpole%mp_gau(ikind)%rpgf0_s

@@ -28,6 +28,7 @@ MODULE qs_local_rho_types
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE erf_fn,                          ONLY: erf
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_size
@@ -43,6 +44,7 @@ MODULE qs_local_rho_types
                                              rho0_mpole_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+
   IMPLICIT NONE
 
   PRIVATE
@@ -57,6 +59,7 @@ MODULE qs_local_rho_types
     REAL(dp)                             ::  one_atom
     REAL(dp), DIMENSION(:), POINTER      ::  r_coef
     REAL(dp), DIMENSION(:), POINTER      ::  dr_coef
+    REAL(dp), DIMENSION(:), POINTER      ::  vr_coef
   END TYPE rhoz_type
 
   TYPE local_rho_type
@@ -106,6 +109,7 @@ MODULE qs_local_rho_types
     DO ikind = 1,nkind 
       NULLIFY(rhoz_set(ikind)%r_coef) 
       NULLIFY(rhoz_set(ikind)%dr_coef)
+      NULLIFY(rhoz_set(ikind)%vr_coef)
     ENDDO
 
   END SUBROUTINE allocate_rhoz
@@ -124,31 +128,45 @@ MODULE qs_local_rho_types
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_rhoz"
 
     INTEGER                     :: ir,nr,na,ia
-    REAL(dp)                    :: c1, c2, prefactor, prefactor2
-    REAL(dp)                    :: sum
+    REAL(dp)                    :: c1, c2,c3, prefactor1, prefactor2, prefactor3
+    REAL(dp)                    :: sum,t
 !   ---------------------------------------------------------------------------
 
     nr = grid_atom%nr
     na = grid_atom%ng_sphere
     CALL reallocate(rhoz%r_coef,1,nr) 
     CALL reallocate(rhoz%dr_coef,1,nr) 
+    CALL reallocate(rhoz%vr_coef,1,nr) 
 
     c1 = alpha/pi
     c2 = c1*c1*c1*fourpi
-    prefactor = zeff*sqrt(c2)
+    c3 = SQRT(alpha)
+    prefactor1 = zeff*SQRT(c2)
     prefactor2 = -2.0_dp*alpha
+    prefactor3 = -zeff*SQRT(fourpi)
 
     sum = 0.0_dp
     DO ir = 1,nr
       c1 = -alpha*grid_atom%rad2(ir)
-      rhoz%r_coef(ir) = -exp(c1)*prefactor
-      IF(ABS(rhoz%r_coef(ir)) < 1.0E-30_dp) rhoz%r_coef(ir) = 0.0_dp
-      rhoz%dr_coef(ir) = prefactor2*rhoz%r_coef(ir)
+      rhoz%r_coef(ir) = -exp(c1)*prefactor1
+      IF(ABS(rhoz%r_coef(ir)) < 1.0E-30_dp) THEN
+        rhoz%r_coef(ir) = 0.0_dp
+        rhoz%dr_coef(ir) = 0.0_dp
+      ELSE
+        rhoz%dr_coef(ir) = prefactor2*rhoz%r_coef(ir)
+      END IF
+      rhoz%vr_coef(ir) = prefactor3*erf(grid_atom%rad(ir)*c3)/grid_atom%rad(ir)
       sum = sum + rhoz%r_coef(ir)*grid_atom%wr(ir)
     END DO
     rhoz%one_atom=sum*harmonics%slm_int(1)
     rhoz_tot = rhoz_tot + natom*rhoz%one_atom
 
+! WRITE(10,*) zeff, alpha
+! DO ir =1,nr
+!    WRITE(10,'(I5,3(1E30.16))') ir,grid_atom%rad(ir),rhoz%vr_coef(ir),rhoz%r_coef(ir)
+! END DO
+
+! STOP 'erf'
   END SUBROUTINE calculate_rhoz
 
 ! ******************************************************************************
@@ -169,6 +187,12 @@ MODULE qs_local_rho_types
       DEALLOCATE(rhoz_set(ikind)%r_coef,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                        "rhoz_set%r_coef")
+      DEALLOCATE(rhoz_set(ikind)%dr_coef,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "rhoz_set%dr_coef")
+      DEALLOCATE(rhoz_set(ikind)%vr_coef,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "rhoz_set%vr_coef")
     END DO
 
     DEALLOCATE(rhoz_set,STAT=istat)

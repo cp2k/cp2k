@@ -53,7 +53,9 @@ MODULE qs_rho_atom_types
                                POINTER  :: rho_rad_h,&
                                            rho_rad_s,&
                                            drho_rad_h,&
-                                           drho_rad_s
+                                           drho_rad_s,&
+                                           vrho_rad_h,&
+                                           vrho_rad_s
     INTEGER                             :: rhoa_of_atom
     REAL(dp)                            :: exc_h,&
                                            exc_s
@@ -110,6 +112,8 @@ MODULE qs_rho_atom_types
       NULLIFY (rho_atom_set(iat)%rho_rad_s)
       NULLIFY (rho_atom_set(iat)%drho_rad_h)
       NULLIFY (rho_atom_set(iat)%drho_rad_s)
+      NULLIFY (rho_atom_set(iat)%vrho_rad_h)
+      NULLIFY (rho_atom_set(iat)%vrho_rad_s)
       NULLIFY (rho_atom_set(iat)%ga_Vxc_gb_h)
       NULLIFY (rho_atom_set(iat)%ga_Vxc_gb_s)
 
@@ -172,6 +176,22 @@ MODULE qs_rho_atom_types
           DEALLOCATE (rho_atom_set(iat)%rho_rad_s)
         ENDIF
 
+        IF(ASSOCIATED(rho_atom_set(iat)%vrho_rad_h)) THEN
+          n = SIZE(rho_atom_set(iat)%vrho_rad_h)
+          DO i = 1,n 
+            deallocate(rho_atom_set(iat)%vrho_rad_h(i)%r_coef)
+          ENDDO
+          DEALLOCATE (rho_atom_set(iat)%vrho_rad_h)
+        ENDIF
+
+        IF(ASSOCIATED(rho_atom_set(iat)%vrho_rad_s)) THEN
+          n = SIZE(rho_atom_set(iat)%vrho_rad_s)
+          DO i = 1,n 
+            deallocate(rho_atom_set(iat)%vrho_rad_s(i)%r_coef)
+          ENDDO
+          DEALLOCATE (rho_atom_set(iat)%vrho_rad_s)
+        ENDIF
+
       ENDDO
 
       DEALLOCATE (rho_atom_set,STAT=istat)
@@ -191,8 +211,8 @@ MODULE qs_rho_atom_types
 ! *****************************************************************************
 
   SUBROUTINE get_rho_atom(rho_atom,cpc_h,cpc_s,rho_rad_h,rho_rad_s,&
-                          drho_rad_h,drho_rad_s,ga_Vxc_gb_h,&
-                          ga_Vxc_gb_s)
+                          drho_rad_h,drho_rad_s,vrho_rad_h,vrho_rad_s,&
+                          ga_Vxc_gb_h,ga_Vxc_gb_s)
 
     TYPE(rho_atom_type), POINTER        :: rho_atom
     TYPE(rho_atom_coeff), DIMENSION(:), &
@@ -201,7 +221,9 @@ MODULE qs_rho_atom_types
                       POINTER, OPTIONAL :: rho_rad_h,&
                                            rho_rad_s,&
                                            drho_rad_h,&
-                                           drho_rad_s
+                                           drho_rad_s,&
+                                           vrho_rad_h,&
+                                           vrho_rad_s
     TYPE(rho_atom_coeff),DIMENSION(:),POINTER, &
                                OPTIONAL :: ga_Vxc_gb_h,&
                                            ga_Vxc_gb_s
@@ -218,6 +240,8 @@ MODULE qs_rho_atom_types
       IF (PRESENT(rho_rad_s)) rho_rad_s => rho_atom%rho_rad_s
       IF (PRESENT(drho_rad_h)) drho_rad_h => rho_atom%drho_rad_h
       IF (PRESENT(drho_rad_s)) drho_rad_s => rho_atom%drho_rad_s
+      IF (PRESENT(vrho_rad_h)) vrho_rad_h => rho_atom%vrho_rad_h
+      IF (PRESENT(vrho_rad_s)) vrho_rad_s => rho_atom%vrho_rad_s
       IF (PRESENT(ga_Vxc_gb_h)) ga_Vxc_gb_h => rho_atom%ga_Vxc_gb_h
       IF (PRESENT(ga_Vxc_gb_s)) ga_Vxc_gb_s => rho_atom%ga_Vxc_gb_s
     ELSE

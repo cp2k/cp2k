@@ -167,7 +167,7 @@ MODULE qs_rho0_methods
     CHARACTER(len=*), PARAMETER :: routine_name = 'calculate_rho0_atom', &
       routineP = module_name//':'//routine_name
 
-    REAL(dp), DIMENSION(:,:), POINTER        :: g0_h, g0_s
+    REAL(dp), DIMENSION(:,:), POINTER        :: g0_h, g0_s,vg0_h
     TYPE(mpole_rho_atom),  POINTER           :: mpole_rho
     TYPE(mpole_gau_overlap), POINTER         :: mpole_gau
     TYPE(rho0_atom_type), DIMENSION(:),&
@@ -187,14 +187,14 @@ MODULE qs_rho0_methods
     NULLIFY(mpole_rho)
     NULLIFY(rho0_atom_set)
     NULLIFY(rho_atom_set)
-    NULLIFY(g0_h, g0_s)
+    NULLIFY(g0_h, g0_s, vg0_h)
 
     CALL get_qs_env(qs_env=qs_env,rho_atom_set=rho_atom_set,&
                     rho0_atom_set=rho0_atom_set)
 
     CALL get_rho0_mpole(rho0_mpole=rho0_mp,ikind=ikind, &
                         l0_ikind=lmax0,mp_gau_ikind=mpole_gau,&
-                        g0_h=g0_h,g0_s=g0_s,&
+                        g0_h=g0_h,g0_s=g0_s, vg0_h=vg0_h,&
                         norm_g0l_h=norm_g0l_h,&
                         norm_g0l_s=norm_g0l_s)
 
@@ -221,6 +221,8 @@ MODULE qs_rho0_methods
               g0_h(1:nr,l) * mpole_rho%Qlm_tot(iso)  
          rho0_atom_set(iatom)%rho0_rad_s%r_coef(1:nr,iso) = &
               g0_s(1:nr,l) * mpole_rho%Qlm_tot(iso)
+         rho0_atom_set(iatom)%vrho0_rad_h%r_coef(1:nr,iso) = &
+              vg0_h(1:nr,l) * mpole_rho%Qlm_tot(iso)  
 
          sum1 = 0.0_dp
          sum2 = 0.0_dp

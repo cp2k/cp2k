@@ -189,8 +189,8 @@ MODULE  hartree_local_methods
     rho_2 = 0.0_dp
 
 !   Case lm = 0
-    rho_1(:,1) = rrad_z(:)
-    rho_2(:,1) = rrad_0(:,1)
+!    rho_1(:,1) = rrad_z(:)
+!    rho_2(:,1) = rrad_0(:,1)
 
     DO iso = 2,nchannels
       rho_2(:,iso) = rrad_0(:,iso)      
@@ -207,7 +207,7 @@ MODULE  hartree_local_methods
 
        rho_1(:,iso) = rho_1(:,iso)*wr(:)
        rho_2(:,iso) = rho_2(:,iso)*wr(:)
-
+ 
        I1_up = 0.0_dp
        I1_down = 0.0_dp
        I2_up = 0.0_dp
@@ -221,26 +221,26 @@ MODULE  hartree_local_methods
          I2_down = I2_down + oor2l(ir,l_ang+1)*rho_2(ir,iso)
        END DO
 
-       vrad_h(nr,iso) = prefactor*&
+       vrad_h(nr,iso) = vrad_h(nr,iso) + prefactor*&
                        (oor2l(nr,l_ang+1)*I1_up + r2l(nr,l_ang)*I1_down)
-       vrad_s(nr,iso) = prefactor*&
+       vrad_s(nr,iso) = vrad_s(nr,iso) + prefactor*&
                        (oor2l(nr,l_ang+1)*I2_up + r2l(nr,l_ang)*I2_down)
 
        DO ir = nr-1,1,-1
-
-         vrad_h(ir,iso) = prefactor*&
-                       (oor2l(ir,l_ang+1)*I1_up + r2l(ir,l_ang)*I1_down)
-         vrad_s(ir,iso) = prefactor*&
-                       (oor2l(ir,l_ang+1)*I2_up + r2l(ir,l_ang)*I2_down)
-
          I1_up = I1_up + r2l(ir,l_ang)*rho_1(ir,iso)
          I1_down = I1_down -oor2l(ir,l_ang+1)*rho_1(ir,iso)
          I2_up = I2_up + r2l(ir,l_ang)*rho_2(ir,iso)
          I2_down = I2_down -oor2l(ir,l_ang+1)*rho_2(ir,iso)
 
+         vrad_h(ir,iso) = vrad_h(ir,iso) + prefactor*&
+                       (oor2l(ir,l_ang+1)*I1_up + r2l(ir,l_ang)*I1_down)
+         vrad_s(ir,iso) = vrad_s(ir,iso) + prefactor*&
+                       (oor2l(ir,l_ang+1)*I2_up + r2l(ir,l_ang)*I2_down)
+
        END DO
 
     END DO
+
 
     DEALLOCATE(rho_1,rho_2)
 
@@ -252,7 +252,6 @@ MODULE  hartree_local_methods
 
     TYPE(qs_environment_type), INTENT(INOUT)   :: qs_env
     TYPE(qs_energy_type), INTENT(INOUT)        :: energy
-!   TYPE(cp_error_type), INTENT(inout)         :: error
 
     CHARACTER(LEN=*), PARAMETER         :: routine_name = "Vh_1c_gg_integrals",&
                 routineP = module_name//':'//routine_name
@@ -264,6 +263,7 @@ MODULE  hartree_local_methods
     TYPE(grid_atom_type), POINTER              :: grid_atom
     TYPE(harmonics_atom_type), &
                            POINTER             :: harmonics
+    TYPE(dft_control_type), POINTER            :: dft_control
     TYPE(ecoul_1center_type), DIMENSION(:), & 
                                  POINTER       :: ecoul_1c
     TYPE(rho_atom_type), DIMENSION(:), &
@@ -275,6 +275,8 @@ MODULE  hartree_local_methods
     TYPE(rhoz_type), DIMENSION(:), POINTER     :: rhoz_set
     TYPE(rho_atom_coeff),DIMENSION(:),&
                                  POINTER       :: r_h,r_s
+    TYPE(rho_atom_coeff),DIMENSION(:),&
+                                 POINTER       :: vr_h,vr_s
     TYPE(rho_atom_coeff), DIMENSION(:),&
                                       POINTER  :: cpc_h, cpc_s
     REAL(dp)                                   :: ec_tmp,&
@@ -284,11 +286,12 @@ MODULE  hartree_local_methods
                                                   ecoul_1_z,&
                                                   ecoul_1_h,&
                                                   ecoul_1_s
-    REAL(dp), DIMENSION(:),      POINTER       :: rrad_z
+    REAL(dp), DIMENSION(:),      POINTER       :: rrad_z, vrrad_z
     REAL(dp), DIMENSION(:),  ALLOCATABLE       :: gexp, sqrtwr
     REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: g0_h_w
     REAL(dp), DIMENSION(:,:), POINTER          :: gsph
-    REAL(dp), DIMENSION(:,:),    POINTER       :: Vh1_h, Vh1_s, rrad_0
+    REAL(dp), DIMENSION(:,:),    POINTER       :: Vh1_h, Vh1_s
+    REAL(dp), DIMENSION(:,:),    POINTER       :: rrad_0, vrrad_0
     REAL(dp), DIMENSION(:,:),    POINTER       :: aVh1b_h, aVh1b_s,&
                                                   aVh1b_0
     REAL(dp), DIMENSION(:,:), POINTER          :: zet
@@ -305,6 +308,9 @@ MODULE  hartree_local_methods
                                                   nsotot, nspins
     INTEGER, DIMENSION(:),        POINTER      :: atom_list, lmin, lmax, npgf
     LOGICAL                                    :: paw_atom
+!dbg
+!    REAL(dp), DIMENSION(:,:),    POINTER       :: rho1
+
 !   -----------------------------------------------------------------------------
 
     NULLIFY(atomic_kind_set,rho_atom_set,rho_atom,rho0_atom_set)
@@ -313,6 +319,7 @@ MODULE  hartree_local_methods
     NULLIFY(orb_basis,lmin,lmax,npgf,zet)
 
     CALL get_qs_env(qs_env=qs_env,&
+                    dft_control=dft_control,&
                     atomic_kind_set=atomic_kind_set,&
                     rho_atom_set= rho_atom_set,&
                     rho0_atom_set=rho0_atom_set, &
@@ -321,6 +328,7 @@ MODULE  hartree_local_methods
                     ecoul_1c=ecoul_1c)
 
     nkind = SIZE(atomic_kind_set,1)
+    nspins = dft_control%nspins
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              max_ngrid_rad=max_nr,maxg_iso_not0=max_iso)
@@ -349,7 +357,10 @@ MODULE  hartree_local_methods
       nsotot = maxso*nset
       NULLIFY(gsph)
       CALL reallocate(gsph,1,max_nr,1,nsotot)
-
+!dbg
+!      NULLIFY(rho1)
+!      CALL reallocate(rho1,1,nsotot,1,nsotot)
+!dbg
 
       NULLIFY(Qlm_gg,g0_h)
       CALL get_rho0_mpole(rho0_mpole=rho0_mpole, ikind=ikind, &
@@ -364,6 +375,7 @@ MODULE  hartree_local_methods
 
       NULLIFY(rrad_z,my_CG)
       rrad_z => rhoz_set(ikind)%r_coef
+      vrrad_z => rhoz_set(ikind)%vr_coef
       my_CG  => harmonics%my_CG
 
 !     set to zero temporary arrays
@@ -394,10 +406,12 @@ MODULE  hartree_local_methods
       DO iat = 1,nat
         iatom = atom_list(iat)
 
-        NULLIFY(rho_atom,r_h,r_s,cpc_h,cpc_s)
+        NULLIFY(rho_atom,r_h,r_s,vr_h,vr_s,cpc_h,cpc_s)
         rho_atom => rho_atom_set(iatom)
-        CALL get_rho_atom(rho_atom=rho_atom,rho_rad_h=r_h,&
-                           rho_rad_s=r_s,cpc_h=cpc_h,cpc_s=cpc_s)
+        CALL get_rho_atom(rho_atom=rho_atom,&
+                   rho_rad_h=r_h,rho_rad_s=r_s,&
+               vrho_rad_h=vr_h,vrho_rad_s=vr_s,&
+                        cpc_h=cpc_h,cpc_s=cpc_s)
 
         NULLIFY(Vh1_h,Vh1_s,rrad_0)
         CALL  get_ecoul_1c(ecoul_1c,iatom=iatom,Vh1_h=Vh1_h,Vh1_s=Vh1_s)
@@ -405,8 +419,22 @@ MODULE  hartree_local_methods
         Vh1_s=0.0_dp
 
         rrad_0 => rho0_atom_set(iatom)%rho0_rad_h%r_coef
+        vrrad_0 => rho0_atom_set(iatom)%vrho0_rad_h%r_coef
 
-        CALL calculate_Vh_1center(Vh1_h,Vh1_s,r_h,r_s,rrad_0,rrad_z,grid_atom)
+        Vh1_h(:,1) = vrrad_z(:) 
+
+        DO iso = 1,nchan_0
+          Vh1_s(:,iso) = vrrad_0(:,iso)
+        END DO
+
+        DO ispin = 1,nspins
+          DO iso =1,max_iso_not0
+            Vh1_h(:,iso) = Vh1_h(:,iso) + vr_h(ispin)%r_coef(:,iso)
+            Vh1_s(:,iso) = Vh1_s(:,iso) + vr_s(ispin)%r_coef(:,iso)
+          END DO
+        END DO
+
+!        CALL calculate_Vh_1center(Vh1_h,Vh1_s,r_h,r_s,rrad_0,rrad_z,grid_atom)
 
 !       Calculate the contributions to Ecoul coming from Vh1_h*rhoz 
 
@@ -447,7 +475,7 @@ MODULE  hartree_local_methods
           n1 = nsoset(lmax(iset1))
           DO ipgf1  = 1,npgf(iset1)
             m2 = 0
-            DO iset2 = iset1,nset
+            DO iset2 = 1,nset 
               n2 = nsoset(lmax(iset2))
               DO ipgf2  = 1,npgf(iset2)
 !               with contributions to  V1_s*rho0
@@ -461,12 +489,16 @@ MODULE  hartree_local_methods
                     gVg_h = 0.0_dp
                     gVg_s = 0.0_dp
                     gVg_0 = 0.0_dp
+!dbg
+!   ec_tmp = 0.0_dp
                     DO ir = 1,nr
                        gVg_h = gVg_h + gsph(ir,iso1)*gsph(ir,iso2)* &
                                        Vh1_h(ir,iso)
                        gVg_s = gVg_s + gsph(ir,iso1)*gsph(ir,iso2)* &
                                        Vh1_s(ir,iso)
                        gVg_0 = gVg_0 + Vh1_s(ir,iso)*g0_h_w(ir,l_ang)
+!dbg
+!     ec_tmp =  ec_tmp + gsph(ir,iso1)*gsph(ir,iso2)
                     END DO  ! ir
 
                     aVh1b_h(iso1,iso2) = aVh1b_h(iso1,iso2) + &
@@ -475,6 +507,9 @@ MODULE  hartree_local_methods
                                          gVg_s*my_CG(is1,is2,iso)
                     aVh1b_0(iso1,iso2) = aVh1b_0(iso1,iso2) + &
                                          Qlm_gg(iso1,iso2,iso)*gVg_0
+!dbg
+!     rho1(iso1,iso2) =  rho1(iso1,iso2) +&
+!                       ec_tmp*my_CG(is1,is2,iso)*harmonics%slm_int(iso)
                   END DO  !icg
                 END DO  ! iso
 !               without contributions to  V1_s*rho0 
@@ -506,37 +541,43 @@ MODULE  hartree_local_methods
           m1 = m1 + maxso
         END DO  !iset1
 
-!       Symmetry
-        DO iset1 = 1,nset
-          DO is1 = 1,maxso
-           iso1 = is1 + (iset1 - 1)*maxso
-            DO iset2 = iset1+1,nset
-              DO is2 = 1,maxso
-                iso2 = is2 + (iset2 - 1)*maxso
-                aVh1b_h(iso2,iso1) = aVh1b_h(iso1,iso2)
-                aVh1b_s(iso2,iso1) = aVh1b_s(iso1,iso2)
-                aVh1b_0(iso2,iso1) = aVh1b_0(iso1,iso2)
-              END DO
-            END DO
-          END DO
-        END DO  
-
 !       Calculate the contributions to Ecoul coming from Vh1_h*rho1_h and Vh1_s*rho1_s
-        nspins = SIZE(cpc_h,1)
+
         ecoul_1_h = 0.0_dp
         ecoul_1_s = 0.0_dp
         DO ispin = 1,nspins
            ecoul_1_h  =  ecoul_1_h + &
                       trace_r_AxB(aVh1b_h,nsotot,&
                           cpc_h(ispin)%r_coef,nsotot,&
-                          nsotot,nsotot)
+                          nsotot,nsotot) 
 
            ecoul_1_s  =  ecoul_1_s + &
                       trace_r_AxB(aVh1b_s,nsotot,&
                           cpc_s(ispin)%r_coef,nsotot,&
-                          nsotot,nsotot)
+                          nsotot,nsotot) 
         END DO  ! ispin
-
+!dbg
+!        ec_tmp = trace_r_AxB(rho1,nsotot,&
+!                          cpc_h(1)%r_coef,nsotot,&
+!                          nsotot,nsotot)
+!        WRITE(*,*) 'rho1 h ', ec_tmp        
+!        ec_tmp = trace_r_AxB(rho1,nsotot,&
+!                          cpc_s(1)%r_coef,nsotot,&
+!                          nsotot,nsotot)
+!        WRITE(*,*) 'rho1 s ', ec_tmp
+!        ecoul_1_0 = trace_r_AxB(aVh1b_0,nsotot,&
+!                          cpc_h(1)%r_coef,nsotot,&
+!                          nsotot,nsotot)
+!        ecoul_1_0 = ecoul_1_0 - trace_r_AxB(aVh1b_0,nsotot,&
+!                          cpc_s(1)%r_coef,nsotot,&
+!                          nsotot,nsotot)
+!                    gVg_0 = 0.0_dp
+!                    DO ir = 1,nr
+!                       gVg_0 = gVg_0 + Vh1_s(ir,1)*g0_h_w(ir,0)
+!                    END DO  ! ir
+!        gVg_0 = gVg_0*rho0_mpole%mp_rho(iatom)%Qlm_z/2.0_dp
+!        WRITE(*,*) ' ecoul 0 ' , ecoul_1_0/2.0_dp + gVg_0
+! dbg
         ecoul_1_h = 0.5_dp*ecoul_1_h
         ecoul_1_s = 0.5_dp*ecoul_1_s
 
@@ -546,9 +587,15 @@ MODULE  hartree_local_methods
 
         energy%hartree_1c = energy%hartree_1c + ecoul_1_h - ecoul_1_s 
 
+!  WRITE(*,'(A,I4,4f24.16)') '1c iat ',iat ,  ecoul_1_h , ecoul_1_z ,&
+!                          ecoul_1_s , ecoul_1_0
+!  STOP 'n1+nz-n1s-n0'
       END DO  ! iat
 
     END DO  ! ikind 
+
+!  STOP 'n1+nz-n1s-n0'
+
     DEALLOCATE(gexp,gsph,g0_h_w,sqrtwr)
 
   END SUBROUTINE Vh_1c_gg_integrals

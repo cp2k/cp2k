@@ -433,8 +433,7 @@ MODULE qs_rho0_ggrid
                                                 lmax,npgf
     INTEGER, DIMENSION(:,:), POINTER         :: tasks
     INTEGER                                  :: omp_get_max_threads
-    REAL(dp)                                 :: fourpi
-    REAL(dp)  :: eps_rho_rspace, force_tmp(3), ra(3), scale, zet0_s
+    REAL(dp)  :: c4pi, eps_rho_rspace, force_tmp(3), ra(3), scale, zet0_s
     REAL(dp), DIMENSION(:), POINTER          :: norm_l
     REAL(dp), DIMENSION(:), POINTER          :: hab_sph
     REAL(dp), DIMENSION(:,:), POINTER        :: hab_spht
@@ -447,6 +446,7 @@ MODULE qs_rho0_ggrid
     LOGICAL                                  :: failure, paw_atom
 !   ---------------------------------------------------------------------------
     failure=.FALSE.
+    c4pi = fourpi
 
     CALL timeset("integrate_vhg0_rspace","I","",handle)
 
@@ -629,7 +629,7 @@ MODULE qs_rho0_ggrid
 !$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_v,ikind) &
 !$OMP shared(habt,hdabt,hadbt,hab_spht,hdab_spht)&
 !$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s,l0_ikind) &
-!$OMP shared(norm_l,calculate_forces,fourpi,rho_atom_set,ecoul_1c)&
+!$OMP shared(norm_l,calculate_forces,c4pi,rho_atom_set,ecoul_1c)&
 !$OMP shared(nset,npgf,lmax,maxso,harmonics,force,nso,nsoset,nco,ncoset,indco,orbtramat,dfac,nspins,Qlm_gg)
       DO j=1,npme
 
@@ -670,13 +670,13 @@ MODULE qs_rho0_ggrid
                 hab_sph(iso) = hab_sph(iso) + &
                     orbtramat(lshell)%c2s(is,ic)*hab(ico,1)*&
                     norm_l(lshell)/&
-                    SQRT(fourpi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/&
+                    SQRT(c4pi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/&
                     dfac(2*lshell+1))
 
                 hdab_sph(1:3,iso) = hdab_sph(1:3,iso) +&
                     orbtramat(lshell)%c2s(is,ic)*hdab(1:3,ico,1)*&
                     norm_l(lshell)/&
-                    SQRT(fourpi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/&
+                    SQRT(c4pi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/&
                     dfac(2*lshell+1))
 
               END DO  ! ic
@@ -696,7 +696,7 @@ MODULE qs_rho0_ggrid
                 hab_sph(iso) = hab_sph(iso) + &
                     orbtramat(lshell)%c2s(is,ic)*hab(ico,1)*&
                     norm_l(lshell)/&
-                    SQRT(fourpi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/&
+                    SQRT(c4pi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/&
                     dfac(2*lshell+1))
 
               END DO  ! ic
