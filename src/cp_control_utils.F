@@ -1129,7 +1129,7 @@ CONTAINS
           CASE ("N", "NO")
              t_control%invert_S = .FALSE.
           CASE DEFAULT
-             t_control%invert_S = .FALSE.
+             t_control%invert_S = .TRUE.
           END SELECT
 
        CASE ("RES_ETYPE", &
@@ -1152,7 +1152,7 @@ CONTAINS
           CASE ("LANCZOS")
              t_control%diag_method = "LANCZOS"
           CASE DEFAULT
-             t_control%diag_method = "DAVIDSON"
+             t_control%diag_method = "LANCZOS"
           END SELECT
 
        CASE ("EXCHANGE-CORRELATION-FUNCTIONAL","XC-FUNCTIONAL","XC-FUN",&
