@@ -1987,7 +1987,7 @@ CONTAINS
 
           END DO
 
-          CALL clean_neighbor_list_set(neighbor_list_set)
+!MK          CALL clean_neighbor_list_set(neighbor_list_set)
 
 !         *** Release work storage ***
 
@@ -2230,7 +2230,7 @@ CONTAINS
 
           END DO
 
-          CALL clean_neighbor_list_set(neighbor_list_set)
+!MK          CALL clean_neighbor_list_set(neighbor_list_set)
 
 !         *** Release work storage ***
 
@@ -2690,7 +2690,7 @@ CONTAINS
 
         END IF
 
-        IF (jkind == nkind) CALL clean_neighbor_list_set(neighbor_list_set)
+!MK        IF (jkind == nkind) CALL clean_neighbor_list_set(neighbor_list_set)
 
       END DO
     END DO

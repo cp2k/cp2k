@@ -1192,9 +1192,9 @@ CONTAINS
 
     REAL(wp) :: dca,f,f0,rca2
     INTEGER  :: atom_a,atom_b,atom_c,current_kind,first_col,first_prjc,handle,&
-                i,iatom,ikind,iset,istat,jatom,jkind,katom,kkind,l,lc_max,&
-                lc_min,lppnl,na,natom,nb,ncoa,ncoc,nppnl,nprjc,nseta,nsgf,&
-                prjc,sgfa
+                i,iatom,ikind,ilist,inode,iset,istat,jatom,jkind,katom,kkind,&
+                l,lc_max,lc_min,lppnl,na,natom,nb,ncoa,ncoc,nlist,nnode,nppnl,&
+                nprjc,nseta,nsgf,prjc,sgfa
     LOGICAL  :: ppnl_present
 
     REAL(wp), DIMENSION(1) :: rprjc,zetc
@@ -1216,7 +1216,7 @@ CONTAINS
     TYPE real_block_node_p_type
       TYPE(real_block_node_type), POINTER :: block_node
     END TYPE real_block_node_p_type
-    TYPE(real_block_node_type), POINTER :: block_node_dum
+    TYPE(real_block_node_type), POINTER :: current_block_node
 
     TYPE(real_block_node_p_type), DIMENSION(:), ALLOCATABLE :: ca,cb
 
@@ -1269,6 +1269,8 @@ CONTAINS
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              kind_of=kind_of)
+
+    current_kind = 0
 
 !   *** Loop over all GTH-PPNL operator atom kinds ***
 
@@ -1351,27 +1353,36 @@ CONTAINS
 !     *** Calculate the overlap integrals between the orbital ***
 !     *** basis functions and the GTH(nl) projector functions ***
 
+      CALL get_neighbor_list_set(neighbor_list_set=&
+                                   sca_ppnl(kkind)%neighbor_list_set,&
+                                 nlist=nlist)
+
+!     *** The SCA and SCB neighbor list sets should ***
+!     *** have the same number of neighbor list     ***
+
       sca_neighbor_list => first_list(sca_ppnl(kkind)%neighbor_list_set)
       scb_neighbor_list => first_list(scb_ppnl(kkind)%neighbor_list_set)
 
-      DO WHILE (ASSOCIATED(sca_neighbor_list))
-
-        current_kind = 0
+      DO ilist=1,nlist
 
         CALL get_neighbor_list(neighbor_list=sca_neighbor_list,&
-                               atom=katom)
+                               atom=katom,&
+                               nnode=nnode)
 
         IF (calculate_forces) atom_c = atom_of_kind(katom)
 
         sca_neighbor_node => first_node(sca_neighbor_list)
 
-        DO WHILE (ASSOCIATED(sca_neighbor_node))
+        DO inode=1,nnode
 
           CALL get_neighbor_node(neighbor_node=sca_neighbor_node,&
                                  neighbor=iatom,&
                                  r=rca(:))
 
           ikind = kind_of(iatom)
+
+!         *** Load atomic kind information, if a ***
+!         *** new atomic kind is entcountered    ***
 
           IF (ikind /= current_kind) THEN
 
@@ -1391,6 +1402,8 @@ CONTAINS
                                    set_radius=set_radius_a,&
                                    sphi=sphi_a,&
                                    zet=zeta)
+
+            current_kind = ikind
 
           END IF
 
@@ -1476,11 +1489,12 @@ CONTAINS
 
         END DO
 
-        current_kind = 0
+        CALL get_neighbor_list(neighbor_list=scb_neighbor_list,&
+                               nnode=nnode)
 
         scb_neighbor_node => first_node(scb_neighbor_list)
 
-        DO WHILE (ASSOCIATED(scb_neighbor_node))
+        DO inode=1,nnode
 
           CALL get_neighbor_node(neighbor_node=scb_neighbor_node,&
                                  neighbor=iatom,&
@@ -1506,6 +1520,8 @@ CONTAINS
                                    set_radius=set_radius_a,&
                                    sphi=sphi_a,&
                                    zet=zeta)
+
+            current_kind = ikind
 
           END IF
 
@@ -1599,13 +1615,13 @@ CONTAINS
 
         DO WHILE (ASSOCIATED(ca(1)%block_node))
 
-          block_node_dum => ca(1)%block_node
-          CALL get_block_node(block_node=block_node_dum,&
+          current_block_node => ca(1)%block_node
+          CALL get_block_node(block_node=current_block_node,&
                               block_col=iatom,&
                               block=scaint(1)%block)
           DO i=2,maxder
-            block_node_dum => ca(i)%block_node
-            CALL get_block_node(block_node=block_node_dum,&
+            current_block_node => ca(i)%block_node
+            CALL get_block_node(block_node=current_block_node,&
                                 block=scaint(i)%block)
           END DO
 
@@ -1628,13 +1644,13 @@ CONTAINS
 
           DO WHILE (ASSOCIATED(cb(1)%block_node))
 
-            block_node_dum => cb(1)%block_node
-            CALL get_block_node(block_node=block_node_dum,&
+            current_block_node => cb(1)%block_node
+            CALL get_block_node(block_node=current_block_node,&
                                 block_col=jatom,&
                                 block=scbint(1)%block)
             DO i=2,maxder
-              block_node_dum => cb(i)%block_node
-              CALL get_block_node(block_node=block_node_dum,&
+              current_block_node => cb(i)%block_node
+              CALL get_block_node(block_node=current_block_node,&
                                   block=scbint(i)%block)
             END DO
 
@@ -1734,8 +1750,8 @@ CONTAINS
             END IF
 
             DO i=1,maxder
-              block_node_dum => cb(i)%block_node
-              cb(i)%block_node => next_block_node(block_node_dum)
+              current_block_node => cb(i)%block_node
+              cb(i)%block_node => next_block_node(current_block_node)
             END DO
 
           END DO
@@ -1746,13 +1762,13 @@ CONTAINS
 
           DO WHILE (ASSOCIATED(cb(1)%block_node))
 
-            block_node_dum => cb(1)%block_node
-            CALL get_block_node(block_node=block_node_dum,&
+            current_block_node => cb(1)%block_node
+            CALL get_block_node(block_node=current_block_node,&
                                 block_col=jatom,&
                                 block=scbint(1)%block)
             DO i=2,maxder
-              block_node_dum => cb(i)%block_node
-              CALL get_block_node(block_node=block_node_dum,&
+              current_block_node => cb(i)%block_node
+              CALL get_block_node(block_node=current_block_node,&
                                   block=scbint(i)%block)
             END DO
 
@@ -1810,15 +1826,15 @@ CONTAINS
             END IF
 
             DO i=1,maxder
-              block_node_dum => cb(i)%block_node
-              cb(i)%block_node => next_block_node(block_node_dum)
+              current_block_node => cb(i)%block_node
+              cb(i)%block_node => next_block_node(current_block_node)
             END DO
 
           END DO
 
           DO i=1,maxder
-            block_node_dum => ca(i)%block_node
-            ca(i)%block_node => next_block_node(block_node_dum)
+            current_block_node => ca(i)%block_node
+            ca(i)%block_node => next_block_node(current_block_node)
           END DO
 
         END DO
