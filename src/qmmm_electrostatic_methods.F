@@ -194,7 +194,6 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE  qmmm_electrostatic_on_grid(v_qmmm,mm_particles,mm_charges,&
        mm_el_pot_radius, mm_atom_index,num_mm_atoms,cell,Nexp,error)
-    USE  qmmm_coulomb_potential,  ONLY: Vpot
     Implicit None
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_electrostatic_on_grid', &
          routineP = moduleN//':'//routineN
@@ -229,11 +228,11 @@ CONTAINS
        r0 = mm_el_pot_radius(Imm) 
        !$omp parallel do private(k,j,i,r,rv,xs)
        LoopOnGrid: Do k = bo(1,3), bo(2,3)
-          xs(3) = float(k)/float(n(3))
+          xs(3) = real(k,dbl)/real(n(3),dbl) + 0.5D0
           Do j = bo(1,2), bo(2,2)
-             xs(2) = float(j)/float(n(2))
+             xs(2) = real(j,dbl)/real(n(2),dbl) + 0.5D0
              Do i = bo(1,1), bo(2,1)
-                xs(1) =  float(i)/float(n(1))
+                xs(1) =  real(i,dbl)/real(n(1),dbl) + 0.5D0
                 rv = mm_particles(IndMM)%r(:) - matmul(cell%hmat,xs) 
                 r  = sqrt(rv(1)*rv(1) + rv(2)*rv(2) + rv(3)*rv(3))
                 v_qmmm%pw%cr3d(i,j,k) = v_qmmm%pw%cr3d(i,j,k) + &
@@ -246,5 +245,41 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
   End SUBROUTINE qmmm_electrostatic_on_grid
+
+!!****f* qmmm_electrostatic_methods/Pot  [1.0] *
+!!
+!!   NAME
+!!     Pot 
+!!
+!!   FUNCTION
+!!     Computes the Coulomb Potential using the smooth function as
+!!     Optimized in the article:
+!!
+!!     A. Laio, J. VandeVondele and U. Rothlisberger 
+!!     J. Chem. Phys. 116(16), 6941-6947 (2002)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - r0 : core radius
+!!     - r  : distance
+!!     - Nexp : exponent of the smooth function
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     05.2004 created [tlaino]
+!!
+!!*** **********************************************************************
+  FUNCTION VPot(Nexp,r,r0) RESULT(vsmooth)
+    REAL(dbl), INTENT(IN)   :: r, r0
+    INTEGER,   INTENT(IN)   :: Nexp
+    REAL(dbl) :: vsmooth
+    
+    vsmooth = (r**Nexp - r0**Nexp)/(r**(Nexp+1) - r0**(Nexp+1))
+    
+  End FUNCTION VPot 
 
 End MODULE qmmm_electrostatic_methods

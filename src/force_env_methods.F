@@ -44,6 +44,8 @@ MODULE force_env_methods
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_retain
+  USE kinds,                           ONLY: dbl,&
+                                             dp
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
                                              force_env_read_variables,&
@@ -563,6 +565,8 @@ RECURSIVE SUBROUTINE qmmm_forces(force_env,box_change,error)
   INTEGER, DIMENSION(:), POINTER :: qm_atom_index, qm_subsys_index
   INTEGER :: ip, isubsys
   TYPE(particle_type), DIMENSION(:), POINTER :: particles_qm, particles_mm
+  REAL(dbl), DIMENSION(3) :: min_coord,max_coord,transl_v
+  TYPE(cell_type), POINTER :: cell_loc
 
   failure=.false.
   NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm)
@@ -575,7 +579,7 @@ RECURSIVE SUBROUTINE qmmm_forces(force_env,box_change,error)
   CALL force_env_get(force_env%sub_force_env(1)%force_env,&
        subsys=subsys_mm,error=error)
   CALL force_env_get(force_env%sub_force_env(2)%force_env,&
-       subsys=subsys_qm,error=error)
+       cell=cell_loc,subsys=subsys_qm,error=error)
   qm_atom_index => force_env%qmmm_env%qm_atom_index
   qm_subsys_index => force_env%qmmm_env%qm_subsys_index
   CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
@@ -583,6 +587,30 @@ RECURSIVE SUBROUTINE qmmm_forces(force_env,box_change,error)
   CPPrecondition(SIZE(subsys_qm)==1,cp_failure_level,routineP,error,failure)
   CPPrecondition(SIZE(subsys_mm)==1,cp_failure_level,routineP,error,failure)
   particles_qm => subsys_qm(1)%subsys%particles%els
+  isubsys=-1
+  DO ip=1,SIZE(qm_atom_index)
+     IF (isubsys/=qm_subsys_index(ip)) THEN
+        isubsys=qm_subsys_index(ip)
+        particles_mm => subsys_mm(isubsys)%subsys%particles%els
+     END IF
+     min_coord=MIN(min_coord,particles_mm(qm_atom_index(ip))%r)
+     max_coord=MAX(max_coord,particles_mm(qm_atom_index(ip))%r)
+  END DO
+  WRITE(*,*)max_coord, min_coord
+  transl_v = (max_coord + min_coord) / 2.0_dp
+  transl_v(1) = transl_v(1) - cell_loc%hmat(1,1)/2.0_dp
+  transl_v(2) = transl_v(2) - cell_loc%hmat(2,2)/2.0_dp
+  transl_v(3) = transl_v(3) - cell_loc%hmat(3,3)/2.0_dp
+  
+  DO isubsys=1,SIZE(subsys_mm)     
+     particles_mm => subsys_mm(isubsys)%subsys%particles%els
+     DO ip=1,subsys_mm(isubsys)%subsys%particles%n_els
+        particles_mm(ip)%r = &
+             particles_mm(ip)%r - transl_v
+     END DO
+  END DO
+  WRITE(*,'(A)')'PIPPO'
+  CALL force_env_write_variables(force_env, 6, .true., error)
   isubsys=-1
   DO ip=1,SIZE(qm_atom_index)
      IF (isubsys/=qm_subsys_index(ip)) THEN
@@ -653,6 +681,8 @@ RECURSIVE SUBROUTINE qmmm_energy(force_env,box_change,error)
   INTEGER, DIMENSION(:), POINTER :: qm_atom_index, qm_subsys_index
   TYPE(particle_type), DIMENSION(:), POINTER :: particles_qm, particles_mm
   INTEGER :: ip,isubsys
+  REAL(dbl), DIMENSION(3) :: min_coord,max_coord,transl_v
+  TYPE(cell_type), POINTER :: cell_loc
 
   failure=.false.
   NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm)
@@ -665,13 +695,39 @@ RECURSIVE SUBROUTINE qmmm_energy(force_env,box_change,error)
   CALL force_env_get(force_env%sub_force_env(1)%force_env,&
        subsys=subsys_mm,error=error)
   CALL force_env_get(force_env%sub_force_env(2)%force_env,&
-       subsys=subsys_qm,error=error)
+       cell=cell_loc,subsys=subsys_qm,error=error)
   qm_atom_index => force_env%qmmm_env%qm_atom_index
   qm_subsys_index => force_env%qmmm_env%qm_subsys_index
   CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(qm_subsys_index),cp_failure_level,routineP,error,failure)
   CPPrecondition(SIZE(subsys_qm)==1,cp_failure_level,routineP,error,failure)
   particles_qm => subsys_qm(1)%subsys%particles%els
+  isubsys=-1
+  DO ip=1,SIZE(qm_atom_index)
+     IF (isubsys/=qm_subsys_index(ip)) THEN
+        isubsys=qm_subsys_index(ip)
+        particles_mm => subsys_mm(isubsys)%subsys%particles%els
+     END IF
+     min_coord=MIN(min_coord,particles_mm(qm_atom_index(ip))%r)
+     max_coord=MAX(max_coord,particles_mm(qm_atom_index(ip))%r)
+  END DO
+  WRITE(*,'(A)')'PIPPO1'
+  CALL force_env_write_variables(force_env, 6, .true., error)
+  WRITE(*,*)max_coord, min_coord
+  transl_v = (max_coord + min_coord) / 2.0_dp
+  transl_v(1) = transl_v(1) - cell_loc%hmat(1,1)/2.0_dp
+  transl_v(2) = transl_v(2) - cell_loc%hmat(2,2)/2.0_dp
+  transl_v(3) = transl_v(3) - cell_loc%hmat(3,3)/2.0_dp
+  
+  DO isubsys=1,SIZE(subsys_mm)     
+     particles_mm => subsys_mm(isubsys)%subsys%particles%els
+     DO ip=1,subsys_mm(isubsys)%subsys%particles%n_els
+        particles_mm(ip)%r = &
+             particles_mm(ip)%r - transl_v
+     END DO
+  END DO
+  WRITE(*,'(A)')'PIPPO2'
+  CALL force_env_write_variables(force_env, 6, .true., error)
   isubsys=-1
   DO ip=1,SIZE(qm_atom_index)
      IF (isubsys/=qm_subsys_index(ip)) THEN

@@ -238,7 +238,6 @@ OBJECTS_GENERIC =\
  pw_spline_utils.o\
  pw_types.o\
  pws.o\
- qmmm_coulomb_potential.o\
  qmmm_electrostatic_methods.o\
  qmmm_init.o\
  qmmm_methods.o\

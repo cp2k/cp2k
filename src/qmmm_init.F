@@ -76,7 +76,8 @@ MODULE qmmm_init
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE simulation_cell,                 ONLY: cell_retain,&
                                              cell_type,&
-                                             init_qmmm_cell
+                                             init_qmmm_cell,&
+                                             cell_clone
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: connectivity_control,&
@@ -191,7 +192,7 @@ CONTAINS
           ALLOCATE (qm_cell_small,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       qm_cell_small = mm_cell
+       CALL cell_clone(mm_cell, qm_cell_small,.true.)
 
        CALL qmmm_namelist_read
        qmmm_env%qm_atom_index   => qm_atom_index
@@ -355,6 +356,7 @@ CONTAINS
                     CALL read_object(qm_cell_small%hmat(2,3))
                     CALL read_object(qm_cell_small%hmat(3,3))
                  END SELECT
+                 qm_cell_small%hmat=qm_cell_small%hmat(:,:)*qm_cell_small%unit_of_length
               CASE("ECOUPL","E_COUPL")
                  CALL read_object(qmmm_coupl_type)
               CASE("EXP_POT")

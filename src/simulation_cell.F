@@ -91,7 +91,8 @@ MODULE simulation_cell
             write_cell,&
             cell_create,&
             cell_retain,&
-            cell_release
+            cell_release,&
+            cell_clone
 
 ! *** Public functions ***
 
@@ -115,6 +116,42 @@ MODULE simulation_cell
 
 CONTAINS
 
+  SUBROUTINE cell_clone (cell_in, cell_out, nullify_pointer, error)
+    ! Arguments
+    TYPE(cell_type), POINTER    :: cell_in
+    TYPE(cell_type), POINTER    :: cell_out
+    LOGICAL, INTENT(IN) :: nullify_pointer
+    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL :: error
+    ! Local Variables
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: RoutineP=module_name//&
+                                    ":cell_clone"
+    failure=.false.
+    CPPrecondition(ASSOCIATED(cell_in),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(cell_out),cp_failure_level,routineP,error,failure)
+
+    if (nullify_pointer) then
+       NULLIFY(cell_out%green%p3m_coeff, &
+                                 cell_out%green%p3m_bm2, &
+                                 cell_out%green%influence_function, &
+                                 !cell_out%green%screen_function, &
+                                 cell_out%green%p3m_charge)
+    else
+       CPAssert(.false.,cp_failure_level,RoutineP,error,failure)
+    endif
+
+    cell_out%unit_of_length_name = cell_in%unit_of_length_name
+    cell_out%deth =                cell_in%deth
+    cell_out%subcells =            cell_in%subcells
+    cell_out%unit_of_length =      cell_in%unit_of_length
+    cell_out%perd =                cell_in%perd
+    cell_out%hmat =                cell_in%hmat
+    cell_out%h_inv =               cell_in%h_inv
+    cell_out%ref_count = 1
+    last_cell_id = last_cell_id + 1
+    cell_out%id_nr = last_cell_id
+  END SUBROUTINE cell_clone
+ 
 ! *****************************************************************************
 
   SUBROUTINE get_cell(cell,unit_of_length_name,alpha,beta,deth,gamma,&
