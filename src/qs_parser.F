@@ -444,7 +444,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE open_file(file_name,file_status,file_form,file_action,unit_number)
+  SUBROUTINE open_file(file_name,file_status,file_form,file_action,&
+                       file_position,unit_number)
 
 !   Purpose: Open the file with the name "file_name".
 
@@ -453,7 +454,10 @@ CONTAINS
 !   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(IN)           :: file_name
-    CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: file_action,file_form,file_status
+    CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: file_action,&
+                                              file_form,&
+                                              file_position,&
+                                              file_status
     INTEGER, INTENT(OUT)                   :: unit_number
 
 !   *** Local parameters ***
@@ -463,7 +467,9 @@ CONTAINS
 !   *** Local variables ***
 
     CHARACTER(LEN=max_message_length) :: message
-    CHARACTER(LEN=11)                 :: action_string,form_string,&
+    CHARACTER(LEN=11)                 :: action_string,&
+                                         form_string,&
+                                         position_string,&
                                          status_string
     INTEGER                           :: istat
     LOGICAL                           :: exists,opened
@@ -489,6 +495,13 @@ CONTAINS
       CALL uppercase(action_string)
     ELSE
       action_string = "READ"
+    END IF
+
+    IF (PRESENT(file_position)) THEN
+      position_string = file_position
+      CALL uppercase(position_string)
+    ELSE
+      position_string = "REWIND"
     END IF
 
 !   *** Check the specified input file name ***
@@ -527,9 +540,14 @@ CONTAINS
                           "exists and is not connected")
       END IF
 
-      OPEN (UNIT=unit_number,FILE=TRIM(file_name),STATUS=TRIM(status_string),&
-            ACCESS="SEQUENTIAL",FORM=TRIM(form_string),POSITION="REWIND",&
-            ACTION=TRIM(action_string),IOSTAT=istat)
+      OPEN (UNIT=unit_number,&
+            FILE=TRIM(file_name),&
+            STATUS=TRIM(status_string),&
+            ACCESS="SEQUENTIAL",&
+            FORM=TRIM(form_string),&
+            POSITION=TRIM(position_string),&
+            ACTION=TRIM(action_string),&
+            IOSTAT=istat)
 
       IF (istat /= 0) THEN
         WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
