@@ -727,6 +727,7 @@ CONTAINS
 !   *** add the converged wavefunction to the wavefunction history
 !   should possibly be moved down after de-mixing
     IF (ASSOCIATED(qs_env%wf_history)) THEN
+
         CALL wfi_update(qs_env%wf_history,qs_env=qs_env,dt=1.0_dp,&
                         kg_fm_mol_set=kg_fm%kg_fm_mol_set,error=error)
     END IF
@@ -1222,6 +1223,7 @@ CONTAINS
 !
 !   ---------------------------------------------------------------------------
 !
+    failure = .FALSE.
     NULLIFY( aux_matrix, atomic_kind_set, dft_control, &
             para_env, particle_set, kg_fm_mol_set, &
             matrix_h, matrix_s,matrix_p, scf_control)
@@ -1311,17 +1313,17 @@ CONTAINS
             NULLIFY(mo_set,mo_coeff)
             mo_set => mos(ispin)%mo_set
             CALL get_mol_mo_set(mo_set=mo_set, mo = mo_coeff,&
-                                nmo=nmo)
+                 nmo=nmo)
             ! Initialize random coefficients
             CALL  mol_mo_random(mo_coeff,para_env%mepos,para_env%num_pe) 
             ! Multiply Overlap matric and Coefficient matrix
             CALL  multiply_sparse_mol_mo(matrix_s(1)%matrix,mol_block,&
-                                         nat_mol,mo_coeff,nmo,s_mo)
+                  nat_mol,mo_coeff,nmo,s_mo)
             ! orthogonalize the molecular orbitals 
             CALL mol_make_basis(mo_coeff, nmo, matrix_ortho=s_mo, otype="SV")
 
             CALL calculate_mol_density_matrix(mo_set,mol_block,&
-                                       nat_mol,matrix_p(ispin)%matrix,error=error)
+                 nat_mol,matrix_p(ispin)%matrix,error=error)
           ENDDO  ! ispin
         END DO  ! imol
 

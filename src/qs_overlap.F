@@ -612,9 +612,9 @@ CONTAINS
     ionode = globenv%ionode
     output_unit = globenv%scr
 
-    CALL m_flush(output_unit)
 
     IF (ionode) THEN
+      CALL m_flush(output_unit)
 
       CALL get_qs_env(qs_env=qs_env,&
                       atomic_kind_set=atomic_kind_set,&
@@ -693,7 +693,7 @@ CONTAINS
     END IF
 
     CALL mp_sync(group)
-    CALL m_flush(output_unit)
+    IF(ionode) CALL m_flush(output_unit)
 
   END SUBROUTINE write_matrix
 

@@ -440,6 +440,31 @@ CONTAINS
   END SUBROUTINE init_mol_mo_set
 
 ! *****************************************************************************
+!***************************************************************************
+!!****f* kg_gpw_fm_mol_types/kg_gpw_fm_mol_to_fm_mol
+!!
+!!   NAME
+!!    kg_gpw_fm_mol_to_fm_mol
+!!
+!!   FUNCTION
+!!     Copy the full set of molecular mos into a new set
+!!     This is needed to store the mos when some sort of extrapolation
+!!     is used as an initial guess for the next set of MD or GEO_OPT
+!!     
+!!   NOTE
+!!
+!!   INPUTS
+!!     - fm_mol_set_a : contains the actual  mos 
+!!     - fm_mol_set_b : where the mos are stored
+!!     - error
+!!
+!!   AURHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
+
   SUBROUTINE kg_gpw_fm_mol_to_fm_mol(fm_mol_set_a,fm_mol_set_b,error)
 
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
@@ -458,8 +483,13 @@ CONTAINS
     TYPE(fm_mol_blocks_type), POINTER         :: mol_block_a,&
                                                  mol_block_b
     TYPE(kg_fm_mol_set_type), POINTER         :: fm_mol
+
+!
+!   ---------------------------------------------------------------------------
+!
+
     nmolecule_kind=SIZE(fm_mol_set_a,1)
-    CPPostcondition(SIZE(fm_mol_set_b)==nmolecule_kind,cp_failure_level,routineP,error,failure)
+    CPPostcondition(SIZE(fm_mol_set_b,1)==nmolecule_kind,cp_failure_level,routineP,error,failure)
 
     IF(.NOT. failure) THEN
       DO i = 1,nmolecule_kind
@@ -471,19 +501,35 @@ CONTAINS
         fm_mol_set_b(i)%nelectron_spin = fm_mol_set_a(i)%nelectron_spin
         fm_mol_set_b(i)%nmol_kind_global = fm_mol_set_a(i)%nmol_kind_global 
         fm_mol_set_b(i)%nmolecule_local = fm_mol_set_a(i)%nmolecule_local
-
         n_ao = fm_mol_set_a(i)%n_ao
         n_mo = fm_mol_set_a(i)%n_mo
-        nmol = SIZE(fm_mol_set_a(i)%fm_mol_blocks)
+        nmol = SIZE(fm_mol_set_a(i)%fm_mol_blocks,1)
         natom = fm_mol_set_a(i)%natom
-        CALL allocate_fm_mol_blocks(fm_mol_set_b(i),nmol,error)
+
+        IF(.NOT. ASSOCIATED(fm_mol_set_b(i)%fm_mol_blocks)) THEN
+          CALL allocate_fm_mol_blocks(fm_mol_set_b(i),nmol,error)
+        END IF
+
         DO imol = 1,nmol
           mol_block_a => fm_mol_set_a(i)%fm_mol_blocks(imol)
           nspins = SIZE(mol_block_a%mos,1)
           mol_block_b => fm_mol_set_b(i)%fm_mol_blocks(imol)
-          DO ispin = 1,nspins
-            ALLOCATE (fm_mol_set_b(i)%fm_mol_blocks(imol)%mos(ispin)%mo_set,STAT=istat)
+
+          IF(.NOT. ASSOCIATED(mol_block_b%mos)) THEN
+            ALLOCATE (fm_mol_set_b(i)%fm_mol_blocks(imol)%mos(nspins), STAT=istat)
             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            DO ispin = 1,nspins
+             NULLIFY(fm_mol_set_b(i)%fm_mol_blocks(imol)%mos(ispin)%mo_set)
+            END DO 
+          END IF
+          DO ispin = 1,nspins
+            IF(.NOT. ASSOCIATED(mol_block_b%mos(ispin)%mo_set)) THEN
+              ALLOCATE (fm_mol_set_b(i)%fm_mol_blocks(imol)%mos(ispin)%mo_set,STAT=istat)
+              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+              NULLIFY(fm_mol_set_b(i)%fm_mol_blocks(imol)%mos(ispin)%mo_set%mo)
+              NULLIFY(fm_mol_set_b(i)%fm_mol_blocks(imol)%mos(ispin)%mo_set%eigenvalues)
+              NULLIFY(fm_mol_set_b(i)%fm_mol_blocks(imol)%mos(ispin)%mo_set%occupation_numbers)
+            END IF
 
             mol_block_b%mos(ispin)%mo_set%nmo =  n_mo(ispin)
             mol_block_b%mos(ispin)%mo_set%nao = n_ao
@@ -496,27 +542,31 @@ CONTAINS
             mol_block_b%mos(ispin)%mo_set%lfomo = &
                         mol_block_a%mos(ispin)%mo_set%lfomo 
 
-            ALLOCATE (fm_mol_set_b(i)%fm_mol_blocks(imol)%mos(ispin)%&
-                      mo_set%mo(n_ao,n_mo(ispin)),STAT=istat)
+            IF(.NOT. ASSOCIATED(mol_block_b%mos(ispin)%mo_set%mo)) THEN
+              ALLOCATE (fm_mol_set_b(i)%fm_mol_blocks(imol)%mos(ispin)%&
+                        mo_set%mo(n_ao,n_mo(ispin)),STAT=istat)
+            END IF
             CALL DCOPY(n_ao*n_mo(ispin),mol_block_a%mos(ispin)%mo_set%mo(1,1),1,&
                                         mol_block_b%mos(ispin)%mo_set%mo(1,1),1)
           END DO  ! ispin
-           
-          ALLOCATE(fm_mol_set_b(i)%fm_mol_blocks(imol)%ifirst_ao(natom),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          
+          IF(.NOT. ASSOCIATED(mol_block_b%ifirst_ao)) THEN
+            ALLOCATE(fm_mol_set_b(i)%fm_mol_blocks(imol)%ifirst_ao(natom),STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            ALLOCATE(fm_mol_set_b(i)%fm_mol_blocks(imol)%ilast_ao(natom),STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            ALLOCATE(fm_mol_set_b(i)%fm_mol_blocks(imol)%index_atom(natom),STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          END IF
+
           fm_mol_set_b(i)%fm_mol_blocks(imol)%ifirst_ao(1:natom) = mol_block_a%ifirst_ao(1:natom)
-          ALLOCATE(fm_mol_set_b(i)%fm_mol_blocks(imol)%ilast_ao(natom),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           fm_mol_set_b(i)%fm_mol_blocks(imol)%ilast_ao(1:natom) = mol_block_a%ilast_ao(1:natom)
-          ALLOCATE(fm_mol_set_b(i)%fm_mol_blocks(imol)%index_atom(natom),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           fm_mol_set_b(i)%fm_mol_blocks(imol)%index_atom(1:natom) =&
                                               mol_block_a%index_atom(1:natom)
         END DO  ! imol
 
       END DO  ! i 
     END IF
-
   END SUBROUTINE kg_gpw_fm_mol_to_fm_mol
 
 ! *****************************************************************************
@@ -598,32 +648,48 @@ CONTAINS
         DO is = 1,nspins
           DEALLOCATE(fm_mol_block%mos(is)%mo_set%mo,STAT=istat)
           CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-          DEALLOCATE(fm_mol_block%mos(is)%mo_set%eigenvalues,STAT=istat)
-          CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-          DEALLOCATE(fm_mol_block%mos(is)%mo_set%occupation_numbers,STAT=istat)
-          CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+          IF(ASSOCIATED(fm_mol_block%mos(is)%mo_set%eigenvalues)) THEN
+            DEALLOCATE(fm_mol_block%mos(is)%mo_set%eigenvalues,STAT=istat)
+            CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+          END IF
+          IF(ASSOCIATED(fm_mol_block%mos(is)%mo_set%occupation_numbers)) THEN
+            DEALLOCATE(fm_mol_block%mos(is)%mo_set%occupation_numbers,STAT=istat)
+            CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+          END IF
           DEALLOCATE(fm_mol_block%mos(is)%mo_set,STAT=istat)
           CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         END DO
         DEALLOCATE(fm_mol_block%mos,STAT=istat)
         CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-        DEALLOCATE(fm_mol_block%ortho,STAT=istat)
-        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-        IF(ASSOCIATED(fm_mol_block%work)) &
-                      DEALLOCATE(fm_mol_block%work,STAT=istat)
-        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-        DEALLOCATE(fm_mol_block%index_atom,STAT=istat)
-        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-        DEALLOCATE(fm_mol_block%index_kind,STAT=istat)
-        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-        DEALLOCATE(fm_mol_block%ifirst_ao,STAT=istat)
-        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-        DEALLOCATE(fm_mol_block%ilast_ao,STAT=istat)
-        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+        IF(ASSOCIATED(fm_mol_block%ortho)) THEN
+          DEALLOCATE(fm_mol_block%ortho,STAT=istat)
+          CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+        END IF
+        IF(ASSOCIATED(fm_mol_block%work))  THEN
+          DEALLOCATE(fm_mol_block%work,STAT=istat)
+          CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+        END IF
+        IF(ASSOCIATED(fm_mol_block%index_atom)) THEN
+          DEALLOCATE(fm_mol_block%index_atom,STAT=istat)
+          CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+        END IF
+        IF(ASSOCIATED(fm_mol_block%index_kind)) THEN
+          DEALLOCATE(fm_mol_block%index_kind,STAT=istat)
+          CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+        END IF
+        IF(ASSOCIATED(fm_mol_block%ifirst_ao)) THEN
+          DEALLOCATE(fm_mol_block%ifirst_ao,STAT=istat)
+          CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+        END IF
+        IF(ASSOCIATED(fm_mol_block%ilast_ao)) THEN
+          DEALLOCATE(fm_mol_block%ilast_ao,STAT=istat)
+          CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+        END IF
       END DO
-
-      DEALLOCATE(kg_fm_mol_set(i)%fm_mol_blocks, STAT=istat)
-      CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+      IF(ASSOCIATED(kg_fm_mol_set(i)%fm_mol_blocks)) THEN
+        DEALLOCATE(kg_fm_mol_set(i)%fm_mol_blocks, STAT=istat)
+        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+      END IF
     END DO 
     DEALLOCATE(kg_fm_mol_set, STAT=istat)
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)

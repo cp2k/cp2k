@@ -523,9 +523,6 @@ CONTAINS
 
     CALL qs_env_create(qs_env, para_env=para_env, error=error)
 
-!   For the moment we rely only on the wfi_use_guess_method_nr method
-!   In order to have the extrapolation methods a different structure of 
-!   the stored snapshots has to be added
     CALL wfi_create(wf_history,&
                     interpolation_method_nr = &
                     dft_control%qs_control%wf_interpolation_method_nr,&

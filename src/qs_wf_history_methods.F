@@ -67,6 +67,9 @@ MODULE qs_wf_history_methods
                                              kg_fm_mol_set_release,&
                                              kg_fm_mol_set_type,&
                                              kg_gpw_fm_mol_to_fm_mol
+  USE kg_gpw_wf_history,               ONLY: kg_gpw_fm_mol_linear,&
+                                             kg_gpw_fm_mol_ps,&
+                                             kg_gpw_prev_wf
   USE kg_gpw_pw_env_methods,           ONLY: kg_rho_update_rho_mol
   USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_type
   USE kinds,                           ONLY: dp
@@ -278,6 +281,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
           IF (.NOT.ASSOCIATED(snapshot%wf_mol)) THEN
             CALL kg_fm_mol_set_create(snapshot%wf_mol,nmolecule_kind,error)
           END IF
+
           CALL kg_gpw_fm_mol_to_fm_mol(kg_fm_mol_set,snapshot%wf_mol%kg_fm_mol_set,error)
         ELSE
           CALL get_qs_env(qs_env,mos=mos,error=error)
@@ -449,6 +453,7 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
      NULLIFY(wf_history%past_states)
 
      wf_history%interpolation_method_nr=interpolation_method_nr
+
      SELECT CASE(wf_history%interpolation_method_nr)
      CASE(wfi_use_guess_method_nr)
         wf_history%memory_depth=0
@@ -632,7 +637,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
                                                 nmo, nvec
     LOGICAL                                  :: failure, my_gapw, my_kg_gpw,&
                                                 my_orthogonal_wf
-    REAL(KIND=dp)                            :: alpha, t0, t1, t2
+    REAL(KIND=dp)                            :: alpha, beta, t0, t1, t2
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct, &
@@ -643,8 +648,10 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
       POINTER                                :: mos
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_wf_snapshot_type), POINTER       :: t0_state, t1_state
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                 :: matrix_s
 
-  NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, mo_coeff, rho)
+  NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, matrix_s, mo_coeff, rho)
   failure=.FALSE.
   my_gapw = .FALSE. 
   IF(PRESENT(gapw)) my_gapw = gapw
@@ -659,7 +666,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
   CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)  
   IF (.NOT. failure) THEN
      CALL get_qs_env(qs_env, mos=mos,&
-          rho=rho,error=error)
+          rho=rho,matrix_s=matrix_s,error=error)
      CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
           error=error)
 
@@ -706,9 +713,10 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
         ! does nothing
      CASE(wfi_use_prev_wf_method_nr)
         my_orthogonal_wf=.TRUE.
+
         IF(my_kg_gpw) THEN
-           stop 'kg_gpw wfi_use_prev_wf_method_nr and not implemented yet' 
            CPPrecondition(PRESENT(kg_fm_mol_set),cp_failure_level,routineP,error,failure)
+           CALL kg_gpw_prev_wf(kg_fm_mol_set,rho%rho_ao,matrix_s,error=error)
         ELSE
           DO ispin=1,SIZE(mos)
              CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,&
@@ -762,7 +770,10 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
         t1_state => wfi_get_snapshot(wf_history, index=1, error=error)
         CPPrecondition(ASSOCIATED(t0_state),cp_warning_level,routineP,error,failure)
         CPPrecondition(ASSOCIATED(t1_state),cp_warning_level,routineP,error,failure)
-        IF (.not.failure) THEN
+        IF(.not. failure .AND. my_kg_gpw) THEN
+           CPPrecondition(ASSOCIATED(t0_state%wf_mol),cp_warning_level,routineP,error,failure)
+           CPPrecondition(ASSOCIATED(t1_state%wf_mol),cp_warning_level,routineP,error,failure)           
+        ELSE IF (.not.failure) THEN
            CPPrecondition(ASSOCIATED(t0_state%wf),cp_warning_level,routineP,error,failure)
            CPPrecondition(ASSOCIATED(t1_state%wf),cp_warning_level,routineP,error,failure)           
         END IF
@@ -772,8 +783,12 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
            t1=t1_state%dt
            t2=t1+dt
            IF(my_kg_gpw) THEN
-             stop 'kg_gpw wfi_linear_wf_method_nr and not implemented yet' 
              CPPrecondition(PRESENT(kg_fm_mol_set),cp_failure_level,routineP,error,failure)
+             CALL kg_gpw_fm_mol_linear(alpha=0.0_dp,set_a=kg_fm_mol_set,&
+                  beta=(t2-t0)/(t1-t0),set_b=t1_state%wf_mol%kg_fm_mol_set,error=error)
+             CALL kg_gpw_fm_mol_linear(alpha=1.0_dp,set_a=kg_fm_mol_set,&
+                  beta=(t1-t2)/(t1-t0),set_b=t0_state%wf_mol%kg_fm_mol_set,&
+                  matrix_p=rho%rho_ao,matrix_s=matrix_s,error=error)
            ELSE
              DO ispin=1,SIZE(mos)
                 CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,&
@@ -816,30 +831,23 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
            CPPrecondition(ASSOCIATED(t1_state%rho_ao),cp_warning_level,routineP,error,failure)           
         END IF
         IF (.not.failure) THEN
-           t0=0.0_dp
-           t1=t1_state%dt
-           t2=t1+dt
-           IF(my_kg_gpw) THEN
-             stop 'kg_gpw wfi_linear_p_method_nr and not implemented yet' 
-             CPPrecondition(PRESENT(kg_fm_mol_set),cp_failure_level,routineP,error,failure)
-           ELSE
-
-             DO ispin=1,SIZE(mos)
-                CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
-                CALL cp_sm_scale_and_add(alpha=0.0_dp,&
-                     matrix_a=rho%rho_ao(ispin)%matrix,&
-                     matrix_b=t1_state%rho_ao(ispin)%matrix,&
-                     beta=(t2-t0)/(t1-t0),&
-                     error=error) ! this copy should be unnecessary
-                CALL cp_sm_scale_and_add(alpha=1.0_dp,&
-                     matrix_a=rho%rho_ao(ispin)%matrix,&
-                     beta=(t1-t2)/(t1-t0), &
-                     matrix_b=t0_state%rho_ao(ispin)%matrix,&
-                     error=error)
+          t0=0.0_dp
+          t1=t1_state%dt
+          t2=t1+dt
+          DO ispin=1,SIZE(rho%rho_ao)
+!             CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
+             CALL cp_sm_scale_and_add(alpha=0.0_dp,&
+                  matrix_a=rho%rho_ao(ispin)%matrix,&
+                  matrix_b=t1_state%rho_ao(ispin)%matrix,&
+                  beta=(t2-t0)/(t1-t0),&
+                  error=error) ! this copy should be unnecessary
+             CALL cp_sm_scale_and_add(alpha=1.0_dp,&
+                  matrix_a=rho%rho_ao(ispin)%matrix,&
+                  beta=(t1-t2)/(t1-t0), &
+                  matrix_b=t0_state%rho_ao(ispin)%matrix,&
+                  error=error)
                 ! purify ?
-            
-             END DO
-          END IF
+          END DO
           CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=my_gapw, error=error)
           IF(my_gapw) THEN
               CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
@@ -911,8 +919,34 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
         CPPrecondition(nvec .GT. 0,cp_failure_level,routineP,error,failure)
         my_orthogonal_wf=.TRUE.
         IF(my_kg_gpw) THEN
-           stop 'kg_gpw wfi_ps_method_nr and not implemented yet' 
            CPPrecondition(PRESENT(kg_fm_mol_set),cp_failure_level,routineP,error,failure)
+
+           ! first the most recent
+           t1_state => wfi_get_snapshot(wf_history, index=1, error=error)
+           beta = REAL(nvec,dp)
+           IF(nvec==1) THEN
+             CALL kg_gpw_fm_mol_linear(alpha=0.0_dp, set_a=kg_fm_mol_set,&
+                  beta=beta, set_b=t1_state%wf_mol%kg_fm_mol_set,&
+                  matrix_p=rho%rho_ao, matrix_s=matrix_s, error=error)
+           ELSE
+             CALL kg_gpw_fm_mol_linear(alpha=0.0_dp, set_a=kg_fm_mol_set,&
+                  beta=beta, set_b=t1_state%wf_mol%kg_fm_mol_set, error=error)
+
+             DO i=2,nvec-1
+               t0_state => wfi_get_snapshot(wf_history, index=i, error=error)
+               beta = -1.0_dp * beta * REAL(nvec - i + 1 , dp ) / REAL(i , dp )
+               CALL kg_gpw_fm_mol_ps(set_a=kg_fm_mol_set,&
+                    beta=beta,set_b=t0_state%wf_mol%kg_fm_mol_set,ov_b=t0_state%overlap,&
+                    set_last=t1_state%wf_mol%kg_fm_mol_set,error=error)
+             END DO
+             ! finally calculate the density
+             t0_state => wfi_get_snapshot(wf_history, index=nvec, error=error)
+             beta = -1.0_dp * beta  / REAL(nvec , dp ) 
+             CALL kg_gpw_fm_mol_ps(set_a=kg_fm_mol_set,&
+                  beta=beta,set_b=t0_state%wf_mol%kg_fm_mol_set,ov_b=t0_state%overlap,&
+                  set_last=t1_state%wf_mol%kg_fm_mol_set, matrix_p=rho%rho_ao,matrix_s=matrix_s,&
+                  error=error)
+           END IF
         ELSE
            DO ispin=1,SIZE(mos)
               NULLIFY(mo_coeff,matrix_struct,matrix_struct_new,csc,fm_tmp)
