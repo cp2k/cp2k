@@ -818,7 +818,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_neighbor_list_set(neighbor_list_set,r_max,nlist)
+  SUBROUTINE get_neighbor_list_set(neighbor_list_set,r_max,nlist,error)
 
 !   Purpose: Return the components of a neighbor list set.
 
@@ -829,19 +829,17 @@ CONTAINS
     TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
     REAL(wp), OPTIONAL, INTENT(OUT)       :: r_max
     INTEGER, OPTIONAL, INTENT(OUT)        :: nlist
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE get_neighbor_list_set (MODULE qs_neighbor_list_types)"
-
+    CHARACTER(len=*), PARAMETER :: routineN='get_neighbor_list_set',&
+        routineP=moduleN//':'//routineN
+    LOGICAL :: failure
 !   ---------------------------------------------------------------------------
 
-    IF (ASSOCIATED(neighbor_list_set)) THEN
-      IF (PRESENT(r_max)) r_max = neighbor_list_set%r_max
-      IF (PRESENT(nlist)) nlist = neighbor_list_set%nlist
-    ELSE
-      CALL stop_program(routine,&
-                        "The requested neighbor list set is not associated")
-    END IF
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(neighbor_list_set),cp_failure_level,routineP,error,failure)
+    IF (PRESENT(r_max) .AND. .NOT. failure) r_max = neighbor_list_set%r_max
+    IF (PRESENT(nlist) .AND. .NOT. failure) nlist = neighbor_list_set%nlist
 
   END SUBROUTINE get_neighbor_list_set
 
