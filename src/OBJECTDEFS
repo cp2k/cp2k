@@ -111,7 +111,6 @@ OBJECTS_GENERIC =\
  machine.o\
  mathconstants.o\
  mathlib.o\
- matrix_types.o\
  md.o\
  memory_utilities.o\
  message_passing.o\
