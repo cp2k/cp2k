@@ -228,6 +228,8 @@ CONTAINS
 
 !   *** Initialize the local data structures ***
 
+    maxatom_local = 0 
+
     DO ikind=1,nkind
 
       atomic_kind => atomic_kind_set(ikind)
