@@ -269,6 +269,9 @@ CONTAINS
                                           cube_info,l_info,eps_rho_rspace)
 
       END DO
+    
+      DEALLOCATE ( tasks, STAT=ierr )
+      IF ( ierr /= 0 ) CALL stop_memory ( "calculate_rho_core", "tasks" )
 
     END DO
 
@@ -285,8 +288,6 @@ CONTAINS
     CALL pw_pool_give_back_coeff(auxbas_pw_pool, rhoc_r, error=error)
 
     DEALLOCATE(pab)
-    DEALLOCATE ( tasks, STAT=ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "calculate_rho_core", "tasks" )
 
     CALL timestop(0.0_dp,handle)
 
