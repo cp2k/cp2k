@@ -586,8 +586,9 @@ END SUBROUTINE qs_env_update_rho_core
     TYPE(atomic_kind_type), POINTER   :: atomic_kind
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
 
-    INTEGER :: group,i,iatom,iatom_local,ikind,istat,j,mypcol,myprow,&
-               natom,nkind,npcol,nprow,nsgf,output_unit
+    INTEGER :: group,i,iatom,iatom_local,ipcol,iprow,ikind,istat,j,&
+               mypcol,mype,myprow,natom,nkind,npcol,npe,nprow,nsgf,&
+               output_unit
     LOGICAL :: ionode
 
     TYPE(atom_type), DIMENSION(:), ALLOCATABLE :: atom
@@ -602,17 +603,15 @@ END SUBROUTINE qs_env_update_rho_core
 
     group = globenv%group
     ionode = globenv%ionode
+    mype = globenv%mepos
+    npe = globenv%num_pe
     output_unit = globenv%scr
 
-!   myprow = blacs_env%mepos(1) + 1
-!   mypcol = blacs_env%mepos(2) + 1
-    myprow = globenv%mepos + 1
-    mypcol = 1
+    myprow = blacs_env%mepos(1) + 1
+    mypcol = blacs_env%mepos(2) + 1
 
-!   nprow = blacs_env%num_pe(1)
-!   npcol = blacs_env%num_pe(2)
-    nprow = globenv%num_pe
-    npcol = 1
+    nprow = blacs_env%num_pe(1)
+    npcol = blacs_env%num_pe(2)
 
     ALLOCATE (nrow(nprow),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"nrow",nprow*int_size)
@@ -772,43 +771,46 @@ END SUBROUTINE qs_env_update_rho_core
       IF (istat /= 0) CALL stop_memory(routine,"nparticle",nprow*int_size)
       nparticle(:) = 0
 
-      nparticle(myprow) = SUM(natom_local_row)
+      IF (mypcol == 1) nparticle(myprow) = SUM(natom_local_row)
+
       CALL mp_sum(nparticle,group)
 
-      DO i=1,nprow
-        IF (i == myprow) THEN
-          IF ((i == 1).AND.(mypcol == 1)) THEN
-            WRITE (UNIT=output_unit,&
-                   FMT="(/,/,T2,A,/,/,T3,A,/,/,(I9,T22,I10,T46,I10))")&
-              "DISTRIBUTION OF THE PARTICLES (ROWS)",&
-              "Process   Number of particles   Number of matrix rows",&
-              (j-1,nparticle(j),nrow(j),j=1,nprow)
-            WRITE (UNIT=output_unit,FMT="(/,T7,A3,T22,I10,T46,I10)")&
-              "Sum",SUM(nparticle),SUM(nrow)
-          END IF
-          IF (globenv%print%level > LOW) THEN
-            IF ((i == 1).AND.(mypcol == 1)) THEN
+      IF (ionode) THEN
+        WRITE (UNIT=output_unit,&
+               FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I10,T26,I10,T53,I10))")&
+          "DISTRIBUTION OF THE PARTICLES (ROWS)",&
+          "Process row   Number of particles      Number of matrix rows",&
+          (iprow-1,nparticle(iprow),nrow(iprow),iprow=1,nprow)
+        WRITE (UNIT=output_unit,FMT="(/,T11,A3,T26,I10,T53,I10)")&
+          "Sum",SUM(nparticle),SUM(nrow)
+      END IF
+
+      CALL m_flush(output_unit)
+      CALL mp_sync(group)
+
+      IF (globenv%print%level > LOW) THEN
+        DO iprow=1,nprow
+          IF ((iprow == myprow).AND.(mypcol == 1)) THEN
+            IF (iprow == 1) THEN
               WRITE (UNIT=output_unit,FMT="(/,T3,A)")&
-                "Process   Kind   Local particles (global indices)"
+                "Process row   Kind   Local particles (global indices)"
             END IF
             DO ikind=1,nkind
               IF (ikind == 1) THEN
-                WRITE (UNIT=output_unit,FMT="(/,I9,2X,I5,(T20,10I6))")&
-                  i-1,ikind,(atom(ikind)%list_local_row(iatom_local),&
-                             iatom_local=1,natom_local_row(ikind))
+                WRITE (UNIT=output_unit,FMT="(/,T4,I10,2X,I5,(T24,10I6))")&
+                  iprow-1,ikind,(atom(ikind)%list_local_row(iatom_local),&
+                                 iatom_local=1,natom_local_row(ikind))
               ELSE
-                WRITE (UNIT=output_unit,FMT="(T12,I5,(T20,10I6))")&
+                WRITE (UNIT=output_unit,FMT="(T16,I5,(T24,10I6))")&
                   ikind,(atom(ikind)%list_local_row(iatom_local),&
                          iatom_local=1,natom_local_row(ikind))
               END IF
             END DO
           END IF
-        END IF
-
-        CALL m_flush(output_unit)
-        CALL mp_sync(group)
-
-      END DO
+          CALL m_flush(output_unit)
+          CALL mp_sync(group)
+        END DO
+      END IF
 
       DEALLOCATE (nparticle,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"nparticle")
@@ -819,43 +821,46 @@ END SUBROUTINE qs_env_update_rho_core
       IF (istat /= 0) CALL stop_memory(routine,"nparticle",npcol*int_size)
       nparticle(:) = 0
 
-      nparticle(mypcol) = SUM(natom_local_col)
+      IF (myprow == 1) nparticle(mypcol) = SUM(natom_local_col)
+
       CALL mp_sum(nparticle,group)
 
-      DO i=1,npcol
-        IF (i == mypcol) THEN
-          IF ((myprow == 1).AND.(i == 1)) THEN
-            WRITE (UNIT=output_unit,&
-                   FMT="(/,/,T2,A,/,/,T3,A,/,/,(I9,T22,I10,T46,I10))")&
-              "DISTRIBUTION OF THE PARTICLES (COLUMNS)",&
-              "Process   Number of particles   Number of matrix columns",&
-              (j-1,nparticle(j),ncol(j),j=1,npcol)
-            WRITE (UNIT=output_unit,FMT="(/,T7,A3,T22,I10,T46,I10)")&
-              "Sum",SUM(nparticle),SUM(ncol)
-          END IF
-          IF (globenv%print%level > LOW) THEN
-            IF ((myprow == 1).AND.(i == 1)) THEN
+      IF (ionode) THEN
+        WRITE (UNIT=output_unit,&
+               FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I10,T26,I10,T53,I10))")&
+          "DISTRIBUTION OF THE PARTICLES (COLUMNS)",&
+          "Process col   Number of particles   Number of matrix columns",&
+          (ipcol-1,nparticle(ipcol),ncol(ipcol),ipcol=1,npcol)
+        WRITE (UNIT=output_unit,FMT="(/,T11,A3,T26,I10,T53,I10)")&
+          "Sum",SUM(nparticle),SUM(ncol)
+      END IF
+
+      CALL m_flush(output_unit)
+      CALL mp_sync(group)
+
+      IF (globenv%print%level > LOW) THEN
+        DO ipcol=1,npcol
+          IF ((myprow == 1).AND.(ipcol == mypcol)) THEN
+            IF (ipcol == 1) THEN
               WRITE (UNIT=output_unit,FMT="(/,T3,A)")&
-                "Process   Kind   Local particles (global indices)"
+                "Process col   Kind   Local particles (global indices)"
             END IF
             DO ikind=1,nkind
               IF (ikind == 1) THEN
-                WRITE (UNIT=output_unit,FMT="(/,I9,2X,I5,(T20,10I6))")&
-                  i-1,ikind,(atom(ikind)%list_local_col(iatom_local),&
-                             iatom_local=1,natom_local_col(ikind))
+                WRITE (UNIT=output_unit,FMT="(/,T4,I10,2X,I5,(T24,10I6))")&
+                  ipcol-1,ikind,(atom(ikind)%list_local_col(iatom_local),&
+                                 iatom_local=1,natom_local_col(ikind))
               ELSE
-                WRITE (UNIT=output_unit,FMT="(T12,I5,(T20,10I6))")&
+                WRITE (UNIT=output_unit,FMT="(T16,I5,(T24,10I6))")&
                   ikind,(atom(ikind)%list_local_col(iatom_local),&
                          iatom_local=1,natom_local_col(ikind))
               END IF
             END DO
           END IF
-        END IF
-
-        CALL m_flush(output_unit)
-        CALL mp_sync(group)
-
-      END DO
+          CALL m_flush(output_unit)
+          CALL mp_sync(group)
+        END DO
+      END IF
 
       DEALLOCATE (nparticle,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"nparticle")

@@ -16,7 +16,8 @@
 !!   MODIFICATION HISTORY
 !!     - List rebuild for sab_orb neighbor list (10.09.2002,MK)
 !!     - List rebuild for all lists (25.09.2002,MK)
-!!     - Fully parallel version (16.06.2003,MK)
+!!     - Row-wise parallelized version (16.06.2003,MK)
+!!     - Row- and cloumn-wise parallelized version (19.07.2003,MK)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -82,8 +83,11 @@ MODULE qs_neighbor_lists
 ! *** Type definitions (only used in this module) ***
 
   TYPE atom_type
-    INTEGER, DIMENSION(:), POINTER    :: list,list_local_index
-    REAL(wp), DIMENSION(:,:), POINTER :: r_pbc,s_pbc
+    INTEGER, DIMENSION(:), POINTER    :: list,&
+                                         list_local_a_index,&
+                                         list_local_b_index
+    REAL(wp), DIMENSION(:,:), POINTER :: r_pbc,&
+                                         s_pbc
   END TYPE atom_type
 
   TYPE subcell_type
@@ -141,10 +145,11 @@ CONTAINS
 
     CHARACTER(LEN=40) :: string
     REAL(wp)          :: r_skin
-    INTEGER           :: atom_a,group,handle,iatom,iatom_local,ikind,ipe,&
-                         istat,jatom,jkind,maxatom,maxatom_local,mype,&
-                         natom,natom_local,nkind,npe,output_unit
-    LOGICAL           :: gth_potential_present,ionode,print_subcell_grid
+    INTEGER           :: atom_a,handle,iatom,iatom_local,ikind,ipe,istat,&
+                         jatom,jkind,maxatom,maxatom_local,&
+                         natom_a,natom_local_a,natom_local_b,nkind,&
+                         output_unit
+    LOGICAL           :: gth_potential_present,print_subcell_grid
 
     REAL(wp), DIMENSION(3) :: r_pbc
     INTEGER, DIMENSION(3)  :: periodic
@@ -170,13 +175,9 @@ CONTAINS
 
     CALL timeset(routine_name,"I","",handle)
 
-    group = globenv%group
-    ionode = globenv%ionode
-    mype = globenv%mepos + 1
-    npe = globenv%num_pe
     output_unit = globenv%scr
 
-    IF ((ionode.AND.globenv%print%cell_parameters).AND.&
+    IF ((globenv%ionode.AND.globenv%print%cell_parameters).AND.&
         (globenv%print%level > LOW)) THEN
       print_subcell_grid = .TRUE.
     ELSE
@@ -243,7 +244,8 @@ CONTAINS
       atomic_kind => atomic_kind_set(ikind)
 
       NULLIFY (atom(ikind)%list)
-      NULLIFY (atom(ikind)%list_local_index)
+      NULLIFY (atom(ikind)%list_local_a_index)
+      NULLIFY (atom(ikind)%list_local_b_index)
       NULLIFY (atom(ikind)%r_pbc)
       NULLIFY (atom(ikind)%s_pbc)
 
@@ -252,10 +254,11 @@ CONTAINS
                            gth_potential=gth_potential,&
                            orb_basis_set=orb_basis_set)
 
-      natom = SIZE(atom(ikind)%list)
-      natom_local = local_rows%n_el(ikind)
+      natom_a = SIZE(atom(ikind)%list)
+      natom_local_a = local_rows%n_el(ikind)
+      natom_local_b = local_cols%n_el(ikind)
 
-      maxatom_local = MAX(maxatom_local,natom_local)
+      maxatom_local = MAX(maxatom_local,natom_local_a,natom_local_b)
 
       IF (ASSOCIATED(orb_basis_set)) THEN
 
@@ -264,21 +267,23 @@ CONTAINS
         CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                                kind_radius=orb_radius(ikind))
 
-        IF (natom_local > 0) THEN
+!       *** Block rows ***
 
-          ALLOCATE (atom(ikind)%list_local_index(natom_local),STAT=istat)
+        IF (natom_local_a > 0) THEN
+
+          ALLOCATE (atom(ikind)%list_local_a_index(natom_local_a),STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"atoms_local(ikind)%list_local_index",&
-                             natom_local*int_size)
+            CALL stop_memory(routine,"atom(ikind)%list_local_a_index",&
+                             natom_local_a*int_size)
           END IF
 
 !         *** Build index vector for mapping ***
 
-          DO iatom_local=1,natom_local
+          DO iatom_local=1,natom_local_a
             atom_a = local_rows%list(ikind)%array(iatom_local)
-            DO iatom=1,natom
+            DO iatom=1,natom_a
               IF (atom_a == atom(ikind)%list(iatom)) THEN
-                atom(ikind)%list_local_index(iatom_local) = iatom
+                atom(ikind)%list_local_a_index(iatom_local) = iatom
                 EXIT
               END IF
             END DO
@@ -286,19 +291,43 @@ CONTAINS
 
         END IF
 
-        ALLOCATE (atom(ikind)%r_pbc(3,natom),STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routine,"atom(ikind)%r_pbc",3*natom*wp_size)
+!       *** Block columns ***
+
+        IF (natom_local_b > 0) THEN
+
+          ALLOCATE (atom(ikind)%list_local_b_index(natom_local_b),STAT=istat)
+          IF (istat /= 0) THEN
+            CALL stop_memory(routine,"atom(ikind)%list_local_b_index",&
+                             natom_local_b*int_size)
+          END IF
+
+!         *** Build index vector for mapping ***
+
+          DO iatom_local=1,natom_local_b
+            atom_a = local_cols%list(ikind)%array(iatom_local)
+            DO iatom=1,natom_a
+              IF (atom_a == atom(ikind)%list(iatom)) THEN
+                atom(ikind)%list_local_b_index(iatom_local) = iatom
+                EXIT
+              END IF
+            END DO
+          END DO
+
         END IF
 
-        ALLOCATE (atom(ikind)%s_pbc(3,natom),STAT=istat)
+        ALLOCATE (atom(ikind)%r_pbc(3,natom_a),STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"atom(ikind)%s_pbc",3*natom*wp_size)
+          CALL stop_memory(routine,"atom(ikind)%r_pbc",3*natom_a*wp_size)
+        END IF
+
+        ALLOCATE (atom(ikind)%s_pbc(3,natom_a),STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routine,"atom(ikind)%s_pbc",3*natom_a*wp_size)
         END IF
 
 !       *** Calculate PBC coordinates ***
 
-        DO iatom=1,natom
+        DO iatom=1,natom_a
           atom_a = atom(ikind)%list(iatom)
           r_pbc(:) = pbc(particle_set(atom_a)%r(:),cell)
           atom(ikind)%r_pbc(:,iatom) = r_pbc(:)
@@ -392,9 +421,13 @@ CONTAINS
 
     DO ikind=1,nkind
       NULLIFY (atom(ikind)%list)
-      IF (ASSOCIATED(atom(ikind)%list_local_index)) THEN
-        DEALLOCATE (atom(ikind)%list_local_index,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"atom(ikind)%list_local_index")
+      IF (ASSOCIATED(atom(ikind)%list_local_a_index)) THEN
+        DEALLOCATE (atom(ikind)%list_local_a_index,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"atom(ikind)%list_local_a_index")
+      END IF
+      IF (ASSOCIATED(atom(ikind)%list_local_b_index)) THEN
+        DEALLOCATE (atom(ikind)%list_local_b_index,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"atom(ikind)%list_local_b_index")
       END IF
       IF (ASSOCIATED(atom(ikind)%r_pbc)) THEN
         DEALLOCATE (atom(ikind)%r_pbc,STAT=istat)
@@ -474,9 +507,9 @@ CONTAINS
     CHARACTER(LEN=8) :: unit_of_length_name
     REAL(wp)         :: rab_max,rab2,rab2_max,subcells,unit_of_length
     INTEGER          :: atom_a,atom_b,handle,i,iab,iatom,iatom_local,icell,&
-                        iatom_subcell,ikind,istat,isubcell,j,jatom,jcell,&
-                        jkind,jsubcell,k,ksubcell,kcell,natom_local_a,&
-                        natom_b,nkind
+                        iatom_subcell,ikind,istat,isubcell,&
+                        j,jatom,jatom_local,jcell,jkind,jsubcell,&
+                        k,ksubcell,kcell,natom_local_a,natom_local_b,nkind
     LOGICAL          :: include_ab
 
     REAL(wp), DIMENSION(3) :: r,rab,rb,s,sab_max,sb,sb_max,sb_min,sb_pbc
@@ -534,9 +567,9 @@ CONTAINS
 
       IF (.NOT.present_a(ikind)) CYCLE
 
-      IF (.NOT.ASSOCIATED(atom(ikind)%list_local_index)) CYCLE
+      IF (.NOT.ASSOCIATED(atom(ikind)%list_local_a_index)) CYCLE
 
-      natom_local_a = SIZE(atom(ikind)%list_local_index)
+      natom_local_a = SIZE(atom(ikind)%list_local_a_index)
 
       DO jkind=1,nkind
 
@@ -544,7 +577,9 @@ CONTAINS
 
         iab = ikind + nkind*(jkind - 1)
 
-        natom_b = SIZE(atom(jkind)%list)
+        IF (.NOT.ASSOCIATED(atom(jkind)%list_local_b_index)) CYCLE
+
+        natom_local_b = SIZE(atom(jkind)%list_local_b_index)
 
 !       *** Calculate the square of the maximum interaction distance ***
 
@@ -580,7 +615,7 @@ CONTAINS
 !         *** Case 1: No subcell grid is needed ***
 
           DO iatom_local=1,natom_local_a
-            iatom = atom(ikind)%list_local_index(iatom_local)
+            iatom = atom(ikind)%list_local_a_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
             CALL add_neighbor_list(neighbor_list_set=neighbor_list_set,&
                                    atom=atom_a,&
@@ -588,8 +623,9 @@ CONTAINS
                                    neighbor_list=kind_a(iatom_local)%neighbor_list)
           END DO
 
-          DO jatom=1,natom_b
+          DO jatom_local=1,natom_local_b
 
+            jatom = atom(jkind)%list_local_b_index(jatom_local)
             atom_b = atom(jkind)%list(jatom)
             sb_pbc(:) = atom(jkind)%s_pbc(:,jatom)
 
@@ -623,7 +659,7 @@ CONTAINS
                   rb(:) = scaled_to_real(sb(:),cell)
 
                   DO iatom_local=1,natom_local_a
-                    iatom = atom(ikind)%list_local_index(iatom_local)
+                    iatom = atom(ikind)%list_local_a_index(iatom_local)
                     atom_a = atom(ikind)%list(iatom)
                     IF (atom_a > atom_b) THEN
                       include_ab = (MODULO(atom_a + atom_b,2) /= 0)
@@ -656,7 +692,7 @@ CONTAINS
           CALL allocate_subcell(subcell,nsubcell,maxatom_local)
 
           DO iatom_local=1,natom_local_a
-            iatom = atom(ikind)%list_local_index(iatom_local)
+            iatom = atom(ikind)%list_local_a_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
             s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_wp
             i = MIN(INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp),nsubcell(1))
@@ -670,8 +706,9 @@ CONTAINS
                                    neighbor_list=kind_a(iatom_local)%neighbor_list)
           END DO
 
-          DO jatom=1,natom_b
+          DO jatom_local=1,natom_local_b
 
+            jatom = atom(jkind)%list_local_b_index(jatom_local)
             atom_b = atom(jkind)%list(jatom)
             sb_pbc(:) = atom(jkind)%s_pbc(:,jatom)
 
@@ -721,7 +758,7 @@ CONTAINS
 
                         DO iatom_subcell=1,subcell(i,j,k)%natom
                           iatom_local = subcell(i,j,k)%atom_list(iatom_subcell)
-                          iatom = atom(ikind)%list_local_index(iatom_local)
+                          iatom = atom(ikind)%list_local_a_index(iatom_local)
                           atom_a = atom(ikind)%list(iatom)
                           IF (atom_a > atom_b) THEN
                             include_ab = (MODULO(atom_a + atom_b,2) /= 0)
@@ -803,9 +840,9 @@ CONTAINS
     CHARACTER(LEN=8) :: unit_of_length_name
     REAL(wp)         :: rac_max,rac2,rac2_max,subcells,unit_of_length
     INTEGER          :: atom_a,atom_c,handle,i,iac,iatom,iatom_local,&
-                        iatom_subcell,icell,ikind,istat,isubcell,j,jcell,&
-                        jsubcell,k,katom,kkind,ksubcell,kcell,natom_local_a,&
-                        natom_c,nkind
+                        iatom_subcell,icell,ikind,istat,isubcell,&
+                        j,jcell,jsubcell,k,katom,kkind,ksubcell,kcell,&
+                        natom_c,natom_local_a,nkind
 
     REAL(wp), DIMENSION(3) :: r,rac,rc,s,sac_max,sc,sc_max,sc_min,sc_pbc
     INTEGER, DIMENSION(3)  :: cell_a,cell_c,ncell,nsubcell,periodic
@@ -862,9 +899,9 @@ CONTAINS
 
       IF (.NOT.present_a(ikind)) CYCLE
 
-      IF (.NOT.ASSOCIATED(atom(ikind)%list_local_index)) CYCLE
+      IF (.NOT.ASSOCIATED(atom(ikind)%list_local_a_index)) CYCLE
 
-      natom_local_a = SIZE(atom(ikind)%list_local_index)
+      natom_local_a = SIZE(atom(ikind)%list_local_a_index)
 
       DO kkind=1,nkind
 
@@ -907,7 +944,7 @@ CONTAINS
 !         *** Case 1: No subcell grid is needed ***
 
           DO iatom_local=1,natom_local_a
-            iatom = atom(ikind)%list_local_index(iatom_local)
+            iatom = atom(ikind)%list_local_a_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
             CALL add_neighbor_list(neighbor_list_set=neighbor_list_set,&
                                    atom=atom_a,&
@@ -950,7 +987,7 @@ CONTAINS
                   rc(:) = scaled_to_real(sc(:),cell)
 
                   DO iatom_local=1,natom_local_a
-                    iatom = atom(ikind)%list_local_index(iatom_local)
+                    iatom = atom(ikind)%list_local_a_index(iatom_local)
                     rac(:) = rc(:) - atom(ikind)%r_pbc(:,iatom)
                     rac2 = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
                     IF (rac2 < rac2_max) THEN
@@ -975,7 +1012,7 @@ CONTAINS
           CALL allocate_subcell(subcell,nsubcell,maxatom_local)
 
           DO iatom_local=1,natom_local_a
-            iatom = atom(ikind)%list_local_index(iatom_local)
+            iatom = atom(ikind)%list_local_a_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
             s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_wp
             i = MIN(INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp),nsubcell(1))
@@ -1040,7 +1077,7 @@ CONTAINS
 
                         DO iatom_subcell=1,subcell(i,j,k)%natom
                           iatom_local = subcell(i,j,k)%atom_list(iatom_subcell)
-                          iatom = atom(ikind)%list_local_index(iatom_local)
+                          iatom = atom(ikind)%list_local_a_index(iatom_local)
                           rac(:) = rc(:) - atom(ikind)%r_pbc(:,iatom)
                           rac2 = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
                           IF (rac2 < rac2_max) THEN
@@ -1119,15 +1156,15 @@ CONTAINS
     REAL(wp)         :: rac_max,rac2,rac2_max,subcells,unit_of_length
     INTEGER          :: atom_a,atom_c,handle,i,iac,iatom,iatom_local,&
                         iatom_subcell,icell,icell_b,ikind,istat,isubcell,&
-                        j,jcell,jcell_b,jkind,jsubcell,k,katom,kcell_b,kcell,&
-                        kkind,ksubcell,natom_a,natom_local_a,natom_c,nkind
+                        j,jcell,jcell_b,jkind,jsubcell,&
+                        k,katom,kcell_b,kcell,kkind,ksubcell,&
+                        natom_c,natom_local_a,natom_local_b,nkind
 
     REAL(wp), DIMENSION(3) :: r,rac,rb,rc,s,s_max,s_min,sac_max,sc,sc_max,&
                               sc_min,sc_pbc
     INTEGER, DIMENSION(3)  :: cell_a,cell_c,ncell,nsubcell,periodic
 
-    TYPE(neighbor_list_p_type), DIMENSION(maxatom_local) :: kind_a
-    TYPE(neighbor_list_p_type), DIMENSION(maxatom)       :: kind_b
+    TYPE(neighbor_list_p_type), DIMENSION(maxatom_local) :: kind_a,kind_b
 
     TYPE(subcell_type), DIMENSION(:,:,:), POINTER :: subcell_a,subcell_b
 
@@ -1191,12 +1228,16 @@ CONTAINS
 
       IF (.NOT.present_a(ikind)) CYCLE
 
-      natom_a = SIZE(atom(ikind)%list)
-
-      IF (ASSOCIATED(atom(ikind)%list_local_index)) THEN
-        natom_local_a = SIZE(atom(ikind)%list_local_index)
+      IF (ASSOCIATED(atom(ikind)%list_local_a_index)) THEN
+        natom_local_a = SIZE(atom(ikind)%list_local_a_index)
       ELSE
         natom_local_a = 0
+      END IF
+
+      IF (ASSOCIATED(atom(ikind)%list_local_b_index)) THEN
+        natom_local_b = SIZE(atom(ikind)%list_local_b_index)
+      ELSE
+        natom_local_b = 0
       END IF
 
       DO kkind=1,nkind
@@ -1244,7 +1285,7 @@ CONTAINS
 !         *** Case 1: No subcell grid is needed ***
 
           DO iatom_local=1,natom_local_a
-            iatom = atom(ikind)%list_local_index(iatom_local)
+            iatom = atom(ikind)%list_local_a_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
             CALL add_neighbor_list(neighbor_list_set=ac_neighbor_list_set,&
                                    atom=atom_a,&
@@ -1252,12 +1293,13 @@ CONTAINS
                                    neighbor_list=kind_a(iatom_local)%neighbor_list)
           END DO
 
-          DO iatom=1,natom_a
+          DO iatom_local=1,natom_local_b
+            iatom = atom(ikind)%list_local_b_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
             CALL add_neighbor_list(neighbor_list_set=bc_neighbor_list_set,&
                                    atom=atom_a,&
                                    cell=cell_a,&
-                                   neighbor_list=kind_b(iatom)%neighbor_list)
+                                   neighbor_list=kind_b(iatom_local)%neighbor_list)
           END DO
 
           DO katom=1,natom_c
@@ -1295,7 +1337,7 @@ CONTAINS
                   rc(:) = scaled_to_real(sc(:),cell)
 
                   DO iatom_local=1,natom_local_a
-                    iatom = atom(ikind)%list_local_index(iatom_local)
+                    iatom = atom(ikind)%list_local_a_index(iatom_local)
                     rac(:) = rc(:) - atom(ikind)%r_pbc(:,iatom)
                     rac2 = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
                     IF (rac2 < rac2_max) THEN
@@ -1321,12 +1363,13 @@ CONTAINS
 
                         r(:) = rc(:) - scaled_to_real(s(:),cell)
 
-                        DO iatom=1,natom_a
+                        DO iatom_local=1,natom_local_b
+                          iatom = atom(ikind)%list_local_b_index(iatom_local)
                           rac(:) = r(:) - atom(ikind)%r_pbc(:,iatom)
                           rac2 = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
                           IF (rac2 < rac2_max) THEN
                             CALL add_neighbor_node(&
-                              neighbor_list=kind_b(iatom)%neighbor_list,&
+                              neighbor_list=kind_b(iatom_local)%neighbor_list,&
                               neighbor=atom_c,&
                               cell=cell_c,&
                               r=rac)
@@ -1348,7 +1391,7 @@ CONTAINS
           CALL allocate_subcell(subcell_a,nsubcell,maxatom_local)
 
           DO iatom_local=1,natom_local_a
-            iatom = atom(ikind)%list_local_index(iatom_local)
+            iatom = atom(ikind)%list_local_a_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
             s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_wp
             i = MIN(INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp),nsubcell(1))
@@ -1362,20 +1405,21 @@ CONTAINS
                                    neighbor_list=kind_a(iatom_local)%neighbor_list)
           END DO
 
-          CALL allocate_subcell(subcell_b,nsubcell,maxatom)
+          CALL allocate_subcell(subcell_b,nsubcell,maxatom_local)
 
-          DO iatom=1,natom_a
+          DO iatom_local=1,natom_local_b
+            iatom = atom(ikind)%list_local_b_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
             s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_wp
             i = MIN(INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp),nsubcell(1))
             j = MIN(INT(s(2)*REAL(nsubcell(2),wp) + 1.0_wp),nsubcell(2))
             k = MIN(INT(s(3)*REAL(nsubcell(3),wp) + 1.0_wp),nsubcell(3))
             subcell_b(i,j,k)%natom =  subcell_b(i,j,k)%natom + 1
-            subcell_b(i,j,k)%atom_list(subcell_b(i,j,k)%natom) = iatom
+            subcell_b(i,j,k)%atom_list(subcell_b(i,j,k)%natom) = iatom_local
             CALL add_neighbor_list(neighbor_list_set=bc_neighbor_list_set,&
                                    atom=atom_a,&
                                    cell=cell_a,&
-                                   neighbor_list=kind_b(iatom)%neighbor_list)
+                                   neighbor_list=kind_b(iatom_local)%neighbor_list)
           END DO
 
           DO katom=1,natom_c
@@ -1429,7 +1473,7 @@ CONTAINS
 
                         DO iatom_subcell=1,subcell_a(i,j,k)%natom
                           iatom_local = subcell_a(i,j,k)%atom_list(iatom_subcell)
-                          iatom = atom(ikind)%list_local_index(iatom_local)
+                          iatom = atom(ikind)%list_local_a_index(iatom_local)
                           rac(:) = rc(:) - atom(ikind)%r_pbc(:,iatom)
                           rac2 = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
                           IF (rac2 < rac2_max) THEN
@@ -1487,12 +1531,13 @@ CONTAINS
                               IF (s_min(1) >= subcell_b(i,j,k)%s_max(1)) CYCLE loop2_i
 
                               DO iatom_subcell=1,subcell_b(i,j,k)%natom
-                                iatom = subcell_b(i,j,k)%atom_list(iatom_subcell)
+                                iatom_local = subcell_b(i,j,k)%atom_list(iatom_subcell)
+                                iatom = atom(ikind)%list_local_b_index(iatom_local)
                                 rac(:) = r(:) - atom(ikind)%r_pbc(:,iatom)
                                 rac2 = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
                                 IF (rac2 < rac2_max) THEN
                                   CALL add_neighbor_node(&
-                                    neighbor_list=kind_b(iatom)%neighbor_list,&
+                                    neighbor_list=kind_b(iatom_local)%neighbor_list,&
                                     neighbor=atom_c,&
                                     cell=cell_c,&
                                     r=rac)
@@ -1670,8 +1715,8 @@ CONTAINS
     TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER     :: neighbor_list
 
-    INTEGER :: group,iab,ikind,ilist,ipe,istat,jkind,mype,n,nkind,nnode,npe,&
-               nlist,nsgf_a,nsgf_b,output_unit
+    INTEGER :: group,iab,ikind,ilist,ipe,istat,jkind,mype,n,nkind,nlist,&
+               nnode,npe,nsgf_a,nsgf_b,output_unit
     LOGICAL :: ionode
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: nblock,nelement
@@ -1760,7 +1805,7 @@ CONTAINS
 
     IF (ionode) THEN
       WRITE (UNIT=output_unit,&
-             FMT="(/,/,T2,A,/,/,T3,A,/,/,(I9,T27,I10,T55,I10))")&
+             FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I6,T27,I10,T55,I10))")&
         "DISTRIBUTION OF THE NEIGHBOR LISTS",&
         "Process   Number of particle pairs   Number of matrix elements",&
         (ipe-1,nblock(ipe),nelement(ipe),ipe=1,npe)

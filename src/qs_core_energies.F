@@ -175,6 +175,8 @@ CONTAINS
 
 !   History: - Creation (30.04.2001,MK)
 !            - Force calculation added (03.06.2002,MK)
+!            - Parallelized using a list of local atoms for rows and columns
+!              (19.07.2003,MK)
 
 !   ***************************************************************************
 
@@ -200,9 +202,10 @@ CONTAINS
                         ecore_overlap,f,fab,r_skin,rab_max,rab2,rab2_max,&
                         rootaab,subcells,unit_of_length,zab
     INTEGER          :: atom_a,atom_b,group,handle,i,iatom,iatom_local,&
-                        iatom_subcell,icell,ikind,istat,j,jatom,jcell,&
-                        jkind,k,kcell,maxatom_local,natom,natom_b,&
-                        natom_local_a,nkind,output_unit
+                        iatom_subcell,icell,ikind,istat,j,jatom,&
+                        jatom_local,jcell,jkind,k,kcell,&
+                        maxatom_local,natom,natom_b,&
+                        natom_local_a,natom_local_b,nkind,output_unit
     LOGICAL          :: cell000,include_ab,ionode
 
     REAL(wp), DIMENSION(3) :: deab,r,r_pbc,rab,rb,s,sab,sab_max,sb,&
@@ -275,7 +278,8 @@ CONTAINS
       atomic_kind => atomic_kind_set(ikind)
 
       NULLIFY (atom(ikind)%list)
-      NULLIFY (atom(ikind)%list_local_index)
+      NULLIFY (atom(ikind)%list_local_a_index)
+      NULLIFY (atom(ikind)%list_local_b_index)
       NULLIFY (atom(ikind)%r_pbc)
       NULLIFY (atom(ikind)%s_pbc)
 
@@ -287,16 +291,17 @@ CONTAINS
 
       natom = SIZE(atom(ikind)%list)
       natom_local_a = local_rows%n_el(ikind)
+      natom_local_b = local_cols%n_el(ikind)
 
-      maxatom_local = MAX(maxatom_local,natom_local_a)
+      maxatom_local = MAX(maxatom_local,natom_local_a,natom_local_b)
 
       IF (alpha(ikind) /= 0.0_wp) THEN
 
         IF (natom_local_a > 0) THEN
 
-          ALLOCATE (atom(ikind)%list_local_index(natom_local_a),STAT=istat)
+          ALLOCATE (atom(ikind)%list_local_a_index(natom_local_a),STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"atoms_local(ikind)%list_local_index",&
+            CALL stop_memory(routine,"atom(ikind)%list_local_a_index",&
                              natom_local_a*int_size)
           END IF
 
@@ -306,7 +311,29 @@ CONTAINS
             atom_a = local_rows%list(ikind)%array(iatom_local)
             DO iatom=1,natom
               IF (atom_a == atom(ikind)%list(iatom)) THEN
-                atom(ikind)%list_local_index(iatom_local) = iatom
+                atom(ikind)%list_local_a_index(iatom_local) = iatom
+                EXIT
+              END IF
+            END DO
+          END DO
+
+        END IF
+
+        IF (natom_local_b > 0) THEN
+
+          ALLOCATE (atom(ikind)%list_local_b_index(natom_local_b),STAT=istat)
+          IF (istat /= 0) THEN
+            CALL stop_memory(routine,"atom(ikind)%list_local_b_index",&
+                             natom_local_b*int_size)
+          END IF
+
+!         *** Build index vector for mapping ***
+
+          DO iatom_local=1,natom_local_b
+            atom_b = local_cols%list(ikind)%array(iatom_local)
+            DO iatom=1,natom
+              IF (atom_b == atom(ikind)%list(iatom)) THEN
+                atom(ikind)%list_local_b_index(iatom_local) = iatom
                 EXIT
               END IF
             END DO
@@ -352,16 +379,18 @@ CONTAINS
       IF (alpha(ikind) == 0.0_wp) CYCLE
       IF (zeff(ikind) == 0.0_wp) CYCLE
 
-      IF (.NOT.ASSOCIATED(atom(ikind)%list_local_index)) CYCLE
+      IF (.NOT.ASSOCIATED(atom(ikind)%list_local_a_index)) CYCLE
 
-      natom_local_a = SIZE(atom(ikind)%list_local_index)
+      natom_local_a = SIZE(atom(ikind)%list_local_a_index)
 
       DO jkind=1,nkind
 
         IF (alpha(jkind) == 0.0_wp) CYCLE
         IF (zeff(jkind) == 0.0_wp) CYCLE
 
-        natom_b = SIZE(atom(jkind)%list)
+        IF (.NOT.ASSOCIATED(atom(jkind)%list_local_b_index)) CYCLE
+
+        natom_local_b = SIZE(atom(jkind)%list_local_b_index)
 
         zab = REAL(zeff(ikind)*zeff(jkind),wp)
         aab = alpha(ikind)*alpha(jkind)/(alpha(ikind) + alpha(jkind))
@@ -395,8 +424,9 @@ CONTAINS
 
 !         *** Case 1: No subcell grid is needed ***
 
-          DO jatom=1,natom_b
+          DO jatom_local=1,natom_local_b
 
+            jatom = atom(jkind)%list_local_b_index(jatom_local)
             atom_b = atom(jkind)%list(jatom)
             sb_pbc(:) = atom(jkind)%s_pbc(:,jatom)
 
@@ -429,10 +459,12 @@ CONTAINS
 
                   rb(:) = scaled_to_real(sb(:),cell)
 
-                  cell000 = ((icell == 0).AND.(jcell == 0).AND.(kcell == 0))
+                  cell000 = ((icell == 0).AND.&
+                             (jcell == 0).AND.&
+                             (kcell == 0))
 
                   DO iatom_local=1,natom_local_a
-                    iatom = atom(ikind)%list_local_index(iatom_local)
+                    iatom = atom(ikind)%list_local_a_index(iatom_local)
                     atom_a = atom(ikind)%list(iatom)
                     IF (atom_a == atom_b) THEN
                       IF (cell000) THEN
@@ -479,7 +511,7 @@ CONTAINS
           CALL allocate_subcell(subcell,nsubcell,maxatom_local)
 
           DO iatom_local=1,natom_local_a
-            iatom = atom(ikind)%list_local_index(iatom_local)
+            iatom = atom(ikind)%list_local_a_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
             s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_wp
             i = MIN(INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp),nsubcell(1))
@@ -489,8 +521,9 @@ CONTAINS
             subcell(i,j,k)%atom_list(subcell(i,j,k)%natom) = iatom_local
           END DO
 
-          DO jatom=1,natom_b
+          DO jatom_local=1,natom_local_b
 
+            jatom = atom(jkind)%list_local_b_index(jatom_local)
             atom_b = atom(jkind)%list(jatom)
             sb_pbc(:) = atom(jkind)%s_pbc(:,jatom)
 
@@ -521,7 +554,9 @@ CONTAINS
                   IF (sb_max(1) < -0.5_wp) CYCLE loop2_icell
                   cell_b(1) = icell
 
-                  cell000 = ((icell == 0).AND.(jcell == 0).AND.(kcell == 0))
+                  cell000 = ((icell == 0).AND.&
+                             (jcell == 0).AND.&
+                             (kcell == 0))
 
                   rb(:) = scaled_to_real(sb(:),cell)
 
@@ -542,7 +577,7 @@ CONTAINS
 
                         DO iatom_subcell=1,subcell(i,j,k)%natom
                           iatom_local = subcell(i,j,k)%atom_list(iatom_subcell)
-                          iatom = atom(ikind)%list_local_index(iatom_local)
+                          iatom = atom(ikind)%list_local_a_index(iatom_local)
                           atom_a = atom(ikind)%list(iatom)
                           IF (atom_a == atom_b) THEN
                             IF (cell000) THEN
@@ -597,9 +632,13 @@ CONTAINS
 
     DO ikind=1,nkind
       NULLIFY (atom(ikind)%list)
-      IF (ASSOCIATED(atom(ikind)%list_local_index)) THEN
-        DEALLOCATE (atom(ikind)%list_local_index,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"atom(ikind)%list_local_index")
+      IF (ASSOCIATED(atom(ikind)%list_local_a_index)) THEN
+        DEALLOCATE (atom(ikind)%list_local_a_index,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"atom(ikind)%list_local_a_index")
+      END IF
+      IF (ASSOCIATED(atom(ikind)%list_local_b_index)) THEN
+        DEALLOCATE (atom(ikind)%list_local_b_index,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"atom(ikind)%list_local_b_index")
       END IF
       IF (ASSOCIATED(atom(ikind)%r_pbc)) THEN
         DEALLOCATE (atom(ikind)%r_pbc,STAT=istat)
@@ -637,22 +676,30 @@ CONTAINS
 
 !   Purpose: Calculate the self energy of the core charge distribution.
 
-!   History: - Creation (27.04.2001, Matthias Krack)
+!   History: - Creation (27.04.2001,MK)
 
 !   ***************************************************************************
 
     TYPE(qs_environment_type), INTENT(IN) :: qs_env
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_ecore_self"
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
     TYPE(atomic_kind_type), POINTER :: atomic_kind
     TYPE(qs_energy_type), POINTER   :: energy
     REAL(wp)                        :: alpha_core_charge,ecore_self
-    INTEGER                         :: ikind,natom,zeff
+    INTEGER                         :: handle,ikind,natom,zeff
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
 
 !   ---------------------------------------------------------------------------
+
+    CALL timeset(routine_name,"I","",handle)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -674,6 +721,8 @@ CONTAINS
     END DO
 
     energy%core_self = ecore_self/SQRT(twopi)
+
+    CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE calculate_ecore_self
 

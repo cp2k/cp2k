@@ -484,8 +484,8 @@ END SUBROUTINE cp_blacs_env_write
           "Number of process rows:      ",nprow,&
           "Number of process columns:   ",npcol
         WRITE (UNIT=output_unit,FMT="(/,T3,A,/)")&
-          " PE   process row   process column   BLACS context"
-        WRITE (UNIT=output_unit,FMT="(I5,T14,I6,T31,I6,T41,I12)")&
+          "Process   Process row   Process column   BLACS context"
+        WRITE (UNIT=output_unit,FMT="(T4,I6,T18,I6,T35,I6,T45,I12)")&
           (ipe,prow(ipe),pcol(ipe),pcon(ipe),ipe=0,npe-1)
       END IF
 
