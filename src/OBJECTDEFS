@@ -8,7 +8,6 @@ OBJECTS_GENERIC =\
  ai_overlap_new.o\
  ai_overlap_ppl.o\
  ai_verfc.o\
- amoeba.o\
  ao_types.o\
  atom_module.o\
  atom_types.o\
@@ -26,7 +25,6 @@ OBJECTS_GENERIC =\
  coefficient_types.o\
  coefficients.o\
  constraint.o\
- control_module.o\
  convert_units.o\
  cp2k.o\
  cp2k_input.o\
@@ -67,9 +65,6 @@ OBJECTS_GENERIC =\
  dump.o\
  eigenvalueproblems.o\
  empirical_parameters.o\
- energy_input.o\
- energy_optimize.o\
- energy_output.o\
  environment.o\
  erf_fn.o\
  ewald_parameters_types.o\
@@ -83,20 +78,14 @@ OBJECTS_GENERIC =\
  fftsgi_lib.o\
  fftw_lib.o\
  fist_debug.o\
+ fist_environment_types.o\
  fist_force.o\
  fist_force_numer.o\
  fist_intra_force.o\
+ fist_main.o\
  fist_nonbond_force.o\
- fit_force_control.o\
- fit_input.o\
- fit_module.o\
- fit_pair_potential.o\
- fit_parameters_types.o\
- fit_types.o\
- fit_utilities.o\
  force_control.o\
  force_fields.o\
- function_amoeba.o\
  functionals.o\
  gamma.o\
  gaussian_gridlevels.o\
@@ -131,6 +120,8 @@ OBJECTS_GENERIC =\
  mathconstants.o\
  mathlib.o\
  md.o\
+ md_environment_types.o\
+ md_fist_energies.o\
  memory_utilities.o\
  message_passing.o\
  method_specifications.o\
@@ -167,26 +158,6 @@ OBJECTS_GENERIC =\
  periodic_table.o\
  physcon.o\
  pme.o\
- pol_coefs.o\
- pol_debug_ao.o\
- pol_debug_pw.o\
- pol_diis.o\
- pol_electrostatics_ao.o\
- pol_electrostatics_pw.o\
- pol_fo_kernel_pw.o\
- pol_force_ao.o\
- pol_force_numer_ao.o\
- pol_force_numer_pw.o\
- pol_force_pw.o\
- pol_grids.o\
- pol_initialize_coef_pw.o\
- pol_overlap_ao.o\
- pol_overlap_pw.o\
- pol_projectors_pw.o\
- pol_projectors_scale.o\
- pol_setup.o\
- pol_thk_ao.o\
- pol_thk_pw.o\
  potential_types.o\
  potentials.o\
  pw_grid_types.o\
@@ -253,12 +224,6 @@ OBJECTS_GENERIC =\
  structure_factor_types.o\
  structure_factors.o\
  structure_types.o\
- tbmd_debug.o\
- tbmd_force.o\
- tbmd_initialize.o\
- tbmd_input.o\
- tbmd_module.o\
- tbmd_types.o\
  termination.o\
  timesl.o\
  timings.o\
@@ -266,7 +231,7 @@ OBJECTS_GENERIC =\
  transformations.o\
  unit.o\
  util.o\
- wave_module.o\
+ velocity_verlet_control.o\
  wf_types.o\
  xc.o \
  xc_cs1.o\
