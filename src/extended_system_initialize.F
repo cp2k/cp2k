@@ -93,7 +93,7 @@ SUBROUTINE initialize_nhc(nhc,tau_nhc,temp_ext, globenv )
   temp = sqrt(temp_ext/temp)
   DO i = 1, nhc % num_nhc
      DO j = 1, nhc % nhc_len
-        nhc % nvt(j,i) % v = 0._dbl ! temp * nhc % nvt(j,i) % v
+        nhc % nvt(j,i) % v = temp * nhc % nvt(j,i) % v
         nhc % nvt(j,i) % eta = 0.0_dbl
      END DO
   END DO
