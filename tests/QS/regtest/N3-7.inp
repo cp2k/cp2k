@@ -32,7 +32,7 @@
 
 &SCF
  GUESS        RESTART
- MAX_SCF      100
+ MAX_SCF      5
  OT
 &END
 
