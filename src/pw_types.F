@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000 - 2003  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!***** cp2k/pw_types [1.0] *
 !!
@@ -359,6 +359,7 @@ END SUBROUTINE pw_zero
 !!   MODIFICATION HISTORY
 !!     JGH (7-Mar-2001) : check for pw_grid % identifier, allow copy if 
 !!       in_use == COMPLEXDATA1D and in_space == RECIPROCALSPACE
+!!     JGH (21-Feb-2003) : Code for generalized reference grids
 !!
 !!   NOTES
 !!     Currently only copying of respective types allowed, 
@@ -376,7 +377,7 @@ SUBROUTINE pw_copy ( pw1, pw2 )
   TYPE ( pw_type ), INTENT ( INOUT ) :: pw2
 
 ! Local
-  INTEGER :: ng1, ng2, ng, handle, ns
+  INTEGER :: ng1, ng2, ng, handle, ns, i, j
   REAL ( dbl ) :: zc
   
 !------------------------------------------------------------------------------
@@ -385,19 +386,100 @@ SUBROUTINE pw_copy ( pw1, pw2 )
 
   IF ( pw1 % pw_grid % identifier /= pw2 % pw_grid % identifier ) THEN
 
-    IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
-         pw2 % in_use == COMPLEXDATA1D .AND. &
-         pw1 % in_space == RECIPROCALSPACE ) THEN
-       ng1 = SIZE ( pw1 % cc )
-       ng2 = SIZE ( pw2 % cc )
-       ng = MIN ( ng1, ng2 )
-       ! pw2 % cc ( 1:ng ) = pw1 % cc ( 1:ng )
-       CALL DCOPY(2*ng,pw1%cc,1,pw2%cc,1)
-       !IF ( ng2 > ng ) pw2 % cc ( ng+1:ng2 ) = CMPLX ( 0._dbl, 0._dbl, dbl )
-       IF ( ng2 > ng ) CALL DCOPY(2*(ng2-ng),0.0_dbl,0,pw2%cc(ng+1),1)
-       ns = ng
+    IF ( pw1 % pw_grid % spherical .AND. pw2 % pw_grid % spherical ) THEN
+
+      IF ( pw_compatible ( pw1 % pw_grid, pw2 % pw_grid ) ) THEN
+
+        IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
+             pw2 % in_use == COMPLEXDATA1D .AND. &
+             pw1 % in_space == RECIPROCALSPACE ) THEN
+           ng1 = SIZE ( pw1 % cc )
+           ng2 = SIZE ( pw2 % cc )
+           ng = MIN ( ng1, ng2 )
+           CALL DCOPY(2*ng,pw1%cc,1,pw2%cc,1)
+           IF ( ng2 > ng ) CALL DCOPY(2*(ng2-ng),0.0_dbl,0,pw2%cc(ng+1),1)
+           ns = 2 * MAX ( ng1, ng2 )
+        ELSE
+           CALL stop_program ( "pw_copy", "no suitable data field" )
+        END IF
+
+      ELSE
+        WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+                 " grid 1 :",pw1 % pw_grid % identifier, &
+                 " sperical :",pw1 % pw_grid % spherical, &
+                 " reference :",pw1 % pw_grid % reference 
+        WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+                 " grid 2 :",pw2 % pw_grid % identifier, &
+                 " sperical :",pw2 % pw_grid % spherical, &
+                 " reference :",pw2 % pw_grid % reference 
+        CALL stop_program ( "pw_copy", "Incompatible grids" )
+      END IF
+
+    ELSE IF ( .NOT. ( pw1 % pw_grid % spherical .OR. &
+                      pw2 % pw_grid % spherical ) ) THEN
+
+      ng1 = SIZE ( pw1 % cc )
+      ng2 = SIZE ( pw2 % cc )
+      ns = 2 * MAX ( ng1, ng2 )
+
+      IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
+           pw2 % in_use == COMPLEXDATA1D .AND. &
+           pw1 % in_space == RECIPROCALSPACE ) THEN
+
+        IF ( ( pw1 % pw_grid % identifier == pw2 % pw_grid % reference ) ) THEN
+          IF( ng1 >= ng2 ) THEN
+            DO i = 1, ng2
+              j = pw2 % pw_grid % gidx ( i )
+              pw2 % cc ( i ) = pw1 % cc ( j )
+            END DO
+          ELSE
+            CALL pw_zero ( pw2 )
+            DO i = 1, ng1
+              j = pw2 % pw_grid % gidx ( i )
+              pw2 % cc ( j ) = pw1 % cc ( i )
+            END DO
+          END IF
+        ELSE IF ( ( pw2 % pw_grid % identifier == pw1 % pw_grid % reference ) ) THEN
+          IF( ng1 >= ng2 ) THEN
+            DO i = 1, ng2
+              j = pw1 % pw_grid % gidx ( i )
+              pw2 % cc ( i ) = pw1 % cc ( j )
+            END DO
+          ELSE
+            CALL pw_zero ( pw2 )
+            DO i = 1, ng1
+              j = pw1 % pw_grid % gidx ( i )
+              pw2 % cc ( j ) = pw1 % cc ( i )
+            END DO
+          END IF
+        ELSE
+          WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+                 " grid 1 :",pw1 % pw_grid % identifier, &
+                 " sperical :",pw1 % pw_grid % spherical, &
+                 " reference :",pw1 % pw_grid % reference 
+          WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+                 " grid 2 :",pw2 % pw_grid % identifier, &
+                 " sperical :",pw2 % pw_grid % spherical, &
+                 " reference :",pw2 % pw_grid % reference 
+          CALL stop_program ( "pw_copy", "Incompatible grids" )
+        END IF
+
+      ELSE
+         CALL stop_program ( "pw_copy", "no suitable data field" )
+      END IF
+
+      pw2 % in_space = RECIPROCALSPACE
+
     ELSE
-       CALL stop_program ( "pw_copy", "no suitable data field" )
+      WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+               " grid 1 :",pw1 % pw_grid % identifier, &
+               " sperical :",pw1 % pw_grid % spherical, &
+               " reference :",pw1 % pw_grid % reference 
+      WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+               " grid 2 :",pw2 % pw_grid % identifier, &
+               " sperical :",pw2 % pw_grid % spherical, &
+               " reference :",pw2 % pw_grid % reference 
+      CALL stop_program ( "pw_copy", "Incompatible grids" )
     END IF
 
   ELSE
@@ -626,6 +708,7 @@ END SUBROUTINE pw_transfer
 !!   MODIFICATION HISTORY
 !!     CJM (23-May-01)  : check for pw_grid % identifier, allow copy if 
 !!       in_use == COMPLEXDATA1D and in_space == RECIPROCALSPACE
+!!     JGH (21-Feb-03)  : generalization to all reference grid types
 !!
 !!   NOTES
 !!     Currently only adding of respective types allowed,
@@ -643,7 +726,7 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
   TYPE ( pw_type ), INTENT ( INOUT ) :: pw3
   
 ! Local
-  INTEGER :: handle, ng3, ng2, ng1, ng
+  INTEGER :: handle, ng3, ng2, ng1, ng, ngm, i, j
   REAL ( dbl ) :: flop
   
 !------------------------------------------------------------------------------
@@ -653,30 +736,139 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
   IF ( pw3 % pw_grid % identifier /= pw2 % pw_grid % identifier .OR. &
        pw3 % pw_grid % identifier /= pw1 % pw_grid % identifier  ) THEN
 
+    ! different grids: this works only with reference grids
+
     IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
          pw2 % in_use == COMPLEXDATA1D .AND. &
          pw3 % in_use == COMPLEXDATA1D .AND. &
          pw1 % in_space == RECIPROCALSPACE .AND. &
          pw2 % in_space == RECIPROCALSPACE ) THEN
+
        ng1 = SIZE ( pw1 % cc )
        ng2 = SIZE ( pw2 % cc )
        ng3 = SIZE ( pw3 % cc )
-       IF ( ( ng3 < ng2 ) .OR. ( ng3 < ng1 ) ) &
-       CALL stop_program ( "pw_add", &
-          "final data field smaller than component data fields" )
-       ng = MIN ( ng1, ng2 )
-       pw3 % cc ( 1:ng ) = pw2 % cc ( 1:ng ) + pw1 % cc ( 1:ng )
-       IF ( ng1 > ng )  pw3 % cc ( ng+1:ng1 ) = pw1 % cc ( ng+1:ng1 )
-       IF ( ng2 > ng )  pw3 % cc ( ng+1:ng2 ) = pw2 % cc ( ng+1:ng2 )
-       IF ( ( ng3 > ng1 ) .AND. ( ng3 > ng2 ) ) THEN 
-         ng = MAX ( ng1, ng2 )
-         pw3 % cc ( ng+1:ng3 ) = CMPLX ( 0._dbl, 0._dbl, dbl )
-       ENDIF
-       flop = ng3
+       
+       IF ( pw1 % pw_grid % spherical .AND. pw2 % pw_grid % spherical &
+                            .AND. pw3 % pw_grid % spherical ) THEN
+
+         IF ( pw_compatible ( pw1 % pw_grid, pw3 % pw_grid ) .AND. &
+              pw_compatible ( pw2 % pw_grid, pw3 % pw_grid ) ) THEN
+
+            ng = MIN ( ng1, ng2, ng3 )
+            pw3 % cc ( 1:ng ) = pw2 % cc ( 1:ng ) + pw1 % cc ( 1:ng )
+            IF ( ng3 > ng ) THEN
+               pw3 % cc ( ng+1:ng3 ) = CMPLX ( 0._dbl, 0._dbl, dbl )
+               IF ( ng1 > ng ) THEN
+                  ngm = MIN ( ng3, ng1 )
+                  pw3 % cc ( ng+1:ngm ) = pw1 % cc ( ng+1:ngm )
+               END IF
+               IF ( ng2 > ng ) THEN
+                  ngm = MIN ( ng3, ng2 )
+                  pw3 % cc ( ng+1:ngm ) = pw2 % cc ( ng+1:ngm )
+               END IF
+            END IF
+
+         ELSE
+            WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+               " grid 1 :",pw1 % pw_grid % identifier, &
+               " sperical :",pw1 % pw_grid % spherical, &
+               " reference :",pw1 % pw_grid % reference 
+            WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+               " grid 2 :",pw2 % pw_grid % identifier, &
+               " sperical :",pw2 % pw_grid % spherical, &
+               " reference :",pw2 % pw_grid % reference 
+            WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+               " grid 3 :",pw3 % pw_grid % identifier, &
+               " sperical :",pw3 % pw_grid % spherical, &
+               " reference :",pw3 % pw_grid % reference 
+            CALL stop_program ( "pw_add", "incompatible grids" )
+         END IF
+
+       ELSE IF ( .NOT. (pw1 % pw_grid % spherical .OR. &
+                        pw2 % pw_grid % spherical .OR. &
+                        pw3 % pw_grid % spherical) ) THEN
+         
+         CALL pw_copy ( pw1, pw3 )
+
+         IF ( pw_compatible ( pw2 % pw_grid, pw3 % pw_grid ) ) THEN
+
+           IF ( pw2 % pw_grid % identifier == pw3 % pw_grid % identifier ) THEN
+
+             pw3 % cc ( 1:ng3 ) = pw3 % cc ( 1:ng3 ) + pw2 % cc ( 1:ng3 )
+
+           ELSEIF ( ( pw2 % pw_grid % identifier == pw3 % pw_grid % reference ) ) THEN
+
+             IF( ng2 >= ng3 ) THEN
+               DO i = 1, ng3
+                 j = pw3 % pw_grid % gidx ( i )
+                 pw3 % cc ( i ) = pw3 % cc ( i ) + pw2 % cc ( j )
+               END DO
+             ELSE
+               DO i = 1, ng2
+                 j = pw3 % pw_grid % gidx ( i )
+                 pw3 % cc ( j ) = pw3 % cc ( j ) + pw2 % cc ( i )
+               END DO
+             END IF
+
+           ELSEIF ( ( pw3 % pw_grid % identifier == pw2 % pw_grid % reference ) ) THEN
+
+             IF( ng2 >= ng3 ) THEN
+               DO i = 1, ng3
+                 j = pw2 % pw_grid % gidx ( i )
+                 pw3 % cc ( i ) = pw3 % cc ( i ) + pw2 % cc ( j )
+               END DO
+             ELSE
+               DO i = 1, ng2
+                 j = pw2 % pw_grid % gidx ( i )
+                 pw3 % cc ( j ) = pw3 % cc ( j ) + pw2 % cc ( i )
+               END DO
+             END IF
+
+           END IF
+
+         ELSE
+            WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+               " grid 1 :",pw1 % pw_grid % identifier, &
+               " sperical :",pw1 % pw_grid % spherical, &
+               " reference :",pw1 % pw_grid % reference 
+            WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+               " grid 2 :",pw2 % pw_grid % identifier, &
+               " sperical :",pw2 % pw_grid % spherical, &
+               " reference :",pw2 % pw_grid % reference 
+            WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+               " grid 3 :",pw3 % pw_grid % identifier, &
+               " sperical :",pw3 % pw_grid % spherical, &
+               " reference :",pw3 % pw_grid % reference 
+            CALL stop_program ( "pw_add", "Incompatible grids" )
+         END IF
+
+       ELSE
+
+          WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+             " grid 1 :",pw1 % pw_grid % identifier, &
+             " sperical :",pw1 % pw_grid % spherical, &
+             " reference :",pw1 % pw_grid % reference 
+          WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+             " grid 2 :",pw2 % pw_grid % identifier, &
+             " sperical :",pw2 % pw_grid % spherical, &
+             " reference :",pw2 % pw_grid % reference 
+          WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+             " grid 3 :",pw3 % pw_grid % identifier, &
+             " sperical :",pw3 % pw_grid % spherical, &
+             " reference :",pw3 % pw_grid % reference 
+          CALL stop_program ( "pw_add", "incompatible grids" )
+
+       END IF
+
+       flop = 2 * ng3
+       pw3 % in_space = RECIPROCALSPACE
+
     ELSE
        CALL stop_program ( "pw_add", "no suitable data field" )
     END IF
+
   ELSE 
+
     IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D .AND. &
          pw3 % in_use == REALDATA1D ) THEN
        pw3 % cr = pw1 % cr + pw2 % cr
@@ -696,6 +888,7 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
     ELSE
        CALL stop_program ( "pw_add", "no suitable data field" )
     END IF
+
   END IF
 
   flop = flop * 1.e-6_dbl
@@ -745,6 +938,9 @@ SUBROUTINE pw_sumup_square ( pw1, pw2 )
 
   CALL timeset ( 'pw_sumup_square', 'I', 'Mflops', handle )
   
+  IF ( pw1 % pw_grid % identifier /= pw2 % pw_grid % identifier ) &
+     CALL stop_program ( "pw_sumup_square", "grids not compatible" )
+
   IF ( pw1 % in_use == REALDATA1D ) THEN
      IF ( pw2 % in_use == REALDATA1D ) THEN
         pw1 % cr = pw1 % cr + pw2 % cr * pw2 % cr
@@ -807,7 +1003,7 @@ END SUBROUTINE pw_sumup_square
 !!     apsi
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (21-Feb-2003) : added reference grid functionality
 !!
 !!   NOTES
 !!     Currently only summing up of respective types allowed,
@@ -825,29 +1021,107 @@ SUBROUTINE pw_sumup ( pw1, pw2 )
   TYPE ( pw_type ), INTENT ( INOUT ) :: pw2
   
 ! Local
-  INTEGER :: handle
+  INTEGER :: handle, ng1, ng2, ng, i, j
   REAL ( dbl ) :: flop
  
 !------------------------------------------------------------------------------
  
   CALL timeset ( 'pw_sumup', 'I', 'Mflops', handle )
 
-  IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D ) THEN
-     pw2 % cr = pw2 % cr + pw1 % cr
-     flop = REAL ( SIZE ( pw2 % cr ), dbl )
-  ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
-       pw2 % in_use == COMPLEXDATA1D ) THEN
-     pw2 % cc = pw2 % cc + pw1 % cc
-     flop = REAL ( 2 * SIZE ( pw2 % cc ), dbl )
-  ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D ) THEN
-     pw2 % cr3d = pw2 % cr3d + pw1 % cr3d
-     flop = REAL ( SIZE ( pw2 % cr3d ), dbl )
-  ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
-       pw2 % in_use == COMPLEXDATA3D ) THEN
-     pw2 % cc3d = pw2 % cc3d + pw1 % cc3d
-     flop = REAL ( 2 * SIZE ( pw2 % cc3d ), dbl )
+  IF ( pw1 % pw_grid % identifier == pw2 % pw_grid % identifier ) THEN
+
+     IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D ) THEN
+        pw2 % cr = pw2 % cr + pw1 % cr
+        flop = REAL ( SIZE ( pw2 % cr ), dbl )
+     ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
+          pw2 % in_use == COMPLEXDATA1D ) THEN
+        pw2 % cc = pw2 % cc + pw1 % cc
+        flop = REAL ( 2 * SIZE ( pw2 % cc ), dbl )
+     ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D ) THEN
+        pw2 % cr3d = pw2 % cr3d + pw1 % cr3d
+        flop = REAL ( SIZE ( pw2 % cr3d ), dbl )
+     ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
+          pw2 % in_use == COMPLEXDATA3D ) THEN
+        pw2 % cc3d = pw2 % cc3d + pw1 % cc3d
+        flop = REAL ( 2 * SIZE ( pw2 % cc3d ), dbl )
+     ELSE
+        CALL stop_program ( "pw_sumup", "no suitable data field" )
+     END IF
+
+  ELSE IF ( pw_compatible ( pw1 % pw_grid, pw2 % pw_grid ) ) THEN
+
+     IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
+          pw2 % in_use == COMPLEXDATA1D .AND. &
+          pw1 % in_space == RECIPROCALSPACE .AND. &
+          pw1 % in_space == RECIPROCALSPACE ) THEN
+
+        ng1 = SIZE ( pw1 % cc )
+        ng2 = SIZE ( pw2 % cc )
+        ng  = MIN ( ng1, ng2 )
+        flop = REAL ( 2 * ng, dbl )
+
+        IF ( pw1 % pw_grid % spherical ) THEN
+
+          pw2 % cc (1:ng) = pw2 % cc (1:ng) + pw1 % cc (1:ng)
+
+        ELSEIF ( ( pw1 % pw_grid % identifier == pw1 % pw_grid % reference ) ) THEN
+
+          IF( ng1 >= ng2 ) THEN
+            DO i = 1, ng2
+              j = pw2 % pw_grid % gidx ( i )
+              pw2 % cc ( i ) = pw2 % cc ( i ) + pw1 % cc ( j )
+            END DO
+          ELSE
+            DO i = 1, ng1
+              j = pw2 % pw_grid % gidx ( i )
+              pw2 % cc ( j ) = pw2 % cc ( j ) + pw1 % cc ( i )
+            END DO
+          END IF
+
+       ELSEIF ( ( pw2 % pw_grid % identifier == pw1 % pw_grid % reference ) ) THEN
+
+          IF( ng1 >= ng2 ) THEN
+            DO i = 1, ng2
+              j = pw1 % pw_grid % gidx ( i )
+              pw2 % cc ( i ) = pw2 % cc ( i ) + pw1 % cc ( j )
+            END DO
+          ELSE
+            DO i = 1, ng1
+              j = pw1 % pw_grid % gidx ( i )
+              pw2 % cc ( j ) = pw2 % cc ( j ) + pw1 % cc ( i )
+            END DO
+          END IF
+
+       ELSE
+
+         WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+            " grid 1 :",pw1 % pw_grid % identifier, &
+            " sperical :",pw1 % pw_grid % spherical, &
+            " reference :",pw1 % pw_grid % reference
+         WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+            " grid 2 :",pw2 % pw_grid % identifier, &
+            " sperical :",pw2 % pw_grid % spherical, &
+            " reference :",pw2 % pw_grid % reference
+         CALL stop_program ( "pw_sumup_square", "grids not compatible" )
+
+       END IF
+    
+     ELSE
+       CALL stop_program ( "pw_sumup", "no suitable data field" )
+     END IF
+
   ELSE
-     CALL stop_program ( "pw_sumup", "no suitable data field" )
+
+     WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+        " grid 1 :",pw1 % pw_grid % identifier, &
+        " sperical :",pw1 % pw_grid % spherical, &
+        " reference :",pw1 % pw_grid % reference
+     WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+        " grid 2 :",pw2 % pw_grid % identifier, &
+        " sperical :",pw2 % pw_grid % spherical, &
+        " reference :",pw2 % pw_grid % reference
+     CALL stop_program ( "pw_sumup_square", "grids not compatible" )
+
   END IF
 
   flop = flop * 1.e-6_dbl
@@ -900,6 +1174,9 @@ SUBROUTINE pw_subtract ( pw1, pw2, pw3 )
 !------------------------------------------------------------------------------
   
   CALL timeset ( 'pw_subtract', 'I', 'Mflops', handle )
+
+  IF ( pw1 % pw_grid % identifier /= pw2 % pw_grid % identifier ) &
+     CALL stop_program ( "pw_sumup_square", "grids not compatible" )
 
   IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D .AND. &
        pw3 % in_use == REALDATA1D ) THEN
@@ -971,6 +1248,9 @@ SUBROUTINE pw_reduce ( pw1, pw2 )
 !------------------------------------------------------------------------------
   
   CALL timeset ( 'pw_reduce', 'I', 'Mflops', handle )
+
+  IF ( pw1 % pw_grid % identifier /= pw2 % pw_grid % identifier ) &
+     CALL stop_program ( "pw_sumup_square", "grids not compatible" )
 
   IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D ) THEN
      pw2 % cr = pw2 % cr - pw1 % cr
@@ -1860,6 +2140,24 @@ SUBROUTINE pw_write(pw, unit_nr, error)
        pw%pw_grid%identifier
 
 END SUBROUTINE pw_write
+!***************************************************************************
+
+FUNCTION pw_compatible ( grida, gridb ) RESULT ( compat )
+   IMPLICIT NONE
+   TYPE ( pw_grid_type ), INTENT ( IN ) :: grida, gridb
+   LOGICAL :: compat
+
+   compat = .FALSE.
+   IF ( grida%identifier == gridb%identifier ) THEN
+      compat = .TRUE.
+   ELSE IF ( grida%reference == gridb%identifier ) THEN
+      compat = .TRUE.
+   ELSE IF ( gridb%reference == grida%identifier ) THEN
+      compat = .TRUE.
+   END IF
+   
+END FUNCTION pw_compatible
+
 !***************************************************************************
 
 END MODULE pw_types

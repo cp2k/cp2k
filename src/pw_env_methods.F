@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2002  CP2K developers group                                 !
+!   Copyright (C) 2002 -2003 CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
@@ -21,6 +21,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     10.2002 created [fawzi]
+!!     JGH (22-Feb-03) PW grid options added
 !!
 !!   SOURCE
 !****************************************************************************
@@ -64,7 +65,7 @@ MODULE pw_env_methods
                                              pw_env_release,&
                                              pw_env_retain,&
                                              pw_env_type
-  USE pw_grid_types,                   ONLY: HALFSPACE,&
+  USE pw_grid_types,                   ONLY: HALFSPACE, FULLSPACE,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_find_cutoff,&
                                              pw_grid_construct,&
@@ -192,7 +193,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
   LOGICAL :: failure, pw_grid_information
   CHARACTER(len=*), PARAMETER :: routineN='pw_env_rebuild',&
        routineP=moduleN//':'//routineN
-  REAL(wp)          :: rel_cutoff,maxradius
+  REAL(wp)          :: rel_cutoff, maxradius, cutilev
   INTEGER :: handle,i,igrid_level,stat, ngrid_level, cmax,cmaxl, istat,maxl
   REAL(wp), DIMENSION(:), POINTER :: cutoff
   TYPE(cell_type), POINTER          :: cell
@@ -255,34 +256,44 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         ALLOCATE(pw_grid,stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         CALL pw_grid_construct(pw_grid)
-        pw_grid%grid_span = HALFSPACE
         pw_grid%para%rs_dims ( 1 ) = para_env%num_pe
         pw_grid%para%rs_dims ( 2 ) = 1
         
+        IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
+           cutilev = cutoff(igrid_level)
+           pw_grid%grid_span = HALFSPACE
+        ELSE IF ( dft_control % qs_control % pw_grid_opt % fullspace ) THEN
+           cutilev = -cutoff(igrid_level)
+           pw_grid%grid_span = FULLSPACE
+        ELSE
+           cutilev = -cutoff(igrid_level)
+           pw_grid%grid_span = HALFSPACE
+        END IF
+
         IF (igrid_level == 1) THEN
            IF (pw_grid_information) THEN
-              CALL pw_grid_setup(cell,pw_grid,cutoff(igrid_level),&
+              CALL pw_grid_setup(cell,pw_grid,cutilev,&
                    pe_group=para_env%group,&
                    info= cp_logger_get_default_unit_nr(logger,&
-                   local=.FALSE.))
+                   local=.FALSE.), blocked=.FALSE.)
            ELSE
-              CALL pw_grid_setup(cell,pw_grid,cutoff(igrid_level),&
-                   pe_group=para_env%group)
+              CALL pw_grid_setup(cell,pw_grid,cutilev,&
+                   pe_group=para_env%group, blocked=.FALSE.)
            END IF
+           old_pw_grid => pw_grid
         ELSE
            IF (pw_grid_information) THEN
-              CALL pw_grid_setup(cell,pw_grid,cutoff(igrid_level),&
+              CALL pw_grid_setup(cell,pw_grid,cutilev,&
                    pe_group=para_env%group,&
                    info=cp_logger_get_default_unit_nr(logger,&
-                   local=.FALSE.),&
+                   local=.FALSE.), blocked=.FALSE., &
                    ref_grid=old_pw_grid)
            ELSE
-              CALL pw_grid_setup(cell,pw_grid,cutoff(igrid_level),&
-                   pe_group=para_env%group,&
+              CALL pw_grid_setup(cell,pw_grid,cutilev,&
+                   pe_group=para_env%group, blocked=.FALSE., &
                    ref_grid=old_pw_grid)
            END IF
         END IF
-        old_pw_grid => pw_grid
         
         NULLIFY(pw_pools(igrid_level)%pool)
         CALL pw_pool_create(pw_pools(igrid_level)%pool,&

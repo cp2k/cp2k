@@ -76,6 +76,8 @@ MODULE pw_grid_types
      INTEGER :: first_gne0                        ! first g index /= 0 [1/2]
      INTEGER :: nglengths                         ! # different lengths/shells
      INTEGER :: identifier                        ! tag of this grid
+     INTEGER :: reference                         ! reference grid identifier
+     INTEGER, DIMENSION ( : ), POINTER :: gidx    ! ref grid index              
      LOGICAL :: spherical                         ! spherical cutoff?
   END TYPE pw_grid_type
   

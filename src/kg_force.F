@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C ) 2000  CP2K developers group                                !
+!   Copyright (C ) 2002 - 2003  CP2K developers group                         !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/kg_force [1.0] *
 !!
@@ -14,6 +14,7 @@
 !!     gloria,30.09.2002 
 !!
 !!   MODIFICATION HISTORY
+!!     JGH (22-Feb-03) PW grid options added
 !!
 !!   SOURCE
 !******************************************************************************
@@ -78,7 +79,7 @@ MODULE kg_force
                                               linklist_torsions
   USE particle_types,                  ONLY : particle_type
   USE pw_grid_types,                   ONLY : pw_grid_type,&
-                                              HALFSPACE
+                                              HALFSPACE, FULLSPACE
   USE pw_grids,                        ONLY : pw_find_cutoff,&
                                               pw_grid_construct, &   
                                               pw_grid_change,&
@@ -1141,6 +1142,7 @@ END SUBROUTINE deallocate_kg_densities
     type(pw_grid_type), pointer :: pw_grid_loc
     type(pw_pool_type), pointer :: pw_pool
     REAL(dbl), DIMENSION(:), POINTER :: cutoff
+    REAL(dbl) :: cutilev
 
 !   ---------------------------------------------------------------------------
 
@@ -1171,6 +1173,17 @@ END SUBROUTINE deallocate_kg_densities
        pw_grid(igrid_level)%grid_span = HALFSPACE
        pw_grid(igrid_level)%para%rs_dims ( 1 ) = globenv % num_pe
        pw_grid(igrid_level)%para%rs_dims ( 2 ) = 1
+
+       IF ( kg_env % dft_control % kg_control % pw_grid_opt % spherical ) THEN
+          cutilev = cutoff(igrid_level)
+          pw_grid%grid_span = HALFSPACE
+       ELSE IF ( kg_env % dft_control % kg_control % pw_grid_opt % fullspace ) THEN
+          cutilev = -cutoff(igrid_level)
+          pw_grid%grid_span = FULLSPACE
+       ELSE
+          cutilev = -cutoff(igrid_level)
+          pw_grid%grid_span = HALFSPACE
+       END IF
 
        IF (igrid_level == 1) THEN
          IF (globenv%print%pw_grid_information) THEN

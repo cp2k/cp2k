@@ -18,6 +18,7 @@
 !!     - new xc code (31.05.02,jgh)
 !!     - qs section revised (29.08.02,jgh)
 !!     - kg section added (24.09.02,gt)
+!!     - pw_grid options added (22.02.03,jgh)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -44,6 +45,13 @@ MODULE dft_types
 
   PRIVATE
 
+! *** Control parameters for pw grids ***
+
+  TYPE pw_grid_option
+     LOGICAL :: spherical
+     LOGICAL :: fullspace
+  END TYPE pw_grid_option
+
 ! *** Control parameters for a KIM-GORDON calculation ***
 
   TYPE kg_control_type
@@ -59,6 +67,7 @@ MODULE dft_types
     LOGICAL                         :: polarization
     REAL(wp)                        :: cutoff
     REAL(wp), DIMENSION(:), POINTER :: e_cutoff
+    TYPE ( pw_grid_option )         :: pw_grid_opt
   END TYPE kg_control_type
 
 ! *** Control parameters for a QUICKSTEP calculation ***
@@ -82,6 +91,7 @@ MODULE dft_types
     LOGICAL                         :: gapw,gpw,pao
     REAL(wp)                        :: cutoff
     REAL(wp), DIMENSION(:), POINTER :: e_cutoff
+    TYPE ( pw_grid_option )         :: pw_grid_opt
   END TYPE qs_control_type
 
 ! *** Control parameters for a WAVE calculation ***
@@ -123,7 +133,7 @@ MODULE dft_types
 
   PUBLIC :: dft_control_type, xc_grid_type,&
             kg_control_type, qs_control_type,&
-            wave_control_type
+            wave_control_type, pw_grid_option
 
 ! *** Public subroutines ***
 
@@ -324,7 +334,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    CHARACTER(LEN=60) :: keyword,string
+    CHARACTER(LEN=60) :: keyword,string,string2
     CHARACTER(LEN=3)  :: test_result
     REAL(wp)          :: value
     INTEGER           :: igrid_level,istat,ngrid_level
@@ -345,6 +355,8 @@ CONTAINS
     kg_control%progression_factor = 2.0_wp
     kg_control%relative_cutoff = 25.0_wp
     kg_control%polarization = .FALSE.
+    kg_control%pw_grid_opt % spherical = .FALSE.
+    kg_control%pw_grid_opt % fullspace = .TRUE. 
 !
     cutoff_set = .FALSE.
     multgrid_set = .FALSE.
@@ -425,7 +437,31 @@ CONTAINS
         CASE DEFAULT
           CALL stop_parser(routine,&
                            "Invalid method <"//TRIM(keyword)//&
-                           "> specified for QUICKSTEP")
+                           "> specified for KG")
+        END SELECT
+      CASE ("PW_GRID")
+        CALL read_object(string,lower_to_upper=.TRUE.)
+        SELECT CASE (string)
+        CASE ("SPHERICAL")
+          kg_control%pw_grid_opt % spherical = .TRUE.
+          kg_control%pw_grid_opt % fullspace = .FALSE.
+        CASE ("NON-SPHERICAL")
+          kg_control%pw_grid_opt % spherical = .FALSE.
+          CALL read_object(string2,lower_to_upper=.TRUE.)
+          SELECT CASE (string2)
+          CASE ("FULLSPACE")
+            kg_control%pw_grid_opt % fullspace = .TRUE.
+          CASE ("HALFSPACE")
+            kg_control%pw_grid_opt % fullspace = .FALSE.
+          CASE DEFAULT
+            CALL stop_parser(routine,&
+                           "Invalid method <"//TRIM(keyword)//&
+                           "> specified for KG")
+          END SELECT
+        CASE DEFAULT
+          CALL stop_parser(routine,&
+                           "Invalid method <"//TRIM(keyword)//&
+                           "> specified for KG")
         END SELECT
       END SELECT
     END DO
@@ -514,7 +550,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    CHARACTER(LEN=60) :: keyword,string
+    CHARACTER(LEN=60) :: keyword,string,string2
     CHARACTER(LEN=3)  :: test_result
     REAL(wp)          :: value
     INTEGER           :: igrid_level,istat,ngrid_level
@@ -539,6 +575,8 @@ CONTAINS
     qs_control%gapw = .FALSE.
     qs_control%gpw = .TRUE.
     qs_control%pao = .FALSE.
+    qs_control%pw_grid_opt % spherical = .FALSE.
+    qs_control%pw_grid_opt % fullspace = .TRUE.
 !
     cutoff_set = .FALSE.
     multgrid_set = .FALSE.
@@ -622,6 +660,30 @@ CONTAINS
         CASE ("GPW")
           qs_control%method = "GPW"
           qs_control%gpw = .TRUE.
+        CASE DEFAULT
+          CALL stop_parser(routine,&
+                           "Invalid method <"//TRIM(keyword)//&
+                           "> specified for QUICKSTEP")
+        END SELECT
+      CASE ("PW_GRID")
+        CALL read_object(string,lower_to_upper=.TRUE.)
+        SELECT CASE (string)
+        CASE ("SPHERICAL")
+          qs_control%pw_grid_opt % spherical = .TRUE.
+          qs_control%pw_grid_opt % fullspace = .FALSE.
+        CASE ("NON-SPHERICAL")
+          qs_control%pw_grid_opt % spherical = .FALSE.
+          CALL read_object(string2,lower_to_upper=.TRUE.)
+          SELECT CASE (string2)
+          CASE ("FULLSPACE")
+            qs_control%pw_grid_opt % fullspace = .TRUE.
+          CASE ("HALFSPACE")
+            qs_control%pw_grid_opt % fullspace = .FALSE.
+          CASE DEFAULT
+            CALL stop_parser(routine,&
+                           "Invalid method <"//TRIM(keyword)//&
+                           "> specified for QUICKSTEP")
+          END SELECT
         CASE DEFAULT
           CALL stop_parser(routine,&
                            "Invalid method <"//TRIM(keyword)//&
@@ -833,6 +895,16 @@ CONTAINS
         "KG| Method:",ADJUSTR(kg_control%method)
       WRITE (UNIT=output_unit,FMT="(T2,A,T71,I10)")&
         "KG| Number of grid levels:",SIZE(kg_control%e_cutoff)
+      IF ( kg_control% pw_grid_opt % spherical ) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A,T61,A)")&
+            "QS| Density plane wave grid type"," SPHERICAL HALFSPACE"
+      ELSE IF ( kg_control% pw_grid_opt % fullspace ) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A,T57,A)")&
+            "QS| Density plane wave grid type"," NON-SPHERICAL FULLSPACE"
+      ELSE
+         WRITE (UNIT=output_unit,FMT="(T2,A,T57,A)")&
+            "QS| Density plane wave grid type"," NON-SPHERICAL HALFSPACE"
+      END IF
       IF (ngrid_level == 1) THEN
         WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
           "KG| Density cutoff [a.u.]:",kg_control%e_cutoff(1)
@@ -891,6 +963,16 @@ CONTAINS
       output_unit = globenv%scr
       WRITE (UNIT=output_unit,FMT="(/,T2,A,T71,A)")&
         "QS| Method:",ADJUSTR(qs_control%method)
+      IF ( qs_control% pw_grid_opt % spherical ) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A,T61,A)")&
+            "QS| Density plane wave grid type"," SPHERICAL HALFSPACE"
+      ELSE IF ( qs_control% pw_grid_opt % fullspace ) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A,T57,A)")&
+            "QS| Density plane wave grid type"," NON-SPHERICAL FULLSPACE"
+      ELSE
+         WRITE (UNIT=output_unit,FMT="(T2,A,T57,A)")&
+            "QS| Density plane wave grid type"," NON-SPHERICAL HALFSPACE"
+      END IF
       WRITE (UNIT=output_unit,FMT="(T2,A,T71,I10)")&
         "QS| Number of grid levels:",SIZE(qs_control%e_cutoff)
       IF (ngrid_level == 1) THEN

@@ -17,6 +17,7 @@
 !!   MODIFICATION HISTORY
 !!     JGH (20-12-2000) : Adapted for parallel use
 !!     JGH (07-02-2001) : Added constructor and destructor routines
+!!     JGH (21-02-2003) : Generalized reference grid concept
 !!
 !!   NOTES
 !!     pw_grid_construct : set the defaults
@@ -83,7 +84,7 @@ CONTAINS
 !!     JGH (7-Feb-2001)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (21-Feb-2003) : initialize pw_grid%reference
 !!
 !!*** *************************************************************************
 
@@ -98,6 +99,7 @@ SUBROUTINE pw_grid_construct ( pw_grid )
   pw_grid % cutoff = 0._dbl
   pw_grid % grid_span = FULLSPACE
   pw_grid % para % rs_dims = 0
+  pw_grid % reference = 0
 
 END SUBROUTINE pw_grid_construct
 
@@ -264,7 +266,7 @@ END function pw_grid_compare
 !!*** *************************************************************************
 
 SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
-                           symm_usage, ref_grid )
+                           symm_usage, blocked, ref_grid )
 
   IMPLICIT NONE
 
@@ -278,6 +280,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
                                                  ! compatible with the FFT
   LOGICAL, OPTIONAL, INTENT ( IN ) :: symm_usage ! has the grid size to be 
                                                  ! symmetric (g <-> -g)    
+  LOGICAL, OPTIONAL, INTENT ( IN ) :: blocked    ! block or ray-distribution
   TYPE ( pw_grid_type ), OPTIONAL, INTENT ( IN ) :: ref_grid
 
 ! Locals
@@ -286,7 +289,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
   INTEGER :: allocstat, group_size, my_pos, i, n(3), ntest(3), ires
   REAL ( dbl ) :: rv(3,3)
   INTEGER :: aver, amax, amin, handle
-  LOGICAL :: fft, symmetry
+  LOGICAL :: fft, symmetry, blocking
 
 !------------------------------------------------------------------------------
 
@@ -298,6 +301,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
   ELSE
     fft = .TRUE.
   END IF
+
   ! default is to use only symmetric grids
   IF ( PRESENT ( symm_usage ) ) THEN
     symmetry = symm_usage
@@ -305,9 +309,20 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
     symmetry = .TRUE.
   END IF
 
+  ! default is to allow block usage
+  IF ( PRESENT ( blocked ) ) THEN
+    blocking = blocked
+  ELSE
+    blocking = .TRUE.
+  END IF
+
   ! assign a unique tag to this grid
   grid_tag = grid_tag + 1
   pw_grid % identifier = grid_tag
+  ! set pointer to possible reference grid
+  IF ( PRESENT ( ref_grid ) ) THEN
+    pw_grid % reference = ref_grid % identifier
+  END IF
 
   ! parallel info
   IF (PRESENT ( pe_group ) ) THEN
@@ -420,7 +435,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
   END IF
 
   ! Distribute grid
-  CALL pw_grid_distribute ( pw_grid, yz_mask, ref_grid )
+  CALL pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking )
 
   ! Allocate the grid fields
   CALL pw_grid_allocate ( pw_grid, pw_grid % ngpts_cut_local, &
@@ -553,7 +568,7 @@ END SUBROUTINE pw_grid_setup
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid )
+SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking )
 
   IMPLICIT NONE
 
@@ -561,6 +576,7 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid )
   TYPE ( pw_grid_type ), INTENT ( INOUT ), TARGET :: pw_grid
   INTEGER, DIMENSION ( :, : ), INTENT ( INOUT ) :: yz_mask
   TYPE ( pw_grid_type ), OPTIONAL, INTENT ( IN ) :: ref_grid
+  LOGICAL, INTENT ( IN ) :: blocking
 
 ! Locals
   INTEGER :: gmin, gmax, nx, ny, nz, np, ns, i, j, k, l, m, n, handle
@@ -682,7 +698,8 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid )
     IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_distribute", &
        "pw_grid % para % yzq", ny*nz )
 
-    IF ( pw_grid % spherical .OR. pw_grid % grid_span == HALFSPACE ) THEN
+    IF ( pw_grid % spherical .OR. pw_grid % grid_span == HALFSPACE &
+         .OR. .NOT. blocking ) THEN
 
       pw_grid % para % ray_distribution = .TRUE.
 
@@ -1440,6 +1457,7 @@ END SUBROUTINE pw_grid_allocate
 !!     JGH (20-06-2001) : do not sort non-spherical grids
 !!     JGH (19-02-2003) : Order all grids, this makes subgrids also for
 !!                        non-spherical cutoffs possible
+!!     JGH (21-02-2003) : Introduce gather array for general reference grids
 !!
 !!*** *************************************************************************
 
@@ -1452,7 +1470,7 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
   TYPE ( pw_grid_type ), OPTIONAL, INTENT ( IN ) :: ref_grid
 
 ! Locals
-  INTEGER :: ig, it(3), allocstat, ng, ngr, handle
+  INTEGER :: ig, ih, is, ip, it, allocstat, ng, ngr, handle
   INTEGER, ALLOCATABLE, DIMENSION ( : ) :: idx, int_tmp
   REAL ( dbl ) :: rt(3)
   REAL ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: real_tmp
@@ -1469,25 +1487,10 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
   ALLOCATE ( real_tmp ( ng ), STAT = allocstat )
   IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "real_tmp", ng )
 
-  IF ( pw_grid % spherical ) THEN
-
-     ! grids are (locally) ordered by length of G-vectors
-     CALL sort ( pw_grid % gsq, ng, idx )
-     ! within shells order wrt x,y,z
-     CALL sort_shells ( pw_grid % gsq, pw_grid % g_hat, idx )
-
-  ELSE
-
-     !grids are locally ordered wrt MAX(ABS(x,y,z))
-     DO ig = 1 ,ng
-       int_tmp ( ig )  = MAX ( ABS ( pw_grid % g_hat ( 1, ig ) ), &
-                               ABS ( pw_grid % g_hat ( 2, ig ) ), &
-                               ABS ( pw_grid % g_hat ( 3, ig ) ) )
-     END DO
-     CALL sort ( int_tmp, ng, idx )
-     CALL sort_hulls ( int_tmp, pw_grid % g_hat, idx )
-
-  END IF
+  ! grids are (locally) ordered by length of G-vectors
+  CALL sort ( pw_grid % gsq, ng, idx )
+  ! within shells order wrt x,y,z
+  CALL sort_shells ( pw_grid % gsq, pw_grid % g_hat, idx )
 
   real_tmp ( 1:ng ) = pw_grid % g ( 1, 1:ng )
   pw_grid % g ( 1, 1:ng ) = real_tmp ( idx ( 1:ng ) )
@@ -1513,9 +1516,108 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
   IF ( PRESENT ( ref_grid ) ) THEN
     ngr = SIZE ( ref_grid % gsq  )
     ngr = MIN ( ng, ngr )
-    IF ( .NOT. ALL ( pw_grid % g_hat ( 1:3, 1:ngr ) &
+    IF ( pw_grid % spherical ) THEN
+      IF ( .NOT. ALL ( pw_grid % g_hat ( 1:3, 1:ngr ) &
                   == ref_grid % g_hat ( 1:3, 1:ngr ) ) ) THEN
-      CALL stop_program ( "pw_grid_sort", "G space sorting not compatible" )
+        CALL stop_program ( "pw_grid_sort", "G space sorting not compatible" )
+      END IF
+    ELSE
+      ALLOCATE ( pw_grid%gidx(1:ngr), STAT = allocstat )
+      IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "pw_grid%gidx", ngr )
+      pw_grid%gidx = 0
+      ! first try as many trivial associations as possible
+      it = 0
+      DO ig = 1, ngr
+        IF ( .NOT. ALL ( pw_grid % g_hat ( 1:3, ig ) &
+                  == ref_grid % g_hat ( 1:3, ig ) ) ) EXIT
+        pw_grid%gidx(ig) = ig
+        it = ig
+      END DO
+      ! now for the ones that could not be done
+      IF ( ng == ngr ) THEN
+        ! for the case pw_grid <= ref_grid
+        is = it
+        DO ig = it + 1, ngr
+          DO ih = is + 1, SIZE ( ref_grid % gsq  )
+            IF ( ABS ( pw_grid % gsq(ig) - ref_grid % gsq(ih) ) > 1.e-12_dbl ) CYCLE
+            EXIT
+          END DO
+          IF ( ABS ( pw_grid % gsq(ig) - ref_grid % gsq(ih) ) > 1.e-12_dbl ) THEN
+             WRITE(*,"(A,I10,F20.10)") "G-vector", ig, pw_grid % gsq(ig)
+             CALL stop_program ( "pw_grid_sort", "G vector not found" )
+          END IF
+          ip = ih - 1
+          DO ih = ip + 1, SIZE ( ref_grid % gsq  )
+            IF ( ABS ( pw_grid % gsq(ig) - ref_grid % gsq(ih) ) > 1.e-12_dbl ) CYCLE
+            IF ( pw_grid % g_hat(1,ig) /= ref_grid % g_hat(1,ih) ) CYCLE
+            IF ( pw_grid % g_hat(2,ig) /= ref_grid % g_hat(2,ih) ) CYCLE
+            IF ( pw_grid % g_hat(3,ig) /= ref_grid % g_hat(3,ih) ) CYCLE
+            pw_grid%gidx(ig) = ih
+            EXIT
+          END DO
+          IF ( pw_grid%gidx(ig) == 0 ) THEN
+             WRITE ( *, "(A,2I10)" ) " G-Shell ",is+1,ip+1
+             WRITE ( *, "(A,I10,3I6,F20.10)" ) &
+                " G-vector", ig, pw_grid % g_hat(1:3,ig), pw_grid % gsq(ig)
+             DO ih = 1, SIZE ( ref_grid % gsq  )
+               IF ( pw_grid % g_hat(1,ig) /= ref_grid % g_hat(1,ih) ) CYCLE
+               IF ( pw_grid % g_hat(2,ig) /= ref_grid % g_hat(2,ih) ) CYCLE
+               IF ( pw_grid % g_hat(3,ig) /= ref_grid % g_hat(3,ih) ) CYCLE
+               WRITE ( *, "(A,I10,3I6,F20.10)" ) &
+                " G-vector", ih, ref_grid % g_hat(1:3,ih),ref_grid % gsq(ih)
+             END DO
+             CALL stop_program ( "pw_grid_sort", "G vector not found" )
+          END IF
+          is = ip
+        END DO
+      ELSE
+        ! for the case pw_grid > ref_grid
+        is = it
+        DO ig = it + 1, ngr
+          DO ih = is + 1, ng
+            IF ( ABS ( pw_grid % gsq(ih) - ref_grid % gsq(ig) ) > 1.e-12_dbl ) CYCLE
+            EXIT
+          END DO
+          IF ( ABS ( pw_grid % gsq(ih) - ref_grid % gsq(ig) ) > 1.e-12_dbl ) THEN
+             WRITE(*,"(A,I10,F20.10)") "G-vector", ig, ref_grid % gsq(ig)
+             CALL stop_program ( "pw_grid_sort", "G vector not found" )
+          END IF
+          ip = ih - 1
+          DO ih = ip + 1, ng
+            IF ( ABS ( pw_grid % gsq(ih) - ref_grid % gsq(ig) ) > 1.e-12_dbl ) CYCLE
+            IF ( pw_grid % g_hat(1,ih) /= ref_grid % g_hat(1,ig) ) CYCLE
+            IF ( pw_grid % g_hat(2,ih) /= ref_grid % g_hat(2,ig) ) CYCLE
+            IF ( pw_grid % g_hat(3,ih) /= ref_grid % g_hat(3,ig) ) CYCLE
+            pw_grid%gidx(ig) = ih
+            EXIT
+          END DO
+          IF ( pw_grid%gidx(ig) == 0 ) THEN
+             WRITE ( *, "(A,2I10)" ) " G-Shell ",is+1,ip+1
+             WRITE ( *, "(A,I10,3I6,F20.10)" ) &
+                " G-vector", ig, ref_grid % g_hat(1:3,ig), ref_grid % gsq(ig)
+             DO ih = 1, ng
+               IF ( pw_grid % g_hat(1,ih) /= ref_grid % g_hat(1,ig) ) CYCLE
+               IF ( pw_grid % g_hat(2,ih) /= ref_grid % g_hat(2,ig) ) CYCLE
+               IF ( pw_grid % g_hat(3,ih) /= ref_grid % g_hat(3,ig) ) CYCLE
+               WRITE ( *, "(A,I10,3I6,F20.10)" ) &
+                " G-vector", ih, pw_grid % g_hat(1:3,ih),pw_grid % gsq(ih)
+             END DO
+             CALL stop_program ( "pw_grid_sort", "G vector not found" )
+          END IF
+          is = ip
+        END DO
+      END IF
+      ! test if all g-vectors are associated
+      IF ( ANY ( pw_grid%gidx == 0 ) ) THEN
+        CALL stop_program ( "pw_grid_sort", "G space sorting not compatible" )
+      END IF
+    END IF
+  END IF
+
+  !check if G=0 is at first position
+  IF ( pw_grid % have_g0 ) THEN
+    IF ( pw_grid % gsq ( 1 ) /= 0._dbl ) THEN
+      CALL stop_program ( "pw_grid_sort", "G=0 not in first position" )
     END IF
   END IF
 
@@ -1556,38 +1658,6 @@ SUBROUTINE sort_shells ( gsq, g_hat, idx )
 
 END SUBROUTINE sort_shells
 
-SUBROUTINE sort_hulls ( ind, g_hat, idx )
-
-  IMPLICIT NONE
-
-! Argument
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: ind
-  INTEGER, DIMENSION ( :, : ), INTENT ( IN ) :: g_hat
-  INTEGER, DIMENSION ( : ), INTENT ( INOUT ) :: idx
-
-! Locals
-  REAL ( dbl ), PARAMETER :: small = 1.e-12_dbl
-  INTEGER :: ng, ig, s1, s2, s_begin
-
-  ng = SIZE ( ind )
-  s_begin = -10000000
-  s1 = 0
-  s2 = 0
-  ig = 1
-  DO ig = 1, ng
-    IF ( ABS ( REAL ( ind ( ig ) - s_begin, dbl ) ) < small ) THEN
-      s2 = ig
-    ELSE
-      CALL redist ( g_hat, idx, s1, s2)
-      s_begin = ind ( ig )
-      s1 = ig
-      s2 = ig
-    END IF
-  END DO
-  CALL redist ( g_hat, idx, s1, s2 )
-
-END SUBROUTINE sort_hulls
-
 SUBROUTINE redist ( g_hat, idx, s1, s2 )
 
   IMPLICIT NONE
@@ -1600,6 +1670,7 @@ SUBROUTINE redist ( g_hat, idx, s1, s2 )
 ! Locals
   INTEGER :: ns, info, i, ii
   INTEGER, DIMENSION ( : ), ALLOCATABLE :: indl
+  INTEGER :: n1, n2, n3
   REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: slen
 
   IF ( s2 <= s1 ) RETURN
@@ -1611,8 +1682,11 @@ SUBROUTINE redist ( g_hat, idx, s1, s2 )
 
   DO i = s1, s2
     ii = idx ( i )
-    slen ( i - s1 + 1 ) = 1000._dbl * REAL(g_hat(1,ii),dbl) + &
-       REAL(g_hat(2,ii),dbl) + 0.001_dbl * REAL(g_hat(3,ii),dbl)
+    n1 = g_hat(1,ii)
+    n2 = g_hat(2,ii)
+    n3 = g_hat(3,ii)
+    slen ( i - s1 + 1 ) = 1000._dbl * REAL(n1,dbl) + &
+                          REAL(n2,dbl) + 0.001_dbl * REAL(n3,dbl)
   END DO
   CALL sort ( slen, ns, indl )
   DO i = 1, ns
