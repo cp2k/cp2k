@@ -56,7 +56,8 @@ MODULE topology_pdb
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE topology_types,                  ONLY: topology_parameters_type
+  USE topology_types,                  ONLY: topology_parameters_type,&
+                                             atom_info_type
 
   IMPLICIT NONE
 
@@ -97,11 +98,12 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
     TYPE(global_environment_type), &
       INTENT(IN), OPTIONAL                   :: globenv
 
+    TYPE (atom_info_type),POINTER            :: atom_info
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_pdb', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nblock_atom = 1000
 
-    CHARACTER(LEN=default_string_length)     :: line, record, symbol
+    CHARACTER(LEN=default_string_length)     :: line, record
     INTEGER                                  :: handle, istat,&
                                                 iw, natom
     INTEGER                                  :: file_unit
@@ -130,26 +132,17 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
+  atom_info => topology%atom_info
 
-  NULLIFY(topology%label_molname)
-  NULLIFY(topology%label_resname)
-  NULLIFY(topology%label_atmname)
-  NULLIFY(topology%r)
-  NULLIFY(topology%atm_mass)
-  NULLIFY(topology%atm_charge)
-  NULLIFY(topology%occup)
-  NULLIFY(topology%beta)
-  NULLIFY(topology%element)
-
-  CALL reallocate(topology%label_molname,1,nblock_atom)
-  CALL reallocate(topology%label_resname,1,nblock_atom)
-  CALL reallocate(topology%label_atmname,1,nblock_atom)
-  CALL reallocate(topology%r,1,3,1,nblock_atom)
-  CALL reallocate(topology%atm_mass,1,nblock_atom)
-  CALL reallocate(topology%atm_charge,1,nblock_atom)
-  CALL reallocate(topology%occup,1,nblock_atom)
-  CALL reallocate(topology%beta,1,nblock_atom)
-  CALL reallocate(topology%element,1,nblock_atom)
+  CALL reallocate(atom_info%label_molname,1,nblock_atom)
+  CALL reallocate(atom_info%label_resname,1,nblock_atom)
+  CALL reallocate(atom_info%label_atmname,1,nblock_atom)
+  CALL reallocate(atom_info%r,1,3,1,nblock_atom)
+  CALL reallocate(atom_info%atm_mass,1,nblock_atom)
+  CALL reallocate(atom_info%atm_charge,1,nblock_atom)
+  CALL reallocate(atom_info%occup,1,nblock_atom)
+  CALL reallocate(atom_info%beta,1,nblock_atom)
+  CALL reallocate(atom_info%element,1,nblock_atom)
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -172,42 +165,42 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
     IF(record == "ATOM") THEN
       natom = natom + 1
       topology%natoms = natom
-      IF(natom > SIZE(topology%label_atmname)) THEN
-        CALL reallocate(topology%label_molname,1,natom+nblock_atom)
-        CALL reallocate(topology%label_resname,1,natom+nblock_atom)
-        CALL reallocate(topology%label_atmname,1,natom+nblock_atom)
-        CALL reallocate(topology%r,1,3,1,natom+nblock_atom)
-        CALL reallocate(topology%atm_mass,1,natom+nblock_atom)
-        CALL reallocate(topology%atm_charge,1,natom+nblock_atom)
-        CALL reallocate(topology%occup,1,natom+nblock_atom)
-        CALL reallocate(topology%beta,1,natom+nblock_atom)
-        CALL reallocate(topology%element,1,natom+nblock_atom)
+      IF(natom > SIZE(atom_info%label_atmname)) THEN
+        CALL reallocate(atom_info%label_molname,1,natom+nblock_atom)
+        CALL reallocate(atom_info%label_resname,1,natom+nblock_atom)
+        CALL reallocate(atom_info%label_atmname,1,natom+nblock_atom)
+        CALL reallocate(atom_info%r,1,3,1,natom+nblock_atom)
+        CALL reallocate(atom_info%atm_mass,1,natom+nblock_atom)
+        CALL reallocate(atom_info%atm_charge,1,natom+nblock_atom)
+        CALL reallocate(atom_info%occup,1,natom+nblock_atom)
+        CALL reallocate(atom_info%beta,1,natom+nblock_atom)
+        CALL reallocate(atom_info%element,1,natom+nblock_atom)
       END IF
     END IF
 
     SELECT CASE (record)
     CASE ("ATOM") 
-      topology%label_molname(natom) = 'MOL'
-      READ(line(13:16),*) topology%label_atmname(natom)
-      READ(line(18:20),*,IOSTAT=istat) topology%label_resname(natom)
-      READ(line(31:38),*,IOSTAT=istat) topology%r(1,natom)
-      READ(line(39:46),*,IOSTAT=istat) topology%r(2,natom)
-      READ(line(47:54),*,IOSTAT=istat) topology%r(3,natom)
-      READ(line(55:60),*,IOSTAT=istat) topology%occup
-      READ(line(61:66),*,IOSTAT=istat) topology%beta
-      READ(line(77:78),*,IOSTAT=istat) topology%element(natom)
+      atom_info%label_molname(natom) = 'MOL'
+      READ(line(13:16),*) atom_info%label_atmname(natom)
+      READ(line(18:20),*,IOSTAT=istat) atom_info%label_resname(natom)
+      READ(line(31:38),*,IOSTAT=istat) atom_info%r(1,natom)
+      READ(line(39:46),*,IOSTAT=istat) atom_info%r(2,natom)
+      READ(line(47:54),*,IOSTAT=istat) atom_info%r(3,natom)
+      READ(line(55:60),*,IOSTAT=istat) atom_info%occup
+      READ(line(61:66),*,IOSTAT=istat) atom_info%beta
+      READ(line(77:78),*,IOSTAT=istat) atom_info%element(natom)
       WRITE(*,*) natom,line(13:16),line(77:78)
-      topology%atm_mass(natom)  =0.0_dbl
-      topology%atm_charge(natom)=0.0_dbl
+      atom_info%atm_mass(natom)  =0.0_dbl
+      atom_info%atm_charge(natom)=0.0_dbl
       IF(PM2) WRITE(iw,'(5X,A4,3F8.3,A4)') &
-                   TRIM(topology%label_atmname(natom)),&
-                   topology%r(1,natom),&
-                   topology%r(2,natom),&
-                   topology%r(3,natom),&
-                   TRIM(topology%label_resname(natom))
-      CALL convert_to_cp2k_units("ANGSTROM",length=topology%r(1,natom))
-      CALL convert_to_cp2k_units("ANGSTROM",length=topology%r(2,natom))
-      CALL convert_to_cp2k_units("ANGSTROM",length=topology%r(3,natom))
+                   TRIM(atom_info%label_atmname(natom)),&
+                   atom_info%r(1,natom),&
+                   atom_info%r(2,natom),&
+                   atom_info%r(3,natom),&
+                   TRIM(atom_info%label_resname(natom))
+      CALL convert_to_cp2k_units("ANGSTROM",length=atom_info%r(1,natom))
+      CALL convert_to_cp2k_units("ANGSTROM",length=atom_info%r(2,natom))
+      CALL convert_to_cp2k_units("ANGSTROM",length=atom_info%r(3,natom))
     CASE ("END")
       EXIT
     CASE DEFAULT
@@ -215,12 +208,15 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
   END DO
   CALL close_file(unit_number=file_unit)
 
-  CALL reallocate(topology%label_molname,1,natom)
-  CALL reallocate(topology%label_resname,1,natom)
-  CALL reallocate(topology%label_atmname,1,natom)
-  CALL reallocate(topology%r,1,3,1,natom)
-  CALL reallocate(topology%atm_mass,1,natom)
-  CALL reallocate(topology%atm_charge,1,natom)
+  CALL reallocate(atom_info%label_molname,1,natom)
+  CALL reallocate(atom_info%label_resname,1,natom)
+  CALL reallocate(atom_info%label_atmname,1,natom)
+  CALL reallocate(atom_info%r,1,3,1,natom)
+  CALL reallocate(atom_info%atm_mass,1,natom)
+  CALL reallocate(atom_info%atm_charge,1,natom)
+  CALL reallocate(atom_info%occup,1,natom)
+  CALL reallocate(atom_info%beta,1,natom)
+  CALL reallocate(atom_info%element,1,natom)
 
   topology%natoms = natom
 
@@ -258,6 +254,7 @@ SUBROUTINE write_coordinate_pdb (topology,globenv)
     TYPE(global_environment_type), &
       INTENT(IN), OPTIONAL                   :: globenv
 
+    TYPE (atom_info_type),POINTER            :: atom_info
     CHARACTER(len=*), PARAMETER :: routineN = 'write_coordinate_pdb', &
       routineP = moduleN//':'//routineN
 
@@ -291,6 +288,8 @@ SUBROUTINE write_coordinate_pdb (topology,globenv)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 
+  atom_info => topology%atom_info
+
   record = "new.pdb"
 
   IF(PM1) WRITE(iw,*) "    Writing out PDB file ",TRIM(record)
@@ -311,20 +310,20 @@ SUBROUTINE write_coordinate_pdb (topology,globenv)
   id2 = 0
 
   DO i=1,natom
-    IF((id1/=topology%map_mol_num(i)).OR.(id2/=topology%map_mol_typ(i))) THEN
+    IF((id1/=atom_info%map_mol_num(i)).OR.(id2/=atom_info%map_mol_typ(i))) THEN
       imol = imol + 1
-      id1 = topology%map_mol_num(i)
-      id2 = topology%map_mol_typ(i)
+      id1 = atom_info%map_mol_num(i)
+      id2 = atom_info%map_mol_typ(i)
     END IF
     
     WRITE(file_unit,"(A6,I5,1X,A4,1X,A3,2X,I4,4X,3F8.3,2F6.2)") &
                        "ATOM  ",i,&
-                       TRIM(topology%label_atmname(i)),&
-                       TRIM(topology%label_resname(i)),&
+                       TRIM(atom_info%label_atmname(i)),&
+                       TRIM(atom_info%label_resname(i)),&
                        imol,&
-                       (topology%r(1,i)/bohr),&
-                       (topology%r(2,i)/bohr),&
-                       (topology%r(3,i)/bohr),&
+                       (atom_info%r(1,i)/bohr),&
+                       (atom_info%r(2,i)/bohr),&
+                       (atom_info%r(3,i)/bohr),&
                        1.0,1.0
   END DO
   CALL close_file(unit_number=file_unit)

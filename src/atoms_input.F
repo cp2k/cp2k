@@ -46,7 +46,8 @@ MODULE atoms_input
                                              scaled_to_real
   USE string_utilities,                ONLY: xstring
   USE termination,                     ONLY: stop_program
-  USE topology_types,                  ONLY: topology_parameters_type
+  USE topology_types,                  ONLY: topology_parameters_type,&
+                                             atom_info_type
   USE util,                            ONLY: get_unit
 
   IMPLICIT NONE
@@ -87,8 +88,8 @@ SUBROUTINE read_atoms_input ( topology, globenv )
     INTEGER, PARAMETER                       :: nblock_atom = 4000
 
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(atom_info_type),POINTER             :: atom_info
     CHARACTER(LEN=6)                         :: label
-    CHARACTER(LEN=50)                        :: dat_file
     REAL(KIND=dbl)                           :: unit_of_length
     INTEGER                                  :: atm_equal_mol, iatom, ierror, &
                                                 ilen, iw, natom, ia, ie
@@ -112,32 +113,30 @@ SUBROUTINE read_atoms_input ( topology, globenv )
 
   IF(PM1) WRITE(iw,*) "  Entering read_atoms_input"
 
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 1. NULLIFY and ALLOCATE all that is necessary in topology
-  !-----------------------------------------------------------------------------
-  NULLIFY(topology%label_molname)
-  NULLIFY(topology%label_resname)
-  NULLIFY(topology%label_atmname)
-  NULLIFY(topology%r)
-  NULLIFY(topology%atm_mass)
-  NULLIFY(topology%atm_charge)
-  CALL reallocate(topology%label_molname,1,nblock_atom)
-  CALL reallocate(topology%label_resname,1,nblock_atom)
-  CALL reallocate(topology%label_atmname,1,nblock_atom)
-  CALL reallocate(topology%r,1,3,1,nblock_atom)
-  CALL reallocate(topology%atm_mass,1,nblock_atom)
-  CALL reallocate(topology%atm_charge,1,nblock_atom)
-
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 2. get the cell info
+  ! 1. get cell and topolgoy%atom_info
   !-----------------------------------------------------------------------------
+  atom_info => topology%atom_info
   cell => topology%cell
   CALL get_cell(cell=cell,&
                 scaled_coordinates=scaled_coordinates,&
                 unit_of_length=unit_of_length)
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 2. NULLIFY and ALLOCATE all that is necessary in topology
+  !-----------------------------------------------------------------------------
+  CALL reallocate(atom_info%label_molname,1,nblock_atom)
+  CALL reallocate(atom_info%label_resname,1,nblock_atom)
+  CALL reallocate(atom_info%label_atmname,1,nblock_atom)
+  CALL reallocate(atom_info%r,1,3,1,nblock_atom)
+  CALL reallocate(atom_info%atm_mass,1,nblock_atom)
+  CALL reallocate(atom_info%atm_charge,1,nblock_atom)
+
+
 
 
   !-----------------------------------------------------------------------------
@@ -156,37 +155,37 @@ SUBROUTINE read_atoms_input ( topology, globenv )
 
        natom = natom + 1
 
-       IF (natom > SIZE(topology%label_atmname)) THEN
-        CALL reallocate(topology%label_molname,1,natom+nblock_atom)
-        CALL reallocate(topology%label_resname,1,natom+nblock_atom)
-        CALL reallocate(topology%label_atmname,1,natom+nblock_atom)
-        CALL reallocate(topology%r,1,3,1,natom+nblock_atom)
-        CALL reallocate(topology%atm_mass,1,natom+nblock_atom)
-        CALL reallocate(topology%atm_charge,1,natom+nblock_atom)
+       IF (natom > SIZE(atom_info%label_atmname)) THEN
+        CALL reallocate(atom_info%label_molname,1,natom+nblock_atom)
+        CALL reallocate(atom_info%label_resname,1,natom+nblock_atom)
+        CALL reallocate(atom_info%label_atmname,1,natom+nblock_atom)
+        CALL reallocate(atom_info%r,1,3,1,natom+nblock_atom)
+        CALL reallocate(atom_info%atm_mass,1,natom+nblock_atom)
+        CALL reallocate(atom_info%atm_charge,1,natom+nblock_atom)
        END IF
 
        ilen = default_string_length
-       topology%label_molname(natom) = ""
-       topology%label_resname(natom) = ""
-       topology%label_atmname(natom) = ""
+       atom_info%label_molname(natom) = ""
+       atom_info%label_resname(natom) = ""
+       atom_info%label_atmname(natom) = ""
 
        ! For default, set atom name to residue name to molecule name
-       CALL get_next(topology%label_atmname(natom),ilen)
-       topology%label_molname(natom) = topology%label_atmname(natom)
-       topology%label_resname(natom) = topology%label_atmname(natom)
+       CALL get_next(atom_info%label_atmname(natom),ilen)
+       atom_info%label_molname(natom) = atom_info%label_atmname(natom)
+       atom_info%label_resname(natom) = atom_info%label_atmname(natom)
 
        ! *** Read the atomic coordinates ***
-       CALL get_next(topology%r(1,natom))
-       CALL get_next(topology%r(2,natom))
-       CALL get_next(topology%r(3,natom))
+       CALL get_next(atom_info%r(1,natom))
+       CALL get_next(atom_info%r(2,natom))
+       CALL get_next(atom_info%r(3,natom))
 
        !Future user optional inputs
        IF (test_next()=='C') THEN
-         CALL get_next(topology%label_molname(natom),ilen)
-         topology%label_resname(natom) = topology%label_molname(natom)
+         CALL get_next(atom_info%label_molname(natom),ilen)
+         atom_info%label_resname(natom) = atom_info%label_molname(natom)
        END IF
-       topology%atm_mass(natom) = 0.0_dbl 
-       topology%atm_charge(natom) = 0.0_dbl 
+       atom_info%atm_mass(natom) = 0.0_dbl 
+       atom_info%atm_charge(natom) = 0.0_dbl 
 
      call read_line
      END DO
@@ -200,12 +199,12 @@ SUBROUTINE read_atoms_input ( topology, globenv )
   ! 4. Get rid of unnecessary spaces
   !-----------------------------------------------------------------------------
   topology%natoms = natom
-  CALL reallocate(topology%label_molname,1,natom)
-  CALL reallocate(topology%label_resname,1,natom)
-  CALL reallocate(topology%label_atmname,1,natom)
-  CALL reallocate(topology%r,1,3,1,natom)
-  CALL reallocate(topology%atm_mass,1,natom)
-  CALL reallocate(topology%atm_charge,1,natom)
+  CALL reallocate(atom_info%label_molname,1,natom)
+  CALL reallocate(atom_info%label_resname,1,natom)
+  CALL reallocate(atom_info%label_atmname,1,natom)
+  CALL reallocate(atom_info%r,1,3,1,natom)
+  CALL reallocate(atom_info%atm_mass,1,natom)
+  CALL reallocate(atom_info%atm_charge,1,natom)
 
 
   !-----------------------------------------------------------------------------
@@ -214,9 +213,9 @@ SUBROUTINE read_atoms_input ( topology, globenv )
   !-----------------------------------------------------------------------------
   DO iatom=1,natom
     IF (scaled_coordinates) THEN
-      topology%r(:,iatom) = scaled_to_real(topology%r(:,iatom),cell)
+      atom_info%r(:,iatom) = scaled_to_real(atom_info%r(:,iatom),cell)
     ELSE
-      topology%r(:,iatom) = topology%r(:,iatom)*unit_of_length
+      atom_info%r(:,iatom) = atom_info%r(:,iatom)*unit_of_length
     END IF
   END DO
 
@@ -227,7 +226,7 @@ SUBROUTINE read_atoms_input ( topology, globenv )
   !-----------------------------------------------------------------------------
   atm_equal_mol = 0
   DO iatom=1,natom
-    IF(topology%label_molname(iatom)==topology%label_atmname(iatom))THEN
+    IF(atom_info%label_molname(iatom)==atom_info%label_atmname(iatom))THEN
       atm_equal_mol = atm_equal_mol + 1
       topology%bondparm_factor=0.0_dbl
     END IF

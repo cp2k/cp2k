@@ -43,7 +43,10 @@ MODULE force_fields
                                              uppercase
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE topology_types,                  ONLY: topology_parameters_type
+  USE topology_types,                  ONLY: topology_parameters_type,&
+                                             constraint_info_type,&
+                                             force_field_input_info_type
+
 
   IMPLICIT NONE
 
@@ -51,9 +54,6 @@ MODULE force_fields
   PUBLIC :: read_force_field_section,&
             read_force_field_charmm,&
             read_force_field_amber
-
-  INTEGER :: scr
-  TYPE ( global_environment_type ) :: globenv
 
 !!*****
 !******************************************************************************
@@ -85,58 +85,34 @@ SUBROUTINE read_force_field_section ( topology , globenv )
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      INTENT(IN),OPTIONAL                    :: globenv
 
-    CHARACTER(LEN=default_string_length)                        :: label
-    CHARACTER(LEN=default_string_length)                        :: string
-    CHARACTER(LEN=default_string_length)                         :: units
-    INTEGER                                  :: ierror, ilen, ios, iw, &
-                                                natom_type
-    LOGICAL                                  :: units_set = .FALSE.
+    INTEGER                                  :: iw
+
+  LOGICAL                                  :: PM1, PM2, PM3, PM4
 
 !------------------------------------------------------------------------------
 
-  scr = globenv % scr
-  natom_type = topology % natom_type
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  END IF
 
-  iw = scr
+  IF(PM1) WRITE(iw,*) "  Entering read_force_field_section"
 
-!!..start the parser
-!  CALL parser_init(globenv%input_file_name,globenv)
-!
-!!..parse the input section for units
-!  label = '&FORCE_FIELD'
-!  CALL search_label ( label, ierror, ignore_case=.TRUE. )
-!  IF (ierror /= 0 ) THEN
-!     IF (globenv%ionode .AND. globenv%print_level >= 2) THEN
-!        WRITE ( iw, '( A )' ) ' No input section &FORCE_FIELD found on file '
-!        WRITE ( iw, '( T2, A )' ) globenv%input_file_name
-!     END IF
-!  ELSE
-!     CALL read_line
-!     DO WHILE ( test_next() /= 'X' )
-!        ilen = 20
-!        CALL get_next ( string, ilen )
-!        CALL uppercase ( string )
-!        SELECT CASE ( string )
-!        CASE ( 'UNITS' )
-!           ilen = 20
-!           CALL get_next ( units, ilen )
-!           CALL uppercase ( units )
-!           units_set = .TRUE.
-!           EXIT
-!        END SELECT
-!        CALL read_line
-!     END DO
-!  END IF
-!  CALL parser_end ()
-!
-!  IF ( units_set ) THEN 
+
     CALL parser_init(globenv%input_file_name,globenv)
 
-!!..read in non-bonded interaction information
+!..read in non-bonded interaction information
     CALL input_nonbonded(topology,globenv)
-!
+
 !..read the bond parameters
     CALL input_bonds(topology,globenv)
 
@@ -149,13 +125,9 @@ SUBROUTINE read_force_field_section ( topology , globenv )
 !..read the distance constraint parameters
     CALL input_constraints(topology,globenv)
 
-!..end the parser session
     CALL parser_end()
  
-!  ELSE
-!    CALL p_error()
-!    CALL stop_parser( 'read_force_field_section','UNITS not specified')
-!  ENDIF
+  IF(PM1) WRITE(iw,*) "  Exiting  read_force_field_section"
 
 END SUBROUTINE read_force_field_section
 
@@ -194,20 +166,37 @@ SUBROUTINE input_nonbonded(topology,globenv)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      INTENT(IN),OPTIONAL                    :: globenv
 
+    TYPE(force_field_input_info_type),POINTER       :: ffin_info
     CHARACTER(LEN=default_string_length)     :: at1, at2
     CHARACTER(LEN=default_string_length)     :: label
     CHARACTER(LEN=default_string_length)     :: string, string2
     INTEGER                                  :: i, ierror, ilen, iw, &
-                                                natom_types, np
+                                                np
     REAL(dbl)                                :: a, b, c, d, dc, epsilon, m, &
                                                 mc, rcut, sigma, vr0
 
+  LOGICAL                                  :: PM1, PM2, PM3, PM4
+
+!------------------------------------------------------------------------------
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  END IF
 !------------------------------------------------------------------------------
 
+  ffin_info => topology%ffin_info
+
   np = 0
-  iw = scr
+
 !..parse the input section
   label = '&FORCE_FIELD'
   CALL search_label ( label, ierror, ignore_case=.TRUE. )
@@ -233,7 +222,7 @@ SUBROUTINE input_nonbonded(topology,globenv)
                  CALL stop_parser( 'input_nonbonded','unknown option')
               CASE ( 'LENNARD-JONES')
                  np = np + 1
-                 CALL reallocate_potparm(topology%ff_nonbonded,1,np)
+                 CALL reallocate_potparm(ffin_info%ff_nonbonded,1,np)
                  ilen = 0
                  CALL get_next(at1,ilen)
                  ilen = 0
@@ -241,16 +230,16 @@ SUBROUTINE input_nonbonded(topology,globenv)
                  CALL get_next ( epsilon )
                  CALL get_next ( sigma )
                  CALL get_next ( rcut )
-                 topology%ff_nonbonded(np) %type = string2
-                 topology%ff_nonbonded(np) %at1 = at1
-                 topology%ff_nonbonded(np) %at2 = at2
-                 topology%ff_nonbonded(np) %lj%epsilon = epsilon
-                 topology%ff_nonbonded(np) %lj%sigma6 = sigma**6
-                 topology%ff_nonbonded(np) %lj%sigma12 = sigma**12
-                 topology%ff_nonbonded(np) %rcutsq = rcut*rcut
+                 ffin_info%ff_nonbonded(np) %type = string2
+                 ffin_info%ff_nonbonded(np) %at1 = at1
+                 ffin_info%ff_nonbonded(np) %at2 = at2
+                 ffin_info%ff_nonbonded(np) %lj%epsilon = epsilon
+                 ffin_info%ff_nonbonded(np) %lj%sigma6 = sigma**6
+                 ffin_info%ff_nonbonded(np) %lj%sigma12 = sigma**12
+                 ffin_info%ff_nonbonded(np) %rcutsq = rcut*rcut
               CASE ( 'WILLIAMS')
                  np = np + 1
-                 CALL reallocate_potparm(topology%ff_nonbonded,1,np)
+                 CALL reallocate_potparm(ffin_info%ff_nonbonded,1,np)
                  ilen = 0
                  CALL get_next(at1,ilen)
                  ilen = 0
@@ -259,16 +248,16 @@ SUBROUTINE input_nonbonded(topology,globenv)
                  CALL get_next ( b )
                  CALL get_next ( c )
                  CALL get_next ( rcut )
-                 topology%ff_nonbonded(np) %type = string2
-                 topology%ff_nonbonded(np) %at1 = at1
-                 topology%ff_nonbonded(np) %at2 = at2
-                 topology%ff_nonbonded(np) %willis%a = a
-                 topology%ff_nonbonded(np) %willis%b = b
-                 topology%ff_nonbonded(np) %willis%c = c
-                 topology%ff_nonbonded(np) %rcutsq = rcut*rcut
+                 ffin_info%ff_nonbonded(np) %type = string2
+                 ffin_info%ff_nonbonded(np) %at1 = at1
+                 ffin_info%ff_nonbonded(np) %at2 = at2
+                 ffin_info%ff_nonbonded(np) %willis%a = a
+                 ffin_info%ff_nonbonded(np) %willis%b = b
+                 ffin_info%ff_nonbonded(np) %willis%c = c
+                 ffin_info%ff_nonbonded(np) %rcutsq = rcut*rcut
               CASE ( 'GOODWIN')
                  np = np + 1
-                 CALL reallocate_potparm(topology%ff_nonbonded,1,np)
+                 CALL reallocate_potparm(ffin_info%ff_nonbonded,1,np)
                  ilen = 0
                  CALL get_next(at1,ilen)
                  ilen = 0
@@ -279,15 +268,15 @@ SUBROUTINE input_nonbonded(topology,globenv)
                  CALL get_next ( m )
                  CALL get_next ( mc )
                  CALL get_next ( rcut )
-                 topology%ff_nonbonded(np) %type = string2
-                 topology%ff_nonbonded(np) %at1 = at1
-                 topology%ff_nonbonded(np) %at2 = at2
-                 topology%ff_nonbonded(np) %goodwin%vr0 = vr0
-                 topology%ff_nonbonded(np) %goodwin%d = d
-                 topology%ff_nonbonded(np) %goodwin%dc = dc
-                 topology%ff_nonbonded(np) %goodwin%m = m
-                 topology%ff_nonbonded(np) %goodwin%mc = mc
-                 topology%ff_nonbonded(np) %rcutsq = rcut*rcut
+                 ffin_info%ff_nonbonded(np) %type = string2
+                 ffin_info%ff_nonbonded(np) %at1 = at1
+                 ffin_info%ff_nonbonded(np) %at2 = at2
+                 ffin_info%ff_nonbonded(np) %goodwin%vr0 = vr0
+                 ffin_info%ff_nonbonded(np) %goodwin%d = d
+                 ffin_info%ff_nonbonded(np) %goodwin%dc = dc
+                 ffin_info%ff_nonbonded(np) %goodwin%m = m
+                 ffin_info%ff_nonbonded(np) %goodwin%mc = mc
+                 ffin_info%ff_nonbonded(np) %rcutsq = rcut*rcut
               CASE ( 'END')
                  ilen = 0
                  CALL get_next(string2,ilen)
@@ -298,51 +287,6 @@ SUBROUTINE input_nonbonded(topology,globenv)
         CALL read_line
      END DO
   END IF
-
-!!..write some information to output
-!  IF (globenv%ionode) THEN
-!     IF (globenv % print_level>=0 .AND. np>0) THEN
-!        WRITE ( iw, '( A,A )' ) ' FORCE FIELD| Non-bonded interaction parameters in ', energy_unit
-!        DO i1 = 1, natom_types
-!           DO i2 = i1, natom_types
-!              IF (potparm(i1,i2)%type=='LENNARD-JONES') THEN
-!                 WRITE ( iw, '( A,A,T30,A,T37,A,T58,A,T71,F10.4 )' ) &
-!                      ' FORCE FIELD| ', 'LJ (12-6)', &
-!                      adjustl(atom_names(i1)), adjustl(atom_names(i2)), &
-!                      ' epsilon ', potparm(i1,i2) %lj%epsilon
-!                 WRITE ( iw, '( A,T58,A,T71,F10.4 )' ) ' FORCE FIELD| ', &
-!                      '   sigma ', (potparm(i1,i2)%lj%sigma6)**(1./6.)
-!                 WRITE ( iw, '( A,T58,A,T71,F10.4 )' ) ' FORCE FIELD| ', &
-!                      '    rcut ', sqrt(potparm(i1,i2)%rcutsq)
-!              ELSE IF (potparm(i1,i2)%type=='WILLIAMS') THEN
-!                 WRITE ( iw, '( A,A,T30,A,T37,A,T55,A,T68,E13.4 )' ) &
-!                      ' FORCE FIELD| ', 'Williams', adjustl(atom_names(i1)), &
-!                      adjustl(atom_names(i2)), 'A', potparm(i1,i2) %willis%a
-!                 WRITE ( iw, '( A,T47,A,T71,F10.4 )' ) ' FORCE FIELD| ', &
-!                      '    B', potparm(i1,i2) %willis%b
-!                 WRITE ( iw, '( A,T47,A,T68,E13.4 )' ) ' FORCE FIELD| ', &
-!                      '   C', potparm(i1,i2) %willis%c
-!                 WRITE ( iw, '( A,T47,A,T71,F10.4 )' ) ' FORCE FIELD| ', &
-!                      '    rcut ', sqrt(potparm(i1,i2)%rcutsq)
-!              ELSE IF (potparm(i1,i2)%type=='GOODWIN') THEN
-!                 WRITE ( iw, '( A,A,T30,A,T37,A,T55,A,T68,E13.4 )' ) &
-!                      ' FORCE FIELD| ', 'Goodwin', adjustl(atom_names(i1)), &
-!                      adjustl(atom_names(i2)), 'Ve0', &
-!                      potparm(i1,i2) %goodwin%vr0
-!                 WRITE ( iw, '( A,T44,A,T61,2F10.4 )' ) ' FORCE FIELD| ', &
-!                      '  d,dc ', potparm(i1,i2) %goodwin%d, &
-!                      potparm(i1,i2) %goodwin%dc
-!                 WRITE ( iw, '( A,T44,A,T61,2F10.4 )' ) ' FORCE FIELD| ', &
-!                      '  m,mc   ', potparm(i1,i2) %goodwin%m, &
-!                      potparm(i1,i2) %goodwin%mc
-!                 WRITE ( iw, '( A,T44,A,T71,F10.4 )' ) ' FORCE FIELD| ', &
-!                      '  rcut', sqrt(potparm(i1,i2)%rcutsq)
-!              END IF
-!           END DO
-!        END DO
-!        WRITE ( iw, '( )' )
-!     END IF
-!  END IF
 
 END SUBROUTINE input_nonbonded
 
@@ -385,17 +329,31 @@ SUBROUTINE input_bonds(topology,globenv)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      INTENT(IN),OPTIONAL                    :: globenv
 
+    TYPE(force_field_input_info_type),POINTER       :: ffin_info
     CHARACTER(LEN=default_string_length)              :: label
     CHARACTER(LEN=default_string_length)              :: string, string2
-    INTEGER                                  :: i, ierror, ilen, ios, iw, nb
-    REAL(dbl)                                :: bp1, bp2
+    INTEGER                                  :: i, ierror, ilen, iw
+
+  LOGICAL                                  :: PM1, PM2, PM3, PM4
 
 !------------------------------------------------------------------------------
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  END IF
+!------------------------------------------------------------------------------
 
-  nb = 0
-  iw = scr
+  ffin_info => topology%ffin_info
+
 !..parse the input section
   label = '&FORCE_FIELD'
   CALL search_label ( label, ierror, ignore_case=.TRUE. )
@@ -418,18 +376,17 @@ SUBROUTINE input_bonds(topology,globenv)
                  CALL p_error()
                  CALL stop_parser( 'input_bond','unknown option')
               CASE ( 'HARMONIC')
-                 topology%ff = .TRUE.
                  i = i + 1
-                 CALL reallocate(topology%ff_bond_a,1,i)
-                 CALL reallocate(topology%ff_bond_b,1,i)
-                 CALL reallocate(topology%ff_bond_k,1,i)
-                 CALL reallocate(topology%ff_bond_r0,1,i)
+                 CALL reallocate(ffin_info%ff_bond_a,1,i)
+                 CALL reallocate(ffin_info%ff_bond_b,1,i)
+                 CALL reallocate(ffin_info%ff_bond_k,1,i)
+                 CALL reallocate(ffin_info%ff_bond_r0,1,i)
 
                  ilen = default_string_length
-                 CALL get_next ( topology%ff_bond_a(i), ilen )
-                 CALL get_next ( topology%ff_bond_b(i), ilen )
-                 CALL get_next ( topology%ff_bond_k(i) )
-                 CALL get_next ( topology%ff_bond_r0(i) )
+                 CALL get_next ( ffin_info%ff_bond_a(i), ilen )
+                 CALL get_next ( ffin_info%ff_bond_b(i), ilen )
+                 CALL get_next ( ffin_info%ff_bond_k(i) )
+                 CALL get_next ( ffin_info%ff_bond_r0(i) )
               CASE ( 'END')
                  ilen = 0
                  CALL get_next(string2,ilen)
@@ -440,23 +397,6 @@ SUBROUTINE input_bonds(topology,globenv)
         CALL read_line
      END DO
   END IF
-
-!!..write some information to output
-!  IF ( globenv % ionode ) THEN
-!     IF (globenv % print_level>=0 .AND. nb>0) THEN
-!        WRITE ( iw, '( A,A )' ) ' FORCE FIELD| Bond interaction parameters in ', energy_unit
-!        DO i = 1, nb
-!          IF (index(bond_parm(i)%type,'HARMONIC') /= 0 ) THEN
-!                 WRITE ( iw, '( A, T30, A, I5, T58, A, T71, F10.2 )' ) &
-!                      ' FORCE FIELD| harmonic', ' bond nr. ',i,&
-!                      '      r0 ', bond_parm ( i ) % r0
-!                 WRITE ( iw, '( A, T58, A, T71, F10.2 )' ) ' FORCE FIELD| ', &
-!                      ' k ', bond_parm ( i ) % k
-!          END IF
-!        END DO
-!        WRITE ( iw, '( )' )
-!     END IF
-!  END IF
 
 END SUBROUTINE input_bonds
 
@@ -499,20 +439,35 @@ SUBROUTINE input_bends(topology,globenv)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      INTENT(IN),OPTIONAL                    :: globenv
 
+    TYPE(force_field_input_info_type),POINTER       :: ffin_info
     CHARACTER(LEN=12)                        :: label
     CHARACTER(LEN=40)                        :: string, string2
-    INTEGER                                  :: i, ierror, ilen, ios, iw, nb
-    REAL(dbl)                                :: bp1, bp2, todeg, torad
+    INTEGER                                  :: i, ierror, ilen, iw
+    REAL(dbl)                                :: todeg, torad
+
+  LOGICAL                                  :: PM1, PM2, PM3, PM4
 
 !------------------------------------------------------------------------------
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  END IF
+!------------------------------------------------------------------------------
+
+  ffin_info => topology%ffin_info
 
   torad = pi / 180.0_dbl
   todeg = 180.0_dbl/pi
 
-  nb = 0
-  iw = scr
 !..parse the input section
   label = '&FORCE_FIELD'
   CALL search_label ( label, ierror, ignore_case=.TRUE. )
@@ -534,20 +489,19 @@ SUBROUTINE input_bends(topology,globenv)
                  CALL p_error()
                  CALL stop_parser( 'input_bond','unknown option')
               CASE ( 'HARMONIC')
-                 topology%ff = .TRUE.
                  i = i + 1
-                 CALL reallocate(topology%ff_bend_a,1,i)
-                 CALL reallocate(topology%ff_bend_b,1,i)
-                 CALL reallocate(topology%ff_bend_c,1,i)
-                 CALL reallocate(topology%ff_bend_k,1,i)
-                 CALL reallocate(topology%ff_bend_theta0,1,i)
+                 CALL reallocate(ffin_info%ff_bend_a,1,i)
+                 CALL reallocate(ffin_info%ff_bend_b,1,i)
+                 CALL reallocate(ffin_info%ff_bend_c,1,i)
+                 CALL reallocate(ffin_info%ff_bend_k,1,i)
+                 CALL reallocate(ffin_info%ff_bend_theta0,1,i)
 
                  ilen = default_string_length
-                 CALL get_next ( topology%ff_bend_a(i), ilen )
-                 CALL get_next ( topology%ff_bend_b(i), ilen )
-                 CALL get_next ( topology%ff_bend_c(i), ilen )
-                 CALL get_next ( topology%ff_bend_k(i) )
-                 CALL get_next ( topology%ff_bend_theta0(i) )
+                 CALL get_next ( ffin_info%ff_bend_a(i), ilen )
+                 CALL get_next ( ffin_info%ff_bend_b(i), ilen )
+                 CALL get_next ( ffin_info%ff_bend_c(i), ilen )
+                 CALL get_next ( ffin_info%ff_bend_k(i) )
+                 CALL get_next ( ffin_info%ff_bend_theta0(i) )
               CASE ( 'END')
                  ilen = 0
                  CALL get_next(string2,ilen)
@@ -558,23 +512,6 @@ SUBROUTINE input_bends(topology,globenv)
         CALL read_line
      END DO
   END IF
-
-!!..write some information to output
-!  IF ( globenv % ionode ) THEN
-!     IF (globenv % print_level>=0 .AND. nb>0) THEN
-!        WRITE ( iw, '( A, A )' ) ' FORCE FIELD| Bend interaction parameters in ', energy_unit
-!        DO i = 1, nb
-!           IF (index(bend_parm(i)%type,'HARMONIC') /= 0 ) THEN
-!              WRITE ( iw, '( A,T30,A,I5,T58,A,T71,F10.2 )' ) &
-!                   ' FORCE FIELD| harmonic', ' bend nr ',i, &
-!                   'theta0 ', bend_parm(i) %theta0*todeg
-!              WRITE ( iw, '( A,T58,A,T71,F10.2 )' ) ' FORCE FIELD| ', &
-!                   '       k ', bend_parm(i) %k
-!           END IF
-!        END DO
-!        WRITE ( iw, '( )' )
-!     END IF
-!  END IF
 
 END SUBROUTINE input_bends
 
@@ -618,19 +555,33 @@ SUBROUTINE input_torsions(topology,globenv)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      INTENT(IN),OPTIONAL                    :: globenv
+
+    TYPE(force_field_input_info_type),POINTER       :: ffin_info
 
     CHARACTER(LEN=default_string_length)  :: label
     CHARACTER(LEN=default_string_length)  :: type
     CHARACTER(LEN=default_string_length)  :: string, string2
-    INTEGER                                  :: i, ierror, ilen, ios, iw, j, &
-                                                nb
-    REAL(dbl), DIMENSION(0:3)                :: tp
+    INTEGER                                  :: i, ierror, ilen, iw, j
+
+  LOGICAL                                  :: PM1, PM2, PM3, PM4
 
 !------------------------------------------------------------------------------
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  END IF
+!------------------------------------------------------------------------------
 
-  nb = 0
-  iw = scr
+  ffin_info => topology%ffin_info
+
 !..parse the input section
   label = '&FORCE_FIELD'
   CALL search_label ( label, ierror, ignore_case=.TRUE. )
@@ -652,22 +603,21 @@ SUBROUTINE input_torsions(topology,globenv)
                  CALL p_error()
                  CALL stop_parser( 'input_torsion','unknown option')
               CASE ( 'JORGENSEN')
-                 topology%ff = .TRUE.
                  i = i + 1
-                 CALL reallocate(topology%ff_torsion_a,1,i)
-                 CALL reallocate(topology%ff_torsion_b,1,i)
-                 CALL reallocate(topology%ff_torsion_c,1,i)
-                 CALL reallocate(topology%ff_torsion_d,1,i)
-                 CALL reallocate(topology%ff_torsion_k,1,i)
-                 CALL reallocate(topology%ff_torsion_phi0,1,i)
+                 CALL reallocate(ffin_info%ff_torsion_a,1,i)
+                 CALL reallocate(ffin_info%ff_torsion_b,1,i)
+                 CALL reallocate(ffin_info%ff_torsion_c,1,i)
+                 CALL reallocate(ffin_info%ff_torsion_d,1,i)
+                 CALL reallocate(ffin_info%ff_torsion_k,1,i)
+                 CALL reallocate(ffin_info%ff_torsion_phi0,1,i)
 
                  ilen = default_string_length
-                 CALL get_next ( topology%ff_torsion_a(i), ilen )
-                 CALL get_next ( topology%ff_torsion_b(i), ilen )
-                 CALL get_next ( topology%ff_torsion_c(i), ilen )
-                 CALL get_next ( topology%ff_torsion_d(i), ilen )
-                 CALL get_next ( topology%ff_torsion_k(i) )
-                 CALL get_next ( topology%ff_torsion_phi0(i) )
+                 CALL get_next ( ffin_info%ff_torsion_a(i), ilen )
+                 CALL get_next ( ffin_info%ff_torsion_b(i), ilen )
+                 CALL get_next ( ffin_info%ff_torsion_c(i), ilen )
+                 CALL get_next ( ffin_info%ff_torsion_d(i), ilen )
+                 CALL get_next ( ffin_info%ff_torsion_k(i) )
+                 CALL get_next ( ffin_info%ff_torsion_phi0(i) )
               CASE ( 'END')
                  ilen = 0
                  CALL get_next(string2,ilen)
@@ -678,28 +628,6 @@ SUBROUTINE input_torsions(topology,globenv)
         CALL read_line()
      END DO
   END IF
-
-!!..write some information to output
-!  IF ( globenv % ionode ) THEN
-!     IF ( globenv % print_level >= 0 .AND. nb > 0 ) THEN
-!        WRITE ( iw, '( A, A )' ) &
-!             ' FORCE FIELD| Torsion interaction parameters in ', energy_unit
-!        DO i = 1, nb
-!           IF ( index ( torsion_parm(i) % type, 'JORGENSEN' ) /= 0 ) THEN
-!              WRITE ( iw, '( A, T30, A, i5, T58, A, T71, F10.2 )' ) &
-!                ' FORCE FIELD| Jorgensen', ' torsion nr ',i, &
-!                            '      a0 ', torsion_parm ( i ) % a(0)
-!                       WRITE ( iw, '( A, T58, A, T71, F10.2 )' ) ' FORCE FIELD| ', &
-!                            '      a1 ', torsion_parm ( i ) % a(1)
-!                       WRITE ( iw, '( A, T58, A, T71, F10.2 )' ) ' FORCE FIELD| ', &
-!                            '      a2 ', torsion_parm ( i ) % a(2)
-!                       WRITE ( iw, '( A, T58, A, T71, F10.2 )' ) ' FORCE FIELD| ', &
-!                            '      a3 ', torsion_parm ( i ) % a(3)
-!           END IF
-!        END DO
-!        WRITE ( iw, '( )' )
-!     END IF
-!  END IF
 
 END SUBROUTINE input_torsions
 
@@ -743,16 +671,18 @@ SUBROUTINE input_constraints(topology,globenv)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      INTENT(IN),OPTIONAL                    :: globenv
 
+    TYPE(constraint_info_type),POINTER       :: cons_info
     CHARACTER(LEN=12)                        :: label
     CHARACTER(LEN=40)                        :: string
-    INTEGER                                  :: i, ierror, ilen, ios, iw, nb
+    INTEGER                                  :: i, ierror, ilen, iw
 
 !------------------------------------------------------------------------------
 
-  nb = 0
-  iw = scr
+  cons_info => topology%cons_info
+
+
 !..parse the input section
   label = '&FORCE_FIELD'
   CALL search_label ( label, ierror, ignore_case=.TRUE. )
@@ -780,57 +710,43 @@ SUBROUTINE input_constraints(topology,globenv)
            ilen = 40
            CALL get_next(string,ilen)
            CALL uppercase(string)
-           i=topology%nconst_dist + 1
-           CALL reallocate(topology%const_dist_mol,1,i)
-           CALL reallocate(topology%const_dist_a,1,i)
-           CALL reallocate(topology%const_dist_b,1,i)
-           CALL reallocate(topology%const_dist_dab,1,i)
-           CALL get_next(topology%const_dist_mol(i))
-           CALL get_next(topology%const_dist_a(i))
-           CALL get_next(topology%const_dist_b(i))
-           CALL get_next(topology%const_dist_dab(i))
-           topology%nconst_dist = i
+           i=cons_info%nconst_dist + 1
+           CALL reallocate(cons_info%const_dist_mol,1,i)
+           CALL reallocate(cons_info%const_dist_a,1,i)
+           CALL reallocate(cons_info%const_dist_b,1,i)
+           CALL reallocate(cons_info%const_dist_dab,1,i)
+           CALL get_next(cons_info%const_dist_mol(i))
+           CALL get_next(cons_info%const_dist_a(i))
+           CALL get_next(cons_info%const_dist_b(i))
+           CALL get_next(cons_info%const_dist_dab(i))
+           cons_info%nconst_dist = i
         ELSE IF ( INDEX ( string, 'G3X3' ) /= 0 ) THEN
            topology%constraint=.TRUE.
            topology%const_33=.TRUE.
            ilen = 40
            CALL get_next(string,ilen)
            CALL uppercase(string)
-           i=topology%nconst_g33 + 1
-           CALL reallocate(topology%const_g33_mol,1,i)
-           CALL reallocate(topology%const_g33_a,1,i)
-           CALL reallocate(topology%const_g33_b,1,i)
-           CALL reallocate(topology%const_g33_c,1,i)
-           CALL reallocate(topology%const_g33_dab,1,i)
-           CALL reallocate(topology%const_g33_dac,1,i)
-           CALL reallocate(topology%const_g33_dbc,1,i)
-           CALL get_next(topology%const_g33_mol(i))
-           CALL get_next(topology%const_g33_a(i))
-           CALL get_next(topology%const_g33_b(i))
-           CALL get_next(topology%const_g33_c(i))
-           CALL get_next(topology%const_g33_dab(i))
-           CALL get_next(topology%const_g33_dac(i))
-           CALL get_next(topology%const_g33_dbc(i))
+           i=cons_info%nconst_g33 + 1
+           CALL reallocate(cons_info%const_g33_mol,1,i)
+           CALL reallocate(cons_info%const_g33_a,1,i)
+           CALL reallocate(cons_info%const_g33_b,1,i)
+           CALL reallocate(cons_info%const_g33_c,1,i)
+           CALL reallocate(cons_info%const_g33_dab,1,i)
+           CALL reallocate(cons_info%const_g33_dac,1,i)
+           CALL reallocate(cons_info%const_g33_dbc,1,i)
+           CALL get_next(cons_info%const_g33_mol(i))
+           CALL get_next(cons_info%const_g33_a(i))
+           CALL get_next(cons_info%const_g33_b(i))
+           CALL get_next(cons_info%const_g33_c(i))
+           CALL get_next(cons_info%const_g33_dab(i))
+           CALL get_next(cons_info%const_g33_dac(i))
+           CALL get_next(cons_info%const_g33_dbc(i))
+           cons_info%nconst_g33 = i
         END IF
         CALL read_line
      END DO
   END IF
 
-!!..write some information to output
-!  IF ( globenv % ionode ) THEN
-!     IF ( globenv % print_level >= 0 .AND. nb > 0 ) THEN
-!        WRITE ( iw, '( A, A )' ) ' FORCE FIELD| Distance constraints in ', energy_unit
-!        DO i = 1, nb
-!          IF ( constraint_distance ( i ) /= 0.0_dbl ) THEN
-!            WRITE ( iw, '( A, T30, A, T37, I6, T71, F10.4 )' ) &
-!              ' FORCE FIELD| Constraint: ', ' distcon nr. ',i, &
-!                      constraint_distance ( i )
-!          END IF
-!        END DO
-!        WRITE ( iw, '()' )
-!     END IF
-!  END IF
-!
 END SUBROUTINE input_constraints
 
 !!*****
@@ -843,14 +759,14 @@ END SUBROUTINE input_constraints
 !!     read_force_field_charmm
 !!
 !!   FUNCTION
-!!     Reads the force_field input section
+!!     Reads the charmm force_field
 !!
 !!   AUTHOR
-!!     CJM
+!!
 !!
 !!   MODIFICATION HISTORY
-!!     JGH (30.11.2001) : moved determination of setup variables to 
-!!                        molecule_input 
+!!
+!!
 !!
 !!   SOURCE
 !******************************************************************************
@@ -861,7 +777,7 @@ SUBROUTINE read_force_field_charmm ( topology , globenv )
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      INTENT(IN),OPTIONAL                    :: globenv
 
 END SUBROUTINE read_force_field_charmm
 
@@ -873,14 +789,14 @@ END SUBROUTINE read_force_field_charmm
 !!     read_force_field_amber
 !!
 !!   FUNCTION
-!!     Reads the force_field input section
+!!     Reads the amber force_field
 !!
 !!   AUTHOR
-!!     CJM
+!!     
 !!
 !!   MODIFICATION HISTORY
-!!     JGH (30.11.2001) : moved determination of setup variables to 
-!!                        molecule_input 
+!!
+!!
 !!
 !!   SOURCE
 !******************************************************************************
@@ -891,7 +807,7 @@ SUBROUTINE read_force_field_amber ( topology , globenv )
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      INTENT(IN),OPTIONAL                    :: globenv
 
 END SUBROUTINE read_force_field_amber
 END MODULE force_fields

@@ -69,7 +69,11 @@ MODULE topology_util
                                              str_search
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE topology_types,                  ONLY: topology_parameters_type
+  USE topology_types,                  ONLY: topology_parameters_type,&
+                                             atom_info_type,&
+                                             connectivity_info_type,&
+                                             constraint_info_type,&
+                                             force_field_input_info_type
 
   IMPLICIT NONE
 
@@ -127,6 +131,9 @@ SUBROUTINE topology_reorder_atoms(topology,globenv)
 
     LOGICAL                                  :: PM1, PM2, PM3, PM4
 
+  TYPE(atom_info_type),POINTER     :: atom_info
+  TYPE(connectivity_info_type),POINTER     :: conn_info
+
     CHARACTER (LEN=default_string_length), POINTER   :: tlabel_resname(:)
     CHARACTER (LEN=default_string_length), POINTER   :: tlabel_atmname(:)
     REAL (dbl), DIMENSION(:,:), POINTER :: tr
@@ -158,6 +165,9 @@ SUBROUTINE topology_reorder_atoms(topology,globenv)
 
   IF(PM1)  WRITE(iw,*) "    Entering topology_reorder_atoms"
 
+  atom_info => topology%atom_info
+  conn_info => topology%conn_info
+
   natom = topology%natoms
 
   NULLIFY(mtyp,mnum,new_position)
@@ -188,8 +198,8 @@ SUBROUTINE topology_reorder_atoms(topology,globenv)
   IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','tmap_mol_num')
 
   DO iatm=1,natom
-    mtyp(iatm) = topology%map_mol_typ(iatm)
-    mnum(iatm) = topology%map_mol_num(iatm)
+    mtyp(iatm) = atom_info%map_mol_typ(iatm)
+    mnum(iatm) = atom_info%map_mol_num(iatm)
   END DO
   ntyp = MAXVAL(mtyp)
   nnum = MAXVAL(mnum)
@@ -205,8 +215,8 @@ SUBROUTINE topology_reorder_atoms(topology,globenv)
         IF ( (ityp==mtyp(iatm)) .AND. (inum==mnum(iatm)) ) THEN
           iatm_count = iatm_count + 1
           new_position(iatm_count) = iatm
-          CALL integer_to_string(imol_count,topology%label_resname(iatm))
-          topology%label_resname(iatm) = "R"//topology%label_resname(iatm)
+          CALL integer_to_string(imol_count,atom_info%label_resname(iatm))
+          atom_info%label_resname(iatm) = "R"//atom_info%label_resname(iatm)
         END IF
       END DO
     END DO
@@ -215,26 +225,26 @@ SUBROUTINE topology_reorder_atoms(topology,globenv)
   !Lets swap the atoms now
   DO iatm=1,natom
     location = new_position(iatm)
-    tlabel_resname(iatm)       = topology%label_resname(location)
-    tlabel_atmname(iatm)       = topology%label_atmname(location)
-    tr(1,iatm)                 = topology%r(1,location)
-    tr(2,iatm)                 = topology%r(2,location)
-    tr(3,iatm)                 = topology%r(3,location)
-    tatm_charge(iatm)          = topology%atm_charge(location)
-    tatm_mass(iatm)            = topology%atm_mass(location)
-    tmap_mol_typ(iatm)         = topology%map_mol_typ(location)
-    tmap_mol_num(iatm)         = topology%map_mol_num(location)
+    tlabel_resname(iatm)       = atom_info%label_resname(location)
+    tlabel_atmname(iatm)       = atom_info%label_atmname(location)
+    tr(1,iatm)                 = atom_info%r(1,location)
+    tr(2,iatm)                 = atom_info%r(2,location)
+    tr(3,iatm)                 = atom_info%r(3,location)
+    tatm_charge(iatm)          = atom_info%atm_charge(location)
+    tatm_mass(iatm)            = atom_info%atm_mass(location)
+    tmap_mol_typ(iatm)         = atom_info%map_mol_typ(location)
+    tmap_mol_num(iatm)         = atom_info%map_mol_num(location)
   END DO
   DO iatm=1,natom
-    topology%label_resname(iatm)   = tlabel_resname(iatm)
-    topology%label_atmname(iatm)   = tlabel_atmname(iatm)
-    topology%r(1,iatm)             = tr(1,iatm)
-    topology%r(2,iatm)             = tr(2,iatm)
-    topology%r(3,iatm)             = tr(3,iatm)
-    topology%atm_charge(iatm)      = tatm_charge(iatm)
-    topology%atm_mass(iatm)        = tatm_mass(iatm)
-    topology%map_mol_typ(iatm)     = tmap_mol_typ(iatm)
-    topology%map_mol_num(iatm)     = tmap_mol_num(iatm)
+    atom_info%label_resname(iatm)   = tlabel_resname(iatm)
+    atom_info%label_atmname(iatm)   = tlabel_atmname(iatm)
+    atom_info%r(1,iatm)             = tr(1,iatm)
+    atom_info%r(2,iatm)             = tr(2,iatm)
+    atom_info%r(3,iatm)             = tr(3,iatm)
+    atom_info%atm_charge(iatm)      = tatm_charge(iatm)
+    atom_info%atm_mass(iatm)        = tatm_mass(iatm)
+    atom_info%map_mol_typ(iatm)     = tmap_mol_typ(iatm)
+    atom_info%map_mol_num(iatm)     = tmap_mol_num(iatm)
   END DO
 
   !DEALLOCATE all the temporary arrays needed for this routine
@@ -254,27 +264,27 @@ SUBROUTINE topology_reorder_atoms(topology,globenv)
   IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','tatm_charge')
 
   !DEALLOCATE all the stuff in topology structure so it can be re-runned
-  DEALLOCATE(topology%map_mol_typ,STAT=istat)
+  DEALLOCATE(atom_info%map_mol_typ,STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','map_mol_typ')
-  DEALLOCATE(topology%map_mol_num,STAT=istat)
+  DEALLOCATE(atom_info%map_mol_num,STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','map_mol_num')
-  DEALLOCATE(topology%bond_a,STAT=istat)
+  DEALLOCATE(conn_info%bond_a,STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','bond_a')
-  DEALLOCATE(topology%bond_b,STAT=istat)
+  DEALLOCATE(conn_info%bond_b,STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','bond_b')
-  DEALLOCATE(topology%theta_a,STAT=istat)
+  DEALLOCATE(conn_info%theta_a,STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','theta_a')
-  DEALLOCATE(topology%theta_b,STAT=istat)
+  DEALLOCATE(conn_info%theta_b,STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','theta_b')
-  DEALLOCATE(topology%theta_c,STAT=istat)
+  DEALLOCATE(conn_info%theta_c,STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','theta_c')
-  DEALLOCATE(topology%phi_a,STAT=istat)
+  DEALLOCATE(conn_info%phi_a,STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','phi_a')
-  DEALLOCATE(topology%phi_b,STAT=istat)
+  DEALLOCATE(conn_info%phi_b,STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','phi_b')
-  DEALLOCATE(topology%phi_c,STAT=istat)
+  DEALLOCATE(conn_info%phi_c,STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','phi_c')
-  DEALLOCATE(topology%phi_d,STAT=istat)
+  DEALLOCATE(conn_info%phi_d,STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','phi_d')
 
 
@@ -317,6 +327,9 @@ SUBROUTINE topology_generate_molecule(topology,globenv)
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_molecule', &
       routineP = moduleN//':'//routineN
 
+  TYPE(atom_info_type),POINTER     :: atom_info
+  TYPE(connectivity_info_type),POINTER     :: conn_info
+
     INTEGER                                  :: first, iatom, iiatom, iii, &
                                                 inum, istat, itype, iw, last, &
                                                 natom, nbond, nnum, ntype
@@ -340,41 +353,44 @@ SUBROUTINE topology_generate_molecule(topology,globenv)
 
   IF(PM1)  WRITE(iw,*) "    Entering topology_generate_molecule"
 
+  atom_info => topology%atom_info
+  conn_info => topology%conn_info
+
   ntype = 1
   itype = 0
   nnum = 1
   inum = 0
 
   natom = topology%natoms
-  nbond = SIZE(topology%bond_a)
+  nbond = SIZE(conn_info%bond_a)
  
   ALLOCATE(checkme(natom),STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_generate_molecule','checkme')
-  ALLOCATE (topology%map_mol_typ(natom),STAT=istat)
+  ALLOCATE (atom_info%map_mol_typ(natom),STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_generate_molecule','map_mol_typ')
-  ALLOCATE (topology%map_mol_num(natom),STAT=istat)
+  ALLOCATE (atom_info%map_mol_num(natom),STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_generate_molecule','map_mol_num')
 
   !Zero the arrays
   checkme(:) = 0
-  topology%map_mol_typ(:) = 0
-  topology%map_mol_num(:) = 0
+  atom_info%map_mol_typ(:) = 0
+  atom_info%map_mol_num(:) = 0
 
   !Parse the atoms list to see how many different molecule types there are
   ntype = 1
-  topology%map_mol_typ(1)=1
+  atom_info%map_mol_typ(1)=1
   DO iatom=2,natom
-    IF(topology%label_molname(iatom-1)==topology%label_molname(iatom)) THEN
-      topology%map_mol_typ(iatom)=ntype
+    IF(atom_info%label_molname(iatom-1)==atom_info%label_molname(iatom)) THEN
+      atom_info%map_mol_typ(iatom)=ntype
     ELSE
       ntype=ntype+1
-      topology%map_mol_typ(iatom)=ntype
+      atom_info%map_mol_typ(iatom)=ntype
     END IF
   END DO
 
   DO itype=1,ntype
     !search for first atom in the type list and last to cut down time
-    CALL find_boundary(topology%map_mol_typ,natom,first,last,itype)
+    CALL find_boundary(atom_info%map_mol_typ,natom,first,last,itype)
     IF(PM2) WRITE(iw,*) "      itype ",itype,first,last
 
     inum = 0
@@ -382,14 +398,14 @@ SUBROUTINE topology_generate_molecule(topology,globenv)
     DO iatom=first,last
       checkme(:) = 0
 
-      IF(topology%map_mol_num(iatom)==0) THEN
+      IF(atom_info%map_mol_num(iatom)==0) THEN
         inum=inum+1
         checkme(iatom)=1
         DO WHILE (SUM(checkme)>0)
           DO iiatom=first,last
             IF((checkme(iiatom)==1)) THEN
               checkme(iiatom)=0
-              topology%map_mol_num(iiatom)=inum
+              atom_info%map_mol_num(iiatom)=inum
               !-------------------------------------------------------------
               !-------------------------------------------------------------
               !Shortcut version comment out below is still buggy
@@ -403,15 +419,15 @@ SUBROUTINE topology_generate_molecule(topology,globenv)
               !-------------------------------------------------------------
               !Way slow version but can be improved with above
               DO iii=1,nbond
-                IF((topology%bond_a(iii)==iiatom).AND.&
-                  (topology%map_mol_num(topology%bond_b(iii))==0)) THEN 
-                  !WRITE(*,*) "bond1 ",iiatom,topology%bond_b(iii)
-                  checkme(topology%bond_b(iii))=1
+                IF((conn_info%bond_a(iii)==iiatom).AND.&
+                  (atom_info%map_mol_num(conn_info%bond_b(iii))==0)) THEN 
+                  !WRITE(*,*) "bond1 ",iiatom,conn_info%bond_b(iii)
+                  checkme(conn_info%bond_b(iii))=1
                 END IF
-                IF((topology%bond_b(iii)==iiatom).AND.&
-                  (topology%map_mol_num(topology%bond_a(iii))==0)) THEN
-                  !WRITE(*,*) "bond2 ",iiatom,topology%bond_a(iii)
-                  checkme(topology%bond_a(iii))=1
+                IF((conn_info%bond_b(iii)==iiatom).AND.&
+                  (atom_info%map_mol_num(conn_info%bond_a(iii))==0)) THEN
+                  !WRITE(*,*) "bond2 ",iiatom,conn_info%bond_a(iii)
+                  checkme(conn_info%bond_a(iii))=1
                 END IF
               END DO
               !-------------------------------------------------------------
@@ -430,7 +446,7 @@ SUBROUTINE topology_generate_molecule(topology,globenv)
   IF(PM4) THEN
     DO iatom=1,natom
       WRITE(iw,*) "      iatom,map_mol_typ,map_mol_num ",iatom,&
-                 topology%map_mol_typ(iatom),topology%map_mol_num(iatom)
+                 atom_info%map_mol_typ(iatom),atom_info%map_mol_num(iatom)
     END DO
   END IF
 
@@ -894,6 +910,8 @@ SUBROUTINE topology_generate_bond(topology,globenv)
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_bond', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nblock = 1000
+  TYPE(atom_info_type),POINTER     :: atom_info
+  TYPE(connectivity_info_type),POINTER     :: conn_info
 
     CHARACTER(LEN=2), POINTER                :: atm_symbol(:)
     INTEGER                                  :: first, i, iatom, ibond, &
@@ -925,6 +943,9 @@ SUBROUTINE topology_generate_bond(topology,globenv)
 
   IF(PM1) WRITE(iw,*) "    Entering topology_generate_bond"
 
+  atom_info => topology%atom_info
+  conn_info => topology%conn_info
+
   natom = topology%natoms
 
   !Get the temporary array that we need
@@ -941,11 +962,11 @@ SUBROUTINE topology_generate_bond(topology,globenv)
 !------------------------------------------------------------------------------
   DO iatom=1,natom
     atm_symbol(iatom) = ''
-    IF(ASSOCIATED(topology%element)) THEN
-      atm_symbol(iatom) = topology%element(iatom)
+    IF(ASSOCIATED(atom_info%element)) THEN
+      atm_symbol(iatom) = atom_info%element(iatom)
     END IF
     IF(atm_symbol(iatom) == '') THEN
-      atm_symbol(iatom) = topology%label_atmname(iatom)
+      atm_symbol(iatom) = atom_info%label_atmname(iatom)
     END IF
   END DO
 !------------------------------------------------------------------------------
@@ -964,9 +985,9 @@ SUBROUTINE topology_generate_bond(topology,globenv)
         vdw_radius(iatom) = ptable(ielem)%vdw_radius
         CALL convert_to_cp2k_units("ANGSTROM",length=vdw_radius(iatom))
 
-        topology%atm_mass(iatom) = ptable(ielem)% amass
+        atom_info%atm_mass(iatom) = ptable(ielem)% amass
         !Need to figure out the correct charge!!!
-        topology%atm_charge(iatom) = 0.0_dbl
+        atom_info%atm_charge(iatom) = 0.0_dbl
         IF(PM2) WRITE(iw,'(7X,A,A5)') "iatom = ",ptable(ielem)%symbol
         !EXIT
       END IF
@@ -977,9 +998,9 @@ SUBROUTINE topology_generate_bond(topology,globenv)
   nbond = 0
   DO iatom=1,natom
     DO jatom=iatom+1,natom
-      dr(1) = topology%r(1,iatom) - topology%r(1,jatom)
-      dr(2) = topology%r(2,iatom) - topology%r(2,jatom)
-      dr(3) = topology%r(3,iatom) - topology%r(3,jatom)
+      dr(1) = atom_info%r(1,iatom) - atom_info%r(1,jatom)
+      dr(2) = atom_info%r(2,iatom) - atom_info%r(2,jatom)
+      dr(3) = atom_info%r(3,iatom) - atom_info%r(3,jatom)
 
       rr = pbc ( dr, topology%cell )
       r2 = DOT_PRODUCT(rr,rr)
@@ -1015,7 +1036,7 @@ SUBROUTINE topology_generate_bond(topology,globenv)
 
         !Check to make sure no bonds are allowed between two different types
         !of molecules specified in the input file
-        IF(topology%label_molname(iatom) /= topology%label_molname(jatom)) THEN
+        IF(atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)) THEN
           CALL stop_program ("topology_generate_bond",&
                              "bonds between different molecule types??? ")
         END IF
@@ -1025,40 +1046,40 @@ SUBROUTINE topology_generate_bond(topology,globenv)
   END DO
 !------------------------------------------------------------------------------
   !Copy the stuff from temporary array into the more permanent one
-  ALLOCATE(topology%bond_a(nbond),STAT=istat)
+  ALLOCATE(conn_info%bond_a(nbond),STAT=istat)
   IF(istat/=0) CALL stop_memory('generate_bond','bond_a',nbond)
-  ALLOCATE(topology%bond_b(nbond),STAT=istat)
+  ALLOCATE(conn_info%bond_b(nbond),STAT=istat)
   IF(istat/=0) CALL stop_memory('generate_bond','bond_b',nbond)
   DO ibond=1,nbond
-    topology%bond_a(ibond) = tbond_a(ibond)
-    topology%bond_b(ibond) = tbond_b(ibond)
+    conn_info%bond_a(ibond) = tbond_a(ibond)
+    conn_info%bond_b(ibond) = tbond_b(ibond)
   END DO
 !------------------------------------------------------------------------------
   !Sort out the bond list
   DO ibond=1,nbond
-    IF(topology%bond_a(ibond)>topology%bond_b(ibond)) THEN 
-      CALL swap(topology%bond_a(ibond),topology%bond_b(ibond))
+    IF(conn_info%bond_a(ibond)>conn_info%bond_b(ibond)) THEN 
+      CALL swap(conn_info%bond_a(ibond),conn_info%bond_b(ibond))
     END IF
   END DO
   !Need to update this to quicksort for systems greater then 20000 atoms
   DO i=1,nbond
     DO j=1,nbond
-      IF(topology%bond_a(i)<topology%bond_a(j)) THEN
-        CALL swap(topology%bond_a(i),topology%bond_a(j))
-        CALL swap(topology%bond_b(i),topology%bond_b(j))
+      IF(conn_info%bond_a(i)<conn_info%bond_a(j)) THEN
+        CALL swap(conn_info%bond_a(i),conn_info%bond_a(j))
+        CALL swap(conn_info%bond_b(i),conn_info%bond_b(j))
       END IF
     END DO
   END DO
   i=1
   DO WHILE (i<nbond)
-    search = topology%bond_a(i)
-    CALL find_boundary(topology%bond_a,nbond,first,last,search)
+    search = conn_info%bond_a(i)
+    CALL find_boundary(conn_info%bond_a,nbond,first,last,search)
     IF(.NOT.(first==last)) THEN
       DO j=first,last
         DO k=first,last
-          IF(topology%bond_b(j)<topology%bond_b(k)) THEN
-            CALL swap(topology%bond_a(j),topology%bond_a(k))
-            CALL swap(topology%bond_b(j),topology%bond_b(k))
+          IF(conn_info%bond_b(j)<conn_info%bond_b(k)) THEN
+            CALL swap(conn_info%bond_a(j),conn_info%bond_a(k))
+            CALL swap(conn_info%bond_b(j),conn_info%bond_b(k))
           END IF
         END DO
       END DO
@@ -1070,8 +1091,8 @@ SUBROUTINE topology_generate_bond(topology,globenv)
 !------------------------------------------------------------------------------
   !Sort out the duplicates... (Shouldn't have any but just to check)
   DO ibond=2,nbond
-    IF((topology%bond_a(ibond-1)==topology%bond_a(ibond)).AND.&
-       (topology%bond_b(ibond-1)==topology%bond_b(ibond))) THEN
+    IF((conn_info%bond_a(ibond-1)==conn_info%bond_a(ibond)).AND.&
+       (conn_info%bond_b(ibond-1)==conn_info%bond_b(ibond))) THEN
       CALL stop_program ("topology_generate_bond",&
                          "duplicate bonds")
     END IF
@@ -1127,6 +1148,7 @@ SUBROUTINE topology_generate_bend(topology,globenv)
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_bend', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nblock = 1000
+  TYPE(connectivity_info_type),POINTER     :: conn_info
 
     INTEGER                                  :: countme, first, ibond, &
                                                 iibond, istat, itheta, iw, &
@@ -1152,7 +1174,9 @@ SUBROUTINE topology_generate_bend(topology,globenv)
 
   IF(PM1) WRITE(iw,*) "    Entering topology_generate_bend"
 
-  nbond = SIZE(topology%bond_a)
+  conn_info => topology%conn_info
+
+  nbond = SIZE(conn_info%bond_a)
   !WRITE(*,*) "nbond = ",nbond
   ntheta = 0
   !Stupid and inefficient but faster than alternative
@@ -1166,56 +1190,56 @@ SUBROUTINE topology_generate_bend(topology,globenv)
   ntheta=0
   DO ibond=1,nbond
     !Case A
-    search = topology%bond_a(ibond)
-    CALL find_boundary(topology%bond_a,nbond,first,last,search)
+    search = conn_info%bond_a(ibond)
+    CALL find_boundary(conn_info%bond_a,nbond,first,last,search)
     IF (first /= 0) THEN
       DO iibond=first,last
-        IF (topology%bond_b(ibond)/=topology%bond_b(iibond)) THEN
+        IF (conn_info%bond_b(ibond)/=conn_info%bond_b(iibond)) THEN
           ntheta = ntheta + 1
           IF(ntheta > SIZE(tmp_a)) THEN
             CALL reallocate(tmp_a,1,ntheta+nblock)
             CALL reallocate(tmp_b,1,ntheta+nblock)
             CALL reallocate(tmp_c,1,ntheta+nblock)
           END IF
-          tmp_a(ntheta) = topology%bond_b(ibond)
+          tmp_a(ntheta) = conn_info%bond_b(ibond)
           tmp_b(ntheta) = search
-          tmp_c(ntheta) = topology%bond_b(iibond)
+          tmp_c(ntheta) = conn_info%bond_b(iibond)
         END IF
       END DO
     END IF
     !Case B
-    search = topology%bond_b(ibond)
-    CALL find_boundary(topology%bond_a,nbond,first,last,search)
+    search = conn_info%bond_b(ibond)
+    CALL find_boundary(conn_info%bond_a,nbond,first,last,search)
     IF (first /= 0) THEN
       DO iibond=first,last
-        IF(topology%bond_a(ibond)/=topology%bond_b(iibond)) THEN
+        IF(conn_info%bond_a(ibond)/=conn_info%bond_b(iibond)) THEN
           ntheta = ntheta + 1
           IF(ntheta > SIZE(tmp_a)) THEN
             CALL reallocate(tmp_a,1,ntheta+nblock)
             CALL reallocate(tmp_b,1,ntheta+nblock)
             CALL reallocate(tmp_c,1,ntheta+nblock)
           END IF
-          tmp_a(ntheta) = topology%bond_a(ibond)
+          tmp_a(ntheta) = conn_info%bond_a(ibond)
           tmp_b(ntheta) = search
-          tmp_c(ntheta) = topology%bond_b(iibond)
+          tmp_c(ntheta) = conn_info%bond_b(iibond)
         END IF
       END DO
     END IF
     !Case C
-    search = topology%bond_b(ibond)
-    CALL find_boundary(topology%bond_b,nbond,first,last,search)
+    search = conn_info%bond_b(ibond)
+    CALL find_boundary(conn_info%bond_b,nbond,first,last,search)
     IF (first /= 0) THEN
       DO iibond=first,last
-        IF (topology%bond_a(ibond)/=topology%bond_a(iibond)) THEN
+        IF (conn_info%bond_a(ibond)/=conn_info%bond_a(iibond)) THEN
           ntheta = ntheta + 1
           IF(ntheta > SIZE(tmp_a)) THEN
             CALL reallocate(tmp_a,1,ntheta+nblock)
             CALL reallocate(tmp_b,1,ntheta+nblock)
             CALL reallocate(tmp_c,1,ntheta+nblock)
           END IF
-          tmp_a(ntheta) = topology%bond_a(ibond)
+          tmp_a(ntheta) = conn_info%bond_a(ibond)
           tmp_b(ntheta) = search
-          tmp_c(ntheta) = topology%bond_a(iibond)
+          tmp_c(ntheta) = conn_info%bond_a(iibond)
         END IF
       END DO
     END IF
@@ -1224,35 +1248,35 @@ SUBROUTINE topology_generate_bend(topology,globenv)
   !Sort all the bends first
   CALL sort_bend(ntheta,tmp_a,tmp_b,tmp_c)
 
-  ALLOCATE(topology%theta_a(ntheta),STAT=istat)
+  ALLOCATE(conn_info%theta_a(ntheta),STAT=istat)
   IF(istat/=0) CALL stop_memory('generate_bend','theta_a',ntheta)
-  ALLOCATE(topology%theta_b(ntheta),STAT=istat)
+  ALLOCATE(conn_info%theta_b(ntheta),STAT=istat)
   IF(istat/=0) CALL stop_memory('generate_bend','theta_b',ntheta)
-  ALLOCATE(topology%theta_c(ntheta),STAT=istat)
+  ALLOCATE(conn_info%theta_c(ntheta),STAT=istat)
   IF(istat/=0) CALL stop_memory('generate_bend','theta_c',ntheta)
   countme=1
   IF (ntheta > 0) THEN
-    topology%theta_a(countme) = tmp_a(1)
-    topology%theta_b(countme) = tmp_b(1)
-    topology%theta_c(countme) = tmp_c(1)
+    conn_info%theta_a(countme) = tmp_a(1)
+    conn_info%theta_b(countme) = tmp_b(1)
+    conn_info%theta_c(countme) = tmp_c(1)
     DO itheta=2,ntheta
-      IF( .NOT.(tmp_a(itheta) == topology%theta_a(countme) .AND. &
-          tmp_b(itheta) == topology%theta_b(countme) .AND. &
-          tmp_c(itheta) == topology%theta_c(countme))) THEN
+      IF( .NOT.(tmp_a(itheta) == conn_info%theta_a(countme) .AND. &
+          tmp_b(itheta) == conn_info%theta_b(countme) .AND. &
+          tmp_c(itheta) == conn_info%theta_c(countme))) THEN
         countme = countme + 1
-        topology%theta_a(countme) = tmp_a(itheta)
-        topology%theta_b(countme) = tmp_b(itheta)
-        topology%theta_c(countme) = tmp_c(itheta)
+        conn_info%theta_a(countme) = tmp_a(itheta)
+        conn_info%theta_b(countme) = tmp_b(itheta)
+        conn_info%theta_c(countme) = tmp_c(itheta)
       END IF
     END DO
     ntheta = countme
-    CALL REALLOCATE(topology%theta_a,1,ntheta)
-    CALL REALLOCATE(topology%theta_b,1,ntheta)
-    CALL REALLOCATE(topology%theta_c,1,ntheta)
+    CALL REALLOCATE(conn_info%theta_a,1,ntheta)
+    CALL REALLOCATE(conn_info%theta_b,1,ntheta)
+    CALL REALLOCATE(conn_info%theta_c,1,ntheta)
   END IF
   
 
-  !WRITE(*,*) "NTHETA = ",ntheta,SIZE(topology%theta_a)
+  !WRITE(*,*) "NTHETA = ",ntheta,SIZE(conn_info%theta_a)
 
 !------------------------------------------------------------------------------
   DEALLOCATE(tmp_a)
@@ -1300,6 +1324,8 @@ SUBROUTINE topology_generate_dihe(topology,globenv)
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_dihe', &
       routineP = moduleN//':'//routineN
 
+  TYPE(connectivity_info_type),POINTER     :: conn_info
+
     INTEGER                                  :: iphi, iw, nphi, ntheta
     INTEGER, POINTER                         :: tmp_a(:), tmp_b(:), tmp_c(:), &
                                                 tmp_d(:)
@@ -1323,7 +1349,10 @@ SUBROUTINE topology_generate_dihe(topology,globenv)
 
   IF(PM1) WRITE(iw,*) "    Entering topology_generate_dihe"
 
-  ntheta = SIZE(topology%theta_a)
+  conn_info => topology%conn_info
+
+
+  ntheta = SIZE(conn_info%theta_a)
   nphi = 0
   !Stupid and inefficient but faster than alternative
   ALLOCATE(tmp_a(2*ntheta))
@@ -1332,17 +1361,17 @@ SUBROUTINE topology_generate_dihe(topology,globenv)
   ALLOCATE(tmp_d(2*ntheta))
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  ALLOCATE(topology%phi_a(nphi))
-  ALLOCATE(topology%phi_b(nphi))
-  ALLOCATE(topology%phi_c(nphi))
-  ALLOCATE(topology%phi_d(nphi))
+  ALLOCATE(conn_info%phi_a(nphi))
+  ALLOCATE(conn_info%phi_b(nphi))
+  ALLOCATE(conn_info%phi_c(nphi))
+  ALLOCATE(conn_info%phi_d(nphi))
   DO iphi=1,nphi
-    topology%phi_a(iphi) = tmp_a(iphi)
-    topology%phi_b(iphi) = tmp_b(iphi)
-    topology%phi_c(iphi) = tmp_c(iphi)
-    topology%phi_d(iphi) = tmp_d(iphi)
+    conn_info%phi_a(iphi) = tmp_a(iphi)
+    conn_info%phi_b(iphi) = tmp_b(iphi)
+    conn_info%phi_c(iphi) = tmp_c(iphi)
+    conn_info%phi_d(iphi) = tmp_d(iphi)
   END DO
-  nphi = SIZE(topology%phi_a)
+  nphi = SIZE(conn_info%phi_a)
 !------------------------------------------------------------------------------
   DEALLOCATE(tmp_a)
   DEALLOCATE(tmp_b)
@@ -1398,6 +1427,9 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_connectivity_pack', &
       routineP = moduleN//':'//routineN
 
+  TYPE(atom_info_type),POINTER     :: atom_info
+  TYPE(connectivity_info_type),POINTER     :: conn_info
+
     CHARACTER(LEN=default_string_length)     :: nhcopt
     INTEGER                                  :: atm_a, atm_b, atm_c, atm_d, &
                                                 counter, first, i, istat, iw, &
@@ -1433,16 +1465,18 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
 
   IF(PM1) WRITE(iw,*) "  Entering topology_connectivity_pack"
 
+  atom_info => topology%atom_info
+  conn_info => topology%conn_info
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 1. Set the topology%[nmol_type,nmol]
   !-----------------------------------------------------------------------------
   natom  = topology%natoms
-  topology%nmol_type = topology%map_mol_typ(natom)
+  topology%nmol_type = atom_info%map_mol_typ(natom)
   DO i=1,topology%nmol_type
-    CALL find_boundary(topology%map_mol_typ,natom,first,last,i)
-    topology%nmol=topology%nmol+topology%map_mol_num(last)
+    CALL find_boundary(atom_info%map_mol_typ,natom,first,last,i)
+    topology%nmol=topology%nmol+atom_info%map_mol_num(last)
   END DO
 
 
@@ -1483,10 +1517,10 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
   DO i=1,topology%nmol_type
     natom  = topology%natoms
     molecule_kind => molecule_kind_set(i)
-    CALL find_boundary(topology%map_mol_typ,natom,first,last,i)
+    CALL find_boundary(atom_info%map_mol_typ,natom,first,last,i)
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
                            kind_number=i,&
-                           name=topology%label_molname(first),&
+                           name=atom_info%label_molname(first),&
                            nhcopt=nhcopt)
   END DO
 
@@ -1497,8 +1531,8 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
   !-----------------------------------------------------------------------------
   counter=0
   DO i=1,topology%nmol_type
-    CALL find_boundary(topology%map_mol_typ,natom,first,last,i)
-    nmol=topology%map_mol_num(last)
+    CALL find_boundary(atom_info%map_mol_typ,natom,first,last,i)
+    nmol=atom_info%map_mol_num(last)
     ALLOCATE(molecule_list(nmol),STAT=istat)
     IF(istat/=0) CALL stop_memory('coordinate_pack','molecule_list',nmol)
     IF(PM2) WRITE(iw,'(5X,A,I5,I5)') "ikind,nmol",i,nmol
@@ -1521,11 +1555,11 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
   IF(istat/=0) CALL stop_memory('coordinate_pack','frist_list',topology%nmol)
   counter=0
   DO i=1,topology%nmol_type
-    CALL find_boundary(topology%map_mol_typ,natom,first,last,i)
-    nmol=topology%map_mol_num(last)
+    CALL find_boundary(atom_info%map_mol_typ,natom,first,last,i)
+    nmol=atom_info%map_mol_num(last)
     DO j=1,nmol
       counter=counter+1
-      CALL find_boundary2(topology%map_mol_typ,topology%map_mol_num,&
+      CALL find_boundary2(atom_info%map_mol_typ,atom_info%map_mol_num,&
                           natom,first,last,i,j)
       first_list(counter)=first
       IF(PM2) WRITE(iw,'(5X,A,I5,I5,I5)') "first_list=ikind,nmol,first_atom",&
@@ -1559,14 +1593,14 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
   counter=0
   DO i=1,topology%nmol_type
     molecule_kind => molecule_kind_set(i)
-    CALL find_boundary(topology%map_mol_typ,topology%natoms,first,last,i)
-    natom = (last-first+1)/ topology%map_mol_num(last)
+    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
+    natom = (last-first+1)/ atom_info%map_mol_num(last)
     ALLOCATE(atom_list(natom),STAT=istat)
     IF(istat/=0) CALL stop_memory('connectivity_pack','atom_list',natom)
     DO j=1,natom
       !Atomic kind information will be filled in (PART 2)
       NULLIFY(atom_list(j)%atomic_kind)
-      atom_list(j)%name=topology%label_atmname(j+first-1)
+      atom_list(j)%name=atom_info%label_atmname(j+first-1)
       IF(PM2) WRITE(iw,'(5X,A,I5,I5,1X,A5)') "atom_list ",i,j,atom_list(j)%name
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,atom_list=atom_list)
@@ -1580,8 +1614,8 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
   counter=0
   DO i=1,topology%nmol_type
     molecule_kind => molecule_kind_set(i)
-    CALL find_boundary(topology%map_mol_typ,topology%natoms,first,last,i)
-    nmol=topology%map_mol_num(last)
+    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
+    nmol=atom_info%map_mol_num(last)
     DO j=1,nmol
       counter=counter+1
       molecule => molecule_set(counter)
@@ -1596,18 +1630,18 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
   !-----------------------------------------------------------------------------
   DO i=1,topology%nmol_type
     molecule_kind => molecule_kind_set(i)
-    nbond  = SIZE(topology%bond_a)
-    CALL find_boundary(topology%map_mol_typ,topology%natoms,first,last,i)
+    nbond  = SIZE(conn_info%bond_a)
+    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
     ALLOCATE(checkme(nbond),STAT=istat)
     IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nbond)
     checkme(:)=0
     DO j=1,nbond
-      atm_a = topology%bond_a(j)
-      atm_b = topology%bond_b(j)
-      IF( (topology%map_mol_typ(atm_a)==i).AND.&
-          (topology%map_mol_num(atm_a)==1).AND.&
-          (topology%map_mol_typ(atm_b)==i).AND.&
-          (topology%map_mol_num(atm_b)==1) ) THEN
+      atm_a = conn_info%bond_a(j)
+      atm_b = conn_info%bond_b(j)
+      IF( (atom_info%map_mol_typ(atm_a)==i).AND.&
+          (atom_info%map_mol_num(atm_a)==1).AND.&
+          (atom_info%map_mol_typ(atm_b)==i).AND.&
+          (atom_info%map_mol_num(atm_b)==1) ) THEN
         checkme(j) = 1
       END IF
     END DO
@@ -1618,17 +1652,17 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     DO j=1,SUM(checkme)
       IF (checkme(j)==1) THEN
         counter=counter+1
-        bond_list(counter)%a=topology%bond_a(j)-first+1
-        bond_list(counter)%b=topology%bond_b(j)-first+1
+        bond_list(counter)%a=conn_info%bond_a(j)-first+1
+        bond_list(counter)%b=conn_info%bond_b(j)-first+1
         !point this to the right bond_kind_type if using force field
         NULLIFY(bond_list(j)%bond_kind)
         IF(PM2) THEN
           WRITE(iw,'(7X,A,I3,1X,A,I5,I5,1X,A,I5,I5)') "molecule_kind",i,"bond",&
-                      topology%bond_a(j),&
-                      topology%bond_b(j),&
+                      conn_info%bond_a(j),&
+                      conn_info%bond_b(j),&
                       "offset number at",&
-                      topology%bond_a(j)-first+1,&
-                      topology%bond_b(j)-first+1
+                      conn_info%bond_a(j)-first+1,&
+                      conn_info%bond_b(j)-first+1
         END IF
       END IF
     END DO
@@ -1644,8 +1678,8 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
                            nmolecule=j,nbond=nbond)
     counter=counter+nbond*j
   END DO
-  IF(counter/=SIZE(topology%bond_a)) THEN
-    IF(PM2) WRITE(iw,*) "    checksum vs nbond ",counter,SiZE(topology%bond_a)
+  IF(counter/=SIZE(conn_info%bond_a)) THEN
+    IF(PM2) WRITE(iw,*) "    checksum vs nbond ",counter,SiZE(conn_info%bond_a)
     CALL stop_program ( "connectivity_pack", "nbond counting error")
   END IF
 
@@ -1656,21 +1690,21 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
   !-----------------------------------------------------------------------------
   DO i=1,topology%nmol_type
     molecule_kind => molecule_kind_set(i)
-    ntheta  = SIZE(topology%theta_a)
-    CALL find_boundary(topology%map_mol_typ,topology%natoms,first,last,i)
+    ntheta  = SIZE(conn_info%theta_a)
+    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
     ALLOCATE(checkme(ntheta),STAT=istat)
     IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',ntheta)
     checkme(:)=0
     DO j=1,ntheta
-      atm_a = topology%theta_a(j)
-      atm_b = topology%theta_b(j)
-      atm_c = topology%theta_c(j)
-      IF( (topology%map_mol_typ(atm_a)==i).AND.&
-          (topology%map_mol_num(atm_a)==1).AND.&
-          (topology%map_mol_typ(atm_b)==i).AND.&
-          (topology%map_mol_num(atm_b)==1).AND.&
-          (topology%map_mol_typ(atm_c)==i).AND.&
-          (topology%map_mol_num(atm_c)==1) ) THEN
+      atm_a = conn_info%theta_a(j)
+      atm_b = conn_info%theta_b(j)
+      atm_c = conn_info%theta_c(j)
+      IF( (atom_info%map_mol_typ(atm_a)==i).AND.&
+          (atom_info%map_mol_num(atm_a)==1).AND.&
+          (atom_info%map_mol_typ(atm_b)==i).AND.&
+          (atom_info%map_mol_num(atm_b)==1).AND.&
+          (atom_info%map_mol_typ(atm_c)==i).AND.&
+          (atom_info%map_mol_num(atm_c)==1) ) THEN
         checkme(j) = 1
       END IF
     END DO
@@ -1681,21 +1715,21 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     DO j=1,SUM(checkme)
       IF (checkme(j)==1) THEN
         counter=counter+1
-        bend_list(counter)%a=topology%theta_a(j)-first+1
-        bend_list(counter)%b=topology%theta_b(j)-first+1
-        bend_list(counter)%c=topology%theta_c(j)-first+1
+        bend_list(counter)%a=conn_info%theta_a(j)-first+1
+        bend_list(counter)%b=conn_info%theta_b(j)-first+1
+        bend_list(counter)%c=conn_info%theta_c(j)-first+1
         !point this to the right bond_kind_type if using force field
         NULLIFY(bend_list(j)%bend_kind)
         IF(PM2) THEN
           WRITE(iw,'(7X,A,I3,1X,A,I5,I5,I5,1X,A,I5,I5,I5)') &
                       "molecule_kind",i,"bend",&
-                      topology%theta_a(j),&
-                      topology%theta_b(j),&
-                      topology%theta_c(j),&
+                      conn_info%theta_a(j),&
+                      conn_info%theta_b(j),&
+                      conn_info%theta_c(j),&
                       "offset number at",&
-                      topology%theta_a(j)-first+1,&
-                      topology%theta_b(j)-first+1,&
-                      topology%theta_c(j)-first+1
+                      conn_info%theta_a(j)-first+1,&
+                      conn_info%theta_b(j)-first+1,&
+                      conn_info%theta_c(j)-first+1
         END IF
       END IF
     END DO
@@ -1711,8 +1745,8 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
                            nmolecule=j,nbend=ntheta)
     counter=counter+ntheta*j
   END DO
-  IF(counter/=SIZE(topology%theta_a)) THEN
-    IF(PM2) WRITE(iw,*) "    checksum vs nbend ",counter,SiZE(topology%theta_a)
+  IF(counter/=SIZE(conn_info%theta_a)) THEN
+    IF(PM2) WRITE(iw,*) "    checksum vs nbend ",counter,SiZE(conn_info%theta_a)
     CALL stop_program ( "connectivity_pack", "nbend counting error")
   END IF
 
@@ -1723,24 +1757,24 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
   !-----------------------------------------------------------------------------
   DO i=1,topology%nmol_type
     molecule_kind => molecule_kind_set(i)
-    nphi  = SIZE(topology%phi_a)
-    CALL find_boundary(topology%map_mol_typ,topology%natoms,first,last,i)
+    nphi  = SIZE(conn_info%phi_a)
+    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
     ALLOCATE(checkme(nphi),STAT=istat)
     IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nphi)
     checkme(:)=0
     DO j=1,nphi
-      atm_a = topology%phi_a(j)
-      atm_b = topology%phi_b(j)
-      atm_c = topology%phi_c(j)
-      atm_d = topology%phi_d(j)
-      IF( (topology%map_mol_typ(atm_a)==i).AND.&
-          (topology%map_mol_num(atm_a)==1).AND.&
-          (topology%map_mol_typ(atm_b)==i).AND.&
-          (topology%map_mol_num(atm_b)==1).AND.&
-          (topology%map_mol_typ(atm_c)==i).AND.&
-          (topology%map_mol_num(atm_c)==1).AND.&
-          (topology%map_mol_typ(atm_d)==i).AND.&
-          (topology%map_mol_num(atm_d)==1) ) THEN
+      atm_a = conn_info%phi_a(j)
+      atm_b = conn_info%phi_b(j)
+      atm_c = conn_info%phi_c(j)
+      atm_d = conn_info%phi_d(j)
+      IF( (atom_info%map_mol_typ(atm_a)==i).AND.&
+          (atom_info%map_mol_num(atm_a)==1).AND.&
+          (atom_info%map_mol_typ(atm_b)==i).AND.&
+          (atom_info%map_mol_num(atm_b)==1).AND.&
+          (atom_info%map_mol_typ(atm_c)==i).AND.&
+          (atom_info%map_mol_num(atm_c)==1).AND.&
+          (atom_info%map_mol_typ(atm_d)==i).AND.&
+          (atom_info%map_mol_num(atm_d)==1) ) THEN
         checkme(j) = 1
       END IF
     END DO
@@ -1752,24 +1786,24 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     DO j=1,SUM(checkme)
       IF (checkme(j)==1) THEN
         counter=counter+1
-        torsion_list(counter)%a=topology%phi_a(j)-first+1
-        torsion_list(counter)%b=topology%phi_b(j)-first+1
-        torsion_list(counter)%c=topology%phi_c(j)-first+1
-        torsion_list(counter)%d=topology%phi_d(j)-first+1
+        torsion_list(counter)%a=conn_info%phi_a(j)-first+1
+        torsion_list(counter)%b=conn_info%phi_b(j)-first+1
+        torsion_list(counter)%c=conn_info%phi_c(j)-first+1
+        torsion_list(counter)%d=conn_info%phi_d(j)-first+1
         !point this to the right bond_kind_type if using force field
         NULLIFY(torsion_list(j)%torsion_kind)
         IF(PM2) THEN
           WRITE(iw,'(7X,A,I3,1X,A,I5,I5,I5,I5,1X,A,I5,I5,I5,I5)') &
                       "molecule_kind",i,"torsion",&
-                      topology%phi_a(j),&
-                      topology%phi_b(j),&
-                      topology%phi_c(j),&
-                      topology%phi_d(j),&
+                      conn_info%phi_a(j),&
+                      conn_info%phi_b(j),&
+                      conn_info%phi_c(j),&
+                      conn_info%phi_d(j),&
                       "offset number at",&
-                      topology%phi_a(j)-first+1,&
-                      topology%phi_b(j)-first+1,&
-                      topology%phi_c(j)-first+1,&
-                      topology%phi_d(j)-first+1
+                      conn_info%phi_a(j)-first+1,&
+                      conn_info%phi_b(j)-first+1,&
+                      conn_info%phi_c(j)-first+1,&
+                      conn_info%phi_d(j)-first+1
         END IF
       END IF
     END DO
@@ -1785,8 +1819,8 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
                            nmolecule=j,ntorsion=nphi)
     counter=counter+nphi*j
   END DO
-  IF(counter/=SIZE(topology%phi_a)) THEN
-    IF(PM2) WRITE(iw,*) "    checksum vs nphi ",counter,SiZE(topology%phi_a)
+  IF(counter/=SIZE(conn_info%phi_a)) THEN
+    IF(PM2) WRITE(iw,*) "    checksum vs nphi ",counter,SiZE(conn_info%phi_a)
     CALL stop_program ( "connectivity_pack", "nphi counting error")
   END IF
 
@@ -1849,6 +1883,8 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_coordinate_pack', &
       routineP = moduleN//':'//routineN
 
+  TYPE(atom_info_type),POINTER     :: atom_info
+
     CHARACTER(LEN=default_string_length), &
       POINTER                                :: work(:)
     INTEGER                                  :: counter, first, i, ikind, &
@@ -1881,6 +1917,8 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   IF(PM1) WRITE(iw,*) "  Entering topology_coordinate_pack"
 
 
+  atom_info => topology%atom_info
+
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 1. Determine topology%[natom_type,atom_names] and save mass(natom_type) 
@@ -1890,7 +1928,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   IF (istat/=0) CALL stop_memory ('coordinate_pack','work,mass',topology%natoms)
   work(:)=""
   DO i = 1, topology%nmol_type
-    CALL find_boundary(topology%map_mol_typ,topology%natoms,first,last,i)
+    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
     molecule_kind => molecule_kind_set(i)
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
                            natom=natom,atom_list=atom_list)
@@ -1898,16 +1936,16 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
       IF(str_search(work,counter,atom_list(j)%name)==0)THEN
          counter = counter + 1
          work(counter) = atom_list(j)%name
-         mass(counter) = topology%atm_mass(first+j-1)
+         mass(counter) = atom_info%atm_mass(first+j-1)
         IF(PM2) WRITE(iw,'(7X,A,1X,A5,F10.5)') &
                 "NEW ATOMIC KIND",work(counter),mass(counter)
       END IF
     END DO
   END DO
   topology%natom_type = counter
-  ALLOCATE(topology%atom_names(topology%natom_type),STAT=istat)
+  ALLOCATE(atom_info%atom_names(topology%natom_type),STAT=istat)
   IF(istat/=0) CALL stop_memory ('coordinate_pack','atom_names')
-  topology%atom_names(1:counter)=work(1:counter)
+  atom_info%atom_names(1:counter)=work(1:counter)
   DEALLOCATE(work,STAT=istat)
   IF (istat/=0) CALL stop_memory ('coordinate_pack','work')
   CALL reallocate(mass,1,counter)
@@ -1938,7 +1976,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   DO i=1,topology%natom_type
     atomic_kind => atomic_kind_set(i)
     CALL set_atomic_kind(atomic_kind=atomic_kind,kind_number=i,&
-                         name=topology%atom_names(i),mass=mass(i)) 
+                         name=atom_info%atom_names(i),mass=mass(i)) 
   END DO
   DEALLOCATE(mass,STAT=istat)
   IF (istat/=0) CALL stop_memory ('coordinate_pack','mass')
@@ -1956,7 +1994,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   natom_of_kind(:) = 0
   DO i=1,topology%natom_type
     DO j=1,topology%natoms
-      IF(topology%atom_names(i)==topology%label_atmname(j)) THEN
+      IF(atom_info%atom_names(i)==atom_info%label_atmname(j)) THEN
         natom_of_kind(i)=natom_of_kind(i)+1
         IF(kind_of(j)==0) kind_of(j)=i
       END IF
@@ -1999,7 +2037,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     ikind = kind_of(i)
     particle_set(i)%atomic_kind => atomic_kind_set(ikind)
     particle_set(i)%iatom = i
-    particle_set(i)%r(:) = topology%r(:,i)
+    particle_set(i)%r(:) = atom_info%r(:,i)
     NULLIFY(particle_set(i)%lpi)
   END DO
   DEALLOCATE(kind_of,STAT=istat)
@@ -2016,7 +2054,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
                            natom=natom,atom_list=atom_list)
     DO j=1,natom
       DO k=1,topology%natom_type
-        IF(atom_list(j)%name == topology%atom_names(k)) THEN
+        IF(atom_list(j)%name == atom_info%atom_names(k)) THEN
           atom_list(j)%atomic_kind => atomic_kind_set(k)
         END IF
       END DO
@@ -2091,6 +2129,8 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
   CHARACTER(len=*), PARAMETER :: routineN = 'topology_constraint_pack', &
     routineP = moduleN//':'//routineN
 
+  TYPE(constraint_info_type),POINTER     :: cons_info
+
   INTEGER                                  :: istat, iw, i, j, k, natom
   INTEGER                                  :: counter,nmolecule,ndist,nbond
   INTEGER                                  :: ng3x3
@@ -2132,6 +2172,7 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
 
   IF(PM1) WRITE(iw,*) "  Entering topology_constraint_pack"
 
+  cons_info => topology%cons_info
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -2159,10 +2200,10 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 3. Add more stuff to topology%const_dist_* if constraint hydrogen is on
+  ! 3. Add more stuff to cons_info%const_dist_* if constraint hydrogen is on
   !-----------------------------------------------------------------------------
   IF(topology%const_hydr) THEN
-    ndist = topology%nconst_dist
+    ndist = cons_info%nconst_dist
     DO i=1,SIZE(molecule_kind_set)
       molecule_kind => molecule_kind_set(i)
       CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -2176,53 +2217,53 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
           DO k=1,nbond
             IF((bond_list(k)%a==j).OR.(bond_list(k)%b==j)) THEN
               ndist = ndist + 1
-              CALL reallocate(topology%const_dist_mol,1,ndist)
-              CALL reallocate(topology%const_dist_a,1,ndist)
-              CALL reallocate(topology%const_dist_b,1,ndist)
-              CALL reallocate(topology%const_dist_dab,1,ndist)
-              topology%const_dist_mol(ndist)  = i
-              topology%const_dist_a(ndist)    = bond_list(k)%a
-              topology%const_dist_b(ndist)    = bond_list(k)%b
-              topology%const_dist_dab(ndist)  = bond_list(k)%bond_kind%r0
+              CALL reallocate(cons_info%const_dist_mol,1,ndist)
+              CALL reallocate(cons_info%const_dist_a,1,ndist)
+              CALL reallocate(cons_info%const_dist_b,1,ndist)
+              CALL reallocate(cons_info%const_dist_dab,1,ndist)
+              cons_info%const_dist_mol(ndist)  = i
+              cons_info%const_dist_a(ndist)    = bond_list(k)%a
+              cons_info%const_dist_b(ndist)    = bond_list(k)%b
+              cons_info%const_dist_dab(ndist)  = bond_list(k)%bond_kind%r0
             END IF
           END DO
         END IF
       END DO
     END DO
-    topology%nconst_dist = ndist
+    cons_info%nconst_dist = ndist
   END IF
 
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 4. sort and find duplicates topology%const_dist_*
+  ! 4. sort and find duplicates cons_info%const_dist_*
   !-----------------------------------------------------------------------------
   IF(topology%const_dist) THEN
-    ndist = topology%nconst_dist
+    ndist = cons_info%nconst_dist
     !Sort the first column
     DO i=1,ndist
       DO j=1,ndist
-        IF(topology%const_dist_mol(i)<topology%const_dist_mol(j)) THEN
-          CALL swap(topology%const_dist_mol(i),topology%const_dist_mol(j))
-          CALL swap(topology%const_dist_a(i),topology%const_dist_a(j))
-          CALL swap(topology%const_dist_b(i),topology%const_dist_b(j))
-          CALL swap(topology%const_dist_dab(i),topology%const_dist_dab(j))
+        IF(cons_info%const_dist_mol(i)<cons_info%const_dist_mol(j)) THEN
+          CALL swap(cons_info%const_dist_mol(i),cons_info%const_dist_mol(j))
+          CALL swap(cons_info%const_dist_a(i),cons_info%const_dist_a(j))
+          CALL swap(cons_info%const_dist_b(i),cons_info%const_dist_b(j))
+          CALL swap(cons_info%const_dist_dab(i),cons_info%const_dist_dab(j))
         END IF
       END DO
     END DO
     !Sort the second column
     i=1
     DO WHILE (i<ndist)
-      search1 = topology%const_dist_mol(i)
-      CALL find_boundary(topology%const_dist_mol,ndist,first,last,search1)
+      search1 = cons_info%const_dist_mol(i)
+      CALL find_boundary(cons_info%const_dist_mol,ndist,first,last,search1)
       IF(.NOT.(first==last)) THEN
         DO j=first,last
           DO k=first,last
-            IF(topology%const_dist_a(j)<topology%const_dist_a(k)) THEN
-              CALL swap(topology%const_dist_mol(j),topology%const_dist_mol(k))
-              CALL swap(topology%const_dist_a(j),topology%const_dist_a(k))
-              CALL swap(topology%const_dist_b(j),topology%const_dist_b(k))
-              CALL swap(topology%const_dist_dab(j),topology%const_dist_dab(k))
+            IF(cons_info%const_dist_a(j)<cons_info%const_dist_a(k)) THEN
+              CALL swap(cons_info%const_dist_mol(j),cons_info%const_dist_mol(k))
+              CALL swap(cons_info%const_dist_a(j),cons_info%const_dist_a(k))
+              CALL swap(cons_info%const_dist_b(j),cons_info%const_dist_b(k))
+              CALL swap(cons_info%const_dist_dab(j),cons_info%const_dist_dab(k))
             END IF
           END DO
         END DO
@@ -2234,18 +2275,18 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
     !Sort the third column
     i=1
     DO WHILE (i<ndist)
-      search1 = topology%const_dist_mol(i)
-      search2 = topology%const_dist_a(i)
-      CALL find_boundary2(topology%const_dist_mol,topology%const_dist_a,&
+      search1 = cons_info%const_dist_mol(i)
+      search2 = cons_info%const_dist_a(i)
+      CALL find_boundary2(cons_info%const_dist_mol,cons_info%const_dist_a,&
                           ndist,first,last,search1,search2)
       IF(.NOT.(first==last)) THEN
         DO j=first,last
           DO k=first,last
-            IF(topology%const_dist_b(j)<topology%const_dist_b(k)) THEN
-              CALL swap(topology%const_dist_mol(j),topology%const_dist_mol(k))
-              CALL swap(topology%const_dist_a(j),topology%const_dist_a(k))
-              CALL swap(topology%const_dist_b(j),topology%const_dist_b(k))
-              CALL swap(topology%const_dist_dab(j),topology%const_dist_dab(k))
+            IF(cons_info%const_dist_b(j)<cons_info%const_dist_b(k)) THEN
+              CALL swap(cons_info%const_dist_mol(j),cons_info%const_dist_mol(k))
+              CALL swap(cons_info%const_dist_a(j),cons_info%const_dist_a(k))
+              CALL swap(cons_info%const_dist_b(j),cons_info%const_dist_b(k))
+              CALL swap(cons_info%const_dist_dab(j),cons_info%const_dist_dab(k))
             END IF
           END DO
         END DO
@@ -2266,7 +2307,7 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
       molecule_kind => molecule_kind_set(i)
       CALL get_molecule_kind(molecule_kind=molecule_kind,&
                              nmolecule=nmolecule,molecule_list=molecule_list)
-      CALL find_boundary(topology%const_dist_mol,topology%nconst_dist,&
+      CALL find_boundary(cons_info%const_dist_mol,cons_info%nconst_dist,&
                          first,last,i)
       ndist = last-first+1
       ALLOCATE(dist_list(ndist),STAT=istat)
@@ -2290,9 +2331,9 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
       ndist = 0
       DO j=first,last
         ndist = ndist + 1
-        dist_list(ndist)%a   = topology%const_dist_a(j)
-        dist_list(ndist)%b   = topology%const_dist_b(j)
-        dist_list(ndist)%dab = topology%const_dist_dab(j)
+        dist_list(ndist)%a   = cons_info%const_dist_a(j)
+        dist_list(ndist)%b   = cons_info%const_dist_b(j)
+        dist_list(ndist)%dab = cons_info%const_dist_dab(j)
       END DO
       CALL set_molecule_kind(molecule_kind,dist_list=dist_list,ndist=ndist)
     END DO
@@ -2308,7 +2349,7 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
       molecule_kind => molecule_kind_set(i)
       CALL get_molecule_kind(molecule_kind=molecule_kind,&
                              nmolecule=nmolecule,molecule_list=molecule_list)
-      CALL find_boundary(topology%const_g33_mol,topology%nconst_g33,&
+      CALL find_boundary(cons_info%const_g33_mol,cons_info%nconst_g33,&
                          first,last,i)
       ng3x3 = last-first+1
       ALLOCATE(g3x3_list(ng3x3),STAT=istat)
@@ -2339,14 +2380,14 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
       END DO
       
       ng3x3 = 0
-      DO j=1,SIZE(topology%const_g33_a)
+      DO j=1,SIZE(cons_info%const_g33_a)
         ng3x3 = ng3x3 + 1
-        g3x3_list(ng3x3)%a   = topology%const_g33_a(j)
-        g3x3_list(ng3x3)%b   = topology%const_g33_b(j)
-        g3x3_list(ng3x3)%c   = topology%const_g33_c(j)
-        g3x3_list(ng3x3)%dab = topology%const_g33_dab(j)
-        g3x3_list(ng3x3)%dac = topology%const_g33_dac(j)
-        g3x3_list(ng3x3)%dbc = topology%const_g33_dbc(j)
+        g3x3_list(ng3x3)%a   = cons_info%const_g33_a(j)
+        g3x3_list(ng3x3)%b   = cons_info%const_g33_b(j)
+        g3x3_list(ng3x3)%c   = cons_info%const_g33_c(j)
+        g3x3_list(ng3x3)%dab = cons_info%const_g33_dab(j)
+        g3x3_list(ng3x3)%dac = cons_info%const_g33_dac(j)
+        g3x3_list(ng3x3)%dbc = cons_info%const_g33_dbc(j)
       END DO
       CALL set_molecule_kind(molecule_kind,ng3x3=ng3x3,g3x3_list=g3x3_list)
     END DO
@@ -2406,6 +2447,8 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
   CHARACTER(len=*), PARAMETER :: routineN = 'topology_force_field_pack', &
     routineP = moduleN//':'//routineN
 
+  TYPE(force_field_input_info_type),POINTER     :: ffin_info
+
   INTEGER                                  :: istat, iw, i, j, k
   LOGICAL                                  :: PM1, PM2, PM3, PM4
 
@@ -2454,6 +2497,7 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
 
   IF(PM1) WRITE(iw,*) "  Entering topology_force_field_pack"
 
+  ffin_info => topology%ffin_info
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -2676,13 +2720,13 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_b)
       found = .FALSE.
-      DO k=1,SIZE(topology%ff_bond_a)
-        IF( ((TRIM(topology%ff_bond_a(k))==TRIM(name_atm_a)) .AND. &
-             (TRIM(topology%ff_bond_b(k))==TRIM(name_atm_b))) .OR. &
-            ((TRIM(topology%ff_bond_a(k))==TRIM(name_atm_b)) .AND. &
-             (TRIM(topology%ff_bond_b(k))==TRIM(name_atm_a))) ) THEN
-          bond_list(j)%bond_kind%k  = topology%ff_bond_k(k)
-          bond_list(j)%bond_kind%r0 = topology%ff_bond_r0(k)
+      DO k=1,SIZE(ffin_info%ff_bond_a)
+        IF( ((TRIM(ffin_info%ff_bond_a(k))==TRIM(name_atm_a)) .AND. &
+             (TRIM(ffin_info%ff_bond_b(k))==TRIM(name_atm_b))) .OR. &
+            ((TRIM(ffin_info%ff_bond_a(k))==TRIM(name_atm_b)) .AND. &
+             (TRIM(ffin_info%ff_bond_b(k))==TRIM(name_atm_a))) ) THEN
+          bond_list(j)%bond_kind%k  = ffin_info%ff_bond_k(k)
+          bond_list(j)%bond_kind%r0 = ffin_info%ff_bond_r0(k)
           found = .TRUE.
           EXIT
         END IF
@@ -2717,15 +2761,15 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_c)
       found = .FALSE.
-      DO k=1,SIZE(topology%ff_bend_a)
-        IF( ((TRIM(topology%ff_bend_a(k))==TRIM(name_atm_a)) .AND. &
-             (TRIM(topology%ff_bend_b(k))==TRIM(name_atm_b)) .AND. &
-             (TRIM(topology%ff_bend_c(k))==TRIM(name_atm_c))) .OR. &
-            ((TRIM(topology%ff_bend_a(k))==TRIM(name_atm_c)) .AND. &
-             (TRIM(topology%ff_bend_b(k))==TRIM(name_atm_b)) .AND. &
-             (TRIM(topology%ff_bend_c(k))==TRIM(name_atm_a))) ) THEN
-          bend_list(j)%bend_kind%k      = topology%ff_bend_k(k)
-          bend_list(j)%bend_kind%theta0 = topology%ff_bend_theta0(k)
+      DO k=1,SIZE(ffin_info%ff_bend_a)
+        IF( ((TRIM(ffin_info%ff_bend_a(k))==TRIM(name_atm_a)) .AND. &
+             (TRIM(ffin_info%ff_bend_b(k))==TRIM(name_atm_b)) .AND. &
+             (TRIM(ffin_info%ff_bend_c(k))==TRIM(name_atm_c))) .OR. &
+            ((TRIM(ffin_info%ff_bend_a(k))==TRIM(name_atm_c)) .AND. &
+             (TRIM(ffin_info%ff_bend_b(k))==TRIM(name_atm_b)) .AND. &
+             (TRIM(ffin_info%ff_bend_c(k))==TRIM(name_atm_a))) ) THEN
+          bend_list(j)%bend_kind%k      = ffin_info%ff_bend_k(k)
+          bend_list(j)%bend_kind%theta0 = ffin_info%ff_bend_theta0(k)
           found = .TRUE.
           EXIT
         END IF
@@ -2764,17 +2808,17 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_d)
       found = .FALSE.
-      DO k=1,SIZE(topology%ff_torsion_a)
-        IF( ((TRIM(topology%ff_torsion_a(k))==TRIM(name_atm_a)) .AND. &
-             (TRIM(topology%ff_torsion_b(k))==TRIM(name_atm_b)) .AND. &
-             (TRIM(topology%ff_torsion_c(k))==TRIM(name_atm_c)) .AND. &
-             (TRIM(topology%ff_torsion_d(k))==TRIM(name_atm_d))) .OR. &
-            ((TRIM(topology%ff_torsion_a(k))==TRIM(name_atm_d)) .AND. &
-             (TRIM(topology%ff_torsion_b(k))==TRIM(name_atm_c)) .AND. &
-             (TRIM(topology%ff_torsion_c(k))==TRIM(name_atm_b)) .AND. &
-             (TRIM(topology%ff_torsion_d(k))==TRIM(name_atm_a))) ) THEN
-          torsion_list(j)%torsion_kind%k      = topology%ff_torsion_k(k)
-          torsion_list(j)%torsion_kind%phi0 = topology%ff_torsion_phi0(k)
+      DO k=1,SIZE(ffin_info%ff_torsion_a)
+        IF( ((TRIM(ffin_info%ff_torsion_a(k))==TRIM(name_atm_a)) .AND. &
+             (TRIM(ffin_info%ff_torsion_b(k))==TRIM(name_atm_b)) .AND. &
+             (TRIM(ffin_info%ff_torsion_c(k))==TRIM(name_atm_c)) .AND. &
+             (TRIM(ffin_info%ff_torsion_d(k))==TRIM(name_atm_d))) .OR. &
+            ((TRIM(ffin_info%ff_torsion_a(k))==TRIM(name_atm_d)) .AND. &
+             (TRIM(ffin_info%ff_torsion_b(k))==TRIM(name_atm_c)) .AND. &
+             (TRIM(ffin_info%ff_torsion_c(k))==TRIM(name_atm_b)) .AND. &
+             (TRIM(ffin_info%ff_torsion_d(k))==TRIM(name_atm_a))) ) THEN
+          torsion_list(j)%torsion_kind%k      = ffin_info%ff_torsion_k(k)
+          torsion_list(j)%torsion_kind%phi0 = ffin_info%ff_torsion_phi0(k)
           found = .TRUE.
           EXIT
         END IF
@@ -2799,12 +2843,12 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
       atomic_kind => atom_list(j)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_b)
       found = .FALSE.
-      DO k=1,SIZE(topology%ff_nonbonded)
-        IF( ( (name_atm_a == topology%ff_nonbonded(k)%at1)   .AND. &
-              (name_atm_b == topology%ff_nonbonded(k)%at2) ) .OR.  &
-            ( (name_atm_a == topology%ff_nonbonded(k)%at1)   .AND. &
-              (name_atm_b == topology%ff_nonbonded(k)%at2) ) ) THEN
-          potparm(i,j) = topology%ff_nonbonded(k)
+      DO k=1,SIZE(ffin_info%ff_nonbonded)
+        IF( ( (name_atm_a == ffin_info%ff_nonbonded(k)%at1)   .AND. &
+              (name_atm_b == ffin_info%ff_nonbonded(k)%at2) ) .OR.  &
+            ( (name_atm_a == ffin_info%ff_nonbonded(k)%at1)   .AND. &
+              (name_atm_b == ffin_info%ff_nonbonded(k)%at2) ) ) THEN
+          potparm(i,j) = ffin_info%ff_nonbonded(k)
           found = .TRUE.
           EXIT
         END IF
@@ -2821,7 +2865,6 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
 !------------------------------------------------------------------------------
   IF(PM1) WRITE(iw,*) "  Exiting  topology_force_field_pack"
   CALL write_checkpoint_information("leaving "//routineN,globenv)
-  !CALL stop_program("topology_force_field_pack","checkpoint end")
 
 END SUBROUTINE topology_force_field_pack
 
