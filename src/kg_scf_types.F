@@ -35,6 +35,17 @@ MODULE kg_scf_types
                                              cp_to_string,&
                                              cp_warning_level
   USE kinds,                           ONLY: dp
+  USE preconditioner,                  ONLY: destroy_preconditioner,&
+                                             preconditioner_type
+  USE qs_diis_types,                   ONLY: qs_diis_b_release,&
+                                             qs_diis_buffer_type
+  USE qs_ot,                           ONLY: qs_ot_destroy,&
+                                             qs_ot_type
+  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
+                                             real_matrix_p_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+
 
   IMPLICIT NONE
   PRIVATE
@@ -45,7 +56,7 @@ MODULE kg_scf_types
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='kg_scf_types'
 
   PUBLIC :: kg_scf_env_type, kg_scf_env_p_type,&
-            kg_scf_env_create, kg_scf_env_retain, kg_scf_env_release
+            kg_scf_env_retain, kg_scf_env_release
 
 !****************************************************************************
 
@@ -79,6 +90,11 @@ TYPE kg_scf_env_type
    REAL(KIND = dp) :: iter_param
    REAL(KIND = dp) :: iter_delta
    REAL(KIND = dp) :: p_mix
+   CHARACTER (len=15) :: iter_method
+   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p_mix_new
+   TYPE(preconditioner_type), POINTER :: ot_preconditioner
+   TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env
+   TYPE(qs_diis_buffer_type), POINTER :: scf_diis_buffer
 END TYPE kg_scf_env_type
 
 !****************************************************************************
@@ -105,49 +121,6 @@ END TYPE kg_scf_env_type
 !****************************************************************************
 
 CONTAINS
-
-!!****f* kg_scf_types/kg_scf_env_create [1.0] *
-!!
-!!   NAME
-!!     kg_scf_env_create
-!!
-!!   AUTHOR
-!!     fawzi/jgh
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
-  SUBROUTINE kg_scf_env_create(scf_env, error)
-    TYPE(kg_scf_env_type), POINTER           :: scf_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'kg_scf_env_create', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
-    ALLOCATE(scf_env, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-    IF (.NOT. failure) THEN
-       scf_env%ref_count=1
-       scf_env%print_count=0
-       last_scf_env_id=last_scf_env_id+1
-       scf_env%id_nr=last_scf_env_id
-       scf_env%print_count=0
-       scf_env%iter_count=0
-!  INTEGER :: method
-!  INTEGER :: mixing_method
-!  REAL(KIND = dp) :: iter_param
-!  REAL(KIND = dp) :: iter_delta
-!  REAL(KIND = dp) :: p_mix
-    END IF
-
-  END SUBROUTINE kg_scf_env_create
-!***************************************************************************
 
 !!****f* kg_scf_types/kg_scf_env_retain [1.0] *
 !!
@@ -214,6 +187,23 @@ SUBROUTINE kg_scf_env_release(scf_env,error)
      CPPreconditionNoFail(scf_env%ref_count>0,cp_failure_level,routineP,error)
      scf_env%ref_count=scf_env%ref_count-1
      IF (scf_env%ref_count==0) THEN
+        IF (ASSOCIATED(scf_env%p_mix_new)) THEN
+           CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error) ! we should not end up here, and give back using the pools
+           CALL deallocate_matrix_set(scf_env%p_mix_new)
+        ENDIF
+        IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
+           CALL destroy_preconditioner(scf_env%ot_preconditioner)
+           DEALLOCATE(scf_env%ot_preconditioner,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(scf_env%qs_ot_env)) THEN
+           DO i=1,SIZE(scf_env%qs_ot_env)
+              CALL qs_ot_destroy(scf_env%qs_ot_env(i))
+           END DO
+           DEALLOCATE(scf_env%qs_ot_env, stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        CALL qs_diis_b_release(scf_env%scf_diis_buffer,error=error)
         DEALLOCATE(scf_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF

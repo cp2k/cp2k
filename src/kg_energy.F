@@ -63,6 +63,7 @@ MODULE kg_energy
 
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
+  USE kg_environment_methods,          ONLY: kg_qs_env_update
   USE kg_kxc,                          ONLY: calculate_kxc_derivatives
   USE kg_neighbor_lists,               ONLY: build_kg_neighbor_lists
   USE kg_ppl,                          ONLY: calculate_drho_ppl,&
@@ -322,7 +323,7 @@ SUBROUTINE kg_qs_energies ( kg_env, globenv )
                                        globenv=globenv,&
                                        calculate_forces=.FALSE.)
 
-    CALL qs_env_update_s_mstruct(qs_env)
+    CALL kg_qs_env_update(kg_env,qs_env)
 
     ! Perform a SCF run
 !   CALL kg_qs_scf(kg_env,globenv)

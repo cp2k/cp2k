@@ -142,7 +142,7 @@ CONTAINS
                                                 maxlppl, maxlppnl, nkind, &
                                                 output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
-    LOGICAL                                  :: ionode, use_ref_cell
+    LOGICAL                                  :: ionode, kg_gpw, use_ref_cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell, cell_ref
@@ -262,6 +262,9 @@ CONTAINS
        CALL dyn_coeff_set_release(dyn_coeff_set, error=error)
     END IF
 
+    ! Flag for the KG_GPW method: if true the sub-qs_enviroment is created
+    kg_gpw = ( dft_control % qs_control % method == "KG_GPW" )
+
     ! SCF parameters
     IF ( dft_control % qs_control % method /= "KG_NOPOL" ) THEN
       CALL scf_c_create(scf_control)
@@ -308,13 +311,14 @@ CONTAINS
     CALL distribution_1d_release(local_molecules,error=error)
     CALL dft_control_release(dft_control, error=error)
 
-    !Sets up pw, grids, densities              
-    CALL kg_env_setup(kg_env,error)
 
-    !Sets up qs_env for subsystems             
-    CALL get_kg_env ( kg_env=kg_env,&
-                      dft_control=dft_control)
-    IF ( dft_control % qs_control % method == "KG_GPW" ) THEN
+    !Sets up pw, grids, densities              
+    CALL kg_env_setup(kg_env,kg_gpw,error)
+
+    IF ( kg_gpw ) THEN
+      !Sets up qs_env for subsystems             
+      CALL get_kg_env ( kg_env=kg_env,&
+                        dft_control=dft_control)
       CALL kg_subsys_setup(kg_env,error)
     END IF
 

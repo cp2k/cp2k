@@ -18,6 +18,7 @@
 
 MODULE kg_environment_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
@@ -30,6 +31,8 @@ MODULE kg_environment_methods
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_type
   USE distribution_methods,            ONLY: distribute_molecules_2d
@@ -49,6 +52,16 @@ MODULE kg_environment_methods
   USE molecule_types_new,              ONLY: molecule_type
   USE orbital_pointers,                ONLY: init_orbital_pointers
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
+  USE qs_collocate_density,            ONLY: calculate_rho_core
+  USE qs_environment_methods,          ONLY: qs_env_rebuild_rho
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type,&
+                                             set_qs_env
+  USE qs_ks_methods,                   ONLY: qs_ks_did_change
+  USE qs_matrix_pools,                 ONLY: mpools_rebuild_s_sm_pools
+  USE kg_scf,                          ONLY: kg_scf_env_did_change
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type, &
+                                             deallocate_matrix_set
   USE particle_types,                  ONLY: particle_type  
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -58,7 +71,7 @@ MODULE kg_environment_methods
 
   PRIVATE
 
-  PUBLIC :: kg_env_setup
+  PUBLIC :: kg_env_setup, kg_qs_env_update
 
   CHARACTER(LEN=*), PARAMETER :: moduleN = "kg_environment_methods"
   
@@ -68,16 +81,17 @@ CONTAINS
 
 !***************************************************************************
 
-  SUBROUTINE kg_env_setup(kg_env,error)
+  SUBROUTINE kg_env_setup(kg_env,kg_gpw,error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
+    LOGICAL, INTENT(IN), OPTIONAL            :: kg_gpw
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_env_setup', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, my_kg_gpw
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
@@ -92,6 +106,8 @@ CONTAINS
 
 !***************************************************************************
   failure=.FALSE.
+  my_kg_gpw = .FALSE.
+  IF(PRESENT(kg_gpw)) my_kg_gpw=kg_gpw
 
   NULLIFY(rho,rspw)
   NULLIFY(atomic_kind_set, distribution_2d,&
@@ -108,22 +124,24 @@ CONTAINS
   CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)   
   IF (.NOT. failure) THEN
 
-    !set up pw_pools, rs_pools
-    CALL get_kg_env(kg_env=kg_env,rspw=rspw,error=error)
-    IF (.NOT.ASSOCIATED(rspw)) THEN
-       CALL kg_rspw_create(rspw,kg_env=kg_env,error=error)
-       CALL set_kg_env(kg_env,rspw=rspw)
-       CALL kg_rspw_release(rspw,error=error)
-    ELSE
-       CALL kg_rspw_rebuild(rspw,kg_env=kg_env,error=error)
+    IF(.NOT. my_kg_gpw) THEN
+      !set up pw_pools, rs_pools
+      CALL get_kg_env(kg_env=kg_env,rspw=rspw,error=error)
+      IF (.NOT.ASSOCIATED(rspw)) THEN
+         CALL kg_rspw_create(rspw,kg_env=kg_env,error=error)
+         CALL set_kg_env(kg_env,rspw=rspw)
+         CALL kg_rspw_release(rspw,error=error)
+      ELSE
+         CALL kg_rspw_rebuild(rspw,kg_env=kg_env,error=error)
+      END IF
+  
+     ! allocate rho structures
+      CALL kg_rho_create(kg_rho=rho,kg_env=kg_env,error=error)
+      CALL set_kg_env(kg_env,rho=rho)
+      CALL kg_rho_release(kg_rho=rho,error=error)
     END IF
 
-   ! allocate rho structures
-    CALL kg_rho_create(kg_rho=rho,kg_env=kg_env,error=error)
-    CALL set_kg_env(kg_env,rho=rho)
-    CALL kg_rho_release(kg_rho=rho,error=error)
-     ! create 2d distribution
-
+    ! create 2d distribution
     CALL distribute_molecules_2d(particle_kind_set=atomic_kind_set,&
                                   particle_set=particle_set,&
                                   molecule_kind_set=molecule_kind_set,&
@@ -137,6 +155,77 @@ CONTAINS
   END IF
 
   END SUBROUTINE kg_env_setup
+
+!******************************************************************************
+
+  SUBROUTINE kg_qs_env_update(kg_env, qs_env, error)
+
+    TYPE(kg_environment_type), POINTER        :: kg_env
+    TYPE(qs_environment_type), POINTER        :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_qs_env_update',&
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks
+
+!------------------------------------------------------------------------------  
+    CALL timeset(routineN,"I","",handle)
+
+    failure=.FALSE.
+ 
+    NULLIFY(para_env, dft_control,particle_set)
+  
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+  
+    CALL get_qs_env(qs_env, para_env=para_env, dft_control=dft_control,&
+         particle_set=particle_set,matrix_ks=matrix_ks, error=error)
+  
+    ! *** rebuilds the S_sm_pools ***
+    CALL mpools_rebuild_s_sm_pools(qs_env%mpools,s=qs_env%matrix_s,&
+         nspins=dft_control%nspins,particle_set=particle_set,&
+         para_env=para_env, error=error)
+  
+    CALL get_qs_env(qs_env, matrix_ks=matrix_ks, error=error)
+  
+    ! *** deallocate matrices that will have the wrong structure ***
+    CALL deallocate_matrix_set(matrix_ks)
+    CALL set_qs_env(qs_env,matrix_ks=matrix_ks)
+  
+    ! *** updates rho core ***
+    CPPrecondition(ASSOCIATED(qs_env%rho_core),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(qs_env%pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL calculate_rho_core(qs_env%rho_core, &
+            qs_env%qs_charges%total_rho_core_rspace,qs_env,error=error)
+    END IF
+   
+    ! *** tell ks_env ***
+    IF (ASSOCIATED(qs_env%ks_env)) THEN
+       CALL qs_ks_did_change(qs_env%ks_env,s_mstruct_changed=.TRUE.,&
+            error=error)
+    END IF
+
+    !   *** Updates rho structure ***
+    CALL qs_env_rebuild_rho(qs_env=qs_env)
+ 
+    ! *** tell scf_env ***
+    IF (ASSOCIATED(kg_env%scf_env)) THEN
+       CALL kg_scf_env_did_change(kg_env%scf_env,&
+            error=error)
+    END IF
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE kg_qs_env_update
 
 !******************************************************************************
 END MODULE kg_environment_methods

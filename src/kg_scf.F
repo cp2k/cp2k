@@ -77,8 +77,10 @@ MODULE kg_scf
 !                                             gth_potential_type
   USE global_types,                    ONLY: global_environment_type
   USE kg_environment_types,            ONLY: kg_environment_type,&
-                                              get_kg_env,&
-                                              set_kg_env
+                                             get_kg_env,&
+                                             set_kg_env
+  USE kg_scf_types,                    ONLY: kg_scf_env_type,&
+                                             kg_scf_env_release
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -127,9 +129,10 @@ MODULE kg_scf
 !  USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
 !  USE qs_scf_post,                     ONLY: scf_post_calculation
-   USE kg_scf_types,                    ONLY: kg_scf_env_type,&
-                                              kg_scf_env_release,&
-                                              kg_scf_env_create
+  USE qs_scf_types,                    ONLY: ao_mixing_nr,&
+                                             general_diag_method_nr,&
+                                             no_mixing_nr,&
+                                             ot_method_nr
 !  USE qs_wf_history_methods,           ONLY: wfi_extrapolate,&
 !                                             wfi_get_method_label,&
 !                                             wfi_update
@@ -137,6 +140,7 @@ MODULE kg_scf
   USE scf_control_types,               ONLY: scf_control_type
 !  USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
+  USE sparse_matrix_types,             ONLY:  deallocate_matrix_set
 !  USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
 !                                             deallocate_matrix_set,&
 !                                             first_block_node,&
@@ -149,8 +153,8 @@ MODULE kg_scf
 !                                             real_matrix_type,&
 !                                             set_matrix_diagonal,&
 !                                             transfer_matrix
-!  USE termination,                     ONLY: stop_memory,&
-!                                             stop_program
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -164,15 +168,92 @@ MODULE kg_scf
 
   LOGICAL, PARAMETER, PRIVATE :: debug_this_module=.FALSE.
 
+! *** Global variables ***
+
+  INTEGER, SAVE, PRIVATE :: last_scf_env_id=0
+
 ! *** Public subroutines ***
 
-  PUBLIC :: kg_qs_scf
+  PUBLIC :: kg_qs_scf, kg_scf_env_did_change
 
 ! *****************************************************************************
 
 CONTAINS
 
-! *****************************************************************************
+!!****f* kg_scf/kg_scf_env_create [1.0] *
+!!
+!!   NAME
+!!     kg_scf_env_create
+!!
+!!   AUTHOR
+!!     fawzi/jgh
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
+
+  SUBROUTINE kg_scf_env_create(scf_env,kg_env, error)
+
+    TYPE(kg_scf_env_type), POINTER           :: scf_env
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_scf_env_create', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(scf_control_type), POINTER          :: scf_control
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    NULLIFY(dft_control,scf_control )
+
+    CALL get_kg_env(kg_env=kg_env,&
+                    dft_control=dft_control,&
+                    scf_control=scf_control)
+
+    ALLOCATE(scf_env, stat=stat)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    IF (.NOT. failure) THEN
+       scf_env%ref_count=1
+       scf_env%print_count=0
+       last_scf_env_id=last_scf_env_id+1
+       scf_env%id_nr=last_scf_env_id
+       scf_env%print_count=0
+       scf_env%iter_count=0
+! sets the method
+       scf_env%method=general_diag_method_nr ! default with diagonalisation
+       IF (dft_control%qs_control%semi_empirical) THEN
+!         IF (dft_control%qs_control%se_control%orthogonal_basis) &
+!             scf_env%method=special_diag_method_nr
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               "KG_GPW eith semi_empirical not implemented")
+       END IF
+       IF (scf_control%use_ot) scf_env%method=ot_method_nr
+
+!      I still don t know whether KG_GPW and OT can run together
+       SELECT CASE(scf_env%method)
+       CASE(ot_method_nr)
+          scf_env%mixing_method=no_mixing_nr
+       CASE DEFAULT
+          scf_env%mixing_method=ao_mixing_nr
+       END SELECT
+
+       scf_env%iter_param=0.0_dp
+       scf_env%iter_delta=0.0_dp
+       scf_env%p_mix=scf_control%p_mix
+       scf_env%iter_method=""
+       scf_env%print_iter_line=.TRUE.
+
+       NULLIFY( scf_env%p_mix_new, scf_env%ot_preconditioner, scf_env%qs_ot_env,&
+            scf_env%scf_diis_buffer)
+
+    END IF
+
+  END SUBROUTINE kg_scf_env_create
 
 !!****f* kg_scf/kg_qs_scf [1.0] *
 !!
@@ -207,11 +288,12 @@ CONTAINS
      IF (.NOT. failure) THEN
         CALL get_kg_env(kg_env,scf_env=scf_env,error=error)
         IF (.not.ASSOCIATED(scf_env)) THEN
-           CALL kg_scf_env_create(scf_env, error=error)
+           CALL kg_scf_env_create(scf_env,kg_env, error=error)
            CALL set_kg_env(kg_env,scf_env=scf_env,error=error)
            CALL kg_scf_env_release(scf_env)
            CALL get_kg_env(kg_env,scf_env=scf_env,error=error)
         END IF
+ stop 'bf do scf'
         CALL scf_env_do_scf(scf_env,my_kg_env,globenv,error=error)
      END IF
   END SUBROUTINE kg_qs_scf
@@ -1547,63 +1629,57 @@ CONTAINS
 !    END IF
 !    CALL timestop(0.0_dp,handle)
 !  END SUBROUTINE scf_env_cleanup
-!!***************************************************************************
+!***************************************************************************
 !
-!!!****f* qs_scf/scf_env_did_change [1.0] *
-!!!
-!!!   NAME
-!!!     scf_env_did_change
-!!!
-!!!   SYNOPSIS
-!!!     Subroutine scf_env_did_change(scf_env, qs_env, s_mstruct_changed,&
-!!!         error)
-!!!       Type(qs_scf_env_type), Pointer:: scf_env
-!!!       Type(qs_environment_type), Pointer:: qs_env
-!!!       Logical, Intent (IN):: s_mstruct_changed
-!!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!!     End Subroutine scf_env_did_change
-!!!
-!!!   FUNCTION
-!!!     function to be called to inform the scf_env about changes
-!!!
-!!!   NOTES
-!!!     -
-!!!
-!!!   ARGUMENTS
-!!!     - scf_env: the scf env to inform
-!!!     - qs_env: the qs_env in which the scf_env lives
-!!!     - s_mstruct_changed: treu if the structure of s changed
-!!!     - error: variable to control error logging, stopping,... 
-!!!       see module cp_error_handling 
-!!!
-!!!   AUTHOR
-!!!     fawzi
-!!!
-!!!   MODIFICATION HISTORY
-!!!     03.2003 created [fawzi]
-!!!
-!!!*** **********************************************************************
-!SUBROUTINE scf_env_did_change(scf_env,error)
-!    TYPE(qs_scf_env_type), POINTER           :: scf_env
-!    TYPE(cp_error_type), INTENT(inout), &
-!      OPTIONAL                               :: error
-!
-!    CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_did_change', &
-!      routineP = moduleN//':'//routineN
-!
-!    LOGICAL                                  :: failure
-!
-!  failure=.FALSE.
-!  
-!  CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
-!  CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
-!  IF (.NOT. failure) THEN
-!     IF (ASSOCIATED(scf_env%p_mix_new)) THEN
-!        CALL deallocate_matrix_set(scf_env%p_mix_new)
-!     END IF
-!  END IF
-!END SUBROUTINE scf_env_did_change
-!
+!!****f* kg_scf/kg_scf_env_did_change [1.0] *
+!!
+!!   NAME
+!!     kg_scf_env_did_change
+!!
+!!   SYNOPSIS
+!!     Subroutine kg_scf_env_did_change(scf_env, error)
+!!       Type(kg_scf_env_type), Pointer:: scf_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine scf_env_did_change
+!!
+!   FUNCTION
+!!     function to be called to inform the scf_env about changes
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - scf_env: the scf env to inform
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     11.2004 created [MI]
+!!
+!!*** **********************************************************************
+SUBROUTINE kg_scf_env_did_change(scf_env,error)
+    TYPE(kg_scf_env_type), POINTER           :: scf_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_scf_env_did_change', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     IF (ASSOCIATED(scf_env%p_mix_new)) THEN
+        CALL deallocate_matrix_set(scf_env%p_mix_new)
+     END IF
+  END IF
+END SUBROUTINE kg_scf_env_did_change
+
 !***************************************************************************
 
 END MODULE kg_scf
