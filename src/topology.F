@@ -44,7 +44,8 @@ MODULE topology
                                              topology_generate_bend,&
                                              topology_generate_bond,&
                                              topology_generate_dihe,&
-                                             topology_generate_molecule
+                                             topology_generate_molecule,&
+                                             topology_reorder_atoms
 
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology"
 
@@ -263,6 +264,13 @@ SUBROUTINE connectivity_control(topology,globenv)
     CALL topology_generate_bend(topology,globenv)
     CALL topology_generate_dihe(topology,globenv)
     CALL topology_generate_molecule(topology,globenv)
+    IF(topology%reorder_atom) THEN
+      CALL topology_reorder_atoms(topology,globenv)
+      CALL topology_generate_bond(topology,globenv)
+      CALL topology_generate_bend(topology,globenv)
+      CALL topology_generate_dihe(topology,globenv)
+      CALL topology_generate_molecule(topology,globenv)
+    END IF
   END SELECT
 
 

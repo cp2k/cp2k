@@ -128,6 +128,8 @@ SUBROUTINE read_topology_section ( topology, globenv )
         CALL get_next(string,ilen)
         CALL uppercase ( string )
         SELECT CASE ( string )
+        CASE ( 'REORDER')
+           topology % reorder_atom = .TRUE.
         CASE ( 'COORD_FI')
            ilen = 40
            CALL get_next(topology % coord_file_name,ilen)

@@ -52,7 +52,8 @@ MODULE topology_util
                                              particle_type
   USE periodic_table,                  ONLY: ptable
   USE simulation_cell,                 ONLY: pbc
-  USE string_utilities,                ONLY: str_search
+  USE string_utilities,                ONLY: integer_to_string,&
+                                             str_search
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE topology_types,                  ONLY: topology_parameters_type
@@ -67,6 +68,7 @@ MODULE topology_util
             sort_bond,&
             sort_bend,&
             sort_dihe,&
+            topology_reorder_atoms,&
             topology_connectivity_pack,&
             topology_coordinate_pack,&
             topology_generate_bend,&
@@ -78,6 +80,196 @@ MODULE topology_util
 !******************************************************************************
 
 CONTAINS
+
+!******************************************************************************
+!!****** topology_util [1.0] *
+!!
+!!   NAME
+!!     topology_reorder_atoms
+!!
+!!
+!!   FUNCTION
+!!
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE topology_reorder_atoms(topology,globenv)
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN), OPTIONAL                   :: globenv
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_molecule', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: PM1, PM2, PM3, PM4
+
+    CHARACTER (LEN=default_string_length), POINTER   :: tlabel_resname(:)
+    CHARACTER (LEN=default_string_length), POINTER   :: tlabel_atmname(:)
+    REAL (dbl), DIMENSION(:,:), POINTER :: tr
+    INTEGER, POINTER :: tmap_mol_typ(:)
+    INTEGER, POINTER :: tmap_mol_num(:)
+    REAL (dbl), POINTER :: tatm_charge(:)
+    REAL (dbl), POINTER :: tatm_mass(:)
+
+    INTEGER      :: istat,iw
+    INTEGER      :: location,iatm_count,imol_count
+    INTEGER      :: ityp,inum,iatm,ntyp,nnum,natom
+    INTEGER, POINTER :: new_position(:)
+    INTEGER, POINTER :: mnum(:)
+    INTEGER, POINTER :: mtyp(:)
+
+!------------------------------------------------------------------------------
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("entering "//routineN,globenv)
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  END IF
+
+  IF(PM1)  WRITE(iw,*) "    Entering topology_reorder_atoms"
+
+  natom = topology%natoms
+
+  NULLIFY(mtyp,mnum,new_position)
+  NULLIFY(tlabel_resname,tlabel_atmname)
+  NULLIFY(tr,tatm_charge,tatm_mass)
+  NULLIFY(tmap_mol_typ,tmap_mol_num)
+
+  !ALLOCATE all the temporary arrays needed for this routine
+  ALLOCATE(mtyp(natom),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','mtyp')
+  ALLOCATE(mnum(natom),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','mnum')
+  ALLOCATE(new_position(natom),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','new_position')
+  ALLOCATE(tlabel_resname(natom),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','tlabel_resname')
+  ALLOCATE(tlabel_atmname(natom),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','tlabel_atmname')
+  ALLOCATE(tr(3,natom),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','tr')
+  ALLOCATE(tatm_charge(natom),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','tatm_charge')
+  ALLOCATE(tatm_mass(natom),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','tatm_mass')
+  ALLOCATE(tmap_mol_typ(natom),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','tmap_mol_typ')
+  ALLOCATE(tmap_mol_num(natom),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','tmap_mol_num')
+
+  DO iatm=1,natom
+    mtyp(iatm) = topology%map_mol_typ(iatm)
+    mnum(iatm) = topology%map_mol_num(iatm)
+  END DO
+  ntyp = MAXVAL(mtyp)
+  nnum = MAXVAL(mnum)
+
+  imol_count = 0
+  iatm_count = 0
+
+  !Let's determine the new order that we want everything to be in
+  DO ityp=1,ntyp
+    DO inum=1,nnum
+      imol_count = imol_count + 1
+      DO iatm=1,natom
+        IF ( (ityp==mtyp(iatm)) .AND. (inum==mnum(iatm)) ) THEN
+          iatm_count = iatm_count + 1
+          new_position(iatm_count) = iatm
+          CALL integer_to_string(imol_count,topology%label_resname(iatm))
+          topology%label_resname(iatm) = "RESNAME"//topology%label_resname(iatm)
+        END IF
+      END DO
+    END DO
+  END DO
+
+  !Lets swap the atoms now
+  DO iatm=1,natom
+    location = new_position(iatm)
+    tlabel_resname(iatm)       = topology%label_resname(location)
+    tlabel_atmname(iatm)       = topology%label_atmname(location)
+    tr(1,iatm)                 = topology%r(1,location)
+    tr(2,iatm)                 = topology%r(2,location)
+    tr(3,iatm)                 = topology%r(3,location)
+    tatm_charge(iatm)          = topology%atm_charge(location)
+    tatm_mass(iatm)            = topology%atm_mass(location)
+    tmap_mol_typ(iatm)         = topology%map_mol_typ(location)
+    tmap_mol_num(iatm)         = topology%map_mol_num(location)
+  END DO
+  DO iatm=1,natom
+    topology%label_resname(iatm)   = tlabel_resname(iatm)
+    topology%label_atmname(iatm)   = tlabel_atmname(iatm)
+    topology%r(1,iatm)             = tr(1,iatm)
+    topology%r(2,iatm)             = tr(2,iatm)
+    topology%r(3,iatm)             = tr(3,iatm)
+    topology%atm_charge(iatm)      = tatm_charge(iatm)
+    topology%atm_mass(iatm)        = tatm_mass(iatm)
+    topology%map_mol_typ(iatm)     = tmap_mol_typ(iatm)
+    topology%map_mol_num(iatm)     = tmap_mol_num(iatm)
+  END DO
+
+  !DEALLOCATE all the temporary arrays needed for this routine
+  DEALLOCATE(mtyp,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','mtyp')
+  DEALLOCATE(mnum,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','mnum')
+  DEALLOCATE(new_position,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','new_position')
+  DEALLOCATE(tlabel_resname,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','tlabel_resname')
+  DEALLOCATE(tlabel_atmname,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','tlabel_atmname')
+  DEALLOCATE(tr,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','tr')
+  DEALLOCATE(tatm_charge,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','tatm_charge')
+
+  !DEALLOCATE all the stuff in topology structure so it can be re-runned
+  DEALLOCATE(topology%map_mol_typ,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','map_mol_typ')
+  DEALLOCATE(topology%map_mol_num,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','map_mol_num')
+  DEALLOCATE(topology%bond_a,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','bond_a')
+  DEALLOCATE(topology%bond_b,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','bond_b')
+  DEALLOCATE(topology%theta_a,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','theta_a')
+  DEALLOCATE(topology%theta_b,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','theta_b')
+  DEALLOCATE(topology%theta_c,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','theta_c')
+  DEALLOCATE(topology%phi_a,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','phi_a')
+  DEALLOCATE(topology%phi_b,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','phi_b')
+  DEALLOCATE(topology%phi_c,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','phi_c')
+  DEALLOCATE(topology%phi_d,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_reorder_atoms','phi_d')
+
+
+  IF(PM1) WRITE(iw,*) "    Exiting  topology_reorder_atoms"
+
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("leaving "//routineN,globenv)
+  END IF
+
+
+!------------------------------------------------------------------------------
+END SUBROUTINE topology_reorder_atoms
 
 !******************************************************************************
 !!****** topology_util [1.0] *

@@ -34,6 +34,7 @@ MODULE topology_types
     TYPE ( cell_type ), POINTER               :: cell
     INTEGER                                   :: natoms, natom_type
     INTEGER                                   :: nmol, nmol_type
+    LOGICAL                                   :: reorder_atom
     LOGICAL                                   :: coordinate
     LOGICAL                                   :: connectivity
     CHARACTER (LEN=default_string_length)     :: nhcopt
@@ -91,6 +92,7 @@ SUBROUTINE init_topology (topology)
   topology%natom_type=0
   topology%nmol=0
   topology%nmol_type=0
+  topology%reorder_atom=.FALSE.
   topology%coordinate=.FALSE.
   topology%connectivity=.FALSE.
   topology%nhcopt='GLOBAL'
