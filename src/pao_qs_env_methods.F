@@ -38,8 +38,9 @@ module pao_qs_env_methods
   use atomic_kind_types, only: atomic_kind_type, get_atomic_kind,&
        get_atomic_kind_set
   use pao_glob_angles_methods, only: pao_g_ang_did_change
-  use cp_sparse_matrix, only: cp_sparse_matrix_p_type, cp_sparse_matrix_type,&
-       cp_sp_dealloc, cp_sp_create, cp_sp_release, cp_get_matrix
+  use cp_block_matrix, only: cp_block_matrix_p_type, cp_block_matrix_type,&
+       cp_sp_dealloc, cp_sp_create, cp_sp_release, cp_get_matrix, &
+       cp_sp_block_handle_type, cp_sp_block_handle_init, cp_sp_block_handle_release
   use cp_b_matrix_structure, only: cp_b_matrix_struct_type, cp_bmstruct_get,&
        cp_bmstruct_create, cp_bmstruct_release, cp_b_dims_type
   use cp_matrix_utils, only: cp_sm_set_dist_sparsity_from_sm
@@ -49,6 +50,7 @@ module pao_qs_env_methods
   use cp_array_utils, only: cp_2d_r_output
   use particle_types, only: particle_type
   use dft_types, only: dft_control_type
+  use cp_mpi_env, only: cp_mpi_env_type, cp_mpi_get_from_glob
   implicit none
   private
 
@@ -149,7 +151,7 @@ contains
 !!       Real(Kind=wp), Optional, Intent (OUT)::&
 !!         pao_w_in_subspace_precision
 !!       Type(pao_glob_angles_type), Optional, Pointer:: pao_angles_att
-!!       Type(cp_sparse_matrix_p_type), Dimension(:), Optional, Pointer::&
+!!       Type(cp_block_matrix_p_type), Dimension(:), Optional, Pointer::&
 !!         pao_min_density_m
 !!       Type(cp_b_matrix_struct_type), Pointer, Optional::&
 !!         pao_min_bas_m_struct, pao_full_bas_m_struct,&
@@ -157,7 +159,7 @@ contains
 !!         pao_full_bas_diag_m_struct
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!       Logical, Dimension(:), Pointer, Optional:: pao_atomic_ortho_valid
-!!       Type(cp_sparse_matrix_type), Pointer, Optional:: pao_atomic_ortho
+!!       Type(cp_block_matrix_type), Pointer, Optional:: pao_atomic_ortho
 !!     End Subroutine pao_qs_env_get
 !!
 !!   FUNCTION
@@ -197,14 +199,14 @@ subroutine pao_qs_env_get(qs_env, global_env, pao_env, pao_max_min_bas,&
   real(kind=wp), optional, intent(out) :: pao_w_subspace_pos_precision
   real(kind=wp), optional, intent(out) :: pao_w_in_subspace_precision
   type(pao_glob_angles_type), optional, pointer :: pao_angles_att
-  type(cp_sparse_matrix_p_type), dimension(:), optional, pointer ::&
+  type(cp_block_matrix_p_type), dimension(:), optional, pointer ::&
        pao_min_density_m
   type(cp_b_matrix_struct_type), pointer, optional :: pao_min_bas_m_struct, &
        pao_full_bas_m_struct,pao_min_full_bas_m_struct, &
        pao_full_min_bas_m_struct, pao_full_bas_diag_m_struct
   type(cp_error_type), optional, intent(inout) :: error
   logical, dimension(:), pointer, optional :: pao_atomic_ortho_valid
-  type(cp_sparse_matrix_type), pointer, optional :: pao_atomic_ortho
+  type(cp_block_matrix_type), pointer, optional :: pao_atomic_ortho
   
   logical :: failure
   integer :: natoms
@@ -251,7 +253,7 @@ subroutine pao_qs_env_get(qs_env, global_env, pao_env, pao_max_min_bas,&
         if (.not.associated(p_env%atomic_ortho)) then
            call cp_sp_create(p_env%atomic_ortho,&
                 matrix_structure=p_env%full_min_bas_m_struct,&
-                global_env=global_env,error=error)
+                mpi_env=cp_mpi_get_from_glob(global_env),error=error)
         end if
         pao_atomic_ortho => p_env%atomic_ortho
      end if
@@ -357,7 +359,8 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
                b_dims=b_dims,&
                error=error)
         call cp_sm_set_dist_sparsity_from_sm(pao_env%min_bas_m_struct,&
-             global_env=global_env,sample_matrix=overlap_rmpv(1)%matrix,&
+             mpi_env=cp_mpi_get_from_glob(global_env),&
+             sample_matrix=overlap_rmpv(1)%matrix,&
              error=error)
         call cp_bmstruct_release(old_m_struct,error=error)
 
@@ -399,7 +402,7 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
         
         do i=1,size(pao_env%min_density_m)
            call cp_sp_create(pao_env%min_density_m(i)%matrix,&
-                global_env=global_env,&
+                mpi_env=cp_mpi_get_from_glob(global_env),&
                 matrix_structure=pao_env%min_bas_m_struct,error=error)
         end do
         ! invalidate atomic orthogonalisation
@@ -407,6 +410,7 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
              pao_env%atomic_ortho_valid=.false.
         ! in general the atom distribution changes
         call cp_sp_dealloc(pao_env%atomic_ortho,error=error)
+        call pao_qs_env_preinit_atom_ortho(qs_env, global_env, error=error)
      end if
      call pao_g_ang_did_change(pao_env%angles_att,qs_env=qs_env,&
           global_env=global_env, h_changed=h_changed,&
@@ -466,7 +470,7 @@ function pao_qs_env_get_atomic_ortho(qs_env,global_env,atom_nr,error)&
        routineP=moduleN//':'//routineN
   integer :: stat, n_atoms
   integer, save :: iter=0
-  type(cp_sparse_matrix_type), pointer :: atomic_ortho
+  type(cp_block_matrix_type), pointer :: atomic_ortho
   type(pao_env_type), pointer :: pao_env
   type(real_matrix_p_type), dimension(:), pointer :: s
   real(kind=wp), dimension(:,:), pointer :: block_val
@@ -488,7 +492,7 @@ function pao_qs_env_get_atomic_ortho(qs_env,global_env,atom_nr,error)&
      if (.not.associated(pao_env%atomic_ortho)) then
         call cp_sp_create(pao_env%atomic_ortho,&
              matrix_structure=pao_env%full_bas_diag_m_struct,&
-             global_env=global_env,error=error)
+             mpi_env=cp_mpi_get_from_glob(global_env),error=error)
      end if
      atomic_ortho => pao_env%atomic_ortho
   end if
@@ -544,6 +548,91 @@ function pao_qs_env_get_atomic_ortho(qs_env,global_env,atom_nr,error)&
   end if
   if (failure) nullify(res)
 end function pao_qs_env_get_atomic_ortho
+!***************************************************************************
+
+!!****f* pao_qs_env_methods/pao_qs_env_preinit_atom_ortho [1.0] *
+!!
+!!   NAME
+!!     pao_qs_env_preinit_atom_ortho
+!!
+!!   FUNCTION
+!!     If pao is run in parallel shares the ortho
+!!
+!!   NOTES
+!!     could cache tmp_m (but submatrix indexing on most compilers is
+!!     not optimized)
+!!
+!!   INPUTS
+!!     - qs_env: the qs_env that contains the overlap matrix
+!!     - global_env: the global environment (for the communication)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     6.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine pao_qs_env_preinit_atom_ortho(qs_env,global_env,error)
+  type(qs_environment_type), intent(in), target :: qs_env
+  type(global_environment_type), intent(in), target :: global_env
+  type(cp_error_type), optional, intent(inout) :: error
+
+  logical :: failure
+  character(len=*), parameter :: routineN='pao_qs_env_preinit_atom_ortho',&
+       routineP=moduleN//':'//routineN
+  integer :: stat, n_atoms,i
+  type(cp_block_matrix_type), pointer :: atomic_ortho
+  type(pao_env_type), pointer :: pao_env
+  type(cp_sp_block_handle_type) :: block_handle
+  
+  failure=.false.
+  nullify(atomic_ortho, pao_env)
+
+  call pao_qs_env_get(qs_env,global_env,pao_env=pao_env,n_atoms=n_atoms)
+  CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
+  if (.not.failure) then
+     if (.not.associated(pao_env%atomic_ortho_valid)) then
+        allocate(pao_env%atomic_ortho_valid(n_atoms),stat=stat)
+        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        if (.not.failure) then
+           pao_env%atomic_ortho_valid=.false.
+        end if
+     end if
+     if (.not.associated(pao_env%atomic_ortho)) then
+        call cp_sp_create(pao_env%atomic_ortho,&
+             matrix_structure=pao_env%full_bas_diag_m_struct,&
+             mpi_env=cp_mpi_get_from_glob(global_env),error=error)
+     end if
+     atomic_ortho => pao_env%atomic_ortho
+  end if
+  CPPrecondition(associated(atomic_ortho),cp_failure_level,routineP,error,failure)
+  CPPrecondition(associated(pao_env%atomic_ortho_valid),cp_failure_level,routineP,error,failure)
+  if (.not.failure) then
+#ifdef __parallel
+     ! stupid parallelization, every processor has everything
+     do i=1,n_atoms
+        if (atomic_ortho%matrix_structure%distribution%block_owner(i,i) ==&
+             atomic_ortho%global_env%mepos) then
+           call pao_qs_env_get_atomic_ortho(qs_env,&
+                global_env=atomic_ortho%global_env,&
+                atom_nr=i,error=error)
+        end if
+     end do
+     call cp_sp_block_handle_init(block_handle,error=error)
+     do i=1,nblock_rows
+        call cp_sp_get_local_block(matrix=atomic_ortho,&
+             block_row=i, block_col=i,&
+             block_handle=block_handle,alloc_block=.true.,error=error,&
+             owner=owner)
+        call mp_bcast(block_handle%block_val,owner,atomic_ortho%global_env%group)
+        call cp_sp_block_handle_release(block_handle,error=error)
+     end do
+#endif
+  end if
+end subroutine pao_qs_env_preinit_atom_ortho
 !***************************************************************************
 
 end module pao_qs_env_methods
