@@ -932,6 +932,13 @@ CONTAINS
     WRITE(unit,1001)
     my_count = &
          NUMBER_UNIQUE_RES_BONDS(my_atom_index, my_i, my_j, my_kb, my_req)
+    IF (verbose) THEN
+       DO my_bond = 1, my_count
+          WRITE(*,'(2A10,2I5,2F12.6)')ISYMBL(my_i(my_bond)), ISYMBL(my_j(my_bond)),&
+                                      my_i(my_bond), my_j(my_bond), my_kb(my_bond),&
+                                      my_req(my_bond)
+       END DO
+    END IF
     my_count = &
          GIVE_BACK_UNIQUE_TYPES(my_i=my_i, my_j=my_j, A=my_kb, B=my_req)
     DO my_bond = 1, my_count
@@ -1322,25 +1329,16 @@ CONTAINS
     INTEGER,          DIMENSION (:), POINTER :: my_atom_index, ib_l, jb_l
     INTEGER,          DIMENSION (:), POINTER, OPTIONAL :: my_i, my_j, icb_l
     REAL(KIND=dp),    DIMENSION (:), POINTER, OPTIONAL :: my_kb, my_req
-    INTEGER :: i, j, k
+    INTEGER :: i
 
     bonds: DO i = 1, ndim
-       DO j = 1, SIZE(my_atom_index)
-          IF (ib_l(i) == my_atom_index(j)) THEN
-             DO k = 1, SIZE(my_atom_index)
-                IF (jb_l(i) == my_atom_index(k)) THEN
-                   number_of_bonds = number_of_bonds + 1
-                   IF (PRESENT(my_req)) THEN
-                      my_i(number_of_bonds)   = ib_l(i)/3+1
-                      my_j(number_of_bonds)   = jb_l(i)/3+1
-                      my_kb(number_of_bonds)  = RK(icb_l(i))
-                      my_req(number_of_bonds) = REQ(icb_l(i))
-                   END IF
-                   CYCLE bonds
-                END IF
-             END DO
-          END IF
-       END DO
+       number_of_bonds = number_of_bonds + 1
+       IF (PRESENT(my_req)) THEN
+          my_i(number_of_bonds)   = ib_l(i)/3+1
+          my_j(number_of_bonds)   = jb_l(i)/3+1
+          my_kb(number_of_bonds)  = RK(icb_l(i))
+          my_req(number_of_bonds) = REQ(icb_l(i))
+       END IF
     END DO bonds
     IF (verbose) WRITE(*,*)"Entering loop_on_bonds :: number_of_bonds ::",number_of_bonds
   END SUBROUTINE loop_on_bonds
@@ -1384,30 +1382,17 @@ CONTAINS
     INTEGER,          DIMENSION (:), POINTER :: my_atom_index, it_l, jt_l, kt_l
     INTEGER,          DIMENSION (:), POINTER, OPTIONAL :: my_i, my_j, my_k, ict_l
     REAL(KIND=dp),    DIMENSION (:), POINTER, OPTIONAL :: my_ka, my_theta
-    INTEGER :: i, j, k, l
+    INTEGER :: i
 
     angles: DO i = 1, ndim
-       DO j = 1, SIZE(my_atom_index)
-          IF (it_l(i) == my_atom_index(j)) THEN
-             DO k = 1, SIZE(my_atom_index)
-                IF (jt_l(i) == my_atom_index(k)) THEN
-                   DO l = 1 , SIZE(my_atom_index)
-                      IF (kt_l(i) == my_atom_index(l)) THEN
-                         number_of_angles = number_of_angles + 1
-                         IF (PRESENT(my_theta)) THEN
-                            my_i(number_of_angles)     = it_l(i)/3+1
-                            my_j(number_of_angles)     = jt_l(i)/3+1
-                            my_k(number_of_angles)     = kt_l(i)/3+1
-                            my_ka(number_of_angles)    = TK(ict_l(i))
-                            my_theta(number_of_angles) = TEQ(ict_l(i))
-                         END IF
-                         CYCLE angles
-                      END IF
-                   END DO
-                END IF
-             END DO
-          END IF
-       END DO
+       number_of_angles = number_of_angles + 1
+       IF (PRESENT(my_theta)) THEN
+          my_i(number_of_angles)     = it_l(i)/3+1
+          my_j(number_of_angles)     = jt_l(i)/3+1
+          my_k(number_of_angles)     = kt_l(i)/3+1
+          my_ka(number_of_angles)    = TK(ict_l(i))
+          my_theta(number_of_angles) = TEQ(ict_l(i))
+       END IF
     END DO angles
     IF (verbose) WRITE(*,*)"Entering loop_on_angles :: number_of_angles ::",number_of_angles
   END SUBROUTINE loop_on_angles
@@ -1485,48 +1470,31 @@ CONTAINS
     INTEGER,          DIMENSION (:), POINTER, OPTIONAL :: my_i, my_j, my_k, ict_l, my_l, dihedral_type
     REAL(KIND=dp),    DIMENSION (:), POINTER, OPTIONAL :: my_a, my_delta, my_m
     REAL(KIND=dp),    DIMENSION (:), POINTER, OPTIONAL :: my_scale_el, my_scale_LJ
-    INTEGER :: i, j, k, l, m
+    INTEGER :: i
 
     dihedrals: DO i = 1, ndim
-       DO j = 1, SIZE(my_atom_index)
-          IF (it_l(i) == my_atom_index(j)) THEN
-             DO k = 1, SIZE(my_atom_index)
-                IF (jt_l(i) == my_atom_index(k)) THEN
-                   DO l = 1 , SIZE(my_atom_index)
-                      IF (ABS(kt_l(i)) == my_atom_index(l)) THEN
-                         DO m = 1 , SIZE(my_atom_index)
-                            IF (ABS(lt_l(i)) == my_atom_index(m)) THEN
-                               number_of_dihedrals = number_of_dihedrals + 1
-                               IF (PRESENT(my_delta)) THEN
-                                  my_i(number_of_dihedrals)          = it_l(i)/3+1
-                                  my_j(number_of_dihedrals)          = jt_l(i)/3+1
-                                  my_k(number_of_dihedrals)          = ABS(kt_l(i))/3+1
-                                  my_l(number_of_dihedrals)          = ABS(lt_l(i))/3+1
-                                  my_a(number_of_dihedrals)          = PK(ict_l(i))
-                                  my_m(number_of_dihedrals)          = PN(ict_l(i))
-                                  my_delta(number_of_dihedrals)      = PHASE(ict_l(i))
-                                  IF (PRESENT(my_scale_el).AND.PRESENT(my_scale_LJ)) THEN
-                                     my_scale_el(number_of_dihedrals)   = 1.0_dp/1.2_dp 
-                                     my_scale_LJ(number_of_dihedrals)   = 0.5_dp
-                                     IF (kt_l(i) < 0 .OR. lt_l(i) < 0) THEN
-                                        my_scale_el(number_of_dihedrals)   = 0.0_dp
-                                        my_scale_LJ(number_of_dihedrals)   = 0.0_dp
-                                     END IF
-                                  END IF
-                                  IF (PRESENT(dihedral_type)) THEN
-                                     dihedral_type(number_of_dihedrals) = 0
-                                     IF (lt_l(i) < 0) dihedral_type(number_of_dihedrals) = 1
-                                  END IF
-                               END IF
-                               CYCLE dihedrals
-                            END IF
-                         END DO
-                      END IF
-                   END DO
-                END IF
-             END DO
+       number_of_dihedrals = number_of_dihedrals + 1
+       IF (PRESENT(my_delta)) THEN
+          my_i(number_of_dihedrals)          = it_l(i)/3+1
+          my_j(number_of_dihedrals)          = jt_l(i)/3+1
+          my_k(number_of_dihedrals)          = ABS(kt_l(i))/3+1
+          my_l(number_of_dihedrals)          = ABS(lt_l(i))/3+1
+          my_a(number_of_dihedrals)          = PK(ict_l(i))
+          my_m(number_of_dihedrals)          = PN(ict_l(i))
+          my_delta(number_of_dihedrals)      = PHASE(ict_l(i))
+          IF (PRESENT(my_scale_el).AND.PRESENT(my_scale_LJ)) THEN
+             my_scale_el(number_of_dihedrals)   = 1.0_dp/1.2_dp 
+             my_scale_LJ(number_of_dihedrals)   = 0.5_dp
+             IF (kt_l(i) < 0 .OR. lt_l(i) < 0) THEN
+                my_scale_el(number_of_dihedrals)   = 0.0_dp
+                my_scale_LJ(number_of_dihedrals)   = 0.0_dp
+             END IF
           END IF
-       END DO
+          IF (PRESENT(dihedral_type)) THEN
+             dihedral_type(number_of_dihedrals) = 0
+             IF (lt_l(i) < 0) dihedral_type(number_of_dihedrals) = 1
+          END IF
+       END IF
     END DO dihedrals
     IF (verbose) WRITE(*,*)"Entering loop_on_dihedrals :: number_of_dihedrals ::",number_of_dihedrals
   END SUBROUTINE loop_on_dihedrals
@@ -1685,6 +1653,10 @@ CONTAINS
     IF (IsB)  loc_B = B
     IF (IsC)  loc_C = C
     IF (IsD)  loc_D = D
+    k0 = UNDEF
+    l0 = UNDEF
+    k1 = UNDEF
+    l1 = UNDEF
     DO m = 1, SIZE(loc_i)
        i0 = loc_i(m)/3+1
        j0 = loc_j(m)/3+1
@@ -1711,16 +1683,27 @@ CONTAINS
           ! Invert the selection and check...
           !
           IF (.NOT.Is_k.AND.(.NOT.Is_l)) THEN
-             Li = Li .OR. (TRIM(ISYMBL(i0)) == TRIM(ISYMBL(j1)))
-             Lj = Lj .OR. (TRIM(ISYMBL(j0)) == TRIM(ISYMBL(i1)))
+             IF ((Li.AND.Lj).OR.((TRIM(ISYMBL(i0)) == TRIM(ISYMBL(j1))).AND.&
+                                 (TRIM(ISYMBL(j0)) == TRIM(ISYMBL(i1))))) THEN
+                Lj = .TRUE.
+                Li = .TRUE.
+             END IF
           ELSE IF (.NOT.Is_l) THEN
-             Li = Li .OR. (TRIM(ISYMBL(i0)) == TRIM(ISYMBL(k1)))
-             Lk = Lk .OR. (TRIM(ISYMBL(k0)) == TRIM(ISYMBL(i1)))
+             IF ((Li.AND.Lk).OR.((TRIM(ISYMBL(i0)) == TRIM(ISYMBL(k1))).AND.&
+                                 (TRIM(ISYMBL(k0)) == TRIM(ISYMBL(i1))))) THEN
+                 Li = .TRUE.
+                 Lk = .TRUE.
+              END IF
           ELSE 
-             Li = Li .OR. (TRIM(ISYMBL(i0)) == TRIM(ISYMBL(l1)))
-             Lj = Lj .OR. (TRIM(ISYMBL(j0)) == TRIM(ISYMBL(k1)))
-             Lk = Lk .OR. (TRIM(ISYMBL(k0)) == TRIM(ISYMBL(j1)))
-             Ll = Ll .OR. (TRIM(ISYMBL(l0)) == TRIM(ISYMBL(i1)))
+             IF ((Li.AND.Lj.AND.Lk.AND.Ll).OR.((TRIM(ISYMBL(i0)) == TRIM(ISYMBL(l1))).AND.&
+                                               (TRIM(ISYMBL(j0)) == TRIM(ISYMBL(k1))).AND.&
+                                               (TRIM(ISYMBL(k0)) == TRIM(ISYMBL(j1))).AND.&
+                                               (TRIM(ISYMBL(l0)) == TRIM(ISYMBL(i1))))) THEN
+                 Li = .TRUE.
+                 Lj = .TRUE.
+                 Lk = .TRUE.
+                 Ll = .TRUE.
+              END IF
           END IF
           IF (Li .AND. Lj .AND. Lk .AND. Ll) THEN
              jump = .TRUE.
