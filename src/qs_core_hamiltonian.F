@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2001 - 2002  CP2K developers group
+!   Copyright (C) 2001 - 2004  CP2K developers group
 !-----------------------------------------------------------------------------!
 !!****** cp2k/qs_core_hamiltonian [1.1] *
 !!
@@ -71,6 +71,8 @@
 !!     - Non-redundant calculation of the non-local part of the GTH PP
 !!       (22.05.2003,MK)
 !!     - New parallelization scheme (27.06.2003,MK)
+!!     - OpenMP version (07.12.2003,jgh)
+!!     - Binary search loop for VPPNL operators (08.01.2004,jgh)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -138,6 +140,7 @@ MODULE qs_core_hamiltonian
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE util,                            ONLY: sort
   IMPLICIT NONE
 
   PRIVATE
@@ -193,6 +196,7 @@ CONTAINS
       REAL(KIND = dp), DIMENSION(:), POINTER    :: alpha_ppnl,r2
       INTEGER, DIMENSION(:), POINTER            :: nprj_ppnl
       INTEGER, DIMENSION(:,:), POINTER          :: neighbor
+      INTEGER, DIMENSION(4)                     :: lsize
       REAL(KIND = dp), DIMENSION(:,:), POINTER  :: cprj,r,vprj_ppnl
     END TYPE vppnl_type
 
@@ -777,10 +781,10 @@ CONTAINS
                                  "vppnl(kkind)%r2",nneighbor*dp_size)
               END IF
 
-              ALLOCATE (vppnl(kkind)%neighbor(4,nneighbor),STAT=istat)
+              ALLOCATE (vppnl(kkind)%neighbor(6,nneighbor),STAT=istat)
               IF (istat /= 0) THEN
                 CALL stop_memory(routine_name,module_name,__LINE__,&
-                                 "vppnl(kkind)%neighbor",4*nneighbor*int_size)
+                                 "vppnl(kkind)%neighbor",6*nneighbor*int_size)
               END IF
 
               ALLOCATE (vppnl(kkind)%r(3,nneighbor),STAT=istat)
@@ -879,6 +883,12 @@ CONTAINS
                 sac_ppnl_neighbor_node => next(sac_ppnl_neighbor_node)
 
               END DO ! kneighbor
+
+              vppnl(kkind)%lsize(1)=MAXVAL(vppnl(kkind)%neighbor(1,:))
+              vppnl(kkind)%lsize(2)=2*MAXVAL(ABS(vppnl(kkind)%neighbor(2,:)))+1
+              vppnl(kkind)%lsize(3)=2*MAXVAL(ABS(vppnl(kkind)%neighbor(3,:)))+1
+              vppnl(kkind)%lsize(4)=2*MAXVAL(ABS(vppnl(kkind)%neighbor(4,:)))+1
+              CALL vppnl_list_index(vppnl(kkind)%neighbor,vppnl(kkind)%lsize)
 
             END DO ! kkind
 
@@ -1281,130 +1291,128 @@ CONTAINS
 
 !                     *** Search operator atom in AC list ***
 
-                      search: DO kneighbor=1,SIZE(vppnl(kkind)%r2)
+                      kneighbor = find_operator(vppnl(kkind)%neighbor,&
+                                                vppnl(kkind)%lsize,katom,cell_c)
 
-                        IF ((vppnl(kkind)%neighbor(1,kneighbor) == katom).AND.&
-                            (vppnl(kkind)%neighbor(2,kneighbor) == cell_c(1)).AND.&
-                            (vppnl(kkind)%neighbor(3,kneighbor) == cell_c(2)).AND.&
-                            (vppnl(kkind)%neighbor(4,kneighbor) == cell_c(3))) THEN
+                        IF ( kneighbor /= 0 ) THEN
 
                           rac(:) = vppnl(kkind)%r(:,kneighbor)
                           rac2 = vppnl(kkind)%r2(kneighbor)
                           dac = SQRT(rac2)
-                          IF (set_radius_a(iset) + rprjc(1) < dac) EXIT search
+                          IF (set_radius_a(iset) + rprjc(1) >= dac) THEN
 
-                          rbc2 = rbc(1)*rbc(1) + rbc(2)*rbc(2) + rbc(3)*rbc(3)
-                          dbc = SQRT(rbc2)
-                          IF (set_radius_b(jset) + rprjc(1) < dbc) EXIT search
+                            rbc2 = rbc(1)*rbc(1) + rbc(2)*rbc(2) + rbc(3)*rbc(3)
+                            dbc = SQRT(rbc2)
+                            IF (set_radius_b(jset) + rprjc(1) >= dbc) THEN
 
-                          prjc = 1
+                              prjc = 1
 
-                          DO l=0,vppnl(kkind)%lppnl
+                              DO l=0,vppnl(kkind)%lppnl
 
-                            nprjc = vppnl(kkind)%nprj_ppnl(l)*nco(l)
+                                nprjc = vppnl(kkind)%nprj_ppnl(l)*nco(l)
 
-                            IF (nprjc == 0) CYCLE
+                                IF (nprjc == 0) CYCLE
 
-                            lc_max = l + 2*(vppnl(kkind)%nprj_ppnl(l) - 1)
-                            lc_min = l
-                            zetc(1) = vppnl(kkind)%alpha_ppnl(l)
-                            ncoc = ncoset(lc_max)
+                                lc_max = l + 2*(vppnl(kkind)%nprj_ppnl(l) - 1)
+                                lc_min = l
+                                zetc(1) = vppnl(kkind)%alpha_ppnl(l)
+                                ncoc = ncoset(lc_max)
 
-!                           *** Calculate the primitive overlap integrals ***
+!                               *** Calculate the primitive overlap integrals ***
 
-                            CALL overlap(lb_max(jset),zetb(1:npgfb(jset),jset),&
-                                         rpgfb(1:npgfb(jset),jset),lb_min(jset),&
-                                         lc_max,zetc,rprjc,lc_min,&
-                                         rbc,dbc,sab,nder,.TRUE.)
+                                CALL overlap(lb_max(jset),zetb(1:npgfb(jset),jset),&
+                                             rpgfb(1:npgfb(jset),jset),lb_min(jset),&
+                                             lc_max,zetc,rprjc,lc_min,&
+                                             rbc,dbc,sab,nder,.TRUE.)
 
-!                           *** Contraction step (projector functions) ***
+!                               *** Contraction step (projector functions) ***
 
-                            DO i=1,maxder
-                              first_col = (i - 1)*SIZE(work,1)
-                              CALL dgemm("N","N",ncob,nprjc,ncoc,&
-                                         1.0_dp,sab(1,first_col+1),SIZE(sab,1),&
-                                         vppnl(kkind)%cprj(1,prjc),&
-                                         SIZE(vppnl(kkind)%cprj,1),&
-                                         0.0_dp,work(1,first_col+prjc),&
-                                         SIZE(work,1))
-                            END DO
-
-                            prjc = prjc + nprjc
-
-                          END DO
-
-                          ncol = (kneighbor - 1)*vppnl(kkind)%nppnl + 1
-
-                          CALL dgemm("N","T",ncoa,ncob,vppnl(kkind)%nppnl,&
-                                     1.0_dp,vppnl(kkind)%sac(1)%block(nrow,ncol),&
-                                     SIZE(vppnl(kkind)%sac(1)%block,1),&
-                                     work(1,1),SIZE(work,1),&
-                                     1.0_dp,hab(1,1),SIZE(hab,1))
-
-                          IF (calculate_forces) THEN
-
-                            atom_c = atom_of_kind(katom)
-
-                            DO i=1,3
-
-                              first_col = i*SIZE(work,1) + 1
-
-                              CALL dgemm("N","T",ncoa,ncob,vppnl(kkind)%nppnl,&
-                                         1.0_dp,vppnl(kkind)%sac(i+1)%block(nrow,ncol),&
-                                         SIZE(vppnl(kkind)%sac(i+1)%block,1),&
-                                         work(1,1),SIZE(work,1),&
-                                         0.0_dp,hab(1,first_col),SIZE(hab,1))
-
-                              f = 0.0_dp
-
-                              DO jco=1,ncob
-                                j = first_col + jco - 1
-                                DO ico=1,ncoa
-                                  f = f + pab(ico,jco)*hab(ico,j)
+                                DO i=1,maxder
+                                  first_col = (i - 1)*SIZE(work,1)
+                                  CALL dgemm("N","N",ncob,nprjc,ncoc,&
+                                             1.0_dp,sab(1,first_col+1),SIZE(sab,1),&
+                                             vppnl(kkind)%cprj(1,prjc),&
+                                             SIZE(vppnl(kkind)%cprj,1),&
+                                             0.0_dp,work(1,first_col+prjc),&
+                                             SIZE(work,1))
                                 END DO
+    
+                                prjc = prjc + nprjc
+    
                               END DO
-
-!$OMP critical (qs_core_force_gth_ppnl)
-                              force(ikind)%gth_ppnl(i,atom_a) =&
-                                force(ikind)%gth_ppnl(i,atom_a) + f0*f
-
-                              force(kkind)%gth_ppnl(i,atom_c) =&
-                                force(kkind)%gth_ppnl(i,atom_c) - f0*f
-!$OMP end critical (qs_core_force_gth_ppnl)
-
+    
+                              ncol = (kneighbor - 1)*vppnl(kkind)%nppnl + 1
+    
                               CALL dgemm("N","T",ncoa,ncob,vppnl(kkind)%nppnl,&
-                                         1.0_dp,&
-                                         vppnl(kkind)%sac(1)%block(nrow,ncol),&
+                                         1.0_dp,vppnl(kkind)%sac(1)%block(nrow,ncol),&
                                          SIZE(vppnl(kkind)%sac(1)%block,1),&
-                                         work(1,first_col),SIZE(work,1),&
-                                         0.0_dp,hab(1,first_col),SIZE(hab,1))
+                                         work(1,1),SIZE(work,1),&
+                                         1.0_dp,hab(1,1),SIZE(hab,1))
+    
+                              IF (calculate_forces) THEN
+    
+                                atom_c = atom_of_kind(katom)
+    
+                                DO i=1,3
+    
+                                  first_col = i*SIZE(work,1) + 1
+    
+                                  CALL dgemm("N","T",ncoa,ncob,vppnl(kkind)%nppnl,&
+                                             1.0_dp,vppnl(kkind)%sac(i+1)%block(nrow,ncol),&
+                                             SIZE(vppnl(kkind)%sac(i+1)%block,1),&
+                                             work(1,1),SIZE(work,1),&
+                                             0.0_dp,hab(1,first_col),SIZE(hab,1))
 
-                              f = 0.0_dp
-
-                              DO jco=1,ncob
-                                j = first_col + jco - 1
-                                DO ico=1,ncoa
-                                  f = f + pab(ico,jco)*hab(ico,j)
-                                END DO
-                              END DO
+                                  f = 0.0_dp
+    
+                                  DO jco=1,ncob
+                                    j = first_col + jco - 1
+                                    DO ico=1,ncoa
+                                      f = f + pab(ico,jco)*hab(ico,j)
+                                    END DO
+                                  END DO
 
 !$OMP critical (qs_core_force_gth_ppnl)
-                              force(jkind)%gth_ppnl(i,atom_b) =&
-                                force(jkind)%gth_ppnl(i,atom_b) + f0*f
-
-                              force(kkind)%gth_ppnl(i,atom_c) =&
-                                force(kkind)%gth_ppnl(i,atom_c) - f0*f
+                                  force(ikind)%gth_ppnl(i,atom_a) =&
+                                    force(ikind)%gth_ppnl(i,atom_a) + f0*f
+    
+                                  force(kkind)%gth_ppnl(i,atom_c) =&
+                                    force(kkind)%gth_ppnl(i,atom_c) - f0*f
 !$OMP end critical (qs_core_force_gth_ppnl)
 
-                            END DO
+                                  CALL dgemm("N","T",ncoa,ncob,vppnl(kkind)%nppnl,&
+                                             1.0_dp,&
+                                             vppnl(kkind)%sac(1)%block(nrow,ncol),&
+                                             SIZE(vppnl(kkind)%sac(1)%block,1),&
+                                             work(1,first_col),SIZE(work,1),&
+                                             0.0_dp,hab(1,first_col),SIZE(hab,1))
+    
+                                  f = 0.0_dp
+
+                                  DO jco=1,ncob
+                                    j = first_col + jco - 1
+                                    DO ico=1,ncoa
+                                      f = f + pab(ico,jco)*hab(ico,j)
+                                    END DO
+                                  END DO
+
+!$OMP critical (qs_core_force_gth_ppnl)
+                                  force(jkind)%gth_ppnl(i,atom_b) =&
+                                    force(jkind)%gth_ppnl(i,atom_b) + f0*f
+    
+                                  force(kkind)%gth_ppnl(i,atom_c) =&
+                                    force(kkind)%gth_ppnl(i,atom_c) - f0*f
+!$OMP end critical (qs_core_force_gth_ppnl)
+
+                                END DO
+
+                              END IF
+
+                            END IF
 
                           END IF
 
-                          EXIT search
-
                         END IF
-
-                      END DO search
 
                       sbc_ppnl_neighbor_node => next(sbc_ppnl_neighbor_node)
 
@@ -1652,6 +1660,89 @@ CONTAINS
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
   END SUBROUTINE build_core_hamiltonian_matrix
+
+! *****************************************************************************
+
+  FUNCTION find_operator(neighbor,lsize,katom,cell) RESULT(kn)
+    INTEGER, DIMENSION(:,:),INTENT(IN) :: neighbor
+    INTEGER, DIMENSION(:),INTENT(IN)   :: lsize
+    INTEGER, INTENT(IN)                :: katom
+    INTEGER, DIMENSION(:),INTENT(IN)   :: cell    
+    INTEGER                            :: kn
+    INTEGER                            :: i,ii,nn,know,inow,nl,nu
+    INTEGER                            :: kval
+
+    kn = 0
+
+    IF(lsize(2)/2 < ABS(cell(1)) .OR. lsize(3)/2 < ABS(cell(2)) &
+                                 .OR. lsize(4)/2 < ABS(cell(3))) RETURN
+
+    kval = n_index(katom,cell,lsize)
+
+    nn = SIZE ( neighbor, 2 )
+    inow = MAX(1,nn/2)
+    nl = 1
+    nu = nn
+    DO i = 1, nn
+      know=neighbor(5,inow)
+      IF ( know == kval ) THEN
+        kn = neighbor(6,inow)
+        EXIT
+      ELSE IF ( know < kval ) THEN
+        nl = inow + 1
+        inow = inow + MAX(1,(nu-inow)/2)
+        IF ( nu < inow ) EXIT
+        IF ( nl > inow ) EXIT
+      ELSE
+        nu = inow - 1
+        inow = inow - MAX(1,(inow-nl)/2)
+        IF ( nu < inow ) EXIT
+        IF ( nl > inow ) EXIT
+      END IF
+    END DO
+
+    IF ( kn /= 0 ) THEN
+      IF ( katom /= neighbor(1,kn) .OR. &
+           cell(1) /= neighbor(2,kn) .OR. &
+           cell(2) /= neighbor(3,kn) .OR. &
+           cell(3) /= neighbor(4,kn) ) THEN
+        CALL stop_program ( "find_operator", "Check failed" )
+      END IF
+    END IF
+
+  END FUNCTION find_operator
+
+! *****************************************************************************
+
+  SUBROUTINE vppnl_list_index(neighbor,lsize) 
+    INTEGER, DIMENSION(:,:),INTENT(INOUT) :: neighbor
+    INTEGER, DIMENSION(:),INTENT(IN)      :: lsize
+    INTEGER                               :: i,nn
+
+    nn = SIZE ( neighbor, 2 )
+    DO i = 1, nn
+      neighbor(5,i) = n_index(neighbor(1,i),neighbor(2:4,i),lsize)
+    END DO
+    CALL sort(neighbor(5,:),nn,neighbor(6,:))
+
+  END SUBROUTINE vppnl_list_index
+
+  FUNCTION n_index(ka,cell,lsize) RESULT(kval)
+    INTEGER, INTENT(IN)              :: ka
+    INTEGER, DIMENSION(:),INTENT(IN) :: cell
+    INTEGER, DIMENSION(:),INTENT(IN) :: lsize
+    INTEGER                          :: kval
+    INTEGER                          :: l1,l2,l3,u1,u2,u3
+
+    u1 = lsize(2)/2+cell(1)
+    u2 = lsize(3)/2+cell(2)
+    u3 = lsize(4)/2+cell(3)
+    l3 = lsize(4)
+    l2 = lsize(4)*lsize(3)
+    l1 = lsize(4)*lsize(3)*lsize(2)
+    kval = (ka-1)*l1 + u1*l2 + u2*l3 + u3+1
+
+  END FUNCTION n_index
 
 ! *****************************************************************************
 
