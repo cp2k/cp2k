@@ -31,6 +31,7 @@ MODULE environment
   USE mathconstants, ONLY : zero
   USE physcon, ONLY : init_physcon
   USE stop_program, ONLY : set_stop, stop_prg
+  USE output_utilities, ONLY : set_output
   USE timesl, ONLY : walltime, cputime, datum
   USE timings, ONLY : timeprint, timeset, timestop
   USE util, ONLY : ran2
@@ -86,6 +87,7 @@ SUBROUTINE initialisation ( globenv )
   globenv % scr = 6  
   
   CALL set_stop ( globenv % scr )
+  CALL set_output ( globenv % scr, globenv % ionode )
   
   IF ( globenv % ionode ) THEN
      iw = globenv % scr

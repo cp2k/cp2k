@@ -84,9 +84,9 @@ PROGRAM cp2k
 
   END IF
   
-  CALL trailer ( globenv )
-  
   CALL end_parallel ( )
+  
+  CALL trailer ( globenv )
   
 !------------------------------------------------------------------------------
 

@@ -38,7 +38,7 @@ MODULE control_module
   USE tbmd_input, ONLY : read_tb_hamiltonian, read_tb_hopping_elements
   USE cntl_input, ONLY : read_cntl_section
   USE force_fields, ONLY : read_force_field_section, ATOMNAMESLENGTH
-  USE initialize_extended_types, ONLY : initialize_extended_type
+  USE initialize_extended_types, ONLY : initialize_extended_system
   USE initialize_molecule_types, ONLY : initialize_molecule_type
   USE initialize_particle_types, ONLY : initialize_particle_type
   USE integrator, ONLY : velocity_verlet, force, set_energy_parm, energy, &
@@ -51,7 +51,7 @@ MODULE control_module
   USE molecule_input, ONLY : read_molecule_section, read_setup_section, &
        charge
   USE molecule_types, ONLY : molecule_type, intra_parameters_type
-  USE nose, ONLY : extended_parameters_type
+  USE nose, ONLY : lnhc_parameters_type, npt_info_type
   USE pair_potential, ONLY : spline_nonbond_control
   USE particle_types, ONLY : particle_prop_type, particle_type
   USE simulation_cell, ONLY : cell_type, get_hinv
@@ -90,6 +90,9 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     Harald Forbert (Dec-2000): enable multiple linked lists
 !!
+!!   USED BY        
+!!     cp2k
+!!
 !!   SOURCE
 !******************************************************************************
 
@@ -114,7 +117,8 @@ SUBROUTINE control ( globenv )
   TYPE ( simulation_parameters_type ) :: simpar
   TYPE ( structure_type ) :: struc
   TYPE ( interaction_type ) :: inter
-  TYPE ( extended_parameters_type ) :: nhcp
+  TYPE ( lnhc_parameters_type ) :: nhc_part, nhc_baro
+  TYPE ( npt_info_type ), DIMENSION ( :, : ), POINTER :: npt_info
   TYPE ( thermodynamic_type ) :: thermo
   TYPE ( system_type ) :: ainp
   TYPE ( ewald_parameters_type ) :: ewald_param
@@ -130,7 +134,7 @@ SUBROUTINE control ( globenv )
   
   CALL timeset ( 'CONTROL', 'I', ' ', handle1 )
   CALL timeset ( 'CNTL_INIT', 'I', ' ', handle2 )
-!
+  
   struc % ll_data % natom_types = 0
   struc % ll_data % list_type = 0
   struc % ll_data % counter = 0
@@ -240,9 +244,10 @@ SUBROUTINE control ( globenv )
   CALL initialize_molecule_type ( mol_setup, intra_param, struc % pnode, &
        struc % part, struc % molecule, globenv )
   
-!..initialize extended_parameters_type and get number of degrees of freedom
-  CALL initialize_extended_type ( struc % box, simpar, &
-       struc % molecule, mol_setup, nhcp, globenv )
+!..initialize lnhc_parameters_type and npt_info and get 
+!  number of degrees of freedom
+  CALL initialize_extended_system ( struc % box, simpar, &
+     struc % molecule, mol_setup, globenv, nhc_part, nhc_baro, npt_info )
   
 ! initialize velocities if needed
   IF ( simpar % read_type == 'POS' ) THEN
@@ -261,10 +266,10 @@ SUBROUTINE control ( globenv )
   
   rcut ( :, : ) = inter%potparm ( :, : ) % rcutsq
   
-  CALL set_ll_parm ( struc%ll_data, globenv, simpar % verlet_skin, &
+  CALL set_ll_parm ( struc % ll_data, globenv, simpar % verlet_skin, &
        setup % natom_type, rcut, simpar % n_cell )
   
-  CALL set_ll_parm ( struc%ll_data, globenv, printlevel = globenv % print_level, &
+  CALL set_ll_parm ( struc % ll_data, globenv, printlevel = globenv % print_level, &
        ltype = 'NONBOND' )
   
   DEALLOCATE ( rcut, STAT = isos )
@@ -313,10 +318,10 @@ SUBROUTINE control ( globenv )
 
     IF ( fist ) then
       CALL fist_debug_control( globenv, ewald_param, struc%part, struc%pnode, &
-                 struc%molecule, struc%box, thermo, inter%potparm, simpar % ensemble, struc%ll_data )
+                 struc%molecule, struc%box, thermo, inter%potparm, simpar % ensemble, struc % ll_data )
     ELSE IF ( tbmd ) THEN
       CALL tbmd_debug_control( globenv, ewald_param, struc%part, struc%pnode, &
-                 struc%molecule, struc%box, thermo, inter%potparm, simpar % ensemble , struc%ll_data )
+                 struc%molecule, struc%box, thermo, inter%potparm, simpar % ensemble, struc % ll_data )
     ENDIF
      
   ELSE
@@ -326,16 +331,18 @@ SUBROUTINE control ( globenv )
      
 !..MD
     itimes = 0
-     
+
     CALL force ( struc, inter, thermo, simpar, ewald_param, globenv )
     IF ( globenv % ionode .AND. ewald_param % ewald_type /= 'NONE' ) &
          CALL ewald_print ( globenv % scr, thermo, struc % box, &
          units % e_label )
-    CALL energy ( itimes, cons, simpar, struc, thermo, nhcp )
+
+    CALL energy ( itimes, cons, simpar, struc, thermo, nhc_part, &
+                    nhc_baro, npt_info )
     
     DO itimes = 1, simpar % nsteps
        CALL velocity_verlet ( itimes, cons, simpar, inter, thermo, &
-            struc, ewald_param, nhcp )
+            struc, ewald_param, nhc_part, nhc_baro, npt_info )
        
        IF ( MOD ( itimes, mdio % idump ) == 0 ) &
             CALL dump_variables ( struc, mdio % dump_file_name, globenv )

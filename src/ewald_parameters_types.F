@@ -30,6 +30,7 @@ MODULE ewald_parameters_types
     REAL ( dbl ) :: epsilon             ! tolerance for small grid (PME)
     INTEGER   :: gmax                ! max Miller index
     INTEGER   :: ns_max              ! # grid points for small grid (PME)
+    INTEGER   :: o_spline            ! order of spline (SPME)
     INTEGER   :: gtot                ! total number of g-vectors
     INTEGER   :: ewald_grp           ! parallel group
   END TYPE ewald_parameters_type

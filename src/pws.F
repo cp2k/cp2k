@@ -10,9 +10,10 @@
 !!   FUNCTION
 !!
 !!   AUTHOR
+!!     apsi
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (4-Jan-2001) : fft_wrap moved to coefficient_types and pw_types
 !!
 !!   SOURCE
 !******************************************************************************
@@ -20,28 +21,23 @@
 MODULE pws
   
   USE coefficient_types, ONLY : coeff_type, coeff_allocate, coeff_deallocate, &
-       SQUARE, SQUAREROOT
-  USE fft_tools, ONLY : fft3d, &
-       FWFFTu => FWFFT, BWFFTu => BWFFT, FWFFTw => FWFFT, BWFFTw => BWFFT
+       SQUARE, SQUAREROOT, PLANEWAVES
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : fourpi
   USE message_passing, ONLY : mp_sum
-  USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE
+  USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE, FULLSPACE
   USE pw_types, ONLY : pw_type, pw_allocate, pw_deallocate, &
-       REALDATA1D, COMPLEXDATA1D, REALDATA3D, COMPLEXDATA3D
-  USE stop_program, ONLY : stop_prg
+       pw_gather, pw_scatter, pw_fft_wrap, &
+       REALDATA1D, COMPLEXDATA1D, REALDATA3D, COMPLEXDATA3D, &
+       NOSPACE, REALSPACE, RECIPROCALSPACE
+  USE stop_program, ONLY : stop_prg, stop_memory
   USE util, ONLY : dotprod_3d
   
   IMPLICIT NONE
   
   PRIVATE
   PUBLIC :: pw_poisson_solver, pw_kinetic_evaluate
-  PUBLIC :: pw_integral_a, pw_integral_ab, pw_h_psi, fft_wrap
-  
-  INTERFACE fft_wrap
-     MODULE PROCEDURE fft_wrap_c1c2, fft_wrap_c1pw2, &
-          fft_wrap_pw1c2, fft_wrap_pw1pw2
-  END INTERFACE
+  PUBLIC :: pw_integral_a, pw_integral_ab, pw_h_psi
   
 !!*****
 !******************************************************************************
@@ -83,8 +79,10 @@ SUBROUTINE pw_poisson_solver ( n, vhartree, dvhartree )
   CALL pw_allocate ( rho_g, pw_grid, use_data = COMPLEXDATA3D )
   
   CALL pw_allocate ( cfft, pw_grid, use_data = COMPLEXDATA3D )
+  cfft % in_space = RECIPROCALSPACE
   
-  CALL fft_wrap ( n, rho_g, dir = FWFFTu )
+!..FWFFT ( real to g space )
+  CALL pw_fft_wrap ( n%pw, rho_g )
   
   IF ( PRESENT ( vhartree ) ) THEN
      cfft % cc3d = 0._dbl
@@ -115,7 +113,8 @@ SUBROUTINE pw_poisson_solver ( n, vhartree, dvhartree )
      END DO
      
 ! get phi_r
-     CALL fft_wrap ( cfft, vhartree, dir = BWFFTu )
+!..BWFFT ( g to real space )
+     CALL pw_fft_wrap ( cfft, vhartree%pw )
   END IF
   
 ! multiply by the Green's function   '''
@@ -154,7 +153,8 @@ SUBROUTINE pw_poisson_solver ( n, vhartree, dvhartree )
         END DO
         
 ! get derivative of phi_r
-        CALL fft_wrap ( cfft, dvhartree ( dir ), dir = BWFFTu )
+!..BWFFT ( g to real space )
+        CALL pw_fft_wrap ( cfft, dvhartree ( dir ) %pw)
      END DO
   END IF
   
@@ -182,512 +182,22 @@ SUBROUTINE pw_greens_function ( gf, g )
   dimensionality = SIZE ( g )
   
   SELECT CASE ( dimensionality )
-  CASE ( 3 )                   ! 3-dim
-     g2 = dotprod_3d ( g, g )
-     IF ( g2 > 1.0E-10_dbl ) THEN
-        gf = fourpi / g2
-     ELSE
-        gf = 0.0_dbl
-     END IF
-  CASE ( 2 )                   ! 2-dim
-     stop "greens_function, no 2-dim function implemented yet"
-  CASE ( 1 )                   ! 1-dim
-     stop "greens_function, no 1-dim function implemented yet"
-  CASE ( 0 )                   ! 0-dim = cluster
-     stop "greens_function, no 0-dim function implemented yet"
+    CASE ( 3 )                   ! 3-dim
+       g2 = dotprod_3d ( g, g )
+       IF ( g2 > 1.0E-10_dbl ) THEN
+          gf = fourpi / g2
+       ELSE
+          gf = 0.0_dbl
+       END IF
+    CASE ( 2 )                   ! 2-dim
+       stop "greens_function, no 2-dim function implemented yet"
+    CASE ( 1 )                   ! 1-dim
+       stop "greens_function, no 1-dim function implemented yet"
+    CASE ( 0 )                   ! 0-dim = cluster
+       stop "greens_function, no 0-dim function implemented yet"
   END SELECT
   
 END SUBROUTINE pw_greens_function
-
-!******************************************************************************
-
-SUBROUTINE pw_allocate_coeff ( pw_out, pw_model, use_data )
-  
-  IMPLICIT NONE
-  
-! Arguments
-  TYPE ( pw_type ), INTENT ( IN ), TARGET :: pw_model
-  TYPE ( pw_type ), INTENT ( OUT ) :: pw_out
-  INTEGER, INTENT ( IN ), OPTIONAL :: use_data
-  
-! Locals
-  INTEGER, DIMENSION ( :, : ), POINTER :: bounds
-  
-!------------------------------------------------------------------------------
-  
-  IF ( PRESENT ( use_data ) ) THEN
-     pw_out % in_use = use_data
-  ELSE
-     pw_out % in_use = pw_model % in_use
-  END IF
-  pw_out % pw_grid => pw_model % pw_grid
-  bounds => pw_model % pw_grid % bounds
-  
-  CALL pw_allocate ( pw_out, pw_out % pw_grid, use_data = use_data )
-  
-END SUBROUTINE pw_allocate_coeff
-
-!******************************************************************************
-
-SUBROUTINE pw_deallocate_coeff ( pw )
-  IMPLICIT NONE
-  
-! Arguments
-  TYPE ( pw_type ), INTENT ( INOUT ) :: pw
-  
-!------------------------------------------------------------------------------
-  
-  IF ( pw % in_use == REALDATA1D ) THEN
-     DEALLOCATE ( pw % cr )
-  ELSE IF ( pw % in_use == COMPLEXDATA1D ) THEN
-     DEALLOCATE ( pw % cc )
-  ELSE IF ( pw % in_use == REALDATA3D ) THEN
-     DEALLOCATE ( pw % cr3d )
-  ELSE IF ( pw % in_use == COMPLEXDATA3D ) THEN
-     DEALLOCATE ( pw % cc3d )
-  ELSE 
-     CALL stop_prg ( "pw_deallocate_coeff", "error de-allocating data" )
-  END IF
-  
-END SUBROUTINE pw_deallocate_coeff
-
-!******************************************************************************
-
-SUBROUTINE fft_wrap_c1c2 ( c1, c2, dir, scale )
-  
-  IMPLICIT NONE
-  
-! Arguments
-  TYPE ( coeff_type ), INTENT ( INOUT ), TARGET :: c1
-  TYPE ( coeff_type ), INTENT ( INOUT ), OPTIONAL, TARGET :: c2
-  INTEGER, INTENT ( IN ), OPTIONAL :: dir
-  REAL ( dbl ), INTENT ( IN ), OPTIONAL :: scale
-  
-! Locals
-  INTEGER :: gpt, ghat ( 3 )
-  INTEGER, POINTER :: bds ( :, : )
-  COMPLEX ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: cfft
-  TYPE ( pw_type ), POINTER :: pw1, pw2
-  
-!------------------------------------------------------------------------------
-  
-  IF ( PRESENT ( c2 ) ) THEN
-     pw1 => c1 % pw
-     pw2 => c2 % pw
-     
-     IF ( pw1 % in_use == COMPLEXDATA3D &
-          .AND. pw2 % in_use == COMPLEXDATA3D ) THEN
-        IF ( .NOT. PRESENT ( dir ) ) THEN
-           CALL stop_prg ( "fft_wrap_c1c2", &
-                 "direction must be given in 3D => 3D transform" )
-        ELSE
-           CALL fft3d ( dir, pw1 % pw_grid % npts, pw1 % cc3d, pw2 % cc3d, &
-                scale = scale )
-        END IF
-        
-     ELSE IF ( pw1 % in_use == REALDATA3D &
-          .AND. pw2 % in_use == COMPLEXDATA3D ) THEN
-        
-        pw2 % cc3d = pw1 % cr3d / REAL ( pw1 % pw_grid % ngpts, dbl )
-        CALL fft3d ( FWFFTu, pw2 % pw_grid % npts, pw2 % cc3d, scale = scale )
-        
-     ELSE IF ( pw1 % in_use == COMPLEXDATA3D &
-          .AND. pw2 % in_use == REALDATA3D ) THEN
-        
-        bds => pw1 % pw_grid % bounds
-        ALLOCATE(cfft(bds(1,1):bds(2,1),bds(1,2):bds(2,2),bds(1,3):bds(2,3)))
-        cfft = pw1 % cc3d
-        
-        CALL fft3d ( BWFFTu, pw1 % pw_grid % npts, cfft, scale = scale )
-        pw2 % cr3d = REAL ( cfft )
-        DEALLOCATE ( cfft )
-        
-     ELSE IF ( pw1 % in_use == COMPLEXDATA1D &
-          .AND. pw2 % in_use == COMPLEXDATA3D ) THEN
-        
-        pw2 % cc3d = 0._dbl
-        
-        DO gpt = 1, pw1 % pw_grid % ngpts_cut
-           ghat = pw2 % pw_grid % g_hat ( :, gpt )
-           pw2 % cc3d ( &
-                LBOUND ( pw2 % cc3d, 1 ) + pw2 % pw_grid % mapl % pos ( ghat ( 1 ) ), &
-                LBOUND ( pw2 % cc3d, 2 ) + pw2 % pw_grid % mapm % pos ( ghat ( 2 ) ), &
-                LBOUND ( pw2 % cc3d, 3 ) + pw2 % pw_grid % mapn % pos ( ghat ( 3 ) ) ) = pw1 % cc ( gpt )
-!TMPTMPTMP                pw2 % pw_grid % mapl % pos ( ghat ( 1 ) ), &
-!TMPTMPTMP                pw2 % pw_grid % mapm % pos ( ghat ( 2 ) ), &
-!TMPTMPTMP                pw2 % pw_grid % mapn % pos ( ghat ( 3 ) ) ) = pw1 % cc ( gpt )
-           IF ( pw1 % pw_grid % grid_span == HALFSPACE ) THEN
-           pw2 % cc3d ( &
-                LBOUND ( pw2 % cc3d, 1 ) + pw2 % pw_grid % mapl % neg ( ghat ( 1 ) ), &
-                LBOUND ( pw2 % cc3d, 2 ) + pw2 % pw_grid % mapm % neg ( ghat ( 2 ) ), &
-                LBOUND ( pw2 % cc3d, 3 ) + pw2 % pw_grid % mapn % neg ( ghat ( 3 ) ) ) = pw1 % cc ( gpt )
-!TMPTMPTMP                pw2 % pw_grid % mapl % neg ( ghat ( 1 ) ), &
-!TMPTMPTMP                pw2 % pw_grid % mapm % neg ( ghat ( 2 ) ), &
-!TMPTMPTMP                pw2 % pw_grid % mapn % neg ( ghat ( 3 ) ) ) = pw1 % cc ( gpt )
-           END IF
-        END DO
-        
-        CALL fft3d ( BWFFTw, pw2 % pw_grid % npts, pw2 % cc3d, scale = scale )
-        
-     ELSE IF ( pw1 % in_use == COMPLEXDATA3D &
-          .AND. pw2 % in_use == COMPLEXDATA1D ) THEN
-        
-        bds => pw1 % pw_grid % bounds
-        ALLOCATE (cfft(bds(1,1):bds(2,1),bds(1,2):bds(2,2),bds(1,3):bds(2,3)) )
-        cfft = pw1 % cc3d / REAL ( pw1 % pw_grid % ngpts, dbl )
-        
-        CALL fft3d ( FWFFTw, pw1 % pw_grid % npts, cfft, scale = scale )
-        
-        DO gpt = 1, pw2 % pw_grid % ngpts_cut
-           ghat = pw1 % pw_grid % g_hat ( :, gpt )
-           pw2 % cc ( gpt ) = cfft ( &
-                LBOUND ( cfft, 1 ) + pw1 % pw_grid % mapl % pos ( ghat ( 1 ) ), &
-                LBOUND ( cfft, 2 ) + pw1 % pw_grid % mapm % pos ( ghat ( 2 ) ), &
-                LBOUND ( cfft, 3 ) + pw1 % pw_grid % mapn % pos ( ghat ( 3 ) ) )
-!TMPTMPTMP                pw1 % pw_grid % mapl % pos ( ghat ( 1 ) ), &
-!TMPTMPTMP                pw1 % pw_grid % mapm % pos ( ghat ( 2 ) ), &
-!TMPTMPTMP                pw1 % pw_grid % mapn % pos ( ghat ( 3 ) ) )
-        END DO
-        
-        DEALLOCATE ( cfft )
-        
-     ELSE
-        CALL stop_prg ( "fft_wrap_c1c2", "no suitable FFT found" )
-     END IF
-  ELSE
-     pw1 => c1 % pw
-     IF ( pw1 % in_use == COMPLEXDATA3D ) THEN
-        IF ( PRESENT ( dir ) ) THEN
-           CALL fft3d ( dir, pw1 % pw_grid % npts, pw1 % cc3d, scale = scale )
-        ELSE
-           CALL stop_prg ( "fft_wrap_c1c2", &
-                "no direction specified for in-place FFT" )
-        END IF
-     ELSE
-        CALL stop_prg ( "fft_wrap_c1c2", "wrong data type to be FFTed" )
-     END IF
-  END IF
-  
-END SUBROUTINE fft_wrap_c1c2
-
-!******************************************************************************
-
-SUBROUTINE fft_wrap_c1pw2 ( c1, pw2, dir, scale )
-  
-  IMPLICIT NONE
-  
-! Arguments
-  TYPE ( coeff_type ), INTENT ( IN ), TARGET :: c1
-  TYPE ( pw_type ), INTENT ( INOUT ) :: pw2
-  INTEGER, INTENT ( IN ), OPTIONAL :: dir
-  REAL ( dbl ), INTENT ( IN ), OPTIONAL :: scale
-  
-! Locals
-  INTEGER :: gpt, ghat ( 3 )
-  INTEGER, POINTER :: bds ( :, : )
-  COMPLEX ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: cfft
-  TYPE ( pw_type ), POINTER :: pw1
-  
-!------------------------------------------------------------------------------
-  
-  pw1 => c1 % pw
-  
-  IF ( pw1 % in_use == COMPLEXDATA3D &
-       .AND. pw2 % in_use == COMPLEXDATA3D ) THEN
-     IF ( .NOT. PRESENT ( dir ) ) THEN
-        CALL stop_prg ( "fft_wrap_c1pw2", &
-           "direction must be given in 3D => 3D transform" )
-     ELSE
-        CALL fft3d ( dir, pw1 % pw_grid % npts, pw1 % cc3d, pw2 % cc3d, &
-             scale = scale )
-     END IF
-     
-  ELSE IF ( pw1 % in_use == REALDATA3D &
-       .AND. pw2 % in_use == COMPLEXDATA3D ) THEN
-     
-     pw2 % cc3d = pw1 % cr3d / REAL ( pw1 % pw_grid % ngpts, dbl )
-     CALL fft3d ( FWFFTu, pw2 % pw_grid % npts, pw2 % cc3d, scale = scale )
-     
-  ELSE IF ( pw1 % in_use == COMPLEXDATA3D &
-       .AND. pw2 % in_use == REALDATA3D ) THEN
-     bds => pw1 % pw_grid % bounds
-     ALLOCATE(cfft(bds(1,1):bds(2,1),bds(1,2):bds(2,2),bds(1,3):bds(2,3)))
-     cfft = pw1 % cc3d
-     CALL fft3d ( BWFFTu, pw1 % pw_grid % npts, cfft, scale = scale )
-     pw2 % cr3d = REAL ( cfft )
-     DEALLOCATE ( cfft )
-     
-  ELSE IF ( pw1 % in_use == COMPLEXDATA1D &
-       .AND. pw2 % in_use == COMPLEXDATA3D ) THEN
-     
-     pw2 % cc3d = 0._dbl
-     
-     DO gpt = 1, pw1 % pw_grid % ngpts_cut
-        ghat = pw2 % pw_grid % g_hat ( :, gpt )
-        pw2 % cc3d ( &
-             LBOUND ( pw2 % cc3d, 1 ) + pw2 % pw_grid % mapl % pos ( ghat ( 1 ) ), &
-             LBOUND ( pw2 % cc3d, 2 ) + pw2 % pw_grid % mapm % pos ( ghat ( 2 ) ), &
-             LBOUND ( pw2 % cc3d, 3 ) + pw2 % pw_grid % mapn % pos ( ghat ( 3 ) ) ) = pw1 % cc ( gpt )
-        !TMPTMPTMP                pw2 % pw_grid % mapl % pos ( ghat ( 1 ) ), &
-        !TMPTMPTMP                pw2 % pw_grid % mapm % pos ( ghat ( 2 ) ), &
-        !TMPTMPTMP                pw2 % pw_grid % mapn % pos ( ghat ( 3 ) ) ) = pw1 % cc ( gpt )
-        
-        IF ( pw1 % pw_grid % grid_span == HALFSPACE ) THEN
-           pw2 % cc3d ( &
-                LBOUND ( pw2 % cc3d, 1 ) + pw2 % pw_grid % mapl % neg ( ghat ( 1 ) ), &
-                LBOUND ( pw2 % cc3d, 2 ) + pw2 % pw_grid % mapm % neg ( ghat ( 2 ) ), &
-                LBOUND ( pw2 % cc3d, 3 ) + pw2 % pw_grid % mapn % neg ( ghat ( 3 ) ) ) = pw1 % cc ( gpt )
-           !TMPTMPTMP                pw2 % pw_grid % mapl % neg ( ghat ( 1 ) ), &
-           !TMPTMPTMP                pw2 % pw_grid % mapm % neg ( ghat ( 2 ) ), &
-           !TMPTMPTMP                pw2 % pw_grid % mapn % neg ( ghat ( 3 ) ) ) = pw1 % cc ( gpt )
-        END IF
-     END DO
-     
-     CALL fft3d ( BWFFTw, pw2 % pw_grid % npts, pw2 % cc3d, scale = scale )
-     
-  ELSE IF ( pw1 % in_use == COMPLEXDATA3D &
-       .AND. pw2 % in_use == COMPLEXDATA1D ) THEN
-     
-     bds => pw1 % pw_grid % bounds
-     ALLOCATE(cfft(bds(1,1):bds(2,1),bds(1,2):bds(2,2),bds(1,3):bds(2,3)))
-     cfft = pw1 % cc3d / REAL ( pw1 % pw_grid % ngpts, dbl )
-     
-     CALL fft3d ( FWFFTw, pw1 % pw_grid % npts, cfft, scale = scale )
-     
-     DO gpt = 1, pw2 % pw_grid % ngpts_cut
-        ghat = pw1 % pw_grid % g_hat ( :, gpt )
-        pw2 % cc ( gpt ) = cfft ( &
-             LBOUND ( cfft, 1 ) + pw1 % pw_grid % mapl % pos ( ghat ( 1 ) ), &
-             LBOUND ( cfft, 2 ) + pw1 % pw_grid % mapm % pos ( ghat ( 2 ) ), &
-             LBOUND ( cfft, 3 ) + pw1 % pw_grid % mapn % pos ( ghat ( 3 ) ) )
-        !TMPTMPTMP                pw1 % pw_grid % mapl % pos ( ghat ( 1 ) ), &
-        !TMPTMPTMP                pw1 % pw_grid % mapm % pos ( ghat ( 2 ) ), &
-        !TMPTMPTMP                pw1 % pw_grid % mapn % pos ( ghat ( 3 ) ) )
-     END DO
-     
-     DEALLOCATE ( cfft )
-     
-  ELSE
-     CALL stop_prg ( "fft_wrap_c1pw2", "no suitable FFT found" )
-  END IF
-  
-END SUBROUTINE fft_wrap_c1pw2
-
-!******************************************************************************
-
-SUBROUTINE fft_wrap_pw1c2 ( pw1, c2, dir, scale )
-  
-  IMPLICIT NONE
-  
-! Arguments
-  TYPE ( pw_type ), INTENT ( INOUT ), TARGET :: pw1
-  TYPE ( coeff_type ), INTENT ( INOUT ), TARGET :: c2
-  INTEGER, INTENT ( IN ), OPTIONAL :: dir
-  REAL ( dbl ), INTENT ( IN ), OPTIONAL :: scale
-  
-! Locals
-  INTEGER :: gpt, ghat ( 3 )
-  INTEGER, POINTER :: bds ( :, : )
-  COMPLEX ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: cfft
-  TYPE ( pw_type ), POINTER :: pw2
-  
-!------------------------------------------------------------------------------
-  
-  pw2 => c2 % pw
-  
-  IF ( pw1 % in_use == COMPLEXDATA3D &
-       .AND. pw2 % in_use == COMPLEXDATA3D ) THEN
-     IF ( .NOT. PRESENT ( dir ) ) THEN
-        CALL stop_prg ( "fft_wrap_pw1c2", &
-           "direction must be given in 3D => 3D transform" )
-     ELSE
-        CALL fft3d ( dir, pw1 % pw_grid % npts, pw1 % cc3d, pw2 % cc3d, &
-             scale = scale )
-     END IF
-     
-  ELSE IF ( pw1 % in_use == REALDATA3D &
-       .AND. pw2 % in_use == COMPLEXDATA3D ) THEN
-     
-     pw2 % cc3d = pw1 % cr3d / REAL ( pw1 % pw_grid % ngpts, dbl )
-     CALL fft3d ( FWFFTu, pw2 % pw_grid % npts, pw2 % cc3d, scale = scale )
-     
-  ELSE IF ( pw1 % in_use == COMPLEXDATA3D &
-       .AND. pw2 % in_use == REALDATA3D ) THEN
-     bds => pw1 % pw_grid % bounds
-     ALLOCATE(cfft(bds(1,1):bds(2,1),bds(1,2):bds(2,2),bds(1,3):bds(2,3)))
-     cfft = pw1 % cc3d
-     CALL fft3d ( BWFFTu, pw1 % pw_grid % npts, cfft, scale = scale )
-     pw2 % cr3d = REAL ( cfft )
-     DEALLOCATE ( cfft )
-     
-  ELSE IF ( pw1 % in_use == COMPLEXDATA1D &
-       .AND. pw2 % in_use == COMPLEXDATA3D ) THEN
-     
-     pw2 % cc3d = 0._dbl
-     
-     DO gpt = 1, pw1 % pw_grid % ngpts_cut
-        ghat = pw2 % pw_grid % g_hat ( :, gpt )
-        pw2 % cc3d ( &
-             LBOUND ( pw2 % cc3d, 1 ) + pw2 % pw_grid % mapl % pos ( ghat ( 1 ) ), &
-             LBOUND ( pw2 % cc3d, 2 ) + pw2 % pw_grid % mapm % pos ( ghat ( 2 ) ), &
-             LBOUND ( pw2 % cc3d, 3 ) + pw2 % pw_grid % mapn % pos ( ghat ( 3 ) ) ) = pw1 % cc ( gpt )
-        !TMPTMPTMP                pw2 % pw_grid % mapl % pos ( ghat ( 1 ) ), &
-        !TMPTMPTMP                pw2 % pw_grid % mapm % pos ( ghat ( 2 ) ), &
-        !TMPTMPTMP                pw2 % pw_grid % mapn % pos ( ghat ( 3 ) ) ) = pw1 % cc ( gpt )
-        IF ( pw1 % pw_grid % grid_span == HALFSPACE ) THEN
-           pw2 % cc3d ( &
-                LBOUND ( pw2 % cc3d, 1 ) + pw2 % pw_grid % mapl % neg ( ghat ( 1 ) ), &
-                LBOUND ( pw2 % cc3d, 2 ) + pw2 % pw_grid % mapm % neg ( ghat ( 2 ) ), &
-                LBOUND ( pw2 % cc3d, 3 ) + pw2 % pw_grid % mapn % neg ( ghat ( 3 ) ) ) = pw1 % cc ( gpt )
-           !TMPTMPTMP                pw2 % pw_grid % mapl % neg ( ghat ( 1 ) ), &
-           !TMPTMPTMP                pw2 % pw_grid % mapm % neg ( ghat ( 2 ) ), &
-           !TMPTMPTMP                pw2 % pw_grid % mapn % neg ( ghat ( 3 ) ) ) = pw1 % cc ( gpt )
-        END IF
-     END DO
-     
-     CALL fft3d ( BWFFTw, pw2 % pw_grid % npts, pw2 % cc3d, scale = scale )
-     
-  ELSE IF ( pw1 % in_use == COMPLEXDATA3D &
-       .AND. pw2 % in_use == COMPLEXDATA1D ) THEN
-     
-     bds => pw1 % pw_grid % bounds
-     ALLOCATE(cfft(bds(1,1):bds(2,1),bds(1,2):bds(2,2),bds(1,3):bds(2,3)))
-     cfft = pw1 % cc3d / REAL ( pw1 % pw_grid % ngpts, dbl )
-     
-     CALL fft3d ( FWFFTw, pw1 % pw_grid % npts, cfft, scale = scale )
-     
-     DO gpt = 1, pw2 % pw_grid % ngpts_cut
-        ghat = pw1 % pw_grid % g_hat ( :, gpt )
-        pw2 % cc ( gpt ) = cfft ( &
-             LBOUND ( cfft, 1 ) + pw1 % pw_grid % mapl % pos ( ghat ( 1 ) ), &
-             LBOUND ( cfft, 2 ) + pw1 % pw_grid % mapm % pos ( ghat ( 2 ) ), &
-             LBOUND ( cfft, 3 ) + pw1 % pw_grid % mapn % pos ( ghat ( 3 ) ) )
-        !TMPTMPTMP                pw1 % pw_grid % mapl % pos ( ghat ( 1 ) ), &
-        !TMPTMPTMP                pw1 % pw_grid % mapm % pos ( ghat ( 2 ) ), &
-        !TMPTMPTMP                pw1 % pw_grid % mapn % pos ( ghat ( 3 ) ) )
-     END DO
-     
-     DEALLOCATE ( cfft )
-     
-  ELSE
-     CALL stop_prg ( "fft_wrap_pw1c2", "no suitable FFT found" )
-  END IF
-  
-END SUBROUTINE fft_wrap_pw1c2
-
-!******************************************************************************
-
-SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, dir, scale )
-  
-  IMPLICIT NONE
-  
-! Arguments
-  TYPE ( pw_type ), INTENT ( OUT ), TARGET :: pw1
-  TYPE ( pw_type ), INTENT ( INOUT ), OPTIONAL, TARGET :: pw2
-  INTEGER, INTENT ( IN ), OPTIONAL :: dir
-  REAL ( dbl ), INTENT ( IN ), OPTIONAL :: scale
-  
-! Locals
-  INTEGER :: gpt, ghat ( 3 )
-  INTEGER, POINTER :: bds ( :, : )
-  COMPLEX ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: cfft
-  
-!------------------------------------------------------------------------------
-  
-  IF ( PRESENT ( pw2 ) ) THEN
-     
-     IF ( pw1 % in_use == COMPLEXDATA3D &
-          .AND. pw2 % in_use == COMPLEXDATA3D ) THEN
-        IF ( .NOT. PRESENT ( dir ) ) THEN
-           CALL stop_prg ( "fft_wrap_pw1pw2", &
-                 "direction must be given in 3D => 3D transform" )
-        ELSE
-           CALL fft3d ( dir, pw1 % pw_grid % npts, pw1 % cc3d, pw2 % cc3d, &
-                scale = scale )
-        END IF
-        
-     ELSE IF ( pw1 % in_use == REALDATA3D &
-          .AND. pw2 % in_use == COMPLEXDATA3D ) THEN
-        
-        pw2 % cc3d = pw1 % cr3d / REAL ( pw1 % pw_grid % ngpts, dbl )
-        CALL fft3d ( FWFFTu, pw2 % pw_grid % npts, pw2 % cc3d, scale = scale )
-        
-     ELSE IF ( pw1 % in_use == COMPLEXDATA3D &
-          .AND. pw2 % in_use == REALDATA3D ) THEN
-        bds => pw1 % pw_grid % bounds
-        ALLOCATE(cfft(bds(1,1):bds(2,1),bds(1,2):bds(2,2),bds(1,3):bds(2,3)))
-        cfft = pw1 % cc3d
-        CALL fft3d ( BWFFTu, pw1 % pw_grid % npts, cfft, scale = scale )
-        pw2 % cr3d = REAL ( cfft )
-        DEALLOCATE ( cfft )
-        
-     ELSE IF ( pw1 % in_use == COMPLEXDATA1D &
-          .AND. pw2 % in_use == COMPLEXDATA3D ) THEN
-        
-        pw2 % cc3d = 0._dbl
-        
-        DO gpt = 1, pw1 % pw_grid % ngpts_cut
-           ghat = pw2 % pw_grid % g_hat ( :, gpt )
-           pw2 % cc3d ( &
-                LBOUND ( pw2 % cc3d, 1 ) + pw2 % pw_grid % mapl % pos ( ghat ( 1 ) ), &
-                LBOUND ( pw2 % cc3d, 2 ) + pw2 % pw_grid % mapm % pos ( ghat ( 2 ) ), &
-                LBOUND ( pw2 % cc3d, 3 ) + pw2 % pw_grid % mapn % pos ( ghat ( 3 ) ) ) = pw1 % cc ( gpt )
-!TMPTMPTMP                pw2 % pw_grid % mapl % pos ( ghat ( 1 ) ), &
-!TMPTMPTMP                pw2 % pw_grid % mapm % pos ( ghat ( 2 ) ), &
-!TMPTMPTMP                pw2 % pw_grid % mapn % pos ( ghat ( 3 ) ) ) = pw1 % cc ( gpt )
-           IF ( pw1 % pw_grid % grid_span == HALFSPACE ) THEN
-           pw2 % cc3d ( &
-                LBOUND ( pw2 % cc3d, 1 ) + pw2 % pw_grid % mapl % neg ( ghat ( 1 ) ), &
-                LBOUND ( pw2 % cc3d, 2 ) + pw2 % pw_grid % mapm % neg ( ghat ( 2 ) ), &
-                LBOUND ( pw2 % cc3d, 3 ) + pw2 % pw_grid % mapn % neg ( ghat ( 3 ) ) ) = pw1 % cc ( gpt )
-!TMPTMPTMP                pw2 % pw_grid % mapl % neg ( ghat ( 1 ) ), &
-!TMPTMPTMP                pw2 % pw_grid % mapm % neg ( ghat ( 2 ) ), &
-!TMPTMPTMP                pw2 % pw_grid % mapn % neg ( ghat ( 3 ) ) ) = pw1 % cc ( gpt )
-           END IF
-        END DO
-        
-        CALL fft3d ( BWFFTw, pw2 % pw_grid % npts, pw2 % cc3d, scale = scale )
-        
-     ELSE IF ( pw1 % in_use == COMPLEXDATA3D &
-          .AND. pw2 % in_use == COMPLEXDATA1D ) THEN
-        
-        bds => pw1 % pw_grid % bounds
-        ALLOCATE(cfft(bds(1,1):bds(2,1),bds(1,2):bds(2,2),bds(1,3):bds(2,3)))
-        cfft = pw1 % cc3d / REAL ( pw1 % pw_grid % ngpts, dbl )
-        
-        CALL fft3d ( FWFFTw, pw1 % pw_grid % npts, cfft, scale = scale )
-        
-        DO gpt = 1, pw2 % pw_grid % ngpts_cut
-           ghat = pw1 % pw_grid % g_hat ( :, gpt )
-           pw2 % cc ( gpt ) = cfft ( &
-                LBOUND ( cfft, 1 ) + pw1 % pw_grid % mapl % pos ( ghat ( 1 ) ), &
-                LBOUND ( cfft, 2 ) + pw1 % pw_grid % mapm % pos ( ghat ( 2 ) ), &
-                LBOUND ( cfft, 3 ) + pw1 % pw_grid % mapn % pos ( ghat ( 3 ) ) )
-!TMPTMPTMP                pw1 % pw_grid % mapl % pos ( ghat ( 1 ) ), &
-!TMPTMPTMP                pw1 % pw_grid % mapm % pos ( ghat ( 2 ) ), &
-!TMPTMPTMP                pw1 % pw_grid % mapn % pos ( ghat ( 3 ) ) )
-        END DO
-        
-        DEALLOCATE ( cfft )
-        
-     ELSE
-        CALL stop_prg ( "fft_wrap_pw1pw2", "no suitable FFT found" )
-     END IF
-     
-  ELSE
-     IF ( pw1 % in_use == COMPLEXDATA3D ) THEN
-        IF ( PRESENT ( dir ) ) THEN
-           CALL fft3d ( dir, pw1 % pw_grid % npts, pw1 % cc3d, scale = scale )
-        ELSE
-           CALL stop_prg ( "fft_wrap_pw1pw2", &
-                "no direction specified for in-place FFT" )
-        END IF
-     ELSE
-        CALL stop_prg ( "fft_wrap_pw1pw2", "wrong data type to be FFTed" )
-     END IF
-  END IF
-  
-END SUBROUTINE fft_wrap_pw1pw2
 
 !******************************************************************************
 
@@ -740,7 +250,7 @@ FUNCTION pw_integral_ab ( pw1, pw2, flag ) RESULT ( integral_value )
      CALL stop_prg ( "pw_integral_ab", "volume element not implemented" )
   END IF
   
-  IF ( pw1 % group_id >= 0 ) CALL mp_sum ( integral_value, pw1 % group_id )
+!tmptmp  IF ( pw1 % group_id >= 0 ) CALL mp_sum ( integral_value, pw1 % group_id )
   
 END FUNCTION pw_integral_ab
 
@@ -792,7 +302,7 @@ FUNCTION pw_integral_a ( pw1, flag ) RESULT ( integral_value )
   IF ( pw1 % in_use == REALDATA3D ) &
        integral_value = integral_value * pw1 % pw_grid % dvol
   
-  IF ( pw1 % group_id >= 0 ) CALL mp_sum ( integral_value, pw1 % group_id )
+!tmptmp  IF ( pw1 % group_id >= 0 ) CALL mp_sum ( integral_value, pw1 % group_id )
   
 END FUNCTION pw_integral_a
 
@@ -877,12 +387,12 @@ SUBROUTINE pw_h_psi ( psi_iks, xkpt, vloc, h_psi, psi_iks_r )
   IF ( PRESENT ( psi_iks_r ) ) THEN
      cfft % cr3d = vloc % pw % cr3d * psi_iks_r % pw % cc3d
   ELSE
-     CALL fft_wrap ( psi_iks, cfft )
+     CALL pw_fft_wrap ( psi_iks%pw, cfft )
      
      cfft % cc3d = cfft % cc3d * vloc % pw % cr3d
   END IF
   
-  CALL fft_wrap ( cfft, h_psi )
+  CALL pw_fft_wrap ( cfft, h_psi%pw )
   
   !! This must be done after the local potential
   CALL pw_kinetic_evaluate ( psi_iks, xkpt, ekinetic, h_psi )
@@ -894,3 +404,5 @@ END SUBROUTINE pw_h_psi
 !******************************************************************************
 
 END MODULE pws
+
+!******************************************************************************

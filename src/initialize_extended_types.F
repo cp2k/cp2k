@@ -25,13 +25,14 @@ MODULE initialize_extended_types
   USE md, ONLY : simulation_parameters_type
   USE molecule_types, ONLY : molecule_structure_type, molecule_type
   USE message_passing, ONLY : mp_sum
-  USE nhc, ONLY : nhc_control
-  USE nose, ONLY : initial_nhc, extended_parameters_type, initial_npt
+  USE nhc, ONLY : nhc_control_particles, nhc_control_barostat
+  USE nose, ONLY : initial_nhc, lnhc_parameters_type, initial_npt, &
+                   npt_info_type
   USE simulation_cell, ONLY : cell_type
   
   IMPLICIT NONE
   
-  PUBLIC :: initialize_extended_type
+  PUBLIC :: initialize_extended_system
   PRIVATE
   
 !!*****
@@ -40,7 +41,7 @@ MODULE initialize_extended_types
 CONTAINS
 
 !******************************************************************************
-!!****** initialize_extended_types/initialize_extended_type [1.0] *
+!!****** initialize_extended_types/initialize_extended_system [1.0] *
 !!
 !!   NAME
 !!     initialize_extended_types
@@ -56,8 +57,8 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE initialize_extended_type ( box, simpar, molecule, mol_setup, nhcp, &
-     globenv )
+SUBROUTINE initialize_extended_system ( box, simpar, molecule, mol_setup, &
+     globenv, nhc_part, nhc_baro, npt_info )
   
   IMPLICIT NONE
   
@@ -66,24 +67,38 @@ SUBROUTINE initialize_extended_type ( box, simpar, molecule, mol_setup, nhcp, &
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
        molecule
   TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( INOUT ) :: mol_setup
-  TYPE ( extended_parameters_type ),  INTENT ( INOUT ) :: nhcp
   TYPE ( cell_type ), INTENT ( IN ) :: box
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+  TYPE ( lnhc_parameters_type ),  INTENT ( INOUT ) :: nhc_part
+  TYPE ( lnhc_parameters_type ),  INTENT ( INOUT ) :: nhc_baro
+  TYPE ( npt_info_type ), DIMENSION ( :, : ), POINTER :: npt_info
   
 !------------------------------------------------------------------------------
   
 ! fire up the thermostats, if not NVE
   IF ( simpar % ensemble /= 'NVE' ) THEN
-     CALL nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
+     CALL nhc_control_particles ( simpar, molecule, mol_setup, nhc_part, globenv )
      
      IF ( simpar % read_type /= 'ALL' ) THEN
         
 ! Initializing thermostat forces and velocities for the Nose-Hoover
 ! Chain variables
-        CALL initial_nhc ( nhcp, simpar % tau_nhc, simpar % temp_ext, globenv )
+        CALL initial_nhc ( nhc_part, simpar % tau_nhc,  &
+	                   simpar % temp_ext, globenv )
      END IF
      
   END IF
+
+  IF ( simpar % ensemble ( 1 : 3 ) == 'NPT' )  THEN
+     CALL nhc_control_barostat ( simpar, nhc_baro, globenv )
+     IF ( simpar % read_type /= 'ALL' ) THEN
+        
+! Initializing thermostat forces and velocities for the Nose-Hoover
+! Chain variables
+        CALL initial_nhc ( nhc_baro, simpar % tau_nhc,  &
+	                   simpar % temp_ext, globenv )
+     END IF
+  ENDIF
 ! compute the total number of degrees of freedom for temperature
   
 ! Initialize simpar%nfree to dim (because at this point no
@@ -95,11 +110,11 @@ SUBROUTINE initialize_extended_type ( box, simpar, molecule, mol_setup, nhcp, &
   
   CALL get_nfree ( simpar, molecule, globenv )
   
-  IF ( simpar % ensemble ( 1:3 ) == 'NPT' ) CALL initial_npt ( nhcp, &
+  IF ( simpar % ensemble ( 1 : 3 ) == 'NPT' ) CALL initial_npt ( npt_info, &
        simpar % tau_cell, simpar % temp_ext, box % deth, simpar % nfree, &
        simpar % ensemble, globenv )
   
-END SUBROUTINE initialize_extended_type
+END SUBROUTINE initialize_extended_system
 
 !!*****
 !******************************************************************************
@@ -115,6 +130,7 @@ END SUBROUTINE initialize_extended_type
 !!
 !!   MODIFICATION HISTORY
 !!     29-Nov-00 (JGH) correct counting of DOF if constraints are off
+!!     18-Dec-00 (JGH) bug fix in initialization of nconst
 !!
 !!   SOURCE
 !******************************************************************************

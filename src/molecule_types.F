@@ -114,7 +114,6 @@ MODULE molecule_types
      REAL ( dbl ), POINTER :: distance
      REAL ( dbl ) :: del_lam, lambda, sigma
      REAL ( dbl ), DIMENSION (3) :: rold1, rold2, fc
-     REAL ( dbl ) :: scale, scale_old
      TYPE (linklist_dist_constraints), POINTER :: next
   END TYPE linklist_dist_constraints
   
@@ -126,7 +125,6 @@ MODULE molecule_types
      REAL ( dbl ), DIMENSION(3) :: rold1, rold2, rold3
      REAL ( dbl ), DIMENSION(3) :: vold1, vold2, vold3
      REAL ( dbl ), DIMENSION(3) :: v1, v2, v3
-     REAL ( dbl ) :: scale, scale_old
      TYPE (linklist_g3x3_constraints), POINTER :: next
   END TYPE linklist_g3x3_constraints
   

@@ -31,7 +31,7 @@ MODULE dg_rho0s
   PRIVATE
   PUBLIC:: dg_rho0_type, dg_rho0_setup
 
-  ! type = type of gaussian (PME_GAUSS)
+  ! type = type of gaussian (PME)
   ! grid = grid number 
   ! gcc = Gaussian contraction coefficient
   ! zet = Gaussian exponent
@@ -63,7 +63,7 @@ SUBROUTINE dg_rho0_setup ( dg_rho0, pw_grid )
 !------------------------------------------------------------------------------
   
   SELECT CASE ( dg_rho0 % type )
-  CASE ( "PME_GAUSS", "EWALD_GAUSS" )
+  CASE ( "PME", "EWALD" )
     CALL coeff_allocate ( dg_rho0 % density, pw_grid, PW_REALDATA3D )
     CALL dg_rho0_pme_gauss ( dg_rho0 % density, dg_rho0 % zet ( 1 ) )
     

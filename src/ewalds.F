@@ -256,8 +256,8 @@ SUBROUTINE ewald_self ( ewald_param, thermo, pnode )
   CALL mp_sum(q_sum,ewald_grp)
 #endif
   
-  IF ( ewald_param % ewald_type == 'EWALD_GAUSS' .OR. &
-       ewald_param % ewald_type == 'PME_GAUSS' ) THEN
+  IF ( ewald_param % ewald_type == 'EWALD' .OR. &
+       ewald_param % ewald_type == 'PME' ) THEN
      
      thermo % e_self = -q_self * ewald_param % alpha &
           / ( 4.0_dbl * ewald_param % eps0 * pi * SQRT ( pi ) )
@@ -398,7 +398,7 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
      
      CALL ewald_self ( ewald_param, thermo, pnode )
      
-! set up EWALD_GAUSS
+! set up EWALD
      IF ( PRESENT ( ewald_grid ) ) THEN
         gmax = ewald_param % gmax
         IF ( gmax == 2 * ( gmax / 2 ) ) THEN
@@ -412,19 +412,20 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
         
         CALL pw_find_cutoff ( npts_s, box, cutoff )
         
-        CALL pw_grid_setup( box, ewald_grid, cutoff)
+        CALL pw_grid_setup( box, ewald_grid, cutoff = cutoff, &
+                            info = pnode_grp % scr )
         
         CALL pme_setup (pnode, ewald_grid, ewald_param, dg )
      END IF
      
-! set up PME_GAUSS
+! set up PME
      
      IF ( PRESENT ( pme_small_grid ) .AND. PRESENT ( pme_big_grid ) ) THEN
         npts_s ( : ) = ewald_param % ns_max
         
         CALL dg_grid_setup ( box, npts_s, ewald_param % epsilon, &
              ewald_param % alpha, pme_small_grid, &
-             pme_big_grid, ewald_param % ewald_type )
+             pme_big_grid, ewald_param % ewald_type, pnode_grp )
         
         CALL pme_setup (pnode, pme_small_grid, ewald_param, dg )
 

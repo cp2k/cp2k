@@ -135,10 +135,10 @@ END SUBROUTINE timeset
 
 !!*****
 !******************************************************************************
-!!****** timings/timeset [1.0] *
+!!****** timings/timestop [1.0] *
 !!
 !!   NAME
-!!     timeset
+!!     timestop
 !!
 !!   FUNCTION
 !!     End timer 

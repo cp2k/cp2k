@@ -1,0 +1,52 @@
+.SUFFIXES: .o .F .d
+
+CP2KHOME= ${HOME}/CP2K
+FORPAR	= $(CP2KHOME)/tools/forpar.x -chkint
+SFMAKEDEPEND	= $(CP2KHOME)/tools/sfmakedepend -m int -s -f
+
+include OBJECTDEFS
+
+include MACHINEDEFS
+
+OBJECTS	= $(OBJECTS_GENERIC) $(OBJECTS_ARCHITECTURE)
+
+LIBRARIES = $(LIBS) -L./lib -lfftsg
+
+#################################
+
+PROG	= cp2k.x
+
+all: $(PROG)
+
+$(PROG): $(OBJECTS)
+	$(LDR) $(LFLAGS) -o $(PROG) $(OBJECTS) $(LIBRARIES)
+
+%.o : %.F
+	$(CPP) -P $(CDEFS) $*.F $*.f
+	$(FC) -c $(FFLAGS) $*.f
+	-$(FORPAR) $*.f
+	rm -f $*.f
+
+parallel_include.o : parallel_include.F
+	$(CPP) -P $(CDEFS) $*.F $*.f
+	$(FCfixed) -c $(FFLAGS) $*.f
+	-$(FORPAR) -fix $*.f
+	rm -f $*.f
+
+%.d : %.F
+	$(CPP) -P $(CDEFS) $*.F $*.f
+	$(PERL) $(SFMAKEDEPEND) $*.d $*.f
+	rm -f $*.f $*.d.old
+
+depend:
+	../tools/deps
+
+clean:
+	rm -f *.o *.mod
+
+realclean:
+	rm -f $(PROG) *.o *.mod *.d *.int *~ F*.f *.lst
+
+####################
+
+include $(OBJECTS:.o=.d)

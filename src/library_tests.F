@@ -449,11 +449,11 @@ SUBROUTINE fft_test ( globenv )
 
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 
-  COMPLEX ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: ca, cb
+  COMPLEX ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: ca, cb, cc
   REAL ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: ra
   COMPLEX ( dbl ), DIMENSION ( 4, 4, 4 ) :: zz
   INTEGER :: len, ntim, iw, ierr, i, j, it, n(3), iall
-  REAL ( dbl ) :: perf, tstart, tend, t, flops, scale
+  REAL ( dbl ) :: perf, tstart, tend, t, flops, scale, tdiff
   INTEGER :: radix_in, radix_out, stat, siz
   INTEGER :: ndate ( 3 ) = (/ 12, 48, 96 /)
   CHARACTER ( LEN = 7 ) :: method
@@ -476,6 +476,9 @@ SUBROUTINE fft_test ( globenv )
     CASE ( 3 )
       CALL init_fft ( "FFTESSL" )
       method = "FFTESSL"
+    CASE ( 4 )
+      CALL init_fft ( "FFTSGI" )
+      method = "FFTSGI"
     END SELECT
     n = 4
     CALL fft3d ( 1, n, zz, status=stat )
@@ -518,6 +521,57 @@ SUBROUTINE fft_test ( globenv )
           IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ra" )
         END IF
       END DO
+      IF ( globenv % ionode ) WRITE ( iw, * )
+! test if input data is preserved
+      len = 24
+      n = len
+      ALLOCATE ( ra ( len, len, len ), STAT = ierr )
+      IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ra", len*len*len )
+      ALLOCATE ( ca ( len, len, len ), STAT = ierr )
+      IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ca", len*len*len )
+      ALLOCATE ( cb ( len, len, len ), STAT = ierr )
+      IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "cb", len*len*len )
+      ALLOCATE ( cc ( len, len, len ), STAT = ierr )
+      IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "cc", len*len*len )
+
+      CALL random_number ( ra )
+      ca = ra
+      CALL random_number ( ra )
+      ca = ca + CMPLX ( 0._dbl, 1._dbl ) * ra
+      cc = ca
+      CALL fft3d ( FWFFT, n, ca, cb )
+      tdiff = MAXVAL ( ABS ( ca - cc ) )
+      IF ( tdiff > 1.e-12 ) THEN
+        IF ( globenv % ionode ) &
+        WRITE ( iw, '(T2,A,A,A)' ) adjustr(method),"         FWFFT ", &
+               "             Input array is changed in out-of-place FFT !"
+      ELSE
+        IF ( globenv % ionode ) &
+        WRITE ( iw, '(T2,A,A,A)' ) adjustr(method),"         FWFFT ", &
+               "         Input array is not changed in out-of-place FFT !"
+      END IF
+      ca = cc
+      CALL fft3d ( BWFFT, n, ca, cb )
+      tdiff = MAXVAL ( ABS ( ca - cc ) )
+      IF ( tdiff > 1.e-12 ) THEN
+        IF ( globenv % ionode ) &
+        WRITE ( iw, '(T2,A,A,A)' ) adjustr(method),"         BWFFT ", &
+               "             Input array is changed in out-of-place FFT !"
+      ELSE
+        IF ( globenv % ionode ) &
+        WRITE ( iw, '(T2,A,A,A)' ) adjustr(method),"         BWFFT ", &
+               "         Input array is not changed in out-of-place FFT !"
+      END IF
+      IF ( globenv % ionode ) WRITE ( iw, * )
+  
+      DEALLOCATE ( ra , STAT = ierr )
+      IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ra" )
+      DEALLOCATE ( ca , STAT = ierr )
+      IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ca" )
+      DEALLOCATE ( cb , STAT = ierr )
+      IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "cb" )
+      DEALLOCATE ( cc , STAT = ierr )
+      IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "cc" )
     END IF
     IF ( globenv % ionode ) WRITE ( iw, * )
   END DO

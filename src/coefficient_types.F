@@ -10,6 +10,7 @@
 !!   FUNCTION
 !!
 !!   AUTHOR
+!!     apsi
 !!
 !!   MODIFICATION HISTORY
 !!     none
@@ -22,33 +23,40 @@ MODULE coefficient_types
   USE kinds, ONLY : dbl
   USE pw_grid_types, ONLY : pw_grid_type
   USE pw_types, ONLY : pw_type, pw_zero, pw_allocate, pw_deallocate, &
-       REALDATA1D, COMPLEXDATA1D, REALDATA3D, COMPLEXDATA3D
+       pw_fft_wrap, REALDATA1D, COMPLEXDATA1D, REALDATA3D, COMPLEXDATA3D, &
+       NOSPACE, REALSPACE, RECIPROCALSPACE
   USE stop_program, ONLY : stop_prg
   
   IMPLICIT NONE
   
   PRIVATE
   PUBLIC :: coeff_type, coeff_allocate, coeff_deallocate, coeff_zero
-  PUBLIC :: PLANEWAVES, GAUSSIAN
+  PUBLIC :: coeff_transform_space
+  PUBLIC :: PLANEWAVES, ATOMICORBITALS
   PUBLIC :: PW_REALDATA1D, PW_COMPLEXDATA1D, PW_REALDATA3D, PW_COMPLEXDATA3D
+  PUBLIC :: PW_NOSPACE, PW_REALSPACE, PW_RECIPROCALSPACE
   
-  !! 'group_id' to grid?
+  ! 'group_id' to grid?
   TYPE coeff_type
-     TYPE ( pw_type ) :: pw
-!     TYPE ( gaussian_type ) :: gaussian
-     
      INTEGER :: in_use
+     TYPE ( pw_type ) :: pw
   END TYPE coeff_type
   
-  !! Flags for the structure member 'in_use'
-  INTEGER, PARAMETER :: PLANEWAVES = 401, GAUSSIAN = 402
+  ! Flags for the structure member 'in_use'
+  INTEGER, PARAMETER :: PLANEWAVES = 401, ATOMICORBITALS = 402
   
   INTERFACE coeff_allocate
      MODULE PROCEDURE &
           coeff_allocate_from_coeff, coeff_allocate_from_grid
   END INTERFACE
+
+  INTERFACE coeff_transform_space
+     MODULE PROCEDURE &
+          coeff_transform_c1, coeff_transform_c1c2, coeff_transform_c1pw2, &
+          coeff_transform_pw1c2
+  END INTERFACE
   
-  !! Flags for 'integral'
+  ! Flags for 'integral'
   PUBLIC :: SQUARE, SQUAREROOT
   INTEGER, PARAMETER :: SQUARE = 391, SQUAREROOT = 392
   
@@ -56,6 +64,10 @@ MODULE coefficient_types
   INTEGER, PARAMETER :: PW_COMPLEXDATA1D = COMPLEXDATA1D
   INTEGER, PARAMETER :: PW_REALDATA3D = REALDATA3D
   INTEGER, PARAMETER :: PW_COMPLEXDATA3D = COMPLEXDATA3D
+
+  INTEGER, PARAMETER :: PW_NOSPACE = NOSPACE
+  INTEGER, PARAMETER :: PW_REALSPACE = REALSPACE
+  INTEGER, PARAMETER :: PW_RECIPROCALSPACE = RECIPROCALSPACE
 
 !!*****
 !******************************************************************************
@@ -177,5 +189,107 @@ SUBROUTINE coeff_zero ( coeff )
 END SUBROUTINE coeff_zero
 
 !******************************************************************************
+!!****** coefficient_types/coeff_transform [1.0] *
+!!
+!!   NAME
+!!     coeff_transform
+!!
+!!   FUNCTION
+!!     Generic function for transformations of a coefficient_type
+!!
+!!   AUTHOR
+!!     JGH (4-Jan-2001)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE coeff_transform_c1 ( c1 )
+  
+  IMPLICIT NONE
+  
+! Arguments
+  TYPE ( coeff_type ), INTENT ( INOUT ), TARGET :: c1
+  
+!------------------------------------------------------------------------------
+  
+!..check if we are dealing with plane waves and call the correct routine
+  IF ( c1 % in_use == PLANEWAVES ) THEN
+    CALL pw_fft_wrap ( c1 % pw )
+  ELSE
+    CALL stop_prg ( "coeff_transform_c1", "not implemented")
+  END IF
+
+END SUBROUTINE coeff_transform_c1
+
+!******************************************************************************
+
+SUBROUTINE coeff_transform_c1c2 ( c1, c2 )
+  
+  IMPLICIT NONE
+  
+! Arguments
+  TYPE ( coeff_type ), INTENT ( IN ) :: c1
+  TYPE ( coeff_type ), INTENT ( INOUT ) :: c2
+  
+!------------------------------------------------------------------------------
+  
+!..check if we are dealing with plane waves and call the correct routine
+  IF ( c1 % in_use == PLANEWAVES  .AND. c2 % in_use == PLANEWAVES ) THEN
+    CALL pw_fft_wrap ( c1 % pw, c2 % pw )
+  ELSE
+    CALL stop_prg ( "coeff_transform_c1c2", "not implemented")
+  END IF
+
+END SUBROUTINE coeff_transform_c1c2
+
+!******************************************************************************
+
+SUBROUTINE coeff_transform_c1pw2 ( c1, pw2 )
+  
+  IMPLICIT NONE
+  
+! Arguments
+  TYPE ( coeff_type ), INTENT ( IN ) :: c1
+  TYPE ( pw_type ), INTENT ( INOUT ) :: pw2
+
+!------------------------------------------------------------------------------
+  
+!..check if we are dealing with plane waves and call the correct routine
+  IF ( c1 % in_use == PLANEWAVES ) THEN
+    CALL pw_fft_wrap ( c1 % pw, pw2 )
+  ELSE
+    CALL stop_prg ( "coeff_transform_c1pw2", "not implemented" )
+  END IF
+
+END SUBROUTINE coeff_transform_c1pw2
+
+!******************************************************************************
+
+SUBROUTINE coeff_transform_pw1c2 ( pw1, c2 )
+  
+  IMPLICIT NONE
+  
+! Arguments
+  TYPE ( pw_type ), INTENT ( IN ) :: pw1
+  TYPE ( coeff_type ), INTENT ( INOUT ) :: c2
+  
+!------------------------------------------------------------------------------
+  
+!..check if we are dealing with plane waves and call the correct routine
+  IF ( c2 % in_use == PLANEWAVES ) THEN
+    CALL pw_fft_wrap ( pw1, c2 % pw )
+  ELSE
+    CALL stop_prg ( "coeff_transform_pw1c2", "not implemented" )
+  END IF
+
+END SUBROUTINE coeff_transform_pw1c2
+
+!!*****
+!******************************************************************************
 
 END MODULE coefficient_types
+
+!******************************************************************************

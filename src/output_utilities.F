@@ -24,14 +24,45 @@ MODULE output_utilities
   IMPLICIT NONE
   
   PRIVATE
-  PUBLIC :: print_message, print_warning
+  PUBLIC :: print_message, print_warning, set_output
   
-  INTEGER, PARAMETER :: out = 6
+  INTEGER :: out = 6
+  LOGICAL :: active = .TRUE.
   
 !!*****
 !******************************************************************************
 
 CONTAINS
+
+!******************************************************************************
+!!****** output_utilities/set_output [1.0] *
+!!
+!!   NAME
+!!     set_output
+!!
+!!   FUNCTION
+!!     Initialise the output channel 
+!!
+!!   AUTHOR
+!!     JGH (21-12-2000)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE set_output ( output_channel, ionode )
+
+  IMPLICIT NONE
+
+  INTEGER :: output_channel
+  LOGICAL :: ionode
+
+  out = output_channel
+  active = ionode
+
+END SUBROUTINE set_output
 
 !******************************************************************************
 !!****** output_utilities/print_message [1.0] *

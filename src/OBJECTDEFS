@@ -7,7 +7,7 @@ dump.o cp2k.o cp2k_input.o environment.o \
 eigenvalueproblems.o erf_fn.o global_types.o header.o \
 ewalds.o ewald_parameters_types.o \
 fermi.o fft_tools.o fftessl_lib.o fftsg_lib.o fftw_lib.o \
-fist_debug.o \
+fftsgi_lib.o fist_debug.o \
 fist_force.o fist_force_numer.o \
 fist_intra_force.o fist_nonbond_force.o force_control.o \
 force_fields.o integrator.o input_types.o \
@@ -20,6 +20,7 @@ linklist_types.o \
 linklist_utilities.o linklist_verlet_list.o machine.o \
 mathconstants.o mol_force.o molecule_types.o \
 molecule_input.o md.o message_passing.o nhc.o nose.o \
+output_utilities.o \
 pair_potential.o particle_lists.o particle_types.o \
 periodic_table.o parallel.o parallel_include.o parser.o \
 physcon.o pme.o pws.o pw_types.o pw_grids.o \

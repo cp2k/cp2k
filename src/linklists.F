@@ -14,7 +14,7 @@
 !!     CJM & JGH
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     Variable names changed (DG) 05-Dec-2000
 !!
 !!   SOURCE
 !******************************************************************************
@@ -51,7 +51,7 @@ CONTAINS
 !!     atom_link_list
 !!
 !!   FUNCTION
-!!     Generate linked lists for intramolecular dependencies
+!!     Generates linked lists for intramolecular dependencies
 !!
 !!   AUTHOR
 !!     CJM & JGH
@@ -104,13 +104,13 @@ END SUBROUTINE atom_link_list
 !!     exclusion
 !!
 !!   FUNCTION
-!!     Generate linked lists for intramolecular dependencies
+!!     Generates linked lists for intramolecular dependencies
 !!
 !!   AUTHOR
 !!     CJM & JGH
 !!
 !!   MODIFICATION HISTORY
-!!     Debugged parallel code, (JGH) 25-Nov-2000
+!!     Debugged parallel code (JGH) 25-Nov-2000
 !!
 !!   SOURCE
 !******************************************************************************
@@ -130,13 +130,14 @@ SUBROUTINE exclusion(molecule,pnode)
   TYPE (linklist_atoms), POINTER :: ll_atom
   TYPE (linklist_bonds), POINTER :: ll_bond
   TYPE (linklist_bends), POINTER :: ll_bend
-  TYPE (linklist_torsions), POINTER :: ll_tors
+  TYPE (linklist_torsions), POINTER :: ll_torsion
   TYPE (linklist_dist_constraints), POINTER :: ll_dist
   TYPE (linklist_g3x3_constraints), POINTER :: ll_g3x3
-  INTEGER :: imol, iatom, jatom, ibond, ibend, itors, idist, i, ii
+  INTEGER :: imol, iatom, jatom, ibond, ibend, itorsion, idist, i, ii
   INTEGER :: jnode, ig3x3, ios
-  INTEGER, DIMENSION ( : ), ALLOCATABLE :: bond, bend, tors
-  INTEGER :: natoms_mol, nbonds_mol, nbends_mol, ntors_mol, ndist_mol, n3x3_mol
+  INTEGER, DIMENSION ( : ), ALLOCATABLE :: bond, bend, torsion
+  INTEGER :: natoms_mol, nbonds_mol, nbends_mol, ntorsions_mol, &
+             ndist_mol, n3x3_mol
   LOGICAL :: match
   
 !------------------------------------------------------------------------------
@@ -146,8 +147,8 @@ SUBROUTINE exclusion(molecule,pnode)
   IF ( ios /= 0 ) CALL stop_memory( 'exclusion','bond', 2 )
   ALLOCATE (bend(3),STAT=ios)
   IF ( ios /= 0 ) CALL stop_memory( 'exclusion','bend', 3 )
-  ALLOCATE (tors(4),STAT=ios)
-  IF ( ios /= 0 ) CALL stop_memory( 'exclusion','tors', 4 )
+  ALLOCATE (torsion(4),STAT=ios)
+  IF ( ios /= 0 ) CALL stop_memory( 'exclusion','torsion', 4 )
   
 ! allocating the exclusion pointer
   ALLOCATE (current_excl,STAT=ios)
@@ -165,7 +166,7 @@ SUBROUTINE exclusion(molecule,pnode)
      natoms_mol = molecule(imol) %natoms_mol
      nbonds_mol = molecule(imol) %nbonds_mol
      nbends_mol = molecule(imol) %nbends_mol
-     ntors_mol = molecule(imol) %ntorsions_mol
+     ntorsions_mol = molecule(imol) %ntorsions_mol
      ndist_mol = molecule(imol) %ndistconst_mol
      n3x3_mol = molecule(imol) %ng3x3const_mol
      
@@ -242,24 +243,24 @@ SUBROUTINE exclusion(molecule,pnode)
         END DO BENDL
         
 ! doing the torsions
-        ll_tors => molecule(imol) %ll_torsions
-        TORSL: DO itors = 1, ntors_mol
-           tors(1) = ll_tors%p1%iatom
-           tors(2) = ll_tors%p2%iatom
-           tors(3) = ll_tors%p3%iatom
-           tors(4) = ll_tors%p4%iatom
+        ll_torsion => molecule(imol) %ll_torsions
+        TORSL: DO itorsion = 1, ntorsions_mol
+           torsion(1) = ll_torsion%p1%iatom
+           torsion(2) = ll_torsion%p2%iatom
+           torsion(3) = ll_torsion%p3%iatom
+           torsion(4) = ll_torsion%p4%iatom
 ! checking to see if jatom is part of a torsion
            DO ii = 1, 4
-              IF (jatom==tors(ii)) THEN
+              IF (jatom==torsion(ii)) THEN
                  match = .TRUE.
                  EXIT
               END IF
            END DO
            TORSIF: IF (match) THEN
               DO ii = 1, 4
-                 CALL checklist(pnode(jnode),match,jatom,tors(ii))
+                 CALL checklist(pnode(jnode),match,jatom,torsion(ii))
                  IF ( .NOT. match) THEN
-                    i = getnode(molecule,tors(ii))
+                    i = getnode(molecule,torsion(ii))
                     current_excl%p => pnode(i) %p
                     pnode(jnode) %nexcl = pnode(jnode) %nexcl + 1
                     ALLOCATE (current_excl%next,STAT=ios)
@@ -269,7 +270,7 @@ SUBROUTINE exclusion(molecule,pnode)
                  END IF
               END DO
            END IF TORSIF
-           ll_tors => ll_tors%next
+           ll_torsion => ll_torsion%next
         END DO TORSL
         
 ! doing the distance constraints
@@ -341,11 +342,26 @@ SUBROUTINE exclusion(molecule,pnode)
   IF ( ios /= 0 ) CALL stop_memory ( 'exclusion','bond')
   DEALLOCATE (bend,STAT=ios)
   IF ( ios /= 0 ) CALL stop_memory ( 'exclusion','bend')
-  DEALLOCATE (tors,STAT=ios)
-  IF ( ios /= 0 ) CALL stop_memory ( 'exclusion','tors')
+  DEALLOCATE (torsion,STAT=ios)
+  IF ( ios /= 0 ) CALL stop_memory ( 'exclusion','torsion')
   
 END SUBROUTINE exclusion
 
+!!*****
+!******************************************************************************
+!!****** linklists/checklist [1.0] *
+!!
+!!   NAME
+!!     checklist
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE checklist(pnode,match,jatom,ipart)
@@ -383,6 +399,7 @@ SUBROUTINE checklist(pnode,match,jatom,ipart)
   
 END SUBROUTINE checklist
 
+!!*****
 !******************************************************************************
 
 FUNCTION getnode ( molecule, atom ) RESULT ( node )
@@ -418,7 +435,6 @@ FUNCTION getnode ( molecule, atom ) RESULT ( node )
   
 END FUNCTION getnode
 
-!!*****
 !******************************************************************************
 !!****** linklists/bond_link_list [1.0] *
 !!
@@ -426,7 +442,7 @@ END FUNCTION getnode
 !!     bond_link_list
 !!
 !!   FUNCTION
-!!     Generate linked lists for intramolecular dependencies
+!!     Generates linked lists for intramolecular dependencies
 !!
 !!   AUTHOR
 !!     CJM & JGH
@@ -502,7 +518,7 @@ END SUBROUTINE bond_link_list
 !!     bend_link_list
 !!
 !!   FUNCTION
-!!     Generate linked lists for intramolecular dependencies
+!!     Generates linked lists for intramolecular dependencies
 !!
 !!   AUTHOR
 !!     CJM & JGH
@@ -582,7 +598,7 @@ END SUBROUTINE bend_link_list
 !!     torsion_link_list
 !!
 !!   FUNCTION
-!!     Generate linked lists for intramolecular dependencies
+!!     Generates linked lists for intramolecular dependencies
 !!
 !!   AUTHOR
 !!     CJM & JGH
@@ -668,7 +684,7 @@ END SUBROUTINE torsion_link_list
 !!     distconst_link_list
 !!
 !!   FUNCTION
-!!     Generate linked lists for intramolecular dependencies
+!!     Generates linked lists for intramolecular dependencies
 !!
 !!   AUTHOR
 !!     CJM & JGH
@@ -749,7 +765,7 @@ END SUBROUTINE distconst_link_list
 !!     g3x3_link_list
 !!
 !!   FUNCTION
-!!     Generate linked lists for intramolecular dependencies
+!!     Generates linked lists for intramolecular dependencies
 !!
 !!   AUTHOR
 !!     CJM & JGH

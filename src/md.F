@@ -59,6 +59,7 @@ MODULE md
   TYPE thermodynamic_type
      REAL ( dbl ), DIMENSION ( 3, 3 ) :: ptens, pv_kin, pv, pv_const
      REAL ( dbl ) :: kin, pot, gspace, e_self, e_neut, e_bonded
+     LOGICAL :: ptens_aval
   END TYPE thermodynamic_type
   
   TYPE mdio_parameters_type

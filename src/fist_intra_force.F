@@ -13,7 +13,8 @@
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     Torsions added (DG) 05-Dec-2000
+!!     Variable names changed (DG) 05-Dec-2000
 !!
 !!   SOURCE
 !******************************************************************************
@@ -44,6 +45,7 @@ CONTAINS
 !!     force_intra_control
 !!
 !!   FUNCTION
+!!     Computes the the intramolecular energies, forces, and pressure tensors
 !!
 !!   AUTHOR
 !!     CJM
@@ -70,7 +72,7 @@ SUBROUTINE force_intra_control ( molecule, pot_bond, pot_bend, pot_torsion, &
                 f_bond, f_bend, f_torsion
   
 ! Locals
-  REAL ( dbl ) :: d12, d32, id12, id32, s12, s32, is12, is32, &
+  REAL ( dbl ) :: d12, d32, id12, id32, s32, is32, &
                   dist, dist1, dist2, w1, w2, iw1, iw2, theta
   REAL ( dbl ) :: energy, fscalar
   REAL ( dbl ), DIMENSION (3) :: rij, b12, b32, t12, t32, t43, &
@@ -157,8 +159,6 @@ SUBROUTINE force_intra_control ( molecule, pot_bond, pot_bend, pot_torsion, &
         t12 = lltorsion%p1%r - lltorsion%p2%r
         t32 = lltorsion%p3%r - lltorsion%p2%r
         t43 = lltorsion%p4%r - lltorsion%p3%r
-        s12 = sqrt(dot_product(t12,t12))
-        is12 = 1._dbl/s12
         s32 = sqrt(dot_product(t32,t32))
         is32 = 1._dbl/s32
         dist1 = dot_product(t12,t32)
@@ -179,7 +179,8 @@ SUBROUTINE force_intra_control ( molecule, pot_bond, pot_bend, pot_torsion, &
         
 ! computing the pressure tensor
         CALL get_pv_torsion(fscalar*gt1,fscalar*gt2,fscalar*gt3,fscalar*gt4, &
-             lltorsion%p1%r,lltorsion%p2%r,lltorsion%p3%r,lltorsion%p4%r,pv_torsion)
+             lltorsion%p1%r,lltorsion%p2%r,lltorsion%p3%r,lltorsion%p4%r, &
+             pv_torsion)
         
 ! the contribution from the torsions. ONLY FOR DEBUG
         IF ( PRESENT ( f_torsion)) THEN
@@ -190,7 +191,7 @@ SUBROUTINE force_intra_control ( molecule, pot_bond, pot_bend, pot_torsion, &
            f_torsion(:,lltorsion%index(3)) = f_torsion(:,lltorsion%index(3)) + &
                 fscalar*gt3
            f_torsion(:,lltorsion%index(4)) = f_torsion(:,lltorsion%index(4)) + &
-                fscalar*gt3
+                fscalar*gt4
         END IF
         
         lltorsion => lltorsion%next

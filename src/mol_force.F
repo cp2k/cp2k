@@ -13,7 +13,7 @@
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     Torsions added (DG) 05-Dec-2000
 !!
 !!   SOURCE
 !******************************************************************************
@@ -32,8 +32,22 @@ MODULE mol_force
 CONTAINS
 
 !******************************************************************************
-
-! Computes the bonded force
+!!****** mol_force/force_bonds [1.0] *
+!!
+!!   NAME
+!!     force_bonds
+!!
+!!   FUNCTION
+!!     Computes the forces from the bonds    
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE force_bonds ( rij, r0, k, energy, fscalar )
   
@@ -55,6 +69,23 @@ SUBROUTINE force_bonds ( rij, r0, k, energy, fscalar )
   
 END SUBROUTINE force_bonds
 
+!!*****
+!******************************************************************************
+!!****** mol_force/force_bends [1.0] *
+!!
+!!   NAME
+!!     force_bends
+!!
+!!   FUNCTION
+!!     Computes the forces from the bends    
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE force_bends ( b12, b32, d12, d32, id12, id32, dist, &
@@ -90,6 +121,23 @@ SUBROUTINE force_bends ( b12, b32, d12, d32, id12, id32, dist, &
   
 END SUBROUTINE force_bends
 
+!!*****
+!******************************************************************************
+!!****** mol_force/force_torsions [1.0] *
+!!
+!!   NAME
+!!     force_torsions
+!!
+!!   FUNCTION
+!!     Computes the forces from the torsions    
+!!
+!!   AUTHOR
+!!     DG
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE force_torsions ( is32, dist1, dist2, u1, u2, iw1, iw2, &
@@ -109,11 +157,11 @@ SUBROUTINE force_torsions ( is32, dist1, dist2, u1, u2, iw1, iw2, &
   
 !------------------------------------------------------------------------------
   
-! define 
+! define cosphi
   cosphi = DOT_PRODUCT ( u1, u2 ) * iw1 * iw2 
   
 ! compute energy
-  energy = a(0) + a(1) + 2._dbl * a(3) & 
+  energy = a(0) + a(1) + 2._dbl * a(2) + a(3) & 
            + ( a(1) - 3._dbl * a(3) ) * cosphi & 
            - 2._dbl * a(2) * cosphi ** 2 + 4._dbl * a(3) * cosphi ** 3
   
@@ -128,6 +176,23 @@ SUBROUTINE force_torsions ( is32, dist1, dist2, u1, u2, iw1, iw2, &
   
 END SUBROUTINE force_torsions
 
+!!*****
+!******************************************************************************
+!!****** mol_force/get_pv_bond [1.0] *
+!!
+!!   NAME
+!!     get_pv_bond
+!!
+!!   FUNCTION
+!!     Computes the pressure tensor from the bonds
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE get_pv_bond(f1,f2,r1,r2,pv_bond)
@@ -167,6 +232,23 @@ SUBROUTINE get_pv_bond(f1,f2,r1,r2,pv_bond)
   
 END SUBROUTINE get_pv_bond
 
+!!*****
+!******************************************************************************
+!!****** mol_force/get_pv_bend [1.0] *
+!!
+!!   NAME
+!!     get_pv_bend
+!!
+!!   FUNCTION
+!!     Computes the pressure tensor from the bends
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE get_pv_bend(f1,f2,f3,r1,r2,r3,pv_bend)
@@ -218,6 +300,23 @@ SUBROUTINE get_pv_bend(f1,f2,f3,r1,r2,r3,pv_bend)
   
 END SUBROUTINE get_pv_bend
 
+!!*****
+!******************************************************************************
+!!****** mol_force/get_pv_torsion [1.0] *
+!!
+!!   NAME
+!!     get_pv_torsion
+!!
+!!   FUNCTION
+!!     Computes the pressure tensor from the torsions
+!!
+!!   AUTHOR
+!!     DG
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE get_pv_torsion(f1,f2,f3,f4,r1,r2,r3,r4,pv_torsion)
@@ -278,6 +377,9 @@ SUBROUTINE get_pv_torsion(f1,f2,f3,f4,r1,r2,r3,r4,pv_torsion)
   
 END SUBROUTINE get_pv_torsion
 
+!!*****
 !******************************************************************************
 
 END MODULE mol_force
+
+!******************************************************************************

@@ -121,10 +121,10 @@ SUBROUTINE force_control ( molecule, pnode, part, box, thermo, &
 ! initialize ewalds
   IF ( first_time ) THEN
      SELECT CASE ( ewald_param % ewald_type )
-     CASE ( 'EWALD_GAUSS' )
+     CASE ( 'EWALD' )
         CALL ewald_initialize ( dg, part, pnode, fc_global, &
              ewald_param, box, thermo, ewald_grid = grid_ewald )
-     CASE ( 'PME_GAUSS' )
+     CASE ( 'PME' )
         CALL ewald_initialize ( dg, part, pnode, fc_global, &
              ewald_param, box, thermo, &
              pme_small_grid = grid_s, pme_big_grid = grid_b )
@@ -137,9 +137,9 @@ SUBROUTINE force_control ( molecule, pnode, part, box, thermo, &
      CALL get_hinv ( box )
      
      SELECT CASE ( ewald_param % ewald_type )
-     CASE ( 'EWALD_GAUSS' )
-        CALL pw_grid_change ( box, grid_s )
-     CASE ( 'PME_GAUSS' )
+     CASE ( 'EWALD' )
+        CALL pw_grid_change ( box, grid_ewald )
+     CASE ( 'PME' )
         CALL stop_prg ( 'force_control',  &
              'constant pressure with PME not implemented' )
      END SELECT
@@ -177,11 +177,11 @@ SUBROUTINE force_control ( molecule, pnode, part, box, thermo, &
 ! compute g-space part of the ewald sum
      SELECT CASE ( ewald_param % ewald_type )
         
-     CASE ( "EWALD_GAUSS" )
+     CASE ( "EWALD" )
         CALL ewald_gaussian ( dg, ewald_param, fg_coulomb, vg_coulomb, &
              pv_g, pnode, box )
         
-     CASE ( "PME_GAUSS" )
+     CASE ( "PME" )
         CALL pme_evaluate ( dg, fg_coulomb, vg_coulomb, pv_g, box, &
              grid_s, grid_b, ewald_param )
         

@@ -25,14 +25,14 @@ MODULE nhc
   USE md, ONLY : simulation_parameters_type 
   USE molecule_types, ONLY : molecule_structure_type, molecule_type
   USE message_passing, ONLY : mp_sum
-  USE nose, ONLY : extended_parameters_type, yoshida_coef
+  USE nose, ONLY : npt_info_type, lnhc_parameters_type, yoshida_coef
   USE util, ONLY : get_share
   USE stop_program, ONLY : stop_prg, stop_memory
   
   IMPLICIT NONE
   
   PRIVATE
-  PUBLIC :: nhc_control
+  PUBLIC :: nhc_control_particles, nhc_control_barostat
   
   REAL ( dbl ), TARGET :: scale
   
@@ -40,12 +40,103 @@ MODULE nhc
 !******************************************************************************
 
 CONTAINS
-
 !******************************************************************************
-!!****** nhc/nhc_control [1.0] *
+!!****** nhc/nhc_control_barostat [1.0] *
 !!
 !!   NAME
-!!     nhc_control
+!!     nhc_barostat
+!!
+!!   FUNCTION
+!!     Creates the thermostatting for the barostat
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE nhc_control_barostat ( simpar, nhc, globenv )
+! creates the thermostatting maps use global_mod
+  IMPLICIT NONE
+! begin global declaratation
+  TYPE ( simulation_parameters_type ), INTENT ( INOUT ) :: simpar
+  TYPE ( lnhc_parameters_type ), INTENT ( OUT ) :: nhc
+  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+! begin local definitions
+  INTEGER :: i, iw
+  INTEGER :: isos, ncoef
+!
+  iw = globenv % scr
+!
+  nhc % nyosh = simpar % nyosh
+  nhc % nc = simpar % nc
+  nhc % nhc_len = simpar % nhclen
+
+! Counting the total number of thermostats ( 1 for both NPT_I and
+! NPT_F )
+
+  nhc % num_nhc = 1
+
+  IF ( simpar % ensemble == 'NPT_F' ) THEN
+    ncoef = 9
+  ELSE
+    ncoef = 1
+  ENDIF
+
+! Now we can allocate the target array s_kin and p_kin
+
+  ALLOCATE ( nhc % s_kin ( nhc % num_nhc ), STAT = isos)
+  IF ( isos /= 0 ) CALL stop_prg ( 'nhc_control', &
+    'failed to allocate nhc%s_kin' )
+  ALLOCATE ( nhc % v_scale ( nhc % num_nhc ), STAT = isos )
+  IF (isos/=0) CALL stop_prg('nhc_control', &
+    'failed to allocate nhc%v_scale' )
+  ALLOCATE ( nhc % p_kin ( 1, ncoef ), STAT = isos )
+  IF (isos/=0) CALL stop_prg('nhc_control', &
+    'failed to allocate nhc%p_kin' )
+  ALLOCATE ( nhc % p_scale ( 1, ncoef ), STAT = isos )
+  IF (isos/=0) CALL stop_prg('nhc_control', &
+    'failed to allocate nhc%p_scale')
+! initialize variable 'scale' for the 'none' option
+  scale = 1._dbl
+
+! Begin the mapping loop
+
+  DO i = 1, ncoef        
+    nhc % p_kin ( 1, i ) % point => nhc % s_kin ( 1 )
+    nhc % p_scale ( 1, i ) % point => nhc % v_scale ( 1 )
+  END DO
+
+  ALLOCATE ( nhc % nvt ( nhc % nhc_len, nhc % num_nhc ), STAT = isos )
+  IF (isos/=0) CALL stop_prg('nhc_control', &
+       'failed to allocate nhc%nvt' )
+! 
+! Now that we know how many there are stick this into nhc % static % nkt
+! (number of degrees of freedom times k_B T )
+
+  DO i = 1, nhc % num_nhc
+    nhc % nvt ( 1, i ) % nkt = simpar % temp_ext * ncoef          
+  END DO
+
+! getting the number of degrees of freedom times k_B T for the rest of the chain
+
+  DO i = 2, nhc % nhc_len
+    nhc % nvt ( i, : ) %nkt = simpar % temp_ext
+  END DO
+
+! Set up the Yoshida weights
+
+  ALLOCATE (nhc % dt_yosh (1 : nhc % nyosh ), STAT = isos )
+  IF (isos/=0) CALL stop_prg('nhc_control', &
+    'failed to allocate nhc%dt_yosh')
+  CALL yoshida_coef( nhc, simpar % dt )
+
+END SUBROUTINE nhc_control_barostat
+!******************************************************************************
+!!****** nhc/nhc_control_particles [1.0] *
+!!
+!!   NAME
+!!     nhc_control_particles
 !!
 !!   FUNCTION
 !!     Creates the thermostatting maps
@@ -59,7 +150,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
+SUBROUTINE nhc_control_particles ( simpar, molecule, mol_setup, nhc, globenv )
   
   IMPLICIT NONE
   
@@ -68,7 +159,7 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
        molecule
   TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( INOUT ) :: mol_setup
-  TYPE ( extended_parameters_type ), INTENT ( OUT ) :: nhcp
+  TYPE ( lnhc_parameters_type ), INTENT ( OUT ) :: nhc
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
   
 ! Locals
@@ -87,9 +178,9 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
   
   iw = globenv % scr
   
-  nhcp%nyosh = simpar%nyosh
-  nhcp%nc = simpar%nc
-  nhcp%nhc_len = simpar%nhclen
+  nhc%nyosh = simpar%nyosh
+  nhc%nc = simpar%nc
+  nhc%nhc_len = simpar%nhclen
   
 ! allocating the temporary arrays mnum and tnum, and nfree
   nmol_type = size(mol_setup)
@@ -169,12 +260,12 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
 ! a local scheme, in all other cases we assume a coupling of
 ! degrees of freedom from different processors
 !
-  nhcp%dis_type = 'NONE'
+  nhc%dis_type = 'NONE'
   IF (globenv%num_pe>1) THEN
      IF (nointer) THEN
         
 ! no interaction between thermostats on different processors
-        nhcp%dis_type = 'DIS_REP'
+        nhc%dis_type = 'DIS_REP'
         
 ! we only count thermostats on this processor
         number = 0
@@ -190,7 +281,7 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
         END DO
      ELSE 
 ! interaction between thermostats on different processors
-        nhcp%dis_type = 'INTER_REP'
+        nhc%dis_type = 'INTER_REP'
      END IF
   END IF
   
@@ -201,7 +292,7 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
 ! belonging to a molecule onto a thermostat.  nconst(j) j=1->nmol_type
 ! stores the TOTAL number of constraints of each molecule type to
 ! compute the degrees of freedom.
-  IF (nhcp%dis_type=='NONE' .OR. nhcp%dis_type=='DIS_REP' ) THEN
+  IF (nhc%dis_type=='NONE' .OR. nhc%dis_type=='DIS_REP' ) THEN
      atm_offset = 0
      DO i = 1, size(molecule)
         j = molecule(i) %moltype
@@ -215,7 +306,7 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
         atm_offset = point(2,i)
      END DO
      
-  ELSE IF (nhcp%dis_type=='INTER_REP' ) THEN
+  ELSE IF (nhc%dis_type=='INTER_REP' ) THEN
      atm_offset = 0
      mol_off = 0
      DO i = 1, nmol_type
@@ -254,15 +345,15 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
           'deg_of_freedom', number )
   END SELECT
   
-  ALLOCATE (nhcp%s_kin(number),STAT=isos)
-  IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', 'nhcp%s_kin', number )
-  ALLOCATE (nhcp%v_scale(number),STAT=isos)
-  IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', 'nhcp%v_scale', number )
-  ALLOCATE (nhcp%p_kin(3,natoms),STAT=isos)
-  IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', 'nhcp%p_kin', 3 * natoms )
-  ALLOCATE (nhcp%p_scale(3,natoms),STAT=isos)
+  ALLOCATE (nhc%s_kin(number),STAT=isos)
+  IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', 'nhc%s_kin', number )
+  ALLOCATE (nhc%v_scale(number),STAT=isos)
+  IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', 'nhc%v_scale', number )
+  ALLOCATE (nhc%p_kin(3,natoms),STAT=isos)
+  IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', 'nhc%p_kin', 3 * natoms )
+  ALLOCATE (nhc%p_scale(3,natoms),STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', &
-       'nhcp%p_scale', 3 * natoms )
+       'nhc%p_scale', 3 * natoms )
   
 ! Check to see if there is at least one global thermostatting option defined
   iglobal = 0
@@ -288,7 +379,7 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
   
 ! initialize deg_of_freedom
   deg_of_freedom = 0
-  IF (nhcp%dis_type=="NONE" .OR. nhcp%dis_type=="DIS_REP") THEN
+  IF (nhc%dis_type=="NONE" .OR. nhc%dis_type=="DIS_REP") THEN
      
 !  Begin the mapping loop
      DO i = 1, size(molecule)
@@ -314,8 +405,8 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
               tnum(icust) = number
               DO ii = 1, 3
                  DO jj = point(1,i), point(2,i)
-                    nhcp%p_kin(ii,jj) %point => nhcp%s_kin(number)
-                    nhcp%p_scale(ii,jj) %point => nhcp%v_scale(number)
+                    nhc%p_kin(ii,jj) %point => nhc%s_kin(number)
+                    nhc%p_scale(ii,jj) %point => nhc%v_scale(number)
                  END DO
               END DO
               deg_of_freedom(number) = deg_of_freedom(number) + tot_const(i)
@@ -338,8 +429,8 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
                  molecule(i) %nvt_num = tnum(mnum(ieq))
                  DO ii = 1, 3
                     DO jj = point(1,i), point(2,i)
-                       nhcp%p_kin(ii,jj) %point => nhcp%s_kin(tnum(mnum(ieq)))
-                       nhcp%p_scale(ii,jj) %point => nhcp%v_scale(tnum(mnum( &
+                       nhc%p_kin(ii,jj) %point => nhc%s_kin(tnum(mnum(ieq)))
+                       nhc%p_scale(ii,jj) %point => nhc%v_scale(tnum(mnum( &
                             ieq)))
                     END DO
                  END DO
@@ -357,8 +448,8 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
                  tnum(icust) = number
                  DO ii = 1, 3
                     DO jj = point(1,i), point(2,i)
-                       nhcp%p_kin(ii,jj) %point => nhcp%s_kin(number)
-                       nhcp%p_scale(ii,jj) %point => nhcp%v_scale(number)
+                       nhc%p_kin(ii,jj) %point => nhc%s_kin(number)
+                       nhc%p_scale(ii,jj) %point => nhc%v_scale(number)
                     END DO
                  END DO
                  deg_of_freedom ( number ) = deg_of_freedom ( number ) &
@@ -372,8 +463,8 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
            molecule(i) %nvt_num = 1
            DO ii = 1, 3
               DO jj = point(1,i), point(2,i)
-                 nhcp%p_kin(ii,jj) %point => nhcp%s_kin(1)
-                 nhcp%p_scale(ii,jj) %point => nhcp%v_scale(1)
+                 nhc%p_kin(ii,jj) %point => nhc%s_kin(1)
+                 nhc%p_scale(ii,jj) %point => nhc%v_scale(1)
               END DO
            END DO
            deg_of_freedom(1) = deg_of_freedom(1) + tot_const(i)
@@ -389,8 +480,8 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
               finish = ii + molecule(i) %natoms_mol - 1
               DO jj = 1, 3
                  DO kk = start, finish
-                    nhcp%p_kin(jj,kk) %point => nhcp%s_kin(number)
-                    nhcp%p_scale(jj,kk) %point => nhcp%v_scale(number)
+                    nhc%p_kin(jj,kk) %point => nhc%s_kin(number)
+                    nhc%p_scale(jj,kk) %point => nhc%v_scale(number)
                  END DO
               END DO
               deg_of_freedom(number) = const_mol(j)
@@ -405,8 +496,8 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
            DO ii = point(1,i), point(2,i)
               DO jj = 1, 3
                  number = number + 1
-                 nhcp%p_kin(jj,ii) %point => nhcp%s_kin(number)
-                 nhcp%p_scale(jj,ii) %point => nhcp%v_scale(number)
+                 nhc%p_kin(jj,ii) %point => nhc%s_kin(number)
+                 nhc%p_scale(jj,ii) %point => nhc%v_scale(number)
               END DO
            END DO
            
@@ -418,13 +509,13 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
 ! to a thermostat will not get scaled in lnhc.f
            DO ii = 1, 3
               DO jj = point(1,i), point(2,i)
-                 nhcp%p_scale(ii,jj) %point => scale
+                 nhc%p_scale(ii,jj) %point => scale
               END DO
            END DO
         END IF
      END DO
      
-  ELSE IF (nhcp%dis_type=="INTER_REP") THEN
+  ELSE IF (nhc%dis_type=="INTER_REP") THEN
      
 !  Begin the mapping loop
      DO i = 1, nmol_type
@@ -451,8 +542,8 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
               tnum(icust) = number
               DO ii = 1, 3
                  DO jj = point(1,i), point(2,i)
-                    nhcp%p_kin(ii,jj) %point => nhcp%s_kin(number)
-                    nhcp%p_scale(ii,jj) %point => nhcp%v_scale(number)
+                    nhc%p_kin(ii,jj) %point => nhc%s_kin(number)
+                    nhc%p_scale(ii,jj) %point => nhc%v_scale(number)
                  END DO
               END DO
               deg_of_freedom(number) = deg_of_freedom(number) + tot_const(i)
@@ -479,8 +570,8 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
                  END DO
                  DO ii = 1, 3
                     DO jj = point(1,i), point(2,i)
-                       nhcp%p_kin(ii,jj) %point => nhcp%s_kin(tnum(mnum(ieq)))
-                       nhcp%p_scale(ii,jj) %point => nhcp%v_scale(tnum(mnum( &
+                       nhc%p_kin(ii,jj) %point => nhc%s_kin(tnum(mnum(ieq)))
+                       nhc%p_scale(ii,jj) %point => nhc%v_scale(tnum(mnum( &
                             ieq)))
                     END DO
                  END DO
@@ -500,8 +591,8 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
                  tnum(icust) = number
                  DO ii = 1, 3
                     DO jj = point(1,i), point(2,i)
-                       nhcp%p_kin(ii,jj) %point => nhcp%s_kin(number)
-                       nhcp%p_scale(ii,jj) %point => nhcp%v_scale(number)
+                       nhc%p_kin(ii,jj) %point => nhc%s_kin(number)
+                       nhc%p_scale(ii,jj) %point => nhc%v_scale(number)
                     END DO
                  END DO
                  deg_of_freedom(number) = deg_of_freedom(number) + &
@@ -518,8 +609,8 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
            END DO
            DO ii = 1, 3
               DO jj = point(1,i), point(2,i)
-                 nhcp%p_kin(ii,jj) %point => nhcp%s_kin(1)
-                 nhcp%p_scale(ii,jj) %point => nhcp%v_scale(1)
+                 nhc%p_kin(ii,jj) %point => nhc%s_kin(1)
+                 nhc%p_scale(ii,jj) %point => nhc%v_scale(1)
               END DO
            END DO
            deg_of_freedom(1) = deg_of_freedom(1) + tot_const(i)
@@ -537,8 +628,8 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
               finish = ii + molecule(i) %natoms_mol - 1
               DO jj = 1, 3
                  DO kk = start, finish
-                    nhcp%p_kin(jj,kk) %point => nhcp%s_kin(number)
-                    nhcp%p_scale(jj,kk) %point => nhcp%v_scale(number)
+                    nhc%p_kin(jj,kk) %point => nhc%s_kin(number)
+                    nhc%p_scale(jj,kk) %point => nhc%v_scale(number)
                  END DO
               END DO
               deg_of_freedom(number) = const_mol(i)
@@ -553,8 +644,8 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
            DO ii = point(1,i), point(2,i)
               DO jj = 1, 3
                  number = number + 1
-                 nhcp%p_kin(jj,ii) %point => nhcp%s_kin(number)
-                 nhcp%p_scale(jj,ii) %point => nhcp%v_scale(number)
+                 nhc%p_kin(jj,ii) %point => nhc%s_kin(number)
+                 nhc%p_scale(jj,ii) %point => nhc%v_scale(number)
               END DO
            END DO
            
@@ -566,7 +657,7 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
 ! to a thermostat will not get scaled in lnhc.f
            DO ii = 1, 3
               DO jj = point(1,i), point(2,i)
-                 nhcp%p_scale(ii,jj) %point => scale
+                 nhc%p_scale(ii,jj) %point => scale
               END DO
            END DO
         END IF
@@ -587,32 +678,24 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
   DEALLOCATE (mol_off,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', 'mol_off' )
   
-! Allocating the extended variables 
-  IF (simpar%ensemble(1:3)=='NPT' ) number = number + 1
-  SELECT CASE (simpar%ensemble)
-  CASE ( 'NPT_I' )
-     deg_of_freedom(number) = 1
-  CASE ( 'NPT_F' )
-     deg_of_freedom(number) = 9
-  END SELECT
-  ALLOCATE (nhcp%nvt(nhcp%nhc_len,number),STAT=isos)
-  IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control','nhcp%nvt', 0 )
+  ALLOCATE (nhc%nvt(nhc%nhc_len,number),STAT=isos)
+  IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control','nhc%nvt', 0 )
   
 ! Sum up the number of degrees of freedom on each thermostat.
 ! first: initialize the target
-  natoms = sum(molecule ( : )%natoms_mol)
-  nhcp%s_kin = 0._dbl
+  natoms = sum ( molecule ( : ) % natoms_mol )
+  nhc%s_kin = 0._dbl
   DO i = 1, 3
      DO j = 1, natoms
-        nhcp%p_kin(i,j) %point = nhcp%p_kin(i,j) %point + 1
+        nhc % p_kin ( i, j ) % point = nhc % p_kin ( i, j ) % point + 1
      END DO
   END DO
   
 #if defined(__parallel)
 ! if thermostats are replicated but molecules distributed, we have to
 !    sum s_kin over all processors
-  IF (nhcp%dis_type=='INTER_REP' ) THEN
-     CALL mp_sum(nhcp%s_kin,globenv%group)
+  IF ( nhc % dis_type == 'INTER_REP' ) THEN
+     CALL mp_sum ( nhc % s_kin, globenv % group )
   END IF
 #endif
   
@@ -620,42 +703,39 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
 ! Now that we know how many there are stick this into nhc%static%nkt
 ! (number of degrees of freedom times k_B T for the first thermostat 
 !  on the chain)
-  nhcp%num_nhc = number
-! We know the total number of system thermostats.  For npt_i it
-! is number-1, for nvt it is number
-  IF (simpar%ensemble(1:3)=='NPT' ) number = nhcp%num_nhc - 1
+
+  nhc % num_nhc = number
+
+! We know the total number of system thermostats. For nvt it is number
   
-  IF ((number==1) .AND. ( .NOT. noneflag) .AND. &
-       ( .NOT. nhcp%dis_type=='DIS_REP' )) THEN
-     nhcp%nvt(1,1) %nkt = simpar%temp_ext*(nhcp%s_kin(1)-deg_of_freedom(1 &
-          )-3)
+  IF ( ( number == 1 ) .AND. ( .NOT. noneflag ) .AND. &
+       ( .NOT. nhc % dis_type == 'DIS_REP' ) ) THEN
+     nhc % nvt ( 1, 1 ) % nkt = simpar % temp_ext * ( nhc % s_kin ( 1 ) - &
+       deg_of_freedom ( 1 ) - 3 )
   ELSE
      
 ! re-initializing simpar%nfree to zero because of multiple thermostats
-     simpar%nfree = 0._dbl
+     simpar % nfree = 0._dbl
      DO i = 1, number
-        nhcp%nvt(1,i) %nkt = simpar%temp_ext*(nhcp%s_kin(i)-deg_of_freedom &
-             (i))
+        nhc % nvt ( 1, i ) % nkt = simpar % temp_ext * ( nhc % s_kin ( i ) - &
+	deg_of_freedom ( i ) )
      END DO
   END IF
   
-! getting the number of degrees of freedom times k_B T
-!    for the rest of the chain
-  DO i = 2, nhcp%nhc_len
-     nhcp%nvt(i,:) %nkt = simpar%temp_ext
+! getting the number of degrees of freedom times k_B T for the rest 
+! of the chain
+
+  DO i = 2, nhc % nhc_len
+     nhc % nvt ( i, : ) % nkt = simpar % temp_ext
   END DO
   
-! doing the barostat
-  IF (simpar%ensemble(1:3)=='NPT' ) nhcp%nvt(1,nhcp%num_nhc) &
-       %nkt = deg_of_freedom(nhcp%num_nhc)*simpar%temp_ext
-  
 ! Set up the Yoshida weights
-  ALLOCATE (nhcp%dt_yosh(1:nhcp%nyosh),STAT=isos)
+  ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', &
-       'nhcp%dt_yosh', nhcp % nyosh )
-  CALL yoshida_coef(nhcp,simpar%dt)
+       'nhc%dt_yosh', nhc % nyosh )
+  CALL yoshida_coef ( nhc, simpar % dt )
 
-END SUBROUTINE nhc_control
+END SUBROUTINE nhc_control_particles
 
 !!*****
 !******************************************************************************

@@ -72,8 +72,6 @@ SUBROUTINE fft_get_lengths ( data, max_length )
 !------------------------------------------------------------------------------
 
 ! compute ndata
-!! FFTW can do arbitrary(?) lenghts, maybe you want to limit them to some
-!!    powers of small prime numbers though...
  
   maxn_twos = 15
   maxn_threes = 2
@@ -250,6 +248,59 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
 #endif
 
 END SUBROUTINE fft3d
+
+!!*****
+!******************************************************************************
+!!****** fftessl_lib/mltfft [1.0] *
+!!
+!!   NAME
+!!     mltfft
+!!
+!!   FUNCTION
+!!     Calls multiple 1d FFT from the ESSL library
+!!
+!!   AUTHOR
+!!     JGH (8-Jan-2001)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE mltfft ( fsign, trans, scale, n, m, zin, zout )
+  
+  IMPLICIT NONE
+  
+! Arguments
+  CHARACTER ( LEN = * ), INTENT ( IN ) :: trans
+  INTEGER, INTENT ( INOUT ) :: fsign
+  REAL ( dbl ), INTENT ( IN ) :: scale
+  INTEGER, INTENT ( IN ) :: n, m
+  COMPLEX ( dbl ), DIMENSION(:,:), INTENT ( IN ) :: zin
+  COMPLEX ( dbl ), DIMENSION(:,:), INTENT ( OUT ) :: zout
+  
+! Locals
+  INTEGER :: ldi, lmi, ldo, lmo
+  
+!------------------------------------------------------------------------------
+  
+  ldi = SIZE ( zin (:,1) )
+  lmi = SIZE ( zin (1,:) )
+  ldo = SIZE ( zin (:,1) )
+  lmo = SIZE ( zin (1,:) )
+  
+#if defined ( __FFTESSL )
+
+  stop " fftessl_lib "
+
+#else
+
+  fsign = 0
+
+#endif
+
+END SUBROUTINE mltfft
 
 !!*****
 !******************************************************************************

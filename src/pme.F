@@ -21,7 +21,8 @@ MODULE pme
 
   USE coefficients, ONLY : integral
   USE coefficient_types, ONLY : coeff_type, coeff_allocate, &
-       coeff_deallocate, coeff_zero, PW_COMPLEXDATA3D, PW_REALDATA3D
+       coeff_deallocate, coeff_zero, PW_COMPLEXDATA3D, PW_REALDATA3D, &
+       PW_REALSPACE
   USE dgs, ONLY : dg_sum_patch, dg_sum_patch_force, &
        dg_get_1x_patch, dg_get_2x_patch, dg_get_strucfac, dg_get_rho_tot
   USE dg_rho0s, ONLY : dg_rho0_setup
@@ -262,6 +263,7 @@ SUBROUTINE pme_evaluate ( dg, fg_coulomb, vg_coulomb, pv_g, box, &
   
 ! initialize rho_r on big grid
   CALL coeff_allocate ( rhob_r, grid_b, use_data = PW_REALDATA3D )
+  rhob_r % pw % in_space = PW_REALSPACE
   CALL coeff_allocate ( rhos_r, grid_s, use_data = PW_COMPLEXDATA3D )
   CALL coeff_allocate ( rhos1_r, grid_s, use_data = PW_REALDATA3D )
   CALL coeff_allocate ( rhos2_r, grid_s, use_data = PW_REALDATA3D )
@@ -307,16 +309,16 @@ SUBROUTINE pme_evaluate ( dg, fg_coulomb, vg_coulomb, pv_g, box, &
         ez2 => exp_igr % ez ( :, part2 )
      END IF
      
-     CALL timeset ( 'PME_GETSFAC', 'I', ' ', handle3 )
+!    CALL timeset ( 'PME_GETSFAC', 'I', ' ', handle3 )
      CALL dg_get_strucfac ( box, r1, grid_s % npts, grid_b % npts, &
           centre1, exp_igr % lb, ex1, ey1, ez1 )
      IF ( doublepack ) THEN
         CALL dg_get_strucfac ( box, r2, grid_s % npts, grid_b % npts, &
              centre2, exp_igr % lb, ex2, ey2, ez2 )
      END IF
-     CALL timestop ( 0.0_dbl, handle3 )
+!    CALL timestop ( 0.0_dbl, handle3 )
      
-     CALL timeset ( 'PME_GETPATCH', 'I', ' ', handle3 )
+!    CALL timeset ( 'PME_GETPATCH', 'I', ' ', handle3 )
      IF ( doublepack ) THEN
         CALL dg_get_2x_patch ( rho0, rhos_r, q1, q2, &
              exp_igr % lb, ex1, ey1, ez1, ex2, ey2, ez2 )
@@ -324,7 +326,7 @@ SUBROUTINE pme_evaluate ( dg, fg_coulomb, vg_coulomb, pv_g, box, &
         CALL dg_get_1x_patch ( rho0, rhos_r, q1, &
              exp_igr % lb, ex1, ey1, ez1 )
      END IF
-     CALL timestop ( 0.0_dbl, handle3 )
+!    CALL timestop ( 0.0_dbl, handle3 )
      
      IF ( p_idx <= nsaved_ffts ) THEN
         IF ( saved_ffts_singleprecision ) THEN
@@ -347,14 +349,14 @@ SUBROUTINE pme_evaluate ( dg, fg_coulomb, vg_coulomb, pv_g, box, &
         rhos2_ptr = AIMAG ( rho_s )
      END IF
      
-     CALL timeset ( 'PME_SUMPATCH1', 'I', ' ', handle3 )
+!    CALL timeset ( 'PME_SUMPATCH1', 'I', ' ', handle3 )
      CALL dg_sum_patch ( rhos1_ptr, rho_b, bounds_s, centre1, &
           lb_pbc, pbc1_b, pbc2_b, pbc3_b, lb_rhob )
      IF ( doublepack ) THEN
         CALL dg_sum_patch ( rhos2_ptr, rho_b, bounds_s, centre2, &
              lb_pbc, pbc1_b, pbc2_b, pbc3_b, lb_rhob )
      END IF
-     CALL timestop ( 0.0_dbl, handle3 )
+!    CALL timestop ( 0.0_dbl, handle3 )
      
      IF ( .NOT. ASSOCIATED ( plist % next ) ) THEN
         EXIT
@@ -461,7 +463,7 @@ SUBROUTINE pme_evaluate ( dg, fg_coulomb, vg_coulomb, pv_g, box, &
      
      p_idx = p_idx + 2
      
-     CALL timeset ( 'PME_SUMPATCH2', 'I', ' ', handle3 )
+!    CALL timeset ( 'PME_SUMPATCH2', 'I', ' ', handle3 )
      CALL dg_sum_patch_force ( rhos1_ptr, dvhartree, force, &
           bounds_s, centre1, &
           lb_pbc, pbc1_b, pbc2_b, pbc3_b, lb_dvhartree )
@@ -475,7 +477,7 @@ SUBROUTINE pme_evaluate ( dg, fg_coulomb, vg_coulomb, pv_g, box, &
         fg_coulomb ( :, part2 ) = fg_coulomb ( :, part2 ) &
              - force ( : ) * rhos2_r % pw % pw_grid % dvol * inv_fourpi_eps0
      END IF
-     CALL timestop ( 0.0_dbl, handle3 )
+!    CALL timestop ( 0.0_dbl, handle3 )
      
      IF ( .NOT. ASSOCIATED ( plist % next ) ) THEN
         EXIT

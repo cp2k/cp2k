@@ -2,7 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****s* cp2k/pw_grid_types [1.0] *
+!!****s* cp2k/pw_grid_types [1.1] *
 !!
 !!   NAME
 !!     pw_grid_types
@@ -10,9 +10,10 @@
 !!   FUNCTION
 !!
 !!   AUTHOR
+!!     APSI
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (20-12-2000) : Parallel data layout
 !!
 !!   SOURCE
 !******************************************************************************
@@ -24,45 +25,62 @@ MODULE pw_grid_types
   IMPLICIT NONE
   
   PRIVATE
-  PUBLIC :: pw_grid_type, map_pn
+  PUBLIC :: pw_grid_type, map_pn, pw_para_type
   PUBLIC :: HALFSPACE, FULLSPACE
   
-  !! maps to positive and negative g-vectors
+  ! maps to positive and negative g-vectors
   TYPE map_pn
      INTEGER, DIMENSION ( : ), POINTER :: pos, neg
   END TYPE map_pn
   
-  !! all you always wanted to know about grids, but were...
+! info on parallelisation
+  TYPE pw_para_type
+     INTEGER :: mode                 ! 0 = local ; 1 = distributed
+     INTEGER :: group                ! MPI group id
+     INTEGER :: my_pos               ! Position within group
+     INTEGER :: group_size           ! # of Processors in group
+     LOGICAL :: group_head           ! Master process within group
+     INTEGER :: group_head_id        ! Id of group_head
+     INTEGER, DIMENSION (:,:,:), POINTER :: yzp  ! g-space rays (xy,k,pe)
+     INTEGER, DIMENSION (:,:), POINTER :: yzq    ! local inverse pointer of yzp 
+     INTEGER, DIMENSION (:), POINTER :: nyzray   ! number of g-space rays (pe)
+     INTEGER :: rs_group             ! real space group (2-dim cart)
+     INTEGER, DIMENSION (2) :: rs_dims    ! real space group dimensions
+     INTEGER, DIMENSION (2) :: rs_pos     ! real space group positions
+  END TYPE pw_para_type
+
+  ! all you always wanted to know about grids, but were...
   TYPE pw_grid_type
      INTEGER :: ngpts                             ! # grid points
      INTEGER :: ngpts_cut                         ! # grid points within cutoff
-     INTEGER :: ndimension                        ! # of dimensions
      INTEGER, DIMENSION ( 2, 3 ) :: bounds        ! lower and upper bounds
      INTEGER, DIMENSION ( 3 ) :: npts             ! # point in all directions
+     INTEGER :: ngpts_local                       ! # grid points
+     INTEGER :: ngpts_cut_local                   ! # grid points within cutoff
+     INTEGER, DIMENSION ( 2, 3 ) :: bounds_local  ! bounds on local process
+     INTEGER, DIMENSION ( 3 ) :: npts_local       ! local version of npts
+     INTEGER :: ndimension                        ! # of dimensions
      REAL ( dbl ), DIMENSION ( 3 ) :: dr          ! grid spacing
      REAL ( dbl ) :: dvol, vol                    ! volume element, volume
+     REAL ( dbl ) :: cutoff                       ! cutoff in a.u.
      TYPE ( map_pn ) :: mapl, mapm, mapn          ! mapping 1D => 3D
+     TYPE ( pw_para_type ) :: para                ! information on parallelisation
      REAL ( dbl ), DIMENSION ( :, : ), POINTER :: g   ! grid point vectors
-     REAL ( dbl ), DIMENSION ( : ), POINTER :: gsq   ! squared vector lengths
+     REAL ( dbl ), DIMENSION ( : ), POINTER :: gsq    ! squared vector lengths
      INTEGER, DIMENSION ( :, : ), POINTER :: g_hat    ! grid point indices (Miller)
-!    INTEGER :: grid_kind                         ! type of grid: equidistance,
-     !   logarithmic, ...
-     INTEGER :: grid_span                         ! type of equidistance grid:
-                         !   is f^*(g) = f(-g)
-     
+     INTEGER :: grid_span                         ! type HALFSPACE/FULLSPACE  
      LOGICAL :: have_g0                           ! whether I have G = [0,0,0]
      INTEGER :: first_gne0                        ! first g index /= 0 [1/2]
-     
      INTEGER :: nglengths                         ! # different lengths/shells
-     REAL ( dbl ), DIMENSION ( : ), POINTER :: glsq ! squared vector lengths
+     REAL ( dbl ), DIMENSION ( : ), POINTER :: glsq   ! squared vector lengths
      INTEGER, DIMENSION ( : ), POINTER :: glidx   ! index to the full arrays
-     
+     INTEGER :: identifier                        ! tag of this grid
+     LOGICAL :: spherical                         ! spherical cutoff?
   END TYPE pw_grid_type
   
-!! (only for reciprocal grid:) fill in half or full space
+  ! (only for reciprocal grid:) fill in half or full space
   INTEGER, PARAMETER :: HALFSPACE = 211, FULLSPACE = 212
   
 END MODULE pw_grid_types
 
 !******************************************************************************
-!!*****

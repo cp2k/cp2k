@@ -44,7 +44,7 @@ CONTAINS
 !!****** initialize_molecule_types/initialize_molecule_type [1.0] *
 !!
 !!   NAME
-!!     initialize_molecule_types
+!!     initialize_molecule_type
 !!
 !!   FUNCTION
 !!

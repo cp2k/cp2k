@@ -20,15 +20,15 @@
 MODULE dgs
   
   USE coefficient_types, ONLY : coeff_type
-  USE fft_tools, ONLY : fft_radix_operations, fft3d, &
+  USE fft_tools, ONLY : fft_radix_operations, fft3d, FWFFT, BWFFT, &
        FFT_RADIX_ALLOWED, FFT_RADIX_DISALLOWED, FFT_RADIX_NEXT, &
-       FFT_RADIX_CLOSEST, BWFFT, FWFFT
+       FFT_RADIX_CLOSEST
+  USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl, sgl
   USE mathconstants, ONLY : twopi, pi
   USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE
   USE pw_grids, ONLY : pw_grid_setup, pw_find_cutoff
-  USE pw_types, ONLY : COMPLEXDATA3D
-  USE pws, ONLY : fft_wrap
+  USE pw_types, ONLY : pw_fft_wrap, COMPLEXDATA3D
   USE simulation_cell, ONLY : cell_type, get_hinv, get_cell_param
   USE stop_program, ONLY : stop_prg
   USE structure_factors, ONLY : structure_factor_evaluate
@@ -49,7 +49,7 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE dg_grid_setup ( box_b, npts_s, epsilon, alpha, grid_s, grid_b, &
-     dg_gaussian_type )
+     dg_gaussian_type, dg_glopar )
   
   IMPLICIT NONE
   
@@ -59,6 +59,7 @@ SUBROUTINE dg_grid_setup ( box_b, npts_s, epsilon, alpha, grid_s, grid_b, &
   REAL ( dbl ), INTENT ( IN ) :: alpha
   TYPE ( cell_type ), INTENT ( IN ) :: box_b
   CHARACTER( LEN = * ), INTENT ( IN ) :: dg_gaussian_type
+  TYPE ( global_environment_type ), INTENT ( IN ) :: dg_glopar
   
   TYPE ( pw_grid_type ), INTENT ( INOUT ) :: grid_s, grid_b
   
@@ -83,7 +84,7 @@ SUBROUTINE dg_grid_setup ( box_b, npts_s, epsilon, alpha, grid_s, grid_b, &
   
   CALL dg_find_radix ( dr, cell_lengths, grid_b % npts )
   
-  CALL dg_get_epsilon ( nout, epsilon, alpha, dg_gaussian_type, dr )
+  CALL dg_get_epsilon ( nout, dr, alpha, dg_gaussian_type, epsilon )
 
   grid_b % bounds ( 1, : ) = - grid_b % npts / 2
   grid_b % bounds ( 2, : ) = + ( grid_b % npts - 1 ) / 2
@@ -95,7 +96,7 @@ SUBROUTINE dg_grid_setup ( box_b, npts_s, epsilon, alpha, grid_s, grid_b, &
   
   CALL pw_find_cutoff ( grid_b % npts, box_b, cutoff )
   
-  CALL pw_grid_setup ( box_b, grid_b, cutoff )
+  CALL pw_grid_setup ( box_b, grid_b, cutoff, dg_glopar % group )
   
   CALL dg_find_basis ( grid_b % npts, box_b, unit_box )
   
@@ -125,7 +126,7 @@ SUBROUTINE dg_get_spacing ( npts, epsilon, alpha, dg_gaussian_type, dr )
   
   SELECT CASE ( dg_gaussian_type )
      
-  CASE ( "PME_GAUSS" )  ! use a Gaussian of form N exp(-2*alpha^2*r^2)
+  CASE ( "PME" )  ! use a Gaussian of form N exp(-2*alpha^2*r^2)
      alphasq = alpha ** 2
      norm = ( 2.0_dbl * alphasq / pi ) ** ( 1.5_dbl )
      dr ( : ) = SQRT ( -LOG ( epsilon / norm ) / alphasq / 2.0_dbl ) &
@@ -149,17 +150,17 @@ END SUBROUTINE dg_get_spacing
 
 !******************************************************************************
 
-SUBROUTINE dg_get_epsilon ( npts, epsilon, alpha, dg_gaussian_type, dr )
+SUBROUTINE dg_get_epsilon ( npts, dr, alpha, dg_gaussian_type, epsilon )
 
   IMPLICIT NONE
 
 ! Arguments
   INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts
-  REAL ( dbl ), INTENT ( OUT ) :: epsilon
+  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: dr
   REAL ( dbl ), INTENT ( IN ) :: alpha
   CHARACTER ( LEN = * ), INTENT ( IN ) :: dg_gaussian_type
 
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( OUT ) :: dr
+  REAL ( dbl ), INTENT ( OUT ) :: epsilon
 
 ! Locals
   REAL ( dbl ) :: alphasq, norm, rlen
@@ -168,7 +169,7 @@ SUBROUTINE dg_get_epsilon ( npts, epsilon, alpha, dg_gaussian_type, dr )
 
   SELECT CASE ( dg_gaussian_type )
 
-  CASE ( "PME_GAUSS" )  ! use a Gaussian of form N exp(-2*alpha^2*r^2)
+  CASE ( "PME" )  ! use a Gaussian of form N exp(-2*alpha^2*r^2)
      rlen = MAXVAL ( REAL ( npts, dbl ) * dr ) * 0.5_dbl
      alphasq = alpha ** 2
      norm = ( 2.0_dbl * alphasq / pi ) ** ( 1.5_dbl )
@@ -745,7 +746,8 @@ SUBROUTINE dg_get_rho_tot ( rho_r, rhob_r )
   rhob => rhob_r % pw % cc3d
   rho => rho_r % pw % cc3d
   
-  CALL fft_wrap ( rhob_r, dir = FWFFT, scale = grid1 % dvol )
+!..FWFFT (real to g space)
+  CALL pw_fft_wrap ( rhob_r % pw )
   
   rho = 0.0_dbl
   
@@ -786,10 +788,15 @@ SUBROUTINE dg_get_rho_tot ( rho_r, rhob_r )
     
   END DO
   
-  CALL fft_wrap ( rho_r, dir = BWFFT )
+  rho = rho * grid1 % vol
+
+!..BWFFT ( g to real space )
+  CALL pw_fft_wrap ( rho_r % pw )
   
 END SUBROUTINE dg_get_rho_tot
 
 !******************************************************************************
 
 END MODULE dgs
+
+!******************************************************************************

@@ -145,7 +145,7 @@ FUNCTION ener_coul ( pot, qi, qj, r, ewald_param )
 !------------------------------------------------------------------------------
   
   SELECT CASE( ewald_param % ewald_type )
-  CASE( 'EWALD_GAUSS', 'PME_GAUSS' )
+  CASE( 'EWALD', 'PME' )
      ener_coul = ifourpi / ewald_param % eps0 * qi * qj &
           * erfc ( ewald_param % alpha * r ) / r - pot % e_cutoff_coul
   CASE( 'NONE')

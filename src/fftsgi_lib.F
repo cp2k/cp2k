@@ -2,15 +2,16 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/fftsg_lib [1.0] *
+!!****** cp2k/fftsgi_lib [1.0] *
 !!
 !!   NAME
-!!     fftsg_lib
+!!     fftsgi_lib
 !!
 !!   FUNCTION
+!!     Interface to FFT routines in the complib.sgimath Library of SGI
 !!
 !!   AUTHOR
-!!     JGH
+!!     JGH 5-Jan-2000
 !!
 !!   MODIFICATION HISTORY
 !!     none
@@ -18,15 +19,16 @@
 !!   SOURCE
 !******************************************************************************
 
-MODULE fftsg_lib
+MODULE fftsgi_lib
   
   USE kinds, ONLY: dbl
   USE stop_program, ONLY : stop_memory, stop_prg
+  USE util, ONLY : sort
   
   IMPLICIT NONE 
   
   PRIVATE
-  PUBLIC :: fft3d, mltfft
+  PUBLIC :: fft3d
   PUBLIC :: fft_get_lengths
   
 !!*****
@@ -35,7 +37,7 @@ MODULE fftsg_lib
 CONTAINS
   
 !******************************************************************************
-!!****** fftsg_lib/fft_get_lengths [1.0] *
+!!****** fftsgi_lib/fft_get_lengths [1.0] *
 !!
 !!   NAME
 !!     fft_get_lengths
@@ -53,44 +55,96 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE fft_get_lengths ( data, max_length )
-  
+
   IMPLICIT NONE
-  
+
 ! Arguments
   INTEGER, INTENT ( IN ) :: max_length
   INTEGER, DIMENSION ( : ), POINTER :: data
-  
+
 ! Locals
-  INTEGER, PARAMETER :: rlen = 82 
-  INTEGER, DIMENSION ( rlen ), PARAMETER :: radix = &
-   (/ 2, 4, 5, 6, 8, 9, 12, 15, 16, 18, 20, 24, 25, 27, 30, 32, 36, 40, &
-     45, 48, 54, 60, 64, 72, 75, 80, 81, 90, 96, 100, 108, 120, 125, 128, &
-     135, 144, 150, 160, 162, 180, 192, 200, 216, 225, 240, 243, 256, 270, &
-     288, 300, 320, 324, 360, 375, 384, 400, 405, 432, 450, 480, 486, 500, &
-     512, 540, 576, 600, 625, 640, 648, 675, 720, 729, 750, 768, 800, 810, &
-     864, 900, 960, 972, 1000, 1024 /)
-  INTEGER :: i, allocstat, ndata
-  
+  INTEGER :: iloc
+  INTEGER, DIMENSION ( : ), ALLOCATABLE :: idx
+  INTEGER :: h, i, j, k, m, number, ndata, nmax, allocstat, maxn
+  INTEGER :: maxn_twos, maxn_threes, maxn_fives
+  INTEGER :: maxn_sevens, maxn_elevens, maxn_thirteens
+
 !------------------------------------------------------------------------------
-  
+
+! compute ndata
+! FFTSGI can do arbitrary(?) lenghts, maybe you want to limit them to some
+!    powers of small prime numbers though...
+! For the moment we keep it the same as for the ESSL
+ 
+  maxn_twos = 15
+  maxn_threes = 2
+  maxn_fives = 1
+  maxn_sevens = 1
+  maxn_elevens = 1
+  maxn_thirteens = 0
+  maxn = MIN ( max_length, 37748736 )
+
   ndata = 0
-  DO i = 1, rlen
-    IF ( radix ( i ) > max_length ) EXIT
-    ndata = ndata + 1
+  DO h = 0, maxn_twos
+     nmax = HUGE(0) / 2**h
+     DO i = 0, maxn_threes
+        DO j = 0, maxn_fives
+           DO k = 0, maxn_sevens
+              DO m = 0, maxn_elevens
+                 number = (3**i) * (5**j) * (7**k) * (11**m)
+
+                 IF ( number > nmax ) CYCLE
+
+                 number = number * 2 ** h
+                 IF ( number >= maxn ) CYCLE
+
+                 ndata = ndata + 1
+              END DO
+           END DO
+        END DO
+     END DO
   END DO
-  
-  ALLOCATE ( data ( ndata ), STAT = allocstat )
+
+  ALLOCATE ( data ( ndata ), idx ( ndata ), STAT = allocstat )
   IF ( allocstat /= 0 ) THEN
-     CALL stop_memory ( "fft_get_lengths", "data", ndata )
+     CALL stop_memory ( "fft_get_lengths", "data, idx", 2*ndata )
   END IF
-  
-  data ( 1:ndata ) = radix ( 1:ndata )
-  
+
+  ndata = 0
+  data ( : ) = 0
+  DO h = 0, maxn_twos
+     nmax = HUGE(0) / 2**h
+     DO i = 0, maxn_threes
+        DO j = 0, maxn_fives
+           DO k = 0, maxn_sevens
+              DO m = 0, maxn_elevens
+                 number = (3**i) * (5**j) * (7**k) * (11**m)
+
+                 IF ( number > nmax ) CYCLE
+
+                 number = number * 2 ** h
+                 IF ( number >= maxn ) CYCLE
+
+                 ndata = ndata + 1
+                 data ( ndata ) = number
+              END DO
+           END DO
+        END DO
+     END DO
+  END DO
+
+  CALL sort ( data, ndata, idx )
+
+  DEALLOCATE ( idx, STAT = allocstat )
+  IF ( allocstat /= 0 ) THEN
+     CALL stop_memory ( "fft_get_lengths", "idx" )
+  END IF
+
 END SUBROUTINE fft_get_lengths
 
 !!*****
 !******************************************************************************
-!!****** fftsg_lib/fft_3d [1.0] *
+!!****** fftsgi_lib/fft_3d [1.0] *
 !!
 !!   NAME
 !!     fft_3d
@@ -121,8 +175,8 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
   
 ! Locals
   INTEGER :: sign_fft, ldx, ldy, ldz, ldox, ldoy, ldoz, ierr
-  INTEGER :: nx, ny, nz
-  COMPLEX ( dbl ), DIMENSION(:), ALLOCATABLE :: xf, yf
+  INTEGER :: nx, ny, nz, na1, na2, isos, ncoef
+  COMPLEX ( dbl ), DIMENSION(:), ALLOCATABLE :: coef
   LOGICAL :: fft_in_place
   
 !------------------------------------------------------------------------------
@@ -133,7 +187,7 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
      fft_in_place = .true.
   END IF
   
-  sign_fft = fsign
+  sign_fft = -fsign
 
   nx = n ( 1 )
   ny = n ( 2 )
@@ -143,31 +197,18 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
   ldy = SIZE ( zg (1,:,1) )
   ldz = SIZE ( zg (1,1,:) )
   
-#if defined ( __FFTSG )
+  ncoef = ( nx + 15 ) + ( ny + 15 ) + ( nz + 15 )
+
+#if defined ( __FFTSGI )
+
+  ALLOCATE ( coef ( ncoef ), STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'fft3d','coef',ncoef )
 
   IF ( fft_in_place ) THEN
 
-    ALLOCATE ( xf ( ldx*ldy*ldz ), STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "fft3d", "xf", ldx*ldy*ldz )
-    ALLOCATE ( yf ( ldx*ldy*ldz ), STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "fft3d", "yf", ldx*ldy*ldz )
-
-    CALL mltfftsg ( 'N', 'T', zg, ldx, ldy*ldz, xf, ldy*ldz, ldx, nx, &
-                    ldy*ldz, sign_fft, 1._dbl )
-    CALL mltfftsg ( 'N', 'T', xf, ldy, ldx*ldz, yf, ldx*ldz, ldy, ny, &
-                    ldx*ldz, sign_fft, 1._dbl )
-    IF (PRESENT ( scale ) ) THEN
-      CALL mltfftsg ( 'N', 'T', yf, ldz, ldy*ldx, zg, ldy*ldx, ldz, nz, &
-                      ldy*ldx, sign_fft, scale)
-    ELSE
-      CALL mltfftsg ( 'N', 'T', yf, ldz, ldy*ldx, zg, ldy*ldx, ldz, nz, &
-                      ldy*ldx, sign_fft, 1._dbl)
-    END IF
-
-    DEALLOCATE ( xf, STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "fft3d", "xf" )
-    DEALLOCATE ( yf, STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "fft3d", "yf" )
+    IF ( scale /= 1._dbl ) call zscal3d ( nx, ny, nz, scale, zg, ldx, ldy )
+    CALL zfft3di ( nx, ny, nz, coef )
+    CALL zfft3d ( sign_fft, nx, ny, nz, zg, ldx, ldy, coef )
 
   ELSE
 
@@ -175,25 +216,20 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
     ldoy = SIZE ( zg_out (1,:,1) )
     ldoz = SIZE ( zg_out (1,1,:) )
 
-    ALLOCATE ( xf ( ldx*ldy*ldz ), STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "fft3d", "xf", ldx*ldy*ldz )
-
-    CALL mltfftsg ( 'N', 'T', zg, ldx, ldy*ldz, zg_out, ldy*ldz, ldx, nx, &
-                    ldy*ldz, sign_fft, 1._dbl )
-    CALL mltfftsg ( 'N', 'T', zg_out, ldy, ldx*ldz, xf, ldx*ldz, ldy, ny, &
-                    ldx*ldz, sign_fft, 1._dbl )
-    IF (PRESENT ( scale ) ) THEN
-      CALL mltfftsg ( 'N', 'T', xf, ldz, ldy*ldx, zg_out, ldy*ldx, ldz, nz, &
-                      ldy*ldx, sign_fft, scale)
+    IF ( scale /= 1._dbl ) THEN
+      zg_out ( 1:nx, 1:ny, 1:nz ) = zg ( 1:nx, 1:ny, 1:nz )
+      call zscal3d ( nx, ny, nz, scale, zg_out, ldox, ldoy )
     ELSE
-      CALL mltfftsg ( 'N', 'T', xf, ldz, ldy*ldx, zg_out, ldy*ldx, ldz, nz, &
-                      ldy*ldx, sign_fft, 1._dbl)
+      zg_out ( 1:nx, 1:ny, 1:nz ) = zg ( 1:nx, 1:ny, 1:nz )
     END IF
 
-    DEALLOCATE ( xf, STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "fft3d", "xf" )
+    CALL zfft3di ( nx, ny, nz, coef )
+    CALL zfft3d ( sign_fft, nx, ny, nz, zg_out, ldox, ldoy, coef )
 
   END IF
+
+  DEALLOCATE ( coef, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'fft3d','coef' )
 
 #else
 
@@ -205,13 +241,13 @@ END SUBROUTINE fft3d
 
 !!*****
 !******************************************************************************
-!!****** fftsg_lib/mltfft [1.0] *
+!!****** fftsgi_lib/mltfft [1.0] *
 !!
 !!   NAME
 !!     mltfft
 !!
 !!   FUNCTION
-!!     Calls multiple 1d FFT from the SG library
+!!     Calls multiple 1d FFT from the SGI library
 !!
 !!   AUTHOR
 !!     JGH (8-Jan-2001)
@@ -244,10 +280,9 @@ SUBROUTINE mltfft ( fsign, trans, scale, n, m, zin, zout )
   ldo = SIZE ( zin (:,1) )
   lmo = SIZE ( zin (1,:) )
   
-#if defined ( __FFTSG )
+#if defined ( __FFTSGI )
 
-  CALL mltfftsg ( 'N', trans, zin, ldi, lmi, zout, ldo, lmo, &
-                  n, m, fsign, scale )
+  stop " fftsgi_lib "
 
 #else
 
@@ -260,6 +295,6 @@ END SUBROUTINE mltfft
 !!*****
 !******************************************************************************
 
-END MODULE fftsg_lib
+END MODULE fftsgi_lib
 
 !******************************************************************************

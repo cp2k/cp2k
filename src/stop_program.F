@@ -139,7 +139,7 @@ SUBROUTINE stop_prg ( routine, &
      WRITE ( iw, '( A, T31, A )' ) " Comment ", ADJUSTR ( outline )
   END IF
   
-  CALL mp_stop ( 999 )
+  CALL mp_stop ( 0, "stop_prg" )
   
 END SUBROUTINE stop_prg
 

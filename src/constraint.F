@@ -33,10 +33,7 @@ MODULE constraint
   
   PRIVATE
   PUBLIC :: shake_control, rattle_control, pv_constraint, getold
-  PUBLIC :: roll, initialize_roll, shake_roll_control, rattle_roll_control
-  
-  REAL ( dbl ) :: scale
-  REAL ( dbl ), DIMENSION (3,3) :: r_rattle
+  PUBLIC :: shake_roll_control, rattle_roll_control
 
 !!*****
 !******************************************************************************
@@ -134,7 +131,7 @@ END SUBROUTINE rattle_control
 !******************************************************************************
 
 SUBROUTINE shake_roll_control ( molecule, simpar, thermo, roll_tol, iroll, &
-     vector, group, u )
+     vector_r, vector_v, group, u )
   
   IMPLICIT NONE
   
@@ -143,7 +140,7 @@ SUBROUTINE shake_roll_control ( molecule, simpar, thermo, roll_tol, iroll, &
        molecule
   TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
   TYPE ( thermodynamic_type ), INTENT ( INOUT ), OPTIONAL :: thermo
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: vector
+  REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: vector_r, vector_v
   REAL ( dbl ), INTENT ( OUT ) :: roll_tol
   INTEGER, INTENT ( INOUT ) :: iroll
   INTEGER, INTENT ( IN ) :: group
@@ -152,7 +149,7 @@ SUBROUTINE shake_roll_control ( molecule, simpar, thermo, roll_tol, iroll, &
 ! Locals
   REAL ( dbl ) :: max_sigma
   INTEGER :: imol, iconst, ishake, nmol, handle
-  REAL ( dbl ), DIMENSION ( 3, 3 ) :: r_shake
+  REAL ( dbl ), DIMENSION ( 3, 3 ) :: r_shake, v_shake
   
 !------------------------------------------------------------------------------
   
@@ -160,9 +157,9 @@ SUBROUTINE shake_roll_control ( molecule, simpar, thermo, roll_tol, iroll, &
   
 ! setting up for roll
   IF ( simpar % ensemble == 'NPT_I' ) THEN
-     CALL get_r_shake ( r_shake, vector )
+     CALL get_roll_matrix ('SHAKE', r_shake, v_shake, vector_r, vector_v )
   ELSE IF ( simpar % ensemble == 'NPT_F' ) THEN
-     CALL get_r_shake ( r_shake, vector, u )
+     CALL get_roll_matrix ('SHAKE', r_shake, v_shake, vector_r, vector_v, u )
   END IF
   
 ! initialize locals
@@ -171,7 +168,7 @@ SUBROUTINE shake_roll_control ( molecule, simpar, thermo, roll_tol, iroll, &
      
 ! 3x3
      IF (molecule(imol)%ng3x3const_mol /= 0 ) THEN
-        CALL shake_roll_3x3(molecule(imol),simpar,r_shake,ishake)
+        CALL shake_roll_3x3(molecule(imol),simpar,r_shake,v_shake,ishake)
      END IF
      ishake = 0
      
@@ -181,14 +178,13 @@ SUBROUTINE shake_roll_control ( molecule, simpar, thermo, roll_tol, iroll, &
         CONS: DO WHILE (abs(max_sigma)>=simpar%shake_tol)
            ishake = ishake + 1
            max_sigma = 0._dbl
-           CALL shake_roll(molecule(imol),simpar,r_shake,max_sigma,ishake)
+           CALL shake_roll(molecule(imol),simpar,r_shake,v_shake,max_sigma,ishake)
         END DO CONS
      END IF
   END DO MOL
   
   IF ( simpar % ensemble == 'NPT_I' ) &
-       CALL check_tol ( roll_tol, iroll, 'SHAKE', vector )
-  CALL pv_constraint ( molecule, thermo, 'FULL', group )
+       CALL check_tol ( roll_tol, iroll, 'SHAKE', r_shake )
   
   CALL timestop ( 0.0_dbl, handle )
   
@@ -196,8 +192,8 @@ END SUBROUTINE shake_roll_control
 
 !******************************************************************************
 
-SUBROUTINE rattle_roll_control ( molecule, simpar, thermo, veps, &
-     roll_tol, iroll, group )
+SUBROUTINE rattle_roll_control ( molecule, simpar, thermo, veps, mass, &
+     roll_tol, iroll, vector, group, u )
   
   IMPLICIT NONE
   
@@ -207,49 +203,62 @@ SUBROUTINE rattle_roll_control ( molecule, simpar, thermo, veps, &
   TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
   TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( INOUT ) :: veps
+  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: mass
   REAL ( dbl ), INTENT ( OUT ) :: roll_tol
+  REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: vector
+  REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ), OPTIONAL :: u
   INTEGER, INTENT ( INOUT ) :: iroll
   INTEGER, INTENT ( IN ) :: group
   
 ! Locals
   REAL ( dbl ) :: max_sigma, feps
   INTEGER :: imol, iconst, irattle, nmol, handle
+  REAL ( dbl ), DIMENSION ( 3, 3 ) :: r_rattle
   
 !------------------------------------------------------------------------------
   
   CALL timeset( 'RATTLE_ROLL','I',' ',handle)
+ 
+! setting up for roll
+  IF ( simpar % ensemble == 'NPT_I' ) THEN
+     CALL get_roll_matrix ('RATTLE', v_shake=r_rattle, vector_v=vector )
+  ELSE IF ( simpar % ensemble == 'NPT_F' ) THEN
+     CALL get_roll_matrix ('RATTLE', v_shake=r_rattle, vector_v=vector, u=u )
+  END IF
   
 ! initialize locals
   irattle = 0
   nmol = SIZE ( molecule )
   max_sigma = -1.0E+10_dbl
+
   
 ! Initialize scale and r_rattle
   CONS: DO WHILE (abs(max_sigma)>=simpar%shake_tol)
      irattle = irattle + 1
      max_sigma = 0._dbl
      MOL: DO imol = 1, nmol
-        IF (molecule(imol)%ndistconst_mol /= 0 ) THEN
+        IF ( molecule ( imol ) % ndistconst_mol /= 0 ) THEN
            
 ! dist
-           CALL rattle_roll(molecule(imol),simpar,veps,max_sigma,irattle)
-        ELSE IF (molecule(imol)%ng3x3const_mol /= 0 ) THEN
+           CALL rattle_roll ( molecule ( imol ), simpar, r_rattle, veps, &
+	                     max_sigma, irattle )
+        ELSE IF ( molecule ( imol ) % ng3x3const_mol /= 0 ) THEN
            
 ! 3x3
-           CALL rattle_roll_3x3(molecule(imol),simpar,veps,max_sigma,irattle)
+           CALL rattle_roll_3x3 ( molecule ( imol ), simpar, r_rattle, veps, &
+	                          max_sigma, irattle )
         END IF
      END DO MOL
      
 ! update veps
      IF ( irattle /= 1 ) CALL update_veps ( molecule, &
-          veps, thermo, simpar % ensemble, group )
+          veps, mass, thermo, simpar % ensemble, simpar % dt, group )
   END DO CONS
   
-  CALL check_tol ( roll_tol, iroll, 'RATTLE', molecule = molecule )
-  CALL pv_constraint ( molecule, thermo, 'FULL', group )
-  
+  CALL check_tol ( roll_tol, iroll, 'RATTLE', veps = veps )
+
   CALL timestop ( 0.0_dbl, handle )
-  
+
 END SUBROUTINE rattle_roll_control
 
 !******************************************************************************
@@ -372,14 +381,14 @@ END SUBROUTINE shake_3x3
 
 !******************************************************************************
 
-SUBROUTINE shake_roll_3x3(molecule,simpar,r_shake,ishake)
+SUBROUTINE shake_roll_3x3(molecule,simpar,r_shake,v_shake,ishake)
   
   IMPLICIT NONE
   
 ! Arguments
   TYPE (molecule_structure_type ), INTENT ( INOUT ) :: molecule
   TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: r_shake
+  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: r_shake, v_shake
   INTEGER, INTENT ( OUT ) :: ishake
   
 ! Locals
@@ -387,8 +396,8 @@ SUBROUTINE shake_roll_3x3(molecule,simpar,r_shake,ishake)
   REAL ( dbl ) :: sigma, max_sigma
   REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, vec, bvec
   REAL ( dbl ), DIMENSION(3) :: r0_12, r0_23, r0_13
-  REAL ( dbl ), DIMENSION(3) :: r1, r2, r3, v1, v2, v3, fc1, fc2, fc3, f_roll1, &
-       f_roll2, f_roll3
+  REAL ( dbl ), DIMENSION(3) :: r1, r2, r3, v1, v2, v3, fc1, fc2, fc3,  &
+  f_roll1, f_roll2, f_roll3
   REAL ( dbl ), DIMENSION(3,3) :: amat, ainv
   TYPE (linklist_g3x3_constraints), POINTER :: llconst
   INTEGER :: info, iconst
@@ -414,9 +423,9 @@ SUBROUTINE shake_roll_3x3(molecule,simpar,r_shake,ishake)
      llconst%fc3 = -2._dbl*(llconst%rold2-llconst%rold3)
      
 ! rotate fconst:  
-     f_roll1 = matvec_3x3(r_shake,llconst%fc1)
-     f_roll2 = matvec_3x3(r_shake,llconst%fc2)
-     f_roll3 = matvec_3x3(r_shake,llconst%fc3)
+     f_roll1 = matvec_3x3 ( r_shake, llconst % fc1 )
+     f_roll2 = matvec_3x3 ( r_shake, llconst % fc2 )
+     f_roll3 = matvec_3x3 ( r_shake, llconst % fc3 )
      
 ! construct matrix
      amat(1,1)=(imass1+imass2)*DOTPROD_3D(r0_12,f_roll1)
@@ -455,19 +464,19 @@ SUBROUTINE shake_roll_3x3(molecule,simpar,r_shake,ishake)
         CALL getinv3x3 ( amat, ainv )
         
 ! get lambda
-        llconst%lambda ( : )=MATVEC_3x3(ainv,bvec)
-        fc1=llconst%lambda(1)*f_roll1+ &
-             llconst%lambda(2)*f_roll2
-        fc2=-llconst%lambda(1)*f_roll1+ &
-             llconst%lambda(3)*f_roll3
-        fc3=-llconst%lambda(2)*f_roll2- &
-             llconst%lambda(3)*f_roll3
-        r1 = llconst%p1%r + imass1*dtsqby2*fc1
-        r2 = llconst%p2%r + imass2*dtsqby2*fc2
-        r3 = llconst%p3%r + imass3*dtsqby2*fc3
-        v1 = llconst%p1%v + imass1*dtby2*fc1
-        v2 = llconst%p2%v + imass2*dtby2*fc2
-        v3 = llconst%p3%v + imass3*dtby2*fc3
+        llconst%lambda ( : ) = MATVEC_3x3 ( ainv, bvec )
+        fc1=llconst%lambda(1)*llconst%fc1+ &
+             llconst%lambda(2)*llconst%fc2
+        fc2=-llconst%lambda(1)*llconst%fc1+ &
+             llconst%lambda(3)*llconst%fc3
+        fc3=-llconst%lambda(2)*llconst%fc2- &
+             llconst%lambda(3)*llconst%fc3
+        r1 = llconst%p1%r + imass1*dtsqby2*MATVEC_3X3 ( r_shake, fc1 )
+        r2 = llconst%p2%r + imass2*dtsqby2*MATVEC_3X3 ( r_shake, fc2 )
+        r3 = llconst%p3%r + imass3*dtsqby2*MATVEC_3X3 ( r_shake, fc3 )
+        v1 = llconst%p1%v + imass1*dtby2*MATVEC_3X3 ( v_shake, fc1 )
+        v2 = llconst%p2%v + imass2*dtby2*MATVEC_3X3 ( v_shake, fc2 )
+        v3 = llconst%p3%v + imass3*dtby2*MATVEC_3X3 ( v_shake, fc3 )
         r12=r1-r2
         r13=r1-r3
         r23=r2-r3
@@ -498,7 +507,7 @@ END SUBROUTINE shake_roll_3x3
 
 !******************************************************************************
 
-SUBROUTINE rattle_roll_3x3(molecule,simpar,veps,max_sigma,irattle)
+SUBROUTINE rattle_roll_3x3(molecule,simpar,r_rattle,veps,max_sigma,irattle)
   
   IMPLICIT NONE
   
@@ -508,6 +517,7 @@ SUBROUTINE rattle_roll_3x3(molecule,simpar,veps,max_sigma,irattle)
   REAL ( dbl ), INTENT ( INOUT ) :: max_sigma
   INTEGER, INTENT ( IN ) :: irattle
   REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: veps
+  REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: r_rattle
   
 ! Locals
   INTEGER :: iconst, info
@@ -516,8 +526,6 @@ SUBROUTINE rattle_roll_3x3(molecule,simpar,veps,max_sigma,irattle)
   REAL ( dbl ), DIMENSION(3) :: f_roll1, f_roll2, f_roll3
   REAL ( dbl ), DIMENSION(3) :: v12_0, v23_0, v13_0
   REAL ( dbl ), DIMENSION(3) :: v12, v23, v13
-  REAL ( dbl ), DIMENSION(3) :: v1, v2, v3
-  REAL ( dbl ), DIMENSION(3) :: v1_0, v2_0, v3_0
   REAL ( dbl ), DIMENSION(3) :: fc1, fc2, fc3, lambda
   REAL ( dbl ), DIMENSION(3,3) :: amat, ainv
   TYPE (linklist_g3x3_constraints), POINTER :: llconst
@@ -528,23 +536,26 @@ SUBROUTINE rattle_roll_3x3(molecule,simpar,veps,max_sigma,irattle)
   idt = 1._dbl/simpar%dt
   dtby2 = simpar%dt*.5_dbl
   IF (irattle==1) THEN
-     llconst => molecule%ll_g3x3_const
-     DO iconst = 1, molecule%ng3x3const_mol
-        llconst%vold1=llconst%p1%v
-        llconst%vold2=llconst%p2%v
-        llconst%vold3=llconst%p3%v
-        imass1 = 1._dbl/llconst%p1%prop%mass
-        imass2 = 1._dbl/llconst%p2%prop%mass
-        imass3 = 1._dbl/llconst%p3%prop%mass
+     llconst => molecule % ll_g3x3_const
+     DO iconst = 1, molecule % ng3x3const_mol
+        llconst % vold1 = llconst % p1 % v
+        llconst % vold2 = llconst % p2 % v
+        llconst % vold3 = llconst % p3 % v
+        imass1 = 1._dbl / llconst % p1 % prop % mass
+        imass2 = 1._dbl / llconst % p2 % prop % mass
+        imass3 = 1._dbl / llconst % p3 % prop % mass
+        llconst%fc1 = -2._dbl*(llconst%p1%r-llconst%p2%r)
+        llconst%fc2 = -2._dbl*(llconst%p1%r-llconst%p3%r)
+        llconst%fc3 = -2._dbl*(llconst%p2%r-llconst%p3%r)
         fc1=llconst%lambda(1)*llconst%fc1+ &
              llconst%lambda(2)*llconst%fc2
         fc2=-llconst%lambda(1)*llconst%fc1+ &
              llconst%lambda(3)*llconst%fc3
         fc3=-llconst%lambda(2)*llconst%fc2- &
              llconst%lambda(3)*llconst%fc3
-        llconst%p1%v=llconst%p1%v+imass1*dtby2*fc1
-        llconst%p2%v=llconst%p2%v+imass2*dtby2*fc2
-        llconst%p3%v=llconst%p3%v+imass3*dtby2*fc3
+        llconst%p1%v=llconst%p1%v+imass1*dtby2*MATVEC_3X3 ( r_rattle, fc1 )
+        llconst%p2%v=llconst%p2%v+imass2*dtby2*MATVEC_3X3 ( r_rattle, fc2 )
+        llconst%p3%v=llconst%p3%v+imass3*dtby2*MATVEC_3X3 ( r_rattle, fc3 )
         llconst => llconst%next
      END DO
      max_sigma = -1.0E+10_dbl
@@ -559,14 +570,6 @@ SUBROUTINE rattle_roll_3x3(molecule,simpar,veps,max_sigma,irattle)
         r12=llconst%p1%r-llconst%p2%r
         r13=llconst%p1%r-llconst%p3%r
         r23=llconst%p2%r-llconst%p3%r
-        
-! roll the local velocities
-        v12_0=matvec_3x3(r_rattle,v12_0)*llconst%scale
-        v13_0=matvec_3x3(r_rattle,v13_0)*llconst%scale
-        v23_0=matvec_3x3(r_rattle,v23_0)*llconst%scale
-        v1_0=matvec_3x3(r_rattle,llconst%vold1)*llconst%scale
-        v2_0=matvec_3x3(r_rattle,llconst%vold2)*llconst%scale
-        v3_0=matvec_3x3(r_rattle,llconst%vold3)*llconst%scale
         imass1 = 1._dbl/llconst%p1%prop%mass
         imass2 = 1._dbl/llconst%p2%prop%mass
         imass3 = 1._dbl/llconst%p3%prop%mass
@@ -575,9 +578,9 @@ SUBROUTINE rattle_roll_3x3(molecule,simpar,veps,max_sigma,irattle)
         llconst%fc3 = -2._dbl*(llconst%p2%r-llconst%p3%r)
         
 ! roll the fc
-        f_roll1=matvec_3x3(r_rattle,llconst%fc1)*llconst%scale
-        f_roll2=matvec_3x3(r_rattle,llconst%fc2)*llconst%scale
-        f_roll3=matvec_3x3(r_rattle,llconst%fc3)*llconst%scale
+        f_roll1 = MATVEC_3x3 ( r_rattle, llconst % fc1 )
+        f_roll2 = MATVEC_3x3 ( r_rattle, llconst % fc2 )
+        f_roll3 = MATVEC_3x3 ( r_rattle, llconst % fc3 )
         
 ! construct matrix
         amat(1,1)=(imass1+imass2)*DOTPROD_3D(r12,f_roll1)
@@ -591,52 +594,43 @@ SUBROUTINE rattle_roll_3x3(molecule,simpar,veps,max_sigma,irattle)
         amat(3,3)=(imass2+imass3)*DOTPROD_3D(r23,f_roll3)
         
 ! construct solution vector
-        bvec(1)=DOTPROD_3D(r12,v12_0+MATVEC_3X3(veps,r12))
-        bvec(2)=DOTPROD_3D(r13,v13_0+MATVEC_3X3(veps,r13))
-        bvec(3)=DOTPROD_3D(r23,v23_0+MATVEC_3X3(veps,r23))
+        bvec ( 1 ) = DOTPROD_3D ( r12, v12_0 + MATVEC_3X3 ( veps, r12 ) )
+        bvec ( 2 ) = DOTPROD_3D ( r13, v13_0 + MATVEC_3X3 ( veps, r13 ) )
+        bvec ( 3 ) = DOTPROD_3D ( r23, v23_0 + MATVEC_3X3 ( veps, r23 ) )
         bvec = -bvec * 2.0_dbl * idt
         
 ! find inverse of amat
         CALL getinv3x3 ( amat, ainv )
         
 ! get lambda
-        lambda ( : )=MATVEC_3X3(ainv,bvec)
-        llconst%del_lam=lambda-llconst%lambda
+        lambda ( : ) = MATVEC_3X3 ( ainv, bvec )
+        llconst % del_lam = lambda - llconst % lambda
         
-! update local velocities for calculation of sigma_dot
-! NOTE: use full multiplier because always starting
-! from reference velocity, v1_0, v2_0, v3_0.
-        fc1=llconst%lambda(1)*f_roll1+ &
-             llconst%lambda(2)*f_roll2
-        fc2=-llconst%lambda(1)*f_roll1+ &
-             llconst%lambda(3)*f_roll3
-        fc3=-llconst%lambda(2)*f_roll2- &
-             llconst%lambda(3)*f_roll3
-        v1=v1_0+imass1*dtby2*fc1
-        v2=v2_0+imass2*dtby2*fc2
-        v3=v3_0+imass3*dtby2*fc3
-        
-! update true velocities
-        fc1=llconst%del_lam(1)*llconst%fc1+ &
-             llconst%del_lam(2)*llconst%fc2
-        fc2=-llconst%del_lam(1)*llconst%fc1+ &
-             llconst%del_lam(3)*llconst%fc3
-        fc3=-llconst%del_lam(2)*llconst%fc2- &
-             llconst%del_lam(3)*llconst%fc3
-        llconst%p1%v=llconst%p1%v+imass1*dtby2*fc1
-        llconst%p2%v=llconst%p2%v+imass2*dtby2*fc2
-        llconst%p3%v=llconst%p3%v+imass3*dtby2*fc3
+! update velocities
+        fc1 = llconst % del_lam ( 1 ) * f_roll1 + &
+              llconst % del_lam ( 2 ) * f_roll2
+        fc2 = -llconst % del_lam ( 1 ) * f_roll1 + &
+               llconst % del_lam ( 3 ) * f_roll3
+        fc3 = -llconst % del_lam ( 2 ) * f_roll2 - &
+               llconst % del_lam ( 3 ) * f_roll3
+ 
+        llconst % p1 % v = llconst % p1 % v + imass1 * dtby2 * fc1
+        llconst % p2 % v = llconst % p2 % v + imass2 * dtby2 * fc2
+        llconst % p3 % v = llconst % p3 % v + imass3 * dtby2 * fc3
         
 ! computing the convergence of the sigma_dot
-        v12=v1-v2
+        v12 = llconst % p1 % v - llconst % p2 % v
         sigma_dot=2._dbl*DOTPROD_3D(r12,v12+MATVEC_3X3(veps,r12))
-        max_sigma = MAX(abs(sigma_dot),max_sigma)
-        v13=v1-v3
+        max_sigma = MAX(ABS(sigma_dot),max_sigma)
+
+        v13=llconst%p1%v-llconst%p3%v
         sigma_dot=2._dbl*DOTPROD_3D(r13,v13+MATVEC_3X3(veps,r13))
-        max_sigma = MAX(abs(sigma_dot),max_sigma)
-        v23=v2-v3
+        max_sigma = MAX(ABS(sigma_dot),max_sigma)
+
+        v23=llconst%p2%v-llconst%p3%v
         sigma_dot=2._dbl*DOTPROD_3D(r23,v23+MATVEC_3X3(veps,r23))
-        max_sigma = MAX(abs(sigma_dot),max_sigma)
+        max_sigma = MAX(ABS(sigma_dot),max_sigma)
+
         llconst%lambda=lambda
         llconst => llconst%next
      END DO
@@ -886,7 +880,7 @@ END SUBROUTINE rattle
 
 !******************************************************************************
 
-SUBROUTINE rattle_roll(molecule,simpar,veps,max_sigma,irattle)
+SUBROUTINE rattle_roll(molecule,simpar,r_rattle,veps,max_sigma,irattle)
 
 ! updates the multiplier one molecule type at a time
   
@@ -896,103 +890,81 @@ SUBROUTINE rattle_roll(molecule,simpar,veps,max_sigma,irattle)
   TYPE (molecule_structure_type ), INTENT ( INOUT ) :: molecule
   TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
   REAL ( dbl ), INTENT ( INOUT ) :: max_sigma
+  REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: r_rattle
   INTEGER, INTENT ( IN ) :: irattle
   REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: veps
   
 ! Locals
   REAL ( dbl ) :: dtby2, imass1, imass2, fdotf, fdotf_sum, del_lam
   REAL ( dbl ), DIMENSION (3) :: r12, v12, f_roll
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: v1, v2
   TYPE (linklist_dist_constraints), POINTER :: llconst
   INTEGER :: imol, iconst, isos
   
 !------------------------------------------------------------------------------
   
 ! define local variables
-  dtby2 = simpar%dt*.5_dbl
-  IF (irattle==1) THEN
-     llconst => molecule%ll_dist_const
-     DO iconst = 1, molecule%ndistconst_mol
-        imass1 = 1._dbl/llconst%p1%prop%mass
-        imass2 = 1._dbl/llconst%p2%prop%mass
-        llconst%fc = -2._dbl*(llconst%p1%r-llconst%p2%r)
+  dtby2 = simpar % dt * 0.5_dbl
+  IF ( irattle == 1 ) THEN
+     llconst => molecule % ll_dist_const
+     DO iconst = 1, molecule % ndistconst_mol
+        imass1 = 1._dbl / llconst % p1 % prop % mass
+        imass2 = 1._dbl / llconst % p2 % prop % mass
+        llconst % fc = -2._dbl * ( llconst % p1 % r - llconst % p2 % r )
         
 ! update velocites with full multiplier
-        llconst%p1%v = llconst%p1%v + imass1*dtby2*llconst%lambda*llconst% &
-             fc
-        llconst%p2%v = llconst%p2%v - imass2*dtby2*llconst%lambda*llconst% &
-             fc
-        llconst => llconst%next
+        llconst % p1 % v = llconst % p1 % v + imass1 * dtby2 *  &
+	          llconst % lambda * MATVEC_3X3 ( r_rattle, llconst% fc )
+        llconst % p2 % v = llconst % p2 % v - imass2 * dtby2 *  &
+	          llconst % lambda * MATVEC_3X3 ( r_rattle, llconst% fc )
+        llconst => llconst % next
      END DO
      max_sigma = -1.E+10_dbl
      
   ELSE
-     llconst => molecule%ll_dist_const
+     llconst => molecule % ll_dist_const
      
-! allocating local vs
-     ALLOCATE (v1(3,molecule%ndistconst_mol),STAT=isos)
-     IF ( isos /= 0 ) CALL stop_prg( 'rattle_roll','failed to allocate v1')
-     ALLOCATE (v2(3,molecule%ndistconst_mol),STAT=isos)
-     IF ( isos /= 0 ) CALL stop_prg( 'rattle_roll','failed to allocate v2')
-     
-     DO iconst = 1, molecule%ndistconst_mol
+     DO iconst = 1, molecule % ndistconst_mol
         
 ! assign local variable
-        v1(:,iconst) = llconst%p1%v
-        v2(:,iconst) = llconst%p2%v
-        r12 = llconst%p1%r - llconst%p2%r
+
+        r12 = llconst % p1 % r - llconst % p2 % r
         
-! Roll the local vs and fc
-        v1(:,iconst) = matvec_3x3(r_rattle ( :, : ),v1(:,iconst))
-        v2(:,iconst) = matvec_3x3(r_rattle ( :, : ),v2(:,iconst))
-        v1(:,iconst) = v1(:,iconst)*llconst%scale
-        v2(:,iconst) = v2(:,iconst)*llconst%scale
-        llconst%fc = -2._dbl*r12
-        f_roll = matvec_3x3(r_rattle,llconst%fc)
-        f_roll = f_roll*llconst%scale
+! Roll fc
+
+        llconst % fc = -2._dbl * r12
+        f_roll = MATVEC_3x3 ( r_rattle, llconst % fc )
         
 ! computing sigma
-        v12 ( : ) = v1(:,iconst) + matvec_3x3(veps,llconst%p1%r) &
-             - v2(:,iconst) - matvec_3x3(veps,llconst%p2%r)
-        llconst%sigma = 2._dbl*dot_product(r12,v12)
-        imass1 = 1._dbl/llconst%p1%prop%mass
-        imass2 = 1._dbl/llconst%p2%prop%mass
-        fdotf = dot_product(f_roll,llconst%fc)
-        fdotf_sum = fdotf*imass1 + fdotf*imass2
-        llconst%del_lam = 2._dbl*llconst%sigma/(simpar%dt*fdotf_sum)
-        llconst%lambda = llconst%lambda + llconst%del_lam
-        
-!update local velocities with del_lam
-        v1(:,iconst) = v1(:,iconst) &
-             + imass1*dtby2*llconst%del_lam*f_roll ( : )
-        v2(:,iconst) = v2(:,iconst) &
-             - imass2*dtby2*llconst%del_lam*f_roll ( : )
+        v12 ( : ) = llconst % p1 % v + MATVEC_3X3 ( veps, llconst % p1 % r ) &
+             - llconst % p2 % v - MATVEC_3X3 ( veps, llconst % p2 % r )
+        llconst % sigma = 2._dbl * DOTPROD_3D ( r12, v12 )
+        imass1 = 1._dbl / llconst % p1 % prop % mass
+        imass2 = 1._dbl / llconst % p2 % prop % mass
+        fdotf = DOTPROD_3D (f_roll, llconst % fc )
+        fdotf_sum = fdotf * imass1 + fdotf * imass2
+        llconst % del_lam = 2._dbl * llconst % sigma / ( simpar % dt * fdotf_sum )
+        llconst % lambda = llconst % lambda + llconst % del_lam
         
 !update true velocites with del_lam
-        llconst%p1%v = llconst%p1%v + imass1*dtby2*llconst%del_lam*llconst &
-             %fc
-        llconst%p2%v = llconst%p2%v - imass2*dtby2*llconst%del_lam*llconst &
-             %fc
-        llconst => llconst%next
+        llconst % p1 % v = llconst % p1 % v + imass1 * dtby2 *  &
+	                   llconst % del_lam * f_roll
+        llconst % p2 % v = llconst % p2 % v - imass2 * dtby2 *  &
+	                   llconst % del_lam * f_roll
+        llconst => llconst % next
      END DO
      
-! computing the constraint and value of the tolerance with local vs
-     llconst => molecule%ll_dist_const
-     DO iconst = 1, molecule%ndistconst_mol
+! computing the constraint and value of the tolerance
+     llconst => molecule % ll_dist_const
+     DO iconst = 1, molecule % ndistconst_mol
         
 ! computing the updated constraint
-        r12 = llconst%p1%r - llconst%p2%r
-        v12 ( : ) = v1(:,iconst)-v2(:,iconst) 
-        llconst%sigma = 2._dbl*DOTPROD_3D(r12,v12+MATVEC_3X3(veps,r12))
-        max_sigma = max(abs(llconst%sigma),max_sigma)
-        llconst => llconst%next
+        r12 = llconst % p1 % r - llconst % p2 % r
+        v12 ( : ) = llconst % p1 % v + MATVEC_3X3 ( veps, llconst % p1 % r ) &
+             - llconst % p2 % v - MATVEC_3X3 ( veps, llconst % p2 % r )
+        llconst % sigma = 2._dbl * DOTPROD_3D ( r12, v12 )
+        max_sigma = MAX ( ABS ( llconst % sigma ), max_sigma )
+        llconst => llconst % next
      END DO
-     
-     DEALLOCATE (v1,STAT=isos)
-     IF ( isos /= 0 ) CALL stop_prg( 'rattle_roll','failed to deallocate v1')
-     DEALLOCATE (v2,STAT=isos)
-     IF ( isos /= 0 ) CALL stop_prg( 'rattle_roll','failed to deallocate v2')
-     
   END IF
   
 END SUBROUTINE rattle_roll
@@ -1015,28 +987,28 @@ SUBROUTINE getold(molecule)
   
 ! saves all of the old variables
   DO imol = 1, size(molecule)
-     ll_dist => molecule(imol) %ll_dist_const
-     DO iconst = 1, molecule(imol) %ndistconst_mol
-        ll_dist%rold1(1) = ll_dist%p1%r(1)
-        ll_dist%rold1(2) = ll_dist%p1%r(2)
-        ll_dist%rold1(3) = ll_dist%p1%r(3)
-        ll_dist%rold2(1) = ll_dist%p2%r(1)
-        ll_dist%rold2(2) = ll_dist%p2%r(2)
-        ll_dist%rold2(3) = ll_dist%p2%r(3)
+     ll_dist => molecule(imol) % ll_dist_const
+     DO iconst = 1, molecule(imol) % ndistconst_mol
+        ll_dist % rold1 ( 1 ) = ll_dist % p1 % r ( 1 )
+        ll_dist % rold1 ( 2 ) = ll_dist % p1 % r ( 2 )
+        ll_dist % rold1 ( 3 ) = ll_dist % p1 % r ( 3 )
+        ll_dist % rold2 ( 1 ) = ll_dist % p2 % r ( 1 )
+        ll_dist % rold2 ( 2 ) = ll_dist % p2 % r ( 2 )
+        ll_dist % rold2 ( 3 ) = ll_dist % p2 % r ( 3 )
         ll_dist => ll_dist%next
      END DO
      
-     ll_g3x3 => molecule(imol) %ll_g3x3_const
-     DO iconst = 1, molecule(imol) %ng3x3const_mol
-        ll_g3x3%rold1(1) = ll_g3x3%p1%r(1)
-        ll_g3x3%rold1(2) = ll_g3x3%p1%r(2)
-        ll_g3x3%rold1(3) = ll_g3x3%p1%r(3)
-        ll_g3x3%rold2(1) = ll_g3x3%p2%r(1)
-        ll_g3x3%rold2(2) = ll_g3x3%p2%r(2)
-        ll_g3x3%rold2(3) = ll_g3x3%p2%r(3)
-        ll_g3x3%rold3(1) = ll_g3x3%p3%r(1)
-        ll_g3x3%rold3(2) = ll_g3x3%p3%r(2)
-        ll_g3x3%rold3(3) = ll_g3x3%p3%r(3)
+     ll_g3x3 => molecule(imol) % ll_g3x3_const
+     DO iconst = 1, molecule(imol) % ng3x3const_mol
+        ll_g3x3 % rold1 ( 1 ) = ll_g3x3 % p1 % r ( 1 )
+        ll_g3x3 % rold1 ( 2 ) = ll_g3x3 % p1 % r ( 2 )
+        ll_g3x3 % rold1 ( 3 ) = ll_g3x3 % p1 % r ( 3 )
+        ll_g3x3 % rold2 ( 1 ) = ll_g3x3 % p2 % r ( 1 )
+        ll_g3x3 % rold2 ( 2 ) = ll_g3x3 % p2 % r ( 2 )
+        ll_g3x3 % rold2 ( 3 ) = ll_g3x3 % p2 % r ( 3 )
+        ll_g3x3 % rold3 ( 1 ) = ll_g3x3 % p3 % r ( 1 )
+        ll_g3x3 % rold3 ( 2 ) = ll_g3x3 % p3 % r ( 2 )
+        ll_g3x3 % rold3 ( 3 ) = ll_g3x3 % p3 % r ( 3 )
         ll_g3x3 => ll_g3x3%next
      END DO
      
@@ -1185,7 +1157,7 @@ END SUBROUTINE pv_constraint
 
 !******************************************************************************
 
-SUBROUTINE shake_roll(molecule,simpar,r_shake,max_sigma,ishake)
+SUBROUTINE shake_roll(molecule,simpar,r_shake,v_shake,max_sigma,ishake)
   
 ! updates the multiplier one molecule type at a time
   IMPLICIT NONE
@@ -1194,12 +1166,12 @@ SUBROUTINE shake_roll(molecule,simpar,r_shake,max_sigma,ishake)
   TYPE (molecule_structure_type ), INTENT ( INOUT ) :: molecule
   TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
   REAL ( dbl ), INTENT ( INOUT ) :: max_sigma
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: r_shake
+  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: r_shake, v_shake
   INTEGER, INTENT ( IN ) :: ishake
   
 ! Locals
   REAL ( dbl ) :: dtsqby2, dtby2, imass1, imass2, fdotf, fdotf_sum
-  REAL ( dbl ), DIMENSION (3) :: fc_t, r12, f_roll
+  REAL ( dbl ), DIMENSION (3) :: fc_t, r12, f_roll_r, f_roll_v
   TYPE (linklist_dist_constraints), POINTER :: llconst
   INTEGER :: imol, iconst
   
@@ -1216,17 +1188,16 @@ SUBROUTINE shake_roll(molecule,simpar,r_shake,max_sigma,ishake)
         llconst%fc = -2._dbl*(llconst%rold1-llconst%rold2)
         
 ! rotate fconst:  
-        f_roll = matvec_3x3(r_shake,llconst%fc)
+        f_roll_r = MATVEC_3X3 ( r_shake, llconst % fc )
+        f_roll_v = MATVEC_3X3 ( v_shake, llconst % fc )
         
 ! update positions with full multiplier
-        llconst%p1%r = llconst%p1%r + imass1*dtsqby2*llconst%lambda*f_roll
-        llconst%p2%r = llconst%p2%r - imass2*dtsqby2*llconst%lambda*f_roll
+        llconst%p1%r = llconst%p1%r + imass1*dtsqby2*llconst%lambda*f_roll_r
+        llconst%p2%r = llconst%p2%r - imass2*dtsqby2*llconst%lambda*f_roll_r
         
 ! update velocites with full multiplier
-        llconst%p1%v = llconst%p1%v + imass1*dtby2*llconst%lambda*llconst% &
-             fc
-        llconst%p2%v = llconst%p2%v - imass2*dtby2*llconst%lambda*llconst% &
-             fc
+        llconst%p1%v = llconst%p1%v + imass1*dtby2*llconst%lambda*f_roll_v
+        llconst%p2%v = llconst%p2%v - imass2*dtby2*llconst%lambda*f_roll_v
         llconst => llconst%next
      END DO
      
@@ -1236,9 +1207,9 @@ SUBROUTINE shake_roll(molecule,simpar,r_shake,max_sigma,ishake)
      DO iconst = 1, molecule%ndistconst_mol
         
 ! computing the constraint
-        r12 = llconst%p1%r - llconst%p2%r
-        llconst%sigma = dot_product(r12,r12) - llconst%distance*llconst% &
-             distance
+        r12 = llconst % p1 % r - llconst % p2 % r
+        llconst%sigma = DOTPROD_3D ( r12, r12 ) - &
+	               llconst % distance * llconst % distance
         
 ! computing fc(dt)
         fc_t = -2._dbl*(llconst%p1%r-llconst%p2%r)
@@ -1246,24 +1217,23 @@ SUBROUTINE shake_roll(molecule,simpar,r_shake,max_sigma,ishake)
         imass2 = 1._dbl/llconst%p2%prop%mass
         
 ! rotate fc: 
-        f_roll = matvec_3x3(r_shake,llconst%fc)
-        fdotf = dot_product(f_roll,fc_t)
-        fdotf_sum = fdotf*imass1 + fdotf*imass2
+        f_roll_r = MATVEC_3X3 ( r_shake, llconst % fc )
+        f_roll_v = MATVEC_3X3 ( v_shake, llconst % fc )
+        fdotf = DOTPROD_3D ( f_roll_r, fc_t )
+        fdotf_sum = fdotf * imass1 + fdotf * imass2
         llconst%del_lam = 2._dbl*llconst%sigma/(simpar%dt*simpar%dt* &
              fdotf_sum)
-        llconst%lambda = llconst%lambda + llconst%del_lam
+        llconst % lambda = llconst % lambda + llconst % del_lam
         
 ! update positions by delta_lam
         llconst%p1%r = llconst%p1%r + imass1*dtsqby2*llconst%del_lam* &
-             f_roll
+             f_roll_r
         llconst%p2%r = llconst%p2%r - imass2*dtsqby2*llconst%del_lam* &
-             f_roll
+             f_roll_r
         
 ! update velocites by delta_lam
-        llconst%p1%v = llconst%p1%v + imass1*dtby2*llconst%del_lam*llconst &
-             %fc
-        llconst%p2%v = llconst%p2%v - imass2*dtby2*llconst%del_lam*llconst &
-             %fc
+        llconst%p1%v = llconst%p1%v + imass1*dtby2*llconst%del_lam*f_roll_v
+        llconst%p2%v = llconst%p2%v - imass2*dtby2*llconst%del_lam*f_roll_v
         
         llconst => llconst%next
      END DO
@@ -1271,256 +1241,146 @@ SUBROUTINE shake_roll(molecule,simpar,r_shake,max_sigma,ishake)
   END IF
   
 ! computing the constraint and value of tolerance 
-  llconst => molecule%ll_dist_const
-  DO iconst = 1, molecule%ndistconst_mol
-     r12 = llconst%p1%r - llconst%p2%r
-     llconst%sigma = dot_product(r12,r12) - llconst%distance*llconst% &
-          distance
-     max_sigma = max(abs(llconst%sigma),max_sigma)
-     llconst => llconst%next
+  llconst => molecule % ll_dist_const
+  DO iconst = 1, molecule % ndistconst_mol
+     r12 = llconst % p1 % r - llconst % p2 % r
+     llconst%sigma = DOTPROD_3D ( r12, r12 ) -  &
+                     llconst % distance * llconst % distance
+     max_sigma = MAX ( ABS ( llconst % sigma ), max_sigma )
+     llconst => llconst % next
   END DO
 END SUBROUTINE shake_roll
 
 !******************************************************************************
 
-SUBROUTINE roll(molecule,veps,veta,wb,dt,nnhc,nfree,eval,u)
-  
-  IMPLICIT NONE
-  
-! Arguments
-  TYPE (molecule_structure_type ), INTENT ( INOUT ), DIMENSION ( : ) :: molecule
-  REAL ( dbl ), INTENT ( INOUT ), DIMENSION ( :, : ) :: veta, veps, wb
-  REAL ( dbl ), INTENT ( IN ) :: dt
-  INTEGER, INTENT ( IN ) :: nfree, nnhc
-  REAL ( dbl ), INTENT ( IN ), OPTIONAL, DIMENSION ( :, : ) :: u
-  REAL ( dbl ), INTENT ( IN ), OPTIONAL, DIMENSION ( : ) :: eval
-  
-! Locals
-  REAL ( dbl ) :: aa, bb, infree, trvg
-  REAL ( dbl ), DIMENSION (3,3) :: roll_local, diag
-  TYPE (linklist_dist_constraints), POINTER :: llconst
-  TYPE (linklist_g3x3_constraints), POINTER :: ll3x3
-  INTEGER :: imol, iconst
-  
-!------------------------------------------------------------------------------
-  
-  infree = 1.0_dbl / REAL ( nfree, dbl )
-  
-! updating the scale factor for barostat velocity
-  aa = exp(-.125_dbl*dt*veta(1,nnhc))
-  bb = exp(-3._dbl*.125_dbl*dt*veta(1,nnhc))
-  scale = scale*aa*aa*aa*aa + (aa+bb)*.25_dbl*dt/wb(1,1)
-  
-! updating the roll matrix for the velocities
-  IF ( PRESENT ( u)) THEN
-     diag = 0._dbl
-     diag(1,1) = eval(1)
-     diag(2,2) = eval(2)
-     diag(3,3) = eval(3)
-     trvg = infree*(veps(1,1)+veps(2,2)+veps(3,3))
-     roll_local = matmul_3x3(matmul_3x3(u,diag),transpose_3d(u))
-     r_rattle = matmul_3x3(roll_local,r_rattle)
-     
-     DO imol = 1, size(molecule)
-        
-! dist
-        llconst => molecule(imol) %ll_dist_const
-        DO iconst = 1, molecule(imol) %ndistconst_mol
-           llconst%scale = llconst%scale*exp(-dt*(veta(1, &
-                molecule(imol)%nvt_num)+trvg))
-           llconst => llconst%next
-        END DO
-        
-! 3x3
-        ll3x3 => molecule(imol) %ll_g3x3_const
-        DO iconst = 1, molecule(imol) %ng3x3const_mol
-           ll3x3%scale = ll3x3%scale*exp(-dt*(veta(1, &
-                molecule(imol)%nvt_num)+trvg))
-           ll3x3 => ll3x3%next
-        END DO
-     END DO
-     
-  ELSE
-     
-     DO imol = 1, size(molecule)
-! dist
-        llconst => molecule(imol) %ll_dist_const
-        DO iconst = 1, molecule(imol) %ndistconst_mol
-           llconst%scale = llconst%scale*exp(-dt*(veta(1, &
-                molecule(imol)%nvt_num)+(1._dbl+3._dbl*infree)*veps(1,1)))
-           llconst => llconst%next
-        END DO
-        
-! 3x3
-        ll3x3 => molecule(imol) %ll_g3x3_const
-        DO iconst = 1, molecule(imol) %ng3x3const_mol
-           ll3x3%scale = ll3x3%scale*exp(-dt*(veta(1, &
-                molecule(imol)%nvt_num)+(1._dbl+3._dbl*infree)*veps(1,1)))
-           ll3x3 => ll3x3%next
-        END DO
-     END DO
-     
-  END IF
-  
-END SUBROUTINE roll
-
-!******************************************************************************
-
-SUBROUTINE check_tol(roll_tol,iroll,char,vector,molecule)
+SUBROUTINE check_tol(roll_tol,iroll,char,matrix,veps)
   
   IMPLICIT NONE
   
 ! Arguments
   REAL ( dbl ), INTENT ( OUT ) :: roll_tol
   INTEGER, INTENT ( INOUT ) :: iroll
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ), OPTIONAL :: vector
-  TYPE ( molecule_structure_type ), INTENT ( IN ), DIMENSION ( : ), &
-       OPTIONAL :: molecule
+  REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ), OPTIONAL :: matrix
+  REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ), OPTIONAL :: veps
   CHARACTER ( LEN = * ), INTENT ( IN ) :: char
   
 ! Locals
-  REAL ( dbl ), SAVE :: scale_old
-  REAL ( dbl ), DIMENSION (3), SAVE :: vector_old
-  REAL ( dbl ), DIMENSION (3,3), SAVE :: r_rattle_old
+  REAL ( dbl ), DIMENSION (3,3), SAVE :: matrix_old
+  REAL ( dbl ), DIMENSION (3,3), SAVE :: veps_old
   REAL ( dbl ), DIMENSION (3,3) :: diff_rattle
-  REAL ( dbl ), DIMENSION (3) :: diff_shake
+  REAL ( dbl ), DIMENSION (3,3) :: diff_shake
   REAL ( dbl ) :: local_tol
-  TYPE (linklist_dist_constraints), POINTER :: llconst
-  TYPE (linklist_g3x3_constraints), POINTER :: ll3x3
   INTEGER :: imol, iconst
   
 !------------------------------------------------------------------------------
   
-  SELECT CASE (char)
-  CASE ( 'SHAKE')
+  SELECT CASE ( char )
+  CASE ( 'SHAKE' )
      IF (iroll==1) THEN
-        vector_old = vector
+        matrix_old = matrix
         roll_tol = -1.E10_dbl
      ELSE
         roll_tol = 0._dbl
-        diff_shake = abs(vector_old-vector)
-        local_tol = maxval(diff_shake)
-        roll_tol = max(roll_tol,local_tol)
-        vector_old = vector
+        diff_shake = ABS ( matrix_old - matrix )
+        local_tol = MAXVAL ( diff_shake )
+        roll_tol = MAX ( roll_tol, local_tol )
+        matrix_old = matrix
      END IF
      iroll = iroll + 1
      
-  CASE ( 'RATTLE')
+  CASE ( 'RATTLE' )
      IF (iroll==1) THEN
-        scale_old = scale
-        r_rattle_old = r_rattle
-        DO imol = 1, size(molecule)
-           
-! dist
-           llconst => molecule(imol) %ll_dist_const
-           DO iconst = 1, molecule(imol) %ndistconst_mol
-              llconst%scale_old = llconst%scale
-              llconst => llconst%next
-           END DO
-           
-! 3x3
-           ll3x3 => molecule(imol) %ll_g3x3_const
-           DO iconst = 1, molecule(imol) %ng3x3const_mol
-              ll3x3%scale_old = ll3x3%scale
-              ll3x3 => ll3x3%next
-           END DO
-        END DO
+        veps_old = veps
         roll_tol = -1.E+10_dbl
-        
      ELSE
-        
         roll_tol = 0._dbl
         
-! compute tolerance on 
-        DO imol = 1, size(molecule)
-           
-! dist
-           llconst => molecule(imol) %ll_dist_const
-           DO iconst = 1, molecule(imol) %ndistconst_mol
-              local_tol = abs(llconst%scale-llconst%scale_old)
-              roll_tol = max(roll_tol,local_tol)
-              llconst%scale_old = llconst%scale
-              llconst => llconst%next
-           END DO
-           
-! 3x3
-           ll3x3 => molecule(imol) %ll_g3x3_const
-           DO iconst = 1, molecule(imol) %ng3x3const_mol
-              local_tol = abs(ll3x3%scale-ll3x3%scale_old)
-              roll_tol = max(roll_tol,local_tol)
-              ll3x3%scale_old = ll3x3%scale
-              ll3x3 => ll3x3%next
-           END DO
-           
-        END DO
-        
-        diff_rattle = abs(r_rattle-r_rattle_old)
-        local_tol = maxval(diff_rattle)
-        roll_tol = max(roll_tol,local_tol)
-        local_tol = abs(scale-scale_old)
-        roll_tol = max(roll_tol,local_tol)
+! compute tolerance on veps
+
+        diff_rattle = ABS ( veps - veps_old )
+        local_tol = MAXVAL ( diff_rattle )
+        roll_tol = MAX ( roll_tol, local_tol )
+	veps_old = veps
+
      END IF
-     
      iroll = iroll + 1
+
   END SELECT
   
 END SUBROUTINE check_tol
 
 !******************************************************************************
 
-SUBROUTINE initialize_roll(molecule)
+SUBROUTINE get_roll_matrix(char,r_shake,v_shake,vector_r,vector_v,u)
   
   IMPLICIT NONE
   
 ! Arguments
-  TYPE (molecule_structure_type ), INTENT ( INOUT ), DIMENSION ( : ) :: molecule
+  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ), OPTIONAL :: r_shake,v_shake
+  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ), OPTIONAL :: vector_r, vector_v
+  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ), OPTIONAL :: u
+  CHARACTER ( len = * ), INTENT ( IN ) :: char
   
 ! Locals
-  INTEGER :: imol, iconst
-  REAL ( dbl ), DIMENSION (3,3) :: unit
-  TYPE (linklist_dist_constraints), POINTER :: llconst
-  TYPE (linklist_g3x3_constraints), POINTER :: ll3x3
+  INTEGER :: i
+  REAL ( dbl ), DIMENSION (3,3) :: diag
   
 !------------------------------------------------------------------------------
   
-! initialize unit matrix
-  unit = 0._dbl
-  unit(1,1) = 1._dbl
-  unit(2,2) = 1._dbl
-  unit(3,3) = 1._dbl
+  IF ( PRESENT ( r_shake ) ) r_shake = 0.0_dbl
+  IF ( PRESENT ( v_shake ) ) v_shake = 0.0_dbl
+  diag = 0.0_dbl
   
-! initialize scale variable for veps
-  scale = 0._dbl
-  r_rattle = unit
+  SELECT CASE ( char )  
+  CASE ( 'SHAKE' )
+    IF ( PRESENT ( u ) .AND. PRESENT ( vector_v ) .AND.  &
+                             PRESENT ( vector_r ) ) THEN
+       diag ( 1, 1 ) = vector_r ( 1 )
+       diag ( 2, 2 ) = vector_r ( 2 )
+       diag ( 3, 3 ) = vector_r ( 3 )
+       r_shake = MATMUL_3X3 ( MATMUL_3X3 ( u, diag ),TRANSPOSE_3D ( u ) )
+       diag ( 1, 1 ) = vector_v ( 1 )
+       diag ( 2, 2 ) = vector_v ( 2 )
+       diag ( 3, 3 ) = vector_v ( 3 )
+       v_shake = MATMUL_3X3 ( MATMUL_3X3 ( u, diag ), TRANSPOSE_3D ( u ) )
+       diag = matmul_3x3 ( r_shake, v_shake ) 
+       r_shake = diag
+    ELSEIF ( .NOT. PRESENT ( u ) .AND. PRESENT ( vector_v ) .AND.  &
+                             PRESENT ( vector_r ) ) THEN
+       DO i = 1, 3
+          r_shake ( i, i ) = vector_r ( i ) * vector_v ( i )
+          v_shake ( i, i ) = vector_v ( i )
+       END DO
+    ELSE
+       CALL stop_prg ( "get_roll_matrix", "not sufficient parameters" )
+    END IF
+  CASE ( 'RATTLE' )
+    IF ( PRESENT ( u ) .AND. PRESENT ( vector_v ) ) THEN
+       diag ( 1, 1 ) = vector_v ( 1 )
+       diag ( 2, 2 ) = vector_v ( 2 )
+       diag ( 3, 3 ) = vector_v ( 3 )
+       v_shake = MATMUL_3x3 ( MATMUL_3X3 ( u, diag ), TRANSPOSE_3D ( u ) )
+    ELSEIF ( .NOT. PRESENT ( u ) .AND. PRESENT ( vector_v ) ) THEN
+       DO i = 1, 3
+          v_shake ( i, i ) = vector_v ( i )
+       END DO
+    ELSE
+       CALL stop_prg ( "get_roll_matrix", "not sufficient parameters" )
+    END IF
+  END SELECT
   
-! initialize r_rattle
-  DO imol = 1, SIZE ( molecule )
-     
-! dist
-     llconst => molecule(imol) %ll_dist_const
-     DO iconst = 1, molecule(imol) %ndistconst_mol
-        llconst%scale = 1._dbl
-        llconst => llconst%next
-     END DO
-     
-! 3x3
-     ll3x3 => molecule(imol) %ll_g3x3_const
-     DO iconst = 1, molecule(imol) %ng3x3const_mol
-        ll3x3%scale = 1._dbl
-        ll3x3 => ll3x3%next
-     END DO
-  END DO
-  
-END SUBROUTINE initialize_roll
+END SUBROUTINE get_roll_matrix
 
 !******************************************************************************
 
-SUBROUTINE update_veps ( molecule, veps, thermo, ensemble, group )
+SUBROUTINE update_veps ( molecule, veps, mass, thermo, ensemble, dt, group )
   
   IMPLICIT NONE
   
 ! Arguments
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( INOUT ) :: veps
+  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: mass
+  REAL ( dbl ), INTENT ( IN ) :: dt
   TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
   CHARACTER ( LEN = * ), INTENT ( IN ) :: ensemble
@@ -1533,51 +1393,20 @@ SUBROUTINE update_veps ( molecule, veps, thermo, ensemble, group )
   
 ! increment pressure pv_const
   CALL pv_constraint ( molecule, thermo, 'DEL', group )
+
   IF ( ensemble == 'NPT_I' ) THEN
      feps = thermo%pv_const(1,1) &
           + thermo%pv_const(2,2) &
           + thermo%pv_const(3,3)
-     veps(1,1) = veps(1,1) + scale * feps
+     veps(1,1) = veps(1,1) + feps * 0.5_dbl * dt / mass ( 1, 1 )
      veps(2,2) = veps(1,1)
      veps(3,3) = veps(1,1)
   ELSE IF ( ensemble == 'NPT_F' ) THEN
-     veps ( :, : ) = veps ( :, : ) + scale * thermo % pv_const ( :, : )
+     veps ( :, : ) = veps ( :, : ) +  0.5_dbl *  dt *  &
+                     thermo % pv_const ( :, : ) / mass ( :, : )
   END IF
   
 END SUBROUTINE update_veps
-
-!******************************************************************************
-
-SUBROUTINE get_r_shake(r_shake,vector,u)
-  
-  IMPLICIT NONE
-  
-! Arguments
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: r_shake
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: vector
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ), OPTIONAL :: u
-  
-! Locals
-  INTEGER :: i
-  REAL ( dbl ), DIMENSION (3,3) :: diag
-  
-!------------------------------------------------------------------------------
-  
-  r_shake = 0.0_dbl
-  diag = 0.0_dbl
-  
-  IF ( PRESENT ( u ) ) THEN
-     diag(1,1) = vector(1)
-     diag(2,2) = vector(2)
-     diag(3,3) = vector(3)
-     r_shake = matmul_3x3(matmul_3x3(u,diag),transpose_3d(u))
-  ELSE
-     DO i = 1, 3
-        r_shake(i,i) = vector(i)
-     END DO
-  END IF
-  
-END SUBROUTINE get_r_shake
 
 !******************************************************************************
 

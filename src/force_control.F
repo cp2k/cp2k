@@ -54,6 +54,7 @@ CONTAINS
 !!
 !!   MODIFICATION HISTORY
 !!     Harald Forbert (Dec-2000): Changes for multiple linked lists
+!!     JGH (21-12-2000): Flag to test if pressure is available
 !!
 !!   SOURCE
 !******************************************************************************
@@ -72,6 +73,8 @@ SUBROUTINE force ( struc, inter, thermo, simpar, ewald_param, globenv )
   
 !------------------------------------------------------------------------------
   
+  thermo % ptens_aval = .FALSE.
+
   SELECT CASE ( simpar % program )
   CASE DEFAULT
      CALL stop_prg ( 'force', 'not implemented' )

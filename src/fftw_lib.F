@@ -209,6 +209,9 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
   LOGICAL, SAVE :: fftc_in_place = .TRUE.
   LOGICAL :: fft_in_place
   INTEGER :: sign_fft, n1, n2, n3
+!
+! KIND=8 does not work on all machines !!
+!
   INTEGER ( KIND = 8 ), SAVE :: plan_a_fw, plan_a_bw
   INTEGER ( KIND = 8 ), SAVE :: plan_b_fw, plan_b_bw
   INTEGER ( KIND = 8 ), SAVE :: plan_c_fw, plan_c_bw
@@ -350,6 +353,59 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
   END IF
 
 END SUBROUTINE fft3d
+
+!!*****
+!******************************************************************************
+!!****** fftw_lib/mltfft [1.0] *
+!!
+!!   NAME
+!!     mltfft
+!!
+!!   FUNCTION
+!!     Calls multiple 1d FFT from the FFTw library
+!!
+!!   AUTHOR
+!!     JGH (8-Jan-2001)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE mltfft ( fsign, trans, scale, n, m, zin, zout )
+  
+  IMPLICIT NONE
+  
+! Arguments
+  CHARACTER ( LEN = * ), INTENT ( IN ) :: trans
+  INTEGER, INTENT ( INOUT ) :: fsign
+  REAL ( dbl ), INTENT ( IN ) :: scale
+  INTEGER, INTENT ( IN ) :: n, m
+  COMPLEX ( dbl ), DIMENSION(:,:), INTENT ( IN ) :: zin
+  COMPLEX ( dbl ), DIMENSION(:,:), INTENT ( OUT ) :: zout
+  
+! Locals
+  INTEGER :: ldi, lmi, ldo, lmo
+  
+!------------------------------------------------------------------------------
+  
+  ldi = SIZE ( zin (:,1) )
+  lmi = SIZE ( zin (1,:) )
+  ldo = SIZE ( zin (:,1) )
+  lmo = SIZE ( zin (1,:) )
+  
+#if defined ( __FFTW )
+
+  stop " fftw_lib "
+
+#else
+
+  fsign = 0
+
+#endif
+
+END SUBROUTINE mltfft
 
 !!*****
 !******************************************************************************

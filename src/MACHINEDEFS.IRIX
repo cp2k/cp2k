@@ -8,7 +8,7 @@ FCfixed	= f90 -fixedform
 LDR	= f90
 AR	= ar -r
 
-CDEFS	= -D__IRIX -D__FFTSG -D__FFTW
+CDEFS	= -D__IRIX -D__FFTSG -D__FFTW -D__FFTSGI
 
 DEBUG	= -g -C
 OPT	= -O3

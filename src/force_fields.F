@@ -13,7 +13,8 @@
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     Subroutine input_torsions changed (DG) 05-Dec-2000
+!!     Output formats changed (DG) 05-Dec-2000
 !!
 !!   SOURCE
 !******************************************************************************
@@ -53,6 +54,22 @@ MODULE force_fields
   
 CONTAINS
 
+!******************************************************************************
+!!****** force_fields/read_force_field_section [1.0] *
+!!
+!!   NAME
+!!     read_force_field_section
+!!
+!!   FUNCTION
+!!     Reads the force_field input section
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE read_force_field_section ( setup, mol_setup, set_fn, intra_param, &
@@ -148,16 +165,35 @@ SUBROUTINE read_force_field_section ( setup, mol_setup, set_fn, intra_param, &
   
 END SUBROUTINE read_force_field_section
 
-!!>---------------------------------------------------------------------------!
-!!  SECTION: &force_field ... &end                                            !
-!!                                                                            !
-!!  nonbonded                                                                 !
-!!     lennard-jones atom1 atom2 epsilon sigma rcut                           !
-!!     williams      atom1 atom2 a b c rcut                                   !
-!!     goodwin       atom1 atom2 vr0 d dc m mc rcut                           !
-!!  end nonbonded                                                             !
-!!                                                                            !
-!!<---------------------------------------------------------------------------!
+!!*****
+!******************************************************************************
+!!****** force_fields/input_nonbonded [1.0] *
+!!
+!!   NAME
+!!     input_nonbonded
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!I---------------------------------------------------------------------------I
+!!I SECTION: &force_field ... &end                                            I
+!!I                                                                           I
+!!I nonbonded                                                                 I
+!!I    lennard-jones atom1 atom2 epsilon sigma rcut                           I
+!!I    williams      atom1 atom2 a b c rcut                                   I
+!!I    goodwin       atom1 atom2 vr0 d dc m mc rcut                           I
+!!I end nonbonded                                                             I
+!!I                                                                           I
+!!I---------------------------------------------------------------------------I
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE input_nonbonded ( potparm, atom_names, set_fn )
   
@@ -355,23 +391,39 @@ SUBROUTINE input_nonbonded ( potparm, atom_names, set_fn )
   
 END SUBROUTINE input_nonbonded
 
-!------------------------------------------------------------------------------
-!
-! read all the bond parameters. Put them in the
-! bond_parm matrix. Symmetrize this matrix since a bond between atoms
-! A and B is the same as between B and A. While we read the bond_pot_type,
-! we (so far) will do nothing with this information. It appears that
-! all major parameters sets, such as CHARMM or AMBER, all have only
-! one type of bonded interaction (harmonic).
-!
-!!>---------------------------------------------------------------------------!
-!!  SECTION: &force_field ... &end                                            !
-!!                                                                            !
-!!  bonds                                                                     !
-!!     harmonic atom1 atom2 bp1 bp2                                           !
-!!  end bonds                                                                 !
-!!                                                                            !
-!!<---------------------------------------------------------------------------!
+!!*****
+!******************************************************************************
+!!****** force_fields/input_bonds [1.0] *
+!!
+!!   NAME
+!!     input_bonds
+!!
+!!   FUNCTION
+!!     Read all the bond parameters. Put them in the
+!!     bond_parm matrix. Symmetrize this matrix since a bond between atoms
+!!     A and B is the same as between B and A. While we read the bond_pot_type,
+!!     we (so far) will do nothing with this information. It appears that
+!!     all major parameters sets, such as CHARMM or AMBER, all have only
+!!     one type of bonded interaction (harmonic).
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!I---------------------------------------------------------------------------I
+!!I SECTION: &force_field ... &end                                            I
+!!I                                                                           I
+!!I bonds                                                                     I
+!!I    harmonic atom1 atom2 bp1 bp2                                           I
+!!I end bonds                                                                 I
+!!I                                                                           I
+!!I---------------------------------------------------------------------------I
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE input_bonds(bond_parm,atom_names,set_fn)
   IMPLICIT NONE
@@ -477,22 +529,40 @@ SUBROUTINE input_bonds(bond_parm,atom_names,set_fn)
   
 END SUBROUTINE input_bonds
 
-!
-! read all the bend parameters. Put them in the
-! bend_parm matrix. Fill this matrix since a bend between atoms
-! A-B-C is the same as between C-B-A. While we read the bend_pot_type,
-! we (so far) will do nothing with this information. It appears that
-! all major parameters sets, such as CHARMM or AMBER, all have only
-! only one type of bend interaction (harmonic).
-!
-!!>---------------------------------------------------------------------------!
-!!  SECTION: &force_field ... &end                                            !
-!!                                                                            !
-!!  bends                                                                     !
-!!     harmonic atom1 atom2 atom3 bp1 bp2                                     !
-!!  end bends                                                                 !
-!!                                                                            !
-!!<---------------------------------------------------------------------------!
+!!*****
+!******************************************************************************
+!!****** force_fields/input_bends [1.0] *
+!!
+!!   NAME
+!!     input_bends
+!!
+!!   FUNCTION
+!!     Read all the bend parameters. Put them in the
+!!     bend_parm matrix. Fill this matrix since a bend between atoms
+!!     A-B-C is the same as between C-B-A. While we read the bend_pot_type,
+!!     we (so far) will do nothing with this information. It appears that
+!!     all major parameters sets, such as CHARMM or AMBER, all have only
+!!     only one type of bend interaction (harmonic).
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!I---------------------------------------------------------------------------I
+!!I SECTION: &force_field ... &end                                            I
+!!I                                                                           I
+!!I bends                                                                     I
+!!I    harmonic atom1 atom2 atom3 bp1 bp2                                     I
+!!I end bends                                                                 I
+!!I                                                                           I
+!!I---------------------------------------------------------------------------I
+!!
+!!   SOURCE
+!******************************************************************************
+
 SUBROUTINE input_bends ( bend_parm, atom_names, set_fn )
   
   IMPLICIT NONE
@@ -605,23 +675,41 @@ SUBROUTINE input_bends ( bend_parm, atom_names, set_fn )
   
 END SUBROUTINE input_bends
 
-!
-! first, read all the torsion parameters. Put them in the
-! torsion_parm matrix. Fill this matrix since a torsion between atoms
-! A-B-C-D is the same as between D-C-B-A. We have defined the
-! torsion_parameter type with 7 coefficients for 0 to 6. Hopefully
-! this will be generic enough to handle all torsion potentials.
-! Since different types will be used, we need to store the type of torsion as
-! well.
-!
-!!>---------------------------------------------------------------------------!
-!!  SECTION: &force_field ... &end                                            !
-!!                                                                            !
-!!  torsions                                                                   !
-!!     jorgensen atom1 atom2 atom3 atom4 tp[1-4]                                   !
-!!  end torsions                                                               !
-!!                                                                            !
-!!<---------------------------------------------------------------------------!
+!!*****
+!******************************************************************************
+!!****** force_fields/input_torsions [1.0] *
+!!
+!!   NAME
+!!     input_torsions
+!!
+!!   FUNCTION
+!!     Read all the torsion parameters. Put them in the
+!!     torsion_parm matrix. Fill this matrix since a torsion between atoms
+!!     A-B-C-D is the same as between D-C-B-A. We have defined the
+!!     torsion_parameter type with 7 coefficients for 0 to 6. Hopefully
+!!     this will be generic enough to handle all torsion potentials.
+!!     Since different types will be used, we need to store the type of torsion
+!!     as well.
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!I---------------------------------------------------------------------------I
+!!I SECTION: &force_field ... &end                                            I
+!!I                                                                           I
+!!I torsions                                                                  I
+!!I    jorgensen atom1 atom2 atom3 atom4 tp[1-4]                              I
+!!I end torsions                                                              I
+!!I                                                                           I
+!!I---------------------------------------------------------------------------I
+!!
+!!   SOURCE
+!******************************************************************************
+
 SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
   
   IMPLICIT NONE
@@ -759,19 +847,37 @@ SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
   
 END SUBROUTINE input_torsions
 
-!
-! first, read all the distance parameters. Put them in the
-! constraint_distance array. Symmetrize this matrix since a bond between atoms
-! A and B is the same as between B and A.
-!
-!!>---------------------------------------------------------------------------!
-!!  SECTION: &force_field ... &end                                            !
-!!                                                                            !
-!!  distcon                                                                   !
-!!      atom1 atom2 dp                                                        !
-!!  end distcon                                                               !
-!!                                                                            !
-!!<---------------------------------------------------------------------------!
+!!*****
+!******************************************************************************
+!!****** force_fields/input_distance_constraints [1.0] *
+!!
+!!   NAME
+!!     input_distance_constraints
+!!
+!!   FUNCTION
+!!     Read all the distance parameters. Put them in the
+!!     constraint_distance array. Symmetrize this matrix since a bond between
+!!     atoms A and B is the same as between B and A.
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!I---------------------------------------------------------------------------I
+!!I SECTION: &force_field ... &end                                            I
+!!I                                                                           I
+!!I distcon                                                                   I
+!!I     atom1 atom2 dp                                                        I
+!!I end distcon                                                               I
+!!I                                                                           I
+!!I---------------------------------------------------------------------------I
+!!
+!!   SOURCE
+!******************************************************************************
+
 SUBROUTINE input_distance_constraints ( constraint_distance, atom_names, &
      set_fn )
   
@@ -868,6 +974,9 @@ SUBROUTINE input_distance_constraints ( constraint_distance, atom_names, &
   
 END SUBROUTINE input_distance_constraints
 
+!!*****
 !******************************************************************************
 
 END MODULE force_fields
+
+!******************************************************************************

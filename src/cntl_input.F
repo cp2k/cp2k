@@ -56,8 +56,8 @@ CONTAINS
 !!I printlevel       globenv%print_level                                      I
 !!I units            [kelvin,atomic]                                          I
 !!I periodic         [0,1][0,1][0,1]                                          I
-!!I Ewald_type       [pme_gauss,ewald_gauss]                                  I
-!!I Ewald_param      alpha,[gmax,ns_max,epsilon]                              I
+!!I Ewald_type       [ewald,pme,spme]                                         I
+!!I Ewald_param      alpha[,gmax,ns_max,epsilon]                              I
 !!I set_file         "filename"                                               I
 !!I input_file       "filename"                                               I
 !!I symmetry         [on,off]                                                 I
@@ -90,6 +90,7 @@ SUBROUTINE read_cntl_section ( setup, ewald_param, globenv )
   setup % symmetry = .false.
   ewald_param % alpha = 0.4_dbl
   ewald_param % gmax = 10
+  ewald_param % o_spline = 5
   ewald_param % ns_max = 10
   ewald_param % epsilon = 1.e-6_dbl
   ewald_param % ewald_type = 'NONE'
@@ -129,23 +130,30 @@ SUBROUTINE read_cntl_section ( setup, ewald_param, globenv )
            setup % perd(1) = get_int()
            setup % perd(2) = get_int()
            setup % perd(3) = get_int()
-           CASE ( 'EWALD_TY')
+        CASE ( 'EWALD_TY')
            ilen=20
            CALL cfield(string,ILEN)
            CALL uppercase ( string )
            SELECT CASE(string)
-           CASE( 'EWALD_GAUSS')
-              ewald_param % ewald_type = 'ewald_gauss'
+           CASE DEFAULT
+              CALL p_error()
+              CALL stop_parser( 'read_cntl_section', &
+                   'unknown option for Ewald type' )
+           CASE( 'EWALD')
+              ewald_param % ewald_type = 'ewald'
               CALL uppercase(ewald_param % ewald_type )
-           CASE( 'PME_GAUSS')
-              ewald_param % ewald_type = 'pme_gauss'
+           CASE( 'PME')
+              ewald_param % ewald_type = 'pme'
+              CALL uppercase(ewald_param % ewald_type )
+           CASE( 'SPME')
+              ewald_param % ewald_type = 'spme'
               CALL uppercase(ewald_param % ewald_type )
            END SELECT
               
-! if no type specified, assume ewald_gauss
+! if no type specified, assume ewald
         CASE ( 'EWALD_PA')
            ewald_param % alpha = get_real()
-           SELECT CASE (ewald_param % ewald_TYPE ( 1:3)) 
+           SELECT CASE (ewald_param % ewald_type ( 1:3)) 
            CASE DEFAULT
               ewald_param % gmax = get_int()
            CASE ( 'PME')
@@ -153,6 +161,9 @@ SUBROUTINE read_cntl_section ( setup, ewald_param, globenv )
               IF ( test_next() == 'N' ) THEN
                  ewald_param % epsilon = get_real()
               END IF
+           CASE ( 'SPME')
+              ewald_param % gmax = get_int()
+              ewald_param % o_spline = get_int()
            END SELECT
         CASE ('SYMMETRY')
            ilen = 3
