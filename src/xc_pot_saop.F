@@ -1034,11 +1034,11 @@ CONTAINS
 
 
     ! finally add the contributions to the KS-matrix
-    do ispin = 1,nspins
-       call update_ks_atom(qs_env, qs_env%matrix_ks(ispin), &
-                           rho_structure%rho_ao(ispin),&
-                           ispin, .false., error=error)
-    end do
+!    do ispin = 1,nspins
+       call update_ks_atom(qs_env, qs_env%matrix_ks, &
+                           rho_structure%rho_ao,&
+                           .false., error=error)
+!    end do
     
     !---------!
     ! Cleanup !

@@ -1351,7 +1351,7 @@ CONTAINS
                   ao_mo_fm_pools(ispin)%pool,&
                   name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
                   "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-                  halfhole=-1,error=error)
+                  error=error)
              END IF
           END IF
        END DO
@@ -1625,7 +1625,7 @@ CONTAINS
       CALL set_mo_occupation(mo_occupation,mo_eigenvalues,&
                              homo,lfomo,maxocc,nelectron,&
                              mo_uocc,&
-                             halfhole=-1,smear=smear)
+                             smear=smear)
       CALL set_mo_set(mo_set=mo_set,&
                       homo=homo,lfomo=lfomo,&
                       uniform_occupation=mo_uocc)
@@ -1691,7 +1691,7 @@ CONTAINS
     IF (smear /= 0.0_dp) THEN
       CALL set_mo_occupation(mo_occupation,mo_eigenvalues,&
                              homo,lfomo,maxocc,nelectron,&
-                             mo_uocc, halfhole=-1,smear=smear)
+                             mo_uocc, smear=smear)
       CALL set_mo_set(mo_set=mo_set,&
                       homo=homo,lfomo=lfomo,&
                       uniform_occupation=mo_uocc)
@@ -2025,16 +2025,16 @@ CONTAINS
         IF (nelectron /= 0) THEN 
 
            DO ikind=1,SIZE(atomic_kind_set)
-              
+
               atomic_kind => atomic_kind_set(ikind)
-              
+   
               CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                    natom=natom,&
                                    atom_list=atom_list,&
                                    all_potential=all_potential,&
                                    gth_potential=gth_potential,&
                                    orb_basis_set=orb_basis_set)
-              
+
               IF (ASSOCIATED(all_potential)) THEN
                  CALL get_potential(potential=all_potential,elec_conf=elec_conf)
               ELSE IF (ASSOCIATED(gth_potential)) THEN
@@ -2042,11 +2042,11 @@ CONTAINS
               ELSE
                  CYCLE
               END IF
-              
+
               maxll = MIN(SIZE(elec_conf) - 1,maxl)
               econf(:) = 0.0_dp
               econf(0:maxll) = 0.5_dp*maxocc*REAL(elec_conf(0:maxll),dp)
-              
+
               CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                                      nset=nset,&
                                      nshell=nshell,&

@@ -607,16 +607,15 @@ CONTAINS
 !      ***  Energy, Integrals and Forces coming from the 3-centers terms
 !      *** Initialize energy
           energy%hartree_3c = 0.0_dp
-          DO ispin = 1,nspins
-             CALL integrate_a_vhg0_b(qs_env,ks_matrix(ispin),rho%rho_ao(ispin),&
-                 ispin,energy%hartree_3c,.FALSE.,calculate_forces,error=error)
-          END DO
+          CALL integrate_a_vhg0_b(qs_env,ks_matrix,rho%rho_ao,&
+                       energy%hartree_3c,.FALSE.,calculate_forces,error=error)
+
 
 !      ***  Single atom contributions in the KS matrix ***
-          DO ispin = 1,nspins
-             CALL update_ks_atom(qs_env,ks_matrix(ispin),rho%rho_ao(ispin),&
-                  ispin,calculate_forces,error=error)
-          ENDDO
+!          DO ispin = 1,nspins
+             CALL update_ks_atom(qs_env,ks_matrix,rho%rho_ao,&
+                  calculate_forces,error=error)
+!          ENDDO
        ENDIF
 
 

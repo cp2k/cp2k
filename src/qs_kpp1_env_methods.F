@@ -489,17 +489,17 @@ CONTAINS
 
              CALL integrate_vhg0_g0(qs_env,energy_hartree_2c,.FALSE.,.FALSE., &
                                     .TRUE., p_env)
-             DO ispin = 1,nspins
-                CALL integrate_a_vhg0_b(qs_env,k_p_p1(ispin),rho1%rho_ao(ispin),&
-                                        ispin,energy_hartree_3c,.FALSE.,.FALSE.,&
+!             DO ispin = 1,nspins
+                CALL integrate_a_vhg0_b(qs_env,k_p_p1,rho1%rho_ao,&
+                                        energy_hartree_3c,.FALSE.,.FALSE.,&
                                         .TRUE.,p_env,error)
-             END DO
+!             END DO
           END IF
 !         ***  Add single atom contributions to the KS matrix ***
-          DO ispin = 1,nspins
-             CALL update_ks_atom(qs_env,k_p_p1(ispin),rho%rho_ao(ispin),&
-                                 ispin,.FALSE.,.TRUE.,p_env,error)
-          ENDDO
+!          DO ispin = 1,nspins
+             CALL update_ks_atom(qs_env,k_p_p1,rho%rho_ao,&
+                                 .FALSE.,.TRUE.,p_env,error)
+!          ENDDO
        END IF
 
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,&
