@@ -315,7 +315,7 @@ CONTAINS
     mblock => matrix%p(source,source)%block
 #endif
 
-    CALL DCOPY(nelements,block,1,mblock,1)
+    CALL DCOPY(nelements,block(1,1),1,mblock(1,1),1)
 
   END SUBROUTINE blacs_set_local_block
 
@@ -650,7 +650,8 @@ CONTAINS
     c => matrix_c%p(myprow,mypcol)%block
     descc(:) = matrix_c%descriptor(:)
     flops=2.0_wp*(1E-9_wp*m*n*k)/(nprow*npcol)
-    CALL pdgemm(transa,transb,m,n,k,alpha,a,1,1,desca,b,1,1,descb,beta,c,1,1,&
+    CALL pdgemm(transa,transb,m,n,k,alpha,a(1,1),1,1,desca,b(1,1),1,1, &
+                descb,beta,c(1,1),1,1,&
                 descc)
 
 #else
@@ -664,7 +665,7 @@ CONTAINS
     ldc = matrix_c%nrow_global
 
     flops=2.0_wp*(1E-9_wp*m*n*k)
-    CALL dgemm(transa,transb,m,n,k,alpha,a,lda,b,ldb,beta,c,ldc)
+    CALL dgemm(transa,transb,m,n,k,alpha,a(1,1),lda,b(1,1),ldb,beta,c(1,1),ldc)
 
 #endif
     CALL timestop(flops,handle)
@@ -689,7 +690,7 @@ CONTAINS
     desca(:)=matrix_a%descriptor(:)
     CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
     a => matrix_a%p(myprow,mypcol)%block
-    CALL PDAXPY(n,alpha,a,1,c1,desca,1,a,1,c2,desca,1)
+    CALL PDAXPY(n,alpha,a(1,1),1,c1,desca,1,a(1,1),1,c2,desca,1)
 #else
     a => matrix_a%p(source,source)%block
     CALL DAXPY(n,alpha,a(1,c1),1,a(1,c2),1)
@@ -908,11 +909,11 @@ CONTAINS
     b => matrix_buf%p(myprow,mypcol)%block
     descb(:) = matrix_buf%descriptor(:)
     call copy_vector_to_blacs(vin,matrix_buf,1,globenv)
-    call pdsymv('U',n,alpha,a,1,1,desca,b,1,1,descb,inc,beta,b,1,2,descb,inc)
+    call pdsymv('U',n,alpha,a(1,1),1,1,desca,b(1,1),1,1,descb,inc,beta,b(1,1),1,2,descb,inc)
     call copy_blacs_to_vector(matrix_buf,2,vout,globenv)
 #else
     a => matrix_a%p(source,source)%block
-    call dsymv('U',n,alpha,a,n,vin,inc,beta,vout,inc)
+    call dsymv('U',n,alpha,a(1,1),n,vin(1),inc,beta,vout(1),inc)
 #endif
 
     CALL timestop(0.0_wp,handle)
@@ -1027,20 +1028,20 @@ CONTAINS
        descp(:) = pmatrix%descriptor(:)
        w => work%p(myprow,mypcol)%block
        descw(:) = work%descriptor(:)
-       CALL PDSYMM('L','U',n,ncol,rone,p,1,1,descp,w,1,1,descw,rzero,a,1,1,desca)
+       CALL PDSYMM('L','U',n,ncol,rone,p(1,1),1,1,descp,w(1,1),1,1,descw,rzero,a(1,1),1,1,desca)
        IF (use_cholesky) THEN
          o => ortho%p(myprow,mypcol)%block
          desco(:) = ortho%descriptor(:)
-         CALL PDTRMM('L','U','N','N',n,ncol,rone,o,1,1,desco,a,1,1,desca)
+         CALL PDTRMM('L','U','N','N',n,ncol,rone,o(1,1),1,1,desco,a(1,1),1,1,desca)
        ENDIF
 #else
        p => pmatrix%p(source,source)%block
        w => work%p(source,source)%block
        ! U*P*U^T*V
-       CALL DSYMM('L','U',n,ncol,rone,p,n,w,n,rzero,a,n)
+       CALL DSYMM('L','U',n,ncol,rone,p(1,1),n,w(1,1),n,rzero,a(1,1),n)
        IF (use_cholesky) THEN
          o => ortho%p(source,source)%block
-         CALL DTRMM('L','U','N','N',n,ncol,rone,o,n,a,n)
+         CALL DTRMM('L','U','N','N',n,ncol,rone,o(1,1),n,a(1,1),n)
        ENDIF
 #endif
     ELSE
@@ -1049,10 +1050,10 @@ CONTAINS
 #if defined(__parallel)
          o => ortho%p(myprow,mypcol)%block
          desco(:) = ortho%descriptor(:)
-         CALL PDTRMM('L','U','N','N',n,ncol,rone,o,1,1,desco,a,1,1,desca)
+         CALL PDTRMM('L','U','N','N',n,ncol,rone,o(1,1),1,1,desco,a(1,1),1,1,desca)
 #else
          o => ortho%p(source,source)%block
-         CALL DTRMM('L','U','N','N',n,ncol,rone,o,n,a,n)
+         CALL DTRMM('L','U','N','N',n,ncol,rone,o(1,1),n,a(1,1),n)
 #endif
        ENDIF
     ENDIF
@@ -1069,14 +1070,14 @@ CONTAINS
       descvv(:) = overlap_vv%descriptor(:)
       o => ortho%p(myprow,mypcol)%block
       desco(:) = ortho%descriptor(:)
-      CALL pdtrsm('R','U','N','N',n,ncol,rone,vv,1,1,descvv,a,1,1,desca)
-      CALL pdtrsm('R','U','N','N',n,ncol,rone,vv,1,1,descvv,o,1,1,desco)
+      CALL pdtrsm('R','U','N','N',n,ncol,rone,vv(1,1),1,1,descvv,a(1,1),1,1,desca)
+      CALL pdtrsm('R','U','N','N',n,ncol,rone,vv(1,1),1,1,descvv,o(1,1),1,1,desco)
 #else
       o => ortho%p(source,source)%block
       a => vmatrix%p(source,source)%block
       vv => overlap_vv%p(source,source)%block
-      CALL dtrsm('R','U','N','N',n,ncol,rone,vv,ncol,a,n)
-      CALL dtrsm('R','U','N','N',n,ncol,rone,vv,ncol,o,n)
+      CALL dtrsm('R','U','N','N',n,ncol,rone,vv(1,1),ncol,a(1,1),n)
+      CALL dtrsm('R','U','N','N',n,ncol,rone,vv(1,1),ncol,o(1,1),n)
 #endif
     ELSE
       ! ortho (U*V) inner product should be one
@@ -1086,10 +1087,10 @@ CONTAINS
       desca(:) = vmatrix%descriptor(:)
       vv => overlap_vv%p(myprow,mypcol)%block
       descvv(:) = overlap_vv%descriptor(:)
-      CALL PDSYRK('U','T',ncol,n,rone,a,1,1,desca,rzero,vv,1,1,descvv,ncol)
-      CALL PDPOTRF('U',ncol,vv,1,1,descvv,info)
+      CALL PDSYRK('U','T',ncol,n,rone,a(1,1),1,1,desca,rzero,vv(1,1),1,1,descvv,ncol)
+      CALL PDPOTRF('U',ncol,vv(1,1),1,1,descvv,info)
       if (info.ne.0) call stop_program("make_basis","DPOTRF degenerate vectors")
-      CALL PDTRSM('R','U','N','N',n,ncol,rone,vv,1,1,descvv,a,1,1,desca)
+      CALL PDTRSM('R','U','N','N',n,ncol,rone,vv(1,1),1,1,descvv,a(1,1),1,1,desca)
 #else
       a => vmatrix%p(source,source)%block
       vv => overlap_vv%p(source,source)%block
@@ -1102,9 +1103,9 @@ CONTAINS
 
     IF (use_cholesky) THEN
 #if defined(__parallel)
-      CALL PDTRSM('L','U','N','N',n,ncol,rone,o,1,1,desco,a,1,1,desca)
+      CALL PDTRSM('L','U','N','N',n,ncol,rone,o(1,1),1,1,desco,a(1,1),1,1,desca)
 #else
-      CALL DTRSM('L','U','N','N',n,ncol,rone,o,n,a,n)
+      CALL DTRSM('L','U','N','N',n,ncol,rone,o(1,1),n,a(1,1),n)
 #endif
     ENDIF
 
@@ -1164,7 +1165,7 @@ CONTAINS
        FIRST=.false.
     ENDIF
     a => matrix%p(source,source)%block
-    CALL dlarnv(1,iseed,n*ncol,a)
+    CALL dlarnv(1,iseed,n*ncol,a(1,1))
 #endif
 
     END SUBROUTINE
@@ -1399,7 +1400,7 @@ CONTAINS
   
 #if defined(__parallel) 
     if (direction.eq."B2R") then
-       CALL dcopy(nblock*nrow_global,0.0_wp,0,rep_v,1)
+       CALL dcopy(nblock*nrow_global,0.0_wp,0,rep_v(1,1),1)
     endif
 #endif
     DO i=1,ncol_local
@@ -1453,13 +1454,13 @@ CONTAINS
     CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
     a => matrix%p(myprow,mypcol)%block
     desca(:) = matrix%descriptor(:)
-    CALL pdpotri('U',n,a,1,1,desca,info)
+    CALL pdpotri('U',n,a(1,1),1,1,desca,info)
 
 #else
 
     a => matrix%p(source,source)%block
 
-    CALL dpotri('U',n,a,n,info)
+    CALL dpotri('U',n,a(1,1),n,info)
 
 #endif
 
@@ -1503,13 +1504,13 @@ CONTAINS
     CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
     a => matrix%p(myprow,mypcol)%block
     desca(:) = matrix%descriptor(:)
-    CALL pdpotrf('U',n,a,1,1,desca,info)
+    CALL pdpotrf('U',n,a(1,1),1,1,desca,info)
 
 #else
 
     a => matrix%p(source,source)%block
 
-    CALL dpotrf('U',n,a,n,info)
+    CALL dpotrf('U',n,a(1,1),n,info)
 
 #endif
 
@@ -1558,7 +1559,7 @@ CONTAINS
     b => matrixb%p(myprow,mypcol)%block
     descb(:) = matrixb%descriptor(:)
 
-    CALL pdsygst(itype,'U',n,a,1,1,desca,b,1,1,descb,scale,info)
+    CALL pdsygst(itype,'U',n,a(1,1),1,1,desca,b(1,1),1,1,descb,scale,info)
     IF (scale .ne. 1.0_wp) THEN
        ! this is supposed to be one in current version of lapack
        ! if not, eigenvalues have to be scaled by this number
@@ -1569,7 +1570,7 @@ CONTAINS
     a => matrix%p(source,source)%block
     b => matrixb%p(source,source)%block
 
-    CALL dsygst(itype,'U',n,a,n,b,n,info)
+    CALL dsygst(itype,'U',n,a(1,1),n,b(1,1),n,info)
 
 #endif
 
@@ -1624,12 +1625,12 @@ CONTAINS
     descout(:) = matrixout%descriptor(:)
     alpha=1.0_wp
     do i=1,neig
-      CALL pdcopy(n,a,1,i,desca,1,out,1,i,descout,1)
+      CALL pdcopy(n,a(1,1),1,i,desca,1,out(1,1),1,i,descout,1)
     enddo
     IF (op.eq."SOLVE") THEN
-      CALL pdtrsm('L','U','N','N',n,neig,alpha,b,1,1,descb,out,1,1,descout)
+      CALL pdtrsm('L','U','N','N',n,neig,alpha,b(1,1),1,1,descb,out(1,1),1,1,descout)
     ELSE
-      CALL pdtrmm('L','U','N','N',n,neig,alpha,b,1,1,descb,out,1,1,descout)
+      CALL pdtrmm('L','U','N','N',n,neig,alpha,b(1,1),1,1,descb,out(1,1),1,1,descout)
     ENDIF
 #else
 
@@ -1638,11 +1639,11 @@ CONTAINS
     b => matrixb%p(source,source)%block
     out => matrixout%p(source,source)%block
     alpha=1.0_wp
-    CALL dcopy(neig*n,a,1,out,1)
+    CALL dcopy(neig*n,a(1,1),1,out(1,1),1)
     IF (op.eq."SOLVE") THEN
-      CALL dtrsm('L','U','N','N',n,neig,alpha,b,n,out,n)
+      CALL dtrsm('L','U','N','N',n,neig,alpha,b(1,1),n,out(1,1),n)
     ELSE
-      CALL dtrmm('L','U','N','N',n,neig,alpha,b,n,out,n)
+      CALL dtrmm('L','U','N','N',n,neig,alpha,b(1,1),n,out(1,1),n)
     ENDIF
 
 #endif
@@ -1672,13 +1673,13 @@ CONTAINS
     b => mtarget%p(myprow,mypcol)%block
     descb(:) = mtarget%descriptor(:)
     do i=1,ncol
-      CALL pdcopy(n,a,1,i,desca,1,b,1,i,descb,1)
+      CALL pdcopy(n,a(1,1),1,i,desca,1,b(1,1),1,i,descb,1)
     enddo
 #else
 
     a => msource%p(source,source)%block
     b => mtarget%p(source,source)%block
-    CALL dcopy(ncol*n,a,1,b,1)
+    CALL dcopy(ncol*n,a(1,1),1,b(1,1),1)
 #endif
   END SUBROUTINE blacs_column_copy
 
@@ -1722,14 +1723,14 @@ CONTAINS
     lwork = -1
     allocate(work(1),STAT=istat)
     if (istat.ne.0) CALL stop_memory("blacs_syevd","work")
-    CALL PDSYEVD('V','U',n,m,1,1,descm,eigenvalues,v,1,1,descv, &
-                  work,lwork,iwork,liwork,info)
+    CALL PDSYEVD('V','U',n,m(1,1),1,1,descm,eigenvalues(1),v(1,1),1,1,descv, &
+                  work(1),lwork,iwork(1),liwork,info)
     lwork = NINT(work(1))
     deallocate(work)
     allocate(work(lwork),STAT=istat)
     if (istat.ne.0) CALL stop_memory("blacs_syevd","lwork")
-    CALL PDSYEVD('V','U',n,m,1,1,descm,eigenvalues,v,1,1,descv, &
-                  work,lwork,iwork,liwork,info)
+    CALL PDSYEVD('V','U',n,m(1,1),1,1,descm,eigenvalues(1),v(1,1),1,1,descv, &
+                  work(1),lwork,iwork(1),liwork,info)
 #else
     m => matrix%p(source,source)%block
     lwork=1+6*n+2*n**2
@@ -1739,7 +1740,7 @@ CONTAINS
     allocate(iwork(liwork),STAT=istat)
     if (istat.ne.0) CALL stop_memory("blacs_syevd","iwork")
 
-    CALL DSYEVD('V','U', n, m, n, eigenvalues, work, lwork, iwork, liwork, info)
+    CALL DSYEVD('V','U', n, m(1,1), n, eigenvalues(1), work(1), lwork, iwork(1), liwork, info)
     CALL copy_blacs_to_blacs_matrix(matrix,eigenvectors)
 #endif
 
@@ -1871,8 +1872,8 @@ CONTAINS
 !                 abstol,m,nz,w,orfac,&
 !                 z,1,1,descz,work,lwork,iwork,liwork,ifail,iclustr,gap,info)
 !    else
-       CALL pdsyevx("V","I","U",n,a,1,1,desca,vl,vu,1,neig,abstol,m,nz,w,orfac,&
-                 z,1,1,descz,work,lwork,iwork,liwork,ifail,iclustr,gap,info)
+       CALL pdsyevx("V","I","U",n,a(1,1),1,1,desca,vl,vu,1,neig,abstol,m,nz,w(1),orfac,&
+                 z(1,1),1,1,descz,work(1),lwork,iwork(1),liwork,ifail(1),iclustr(1),gap,info)
 !    endif
     ! write(6,*) "done pdsyevx"
 
@@ -1942,8 +1943,8 @@ CONTAINS
 !       CALL dsygvx(itype,"V","I","U",n,a,n,b,n,vl,vu,1,neig,abstol,m,w,z,n, &
 !                   work,lwork,iwork,ifail,info)
 !    else
-       CALL dsyevx("V","I","U",n,a,n,vl,vu,1,neig,abstol,m,w,z,n,work,lwork,&
-                iwork,ifail,info)
+       CALL dsyevx("V","I","U",n,a(1,1),n,vl,vu,1,neig,abstol,m,w,z(1,1),n,work(1),lwork,&
+                iwork(1),ifail(1),info)
 !    endif
 
 !   *** Error handling ***
@@ -2010,7 +2011,7 @@ CONTAINS
     c => matrix_c%p(myprow,mypcol)%block
     descc(:) = matrix_c%descriptor(:)
 
-    CALL pdsymm(side,uplo,m,n,alpha,a,1,1,desca,b,1,1,descb,beta,c,1,1,descc)
+    CALL pdsymm(side,uplo,m,n,alpha,a(1,1),1,1,desca,b(1,1),1,1,descb,beta,c(1,1),1,1,descc)
 
 #else
 
@@ -2022,7 +2023,7 @@ CONTAINS
     ldb = matrix_b%nrow_global
     ldc = matrix_c%nrow_global
 
-    CALL dsymm(side,uplo,m,n,alpha,a,lda,b,ldb,beta,c,ldc)
+    CALL dsymm(side,uplo,m,n,alpha,a(1,1),lda,b(1,1),ldb,beta,c(1,1),ldc)
 
 #endif
     CALL timestop(0.0_wp,handle)
@@ -2070,7 +2071,7 @@ CONTAINS
     c => matrix_c%p(myprow,mypcol)%block
     descc(:) = matrix_c%descriptor(:)
 
-    CALL pdsyrk(uplo,trans,n,k,alpha,a,ia,ja,desca,beta,c,1,1,descc)
+    CALL pdsyrk(uplo,trans,n,k,alpha,a(1,1),ia,ja,desca,beta,c(1,1),1,1,descc)
 
 #else
 
@@ -2080,7 +2081,7 @@ CONTAINS
     lda = matrix_a%nrow_global
     ldc = matrix_c%nrow_global
 
-    CALL dsyrk(uplo,trans,n,k,alpha,a(ia,ja),lda,beta,c,ldc)
+    CALL dsyrk(uplo,trans,n,k,alpha,a(ia,ja),lda,beta,c(1,1),ldc)
 
 #endif
     CALL timestop(0.0_wp,handle)
@@ -2244,8 +2245,7 @@ CONTAINS
           endif
           a => source%p(iprow,ipcol)%block
           b => target%p(iprow,ipcol)%block
-          CALL DCOPY(msize1,a,1,b,1)
-          !target%p(iprow,ipcol)%block(:,:) = source%p(iprow,ipcol)%block(:,:)
+          CALL DCOPY(msize1,a(1,1),1,b(1,1),1)
         ELSE
           IF (ASSOCIATED(target%p(iprow,ipcol)%block)) THEN
             DEALLOCATE (target%p(iprow,ipcol)%block,STAT=istat)
@@ -2336,7 +2336,7 @@ CONTAINS
                                nrow_local*ncol_local*wp_size)
             END IF
             CALL dgerv2d(context,nrow_local,ncol_local,&
-                         blacs_matrix%p(iprow,ipcol)%block,nrow_local,&
+                         blacs_matrix%p(iprow,ipcol)%block(1,1),nrow_local,&
                          iprow,ipcol)
           END IF
 
@@ -2362,7 +2362,7 @@ CONTAINS
 
           IF (ipe == mype) THEN
             CALL dgesd2d(context,nrow_local,ncol_local,&
-                         blacs_matrix%p(iprow,ipcol)%block,nrow_local,&
+                         blacs_matrix%p(iprow,ipcol)%block(1,1),nrow_local,&
                          source,source)
           END IF
 
@@ -3436,7 +3436,7 @@ CONTAINS
     desca(:) = matrix%descriptor(:)
     c => matrixt%p(myprow,mypcol)%block
     descc(:) = matrixt%descriptor(:)
-    CALL pdtran(nrow_global,ncol_global,1.0_wp,a,1,1,desca,0.0_wp,c,1,1,descc)
+    CALL pdtran(nrow_global,ncol_global,1.0_wp,a(1,1),1,1,desca,0.0_wp,c(1,1),1,1,descc)
 #else
     a => matrix%p(source,source)%block
     c => matrixt%p(source,source)%block
@@ -3515,7 +3515,7 @@ CONTAINS
 
     a(:,:) = c(:,:)
 
-    CALL pdtran(nrow_global,ncol_global,1.0_wp,a,1,1,desca,1.0_wp,c,1,1,descc)
+    CALL pdtran(nrow_global,ncol_global,1.0_wp,a(1,1),1,1,desca,1.0_wp,c(1,1),1,1,descc)
 
 #else
 

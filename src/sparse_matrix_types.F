@@ -908,7 +908,7 @@ CONTAINS
         CALL DGEMM('T','N',sbnrow,sbncol,ncol,prefactor,&
                            rep_v(1,irow),nblock, &
                            rep_g(1,icol),nblock, &
-                    1.0_wp,sparse_block,sbnrow)
+                    1.0_wp,sparse_block(1,1),sbnrow)
 
         block_node => next_block_node(block_node)
 
