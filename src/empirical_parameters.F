@@ -101,7 +101,7 @@ CONTAINS
         CALL cfield(string,ilen)
         natom_types = SIZE ( atom_names )
         iat = str_search(atom_names,natom_types,string)
-	nkind = nkind + 1
+        nkind = nkind + 1
 
         DO
            CALL read_line
@@ -124,7 +124,7 @@ CONTAINS
                  ALLOCATE (read_ep(iat)%hardness_param(nset), stat = ios)
                  IF (ios /= 0 ) CALL stop_memory &
                       ( 'read_emporical_parameters', 'read_ep%l', nset )
-		 element_symbol (iat)  = string
+                 element_symbol (iat)  = string
               END IF                                              
 
            CASE ( 'EMPAR')
@@ -132,7 +132,7 @@ CONTAINS
                read_ep(iat) % l (i) = get_int()
                read_ep(iat) % hk_param (i) =  get_real()
                read_ep(iat) % hardness_param (i) =  get_real()
-	      
+      
            CASE ( 'END')
                  ilen = 0
                  CALL cfield(string2,ilen)
@@ -140,7 +140,7 @@ CONTAINS
            END SELECT
 
         END DO
-	   
+   
         CALL read_line
 
      END DO
@@ -190,28 +190,28 @@ CONTAINS
      IF (globenv%print_level>=0) THEN
      
         DO i = 1, nkind
-	
+
            WRITE ( iw, '( A,T61,A )' ) ' EMPIRICAL_PARAMETERS| atom type ', &
                 ADJUSTR ( empparm(i) % aname )      
            WRITE ( iw, '( A,T71,I10 )' ) ' EMPIRICAL_PARAMETERS| Number of sets ', &
                 empparm(i) % nset
-		
+
            DO iset = 1, empparm (i) % nset     
-	   
+   
               WRITE ( iw, '( A,T71,I10 )' ) ' EMPIRICAL| angular momentum number ', &
-	           empparm(i) % l (iset)
+                   empparm(i) % l (iset)
 
               WRITE ( iw, '( A,T71,F12.6 )' ) ' EMPIRICAL| Hohemberg-Kohn parameter ', &
-	           empparm(i) % hk_param (iset)
-		   
+                   empparm(i) % hk_param (iset)
+   
               WRITE ( iw, '( A,T71,F12.6 )' ) ' EMPIRICAL| Hardness parameter ', &
-	           empparm(i) % hardness_param (iset)
+                   empparm(i) % hardness_param (iset)
            END DO                                                       
  
            WRITE ( iw,'( )' )
 
         END DO
-	
+
      END IF                        
 
   END IF                        
@@ -233,7 +233,7 @@ CONTAINS
         IF (ios /= 0 ) CALL stop_memory &
                 ( 'read_molecule_section', ' deallocate read_ep%l' )
 
-  END DO		
+  END DO
 
   IF (ASSOCIATED(read_ep)) DEALLOCATE (read_ep, stat = ios)
      IF (ios /= 0 ) CALL stop_memory &
@@ -241,10 +241,8 @@ CONTAINS
 
 END SUBROUTINE read_empirical_parameters
  
-!!*****
 !******************************************************************************              
 
 END MODULE empirical_parameters
 
-!!*****
 !******************************************************************************

@@ -61,8 +61,8 @@ MODULE pol_setup
 
 ! locals
     INTEGER :: i,nrho0,ndrho,ikind,ncgf,isos,imol, icount
-    TYPE  ( read_basis_type ), 	POINTER,  DIMENSION (:) ::  pol_basis
-    TYPE  ( read_basis_type ), 	POINTER,  DIMENSION (:) ::  rho0_basis
+    TYPE  ( read_basis_type ), POINTER,  DIMENSION (:) ::  pol_basis
+    TYPE  ( read_basis_type ), POINTER,  DIMENSION (:) ::  rho0_basis
     LOGICAL :: flag
 
 !   count the total number of basis functions for 
@@ -150,7 +150,7 @@ MODULE pol_setup
         END IF
         DEALLOCATE (ki(ikind)%atom_list,STAT=istat)
         IF (istat /= 0) CALL stop_memory("allocate_pol_basis_info", &
-	                    "ki(ikind)%atom_list")
+                    "ki(ikind)%atom_list")
         DEALLOCATE (ki(ikind)%elec_conf,STAT=istat)
         IF (istat /= 0) CALL stop_memory("allocate_pol_basis_info","ki(ikind)%elec_conf")
       END DO
@@ -212,9 +212,9 @@ MODULE pol_setup
       CALL read_basis_set(ki(ikind)%element_symbol,ki(ikind)%orb_basis_set_name, &
                         ki(ikind)%orb_basis_set, globenv)
 
-      CALL init_cphi(ki(ikind)% orb_basis_set)			
-			
-      CALL get_radii(ki(ikind), moliNFo(ikind)%eps)			
+      CALL init_cphi(ki(ikind)% orb_basis_set)
+
+      CALL get_radii(ki(ikind), moliNFo(ikind)%eps)
 
     ENDDO
 
@@ -248,7 +248,7 @@ MODULE pol_setup
     ENDDO
   END SUBROUTINE get_atom_list                                
 !------------------------------------------------------------------------------!
-  SUBROUTINE get_radii(ki,eps)			
+  SUBROUTINE get_radii(ki,eps)
 
   IMPLICIT NONE
    
@@ -280,10 +280,10 @@ MODULE pol_setup
   END DO
   ki%orb_basis_set%kind_radius = kind_radius
  
-  END SUBROUTINE get_radii			
+  END SUBROUTINE get_radii
 !------------------------------------------------------------------------------  
 
-  SUBROUTINE get_number_of_coefs(ki, part, ncoefs)			
+  SUBROUTINE get_number_of_coefs(ki, part, ncoefs)
   
   IMPLICIT NONE
   
@@ -302,14 +302,14 @@ MODULE pol_setup
       DO ii = 1, ki(ikind)%natom
       
         i = ki(ikind)%atom_list(ii)
-	
+
         NULLIFY (part(i) % coef_list)
         ncgf =  ki(ikind)% orb_basis_set % ncgf
         ncoefs = ncoefs + ki(ikind)% orb_basis_set % ncgf
 
-	ALLOCATE(part (i) %coef_list(ncgf), STAT=isos)
+        ALLOCATE(part (i) %coef_list(ncgf), STAT=isos)
          IF (isos/=0) CALL stop_memory('get_number_of_coef', 'coeflist')
-	
+
         DO icgf = 1, ncgf
           icount = icount + 1
           part (i) % coef_list(icgf)=icount
@@ -321,7 +321,7 @@ MODULE pol_setup
   
   END SUBROUTINE get_number_of_coefs
 !------------------------------------------------------------------------------ 
-  SUBROUTINE get_rcutsq_cgf(ki,rsq)			
+  SUBROUTINE get_rcutsq_cgf(ki,rsq)
 
   IMPLICIT NONE
    
@@ -339,7 +339,7 @@ MODULE pol_setup
        DO j = 1, size (ki)
 
           rcut = ki(i)%orb_basis_set%kind_radius + &
-	                  ki(j)%orb_basis_set%kind_radius 
+                  ki(j)%orb_basis_set%kind_radius 
           rsq (i,j) = rcut * rcut
            
        END DO

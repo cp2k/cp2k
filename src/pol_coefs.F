@@ -123,7 +123,7 @@ MODULE pol_coefs
       END DO
       CLOSE (666)                                                          
 
-    END SELECT	
+    END SELECT
 
 ! fills the remaining information...
 
@@ -165,32 +165,33 @@ MODULE pol_coefs
       DO ii = 1, natoms
  
         ipart = ki(ikind)%atom_list(ii)        
-	ncgf = ki(ikind) % orb_basis_set % ncgf 
+        ncgf = ki(ikind) % orb_basis_set % ncgf 
 
-          DO icgf = 1, ncgf
-             icoef  = part ( ipart ) % coef_list( icgf )
-	     ao % coef_to_basis_set ( icoef ) = ikind 
-	     ao % coef_to_part ( icoef ) = ipart 
+        DO icgf = 1, ncgf
+           icoef  = part ( ipart ) % coef_list( icgf )
+           ao % coef_to_basis_set ( icoef ) = ikind 
+           ao % coef_to_part ( icoef ) = ipart 
 
-             IF (flag) THEN
-               ao % kind_info (icoef) % orb_basis_set => ki (ikind) % orb_basis_set
-               ao % kind_info (icoef) % orb_basis_set_name = ki (ikind) % orb_basis_set_name
-               ao % kind_info (icoef) % number_of_grid_points = ki (ikind) % number_of_grid_points
-               ao % kind_info (icoef) % element_symbol = ki (ikind) % element_symbol
-               ao % kind_info (icoef) % natom = ki (ikind) % natom
-               ao % kind_info (icoef) % z = ki (ikind) % z
-               IF (.NOT.ASSOCIATED(ao % kind_info (icoef) % atom_list)) THEN         
-                 ALLOCATE (ao % kind_info (icoef) % atom_list (natoms) , STAT = ios)
-               END IF
-               DO iat = 1, natoms
-                  ao % kind_info (icoef) % atom_list (iat) = ki (ikind) % atom_list (iat)
-               END DO
-	     END IF
+           IF (flag) THEN
+             ao % kind_info (icoef) % orb_basis_set => ki (ikind) % orb_basis_set
+             ao % kind_info (icoef) % orb_basis_set_name = ki (ikind) % orb_basis_set_name
+             ao % kind_info (icoef) % number_of_grid_points = &
+                  ki (ikind) % number_of_grid_points
+             ao % kind_info (icoef) % element_symbol = ki (ikind) % element_symbol
+             ao % kind_info (icoef) % natom = ki (ikind) % natom
+             ao % kind_info (icoef) % z = ki (ikind) % z
+             IF (.NOT.ASSOCIATED(ao % kind_info (icoef) % atom_list)) THEN         
+               ALLOCATE (ao % kind_info (icoef) % atom_list (natoms) , STAT = ios)
+             END IF
+             DO iat = 1, natoms
+                ao % kind_info (icoef) % atom_list (iat) = ki (ikind) % atom_list (iat)
+             END DO
+           END IF
          ENDDO                                
-	 
-      END DO	 
-      
-   END DO	 
+
+      END DO
+
+   END DO
 
  END SUBROUTINE get_kind_and_part_index
 

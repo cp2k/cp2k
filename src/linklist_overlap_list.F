@@ -213,11 +213,11 @@ SUBROUTINE overlap_list(n_images,n_cell,pnode,part,box, &
      DO jkind = 1, nkind
      
         ll => part(ii) % cell_ol % pTYPE ( jkind ) % ll
-	
+
         DO jpart = 1, part(ii) % cell_ol % natoms(jkind )
-	
+
            j = ll%atom
-	   
+   
 ! use black/white scheme to avoid double counting
 
            IF (include_list(ii,j)) THEN
@@ -228,9 +228,9 @@ SUBROUTINE overlap_list(n_images,n_cell,pnode,part,box, &
 ! look for a match in the exclusion list (j in excl of pnode(i))
 
               SELECT CASE (nexcl)
-	      
+      
               CASE DEFAULT
-	      
+      
                  IF ( .NOT. get_match(j,elist,nexcl)) THEN
                     CALL update_verlet_list(n_images ( ikind, jkind, : ), &
                          part(j), j, &
@@ -239,7 +239,7 @@ SUBROUTINE overlap_list(n_images,n_cell,pnode,part,box, &
                  END IF
 
               CASE (0)
-	      
+      
                     CALL update_verlet_list(n_images(ikind,jkind,:),part(j),j, &
                          pnode(i),hmat,h_inv,perd,rlist_cutsq(ikind,jkind ), &
                          current_neighbor,list_type)
@@ -273,10 +273,10 @@ SUBROUTINE overlap_list(n_images,n_cell,pnode,part,box, &
            ll => cell_ll(index(1),index(2),index(3)) % pTYPE ( jkind ) %ll
  
            DO jpart = 1, cell_ll(index(1),index(2),index(3)) %natoms(jkind) 
-	   
+   
               ipair=ipair+1
               j = ll%atom
-	      
+      
               SELECT CASE (nexcl)
 
               CASE DEFAULT
@@ -305,11 +305,11 @@ SUBROUTINE overlap_list(n_images,n_cell,pnode,part,box, &
               ll => ll%next
 
            END DO
-	      
+      
         END DO
-	   
+   
      END DO
-	
+
      IF ( first_time .AND. globenv % print_level>4 &
           .OR. globenv % print_level>9) THEN
         IF (globenv % ionode) WRITE (globenv % scr,'(A,i10,T54,A,T71,I10 )' ) &

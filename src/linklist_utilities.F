@@ -114,7 +114,7 @@ MODULE linklist_utilities
          pnode%nneighbor = pnode%nneighbor + 1
          CASE (2)
          pnode%nsneighbor = pnode%nsneighbor + 1
-      END SELECT	 
+      END SELECT
 
       current_neighbor%p => part
       current_neighbor%index = j
