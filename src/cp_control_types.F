@@ -168,13 +168,6 @@ MODULE cp_control_types
 
   CHARACTER(LEN=*), PARAMETER :: moduleN = "cp_control_types"
 
-  INTEGER, PARAMETER :: xc_rho_no_smooth=0, xc_rho_spline2_smooth=1,&
-       xc_rho_spline3_smooth=2, xc_rho_nn10=3
-  INTEGER, PARAMETER :: xc_deriv_pw=0, xc_deriv_spline2=1,&
-       xc_deriv_spline3=2, xc_deriv_spline2_smooth=3,&
-       xc_deriv_spline3_smooth=4
-  INTEGER, PARAMETER, PUBLIC :: xc_old_f_routine=0, xc_new_f_routine=1,&
-       xc_test_f_routine=2, xc_test_lsd_f_routine=3
   INTEGER, SAVE :: last_dft_control_id=0
 
 ! *** Public data types ***
@@ -186,11 +179,14 @@ MODULE cp_control_types
 
 ! *** Public parameters ***
 
-  PUBLIC :: xc_rho_no_smooth, xc_rho_spline2_smooth,&
-            xc_rho_spline3_smooth, xc_rho_nn10, &
-            xc_deriv_pw, xc_deriv_spline2,&
-            xc_deriv_spline3, xc_deriv_spline2_smooth,&
-            xc_deriv_spline3_smooth
+  INTEGER, PARAMETER, PUBLIC :: xc_rho_no_smooth=0, xc_rho_spline2_smooth=1,&
+       xc_rho_spline3_smooth=2, xc_rho_nn10=3
+  INTEGER, PARAMETER, PUBLIC :: xc_deriv_pw=0, xc_deriv_spline2=1,&
+       xc_deriv_spline3=2, xc_deriv_spline2_smooth=3,&
+       xc_deriv_spline3_smooth=4, xc_deriv_nn10_smooth=5,&
+       xc_deriv_fd=6
+  INTEGER, PARAMETER, PUBLIC :: xc_old_f_routine=0, xc_new_f_routine=1,&
+       xc_test_f_routine=2, xc_test_lsd_f_routine=3
 
 ! *** Public subroutines ***
 

@@ -32,7 +32,9 @@ MODULE cp_control_utils
                                              xc_rho_spline2_smooth,&
                                              xc_rho_spline3_smooth,&
                                              xc_test_f_routine,&
-                                             xc_test_lsd_f_routine
+                                             xc_test_lsd_f_routine,&
+                                             xc_deriv_nn10_smooth,&
+                                             xc_deriv_fd
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_check,&
@@ -113,9 +115,9 @@ CONTAINS
 !!  grid             plane_wave     [cutoff ecut, mesh nx ny nz]              !
 !!  charge           charge                                                   !
 !!  xc_smooth_rho    [ NONE, NN10, SPLINE2, SPLINE3 ](in order of smoothness) !
-!!  xc_deriv         [ PW, SPLINE3, SPLINE2, SPLINE2_SMOOTH, SPLINE3_SMOOTH ] !
-!!                   (in order of growing smoothness)
-!!  functional_routine [ old, new, test ]
+!!  xc_deriv         [ PW, SPLINE3, SPLINE2, NN10_SMOOTH, SPLINE2_SMOOTH,     !
+!!                     SPLINE3_SMOOTH ]      (in order of growing smoothness) !
+!!  functional_routine [ old, new, test ]                                     !
 !!                                                                            !
 !!<----------------------------------------------------------------------------
 
@@ -276,6 +278,10 @@ CONTAINS
                 dft_control % xc_deriv_method_id = xc_deriv_spline2
              CASE ("SPLINE3")
                 dft_control % xc_deriv_method_id = xc_deriv_spline3
+             CASE ("FD")
+                dft_control % xc_deriv_method_id = xc_deriv_fd
+             CASE ("NN10_SMOOTH")
+                dft_control % xc_deriv_method_id = xc_deriv_nn10_smooth
              CASE ("SPLINE2_SMOOTH")
                 dft_control % xc_deriv_method_id = xc_deriv_spline2_smooth
              CASE ("SPLINE3_SMOOTH")
@@ -1166,6 +1172,10 @@ FUNCTION xc_get_deriv_method_label(xc_deriv_method_id,error) RESULT(res)
      res="SPLINE2_SMOOTH"
   CASE (xc_deriv_spline3_smooth)
      res="SPLINE3_SMOOTH"
+  CASE (xc_deriv_nn10_smooth)
+     res="NN10_SMOOTH"
+  CASE (xc_deriv_fd)
+     res="FD"
   CASE default
      WRITE (res,"('UKN',i6)") xc_deriv_method_id
   END SELECT
