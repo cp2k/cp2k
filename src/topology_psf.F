@@ -26,6 +26,7 @@ MODULE topology_psf
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
                                              default_string_length
+  USE memory_utilities,                ONLY: reallocate
   USE parser,                          ONLY: get_next,&
                                              parser_end,&
                                              parser_init,&
@@ -33,7 +34,8 @@ MODULE topology_psf
                                              search_label
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_types,                  ONLY: topology_parameters_type,&
@@ -83,6 +85,7 @@ SUBROUTINE read_topology_psf (topology,globenv)
       routineP = moduleN//':'//routineN
     INTEGER                                  :: handle
     LOGICAL                                  :: PM1, PM2, PM3, PM4
+    INTEGER :: jatom
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -132,11 +135,11 @@ SUBROUTINE read_topology_psf (topology,globenv)
     IF(ierror/=0) CALL stop_memory &
       ('read_topology_psf','alloc :: atm_mol_name',nphi)
 
-    IF (ASSOCIATED(atom_info%map_mol_num)) &
-         DEALLOCATE(atom_info%map_mol_num,STAT=ierror)
+    IF (ASSOCIATED(atom_info%label_resid)) &
+         DEALLOCATE(atom_info%label_resid,STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
       ('read_topology_psf','dealloc :: atm_res_num',nphi)    
-    ALLOCATE(atom_info%map_mol_num(natom),STAT=ierror)
+    ALLOCATE(atom_info%label_resid(natom),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
       ('read_topology_psf','alloc :: atm_res_num',nphi)
 
@@ -178,7 +181,7 @@ SUBROUTINE read_topology_psf (topology,globenv)
       CALL read_line
       CALL get_next(i)
       CALL get_next(atom_info%label_molname(iatom),ilen)
-      CALL get_next(atom_info%map_mol_num(iatom))
+      CALL get_next(atom_info%label_resid(iatom))
       CALL get_next(atom_info%label_resname(iatom),ilen)
       CALL get_next(atom_info%label_atmname(iatom),ilen)
       CALL get_next(atom_info%label_atmname(iatom),ilen)
@@ -221,6 +224,31 @@ SUBROUTINE read_topology_psf (topology,globenv)
     END DO
   END IF
   CALL parser_end
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+  i = 0
+  DO ibond=1,nbond
+    iatom = conn_info%bond_a(ibond)
+    jatom = conn_info%bond_b(ibond)
+    IF(topology%para_res) THEN
+      IF((atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)).OR.&
+         (atom_info%label_resid(iatom)/=atom_info%label_resid(jatom)).OR.&
+         (atom_info%label_resname(iatom)/=atom_info%label_resname(jatom)))THEN
+          IF(PM1) WRITE(iw,*) "      PARA_RES, bond between molecules atom ",&
+                              iatom,jatom
+          i = i + 1
+          CALL reallocate(conn_info%c_bond_a,1,i+1)
+          CALL reallocate(conn_info%c_bond_b,1,i+1)
+          conn_info%c_bond_a(i) = iatom
+          conn_info%c_bond_b(i) = jatom
+      END IF
+    ELSE
+      IF(atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)) THEN
+          CALL stop_program ("topology_generate_bond",&
+                             "bonds between different molecule types??? ")
+      END IF
+    END IF
+  END DO
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
   IF(PM1) WRITE(iw,*) 'Parsing the NTHETA section'
@@ -339,7 +367,7 @@ SUBROUTINE read_topology_psf (topology,globenv)
     BACKSPACE iunit 
     CALL read_line
     CALL get_next (nphi)
-    IF(PM1) WRITE(iw,*) 'NPHI = ',nphi
+    IF(PM1) WRITE(iw,*) 'NIMPR = ',nphi
     !malloc the memory that we need
     ALLOCATE(conn_info%impr_a(nphi),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
