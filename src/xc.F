@@ -96,9 +96,7 @@ MODULE xc
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_allocate,&
                                              pw_copy,&
-                                             pw_deallocate,&
                                              pw_derive,&
                                              pw_p_type,&
                                              pw_sumup,&
