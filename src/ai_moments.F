@@ -41,6 +41,8 @@ MODULE ai_moments
 
 ! *****************************************************************************
 
+  USE ai_derivatives,                  ONLY: dabdr
+  USE ai_overlap,                      ONLY: overlap
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers,                ONLY: coset,&
@@ -51,7 +53,7 @@ MODULE ai_moments
 
   PRIVATE
 
-  PUBLIC :: cossin, moment
+  PUBLIC :: cossin, moment, diffop
 
 !!***
 ! *****************************************************************************
@@ -1122,6 +1124,43 @@ CONTAINS
     END DO
 
   END SUBROUTINE moment
+
+! *****************************************************************************
+
+  SUBROUTINE diffop(la_max,zeta,rpgfa,la_min,&
+                    lb_max,zetb,rpgfb,lb_min,&
+                    rab,difab)
+
+    INTEGER, INTENT(IN)                      :: la_max
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
+    INTEGER, INTENT(IN)                      :: la_min, lb_max
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
+    INTEGER, INTENT(IN)                      :: lb_min
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(OUT)                            :: difab
+
+    INTEGER                                  :: lda_min, ldb_min
+    REAL(KIND=dp)                            :: dab, rab2
+    REAL(KIND=dp), DIMENSION(SIZE(zeta)*ncoset(la_max+1),&
+      SIZE(zetb)*ncoset(lb_max+1))           :: sab, sabdx, sabdy, sabdz
+
+!   ---------------------------------------------------------------------------
+    rab2= SUM( rab**2 )
+    dab = SQRT(rab2)
+
+    lda_min = MAX ( 0, la_min-1 )
+    ldb_min = MAX ( 0, lb_min-1 )
+
+    CALL overlap(la_max+1,zeta,rpgfa,lda_min,&
+                 lb_max+1,zetb,rpgfb,ldb_min,&
+                 rab,rab2,sab)
+
+    CALL dabdr(la_max,zeta,rpgfa,la_min,&
+               lb_max,zetb,rpgfb,lb_min,&
+               dab,sab,difab(:,:,1),difab(:,:,2),difab(:,:,3))
+
+  END SUBROUTINE diffop
 
 ! *****************************************************************************
 
