@@ -215,10 +215,14 @@ SUBROUTINE cell_list ( natom_types, n_cell, rcut, tag, pnode, part, &
   END DO
 
   DO i = 1, natoms
-     itype = part(i) % prop % ptype
-
+     SELECT CASE (list_type)
+     CASE (1)
+        itype = part(i) % prop % ptype
+     CASE (2)
+        itype = part(i) % kind            
+        IF (itype <=0 ) CYCLE
+     END SELECT
      IF (itype > natom_types) CYCLE
-
 ! pbc so that particles outside the central box are also mapped
 !    onto proper cells
      r(1) = part(i) % r(1)
