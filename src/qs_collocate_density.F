@@ -27,6 +27,7 @@
 !!     - parallel FFT (JGH 22.05.02)
 !!     - multigrid arrays independent from density (JGH 30.08.02)
 !!     - old density stored in g space (JGH 30.08.02)
+!!     - distributed real space code (JGH 17.07.03)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -463,13 +464,15 @@ CONTAINS
 
         ab = ikind + nkind*(jkind - 1)
 
-        IF (.NOT.ASSOCIATED(sab_orb(ab)%neighbor_list_set)) CYCLE
+        IF (ASSOCIATED(sab_orb(ab)%neighbor_list_set)) THEN
 
-        CALL get_neighbor_list_set(neighbor_list_set=&
-                                     sab_orb(ab)%neighbor_list_set,&
-                                   nlist=nlist)
-
-        sab_orb_neighbor_list => first_list(sab_orb(ab)%neighbor_list_set)
+           CALL get_neighbor_list_set(neighbor_list_set=&
+                                      sab_orb(ab)%neighbor_list_set,&
+                                      nlist=nlist)
+           sab_orb_neighbor_list => first_list(sab_orb(ab)%neighbor_list_set)
+        ELSE
+           nlist=0
+        END IF
 
         ntasks = 0
         tasks = 0

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
+!   Copyright (C) 2000 - 2003 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/qs_integrate_potential [1.0] *
 !!
@@ -23,6 +23,7 @@
 !!     Joost VandeVondele (05.2002)
 !!           1) prelim. introduction of the real space grid type
 !!     JGH [30.08.02] multigrid arrays independent from potential
+!!     JGH [17.07.03] distributed real space code
 !!
 !!   SOURCE
 !******************************************************************************
@@ -626,13 +627,15 @@ CONTAINS
 
         ab = ikind + nkind*(jkind - 1)
 
-        IF (.NOT.ASSOCIATED(sab_orb(ab)%neighbor_list_set)) CYCLE
+        IF (ASSOCIATED(sab_orb(ab)%neighbor_list_set)) THEN
 
-        CALL get_neighbor_list_set(neighbor_list_set=&
-                                     sab_orb(ab)%neighbor_list_set,&
-                                   nlist=nlist)
-
-        sab_orb_neighbor_list => first_list(sab_orb(ab)%neighbor_list_set)
+           CALL get_neighbor_list_set(neighbor_list_set=&
+                                      sab_orb(ab)%neighbor_list_set,&
+                                      nlist=nlist)
+           sab_orb_neighbor_list => first_list(sab_orb(ab)%neighbor_list_set)
+        ELSE
+           nlist = 0
+        END IF
 
         tasks = 0
         ntasks = 0
