@@ -21,6 +21,8 @@
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: rootpi
   USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
 !
   IMPLICIT NONE
@@ -62,9 +64,11 @@ CONTAINS
                    t46,t47,t48,t49,t50,t51,t52,t53,t54,t55,t56,t57,t58,t59,&
                    t60,t61
     REAL ( dp ) :: x
-    INTEGER     :: i
+    INTEGER     :: handle, i
 
 ! -----------------------------------------------------------------------------
+
+    CALL timeset("whittaker_c0","I"," ",handle)
 
     IF ( MOD(l,2) /= 0 ) THEN
         CALL stop_program(module_name,routine_name,__LINE__,&
@@ -250,6 +254,8 @@ CONTAINS
 
     END SELECT
 
+   CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE whittaker_c0
 
 ! *****************************************************************************
@@ -280,9 +286,11 @@ CONTAINS
                    t18,t19,t20,t21,t22,t23,t24,t25,t26,t27,t28,t29,t30,t31,&
                    t32,t33
     REAL ( dp ) :: x
-    INTEGER     :: i
+    INTEGER     :: handle, i
 
 ! -----------------------------------------------------------------------------
+
+    CALL timeset("whittaker_ci","I"," ",handle)
 
     IF ( MOD(l,2) /= 0 ) THEN
         CALL stop_program(module_name,routine_name,__LINE__,&
@@ -413,6 +421,8 @@ CONTAINS
         END DO
 
     END SELECT
+
+   CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE whittaker_ci
 

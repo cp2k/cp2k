@@ -552,7 +552,7 @@ MODULE  hartree_local_3centers
                            rpgfa(:,iset1),zeta(:,iset1),nz1,&
                            lb_max(iset2),lb_min(iset2),nco2,m2,&
                            rpgfb(:,iset2),zetb(:,iset2),nz2,&
-                           l0_kkind,normhard(0:),ng0_s(0:),rpgf0_h,rpgf0_s,&
+                           l0_kkind,normhard(0:),ng0_s(0:),rpgf0_s,rpgf0_s,&
                            QN_h,-QN_s,Qlm,zhard,z0_s,&
                            rab,rab2,rac,rac2,rbc,rbc2,&
                            Int_ab_sum,Int_abc,maxder,&
@@ -626,7 +626,7 @@ MODULE  hartree_local_3centers
                            rpgfb(:,iset1),zetb(:,iset1),nz1,&
                            la_max(iset2),la_min(iset2),nco2,m2,&
                            rpgfa(:,iset2),zeta(:,iset2),nz2,&
-                           l0_kkind,normhard(0:),ng0_s(0:),rpgf0_h,rpgf0_s,&
+                           l0_kkind,normhard(0:),ng0_s(0:),rpgf0_s,rpgf0_s,&
                            QN_h,-QN_s,Qlm,zhard,z0_s,&
                            -rab,rab2,rbc,rbc2,rac,rac2,&
                            Int_ab_sum,Int_abc,maxder,&

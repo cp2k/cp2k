@@ -67,7 +67,8 @@ MODULE qs_rho0_methods
                                              trace_r_AxB
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory
-
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
@@ -178,11 +179,13 @@ MODULE qs_rho0_methods
                            POINTER           :: rho_atom_set
     REAL(dp), DIMENSION(:), POINTER          :: norm_g0l_h, norm_g0l_s
 
-    INTEGER                                  :: iat, iatom, ic, ico, ir, is, iso,&
+    INTEGER                                  :: handle, iat, iatom, ic, ico, ir, is, iso,&
                                                 istat, l, lshell, lx, ly, lz,&
                                                 lmax0, nr
     REAL(dp) :: sum1, sum2
 !   ---------------------------------------------------------------------------
+
+    CALL timeset("calculate_rho0_atom","I"," ",handle)
 
     NULLIFY(mpole_gau)
     NULLIFY(mpole_rho)
@@ -270,6 +273,8 @@ MODULE qs_rho0_methods
          END DO
        END DO  ! lshell
     END DO  ! iat
+
+   CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_rho0_atom
 
