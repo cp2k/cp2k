@@ -56,6 +56,7 @@ MODULE atomic_kind_types
   USE cp_array_utils, only: cp_write
   USE cp_error_handling
   USE cp_log_handling
+  USE cp_linked_list_int
 
   IMPLICIT NONE
 
@@ -213,7 +214,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), POINTER             :: atomic_kind
+    TYPE(atomic_kind_type), TARGET              :: atomic_kind
     TYPE(all_potential_type), OPTIONAL, POINTER :: all_potential
     TYPE(gth_potential_type), OPTIONAL, POINTER :: gth_potential
     TYPE(gto_basis_set_type), OPTIONAL, POINTER :: aux_basis_set,&
@@ -587,7 +588,6 @@ CONTAINS
     CALL init_potential(atomic_kind%gth_potential)
 !MK CALL init_aux_basis_set(atomic_kind%aux_basis_set)
     CALL init_orb_basis_set(atomic_kind%orb_basis_set)
-    NULLIFY(atomic_kind%pao_bas_proj)
 
   END SUBROUTINE init_atomic_kind
 
@@ -651,15 +651,21 @@ CONTAINS
     CHARACTER(LEN=max_name_length) :: aux_basis_set_name,keyword,&
                                       orb_basis_set_name,potential_name
     CHARACTER(LEN=2)               :: current_symbol,element_symbol
-    INTEGER                        :: i,ikind,ipos,istat,z
-    LOGICAL                        :: found,section_found
+    INTEGER                        :: i,ikind,ipos,istat,z, min_b_index
+    LOGICAL                        :: found,section_found, failure
+    character(len=3)               :: obj_kind
+    type(cp_sll_int_type), pointer :: min_bas_sll
+    type(cp_error_type)            :: error
 
 !   ---------------------------------------------------------------------------
 
+    failure=.false.
     aux_basis_set_name = ""
     orb_basis_set_name = ""
     potential_name = "ALL"
     z = -1
+    call cp_create(min_bas_sll)
+    call cp_init(error)
 
     CALL start_parser(file_name=globenv%input_file_name,&
                       globenv=globenv,&
@@ -693,6 +699,16 @@ CONTAINS
         CALL read_object(atomic_kind%mass)
       CASE ("POTENTIAL","POT")
         CALL read_object(potential_name)
+      case ("PAO_MIN_BAS")
+        do
+           obj_kind=test_object()
+           if (obj_kind=='INT') then
+              call read_object(min_b_index)
+              call cp_insert(min_bas_sll,min_b_index,error=error)
+           else
+              exit
+           end if
+        end do
       END SELECT
     END DO
 
@@ -795,8 +811,16 @@ CONTAINS
 
     END IF
 
-!   pao proj is not yet initianized (done in pao section)
-    NULLIFY(atomic_kind%pao_bas_proj)
+!   *** 
+    if (.not.cp_get_empty(min_bas_sll)) then
+        call cp_proj_create2(atomic_kind%pao_bas_proj,&
+                proj_indexes=min_bas_sll,&
+                size_full_bas=atomic_kind%orb_basis_set%nsgf,&
+                error=error)
+     else
+        nullify(atomic_kind%pao_bas_proj)
+    end if
+    call cp_dealloc(min_bas_sll,error=error)
 
   END SUBROUTINE read_atomic_kind
 
