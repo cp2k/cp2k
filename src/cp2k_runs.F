@@ -420,7 +420,9 @@ CONTAINS
                         file_position="APPEND",&
                         unit_number=output_unit)
               ELSE
-                output_unit=-1 ! this should never be used by cp2k_run
+                ! this should never be used by cp2k_run, but e.g. still happens, incorrectly, 
+                ! on eror, writes now to fort.999 so that error messages can be recovered and fixed
+                output_unit=999 
               ENDIF
           
               IF (globenv%ionode) write(globenv%scr,FMT="(T2,A,I5.5,A)") " Running Job ",i, &
