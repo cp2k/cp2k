@@ -2243,7 +2243,8 @@ END SUBROUTINE cp_sm_scale_and_add
 !!
 !!   FUNCTION
 !!   Transfers source matrix to target matrix (copies the values) 
-!!   filtering the result trough the structure (sparsity) of target matrix
+!!   filtering the result through the structure (sparsity) of target matrix
+!!   zeros blocks as necessary
 !!
 !!   NOTES
 !!     assumes that both matrixes have the same distribution
@@ -2271,10 +2272,13 @@ END SUBROUTINE cp_sm_scale_and_add
     CHARACTER(LEN=*), PARAMETER :: routineN = 'transfer_real_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iblock_col, iblock_row
+    INTEGER                                  :: handle 
+    INTEGER                                  :: iblock_row
+    INTEGER                                  :: iblock_col_source, iblock_col_source_old
+    INTEGER                                  :: iblock_col_target, iblock_col_target_old
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: source_block, target_block
-    TYPE(real_block_node_type), POINTER      :: block_node
+    TYPE(real_block_node_type), POINTER      :: block_node_target, block_node_source
 
 !   ---------------------------------------------------------------------------
 !   *** Check the association status of the source matrix ***
@@ -2285,22 +2289,40 @@ END SUBROUTINE cp_sm_scale_and_add
     CPPrecondition(ASSOCIATED(target_matrix),cp_failure_level,routineP,error,failure)
 
 !   *** Copy matrix elements ***
-
+    !
+    ! we loop over the blocks, making use of the fact that they are ordered
+    ! since the sparsity might explicitly be different, this requires checking that
+    ! for a given target block, the source block is actually corresponding
+    !
+    ! for all rows, go over the linked list of blocks
     DO iblock_row=1,source_matrix%nblock_row
 
-      block_node => first_block_node(target_matrix,iblock_row)
+      block_node_target => first_block_node(target_matrix,iblock_row)
+      block_node_source => first_block_node(source_matrix,iblock_row)
+      iblock_col_source_old=-1
+      iblock_col_target_old=-1
 
-      DO WHILE (ASSOCIATED(block_node))
+      DO WHILE (ASSOCIATED(block_node_target))
 
-        CALL get_block_node(block_node=block_node,&
-                            block_col=iblock_col,&
+        CALL get_block_node(block_node=block_node_target,&
+                            block_col=iblock_col_target,&
                             BLOCK=target_block)
 
         IF (ASSOCIATED(target_block)) THEN
-           CALL get_block_node(matrix=source_matrix,&
-                block_row=iblock_row,&
-                block_col=iblock_col,&
-                BLOCK=source_block)
+           CPPrecondition(iblock_col_target>iblock_col_target_old,cp_failure_level,routineP,error,failure) 
+           iblock_col_target_old=iblock_col_target
+
+           NULLIFY(source_block)
+
+           DO WHILE(ASSOCIATED(block_node_source))
+              CALL get_block_node(block_node=block_node_source,&
+                                  block_col=iblock_col_source,&
+                                  BLOCK=source_block)
+              IF (iblock_col_source == iblock_col_target) EXIT
+              NULLIFY(source_block)
+              IF (iblock_col_source >  iblock_col_target) EXIT
+              block_node_source => block_node_source%next_block_node
+           ENDDO 
            
            IF (ASSOCIATED(source_block)) THEN
               CPPrecondition(SIZE(target_block,1)==SIZE(source_block,1),cp_failure_level,routineP,error,failure)
@@ -2313,7 +2335,7 @@ END SUBROUTINE cp_sm_scale_and_add
            END IF
         END IF
         
-        block_node => block_node%next_block_node
+        block_node_target => block_node_target%next_block_node
 
       END DO
 
