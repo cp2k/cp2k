@@ -1061,7 +1061,7 @@ END SUBROUTINE qs_vxc_create
   SUBROUTINE calculate_w_matrix_1(mo_set,w_matrix,error)
 
 !   Purpose: Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
-!            and the MO occupation numbers.
+!            and the MO occupation numbers. Only works if they are eigenstates
 
 !   History: - Creation (03.03.03,MK)
 !            - Modification that computes it as a full block, several times (e.g. 20) 
@@ -1114,17 +1114,16 @@ END SUBROUTINE qs_vxc_create
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_w_matrix_2(mo_set,ks_matrix,w_matrix,error)
+  SUBROUTINE calculate_w_matrix_2(mo_set,mo_deriv,w_matrix,error)
 
-!   Purpose: Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
-!            and the MO occupation numbers.
-
-!   History: - Creation (17.07.2002,MK)
+!   Purpose: Calculate the W matrix from the MO coefs, MO derivs [Joost VandeVondele]
+!   could overwrite the mo_derivs for increased memory efficiency
 
 !   ***************************************************************************
 
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(real_matrix_type), POINTER          :: ks_matrix, w_matrix
+    TYPE(real_matrix_type), POINTER          :: w_matrix 
+    TYPE(cp_fm_type), POINTER                :: mo_deriv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1153,20 +1152,13 @@ END SUBROUTINE qs_vxc_create
     CALL cp_fm_create(h_block,fm_struct_tmp, name="h block")
     CALL cp_fm_struct_release(fm_struct_tmp)
 
-
-    IF ( mo_set%lfomo .LE. mo_set%homo) THEN ! not all orbitals 1..homo are equally occupied
-      CPErrorMessage(cp_failure_level,"calculate_w_matrix_2","lfomo .LE. homo",error)
-    END IF
-
-    CALL cp_sm_fm_multiply(ks_matrix,mo_set%eigenvectors,weighted_vectors, &
-                           mo_set%homo,mo_set%eigenvectors%matrix_struct%para_env)
-    CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_dp, &
-                    mo_set%eigenvectors,weighted_vectors,0.0_dp,h_block)
+    ! the convention seems to require the half here, the factor of two is presumably taken care of 
+    ! internally in qs_core_hamiltonian
+    CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,0.5_dp, &
+                    mo_set%eigenvectors,mo_deriv,0.0_dp,h_block)
+    ! this could overwrite the mo_derivs to save the weighted_vectors
     CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
                     mo_set%eigenvectors,h_block,0.0_dp,weighted_vectors)
-
-    ! scale every column with the occupation
-    CALL cp_fm_column_scale(weighted_vectors,mo_set%occupation_numbers)
 
     CALL set_matrix(w_matrix,0.0_dp)
     CALL cp_sm_plus_fm_fm_t(sparse_matrix=w_matrix,&

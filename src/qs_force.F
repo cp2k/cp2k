@@ -24,6 +24,7 @@ MODULE qs_force
                                              get_atomic_kind_set
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
                                              int_size
@@ -48,7 +49,8 @@ MODULE qs_force
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&
-                                             replicate_matrix_structure
+                                             replicate_matrix_structure, &
+                                             set_matrix
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -107,6 +109,7 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     LOGICAL                                  :: gapw
     TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: mo_derivs 
 !   ---------------------------------------------------------------------------
 
     CALL write_checkpoint_information("entering "//routine_name,globenv)
@@ -155,22 +158,28 @@ CONTAINS
     CALL qs_energies(qs_env,globenv,&
                      neighbor_lists_from_scratch=neighbor_lists_from_scratch)
 
-    CALL get_qs_env(qs_env=qs_env,mos=mos, matrix_ks=matrix_ks, ks_env=ks_env, matrix_s=matrix_s, rho=rho)
+    CALL get_qs_env(qs_env=qs_env,mos=mos,mo_derivs=mo_derivs, &
+                    matrix_ks=matrix_ks, ks_env=ks_env, matrix_s=matrix_s, rho=rho)
 
 !   *** Build W matrix ***
-!   *** C^T H_ks C (from the orthonormality constraint)
+!   *** (from the orthonormality constraint lambda C^T S C)
     nspin = SIZE(mos)
 
     CALL allocate_matrix_set(matrix_w,nspin)
 
     DO ispin=1,nspin
       CALL replicate_matrix_structure(matrix_s(1)%matrix,matrix_w(ispin)%matrix,"W MATRIX")
-      mo_set => mos(ispin)%mo_set
-      IF (scf_control%use_ot) THEN
-        CALL calculate_w_matrix(mo_set,matrix_ks(ispin)%matrix,matrix_w(ispin)%matrix)
-      ELSE
-        CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix)
-      END IF
+      IF (qs_env%dft_control%restricted .AND. ispin>1) THEN
+        ! not very elegant, indeed ...
+        CALL set_matrix(matrix_w(ispin)%matrix,0.0_dp)
+      ELSE 
+        mo_set => mos(ispin)%mo_set
+        IF (scf_control%use_ot) THEN
+          CALL calculate_w_matrix(mo_set,mo_derivs(ispin)%matrix,matrix_w(ispin)%matrix)
+        ELSE
+          CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix)
+        END IF
+      ENDIF
       IF (globenv%print%w_matrix) THEN
         CALL write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,globenv)
       END IF
