@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations          !
 !   Copyright (C) 2000  CP2K developers group                                  !
 !------------------------------------------------------------------------------!
+#include "cp_prep_globals.h"
 !!****** cp2k/brillouin [1.0] *
 !!
 !!   NAME
@@ -21,20 +22,34 @@
     MODULE brillouin
 !
 !------------------------------------------------------------------------------!
-
-      USE kinds, ONLY : dbl
-
-      USE global_types, ONLY : global_environment_type
-      USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-        p_error, get_next, stop_parser, search_label
-      USE string_utilities, ONLY : uppercase
-      USE termination, ONLY : stop_memory, stop_program
 !
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE parser,                          ONLY: get_next,&
+                                             p_error,&
+                                             parser_end,&
+                                             parser_init,&
+                                             read_line,&
+                                             search_label,&
+                                             stop_parser,&
+                                             test_next
+  USE string_utilities,                ONLY: uppercase
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
       IMPLICIT NONE
 !
       PRIVATE
 !
-      PUBLIC :: kpoint_type, brillouin_info, kpoint_input
+      PUBLIC :: kpoint_type, brillouin_info, kpoint_input, kpoint_dealloc
+
+      CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="brillouin"
+
 !
       TYPE kpoint_type
         CHARACTER (len=20) :: scheme
@@ -56,6 +71,13 @@
 !!
 !!   NAME
 !!     kpoint_input
+!!
+!!   SYNOPSIS
+!!     Subroutine kpoint_input(kp, inpar)
+!!       Implicit None
+!!       Type(kpoint_type), Intent (OUT):: kp
+!!       Type(global_environment_type), Intent (IN):: inpar
+!!     End Subroutine kpoint_input
 !!
 !!   FUNCTION
 !!
@@ -99,6 +121,7 @@
         kp%nkpt = 0
         kp%nk = 0
         kp%shift = 0._dbl
+        NULLIFY(kp%weight, kp%xk)
         iw = inpar%scr
 
 !..parse the input section
@@ -203,6 +226,13 @@
 !!   NAME
 !!     brillouin_info
 !!
+!!   SYNOPSIS
+!!     Subroutine brillouin_info(kp, inpar)
+!!       Implicit None
+!!       Type(kpoint_type), Intent (IN):: kp
+!!       Type(global_environment_type), Intent (IN):: inpar
+!!     End Subroutine brillouin_info
+!!
 !!   FUNCTION
 !!
 !!   AUTHOR
@@ -232,7 +262,7 @@
               ELSE
                 WRITE (punit,*)
                 WRITE (punit,'(A,T61,A)') ' BRILLOUIN| K-point scheme ', &
-                  adjustr(kp%scheme)
+                  ADJUSTR(kp%scheme)
                 IF (kp%scheme=='MONKHORST-PACK') THEN
                   WRITE (punit,'(A,T66,3I5)') &
                       ' BRILLOUIN| K-Point grid', kp%nk
@@ -273,6 +303,60 @@
 
 !!*****
 !------------------------------------------------------------------------------!
+!!****f* brillouin/kpoint_dealloc [1.0] *
+!!
+!!   NAME
+!!     kpoint_dealloc
+!!
+!!   SYNOPSIS
+!!     Subroutine kpoint_dealloc(kp, error)
+!!       Type(kpoint_type), Pointer:: kp
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine kpoint_dealloc
+!!
+!!   FUNCTION
+!!     deallocates the given kpoint info
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - kp: the object to deallocate
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     11.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE kpoint_dealloc(kp,error)
+  TYPE(kpoint_type), POINTER :: kp
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='kpoint_dealloc',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: stat
+
+  failure=.FALSE.
+  
+  IF (ASSOCIATED(kp)) THEN
+     IF (ASSOCIATED(kp%weight)) THEN
+        DEALLOCATE(kp%weight,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+     IF (ASSOCIATED(kp%xk)) THEN
+        DEALLOCATE(kp%xk,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+     DEALLOCATE(kp,stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  END IF
+END SUBROUTINE kpoint_dealloc
+!***************************************************************************
 
     END MODULE brillouin
 

@@ -55,16 +55,10 @@ MODULE qs_environment_types
                                              cp_fm_struct_release,&
                                              cp_fm_struct_retain,&
                                              cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                             cp_fm_type, &
-                                             cp_fm_create, &
-                                             cp_fm_release
-  USE cp_subsystem_types,               ONLY: cp_subsystem_type,&
-                                             cp_subsys_create,&
-                                             cp_subsys_get,&
-                                             cp_subsys_release,&
-                                             cp_subsys_retain,&
-                                             cp_subsys_set
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_info,&
+                                             cp_fm_release,&
+                                             cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -93,7 +87,15 @@ MODULE qs_environment_types
                                              sm_struct_create,&
                                              sm_struct_release,&
                                              sm_struct_retain
-  USE dft_types,                       ONLY: dft_control_type
+  USE cp_subsystem_types,              ONLY: cp_subsys_create,&
+                                             cp_subsys_get,&
+                                             cp_subsys_release,&
+                                             cp_subsys_retain,&
+                                             cp_subsys_set,&
+                                             cp_subsystem_type
+  USE dft_types,                       ONLY: dft_control_release,&
+                                             dft_control_retain,&
+                                             dft_control_type
   USE distribution_1d_types,           ONLY: distribution_1d_create,&
                                              distribution_1d_release,&
                                              distribution_1d_retain,&
@@ -289,7 +291,7 @@ MODULE qs_environment_types
     TYPE(qs_scf_env_type), POINTER                        :: scf_env
     TYPE(qs_matrix_pools_type), POINTER                   :: mpools
     TYPE(distribution_2d_type), POINTER                   :: distribution_2d
-    TYPE(cp_subsystem_type), POINTER                       :: subsys
+    TYPE(cp_subsystem_type), POINTER                      :: subsys
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -581,7 +583,11 @@ CONTAINS
        CALL cell_release(qs_env%cell,error=error)
        qs_env%cell => cell
     END IF
-    IF (PRESENT(dft_control)) qs_env%dft_control => dft_control
+    IF (PRESENT(dft_control)) THEN
+       CALL dft_control_retain(dft_control, error=error)
+       CALL dft_control_release(qs_env%dft_control, error=error)
+       qs_env%dft_control => dft_control
+    END IF
     IF (PRESENT(c)) qs_env%c => c
     IF (PRESENT(sab_orb)) qs_env%sab_orb => sab_orb
     IF (PRESENT(sac_erfc)) qs_env%sac_erfc => sac_erfc
@@ -850,6 +856,8 @@ SUBROUTINE qs_env_release(qs_env,error)
      CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
      qs_env%ref_count=qs_env%ref_count-1
      IF (qs_env%ref_count<1) THEN
+        CALL cell_release(qs_env%cell)
+        CALL dft_control_release(qs_env%dft_control, error=error)
         IF (ASSOCIATED(qs_env%c)) THEN
            DO i=1,SIZE(qs_env%c)
               CALL deallocate_mo_set(qs_env%c(i)%mo_set)
@@ -911,32 +919,26 @@ SUBROUTINE qs_env_release(qs_env,error)
         CALL qs_rho_release(qs_env%rho, error=error)
         CALL scf_c_release(qs_env%scf_control, error=error)
         CALL pw_env_release(qs_env%pw_env, error=error)
+        CALL cp_para_env_release(qs_env%para_env,error=error)
         CALL cp_blacs_env_release(qs_env%blacs_env, error=error)
         IF (ASSOCIATED(qs_env%rho_core)) &
              CALL coeff_deallocate(qs_env%rho_core)
         CALL qs_charges_release(qs_env%qs_charges, error=error)
         CALL qs_ks_release(qs_env%ks_env, error=error)
-        CALL mpools_release(qs_env%mpools,error=error)
-        CALL cp_subsys_release(qs_env%subsys,error=error)
-
-!FM        if (associated(qs_env%pao_env)) then ! circular ref
-!FM           call pao_env_dealloc_ref(pao_env_dealloc_ref,error=error)
-!FM           deallocate(qs_env%pao_env,stat=stat)
-!FM           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-!FM        end if
-
-!FM        CALL cp_assert(.FALSE.,cp_warning_level, cp_unimplemented_error_nr,&
-!FM             routineP, &
-!FM             "qs_env%cell, qs_env%pao_env and qs_env%dft_control "//&
-!FM             "not fully deallocated"//&
-!FM             CPSourceFileRef,&
-!FM             error)
-        NULLIFY(qs_env%cell, qs_env%dft_control,qs_env%pao_env)
         CALL wfi_release(qs_env%wf_history,error=error)
         CALL scf_env_release(qs_env%scf_env, error=error)
+        CALL mpools_release(qs_env%mpools,error=error)
         IF (ASSOCIATED(qs_env%distribution_2d)) THEN
            CALL distribution_2d_release(qs_env%distribution_2d)
         ENDIF
+        CALL cp_subsys_release(qs_env%subsys,error=error)
+        IF (ASSOCIATED(qs_env%pao_env)) THEN ! circular ref
+           NULLIFY(qs_env%pao_env)
+!FM           call pao_env_dealloc_ref(pao_env_dealloc_ref,error=error)
+!FM           deallocate(qs_env%pao_env,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+
         DEALLOCATE(qs_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF

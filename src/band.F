@@ -1,7 +1,8 @@
-!------------------------------------------------------------------------------!
+
 !   CP2K: A general program to perform molecular dynamics simulations          !
 !   Copyright (C) 2000  CP2K developers group                                  !
 !------------------------------------------------------------------------------!
+#include "cp_prep_globals.h"
 !!****** cp2k/band [1.0] *
 !!
 !!   NAME
@@ -21,18 +22,28 @@
     MODULE band
 !
 !------------------------------------------------------------------------------!
-
-      USE kinds, ONLY : dbl
-
-      USE brillouin, ONLY : kpoint_type
-      USE fermi, ONLY : fermi_distribution_type
-      USE termination, ONLY : stop_memory, stop_program
 !
+  USE brillouin,                       ONLY: kpoint_dealloc,&
+                                             kpoint_type
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE fermi,                           ONLY: dealloc_fermi_dist,&
+                                             fermi_distribution_type
+  USE kinds,                           ONLY: dbl
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
       IMPLICIT NONE
 !
       PRIVATE
+
+      CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN="band"
 !
-      PUBLIC :: band_structure_type, init_band_structure, band_structure_info
+      PUBLIC :: band_structure_type, init_band_structure, band_structure_info,&
+           band_structure_preinit, band_structure_dealloc_ref
 !
       TYPE band_structure_type
         TYPE (fermi_distribution_type), POINTER :: fd
@@ -47,10 +58,95 @@
     CONTAINS
 !
 !------------------------------------------------------------------------------!
+!!****** band/band_structure_preinit [1.0] *
+!!
+!!   NAME
+!!     band_structure_preinit
+!!
+!!   SYNOPSIS
+!!     Subroutine band_structure_preinit(bs, error)
+!!       Implicit None
+!!       Type(band_structure_type), Intent (OUT):: bs
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine band_structure_preinit
+!!
+!!   FUNCTION
+!!     initialization (to avoid leaks)
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+      SUBROUTINE band_structure_preinit(bs, error)
+        IMPLICIT NONE
+        TYPE (band_structure_type), INTENT (OUT) :: bs
+        TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+
+        NULLIFY(bs%fd, bs%kpt, bs%ev, bs%oc)
+      END SUBROUTINE band_structure_preinit
+!!*****
+!------------------------------------------------------------------------------!
+!!****** band/band_structure_dealloc_ref [1.0] *
+!!
+!!   NAME
+!!     band_structure_dealloc_ref
+!!
+!!   SYNOPSIS
+!!     Subroutine band_structure_dealloc_ref(bs, error)
+!!       Implicit None
+!!       Type(band_structure_type), Intent (INOUT):: bs
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine band_structure_dealloc_ref
+!!
+!!   FUNCTION
+!!     deallocates the memory allocated by this object
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+      SUBROUTINE band_structure_dealloc_ref(bs, error)
+        IMPLICIT NONE
+        TYPE (band_structure_type), INTENT (INOUT) :: bs
+        TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+
+        INTEGER :: stat
+        CHARACTER(len=*), PARAMETER :: routineN="band_structure_dealloc_ref",&
+             routineP=moduleN//":"//routineN
+
+        CALL dealloc_fermi_dist(bs%fd)
+        CALL kpoint_dealloc(bs%kpt)
+        IF (ASSOCIATED(bs%ev)) THEN
+           DEALLOCATE(bs%ev, stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(bs%oc)) THEN
+           DEALLOCATE(bs%oc, stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+      END SUBROUTINE band_structure_dealloc_ref
+!!*****
+!------------------------------------------------------------------------------!
 !!****** band/init_band_structure [1.0] *
 !!
 !!   NAME
 !!     init_band_structure
+!!
+!!   SYNOPSIS
+!!     Subroutine init_band_structure(bs, fd, kp)
+!!       Implicit None
+!!       Type(band_structure_type), Intent (INOUT):: bs
+!!       Type(fermi_distribution_type), Intent (IN), Target:: fd
+!!       Type(kpoint_type), Intent (IN), Target:: kp
+!!     End Subroutine init_band_structure
 !!
 !!   FUNCTION
 !!
@@ -75,11 +171,17 @@
         bs%kpt => kp
 
         nspin = fd%spin_polarization
-        ns = max(fd%nalpha,fd%nbeta)
+        ns = MAX(fd%nalpha,fd%nbeta)
         nk = kp%nkpt
 
-        IF (associated(bs%ev)) NULLIFY (bs%ev)
-        IF (associated(bs%oc)) NULLIFY (bs%oc)
+        IF (ASSOCIATED(bs%ev)) THEN
+           CPAssertNoErr(.FALSE.,cp_warning_level,"init_band_structure")
+           NULLIFY (bs%ev) !FM memory leak?
+        END IF
+        IF (ASSOCIATED(bs%oc)) THEN
+           CPAssertNoErr(.FALSE.,cp_warning_level,"init_band_structure")
+           NULLIFY (bs%oc) !FM memory leak?
+        END IF
         ALLOCATE (bs%ev(ns,nk,nspin),STAT=isos)
         IF (isos/=0) CALL stop_memory('init_band_structure', &
           'bs%ev',ns*nk*nspin)
@@ -94,6 +196,13 @@
 !!
 !!   NAME
 !!     band_structure_info
+!!
+!!   SYNOPSIS
+!!     Subroutine band_structure_info(bs, punit)
+!!       Implicit None
+!!       Type(band_structure_type), Intent (IN):: bs
+!!       Integer, Intent (IN):: punit
+!!     End Subroutine band_structure_info
 !!
 !!   FUNCTION
 !!
@@ -154,7 +263,7 @@
               ' Beta Electrons'
             WRITE (punit,'(A,A)') ' State    Occupation     Eigenvalue[au] ', &
               '  State    Occupation     Eigenvalue[au] '
-            nm = min(bs%fd%nalpha,bs%fd%nbeta)
+            nm = MIN(bs%fd%nalpha,bs%fd%nbeta)
             DO i = 1, nm
               WRITE (punit,'(I5,5x,F10.3,6x,F13.6,T42,I5,5x,F10.3,6x,F13.6)') &
                 i, bs%oc(i,ik,1), bs%ev(i,ik,1), i, bs%oc(i,ik,2), &

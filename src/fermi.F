@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations          !
 !   Copyright (C) 2000  CP2K developers group                                  !
 !------------------------------------------------------------------------------!
+#include "cp_prep_globals.h"
 !!****** cp2k/fermi [1.0] *
 !!
 !!   NAME
@@ -21,17 +22,26 @@
     MODULE fermi
 !
 !------------------------------------------------------------------------------!
-
-      USE kinds, ONLY : dbl
-
-      USE termination, ONLY : stop_program, stop_memory
-      USE physcon, ONLY : boltzmann, joule
 !
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE kinds,                           ONLY: dbl
+  USE physcon,                         ONLY: boltzmann,&
+                                             joule
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
       IMPLICIT NONE
 !
       PRIVATE
 
-      PUBLIC :: fermi_distribution_type, init_fermi_dist, fermi_info
+      CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN="fermi"
+
+      PUBLIC :: fermi_distribution_type, init_fermi_dist, fermi_info, &
+           dealloc_fermi_dist
 !
       TYPE fermi_distribution_type
         REAL (dbl) :: chemical_potential
@@ -59,6 +69,23 @@
 !!
 !!   NAME
 !!     init_fermi_dist
+!!
+!!   SYNOPSIS
+!!     Subroutine init_fermi_dist(fdist, total_electrons, electrons,&
+!!         total_states, states, electronic_temp, broadening_method, spins,&
+!!         spin_moment, fixed_occupation)
+!!       Implicit None
+!!       Type(fermi_distribution_type), Intent (INOUT):: fdist
+!!       Real(Kind=dbl), Optional, Intent (IN):: total_electrons
+!!       Real(Kind=dbl), Dimension(:), Optional, Intent (IN):: electrons
+!!       Integer, Optional, Intent (IN):: total_states
+!!       Integer, Dimension(:), Optional, Intent (IN):: states
+!!       Real(Kind=dbl), Optional, Intent (IN):: electronic_temp
+!!       Character(Len=*), Optional, Intent (IN):: broadening_method
+!!       Integer, Optional, Intent (IN):: spins
+!!       Real(Kind=dbl), Optional, Intent (IN):: spin_moment
+!!       Logical, Optional, Intent (IN):: fixed_occupation
+!!     End Subroutine init_fermi_dist
 !!
 !!   FUNCTION
 !!
@@ -353,6 +380,13 @@
 !!   NAME
 !!     fermi_info
 !!
+!!   SYNOPSIS
+!!     Subroutine fermi_info(fdist, plevel, punit)
+!!       Implicit None
+!!       Type(fermi_distribution_type), Intent (IN):: fdist
+!!       Integer:: plevel, punit
+!!     End Subroutine fermi_info
+!!
 !!   FUNCTION
 !!
 !!   AUTHOR
@@ -404,7 +438,7 @@
           IF(fdist%fixedspinmoment) THEN
             IF(fdist%multiplicity > 0) THEN
               WRITE (punit,'(A,T71,A)') ' FERMI| Multiplicity', &
-                adjustr(mul(fdist%multiplicity))
+                ADJUSTR(mul(fdist%multiplicity))
             ELSE
               WRITE (punit,'(A,T71,F10.2)') ' FERMI| Spin moment', &
                 fdist%fixedspinmoment_amount
@@ -414,7 +448,7 @@
             WRITE (punit,'(A,T71,F10.2)') ' FERMI| Electronic temperature [K]', &
               fdist%electronic_temp
             WRITE (punit,'(A,T41,A)') ' FERMI| Broadening method', &
-              adjustr(fdist%broadening_method)
+              ADJUSTR(fdist%broadening_method)
           END IF
           IF(fdist%fixedoccupation) THEN
             WRITE (punit,'(A,T71,I10)') &
@@ -440,6 +474,60 @@
 !------------------------------------------------------------------------------!
 
 !!*****
+
+!!****f* fermi/dealloc_fermi_dist [1.0] *
+!!
+!!   NAME
+!!     dealloc_fermi_dist
+!!
+!!   SYNOPSIS
+!!     Subroutine dealloc_fermi_dist(fermi_dist, error)
+!!       Type(fermi_distribution_type), Pointer:: fermi_dist
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine dealloc_fermi_dist
+!!
+!!   FUNCTION
+!!     deallocates the fermi distribution
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - fermi_dist: the distribution to deallocate
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     11.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE dealloc_fermi_dist(fermi_dist,error)
+  TYPE(fermi_distribution_type), POINTER :: fermi_dist
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='dealloc_fermi_dist',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: stat
+
+  IF (ASSOCIATED(fermi_dist)) THEN
+     IF (ASSOCIATED(fermi_dist%electrons)) THEN
+        DEALLOCATE(fermi_dist%electrons, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+     IF (ASSOCIATED(fermi_dist%states)) THEN
+        DEALLOCATE(fermi_dist%states, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+     DEALLOCATE(fermi_dist, stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  END IF
+
+END SUBROUTINE dealloc_fermi_dist
+!***************************************************************************
 !------------------------------------------------------------------------------!
 
     END MODULE fermi

@@ -76,7 +76,8 @@ MODULE cp_fm_struct
   PUBLIC :: cp_fm_struct_type
   PUBLIC :: optimal_blacs_row_block_size, optimal_blacs_col_block_size
   PUBLIC :: cp_fm_struct_create,cp_fm_struct_retain, cp_fm_struct_release,&
-       cp_fm_struct_equivalent, cp_fm_struct_write, cp_fm_struct_get
+       cp_fm_struct_equivalent, cp_fm_struct_compatible, cp_fm_struct_write,&
+       cp_fm_struct_get
 !***
 !****************************************************************************
 
@@ -531,6 +532,64 @@ FUNCTION cp_fm_struct_equivalent(fmstruct1,fmstruct2,error) RESULT(res)
      END IF
   END IF
 END FUNCTION cp_fm_struct_equivalent
+!***************************************************************************
+
+!!****f* cp_fm_struct/cp_fm_struct_compatible [1.0] *
+!!
+!!   NAME
+!!     cp_fm_struct_compatible
+!!
+!!   SYNOPSIS
+!!     Function cp_fm_struct_compatible(fmstruct1, fmstruct2, error)&
+!!         Result(res)
+!!       Type(cp_fm_struct_type), Pointer:: fmstruct1, fmstruct2
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Logical:: res
+!!     End Function cp_fm_struct_compatible
+!!
+!!   FUNCTION
+!!     returns true if the two matrix structures are compatible,
+!!     (i.e. in the same parallel environment) false otherwise.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - fmstruct1: one of the full matrix structures to compare
+!!     - fmstruct2: the second of the full matrix structures to compare
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+FUNCTION cp_fm_struct_compatible(fmstruct1,fmstruct2,error) RESULT(res)
+  TYPE(cp_fm_struct_type), POINTER :: fmstruct1, fmstruct2
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  LOGICAL :: res
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_compatible',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: i
+  failure=.FALSE.
+
+  CPPrecondition(ASSOCIATED(fmstruct1),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(fmstruct2),cp_failure_level,routineP,error,failure)
+  CPPrecondition(fmstruct1%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(fmstruct2%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     IF (fmstruct1%id_nr==fmstruct2%id_nr) THEN
+        res=.TRUE.
+     ELSE
+        res= (fmstruct1%context%group==fmstruct2%context%group)
+     END IF
+  END IF
+END FUNCTION cp_fm_struct_compatible
 !***************************************************************************
 
 !!****f* cp_fm_struct/cp_fm_struct_write [1.0] *

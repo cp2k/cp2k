@@ -37,9 +37,9 @@ MODULE qs_scf_types
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fm_types,                     ONLY: cp_fm_release,&
+  USE cp_fm_types,                     ONLY: cp_fm_p_type,&
+                                             cp_fm_release,&
                                              cp_fm_retain,&
-                                             cp_fm_p_type,&
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_log_handling,                 ONLY: cp_failure_level,&
@@ -236,20 +236,20 @@ SUBROUTINE scf_env_release(scf_env,error)
      CPPreconditionNoFail(scf_env%ref_count>0,cp_failure_level,routineP,error)
      scf_env%ref_count=scf_env%ref_count-1
      IF (scf_env%ref_count==0) THEN
-        CALL cp_fm_release(scf_env%ortho,error=error)
-        CALL cp_fm_release(scf_env%scf_work2,error=error)
         CALL cp_fm_vect_dealloc(scf_env%scf_work1,error=error)
+        CALL cp_fm_release(scf_env%scf_work2,error=error)
+        CALL cp_fm_release(scf_env%ortho,error=error)
         CALL deallocate_matrix_set(scf_env%p_new)
+        IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
+           CALL destroy_preconditioner(scf_env%ot_preconditioner)
+           DEALLOCATE(scf_env%ot_preconditioner,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
         IF (ASSOCIATED(scf_env%qs_ot_env)) THEN
            DO i=1,SIZE(scf_env%qs_ot_env)
               CALL qs_ot_destroy(scf_env%qs_ot_env(i))
            END DO
            DEALLOCATE(scf_env%qs_ot_env, stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
-           CALL destroy_preconditioner(scf_env%ot_preconditioner)
-           DEALLOCATE(scf_env%ot_preconditioner,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
         CALL qs_diis_b_release(scf_env%scf_diis_buffer,error=error)

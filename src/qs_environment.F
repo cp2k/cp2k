@@ -25,7 +25,6 @@
 !******************************************************************************
 
 MODULE qs_environment
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set,&
                                              init_atomic_kind_set,&
@@ -37,7 +36,8 @@ MODULE qs_environment
   USE cp_error_handling,               ONLY: cp_error_type
   USE cp_fm_struct,                    ONLY: optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size
-  USE dft_types,                       ONLY: dft_control_type,&
+  USE dft_types,                       ONLY: dft_control_release,&
+                                             dft_control_type,&
                                              read_dft_control,&
                                              read_qs_control,&
                                              write_dft_control,&
@@ -48,7 +48,8 @@ MODULE qs_environment
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE input_types,                     ONLY: setup_parameters_type
-  USE kinds,                           ONLY: dp,int_size
+  USE kinds,                           ONLY: dp,&
+                                             int_size
   USE machine,                         ONLY: m_flush
   USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                              write_molecule_kind_set
@@ -94,7 +95,6 @@ MODULE qs_environment
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control
-
   IMPLICIT NONE
 
   PRIVATE
@@ -353,6 +353,7 @@ CONTAINS
     CALL distribution_1d_release(local_molecules,error=error)
     CALL scf_c_release(scf_control,error=error)
     CALL wfi_release(wf_history,error=error)
+    CALL dft_control_release(dft_control, error=error)
 
 !   *** Allocate the MO data types ***
 

@@ -60,6 +60,7 @@ PROGRAM cp2k
   USE cp_error_handling, ONLY: cp_error_type, cp_a_l, cp_assert, cp_error_init, cp_error_dealloc_ref, cp_assertion_failed
   USE geo_opt, only: qs_geo_opt
   USE md_run, only: qs_mol_dyn
+  USE machine, ONLY: print_memory
   USE qs_mc,                           ONLY: qs_mon_car
   USE trajana_methods, ONLY: trajana
 
@@ -72,7 +73,7 @@ PROGRAM cp2k
   TYPE(cp_error_type) :: error
   TYPE(force_env_type), pointer :: force_env
   TYPE(cp_blacs_env_type), pointer :: blacs_env
-  INTEGER :: handle, stat
+  INTEGER :: handle, stat, i
   logical :: failure
 
   ! -----------------------------------------------------------------------------
@@ -98,8 +99,12 @@ PROGRAM cp2k
   CASE ("QS")
      !   *** Initialize the BLACS environment ***
      CALL start_blacs(blacs_env,globenv)
-
-     CALL quickstep_create_force_env(force_env, blacs_env, globenv, error=error)
+!FM     DO i=1,100
+        CALL quickstep_create_force_env(force_env, blacs_env, globenv, error=error)
+!FM        CALL print_memory("qs_created"//cp_to_string(i))
+!FM        CALL force_env_release(force_env, error=error)
+!FM        CALL print_memory("qs_removed"//cp_to_string(i))
+!FM     END DO
   CASE ("EP")
      !   *** Initialize the BLACS environment ***
      CALL start_blacs(blacs_env,globenv)
