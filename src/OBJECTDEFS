@@ -62,17 +62,22 @@ OBJECTS_GENERIC =\
  cp_lbfgs_optimizer_gopt.o\
  cp_lbfgs_optimizer_tests.o\
  cp_linked_list_3d_r.o\
+ cp_linked_list_char.o\
  cp_linked_list_fm.o\
  cp_linked_list_int.o\
+ cp_linked_list_logical.o\
  cp_linked_list_pw.o\
+ cp_linked_list_real.o\
  cp_linked_list_rs.o\
  cp_linked_list_sm.o\
+ cp_linked_list_val.o\
  cp_linked_list_xc_deriv.o\
  cp_log_handling.o\
  cp_matrix_utils.o\
  cp_output_handling.o\
  cp_para_env.o\
  cp_para_types.o\
+ cp_parser.o\
  cp_rs_pool_types.o\
  cp_sll_int_tests.o\
  cp_sm_fm_interactions.o\
@@ -94,10 +99,10 @@ OBJECTS_GENERIC =\
  empirical_parameters.o\
  environment.o\
  erf_fn.o\
- ewalds.o\
  ewald_environment_types.o\
  ewald_pw_methods.o\
  ewald_pw_types.o\
+ ewalds.o\
  extended_system_dynamics.o\
  extended_system_initialize.o\
  extended_system_types.o\
@@ -116,8 +121,8 @@ OBJECTS_GENERIC =\
  fist_force.o\
  fist_intra_force.o\
  fist_main.o\
- fist_neighbor_lists.o\
  fist_neighbor_list_control.o\
+ fist_neighbor_lists.o\
  fist_nonbond_env_types.o\
  fist_nonbond_force.o\
  force_env_methods.o\
@@ -137,7 +142,12 @@ OBJECTS_GENERIC =\
  hartree_local_types.o\
  header.o\
  initialize_extended_types.o\
+ input_file_types.o\
+ input_keyword_types.o\
+ input_parsing.o\
+ input_section_types.o\
  input_types.o\
+ input_val_types.o\
  integrator.o\
  k290.o\
  kg_core.o\
@@ -228,6 +238,7 @@ OBJECTS_GENERIC =\
  potential_types.o\
  potentials.o\
  preconditioner.o\
+ print_key_types.o\
  pw_env_methods.o\
  pw_env_types.o\
  pw_grid_types.o\
@@ -266,8 +277,8 @@ OBJECTS_GENERIC =\
  qs_kpp1_env_types.o\
  qs_ks_atom.o\
  qs_ks_methods.o\
- qs_ks_types.o\
  qs_ks_qmmm_types.o\
+ qs_ks_types.o\
  qs_local_rho_types.o\
  qs_localization.o\
  qs_localization_methods.o\
