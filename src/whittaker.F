@@ -50,9 +50,9 @@ CONTAINS
 !   l        :: L-quantum number
 !   n        :: number of points
 !
+    INTEGER, INTENT (IN)                     :: l, n
     REAL(KIND=dp), DIMENSION(n)              :: wc, r, expa, erfa
     REAL(KIND=dp), INTENT (IN)               :: alpha
-    INTEGER, INTENT (IN)                     :: l, n
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "whittaker_c0"
 
@@ -270,9 +270,9 @@ CONTAINS
 !   l        :: L-quantum number
 !   n        :: number of points
 !
+    INTEGER, INTENT (IN)                     :: l, n
     REAL(KIND=dp), DIMENSION(n)              :: wc, r, expa
     REAL(KIND=dp), INTENT (IN)               :: alpha
-    INTEGER, INTENT (IN)                     :: l, n
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "whittaker_ci"
 
