@@ -2,28 +2,25 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/machine_g95 [1.0] *
+!!****** cp2k/machine_pgi [1.0] *
 !!
 !!   NAME
-!!     machine_g95
+!!     machine_pgi
 !!
 !!   FUNCTION
 !!
 !!   AUTHOR
-!!     JGH (05.07.2001)
+!!     APSI & JGH
 !!
 !!   MODIFICATION HISTORY
 !!     - m_flush added (12.06.2002,MK)
 !!     - print_memory changed (24.09.2002,MK)
 !!
-!!   NOTES
-!!     This is a copy of the PGI file, the G95 compiler is not yet ready
-!!
 !!   SOURCE
 !!*****
 !******************************************************************************
 
-MODULE machine_g95
+MODULE machine_pgi
 
   USE kinds, ONLY : dbl, sgl
 
@@ -53,8 +50,8 @@ FUNCTION m_walltime() RESULT (wt)
   REAL (sgl) :: etime
   TYPE tb_type
      SEQUENCE
-     REAL (sgl) usrtime
-     REAL (sgl) systime
+     REAL (sgl) :: usrtime
+     REAL (sgl) :: systime
   END TYPE tb_type
   TYPE (tb_type) etime_struct
   wt = etime(etime_struct)
@@ -109,7 +106,7 @@ END SUBROUTINE m_datum
 
     WRITE(UNIT=cmdstr,FMT="(A,I8,A,I8,A)")&
       "echo -e ""\\n Memory size of process""",pid,""" <"//TRIM(checkpoint)//&
-      ">:"" `ps -o rssize -p",pid," | tail -1` KBytes""\\c"""
+      ">:"" `ps -o vsz -p",pid," | tail -1` KBytes""\\c"""
 
     CALL system(cmdstr)
 
@@ -152,4 +149,4 @@ SUBROUTINE m_getarg(i,arg)
   CALL getarg(i,arg)
 END SUBROUTINE m_getarg
 !******************************************************************************
-END MODULE machine_g95
+END MODULE machine_pgi

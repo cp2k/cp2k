@@ -815,7 +815,6 @@ CONTAINS
     DO i=1,n
        CALL cp_fm_get_element(matrix_a,i,i,diag(i)) !  not completely optimal in speed i would say
     ENDDO
-    CALL mp_sum(diag,matrix_a%matrix_struct%para_env%group)
     determinant=1.0_wp
     DO i=1,n
        determinant=determinant*diag(i)

@@ -245,9 +245,6 @@ SUBROUTINE qs_loc_compute_set(qs_loc_env,vectors,ionode,iunit)
        ! only the cpu that has the data can return it. others give 0
        CALL cp_fm_get_element(RESULT(1,i)%matrix,l,l,realpart)
        CALL cp_fm_get_element(RESULT(2,i)%matrix,l,l,imagpart)
-       ! we have to sum the data so we have it on CPU 0
-       CALL mp_sum(realpart,RESULT(1,i)%matrix%matrix_struct%para_env%group) 
-       CALL mp_sum(imagpart,RESULT(1,i)%matrix%matrix_struct%para_env%group) 
        z=CMPLX(realpart,imagpart)
        pos(i)=(angstrom*qs_loc_env%box_L(i)/(twopi))*AIMAG(LOG(z))
        IF (pos(i).lt.0.0_wp) pos(i)=pos(i)+qs_loc_env%box_L(i)*angstrom        ! :-(

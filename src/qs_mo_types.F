@@ -674,7 +674,6 @@ CONTAINS
           do i=1,k
            do j=1,k
               CALL cp_fm_get_element(overlap,i,j,alpha)
-              CALL mp_sum(alpha,overlap%matrix_struct%para_env%group)
               if (i.eq.j) alpha=alpha-1.0_wp
               max_alpha=MAX(max_alpha,abs(alpha))
            enddo

@@ -504,12 +504,18 @@ CONTAINS
 !!     - irow_global: the row
 !!     - icol_global: the col
 !!     - alpha: the value of matrix(irow_global, icol_global)
+!!     - local: true if the element is on this cpu, false otherwise
 !!
 !!   NOTES
-!!     -
+!!     - modified semantics. now this function always returns the value 
+!!       previously the value was zero on cpus that didn't own the relevant 
+!!       part of the matrix (Joost VandeVondele, May 2003)
+!!     - usage of the function should be avoided, as it is likely to rather slow
+!!       using row_indices/col_indices/local_data + some smart scheme normally 
+!!       yields a real parallel code
 !!
 !!****
-  SUBROUTINE cp_fm_get_element(matrix,irow_global,icol_global,alpha)
+  SUBROUTINE cp_fm_get_element(matrix,irow_global,icol_global,alpha,local)
     
     IMPLICIT NONE
 
@@ -518,6 +524,7 @@ CONTAINS
     REAL(wp), INTENT(OUT)                     :: alpha
     INTEGER, INTENT(IN)                       :: icol_global,&
                                                  irow_global
+    LOGICAL, INTENT(OUT), OPTIONAL            :: local
 
     ! locals
     INTEGER :: icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,&
@@ -526,13 +533,13 @@ CONTAINS
     REAL(wp), DIMENSION(:,:), POINTER :: a
     TYPE(cp_blacs_env_type), POINTER :: context
 
+
+#if defined(__SCALAPACK)
     context => matrix%matrix_struct%context
     myprow=context%mepos(1)
     mypcol=context%mepos(2)
     nprow=context%num_pe(1)
     npcol=context%num_pe(2)
-
-#if defined(__SCALAPACK)
 
     a => matrix%local_data
     desca(:) = matrix%matrix_struct%descriptor(:)
@@ -542,11 +549,16 @@ CONTAINS
 
     IF ((iprow == myprow).AND.(ipcol == mypcol)) THEN
       alpha = a(irow_local,icol_local)
+      IF (PRESENT(local)) local=.TRUE.
     ELSE
       alpha = 0.0_wp
+      IF (PRESENT(local)) local=.FALSE.
     END IF
+    ! should be replaced with a bcast, need a trick iprow,ipcol -> mepos for this
+    CALL mp_sum(alpha,matrix%matrix_struct%para_env%group) 
 
-#else
+#else 
+    IF (PRESENT(local)) local=.TRUE.
     alpha = matrix%local_data(irow_global,icol_global)
 #endif
 

@@ -151,6 +151,7 @@ CONTAINS
     TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: X, R, kv, T, Tev, opkv
     TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+    LOGICAL                                            :: local
 
     CHARACTER(len=*), PARAMETER :: routineN = "tddfpt_es_lanczos", &
                                    routineP = moduleN//"/"//routineN
@@ -426,7 +427,12 @@ CONTAINS
           CALL cp_fm_set_all(X(spin)%matrix, 0.0_dbl)
        END DO
        DO row=1, n_kv
-          CALL cp_fm_get_element(Tev(1)%matrix, row, 1, scale)
+          CALL cp_fm_get_element(Tev(1)%matrix, row, 1, scale,local)
+          ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          ! this is in order to get the result of the old version of the code
+          ! I am not really sure this is what you intended to be the case in parallel 
+          ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX JOOST XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          IF (.NOT. local) scale=0.0_dbl                  
           DO spin=1, n_spins
              index = n_spins*(row-1) + 1
              CALL cp_fm_scale_and_add(1.0_dbl, X(spin)%matrix, scale, kv(index)%matrix)
@@ -454,7 +460,7 @@ CONTAINS
             "Nr.", "Eigenvalue (hartree)", "Eigenvalue (eV)"
        DO i=1, MIN(n_ev+1,n_kv)
           WRITE (glob_env%scr, '(1X,I3,T20,F19.10,2X,F19.10)') &
-               i, eigenvals(i, iteration), eigenvals(i, iteration)*27.211_dbl
+               i, eigenvals(i, iteration), eigenvals(i, iteration)*27.211_dbl  ! this should use the physcons library !
        END DO
        WRITE (glob_env%scr, *)
     END IF

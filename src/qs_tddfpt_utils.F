@@ -269,6 +269,7 @@ CONTAINS
     INTEGER   :: i, j, ioerr
     REAL(DBL) :: element
     CHARACTER :: symmetric
+    LOGICAL   :: local
 
     symmetric = 'F'
     IF (PRESENT(sym)) symmetric=sym
@@ -278,9 +279,13 @@ CONTAINS
     DO i=1, imax
        DO j=1, jmax
           IF ((symmetric == 'T') .AND. (i>j)) THEN
-             CALL cp_fm_get_element(matrix, j, i, element)
+             CALL cp_fm_get_element(matrix, j, i, element, local)
+             ! this is to get the old meaning of the call, unclear if this is really meant to be the case ! Joost
+             IF (.NOT. local) element = 0.0_dbl
           ELSE
-             CALL cp_fm_get_element(matrix, i, j, element)
+             CALL cp_fm_get_element(matrix, i, j, element, local)
+             ! this is to get the old meaning of the call, unclear if this is really meant to be the case ! Joost
+             IF (.NOT. local) element = 0.0_dbl
           END IF
           WRITE (8, '(1X,F20.10)') element
        END DO
