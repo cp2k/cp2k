@@ -101,14 +101,14 @@ subroutine arpack_diag_sy(vmatrix, &
                                        routineP = moduleN//"/"//routineN
                                     
   ! locals arpack                   
-  integer                           :: nev,ploc,nloc,n,ncolsv
+  integer                           :: ploc,nloc,n,ncolsv
   character                         :: bmat*1,which*2
   real(wp), dimension(:), pointer   :: workl,workd,d,resid,ax
   real(wp), dimension(:,:), pointer :: cv
   logical, dimension(:), pointer    :: select
   logical                           :: rvec
   integer                           :: iparam(11), ipntr(11), &
-                                       ierr, lworkl, info, ido, ncv
+                                       ierr, lworkl, info, ido
   integer                           :: arpack_comm,i
   integer, dimension(9)             :: descv
   real(wp)                          :: tol,sigma,alpha
@@ -127,6 +127,7 @@ subroutine arpack_diag_sy(vmatrix, &
   context = globenv%blacs_env%group
   call arpack_confirm(globenv)
 
+  ! get size of problem
   if (present(full_m_op)) then
      n = full_m_op%a_size
   end if
@@ -152,7 +153,7 @@ subroutine arpack_diag_sy(vmatrix, &
   call blacs_find_vector_distribution(vmatrix,nloc)
 
 !
-! allocate the scratch space, notice that some of these (cv,workl) are not small...
+! allocate the scratch space, notice that some of these (cv,workl) are not small..
 ! if we would force the user to provide sufficient buffer in vmatrix we could
 ! reuse it, but specifying the right size would be non-trivial
 !
@@ -239,6 +240,7 @@ subroutine arpack_diag_sy(vmatrix, &
   do
      !write(6,*) "in the loop",globenv%mepos
 
+#if defined(__ARPACK)
 #if defined(__parallel)
      call pdsaupd(arpack_comm, ido, bmat, nloc, which, nev, tol, resid, &
                  ncv, cv, nloc, iparam, ipntr, workd, workl, &
@@ -247,6 +249,7 @@ subroutine arpack_diag_sy(vmatrix, &
      call dsaupd ( ido, bmat, nloc, which, nev, tol, resid, &
                  ncv, cv, nloc, iparam, ipntr, workd, workl, &
                  lworkl, info )
+#endif
 #endif
 
      if (ido .eq. -1 .or. ido .eq. 1) then
@@ -270,6 +273,7 @@ subroutine arpack_diag_sy(vmatrix, &
   rvec = .true.
   ierr = 0 
 
+#if defined(__ARPACK)
 #if defined(__parallel)
   call pdseupd ( arpack_comm, rvec, 'All', select, d, cv, nloc, sigma, &        
                 bmat, nloc, which, nev, tol, resid, ncv, cv, nloc, &
@@ -278,6 +282,7 @@ subroutine arpack_diag_sy(vmatrix, &
   call dseupd ( rvec, 'All', select, d, cv, nloc, sigma, &        
                 bmat, nloc, which, nev, tol, resid, ncv, cv, nloc, &
                 iparam, ipntr, workd, workl, lworkl, ierr )
+#endif
 #endif
 
   if ( ierr .ne. 0) then
