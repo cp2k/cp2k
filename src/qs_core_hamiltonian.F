@@ -76,11 +76,6 @@
 !******************************************************************************
 
 MODULE qs_core_hamiltonian
-
-  USE kinds, ONLY: int_size,&
-                   wp => dp,&
-                   wp_size => dp_size
-
   USE ai_kinetic,                      ONLY: kinetic
   USE ai_overlap_new,                  ONLY: overlap
   USE ai_overlap_ppl,                  ONLY: overlap_ppl
@@ -94,6 +89,9 @@ MODULE qs_core_hamiltonian
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
   USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: int_size,&
+                                             wp => dp,&
+                                             wp_size => dp_size
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: indco,&
                                              init_orbital_pointers,&
@@ -105,8 +103,7 @@ MODULE qs_core_hamiltonian
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_matrix_pools,                 ONLY: mpools_rebuild_h_r_sm_pools,&
-                                             qs_matrix_pools_type
+  USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
   USE qs_neighbor_list_types,          ONLY: find_neighbor_list,&
                                              first_list,&
                                              first_node,&
@@ -187,7 +184,7 @@ CONTAINS
 !   *** Local types ***
 
     TYPE block_p_type
-      REAL(wp), DIMENSION(:,:), POINTER :: block
+      REAL(wp), DIMENSION(:,:), POINTER :: BLOCK
     END TYPE block_p_type
 
     TYPE vppl_type
@@ -380,11 +377,7 @@ CONTAINS
                          first_col=particle_set(:)%first_sgf,&
                          last_col=particle_set(:)%last_sgf,&
                          matrix_name="OVERLAP MATRIX",&
-#if defined(__2DNOW)
                          matrix_symmetry="symmetric", distribution_2d=distribution_2d)
-#else
-                         matrix_symmetry="symmetric") 
-#endif
 
     DO i=2,maxder
       cgfsym = cgf_symbol(1,indco(1:3,i))
@@ -393,7 +386,7 @@ CONTAINS
       CALL compress(name)
       CALL uppercase(name)
       CALL replicate_matrix_structure(source=s(1)%matrix,&
-                                      target=s(i)%matrix,&
+                                      TARGET=s(i)%matrix,&
                                       target_name=TRIM(name),&
                                       target_symmetry="antisymmetric")
     END DO
@@ -415,7 +408,7 @@ CONTAINS
         return_t_derivatives = .FALSE.
       END IF
       CALL replicate_matrix_structure(source=s(1)%matrix,&
-                                      target=t(1)%matrix,&
+                                      TARGET=t(1)%matrix,&
                                       target_name="KINETIC ENERGY MATRIX")
       DO i=2,SIZE(t)
         cgfsym = cgf_symbol(1,indco(1:3,i))
@@ -424,7 +417,7 @@ CONTAINS
         CALL compress(name)
         CALL uppercase(name)
         CALL replicate_matrix_structure(source=s(1)%matrix,&
-                                        target=t(i)%matrix,&
+                                        TARGET=t(i)%matrix,&
                                         target_name=name,&
                                         target_symmetry="antisymmetric")
       END DO
@@ -435,7 +428,7 @@ CONTAINS
     CALL allocate_matrix_set(h,1)
 
     CALL replicate_matrix_structure(source=s(1)%matrix,&
-                                    target=h(1)%matrix,&
+                                    TARGET=h(1)%matrix,&
                                     target_name="CORE HAMILTONIAN MATRIX")
 
 !   *** Allocate work storage ***
@@ -870,7 +863,7 @@ CONTAINS
                 CALL add_block_node(matrix=s(i)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
-                                    block=sint(i)%block)
+                                    BLOCK=sint(i)%block)
               END DO
               IF (build_kinetic_energy_matrix) THEN
                 DO i=1,SIZE(t)
@@ -878,19 +871,19 @@ CONTAINS
                   CALL add_block_node(matrix=t(i)%matrix,&
                                       block_row=irow,&
                                       block_col=icol,&
-                                      block=tint(i)%block)
+                                      BLOCK=tint(i)%block)
                 END DO
               END IF
               NULLIFY (h_block)
               CALL add_block_node(matrix=h(1)%matrix,&
                                   block_row=irow,&
                                   block_col=icol,&
-                                  block=h_block)
+                                  BLOCK=h_block)
               IF (calculate_forces) THEN
                 CALL get_block_node(matrix=p(1)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
-                                    block=p_block)
+                                    BLOCK=p_block)
                 IF (.NOT.ASSOCIATED(p_block)) THEN
                   CALL stop_program(routine,&
                                     "A density matrix block is missing",&
@@ -899,7 +892,7 @@ CONTAINS
                 CALL get_block_node(matrix=w(1)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
-                                    block=w_block)
+                                    BLOCK=w_block)
                 IF (.NOT.ASSOCIATED(w_block)) THEN
                   CALL stop_program(routine,&
                                     "A weighted density matrix block is missing",&
@@ -1546,7 +1539,7 @@ CONTAINS
     IF (globenv%print%potential_energy_matrix) THEN
       CALL allocate_matrix_set(v,1)
       CALL replicate_matrix_structure(source=h(1)%matrix,&
-                                      target=v(1)%matrix,&
+                                      TARGET=v(1)%matrix,&
                                       target_name="POTENTIAL ENERGY MATRIX")
       CALL add_matrices(v(1)%matrix,1.0_wp,h(1)%matrix,-1.0_wp,t(1)%matrix)
       CALL write_sparse_matrix(v(1)%matrix,4,6,qs_env,globenv)

@@ -22,29 +22,27 @@
 !******************************************************************************
 
 MODULE mulliken
-
   USE atomic_kind_types,               ONLY: get_atomic_kind
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply, &
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_release,&
+                                             cp_fm_type
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
-  USE cp_fm_types,                     ONLY: cp_fm_type, &
-                                             cp_fm_create, &
-                                             cp_fm_release
   USE kinds,                           ONLY: wp => dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
-  USE qs_mo_types,                     ONLY: mo_set_p_type, &
-                                             get_mo_set
-  USE sparse_matrix_types,             ONLY: real_matrix_type, &
+  USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_p_type
+  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
+                                             get_block_node,&
+                                             get_matrix_info,&
                                              real_matrix_p_type,&
-                                             set_matrix, &
-                                             replicate_matrix, &
-                                             deallocate_matrix, &
-                                             get_block_node, &
-                                             get_matrix_info
+                                             real_matrix_type,&
+                                             replicate_matrix,&
+                                             set_matrix
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
   IMPLICIT NONE
 
   PRIVATE
@@ -75,17 +73,17 @@ CONTAINS
     INTEGER :: nspin,ispin,handle,homo
     TYPE(real_matrix_p_type), POINTER, DIMENSION(:)    :: charge_matrix
     TYPE(cp_fm_type), POINTER                 :: fm_temp,eigenvectors
-    REAL(KIND=wp), DIMENSION(:,:), POINTER             :: block
+    REAL(KIND=wp), DIMENSION(:,:), POINTER             :: BLOCK
     REAL(KIND=wp), DIMENSION(:,:), POINTER              :: charges
         CHARACTER(LEN=2) :: element_symbol
-        integer :: zeff
+        INTEGER :: zeff
 
     INTEGER :: nblock,iblock,i
     REAL(KIND=wp)       :: total_charge
 
     ! GO
     CALL timeset("mulliken_charges","I","",handle)
-    NULLIFY(charge_matrix,fm_temp,block,eigenvectors)
+    NULLIFY(charge_matrix,fm_temp,BLOCK,eigenvectors)
 
     nspin=SIZE(mo_array)
     ALLOCATE(charge_matrix(nspin)) 
@@ -108,8 +106,7 @@ CONTAINS
        CALL cp_sm_plus_fm_fm_t(sparse_matrix=charge_matrix(ispin)%matrix,&
                                matrix_v=fm_temp,&
                                matrix_g=eigenvectors,&
-                               first_col=1,&
-                               last_col=homo)
+                               ncol=homo)
        CALL cp_fm_release(fm_temp)
     ENDDO
 
@@ -121,10 +118,10 @@ CONTAINS
 
     DO ispin=1,nspin
       DO iblock=1,nblock
-          CALL get_block_node(charge_matrix(ispin)%matrix,iblock,iblock,block=block)
-          IF (ASSOCIATED(block)) THEN
-            DO i=1,size(block,1)
-               charges(iblock,ispin)=charges(iblock,ispin)+block(i,i)
+          CALL get_block_node(charge_matrix(ispin)%matrix,iblock,iblock,BLOCK=BLOCK)
+          IF (ASSOCIATED(BLOCK)) THEN
+            DO i=1,SIZE(BLOCK,1)
+               charges(iblock,ispin)=charges(iblock,ispin)+BLOCK(i,i)
             ENDDO
           ENDIF
       ENDDO
@@ -135,16 +132,16 @@ CONTAINS
     ! obviously output is not yet very nice
 
     IF (ionode) THEN
-       write(scr,'(A)') ""
-       write(scr,'(A)') "  Mulliken charges "
+       WRITE(scr,'(A)') ""
+       WRITE(scr,'(A)') "  Mulliken charges "
        SELECT CASE (nspin)
        CASE(1)
-       write(scr,'(A)') "  Atom     |    Charge"
+       WRITE(scr,'(A)') "  Atom     |    Charge"
        CASE DEFAULT
-       write(scr,'(A)') "  Atom     |    Charge | Spin diff charge"
+       WRITE(scr,'(A)') "  Atom     |    Charge | Spin diff charge"
        END SELECT
        total_charge = 0.0_wp
-       if (size(particle_set) .NE. nblock) call stop_program("Mulliken","unexpected number of atoms")
+       IF (SIZE(particle_set) .NE. nblock) CALL stop_program("Mulliken","unexpected number of atoms")
        DO iblock=1,nblock
           CALL get_atomic_kind(atomic_kind=particle_set(iblock)%atomic_kind,&
                              element_symbol=element_symbol,&
@@ -152,15 +149,15 @@ CONTAINS
 
           SELECT CASE (nspin)
           CASE(1)
-          write(scr,'(I6,A2,A2,F12.6)') iblock,"  ",element_symbol,zeff-2.0*charges(iblock,1)
+          WRITE(scr,'(I6,A2,A2,F12.6)') iblock,"  ",element_symbol,zeff-2.0*charges(iblock,1)
           total_charge=total_charge+ zeff-2.0*charges(iblock,1)
           CASE DEFAULT
-          write(scr,'(I6,A2,A2,2F12.6)') iblock,"  ",element_symbol, &
+          WRITE(scr,'(I6,A2,A2,2F12.6)') iblock,"  ",element_symbol, &
                       zeff-(charges(iblock,1)+charges(iblock,2)),(charges(iblock,1)-charges(iblock,2))
           total_charge=total_charge+ zeff-(charges(iblock,1)+charges(iblock,2))
           END SELECT
        ENDDO
-       write(scr,'(A,F10.6)') "  Total     ",total_charge
+       WRITE(scr,'(A,F10.6)') "  Total     ",total_charge
 
     ENDIF
 

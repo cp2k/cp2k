@@ -26,11 +26,9 @@
 !******************************************************************************
 
 MODULE message_passing
-
-  USE kinds, ONLY : dbl
-  USE machine, ONLY : m_cputime
+  USE kinds,                           ONLY: dbl
+  USE machine,                         ONLY: m_cputime
   USE parallel_include
-
   IMPLICIT NONE
 
   PRIVATE
@@ -40,7 +38,7 @@ MODULE message_passing
        mp_gather, mp_comm_compare, mp_cart_coords, mp_rank_compare, &
        mp_alltoall, mp_dims_create, mp_cart_rank, mp_cart_sub, mp_comm_free, &
        mp_comm_dup, mp_cart_shift, mp_sendrecv, mp_range, mp_allgather, &
-       mp_sum_scatter, mp_abort, mp_shift
+       mp_sum_scatter, mp_abort, mp_shift, mp_isendrecv, mp_wait, mp_waitall
 
   INTERFACE mp_minloc
      MODULE PROCEDURE mp_minloc_rv
@@ -92,7 +90,11 @@ MODULE message_passing
   END INTERFACE
 
   INTERFACE mp_sendrecv
-     MODULE PROCEDURE mp_sendrecv_rm3
+     MODULE PROCEDURE mp_sendrecv_rm3, mp_sendrecv_rm2
+  END INTERFACE
+
+  INTERFACE mp_isendrecv
+     MODULE PROCEDURE mp_isendrecv_rm2
   END INTERFACE
 
   TYPE mp_perf_type
@@ -102,12 +104,12 @@ MODULE message_passing
     REAL ( dbl ) :: time
   END TYPE mp_perf_type
 
-  INTEGER, PARAMETER :: MAX_PERF = 7
+  INTEGER, PARAMETER :: MAX_PERF = 9
   TYPE ( mp_perf_type ), DIMENSION ( MAX_PERF ) :: mp_perf
   CHARACTER ( LEN = 20 ), PARAMETER :: sname ( MAX_PERF ) =  &
    (/"MP_Group            ", "MP_Bcast            ", "MP_Allreduce        ", &
      "MP_Gather           ", "MP_Sync             ", "MP_Alltoall         ", &
-     "MP_SendRecv         "/)
+     "MP_SendRecv         ", "MP_ISendRecv        ", "MP_Wait             "/)
   REAL ( dbl ) :: t_start, t_end
   INTEGER :: intlen, reallen, charlen, loglen
 
@@ -253,6 +255,7 @@ SUBROUTINE mp_abort ( )
   WRITE(*,'(/,A,T71,I10)') ' CP2K| Stopped by process number',taskid
   WRITE(*,'(A,/)')         ' CP2K| Abnormal program termination'
 
+  ! CALL abort()
 #if defined(__parallel)
   CALL mpi_abort ( MPI_COMM_WORLD, 0 )
 #else
@@ -498,23 +501,23 @@ END SUBROUTINE mp_cart_shift
 !******************************************************************************
 
 !..mp_comm_compare
-SUBROUTINE mp_comm_compare ( comm1, comm2, result)
+SUBROUTINE mp_comm_compare ( comm1, comm2, RESULT)
 
   IMPLICIT NONE
 
 ! Arguments
   INTEGER, INTENT ( IN ) :: comm1, comm2
-  INTEGER, INTENT ( OUT ) :: result
+  INTEGER, INTENT ( OUT ) :: RESULT
 
 ! Locals
   INTEGER :: ierr, iout
 
   ierr = 0
-  result = 0
+  RESULT = 0
 #if defined(__parallel)
   CALL mpi_comm_compare ( comm1, comm2, iout, ierr )
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_compare @ mp_comm_compare" )
-  IF ( iout == MPI_UNEQUAL ) result = 1
+  IF ( iout == MPI_UNEQUAL ) RESULT = 1
 #endif
 
 END SUBROUTINE mp_comm_compare
@@ -666,15 +669,15 @@ SUBROUTINE mp_shift_im( msg, group, displ_in)
   INTEGER, INTENT(INOUT)               :: msg ( :, : )
   INTEGER, INTENT ( IN ), OPTIONAL     :: displ_in
 !
-  INTEGER, dimension(:), allocatable ::  status
+  INTEGER, DIMENSION(:), ALLOCATABLE ::  status
   INTEGER displ,myrank,nprocs,left,right,ierror,msglen,tag,elen
   CHARACTER (LEN=80) :: estring
 
 #if defined(__parallel)
   ALLOCATE(status(MPI_STATUS_SIZE))
-  call mpi_comm_rank(group,myrank,ierror)
+  CALL mpi_comm_rank(group,myrank,ierror)
   IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_rank @ mp_shift" )
-  call mpi_comm_size(group,nprocs,ierror)
+  CALL mpi_comm_size(group,nprocs,ierror)
   IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_size @ mp_shift" )
   IF (PRESENT(displ_in)) THEN
      displ=displ_in
@@ -684,12 +687,12 @@ SUBROUTINE mp_shift_im( msg, group, displ_in)
   right=MODULO(myrank+displ,nprocs)
   left =MODULO(myrank-displ,nprocs)
   tag=17
-  msglen = size(msg)
+  msglen = SIZE(msg)
   t_start = m_cputime ( )
   CALL mpi_sendrecv_replace(msg,msglen,MPI_INTEGER,right,tag,left,tag, &
      group,status(1),ierror)
   t_end = m_cputime ( )
-  IF ( ierror /= 0 ) then
+  IF ( ierror /= 0 ) THEN
 ! this seems not to work (on SUN)
 !    CALL mpi_error_string ( ierror, estring, elen )
 !    WRITE (*,*) estring(1:elen)
@@ -711,15 +714,15 @@ SUBROUTINE mp_shift_rm( msg, group, displ_in)
   REAL ( dbl ) , INTENT(INOUT)         :: msg ( :, : )
   INTEGER, INTENT ( IN ), OPTIONAL     :: displ_in
 ! 
-  INTEGER, dimension(:), allocatable ::  status
+  INTEGER, DIMENSION(:), ALLOCATABLE ::  status
   INTEGER displ,myrank,nprocs,left,right,ierror,msglen,tag,elen
   CHARACTER (LEN=80) :: estring
 
 #if defined(__parallel)
   ALLOCATE(status(MPI_STATUS_SIZE))
-  call mpi_comm_rank(group,myrank,ierror)
+  CALL mpi_comm_rank(group,myrank,ierror)
   IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_rank @ mp_shift" )
-  call mpi_comm_size(group,nprocs,ierror)
+  CALL mpi_comm_size(group,nprocs,ierror)
   IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_size @ mp_shift" )
   IF (PRESENT(displ_in)) THEN
      displ=displ_in 
@@ -729,12 +732,12 @@ SUBROUTINE mp_shift_rm( msg, group, displ_in)
   right=MODULO(myrank+displ,nprocs) 
   left =MODULO(myrank-displ,nprocs) 
   tag=18
-  msglen = size(msg)
+  msglen = SIZE(msg)
   t_start = m_cputime ( )
   CALL mpi_sendrecv_replace(msg,msglen,MPI_DOUBLE_PRECISION,right,tag,left,&
                             tag,group,status(1),ierror)
   t_end = m_cputime ( )
-  IF ( ierror /= 0 ) then
+  IF ( ierror /= 0 ) THEN
 ! this seems not to work (on SUN)
 !    CALL mpi_error_string ( ierror, estring, elen )
 !    WRITE (*,*) estring(1:elen)
@@ -755,15 +758,15 @@ SUBROUTINE mp_shift_r1( msg, group, displ_in)
   REAL ( dbl ) , INTENT(INOUT)         :: msg ( : )
   INTEGER, INTENT ( IN ), OPTIONAL     :: displ_in
 !
-  INTEGER, dimension(:), allocatable ::  status
+  INTEGER, DIMENSION(:), ALLOCATABLE ::  status
   INTEGER displ,myrank,nprocs,left,right,ierror,msglen,tag,elen
   CHARACTER (LEN=80) :: estring
 
 #if defined(__parallel)
   ALLOCATE(status(MPI_STATUS_SIZE))
-  call mpi_comm_rank(group,myrank,ierror)
+  CALL mpi_comm_rank(group,myrank,ierror)
   IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_rank @ mp_shift" )
-  call mpi_comm_size(group,nprocs,ierror)
+  CALL mpi_comm_size(group,nprocs,ierror)
   IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_size @ mp_shift" )
   IF (PRESENT(displ_in)) THEN
      displ=displ_in
@@ -773,12 +776,12 @@ SUBROUTINE mp_shift_r1( msg, group, displ_in)
   right=MODULO(myrank+displ,nprocs)
   left =MODULO(myrank-displ,nprocs)
   tag=19
-  msglen = size(msg)
+  msglen = SIZE(msg)
   t_start = m_cputime ( )
   CALL mpi_sendrecv_replace(msg,msglen,MPI_DOUBLE_PRECISION,right,tag,left,&
                             tag,group,status(1),ierror)
   t_end = m_cputime ( )
-  IF ( ierror /= 0 ) then
+  IF ( ierror /= 0 ) THEN
 ! this seems not to work (on SUN)
 !    CALL mpi_error_string ( ierror, estring, elen )
 !    WRITE (*,*) estring(1:elen)
@@ -842,6 +845,8 @@ SUBROUTINE mp_alltoall_i11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
   mp_perf ( 6 ) % msg_size = mp_perf ( 6 ) % msg_size + msglen * intlen
   t_end = m_cputime ( )
   mp_perf ( 6 ) % time = mp_perf ( 6 ) % time + ( t_end - t_start )
+#else
+  rb(rdispl(1)+1:rdispl(1)+rcount(1))=sb(sdispl(1)+1:sdispl(1)+scount(1))
 #endif
 
 END SUBROUTINE mp_alltoall_i11v
@@ -870,6 +875,8 @@ SUBROUTINE mp_alltoall_r11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
   mp_perf ( 6 ) % msg_size = mp_perf ( 6 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
   mp_perf ( 6 ) % time = mp_perf ( 6 ) % time + ( t_end - t_start )
+#else
+  rb(rdispl(1)+1:rdispl(1)+rcount(1))=sb(sdispl(1)+1:sdispl(1)+scount(1))
 #endif
 
 END SUBROUTINE mp_alltoall_r11v
@@ -929,6 +936,8 @@ SUBROUTINE mp_alltoall_i ( sb, rb, count, group )
   mp_perf ( 6 ) % msg_size = mp_perf ( 6 ) % msg_size + msglen * intlen
   t_end = m_cputime ( )
   mp_perf ( 6 ) % time = mp_perf ( 6 ) % time + ( t_end - t_start )
+#else
+  rb=sb
 #endif
 
 END SUBROUTINE mp_alltoall_i
@@ -961,7 +970,7 @@ SUBROUTINE mp_bcast_iv(msg,source,gid)
   INTEGER :: msglen, ierr
 
   ierr = 0
-  msglen = size(msg)
+  msglen = SIZE(msg)
 #if defined(__parallel)
   t_start = m_cputime ( )
   CALL mpi_bcast(msg,msglen,MPI_INTEGER,source,gid,ierr)
@@ -979,7 +988,7 @@ SUBROUTINE mp_bcast_im(msg,source,gid)
   INTEGER :: msglen, ierr
 
   ierr = 0
-  msglen = size(msg)
+  msglen = SIZE(msg)
 #if defined(__parallel)
   t_start = m_cputime ( )
   CALL mpi_bcast(msg,msglen,MPI_INTEGER,source,gid,ierr)
@@ -1015,7 +1024,7 @@ SUBROUTINE mp_bcast_rv(msg,source,gid)
   INTEGER :: msglen, ierr
 
   ierr = 0
-  msglen = size(msg)
+  msglen = SIZE(msg)
 #if defined(__parallel)
   t_start = m_cputime ( )
   CALL mpi_bcast(msg,msglen,MPI_DOUBLE_PRECISION,source,gid,ierr)
@@ -1033,7 +1042,7 @@ SUBROUTINE mp_bcast_rm(msg,source,gid)
   INTEGER :: msglen, ierr
 
   ierr = 0
-  msglen = size(msg)
+  msglen = SIZE(msg)
 #if defined(__parallel)
   t_start = m_cputime ( )
   CALL mpi_bcast(msg,msglen,MPI_DOUBLE_PRECISION,source,gid,ierr)
@@ -1051,7 +1060,7 @@ SUBROUTINE mp_bcast_rm3(msg,source,gid)
   INTEGER :: msglen, ierr
 
   ierr = 0
-  msglen = size(msg)
+  msglen = SIZE(msg)
 #if defined(__parallel)
   t_start = m_cputime ( )
   CALL mpi_bcast(msg,msglen,MPI_DOUBLE_PRECISION,source,gid,ierr)
@@ -1087,7 +1096,7 @@ SUBROUTINE mp_bcast_cv(msg,source,gid)
   INTEGER :: msglen, ierr
 
   ierr = 0
-  msglen = size(msg)
+  msglen = SIZE(msg)
 #if defined(__parallel)
   t_start = m_cputime ( )
   CALL mpi_bcast(msg,msglen,MPI_DOUBLE_COMPLEX,source,gid,ierr)
@@ -1105,7 +1114,7 @@ SUBROUTINE mp_bcast_cm(msg,source,gid)
   INTEGER :: msglen, ierr
 
   ierr = 0
-  msglen = size(msg)
+  msglen = SIZE(msg)
 #if defined(__parallel)
   t_start = m_cputime ( )
   CALL mpi_bcast(msg,msglen,MPI_DOUBLE_COMPLEX,source,gid,ierr)
@@ -1142,7 +1151,7 @@ SUBROUTINE mp_bcast_z(msg,source,gid)
   INTEGER, ALLOCATABLE :: imsg ( : )
 
   ierr = 0
-  msglen = len(msg)
+  msglen = LEN(msg)
 #if defined(__parallel)
   t_start = m_cputime ( )
 ! this is a workaround to avoid problems on the T3E
@@ -1152,11 +1161,11 @@ SUBROUTINE mp_bcast_z(msg,source,gid)
 ! CALL mpi_bcast(msg,msglen,MPI_CHARACTER,source,gid,ierr)
   ALLOCATE (imsg(1:msglen))
   DO i = 1, msglen
-     imsg(i) = ichar(msg(i:i))
+     imsg(i) = ICHAR(msg(i:i))
   END DO
   CALL mpi_bcast(imsg,msglen,MPI_INTEGER,source,gid,ierr)
   DO i = 1, msglen
-     msg(i:i) = char(imsg(i))
+     msg(i:i) = CHAR(imsg(i))
   END DO
   DEALLOCATE (imsg)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_z" )
@@ -1196,7 +1205,7 @@ SUBROUTINE mp_sum_iv(msg,gid)
   INTEGER, ALLOCATABLE :: res ( : )
 #if defined(__parallel)
   t_start = m_cputime ( )
-  msglen = size(msg)
+  msglen = SIZE(msg)
   ALLOCATE (res(1:msglen),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_iv" )
   CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
@@ -1217,9 +1226,9 @@ SUBROUTINE mp_sum_im(msg,gid)
   INTEGER, ALLOCATABLE :: res ( :, : )
 #if defined(__parallel)
   t_start = m_cputime ( )
-  msglen = size(msg)
-  m1 = size(msg,1)
-  m2 = size(msg,2)
+  msglen = SIZE(msg)
+  m1 = SIZE(msg,1)
+  m2 = SIZE(msg,2)
   ALLOCATE (res(m1,m2),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_im" )
   CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
@@ -1240,10 +1249,10 @@ SUBROUTINE mp_sum_im3(msg,gid)
   INTEGER, ALLOCATABLE :: res ( :, :, : )
 #if defined(__parallel)
   t_start = m_cputime ( )
-  msglen = size(msg)
-  m1 = size(msg,1)
-  m2 = size(msg,2)
-  m3 = size(msg,3)
+  msglen = SIZE(msg)
+  m1 = SIZE(msg,1)
+  m2 = SIZE(msg,2)
+  m3 = SIZE(msg,3)
   ALLOCATE (res(m1,m2,m3),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_im3" )
   CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
@@ -1284,7 +1293,7 @@ SUBROUTINE mp_sum_rv(msg,gid)
   REAL ( dbl ), ALLOCATABLE :: res ( : )
 #if defined(__parallel)
   t_start = m_cputime ( )
-  msglen = size(msg)
+  msglen = SIZE(msg)
   ALLOCATE (res(1:msglen),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_rv" )
   CALL mpi_allreduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_SUM,gid, &
@@ -1333,9 +1342,9 @@ SUBROUTINE mp_sum_rm(msg,gid)
   REAL ( dbl ), ALLOCATABLE :: res ( :, : )
 #if defined(__parallel)
   t_start = m_cputime ( )
-  msglen = size(msg)
-  m1 = size(msg,1)
-  m2 = size(msg,2)
+  msglen = SIZE(msg)
+  m1 = SIZE(msg,1)
+  m2 = SIZE(msg,2)
   ALLOCATE (res(m1,m2),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_rm" )
   CALL mpi_allreduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_SUM,gid, &
@@ -1385,10 +1394,10 @@ SUBROUTINE mp_sum_rm3(msg,gid)
   REAL ( dbl ), ALLOCATABLE :: res ( :, :, : )
 #if defined(__parallel)
   t_start = m_cputime ( )
-  msglen = size(msg)
-  m1 = size(msg,1)
-  m2 = size(msg,2)
-  m3 = size(msg,3)
+  msglen = SIZE(msg)
+  m1 = SIZE(msg,1)
+  m2 = SIZE(msg,2)
+  m3 = SIZE(msg,3)
   ALLOCATE (res(m1,m2,m3),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_rm3" )
   CALL mpi_allreduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_SUM,gid, &
@@ -1412,10 +1421,10 @@ SUBROUTINE mp_sum_root_rm3(msg,root,gid)
   t_start = m_cputime ( )
   CALL mpi_comm_rank ( gid, taskid, ierr )
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_rank @ mp_sum_root_rm3" )
-  msglen = size(msg)
-  m1 = size(msg,1)
-  m2 = size(msg,2)
-  m3 = size(msg,3)
+  msglen = SIZE(msg)
+  m1 = SIZE(msg,1)
+  m2 = SIZE(msg,2)
+  m3 = SIZE(msg,3)
   ALLOCATE (res(m1,m2,m3),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_root_rm3" )
   CALL mpi_reduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_SUM,&
@@ -1459,7 +1468,7 @@ SUBROUTINE mp_sum_cv(msg,gid)
   COMPLEX ( dbl ), ALLOCATABLE :: res ( : )
 #if defined(__parallel)
   t_start = m_cputime ( )
-  msglen = size(msg)
+  msglen = SIZE(msg)
   ALLOCATE (res(1:msglen),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_cv" )
   CALL mpi_allreduce(msg,res,2*msglen,MPI_DOUBLE_PRECISION,MPI_SUM,gid, &
@@ -1481,9 +1490,9 @@ SUBROUTINE mp_sum_cm(msg,gid)
   COMPLEX ( dbl ), ALLOCATABLE :: res ( :, : )
 #if defined(__parallel)
   t_start = m_cputime ( )
-  msglen = 2*size(msg)
-  m1 = size(msg,1)
-  m2 = size(msg,2)
+  msglen = 2*SIZE(msg)
+  m1 = SIZE(msg,1)
+  m2 = SIZE(msg,2)
   ALLOCATE (res(m1,m2),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_cm" )
   CALL mpi_allreduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_SUM,gid, &
@@ -1505,10 +1514,10 @@ SUBROUTINE mp_sum_cm3(msg,gid)
   COMPLEX ( dbl ), ALLOCATABLE :: res ( :, :, : )
 #if defined(__parallel)
   t_start = m_cputime ( )
-  msglen = 2*size(msg)
-  m1 = size(msg,1)
-  m2 = size(msg,2)
-  m3 = size(msg,3)
+  msglen = 2*SIZE(msg)
+  m1 = SIZE(msg,1)
+  m2 = SIZE(msg,2)
+  m3 = SIZE(msg,3)
   ALLOCATE (res(m1,m2,m3),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_cm3" )
   CALL mpi_allreduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_SUM,gid, &
@@ -1551,7 +1560,7 @@ SUBROUTINE mp_max_iv(msg,gid)
   INTEGER, ALLOCATABLE :: res ( : )
 #if defined(__parallel)
   t_start = m_cputime ( )
-  msglen = size(msg)
+  msglen = SIZE(msg)
   ALLOCATE (res(1:msglen),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_max_iv" )
   CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_MAX,gid,ierr)
@@ -1592,7 +1601,7 @@ SUBROUTINE mp_minloc_rv(msg,gid)
   REAL ( dbl ), ALLOCATABLE :: res ( : )
 #if defined(__parallel)
   t_start = m_cputime ( )
-  msglen = size(msg)
+  msglen = SIZE(msg)
   ALLOCATE (res(1:msglen),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_max_rv" )
   CALL mpi_allreduce(msg,res,1,MPI_2DOUBLE_PRECISION,MPI_MINLOC,gid, &
@@ -1615,7 +1624,7 @@ SUBROUTINE mp_max_rv(msg,gid)
   REAL ( dbl ), ALLOCATABLE :: res ( : )
 #if defined(__parallel)
   t_start = m_cputime ( )
-  msglen = size(msg)
+  msglen = SIZE(msg)
   ALLOCATE (res(1:msglen),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_max_rv" )
   CALL mpi_allreduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_MAX,gid, &
@@ -1658,7 +1667,7 @@ SUBROUTINE mp_min_iv(msg,gid)
   INTEGER, ALLOCATABLE :: res ( : )
 #if defined(__parallel)
   t_start = m_cputime ( )
-  msglen = size(msg)
+  msglen = SIZE(msg)
   ALLOCATE (res(1:msglen),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_min_iv" )
   CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_MIN,gid,ierr)
@@ -1698,7 +1707,7 @@ SUBROUTINE mp_min_rv(msg,gid)
   REAL ( dbl ), ALLOCATABLE :: res ( : )
 #if defined(__parallel)
   t_start = m_cputime ( )
-  msglen = size(msg)
+  msglen = SIZE(msg)
   ALLOCATE (res(1:msglen),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_min_rv" )
   CALL mpi_allreduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_MIN,gid, &
@@ -1746,7 +1755,7 @@ SUBROUTINE mp_gather_iv(msg,msg_gather,root,gid)
   INTEGER :: msglen, ierr
 #if defined(__parallel)
   t_start = m_cputime ( )
-  msglen = size(msg)
+  msglen = SIZE(msg)
   CALL mpi_gather(msg,msglen,MPI_INTEGER,msg_gather,&
                   msglen,MPI_INTEGER,root,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_gather @ mp_gather_iv" )
@@ -1790,7 +1799,7 @@ SUBROUTINE mp_gather_rv(msg,msg_gather,root,gid)
   INTEGER :: msglen, ierr
 #if defined(__parallel)
   t_start = m_cputime ( )
-  msglen = size(msg)
+  msglen = SIZE(msg)
   CALL mpi_gather(msg,msglen,MPI_DOUBLE_PRECISION,msg_gather,&
                   msglen,MPI_DOUBLE_PRECISION,root,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_gather @ mp_gather_rv" )
@@ -1822,19 +1831,19 @@ SUBROUTINE mp_range(mepos,num_pe,elements,local_offset,local_planes,offsets,plan
 
   INTEGER :: equal_planes,i
 
-  if (MODULO(elements,num_pe).eq.0) then
+  IF (MODULO(elements,num_pe).eq.0) THEN
        equal_planes=elements/num_pe
-  else
+  ELSE
        equal_planes=1+elements/num_pe
-  endif
-  do i=1,num_pe
-       IF (present(offsets)) THEN
+  ENDIF
+  DO i=1,num_pe
+       IF (PRESENT(offsets)) THEN
           offsets(I)=(I-1)*equal_planes
        END IF
-       IF (present(planes)) THEN
+       IF (PRESENT(planes)) THEN
           planes(I)=MAX(0,MIN(elements-(I-1)*equal_planes,equal_planes))
        ENDIF
-  enddo
+  ENDDO
   local_offset=mepos*equal_planes
   local_planes=MAX(0,MIN(elements-local_offset,equal_planes))
 END SUBROUTINE mp_range
@@ -1857,11 +1866,11 @@ SUBROUTINE mp_allgather_rm3(mepos,num_pe,elements,msg,gid)
   INTEGER, POINTER, DIMENSION(:) :: offsets,planes
 
 #if defined(__parallel)
-  allocate(offsets(num_pe),planes(num_pe))
-  call mp_range(mepos,num_pe,elements,local_offset,local_planes, &
+  ALLOCATE(offsets(num_pe),planes(num_pe))
+  CALL mp_range(mepos,num_pe,elements,local_offset,local_planes, &
                   offsets=offsets,planes=planes)
 
-  plane_size=size(msg,1)*size(msg,2)
+  plane_size=SIZE(msg,1)*SIZE(msg,2)
   
   offsets(:)=offsets(:)*plane_size
   planes(:)=planes(:)*plane_size
@@ -1870,7 +1879,7 @@ SUBROUTINE mp_allgather_rm3(mepos,num_pe,elements,msg,gid)
                         MPI_DOUBLE_PRECISION,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allgather @ mp_allgather_rm3" )
 
-  deallocate(offsets,planes)
+  DEALLOCATE(offsets,planes)
 #else
   ierr = 0
 #endif
@@ -1956,7 +1965,7 @@ SUBROUTINE mp_sendrecv_rm3(msgin,dest,msgout,source,comm)
   REAL ( dbl ), INTENT ( OUT ) :: msgout ( :, :, : )
   INTEGER, INTENT ( IN ) :: dest, source, comm
   INTEGER :: msglen, ierr, send_tag, recv_tag
-  integer, dimension(:), allocatable ::  status
+  INTEGER, DIMENSION(:), ALLOCATABLE ::  status
 #if defined(__parallel)
   ALLOCATE(status(MPI_STATUS_SIZE))
   t_start = m_cputime ( )
@@ -1978,6 +1987,185 @@ SUBROUTINE mp_sendrecv_rm3(msgin,dest,msgout,source,comm)
 END SUBROUTINE mp_sendrecv_rm3
 
 !******************************************************************************
+
+SUBROUTINE mp_sendrecv_rm2(msgin,dest,msgout,source,comm)
+  IMPLICIT NONE
+  REAL ( dbl ), INTENT ( IN ) :: msgin ( :, : )
+  REAL ( dbl ), INTENT ( OUT ) :: msgout ( :, : )
+  INTEGER, INTENT ( IN ) :: dest, source, comm
+  INTEGER :: msglen, ierr, send_tag, recv_tag
+  INTEGER, DIMENSION(:), ALLOCATABLE ::  status
+#if defined(__parallel)
+  ALLOCATE(status(MPI_STATUS_SIZE))
+  t_start = m_cputime ( )
+  msglen = SIZE(msgin,1)*SIZE(msgin,2)
+  send_tag = 0 ! cannot think of something better here, this might be dangerous
+  recv_tag = 0 ! cannot think of something better here, this might be dangerous
+  CALL mpi_sendrecv(msgin,msglen,MPI_DOUBLE_PRECISION,dest,send_tag,msgout,&
+       msglen,MPI_DOUBLE_PRECISION,source,recv_tag,comm,status(1),ierr)
+  ! we do not check the status
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ mp_send_recv_rm2" )
+  mp_perf ( 7 ) % count = mp_perf ( 7 ) % count + 1
+  mp_perf ( 7 ) % msg_size = mp_perf ( 7 ) % msg_size + msglen * reallen
+  t_end = m_cputime ( )
+  mp_perf ( 7 ) % time = mp_perf ( 7 ) % time + ( t_end - t_start )
+  DEALLOCATE(status)
+#else
+  msgout = msgin
+#endif
+END SUBROUTINE mp_sendrecv_rm2
+
+!******************************************************************************
+
+!!****f* message_passing/mp_isendrecv_rm2 [1.0] *
+!!
+!!   NAME
+!!     mp_isendrecv_rm2
+!!
+!!   FUNCTION
+!!     non blocking send of real arrays 
+!!
+!!   NOTES
+!!     the arguments must be pointers to be sure that we do not get a temporaries.
+!!     
+!!   AUTHOR
+!!     joost & fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     08.2003 created [f&j]
+!!
+!!*** **********************************************************************
+SUBROUTINE mp_isendrecv_rm2(msgin,dest,msgout,source,comm,send_request,&
+     recv_request,tag)
+  IMPLICIT NONE
+  REAL ( dbl ), POINTER, DIMENSION (:,:) :: msgin,msgout
+  INTEGER, INTENT ( IN ) :: dest, source, comm
+  INTEGER, INTENT(out) :: send_request, recv_request
+  INTEGER, OPTIONAL, INTENT(in) :: tag
+  INTEGER :: msglen, ierr, my_tag
+  INTEGER :: lower1,lower2
+
+#if defined(__parallel)
+  t_start = m_cputime ( )
+  my_tag = 0
+  IF (PRESENT(tag)) my_tag=tag
+
+  lower1=LBOUND(msgout,1)
+  lower2=LBOUND(msgout,2)
+  msglen = SIZE(msgout,1)*SIZE(msgout,2)
+  CALL mpi_irecv(msgout(lower1,lower2),msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
+       comm,recv_request,ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_isendrecv_rm2" )
+
+  msglen = SIZE(msgin,1)*SIZE(msgin,2)
+  lower1=LBOUND(msgin,1)
+  lower2=LBOUND(msgin,2)
+  CALL mpi_isend(msgin(lower1,lower2),msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
+       comm,send_request,ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isendrecv_rm2" )
+
+  msglen = (msglen+SIZE(msgout,1)*SIZE(msgout,2))/2
+
+  mp_perf ( 8 ) % count = mp_perf ( 8 ) % count + 1
+  mp_perf ( 8 ) % msg_size = mp_perf ( 8 ) % msg_size + msglen * reallen
+  t_end = m_cputime ( )
+  mp_perf ( 8 ) % time = mp_perf ( 8 ) % time + ( t_end - t_start )
+#else
+  msgout = msgin
+#endif
+END SUBROUTINE mp_isendrecv_rm2
+!***************************************************************************
+
+!!****f* message_passing/mp_wait [1.0] *
+!!
+!!   NAME
+!!     mp_wait
+!!
+!!   SYNOPSIS
+!!     Subroutine mp_wait(request)
+!!       Integer, Intent (INOUT):: request
+!!     End Subroutine mp_wait
+!!
+!!   FUNCTION
+!!     waits for completion of the given request
+!!
+!!   NOTES
+!!     see isendrecv
+!!
+!!   AUTHOR
+!!     joost & fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     08.2003 created [f&j]
+!!
+!!*** **********************************************************************
+SUBROUTINE mp_wait(request)
+  INTEGER, INTENT(inout) :: request
+
+  INTEGER, DIMENSION(:), ALLOCATABLE :: status
+  INTEGER :: ierr
+
+#if defined(__parallel)
+  ALLOCATE(status(MPI_STATUS_SIZE))
+  t_start = m_cputime ( )
+
+  CALL mpi_wait(request,status,ierr)
+  ! we do not check the status
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_wait @ mp_wait" )
+
+  mp_perf ( 9 ) % count = mp_perf ( 9 ) % count + 1
+  t_end = m_cputime ( )
+  mp_perf ( 9 ) % time = mp_perf ( 9 ) % time + ( t_end - t_start )
+  DEALLOCATE(status)
+#endif
+END SUBROUTINE mp_wait
+!***************************************************************************
+
+!!****f* message_passing/mp_waitall [1.0] *
+!!
+!!   NAME
+!!     mp_waitall
+!!
+!!   SYNOPSIS
+!!     Subroutine mp_waitall(requests)
+!!       Integer, Intent (INOUT), Dimension(:):: requests
+!!     End Subroutine mp_waitall
+!!
+!!   FUNCTION
+!!     waits for completion of the given requests
+!!
+!!   NOTES
+!!     see isendrecv
+!!
+!!   AUTHOR
+!!     joost & fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     08.2003 created [f&j]
+!!
+!!*** **********************************************************************
+SUBROUTINE mp_waitall(requests)
+  INTEGER, INTENT(inout), DIMENSION(:) :: requests
+
+  INTEGER, DIMENSION(:,:), ALLOCATABLE :: status
+  INTEGER :: ierr,count
+
+#if defined(__parallel)
+  count=SIZE(requests)
+  ALLOCATE(status(MPI_STATUS_SIZE,count))
+  t_start = m_cputime ( )
+
+  CALL mpi_waitall(count,requests,status,ierr)
+  ! we do not check the status
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_waitall @ mp_waitall" )
+
+  mp_perf ( 9 ) % count = mp_perf ( 9 ) % count + 1
+  t_end = m_cputime ( )
+  mp_perf ( 9 ) % time = mp_perf ( 9 ) % time + ( t_end - t_start )
+  DEALLOCATE(status)
+#endif
+END SUBROUTINE mp_waitall
+!***************************************************************************
 
 END MODULE message_passing
 

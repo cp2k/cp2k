@@ -46,11 +46,13 @@ MODULE qs_p_env_methods
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_multiply
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_plus_fm_fm_t
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                             cp_fm_scale_and_add,&
+                                             cp_fm_symm,&
+                                             cp_fm_triangular_multiply
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
-                                             cp_fm_cholesky_restore,&
-                                             cp_fm_cholesky_invert
+                                             cp_fm_cholesky_invert,&
+                                             cp_fm_cholesky_restore
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create_fm,&
@@ -64,15 +66,11 @@ MODULE qs_p_env_methods
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
-                                             cp_fm_release,&
                                              cp_fm_p_type,&
-                                             cp_fm_to_fm, &
-                                             cp_fm_type, &
-                                             cp_fm_set_all
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale_and_add,&
-                                             cp_fm_symm
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+                                             cp_fm_release,&
+                                             cp_fm_set_all,&
+                                             cp_fm_to_fm,&
+                                             cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_copy,&
                                              cp_fm_vect_dealloc
   USE cp_log_handling,                 ONLY: cp_failure_level,&
@@ -85,6 +83,8 @@ MODULE qs_p_env_methods
                                              cp_warning_level
   USE cp_matrix_utils,                 ONLY: cp_sm_output
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
+                                             cp_sm_plus_fm_fm_t
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              cp_sm_pool_type,&
                                              sm_pool_create,&
@@ -158,8 +158,7 @@ CONTAINS
 !!       Type(qs_kpp1_env_type), Intent (IN), Target, Optional:: kpp1_env
 !!       Type(real_matrix_p_type), Dimension(:), Pointer, Optional::&
 !!         p1_option
-!!       Type(cp_fm_p_type), Dimension(:), Pointer, Optional::&
-!!         psi0d
+!!       Type(cp_fm_p_type), Dimension(:), Pointer, Optional:: psi0d
 !!       Logical, Intent (IN), Optional:: orthogonal_orbitals
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine p_env_create
@@ -471,10 +470,10 @@ END SUBROUTINE p_env_did_change
 !!       Implicit None
 !!       Type(qs_p_env_type), Pointer:: p_env
 !!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
-!!       Type(cp_fm_p_type), Dimension(:), Intent (IN), Target,&
-!!         Optional:: psi0
-!!       Type(cp_fm_p_type), Dimension(:), Intent (INOUT),&
-!!         Optional:: hrho_psi0d
+!!       Type(cp_fm_p_type), Dimension(:), Intent (IN), Target, Optional::&
+!!         psi0
+!!       Type(cp_fm_p_type), Dimension(:), Intent (INOUT), Optional::&
+!!         hrho_psi0d
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine p_env_psi0_changed
 !!
@@ -636,7 +635,7 @@ END SUBROUTINE p_env_did_change
                 CALL cp_sm_plus_fm_fm_t(p_new(spin)%matrix,&
                      matrix_v=my_psi0(spin)%matrix,&
                      matrix_g=p_env%psi0d(spin)%matrix,&
-                     last_col=p_env%n_mo(spin),error=error)
+                     ncol=p_env%n_mo(spin),error=error)
                 CALL cp_sm_scale_and_add(alpha=maxocc,&
                      matrix_a=p_new(spin)%matrix,error=error)
              ELSE
@@ -1396,11 +1395,11 @@ END SUBROUTINE p_env_did_change
              CALL cp_sm_plus_fm_fm_t(p1_new(ispin)%matrix,&
                   matrix_v=v(ispin)%matrix,&
                   matrix_g=p_env%psi0d(ispin)%matrix,&
-                  last_col=p_env%n_mo(ispin),error=error)
+                  ncol=p_env%n_mo(ispin),error=error)
              CALL cp_sm_plus_fm_fm_t(p1_new(ispin)%matrix,&
                   matrix_v=p_env%psi0d(ispin)%matrix,&
                   matrix_g=v(ispin)%matrix,&
-                  last_col=p_env%n_mo(ispin),error=error)
+                  ncol=p_env%n_mo(ispin),error=error)
              CALL cp_sm_scale_and_add(alpha=maxocc, &
                   matrix_a=p1_new(ispin)%matrix,error=error)
           ELSE

@@ -21,7 +21,6 @@
 !******************************************************************************
 
 MODULE qs_environment_types
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              deallocate_atomic_kind_set,&
                                              get_atomic_kind_set
@@ -44,7 +43,6 @@ MODULE qs_environment_types
                                              cp_internal_error,&
                                              cp_unimplemented_error,&
                                              cp_unimplemented_error_nr
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create_fm,&
@@ -72,6 +70,7 @@ MODULE qs_environment_types
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              cp_sm_pool_type,&
                                              sm_pool_create,&
@@ -87,11 +86,11 @@ MODULE qs_environment_types
                                              sm_struct_release,&
                                              sm_struct_retain
   USE dft_types,                       ONLY: dft_control_type
-  USe distribution_2d_types,           ONLY: distribution_2d_type,&
-                                             distribution_2d_retain, &
-                                             distribution_2d_release
+  USE distribution_2d_types,           ONLY: distribution_2d_release,&
+                                             distribution_2d_retain,&
+                                             distribution_2d_type
   USE kinds,                           ONLY: wp => dp
-  USE molecule_types,                  ONLY: molecule_structure_type, &
+  USE molecule_types,                  ONLY: molecule_structure_type,&
                                              particle_node_type
   USE pao_types,                       ONLY: pao_env_type
   USE particle_types,                  ONLY: deallocate_particle_set,&
@@ -114,9 +113,9 @@ MODULE qs_environment_types
                                              mpools_release,&
                                              mpools_retain,&
                                              qs_matrix_pools_type
+  USE qs_mo_methods,                   ONLY: make_basis
   USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                              mo_set_p_type
-  USE qs_mo_methods,                   ONLY: make_basis
   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
                                              neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_release,&
@@ -553,12 +552,12 @@ CONTAINS
     END IF
     IF (PRESENT(local_rows)) THEN
       CALL cp_ll_retain(local_rows,error=error)
-      CALL cp_ll_release(local_rows,error=error)
+      CALL cp_ll_release(qs_env%local_rows,error=error)
       qs_env%local_rows => local_rows
     END IF
     IF (PRESENT(local_cols)) THEN
       CALL cp_ll_retain(local_cols,error=error)
-      CALL cp_ll_release(local_cols,error=error)
+      CALL cp_ll_release(qs_env%local_cols,error=error)
       qs_env%local_cols => local_cols
     END IF
     IF (PRESENT(distribution_2d)) THEN

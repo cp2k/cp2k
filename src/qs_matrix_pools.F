@@ -95,7 +95,7 @@ MODULE qs_matrix_pools
 
   PUBLIC :: qs_matrix_pools_type
   PUBLIC :: mpools_retain, mpools_release, mpools_set, mpools_get,&
-       mpools_create, mpools_rebuild_fm_pools, mpools_rebuild_h_r_sm_pools,&
+       mpools_create, mpools_rebuild_fm_pools, &
        mpools_rebuild_s_sm_pools
 
 !!***
@@ -116,8 +116,6 @@ MODULE qs_matrix_pools
 !!     - id_nr: identification number
 !!     - ref_count: reference count (see doc/ReferenceCounting.html)
 !!     - S_sm_pools: pools of sparse matrixes with the structure of S
-!!     - H_redundant_sm_pools: pools of sparse matrixes with the redundant
-!!       structure of h (in the scf h is converted to the s structure)
 !!     - ao_mo_fm_pools: pools with (ao x mo) full matrixes (same order as
 !!       c).
 !!     - ao_ao_fm_pools: pools with (ao x ao) full matrixes (same order as
@@ -143,7 +141,6 @@ MODULE qs_matrix_pools
   TYPE qs_matrix_pools_type
      INTEGER :: id_nr, ref_count
      TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER        :: S_sm_pools
-     TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER        :: H_redundant_sm_pools
      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER        :: ao_mo_fm_pools,&
           ao_ao_fm_pools,mo_mo_fm_pools
   END TYPE qs_matrix_pools_type
@@ -244,7 +241,6 @@ SUBROUTINE mpools_release(mpools,error)
      mpools%ref_count=mpools%ref_count-1
      IF (mpools%ref_count==0) THEN
         CALL sm_pools_dealloc(mpools%S_sm_pools,error=error)
-        CALL sm_pools_dealloc(mpools%H_redundant_sm_pools,error=error)
         CALL fm_pools_dealloc(mpools%ao_mo_fm_pools, error=error)
         CALL fm_pools_dealloc(mpools%ao_ao_fm_pools, error=error)
         CALL fm_pools_dealloc(mpools%mo_mo_fm_pools, error=error)
@@ -263,10 +259,10 @@ END SUBROUTINE mpools_release
 !!
 !!   SYNOPSIS
 !!     Subroutine mpools_set(mpools, ao_mo_fm_pools, ao_ao_fm_pools,&
-!!         mo_mo_fm_pools, h_redundant_sm_pools, s_sm_pools, error)
+!!         mo_mo_fm_pools, s_sm_pools, error)
 !!       Type(qs_matrix_pools_type), Pointer:: mpools
 !!       Type(cp_sm_pool_p_type), Dimension(:), Optional, Pointer::&
-!!         h_redundant_sm_pools, s_sm_pools
+!!         s_sm_pools
 !!       Type(cp_fm_pool_p_type), Dimension(:), Optional, Pointer::&
 !!         ao_mo_fm_pools, ao_ao_fm_pools, mo_mo_fm_pools
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -290,11 +286,11 @@ END SUBROUTINE mpools_release
 !!
 !!*** **********************************************************************
 SUBROUTINE mpools_set(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
-     mo_mo_fm_pools,H_redundant_sm_pools,&
+     mo_mo_fm_pools,&
      S_sm_pools,error)
   TYPE(qs_matrix_pools_type), POINTER :: mpools
   TYPE(cp_sm_pool_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
-       H_redundant_sm_pools, S_sm_pools
+       S_sm_pools
   TYPE(cp_fm_pool_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
        ao_mo_fm_pools,ao_ao_fm_pools, mo_mo_fm_pools
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -311,18 +307,6 @@ SUBROUTINE mpools_set(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
   CPPrecondition(ASSOCIATED(mpools),cp_failure_level,routineP,error,failure)
   CPPrecondition(mpools%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     IF (PRESENT(H_redundant_sm_pools)) THEN
-        IF (ASSOCIATED(H_redundant_sm_pools)) THEN
-           CALL sm_pools_copy(H_redundant_sm_pools,new_sm_pools,error=error)
-        END IF
-        mpools%H_redundant_sm_pools => new_sm_pools
-     END IF
-     IF (PRESENT(H_redundant_sm_pools)) THEN
-        IF (ASSOCIATED(H_redundant_sm_pools)) THEN
-           CALL sm_pools_copy(H_redundant_sm_pools,new_sm_pools,error=error)
-        END IF
-        mpools%H_redundant_sm_pools => new_sm_pools
-     END IF
     IF (PRESENT(ao_mo_fm_pools)) THEN
       IF (ASSOCIATED(ao_mo_fm_pools)) THEN
         CALL fm_pools_copy(ao_mo_fm_pools,new_fm_pools,error=error)
@@ -356,10 +340,10 @@ END SUBROUTINE mpools_set
 !!   SYNOPSIS
 !!     Subroutine mpools_get(mpools, ao_mo_fm_pools, ao_ao_fm_pools,&
 !!         mo_mo_fm_pools, maxao_maxmo_fm_pool, maxao_maxao_fm_pool,&
-!!         maxmo_maxmo_fm_pool, h_redundant_sm_pools, s_sm_pools, error)
+!!         maxmo_maxmo_fm_pool, s_sm_pools, error)
 !!       Type(qs_matrix_pools_type), Pointer:: mpools
 !!       Type(cp_sm_pool_p_type), Dimension(:), Optional, Pointer::&
-!!         h_redundant_sm_pools, s_sm_pools
+!!         s_sm_pools
 !!       Type(cp_fm_pool_p_type), Dimension(:), Optional, Pointer::&
 !!         ao_mo_fm_pools, ao_ao_fm_pools, mo_mo_fm_pools
 !!       Type(cp_fm_pool_type), Optional, Pointer:: maxao_maxmo_fm_pool,&
@@ -390,10 +374,10 @@ END SUBROUTINE mpools_set
 SUBROUTINE mpools_get(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
      mo_mo_fm_pools, maxao_maxmo_fm_pool,&
      maxao_maxao_fm_pool, maxmo_maxmo_fm_pool,&
-     H_redundant_sm_pools,S_sm_pools,error)
+     S_sm_pools,error)
   TYPE(qs_matrix_pools_type), POINTER :: mpools
   TYPE(cp_sm_pool_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
-       H_redundant_sm_pools, S_sm_pools
+       S_sm_pools
   TYPE(cp_fm_pool_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
        ao_mo_fm_pools,ao_ao_fm_pools, mo_mo_fm_pools
     TYPE(cp_fm_pool_type), OPTIONAL, POINTER    :: maxao_maxmo_fm_pool,&
@@ -409,9 +393,6 @@ SUBROUTINE mpools_get(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
   
   IF (.NOT. failure) THEN
          IF (PRESENT(S_sm_pools)) S_sm_pools => mpools%S_sm_pools
-    IF (PRESENT(H_redundant_sm_pools)) THEN
-       H_redundant_sm_pools => mpools%H_redundant_sm_pools
-    END IF
     IF (PRESENT(ao_mo_fm_pools)) ao_mo_fm_pools => mpools%ao_mo_fm_pools
     IF (PRESENT(maxao_maxmo_fm_pool)) THEN
        IF (ASSOCIATED(mpools%ao_mo_fm_pools)) THEN
@@ -484,8 +465,7 @@ SUBROUTINE mpools_create(mpools,error)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      NULLIFY(mpools%ao_ao_fm_pools, mpools%ao_mo_fm_pools, &
-          mpools%mo_mo_fm_pools, mpools%S_sm_pools, &
-          mpools%H_redundant_sm_pools)
+          mpools%mo_mo_fm_pools, mpools%S_sm_pools)
      mpools%ref_count=1
      last_mpools_id=last_mpools_id+1
      mpools%id_nr=last_mpools_id
@@ -755,133 +735,6 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
 END SUBROUTINE mpools_rebuild_fm_pools
 !***************************************************************************
 
-!!****f* qs_matrix_pools/mpools_rebuild_h_r_sm_pools [1.0] *
-!!
-!!   NAME
-!!     mpools_rebuild_h_r_sm_pools
-!!
-!!   SYNOPSIS
-!!     Subroutine mpools_rebuild_h_r_sm_pools(mpools, h_redundant, error)
-!!       Type(qs_matrix_pools_type), Pointer:: mpools
-!!       Type(real_matrix_p_type), Pointer, Dimension(:):: h_redundant
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine mpools_rebuild_h_r_sm_pools
-!!
-!!   FUNCTION
-!!     updates the H_redundant_sm_pools, to be called after the structure
-!!     of h redundant changes
-!!
-!!   NOTES
-!!     mpools%S_sm_pools should be valid
-!!
-!!   ARGUMENTS
-!!     - mpools: the mpools to update
-!!     - h_redundant: a matrix with the structure of 
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE mpools_rebuild_h_r_sm_pools(mpools,h_redundant,error)
-  TYPE(qs_matrix_pools_type), POINTER :: mpools
-  TYPE(real_matrix_p_type), POINTER, DIMENSION(:) :: h_redundant
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure, gth_potential_present
-  CHARACTER(len=*), PARAMETER :: routineN='mpools_rebuild_h_r_sm_pools',&
-        routineP=moduleN//':'//routineN
-  TYPE(cp_sm_struct_type), POINTER :: s_mstruct, h_mstruct
-  INTEGER :: stat, ispin, handle, ndiff
-  INTEGER, DIMENSION(:), ALLOCATABLE :: block_begins_at
-  TYPE(cp_sm_node_type), POINTER :: h_pos, s_pos, h_nrow, s_nrow
-
-  CALL timeset(routineN,"I","",handle)
-
-  failure=.FALSE.
-  NULLIFY(s_mstruct, h_mstruct, h_pos, s_pos, h_nrow, s_nrow)
-
-  CPPrecondition(ASSOCIATED(h_redundant),cp_failure_level,routineP,error,failure)  
-  CPPrecondition(mpools%ref_count>0,cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(mpools%S_sm_pools),cp_failure_level,routineP,error,failure)
-  IF (.NOT.ASSOCIATED(mpools)) THEN
-     CALL mpools_create(mpools,error=error)
-  END IF
-  IF (.NOT. failure) THEN
-     CALL sm_pools_dealloc(mpools%H_redundant_sm_pools,&
-          error=error) ! try to update ?
-
-     s_mstruct => sm_pool_get_mstruct(mpools%S_sm_pools(1)%pool,&
-          error=error)
-     CALL sm_struct_create(h_mstruct, &
-          block_begins_at_row=s_mstruct%block_begins_at_row,&
-          block_begins_at_col=s_mstruct%block_begins_at_col,&
-          para_env=s_mstruct%para_env, symmetry="symmetric",&
-          error=error)
-        
-     CALL sm_struct_add_sm_local_blocks(h_mstruct,&
-          matrix=h_redundant(1)%matrix,&
-          error=error)  
-
-     ! check if s and h have the same structure
-     ndiff=0
-     h_pos => h_mstruct%local_blocks
-     s_pos => s_mstruct%local_blocks
-     DO WHILE(ASSOCIATED(h_pos).AND.ASSOCIATED(s_pos).AND.ndiff==0)
-        h_nrow => h_pos%next_row
-        s_nrow => s_pos%next_row
-        DO WHILE(ASSOCIATED(h_pos).AND.ASSOCIATED(s_pos).AND.ndiff==0)
-           IF (h_pos%row/=s_pos%row.OR.h_pos%col/=s_pos%col) THEN
-              ndiff=ndiff+1
-           END IF
-           h_pos => h_pos%next_col
-           s_pos => s_pos%next_col
-        END DO
-        IF (ASSOCIATED(h_pos).OR.ASSOCIATED(s_pos)) THEN
-           ndiff=ndiff+1
-        END IF
-        h_pos => h_nrow
-        s_pos => s_nrow
-     END DO
-     IF (ASSOCIATED(h_pos).OR.ASSOCIATED(s_pos)) THEN
-        ndiff=ndiff+1
-     END IF
-     CALL mp_sum(ndiff, s_mstruct%para_env%group)
-     IF (ndiff==0) THEN
-        CALL sm_pools_copy(mpools%S_sm_pools,mpools%H_redundant_sm_pools,&
-             error=error)
-     ELSE
-        
-        ALLOCATE(mpools%H_redundant_sm_pools(SIZE(mpools%S_sm_pools)),&
-             stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        
-        NULLIFY(mpools%H_redundant_sm_pools(1)%pool)
-        CALL sm_pool_create(mpools%H_redundant_sm_pools(1)%pool,&
-             matrix_struct=h_mstruct,&
-             error=error)
-           
-        DO ispin=2,SIZE(mpools%H_redundant_sm_pools)
-           mpools%H_redundant_sm_pools(ispin)%pool => &
-                mpools%H_redundant_sm_pools(1)%pool
-           CALL sm_pool_retain(mpools%H_redundant_sm_pools(ispin)%pool,&
-                error=error)
-        END DO
-        ! in future should set h_redundant(:)%matrix_structure
-     END IF
-
-     CALL sm_struct_release(h_mstruct,error=error)
-     NULLIFY(s_mstruct)
-  END IF
-
-  CALL timestop(0.0_wp,handle)
-
-END SUBROUTINE mpools_rebuild_h_r_sm_pools
-!***************************************************************************
 
 !!****f* qs_matrix_pools/mpools_rebuild_s_sm_pools [1.0] *
 !!
@@ -962,6 +815,7 @@ SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
           block_begins_at_row=block_begins_at,&
           block_begins_at_col=block_begins_at,&
           para_env=para_env, symmetry="symmetric",&
+          distribution_2d=s(1)%matrix%distribution_2d,&
           error=error)
 
      DEALLOCATE(block_begins_at,stat=stat)

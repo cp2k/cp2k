@@ -236,7 +236,6 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
      fmstruct%ncol_block=optimal_blacs_col_block_size
 
      IF (.NOT.PRESENT(template_fmstruct)) THEN
-        CPPrecondition(PRESENT(para_env),cp_failure_level,routineP,error,failure)
         CPPrecondition(PRESENT(context),cp_failure_level,routineP,error,failure)
         CPPrecondition(PRESENT(nrow_global),cp_failure_level,routineP,error,failure)
         CPPrecondition(PRESENT(ncol_global),cp_failure_level,routineP,error,failure)
@@ -257,9 +256,12 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
   END IF
   IF (.NOT.failure) THEN
      
-     IF (PRESENT(context)) fmstruct%context => context
-     CALL cp_blacs_env_retain(fmstruct%context,error=error)
+     IF (PRESENT(context)) THEN
+        fmstruct%context => context
+        fmstruct%para_env => context%para_env
+     END IF
      IF (PRESENT(para_env)) fmstruct%para_env => para_env
+     CALL cp_blacs_env_retain(fmstruct%context,error=error)
      CALL cp_para_env_retain(fmstruct%para_env,error=error)
      
      IF (PRESENT(nrow_global)) fmstruct%nrow_global=nrow_global

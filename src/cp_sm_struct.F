@@ -48,6 +48,9 @@ MODULE cp_sm_struct
                                              cp_para_env_retain,&
                                              cp_para_env_write
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE distribution_2d_types,           ONLY: distribution_2d_release,&
+                                             distribution_2d_retain,&
+                                             distribution_2d_type
   USE kinds,                           ONLY: wp=>dp
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -128,6 +131,7 @@ MODULE cp_sm_struct
      TYPE(cp_para_env_type), POINTER :: para_env
      CHARACTER(len=40) :: symmetry
      TYPE(cp_sm_node_type), POINTER :: local_blocks
+     TYPE(distribution_2d_type), POINTER :: distribution_2d
   END TYPE cp_sm_struct_type
 !!***
   !**************************************************************************
@@ -169,13 +173,14 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine sm_struct_create(sm_struct, block_begins_at_row,&
-!!         block_begins_at_col, para_env, symmetry, local_blocks_ptr,&
-!!         error)
+!!         block_begins_at_col, para_env, symmetry, distribution_2d,&
+!!         local_blocks_ptr, error)
 !!       Type(cp_sm_struct_type), Pointer:: sm_struct
 !!       Integer, Dimension(:), Intent (IN):: block_begins_at_row,&
 !!         block_begins_at_col
 !!       Type(cp_para_env_type), Pointer:: para_env
 !!       Character(Len=*):: symmetry
+!!       Type(distribution_2d_type), Pointer:: distribution_2d
 !!       Type(cp_sm_node_type), Optional, Pointer:: local_blocks_ptr
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine sm_struct_create
@@ -198,12 +203,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE sm_struct_create(sm_struct, block_begins_at_row,&
-     block_begins_at_col, para_env, symmetry, local_blocks_ptr,error)
+     block_begins_at_col, para_env, symmetry, distribution_2d,&
+     local_blocks_ptr,error)
   TYPE(cp_sm_struct_type), POINTER :: sm_struct
   INTEGER, DIMENSION(:), INTENT(in) :: block_begins_at_row, &
        block_begins_at_col
   TYPE(cp_para_env_type), POINTER :: para_env
   CHARACTER(len=*) :: symmetry
+  TYPE(distribution_2d_type), POINTER :: distribution_2d
   TYPE(cp_sm_node_type), OPTIONAL, POINTER :: local_blocks_ptr
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
@@ -231,6 +238,8 @@ SUBROUTINE sm_struct_create(sm_struct, block_begins_at_row,&
      sm_struct%para_env => para_env
      CALL cp_para_env_retain(para_env,error=error)
      sm_struct%symmetry=symmetry
+     sm_struct%distribution_2d => distribution_2d
+     CALL distribution_2d_retain(distribution_2d,error=error)
      IF (PRESENT(local_blocks_ptr)) THEN
         sm_struct%local_blocks => local_blocks_ptr
      ELSE
@@ -413,6 +422,7 @@ SUBROUTINE sm_struct_release(sm_struct, error)
         END IF
         CALL cp_para_env_release(sm_struct%para_env,error=error)
         CALL sm_nodes_dealloc(sm_struct%local_blocks, error=error)
+        CALL distribution_2d_release(sm_struct%distribution_2d,error=error)
 
         DEALLOCATE(sm_struct, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -679,7 +689,8 @@ END SUBROUTINE sm_struct_clear_local_blocks
 !!     Subroutine sm_struct_get(sm_struct, ref_count, id_nr, n_local_blocks,&
 !!         block_begins_at_row, block_begins_at_col, first_col, first_row,&
 !!         last_col, last_row, para_env, symmetry, local_blocks,&
-!!         n_blocks_row, n_blocks_col, n_rows, n_cols, error)
+!!         n_blocks_row, n_blocks_col, n_rows, n_cols, distribution_2d,&
+!!         error)
 !!       Type(cp_sm_struct_type), Pointer:: sm_struct
 !!       Integer, Intent (OUT), Optional:: ref_count, id_nr, n_local_blocks
 !!       Integer, Dimension(:), Pointer, Optional:: block_begins_at_row,&
@@ -689,6 +700,7 @@ END SUBROUTINE sm_struct_clear_local_blocks
 !!       Type(cp_sm_node_type), Pointer, Optional:: local_blocks
 !!       Integer, Intent (OUT), Optional:: n_blocks_row, n_blocks_col,&
 !!         n_rows, n_cols
+!!       Type(distribution_2d_type), Pointer, Optional:: distribution_2d
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine sm_struct_get
 !!
@@ -713,7 +725,7 @@ END SUBROUTINE sm_struct_clear_local_blocks
 SUBROUTINE sm_struct_get(sm_struct, ref_count, id_nr, n_local_blocks,&
      block_begins_at_row, block_begins_at_col, first_col, &
      first_row, last_col, last_row, para_env, symmetry, local_blocks,&
-     n_blocks_row,n_blocks_col,n_rows,n_cols,error)
+     n_blocks_row,n_blocks_col,n_rows,n_cols,distribution_2d, error)
   TYPE(cp_sm_struct_type), POINTER :: sm_struct
   INTEGER, INTENT(out),OPTIONAL :: ref_count, id_nr, n_local_blocks
   INTEGER, DIMENSION(:), POINTER, OPTIONAL :: block_begins_at_row, &
@@ -723,6 +735,7 @@ SUBROUTINE sm_struct_get(sm_struct, ref_count, id_nr, n_local_blocks,&
   CHARACTER(len=*), INTENT(out), OPTIONAL :: symmetry
   TYPE(cp_sm_node_type), POINTER, OPTIONAL :: local_blocks
   INTEGER, INTENT(out), OPTIONAL :: n_blocks_row,n_blocks_col,n_rows,n_cols
+  TYPE(distribution_2d_type), POINTER, OPTIONAL :: distribution_2d
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -795,6 +808,7 @@ SUBROUTINE sm_struct_get(sm_struct, ref_count, id_nr, n_local_blocks,&
         n_cols=sm_struct%block_begins_at_col(&
              SIZE(sm_struct%block_begins_at_col))-1
      END IF
+     IF (PRESENT(distribution_2d)) distribution_2d => sm_struct%distribution_2d
   END IF
 END SUBROUTINE sm_struct_get
 !***************************************************************************
@@ -928,6 +942,12 @@ SUBROUTINE sm_struct_write(sm_struct, unit_nr, local, short_description, error)
               WRITE(unit=unit_nr,fmt="(' local_blocks=*null*,')")
            END IF
 
+           IF (ASSOCIATED(sm_struct%distribution_2d)) THEN
+              WRITE(unit=unit_nr,fmt="(' distribution_2d=*associated*,')")
+           ELSE
+              WRITE(unit=unit_nr,fmt="(' distribution_2d=*null*,')")
+           END IF
+
         ELSE ! long description
 
            IF (ASSOCIATED(sm_struct%block_begins_at_row)) THEN
@@ -1035,6 +1055,12 @@ SUBROUTINE sm_struct_write(sm_struct, unit_nr, local, short_description, error)
               END IF
            ELSE
               WRITE(unit=unit_nr,fmt="(' local_blocks=*null*,')")
+           END IF
+
+           IF (ASSOCIATED(sm_struct%distribution_2d)) THEN
+              WRITE(unit=unit_nr,fmt="(' distribution_2d=*associated*,')")
+           ELSE
+              WRITE(unit=unit_nr,fmt="(' distribution_2d=*null*,')")
            END IF
 
         END IF

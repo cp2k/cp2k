@@ -18,12 +18,10 @@
 !!     
 !!****
 MODULE qs_tddfpt_eigensolver
-
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                              cp_fm_symm,&
                                              cp_fm_trace
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply, &
-                                             cp_sm_plus_fm_fm_t
+  USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create_fm_vect,&
@@ -33,17 +31,18 @@ MODULE qs_tddfpt_eigensolver
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_element,&
-                                             cp_fm_init_random, &
+                                             cp_fm_init_random,&
+                                             cp_fm_p_type,&
                                              cp_fm_release,&
-                                             cp_fm_to_fm, &
                                              cp_fm_set_all,&
                                              cp_fm_set_element,&
-                                             cp_fm_p_type,&
+                                             cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_log_handling,                 ONLY: cp_to_string
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
+                                             cp_sm_plus_fm_fm_t
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
-  USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_matrix_pools,                 ONLY: mpools_get,&
@@ -64,8 +63,8 @@ MODULE qs_tddfpt_eigensolver
   USE qs_tddfpt_utils
   USE sparse_matrix_types,             ONLY: set_matrix
   USE termination,                     ONLY: stop_program
-  USE timings,                         ONLY: timeset, timestop
-
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
 
   TYPE cp_fm_struct_p_type
@@ -325,11 +324,11 @@ CONTAINS
        !---------------------------!
        CALL cp_fm_syevd(T%matrix, Tev%matrix, tddfpt_eigenvalues(:,iteration))
 
-       if (glob_env%ionode) then
-          do i=1, n_ev
-             write (*,*) tddfpt_eigenvalues(i,iteration)
-          end do
-       end if
+       IF (glob_env%ionode) THEN
+          DO i=1, n_ev
+             WRITE (*,*) tddfpt_eigenvalues(i,iteration)
+          END DO
+       END IF
 
        difference = ABS(tddfpt_eigenvalues(n_ev,iteration) - &
                         tddfpt_eigenvalues(n_ev,iteration-1))
@@ -459,12 +458,12 @@ CONTAINS
           CALL cp_sm_plus_fm_fm_t(p_env%p1(spin)%matrix,&
                                   matrix_v=p_env%psi0d(spin)%matrix,&
                                   matrix_g=X(spin)%matrix,&
-                                  last_col=p_env%n_mo(spin), &
+                                  ncol=p_env%n_mo(spin), &
                                   alpha=0.5_dbl) 
           CALL cp_sm_plus_fm_fm_t(p_env%p1(spin)%matrix,&
                                   matrix_v=X(spin)%matrix,&
                                   matrix_g=p_env%psi0d(spin)%matrix,&
-                                  last_col=p_env%n_mo(spin), &
+                                  ncol=p_env%n_mo(spin), &
                                   alpha=0.5_dbl) 
        END DO
        CALL p_op_l2(p_env, qs_env, p_env%p1, R, &

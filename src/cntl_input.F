@@ -18,15 +18,20 @@
 !******************************************************************************
 
 MODULE cntl_input
-
-  USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE global_types, ONLY : global_environment_type
-  USE input_types, ONLY : setup_parameters_type
-  USE kinds, ONLY : dbl
-  USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       p_error, get_next, stop_parser, search_label
-  USE string_utilities, ONLY : uppercase, xstring
-
+  USE ewald_parameters_types,          ONLY: ewald_parameters_type
+  USE global_types,                    ONLY: global_environment_type
+  USE input_types,                     ONLY: setup_parameters_type
+  USE kinds,                           ONLY: dbl
+  USE parser,                          ONLY: get_next,&
+                                             p_error,&
+                                             parser_end,&
+                                             parser_init,&
+                                             read_line,&
+                                             search_label,&
+                                             stop_parser,&
+                                             test_next
+  USE string_utilities,                ONLY: uppercase,&
+                                             xstring
   PRIVATE
   PUBLIC :: read_cntl_section
 
@@ -40,6 +45,15 @@ CONTAINS
 !!
 !!   NAME
 !!     read_cntl_section
+!!
+!!   SYNOPSIS
+!!     Subroutine read_cntl_section(setup, globenv, ewald_param)
+!!       Implicit None
+!!       Type(setup_parameters_type), Intent (INOUT):: setup
+!!       Type(global_environment_type), Intent (INOUT):: globenv
+!!       Type(ewald_parameters_type), Intent (INOUT), Optional::&
+!!         ewald_param
+!!     End Subroutine read_cntl_section
 !!
 !!   FUNCTION
 !!
@@ -91,8 +105,8 @@ SUBROUTINE read_cntl_section ( setup, globenv, ewald_param )
 !..defaults
   setup % run_type = 'MD'
   setup % unit_type = 'KELVIN'
-  setup % symmetry = .false.
-  setup % path_integrals = .false.
+  setup % symmetry = .FALSE.
+  setup % path_integrals = .FALSE.
   IF ( ewald_set ) THEN
     ewald_param % alpha = 0.4_dbl
     ewald_param % gmax = 10
@@ -137,8 +151,10 @@ SUBROUTINE read_cntl_section ( setup, globenv, ewald_param )
            CALL get_next ( globenv % print_level )
         CASE ( 'UNITS')
            ilen = 20
-           CALL get_next(ewald_param % unit_type,ilen)
-           CALL uppercase(ewald_param % unit_type )
+           IF (ewald_set) THEN
+              CALL get_next(ewald_param % unit_type,ILEN)
+              CALL uppercase(ewald_param % unit_type )
+           END IF
         CASE ( 'EWALD_TY')
            IF ( ewald_set ) THEN
              ilen=20
@@ -182,14 +198,14 @@ SUBROUTINE read_cntl_section ( setup, globenv, ewald_param )
            ilen = 3
            CALL get_next(str2,ilen)
            CALL uppercase(str2)
-           IF ( str2(1:2) == "ON" ) setup%symmetry=.true.
-           IF ( str2(1:3) == "OFF" ) setup%symmetry=.false.
+           IF ( str2(1:2) == "ON" ) setup%symmetry=.TRUE.
+           IF ( str2(1:3) == "OFF" ) setup%symmetry=.FALSE.
         CASE ('PATH_INT')
            ilen = 3
            CALL get_next(str2,ilen)
            CALL uppercase(str2)
-           IF ( str2(1:2) == "ON" ) setup%path_integrals=.true.
-           IF ( str2(1:3) == "OFF" ) setup%path_integrals=.false.
+           IF ( str2(1:2) == "ON" ) setup%path_integrals=.TRUE.
+           IF ( str2(1:3) == "OFF" ) setup%path_integrals=.FALSE.
         CASE ( 'SET_FILE')
            ilen = 40
            CALL get_next(setup % set_file_name,ilen)

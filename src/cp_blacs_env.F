@@ -43,11 +43,14 @@ MODULE cp_blacs_env
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_types,                   ONLY: cp_blacs_env_type
-  USE global_types,                    ONLY: global_environment_type, &
-                                             BLACS_GRID_SQUARE, & 
+  USE cp_para_env,                     ONLY: cp_para_env_release,&
+                                             cp_para_env_retain
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
+  USE global_types,                    ONLY: BLACS_GRID_COL,&
                                              BLACS_GRID_ROW,&
-                                             BLACS_GRID_COL
+                                             BLACS_GRID_SQUARE,&
+                                             global_environment_type
   USE kinds,                           ONLY: int_size,&
                                              wp => dp,&
                                              wp_size => dp_size
@@ -76,7 +79,8 @@ CONTAINS
 
   SUBROUTINE get_blacs_info(blacs_env,my_process_row,my_process_column,&
                             my_process_number,number_of_process_rows,&
-                            number_of_process_columns,number_of_processes)
+                            number_of_process_columns,number_of_processes,&
+                            para_env, blacs2mpi, mpi2blacs)
 
 !   Purpose: Return informations about the specified BLACS context.
 
@@ -92,29 +96,20 @@ CONTAINS
                                                  number_of_process_columns,&
                                                  number_of_process_rows,&
                                                  number_of_processes
-!   *** Local variables ***
+    TYPE(cp_para_env_type), POINTER, OPTIONAL  :: para_env
+    INTEGER, DIMENSION(:,:), POINTER, OPTIONAL :: blacs2mpi, mpi2blacs
 
-    INTEGER :: mypcol,mype,myprow,npcol,npe,nprow
-    TYPE(cp_blacs_env_type), POINTER :: context
+    IF (.NOT.ASSOCIATED(blacs_env)) CALL stop_program("get_blacs_info","no blacs environment")
 
-!   ---------------------------------------------------------------------------
-
-    context => blacs_env
-    IF (.NOT.ASSOCIATED(context)) CALL stop_program("get_blacs_info","no blacs environment")
-
-    mype=context%my_pid
-    npe=context%n_pid
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    nprow=context%num_pe(1)
-    npcol=context%num_pe(2)
-
-    IF (PRESENT(my_process_row)) my_process_row = myprow
-    IF (PRESENT(my_process_column)) my_process_column = mypcol
-    IF (PRESENT(my_process_number)) my_process_number = mype
-    IF (PRESENT(number_of_process_rows)) number_of_process_rows = nprow
-    IF (PRESENT(number_of_process_columns)) number_of_process_columns = npcol
-    IF (PRESENT(number_of_processes)) number_of_processes = npe
+    IF (PRESENT(my_process_row)) my_process_row = blacs_env%mepos(1)
+    IF (PRESENT(my_process_column)) my_process_column = blacs_env%mepos(2)
+    IF (PRESENT(my_process_number)) my_process_number = blacs_env%my_pid
+    IF (PRESENT(number_of_process_rows)) number_of_process_rows = blacs_env%num_pe(1)
+    IF (PRESENT(number_of_process_columns)) number_of_process_columns = blacs_env%num_pe(2)
+    IF (PRESENT(number_of_processes)) number_of_processes = blacs_env%n_pid
+    IF (PRESENT(para_env)) para_env => blacs_env%para_env
+    IF (PRESENT(blacs2mpi)) blacs2mpi => blacs_env%blacs2mpi
+    IF (PRESENT(mpi2blacs)) mpi2blacs => blacs_env%mpi2blacs
 
   END SUBROUTINE get_blacs_info
 
@@ -124,10 +119,11 @@ CONTAINS
 !!     cp_blacs_env_create
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_blacs_env_create(blacs_env, group, owns_group, source,&
-!!         error)
+!!     Subroutine cp_blacs_env_create(blacs_env, group, para_env,&
+!!         owns_group, source, error)
 !!       Type(cp_blacs_env_type), Pointer:: blacs_env
 !!       Integer, Intent (IN):: group
+!!       Type(cp_para_env_type), Pointer:: para_env
 !!       Logical, Intent (IN), Optional:: owns_group
 !!       Integer, Dimension(2), Intent (IN), Optional:: source
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -155,9 +151,11 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_blacs_env_create(blacs_env,group,owns_group,source,error)
+SUBROUTINE cp_blacs_env_create(blacs_env,group,para_env,owns_group,&
+     source,error)
   TYPE(cp_blacs_env_type), POINTER :: blacs_env
   INTEGER, INTENT(in) :: group
+  TYPE(cp_para_env_type), POINTER :: para_env
   LOGICAL, INTENT(in), OPTIONAL :: owns_group
   INTEGER, DIMENSION(2), INTENT(in), OPTIONAL :: source
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -165,7 +163,8 @@ SUBROUTINE cp_blacs_env_create(blacs_env,group,owns_group,source,error)
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='cp_blacs_env_create',&
         routineP=moduleN//':'//routineN
-  INTEGER :: stat
+  INTEGER :: stat, ipcol,iprow
+
   failure=.FALSE.
 
 #ifdef __parallel
@@ -193,11 +192,29 @@ SUBROUTINE cp_blacs_env_create(blacs_env,group,owns_group,source,error)
      IF (PRESENT(source)) THEN
         blacs_env%source=source
      END IF
+     CALL cp_para_env_retain(para_env,error=error)
+     blacs_env%para_env => para_env
 #ifdef __BLACS
      CALL blacs_pinfo(blacs_env%my_pid,blacs_env%n_pid)
      CALL blacs_gridinfo(blacs_env%group,blacs_env%num_pe(1),&
           blacs_env%num_pe(2),blacs_env%mepos(1),blacs_env%mepos(2))
 #endif
+     ALLOCATE(blacs_env%blacs2mpi(0:blacs_env%num_pe(1)-1,0:blacs_env%num_pe(2)-1),&
+          stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     blacs_env%blacs2mpi=0
+     blacs_env%blacs2mpi(blacs_env%mepos(1),blacs_env%mepos(2))=para_env%mepos
+     CALL mp_sum(blacs_env%blacs2mpi,para_env%group)
+
+     ALLOCATE(blacs_env%mpi2blacs(2,0:para_env%num_pe-1),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     blacs_env%mpi2blacs=-1
+     DO ipcol=0,blacs_env%num_pe(2)-1
+        DO iprow=0,blacs_env%num_pe(1)-1
+           blacs_env%mpi2blacs(1,blacs_env%blacs2mpi(iprow,ipcol))=iprow
+           blacs_env%mpi2blacs(2,blacs_env%blacs2mpi(iprow,ipcol))=ipcol
+        END DO
+     END DO
   END IF
 END SUBROUTINE cp_blacs_env_create
 !***************************************************************************
@@ -295,6 +312,11 @@ SUBROUTINE cp_blacs_env_release(blacs_env,error)
            CALL blacs_gridexit(blacs_env%group)
 #endif
         END IF
+        CALL cp_para_env_release(blacs_env%para_env,error=error)
+        DEALLOCATE(blacs_env%mpi2blacs, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        DEALLOCATE(blacs_env%blacs2mpi,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         DEALLOCATE(blacs_env,stat=stat)
         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
      END IF
@@ -406,6 +428,7 @@ END SUBROUTINE cp_blacs_env_write
 
 !   ---------------------------------------------------------------------------
 
+    CALL cp_error_init(error)
 #if defined(__parallel) && (! defined(__BLACS) || ! defined(__SCALAPACK))
     CALL stop_program(routine,&
                       "Quickstep needs BLACS and SCALAPACK for parallel runs",&
@@ -499,7 +522,7 @@ END SUBROUTINE cp_blacs_env_write
     END IF
 
 #endif
-    CALL cp_blacs_env_create(blacs_env,group = context)
+    CALL cp_blacs_env_create(blacs_env,group = context, para_env=globenv%para_env)
 
   END SUBROUTINE start_blacs
 

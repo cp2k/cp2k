@@ -23,7 +23,6 @@
 !******************************************************************************
 
 MODULE sparse_matrix_types
-
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -37,13 +36,15 @@ MODULE sparse_matrix_types
                                              cp_logger_type,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE distribution_2d_types,           ONLY: distribution_2d_type, &
-                                             distribution_2d_retain, &
-                                             distribution_2d_release
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE distribution_2d_types,           ONLY: distribution_2d_release,&
+                                             distribution_2d_retain,&
+                                             distribution_2d_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
                                              wp => dp,&
                                              wp_size => dp_size
+  USE message_passing,                 ONLY: mp_max
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -61,7 +62,7 @@ MODULE sparse_matrix_types
     PRIVATE
     TYPE(real_block_node_type), POINTER :: next_block_node
     INTEGER                             :: block_col
-    REAL(wp), DIMENSION(:,:), POINTER   :: block
+    REAL(wp), DIMENSION(:,:), POINTER   :: BLOCK
   END TYPE real_block_node_type
 
   TYPE real_block_list_type
@@ -129,7 +130,8 @@ MODULE sparse_matrix_types
             cp_sm_scale_and_add,&
             cp_sm_get_id_nr,&
             cp_sm_set,&
-            cp_sm_get_block_list
+            cp_sm_get_block_list,&
+            cp_sm_maxabsval
 
 ! *** Public functions ***
 
@@ -299,11 +301,11 @@ SUBROUTINE cp_sm_scale_and_add(matrix_a,alpha,matrix_b,beta,error)
 
              CALL get_block_node(block_node=block_node,&
                                  block_col=iblock_col,&
-                                 block=a_block)
+                                 BLOCK=a_block)
              CALL get_block_node(matrix=matrix_b,&
                                  block_row=iblock_row,&
                                  block_col=iblock_col,&
-                                 block=b_block)
+                                 BLOCK=b_block)
 
              IF (ASSOCIATED(b_block)) THEN
                 CALL daxpy(SIZE(a_block,1)*SIZE(a_block,2),&
@@ -320,11 +322,11 @@ SUBROUTINE cp_sm_scale_and_add(matrix_a,alpha,matrix_b,beta,error)
           DO WHILE (ASSOCIATED(block_node))
              CALL get_block_node(block_node=block_node,&
                                  block_col=iblock_col,&
-                                 block=a_block)
+                                 BLOCK=a_block)
              CALL get_block_node(matrix=matrix_b,&
                                  block_row=iblock_row,&
                                  block_col=iblock_col,&
-                                 block=b_block)
+                                 BLOCK=b_block)
 
              IF (ASSOCIATED(b_block)) THEN
                 a_block(:,:) = my_alpha*a_block(:,:) + my_beta*b_block(:,:)
@@ -398,17 +400,17 @@ END SUBROUTINE cp_sm_scale_and_add
 
           CALL get_block_node(block_node=block_node,&
                               block_col=iblock_col,&
-                              block=c_block)
+                              BLOCK=c_block)
 
           CALL get_block_node(matrix=a,&
                               block_row=iblock_row,&
                               block_col=iblock_col,&
-                              block=a_block)
+                              BLOCK=a_block)
 
           CALL get_block_node(matrix=b,&
                               block_row=iblock_row,&
                               block_col=iblock_col,&
-                              block=b_block)
+                              BLOCK=b_block)
 
           IF (ASSOCIATED(a_block)) THEN
             IF (ASSOCIATED(b_block)) THEN
@@ -440,17 +442,17 @@ END SUBROUTINE cp_sm_scale_and_add
 
           CALL get_block_node(block_node=block_node,&
                               block_col=iblock_col,&
-                              block=c_block)
+                              BLOCK=c_block)
 
           CALL get_block_node(matrix=a,&
                               block_row=iblock_row,&
                               block_col=iblock_col,&
-                              block=a_block)
+                              BLOCK=a_block)
 
           CALL get_block_node(matrix=b,&
                               block_row=iblock_row,&
                               block_col=iblock_col,&
-                              block=b_block)
+                              BLOCK=b_block)
 
           IF (ASSOCIATED(a_block)) THEN
             IF (ASSOCIATED(b_block)) THEN
@@ -478,7 +480,8 @@ END SUBROUTINE cp_sm_scale_and_add
 
 ! *****************************************************************************
 
-  SUBROUTINE add_real_matrix_block(matrix,block_row,block_col,block)
+  SUBROUTINE add_real_matrix_block(matrix,block_row,block_col,BLOCK,&
+       error)
 
 !   Purpose: Allocate and initialize a new block node.
 
@@ -488,7 +491,8 @@ END SUBROUTINE cp_sm_scale_and_add
 
     TYPE(real_matrix_type), POINTER             :: matrix
     INTEGER, INTENT(IN)                         :: block_col,block_row
-    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER :: block
+    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER :: BLOCK
+    TYPE(cp_error_type), INTENT(inout),OPTIONAL :: error
 
 !   *** Local parameters ***
 
@@ -503,7 +507,6 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER :: myprow,mypcol
     INTEGER :: rbr,rbc,cbr,cbc
     LOGICAL :: failure
-    Type(cp_error_type) :: error
 !   ---------------------------------------------------------------------------
 
 !   perform checks that we are only adding allowed blocks
@@ -548,15 +551,15 @@ END SUBROUTINE cp_sm_scale_and_add
     END IF
     new_block_node%block(:,:) = 0.0_wp
 
-    IF (PRESENT(block)) THEN
-      IF (ASSOCIATED(block)) THEN
-        IF ((SIZE(block,1) == nrow).AND.(SIZE(block,2) == ncol)) THEN
-          new_block_node%block(:,:) = block(:,:)
+    IF (PRESENT(BLOCK)) THEN
+      IF (ASSOCIATED(BLOCK)) THEN
+        IF ((SIZE(BLOCK,1) == nrow).AND.(SIZE(BLOCK,2) == ncol)) THEN
+          new_block_node%block(:,:) = BLOCK(:,:)
         ELSE
           CALL stop_program(routineP,"Incompatible block dimensions")
         END IF
       ELSE
-        block => new_block_node%block
+        BLOCK => new_block_node%block
       END IF
     END IF
 
@@ -618,7 +621,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
         CALL get_block_node(block_node=block_node,&
                             block_col=iblock_col,&
-                            block=sparse_block)
+                            BLOCK=sparse_block)
 
         WRITE(fileunit,*) iblock_row,iblock_col,MAXVAL(ABS(sparse_block))
 
@@ -698,7 +701,7 @@ END SUBROUTINE cp_sm_scale_and_add
     IF (istat /= 0) CALL stop_memory(routine,matrix%name,0)
 
     NULLIFY(matrix%distribution_2d) 
-    IF (present(distribution_2d)) matrix%distribution_2d=>distribution_2d
+    IF (PRESENT(distribution_2d)) matrix%distribution_2d=>distribution_2d
     CALL distribution_2d_retain(matrix%distribution_2d)
 
     ALLOCATE (matrix%block_list(nblock_row),STAT=istat)
@@ -838,7 +841,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
         CALL get_block_node(block_node=block_node,&
                             block_col=iblock_col,&
-                            block=sparse_block)
+                            BLOCK=sparse_block)
 
         icol_block = 1
 
@@ -962,7 +965,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
         CALL get_block_node(block_node=block_node,&
                             block_col=iblock_col,&
-                            block=sparse_block)
+                            BLOCK=sparse_block)
         
         owner=.TRUE.
         IF (owner) THEN
@@ -1070,7 +1073,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
         CALL get_block_node(block_node=block_node,&
                             block_col=iblock_col,&
-                            block=sparse_block)
+                            BLOCK=sparse_block)
 
         IF (MOD(iblock_row*sparse_matrix%nblock_row+iblock_col,nthread).eq.ithread) THEN
            icol=sparse_matrix%first_col(iblock_col)
@@ -1373,7 +1376,7 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER :: ub,lb
     CHARACTER(len=*), PARAMETER :: routineN='find_real_block_node',&
         routineP=moduleN//':'//routineN
-    Type(cp_error_type) :: error
+    TYPE(cp_error_type) :: error
     LOGICAL :: failure
 !   ---------------------------------------------------------------------------
 
@@ -1440,7 +1443,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     INTEGER :: iblock_row
 
-    REAL(wp), DIMENSION(:,:), POINTER :: block
+    REAL(wp), DIMENSION(:,:), POINTER :: BLOCK
 
 !   ---------------------------------------------------------------------------
 
@@ -1468,8 +1471,8 @@ END SUBROUTINE cp_sm_scale_and_add
       DO iblock_row=1,matrix%nblock_row
         block_node => first_block_node(matrix,iblock_row)
         DO WHILE (ASSOCIATED(block_node))
-          CALL get_block_node(block_node=block_node,block=block)
-          nelement_allocated = nelement_allocated + SIZE(block)
+          CALL get_block_node(block_node=block_node,BLOCK=BLOCK)
+          nelement_allocated = nelement_allocated + SIZE(BLOCK)
           block_node => next_block_node(block_node)
         END DO
       END DO
@@ -1479,7 +1482,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
 ! *****************************************************************************
 
-  SUBROUTINE get_real_block_node(block_node,block_col,block)
+  SUBROUTINE get_real_block_node(block_node,block_col,BLOCK)
 
 !   Purpose: Get the the column and/or matrix-block for a given sparse matrix block node.
 
@@ -1489,12 +1492,12 @@ END SUBROUTINE cp_sm_scale_and_add
 
     TYPE(real_block_node_type), INTENT(IN)      :: block_node
     INTEGER, OPTIONAL, INTENT(OUT)              :: block_col
-    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER :: block
+    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER :: BLOCK
 
 !   ---------------------------------------------------------------------------
 
     IF (PRESENT(block_col)) block_col = block_node%block_col
-    IF (PRESENT(block)) block => block_node%block
+    IF (PRESENT(BLOCK)) BLOCK => block_node%block
 
   END SUBROUTINE get_real_block_node
 
@@ -1502,7 +1505,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
   SUBROUTINE get_real_matrix_block(matrix,block_row,block_col,&
                                    first_row,last_row,first_col,last_col,&
-                                   block_node,block)
+                                   block_node,BLOCK)
 
 !   Purpose: Get a specific (block_row,block_col)-block from the real matrix
 
@@ -1515,7 +1518,7 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER, INTENT(IN)                           :: block_col,block_row
     INTEGER, OPTIONAL, INTENT(OUT)                :: first_col,first_row,&
                                                      last_col,last_row
-    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER   :: block
+    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER   :: BLOCK
 
 !   *** Local variables ***
 
@@ -1533,10 +1536,10 @@ END SUBROUTINE cp_sm_scale_and_add
 
     IF (ASSOCIATED(current_block_node)) THEN
       IF (PRESENT(block_node)) block_node => current_block_node
-      IF (PRESENT(block)) block => current_block_node%block
+      IF (PRESENT(BLOCK)) BLOCK => current_block_node%block
     ELSE
       IF (PRESENT(block_node)) NULLIFY (block_node)
-      IF (PRESENT(block)) NULLIFY (block)
+      IF (PRESENT(BLOCK)) NULLIFY (BLOCK)
     END IF
 
   END SUBROUTINE get_real_matrix_block
@@ -1589,12 +1592,12 @@ END SUBROUTINE cp_sm_scale_and_add
 
         CALL get_block_node(block_node=block_node,&
                             block_col=iblock_col,&
-                            block=b_block)
+                            BLOCK=b_block)
 
         CALL get_block_node(matrix=a,&
                             block_row=iblock_row,&
                             block_col=iblock_col,&
-                            block=a_block)
+                            BLOCK=a_block)
 
         IF (ASSOCIATED(a_block)) THEN
           a_block(:,:) = a_block(:,:) + b_block(:,:)
@@ -1602,7 +1605,7 @@ END SUBROUTINE cp_sm_scale_and_add
           CALL add_real_matrix_block(matrix=a,&
                                      block_row=iblock_row,&
                                      block_col=iblock_col,&
-                                     block=b_block)
+                                     BLOCK=b_block)
         END IF
 
         block_node => block_node%next_block_node
@@ -1644,7 +1647,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
 ! *****************************************************************************
 
-  SUBROUTINE put_real_block_node(block_node,matrix,block_row,block_col,block)
+  SUBROUTINE put_real_block_node(block_node,matrix,block_row,block_col,BLOCK)
 
 !   Purpose: Set block node data set.
 
@@ -1656,7 +1659,7 @@ END SUBROUTINE cp_sm_scale_and_add
     TYPE(real_matrix_type), POINTER             :: matrix
     INTEGER, INTENT(IN)                         :: block_row
     INTEGER, OPTIONAL, INTENT(IN)               :: block_col
-    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER :: block
+    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER :: BLOCK
 
 !   *** Local parameters ***
 
@@ -1671,15 +1674,15 @@ END SUBROUTINE cp_sm_scale_and_add
 
     IF (PRESENT(block_col)) block_node%block_col = block_col
 
-    IF (PRESENT(block)) THEN
+    IF (PRESENT(BLOCK)) THEN
 
       nrow = matrix%last_row(block_row) - matrix%first_row(block_row) + 1
       ncol = matrix%last_col(block_col) - matrix%first_col(block_col) + 1
 
-      IF (PRESENT(block)) THEN
-        IF (ASSOCIATED(block)) THEN
-          IF ((SIZE(block,1) == nrow).AND.(SIZE(block,2) == ncol)) THEN
-            block_node%block(:,:) = block(:,:)
+      IF (PRESENT(BLOCK)) THEN
+        IF (ASSOCIATED(BLOCK)) THEN
+          IF ((SIZE(BLOCK,1) == nrow).AND.(SIZE(BLOCK,2) == ncol)) THEN
+            block_node%block(:,:) = BLOCK(:,:)
           ELSE
             CALL stop_program(routine,"Incompatible block dimensions")
           END IF
@@ -1694,7 +1697,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
 ! *****************************************************************************
 
-  SUBROUTINE put_real_matrix_block(matrix,block_row,block_col,block)
+  SUBROUTINE put_real_matrix_block(matrix,block_row,block_col,BLOCK)
 
 !   Purpose: Allocate and initialize a new block node or update an existing
 !            block node.
@@ -1705,7 +1708,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     TYPE(real_matrix_type), POINTER            :: matrix
     INTEGER, INTENT(IN)                        :: block_col,block_row
-    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER:: block
+    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER:: BLOCK
 
 !   *** Local parameters ***
 
@@ -1733,10 +1736,10 @@ END SUBROUTINE cp_sm_scale_and_add
 
 !     *** Update the data set of an existing block node ***
 
-      IF (PRESENT(block)) THEN
-        IF (ASSOCIATED(block)) THEN
-          IF ((SIZE(block,1) == nrow).AND.(SIZE(block,2) == ncol)) THEN
-            block_node%block(:,:) = block(:,:)
+      IF (PRESENT(BLOCK)) THEN
+        IF (ASSOCIATED(BLOCK)) THEN
+          IF ((SIZE(BLOCK,1) == nrow).AND.(SIZE(BLOCK,2) == ncol)) THEN
+            block_node%block(:,:) = BLOCK(:,:)
           ELSE
             CALL stop_program(routine,"Incompatible block dimensions")
           END IF
@@ -1753,8 +1756,8 @@ END SUBROUTINE cp_sm_scale_and_add
 
 !     *** Add a new block node ***
 
-      IF (PRESENT(block)) THEN
-        CALL add_block_node(matrix,block_row,block_col,block)
+      IF (PRESENT(BLOCK)) THEN
+        CALL add_block_node(matrix,block_row,block_col,BLOCK)
       ELSE
         CALL add_block_node(matrix,block_row,block_col)
       END IF
@@ -1792,7 +1795,7 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER :: iblock_col,iblock_row
     LOGICAL :: make_data_blocks
 
-    REAL(wp), DIMENSION(:,:), POINTER :: block
+    REAL(wp), DIMENSION(:,:), POINTER :: BLOCK
 
 !   ---------------------------------------------------------------------------
 
@@ -1816,6 +1819,7 @@ END SUBROUTINE cp_sm_scale_and_add
                          first_col=source%first_col(:),&
                          last_col=source%last_col(:),&
                          matrix_name=target_name,&
+                         distribution_2d=source%distribution_2d,&
                          matrix_symmetry=source%symmetry)
 
     IF (PRESENT(allocate_blocks)) THEN
@@ -1836,12 +1840,12 @@ END SUBROUTINE cp_sm_scale_and_add
 
           CALL get_block_node(block_node=block_node,&
                               block_col=iblock_col,&
-                              block=block)
+                              BLOCK=BLOCK)
 
           CALL add_block_node(matrix=TARGET,&
                               block_row=iblock_row,&
                               block_col=iblock_col,&
-                              block=block)
+                              BLOCK=BLOCK)
 
           block_node => next_block_node(block_node)
 
@@ -1907,6 +1911,7 @@ END SUBROUTINE cp_sm_scale_and_add
                          first_col=source%first_col(:),&
                          last_col=source%last_col(:),&
                          matrix_name=target_name,&
+                         distribution_2d=source%distribution_2d,&
                          matrix_symmetry=matrix_symmetry)
 
 !   *** Initialize all block nodes ***
@@ -1960,7 +1965,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     INTEGER :: iblock_row
 
-    REAL(wp), DIMENSION(:,:), POINTER :: block
+    REAL(wp), DIMENSION(:,:), POINTER :: BLOCK
 
 !   ---------------------------------------------------------------------------
 
@@ -1985,9 +1990,9 @@ END SUBROUTINE cp_sm_scale_and_add
         DO WHILE (ASSOCIATED(block_node))
 
           CALL get_block_node(block_node=block_node,&
-                              block=block)
+                              BLOCK=BLOCK)
 
-          block(:,:) = alpha*block(:,:)
+          BLOCK(:,:) = alpha*BLOCK(:,:)
 
           block_node => block_node%next_block_node
 
@@ -2023,7 +2028,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     INTEGER :: iblock_row
 
-    REAL(wp), DIMENSION(:,:), POINTER :: block
+    REAL(wp), DIMENSION(:,:), POINTER :: BLOCK
 
 !   ---------------------------------------------------------------------------
 
@@ -2042,9 +2047,9 @@ END SUBROUTINE cp_sm_scale_and_add
       DO WHILE (ASSOCIATED(block_node))
 
         CALL get_block_node(block_node=block_node,&
-                            block=block)
+                            BLOCK=BLOCK)
 
-        block(:,:) = value
+        BLOCK(:,:) = value
 
         block_node => block_node%next_block_node
 
@@ -2077,7 +2082,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     INTEGER :: iblock_col,iblock_row,icol,irow
 
-    REAL(wp), DIMENSION(:,:), POINTER :: block
+    REAL(wp), DIMENSION(:,:), POINTER :: BLOCK
 
 !   ---------------------------------------------------------------------------
 
@@ -2097,12 +2102,12 @@ END SUBROUTINE cp_sm_scale_and_add
 
         CALL get_block_node(block_node=block_node,&
                             block_col=iblock_col,&
-                            block=block)
+                            BLOCK=BLOCK)
 
         IF (iblock_row == iblock_col) THEN
-          DO irow=1,SIZE(block,1)
-            DO icol=irow+1,SIZE(block,2)
-              block(icol,irow) = block(irow,icol)
+          DO irow=1,SIZE(BLOCK,1)
+            DO icol=irow+1,SIZE(BLOCK,2)
+              BLOCK(icol,irow) = BLOCK(irow,icol)
             END DO
           END DO
         END IF
@@ -2181,13 +2186,13 @@ END SUBROUTINE cp_sm_scale_and_add
 
         CALL get_block_node(block_node=block_node,&
                             block_col=iblock_col,&
-                            block=target_block)
+                            BLOCK=target_block)
 
         IF (ASSOCIATED(target_block)) THEN
            CALL get_block_node(matrix=source_matrix,&
                 block_row=iblock_row,&
                 block_col=iblock_col,&
-                block=source_block)
+                BLOCK=source_block)
            
            IF (ASSOCIATED(source_block)) THEN
               CPPrecondition(SIZE(target_block,1)==SIZE(source_block,1),cp_failure_level,routineP,error,failure)
@@ -2430,6 +2435,11 @@ END SUBROUTINE cp_sm_set
 !!     cp_sm_get_block_list
 !!
 !!   SYNOPSIS
+!!     Subroutine cp_sm_get_block_list(matrix, list, error)
+!!       Type(real_matrix_type), Pointer:: matrix
+!!       Integer, Dimension(:,:), Pointer:: list
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_sm_get_block_list
 !!
 !!   FUNCTION
 !!     gets a list of indices of all allocated blocks (locally) of a
@@ -2489,6 +2499,81 @@ SUBROUTINE cp_sm_get_block_list ( matrix, list, error )
   
 END SUBROUTINE cp_sm_get_block_list 
 
+!***************************************************************************
+
+!!****f* cp_sm_maxabsval [1.0] *
+!!
+!!   NAME
+!!     cp_sm_maxabsval
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_sm_maxabsval(matrix, maxabsval, para_env, error)
+!!       Type(real_matrix_type), Pointer:: matrix
+!!       Real(Kind=wp), Intent (OUT):: maxabsval
+!!       Type(cp_para_env_type), Pointer:: para_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_sm_maxabsval
+!!
+!!   FUNCTION
+!!     returns the maximum of the abs of the matrix entries
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - matrix: the matrix you are interested in
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     04.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_sm_maxabsval(matrix,maxabsval,para_env,error)
+  TYPE(real_matrix_type), POINTER :: matrix
+  REAL(kind=wp), INTENT(out) :: maxabsval
+  TYPE(cp_para_env_type), POINTER :: para_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sm_maxabsval',&
+        routineP=moduleN//':'//routineN
+  TYPE(real_block_node_type), POINTER :: block_node
+  INTEGER :: iblock_row, group
+  REAL(wp), DIMENSION(:,:), POINTER :: matrix_block
+  
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
+  CPPrecondition(matrix%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  
+  maxabsval=0.0_wp
+
+  DO iblock_row=1,matrix%nblock_row
+     
+     block_node => first_block_node(matrix,iblock_row)
+     
+     DO WHILE (ASSOCIATED(block_node))
+
+        CALL get_block_node(block_node=block_node,&
+                            BLOCK=matrix_block)
+
+        maxabsval=MAX(maxabsval,MAXVAL(ABS(matrix_block)))
+
+        block_node => block_node%next_block_node
+
+      END DO
+
+    END DO
+
+    CALL mp_max(maxabsval,para_env%group)
+
+  END SUBROUTINE cp_sm_maxabsval
 !***************************************************************************
 
 END MODULE sparse_matrix_types

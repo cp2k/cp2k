@@ -166,6 +166,9 @@ MODULE cp_para_types
 !!     - my_pid: process id of the actual processor (global)
 !!     - n_pid: number of process ids (this is always global, not referred
 !!       to the actual number of processors in the blacs grid)
+!!     - the para env associated (and compatible) with this blacs_env
+!!     - blacs2mpi: maps mepos(1)-mepos(2) of blacs to its mpi rank
+!!     - mpi2blacs(i,rank): maps the mpi rank to the mepos(i)
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -179,6 +182,9 @@ MODULE cp_para_types
      LOGICAL :: owns_group
      INTEGER, DIMENSION(2) :: mepos, source, num_pe
      INTEGER :: group, my_pid, n_pid, ref_count
+     TYPE(cp_para_env_type), POINTER :: para_env
+     INTEGER, DIMENSION(:,:), POINTER :: blacs2mpi
+     INTEGER, DIMENSION(:,:), POINTER :: mpi2blacs
   END TYPE cp_blacs_env_type
 !!***
   !****************************************************************************

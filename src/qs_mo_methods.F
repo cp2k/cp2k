@@ -22,25 +22,6 @@
 ! ************************************************************************************
 
 MODULE qs_mo_methods
-
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_create, &
-                                             cp_fm_struct_release,&
-                                             cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_info,&
-                                             cp_fm_init_random,&
-                                             cp_fm_to_fm, &
-                                             cp_fm_release,&
-                                             cp_fm_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_plus_fm_fm_t
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm, &
-                                             cp_fm_column_scale, &
-                                             cp_fm_syrk
-  USE cp_fm_diag,                      ONLY: cp_fm_syevd
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-
-  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
-
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -48,28 +29,39 @@ MODULE qs_mo_methods
                                              cp_error_message,&
                                              cp_error_type,&
                                              cp_unimplemented_error
-
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                             cp_fm_gemm,&
+                                             cp_fm_syrk
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
+  USE cp_fm_diag,                      ONLY: cp_fm_syevd
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_info,&
+                                             cp_fm_init_random,&
+                                             cp_fm_release,&
+                                             cp_fm_retain,&
+                                             cp_fm_to_fm,&
+                                             cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_log,&
                                              cp_logger_get_unit_nr,&
                                              cp_logger_type,&
                                              cp_to_string,&
                                              cp_warning_level
-
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
+                                             cp_sm_plus_fm_fm_t
   USE kinds,                           ONLY: int_size,&
                                              wp => dp,&
                                              wp_size => dp_size
-
+  USE message_passing,                 ONLY: mp_max
+  USE qs_mo_types,                     ONLY: mo_set_p_type,&
+                                             mo_set_type
   USE sparse_matrix_types,             ONLY: real_matrix_type,&
                                              set_matrix
-
-  USE message_passing,                 ONLY: mp_max
-
-  USE qs_mo_types,                     ONLY: mo_set_type, &
-                                             mo_set_p_type
-
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -340,6 +332,8 @@ CONTAINS
 !   *** Local variables ***
 
     INTEGER :: handle,imo
+    TYPE(cp_fm_type), POINTER :: fm_tmp
+    REAL(KIND=wp) :: alpha
 
 !   ---------------------------------------------------------------------------
 
@@ -347,19 +341,25 @@ CONTAINS
 
     CALL set_matrix(density_matrix,0.0_wp)
 
+    IF ( mo_set%lfomo .LT. mo_set%homo) THEN
+       NULLIFY(fm_tmp)
+       CALL cp_fm_create(fm_tmp,mo_set%eigenvectors%matrix_struct)
+       CALL cp_fm_to_fm(mo_set%eigenvectors,fm_tmp)
+       CALL cp_fm_column_scale(fm_tmp,mo_set%occupation_numbers(1:mo_set%homo))
+       alpha=1.0_wp
+    ELSE
+       alpha=mo_set%maxocc
+       fm_tmp => mo_set%eigenvectors
+       CALL cp_fm_retain(fm_tmp)
+    ENDIF
+
     CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix,&
                             matrix_v=mo_set%eigenvectors,&
-                            first_col=1,&
-                            last_col=mo_set%lfomo-1,&
-                            alpha=mo_set%maxocc)
+                            matrix_g=fm_tmp,&
+                            ncol=mo_set%homo,&
+                            alpha=alpha)
 
-    DO imo=mo_set%lfomo,mo_set%homo
-      CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix,&
-                              matrix_v=mo_set%eigenvectors,&
-                              first_col=imo,&
-                              last_col=imo,&
-                              alpha=mo_set%occupation_numbers(imo))
-    END DO
+    CALL cp_fm_release(fm_tmp)
 
     CALL timestop(0.0_wp,handle)
 
@@ -411,8 +411,7 @@ CONTAINS
     CALL cp_sm_plus_fm_fm_t(sparse_matrix=w_matrix,&
                             matrix_v=mo_set%eigenvectors,&
                             matrix_g=weighted_vectors,&
-                            first_col=1,&
-                            last_col=mo_set%homo)
+                            ncol=mo_set%homo)
 
     CALL cp_fm_release(weighted_vectors)
     CALL timestop(0.0_wp,handle)
@@ -477,8 +476,7 @@ CONTAINS
     CALL cp_sm_plus_fm_fm_t(sparse_matrix=w_matrix,&
                             matrix_v=mo_set%eigenvectors,&
                             matrix_g=weighted_vectors,&
-                            first_col=1,&
-                            last_col=mo_set%homo)
+                            ncol=mo_set%homo)
 
     CALL cp_fm_release(weighted_vectors)
     CALL cp_fm_release(h_block)
@@ -601,7 +599,7 @@ CONTAINS
 
    CALL timeset("calculate_orthonormality","I","",handle)
 
-   nspin=size(mo_array)
+   nspin=SIZE(mo_array)
    max_alpha=0.0_wp
 
    DO ispin=1,nspin
@@ -619,13 +617,13 @@ CONTAINS
           CALL cp_fm_gemm('T','N',k,k,n,1.0_wp, mo_array(ispin)%mo_set%eigenvectors,svec,0.0_wp,overlap)
           CALL cp_fm_get_info(overlap,nrow_local=nrow_local,ncol_local=ncol_local, &
                               row_indices=row_indices,col_indices=col_indices)
-          do i=1,nrow_local
-           do j=1,ncol_local
+          DO i=1,nrow_local
+           DO j=1,ncol_local
               alpha=overlap%local_data(i,j)
-              if (row_indices(i).eq.col_indices(j)) alpha=alpha-1.0_wp
-              max_alpha=MAX(max_alpha,abs(alpha))
-           enddo
-          enddo
+              IF (row_indices(i).eq.col_indices(j)) alpha=alpha-1.0_wp
+              max_alpha=MAX(max_alpha,ABS(alpha))
+           ENDDO
+          ENDDO
           CALL cp_fm_release(svec)
           CALL cp_fm_release(overlap)
     ENDDO

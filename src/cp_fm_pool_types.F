@@ -45,8 +45,8 @@ MODULE cp_fm_pool_types
                                              cp_fm_struct_retain,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_release,&
                                              cp_fm_p_type,&
+                                             cp_fm_release,&
                                              cp_fm_type
   USE cp_linked_list_fm,               ONLY: cp_sll_fm_dealloc,&
                                              cp_sll_fm_get_first_el,&

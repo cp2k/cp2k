@@ -57,6 +57,7 @@ MODULE cp_sm_pool_types
                                              sm_struct_get,&
                                              sm_struct_release,&
                                              sm_struct_retain
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: wp=>dp
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              allocate_matrix,&
@@ -395,9 +396,11 @@ CONTAINS
          last_col
     CHARACTER(len=40) :: symmetry
     TYPE(cp_sm_node_type), POINTER :: pos_att,next_row
+    TYPE(distribution_2d_type), POINTER :: distribution_2d
 
     failure=.FALSE.
-    NULLIFY(first_row, first_col, last_row, last_col, next_row, pos_att)
+    NULLIFY(first_row, first_col, last_row, last_col, next_row, pos_att,&
+         distribution_2d)
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
     CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -411,12 +414,13 @@ CONTAINS
                n_blocks_row=n_blocks_row, n_blocks_col=n_blocks_col,&
                first_row=first_row,last_row=last_row,&
                first_col=first_col, last_col=last_col, symmetry=symmetry,&
-               error=error)
+               distribution_2d=distribution_2d,error=error)
           CALL allocate_matrix(matrix,nrow=n_rows,&
                ncol=n_cols,nblock_row=n_blocks_row,&
                nblock_col=n_blocks_col,&
                first_row=first_row,last_row=last_row,&
                first_col=first_col,last_col=last_col,&
+               distribution_2d=distribution_2d,&
                matrix_name="tmpName",matrix_symmetry=symmetry)
 
           ! allocate blocks

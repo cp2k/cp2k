@@ -382,12 +382,12 @@ CONTAINS
 !!     cp_fm_init_random
 !!
 !!   SYNOPSIS
-!!     SUBROUTINE cp_fm_init_random(matrix,ncol,start_col,error)
-!!       TYPE(cp_fm_type), POINTER           :: matrix
-!!       INTEGER, INTENT(IN)                          :: ncol
-!!       INTEGER, INTENT(IN), OPTIONAL                :: start_col
-!!       TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-!!     END SUBROUTINE
+!!     Subroutine cp_fm_init_random(matrix, ncol, start_col, error)
+!!       Type(cp_fm_type), Pointer:: matrix
+!!       Integer, Intent (IN):: ncol
+!!       Integer, Intent (IN), Optional:: start_col
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine cp_fm_init_random
 !!
 !!   FUNCTION
 !!     fills a matrix with random numbers
@@ -461,12 +461,12 @@ CONTAINS
 !!     cp_fm_set_all
 !!
 !!   SYNOPSIS
-!!     SUBROUTINE cp_fm_set_all(matrix,alpha,beta,error)
-!!       TYPE(cp_fm_type), POINTER           :: matrix
-!!       REAL(wp), INTENT(IN)                         :: alpha
-!!       REAL(wp), INTENT(IN), optional               :: beta
-!!       TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-!!     END SUBROUTINT
+!!     Subroutine cp_fm_set_all(matrix, alpha, beta, error)
+!!       Type(cp_fm_type), Pointer:: matrix
+!!       Real(Kind=wp), Intent (IN):: alpha
+!!       Real(Kind=wp), Intent (IN), Optional:: beta
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine cp_fm_set_all
 !!
 !!   FUNCTION
 !!     set all elements of a matrix to the same value, 
@@ -487,7 +487,7 @@ CONTAINS
   SUBROUTINE cp_fm_set_all(matrix,alpha,beta,error)
     TYPE(cp_fm_type), POINTER           :: matrix
     REAL(wp), INTENT(IN)                         :: alpha
-    REAL(wp), INTENT(IN), optional               :: beta
+    REAL(wp), INTENT(IN), OPTIONAL               :: beta
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local variables ***
@@ -496,7 +496,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    matrix_size = size(matrix%local_data,1)*size(matrix%local_data,2)
+    matrix_size = SIZE(matrix%local_data,1)*SIZE(matrix%local_data,2)
     CALL dcopy (matrix_size, alpha, 0, matrix%local_data, 1)
     IF (PRESENT(beta)) THEN
       DO i=1,matrix%matrix_struct%nrow_global
@@ -512,6 +512,16 @@ CONTAINS
 !!
 !!   NAME
 !!     cp_fm_get_element
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_fm_get_element(matrix, irow_global, icol_global, alpha,&
+!!         local)
+!!       Implicit None
+!!       Type(cp_fm_type), Pointer:: matrix
+!!       Real(Kind=wp), Intent (OUT):: alpha
+!!       Integer, Intent (IN):: icol_global, irow_global
+!!       Logical, Intent (OUT), Optional:: local
+!!     End Subroutine cp_fm_get_element
 !!
 !!   FUNCTION
 !!     returns an element of a fm 
@@ -588,12 +598,13 @@ CONTAINS
 !!     cp_fm_set_element
 !!
 !!   SYNOPSIS
-!!     SUBROUTINE cp_fm_set_element(matrix,irow_global,icol_global,alpha,error)
-!!       TYPE(cp_fm_type), POINTER          :: matrix
-!!       REAL(wp), INTENT(IN)               :: alpha
-!!       INTEGER, INTENT(IN)                :: icol_global, irow_global
-!!       TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-!!     END SUBROUTINE
+!!     Subroutine cp_fm_set_element(matrix, irow_global, icol_global, alpha,&
+!!         error)
+!!       Type(cp_fm_type), Pointer:: matrix
+!!       Real(Kind=wp), Intent (IN):: alpha
+!!       Integer, Intent (IN):: icol_global, irow_global
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine cp_fm_set_element
 !!
 !!   FUNCTION
 !!     sets an element of a matrix
@@ -659,9 +670,8 @@ CONTAINS
 !!     cp_fm_set_submatrix
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_fm_set_submatrix(fm, new_values, start_row,&
-!!         start_col, n_rows, n_cols, alpha, beta, transpose,&
-!!         error)
+!!     Subroutine cp_fm_set_submatrix(fm, new_values, start_row, start_col,&
+!!         n_rows, n_cols, alpha, beta, transpose, error)
 !!       Type(cp_fm_type), Pointer:: fm
 !!       Real(Kind=wp), Dimension(:,:), Intent (IN):: new_values
 !!       Integer, Intent (IN), Optional:: start_row, start_col, n_rows,&
@@ -831,8 +841,8 @@ CONTAINS
 !!     cp_fm_get_submatrix
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_fm_get_submatrix(fm, target_m, start_row,&
-!!         start_col, n_rows, n_cols, transpose, error)
+!!     Subroutine cp_fm_get_submatrix(fm, target_m, start_row, start_col,&
+!!         n_rows, n_cols, transpose, error)
 !!       Type(cp_fm_type), Pointer:: fm
 !!       Real(Kind=wp), Dimension(:,:), Intent (OUT):: target_m
 !!       Integer, Intent (IN), Optional:: start_row, start_col, n_rows,&
@@ -980,23 +990,22 @@ CONTAINS
 !!     cp_fm_get_info
 !!
 !!   SYNOPSIS
-!!     SUBROUTINE cp_fm_get_info(matrix,name,nrow_global,ncol_global,&
-!!          nrow_block,ncol_block,nrow_local,ncol_local,&
-!!          row_indices,col_indices,local_data,context,&
-!!          nrow_locals, ncol_locals, matrix_struct,para_env,error)
-!!       TYPE(cp_fm_type), POINTER                  :: matrix
-!!       CHARACTER(LEN=*), OPTIONAL, INTENT(OUT)    :: name
-!!       INTEGER, OPTIONAL, INTENT(OUT)             :: ncol_block,ncol_global,&
-!!                                                     nrow_block,nrow_global,&
-!!                                                     nrow_local,ncol_local
-!!       INTEGER, OPTIONAL, DIMENSION(:), POINTER   :: row_indices,col_indices,&
-!!                                                     nrow_locals, ncol_locals
-!!       TYPE(cp_para_env_type), POINTER, OPTIONAL  :: para_env
-!!       TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
-!!       TYPE(cp_fm_struct_type),POINTER,OPTIONAL   :: matrix_struct
-!!       TYPE(cp_error_type),INTENT(inout),OPTIONAL :: error
-!!       REAL(wp), DIMENSION(:,:),POINTER, OPTIONAL :: local_data
-!!     END SUBROUTINE
+!!     Subroutine cp_fm_get_info(matrix, name, nrow_global, ncol_global,&
+!!         nrow_block, ncol_block, nrow_local, ncol_local, row_indices,&
+!!         col_indices, local_data, context, nrow_locals, ncol_locals,&
+!!         matrix_struct, para_env, error)
+!!       Type(cp_fm_type), Pointer:: matrix
+!!       Character(Len=*), Optional, Intent (OUT):: name
+!!       Integer, Optional, Intent (OUT):: ncol_block, ncol_global,&
+!!         nrow_block, nrow_global, nrow_local, ncol_local
+!!       Integer, Optional, Dimension(:), Pointer:: row_indices,&
+!!         col_indices, nrow_locals, ncol_locals
+!!       Type(cp_para_env_type), Pointer, Optional:: para_env
+!!       Type(cp_blacs_env_type), Pointer, Optional:: context
+!!       Type(cp_fm_struct_type), Pointer, Optional:: matrix_struct
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!       Real(Kind=wp), Dimension(:,:), Pointer, Optional:: local_data
+!!     End Subroutine cp_fm_get_info
 !!
 !!   FUNCTION
 !!      returns all kind of information about the full matrix
@@ -1078,11 +1087,11 @@ CONTAINS
 !!     cp_fm_maxval
 !!
 !!   SYNOPSIS
-!!     SUBROUTINE cp_fm_maxval(matrix,a_max,error)
-!!       TYPE(cp_fm_type), POINTER        :: matrix
-!!       REAL(wp), INTENT(OUT)                     :: a_max
-!!       TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-!!     END SUBROUTINE
+!!     Subroutine cp_fm_maxval(matrix, a_max, error)
+!!       Type(cp_fm_type), Pointer:: matrix
+!!       Real(Kind=wp), Intent (OUT):: a_max
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_fm_maxval
 !!
 !!   FUNCTION
 !!     find the maximum absolute value of the matrix element
@@ -1104,7 +1113,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: handle
+    INTEGER :: handle, nrow_local, ncol_local
 
     REAL(wp), DIMENSION(:,:), POINTER :: my_block
 
@@ -1114,7 +1123,8 @@ CONTAINS
 
     my_block => matrix%local_data
 
-    a_max = MAXVAL(ABS(my_block))
+    CALL cp_fm_get_info(matrix, nrow_local=nrow_local, ncol_local=ncol_local,error=error)
+    a_max = MAXVAL(ABS(my_block(1:nrow_local,1:ncol_local)))
 
     CALL mp_max(a_max,matrix%matrix_struct%para_env%group)
 

@@ -45,11 +45,11 @@ MODULE cp_fm_basic_linalg
                                              cp_fm_get_element,&
                                              cp_fm_get_info,&
                                              cp_fm_init_random,&
+                                             cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_retain,&
                                              cp_fm_set_all,&
                                              cp_fm_set_element,&
-                                             cp_fm_p_type,&
                                              cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
@@ -104,13 +104,21 @@ CONTAINS
 !!   NAME
 !!     cp_fm_scale_and_add
 !!
+!!   SYNOPSIS
+!!     Subroutine cp_fm_scale_and_add(alpha, matrix_a, beta, matrix_b,&
+!!         error)
+!!       Implicit None
+!!       Type(cp_fm_type), Pointer:: matrix_a
+!!       Real(Kind=wp), Intent (IN):: alpha
+!!       Real(Kind=wp), Intent (IN), Optional:: beta
+!!       Type(cp_fm_type), Pointer, Optional:: matrix_b
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine cp_fm_scale_and_add
+!!
 !!   FUNCTION
 !!     calc A <- alpha*A + beta*B
 !!     optimized for alpha == 1.0 (just add beta*B) and beta == 0.0 (just
 !!     scale A)
-!!
-!!   SYNOPSIS
-!!     cp_fm_scale_and_add(alpha, matrix_a, beta, matrix_b, error)
 !!
 !!   ARGUMENTS
 !!      TYPE(cp_fm_type), POINTER           :: matrix_a
@@ -170,7 +178,7 @@ CONTAINS
     END IF
 
     a => matrix_a%local_data
-    size_a = size(a,1)*size(a,2)
+    size_a = SIZE(a,1)*SIZE(a,2)
 
     IF (alpha /= 1.0_wp) CALL dscal ( size_a, alpha, a, 1)
 
@@ -210,10 +218,10 @@ CONTAINS
 !!     cp_fm_lu_decompose
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_fm_lu_decompose(matrix_a,almost_determinant)
-!!         TYPE(cp_fm_type), POINTER :: matrix_a
-!!         REAL(wp), INTENT(OUT)     :: almost_determinant
-!!     End Subroutine
+!!     Subroutine cp_fm_lu_decompose(matrix_a, almost_determinant)
+!!       Type(cp_fm_type), Pointer:: matrix_a
+!!       Real(Kind=wp), Intent (OUT):: almost_determinant
+!!     End Subroutine cp_fm_lu_decompose
 !!
 !!   FUNCTION
 !!
@@ -289,15 +297,15 @@ CONTAINS
 !!     cp_fm_gemm
 !!
 !!   SYNOPSIS
-!!     SUBROUTINE cp_fm_gemm(transa,transb,m,n,k,alpha,matrix_a,matrix_b,beta,&
-!!          matrix_c,error,b_first_col)
-!!       TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_b,matrix_c
-!!       CHARACTER(LEN=1), INTENT(IN)              :: transa,transb
-!!       REAL(wp), INTENT(IN)                      :: alpha,beta
-!!       INTEGER, INTENT(IN)                       :: k,m,n
-!!       INTEGER, OPTIONAL, INTENT(IN)             :: b_first_col
-!!       TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-!!     END SUBROUTINE
+!!     Subroutine cp_fm_gemm(transa, transb, m, n, k, alpha, matrix_a,&
+!!         matrix_b, beta, matrix_c, error, b_first_col)
+!!       Type(cp_fm_type), Pointer:: matrix_a, matrix_b, matrix_c
+!!       Character(Len=1), Intent (IN):: transa, transb
+!!       Real(Kind=wp), Intent (IN):: alpha, beta
+!!       Integer, Intent (IN):: k, m, n
+!!       Integer, Optional, Intent (IN):: b_first_col
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine cp_fm_gemm
 !!
 !!   FUNCTION
 !!     computes matrix_c = beta * matrix_c + alpha * ( matrix_a  ** transa ) * ( matrix_b ** transb )
@@ -382,13 +390,14 @@ CONTAINS
 !!     cp_fm_symm
 !!
 !!   SYNOPSIS
-!!     SUBROUTINE cp_fm_symm(side,uplo,m,n,alpha,matrix_a,matrix_b,beta,matrix_c,error)
-!!       TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_b,matrix_c
-!!       CHARACTER(LEN=1), INTENT(IN)              :: side,uplo
-!!       REAL(wp), INTENT(IN)                      :: alpha,beta
-!!       INTEGER, INTENT(IN)                       :: m,n
-!!       TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-!!     END SUBROUTINE
+!!     Subroutine cp_fm_symm(side, uplo, m, n, alpha, matrix_a, matrix_b,&
+!!         beta, matrix_c, error)
+!!       Type(cp_fm_type), Pointer:: matrix_a, matrix_b, matrix_c
+!!       Character(Len=1), Intent (IN):: side, uplo
+!!       Real(Kind=wp), Intent (IN):: alpha, beta
+!!       Integer, Intent (IN):: m, n
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine cp_fm_symm
 !!
 !!   FUNCTION
 !!     computes matrix_c = beta * matrix_c + alpha *  matrix_a  *  matrix_b 
@@ -477,14 +486,14 @@ CONTAINS
 !!     cp_fm_syrk
 !!
 !!   SYNOPSIS
-!!     SUBROUTINE cp_fm_syrk(uplo,trans,k,alpha,matrix_a,ia,ja,beta,matrix_c,&
-!!          error)
-!!       TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_c
-!!       CHARACTER(LEN=1), INTENT(IN)              :: trans,uplo
-!!       REAL(wp), INTENT(IN)                      :: alpha,beta
-!!       INTEGER, INTENT(IN)                       :: ia,ja,k
-!!       TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-!!     END SUBROUTINE
+!!     Subroutine cp_fm_syrk(uplo, trans, k, alpha, matrix_a, ia, ja, beta,&
+!!         matrix_c, error)
+!!       Type(cp_fm_type), Pointer:: matrix_a, matrix_c
+!!       Character(Len=1), Intent (IN):: trans, uplo
+!!       Real(Kind=wp), Intent (IN):: alpha, beta
+!!       Integer, Intent (IN):: ia, ja, k
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine cp_fm_syrk
 !!
 !!   FUNCTION
 !!     performs a rank-k update of a symmetric matrix_c
@@ -562,10 +571,10 @@ CONTAINS
 !!     cp_fm_schur_product
 !!
 !!   SYNOPSIS
-!!     SUBROUTINE cp_fm_schur_product(matrix_a,matrix_b,matrix_c,error)
-!!       TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_b,matrix_c
-!!       TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-!!     END SUBROUTINE
+!!     Subroutine cp_fm_schur_product(matrix_a, matrix_b, matrix_c, error)
+!!       Type(cp_fm_type), Pointer:: matrix_a, matrix_b, matrix_c
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine cp_fm_schur_product
 !!
 !!   FUNCTION
 !!     computes the schur product of two matrices
@@ -852,11 +861,11 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 !!     cp_fm_scale
 !!
 !!   SYNOPSIS
-!!     SUBROUTINE cp_fm_scale(alpha, matrix_a, error)
-!!        TYPE(cp_fm_type), POINTER           :: matrix_a
-!!        REAL(wp), INTENT(IN)                         :: alpha
-!!        TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-!!     END SUBROUTINE
+!!     Subroutine cp_fm_scale(alpha, matrix_a, error)
+!!       Type(cp_fm_type), Pointer:: matrix_a
+!!       Real(Kind=wp), Intent (IN):: alpha
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine cp_fm_scale
 !!
 !!   FUNCTION
 !!     scales a matrix
@@ -912,10 +921,10 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 !!     cp_fm_transpose
 !!
 !!   SYNOPSIS
-!!     SUBROUTINE cp_fm_transpose(matrix,matrixt,error)
-!!       TYPE(cp_fm_type), POINTER          :: matrix,matrixt
-!!       TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-!!     END SUBROUTINE
+!!     Subroutine cp_fm_transpose(matrix, matrixt, error)
+!!       Type(cp_fm_type), Pointer:: matrix, matrixt
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine cp_fm_transpose
 !!
 !!   FUNCTION
 !!     transposes a matrix
@@ -956,11 +965,11 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(matrixt),cp_failure_level,routineP,error,failure)
-    IF (failure) return
+    IF (failure) RETURN
     nrow_global = matrix%matrix_struct%nrow_global
     ncol_global = matrix%matrix_struct%ncol_global
     CPPrecondition(nrow_global==ncol_global,cp_failure_level,routineP,error,failure)
-    IF (failure) return
+    IF (failure) RETURN
 
     CALL timeset("cp_fm_transpose","I","",handle)
 
@@ -996,10 +1005,10 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 !!     cp_fm_upper_to_full
 !!
 !!   SYNOPSIS
-!!      SUBROUTINE cp_fm_upper_to_full(matrix,work,error)
-!!        TYPE(cp_fm_type), POINTER          :: matrix,work
-!!        TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-!!      END SUBROUTINE
+!!     Subroutine cp_fm_upper_to_full(matrix, work, error)
+!!       Type(cp_fm_type), Pointer:: matrix, work
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine cp_fm_upper_to_full
 !!
 !!   FUNCTION
 !!      given an upper triangular matrix computes the corresponding full matrix
@@ -1034,7 +1043,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     TYPE(cp_blacs_env_type), POINTER :: context
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_upper_to_full',&
          routineP=moduleN//':'//routineN 
-    logical :: failure
+    LOGICAL :: failure
 
 #if defined(__SCALAPACK)
     INTEGER, EXTERNAL :: indxl2g
@@ -1114,10 +1123,10 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 !!     cp_fm_column_scale
 !!
 !!   SYNOPSIS
-!!     SUBROUTINE cp_fm_column_scale(matrixa,scaling)
-!!       TYPE(cp_fm_type), POINTER          :: matrixa
-!!       REAL(wp), DIMENSION(:), POINTER           :: scaling
-!!     END SUBROUTINE
+!!     Subroutine cp_fm_column_scale(matrixa, scaling)
+!!       Type(cp_fm_type), Pointer:: matrixa
+!!       Real(Kind=wp), Dimension(:), Intent (IN):: scaling
+!!     End Subroutine cp_fm_column_scale
 !!
 !!   FUNCTION
 !!     scales column i of matrix a with scaling(i)
@@ -1138,7 +1147,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 !!*** *********************************************************************
   SUBROUTINE cp_fm_column_scale(matrixa,scaling)
     TYPE(cp_fm_type), POINTER          :: matrixa
-    REAL(wp), DIMENSION(:), POINTER           :: scaling
+    REAL(wp), DIMENSION(:), INTENT(in) :: scaling
 
 !   *** Local variables ***
 

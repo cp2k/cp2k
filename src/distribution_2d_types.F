@@ -100,43 +100,76 @@ CONTAINS
 !!*** *********************************************************************
 SUBROUTINE distribution_2d_create(distribution_2d, row_distribution, col_distribution, blacs_env,error)
    TYPE(distribution_2d_type), POINTER :: distribution_2d
-   INTEGER, DIMENSION(:), POINTER      :: row_distribution, col_distribution
-   TYPE(cp_blacs_env_type), POINTER    :: blacs_env
+   INTEGER, DIMENSION(:), intent(in)   :: row_distribution, col_distribution
+   TYPE(cp_blacs_env_type), POINTER :: blacs_env
    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
    CHARACTER(len=*), PARAMETER :: routineN='distribution_2d_create',&
                                   routineP=moduleN//':'//routineN
 
    LOGICAL :: failure
-   INTEGER :: istat
+   INTEGER :: istat, i, local_row_size, local_col_size
 
    failure=.FALSE.
-   CPPrecondition(ASSOCIATED(row_distribution),cp_failure_level,routineP,error,failure)
-   CPPrecondition(ASSOCIATED(col_distribution),cp_failure_level,routineP,error,failure)
    CPPrecondition(ASSOCIATED(blacs_env),cp_failure_level,routineP,error,failure)
    CPPrecondition(.NOT.ASSOCIATED(distribution_2d),cp_failure_level,routineP,error,failure)
 
    IF (.NOT. failure) THEN
       ALLOCATE(distribution_2d,stat=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      IF (.NOT. failure) THEN
-         distribution_2d%ref_count = 0
-         NULLIFY(distribution_2d%col_distribution)
-         NULLIFY(distribution_2d%row_distribution)
-         NULLIFY(distribution_2d%local_rows)
-         NULLIFY(distribution_2d%local_cols)
-         distribution_2d%blacs_env => blacs_env
-         CALL cp_blacs_env_retain(distribution_2d%blacs_env)
-         ALLOCATE(distribution_2d%row_distribution(SIZE(row_distribution)),stat=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         ALLOCATE(distribution_2d%col_distribution(SIZE(col_distribution)),stat=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         IF (.NOT. failure) THEN
-             distribution_2d%row_distribution=row_distribution
-             distribution_2d%col_distribution=col_distribution
-         ENDIF ! failure
-      ENDIF ! failure
-   ENDIF ! failure
+   END IF
+   IF (.NOT. failure) THEN
+      distribution_2d%ref_count = 0
+      NULLIFY(distribution_2d%col_distribution)
+      NULLIFY(distribution_2d%row_distribution)
+      NULLIFY(distribution_2d%local_rows)
+      NULLIFY(distribution_2d%local_cols)
+      distribution_2d%blacs_env => blacs_env
+      CALL cp_blacs_env_retain(distribution_2d%blacs_env)
+      ALLOCATE(distribution_2d%row_distribution(SIZE(row_distribution)),stat=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(distribution_2d%col_distribution(SIZE(col_distribution)),stat=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+   END IF
+   IF (.NOT. failure) THEN
+      distribution_2d%row_distribution=row_distribution
+      distribution_2d%col_distribution=col_distribution
+      
+      local_row_size=0
+      DO i=1,SIZE(distribution_2d%row_distribution)
+         IF (distribution_2d%row_distribution(i)==blacs_env%mepos(1)) THEN
+            local_row_size=local_row_size+1
+         END IF
+      END DO
+
+      local_col_size=0
+      DO i=1,SIZE(distribution_2d%col_distribution)
+         IF (distribution_2d%col_distribution(i)==blacs_env%mepos(2)) THEN
+            local_col_size=local_col_size+1
+         END IF
+      END DO
+
+      ALLOCATE(distribution_2d%local_cols(local_col_size),&
+           distribution_2d%local_rows(local_row_size),stat=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      IF (.NOT.failure) THEN
+         local_row_size=0
+         DO i=1,SIZE(distribution_2d%row_distribution)
+            IF (distribution_2d%row_distribution(i)==blacs_env%mepos(1)) THEN
+               local_row_size=local_row_size+1
+               distribution_2d%local_rows(local_row_size)=i
+            END IF
+         END DO
+
+         local_col_size=0
+         DO i=1,SIZE(distribution_2d%col_distribution)
+            IF (distribution_2d%col_distribution(i)==blacs_env%mepos(2)) THEN
+               local_col_size=local_col_size+1
+               distribution_2d%local_cols(local_col_size)=i
+            END IF
+         END DO
+      END IF
+   ENDIF
 
    IF(.NOT. failure) distribution_2d%ref_count=1
 
@@ -168,6 +201,7 @@ SUBROUTINE distribution_2d_retain(distribution_2d,error)
    CHARACTER(len=*), PARAMETER :: routineN='distribution_2d_retain',&
                                   routineP=moduleN//':'//routineN
 
+   
    IF (ASSOCIATED(distribution_2d)) THEN
       distribution_2d%ref_count=distribution_2d%ref_count+1
    ENDIF
@@ -220,6 +254,7 @@ SUBROUTINE distribution_2d_release(distribution_2d,error)
          ENDIF
       ENDIF
    ENDIF
+   NULLIFY(distribution_2d)
 END SUBROUTINE distribution_2d_release
 
 END MODULE distribution_2d_types
