@@ -15,6 +15,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     02.2004 made a stacked version (of stacks...) [Joost VandeVondele]
+!!     11.2004 storable timer_envs (for f77 interface) [fawzi]
 !!
 !!   SOURCE
 !******************************************************************************
@@ -45,7 +46,9 @@ MODULE timings
             use_HPM
 
   ! used to create a fresh timer_env
-  PUBLIC :: init_timer_env, destroy_timer_env
+  PUBLIC :: timer_env_type, timer_env_p_type
+  PUBLIC :: add_timer_env, rm_timer_env, get_timer_env
+  PUBLIC :: timer_env_create, timer_env_retain, timer_env_release
 
 ! want to use HPM if available ? needs care switching true/false (i.e. use_HPM=.true. timeset ... timestop use_HPM=false)
   LOGICAL :: use_HPM = .FALSE.
@@ -56,6 +59,8 @@ MODULE timings
   INTEGER, PARAMETER :: max_timer = 2000        ! total number of different callers
 
   TYPE timer_env_type
+      !PRIVATE
+      INTEGER :: ref_count, id_nr
     ! subroutine calling stack
       INTEGER :: stack_size
       CHARACTER ( LEN = 80 ) :: routine_stack ( max_stack ), routine_name
@@ -77,66 +82,205 @@ MODULE timings
       LOGICAL :: trace
    END TYPE timer_env_type
 
-   INTEGER              :: stack_pointer = 0       ! position in timer_env_stack
-   TYPE(timer_env_type), DIMENSION(max_timer_env_stack) :: timer_env_stack 
+   TYPE timer_env_p_type
+      TYPE(timer_env_type), POINTER :: timer_env
+   END TYPE timer_env_p_type
+
+   INTEGER, SAVE, PRIVATE :: stack_pointer = 0       ! position in timer_env_stack
+   INTEGER, SAVE, PRIVATE :: last_timer_env_id = 0
+   TYPE(timer_env_p_type), DIMENSION(max_timer_env_stack) :: timer_env_stack 
+   CHARACTER(len=*), PARAMETER :: moduleN="timings"
 
 !!*****
 !******************************************************************************
 CONTAINS
 
-!!****f* timings/init_timer_env *
+!!****f* timings/add_timer_env *
 !!
 !!   NAME
-!!     init_timer_env
+!!     add_timer_env
 !!   FUNCTION
-!!     creates a fresh timer env (on the stack)
+!!     adds the given timer_env to the top of the stack
 !!   NOTES
-!!     for each init_timer_env there should be the symmetric call to destroy timer env
+!!     for each init_timer_env there should be the symmetric call to 
+!!     rm_timer_env
 !!   INPUTS
 !!
 !!   MODIFICATION HISTORY
 !!     02.2004 created [Joost VandeVondele]
 !!
-!!   SOURCE
 !!*** **********************************************************************
-SUBROUTINE init_timer_env()
+  SUBROUTINE add_timer_env(timer_env)
+    TYPE(timer_env_type), OPTIONAL, POINTER  :: timer_env
+
     stack_pointer=stack_pointer+1
     IF (stack_pointer>max_timer_env_stack) THEN
-      PRINT*,'stack_pointer too large is init_timer_env'
-      CALL mp_abort()
+       PRINT*,'stack_pointer too large is add_timer_env'
+       CALL mp_abort()
     ENDIF
-    timer_env_stack(stack_pointer)%stack_size=0
-    timer_env_stack(stack_pointer)%handle_stack=0
-    timer_env_stack(stack_pointer)%num_timer=0
-    timer_env_stack(stack_pointer)%trace=.FALSE.
-END SUBROUTINE
-!!****f* timings/destroy_timer_env *
+    NULLIFY(timer_env_stack(stack_pointer)%timer_env)
+    IF (PRESENT(timer_env)) THEN
+       timer_env_stack(stack_pointer)%timer_env => timer_env
+       IF (ASSOCIATED(timer_env)) THEN
+          CALL timer_env_retain(timer_env)
+       END IF
+    END IF
+    IF (.NOT.ASSOCIATED(timer_env_stack(stack_pointer)%timer_env)) THEN
+       CALL timer_env_create(timer_env_stack(stack_pointer)%timer_env)
+    END IF
+  END SUBROUTINE add_timer_env
+
+!!****f* timings/timer_env_create *
 !!
 !!   NAME
-!!     destroy_timer_env
+!!     timer_env_create
 !!   FUNCTION
-!!     invalidates the current timer env
+!!     creates a new timer env
 !!   NOTES
-!!     for each init_timer_env there should be the symmetric call to destroy timer env
+!!     -
+!!   INPUTS
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE timer_env_create(timer_env)
+    TYPE(timer_env_type), POINTER            :: timer_env
+
+    INTEGER                                  :: stat
+
+    ALLOCATE(timer_env,stat=stat)
+    IF (stat/=0) THEN
+      PRINT*,moduleN//':timer_env_create error allocationg timer_env'
+      CALL mp_abort()
+    END IF
+    last_timer_env_id=last_timer_env_id+1
+    timer_env%id_nr=last_timer_env_id
+    timer_env%ref_count=1
+    timer_env%stack_size=0
+    timer_env%handle_stack=0
+    timer_env%num_timer=0
+    timer_env%trace=.FALSE.
+END SUBROUTINE
+
+!!****f* timings/rm_timer_env *
+!!
+!!   NAME
+!!     rm_timer_env
+!!   FUNCTION
+!!     removes the current timer env from the stack
+!!   NOTES
+!!     for each rm_timer_env there should have been the symmetric call to 
+!!     add_timer_env
 !!   INPUTS
 !!
 !!   MODIFICATION HISTORY
 !!     02.2004 created [Joost VandeVondele]
 !!
-!!   SOURCE
 !!*** **********************************************************************
-SUBROUTINE destroy_timer_env()
-    timer_env_stack(stack_pointer)%stack_size=0
-    timer_env_stack(stack_pointer)%handle_stack=0
-    timer_env_stack(stack_pointer)%num_timer=0
-    timer_env_stack(stack_pointer)%trace=.FALSE.
-    stack_pointer=stack_pointer-1
-    IF (stack_pointer<0) THEN
-      PRINT*,'no timer env available in destroy_timer_env'
-      CALL mp_abort()
-    ENDIF
+SUBROUTINE rm_timer_env()
+  IF (stack_pointer<1) THEN
+     PRINT*,'no timer env available in destroy_timer_env'
+     CALL mp_abort()
+  ENDIF
+  CALL timer_env_release(timer_env_stack(stack_pointer)%timer_env)
+  stack_pointer=stack_pointer-1
 END SUBROUTINE
 
+!!****f* timings/get_timer_env *
+!!
+!!   NAME
+!!     get_timer_env
+!!   FUNCTION
+!!     returns the current timer env from the stack
+!!   NOTES
+!!     -
+!!   INPUTS
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+FUNCTION get_timer_env() RESULT(res)
+    TYPE(timer_env_type), POINTER            :: res
+
+  IF (stack_pointer<1) THEN
+     PRINT*,'no timer env available in get_timer_env'
+     CALL mp_abort()
+  ENDIF
+  res => timer_env_stack(stack_pointer)%timer_env
+END FUNCTION get_timer_env
+
+!!****f* timings/timer_env_retain *
+!!
+!!   NAME
+!!     timer_env_retain
+!!   FUNCTION
+!!     retains the given timer env
+!!   NOTES
+!!     -
+!!   INPUTS
+!!     - timer_env: the timer env to retain
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE timer_env_retain(timer_env)
+    TYPE(timer_env_type), POINTER            :: timer_env
+
+  IF (ASSOCIATED(timer_env)) THEN
+     PRINT*,moduleN,':timer_env_retain ERROR, unassociated timer_env'
+     CALL mp_abort()
+  ENDIF
+  IF (timer_env%ref_count<1) THEN
+     PRINT*,moduleN,':timer_env_retain ERROR, timer_env%ref_count=',&
+          timer_env%ref_count
+     CALL mp_abort()
+  ENDIF
+  timer_env%ref_count=timer_env%ref_count+1
+END SUBROUTINE timer_env_retain
+
+!!****f* timings/timer_env_release *
+!!
+!!   NAME
+!!     timer_env_release
+!!   FUNCTION
+!!     releases the given timer env
+!!   NOTES
+!!     -
+!!   INPUTS
+!!     - timer_env: the timer env to release
+!!   AUTHOR
+!!     fawzi
+!!
+!!   SOURCE
+!!*** **********************************************************************
+SUBROUTINE timer_env_release(timer_env)
+    TYPE(timer_env_type), POINTER            :: timer_env
+
+    INTEGER                                  :: stat
+
+  IF (ASSOCIATED(timer_env)) THEN
+     IF (timer_env%ref_count<1) THEN
+        PRINT*,moduleN,':timer_env_release ERROR, timer_env%ref_count=',&
+             timer_env%ref_count
+        CALL mp_abort()
+     ENDIF
+     timer_env%ref_count=timer_env%ref_count-1
+     IF (timer_env%ref_count==0) THEN
+        timer_env%stack_size=0
+        timer_env%handle_stack=0
+        timer_env%num_timer=0
+        timer_env%trace=.FALSE.
+        DEALLOCATE(timer_env,stat=stat)
+        IF (stat/=0) THEN
+           PRINT*,moduleN,':timer_env_release ERROR deallocating, stat=',stat
+           CALL mp_abort()
+        ENDIF
+     END IF
+  END IF
+  NULLIFY(timer_env)
+END SUBROUTINE timer_env_release
 
 !******************************************************************************
 !!****** timings/timeset [1.0] *
@@ -157,8 +301,9 @@ END SUBROUTINE
 !******************************************************************************
 
 SUBROUTINE timeset_short(name, handle ) ! provide the usual shortcut
-   CHARACTER ( LEN = * ), INTENT ( IN ) :: name
-   INTEGER :: handle
+    CHARACTER(LEN=*), INTENT(IN)             :: name
+    INTEGER                                  :: handle
+
    CALL timeset_full(name, "I", "", handle)
 END SUBROUTINE timeset_short
 
@@ -177,6 +322,7 @@ SUBROUTINE timeset_full ( name, ct, pu, handle )
   CHARACTER ( LEN = 40 )  :: sformat
   CHARACTER ( LEN = 20 )  :: mytag
   CHARACTER ( LEN = 400 ) :: mystring
+  TYPE(timer_env_type), POINTER :: timer_env
 #if defined(__HPM)
 #include "f_hpm.h"
 #endif
@@ -188,67 +334,67 @@ SUBROUTINE timeset_full ( name, ct, pu, handle )
       CALL mp_abort()
    ENDIF
 
-
+   timer_env => timer_env_stack(stack_pointer)%timer_env
 !..add name to subroutine stack
-  timer_env_stack(stack_pointer)%stack_size = timer_env_stack(stack_pointer)%stack_size + 1
-  stack_size = timer_env_stack(stack_pointer)%stack_size
-  timer_env_stack(stack_pointer)%routine_stack ( stack_size ) = name
+  timer_env%stack_size = timer_env%stack_size + 1
+  stack_size = timer_env%stack_size
+  timer_env%routine_stack ( stack_size ) = name
 
 
 !..is this a new timer or has this routine been called before
   handle = 0
-  timer_env_stack(stack_pointer)%routine_name = name
-  DO i = 1,  timer_env_stack(stack_pointer)%num_timer
-     IF ( timer_env_stack(stack_pointer)%routine_name == &
-          timer_env_stack(stack_pointer)%clock_name ( i ) ) handle = i
+  timer_env%routine_name = name
+  DO i = 1,  timer_env%num_timer
+     IF ( timer_env%routine_name == &
+          timer_env%clock_name ( i ) ) handle = i
   END DO
 
   IF ( handle == 0 ) THEN
 !..new timer started
-     timer_env_stack(stack_pointer)%num_timer = timer_env_stack(stack_pointer)%num_timer + 1
-     handle = timer_env_stack(stack_pointer)%num_timer
-     timer_env_stack(stack_pointer)%clock_name ( handle ) = &
-        timer_env_stack(stack_pointer)%routine_name
-     timer_env_stack(stack_pointer)%perf_unit ( handle ) = pu
-     IF ( ct == 'I' ) timer_env_stack(stack_pointer)%clock_type ( handle ) = 0
-     IF ( ct == 'E' ) timer_env_stack(stack_pointer)%clock_type ( handle ) = 1
-     timer_env_stack(stack_pointer)%clock_status ( handle ) = 0
-     timer_env_stack(stack_pointer)%clock_accu ( handle ) = zero
-     timer_env_stack(stack_pointer)%wallclock_accu ( handle ) = zero
-     timer_env_stack(stack_pointer)%perf_count ( handle ) = zero
-     timer_env_stack(stack_pointer)%routine_calls ( handle ) = 0
-     timer_env_stack(stack_pointer)%routine_stack_depth ( handle ) = 0
+     timer_env%num_timer = timer_env%num_timer + 1
+     handle = timer_env%num_timer
+     timer_env%clock_name ( handle ) = &
+        timer_env%routine_name
+     timer_env%perf_unit ( handle ) = pu
+     IF ( ct == 'I' ) timer_env%clock_type ( handle ) = 0
+     IF ( ct == 'E' ) timer_env%clock_type ( handle ) = 1
+     timer_env%clock_status ( handle ) = 0
+     timer_env%clock_accu ( handle ) = zero
+     timer_env%wallclock_accu ( handle ) = zero
+     timer_env%perf_count ( handle ) = zero
+     timer_env%routine_calls ( handle ) = 0
+     timer_env%routine_stack_depth ( handle ) = 0
   END IF
 
 #if defined(__HPM)
   IF (use_HPM) THEN
-      mytag=TRIM(timer_env_stack(stack_pointer)%routine_name)
+      mytag=TRIM(timer_env%routine_name)
       mytag(20:20)=CHAR(0)
       CALL f_hpmstart(handle,mytag)
   ENDIF
 #endif
  
 !..start clock (if not yet started, i.e. recursive calls)
-  IF ( timer_env_stack(stack_pointer)%clock_status ( handle ) ==0 ) THEN
-     timer_env_stack(stack_pointer)%clock_start ( handle ) = m_cputime ( )
-     timer_env_stack(stack_pointer)%wallclock_start ( handle ) = m_walltime ( )
-     timer_env_stack(stack_pointer)%clock_status ( handle ) = 1
+  IF ( timer_env%clock_status ( handle ) ==0 ) THEN
+     timer_env%clock_start ( handle ) = m_cputime ( )
+     timer_env%wallclock_start ( handle ) = m_walltime ( )
+     timer_env%clock_status ( handle ) = 1
   END IF
 
-  timer_env_stack(stack_pointer)%routine_calls ( handle ) = &
-         timer_env_stack(stack_pointer)%routine_calls ( handle ) + 1
-  timer_env_stack(stack_pointer)%routine_stack_depth ( handle ) =&
-         timer_env_stack(stack_pointer)%routine_stack_depth ( handle ) + stack_size
+  timer_env%routine_calls ( handle ) = &
+         timer_env%routine_calls ( handle ) + 1
+  timer_env%routine_stack_depth ( handle ) =&
+         timer_env%routine_stack_depth ( handle ) + stack_size
 
-  timer_env_stack(stack_pointer)%handle_stack (stack_size) = handle
+  timer_env%handle_stack (stack_size) = handle
 
 !..if debug mode echo the subroutine name
   WRITE(sformat,*) "(A,",MAX(1,3*stack_size-9),"X,I4,1X,I6,1X,A,A)"
-  IF ( timer_env_stack(stack_pointer)%trace ) WRITE ( mystring, sformat) &
-     timer_env_stack(stack_pointer)%astring,stack_size, &
-     timer_env_stack(stack_pointer)%routine_calls ( handle ), &
-     TRIM( timer_env_stack(stack_pointer)%routine_stack ( stack_size )),"       start"
-  IF ( timer_env_stack(stack_pointer)%trace ) CALL print_memory(TRIM(mystring))
+  IF ( timer_env%trace ) WRITE ( mystring, sformat) &
+     timer_env%astring,stack_size, &
+     timer_env%routine_calls ( handle ), &
+     TRIM( timer_env%routine_stack ( stack_size )),"       start"
+  IF ( timer_env%trace ) CALL print_memory(TRIM(mystring))
 
 END SUBROUTINE timeset_full
 
@@ -272,7 +418,8 @@ END SUBROUTINE timeset_full
 !******************************************************************************
 
 SUBROUTINE timestop_short( handle ) ! provide the usual shortcut
-   INTEGER :: handle
+    INTEGER                                  :: handle
+
    CALL timestop_full(0.0_dbl,handle)
 END SUBROUTINE timestop_short
 
@@ -289,6 +436,7 @@ SUBROUTINE timestop_full ( perf, handle )
   INTEGER :: i
   CHARACTER ( LEN = 40 )  :: sformat
   CHARACTER ( LEN = 400 )  :: mystring
+  TYPE(timer_env_type), POINTER :: timer_env
 #if defined(__HPM)
 #include "f_hpm.h"
 #endif
@@ -300,16 +448,17 @@ SUBROUTINE timestop_full ( perf, handle )
       CALL mp_abort()
    ENDIF
 
+   timer_env => timer_env_stack(stack_pointer)%timer_env
 
-  IF ( handle /= timer_env_stack(stack_pointer)%handle_stack (timer_env_stack(stack_pointer)%stack_size) ) THEN
+  IF ( handle /= timer_env%handle_stack (timer_env%stack_size) ) THEN
       PRINT*,'mismatched timestop '&
-        //TRIM(timer_env_stack(stack_pointer)%routine_stack(timer_env_stack(stack_pointer)%stack_size))//&
+        //TRIM(timer_env%routine_stack(timer_env%stack_size))//&
              ' in routine timestop'
       CALL mp_abort()
   END IF
-  timer_env_stack(stack_pointer)%handle_stack (timer_env_stack(stack_pointer)%stack_size)=0
+  timer_env%handle_stack (timer_env%stack_size)=0
 
-  IF ( handle > timer_env_stack(stack_pointer)%num_timer ) THEN
+  IF ( handle > timer_env%num_timer ) THEN
 !    CALL stop_program ( 'timestop', 'handle > num_timer' )
 ! intermediate work-around
      PRINT*,'handle > num_timer in routine timestop'
@@ -320,37 +469,37 @@ SUBROUTINE timestop_full ( perf, handle )
          CALL f_hpmstop(handle)
      ENDIF
 #endif
-     cpt = m_cputime ( ) - timer_env_stack(stack_pointer)%clock_start ( handle )
-     wt = m_walltime ( ) - timer_env_stack(stack_pointer)%wallclock_start ( handle )
-     timer_env_stack(stack_pointer)%clock_accu ( handle ) = &
-            timer_env_stack(stack_pointer)%clock_accu ( handle ) + cpt
-     timer_env_stack(stack_pointer)%wallclock_accu ( handle ) = &
-            timer_env_stack(stack_pointer)%wallclock_accu ( handle ) + wt
-     timer_env_stack(stack_pointer)%clock_status ( handle ) = 0
-     timer_env_stack(stack_pointer)%perf_count ( handle ) = &
-            timer_env_stack(stack_pointer)%perf_count ( handle ) + perf
+     cpt = m_cputime ( ) - timer_env%clock_start ( handle )
+     wt = m_walltime ( ) - timer_env%wallclock_start ( handle )
+     timer_env%clock_accu ( handle ) = &
+            timer_env%clock_accu ( handle ) + cpt
+     timer_env%wallclock_accu ( handle ) = &
+            timer_env%wallclock_accu ( handle ) + wt
+     timer_env%clock_status ( handle ) = 0
+     timer_env%perf_count ( handle ) = &
+            timer_env%perf_count ( handle ) + perf
 
-     DO i = 1, timer_env_stack(stack_pointer)% num_timer
-        IF ( timer_env_stack(stack_pointer)%clock_status ( i ) == 1 .AND. &
-             timer_env_stack(stack_pointer)%clock_type ( i ) == 1 ) THEN
-           timer_env_stack(stack_pointer)%clock_start ( i ) = &
-               timer_env_stack(stack_pointer)%clock_start ( i ) + cpt
-           timer_env_stack(stack_pointer)%wallclock_start ( i ) = &
-               timer_env_stack(stack_pointer)%wallclock_start ( i ) + wt
+     DO i = 1, timer_env% num_timer
+        IF ( timer_env%clock_status ( i ) == 1 .AND. &
+             timer_env%clock_type ( i ) == 1 ) THEN
+           timer_env%clock_start ( i ) = &
+               timer_env%clock_start ( i ) + cpt
+           timer_env%wallclock_start ( i ) = &
+               timer_env%wallclock_start ( i ) + wt
         END IF
      END DO
 
 !..if debug mode echo the subroutine name
-  WRITE(sformat,*) "(A,",MAX(1,3*timer_env_stack(stack_pointer)%stack_size-9),"X,I4,1X,I6,1X,A,F12.3)"
-  IF ( timer_env_stack(stack_pointer)%trace ) WRITE ( mystring, sformat) &
-     timer_env_stack(stack_pointer)%bstring, & 
-     timer_env_stack(stack_pointer)%stack_size, &
-     timer_env_stack(stack_pointer)%routine_calls ( handle ), &
-     TRIM(timer_env_stack(stack_pointer)%routine_stack(timer_env_stack(stack_pointer)%stack_size)),cpt
-  IF ( timer_env_stack(stack_pointer)%trace ) CALL print_memory(TRIM(mystring ))
+  WRITE(sformat,*) "(A,",MAX(1,3*timer_env%stack_size-9),"X,I4,1X,I6,1X,A,F12.3)"
+  IF ( timer_env%trace ) WRITE ( mystring, sformat) &
+     timer_env%bstring, & 
+     timer_env%stack_size, &
+     timer_env%routine_calls ( handle ), &
+     TRIM(timer_env%routine_stack(timer_env%stack_size)),cpt
+  IF ( timer_env%trace ) CALL print_memory(TRIM(mystring ))
 
 !..remove name from subroutine stack
-     timer_env_stack(stack_pointer)%stack_size = timer_env_stack(stack_pointer)%stack_size - 1
+     timer_env%stack_size = timer_env%stack_size - 1
   END IF
 
 END SUBROUTINE timestop_full
@@ -383,6 +532,7 @@ SUBROUTINE timeprint(iw,global_print_level)
     CHARACTER(LEN=1), DIMENSION(0:1)         :: ct = (/"I","E"/)
     INTEGER, DIMENSION(max_timer)            :: index
     REAL(dbl)                                :: asd, maxtime, mintime, perf
+    TYPE(timer_env_type), POINTER            :: timer_env
 
 !------------------------------------------------------------------------------
 
@@ -391,12 +541,13 @@ SUBROUTINE timeprint(iw,global_print_level)
       CALL mp_abort()
   ENDIF
 
+   timer_env => timer_env_stack(stack_pointer)%timer_env
 
-  IF ((timer_env_stack(stack_pointer)%num_timer > 0).AND.(global_print_level >= 0)) THEN
+  IF ((timer_env%num_timer > 0).AND.(global_print_level >= 0)) THEN
 
-     CALL sort(timer_env_stack(stack_pointer)%wallclock_accu,timer_env_stack(stack_pointer)%num_timer,index)
+     CALL sort(timer_env%wallclock_accu,timer_env%num_timer,index)
 
-     maxtime = timer_env_stack(stack_pointer)%wallclock_accu(timer_env_stack(stack_pointer)%num_timer)
+     maxtime = timer_env%wallclock_accu(timer_env%num_timer)
 
      IF (global_print_level > 10) THEN
         mintime = zero
@@ -414,34 +565,34 @@ SUBROUTINE timeprint(iw,global_print_level)
      WRITE (UNIT=iw,FMT="(T2,A,T32,A,T38,A,T43,A,T55,A,T69,A)")&
        "SUBROUTINE","CALLS"," ASD","CPU TIME T","PERFORMANCE","ELAPSED TIME"
 
-     DO i=timer_env_stack(stack_pointer)%num_timer,1,-1
+     DO i=timer_env%num_timer,1,-1
 
        j = INDEX(i)
 
-       IF (timer_env_stack(stack_pointer)%wallclock_accu(i) > mintime) THEN
+       IF (timer_env%wallclock_accu(i) > mintime) THEN
 
-         IF (timer_env_stack(stack_pointer)%wallclock_accu(i) > zero) THEN
-           perf = timer_env_stack(stack_pointer)%perf_count(j)/timer_env_stack(stack_pointer)%wallclock_accu(i)
+         IF (timer_env%wallclock_accu(i) > zero) THEN
+           perf = timer_env%perf_count(j)/timer_env%wallclock_accu(i)
          ELSE
            perf = zero
          END IF
          ! average stack depth
-         asd=DBLE(timer_env_stack(stack_pointer)%routine_stack_depth(j))/ &
-             DBLE(MAX(1,timer_env_stack(stack_pointer)%routine_calls(j)))
+         asd=DBLE(timer_env%routine_stack_depth(j))/ &
+             DBLE(MAX(1,timer_env%routine_calls(j)))
 
-         IF (LEN_TRIM(timer_env_stack(stack_pointer)%perf_unit(j)) == 0) THEN
+         IF (LEN_TRIM(timer_env%perf_unit(j)) == 0) THEN
            WRITE (UNIT=iw,&
                   FMT="(T2,A,T30,I7,T38,F4.1,T42,F9.2,T52,A,T60,A,T68,F13.2)")&
-             TRIM(timer_env_stack(stack_pointer)%clock_name(j)),timer_env_stack(stack_pointer)%routine_calls(j), & 
-             ASD,timer_env_stack(stack_pointer)%clock_accu(j),&
-             ct(timer_env_stack(stack_pointer)%clock_type(j)),"---",timer_env_stack(stack_pointer)%wallclock_accu(i)
+             TRIM(timer_env%clock_name(j)),timer_env%routine_calls(j), & 
+             ASD,timer_env%clock_accu(j),&
+             ct(timer_env%clock_type(j)),"---",timer_env%wallclock_accu(i)
          ELSE
            WRITE (UNIT=iw,&
                   FMT="(T2,A,T30,I7,T38,F4.1,T42,F9.2,T52,A,T54,F5.1,T60,A,T68,F13.2)")&
-             TRIM(timer_env_stack(stack_pointer)%clock_name(j)),timer_env_stack(stack_pointer)%routine_calls(j),&
-             ASD,timer_env_stack(stack_pointer)%clock_accu(j),&
-             ct(timer_env_stack(stack_pointer)%clock_type(j)),perf,TRIM(timer_env_stack(stack_pointer)%perf_unit(j)),&
-             timer_env_stack(stack_pointer)%wallclock_accu(i)
+             TRIM(timer_env%clock_name(j)),timer_env%routine_calls(j),&
+             ASD,timer_env%clock_accu(j),&
+             ct(timer_env%clock_type(j)),perf,TRIM(timer_env%perf_unit(j)),&
+             timer_env%wallclock_accu(i)
          END IF
        END IF
 
@@ -480,6 +631,7 @@ SUBROUTINE trace_debug ( set, groupid )
 
     CHARACTER(len=5)                         :: set2
     INTEGER                                  :: numtask, taskid
+    TYPE(timer_env_type), POINTER            :: timer_env
 
 ! this is needed on SUN if the trace_debug("start") is used in the call (i.e. explicit string)
 
@@ -488,14 +640,16 @@ SUBROUTINE trace_debug ( set, groupid )
       CALL mp_abort()
    ENDIF
  
+   timer_env => timer_env_stack(stack_pointer)%timer_env
+
   set2=TRIM(set)
   CALL uppercase(set2)
 
   SELECT CASE (set2)
   CASE ("START")
-    timer_env_stack(stack_pointer)%trace = .TRUE.
+    timer_env%trace = .TRUE.
   CASE ("STOP")
-    timer_env_stack(stack_pointer)%trace = .FALSE.
+    timer_env%trace = .FALSE.
   CASE DEFAULT
 !   CALL stop_program("trace_debug","unknown action")
 !   intermediate work-around
@@ -503,13 +657,13 @@ SUBROUTINE trace_debug ( set, groupid )
     CALL mp_abort()
   END SELECT
 
-  timer_env_stack(stack_pointer)%astring = " >>>>>>>>>>>>> "
-  timer_env_stack(stack_pointer)%bstring = " >>>>>>>>>>>>> "
+  timer_env%astring = " >>>>>>>>>>>>> "
+  timer_env%bstring = " >>>>>>>>>>>>> "
 #if defined (__parallel)
   CALL mp_environ ( numtask, taskid, groupid )
-  WRITE (timer_env_stack(stack_pointer)%astring(1:9),"(I4,A,I4)") taskid,":",&
+  WRITE (timer_env%astring(1:9),"(I4,A,I4)") taskid,":",&
                   numtask
-  WRITE (timer_env_stack(stack_pointer)%bstring(1:9),"(I4,A,I4)") taskid,":",&
+  WRITE (timer_env%bstring(1:9),"(I4,A,I4)") taskid,":",&
                   numtask
 #endif
 
@@ -536,10 +690,10 @@ END SUBROUTINE trace_debug
 
 SUBROUTINE print_stack ( iw )
 
-
     INTEGER                                  :: iw
 
     INTEGER                                  :: i, io
+    TYPE(timer_env_type), POINTER            :: timer_env
 
   io = iw
 
@@ -548,10 +702,11 @@ SUBROUTINE print_stack ( iw )
       CALL mp_abort()
   ENDIF
 
+  timer_env => timer_env_stack(stack_pointer)%timer_env
 
   WRITE ( io , '(/,A,/)') " ===== Routine Calling Stack ===== "
-  DO i = timer_env_stack(stack_pointer)%stack_size, 1, -1
-     WRITE ( io, '(T10,I4,1X,A)') i,TRIM(timer_env_stack(stack_pointer)%routine_stack(i))
+  DO i = timer_env%stack_size, 1, -1
+     WRITE ( io, '(T10,I4,1X,A)') i,TRIM(timer_env%routine_stack(i))
   END DO
 
 END SUBROUTINE print_stack

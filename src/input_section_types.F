@@ -1113,6 +1113,7 @@ END SUBROUTINE section_vals_release
 !!     - n_repetition: number of repetitions of the section
 !!     - n_sub_vals_rep: number of repetitions of the subsections values
 !!       (max(1,n_repetition))
+!!     - explicit: if the section was explicitly present in 
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -1123,10 +1124,11 @@ END SUBROUTINE section_vals_release
 !!
 !!*** **********************************************************************
 SUBROUTINE section_vals_get(section_vals, ref_count, id_nr, n_repetition,&
-     n_subs_vals_rep,section, error)
+     n_subs_vals_rep,section,explicit, error)
   TYPE(section_vals_type), pointer :: section_vals
   INTEGER, INTENT(out), OPTIONAL :: ref_count, id_nr, n_repetition, n_subs_vals_rep
   TYPE(section_type), POINTER, optional :: section
+  LOGICAL, INTENT(out), optional :: explicit
   type(cp_error_type), optional, intent(inout) :: error
   
   logical :: failure
@@ -1146,6 +1148,7 @@ SUBROUTINE section_vals_get(section_vals, ref_count, id_nr, n_repetition,&
         IF (.NOT.section_vals%section%required) n_repetition=MAX(1,n_repetition)
      END IF
      IF (PRESENT(n_subs_vals_rep)) n_subs_vals_rep=SIZE(section_vals%subs_vals,2)
+     IF (PRESENT(explicit)) explicit=(SIZE(section_vals%values,2)>0)
   END IF
 END SUBROUTINE section_vals_get
 !***************************************************************************

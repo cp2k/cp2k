@@ -43,7 +43,8 @@ MODULE cp2k_runs
                                              cp_assert, &
                                              cp_error_init, &
                                              cp_error_dealloc_ref, &
-                                             cp_assertion_failed
+                                             cp_assertion_failed, &
+                                             cp_error_check
   USE geo_opt,                         ONLY: qs_geo_opt
   USE md_run,                          ONLY: qs_mol_dyn 
   USE machine,                         ONLY: print_memory,m_chdir,m_getcwd
@@ -70,14 +71,17 @@ MODULE cp2k_runs
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
   USE input_section_types, ONLY: section_type, section_release,&
        section_vals_type, section_vals_release, section_vals_create,&
-       section_vals_write
-  USE input_cp2k,                      only: create_cp2k_root_section
+       section_vals_write, section_vals_get_subs_vals, section_describe_html,&
+       section_vals_val_get, section_describe_index_html
+  USE input_keyword_types, only: keyword_release
+  USE input_cp2k,                      ONLY: create_cp2k_root_section,&
+       check_cp2k_input, parsed_cp2k_input
   USE cp_parser, ONLY: cp_parser_type, parser_create, parser_release
   USE input_parsing, only: section_vals_parse
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC  :: cp2k_run
+  PUBLIC  :: cp2k_run, write_cp2k_html_manual
   CHARACTER(LEN=*), PARAMETER :: moduleN = "cp2k_run"
 CONTAINS
 
@@ -127,17 +131,17 @@ CONTAINS
     INTEGER         , INTENT(IN) :: output_unit, mpi_comm
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "cp2k_run",&
-                                   routineP=moduleN//':'//routineN  
+         routineP=moduleN//':'//routineN  
 
     TYPE(global_environment_type), pointer :: globenv
     TYPE(cp_error_type) :: error
     TYPE(force_env_type), pointer :: force_env
     TYPE(meta_env_type), pointer :: meta_env
     TYPE(section_type), pointer :: input_structure
-    TYPE(section_vals_type), pointer :: input_file
+    TYPE(section_vals_type), POINTER :: input_file, glob_section
     TYPE(cp_parser_type), pointer :: parser
     TYPE(cp_para_env_type), pointer :: para_env
-    logical :: failure
+    LOGICAL :: failure, echo_input
 
     ! -----------------------------------------------------------------------------
     cp2k_run_OK = .FALSE.
@@ -150,7 +154,7 @@ CONTAINS
 
     ! init globenv with the data
     CALL globenv_create(globenv, para_env=para_env,  output_unit=output_unit, &
-       input_file_name=input_file_name, error=error)
+         input_file_name=input_file_name, error=error)
 
     ! generate all dependent info in globenv
     CALL cp2k_init ( globenv )
@@ -168,103 +172,114 @@ CONTAINS
     CALL section_vals_parse(input_file,parser,root_section=.false.,&
          error=error)
     CALL parser_release(parser,error=error)
-    IF (globenv%ionode) THEN
-       CALL section_vals_write(input_file,unit_nr=globenv%scr,hide_root=.TRUE.,&
+    CALL cp_error_check(error,failure)
+    IF (.not.failure.and.parsed_cp2k_input(input_file,error=error)) THEN
+       glob_section => section_vals_get_subs_vals(input_file,"GLOBAL",error=error)
+       CALL section_vals_val_get(glob_section,"ECHO_INPUT",l_val=echo_input,&
             error=error)
+       IF (echo_input.AND.para_env%mepos==para_env%source) THEN
+          CALL section_vals_write(input_file,unit_nr=globenv%scr,&
+               hide_root=.TRUE., error=error)
+       END IF
+    END IF
+    IF (.NOT.failure) THEN
+       CALL check_cp2k_input(input_file,error=error)
     END IF
     globenv%input_file => input_file
     nullify(input_file)
+    CALL cp_error_check(error,failure)
 
-    call cp2k_read(globenv)
+    IF (.NOT.failure) THEN
+       call cp2k_read(globenv)
 
-    ! initialize force_env
-    SELECT CASE (globenv%program_name)
-    CASE ("ATOM")
-       CALL atomic_code ( globenv )
-    CASE ("FARMING")
-       CALL farming_run ( globenv, error )
-    CASE ("FIST")
-      CALL fist_create_force_env ( force_env, globenv,  error = error )
-    CASE ("KG")
-      CALL kg_create_force_env ( force_env, globenv, error=error)
-    CASE ("QS")
-      CALL quickstep_create_force_env(force_env, globenv, error=error)
-    CASE ("QMMM")
-       CALL qmmm_create_force_env(force_env, globenv, error=error)
-    CASE ("EP")
-       ! CALL ep_create_force_env(force_env, globenv, error=error)
-    CASE ("TEST")
-       CALL lib_test(globenv)
-    CASE default
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "Invalid run TYPE <"//TRIM(globenv%run_type)//"> was specified, "//&
-            CPSourceFileRef,error,failure)
-    END SELECT
-    
-    IF (ASSOCIATED(force_env)) THEN
-       NULLIFY(meta_env)
-       CALL metadyn_read(meta_env, globenv, error=error)
-       CALL force_env_set(force_env,meta_env=meta_env,error=error)
-       CALL meta_env_release(meta_env,error=error)
-    END IF
+       ! initialize force_env
+       SELECT CASE (globenv%program_name)
+       CASE ("ATOM")
+          CALL atomic_code ( globenv )
+       CASE ("FARMING")
+          CALL farming_run ( globenv, error )
+       CASE ("FIST")
+          CALL fist_create_force_env ( force_env, globenv,  error = error )
+       CASE ("KG")
+          CALL kg_create_force_env ( force_env, globenv, error=error)
+       CASE ("QS")
+          CALL quickstep_create_force_env(force_env, globenv, error=error)
+       CASE ("QMMM")
+          CALL qmmm_create_force_env(force_env, globenv, error=error)
+       CASE ("EP")
+          ! CALL ep_create_force_env(force_env, globenv, error=error)
+       CASE ("TEST")
+          CALL lib_test(globenv)
+       CASE default
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+               "Invalid run TYPE <"//TRIM(globenv%run_type)//"> was specified, "//&
+               CPSourceFileRef,error,failure)
+       END SELECT
 
-    ! perform requested calculation
-    IF (globenv%run_type/="NONE") THEN 
-       !FM this test should be reduced to the first one
-  
-       IF (globenv%program_name=="QMMM".OR.globenv%program_name=="QS"&
-            .OR.globenv%program_name=="EP") THEN
-         SELECT CASE (globenv%run_type)
-         CASE ("GEOMETRY OPTIMIZATION")
-            CALL qs_geo_opt(force_env,globenv,error=error)
-         CASE ("MONTE CARLO")
-           CALL qs_mon_car ( force_env, globenv, error=error )
-         CASE ("MOLECULAR DYNAMICS")
-            CALL qs_mol_dyn ( force_env, globenv, error=error )
-         CASE ("WAVEFUNCTION OPTIMIZATION","ENERGY CALCULATION")
-            CALL force_env_calc_energy_force(force_env,calc_force=.false.,&
-                 error=error)
-         CASE ("ELECTRONIC SPECTRA")
-            CALL force_env_calc_energy_force(force_env,calc_force=.false.,&
-                 error=error)
-            CALL tddfpt_calculation(force_env%qs_env, globenv) 
-         CASE DEFAULT
-            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                   "Invalid run TYPE <"//TRIM(globenv%run_type)//"> was specified, "//&
-               CPSourceFileRef,&
-               error,failure)
-         END SELECT
-         CALL force_env_release(force_env, error=error)
-       ELSE IF ( globenv % program_name == "FIST" ) THEN
-          SELECT CASE (globenv%run_type)
-          CASE ("MOLECULAR DYNAMICS")
-             CALL qs_mol_dyn ( force_env, globenv, error=error )
-          CASE ("GEOMETRY OPTIMIZATION")
-             CALL qs_geo_opt(force_env,globenv,error=error)
-          CASE ( "MONTE CARLO" )
-             CALL qs_mon_car ( force_env, globenv, error=error )
-          CASE ( "DEBUG" )
-             CALL fist_debug_control ( force_env, globenv )
-          END SELECT
-          CALL force_env_release(force_env, error=error)
+       IF (ASSOCIATED(force_env)) THEN
+          NULLIFY(meta_env)
+          CALL metadyn_read(meta_env, globenv, error=error)
+          CALL force_env_set(force_env,meta_env=meta_env,error=error)
+          CALL meta_env_release(meta_env,error=error)
+       END IF
+
+       ! perform requested calculation
+       IF (globenv%run_type/="NONE") THEN 
+!FM this test should be reduced to the first one
+
+          IF (globenv%program_name=="QMMM".OR.globenv%program_name=="QS"&
+               .OR.globenv%program_name=="EP") THEN
+             SELECT CASE (globenv%run_type)
+             CASE ("GEOMETRY OPTIMIZATION")
+                CALL qs_geo_opt(force_env,globenv,error=error)
+             CASE ("MONTE CARLO")
+                CALL qs_mon_car ( force_env, globenv, error=error )
+             CASE ("MOLECULAR DYNAMICS")
+                CALL qs_mol_dyn ( force_env, globenv, error=error )
+             CASE ("WAVEFUNCTION OPTIMIZATION","ENERGY CALCULATION")
+                CALL force_env_calc_energy_force(force_env,calc_force=.false.,&
+                     error=error)
+             CASE ("ELECTRONIC SPECTRA")
+                CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
+                     error=error)
+                CALL tddfpt_calculation(force_env%qs_env, globenv) 
+             CASE DEFAULT
+                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                     "Invalid run TYPE <"//TRIM(globenv%run_type)//"> was specified, "//&
+                     CPSourceFileRef,&
+                     error,failure)
+             END SELECT
+             CALL force_env_release(force_env, error=error)
+          ELSE IF ( globenv % program_name == "FIST" ) THEN
+             SELECT CASE (globenv%run_type)
+             CASE ("MOLECULAR DYNAMICS")
+                CALL qs_mol_dyn ( force_env, globenv, error=error )
+             CASE ("GEOMETRY OPTIMIZATION")
+                CALL qs_geo_opt(force_env,globenv,error=error)
+             CASE ( "MONTE CARLO" )
+                CALL qs_mon_car ( force_env, globenv, error=error )
+             CASE ( "DEBUG" )
+                CALL fist_debug_control ( force_env, globenv )
+             END SELECT
+             CALL force_env_release(force_env, error=error)
 #if defined(__HMD)
-         IF (globenv%ionode) CALL _dump_allocated(%VAL(0))
+             IF (globenv%ionode) CALL _dump_allocated(%VAL(0))
 #endif
-       ELSE IF(globenv%program_name=="KG") THEN
-         SELECT CASE (globenv%run_type)
-         CASE ("MOLECULAR DYNAMICS")
-            CALL qs_mol_dyn ( force_env, globenv, error=error )
-         CASE ("WAVEFUNCTION OPTIMIZATION","ENERGY CALCULATION")
-            
-          CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
-               error=error)
-!        CASE ("DEBUG")
-!           CALL kg_debug(force_env,error=error)
-         END SELECT
-         CALL force_env_release(force_env, error=error)
+          ELSE IF(globenv%program_name=="KG") THEN
+             SELECT CASE (globenv%run_type)
+             CASE ("MOLECULAR DYNAMICS")
+                CALL qs_mol_dyn ( force_env, globenv, error=error )
+             CASE ("WAVEFUNCTION OPTIMIZATION","ENERGY CALCULATION")
+
+                CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
+                     error=error)
+                !        CASE ("DEBUG")
+                !           CALL kg_debug(force_env,error=error)
+             END SELECT
+             CALL force_env_release(force_env, error=error)
+          END IF
        END IF
     END IF
-
     CALL cp_error_dealloc_ref(error)
 
     CALL cp2k_finalize(globenv)
@@ -449,6 +464,61 @@ CONTAINS
     CALL timestop(0.0_dbl,handle)
 
   END SUBROUTINE farming_run
+
+!!****f* cp2k_runs/write_cp2k_html_manual *
+!!
+!!   NAME
+!!     write_cp2k_html_manual
+!!
+!!   FUNCTION
+!!     writes a small html description of the cp2k input
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     joost [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE write_cp2k_html_manual(error)
+    type(cp_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    character(len=*), parameter :: routineN='write_cp2k_html_manual',&
+         routineP=moduleN//':'//routineN
+    integer :: unit_nr
+    TYPE(section_type), POINTER :: root_section
+
+    failure=.false.
+
+    IF (.NOT. failure) THEN
+       nullify(root_section)
+       CALL create_cp2k_root_section(root_section,error=error)
+       ! remove the default keyword that ignores things outside the section
+       CALL keyword_release(root_section%keywords(0)%keyword,error=error)
+
+       CALL section_describe_html(root_section,6,error=error)
+
+       CALL open_file(unit_number=unit_nr,file_name="index.html",&
+            file_action="WRITE", file_status="REPLACE")
+       write(unit_nr,*) "<HTML><BODY><HEAD><TITLE>The cp2k input structure</TITLE>"
+       write(unit_nr,*) "<H1>CP2K input reference</H1>"
+       write(unit_nr,*) "This represents the full structure of the cp2k input file, click on a section for more information"
+       write(unit_nr,*) "<BR><UL>"
+
+       CALL section_describe_index_html(root_section,unit_nr,error=error)
+
+       write(unit_nr,*) '</UL><BR><hr>Back to the <A HREF="../index.html">CP2K homepage</A>'
+       write(unit_nr,*) "</BODY></HTML>"
+
+       call close_file(unit_nr)
+    END IF
+  END SUBROUTINE write_cp2k_html_manual
+!***************************************************************************
 
 END MODULE cp2k_runs
 !!*****

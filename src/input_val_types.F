@@ -575,7 +575,7 @@ SUBROUTINE val_write(val,unit_nr,error)
         IF (ASSOCIATED(val%i_val)) THEN
            DO i=1,SIZE(val%i_val)
               IF (MODULO(i,10)==0) WRITE(unit=unit_nr,fmt="(' \')")
-              WRITE(unit=unit_nr,fmt="(' ',i8)",advance="NO")&
+              WRITE(unit=unit_nr,fmt="(' ',i14)",advance="NO")&
                    val%i_val(i)
            END DO
         ELSE
@@ -585,7 +585,7 @@ SUBROUTINE val_write(val,unit_nr,error)
         IF (ASSOCIATED(val%r_val)) THEN
            DO i=1,SIZE(val%r_val)
               IF (MODULO(i,10)==0) WRITE(unit=unit_nr,fmt="(' \')")
-              WRITE(unit=unit_nr,fmt="(' ',es10.3)",advance="NO")&
+              WRITE(unit=unit_nr,fmt="(' ',es16.8)",advance="NO")&
                    val%r_val(i)
            END DO
         ELSE

@@ -56,10 +56,11 @@ MODULE environment
                                              m_getpid,&
                                              m_hostnm
   USE mathconstants,                   ONLY: init_mathcon
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_perf_end,&
-                                             mp_perf_start,&
-                                             mp_sum
+  USE message_passing,                 ONLY: add_mp_perf_env,&
+                                             describe_mp_perf_env,&
+                                             mp_bcast,&
+                                             mp_sum,&
+                                             rm_mp_perf_env
   USE orbital_pointers,                ONLY: deallocate_orbital_pointers
   USE orbital_transformation_matrices, ONLY: deallocate_spherical_harmonics
   USE physcon,                         ONLY: init_physcon,&
@@ -76,8 +77,8 @@ MODULE environment
   USE termination,                     ONLY: set_error_unit,&
                                              stop_memory,&
                                              stop_program
-  USE timings,                         ONLY: destroy_timer_env,&
-                                             init_timer_env,&
+  USE timings,                         ONLY: add_timer_env,&
+                                             rm_timer_env,&
                                              timeprint,&
                                              timeset,&
                                              timestop,&
@@ -166,10 +167,10 @@ CONTAINS
     CALL m_hostnm(host_name)
 
     ! create a timer_env
-    CALL init_timer_env()
+    CALL add_timer_env()
 
     ! message passing performance
-    CALL mp_perf_start( )
+    CALL add_mp_perf_env()
 
 !   *** Set the default logical output and error unit number ***
 
@@ -1072,7 +1073,8 @@ SUBROUTINE cp2k_read(globenv)
     CALL deallocate_md_ftable()
 
     ! write message passing performance info
-    CALL mp_perf_end ( globenv%group,globenv%scr )
+    CALL describe_mp_perf_env ( globenv%group,globenv%scr )
+    CALL rm_mp_perf_env()
 
 #if defined(__HPM)
     IF (globenv%print%HPM) THEN
@@ -1088,7 +1090,7 @@ SUBROUTINE cp2k_read(globenv)
       CALL timeprint(output_unit,globenv%print_level)
     END IF
 
-    CALL destroy_timer_env()
+    CALL rm_timer_env()
 
     IF (globenv%ionode) THEN
       output_unit = globenv%scr

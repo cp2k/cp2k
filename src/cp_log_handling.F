@@ -270,13 +270,6 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (PRESENT(file_status)) THEN
-      status_string = file_status
-      CALL uppercase(status_string)
-    ELSE
-      status_string = "OLD"
-    END IF
-
     IF (PRESENT(file_form)) THEN
       form_string = file_form
       CALL uppercase(form_string)
@@ -289,6 +282,17 @@ CONTAINS
       CALL uppercase(action_string)
     ELSE
       action_string = "READ"
+    END IF
+
+    IF (PRESENT(file_status)) THEN
+      status_string = file_status
+      CALL uppercase(status_string)
+    ELSE
+       IF (action_string=="READ") THEN
+          status_string = "OLD"
+       ELSE
+          status_string = "UNKNOWN"
+       END IF
     END IF
 
     IF (PRESENT(file_position)) THEN

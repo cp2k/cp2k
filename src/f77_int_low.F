@@ -70,8 +70,8 @@ END SUBROUTINE destroy_fenv
 SUBROUTINE set_pos(env_id, new_pos, n_el, ierr)
   USE kinds, only: dp
   USE f77_interface, ONLY: sp => set_pos
-  REAL(kind=dp), DIMENSION(1:) :: new_pos
   INTEGER :: n_el, env_id, ierr
+  REAL(kind=dp), DIMENSION(1:n_el) :: new_pos
 
   CALL sp(env_id,new_pos,n_el,ierr)
 END SUBROUTINE set_pos
@@ -79,8 +79,8 @@ END SUBROUTINE set_pos
 SUBROUTINE get_pos(env_id, pos, n_el, ierr)
   USE kinds, only: dp
   USE f77_interface, only: gp => get_pos
-  REAL(kind=dp), DIMENSION(1:) :: pos
   INTEGER :: n_el, env_id, ierr
+  REAL(kind=dp), DIMENSION(1:n_el) :: pos
 
   CALL gp(env_id,pos,n_el,ierr)
 END SUBROUTINE get_pos
@@ -88,8 +88,8 @@ END SUBROUTINE get_pos
 SUBROUTINE get_force(env_id,force, n_el, ierr)
   USE kinds, only: dp
   USE f77_interface, only: gf => get_force
-  REAL(kind=dp), DIMENSION(1:) :: force
   INTEGER :: n_el, env_id, ierr
+  REAL(kind=dp), DIMENSION(1:n_el) :: force
 
   CALL gf(env_id,force,n_el,ierr)
 END SUBROUTINE get_force
@@ -117,7 +117,7 @@ SUBROUTINE calc_energy(env_id,pos,n_el,e_pot,ierr)
   USE f77_interface, ONLY: ce => calc_energy
   INTEGER :: calc_force, env_id, ierr, n_el
   real(dp) :: e_pot
-  REAL(dp), DIMENSION(1:) :: pos
+  REAL(dp), DIMENSION(1:n_el) :: pos
 
   CALL ce(env_id,pos,n_el,e_pot,ierr)
 END SUBROUTINE calc_energy
@@ -127,7 +127,8 @@ SUBROUTINE calc_force(env_id,pos,n_el_pos,e_pot,force,n_el_force,ierr)
   USE f77_interface, ONLY: cf => calc_force
   INTEGER :: env_id, ierr, n_el_pos, n_el_force
   real(dp) :: e_pot
-  REAL(dp), DIMENSION(1:) :: pos, force
+  REAL(dp), DIMENSION(1:n_el_pos) :: pos
+  REAL(dp), DIMENSION(1:n_el_force) :: force
 
   CALL cf(env_id,pos,n_el,e_pot,force,n_el_force,ierr)
 END SUBROUTINE calc_force
