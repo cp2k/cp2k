@@ -410,7 +410,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_small_subsystem', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iat, isubsys, nat, stat
+    INTEGER                                  :: iat, isubsys, nat, stat, id_
     LOGICAL                                  :: failure
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -453,7 +453,6 @@ CONTAINS
        !-----------------------------------------------------------------------------
        ! 3. Read in the topology section in the input file if any
        !-----------------------------------------------------------------------------
-       !CALL read_topology_section(topology,globenv)
 
        ! initialize atom coords from the bigger system
        nat=SIZE(sub_atom_index)
@@ -479,7 +478,9 @@ CONTAINS
           topology%atom_info%label_atmname(iat)=sub_atom_kind_name(iat)
           topology%atom_info%label_molname(iat)=topology%atom_info%label_atmname(iat)
           topology%atom_info%label_resname(iat)=topology%atom_info%label_atmname(iat)
-          topology%atom_info%element(iat)=topology%atom_info%label_atmname(iat)
+          id_ = INDEX(topology%atom_info%label_atmname(iat),"_")-1
+          IF ( id_ == -1 ) id_ = LEN_TRIM(topology%atom_info%label_atmname(iat))
+          topology%atom_info%element(iat)=topology%atom_info%label_atmname(iat)(1:id_)
           topology%atom_info%atm_mass(iat)=0._dp
           topology%atom_info%atm_charge(iat)=0._dp
        END DO

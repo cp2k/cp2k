@@ -2,6 +2,9 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
 !!****** cp2k/force_fields [1.0] *
 !!
 !!   NAME
@@ -35,6 +38,11 @@ MODULE force_fields
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE ewald_environment_types,         ONLY: ewald_environment_type
   USE external_potential_types,        ONLY: elp_potential_type,&
@@ -1655,9 +1663,10 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
 
   REAL(KIND=dp)                                :: rmin,epsilon, default_rcutsq
   REAL(KIND=dp)                                :: rmin2_a,rmin2_b
-  REAL(KIND=dp)                                :: epsilon_a,epsilon_b
-  INTEGER                                  :: ii, jj, imul
-  LOGICAL :: only_qm, my_qmmm
+  REAL(KIND=dp)                                :: epsilon_a,epsilon_b,scale_factor
+  INTEGER                                  :: ii, jj, imul, ilink
+  LOGICAL :: only_qm, my_qmmm, is_link_atom, failure
+  INTEGER, DIMENSION(:), POINTER :: my_atom_list
 
   CHARACTER(LEN=default_string_length)     :: atmname
   REAL(KIND=dp), DIMENSION(:), POINTER         :: charge
@@ -1666,7 +1675,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   NULLIFY(atomic_kind,molecule_kind,atom_list,bond_list,bend_list,&
        torsion_list,onfo_list,map_bond_kind,map_bend_kind,map_ub_kind,&
        map_torsion_kind,bond_kind_set,bend_kind_set,ub_kind_set,&
-       onfo_kind_set,impr_kind_set,torsion_kind_set)
+       onfo_kind_set,impr_kind_set,torsion_kind_set,my_atom_list)
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -1676,6 +1685,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   PM4 = .FALSE.
   only_qm = .FALSE.
   my_qmmm = .FALSE.
+  failure = .FALSE.
   default_rcutsq = (10.0_dp*bohr)*(10.0_dp*bohr)
   IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm = qmmm
   IF(PRESENT(globenv)) THEN
@@ -2892,12 +2902,13 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
     atomic_kind => atomic_kind_set(i)
     CALL get_atomic_kind(atomic_kind=atomic_kind,&
                          elp_potential=elp_potential,&
+                         atom_list=my_atom_list,&
                          name=atmname) 
     CALL get_potential(potential=elp_potential,&
                        qeff=charge(i))
 
     found = .TRUE.
-    only_qm = qmmm_ff_precond_only_qm(id1=atmname)
+    only_qm = qmmm_ff_precond_only_qm(id1=atmname,is_link=is_link_atom)
     IF(charge(i)<=-100.0) found = .FALSE.
 
 !   ! loop over params from amber
@@ -2946,7 +2957,20 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
     ! QM/MM modifications
     !
     IF (only_qm.AND.my_qmmm) THEN
-       IF (qmmm_env%qmmm_coupl_type /= do_qmmm_none) charge(i) = 0.0_dp
+       IF (qmmm_env%qmmm_coupl_type /= do_qmmm_none) THEN 
+          scale_factor = 0.0_dp
+          IF (is_link_atom) THEN
+             !
+             ! Find the scaling factor...
+             !
+             DO ilink = 1, SIZE(qmmm_env%mm_link_atoms)
+                IF (ANY(my_atom_list == qmmm_env%mm_link_atoms(ilink))) EXIT
+             END DO
+             CPPostcondition(ilink <= SIZE(qmmm_env%mm_link_atoms),cp_failure_level,routineP,error,failure)
+             scale_factor = qmmm_env%mm_link_scale_factor(ilink)
+          END IF
+          charge(i) = charge(i) * scale_factor
+       END IF
     END IF
     
     CALL set_potential(potential=elp_potential,&

@@ -72,7 +72,7 @@ CONTAINS
     ! Arguments
     CHARACTER(LEN=default_string_length), INTENT(INOUT) :: id1
     CHARACTER(LEN=default_string_length), INTENT(INOUT), OPTIONAL :: id2, id3, id4
-    LOGICAL, OPTIONAL  :: is_link
+    LOGICAL, OPTIONAL, INTENT(OUT)  :: is_link
     LOGICAL :: only_qm, my_link
     ! Local Variables
     CHARACTER(LEN=default_string_length) :: tmp
@@ -149,7 +149,8 @@ CONTAINS
     
     is_link = .FALSE.
     IF (INDEX(id1,"_LNK") /= 0 ) THEN
-       my_index=INDEX(id1,"_LNK")+LEN_TRIM("_LNK")
+       my_index=INDEX(id1,"_LNK")+1
+       my_index=INDEX(id1(my_index:),"_QM_")+my_index-1
        is_link = .TRUE.
        tmp=TRIM(id1(my_index:))
        clean_string_1: DO j = 1, default_string_length

@@ -504,6 +504,7 @@ SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
         DO iatm = ifirst, ilast
            atom_info%label_molname(iatm) = "_QM_"//&
                 TRIM(atom_info%label_molname(iatm))
+           IF (PM2) WRITE(iw,*)"QM Molecule name :: ", atom_info%label_molname(iatm)
            DO jatm = 1, SIZE(qm_atom_index)
               IF (qm_atom_index(jatm) == iatm) THEN
                  qm_atom_index(jatm) = 0

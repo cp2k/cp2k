@@ -48,6 +48,7 @@ MODULE qmmm_topology_util
        section_describe_html, section_describe_index_html, section_vals_type,&
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
+  USE string_utilities,                ONLY: compress
   IMPLICIT NONE
   PRIVATE
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "qmmm_topology_util"
@@ -86,6 +87,7 @@ CONTAINS
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_coordinate_control', &
          routineP = moduleN//':'//routineN
+    CHARACTER (LEN=default_string_length)    :: prefix_lnk
     INTEGER                                  :: handle, iw, iatm
     INTEGER                                  :: ifirst, ilast, myind
     
@@ -110,9 +112,12 @@ CONTAINS
     ! Modify type for MM link atoms 
     !
     DO iatm = 1, SIZE(qmmm_env%mm_link_atoms)
-       topology%atom_info%label_atmname(qmmm_env%mm_link_atoms(iatm)) = "_LNK"//&
+       prefix_lnk = "_LNK000"
+       WRITE(prefix_lnk(5:),'(I20)')iatm
+       CALL compress(prefix_lnk,.TRUE.)
+       topology%atom_info%label_atmname(qmmm_env%mm_link_atoms(iatm)) = TRIM(prefix_lnk)//&
             TRIM(topology%atom_info%label_atmname(qmmm_env%mm_link_atoms(iatm)))
-       topology%atom_info%label_resname(qmmm_env%mm_link_atoms(iatm)) = "_LNK"//&
+       topology%atom_info%label_resname(qmmm_env%mm_link_atoms(iatm)) = TRIM(prefix_lnk)//&
             TRIM(topology%atom_info%label_resname(qmmm_env%mm_link_atoms(iatm))) 
     END DO
     !
