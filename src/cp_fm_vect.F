@@ -37,11 +37,11 @@ MODULE cp_fm_vect
   USE cp_full_matrix, ONLY:  cp_full_matrix_type, cp_full_matrix_p_type,&
        cp_fm_create, cp_fm_create2, cp_fm_retain, cp_fm_release,&
        cp_fm_init_random, cp_fm_set_element, cp_fm_set_all,&
-       cp_fm_set_submatrix, cp_fm_get_submatrix, cp_fm_get_info,&
-       optimal_blacs_col_block_size, optimal_blacs_row_block_size
+       cp_fm_set_submatrix, cp_fm_get_submatrix, cp_fm_get_info
   USE global_types, ONLY: global_environment_type
   USE cp_f_matrix_struct, ONLY:   cp_f_matrix_struct_type,&
        cp_fmstruct_create,cp_fmstruct_retain, cp_fmstruct_release,&
+       optimal_blacs_col_block_size, optimal_blacs_row_block_size,&
        cp_fmstruct_equivalent
   USE cp_blacs_env,      ONLY: cp_blacs_env_retain, cp_blacs_env_release,&
        cp_blacs_env_create, start_blacs, finish_blacs, &
