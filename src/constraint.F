@@ -1885,6 +1885,7 @@ SUBROUTINE getold(molecule)
   INTEGER :: imol, iconst
   TYPE (linklist_dist_constraints), POINTER :: ll_dist
   TYPE (linklist_g3x3_constraints), POINTER :: ll_g3x3
+  TYPE (linklist_g4x6_constraints), POINTER :: ll_g4x6
 
 !------------------------------------------------------------------------------
 
@@ -1913,6 +1914,23 @@ SUBROUTINE getold(molecule)
         ll_g3x3 % rold3 ( 2 ) = ll_g3x3 % p3 % r ( 2 )
         ll_g3x3 % rold3 ( 3 ) = ll_g3x3 % p3 % r ( 3 )
         ll_g3x3 => ll_g3x3%next
+     END DO
+
+     ll_g4x6 => molecule(imol) % ll_g4x6_const
+     DO iconst = 1, molecule(imol) % ng4x6const_mol
+        ll_g4x6 % rold1 ( 1 ) = ll_g4x6 % p1 % r ( 1 )
+        ll_g4x6 % rold1 ( 2 ) = ll_g4x6 % p1 % r ( 2 )
+        ll_g4x6 % rold1 ( 3 ) = ll_g4x6 % p1 % r ( 3 )
+        ll_g4x6 % rold2 ( 1 ) = ll_g4x6 % p2 % r ( 1 )
+        ll_g4x6 % rold2 ( 2 ) = ll_g4x6 % p2 % r ( 2 )
+        ll_g4x6 % rold2 ( 3 ) = ll_g4x6 % p2 % r ( 3 )
+        ll_g4x6 % rold3 ( 1 ) = ll_g4x6 % p3 % r ( 1 )
+        ll_g4x6 % rold3 ( 2 ) = ll_g4x6 % p3 % r ( 2 )
+        ll_g4x6 % rold3 ( 3 ) = ll_g4x6 % p3 % r ( 3 )
+        ll_g4x6 % rold4 ( 1 ) = ll_g4x6 % p4 % r ( 1 )
+        ll_g4x6 % rold4 ( 2 ) = ll_g4x6 % p4 % r ( 2 )
+        ll_g4x6 % rold4 ( 3 ) = ll_g4x6 % p4 % r ( 3 )
+        ll_g4x6 => ll_g4x6%next
      END DO
 
   END DO

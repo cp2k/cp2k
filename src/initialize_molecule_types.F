@@ -56,6 +56,7 @@ MODULE initialize_molecule_types
                                              distconst_link_list,&
                                              exclusion,&
                                              g3x3_link_list,&
+                                             g4x6_link_list,&
                                              torsion_link_list
   USE md,                              ONLY: simulation_parameters_type
   USE molecule_types,                  ONLY: intra_parameters_type,&
@@ -128,6 +129,7 @@ SUBROUTINE initialize_molecule_type ( mol_setup, pnode, part, molecule,&
            molecule(imol) % ntorsions_mol = mol_setup(i) % molpar % ntorsions
            molecule(imol) % ndistconst_mol = mol_setup(i) % molpar % ndcon
            molecule(imol) % ng3x3const_mol = mol_setup(i) % molpar % n3x3con
+           molecule(imol) % ng4x6const_mol = mol_setup(i) % molpar % n4x6con
            molecule(imol) % nstates = 0
            NULLIFY ( molecule ( imol ) % states )
            IF (globenv%ionode .AND. globenv%print_level>9) WRITE (iw, &
@@ -163,6 +165,7 @@ SUBROUTINE initialize_molecule_type ( mol_setup, pnode, part, molecule,&
            molecule(imol) % ntorsions_mol = mol_setup(i) % molpar%ntorsions
            molecule(imol) % ndistconst_mol = mol_setup(i) % molpar%ndcon
            molecule(imol) % ng3x3const_mol = mol_setup(i) % molpar%n3x3con
+           molecule(imol) % ng4x6const_mol = mol_setup(i) % molpar%n4x6con
            molecule(imol) % nstates = 0
            NULLIFY ( molecule ( imol ) % states )
            IF (globenv%ionode .AND. globenv%print_level>9) WRITE (iw, &
@@ -202,6 +205,10 @@ SUBROUTINE initialize_molecule_type ( mol_setup, pnode, part, molecule,&
 
 !..initialize g3x3 constraints
    CALL g3x3_link_list(pnode,molecule,mol_setup, &
+        intra_param % constraint_distance)
+
+!..initialize g4x6 constraints
+   CALL g4x6_link_list(pnode,molecule,mol_setup, &
         intra_param % constraint_distance)
 
 !..create exclusion list

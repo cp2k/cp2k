@@ -133,11 +133,12 @@ SUBROUTINE exclusion(molecule,pnode)
   TYPE (linklist_torsions), POINTER :: ll_torsion
   TYPE (linklist_dist_constraints), POINTER :: ll_dist
   TYPE (linklist_g3x3_constraints), POINTER :: ll_g3x3
+  TYPE (linklist_g4x6_constraints), POINTER :: ll_g4x6
   INTEGER :: imol, iatom, jatom, ibond, ibend, itorsion, idist, i, ii
-  INTEGER :: jnode, ig3x3, ios
+  INTEGER :: jnode, ig3x3, ig4x6, ios
   INTEGER, DIMENSION ( : ), ALLOCATABLE :: bond, bend, torsion
   INTEGER :: natoms_mol, nbonds_mol, nbends_mol, ntorsions_mol, &
-             ndist_mol, n3x3_mol
+             ndist_mol, n3x3_mol, n4x6_mol
   LOGICAL :: match
 
 !------------------------------------------------------------------------------
@@ -169,6 +170,7 @@ SUBROUTINE exclusion(molecule,pnode)
      ntorsions_mol = molecule(imol) %ntorsions_mol
      ndist_mol = molecule(imol) %ndistconst_mol
      n3x3_mol = molecule(imol) %ng3x3const_mol
+     n4x6_mol = molecule(imol) %ng4x6const_mol
 
 ! pointing local pointers to the start of the list
      ll_atom => molecule(imol) %ll_atoms
@@ -333,6 +335,37 @@ SUBROUTINE exclusion(molecule,pnode)
            END IF G3X3IF
            ll_g3x3 => ll_g3x3%next
         END DO G3X3L
+
+        ll_g4x6 => molecule(imol) %ll_g4x6_const
+        G4X6L: DO ig4x6 = 1, n4x6_mol
+           torsion(1) = ll_g4x6%p1%iatom
+           torsion(2) = ll_g4x6%p2%iatom
+           torsion(3) = ll_g4x6%p3%iatom
+           torsion(4) = ll_g4x6%p4%iatom
+
+! checking to see if jatom is bonded
+           DO ii = 1, 4
+              IF (jatom==torsion(ii)) THEN
+                 match = .TRUE.
+                 EXIT
+              END IF
+           END DO
+           G4X6IF: IF (match) THEN
+              DO ii = 1, 4
+                 CALL checklist(pnode(jnode),match,jatom,torsion(ii))
+                 IF ( .NOT. match) THEN
+                    i = getnode(molecule,torsion(ii))
+                    current_excl%p => pnode(i) %p
+                    pnode(jnode) %nexcl = pnode(jnode) %nexcl + 1
+                    ALLOCATE (current_excl%next,STAT=ios)
+                    IF ( ios /= 0 ) CALL stop_memory ( 'exclusion', &
+                         'current_excl%next', 0 )
+                    current_excl => current_excl%next
+                 END IF
+              END DO
+           END IF G4X6IF
+           ll_g4x6 => ll_g4x6%next
+        END DO G4X6L
         ll_atom => ll_atom%next
      END DO ALOOP
   END DO MLOOP
@@ -874,7 +907,7 @@ SUBROUTINE g4x6_link_list ( pnode, molecule, mol_setup, constraint_distance )
 
   DO imol = 1, nmol
      jmol = molecule(imol) % moltype
-     nb = mol_setup(jmol) % molpar % n3x3con
+     nb = mol_setup(jmol) % molpar % n4x6con
      g4x6_constraints = g4x6_constraints .OR. ( nb /= 0 )
      molecule(imol) %ng4x6const_mol = nb
      molecule(imol) %ll_g4x6_const => current_ll_g4x6
