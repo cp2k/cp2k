@@ -432,7 +432,8 @@ contains
                rows_size=rows_size, cols_size=cols_size,error=error),&
                cp_warning_level, cp_assertion_failed, routineP,&
                "size in inconsistent with given basis! in "//&
-               CPSourceFileRef(),error, failure)
+               CPSourceFileRef,&
+               error, failure)
        end if
     end if failureIf
     res = .not.failure
@@ -769,7 +770,8 @@ contains
     if (.not.failure) then
        if (.not.associated(pao_matrix%matrix)) then
           call cp_init_block_pao_matrix(pao_matrix, error=iError)
-          call cp_propagate_error(iError,routineP,CPSourceFileRef(),&
+          call cp_propagate_error(iError,routineP,&
+               CPSourceFileRef,&
                error=error,failure=failure)
        end if
     end if
@@ -927,7 +929,8 @@ contains
             error=error), cp_failure_level, &
             cp_precondition_failed, routineP,& 
             'pao_env must be valid to initialize a pao matrix in '//&
-            CPSourceFileRef(),error,failure) !remove this test?
+            CPSourceFileRef,&
+            error,failure) !remove this test?
     end if
     if (.not.failure) then
        call cp_get(pao_matrix, cols_size=cols_size, rows_size=rows_size)
@@ -971,7 +974,8 @@ contains
                      cp_failure_level,cp_assertion_failed,&
                      routineP,"internal error: after its init the pao "//&
                      "transformation is not consistent in "//&
-                     CPSourceFileRef(), error, failure)
+                     CPSourceFileRef,&
+                     error, failure)
              end if
              deallocate(firstRow,lastRow, firstCol, lastCol, stat=stat) 
 ! just to be sure...

@@ -17,7 +17,7 @@
 !!     the get methods are defined in cp_pao_types, because of the circular
 !!     dependencies in the types
 !!
-!!   AUTHORs
+!!   AUTHOR
 !!     @author Fawzi Mohamed
 !!     @version 2.2002
 !!
@@ -179,7 +179,7 @@ contains
     pao_env%global_env => global_env
     call cp_assert(associated(pao_env%global_env),cp_warning_level,&
          cp_assertion_failed,routineP,"glob env not associated in "//&
-         CPSourceFileRef(),error)
+         CPSourceFileRef,error)
 ! min_bas
     call cp_guarantee_size(pao_env%nr_min_bas,size(nr_min_bas), &
          error=iError)
@@ -194,7 +194,8 @@ contains
     if (.not.failure) then
        pao_env%nr_full_bas=nr_full_bas
     end if
-    call cp_propagate_error(iError,routineP,CPSourceFileRef(),&
+    call cp_propagate_error(iError,routineP,&
+         CPSourceFileRef,&
          error,failure,cp_failure_level)
 ! check min_bas/full_bas
     CPPrecondition(associated(pao_env%nr_min_bas),cp_failure_level,routineP,error,failure)
@@ -203,7 +204,8 @@ contains
        call cp_assert(size(pao_env%nr_full_bas)==size(pao_env%nr_min_bas),&
             cp_failure_level,cp_assertion_failed,routineP,&
             "min_bas and full bas must have the same size in "//&
-            CPSourceFileRef(),error,failure)
+            CPSourceFileRef,&
+            error,failure)
     end if
 ! angles_begin_at
     if (.not.failure) then
@@ -276,11 +278,13 @@ contains
        call cp_assert(cp_validate(pao_env,test_pos_att=.false.,error=error),&
             cp_failure_level,cp_assertion_failed,routineP,&
             "pao_env is not valid after init in "//&
-            CPSourceFileRef(),error,failure)
+            CPSourceFileRef,&
+            error,failure)
        call cp_assert(cp_valid(pao_env,error=error),&
             cp_failure_level,cp_assertion_failed,routineP,&
             "pao_env is not valid after init in "//&
-            CPSourceFileRef(),error,failure)
+            CPSourceFileRef,&
+            error,failure)
     end if
     call cp_dealloc_ref(iError,error)
   end subroutine cp_pao_env_init
@@ -432,7 +436,8 @@ contains
        call cp_assert(size(pao_env%nr_min_bas)==size(pao_env%nr_full_bas),&
             cp_warning_level,cp_assertion_failed,routineP,&
             "min_bas and full_s must have the same length in"//&
-            CPSourceFileRef(),error,failure)
+            CPSourceFileRef,&
+            error,failure)
        CPAssert(size(pao_env%nr_min_bas)==pao_env%n_atoms,cp_warning_level,routineP,error,failure)
        if (.not. standalone) then
           CPAssert(size(pao_env%nr_min_bas)==size(atom_info),cp_warning_level,routineP,error,failure)
@@ -469,14 +474,16 @@ contains
                      pao_env%nr_min_bas(i),cp_warning_level,&
                      cp_assertion_failed,routineP,&
                      "projection has invalid size in "//&
-                     CPSourceFileRef(),error,failure)
+                     CPSourceFileRef,&
+                     error,failure)
                 CPAssert(all(pao_env%projection(i)%array>0),cp_warning_level,routineP,error,failure)
                 do j=2,size(pao_env%projection(i)%array)
                    call cp_assert(pao_env%projection(i)%array(j) > &
                         pao_env%projection(i)%array(j-1),cp_warning_level,&
                         cp_assertion_failed, routineP, &
                         "projection indices are not ordered in "//&
-                        CPSourceFileRef(),error,failure)
+                        CPSourceFileRef,&
+                        error,failure)
                 end do
              end if
           end do
@@ -492,7 +499,8 @@ contains
                pao_env%nr_min_bas*(pao_env%nr_full_bas-pao_env%nr_min_bas)),&
                cp_warning_level,cp_assertion_failed,routineP,&
                "angles_begin_at is not compatible with nr_min_bas nr_full_bas in "//&
-               CPSourceFileRef(),error,failure)
+               CPSourceFileRef,&
+               error,failure)
        end if
 ! pos att
        if (test_pos) then
@@ -649,7 +657,7 @@ subroutine cp_pao_env_did_change(pao_env,h_changed, s_changed,&
   logical :: failure
   integer :: handle
   character(len=*), parameter :: routineN='cp_pao_env_did_change',&
-	routineP=moduleN//':'//routineN
+       routineP=moduleN//':'//routineN
   logical :: h_c, s_c, a_c, full_r
   !call timeset(routineN,'I',moduleN,handle)
   failure=.false.
@@ -731,7 +739,8 @@ end subroutine cp_pao_env_did_change
                 if (size(pao_env%projection(i)%array) /= pao_env%nr_min_bas(i)) then
                    call cp_error_message(cp_warning_level,&
                         "minbas size changed on atom "// cp_to_string(i)//&
-                        CPSourceFileRef(),routineP,error=error)
+                        CPSourceFileRef,&
+                        routineP,error=error)
                    deallocate(pao_env%projection(i)%array ,stat=stat)
                    CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
                 end if

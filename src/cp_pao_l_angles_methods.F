@@ -356,7 +356,8 @@ contains
        call cp_assert(cp_validate(local_angles%glob_angles,&
             error=error),cp_warning_level,cp_assertion_failed,routineP,&
             "referenced pao_glob_angles is invalid, in file "//&
-            CPSourceFileRef(),error,failure)
+            CPSourceFileRef,&
+            error,failure)
        pao_env => local_angles%glob_angles%pao_env
 ! pao_env has been checked by glob angles validation
     end if
@@ -368,7 +369,8 @@ contains
           call cp_assert(local_angles%begins_at < &
                size(local_angles%glob_angles%angles),&
                cp_warning_level,cp_assertion_failed,routineP,&
-               "begins_at out of range in "//CPSourceFileRef(),&
+               "begins_at out of range in "//&
+               CPSourceFileRef,&
                error,failure)
           beginAt=sum((pao_env%nr_full_bas(1:(local_angles%atom_nr-1))-&
                pao_env%nr_min_bas(1:(local_angles%atom_nr-1)))*&
@@ -461,7 +463,8 @@ contains
                    call cp_assert(atom_nr <= &
                         cp_get_n_atom(local_angles%glob_angles%pao_env),&
                         cp_warning_level,cp_assertion_failed,routineP,&
-                        "atom_nr too big in "//CPSourceFileRef(),&
+                        "atom_nr too big in "//&
+                        CPSourceFileRef,&
                         error,failure)
                 end if
              end if
@@ -477,11 +480,13 @@ contains
                      test_pos_att=.false., error=iError),&
                      cp_warning_level,cp_assertion_failed,routineP,&
                      "the environement should be valid when set in "//&
-                     CPSourceFileRef(),error,failure)
+                     CPSourceFileRef,&
+                     error,failure)
                 call cp_assert(local_angles%atom_nr <= cp_get_n_atom(pao_env),&
                      cp_warning_level,cp_assertion_failed,routineP,&
                      "the atom_nr should be either negative or valid in "//&
-                     CPSourceFileRef(),error,failure)
+                     CPSourceFileRef,&
+                     error,failure)
              end if
              if (.not.failure) then
                 local_angles%begins_at= &
@@ -929,24 +934,28 @@ contains
        if (.not.failure) then
           call cp_assert(associated(glob_angles%pao_env%nr_min_bas),&
                cp_failure_level,cp_assertion_failed,routineP,&
-               "min bas not initialized in "//CPSourceFileRef(),&
+               "min bas not initialized in "//&
+               CPSourceFileRef,&
                error,failure)
           call cp_assert(associated(glob_angles%pao_env%nr_full_bas),&
                cp_failure_level,cp_assertion_failed,routineP,&
-               "full bas not initialized in "//CPSourceFileRef(),&
+               "full bas not initialized in "//&
+               CPSourceFileRef,&
                error,failure)
        end if
        if (.not.failure) then
           call cp_assert(min_bas>0.and.min_bas <= &
                glob_angles%pao_env%nr_min_bas(local_angles%atom_nr),&
                cp_failure_level,cp_assertion_failed,routineP,&
-               "min_bas out of range in "//CPSourceFileRef(),&
+               "min_bas out of range in "//&
+               CPSourceFileRef,&
                error,failure)
           call cp_assert(excl_bas>0.and.excl_bas <= &
                glob_angles%pao_env%nr_full_bas(local_angles%atom_nr)-&
                glob_angles%pao_env%nr_min_bas(local_angles%atom_nr),&
                cp_failure_level,cp_assertion_failed,routineP,&
-               "excl_bas out of range in "//CPSourceFileRef(),&
+               "excl_bas out of range in "//&
+               CPSourceFileRef,&
                error,failure)
        end if
 ! also check begins_at???
@@ -1020,24 +1029,28 @@ contains
        if (.not.failure) then
           call cp_assert(associated(local_angles%glob_angles%pao_env%nr_min_bas),&
                cp_failure_level,cp_assertion_failed,routineP,&
-               "env min bas not initialized in "//CPSourceFileRef(),&
+               "env min bas not initialized in "//&
+               CPSourceFileRef,&
                error,failure)
           call cp_assert(associated(local_angles%glob_angles%pao_env%nr_full_bas),&
                cp_failure_level,cp_assertion_failed,routineP,&
-               "env full bas not initialized in "//CPSourceFileRef(),&
+               "env full bas not initialized in "//&
+               CPSourceFileRef,&
                error,failure)
        end if
        if (.not.failure) then
           call cp_assert(min_bas>0.and.min_bas <= &
                glob_angles%pao_env%nr_min_bas(local_angles%atom_nr),&
                cp_failure_level,cp_assertion_failed,routineP,&
-               "min_bas out of range in "//CPSourceFileRef(),&
+               "min_bas out of range in "//&
+               CPSourceFileRef,&
                error,failure)
           call cp_assert(excl_bas>0.and.excl_bas <= &
                glob_angles%pao_env%nr_full_bas(local_angles%atom_nr)-&
                glob_angles%pao_env%nr_min_bas(local_angles%atom_nr),&
                cp_failure_level,cp_assertion_failed,routineP,&
-               "excl_bas out of range in "//CPSourceFileRef(),&
+               "excl_bas out of range in "//&
+               CPSourceFileRef,&
                error,failure)
        end if
 ! also check begins_at???
@@ -1369,7 +1382,8 @@ contains
        call cp_assert(associated(local_angles%glob_angles%ut_calculated),&
             cp_failure_level,cp_assertion_failed,routineP,&
             "ut_calculated not allocated in "//&
-            CPSourceFileRef(),error,failure)
+            CPSourceFileRef,&
+            error,failure)
        if (.not.failure) then
           local_angles%glob_angles%ut_calculated(local_angles%atom_nr)=.true.
           unitary_t_ptr => unitary_t
@@ -1498,7 +1512,8 @@ contains
        call cp_assert(associated(local_angles%glob_angles%ut_calculated),&
             cp_failure_level,cp_assertion_failed,routineP,&
             "ut_calculated not associated in "//&
-            CPSourceFileRef(),error,failure)
+            CPSourceFileRef,&
+            error,failure)
        if (.not.failure) then
           if (local_angles%glob_angles%ut_calculated(local_angles%atom_nr)) then
              call get_block_node(cp_get_matrix(unitary_t),&
@@ -1576,7 +1591,7 @@ function cp_pao_l_ang_get_g_index(local_angles, min_bas, excl_bas, error)&
   logical :: failure
   integer :: handle
   character(len=*), parameter :: routineN='cp_pao_l_ang_get_g_index',&
-	routineP=moduleN//':'//routineN
+       routineP=moduleN//':'//routineN
   failure=.false.
   
   !call timeset(routineN//','//moduleN,'I',"",handle)

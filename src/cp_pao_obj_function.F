@@ -42,6 +42,7 @@ module cp_pao_obj_function
        copy_blacs_to_blacs_matrix, blacs_gemm, copy_blacs_to_sparse_matrix,&
        blacs_syrk,blacs_syevx,blacs_symm,get_blacs_matrix_info
   use matrix_types, only: symmetrise_diagonal_blocks
+  use timings, only: timeset, timestop
   use mo_types, only: mo_set_type
   use message_passing, only: mp_sum
   use cp_pao_unitary_t

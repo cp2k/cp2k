@@ -115,7 +115,7 @@ module cp_lbfgs_optimizer_[nametype1]
 !!     m: the dimension of the subspace used to approximate the second 
 !!           derivative
 !!     print_every: every how many iterations output should be written.
-!!	       if 0 only at end, if print_every<0 never
+!!              if 0 only at end, if print_every<0 never
 !!     master: the pid of the master processor
 !!     max_f_per_iter: the maximum number of function evaluations per
 !!           iteration
@@ -462,7 +462,8 @@ contains
                present(upper_bound).or.present(kind_of_bound)),&
                cp_warning_level,cp_assertion_failed,&
                routineP, "asked undefined types in "//&
-               CPSourceFileRef(),error,failure)
+               CPSourceFileRef,&
+               error,failure)
        end if
 
     end if
@@ -552,13 +553,13 @@ contains
                 optimizer%status=5
                 call cp_assert(.false.,cp_warning_level,cp_assertion_failed,&
                      routineP,"task became stop in an unknown way in "//&
-                     CPSourceFileRef(),error)
+                     CPSourceFileRef,error)
              else if (optimizer%task(1:5)=='ERROR') then
                 optimizer%status=5
              else
                 call cp_assert(.false.,cp_warning_level,cp_assertion_failed,&
                      routineP,"unknown task '"//optimizer%task//"' in "//&
-                     CPSourceFileRef(),error)
+                     CPSourceFileRef,error)
              end if
           end if ifMaster
           call mp_bcast(optimizer%status,optimizer%master, &
@@ -600,11 +601,13 @@ contains
              ! deallocated
              call cp_assert(.false.,cp_failure_level,cp_assertion_failed,&
                   routineP,"step on a deallocated opt structure "//&
-                  CPSourceFileRef(),error,failure)           
+                  CPSourceFileRef,&
+                  error,failure)           
           case default
              call cp_assert(.false.,cp_failure_level,cp_assertion_failed,&
                   routineP,"unknown status "//cp_to_string(optimizer%status)//&
-                  " in "//CPSourceFileRef(),error,failure)
+                  " in "//CPSourceFileRef,&
+                  error,failure)
              optimizer%status=5
              exit
           end select

@@ -581,13 +581,15 @@ contains
              call cp_assert(associated(pao_env%projection(atom_nr)%array),&
                   cp_failure_level,cp_assertion_failed,routineP,&
                   "projection array not associated in "//&
-                  CPSourceFileRef(),error,failure)
+                  CPSourceFileRef,&
+                  error,failure)
           end if
           if (.not.failure) then
              call cp_assert(i<=size(pao_env%projection(atom_nr)%array),&
                   cp_failure_level,cp_assertion_failed,routineP,&
                   "i out of bounds"//&
-                  CPSourceFileRef(),error,failure)
+                  CPSourceFileRef,&
+                  error,failure)
           end if
        end if
     end if
@@ -658,13 +660,15 @@ contains
              call cp_assert(associated(pao_env%projection(atom_nr)%array),&
                   cp_failure_level,cp_assertion_failed,routineP,&
                   "projection array not associated in "//&
-                  CPSourceFileRef(),error,failure)
+                  CPSourceFileRef,&
+                  error,failure)
           end if
           if (.not.failure) then
              call cp_assert(i<=size(pao_env%projection(atom_nr)%array),&
                   cp_failure_level,cp_assertion_failed,routineP,&
                   "i out of bounds"//&
-                  CPSourceFileRef(),error,failure)
+                  CPSourceFileRef,&
+                  error,failure)
           end if
        end if
     end if
@@ -750,13 +754,15 @@ contains
              call cp_assert(associated(pao_env%projection(atom_nr)%array),&
                   cp_failure_level,cp_assertion_failed,routineP,&
                   "projection array not associated in "//&
-                  CPSourceFileRef(),error,failure)
+                  CPSourceFileRef,&
+                  error,failure)
           end if
           if (.not.failure) then
              call cp_assert(i<=size(pao_env%projection(atom_nr)%array),&
                   cp_failure_level,cp_assertion_failed,routineP,&
                   "i out of bounds"//&
-                  CPSourceFileRef(),error,failure)
+                  CPSourceFileRef,&
+                  error,failure)
           end if
        end if
     end if

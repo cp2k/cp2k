@@ -8,11 +8,6 @@
 ! They ere useful because they give a reference to the file and line
 ! number in the error message.
 
-! if the following macro is defined the shortest possible form of macro 
-! expansions is used (but then the error messages are not so meaningful)
-!#define FD_SHORT_EXPANSIONS
-
-#ifndef FD_SHORT_EXPANSIONS
 
 ! this macro expands to a string that contains the filename.
 ! if the path is long the filename could make that some lines of code
@@ -20,7 +15,13 @@
 ! in this case substitute __FILE__ with "file" down here.
 ! obviously then the error messages will not give the filename.
 ! (otherwise make the file reference in the makefile relative vs. absolute)
-#define CPSourceFileRef( ) __FILE__//' line '//cp_to_string(__LINE__)
+#define CPSourceFileRef __FILE__//' line '//cp_to_string(__LINE__)
+
+! if the following macro is defined the shortest possible form of macro 
+! expansions is used (but then the error messages are not so meaningful)
+! #define FD_SHORT_EXPANSIONS
+
+#ifndef FD_SHORT_EXPANSIONS
 
 ! inlines the test but does not write the file name, but that should
 ! be easily recovered from the routineP variable (that should contain
@@ -88,9 +89,8 @@ if(.not.(cond)) call cp_assert(.false.,level,-300,routineP,\
 
 #else
 ! same as before but trying to use a small amount of characters
-! the test is not inlined (you have always a function call
+! the test is not inlined (you have always a function call)
 
-#define CPSourceFileRef cp_file_ref
 #define CPPrecondition(cond,level,routineP,error,failure) \
 call cp_assert(cond,level,200,routineP,'PRECOND',error,failure)
 #define CPPostcondition(cond,level,routineP,error,failure) \

@@ -86,7 +86,7 @@ function cp_lbfgs_e_rosen_test(global_env,error) result(res)
   real(kind=wp), dimension(n) :: lower_bound, upper_bound, x0
   real(kind=wp) :: f
   character(len=*), parameter :: routineN='cp_lbfgs_e_rosen_test',&
-	routineP=moduleN//':'//routineN
+       routineP=moduleN//':'//routineN
   type(cp_lbfgs_opt_e_rosen_type) :: optimizer
   type(cp_e_rosenbrok_f_type) :: obj_f
   failure=.false.

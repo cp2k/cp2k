@@ -423,7 +423,8 @@ contains
                error=error),cp_warning_level,&
                cp_assertion_failed,routineP,&
                "validation of referred globAngles failed in "//&
-               CPSourceFileRef(),error,failure)
+               CPSourceFileRef,&
+               error,failure)
        end if
        if (.not.failure) then
           call cp_assert(glob_angles%pao_env%angles_begin_at &
@@ -431,7 +432,8 @@ contains
                size(glob_angles%angles),cp_warning_level,&
                cp_assertion_failed, routineP,&
                "number of angles different from last begin_at in "//&
-               CPSourceFileRef(),error,failure)
+               CPSourceFileRef,&
+               error,failure)
           if (dot_product(glob_angles%pao_env%nr_min_bas,&
                glob_angles%pao_env%nr_full_bas-glob_angles%pao_env%nr_min_bas)&
                /= size(glob_angles%angles)) then
@@ -445,14 +447,16 @@ contains
                glob_angles%pao_env%n_atoms, cp_warning_level,&
                cp_assertion_failed, routineP,&
                "cached invalid ut_calculated in "//&
-               CPSourceFileRef(),error,failure)
+               CPSourceFileRef,&
+               error,failure)
        end if
        if (associated(glob_angles%unitary_t)) then
           call cp_assert(cp_validate(glob_angles%unitary_t,&
                error=error), cp_warning_level,&
                cp_assertion_failed, routineP,&
                "cached invalid unitary_t in "//&
-               CPSourceFileRef(),error,failure)
+               CPSourceFileRef,&
+               error,failure)
           CPAssert(associated(glob_angles%ut_calculated),cp_warning_level,routineP,error,failure)
        end if
        if (associated(glob_angles%min_hamiltonian_m)) then
@@ -460,7 +464,8 @@ contains
                error=error), cp_warning_level,&
                cp_assertion_failed, routineP,&
                "cached invalid min_hamiltonian_m in "//&
-               CPSourceFileRef(),error,failure)
+               CPSourceFileRef,&
+               error,failure)
        else
           CPAssert(.not.glob_angles%m_h_m_valid,cp_warning_level,routineP,error,failure)
        end if
@@ -469,7 +474,8 @@ contains
                error=error), cp_warning_level,&
                cp_assertion_failed, routineP,&
                "cached invalid min_overlap_m in "//&
-               CPSourceFileRef(),error,failure)
+               CPSourceFileRef,&
+               error,failure)
        else
           CPAssert(.not.glob_angles%m_s_m_valid,cp_warning_level,routineP,error,failure)
        end if
@@ -563,7 +569,8 @@ contains
                 call cp_assert(cp_get_error_level(iError)<cp_failure_level,&
                      cp_get_error_level(iError),cp_assertion_failed,routineP,&
                      "sub routine cp_guarantee_size error in"//&
-                     CPSourceFileRef(),error,failure)
+                     CPSourceFileRef,&
+                     error,failure)
                 glob_angles%angles=source%angles
              else if (associated(glob_angles%angles)) then
                 deallocate(glob_angles%angles, stat=stat)
@@ -593,7 +600,8 @@ contains
           call cp_assert(cp_get_error_level(iError)<cp_failure_level,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "error in cp_guarantee_size called in "//&
-               CPSourceFileRef(),error,failure)
+               CPSourceFileRef,&
+               error,failure)
           if (.not. failure) then
              glob_angles%angles = angles
           end if
@@ -618,7 +626,8 @@ contains
                   error=error), cp_failure_level, &
                   cp_precondition_failed, routineP, &
                   "if set the pao_env must be valid in"//&
-                  CPSourceFileRef(),error,failure)
+                  CPSourceFileRef,&
+                  error,failure)
           end if
        end if
        if (.not.failure) then
@@ -846,7 +855,8 @@ contains
        if (associated(ut_c)) then
           call cp_guarantee_size(glob_angles%ut_calculated,&
                size(ut_calculated),error=iError)
-          call cp_propagate_error(iError,routineP,CPSourceFileRef(),&
+          call cp_propagate_error(iError,routineP,&
+               CPSourceFileRef,&
                error,failure,cp_failure_level)
           glob_angles%ut_calculated=ut_calculated
        else if (associated(glob_angles%ut_calculated)) then

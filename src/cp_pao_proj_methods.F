@@ -642,7 +642,8 @@ contains
        allocate(t1_m(max_bsize,max_bsize), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        call cp_init(iterator,source_m%matrix,error=iError)
-       call cp_propagate_error(iError,routineP,CPSourceFileRef(),&
+       call cp_propagate_error(iError,routineP,&
+            CPSourceFileRef,&
             error,failure)
        if (.not.failure) then
           blocksDo: do
@@ -664,10 +665,14 @@ contains
              if (.not.failure) then
                 call cp_assert(size(l_index)==size(block_val,1),&
                      cp_failure_level,cp_precondition_failed,routineP,&
-                     "size mishmash in "//CPSourceFileRef(),error,failure)
+                     "size mishmash in "//&
+                     CPSourceFileRef,&
+                     error,failure)
                 call cp_assert(size(r_index)==size(block_val,2),&
                      cp_failure_level,cp_precondition_failed,routineP,&
-                     "size mishmash in "//CPSourceFileRef(),error,failure)
+                     "size mishmash in "//&
+                     CPSourceFileRef,&
+                     error,failure)
              end if
              if (.not.failure) then ! put result in the small basis block
                 do i=1,size(block_val,1)
@@ -788,7 +793,8 @@ contains
        allocate(t1_m(max_bsize,max_bsize), t2_m(max_bsize,max_bsize), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        call cp_init(iterator,source_m%matrix,error=iError)
-       call cp_propagate_error(iError,routineP,CPSourceFileRef(),&
+       call cp_propagate_error(iError,routineP,&
+            CPSourceFileRef,&
             error,failure)
        if (.not.failure) then
           blocksDo: do
@@ -810,10 +816,14 @@ contains
              if (.not.failure) then
                 call cp_assert(size(l_index)==size(block_val,1),&
                      cp_failure_level,cp_precondition_failed,routineP,&
-                     "size mishmash in "//CPSourceFileRef(),error,failure)
+                     "size mishmash in "//&
+                     CPSourceFileRef,&
+                     error,failure)
                 call cp_assert(size(r_index)==size(block_val,2),&
                      cp_failure_level,cp_precondition_failed,routineP,&
-                     "size mishmash in "//CPSourceFileRef(),error,failure)
+                     "size mishmash in "//&
+                     CPSourceFileRef,&
+                     error,failure)
              end if
              if (.not.failure) then ! put result in the small basis block
                 do i=1,size(block_val,1)
@@ -940,7 +950,8 @@ contains
        allocate(t1_m(max_bsize,max_bsize), t2_m(max_bsize,max_bsize), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        call cp_init(iterator,source_m%matrix,error=iError)
-       call cp_propagate_error(iError,routineP,CPSourceFileRef(),&
+       call cp_propagate_error(iError,routineP,&
+            CPSourceFileRef,&
             error,failure)
        if (.not.failure) then
           blocksDo: do
@@ -985,10 +996,14 @@ contains
              if (.not.failure) then
                 call cp_assert(size(l_index)==size(block_val,1),&
                      cp_failure_level,cp_precondition_failed,routineP,&
-                     "size mishmash in "//CPSourceFileRef(),error,failure)
+                     "size mishmash in "//&
+                     CPSourceFileRef,&
+                     error,failure)
                 call cp_assert(size(r_index)==size(block_val,2),&
                      cp_failure_level,cp_precondition_failed,routineP,&
-                     "size mishmash in "//CPSourceFileRef(),error,failure)
+                     "size mishmash in "//&
+                     CPSourceFileRef,&
+                     error,failure)
              end if
              if (.not.failure) then ! put result in the small basis block
                 do i=1,size(block_val,1)
@@ -1057,7 +1072,7 @@ subroutine cp_pao_g_ang_get_min_m(glob_angles,&
   logical :: failure
   integer :: handle
   character(len=*), parameter :: routineN='cp_pao_g_ang_get_min_m',&
-	routineP=moduleN//':'//routineN
+       routineP=moduleN//':'//routineN
   type(cp_error_type) :: iError
   call cp_init(iError, template_error=error)
   failure=.false.
@@ -1091,7 +1106,8 @@ subroutine cp_pao_g_ang_get_min_m(glob_angles,&
                 call cp_create(glob_angles%min_hamiltonian_m, &
                      min_bas_cols=.true., min_bas_rows=.true.,&
                      pao_env=glob_angles%pao_env,error=iError)
-                call cp_propagate_error(iError,routineP,CPSourceFileRef(),&
+                call cp_propagate_error(iError,routineP,&
+                     CPSourceFileRef,&
                      error,failure)
              end if
              if (.not.failure) then

@@ -641,7 +641,7 @@ function cp_sm_diag_trace(diagonal, matrix, global_env, error) result(res)
   logical :: failure
   integer :: handle, i, j
   character(len=*), parameter :: routineN='cp_sm_diag_trace',&
-	routineP=moduleN//':'//routineN
+       routineP=moduleN//':'//routineN
   type(cp_matrix_block_iterator) :: iterator
   real(kind=wp), dimension(:,:), pointer :: block_val
   integer, dimension(:), pointer :: first_row,first_col
@@ -725,7 +725,7 @@ end function cp_sm_diag_trace
     if (.not. failure) then
        call cp_init(iterator,matrix,error=iError)
        call cp_propagate_error(iError,routineP,&
-            CPSourceFileRef(),&
+            CPSourceFileRef,&
             error,failure)
     end if
     if (.not.failure) then
@@ -734,7 +734,7 @@ end function cp_sm_diag_trace
           if (cp_next(iterator,error=iError)) then
              call cp_get(iterator,block_val=block_val,error=iError)
              call cp_propagate_error(iError,routineP,&
-                  CPSourceFileRef(),&
+                  CPSourceFileRef,&
                   error,failure)
              CPPrecondition(associated(block_val),cp_failure_level,routineP,error,failure)
              if (.not.failure) then
@@ -744,7 +744,7 @@ end function cp_sm_diag_trace
              end if
           else
              call cp_propagate_error(iError,routineP,&
-                  CPSourceFileRef(),&
+                  CPSourceFileRef,&
                   error,failure)
              exit
           end if
@@ -796,7 +796,7 @@ subroutine cp_d_struct_create(d_struct, matrix, n_blocks, global_env, error)
   logical :: failure
   integer :: handle, i, j, nrows, ncols, stat, rest, nmin
   character(len=*), parameter :: routineN='cp_build_d_struct',&
-	routineP=moduleN//':'//routineN
+       routineP=moduleN//':'//routineN
   type(cp_matrix_block_iterator) :: iterator
   type(real_matrix_type), pointer :: matrix_ptr
   failure=.false.
@@ -953,7 +953,7 @@ end subroutine cp_d_struct_create
           call cp_assert(cp_is_block_diagonal(matrix,global_env),&
                cp_failure_level,&
                cp_assertion_failed,routineP, "matrix is not diagonal in "//&
-               CPSourceFileRef(),&
+               CPSourceFileRef,&
                error,failure)
        end if
     end if
@@ -1028,7 +1028,7 @@ function cp_sm_is_block_diagonal(matrix, global_env, error) result(res)
         else
            call cp_assert(.false.,cp_warning_level,cp_assertion_failed,&
                 routineP,"there is an off diagonal block! in "//&
-                CPSourceFileRef(),error)
+                CPSourceFileRef,error)
            myDiag(i)=myDiag(i)+100
            myDiag(j)=myDiag(j)+100
         end if

@@ -383,7 +383,8 @@ contains
              if (err>2*size(c_env%R)*epsilon(0.0_wp)) then
                 call cp_error_message(cp_warning_level,routineP,&
                      message="accumulation of the error bigger than tolerance:"//&
-                     cp_to_string(err)//" in "//CPSourceFileRef(),&
+                     cp_to_string(err)//" in "//&
+                     CPSourceFileRef,&
                      error=error)
              end if
           end if
@@ -391,7 +392,7 @@ contains
           res=.false.
           call cp_error_message(cp_warning_level,routineP,&
                message="unknown status "//cp_to_string(c_env%status)//&
-               " in "//CPSourceFileRef(),&
+               " in "//CPSourceFileRef,&
                error=error)
           c_env%status=-1
        end select

@@ -899,10 +899,4 @@ contains
   end subroutine cp_propagate_error
 !***************************************************************************
 
-! just to compile on irix
-function cp_file_ref()result(res)
-  character(len=1) :: res
-  res=' '
-end function cp_file_ref
-
 end module cp_error_handling
