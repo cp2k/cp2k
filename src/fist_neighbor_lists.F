@@ -835,7 +835,7 @@ CONTAINS
 
 !       *** Print first part of headline ***
 
-        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") TRIM(string)
+        if (ionode) WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") TRIM(string)
 
         DO iab=1,SIZE(ab)
 
@@ -858,51 +858,53 @@ CONTAINS
                                    nnode=nnode)
             nneighbor = nneighbor + nnode
 
-            IF (globenv%print%level > LOW) THEN
+            IF (ionode) THEN
+               IF (globenv%print%level > LOW) THEN
 
-!             *** Print second part of headline ***
+                  !Print second part of headline ***
 
-              IF (print_headline) THEN
-                WRITE (UNIT=output_unit,FMT="(/,T3,A,7X,A,2(11X,A),10X,A)")&
-                  "Atom  Neighbors  Cell(i,j,k)","X","Y","Z","Distance"
-                print_headline = .FALSE.
-              END IF
+                  IF (print_headline) THEN
+                     WRITE (UNIT=output_unit,FMT="(/,T3,A,7X,A,2(11X,A),10X,A)")&
+                          "Atom  Neighbors  Cell(i,j,k)","X","Y","Z","Distance"
+                     print_headline = .FALSE.
+                  END IF
+                  
+                  ra(:) = pbc(particle_set(atom_a)%r,cell,cell_a)
+                  
+                  WRITE (UNIT=output_unit,FMT="(/,T2,I5,3X,I6,3X,3I4,3F12.6)")&
+                       atom_a,nnode,cell_a(1:3),ra(1:3)/unit_of_length
+                  
+                  !             *** Direct the work pointer to the  ***
+                  !             *** start point of the current list ***
+                  
+                  neighbor_node => first_node(neighbor_list)
+                  
+                  !             *** Traverse the neighbor list of the current ***
+                  !             *** atom and print the stored information     ***
+                  
+                  IF (globenv%print%level > MEDIUM) THEN
+                     
+                     DO inode=1,nnode
+                        
+                        CALL get_neighbor_node(neighbor_node=neighbor_node,&
+                             neighbor=atom_b,&
+                             cell=cell_b,&
+                             r=rab)
+                        
+                        rb(:) = ra(:) + rab(:)
+                        dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
+                        
+                        WRITE (UNIT=output_unit,&
+                             FMT="(T10,I6,3X,3I4,3F12.6,2X,F12.6)")&
+                             atom_b,cell_b(1:3),rb(1:3)/unit_of_length,dab/unit_of_length
+                        
+                        neighbor_node => next(neighbor_node)
+                        
+                     END DO
 
-              ra(:) = pbc(particle_set(atom_a)%r,cell,cell_a)
-
-              WRITE (UNIT=output_unit,FMT="(/,T2,I5,3X,I6,3X,3I4,3F12.6)")&
-                atom_a,nnode,cell_a(1:3),ra(1:3)/unit_of_length
-
-!             *** Direct the work pointer to the  ***
-!             *** start point of the current list ***
-
-              neighbor_node => first_node(neighbor_list)
-
-!             *** Traverse the neighbor list of the current ***
-!             *** atom and print the stored information     ***
-
-              IF (globenv%print%level > MEDIUM) THEN
-
-                DO inode=1,nnode
-
-                  CALL get_neighbor_node(neighbor_node=neighbor_node,&
-                                         neighbor=atom_b,&
-                                         cell=cell_b,&
-                                         r=rab)
-
-                  rb(:) = ra(:) + rab(:)
-                  dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
-
-                  WRITE (UNIT=output_unit,&
-                         FMT="(T10,I6,3X,3I4,3F12.6,2X,F12.6)")&
-                    atom_b,cell_b(1:3),rb(1:3)/unit_of_length,dab/unit_of_length
-
-                  neighbor_node => next(neighbor_node)
-
-                END DO
-
-              END IF
-
+                  END IF
+                  
+               END IF
             END IF
 
             neighbor_list => next(neighbor_list)
@@ -922,7 +924,7 @@ CONTAINS
             nneighbor
         END IF
         CALL compress(string)
-        WRITE (UNIT=output_unit,FMT="(/,T2,A)") TRIM(string)
+        IF (ionode) WRITE (UNIT=output_unit,FMT="(/,T2,A)") TRIM(string)
 
       END IF
 
