@@ -36,12 +36,11 @@ module cp_pao_obj_function
   use cp_pao_glob_angles_methods
   use cp_pao_l_angles_methods
   use cp_pao_proj_methods
-  use qs_scf, only: orthogonalise_matrix, eigensolver,&
-       calculate_density_matrix ! to do remove circular ref ! FM
   use blacs, only: blacs_matrix_type,allocate_blacs_matrix,&
        copy_sparse_to_blacs_matrix,deallocate_blacs_matrix,&
        blacs_trace, add_blacs_to_block_diag_sm, blacs_diag_mult,&
-       copy_blacs_to_blacs_matrix, blacs_gemm, copy_blacs_to_sparse_matrix
+       copy_blacs_to_blacs_matrix, blacs_gemm, copy_blacs_to_sparse_matrix,&
+       blacs_syrk,blacs_syevx,blacs_symm,get_blacs_matrix_info
   use matrix_types, only: symmetrise_diagonal_blocks
   use mo_types, only: mo_set_type
   use message_passing, only: mp_sum
@@ -597,6 +596,112 @@ contains
     end if
   end subroutine cp_pao_gerd_f_eval_at
 !***************************************************************************
+
+
+!=========== qs_scf rip off (to avoid circulare ref) to do =========
+
+  SUBROUTINE orthogonalise_matrix(ortho,ks,work,context,globenv)
+
+!   Purpose: Orthogonaliseation matrix (S**(-1/2))
+
+!   History: - Creation (01.05.2001, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(blacs_matrix_type), INTENT(IN)       :: ortho
+    TYPE(blacs_matrix_type), INTENT(INOUT)    :: ks,work
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    INTEGER, INTENT(IN)                       :: context
+
+!   *** Local variables ***
+
+    INTEGER :: handle,nao
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("orthogonalise_matrix","I","",handle)
+
+    CALL get_blacs_matrix_info(matrix=ks,nrow_global=nao)
+    CALL blacs_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp,work,context,&
+                    globenv)
+!MK CALL blacs_gemm("T","N",nao,nao,nao,1.0_wp,ks,ortho,0.0_wp,work,context,&
+!MK                 globenv)
+    CALL blacs_gemm("N","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,ks,context,&
+                    globenv)
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE orthogonalise_matrix
+
+
+  SUBROUTINE eigensolver(ks,mo,ortho,work,context,globenv)
+
+!   Purpose: Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
+!            vectors and MO eigenvalues.
+
+!   History: - Creation (01.05.2001, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(blacs_matrix_type), INTENT(IN)       :: ortho
+    TYPE(blacs_matrix_type), INTENT(INOUT)    :: ks,work
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(mo_set_type), INTENT(INOUT)          :: mo
+    INTEGER, INTENT(IN)                       :: context
+    REAL(wp) :: work_syevx = 0.0_wp
+
+!   *** Local variables ***
+
+    INTEGER :: handle,nao,nmo
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("eigensolver","I","",handle)
+
+    CALL get_blacs_matrix_info(matrix=mo%eigenvectors,&
+                               nrow_global=nao,&
+                               ncol_global=nmo)
+
+    CALL blacs_syevx(ks,work,mo%eigenvalues,nmo,work_syevx,context,globenv)
+
+!MK CALL blacs_gemm("T","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
+!MK                 mo%eigenvectors,context,globenv)
+    CALL blacs_symm("L","U",nao,nmo,1.0_wp,ortho,work,0.0_wp,mo%eigenvectors,&
+                    context,globenv)
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE eigensolver
+
+  SUBROUTINE calculate_density_matrix(mo,density,context,globenv)
+
+!   Purpose: Calculate the density matrix from the MO eigenvectors and the
+!            MO occupation numbers.
+
+!   History: - Creation (01.05.2001, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(blacs_matrix_type), INTENT(OUT)      :: density
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(mo_set_type), INTENT(IN)             :: mo
+    INTEGER, INTENT(IN)                       :: context
+
+!   *** Local variables ***
+
+    INTEGER :: handle
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("calculate_density_matrix","I","",handle)
+
+    CALL blacs_syrk("U","N",mo%homo,2.0_wp,mo%eigenvectors,0.0_wp,density,&
+                    context,globenv)
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE calculate_density_matrix
+
 
 end module cp_pao_obj_function
 
