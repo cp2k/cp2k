@@ -31,6 +31,7 @@ MODULE coefficient_types
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              COMPLEXDATA3D,&
@@ -46,6 +47,7 @@ MODULE coefficient_types
                                              pw_reduce,&
                                              pw_release,&
                                              pw_subtract,&
+                                             pw_scale,&
                                              pw_sumup,&
                                              pw_type,&
                                              pw_zero
@@ -54,8 +56,8 @@ MODULE coefficient_types
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC :: coeff_type, coeff_allocate, coeff_deallocate, coeff_zero, coeff_init
-  PUBLIC :: coeff_copy, coeff_add, coeff_sumup, coeff_subtract, coeff_reduce
+  PUBLIC :: coeff_type, coeff_allocate, coeff_deallocate, coeff_zero, coeff_init 
+  PUBLIC :: coeff_copy, coeff_add, coeff_sumup, coeff_subtract, coeff_reduce, coeff_scale
   PUBLIC :: coeff_transform_space, coeff_array_type
   PUBLIC :: PW_REALDATA1D, PW_COMPLEXDATA1D, PW_REALDATA3D, PW_COMPLEXDATA3D
   PUBLIC :: PW_NOSPACE, PW_REALSPACE, PW_RECIPROCALSPACE
@@ -315,6 +317,40 @@ SUBROUTINE coeff_sumup ( coeff1, coeff2 )
   END IF
   
 END SUBROUTINE coeff_sumup
+
+
+!!****f* coefficient_types/coeff_scale *
+!!
+!!   NAME
+!!       coeff_scale
+!!   FUNCTION
+!!       multiplies a coeff_type by a constant
+!!   NOTES
+!!
+!!   INPUTS
+!!    -
+!!    -
+!!
+!!   MODIFICATION HISTORY
+!!     11.2004 created [Joost VandeVondele]
+!!
+!!   SOURCE
+!!*** **********************************************************************
+SUBROUTINE coeff_scale ( coeff1, a )
+ 
+    TYPE(coeff_type), INTENT(INOUT)             :: coeff1
+    REAL(KIND=dp), INTENT(IN)                   :: a
+
+!------------------------------------------------------------------------------
+
+  IF ( coeff1 % in_use == PLANEWAVES ) THEN
+     CALL pw_scale ( coeff1 % pw, a )
+  ELSE
+     CALL stop_program ( "coeff_sumup", "no valid data type" )
+  END IF
+ 
+END SUBROUTINE coeff_scale
+
 
 !******************************************************************************
 

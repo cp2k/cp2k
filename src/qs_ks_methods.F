@@ -40,11 +40,14 @@ MODULE qs_ks_methods
                                              coeff_zero,&
                                              coeff_sumup,&
                                              coeff_transform_space,&
-                                             coeff_type
+                                             coeff_type, & 
+                                             coeff_scale, &
+                                             coeff_copy
   USE cp_control_types,                ONLY: dft_control_type, & 
                                              sic_none, &
                                              sic_mauri_us, &
-                                             sic_mauri_spz
+                                             sic_mauri_spz, &
+                                             sic_ad
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -307,10 +310,10 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
          POINTER                                :: mo_array
     TYPE(cp_fm_p_type), POINTER, DIMENSION(:)   :: mo_derivs
-    INTEGER :: n,k,k2
+    INTEGER :: n,k,k2, nelec, nelec_a, nelec_b
     REAL(KIND=dp), DIMENSION(:), POINTER :: scaling_factor,occupation_numbers
     TYPE(cp_fm_type), POINTER            :: mo_coeff,hc_tmp
-    REAL(KIND=dp)                        :: ener
+    REAL(KIND=dp)                        :: ener, scaling
 
 ! shorter for output
 
@@ -384,14 +387,15 @@ CONTAINS
        IF (.NOT. just_energy) THEN
           CALL coeff_transform_space(v_hartree_gspace,&
                ks_env%v_hartree_rspace)
-          CALL dscal(size(ks_env%v_hartree_rspace%pw%cr3d,1) * &
-                     size(ks_env%v_hartree_rspace%pw%cr3d,2) * &
-                     size(ks_env%v_hartree_rspace%pw%cr3d,3), &
-                     ks_env%v_hartree_rspace%pw%pw_grid%dvol, &
-                     ks_env%v_hartree_rspace%pw%cr3d, 1)
+          CALL coeff_scale(ks_env%v_hartree_rspace, &
+               ks_env%v_hartree_rspace%pw%pw_grid%dvol)
        ENDIF
 
-       ! *** compute first SIC term (minus the hartree energy of the spin density m)
+       ! OK, right now we like two spins to do sic, could be relaxed for AD 
+       IF ( dft_control%sic_method_id .NE. sic_none ) THEN
+          CPPrecondition(dft_control%nspins == 2,cp_failure_level,routineP,error,failure)
+       ENDIF
+       ! Hartree sic corrections
        SELECT CASE ( dft_control%sic_method_id )
        CASE ( sic_none )
        CASE ( sic_mauri_us, sic_mauri_spz )
@@ -405,10 +409,32 @@ CONTAINS
                                      use_data=REALDATA3D, in_space=REALSPACE)
              CALL coeff_transform_space(v_hartree_gspace, v_sic_rspace)
              ! also take into account the scaling (in addition to the volume element)
-             CALL dscal(size(v_sic_rspace%pw%cr3d,1) *  size(v_sic_rspace%pw%cr3d,2) * &
-                        size(v_sic_rspace%pw%cr3d,3), &
-                        dft_control % sic_scaling_a * v_sic_rspace%pw%pw_grid%dvol, &
-                        v_sic_rspace%pw%cr3d, 1)
+             CALL coeff_scale(v_sic_rspace, &
+                     dft_control % sic_scaling_a * v_sic_rspace%pw%pw_grid%dvol )
+          ENDIF
+          CALL cp_assert( .NOT. gapw , cp_failure_level,cp_assertion_failed,routineP,&
+                          "sic and GAPW not yet compatible",error,failure)
+       CASE ( sic_ad )
+          ! find out how many elecs we have
+          CALL get_qs_env(qs_env,mos=mo_array)
+          CALL get_mo_set(mo_set=mo_array(1)%mo_set,nelectron=nelec_a)
+          CALL get_mo_set(mo_set=mo_array(2)%mo_set,nelectron=nelec_b)
+          nelec = nelec_a + nelec_b
+          ! we can just modify rho_tot_gspace here, it is given back to the pools afterwards
+          CALL coeff_add(rho%rho_g(1),rho%rho_g(2),rho_tot_gspace)
+          scaling = 1.0_dp / REAL(nelec,KIND=dp)
+          CALL coeff_scale(rho_tot_gspace,scaling)
+          CALL init_pw_poisson_solver(cell%green,error=error)
+          CALL calculate_hartree(rho_tot_gspace, ener, v_hartree_gspace)
+          energy%hartree=energy%hartree - dft_control % sic_scaling_a * nelec * ener
+          CALL cleanup_pw_poisson_solver(cell%green,error=error)
+          IF (.NOT. just_energy) THEN
+             CALL pw_pool_init_coeff(auxbas_pw_pool,v_sic_rspace,&
+                                     use_data=REALDATA3D, in_space=REALSPACE)
+             CALL coeff_transform_space(v_hartree_gspace, v_sic_rspace)
+             ! also take into account the scaling (in addition to the volume element)
+             CALL coeff_scale(v_sic_rspace, &
+                     dft_control % sic_scaling_a * v_sic_rspace%pw%pw_grid%dvol )
           ENDIF
           CALL cp_assert( .NOT. gapw , cp_failure_level,cp_assertion_failed,routineP,&
                           "sic and GAPW not yet compatible",error,failure)
@@ -478,6 +504,8 @@ CONTAINS
                       v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
                                                  +v_sic_rspace%pw%cr3d
                    ENDIF
+                CASE ( sic_ad )
+                  v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d-v_sic_rspace%pw%cr3d
                 END SELECT 
 
                 ! add the part due to v_rspace
@@ -492,7 +520,7 @@ CONTAINS
              END DO
              SELECT CASE (dft_control%sic_method_id) 
              CASE (sic_none)
-             CASE (sic_mauri_us,sic_mauri_spz )
+             CASE (sic_mauri_us,sic_mauri_spz, sic_ad )
                 CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_sic_rspace,error=error)
              END SELECT 
              DEALLOCATE(v_rspace_new,stat=stat)
@@ -1013,7 +1041,10 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_m_rspace,rho_m_gspace
     REAL(KIND=dp)                            :: exc_m
-    REAL(KIND=dp)                            :: my_scaling
+    REAL(KIND=dp)                            :: my_scaling, nelec_s_inv
+    INTEGER                                  :: nelec_spin(2)
+    TYPE(mo_set_p_type), DIMENSION(:), &
+         POINTER                                :: mo_array
 
 !   ---------------------------------------------------------------------------
 
@@ -1035,6 +1066,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
        subsys=subsys(1)%subsys,&
        cell=cell)
 
+
   ! test if the real space density is available
   CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
   CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -1053,7 +1085,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
   SELECT CASE (dft_control%sic_method_id)
   CASE ( sic_none )
     ! all fine
-  CASE ( sic_mauri_spz )
+  CASE ( sic_mauri_spz, sic_ad )
     ! no idea yet what to do here in that case
     CPPrecondition(.NOT.rho_struct%tau_r_valid ,cp_failure_level,routineP,error,failure)
   CASE ( sic_mauri_us )
@@ -1193,7 +1225,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
            vxc_rho(2)%pw%cr3d=vxc_rho(2)%pw%cr3d+dft_control % sic_scaling_b * my_vxc_rho(1)%pw%cr3d ! 1=m
            CALL pw_release(my_vxc_rho(1)%pw) 
            CALL pw_release(my_vxc_rho(2)%pw) 
-           DEALLOCATE(my_vxc_rho)
+           DEALLOCATE(my_vxc_rho,stat=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ENDIF
 
@@ -1208,6 +1240,73 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
         
      ENDIF
 
+     ! now we have - sum_s N_s * Exc(rho_s/N_s,0)
+     IF ( dft_control % sic_method_id .EQ. sic_ad ) THEN
+
+        ! find out how many elecs we have
+        CALL get_qs_env(qs_env,mos=mo_array)
+        CALL get_mo_set(mo_set=mo_array(1)%mo_set,nelectron=nelec_spin(1))
+        CALL get_mo_set(mo_set=mo_array(2)%mo_set,nelectron=nelec_spin(2))
+
+        ALLOCATE(rho_m_rspace(2),rho_m_gspace(2))
+        DO ispin=1,2
+           CALL pw_pool_init_coeff(auxbas_pw_pool, rho_m_gspace(ispin),&
+                                   use_data = COMPLEXDATA1D,&
+                                   in_space = RECIPROCALSPACE, error=error)
+           CALL pw_pool_init_coeff(auxbas_pw_pool, rho_m_rspace(ispin),&
+                                   use_data = REALDATA3D,&
+                                   in_space = REALSPACE, error=error)
+        ENDDO
+
+        rho_g(1)%pw => rho_m_gspace(1)%pw
+        rho_g(2)%pw => rho_m_gspace(2)%pw
+        rho_r(1)%pw => rho_m_rspace(1)%pw
+        rho_r(2)%pw => rho_m_rspace(2)%pw
+
+        DO ispin=1,2
+           nelec_s_inv=1.0_dp/REAL(nelec_spin(ispin),KIND=dp)
+           CALL coeff_copy(rho_struct%rho_r(ispin),rho_m_rspace(1))
+           CALL coeff_copy(rho_struct%rho_g(ispin),rho_m_gspace(1))
+           CALL coeff_scale(rho_m_rspace(1),nelec_s_inv)
+           CALL coeff_scale(rho_m_gspace(1),nelec_s_inv)
+           CALL coeff_zero(rho_m_rspace(2))
+           CALL coeff_zero(rho_m_gspace(2))
+
+           IF (my_just_energy) THEN
+              exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
+                   rho_g=rho_g, dft_control=dft_control,&
+                   cell=cell, pw_pool=auxbas_pw_pool,atoms=subsys,&
+                   error=error)
+           ELSE
+              CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
+                   rho_g=rho_g,tau=tau,exc=exc_m,&
+                   dft_control=dft_control,&
+                   cell=cell, pw_pool=auxbas_pw_pool,atoms=subsys,&
+                   calculate_forces=calculate_forces,error=error)
+           END IF
+
+           exc = exc - dft_control % sic_scaling_b * nelec_spin(ispin) * exc_m
+ 
+           ! and take care of the potential only vxc_rho is taken into account
+           IF (.NOT. my_just_energy) THEN
+              vxc_rho(ispin)%pw%cr3d=vxc_rho(ispin)%pw%cr3d-dft_control % sic_scaling_b * my_vxc_rho(1)%pw%cr3d
+              CALL pw_release(my_vxc_rho(1)%pw)
+              CALL pw_release(my_vxc_rho(2)%pw)
+              DEALLOCATE(my_vxc_rho,stat=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           ENDIF
+        ENDDO
+
+        DO ispin=1,2
+           CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_m_rspace(ispin),&
+                                        error=error)
+           CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_m_gspace(ispin),&
+                                        error=error)
+        ENDDO
+        DEALLOCATE(rho_m_rspace)
+        DEALLOCATE(rho_m_gspace)
+
+     ENDIF
 
      ! compute again the xc but now for Exc(n_down,n_down) 
      IF (dft_control%sic_method_id .EQ. sic_mauri_us) THEN

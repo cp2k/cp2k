@@ -66,7 +66,7 @@ MODULE pw_types
   PUBLIC :: pw_type, pw_p_type
   PUBLIC :: pw_allocate, pw_deallocate, pw_retain, pw_release, pw_create
   PUBLIC :: pw_zero, pw_gather, pw_scatter
-  PUBLIC :: pw_copy, pw_add, pw_sumup, pw_subtract, pw_reduce, pw_transfer
+  PUBLIC :: pw_copy, pw_add, pw_sumup, pw_subtract, pw_reduce, pw_transfer, pw_scale
   PUBLIC :: pw_derive, pw_derive_fd, pw_sumup_square, pw_fft_wrap, pw_write
   PUBLIC :: pw_prolongate, pw_inject, pw_compare_debug
   PUBLIC :: pw_prolongate_NoPBC, pw_inject_NoPBC
@@ -569,7 +569,43 @@ SUBROUTINE pw_copy ( pw1, pw2 )
   
 END SUBROUTINE pw_copy
 
+!!****f* pw_types/pw_scale *
+!!
+!!   NAME
+!!     pw_scale
+!!   FUNCTION
+!!     multiplies pw coeffs with a number
+!!   NOTES
+!!
+!!   INPUTS
+!!    -
+!!
+!!   MODIFICATION HISTORY
+!!     11.2004 created [Joost VandeVondele]
+!!
+!!   SOURCE
+!!*** **********************************************************************
 !!*****
+SUBROUTINE pw_scale( pw, a )
+
+    TYPE(pw_type), INTENT(INOUT)             :: pw
+    REAL(KIND=dbl), INTENT(IN)                :: a
+
+    SELECT CASE ( pw % in_use )
+    CASE ( REALDATA1D )
+       pw % cr = pw % cr * a
+    CASE ( COMPLEXDATA1D )
+       pw % cc = pw % cc * a 
+    CASE ( REALDATA3D)
+       pw % cr3d = pw % cr3d * a
+    CASE (COMPLEXDATA3D )
+       pw % cc3d = pw % cc3d * a
+    CASE DEFAULT  
+       CALL stop_program ( "pw_copy", "no suitable data field" )
+    END SELECT
+
+END SUBROUTINE pw_scale
+
 !******************************************************************************
 !!****** pw_types/pw_derive [1.0] *
 !!

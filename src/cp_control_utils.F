@@ -40,7 +40,8 @@ MODULE cp_control_utils
                                              xc_test_lsd_f_routine, &
                                              sic_none,&
                                              sic_mauri_us,&
-                                             sic_mauri_spz
+                                             sic_mauri_spz,&
+                                             sic_ad
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_check,&
@@ -460,6 +461,8 @@ CONTAINS
                  dft_control%sic_method_id=sic_mauri_us
               CASE ("MAURI_SPZ")
                  dft_control%sic_method_id=sic_mauri_spz
+              CASE ("AD")
+                 dft_control%sic_method_id=sic_ad
               CASE DEFAULT
                 CALL stop_program(routine,"UNKNOWN SIC KEYWORD "//&
                      TRIM(str2))
@@ -1317,6 +1320,8 @@ CONTAINS
           WRITE ( output_unit, '( A, T60, A )' ) " DFT| ","        SPZ/MAURI SIC"
        CASE ( sic_mauri_us )
           WRITE ( output_unit, '( A, T60, A )' ) " DFT| ","         US/MAURI SIC"
+       CASE ( sic_ad )
+          WRITE ( output_unit, '( A, T60, A )' ) " DFT| ","               AD SIC"
        CASE DEFAULT
             ! fix throughout the cp2k for this option
             CALL stop_program(routineN,"SIC option unknown")
