@@ -24,7 +24,8 @@ MODULE cp_sm_fm_interactions
   USE cp_array_i_utils,                ONLY: cp_1d_i_p_type,&
                                              cp_1d_i_write,&
                                              cp_2d_i_write
-  USE cp_array_r_utils,                ONLY: cp_2d_r_p_type,&
+  USE cp_array_r_utils,                ONLY: cp_1d_r_write,&
+                                             cp_2d_r_p_type,&
                                              cp_2d_r_write
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
@@ -60,11 +61,14 @@ MODULE cp_sm_fm_interactions
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE cp_matrix_utils,                 ONLY: cp_sm_write
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
+                                             distribution_2d_get,&
                                              distribution_2d_release,&
-                                             distribution_2d_type
+                                             distribution_2d_type,&
+                                             distribution_2d_write
   USE kinds,                           ONLY: int_size,&
                                              wp => dp,&
                                              wp_size => dp_size
@@ -94,7 +98,8 @@ MODULE cp_sm_fm_interactions
                                              real_matrix_type,&
                                              replicate_matrix,&
                                              sparse_plus_loc_loct,&
-                                             sparse_times_local
+                                             sparse_times_local,&
+                                             write_blocks_maxabsval
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -1096,7 +1101,7 @@ CONTAINS
        IF (v_in%matrix_struct%para_env%num_pe>2) THEN
 !FM     CALL cp_fm_create(tmp_m,v_out%matrix_struct,error=error)
 !FM     CALL cp_sm_fm_multiply_general(sparse_matrix,v_in,tmp_m,ncol,para_env, &
-!FM          alpha,beta,error)
+!FM          my_alpha,my_beta,error)
           SELECT CASE(sparse_matrix%symmetry)
           CASE("symmetric")
              CALL cp_sm_fm_multiply_2d(sparse_matrix,v_in,v_out,ncol=ncol,&
@@ -1134,7 +1139,7 @@ CONTAINS
 !FM    call cp_fm_release(tmp_m,error=error)
        ELSE
           CALL cp_sm_fm_multiply_general(sparse_matrix,v_in,v_out,ncol,para_env, &
-               alpha,beta,error)
+               my_alpha,my_beta,error)
        END IF
  ELSE
     CALL cp_log(logger, level=cp_warning_level, fromWhere=routineP , &
@@ -1142,7 +1147,7 @@ CONTAINS
     CALL cp_log(logger, level=cp_warning_level, fromWhere=routineP, &
          message=sparse_matrix%name)
     CALL cp_sm_fm_multiply_general(sparse_matrix,v_in,v_out,ncol,para_env, &
-       alpha,beta,error)
+       my_alpha,my_beta,error)
  END IF
 
 END SUBROUTINE cp_sm_fm_multiply
@@ -1207,11 +1212,20 @@ SUBROUTINE cp_sm_plus_fm_fm_t(sparse_matrix,matrix_v,matrix_g,ncol,&
 !FM     CALL cp_sm_plus_fm_fm_t_general(sparse_matrix=tmp_m,matrix_v=matrix_v,&
 !FM          matrix_g=matrix_g,ncol=ncol,alpha=alpha,error=error)
 
-        CALL cp_sm_plus_fm_fm_t_2d(sm=sparse_matrix,matrix_v=matrix_v,&
-             matrix_g=matrix_g,ncol=ncol,alpha=alpha, error=error)
-
+     CALL cp_sm_plus_fm_fm_t_2d(sm=sparse_matrix,matrix_v=matrix_v,&
+          matrix_g=matrix_g,ncol=ncol,alpha=alpha, error=error)
+!FM     CALL cp_sm_write(sparse_matrix,&
+!FM          unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+!FM          long_description=.TRUE., local=.TRUE.)
+!FM     CALL cp_sm_write(tmp_m,&
+!FM          unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+!FM          long_description=.TRUE., local=.TRUE.)
 !FM     CALL cp_sm_scale_and_add(alpha=1.0_wp,matrix_a=tmp_m,matrix_b=sparse_matrix,&
 !FM          beta=-1.0_wp,error=error)
+!FM     CALL write_blocks_maxabsval(tmp_m,cp_logger_get_default_unit_nr(logger,local=.TRUE.))
+!FM     CALL cp_sm_write(tmp_m,&
+!FM          unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+!FM          long_description=.TRUE., local=.TRUE.)
 !FM     CALL cp_sm_maxabsval(tmp_m,diff,matrix_v%matrix_struct%para_env)
 !FM     IF (logger%para_env%source==logger%para_env%mepos) THEN
 !FM        WRITE(unit=cp_logger_get_default_unit_nr(logger),fmt="(a,e16.8)")&
@@ -1285,14 +1299,15 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          junk_in, junk_out, iblock_row, iblock_col, sbnrow,sbncol,&
          junk_recv_in, junk_recv_out, row_dest, row_src, col_dest,&
          col_src, sm_nblock_row, sm_nblock_col, fm_ncol_block, fm_nrow_block,&
-         fm_first_prow, fm_first_pcol, ikind
+         fm_first_prow, fm_first_pcol, ikind, n_local_atomic_rows, &
+         n_local_atomic_cols
     INTEGER, DIMENSION(4) :: reqs
     INTEGER, DIMENSION(:), POINTER :: junk_of_col, ncol_local_of_junk,&
-         col_offset_in_junk, row_offset_in_junk, fm_row_indices, fm_col_indices,&
-         sm_last_row, n_local_atomic_rows, n_local_atomic_cols,&
+         col_offset_in_junk, row_offset_in_junk, fm_row_indices, &
+         fm_col_indices, sm_last_row, &
          sm_first_row, sm_first_col,sm_last_col, atomic_col_distribution,&
-         atomic_row_distribution, ncol_global_of_junk
-    TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER :: local_atomic_rows, local_atomic_cols
+         atomic_row_distribution, ncol_global_of_junk, local_atomic_rows, &
+         local_atomic_cols
     INTEGER, DIMENSION(:,:), POINTER :: blacs2mpi
     REAL(kind=wp), DIMENSION(:,:), POINTER :: sparse_block
     REAL(kind=wp) :: flops,flops_l,alpha_ji
@@ -1305,10 +1320,11 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     CALL timeset(routineN,"I","Gflops",handle)
     NULLIFY(junk_of_col, ncol_local_of_junk,&
          col_offset_in_junk, row_offset_in_junk, fm_row_indices, fm_col_indices,&
-         sm_last_row,n_local_atomic_rows, n_local_atomic_cols,&
+         sm_last_row,&
          sm_first_row, sm_first_col,sm_last_col, atomic_col_distribution,&
-         atomic_row_distribution, ncol_global_of_junk)
-    NULLIFY(local_atomic_rows,local_atomic_cols,blacs2mpi,sparse_block,block_node,&
+         atomic_row_distribution, ncol_global_of_junk, local_atomic_rows,&
+         local_atomic_cols)
+    NULLIFY(blacs2mpi,sparse_block,block_node,&
          v_in,v_out,fm_para_env)
     logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(sm),cp_failure_level,routineP,error,failure)
@@ -1326,12 +1342,14 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
        mypcol        =fm_in%matrix_struct%context%mepos(2)
        blacs2mpi     => fm_in%matrix_struct%context%blacs2mpi
        
-       local_atomic_rows => sm%distribution_2d%local_rows
-       local_atomic_cols => sm%distribution_2d%local_cols
-       n_local_atomic_rows => sm%distribution_2d%n_local_rows
-       n_local_atomic_cols => sm%distribution_2d%n_local_cols
-       atomic_row_distribution => sm%distribution_2d%row_distribution
-       atomic_col_distribution => sm%distribution_2d%col_distribution
+    CALL distribution_2d_get(sm%distribution_2d,&
+         row_distribution=atomic_row_distribution,&
+         col_distribution=atomic_col_distribution,&
+         flat_local_cols=local_atomic_cols,&
+         n_flat_local_cols=n_local_atomic_cols,&
+         flat_local_rows=local_atomic_rows,&
+         n_flat_local_rows=n_local_atomic_rows,&
+         error=error)
 
        CALL get_matrix_info(sm,nblock_row=sm_nblock_row,&
             nblock_col=sm_nblock_col, last_row=sm_last_row,&
@@ -1351,12 +1369,14 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
           END DO
        END DO
        
-       local_atomic_cols => sm%distribution_2d%local_rows
-       local_atomic_rows => sm%distribution_2d%local_cols
-       n_local_atomic_cols => sm%distribution_2d%n_local_rows
-       n_local_atomic_rows => sm%distribution_2d%n_local_cols
-       atomic_col_distribution => sm%distribution_2d%row_distribution
-       atomic_row_distribution => sm%distribution_2d%col_distribution
+    CALL distribution_2d_get(sm%distribution_2d,&
+         col_distribution=atomic_row_distribution,&
+         row_distribution=atomic_col_distribution,&
+         flat_local_rows=local_atomic_cols,&
+         n_flat_local_rows=n_local_atomic_cols,&
+         flat_local_cols=local_atomic_rows,&
+         n_flat_local_cols=n_local_atomic_rows,&
+         error=error)
 
        CALL get_matrix_info(sm,nblock_col=sm_nblock_row,&
             nblock_row=sm_nblock_col, last_col=sm_last_row,&
@@ -1395,13 +1415,11 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     row_offset_in_junk=-HUGE(0)
     sm_nrow_local=0
-    DO ikind=1,SIZE(local_atomic_rows)
-       DO iblock=1,n_local_atomic_rows(ikind)
-          iblock_global=local_atomic_rows(ikind)%array(iblock)
-          row_offset_in_junk(iblock_global)=sm_nrow_local
-          sm_nrow_local=sm_nrow_local+sm_last_row(iblock_global)-&
-               sm_first_row(iblock_global)+1
-       END DO
+    DO iblock=1,n_local_atomic_rows
+       iblock_global=local_atomic_rows(iblock)
+       row_offset_in_junk(iblock_global)=sm_nrow_local
+       sm_nrow_local=sm_nrow_local+sm_last_row(iblock_global)-&
+            sm_first_row(iblock_global)+1
     END DO
 
     ! where in v_in begins the given atomic block
@@ -1409,13 +1427,11 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     col_offset_in_junk=-HUGE(0)
     sm_ncol_local=0
-    DO ikind=1,SIZE(local_atomic_cols)
-       DO iblock=1,n_local_atomic_cols(ikind)
-          iblock_global=local_atomic_cols(ikind)%array(iblock)
-          col_offset_in_junk(iblock_global)=sm_ncol_local
-          sm_ncol_local=sm_ncol_local+sm_last_col(iblock_global)-&
-               sm_first_col(iblock_global)+1
-       END DO
+    DO iblock=1,n_local_atomic_cols
+       iblock_global=local_atomic_cols(iblock)
+       col_offset_in_junk(iblock_global)=sm_ncol_local
+       sm_ncol_local=sm_ncol_local+sm_last_col(iblock_global)-&
+            sm_first_col(iblock_global)+1
     END DO
 
     ! alloc & init v_in
@@ -1601,14 +1617,14 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          junk_in, junk_out, iblock_row, iblock_col, sbnrow,sbncol,&
          junk_recv_in, junk_recv_out, row_dest, row_src, col_dest,&
          col_src, sm_nblock_row, sm_nblock_col, fm_ncol_block, fm_nrow_block,&
-         fm_first_prow, fm_first_pcol
+         fm_first_prow, fm_first_pcol, n_flat_local_rows, n_flat_local_cols
     INTEGER, DIMENSION(4) :: reqs
     INTEGER, DIMENSION(:), POINTER :: junk_of_col, ncol_local_of_junk,&
          col_offset_in_junk, row_offset_in_junk, fm_row_indices, fm_col_indices,&
-         n_local_atomic_rows, n_local_atomic_cols,sm_last_row,&
+         sm_last_row,&
          sm_first_row, sm_first_col,sm_last_col, atomic_col_distribution,&
-         atomic_row_distribution, ncol_global_of_junk
-    TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER :: local_atomic_rows, local_atomic_cols
+         atomic_row_distribution, ncol_global_of_junk, flat_local_rows, &
+         flat_local_cols
     INTEGER, DIMENSION(:,:), POINTER :: blacs2mpi
     REAL(kind=wp), DIMENSION(:,:), POINTER :: sparse_block
     REAL(kind=wp) :: flops,flops_l,my_alpha
@@ -1623,10 +1639,11 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     logger => cp_error_get_logger(error)
     NULLIFY(junk_of_col, ncol_local_of_junk,&
          col_offset_in_junk, row_offset_in_junk, fm_row_indices, fm_col_indices,&
-         n_local_atomic_rows, n_local_atomic_cols,sm_last_row,&
+         sm_last_row,&
          sm_first_row, sm_first_col,sm_last_col, atomic_col_distribution,&
-         atomic_row_distribution, ncol_global_of_junk)
-    NULLIFY(local_atomic_rows, local_atomic_cols, blacs2mpi,sparse_block,&
+         atomic_row_distribution, ncol_global_of_junk, flat_local_rows,&
+         flat_local_cols)
+    NULLIFY(blacs2mpi,sparse_block,&
          my_matrix_g,block_node,v_in,v_out,fm_para_env)
 
     my_alpha=1.0_wp
@@ -1653,12 +1670,14 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     mypcol        =matrix_v%matrix_struct%context%mepos(2)
     blacs2mpi     => matrix_v%matrix_struct%context%blacs2mpi
 
-    local_atomic_rows => sm%distribution_2d%local_rows
-    local_atomic_cols => sm%distribution_2d%local_cols
-    n_local_atomic_rows => sm%distribution_2d%n_local_rows
-    n_local_atomic_cols => sm%distribution_2d%n_local_cols
-    atomic_row_distribution => sm%distribution_2d%row_distribution
-    atomic_col_distribution => sm%distribution_2d%col_distribution
+    CALL distribution_2d_get(sm%distribution_2d,&
+         row_distribution=atomic_row_distribution,&
+         col_distribution=atomic_col_distribution,&
+         flat_local_cols=flat_local_cols,&
+         n_flat_local_cols=n_flat_local_cols,&
+         flat_local_rows=flat_local_rows,&
+         n_flat_local_rows=n_flat_local_rows,&
+         error=error)
 
     CALL get_matrix_info(sm,nblock_row=sm_nblock_row,&
          nblock_col=sm_nblock_col, last_row=sm_last_row,&
@@ -1697,13 +1716,11 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     row_offset_in_junk=-HUGE(0)
     sm_nrow_local=0
-    DO ikind=1,SIZE(local_atomic_rows)
-       DO iblock=1,n_local_atomic_rows(ikind)
-          iblock_global=local_atomic_rows(ikind)%array(iblock)
-          row_offset_in_junk(iblock_global)=sm_nrow_local
-          sm_nrow_local=sm_nrow_local+sm_last_row(iblock_global)-&
-               sm_first_row(iblock_global)+1
-       END DO
+    DO iblock=1,n_flat_local_rows
+       iblock_global=flat_local_rows(iblock)
+       row_offset_in_junk(iblock_global)=sm_nrow_local
+       sm_nrow_local=sm_nrow_local+sm_last_row(iblock_global)-&
+            sm_first_row(iblock_global)+1
     END DO
 
     ! where in v_in begins the given atomic block
@@ -1711,13 +1728,11 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     col_offset_in_junk=-HUGE(0)
     sm_ncol_local=0
-    DO ikind=1,SIZE(local_atomic_cols)
-       DO iblock=1,n_local_atomic_cols(ikind)
-          iblock_global=local_atomic_cols(ikind)%array(iblock)
-          col_offset_in_junk(iblock_global)=sm_ncol_local
-          sm_ncol_local=sm_ncol_local+sm_last_col(iblock_global)-&
-               sm_first_col(iblock_global)+1
-       END DO
+    DO iblock=1,n_flat_local_cols
+       iblock_global=flat_local_cols(iblock)
+       col_offset_in_junk(iblock_global)=sm_ncol_local
+       sm_ncol_local=sm_ncol_local+sm_last_col(iblock_global)-&
+            sm_first_col(iblock_global)+1
     END DO
 
     ! alloc & init v_in
@@ -1785,6 +1800,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
                 transpose_block=.FALSE.
              END IF
              IF (.NOT.transpose_block) THEN
+
                 CALL DGEMM('T','N',sbnrow,sbncol,ncol_global_of_junk(gindex),1.0_wp, &
                      v_out(junk_out)%array(1,row_offset_in_junk(iblock_row)+1),&
                      junk_size,&
@@ -1793,12 +1809,14 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
                      1.0_wp,sparse_block(1,1),SIZE(sparse_block,1))
 
              ELSE
+
                 CALL DGEMM('T','N',sbnrow,sbncol,ncol_global_of_junk(gindex),1.0_wp, &
                      v_in(junk_in)%array(1,col_offset_in_junk(iblock_row)+1), &
                      junk_size, &
                      v_out(junk_out)%array(1,row_offset_in_junk(iblock_col)+1), &
                      junk_size,&
                      1.0_wp,sparse_block(1,1),SIZE(sparse_block,1))
+
              END IF
 
              block_node => next_block_node(block_node)
@@ -2219,21 +2237,21 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          junk_in, junk_out, iblock_row, iblock_col, sbnrow,sbncol,&
          junk_recv_in, junk_recv_out, row_dest, row_src, col_dest,&
          col_src, sm_nblock_row, sm_nblock_col, fm_ncol_block, fm_nrow_block,&
-         fm_first_prow, fm_first_pcol, ikind, iblock_min, ikind_min
+         fm_first_prow, fm_first_pcol, ikind, iblock_min, ikind_min,&
+         n_ordered_local_atomic_cols
     INTEGER, DIMENSION(:), POINTER :: junk_of_col, ncol_local_of_junk,&
          fm_row_indices, fm_col_indices,&
          gindex_of_junk,ncol_global_of_junk,&
          pcol_of_fm_row, send_count, rcv_offsets, rcv_count, send_c, rcv_c,&
          send_offsets,&
-         rcv_pos, n_local_atomic_rows, n_local_atomic_cols,sm_last_row,&
+         rcv_pos, sm_last_row,&
          sm_first_row, sm_first_col,sm_last_col, atomic_col_distribution,&
-         atomic_row_distribution, multiindex, ordered_local_atomic_cols
-    TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER :: local_atomic_rows, local_atomic_cols
+         atomic_row_distribution, ordered_local_atomic_cols
     INTEGER, DIMENSION(:,:), POINTER :: junk_on_prow, &
          blacs2mpi, ipcol_of_junk_col, fm_blacs2mpi
     REAL(kind=wp), DIMENSION(:), POINTER :: send_buffer, rcv_buffer
     REAL(kind=wp), DIMENSION(:,:), POINTER :: sparse_block
-    REAL(kind=wp) :: flops, alpha_l
+    REAL(kind=wp) :: flops
 
     TYPE(real_block_node_type), POINTER :: block_node
     TYPE(cp_para_env_type), POINTER :: fm_para_env
@@ -2249,10 +2267,10 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          gindex_of_junk,ncol_global_of_junk,&
          pcol_of_fm_row, send_count, send_c, rcv_c,&
          rcv_offsets, rcv_count, send_offsets,&
-         rcv_pos, local_atomic_rows, local_atomic_cols,sm_last_row,&
+         rcv_pos, sm_last_row,&
          sm_first_row, sm_first_col,sm_last_col, atomic_col_distribution,&
-         atomic_row_distribution, multiindex)
-    NULLIFY(local_atomic_rows, local_atomic_cols, junk_on_prow, &
+         atomic_row_distribution, ordered_local_atomic_cols)
+    NULLIFY(junk_on_prow, &
          blacs2mpi, ipcol_of_junk_col,send_buffer, rcv_buffer,sparse_block,&
          block_node,fm_para_env)
     logger => cp_error_get_logger(error)
@@ -2268,12 +2286,12 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
        npcol         =fm%matrix_struct%context%num_pe(2)
        blacs2mpi     => fm%matrix_struct%context%blacs2mpi
        
-       local_atomic_rows => sm%distribution_2d%local_rows
-       local_atomic_cols => sm%distribution_2d%local_cols
-       n_local_atomic_rows => sm%distribution_2d%n_local_rows
-       n_local_atomic_cols => sm%distribution_2d%n_local_cols
-       atomic_row_distribution => sm%distribution_2d%row_distribution
-       atomic_col_distribution => sm%distribution_2d%col_distribution
+       CALL distribution_2d_get(sm%distribution_2d,&
+            row_distribution=atomic_row_distribution,&
+            col_distribution=atomic_col_distribution,&
+            flat_local_cols=ordered_local_atomic_cols,&
+            n_flat_local_cols=n_ordered_local_atomic_cols,&
+            error=error)
        
        CALL get_matrix_info(sm,nblock_row=sm_nblock_row,&
             nblock_col=sm_nblock_col, last_row=sm_last_row,&
@@ -2292,19 +2310,19 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
           END DO
        END DO
        
-       local_atomic_cols => sm%distribution_2d%local_rows
-       local_atomic_rows => sm%distribution_2d%local_cols
-       n_local_atomic_cols => sm%distribution_2d%n_local_rows
-       n_local_atomic_rows => sm%distribution_2d%n_local_cols
-       atomic_col_distribution => sm%distribution_2d%row_distribution
-       atomic_row_distribution => sm%distribution_2d%col_distribution
+       CALL distribution_2d_get(sm%distribution_2d,&
+            col_distribution=atomic_row_distribution,&
+            row_distribution=atomic_col_distribution,&
+            flat_local_rows=ordered_local_atomic_cols,&
+            n_flat_local_rows=n_ordered_local_atomic_cols,&
+            error=error)
        
        CALL get_matrix_info(sm,nblock_col=sm_nblock_row,&
             nblock_row=sm_nblock_col, last_col=sm_last_row,&
             last_row=sm_last_col, first_col=sm_first_row,&
             first_row=sm_first_col)
     END IF
-
+    
     myprow        =fm%matrix_struct%context%mepos(1)
     mypcol        =fm%matrix_struct%context%mepos(2)
 
@@ -2407,29 +2425,6 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
        ijunk_offset=0
     END IF
 
-    ! build a globally ordered array of the local_atomic_cols
-    ALLOCATE(multiindex(SIZE(local_atomic_cols)),&
-         ordered_local_atomic_cols(SUM(n_local_atomic_cols)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    multiindex=1
-    DO iblock_atomic=1,SIZE(ordered_local_atomic_cols)
-       iblock_min=HUGE(0)
-       ikind_min=-HUGE(0)
-       DO ikind=1,SIZE(local_atomic_cols)
-          IF (multiindex(ikind)<=n_local_atomic_cols(ikind)) THEN
-             IF (local_atomic_cols(ikind)%array(multiindex(ikind))<&
-                  iblock_min) THEN
-                iblock_min=local_atomic_cols(ikind)%array(multiindex(ikind))
-                ikind_min=ikind
-             END IF
-          END IF
-       END DO
-       CPPostcondition(ikind_min>0,cp_failure_level,routineP,error,failure)
-       ordered_local_atomic_cols(iblock_atomic)=&
-            local_atomic_cols(ikind_min)%array(multiindex(ikind_min))
-       multiindex(ikind_min)=multiindex(ikind_min)+1
-    END DO
-
     rcv_c=rcv_count
     DO ijunk_ordered=1,njunk_local_in
        ijunk=MODULO(ijunk_ordered+ijunk_offset-1,njunk_local_in)+1
@@ -2438,7 +2433,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
        DO icol=1,ncol_global_of_junk(gindex_of_junk(ijunk))
           irow_junk=0
           ipcol = ipcol_of_junk_col(icol,ijunk)
-          DO iblock_atomic=1,SIZE(ordered_local_atomic_cols)
+          DO iblock_atomic=1,n_ordered_local_atomic_cols
              first_grow=sm_first_col(ordered_local_atomic_cols(iblock_atomic))
              last_grow=sm_last_col(ordered_local_atomic_cols(iblock_atomic))
              bsize=fm_nrow_block-MOD(first_grow-1,fm_nrow_block)
@@ -2478,8 +2473,6 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
        DEALLOCATE(blacs2mpi,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
-    DEALLOCATE(multiindex,ordered_local_atomic_cols,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     DEALLOCATE(rcv_buffer,rcv_offsets, rcv_count, rcv_c, rcv_pos, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     DEALLOCATE(send_buffer,send_offsets, send_count, send_c, stat=stat)
@@ -2541,21 +2534,20 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          junk_recv_in, junk_recv_out, row_dest, row_src, col_dest,&
          col_src, sm_nblock_row, sm_nblock_col, fm_ncol_block, fm_nrow_block,&
          fm_first_prow, fm_first_pcol, fm_nprow, fm_npcol, first_grow, last_grow,&
-         bsize, irow2, ikind, iblock_min, ikind_min
+         bsize, irow2, ikind, iblock_min, ikind_min, n_ordered_local_atomic_cols
     INTEGER, DIMENSION(:), POINTER :: junk_of_col, ncol_local_of_junk,&
          fm_row_indices, fm_col_indices,&
          gindex_of_junk, ncol_global_of_junk, &
          pcol_of_fm_row, send_count, rcv_offsets,rcv_count,send_offsets,&
          send_c,rcv_c,&
-         send_pos, n_local_atomic_rows, n_local_atomic_cols,sm_last_row,&
+         send_pos, sm_last_row,&
          sm_first_row, sm_first_col,sm_last_col, atomic_col_distribution,&
-         atomic_row_distribution, multiindex, ordered_local_atomic_cols
-    TYPE(cp_1d_i_p_type), POINTER, DIMENSION(:) :: local_atomic_rows, local_atomic_cols
+         atomic_row_distribution, ordered_local_atomic_cols
     INTEGER, DIMENSION(:,:), POINTER :: junk_on_prow, &
          blacs2mpi, ipcol_of_junk_col, fm_blacs2mpi
     REAL(kind=wp), DIMENSION(:), POINTER :: send_buffer, rcv_buffer
     REAL(kind=wp), DIMENSION(:,:), POINTER :: sparse_block
-    REAL(kind=wp) :: flops, alpha_l
+    REAL(kind=wp) :: flops
 
     TYPE(real_block_node_type), POINTER :: block_node
     TYPE(cp_para_env_type), POINTER :: fm_para_env
@@ -2576,10 +2568,10 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          gindex_of_junk, ncol_global_of_junk, &
          pcol_of_fm_row, send_count,send_c,rcv_c,&
          rcv_offsets, rcv_count, send_offsets,&
-         send_pos, n_local_atomic_rows, n_local_atomic_cols,sm_last_row,&
+         send_pos, sm_last_row,&
          sm_first_row, sm_first_col,sm_last_col, atomic_col_distribution,&
-         atomic_row_distribution, multiindex)
-    NULLIFY(local_atomic_rows, local_atomic_cols, junk_on_prow, &
+         atomic_row_distribution, ordered_local_atomic_cols)
+    NULLIFY(junk_on_prow, &
          blacs2mpi, ipcol_of_junk_col,send_buffer, rcv_buffer,sparse_block,&
          block_node,fm_para_env)
     logger => cp_error_get_logger(error)
@@ -2588,12 +2580,12 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
        npcol         =fm%matrix_struct%context%num_pe(2)
        blacs2mpi     => fm%matrix_struct%context%blacs2mpi
        
-       local_atomic_rows => sm%distribution_2d%local_rows
-       local_atomic_cols => sm%distribution_2d%local_cols
-       n_local_atomic_rows => sm%distribution_2d%n_local_rows
-       n_local_atomic_cols => sm%distribution_2d%n_local_cols
-       atomic_row_distribution => sm%distribution_2d%row_distribution
-       atomic_col_distribution => sm%distribution_2d%col_distribution
+       CALL distribution_2d_get(sm%distribution_2d,&
+            row_distribution=atomic_row_distribution,&
+            col_distribution=atomic_col_distribution,&
+            flat_local_cols=ordered_local_atomic_cols,&
+            n_flat_local_cols=n_ordered_local_atomic_cols,&
+            error=error)
        
        CALL get_matrix_info(sm,nblock_row=sm_nblock_row,&
             nblock_col=sm_nblock_col, last_row=sm_last_row,&
@@ -2612,12 +2604,12 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
           END DO
        END DO
        
-       local_atomic_cols => sm%distribution_2d%local_rows
-       local_atomic_rows => sm%distribution_2d%local_cols
-       n_local_atomic_cols => sm%distribution_2d%n_local_rows
-       n_local_atomic_rows => sm%distribution_2d%n_local_cols
-       atomic_col_distribution => sm%distribution_2d%row_distribution
-       atomic_row_distribution => sm%distribution_2d%col_distribution
+       CALL distribution_2d_get(sm%distribution_2d,&
+            col_distribution=atomic_row_distribution,&
+            row_distribution=atomic_col_distribution,&
+            flat_local_rows=ordered_local_atomic_cols,&
+            n_flat_local_rows=n_ordered_local_atomic_cols,&
+            error=error)
        
        CALL get_matrix_info(sm,nblock_col=sm_nblock_row,&
             nblock_row=sm_nblock_col, last_col=sm_last_row,&
@@ -2682,29 +2674,6 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
        ijunk_offset=0
     END IF
 
-    ! build a globally ordered array of the local_atomic_cols
-    ALLOCATE(multiindex(SIZE(local_atomic_cols)),&
-         ordered_local_atomic_cols(SUM(n_local_atomic_cols)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    multiindex=1
-    DO iblock_atomic=1,SIZE(ordered_local_atomic_cols)
-       iblock_min=HUGE(0)
-       ikind_min=-HUGE(0)
-       DO ikind=1,SIZE(local_atomic_cols)
-          IF (multiindex(ikind)<=n_local_atomic_cols(ikind)) THEN
-             IF (local_atomic_cols(ikind)%array(multiindex(ikind))<&
-                  iblock_min) THEN
-                iblock_min=local_atomic_cols(ikind)%array(multiindex(ikind))
-                ikind_min=ikind
-             END IF
-          END IF
-       END DO
-       CPPostcondition(ikind_min>0,cp_failure_level,routineP,error,failure)
-       ordered_local_atomic_cols(iblock_atomic)=&
-            local_atomic_cols(ikind_min)%array(multiindex(ikind_min))
-       multiindex(ikind_min)=multiindex(ikind_min)+1
-    END DO
-
     send_c=send_count
     DO ijunk_ordered=1,njunk_local_in
        ijunk=MODULO(ijunk_ordered+ijunk_offset-1,njunk_local_in)+1
@@ -2713,7 +2682,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
        DO icol=1,ncol_global_of_junk(gindex_of_junk(ijunk))
           irow_junk=0
           ipcol = ipcol_of_junk_col(icol,ijunk)
-          DO iblock_atomic=1,SIZE(ordered_local_atomic_cols)
+          DO iblock_atomic=1,n_ordered_local_atomic_cols
              first_grow=sm_first_col(ordered_local_atomic_cols(iblock_atomic))
              last_grow=sm_last_col(ordered_local_atomic_cols(iblock_atomic))
              bsize=fm_nrow_block-MOD(first_grow-1,fm_nrow_block)
@@ -2748,8 +2717,6 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
        END DO
     END DO
     CPPostcondition(ALL(send_c==0),cp_failure_level,routineP,error,failure)
-    DEALLOCATE(multiindex,ordered_local_atomic_cols,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
     CALL timeset(routineN//"_all2all","I","",handle1)
     CALL mp_alltoall( sb=send_buffer, scount=send_count, sdispl=send_offsets,&

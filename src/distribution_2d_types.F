@@ -63,20 +63,6 @@ MODULE distribution_2d_types
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_distribution_2d_type'
   INTEGER, SAVE, private :: last_distribution_2d_id=0
 
-  TYPE distribution_2d_type
-    INTEGER, DIMENSION(:), POINTER       :: row_distribution
-    INTEGER, DIMENSION(:), POINTER       :: col_distribution
-    INTEGER, DIMENSION(:), POINTER       :: n_local_rows
-    INTEGER, DIMENSION(:), POINTER       :: n_local_cols
-    type(cp_1d_i_p_type), DIMENSION(:), POINTER :: local_rows
-    type(cp_1d_i_p_type), DIMENSION(:), POINTER :: local_cols
-    TYPE(cp_blacs_env_type), POINTER     :: blacs_env
-    INTEGER                              :: ref_count
-    INTEGER                              :: id_nr
-    integer                              :: n_row_distribution
-    integer                              :: n_col_distribution
-  END TYPE distribution_2d_type
-
   PUBLIC :: distribution_2d_type
 
   PUBLIC :: distribution_2d_create, &
@@ -84,7 +70,66 @@ MODULE distribution_2d_types
             distribution_2d_retain,&
             distribution_2d_build_gdist,&
             distribution_2d_destroy_gdist,&
-            distribution_2d_write
+            distribution_2d_write,&
+            distribution_2d_get
+
+!!*** **********************************************************************
+
+  !!****s* distribution_2d_types/distribution_2d_type [1.0] *
+  !!
+  !!   NAME
+  !!     distribution_2d_type
+  !!
+  !!   FUNCTION
+  !!     distributes pairs on a 2d grid of processors
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ATTRIBUTES
+  !!     - row_distribution(i): processor row that owns the row i
+  !!     - col_distribution(i): processor col that owns the col i
+  !!     - n_row_distribution: nuber of global rows
+  !!     - n_col_distribution: number of global cols
+  !!     - n_local_rows(ikind): number of local rows of kind ikind
+  !!     - n_local_cols(ikind): number of local cols of kind ikind
+  !!     - local_cols(ikind)%array: ordered global indexes of the local cols
+  !!       of kind ikind (might be oversized)
+  !!     - local_rows(ikind)%array: ordered global indexes of the local 
+  !!       rows of kind ikind (might be oversized)
+  !!     - flat_local_rows: ordered global indexes of the local rows
+  !!       (allocated on request, might be oversized)
+  !!     - flat_local_cols: ordered global indexes of the local cols
+  !!       (allocated on request, might be oversized)
+  !!     - blacs_env: parallel environment in which the pairs are distributed
+  !!     - ref_count: reference count (see doc/ReferenceCounting.html)
+  !!     - id_nr: identification number (unique)
+  !!
+  !!   AUTHOR
+  !!     Joost & Fawzi
+  !!
+  !!   MODIFICATION HISTORY
+  !!     08.2003 created [joost]
+  !!     09.2003 kind separation, minor cleanup [fawzi]
+  !!
+  !!   SOURCE
+  !***************************************************************************
+  TYPE distribution_2d_type
+    INTEGER, DIMENSION(:), POINTER       :: row_distribution
+    INTEGER, DIMENSION(:), POINTER       :: col_distribution
+    INTEGER                              :: n_row_distribution
+    INTEGER                              :: n_col_distribution
+    INTEGER, DIMENSION(:), POINTER       :: n_local_rows
+    INTEGER, DIMENSION(:), POINTER       :: n_local_cols
+    TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER :: local_rows
+    TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER :: local_cols
+    INTEGER, DIMENSION(:), POINTER       :: flat_local_rows
+    INTEGER, DIMENSION(:), POINTER       :: flat_local_cols
+    TYPE(cp_blacs_env_type), POINTER     :: blacs_env
+    INTEGER                              :: ref_count
+    INTEGER                              :: id_nr
+  END TYPE distribution_2d_type
+  !!*** ***********************************************************************
 
 CONTAINS
 
@@ -145,7 +190,8 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
       NULLIFY(distribution_2d%col_distribution, distribution_2d%row_distribution,&
            distribution_2d%local_rows,distribution_2d%local_cols,&
            distribution_2d%blacs_env,distribution_2d%n_local_cols, &
-           distribution_2d%n_local_rows)
+           distribution_2d%n_local_rows, distribution_2d%flat_local_rows,&
+           distribution_2d%flat_local_cols)
 
       distribution_2d%n_col_distribution=-huge(0)
       IF (PRESENT(col_distribution_ptr)) THEN
@@ -324,6 +370,14 @@ SUBROUTINE distribution_2d_release(distribution_2d,error)
             END DO
             DEALLOCATE(distribution_2d%local_cols,stat=istat)
             CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+            IF (ASSOCIATED(distribution_2d%flat_local_rows)) THEN
+               DEALLOCATE(distribution_2d%flat_local_rows,stat=istat)
+               CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+            END IF
+            IF (ASSOCIATED(distribution_2d%flat_local_cols)) THEN
+               DEALLOCATE(distribution_2d%flat_local_cols,stat=istat)
+               CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+            END IF
             DEALLOCATE(distribution_2d,stat=istat)
             CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
          ENDIF
@@ -766,6 +820,133 @@ SUBROUTINE distribution_2d_write(distribution_2d, unit_nr, local,&
   CALL m_flush(unit_nr)
   
 END SUBROUTINE distribution_2d_write
+!***************************************************************************
+
+!!****f* distribution_2d_types/distribution_2d_get [1.0] *
+!!
+!!   NAME
+!!     distribution_2d_get
+!!
+!!   FUNCTION
+!!     returns various attributes about the distribution_2d
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - distribution_2d: the object you want info about
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!     see distribution_2d_type attributes for a description of the other
+!!     arguments
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     09.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE distribution_2d_get(distribution_2d, row_distribution, &
+     col_distribution, n_row_distribution, n_col_distribution,&
+     n_local_rows, n_local_cols, local_rows, local_cols,&
+     flat_local_rows, flat_local_cols, n_flat_local_rows, n_flat_local_cols,&
+     blacs_env, id_nr,&
+     error)
+  TYPE(distribution_2d_type), POINTER :: distribution_2d
+  INTEGER, DIMENSION(:), POINTER, OPTIONAL :: row_distribution, col_distribution
+  INTEGER, INTENT(out), OPTIONAL :: n_row_distribution,n_col_distribution
+  INTEGER, DIMENSION(:), POINTER, OPTIONAL :: n_local_rows, n_local_cols
+  TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER, OPTIONAL :: local_rows
+  TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER, OPTIONAL :: local_cols
+  INTEGER, DIMENSION(:), POINTER, OPTIONAL :: flat_local_rows, flat_local_cols
+  INTEGER, INTENT(out), OPTIONAL :: n_flat_local_rows, n_flat_local_cols
+  TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: blacs_env
+  INTEGER, INTENT(out), optional :: id_nr
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='distribution_2d_get',&
+       routineP=moduleN//':'//routineN
+  INTEGER :: iblock_atomic, iblock_min, ikind_min,ikind, stat
+  INTEGER, DIMENSION(:), allocatable :: multiindex
+  
+  failure=.FALSE.
+  CPPrecondition(ASSOCIATED(distribution_2d),cp_failure_level,routineP,error,failure)
+  CPPrecondition(distribution_2d%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     IF (PRESENT(row_distribution)) row_distribution => distribution_2d%row_distribution
+     IF (PRESENT(col_distribution)) col_distribution => distribution_2d%col_distribution
+     IF (PRESENT(n_row_distribution)) n_row_distribution=distribution_2d%n_row_distribution
+     IF (PRESENT(n_col_distribution)) n_col_distribution=distribution_2d%n_col_distribution
+     IF (PRESENT(n_local_rows)) n_local_rows => distribution_2d%n_local_rows
+     IF (PRESENT(n_local_cols)) n_local_cols => distribution_2d%n_local_cols
+     IF (PRESENT(local_rows)) local_rows => distribution_2d%local_rows
+     IF (PRESENT(local_cols)) local_cols => distribution_2d%local_cols
+     IF (PRESENT(flat_local_rows)) THEN
+        IF (.NOT.ASSOCIATED(distribution_2d%flat_local_rows)) THEN
+           ALLOCATE(multiindex(SIZE(distribution_2d%local_rows)),&
+                distribution_2d%flat_local_rows(SUM(distribution_2d%n_local_rows)),&
+                stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           multiindex=1
+           DO iblock_atomic=1,SIZE(distribution_2d%flat_local_rows)
+              iblock_min=HUGE(0)
+              ikind_min=-HUGE(0)
+              DO ikind=1,SIZE(distribution_2d%local_rows)
+                 IF (multiindex(ikind)<=distribution_2d%n_local_rows(ikind)) THEN
+                    IF (distribution_2d%local_rows(ikind)%array(multiindex(ikind))<&
+                         iblock_min) THEN
+                       iblock_min=distribution_2d%local_rows(ikind)%array(multiindex(ikind))
+                       ikind_min=ikind
+                    END IF
+                 END IF
+              END DO
+              CPPostcondition(ikind_min>0,cp_failure_level,routineP,error,failure)
+              distribution_2d%flat_local_rows(iblock_atomic)=&
+                   distribution_2d%local_rows(ikind_min)%array(multiindex(ikind_min))
+              multiindex(ikind_min)=multiindex(ikind_min)+1
+           END DO
+           DEALLOCATE(multiindex, stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        flat_local_rows => distribution_2d%flat_local_rows
+     END IF
+     IF (PRESENT(flat_local_cols)) THEN
+        IF (.NOT.ASSOCIATED(distribution_2d%flat_local_cols)) THEN
+           ALLOCATE(multiindex(SIZE(distribution_2d%local_cols)),&
+                distribution_2d%flat_local_cols(SUM(distribution_2d%n_local_cols)),&
+                stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           multiindex=1
+           DO iblock_atomic=1,SIZE(distribution_2d%flat_local_cols)
+              iblock_min=HUGE(0)
+              ikind_min=-HUGE(0)
+              DO ikind=1,SIZE(distribution_2d%local_cols)
+                 IF (multiindex(ikind)<=distribution_2d%n_local_cols(ikind)) THEN
+                    IF (distribution_2d%local_cols(ikind)%array(multiindex(ikind))<&
+                         iblock_min) THEN
+                       iblock_min=distribution_2d%local_cols(ikind)%array(multiindex(ikind))
+                       ikind_min=ikind
+                    END IF
+                 END IF
+              END DO
+              CPPostcondition(ikind_min>0,cp_failure_level,routineP,error,failure)
+              distribution_2d%flat_local_cols(iblock_atomic)=&
+                   distribution_2d%local_cols(ikind_min)%array(multiindex(ikind_min))
+              multiindex(ikind_min)=multiindex(ikind_min)+1
+           END DO
+           DEALLOCATE(multiindex, stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        flat_local_cols => distribution_2d%flat_local_cols
+     END IF
+     IF (PRESENT(n_flat_local_rows)) n_flat_local_rows=SUM(distribution_2d%n_local_rows)
+     IF (PRESENT(n_flat_local_cols)) n_flat_local_cols=SUM(distribution_2d%n_local_cols)
+     IF (PRESENT(blacs_env)) blacs_env => distribution_2d%blacs_env
+     IF (PRESENT(id_nr)) id_nr = distribution_2d%id_nr
+  END IF
+END SUBROUTINE distribution_2d_get
 !***************************************************************************
 
 END MODULE distribution_2d_types
