@@ -61,7 +61,7 @@ MODULE cp_log_handling
   USE output_utilities,                ONLY: print_message
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
-  USE string_utilities,                ONLY: compress_all
+  USE string_utilities,                ONLY: compress
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: print_stack
   IMPLICIT NONE
@@ -1104,7 +1104,7 @@ CONTAINS
     ELSE
        res=TRIM(root)//TRIM(lggr%suffix)//postfix
     END IF
-    CALL compress_all(res)
+    CALL compress(res,full=.TRUE.)
   END SUBROUTINE cp_logger_generate_filename
 !***************************************************************************
 

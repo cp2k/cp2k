@@ -53,8 +53,6 @@ MODULE atoms_input
   USE periodic_table,           ONLY : ptable
   USE simulation_cell,          ONLY : cell_type
   USE string_utilities,         ONLY : xstring,&
-                                       integer_to_string, &
-                                       string_to_integer, &
                                        str_search
   USE termination,              ONLY : stop_memory, &
                                        stop_program

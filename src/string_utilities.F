@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   CP2K: A general program to perform molecular dynamics simulations
+!   Copyright (C) 2001 - 2003  CP2K developers group
 !-----------------------------------------------------------------------------!
 !!****** cp2k/string_utilities [1.0] *
 !!
@@ -8,45 +8,78 @@
 !!     string_utilities
 !!
 !!   FUNCTION
-!!     Utilities for string manipulations.
+!!     Utilities for string manipulations
 !!
 !!   AUTHOR
-!!     Matthias Krack & JGH
+!!     MK & JGH
 !!
 !!   MODIFICATION HISTORY
 !!     Adapted compress and uppercase for use in CP2K (JGH)
 !!     string_to_integer and integer_to_string added (06.02.2001, MK)
+!!     Cleaned (04.01.2004,MK)
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE string_utilities
-  USE kinds,                           ONLY: dbl
+
   IMPLICIT NONE
 
   PRIVATE
 
-  PUBLIC :: compress,uppercase,xstring,str_search,str_comp,make_tuple,&
-            integer_to_string,string_to_integer, compress_all
+  PUBLIC :: ascii_to_string,&
+            compress,&
+            integer_to_string,&
+            make_tuple,&
+            str_comp,&
+            string_to_ascii,&
+            uppercase,&
+            xstring,str_search
 
-  INTERFACE integer_to_string
-     MODULE PROCEDURE integer_to_string_n, integer_to_string_1
-  END INTERFACE
-
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN="string_utilities"
-
-!!*****
 ! *****************************************************************************
 
 CONTAINS
 
 ! *****************************************************************************
 
+  SUBROUTINE ascii_to_string(nascii,string)
+
+!   Purpose: Convert a sequence of integer numbers (ASCII code) to a string.
+!            Blanks are inserted for invalid ASCII code numbers.
+
+!   History: - Creation (19.10.2000,MK)
+
+!   ***************************************************************************
+
+    INTEGER, DIMENSION(:), INTENT(IN) :: nascii
+    CHARACTER(LEN=*), INTENT(OUT)     :: string
+
+!   *** Local variables ***
+
+    INTEGER :: i
+
+!   ---------------------------------------------------------------------------
+
+    string = ""
+
+    DO i=1,MIN(LEN(string),SIZE(nascii))
+      IF ((nascii(i) >= 0).AND.(nascii(i) <= 127)) THEN
+        string(i:i) = CHAR(nascii(i))
+      ELSE
+        string(i:i) = " "
+      END IF
+    END DO
+
+  END SUBROUTINE ascii_to_string
+
+! *****************************************************************************
+
   SUBROUTINE compress(string,full)
 
 !   Purpose: Eliminate multiple space characters in a string.
+!            If full is .TRUE., then all spaces are eliminated.
 
-!   History: - Creation (23.06.1998, Matthias Krack)
+!   History: - Creation (23.06.1998,MK)
 
 !   ***************************************************************************
 
@@ -88,76 +121,35 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE integer_to_string_n(nascii,string)
+  SUBROUTINE integer_to_string(inumber,string)
 
-!   Purpose: Convert a sequence of integer numbers to a string.
+!   Purpose: Converts an integer number to a string.
+!            The WRITE statement will return an error message, if the number of
+!            digits of the integer number is larger the than the length of the
+!            supplied string.
 
-!   History: - Creation (19.10.2000, Matthias Krack)
+!   History: - Creation (05.01.2004,MK)
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), INTENT(OUT)     :: string
-    INTEGER, DIMENSION(:), INTENT(IN) :: nascii
-
-!   *** Local variables ***
-
-    INTEGER :: i
+    INTEGER, INTENT(IN)           :: inumber
+    CHARACTER(LEN=*), INTENT(OUT) :: string
 
 !   ---------------------------------------------------------------------------
 
     string = ""
+    WRITE (UNIT=string,FMT=*) inumber
+    string = ADJUSTL(string)
 
-    DO i=1,MIN(LEN(string),SIZE(nascii))
-      IF ((nascii(i) >= 0).AND.(nascii(i) <= 127)) THEN
-        string(i:i) = CHAR(nascii(i))
-      ELSE
-        string(i:i) = " "
-      END IF
-    END DO
-
-  END SUBROUTINE integer_to_string_n
+  END SUBROUTINE integer_to_string
 
 ! *****************************************************************************
 
-  SUBROUTINE integer_to_string_1(zahl,string)
-
-!   Purpose: Convert an integer to a string.
-
-!   History: - Creation (29.4.2001, JGH)
-
-!   ***************************************************************************
-
-    CHARACTER(LEN=*), INTENT(OUT)     :: string
-    INTEGER, INTENT(IN) :: zahl
-
-!   *** Local variables ***
-
-    INTEGER :: i, z, n
-    INTEGER,ALLOCATABLE,DIMENSION(:) :: nascii
-
-!   ---------------------------------------------------------------------------
-
-    string = ""
-    n = INT ( LOG ( REAL ( zahl, dbl ) ) / LOG ( 10._dbl ) ) + 1
-    ALLOCATE ( nascii ( n ) )
-    z = zahl
-    DO i = 1, n
-      nascii ( i ) = z / 10**(n-i)
-      z = z - nascii ( i )*10**(n-i)
-      nascii ( i ) = nascii ( i ) + ICHAR("0")
-    END DO
-    CALL integer_to_string_n(nascii,string)
-    DEALLOCATE ( nascii )
-
-  END SUBROUTINE integer_to_string_1
-
-! *****************************************************************************
-
-  SUBROUTINE string_to_integer(string,nascii)
+  SUBROUTINE string_to_ascii(string,nascii)
 
 !   Purpose: Convert a string to sequence of integer numbers.
 
-!   History: - Creation (19.10.2000, Matthias Krack)
+!   History: - Creation (19.10.2000,MK)
 
 !   ***************************************************************************
 
@@ -176,7 +168,7 @@ CONTAINS
       nascii(i) = ICHAR(string(i:i))
     END DO
 
-  END SUBROUTINE string_to_integer
+  END SUBROUTINE string_to_ascii
 
 ! *****************************************************************************
 
@@ -184,7 +176,7 @@ CONTAINS
 
 !   Purpose: Convert all lower case characters in a string to upper case.
 
-!   History: - Creation (22.06.1998, Matthias Krack)
+!   History: - Creation (22.06.1998,MK)
 
 !   ***************************************************************************
 
@@ -209,8 +201,6 @@ CONTAINS
 
 SUBROUTINE xstring(string,ia,ib)
 
-  IMPLICIT NONE
-
   CHARACTER ( LEN = * ), INTENT ( IN ) :: string
   INTEGER, INTENT ( OUT ) :: ia, ib
 
@@ -229,7 +219,7 @@ END SUBROUTINE xstring
 !******************************************************************************
 
 SUBROUTINE make_tuple(int,nt,na,tuple)
-  IMPLICIT NONE
+
   INTEGER, INTENT ( IN ) :: INT ( :, : ), nt, na
   INTEGER :: i, nm
   CHARACTER ( LEN = * ), INTENT ( OUT ) :: tuple ( : )
@@ -291,7 +281,7 @@ END SUBROUTINE make_tuple
 !******************************************************************************
 
 FUNCTION str_comp(str1,str2) RESULT (equal)
-  IMPLICIT NONE
+
   CHARACTER ( LEN = * ), INTENT ( IN ) :: str1, str2
   LOGICAL equal
   INTEGER :: i1, i2, j1, j2
@@ -322,53 +312,5 @@ FUNCTION str_search(str1,n,str2) RESULT (pos)
 END FUNCTION str_search
 
 !******************************************************************************
-
-!!****f* string_utilities/compress_all [1.0] *
-!!
-!!   NAME
-!!     compress_all
-!!
-!!   SYNOPSIS
-!!     Subroutine compress_all(string)
-!!       Character(Len=*), Intent (INOUT):: string
-!!     End Subroutine compress_all
-!!
-!!   FUNCTION
-!!     removes all the blancs from the given string, putting them at end
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE compress_all(string)
-  CHARACTER(len=*), INTENT(inout) :: string
-  
-  CHARACTER(len=*), PARAMETER :: routineN='compress_all',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: i, pos2
-
-  pos2=1
-  DO i=1,LEN_TRIM(string)
-     IF (string(i:i)/=' ') THEN
-        string(pos2:pos2)=string(i:i)
-        pos2=pos2+1
-     END IF
-  END DO
-  IF (pos2<LEN(string)) THEN
-     string(pos2:LEN(string))=""
-  END IF
-
-END SUBROUTINE compress_all
-!***************************************************************************
 
 END MODULE string_utilities

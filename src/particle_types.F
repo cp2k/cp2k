@@ -62,9 +62,9 @@ MODULE particle_types
                                              pbc,&
                                              real_to_scaled,&
                                              scaled_to_real
-  USE string_utilities,                ONLY: compress,&
-                                             integer_to_string,&
-                                             string_to_integer,&
+  USE string_utilities,                ONLY: ascii_to_string,&
+                                             compress,&
+                                             string_to_ascii,&
                                              uppercase
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -663,7 +663,7 @@ CONTAINS
           new_kind = .TRUE.
 
           DO ikind=1,nparticle_kind
-            CALL integer_to_string(particle_kind_name(:,ikind),string)
+            CALL ascii_to_string(particle_kind_name(:,ikind),string)
             CALL uppercase(string)
             IF (string == label) THEN
               new_kind = .FALSE.
@@ -679,7 +679,7 @@ CONTAINS
               CALL reallocate(nparticle_of_kind,1,nparticle_kind+nblock2)
             END IF
             ikind = nparticle_kind
-            CALL string_to_integer(particle_name,particle_kind_name(:,ikind))
+            CALL string_to_ascii(particle_name,particle_kind_name(:,ikind))
           END IF
 
           particle_kind_of(nparticle) = ikind
@@ -697,7 +697,7 @@ CONTAINS
           new_kind = .TRUE.
 
           DO ikind=1,nmolecule_kind
-            CALL integer_to_string(molecule_kind_name(:,ikind),string)
+            CALL ascii_to_string(molecule_kind_name(:,ikind),string)
             CALL uppercase(string)
             IF (string == label) THEN
               new_kind = .FALSE.
@@ -712,7 +712,7 @@ CONTAINS
                                                   1,nmolecule_kind+nblock2)
             END IF
             ikind = nmolecule_kind
-            CALL string_to_integer(molecule_name,molecule_kind_name(:,ikind))
+            CALL string_to_ascii(molecule_name,molecule_kind_name(:,ikind))
           END IF
 
           IF (nparticle > SIZE(molecule_kind_of)) THEN
@@ -763,7 +763,7 @@ CONTAINS
         END IF
       END DO
 
-      CALL integer_to_string(particle_kind_name(:,ikind),string)
+      CALL ascii_to_string(particle_kind_name(:,ikind),string)
 
       CALL set_atomic_kind(atomic_kind=atomic_kind,&
                            atom_list=list,&
@@ -788,7 +788,7 @@ CONTAINS
 
         molecule_kind => molecule_kind_set(ikind)
 
-        CALL integer_to_string(molecule_kind_name(:,ikind),string)
+        CALL ascii_to_string(molecule_kind_name(:,ikind),string)
 
         CALL set_molecule_kind(molecule_kind=molecule_kind,&
                                kind_number=ikind,&

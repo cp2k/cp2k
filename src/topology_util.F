@@ -58,10 +58,8 @@ MODULE topology_util
   USE simulation_cell,                 ONLY: cell_type,&
                                              write_cell,&
                                              pbc
-  USE string_utilities,                ONLY: integer_to_string,&
-                                             make_tuple,&
+  USE string_utilities,                ONLY: make_tuple,&
                                              str_search,&
-                                             string_to_integer,&
                                              uppercase,&
                                              xstring
   USE termination,                     ONLY: stop_memory,&

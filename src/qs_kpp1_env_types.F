@@ -75,7 +75,7 @@ MODULE qs_kpp1_env_types
   use cp_array_r_utils, only: cp_2d_r_output, cp_2d_r_write
   use cp_array_logical_utils, only: cp_2d_logical_output,&
        cp_1d_logical_output, cp_2d_logical_write, cp_1d_logical_write
-  use string_utilities, only: compress_all
+  use string_utilities, only: compress
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              deallocate_matrix_set,&
                                              get_matrix_info,&
@@ -375,7 +375,7 @@ CONTAINS
        IF (should_w) THEN
           base_filename="kpp1-"//trim(adjustl(cp_to_string(kpp1_env%id_nr)))&
                //"-"//trim(adjustl(cp_to_string(kpp1_env%print_count)))
-          call compress_all(base_filename)
+          call compress(base_filename,full=.TRUE.)
 
           if (my_long_description) then
              WRITE (unit=unit_nr,fmt="(a,a,a)") " wrote kpp1 into to files ",&

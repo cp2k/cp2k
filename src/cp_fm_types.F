@@ -70,7 +70,7 @@ MODULE cp_fm_types
   USE parallel,                        ONLY: cp2k_is_parallel
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
-  USE string_utilities,                ONLY: compress_all
+  USE string_utilities,                ONLY: compress
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -1264,7 +1264,7 @@ CONTAINS
           IF (para_env%mepos==para_env%source) THEN
              filename=TRIM(matrix%name)//'-'//&
                   ADJUSTL(cp_to_string(matrix%print_count))
-             CALL compress_all(filename)
+             CALL compress(filename,full=.TRUE.)
              WRITE (unit=desc_unit,&
                   fmt="(' <cp_fm_types>:{ id_nr=',i10,' written to files ',a,'*')",&
                   iostat=iostat) matrix%id_nr, TRIM(filename)

@@ -127,7 +127,7 @@ MODULE qs_p_env_methods
                                              real_matrix_type,&
                                              replicate_matrix_structure,&
                                              set_matrix
-  USE string_utilities,                ONLY: compress_all
+  USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -373,7 +373,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           IF (.NOT. failure) THEN
              name="p_env"//cp_to_string(p_env%id_nr)//"%kpp1-"
-             CALL compress_all(name)
+             CALL compress(name,full=.TRUE.)
              DO ispin=1,nspins
                 NULLIFY(p_env%kpp1(ispin)%matrix)
                 CALL replicate_matrix_structure(s(1)%matrix,&

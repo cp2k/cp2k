@@ -68,7 +68,6 @@ MODULE cp_cfm_types
   USE parallel,                        ONLY: cp2k_is_parallel
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
-  USE string_utilities,                ONLY: compress_all
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&

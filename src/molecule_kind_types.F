@@ -38,9 +38,9 @@ MODULE molecule_kind_types
                                              start_parser,&
                                              stop_parser,&
                                              test_object
-  USE string_utilities,                ONLY: compress,&
-                                             integer_to_string,&
-                                             string_to_integer,&
+  USE string_utilities,                ONLY: ascii_to_string,&
+                                             compress,&
+                                             string_to_ascii,&
                                              uppercase
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -550,7 +550,7 @@ CONTAINS
                   WRITE (UNIT=current_name,FMT="(I6)") natom
                 END IF
                 CALL compress(current_name)
-                CALL string_to_integer(current_name,name_list(:,natom))
+                CALL string_to_ascii(current_name,name_list(:,natom))
               END IF
             END DO
             atoms_read = .TRUE.
@@ -591,7 +591,7 @@ CONTAINS
     DO iatom=1,natom
       ikind = kind_list(iatom)
       molecule_kind%atom_list(iatom)%atomic_kind => atomic_kind_set(ikind)
-      CALL integer_to_string(name_list(:,iatom),molecule_kind%atom_list(iatom)%name)
+      CALL ascii_to_string(name_list(:,iatom),molecule_kind%atom_list(iatom)%name)
     END DO
 
 !   *** Release work storage ***
