@@ -3,7 +3,7 @@
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-!!****m* cp2k/atom_module [1.0] *
+!!****h* cp2k/atom_module [1.0] *
 !!
 !!   NAME
 !!     atom_module
@@ -24,7 +24,8 @@
 !!   SEE ALSO
 !!     atom_calculations, atom_type, atom_parameters_type
 !!
-!!****
+!!   SOURCE
+!!
 MODULE atom_module
 
   USE atom_types, ONLY : ATOM_TYPE, ATOM_CALCULATION_TYPE, init, print_atom
@@ -41,21 +42,27 @@ MODULE atom_module
 
   IMPLICIT NONE
 
-!!! global variables
+! global variables
   INTEGER                              :: np
   REAL(DBL), DIMENSION(:), ALLOCATABLE :: wdd_w, spot, tl, tu
   
   PRIVATE
   PUBLIC :: atomic_code
 
-!!! ****************************************************************************
+! ****************************************************************************
   
 CONTAINS
 
-!!****f* cp2k/atom_module/atomic_code [1.0] *
+!!*****
+!!****f* atom_module/atomic_code [1.0] *
 !!
 !!   NAME
 !!     atomic_code
+!!
+!!   SYNOPSIS
+!!     Subroutine atomic_code(globenv)
+!!       Type(global_environment_type), Intent (INOUT):: globenv
+!!     End Subroutine atomic_code
 !!
 !!   FUNCTION
 !!     This is the public subroutine of the atom_module module. It computes the
@@ -71,7 +78,8 @@ CONTAINS
 !!
 !!   SEE ALSO
 !!
-!!****
+!!   SOURCE
+!!
   SUBROUTINE atomic_code(globenv)
 
     IMPLICIT NONE
@@ -98,8 +106,9 @@ CONTAINS
     CALL timestop ( zero, handle )
     
   END SUBROUTINE atomic_code
+!!*****
   
-!!! ****************************************************************************
+! ****************************************************************************
   
   SUBROUTINE calculate ( atom, ac )
     IMPLICIT NONE
@@ -142,7 +151,7 @@ CONTAINS
        IF (ac%method == 'XA') THEN
           CALL DSCAL(np, 1._dbl - mix_ang, rho(1:np), 1)
           CALL DAXPY(np, mix_ang, calculate_rho(atom, np), 1, rho(1:np), 1)
-!!! DEBUG
+! DEBUG
           CALL radial_integrate(np,rho*ac%rg%r(1:np)**2,ac%rg,res,err)
           IF (ABS(4._dbl*pi*res - REAL(atom%ne, DBL)) > 1.E-6) &
                WRITE (6,*) "!! Integral(rho) = ", 4._dbl*pi*res
@@ -223,14 +232,14 @@ CONTAINS
        ! maybe do something here
     END IF
 
-    !! write solution
+    ! write solution
     WRITE (6,'(1X,A,F14.6)') "ground state energy : ", eg
 
     DEALLOCATE(wf)
 
   END SUBROUTINE calculate
 
-!!! ****************************************************************************
+! ****************************************************************************
   
   FUNCTION shoot(wf, ev, pot, matchp, rg)
     IMPLICIT NONE
@@ -295,7 +304,7 @@ CONTAINS
 
   END FUNCTION shoot
 
-!!! ****************************************************************************
+! ****************************************************************************
   
   SUBROUTINE init_globals(ac)
     IMPLICIT NONE
@@ -309,6 +318,6 @@ CONTAINS
     wdd_w(1:np) = ac%rg%wdd(1:np)/ac%rg%w(1:np)
   END SUBROUTINE init_globals
 
-!!! ****************************************************************************
+! ****************************************************************************
   
 END MODULE atom_module

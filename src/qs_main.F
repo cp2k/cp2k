@@ -2,7 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations
 !   Copyright (C) 2001 - 2003  CP2K developers group
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_main [1.0] *
+!!****h* cp2k/qs_main [1.0] *
 !!
 !!   NAME
 !!     qs_main
@@ -23,13 +23,10 @@
 !!     none
 !!
 !!   SOURCE
-!******************************************************************************
-
+!!
 MODULE qs_main
-
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE cp_blacs_env,                    ONLY: end_blacs,&
-                                             start_blacs
+  USE cp_blacs_env,                    ONLY: start_blacs,end_blacs
   USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
@@ -61,20 +58,32 @@ MODULE qs_main
 
   PUBLIC :: quickstep
 
-!!***
 ! *****************************************************************************
 
 CONTAINS
 
-! *****************************************************************************
+!!******
+!******************************************************************************
+!!****f* qs_main/quickstep [1.0] *
+!!
+!!   NAME
+!!     quickstep
+!!
+!!   SYNOPSIS
+!!     Subroutine quickstep(globenv)
+!!       Type(global_environment_type), Intent (INOUT):: globenv
+!!     End Subroutine quickstep
+!!
+!!   FUNCTION
+!!     Main driver routine for a Quickstep calculation.
+!!
+!!   MODIFICATION HISTORY
+!!    Creation (23.01.2002,MK)
+!!
+!!   SOURCE
+!******************************************************************************
 
   SUBROUTINE quickstep(globenv)
-
-!   Purpose: Main driver routine for a Quickstep calculation.
-
-!   History: - Creation (23.01.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(INOUT) :: globenv
 
@@ -84,10 +93,8 @@ CONTAINS
 
 !   *** Local variables ***
 
+    INTEGER              :: handle
     TYPE(cp_blacs_env_type), POINTER :: blacs_env
-
-    INTEGER :: handle
-
     TYPE(molecule_type), DIMENSION(:), POINTER :: mol_setup
 
 !   ---------------------------------------------------------------------------
@@ -103,19 +110,20 @@ CONTAINS
 
     CALL start_blacs(blacs_env,globenv)
 
-    CALL qs_env_create(qs_env,para_env=globenv%para_env,blacs_env=blacs_env)
+    CALL qs_env_create(qs_env,para_env=globenv%para_env,&
+         blacs_env=blacs_env)
 
 !   *** Read the input and the database files and perform further  ***
 !   *** initializations for the setup of the QUICKSTEP environment ***
 
-    CALL qs_init(qs_env,mol_setup,globenv)
+    CALL qs_init( qs_env, mol_setup, globenv )
 
     SELECT CASE (globenv%run_type)
     CASE ("GEOMETRY OPTIMIZATION")
       CALL qs_geo_opt(qs_env,globenv)
 !     CALL qs_forces(qs_env,globenv)
     CASE ("MOLECULAR DYNAMICS")
-      CALL qs_mol_dyn(qs_env,mol_setup,globenv)
+      CALL qs_mol_dyn ( qs_env, mol_setup, globenv )
     CASE ("WAVEFUNCTION OPTIMIZATION")
       CALL qs_energies(qs_env,globenv)
       CALL tddfpt_calculation(qs_env, globenv) ! should possibly go in qs_scf/scf_env_post_calc
@@ -130,9 +138,9 @@ CONTAINS
 
     CALL qs_finalize(qs_env)
 
-!   *** Release BLACS environment ***
-
+    !   *** Release BLACS environment ***
     CALL end_blacs(blacs_env,globenv)
+
 
     CALL timestop(0.0_dp,handle)
 
@@ -143,3 +151,4 @@ CONTAINS
 ! *****************************************************************************
 
 END MODULE qs_main
+!!*****

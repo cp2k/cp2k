@@ -3,15 +3,10 @@
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
-!-----------------------------------------------------------------------------!
-
-!!****m* p/m *
+!!****h* cp2k/atom_util *
 !!
 !!   NAME
-!!     m
+!!     atom_util
 !!
 !!   FUNCTION
 !!     
@@ -24,9 +19,8 @@
 !!
 !!   SEE ALSO
 !!     
+!!   SOURCE
 !!
-!!****
-
 MODULE atom_util
 
   USE atom_types, ONLY : atom_type, atom_calculation_type
@@ -48,7 +42,7 @@ MODULE atom_util
 CONTAINS  
 
 ! ****************************************************************************
-      
+
   FUNCTION calculate_energy ( atom, ac, rho ) RESULT (res)
 
     IMPLICIT NONE
@@ -268,3 +262,4 @@ CONTAINS
 ! **************************************************************************
 
 END MODULE atom_util
+!!*****

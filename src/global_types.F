@@ -2,7 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/global_types [1.0] *
+!!****h* cp2k/global_types [1.0] *
 !!
 !!   NAME
 !!     global_types
@@ -28,6 +28,20 @@ MODULE global_types
 
   PRIVATE
 
+! *** Public parameters ***
+
+  PUBLIC :: DEBUG,HIGH,LOW,MEDIUM,SILENT
+  PUBLIC :: BLACS_GRID_SQUARE, BLACS_GRID_ROW, BLACS_GRID_COL
+
+! *** Public data types
+
+  PUBLIC :: global_environment_type,&
+            print_key_type
+
+! *** Public subroutines ***
+
+  PUBLIC :: init_print_keys
+
 ! *** Print level parameters ***
 
   INTEGER, PARAMETER :: SILENT = 0,&
@@ -40,6 +54,19 @@ MODULE global_types
                         BLACS_GRID_ROW=2, &
                         BLACS_GRID_COL=3
 
+!!*****
+!!****s* global_types/print_key_type [1.0] *
+!!
+!!   NAME
+!!     print_key_type
+!!
+!!   FUNCTION
+!!     
+!!   NOTES
+!!     -
+!!
+!!   SOURCE
+!!
   TYPE print_key_type
     INTEGER :: level,PRECISION, ref_count
     LOGICAL :: angles,&
@@ -105,11 +132,24 @@ MODULE global_types
                mo_orthonormality, &
                molecular_states
     LOGICAL :: ep_matrixes, ep_rho1_cube, ep_operator
-     LOGICAL :: timecumul
-     INTEGER    nlumos,nhomos
-     LOGICAL :: localization
+    LOGICAL :: timecumul
+    INTEGER    nlumos,nhomos
+    LOGICAL :: localization
   END TYPE print_key_type
 
+!!*****
+!!****s* global_types/global_environment_type [1.0] *
+!!
+!!   NAME
+!!     global_environment_type
+!!
+!!   FUNCTION
+!!     
+!!   NOTES
+!!     -
+!!
+!!   SOURCE
+!!
   TYPE global_environment_type
      TYPE(cp_para_env_type), POINTER  :: para_env
      TYPE(print_key_type)             :: PRINT
@@ -136,27 +176,23 @@ MODULE global_types
      INTEGER :: blacs_grid_layout !! will store the user preference for the blacs grid
   END TYPE global_environment_type
 
-! *** Public parameters ***
-
-  PUBLIC :: DEBUG,HIGH,LOW,MEDIUM,SILENT
-  PUBLIC :: BLACS_GRID_SQUARE, BLACS_GRID_ROW, BLACS_GRID_COL
-
-! *** Public data types
-
-  PUBLIC :: global_environment_type,&
-            print_key_type
-
-! *** Public subroutines ***
-
-  PUBLIC :: init_print_keys
-
-!!***
 ! *****************************************************************************
 
 CONTAINS
 
-! *****************************************************************************
-
+!!*****
+!!****f* global_types/init_print_keys [1.0] *
+!!
+!!   NAME
+!!     init_print_keys
+!!
+!!   FUNCTION
+!!     
+!!   NOTES
+!!     -
+!!
+!!   SOURCE
+!!
   SUBROUTINE init_print_keys(print_key,level)
 
     TYPE(print_key_type) :: print_key
@@ -267,3 +303,4 @@ CONTAINS
 ! *****************************************************************************
 
 END MODULE global_types
+!!*****

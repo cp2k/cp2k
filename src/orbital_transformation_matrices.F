@@ -2,7 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/orbital_transformation_matrices [1.0] *
+!!****h* cp2k/orbital_transformation_matrices [1.0] *
 !!
 !!   NAME
 !!     orbital_transformation_matrices
@@ -65,20 +65,27 @@ MODULE orbital_transformation_matrices
 
 CONTAINS
 
-! *****************************************************************************
-
+!!*****
+!!****f* cp2k/init_spherical_harmonics [1.0] *
+!!
+!!   NAME
+!!     init_spherical_harmonics
+!!
+!!   FUNCTION
+!!     Build up the orbital transformation matrices for the
+!!     transformation and for the backtransformation of orbitals from
+!!     the Cartesian representation to the spherical representation.
+!!
+!!   NOTES
+!!     Literature: H. B. Schlegel, M. J. Frisch,
+!!                 Int. J. Quantum Chem. 54, 83 (1995)
+!!
+!!   HISTORY
+!!     Creation (09.07.1999, Matthias Krack)
+!!
+!!   SOURCE
+!!
   SUBROUTINE init_spherical_harmonics(maxl,globenv)
-
-!   Purpose: Build up the orbital transformation matrices for the
-!            transformation and for the backtransformation of orbitals from
-!            the Cartesian representation to the spherical representation.
-
-!   Literature: H. B. Schlegel, M. J. Frisch,
-!               Int. J. Quantum Chem. 54, 83 (1995)
-
-!   History: - Creation (09.07.1999, Matthias Krack)
-
-!   ***************************************************************************
 
     USE global_types,     ONLY: global_environment_type
     USE mathconstants,    ONLY: dfac,fac,pi
@@ -354,3 +361,4 @@ CONTAINS
 ! *****************************************************************************
 
 END MODULE orbital_transformation_matrices
+!!*****

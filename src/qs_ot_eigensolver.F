@@ -63,7 +63,6 @@ MODULE qs_ot_eigensolver
 
   PUBLIC :: ot_eigensolver
 
-!!***
 ! *****************************************************************************
 
 CONTAINS
@@ -277,3 +276,4 @@ CONTAINS
   END SUBROUTINE ot_eigensolver
 
 END MODULE qs_ot_eigensolver
+!!*****

@@ -93,15 +93,15 @@ MODULE environment
 ! *** Public subroutines ***
 
   PUBLIC :: cp2k_finalize,&
-            cp2K_init
+            cp2k_init
 
-!!*****
 !******************************************************************************
 
 CONTAINS
 
+!!******
 !******************************************************************************
-!!****** environment/cp2k_init [1.0] *
+!!****f* environment/cp2k_init [1.0] *
 !!
 !!   NAME
 !!     cp2k_init
@@ -262,13 +262,25 @@ CONTAINS
 
 ! *****************************************************************************
 
+!!******
+!******************************************************************************
+!!****f* environment/read_print_section [1.0] *
+!!
+!!   NAME
+!!     read_print_section
+!!
+!!   FUNCTION
+!!     Read the input section with the print keys.
+!!
+!!   AUTHOR
+!!     MK
+!!
+!!   MODIFICATION HISTORY
+!!     Creation (13.07.2000,MK)
+!!
+!!   SOURCE
+!******************************************************************************
   SUBROUTINE read_print_section(globenv)
-
-!   Purpose: Read the input section with the print keys.
-
-!   History: - Creation (13.07.2000,MK)
-
-!   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(INOUT) :: globenv
 
@@ -522,13 +534,25 @@ CONTAINS
 
 ! *****************************************************************************
 
+!!******
+!******************************************************************************
+!!****f* environment/read_io_section [1.0] *
+!!
+!!   NAME
+!!     read_io_section
+!!
+!!   FUNCTION
+!!     Read the input/output section (path and file names).
+!!
+!!   AUTHOR
+!!     MK
+!!
+!!   MODIFICATION HISTORY
+!!     Creation (13.07.2000,MK)
+!!
+!!   SOURCE
+!******************************************************************************
   SUBROUTINE read_io_section(globenv)
-
-!   Purpose: Read the input/output section (path and file names).
-
-!   History: - Creation (13.07.2000,MK)
-
-!   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(INOUT) :: globenv
 
@@ -633,9 +657,11 @@ CONTAINS
     END IF
 
   END SUBROUTINE read_io_section
+!******************************************************************************
+
 !!******
 !******************************************************************************
-!!****** environment/read_cp2k_section [1.0] *
+!!****f* environment/read_cp2k_section [1.0] *
 !!
 !!   NAME
 !!     read_cp2k_section
@@ -719,11 +745,11 @@ CONTAINS
             CALL read_object(keyvalue,lower_to_upper=.TRUE.)
             SELECT CASE(TRIM(keyvalue))
             CASE ("SQUARE")
-              globenv%blacs_grid_layout = BLACS_GRID_SQUARE
+                 globenv%blacs_grid_layout = BLACS_GRID_SQUARE
             CASE ("ROW")
-              globenv%blacs_grid_layout = BLACS_GRID_ROW
+                 globenv%blacs_grid_layout = BLACS_GRID_ROW
             CASE ("COL","COLUMN")
-              globenv%blacs_grid_layout = BLACS_GRID_COL
+                 globenv%blacs_grid_layout = BLACS_GRID_COL
             CASE DEFAULT
               CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
             END SELECT
@@ -848,7 +874,8 @@ CONTAINS
   END SUBROUTINE read_cp2k_section
 !*******
 !******************************************************************************
-!!****** environment/cp2k_finalize [1.0] *
+!!*****
+!!****f* environment/cp2k_finalize [1.0] *
 !!
 !!   NAME
 !!     cp2k_finalize
@@ -926,3 +953,4 @@ CONTAINS
 ! *****************************************************************************
 
 END MODULE environment
+!!*****

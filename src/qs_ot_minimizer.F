@@ -1,7 +1,12 @@
-!******************************************************************************
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations
+!   Copyright (C) 2001 - 2002  CP2K developers group
+!-----------------------------------------------------------------------------!
+
+!!****** cp2k/qs_ot_minimizer [1.0] *
 !!
 !!   NAME
-!!     ot_minimizer
+!!     qs_ot_minimizer
 !!
 !!   FUNCTION
 !!     orbital transformations
@@ -655,7 +660,7 @@ SUBROUTINE ot_diis_step(qs_ot_env)
    qs_ot_env(1)%diis_iter=qs_ot_env(1)%diis_iter+1
 
 
-END SUBROUTINE 
+END SUBROUTINE ot_diis_step
 
-END MODULE
-
+END MODULE qs_ot_minimizer
+!!*****
