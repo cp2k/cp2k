@@ -1128,11 +1128,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
        order = -2
 ! allocate potential
        npot = xc_get_pot_size ( do_lsd, gradient_f, crossterms, order )
-#if __DO_RES
-       ALLOCATE ( pot ( ntot, 0:npot ), STAT = stat )
-#else
        ALLOCATE ( pot ( ntot, npot ), STAT = stat )
-#endif
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
@@ -1149,6 +1145,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
           !-----------------------------------------------!
           IF (do_restricted_tddfpt) THEN
 
+             CALL dscal (ntot, 0.5_wp, rgrid(:,1), 1)
              IF (gradient_f) THEN
                 CALL dscal (ntot, 0.5_wp, drgrid(:,1), 1)
                 CALL xc_lsd ( dft_control%functional,&
@@ -1158,11 +1155,6 @@ END SUBROUTINE xc_prep_2nd_deriv1
                      drho_a=drgrid(:,1), drho_b=drgrid(:,1), &
                      error=error )
              ELSE
-                CALL xc_lda ( functional=dft_control%functional,&
-                              ftags=dft_control%ftags, &
-                              rho=rgrid(:,1), pot=pot(:,0:0), &
-                              order=order, error=error )
-             CALL dscal (ntot, 0.5_wp, rgrid(:,1), 1)
                 CALL xc_lsd ( dft_control%functional, &
                               dft_control%ftags, &
                               rgrid(:,1), rgrid(:,1), &
