@@ -52,6 +52,7 @@ MODULE qs_localization_methods
                                              cp_fm_transpose
   USE kinds,                           ONLY: wp => dp
   USE mathconstants,                   ONLY: pi
+  USE machine,                         ONLY: m_flush
   USE qs_environment_types,            ONLY: get_qs_env, qs_environment_type
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory,&
@@ -96,9 +97,9 @@ CONTAINS
     TYPE ( cp_fm_type ), POINTER :: matrix_r, matrix_i
     COMPLEX( KIND = wp ) :: dum
 
-!    write(6,*) "Start direct mini"
-!    CALL direct_mini(weights,zij,vectors,sweeps)
-!    write(6,*) "Stop direct mini"
+    ! write(6,*) "Start direct mini"
+    ! CALL direct_mini(weights,zij,vectors,sweeps)
+    ! write(6,*) "Stop direct mini"
 
     CALL timeset("wannier_jacobi","I","",handle)
 
@@ -335,7 +336,7 @@ CONTAINS
     REAL ( wp ), INTENT ( IN ) :: weights ( : )
     TYPE ( cp_fm_p_type ), INTENT ( INOUT ) :: ZIJ ( :, : )
     TYPE ( cp_fm_type ), POINTER :: vectors
-    INTEGER :: iterations,handle
+    INTEGER :: iterations,handle,line_searches
 
     TYPE ( cp_fm_type ), POINTER :: matrix_A,matrix_G,matrix_T,matrix_G_search,matrix_G_old
     TYPE ( cp_cfm_p_type ), POINTER, DIMENSION(:) :: c_zij
@@ -345,16 +346,17 @@ CONTAINS
     INTEGER :: n,idim
     COMPLEX(KIND=wp), PARAMETER :: czero=(0.0_wp,0.0_wp), cone=(1.0_wp,0.0_wp)
     TYPE ( cp_error_type ) :: error
-    REAL(wp) :: omega,tol,step_size
+    REAL(wp) :: omega,tol
     INTEGER :: irow, icol, nrow_local, ncol_local, i
     INTEGER, DIMENSION(:), POINTER :: row_indices, col_indices
     COMPLEX(kind=wp) :: ll,lk,tmp
 
     REAL(wp) :: normg,normg_cross,normg_old,beta_pr,ds_min,ds
     REAL(wp) :: a,b,c,x0,x1,val,npos,xa,xb,xc,fa,fb,fc,nom,denom
-    REAL(wp), DIMENSION(5) :: energy,pos,grad
-    INTEGER :: line_search_count
+    REAL(wp), DIMENSION(150) :: energy,pos,grad
+    INTEGER :: line_search_count,lsl,lsr,lsm
     LOGICAL  :: new_direction
+    REAL(wp), PARAMETER                       :: gold_sec=0.3819_wp
 
     NULLIFY(evals,evals_exp,diag_z,fval,fvald,c_zij) 
     NULLIFY(matrix_A,matrix_G,matrix_T,matrix_G_search,matrix_G_old)
@@ -365,8 +367,6 @@ CONTAINS
     ALLOCATE(evals(n),evals_exp(n),diag_z(n),fval(n),fvald(n))
     ALLOCATE(c_zij(SIZE(zij,2)))
 
-    Step_size=1.0E-4
-    Iterations=0
 
     ! create the three complex matrices Z
     DO idim=1,SIZE(c_zij)
@@ -374,6 +374,8 @@ CONTAINS
        CALL cp_cfm_create ( c_zij(idim)%matrix, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
        c_zij(idim)%matrix% local_data = CMPLX (zij(1,idim) % matrix % local_data, &
                     zij(2,idim) % matrix % local_data, wp )
+    !write(11,*) zij(1,idim)% matrix % local_data(:,:)
+    !write(11,*) zij(2,idim)% matrix % local_data(:,:)
     ENDDO
 
     CALL cp_fm_create  ( matrix_A, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
@@ -382,6 +384,7 @@ CONTAINS
     CALL cp_fm_create  ( matrix_G_search, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
     CALL cp_fm_create  ( matrix_G_old, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
     CALL cp_fm_set_all ( matrix_A, 0.0_wp )
+    CALL cp_fm_init_random ( matrix_A )
 
     CALL cp_cfm_create ( cmat_A, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
     CALL cp_cfm_create ( cmat_U, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
@@ -397,8 +400,11 @@ CONTAINS
     CALL cp_fm_set_all(matrix_G_old,0.0_wp)
     CALL cp_fm_set_all(matrix_G_search,0.0_wp)
     normg_old=1.0E99_wp
-    ds_min=1.0E-4_wp
+    ds_min=1.20E-2_wp
     new_direction=.TRUE.
+    Iterations=0
+    line_searches=0
+    line_search_count=0
 
     DO
          iterations = iterations + 1
@@ -471,10 +477,19 @@ CONTAINS
          ! from here on, minimizing technology
          IF (new_direction) THEN
             ! energy converged up to machine precision ?
+            line_searches=line_searches+1
+            ! DO i=1,line_search_count
+            !   write(15,*) pos(i),energy(i)
+            ! ENDDO
+            ! write(15,*) ""
+            CALL m_flush(15)
+            !write(16,*) evals(:)
+            !write(17,*) matrix_A%local_data(:,:)
+            !write(18,*) matrix_G%local_data(:,:)
+            IF (matrix_A%matrix_struct%para_env%mepos .EQ. 0 ) write(6,*) line_searches,Iterations,Omega,tol,ds_min
             IF (tol.lt.1.0E-3)  EXIT
-            IF (matrix_A%matrix_struct%para_env%mepos .EQ. 0 ) write(6,*) Iterations,Omega,tol
 
-            IF (.FALSE.) THEN ! do conjugate gradient CG
+            IF (.TRUE.) THEN ! do conjugate gradient CG
                 CALL cp_fm_trace(matrix_G,matrix_G_old,normg_cross)
                 normg_cross=normg_cross*0.5_wp ! takes into account the fact that A is antisymmetric
                 CALL cp_fm_trace(matrix_G,matrix_G,normg)
@@ -485,7 +500,8 @@ CONTAINS
                 normg_old=normg
                 CALL cp_fm_scale_and_add(beta_pr,matrix_G_search,-1.0_wp,matrix_G)
                 CALL cp_fm_trace(matrix_G_search,matrix_G,normg_cross)
-                IF (normg_cross .ge. 0) THEN ! back to SD
+                IF (normg_cross .ge. 0) THEN ! back to SD 
+                   write(6,*) "!" 
                    beta_pr=0.0_wp
                    CALL cp_fm_scale_and_add(beta_pr,matrix_G_search,-1.0_wp,matrix_G)
                 ENDIF
@@ -499,7 +515,8 @@ CONTAINS
          energy(line_search_count)=Omega
 
          ! line search section
-         IF (.FALSE.) THEN ! two point line search
+         SELECT CASE (3)
+         CASE(1) ! two point line search
            SELECT CASE (line_search_count)
            CASE (1)
               pos(1)=0.0_wp
@@ -525,7 +542,7 @@ CONTAINS
                  pos(3)=MAXVAL(pos(1:2))*2.0
               endif
            END SELECT 
-         ELSE ! 3 point line search
+         CASE(2) ! 3 point line search
               SELECT CASE(line_search_count)
 	      CASE(1)
                 new_direction=.false.
@@ -534,9 +551,9 @@ CONTAINS
               CASE(2)
                 new_direction=.false.
                 if (energy(2).gt.energy(1)) then
-                   pos(3)=ds_min*0.5
+                   pos(3)=ds_min*0.9
                 else
-                   pos(3)=ds_min*1.4
+                   pos(3)=ds_min*1.1
                 endif
               CASE(3)
                 new_direction=.true.
@@ -564,7 +581,52 @@ CONTAINS
                     pos(4)=MAXVAL(pos(1:3))*2.0
                 endif
               END SELECT
-         ENDIF
+         CASE(3) ! golden section hunt
+            new_direction=.FALSE.
+            IF (line_search_count.eq.1) THEN
+              lsl=1
+              lsr=0
+              lsm=1
+              pos(1)=0.0_wp
+              pos(2)=ds_min/gold_sec
+            ELSE 
+              IF (line_search_count .EQ. 150) STOP "Too many"
+              IF (lsr.eq.0) THEN
+                 IF (energy(line_search_count-1).lt.energy(line_search_count)) THEN
+                    lsr = line_search_count
+                    pos(line_search_count+1)=pos(lsm)+(pos(lsr)-pos(lsm))*gold_sec
+                 ELSE
+                    lsl = lsm
+                    lsm = line_search_count
+                    pos(line_search_count+1)=pos(line_search_count) / gold_sec
+                 ENDIF
+              ELSE
+                 IF (pos(line_search_count) .lt. pos(lsm)) THEN
+                    IF (energy(line_search_count).lt. energy(lsm)) THEN
+                       lsr = lsm
+                       lsm = line_search_count
+                    ELSE
+                       lsl = line_search_count
+                    ENDIF
+                 ELSE
+                    IF (energy(line_search_count).lt. energy(lsm)) THEN 
+                       lsl = lsm
+                       lsm = line_search_count
+                    ELSE
+                       lsr = line_search_count
+                    ENDIF
+                 ENDIF
+                 IF ( pos(lsr)-pos(lsm) .gt. pos(lsm)-pos(lsl)) THEN
+                    pos(line_search_count+1) = pos(lsm)+gold_sec*(pos(lsr)-pos(lsm))
+                 ELSE
+                    pos(line_search_count+1) = pos(lsl)+gold_sec*(pos(lsm)-pos(lsl))
+                 ENDIF
+                 IF ((pos(lsr)-pos(lsl)) .lt. 1.0E-3*pos(lsr)) THEN
+                    new_direction=.TRUE.
+                 ENDIF
+              ENDIF ! lsr .eq. 0
+            ENDIF ! first step
+         END SELECT
          ! now go to the suggested point
          ds_min=pos(line_search_count+1)
          ds=pos(line_search_count+1)-pos(line_search_count)
