@@ -1,1 +1,24 @@
-rm *.crd *.ener *.restart *.vel RESTART
+rm -f *.crd \
+ *.ener \
+ *.restart \
+ *.vel \
+ *.cube\
+ RESTART \
+ HESSIAN \
+ bfgs.data\
+ COLVAR-H2O\
+ CONDUCTIVITY\
+ HESSIAN\
+ HILLS-H2O\
+ HOMO_CENTERS_1\
+ LUMO_CENTERS_1\
+ MOLECULAR_DIPOLES\
+ Molecular_DOS\
+ P_magnitude\
+ RESTARTFARM\
+ S_MAGNITUDE\
+ bfgs.data\
+ dir1/FARMING_OUT_00001\
+ dir1/HOMO_CENTERS_1\
+ dir1/RESTART
+
