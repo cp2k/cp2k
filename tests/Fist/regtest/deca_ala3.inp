@@ -1,0 +1,44 @@
+&CP2K  
+  PROGRAM   FIST
+  PROJECT   deca_ala
+  IOLEVEL   1
+  FFTLIB    FFTSG
+  RUN_TYPE   md
+&END
+
+&PRINT LOW
+&END
+
+&MD
+  ensemble:     nve                    ensemble type (nve,nvt,npt_i,npt_f)
+  steps:        10                     total number of steps
+  timestep:     2.5 fs                 time step [fs]
+  temperature:  298                    temperature [K]
+  restart:      init                   start type (init,pos,posvel)
+  constraints   on
+  print  files        100
+  print  screen       1
+&END
+
+&TOPOLOGY
+ PARA_RES
+ COORDINATE      PDB
+ COORD_FILE_NAME ../sample_pdb/deca_ala.pdb
+ CHARGE_BETA
+&END
+
+&EWALD
+ units angstrom
+ ewald_type ewald
+ ewald_param .36 29 4
+&END
+
+&FORCE_FIELD
+ PARMFILE CHM ../sample_pot/deca_ala.pot
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          50.0 50.0 50.0
+&END
+
