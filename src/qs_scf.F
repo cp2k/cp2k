@@ -256,7 +256,7 @@ CONTAINS
     TYPE(mo_set_type), POINTER :: mo_set
 
     REAL(wp) :: delta,diis_error,t1,t2
-    INTEGER  :: handle,homo,igrid_level,imo,iscf,istat,&
+    INTEGER  :: handle,handle2,homo,igrid_level,imo,iscf,istat,&
                 output_unit,n,k,nrow_block,ncol_block, type_switch, &
                 fileunit
     LOGICAL  :: diis_step,do_level_shift,ionode, gth_potential_present
@@ -290,6 +290,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     NULLIFY(kinetic)
+    t1 = cputime()
     ot_initialized=.false.
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -381,11 +382,13 @@ CONTAINS
 
     scf_loop: DO
 
+      CALL timeset("scf_iter","I","",handle2)
+
       IF (ionode) CALL m_flush(output_unit)
 
       iscf = iscf + 1
 
-      t1 = cputime()
+      if (.NOT. globenv%print%timecumul) t1 = cputime()
 
       IF (globenv%print%density_matrix.AND.globenv%print%each_scf_step) THEN
         CALL write_sparse_matrix(p%matrix,4,6,qs_env,globenv)
@@ -538,12 +541,15 @@ CONTAINS
         IF (.NOT. ot_initialized) THEN
            ot_initialized=.TRUE.
 
-           CALL make_preconditioner(ot_preconditioner,"FULL_KINETIC", &
+           IF (qs_ot_env%settings%preconditioner_type .ne. "NONE") &
+           CALL make_preconditioner(ot_preconditioner, &
+                                    qs_ot_env%settings%preconditioner_type, &
                                     ks%matrix,s(1)%matrix,kinetic(1)%matrix, &
                                     mo_eigenvectors,0.2_wp) 
 
            CALL ot_scf_init(mo_eigenvectors,s(1)%matrix,qs_ot_env,globenv)
 
+           IF (qs_ot_env%settings%preconditioner_type .ne. "NONE") &
            CALL qs_ot_new_preconditioner(qs_ot_env,ot_preconditioner) 
         ENDIF
 
@@ -563,6 +569,8 @@ CONTAINS
       END SELECT
 
       CALL qs_ks_did_change(ks_env,qs_env,globenv,p_changed=.TRUE.,error=error)
+
+      CALL timestop(0.0_wp,handle2)
 
       IF (delta < scf_control%eps_scf) THEN
         IF (ionode.AND.globenv%print%scf) THEN

@@ -94,6 +94,7 @@ MODULE global_types
                 v_hartree_cube, &
                 lumos, &
                 homos
+     LOGICAL :: timecumul
      INTEGER    nlumos,nhomos
   END TYPE print_key_type
 
@@ -209,6 +210,7 @@ CONTAINS
     print_key%homos = key_value(level,(/f,f,f/))
     print_key%nlumos = 4
     print_key%nhomos = 4
+    print_key%timecumul = key_value(level,(/f,f,f/))
 
   END SUBROUTINE init_print_keys
 

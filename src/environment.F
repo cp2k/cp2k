@@ -467,6 +467,8 @@ CONTAINS
            CALL read_object(globenv%print%nhomos)
         ENDIF
         if (globenv%print%nhomos.le.0) globenv%print%nhomos = 4
+      CASE ("TIMECUMUL")
+        globenv%print%timecumul = print_request
       END SELECT
 
     END DO
