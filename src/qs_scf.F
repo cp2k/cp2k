@@ -535,10 +535,10 @@ CONTAINS
           CALL write_mo_set(mo_set,atomic_kind_set,particle_set,4,6,globenv)
         END IF
 
-        CALL calculate_density_matrix(mo_set,scf_work1,globenv)
-
-        CALL copy_blacs_to_sparse_matrix(scf_work1,ks%matrix,globenv)
-        CALL symmetrise_diagonal_blocks(ks%matrix)
+!        CALL calculate_density_matrix(mo_set,scf_work1,globenv)
+!        CALL copy_blacs_to_sparse_matrix(scf_work1,ks%matrix,globenv)
+!        CALL symmetrise_diagonal_blocks(ks%matrix)
+        CALL calculate_density_matrix(mo_set,ks%matrix,globenv)
       
         t2 = cputime()
 
@@ -637,8 +637,6 @@ CONTAINS
 
 !   *** Save last density matrix in redundant form for the force calculation ***
 
-    !CALL copy_blacs_to_sparse_matrix(scf_work1,p_old%matrix,globenv)
-    !CALL symmetrise_diagonal_blocks(p_old%matrix)
     CALL calculate_density_matrix(mo_set,p_old%matrix,globenv)
 
 !   *** Write last wavefunction ***

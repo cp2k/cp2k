@@ -96,6 +96,7 @@ MODULE sparse_matrix_types
             put_block_node,&
             replicate_matrix,&
             replicate_matrix_structure,&
+            scale_matrix,&
             set_matrix,&
             symmetrise_diagonal_blocks,&
             transfer_matrix, &
@@ -175,6 +176,10 @@ MODULE sparse_matrix_types
 
   INTERFACE replicate_matrix_structure
     MODULE PROCEDURE replicate_real_matrix_structure
+  END INTERFACE
+
+  INTERFACE scale_matrix
+    MODULE PROCEDURE scale_real_matrix
   END INTERFACE
 
   INTERFACE set_matrix
@@ -835,14 +840,16 @@ CONTAINS
   END SUBROUTINE sparse_times_replicated
 
 ! *****************************************************************************
-! intended to compute sparse=sparse+v*g^T
+! intended to compute sparse=sparse+alpha*v*g^T
 ! for all the local blocks of the sparse matrix
 ! same comment as sparse_times_replicated, v,g stored as rows instead of cols
 ! Joost VandeVondele july 2002
 ! *****************************************************************************
-  SUBROUTINE sparse_plus_rep_rept(sparse_matrix,rep_v,rep_g,ncol,nblock,globenv)
+  SUBROUTINE sparse_plus_rep_rept(sparse_matrix,rep_v,rep_g,ncol,nblock,&
+                                  globenv,alpha)
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
     REAL(wp), DIMENSION(:,:), POINTER :: rep_v,rep_g
+    REAL(wp), OPTIONAL, INTENT(IN)    :: alpha
     INTEGER, INTENT(IN)               :: ncol,nblock
     TYPE(global_environment_type), INTENT(IN)      :: globenv
 
@@ -856,7 +863,7 @@ CONTAINS
 
     INTEGER :: iblock_col,iblock_row,icol,icol_block,irow,irow_block,istat,&
                nrow,sbncol,sbnrow,  handle
-    REAL(wp) :: flops
+    REAL(wp) :: flops,prefactor
 
     REAL(wp), DIMENSION(:,:), POINTER :: sparse_block
 
@@ -866,6 +873,12 @@ CONTAINS
 
     IF (.NOT.ASSOCIATED(sparse_matrix)) THEN
       CALL stop_program(routine,"The input matrix pointer is not associated")
+    END IF
+
+    IF (PRESENT(alpha)) THEN
+      prefactor = alpha
+    ELSE
+      prefactor = 1.0_wp
     END IF
 
     if (sparse_matrix%nrow .ne. sparse_matrix%ncol) then
@@ -892,7 +905,7 @@ CONTAINS
         sbncol=sparse_matrix%last_col(iblock_col)-icol+1
 
         flops=flops+2.0_wp*sbnrow*sbncol*ncol
-        CALL DGEMM('T','N',sbnrow,sbncol,ncol,1.0_wp, &
+        CALL DGEMM('T','N',sbnrow,sbncol,ncol,prefactor,&
                            rep_v(1,irow),nblock, &
                            rep_g(1,icol),nblock, &
                     1.0_wp,sparse_block,sbnrow)
@@ -1731,6 +1744,71 @@ CONTAINS
     END DO
 
   END SUBROUTINE replicate_real_matrix_structure
+
+! *****************************************************************************
+
+  SUBROUTINE scale_real_matrix(a,alpha)
+
+!   Purpose: Multiply the sparse matrix a with alpha.
+
+!            a <- alpha*a
+
+!   History: - Creation (17.07.2002,MK)
+
+!   ***************************************************************************
+
+    TYPE(real_matrix_type), POINTER :: a
+    REAL(wp), INTENT(IN)            :: alpha
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+         "SUBROUTINE scale_real_matrix (MODULE sparse_matrix_types)"
+
+!   *** Local variables ***
+
+    TYPE(real_block_node_type), POINTER :: block_node
+
+    INTEGER :: iblock_row
+
+    REAL(wp), DIMENSION(:,:), POINTER :: block
+
+!   ---------------------------------------------------------------------------
+
+!   *** Check the association status of the matrices ***
+
+    IF (.NOT.ASSOCIATED(a)) THEN
+       CALL stop_program(routine,"The matrix pointer a is not associated")
+    END IF
+
+    IF (alpha == 1.0_wp) RETURN
+
+    IF (alpha == 0.0_wp) THEN
+
+      CALL set_matrix(a,0.0_wp)
+
+    ELSE
+
+      DO iblock_row=1,a%nblock_row
+
+        block_node => first_block_node(a,iblock_row)
+
+        DO WHILE (ASSOCIATED(block_node))
+
+          CALL get_block_node(block_node=block_node,&
+                              block=block)
+
+          block(:,:) = alpha*block(:,:)
+
+          block_node => block_node%next_block_node
+
+        END DO
+
+      END DO
+
+    END IF
+
+  END SUBROUTINE scale_real_matrix
 
 ! *****************************************************************************
 

@@ -53,10 +53,11 @@ MODULE qs_mo_types
   USE particle_types,       ONLY: particle_type
   USE qs_parser,            ONLY: close_file,&
                                   open_file
-  USE sparse_matrix_types,  ONLY: allocate_matrix,&
+  USE sparse_matrix_types,  ONLY: add_matrices,&
+                                  allocate_matrix,&
                                   get_block_node,&
                                   real_matrix_type,&
-                                  add_matrices,&
+                                  scale_matrix,&
                                   set_matrix
 
   USE message_passing,      ONLY: mp_sum
@@ -111,7 +112,13 @@ MODULE qs_mo_types
   END INTERFACE
 
   INTERFACE calculate_density_matrix
-    MODULE PROCEDURE calculate_density_matrix_blacs,calculate_density_matrix_sparse
+    MODULE PROCEDURE calculate_density_matrix_blacs,&
+                     calculate_density_matrix_sparse
+  END INTERFACE
+
+  INTERFACE calculate_w_matrix
+    MODULE PROCEDURE calculate_w_matrix_blacs,&
+                     calculate_w_matrix_sparse
   END INTERFACE
 
 ! *****************************************************************************
@@ -190,6 +197,7 @@ CONTAINS
   END SUBROUTINE allocate_mo_set
 
 ! *****************************************************************************
+
   SUBROUTINE calculate_density_matrix_blacs(mo_set,density_matrix,globenv)
 
 !   Purpose: Calculate the density matrix from the MO eigenvectors and the
@@ -226,6 +234,7 @@ CONTAINS
   END SUBROUTINE calculate_density_matrix_blacs
 
 ! *****************************************************************************
+
   SUBROUTINE calculate_density_matrix_sparse(mo_set,density_matrix,globenv)
 
 !   Purpose: Calculate the density matrix 
@@ -235,7 +244,8 @@ CONTAINS
 !   History: - Creation (july 2002 Joost VandeVondele)
 
 !   ***************************************************************************
-    TYPE(real_matrix_type), POINTER   :: density_matrix
+
+    TYPE(real_matrix_type), POINTER           :: density_matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
 
@@ -247,17 +257,23 @@ CONTAINS
 
     CALL timeset("calculate_density_matrix","I","",handle)
 
-    if (mo_set%lfomo-1 .ne. mo_set%nmo)  then
-          if (globenv%ionode) write(globenv%scr,*) mo_set%lfomo,mo_set%nmo
-          call stop_program("calculate_density_matrix_sparse", &
-                           "mo_set%lfomo-1 .ne. mo_set%nmo NYI")
-    endif
+    CALL set_matrix(density_matrix,0.0_wp)
 
-       CALL set_matrix(density_matrix,0.0_wp)
-       CALL sparse_plus_blacs_blacst(density_matrix,mo_set%eigenvectors, &
-                                          ncol=mo_set%nmo,globenv=globenv)
-       ! multiply by 2 :-)
-       CALL add_matrices(density_matrix,1.0_wp,density_matrix,1.0_wp,density_matrix)
+    CALL sparse_plus_blacs_blacst(sparse_matrix=density_matrix,&
+                                  matrix_v=mo_set%eigenvectors,&
+                                  first_col=1,&
+                                  ncol=mo_set%lfomo-1,&
+                                  alpha=2.0_wp,&
+                                  globenv=globenv)
+
+    DO imo=mo_set%lfomo,mo_set%homo
+      CALL sparse_plus_blacs_blacst(sparse_matrix=density_matrix,&
+                                    matrix_v=mo_set%eigenvectors,&
+                                    first_col=imo,&
+                                    ncol=imo,&
+                                    alpha=mo_set%occupation_numbers(imo),&
+                                    globenv=globenv)
+    END DO
 
     CALL timestop(0.0_wp,handle)
 
@@ -265,7 +281,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_w_matrix(mo_set,w_matrix,globenv)
+  SUBROUTINE calculate_w_matrix_blacs(mo_set,w_matrix,globenv)
 
 !   Purpose: Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
 !            and the MO occupation numbers.
@@ -297,7 +313,47 @@ CONTAINS
 
     CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE calculate_w_matrix
+  END SUBROUTINE calculate_w_matrix_blacs
+
+! *****************************************************************************
+
+  SUBROUTINE calculate_w_matrix_sparse(mo_set,w_matrix,globenv)
+
+!   Purpose: Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
+!            and the MO occupation numbers.
+
+!   History: - Creation (17.07.2002,MK)
+
+!   ***************************************************************************
+
+    TYPE(real_matrix_type), POINTER           :: w_matrix
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(mo_set_type), POINTER                :: mo_set
+
+!   *** Local variables ***
+
+    REAL(wp) :: eigocc
+    INTEGER  :: handle,imo
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("calculate_w_matrix","I","",handle)
+
+    CALL set_matrix(w_matrix,0.0_wp)
+
+    DO imo=1,mo_set%homo
+      eigocc = mo_set%eigenvalues(imo)*mo_set%occupation_numbers(imo)
+      CALL sparse_plus_blacs_blacst(sparse_matrix=w_matrix,&
+                                    matrix_v=mo_set%eigenvectors,&
+                                    first_col=imo,&
+                                    ncol=imo,&
+                                    alpha=eigocc,&
+                                    globenv=globenv)
+    END DO
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE calculate_w_matrix_sparse
 
 ! *****************************************************************************
 

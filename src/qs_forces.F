@@ -131,27 +131,27 @@ CONTAINS
 
     mo_set => c(1)%mo_set
 
-    CALL get_mo_set(mo_set=mo_set,&
-                    eigenvectors=mo_eigenvectors)
+!    CALL get_mo_set(mo_set=mo_set,&
+!                    eigenvectors=mo_eigenvectors)
 
-    CALL get_blacs_matrix_info(matrix=mo_eigenvectors,&
-                               nrow_global=nao,&
-                               nrow_block=nrow_block,&
-                               ncol_block=ncol_block)
+!    CALL get_blacs_matrix_info(matrix=mo_eigenvectors,&
+!                               nrow_global=nao,&
+!                               nrow_block=nrow_block,&
+!                               ncol_block=ncol_block)
 
-    CALL allocate_blacs_matrix(new_matrix=w_blacs,&
-                               nrow_global=nao,&
-                               ncol_global=nao,&
-                               nrow_block=nrow_block,&
-                               ncol_block=ncol_block,&
-                               name="W MATRIX",&
-                               globenv=globenv)
+!    CALL allocate_blacs_matrix(new_matrix=w_blacs,&
+!                               nrow_global=nao,&
+!                               ncol_global=nao,&
+!                               nrow_block=nrow_block,&
+!                               ncol_block=ncol_block,&
+!                               name="W MATRIX",&
+!                               globenv=globenv)
 
     NULLIFY (w)
     CALL replicate_matrix_structure(s(1)%matrix,w,"W MATRIX")
-    CALL calculate_w_matrix(mo_set,w_blacs,globenv)
-    CALL copy_blacs_to_sparse_matrix(w_blacs,w,globenv)
-    CALL symmetrise_diagonal_blocks(w)
+    CALL calculate_w_matrix(mo_set,w,globenv)
+!    CALL copy_blacs_to_sparse_matrix(w_blacs,w,globenv)
+!    CALL symmetrise_diagonal_blocks(w)
     IF (globenv%ionode.AND.globenv%print%w_matrix) THEN
       CALL write_sparse_matrix(w,4,6,qs_env,globenv)
     END IF

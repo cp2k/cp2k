@@ -529,15 +529,18 @@ CONTAINS
   END SUBROUTINE sparse_times_blacs
 
 ! *****************************************************************************
-! computes sparse=sparse+v*g^T 
+! computes sparse=sparse+alpha*v*g^T 
 ! only v*v^T tested
 ! *****************************************************************************
-  SUBROUTINE sparse_plus_blacs_blacst(sparse_matrix,matrix_v,matrix_g,ncol,globenv)
+  SUBROUTINE sparse_plus_blacs_blacst(sparse_matrix,matrix_v,matrix_g,ncol,&
+                                      globenv,first_col,alpha)
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
     TYPE(blacs_matrix_type) , POINTER :: matrix_v
     TYPE(blacs_matrix_type) , POINTER, OPTIONAL :: matrix_g
     INTEGER, INTENT(IN)               :: ncol
-    TYPE(global_environment_type), INTENT(IN)      :: globenv
+    REAL(wp), OPTIONAL, INTENT(IN)    :: alpha
+    INTEGER, OPTIONAL, INTENT(IN)     :: first_col
+    TYPE(global_environment_type), INTENT(IN) :: globenv
 
 !   *** Local parameters ***
     INTEGER, PARAMETER          :: blocksize = 100
@@ -546,7 +549,8 @@ CONTAINS
 
 !   *** Local variables ***
     REAL(wp), DIMENSION(:,:), POINTER :: rep_v,rep_g
-    integer i,nrow,ncol_block,handle
+    REAL(wp) :: prefactor
+    INTEGER col1,i,nrow,ncol_block,handle
     LOGICAL g_present
 !   ---------------------------------------------------------------------------
     CALL timeset("sparse_plus_blacs_blacst","I","",handle)
@@ -563,7 +567,19 @@ CONTAINS
        rep_g=>rep_v
     ENDIF
 
-    DO i=1,ncol,blocksize
+    IF (PRESENT(alpha)) THEN
+      prefactor = alpha
+    ELSE
+      prefactor = 1.0_wp
+    END IF
+
+    IF (PRESENT(first_col)) THEN
+      col1 = first_col
+    ELSE
+      col1 = 1
+    END IF
+
+    DO i=col1,ncol,blocksize
        ncol_block=MIN(ncol-i+1,blocksize)
        call blacs_replicated_copy(matrix_v,rep_v,i,ncol_block, &
                                         blocksize,"B2R",globenv)
@@ -572,7 +588,7 @@ CONTAINS
                                           blocksize,"B2R",globenv)
        ENDIF
        call sparse_plus_rep_rept(sparse_matrix,rep_v,rep_g,ncol_block, &
-                                    blocksize,globenv)
+                                    blocksize,globenv,alpha=prefactor)
     ENDDO
 
     IF (g_present) THEN
