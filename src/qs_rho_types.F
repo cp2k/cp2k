@@ -35,12 +35,12 @@ module qs_rho_types
   use kinds, only: wp=>dp
   use cp_para_types, only: cp_para_env_type
   use timings, only: timeset, timestop
-  use coefficient_types,        only: coeff_array_type,coeff_type,&
-       coeff_deallocate
+  use coefficient_types,        only: coeff_type, coeff_deallocate
   use cube_utils,               only: cube_info_type
   use global_types, only: global_environment_type,DEBUG
   use l_utils,                  only: l_info_type
   use gaussian_gridlevels,      only: gridlevel_info_type
+  use sparse_matrix_types,      only: real_matrix_p_type
   implicit none
   private
 
@@ -87,14 +87,16 @@ module qs_rho_types
   type qs_rho_type
      type(real_matrix_p_type), dimension(:), pointer :: rho_ao
      type(coeff_type), dimension(:), pointer :: rho_g, rho_r
-     logical :: rho_ao_valid, rho_g_valid, rho_r_valid
-     integer :: ref_count, id_nr, updates_sice_rebuild, rebuild_each
+     logical :: rho_ao_valid, &
+                rho_g_valid, &
+                rho_r_valid
+     integer :: ref_count, &
+                id_nr, &
+                updates_sice_rebuild, &
+                rebuild_each
   end type qs_rho_type
   !!***
   !****************************************************************************
-
-contains
-
 
 end module qs_rho_types
 

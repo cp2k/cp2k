@@ -458,6 +458,7 @@ subroutine cp_fmstruct_write(fmstruct, unit_nr, long_description,error)
   
   logical :: failure,l_desc
   integer :: iostat
+  character (len=80) :: fmtstring
   character(len=*), parameter :: routineN='cp_fmstruct_write',&
         routineP=moduleN//':'//routineN
   failure=.false.; l_desc=.false.
@@ -467,34 +468,34 @@ subroutine cp_fmstruct_write(fmstruct, unit_nr, long_description,error)
      write (unit=unit_nr,&
           fmt="('<cp_f_matrix_struct>:{ id_nr=',i10,' ref_count=',i10,',')",&
           iostat=iostat) fmstruct%id_nr, fmstruct%ref_count
-     write (unit=unit_nr,fmt="(' nrow_global=',i8,', ncol_global=',i8,','",&
+     write (unit=unit_nr,fmt="(' nrow_global=',i8,', ncol_global=',i8,',')",&
           iostat=iostat) fmstruct%nrow_global, fmstruct%ncol_global
-     write (unit=unit_nr,fmt="(' nrow_block=',i8,', ncol_block=',i8,','",&
+     write (unit=unit_nr,fmt="(' nrow_block=',i8,', ncol_block=',i8,',')",&
           iostat=iostat) fmstruct%nrow_global, fmstruct%ncol_global
      if (associated(fmstruct%nrow_local)) then
-        write (unit=unit_nr,fmt=(/"(' nrow_local=(,",&
-             cp_to_string(size(fmstruct%nrow_local)),"(i8),'),')"/),&
-             iostat=iostat) fmstruct%nrow_local
+        write (fmtstring,'(A)') "(' nrow_local=(',"//cp_to_string(size(fmstruct%nrow_local))//&
+             "(i8),'),')"
+        write (unit=unit_nr,fmt=fmtstring,iostat=iostat) fmstruct%nrow_local
      else
         write (unit=unit_nr,fmt="(a)") " nrow_local=*null*,"
      end if
      if (associated(fmstruct%ncol_local)) then
-        write (unit=unit_nr,fmt=(/"(' ncol_local=(,",&
-             cp_to_string(size(fmstruct%ncol_local)),"(i8),'),')"/),&
-             iostat=iostat) fmstruct%ncol_local
+        write (fmtstring,'(A)') "(' ncol_local=(',"//cp_to_string(size(fmstruct%ncol_local))//&
+             "(i8),'),')"
+        write (unit=unit_nr,fmt=fmtstring,iostat=iostat) fmstruct%ncol_local
      else
         write (unit=unit_nr,fmt="(a)") " ncol_local=*null*,"
      end if
-     write (unit=unit_nr,fmt="(' first_p_pos=(',i8,', ',i8,'),'",&
+     write (unit=unit_nr,fmt="(' first_p_pos=(',i8,', ',i8,'),')",&
           iostat=iostat) fmstruct%first_p_pos(1), fmstruct%first_p_pos(2)
      if (associated(fmstruct%row_indices)) then
         if (l_desc) then
            write (unit=unit_nr,fmt="(a)",iostat=iostat) " row_indices=(,"
-           write (unit=unit_nr,fmt="(i)",iostat=iostat)
+           write (unit=unit_nr,fmt="(i1)",iostat=iostat)
            write (unit=unit_nr,fmt="(a)",iostat=iostat) "),"
         else
            write (unit=unit_nr,&
-                fmt="(' row_indices=<integer,dimension(',i8,'),'",&
+                fmt="(' row_indices=<integer,dimension(',i8,'),')",&
                 iostat=iostat) size(fmstruct%row_indices)
         end if
      else
@@ -503,11 +504,11 @@ subroutine cp_fmstruct_write(fmstruct, unit_nr, long_description,error)
      if (associated(fmstruct%col_indices)) then
         if (l_desc) then
            write (unit=unit_nr,fmt="(a)",iostat=iostat) " col_indices=("
-           write (unit=unit_nr,fmt="(i)",iostat=iostat)
+           write (unit=unit_nr,fmt="(i1)",iostat=iostat)
            write (unit=unit_nr,fmt="(a)",iostat=iostat) "),"
         else
            write (unit=unit_nr,&
-                fmt="(' col_indices=<integer,dimension(',i8,'),'",&
+                fmt="(' col_indices=<integer,dimension(',i8,'),')",&
                 iostat=iostat) size(fmstruct%col_indices)
         end if
      else
