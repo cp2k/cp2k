@@ -309,6 +309,13 @@ FUNCTION enum_i2c(enum,i,error) RESULT(res)
         END IF
      END DO
      IF (.NOT.found) THEN
+        if (enum%strict) then
+         DO j=1,SIZE(enum%desc)
+          print *, trim(enum%desc(j))
+          print *, trim(enum%c_vals(j))
+         ENDDO
+          print *, enum%i_vals
+        end if
         CALL cp_assert(.NOT.enum%strict,cp_failure_level,cp_assertion_failed,&
              routineP,"invalid value for enumeration:"//cp_to_string(i),&
              error,failure)

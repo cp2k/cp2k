@@ -378,6 +378,13 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
                 cp_failure_level,cp_assertion_failed,routineP,&
                 "lone_keyword_value type incompatible with "//&
                 "keyword type",error,failure)
+           IF (keyword%type_of_var==enum_t) THEN
+              IF (keyword%enum%strict) THEN
+                 CALL cp_assert(any(keyword%default_value%i_val(1)==keyword%enum%i_vals),cp_failure_level,&
+                         cp_assertion_failed,routineP,"default value not in enumeration : "//keyword%names(1), &
+                           error,failure) 
+              ENDIF
+           ENDIF
         END IF
      END IF
 
@@ -386,7 +393,14 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
         SELECT CASE(keyword%default_value%type_of_var)
         CASE(logical_t)
            keyword%n_var=SIZE(keyword%default_value%l_val)
-        CASE(integer_t,enum_t)
+        CASE(integer_t)
+           keyword%n_var=SIZE(keyword%default_value%i_val)
+        CASE(enum_t)
+           IF (keyword%enum%strict) THEN
+              CALL cp_assert(any(keyword%default_value%i_val(1)==keyword%enum%i_vals),cp_failure_level,&
+                      cp_assertion_failed,routineP,"default value not in enumeration : "//keyword%names(1), &
+                          error,failure) 
+           ENDIF
            keyword%n_var=SIZE(keyword%default_value%i_val)
         CASE(real_t)
            keyword%n_var=SIZE(keyword%default_value%r_val)

@@ -1581,9 +1581,9 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        CALL keyword_create(keyword, name="restart",&
             description="The way the trajectory should be done (init: from the "//&
-            "initial (input file) positions, with velocities from a boltzmann "//&
+            "initial (input file) positions, with velocities from a Boltzmann "//&
             "distribution; pos: using the latest positions stored in the restart"//&
-            " file, with with velocities from a boltzmann distribution"//&
+            " file, with with velocities from a Boltzmann distribution"//&
             "; posvel: using both the latest positions and velocites stored in "//&
             "the restart file", usage="RESTART posvel", &
             default_i_val=md_init_start,&
@@ -1653,7 +1653,7 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        CALL keyword_create(keyword, name="restart",&
             description="The way the coefficents should initialized.", usage="RESTART posvel", &
-            default_i_val=md_init_start,&
+            default_i_val=kg_coeff_init_start,&
             enum_c_vals=s2a("init","pos","posvel"),&
             enum_desc=s2a("from scratch",&
             "position from restart, velocities from Boltzmann distribution",&
