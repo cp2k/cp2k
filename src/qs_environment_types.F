@@ -171,8 +171,8 @@ MODULE qs_environment_types
 !!     - dft_control: object that contains the values of various parameters
 !!       relevant to a dft calculation
 !!     - c: the molecular orbitals, in LSD array with the different spins
-!!     - sab_orb,sac_erfc,sac_ppl,sca_ppnl,scb_ppnl : various neighbor
-!!       lists (Matthias expand this??)
+!!     - sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,sca_ppnl,scb_ppnl:
+!!       neighbor lists for the calculation of the core Hamiltonian matrix
 !!     - pao_env: things nedeed by the pao method
 !!     - particle_set: info on the atoms you simulate, pos,...
 !!     - energy: place where the energies calculated are stored
@@ -215,7 +215,8 @@ MODULE qs_environment_types
     TYPE(dft_control_type), POINTER                       :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: c
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_erfc,&
-                                                             sac_ppl,sca_ppnl,&
+                                                             sac_ppl,sac_ppnl,&
+                                                             sbc_ppnl,sca_ppnl,&
                                                              scb_ppnl
     TYPE(pao_env_type), POINTER                           :: pao_env
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
@@ -266,8 +267,8 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,sab_orb,&
-                        sac_erfc,sac_ppl,sca_ppnl,scb_ppnl,pao_env,&
-                        particle_set,energy,force,h,k,s,&
+                        sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,sca_ppnl,scb_ppnl,&
+                        pao_env,particle_set,energy,force,h,k,s,&
                         rho, pw_env, mpools,&
                         para_env, blacs_env, scf_control,&
                         kinetic,qs_charges, rho_core, ks_env,&
@@ -289,7 +290,8 @@ CONTAINS
       OPTIONAL, POINTER                         :: c
     TYPE(neighbor_list_set_p_type),&
       DIMENSION(:), OPTIONAL, POINTER           :: sab_orb,sac_erfc,sac_ppl,&
-                                                   sca_ppnl,scb_ppnl
+                                                   sac_ppnl,sbc_ppnl,sca_ppnl,&
+                                                   scb_ppnl
     TYPE(pao_env_type), OPTIONAL, POINTER       :: pao_env
     TYPE(particle_type), DIMENSION(:),&
       OPTIONAL, POINTER                         :: particle_set
@@ -320,6 +322,8 @@ CONTAINS
     IF (PRESENT(sab_orb)) sab_orb => qs_env%sab_orb
     IF (PRESENT(sac_erfc)) sac_erfc => qs_env%sac_erfc
     IF (PRESENT(sac_ppl)) sac_ppl => qs_env%sac_ppl
+    IF (PRESENT(sac_ppnl)) sac_ppnl => qs_env%sac_ppnl
+    IF (PRESENT(sbc_ppnl)) sbc_ppnl => qs_env%sbc_ppnl
     IF (PRESENT(sca_ppnl)) sca_ppnl => qs_env%sca_ppnl
     IF (PRESENT(scb_ppnl)) scb_ppnl => qs_env%scb_ppnl
     IF (PRESENT(pao_env)) pao_env => qs_env%pao_env
@@ -369,6 +373,8 @@ CONTAINS
     NULLIFY (qs_env%sab_orb)
     NULLIFY (qs_env%sac_erfc)
     NULLIFY (qs_env%sac_ppl)
+    NULLIFY (qs_env%sac_ppnl)
+    NULLIFY (qs_env%sbc_ppnl)
     NULLIFY (qs_env%sca_ppnl)
     NULLIFY (qs_env%scb_ppnl)
     NULLIFY (qs_env%pao_env)
@@ -401,8 +407,8 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE set_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,sab_orb,&
-                        sac_erfc,sac_ppl,sca_ppnl,scb_ppnl,pao_env,&
-                        particle_set,energy,force,h,k,s,&
+                        sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,sca_ppnl,scb_ppnl,&
+                        pao_env,particle_set,energy,force,h,k,s,&
                         pw_env,mpools,rho,kinetic,&
                         scf_control,qs_charges,rho_core, ks_env,&
                         wf_history, scf_env, error)
@@ -422,7 +428,8 @@ CONTAINS
       OPTIONAL, POINTER                       :: c
     TYPE(neighbor_list_set_p_type),&
       DIMENSION(:), OPTIONAL, POINTER         :: sab_orb,sac_erfc,sac_ppl,&
-                                                 sca_ppnl,scb_ppnl
+                                                 sac_ppnl,sbc_ppnl,sca_ppnl,&
+                                                 scb_ppnl
     TYPE(pao_env_type), OPTIONAL, POINTER     :: pao_env
     TYPE(particle_type), DIMENSION(:),&
       OPTIONAL, POINTER                       :: particle_set
@@ -451,6 +458,8 @@ CONTAINS
     IF (PRESENT(sab_orb)) qs_env%sab_orb => sab_orb
     IF (PRESENT(sac_erfc)) qs_env%sac_erfc => sac_erfc
     IF (PRESENT(sac_ppl)) qs_env%sac_ppl => sac_ppl
+    IF (PRESENT(sac_ppnl)) qs_env%sac_ppnl => sac_ppnl
+    IF (PRESENT(sbc_ppnl)) qs_env%sbc_ppnl => sbc_ppnl
     IF (PRESENT(sca_ppnl)) qs_env%sca_ppnl => sca_ppnl
     IF (PRESENT(scb_ppnl)) qs_env%scb_ppnl => scb_ppnl
     IF (PRESENT(pao_env)) qs_env%pao_env => pao_env
@@ -680,6 +689,22 @@ SUBROUTINE qs_env_release(qs_env,error)
                    qs_env%sac_ppl(i)%neighbor_list_set)
            END DO
            DEALLOCATE(qs_env%sac_ppl,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(qs_env%sac_ppnl)) THEN
+           DO i=1,SIZE(qs_env%sac_ppnl)
+              CALL deallocate_neighbor_list_set(&
+                   qs_env%sac_ppnl(i)%neighbor_list_set)
+           END DO
+           DEALLOCATE(qs_env%sac_ppnl,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(qs_env%sbc_ppnl)) THEN
+           DO i=1,SIZE(qs_env%sbc_ppnl)
+              CALL deallocate_neighbor_list_set(&
+                   qs_env%sbc_ppnl(i)%neighbor_list_set)
+           END DO
+           DEALLOCATE(qs_env%sbc_ppnl,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
         IF (ASSOCIATED(qs_env%sca_ppnl)) THEN

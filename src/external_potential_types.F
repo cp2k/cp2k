@@ -45,7 +45,10 @@ MODULE external_potential_types
 
   PRIVATE
 
-  INTEGER, PARAMETER :: max_name_length = 60
+! *** Global parameters ***
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "external_potential_types"
+  INTEGER, PARAMETER          :: max_name_length = 60
 
 ! *** Define the all-electron potential type ***
 
@@ -95,10 +98,10 @@ MODULE external_potential_types
     PRIVATE
     CHARACTER(LEN=max_name_length)               :: name
     CHARACTER(LEN=max_name_length), DIMENSION(2) :: description
-    REAL(wp)                                     :: alpha_core_charge,& 
+    REAL(wp)                                     :: alpha_core_charge,&
                                                     ccore_charge,&
                                                     core_charge_radius,&
-                                                    qeff 
+                                                    qeff
   END TYPE epc_potential_type
 
 
@@ -173,8 +176,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_all_potential"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE allocate_all_potential (MODULE external_potential_types)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -209,8 +213,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_gth_potential"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE allocate_gth_potential (MODULE external_potential_types)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -254,8 +259,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_epc_potential"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE allocate_epc_potential (MODULE external_potential_types)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -286,8 +292,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_all_potential"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE deallocate_all_potential (MODULE external_potential_types)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -295,11 +302,19 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    DEALLOCATE (potential%elec_conf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"potential%elec_conf")
+    IF (ASSOCIATED(potential)) THEN
 
-    DEALLOCATE (potential,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"potential")
+      DEALLOCATE (potential%elec_conf,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"potential%elec_conf")
+
+      DEALLOCATE (potential,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"potential")
+
+    ELSE
+
+      CALL stop_program(routine,"The pointer potential is not associated")
+
+    END IF
 
   END SUBROUTINE deallocate_all_potential
 
@@ -317,8 +332,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_gth_potential"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE deallocate_gth_potential (MODULE external_potential_types)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -326,38 +342,53 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    DEALLOCATE (potential%elec_conf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"potential%elec_conf")
+    IF (ASSOCIATED(potential)) THEN
 
-    DEALLOCATE (potential%all_elec_conf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"potential%all_elec_conf")
+      DEALLOCATE (potential%elec_conf,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"potential%elec_conf")
 
-!   *** Deallocate the parameters of the local part ***
+      DEALLOCATE (potential%all_elec_conf,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"potential%all_elec_conf")
 
-    IF (potential%nexp_ppl > 0) THEN
-      DEALLOCATE (potential%cexp_ppl,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"potential%cexp_ppl")
+!     *** Deallocate the parameters of the local part ***
+
+      IF (potential%nexp_ppl > 0) THEN
+        DEALLOCATE (potential%cexp_ppl,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"potential%cexp_ppl")
+      END IF
+
+!     *** Deallocate the parameters of the non-local part ***
+
+      IF (potential%nppnl > 0) THEN
+
+        DEALLOCATE (potential%alpha_ppnl,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"potential%alpha_ppnl")
+
+        DEALLOCATE (potential%cprj,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"potential%cprj")
+
+        DEALLOCATE (potential%cprj_ppnl,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"potential%cprj_ppnl")
+
+        DEALLOCATE (potential%hprj_ppnl,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"potential%hprj_ppnl")
+
+        DEALLOCATE (potential%nprj_ppnl,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"potential%nprj_ppnl")
+
+        DEALLOCATE (potential%vprj_ppnl,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"potential%vprj_ppnl")
+
+      END IF
+
+      DEALLOCATE (potential,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"potential")
+
+    ELSE
+
+      CALL stop_program(routine,"The pointer potential is not associated")
+
     END IF
-
-!   *** Deallocate the parameters of the non-local part ***
-
-    IF (potential%nppnl > 0) THEN
-      DEALLOCATE (potential%alpha_ppnl,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"potential%alpha_ppnl")
-      DEALLOCATE (potential%cprj,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"potential%cprj")
-      DEALLOCATE (potential%cprj_ppnl,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"potential%cprj_ppnl")
-      DEALLOCATE (potential%hprj_ppnl,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"potential%hprj_ppnl")
-      DEALLOCATE (potential%nprj_ppnl,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"potential%nprj_ppnl")
-      DEALLOCATE (potential%vprj_ppnl,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"potential%vprj_ppnl")
-    END IF
-
-    DEALLOCATE (potential,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"potential")
 
   END SUBROUTINE deallocate_gth_potential
 
@@ -374,8 +405,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_epc_potential"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE deallocate_epc_potential (MODULE external_potential_types)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -383,8 +415,16 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    DEALLOCATE (potential,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"potential")
+    IF (ASSOCIATED(potential)) THEN
+
+      DEALLOCATE (potential,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"potential")
+
+    ELSE
+
+      CALL stop_program(routine,"The pointer potential is not associated")
+
+    END IF
 
   END SUBROUTINE deallocate_epc_potential
 
@@ -411,12 +451,14 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_all_potential"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE get_all_potential (MODULE external_potential_types)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(potential)) THEN
+
       IF (PRESENT(name)) name = potential%name
       IF (PRESENT(alpha_core_charge))&
         alpha_core_charge = potential%alpha_core_charge
@@ -426,8 +468,11 @@ CONTAINS
       IF (PRESENT(z)) z = potential%z
       IF (PRESENT(zeff)) zeff = potential%zeff
       IF (PRESENT(elec_conf)) elec_conf => potential%elec_conf
+
     ELSE
+
       CALL stop_program(routine,"The pointer potential is not associated")
+
     END IF
 
   END SUBROUTINE get_all_potential
@@ -468,12 +513,14 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_gth_potential"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE get_gth_potential (MODULE external_potential_types)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(potential)) THEN
+
       IF (PRESENT(name)) name = potential%name
       IF (PRESENT(alpha_core_charge))&
         alpha_core_charge = potential%alpha_core_charge
@@ -502,8 +549,11 @@ CONTAINS
       IF (PRESENT(cprj_ppnl)) cprj_ppnl => potential%cprj_ppnl
       IF (PRESENT(vprj_ppnl)) vprj_ppnl => potential%vprj_ppnl
       IF (PRESENT(hprj_ppnl)) hprj_ppnl => potential%hprj_ppnl
+
     ELSE
+
       CALL stop_program(routine,"The pointer potential is not associated")
+
     END IF
 
   END SUBROUTINE get_gth_potential
@@ -528,19 +578,26 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_epc_potential"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE get_epc_potential (MODULE external_potential_types)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(potential)) THEN
+
       IF (PRESENT(name)) name = potential%name
       IF (PRESENT(qeff)) qeff = potential%qeff
       IF (PRESENT(alpha_core_charge))&
         alpha_core_charge = potential%alpha_core_charge
       IF (PRESENT(ccore_charge)) ccore_charge = potential%ccore_charge
       IF (PRESENT(core_charge_radius))&
-      core_charge_radius = potential%core_charge_radius
+        core_charge_radius = potential%core_charge_radius
+
+    ELSE
+
+      CALL stop_program(routine,"The pointer potential is not associated")
+
     END IF
 
   END SUBROUTINE get_epc_potential
@@ -617,16 +674,20 @@ CONTAINS
 
     IF (.NOT.ASSOCIATED(potential)) RETURN
 
-!   *** Initialise the projector coefficients of the    ***
-!   *** non-local part of the GTH pseudopotential and   ***
-!   *** the transformation matrices "pgf" -> "prj_ppnl" ***
+    IF (potential%nppnl > 0) THEN
 
-    CALL init_cprj_ppnl(potential)
+!     *** Initialise the projector coefficients of the    ***
+!     *** non-local part of the GTH pseudopotential and   ***
+!     *** the transformation matrices "pgf" -> "prj_ppnl" ***
 
-!   *** Initialise the h(i,j) projector coefficients of ***
-!   *** the non-local part of the GTH pseudopotential   ***
+      CALL init_cprj_ppnl(potential)
 
-    CALL init_vprj_ppnl(potential)
+!     *** Initialise the h(i,j) projector coefficients of ***
+!     *** the non-local part of the GTH pseudopotential   ***
+
+      CALL init_vprj_ppnl(potential)
+
+    END IF
 
   END SUBROUTINE init_gth_potential
 
@@ -693,8 +754,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_all_potential"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE read_all_potential (MODULE external_potential_types)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -810,8 +872,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_gth_potential"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE read_gth_potential (MODULE external_potential_types)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -1029,7 +1092,7 @@ CONTAINS
                                 globenv)
 
 !   Purpose: Read an effective charge potential data set.
-!   History: creation 22-09-2002, GT                    
+!   History: creation 22-09-2002, GT
 
 !   ***************************************************************************
 
@@ -1039,8 +1102,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_epc_potential"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE read_epc_potential (MODULE external_potential_types)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -1078,11 +1142,11 @@ CONTAINS
         IF ((INDEX(" "//line//" "," "//TRIM(apname)//" ") > 0).AND.&
             (INDEX(" "//line//" "," "//TRIM(symbol)//" ") > 0)) THEN
 
-!         *** read  the effective charge qeff *** 
+!         *** read  the effective charge qeff ***
 
           CALL read_object(qeff,newline=.TRUE.)
 
-          potential%qeff = qeff  
+          potential%qeff = qeff
 
 !         *** read alpha and calculate the corresponding coefficient ***
 
@@ -1136,8 +1200,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_all_potential"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE set_all_potential (MODULE external_potential_types)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   ---------------------------------------------------------------------------
 
@@ -1191,12 +1256,14 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_gth_potential"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE set_gth_potential (MODULE external_potential_types)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(potential)) THEN
+
       IF (PRESENT(name)) potential%name = name
       IF (PRESENT(alpha_core_charge))&
         potential%alpha_core_charge = alpha_core_charge
@@ -1223,8 +1290,11 @@ CONTAINS
       IF (PRESENT(cprj_ppnl)) potential%cprj_ppnl => cprj_ppnl
       IF (PRESENT(vprj_ppnl)) potential%vprj_ppnl => vprj_ppnl
       IF (PRESENT(hprj_ppnl)) potential%hprj_ppnl => hprj_ppnl
+
     ELSE
+
       CALL stop_program(routine,"The pointer potential is not associated")
+
     END IF
 
   END SUBROUTINE set_gth_potential
@@ -1248,8 +1318,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_epc_potential"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE set_epc_potential (MODULE external_potential_types)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   ---------------------------------------------------------------------------
 
@@ -1261,6 +1332,8 @@ CONTAINS
       IF (PRESENT(core_charge_radius))&
         potential%core_charge_radius = core_charge_radius
       IF (PRESENT(qeff)) potential%qeff = qeff
+    ELSE
+      CALL stop_program(routine,"The pointer potential is not associated")
     END IF
 
   END SUBROUTINE set_epc_potential

@@ -259,7 +259,8 @@ CONTAINS
                                lmin,lx,ly,lz,m,ncgf_set,npgf,nsgf_set,nshell,&
                                cphi,pgf_radius,sphi,zet,first_cgf,first_sgf,l,&
                                last_cgf,last_sgf,n,gcc,maxco,maxl,maxpgf,&
-                               maxsgf_set,maxshell,npgf_sum,nshell_sum,maxder)
+                               maxsgf_set,maxshell,nco_sum,npgf_sum,&
+                               nshell_sum,maxder)
 
 !   Purpose: Get informations about a Gaussian-type orbital (GTO) basis set.
 
@@ -273,8 +274,8 @@ CONTAINS
     REAL(wp), OPTIONAL, INTENT(OUT)                    :: kind_radius
     INTEGER, OPTIONAL, INTENT(OUT)                     :: maxco,maxl,maxpgf,&
                                                           maxsgf_set,maxshell,&
-                                                          ncgf,npgf_sum,nset,&
-                                                          nsgf,nshell_sum
+                                                          ncgf,nco_sum,npgf_sum,&
+                                                          nset,nsgf,nshell_sum
     CHARACTER(LEN=12), DIMENSION(:), OPTIONAL, POINTER :: cgf_symbol
     CHARACTER(LEN=6), DIMENSION(:), OPTIONAL, POINTER  :: sgf_symbol
     REAL(wp), DIMENSION(:), OPTIONAL, POINTER          :: norm_cgf,&
@@ -367,6 +368,13 @@ CONTAINS
         maxshell = 0
         DO iset=1,gto_basis_set%nset
           maxshell = MAX(maxshell,gto_basis_set%nshell(iset))
+        END DO
+      END IF
+      IF (PRESENT(nco_sum)) THEN
+        nco_sum = 0
+        DO iset=1,gto_basis_set%nset
+          nco_sum = nco_sum + gto_basis_set%npgf(iset)*&
+                              ncoset(gto_basis_set%lmax(iset))
         END DO
       END IF
       IF (PRESENT(npgf_sum)) npgf_sum = SUM(gto_basis_set%npgf)

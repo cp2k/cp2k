@@ -67,7 +67,8 @@ MODULE atomic_kind_types
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
                                              wp => dp
-  USE orbital_pointers,                ONLY: init_orbital_pointers
+  USE orbital_pointers,                ONLY: init_orbital_pointers,&
+                                             ncoset
   USE pao_bas_projection_types
   USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: massunit
@@ -258,10 +259,10 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_atomic_kind(atomic_kind,all_potential,epc_potential,gth_potential,&
-                             aux_basis_set,orb_basis_set,element_symbol,name,&
-                             mass,kind_number,natom,atom_list,&
-                             alpha_core_charge,ccore_charge,&
+  SUBROUTINE get_atomic_kind(atomic_kind,all_potential,epc_potential,&
+                             gth_potential,aux_basis_set,orb_basis_set,&
+                             element_symbol,name,mass,kind_number,natom,&
+                             atom_list,alpha_core_charge,ccore_charge,&
                              core_charge_radius,z,zeff,qeff,pao_bas_proj)
 
 !   Purpose: Get informations about an atomic kind.
@@ -372,7 +373,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_atomic_kind_set(atomic_kind_set,maxatom,maxcgf,maxco,maxl,&
+  SUBROUTINE get_atomic_kind_set(atomic_kind_set,maxatom,maxcgf,maxco,maxlgto,&
                                  maxlppl,maxlppnl,maxpgf,maxppnl,maxsgf,&
                                  maxsgf_set,maxshell,pao_max_min_bas,&
                                  pao_max_full_bas,pao_max_excl_bas,&
@@ -392,7 +393,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     INTEGER, OPTIONAL, INTENT(OUT)                :: maxatom,maxcgf,maxco,&
-                                                     maxl,maxlppl,maxlppnl,&
+                                                     maxlgto,maxlppl,maxlppnl,&
                                                      maxpgf,maxppnl,maxsgf,&
                                                      maxsgf_set,maxshell,&
                                                      pao_max_min_bas,&
@@ -439,7 +440,7 @@ CONTAINS
       IF (PRESENT(maxatom)) maxatom = 0
       IF (PRESENT(maxcgf)) maxcgf = 0
       IF (PRESENT(maxco)) maxco = 0
-      IF (PRESENT(maxl)) maxl = -1
+      IF (PRESENT(maxlgto)) maxlgto = -1
       IF (PRESENT(maxlppl)) maxlppl = -1
       IF (PRESENT(maxlppnl)) maxlppnl = -1
       IF (PRESENT(maxpgf)) maxpgf = 0
@@ -532,15 +533,19 @@ CONTAINS
             END IF
             maxco = MAX(maxco,imax)
           END IF
+          IF (ASSOCIATED(gth_potential)) THEN
+            CALL get_potential(potential=gth_potential,lprj_ppnl_max=imax)
+            maxco = MAX(maxco,ncoset(imax))
+          END IF
         END IF
-        IF (PRESENT(maxl)) THEN
+        IF (PRESENT(maxlgto)) THEN
           IF (ASSOCIATED(aux_basis_set)) THEN
             CALL get_gto_basis_set(gto_basis_set=aux_basis_set,maxl=imax)
-            maxl = MAX(maxl,imax)
+            maxlgto = MAX(maxlgto,imax)
           END IF
           IF (ASSOCIATED(orb_basis_set)) THEN
             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxl=imax)
-            maxl = MAX(maxl,imax)
+            maxlgto = MAX(maxlgto,imax)
           END IF
         END IF
         IF (PRESENT(maxpgf)) THEN

@@ -161,7 +161,7 @@ SUBROUTINE kg ( globenv )
   INTEGER :: n, nll, i
   INTEGER :: maxder
   INTEGER :: ncoef
-  INTEGER :: ikind,istat,lmax,maxl,maxlppl,maxlppnl,nkind,output_unit
+  INTEGER :: ikind,istat,maxl,maxlgto,maxlppl,maxlppnl,nkind,output_unit
   LOGICAL :: ionode, kgpol
 
   CHARACTER ( LEN = 40 ) :: set_fn, project_name
@@ -305,13 +305,13 @@ SUBROUTINE kg ( globenv )
 ! Initialize the spherical harmonics
 ! the orbital transformation matrices
   CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxl=maxl,&
+                             maxlgto=maxlgto,&
                              maxlppl=maxlppl,&
                              maxlppnl=maxlppnl)
 
-  lmax = MAX(maxl,maxlppl,maxlppnl)
+  maxl = MAX(maxlgto,maxlppl,maxlppnl)
 
-  CALL init_spherical_harmonics(lmax,globenv)
+  CALL init_spherical_harmonics(maxl,globenv)
 
 ! Initialise the atomic kind set
   CALL init_atomic_kind_set(atomic_kind_set,globenv)

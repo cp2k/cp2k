@@ -165,7 +165,7 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER              :: fmstruct
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
 
-    INTEGER :: handle,ikind,istat,lmax,maxl,maxlppl,maxlppnl,&
+    INTEGER :: handle,ikind,istat,maxl,maxlgto,maxlppl,maxlppnl,&
                nkind,multiplicity,output_unit,&
                n_mo(2), n_ao, nelectron, ispin, nelectron_spin(2)
     LOGICAL :: ionode, failure
@@ -238,23 +238,23 @@ CONTAINS
 !   *** the orbital transformation matrices    ***
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxl=maxl,&
+                             maxlgto=maxlgto,&
                              maxlppl=maxlppl,&
                              maxlppnl=maxlppnl)
 
-    lmax = MAX(maxl,maxlppl,maxlppnl)
+    maxl = MAX(maxlgto,maxlppl,maxlppnl)
 
-    IF (dft_control%forces) lmax = lmax + 1
+    IF (dft_control%forces) maxl = maxl + 1
 
-    CALL init_orbital_pointers(lmax)
-    CALL init_spherical_harmonics(lmax,globenv)
+    CALL init_orbital_pointers(maxl)
+    CALL init_spherical_harmonics(maxl,globenv)
 
 !   *** Initialize the pretabulation for the calculation of the   ***
 !   *** incomplete Gamma function F_n(t) after McMurchie-Davidson ***
 
-    lmax = 3*maxl + 1
+    maxl = 3*maxlgto + 1
 
-    CALL init_md_ftable(lmax)
+    CALL init_md_ftable(maxl)
 
 !   *** Initialise the atomic kind set ***
 
@@ -500,7 +500,7 @@ CONTAINS
         ! "** ab initio molecular dynamics simulations                                  **",&
         ! "** Theoretical Chemistry Accounts, Vol. 103, Issue 2, 124-140 (1999)         **",& 
         ! "*******************************************************************************",&
-        ! "** M. Krack, and M. Parrinello                                               **",&
+        ! "** M. Krack and M. Parrinello                                                **",&
         ! "** All-electron ab-initio molecular dynamics                                 **",& 
         ! "** Physical Chemistry Chemical Physics, Vol. 2, Issue 10, 2105-2112 (2000)   **",&
         "*******************************************************************************"
@@ -526,8 +526,8 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: iatom,maxl,maxlppl,maxlppnl,natom,ncgf,nkind,npgf,nset,nsgf,&
-               nshell,output_unit
+    INTEGER :: iatom,maxlgto,maxlppl,maxlppnl,natom,ncgf,nkind,npgf,nset,&
+               nsgf,nshell,output_unit
 
 !   ---------------------------------------------------------------------------
 
@@ -541,7 +541,7 @@ CONTAINS
       nkind = SIZE(atomic_kind_set)
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                               maxl=maxl,&
+                               maxlgto=maxlgto,&
                                maxlppl=maxlppl,&
                                maxlppnl=maxlppnl,&
                                ncgf=ncgf,&
@@ -566,13 +566,13 @@ CONTAINS
       IF ((maxlppl > -1).OR.(maxlppnl > -1)) THEN
         WRITE (UNIT=output_unit,FMT="(/,T3,A,/,/,(T3,A,I6))")&
           "Maximum angular momentum quantum number of the",&
-          "- Orbital basis functions:                   ",maxl,&
+          "- Orbital basis functions:                   ",maxlgto,&
           "- Local part of the GTH pseudopotential:     ",maxlppl,&
           "- Non-local part of the GTH pseudopotential: ",maxlppnl
       ELSE
         WRITE (UNIT=output_unit,FMT="(/,T3,A,/,/,(T3,A,I6))")&
           "Maximum angular momentum quantum number of the",&
-          "- Orbital basis functions: ",maxl
+          "- Orbital basis functions: ",maxlgto
       END IF
 
     END IF

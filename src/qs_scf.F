@@ -985,7 +985,8 @@ CONTAINS
 !   *** order to eliminate redundant atomic blocks  ***
 
     CALL copy_real_matrix_to_full_matrix(h(1)%matrix,scf_work1(1)%matrix)
-    IF (gth_potential_present) THEN
+!MK
+    IF (gth_potential_present.AND.(.NOT.dft_control%qs_control%new_core)) THEN
        CALL sm_pool_give_back_matrix(qs_env%mpools%H_redundant_sm_pools(1)%pool,&
             qs_env%h(1)%matrix,error=error)
        CALL sm_pool_create_matrix(qs_env%mpools%S_sm_pools(1)%pool,h(1)%matrix,&
@@ -1698,7 +1699,7 @@ CONTAINS
 
           sum = 0.0_wp
 
-          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxl=maxl)
+          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxl)
 
           ALLOCATE (econf(0:maxl),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineP,"econf",(maxl + 1)*int_size)
@@ -1723,6 +1724,14 @@ CONTAINS
              ELSE
                 CYCLE
              END IF
+
+!MK          *** More checking is needed here (preferibly early!) ***
+!
+!            IF (SIZE(econf) < SIZE(elec_conf)) THEN
+!              CALL stop_program(routineP,"The orbital basis set does not "//&
+!                                         "provide enough functions for the "//&
+!                                         "electron configuration",globenv)
+!            END IF
 
              maxl = SIZE(elec_conf) - 1
              econf(:) = 0

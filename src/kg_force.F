@@ -1036,7 +1036,7 @@ END SUBROUTINE deallocate_kg_densities
     REAL(dbl)          :: rel_cutoff,maxradius
     INTEGER :: ngrid_level
     REAL(dbl), DIMENSION(:), POINTER :: cutoff
-    INTEGER  :: cmax,cmaxl,igrid_level, istat,maxl
+    INTEGER  :: cmax,cmaxl,igrid_level, istat,maxlgto
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
 
 !   ---------------------------------------------------------------------------
@@ -1067,10 +1067,10 @@ END SUBROUTINE deallocate_kg_densities
        cmax = MAX(cmax,cmaxl)
     END DO
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxl=maxl)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxlgto)
 
     ! maxl+1 to allow for the forces
-    CALL init_l_info(kg_rho_v%l_info,maxl+1,cmax)
+    CALL init_l_info(kg_rho_v%l_info,maxlgto+1,cmax)
 
     kg_rho_v%total_rho_core_rspace=0.0_dbl
     kg_rho_v%total_rho_rspace=0.0_dbl

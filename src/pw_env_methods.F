@@ -204,7 +204,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
   CHARACTER(len=*), PARAMETER :: routineN='pw_env_rebuild',&
        routineP=moduleN//':'//routineN
   REAL(wp)          :: rel_cutoff, maxradius, cutilev
-  INTEGER :: handle,i,igrid_level,stat, ngrid_level, cmax,cmaxl, istat,maxl
+  INTEGER :: handle,i,igrid_level,stat, ngrid_level, cmax,cmaxl, istat,maxlgto
   INTEGER, DIMENSION(3) :: nsmax
   REAL(wp), DIMENSION(:), POINTER :: cutoff
   TYPE(cell_type), POINTER          :: cell
@@ -348,9 +348,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 
      ! init l_info
      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-          maxl=maxl)
-     ! maxl+1 to allow for the forces
-     CALL init_l_info(pw_env%l_info,maxl+1,cmax)
+          maxlgto=maxlgto)
+     ! maxlgto+1 to allow for the forces
+     CALL init_l_info(pw_env%l_info,maxlgto+1,cmax)
      
      ! init auxbas_grid
      DO i=1,ngrid_level

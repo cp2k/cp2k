@@ -26,6 +26,7 @@ MODULE qs_force
                                              cp_sm_pool_type,&
                                              sm_pools_create_matrix_vect,&
                                              sm_pools_give_back_matrix_vect
+  USE dft_types,                       ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
                                              wp => dp,&
@@ -33,7 +34,8 @@ MODULE qs_force
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE qs_core_energies,                ONLY: calculate_ecore_overlap
-  USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
+  USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix,&
+                                             build_hcore_new
   USE qs_energy,                       ONLY: qs_energies
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -116,6 +118,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,p,s
     TYPE(qs_ks_env_type), POINTER                   :: ks_env
     TYPE(scf_control_type), POINTER                 :: scf_control
+    TYPE(dft_control_type), POINTER                 :: dft_control
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: atom_of_kind,kind_of
 
@@ -131,6 +134,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    dft_control=dft_control,&
                     particle_set=particle_set,&
                     s=s,&
                     c=c,&
@@ -152,7 +156,7 @@ CONTAINS
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          gth_potential_present=gth_potential_present)
-    IF (gth_potential_present) THEN
+    IF (gth_potential_present.AND.(.NOT.dft_control%qs_control%new_core)) THEN
        ! to do calculate redundant density
        CALL sm_pools_create_matrix_vect(qs_env%mpools%H_redundant_sm_pools,p)
        DO ispin=1,SIZE(c)
@@ -189,16 +193,19 @@ CONTAINS
 
     END DO
 
-    CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
-                                       globenv=globenv,&
-                                       calculate_forces=.TRUE.,&
-                                       p=p,&
-                                       w=matrix_w)
-    
-    IF (gth_potential_present) THEN
-       CALL sm_pools_give_back_matrix_vect(qs_env%mpools%H_redundant_sm_pools,&
-            p)
+    IF (gth_potential_present.AND.(.NOT.dft_control%qs_control%new_core)) THEN
+      CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
+                                         globenv=globenv,&
+                                         calculate_forces=.TRUE.,&
+                                         p=p,&
+                                         w=matrix_w)
+      CALL sm_pools_give_back_matrix_vect(qs_env%mpools%H_redundant_sm_pools,p)
     ELSE
+      CALL build_hcore_new(qs_env=qs_env,&
+                           globenv=globenv,&
+                           calculate_forces=.TRUE.,&
+                           p=p,&
+                           w=matrix_w)
        NULLIFY(p)
     END IF
 

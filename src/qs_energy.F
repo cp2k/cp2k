@@ -23,9 +23,13 @@ MODULE qs_energy
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_para_env,                     ONLY: cp_para_env_from_globenv
   USE cp_para_types,                   ONLY: cp_para_env_type
+!MK
+  USE dft_types,                       ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: wp => dp
-  USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
+!MK
+  USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix,&
+                                             build_hcore_new
   USE qs_environment_methods,          ONLY: qs_env_rebuild_rho,&
                                              qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -73,13 +77,15 @@ CONTAINS
     LOGICAL, INTENT(in), OPTIONAL            :: neighbor_lists_from_scratch
 
 !   *** Local parameters ***
-
+    
     CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_energies"
     CHARACTER(LEN=*), PARAMETER :: routine =&
       "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
-
+!MK
+    TYPE(dft_control_type), POINTER :: dft_control
+!MK
     TYPE(qs_ks_env_type), POINTER :: ks_env
     LOGICAL :: my_neighbor_lists_from_scratch
     INTEGER             :: handle
@@ -108,11 +114,20 @@ CONTAINS
     CALL qs_env_update_s_mstruct(qs_env)
 
 !   *** Calculate the overlap and the core Hamiltonian integral matrix ***
+!MK
+    CALL get_qs_env(qs_env=qs_env,&
+                    dft_control=dft_control)
 
-    CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
-                                       globenv=globenv,&
-                                       calculate_forces=.FALSE.)
-
+    IF (dft_control%qs_control%new_core) THEN
+      CALL build_hcore_new(qs_env=qs_env,&
+                           globenv=globenv,&
+                           calculate_forces=.FALSE.)
+    ELSE
+      CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
+                                         globenv=globenv,&
+                                         calculate_forces=.FALSE.)
+    END IF
+!MK
 !   *** Perform a SCF run ***
 
     CALL scf(qs_env,globenv)

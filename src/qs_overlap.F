@@ -413,8 +413,8 @@ CONTAINS
     REAL(wp) :: dab,rab2
     INTEGER  :: ab,handle,i,iatom,iblock,ikind,ilist,ineighbor,inode,ipgf,&
                 iset,ishell,istat,jatom,jkind,jpgf,jset,jshell,katom,&
-                maxco,maxl,maxsgf,ncoa,ncob,nder,nkind,nlist,nneighbor,nnode,&
-                nseta,nsetb,sgfa,sgfb
+                maxco,maxlgto,maxsgf,ncoa,ncob,nder,nkind,nlist,&
+                nneighbor,nnode,nseta,nsetb,sgfa,sgfb
     LOGICAL  :: return_s_derivatives
 
     REAL(wp), DIMENSION(3)                :: rab
@@ -461,10 +461,10 @@ CONTAINS
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxco=maxco,&
-                             maxl=maxl,&
+                             maxlgto=maxlgto,&
                              maxsgf=maxsgf)
 
-    CALL init_orbital_pointers(maxl+nder)
+    CALL init_orbital_pointers(maxlgto+nder)
 
     ALLOCATE (sab(maxco,maxco*SIZE(s)),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"sab",maxco*maxco*SIZE(s)*wp_size)
