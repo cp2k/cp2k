@@ -159,6 +159,12 @@ SUBROUTINE do_line_search_gold(qs_ot_env,globenv)
    IF (count+1 .gt. size(qs_ot_env%OT_pos)) THEN
       ! should not happen, we pass with a warning first
       ! you can increase the size of OT_pos and the like in qs_ot_env
+      IF (globenv%ionode) THEN
+         write(globenv%scr,*) " Line Search History : "
+         DO count=1,size(qs_ot_env%OT_pos)
+            write(globenv%scr,*) qs_ot_env%ot_pos(count),qs_ot_env%ot_energy(count)
+         ENDDO
+      END IF
       CALL stop_program("OT LS","MAX ITER EXCEEDED : FATAL")
    ENDIF
 
