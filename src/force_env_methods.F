@@ -23,6 +23,7 @@
 !******************************************************************************
 
 MODULE force_env_methods
+  USE realspace_grid_types,            ONLY: rs_pw_to_cube
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
@@ -798,6 +799,7 @@ RECURSIVE SUBROUTINE qmmm_energy(force_env,box_change,error)
   ! Compute the QM/MM Electrostatic Potential
   CALL qmmm_el_coupling(force_env%sub_force_env(2)%force_env%qs_env,&
                         force_env%qmmm_env,particles_mm,error)
+  CALL rs_pw_to_cube(force_env%sub_force_env(2)%force_env%qs_env%ks_qmmm_env%v_qmmm_rspace%pw,123,.TRUE.,"QMMM_Eletrostatics")
 !TL
 ! Fist: isubsys = 1
 !  isubsys = 1

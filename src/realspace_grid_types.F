@@ -976,9 +976,9 @@ SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title )
         WRITE(iunit,*) "No Title"
      ENDIF
      ! put 0.0, 0.0 ,0.0 (approx) in the center of the cube
-     S1=rs%npts(1)/2
-     S2=rs%npts(2)/2
-     S3=rs%npts(3)/2
+     S1=0!rs%npts(1)/2
+     S2=0!rs%npts(2)/2
+     S3=0!rs%npts(3)/2
      WRITE(iunit,'(I5,3f12.6)') 0,0.0_dbl-S1*rs%dr(1),0.0_dbl-S2*rs%dr(2),0.0_dbl-S3*rs%dr(3)
      WRITE(iunit,'(I5,3f12.6)') rs%npts(1),rs%dr(1),0.0_dbl,0.0_dbl
      WRITE(iunit,'(I5,3f12.6)') rs%npts(2),0.0_dbl,rs%dr(2),0.0_dbl
