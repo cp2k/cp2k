@@ -1,0 +1,38 @@
+&CP2K  
+  PROGRAM   FIST
+  PROJECT   undecane
+  IOLEVEL   1
+  FFTLIB    FFTSG
+  RUN_TYPE  GEO_OPT
+&END
+
+&PRINT LOW
+&END
+
+&GEOOPT
+ OPTIMIZER BFGS
+ MAX_ITER  0
+&END
+
+&TOPOLOGY
+ coord_file     sample_pdb/C11H24.pdb
+ coordinate     pdb
+ CHARGE_BETA
+&END
+
+&EWALD
+ units angstrom
+ ewald_type spme
+ ewald_param .44 24 6
+&END
+
+&FORCE_FIELD
+ PARMFILE CHM butane.pot
+&END
+ PARMFILE CHM charmm.pot
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          30.0 30.0 30.0
+&END
+
