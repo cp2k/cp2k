@@ -77,7 +77,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine mc_Quickstep_move(mc_par,force_env,moves,move_updates,
 !!                                  energy_check,r_old,nnstep,old_energy,
-!!                                  averages,classical_energy_old_out,error)
+!!                                  averages,error)
 !!           Type(mc_simulation_parameters_type),Pointer
 !!                                                 :: mc_par
 !!           Type(force_env_type), Pointer         :: force_env
@@ -90,7 +90,6 @@ CONTAINS
 !!           Type(mc_averages_type), Pointer       :: averages
 !!           Type(cp_error_type), Intent(INOUT),Optional
 !!                                                 :: error
-!!           Real(Kind=dp),Intent(INOUT)           :: classical_energy_old_out
 !!     End Subroutine mc_Quickstep_move
 !!
 !!   FUNCTION
@@ -115,8 +114,6 @@ CONTAINS
 !!                   Quickstep calculation
 !!     - averages: the structure that keeps track of the running averages
 !!                 in the system
-!!     - classical_energy_old_out: the classical energy of the configuration
-!!                                 that leaves the routine
 !!
 !!   AUTHOR
 !!     MJM
@@ -126,7 +123,6 @@ CONTAINS
   SUBROUTINE mc_Quickstep_move (mc_par,force_env,moves,&
                         move_updates,energy_check,r_old,&
                         nnstep,old_energy,averages,&
-                        classical_energy_old_out,&
                         error)
 
 !   ***************************************************************************
@@ -144,7 +140,6 @@ CONTAINS
     TYPE(mc_averages_type), POINTER          :: averages
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
-    REAL(KIND=dp),INTENT(INOUT)          :: classical_energy_old_out
 
     CHARACTER(LEN=*), PARAMETER        :: routineN = "mc_Quickstep_move"
 
@@ -185,27 +180,40 @@ CONTAINS
 
 ! accept or reject the move based on Metropolis or the Iftimie rule
       IF (mc_par%ionode) THEN
+         
          IF (mc_par%lclassical) THEN
             CALL mc_classical_energy(force_env,&
-                                  classical_energy_new,&
-                                  mc_par)
+               classical_energy_new,&
+               mc_par,1,mc_par%nchain,6.211D0/angstrom)
+!            new_energy=classical_energy_new
             classical_energy_old=moves%classical_energy
             w=dexp(-mc_par%BETA*((new_energy-classical_energy_new)&
                    -(old_energy-classical_energy_old)))
-            IF ( w .GT. 1.0d0 ) w=1.0d0
+
+            WRITE(mc_par%diff,*) nnstep,new_energy-old_energy,&
+                 classical_energy_new-classical_energy_old
+!            WRITE(mc_par%diff,*) nnstep,new_energy,old_energy,&
+!                classical_energy_new,classical_energy_old,mc_par%BETA
+                 
+!            w=0.0D0
          ELSE
             w=dexp(-mc_par%BETA*(new_energy-old_energy))
-            IF ( w .GT. 1.0d0 ) w=1.0d0
          ENDIF
 
-         CALL random_number(rand)
+         IF ( w .GE. 1.0d0 ) THEN
+            w=1.0d0
+            rand=0.0D0
+         ELSE
+            CALL random_number(rand)
+         ENDIF
+
 ! done with serial
       ENDIF
 
 ! broadcast these numbers, to make sure we're on the same page
       CALL mp_bcast(rand,mc_par%source,mc_par%group)      
       CALL mp_bcast(w,mc_par%source,mc_par%group)      
-
+!      WRITE(6,*) nnstep,w,rand,'dkjfls'
       IF (rand .lt. w) THEN
 
 ! go back to serial
@@ -214,11 +222,12 @@ CONTAINS
             moves%Quickstep%successes=moves%Quickstep%successes+1
 
 ! we need to record all accepted moves since last Quickstep calculation
-            CALL q_move_accept(moves,move_updates)
+!            CALL q_move_accept(moves,move_updates)
+            CALL q_move_accept(moves)
 
 ! reset the counters
             CALL move_q_reinit(moves)
-            CALL move_q_reinit(move_updates)
+!            CALL move_q_reinit(move_updates)
 
 ! update energies
             energy_check=energy_check+(new_energy-old_energy)
@@ -240,10 +249,10 @@ CONTAINS
          
 ! if we're biasing classically, then we update the classical energy
             IF ( mc_par % lclassical) THEN
-               CALL mc_classical_energy(force_env,&
-                                         moves%classical_energy,&
-                                         mc_par)
-               classical_energy_old_out=moves%classical_energy            
+!               CALL mc_classical_energy(force_env,&
+!                  moves%classical_energy,mc_par,1,&
+!                  mc_par%nchain,6.211D0/angstrom)
+               moves%classical_energy=classical_energy_new
             ENDIF
 ! back to parallel
          ENDIF
@@ -267,15 +276,6 @@ CONTAINS
                REAL(istep,dbl)+old_energy**2&
                /REAL(istep,dbl)
 
-! replace coordinates
-!            DO iparticle=1,mc_par%nunits_tot
-!               particles%els(iparticle)%r(1:3)=r_old(1:3,iparticle)
-!            ENDDO
-
-! if we need to restore the classical energy
-            IF ( mc_par % lclassical ) THEN
-               classical_energy_old_out=moves%classical_energy
-            ENDIF
 ! back to parallel
          ENDIF
 
@@ -320,7 +320,6 @@ CONTAINS
 !!           Real(Kind=dp), Intent(INOUT)          :: old_energy
 !!           Type(cp_error_type), Intent(INOUT),Optional
 !!                                                 :: error
-!!           Real(Kind=dp),Intent(INOUT)           :: classical_energy_old
 !!     End Subroutine mc_atom_translation
 !!
 !!   FUNCTION
@@ -338,8 +337,6 @@ CONTAINS
 !!     - counter: the total number of "inner moves" already performed
 !!     - mol: the number of the molecule's oxygen atom, assuming the hydrogens
 !!            are the following two
-!!     - classical_energy_old: the classical energy of the configuration of
-!!                             the system entering the routine
 !!                                 
 !!
 !!   AUTHOR
@@ -348,8 +345,8 @@ CONTAINS
 !!*****************************************************************************
 
   SUBROUTINE mc_atom_translation ( mc_par,force_env, moves,&
-                        move_updates,nnstep,counter,mol,&
-                        classical_energy_old,error)
+                        move_updates,nnstep,counter,mol,classical_energy,&
+                        error)
 
 !   ***************************************************************************
 
@@ -358,16 +355,17 @@ CONTAINS
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
     INTEGER, INTENT(IN)                      :: nnstep,counter,mol
-    REAL(KIND=dp), INTENT(INOUT)             :: classical_energy_old
+    REAL(KIND=dp), INTENT(INOUT)                :: classical_energy
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_atom_translation"
 
-    INTEGER                                  :: handle, i, imol
+    INTEGER                                  :: handle, i, imol,ipart
     REAL(KIND=dp)                            :: classical_energy_new, &
                                                 dis_ion, rand, w,&
-                                                dis_length
+                                                dis_length,&
+                                                classical_energy_old
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     REAL(KIND=dp), &
@@ -385,15 +383,11 @@ CONTAINS
       NULLIFY(particles,subsys)
       bond_flag=.FALSE.
 
-! update the ion translation max displacemnt, if necessary
-      IF (MOD(nnstep,mc_par%iuptrans*&
-               mc_par%nchain-mc_par%nstart) == 0 .AND. counter==1) THEN
-         CALL mc_move_update(mc_par,move_updates,"bond")
-         IF (mc_par%ionode) WRITE(mc_par%rm,*) nnstep,' rmbond = ',&
-                                    mc_par%rmbond*angstrom,' angstroms'
-         CALL mc_move_update(mc_par,move_updates,"angle")
-         IF (mc_par%ionode) WRITE(mc_par%rm,*) nnstep,' rmangle = ',&
-               mc_par%rmangle/pi*180.0d0,' degrees'
+! find the old classical energy of the moving mol if we're biasing classically
+      imol = (mol+2)/3
+      IF (mc_par % lclassical ) THEN
+         CALL mc_classical_energy(force_env,&
+            classical_energy_old,mc_par,imol,imol,6.211D0/angstrom)
       ENDIF
 
 ! let's grab the coordinates
@@ -402,12 +396,13 @@ CONTAINS
              particles=particles, error=error)
 
 ! save the coords 
-      DO imol=1,mc_par%nunits_tot
-         r(1:3,imol)=particles%els(imol)%r(1:3)
+      DO ipart=1,mc_par%nunits_tot
+         r(1:3,ipart)=particles%els(ipart)%r(1:3)
       ENDDO
 
 ! choose if we're changing a bond length or an angle
       CALL random_number(rand)
+!      IF (rand .lt. -0.66666667d0) THEN
       IF (rand .lt. 0.66666667d0) THEN
 
 ! change a bond length
@@ -442,8 +437,8 @@ CONTAINS
       ENDIF
 
 ! set the coordinates
-      DO imol=1,mc_par%nunits_tot
-         particles%els(imol)%r(1:3)=r_new(1:3,imol)
+      DO ipart=1,mc_par%nunits_tot
+         particles%els(ipart)%r(1:3)=r_new(1:3,ipart)
       ENDDO
       CALL cp_subsys_set(subsys(1)%subsys,particles=particles)
 
@@ -453,7 +448,7 @@ CONTAINS
 
 ! here's where we bias the moves with a classical force field 
          CALL mc_classical_energy(force_env,&
-                              classical_energy_new,mc_par)
+            classical_energy_new,mc_par,imol,imol,6.211D0/angstrom)
 
 ! accept or reject the move based on the Metropolis rule with a 
 ! correction factor for the change in phase space...dis_length is
@@ -461,23 +456,28 @@ CONTAINS
          w=dexp(-mc_par%BETA*(classical_energy_new-&
                     classical_energy_old))*dis_length**2
 
-         IF (w .GT. 1.0d0) w=1.0d0
-
-         CALL random_number(rand)
+         IF ( w .GE. 1.0d0 ) THEN
+            w=1.0d0
+            rand=0.0D0
+         ELSE
+            CALL random_number(rand)
+         ENDIF
 
          IF (rand .lt. w) THEN
 
 ! accept the move
             IF (bond_flag) THEN
                moves%bond%qsuccesses=moves%bond%qsuccesses+1
-               move_updates%bond%qsuccesses=&
-                  move_updates%bond%qsuccesses+1
+               move_updates%bond%successes=&
+                  move_updates%bond%successes+1
             ELSE
                moves%angle%qsuccesses=moves%angle%qsuccesses+1
-               move_updates%angle%qsuccesses=&
-                  move_updates%angle%qsuccesses+1
+               move_updates%angle%successes=&
+                  move_updates%angle%successes+1
             ENDIF
-            classical_energy_old=classical_energy_new
+            classical_energy=classical_energy+classical_energy_new-&
+                                 classical_energy_old
+
          ELSE
 
 ! reject the move
@@ -485,14 +485,15 @@ CONTAINS
             CALL force_env_get(force_env,subsys=subsys,error=error)
             CALL cp_subsys_get(subsys(1)%subsys, &
              particles=particles, error=error)
-            DO imol=1,mc_par%nunits_tot
-               particles%els(imol)%r(1:3)=r(1:3,imol)
+            DO ipart=1,mc_par%nunits_tot
+               particles%els(ipart)%r(1:3)=r(1:3,ipart)
             ENDDO
             CALL cp_subsys_set(subsys(1)%subsys,particles=particles)
 
          ENDIF
 
       ENDIF
+
 
 ! end the timing
   CALL timestop(0.0d0,handle)
@@ -508,7 +509,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine mc_molecule_translation ( mc_par,force_env,moves,
 !!                                          move_updates,nnstep,counter,mol,
-!!                                          classical_energy_old,error)
+!!                                          error)
 !!           Type(mc_simulation_parameters_type),Pointer
 !!                                                 :: mc_par
 !!           Type(force_env_type), Pointer         :: force_env
@@ -519,7 +520,6 @@ CONTAINS
 !!           Real(Kind=dp), Intent(INOUT)          :: old_energy
 !!           Type(cp_error_type), Intent(INOUT),Optional
 !!                                                 :: error
-!!           Real(Kind=dp),Intent(INOUT)           :: classical_energy_old
 !!     End Subroutine mc_molecule_translation
 !!
 !!   FUNCTION
@@ -537,8 +537,6 @@ CONTAINS
 !!     - counter: the total number of "inner moves" already performed
 !!     - mol: the number of the molecule's oxygen atom, assuming the hydrogens
 !!            are the following two
-!!     - classical_energy_old: the classical energy of the configuration of
-!!                             the system entering the routine
 !!                                 
 !!
 !!   AUTHOR
@@ -547,8 +545,8 @@ CONTAINS
 !!*****************************************************************************
 
  SUBROUTINE mc_molecule_translation(  mc_par,force_env, moves,&
-                        move_updates,nnstep,counter,mol,&
-                        classical_energy_old,error)
+                      move_updates,nnstep,counter,mol,classical_energy,&
+                        error)
 
 !   ***************************************************************************
 
@@ -557,16 +555,17 @@ CONTAINS
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
     INTEGER, INTENT(IN)                      :: nnstep, counter,mol
-    REAL(KIND=dp), INTENT(INOUT)             :: classical_energy_old
+    REAL(KIND=dp), INTENT(INOUT)                :: classical_energy
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_molecule_translation"
 
     INTEGER                                  :: handle, i, imol, &
-                                                iparticle
+                                                iparticle,ipart
     REAL(KIND=dp)                            :: classical_energy_new, &
-                                                dis_mol, rand, w
+                                                dis_mol, rand, w,&
+                                                classical_energy_old
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     REAL(KIND=dp), &
@@ -582,12 +581,13 @@ CONTAINS
 ! nullify some pointers
       NULLIFY(particles,subsys)
 
-! update the molecule translation max displacemnt, if necessary
-      IF (MOD(nnstep,mc_par%iuptrans*&
-               mc_par%nchain-mc_par%nstart) == 0 .AND. counter==1) THEN
-         CALL mc_move_update(mc_par,move_updates,"trans")
-         IF (mc_par%ionode) WRITE(mc_par%rm,*) nnstep,' rmtrans = ',&
-                         mc_par%rmtrans*angstrom,' angstroms'
+! find the old classical energy of the moving mol if we're biasing classically
+      imol = (mol+2)/3
+      IF (mc_par % lclassical ) THEN
+!          CALL mc_classical_energy(force_env,&
+!       classical_energy_old,mc_par,1,mc_par%nchain,6.211d0/angstrom)
+        CALL mc_classical_energy(force_env,&
+            classical_energy_old,mc_par,imol,imol,6.211D0/angstrom)
       ENDIF
 
 ! record the attempt
@@ -615,8 +615,8 @@ CONTAINS
 
 ! save the coords if we're biasing classically
       IF (mc_par%lclassical) THEN
-         DO imol=1,mc_par%nunits_tot
-            r(1:3,imol)=particles%els(imol)%r(1:3)
+         DO ipart=1,mc_par%nunits_tot
+            r(1:3,ipart)=particles%els(ipart)%r(1:3)
          ENDDO
       ENDIF
 
@@ -635,23 +635,30 @@ CONTAINS
 
 ! here's where we bias the moves with a classical force field 
          CALL mc_classical_energy(force_env,&
-                              classical_energy_new,mc_par)
+            classical_energy_new,mc_par,imol,imol,6.211d0/angstrom)
+!         CALL mc_classical_energy(force_env,&
+!       classical_energy_new,mc_par,1,mc_par%nchain,6.211d0/angstrom)
 
 ! accept or reject the move based on the Metropolis rule
          w=dexp(-mc_par%BETA*(classical_energy_new-&
                                  classical_energy_old))
-         IF (w .GT. 1.0d0) w=1.0d0
 
-         CALL random_number(rand)
+         IF ( w .GE. 1.0d0 ) THEN
+            w=1.0d0
+            rand=0.0D0
+         ELSE
+            CALL random_number(rand)
+         ENDIF
 
          IF (rand .lt. w) THEN
 
 ! accept the move
             moves%trans%qsuccesses=moves%trans%qsuccesses+1
-            move_updates%trans%qsuccesses=&
-                      move_updates%trans%qsuccesses+1
+            move_updates%trans%successes=&
+                      move_updates%trans%successes+1
             moves%qtrans_dis=moves%qtrans_dis+ABS(dis_mol)
-            classical_energy_old=classical_energy_new
+            classical_energy=classical_energy+classical_energy_new-&
+                                 classical_energy_old
          ELSE
 
 ! reject the move
@@ -659,14 +666,16 @@ CONTAINS
             CALL force_env_get(force_env,subsys=subsys,error=error)
             CALL cp_subsys_get(subsys(1)%subsys, &
              particles=particles, error=error)
-            DO imol=1,mc_par%nunits_tot
-               particles%els(imol)%r(1:3)=r(1:3,imol)
+            DO ipart=1,mc_par%nunits_tot
+               particles%els(ipart)%r(1:3)=r(1:3,ipart)
             ENDDO
             CALL cp_subsys_set(subsys(1)%subsys,particles=particles)
 
          ENDIF
 
       ENDIF
+
+!      WRITE(1600,*) classical_energy/3.16682968D-6
 
 ! end the timing
   CALL timestop(0.0d0,handle)
@@ -682,7 +691,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine mc_molecule_rotation ( mc_par,force_env,moves,
 !!                                          move_updates,nnstep,counter,mol,
-!!                                          classical_energy_old,error)
+!!                                          error)
 !!           Type(mc_simulation_parameters_type),Pointer
 !!                                                 :: mc_par
 !!           Type(force_env_type), Pointer         :: force_env
@@ -693,7 +702,6 @@ CONTAINS
 !!           Real(Kind=dp), Intent(INOUT)          :: old_energy
 !!           Type(cp_error_type), Intent(INOUT),Optional
 !!                                                 :: error
-!!           Real(Kind=dp),Intent(INOUT)           :: classical_energy_old
 !!     End Subroutine mc_molecule_rotation
 !!
 !!   FUNCTION
@@ -712,8 +720,6 @@ CONTAINS
 !!     - counter: the total number of "inner moves" already performed
 !!     - mol: the number of the molecule's oxygen atom, assuming the hydrogens
 !!            are the following two
-!!     - classical_energy_old: the classical energy of the configuration of
-!!                             the system entering the routine
 !!                                 
 !!
 !!   AUTHOR
@@ -722,8 +728,8 @@ CONTAINS
 !!*****************************************************************************
 
  SUBROUTINE mc_molecule_rotation ( mc_par,force_env, moves,&
-                        move_updates,nnstep,counter,mol,&
-                        classical_energy_old,error)
+                      move_updates,nnstep,counter,mol,classical_energy,&
+                        error)
 
 !   ***************************************************************************
 
@@ -732,21 +738,23 @@ CONTAINS
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
     INTEGER, INTENT(IN)                      :: nnstep, counter,mol
-    REAL(KIND=dp), INTENT(INOUT)             :: classical_energy_old
+    REAL(KIND=dp), INTENT(INOUT)                :: classical_energy
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_molecule_rotation"
     REAL(KIND=dp), DIMENSION(1:3), PARAMETER :: &
       mass = (/ 15.994d0,1.008d0,1.008d0 /)
+    REAL(KIND=dp), PARAMETER  ::   masstot = 18.01D0
 
     INTEGER                                  :: dir, handle, ii, imol, &
-                                                iunit
+                                                iunit,ipart
     LOGICAL                                  :: lx, ly
-    REAL(KIND=dp)                            :: classical_energy_new, cosdg, &
-                                                dgamma, nxcm, nycm, nzcm, &
-                                                rand, rx, rxnew, ry, rynew, &
-                                                rz, rznew, sindg, w
+    REAL(KIND=dp)                      :: classical_energy_new, cosdg, &
+                                          dgamma, nxcm, nycm, nzcm, &
+                                          rand, rx, rxnew, ry, rynew, &
+                                          rz, rznew, sindg, w,&
+                                          classical_energy_old
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     REAL(KIND=dp), &
@@ -766,13 +774,15 @@ CONTAINS
       lx =.false.
       ly =.false.
 
-! update the molecule rotation max displacemnt, if necessary
-      IF (MOD(nnstep,mc_par%iuptrans*&
-               mc_par%nchain-mc_par%nstart) == 0 .AND. counter==1) THEN
-         CALL mc_move_update(mc_par,move_updates,"rot")
-         IF (mc_par%ionode) WRITE(mc_par%rm,*) nnstep,' rmrot = ',&
-                    mc_par%rmrot/pi*180.0d0,' degrees'
+! find the old classical energy of the moving mol if we're biasing classically
+      imol = (mol+2)/3
+      IF (mc_par % lclassical ) THEN
+!         CALL mc_classical_energy(force_env,&
+!      classical_energy_old,mc_par,1,mc_par%nchain,6.211d0/angstrom)
+         CALL mc_classical_energy(force_env,&
+            classical_energy_old,mc_par,imol,imol,6.211d0/angstrom)
       ENDIF
+!      STOP
 
 ! record the attempt
       moves%rot%attempts=moves%rot%attempts+1
@@ -801,8 +811,8 @@ CONTAINS
 
 ! save the coords if we're biasing classically
       IF (mc_par%lclassical) THEN
-         DO imol=1,mc_par%nunits_tot
-            r(1:3,imol)=particles%els(imol)%r(1:3)
+         DO ipart=1,mc_par%nunits_tot
+            r(1:3,ipart)=particles%els(ipart)%r(1:3)
          ENDDO
       ENDIF
 
@@ -816,9 +826,9 @@ CONTAINS
          nycm = nycm + particles%els(mol-1+ii)%r(2)* mass(ii)
          nzcm = nzcm + particles%els(mol-1+ii)%r(3)* mass(ii)
       enddo
-      nxcm = nxcm / 18.0d0
-      nycm = nycm / 18.0d0
-      nzcm = nzcm / 18.0d0
+      nxcm = nxcm / masstot
+      nycm = nycm / masstot
+      nzcm = nzcm / masstot
 
 ! call a random number to figure out how far we're moving
       CALL random_number(rand)
@@ -880,23 +890,36 @@ CONTAINS
       IF(mc_par%lclassical) THEN
 
 ! here's where we bias the moves with a classical force field 
+!         CALL mc_classical_energy(force_env,&
+!      classical_energy_new,mc_par,1,mc_par%nchain,6.211d0/angstrom)
          CALL mc_classical_energy(force_env,&
-                              classical_energy_new,mc_par)
+            classical_energy_new,mc_par,imol,imol,6.211d0/angstrom)
 
 ! accept or reject the move based on the Metropolis rule
          w=dexp(-mc_par%BETA*(classical_energy_new-&
                                  classical_energy_old))
-         IF (w .GT. 1.0d0) w=1.0d0
 
-         CALL random_number(rand)
+         IF ( w .GE. 1.0d0 ) THEN
+            w=1.0d0
+            rand=0.0D0
+         ELSE
+            CALL random_number(rand)
+         ENDIF
 
          IF (rand .lt. w) THEN
 
 ! accept the move
             moves%rot%qsuccesses=moves%rot%qsuccesses+1
-            move_updates%rot%qsuccesses=move_updates%rot%qsuccesses+1
-!            moves%rot%successes=moves%rot%successes+1
-            classical_energy_old=classical_energy_new
+            move_updates%rot%successes=move_updates%rot%successes+1
+!            WRITE(6,*) classical_energy/3.16682968D-6,classical_energy_new/3.16682968D-6,&
+!               classical_energy_old/3.16682968D-6
+            classical_energy=classical_energy+classical_energy_new-&
+                                 classical_energy_old
+!            classical_energy=classical_energy_new
+!            IF (classical_energy_new/3.16682968D-6 .GT. 100000.0d0) &
+!               WRITE(1000,*) 'accept ',classical_energy/3.16682968D-6,&
+!                 classical_energy_new/3.16682968D-6,&
+!                 classical_energy_old/3.16682968D-6,imol
          ELSE
 
 ! reject the move
@@ -904,14 +927,18 @@ CONTAINS
             CALL force_env_get(force_env,subsys=subsys,error=error)
             CALL cp_subsys_get(subsys(1)%subsys, &
              particles=particles, error=error)
-            DO imol=1,mc_par%nunits_tot
-               particles%els(imol)%r(1:3)=r(1:3,imol)
+            DO ipart=1,mc_par%nunits_tot
+               particles%els(ipart)%r(1:3)=r(1:3,ipart)
             ENDDO
             CALL cp_subsys_set(subsys(1)%subsys,particles=particles)
-
+!            WRITE(1000,*) 'reject ',classical_energy/3.16682968D-6,&
+!                 classical_energy_new/3.16682968D-6,&
+!                 classical_energy_old/3.16682968D-6,imol
          ENDIF
 
       ENDIF
+
+!      WRITE(1600,*) classical_energy/3.16682968D-6
 
 ! end the timing
   CALL timestop(0.0d0,handle)
@@ -926,7 +953,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine mc_volume_move ( mc_par,force_env, moves,move_updates,nnstep,
-!!                                 averages,old_energy,classical_energy_old,
+!!                                 averages,old_energy,
 !!                                 globenv,energy_check,r_old,error)
 !!           Type(mc_simulation_parameters_type),Pointer
 !!                                                 :: mc_par
@@ -939,7 +966,6 @@ CONTAINS
 !!           Real(Kind=dp), Intent(INOUT)          :: old_energy
 !!           Type(cp_error_type), Intent(INOUT),Optional
 !!                                                 :: error
-!!           Real(Kind=dp),Intent(INOUT)           :: classical_energy_old
 !!           Real(Kind=dp), Intent(INOUT)          :: energy_check
 !!           Real(Kind=dp),Dimension(1:3, 1:mc_par%nunits_tot),
 !!                Intent(INOUT)                    :: r_old
@@ -963,8 +989,6 @@ CONTAINS
 !!     - counter: the total number of "inner moves" already performed
 !!     - mol: the number of the molecule's oxygen atom, assuming the hydrogens
 !!            are the following two
-!!     - classical_energy_old: the classical energy of the configuration of
-!!                             the system entering the routine
 !!     - energy_check: the running total of how much the energy has changed
 !!                     since the initial configuration
 !!     - r_old: the coordinates of the last accepted move involving a
@@ -982,14 +1006,13 @@ CONTAINS
 
   SUBROUTINE mc_volume_move ( mc_par,force_env, moves,move_updates,&
                         nnstep,averages,old_energy,&
-                        classical_energy_old,globenv,&
+                        globenv,&
                         energy_check,r_old,error)
 
 !   ***************************************************************************
 
     TYPE(global_environment_type), POINTER :: globenv
-    REAL(KIND = dp),INTENT(INOUT) :: old_energy,energy_check,&
-                                   classical_energy_old
+    REAL(KIND = dp),INTENT(INOUT) :: old_energy,energy_check
     TYPE(mc_moves_type),POINTER  :: moves,move_updates
     TYPE(mc_averages_type),POINTER  :: averages
     TYPE(force_env_type), POINTER :: force_env
@@ -1012,7 +1035,8 @@ CONTAINS
                                        density_old,new_cell_length,&
                                        old_cell_length,&
                                        rand_beta_factor,weight,&
-                                       classical_energy_new,beta_sum
+                                       classical_energy_new,beta_sum,&
+                                       classical_energy_old
     TYPE(force_env_type), POINTER :: test_env
     TYPE(particle_list_type), POINTER :: particles_old
     TYPE(particle_list_type), POINTER :: particles
@@ -1041,9 +1065,9 @@ CONTAINS
       NULLIFY(test_env,particles_old,particles,oldsys)
 
 ! update the volume move max displacement, if necessary
-      IF (MOD(nnstep,mc_par%iupvolume*&
-               mc_par%nchain-mc_par%nstart) == 0 ) THEN
-         CALL mc_move_update(mc_par,move_updates,"volume")
+      IF (MOD(istep,mc_par%iupvolume*&
+               mc_par%nchain) == 0 ) THEN
+         CALL mc_move_update(mc_par,move_updates,"volume",nnstep)
          IF (mc_par%ionode) WRITE(mc_par%rm,*) nnstep,' rmvolume = ',&
                  mc_par%rmvolume*(angstrom)**3,' angstroms^3'
       ENDIF
@@ -1150,8 +1174,8 @@ CONTAINS
 
 ! find and store the classical energy, if we're biasing classically
          IF (mc_par % lclassical .AND. mc_par % nvolmoves .GT. 1) THEN
-            CALL mc_classical_energy(test_env,trial_energy(ivolmove),&
-                mc_par)
+!            CALL mc_classical_energy(test_env,trial_energy(ivolmove),&
+!                mc_par)
                 beta_factor(ivolmove) = &
                            DEXP(-mc_par%BETA*trial_energy(ivolmove))
                 weight = weight + beta_factor(ivolmove)
@@ -1220,9 +1244,13 @@ CONTAINS
            DLOG(new_cell_length/old_cell_length) &
         + mc_par%pressure*(new_cell_length**3-old_cell_length**3)))
 
-      IF (w > 1.0d0 ) w=1.0
+      IF ( w .GE. 1.0d0 ) THEN
+         w=1.0d0
+         rand=0.0D0
+      ELSE
+         CALL random_number(rand)
+      ENDIF
 
-      CALL random_number(rand)
       IF (rand .lt. w) THEN
 
 ! write cell length, volume, density, and trial displacement to a file
@@ -1278,9 +1306,9 @@ CONTAINS
 
 ! update the classical energy, if need be
          IF ( mc_par % lclassical) THEN
-            CALL mc_classical_energy(force_env,&
-                                         moves%classical_energy,&
-                                         mc_par)
+!            CALL mc_classical_energy(force_env,&
+!                                         moves%classical_energy,&
+!                                         mc_par)
             classical_energy_old=moves%classical_energy
          ENDIF
 
@@ -1488,6 +1516,7 @@ CONTAINS
 ! choose a displacement
       CALL random_number(rand)
       dis_angle=mc_par%rmangle*2.0d0*(rand-0.5d0)
+!      dis_angle=0.017453D0   ! always increase by one degree for testing
 
 ! find the bond vectors
       DO i=1,3
@@ -1499,7 +1528,8 @@ CONTAINS
       OH_between(1:3)=OH1(1:3)/old_length1-OH2(1:3)/old_length2
       old_angle=DACOS(DOT_PRODUCT(OH1,OH2)/(old_length1*old_length2))
       new_angle=old_angle+dis_angle
-
+!      WRITE(mc_par%diff,*) 'new angle ',new_angle/3.14159265358979323D0*180.0d0
+!      WRITE(mc_par%diff,*) 'old angle ',old_angle/3.14159265358979323D0*180.0d0,dis_angle/3.14159265358979323D0*180.0d0
       DO i=1,3
          bisector(i)=OH1(i)/old_length1+& ! not yet normalized
                  OH2(i)/old_length2

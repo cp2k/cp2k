@@ -145,12 +145,12 @@ CONTAINS
 
 ! accept or reject the move based on Metropolis or the Iftimie rule
       IF (mc_par_1%lclassical) THEN
-         CALL mc_classical_energy(force_env_1,&
-                                  classical_energy_new(1),&
-                                  mc_par_1)
-         CALL mc_classical_energy(force_env_2,&
-                                  classical_energy_new(2),&
-                                  mc_par_2)
+!         CALL mc_classical_energy(force_env_1,&
+!                                  classical_energy_new(1),&
+!                                  mc_par_1)
+!         CALL mc_classical_energy(force_env_2,&
+!                                  classical_energy_new(2),&
+!                                  mc_par_2)
          classical_energy_old(1)=moves_1%classical_energy
          classical_energy_old(2)=moves_2%classical_energy
 
@@ -158,7 +158,7 @@ CONTAINS
                    -(old_energy(1)-classical_energy_old(1))&
                    +(new_energy(2)-classical_energy_new(2))&
                    -(old_energy(2)-classical_energy_old(2))))
-         IF ( w .GT. 1.0d0 ) w=1.0d0
+
          write(6,*) 'w(1) =',w,new_energy(1)-old_energy(1),&
                  classical_energy_new(1),classical_energy_old(1)
          write(6,*) 'w(2) =',w,new_energy(2)-old_energy(2),&
@@ -166,11 +166,15 @@ CONTAINS
       ELSE
          w=dexp(-mc_par_1%BETA*(new_energy(1)-old_energy(1)+&
                               new_energy(2)-old_energy(2)))
-         IF ( w .GT. 1.0d0 ) w=1.0d0
-!         write(6,*) 'w =',w,new_energy,old_energy
       ENDIF
 
-      CALL random_number(rand)
+      IF ( w .GE. 1.0d0 ) THEN
+         w=1.0d0
+         rand=0.0D0
+      ELSE
+         CALL random_number(rand)
+      ENDIF
+
       IF (rand .lt. w) THEN
 
 ! accept the move
@@ -180,14 +184,16 @@ CONTAINS
 ! if we're not biasing, we need to record all accepted moves since last
 ! Quickstep calculation
          IF ( .NOT. mc_par_1%lclassical) THEN
-            CALL q_move_accept(moves_1,move_updates_1)
-            CALL q_move_accept(moves_2,move_updates_2)
+!            CALL q_move_accept(moves_1,move_updates_1)
+!            CALL q_move_accept(moves_2,move_updates_2)
+            CALL q_move_accept(moves_1)
+            CALL q_move_accept(moves_2)
 
 ! reset the counters
             CALL move_q_reinit(moves_1)
-            CALL move_q_reinit(move_updates_1)
+!            CALL move_q_reinit(move_updates_1)
             CALL move_q_reinit(moves_2)
-            CALL move_q_reinit(move_updates_2)
+!            CALL move_q_reinit(move_updates_2)
 
          ENDIF
 
@@ -212,9 +218,9 @@ CONTAINS
             ENDDO
 ! if we're biasing classically, then we update the classical energy
             IF ( mc_par_1 % lclassical) THEN
-               CALL mc_classical_energy(force_env_1,&
-                                         moves_1%classical_energy,&
-                                         mc_par_1)
+!               CALL mc_classical_energy(force_env_1,&
+!                                         moves_1%classical_energy,&
+!                                         mc_par_1)
                moves_1%classical_energy=classical_energy_old(1)
             ENDIF
          ENDIF
@@ -238,9 +244,9 @@ CONTAINS
             ENDDO
 ! if we're biasing classically, then we update the classical energy
             IF ( mc_par_1 % lclassical) THEN
-               CALL mc_classical_energy(force_env_2,&
-                                         moves_2%classical_energy,&
-                                         mc_par_2)
+!               CALL mc_classical_energy(force_env_2,&
+!                                         moves_2%classical_energy,&
+!                                         mc_par_2)
                moves_2%classical_energy=classical_energy_old(2)
             ENDIF
          ENDIF
@@ -367,7 +373,7 @@ CONTAINS
 ! update the volume move max displacement, if necessary
       IF (MOD(nnstep,mc_par%iupvolume*&
                mc_par%nchain-mc_par%nstart) == 0 ) THEN
-         CALL mc_move_update(mc_par,move_updates,"volume")
+         CALL mc_move_update(mc_par,move_updates,"volume",istep)
          WRITE(mc_par%rm,*) nnstep,' rmvolume = ',&
                  mc_par%rmvolume*(angstrom)**3,' angstroms^3'
       ENDIF
@@ -451,9 +457,13 @@ CONTAINS
              old_cell_length) &
         + mc_par%pressure*(new_cell_length**3-old_cell_length**3)))
 
-      IF (w > 1.0d0 ) w=1.0
+      IF ( w .GE. 1.0d0 ) THEN
+         w=1.0d0
+         rand=0.0D0
+      ELSE
+         CALL random_number(rand)
+      ENDIF
 
-      CALL random_number(rand)
       IF (rand .lt. w) THEN
 
 ! accept the move

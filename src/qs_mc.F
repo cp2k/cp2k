@@ -125,7 +125,7 @@ CONTAINS
 
 ! make sure the arguments are associated
 !  CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
-!  CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
+!     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
 
   CALL init_cp2k_units ()
   iw = globenv % scr

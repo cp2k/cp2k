@@ -2,7 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/mc [1.0] *
+!!****** mc_control.F *********************************************************
 !!
 !!   NAME
 !!     mc_control
@@ -74,6 +74,7 @@ MODULE mc_control
      INTEGER :: ene
      INTEGER :: rm
      INTEGER :: cl
+     INTEGER :: diff
      INTEGER :: data
      INTEGER :: nstart
      INTEGER :: source
@@ -120,28 +121,57 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine read_mc_section(mc_par, globenv)
-!!       Implicit None
-!!       Type(simulation_parameters_type), Intent (OUT):: mc_par
-!!       Type(global_environment_type), Intent (IN):: globenv
+!!       Type(simulation_parameters_type), Intent(OUT) :: mc_par
+!!       Type(global_environment_type), Intent(IN)     :: globenv
 !!     End Subroutine read_mc_section
 !!
 !!   FUNCTION
+!!     reads in the Monte Carlo simulation parameters from an input file
+!!
+!!   ARGUMENTS
+!!     - mc_par: the structure that will store the parameters
+!!     - globenv: the global environment for the simulation
 !!
 !!   AUTHOR
 !!     MJM
 !!
-!!   MODIFICATION HISTORY
-!!     none
-!!
 !!   NOTES
 !!I---------------------------------------------------------------------------I
-!!I SECTION: &mc ... &end                                                     I
+!!I SECTION: &MC ... &END                                                     I
 !!I                                                                           I
-!!I nsteps:       n                       total number of steps                I
-!!I temperature: T                       temperature [K]                      I
-!!I                                                                           I
+!!I program:     (traditional,gemc)       type of simulation
+!!I nstep:                                number of steps
+!!I lstop:       (yes,no)                 if no, peform nstep cycles
+!!I lclassical:  (yes,no)                 pre-bias moves with classical 
+!!                                        potential
+!!I nmoves:                               number of moves between Quickstep
+!!                                        calculations
+!!I rmbond:                               maximum displacement for bond
+!!                                        changes (in angstroms)
+!!I rmangle:                              maximum displacement for angle
+!!                                        changes (in degrees)
+!!I rmtrans:                              maximum displacement for molecule
+!!                                        translations (in angstroms)
+!!I rmrot:                                maximum displacement for molecule
+!!                                        rotations (in degrees)
+!!I rmvolume:                             maximum displacement for volume
+!!                                        changes (in cubic angstroms)
+!!I iuptrans:                             every iuptrans step, update maximum
+!!                                        displacements for angle,bond,rot,
+!!                                        trans
+!!I iupvolume:                            every iupvolume step, update maximum
+!!                                        volume displacement
+!!I pmvolume:                             probability of doing a volume move
+!!I pmtraion:                             probability of doing a conformational
+!!                                        move
+!!I pmtrans:                              probability of doing a translation
+!!I temp:                                 temperature (in Kelvin)
+!!I pressure:                             pressure (in bar)
+!!I restart:     (yes,no)                 read initial coordinates from a
+!!                                        restart file
+!!I restart_file:                         name of the restart file
 !!I---------------------------------------------------------------------------I
-!!*** ************************************************************************
+!!*****************************************************************************
 
 SUBROUTINE read_mc_section ( mc_par, globenv )
 
@@ -174,7 +204,7 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
   mc_par % nvolmoves = 4
 
   iw = globenv % scr
-  WRITE ( iw, * )
+  IF(globenv%ionode) WRITE ( iw, * )
 
 !..filenames
   CALL xstring ( mc_par % program, ia, ie )
@@ -190,9 +220,10 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
   CALL parser_init(globenv % input_file_name,globenv)
   CALL search_label(label,ierror,ignore_case=.TRUE.)
   IF (ierror /= 0 ) THEN
-     WRITE ( iw, *) ierror
-     IF( mc_par % ionode ) &
+     IF( mc_par % ionode ) THEN
+        WRITE ( iw, *) ierror
         WRITE ( iw, '( a )' ) ' No input section &MC found '
+     ENDIF
   ELSE
      CALL read_line
      DO WHILE ( test_next() /= 'X' )
@@ -275,9 +306,9 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
 !..end of parsing the input section
 
 ! problems
-      IF ((mc_par % nmoves .EQ. 1) .AND. mc_par % lclassical ) THEN
-         STOP 'If lclassical=.TRUE., nmoves must be greater than 1.'
-      ENDIF
+!      IF ((mc_par % nmoves .EQ. 1) .AND. mc_par % lclassical ) THEN
+!         STOP 'If lclassical=.TRUE., nmoves must be greater than 1.'
+!      ENDIF
 
 !..write some information to output
   IF (mc_par % ionode .AND. globenv % print_level>=0) THEN
@@ -357,6 +388,7 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
 
 ! figure out what beta (1/kT) is in atomic units (1/Hartree)
       mc_par % BETA = 1 / mc_par%temp / boltzmann * joule
+
 ! convert from degrees to radians
       mc_par%rmrot = mc_par%rmrot/180.0d0*pi
 ! convert from bar to a.u.
@@ -379,10 +411,34 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
 
 END SUBROUTINE read_mc_section
 
+! *****************************************************************************
+!!****s* mc_control.F/write_mc_restart
+!!
+!!   NAME
+!!     write_mc_restart
+!!
+!!   SYNOPSIS
+!!     Subroutine write_mc_restart ( nnstep, mc_par, force_env )
+!!           Type(mc_simulation_parameters_type),Pointer
+!!                                                 :: mc_par
+!!           Type(force_env_type), Pointer         :: force_env
+!!           Integer,Intent(IN)                    :: nnstep
+!!     End Subroutine write_mc_restart
+!!
+!!   FUNCTION
+!!     writes the coordinates of the current step to a file that can
+!!     be read in at the start of the next simulation
+!!
+!!   ARGUMENTS
+!!     - mc_par: the mc parameters for the force env
+!!     - force_env: the force environment to write the coords from
+!!     - nnstep: how many steps the simulation has run
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!*****************************************************************************
 SUBROUTINE write_mc_restart ( nnstep, mc_par, force_env )
-
-! write a bunch of data to a file that we can restart from
-
 
     INTEGER, INTENT(IN)                      :: nnstep
     TYPE(mc_simulation_parameters_type), &
@@ -430,12 +486,34 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, force_env )
 
 END SUBROUTINE write_mc_restart
 
-!*****************************************************************************
-
+! *****************************************************************************
+!!****s* mc_control.F/read_mc_restart
+!!
+!!   NAME
+!!     read_mc_restart
+!!
+!!   SYNOPSIS
+!!     Subroutine read_mc_restart ( mc_par, force_env , iw )
+!!           Type(mc_simulation_parameters_type),Pointer
+!!                                                 :: mc_par
+!!           Type(force_env_type), Pointer         :: force_env
+!!           Integer,Intent(IN)                    :: iw
+!!     End Subroutine read_mc_restart
+!!
+!!   FUNCTION
+!!     reads the input coordinates of the simulation from a file written above
+!!
+!!   ARGUMENTS
+!!     - mc_par: the mc parameters for the force env
+!!     - force_env: the force environment to write the coords from
+!!     - iw: the unit to write an error message to, in case current
+!!           simulation parameters don't match what's in the restart file
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!*****************************************************************************
 SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
-
-! read a bunch of data from a restart file
-
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
@@ -457,7 +535,6 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
-
   CALL timeset(routineN,'I','',handle)
 
 ! open the file and read some simulation parameters
@@ -520,112 +597,6 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
 
 END SUBROUTINE read_mc_restart
 
-
-!---------------------------------
-!      FUNCTION RANDOM() RESULT(rand)
-
-!      IMPLICIT NONE
-!      REAL(KIND=dp) :: rand 
-!      RANDOM = RCARRY()
-!      RCARRY=5.0d0
-!      rand = RCARRY()
-
-
-!      END FUNCTION RANDOM
-!---------------------------------
-!      INTEGER FUNCTION RANDx(ISEED)
-!----------------------------------------------------------------------C
-!  Random number generator, fast and rough, machine independent.
-!  Returns an uniformly distributed deviate in the 0 to 1 interval.
-!  This random number generator is portable, machine-independent and
-!  reproducible, for any machine with at least 32 bits / real number.
-!  REF: Press, Flannery, Teukolsky, Vetterling, Numerical Recipes (1986)
-!----------------------------------------------------------------------C
-!      IMPLICIT NONE
-!      INTEGER IA , IC , ISEED , M1
-!      double precision RANDx , RM
-!      PARAMETER (M1=714025,IA=1366,IC=150889,RM=1.D+0/M1)
-!
-!      ISEED = MOD(IA*ISEED+IC,M1)
-!      RANDx= ISEED*RM
-!      IF ( RANDx.LT.0.D+0 ) STOP '*** Random number is negative ***'
-!c
-!      RETURN
-!      END
-!
-!      SUBROUTINE RANSET(ISEED)
-!      IMPLICIT NONE
-!      INTEGER ISEED
-!
-!      CALL RSTART(ISEED)
-!      RETURN
-!      END
-!
-!      SUBROUTINE RSTART(ISEEDA)
-!C----------------------------------------------------------------------C
-!C       Initialize Marsaglia list of 24 random numbers.
-!C----------------------------------------------------------------------C
-!      IMPLICIT NONE
-!      double precision Carry , ran , RANDx , Seed
-!      INTEGER i , I24 , Iseed , ISEEDA , J24
-!      COMMON /RANDM/ Seed(24) , Carry , I24 , J24 , Iseed
-
-!      I24 = 24
-!      J24 = 10
-!      Carry = 0.D+0
-!      Iseed = ISEEDA
-!c
-!c       get rid of initial correlations in rand by throwing
-!c       away the first 100 random numbers generated.
-!c
-!      DO 10 i = 1 , 100
-!        ran = RANDx(Iseed)
-!   10 CONTINUE
-!c
-!c       initialize the 24 elements of seed
-!c
-
-!      DO 20 i = 1 , 24
-!        Seed(i) = RANDx(Iseed)
-!   20 CONTINUE
-!
-!      RETURN
-!      END
-
-
-!      FUNCTION RCARRY() RESULT(rcarryout)
-!----------------------------------------------------------------------C
-!       Random number generator from Marsaglia.
-!----------------------------------------------------------------------C
-!      IMPLICIT NONE
-!      REAL(KIND=dp) ::  Carry , RCARRY , Seed , TWOM24 , TWOP24 , uni
-!      REAL(KIND=dp),PARAMETER :: TWOP24=16777216.0D0,TWOM24=1.0D0/TWOP24
-!      INTEGER       ::  I24 , Iseed , J24
-
-!      COMMON /RANDM/ Seed(24) , Carry , I24 , J24 , Iseed
-
-!       f.james Comp. Phys. Comm. 60, 329  (1990)
-!       algorithm by G. Marsaglia and A. Zaman
-!       base b = 2**24  lags r=24 and s=10
-
-!      uni = Seed(J24) - Seed(I24) - Carry
-!      IF ( uni.LT.0.D+0 ) THEN
-!        uni = uni + 1.D+0
-!        Carry = TWOM24
-!      ELSE
-!        Carry = 0.D+0
-!      ENDIF
-!      Seed(I24) = uni
-!      I24 = I24 - 1
-!      IF ( I24.EQ.0 ) I24 = 24
-!      J24 = J24 - 1
-!      IF ( J24.EQ.0 ) J24 = 24
-!      rcarryout = uni
-
-!      END FUNCTION RCARRY
-
-
-!*****************************************************************************
 
 END MODULE mc_control
 

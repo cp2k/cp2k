@@ -228,35 +228,57 @@ END SUBROUTINE get_water_data
 !******************************************************************************
 
 !******************************************************************************
-!!****** mc/final_mc_write[1.0] *
+!!****s* mc_misc.F/final_mc_write
 !!
 !!   NAME
 !!     final_mc_write
 !!
 !!   SYNOPSIS
+!!     Subroutine final_mc_write (mc_par,moves,iw,energy_check,initial_energy,
+!!                           final_energy,averages,move_updates)
+!!           Type(mc_simulation_parameters_type),Pointer
+!!                                                 :: mc_par
+!!           Type(mc_moves_type),Pointer           :: moves
+!!           Type(mc_moves_type),Pointer           :: move_updates
+!!           Type(mc_averages_type),Pointer        :: averages
+!!           Real(Kind=dp), Intent(IN)             :: energy_check
+!!           Real(Kind=dp), Intent(IN)             :: initial_energy
+!!           Real(Kind=dp), Intent(IN)             :: final_energy
+!!           Integer, Intent(IN)                   :: iw
+!!     End Subroutine final_mc_write
 !!
 !!   FUNCTION
-!!     prints out the final data of the simulation in a nice format
-!!     
+!!     writes a bunch of simulation data to the specified unit
+!!
+!!   ARGUMENTS
+!!     - mc_par: the mc parameters for the simulation
+!!     - moves: the structure that holds data on how many moves are
+!!              accepted/rejected
+!!     - move_updates: the structure that holds data on how many classical 
+!!              moves are accepted/rejected, used for updating maximum
+!!              displacements
+!!     - averages: the structure that holds computed average properites for
+!!              the simulation
+!!     - initial_energy: the initial energy of the system
+!!     - final_energy: the final energy of the system
+!!     - energy_check: the sum of the energy changes of each move
+!!     - iw: the unit to write to
+!!
 !!   AUTHOR
 !!     MJM
 !!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   NOTES
-!!*** ************************************************************************
+!!*****************************************************************************
 
 SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
-                           old_energy,averages)
+                           final_energy,averages,move_updates)
 
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
-    TYPE(mc_moves_type), POINTER             :: moves
+    TYPE(mc_moves_type), POINTER             :: moves,move_updates
     INTEGER, INTENT(IN)                      :: iw
     REAL(KIND=dp), INTENT(IN)         :: energy_check, initial_energy, &
-                                                old_energy
+                                                final_energy
     TYPE(mc_averages_type), POINTER          :: averages
 
     CHARACTER(LEN=*), PARAMETER         :: routineN = "final_mc_write"
@@ -268,23 +290,12 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
 
     CALL timeset(routineN,'I','',handle)
 
+! write out some data averaged over the whole simulation
     WRITE(iw,*)
     WRITE(iw,*) '****************************************************',&
                    '***************************'
     WRITE(iw,'(A,T66,F15.8)') " Average Energy [Hartrees]:", &
                 averages%ave_energy
-!    IF (averages%ave_energy_squared-averages%ave_energy**2 .LT. 0.0_dp) THEN
-!       WRITE(iw,'(A,T66,E15.8)') " Energy Fluctuation [Hartrees]: IMAGINARY PART ", &
-!         DSQRT(abs(averages%ave_energy_squared-averages%ave_energy**2))
-!    ELSE
-!      WRITE(iw,'(A,T66,E15.8)') " Energy Fluctuation [Hartrees]:", &
-!            DSQRT(averages%ave_energy_squared-averages%ave_energy**2)
-!    ENDIF
-!     XXXXXXXXXXXXXxx do not use hand coded constants all available (physcon, units, ...)
-!     WRITE(iw,'(A,A,T66,F15.8)') " Heat Capacity at ",&
-!           "constant volume [J/mol/K]",&
-!           DSQRT(averages%ave_energy_squared-averages%ave_energy**2)&
-!           *(4.3597482d-18)**2/(mc_par%temp)**2/1.380658d-23*6.022d23
     WRITE(iw,'(A,T66,F15.8)') " Average O-H distance 1 [angstroms]:",&
                    averages%bond1*angstrom
     WRITE(iw,'(A,T66,F15.8)') " Average O-H distance 2 [angstroms]:",&
@@ -300,6 +311,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
                "[angstroms]:",averages%ave_cell_length*angstrom
     ENDIF
     WRITE(iw,*)
+
+! write out acceptance rates for the moves
     WRITE(iw,*) "Move Data"
     WRITE(iw,*) '----------------------------------------------------',&
                    '---------------------------'
@@ -335,7 +348,7 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
             moves%bond%successes,&
             real(moves%bond%successes,dbl)/ &
             real(moves%bond%attempts,dbl)*100.0d0
-          WRITE(iw,'(A,T71,F10.5)') &
+          IF( .NOT. mc_par%lclassical) WRITE(iw,'(A,T71,F10.5)') &
             ' Maximum bond displacement [angstroms]= '&
             ,mc_par%rmbond*angstrom
        ENDIF
@@ -347,7 +360,7 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
             moves%angle%successes,&
             real(moves%angle%successes,dbl)/ &
             real(moves%angle%attempts,dbl)*100.0d0
-          WRITE(iw,'(A,T71,F10.5)') &
+          IF( .NOT. mc_par%lclassical) WRITE(iw,'(A,T71,F10.5)') &
             ' Maximum angle displacement [degrees]= '&
             ,mc_par%rmangle/pi*180.0d0
        ENDIF
@@ -363,12 +376,12 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
              moves%trans%successes,&
              real(moves%trans%successes,dbl)/ &
              real(moves%trans%attempts,dbl)*100.0d0
-       WRITE(iw,'(A,T71,F10.5)') &
+       IF( .NOT. mc_par%lclassical) WRITE(iw,'(A,T71,F10.5)') &
           ' Maximum molecular translational displacement [angstroms]= '&
                   ,mc_par%rmtrans*angstrom
-       WRITE(iw,'(A,T71,F10.5)') &
-          ' Total translational displacement [angstroms]=',&
-                  moves%trans_dis*angstrom
+!       WRITE(iw,'(A,T71,F10.5)') &
+!          ' Total translational displacement [angstroms]=',&
+!                  moves%trans_dis*angstrom
        WRITE(iw,*) '-----------------------------------------------',&
       '--------------------------------'
     ENDIF
@@ -381,7 +394,7 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
              moves%rot%successes,&
              real(moves%rot%successes,dbl)/ &
              real(moves%rot%attempts,dbl)*100.0d0
-       WRITE(iw,'(A,T71,F10.5)') &
+       IF( .NOT. mc_par%lclassical) WRITE(iw,'(A,T71,F10.5)') &
            ' Maximum rotational displacement [degrees] = ',&
                            mc_par%rmrot/pi*180.0d0
        WRITE(iw,*) '-----------------------------------------------',&
@@ -400,10 +413,110 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
       '--------------------------------'
     ENDIF
 
-    IF(ABS(initial_energy+energy_check-old_energy) .GT. 0.0000001d0) &
+! now we write out information on the classical moves, if it's
+! a classical simulations
+    IF (mc_par%lclassical) THEN
+       WRITE(iw,*) "Classical Move Data"
+       WRITE(iw,*) '------------------------------------------------',&
+                   '-------------------------------'
+! first, bond changes...record all the moves done since the last update,
+! and print out the totals
+       IF (moves%bond%attempts .GT. 0 ) THEN
+          move_updates%classical_bond%attempts=&
+             move_updates%classical_bond%attempts+&
+             move_updates%bond%attempts
+          move_updates%classical_bond%successes=&
+             move_updates%classical_bond%successes+&
+             move_updates%bond%successes
+          WRITE(iw,'(A,T43,A)') " Bond Changes",&
+            "Attempted       Accepted       Percent"
+          WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+            move_updates%classical_bond%attempts,&
+            move_updates%classical_bond%successes,&
+            real(move_updates%classical_bond%successes,dbl)/ &
+            real(move_updates%classical_bond%attempts,dbl)*100.0d0
+          WRITE(iw,'(A,T71,F10.5)') &
+            ' Maximum bond displacement [angstroms]= '&
+            ,mc_par%rmbond*angstrom
+          WRITE(iw,*) '-------------------------------------------',&
+                   '------------------------------------'
+       ENDIF
+
+! now angle changes
+       IF (moves%angle%attempts .GT. 0 ) THEN
+          move_updates%classical_angle%attempts=&
+             move_updates%classical_angle%attempts+&
+             move_updates%angle%attempts
+          move_updates%classical_angle%successes=&
+             move_updates%classical_angle%successes+&
+             move_updates%angle%successes
+          WRITE(iw,'(A,T43,A)') " Angle Changes",&
+            "Attempted       Accepted       Percent"
+          WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+            move_updates%classical_angle%attempts,&
+            move_updates%classical_angle%successes,&
+            real(move_updates%classical_angle%successes,dbl)/ &
+            real(move_updates%classical_angle%attempts,dbl)*100.0d0
+          WRITE(iw,'(A,T71,F10.5)') &
+            ' Maximum angle displacement [degrees]= '&
+            ,mc_par%rmangle/pi*180.0d0
+          WRITE(iw,*) '-------------------------------------------',&
+                   '------------------------------------'
+       ENDIF
+
+! now molecule translations
+       IF (moves%trans%attempts .GT. 0 ) THEN
+          move_updates%classical_trans%attempts=&
+             move_updates%classical_trans%attempts+&
+             move_updates%trans%attempts
+          move_updates%classical_trans%successes=&
+             move_updates%classical_trans%successes+&
+             move_updates%trans%successes
+          WRITE(iw,'(A,T43,A)') " Molecule Translations",&
+            "Attempted       Accepted       Percent"
+          WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+            move_updates%classical_trans%attempts,&
+            move_updates%classical_trans%successes,&
+            real(move_updates%classical_trans%successes,dbl)/ &
+            real(move_updates%classical_trans%attempts,dbl)*100.0d0
+          WRITE(iw,'(A,T71,F10.5)') &
+          ' Maximum molecular translational displacement [angstroms]= '&
+                  ,mc_par%rmtrans*angstrom
+          WRITE(iw,*) '-------------------------------------------',&
+                   '------------------------------------'
+       ENDIF
+
+! now molecule rotations
+       IF (moves%rot%attempts .GT. 0 ) THEN
+          move_updates%classical_rot%attempts=&
+             move_updates%classical_rot%attempts+&
+             move_updates%rot%attempts
+          move_updates%classical_rot%successes=&
+             move_updates%classical_rot%successes+&
+             move_updates%rot%successes
+          WRITE(iw,'(A,T43,A)') " Molecule Rotations",&
+            "Attempted       Accepted       Percent"
+          WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+            move_updates%classical_rot%attempts,&
+            move_updates%classical_rot%successes,&
+            real(move_updates%classical_rot%successes,dbl)/ &
+            real(move_updates%classical_rot%attempts,dbl)*100.0d0
+          WRITE(iw,'(A,T71,F10.5)') &
+           ' Maximum rotational displacement [degrees] = ',&
+                           mc_par%rmrot/pi*180.0d0
+          WRITE(iw,*) '-------------------------------------------',&
+                   '------------------------------------'
+       ENDIF
+
+    ENDIF
+
+
+
+! see if the energies add up properly
+    IF(ABS(initial_energy+energy_check-final_energy) .GT. 0.0000001d0) &
          THEN
          WRITE(iw,*) '!!!!!!! We have an energy problem. !!!!!!!!'
-         WRITE(iw,'(A,T64,F16.10)') 'Final Energy = ',old_energy
+         WRITE(iw,'(A,T64,F16.10)') 'Final Energy = ',final_energy
          WRITE(iw,'(A,T64,F16.10)') 'Inital Energy + energy_check =',&
                  initial_energy+energy_check
     ENDIF
@@ -418,20 +531,60 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
 END SUBROUTINE final_mc_write
 
 !******************************************************************************
+!!****s* mc_misc.F/mc_classical_energy
+!!
+!!   NAME
+!!     mc_classical_energy
+!!
+!!   SYNOPSIS
+!!     Subroutine mc_classical_energy ( force_env, classical_energy_new,
+!!                                      mc_par, nstart, nend, rcut)
+!!           Type(mc_simulation_parameters_type),Pointer
+!!                                                 :: mc_par
+!!           Type(force_env_type), Pointer         :: force_env
+!!           Real(Kind=dp), Intent(IN)             :: rcut
+!!           Real(Kind=dp), Intent(OUT)            :: classical_energy_new
+!!           Integer, Intent(IN)                   :: nstart
+!!           Integer, Intent(IN)                   :: nend
+!!     End Subroutine mc_classical_energy
+!!
+!!   FUNCTION
+!!     calculates the classical energy of a system configuration using
+!!     a potential force-matched to ab initio results for water
+!!
+!!   ARGUMENTS
+!!     - mc_par: the mc parameters for the force env
+!!     - force_env: the force environment containing the coordinates
+!!     - rcut: the intermolecular cutoff you want to use for the potential,
+!!             in atomic units...be careful with this, as the potential is
+!!             only zero at the cutoff for certain values
+!!     - nstart: the number of the molecule start calculating for
+!!     - nend: the number of the moelcule to end calculating for
+!!     --- if nstart is not equal to 1 and nend is not equal to the total
+!!         number of molecules, set them equal
+!!     - classical_energy_new: the classical energy returned by the routine
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!*****************************************************************************
 SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
-                                 mc_par )
+                                 mc_par, nstart, nend ,rcut)
 
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), INTENT(OUT)               :: classical_energy_new
+    REAL(KIND=dp), INTENT(IN)               :: rcut
+    INTEGER, INTENT(IN)               :: nstart,nend
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_classical_energy"
 
+    INTEGER                                  :: istart,iend,jstart,jend
     INTEGER                                  :: handle,imol,ipart,jmol,&
-                                                jpart,ntij,i
+                                                jpart,ntij,i,o,m,n
     REAL(KIND=dp) :: box_length, charge_energy, dist, &
-              fpie = 2.5669722003d-38 , LJ_energy, rcut,unit_energy,&
+              LJ_energy, unit_energy,&
               stretch_energy,bend_energy,mag_HH,kstretch,OH_bond1,&
               OH_bond2
     REAL(KIND=dp), DIMENSION(1:3)            :: charges, min_IJ, RIJ,&
@@ -443,11 +596,12 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
     REAL(KIND=dp), &
       DIMENSION(1:3, 1:3, 1:mc_par%nchain)   :: r
     TYPE(particle_list_type), POINTER        :: particles
-    LOGICAL                                  :: lcalc_charge
+    LOGICAL                                  :: lcalc_charge,lall
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
       CALL timeset(routineN,'I','',handle)
+
 
 ! initialize some stuff
       NULLIFY(oldsys,particles)
@@ -469,11 +623,13 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 
       box_length=cell%hmat(1,1)
 
-      IF (box_length .GT. 15.6d0/angstrom) THEN
-         rcut=7.8d0/angstrom    ! always the same for this potential
-      ELSE
-         rcut=box_length/2.0d0
-      ENDIF
+!      IF (box_length .GT. 15.6d0/angstrom) THEN
+!         rcut=7.8d0/angstrom    ! always the same for this potential
+!      ELSE
+!         rcut=box_length/2.0d0
+!      ENDIF
+
+!      rcut=7.8d0/angstrom ! we're now using multiple images
 
 ! put the coordinates into an easier matrix to manipulate
       DO imol=1,mc_par%nchain
@@ -484,8 +640,8 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 
 ! we need to calculate the energy of this configuration
 ! first, let's calculate intramolecular (bending and stretching)
-      DO imol=1,mc_par%nchain
-     
+      DO imol=nstart,nend
+         
 ! stretching
          OH_bond1=DSQRT((r(1,1,imol)-r(1,2,imol))**2+&
                  (r(2,1,imol)-r(2,2,imol))**2+&
@@ -496,23 +652,39 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 
          stretch_energy=stretch_energy+0.5d0*kstretch*((OH_bond1-&
             1.81200d0)**2+(OH_bond2-1.81200d0)**2)
-!         write(6,*) 'bonds ',OH_bond1,OH_bond2
 
 ! bond bending
          DO i=1,3
             HH(i)=r(i,2,imol)-r(i,3,imol)
          ENDDO
          mag_HH=DSQRT(DOT_PRODUCT(HH,HH))
-         bend_energy=bend_energy+0.5d0*kbend(1)*(mag_HH-3.0701d0)**2+&
-             0.33333333333333333d0*kbend(2)*(mag_HH-3.0701d0)**3+&
-             0.25d0*kbend(3)*(mag_HH-3.0701d0)**4
-          
+!         bend_energy=bend_energy+0.5d0*kbend(1)*(mag_HH-2.88799d0)**2+&
+!             0.33333333333333333d0*kbend(2)*(mag_HH-2.88799d0)**3+&
+!             0.25d0*kbend(3)*(mag_HH-2.88799d0)**4
+         bend_energy=bend_energy+0.5d0*kbend(1)*(mag_HH-3.0699d0)**2+&
+             0.33333333333333333d0*kbend(2)*(mag_HH-3.0699d0)**3+&
+             0.25d0*kbend(3)*(mag_HH-3.0699d0)**4
+!         bend_energy=bend_energy+0.5d0*kbend(1)*(mag_HH-3.36d0)**2+&
+!             0.25d0*kbend(3)*(mag_HH-3.36d0)**4
+!         bend_energy=bend_energy*2.0d0
+
       ENDDO
+!      bend_energy=bend_energy*4.0d0
 
 ! now let's find the LJ energy between all the oxygens and
 ! the charge interactions
-      DO imol=1,mc_par%nchain-1
-         DO jmol=imol+1,mc_par%nchain
+      lall=.FALSE.
+      jstart=1
+      IF( nstart == 1 .AND. nend == mc_par%nchain) lall=.TRUE.
+      DO imol=nstart,nend
+         IF (lall) jstart=imol+1
+         DO jmol=jstart,mc_par%nchain
+            IF(imol == jmol) CYCLE
+
+! now let's triple loop over all the boxes touching the simulation box
+!            DO m=-1,1
+!                DO n=-1,1
+!                  DO o=-1,1
 
 ! find the minimum image distance between oxygens
             RIJ(1)=r(1,1,imol)-r(1,1,jmol)-box_length*ANINT(&
@@ -521,10 +693,15 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
                (r(2,1,imol)-r(2,1,jmol))/box_length)
             RIJ(3)=r(3,1,imol)-r(3,1,jmol)-box_length*ANINT(&
                (r(3,1,imol)-r(3,1,jmol))/box_length)
+!            RIJ(1)=r(1,1,imol)-r(1,1,jmol)-box_length*m
+!            RIJ(2)=r(2,1,imol)-r(2,1,jmol)-box_length*n
+!            RIJ(3)=r(3,1,imol)-r(3,1,jmol)-box_length*o
             
             dist=DSQRT(DOT_PRODUCT(RIJ,RIJ))
 
             IF (dist < rcut ) THEN
+!               ipart=1
+!               jpart=1
                lcalc_charge = .true.
                CALL nonbonded_energy(dist,unit_energy,1)
                LJ_energy=LJ_energy+unit_energy               
@@ -545,7 +722,9 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
                     *ANINT((r(2,ipart,imol)-r(2,jpart,jmol))/box_length)
                   RIJ(3)=r(3,ipart,imol)-r(3,jpart,jmol)-box_length&
                     *ANINT((r(3,ipart,imol)-r(3,jpart,jmol))/box_length)
-                  
+!                  RIJ(1)=r(1,ipart,imol)-r(1,jpart,jmol)-box_length*m
+!                  RIJ(2)=r(2,ipart,imol)-r(2,jpart,jmol)-box_length*n
+!                  RIJ(3)=r(3,ipart,imol)-r(3,jpart,jmol)-box_length*o                  
                   dist=DSQRT(DOT_PRODUCT(RIJ,RIJ))
 
 ! LJ energy
@@ -563,23 +742,64 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 
                ENDDO
             ENDDO
-            
+ !        ENDDO
+ !     ENDDO
+ !     ENDDO
          ENDDO
       ENDDO
 
 ! sum up the total energy
       classical_energy_new=bend_energy+&
                 stretch_energy+LJ_energy+charge_energy
-       
+
+!      WRITE(mc_par%diff,*) 'bending',bend_energy,classical_energy_new 
+!      classical_energy_new=LJ_energy+charge_energy
+!      IF (nstart == 12) THEN
+!      WRITE(6,*) classical_energy_new/3.16682968D-6,LJ_energy/3.16682968D-6,&
+!                 charge_energy/3.16682968D-6,bend_energy/3.16682968D-6,&
+!                 stretch_energy/3.16682968D-6
+!      STOP
+!      ENDIF
+! scale the total energy to get classical vs. Quickstep energy diffs closer
+!      classical_energy_new=classical_energy_new*1.5d0
+
 ! end the timing
       CALL timestop(0.0d0,handle)
 
 
 END SUBROUTINE mc_classical_energy
 
+!******************************************************************************
+!!****s* mc_misc.F/nonbonded_energy
+!!
+!!   NAME
+!!     nonbonded_energy
+!!
+!!   SYNOPSIS
+!!     Subroutine nonbonded_energy(dist,ljfake,ntij)
+!!           Real(Kind=dp), Intent(IN)             :: dist
+!!           Real(Kind=dp), Intent(OUT)            :: ljfake
+!!           Integer, Intent(IN)                   :: ntij
+!!     End Subroutine nonbonded_energy
+!!
+!!   FUNCTION
+!!     calculates the nonbonded energy of two particles, based on the 
+!!     seperation and atom types
+!!
+!!   ARGUMENTS
+!!     - dist: the distance between the atoms (in a.u.)
+!!     - ljfake: the energy generated by the subroutine (fake Lennard-Jones 
+!!               potential), in Hartree
+!!     - ntij: a number that describes the interaction
+!!             1: oxygen-oxygen
+!!             2,3,11,21: oxygen-hydrogen
+!!             12,13,22,23L hydrogen-hydrogen
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!*****************************************************************************
 SUBROUTINE nonbonded_energy(dist,ljfake,ntij)
-
-! output ljfake is in Hartree, input dist is in a.u.
 
       IMPLICIT NONE
       INTEGER,INTENT(IN) :: ntij
@@ -600,6 +820,7 @@ SUBROUTINE nonbonded_energy(dist,ljfake,ntij)
       IF (ntij == 22 ) index=3
       IF (ntij == 23 ) index=3
       IF (index == 0) WRITE(6,*) 'index =',index
+
 ! --- these pshift make the potential zero at 7.8 angstroms
 !      pshift(1)=0.127827d0 ! Hartree
 !      pshift(2)=2.22408d0
@@ -670,7 +891,7 @@ SUBROUTINE nonbonded_energy(dist,ljfake,ntij)
 ! use a series expansion of 1/r
          DO j=2,15
             ljfake=ljfake+A(j,index)/(dist**(j-1)*REAL(j-1,dbl))
-         ENDDO
+        ENDDO
          ljfake=ljfake+pshift(index)
       ELSE
 ! use a linear potential
