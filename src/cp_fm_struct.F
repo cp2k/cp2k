@@ -233,6 +233,7 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
         fmstruct %nrow_block = template_fmstruct %nrow_block
         fmstruct %nrow_global = template_fmstruct %nrow_global
         fmstruct %ncol_block = template_fmstruct %ncol_block
+        fmstruct %ncol_global = template_fmstruct %ncol_global
         fmstruct %first_p_pos = template_fmstruct %first_p_pos
      END IF
 
