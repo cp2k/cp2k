@@ -256,10 +256,12 @@ SUBROUTINE virial_release(virial, error)
   INTEGER :: stat,i,istat
 
   failure=.FALSE.
-  
   IF (ASSOCIATED(virial)) THEN
      CPPreconditionNoFail(virial%ref_count>0,cp_failure_level,routineP,error)
      virial%ref_count=virial%ref_count-1
+     IF (virial%ref_count.EQ.0) THEN
+        DEALLOCATE(virial)
+     ENDIF
   END IF
   NULLIFY(virial)
 END SUBROUTINE virial_release
