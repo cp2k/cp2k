@@ -350,7 +350,7 @@ CONTAINS
     INTEGER, DIMENSION(:,:,:), POINTER  :: tasks
     INTEGER, DIMENSION(:,:), POINTER    :: tasks_local, ival, latom
     INTEGER, DIMENSION(:), POINTER      :: ntasks
-    INTEGER, PARAMETER                  :: max_tasks = 200, add_tasks = 100
+    INTEGER, PARAMETER                  :: max_tasks = 2000, add_tasks = 1000
     INTEGER                             :: curr_tasks
 !   ---------------------------------------------------------------------------
     CALL timeset("calculate_rho_elec","I","",handle)
