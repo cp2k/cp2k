@@ -1189,7 +1189,8 @@ SUBROUTINE pw_grid_count ( h_inv, pw_grid, cutoff, yz_mask )
     INTEGER                                  :: gpt, l, m, mm, n, &
                                                 n_upperlimit, nlim( 2 ), nn
     INTEGER, DIMENSION(:, :), POINTER        :: bounds
-    REAL(KIND=dp)                            :: gi( 3 ), gmat( 3, 3 ), length
+    REAL(KIND=dp)                            :: ggi( 3), gi( 3 ), &
+                                                gmat( 3, 3 ), length
 
 !------------------------------------------------------------------------------
 
@@ -1230,7 +1231,8 @@ SUBROUTINE pw_grid_count ( h_inv, pw_grid, cutoff, yz_mask )
            END IF
 
            gi ( 1 ) = REAL(l,dp)
-           length = twopi * twopi * dotprod_3d ( matvec_3x3 ( gmat, gi ), gi )
+           ggi = MATMUL ( gmat, gi )
+           length = twopi * twopi * DOT_PRODUCT ( ggi , gi )
            IF ( 0.5_dp * length <= cutoff ) THEN
              gpt = gpt + 1
              yz_mask ( mm, nn ) = yz_mask ( mm, nn ) + 1
