@@ -31,7 +31,7 @@
 &EWALD
  units angstrom
  ewald_type pme
- ewald_param .44 24
+ ewald_param .44 25
 &END
 
 &FORCE_FIELD
