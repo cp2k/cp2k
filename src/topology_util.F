@@ -2008,7 +2008,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
         !point this to the right onfo_kind_type if using force field
         NULLIFY(onfo_list(counter)%onfo_kind)
         IF(PM2) THEN
-          WRITE(iw,'(7X,A,I3,1X,A,I5,I5,I5,I5,1X,A,I5,I5,I5,I5)') &
+          WRITE(iw,'(7X,A,I5,1X,A,I5,I5,1X,A,I5,I5)') &
                       "molecule_kind",i,"one-four",&
                       conn_info%onfo_a(j),&
                       conn_info%onfo_b(j),&
