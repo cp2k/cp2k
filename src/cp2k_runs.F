@@ -209,6 +209,8 @@ CONTAINS
     CALL cp_error_dealloc_ref(error)
 
     CALL cp2k_finalize(globenv)
+    DEALLOCATE(globenv,stat=stat)
+    IF (stat/=0) STOP "cp2k:cp2k, glob_env deallocation"
 #if defined(__HMD)
     IF (globenv%ionode) CALL _dump_allocated(%VAL(0))
 #endif
