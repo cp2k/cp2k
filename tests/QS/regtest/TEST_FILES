@@ -80,3 +80,12 @@ H2O-gapw-gth.inp   1
 H2O-gapw-all.inp   1
 # some problems with CU
 Cu.inp             1
+# some tests of restricted
+N3-1.inp           1
+N3-2.inp           1
+# some tests of SIC
+N3-3.inp           1
+N3-4.inp           1
+N3-5.inp           1
+N3-6.inp           1
+N3-7.inp           1
