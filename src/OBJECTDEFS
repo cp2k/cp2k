@@ -150,6 +150,7 @@ OBJECTS_GENERIC =\
  pol_force_numer_pw.o\
  pol_force_pw.o\
  pol_grids.o\
+ pol_initialize_coef_pw.o\
  pol_overlap_ao.o\
  pol_overlap_pw.o\
  pol_projectors_pw.o\
