@@ -125,48 +125,46 @@ SUBROUTINE spline_nonbond_control ( spline_env, atomic_kind_set, ewald_env )
     REAL(dbl)                                :: a, cutmax, cutmin, dx2, e, &
                                                 hicut, locut, qi, qj, x, x2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    INTEGER, POINTER, DIMENSION ( :, : )     :: spltab
-    TYPE ( spline_data ), POINTER, DIMENSION ( : )     :: spline_table
-    TYPE ( pair_potential_type ), POINTER, DIMENSION ( :, : )     :: potparm
+  !  INTEGER, POINTER                         :: spltab ( :, : )
+  !  TYPE ( spline_data ), POINTER            :: spline_table ( : )
+    TYPE ( pair_potential_type ), POINTER    :: potparm ( :, : )
 
 !------------------------------------------------------------------------------
 
-  spltab => spline_env % spltab
   potparm => spline_env % potparm
-  spline_table => spline_env % spline_table
   npoints = spline_env % nspline_points
 
   ntype = SIZE ( atomic_kind_set )
   ntab = ( ntype * ntype + ntype ) / 2
 
   IF ( first_visit ) THEN
-     NULLIFY ( spline_table )
+     NULLIFY ( spline_env % spline_table )
      first_visit = .FALSE.
   END IF
 
-  IF ( ASSOCIATED ( spline_table ) ) THEN
+  IF ( ASSOCIATED ( spline_env % spline_table ) ) THEN
      DO i = 1, ntab
-        CALL kill_spline ( spline_table(i), 'a' )
+        CALL kill_spline ( spline_env % spline_table(i), 'a' )
      END DO
-     DEALLOCATE ( spline_table, STAT = isos )
+     DEALLOCATE ( spline_env % spline_table, STAT = isos )
      IF ( isos /= 0 ) CALL stop_memory ( 'spline_nonbond_control', &
           'spline_table' )
-     NULLIFY ( spline_table )
+     NULLIFY ( spline_env % spline_table )
   END IF
 
-  ALLOCATE ( spline_table ( ntab ), STAT = isos )
+  ALLOCATE ( spline_env % spline_table ( ntab ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'spline_nonbond_control', &
        'spline_table', ntab )
   DO i = 1, ntab
-     NULLIFY ( spline_table(i) % x )
-     NULLIFY ( spline_table(i) % y )
-     NULLIFY ( spline_table(i) % y2 )
+     NULLIFY ( spline_env % spline_table(i) % x )
+     NULLIFY ( spline_env % spline_table(i) % y )
+     NULLIFY ( spline_env % spline_table(i) % y2 )
   END DO
-  IF ( ASSOCIATED ( spltab ) ) THEN
-     DEALLOCATE ( spltab, STAT = isos )
+  IF ( ASSOCIATED ( spline_env % spltab ) ) THEN
+     DEALLOCATE ( spline_env % spltab, STAT = isos )
      IF ( isos /= 0 ) CALL stop_memory ( 'spline_nonbond_control', 'spltab' )
   END IF
-  ALLOCATE ( spltab ( ntype, ntype ), STAT = isos )
+  ALLOCATE ( spline_env % spltab ( ntype, ntype ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'spline_nonbond_control', &
        'spltab', ntype ** 2 )
 
@@ -184,19 +182,19 @@ SUBROUTINE spline_nonbond_control ( spline_env, atomic_kind_set, ewald_env )
         atomic_kind=> atomic_kind_set(j)
         CALL get_atomic_kind(atomic_kind=atomic_kind,qeff=qj)
         n = n + 1
-        spltab(i,j) = n
-        spltab(j,i) = n
+        spline_env % spltab(i,j) = n
+        spline_env % spltab(j,i) = n
 !ODER: n=j+(i-1)*n-(i-1)*i/2 mit j>=i
-        CALL init_splinexy(spline_table(n),npoints+1)
+        CALL init_splinexy(spline_env % spline_table(n),npoints+1)
 
         IF (potparm(i,j)%type=='LENNARD-JONES') THEN
-           locut =  0.5_dbl
+           locut =  0.944863_dbl ! else put locut to 0.5 Angstrom
         ELSE IF (potparm(i,j)%type=='WILLIAMS') THEN
-           locut = 0.5 ! else put locut to 0.5 Angstrom
+           locut = 0.944863_dbl  ! else put locut to 0.5 Angstrom
         ELSE
-           locut = 0.5 ! else put locut to 0.5 Angstrom
+           locut = 0.944863_dbl  ! else put locut to 0.5 Angstrom
         END IF
-        hicut = sqrt(potparm(i,j)%rcutsq)
+        hicut = SQRT(potparm(i,j)%rcutsq)
         IF ( hicut > cutmax ) cutmax = hicut
         IF ( locut < cutmin ) cutmin = locut
 
@@ -212,12 +210,12 @@ SUBROUTINE spline_nonbond_control ( spline_env, atomic_kind_set, ewald_env )
            x = SQRT ( x2 )
            e = ener_pot ( potparm ( i, j ), qi, qj, x ) &
                 + ener_coul ( potparm ( i, j ), qi, qj, x, ewald_env )
-           spline_table(n) %x(jx) = x2
-           spline_table(n) %y(jx) = e
+           spline_env % spline_table(n) %x(jx) = x2
+           spline_env % spline_table(n) %y(jx) = e
            x2 = x2 + dx2
         END DO ! jx: loop over distance
 
-        CALL init_spline(spline_table(n),dx=dx2)
+        CALL init_spline(spline_env % spline_table(n),dx=dx2)
 
      END DO ! j:  second atom type
   END DO ! i:  first atom type

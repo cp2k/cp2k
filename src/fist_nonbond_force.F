@@ -32,6 +32,7 @@ MODULE fist_nonbond_force
   USE kinds,                           ONLY: dbl
   USE mathconstants,                   ONLY: pi
   USE pair_potential,                  ONLY: potential_s
+  USE pair_potential_types,            ONLY: pair_potential_type
   USE particle_types,                  ONLY: particle_type
   USE qs_neighbor_list_types,          ONLY: first_list,&
                                              first_node,&
@@ -97,8 +98,8 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
       DIMENSION ( : ),  POINTER                  :: nonbonded
     REAL(dbl), DIMENSION(:, :), POINTER   :: r_last_update
     REAL(dbl), DIMENSION(:), POINTER   :: rab_last_update
-    REAL(dbl), DIMENSION(:, :), POINTER   :: rcutsq
     TYPE ( spline_environment_type ), POINTER     :: spline_env
+    TYPE ( pair_potential_type ), POINTER     :: potparm ( :, : )
 
 !MK
 !------------------------------------------------------------------------------
@@ -106,7 +107,7 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
   CALL timeset ( routine_name, 'E', 'Mflops', handle )
   flops = 0._dbl
   CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
-                             r_last_update = r_last_update, rlist_cutsq = rcutsq, &
+                             r_last_update = r_last_update,            &
                              spline_env = spline_env, natom_types = nkinds )
 ! initializing the potential energy, pressure tensor and force and spline pointers
   pot_nonbond = 0._dbl
@@ -114,6 +115,7 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
   ptens_nonbond = 0._dbl
   spline_table => spline_env % spline_table
   spltab => spline_env % spltab
+  potparm => spline_env % potparm
 
 !
 ! starting the force loop
@@ -127,7 +129,7 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
 
         IF (.NOT.ASSOCIATED(neighbor_list_set)) CYCLE
 
-        rab2_max = rcutsq ( ikind, jkind )
+        rab2_max = potparm ( ikind, jkind ) % rcutsq 
 
         CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
                                    nlist=nlist)
@@ -150,7 +152,7 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
             CALL get_neighbor_node(neighbor_node=neighbor_node,&
                                    neighbor=atom_b,&
                                    cell=cell_b,&
-                                   r=rab)
+                                   s=rab)
 
             drb(:) = particle_set(atom_b)%r(:) - &
                      scaled_to_real ( r_last_update(:,atom_b), cell )

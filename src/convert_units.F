@@ -54,7 +54,8 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, length,  &
-                                   tau_nhc, mass, eps0, l_power, part, box, potparm )
+                                   tau_nhc, mass, eps0, l_power, part, box, &
+                                   ff_nonbonded )
 
 
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: unit_char
@@ -65,7 +66,7 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
       OPTIONAL                               :: part( : )
     TYPE(cell_type), INTENT(INOUT), OPTIONAL :: box
     TYPE(pair_potential_type), &
-      INTENT(INOUT), OPTIONAL                :: potparm( :, : )
+      INTENT(INOUT), OPTIONAL                :: ff_nonbonded ( : )
     INTEGER                                  :: i, ll
     TYPE(unit_convert_type), POINTER         :: units
 
@@ -134,35 +135,36 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
      ENDIF
   END IF
 
-  IF ( PRESENT ( potparm ) ) THEN
+  IF ( PRESENT ( ff_nonbonded ) ) THEN
+    
 ! convert LJ parameters
 
      IF ( unit_char == 'KCAL' ) THEN
-        potparm ( :, : ) % lj % epsilon = potparm ( :, : ) % lj % epsilon * units % kcal
-        potparm ( :, : ) % lj % sigma6 = potparm ( :, : ) % lj % sigma6 * ( units % angstrom ) ** 6
-        potparm ( :, : ) % lj % sigma12 = potparm ( :, : ) % lj % sigma12 * ( units % angstrom ) ** 12
+        ff_nonbonded ( : ) % lj % epsilon = ff_nonbonded ( : ) % lj % epsilon * units % kcal
+        ff_nonbonded ( : ) % lj % sigma6 = ff_nonbonded ( : ) % lj % sigma6 * ( units % angstrom ) ** 6
+        ff_nonbonded ( : ) % lj % sigma12 = ff_nonbonded ( : ) % lj % sigma12 * ( units % angstrom ) ** 12
      ELSEIF ( unit_char == 'KELVIN' ) THEN
-        potparm ( :, : ) % lj % epsilon = potparm ( :, : ) % lj % epsilon * units % kelvin
-        potparm ( :, : ) % lj % sigma6 = potparm ( :, : ) % lj % sigma6 * ( units % angstrom ) ** 6
-        potparm ( :, : ) % lj % sigma12 = potparm ( :, : ) % lj % sigma12 * ( units % angstrom ) ** 12
+        ff_nonbonded ( : ) % lj % epsilon = ff_nonbonded ( : ) % lj % epsilon * units % kelvin
+        ff_nonbonded ( : ) % lj % sigma6 = ff_nonbonded ( : ) % lj % sigma6 * ( units % angstrom ) ** 6
+        ff_nonbonded ( : ) % lj % sigma12 = ff_nonbonded ( : ) % lj % sigma12 * ( units % angstrom ) ** 12
      ENDIF 
 
 ! convert Williams parameters
      IF ( unit_char == 'KCAL' ) THEN
-       potparm ( :, : ) %willis%a = potparm ( :, : ) %willis%a*units%kcal
-       potparm ( :, : ) %willis%b = potparm ( :, : ) %willis%b/units%angstrom
-       potparm ( :, : ) %willis%c = potparm ( :, : ) %willis%c*units%kcal* &
+       ff_nonbonded ( : ) %willis%a = ff_nonbonded ( : ) %willis%a*units%kcal
+       ff_nonbonded ( : ) %willis%b = ff_nonbonded ( : ) %willis%b/units%angstrom
+       ff_nonbonded ( : ) %willis%c = ff_nonbonded ( : ) %willis%c*units%kcal* &
                                                       units%angstrom**6
      ELSEIF ( unit_char == 'KELVIN' ) THEN
-       potparm ( :, : ) %willis%a = potparm ( :, : ) %willis%a*units%kelvin
-       potparm ( :, : ) %willis%b = potparm ( :, : ) %willis%b/units%angstrom
-       potparm ( :, : ) %willis%c = potparm ( :, : ) %willis%c*units%kelvin* &
+       ff_nonbonded ( : ) %willis%a = ff_nonbonded ( : ) %willis%a*units%kelvin
+       ff_nonbonded ( : ) %willis%b = ff_nonbonded ( : ) %willis%b/units%angstrom
+       ff_nonbonded ( : ) %willis%c = ff_nonbonded ( : ) %willis%c*units%kelvin* &
                                                       units%angstrom**6
      ENDIF
 
 ! convert Cutoff distances
      IF ( ( unit_char /= 'ATOMIC' ) .OR. ( unit_char /= 'AU' ) ) &
-     potparm ( :, : ) % rcutsq = potparm ( :, : ) % rcutsq * ( units % angstrom ) ** 2
+     ff_nonbonded ( : ) % rcutsq = ff_nonbonded ( : ) % rcutsq * ( units % angstrom ) ** 2
   END IF
 
 ! converting bond, bends and torsion and constraint parameters

@@ -20,6 +20,7 @@
 !******************************************************************************
 
 MODULE fist_nonbond_env_types
+  USE convert_units,                   ONLY: convert_to_cp2k_units
   USE global_types,                    ONLY: global_environment_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
@@ -271,6 +272,8 @@ END SUBROUTINE fist_nonbond_env_create
     NULLIFY (fist_nonbond_env% rlist_cutsq )
     fist_nonbond_env % unit_type = "ANGSTROM"
     fist_nonbond_env % verlet_skin = 1._dbl
+    CALL convert_to_cp2k_units ( "ANGSTROM",  &
+         length = fist_nonbond_env % verlet_skin )
     fist_nonbond_env % lup = 0
     fist_nonbond_env % aup = 0
     fist_nonbond_env % counter = 0
@@ -286,7 +289,7 @@ END SUBROUTINE fist_nonbond_env_create
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO idim = 1, natom_types
       DO jdim = 1, natom_types
-         rcut = spline_env % potparm ( idim, jdim ) % rcutsq + &
+         rcut = SQRT ( spline_env % potparm ( idim, jdim ) % rcutsq ) + &
                 fist_nonbond_env % verlet_skin
          fist_nonbond_env % rlist_cutsq ( idim, jdim ) = rcut 
       END DO

@@ -197,6 +197,8 @@ END SUBROUTINE set_energies
 
     CALL timeset(routine_name,"E","",handle)
 
+    iw = scr
+
     NULLIFY(dyn_coeff_set)
     CALL get_md_env(md_env=md_env,&
                     itimes=itimes,&
@@ -213,10 +215,39 @@ END SUBROUTINE set_energies
                        virial = virial, &
                        error=error)
 
+    CALL force_env_get(force_env_p ( 1 ) % force_env, potential_energy=epot, error=error)
+    IF (ASSOCIATED (dyn_coeff_set)) THEN
+      CALL compute_conserved_quantity(md_env,&
+                                      epot,&
+                                      cons,&
+                                      cons_rel=rcons,&
+                                      ekin=ekin,&
+                                      temp=temp,&
+                                      ekin_coefs=ekin_coefs,&
+                                      temp_coefs=temp_coefs)
+     temp_coefs=temp_coefs*kelvin
+     temp = temp*kelvin
+
+   ELSE
+     CALL compute_conserved_quantity(md_env,&
+                                     epot,&
+                                     cons,&
+                                     cons_rel=rcons,&
+                                     ekin=ekin,&
+                                     temp=temp)
+     temp = temp*kelvin
+
+   END IF
+
+  CALL get_cell_param ( cell, cell_length, cell_angle )
+
     replace_file = .FALSE.
 
     IF (itimes == 0) THEN
       IF (ionode) THEN
+        WRITE (iw,*)
+        WRITE ( iw, '( A )' ) ' MD_ENERGIES| Initialization proceeding'
+        WRITE (iw,*)
         replace_file = (simpar%read_type == "INIT")
         filename=ener_file_name
         INQUIRE (FILE=filename,EXIST=file_exists)
@@ -256,42 +287,33 @@ END SUBROUTINE set_energies
       t = t_old
       constant = e_old - e_diff
       CALL set_md_env(md_env=md_env,constant=constant)
+      WRITE ( iw, '( )' )
+      WRITE ( iw, '( A,A )' ) ' ******************************** ', &
+           'GO CP2K GO! **********************************'
+      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL POTENTIAL ENERGY', &
+           adjustl( unit % e_label), '= ', epot
+      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL KINETIC ENERGY', &
+           adjustl( unit % e_label), '= ', ekin
+      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL TEMPERATURE', &
+           adjustl( unit % temp_label ), '= ', temp
+      IF ( virial % pv_availability ) &
+      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL PRESSURE', &
+           adjustl( unit % pres_label), '= ', pv_scalar
+      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL VOLUME', &
+           adjustl( unit % vol_label), '= ', cell%deth
+      WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL LNTHS', &
+           adjustl(unit % l_label), '= ', cell_length(1), cell_length(2), cell_length(3)
+      WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL ANGLS', &
+           adjustl(unit % angl_label), '= ', cell_angle(3), cell_angle(2), cell_angle(1)
+      WRITE ( iw, '( A,A )' ) ' ******************************** ', &
+           'GO CP2K GO! **********************************'
     ELSE
       t = t_old + REAL(itimes-itimes_old,dp)*simpar%dt*femtoseconds
     END IF
 
+
     IF (itimes > itimes_old) THEN
 
-       iw = scr
-       CALL force_env_get(force_env_p ( 1 ) % force_env, potential_energy=epot, error=error)
-       IF (ASSOCIATED (dyn_coeff_set)) THEN
-         CALL compute_conserved_quantity(md_env,&
-                                         epot,&
-                                         cons,&
-                                         cons_rel=rcons,&
-                                         ekin=ekin,&
-                                         temp=temp,&
-                                         ekin_coefs=ekin_coefs,&
-                                         temp_coefs=temp_coefs)
-        temp_coefs=temp_coefs*kelvin
-        temp = temp*kelvin
-
-        WRITE (title,"(A4,I8,A4,F12.3,1X,A6,F20.9,1X,A6,F9.3,1X,A6,F9.3,1X,A1)")&
-          " i =",itimes," t =",t,"fs E =",epot,&
-          "au T= ",temp,"K Tc=",temp_coefs,"K"
-      ELSE
-        CALL compute_conserved_quantity(md_env,&
-                                        epot,&
-                                        cons,&
-                                        cons_rel=rcons,&
-                                        ekin=ekin,&
-                                        temp=temp)
-        temp = temp*kelvin
-
-        WRITE (title,"(A4,I8,A4,F12.3,1X,A6,F20.9,1X,A6,F9.3,1X,A1)")&
-          " i =",itimes," t =",t,"fs E =",epot,&
-          "au T= ",temp,"K"
-      END IF
 ! computing the scalar pressure
       IF ( virial % pv_availability ) THEN
         pv_scalar = 0._dbl
@@ -302,17 +324,12 @@ END SUBROUTINE set_energies
         pv_scalar = pv_scalar * unit % bar
      ENDIF
 
-      CALL get_cell_param ( cell, cell_length, cell_angle )
 
 
       IF (ionode) THEN
 
 ! average quantities:
-        SELECT CASE (itimes)
-        CASE (0)
-          WRITE (iw,*)
-          WRITE ( iw, '( A )' ) ' MD_ENERGIES| Initialization proceeding'
-          WRITE (iw,*)
+       SELECT CASE (itimes)
        CASE (1)
           IF ( virial % pv_availability ) averages%avepress = pv_scalar
           averages%avetemp = temp
@@ -350,28 +367,6 @@ END SUBROUTINE set_energies
           econs_avg = econs_avg + abs((cons-constant)/constant)
        END SELECT
 !
-       IF (itimes==0) THEN
-          WRITE ( iw, '( )' )
-          WRITE ( iw, '( A,A )' ) ' ******************************** ', &
-               'GO CP2K GO! **********************************'
-          WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL POTENTIAL ENERGY', &
-               adjustl( unit % e_label), '= ', epot
-          WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL KINETIC ENERGY', &
-               adjustl( unit % e_label), '= ', ekin
-          WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL TEMPERATURE', &
-               adjustl( unit % temp_label ), '= ', temp
-          IF ( virial % pv_availability ) &
-          WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL PRESSURE', &
-               adjustl( unit % pres_label), '= ', pv_scalar
-          WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL VOLUME', &
-               adjustl( unit % vol_label), '= ', cell%deth
-          WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL LNTHS', &
-               adjustl(unit % l_label), '= ', cell_length(1), cell_length(2), cell_length(3)
-          WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL ANGLS', &
-               adjustl(unit % angl_label), '= ', cell_angle(3), cell_angle(2), cell_angle(1)
-          WRITE ( iw, '( A,A )' ) ' ******************************** ', &
-               'GO CP2K GO! **********************************'
-       END IF
 
        IF ( ( itimes /= 0 ) .AND. ( MOD ( itimes, iscreen ) == 0 ) ) THEN
 
