@@ -126,9 +126,9 @@ CONTAINS
     CALL PDSYEVD('V','U',n,m(1,1),1,1,descm,eigenvalues(1),v(1,1),1,1,descv, &
                   work(1),lwork,iwork(1),liwork,info)
 #else
-    ! for n=4 with my lapack (linux) I need to add 50 to the value of lwork.
+    ! for n=4 with my lapack (linux) I need to add 50 to the value of lwork. 5000 seems to work in IRIX
     ! unfortunately query is not supported. I did not test n dependence[fawzi]
-    lwork=1+6*n+2*n**2+50
+    lwork=1+6*n+2*n**2+5000
     liwork=5*n+3
     ALLOCATE(work(lwork),STAT=istat)
     IF (istat.NE.0) CALL stop_memory("cp_fm_syevd","work")
