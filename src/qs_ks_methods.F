@@ -316,7 +316,7 @@ CONTAINS
 
 ! ***  Prepare densities for gapw ***
     IF(gapw) THEN
-      CALL prepare_gapw_den(qs_env,error)
+      CALL prepare_gapw_den(qs_env,error=error)
     ENDIF
 
 
