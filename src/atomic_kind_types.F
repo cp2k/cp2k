@@ -95,6 +95,13 @@ MODULE atomic_kind_types
                                              start_parser,&
                                              stop_parser,&
                                              test_object
+  USE semi_empirical_types,            ONLY: semi_empirical_type
+  USE semi_empirical_utils,            ONLY: allocate_se_param,&
+                                             deallocate_se_param,&
+                                             init_se_param,&
+                                             write_se_param,&
+                                             get_se_param,&
+                                             se_param_set_default
   USE soft_basis_set,                  ONLY: create_soft_basis
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory,&
@@ -115,6 +122,7 @@ MODULE atomic_kind_types
     TYPE(all_potential_type), POINTER      :: all_potential
     TYPE(elp_potential_type), POINTER      :: elp_potential
     TYPE(gth_potential_type), POINTER      :: gth_potential
+    TYPE(semi_empirical_type), POINTER     :: se_parameter
     TYPE(gto_basis_set_type), POINTER      :: aux_basis_set
     TYPE(gto_basis_set_type), POINTER      :: orb_basis_set
     TYPE(pao_bas_projection_type), POINTER :: pao_bas_proj
@@ -199,6 +207,7 @@ CONTAINS
       NULLIFY (atomic_kind_set(ikind)%all_potential)
       NULLIFY (atomic_kind_set(ikind)%elp_potential)
       NULLIFY (atomic_kind_set(ikind)%gth_potential)
+      NULLIFY (atomic_kind_set(ikind)%se_parameter)
       NULLIFY (atomic_kind_set(ikind)%aux_basis_set)
       NULLIFY (atomic_kind_set(ikind)%orb_basis_set)
       NULLIFY (atomic_kind_set(ikind)%atom_list)
@@ -257,6 +266,9 @@ CONTAINS
         IF (ASSOCIATED(atomic_kind_set(ikind)%gth_potential)) THEN
           CALL deallocate_potential(atomic_kind_set(ikind)%gth_potential)
         END IF
+        IF (ASSOCIATED(atomic_kind_set(ikind)%se_parameter)) THEN
+          CALL deallocate_se_param(atomic_kind_set(ikind)%se_parameter)
+        END IF
         IF (ASSOCIATED(atomic_kind_set(ikind)%aux_basis_set)) THEN
           CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%aux_basis_set)
         END IF
@@ -305,7 +317,8 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_atomic_kind(atomic_kind,all_potential,elp_potential,&
-                             gth_potential,aux_basis_set,orb_basis_set,&
+                             gth_potential,se_parameter,&
+                             aux_basis_set,orb_basis_set,&
                              element_symbol,name,mass,kind_number,natom,&
                              atom_list,alpha_core_charge,ccore_charge,&
                              core_charge_radius,ncgf,nsgf,z,zeff,qeff,&
@@ -328,6 +341,8 @@ CONTAINS
       POINTER                                :: elp_potential
     TYPE(gth_potential_type), OPTIONAL, &
       POINTER                                :: gth_potential
+    TYPE(semi_empirical_type), OPTIONAL, &
+      POINTER                                :: se_parameter
     TYPE(gto_basis_set_type), OPTIONAL, &
       POINTER                                :: aux_basis_set,&
                                                 orb_basis_set,&
@@ -378,6 +393,7 @@ CONTAINS
       IF (PRESENT(all_potential)) all_potential => atomic_kind%all_potential
       IF (PRESENT(elp_potential)) elp_potential => atomic_kind%elp_potential
       IF (PRESENT(gth_potential)) gth_potential => atomic_kind%gth_potential
+      IF (PRESENT(se_parameter))  se_parameter  => atomic_kind%se_parameter
       IF (PRESENT(aux_basis_set)) aux_basis_set => atomic_kind%aux_basis_set
       IF (PRESENT(orb_basis_set)) THEN
         IF(softb_local) THEN
@@ -1427,6 +1443,8 @@ CONTAINS
     TYPE(all_potential_type), POINTER    :: all_potential
     TYPE(elp_potential_type), POINTER    :: elp_potential
     TYPE(gth_potential_type), POINTER    :: gth_potential
+    TYPE(semi_empirical_type), POINTER   :: se_parameter
+    LOGICAL                              :: defined
 !   ---------------------------------------------------------------------------
 
     NULLIFY ( orb_basis_set, all_potential, elp_potential, gth_potential )
@@ -1456,7 +1474,20 @@ CONTAINS
                       "atomic kind <"//TRIM(atomic_kind%name),globenv)
         END IF
       ELSE
-!de
+        CALL get_atomic_kind(atomic_kind,se_parameter=se_parameter)
+        IF ( .NOT. ASSOCIATED(se_parameter) ) THEN
+          CALL allocate_se_param(atomic_kind%se_parameter)
+          CALL get_atomic_kind(atomic_kind,se_parameter=se_parameter)
+        END IF
+        CALL get_se_param(se_parameter,defined=defined)
+        IF (.NOT.defined) THEN
+          ! set default parameters 
+          CALL se_param_set_default(se_parameter,z,&
+                 dft_control%qs_control%method)
+        END IF
+        CALL write_se_param(se_parameter,globenv)
+        CALL init_se_param(atomic_kind%se_parameter,&
+                           atomic_kind%orb_basis_set)
       END IF
     ELSE IF (globenv%program_name == "KG") THEN
       !no checks programmed yet

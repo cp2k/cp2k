@@ -26,7 +26,7 @@ MODULE periodic_table
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: init_periodic_table, ptable, atom
+  PUBLIC :: init_periodic_table, ptable, atom, nelem
 
   TYPE atom
      CHARACTER ( LEN = 2 ) :: symbol
@@ -37,7 +37,6 @@ MODULE periodic_table
      REAL ( dbl ) :: covalent_radius ! in Angstroms
      REAL ( dbl ) :: vdw_radius ! in Angstroms
      INTEGER :: e_conv ( 0:3 )
-     REAL ( dbl ), DIMENSION ( :, : ), POINTER :: slater_exp
      REAL ( dbl ) :: eht_param ( 0:3 ) ! in eV
   END TYPE atom
 

@@ -1,0 +1,58 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2004 CP2K developers group                                  !
+!-----------------------------------------------------------------------------!
+!!****** cp2k/semi_empirical_types [1.0] *
+!!
+!!   NAME
+!!     semi_empirical_types
+!!
+!!   FUNCTION
+!!     Definition of the semi empirical parameter types.
+!!
+!!   AUTHOR
+!!     JGH (14.08.2004)
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+
+MODULE semi_empirical_types
+
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE basis_set_types,                 ONLY: sto_basis_set_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+
+  IMPLICIT NONE
+
+  PRIVATE
+
+! *** Global parameters ***
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "semi_empirical_types"
+
+  TYPE semi_empirical_type
+    ! PRIVATE
+    CHARACTER(LEN=default_string_length)   :: typ
+    CHARACTER(LEN=default_string_length)   :: name
+    LOGICAL                                :: defined
+    INTEGER                                :: z,zeff
+    INTEGER                                :: natorb
+    REAL(KIND = dp), DIMENSION(:), POINTER :: beta
+    REAL(KIND = dp), DIMENSION(:), &
+                                   POINTER :: sto_exponents
+    TYPE(sto_basis_set_type), POINTER      :: basis
+    INTEGER                                :: ngauss
+  END TYPE semi_empirical_type
+
+! *** Public data types ***
+
+  PUBLIC :: semi_empirical_type
+
+!!***
+! *****************************************************************************
+
+END MODULE semi_empirical_types

@@ -98,6 +98,7 @@ MODULE basis_set_types
             write_orb_basis_set
 
   PUBLIC :: allocate_sto_basis_set,&
+            create_gto_from_sto_basis,&
             deallocate_sto_basis_set,&
             get_sto_basis_set,&
             set_sto_basis_set,&
@@ -1444,16 +1445,34 @@ CONTAINS
       OPTIONAL, POINTER                      :: zet
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_sto_basis_set"
+    INTEGER                                  :: ns
 
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(sto_basis_set)) THEN
       IF (PRESENT(name)) sto_basis_set%name = name
       IF (PRESENT(nshell)) sto_basis_set%nshell = nshell
-      IF (PRESENT(symbol)) sto_basis_set%symbol(:) = symbol(:)
-      IF (PRESENT(nq)) sto_basis_set%nq(:) = nq(:)
-      IF (PRESENT(lq)) sto_basis_set%lq(:) = lq(:)
-      IF (PRESENT(zet)) sto_basis_set%zet(:) = zet(:)
+      IF (PRESENT(symbol)) then
+         ns = SIZE(symbol)
+         IF(ASSOCIATED(sto_basis_set%symbol)) DEALLOCATE(sto_basis_set%symbol)
+         ALLOCATE(sto_basis_set%symbol(1:ns))
+         sto_basis_set%symbol(:) = symbol(:)
+      ENDIF
+      IF (PRESENT(nq)) THEN
+         ns = SIZE(nq)
+         CALL reallocate(sto_basis_set%nq,1,ns)
+         sto_basis_set%nq = nq(:)
+      ENDIF
+      IF (PRESENT(lq)) THEN
+         ns = SIZE(lq)
+         CALL reallocate(sto_basis_set%lq,1,ns)
+         sto_basis_set%lq = lq(:)
+      ENDIF
+      IF (PRESENT(zet)) THEN
+         ns = SIZE(zet)
+         CALL reallocate(sto_basis_set%zet,1,ns)
+         sto_basis_set%zet = zet(:)
+      ENDIF
     ELSE
       CALL stop_program(routine_name,module_name,__LINE__,&
                         "The pointer sto_basis_set is not associated")
@@ -1500,11 +1519,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE create_gto_from_sto_basis(sto_basis_set,gto_basis_set,ngaus)
+  SUBROUTINE create_gto_from_sto_basis(sto_basis_set,gto_basis_set,ngauss)
 
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
-    INTEGER, OPTIONAL                        :: ngaus
+    INTEGER, OPTIONAL                        :: ngauss
 
     INTEGER                                  :: ng = 6
     INTEGER, PARAMETER                       :: maxng = 6
@@ -1520,7 +1539,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF ( PRESENT(ngaus) ) ng=ngaus
+    IF ( PRESENT(ngauss) ) ng=ngauss
     IF ( ng > maxng ) CALL stop_program(routine_name,module_name,__LINE__,&
                         "Too many Gaussian primitives requested")
  

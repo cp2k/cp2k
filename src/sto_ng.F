@@ -90,12 +90,12 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef )
   na = SIZE ( alpha )
   nc = SIZE ( coef )
 
-  CPPrecondition((n < 1 .OR. n > 6),cp_failure_level,routineP,error,failure)
-  CPPrecondition((na < n),cp_failure_level,routineP,error,failure)
-  CPPrecondition((nc < n),cp_failure_level,routineP,error,failure)
-  CPPrecondition((zeta < 0._dbl),cp_failure_level,routineP,error,failure)
-  CPPrecondition((nq < 1),cp_failure_level,routineP,error,failure)
-  CPPrecondition((lq < 0),cp_failure_level,routineP,error,failure)
+  CPPrecondition((n >= 1 .AND. n <= 6),cp_failure_level,routineP,error,failure)
+  CPPrecondition((na >= n),cp_failure_level,routineP,error,failure)
+  CPPrecondition((nc >= n),cp_failure_level,routineP,error,failure)
+  CPPrecondition((zeta > 0._dbl),cp_failure_level,routineP,error,failure)
+  CPPrecondition((nq >= 1),cp_failure_level,routineP,error,failure)
+  CPPrecondition((lq >= 0),cp_failure_level,routineP,error,failure)
 
   IF (.NOT. failure) THEN
     m = (nq*(nq-1))/2 + lq + 1

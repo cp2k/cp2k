@@ -322,10 +322,6 @@ CONTAINS
 
     CALL check_atomic_kind_set(atomic_kind_set,dft_control,globenv)
 
-!   *** Print the unnormalized basis set information (input data) ***
-
-    CALL write_gto_basis_sets(atomic_kind_set,globenv)
-
 !   *** Initialize the spherical harmonics and ***
 !   *** the orbital transformation matrices    ***
 
@@ -342,16 +338,13 @@ CONTAINS
     CALL init_orbital_pointers(maxl)
     CALL init_spherical_harmonics(maxl,globenv)
 
-!   *** Initialize the pretabulation for the calculation of the   ***
-!   *** incomplete Gamma function F_n(t) after McMurchie-Davidson ***
-
-    maxl = 3*maxlgto + 1
-
-    CALL init_md_ftable(maxl)
-
 !   *** Initialise the atomic kind set ***
 
     CALL init_atomic_kind_set(atomic_kind_set,globenv)
+
+!   *** Print the unnormalized basis set information (input data) ***
+
+    CALL write_gto_basis_sets(atomic_kind_set,globenv)
 
 !   *** Initialise GAPW soft basis and projectors
 
@@ -359,6 +352,14 @@ CONTAINS
       gapw_control => dft_control%qs_control%gapw_control
       CALL init_gapw_basis_set(atomic_kind_set,gapw_control,globenv)
     ENDIF
+
+!   *** Initialize the pretabulation for the calculation of the   ***
+!   *** incomplete Gamma function F_n(t) after McMurchie-Davidson ***
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             maxlgto=maxlgto)
+    maxl = 3*maxlgto + 1
+    CALL init_md_ftable(maxl)
 
 !   *** Print the atomic kind set ***
 
