@@ -79,5 +79,7 @@ MODULE pw_grid_pool
 
 CONTAINS
 
+  SUBROUTINE get_pw_grid_pool()
+  END SUBROUTINE get_pw_grid_pool
 
 END MODULE pw_grid_pool
