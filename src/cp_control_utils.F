@@ -97,7 +97,8 @@ MODULE cp_control_utils
             read_wave_control, &
             write_dft_control,&
             write_qs_control,&
-            write_wave_control
+            write_wave_control,&
+            xc_get_functional
 
 ! *** set up the &QS &END keyword section
 

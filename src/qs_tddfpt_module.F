@@ -3,6 +3,8 @@
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
+#include "cp_prep_globals.h"
+
 !!****m* cp2k/qs_tddfpt_module *
 !!
 !!   NAME
@@ -17,13 +19,22 @@
 
 MODULE qs_tddfpt_module
 
-  USE cp_control_utils,                ONLY: read_tddfpt_control
-  USE cp_control_types,                ONLY: tddfpt_control_type
+  USE cp_control_utils,                ONLY: read_tddfpt_control,&
+                                             xc_get_functional
+  USE cp_control_types,                ONLY: tddfpt_control_type,&
+                                             xc_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -36,6 +47,7 @@ MODULE qs_tddfpt_module
   USE qs_tddfpt_utils,                 ONLY: tddfpt_cleanup,&
                                              tddfpt_init,&
                                              tddfpt_write_banner
+  USE scf_control_types,               ONLY: scf_control_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -146,21 +158,73 @@ CONTAINS
     TYPE(cp_error_type), &
          INTENT(INOUT), OPTIONAL             :: error
 
+    INTEGER                                  :: output_unit, i
+    LOGICAL                                  :: failure, ionode
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(global_environment_type), POINTER   :: my_glob_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(xc_control_type), POINTER           :: xc_control
+
+    ! variables to remember from the environments
+    INTEGER                                  :: scf_control_max_scf
+    TYPE(xc_control_type)                    :: my_xc_control
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = "orbital_eigenvalue_correction", &
                                                 routineP = moduleN//"/"//routineN
 
-    ! call qs_scf with just 1 scf cycle, the special pot and diagonalization
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)    
     
-    NULLIFY(my_glob_env)
+    failure = .FALSE.
+    NULLIFY(logger, my_glob_env, scf_env, scf_control, xc_control)
     my_glob_env => glob_env
+    logger => cp_error_get_logger(error)
+    ionode = (logger%para_env%mepos==logger%para_env%source)
+    output_unit = cp_logger_get_default_unit_nr(logger)
 
-    
+    IF (ionode) THEN
+       WRITE (output_unit, "(2X,A)") "",&
+       "-----------------------------------------------------------------------------",&
+       "-                    orbital eigenvalue correction started                  -",&
+       "-----------------------------------------------------------------------------",&
+       ""    
+    END IF
 
-    CALL get_qs_env(qs_env, scf_env=scf_env)
+    CALL get_qs_env(qs_env, scf_env=scf_env, scf_control=scf_control)
+    xc_control => qs_env%dft_control%xc_control
+
+    !-----------------------!
+    ! set parameters for OE !
+    !-----------------------!
+    scf_control_max_scf = scf_control%max_scf
+    scf_control%max_scf = 1
+    my_xc_control%functionals = xc_control%functionals
+    my_xc_control%gradient_functionals = xc_control%gradient_functionals
+    my_xc_control%crossterms = xc_control%crossterms
+    xc_control%functionals = ""
+    CALL xc_get_functional ( 0, "PBE", xc_control%functionals, &
+                                       xc_control%gradient_functionals, &
+                                       xc_control%crossterms )
+    DO i=1, 3
+       IF (xc_control%functionals(i) == "") THEN 
+          xc_control%functionals(i) = "NONE"
+       END IF
+    END DO
+
+
+    !---------------------------------!
+    ! build ks matrix and diagonalize !
+    !---------------------------------!
     CALL scf_env_do_scf(scf_env, qs_env, my_glob_env, error)
+
+
+    !-------------------------------!
+    ! revert to original parameters !
+    !-------------------------------!
+    scf_control%max_scf = scf_control_max_scf
+    xc_control%functionals = my_xc_control%functionals
+    xc_control%gradient_functionals = my_xc_control%gradient_functionals
+    xc_control%crossterms = my_xc_control%crossterms
 
   END SUBROUTINE orbital_eigenvalue_correction
 
