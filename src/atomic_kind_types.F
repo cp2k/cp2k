@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000 -2004 CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/atomic_kind_types [1.0] *
 !!
@@ -16,6 +16,7 @@
 !!     - 01.2002 creation [MK]
 !!     - 04.2002 added pao [fawzi]
 !!     - 09.2002 adapted for POL/KG use [GT]
+!!     - 02.2004 flexible normalization of basis sets [jgh]
 !!   SOURCE
 !******************************************************************************
 
@@ -28,6 +29,7 @@ MODULE atomic_kind_types
                                              init_aux_basis_set,&
                                              init_orb_basis_set,&
                                              read_gto_basis_set,&
+                                             set_gto_basis_set,&
                                              write_aux_basis_set,&
                                              write_gto_basis_set,&
                                              write_orb_basis_set
@@ -723,18 +725,40 @@ CONTAINS
     IF (ASSOCIATED(atomic_kind)) THEN
 
       IF (globenv%program_name == "QS") THEN
-        CALL init_potential(atomic_kind%gth_potential)
-        CALL init_orb_basis_set(atomic_kind%orb_basis_set)
+        IF (ASSOCIATED(atomic_kind%gth_potential))THEN
+          CALL init_potential(atomic_kind%gth_potential)
+        END IF
+        IF (ASSOCIATED(atomic_kind%orb_basis_set))THEN
+          IF(atomic_kind%orb_basis_set%norm_type < 0) &
+                        atomic_kind%orb_basis_set%norm_type = 2
+          CALL init_orb_basis_set(atomic_kind%orb_basis_set)
+        END IF
       ELSE IF (globenv%program_name == "POL") THEN
-        CALL init_orb_basis_set(atomic_kind%orb_basis_set,globenv)
-        CALL init_aux_basis_set(atomic_kind%aux_basis_set)
-      ELSE IF (globenv%program_name == "KG") THEN
-        CALL init_orb_basis_set(atomic_kind%orb_basis_set,globenv)
+        IF (ASSOCIATED(atomic_kind%orb_basis_set))THEN
+          IF(atomic_kind%orb_basis_set%norm_type < 0) &
+                        atomic_kind%orb_basis_set%norm_type = 1
+          CALL init_orb_basis_set(atomic_kind%orb_basis_set)
+        END IF
         IF (ASSOCIATED(atomic_kind%aux_basis_set))THEN
+          IF(atomic_kind%aux_basis_set%norm_type < 0) &
+                        atomic_kind%aux_basis_set%norm_type = 1
+          CALL init_aux_basis_set(atomic_kind%aux_basis_set)
+        END IF
+      ELSE IF (globenv%program_name == "KG") THEN
+        IF (ASSOCIATED(atomic_kind%orb_basis_set))THEN
+          IF(atomic_kind%orb_basis_set%norm_type < 0) &
+                        atomic_kind%orb_basis_set%norm_type = 1
+          CALL init_orb_basis_set(atomic_kind%orb_basis_set)
+        END IF
+        IF (ASSOCIATED(atomic_kind%aux_basis_set))THEN
+          IF(atomic_kind%aux_basis_set%norm_type < 0) &
+                        atomic_kind%aux_basis_set%norm_type = 1
           CALL init_aux_basis_set(atomic_kind%aux_basis_set)
         END IF
       ELSE IF (globenv%program_name == "FIST") THEN
-        CALL allocate_potential(atomic_kind%elp_potential)
+        IF (ASSOCIATED(atomic_kind%elp_potential))THEN
+          CALL allocate_potential(atomic_kind%elp_potential)
+        END IF
       END IF
 
     ELSE
@@ -808,9 +832,10 @@ CONTAINS
     CHARACTER(LEN=2)                         :: current_symbol, element_symbol
     CHARACTER(LEN=3)                         :: test_result
     CHARACTER(LEN=default_string_length)     :: aux_basis_set_name, keyword, &
-                                                orb_basis_set_name, &
+                                                orb_basis_set_name, norm_sym, &
                                                 potential_name, potential_type
-    INTEGER                                  :: i, ipos, min_b_index, z
+    INTEGER                                  :: i, ipos, min_b_index, z, &
+                                                naux, norb
     LOGICAL                                  :: failure, section_found
     TYPE(cp_error_type)                      :: error
     TYPE(cp_sll_int_type), POINTER           :: min_bas_sll
@@ -852,8 +877,40 @@ CONTAINS
           SELECT CASE (TRIM(keyword))
           CASE ("AUXILIARY_BASIS_SET","AUX_BASIS_SET","AUX_BASIS")
             CALL read_object(aux_basis_set_name)
+            test_result = test_object()
+            naux = -1
+            IF (test_result /= "EOL") THEN
+              CALL read_object(norm_sym,lower_to_upper=.TRUE.)
+              SELECT CASE (TRIM(norm_sym))
+              CASE ("NONE","NO")
+                naux = 0
+              CASE ("WFN","WAVEFUNCTION","FUNCTION")
+                naux = 1
+              CASE ("DENS","DENSITY","SQUARE")
+                naux = 2
+              CASE DEFAULT
+                CALL stop_parser(routine_name,module_name,__LINE__,&
+                     "Invalid normalization method")
+              END SELECT
+            END IF
           CASE ("ORBITAL_BASIS_SET","ORB_BASIS_SET","ORB_BASIS","BASIS_SET","BAS")
             CALL read_object(orb_basis_set_name)
+            test_result = test_object()
+            norb = -1
+            IF (test_result /= "EOL") THEN
+              CALL read_object(norm_sym,lower_to_upper=.TRUE.)
+              SELECT CASE (TRIM(norm_sym))
+              CASE ("NONE","NO")
+                norb = 0
+              CASE ("WFN","WAVEFUNCTION","FUNCTION")
+                norb = 1
+              CASE ("DENS","DENSITY","SQUARE")
+                norb = 2
+              CASE DEFAULT
+                CALL stop_parser(routine_name,module_name,__LINE__,&
+                     "Invalid normalization method")
+              END SELECT
+            END IF
           CASE ("ELEMENT_SYMBOL","ELEMENT")
             CALL read_object(element_symbol,lower_to_upper=.TRUE.)
             DO i=LBOUND(ptable,1),UBOUND(ptable,1)
@@ -887,9 +944,10 @@ CONTAINS
         END IF
       END DO
     ELSE
-      write(globenv%scr,*)
-      write(globenv%scr,*)
-      write(globenv%scr,'(A)') " *** No section KIND DEFAULT and no section KIND "//TRIM(atomic_kind%name)//" *** "
+      WRITE(globenv%scr,*)
+      WRITE(globenv%scr,*)
+      WRITE(globenv%scr,'(A)') " *** No section KIND DEFAULT and no section KIND "&
+                               //TRIM(atomic_kind%name)//" *** "
       CALL stop_parser(routine_name,module_name,__LINE__,"SECTION_NOT_FOUND")
     END IF
 
@@ -955,6 +1013,8 @@ CONTAINS
       CALL allocate_gto_basis_set(atomic_kind%orb_basis_set)
       CALL read_gto_basis_set(atomic_kind%element_symbol,orb_basis_set_name,&
                               atomic_kind%orb_basis_set,globenv)
+      CALL set_gto_basis_set(gto_basis_set=atomic_kind%orb_basis_set,&
+                             norm_type=norb)
     END IF
 
 !   *** Allocate and initialise the auxiliary basis set data set structure ***
@@ -963,6 +1023,8 @@ CONTAINS
       CALL allocate_gto_basis_set(atomic_kind%aux_basis_set)
       CALL read_gto_basis_set(atomic_kind%element_symbol,aux_basis_set_name,&
                               atomic_kind%aux_basis_set,globenv)
+      CALL set_gto_basis_set(gto_basis_set=atomic_kind%aux_basis_set,&
+                             norm_type=naux)
     END IF
 
 !   *** Allocate and initialise the potential data set structure ***
@@ -1013,7 +1075,7 @@ CONTAINS
                 proj_indexes=min_bas_sll,&
                 size_full_bas=atomic_kind%orb_basis_set%nsgf,&
                 error=error)
-     ELSE
+    ELSE
         NULLIFY(atomic_kind%pao_bas_proj)
     END IF
     CALL cp_sll_int_dealloc(min_bas_sll,error=error)

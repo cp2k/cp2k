@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2003  CP2K developers group                          !
+!   Copyright (C) 2000 - 2004  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/basis_set_types [1.0] *
 !!
@@ -13,9 +13,9 @@
 !!     Matthias Krack (04.07.2000)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     - 02.2004 flexible normalization of basis sets [jgh]
 !!
-!!   SOURCE
+!!***
 !******************************************************************************
 
 MODULE basis_set_types
@@ -59,6 +59,7 @@ MODULE basis_set_types
 !MK PRIVATE
     CHARACTER(LEN=default_string_length)       :: name
     REAL(KIND = dp)                            :: kind_radius
+    INTEGER                                    :: norm_type
     INTEGER                                    :: ncgf,nset,nsgf
     CHARACTER(LEN=12), DIMENSION(:), POINTER   :: cgf_symbol
     CHARACTER(LEN=6), DIMENSION(:), POINTER    :: sgf_symbol
@@ -88,13 +89,6 @@ MODULE basis_set_types
 
   PUBLIC :: gto_basis_set_type
 
-! *****************************************************************************
-
-  INTERFACE init_orb_basis_set
-    MODULE PROCEDURE init_orb_basis_set1,init_orb_basis_set2
-  END INTERFACE
-
-!!***
 ! *****************************************************************************
 
 CONTAINS
@@ -277,13 +271,13 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_gto_basis_set(gto_basis_set,name,kind_radius,ncgf,nset,nsgf,&
-                               cgf_symbol,sgf_symbol,norm_cgf,set_radius,lmax,&
-                               lmin,lx,ly,lz,m,ncgf_set,npgf,nsgf_set,nshell,&
-                               cphi,pgf_radius,sphi,zet,first_cgf,first_sgf,l,&
-                               last_cgf,last_sgf,n,gcc,maxco,maxl,maxpgf,&
-                               maxsgf_set,maxshell,nco_sum,npgf_sum,&
-                               nshell_sum,maxder)
+  SUBROUTINE get_gto_basis_set(gto_basis_set,name,norm_type,kind_radius,ncgf,&
+                    nset,nsgf,cgf_symbol,sgf_symbol,norm_cgf,set_radius,lmax,&
+                    lmin,lx,ly,lz,m,ncgf_set,npgf,nsgf_set,nshell,&
+                    cphi,pgf_radius,sphi,zet,first_cgf,first_sgf,l,&
+                    last_cgf,last_sgf,n,gcc,maxco,maxl,maxpgf,&
+                    maxsgf_set,maxshell,nco_sum,npgf_sum,&
+                    nshell_sum,maxder)
 
 !   Purpose: Get informations about a Gaussian-type orbital (GTO) basis set.
 
@@ -294,6 +288,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     CHARACTER(LEN=default_string_length), &
       INTENT(OUT), OPTIONAL                  :: name
+    INTEGER, INTENT(OUT), OPTIONAL           :: norm_type
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: kind_radius
     INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, nset, nsgf
     CHARACTER(LEN=12), DIMENSION(:), &
@@ -325,6 +320,7 @@ CONTAINS
 
     IF (ASSOCIATED(gto_basis_set)) THEN
       IF (PRESENT(name)) name = gto_basis_set%name
+      IF (PRESENT(norm_type)) norm_type = gto_basis_set%norm_type
       IF (PRESENT(kind_radius)) kind_radius = gto_basis_set%kind_radius
       IF (PRESENT(ncgf)) ncgf = gto_basis_set%ncgf
       IF (PRESENT(nset)) nset = gto_basis_set%nset
@@ -418,14 +414,24 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_aux_basis_set"
+
 !   ---------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(gto_basis_set)) RETURN
 
-!   *** Compute the normalization factors of   ***
-!   *** the contracted Gaussian-type functions ***
-
-    CALL init_norm_cgf_aux_2(gto_basis_set)
+    SELECT CASE (gto_basis_set%norm_type)
+    CASE ( 0 )
+      !   *** No normalisation requested ***
+    CASE ( 1 )
+      CALL init_norm_cgf_aux_2(gto_basis_set)
+    CASE ( 2 )
+! WARNING this was never tested
+      CALL init_norm_cgf_aux(gto_basis_set)
+    CASE DEFAULT
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "Normalization method not specified")
+    END SELECT
 
 !   *** Initialise the transformation matrices "pgf" -> "cgf" ***
 
@@ -653,7 +659,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_norm_cgf_orb_den(gto_basis_set,globenv)
+  SUBROUTINE init_norm_cgf_orb_den(gto_basis_set)
 
 !   Purpose: Initialise the normalization factors of the contracted Cartesian
 !            Gaussian functions used for frozen density representation
@@ -663,8 +669,6 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
-    TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "init_norm_cgf_orb_den"
 
@@ -675,18 +679,13 @@ CONTAINS
 
     DO iset=1,gto_basis_set%nset
       DO ishell=1,gto_basis_set%nshell(iset)
-        IF (globenv%program_name =='KG') THEN
-          l = gto_basis_set%l(ishell,iset)
-          IF (l > 0) CALL stop_program(routine_name,module_name,__LINE__,&
-                                       "l > 0 not allowed for KG model")
-          expzet = 0.5_dp*REAL(2*l + 3,dp)
-          prefac = (1.0_dp/pi)**1.5_dp
-          DO ipgf=1,gto_basis_set%npgf(iset)
-            gcca = gto_basis_set%gcc(ipgf,ishell,iset)
-            zeta = gto_basis_set%zet(ipgf,iset)
-            gto_basis_set%gcc(ipgf,ishell,iset) = prefac*zeta**expzet*gcca
-          END DO
-        END IF
+        expzet = 0.5_dp*REAL(2*l + 3,dp)
+        prefac = (1.0_dp/pi)**1.5_dp
+        DO ipgf=1,gto_basis_set%npgf(iset)
+          gcca = gto_basis_set%gcc(ipgf,ishell,iset)
+          zeta = gto_basis_set%zet(ipgf,iset)
+          gto_basis_set%gcc(ipgf,ishell,iset) = prefac*zeta**expzet*gcca
+        END DO
         DO icgf=gto_basis_set%first_cgf(ishell,iset),&
                 gto_basis_set%last_cgf(ishell,iset)
           gto_basis_set%norm_cgf(icgf) = 1.0_dp
@@ -698,7 +697,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_orb_basis_set1(gto_basis_set)
+  SUBROUTINE init_orb_basis_set(gto_basis_set)
 
 !   Purpose: Initialise a Gaussian-type orbital (GTO) basis set data set.
 
@@ -708,52 +707,32 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
-!   ---------------------------------------------------------------------------
-
-    IF (.NOT.ASSOCIATED(gto_basis_set)) RETURN
-
-!   *** Normalise the primitive Gaussian functions ***
-
-    CALL normalise_gcc_orb(gto_basis_set)
-
-!   *** Compute the normalization factors of   ***
-!   *** the contracted Gaussian-type functions ***
-
-    CALL init_norm_cgf_orb(gto_basis_set)
-
-!   *** Initialise the transformation matrices "pgf" -> "cgf" ***
-
-    CALL init_cphi_and_sphi(gto_basis_set)
-
-  END SUBROUTINE init_orb_basis_set1
-
-! *****************************************************************************
-
-  SUBROUTINE init_orb_basis_set2(gto_basis_set,globenv)
-
-!   Purpose: Initialise a Gaussian-type orbital (GTO) basis set data set.
-
-!   History: - GT 21-09-2002: version of init_orb_basis_set for POL and KG use
-
-!   ***************************************************************************
-
-    TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
-    TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_orb_basis_set"
 
 !   ---------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(gto_basis_set)) RETURN
 
-!   *** Normalise the primitive Gaussian functions ***
-
-    CALL init_norm_cgf_orb_den(gto_basis_set,globenv)
+    SELECT CASE (gto_basis_set%norm_type)
+    CASE ( 0 )
+      !   *** No normalisation requested ***
+    CASE ( 1 )
+      CALL init_norm_cgf_orb_den(gto_basis_set)
+    CASE ( 2 )
+      !   *** Normalise the primitive Gaussian functions ***
+      CALL normalise_gcc_orb(gto_basis_set)
+      !   *** Compute the normalization factors of   ***
+      !   *** the contracted Gaussian-type functions ***
+      CALL init_norm_cgf_orb(gto_basis_set)
+    CASE DEFAULT
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "Normalization method not specified")
+    END SELECT 
 
 !   *** Initialise the transformation matrices "pgf" -> "cgf" ***
-
     CALL init_cphi_and_sphi(gto_basis_set)
 
-  END SUBROUTINE init_orb_basis_set2
+  END SUBROUTINE init_orb_basis_set
 
 ! *****************************************************************************
 
@@ -1056,11 +1035,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_gto_basis_set(gto_basis_set,name,kind_radius,ncgf,nset,nsgf,&
-                               cgf_symbol,sgf_symbol,norm_cgf,set_radius,lmax,&
-                               lmin,lx,ly,lz,m,ncgf_set,npgf,nsgf_set,nshell,&
-                               cphi,pgf_radius,sphi,zet,first_cgf,first_sgf,l,&
-                               last_cgf,last_sgf,n,gcc)
+  SUBROUTINE set_gto_basis_set(gto_basis_set,name,norm_type,kind_radius,ncgf,&
+                     nset,nsgf,cgf_symbol,sgf_symbol,norm_cgf,set_radius,lmax,&
+                     lmin,lx,ly,lz,m,ncgf_set,npgf,nsgf_set,nshell,&
+                     cphi,pgf_radius,sphi,zet,first_cgf,first_sgf,l,&
+                     last_cgf,last_sgf,n,gcc)
 
 !   Purpose: Set the components of Gaussian-type orbital (GTO) basis set data
 !            set.
@@ -1072,6 +1051,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     CHARACTER(LEN=default_string_length), &
       INTENT(IN), OPTIONAL                   :: name
+    INTEGER, INTENT(IN), OPTIONAL            :: norm_type
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: kind_radius
     INTEGER, INTENT(IN), OPTIONAL            :: ncgf, nset, nsgf
     CHARACTER(LEN=12), DIMENSION(:), &
@@ -1097,6 +1077,7 @@ CONTAINS
 
     IF (ASSOCIATED(gto_basis_set)) THEN
       IF (PRESENT(name)) gto_basis_set%name = name
+      IF (PRESENT(norm_type)) gto_basis_set%norm_type = norm_type
       IF (PRESENT(kind_radius)) gto_basis_set%kind_radius = kind_radius
       IF (PRESENT(ncgf)) gto_basis_set%ncgf = ncgf
       IF (PRESENT(nset)) gto_basis_set%nset = nset
