@@ -251,7 +251,7 @@ CONTAINS
                                        "What kind of PW_GRID should be employed",&
                                        "","","")
      qs_keywords(qs_key_RS_GRID)=keyword_type("RS_GRID", &
-                                       "RS_GRID {DISTRIGBUTED|REPLICATED}",&
+                                       "RS_GRID {DISTRIBUTED|REPLICATED}",&
                                        "Parallellisation strategy of the realspace grids",&
                                        "","","")
      qs_keywords(qs_key_EXTRAPOLATION)=keyword_type("EXTRAPOLATION", &
