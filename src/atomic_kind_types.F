@@ -749,8 +749,9 @@ CONTAINS
             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxl=imax)
             maxlgto = MAX(maxlgto,imax)
           END IF
-          IF(PRESENT(lrho0) .AND. lrho0) THEN
-            maxlgto = MAX(maxlgto,lmax_rho0)
+          IF( PRESENT(lrho0) ) THEN
+             IF( lrho0 ) &
+                  maxlgto = MAX(maxlgto,lmax_rho0)
           END IF
         END IF
         IF (PRESENT(maxpgf)) THEN
