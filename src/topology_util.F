@@ -352,10 +352,10 @@ SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
   INTEGER                                  :: first, iatom, iiatom, iii, &
                                               inum, istat, itype, iw, last, &
                                               natom, nbond, nnum, ntype
+  INTEGER                                  :: map_mol_typ_orig, jump
   INTEGER                                  :: ifirst, ilast, myind, iatm, stat, jatm
   INTEGER, POINTER, DIMENSION(:)           :: checkme, qm_atom_index
   LOGICAL                                  :: PM1, PM2, PM3, PM4, my_qmmm, do_again
-  LOGICAL                                  :: prev_diff_mol_typ, succ_diff_mol_typ
   LOGICAL                                  :: failure
 
   failure = .FALSE.
@@ -500,55 +500,51 @@ SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
         END DO
         CPPostcondition(ilast<=natom,cp_failure_level,routineP,error,failure)
         IF ( ilast < natom ) ilast = ilast - 1
+        IF (PM2) WRITE(iw,*)"qm fragment:: ifirst, ilast",ifirst,ilast
         DO iatm = ifirst, ilast
            atom_info%label_molname(iatm) = "_QM_"//&
                 TRIM(atom_info%label_molname(iatm))
            DO jatm = 1, SIZE(qm_atom_index)
               IF (qm_atom_index(jatm) == iatm) THEN
-                 qm_atom_index = 0
+                 qm_atom_index(jatm) = 0
                  EXIT
               END IF
            END DO
         END DO
         DO iatm = 1, ifirst-1
            IF ( ANY(qm_atom_index == iatm) ) do_again = .TRUE.
-           WRITE(iw,*)iatm,atom_info%map_mol_typ(iatm), atom_info%map_mol_num(iatm)
         END DO
         DO iatm = ilast+1, natom
            IF ( ANY(qm_atom_index == iatm) ) do_again = .TRUE.
-           WRITE(iw,*)iatm,atom_info%map_mol_typ(iatm), atom_info%map_mol_num(iatm)
         END DO
+        IF (PM2) WRITE(iw,*)" Another QM fragment? :: ",do_again
         DO iatm = ifirst, ilast
-           atom_info%map_mol_num(iatm) = 1
+           atom_info%map_mol_num(iatm) = 1           
         END DO
+        map_mol_typ_orig = atom_info%map_mol_typ(ifirst)
+        IF (ifirst /= 1) THEN
+           IF (atom_info%map_mol_typ(ifirst-1) == map_mol_typ_orig) THEN
+              DO iatm = ifirst, ilast
+                 atom_info%map_mol_typ(iatm) = map_mol_typ_orig + 1
+              END DO
+           END IF
+        END IF
         IF (ilast /= natom) THEN
            inum = atom_info%map_mol_num(ilast+1)
            DO iatm = ilast+1, natom
               IF (atom_info%map_mol_num(iatm) == 1) EXIT
               atom_info%map_mol_num(iatm) = atom_info%map_mol_num(iatm) - inum +1
            END DO
-        END IF
-
-        IF (ifirst == 1) THEN 
-           prev_diff_mol_typ = .TRUE.
-           IF (ilast == natom) THEN
-              succ_diff_mol_typ = .TRUE.
-           ELSE
-              succ_diff_mol_typ =  atom_info%map_mol_typ(ilast) /= atom_info%map_mol_typ(ilast+1)
+           map_mol_typ_orig = atom_info%map_mol_typ(ifirst)
+           IF (atom_info%map_mol_typ(ilast+1) < map_mol_typ_orig+1) THEN
+              jump = 2
+              IF (ifirst == 1) jump = 1
+              DO iatm = ilast+1, natom
+                 atom_info%map_mol_typ(iatm) =  atom_info%map_mol_typ(iatm) + jump
+              END DO
+           ELSE IF (atom_info%map_mol_typ(ilast+1) > map_mol_typ_orig+1) THEN
+              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
            END IF
-        ELSEIF (ilast == natom) THEN
-           prev_diff_mol_typ =  atom_info%map_mol_typ(ifirst) /= atom_info%map_mol_typ(ifirst-1)           
-           succ_diff_mol_typ = .TRUE.
-        ELSE
-           prev_diff_mol_typ =  atom_info%map_mol_typ(ifirst) /= atom_info%map_mol_typ(ifirst-1)
-           succ_diff_mol_typ =  atom_info%map_mol_typ(ilast)  /= atom_info%map_mol_typ(ilast+1)
-        END IF
-
-        IF (prev_diff_mol_typ) ifirst = ilast + 1
-        IF (.NOT.succ_diff_mol_typ) THEN 
-           DO iatm = ifirst, natom
-              atom_info%map_mol_typ(iatm) =  atom_info%map_mol_typ(iatm) + 1
-           END DO
         END IF
         IF (.NOT.do_again) EXIT
      END DO

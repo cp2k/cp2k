@@ -168,7 +168,7 @@ CONTAINS
        qm_mol_num    = 0
        qm_atom_index => qmmm_env%qm_atom_index
        DO imolecule=1,SIZE(molecule_set)
-          IF ((globenv%ionode).AND.(globenv%print%level>0))&
+          IF ((globenv%ionode).AND.(globenv%print%level>1))&
                WRITE(*,*)"Entering molecule number ::",imolecule
           molecule => molecule_set(imolecule)
           CALL get_molecule(molecule,molecule_kind=molecule_kind,&
@@ -181,7 +181,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        qm_mol_num    = 0
        DO imolecule=1,SIZE(molecule_set)
-          IF ((globenv%ionode).AND.(globenv%print%level>0))&
+          IF ((globenv%ionode).AND.(globenv%print%level>1))&
                WRITE(*,*)"Entering molecule number ::",imolecule
           molecule => molecule_set(imolecule)
           CALL get_molecule(molecule,molecule_kind=molecule_kind,&
