@@ -135,7 +135,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), POINTER    :: atomic_kind
     TYPE(cell_type), POINTER           :: cell
-    TYPE(cp_local_lists_type), POINTER :: local_particles
+    TYPE(cp_local_lists_type), POINTER :: local_cols,local_rows
     TYPE(gth_potential_type), POINTER  :: gth_potential
     TYPE(gto_basis_set_type), POINTER  :: orb_basis_set
 
@@ -190,7 +190,8 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
-                    local_particles=local_particles,&
+                    local_cols=local_cols,&
+                    local_rows=local_rows,&
                     particle_set=particle_set,&
                     sab_orb=sab_orb,&
                     sac_ppl=sac_ppl,&
@@ -252,7 +253,7 @@ CONTAINS
                            orb_basis_set=orb_basis_set)
 
       natom = SIZE(atom(ikind)%list)
-      natom_local = local_particles%n_el(ikind)
+      natom_local = local_rows%n_el(ikind)
 
       maxatom_local = MAX(maxatom_local,natom_local)
 
@@ -274,7 +275,7 @@ CONTAINS
 !         *** Build index vector for mapping ***
 
           DO iatom_local=1,natom_local
-            atom_a = local_particles%list(ikind)%array(iatom_local)
+            atom_a = local_rows%list(ikind)%array(iatom_local)
             DO iatom=1,natom
               IF (atom_a == atom(ikind)%list(iatom)) THEN
                 atom(ikind)%list_local_index(iatom_local) = iatom

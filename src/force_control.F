@@ -356,7 +356,7 @@ SUBROUTINE force_env_create(force_env,fist_env,qs_env,kg_env,error)
         CALL get_qs_env(force_env%qs_env,&
              atomic_kind_set=force_env%atomic_kind_sets(1)%atomic_kind_set,&
              particle_set=force_env%particle_sets(1)%particle_set,&
-             local_particles=force_env%local_particles(1)%local_lists,&
+             local_rows=force_env%local_particles(1)%local_lists,&
              error=error)
      END SELECT
      

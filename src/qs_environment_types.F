@@ -214,6 +214,7 @@ MODULE qs_environment_types
 !!     11.2002 added doc and attribute description [fawzi]
 !!
 !!*** *********************************************************************
+
   TYPE qs_environment_type
 !   PRIVATE
     INTEGER :: id_nr, ref_count
@@ -240,8 +241,10 @@ MODULE qs_environment_types
     TYPE(qs_wf_history_type), POINTER                     :: wf_history
     TYPE(qs_scf_env_type), POINTER                        :: scf_env
     TYPE(qs_matrix_pools_type), POINTER                   :: mpools
-    TYPE(cp_local_lists_type), POINTER                    :: local_particles
+    TYPE(cp_local_lists_type), POINTER                    :: local_rows,&
+                                                             local_cols
   END TYPE qs_environment_type
+
 ! *****************************************************************************
 
 !!****s* qs_environment_types/qs_environment_p_type [1.0] *
@@ -280,7 +283,7 @@ CONTAINS
                         para_env, blacs_env, scf_control,&
                         kinetic,qs_charges, rho_core, ks_env,&
                         wf_history,scf_env,&
-                        id_nr,local_particles,error)
+                        id_nr,local_rows,local_cols,error)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -288,38 +291,39 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), INTENT(IN)       :: qs_env
+    TYPE(qs_environment_type), INTENT(IN)         :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:),&
-      OPTIONAL, POINTER                         :: atomic_kind_set
-    TYPE(cell_type), OPTIONAL, POINTER          :: cell
-    TYPE(dft_control_type), OPTIONAL, POINTER   :: dft_control
+      OPTIONAL, POINTER                           :: atomic_kind_set
+    TYPE(cell_type), OPTIONAL, POINTER            :: cell
+    TYPE(dft_control_type), OPTIONAL, POINTER     :: dft_control
     TYPE(mo_set_p_type),  DIMENSION(:),&
-      OPTIONAL, POINTER                         :: c
+      OPTIONAL, POINTER                           :: c
     TYPE(neighbor_list_set_p_type),&
-      DIMENSION(:), OPTIONAL, POINTER           :: sab_orb,sac_erfc,sac_ppl,&
-                                                   sac_ppnl,sbc_ppnl
-    TYPE(pao_env_type), OPTIONAL, POINTER       :: pao_env
+      DIMENSION(:), OPTIONAL, POINTER             :: sab_orb,sac_erfc,sac_ppl,&
+                                                     sac_ppnl,sbc_ppnl
+    TYPE(pao_env_type), OPTIONAL, POINTER         :: pao_env
     TYPE(particle_type), DIMENSION(:),&
-      OPTIONAL, POINTER                         :: particle_set
-    TYPE(qs_energy_type), OPTIONAL, POINTER     :: energy
+      OPTIONAL, POINTER                           :: particle_set
+    TYPE(qs_energy_type), OPTIONAL, POINTER       :: energy
     TYPE(qs_force_type), DIMENSION(:),&
-      OPTIONAL, POINTER                         :: force
+      OPTIONAL, POINTER                           :: force
     TYPE(real_matrix_p_type), DIMENSION(:),&
-      OPTIONAL, POINTER                         :: h,k,s,kinetic,w
+      OPTIONAL, POINTER                           :: h,k,s,kinetic,w
     TYPE(qs_matrix_pools_type), OPTIONAL, POINTER :: mpools
-    TYPE(qs_rho_type), OPTIONAL, POINTER        :: rho
-    TYPE(pw_env_type), OPTIONAL, POINTER        :: pw_env
-    TYPE(cp_para_env_type), OPTIONAL, POINTER   :: para_env
-    TYPE(cp_blacs_env_type), OPTIONAL, POINTER  :: blacs_env
-    TYPE(scf_control_type), OPTIONAL, POINTER   :: scf_control
-    TYPE(qs_charges_type), OPTIONAL, POINTER    :: qs_charges
-    TYPE(coeff_type), OPTIONAL, POINTER         :: rho_core
-    TYPE(qs_ks_env_type), OPTIONAL, POINTER     :: ks_env
-    TYPE(qs_wf_history_type), OPTIONAL, POINTER :: wf_history
-    TYPE(qs_scf_env_type), OPTIONAL, POINTER    :: scf_env
-    INTEGER, INTENT(out), OPTIONAL              :: id_nr
-    TYPE(cp_local_lists_type), POINTER, OPTIONAL :: local_particles
-    TYPE(cp_error_type), OPTIONAL,INTENT(inout) :: error
+    TYPE(qs_rho_type), OPTIONAL, POINTER          :: rho
+    TYPE(pw_env_type), OPTIONAL, POINTER          :: pw_env
+    TYPE(cp_para_env_type), OPTIONAL, POINTER     :: para_env
+    TYPE(cp_blacs_env_type), OPTIONAL, POINTER    :: blacs_env
+    TYPE(scf_control_type), OPTIONAL, POINTER     :: scf_control
+    TYPE(qs_charges_type), OPTIONAL, POINTER      :: qs_charges
+    TYPE(coeff_type), OPTIONAL, POINTER           :: rho_core
+    TYPE(qs_ks_env_type), OPTIONAL, POINTER       :: ks_env
+    TYPE(qs_wf_history_type), OPTIONAL, POINTER   :: wf_history
+    TYPE(qs_scf_env_type), OPTIONAL, POINTER      :: scf_env
+    INTEGER, INTENT(out), OPTIONAL                :: id_nr
+    TYPE(cp_local_lists_type), OPTIONAL, POINTER  :: local_rows,local_cols
+    TYPE(cp_error_type), OPTIONAL,INTENT(INOUT)   :: error
+
 !   ---------------------------------------------------------------------------
 
     IF (PRESENT(atomic_kind_set)) atomic_kind_set => qs_env%atomic_kind_set
@@ -352,7 +356,8 @@ CONTAINS
     IF (PRESENT(wf_history)) wf_history => qs_env%wf_history
     IF (PRESENT(scf_env)) scf_env => qs_env%scf_env
     IF (PRESENT(id_nr)) id_nr=qs_env%id_nr
-    IF (PRESENT(local_particles)) local_particles => qs_env%local_particles
+    IF (PRESENT(local_rows)) local_rows => qs_env%local_rows
+    IF (PRESENT(local_cols)) local_cols => qs_env%local_cols
 
   END SUBROUTINE get_qs_env
 
@@ -400,7 +405,8 @@ CONTAINS
     NULLIFY (qs_env%ks_env)
     NULLIFY (qs_env%wf_history)
     NULLIFY (qs_env%scf_env)
-    NULLIFY (qs_env%local_particles)
+    NULLIFY (qs_env%local_rows)
+    NULLIFY (qs_env%local_cols)
 
     CALL cp_para_env_retain(para_env,error=error)
     qs_env%para_env => para_env
@@ -418,7 +424,7 @@ CONTAINS
                         pao_env,particle_set,energy,force,h,k,s,w,&
                         pw_env,mpools,rho,kinetic,&
                         scf_control,qs_charges,rho_core, ks_env,&
-                        wf_history, scf_env, local_particles, error)
+                        wf_history,scf_env,local_rows,local_cols,error)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -426,35 +432,35 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), INTENT(OUT)    :: qs_env
+    TYPE(qs_environment_type), INTENT(OUT)        :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:),&
-      OPTIONAL, POINTER                       :: atomic_kind_set
-    TYPE(cell_type), OPTIONAL, POINTER        :: cell
-    TYPE(dft_control_type), OPTIONAL, POINTER :: dft_control
+      OPTIONAL, POINTER                           :: atomic_kind_set
+    TYPE(cell_type), OPTIONAL, POINTER            :: cell
+    TYPE(dft_control_type), OPTIONAL, POINTER     :: dft_control
     TYPE(mo_set_p_type),  DIMENSION(:),&
-      OPTIONAL, POINTER                       :: c
+      OPTIONAL, POINTER                           :: c
     TYPE(neighbor_list_set_p_type),&
-      DIMENSION(:), OPTIONAL, POINTER         :: sab_orb,sac_erfc,sac_ppl,&
-                                                 sac_ppnl,sbc_ppnl
-    TYPE(pao_env_type), OPTIONAL, POINTER     :: pao_env
+      DIMENSION(:), OPTIONAL, POINTER             :: sab_orb,sac_erfc,sac_ppl,&
+                                                     sac_ppnl,sbc_ppnl
+    TYPE(pao_env_type), OPTIONAL, POINTER         :: pao_env
     TYPE(particle_type), DIMENSION(:),&
-      OPTIONAL, POINTER                       :: particle_set
-    TYPE(qs_energy_type), OPTIONAL, POINTER   :: energy
+      OPTIONAL, POINTER                           :: particle_set
+    TYPE(qs_energy_type), OPTIONAL, POINTER       :: energy
     TYPE(qs_force_type), DIMENSION(:),&
-      OPTIONAL, POINTER                       :: force
+      OPTIONAL, POINTER                           :: force
     TYPE(real_matrix_p_type), DIMENSION(:),&
-         OPTIONAL, POINTER                    :: h,k,s,kinetic,w
-    TYPE(qs_rho_type), POINTER,OPTIONAL       :: rho
-    TYPE(pw_env_type), OPTIONAL, POINTER      :: pw_env
-    TYPE(scf_control_type), OPTIONAL, POINTER :: scf_control
-    TYPE(qs_charges_type), OPTIONAL, POINTER  :: qs_charges
-    TYPE(coeff_type), POINTER, OPTIONAL       :: rho_core
-    TYPE(qs_ks_env_type), POINTER, OPTIONAL   :: ks_env
-    TYPE(qs_wf_history_type), POINTER, OPTIONAL :: wf_history
-    TYPE(qs_scf_env_type), POINTER, OPTIONAL  :: scf_env
-    TYPE(qs_matrix_pools_type), POINTER, OPTIONAL  :: mpools
-    TYPE(cp_local_lists_type), POINTER, OPTIONAL :: local_particles
-    TYPE(cp_error_type),INTENT(inout),OPTIONAL:: error
+         OPTIONAL, POINTER                        :: h,k,s,kinetic,w
+    TYPE(qs_rho_type), OPTIONAL, POINTER          :: rho
+    TYPE(pw_env_type), OPTIONAL, POINTER          :: pw_env
+    TYPE(scf_control_type), OPTIONAL, POINTER     :: scf_control
+    TYPE(qs_charges_type), OPTIONAL, POINTER      :: qs_charges
+    TYPE(coeff_type), OPTIONAL, POINTER           :: rho_core
+    TYPE(qs_ks_env_type), OPTIONAL, POINTER       :: ks_env
+    TYPE(qs_wf_history_type), OPTIONAL, POINTER   :: wf_history
+    TYPE(qs_scf_env_type), OPTIONAL, POINTER      :: scf_env
+    TYPE(qs_matrix_pools_type), OPTIONAL, POINTER :: mpools
+    TYPE(cp_local_lists_type), OPTIONAL, POINTER  :: local_rows,local_cols
+    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT)  :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -517,11 +523,17 @@ CONTAINS
        CALL mpools_release(mpools, error=error)
        qs_env%mpools => mpools
     END IF
-    IF (PRESENT(local_particles)) THEN
-       CALL cp_ll_retain(local_particles,error=error)
-       CALL cp_ll_release(local_particles, error=error)
-       qs_env%local_particles => local_particles
+    IF (PRESENT(local_rows)) THEN
+      CALL cp_ll_retain(local_rows,error=error)
+      CALL cp_ll_release(local_rows,error=error)
+      qs_env%local_rows => local_rows
     END IF
+    IF (PRESENT(local_cols)) THEN
+      CALL cp_ll_retain(local_cols,error=error)
+      CALL cp_ll_release(local_cols,error=error)
+      qs_env%local_cols => local_cols
+    END IF
+
   END SUBROUTINE set_qs_env
 
 ! *****************************************************************************
@@ -740,7 +752,8 @@ SUBROUTINE qs_env_release(qs_env,error)
         CALL qs_charges_release(qs_env%qs_charges, error=error)
         CALL qs_ks_release(qs_env%ks_env, error=error)
         CALL mpools_release(qs_env%mpools,error=error)
-        CALL cp_ll_release(qs_env%local_particles, error=error)
+        CALL cp_ll_release(qs_env%local_rows,error=error)
+        CALL cp_ll_release(qs_env%local_cols,error=error)
 
 !FM        if (associated(qs_env%pao_env)) then ! circular ref
 !FM           call pao_env_dealloc_ref(pao_env_dealloc_ref,error=error)
