@@ -328,7 +328,7 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
   DO i=1,SIZE ( ZIJ, 2 )
     DO j=1,SIZE ( ZIJ, 1 )
        CALL cp_sm_fm_multiply(qs_loc_env%operator(j,i)%matrix, &
-                            vectors,opvec,ncol=k,para_env=qs_loc_env%para_env)
+                            vectors,opvec,ncol=k )
        CALL cp_fm_gemm("T","N",k,k,n,1.0_dp,vectors,opvec,0.0_dp,ZIJ(j,i)%matrix)
     ENDDO
   ENDDO

@@ -804,8 +804,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
               CALL cp_fm_create(csc,matrix_struct_new)
               CALL cp_fm_struct_release(matrix_struct_new)
 
-              CALL cp_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,mo_coeff, &
-                                     k,mo_coeff%matrix_struct%para_env)
+              CALL cp_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,mo_coeff, k)
               CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,mo_coeff,0.0_dp,csc)
               CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,mo_coeff)
               CALL cp_fm_release(csc)
@@ -848,8 +847,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
              
               DO i=2,nvec 
                  t0_state => wfi_get_snapshot(wf_history, index=i, error=error)
-                 CALL cp_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,fm_tmp, &
-                                        k,mo_coeff%matrix_struct%para_env)
+                 CALL cp_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,fm_tmp, k)
                  CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,fm_tmp,0.0_dp,csc)
                  CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,fm_tmp)
                  alpha = -1.0_dp * alpha * REAL(nvec - i + 1 , dp ) / REAL(i , dp ) 

@@ -158,7 +158,7 @@ CONTAINS
         CALL cp_fm_struct_release(fm_struct_tmp)
 
         CALL cp_sm_fm_multiply(matrix_s,matrix_orthogonal_space, &
-                                matrix_s_ortho,ortho_space_k,para_env=globenv%para_env)
+                                matrix_s_ortho,ortho_space_k)
 
         CALL cp_fm_gemm('T','N',ortho_space_k,ortho_space_k,n,rone,matrix_s_ortho, &
                         matrix_s_ortho, rzero,matrix_os_ortho)
@@ -177,8 +177,7 @@ CONTAINS
         ! make matrix_c0 an orthogonal basis, matrix_c contains sc0
         CALL cp_fm_to_fm(matrix_c,qs_ot_env(1)%matrix_c0)
         CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_c0, &
-                                matrix_c,k, &
-                                para_env=globenv%para_env)
+                                matrix_c,k)
         CALL make_basis(qs_ot_env(1)%matrix_c0,k, ortho=matrix_c,otype="SV")
 
         ! copy sc0 and matrix_s_ortho in qs_ot_env(1)%matrix_sc0
@@ -195,8 +194,7 @@ CONTAINS
     ! set c0,sc0
        CALL cp_fm_to_fm(matrix_c,qs_ot_env(1)%matrix_c0)
        CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_c0, &
-                               qs_ot_env(1)%matrix_sc0,qs_ot_env(1)%settings%k, &
-                               para_env=globenv%para_env)
+                               qs_ot_env(1)%matrix_sc0,qs_ot_env(1)%settings%k)
        CALL make_basis(qs_ot_env(1)%matrix_c0,k, ortho=qs_ot_env(1)%matrix_sc0,otype="SV")
     ENDIF
     ! init
@@ -232,8 +230,7 @@ CONTAINS
       ! the energy is cHc, the gradient is 2*H*c
       CALL cp_sm_fm_multiply(matrix_h,matrix_c, &
                                      matrix_hc(1)%matrix,  &
-                                     qs_ot_env(1)%settings%k,&
-                                     para_env=globenv%para_env)
+                                     qs_ot_env(1)%settings%k)
       CALL cp_fm_trace(matrix_c,matrix_hc(1)%matrix,energy)
       IF (.NOT. energy_only) THEN
        CALL cp_fm_scale_and_add(2.0_dp,matrix_hc(1)%matrix)
@@ -246,8 +243,7 @@ CONTAINS
 
       CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_x, &
                                          qs_ot_env(1)%matrix_sx, &
-                                         qs_ot_env(1)%settings%k,&
-                                     para_env=globenv%para_env)
+                                         qs_ot_env(1)%settings%k)
 
       CALL qs_ot_get_p(qs_ot_env(1)%matrix_x,qs_ot_env(1)%matrix_sx,qs_ot_env(1))
       CALL qs_ot_get_orbitals(matrix_c,qs_ot_env(1)%matrix_x,qs_ot_env(1))

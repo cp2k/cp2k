@@ -522,8 +522,7 @@ CONTAINS
                              occupation_numbers=occupation_numbers )
              CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k)
              CALL cp_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_coeff,&
-                                          mo_derivs(ispin)%matrix,&
-                                          k, para_env=mo_derivs(ispin)%matrix%matrix_struct%para_env)
+                                          mo_derivs(ispin)%matrix, k)
              ALLOCATE(scaling_factor(SIZE(occupation_numbers)))
              scaling_factor=2.0_dp*occupation_numbers
              CALL cp_fm_column_scale(mo_derivs(ispin)%matrix,scaling_factor)
@@ -542,7 +541,7 @@ CONTAINS
                                  occupation_numbers=occupation_numbers )
                  CALL cp_fm_get_info(mo_coeff,ncol_global=k)
                  CALL cp_sm_fm_multiply(ks_matrix(2)%matrix,mo_coeff,&
-                                        hc_tmp, k, para_env=mo_coeff%matrix_struct%para_env)
+                                        hc_tmp, k)
                  ALLOCATE(scaling_factor(k2))
                  scaling_factor=0.0_dp
                  scaling_factor(1:k)=2.0_dp*occupation_numbers(1:k)

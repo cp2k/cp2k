@@ -720,8 +720,7 @@ CONTAINS
           ! create S C_beta and compute overlap
           CALL cp_fm_get_info(c_beta, matrix_struct=fm_struct_tmp,nrow_global=nrow)
           CALL cp_fm_create(matrix_sc, fm_struct_tmp,name="matrix_sc")
-          CALL cp_sm_fm_multiply(matrix_s(1)%matrix,c_beta,&
-                                       matrix_sc,nb,para_env)
+          CALL cp_sm_fm_multiply(matrix_s(1)%matrix,c_beta,matrix_sc,nb)
           CALL cp_fm_gemm('T','N',na,nb,nrow,1.0_dp,c_alpha,matrix_sc,0.0_dp,matrix_overlap)
           ! invoke formula 2.271
           CALL cp_fm_get_info(matrix_overlap,local_data=local_data)

@@ -1879,7 +1879,6 @@ END SUBROUTINE cp_sp_set_to
     CALL cp_fm_get_info(matrix_b,ncol_global=ncol)
     ! JVDV block owner commented away, this should be useless right now  
     CALL cp_sm_fm_multiply(matrix_a%sm, matrix_b, matrix_c,ncol,&
-         para_env=matrix_a%matrix_struct%distribution%para_env,&
          alpha=alpha, beta=beta)
   END SUBROUTINE cp_sp_multiplies_blacs
 

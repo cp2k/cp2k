@@ -136,7 +136,7 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
                       nrow_global=nrow_global )
   NULLIFY(smo)
   CALL cp_fm_create(smo,mo_coeff%matrix_struct)
-  CALL cp_sm_fm_multiply(matrix_S,mo_coeff,smo,ncol_global,qs_env%para_env)
+  CALL cp_sm_fm_multiply(matrix_S,mo_coeff,smo,ncol_global)
 
 
   !-----------------------------------------------------------------------------
@@ -197,7 +197,7 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
       CALL cp_fm_to_fm ( mo_localized, b, 1, ind ( i ), i)
     END DO
 
-    CALL cp_sm_fm_multiply(Hks,b,c,ns,para_env=qs_env%para_env)     
+    CALL cp_sm_fm_multiply(Hks,b,c,ns)
 
     CALL cp_fm_gemm('T','N',ns,ns,nrow_global,1.0_dp, &             
                          b,c,0.0_dp,d)    

@@ -671,16 +671,17 @@ CONTAINS
   ! imported from cp_fm_basic_linalg
   !
   !*******************************************************************************
-  SUBROUTINE cp_sm_fm_multiply_general(sparse_matrix,v_in,v_out,ncol,para_env, &
+  SUBROUTINE cp_sm_fm_multiply_general(sparse_matrix,v_in,v_out,ncol, &
        alpha,beta,error)
     ! to do: better interface
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
     TYPE(cp_fm_type) , POINTER :: v_in
     TYPE(cp_fm_type) , POINTER :: v_out
     INTEGER, INTENT(IN)               :: ncol
-    TYPE(cp_para_env_type), POINTER :: para_env ! of the sparse matrix
     REAL(KIND = dp), INTENT(in), OPTIONAL :: alpha, beta
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+
+    TYPE(cp_para_env_type), POINTER :: para_env ! of the sparse matrix
 
     !   *** Local parameters ***
     CHARACTER(LEN=*), PARAMETER :: routineN = "cp_sm_fm_multiply_general", &
@@ -701,6 +702,10 @@ CONTAINS
 
     !   ---------------------------------------------------------------------------
     failure=.FALSE.
+    ! 
+    ! para_env of the sparse and the full matrices should be compatible
+    ! 
+    para_env => v_in%matrix_struct%para_env 
 #if defined(__parallel) && ! defined(__SCALAPACK)
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
      routineP,"cp_sm_fm_multiply would be most happy to use scalapack libraries"//&
@@ -1010,12 +1015,11 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_sm_fm_multiply(sparse_matrix, v_in, v_out, ncol,&
-!!         para_env, alpha, beta, error)
+!!         alpha, beta, error)
 !!       Type(real_matrix_type), Pointer:: sparse_matrix
 !!       Type(cp_fm_type), Pointer:: v_in
 !!       Type(cp_fm_type), Pointer:: v_out
 !!       Integer, Intent (IN):: ncol
-!!       Type(cp_para_env_type), Pointer:: para_env
 !!       Real(Kind=dp), Intent (IN), Optional:: alpha, beta
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_sm_fm_multiply
@@ -1037,13 +1041,12 @@ CONTAINS
 !!     08.2003 created [f&j]
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sm_fm_multiply(sparse_matrix,v_in,v_out,ncol,para_env, &
+  SUBROUTINE cp_sm_fm_multiply(sparse_matrix,v_in,v_out,ncol, &
        alpha,beta,error)
     ! to do: better interface
     TYPE(real_matrix_type), POINTER          :: sparse_matrix
     TYPE(cp_fm_type), POINTER                :: v_in, v_out
     INTEGER, INTENT(IN)                      :: ncol
-    TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: alpha, beta
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1054,10 +1057,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_alpha, my_beta
     TYPE(cp_logger_type), POINTER            :: logger
-
-! of the sparse matrix
-!FM  REAL(KIND = dp) :: diff
-!FM  TYPE(cp_fm_type), POINTER :: tmp_m
 
     logger=> cp_error_get_logger(error)
 
@@ -1108,7 +1107,7 @@ CONTAINS
 !FM    CPPostcondition(diff<1.0e-14,cp_warning_level,routineP,error,failure)
 !FM    call cp_fm_release(tmp_m,error=error)
        ELSE
-          CALL cp_sm_fm_multiply_general(sparse_matrix,v_in,v_out,ncol,para_env, &
+          CALL cp_sm_fm_multiply_general(sparse_matrix,v_in,v_out,ncol, &
                my_alpha,my_beta,error)
        END IF
  ELSE
@@ -1116,7 +1115,7 @@ CONTAINS
          message="Old matrix multiply called", local=.FALSE.)
     CALL cp_log(logger, level=cp_warning_level, fromWhere=routineP, &
          message=sparse_matrix%name)
-    CALL cp_sm_fm_multiply_general(sparse_matrix,v_in,v_out,ncol,para_env, &
+    CALL cp_sm_fm_multiply_general(sparse_matrix,v_in,v_out,ncol, &
        my_alpha,my_beta,error)
  END IF
 

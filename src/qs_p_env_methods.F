@@ -581,8 +581,7 @@ END SUBROUTINE p_env_did_change
              CALL cp_sm_fm_multiply(sparse_matrix=matrix_s(1)%matrix,&
                   v_in=my_psi0(spin)%matrix,&
                   v_out=p_env%S_psi0(spin)%matrix,&
-                  ncol=p_env%n_mo(spin), para_env=para_env, &
-                  alpha=1.0_dp,error=error)
+                  ncol=p_env%n_mo(spin), alpha=1.0_dp,error=error)
              CALL cp_fm_gemm(transa='T',transb='N',n=p_env%n_mo(spin),&
                   m=p_env%n_mo(spin),k=p_env%n_ao(spin),alpha=1.0_dp,&
                   matrix_a=my_psi0(spin)%matrix, &
@@ -665,8 +664,7 @@ END SUBROUTINE p_env_did_change
           ! S_psi0 = k times psi0d
           CALL cp_sm_fm_multiply(qs_env%matrix_ks(spin)%matrix, &
                p_env%psi0d(spin)%matrix, &
-               p_env%S_psi0(spin)%matrix, p_env%n_mo(spin), &
-               para_env)
+               p_env%S_psi0(spin)%matrix, p_env%n_mo(spin))
           IF (PRESENT(Hrho_psi0d)) THEN
              CALL cp_fm_scale_and_add(alpha=0.0_dp,matrix_a=Hrho_psi0d(spin)%matrix,&
                   beta=1.0_dp,matrix_b=p_env%S_psi0(spin)%matrix,&
@@ -690,7 +688,7 @@ END SUBROUTINE p_env_did_change
           CALL cp_sm_fm_multiply(matrix_s(1)%matrix, &
                my_psi0(spin)%matrix, &
                p_env%S_psi0(spin)%matrix, &
-               p_env%n_mo(spin), para_env=para_env)
+               p_env%n_mo(spin))
        END DO
 
        ! releases my_psi0
@@ -862,9 +860,9 @@ END SUBROUTINE p_env_did_change
     CALL cp_fm_get_info(v, ncol_global=ncol)
     
     IF (p_env%orthogonal_orbitals) THEN
-       CALL cp_sm_fm_multiply(k_p, v, res, ncol, para_env)
+       CALL cp_sm_fm_multiply(k_p, v, res, ncol )
     ELSE
-       CALL cp_sm_fm_multiply(k_p, v, tmp, ncol, para_env)
+       CALL cp_sm_fm_multiply(k_p, v, tmp, ncol )
        CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1._dbl, &
          p_env%Smo_inv(spin)%matrix, tmp, 0._dbl, res)
     END IF
@@ -872,7 +870,7 @@ END SUBROUTINE p_env_did_change
     CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1._dbl, &
          p_env%m_epsilon(spin)%matrix, v, 0._dbl, tmp)
     CALL cp_sm_fm_multiply(qs_env%matrix_s(spin)%matrix, tmp, &
-         res, p_env%n_mo(spin), para_env=para_env, alpha=1.0_dbl,beta=1.0_dbl)    
+         res, p_env%n_mo(spin), alpha=1.0_dbl,beta=1.0_dbl)    
     CALL fm_pool_give_back_fm(maxao_maxmo_fm_pool,tmp); NULLIFY(tmp)
 
     CALL timestop(0.0_dp,handle)
@@ -1003,7 +1001,6 @@ END SUBROUTINE p_env_did_change
           CALL cp_sm_fm_multiply(sparse_matrix=p_env%kpp1(ispin)%matrix,&
                v_in=p_env%psi0d(ispin)%matrix, v_out=res(ispin)%matrix,&
                ncol=p_env%n_mo(ispin),&
-               para_env=para_env,&
                alpha=my_alpha,beta=my_beta,error=error)
        END DO
     END IF

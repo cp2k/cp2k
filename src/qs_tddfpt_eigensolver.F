@@ -184,11 +184,12 @@ CONTAINS
        END DO
        CALL apply_op(X, Ab(i,:), t_env, p_env, qs_env, glob_env)
        DO spin=1, n_spins
+          ! not specifying these alphas and betas might be twice as fast in parallel
           CALL cp_sm_fm_multiply(qs_env%matrix_s(spin)%matrix, &
                                  b(i,spin)%matrix, &
                                  Sb(i,spin)%matrix, &
                                  p_env%n_mo(spin), &
-                                 qs_env%para_env, 1.0_dbl, 0.0_dbl)
+                                 1.0_dbl, 0.0_dbl)
        END DO
     END DO
 
@@ -304,11 +305,12 @@ CONTAINS
           END DO
           CALL apply_op(X, Ab(i,:), t_env, p_env, qs_env, glob_env)
           DO spin=1, n_spins
+             ! not specifying these alphas and betas might be twice as fast in parallel
              CALL cp_sm_fm_multiply(qs_env%matrix_s(spin)%matrix, &
                   b(i,spin)%matrix, &
                   Sb(i,spin)%matrix, &
                   p_env%n_mo(spin), &
-                  qs_env%para_env, 1.0_dbl, 0.0_dbl)
+                  1.0_dbl, 0.0_dbl)
           END DO
        END DO
 

@@ -308,8 +308,7 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,matrix_s,energy, &
     DO ispin=1,nspin
        CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(ispin)%matrix_x, &
                                        qs_ot_env(ispin)%matrix_sx, &
-                                       qs_ot_env(ispin)%settings%k,&
-                                       para_env=globenv%para_env)
+                                       qs_ot_env(ispin)%settings%k)
        CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin))
        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
        CALL qs_ot_get_orbitals(mo_coeff,qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin))
@@ -364,8 +363,7 @@ SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env)
        ! set c0,sc0
        CALL cp_fm_to_fm(mo_coeff,qs_ot_env(ispin)%matrix_c0)
        CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(ispin)%matrix_c0, &
-                              qs_ot_env(ispin)%matrix_sc0,qs_ot_env(ispin)%settings%k, &
-                                                para_env=mo_coeff%matrix_struct%para_env)
+                              qs_ot_env(ispin)%matrix_sc0,qs_ot_env(ispin)%settings%k)
 
        ! init
        CALL qs_ot_init(qs_ot_env(ispin))

@@ -252,7 +252,7 @@ SUBROUTINE apply_sparse_diag(preconditioner_env, matrix_in, matrix_out)
 
   CALL cp_fm_get_info(matrix_in,ncol_global=k)
   CALL cp_sm_fm_multiply(preconditioner_env%sparse_matrix,matrix_in, &
-                         matrix_out,k, para_env=preconditioner_env%para_env)
+                         matrix_out,k)
 
 END SUBROUTINE apply_sparse_diag
 

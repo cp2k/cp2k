@@ -117,7 +117,7 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
    dE_bin=(emax-emin)/npoints
    DO component=1,3
       result=0.0_dp
-      call cp_sm_fm_multiply(matrix_s(component+1)%matrix,unoccupied_orbs,buf,nunocc,template%para_env)
+      call cp_sm_fm_multiply(matrix_s(component+1)%matrix,unoccupied_orbs,buf,nunocc)
       call cp_fm_gemm("T","N",nocc,nunocc,nao,1.0_dp,occupied_orbs,buf,0.0_dp,matrix_elements)
       DO j=1,ncol_local
         DO i=1,nrow_local

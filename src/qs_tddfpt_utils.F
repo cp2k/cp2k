@@ -559,7 +559,7 @@ CONTAINS
        CALL cp_sm_fm_multiply(metric(spin)%matrix, X(spin)%matrix, &
                               tmp_vec(spin)%matrix, &
                               X(spin)%matrix%matrix_struct%ncol_global, &
-                              glob_env%para_env, 1.0_dbl, 0.0_dbl)
+                              1.0_dbl, 0.0_dbl)
        CALL cp_fm_trace(X(spin)%matrix, tmp_vec(spin)%matrix, tmp)
        norm = norm + tmp
     END DO
@@ -650,7 +650,7 @@ CONTAINS
        CALL cp_sm_fm_multiply(metric(spin)%matrix, Y(spin)%matrix, &
                               tmp_vec(spin)%matrix, &
                               Y(spin)%matrix%matrix_struct%ncol_global, &
-                              glob_env%para_env, 1.0_dbl, 0.0_dbl)
+                              1.0_dbl, 0.0_dbl)
        CALL cp_fm_trace(X(spin)%matrix, tmp_vec(spin)%matrix, tmp)
        res = res + tmp
     END DO

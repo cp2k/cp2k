@@ -1037,7 +1037,6 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
               CALL cp_sm_fm_multiply(sparse_matrix=matrix_s(1)%matrix,&
                    v_in=p_ortho(ispin)%matrix,v_out=Ap(ispin)%matrix,&
                    ncol=ep_env%main_p_env%n_mo(ispin),&
-                   para_env=ep_env%main_qs_env%para_env, &
                    error=error)
               CALL cp_fm_trace(matrix_a=p_ortho(ispin)%matrix,&
                    matrix_b=Ap(ispin)%matrix,&
@@ -1309,7 +1308,7 @@ SUBROUTINE p_env_write_ep_matrix(p_env, qs_env, name, error)
               DO ispin2=1,dft_control%nspins
                  CALL cp_sm_fm_multiply(sparse_matrix=matrix_s(1)%matrix,&
                       v_in=v(ispin2)%matrix,v_out=res(ispin2)%matrix,&
-                      ncol=p_env%n_mo(ispin2),para_env=qs_env%para_env, &
+                      ncol=p_env%n_mo(ispin2), &
                       error=error)
                  CALL cp_fm_trace(matrix_a=v(ispin2)%matrix, &
                       matrix_b=res(ispin2)%matrix, trace=v_norm_s, error=error)

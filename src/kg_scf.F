@@ -1185,8 +1185,7 @@ CONTAINS
 !               mo_coeff=mo_coeff, homo=homo)
 !! ortho so that one can restart for different positions (basis sets?)
 !          CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV")
-!          CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,homo,&
-!               para_env=qs_env%para_env)
+!          CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,homo)
 !          CALL make_basis(mo_coeff,homo, &
 !               ortho=sv,otype="SV")
 !          CALL cp_fm_release(sv)
@@ -1202,8 +1201,7 @@ CONTAINS
 !          CALL cp_fm_init_random(mo_coeff,nmo)
 !! ortho so that one can restart for different positions (basis sets?)
 !          CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV")
-!          CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,&
-!               para_env=qs_env%para_env)
+!          CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo)
 !          CALL make_basis(mo_coeff,nmo, &
 !               ortho=sv,otype="SV")
 !          CALL cp_fm_release(sv)

@@ -1162,8 +1162,7 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
         ! CALL fm_pool_create_fm(maxao_maxmo_fm_pool,sv,error=error)
         CALL cp_fm_create(sv,v_matrix%matrix_struct)
         CALL cp_sm_fm_multiply(sparse_matrix=matrix_s(1)%matrix,v_in=v_matrix,&
-             v_out=sv,ncol=my_n_col,para_env=qs_env%para_env, &
-             error=error)
+             v_out=sv,ncol=my_n_col, error=error)
         CALL make_basis(vmatrix=v_matrix,ncol=my_n_col,&
              ortho=sv,otype='SV')
         ! CALL fm_pool_give_back_fm(maxao_maxmo_fm_pool,sv,error=error)

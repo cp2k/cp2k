@@ -436,8 +436,7 @@ CONTAINS
     CALL cp_fm_struct_release(fm_struct_tmp)
 
     ! h subblock and diag
-    CALL cp_sm_fm_multiply(ks_matrix,orbitals,weighted_vectors, &
-                                       ncol_global,para_env=para_env)
+    CALL cp_sm_fm_multiply(ks_matrix,orbitals,weighted_vectors, ncol_global)
 
 
     CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_dp, &
@@ -517,7 +516,7 @@ CONTAINS
         CALL cp_fm_get_info(mo_array(ispin)%mo_set%mo_coeff,&
              nrow_global=n,ncol_global=k)
         CALL cp_sm_fm_multiply(matrix_s,mo_array(ispin)%mo_set%mo_coeff,&
-             svec,k,para_env=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%para_env)
+             svec,k)
         ! get C^T (S*C)
         CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=k,ncol_global=k, &
              para_env=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%para_env, &
