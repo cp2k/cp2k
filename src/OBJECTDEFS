@@ -211,6 +211,7 @@ OBJECTS_GENERIC =\
  qs_parser.o\
  qs_rho_types.o\
  qs_scf.o\
+ qs_tddfpt_module.o\
  radial_grids.o\
  radial_operators.o\
  radial_poisson.o\
