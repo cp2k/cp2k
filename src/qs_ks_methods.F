@@ -1203,6 +1203,8 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
            CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_m_gspace(ispin),&
                                         error=error)                 
         ENDDO
+        DEALLOCATE(rho_m_rspace)
+        DEALLOCATE(rho_m_gspace)
         
      ENDIF
 
