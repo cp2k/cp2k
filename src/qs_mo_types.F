@@ -45,6 +45,7 @@ MODULE qs_mo_types
                                   blacs_syevd, &
                                   blacs_gemm, &
                                   copy_blacs_to_full_matrix,&
+                                  copy_blacs_to_blacs_matrix, &
                                   deallocate_blacs_matrix,&
                                   get_blacs_info,&
                                   read_blacs_matrix,&
@@ -360,8 +361,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE calculate_subspace_eigenvalues(orbitals,ks_matrix,globenv)
 
-!   Purpose: Calculates the eigenvalues for a set of orbitals spanning the 
-!            ground state of ks_matrix
+!   Purpose: Calculates the eigenvalues (ritz values) for a set of orbitals
+!            and rotates them to make them eigenvectors
 !   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER           :: ks_matrix
@@ -419,6 +420,10 @@ CONTAINS
                     orbitals,weighted_vectors,0.0_wp,h_block)
 
     CALL blacs_syevd(h_block,e_vectors,evals)
+
+    CALL blacs_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_wp, &
+                    orbitals,e_vectors,0.0_wp,weighted_vectors)
+    CALL copy_blacs_to_blacs_matrix(weighted_vectors,orbitals)
 
     if (globenv%ionode) then
        do i=1,ncol_global,4

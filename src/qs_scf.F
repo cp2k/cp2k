@@ -217,7 +217,8 @@ MODULE qs_scf
 
   CHARACTER(LEN=10) :: density_guess
   REAL(wp)          :: eps_eigval,eps_scf,level_shift,p_mix,smear,&
-       work_syevx
+                       work_syevx,eps_lumos
+  INTEGER           :: max_iter_lumos
   INTEGER           :: max_scf,nelectron,nrebuild,nrow_block,&
                        ncol_block,maxl,nkind
   LOGICAL           :: gradient_functional,gth_potential_present,&
@@ -283,7 +284,7 @@ CONTAINS
 
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=200) :: file_name
-    INTEGER            :: file_unit,ivector
+    INTEGER            :: file_unit,ivector,nao,nlumos
     CHARACTER(LEN=60)  :: filename
 
 
@@ -676,63 +677,88 @@ CONTAINS
 
     CALL write_mo_set(mo_set,atomic_kind_set,particle_set,4,6,globenv)
 
-!   *** temporary ***
+!   *** write additional information about the converged system
+    if (globenv%print%e_density_cube) then
+      ! write the electron density
+      if (globenv%ionode) open(UNIT=21,FILE="E_DENSITY.cube")
+      call rs_pw_to_cube(ks_env%rho_elec_rspace(1)%pw,21,globenv%ionode,"ELECTRON DENSITY")
+      if (globenv%ionode) close(21)
+    endif
 
-    if (.false.) then
-    ! write the electron density
-    if (globenv%ionode) open(UNIT=21,FILE="E_DENSITY.cube")
-    call rs_pw_to_cube(ks_env%rho_elec_rspace(1)%pw,21,globenv%ionode,"ELECTRON DENSITY")
-    if (globenv%ionode) close(21)
+    if (globenv%print%v_hartree_cube) then
+      ! write the hartree potential
+      if (globenv%ionode) open(UNIT=21,FILE="V_HARTREE.cube")
+      call rs_pw_to_cube(ks_env%v_hartree_rspace%pw,21,globenv%ionode,"HARTREE POTENTIAL")
+      if (globenv%ionode) close(21)
+    endif
 
-    ! write the hartree potential
-    if (globenv%ionode) open(UNIT=21,FILE="V_HARTREE.cube")
-    call rs_pw_to_cube(ks_env%v_hartree_rspace%pw,21,globenv%ionode,"HARTREE POTENTIAL")
-    if (globenv%ionode) close(21)
+    if (globenv%print%homos) then
+      ! write eigenvalues and a set of cubes
+      CALL get_mo_set(mo_set=mo_set,eigenvectors=mo_eigenvectors,homo=homo)
+      if (globenv%ionode) write(globenv%scr,*) " "
+      if (globenv%ionode) write(globenv%scr,*) " Eigenvalues of the occupied subspace"
+      if (globenv%ionode) write(globenv%scr,*) " ------------------------------------"
+      CALL calculate_subspace_eigenvalues(mo_eigenvectors,ks%matrix,globenv)
 
-    CALL get_mo_set(mo_set=mo_set,eigenvectors=mo_eigenvectors,homo=ivector)
-    if (globenv%ionode) write(globenv%scr,*) " "
-    if (globenv%ionode) write(globenv%scr,*) " Eigenvalues of the occupied subspace"
-    if (globenv%ionode) write(globenv%scr,*) " ------------------------------------"
-    CALL calculate_subspace_eigenvalues(mo_eigenvectors,ks%matrix,globenv)
+      DO ivector=MAX(1,homo-globenv%print%nhomos+1),homo
+         ! overwrites rho_rspace with a wavefunction !
+         CALL calculate_wavefunction(mo_eigenvectors,ivector,ks_env%rho_elec_rspace, &
+                                     ks_env%rho_gspace,&
+                                     ks_env%gridlevel_info,ks_env%cube_info, &
+                                     ks_env%l_info,&
+                                     qs_env,globenv)
 
-    ! overwrites rho_rspace with a wavefunction !
-    CALL calculate_wavefunction(mo_eigenvectors,ivector,ks_env%rho_elec_rspace, &
-                                ks_env%rho_gspace,&
-                                ks_env%gridlevel_info,ks_env%cube_info, &
-                                ks_env%l_info,&
-                                qs_env,globenv)
+         write(filename,'(a13,I5.5,a5)') "WAVEFUNCTION_",ivector,".cube"
+         if (globenv%ionode) open(UNIT=21,FILE=filename)
+         write(filename,*) "WAVEFUNCTION ",ivector," i.e. HOMO - ",ivector-homo
+         call rs_pw_to_cube(ks_env%rho_elec_rspace(1)%pw,21,globenv%ionode,filename)
+         if (globenv%ionode) close(21)
+      ENDDO
+    endif
 
-    write(filename,'(a13,I5.5,a5)') "WAVEFUNCTION_",ivector,".cube"
-    if (globenv%ionode) open(UNIT=21,FILE=filename)
-    write(filename,*) "WAVEFUNCTION ",ivector," i.e. HOMO"
-    call rs_pw_to_cube(ks_env%v_hartree_rspace%pw,21,globenv%ionode,filename)
-    if (globenv%ionode) close(21)
+    if (globenv%print%lumos) then
+      ! write eigenvalues and a set of cubes
+      if (globenv%ionode) write(globenv%scr,*) " "
+      if (globenv%ionode) write(globenv%scr,*) " Lowest Eigenvalues of the unoccupied subspace"
+      if (globenv%ionode) write(globenv%scr,*) " ---------------------------------------------"
+      CALL get_mo_set(mo_set=mo_set,eigenvectors=mo_eigenvectors,homo=homo,nao=nao)
+      CALL get_blacs_matrix_info(mo_eigenvectors,nrow_block=nrow_block, &
+                                                 ncol_block=ncol_block, &
+                                                 nrow_global=n, &
+                                                 ncol_global=k)
+      nlumos=MAX(1,MIN(globenv%print%nlumos,nao-homo))
+      CALL allocate_blacs_matrix(new_matrix=unoccupied_orbs, &
+                                            nrow_block=nrow_block, &
+                                            ncol_block=ncol_block, &
+                                            nrow_global=n, &
+                                            ncol_global=nlumos, &
+                                            name="unoccupied_orbs", &
+                                            globenv=globenv)
+      CALL blacs_init_random(unoccupied_orbs,nlumos)
 
-    CALL get_blacs_matrix_info(mo_eigenvectors,nrow_block=nrow_block, &
-                                               ncol_block=ncol_block, &
-                                               nrow_global=n, &
-                                               ncol_global=k)
-    CALL allocate_blacs_matrix(new_matrix=unoccupied_orbs, &
-                                          nrow_block=nrow_block, &
-                                          ncol_block=ncol_block, &
-                                          nrow_global=n, &
-                                          ncol_global=3, &
-                                          name="unoccupied_orbs", &
-                                          globenv=globenv)
-    CALL blacs_init_random(unoccupied_orbs,3)
+      CALL ot_eigensolver(matrix_h=ks%matrix,matrix_s=s(1)%matrix, &
+                          matrix_c=unoccupied_orbs, &
+                          matrix_orthogonal_space=mo_eigenvectors, &
+                          eps_gradient=eps_lumos, &
+                          iter_max=max_iter_lumos,globenv=globenv)
+  
+      CALL calculate_subspace_eigenvalues(unoccupied_orbs,ks%matrix,globenv)
 
-    CALL ot_eigensolver(matrix_h=ks%matrix,matrix_s=s(1)%matrix, &
-                        matrix_c=unoccupied_orbs, &
-                        matrix_orthogonal_space=mo_eigenvectors, &
-                        eps_gradient=1.0E-5_wp, &
-                        iter_max=1000,globenv=globenv)
+      DO ivector=1,nlumos
+         ! overwrites rho_rspace with a wavefunction !
+         CALL calculate_wavefunction(unoccupied_orbs,ivector,ks_env%rho_elec_rspace, &
+                                     ks_env%rho_gspace,&
+                                     ks_env%gridlevel_info,ks_env%cube_info, &
+                                     ks_env%l_info,&
+                                     qs_env,globenv)
 
-    if (globenv%ionode) write(globenv%scr,*) " "
-    if (globenv%ionode) write(globenv%scr,*) " Lowest Eigenvalues of the unoccupied subspace"
-    if (globenv%ionode) write(globenv%scr,*) " ---------------------------------------------"
-    CALL calculate_subspace_eigenvalues(unoccupied_orbs,ks%matrix,globenv)
+         write(filename,'(a13,I5.5,a5)') "WAVEFUNCTION_",homo+ivector,".cube"
+         if (globenv%ionode) open(UNIT=21,FILE=filename)
+         write(filename,*) "WAVEFUNCTION ",ivector," i.e. LUMO + ",ivector-1
+         call rs_pw_to_cube(ks_env%rho_elec_rspace(1)%pw,21,globenv%ionode,filename)
+         if (globenv%ionode) close(21)
 
-
+      ENDDO
     endif
 
     IF (globenv%print%density_matrix) THEN
@@ -1395,6 +1421,8 @@ CONTAINS
     density_guess = "ATOMIC"
     eps_eigval = 1.0E-5_wp
     eps_scf = 1.0E-5_wp
+    eps_lumos = 1.0E-5_wp
+    max_iter_lumos = 3000
     eps_diis = 0.1_wp
     level_shift = 0.0_wp
     max_diis = 4
@@ -1451,6 +1479,10 @@ CONTAINS
       CASE ("WORK_SYEVX")
         CALL read_object(work_syevx)
         work_syevx = MIN(MAX(0.0_wp,work_syevx),1.0_wp)
+      CASE ("EPS_LUMOS","EPS_LUMO")
+        CALL read_object(eps_lumos)
+      CASE ("MAX_ITER_LUMOS","MAX_ITER_LUMO")
+	CALL read_object(max_iter_lumos)
       END SELECT
     END DO
 

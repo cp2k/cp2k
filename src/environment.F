@@ -446,6 +446,27 @@ CONTAINS
         globenv%print%total_densities = print_request
       CASE ("W_MATRIX","WMATRIX")
         globenv%print%w_matrix = print_request
+      CASE ("CUBE","CUBES")
+        globenv%print%e_density_cube = print_request
+        globenv%print%v_hartree_cube = print_request
+        globenv%print%lumos = print_request
+        globenv%print%homos = print_request
+      CASE ("E_DENSITY_CUBE")
+        globenv%print%e_density_cube = print_request
+      CASE ("V_HARTREE_CUBE")
+        globenv%print%v_hartree_cube = print_request
+      CASE ("LUMO","LUMOS")
+        globenv%print%lumos = print_request
+        IF (test_object().eq."INT") THEN
+           CALL read_object(globenv%print%nlumos)
+        ENDIF
+        if (globenv%print%nlumos.le.0) globenv%print%nlumos = 4
+      CASE ("HOMO","HOMOS")
+        globenv%print%homos = print_request
+        IF (test_object().eq."INT") THEN
+           CALL read_object(globenv%print%nhomos)
+        ENDIF
+        if (globenv%print%nhomos.le.0) globenv%print%nhomos = 4
       END SELECT
 
     END DO

@@ -90,6 +90,11 @@ MODULE global_types
                total_densities,&
                total_numbers,&
                w_matrix
+     LOGICAL :: e_density_cube, &
+                v_hartree_cube, &
+                lumos, &
+                homos
+     INTEGER    nlumos,nhomos
   END TYPE print_key_type
 
   TYPE global_environment_type
@@ -198,6 +203,12 @@ CONTAINS
     print_key%w_matrix = key_value(level,(/f,f,f/))
     print_key%density_matrix_magnitude = key_value(level,(/f,f,f/))
     print_key%overlap_matrix_magnitude = key_value(level,(/f,f,f/))
+    print_key%e_density_cube = key_value(level,(/f,f,f/))
+    print_key%v_hartree_cube = key_value(level,(/f,f,f/))
+    print_key%lumos = key_value(level,(/f,f,f/))
+    print_key%homos = key_value(level,(/f,f,f/))
+    print_key%nlumos = 4
+    print_key%nhomos = 4
 
   END SUBROUTINE init_print_keys
 
