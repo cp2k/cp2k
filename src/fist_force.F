@@ -104,7 +104,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
 ! Locals
   INTEGER :: id, i, ii, natoms, nnodes, handle, isos, n, nlocal_particles
   INTEGER :: ikind, iparticle_kind, nparticle_kind, nparticle_local, iparticle_local
-  INTEGER :: node
+  INTEGER :: node, iw, j
   REAL (KIND=dp) :: pot_nonbond, pot_bond, pot_bend, pot_urey_bradley,  &
                   pot_imptors, pot_torsion, pot_onef, vg_coulomb
   REAL (KIND=dp), DIMENSION ( 3,3 ) :: pv_nonbond, pv_bond, pv_bend,  &
@@ -130,9 +130,21 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   TYPE ( ewald_environment_type ),   POINTER :: ewald_env
   REAL (KIND=dp), DIMENSION ( :,: ), ALLOCATABLE :: f_nonbond
   LOGICAL,SAVE :: first_time=.true.
-
+  LOGICAL                                  :: PM1, PM2, PM3, PM4
 
   CALL timeset ( 'FORCE','I',' ',handle )
+  ! Print Debug Info
+  ! Da riaggiustare dopo con il nuovo input...
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  iw = globenv%scr
+  IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+  IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+  IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+  IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+
 
 ! associcating local pointers
   CALL get_fist_env ( fist_env, ewald_pw = ewald_pw, ewald_env = ewald_env, &
@@ -194,9 +206,18 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
 !
 ! get real-space non-bonded forces:
 !
+  IF (PM2) THEN
+     WRITE(iw,'(A)')" FIST:: FORCES IN INPUT..."
+     WRITE(iw,'(3f15.9)')((particle_set ( i ) % f ( j ),j=1,3), i = 1, SIZE(particle_set))
+  END IF
+
   f_nonbond = zero
   CALL force_nonbond ( fist_nonbond_env, particle_set, cell, &
                        pot_nonbond, f_nonbond, pv_nonbond  )
+  IF (PM2) THEN
+     WRITE(iw,'(A)')" FIST:: NONBOND LENNARD-JONES FORCES ..."
+     WRITE(iw,'(3f15.9)')f_nonbond
+  END IF
 
 ! get g-space non-bonded forces:
 !
@@ -247,6 +268,11 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
 
   END IF
 
+  IF (PM2) THEN
+     WRITE(iw,'(A)')" FIST:: NONBONDED ELECTROSTATIC FORCES ..."
+     WRITE(iw,'(3f15.9)')((particle_set ( i ) % f ( j ),j=1,3), i = 1, SIZE(particle_set))
+  END IF
+
 !
 ! get intramolecular forces
 !
@@ -262,6 +288,11 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
                                particle_set, pot_bond, pot_bend, pot_urey_bradley, &
                                pot_torsion, pot_imptors, pot_onef, pv_bond, pv_bend,     &
                                pv_urey_bradley, pv_torsion, pv_imptors,pv_onef )
+  END IF
+
+  IF (PM2) THEN
+     WRITE(iw,'(A)')" FIST:: NONBONDED ELECTROSTATIC FORCES ..."
+     WRITE(iw,'(3f15.9)')((particle_set ( i ) % f ( j ),j=1,3), i = 1, SIZE(particle_set))
   END IF
 
 !
@@ -281,7 +312,6 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
      thermo % pot = thermo % pot + thermo % e_self + thermo % e_neut/cell % deth
      thermo % pot = thermo % pot + vg_coulomb + thermo % e_bonded
   END IF
-
 ! add up all the forces
 ! nonbonded forces might be claculated for atoms not on this node
 ! ewald forces are strictly local -> sum only over pnode
@@ -295,18 +325,22 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
      f_total ( 2, i ) = particle_set ( i ) % f ( 2 ) + f_nonbond ( 2, i )
      f_total ( 3, i ) = particle_set ( i ) % f ( 3 ) + f_nonbond ( 3, i )
   END DO
+
+  IF (PM2) THEN
+     WRITE(iw,'(A)')" FIST:: (1) TOTAL FORCES..."
+     WRITE(iw,'(3f15.9)')((f_total ( j, i ),j=1,3), i = 1, natoms)
+  END IF  
+
   IF ( ewald_type /= 'NONE' ) THEN
      SELECT CASE ( ewald_type )
      CASE ( "EWALD" )
-        node = 0
         DO iparticle_kind = 1, nparticle_kind
            nparticle_local = local_particles % n_el ( iparticle_kind )
            DO iparticle_local = 1, nparticle_local
-             node = node + 1
              ii = local_particles%list(iparticle_kind)%array(iparticle_local)
-             f_total ( 1, ii ) = f_total ( 1, ii ) + fg_coulomb ( 1, node )
-             f_total ( 2, ii ) = f_total ( 2, ii ) + fg_coulomb ( 2, node )
-             f_total ( 3, ii ) = f_total ( 3, ii ) + fg_coulomb ( 3, node )
+             f_total ( 1, ii ) = f_total ( 1, ii ) + fg_coulomb ( 1, ii )
+             f_total ( 2, ii ) = f_total ( 2, ii ) + fg_coulomb ( 2, ii )
+             f_total ( 3, ii ) = f_total ( 3, ii ) + fg_coulomb ( 3, ii )
            END DO
         END DO
      CASE ( "PME" )
@@ -318,6 +352,12 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
                              ewald_type )
      END SELECT
   END IF
+
+  IF (PM2) THEN
+     WRITE(iw,'(A)')" FIST:: (2) TOTAL FORCES..."
+     WRITE(iw,'(3f15.9)')((f_total ( j, i ),j=1,3), i = 1, natoms)
+  END IF  
+
 
 ! add up all the pressure tensors
   IF ( ewald_type == 'NONE' ) THEN
@@ -391,6 +431,13 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
     CALL stop_program ( "fist_force", "illegal value of ewald_type: "//&
                          ewald_type )
   END SELECT
+
+
+  IF (PM2) THEN
+     WRITE(iw,'(A)')" FIST:: (3) TOTAL FORCES - THE END..."
+     WRITE(iw,'(3f15.9)')((f_total ( j, i ),j=1,3), i = 1, natoms)
+     WRITE(iw,'(A,f15.9)')"Energy after FIST calculation.. exiting now ::",thermo%pot
+  END IF  
 
 ! deallocating all local variables
   IF ( ALLOCATED ( fg_coulomb ) ) THEN
