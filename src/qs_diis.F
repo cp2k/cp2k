@@ -323,7 +323,11 @@ CONTAINS
     diis_step = .FALSE.
 
     ionode = logger%para_env%source==logger%para_env%mepos
-    output_unit= cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+    IF (ionode) THEN
+        output_unit= cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+    ELSE
+        output_unit= 0
+    ENDIF
 
     CALL get_qs_env(qs_env=qs_env,s=s,scf_control=scf_control)
 
