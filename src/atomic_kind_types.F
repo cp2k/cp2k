@@ -54,9 +54,15 @@ MODULE atomic_kind_types
                                       stop_program
   USE pao_bas_projection_types
   USE cp_array_utils, only: cp_write
-  USE cp_error_handling
-  USE cp_log_handling
-  USE cp_linked_list_int
+  use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
+       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
+       cp_logger_get_default_unit_nr, cp_logger_type
+  use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
+       cp_error_dealloc_ref, cp_error_message, cp_assert,&
+       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
+       cp_error_get_logger
+  USE cp_linked_list_int, only:cp_sll_int_type, cp_sll_int_create, &
+       cp_sll_int_insert_ordered, cp_sll_int_get_empty
 
   IMPLICIT NONE
 
@@ -690,8 +696,8 @@ CONTAINS
     orb_basis_set_name = ""
     potential_name = "ALL"
     z = -1
-    call cp_create(min_bas_sll)
-    call cp_init(error)
+    call cp_sll_int_create(min_bas_sll)
+    call cp_error_init(error)
 
     CALL start_parser(file_name=globenv%input_file_name,&
                       globenv=globenv,&
@@ -730,7 +736,8 @@ CONTAINS
            obj_kind=test_object()
            if (obj_kind=='INT') then
               call read_object(min_b_index)
-              call cp_insert(min_bas_sll,min_b_index,error=error)
+              call cp_sll_int_insert_ordered(min_bas_sll,min_b_index,&
+                   error=error)
            else
               exit
            end if
@@ -838,7 +845,7 @@ CONTAINS
     END IF
 
 !   *** 
-    if (.not.cp_get_empty(min_bas_sll)) then
+    if (.not.cp_sll_int_get_empty(min_bas_sll)) then
         call cp_proj_create2(atomic_kind%pao_bas_proj,&
                 proj_indexes=min_bas_sll,&
                 size_full_bas=atomic_kind%orb_basis_set%nsgf,&
@@ -847,6 +854,7 @@ CONTAINS
         nullify(atomic_kind%pao_bas_proj)
     end if
     call cp_dealloc(min_bas_sll,error=error)
+    call cp_error_dealloc_ref(error)
 
   END SUBROUTINE read_atomic_kind
 

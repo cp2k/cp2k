@@ -34,11 +34,13 @@ MODULE qs_environment_types
   USE sparse_matrix_types,    ONLY: real_matrix_p_type, real_matrix_type, get_matrix_info
   USE cp_b_matrix_structure,  ONLY: cp_b_matrix_struct_type,&
        cp_bmstruct_create, cp_bmstruct_release
-  use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
-       cp_note_level
-  use cp_error_handling, only: cp_assert, cp_error_type, cp_assertion_failed
-  use cp_matrix_utils, only: cp_sm_set_dist_sparsity_from_sm
-  use cp_para_env, only: cp_para_env_type
+  use cp_log_handling,        only: cp_to_string, cp_failure_level,&
+       cp_warning_level,cp_note_level
+  use cp_error_handling,      only: cp_assert, cp_error_type, &
+       cp_assertion_failed
+  use cp_matrix_utils,        only: cp_sm_set_dist_sparsity_from_sm
+  use cp_para_env,            only: cp_para_env_type
+  use qs_rho_types,           only: qs_rho_type
        
 
   IMPLICIT NONE
@@ -61,7 +63,8 @@ MODULE qs_environment_types
     TYPE(qs_energy_type), POINTER                         :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: h,k,p,p_old,s
-    TYPE(cp_b_matrix_struct_type), POINTER                :: s_struct
+    TYPE(cp_b_matrix_struct_type), POINTER                :: s_mstruct
+    TYPE(qs_rho_type), pointer                            :: rho
   END TYPE qs_environment_type
 
 ! *** Public data types ***
@@ -73,7 +76,7 @@ MODULE qs_environment_types
   PUBLIC :: get_qs_env,&
             init_qs_env,&
             set_qs_env,&
-            qs_env_update_s_struct
+            qs_env_update_s_mstruct
 
 ! *****************************************************************************
 
@@ -83,7 +86,8 @@ CONTAINS
 
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,sab_orb,&
                         sac_erfc,sac_ppl,sca_ppnl,scb_ppnl,pao_env,&
-                        particle_set,energy,force,h,k,p,p_old,s, s_struct)
+                        particle_set,energy,force,h,k,p,p_old,s, s_mstruct,&
+                        rho)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -110,7 +114,8 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:),&
       OPTIONAL, POINTER                         :: h,k,p,p_old,s
     TYPE(cp_b_matrix_struct_type), OPTIONAL,&
-         POINTER                                :: s_struct
+         POINTER                                :: s_mstruct
+    TYPE(qs_rho_type), optional, pointer       :: rho
 
 !   ---------------------------------------------------------------------------
 
@@ -132,7 +137,8 @@ CONTAINS
     IF (PRESENT(p)) p => qs_env%p
     IF (PRESENT(p_old)) p_old => qs_env%p_old
     IF (PRESENT(s)) s => qs_env%s
-    IF (PRESENT(s_struct)) s_struct => qs_env%s_struct
+    IF (PRESENT(s_mstruct)) s_mstruct => qs_env%s_mstruct
+    IF (PRESENT(rho)) rho => qs_env%rho
 
   END SUBROUTINE get_qs_env
 
@@ -168,7 +174,8 @@ CONTAINS
     NULLIFY (qs_env%p)
     NULLIFY (qs_env%p_old)
     NULLIFY (qs_env%s)
-    NULLIFY (qs_env%s_struct)
+    NULLIFY (qs_env%s_mstruct)
+    NULLIFY (qs_env%rho)
 
   END SUBROUTINE init_qs_env
 
@@ -228,13 +235,13 @@ CONTAINS
 
 ! *****************************************************************************
 
-!!****f* qs_environment_types/qs_env_update_s_struct [1.0] *
+!!****f* qs_environment_types/qs_env_update_s_mstruct [1.0] *
 !!
 !!   NAME
-!!     qs_env_update_s_struct
+!!     qs_env_update_s_mstruct
 !!
 !!   FUNCTION
-!!     updates the s_struct to reflect the new overlap structure
+!!     updates the s_mstruct to reflect the new overlap structure
 !!
 !!   NOTES
 !!     -
@@ -252,25 +259,25 @@ CONTAINS
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine qs_env_update_s_struct(qs_env,para_env,error)
+subroutine qs_env_update_s_mstruct(qs_env,para_env,error)
   type(qs_environment_type), intent(inout) :: qs_env
   type(cp_para_env_type), pointer :: para_env
   type(cp_error_type), optional, intent(inout) :: error
   
   logical :: failure
-  character(len=*), parameter :: routineN='qs_env_update_s_struct',&
+  character(len=*), parameter :: routineN='qs_env_update_s_mstruct',&
         routineP=moduleN//':'//routineN
   integer :: n_atoms, stat
   integer, dimension(:), allocatable :: block_sizes
   integer, dimension(:), pointer :: first_row, first_col, last_row, last_col
   failure=.false.
   
-  if (associated(qs_env%s_struct)) call cp_bmstruct_release(qs_env%s_struct)
+  if (associated(qs_env%s_mstruct)) call cp_bmstruct_release(qs_env%s_mstruct)
   n_atoms=size(qs_env%particle_set)
   allocate(block_sizes(n_atoms),stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   block_sizes=qs_env%particle_set(:)%last_sgf-qs_env%particle_set(:)%first_sgf
-  call cp_bmstruct_create(qs_env%s_struct,&
+  call cp_bmstruct_create(qs_env%s_mstruct,&
        symmetric=.true.,&
        para_env=para_env,&
        b_row_sizes=block_sizes,&
@@ -280,22 +287,22 @@ subroutine qs_env_update_s_struct(qs_env,para_env,error)
        last_row=last_row, first_col=first_col,&
        last_col=last_col)
 
-  call cp_assert(all(qs_env%s_struct%b_dims%block_begins_at_row(1:n_atoms)==&
+  call cp_assert(all(qs_env%s_mstruct%b_dims%block_begins_at_row(1:n_atoms)==&
        first_row),cp_failure_level,cp_assertion_failed,routineP,&
        "s has unexpected size, "//&
        CPSourceFileRef,&
        error)
-  call cp_assert(all(qs_env%s_struct%b_dims%block_begins_at_col(1:n_atoms)==&
+  call cp_assert(all(qs_env%s_mstruct%b_dims%block_begins_at_col(1:n_atoms)==&
        first_col),cp_failure_level,cp_assertion_failed,routineP,&
        "s has unexpected size, "//&
        CPSourceFileRef,&
        error)
-  call cp_assert(qs_env%s_struct%b_dims%block_begins_at_col(n_atoms+1)==&
+  call cp_assert(qs_env%s_mstruct%b_dims%block_begins_at_col(n_atoms+1)==&
        last_col(n_atoms)+1,cp_failure_level,cp_assertion_failed,routineP,&
        "s has unexpected size, "//&
        CPSourceFileRef,&
        error)
-  call cp_assert(qs_env%s_struct%b_dims%block_begins_at_row(n_atoms+1)==&
+  call cp_assert(qs_env%s_mstruct%b_dims%block_begins_at_row(n_atoms+1)==&
        last_row(n_atoms)+1,cp_failure_level,cp_assertion_failed,routineP,&
        "s has unexpected size, "//&
        CPSourceFileRef,&
@@ -303,11 +310,11 @@ subroutine qs_env_update_s_struct(qs_env,para_env,error)
 
   ! at the moment read from s, maybe in the future s will take its structure
   ! from this
-  call cp_sm_set_dist_sparsity_from_sm(qs_env%s_struct,&
+  call cp_sm_set_dist_sparsity_from_sm(qs_env%s_mstruct,&
        para_env=para_env,&
        sample_matrix=qs_env%s(1)%matrix,&
        error=error)
-end subroutine qs_env_update_s_struct
+end subroutine qs_env_update_s_mstruct
 !***************************************************************************
 
 END MODULE qs_environment_types

@@ -30,7 +30,7 @@ module pao_obj_function
        cp_log, cp_logger_type, cp_note_level,cp_get_default_logger
   use cp_error_handling, only: cp_error_type, cp_assert, cp_error_message,&
        cp_assertion_failed, cp_debug, cp_precondition_failed, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_get_logger, cp_init
+       cp_error_dealloc_ref, cp_error_get_logger
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use pao_types, only: pao_env_type, pao_glob_angles_type, cp_get
@@ -519,7 +519,7 @@ contains
     real(kind=wp), dimension(:,:), pointer :: du, block_val
     type(pao_local_angles_type) :: local_angles
     type(real_matrix_type), pointer :: diagMatrix
-    call cp_init(iError, template_error=error)
+    call cp_error_init(iError, template_error=error)
     nullify(diagMatrix, mo_eigenvalues, mo_occupation_numbers,min_density_m,&
          min_d_smpv,full_h_rmpv,full_s_rmpv, h_matrixes, s_matrixes, h_matrix,&
          s_matrix, angles, pao_env)

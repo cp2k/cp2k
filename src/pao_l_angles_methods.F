@@ -30,7 +30,7 @@ module pao_l_angles_methods
   use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level
   use cp_error_handling, only: cp_error_type, cp_assert, cp_error_message,&
        cp_assertion_failed, cp_debug, cp_precondition_failed, cp_error_init,&
-       cp_dealloc_ref, cp_internal_error, cp_error_get_logger
+       cp_error_dealloc_ref, cp_internal_error, cp_error_get_logger
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
@@ -531,7 +531,7 @@ contains
     if (failure) then
        nullify(local_angles%projection)
     end if
-    call cp_dealloc_ref(iError,error=error)
+    call cp_error_dealloc_ref(iError,error=error)
   end subroutine pao_l_ang_set
 !***************************************************************************
 

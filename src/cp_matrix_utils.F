@@ -27,11 +27,12 @@
 !!   SOURCE
 !*****************************************************************************
 module cp_matrix_utils
-  use cp_log_handling!, only : cp_to_string, cp_note_level, cp_warning_level,&
-       !cp_failure_level, cp_fatal_level
-  use cp_error_handling!, only : cp_assert, cp_error_type, cp_init,&
-       !cp_dealloc_ref, cp_error_propagate_error, cp_debug, cp_assertion_failed,&
-       !cp_error_message
+  use cp_log_handling, only: cp_to_string, cp_note_level, cp_warning_level,&
+       cp_failure_level, cp_fatal_level, cp_logger_type
+  use cp_error_handling, only: cp_assert, cp_error_type, &
+       cp_error_dealloc_ref, cp_error_propagate_error, cp_debug,&
+       cp_assertion_failed, cp_error_message, cp_postcondition_failed,&
+       cp_error_init
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
@@ -753,7 +754,7 @@ end function cp_sm_diag_trace
     real(kind=wp) :: val
     type(cp_error_type) :: iError
     failure=.false.
-    call cp_init(iError,template_error=error)
+    call cp_error_init(iError,template_error=error)
     val=0.0_wp
 
     if (.not. failure) then
@@ -785,7 +786,7 @@ end function cp_sm_diag_trace
        end do
        call cp_dealloc_ref(iterator,error=error)
     end if
-    call cp_dealloc_ref(iError,error=error)
+    call cp_error_dealloc_ref(iError,error=error)
   end subroutine cp_sm_set_to
 !***************************************************************************
 

@@ -30,7 +30,7 @@ module pao_types_tests
        cp_log
   use cp_error_handling, only: cp_error_type, cp_assert, cp_error_message,&
        cp_assertion_failed, cp_debug, cp_precondition_failed, cp_error_init,&
-       cp_dealloc_ref
+       cp_error_dealloc_ref
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use pao_utils, only:  cp_get_random_integer

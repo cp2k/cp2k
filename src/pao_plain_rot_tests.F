@@ -30,7 +30,7 @@ module pao_plain_rot_tests
        cp_log, cp_logger_type, cp_note_level
   use cp_error_handling, only: cp_error_type, cp_assert, cp_error_message,&
        cp_assertion_failed, cp_debug, cp_precondition_failed, cp_error_init,&
-       cp_dealloc_ref, cp_error_get_logger
+       cp_error_dealloc_ref, cp_error_get_logger
   use kinds, only: wp=>dp
   use pao_utils, only:  cp_get_random_integer
   use cp_matrix_utils, only: cp_sup_norm_matrix

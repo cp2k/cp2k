@@ -27,7 +27,7 @@
 !****************************************************************************
 module cp_para_env
   use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
-      cp_note_level
+      cp_note_level, cp_logger_type
   use cp_error_handling, only: cp_debug, cp_internal_error, cp_assertion_failed,&
       cp_assert, cp_unimplemented_error, cp_error_type
   use kinds, only: wp=>dp

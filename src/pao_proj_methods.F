@@ -31,7 +31,7 @@ module pao_proj_methods
   use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level
   use cp_error_handling, only: cp_error_type, cp_assert, cp_error_message,&
        cp_assertion_failed, cp_debug, cp_precondition_failed, cp_error_init,&
-       cp_dealloc_ref, cp_error_propagate_error
+       cp_error_dealloc_ref, cp_error_propagate_error
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
@@ -287,7 +287,7 @@ contains
        deallocate(t1_m,stat=stat) ! just to be sure...
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     end if
-    call cp_dealloc_ref(iError,error=error)
+    call cp_error_dealloc_ref(iError,error=error)
   end subroutine pao_m_m2f_with_b_m_pi
 !***************************************************************************
 
@@ -440,7 +440,7 @@ contains
        deallocate(t1_m,stat=stat) ! just to be sure...
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     end if
-    call cp_dealloc_ref(iError,error=error)
+    call cp_error_dealloc_ref(iError,error=error)
   end subroutine sm_matrix_transf_to_f
 !***************************************************************************
 
@@ -588,7 +588,7 @@ contains
        deallocate(t1_m,stat=stat) ! just to be sure...
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     end if
-    call cp_dealloc_ref(iError,error=error)
+    call cp_error_dealloc_ref(iError,error=error)
   end subroutine sm_matrix_transf_to_m
 !***************************************************************************
 
@@ -774,7 +774,7 @@ contains
        deallocate(t1_m,stat=stat) ! just to be sure...
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     end if
-    call cp_dealloc_ref(iError,error=error)
+    call cp_error_dealloc_ref(iError,error=error)
   end subroutine sm_matrix_transf_p_to_m
 !***************************************************************************
 

@@ -27,8 +27,13 @@
 !******************************************************************************
 
 module pao_plain_rot
-  use cp_log_handling
-  use cp_error_handling
+  use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
+       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
+       cp_logger_get_default_unit_nr, cp_logger_type
+  use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
+       cp_error_dealloc_ref, cp_error_message, cp_assert,&
+       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
+       cp_error_get_logger
   use kinds, only: wp=>dp
   use cp_matrix_utils, only: cp_sup_norm_matrix
   implicit none

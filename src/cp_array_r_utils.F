@@ -74,14 +74,6 @@ contains
 !!   NAME
 !!     cp_r_write
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_r_write(element, unit_nr, el_format, error)
-!!       Real(Kind=wp), Intent (IN):: element
-!!       Integer, Intent (IN):: unit_nr
-!!       Character(Len=*), Intent (IN), Optional:: el_format
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_r_write
-!!
 !!   FUNCTION
 !!     writes an element to the given unit
 !!
@@ -129,19 +121,6 @@ end subroutine cp_r_write
 !!
 !!   NAME
 !!     cp_1d_r_output
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_1d_r_output(logger, outputname, fromwhere, iter, array,&
-!!         comment, local, el_format, error)
-!!       Type(cp_logger_type), Pointer:: logger
-!!       Character(Len=*), Intent (IN):: outputname
-!!       Character(Len=*), Intent (IN):: fromwhere
-!!       Integer, Intent (IN):: iter
-!!       Real(Kind=wp), Intent (IN), Dimension(:):: array
-!!       Character(Len=*), Intent (IN), Optional:: comment, el_format
-!!       Logical, Intent (IN), Optional:: local
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_1d_r_output
 !!
 !!   FUNCTION
 !!     writes a 1d array to an aptly named file
@@ -236,14 +215,6 @@ end subroutine cp_1d_r_output
 !!   NAME
 !!     cp_1d_r_write
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_1d_r_write(array, unit_nr, el_format, error)
-!!       Real(Kind=wp), Dimension(:), Intent (IN):: array
-!!       Integer, Intent (IN):: unit_nr
-!!       Character(Len=*), Intent (IN), Optional:: el_format
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_1d_r_write
-!!
 !!   FUNCTION
 !!     writes an array to the given unit
 !!
@@ -294,19 +265,6 @@ end subroutine cp_1d_r_write
 !!
 !!   NAME
 !!     cp_2d_r_output
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_2d_r_output(logger, outputname, fromwhere, iter, array,&
-!!         comment, local, el_format, error)
-!!       Type(cp_logger_type), Pointer:: logger
-!!       Character(Len=*), Intent (IN):: outputname
-!!       Character(Len=*), Intent (IN):: fromwhere
-!!       Integer, Intent (IN):: iter
-!!       Real(Kind=wp), Intent (IN), Dimension(:,:):: array
-!!       Character(Len=*), Intent (IN), Optional:: comment, el_format
-!!       Logical, Intent (IN), Optional:: local
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_2d_r_output
 !!
 !!   FUNCTION
 !!     writes a 2d array to an aptly named file
@@ -401,14 +359,6 @@ end subroutine cp_2d_r_output
 !!   NAME
 !!     cp_2d_r_write
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_2d_r_write(array, unit_nr, el_format, error)
-!!       Real(Kind=wp), Dimension(:,:), Intent (IN):: array
-!!       Integer, Intent (IN):: unit_nr
-!!       Character(Len=*), Intent (IN), Optional:: el_format
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_2d_r_write
-!!
 !!   FUNCTION
 !!     writes an array to the given unit
 !!
@@ -462,14 +412,6 @@ end subroutine cp_2d_r_write
 !!
 !!   NAME
 !!     cp_1d_r_guarantee_size
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_1d_r_guarantee_size(array, n, init, error)
-!!       Real(Kind=wp), Dimension(:), Pointer:: array
-!!       Integer, Intent (IN):: n
-!!       Real(Kind=wp), Intent (IN), Optional:: init
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_1d_r_guarantee_size
 !!
 !!   FUNCTION
 !!     If the size of the array is changes reallocate it.
@@ -532,15 +474,6 @@ end subroutine cp_2d_r_write
 !!
 !!   NAME
 !!     cp_2d_r_guarantee_size
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_2d_r_guarantee_size(array, n_rows, n_cols, init,&
-!!         error)
-!!       Real(Kind=wp), Dimension(:,:), Pointer:: array
-!!       Integer, Intent (IN):: n_rows, n_cols
-!!       Real(Kind=wp), Intent (IN), Optional:: init
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_2d_r_guarantee_size
 !!
 !!   FUNCTION
 !!     If the size of the array is changes reallocate it.

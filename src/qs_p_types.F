@@ -25,8 +25,13 @@
 !!   SOURCE
 !****************************************************************************
 module qs_p_types
-  use cp_log_handling
-  use cp_error_handling
+  use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
+       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
+       cp_logger_get_default_unit_nr, cp_logger_type
+  use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
+       cp_error_dealloc_ref, cp_error_message, cp_assert,&
+       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
+       cp_error_get_logger
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
@@ -87,17 +92,29 @@ module qs_p_types
 !!   SOURCE
 !***************************************************************************
   type qs_p_env_type
-     logical :: initialized, s_struct_changed, orthogonal_orbitals
-     type(cp_block_matrix_p_type), dimension(:), pointer :: Hrho, P, P1,&
-          K_P_P1
+     logical :: initialized, s_mstruct_changed, orthogonal_orbitals
+     type(cp_block_matrix_p_type), dimension(:), pointer :: &
+          K_P_P1, Hrho, P, P1
      type(blacs_matrix_p_type), dimension(:), pointer :: m_epsilon,&
-          c_ortho, r, psi0d, S_psi0
+          psi0d, S_psi0, c_ortho, r
      type(blacs_matrix_type), pointer :: tmp_aomo_1
      type(qs_ks_env_type), pointer :: ks_env
      type(qs_K_P_P1_env_type), pointer :: K_P_P1_env
      type(qs_environment_type), pointer :: qs_env
      integer n_mo,n_ao
   end type qs_p_env_type
+!!FM  type qs_p_env_type
+!!FM     logical :: initialized, s_mstruct_changed, orthogonal_orbitals
+!!FM     type(cp_block_matrix_p_type), dimension(:), pointer :: &
+!!FM          K_P_P1 ! Hrho, P, P1,&
+!!FM     type(blacs_matrix_p_type), dimension(:), pointer :: m_epsilon,&
+!!FM          psi0d, S_psi0 ! c_ortho, r, 
+!!FM     ! type(blacs_matrix_type), pointer :: tmp_aomo_1
+!!FM     type(qs_ks_env_type), pointer :: ks_env
+!!FM     type(qs_K_P_P1_env_type), pointer :: K_P_P1_env
+!!FM     type(qs_environment_type), pointer :: qs_env
+!!FM     integer n_mo,n_ao
+!!FM  end type qs_p_env_type
 !!***
 !****************************************************************************
 
@@ -193,7 +210,7 @@ contains
             optimal_blacs_row_block_size,&
             name="p_env_psi0d",globenv=global_env,error=error)
     end if
-    p_env%s_struct_changed=.true.
+    p_env%s_mstruct_changed=.true.
     p_env%initialized=.true.
   end subroutine p_env_init
 !***************************************************************************
@@ -528,37 +545,37 @@ contains
     integer :: stat
     character(len=*), parameter :: routineN='p_env_set_psi0',&
          routineP=moduleN//':'//routineN
-    type(cp_b_matrix_struct_type), pointer :: s_struct
+    type(cp_b_matrix_struct_type), pointer :: s_mstruct
     type(real_matrix_p_type), dimension(:), pointer :: S,P,K
     failure=.false.
-    nullify(S,P,K,s_struct)
+    nullify(S,P,K,s_mstruct)
 
     CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
     if (.not. failure) then
-       if (p_env%s_struct_changed) then
+       if (p_env%s_mstruct_changed) then
           call cp_sp_array_dealloc(p_env%Hrho, error=error)
           call cp_sp_array_dealloc(p_env%P, error=error)
           call cp_sp_array_dealloc(p_env%P1, error=error)
           call cp_sp_array_dealloc(p_env%K_P_P1,error=error)
 
-          call get_qs_env(p_env%qs_env,s_struct=s_struct,K=K,P=P)
+          call get_qs_env(p_env%qs_env,s_mstruct=s_mstruct,K=K,P=P)
           allocate(p_env%Hrho(1),stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           nullify(p_env%Hrho(1)%matrix)
-          call cp_sp_create(p_env%Hrho(1)%matrix, matrix_struct=s_struct,&
+          call cp_sp_create(p_env%Hrho(1)%matrix, matrix_struct=s_mstruct,&
                u_matrix=k(1)%matrix, should_dealloc_matrix=.false.,&
                error=error)
           allocate(p_env%P(1),stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           nullify(p_env%P(1)%matrix)
-          call cp_sp_create(p_env%P(1)%matrix, matrix_struct=s_struct,&
+          call cp_sp_create(p_env%P(1)%matrix, matrix_struct=s_mstruct,&
                u_matrix=P(1)%matrix, should_dealloc_matrix=.false.,&
                error=error)
-          call cp_sp_array_create(p_env%P1,1,s_struct,&
+          call cp_sp_array_create(p_env%P1,1,s_mstruct,&
                allocate_nonsparse_blocks=.true., error=error)
-          call cp_sp_array_create(p_env%K_P_P1,1,s_struct,&
+          call cp_sp_array_create(p_env%K_P_P1,1,s_mstruct,&
                allocate_nonsparse_blocks=.true., error=error)
-          p_env%s_struct_changed=.false.
+          p_env%s_mstruct_changed=.false.
        end if
 
        if (p_env%orthogonal_orbitals) then

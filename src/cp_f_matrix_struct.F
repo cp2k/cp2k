@@ -27,7 +27,7 @@
 module cp_f_matrix_struct
   use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
        cp_warning_level, cp_note_level, cp_to_string, cp_log,&
-       cp_logger_get_default_unit_nr
+       cp_logger_get_default_unit_nr, cp_logger_type
   use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
        cp_error_dealloc_ref, cp_error_message, cp_assert,&
        cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
@@ -193,11 +193,11 @@ subroutine cp_fmstruct_create(fmstruct,para_env,nrow_global,ncol_global,&
      
      fmstruct%nrow_global=nrow_global
      fmstruct%ncol_global=ncol_global
-     fmstruct%nrow_block=min(nrow_block,nrow_global/context%num_pe(1))
-     fmstruct%ncol_block=min(ncol_block,ncol_global/context%num_pe(2))
      ! checks for more processes than matrix elements
-     CPAssert(fmstruct%nrow_block>0,cp_failure_level,routineP,error,failure)
-     CPAssert(fmstruct%ncol_block>0,cp_failure_level,routineP,error,failure)
+     CPAssert(context%num_pe(1)<=nrow_global,cp_warning_level,routineP,error,failure)
+     CPAssert(context%num_pe(2)<=ncol_global,cp_warning_level,routineP,error,failure)
+     fmstruct%nrow_block=max(1,min(nrow_block,nrow_global/context%num_pe(1)))
+     fmstruct%ncol_block=max(1,min(ncol_block,ncol_global/context%num_pe(2)))
      if (fmstruct%nrow_global==fmstruct%ncol_global) then
         ! square matrix -> square blocks (otherwise some op fail)
         fmstruct%nrow_block=min(fmstruct%nrow_block,fmstruct%ncol_block)
@@ -424,6 +424,123 @@ function cp_fmstruct_equivalent(fmstruct1,fmstruct2,error) result(res)
      end if
   end if
 end function cp_fmstruct_equivalent
+!***************************************************************************
+
+!!****f* cp_f_matrix_struct/cp_fmstruct_write [1.0] *
+!!
+!!   NAME
+!!     cp_fmstruct_write
+!!
+!!   FUNCTION
+!!     writes a description of the matrix structure to the given unit
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - fmstruct: the structure to print
+!!     - unit_nr: the number of the unit where to write the description
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine cp_fmstruct_write(fmstruct, unit_nr, long_description,error)
+  type(cp_f_matrix_struct_type), pointer :: fmstruct
+  integer, intent(in) :: unit_nr
+  logical, intent(in), optional :: long_description
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure,l_desc
+  integer :: iostat
+  character(len=*), parameter :: routineN='cp_fmstruct_write',&
+        routineP=moduleN//':'//routineN
+  failure=.false.; l_desc=.false.
+  
+  if (present(long_description)) l_desc=long_description
+  if (associated(fmstruct)) then
+     write (unit=unit_nr,&
+          fmt="('<cp_f_matrix_struct>:{ id_nr=',i10,' ref_count=',i10,',')",&
+          iostat=iostat) fmstruct%id_nr, fmstruct%ref_count
+     write (unit=unit_nr,fmt="(' nrow_global=',i8,', ncol_global=',i8,','",&
+          iostat=iostat) fmstruct%nrow_global, fmstruct%ncol_global
+     write (unit=unit_nr,fmt="(' nrow_block=',i8,', ncol_block=',i8,','",&
+          iostat=iostat) fmstruct%nrow_global, fmstruct%ncol_global
+     if (associated(fmstruct%nrow_local)) then
+        write (unit=unit_nr,fmt=(/"(' nrow_local=(,",&
+             cp_to_string(size(fmstruct%nrow_local)),"(i8),'),')"/),&
+             iostat=iostat) fmstruct%nrow_local
+     else
+        write (unit=unit_nr,fmt="(a)") " nrow_local=*null*,"
+     end if
+     if (associated(fmstruct%ncol_local)) then
+        write (unit=unit_nr,fmt=(/"(' ncol_local=(,",&
+             cp_to_string(size(fmstruct%ncol_local)),"(i8),'),')"/),&
+             iostat=iostat) fmstruct%ncol_local
+     else
+        write (unit=unit_nr,fmt="(a)") " ncol_local=*null*,"
+     end if
+     write (unit=unit_nr,fmt="(' first_p_pos=(',i8,', ',i8,'),'",&
+          iostat=iostat) fmstruct%first_p_pos(1), fmstruct%first_p_pos(2)
+     if (associated(fmstruct%row_indices)) then
+        if (l_desc) then
+           write (unit=unit_nr,fmt="(a)",iostat=iostat) " row_indices=(,"
+           write (unit=unit_nr,fmt="(i)",iostat=iostat)
+           write (unit=unit_nr,fmt="(a)",iostat=iostat) "),"
+        else
+           write (unit=unit_nr,&
+                fmt="(' row_indices=<integer,dimension(',i8,'),'",&
+                iostat=iostat) size(fmstruct%row_indices)
+        end if
+     else
+        write (unit=unit_nr,fmt="(a)") " row_indices=*null*,"
+     end if
+     if (associated(fmstruct%col_indices)) then
+        if (l_desc) then
+           write (unit=unit_nr,fmt="(a)",iostat=iostat) " col_indices=("
+           write (unit=unit_nr,fmt="(i)",iostat=iostat)
+           write (unit=unit_nr,fmt="(a)",iostat=iostat) "),"
+        else
+           write (unit=unit_nr,&
+                fmt="(' col_indices=<integer,dimension(',i8,'),'",&
+                iostat=iostat) size(fmstruct%col_indices)
+        end if
+     else
+        write (unit=unit_nr,fmt="(a)") " col_indices=*null*,"
+     end if
+     if (associated(fmstruct%context)) then
+        if (l_desc) then
+           write (unit=unit_nr,fmt="(a)",iostat=iostat) " context="
+           call cp_blacs_env_write(fmstruct%context,unit_nr,error=error)
+        else
+           write (unit=unit_nr,fmt="(a,i10)",iostat=iostat) " context%group=",&
+                fmstruct%context%group
+        end if
+     else
+        write (unit=unit_nr,fmt="(a)",iostat=iostat) " context=*null*"
+     end if
+     if (associated(fmstruct%para_env)) then
+        if (l_desc) then
+           write (unit=unit_nr,fmt="(a)",iostat=iostat) " para_env="
+           call cp_para_env_write(fmstruct%para_env,unit_nr,error=error)
+        else
+           write (unit=unit_nr,fmt="(a,i10)",iostat=iostat) &
+                " para_env%group=",fmstruct%para_env%group
+        end if
+     else
+        write (unit=unit_nr,fmt="(a)",iostat=iostat) " para_env=*null*"
+     end if
+     write (unit=unit_nr, fmt="(' descriptor=(',9i8,') }')",iostat=iostat)&
+          fmstruct%descriptor
+  else
+     write (unit=unit_nr, fmt="(a)",iostat=iostat)"<cp_f_matrix_struct>:*null*"
+  end if
+end subroutine cp_fmstruct_write
 !***************************************************************************
 
 end module cp_f_matrix_struct

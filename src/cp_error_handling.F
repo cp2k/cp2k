@@ -36,7 +36,10 @@
 !!   SOURCE
 !*****************************************************************************
 module cp_error_handling
-  use cp_log_handling
+  use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
+       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
+       cp_logger_get_default_unit_nr, cp_logger_type, cp_log,&
+       cp_get_default_logger
   use termination, only: stop_program
   implicit none
   private
@@ -53,9 +56,9 @@ module cp_error_handling
   ! public routines
   public :: cp_assert, cp_unimplemented_error
   ! generic routines
-  public :: cp_init, cp_dealloc_ref, cp_set, cp_get, cp_reset, cp_get_level,&
-       cp_get_print_level, cp_get_nr, cp_get_logger, cp_get_stop_level,&
-       cp_common_stop, cp_handle_error, cp_message, cp_propagate_error
+!!FM  public :: cp_init, cp_dealloc_ref, cp_set, cp_get, cp_reset, cp_get_level,&
+!!FM       cp_get_print_level, cp_get_nr, cp_get_logger, cp_get_stop_level,&
+!!FM       cp_common_stop, cp_handle_error, cp_message, cp_propagate_error
   ! underlying procedures
   public :: cp_error_init, cp_error_dealloc_ref, cp_error_set,&
        cp_error_get, cp_error_reset, cp_error_get_level,&
@@ -92,48 +95,48 @@ module cp_error_handling
 !! error number: not implemented
   integer, parameter :: cp_unimplemented_error_nr = -1000
 
-  interface cp_init
-     module procedure cp_error_init
-  end interface
-  interface cp_dealloc_ref
-     module procedure cp_error_dealloc_ref
-  end interface
-  interface cp_set
-     module procedure cp_error_set
-  end interface
-  interface cp_get
-     module procedure cp_error_get
-  end interface
-  interface cp_reset
-     module procedure cp_error_reset
-  end interface
-  interface cp_get_level
-     module procedure cp_error_get_level
-  end interface
-  interface cp_get_print_level
-     module procedure cp_error_get_print_level
-  end interface
-  interface cp_get_nr
-     module procedure cp_error_get_nr
-  end interface
-  interface cp_get_logger
-     module procedure cp_error_get_logger
-  end interface
-  interface cp_get_stop_level
-     module procedure cp_error_get_stop_level
-  end interface
-  interface cp_common_stop
-     module procedure cp_error_common_stop
-  end interface
-  interface cp_handle_error
-     module procedure cp_error_handle_error
-  end interface
-  interface cp_message
-     module procedure cp_error_message
-  end interface
-  interface cp_propagate_error
-     module procedure cp_error_propagate_error
-  end interface
+!!FM  interface cp_init
+!!FM     module procedure cp_error_init
+!!FM  end interface
+!!FM  interface cp_dealloc_ref
+!!FM     module procedure cp_error_dealloc_ref
+!!FM  end interface
+!!FM  interface cp_set
+!!FM     module procedure cp_error_set
+!!FM  end interface
+!!FM  interface cp_get
+!!FM     module procedure cp_error_get
+!!FM  end interface
+!!FM  interface cp_reset
+!!FM     module procedure cp_error_reset
+!!FM  end interface
+!!FM  interface cp_get_level
+!!FM     module procedure cp_error_get_level
+!!FM  end interface
+!!FM  interface cp_get_print_level
+!!FM     module procedure cp_error_get_print_level
+!!FM  end interface
+!!FM  interface cp_get_nr
+!!FM     module procedure cp_error_get_nr
+!!FM  end interface
+!!FM  interface cp_get_logger
+!!FM     module procedure cp_error_get_logger
+!!FM  end interface
+!!FM  interface cp_get_stop_level
+!!FM     module procedure cp_error_get_stop_level
+!!FM  end interface
+!!FM  interface cp_common_stop
+!!FM     module procedure cp_error_common_stop
+!!FM  end interface
+!!FM  interface cp_handle_error
+!!FM     module procedure cp_error_handle_error
+!!FM  end interface
+!!FM  interface cp_message
+!!FM     module procedure cp_error_message
+!!FM  end interface
+!!FM  interface cp_propagate_error
+!!FM     module procedure cp_error_propagate_error
+!!FM  end interface
 !!***
 !****************************************************************************
 

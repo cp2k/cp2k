@@ -32,7 +32,8 @@ module pao_glob_angles_methods
   use cp_error_handling, only: cp_debug, cp_error_type, cp_assert, &
        cp_error_message, cp_assertion_failed, cp_error_init,&
        cp_error_get_print_level, cp_error_get_stop_level, cp_error_get_level,&
-       cp_set, cp_init, cp_dealloc_ref, cp_error_propagate_error
+       cp_error_set, cp_error_init, cp_error_dealloc_ref, &
+       cp_error_propagate_error
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
@@ -569,7 +570,7 @@ contains
        if (present(source)) then
           CPPrecondition(source%initialized,cp_failure_level,routineP,error,failure)
           if (.not.failure) then
-             call cp_set(iError, print_level=max(cp_failure_level,&
+             call cp_error_set(iError, print_level=max(cp_failure_level,&
                   cp_error_get_print_level(iError)),&
                   stop_level=max(cp_failure_level,&
                   cp_error_get_stop_level(iError)))
@@ -599,8 +600,8 @@ contains
                   error=error)
              glob_angles%m_h_m_valid=source%m_h_m_valid
              glob_angles%m_s_m_valid=source%m_s_m_valid
-             call cp_dealloc_ref(iError,error)
-             call cp_init(iError, template_error=error)
+             call cp_error_dealloc_ref(iError,error)
+             call cp_error_init(iError, template_error=error)
           end if
        end if
        if (present(angles)) then
@@ -641,7 +642,7 @@ contains
                init=0.0_wp,error=error)
        end if
     end if failureIf
-    call cp_dealloc_ref(iError,error=error)
+    call cp_error_dealloc_ref(iError,error=error)
   end subroutine pao_g_ang_set
 !***************************************************************************
 
@@ -718,7 +719,7 @@ contains
     type(pao_env_type), pointer :: pao_env
     type(cp_b_matrix_struct_type), pointer :: m_struct
     integer :: stat, n_atoms
-    call cp_init(iError,template_error=error)
+    call cp_error_init(iError,template_error=error)
     failure=.false.
 
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
@@ -893,7 +894,7 @@ contains
     logical, dimension(:),pointer :: ut_c
     type(cp_block_matrix_type), pointer :: n_value
     type (cp_error_type) :: iError
-    call cp_init(iError, template_error=error, &
+    call cp_error_init(iError, template_error=error, &
          print_level=max(cp_failure_level, cp_error_get_print_level(error)))
     failure=.false.
 

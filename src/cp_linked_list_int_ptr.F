@@ -34,8 +34,13 @@
 !!   SOURCE
 !*****************************************************************************
 module cp_linked_list_int_ptr
-  use cp_log_handling
-  use cp_error_handling
+  use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
+       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
+       cp_logger_get_default_unit_nr
+  use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
+       cp_error_dealloc_ref, cp_error_message, cp_assert,&
+       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
+       cp_error_get_logger
   use cp_output_handling
   use kinds, only: wp=>dp
   use timings, only: timeset, timestop
@@ -71,7 +76,8 @@ module cp_linked_list_int_ptr
        cp_sll_int_ptr_rm_first_el, cp_sll_int_ptr_rm_el_at,&
        cp_sll_int_ptr_rm_all_el, cp_sll_int_ptr_output,&
        cp_sll_int_ptr_write, cp_sll_int_ptr_to_array,&
-       cp_sll_int_ptr_from_array
+       cp_sll_int_ptr_from_array, cp_sll_int_ptr_insert_ordered,&
+       cp_sll_int_ptr_insert_ordered2
 
 ! creation of an object (from a pointer)
   interface cp_create
@@ -124,6 +130,10 @@ module cp_linked_list_int_ptr
 ! inserts one element call cp_insert(list,element,...)
   interface cp_insert
      module procedure cp_sll_int_ptr_insert_el
+  end interface
+  interface cp_insert_ordered
+     module procedure cp_sll_int_ptr_insert_ordered,&
+          cp_sll_int_ptr_insert_ordered2
   end interface
   interface cp_insert_at
      module procedure cp_sll_int_ptr_insert_el_at

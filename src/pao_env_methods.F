@@ -31,7 +31,7 @@ module pao_env_methods
   use cp_error_handling, only: cp_debug, cp_error_type, cp_assert, &
        cp_error_message, cp_assertion_failed, cp_error_init,&
        cp_error_get_print_level, cp_error_get_stop_level, cp_error_get_level,&
-       cp_dealloc_ref, cp_error_get_logger, cp_internal_error
+       cp_error_dealloc_ref, cp_error_get_logger, cp_internal_error
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
@@ -311,7 +311,7 @@ contains
             CPSourceFileRef,&
             error,failure)
     end if
-    call cp_dealloc_ref(iError,error)
+    call cp_error_dealloc_ref(iError,error)
   end subroutine pao_env_init
 !***************************************************************************
 
@@ -557,7 +557,7 @@ contains
     if (present(min_d_valid)) then
        pao_env%min_d_m_valid=min_d_valid
     end if
-    call cp_dealloc_ref(iError,error=error)
+    call cp_error_dealloc_ref(iError,error=error)
   end subroutine pao_env_set
 !***************************************************************************
 
