@@ -1474,7 +1474,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_elp_potential"
 
 !   ---------------------------------------------------------------------------
-
+     
     IF (ASSOCIATED(potential)) THEN
 
       IF (PRESENT(name)) potential%name = name
