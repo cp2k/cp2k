@@ -1116,13 +1116,18 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(real_block_node_type), INTENT(IN) :: block_node
+    TYPE(real_block_node_type), POINTER :: block_node
 
     TYPE(real_block_node_type), POINTER :: next_block_node
 
 !   ---------------------------------------------------------------------------
-
-    next_block_node => block_node%next_block_node
+    if (associated(block_node)) then
+       next_block_node => block_node%next_block_node
+    else
+       CALL stop_program("sparse_matrix_types:next_real_block_node",&
+            "The block_node pointer a is not associated")
+       nullify(next_block_node)
+    end if
 
   END FUNCTION next_real_block_node
 
