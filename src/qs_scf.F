@@ -396,9 +396,10 @@ CONTAINS
        CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_c,mo_eigenvectors)
 
        ! and the corresponding density matrix
-       CALL calculate_density_matrix(mo_set,scf_work1,globenv)
-       CALL copy_blacs_to_sparse_matrix(scf_work1,p%matrix,globenv)
-       CALL symmetrise_diagonal_blocks(p%matrix)
+       !CALL calculate_density_matrix(mo_set,scf_work1,globenv)
+       !CALL copy_blacs_to_sparse_matrix(scf_work1,p%matrix,globenv)
+       !CALL symmetrise_diagonal_blocks(p%matrix)
+       CALL calculate_density_matrix(mo_set,p%matrix,globenv)
 
     ENDIF
 
@@ -566,9 +567,10 @@ CONTAINS
         CALL qs_ot_get_orbitals(qs_ot_env%matrix_c,qs_ot_env%matrix_x,qs_ot_env,globenv)
         CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_c,mo_eigenvectors)
 
-        CALL calculate_density_matrix(mo_set,scf_work1,globenv)
-        CALL copy_blacs_to_sparse_matrix(scf_work1,p%matrix,globenv)
-        CALL symmetrise_diagonal_blocks(p%matrix)
+        !CALL calculate_density_matrix(mo_set,scf_work1,globenv)
+        !CALL copy_blacs_to_sparse_matrix(scf_work1,p%matrix,globenv)
+        !CALL symmetrise_diagonal_blocks(p%matrix)
+        CALL calculate_density_matrix(mo_set,p%matrix,globenv)
         t2 = cputime()
         IF (ionode.AND.globenv%print%scf) THEN
               WRITE (UNIT=output_unit,&
@@ -811,6 +813,9 @@ CONTAINS
       call set_qs_env(qs_env,h=h)
     END IF
 
+    IF (use_ot) THEN
+       CALL deallocate_blacs_matrix(scf_work1)
+    ENDIF
 
     ! allocate k and p  and puth them in the qs_environment
     allocate(k_rmpv(1), p_rmpv(1), p_old_rmpv(1))
@@ -1094,6 +1099,10 @@ CONTAINS
 
 
     CALL timeset("calculate_first_density_matrix","I","",handle)
+
+    IF (use_ot .and. .not. density_guess == "RANDOM") THEN
+       call stop_program("calculate_first_density_matrix","NYI")
+    ENDIF
 
     IF (density_guess == "RESTART") THEN
 

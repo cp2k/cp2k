@@ -41,7 +41,8 @@ MODULE qs_blacs
                                  next_block_node,&
                                  real_block_node_type,&
                                  real_matrix_type, &
-                                 sparse_times_replicated
+                                 sparse_times_replicated, &
+                                 sparse_plus_rep_rept
   USE message_passing,     ONLY: mp_bcast,&
                                  mp_max,&
                                  mp_sum,&
@@ -145,7 +146,8 @@ MODULE qs_blacs
             blacs_transpose, &
             blacs_scale_matrix, &
             blacs_set_local_block, &
-            sparse_times_blacs
+            sparse_times_blacs, &
+            sparse_plus_blacs_blacst
 
 ! *****************************************************************************
 
@@ -525,7 +527,7 @@ CONTAINS
     TYPE(global_environment_type), INTENT(IN)      :: globenv
 
 !   *** Local parameters ***
-    INTEGER, PARAMETER          :: blocksize = 50
+    INTEGER, PARAMETER          :: blocksize = 100
     CHARACTER(LEN=*), PARAMETER :: routine =&
       "SUBROUTINE sparse_times_blacs (MODULE qs_blacs)"
 
@@ -547,10 +549,64 @@ CONTAINS
     ENDDO
 
     deallocate(rep_v_in,rep_v_out)
+    CALL timestop(0.0_wp,handle)
+  END SUBROUTINE sparse_times_blacs
+
+! *****************************************************************************
+! computes sparse=sparse+v*g^T 
+! only v*v^T tested
+! *****************************************************************************
+  SUBROUTINE sparse_plus_blacs_blacst(sparse_matrix,matrix_v,matrix_g,ncol,globenv)
+    TYPE(real_matrix_type), POINTER   :: sparse_matrix
+    TYPE(blacs_matrix_type) , POINTER :: matrix_v
+    TYPE(blacs_matrix_type) , POINTER, OPTIONAL :: matrix_g
+    INTEGER, INTENT(IN)               :: ncol
+    TYPE(global_environment_type), INTENT(IN)      :: globenv
+
+!   *** Local parameters ***
+    INTEGER, PARAMETER          :: blocksize = 100
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE sparse_plus_blacs_blacst (MODULE qs_blacs)"
+
+!   *** Local variables ***
+    REAL(wp), DIMENSION(:,:), POINTER :: rep_v,rep_g
+    integer i,nrow,ncol_block,handle
+    LOGICAL g_present
+!   ---------------------------------------------------------------------------
+    CALL timeset("sparse_plus_blacs_blacst","I","",handle)
+
+    g_present=.false.
+    IF (PRESENT(matrix_g)) g_present=.true.
+
+    nrow=matrix_v%nrow_global
+    IF (g_present) THEN
+       allocate(rep_v(blocksize,nrow))
+       allocate(rep_g(blocksize,nrow))
+    ELSE
+       allocate(rep_v(blocksize,nrow))
+       rep_g=>rep_v
+    ENDIF
+
+    DO i=1,ncol,blocksize
+       ncol_block=MIN(ncol-i+1,blocksize)
+       call blacs_replicated_copy(matrix_v,rep_v,i,ncol_block, &
+                                        blocksize,"B2R",globenv)
+       IF (g_present) THEN
+         call blacs_replicated_copy(matrix_g,rep_g,i,ncol_block, &
+                                          blocksize,"B2R",globenv)
+       ENDIF
+       call sparse_plus_rep_rept(sparse_matrix,rep_v,rep_g,ncol_block, &
+                                    blocksize,globenv)
+    ENDDO
+
+    IF (g_present) THEN
+       deallocate(rep_v,rep_g)
+    ELSE
+       deallocate(rep_v)
+    ENDIF
 
     CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE
+  END SUBROUTINE sparse_plus_blacs_blacst
 ! *****************************************************************************
 
 

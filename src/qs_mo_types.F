@@ -46,14 +46,18 @@ MODULE qs_mo_types
                                   deallocate_blacs_matrix,&
                                   get_blacs_info,&
                                   read_blacs_matrix,&
-                                  write_blacs_matrix
+                                  write_blacs_matrix,&
+                                  sparse_plus_blacs_blacst
   USE global_types,         ONLY: global_environment_type
   USE particle_types,       ONLY: particle_type
   USE qs_parser,            ONLY: close_file,&
                                   open_file
   USE sparse_matrix_types,  ONLY: allocate_matrix,&
                                   get_block_node,&
-                                  real_matrix_type
+                                  real_matrix_type,&
+                                  add_matrices,&
+                                  set_matrix
+
   USE message_passing,      ONLY: mp_sum
   USE orbital_pointers,     ONLY: nso
   USE termination,          ONLY: stop_memory,&
@@ -98,6 +102,10 @@ MODULE qs_mo_types
 
   INTERFACE write_mo_set
     MODULE PROCEDURE write_mo_set_to_output_unit,write_mo_set_to_restart_unit
+  END INTERFACE
+
+  INTERFACE calculate_density_matrix
+    MODULE PROCEDURE calculate_density_matrix_blacs,calculate_density_matrix_sparse
   END INTERFACE
 
 ! *****************************************************************************
@@ -176,8 +184,7 @@ CONTAINS
   END SUBROUTINE allocate_mo_set
 
 ! *****************************************************************************
-
-  SUBROUTINE calculate_density_matrix(mo_set,density_matrix,globenv)
+  SUBROUTINE calculate_density_matrix_blacs(mo_set,density_matrix,globenv)
 
 !   Purpose: Calculate the density matrix from the MO eigenvectors and the
 !            MO occupation numbers.
@@ -210,7 +217,42 @@ CONTAINS
 
     CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE calculate_density_matrix
+  END SUBROUTINE calculate_density_matrix_blacs
+
+! *****************************************************************************
+  SUBROUTINE calculate_density_matrix_sparse(mo_set,density_matrix,globenv)
+
+!   Purpose: Calculate the density matrix 
+
+!   as yet only for fully occupied orbitals !!!!
+
+!   History: - Creation (july 2002 Joost VandeVondele)
+
+!   ***************************************************************************
+    TYPE(real_matrix_type), POINTER   :: density_matrix
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(mo_set_type), POINTER                :: mo_set
+
+!   *** Local variables ***
+
+    INTEGER :: handle,imo
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("calculate_density_matrix","I","",handle)
+
+    if (mo_set%lfomo-1 .ne. mo_set%nmo)  &
+          call stop_program("calculate_density_matrix_sparse","NYI")
+
+       CALL set_matrix(density_matrix,0.0_wp)
+       CALL sparse_plus_blacs_blacst(density_matrix,mo_set%eigenvectors, &
+                                          ncol=mo_set%nmo,globenv=globenv)
+       ! multiply by 2 :-)
+       CALL add_matrices(density_matrix,1.0_wp,density_matrix,1.0_wp,density_matrix)
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE calculate_density_matrix_sparse
 
 ! *****************************************************************************
 
