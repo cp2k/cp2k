@@ -56,6 +56,10 @@ MODULE cp_array_r_utils
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_array_r_utils'
 
+  ! types
+  PUBLIC :: cp_1d_r_p_type, cp_2d_r_p_type,&
+       cp_3d_r_p_type
+
   ! generic interfaces
   PUBLIC :: cp_output, cp_guarantee_size, cp_write
   
@@ -79,6 +83,91 @@ MODULE cp_array_r_utils
   END INTERFACE
 !***
 !****************************************************************************
+  
+!!****s* cp_array_r_utils/cp_1d_r_p_type [1.0] *
+!!
+!!   NAME
+!!     cp_1d_r_p_type
+!!
+!!   FUNCTION
+!!     represent a pointer to a 1d array
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     -
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     02.2003 created [fawzi]
+!!
+!!   SOURCE
+  !***************************************************************************
+  TYPE cp_1d_r_p_type
+     REAL(kind=wp), DIMENSION(:), POINTER :: array
+  END TYPE cp_1d_r_p_type
+!!***
+  !****************************************************************************
+
+!!****s* cp_array_r_utils/cp_2d_r_p_type [1.0] *
+!!
+!!   NAME
+!!     cp_2d_r_p_type
+!!
+!!   FUNCTION
+!!     represent a pointer to a 2d array
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     -
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     02.2003 created [fawzi]
+!!
+!!   SOURCE
+  !***************************************************************************
+  TYPE cp_2d_r_p_type
+     REAL(kind=wp), DIMENSION(:,:), POINTER :: array
+  END TYPE cp_2d_r_p_type
+!!***
+  !****************************************************************************
+
+!!****s* cp_array_r_utils/cp_3d_r_p_type [1.0] *
+!!
+!!   NAME
+!!     cp_3d_r_p_type
+!!
+!!   FUNCTION
+!!     represent a pointer to a 3d array
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     -
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     02.2003 created [fawzi]
+!!
+!!   SOURCE
+  !***************************************************************************
+  TYPE cp_3d_r_p_type
+     REAL(kind=wp), DIMENSION(:,:,:), POINTER :: array
+  END TYPE cp_3d_r_p_type
+!!***
+  !****************************************************************************
+
 CONTAINS
 
 !!****f* cp_array_r_utils/cp_r_write *
