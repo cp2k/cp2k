@@ -262,7 +262,7 @@ CONTAINS
             error=error)
        
        ! alloc m_epsilon
-       ALLOCATE(p_env%m_epsilon(spin),stat=stat)
+       ALLOCATE(p_env%m_epsilon(n_spins),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO spin=1,n_spins
           NULLIFY(p_env%m_epsilon(spin)%matrix)
@@ -777,14 +777,14 @@ END SUBROUTINE p_env_did_change
     TYPE(cp_error_type), OPTIONAL, INTENT(inout)     :: error
                                                            
     ! locals                                               
-    LOGICAL                          :: failure
-    INTEGER                          :: ncol
-    TYPE(real_matrix_type), POINTER  :: k_p
+    LOGICAL                            :: failure
+    INTEGER                            :: ncol
+    TYPE(real_matrix_type), POINTER    :: k_p
     TYPE(cp_full_matrix_type), POINTER :: tmp
-    TYPE(cp_para_env_type), POINTER  :: para_env
-    TYPE(cp_fm_pool_type),POINTER    :: ao_maxmo_fm_pool
-    CHARACTER(len=*), PARAMETER      :: routineN = 'p_op_l1',&
-                                        routineP = moduleN//':'//routineN
+    TYPE(cp_para_env_type), POINTER    :: para_env
+    TYPE(cp_fm_pool_type),POINTER      :: ao_maxmo_fm_pool
+    CHARACTER(len=*), PARAMETER        :: routineN = 'p_op_l1',&
+                                          routineP = moduleN//':'//routineN
 
     ! code
     NULLIFY(tmp)
@@ -795,9 +795,8 @@ END SUBROUTINE p_env_did_change
     CPPrecondition(0<spin,cp_failure_level,routineP,error,failure)
     CPPrecondition(spin<=qs_env%dft_control%nspins,cp_failure_level,routineP,error,failure)
 
-    CALL get_qs_env(qs_env, ao_maxmo_fm_pool=ao_maxmo_fm_pool,&
-         para_env=para_env)
-    CALL fm_pool_create_matrix(ao_maxmo_fm_pool,tmp,error=error)
+    CALL get_qs_env(qs_env, ao_maxmo_fm_pool=ao_maxmo_fm_pool, para_env=para_env)
+    CALL fm_pool_create_matrix(ao_maxmo_fm_pool, tmp, error=error)
     
     k_p => qs_env%k(spin)%matrix
     CALL get_matrix_info(k_p, ncol=ncol)
@@ -874,13 +873,15 @@ END SUBROUTINE p_env_did_change
     INTEGER, SAVE :: iter=0
 
     failure=.FALSE.
+
     my_alpha=1.0_wp
+    IF (PRESENT(alpha)) my_alpha=alpha
     my_beta=0.0_wp
+    IF (PRESENT(beta)) my_beta=beta
+
     iter=iter+1
     NULLIFY(p1_new, s, dft_control, para_env, rho)
     logger => cp_error_get_logger(error)
-    IF (PRESENT(alpha)) my_alpha=alpha
-    IF (PRESENT(beta)) my_beta=beta
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)

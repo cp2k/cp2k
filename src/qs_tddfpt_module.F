@@ -11,19 +11,7 @@
 !!   FUNCTION
 !!     Performs density functional perturbation theory (tddfpt) calculations.
 !!     Uses the self consistent approach. The tddfpt calculation uses the ground
-!!     state of the unperturbed system as the initial state. So the ground state
-!!     density has either to be provided to the subroutine or the be calculated
-!!     before the tddfpt calculation can be started. This is why there are two 
-!!     subroutines.
-!!
-!!   SYNOPSIS
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     09-JUL-2002, TCH, development started
-!!
-!!   SEE ALSO
-!!     
+!!     state of the unperturbed system as the initial state.
 !!
 !!****
 
@@ -86,12 +74,6 @@ CONTAINS
 !!   ARGUMENTS
 !!     - qs_env      - in    - qs environment with ground state
 !!     - glob_env    - in    - global environment
-!!
-!!   MODIFICATION HISTORY
-!!     , TCH, working version
-!!
-!!   SEE ALSO
-!!     
 !!
 !!****
   SUBROUTINE tddfpt_calculation(qs_env, glob_env)
@@ -181,6 +163,8 @@ CONTAINS
     !-------------------!
     CALL report_tddfpt_results(t_env, glob_env)
 
+    ! print the kohn-sham and overlap matrix
+
     !-------------------------!
     ! release some structures !
     !-------------------------!
@@ -190,6 +174,8 @@ CONTAINS
     DEALLOCATE(v, stat=stat)
     IF (stat/=0) CALL stop_memory(routineP, 'v')
     CALL cleanup(t_env, p_env, glob_env)
+
+    
 
   END SUBROUTINE tddfpt_calculation
 

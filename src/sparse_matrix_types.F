@@ -2079,17 +2079,19 @@ CONTAINS
   END SUBROUTINE remove_real_matrix_block
 !***************************************************************************
 
-  SUBROUTINE get_real_matrix_occupation(matrix, block_occupation)
+  SUBROUTINE get_real_matrix_occupation(matrix, block_occupation, memory_occupation, fill_symmetric)
 
     IMPLICIT NONE
 
     ! arguments
     TYPE(real_matrix_type), POINTER :: matrix
-    REAL(wp), INTENT(OUT)     :: block_occupation
+    REAL(wp), INTENT(OUT), OPTIONAL :: block_occupation, memory_occupation
+    LOGICAL, OPTIONAL               :: fill_symmetric ! should symmetric matrices be fully counted or just one triangle?
 
     ! locals
     INTEGER                         :: i, j
     INTEGER                         :: block_counter, max_blocks, n_diagonal_blocks
+    INTEGER                         :: memory_counter, diagonal_memory, max_memory, block_memory
     TYPE(real_block_node_type), POINTER :: node
 
     ! code
@@ -2098,23 +2100,35 @@ CONTAINS
     END IF
 
     max_blocks = matrix%nblock_row * matrix%nblock_col
+    max_memory = matrix%ncol * matrix%nrow
     block_counter = 0
+    memory_counter = 0
     n_diagonal_blocks = 0
+    diagonal_memory = 0
 
     DO i=1, matrix%nblock_row
        node => first_block_node(matrix, i)
        DO WHILE (ASSOCIATED(NODE))
+          block_memory = SIZE(node%block,1) * SIZE(node%block,2)
           j = node%block_col
-          IF (i == j) n_diagonal_blocks = n_diagonal_blocks + 1
+          IF (i == j) THEN 
+             n_diagonal_blocks = n_diagonal_blocks + 1
+             diagonal_memory = diagonal_memory + block_memory
+          END IF
           block_counter = block_counter + 1
+          memory_counter = memory_counter + block_memory
           node => next_block_node(node)
        END DO
     END DO
     
     IF (TRIM(matrix%symmetry) == "symmetric") THEN
-       block_counter = 2*(block_counter - n_diagonal_blocks) + n_diagonal_blocks
+       IF (.NOT.PRESENT(fill_symmetric) .OR. fill_symmetric) THEN
+          block_counter = 2*block_counter - n_diagonal_blocks
+          memory_counter = 2*memory_counter - diagonal_memory
+       END IF
     END IF
-    block_occupation = REAL(block_counter, wp) / REAL(max_blocks, wp)
+    IF (PRESENT(block_occupation)) block_occupation = REAL(block_counter, wp) / REAL(max_blocks, wp)
+    IF (PRESENT(memory_occupation)) memory_occupation = REAL(memory_counter, wp) / REAL(max_memory, wp)
 
   END SUBROUTINE get_real_matrix_occupation
 

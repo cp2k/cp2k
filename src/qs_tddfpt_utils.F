@@ -44,8 +44,9 @@ MODULE qs_tddfpt_utils
   USE qs_kpp1_env_methods,             ONLY: kpp1_create
   USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
   USE qs_mo_types,                     ONLY: get_mo_set
-  USE qs_p_env_methods,                ONLY: p_env_create,&
-                                             p_op_l1
+  USE qs_p_env_methods,                ONLY: p_env_create, &
+                                             p_op_l1, &
+                                             p_env_psi0_changed
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_tddfpt_types,                 ONLY: tddfpt_control_type,&
                                              tddfpt_env_allocate,&
@@ -143,6 +144,8 @@ CONTAINS
     END DO
 
     CALL p_env_create(p_env, qs_env, kpp1_env, psi0d, .TRUE.)
+    ! update the m_epsilon matrix
+    CALL p_env_psi0_changed(p_env, qs_env)
 
     CALL tddfpt_env_allocate(t_env, t_control, p_env, qs_env, glob_env)
     CALL tddfpt_env_init(t_env, t_control, p_env, qs_env, glob_env)

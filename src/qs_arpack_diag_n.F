@@ -74,7 +74,7 @@ CONTAINS
 !!     - eval      : array of eigenvalues
 !!     - evec      : on input initial guess - on output eigenvectors (matrix)
 !!     - glob_env  : global_environment (needed for communication)
-!!     ONE of the following optional arguments must also be specified
+!!     exactly ONE of the following optional arguments must also be specified
 !!     - op_tddfpt : operator for the tddfpt calculations
 !!
 !!   NOTES
@@ -82,9 +82,6 @@ CONTAINS
 !!       can be complex eigenvalues. Therefore the array eval must
 !!       be two-dimensional (one column for real part and one for the
 !!       imaginary part).
-!!
-!!   MODIFICATION HISTORY
-!!     09-2002, TCH, created
 !!
 !!   SEE ALSO
 !!     arpack_diag_sy
@@ -141,23 +138,27 @@ CONTAINS
 
     CALL check_input(n_ev, nrows, eval, evec, glob_env)
     
-    ! set up some variables
-    ido   = 0
-    which = 'SR'                    ! eigenvalues with the smallest real part
-    tol   = 1.0e-15_dbl             ! hardcoded ?
+    !--------------------------------------!
+    ! calculate the number of krylov space !
+    ! vectors (must be at least n_ev+2)    !
+    !--------------------------------------!
+    n_kv = MIN(2*n_ev, nrows)
+    IF (n_kv < n_ev+2) n_kv = n_ev+2
 
-    n_kv  = 2*n_ev                  ! number of krylov space vectors (must be bigger than n_ev)
-    n_kv  = MIN(n_kv, nrows)
-    IF (n_kv - n_ev < 2) n_kv = 2 + n_ev
-
-    ldv = nrows
-    param = 0
-    param(1) = 1    ! exact shift mode
-    param(3) = 1500 ! maximum number of iterations
-    param(7) = 1    ! simple mode (A*x=lambda*x , B=I)
+    !-----------------------------------!
+    ! set up variables needed by arpack !
+    !-----------------------------------!
+    ido      = 0
+    which    = 'SR'                    ! eigenvalues with the smallest real part
+    tol      = 1.0e-15_dbl             ! hardcoded ?
+    ldv      = nrows
+    param    = 0
+    param(1) = 1                       ! exact shift mode
+    param(3) = 1500                    ! maximum number of iterations
+    param(7) = 1                       ! simple mode (A*x=lambda*x , B=I)
     pntr     = 0
-    lworkl   = 3*(n_kv**2) + 6*(n_kv) ! do larger numbers give better performance?
-    info     = 0    ! no starting vector as of now
+    lworkl   = 3*(n_kv**2) + 6*(n_kv)  ! do larger numbers give better performance?
+    info     = 0                       ! no starting vector as of now
 
     IF (PRESENT(op_tddfpt)) THEN
        bmat = 'I'

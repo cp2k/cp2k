@@ -48,12 +48,13 @@ MODULE qs_arpack_tddfpt
   IMPLICIT NONE
   
   TYPE op_tddfpt_type
-     TYPE(qs_p_env_type), POINTER :: p_env
+     TYPE(qs_p_env_type), POINTER       :: p_env
      TYPE(qs_environment_type), POINTER :: qs_env
-     CHARACTER                    :: mode  ! operator for x or y
-     INTEGER                      :: spin  ! which spin to handle
+     CHARACTER                          :: mode  ! operator for x or y
+     INTEGER                            :: spin  ! which spin to handle
   END TYPE op_tddfpt_type
 
+  ! some constants
   CHARACTER(len=*), PARAMETER :: moduleN="qs_arpack_tddfpt"
   LOGICAL, PARAMETER          :: DEBUG_THIS_MODULE = .TRUE.
 
