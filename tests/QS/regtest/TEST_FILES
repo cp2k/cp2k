@@ -48,3 +48,5 @@ H2-3.inp           1
 H2O-meta.inp       1
 # QM/MM
 H2O-qmmm.inp       1
+# tpss
+H2O-tpss.inp       1
