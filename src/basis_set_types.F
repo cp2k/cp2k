@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
+!   Copyright (C) 2000 - 2003  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/basis_set_types [1.0] *
 !!
@@ -10,7 +10,7 @@
 !!   FUNCTION
 !!
 !!   AUTHOR
-!!     MK (04.07.2000)
+!!     Matthias Krack (04.07.2000)
 !!
 !!   MODIFICATION HISTORY
 !!     none
@@ -20,13 +20,11 @@
 
 MODULE basis_set_types
 
-! *****************************************************************************
-
-  USE kinds, ONLY: dp,&
-                   dp_size
-
   USE ai_coulomb,                      ONLY: coulomb2
   USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
+                                             dp_size
   USE mathconstants,                   ONLY: dfac,pi
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: coset,init_orbital_pointers,&
@@ -46,24 +44,26 @@ MODULE basis_set_types
 
   PRIVATE
 
-  INTEGER, PARAMETER :: max_name_length = 60
+! *** Global parameters (only in this module) ***
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "basis_set_types)"
 
 ! *** Define the Gaussian-type orbital basis set type ***
 
   TYPE gto_basis_set_type
-!MK    PRIVATE
-    CHARACTER(LEN=max_name_length)           :: name
-    REAL(KIND = dp)                                 :: kind_radius
-    INTEGER                                  :: ncgf,nset,nsgf
-    CHARACTER(LEN=12), DIMENSION(:), POINTER :: cgf_symbol
-    CHARACTER(LEN=6), DIMENSION(:), POINTER  :: sgf_symbol
-    REAL(KIND = dp), DIMENSION(:), POINTER          :: norm_cgf,set_radius
-    INTEGER, DIMENSION(:), POINTER           :: lmax,lmin,lx,ly,lz,m,ncgf_set,&
-                                                npgf,nsgf_set,nshell
-    REAL(KIND = dp), DIMENSION(:,:), POINTER        :: cphi,pgf_radius,sphi,zet
-    INTEGER, DIMENSION(:,:), POINTER         :: first_cgf,first_sgf,l,&
-                                                last_cgf,last_sgf,n
-    REAL(KIND = dp), DIMENSION(:,:,:), POINTER      :: gcc
+!MK PRIVATE
+    CHARACTER(LEN=default_string_length)       :: name
+    REAL(KIND = dp)                            :: kind_radius
+    INTEGER                                    :: ncgf,nset,nsgf
+    CHARACTER(LEN=12), DIMENSION(:), POINTER   :: cgf_symbol
+    CHARACTER(LEN=6), DIMENSION(:), POINTER    :: sgf_symbol
+    REAL(KIND = dp), DIMENSION(:), POINTER     :: norm_cgf,set_radius
+    INTEGER, DIMENSION(:), POINTER             :: lmax,lmin,lx,ly,lz,m,ncgf_set,&
+                                                  npgf,nsgf_set,nshell
+    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: cphi,pgf_radius,sphi,zet
+    INTEGER, DIMENSION(:,:), POINTER           :: first_cgf,first_sgf,l,&
+                                                  last_cgf,last_sgf,n
+    REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: gcc
   END TYPE gto_basis_set_type
 
 ! *** Public subroutines ***
@@ -82,6 +82,7 @@ MODULE basis_set_types
 ! *** Public data types ***
 
   PUBLIC :: gto_basis_set_type
+
 ! *****************************************************************************
 
   INTERFACE init_orb_basis_set
@@ -99,7 +100,7 @@ CONTAINS
 
 !   Purpose: Allocate a Gaussian-type orbital (GTO) basis set data set.
 
-!   History: - Creation (26.10.2000, Matthias Krack)
+!   History: - Creation (26.10.2000,MK)
 
 !   ***************************************************************************
 
@@ -107,8 +108,7 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE allocate_gto_basis_set (MODULE basis_set_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_gto_basis_set"
 
 !   *** Local variables ***
 
@@ -119,7 +119,8 @@ CONTAINS
     IF (ASSOCIATED(gto_basis_set)) CALL deallocate_gto_basis_set(gto_basis_set)
 
     ALLOCATE (gto_basis_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set",0)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set",0)
 
     NULLIFY (gto_basis_set%cgf_symbol)
     NULLIFY (gto_basis_set%first_cgf)
@@ -155,7 +156,7 @@ CONTAINS
 
 !   Purpose: Deallocate a Gaussian-type orbital (GTO) basis set data set.
 
-!   History: - Creation (03.11.2000, Matthias Krack)
+!   History: - Creation (03.11.2000,MK)
 
 !   ***************************************************************************
 
@@ -163,8 +164,7 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE deallocate_gto_basis_set (MODULE basis_set_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_gto_basis_set"
 
 !   *** Local variables ***
 
@@ -173,82 +173,108 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     DEALLOCATE (gto_basis_set%cgf_symbol,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%cgf_symbol")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%cgf_symbol")
 
     DEALLOCATE (gto_basis_set%sgf_symbol,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%sgf_symbol")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%sgf_symbol")
 
     DEALLOCATE (gto_basis_set%norm_cgf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%norm_cgf")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%norm_cgf")
 
     DEALLOCATE (gto_basis_set%set_radius,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%set_radius")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%set_radius")
 
     DEALLOCATE (gto_basis_set%lmax,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%lmax")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%lmax")
 
     DEALLOCATE (gto_basis_set%lmin,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%lmin")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%lmin")
 
     DEALLOCATE (gto_basis_set%lx,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%lx")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%lx")
 
     DEALLOCATE (gto_basis_set%ly,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%ly")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%ly")
 
     DEALLOCATE (gto_basis_set%lz,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%lz")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%lz")
 
     DEALLOCATE (gto_basis_set%m,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%m")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%m")
 
     DEALLOCATE (gto_basis_set%ncgf_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%ncgf_set")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%ncgf_set")
 
     DEALLOCATE (gto_basis_set%npgf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%npgf")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%npgf")
 
     DEALLOCATE (gto_basis_set%nsgf_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%nsgf_set")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%nsgf_set")
 
     DEALLOCATE (gto_basis_set%nshell,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%nshell")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%nshell")
 
     DEALLOCATE (gto_basis_set%cphi,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%cphi")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%cphi")
 
     DEALLOCATE (gto_basis_set%pgf_radius,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%pgf_radius")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%pgf_radius")
 
     DEALLOCATE (gto_basis_set%sphi,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%sphi")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%sphi")
 
     DEALLOCATE (gto_basis_set%zet,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%zet")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%zet")
 
     DEALLOCATE (gto_basis_set%first_cgf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%first_cgf")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%first_cgf")
 
     DEALLOCATE (gto_basis_set%first_sgf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%first_sgf")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%first_sgf")
 
     DEALLOCATE (gto_basis_set%l,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%l")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%l")
 
     DEALLOCATE (gto_basis_set%last_cgf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%last_cgf")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%last_cgf")
 
     DEALLOCATE (gto_basis_set%last_sgf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%last_sgf")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%last_sgf")
 
     DEALLOCATE (gto_basis_set%n,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%n")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%n")
 
     DEALLOCATE (gto_basis_set%gcc,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set%gcc")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set%gcc")
 
     DEALLOCATE (gto_basis_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gto_basis_set")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gto_basis_set")
 
   END SUBROUTINE deallocate_gto_basis_set
 
@@ -264,38 +290,38 @@ CONTAINS
 
 !   Purpose: Get informations about a Gaussian-type orbital (GTO) basis set.
 
-!   History: - Creation (10.01.2002, Matthias Krack)
+!   History: - Creation (10.01.2002,MK)
 
 !   ***************************************************************************
 
     TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
-    CHARACTER(LEN=max_name_length), OPTIONAL,&
+    CHARACTER(LEN=default_string_length), OPTIONAL,&
       INTENT(OUT)                                      :: name
-    REAL(KIND = dp), OPTIONAL, INTENT(OUT)                    :: kind_radius
+    REAL(KIND = dp), OPTIONAL, INTENT(OUT)             :: kind_radius
     INTEGER, OPTIONAL, INTENT(OUT)                     :: maxco,maxl,maxpgf,&
                                                           maxsgf_set,maxshell,&
                                                           ncgf,nco_sum,npgf_sum,&
                                                           nset,nsgf,nshell_sum
     CHARACTER(LEN=12), DIMENSION(:), OPTIONAL, POINTER :: cgf_symbol
     CHARACTER(LEN=6), DIMENSION(:), OPTIONAL, POINTER  :: sgf_symbol
-    REAL(KIND = dp), DIMENSION(:), OPTIONAL, POINTER          :: norm_cgf,&
+    REAL(KIND = dp), DIMENSION(:), OPTIONAL, POINTER   :: norm_cgf,&
                                                           set_radius
     INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: lmax,lmin,lx,ly,&
                                                           lz,m,ncgf_set,npgf,&
                                                           nsgf_set,nshell
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, POINTER        :: cphi,pgf_radius,&
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, POINTER :: cphi,pgf_radius,&
                                                           sphi,zet
     INTEGER, DIMENSION(:,:), OPTIONAL, POINTER         :: first_cgf,&
                                                           first_sgf,l,&
                                                           last_cgf,&
                                                           last_sgf,n
-    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, POINTER      :: gcc
+    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL,&
+      POINTER                                          :: gcc
     INTEGER, OPTIONAL, INTENT(IN)                      :: maxder
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE get_gto_basis_set (MODULE basis_set_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_gto_basis_set"
 
 !   *** Local variables ***
 
@@ -380,7 +406,8 @@ CONTAINS
       IF (PRESENT(npgf_sum)) npgf_sum = SUM(gto_basis_set%npgf)
       IF (PRESENT(nshell_sum)) nshell_sum = SUM(gto_basis_set%nshell)
     ELSE
-      CALL stop_program(routine,"The pointer gto_basis_set is not associated")
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The pointer gto_basis_set is not associated")
     END IF
 
   END SUBROUTINE get_gto_basis_set
@@ -391,7 +418,7 @@ CONTAINS
 
 !   Purpose: Initialise a Gaussian-type orbital (GTO) basis set data set.
 
-!   History: - Creation (06.12.2000, Matthias Krack)
+!   History: - Creation (06.12.2000,MK)
 
 !   ***************************************************************************
 
@@ -420,7 +447,7 @@ CONTAINS
 !            Cartesian Gaussian-type functions to contracted Cartesian
 !            (cphi) and spherical (sphi) Gaussian-type functions.
 
-!   History: - Creation (20.09.2000, Matthias Krack)
+!   History: - Creation (20.09.2000,MK)
 
 !   ***************************************************************************
 
@@ -478,7 +505,7 @@ CONTAINS
 !   Purpose: Initialise the normalization factors of the contracted Cartesian
 !            Gaussian functions.
 
-!   History: - Creation (07.12.2000, Matthias Krack)
+!   History: - Creation (07.12.2000,MK)
 
 !   ***************************************************************************
 
@@ -486,14 +513,13 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE init_norm_cgf_aux (MODULE basis_set_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_norm_cgf_aux"
 
 !   *** Local variables ***
 
     REAL(KIND = dp) :: fnorm,gcca,gccb
-    INTEGER  :: ico,icgf,ipgf,iset,ishell,istat,jco,jpgf,lmax,lmin,lx,ly,lz,n,&
-                npgfa
+    INTEGER         :: ico,icgf,ipgf,iset,ishell,istat,jco,jpgf,lmax,lmin,&
+                       lx,ly,lz,n,npgfa
 
     REAL(KIND = dp), DIMENSION(:), POINTER :: rpgfa,zeta
 
@@ -508,7 +534,8 @@ CONTAINS
     END DO
 
     ALLOCATE (gaa(n,n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gaa",n*n*dp_size)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gaa",n*n*dp_size)
 
     DO iset=1,gto_basis_set%nset
       lmax = gto_basis_set%lmax(iset)
@@ -544,7 +571,8 @@ CONTAINS
     END DO
 
     DEALLOCATE (gaa,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gaa")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "gaa")
 
   END SUBROUTINE init_norm_cgf_aux
 
@@ -555,15 +583,18 @@ CONTAINS
 !   Purpose: Initialise the normalization factors of the auxiliary Cartesian
 !            Gaussian functions (kim-gordon polarization basis) Norm=1.
 
-!   History: - Creation (07.12.2000, Matthias Krack)
+!   History: - Creation (07.12.2000,GT)
 
 !   ***************************************************************************
+
     TYPE(gto_basis_set_type), POINTER :: gto_basis_set
 
 !   *** Local variables ***
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE init_norm_cgf_aux_2 (MODULE basis_set_types)"
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_norm_cgf_aux_2"
+
     INTEGER  :: ipgf,iset,ishell,l,icgf
+
 !   ---------------------------------------------------------------------------
 
     DO iset=1,gto_basis_set%nset
@@ -584,7 +615,7 @@ CONTAINS
 !   Purpose: Initialise the normalization factors of the contracted Cartesian
 !            Gaussian functions.
 
-!   History: - Creation (14.04.2000, Matthias Krack)
+!   History: - Creation (14.04.2000,MK)
 
 !   ***************************************************************************
 
@@ -593,7 +624,7 @@ CONTAINS
 !   *** Local variables ***
 
     REAL(KIND = dp) :: expzet,fnorm,gcca,gccb,prefac,zeta,zetb
-    INTEGER  :: icgf,ipgf,iset,ishell,jpgf,l,lx,ly,lz
+    INTEGER         :: icgf,ipgf,iset,ishell,jpgf,l,lx,ly,lz
 
 !   ---------------------------------------------------------------------------
 
@@ -637,19 +668,21 @@ CONTAINS
   SUBROUTINE init_norm_cgf_orb_den(gto_basis_set,globenv)
 
 !   Purpose: Initialise the normalization factors of the contracted Cartesian
-!            Gaussian functions used for frozen density representation 
-!   History: - Creation (21.09.2002, GT )
+!            Gaussian functions used for frozen density representation
+
+!   History: - Creation (21.09.2002,GT)
 
 !   ***************************************************************************
 
-    TYPE(gto_basis_set_type), POINTER :: gto_basis_set
+    TYPE(gto_basis_set_type), POINTER         :: gto_basis_set
     TYPE(global_environment_type), INTENT(IN) :: globenv
 
 !   *** Local variables ***
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE init_norm_cgf_orb_den (MODULE basis_set_types)"
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_norm_cgf_orb_den"
+
     REAL(KIND = dp) :: expzet,gcca,prefac,zeta
-    INTEGER  :: ipgf,iset,ishell,l,icgf
+    INTEGER         :: ipgf,iset,ishell,l,icgf
 
 !   ---------------------------------------------------------------------------
 
@@ -657,7 +690,8 @@ CONTAINS
       DO ishell=1,gto_basis_set%nshell(iset)
         IF (globenv%program_name =='KG') THEN
           l = gto_basis_set%l(ishell,iset)
-          IF (l>0) CALL stop_program(routine,"l>0 not allowed for KG model")
+          IF (l > 0) CALL stop_program(routine_name,module_name,__LINE__,&
+                                       "l > 0 not allowed for KG model")
           expzet = 0.5_dp*REAL(2*l + 3,dp)
           prefac = (1.0_dp/pi)**1.5_dp
           DO ipgf=1,gto_basis_set%npgf(iset)
@@ -681,7 +715,7 @@ CONTAINS
 
 !   Purpose: Initialise a Gaussian-type orbital (GTO) basis set data set.
 
-!   History: - Creation (26.10.2000, Matthias Krack)
+!   History: - Creation (26.10.2000,MK)
 
 !   ***************************************************************************
 
@@ -745,7 +779,7 @@ CONTAINS
 !            normalization factor is included in the Gaussian contraction
 !            coefficients.
 
-!   History: - Creation (20.08.1999, Matthias Krack)
+!   History: - Creation (20.08.1999,MK)
 
 !   ***************************************************************************
 
@@ -754,7 +788,7 @@ CONTAINS
 !   *** Local variables ***
 
     REAL(KIND = dp) :: expzet,gcca,prefac,zeta
-    INTEGER  :: ipgf,iset,ishell,l
+    INTEGER         :: ipgf,iset,ishell,l
 
 !   ---------------------------------------------------------------------------
 
@@ -781,35 +815,42 @@ CONTAINS
 !   Purpose: Read a Gaussian-type orbital (GTO) basis set from the database
 !            file.
 
-!   History: - Creation (13.04.2000, Matthias Krack)
+!   History: - Creation (13.04.2000,MK)
 
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(gto_basis_set_type), POINTER         :: gto_basis_set
-    CHARACTER(LEN=*), INTENT(IN)              :: basis_set_name,element_symbol
+    CHARACTER(LEN=*), INTENT(IN)              :: basis_set_name,&
+                                                 element_symbol
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE read_gto_basis_set (MODULE basis_set_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_gto_basis_set"
 
 !   *** Local variables ***
 
-    CHARACTER(LEN=LEN(basis_set_name)) :: bsname
-    CHARACTER(LEN=240)                 :: line
-    CHARACTER(LEN=LEN(element_symbol)) :: symbol
+    CHARACTER(LEN=LEN(basis_set_name))   :: bsname
+    CHARACTER(LEN=LEN(basis_set_name)+2) :: bsname2
+    CHARACTER(LEN=240)                   :: line
+    CHARACTER(LEN=242)                   :: line2
+    CHARACTER(LEN=LEN(element_symbol))   :: symbol
+    CHARACTER(LEN=LEN(element_symbol)+2) :: symbol2
 
     INTEGER :: i,ico,ipgf,iset,ishell,istat,lshell,m,maxco,maxl,&
-               maxpgf,maxshell,ncgf,ncgf_set,nmin,nset,nsgf
+               maxpgf,maxshell,ncgf,ncgf_set,nmin,nset,nsgf,strlen1,strlen2
     LOGICAL :: found
 
-    INTEGER, DIMENSION(:), POINTER      :: lmax,lmin,npgf,nshell
+    INTEGER, DIMENSION(:), POINTER             :: lmax,lmin,npgf,nshell
     REAL(KIND = dp), DIMENSION(:,:), POINTER   :: zet
-    INTEGER, DIMENSION(:,:), POINTER    :: l,n
+    INTEGER, DIMENSION(:,:), POINTER           :: l,n
     REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: gcc
 
 !   ---------------------------------------------------------------------------
+
+    line2 = ""
+    symbol2 = ""
+    bsname2 = ""
 
     gto_basis_set%name = basis_set_name
 
@@ -833,8 +874,14 @@ CONTAINS
 
 !       *** Check both the element symbol and the basis set name ***
 
-        IF ((INDEX(" "//line//" "," "//TRIM(symbol)//" ") > 0).AND.&
-            (INDEX(" "//line//" "," "//TRIM(bsname)//" ") > 0)) THEN
+        line2 = " "//line//" "
+        symbol2 = " "//TRIM(symbol)//" "
+        bsname2 = " "//TRIM(bsname)//" "
+        strlen1 = LEN_TRIM(symbol2) + 1
+        strlen2 = LEN_TRIM(bsname2) + 1
+
+        IF ((INDEX(line2,symbol2(:strlen1)) > 0).AND.&
+            (INDEX(line2,bsname2(:strlen2)) > 0)) THEN
 
           NULLIFY (gcc,l,lmax,lmin,n,npgf,nshell,zet)
 
@@ -968,11 +1015,13 @@ CONTAINS
           CALL reallocate(gto_basis_set%norm_cgf,1,ncgf)
           ALLOCATE (gto_basis_set%cgf_symbol(ncgf),STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"gto_basis_set%cgf_symbol",12*ncgf)
+            CALL stop_memory(routine_name,module_name,__LINE__,&
+                             "gto_basis_set%cgf_symbol",12*ncgf)
           END IF
           ALLOCATE (gto_basis_set%sgf_symbol(nsgf),STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"gto_basis_set%sgf_symbol",6*nsgf)
+            CALL stop_memory(routine_name,module_name,__LINE__,&
+                             "gto_basis_set%sgf_symbol",6*nsgf)
           END IF
 
           ncgf = 0
@@ -1002,7 +1051,8 @@ CONTAINS
 
           DEALLOCATE (gcc,l,lmax,lmin,n,npgf,nshell,zet,STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"gcc,l,lmax,lmin,n,npgf,nshell,zet")
+            CALL stop_memory(routine_name,module_name,__LINE__,&
+                             "gcc,l,lmax,lmin,n,npgf,nshell,zet")
           END IF
 
           EXIT search_loop
@@ -1013,7 +1063,7 @@ CONTAINS
 
 !       *** Stop program, if the end of file is reached ***
 
-        CALL stop_program(routine,&
+        CALL stop_program(routine_name,module_name,__LINE__,&
                           "The requested basis set <"//TRIM(bsname)//&
                           "> for element <"//TRIM(symbol)//"> was not "//&
                           "found in the basis set file <"//&
@@ -1038,13 +1088,14 @@ CONTAINS
 !   Purpose: Set the components of Gaussian-type orbital (GTO) basis set data
 !            set.
 
-!   History: - Creation (10.01.2002, Matthias Krack)
+!   History: - Creation (10.01.2002,MK)
 
 !   ***************************************************************************
 
     TYPE(gto_basis_set_type), POINTER                    :: gto_basis_set
-    CHARACTER(LEN=max_name_length), OPTIONAL, INTENT(IN) :: name
-    REAL(KIND = dp), OPTIONAL, INTENT(IN)                       :: kind_radius
+    CHARACTER(LEN=default_string_length), OPTIONAL,&
+      INTENT(IN)                                         :: name
+    REAL(KIND = dp), OPTIONAL, INTENT(IN)                :: kind_radius
     INTEGER, OPTIONAL, INTENT(IN)                        :: ncgf,nset,nsgf
     CHARACTER(LEN=12), DIMENSION(:), OPTIONAL, POINTER   :: cgf_symbol
     CHARACTER(LEN=6), DIMENSION(:), OPTIONAL, POINTER    :: sgf_symbol
@@ -1054,18 +1105,17 @@ CONTAINS
                                                             lz,m,ncgf_set,&
                                                             npgf,nsgf_set,&
                                                             nshell
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, POINTER          :: cphi,pgf_radius,&
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, POINTER   :: cphi,pgf_radius,&
                                                             sphi,zet
     INTEGER, DIMENSION(:,:), OPTIONAL, POINTER           :: first_cgf,&
                                                             first_sgf,l,&
                                                             last_cgf,&
                                                             last_sgf,n
-    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, POINTER        :: gcc
+    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, POINTER :: gcc
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE set_gto_basis_set (MODULE basis_set_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_gto_basis_set"
 
 !   ---------------------------------------------------------------------------
 
@@ -1101,7 +1151,8 @@ CONTAINS
       IF (PRESENT(n)) gto_basis_set%n(:,:) = n(:,:)
       IF (PRESENT(gcc)) gto_basis_set%gcc(:,:,:) = gcc(:,:,:)
     ELSE
-      CALL stop_program(routine,"The pointer gto_basis_set is not associated")
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The pointer gto_basis_set is not associated")
     END IF
 
   END SUBROUTINE set_gto_basis_set
@@ -1113,7 +1164,7 @@ CONTAINS
 !   Purpose: Write an auxiliary Gaussian-type orbital (GTO) basis set data set
 !            to the output unit.
 
-!   History: - Creation (09.01.2002, Matthias Krack)
+!   History: - Creation (09.01.2002,MK)
 
 !   ***************************************************************************
 
@@ -1182,7 +1233,7 @@ CONTAINS
 !   Purpose: Write a Gaussian-type orbital (GTO) basis set data set to the
 !            output unit.
 
-!   History: - Creation (09.01.2002, Matthias Krack)
+!   History: - Creation (09.01.2002,MK)
 
 !   ***************************************************************************
 
@@ -1230,7 +1281,7 @@ CONTAINS
 !   Purpose: Write a Gaussian-type orbital (GTO) basis set data set to the
 !            output unit.
 
-!   History: - Creation (09.01.2002, Matthias Krack)
+!   History: - Creation (09.01.2002,MK)
 
 !   ***************************************************************************
 
