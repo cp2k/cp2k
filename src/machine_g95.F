@@ -46,7 +46,6 @@ END SUBROUTINE m_abort
 FUNCTION m_iargc() RESULT (ic)
   INTEGER :: ic
   INTEGER, EXTERNAL :: iargc
-
   ic = iargc()
 END FUNCTION m_iargc
 
@@ -71,11 +70,12 @@ END FUNCTION m_walltime
 !!  time and date
 SUBROUTINE m_datum(cal_date)
   CHARACTER (len=*), INTENT (OUT) :: cal_date
-  INTEGER :: l, le
-  CALL fdate(cal_date)
-  l = len(cal_date)
-  le = len_trim(cal_date)
-  cal_date(le:l) = ' '
+  character(len= 8) :: date
+  character(len=10) :: time
+  character(len= 5) :: zone
+  integer, dimension(8) ::values
+  call date_and_time(date=date, time=time, zone=zone, values=values)
+  cal_date=date//" "//time
 END SUBROUTINE m_datum
 
 ! *****************************************************************************
@@ -92,7 +92,7 @@ END SUBROUTINE m_datum
 
 !   ---------------------------------------------------------------------------
 
-    CALL flush(lunit)
+    ! CALL flush(lunit)
 
   END SUBROUTINE m_flush
 
@@ -128,30 +128,34 @@ END SUBROUTINE m_datum
 SUBROUTINE m_hostnm(hname)
   CHARACTER (len=*), INTENT (OUT) :: hname
   INTEGER :: hostnm, ierror
-  ierror = hostnm(hname)
+  hname = " g95 no hostnm " ! hostnm(hname)
 END SUBROUTINE m_hostnm
 !******************************************************************************
 SUBROUTINE m_getcwd(curdir)
   CHARACTER (len=*), INTENT (OUT) :: curdir
   INTEGER :: getcwd, ierror
-  ierror = getcwd(curdir)
+  ! ierror = getcwd(curdir)
+  curdir = " g95 no getcwd "
 END SUBROUTINE m_getcwd
 !******************************************************************************
 SUBROUTINE m_getlog(user)
   CHARACTER (len=*), INTENT (OUT) :: user
-  CALL getlog(user)
+  ! CALL getlog(user)
+  user = " g95 no getlog "
 END SUBROUTINE m_getlog
 !******************************************************************************
 SUBROUTINE m_getuid(uid)
   INTEGER, INTENT (OUT) :: uid
   INTEGER :: getuid
-  uid = getuid()
+  ! uid = getuid()
+  uid = 777
 END SUBROUTINE m_getuid
 !******************************************************************************
 SUBROUTINE m_getpid(pid)
   INTEGER, INTENT (OUT) :: pid
   INTEGER :: getpid
-  pid = getpid()
+  ! pid = getpid()
+  pid = 777
 END SUBROUTINE m_getpid
 !******************************************************************************
 SUBROUTINE m_getarg(i,arg)
