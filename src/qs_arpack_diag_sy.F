@@ -29,9 +29,16 @@ module qs_arpack_diag_sy
                                  copy_vector_to_blacs, &
                                  copy_blacs_to_vector,blacs_daxpy
 
-  use qs_arpack_full,      only: arpack_full_m_op, full_m_op_type
+  ! the operators
+  use qs_arpack_full,      only: arpack_op_symv, op_symv_type
 
   implicit none
+
+!!!  ! the collective interface to the operators
+!!!  ! note that the signature of the operators must be: (op_type, vin, vout)
+!!!  interface arpack_op
+!!!     module procedure arpack_op_symv
+!!!  end interface
 
   character(len=*), parameter :: moduleN = "qs_arpack_diag_sy"
 
@@ -62,16 +69,16 @@ contains
 !!     The following are optional but at least one of them
 !!     must be provided. The represent how the object that should be 
 !!     diagonalized acts on a vector.
-!!     - full_m_op   : represents a simple matrix vector multiply
+!!     - op_symv   : represents a simple matrix vector multiply
 !!
 !!   NOTES
-!!     - Uses lanczos with ncv eigenvectors (buffers are allocated
-!!     in the routine).
+!!     - Uses lanczos with ncv krylov vectors (buffers are allocated
+!!       in the routine).
 !!     - Setting use_vectors to .true. uses the eigenvectors in vmatrix
-!!      as an initial guess
+!!       as an initial guess
 !!     - amatrix has to be upper symmetric and bmatrix should
-!!     not be present, otherwise arpack_op_blacs 
-!!     has to be modified.
+!!       not be present, otherwise arpack_op_blacs 
+!!       has to be modified.
 !!     - bmatrix is optional (and not yet implemented to solve for Ax=BxE)
 !!
 !!   MODIFICATION HISTORY
@@ -79,8 +86,8 @@ contains
 !!
 !!****
 subroutine arpack_diag_sy(vmatrix, &
-     eval, nev, ncv, use_vectors,  globenv, &
-     full_m_op)
+                          eval, nev, ncv, use_vectors, globenv, &
+                          op_symv)
 
   implicit none
 
@@ -91,17 +98,17 @@ subroutine arpack_diag_sy(vmatrix, &
   integer, intent(IN)                          :: ncv 
   logical, intent(IN)                          :: use_vectors
   type(global_environment_type), intent(IN)    :: globenv
-  type(full_m_op_type), intent(in), optional   :: full_m_op
+  type(op_symv_type), intent(in), optional   :: op_symv
 
   ! locals
-  logical                           :: op_defined
+  integer                           :: op_present
   integer                           :: context,handle,istat
   real(wp), dimension(:), pointer   :: vin,vout
   character(len=*), parameter       :: routineN = "arpack_diag_sy", &
                                        routineP = moduleN//"/"//routineN
                                     
   ! locals arpack                   
-  integer                           :: ploc,nloc,n,ncolsv
+  integer                           :: ploc, nloc, n, vmatrix_cols
   character                         :: bmat*1,which*2
   real(wp), dimension(:), pointer   :: workl,workd,d,resid,ax
   real(wp), dimension(:,:), pointer :: cv
@@ -117,26 +124,22 @@ subroutine arpack_diag_sy(vmatrix, &
 
   ! code to check if at least one of the optional operation
   ! types has been specified
-  op_defined = .false.
-  if (present(full_m_op)) then
-     op_defined = .true.
+  op_present = 0
+  if (present(op_symv)) then
+     n = op_symv%a_size
+     op_present = op_present + 1
   end if
-  if (.not.op_defined) &
-       call stop_program(routineP, "An operation must be specified")
+  if (op_present /= 1) then
+     call stop_program(routineP, "An operation must be specified", globenv)
+  end if
 
   context = globenv%blacs_env%group
   call arpack_confirm(globenv)
 
-  ! get size of problem
-  if (present(full_m_op)) then
-     n = full_m_op%a_size
+  call cp_fm_get_info(vmatrix, ncol_global=vmatrix_cols)
+  if (vmatrix_cols < nev) then
+     call stop_program(routineP, "vmatrix should have at least nev columns", globenv)
   end if
-
-  ! this should go into qs_arpack_full
-  call cp_fm_get_info(vmatrix, ncol_global=ncolsv)
-  if (ncolsv.lt.2) then
-      call stop_program(routineP,'too few cols in (buffer) vmatrix',globenv)
-  endif
 
   if (nev .lt. 1) then
      call stop_program(routineP,"nev too small",globenv)
@@ -206,9 +209,10 @@ subroutine arpack_diag_sy(vmatrix, &
   
   ! arpack settings
   !
-  if (present(full_m_op)) then
-     if (full_m_op%general) then
+  if (present(op_symv)) then
+     if (op_symv%general) then
         bmat = 'G'   ! solve general problem Ax = BxE
+        call stop_program(routineP, "General problem not yet implemented")
      else
         bmat = 'I'   ! solve simple problem Ax = xE
      end if
@@ -255,7 +259,9 @@ subroutine arpack_diag_sy(vmatrix, &
      if (ido .eq. -1 .or. ido .eq. 1) then
        vin =>workd(ipntr(1):)
        vout=>workd(ipntr(2):)
-       call arpack_full_m_op(full_m_op, vin, vout)
+       if (present(op_symv)) then
+          call arpack_op_symv(op_symv, vin, vout)
+       end if
      else
        exit
      endif

@@ -90,6 +90,10 @@ CONTAINS
 
     CALL tddfpt_init(p_env, t_env, qs_env, ks_env, glob_env)
 
+    ! do until convergence
+    call update_p_env(p_env, t_env)
+    ! end do
+
     CALL tddfpt_testing(p_env, t_env, glob_env)
 
   END SUBROUTINE tddfpt_calculation

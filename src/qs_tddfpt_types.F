@@ -35,7 +35,7 @@ MODULE qs_tddfpt_types
      TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: x ! right eigenvect
      TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: y ! left eigenvect
   END TYPE tddfpt_env_type
-  
+    
   CHARACTER(len=*), PARAMETER :: moduleN = "qs_tddfpt_types"
 
   PRIVATE
@@ -57,7 +57,7 @@ CONTAINS
 !!     -
 !!
 !!   MODIFICATION HISTORY
-!!     , TCH, created
+!!     08-2002, TCH, created
 !!
 !!   SEE ALSO
 !!     
@@ -105,7 +105,5 @@ CONTAINS
   END SUBROUTINE tddfpt_env_init
 
 ! *****************************************************************************
-
-
 
 END MODULE qs_tddfpt_types

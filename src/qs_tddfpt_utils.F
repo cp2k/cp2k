@@ -47,8 +47,9 @@ MODULE qs_tddfpt_utils
 
   PRIVATE
   PUBLIC :: tddfpt_testing, &
-       tddfpt_init, &
-       tddfpt_write_banner
+            tddfpt_init, &
+            tddfpt_write_banner, &
+            update_p_env
 
 CONTAINS
 
@@ -74,9 +75,6 @@ CONTAINS
     ! do intializations
     CALL kpp1_init(kpp1_env, qs_env, ks_env, glob_env)
 
-!!    IF (glob_env%ionode) WRITE(glob_env%scr, *) &
-!!         "returned from kpp1_init"
-
     n_spins = SIZE(qs_env%k)
     ALLOCATE(psi0d(n_spins))
 
@@ -84,17 +82,11 @@ CONTAINS
        CALL get_mo_set(qs_env%C(spin)%mo_set, eigenvectors=eigenvectors)
        psi0d(spin)%matrix => eigenvectors
     END DO
-!!    IF (glob_env%ionode) WRITE(glob_env%scr, *) &
-!!         "finished getting eigenvectors"
 
     CALL p_env_init(p_env, qs_env, ks_env, kpp1_env, glob_env, &
                     psi0d, .TRUE.)
-!!    IF (glob_env%ionode) WRITE(glob_env%scr, *) &
-!!         "returned from p_env_init"
 
     CALL tddfpt_env_init(t_env, p_env, glob_env)
-!!    IF (glob_env%ionode) WRITE(glob_env%scr, *) &
-!!         "returned from tddfpt_env_init"
 
     IF (glob_env%ionode) WRITE(glob_env%scr, *) &
          "finished initialization"
@@ -154,6 +146,17 @@ CONTAINS
     CALL p_op_l1(p_env, t_env%x, tmp, glob_env, error=error)
     
   END SUBROUTINE tddfpt_testing
+
+! *****************************************************************************
+
+  subroutine update_p_env(p_env, t_env)
+    implicit none
+    ! arguments
+    type(qs_p_env_type), intent(inout) :: p_env
+    type(tddfpt_env_type), intent(in)  :: t_env
+    ! locals
+    ! code
+  end subroutine update_p_env
 
 ! *****************************************************************************
 

@@ -84,7 +84,7 @@ MODULE qs_scf
                                       mp_range,mp_allgather
   USE particle_types,           ONLY: particle_type
   USE qs_arpack,                ONLY: arpack_diag_sy
-  USE qs_arpack_full,           ONLY: full_m_op_type, setup_full_m_op
+  USE qs_arpack_full,           ONLY: op_symv_type, setup_op_symv
   USE qs_blacs,                 ONLY: cp_fm_create2,&
                                       blacs_add_to_element,&
                                       cp_fm_add, &
@@ -1012,10 +1012,10 @@ CONTAINS
     REAL(WP), INTENT(IN)                      :: level_shift, work_syevx
 
 !   *** Local variables ***
-    INTEGER :: handle,imo,nao,nmo,homo,ncv,handle2, a_size
+    INTEGER :: handle,imo,nao,nmo,homo,ncv,handle2
     TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
-    REAL(wp), DIMENSION(:), POINTER  :: mo_eigenvalues
-    TYPE(full_m_op_type)             :: full_m_op
+    REAL(wp), DIMENSION(:), POINTER    :: mo_eigenvalues
+    TYPE(op_symv_type)                 :: arpack_op
 
 !   ---------------------------------------------------------------------------
 
@@ -1048,16 +1048,9 @@ CONTAINS
        ncv = nmo + 64
        CALL blacs_cholesky_reduce(ks,ortho)
        
-       ! should be put into a setup routine
-!!       full_m_op%a => ks
-!!       call cp_fm_get_info(ks, nrow_global=a_size)
-!!       full_m_op%a_size = a_size
-!!       full_m_op%general = .false.
-!!       full_m_op%buffer => mo_eigenvectors or was it work?
-
-       CALL setup_full_m_op(full_m_op, ks, work, .FALSE.)
+       CALL setup_op_symv(arpack_op, ks, work, .FALSE.)
        CALL arpack_diag_sy(work,mo_eigenvalues,nmo,ncv,.FALSE.,globenv, &
-                           full_m_op=full_m_op)
+                           op_symv=arpack_op)
 
        CALL blacs_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
 
