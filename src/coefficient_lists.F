@@ -75,7 +75,7 @@ SUBROUTINE coef_list_grid ( ao, clist, part, ncoef, grid_type_tag, &
 
   ncoef = 0
   DO ic = 1, nc
-     IF ( ao%grid_id ( ic ) == grid_type_tag ) THEN
+     IF ( ao%grid_type_id ( ic ) == grid_type_tag ) THEN
 
         IF ( .NOT. ASSOCIATED ( clist_loc ) ) THEN
            ALLOCATE ( clist, STAT = isos )
