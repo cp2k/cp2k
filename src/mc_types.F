@@ -452,9 +452,10 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
   mc_par % nswapmoves = 1
   mc_par % lclassical_run = .FALSE.
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! for two different classical cutoffs
 !  mc_par % cutoff = 7.8e0_dp / angstrom
 !  mc_par % inner_cutoff = 4.0e0_dp / angstrom
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! for BLYP with IPBV biasing
   mc_par % cutoff = 6.211e0_dp / angstrom
   mc_par % inner_cutoff = 6.211e0_dp / angstrom
 

@@ -144,7 +144,7 @@ CONTAINS
     REAL(KIND=dp)                            :: classical_energy_new, &
                                                 classical_energy_old, &
                                                 new_energy, rand, w,&
-                                                BETA,cutoff
+                                                BETA,cutoff,inner_cutoff
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
@@ -164,7 +164,7 @@ CONTAINS
       CALL get_mc_par(mc_par,ionode=ionode,lclassical=lclassical,&
          nchain=nchain,BETA=BETA,diff=diff,source=source,group=group,&
          nunits_tot=nunits_tot,lclassical_run=lclassical_run,&
-         cutoff=cutoff)
+         inner_cutoff=inner_cutoff,cutoff=cutoff)
 
 ! in serial
       IF (ionode) THEN
@@ -181,6 +181,9 @@ CONTAINS
 
          CALL force_env_get(force_env,potential_energy=new_energy,&
          error=error)
+      ELSE
+         CALL mc_classical_energy(force_env,&
+            new_energy,nchain,1,nchain,cutoff,ldum)
       ENDIF
 
 ! now grab the coords
@@ -192,35 +195,33 @@ CONTAINS
       IF (ionode) THEN
          
 ! write them out in case something bad happens
-         WRITE(diff,*) nnstep
-         WRITE(diff,*) nunits_tot
-         DO iunit=1,nunits_tot,3
-            WRITE(diff,'(A,3X,3(F18.12,3X))') '  O  ',&
-               particles%els(iunit)%r(1:3)*angstrom
-            WRITE(diff,'(A,3X,3(F18.12,3X))') '  H  ',&
-               particles%els(iunit+1)%r(1:3)*angstrom
-            WRITE(diff,'(A,3X,3(F18.12,3X))') '  H  ',&
-               particles%els(iunit+2)%r(1:3)*angstrom
-         ENDDO
+         IF(.NOT. lclassical_run) THEN
+            WRITE(diff,*) nnstep
+            WRITE(diff,*) nunits_tot
+            DO iunit=1,nunits_tot,3
+               WRITE(diff,'(A,3X,3(F18.12,3X))') '  O  ',&
+                  particles%els(iunit)%r(1:3)*angstrom
+               WRITE(diff,'(A,3X,3(F18.12,3X))') '  H  ',&
+                  particles%els(iunit+1)%r(1:3)*angstrom
+               WRITE(diff,'(A,3X,3(F18.12,3X))') '  H  ',&
+                  particles%els(iunit+2)%r(1:3)*angstrom
+            ENDDO
+         ENDIF
 
          IF (lclassical) THEN
             CALL mc_classical_energy(force_env,&
-               classical_energy_new,nchain,1,nchain,cutoff,ldum)
+               classical_energy_new,nchain,1,nchain,inner_cutoff,ldum)
             IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
             'Quickstep move found an overlap in the old config') 
-            IF (lclassical_run) new_energy=classical_energy_new
 
             classical_energy_old=moves%classical_energy
+            
             w=exp(-BETA*((new_energy-classical_energy_new)&
                    -(old_energy-classical_energy_old)))
 
             WRITE(diff,*) nnstep,new_energy-old_energy,&
                  classical_energy_new-classical_energy_old
                  
-!!!!!!!!!!!!!!!!!!!!!!!
-!            w=1.0E0_dp
-!            w=0.0E0_dp
-!!!!!!!!!!!!!!!!!!!!!!!
          ELSE
             w=exp(-BETA*(new_energy-old_energy))
          ENDIF
@@ -365,7 +366,7 @@ CONTAINS
 
 ! get a bunch of stuff from mc_par
       CALL get_mc_par(mc_par,lclassical=lclassical,nchain=nchain,&
-         BETA=BETA,nunits_tot=nunits_tot,cutoff=cutoff)
+         BETA=BETA,nunits_tot=nunits_tot,inner_cutoff=cutoff)
 
 ! nullify some pointers
       NULLIFY(particles,subsys)
@@ -559,7 +560,7 @@ CONTAINS
     REAL(KIND=dp)                            :: classical_energy_new, &
                                                 classical_energy_old, &
                                                 dis_mol, rand, w, BETA,&
-                                                rmtrans,cutoff
+                                                rmtrans,cutoff,energy_beta
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     REAL(KIND=dp), DIMENSION(:, :),&
@@ -575,7 +576,7 @@ CONTAINS
 
 ! get a bunch of stuff from mc_par
       CALL get_mc_par(mc_par,lclassical=lclassical,nchain=nchain,&
-         BETA=BETA,nunits_tot=nunits_tot,rmtrans=rmtrans,cutoff=cutoff)
+         BETA=BETA,nunits_tot=nunits_tot,rmtrans=rmtrans,inner_cutoff=cutoff)
 
 ! nullify some pointers
       NULLIFY(particles,subsys)
@@ -640,10 +641,20 @@ CONTAINS
             nchain,imol,imol,cutoff,loverlap)
 
 ! accept or reject the move based on the Metropolis rule
-         w=exp(-BETA*(classical_energy_new-&
-                                 classical_energy_old))
-
-         IF(loverlap) w=0.0E0_dp
+!         WRITE(6,*) 'cmnv,xcv ',classical_energy_new,classical_energy_old,BETA
+! did this because the exponential was getting too small, causing problems...
+! don't need to take into account large values of energy_beta because that
+! be caught by the overlap flag in mc_classical_energy
+         IF(loverlap) THEN
+            w=0.0_dp
+         ELSE
+            energy_beta=(classical_energy_new-classical_energy_old)*BETA
+            IF(energy_beta .LT. 0.000001_dp) THEN
+               w=1.0_dp
+            ELSE
+               w=exp(-energy_beta)
+            ENDIF
+         ENDIF
 
          IF ( w .GE. 1.0E0_dp ) THEN
             w=1.0E0_dp
@@ -759,7 +770,7 @@ CONTAINS
 ! get a bunch of stuff from mc_par
       CALL get_mc_par(mc_par,lclassical=lclassical,nchain=nchain,&
          BETA=BETA,nunits_tot=nunits_tot,nunits=nunits,rmrot=rmrot,&
-         cutoff=cutoff)
+         inner_cutoff=cutoff)
 
 ! nullify some pointers
       NULLIFY(particles,subsys)
@@ -845,9 +856,6 @@ CONTAINS
          DO  iunit = mol,mol+2
             ry = particles%els(iunit)%r(2) - nycm
             rz = particles%els(iunit)%r(3) - nzcm
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!            rynew = cosdg * ry + sindg * rz
-!            rznew = cosdg * rz - sindg * ry
             rynew = cosdg * ry - sindg * rz
             rznew = cosdg * rz + sindg * ry
                
@@ -877,9 +885,7 @@ CONTAINS
          DO  iunit = mol,mol+2
             rx = particles%els(iunit)%r(1) - nxcm
             ry = particles%els(iunit)%r(2) - nycm
-!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!            rxnew = cosdg * rx + sindg * ry
-!            rynew = cosdg * ry - sindg * rx
+
             rxnew = cosdg * rx - sindg * ry
             rynew = cosdg * ry + sindg * rx
                
@@ -1013,7 +1019,7 @@ CONTAINS
     REAL(KIND=dp) :: classical_energy_diff, classical_energy_new, &
       classical_energy_original, classical_energy_test, new_cell_length, &
       new_energy, old_cell_length, rand, test_cell_length, vol_dis, w,&
-      BETA,rmvolume,pressure,cutoff
+      BETA,rmvolume,pressure,cutoff,inner_cutoff
     REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass, &
                                                 center_of_mass_new, diff,&
                                                 abc
@@ -1039,7 +1045,8 @@ CONTAINS
          nchain=nchain,BETA=BETA,source=source,group=group,&
          nunits_tot=nunits_tot,nvolmoves=nvolmoves,dat_file=dat_file,&
          rmvolume=rmvolume,nunits=nunits,pressure=pressure,cl=cl,&
-         lclassical_run=lclassical_run,cutoff=cutoff,fft_lib=fft_lib)
+         lclassical_run=lclassical_run,cutoff=cutoff,fft_lib=fft_lib,&
+         inner_cutoff=inner_cutoff)
 
 ! nullify some pointers
       NULLIFY(particles_old,particles_test,cell_old,oldsys,&
@@ -1122,7 +1129,7 @@ CONTAINS
 
 ! call a random number to figure out how far we're moving
             CALL RANDOM_NUMBER(rand)
-!!!!!!!!!!!!
+!!!!!!!!!!!!!!!! for E_V curves
             vol_dis=rmvolume*(rand-0.5E0_dp)*2.0E0_dp
 !            vol_dis=5.0E0_dp/angstrom**3
 
@@ -1168,7 +1175,7 @@ CONTAINS
 
 ! find and store the classical energy
             CALL mc_classical_energy(test_env,classical_energy_new,&
-               nchain,1,nchain,cutoff,loverlap(ivolmove),&
+               nchain,1,nchain,inner_cutoff,loverlap(ivolmove),&
                cell_length=new_cell_length)
 
             IF (nvolmoves .GT. 1) THEN
@@ -1241,10 +1248,6 @@ CONTAINS
          CALL mc_make_dat_file(r(:,:),nunits_tot,&
             test_cell_length*angstrom,dat_file,force_env,TRIM(fft_lib))
 
-!         loverlap=.FALSE.
-!         CALL check_for_overlap(r(:,:),&
-!            nunits_tot,test_cell_length,loverlap)
-
 ! back to parallel
       ENDIF
 
@@ -1282,7 +1285,9 @@ CONTAINS
             potential_energy=new_energy,error=error)
            
       ELSE
-         new_energy=classical_energy_test
+         CALL mc_classical_energy(test_env,new_energy,&
+            nchain,1,nchain,cutoff,ldum,&
+            cell_length=new_cell_length)
       ENDIF
 
       IF (ionode) THEN
@@ -1299,10 +1304,10 @@ CONTAINS
             
          ENDIF
 
-!!!!!!!!!!!
+!!!!!!!!!!!!!!!! for E_V curves
 !         w=1.0E0_dp
 !         w=0.0E0_dp
-!!!!!!!!!!!
+
          IF ( w .GE. 1.0E0_dp ) THEN
             w=1.0E0_dp
             rand=0.0E0_dp

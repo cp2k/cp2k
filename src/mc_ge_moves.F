@@ -148,10 +148,11 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_ge_quickstep_move"
 
-    INTEGER                                  :: handle, i, iparticle,&
+    INTEGER                                  :: handle, iparticle,&
       source,group,iunit
     INTEGER,DIMENSION(1:2)                   :: nchain,nunits_tot,diff
-    REAL(KIND=dp)                            :: rand, w,BETA,cutoff
+    REAL(KIND=dp)                            :: rand, w,BETA,cutoff,&
+      inner_cutoff
     REAL(KIND=dp), DIMENSION(1:2)            :: classical_energy_new, &
                                                 classical_energy_old, &
                                                 new_energy
@@ -170,7 +171,7 @@ CONTAINS
       CALL get_mc_par(mc_par_1,ionode=ionode,source=source,group=group,&
          lclassical=lclassical,nchain=nchain(1),nunits_tot=nunits_tot(1),&
          BETA=BETA,diff=diff(1),lclassical_run=lclassical_run,&
-         cutoff=cutoff)
+         cutoff=cutoff,inner_cutoff=inner_cutoff)
       CALL get_mc_par(mc_par_2,nchain=nchain(2),nunits_tot=nunits_tot(2),&
          diff=diff(2))
 
@@ -205,9 +206,11 @@ CONTAINS
          ELSE
 
             CALL mc_classical_energy(force_env_1,&
-               classical_energy_new(1),nchain(1),1,nchain(1),cutoff,&
+               classical_energy_new(1),nchain(1),1,nchain(1),inner_cutoff,&
                ldum)
-            new_energy(1)=classical_energy_new(1)
+            CALL mc_classical_energy(force_env_1,&
+               new_energy(1),nchain(1),1,nchain(1),cutoff,&
+               ldum)
 
          ENDIF
 
@@ -217,6 +220,9 @@ CONTAINS
             particles=particles_1, error=error)
 
       ELSE
+
+         IF(lclassical) classical_energy_new(1)=moves_1%classical_energy
+
          new_energy(1)=old_energy(1)
          CALL force_env_get(force_env_1,subsys=subsys_1,&
             error=error)
@@ -234,16 +240,22 @@ CONTAINS
                   nchain(2),1,nchain(2),cutoff,ldum)
             ENDIF
          ELSE
+
             CALL mc_classical_energy(force_env_2,&
                classical_energy_new(2),&
-               nchain(2),1,nchain(2),cutoff,ldum)
-            new_energy(2)=classical_energy_new(2)
+               nchain(2),1,nchain(2),inner_cutoff,ldum)
+            CALL mc_classical_energy(force_env_2,&
+               new_energy(2),nchain(2),1,nchain(2),cutoff,ldum)
+
          ENDIF
          CALL force_env_get(force_env_2,subsys=subsys_2,&
             error=error)
          CALL cp_subsys_get(subsys_2(1)%subsys, &
             particles=particles_2, error=error)
       ELSE
+
+         IF(lclassical) classical_energy_new(2)=moves_2%classical_energy
+
          new_energy(2)=old_energy(2)
          CALL force_env_get(force_env_2,subsys=subsys_2,&
             error=error)
@@ -255,35 +267,37 @@ CONTAINS
 
 
 ! write out the coords, just in case
-         IF(nunits_tot(1) == 0) THEN
-            WRITE(diff(1),*) nnstep
-            WRITE(diff(1),*) nunits_tot(1)
-         ELSE
-            WRITE(diff(1),*) nnstep
-            WRITE(diff(1),*) nunits_tot(1)
-            DO iunit=1,nunits_tot(1),3
-               WRITE(diff(1),'(A,3X,3(F18.12,3X))') '  O  ',&
+         IF(.NOT. lclassical_run) THEN
+            IF(nunits_tot(1) == 0) THEN
+               WRITE(diff(1),*) nnstep
+               WRITE(diff(1),*) nunits_tot(1)
+            ELSE
+               WRITE(diff(1),*) nnstep
+               WRITE(diff(1),*) nunits_tot(1)
+               DO iunit=1,nunits_tot(1),3
+                  WRITE(diff(1),'(A,3X,3(F18.12,3X))') '  O  ',&
                   particles_1%els(iunit)%r(1:3)*angstrom
-               WRITE(diff(1),'(A,3X,3(F18.12,3X))') '  H  ',&
+                  WRITE(diff(1),'(A,3X,3(F18.12,3X))') '  H  ',&
                   particles_1%els(iunit+1)%r(1:3)*angstrom
-               WRITE(diff(1),'(A,3X,3(F18.12,3X))') '  H  ',&
+                  WRITE(diff(1),'(A,3X,3(F18.12,3X))') '  H  ',&
                   particles_1%els(iunit+2)%r(1:3)*angstrom
-            ENDDO
-         ENDIF
-         IF(nunits_tot(2) == 0) THEN
-            WRITE(diff(2),*) nnstep
-            WRITE(diff(2),*) nunits_tot(2)
-         ELSE
-            WRITE(diff(2),*) nnstep
-            WRITE(diff(2),*) nunits_tot(2)
-            DO iunit=1,nunits_tot(2),3
-               WRITE(diff(2),'(A,3X,3(F18.12,3X))') '  O  ',&
+               ENDDO
+            ENDIF
+            IF(nunits_tot(2) == 0) THEN
+               WRITE(diff(2),*) nnstep
+               WRITE(diff(2),*) nunits_tot(2)
+            ELSE
+               WRITE(diff(2),*) nnstep
+               WRITE(diff(2),*) nunits_tot(2)
+               DO iunit=1,nunits_tot(2),3
+                  WRITE(diff(2),'(A,3X,3(F18.12,3X))') '  O  ',&
                   particles_2%els(iunit)%r(1:3)*angstrom
-               WRITE(diff(2),'(A,3X,3(F18.12,3X))') '  H  ',&
+                  WRITE(diff(2),'(A,3X,3(F18.12,3X))') '  H  ',&
                   particles_2%els(iunit+1)%r(1:3)*angstrom
-               WRITE(diff(2),'(A,3X,3(F18.12,3X))') '  H  ',&
+                  WRITE(diff(2),'(A,3X,3(F18.12,3X))') '  H  ',&
                   particles_2%els(iunit+2)%r(1:3)*angstrom
-            ENDDO
+               ENDDO
+            ENDIF
          ENDIF
 
 ! accept or reject the move based on Metropolis or the Iftimie rule
@@ -307,11 +321,6 @@ CONTAINS
             w=exp(-BETA*(new_energy(1)-old_energy(1)+&
                new_energy(2)-old_energy(2)))
          ENDIF
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- !        w = 1.0E0_dp
-!         w=0.0E0_dp
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
          IF ( w .GE. 1.0E0_dp ) THEN
             w=1.0E0_dp
@@ -559,9 +568,7 @@ CONTAINS
       IF(ionode) THEN
 !     choose a direction to swap
          CALL RANDOM_NUMBER(rand)
-!!!!!!!!!!!!!!!!!!!!
-!         rand=0.7E0_dp
-!!!!!!!!!!!!!!!!!!!!
+
          IF ( rand .LE. 0.50E0_dp ) THEN
             remove_box=1
             insert_box=2
@@ -587,25 +594,24 @@ CONTAINS
 ! calculate the old classical energy
             IF(.NOT. lclassical_run) THEN
                CALL mc_classical_energy(force_env(remove_box)%force_env,&
-               classical_energy_old(remove_box),&
-               nchain(remove_box),1,nchain(remove_box),cutoff,ldum)
+                  classical_energy_old(remove_box),&
+                  nchain(remove_box),1,nchain(remove_box),cutoff,ldum)
                IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
               'CBMC swap move found an overlap in the old remove config')   
                CALL mc_classical_energy(force_env(insert_box)%force_env,&
-               classical_energy_old(insert_box),&
-               nchain(insert_box),1,nchain(insert_box),cutoff,ldum)
+                  classical_energy_old(insert_box),&
+                  nchain(insert_box),1,nchain(insert_box),cutoff,ldum)
                IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
               'CBMC swap move found an overlap in the old insert config')   
             ELSE
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! only for CBMC test
                CALL mc_classical_energy(force_env(remove_box)%force_env,&
-               classical_energy_old(remove_box),&
-               nchain(remove_box),1,nchain(remove_box),inner_cutoff,ldum)
+                  classical_energy_old(remove_box),&
+                  nchain(remove_box),1,nchain(remove_box),inner_cutoff,ldum)
                IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
               'CBMC swap move found an overlap in the old remove config')   
                CALL mc_classical_energy(force_env(insert_box)%force_env,&
-               classical_energy_old(insert_box),&
-               nchain(insert_box),1,nchain(insert_box),inner_cutoff,ldum)
+                  classical_energy_old(insert_box),&
+                  nchain(insert_box),1,nchain(insert_box),inner_cutoff,ldum)
                IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
               'CBMC swap move found an overlap in the old insert config')   
             ENDIF
@@ -785,7 +791,7 @@ CONTAINS
       IF(ionode) THEN
          loverlap_ins=.FALSE.
          loverlap_rem=.FALSE.
-!!!!!!!!!!!!!!!!!!!!!!!!
+
          CALL generate_cbmc_swap_config(insert_env,&
             BETA,nswapmoves,loverlap_ins,weight_new,inner_cutoff)
          CALL generate_cbmc_swap_config(force_env(remove_box)%force_env,&
@@ -857,7 +863,7 @@ CONTAINS
          IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
                'CBMC swap move found an overlap in the insert config')
       ELSE
-!!!!!!!!!!!!
+
          CALL mc_classical_energy(insert_env,&
             classical_energy_new(insert_box),&
             nchain(insert_box)+1,1,&
@@ -866,7 +872,7 @@ CONTAINS
             new_energy(insert_box),&
             nchain(insert_box)+1,1,&
             nchain(insert_box)+1,cutoff,ldum)
-!         new_energy(insert_box)=classical_energy_new(insert_box)
+
          IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
                'CBMC swap move found an overlap in the insert config')
       ENDIF
@@ -887,7 +893,7 @@ CONTAINS
             IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
             'CBMC swap move found an overlap in the remove config')
          ELSE
-!!!!!!!!!!!!!!!!!!!!!
+
             CALL mc_classical_energy(remove_env,&
                classical_energy_new(remove_box),&
                nchain(remove_box)-1,1,&
@@ -896,7 +902,7 @@ CONTAINS
                new_energy(remove_box),&
                nchain(remove_box)-1,1,&
                nchain(remove_box)-1,cutoff,ldum)
-!            new_energy(remove_box)=classical_energy_new(remove_box)
+
             IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
             'CBMC swap move found an overlap in the remove config')
          ENDIF
@@ -919,24 +925,12 @@ CONTAINS
             classical_energy_old(insert_box)+&
             classical_energy_new(remove_box)-&
             classical_energy_old(remove_box)
-!!!!!!!!!!!!!!!!!!!!
-         WRITE(6,*) new_energy(insert_box),&
-            old_energy(insert_box),&
-            new_energy(remove_box),&
-            old_energy(remove_box)
-         WRITE(6,*) classical_energy_new(insert_box),&
-            classical_energy_old(insert_box),&
-            classical_energy_new(remove_box),&
-            classical_energy_old(remove_box)
+
          wratio=weight_new/weight_old
-         WRITE(6,*) weight_new,weight_old
+
          w=prefactor*EXP(-BETA*(del_quickstep_energy-&
             del_classical_energy))*wratio
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-         WRITE(6,*) w,prefactor,EXP(-BETA*(del_quickstep_energy-&
-            del_classical_energy)),BETA,del_quickstep_energy,&
-            del_classical_energy,wratio
 ! check if the move is accepted
          IF(w .GE. 1.0E0_dp) THEN
             rand=0.0E0_dp
@@ -948,10 +942,6 @@ CONTAINS
 
       CALL mp_bcast(rand,source,group)
       CALL mp_bcast(w,source,group)
-
-!!!!!!!!!!!!!!!!!!
-!            w=1.0E0_dp
-!            w=0.0E0_dp
 
 
       IF ( rand .LT. w ) THEN
@@ -971,12 +961,12 @@ CONTAINS
                old_energy(ibox)=new_energy(ibox)
 
 ! if we're biasing classically, then we update the classical energy
+               WRITE(6,*) 'nvoie ',moves(ibox)%moves%classical_energy,&
+                  classical_energy_new(ibox)
                IF ( lclassical) &
-!!!!!!!!!!!!!!!!!!!!!!!!!!
                   moves(ibox)%moves%classical_energy=&
                   classical_energy_new(ibox)
-!                  moves(ibox)%moves%classical_energy=&
-!                  new_energy(ibox)
+
 
             ENDDO
 
@@ -1131,7 +1121,7 @@ CONTAINS
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles_test, particles_old
     REAL(KIND=dp)                            :: rand,w,prefactor,vol_dis,&
-      rmvolume,BETA,cutoff
+      rmvolume,BETA,cutoff,inner_cutoff
     LOGICAL,DIMENSION(1:2)                   :: lempty
     LOGICAL                                  :: ionode,lclassical_run,ldum
     LOGICAL,DIMENSION(:,:),ALLOCATABLE       :: loverlap
@@ -1152,7 +1142,7 @@ CONTAINS
          group=group,nchain=nchain(1),nunits_tot=nunits_tot(1),&
          nvolmoves=nvolmoves,dat_file=dat_file(1),rmvolume=rmvolume,&
          nunits=nunits,BETA=BETA,cl=cl,lclassical_run=lclassical_run,&
-         cutoff=cutoff,fft_lib=fft_lib)
+         cutoff=cutoff,fft_lib=fft_lib,inner_cutoff=inner_cutoff)
       CALL get_mc_par(mc_par(2)%mc_par,nchain=nchain(2),&
          nunits_tot=nunits_tot(2),dat_file=dat_file(2))
 
@@ -1247,7 +1237,7 @@ CONTAINS
 
                CALL mc_classical_energy(force_env(i)%force_env,&
                   classical_energy_original(i),nchain(i),&
-                  1,nchain(i),cutoff,ldum,&
+                  1,nchain(i),inner_cutoff,ldum,&
                   cell_length=old_cell_length(i))
                IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
                'GE volume move found an overlap in an old config')
@@ -1296,10 +1286,8 @@ CONTAINS
 
 ! call a random number to figure out how far we're moving
             CALL RANDOM_NUMBER(rand)
-!!!!!
             vol_dis=rmvolume*(rand-0.5E0_dp)*2.0E0_dp
-!            vol_dis=5.0E0_dp/angstrom**3
-!!!!!
+
 ! add to one box, subtract from the other
             IF(test_cell_length(1)**3+vol_dis .LE. (3.0E0_dp/angstrom)**3) &
             CALL stop_program(routineN,module_name,__LINE__,&
@@ -1354,7 +1342,7 @@ CONTAINS
 ! find and store the classical energy
                CALL mc_classical_energy(test_env(i)%force_env,&
                   classical_energy_new(i),nchain(i),1,&
-                  nchain(i),cutoff,loverlap(ivolmove,i),&
+                  nchain(i),inner_cutoff,loverlap(ivolmove,i),&
                   cell_length=new_cell_length(i))
                
             ENDDO
@@ -1483,7 +1471,12 @@ CONTAINS
                CALL force_env_get(test_env(i)%force_env,&
                   potential_energy=new_energy(i),error=error)
             ELSE
-               new_energy(i)=classical_energy_test(i)
+
+               CALL mc_classical_energy(test_env(i)%force_env,&
+                  new_energy(i),nchain(i),1,&
+                  nchain(i),cutoff,loverlap(ivolmove,i),&
+                  cell_length=new_cell_length(i))
+
             ENDIF
 
          ENDIF
@@ -1509,10 +1502,6 @@ CONTAINS
 
          ENDIF
 
-!!!!!!!!!!!
-!         w=1.0E0_dp
-!         w=0.0E0_dp
-!!!!!!!!!!!
          IF ( w .GE. 1.0E0_dp ) THEN
             w=1.0E0_dp
             rand=0.0E0_dp

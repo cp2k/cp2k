@@ -126,22 +126,22 @@ CONTAINS
 
     INTEGER                                  :: crd, ene, handle, i, &
                                                 iparticle, iw, nnstep,&
-                                                mol,data,istat,j,&
+                                                mol,data,istat,&
                                                 move_unit,cell_unit,&
                                                 nunits_tot,nchain,&
                                                 source,group,diff,cl,rm,&
                                                 nstep,nstart,nmoves,&
                                                 iuptrans,iupvolume
     LOGICAL                               :: PM0, PM1, PM2, PM3, PM4, &
-                                              should_stop,ionode,exists,&
+                                              should_stop,ionode,&
                                               lstop,lclassical_run,ldum,&
                                               loverlap
     REAL(KIND=dp), DIMENSION(1:3)        :: abc
     REAL(KIND=dp)                    :: energy_check, initial_energy, &
                                          old_energy, rand,final_energy,&
                                          classical_energy,pmtraion,&
-                                         classical_energy_new,pmvolume,&
-                                         pmtrans,cutoff,rdum
+                                         pmvolume,&
+                                         pmtrans,cutoff,rdum,inner_cutoff
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: particle_positions,r_old
     TYPE(mc_averages_type), POINTER          :: averages
@@ -173,7 +173,8 @@ CONTAINS
          cell_file=cell_file,lstop=lstop,nstep=nstep,nstart=nstart,&
          pmvolume=pmvolume,nmoves=nmoves,pmtraion=pmtraion,&
          pmtrans=pmtrans,iuptrans=iuptrans,iupvolume=iupvolume,&
-         cutoff=cutoff,lclassical_run=lclassical_run)
+         cutoff=cutoff,lclassical_run=lclassical_run,&
+         inner_cutoff=inner_cutoff)
 
 ! allocate the particle positions array for broadcasting
       ALLOCATE (particle_positions(3,nunits_tot),STAT=istat)
@@ -234,10 +235,11 @@ CONTAINS
 
       ELSE
          CALL mc_classical_energy(force_env,moves%classical_energy,&
-                               nchain,1,nchain,cutoff,ldum)
+                               nchain,1,nchain,inner_cutoff,ldum)
          IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
           'traditional ensemble found an overlap in the initial config')
-         old_energy=moves%classical_energy
+         CALL mc_classical_energy(force_env,old_energy,&
+                               nchain,1,nchain,cutoff,ldum)
          classical_energy=moves%classical_energy
 
       ENDIF
@@ -268,7 +270,7 @@ CONTAINS
          CALL open_file(file_name='cell_length',&
                  unit_number=cell_unit,&
                  file_action='WRITE',file_status='REPLACE')
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!! for E_V curves
 !         WRITE(cell_unit,*) (abc(1)*angstrom)**3,old_energy
          WRITE(cell_unit,*) 'Initial Cell Length:       ',&
                abc(1)*angstrom
@@ -427,7 +429,7 @@ CONTAINS
                      /REAL(nnstep-nstart,dp)+abc(1)/&
                      REAL(nnstep-nstart,dp)
 
-!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!! for E_V curves
 !            WRITE(cell_unit,*) (abc(1)*angstrom)**3,old_energy
             WRITE(cell_unit,*) nnstep,abc(1)*angstrom
 
@@ -587,7 +589,7 @@ CONTAINS
                                                 lclassical_run,loverlap,&
                                                 ldum
     REAL(KIND=dp)                            :: rand,pmvolume,pmswap,&
-      pmtraion,pmtrans,cutoff,rdum
+      pmtraion,pmtrans,cutoff,rdum,inner_cutoff
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: particle_positions, r_old
     REAL(KIND=dp), DIMENSION(1:3,1:2)        :: abc
@@ -648,7 +650,8 @@ CONTAINS
          lstop=lstop,nstep=nstep,nstart=nstart,pmvolume=pmvolume,&
          molecules_file=molecules_file(1),pmswap=pmswap,nmoves=nmoves,&
          pmtraion=pmtraion,pmtrans=pmtrans,iuptrans=iuptrans,&
-         iupvolume=iupvolume,lclassical_run=lclassical_run,cutoff=cutoff)
+         iupvolume=iupvolume,lclassical_run=lclassical_run,cutoff=cutoff,&
+         inner_cutoff=inner_cutoff)
       CALL get_mc_par(mc_par(2)%mc_par,nunits_tot=nunits_tot(2),&
          nchain=nchain(2),data_file=data_file(2),moves_file=moves_file(2),&
          cell_file=cell_file(2),coords_file=coords_file(2),&
@@ -727,11 +730,13 @@ CONTAINS
 
                CALL mc_classical_energy(force_env(i)%force_env,&
                   moves(i)%moves%classical_energy,nchain(i),1,&
-                  nchain(i),cutoff,ldum)
+                  nchain(i),inner_cutoff,ldum)
                IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
                   'GEMC found an overlap in the initial config')
                classical_energy(i)=moves(i)%moves%classical_energy
-               old_energy(i)=moves(i)%moves%classical_energy
+               CALL mc_classical_energy(force_env(i)%force_env,&
+                  old_energy(i),nchain(i),1,&
+                  nchain(i),cutoff,ldum)
 
             ENDIF
 
@@ -1143,7 +1148,6 @@ CONTAINS
                   move_updates(2)%moves,"volume",nnstep)
             ENDIF
 
-
 !     back to parallel
          ENDIF
          
@@ -1152,8 +1156,6 @@ CONTAINS
          IF (should_stop) EXIT
          
 ! check to see if there are any overlaps in either of the boxes
-!         CALL check_for_overlap(r_old(:,:,1),nunits_tot(1),abc(1,1),&
-!            loverlap)
          CALL mc_classical_energy(force_env(1)%force_env,&
             rdum,nchain(1),1,nchain(1),cutoff,loverlap)
          IF(loverlap) THEN
@@ -1161,8 +1163,6 @@ CONTAINS
             CALL stop_program(routineN,module_name,__LINE__,&
             'coordinate overlap  in box 1 at the end of the above step')
          ENDIF
-!         CALL check_for_overlap(r_old(:,:,2),nunits_tot(2),abc(1,2),&
-!            loverlap)
          CALL mc_classical_energy(force_env(2)%force_env,&
             rdum,nchain(2),1,nchain(2),cutoff,loverlap)
          IF(loverlap) THEN

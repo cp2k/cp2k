@@ -571,7 +571,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env,&
       WRITE(unit,10000) "&END"
       WRITE(unit,*) 
       WRITE(unit,10000) "&DFT"
-!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!! for different functionals
 !      WRITE(unit,*) ' FUNCTIONAL   Pade'
       WRITE(unit,10000) ' FUNCTIONAL   BLYP'
 
@@ -606,18 +606,17 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env,&
 !      WRITE(unit,10000) ' OT'
       WRITE(unit,10000) "&END"
       WRITE(unit,*) 
-!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!! for using GUESS=RESTART
 !      WRITE(unit,10000) "&OTSCF"
 !      WRITE(unit,10000) ' MINIMIZER DIIS 7'
 !      WRITE(unit,10000) "&END"
 !      WRITE(unit,*) 
-!!!!!!!!!!!!!!!!!!!!!!!!!!
       WRITE(unit,10000) "&TOPOLOGY"
       WRITE(unit,10000) ' CONNECTIVITY   OHH_MC'
 !      WRITE(unit,10000) ' BONDPARM COVALENT 1.6'
       WRITE(unit,10000) "&END"
       WRITE(unit,*) 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  for different functionals
       WRITE(unit,10000) "&KIND H"
 !      WRITE(unit,10000) ' BASIS_SET    DZVP-GTH-PADE'
 !      WRITE(unit,10000) ' POTENTIAL    GTH-PADE-q1'
