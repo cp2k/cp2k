@@ -409,13 +409,14 @@ subroutine qs_rho_get(rho_struct, rho_ao, rho_r, rho_g, rho_ao_valid,&
 end subroutine qs_rho_get
 !***************************************************************************
 
-!!****f* qs_rho_types/qs_rho_set_rho_ao [1.0] *
+!!****f* qs_rho_types/qs_rho_update_rho_r_g_new_ao [1.0] *
 !!
 !!   NAME
-!!     qs_rho_set_rho_ao
+!!     qs_rho_update_rho_r_g_new_ao
 !!
 !!   FUNCTION
-!!     sets rho_ao to the given value and updates rho_r and rho_g
+!!     updates rho_r and rho_g to the new (given) ao. Does NOT modify
+!!     rho_ao
 !!
 !!   NOTES
 !!     ugly interface, too many arguments
@@ -439,7 +440,7 @@ end subroutine qs_rho_get
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine qs_rho_set_rho_ao(rho_struct, rho_ao_new,gridlevel_info,&
+subroutine qs_rho_update_rho_r_g_new_ao(rho_struct, rho_ao_new,gridlevel_info,&
      cube_info,l_info,tmp_rspace,qs_env,global_env,total_rho_rspace,&
      rebuild,error)
   type(qs_rho_type), pointer :: rho_struct
@@ -455,7 +456,7 @@ subroutine qs_rho_set_rho_ao(rho_struct, rho_ao_new,gridlevel_info,&
   type(cp_error_type), optional, intent(inout) :: error
   
   logical :: failure,r_build
-  character(len=*), parameter :: routineN='qs_rho_set_rho_ao',&
+  character(len=*), parameter :: routineN='qs_rho_update_rho_r_g_new_ao',&
         routineP=moduleN//':'//routineN
   real(kind=wp) :: t_rho_r
   failure=.false.
@@ -478,12 +479,12 @@ subroutine qs_rho_set_rho_ao(rho_struct, rho_ao_new,gridlevel_info,&
           rho_struct%rho_r(1)%coeff_array,rho_struct%rho_g(1)%coeff_array,&
           gridlevel_info,cube_info,l_info,t_rho_r,&
           qs_env,global_env)
-     rho_struct%rho_ao_valid=.true.
+     rho_struct%rho_ao_valid=.false.
      rho_struct%rho_r_valid=.true.
      rho_struct%rho_g_valid=.true.
      if (present(total_rho_rspace)) total_rho_rspace=t_rho_r
   end if
-end subroutine qs_rho_set_rho_ao
+end subroutine qs_rho_update_rho_r_g_new_ao
 !***************************************************************************
 
 end module qs_rho_types
