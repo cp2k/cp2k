@@ -102,7 +102,7 @@ CONTAINS
 
     TYPE(mo_set_type), POINTER      :: mo_set
     TYPE(qs_rho_type), POINTER      :: rho
-    TYPE(real_matrix_type), POINTER :: w
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_w 
 
     INTEGER :: handle,i,iatom,ikind,istat,natom,output_unit,ispin
 
@@ -121,7 +121,7 @@ CONTAINS
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 
     CALL timeset(routine_name,"I","",handle)
-    NULLIFY(atomic_kind_set, c, particle_set, force, k, p, s, ks_env)
+    NULLIFY(atomic_kind_set, c, particle_set, force, k, p, s, ks_env,matrix_w)
 
     CALL qs_energies(qs_env,globenv,neighbor_lists_from_scratch=.true.)
 
@@ -167,27 +167,29 @@ CONTAINS
                                  calculate_forces=.TRUE.)
 
 !   *** Load MO set (QS wavefunction) ***
+    ALLOCATE(matrix_w(SIZE(c)))
+    DO ispin=1,SIZE(c)
 
-    mo_set => c(1)%mo_set
+       CALL replicate_matrix_structure(s(1)%matrix,matrix_w(ispin)%matrix,"W MATRIX")
+       mo_set => c(ispin)%mo_set
 
-    NULLIFY (w)
-    CALL replicate_matrix_structure(s(1)%matrix,w,"W MATRIX")
+       IF (scf_control%use_ot) THEN
+           CALL calculate_w_matrix(mo_set,k(ispin)%matrix,matrix_w(ispin)%matrix,globenv)
+       ELSE
+           CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix,globenv)
+       END IF
 
-    IF (scf_control%use_ot) THEN
-      CALL calculate_w_matrix(mo_set,k(1)%matrix,w,globenv)
-    ELSE
-      CALL calculate_w_matrix(mo_set,w,globenv)
-    END IF
+       IF (globenv%ionode.AND.globenv%print%w_matrix) THEN
+         CALL write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,globenv)
+       END IF
 
-    IF (globenv%ionode.AND.globenv%print%w_matrix) THEN
-      CALL write_sparse_matrix(w,4,6,qs_env,globenv)
-    END IF
+    END DO
 
     CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
                                        globenv=globenv,&
                                        calculate_forces=.TRUE.,&
-                                       p=p(1)%matrix,&
-                                       w=w)
+                                       p=p,&
+                                       w=matrix_w)
     
     IF ((qs_env%para_env%num_pe > 1).AND.gth_potential_present) THEN
        CALL sm_pools_give_back_matrix_vect(qs_env%H_redundant_sm_pools,&
@@ -231,7 +233,10 @@ CONTAINS
 
     CALL write_forces(force,atomic_kind_set,globenv)
 
-    CALL deallocate_matrix(w)
+    DO ispin=1,size(c)
+       CALL deallocate_matrix(matrix_w(ispin)%matrix)
+    ENDDO
+    DEALLOCATE(matrix_w)
 
     DEALLOCATE (atom_of_kind,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")

@@ -209,14 +209,14 @@ CONTAINS
       atomic_kind => atomic_kind_set(ikind)
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            natom=natom_of_kind)
-      IF (.NOT.ASSOCIATED(force(ikind)%rho_core)) THEN
-        ALLOCATE (force(ikind)%rho_core(3,natom_of_kind),STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routine,"force(ikind)%rho_core",&
-                           3*natom_of_kind*wp_size)
-        END IF
-      END IF
-      force(ikind)%rho_core(:,:) = 0.0_wp
+      ! IF (.NOT.ASSOCIATED(force(ikind)%rho_core)) THEN
+      !   ALLOCATE (force(ikind)%rho_core(3,natom_of_kind),STAT=istat)
+      !   IF (istat /= 0) THEN
+      !     CALL stop_memory(routine,"force(ikind)%rho_core",&
+      !                      3*natom_of_kind*wp_size)
+      !   END IF
+      ! END IF
+      ! force(ikind)%rho_core(:,:) = 0.0_wp
     END DO
 
     DO ikind=1,SIZE(atomic_kind_set)
@@ -457,22 +457,22 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
-      DO ikind=1,nkind
-        atomic_kind => atomic_kind_set(ikind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             orb_basis_set=orb_basis_set,&
-                             natom=natom_of_kind)
-        IF (ASSOCIATED(orb_basis_set)) THEN
-          IF (.NOT.ASSOCIATED(force(ikind)%rho_elec)) THEN
-            ALLOCATE (force(ikind)%rho_elec(3,natom_of_kind),STAT=istat)
-            IF (istat /= 0) THEN
-              CALL stop_memory(routine,"force(ikind)%rho_elec",&
-                               3*natom_of_kind*wp_size)
-            END IF
-          END IF
-          force(ikind)%rho_elec(:,:) = 0.0_wp
-        END IF
-      END DO
+      ! DO ikind=1,nkind
+      !   atomic_kind => atomic_kind_set(ikind)
+      !   CALL get_atomic_kind(atomic_kind=atomic_kind,&
+      !                        orb_basis_set=orb_basis_set,&
+      !                        natom=natom_of_kind)
+        ! IF (ASSOCIATED(orb_basis_set)) THEN
+        !   IF (.NOT.ASSOCIATED(force(ikind)%rho_elec)) THEN
+        !     ALLOCATE (force(ikind)%rho_elec(3,natom_of_kind),STAT=istat)
+        !     IF (istat /= 0) THEN
+        !       CALL stop_memory(routine,"force(ikind)%rho_elec",&
+        !                        3*natom_of_kind*wp_size)
+        !     END IF
+        !   END IF
+        !  force(ikind)%rho_elec(:,:) = 0.0_wp
+        ! END IF
+      ! END DO
     END IF
 
     eps_gvg_rspace = dft_control%qs_control%eps_gvg_rspace

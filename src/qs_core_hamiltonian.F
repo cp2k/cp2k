@@ -67,7 +67,7 @@
 !!     S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     Joost VandeVondele (April 2003) : added LSD forces
 !!
 !!   SOURCE
 !******************************************************************************
@@ -180,7 +180,8 @@ MODULE qs_core_hamiltonian
   INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,lb_max,lb_min,npgfa,&
                                        npgfb,nsgfa,nsgfb
   REAL(wp), DIMENSION(:,:), POINTER :: h_block,p_block,rpgfa,rpgfb,sphi_a,&
-                                       sphi_b,w_block,zeta,zetb
+                                       sphi_b,w_block,zeta,zetb,tmp_block
+
   INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
 
 ! *** Public subroutines ***
@@ -201,12 +202,14 @@ CONTAINS
 
 !   History: - Creation (11.03.2002, MK)
 
+!   JV : added LSD forces. Assume things depend only on the sum of p and w
+
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(qs_environment_type), POINTER        :: qs_env
     LOGICAL, INTENT(IN)                       :: calculate_forces
-    TYPE(real_matrix_type), OPTIONAL, POINTER :: p,w
+    TYPE(real_matrix_p_type), OPTIONAL, POINTER, DIMENSION(:) :: p,w
 
 !   *** Local parameters ***
 
@@ -255,8 +258,12 @@ CONTAINS
     TYPE(vppl_type), DIMENSION(:), ALLOCATABLE :: vppl
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=200) :: file_name
-    INTEGER            :: file_unit
+    INTEGER            :: file_unit, ispin
     LOGICAL            :: build_kinetic_energy_matrix
+
+    TYPE block_type
+         REAL(wp), DIMENSION(:,:), POINTER :: block
+    END TYPE
 
 !   ---------------------------------------------------------------------------
 
@@ -264,6 +271,7 @@ CONTAINS
 
     CALL timeset(routine_name,"I","",handle)
 
+    
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set,&
@@ -680,14 +688,30 @@ CONTAINS
                                     block_col=jatom,&
                                     BLOCK=h_block)
                 IF (calculate_forces) THEN
-                  CALL get_block_node(matrix=p,&
-                                      block_row=iatom,&
-                                      block_col=jatom,&
-                                      BLOCK=p_block)
-                  CALL get_block_node(matrix=w,&
-                                      block_row=iatom,&
-                                      block_col=jatom,&
-                                      BLOCK=w_block)
+                     CALL get_block_node(matrix=p(1)%matrix,&
+                                         block_row=iatom,&
+                                         block_col=jatom,&
+                                         BLOCK=tmp_block)
+                     ALLOCATE(p_block(size(tmp_block,1),size(tmp_block,2)))
+                     p_block(:,:)=tmp_block(:,:)
+                     CALL get_block_node(matrix=w(1)%matrix,&
+                                         block_row=iatom,&
+                                         block_col=jatom,&
+                                         BLOCK=tmp_block)
+                     ALLOCATE(w_block(size(tmp_block,1),size(tmp_block,2)))
+                     w_block(:,:)=tmp_block(:,:)
+                  do ispin=2,size(p)
+                     CALL get_block_node(matrix=p(ispin)%matrix,&
+                                         block_row=iatom,&
+                                         block_col=jatom,&
+                                         BLOCK=tmp_block)
+                     p_block(:,:)=p_block(:,:)+tmp_block(:,:)
+                     CALL get_block_node(matrix=w(ispin)%matrix,&
+                                         block_row=iatom,&
+                                         block_col=jatom,&
+                                         BLOCK=tmp_block)
+                     w_block(:,:)=w_block(:,:)+tmp_block(:,:)
+                  enddo
                 END IF
               ELSE
                 CALL get_block_node(matrix=h(1)%matrix,&
@@ -695,14 +719,30 @@ CONTAINS
                                     block_col=iatom,&
                                     BLOCK=h_block)
                 IF (calculate_forces) THEN
-                  CALL get_block_node(matrix=p,&
+                  CALL get_block_node(matrix=p(1)%matrix,&
                                       block_row=jatom,&
                                       block_col=iatom,&
-                                      BLOCK=p_block)
-                  CALL get_block_node(matrix=w,&
+                                      BLOCK=tmp_block)
+                  ALLOCATE(p_block(size(tmp_block,1),size(tmp_block,2)))
+                  p_block(:,:)=tmp_block(:,:)
+                  CALL get_block_node(matrix=w(1)%matrix,&
                                       block_row=jatom,&
                                       block_col=iatom,&
-                                      BLOCK=w_block)
+                                      BLOCK=tmp_block)
+                  ALLOCATE(w_block(size(tmp_block,1),size(tmp_block,2)))
+                  w_block(:,:)=tmp_block(:,:)
+                  do ispin=2,size(p)
+                     CALL get_block_node(matrix=p(ispin)%matrix,&
+                                         block_row=jatom,&
+                                         block_col=iatom,&
+                                         BLOCK=tmp_block)
+                     p_block(:,:)=p_block(:,:)+tmp_block(:,:)
+                     CALL get_block_node(matrix=w(ispin)%matrix,&
+                                         block_row=jatom,&
+                                         block_col=iatom,&
+                                         BLOCK=tmp_block)
+                     w_block(:,:)=w_block(:,:)+tmp_block(:,:)
+                  enddo
                 END IF
               END IF
 
@@ -1003,6 +1043,7 @@ CONTAINS
 
               END DO
 
+              IF (calculate_forces) DEALLOCATE(p_block,w_block)
             END IF
 
             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
@@ -1178,7 +1219,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(real_matrix_type), OPTIONAL, POINTER :: p
+    TYPE(real_matrix_p_type), OPTIONAL,DIMENSION(:), POINTER :: p
     LOGICAL, INTENT(IN)                       :: calculate_forces
 
 !   *** Local parameters ***
@@ -1196,7 +1237,7 @@ CONTAINS
     INTEGER  :: atom_a,atom_b,atom_c,current_kind,first_col,first_prjc,handle,&
                 i,iatom,ikind,ilist,inode,iset,istat,jatom,jkind,katom,kkind,&
                 l,lc_max,lc_min,lppnl,na,natom,nb,ncoa,ncoc,nlist,nnode,nppnl,&
-                nprjc,nseta,nsgf,prjc,sgfa
+                nprjc,nseta,nsgf,prjc,sgfa,ispin
     LOGICAL  :: ppnl_present
 
     REAL(wp), DIMENSION(1) :: rprjc,zetc
@@ -1676,10 +1717,19 @@ CONTAINS
                          scbint(1)%block(1,1),nprjc,&
                          1.0_wp,h_block(1,1),na)
               IF (calculate_forces) THEN
-                CALL get_block_node(matrix=p,&
+                CALL get_block_node(matrix=p(1)%matrix,&
                                     block_row=iatom,&
                                     block_col=jatom,&
-                                    BLOCK=p_block)
+                                    BLOCK=tmp_block)
+                ALLOCATE(p_block(size(tmp_block,1),size(tmp_block,2)))
+                p_block(:,:)=tmp_block(:,:)
+                DO ispin=2,size(p)
+                   CALL get_block_node(matrix=p(ispin)%matrix,&
+                                       block_row=iatom,&
+                                       block_col=jatom,&
+                                       BLOCK=tmp_block)
+                   p_block(:,:)=p_block(:,:)+tmp_block(:,:)
+                ENDDO
                 DO i=1,3
                   first_col = i*SIZE(work,1) + 1
                   CALL dgemm("T","N",na,nb,nprjc,&
@@ -1701,6 +1751,7 @@ CONTAINS
                   force(kkind)%gth_ppnl(i,atom_c) =&
                     force(kkind)%gth_ppnl(i,atom_c) - f
                 END DO
+                DEALLOCATE(p_block)
               END IF
             ELSE
               CALL get_block_node(matrix=h(1)%matrix,&
@@ -1723,10 +1774,19 @@ CONTAINS
                 ELSE
                   f0 = 2.0_wp
                 END IF
-                CALL get_block_node(matrix=p,&
-                                    block_row=jatom,&
-                                    block_col=iatom,&
-                                    BLOCK=p_block)
+                CALL get_block_node(matrix=p(1)%matrix,&
+                                    block_row=iatom,&
+                                    block_col=jatom,&
+                                    BLOCK=tmp_block)
+                ALLOCATE(p_block(size(tmp_block,1),size(tmp_block,2)))
+                p_block(:,:)=tmp_block(:,:)
+                DO ispin=2,size(p)
+                   CALL get_block_node(matrix=p(ispin)%matrix,&
+                                       block_row=iatom,&
+                                       block_col=jatom,&
+                                       BLOCK=tmp_block)
+                   p_block(:,:)=p_block(:,:)+tmp_block(:,:)
+                ENDDO
                 DO i=1,3
                   first_col = i*SIZE(work,1) + 1
                   CALL dgemm("T","N",nb,na,nprjc,&
@@ -1748,6 +1808,7 @@ CONTAINS
                   force(kkind)%gth_ppnl(i,atom_c) =&
                     force(kkind)%gth_ppnl(i,atom_c) - f
                 END DO
+                DEALLOCATE(p_block)
               END IF
             END IF
 
@@ -1799,10 +1860,19 @@ CONTAINS
                 ELSE
                   f0 = 2.0_wp
                 END IF
-                CALL get_block_node(matrix=p,&
+                CALL get_block_node(matrix=p(1)%matrix,&
                                     block_row=iatom,&
                                     block_col=jatom,&
-                                    BLOCK=p_block)
+                                    BLOCK=tmp_block)
+                ALLOCATE(p_block(size(tmp_block,1),size(tmp_block,2)))
+                p_block(:,:)=tmp_block(:,:)
+                DO ispin=2,size(p)
+                   CALL get_block_node(matrix=p(ispin)%matrix,&
+                                       block_row=iatom,&
+                                       block_col=jatom,&
+                                       BLOCK=tmp_block)
+                   p_block(:,:)=p_block(:,:)+tmp_block(:,:)
+                ENDDO
                 DO i=1,3
                   first_col = i*SIZE(work,1) + 1
                   CALL dgemm("T","N",na,nb,nprjc,&
@@ -1824,6 +1894,7 @@ CONTAINS
                   force(kkind)%gth_ppnl(i,atom_c) =&
                     force(kkind)%gth_ppnl(i,atom_c) - f
                 END DO
+                DEALLOCATE(p_block)
               END IF
             END IF
 
