@@ -98,7 +98,8 @@ MODULE cp_fm_types
             cp_fm_set_submatrix, &     ! set a submatrix to given values
             cp_fm_get_submatrix, &     ! get a submatrix of given values
             cp_fm_init_random, &         
-            cp_fm_maxabsval, &            ! find the maximum absolute value
+            cp_fm_maxabsval, &         ! find the maximum absolute value
+            cp_fm_maxabsrownorm, &     ! find the maximum of the sum of the abs of the elements of a row
             cp_fm_write, &             ! writes lots of information and data (might need further development) 
             cp_fm_to_fm                ! copy (parts of) a fm to a fm
 
@@ -1132,6 +1133,69 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_fm_maxabsval
+
+!!****f* cp_fm_types/cp_fm_maxabsrownorm [1.0] *
+!!
+!!   NAME
+!!     cp_fm_maxabsrownorm
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_fm_maxabsrow(matrix, a_max)
+!!       Type(cp_fm_type), Pointer:: matrix
+!!       Real(KIND = dp), Intent (OUT):: a_max
+!!     End Subroutine cp_fm_maxabsval
+!!
+!!   FUNCTION
+!!     find the maximum over the rows of the sum of the absolute values of the elements of a given row 
+!!     = || A ||_infinity
+!!
+!!   NOTES
+!!     for a real symmetric matrix it holds that || A ||_2 = |lambda_max| < || A ||_infinity
+!!     Hence this can be used to estimate an upper bound for the eigenvalues of a matrix
+!!     http://mathworld.wolfram.com/MatrixNorm.html
+!!     (but the bound is not so tight in the general case)
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
+  SUBROUTINE cp_fm_maxabsrownorm(matrix, a_max)
+    TYPE(cp_fm_type), POINTER        :: matrix
+    REAL(KIND = dp), INTENT(OUT)     :: a_max
+
+!   *** Local variables ***
+
+    INTEGER :: handle, nrow_local, ncol_local,nrow_global,i,j
+    INTEGER, POINTER, DIMENSION(:) :: row_indices
+
+    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: my_block
+    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: values
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("cp_fm_maxabsrownorm","I","",handle)
+
+    my_block => matrix%local_data
+    CALL cp_fm_get_info(matrix, row_indices=row_indices, nrow_global=nrow_global, &
+                                nrow_local=nrow_local, ncol_local=ncol_local) 
+
+    ! the efficiency could be improved by making use of the row-col distribution of scalapack
+    ALLOCATE(values(nrow_global))
+    values=0.0_dp
+    DO j=1,ncol_local
+       DO i=1,nrow_local
+          values(row_indices(i))=values(row_indices(i))+ABS(my_block(i,j))
+       ENDDO
+    ENDDO
+    CALL mp_sum(values,matrix%matrix_struct%para_env%group)
+    a_max = MAXVAL(values)
+    DEALLOCATE(values)
+
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE
 
 !!****f* cp_fm_types/cp_fm_write [1.0] *
 !!
