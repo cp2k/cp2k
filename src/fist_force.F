@@ -224,6 +224,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
         ALLOCATE ( fg_coulomb ( 3, nlocal_particles ), STAT=isos )
         IF ( isos /= 0 ) &
         CALL stop_memory ( 'fist_force', 'fg_coulomb', 3 * nlocal_particles )
+        fg_coulomb = 0._dbl
         CALL ewald_evaluate ( ewald_env, ewald_pw, atomic_kind_set, particle_set, &
                               local_particles, fg_coulomb, vg_coulomb, pv_g )
         

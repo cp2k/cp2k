@@ -217,14 +217,19 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  
      vg_coulomb = vg_coulomb + common
 
 ! computing the force
-    DO node = 1, nnodes
-      e_igdotr = AIMAG ( summe(gpt) * CONJG &
-         ( exp_igr % ex ( lp, node ) &
-         * exp_igr % ey ( mp, node ) &
-         * exp_igr % ez ( np, node ) ) )
-      common =  charge  ( node ) * gauss * e_igdotr
-      fg_coulomb ( :, node ) = fg_coulomb ( :, node ) &
-           + common * pw_grid % g ( :, gpt )
+    node = 0
+    DO iparticle_kind = 1, nparticle_kind
+       nparticle_local = local_particles%n_el(iparticle_kind)
+       DO iparticle_local=1,nparticle_local
+          node = node + 1
+          e_igdotr = AIMAG ( summe(gpt) * CONJG &
+             ( exp_igr % ex ( lp, node ) &
+             * exp_igr % ey ( mp, node ) &
+             * exp_igr % ez ( np, node ) ) )
+          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+          fg_coulomb ( :, iparticle ) = fg_coulomb ( :, iparticle ) &
+          + charge ( node ) * gauss * e_igdotr * pw_grid % g ( :, gpt )
+       END DO
     END DO
 
 ! compute the virial P*V
@@ -253,7 +258,7 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  
   flops = flops + pw_grid % ngpts_cut * 55.0_dbl &
        + pw_grid % ngpts_cut * node * 23.0_dbl
 
-  pref = 1.0_dbl / ( eps0 * pw_grid % vol )
+  pref = 1.0_dbl / eps0 / pw_grid % vol 
   vg_coulomb = vg_coulomb * pref
   pv_g = pv_g * pref
 

@@ -1592,14 +1592,14 @@ SUBROUTINE pw_grid_find_bounds ( bounds, h_inv, cutoff, fft )
   eig = SQRT ( 2._dbl * cutoff / eig ) / twopi
   bounds ( 2, : ) = FLOOR ( matvec_3x3 ( gmat, eig ) )
 
+  rin(1) = 2 * bounds ( 2, 1 ) + 1
+  rin(2) = 2 * bounds ( 2, 2 ) + 1
+  rin(3) = 2 * bounds ( 2, 3 ) + 1
   IF ( fft ) THEN
-    rin(1) = 2 * bounds ( 2, 1 ) + 1
     CALL fft_radix_operations ( rin(1), rout(1), FFT_RADIX_NEXT )
     bounds ( 1, 1 ) = -rout(1)/2
-    rin(2) = 2 * bounds ( 2, 2 ) + 1
     CALL fft_radix_operations ( rin(2), rout(2), FFT_RADIX_NEXT )
     bounds ( 1, 2 ) = -rout(2)/2
-    rin(3) = 2 * bounds ( 2, 3 ) + 1
     CALL fft_radix_operations ( rin(3), rout(3), FFT_RADIX_NEXT )
     bounds ( 1, 3 ) = -rout(3)/2
   ELSE

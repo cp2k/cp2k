@@ -43,11 +43,9 @@ MODULE fist_force_numer
   USE pair_potential,                 ONLY : potential_f
   USE pair_potential_types,           ONLY : pair_potential_type
   USE particle_types,                 ONLY : particle_type
-  USE pw_grids,                       ONLY : pw_grid_construct, &
-                                             pw_grid_destruct, & 
-                                             pw_grid_setup, &
-                                             pw_find_cutoff
-  USE pw_grid_types,                  ONLY : pw_grid_type
+  USE pw_grids,                       ONLY : pw_grid_change
+  USE pw_grid_types,                   ONLY: pw_grid_type, &
+                                             HALFSPACE
   USE pw_pool_types,                  ONLY : pw_pool_type
   USE pme,                            ONLY: pme_evaluate
   USE qs_neighbor_lists,              ONLY: allocate_subcell,&
@@ -1019,7 +1017,7 @@ SUBROUTINE ewald_force_numer ( ewald_env, ewald_pw, atomic_kind_set, particle_se
   REAL ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: gauss
   REAL ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: r_delta
   REAL ( dbl ) :: alpha, epsilon0, ep, em, q
-  INTEGER :: idim, natoms, ngtot, isos, lp, mp, np, iparticle_kind
+  INTEGER :: idim, ngtot, isos, iparticle_kind
   INTEGER :: iparticle_local, nparticle_local, iparticle, nparticle_kind
 
 !------------------------------------------------------------------------------
@@ -1038,7 +1036,7 @@ SUBROUTINE ewald_force_numer ( ewald_env, ewald_pw, atomic_kind_set, particle_se
   IF ( isos /= 0 ) CALL stop_memory ( 'ewald_force_numer', 'r_delta', 3 )
 
 ! defining alpha and epsilon0
-  CALL ewald_env_get ( ewald_env, alpha = alpha, epsilon = epsilon0 )
+  CALL ewald_env_get ( ewald_env, alpha = alpha, eps0 = epsilon0 )
 
 ! first initialize the arrays gauss and sum_igr
   CALL potential_g_numer( atomic_kind_set, particle_set, local_particles, &
@@ -1048,7 +1046,6 @@ SUBROUTINE ewald_force_numer ( ewald_env, ewald_pw, atomic_kind_set, particle_se
   f_numer( :, : ) = 0.0_dbl
 
 ! computing the numerical force on each atom
-  natoms = size(particle_set)
   DO iparticle_kind = 1, nparticle_kind
     atomic_kind => atomic_kind_set(iparticle_kind)
     CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=q)
@@ -1063,12 +1060,12 @@ SUBROUTINE ewald_force_numer ( ewald_env, ewald_pw, atomic_kind_set, particle_se
           r_delta(idim) = r_delta(idim) - 2.0_dbl*numerical_shift
           CALL force_g_numer(em, sum_igr, gauss, particle_set ( iparticle ) % r ,  &
                              r_delta, q, g, ngtot)
-          f_numer(idim,iparticle) = ( em - ep ) / epsilon0 / cell % deth
+          f_numer(idim,iparticle) = f_numer ( idim, iparticle ) + em - ep  
           r_delta(idim) = r_delta(idim) + numerical_shift
        END DO
     END DO
   END DO
-  f_numer = f_numer /  2.0_dbl / numerical_shift
+  f_numer = f_numer /  2.0_dbl / numerical_shift / epsilon0 / pw_grid % vol
 
   DEALLOCATE (r_delta,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'ewald_force_numer','r_delta')
@@ -1905,14 +1902,19 @@ SUBROUTINE pv_g_numer ( ewald_env, ewald_pw, atomic_kind_set, particle_set,  &
   REAL ( dbl ) :: alpha, epsilon0, cutoff, ecut
   REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: gauss
   COMPLEX ( dbl ), DIMENSION ( : ), ALLOCATABLE :: sum_igr
-  INTEGER :: i, j, k, ii, jj, natoms, isos, gmax, npts_s(3), ngtot
+  INTEGER :: i, j, k, ii, jj, natoms, isos, ngtot
 
 !------------------------------------------------------------------------------
 
   CALL ewald_pw_get ( ewald_pw, pw_big_pool = pw_pool, cell = cell )
   pw_grid => pw_pool % pw_grid
   ngtot = pw_grid % ngpts_cut
-  cell_local = cell
+
+  NULLIFY ( cell_local )
+ 
+  CALL cell_create ( cell_local, hmat = cell % hmat )
+  CALL cell_retain ( cell_local )
+
 ! allocating
   natoms = SIZE ( particle_set )
   ALLOCATE ( s ( 3, natoms ), STAT = isos )
@@ -1928,14 +1930,10 @@ SUBROUTINE pv_g_numer ( ewald_env, ewald_pw, atomic_kind_set, particle_set,  &
   END DO
 
 ! defining alpha and epsilon0 (see ewald.f for details)
-  CALL ewald_env_get ( ewald_env, alpha = alpha, epsilon = epsilon0, gmax = gmax )
+  CALL ewald_env_get ( ewald_env, alpha = alpha, eps0 = epsilon0 )
 
 ! Initializing pv_test
   pv_test = 0.0_dbl
-
-  npts_s = (/ gmax, gmax, gmax /)
-  CALL pw_find_cutoff ( npts_s, cell_local, cutoff )
-  ecut = 0.5_dbl * cutoff * cutoff
 
 ! Defining the increments
   idelta = 1.0_dbl/(2.0_dbl*delta)
@@ -1945,26 +1943,27 @@ SUBROUTINE pv_g_numer ( ewald_env, ewald_pw, atomic_kind_set, particle_set,  &
 
 ! get inverse
         CALL get_hinv(cell_local)
-
+        CALL pw_grid_change ( cell_local, pw_grid )
+        g => pw_grid % g
+        
 ! recompute new partical postions from old scaled coords.
         DO i = 1, natoms
            particle_set ( i ) % r = MATMUL ( cell_local % hmat, s(:,i) )
         END DO
 
 ! compute the g-vectors
-        CALL pw_grid_construct( pw_grid )
-        CALL pw_grid_setup( cell_local, pw_grid, ecut)
-        g => pw_grid % g
         CALL potential_g_numer ( atomic_kind_set, particle_set, local_particles, &
                                  sum_igr, gauss, alpha, g, ngtot, vp )
 
-        vp = vp / ( epsilon0 * cell_local % deth )
+        vp = vp /  epsilon0 / pw_grid % vol
 
 ! tweak again
         cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dbl * delta
 
 ! get inverse
         CALL get_hinv ( cell_local )
+        CALL pw_grid_change ( cell_local, pw_grid )
+        g => pw_grid % g
 
 ! recompute new partical postions from old scaled coords.
         DO i = 1, natoms
@@ -1972,20 +1971,19 @@ SUBROUTINE pv_g_numer ( ewald_env, ewald_pw, atomic_kind_set, particle_set,  &
         END DO
 
 ! compute the g-vectors
-        CALL pw_grid_setup( cell_local, pw_grid, ecut)
-        g => pw_grid % g
 
         CALL potential_g_numer ( atomic_kind_set, particle_set, local_particles, &
                                  sum_igr, gauss, alpha, g, ngtot, vm )
-        vm = vm / epsilon0 / cell_local % deth
 
-        CALL pw_grid_destruct( pw_grid )
+        vm = vm / epsilon0 / pw_grid % vol
 
 ! calculate the derivative
         dvdh ( ii, jj ) = ( vm - vp ) * idelta
 
 ! resetting the hmat
         cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) + delta
+        CALL pw_grid_change ( cell_local, pw_grid )
+
 ! resetting particle_set
         DO i = 1, natoms
            particle_set ( i ) % r = MATMUL ( cell_local % hmat, s(:,i) )
@@ -2008,6 +2006,8 @@ SUBROUTINE pv_g_numer ( ewald_env, ewald_pw, atomic_kind_set, particle_set,  &
   IF ( isos /= 0 ) CALL stop_memory( 'pvg_numer', 'sum_igr' )
   DEALLOCATE (gauss,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory( 'pvg_numer', 'gauss' )
+
+  CALL cell_release ( cell_local )
 
 END SUBROUTINE pv_g_numer
 
@@ -2062,11 +2062,10 @@ SUBROUTINE potential_g_numer( atomic_kind_set, particle_set, local_particles, &
      DO iparticle_kind = 1, nparticle_kind
        atomic_kind => atomic_kind_set(iparticle_kind)
        CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=q)
-       IF ( ig == 2 ) write ( *, * ) "q", q
        nparticle_local = local_particles%n_el(iparticle_kind)
        DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          gdotr = DOT_PRODUCT(particle_set (iparticle) % r ( : ), glocal(:,ig))
+          gdotr = DOT_PRODUCT(particle_set ( iparticle ) % r ( : ), glocal(:,ig))
           sum_igr(ig) = sum_igr(ig) + q*CMPLX(COS(gdotr),SIN(gdotr),dbl)
        END DO
      END DO
@@ -2214,6 +2213,7 @@ END SUBROUTINE pme_force_numer
 ! Locals
   TYPE ( pw_pool_type ), POINTER :: pw_pool
   TYPE ( pw_grid_type ), POINTER :: pw_grid
+  TYPE ( cell_type ), POINTER :: cell
   COMPLEX ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: sum_igr
   REAL ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: gauss
   REAL ( dbl ) :: alpha, epsilon0
@@ -2221,7 +2221,7 @@ END SUBROUTINE pme_force_numer
   INTEGER :: isos, ngtot
 
 !------------------------------------------------------------------------------
-  CALL ewald_pw_get ( ewald_pw, pw_big_pool = pw_pool )
+  CALL ewald_pw_get ( ewald_pw, pw_big_pool = pw_pool, cell = cell )
   pw_grid => pw_pool % pw_grid
   g => pw_grid % g
   ngtot = pw_grid % ngpts_cut
@@ -2233,7 +2233,7 @@ END SUBROUTINE pme_force_numer
   IF ( isos /= 0 ) CALL stop_memory ( 'ewald_energy_numer', 'gauss', ngtot )
 
 ! defining alpha and epsilon0
-  CALL ewald_env_get ( ewald_env, alpha = alpha, epsilon = epsilon0 )
+  CALL ewald_env_get ( ewald_env, alpha = alpha, eps0 = epsilon0 )
 
 ! initializing numerical energy
   energy_numer = 0.0_dbl
