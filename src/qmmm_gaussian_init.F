@@ -110,10 +110,11 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), pointer :: pools
     TYPE(gridlevel_info_type), POINTER :: gridlevel_info
     ! Statements
-    NULLIFY(radius,mypgf, maxradius, gridlevel_info, qmmm_gaussian_fns)
+    NULLIFY(radius,mypgf, maxradius, gridlevel_info, radius, qmmm_gaussian_fns)
     mm_el_pot_radius => qmmm_env%mm_el_pot_radius 
     qmmm_coupl_type  = qmmm_env%qmmm_coupl_type  
     eps_mm_rspace = qmmm_env%eps_mm_rspace
+    failure = .FALSE.
     SELECT CASE(qmmm_coupl_type)
     CASE(do_qmmm_gauss)
        !
@@ -121,6 +122,7 @@ CONTAINS
        !
        ALLOCATE(radius(1),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+       Ndim = SIZE(radius)
        Loop_on_all_values: DO I = 1, SIZE(mm_el_pot_radius)
           Found=.FALSE.
           Loop_on_found_values: DO J = 1, SIZE(radius)-1
@@ -136,11 +138,19 @@ CONTAINS
              CALL REALLOCATE(radius,1,Ndim)
           END IF
        END DO Loop_on_all_values
-       CALL REALLOCATE(radius,1,Ndim-1)
        !
-       ALLOCATE(qmmm_gaussian_fns(SIZE(radius)),stat=stat)
+       IF (Ndim-1 > 0) THEN
+          CALL REALLOCATE(radius,1,Ndim-1)
+       ELSE IF (Ndim-1 == 0) THEN
+          DEALLOCATE(radius,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+       ELSE
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,Failure)      
+       END IF
+       !
+       ALLOCATE(qmmm_gaussian_fns(Ndim-1),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)       
-       DO I = 1, SIZE(radius)
+       DO I = 1, Ndim-1
           NULLIFY(qmmm_gaussian_fns(I)%pgf)
           ALLOCATE(qmmm_gaussian_fns(I)%pgf, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
@@ -151,8 +161,8 @@ CONTAINS
           ! Default Values
           !
           qmmm_gaussian_fns(I)%pgf%Elp_Radius          = radius(I)
-       END DO
-       DEALLOCATE(radius,stat=stat)
+       END DO       
+       IF (ASSOCIATED(radius)) DEALLOCATE(radius,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)      
        !
        CALL read_mm_potential(globenv, qmmm_gaussian_fns, qm_cell_small,&
