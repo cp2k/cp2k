@@ -571,9 +571,9 @@ END SUBROUTINE qs_env_update_rho_core
 
 !   *** Local types ***
 
-    TYPE atom_type
+    TYPE local_atom_type
       INTEGER, DIMENSION(:), POINTER :: list_local_col,list_local_row
-    END TYPE atom_type
+    END TYPE local_atom_type
 
 !   *** Local parameters ***
 
@@ -591,7 +591,7 @@ END SUBROUTINE qs_env_update_rho_core
                output_unit
     LOGICAL :: ionode
 
-    TYPE(atom_type), DIMENSION(:), ALLOCATABLE :: atom
+    TYPE(local_atom_type), DIMENSION(:), ALLOCATABLE :: local_atom
     INTEGER, DIMENSION(:), ALLOCATABLE         :: natom_local_col,&
                                                   natom_local_row,&
                                                   ncol,ncol_old,&
@@ -629,8 +629,8 @@ END SUBROUTINE qs_env_update_rho_core
 
     nkind = SIZE(atomic_kind_set)
 
-    ALLOCATE (atom(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"atom",nkind*int_size)
+    ALLOCATE (local_atom(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"local_atom",nkind*int_size)
 
     ALLOCATE (natom_local_row(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"natom_local_row",nkind*int_size)
@@ -697,11 +697,11 @@ END SUBROUTINE qs_env_update_rho_core
 !     *** Atomic block rows ***
 
       IF (natom_local_row(ikind) > 0) THEN
-        ALLOCATE (atom(ikind)%list_local_row(natom_local_row(ikind)),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"atom(ikind)%list_local_row",&
+        ALLOCATE (local_atom(ikind)%list_local_row(natom_local_row(ikind)),STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"local_atom(ikind)%list_local_row",&
                                          natom_local_row(ikind)*int_size)
       ELSE
-        NULLIFY (atom(ikind)%list_local_row)
+        NULLIFY (local_atom(ikind)%list_local_row)
       END IF
 
       iatom_local = 0
@@ -714,18 +714,18 @@ END SUBROUTINE qs_env_update_rho_core
         nrow(i) = nrow(i) + nsgf
         IF (i == myprow) THEN
           iatom_local = iatom_local + 1
-          atom(ikind)%list_local_row(iatom_local) = atom_list(iatom)
+          local_atom(ikind)%list_local_row(iatom_local) = atom_list(iatom)
         END IF
       END DO
 
 !     *** Atomic block columns ***
 
       IF (natom_local_col(ikind) > 0) THEN
-        ALLOCATE (atom(ikind)%list_local_col(natom_local_col(ikind)),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"atom(ikind)%list_local_col",&
+        ALLOCATE (local_atom(ikind)%list_local_col(natom_local_col(ikind)),STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"local_atom(ikind)%list_local_col",&
                                          natom_local_col(ikind)*int_size)
       ELSE
-        NULLIFY (atom(ikind)%list_local_col)
+        NULLIFY (local_atom(ikind)%list_local_col)
       END IF
 
       iatom_local = 0
@@ -738,7 +738,7 @@ END SUBROUTINE qs_env_update_rho_core
         ncol(i) = ncol(i) + nsgf
         IF (i == mypcol) THEN
           iatom_local = iatom_local + 1
-          atom(ikind)%list_local_col(iatom_local) = atom_list(iatom)
+          local_atom(ikind)%list_local_col(iatom_local) = atom_list(iatom)
         END IF
       END DO
 
@@ -757,8 +757,8 @@ END SUBROUTINE qs_env_update_rho_core
 !   *** Store the generated distribution ***
 
     DO ikind=1,nkind
-      local_rows%list(ikind)%array(:) = atom(ikind)%list_local_row(:)
-      local_cols%list(ikind)%array(:) = atom(ikind)%list_local_col(:)
+      local_rows%list(ikind)%array(:) = local_atom(ikind)%list_local_row(:)
+      local_cols%list(ikind)%array(:) = local_atom(ikind)%list_local_col(:)
     END DO
 
 !   *** Print distribution, if requested ***
@@ -798,11 +798,11 @@ END SUBROUTINE qs_env_update_rho_core
             DO ikind=1,nkind
               IF (ikind == 1) THEN
                 WRITE (UNIT=output_unit,FMT="(/,T4,I10,2X,I5,(T24,10I6))")&
-                  iprow-1,ikind,(atom(ikind)%list_local_row(iatom_local),&
+                  iprow-1,ikind,(local_atom(ikind)%list_local_row(iatom_local),&
                                  iatom_local=1,natom_local_row(ikind))
               ELSE
                 WRITE (UNIT=output_unit,FMT="(T16,I5,(T24,10I6))")&
-                  ikind,(atom(ikind)%list_local_row(iatom_local),&
+                  ikind,(local_atom(ikind)%list_local_row(iatom_local),&
                          iatom_local=1,natom_local_row(ikind))
               END IF
             END DO
@@ -848,11 +848,11 @@ END SUBROUTINE qs_env_update_rho_core
             DO ikind=1,nkind
               IF (ikind == 1) THEN
                 WRITE (UNIT=output_unit,FMT="(/,T4,I10,2X,I5,(T24,10I6))")&
-                  ipcol-1,ikind,(atom(ikind)%list_local_col(iatom_local),&
+                  ipcol-1,ikind,(local_atom(ikind)%list_local_col(iatom_local),&
                                  iatom_local=1,natom_local_col(ikind))
               ELSE
                 WRITE (UNIT=output_unit,FMT="(T16,I5,(T24,10I6))")&
-                  ikind,(atom(ikind)%list_local_col(iatom_local),&
+                  ikind,(local_atom(ikind)%list_local_col(iatom_local),&
                          iatom_local=1,natom_local_col(ikind))
               END IF
             END DO
@@ -882,17 +882,17 @@ END SUBROUTINE qs_env_update_rho_core
     IF (istat /= 0) CALL stop_memory(routine,"ncol_old")
 
     DO ikind=1,nkind
-      IF (ASSOCIATED(atom(ikind)%list_local_row)) THEN
-        DEALLOCATE (atom(ikind)%list_local_row,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"atom(ikind)%list_local_row")
+      IF (ASSOCIATED(local_atom(ikind)%list_local_row)) THEN
+        DEALLOCATE (local_atom(ikind)%list_local_row,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"local_atom(ikind)%list_local_row")
       END IF
-      IF (ASSOCIATED(atom(ikind)%list_local_col)) THEN
-        DEALLOCATE (atom(ikind)%list_local_col,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"atom(ikind)%list_local_col")
+      IF (ASSOCIATED(local_atom(ikind)%list_local_col)) THEN
+        DEALLOCATE (local_atom(ikind)%list_local_col,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"local_atom(ikind)%list_local_col")
       END IF
     END DO
 
-    DEALLOCATE (atom,STAT=istat)
+    DEALLOCATE (local_atom,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"atom")
 
     DEALLOCATE (natom_local_row,STAT=istat)
