@@ -88,6 +88,7 @@ MODULE qs_kpp1_env_methods
                                              timestop
   USE xc,                              ONLY: xc_calc_2nd_deriv1,&
                                              xc_prep_2nd_deriv1,&
+                                             xc_calc_2nd_deriv_new,&
                                              xc_rho_set_and_dset_create
   USE xc_derivatives,                  ONLY: xc_functional_get_info,&
                                              xc_functional_eval
@@ -244,6 +245,7 @@ CONTAINS
     TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: atoms
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r_pw, rho_g_pw, tau_pw
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho1_r_pw, rho1_g_pw
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_xc
     TYPE(xc_control_type)                    :: xc_control
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_cflags_type)                 :: needs
@@ -418,6 +420,21 @@ CONTAINS
           CALL xc_functional_get_info(xc_control%functionals(i),lsd=lsd,&
                                       needs=needs, error=error)
        END DO
+       ! needed basic components
+       IF (lsd) THEN
+          needs%rho_spin=.TRUE.
+          needs%tau_spin=needs%tau_spin.or.needs%tau
+       ELSE
+          needs%rho=.TRUE.
+       END IF
+       IF (needs%drho.OR.needs%drho_spin.OR.needs%norm_drho.OR.&
+            needs%norm_drho_spin) THEN
+          IF (lsd) THEN
+             needs%drho_spin=.TRUE.
+          ELSE
+             needs%drho=.TRUE.
+          END IF
+       END IF
        ! calculate the agruments needed by the functionals
        CALL xc_rho_set_update(rho_set, rho_r_pw, rho_g_pw, tau_pw, needs,& 
                               dft_control, cell, auxbas_pw_pool, atoms, error)
@@ -447,12 +464,13 @@ CONTAINS
              needs%drho=.TRUE.
           END IF
        END IF
-
        ! calculate the agruments needed by the functionals
        CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, needs,& 
                               dft_control, cell, auxbas_pw_pool, atoms, error)
 
-       ! evaluate the functionals
+       !--------------------------!
+       ! evaluate the functionals !
+       !--------------------------!
        DO i=1, SIZE(xc_control%functionals)
           CALL xc_functional_eval(xc_control%functionals(i), &
                                   lsd=lsd,&
@@ -462,14 +480,22 @@ CONTAINS
                                   error=error)
        END DO
 
+
+       CALL  xc_calc_2nd_deriv_new(v_xc, deriv_set, rho_set, rho1_set, auxbas_pw_pool, dft_control, error=error)
        ! now we can fill the new potential v_rspace_new(ispin)%pw%cr3d
 !!$omp parallel do private(k,j,i)
-       DO k = bo(1,3), bo(2,3)
-          DO j = bo(1,2), bo(2,2)
-             DO i = bo(1,1), bo(2,1)
-                IF (nspins == 1 .AND. .NOT.dft_control%do_tddfpt_calculation) THEN
+       IF (nspins == 1 .AND. .NOT.dft_control%do_tddfpt_calculation) THEN
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
                    ! fill v_rspace(1) with K_nn
-                ELSE 
+                END DO
+             END DO
+          END DO
+       ELSE 
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
                    IF (.NOT.dft_control%do_tddfpt_calculation .OR. &
                         (dft_control%do_tddfpt_calculation .AND. &
                         dft_control%tddfpt_control%restricted_excitations_type == "SINGLET")) THEN
@@ -482,11 +508,45 @@ CONTAINS
                    IF (.NOT.dft_control%do_tddfpt_calculation) THEN
                       ! fill v_rspace(2)  with Kab+Kbb
                    END IF
-                END IF
+                END DO
              END DO
           END DO
-       END DO
+       END IF
+
+       ! derivate +  sum
+
        
+!!$omp parallel do private(k,j,i)
+       IF (nspins == 1 .AND. .NOT.dft_control%do_tddfpt_calculation) THEN
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
+                   ! fill v_rspace(1) with K_nn
+                END DO
+             END DO
+          END DO
+       ELSE 
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
+                   IF (.NOT.dft_control%do_tddfpt_calculation .OR. &
+                        (dft_control%do_tddfpt_calculation .AND. &
+                        dft_control%tddfpt_control%restricted_excitations_type == "SINGLET")) THEN
+                      ! fill v_rspace(1) with Kaa+Kab
+                   END IF
+                   IF (dft_control%do_tddfpt_calculation .AND. &
+                        dft_control%tddfpt_control%restricted_excitations_type == "TRIPLET") THEN
+                      ! fill v_rspace(1) with Kaa-Kab
+                   END IF
+                   IF (.NOT.dft_control%do_tddfpt_calculation) THEN
+                      ! fill v_rspace(2)  with Kab+Kbb
+                   END IF
+                END DO
+             END DO
+          END DO
+       END IF
+       
+
 
        CALL xc_rho_set_release(rho_set)
        CALL xc_rho_set_release(rho1_set)

@@ -138,7 +138,8 @@ MODULE xc
   PRIVATE
   PUBLIC :: xc_vxc_pw_create1, xc_vxc_pw_create, xc_calculate_pw1, &
        xc_prep_2nd_deriv, xc_calc_2nd_deriv, xc_prep_2nd_deriv1, &
-       xc_calc_2nd_deriv1, xc_rho_set_and_dset_create, xc_exc_calc
+       xc_calc_2nd_deriv1, xc_rho_set_and_dset_create, xc_exc_calc,&
+       xc_calc_2nd_deriv_new
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='xc'
@@ -291,7 +292,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)    
     CPPrecondition(.NOT.ASSOCIATED(vxc_rho),cp_failure_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(vxc_tau),cp_failure_level,routineP,error,failure)
-    IF (.not.failure) THEN
+    IF (.NOT.failure) THEN
 
        SELECT CASE(dft_control%xc_control%functional_routine)
        CASE(xc_old_f_routine)
@@ -1284,7 +1285,7 @@ END SUBROUTINE xc_vxc_pw_create_debug
        gradient_f=ANY(dft_control%xc_control%gradient_functionals)
        nspins=dft_control%nspins
        ngrad_spins=nspins
-       crossterms=ANY(dft_control%xc_control%crossterms).and.nspins>1
+       crossterms=ANY(dft_control%xc_control%crossterms).AND.nspins>1
 
        IF (gradient_f) THEN
           IF (tot_grad) ngrad_spins=nspins+1
@@ -1667,7 +1668,7 @@ END SUBROUTINE xc_vxc_pw_create_debug
        gradient_f=ANY(dft_control%xc_control%gradient_functionals)
        nspins=dft_control%nspins
        ngrad_spins=nspins
-       crossterms=ANY(dft_control%xc_control%crossterms).and.nspins>1
+       crossterms=ANY(dft_control%xc_control%crossterms).AND.nspins>1
 
        IF (gradient_f) THEN
           IF (tot_grad) ngrad_spins=nspins+1
@@ -2227,7 +2228,7 @@ END SUBROUTINE xc_vxc_pw_create_debug
        IF (needs_basic_components) THEN
           IF (lsd) THEN
              needs%rho_spin=.TRUE.
-             needs%tau_spin=needs%tau_spin.or.needs%tau
+             needs%tau_spin=needs%tau_spin.OR.needs%tau
           ELSE
              needs%rho=.TRUE.
           END IF
@@ -2991,8 +2992,8 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
                    error=error)
            END IF
 
-           IF (dft_control%xc_deriv_method_id==xc_deriv_pw.or.&
-                dft_control%xc_deriv_method_id==xc_deriv_spline3.or.&
+           IF (dft_control%xc_deriv_method_id==xc_deriv_pw.OR.&
+                dft_control%xc_deriv_method_id==xc_deriv_spline3.OR.&
                 dft_control%xc_deriv_method_id==xc_deriv_spline2) THEN
 
               IF (.NOT.ASSOCIATED(vxc_g)) THEN
@@ -3377,7 +3378,7 @@ END FUNCTION xc_exc_calc
     IF (ASSOCIATED(rho_r)) THEN
        ALLOCATE(my_rho_r(SIZE(rho_r)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF (.not.failure) THEN
+       IF (.NOT.failure) THEN
           DO ispin=1,SIZE(rho_r)
              CPPrecondition(rho_r(ispin)%in_use==PLANEWAVES,cp_failure_level,routineP,error,failure)
              my_rho_r(ispin)%pw => rho_r(ispin)%pw
@@ -3387,7 +3388,7 @@ END FUNCTION xc_exc_calc
     IF (ASSOCIATED(rho_g)) THEN
        ALLOCATE(my_rho_g(SIZE(rho_g)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF (.not.failure) THEN
+       IF (.NOT.failure) THEN
           DO ispin=1,SIZE(rho_g)
              CPPrecondition(rho_g(ispin)%in_use==PLANEWAVES,cp_failure_level,routineP,error,failure)
              my_rho_g(ispin)%pw => rho_g(ispin)%pw
@@ -3505,7 +3506,7 @@ END FUNCTION xc_exc_calc
        bo = rho_r(1)%pw%pw_grid%bounds_local  
        ntot = PRODUCT ( n )
 
-       IF (.not.ASSOCIATED(derivative_set)) &
+       IF (.NOT.ASSOCIATED(derivative_set)) &
             CALL xc_dset_create(derivative_set, pw_pool, error=error)
 
        ALLOCATE(rgrid(ntot,nspins),stat=stat)
@@ -3622,7 +3623,7 @@ END FUNCTION xc_exc_calc
     END IF
 
     ! dealloc rgrid
-    IF (.not.failure) THEN
+    IF (.NOT.failure) THEN
        DEALLOCATE(rgrid,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
@@ -3641,7 +3642,7 @@ END FUNCTION xc_exc_calc
 
                 !$omp parallel do private(ii)
                 DO ii=1,ntot
-                   IF (drgrid(ii,spin_pot(1,ipot))<dft_control%xc_control%gradient_cut.or.&
+                   IF (drgrid(ii,spin_pot(1,ipot))<dft_control%xc_control%gradient_cut.OR.&
                         drgrid(ii,spin_pot(2,ipot))<dft_control%xc_control%gradient_cut) THEN
                       derivative_set%data(ii,ipot) = 0.0_dp
                    ELSE
@@ -3674,7 +3675,7 @@ END FUNCTION xc_exc_calc
              CPPrecondition(ndiag_term(ipot),cp_failure_level,routineP,error,failure)
              !$omp parallel do private(ii)
              DO ii=1,ntot
-                IF (drgrid(ii,spin_pot(1,ipot))<dft_control%xc_control%gradient_cut.or.&
+                IF (drgrid(ii,spin_pot(1,ipot))<dft_control%xc_control%gradient_cut.OR.&
                      drgrid(ii,spin_pot(2,ipot))<dft_control%xc_control%gradient_cut) THEN
                    derivative_set%data(ii,ipot) = 0.0_dp
                 ELSE
@@ -3798,7 +3799,7 @@ END FUNCTION xc_exc_calc
     IF (ASSOCIATED(rho_r)) THEN
        ALLOCATE(my_rho_r(SIZE(rho_r)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF (.not.failure) THEN
+       IF (.NOT.failure) THEN
           DO ispin=1,SIZE(rho_r)
              CPPrecondition(rho_r(ispin)%in_use==PLANEWAVES,cp_failure_level,routineP,error,failure)
              my_rho_r(ispin)%pw => rho_r(ispin)%pw
@@ -3808,7 +3809,7 @@ END FUNCTION xc_exc_calc
     IF (ASSOCIATED(rho1_r)) THEN
        ALLOCATE(my_rho1_r(SIZE(rho1_r)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF (.not.failure) THEN
+       IF (.NOT.failure) THEN
           DO ispin=1,SIZE(rho1_r)
              CPPrecondition(rho1_r(ispin)%in_use==PLANEWAVES,cp_failure_level,routineP,error,failure)
              my_rho1_r(ispin)%pw => rho1_r(ispin)%pw
@@ -3818,7 +3819,7 @@ END FUNCTION xc_exc_calc
     IF (ASSOCIATED(rho1_g)) THEN
        ALLOCATE(my_rho1_g(SIZE(rho1_g)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF (.not.failure) THEN
+       IF (.NOT.failure) THEN
           DO ispin=1,SIZE(rho1_g)
              CPPrecondition(rho1_g(ispin)%in_use==PLANEWAVES,cp_failure_level,routineP,error,failure)
              my_rho1_g(ispin)%pw => rho1_g(ispin)%pw
@@ -4333,6 +4334,707 @@ END FUNCTION xc_exc_calc
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE xc_calc_2nd_deriv
+  !***************************************************************************
+
+!!****f* qs_kpp1_env_methods/xc_calc_2nd_deriv_new [1.0] *
+!!
+!!   NAME
+!!     xc_calc_2nd_deriv_new
+!!
+!!   FUNCTION
+!!     Does the first prepartions for the calculation of the 2nd deriv
+!!     Calculates the second derivative of E_xc at rho in the direction
+!!     rho1  (if you see the second derivative as bilinear form)
+!!     partial_rho|_(rho=rho) partial_rho|_(rho=rho) E_xc drho(rho1)drho
+!!     The other direction is still indetermined, thus it returns
+!!     a potential (partial integration is performed to reduce it to
+!!     function of rho, removing the dependence from its partial derivs)
+!!
+!!   INPUTS
+!!     - derivative_set: object containing the potentials
+!!     - rho_set: object containing the density at which the derivatives were calculated
+!!     - rho1_set : object containing the density with which to fold
+!!     - v_rspace_new: will contain the new potential.
+!!     
+!!     - pw_pool: the pool for the grids
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!*** **********************************************************************
+  SUBROUTINE xc_calc_2nd_deriv_new(v_xc, &
+       deriv_set, rho_set, rho1_set, pw_pool, dft_control, error)
+
+
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_xc
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    TYPE(xc_rho_set_type), POINTER           :: rho_set, rho1_set
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv_new', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, idir, ii, ipot, j, &
+                                                k, n(3), npot, ispin, nspins, ntot, &
+                                                spin, stat
+    INTEGER, DIMENSION(2, 3)                 :: bounds
+    INTEGER, DIMENSION(3, 3)                 :: nd
+    LOGICAL                                  :: gradient_f, lsd, &
+                                                failure
+    REAL(KIND=dp)                            :: diag_factor, dr1dr
+    TYPE(pw_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: drho1_r
+    TYPE(pw_type), POINTER                   :: tmp_g, tmp_r, v_deriv_g, tmp_r2
+    TYPE(pw_p_type)                          :: v_drho
+    TYPE(xc_control_type)                    :: xc_control
+    TYPE(xc_rho_cflags_type)                 :: needs
+    REAL(kind=dp), DIMENSION(:,:,:), POINTER :: rho1, rho1a, rho1b, deriv_data
+    TYPE(cp_3d_r_p_type), DIMENSION(:), POINTER :: drho, drho1, drhoa, drhob, drho1a, drho1b
+    TYPE(xc_derivative_type), POINTER        :: deriv_att
+
+    CALL timeset(routineN,"I","",handle)
+
+    failure=.FALSE.
+    NULLIFY(tmp_g, tmp_r)
+
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho1_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(v_xc),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       nspins     = dft_control%nspins
+       lsd = (nspins /= 1)
+       xc_control = dft_control%xc_control
+       IF (dft_control%do_tddfpt_calculation) THEN
+          xc_control = dft_control%tddfpt_control%xc_control
+          lsd = .TRUE.
+       END IF
+       ALLOCATE(v_xc(nspins),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO ispin=1, nspins
+          NULLIFY(v_xc(ispin)%pw)
+          CALL pw_pool_create_pw(pw_pool,v_xc(ispin)%pw,&
+                                 use_data = REALDATA3D,&
+                                 in_space = REALSPACE, error=error)
+          CALL pw_zero(v_xc(ispin)%pw)
+       END DO
+    END IF
+
+    ! assesses the argument needed by the functionals
+    CALL xc_rho_cflags_setall(needs,.FALSE.,error=error)
+    DO i=1,SIZE(xc_control%functionals)
+       CALL xc_functional_get_info(xc_control%functionals(i),lsd=lsd,&
+            needs=needs,&
+            error=error)
+    END DO
+    IF (needs%drho.OR.needs%drho_spin.OR.needs%norm_drho.OR.&
+         needs%norm_drho_spin) gradient_f=.TRUE.
+
+    ! get rho, drho, rho1, drho1 from the sets
+!!    do ispin=1,2
+!!       nullify(rho(ispin)%array, rho1(ispin)%array)
+!!       do idir=1,3
+!!          nullify(drho1(idir,ispin)%array,drho(idir,ispin)%array)
+!!       end do
+!!    end do
+       !!call xc_rho_set_get(rho_set,drhoa=drhoa,drhob=drhob,&
+       !!     can_return_null=gradient_f,error=error)
+       !!do idir=1,3
+       !!   drho(idir,1)%array => drhoa(idir)%array
+       !!   drho(idir,2)%array => drhob(idir)%array
+       !!end do
+       !!call xc_rho_set_get(rho1_set,rhoa=rho1(1)%array,rhob=rho1(2)%array,&
+       !!     error=error)
+       !!call xc_rho_set_get(rho_set,drhoa=drhoa,drhob=drhob,&
+       !!     can_return_null=gradient_f,error=error)
+       !!do idir=1,3
+       !!   drho1(idir,1)%array => drhoa(idir)%array
+       !!   drho1(idir,2)%array => drhob(idir)%array
+       !!end do
+
+    IF (lsd) THEN
+
+       !-------------------!
+       ! UNrestricted case !
+       !-------------------!
+
+       CALL xc_rho_set_get(rho1_set, rhoa=rho1a, rhob=rho1b, error=error)
+       CALL xc_rho_set_get(rho_set, drhoa=drhoa, drhob=drhob, &
+            can_return_null=gradient_f,error=error)
+       CALL xc_rho_set_get(rho1_set,drhoa=drho1a, drhob=drho1b, &
+            can_return_null=gradient_f,error=error)
+
+       IF (gradient_f) THEN
+          CALL pw_pool_create_pw(pw_pool,v_drho%pw,&
+               use_data = REALDATA3D,&
+               in_space = REALSPACE, error=error)
+          CALL pw_zero(v_drho%pw)
+       END IF
+
+       deriv_att=> xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)", &
+            error=error)
+       IF (ASSOCIATED(deriv_att)) THEN
+          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+               error=error)
+          !$omp parallel do private(k,j,i)
+          DO k = bounds(1,3), bounds(2,3)
+             DO j = bounds(1,2), bounds(2,2)
+                DO i = bounds(1,1), bounds(2,1)
+                   v_xc(1)%pw%cr3d(i,j,k)=&
+                        deriv_data(i,j,k)*rho1a(i,j,k)
+                END DO
+             END DO
+          END DO
+       END IF
+       
+       if (.not. dft_control%do_tddfpt_calculation) then
+          deriv_att=> xc_dset_get_derivative(deriv_set, "(rhob)(rhob)", &
+               error=error)
+          IF (ASSOCIATED(deriv_att)) THEN
+             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+                  error=error)
+             !$omp parallel do private(k,j,i)
+             DO k = bounds(1,3), bounds(2,3)
+                DO j = bounds(1,2), bounds(2,2)
+                   DO i = bounds(1,1), bounds(2,1)
+                      v_xc(2)%pw%cr3d(i,j,k)=&
+                           deriv_data(i,j,k)*rho1a(i,j,k)
+                   END DO
+                END DO
+             END DO
+          END IF
+       end if
+
+
+
+    ELSE
+
+       !-----------------!
+       ! restricted case !
+       !-----------------!
+
+       CALL xc_rho_set_get(rho1_set,rho=rho1, error=error)
+       CALL xc_rho_set_get(rho_set,drho=drho, &
+            can_return_null=gradient_f,error=error)
+       CALL xc_rho_set_get(rho1_set,drho=drho1, &
+            can_return_null=gradient_f,error=error)
+
+       IF (gradient_f) THEN
+          CALL pw_pool_create_pw(pw_pool,v_drho%pw,&
+               use_data = REALDATA3D,&
+               in_space = REALSPACE, error=error)
+          CALL pw_zero(v_drho%pw)
+       END IF
+
+       deriv_att=> xc_dset_get_derivative(deriv_set, "(rho)(rho)", &
+            error=error)
+       IF (ASSOCIATED(deriv_att)) THEN
+          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+               error=error)
+          !$omp parallel do private(k,j,i)
+          DO k = bounds(1,3), bounds(2,3)
+             DO j = bounds(1,2), bounds(2,2)
+                DO i = bounds(1,1), bounds(2,1)
+                   v_xc(1)%pw%cr3d(i,j,k)=&
+                        deriv_data(i,j,k)*rho1(i,j,k)
+                END DO
+             END DO
+          END DO
+       END IF
+       
+       deriv_att=> xc_dset_get_derivative(deriv_set, "(rho)(norm_drho)", &
+            error=error)
+       IF (ASSOCIATED(deriv_att)) THEN
+          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+               error=error)
+          !$omp parallel do private(k,j,i,idir,dr1dr)
+          DO k = bounds(1,3), bounds(2,3)
+             DO j = bounds(1,2), bounds(2,2)
+                DO i = bounds(1,1), bounds(2,1)
+                   dr1dr=0._dp
+                   DO idir=1,3
+                      dr1dr=dr1dr+drho(idir)%array(i,j,k)*drho1(idir)%array(i,j,k)
+                   END DO
+                   v_xc(1)%pw%cr3d(i,j,k)=v_xc(1)%pw%cr3d(i,j,k)+&
+                        deriv_data(i,j,k)*dr1dr
+                   v_drho%pw%cr3d(i,j,k) = -1._dp * deriv_data(i,j,k)*rho1(i,j,k)
+                END DO
+             END DO
+          END DO
+       END IF
+
+
+       deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drho)(norm_drho)", &
+            error=error)
+       IF (ASSOCIATED(deriv_att)) THEN
+          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+               error=error)
+          !$omp parallel do private(k,j,i,idir,dr1dr)
+          DO k = bounds(1,3), bounds(2,3)
+             DO j = bounds(1,2), bounds(2,2)
+                DO i = bounds(1,1), bounds(2,1)
+                   dr1dr=0._dp
+                   DO idir=1,3
+                      dr1dr=dr1dr+drho(idir)%array(i,j,k)*drho1(idir)%array(i,j,k)
+                   END DO
+                   v_drho%pw%cr3d(i,j,k) = v_drho%pw%cr3d(i,j,k) - deriv_data(i,j,k)*rho1(i,j,k)
+                END DO
+             END DO
+          END DO
+       END IF
+
+       
+       deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drho)", &
+            error=error)
+       IF (ASSOCIATED(deriv_att)) THEN
+          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+               error=error)
+          !$omp parallel do private(k,j,i,idir,dr1dr)
+          DO k = bounds(1,3), bounds(2,3)
+             DO j = bounds(1,2), bounds(2,2)
+                DO i = bounds(1,1), bounds(2,1)
+                   dr1dr=0._dp
+                   DO idir=1,3
+                      dr1dr=dr1dr+drho(idir)%array(i,j,k)*drho1(idir)%array(i,j,k)
+                   END DO
+                   v_drho%pw%cr3d(i,j,k) = v_drho%pw%cr3d(i,j,k) + &
+                        deriv_data(i,j,k)*rho1(i,j,k)/(rho_set%norm_drho(i,j,k))**2
+                END DO
+             END DO
+          END DO
+
+          ! partial integration
+
+          ! this does not work with non orthorombic cells 
+          ! (you will have to use a vector of pw with 3 components)
+          CALL pw_pool_create_pw(pw_pool,tmp_r,&
+               use_data = REALDATA3D,&
+               in_space = REALSPACE, error=error)
+
+          DO idir=1,3
+             !$omp parallel do private(k,j,i)
+             DO k = bounds(1,3), bounds(2,3)
+                DO j = bounds(1,2), bounds(2,2)
+                   DO i = bounds(1,1), bounds(2,1)
+                      tmp_r%cr3d(i,j,k)=drho(idir)%array(i,j,k)*v_drho%pw%cr3d(i,j,k)-&
+                           drho1(idir)%array(i,j,k)*deriv_data(i,j,k)
+                   END DO
+                END DO
+             END DO
+
+             SELECT CASE(dft_control%xc_deriv_method_id)
+             CASE (xc_deriv_spline2_smooth)
+                CALL pw_nn_deriv_r ( pw_in=tmp_r,&
+                     pw_out=v_xc(1)%pw,coeffs=spline2_deriv_coeffs,&
+                     idir=idir, error=error )
+             CASE (xc_deriv_spline3_smooth)
+                CALL pw_nn_deriv_r ( pw_in=tmp_r,&
+                     pw_out=v_xc(1)%pw,coeffs=spline3_deriv_coeffs,&
+                     idir=idir, error=error )
+             CASE (xc_deriv_nn10_smooth)
+                CALL pw_nn_deriv_r ( pw_in=tmp_r,&
+                     pw_out=v_xc(1)%pw,coeffs=nn10_deriv_coeffs,&
+                     idir=idir, error=error )
+             CASE (xc_deriv_nn50_smooth)
+                CALL pw_nn_deriv_r ( pw_in=tmp_r,&
+                     pw_out=v_xc(1)%pw,coeffs=nn50_deriv_coeffs,&
+                     idir=idir, error=error )
+             CASE (xc_deriv_fd)
+                CALL pw_pool_create_pw(pw_pool, tmp_r2,&
+                     use_data=REALDATA3D, in_space=REALSPACE,&
+                     error=error)
+                CALL pw_derive_fd(tmp_r,&
+                     tmp_r2,nd(:,idir))
+                CALL pw_sumup(tmp_r2,v_xc(1)%pw)
+                CALL pw_pool_give_back_pw(pw_pool,tmp_r2,error=error)
+             CASE default
+                CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+             END SELECT
+
+          END DO
+          CALL pw_pool_give_back_pw(pw_pool,tmp_r,error=error)
+
+       END IF
+
+    END IF
+
+    !!!IF (gradient_f) THEN
+    !!!
+    !!!   ! alloc & calc drho1_r=<grad rho,grad rho1>
+    !!!   IF (.NOT.failure) THEN
+    !!!      ALLOCATE(drho1_r(nspins),stat=stat)
+    !!!      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    !!!   END IF
+    !!!   IF (.NOT.failure) THEN
+    !!!      CALL pw_pool_create_pw(pw_pool,tmp_g, &
+    !!!           use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+    !!!           error=error)
+    !!!      CALL pw_pool_create_pw(pw_pool,tmp_r, &
+    !!!           use_data=REALDATA3D,in_space=REALSPACE,&
+    !!!           error=error)
+    !!!      DO spin=1,nspins
+    !!!         NULLIFY(drho1_r(spin)%pw)
+    !!!         CALL pw_pool_create_pw(pw_pool,drho1_r(spin)%pw, &
+    !!!              use_data=REALDATA3D, in_space=REALSPACE, &
+    !!!              error=error)
+    !!!         DO idir=1,3
+    !!!            CALL pw_copy ( rho1_g(spin)%pw, tmp_g )
+    !!!            CALL pw_derive ( tmp_g, nd(:,idir) )
+    !!!            CALL pw_transfer ( tmp_g, tmp_r )
+    !!!
+    !!!            IF (idir==1) THEN
+    !!!               !$omp parallel do private(k,j,i)
+    !!!               DO k = bounds(1,3), bounds(2,3)
+    !!!                  DO j = bounds(1,2), bounds(2,2)
+    !!!                     DO i = bounds(1,1), bounds(2,1)
+    !!!                        drho1_r(spin)%pw%cr3d(i,j,k) = &
+    !!!                             tmp_r%cr3d(i,j,k)*&
+    !!!                             drho_r(idir,spin)%pw%cr3d(i,j,k)
+    !!!                     END DO
+    !!!                  END DO
+    !!!               END DO
+    !!!            ELSE
+    !!!               !$omp parallel do private(k,j,i)
+    !!!               DO k = bounds(1,3), bounds(2,3)
+    !!!                  DO j = bounds(1,2), bounds(2,2)
+    !!!                     DO i = bounds(1,1), bounds(2,1)
+    !!!                        drho1_r(spin)%pw%cr3d(i,j,k) = &
+    !!!                             drho1_r(spin)%pw%cr3d(i,j,k)+&
+    !!!                             tmp_r%cr3d(i,j,k)*&
+    !!!                             drho_r(idir,spin)%pw%cr3d(i,j,k)
+    !!!                     END DO
+    !!!                  END DO
+    !!!               END DO
+    !!!            END IF
+    !!!         END DO
+    !!!      END DO
+    !!!      CALL pw_pool_give_back_pw(pw_pool,tmp_g,&
+    !!!           error=error)
+    !!!      CALL pw_pool_give_back_pw(pw_pool,tmp_r,&
+    !!!           error=error)
+    !!!   END IF
+    
+    !!!   ! alloc v_r_to_deriv
+    !!!   IF (.NOT.failure) THEN
+    !!!      ALLOCATE(v_r_to_deriv(nspins),stat=stat)
+    !!!      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    !!!   END IF
+    !!!   IF (.NOT.failure) THEN
+    !!!      DO spin=1,nspins
+    !!!         NULLIFY(v_r_to_deriv(spin)%pw)
+    !!!         CALL pw_pool_create_pw(pw_pool,v_r_to_deriv(spin)%pw,&
+    !!!              use_data=REALDATA3D, in_space=REALSPACE,error=error)
+    !!!         CALL pw_zero(v_r_to_deriv(spin)%pw)
+    !!!      END DO
+    !!!   END IF
+    !!!END IF
+    !!!
+    !!!! calc v_xc and v_r_to_deriv
+    !!!IF (.NOT.failure) THEN
+    !!!
+    !!!   DO ipot=1, npot ! over all pots
+    !!!
+    !!!      IF (grad_pot(1,ipot) .AND. grad_pot(2,ipot)) THEN
+    !!!
+    !!!         CPPrecondition(ANY(xc_control%gradient_functionals),cp_failure_level,routineP,error,failure)
+    !!!         IF (ndiag_term(ipot)) THEN
+    !!!            CALL cp_assert(spin_pot(1,ipot)/=spin_pot(2,ipot),&
+    !!!                 cp_failure_level,cp_assertion_failed,routineP,&
+    !!!                 "error inconsistent spin_pot info "//&
+    !!!                 CPSourceFileRef,&
+    !!!                 error,failure)
+    !!!
+    !!!            !$omp parallel do private(k,j,i,ii)
+    !!!            DO k = bounds(1,3), bounds(2,3)
+    !!!               ii = (k-bounds(1,3))*n(1)*n(2)
+    !!!               DO j = bounds(1,2), bounds(2,2)
+    !!!                  DO i = bounds(1,1), bounds(2,1)
+    !!!                     ii=ii+1
+    !!!                     v_r_to_deriv(spin_pot(2,ipot))%pw%cr3d(i,j,k) = &
+    !!!                          v_r_to_deriv(spin_pot(2,ipot))%pw%cr3d(i,j,k)+&
+    !!!                          drho1_r(spin_pot(1,ipot))%pw%cr3d(i,j,k)*&
+    !!!                          deriv_set%data(ii,ipot)
+    !!!                  END DO
+    !!!               END DO
+    !!!            END DO
+    !!!
+    !!!            !$omp parallel do private(k,j,i,ii)
+    !!!            DO k = bounds(1,3), bounds(2,3)
+    !!!               ii = (k-bounds(1,3))*n(1)*n(2)
+    !!!               DO j = bounds(1,2), bounds(2,2)
+    !!!                  DO i = bounds(1,1), bounds(2,1)
+    !!!                     ii=ii+1
+    !!!                     v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
+    !!!                          v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
+    !!!                          drho1_r(spin_pot(2,ipot))%pw%cr3d(i,j,k)*&
+    !!!                          deriv_set%data(ii,ipot)
+    !!!                  END DO
+    !!!               END DO
+    !!!            END DO
+    !!!         ELSE
+    !!!            CALL cp_assert(spin_pot(1,ipot)==spin_pot(2,ipot),&
+    !!!                 cp_failure_level,cp_assertion_failed,routineP,&
+    !!!                 "error inconsistent spin_pot info "//&
+    !!!                 CPSourceFileRef,&
+    !!!                 error,failure)
+    !!!
+    !!!            !$omp parallel do private(k,j,i,ii)
+    !!!            DO k = bounds(1,3), bounds(2,3)
+    !!!               ii = (k-bounds(1,3))*n(1)*n(2)
+    !!!               DO j = bounds(1,2), bounds(2,2)
+    !!!                  DO i = bounds(1,1), bounds(2,1)
+    !!!                     ii=ii+1
+    !!!                     v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
+    !!!                          v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
+    !!!                          drho1_r(spin_pot(2,ipot))%pw%cr3d(i,j,k)*&
+    !!!                          deriv_set%data(ii,ipot)
+    !!!                  END DO
+    !!!               END DO
+    !!!            END DO
+    !!!         END IF
+    !!!
+    !!!      ELSE IF (grad_pot(1,ipot)) THEN
+    !!!         CPPrecondition(ndiag_term(ipot),cp_failure_level,routineP,error,failure)
+    !!!
+    !!!         !$omp parallel do private(k,j,i,ii)
+    !!!         DO k = bounds(1,3), bounds(2,3)
+    !!!            ii = (k-bounds(1,3))*n(1)*n(2)
+    !!!            DO j = bounds(1,2), bounds(2,2)
+    !!!               DO i = bounds(1,1), bounds(2,1)
+    !!!                  ii=ii+1
+    !!!                  v_xc(spin_pot(2,ipot))%pw%cr3d(i,j,k) = &
+    !!!                       v_xc(spin_pot(2,ipot))%pw%cr3d(i,j,k)+&
+    !!!                       drho1_r(spin_pot(1,ipot))%pw%cr3d(i,j,k)*&
+    !!!                       deriv_set%data(ii,ipot)
+    !!!               END DO
+    !!!            END DO
+    !!!         END DO
+    !!!
+    !!!         !$omp parallel do private(k,j,i,ii)
+    !!!         DO k = bounds(1,3), bounds(2,3)
+    !!!            ii = (k-bounds(1,3))*n(1)*n(2)
+    !!!            DO j = bounds(1,2), bounds(2,2)
+    !!!               DO i = bounds(1,1), bounds(2,1)
+    !!!                  ii=ii+1
+    !!!                  v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
+    !!!                       v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
+    !!!                       rho1_r(spin_pot(2,ipot))%pw%cr3d(i,j,k)*&
+    !!!                       deriv_set%data(ii,ipot)
+    !!!               END DO
+    !!!            END DO
+    !!!         END DO
+    !!!
+    !!!      ELSE IF (grad_pot(2,ipot)) THEN
+    !!!         CPPrecondition(ndiag_term(ipot),cp_failure_level,routineP,error,failure)
+    !!!
+    !!!         !$omp parallel do private(k,j,i,ii)
+    !!!         DO k = bounds(1,3), bounds(2,3)
+    !!!            ii = (k-bounds(1,3))*n(1)*n(2)
+    !!!            DO j = bounds(1,2), bounds(2,2)
+    !!!               DO i = bounds(1,1), bounds(2,1)
+    !!!                  ii=ii+1
+    !!!                  v_r_to_deriv(spin_pot(2,ipot))%pw%cr3d(i,j,k) = &
+    !!!                       v_r_to_deriv(spin_pot(2,ipot))%pw%cr3d(i,j,k)+&
+    !!!                       rho1_r(spin_pot(1,ipot))%pw%cr3d(i,j,k)*&
+    !!!                       deriv_set%data(ii,ipot)
+    !!!               END DO
+    !!!            END DO
+    !!!         END DO
+    !!!
+    !!!         !$omp parallel do private(k,j,i,ii)
+    !!!         DO k = bounds(1,3), bounds(2,3)
+    !!!            ii = (k-bounds(1,3))*n(1)*n(2)
+    !!!            DO j = bounds(1,2), bounds(2,2)
+    !!!               DO i = bounds(1,1), bounds(2,1)
+    !!!                  ii=ii+1
+    !!!                  v_xc(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
+    !!!                       v_xc(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
+    !!!                       drho1_r(spin_pot(2,ipot))%pw%cr3d(i,j,k)*&
+    !!!                       deriv_set%data(ii,ipot)
+    !!!               END DO
+    !!!            END DO
+    !!!         END DO
+    !!!
+    !!!      ELSE
+    !!!         ! no grad
+    !!!
+    !!!         !----------------------------------------------!
+    !!!         ! Time-Dependent DFT (restricted ground state) !
+    !!!         !                                              ! 
+    !!!         !                    &^2 Exc                   !
+    !!!         ! K(r,s,t) = ---------------------- rho1(r')   !
+    !!!         !            &rho(r,s) &rho_t(r',t)            !
+    !!!         !                                              !
+    !!!         ! singlet : K(a,a,r) + K(a,b,r)                !
+    !!!         ! triplet : K(a,a,r) - K(a,b,r)                !
+    !!!         !----------------------------------------------!
+    !!!         IF (do_restricted_tddfpt) THEN
+    !!!
+    !!!            ! case a,a
+    !!!            IF (spin_pot(1,ipot)==1 .AND. spin_pot(2,ipot)==1) THEN
+    !!!               !$omp parallel do private(k,j,i,ii)
+    !!!               DO k = bounds(1,3), bounds(2,3)
+    !!!                  ii = (k-bounds(1,3))*n(1)*n(2)
+    !!!                  DO j = bounds(1,2), bounds(2,2)
+    !!!                     DO i = bounds(1,1), bounds(2,1)
+    !!!                        ii=ii+1
+    !!!                        v_xc(1)%pw%cr3d(i,j,k) = &
+    !!!                             v_xc(1)%pw%cr3d(i,j,k) + &
+    !!!                             rho1_r(1)%pw%cr3d(i,j,k) * deriv_set%data(ii,ipot)
+    !!!                     END DO
+    !!!                  END DO
+    !!!               END DO
+    !!!
+    !!!               ! case a,b   
+    !!!            ELSE IF (spin_pot(1,ipot)==1 .AND. spin_pot(2,ipot)==2) THEN
+    !!!               !$omp parallel do private(k,j,i,ii)
+    !!!               DO k = bounds(1,3), bounds(2,3)
+    !!!                  ii = (k-bounds(1,3))*n(1)*n(2)
+    !!!                  DO j = bounds(1,2), bounds(2,2)
+    !!!                     DO i = bounds(1,1), bounds(2,1)
+    !!!                        ii=ii+1
+    !!!                        v_xc(1)%pw%cr3d(i,j,k) = &
+    !!!                             v_xc(1)%pw%cr3d(i,j,k) + &
+    !!!                             diag_factor * rho1_r(1)%pw%cr3d(i,j,k) * deriv_set%data(ii,ipot)
+    !!!                     END DO
+    !!!                  END DO
+    !!!               END DO
+    !!!
+    !!!            END IF
+    !!!
+    !!!         ELSE
+    !!!
+    !!!            IF (ndiag_term(ipot)) THEN
+    !!!               CALL cp_assert(spin_pot(1,ipot)/=spin_pot(2,ipot),&
+    !!!                    cp_failure_level,cp_assertion_failed,routineP,&
+    !!!                    "error inconsistent spin_pot info "//&
+    !!!                    CPSourceFileRef,&
+    !!!                    error,failure)
+    !!!
+    !!!               !$omp parallel do private(k,j,i,ii)
+    !!!               DO k = bounds(1,3), bounds(2,3)
+    !!!                  ii = (k-bounds(1,3))*n(1)*n(2)
+    !!!                  DO j = bounds(1,2), bounds(2,2)
+    !!!                     DO i = bounds(1,1), bounds(2,1)
+    !!!                        ii=ii+1
+    !!!                        v_xc(spin_pot(2,ipot))%pw%cr3d(i,j,k) = &
+    !!!                             v_xc(spin_pot(2,ipot))%pw%cr3d(i,j,k)+&
+    !!!                             rho1_r(spin_pot(1,ipot))%pw%cr3d(i,j,k)*&
+    !!!                             deriv_set%data(ii,ipot)
+    !!!                     END DO
+    !!!                  END DO
+    !!!               END DO
+    !!!
+    !!!               !$omp parallel do private(k,j,i,ii)
+    !!!               DO k = bounds(1,3), bounds(2,3)
+    !!!                  ii = (k-bounds(1,3))*n(1)*n(2)
+    !!!                  DO j = bounds(1,2), bounds(2,2)
+    !!!                     DO i = bounds(1,1), bounds(2,1)
+    !!!                        ii=ii+1
+    !!!                        v_xc(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
+    !!!                             v_xc(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
+    !!!                             rho1_r(spin_pot(2,ipot))%pw%cr3d(i,j,k)*&
+    !!!                             deriv_set%data(ii,ipot)
+    !!!                     END DO
+    !!!                  END DO
+    !!!               END DO
+    !!!            ELSE ! (.NOT.ndiag_term)
+    !!!               CALL cp_assert(spin_pot(1,ipot)==spin_pot(2,ipot),&
+    !!!                    cp_failure_level,cp_assertion_failed,routineP,&
+    !!!                    "error inconsistent spin_pot info "//&
+    !!!                    CPSourceFileRef,&
+    !!!                    error,failure)
+    !!!               !$omp parallel do private(k,j,i,ii)
+    !!!               DO k = bounds(1,3), bounds(2,3)
+    !!!                  ii = (k-bounds(1,3))*n(1)*n(2)
+    !!!                  DO j = bounds(1,2), bounds(2,2)
+    !!!                     DO i = bounds(1,1), bounds(2,1)
+    !!!                        ii=ii+1
+    !!!                        v_xc(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
+    !!!                             v_xc(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
+    !!!                             rho1_r(spin_pot(2,ipot))%pw%cr3d(i,j,k)*&
+    !!!                             deriv_set%data(ii,ipot)
+    !!!                     END DO
+    !!!                  END DO
+    !!!               END DO
+    !!!            END IF ! (ndiag_term)
+    !!!
+    !!!         END IF ! (do_restricted_tddfpt)
+    !!!      END IF
+    !!!   END DO
+    !!!END IF
+    !!!
+    !!!IF (ANY(xc_control%gradient_functionals)) THEN
+    !!!   IF (.NOT.failure) THEN
+    !!!      ! give back drho1_r
+    !!!      DO spin=1,nspins
+    !!!         CALL pw_pool_give_back_pw(pw_pool,drho1_r(spin)%pw,&
+    !!!              error=error)
+    !!!      END DO
+    !!!      DEALLOCATE(drho1_r,stat=stat)
+    !!!      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    !!!   END IF
+    !!!END IF
+    !!!
+    !!!! perform partial integration and filter v_xc
+    !!!IF (.NOT.failure) THEN
+    !!!   IF (ANY(xc_control%gradient_functionals)) THEN
+    !!!      CALL pw_pool_create_pw(pw_pool,tmp_g, &
+    !!!           use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+    !!!           error=error)
+    !!!   END IF
+    !!!   CALL pw_pool_create_pw(pw_pool,v_deriv_g, &
+    !!!        use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+    !!!        error=error)
+    !!!
+    !!!   DO spin=1,nspins
+    !!!      CALL pw_transfer(v_xc(spin)%pw,v_deriv_g)
+    !!!
+    !!!      IF (ANY(xc_control%gradient_functionals)) THEN
+    !!!         DO idir=1,3
+    !!!
+    !!!            !$omp parallel do private(k,j,i)
+    !!!            DO k = bounds(1,3), bounds(2,3)
+    !!!               DO j = bounds(1,2), bounds(2,2)
+    !!!                  DO i = bounds(1,1), bounds(2,1)
+    !!!                     v_xc(spin)%pw%cr3d(i,j,k)= &
+    !!!                          -v_r_to_deriv(spin)%pw%cr3d(i,j,k)* &
+    !!!                          drho_r(idir,spin)%pw%cr3d(i,j,k)
+    !!!                  END DO
+    !!!               END DO
+    !!!            END DO
+    !!!
+    !!!            CALL pw_transfer(v_xc(spin)%pw,tmp_g)
+    !!!            CALL pw_derive(tmp_g,nd(:,idir))
+    !!!            CALL pw_sumup(tmp_g,v_deriv_g)
+    !!!         END DO
+    !!!      END IF
+    !!!
+    !!!      CALL pw_transfer(v_deriv_g,v_xc(spin)%pw)
+    !!!   END DO
+    !!!
+    !!!   IF (ANY(xc_control%gradient_functionals)) THEN
+    !!!      CALL pw_pool_give_back_pw(pw_pool,tmp_g,error=error)
+    !!!   END IF
+    !!!   CALL pw_pool_give_back_pw(pw_pool,v_deriv_g,error=error)
+    !!!
+    !!!   IF (ANY(xc_control%gradient_functionals)) THEN
+    !!!      ! dealloc v_r_to_deriv
+    !!!      DO spin=1,nspins
+    !!!         CALL pw_pool_give_back_pw(pw_pool,v_r_to_deriv(spin)%pw,&
+    !!!              error=error)
+    !!!      END DO
+    !!!      DEALLOCATE(v_r_to_deriv, stat=stat)
+    !!!      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    !!!   END IF
+    !!!
+    !!!END IF
+
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE xc_calc_2nd_deriv_new
   !***************************************************************************
 
   SUBROUTINE pw_smooth(pw_in,pw_out)
