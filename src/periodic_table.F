@@ -37,11 +37,14 @@ MODULE periodic_table
      REAL ( dbl ) :: covalent_radius ! in Angstroms
      REAL ( dbl ) :: vdw_radius ! in Angstroms
      INTEGER :: e_conv ( 0:3 )
+     REAL ( dbl ) :: heat_of_formation ! in kcal/mol
      REAL ( dbl ) :: eht_param ( 0:3 ) ! in eV
   END TYPE atom
 
   INTEGER, PARAMETER :: nelem = 106
   TYPE ( atom ) :: ptable ( 0:nelem )
+
+  REAL(dbl), PARAMETER                     :: z = 0.0_dbl
 
 !!*****
 !******************************************************************************
@@ -63,14 +66,11 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
+!!*****
 !******************************************************************************
 
 SUBROUTINE init_periodic_table()
 
-    REAL(dbl), PARAMETER                     :: z = 0.0_dbl
-
-!------------------------------------------------------------------------------
 ! Dummy
 
   ptable(0) % symbol = 'X '
@@ -1256,9 +1256,231 @@ SUBROUTINE init_periodic_table()
   ptable(106) % e_conv(0:3) = (/ 14, 30, 34, 28 /)
   ptable(106) % eht_param(0:3) = (/ z, z, z, z/)
 
+! Initialize heat of formation
+  CALL init_eheat 
+
 END SUBROUTINE init_periodic_table
 
-!!*****
+SUBROUTINE init_eheat 
+! All values in kcal/mol
+! Dummy
+  ptable(0) % heat_of_formation = z
+! Hydrogen
+  ptable(1) % heat_of_formation = 52.102_dbl
+! Helium
+  ptable(2) % heat_of_formation = z
+! Lithium
+  ptable(3) % heat_of_formation = 38.410_dbl
+! Beryllium
+  ptable(4) % heat_of_formation = 76.960_dbl
+! Boron
+  ptable(5) % heat_of_formation = 135.700_dbl
+! Carbon
+  ptable(6) % heat_of_formation = 170.890_dbl
+! Nitrogen
+  ptable(7) % heat_of_formation = 113.000_dbl
+! Oxygen
+  ptable(8) % heat_of_formation = 59.559_dbl
+! Fluorine
+  ptable(9) % heat_of_formation = 18.890_dbl
+! Neon
+  ptable(10) % heat_of_formation = z
+! Sodium
+  ptable(11) % heat_of_formation = 25.850_dbl
+! Magnesium
+  ptable(12) % heat_of_formation = 35.000_dbl
+! Aluminium
+  ptable(13) % heat_of_formation = 79.490_dbl
+! Silicon
+  ptable(14) % heat_of_formation = 108.390_dbl
+! Phosphorus
+  ptable(15) % heat_of_formation = 75.570_dbl
+! Sulfur
+  ptable(16) % heat_of_formation = 66.400_dbl
+! Chlorine
+  ptable(17) % heat_of_formation = 28.990_dbl
+! Argon
+  ptable(18) % heat_of_formation = z
+! Potassium
+  ptable(19) % heat_of_formation = 21.420_dbl
+! Calcium
+  ptable(20) % heat_of_formation = 42.600_dbl
+! Scandium
+  ptable(21) % heat_of_formation = 90.300_dbl
+! Titanium
+  ptable(22) % heat_of_formation = 112.300_dbl
+! Vanadium
+  ptable(23) % heat_of_formation = 122.900_dbl
+! Chromium
+  ptable(24) % heat_of_formation = 95.000_dbl
+! Manganese
+  ptable(25) % heat_of_formation = 67.700_dbl
+! Iron
+  ptable(26) % heat_of_formation = 99.300_dbl
+! Cobalt
+  ptable(27) % heat_of_formation = 102.400_dbl
+! Nickel
+  ptable(28) % heat_of_formation = 102.800_dbl
+! Copper
+  ptable(29) % heat_of_formation = 80.700_dbl
+! Zinc
+  ptable(30) % heat_of_formation = 31.170_dbl
+! Gallium
+  ptable(31) % heat_of_formation = 65.400_dbl
+! Germanium
+  ptable(32) % heat_of_formation = 89.500_dbl
+! Arsenic
+  ptable(33) % heat_of_formation = 72.300_dbl
+! Selenium
+  ptable(34) % heat_of_formation = 54.300_dbl
+! Bromine
+  ptable(35) % heat_of_formation = 26.740_dbl
+! Krypton
+  ptable(36) % heat_of_formation = z
+! Rubidium
+  ptable(37) % heat_of_formation = 19.600_dbl
+! Strontium
+  ptable(38) % heat_of_formation = 39.100_dbl
+! Yttrium
+  ptable(39) % heat_of_formation = 101.500_dbl
+! Zirconium
+  ptable(40) % heat_of_formation = 145.500_dbl
+! Niobium
+  ptable(41) % heat_of_formation = 172.400_dbl
+! Molybdenum
+  ptable(42) % heat_of_formation = 157.300_dbl
+! Technetium
+  ptable(43) % heat_of_formation = z
+! Ruthenium
+  ptable(44) % heat_of_formation = 155.500_dbl
+! Rhodium
+  ptable(45) % heat_of_formation = 133.000_dbl
+! Palladium
+  ptable(46) % heat_of_formation = 90.000_dbl
+! Silver
+  ptable(47) % heat_of_formation = 68.100_dbl
+! Cadmium
+  ptable(48) % heat_of_formation = 26.720_dbl
+! Indium
+  ptable(49) % heat_of_formation = 58.000_dbl
+! Tin
+  ptable(50) % heat_of_formation = 72.200_dbl
+! Antimony
+  ptable(51) % heat_of_formation = 63.200_dbl
+! Tellurium
+  ptable(52) % heat_of_formation = 47.000_dbl
+! Iodine
+  ptable(53) % heat_of_formation = 25.517_dbl
+! Xenon
+  ptable(54) % heat_of_formation = z
+! Cesium
+  ptable(55) % heat_of_formation = 18.700_dbl
+! Barium
+  ptable(56) % heat_of_formation = 42.500_dbl
+! Lantanum
+  ptable(57) % heat_of_formation = z
+! Cerium
+  ptable(58) % heat_of_formation = 101.300_dbl
+! Praseodymium
+  ptable(59) % heat_of_formation = z
+! Neodymium
+  ptable(60) % heat_of_formation = z
+! Promethium
+  ptable(61) % heat_of_formation = z
+! Samarium
+  ptable(62) % heat_of_formation = 49.400_dbl
+! Europium
+  ptable(63) % heat_of_formation = z
+! Gadolinium
+  ptable(64) % heat_of_formation = z
+! Terbium
+  ptable(65) % heat_of_formation = z
+! Dysprosium
+  ptable(66) % heat_of_formation = z
+! Holmium
+  ptable(67) % heat_of_formation = z
+! Erbium
+  ptable(68) % heat_of_formation = 75.800_dbl
+! Thulium
+  ptable(69) % heat_of_formation = z
+! Ytterbium
+  ptable(70) % heat_of_formation = 36.350_dbl
+! Lutetium
+  ptable(71) % heat_of_formation = z
+! Hafnium
+  ptable(72) % heat_of_formation = 148.000_dbl
+! Tantalum
+  ptable(73) % heat_of_formation = 186.900_dbl
+! Tungsten
+  ptable(74) % heat_of_formation = 203.100_dbl
+! Rhenium
+  ptable(75) % heat_of_formation = 185.000_dbl
+! Osmium
+  ptable(76) % heat_of_formation = 188.000_dbl
+! Iridium
+  ptable(77) % heat_of_formation = 160.000_dbl
+! Platinum
+  ptable(78) % heat_of_formation = 135.200_dbl
+! Gold
+  ptable(79) % heat_of_formation = 88.000_dbl
+! Mercury
+  ptable(80) % heat_of_formation = 14.690_dbl
+! Thallium
+  ptable(81) % heat_of_formation = 43.550_dbl
+! Lead
+  ptable(82) % heat_of_formation = 46.620_dbl
+! Bismuth
+  ptable(83) % heat_of_formation = 50.100_dbl
+! Polonium
+  ptable(84) % heat_of_formation = z
+! Astatine
+  ptable(85) % heat_of_formation = z
+! Radon
+! from Radon no parametrisation in dynamo
+  ptable(86) % heat_of_formation = z
+! Francium
+  ptable(87) % heat_of_formation = z
+! Radium
+  ptable(88) % heat_of_formation = z
+! Actinium
+  ptable(89) % heat_of_formation = z
+! Thorium
+  ptable(90) % heat_of_formation = z
+! Proctactinium
+  ptable(91) % heat_of_formation = z
+! Uranium
+  ptable(92) % heat_of_formation = z
+! Neptunium
+  ptable(93) % heat_of_formation = z
+! Plutonium
+  ptable(94) % heat_of_formation = z
+! Americum
+  ptable(95) % heat_of_formation = z
+! Curium
+  ptable(96) % heat_of_formation = z
+! Berkelium
+  ptable(97) % heat_of_formation = z
+! Californium
+  ptable(98) % heat_of_formation = z
+! Einsteinium
+  ptable(99) % heat_of_formation = z
+! Fermium
+  ptable(100) % heat_of_formation = z
+! Mendelevium
+  ptable(101) % heat_of_formation = z
+! Nobelium
+  ptable(102) % heat_of_formation = z
+! Lawrencium
+  ptable(103) % heat_of_formation = z
+! Unnilquadium
+  ptable(104) % heat_of_formation = z
+! Unnilpentium
+  ptable(105) % heat_of_formation = z
+! Unnilhexium
+  ptable(106) % heat_of_formation = z
+
+END SUBROUTINE init_eheat 
+
 !******************************************************************************
 
 END MODULE periodic_table

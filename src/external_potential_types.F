@@ -154,7 +154,8 @@ MODULE external_potential_types
   END INTERFACE
 
   INTERFACE init_potential
-    MODULE PROCEDURE init_gth_potential
+    MODULE PROCEDURE init_all_potential,&
+                     init_gth_potential
   END INTERFACE
 
   INTERFACE read_potential
@@ -759,6 +760,98 @@ CONTAINS
     END DO
 
   END SUBROUTINE init_vprj_ppnl
+
+! *****************************************************************************
+
+  SUBROUTINE init_all_potential(potential,itype,zeff)
+
+    TYPE(all_potential_type), POINTER        :: potential
+    CHARACTER (LEN=*), OPTIONAL              :: itype
+    INTEGER, OPTIONAL                        :: zeff
+
+    INTEGER   :: dz
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.ASSOCIATED(potential)) RETURN
+
+    IF ( PRESENT (zeff) ) THEN
+      potential%zeff = zeff
+    END IF
+    dz = potential%z - potential%zeff
+    SELECT CASE (dz)
+      CASE DEFAULT
+      CASE (2)
+        potential%elec_conf(0) = potential%elec_conf(0) - 2
+      CASE (10)
+        potential%elec_conf(0) = potential%elec_conf(0) - 4
+        potential%elec_conf(1) = potential%elec_conf(1) - 6
+      CASE (18)
+        potential%elec_conf(0) = potential%elec_conf(0) - 6
+        potential%elec_conf(1) = potential%elec_conf(1) - 12
+      CASE (28)
+        potential%elec_conf(0) = potential%elec_conf(0) - 6
+        potential%elec_conf(1) = potential%elec_conf(1) - 12
+        potential%elec_conf(2) = potential%elec_conf(2) - 10
+      CASE (30)
+        potential%elec_conf(0) = potential%elec_conf(0) - 8
+        potential%elec_conf(1) = potential%elec_conf(1) - 12
+        potential%elec_conf(2) = potential%elec_conf(2) - 10
+      CASE (36)
+        potential%elec_conf(0) = potential%elec_conf(0) - 8
+        potential%elec_conf(1) = potential%elec_conf(1) - 18
+        potential%elec_conf(2) = potential%elec_conf(2) - 10
+      CASE (46)
+        potential%elec_conf(0) = potential%elec_conf(0) - 8
+        potential%elec_conf(1) = potential%elec_conf(1) - 18
+        potential%elec_conf(2) = potential%elec_conf(2) - 20
+      CASE (48)
+        potential%elec_conf(0) = potential%elec_conf(0) - 10
+        potential%elec_conf(1) = potential%elec_conf(1) - 18
+        potential%elec_conf(2) = potential%elec_conf(2) - 20
+      CASE (54)
+        potential%elec_conf(0) = potential%elec_conf(0) - 10
+        potential%elec_conf(1) = potential%elec_conf(1) - 24
+        potential%elec_conf(2) = potential%elec_conf(2) - 20
+      CASE (68)
+        potential%elec_conf(0) = potential%elec_conf(0) - 10
+        potential%elec_conf(1) = potential%elec_conf(1) - 24
+        potential%elec_conf(2) = potential%elec_conf(2) - 20
+        potential%elec_conf(3) = potential%elec_conf(3) - 14
+      CASE (78)
+        potential%elec_conf(0) = potential%elec_conf(0) - 10
+        potential%elec_conf(1) = potential%elec_conf(1) - 24
+        potential%elec_conf(2) = potential%elec_conf(2) - 30
+        potential%elec_conf(3) = potential%elec_conf(3) - 14
+      CASE (80)
+        potential%elec_conf(0) = potential%elec_conf(0) - 12
+        potential%elec_conf(1) = potential%elec_conf(1) - 24
+        potential%elec_conf(2) = potential%elec_conf(2) - 30
+        potential%elec_conf(3) = potential%elec_conf(3) - 14
+      CASE (86)
+        potential%elec_conf(0) = potential%elec_conf(0) - 12
+        potential%elec_conf(1) = potential%elec_conf(1) - 30
+        potential%elec_conf(2) = potential%elec_conf(2) - 30
+        potential%elec_conf(3) = potential%elec_conf(3) - 14
+      CASE (100)
+        potential%elec_conf(0) = potential%elec_conf(0) - 12
+        potential%elec_conf(1) = potential%elec_conf(1) - 30
+        potential%elec_conf(2) = potential%elec_conf(2) - 30
+        potential%elec_conf(3) = potential%elec_conf(3) - 28
+    END SELECT
+
+    IF ( PRESENT (itype) ) THEN
+      IF ( itype == "BARE" ) THEN
+        potential%description(1) = "Bare Coulomb Potential"
+        IF ( dz > 0 ) THEN
+          potential%description(2) = "Valence charge only"
+        ELSE
+          potential%description(2) = "Full atomic charge"
+        END IF
+      ENDIF
+    END IF
+
+  END SUBROUTINE init_all_potential
 
 ! *****************************************************************************
 
@@ -1492,17 +1585,16 @@ CONTAINS
 
       output_unit = globenv%scr
 
-      WRITE (UNIT=output_unit,FMT="(/,/,T4,A,/,/,T6,A)")&
-        "- Potential information",&
-        "Potential name: "//TRIM(potential%name)
+      WRITE (UNIT=output_unit,FMT="(/,T4,A,T57,A24)")&
+        "- Potential information",TRIM(potential%name)
 
-      WRITE (UNIT=output_unit,FMT="(/,(T6,A))")&
-        "Description: "//TRIM(potential%description(1)),&
-        "             "//TRIM(potential%description(2))
-      WRITE (UNIT=output_unit,FMT="(/,T6,A,F12.6)")&
-        "Gaussian exponent of the core charge distribution: ",&
-        potential%alpha_core_charge
-      WRITE (UNIT=output_unit,FMT="(/,T6,A,10I3)")&
+      WRITE (UNIT=output_unit,FMT="(T12,A,T41,A40)")&
+          "Description: ",TRIM(potential%description(1)),&
+          "             ",TRIM(potential%description(2))
+      WRITE (UNIT=output_unit,FMT="(T12,A,T69,F12.6)")&
+          "Gaussian exponent of the core charge distribution: ",&
+          potential%alpha_core_charge
+      WRITE (UNIT=output_unit,FMT="(T12,A,T65,4I4)")&
         "Electronic configuration (s p d ...):",potential%elec_conf
 
     END IF

@@ -43,7 +43,8 @@ MODULE basis_set_types
                                              search_object,&
                                              start_parser
   USE sto_ng,                          ONLY: get_sto_ng
-  USE string_utilities,                ONLY: uppercase
+  USE string_utilities,                ONLY: uppercase,&
+                                             integer_to_string
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
@@ -1169,11 +1170,10 @@ CONTAINS
 
       output_unit = globenv%scr
 
-      WRITE (UNIT=output_unit,FMT="(/,T4,A,/,/,T6,A)")&
-        "- Auxiliary basis set information",&
-        "Auxiliary basis set name: "//TRIM(aux_basis_set%name)
+      WRITE (UNIT=output_unit,FMT="(/,T4,A,T31,A30)")&
+        "- Auxiliary basis set information",TRIM(aux_basis_set%name)
 
-      WRITE (UNIT=output_unit,FMT="(/,(T6,A,I6))")&
+      WRITE (UNIT=output_unit,FMT="((T6,A,I6))")&
         "Number of orbital shell sets:            ",&
         aux_basis_set%nset,&
         "Number of orbital shells:                ",&
@@ -1185,7 +1185,7 @@ CONTAINS
         "Number of spherical basis functions:     ",&
         aux_basis_set%nsgf
 
-      WRITE (UNIT=output_unit,FMT="(/,T6,A,/,/,T6,A)")&
+      WRITE (UNIT=output_unit,FMT="(/,T6,A,/,T6,A)")&
         "Normalised Cartesian auxiliary functions",&
         "Set   Shell   Function           Exponent    Coefficient"
 
@@ -1238,16 +1238,15 @@ CONTAINS
 
       output_unit = globenv%scr
 
-      WRITE (UNIT=output_unit,FMT="(/,T4,A,2(/,/,T6,A))")&
-        "- GTO basis set information",&
-        "GTO basis set name: "//TRIM(gto_basis_set%name),&
+      WRITE (UNIT=output_unit,FMT="(/,T4,A,T41,A40,/,/,T25,A))")&
+        "- GTO basis set information",TRIM(gto_basis_set%name),&
         "Set   Shell     n   l            Exponent    Coefficient"
 
       DO iset=1,gto_basis_set%nset
         WRITE (UNIT=output_unit,FMT="(A)") ""
         DO ishell=1,gto_basis_set%nshell(iset)
           WRITE (UNIT=output_unit,&
-                 FMT="(T6,I3,4X,I4,4X,I2,2X,I2,(T32,2F15.6))")&
+                 FMT="(T25,I3,4X,I4,4X,I2,2X,I2,(T51,2F15.6))")&
             iset,ishell,&
             gto_basis_set%n(ishell,iset),&
             gto_basis_set%l(ishell,iset),&
@@ -1286,11 +1285,10 @@ CONTAINS
 
       output_unit = globenv%scr
 
-      WRITE (UNIT=output_unit,FMT="(/,T4,A,/,/,T6,A)")&
-        "- Orbital basis set information",&
-        "Orbital basis set name: "//TRIM(orb_basis_set%name)
+      WRITE (UNIT=output_unit,FMT="(/,T4,A,T41,A40)")&
+        "- Orbital basis set information",TRIM(orb_basis_set%name)
 
-      WRITE (UNIT=output_unit,FMT="(/,(T6,A,I6))")&
+      WRITE (UNIT=output_unit,FMT="(/,(T25,A,T71,I10))")&
         "Number of orbital shell sets:            ",&
         orb_basis_set%nset,&
         "Number of orbital shells:                ",&
@@ -1302,7 +1300,7 @@ CONTAINS
         "Number of spherical basis functions:     ",&
         orb_basis_set%nsgf
 
-      WRITE (UNIT=output_unit,FMT="(/,T6,A,/,/,T6,A)")&
+      WRITE (UNIT=output_unit,FMT="(/,T6,A,/,/,T25,A)")&
         "Normalised Cartesian orbitals",&
           "Set   Shell   Orbital            Exponent    Coefficient"
 
@@ -1313,7 +1311,7 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(A)") ""
           DO ico=1,nco(orb_basis_set%l(ishell,iset))
             icgf = icgf + 1
-            WRITE (UNIT=output_unit,FMT="(T6,I3,4X,I4,3X,A12,(T32,2F15.6))")&
+            WRITE (UNIT=output_unit,FMT="(T25,I3,4X,I4,3X,A12,(T51,2F15.6))")&
               iset,ishell,orb_basis_set%cgf_symbol(icgf),&
               (orb_basis_set%zet(ipgf,iset),&
                orb_basis_set%norm_cgf(icgf)*&
@@ -1527,7 +1525,7 @@ CONTAINS
 
     INTEGER                                  :: ng = 6
     INTEGER, PARAMETER                       :: maxng = 6
-    CHARACTER(LEN=default_string_length)     :: name
+    CHARACTER(LEN=default_string_length)     :: name,sng
     INTEGER                                  :: nshell, nset, maxl, iset, &
                                                 ipgf, maxco, ncgf, nsgf, &
                                                 lshell, ico, m, istat, np
@@ -1550,6 +1548,9 @@ CONTAINS
 
     maxl = MAXVAL ( lq )
     CALL init_orbital_pointers(maxl)
+
+    CALL integer_to_string(ng,sng)
+    gto_basis_set%name = TRIM(name)//"_STO-"//TRIM(sng)//"G"
 
     nset = nshell
     gto_basis_set%nset = nset
@@ -1649,6 +1650,8 @@ CONTAINS
         gto_basis_set%sgf_symbol(nsgf) = sgf_symbol(np,lshell,m)
       END DO
     END DO
+
+    gto_basis_set%norm_type = -1
 
   END SUBROUTINE create_gto_from_sto_basis
 

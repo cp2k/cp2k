@@ -816,6 +816,15 @@ CONTAINS
             CASE ("EHT")
               qs_control%method = "EHT"
               qs_control%semi_empirical = .TRUE.
+            CASE ("MNDO")
+              qs_control%method = "MNDO"
+              qs_control%semi_empirical = .TRUE.
+            CASE ("AM1")
+              qs_control%method = "AM1"
+              qs_control%semi_empirical = .TRUE.
+            CASE ("PM3")
+              qs_control%method = "PM3"
+              qs_control%semi_empirical = .TRUE.
             CASE DEFAULT
               CALL stop_parser(routine,"Invalid method <"//TRIM(keyword)//&
                                        "> specified for METHOD")

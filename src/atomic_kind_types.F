@@ -1516,6 +1516,10 @@ CONTAINS
         CALL write_se_param(se_parameter,globenv)
         CALL init_se_param(atomic_kind%se_parameter,&
                            atomic_kind%orb_basis_set)
+        IF ( ASSOCIATED(all_potential) ) THEN
+          CALL init_potential ( all_potential, itype="BARE", &
+             zeff=se_parameter%zeff)
+        END IF
       END IF
     ELSE IF (globenv%program_name == "KG") THEN
       !no checks programmed yet
@@ -1665,11 +1669,11 @@ CONTAINS
 
       IF (globenv%print%kind_information) THEN
         output_unit = globenv%scr
-        WRITE (UNIT=output_unit,FMT="(/,T2,I2,A,/,/,T6,A,I6)")&
+        WRITE (UNIT=output_unit,FMT="(/,T2,I2,A,T45,A,T75,I6)")&
           atomic_kind%kind_number,". Atomic kind: "//TRIM(atomic_kind%name),&
-          "Number of atoms of this atomic kind in the cell: ",atomic_kind%natom
+          "Number of atoms of this kind: ",atomic_kind%natom
         IF (ANY(atomic_kind%ldaCoreRadius>0.0_dp)) THEN
-           WRITE(UNIT=output_unit,fmt="(t6,a,f8.3,f8.3,f8.3,f8.3)")&
+           WRITE(UNIT=output_unit,fmt="(/,T16,A,T41,4(F10.3))")&
                 "Lda core radius = ",atomic_kind%ldaCoreRadius
         END IF
         CALL write_orb_basis_set(atomic_kind%orb_basis_set,globenv)
@@ -1677,9 +1681,9 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(/,T2,A,A)")&
           "***** GAPW  Atomic Kind: Soft Basis Set and",&
               "Atomic and Compensation Density are Required ***"
-          WRITE (UNIT=output_unit,FMT="(/,T6,A,T35,F10.3)")&
+          WRITE (UNIT=output_unit,FMT="(/,T16,A,T71,F10.3)")&
           "GAPW|  Hard Gaussians Radius:",atomic_kind%hard_radius
-          WRITE (UNIT=output_unit,FMT="(T6,A,T35,F10.3,/)")&
+          WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.3,/)")&
           "GAPW|  Rho0 Radius:",atomic_kind%hard0_radius
           WRITE (UNIT=output_unit,FMT="(T10,A))")&
           "***** Soft Basis Set *****"
