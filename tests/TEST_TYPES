@@ -1,0 +1,19 @@
+2
+Total energy:!3
+POTENTIAL ENERGY!4
+#
+# these are the tests the can be selected for regtesting. 
+# do regtest will grep for test_grep (first column) and look if the numeric value
+# at column test_col (second col) changes with respect to the reference.
+# the test number in TEST_FILES corresponds to the lines in this file.
+#
+#
+# the format of the TEST_TYPES file is (notice the '!' as a field separator, to allow
+# for spaces in the test_grep)
+#
+# Ntest_types
+# test_grep_1 ! test_col_1
+# test_grep_2 ! test_col_2
+# ....
+# followed by comment lines
+#
