@@ -42,7 +42,9 @@ MODULE qmmm_links_methods
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE qmmm_types,                      ONLY: qmmm_links_type,&
-                                             qmmm_imomm_link_type
+                                             qmmm_imomm_link_type,&
+                                             qmmm_env_qm_type,&
+                                             add_set_type
 
   IMPLICIT NONE
   PRIVATE
@@ -50,7 +52,9 @@ MODULE qmmm_links_methods
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qmmm_link_methods'
   PUBLIC ::  qmmm_link_Imomm_coord,  & 
-             qmmm_link_Imomm_forces
+             qmmm_link_Imomm_forces, &
+             qmmm_added_chrg_coord,  &
+             qmmm_added_chrg_forces
 
 
 CONTAINS
@@ -178,5 +182,102 @@ CONTAINS
     END IF
 
   END SUBROUTINE qmmm_link_Imomm_forces
-    
+
+!!****f* qmmm_links_methods/ qmmm_added_chrg_coord [1.0] *
+!!
+!!   NAME
+!!     qmmm_added_chrg_coord
+!!
+!!   FUNCTION
+!!     correct the position for added charges in qm/mm link scheme
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     01.2005 created [tlaino]
+!!
+!!*** **********************************************************************    
+  SUBROUTINE qmmm_added_chrg_coord(qmmm_env, particles, error)
+    IMPLICIT NONE
+    ! Arguments
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(particle_type), DIMENSION(:), POINTER   :: particles
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    ! Local Variables
+    CHARACTER(len=*), PARAMETER :: routineN='qmmm_added_chrg_coord',&
+       routineP=moduleN//':'//routineN
+    LOGICAL :: failure
+    TYPE(add_set_type), POINTER                             :: added_charges
+    INTEGER :: Index1, Index2,I
+    REAL(KIND=dp) :: alpha
+
+    failure = .FALSE.
+    added_charges => qmmm_env%added_charges
+
+    DO i = 1, added_charges%num_mm_atoms
+       Index1 = added_charges%add_env(i)%Index1
+       Index2 = added_charges%add_env(i)%Index1
+       alpha  = added_charges%add_env(i)%alpha
+       added_charges%added_particles(i)%r = alpha *  particles(Index1)%r + (1.0_dp-alpha) * particles(Index2)%r
+    END DO
+
+  END SUBROUTINE qmmm_added_chrg_coord
+
+!!****f* qmmm_links_methods/ qmmm_added_chrg_forces [1.0] *
+!!
+!!   NAME
+!!     qmmm_added_chrg_forces
+!!
+!!   FUNCTION
+!!     correct the forces due to the  added charges in qm/mm link scheme
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     01.2005 created [tlaino]
+!!
+!!*** **********************************************************************    
+  SUBROUTINE qmmm_added_chrg_forces(qmmm_env, particles, error)
+    IMPLICIT NONE
+    ! Arguments
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(particle_type), DIMENSION(:), POINTER   :: particles
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    ! Local Variables
+    CHARACTER(len=*), PARAMETER :: routineN='qmmm_added_chrg_coord',&
+       routineP=moduleN//':'//routineN
+    LOGICAL :: failure
+    TYPE(add_set_type), POINTER                             :: added_charges
+    INTEGER :: Index1, Index2,I
+    REAL(KIND=dp) :: alpha
+
+    failure = .FALSE.
+    added_charges => qmmm_env%added_charges
+
+    DO i = 1, added_charges%num_mm_atoms
+       Index1 = added_charges%add_env(i)%Index1
+       Index2 = added_charges%add_env(i)%Index1
+       alpha  = added_charges%add_env(i)%alpha
+       particles(Index1)%f = particles(Index1)%f + alpha           * added_charges%added_particles(i)%f
+       particles(Index2)%f = particles(Index2)%f + (1.0_dp -alpha) * added_charges%added_particles(i)%f
+    END DO
+
+  END SUBROUTINE qmmm_added_chrg_forces
+
 END MODULE qmmm_links_methods

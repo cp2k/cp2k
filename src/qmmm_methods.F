@@ -31,6 +31,7 @@ MODULE qmmm_methods
   USE coefficient_types,               ONLY: coeff_type,&
                                              coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
+  USE global_types,                    ONLY: global_environment_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
@@ -219,9 +220,12 @@ CONTAINS
 !!     06.2004 created [tlaino]
 !!
 !!*************************************************************************
-  SUBROUTINE qmmm_forces(qs_env,qmmm_env,mm_particles,calc_force,mm_cell,error)
+  SUBROUTINE qmmm_forces(qs_env,qmmm_env,mm_particles,calc_force,mm_cell,&
+       globenv, error)
+    TYPE(global_environment_type), &
+      INTENT(in), OPTIONAL, TARGET           :: globenv
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qmmm_env_qm_type), INTENT(in), TARGET  :: qmmm_env
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
     LOGICAL, INTENT(in), OPTIONAL            :: calc_force
@@ -233,9 +237,9 @@ CONTAINS
       routineP = moduleN//':'//routineN    
 
     INTEGER                                  :: handle, Imm, IndMM, ispin, &
-                                                stat
+                                                stat, iw
     LOGICAL                                  :: failure, need_f
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces, Forces_added_charges
     TYPE(coeff_type), POINTER                :: rho_core
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -251,8 +255,10 @@ CONTAINS
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     need_f = .TRUE.
+    iw = globenv%scr
     IF (PRESENT(calc_force)) need_f = calc_force
-    NULLIFY(ks_qmmm_env_loc, rho, pw_env, rho_tot_r, energy, Forces,input_section)
+    NULLIFY(ks_qmmm_env_loc, rho, pw_env, rho_tot_r, energy, Forces, Forces_added_charges,&
+            input_section)
     CALL get_qs_env(qs_env=qs_env,&
          rho=rho,&
          rho_core=rho_core,&
@@ -280,44 +286,41 @@ CONTAINS
     !
     energy%qmmm_nu = pw_integral_ab ( rho_tot_r, ks_qmmm_env_loc%v_qmmm_rspace%pw )
     energy%total = energy%total +  energy%qmmm_nu
-    WRITE(6,'(T3,A,F15.9)')" QM/MM Nuclear Electrostatic Potential :",energy%qmmm_nu
-    WRITE(6,'(T3,A,F15.9)')" Total Energy after the QM/MM Calculation :",energy%total
+    WRITE(iw,'(T3,A,F15.9)')" QM/MM Nuclear Electrostatic Potential :",energy%qmmm_nu
+    WRITE(iw,'(T3,A,F15.9)')" Total Energy after the QM/MM Calculation :",energy%total
     IF (need_f) THEN
        ALLOCATE(Forces(qmmm_env%num_mm_atoms,3),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(Forces_added_charges(qmmm_env%added_charges%num_mm_atoms,3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        !
        DO ispin=1,SIZE(rho%rho_r)
           CALL pw_sumup(rho%rho_r(ispin)%pw,rho_tot_r)
        END DO
-       WRITE(6,'(T3,A)')" Evaluating forces on MM atoms due to the:"
+       WRITE(iw,'(T3,A)')" Evaluating forces on MM atoms due to the:"
        !
        ! Electrostatic Interaction type...
        !
-       Forces = 0.0_dp
+       Forces               = 0.0_dp
+       Forces_added_charges = 0.0_dp
        SELECT CASE(qmmm_env%qmmm_coupl_type)
        CASE(do_qmmm_grid)
-          WRITE(6,'(T3,A)')"QM/MM Coupling computed on GRID."
+          WRITE(iw,'(T3,A)')"QM/MM Coupling computed on GRID."
           ! Compute the MM electrostatic potential on GRID
           CALL qmmm_forces_on_grid     ( rho=rho_tot_r,&
                v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
+               qmmm_env=qmmm_env,&
                mm_particles=mm_particles,&
-               mm_charges=qmmm_env%mm_atom_chrg,&
-               mm_el_pot_radius=qmmm_env%mm_el_pot_radius,&
-               mm_atom_index=qmmm_env%mm_atom_index,&
-               num_mm_atoms=qmmm_env%num_mm_atoms,&
                dvol=rho%rho_r(1)%pw%pw_grid%dvol,&
-               Potentials=qmmm_env%Potentials,&
                Forces=Forces,&
+               Forces_added_charges=Forces_added_charges,&
                mm_cell=mm_cell,&
                error=error)
        CASE(do_qmmm_gauss)
-          WRITE(6,'(T3,A)')"QM/MM Coupling computed collocating the Gaussian Potential Functions."
+          WRITE(iw,'(T3,A)')"QM/MM Coupling computed collocating the Gaussian Potential Functions."
           CALL qmmm_forces_with_gaussian(rho=rho_tot_r,&
+               qmmm_env=qmmm_env,&
                mm_particles=mm_particles,&
-               mm_charges=qmmm_env%mm_atom_chrg,&
-               mm_el_pot_radius=qmmm_env%mm_el_pot_radius,&
-               mm_atom_index=qmmm_env%mm_atom_index,&
-               num_mm_atoms=qmmm_env%num_mm_atoms,&
                aug_pools=qmmm_env%aug_pools,&
                auxbas_grid=qmmm_env%gridlevel_info%auxbas_grid,&
                coarser_grid=qmmm_env%gridlevel_info%coarser_grid,&
@@ -325,16 +328,15 @@ CONTAINS
                pw_pools=pw_pools,&
                eps_mm_rspace=qmmm_env%eps_mm_rspace,&
                cube_info=ks_qmmm_env_loc%cube_info,&
-               pgfs=qmmm_env%pgfs,&
-               Potentials=qmmm_env%potentials,&
                Forces=Forces,&
+               Forces_added_charges=Forces_added_charges,&
                interp_section=interp_section,&
                mm_cell=mm_cell,&
                error=error)
        CASE(do_qmmm_none)
-          WRITE(6,'(T3,A)')"No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
+          WRITE(iw,'(T3,A)')"No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
        CASE DEFAULT
-          WRITE(6,'(T3,A)')"Unknown Coupling..."
+          WRITE(iw,'(T3,A)')"Unknown Coupling..."
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
        !
@@ -344,10 +346,10 @@ CONTAINS
           !
           ! Print Out Forces
           !
-          WRITE(*,*)"ANALYTICAL FORCES:"
+          WRITE(iw,*)"ANALYTICAL FORCES:"
           DO Imm = 1, SIZE(qmmm_env%mm_atom_index)
              IndMM = qmmm_env%mm_atom_index(Imm)
-             WRITE(6,'(I6,3F15.9)') IndMM, Forces(Imm,:)
+             WRITE(iw,'(I6,3F15.9)') IndMM, Forces(Imm,:)
           END DO
           CALL qmmm_debug_forces(rho=rho_tot_r,&
                qs_env=qs_env,&
@@ -359,6 +361,7 @@ CONTAINS
                Potentials=qmmm_env%Potentials,&
                interp_section=interp_section,&
                mm_cell=mm_cell,&
+               globenv=globenv,&
                error=error)                              
        ENDIF
        !
@@ -371,6 +374,16 @@ CONTAINS
           mm_particles(IndMM)%f(:) = - Forces(Imm,:) + mm_particles(IndMM)%f(:)
        END DO
        DEALLOCATE(Forces, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
+          DO Imm = 1, qmmm_env%added_charges%num_mm_atoms
+             IndMM = qmmm_env%added_charges%mm_atom_index(Imm)
+             ! Hack: In Forces there the gradients indeed...
+             ! Minux sign to take care of this misunderstanding...
+             qmmm_env%added_charges%added_particles(IndMM)%f(:) = - Forces_added_charges(Imm,:)
+          END DO
+       END IF
+       DEALLOCATE(Forces_added_charges, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     ! Give back rho_tot_t to auxbas_pool
@@ -401,42 +414,58 @@ CONTAINS
 !!     06.2004 created [tlaino]
 !!
 !!*************************************************************************
-  SUBROUTINE qmmm_forces_on_grid(rho,v_qmmm,mm_particles,mm_charges,&
-       mm_el_pot_radius, mm_atom_index, num_mm_atoms, dvol, Forces,&
-       Potentials,mm_cell,error)
+  SUBROUTINE qmmm_forces_on_grid(rho,v_qmmm,qmmm_env,mm_particles,&
+       dvol, Forces, Forces_added_charges, mm_cell, error)
+    IMPLICIT NONE
+    ! Arguments
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(pw_type), POINTER                   :: rho
     TYPE(coeff_type), INTENT(INOUT)          :: v_qmmm
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges, mm_el_pot_radius
-    INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
-    INTEGER, INTENT(IN)                      :: num_mm_atoms
     REAL(KIND=dp), INTENT(IN)                :: dvol
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces
-    TYPE(qmmm_pot_p_type), DIMENSION(:), &
-      POINTER                                :: Potentials
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces, Forces_added_charges
     TYPE(cell_type), POINTER                 :: mm_cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-
+    ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_on_grid', &
       routineP = moduleN//':'//routineN
+    INTEGER                                  :: handle, stat
+    LOGICAL                                  :: failure
 
-    INTEGER                                  :: handle
-
+    failure = .FALSE.
     CALL timeset(routineN,"I","",handle)
     CALL qmmm_forces_on_grid_low(v_qmmm,&
                                  rho%cr3d,&
                                  mm_particles,&
-                                 mm_charges,&
-                                 mm_el_pot_radius,&
-                                 mm_atom_index,&
-                                 num_mm_atoms,&
+                                 qmmm_env%mm_atom_chrg,&
+                                 qmmm_env%mm_el_pot_radius,&
+                                 qmmm_env%mm_atom_index,&
+                                 qmmm_env%num_mm_atoms,&
                                  dvol,&
                                  Forces,&
-                                 Potentials,&
+                                 qmmm_env%potentials,&
                                  mm_cell,&
                                  error)
+
+    IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
+
+       CALL qmmm_forces_on_grid_low(v_qmmm,&
+                                    rho%cr3d,&
+                                    qmmm_env%added_charges%added_particles,&
+                                    qmmm_env%added_charges%mm_atom_chrg,&
+                                    qmmm_env%added_charges%mm_el_pot_radius,&
+                                    qmmm_env%added_charges%mm_atom_index,&
+                                    qmmm_env%added_charges%num_mm_atoms,&
+                                    dvol,&
+                                    Forces_added_charges,&
+                                    qmmm_env%added_charges%potentials,&
+                                    mm_cell,&
+                                    error)       
+
+    END IF
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qmmm_forces_on_grid
@@ -598,17 +627,16 @@ CONTAINS
 !!     06.2004 created [tlaino]
 !!
 !!*************************************************************************
-  SUBROUTINE qmmm_forces_with_gaussian(rho, mm_particles,&
-       mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
-       aug_pools, auxbas_grid, coarser_grid, cube_info, para_env,&
-       eps_mm_rspace, pw_pools, pgfs, Forces, Potentials,&
+  SUBROUTINE qmmm_forces_with_gaussian(rho, qmmm_env, mm_particles,  &
+       aug_pools, auxbas_grid, coarser_grid, cube_info, para_env,    &
+       eps_mm_rspace, pw_pools, Forces, Forces_added_charges,        &
        interp_section, mm_cell,error)
+    IMPLICIT NONE
+    ! Arguments
     TYPE(pw_type), POINTER                   :: rho
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges, mm_el_pot_radius
-    INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
-    INTEGER, INTENT(IN)                      :: num_mm_atoms
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: aug_pools
     INTEGER, INTENT(IN)                      :: auxbas_grid, coarser_grid
@@ -618,24 +646,19 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: eps_mm_rspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
-    TYPE(qmmm_gaussian_p_type), &
-      DIMENSION(:), POINTER                  :: pgfs
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces
-    TYPE(qmmm_pot_p_type), DIMENSION(:), &
-      POINTER                                :: Potentials
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces, Forces_added_charges
     TYPE(section_vals_type), POINTER         :: interp_section
     TYPE(cell_type), POINTER                 :: mm_cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-
+    ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, igrid, j, k, ngrids
+    INTEGER                                  :: handle, i, igrid, j, k, ngrids, stat
     INTEGER, DIMENSION(3)                    :: lb, ub
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: e2, energy
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: d_grids, grids
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
 
 ! Statements
 
@@ -643,8 +666,8 @@ CONTAINS
     CALL timeset(routineN,"I","",handle)
     NULLIFY(grids)
     CPPrecondition(ASSOCIATED(mm_particles),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(mm_charges),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(mm_atom_index),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qmmm_env%mm_atom_chrg),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qmmm_env%mm_atom_index),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(Forces),cp_failure_level,routineP,error,failure)
     !Statements
     ngrids=SIZE(pw_pools)
@@ -704,37 +727,21 @@ CONTAINS
        END DO
     END IF
 
-    IF (debug_this_module) THEN
-       NULLIFY(d_grids)
-       CALL pw_pools_create_pws(aug_pools,d_grids,in_space=REALSPACE,&
-            use_data=REALDATA3D,error=error)
-       DO igrid=1,ngrids
-          CALL pw_zero(d_grids(igrid)%pw)
-       END DO
-       CALL qmmm_elec_with_gaussian_low( d_grids, mm_particles,&
-            mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
-            cube_info, para_env, eps_mm_rspace, pgfs, auxbas_grid, coarser_grid,&
-            pw_pools, aug_pools, potentials, interp_section, mm_cell,error)
-       energy=0.0_dp
-       DO igrid=1,SIZE(d_grids)
-          energy=energy+pw_integral_ab(d_grids(igrid)%pw,grids(igrid)%pw)
-       END DO
-       DO Igrid = coarser_grid, auxbas_grid+1, -1
-          CALL pw_inject_s3(d_grids(Igrid  )%pw,&
-                            d_grids(Igrid-1)%pw,&
-                            aug_pools(Igrid)%pool,&
-                            param_section=interp_section,&
-                            error=error)
-       END DO
-       e2=pw_integral_ab(grids(auxbas_grid)%pw,d_grids(auxbas_grid)%pw)
-       WRITE (*,*)"energy_mgrid=",energy,"energy_ref=",e2,"diff=",e2-energy
-       CALL pw_pools_give_back_pws(aug_pools,d_grids,error=error)
-    END IF
-
     CALL qmmm_forces_with_gaussian_low(grids, mm_particles,&
-         mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
-         cube_info, para_env, eps_mm_rspace, auxbas_grid, &
-         coarser_grid, pgfs, potentials, Forces, aug_pools, mm_cell,error)
+         qmmm_env%mm_atom_chrg, qmmm_env%mm_el_pot_radius, qmmm_env%mm_atom_index,&
+         qmmm_env%num_mm_atoms, cube_info, para_env, eps_mm_rspace, auxbas_grid, &
+         coarser_grid, qmmm_env%pgfs, qmmm_env%potentials, Forces, aug_pools,    &
+         mm_cell,error)
+
+    IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
+
+       CALL qmmm_forces_with_gaussian_low(grids, qmmm_env%added_charges%added_particles,&
+            qmmm_env%added_charges%mm_atom_chrg, qmmm_env%added_charges%mm_el_pot_radius,&
+            qmmm_env%added_charges%mm_atom_index, qmmm_env%added_charges%num_mm_atoms,&
+            cube_info, para_env, eps_mm_rspace, auxbas_grid, coarser_grid, qmmm_env%added_charges%pgfs,&
+            qmmm_env%added_charges%potentials, Forces_added_charges, aug_pools, mm_cell, error)
+
+    END IF
 
     CALL pw_pools_give_back_pws(aug_pools,grids,error=error)
     CALL timestop(0.0_dp,handle)
@@ -804,8 +811,6 @@ CONTAINS
                                                 zdat, zder
     TYPE(qmmm_gaussian_type), POINTER        :: pgf
     TYPE(qmmm_pot_type), POINTER             :: pot
-
-!Statements
 
     NULLIFY(pgf, xdat, ydat, zdat, xder, yder, zder, wrk)    
     CALL timeset(routineN,"I","",handle)
@@ -1121,10 +1126,10 @@ CONTAINS
 !!*************************************************************************
   SUBROUTINE qmmm_debug_forces(rho,qs_env,qmmm_env,Analytical_Forces,&
                                mm_particles,mm_atom_index,num_mm_atoms,&
-                               Potentials,interp_section,mm_cell,error)      
+                               Potentials,interp_section,mm_cell,globenv,error)      
     TYPE(pw_type), POINTER                   :: rho
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qmmm_env_qm_type), INTENT(in), TARGET  :: qmmm_env
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Analytical_Forces
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
@@ -1134,13 +1139,15 @@ CONTAINS
       POINTER                                :: Potentials
     TYPE(section_vals_type), POINTER         :: interp_section
     TYPE(cell_type), POINTER                 :: mm_cell
+    TYPE(global_environment_type), &
+      INTENT(in), OPTIONAL, TARGET           :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_debug_forces', &
       routineP = moduleN//':'//routineN      
 
-    INTEGER                                  :: handle, I, IndMM, J, K, stat
+    INTEGER                                  :: handle, I, IndMM, J, K, stat, iw
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: Coord_save
     REAL(KIND=dp), DIMENSION(2)              :: energy
@@ -1154,7 +1161,7 @@ CONTAINS
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
 
 ! Statements
-
+    iw = globenv%scr
     CALL timeset(routineN,"I","",handle)
     NULLIFY( Num_Forces )
     CALL get_qs_env(qs_env=qs_env,&
@@ -1168,7 +1175,7 @@ CONTAINS
     ALLOCATE(Num_Forces(num_mm_atoms,3),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ks_qmmm_env_loc =>  qs_env%ks_qmmm_env
-    WRITE(*,'(/A)')"DEBUG SECTION:"
+    WRITE(iw,'(/A)')"DEBUG SECTION:"
     Atoms: DO I = 1, num_mm_atoms
        IndMM = mm_atom_index(I)
        Coords: DO J = 1, 3
@@ -1179,28 +1186,19 @@ CONTAINS
              CALL coeff_zero(coeff=v_qmmm_rspace)
              SELECT CASE(qmmm_env%qmmm_coupl_type)
              CASE(do_qmmm_grid)
-                CALL qmmm_electrostatic_on_grid(v_qmmm=v_qmmm_rspace,&
+                CALL qmmm_electrostatic_on_grid(qmmm_env=qmmm_env,&
+                                                v_qmmm=v_qmmm_rspace,&
                                                 mm_particles=mm_particles,&
-                                                mm_charges=qmmm_env%mm_atom_chrg,&
-                                                mm_el_pot_radius=qmmm_env%mm_el_pot_radius,&
-                                                mm_atom_index=qmmm_env%mm_atom_index,&
-                                                num_mm_atoms=qmmm_env%num_mm_atoms,&
-                                                Potentials=Potentials,&
                                                 mm_cell=mm_cell,&
                                                 error=error)
              CASE(do_qmmm_gauss)
-                CALL    qmmm_elec_with_gaussian(v_qmmm=v_qmmm_rspace,&
+                CALL    qmmm_elec_with_gaussian(qmmm_env=qmmm_env,&
+                                                v_qmmm=v_qmmm_rspace,&
                                                 mm_particles=mm_particles,&
-                                                mm_charges=qmmm_env%mm_atom_chrg,&
-                                                mm_el_pot_radius=qmmm_env%mm_el_pot_radius,&
-                                                mm_atom_index=qmmm_env%mm_atom_index,&
-                                                num_mm_atoms=qmmm_env%num_mm_atoms,&
                                                 aug_pools=qmmm_env%aug_pools,&
                                                 para_env=para_env,&
                                                 eps_mm_rspace=qmmm_env%eps_mm_rspace,&
                                                 cube_info=ks_qmmm_env_loc%cube_info,&
-                                                pgfs=qmmm_env%pgfs,&
-                                                potentials=potentials,&
                                                 pw_pools=pw_pools,&
                                                 auxbas_grid=qmmm_env%gridlevel_info%auxbas_grid,&
                                                 coarser_grid=qmmm_env%gridlevel_info%coarser_grid,&
@@ -1210,12 +1208,12 @@ CONTAINS
              CASE(do_qmmm_none)          
                 CYCLE Diff
              CASE DEFAULT
-                WRITE(6,'(T3,A)')"Unknown Coupling..."
+                WRITE(iw,'(T3,A)')"Unknown Coupling..."
                 CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
              END SELECT
              energy(K) =  pw_integral_ab ( rho, v_qmmm_rspace%pw )
           END DO Diff
-          WRITE(*,'(A,I6,A,I3,A,2F15.9)')&
+          WRITE(iw,'(A,I6,A,I3,A,2F15.9)')&
           "DEBUG :: MM Atom = ",IndMM," Coord = ",J," Energies (+/-) :: ",energy(2), energy(1)
           Num_Forces(I,J)  = ( energy(2) - energy(1) ) / (2.0_dp * Dx)
           mm_particles(IndMM)%r(J) = Coord_save
@@ -1224,7 +1222,7 @@ CONTAINS
     
     SELECT CASE(qmmm_env%qmmm_coupl_type)
     CASE(do_qmmm_grid,do_qmmm_gauss)
-       WRITE(*,'(/A/)')"CHECKING NUMERICAL Vs ANALYTICAL FORCES (Err%):"
+       WRITE(iw,'(/A/)')"CHECKING NUMERICAL Vs ANALYTICAL FORCES (Err%):"
        DO I =  1, num_mm_atoms
           IndMM = mm_atom_index(I)
           Err = 0.0_dp
@@ -1233,17 +1231,17 @@ CONTAINS
                 Err(K) = (Analytical_Forces(I,K)-Num_Forces(I,K))/Num_Forces(I,K)*100.0_dp
              END IF
           END DO
-          WRITE(*,100)IndMM,Analytical_Forces(I,1),Err(1),&
-                            Analytical_Forces(I,2),Err(2),&
-                            Analytical_Forces(I,3),Err(3) 
+          WRITE(iw,100)IndMM,Analytical_Forces(I,1),Err(1),&
+                             Analytical_Forces(I,2),Err(2),&
+                             Analytical_Forces(I,3),Err(3) 
           CPPostcondition(ABS(Err(1))<=MaxErr,cp_failure_level,routineP,error,failure)
           CPPostcondition(ABS(Err(2))<=MaxErr,cp_failure_level,routineP,error,failure)
           CPPostcondition(ABS(Err(3))<=MaxErr,cp_failure_level,routineP,error,failure)
        END DO
     CASE(do_qmmm_none)
-       WRITE(6,'(T3,A)')"No QM/MM Derivatives to debug. Just Mechanical Coupling!"
+       WRITE(iw,'(T3,A)')"No QM/MM Derivatives to debug. Just Mechanical Coupling!"
     CASE DEFAULT
-       WRITE(6,'(T3,A)')"Unknown Coupling..."
+       WRITE(iw,'(T3,A)')"Unknown Coupling..."
        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
 

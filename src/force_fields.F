@@ -3108,7 +3108,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                 IF (ANY(my_atom_list == qmmm_env%mm_link_atoms(ilink))) EXIT
              END DO
              CPPostcondition(ilink <= SIZE(qmmm_env%mm_link_atoms),cp_failure_level,routineP,error,failure)
-             scale_factor = qmmm_env%mm_link_scale_factor(ilink)
+             scale_factor = qmmm_env%fist_scale_charge_link(ilink)
           END IF
           charge(i) = charge(i) * scale_factor
        END IF

@@ -32,6 +32,7 @@ MODULE qmmm_init
                                              get_atomic_kind,&
                                              read_atomic_kind_set, &
                                              set_atomic_kind
+  USE cp_output_handling, ONLY: cp_should_output
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
@@ -42,6 +43,7 @@ MODULE qmmm_init
                                              cp_fatal_level,&
                                              cp_note_level,&
                                              cp_to_string,&
+                                             cp_logger_type,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
@@ -77,7 +79,8 @@ MODULE qmmm_init
                                              qmmm_env_mm_create,&
                                              qmmm_env_mm_release,&
                                              qmmm_links_type,&
-                                             add_set_type
+                                             add_set_type,&
+                                             create_add_set_type
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
   USE qmmm_gaussian_init,              ONLY: qmmm_gaussian_initialize
   USE qmmm_pw_grid,                    ONLY: qmmm_pw_grid_init
@@ -121,7 +124,8 @@ MODULE qmmm_init
        section_add_keyword, section_add_subsection, section_release,&
        section_describe_html, section_describe_index_html, section_vals_type,&
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
-  USE input_cp2k, ONLY: RADIUS_QMMM_DEFAULT, do_qmmm_link_imomm, do_qmmm_link_gho
+  USE input_cp2k, ONLY: RADIUS_QMMM_DEFAULT, do_qmmm_link_imomm, do_qmmm_link_gho,&
+                        do_qmmm_gauss
   USE fist_environment_types,  ONLY: set_fist_env
   
   IMPLICIT NONE
@@ -171,7 +175,7 @@ CONTAINS
     INTEGER                                  :: handle, isubf, stat
     INTEGER                                  :: iw
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, mm_atom_index, qm_subsys_index
-    INTEGER, DIMENSION(:), POINTER           :: mm_link_atoms, mm_moved_atoms
+    INTEGER, DIMENSION(:), POINTER           :: mm_link_atoms
     LOGICAL                                  :: failure, qmmm_link
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -188,7 +192,7 @@ CONTAINS
     INTEGER                                  :: qmmm_coupl_type
     TYPE(section_vals_type), POINTER         :: force_env_section, qmmm_section
     TYPE(qmmm_links_type), pointer           :: qmmm_links
-    REAL(KIND=dp),  DIMENSION(:), POINTER    :: mm_link_scale_factor
+    REAL(KIND=dp),  DIMENSION(:), POINTER    :: mm_link_scale_factor, fist_scale_charge_link
     LOGICAL                                  :: move_mm_charges, add_mm_charges
     TYPE(add_set_type), POINTER              :: added_charges
 
@@ -198,8 +202,8 @@ CONTAINS
     NULLIFY(sub_force_env, qm_atom_index, mm_atom_index, qm_atom_type,   &
          qmmm_env_qm, subsys_mm,subsys_qm, mm_cell, qm_cell_small,       &
          qs_env, para_env, mm_atom_chrg,mm_el_pot_radius, qmmm_env_mm,   &
-         mm_link_atoms, mm_link_scale_factor, qmmm_links, mm_moved_atoms,&
-         added_charges)
+         mm_link_atoms, mm_link_scale_factor, qmmm_links, added_charges, &
+         fist_scale_charge_link)
     para_env => globenv%para_env
     iw = globenv%scr
     IF (.NOT. failure) THEN
@@ -222,6 +226,7 @@ CONTAINS
                                qm_atom_index,&
                                mm_link_atoms,&
                                mm_link_scale_factor,&
+                               fist_scale_charge_link,&
                                qmmm_coupl_type,&
                                qmmm_link,&
                                error=error)
@@ -229,6 +234,7 @@ CONTAINS
        qmmm_env_mm%qm_atom_index          => qm_atom_index       
        qmmm_env_mm%mm_link_atoms          => mm_link_atoms
        qmmm_env_mm%mm_link_scale_factor   => mm_link_scale_factor
+       qmmm_env_mm%fist_scale_charge_link => fist_scale_charge_link
        qmmm_env_mm%qmmm_coupl_type        =  qmmm_coupl_type
        qmmm_env_mm%qmmm_link              =  qmmm_link
        ! Center the qm subsys into the qm box
@@ -289,6 +295,8 @@ CONTAINS
                                          mm_atom_chrg=mm_atom_chrg,&
                                          mm_el_pot_radius=mm_el_pot_radius,&
                                          mm_atom_index=mm_atom_index,&
+                                         mm_link_atoms=mm_link_atoms,&
+                                         mm_link_scale_factor=mm_link_scale_factor,&
                                          error=error)
 
        qmmm_env_qm%mm_atom_chrg     => mm_atom_chrg
@@ -297,14 +305,20 @@ CONTAINS
        IF (qmmm_link) THEN 
           CALL setup_qmmm_links(qmmm_section, qmmm_links, error=error)
           qmmm_env_qm%qmmm_links    => qmmm_links
-       END IF
 
-       CALL move_or_add_atoms(qmmm_section, move_mm_charges, add_mm_charges, &
-                              mm_moved_atoms, mm_atom_chrg, added_charges,   &
-                              error)
-       qmmm_env_qm%move_mm_charges =  move_mm_charges
-       qmmm_env_qm%add_mm_charges  =  add_mm_charges
-       qmmm_env_qm%added_charges   => added_charges
+          CALL print_qmmm_links(globenv, qmmm_section, qmmm_links, error)
+
+          CALL move_or_add_atoms(qmmm_section, move_mm_charges, add_mm_charges, &
+                                 mm_atom_chrg, mm_el_pot_radius, added_charges, &
+                                 mm_atom_index, qm_cell_small, error)
+          qmmm_env_qm%move_mm_charges =  move_mm_charges
+          qmmm_env_qm%add_mm_charges  =  add_mm_charges
+          qmmm_env_qm%added_charges   => added_charges
+       END IF
+       
+       CALL print_qmmm_charges(mm_atom_index, mm_atom_chrg, mm_el_pot_radius,&
+                               qmmm_env_qm%added_charges, globenv, qmmm_section,&
+                               error)
 
        globenv%program_name="QS"
        CALL create_small_subsystem(subsys_qm,&
@@ -335,6 +349,7 @@ CONTAINS
                                      mm_cell=mm_cell,&
                                      globenv=globenv,&
                                      qs_env=qs_env,&
+                                     added_charges=qmmm_env_qm%added_charges,&
                                      error=error)
        !
        ! Initialize the MM potential stored on vector
@@ -344,6 +359,7 @@ CONTAINS
                                 mm_cell=mm_cell,&
                                 globenv=globenv,&
                                 qs_env=qs_env,&
+                                added_charges=qmmm_env_qm%added_charges,&
                                 error=error)
        !
        ! Initialize the qmmm_pw_grid
@@ -363,8 +379,6 @@ CONTAINS
        CALL qmmm_env_qm_release(qmmm_env_qm, error)
        CALL qmmm_env_mm_release(qmmm_env_mm, error)
        DEALLOCATE(qm_atom_type,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       IF (ASSOCIATED(mm_moved_atoms)) DEALLOCATE(mm_moved_atoms, stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
     CALL timestop(0.0_dp,handle)
@@ -588,13 +602,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
  SUBROUTINE assign_mm_charges_and_radius(subsys, mm_atom_chrg,mm_el_pot_radius,&
-                                         mm_atom_index, error)
+                                         mm_atom_index, mm_link_atoms, mm_link_scale_factor,&
+                                         error)
    IMPLICIT NONE
    ! Arguments
    TYPE(cp_subsystem_p_type), &
         DIMENSION(:), POINTER                  :: subsys
-   REAL(dp), DIMENSION(:), POINTER             :: mm_atom_chrg, mm_el_pot_radius
-   INTEGER, DIMENSION(:), POINTER              :: mm_atom_index
+   REAL(dp), DIMENSION(:), POINTER             :: mm_atom_chrg, mm_el_pot_radius,mm_link_scale_factor
+   INTEGER, DIMENSION(:), POINTER              :: mm_atom_index, mm_link_atoms
    TYPE(cp_error_type), INTENT(inout), &
         OPTIONAL                               :: error
    ! Local Variables
@@ -603,15 +618,14 @@ CONTAINS
    TYPE(particle_list_type), POINTER           :: particles
    TYPE(particle_type), DIMENSION(:), &
         POINTER                                :: particle_set
-   INTEGER  :: I, IndMM
+   INTEGER  :: I, IndMM, ilink, iw
    REAL(dp) :: qi, ri
 
    NULLIFY(particle_set, my_kind)
    CALL cp_subsys_get(subsys=subsys(1)%subsys,&
                       particles=particles)
    particle_set => particles%els
-   
-   WRITE(*,'(/1X,A)')"MM ATOMS ELECTROSTATIC DEFS ::"
+
    DO I = 1, SIZE(mm_atom_index)
       IndMM = mm_atom_index(I)
       my_kind => particle_set(IndMM)%atomic_kind
@@ -621,11 +635,154 @@ CONTAINS
                            core_charge_radius=ri)
       mm_atom_chrg(I)     = qi
       mm_el_pot_radius(I) = ri
-      WRITE(*,'(1X,A,I5,A,F12.6,A,F12.6)')'MM ATOM:',IndMM,' RADIUS: ',ri,&
-                                       ' CHARGE: ',qi
    END DO
-   
+
+   DO ilink = 1, SIZE(mm_link_atoms)
+      DO i = 1, SIZE(mm_atom_index)
+         IF (mm_atom_index(i) == mm_link_atoms(ilink)) EXIT
+      END DO
+      IndMM = mm_atom_index(I)
+      mm_atom_chrg(i) = mm_atom_chrg(i) * mm_link_scale_factor(ilink)
+   END DO
+
  END SUBROUTINE assign_mm_charges_and_radius
+
+!!****f* qmmm_init/print_qmmm_charges [1.0] *
+!!
+!!   NAME
+!!     print_qmmm_charges
+!!
+!!   FUNCTION
+!!     Print info on charges generating the qmmm potential..
+!!
+!!   NOTES
+!!     
+!!
+!!   INPUTS
+!!     - subsys: the subsystem containing the MM charges
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     01.2005 created [tlaino]
+!!
+!!*** **********************************************************************
+ SUBROUTINE print_qmmm_charges(mm_atom_index, mm_atom_chrg, mm_el_pot_radius, added_charges,&
+                               globenv, qmmm_section, error)
+   IMPLICIT NONE
+   ! Arguments
+   REAL(dp), DIMENSION(:), POINTER             :: mm_atom_chrg, mm_el_pot_radius
+   INTEGER, DIMENSION(:), POINTER              :: mm_atom_index
+   TYPE(section_vals_type), POINTER            :: qmmm_section
+   TYPE(cp_error_type), INTENT(inout), &
+        OPTIONAL                               :: error
+    TYPE(global_environment_type), POINTER     :: globenv
+    TYPE(add_set_type), POINTER                :: added_charges
+    ! Local Variables
+    INTEGER                                    :: IndMM, I, iw, ind1, ind2
+    REAL(KIND=dp)                              :: qi, ri, qtot
+    TYPE(cp_logger_type), POINTER :: logger
+    TYPE(section_vals_type), POINTER :: print_key
+
+    qtot = 0.0_dp
+    iw = globenv%scr
+    logger => cp_error_get_logger(error)
+    print_key => section_vals_get_subs_vals(qmmm_section,"qmmm_charges",error=error)
+    IF (cp_should_output(logger%iter_info,print_key,error=error).AND.&
+         logger%para_env%mepos==logger%para_env%source) THEN 
+       WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
+       WRITE(iw,FMT='(/5X,A)')"MM    POINT CHARGES GENERATING THE QM/MM ELECTROSTATIC POTENTIAL"
+       WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
+       DO I = 1, SIZE(mm_atom_index)
+          IndMM = mm_atom_index(I)
+          qi = mm_atom_chrg(I)    
+          qtot = qtot + qi 
+          ri = mm_el_pot_radius(I) 
+          WRITE(iw,'(7X,A9,I5,A8,F12.6,A8,F12.6)')' MM ATOM:',IndMM,' RADIUS:',ri,&
+                                                  ' CHARGE:',qi
+       END DO
+       IF (added_charges%num_mm_atoms /= 0) THEN
+          WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
+          WRITE(iw,'(/5X,A)')"ADDED POINT CHARGES GENERATING THE QM/MM ELECTROSTATIC POTENTIAL"
+          WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
+          DO I = 1, SIZE(added_charges%mm_atom_index)
+             IndMM = added_charges%mm_atom_index(I)
+             qi = added_charges%mm_atom_chrg(I)     
+             qtot = qtot + qi
+             ri = added_charges%mm_el_pot_radius(I) 
+             ind1 = added_charges%add_env(I)%Index1
+             ind2 = added_charges%add_env(I)%Index2
+             WRITE(iw,'(7X,A9,I5,A8,F12.6,A8,F12.6,I5,I5)')'MM POINT:',IndMM,' RADIUS:',ri,&
+                                                           ' CHARGE:',qi,ind1,ind2
+          END DO
+
+       END IF
+       WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
+       WRITE(iw,'(/,T36,A,F12.6)')' TOTAL CHARGE:',qtot
+       WRITE(iw,FMT="(/,T2,A,/)") REPEAT("-",73)
+    END IF
+  END SUBROUTINE print_qmmm_charges
+
+!!****f* qmmm_init/print_qmmm_links [1.0] *
+!!
+!!   NAME
+!!     print_qmmm_links
+!!
+!!   FUNCTION
+!!     Print info on qm/mm links
+!!
+!!   NOTES
+!!     
+!!
+!!   INPUTS
+!!     - subsys: the subsystem containing the MM charges
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     01.2005 created [tlaino]
+!!
+!!*** **********************************************************************
+ SUBROUTINE print_qmmm_links(globenv, qmmm_section, qmmm_links, error)
+   IMPLICIT NONE
+   ! Arguments
+   TYPE(section_vals_type), POINTER            :: qmmm_section
+   TYPE(cp_error_type), INTENT(inout), &
+        OPTIONAL                               :: error
+    TYPE(global_environment_type), POINTER     :: globenv
+    TYPE(qmmm_links_type), POINTER             :: qmmm_links
+    ! Local Variables
+    INTEGER                                    :: mm_index, qm_index, iw, i
+    REAL(KIND=dp)                              :: alpha
+    TYPE(cp_logger_type), POINTER :: logger
+    TYPE(section_vals_type), POINTER :: print_key
+
+    iw = globenv%scr
+    logger => cp_error_get_logger(error)
+    print_key => section_vals_get_subs_vals(qmmm_section,"qmmm_link_info",error=error)
+    IF (cp_should_output(logger%iter_info,print_key,error=error).AND.&
+         logger%para_env%mepos==logger%para_env%source) THEN 
+       WRITE(iw,FMT="(/,T2, A)") REPEAT("-",73)
+       WRITE(iw,FMT="(/,T31,A)") " QM/MM LINKS "
+       WRITE(iw,FMT="(/,T2, A)") REPEAT("-",73)
+       IF (ASSOCIATED(qmmm_links)) THEN
+          DO I = 1, SIZE(qmmm_links%imomm)
+             qm_index = qmmm_links%imomm(I)%link%qm_index
+             mm_index = qmmm_links%imomm(I)%link%mm_index
+             alpha    = qmmm_links%imomm(I)%link%alpha
+             WRITE(iw,FMT="(T2,A,T20,A9,I6,1X,A9,I6,T55,A6,F12.6)")"TYPE: IMOMM",&
+                  "QM INDEX:",qm_index,"MM INDEX:",mm_index,"ALPHA:",alpha
+          END DO
+       END IF
+       WRITE(iw,FMT="(/,T2,A,/)") REPEAT("-",73)
+    END IF
+  END SUBROUTINE print_qmmm_links
 
   !!****f* qmmm_init/qmmm_init_gaussian_type [1.0] *
   !!
@@ -650,19 +807,21 @@ CONTAINS
   !!
   !!*************************************************************************
  SUBROUTINE qmmm_init_gaussian_type(qmmm_env_qm, qm_cell_small, mm_cell, globenv,&
-                                    qs_env, error )
+                                    qs_env, added_charges, error )
    IMPLICIT NONE
    ! Arguments
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(add_set_type), POINTER              :: added_charges
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
    ! Local Variables
-    REAL(KIND=dp), DIMENSION(:), POINTER :: maxradius
+    REAL(KIND=dp), DIMENSION(:), POINTER :: maxradius, maxradius2
+    INTEGER :: i
 
-    NULLIFY(maxradius)
+    NULLIFY(maxradius, maxradius2)
 
     CALL qmmm_gaussian_initialize(qmmm_gaussian_fns=qmmm_env_qm%pgfs,&
                                   qm_cell_small=qm_cell_small,&
@@ -675,6 +834,26 @@ CONTAINS
                                   maxradius=maxradius,&
                                   error=error)
 
+    IF (qmmm_env_qm%move_mm_charges.OR.qmmm_env_qm%add_mm_charges) THEN
+
+       CALL qmmm_gaussian_initialize(qmmm_gaussian_fns=added_charges%pgfs,&
+                                     qm_cell_small=qm_cell_small,&
+                                     mm_cell=mm_cell,&
+                                     globenv=globenv,&
+                                     pw_env=qs_env%pw_env,&
+                                     mm_el_pot_radius=added_charges%mm_el_pot_radius,&
+                                     qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
+                                     eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
+                                     maxradius=maxradius2,&
+                                     error=error)
+
+       IF (qmmm_env_qm%qmmm_coupl_type == do_qmmm_gauss) THEN
+          DO i = 1, SIZE(maxradius)
+             maxradius(i) = MAX( maxradius(i), maxradius2(i))
+          END DO
+       END IF
+
+    END IF
 
     qmmm_env_qm%maxradius => maxradius
 
@@ -702,28 +881,43 @@ CONTAINS
   !!     1.2005 created [tlaino]
   !!
   !!*************************************************************************
- SUBROUTINE qmmm_init_potential(qmmm_env_qm, qm_cell_small, mm_cell, globenv, qs_env, error)
+ SUBROUTINE qmmm_init_potential(qmmm_env_qm, qm_cell_small, mm_cell, globenv, qs_env,&
+                                added_charges, error)
    IMPLICIT NONE
    ! Arguments
-    TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small
-    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
-    TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error   
-    ! Local Variables
+   TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small
+   TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
+   TYPE(global_environment_type), POINTER   :: globenv
+   TYPE(qs_environment_type), POINTER       :: qs_env
+   TYPE(add_set_type), POINTER              :: added_charges
+   TYPE(cp_error_type), INTENT(inout), &
+        OPTIONAL                               :: error   
+   ! Local Variables
+   
+   CALL qmmm_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
+                            mm_el_pot_radius=qmmm_env_qm%mm_el_pot_radius,&
+                            potentials=qmmm_env_qm%potentials,&
+                            pgfs=qmmm_env_qm%pgfs,&
+                            qm_cell_small=qm_cell_small,&
+                            mm_cell=mm_cell,&
+                            globenv=globenv,&
+                            pw_env=qs_env%pw_env,&
+                            error=error)
 
-    CALL qmmm_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
-                             mm_el_pot_radius=qmmm_env_qm%mm_el_pot_radius,&
-                             potentials=qmmm_env_qm%potentials,&
-                             pgfs=qmmm_env_qm%pgfs,&
-                             qm_cell_small=qm_cell_small,&
-                             mm_cell=mm_cell,&
-                             globenv=globenv,&
-                             pw_env=qs_env%pw_env,&
-                             error=error)
+   IF (qmmm_env_qm%move_mm_charges.OR.qmmm_env_qm%add_mm_charges) THEN
 
-  END SUBROUTINE qmmm_init_potential
+      CALL qmmm_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
+                               mm_el_pot_radius=added_charges%mm_el_pot_radius,&
+                               potentials=added_charges%potentials,&
+                               pgfs=added_charges%pgfs,&
+                               qm_cell_small=qm_cell_small,&
+                               mm_cell=mm_cell,&
+                               globenv=globenv,&
+                               pw_env=qs_env%pw_env,&
+                               error=error)      
+   END IF
+
+ END SUBROUTINE qmmm_init_potential
 
   !!****f* qmmm_init/setup_qmmm_vars_qm [1.0] *
   !!
@@ -940,7 +1134,8 @@ CONTAINS
   !!*************************************************************************
   SUBROUTINE setup_qmmm_vars_mm( qmmm_section, qmmm_env, qm_atom_index,  &
                                  mm_link_atoms, mm_link_scale_factor, &
-                                 qmmm_coupl_type, qmmm_link, error)
+                                 fist_scale_charge_link, qmmm_coupl_type,&
+                                 qmmm_link, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(section_vals_type), POINTER         :: qmmm_section
@@ -948,7 +1143,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, mm_link_atoms
     INTEGER, INTENT(OUT)                     :: qmmm_coupl_type
     LOGICAL, INTENT(OUT)                     :: qmmm_link
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_link_scale_factor
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_link_scale_factor,fist_scale_charge_link
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
     ! Local Variables
@@ -963,7 +1158,7 @@ CONTAINS
        CALL section_vals_val_get(qmmm_section,"E_COUPL",i_val=qmmm_coupl_type,error=error)
        CALL setup_qm_atom_list(qmmm_section,qm_atom_index=qm_atom_index,qmmm_link=qmmm_link,&
             mm_link_atoms=mm_link_atoms, mm_link_scale_factor = mm_link_scale_factor,&
-            error=error)
+            fist_scale_charge_link=fist_scale_charge_link, error=error)
     END IF
   END SUBROUTINE setup_qmmm_vars_mm
      
@@ -990,7 +1185,8 @@ CONTAINS
   !!
   !!*************************************************************************
   SUBROUTINE setup_qm_atom_list(qmmm_section,qm_atom_index,qm_atom_type,&
-       qm_subsys_index, mm_link_atoms, mm_link_scale_factor, qmmm_link, error)
+       qm_subsys_index, mm_link_atoms, mm_link_scale_factor, qmmm_link, &
+       fist_scale_charge_link, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(section_vals_type), POINTER         :: qmmm_section
@@ -999,6 +1195,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER, OPTIONAL :: qm_atom_index, qm_subsys_index
     INTEGER, DIMENSION(:), POINTER, OPTIONAL :: mm_link_atoms
     REAL(KIND=dp), DIMENSION(:), POINTER, OPTIONAL     :: mm_link_scale_factor
+    REAL(KIND=dp), DIMENSION(:), POINTER, OPTIONAL     :: fist_scale_charge_link
     LOGICAL, OPTIONAL, INTENT(OUT) :: qmmm_link
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
@@ -1039,6 +1236,8 @@ CONTAINS
     END IF
     IF (PRESENT(mm_link_scale_factor)) ALLOCATE(mm_link_scale_factor(nlinks), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (PRESENT(fist_scale_charge_link)) ALLOCATE(fist_scale_charge_link(nlinks), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (PRESENT(mm_link_atoms))   ALLOCATE(mm_link_atoms(nlinks),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (PRESENT(qm_atom_index))   ALLOCATE(qm_atom_index(num_qm_atom_tot),stat=stat)
@@ -1069,8 +1268,9 @@ CONTAINS
        END IF
        num_qm_atom_tot = num_qm_atom_tot + SIZE(mm_indexes)
     END DO
-    IF (PRESENT(mm_link_scale_factor)) mm_link_scale_factor = 0.0_dp
-    IF (PRESENT(mm_link_atoms))        mm_link_atoms        = 0
+    IF (PRESENT(mm_link_scale_factor))     mm_link_scale_factor = 0.0_dp
+    IF (PRESENT(fist_scale_charge_link)) fist_scale_charge_link = 0.0_dp
+    IF (PRESENT(mm_link_atoms))            mm_link_atoms        = 0
     IF (explicit) THEN
        DO ikind = 1, nlinks
           IF (PRESENT(qm_subsys_index)) THEN
@@ -1093,9 +1293,14 @@ CONTAINS
              mm_link_atoms (ikind) = mm_index
           END IF
           IF (PRESENT(mm_link_scale_factor)) THEN
-             CALL section_vals_val_get(qmmm_links,"SCALE_FACTOR",i_rep_section=ikind,r_val=scale_f,&
+             CALL section_vals_val_get(qmmm_links,"QMMM_SCALE_FACTOR",i_rep_section=ikind,r_val=scale_f,&
                   error=error)
              mm_link_scale_factor(ikind) = scale_f
+          END IF
+          IF (PRESENT(fist_scale_charge_link)) THEN
+             CALL section_vals_val_get(qmmm_links,"FIST_SCALE_FACTOR",i_rep_section=ikind,r_val=scale_f,&
+                  error=error)
+             fist_scale_charge_link(ikind) = scale_f
           END IF
        END DO
     END IF
@@ -1170,12 +1375,9 @@ CONTAINS
              CALL section_vals_val_get(qmmm_link_section,"QM_INDEX",i_rep_section=ikind,i_val=qm_index,error=error)
              CALL section_vals_val_get(qmmm_link_section,"MM_INDEX",i_rep_section=ikind,i_val=mm_index,error=error)
              CALL section_vals_val_get(qmmm_link_section,"ALPHA_IMOMM",i_rep_section=ikind,r_val=alpha,error=error)
-             CALL section_vals_val_get(qmmm_link_section,"SCALE_FACTOR",i_rep_section=ikind,r_val=scale_factor,&
-                  error=error)
              qmmm_links%imomm(n_imomm)%link%qm_index = qm_index
              qmmm_links%imomm(n_imomm)%link%mm_index = mm_index
              qmmm_links%imomm(n_imomm)%link%alpha    = alpha
-             qmmm_links%imomm(n_imomm)%link%charge_scale_factor = scale_factor
           END IF
        END DO
     END IF
@@ -1210,26 +1412,30 @@ CONTAINS
   !!
   !!*************************************************************************
   SUBROUTINE move_or_add_atoms(qmmm_section, move_mm_charges, add_mm_charges, &
-                               mm_moved_atoms, mm_atom_chrg, added_charges,   &
-                               error)
+                               mm_atom_chrg, mm_el_pot_radius, added_charges, &
+                               mm_atom_index, qm_cell_small, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(section_vals_type), POINTER         :: qmmm_section
     LOGICAL, INTENT(OUT)                     :: move_mm_charges, add_mm_charges
-    INTEGER, DIMENSION(:), POINTER           :: mm_moved_atoms
-    REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_atom_chrg, mm_el_pot_radius
     TYPE(add_set_type), POINTER              :: added_charges
+    INTEGER, POINTER, DIMENSION(:)           :: mm_atom_index
+    TYPE(cell_type), POINTER                 :: qm_cell_small
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                            :: error
     ! Local variables
     CHARACTER(len=*), PARAMETER :: routineN = 'move_or_add_atoms',&
          routineP = moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: nlinks, n_moves, n_adds, icount, ikind
+    LOGICAL :: failure, explicit
+    INTEGER :: nlinks, n_moves, n_adds, icount, ikind, n_move_tot, n_add_tot
+    INTEGER :: Index1, Index2, i_add, ind1
     TYPE(section_vals_type), POINTER         :: qmmm_link_section, move_section,&
                                                 add_section
+    REAL(KIND=dp) :: radius, alpha, charge
 
     failure = .FALSE.
+    explicit = .FALSE.
     move_mm_charges = .FALSE.
     add_mm_charges  = .FALSE.
     NULLIFY( qmmm_link_section, move_section, add_section)
@@ -1237,18 +1443,146 @@ CONTAINS
        qmmm_link_section => section_vals_get_subs_vals(qmmm_section,"LINK",error=error)
        CALL section_vals_get(qmmm_link_section,n_repetition=nlinks,error=error)
        CPPostcondition(nlinks /= 0,cp_failure_level,routineP,error,failure)
+       icount     = 0
+       n_move_tot = 0
+       n_add_tot  = 0
+       DO ikind= 1, nlinks
+          move_section => section_vals_get_subs_vals(qmmm_link_section,"MOVE_MM_CHARGE",&
+               i_rep_section=ikind, error=error)
+          CALL section_vals_get(move_section,n_repetition=n_moves,error=error)
+          add_section => section_vals_get_subs_vals(qmmm_link_section,"ADD_MM_CHARGE",&
+               i_rep_section=ikind, error=error)
+          CALL section_vals_get(add_section,n_repetition=n_adds,error=error)
+          n_move_tot = n_move_tot + n_moves
+          n_add_tot  = n_add_tot  + n_adds
+       END DO
+       icount = n_move_tot + n_add_tot
+       IF (n_add_tot   /= 0)  add_mm_charges  = .TRUE.
+       IF (n_move_tot  /= 0) move_mm_charges  = .TRUE.
+       !
+       ! create add_set_type
+       !
+       CALL create_add_set_type(added_charges, ndim=icount, error=error)
+       !
+       ! Fill in structures
+       !
        icount = 0
        DO ikind= 1, nlinks
-          move_section => section_vals_get_subs_vals(qmmm_link_section,"MOVE_MM_CHARGE",error=error)
-          CALL section_vals_get(move_section,n_repetition=n_moves,error=error)
-          add_section => section_vals_get_subs_vals(qmmm_link_section,"ADD_MM_CHARGE",error=error)
-          CALL section_vals_get(add_section,n_repetition=n_adds,error=error)
-          icount = icount + n_moves + n_adds
+          move_section => section_vals_get_subs_vals(qmmm_link_section,"MOVE_MM_CHARGE",&
+                                                     i_rep_section=ikind, error=error)
+          CALL section_vals_get(move_section, explicit=explicit, n_repetition=n_moves, error=error)
+          !
+          ! Moving charge atoms
+          !
+          IF (explicit) THEN
+             DO i_add = 1, n_moves
+                icount = icount + 1
+                CALL section_vals_val_get(move_section,"ATOM_INDEX_1",i_val=Index1,i_rep_section=i_add,error=error)
+                CALL section_vals_val_get(move_section,"ATOM_INDEX_2",i_val=Index2,i_rep_section=i_add,error=error)
+                CALL section_vals_val_get(move_section,"ALPHA",r_val=alpha,i_rep_section=i_add,error=error)
+                CALL section_vals_val_get(move_section,"RADIUS",r_val=radius,i_rep_section=i_add,error=error)
+                
+                radius = radius * qm_cell_small%unit_of_length
+                CALL set_add_set_type(added_charges, icount, Index1, Index2, alpha, radius,&
+                                      mm_atom_chrg=mm_atom_chrg, mm_el_pot_radius=mm_el_pot_radius,&
+                                      mm_atom_index=mm_atom_index, move=n_moves, Ind1=ind1,&
+                                      error=error)
+             END DO
+             mm_atom_chrg(ind1) = 0.0_dp
+          END IF
+          
+          add_section => section_vals_get_subs_vals(qmmm_link_section,"ADD_MM_CHARGE",&
+                                                    i_rep_section=ikind, error=error)
+          CALL section_vals_get(add_section, explicit=explicit, n_repetition=n_adds, error=error)
+          !
+          ! Adding charge atoms
+          !
+          IF (explicit) THEN
+             DO i_add = 1, n_adds
+                icount = icount + 1
+                CALL section_vals_val_get(add_section,"ATOM_INDEX_1",i_val=Index1,i_rep_section=i_add,error=error)
+                CALL section_vals_val_get(add_section,"ATOM_INDEX_2",i_val=Index2,i_rep_section=i_add,error=error)
+                CALL section_vals_val_get(add_section,"ALPHA",r_val=alpha,i_rep_section=i_add,error=error)
+                CALL section_vals_val_get(add_section,"RADIUS",r_val=radius,i_rep_section=i_add,error=error)
+                CALL section_vals_val_get(add_section,"CHARGE",r_val=charge,i_rep_section=i_add,error=error)
+
+                radius = radius * qm_cell_small%unit_of_length
+                CALL set_add_set_type(added_charges, icount, Index1, Index2, alpha, radius, charge,&
+                                      mm_atom_chrg=mm_atom_chrg, mm_el_pot_radius=mm_el_pot_radius,&
+                                      mm_atom_index=mm_atom_index, error=error)
+             END DO
+          END IF
        END DO
-       
     END IF
 
-  END SUBROUTINE move_or_add_atoms
+   END SUBROUTINE move_or_add_atoms
 
+  !!****f* qmmm_init/setup_qmmm_links [1.0] *
+  !!
+  !!   NAME
+  !!     setup_qmmm_links
+  !!
+  !!   FUNCTION
+  !!     this routine sets up all variables of the add_set_type type
+  !!
+  !!   NOTES
+  !!
+  !!
+  !!   INPUTS
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino
+  !!
+  !!   MODIFICATION HISTORY
+  !!     12.2004 created [tlaino]
+  !!
+  !!*************************************************************************
+   SUBROUTINE set_add_set_type(added_charges, icount, Index1, Index2, alpha, radius, charge,&
+        mm_atom_chrg, mm_el_pot_radius, mm_atom_index, move, ind1, error)
+     IMPLICIT NONE
+     ! Arguments
+     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_atom_chrg, mm_el_pot_radius
+     TYPE(add_set_type), POINTER              :: added_charges
+     INTEGER, POINTER, DIMENSION(:)           :: mm_atom_index
+     INTEGER, INTENT(IN)  :: Index1, Index2, icount
+     INTEGER, INTENT(OUT),OPTIONAL  :: ind1
+     REAL(KIND=dp), INTENT(IN) :: alpha, radius
+     REAL(KIND=dp), INTENT(IN), OPTIONAL :: charge
+     INTEGER, OPTIONAL, INTENT(in) :: move
+     TYPE(cp_error_type), INTENT(inout), &
+          OPTIONAL                            :: error
+     ! Local Variables
+     CHARACTER(len=*), PARAMETER :: routineN = 'set_add_set_type',&
+          routineP = moduleN//':'//routineN
+     LOGICAL :: failure
+     INTEGER :: i, my_move
+     REAL(KIND=dp) :: my_charge, my_radius
+     
+     failure = .FALSE.
+     my_move = 0
+     my_radius = radius
+     IF (PRESENT(charge)) my_charge = charge
+     IF (PRESENT(move))   my_move   = move
+     IF (.NOT.failure) THEN
+        i = 1
+        GetId: DO WHILE (i<=SIZE(mm_atom_index))
+           IF (Index1 == mm_atom_index(i)) EXIT GetId
+           i = i+1
+        END DO GetId
+        IF (PRESENT(ind1)) ind1 = i
+        CPPostcondition(i<=SIZE(mm_atom_index),cp_failure_level,routineP,error,failure)
+        IF (.NOT.PRESENT(charge)) my_charge = mm_atom_chrg(i)/REAL(my_move,KIND=dp)
+        IF (my_radius == 0.0_dp) my_radius = mm_el_pot_radius(i)
+
+        added_charges%add_env(icount)%Index1   = Index1
+        added_charges%add_env(icount)%Index2   = Index2
+        added_charges%add_env(icount)%alpha    = alpha 
+        added_charges%mm_atom_index(icount)    = icount
+        added_charges%mm_atom_chrg(icount)     = my_charge
+        added_charges%mm_el_pot_radius(icount) = my_radius
+     END IF
+   END SUBROUTINE set_add_set_type
 
 END MODULE qmmm_init

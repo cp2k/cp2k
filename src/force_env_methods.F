@@ -98,7 +98,9 @@ MODULE force_env_methods
                                              virial_retain
   USE qs_ks_qmmm_methods,              ONLY: ks_qmmm_env_rebuild
   USE qmmm_links_methods,              ONLY: qmmm_link_Imomm_coord,&
-                                             qmmm_link_Imomm_forces
+                                             qmmm_link_Imomm_forces,&
+                                             qmmm_added_chrg_coord,&
+                                             qmmm_added_chrg_forces
   USE qmmm_elpot,                      ONLY: qmmm_validate_this_run
   USE input_section_types, ONLY: section_type, section_create, &
        section_add_keyword, section_add_subsection, section_release,&
@@ -551,7 +553,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   LOGICAL, INTENT(IN), OPTIONAL            :: calc_force
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-  LOGICAL :: failure,need_f,qmmm_link, qmmm_link_imomm
+  LOGICAL :: failure,need_f,qmmm_link, qmmm_link_imomm, qmmm_added_chrg
   character(len=*), parameter :: routineN='qmmm_energy_and_forces',&
        routineP=moduleN//':'//routineN
   TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys_qm,subsys_mm
@@ -574,6 +576,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   need_f          = .TRUE.
   qmmm_link       = .FALSE.
   qmmm_link_imomm = .FALSE.
+  qmmm_added_chrg = .FALSE.
   logger => cp_error_get_logger(error)
   IF (PRESENT(calc_force)) need_f=calc_force
   NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm, qm_cell, mm_cell)
@@ -596,6 +599,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   qm_subsys_index => force_env%qmmm_env%qm_subsys_index
   qmmm_link       =  force_env%qmmm_env%qmmm_link
   qmmm_links      => force_env%qmmm_env%qmmm_links
+  qmmm_added_chrg =  (force_env%qmmm_env%move_mm_charges .OR. force_env%qmmm_env%add_mm_charges)
   IF (qmmm_link) THEN
      CPPrecondition(ASSOCIATED(qmmm_links),cp_failure_level,routineP,error,failure)
      qmmm_link_imomm = (SIZE(qmmm_links%imomm) /= 0)
@@ -649,6 +653,8 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   END DO
   ! If present QM/MM links (just IMOMM) correct the position of the qm-link atom
   IF (qmmm_link_imomm) CALL qmmm_link_Imomm_coord(qmmm_links, particles_qm, qm_atom_index, error)
+  ! If add charges get their position NOW!
+  IF (qmmm_added_chrg) CALL qmmm_added_chrg_coord(force_env%qmmm_env, particles_mm, error)
   
   ! Do some checks on coordinates and box
   CALL qmmm_validate_this_run(particles_qm, particles_mm, mm_cell, qm_cell, error=error)
@@ -725,6 +731,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   CALL qmmm_forces(force_env%sub_force_env(qs_subsys)%force_env%qs_env,&
        force_env%qmmm_env,particles_mm,&
        mm_cell=mm_cell,&
+       globenv=force_env%sub_force_env(qs_subsys)%force_env%globenv,&
        calc_force=need_f,error=error)
   !
   ! Print Out information on QS energy calculation...
@@ -745,6 +752,8 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
         particles_mm(qm_atom_index(ip))%f=particles_mm(qm_atom_index(ip))%f+&
              particles_qm(ip)%f
      END DO
+     ! If add charges get rid of their derivatives right NOW!
+     IF (qmmm_added_chrg) CALL qmmm_added_chrg_forces(force_env%qmmm_env, particles_mm, error)
   END IF
 
   print_key => section_vals_get_subs_vals(qmmm_section,"qmmm_derivatives",&

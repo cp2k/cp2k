@@ -44,7 +44,8 @@ MODULE qmmm_types
                                              pw_p_type,&
                                              pw_release
   USE particle_types,                  ONLY: particle_type,&
-                                             deallocate_particle_set
+                                             deallocate_particle_set,&
+                                             allocate_particle_set
   USE pw_pool_types, ONLY: pw_pool_p_type, pw_pool_type, pw_pools_dealloc
   USE input_cp2k, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
   IMPLICIT NONE
@@ -58,7 +59,7 @@ MODULE qmmm_types
   PUBLIC :: qmmm_env_qm_retain, qmmm_env_qm_release, qmmm_env_qm_create
   PUBLIC :: qmmm_env_mm_type, qmmm_env_mm_create, qmmm_env_mm_retain, qmmm_env_mm_release
   PUBLIC :: qmmm_imomm_link_type, qmmm_imomm_link_p_type, qmmm_links_type 
-  PUBLIC :: add_env_type, add_set_type, add_set_release
+  PUBLIC :: add_env_type, add_set_type, add_set_release, create_add_set_type
 
 !***
 !****************************************************************************
@@ -105,7 +106,6 @@ MODULE qmmm_types
   TYPE qmmm_imomm_link_type
      INTEGER  :: qm_index, mm_index
      REAL(KIND=dp) :: alpha
-     REAL(KIND=dp) :: charge_scale_factor
   END TYPE qmmm_imomm_link_type
   
   TYPE qmmm_imomm_link_p_type
@@ -122,6 +122,7 @@ MODULE qmmm_types
   END TYPE add_env_type
 
   TYPE add_set_type
+     INTEGER                                                 :: num_mm_atoms
      TYPE(add_env_type),  DIMENSION(:), POINTER              :: add_env
      TYPE(particle_type), DIMENSION(:), POINTER              :: added_particles
      INTEGER,        DIMENSION(:), POINTER                   :: mm_atom_index
@@ -162,6 +163,7 @@ MODULE qmmm_types
      INTEGER,        DIMENSION(:), POINTER                   :: qm_atom_index
      INTEGER,        DIMENSION(:), POINTER                   :: mm_link_atoms
      REAL(KIND=dp),  DIMENSION(:), POINTER                   :: mm_link_scale_factor
+     REAL(KIND=dp),  DIMENSION(:), POINTER                   :: fist_scale_charge_link
      INTEGER,        DIMENSION(:), POINTER                   :: qm_molecule_index
   END TYPE qmmm_env_mm_type
 
@@ -210,7 +212,8 @@ CONTAINS
        NULLIFY(qmmm_env%qm_atom_index,&
                qmmm_env%qm_molecule_index,&
                qmmm_env%mm_link_atoms,&
-               qmmm_env%mm_link_scale_factor)
+               qmmm_env%mm_link_scale_factor,&
+               qmmm_env%fist_scale_charge_link)
        qmmm_env%qmmm_coupl_type=do_qmmm_none
        qmmm_env%qmmm_link = .FALSE.
     END IF
@@ -306,6 +309,10 @@ CONTAINS
              DEALLOCATE(qmmm_env%mm_link_scale_factor,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
+          IF (ASSOCIATED(qmmm_env%fist_scale_charge_link)) THEN
+             DEALLOCATE(qmmm_env%fist_scale_charge_link,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
           DEALLOCATE(qmmm_env,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
@@ -365,6 +372,7 @@ SUBROUTINE qmmm_env_qm_create(qmmm_env, error)
      qmmm_env%num_mm_atoms=0
      qmmm_env%gridlevel_info%auxbas_grid  = 0
      qmmm_env%gridlevel_info%coarser_grid = 0
+     CALL create_add_set_type(qmmm_env%added_charges, ndim=0, error=error)
   END IF
 END SUBROUTINE qmmm_env_qm_create
 !***************************************************************************
@@ -711,6 +719,70 @@ SUBROUTINE add_set_release(added_charges, error)
   DEALLOCATE(added_charges, stat=stat)
   CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 END SUBROUTINE add_set_release
+ 
 
+!!****f* qmmm_types/create_add_set_type [1.0] *
+!!
+!!   NAME
+!!     create_add_set_type
+!!
+!!   FUNCTION
+!!     creates the add_set_type structure
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!*** **********************************************************************
+SUBROUTINE create_add_set_type(added_charges, ndim, error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(add_set_type), POINTER              :: added_charges
+  INTEGER, INTENT(IN)                      :: ndim
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+  ! Local Variables
+  CHARACTER(len=*), PARAMETER :: routineN = 'create_add_set_type',&
+       routineP = moduleN//':'//routineN
+  INTEGER :: stat
+  LOGICAL :: failure
+
+  failure = .FALSE.
+  IF (ASSOCIATED(added_charges)) CALL add_set_release(added_charges, error)
+  ALLOCATE(added_charges, stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+
+  IF (.NOT. failure) THEN
+     NULLIFY(added_charges%add_env,&
+             added_charges%mm_atom_index,&
+             added_charges%added_particles,&
+             added_charges%mm_atom_chrg,&
+             added_charges%mm_el_pot_radius,&
+             added_charges%potentials,&
+             added_charges%pgfs)
+
+     added_charges%num_mm_atoms = ndim
+     IF (ndim == 0) RETURN
+     !
+     ! Allocate leave out just potential and pgfs...
+     !
+     ALLOCATE(added_charges%add_env(ndim),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+     CALL allocate_particle_set(added_charges%added_particles,ndim)
+     ALLOCATE(added_charges%mm_atom_index(ndim), stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+     ALLOCATE(added_charges%mm_atom_chrg(ndim), stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+     ALLOCATE(added_charges%mm_el_pot_radius(ndim), stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+  END IF
+
+END SUBROUTINE create_add_set_type
 
 END MODULE qmmm_types

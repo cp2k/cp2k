@@ -113,7 +113,7 @@ CONTAINS
     TYPE(global_environment_type), &
       INTENT(in), OPTIONAL, TARGET           :: globenv
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qmmm_env_qm_type), INTENT(in), TARGET  :: qmmm_env
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
     TYPE(cp_error_type), INTENT(inout), &
@@ -124,7 +124,7 @@ CONTAINS
       routineP = moduleN//':'//routineN    
 
     CHARACTER(LEN=80)                        :: FileName, Title
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, iw
     LOGICAL                                  :: failure
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -133,10 +133,9 @@ CONTAINS
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     TYPE(section_vals_type), POINTER         :: input_section, interp_section
 
-! Statements
-
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
+    iw = globenv%scr
     NULLIFY(ks_qmmm_env_loc, pw_pools, pw_env,input_section)
     CALL get_qs_env(qs_env=qs_env,&
                     pw_env=pw_env,&
@@ -147,7 +146,7 @@ CONTAINS
     CALL pw_env_get(pw_env=pw_env, pw_pools=pw_pools, error=error)
 
     ks_qmmm_env_loc => qs_env%ks_qmmm_env
-    WRITE(6,'(T3,A)')"Information on the QM/MM Electrostatic Potential:"
+    WRITE(iw,'(T3,A)')"Information on the QM/MM Electrostatic Potential:"
     !
     ! Initializing vectors:
     !        Zeroing v_qmmm_rspace 
@@ -157,47 +156,38 @@ CONTAINS
     !
     SELECT CASE(qmmm_env%qmmm_coupl_type)
     CASE(do_qmmm_grid)
-       WRITE(6,'(T3,A)')"QM/MM Coupling computed on GRID."
+       WRITE(iw,'(T3,A)')"QM/MM Coupling computed on GRID."
        ! Compute the MM electrostatic potential on GRID
-       CALL qmmm_electrostatic_on_grid(v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
+       CALL qmmm_electrostatic_on_grid(qmmm_env=qmmm_env,&
+                                       v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
                                        mm_particles=mm_particles,&
-                                       mm_charges=qmmm_env%mm_atom_chrg,&
-                                       mm_el_pot_radius=qmmm_env%mm_el_pot_radius,&
-                                       mm_atom_index=qmmm_env%mm_atom_index,&
-                                       num_mm_atoms=qmmm_env%num_mm_atoms,&
-                                       potentials=qmmm_env%Potentials,&
                                        mm_cell=mm_cell,&
                                        error=error)
     CASE(do_qmmm_gauss)
-       WRITE(6,'(T3,A)')"QM/MM Coupling computed collocating the Gaussian Potential Functions."
+       WRITE(iw,'(T3,A)')"QM/MM Coupling computed collocating the Gaussian Potential Functions."
        interp_section => section_vals_get_subs_vals(input_section,&
             "DFT",error=error)
        interp_section => section_vals_get_subs_vals(interp_section,&
             "MGRID",error=error)
        interp_section => section_vals_get_subs_vals(interp_section,&
             "INTERPOLATOR",error=error)
-       CALL    qmmm_elec_with_gaussian(v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
+       CALL    qmmm_elec_with_gaussian(qmmm_env=qmmm_env,&
+                                       v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
                                        mm_particles=mm_particles,&
-                                       mm_charges=qmmm_env%mm_atom_chrg,&
-                                       mm_el_pot_radius=qmmm_env%mm_el_pot_radius,&
-                                       mm_atom_index=qmmm_env%mm_atom_index,&
-                                       num_mm_atoms=qmmm_env%num_mm_atoms,&
                                        aug_pools=qmmm_env%aug_pools,&
                                        para_env=para_env,&
                                        eps_mm_rspace=qmmm_env%eps_mm_rspace,&
                                        cube_info=ks_qmmm_env_loc%cube_info,&
-                                       pgfs=qmmm_env%pgfs,&
                                        pw_pools=pw_pools,&
                                        auxbas_grid=qmmm_env%gridlevel_info%auxbas_grid,&
                                        coarser_grid=qmmm_env%gridlevel_info%coarser_grid,&
-                                       potentials=qmmm_env%Potentials,&
                                        interp_section=interp_section,&
                                        mm_cell=mm_cell,&
                                        error=error)
     CASE(do_qmmm_none)
-       WRITE(6,'(T3,A)')"No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
+       WRITE(iw,'(T3,A)')"No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
     CASE DEFAULT
-       WRITE(6,'(T3,A)')"Unknown Coupling..."
+       WRITE(iw,'(T3,A)')"Unknown Coupling..."
        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
 
@@ -237,28 +227,52 @@ CONTAINS
 !!     05.2004 created [tlaino]
 !!
 !!*** **********************************************************************
-  SUBROUTINE  qmmm_electrostatic_on_grid(v_qmmm,mm_particles,mm_charges,&
-       mm_el_pot_radius, mm_atom_index,num_mm_atoms, potentials, mm_cell,error)
+  SUBROUTINE  qmmm_electrostatic_on_grid(qmmm_env, v_qmmm, mm_particles, mm_cell, error)
+    IMPLICIT NONE
+    ! Arguments
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(coeff_type), INTENT(INOUT)          :: v_qmmm
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges, mm_el_pot_radius
-    INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
-    INTEGER, INTENT(IN)                      :: num_mm_atoms
-    TYPE(qmmm_pot_p_type), DIMENSION(:), &
-      POINTER                                :: potentials
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     TYPE(cell_type), POINTER                 :: mm_cell
+    ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_electrostatic_on_grid', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
 
     CALL timeset(routineN,"I","",handle)
-    CALL qmmm_electrostatic_on_grid_low(v_qmmm, v_qmmm%pw%cr3d,&
-       potentials, mm_particles,mm_charges,&
-       mm_el_pot_radius, mm_atom_index,num_mm_atoms,mm_cell,error)
+
+    CALL qmmm_electrostatic_on_grid_low(&
+         v_qmmm,&
+         v_qmmm%pw%cr3d,&
+         qmmm_env%Potentials,&
+         mm_particles,&
+         qmmm_env%mm_atom_chrg,&
+         qmmm_env%mm_el_pot_radius,&
+         qmmm_env%mm_atom_index,&
+         qmmm_env%num_mm_atoms,&
+         mm_cell,&
+         error)
+
+    IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
+
+       CALL qmmm_electrostatic_on_grid_low(&
+            v_qmmm,&
+            v_qmmm%pw%cr3d,&
+            qmmm_env%added_charges%potentials,&
+            qmmm_env%added_charges%added_particles,&
+            qmmm_env%added_charges%mm_atom_chrg,&
+            qmmm_env%added_charges%mm_el_pot_radius,&
+            qmmm_env%added_charges%mm_atom_index,&
+            qmmm_env%added_charges%num_mm_atoms,&
+            mm_cell,&
+            error)       
+
+    END IF
+
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_electrostatic_on_grid
 
@@ -287,6 +301,8 @@ CONTAINS
   SUBROUTINE qmmm_electrostatic_on_grid_low(v_qmmm, Varray, potentials,&
        mm_particles, mm_charges, mm_el_pot_radius, mm_atom_index, &
        num_mm_atoms, mm_cell, error)
+    IMPLICIT NONE
+    ! Arguments
     TYPE(coeff_type), INTENT(INOUT)          :: v_qmmm
     REAL(KIND=dp), DIMENSION(*)              :: Varray
     TYPE(qmmm_pot_p_type), DIMENSION(:), &
@@ -299,11 +315,10 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: mm_cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-
+    ! Local Variables
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'qmmm_electrostatic_on_grid_low', &
       routineP = moduleN//':'//routineN
-
     INTEGER                                  :: handle, i, Imm, Imp, IndMM, &
                                                 Ipot, ix, j, jj, k, my_j, &
                                                 my_k, n1, n2, n3
@@ -316,8 +331,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: r_pbc
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pot0_2
     TYPE(qmmm_pot_type), POINTER             :: Pot
-
-! Statements
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(mm_particles),cp_failure_level,routineP,error,failure)
@@ -412,34 +425,29 @@ CONTAINS
 !!     06.2004 created [tlaino]
 !!
 !!**************************************************************************
-  SUBROUTINE qmmm_elec_with_gaussian(v_qmmm, mm_particles,&
-       mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
-       aug_pools, cube_info, para_env, eps_mm_rspace, pgfs, pw_pools,&
-       auxbas_grid, coarser_grid, potentials, interp_section, mm_cell,error)
+  SUBROUTINE qmmm_elec_with_gaussian(qmmm_env, v_qmmm, mm_particles,&
+       aug_pools, cube_info, para_env, eps_mm_rspace, pw_pools,&
+       auxbas_grid, coarser_grid, interp_section, mm_cell, error)
+    IMPLICIT NONE
+    ! Arguments
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(coeff_type), INTENT(INOUT)          :: v_qmmm
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges, mm_el_pot_radius
-    INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
-    INTEGER, INTENT(IN)                      :: num_mm_atoms
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: aug_pools
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), INTENT(IN)                :: eps_mm_rspace
-    TYPE(qmmm_gaussian_p_type), &
-      DIMENSION(:), POINTER                  :: pgfs
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     INTEGER, INTENT(IN)                      :: auxbas_grid, coarser_grid
-    TYPE(qmmm_pot_p_type), DIMENSION(:), &
-      POINTER                                :: potentials
     TYPE(section_vals_type), POINTER         :: interp_section
     TYPE(cell_type), POINTER                 :: mm_cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-
+    ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian', &
       routineP = moduleN//':'//routineN
 
@@ -452,8 +460,8 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(mm_particles),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(mm_charges),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(mm_atom_index),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qmmm_env%mm_atom_chrg),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qmmm_env%mm_atom_index),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(aug_pools),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(pw_pools),cp_failure_level,routineP,error,failure)
     !Statements
@@ -465,9 +473,21 @@ CONTAINS
     END DO
     
     CALL qmmm_elec_with_gaussian_low( grids, mm_particles,&
-         mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms, cube_info,&
-         para_env, eps_mm_rspace, pgfs, auxbas_grid, coarser_grid, pw_pools, aug_pools, &
-         potentials,interp_section=interp_section, mm_cell=mm_cell, error=error)
+         qmmm_env%mm_atom_chrg, qmmm_env%mm_el_pot_radius, qmmm_env%mm_atom_index,  &
+         qmmm_env%num_mm_atoms, cube_info, para_env, eps_mm_rspace, qmmm_env%pgfs,  &
+         auxbas_grid, coarser_grid, pw_pools, aug_pools, qmmm_env%potentials,       &
+         interp_section=interp_section, mm_cell=mm_cell, error=error)
+
+    IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
+
+       CALL qmmm_elec_with_gaussian_low( grids, qmmm_env%added_charges%added_particles,   &
+         qmmm_env%added_charges%mm_atom_chrg, qmmm_env%added_charges%mm_el_pot_radius,    &
+         qmmm_env%added_charges%mm_atom_index, qmmm_env%added_charges%num_mm_atoms,       & 
+         cube_info, para_env, eps_mm_rspace, qmmm_env%added_charges%pgfs,auxbas_grid,     &
+         coarser_grid, pw_pools, aug_pools, qmmm_env%added_charges%potentials,            &
+         interp_section=interp_section, mm_cell=mm_cell, error=error)
+
+    END IF
 
     ! RealSpace Interpolation
     IF (.FALSE.) THEN
