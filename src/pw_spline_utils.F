@@ -1468,7 +1468,7 @@ CONTAINS
 !!   ARGUMENTS
 !!     - spline_coeff_r: the cofficents of the spline in realspace
 !!     - spline_values_r: the values that the spline should interpolate
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error  logging, stopping,... 
 !!       see module cp_error_handling 
 !!
 !!   AUTHOR
@@ -2065,6 +2065,153 @@ SUBROUTINE pw_compose_stripe_r3(weights,in_val_0,in_val_1,in_val_2,&
 END SUBROUTINE pw_compose_stripe_r3
 !***************************************************************************
 
+!!****f* pw_spline_utils/pw_nn_compose_r_work [1.0] *
+!!
+!!   NAME
+!!     pw_nn_compose_r_work
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!     private routine that computes pw_nn_compose_r (it seems that without 
+!!     passing arrays in this way either some compiler do a copyin/out (xlf)
+!!     or by inlining suboptimal code is produced (nag)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - weights: a 3x3x3 array with the linear operator
+!!     - in_val: the argument for the linear operator
+!!     - out_val: place where the value of the linear oprator should be added
+!!     - pw_in: pw to be able to get the needed meta data about in_val and 
+!!       out_val
+!!     - bo: boundaries of in_val and out_val
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
+  REAL(kind=dp), DIMENSION(0:2,0:2,0:2) :: weights
+  INTEGER, DIMENSION(2,3) :: bo
+  REAL(kind=dp), DIMENSION(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
+       intent(in) :: in_val
+  REAL(kind=dp), DIMENSION(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
+       intent(inout) :: out_val
+  TYPE(pw_type), pointer :: pw_in
+  TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+
+  CHARACTER(len=*), PARAMETER :: routineN="pw_nn_compose_r_work", &
+       routineP=moduleN//":"//routineN
+  INTEGER                                  :: handle, i, j, jw, k, kw, stat,&
+       myj,myk
+  INTEGER, DIMENSION(2, 3)                 :: gbo
+  INTEGER, DIMENSION(3)                    :: s
+  LOGICAL                                  :: failure, has_boundary, zderiv,&
+       yderiv
+  REAL(kind=dp), DIMENSION(0:2)            :: in_val_first, in_val_last
+  REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
+  REAL(kind=dp) :: in_val_f, in_val_l
+  REAL(kind=dp) :: v0,v1, v2, w0,w1,w2
+
+     zderiv=ALL(weights(:,:,1)==0.0_dp)
+     yderiv=ALL(weights(:,1,:)==0.0_dp)
+     bo=pw_in%pw_grid%bounds_local
+     gbo=pw_in%pw_grid%bounds
+     DO i=1,3
+        s(i)=bo(2,i)-bo(1,i)+1
+     END DO
+     if (any(s<1)) return
+     has_boundary= ANY(pw_in%pw_grid%bounds_local(:,1) /= &
+          pw_in%pw_grid%bounds(:,1))
+     IF (has_boundary) THEN
+        ALLOCATE(l_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
+             u_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
+             tmp(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        tmp(:,:)=pw_in%cr3d(bo(2,1),:,:)
+        CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
+             gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+             l_boundary,pw_in%pw_grid%para%pos_of_x(&
+             gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+             pw_in%pw_grid%para%group)
+        tmp(:,:)=pw_in%cr3d(bo(1,1),:,:)
+        CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
+             gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+             u_boundary,pw_in%pw_grid%para%pos_of_x(&
+             gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+             pw_in%pw_grid%para%group)
+        DEALLOCATE(tmp,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+
+     IF (method_rs<3) THEN
+        DO k=0,s(3)-1
+           DO kw=0,2
+              IF (zderiv.AND.kw==1) CYCLE
+              myk=bo(1,3)+MODULO(k+kw-1,s(3))
+              DO j=0,s(2)-1
+                 DO jw=0,2
+                 IF (yderiv.AND.jw==1) CYCLE
+                    myj=bo(1,2)+MODULO(j+jw-1,s(2))
+                    IF (has_boundary) THEN
+                       in_val_f=l_boundary(myj,myk)
+                       in_val_l=u_boundary(myj,myk)
+                    ELSE
+                       in_val_f=in_val(bo(2,1),myj,myk)
+                       in_val_l=in_val(bo(1,1),myj,myk)
+                    END IF
+                    CALL pw_compose_stripe(weights=weights(:,jw,kw),&
+                         in_val=in_val(:,myj,myk),&
+                         in_val_first=in_val_f,in_val_last=in_val_l,&
+                         out_val=out_val(:,bo(1,2)+j,bo(1,3)+k),n_el=s(1)) 
+                 END DO
+              END DO
+           END DO
+        END DO
+     ELSE
+        DO k=0,s(3)-1
+           DO j=0,s(2)-1
+              DO kw=0,2
+                 myk=bo(1,3)+MODULO(k+kw-1,s(3))
+                 IF (zderiv.AND.kw==1) CYCLE
+                 IF (has_boundary) THEN
+                    DO jw=0,2
+                       myj=bo(1,2)+MODULO(j+jw-1,s(2))
+                       in_val_first(jw)=l_boundary(myj, myk)
+                       in_val_last(jw)=u_boundary(myj, myk)
+                    END DO
+                 ELSE
+                    DO jw=0,2
+                       myj=bo(1,2)+MODULO(j+jw-1,s(2))
+                       in_val_first(jw)=pw_in%cr3d(bo(2,1),&
+                            myj,myk)
+                       in_val_last(jw)=pw_in%cr3d(bo(1,1),&
+                            myj,myk)
+                    END DO
+                 END IF
+                 CALL pw_compose_stripe_r3(weights=weights(:,:,kw),&
+                      in_val_0=in_val(:,bo(1,2)+MODULO(j-1,s(2)), myk),&
+                      in_val_1=in_val(:,bo(1,2)+j, myk),&
+                      in_val_2=in_val(:,bo(1,2)+MODULO(j+1,s(2)), myk),&
+                      in_val_first=in_val_first,&
+                      in_val_last=in_val_last,&
+                      out_val=out_val(:,bo(1,2)+j, bo(1,3)+k),&
+                      n_el=s(1))
+              END DO
+           END DO
+        END DO
+     END IF
+     IF (has_boundary) THEN
+        DEALLOCATE(l_boundary,u_boundary,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+   END SUBROUTINE pw_nn_compose_r_work
+!***************************************************************************
+
 !!****f* pw_spline_utils/pw_nn_compose_r [1.0] *
 !!
 !!   NAME
@@ -2111,7 +2258,6 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out, error)
        yderiv, xderiv
   REAL(kind=dp), DIMENSION(0:2)            :: in_val_first, in_val_last
   REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
-  REAL(kind=dp), DIMENSION(:,:,:), POINTER :: in_val,out_val
   REAL(kind=dp) :: in_val_f, in_val_l
   REAL(kind=dp) :: v0,v1, v2, w0,w1,w2
 
@@ -2126,162 +2272,10 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out, error)
   CALL cp_assert(ALL(pw_in%pw_grid%bounds_local(:,2:3) == pw_in%pw_grid%bounds(:,2:3)),&
        cp_failure_level,cp_assertion_failed,routineP,&
        "wrong pw distribution",error,failure)
-  IF (.NOT. failure) THEN
-     zderiv=ALL(weights(:,:,1)==0.0_dp)
-     yderiv=ALL(weights(:,1,:)==0.0_dp)
-     xderiv=ALL(weights(1,:,:)==0.0_dp)
-     bo=pw_in%pw_grid%bounds_local
-     gbo=pw_in%pw_grid%bounds
-     DO i=1,3
-        s(i)=bo(2,i)-bo(1,i)+1
-     END DO
-     if (any(s<1)) return
-     has_boundary= ANY(pw_in%pw_grid%bounds_local(:,1) /= &
-          pw_in%pw_grid%bounds(:,1))
-     IF (has_boundary) THEN
-        ALLOCATE(l_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
-             u_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
-             tmp(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        tmp(:,:)=pw_in%cr3d(bo(2,1),:,:)
-        CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
-             gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
-             l_boundary,pw_in%pw_grid%para%pos_of_x(&
-             gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
-             pw_in%pw_grid%para%group)
-        tmp(:,:)=pw_in%cr3d(bo(1,1),:,:)
-        CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
-             gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
-             u_boundary,pw_in%pw_grid%para%pos_of_x(&
-             gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
-             pw_in%pw_grid%para%group)
-        DEALLOCATE(tmp,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-     END IF
-     in_val => pw_in%cr3d
-     out_val => pw_out%cr3d
-     IF (method_rs<3) THEN
-        DO k=0,s(3)-1
-                 DO j=0,s(2)-1
-           DO kw=0,2
-              IF (zderiv.AND.kw==1) CYCLE
-              myk=bo(1,3)+MODULO(k+kw-1,s(3))
-              DO jw=0,2
-                 IF (yderiv.AND.jw==1) CYCLE
-                    myj=bo(1,2)+MODULO(j+jw-1,s(2))
-                    IF (has_boundary) THEN
-                       in_val_f=l_boundary(myj,myk)
-                       in_val_l=u_boundary(myj,myk)
-                    ELSE
-                       in_val_f=in_val(bo(2,1),myj,myk)
-                       in_val_l=in_val(bo(1,1),myj,myk)
-                    END IF
-!FM                    CALL pw_compose_stripe(weights=weights(:,jw,kw),&
-!FM                         in_val=pw_in%cr3d(:,myj,myk),&
-!FM                         in_val_first=in_val_f,in_val_last=in_val_l,&
-!FM                         out_val=pw_out%cr3d(:,bo(1,2)+j,bo(1,3)+k),n_el=s(1)) 
-  ! --------------------------- inserted from pw_compose_stripe ----------------------------------------
-  v0=in_val_f
-  v1=in_val(bo(1,1)-1+1,myj,myk)
-  w0=weights(0,jw,kw)
-  w1=weights(1,jw,kw)
-  w2=weights(2,jw,kw)
-
-  IF (xderiv) THEN
-     ! optimized version for x deriv
-     DO i=1,s(1)-3,3
-        v2 =in_val(bo(1,1)-1+i+1,myj,myk)
-        out_val(bo(1,1)-1+i,bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+i,bo(1,2)+j,bo(1,3)+k)+&
-             w0*v0+w2*v2
-        v0=in_val(bo(1,1)-1+i+2,myj,myk)
-        out_val(bo(1,1)-1+i+1,bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+i+1,bo(1,2)+j,bo(1,3)+k)+&
-             w0*v1+w2*v0
-        v1=in_val(bo(1,1)-1+i+3,myj,myk)
-        out_val(bo(1,1)-1+i+2,bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+i+2,bo(1,2)+j,bo(1,3)+k)+&
-             w0*v2+w2*v1
-     END DO
-  ELSE
-     ! generic version
-     DO i=1,s(1)-3,3
-        v2=in_val(bo(1,1)-1+i+1,myj,myk)
-        out_val(bo(1,1)-1+i,bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+i,bo(1,2)+j,bo(1,3)+k)+&
-             w0*v0+w1*v1+w2*v2
-        v0=in_val(bo(1,1)-1+i+2,myj,myk)
-        out_val(bo(1,1)-1+i+1,bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+i+1,bo(1,2)+j,bo(1,3)+k)+&
-             w0*v1+w1*v2+w2*v0
-        v1=in_val(bo(1,1)-1+i+3,myj,myk)
-        out_val(bo(1,1)-1+i+2,bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+i+2,bo(1,2)+j,bo(1,3)+k)+&
-             w0*v2+w1*v0+w2*v1
-     END DO
-  END IF
-  SELECT CASE(MODULO(s(1)-1,3))
-  CASE(0)
-     IF (s(1)>0) THEN
-        v2=in_val_l
-        out_val(bo(1,1)-1+s(1),bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+s(1),bo(1,2)+j,bo(1,3)+k)+&
-             w0*v0+ w1*v1+ w2*v2
-     END IF
-  CASE(1)
-     v2=in_val(bo(1,1)-1+s(1),myj,myk)
-        out_val(bo(1,1)-1+s(1)-1,bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+s(1)-1,bo(1,2)+j,bo(1,3)+k)+&
-          w0*v0+ w1*v1+ w2*v2
-     v0=in_val_l
-        out_val(bo(1,1)-1+s(1),bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+s(1),bo(1,2)+j,bo(1,3)+k)+&
-          w0*v1+ w1*v2+ w2*v0
-  CASE(2)
-     v2=in_val(bo(1,1)-1+s(1)-1,myj,myk)
-        out_val(bo(1,1)-1+s(1)-2,bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+s(1)-2,bo(1,2)+j,bo(1,3)+k)+&
-          w0*v0+ w1*v1+ w2*v2
-     v0=in_val(bo(1,1)-1+s(1),myj,myk)
-        out_val(bo(1,1)-1+s(1)-1,bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+s(1)-1,bo(1,2)+j,bo(1,3)+k)+&
-          w0*v1+ w1*v2+ w2*v0
-     v1=in_val_l
-        out_val(bo(1,1)-1+s(1),bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+s(1),bo(1,2)+j,bo(1,3)+k)+&
-          w0*v2+ w1*v0+ w2*v1
-  END SELECT
-  ! --------------------------- end inserted from pw_compose_stripe ------------------------------------
-
-                 END DO
-              END DO
-           END DO
-        END DO
-     ELSE
-        DO k=0,s(3)-1
-           DO j=0,s(2)-1
-              DO kw=0,2
-                 myk=bo(1,3)+MODULO(k+kw-1,s(3))
-                 IF (zderiv.AND.kw==1) CYCLE
-                 IF (has_boundary) THEN
-                    DO jw=0,2
-                       myj=bo(1,2)+MODULO(j+jw-1,s(2))
-                       in_val_first(jw)=l_boundary(myj, myk)
-                       in_val_last(jw)=u_boundary(myj, myk)
-                    END DO
-                 ELSE
-                    DO jw=0,2
-                       myj=bo(1,2)+MODULO(j+jw-1,s(2))
-                       in_val_first(jw)=pw_in%cr3d(bo(2,1),&
-                            myj,myk)
-                       in_val_last(jw)=pw_in%cr3d(bo(1,1),&
-                            myj,myk)
-                    END DO
-                 END IF
-                 CALL pw_compose_stripe_r3(weights=weights(:,:,kw),&
-                      in_val_0=pw_in%cr3d(:,bo(1,2)+MODULO(j-1,s(2)), myk),&
-                      in_val_1=pw_in%cr3d(:,bo(1,2)+j, myk),&
-                      in_val_2=pw_in%cr3d(:,bo(1,2)+MODULO(j+1,s(2)), myk),&
-                      in_val_first=in_val_first,&
-                      in_val_last=in_val_last,&
-                      out_val=pw_out%cr3d(:,bo(1,2)+j, bo(1,3)+k),&
-                      n_el=s(1))
-              END DO
-           END DO
-        END DO
-     END IF
-     IF (has_boundary) THEN
-        DEALLOCATE(l_boundary,u_boundary,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-     END IF
+  IF (.NOT.failure) THEN
+     call pw_nn_compose_r_work(weights=weights,in_val=pw_in%cr3d,&
+          out_val=pw_out%cr3d,pw_in=pw_in,bo=pw_in%pw_grid%bounds_local,&
+          error=error)
   END IF
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE pw_nn_compose_r
