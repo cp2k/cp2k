@@ -1038,7 +1038,8 @@ CONTAINS
 !!     writes out the matrix
 !!
 !!   NOTES
-!!     -
+!!     uniquing_nr should be smartened: don't add if no file exist, else
+!!     increase nr until no file exists.
 !!
 !!   INPUTS
 !!     - matrix: the matrix to output
@@ -1070,6 +1071,7 @@ CONTAINS
     INTEGER :: iostat
     TYPE(cp_logger_type), POINTER :: logger
     TYPE(cp_para_env_type), POINTER :: para_env
+    CHARACTER(len=60):: filename
 
     failure=.FALSE.; loc=.FALSE.; my_long_description=.FALSE.
 
@@ -1078,6 +1080,9 @@ CONTAINS
     logger=>cp_error_get_logger(error) 
     para_env=>logger%para_env
     IF (ASSOCIATED(matrix)) THEN
+       filename=matrix%name
+       CALL compress(filename)
+
        IF (loc .OR. para_env%mepos==para_env%source) THEN
           WRITE (unit=unit_nr,&
                fmt="(' <cp_fm_types>:{ id_nr=',i10,' ref_count=',i10,',')",&
@@ -1096,7 +1101,7 @@ CONTAINS
                 WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " ),"
              ELSE
                 WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) &
-                     " local_data=( output to files fm_matrix_local_data"//&
+                     " local_data=( output to files "//TRIM(filename)//&
                      TRIM(ADJUSTL(cp_to_string(uniquing_nr)))//")"
              END IF
           ELSE IF (loc) THEN
@@ -1125,7 +1130,7 @@ CONTAINS
           IF (.NOT.failure) THEN
              uniquing_nr=uniquing_nr+1
              CALL cp_2d_r_output(logger=logger,&
-                  outputName="fm_matrix_local_data",&
+                  outputName=filename,&
                   fromWhere=routineP, iter=uniquing_nr,&
                   array=matrix%local_data,&
                   comment="proc_row="//&
@@ -1133,8 +1138,7 @@ CONTAINS
                   " proc_col="//&
                   cp_to_string(matrix%matrix_struct%context%mepos(2)),&
                   local=.TRUE.,error=error)
-
-          END IF
+           END IF
        END IF
     ELSE
        IF (loc .OR. para_env%mepos==para_env%source) THEN

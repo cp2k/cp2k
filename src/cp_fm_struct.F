@@ -267,22 +267,23 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
         fmstruct%nrow_block=MIN(fmstruct%nrow_block,fmstruct%ncol_block)
         fmstruct%ncol_block=fmstruct%nrow_block
      END IF
-     ALLOCATE(fmstruct%nrow_local(0:(context%num_pe(1)-1)),&
-          fmstruct%ncol_local(0:(context%num_pe(2)-1)),stat=stat)
+     ALLOCATE(fmstruct%nrow_local(0:(fmstruct%context%num_pe(1)-1)),&
+          fmstruct%ncol_local(0:(fmstruct%context%num_pe(2)-1)),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
   IF (.NOT.failure) THEN
-     IF (.NOT.PRESENT(template_fmstruct)) fmstruct%first_p_pos=context%source
+     IF (.NOT.PRESENT(template_fmstruct)) &
+          fmstruct%first_p_pos=fmstruct%context%source
      IF (PRESENT(first_p_pos)) fmstruct%first_p_pos=first_p_pos
 
      fmstruct%nrow_local=0
      fmstruct%ncol_local=0
 #ifdef __SCALAPACK
-     fmstruct%nrow_local(context%mepos(1))= &
+     fmstruct%nrow_local(fmstruct%context%mepos(1))= &
           numroc(fmstruct%nrow_global,fmstruct%nrow_block,&
           fmstruct%context%mepos(1),fmstruct%first_p_pos(1),&
           fmstruct%context%num_pe(1))
-     fmstruct%ncol_local(context%mepos(2))= &
+     fmstruct%ncol_local(fmstruct%context%mepos(2))= &
           numroc(fmstruct%ncol_global,fmstruct%ncol_block,&
           fmstruct%context%mepos(2),fmstruct%first_p_pos(2),&
           fmstruct%context%num_pe(2))
@@ -294,8 +295,8 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
      ! block = full matrix
      fmstruct%nrow_block=fmstruct%nrow_global
      fmstruct%ncol_block=fmstruct%ncol_global
-     fmstruct%nrow_local(context%mepos(1))=fmstruct%nrow_global
-     fmstruct%ncol_local(context%mepos(2))=fmstruct%ncol_global
+     fmstruct%nrow_local(fmstruct%context%mepos(1))=fmstruct%nrow_global
+     fmstruct%ncol_local(fmstruct%context%mepos(2))=fmstruct%ncol_global
 #endif
 
      NULLIFY(fmstruct%row_indices, fmstruct%col_indices)

@@ -191,6 +191,7 @@ SUBROUTINE p_proj_create(p_proj, atoms, proj_indexes, particle_set, error)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
   IF (.not.failure) THEN
+     p_proj%atoms=atoms
      IF (PRESENT(proj_indexes)) THEN
         ALLOCATE(p_proj%proj_indexes(SIZE(proj_indexes)), stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -218,7 +219,6 @@ SUBROUTINE p_proj_create(p_proj, atoms, proj_indexes, particle_set, error)
      END IF
   END IF
   IF (.not.failure) THEN
-     p_proj%atoms=atoms
      last_proj_id_nr=last_proj_id_nr+1
      p_proj%id_nr=last_proj_id_nr
      p_proj%ref_count=1

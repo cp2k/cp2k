@@ -547,7 +547,7 @@ END SUBROUTINE p_env_retain
        CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
        CALL cp_fm_vect_write(p_env%psi0d,unit_nr=unit_nr,&
             long_description=my_long_description, local=my_local,&
-            error=error)
+           error=error)
        IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" , S_psi0="
        CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
        CALL cp_fm_vect_write(p_env%S_psi0,unit_nr=unit_nr,&

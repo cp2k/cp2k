@@ -279,7 +279,7 @@ CONTAINS
     ELSE
        col1 = 1
     END IF
-    blocksize=MIN(max_blocksize,ncol-first_col+1)
+    blocksize=MIN(max_blocksize,ncol-col1+1)
     g_present=.FALSE.
     IF (PRESENT(matrix_g)) g_present=.TRUE.
 

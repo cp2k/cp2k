@@ -69,8 +69,9 @@ CONTAINS
 !!     cp_fm_cholesky_decompose
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_fm_cholesky_decompose(matrix, error)
+!!     Subroutine cp_fm_cholesky_decompose(matrix, n, error)
 !!       Type(cp_full_matrix_type), Pointer:: matrix
+!!       Integer, Intent (IN), Optional:: n
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_fm_cholesky_decompose
 !!
@@ -82,26 +83,30 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     matrix: the matrix to replace with its cholesky decomposition
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     - matrix: the matrix to replace with its cholesky decomposition
+!!     - n: the number of row (and columns) of the matrix &
+!!       (defaults to the min(size(matrix)))
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
-!!     Fawzi Mohamed
+!!     Joost
 !!
 !!   MODIFICATION HISTORY
 !!     05.2002 created [JVdV]
+!!     12.2002 updated, added n optional parm [fawzi]
 !!
 !!*** *********************************************************************
-  SUBROUTINE cp_fm_cholesky_decompose(matrix,error)
-   TYPE(cp_full_matrix_type), POINTER           :: matrix
-   TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+  SUBROUTINE cp_fm_cholesky_decompose(matrix,n,error)
+    TYPE(cp_full_matrix_type), POINTER           :: matrix
+    INTEGER, INTENT(in), OPTIONAL                :: n
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     CHARACTER(len=*), PARAMETER :: routineN="cp_fm_cholesky_decompose",&
          routineP=moduleN//':'//routineN
     REAL(wp), DIMENSION(:,:), POINTER         :: a
     INTEGER                                   :: info,handle
-    INTEGER                                   :: output_unit,source,n
+    INTEGER                                   :: output_unit,source,my_n
     LOGICAL                                   :: ionode
     TYPE(cp_blacs_env_type), POINTER          :: context
     INTEGER, DIMENSION(9)                     :: desca
@@ -111,17 +116,22 @@ CONTAINS
 
     failure=.FALSE.
     context => matrix%matrix_struct%context
-    n = matrix%matrix_struct%nrow_global
-
+    my_n = MIN(matrix%matrix_struct%nrow_global,&
+         matrix%matrix_struct%ncol_global)
+    IF (PRESENT(n)) THEN
+       CPPrecondition(n<=my_n,cp_failure_level,routineP,error,failure)
+       my_n=n
+    END IF
+    
     a => matrix%local_data
 
 #if defined(__SCALAPACK)
     desca(:) = matrix%matrix_struct%descriptor(:)
-    CALL pdpotrf('U',n,a(1,1),1,1,desca,info)
+    CALL pdpotrf('U',my_n,a(1,1),1,1,desca,info)
 
 #else
 
-    CALL dpotrf('U',n,a(1,1),n,info)
+    CALL dpotrf('U',my_n,a(1,1),SIZE(a,1),info)
 
 #endif
 
@@ -138,8 +148,9 @@ CONTAINS
 !!     cp_fm_cholesky_invert
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_fm_cholesky_invert(matrix, error)
+!!     Subroutine cp_fm_cholesky_invert(matrix, n, error)
 !!       Type(cp_full_matrix_type), Pointer:: matrix
+!!       Integer, Intent (IN), Optional:: n
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_fm_cholesky_invert
 !!
@@ -150,9 +161,10 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     matrix: 
-!!     error : variable to control error logging, stopping,... 
-!!             see module cp_error_handling 
+!!     - matrix: the matrix to invert (must be an upper triangular matrix)
+!!     - n: size of the matrix to invert (defaults to the min(size(matrix)))
+!!     - error : variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Joost VandeVondele
@@ -161,15 +173,16 @@ CONTAINS
 !!     05.2002 created [JVdV]
 !!
 !!*** *********************************************************************
-  SUBROUTINE cp_fm_cholesky_invert(matrix, error)
-   TYPE(cp_full_matrix_type), POINTER           :: matrix
-   TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+  SUBROUTINE cp_fm_cholesky_invert(matrix,n, error)
+    TYPE(cp_full_matrix_type), POINTER           :: matrix
+    INTEGER, INTENT(in), OPTIONAL                :: n
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_cholesky_invert',&
          routineP=moduleN//':'//routineN
     REAL(wp), DIMENSION(:,:), POINTER         :: a
     INTEGER                                   :: info,handle
-    INTEGER                                   :: n
+    INTEGER                                   :: my_n
     INTEGER, DIMENSION(9)                     :: desca
     TYPE(cp_blacs_env_type), POINTER          :: context
     LOGICAL                                   :: failure
@@ -178,18 +191,23 @@ CONTAINS
     failure=.FALSE.
 
     context => matrix%matrix_struct%context
-    n = matrix%matrix_struct%nrow_global
+    my_n = MIN(matrix%matrix_struct%nrow_global,&
+         matrix%matrix_struct%ncol_global)
+    IF (PRESENT(n)) THEN
+       CPPrecondition(n<=my_n,cp_failure_level,routineP,error,failure)
+       my_n=n
+    END IF
 
     a => matrix%local_data
 
 #if defined(__SCALAPACK)
 
     desca(:) = matrix%matrix_struct%descriptor(:)
-    CALL pdpotri('U',n,a(1,1),1,1,desca,info)
+    CALL pdpotri('U',my_n,a(1,1),1,1,desca,info)
 
 #else
 
-    CALL dpotri('U',n,a(1,1),n,info)
+    CALL dpotri('U',my_n,a(1,1),SIZE(a,1),info)
 
 #endif
 
@@ -200,16 +218,16 @@ CONTAINS
   END  SUBROUTINE cp_fm_cholesky_invert
 !***************************************************************************
 
-!!****f* cp_fm_cholesky/cp_fm_cholesky_invert [1.0] *
+!!****f* cp_fm_cholesky/cp_fm_cholesky_reduce [1.0] *
 !!
 !!   NAME
-!!     cp_fm_cholesky_invert
+!!     cp_fm_cholesky_reduce
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_fm_cholesky_invert(matrix, error)
-!!       Type(cp_full_matrix_type), Pointer:: matrix
+!!     Subroutine cp_fm_cholesky_reduce(matrix, matrixb, error)
+!!       Type(cp_full_matrix_type), Pointer:: matrix, matrixb
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine cp_fm_cholesky_invert
+!!     End Subroutine cp_fm_cholesky_reduce
 !!
 !!   FUNCTION
 !!     reduce a matrix pencil A,B to normal form

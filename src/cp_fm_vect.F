@@ -329,7 +329,7 @@ END SUBROUTINE cp_fm_vect_copy
      DO i=1,SIZE(matrixes)
         CALL cp_fm_write(matrix=matrixes(i)%matrix, unit_nr=unit_nr,&
              long_description=my_long_description,&
-             local=my_local, error=error)
+             local=my_local,error=error)
         IF (i/=SIZE(matrixes).and.should_w) WRITE(unit=unit_nr,fmt="(a)")','
      END DO
      IF (should_w) WRITE (unit=unit_nr,fmt="(a)") ')'

@@ -52,7 +52,8 @@ MODULE qs_ep_methods
                                              fm_pools_create_matrix_vect
   USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
                                              cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_write,&
+  USE cp_fm_types,                     ONLY: cp_fm_set_all,&
+                                             cp_fm_write,&
                                              cp_full_matrix_p_type,&
                                              cp_full_matrix_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_write
@@ -157,7 +158,6 @@ MODULE qs_ep_methods
                                              replicate_matrix_structure
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xc_functionals_tests,            ONLY: xc_functional_test
   IMPLICIT NONE
   PRIVATE
 
@@ -632,7 +632,6 @@ SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
   failure=.FALSE.
   NULLIFY(ks_env, c, eigenvectors, para_env, dft_control,k,p,h,s)
 
-  CALL xc_functional_test ( globenv )
   CALL timeset(routineN,"I","",handle)
 
   CALL build_neighbor_lists(qs_env,globenv)
@@ -749,6 +748,8 @@ SUBROUTINE ep_env_transfer_psi0(ep_env, error)
 
   failure=.FALSE.
   NULLIFY(sub_orbitals, sub_c, main_qs_env, sub_qs_env, sub_proj, logger)
+  logger => cp_error_get_logger(error)
+  unit_nr=cp_logger_get_default_unit_nr(logger, local=.FALSE.)
   
   CPPrecondition(ASSOCIATED(ep_env),cp_failure_level,routineP,error,failure)
   CALL ep_env_get(ep_env,nspins=nspins,sub_qs_env=sub_qs_env,&
@@ -762,6 +763,7 @@ SUBROUTINE ep_env_transfer_psi0(ep_env, error)
      DO ispin=1,nspins ! transfer also occupation_numbers ?
         start_col=1
         CALL get_mo_set(c(ispin)%mo_set,eigenvectors=orbitals,nmo=nmo)
+        CALL cp_fm_set_all(orbitals,0.0_wp,error=error)
 
         DO isub=1,SIZE(sub_qs_env)
            CALL get_qs_env(sub_qs_env(isub)%qs_env,c=sub_c,error=error)
@@ -769,13 +771,12 @@ SUBROUTINE ep_env_transfer_psi0(ep_env, error)
                 nmo=sub_nmo)
            CPInvariant(start_col+sub_nmo<nmo+2,cp_failure_level,routineP,error,failure)
            IF (cp_debug.and.debug_this_module) THEN
-              logger => cp_error_get_logger(error)
               IF (logger%print_keys%perturb_psi0) THEN
-                 unit_nr=cp_logger_get_default_unit_nr(logger, local=.FALSE.)
                  WRITE (unit=unit_nr,fmt="(a,i4,a,i4,a,i4)")&
                       "Printing psi of sub_env ",isub,&
                       " spin=",ispin," nmo=",sub_nmo
-                 CALL cp_fm_write(sub_orbitals,unit_nr,long_description=.TRUE.,&
+                 CALL cp_fm_write(sub_orbitals,unit_nr,&
+                      long_description=.TRUE.,&
                       local=.FALSE.,error=error)
               END IF
            END IF
@@ -786,22 +787,17 @@ SUBROUTINE ep_env_transfer_psi0(ep_env, error)
 
            start_col=start_col+sub_nmo
         END DO
-     END DO
 
-     IF (cp_debug.and.debug_this_module) THEN
-        logger => cp_error_get_logger(error)
-        IF (logger%print_keys%perturb_psi0) THEN
-           unit_nr=cp_logger_get_default_unit_nr(logger, local=.FALSE.)
-           DO ispin=1,nspins
-              CALL get_mo_set(ep_env%main_qs_env%c(ispin)%mo_set,&
-                   eigenvectors=orbitals, nmo=nmo)
+        IF (cp_debug.and.debug_this_module) THEN
+           logger => cp_error_get_logger(error)
+           IF (logger%print_keys%perturb_psi0) THEN
               WRITE (unit=unit_nr,fmt="(a,i4,a,i4)")&
                    "Printing psi of main_qs_env spin=",ispin," nmo=",nmo
               CALL cp_fm_write(orbitals,unit_nr,long_description=.TRUE.,&
                    local=.FALSE.,error=error)
-           END DO
+           END IF
         END IF
-     END IF
+     END DO
   END IF
 END SUBROUTINE ep_env_transfer_psi0
 !***************************************************************************

@@ -386,7 +386,7 @@ CONTAINS
                   v_in=my_psi0(spin)%matrix,&
                   v_out=p_env%S_psi0(spin)%matrix,&
                   ncol=p_env%n_mo(spin), para_env=para_env, &
-                  alpha=-1.0_wp,error=error)
+                  alpha=1.0_wp,error=error)
              CALL cp_fm_gemm(transa='T',transb='N',n=p_env%n_mo(spin),&
                   m=p_env%n_mo(spin),k=p_env%n_ao(spin),alpha=1.0_wp,&
                   matrix_a=my_psi0(spin)%matrix, &
@@ -394,7 +394,7 @@ CONTAINS
                   beta=0.0_wp,matrix_c=p_env%m_epsilon(spin)%matrix,&
                   error=error)
              CALL cp_fm_cholesky_decompose(p_env%m_epsilon(spin)%matrix,&
-                  error=error)
+                  n=p_env%n_mo(spin),error=error)
              
              ! psi0d=my_psi0 (my_psi0^T S my_psi0)^-1
              ! faster using cp_fm_cholesky_invert ?
