@@ -2359,7 +2359,7 @@ SUBROUTINE create_ot_section(section,error)
      CALL keyword_create(keyword, name="SAFE_DIIS",&
             variants=(/"SAFER_DIIS"/),&
             description="Reject DIIS steps if they point away from the"//&
-            "direction of minus, do SD in that case ",&
+            " minimum, do SD in that case ",&
             usage="SAFE_DIIS ON", default_l_val=.true.,error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
@@ -2395,7 +2395,7 @@ SUBROUTINE create_ot_section(section,error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="GOLD_TARGET",&
-          description="Target relative uncertainty in the minimum position of the minimum",&
+          description="Target relative uncertainty in the location of the minimum",&
           usage="GOLD_TARGET 0.1",&
           default_r_val=0.01_dp,error=error)
      CALL section_add_keyword(section,keyword,error=error)
