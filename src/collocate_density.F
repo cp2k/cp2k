@@ -219,9 +219,6 @@ CONTAINS
 
 
        !     *** Loop over all neighbor atoms of the current atom "iatom" ***
-!$omp parallel do &
-!$omp default ( private ) &
-!$omp shared ( p, p_old, pab, pab_old, work ) &
        DO ineighbor=1,SIZE(orb_neighbors)
 
           jatom = orb_neighbors(ineighbor)
@@ -242,7 +239,6 @@ CONTAINS
 
 
        END DO
-!$omp end parallel do
 
        orb_neighbor_list => next_neighbor_list(orb_neighbor_list)
 
