@@ -39,7 +39,8 @@ MODULE mc_misc
                                              qs_environment_type
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
-  USE simulation_cell,                 ONLY: cell_type
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_cell
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -531,19 +532,22 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env)
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "get_center_of_mass"
 
+    TYPE(cell_type),POINTER                  :: cell_ref
     TYPE(qs_environment_type),POINTER        :: qs_env
-    TYPE(dft_control_type),POINTER           :: dft_control
+!    TYPE(dft_control_type),POINTER           :: dft_control
   
     INTEGER                                  :: handle, iatom, unit
-
+    LOGICAL                                  :: use_ref_cell
+    REAL(KIND=dp),DIMENSION(1:3)             :: abc
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,'I','',handle)
 
 ! grab some of the structures we're gonna need
-!      CALL force_env_get(force_env,qs_env=qs_env)
-!      CALL get_qs_env(qs_env,dft_control=dft_control)
+      CALL force_env_get(force_env,qs_env=qs_env)
+      CALL get_qs_env(qs_env,use_ref_cell=use_ref_cell,cell_ref=cell_ref)
+      CALL get_cell(cell_ref,abc=abc)
 
 ! open the file
       CALL open_file(file_name=filename,unit_number=unit,&
@@ -633,16 +637,17 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env)
          box_length,box_length,box_length
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
-!!!!!!!!!!!!!!
-!      WRITE(unit,*) "&CELL_REF"
-!      WRITE(unit,*) ' UNIT         ANGSTROM'
-!      WRITE(unit,'(A,A)') ' ABC          ',&
-!         '13.11  13.11 13.11'
-!         '13.422  13.422 13.422'
-!         '4.0  4.0  4.0'
-!      WRITE(unit,*) "&END"
-!      WRITE(unit,*) 
-!!!!!!!!!!!!!!
+
+! let's try to deal with the reference cell
+      IF(use_ref_cell) THEN
+         WRITE(unit,*) "&CELL_REF"
+         WRITE(unit,*) ' UNIT         ANGSTROM'
+         WRITE(unit,'(A,3(2X,F16.10))') ' ABC          ',&
+            abc(1:3)
+         WRITE(unit,*) "&END"
+         WRITE(unit,*) 
+      ENDIF
+
       WRITE(unit,*) "&COORD"
       DO iatom=1,natoms,3
          WRITE(unit,'(A,3(F24.18,2X),A)') ' O  ',&
