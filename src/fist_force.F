@@ -183,9 +183,15 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
      particle_set ( i ) % f ( 2 ) = 0.0_dbl
      particle_set ( i ) % f ( 3 ) = 0.0_dbl
   END DO
+  pv_bc = 0._dbl
   pv_bond = 0.0_dbl
   pv_bend = 0.0_dbl
   pv_torsion = 0.0_dbl
+  pot_nonbond = 0._dbl
+  pot_bond = 0._dbl
+  pot_bend = 0._dbl
+  pot_torsion = 0._dbl
+  vg_coulomb = 0._dbl
   thermo % pot = 0.0_dbl
   virial % pv_virial = 0.0_dbl
 !

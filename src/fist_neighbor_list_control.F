@@ -160,9 +160,13 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
           aup = 0.0_dbl
        END IF
 
-       CALL fist_nonbond_env_set ( fist_nonbond_env, lup = lup, aup = aup, &
-                                  r_last_update = r_last_update, &
-                                   num_update=num_update, last_update=last_update )
+       CALL fist_nonbond_env_set ( fist_nonbond_env,  &
+                                   lup = lup,         &
+                                   aup = aup,         &
+                                   r_last_update = r_last_update, &
+                                   nonbonded = nonbonded, &
+                                   num_update=num_update,  &
+                                   last_update=last_update )
 
        IF ( ionode ) THEN
           WRITE ( iw, '( )' )

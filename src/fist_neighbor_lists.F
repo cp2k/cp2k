@@ -278,7 +278,7 @@ CONTAINS
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
-      iatom_subcell, icell, ikind, istat, j, jatom, jatom_local, jcell, &
+      iatom_subcell, icell, ikind, istat, j, jatom_local, jcell, &
       jkind, k, kcell, natom_local_a, natom_local_b, nkind
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b, ncell, &
                                                 nsubcell, periodic
@@ -348,9 +348,7 @@ CONTAINS
 
         iab = ikind + nkind*(jkind - 1)
 
-        IF (.NOT.ASSOCIATED(atom(jkind)%list_local_b_index)) CYCLE
-
-        natom_local_b = SIZE(atom(jkind)%list_local_b_index)
+        natom_local_b = SIZE(atom(jkind)%list)
 
 !       *** Calculate the square of the maximum interaction distance ***
 
@@ -396,9 +394,8 @@ CONTAINS
 
           DO jatom_local=1,natom_local_b
 
-            jatom = atom(jkind)%list_local_b_index(jatom_local)
-            atom_b = atom(jkind)%list(jatom)
-            sb_pbc(:) = atom(jkind)%s_pbc(:,jatom)
+            atom_b = atom(jkind)%list(jatom_local)
+            sb_pbc(:) = atom(jkind)%s_pbc(:,jatom_local)
 
             loop1_kcell: DO kcell=-ncell(3),ncell(3)
 
@@ -484,9 +481,8 @@ CONTAINS
 
           DO jatom_local=1,natom_local_b
 
-            jatom = atom(jkind)%list_local_b_index(jatom_local)
-            atom_b = atom(jkind)%list(jatom)
-            sb_pbc(:) = atom(jkind)%s_pbc(:,jatom)
+            atom_b = atom(jkind)%list(jatom_local)
+            sb_pbc(:) = atom(jkind)%s_pbc(:,jatom_local)
 
             loop2_kcell: DO kcell=-ncell(3),ncell(3)
 

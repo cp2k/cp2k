@@ -286,9 +286,9 @@ END SUBROUTINE fist_nonbond_env_create
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO idim = 1, natom_types
       DO jdim = 1, natom_types
-         rcut = SQRT ( spline_env % potparm ( idim, jdim ) % rcutsq )  + &
+         rcut = spline_env % potparm ( idim, jdim ) % rcutsq + &
                 fist_nonbond_env % verlet_skin
-         fist_nonbond_env % rlist_cutsq ( idim, jdim ) = rcut * rcut
+         fist_nonbond_env % rlist_cutsq ( idim, jdim ) = rcut 
       END DO
     END DO
     CALL spline_env_retain ( spline_env, error )
