@@ -23,6 +23,7 @@ MODULE xc_perdew86
 ! *****************************************************************************
 
   USE kinds, ONLY: dbl
+  USE xc_derivative_types, ONLY: xc_derivative_set_type
   USE xc_functionals_utilities, ONLY: set_util, setup_calculation, calc_rs
   USE xc_perdew_zunger, ONLY : perdew_zunger
   USE termination, ONLY: stop_memory, stop_program
@@ -104,10 +105,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE p86_u ( rho, grho, pot, order )
+  SUBROUTINE p86_u ( derivative_set, rho, grho, pot, order )
 
 !   ---------------------------------------------------------------------------
 
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
@@ -133,26 +135,26 @@ CONTAINS
     
     CALL calc_rs ( rho, rs )
     IF ( calc(0) ) THEN
-       CALL perdew_zunger ( rho, pot(:,1:1), 0 )
-       CALL p86_u_0 ( rho, rs, grho, pot(:,1) )
+       CALL perdew_zunger ( derivative_set, rho, pot(:,1:1), 0 )
+       CALL p86_u_0 ( derivative_set, rho, rs, grho, pot(:,1) )
     END IF
     IF ( calc(1) ) THEN
        m1=mx(1,1)
        m2=mx(1,2)
-       CALL perdew_zunger ( rho, pot(:,m1:m2), -1 )
-       CALL p86_u_1 ( rho, grho, rs, pot(:,m1:m2) )
+       CALL perdew_zunger ( derivative_set, rho, pot(:,m1:m2), -1 )
+       CALL p86_u_1 ( derivative_set, rho, grho, rs, pot(:,m1:m2) )
     END IF
     IF ( calc(2) ) THEN
        m1=mx(2,1)
        m2=mx(2,2)
-       CALL perdew_zunger ( rho, pot(:,m1:m2), -2 )
-       CALL p86_u_2 ( rho, grho, rs, pot(:,m1:m2) )
+       CALL perdew_zunger ( derivative_set, rho, pot(:,m1:m2), -2 )
+       CALL p86_u_2 ( derivative_set, rho, grho, rs, pot(:,m1:m2) )
     END IF
     IF ( calc(3) ) THEN
        m1=mx(3,1)
        m2=mx(3,2)
-       CALL perdew_zunger ( rho, pot(:,m1:m2), -3 )
-       CALL p86_u_3 ( rho, grho, rs, pot(:,m1:m2) )
+       CALL perdew_zunger ( derivative_set, rho, pot(:,m1:m2), -3 )
+       CALL p86_u_3 ( derivative_set, rho, grho, rs, pot(:,m1:m2) )
     END IF
 
     DEALLOCATE ( rs, STAT=error )
@@ -162,10 +164,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE p86_p ( rhoa, rhob, grhoa, grhob, pot, order )
+  SUBROUTINE p86_p ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
 
 !   ---------------------------------------------------------------------------
 
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
@@ -196,22 +199,22 @@ CONTAINS
     CALL calc_rs ( rhoa, rsa )
     CALL calc_rs ( rhob, rsb )
     IF ( calc(0) ) THEN
-       CALL p86_p_0 ( rhoa, rhob, grhoa, grhob, rsa, rsb, pot(:,1) )
+       CALL p86_p_0 ( derivative_set, rhoa, rhob, grhoa, grhob, rsa, rsb, pot(:,1) )
     END IF
     IF ( calc(1) ) THEN
        m1=mx(1,1)
        m2=mx(1,2)
-       CALL p86_p_1 ( rhoa, rhob, grhoa, grhob, rsa, rsb, pot(:,m1:m2) )
+       CALL p86_p_1 ( derivative_set, rhoa, rhob, grhoa, grhob, rsa, rsb, pot(:,m1:m2) )
     END IF
     IF ( calc(2) ) THEN
        m1=mx(2,1)
        m2=mx(2,2)
-       CALL p86_p_2 ( rhoa, rhob, grhoa, grhob, rsa, rsb, pot(:,m1:m2) )
+       CALL p86_p_2 ( derivative_set, rhoa, rhob, grhoa, grhob, rsa, rsb, pot(:,m1:m2) )
     END IF
     IF ( calc(3) ) THEN
        m1=mx(3,1)
        m2=mx(3,2)
-       CALL p86_p_3 ( rhoa, rhob, grhoa, grhob, rsa, rsb, pot(:,m1:m2) )
+       CALL p86_p_3 ( derivative_set, rhoa, rhob, grhoa, grhob, rsa, rsb, pot(:,m1:m2) )
     END IF
 
     DEALLOCATE ( rsa, STAT=error )
@@ -223,9 +226,10 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE p86_u_0 ( rho, rs, grho, pot )
+  SUBROUTINE p86_u_0 ( derivative_set, rho, rs, grho, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, rs, grho
+     TYPE(xc_derivative_set_type), POINTER :: derivative_set
+   REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, rs, grho
     REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
 
     INTEGER :: ip, npoints
@@ -257,8 +261,9 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE p86_u_1 ( rho, grho, rs, pot )
+  SUBROUTINE p86_u_1 ( derivative_set, rho, grho, rs, pot )
 
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho, rs
     REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
 
@@ -299,9 +304,10 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE p86_u_2 ( rho, grho, rs, pot )
+  SUBROUTINE p86_u_2 ( derivative_set, rho, grho, rs, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho, rs
+     TYPE(xc_derivative_set_type), POINTER :: derivative_set
+   REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho, rs
     REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
 
     INTEGER :: ip, npoints
@@ -353,8 +359,9 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE p86_u_3 ( rho, grho, rs, pot )
+  SUBROUTINE p86_u_3 ( derivative_set, rho, grho, rs, pot )
 
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho, rs
     REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
 
@@ -436,8 +443,9 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE p86_p_0 ( rhoa, rhob, grhoa, grhob, rsa, rsb, pot )
+  SUBROUTINE p86_p_0 ( derivative_set, rhoa, rhob, grhoa, grhob, rsa, rsb, pot )
 
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, &
                                             rsa, rsb
     REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
@@ -466,8 +474,9 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE p86_p_1 ( rhoa, rhob, grhoa, grhob, rsa, rsb, pot )
+  SUBROUTINE p86_p_1 ( derivative_set, rhoa, rhob, grhoa, grhob, rsa, rsb, pot )
 
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, &
                                             rsa, rsb
     REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
@@ -498,8 +507,9 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE p86_p_2 ( rhoa, rhob, grhoa, grhob, rsa, rsb, pot )
+  SUBROUTINE p86_p_2 ( derivative_set, rhoa, rhob, grhoa, grhob, rsa, rsb, pot )
 
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, &
                                             rsa, rsb
     REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
@@ -532,8 +542,9 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE p86_p_3 ( rhoa, rhob, grhoa, grhob, rsa, rsb, pot )
+  SUBROUTINE p86_p_3 ( derivative_set, rhoa, rhob, grhoa, grhob, rsa, rsb, pot )
 
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, &
                                             rsa, rsb
     REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot

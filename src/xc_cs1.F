@@ -23,6 +23,7 @@ MODULE xc_cs1
 ! *****************************************************************************
 
   USE kinds, ONLY: dbl
+  USE xc_derivative_types, ONLY: xc_derivative_set_type
   USE xc_functionals_utilities, ONLY: set_util, calc_rho13, setup_calculation
   USE termination, ONLY: stop_memory, stop_program
 
@@ -103,10 +104,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE cs1_u ( rho, grho, pot, order )
+  SUBROUTINE cs1_u ( derivative_set, rho, grho, pot, order )
 
 !   ---------------------------------------------------------------------------
 
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
@@ -158,10 +160,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE cs1_p ( rhoa, rhob, grhoa, grhob, grhoab, pot, order )
+  SUBROUTINE cs1_p ( derivative_set, rhoa, rhob, grhoa, grhob, grhoab, pot, order )
 
 !   ---------------------------------------------------------------------------
 
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob, grhoab
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot

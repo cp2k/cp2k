@@ -24,6 +24,7 @@ MODULE xc_exchange_gga
 ! *****************************************************************************
 
   USE kinds, ONLY: dbl
+  USE xc_derivative_types, ONLY: xc_derivative_set_type
   USE xc_functionals_utilities, ONLY: set_util, calc_rho13, setup_calculation, &
                                       calc_wave_vector
   USE termination, ONLY: stop_memory, stop_program
@@ -184,127 +185,140 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE b88_u ( rho, grho, pot, order )
+  SUBROUTINE b88_u ( derivative_set, rho, grho, pot, order )
     IMPLICIT NONE
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
-    CALL x_u ( 1, rho, grho, pot, order )
+    CALL x_u ( derivative_set, 1, rho, grho, pot, order )
   END SUBROUTINE b88_u
-  SUBROUTINE b88_p ( rhoa, rhob, grhoa, grhob, pot, order )
+  SUBROUTINE b88_p ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     IMPLICIT NONE
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
-    CALL x_p ( 1, rhoa, rhob, grhoa, grhob, pot, order )
+    CALL x_p ( derivative_set, 1, rhoa, rhob, grhoa, grhob, pot, order )
   END SUBROUTINE b88_p
 
-  SUBROUTINE pw86_u ( rho, grho, pot, order )
+  SUBROUTINE pw86_u ( derivative_set, rho, grho, pot, order )
     IMPLICIT NONE
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
-    CALL x_u ( 2, rho, grho, pot, order )
+    CALL x_u ( derivative_set, 2, rho, grho, pot, order )
   END SUBROUTINE pw86_u
-  SUBROUTINE pw86_p ( rhoa, rhob, grhoa, grhob, pot, order )
+  SUBROUTINE pw86_p ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     IMPLICIT NONE
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
-    CALL x_p ( 2, rhoa, rhob, grhoa, grhob, pot, order )
+    CALL x_p ( derivative_set, 2, rhoa, rhob, grhoa, grhob, pot, order )
   END SUBROUTINE pw86_p
 
-  SUBROUTINE pw91_u ( rho, grho, pot, order )
+  SUBROUTINE pw91_u ( derivative_set, rho, grho, pot, order )
     IMPLICIT NONE
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
-    CALL x_u ( 3, rho, grho, pot, order )
+    CALL x_u ( derivative_set, 3, rho, grho, pot, order )
   END SUBROUTINE pw91_u
-  SUBROUTINE pw91_p ( rhoa, rhob, grhoa, grhob, pot, order )
+  SUBROUTINE pw91_p ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     IMPLICIT NONE
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
-    CALL x_p ( 3, rhoa, rhob, grhoa, grhob, pot, order )
+    CALL x_p ( derivative_set, 3, rhoa, rhob, grhoa, grhob, pot, order )
   END SUBROUTINE pw91_p
 
-  SUBROUTINE pbex_u ( rho, grho, pot, order )
+  SUBROUTINE pbex_u ( derivative_set, rho, grho, pot, order )
     IMPLICIT NONE
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
-    CALL x_u ( 4, rho, grho, pot, order )
+    CALL x_u ( derivative_set, 4, rho, grho, pot, order )
   END SUBROUTINE pbex_u
-  SUBROUTINE pbex_p ( rhoa, rhob, grhoa, grhob, pot, order )
+  SUBROUTINE pbex_p ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     IMPLICIT NONE
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
-    CALL x_p ( 4, rhoa, rhob, grhoa, grhob, pot, order )
+    CALL x_p ( derivative_set, 4, rhoa, rhob, grhoa, grhob, pot, order )
   END SUBROUTINE pbex_p
 
-  SUBROUTINE revpbex_u ( rho, grho, pot, order )
+  SUBROUTINE revpbex_u ( derivative_set, rho, grho, pot, order )
     IMPLICIT NONE
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
-    CALL x_u ( 5, rho, grho, pot, order )
+    CALL x_u ( derivative_set, 5, rho, grho, pot, order )
   END SUBROUTINE revpbex_u
-  SUBROUTINE revpbex_p ( rhoa, rhob, grhoa, grhob, pot, order )
+  SUBROUTINE revpbex_p ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     IMPLICIT NONE
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
-    CALL x_p ( 5, rhoa, rhob, grhoa, grhob, pot, order )
+    CALL x_p ( derivative_set, 5, rhoa, rhob, grhoa, grhob, pot, order )
   END SUBROUTINE revpbex_p
 
-  SUBROUTINE optx_u ( rho, grho, pot, order )
+  SUBROUTINE optx_u ( derivative_set, rho, grho, pot, order )
     IMPLICIT NONE
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
-    CALL x_u ( 6, rho, grho, pot, order )
+    CALL x_u ( derivative_set, 6, rho, grho, pot, order )
   END SUBROUTINE optx_u
-  SUBROUTINE optx_p ( rhoa, rhob, grhoa, grhob, pot, order )
+  SUBROUTINE optx_p ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     IMPLICIT NONE
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
-    CALL x_p ( 6, rhoa, rhob, grhoa, grhob, pot, order )
+    CALL x_p ( derivative_set, 6, rhoa, rhob, grhoa, grhob, pot, order )
   END SUBROUTINE optx_p
 
 ! *****************************************************************************
 
-  SUBROUTINE x_u ( functional, rho, grho, pot, order )
+  SUBROUTINE x_u ( derivative_set, functional, rho, grho, pot, order )
 
 !   ---------------------------------------------------------------------------
 
     IMPLICIT NONE
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     INTEGER, INTENT(IN) :: functional
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
@@ -387,11 +401,12 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE x_p ( functional, rhoa, rhob, grhoa, grhob, pot, order )
+  SUBROUTINE x_p ( derivative_set, functional, rhoa, rhob, grhoa, grhob, pot, order )
 
 !   ---------------------------------------------------------------------------
 
     IMPLICIT NONE
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     INTEGER, INTENT(IN) :: functional
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob

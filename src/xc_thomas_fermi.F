@@ -27,6 +27,7 @@ MODULE xc_thomas_fermi
 ! *****************************************************************************
 
   USE kinds, ONLY: dbl
+  USE xc_derivative_types, ONLY: xc_derivative_set_type
   USE xc_functionals_utilities, ONLY: set_util, calc_rho13, setup_calculation
   USE termination, ONLY: stop_memory, stop_program
 
@@ -91,10 +92,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE thomas_fermi_lda ( rho, pot, order )
+  SUBROUTINE thomas_fermi_lda ( derivative_set, rho, pot, order )
 
 !   ---------------------------------------------------------------------------
 
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
@@ -142,10 +144,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE thomas_fermi_lsd ( rhoa, rhob, pot, order )
+  SUBROUTINE thomas_fermi_lsd ( derivative_set, rhoa, rhob, pot, order )
 
 !   ---------------------------------------------------------------------------
 
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order

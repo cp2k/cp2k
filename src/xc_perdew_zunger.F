@@ -30,6 +30,7 @@
 
 MODULE xc_perdew_zunger
   
+  USE xc_derivative_types, ONLY: xc_derivative_set_type
   USE xc_functionals_utilities, ONLY : calc_fx, calc_rs, set_util, calc_z
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : zero
@@ -128,10 +129,11 @@ CONTAINS
 !!     functionals_utilities
 !!
 !!****
-  SUBROUTINE pz_lda ( rho, ec, order )
+  SUBROUTINE pz_lda ( derivative_set, rho, ec, order )
     
     IMPLICIT NONE
     
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(DBL), DIMENSION(:), INTENT(IN) :: rho
     REAL(DBL), DIMENSION(:,0:), INTENT(OUT) :: ec
     INTEGER, INTENT(IN), OPTIONAL :: order
@@ -314,10 +316,11 @@ CONTAINS
 !!     functionals_utilities
 !!
 !!****
-  SUBROUTINE pz_lsd ( a, b, ec, order )
+  SUBROUTINE pz_lsd ( derivative_set, a, b, ec, order )
     
     IMPLICIT NONE
     
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(DBL), DIMENSION(:), INTENT(IN) :: a, b
     REAL(DBL), DIMENSION(:,0:), INTENT(OUT) :: ec
     INTEGER, INTENT(IN), OPTIONAL :: order

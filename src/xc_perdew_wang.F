@@ -29,6 +29,7 @@
 
 MODULE xc_perdew_wang
 
+  USE xc_derivative_types, ONLY: xc_derivative_set_type
   USE xc_functionals_utilities, ONLY : calc_fx, calc_rs, set_util, calc_z
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : zero
@@ -217,10 +218,11 @@ CONTAINS
 !!     functionals_utilities
 !!
 !!****
-  SUBROUTINE pw_lda(rho, ec, order)
+  SUBROUTINE pw_lda( derivative_set,rho, ec, order)
 
     IMPLICIT NONE
 
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(DBL), DIMENSION(1:), INTENT(IN) :: rho
     REAL(DBL), DIMENSION(1:,0:), INTENT(OUT) :: ec
     INTEGER, INTENT(IN), OPTIONAL :: order
@@ -396,10 +398,11 @@ CONTAINS
 !!     functionals_utilities
 !!
 !!****
-  SUBROUTINE pw_lsd(rhoa, rhob, ec, order)
+  SUBROUTINE pw_lsd( derivative_set,rhoa, rhob, ec, order)
 
     IMPLICIT NONE
 
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(DBL), DIMENSION(1:), INTENT(IN) :: rhoa, rhob
     REAL(DBL), DIMENSION(1:,0:), INTENT(OUT) :: ec
     INTEGER, INTENT(IN), OPTIONAL :: order

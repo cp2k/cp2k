@@ -51,6 +51,7 @@ MODULE xc_functionals_tests
 
   USE kinds, ONLY: dbl
   USE global_types, ONLY : global_environment_type
+  USE xc_derivative_types, ONLY: xc_derivative_set_type
   USE xc_functionals, ONLY : b88, x_pw86, x_pw91, pbex, revpbex, optx, &
                              ol1, ol2, llp, ke_pw86, ke_pw91, lc, t92, &
                              lyp, pade, xalpha, thomas_fermi, tfw, vwn, &
@@ -118,6 +119,8 @@ SUBROUTINE xc_functional_test ( globenv )
   REAL(dbl) :: drho, r
   CHARACTER (LEN=80) :: fun_string
   LOGICAL :: crossterm
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
+
 
 ! *****************************************************************************
 
@@ -143,11 +146,11 @@ SUBROUTINE xc_functional_test ( globenv )
        IF ( funtype /= 1 .AND. funtype /= 3 ) CYCLE
        CALL funlda ( i, reference=fun_string )
        WRITE (iw,'(A80)') ADJUSTR(fun_string)
-       CALL funlda ( i, rhoref, pot, 3 )
+       CALL funlda ( derivative_set, i, rhoref, pot, 3 )
        rho = rhoref + rrho*rhoref
-       CALL funlda ( i, rho, potp, 3 )
+       CALL funlda ( derivative_set, i, rho, potp, 3 )
        rho = rhoref - rrho*rhoref
-       CALL funlda ( i, rho, potm, 3 )
+       CALL funlda ( derivative_set, i, rho, potm, 3 )
        !
        CALL testder (" First Derivative ",pot(:,1),potp(:,0),potm(:,0),rhoref)
        CALL testder (" Second Derivative ",pot(:,2),potp(:,1),potm(:,1),rhoref)
@@ -172,15 +175,15 @@ SUBROUTINE xc_functional_test ( globenv )
        IF ( funtype /= 11 .AND. funtype /= 13 ) CYCLE
        CALL fungga ( i, reference=fun_string )
        WRITE (iw,'(A80)') ADJUSTR(fun_string)
-       CALL fungga ( i, rhoref, grhoref, pot, 3 )
+       CALL fungga ( derivative_set, i, rhoref, grhoref, pot, 3 )
        rho = rhoref + rrho*rhoref
-       CALL fungga ( i, rho, grhoref, potp, 3 )
+       CALL fungga ( derivative_set, i, rho, grhoref, potp, 3 )
        rho = rhoref - rrho*rhoref
-       CALL fungga ( i, rho, grhoref, potm, 3 )
+       CALL fungga ( derivative_set, i, rho, grhoref, potm, 3 )
        grho = grhoref + rrho*grhoref
-       CALL fungga ( i, rhoref, grho, potgp, 3 )
+       CALL fungga ( derivative_set, i, rhoref, grho, potgp, 3 )
        grho = grhoref - rrho*grhoref
-       CALL fungga ( i, rhoref, grho, potgm, 3 )
+       CALL fungga ( derivative_set, i, rhoref, grho, potgm, 3 )
        !
        CALL testder (" First Derivative R",pot(:,1),potp(:,0),potm(:,0),rhoref)
        CALL testder (" First Derivative G",pot(:,2),potgp(:,0),potgm(:,0),grhoref)
@@ -212,19 +215,19 @@ SUBROUTINE xc_functional_test ( globenv )
        IF ( funtype /= 2 .AND. funtype /= 3 ) CYCLE
        CALL funlda ( i, reference=fun_string )
        WRITE (iw,'(A80)') ADJUSTR(fun_string)
-       CALL funlda ( i, rhoref, potx(:,1:1), 0 )
-       CALL funlda ( i, rhorefa, rhorefa, potx(:,2:2), 0 )
-       CALL funlda ( i, rhorefa, rhorefb, pot, 3 )
+       CALL funlda ( derivative_set, i, rhoref, potx(:,1:1), 0 )
+       CALL funlda ( derivative_set, i, rhorefa, rhorefa, potx(:,2:2), 0 )
+       CALL funlda ( derivative_set, i, rhorefa, rhorefb, pot, 3 )
        rhoa = rhorefa + rrho*rhorefa
        rhob = rhorefb
-       CALL funlda ( i, rhoa, rhob, potpa, 3 )
+       CALL funlda ( derivative_set, i, rhoa, rhob, potpa, 3 )
        rhoa = rhorefa - rrho*rhorefa
-       CALL funlda ( i, rhoa, rhob, potma, 3 )
+       CALL funlda ( derivative_set, i, rhoa, rhob, potma, 3 )
        rhoa = rhorefa
        rhob = rhorefb + rrho*rhorefb
-       CALL funlda ( i, rhoa, rhob, potpb, 3 )
+       CALL funlda ( derivative_set, i, rhoa, rhob, potpb, 3 )
        rhob = rhorefb - rrho*rhorefb
-       CALL funlda ( i, rhoa, rhob, potmb, 3 )
+       CALL funlda ( derivative_set, i, rhoa, rhob, potmb, 3 )
        !
        IF ( crossterm ) THEN
           abserr(:) = ABS(potx(:,1)-potx(:,2))
@@ -279,53 +282,53 @@ SUBROUTINE xc_functional_test ( globenv )
        CALL fungga ( i, reference=fun_string )
        WRITE (iw,'(A80)') ADJUSTR(fun_string)
        IF ( crossterm ) THEN
-          CALL fungga ( i, rhoref, grhoref, potx(:,1:1), 0 )
-          CALL fungga ( i, rhorefa, rhorefa, grhorefa, grhorefa, grhorefa, potx(:,2:2), 0 )
-          CALL fungga ( i, rhorefa, rhorefb, grhorefa, grhorefb, grhorefab, pot, 3 )
+          CALL fungga ( derivative_set, i, rhoref, grhoref, potx(:,1:1), 0 )
+          CALL fungga ( derivative_set, i, rhorefa, rhorefa, grhorefa, grhorefa, grhorefa, potx(:,2:2), 0 )
+          CALL fungga ( derivative_set, i, rhorefa, rhorefb, grhorefa, grhorefb, grhorefab, pot, 3 )
           rhoa = rhorefa + rrho*rhorefa
           rhob = rhorefb
-          CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, grhorefab, potpa, 3 )
+          CALL fungga ( derivative_set, i, rhoa, rhob, grhorefa, grhorefb, grhorefab, potpa, 3 )
           rhoa = rhorefa - rrho*rhorefa
-          CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, grhorefab, potma, 3 )
+          CALL fungga ( derivative_set, i, rhoa, rhob, grhorefa, grhorefb, grhorefab, potma, 3 )
           rhoa = rhorefa
           rhob = rhorefb + rrho*rhorefb
-          CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, grhorefab, potpb, 3 )
+          CALL fungga ( derivative_set, i, rhoa, rhob, grhorefa, grhorefb, grhorefab, potpb, 3 )
           rhob = rhorefb - rrho*rhorefb
-          CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, grhorefab, potmb, 3 )
+          CALL fungga ( derivative_set, i, rhoa, rhob, grhorefa, grhorefb, grhorefab, potmb, 3 )
           grhoa = grhorefa + rrho*grhorefa
-          CALL fungga ( i, rhorefa, rhorefb, grhoa, grhorefb, grhorefab, potgpa, 3 )
+          CALL fungga ( derivative_set, i, rhorefa, rhorefb, grhoa, grhorefb, grhorefab, potgpa, 3 )
           grhoa = grhorefa - rrho*grhorefa
-          CALL fungga ( i, rhorefa, rhorefb, grhoa, grhorefb, grhorefab, potgma, 3 )
+          CALL fungga ( derivative_set, i, rhorefa, rhorefb, grhoa, grhorefb, grhorefab, potgma, 3 )
           grhob = grhorefb + rrho*grhorefb
-          CALL fungga ( i, rhorefa, rhorefb, grhorefa, grhob, grhorefab, potgpb, 3 )
+          CALL fungga ( derivative_set, i, rhorefa, rhorefb, grhorefa, grhob, grhorefab, potgpb, 3 )
           grhob = grhorefb - rrho*grhorefb
-          CALL fungga ( i, rhorefa, rhorefb, grhorefa, grhob, grhorefab, potgmb, 3 )
+          CALL fungga ( derivative_set, i, rhorefa, rhorefb, grhorefa, grhob, grhorefab, potgmb, 3 )
           grhoab = grhorefab + rrho*grhorefab
-          CALL fungga ( i, rhorefa, rhorefb, grhorefa, grhorefb, grhoab, potgpab, 3 )
+          CALL fungga ( derivative_set, i, rhorefa, rhorefb, grhorefa, grhorefb, grhoab, potgpab, 3 )
           grhoab = grhorefab - rrho*grhorefab
-          CALL fungga ( i, rhorefa, rhorefb, grhorefa, grhorefb, grhoab, potgmab, 3 )
+          CALL fungga ( derivative_set, i, rhorefa, rhorefb, grhorefa, grhorefb, grhoab, potgmab, 3 )
        ELSE
-          CALL fungga ( i, rhoref, grhoref, potx(:,1:1), 0 )
-          CALL fungga ( i, rhorefa, rhorefa, grhorefa, grhorefa, potx(:,2:2), 0 )
-          CALL fungga ( i, rhorefa, rhorefb, grhorefa, grhorefb, pot, 3 )
+          CALL fungga ( derivative_set, i, rhoref, grhoref, potx(:,1:1), 0 )
+          CALL fungga ( derivative_set, i, rhorefa, rhorefa, grhorefa, grhorefa, potx(:,2:2), 0 )
+          CALL fungga ( derivative_set, i, rhorefa, rhorefb, grhorefa, grhorefb, pot, 3 )
           rhoa = rhorefa + rrho*rhorefa
           rhob = rhorefb
-          CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, potpa, 3 )
+          CALL fungga ( derivative_set, i, rhoa, rhob, grhorefa, grhorefb, potpa, 3 )
           rhoa = rhorefa - rrho*rhorefa
-          CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, potma, 3 )
+          CALL fungga ( derivative_set, i, rhoa, rhob, grhorefa, grhorefb, potma, 3 )
           rhoa = rhorefa
           rhob = rhorefb + rrho*rhorefb
-          CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, potpb, 3 )
+          CALL fungga ( derivative_set, i, rhoa, rhob, grhorefa, grhorefb, potpb, 3 )
           rhob = rhorefb - rrho*rhorefb
-          CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, potmb, 3 )
+          CALL fungga ( derivative_set, i, rhoa, rhob, grhorefa, grhorefb, potmb, 3 )
           grhoa = grhorefa + rrho*grhorefa
-          CALL fungga ( i, rhorefa, rhorefb, grhoa, grhorefb, potgpa, 3 )
+          CALL fungga ( derivative_set, i, rhorefa, rhorefb, grhoa, grhorefb, potgpa, 3 )
           grhoa = grhorefa - rrho*grhorefa
-          CALL fungga ( i, rhorefa, rhorefb, grhoa, grhorefb, potgma, 3 )
+          CALL fungga ( derivative_set, i, rhorefa, rhorefb, grhoa, grhorefb, potgma, 3 )
           grhob = grhorefb + rrho*grhorefb
-          CALL fungga ( i, rhorefa, rhorefb, grhorefa, grhob, potgpb, 3 )
+          CALL fungga ( derivative_set, i, rhorefa, rhorefb, grhorefa, grhob, potgpb, 3 )
           grhob = grhorefb - rrho*grhorefb
-          CALL fungga ( i, rhorefa, rhorefb, grhorefa, grhob, potgmb, 3 )
+          CALL fungga ( derivative_set, i, rhorefa, rhorefb, grhorefa, grhob, potgmb, 3 )
        END IF
        !
        abserr(:) = ABS(potx(:,1)-potx(:,2))
@@ -715,8 +718,9 @@ SUBROUTINE fun_info ( fun, reference, shortform )
 
 END SUBROUTINE fun_info
 
-SUBROUTINE fun_lda ( fun, rho, pot, order )
+SUBROUTINE fun_lda ( derivative_set, fun, rho, pot, order )
 
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     INTEGER, INTENT(IN) :: fun
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
@@ -725,30 +729,31 @@ SUBROUTINE fun_lda ( fun, rho, pot, order )
     SELECT CASE (fun)
     CASE (1)
       pot = 0._dbl
-      CALL xalpha ( rho, pot, order )
+      CALL xalpha ( derivative_set, rho, pot, order )
     CASE (2)
       pot = 0._dbl
-      CALL pade ( rho, pot, order )
+      CALL pade ( derivative_set, rho, pot, order )
     CASE (3)
       pot = 0._dbl
-      CALL vwn ( rho, pot, order )
+      CALL vwn ( derivative_set, rho, pot, order )
     CASE (4)
       pot = 0._dbl
-      CALL thomas_fermi ( rho, pot, order )
+      CALL thomas_fermi ( derivative_set, rho, pot, order )
     CASE (5)
       pot = 0._dbl
-      CALL perdew_wang ( rho, pot, order )
+      CALL perdew_wang ( derivative_set, rho, pot, order )
     CASE (6)
       pot = 0._dbl
-      CALL perdew_zunger ( rho, pot, order )
+      CALL perdew_zunger ( derivative_set, rho, pot, order )
     CASE DEFAULT
       CALL stop_program("fun_lda","functional not found")
     END SELECT
 
 END SUBROUTINE fun_lda
 
-SUBROUTINE fun_lsd ( fun, rhoa, rhob, pot, order )
+SUBROUTINE fun_lsd ( derivative_set, fun, rhoa, rhob, pot, order )
 
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     INTEGER, INTENT(IN) :: fun
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
@@ -757,27 +762,28 @@ SUBROUTINE fun_lsd ( fun, rhoa, rhob, pot, order )
     SELECT CASE (fun)
     CASE (1)
       pot = 0._dbl
-      CALL xalpha ( rhoa, rhob, pot, order )
+      CALL xalpha ( derivative_set, rhoa, rhob, pot, order )
     CASE (2)
       pot = 0._dbl
-      CALL pade ( rhoa, rhob, pot, order )
+      CALL pade ( derivative_set, rhoa, rhob, pot, order )
     CASE (4)
       pot = 0._dbl
-      CALL thomas_fermi ( rhoa, rhob, pot, order )
+      CALL thomas_fermi ( derivative_set, rhoa, rhob, pot, order )
     CASE (5)
       pot = 0._dbl
-      CALL perdew_wang ( rhoa, rhob, pot, order )
+      CALL perdew_wang ( derivative_set, rhoa, rhob, pot, order )
     CASE (6)
       pot = 0._dbl
-      CALL perdew_zunger ( rhoa, rhob, pot, order )
+      CALL perdew_zunger ( derivative_set, rhoa, rhob, pot, order )
     CASE DEFAULT
       CALL stop_program("fun_lsd","functional not found")
     END SELECT
 
 END SUBROUTINE fun_lsd
 
-SUBROUTINE funggau ( fun, rho, grho, pot, order )
+SUBROUTINE funggau ( derivative_set, fun, rho, grho, pot, order )
 
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     INTEGER, INTENT(IN) :: fun
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
@@ -786,63 +792,64 @@ SUBROUTINE funggau ( fun, rho, grho, pot, order )
     SELECT CASE (fun)
     CASE (7)
       pot = 0._dbl
-      CALL tfw ( rho, grho, pot, order )
+      CALL tfw ( derivative_set, rho, grho, pot, order )
     CASE (8)
       pot = 0._dbl
-      CALL ol1 ( rho, grho, pot, order )
+      CALL ol1 ( derivative_set, rho, grho, pot, order )
     CASE (9)
       pot = 0._dbl
-      CALL ol2 ( rho, grho, pot, order )
+      CALL ol2 ( derivative_set, rho, grho, pot, order )
     CASE (10)
       pot = 0._dbl
-      CALL llp ( rho, grho, pot, order )
+      CALL llp ( derivative_set, rho, grho, pot, order )
     CASE (11)
       pot = 0._dbl
-      CALL ke_pw86 ( rho, grho, pot, order )
+      CALL ke_pw86 ( derivative_set, rho, grho, pot, order )
     CASE (12)
       pot = 0._dbl
-      CALL ke_pw91 ( rho, grho, pot, order )
+      CALL ke_pw91 ( derivative_set, rho, grho, pot, order )
     CASE (13)
       pot = 0._dbl
-      CALL lc ( rho, grho, pot, order )
+      CALL lc ( derivative_set, rho, grho, pot, order )
     CASE (14)
       pot = 0._dbl
-      CALL t92 ( rho, grho, pot, order )
+      CALL t92 ( derivative_set, rho, grho, pot, order )
     CASE (15)
       pot = 0._dbl
-      CALL b88 ( rho, grho, pot, order )
+      CALL b88 ( derivative_set, rho, grho, pot, order )
     CASE (16)
       pot = 0._dbl
-      CALL x_pw86 ( rho, grho, pot, order )
+      CALL x_pw86 ( derivative_set, rho, grho, pot, order )
     CASE (17)
       pot = 0._dbl
-      CALL x_pw91 ( rho, grho, pot, order )
+      CALL x_pw91 ( derivative_set, rho, grho, pot, order )
     CASE (18)
       pot = 0._dbl
-      CALL pbex ( rho, grho, pot, order )
+      CALL pbex ( derivative_set, rho, grho, pot, order )
     CASE (19)
       pot = 0._dbl
-      CALL revpbex ( rho, grho, pot, order )
+      CALL revpbex ( derivative_set, rho, grho, pot, order )
     CASE (20)
       pot = 0._dbl
-      CALL optx ( rho, grho, pot, order )
+      CALL optx ( derivative_set, rho, grho, pot, order )
     CASE (21)
       pot = 0._dbl
-      CALL lyp ( rho, grho, pot, order )
+      CALL lyp ( derivative_set, rho, grho, pot, order )
     CASE (22)
       pot = 0._dbl
-      CALL perdew86 ( rho, grho, pot, order )
+      CALL perdew86 ( derivative_set, rho, grho, pot, order )
     CASE (23)
       pot = 0._dbl
-      CALL cs1 ( rho, grho, pot, order )
+      CALL cs1 ( derivative_set, rho, grho, pot, order )
     CASE DEFAULT
       CALL stop_program("funggau","functional not found")
     END SELECT
 
 END SUBROUTINE funggau
 
-SUBROUTINE funggap ( fun, rhoa, rhob, grhoa, grhob, pot, order )
+SUBROUTINE funggap ( derivative_set, fun, rhoa, rhob, grhoa, grhob, pot, order )
 
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     INTEGER, INTENT(IN) :: fun
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
@@ -852,54 +859,55 @@ SUBROUTINE funggap ( fun, rhoa, rhob, grhoa, grhob, pot, order )
     SELECT CASE (fun)
     CASE (7)
       pot = 0._dbl
-      CALL tfw ( rhoa, rhob, grhoa, grhob, pot, order )
+      CALL tfw ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     CASE (8)
       pot = 0._dbl
-      CALL ol1 ( rhoa, rhob, grhoa, grhob, pot, order )
+      CALL ol1 ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     CASE (9)
       pot = 0._dbl
-      CALL ol2 ( rhoa, rhob, grhoa, grhob, pot, order )
+      CALL ol2 ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     CASE (10)
       pot = 0._dbl
-      CALL llp ( rhoa, rhob, grhoa, grhob, pot, order )
+      CALL llp ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     CASE (11)
       pot = 0._dbl
-      CALL ke_pw86 ( rhoa, rhob, grhoa, grhob, pot, order )
+      CALL ke_pw86 ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     CASE (12)
       pot = 0._dbl
-      CALL ke_pw91 ( rhoa, rhob, grhoa, grhob, pot, order )
+      CALL ke_pw91 ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     CASE (13)
       pot = 0._dbl
-      CALL lc ( rhoa, rhob, grhoa, grhob, pot, order )
+      CALL lc ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     CASE (14)
       pot = 0._dbl
-      CALL t92 ( rhoa, rhob, grhoa, grhob, pot, order )
+      CALL t92 ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     CASE (15)
       pot = 0._dbl
-      CALL b88 ( rhoa, rhob, grhoa, grhob, pot, order )
+      CALL b88 ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     CASE (16)
       pot = 0._dbl
-      CALL x_pw86 ( rhoa, rhob, grhoa, grhob, pot, order )
+      CALL x_pw86 ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     CASE (17)
       pot = 0._dbl
-      CALL x_pw91 ( rhoa, rhob, grhoa, grhob, pot, order )
+      CALL x_pw91 ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     CASE (18)
       pot = 0._dbl
-      CALL pbex ( rhoa, rhob, grhoa, grhob, pot, order )
+      CALL pbex ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     CASE (19)
       pot = 0._dbl
-      CALL revpbex ( rhoa, rhob, grhoa, grhob, pot, order )
+      CALL revpbex ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     CASE (20)
       pot = 0._dbl
-      CALL optx ( rhoa, rhob, grhoa, grhob, pot, order )
+      CALL optx ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
     CASE DEFAULT
       CALL stop_program("funggap","functional not found")
     END SELECT
 
 END SUBROUTINE funggap
 
-SUBROUTINE funggab ( fun, rhoa, rhob, grhoa, grhob, grhoab, pot, order )
+SUBROUTINE funggab ( derivative_set, fun, rhoa, rhob, grhoa, grhob, grhoab, pot, order )
 
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     INTEGER, INTENT(IN) :: fun
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob, grhoab
@@ -909,7 +917,7 @@ SUBROUTINE funggab ( fun, rhoa, rhob, grhoa, grhob, grhoab, pot, order )
     SELECT CASE (fun)
     CASE (23)
       pot = 0._dbl
-      CALL cs1 ( rhoa, rhob, grhoa, grhob, grhoab, pot, order )
+      CALL cs1 ( derivative_set, rhoa, rhob, grhoa, grhob, grhoab, pot, order )
     CASE DEFAULT
       CALL stop_program("funggap","functional not found")
     END SELECT

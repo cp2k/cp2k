@@ -23,6 +23,7 @@ MODULE xc_lyp
 ! *****************************************************************************
 
   USE kinds, ONLY: dbl
+  USE xc_derivative_types, ONLY: xc_derivative_set_type
   USE xc_functionals_utilities, ONLY: set_util, calc_rho13, setup_calculation
   USE termination, ONLY: stop_memory, stop_program
 
@@ -98,10 +99,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE lyp_u ( rho, grho, pot, order )
+  SUBROUTINE lyp_u ( derivative_set, rho, grho, pot, order )
 
 !   ---------------------------------------------------------------------------
 
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
@@ -153,10 +155,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE lyp_p ( rhoa, rhob, grhoa, grhob, pot, order )
+  SUBROUTINE lyp_p ( derivative_set, rhoa, rhob, grhoa, grhob, pot, order )
 
 !   ---------------------------------------------------------------------------
 
+    TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
