@@ -474,8 +474,22 @@ CONTAINS
     INTEGER col1,i,nrow,ncol_block,handle,blocksize
     LOGICAL g_present
 !   ---------------------------------------------------------------------------
-    CALL cp_sm_plus_fm_fm_t_new(sparse_matrix,matrix_v,matrix_g,ncol, &
-                                first_col,alpha,error)
+    IF (PRESENT(matrix_g)) THEN
+      CALL cp_sm_plus_fm_fm_t_new(sparse_matrix=sparse_matrix,&
+                                  matrix_v=matrix_v,&
+                                  matrix_g=matrix_g,&
+                                  last_col=ncol,&
+                                  first_col=first_col,&
+                                  alpha=alpha,&
+                                  error=error)
+    ELSE
+      CALL cp_sm_plus_fm_fm_t_new(sparse_matrix=sparse_matrix,&
+                                  matrix_v=matrix_v,&
+                                  last_col=ncol,&
+                                  first_col=first_col,&
+                                  alpha=alpha,&
+                                  error=error)
+    END IF
     RETURN
     CALL timeset("cp_sm_plus_fm_fm_t","I","",handle)
 
