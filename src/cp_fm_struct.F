@@ -461,6 +461,14 @@ SUBROUTINE cp_fm_struct_release(fmstruct,error)
            DEALLOCATE(fmstruct%col_indices,stat=stat)
            CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
         END IF
+        IF (ASSOCIATED(fmstruct%nrow_locals)) THEN
+           DEALLOCATE(fmstruct%nrow_locals,stat=stat)
+           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        END IF
+        IF (ASSOCIATED(fmstruct%ncol_locals)) THEN
+           DEALLOCATE(fmstruct%ncol_locals,stat=stat)
+           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        END IF
         DEALLOCATE(fmstruct, stat=stat)
         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
      END IF
