@@ -2754,10 +2754,10 @@ CONTAINS
     call timeset(routineN//','//moduleN,'I',"",handle)
     CPPrecondition(associated(target_ptr),cp_failure_level,routineP,error,failure)
     if (.not.failure) then
-       call get_matrix_info(target_ptr, nrow=nrows, ncol=ncols)
+       call get_matrix_info(target_ptr, nblock_row=nrows, nblock_col=ncols)
        CPAssert(ncols==nrows,cp_warning_level,routineP,error,failure)
        ncols=min(nrows,ncols)
-       if (present(d_struct)) my_d_struct=d_struct
+       if (present(d_struct)) my_d_struct => d_struct
        if (.not.associated(my_d_struct)) then
 ! build distribution structure
 ! assume every diagonal block is on one (and just one) proc
@@ -2782,6 +2782,7 @@ CONTAINS
        end if
     end if
     CPAssert(associated(my_d_struct),cp_failure_level,routineP,error,failure)
+    CPAssert(size(my_d_struct)==ncols,cp_failure_level,routineP,error,failure)
     if (.not. failure) then
        CPAssert(all(my_d_struct<global_env%num_pe),cp_failure_level,routineP,error,failure)
     end if
