@@ -77,6 +77,10 @@
 
 MODULE qs_core_hamiltonian
 
+  USE kinds, ONLY: int_size,&
+                   wp => dp,&
+                   wp_size => dp_size
+
   USE ai_kinetic,                      ONLY: kinetic
   USE ai_overlap_new,                  ONLY: overlap
   USE ai_overlap_ppl,                  ONLY: overlap_ppl
@@ -89,9 +93,6 @@ MODULE qs_core_hamiltonian
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: indco,&
                                              init_orbital_pointers,&
@@ -189,12 +190,9 @@ CONTAINS
       REAL(wp), DIMENSION(:,:), POINTER :: block
     END TYPE block_p_type
 
-    TYPE cexp_ppl_type
-      REAL(wp), DIMENSION(:), POINTER :: c
-    END TYPE cexp_ppl_type
-
     TYPE vppl_type
-      REAL(wp), DIMENSION(:), POINTER   :: r2
+      REAL(wp)                          :: alpha_ppl,ppl_radius
+      REAL(wp), DIMENSION(:), POINTER   :: cexp_ppl,r2
       INTEGER, DIMENSION(:), POINTER    :: neighbor
       REAL(wp), DIMENSION(:,:), POINTER :: r
     END TYPE vppl_type
@@ -211,8 +209,7 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name =&
-      "build_core_hamiltonian_matrix"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "core_hamiltonian"
     CHARACTER(LEN=*), PARAMETER :: routine =&
       "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
@@ -256,12 +253,10 @@ CONTAINS
     INTEGER, DIMENSION(1)  :: first_row,last_row
     INTEGER, DIMENSION(3)  :: cell_c
 
-    TYPE(block_p_type), DIMENSION(:), ALLOCATABLE  :: sint,tint
-    TYPE(cexp_ppl_type), DIMENSION(:), ALLOCATABLE :: cexp_ppl
-    TYPE(vppl_type), DIMENSION(:), ALLOCATABLE     :: vppl
-    TYPE(vppnl_type), DIMENSION(:), ALLOCATABLE    :: vppnl
+    TYPE(block_p_type), DIMENSION(:), ALLOCATABLE :: sint,tint
+    TYPE(vppl_type), DIMENSION(:), ALLOCATABLE    :: vppl
+    TYPE(vppnl_type), DIMENSION(:), ALLOCATABLE   :: vppnl
 
-    REAL(wp), DIMENSION(:), ALLOCATABLE     :: alpha_ppl,ppl_radius
     REAL(wp), DIMENSION(:,:), ALLOCATABLE   :: hab,pab,sab,vdab,vadb,work
     REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: sdab
     INTEGER, DIMENSION(:), ALLOCATABLE      :: atom_of_kind,first_prj,&
@@ -284,8 +279,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL write_checkpoint_information("entering "//routine_name,globenv)
-
-    CALL timeset(routine_name,"I","",handle)
 
     NULLIFY (atomic_kind_set)
     NULLIFY (force)
@@ -319,6 +312,8 @@ CONTAINS
 
     IF (calculate_forces) THEN
 
+      CALL timeset(routine_name//" (forces)","I","",handle)
+
       nder = 1
 
       ALLOCATE (atom_of_kind(natom),STAT=istat)
@@ -346,11 +341,15 @@ CONTAINS
       END IF
 
     ELSE
+
+      CALL timeset(routine_name,"I","",handle)
+
       IF (globenv%print%derivatives.OR.globenv%print%optical_conductivity) THEN
         nder = 1
       ELSE
         nder = 0
       END IF
+
     END IF
 
     IF ((globenv%print%overlap_matrix.AND.globenv%print%derivatives).OR.&
@@ -407,7 +406,7 @@ CONTAINS
         return_t_derivatives = .FALSE.
       END IF
       CALL replicate_matrix_structure(source=s(1)%matrix,&
-                                      TARGET=t(1)%matrix,&
+                                      target=t(1)%matrix,&
                                       target_name="KINETIC ENERGY MATRIX")
       DO i=2,maxder
         cgfsym = cgf_symbol(1,indco(1:3,i))
@@ -416,7 +415,7 @@ CONTAINS
         CALL compress(name)
         CALL uppercase(name)
         CALL replicate_matrix_structure(source=s(1)%matrix,&
-                                        TARGET=t(i)%matrix,&
+                                        target=t(i)%matrix,&
                                         target_name=name,&
                                         target_symmetry="antisymmetric")
       END DO
@@ -427,7 +426,7 @@ CONTAINS
     CALL allocate_matrix_set(h,1)
 
     CALL replicate_matrix_structure(source=s(1)%matrix,&
-                                    TARGET=h(1)%matrix,&
+                                    target=h(1)%matrix,&
                                     target_name="CORE HAMILTONIAN MATRIX")
 
 !   *** Allocate work storage ***
@@ -506,40 +505,29 @@ CONTAINS
 
     IF (ppl_present) THEN
 
-      ALLOCATE (alpha_ppl(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl",nkind*wp_size)
+      ALLOCATE (vppl(nkind),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"vppl",nkind*int_size)
 
-      ALLOCATE (cexp_ppl(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"cexp_ppl",nkind*int_size)
-      DO i=1,SIZE(cexp_ppl)
-        NULLIFY(cexp_ppl(i)%c)
-      END DO
+      DO kkind=1,nkind
 
-      ALLOCATE (ppl_radius(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"ppl_radius",nkind*wp_size)
-
-      DO ikind=1,nkind
-
-        atomic_kind => atomic_kind_set(ikind)
+        atomic_kind => atomic_kind_set(kkind)
 
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              gth_potential=gth_potential)
 
+        NULLIFY (vppl(kkind)%cexp_ppl)
+
         IF (ASSOCIATED(gth_potential)) THEN
           CALL get_potential(potential=gth_potential,&
-                             alpha_ppl=alpha_ppl(ikind),&
-                             cexp_ppl=cexp_ppl(ikind)%c,&
-                             ppl_radius=ppl_radius(ikind))
+                             alpha_ppl=vppl(kkind)%alpha_ppl,&
+                             cexp_ppl=vppl(kkind)%cexp_ppl,&
+                             ppl_radius=vppl(kkind)%ppl_radius)
         END IF
 
-      END DO
+        NULLIFY (vppl(kkind)%r2)
+        NULLIFY (vppl(kkind)%neighbor)
+        NULLIFY (vppl(kkind)%r)
 
-      ALLOCATE (vppl(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"vppl",nkind*int_size)
-      DO jkind=1,SIZE(vppl)
-        NULLIFY (vppl(jkind)%r2)
-        NULLIFY (vppl(jkind)%neighbor)
-        NULLIFY (vppl(jkind)%r)
       END DO
 
     END IF
@@ -553,38 +541,38 @@ CONTAINS
       ALLOCATE (vppnl(nkind),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"vppnl",nkind*int_size)
 
-      DO ikind=1,nkind
+      DO kkind=1,nkind
 
-        atomic_kind => atomic_kind_set(ikind)
+        atomic_kind => atomic_kind_set(kkind)
 
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              gth_potential=gth_potential)
 
-        NULLIFY (vppnl(ikind)%alpha_ppnl)
-        NULLIFY (vppnl(ikind)%cprj)
-        NULLIFY (vppnl(ikind)%nprj_ppnl)
-        NULLIFY (vppnl(ikind)%vprj_ppnl)
+        NULLIFY (vppnl(kkind)%alpha_ppnl)
+        NULLIFY (vppnl(kkind)%cprj)
+        NULLIFY (vppnl(kkind)%nprj_ppnl)
+        NULLIFY (vppnl(kkind)%vprj_ppnl)
 
         CALL get_potential(potential=gth_potential,&
-                           alpha_ppnl=vppnl(ikind)%alpha_ppnl,&
-                           cprj=vppnl(ikind)%cprj,&
-                           lppnl=vppnl(ikind)%lppnl,&
-                           nppnl=vppnl(ikind)%nppnl,&
-                           nprj_ppnl=vppnl(ikind)%nprj_ppnl,&
-                           ppnl_radius=vppnl(ikind)%ppnl_radius,&
-                           vprj_ppnl=vppnl(ikind)%vprj_ppnl)
+                           alpha_ppnl=vppnl(kkind)%alpha_ppnl,&
+                           cprj=vppnl(kkind)%cprj,&
+                           lppnl=vppnl(kkind)%lppnl,&
+                           nppnl=vppnl(kkind)%nppnl,&
+                           nprj_ppnl=vppnl(kkind)%nprj_ppnl,&
+                           ppnl_radius=vppnl(kkind)%ppnl_radius,&
+                           vprj_ppnl=vppnl(kkind)%vprj_ppnl)
 
-        NULLIFY (vppnl(ikind)%r2)
-        NULLIFY (vppnl(ikind)%neighbor)
-        NULLIFY (vppnl(ikind)%r)
+        NULLIFY (vppnl(kkind)%r2)
+        NULLIFY (vppnl(kkind)%neighbor)
+        NULLIFY (vppnl(kkind)%r)
 
-        ALLOCATE (vppnl(ikind)%sac(maxder),STAT=istat)
+        ALLOCATE (vppnl(kkind)%sac(maxder),STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"vppnl(ikind)%sac",maxder*int_size)
+          CALL stop_memory(routine,"vppnl(kkind)%sac",maxder*int_size)
         END IF
 
         DO i=1,maxder
-          NULLIFY (vppnl(ikind)%sac(i)%block)
+          NULLIFY (vppnl(kkind)%sac(i)%block)
         END DO
 
       END DO
@@ -1097,12 +1085,12 @@ CONTAINS
                         rac(:) = vppl(kkind)%r(:,kneighbor)
                         rac2 = vppl(kkind)%r2(kneighbor)
                         dac = SQRT(rac2)
-                        IF (set_radius_a(iset) + ppl_radius(kkind) < dac) CYCLE
+                        IF (set_radius_a(iset) + vppl(kkind)%ppl_radius < dac) CYCLE
 
                         rbc(:) = rac(:) - rab(:)
                         rbc2 = rbc(1)*rbc(1) + rbc(2)*rbc(2) + rbc(3)*rbc(3)
                         dbc = SQRT(rbc2)
-                        IF (set_radius_b(jset) + ppl_radius(kkind) < dbc) CYCLE
+                        IF (set_radius_b(jset) + vppl(kkind)%ppl_radius < dbc) CYCLE
 
 !                       *** Calculate the GTH pseudo potential forces ***
 
@@ -1113,8 +1101,8 @@ CONTAINS
                             rpgfa(1:npgfa(iset),iset),la_min(iset),&
                             lb_max(jset),zetb(1:npgfb(jset),jset),&
                             rpgfb(1:npgfb(jset),jset),lb_min(jset),&
-                            cexp_ppl(kkind)%c,alpha_ppl(kkind),&
-                            ppl_radius(kkind),&
+                            vppl(kkind)%cexp_ppl,vppl(kkind)%alpha_ppl,&
+                            vppl(kkind)%ppl_radius,&
                             rab,rab2,dab,&
                             rac,rac2,dac,&
                             rbc,rbc2,dbc,&
@@ -1144,8 +1132,8 @@ CONTAINS
                             rpgfa(1:npgfa(iset),iset),la_min(iset),&
                             lb_max(jset),zetb(1:npgfb(jset),jset),&
                             rpgfb(1:npgfb(jset),jset),lb_min(jset),&
-                            cexp_ppl(kkind)%c,alpha_ppl(kkind),&
-                            ppl_radius(kkind),&
+                            vppl(kkind)%cexp_ppl,vppl(kkind)%alpha_ppl,&
+                            vppl(kkind)%ppl_radius,&
                             rab,rab2,dab,&
                             rac,rac2,dac,&
                             rbc,rbc2,dbc,&
@@ -1279,8 +1267,7 @@ CONTAINS
                           ncol = (kneighbor - 1)*vppnl(kkind)%nppnl + 1
 
                           CALL dgemm("N","T",ncoa,ncob,vppnl(kkind)%nppnl,&
-                                     1.0_wp,&
-                                     vppnl(kkind)%sac(1)%block(nrow,ncol),&
+                                     1.0_wp,vppnl(kkind)%sac(1)%block(nrow,ncol),&
                                      SIZE(vppnl(kkind)%sac(1)%block,1),&
                                      work(1,1),SIZE(work,1),&
                                      1.0_wp,hab(1,1),SIZE(hab,1))
@@ -1294,8 +1281,7 @@ CONTAINS
                               first_col = i*SIZE(work,1) + 1
 
                               CALL dgemm("N","T",ncoa,ncob,vppnl(kkind)%nppnl,&
-                                         1.0_wp,&
-                                         vppnl(kkind)%sac(i+1)%block(nrow,ncol),&
+                                         1.0_wp,vppnl(kkind)%sac(i+1)%block(nrow,ncol),&
                                          SIZE(vppnl(kkind)%sac(i+1)%block,1),&
                                          work(1,1),SIZE(work,1),&
                                          0.0_wp,hab(1,first_col),SIZE(hab,1))
@@ -1433,48 +1419,25 @@ CONTAINS
 
 !   *** Release work storage ***
 
-    IF (ppl_present) THEN
-
-      DEALLOCATE (alpha_ppl,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl")
-
-      DO ikind=1,nkind
-        NULLIFY (cexp_ppl(ikind)%c)
-      END DO
-      DEALLOCATE (cexp_ppl,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"cexp_ppl")
-
-      DEALLOCATE (ppl_radius,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"ppl_radius")
-
-      DO ikind=1,nkind
-        IF (ASSOCIATED(vppl(ikind)%r2)) THEN
-          DEALLOCATE (vppl(ikind)%r2,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"vppl(ikind)%r2")
-          DEALLOCATE (vppl(ikind)%r,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"vppl(ikind)%r")
-        END IF
+    IF (ALLOCATED(vppl)) THEN
+      DO kkind=1,nkind
+        NULLIFY (vppl(kkind)%cexp_ppl)
       END DO
       DEALLOCATE (vppl,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"vppl")
-
     END IF
 
-    IF (ppnl_present) THEN
-
-      IF (ALLOCATED(vppnl)) THEN
-        DO ikind=1,nkind
-          NULLIFY (vppnl(ikind)%alpha_ppnl)
-          NULLIFY (vppnl(ikind)%cprj)
-          NULLIFY (vppnl(ikind)%nprj_ppnl)
-          NULLIFY (vppnl(ikind)%vprj_ppnl)
-          DEALLOCATE (vppnl(ikind)%sac,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"vppnl(ikind)%sac")
-        END DO
-        DEALLOCATE (vppnl,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"vppnl")
-      END IF
-
+    IF (ALLOCATED(vppnl)) THEN
+      DO kkind=1,nkind
+        NULLIFY (vppnl(kkind)%alpha_ppnl)
+        NULLIFY (vppnl(kkind)%cprj)
+        NULLIFY (vppnl(kkind)%nprj_ppnl)
+        NULLIFY (vppnl(kkind)%vprj_ppnl)
+        DEALLOCATE (vppnl(kkind)%sac,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"vppnl(kkind)%sac")
+      END DO
+      DEALLOCATE (vppnl,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"vppnl")
     END IF
 
     DEALLOCATE (hab,STAT=istat)
@@ -1509,15 +1472,23 @@ CONTAINS
 
     END IF
 
+    DO i=1,SIZE(sint)
+      NULLIFY (sint(i)%block)
+    END DO
     DEALLOCATE (sint,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"sint")
 
     IF (build_kinetic_energy_matrix) THEN
+      DO i=1,SIZE(tint)
+        NULLIFY (tint(i)%block)
+      END DO
       DEALLOCATE (tint,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"tint")
     END IF
 
     CALL timestop(0.0_wp,handle)
+
+!   *** Print the distribution of the overlap matrix blocks ***
 
     CALL write_matrix_distribution(s(1)%matrix,globenv)
 
@@ -1564,7 +1535,7 @@ CONTAINS
     IF (globenv%print%potential_energy_matrix) THEN
       CALL allocate_matrix_set(v,1)
       CALL replicate_matrix_structure(source=h(1)%matrix,&
-                                      TARGET=v(1)%matrix,&
+                                      target=v(1)%matrix,&
                                       target_name="POTENTIAL ENERGY MATRIX")
       CALL add_matrices(v(1)%matrix,1.0_wp,h(1)%matrix,-1.0_wp,t(1)%matrix)
       CALL write_sparse_matrix(v(1)%matrix,4,6,qs_env,globenv)
