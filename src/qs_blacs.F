@@ -419,8 +419,8 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: context,icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,&
-               nprow,source,i,k,n
+    INTEGER :: context,icol_global,icol_local,ipcol,iprow,irow_local,mypcol,&
+               myprow,npcol,nprow,source,i,k,n
 
     INTEGER, DIMENSION(9) :: desca
     REAL(wp), DIMENSION(:,:), POINTER :: a
