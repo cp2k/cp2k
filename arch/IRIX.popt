@@ -1,0 +1,14 @@
+PERL     = perl
+CC       = cc
+CPP      = /usr/lib/cpp
+FC       = f90 -freeform
+FC_fixed = f90 -fixedform
+LD       = f90
+AR       = ar -r
+CPPFLAGS = -C -D__IRIX -D__parallel -D__FFTSG -D__FFTW -D__FFTSGI -P
+FCFLAGS  = -D__IRIX -D__parallel -D__FFTSG -D__FFTW -D__FFTSGI -O3 -automatic\
+           -macro_expand -u
+LDFLAGS  = $(FCFLAGS) -L/usr/local/lib
+LIBS     = -lfftw -lcomplib.sgimath -lmpi
+
+OBJECTS_ARCHITECTURE = machine_irix.o

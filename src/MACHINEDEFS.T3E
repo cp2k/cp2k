@@ -1,0 +1,21 @@
+### Machine dependent ###
+
+PERL	= perl
+CC	= cc
+CPP	= cpp
+FC	= f90 -f free
+FCfixed	= f90 -f fixed
+LDR	= f90
+
+CDEFS	= -D__T3E -D__FFTW
+
+DEBUG	= -g -R abcps -ei -m 0
+OPT	= -O3 -eIn -m 1
+#OPT	= $(DEBUG)
+BFLAGS	= $(CDEFS) -F
+FFLAGS	= $(BFLAGS) $(OPT)
+LFLAGS	= $(BFLAGS) $(OPT)
+
+LIBS	= -L${HOME}/lib -lfftw-double -L${HOME}/cplv/lapack -llapack
+
+OBJECTS_ARCHITECTURE	= machine_t3e.o

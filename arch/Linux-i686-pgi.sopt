@@ -1,0 +1,13 @@
+PERL     = perl
+CC       = cc
+CPP      = cpp
+FC       = pgf90 -Mfree
+FC_fixed = pgf90 -Mfixed
+LD       = pgf90
+AR       = ar -r
+CPPFLAGS = -C -D__PGI -D__FFTSG -P
+FCFLAGS  = -fast -D__PGI -D__FFTSG
+LDFLAGS  = $(FCFLAGS)
+LIBS     = -llapack -lblas
+
+OBJECTS_ARCHITECTURE = machine_pgi.o

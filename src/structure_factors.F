@@ -1,0 +1,150 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+
+MODULE structure_factors
+  
+  USE kinds, ONLY : dbl
+  USE mathconstants, ONLY : twopi
+  USE stop_program, ONLY : stop_memory
+  USE structure_factor_types, ONLY : structure_factor_type
+  
+  IMPLICIT NONE
+  
+  PRIVATE
+  PUBLIC :: structure_factor_evaluate, structure_factor_allocate
+  PUBLIC :: structure_factor_deallocate
+  
+CONTAINS
+
+!*****************************************************************************
+
+SUBROUTINE structure_factor_deallocate ( exp_igr )
+  
+  IMPLICIT NONE
+  
+! Arguments
+  TYPE ( structure_factor_type ), INTENT ( INOUT ) :: exp_igr
+  
+! Locals
+  INTEGER :: isos
+  
+!------------------------------------------------------------------------------
+  
+  DEALLOCATE ( exp_igr % ex, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ('ewald_polynomial', 'ex')
+  DEALLOCATE ( exp_igr % ey, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ('ewald_polynomial', 'ey')
+  DEALLOCATE ( exp_igr % ez, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ('ewald_polynomial', 'ez')
+  
+  IF ( ASSOCIATED ( exp_igr % centre ) ) THEN
+     DEALLOCATE ( exp_igr % centre, STAT = isos )
+     IF ( isos /= 0 ) CALL stop_memory ('ewald_polynomial', 'centre' )
+  END IF
+  
+END SUBROUTINE structure_factor_deallocate 
+
+!*****************************************************************************
+
+SUBROUTINE structure_factor_allocate ( bds, nparts, exp_igr, &
+                                      allocate_centre)
+  IMPLICIT NONE
+  
+! Arguments
+  TYPE ( structure_factor_type ),  INTENT ( OUT ) :: exp_igr
+  INTEGER, DIMENSION ( :, : ), INTENT ( IN ) :: bds
+  INTEGER, INTENT ( IN ) :: nparts
+  LOGICAL, INTENT ( IN ), OPTIONAL :: allocate_centre
+  
+! Locals
+  INTEGER :: isos
+  
+!------------------------------------------------------------------------------
+  
+  ALLOCATE ( exp_igr % ex ( bds ( 1, 1 ):bds ( 2, 1 ) + 1, nparts ), &
+       STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'ewald_gaussian', 'ex', 0 )
+  ALLOCATE ( exp_igr % ey ( bds ( 1, 2 ):bds ( 2, 2 ) + 1, nparts ), &
+       STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ('ewald_gaussian', 'ey', 0 )
+  ALLOCATE ( exp_igr % ez ( bds ( 1, 3 ):bds ( 2, 3 ) + 1, nparts ), &
+       STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ('ewald_gaussian', 'ez', 0 )
+  NULLIFY ( exp_igr % centre )
+
+  exp_igr % lb(1) = LBOUND ( exp_igr % ex, 1 )
+  exp_igr % lb(2) = LBOUND ( exp_igr % ey, 1 )
+  exp_igr % lb(3) = LBOUND ( exp_igr % ez, 1 )
+
+  IF ( PRESENT ( allocate_centre ) ) THEN
+    IF ( allocate_centre ) THEN
+      ALLOCATE ( exp_igr % centre ( 3, nparts ), STAT = isos )
+      IF ( isos /= 0 ) &
+           CALL stop_memory ( 'ewald_gaussian', 'centre', 3 * nparts)
+    END IF
+  END IF 
+  
+END SUBROUTINE structure_factor_allocate
+
+!*****************************************************************************
+
+SUBROUTINE structure_factor_evaluate ( delta, npts, lb, ex, ey, ez )
+  
+  IMPLICIT NONE
+  
+! Arguments
+  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: lb, npts
+  COMPLEX ( dbl ), DIMENSION ( lb(1): ), INTENT ( out ) :: ex
+  COMPLEX ( dbl ), DIMENSION ( lb(2): ), INTENT ( out ) :: ey
+  COMPLEX ( dbl ), DIMENSION ( lb(3): ), INTENT ( out ) :: ez
+  REAL ( dbl ), DIMENSION ( : ), INTENT ( in ) :: delta
+  
+! Locals
+  REAL ( dbl ) :: vec ( 3 )
+  COMPLEX ( dbl ) :: fp, fm
+  INTEGER :: l0, m0, n0, j, l1, m1, n1
+  
+!------------------------------------------------------------------------------
+  
+  l0 = LBOUND ( ex, 1 )
+  l1 = UBOUND ( ex, 1 )
+  m0 = LBOUND ( ey, 1 )
+  m1 = UBOUND ( ey, 1 )
+  n0 = LBOUND ( ez, 1 )
+  n1 = UBOUND ( ez, 1 )
+  
+! delta is in scaled coordinates
+  vec ( : ) = twopi * ( delta ( : ) + 0.5_dbl  )
+  
+  ex ( l0 ) = 1.0_dbl
+  ey ( m0 ) = 1.0_dbl
+  ez ( n0 ) = 1.0_dbl
+  ex ( l1 ) = 1.0_dbl
+  ey ( m1 ) = 1.0_dbl
+  ez ( n1 ) = 1.0_dbl
+  
+  fp = CMPLX ( COS ( vec ( 1 ) ), -SIN ( vec ( 1 ) ) ); fm = CONJG ( fp )
+  DO j = 1, -l0
+     ex (  j + l0 ) = ex (  j + l0 - 1 ) * fp
+     ex ( -j + l1 ) = ex ( -j + l1 + 1 ) * fm
+  END DO
+  
+  fp = CMPLX ( COS ( vec ( 2 ) ), -SIN ( vec ( 2 ) ) ); fm = CONJG ( fp )
+  DO j = 1, -m0
+     ey (  j + m0 ) = ey (  j + m0 - 1 ) * fp
+     ey ( -j + m1 ) = ey ( -j + m1 + 1 ) * fm
+  END DO
+  
+  fp = CMPLX ( COS ( vec ( 3 ) ), -SIN ( vec ( 3 ) ) ); fm = CONJG ( fp )
+  DO j = 1, -n0
+     ez (  j + n0 ) = ez (  j + n0 - 1 ) * fp
+     ez ( -j + n1 ) = ez ( -j + n1 + 1 ) * fm
+  END DO
+  
+END SUBROUTINE structure_factor_evaluate
+
+!*****************************************************************************
+
+END MODULE structure_factors

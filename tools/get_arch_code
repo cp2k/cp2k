@@ -1,0 +1,57 @@
+#!/bin/ksh
+
+### Aliasing of commands ###
+
+    alias echo="\echo"
+
+### No localization ###
+
+    LANG=C
+    LC_MESSAGES=C
+
+### Load informations for system identification ###
+
+    ostype=$(uname -s)
+    osversion=$(uname -v)
+    osrelease=$(uname -r)
+    machine=$(uname -m)
+
+    platform="${ostype}-${osversion}-${osrelease}-${machine}"
+
+    case $platform in
+      (AIX-*-*-*)
+        arch=$(lsattr -E -O -l proc0 | grep "enable" | cut -f2 -d":")
+        if [[ -n $arch ]]; then
+          PLATFORM="AIX-$arch"
+        else
+          PLATFORM="AIX"
+        fi;;
+      (IRIX-*-*-*)
+        PLATFORM="IRIX";;
+      (IRIX64-*-*-*)
+        PLATFORM="IRIX";;
+      (Linux-*-*-i686)
+        if [[ -n $PGI ]]; then
+          PLATFORM="Linux-i686-pgi"
+        elif [[ -d /usr/absoft ]]; then
+          PLATFORM="Linux-i686-absoft"
+        else
+          PLATFORM="Linux-i686"
+        fi;;
+      (Linux-*-*-ppc)
+        if [[ -n $PGI ]]; then
+          PLATFORM="Linux-ppc-pgi"
+        elif [[ -d /usr/absoft ]]; then
+          PLATFORM="Linux-ppc-absoft"
+        else
+          PLATFORM="Linux-ppc"
+        fi;;
+      (*-unicosmk-*-CRAY*T3E)
+        PLATFORM="CRAY-T3E";;
+      (*)
+        PLATFORM='unknown';;
+    esac
+
+    echo ${PLATFORM}
+
+### End of procedure ###

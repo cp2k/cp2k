@@ -1,0 +1,173 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+
+MODULE molecule_types
+  
+  USE kinds, ONLY : dbl
+  USE particle_types, ONLY : particle_type, particle_prop_type
+  
+  IMPLICIT NONE
+  
+  PRIVATE
+  PUBLIC :: molecule_structure_type, linklist_atoms, bond_parameters_type, &
+       linklist_bonds, bend_parameters_type, linklist_bends,  &
+       torsion_parameters_type, linklist_torsions, linklist_dist_constraints, &
+       linklist_g3x3_constraints, linklist_neighbor, linklist_exclusion, &
+       particle_node_type, localization_list, linklist_images
+  PUBLIC :: particle_type, particle_prop_type
+  PUBLIC :: molecule_type, molecule_parameter_type
+  PUBLIC :: intra_parameters_type
+  
+  TYPE linklist_images
+     REAL ( dbl ), DIMENSION(3) :: vec
+     TYPE (linklist_images), POINTER :: next
+  END TYPE linklist_images
+  
+  TYPE linklist_exclusion
+     TYPE (particle_type ), POINTER :: p
+     TYPE (linklist_exclusion), POINTER :: next
+  END TYPE linklist_exclusion
+  
+  TYPE localization_list
+     LOGICAL :: all
+     INTEGER :: nloc
+     INTEGER, DIMENSION ( : ), POINTER :: atomlist
+  END TYPE localization_list
+  
+  TYPE linklist_neighbor
+     TYPE (particle_type ), POINTER :: p
+     TYPE (linklist_images), POINTER :: image
+     INTEGER :: index, nimages
+     TYPE (linklist_neighbor), POINTER :: next
+  END TYPE linklist_neighbor
+  
+  TYPE particle_node_type
+     TYPE (particle_type ), POINTER :: p
+     INTEGER :: in_mol, iat_in_mol
+     INTEGER :: nneighbor, nexcl, nsneighbor
+     TYPE (linklist_neighbor), POINTER :: nl
+     TYPE (linklist_neighbor), POINTER :: sl
+     TYPE (linklist_exclusion), POINTER :: ex
+     TYPE (localization_list), POINTER :: llist
+  END TYPE particle_node_type
+  
+  TYPE linklist_atoms
+     TYPE (particle_node_type ), POINTER :: part
+     TYPE (linklist_atoms), POINTER :: next
+  END TYPE linklist_atoms
+  
+  TYPE bond_parameters_type
+     CHARACTER ( LEN = 20 ) :: type
+     REAL ( dbl ) :: r0, k
+  END TYPE bond_parameters_type
+  
+  TYPE linklist_bonds
+     TYPE (particle_type ), POINTER :: p1, p2
+     TYPE (bond_parameters_type ), POINTER :: bond_param
+     TYPE (linklist_bonds), POINTER :: next
+     INTEGER, DIMENSION (2) :: index
+  END TYPE linklist_bonds
+  
+  TYPE bend_parameters_type
+     CHARACTER ( LEN = 20 ) :: type
+     REAL ( dbl ) :: theta0, k
+  END TYPE bend_parameters_type
+  
+  TYPE linklist_bends
+     TYPE (particle_type ), POINTER :: p1, p2, p3
+     TYPE (bend_parameters_type ), POINTER :: bend_param
+     TYPE (linklist_bends), POINTER :: next
+     INTEGER, DIMENSION (3) :: index
+  END TYPE linklist_bends
+  
+  TYPE torsion_parameters_type
+     CHARACTER ( LEN = 20 ) :: type
+     REAL ( dbl ), DIMENSION (0:6) :: parm
+  END TYPE torsion_parameters_type
+  
+  TYPE linklist_torsions
+     TYPE (particle_type ), POINTER :: p1, p2, p3, p4
+     TYPE (torsion_parameters_type ), POINTER :: torsion_param
+     TYPE (linklist_torsions), POINTER :: next
+     INTEGER, DIMENSION (4) :: index
+  END TYPE linklist_torsions
+  
+  TYPE linklist_dist_constraints
+     TYPE (particle_type ), POINTER :: p1, p2
+     REAL ( dbl ), POINTER :: distance
+     REAL ( dbl ) :: del_lam, lambda, sigma
+     REAL ( dbl ), DIMENSION (3) :: rold1, rold2, fc
+     REAL ( dbl ) :: scale, scale_old
+     TYPE (linklist_dist_constraints), POINTER :: next
+  END TYPE linklist_dist_constraints
+  
+  TYPE linklist_g3x3_constraints
+     TYPE (particle_type ), POINTER :: p1, p2, p3
+     REAL ( dbl ), POINTER :: d12, d13, d23
+     REAL ( dbl ), DIMENSION(3) :: fc1, fc2, fc3
+     REAL ( dbl ), DIMENSION(3) :: lambda, del_lam
+     REAL ( dbl ), DIMENSION(3) :: rold1, rold2, rold3
+     REAL ( dbl ), DIMENSION(3) :: vold1, vold2, vold3
+     REAL ( dbl ), DIMENSION(3) :: v1, v2, v3
+     REAL ( dbl ) :: scale, scale_old
+     TYPE (linklist_g3x3_constraints), POINTER :: next
+  END TYPE linklist_g3x3_constraints
+  
+  TYPE intra_parameters_type
+     TYPE (bond_parameters_type ), POINTER :: bond_param ( :, : )
+     TYPE (bend_parameters_type ), POINTER :: bend_param(:,:,:)
+     TYPE (torsion_parameters_type ), POINTER :: torsion_param(:,:,:,:)
+     REAL ( dbl ), POINTER :: constraint_distance ( :, : )
+  END TYPE intra_parameters_type
+  
+  TYPE molecule_parameter_type
+     CHARACTER ( LEN = 20 ) :: name
+     INTEGER :: natom
+     INTEGER :: natom_type
+     CHARACTER ( LEN = 20 ), POINTER :: aname ( : )
+     CHARACTER ( LEN = 20 ), POINTER :: alabel ( : )
+     REAL ( dbl ), POINTER :: aweight ( : )
+     REAL ( dbl ), POINTER :: acharge ( : )
+     INTEGER :: nbonds
+     INTEGER, POINTER :: bonds ( :, : )
+     INTEGER :: nbends
+     INTEGER, POINTER :: bends ( :, : )
+     INTEGER :: ntorsions
+     INTEGER, POINTER :: torsions ( :, : )
+     INTEGER :: ndcon
+     INTEGER, POINTER :: ndc ( :, : )
+     INTEGER :: n3x3con
+     INTEGER, POINTER :: n3x3c ( :, : )
+  END TYPE molecule_parameter_type
+  
+  TYPE molecule_type
+     CHARACTER ( LEN = 20 ) :: file_name
+     INTEGER :: num_mol
+     CHARACTER ( LEN = 20 ) :: nhcopt
+     TYPE ( molecule_parameter_type ) :: molpar
+  END TYPE molecule_type
+  
+  TYPE molecule_structure_type
+     CHARACTER ( LEN = 30 ) :: mol_name ! name of molecule
+     INTEGER :: moltype ! pointer to molecular type
+     INTEGER :: imol ! position counter
+     INTEGER :: atombase ! position counter of first atom in molecule
+     INTEGER :: natoms_mol ! # of atoms in molecule
+     INTEGER :: nvt_num ! thermostat number that it is connected. 
+! Used for constraints 
+     TYPE (linklist_atoms), POINTER :: ll_atoms
+     INTEGER :: nbonds_mol ! # of bonds in molecule
+     TYPE (linklist_bonds), POINTER :: ll_bonds
+     INTEGER :: nbends_mol ! # of bends in molecule
+     TYPE (linklist_bends), POINTER :: ll_bends
+     INTEGER :: ntorsions_mol ! # of torsions in molecule
+     TYPE (linklist_torsions), POINTER :: ll_torsions
+     INTEGER :: ndistconst_mol ! # of distance constraints in molecule
+     TYPE (linklist_dist_constraints), POINTER :: ll_dist_const
+     INTEGER :: ng3x3const_mol ! # of 3x3 group constraints in molecule
+     TYPE (linklist_g3x3_constraints), POINTER :: ll_g3x3_const
+  END TYPE molecule_structure_type
+  
+END MODULE molecule_types

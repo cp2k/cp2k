@@ -1,0 +1,21 @@
+### Machine dependent ###
+
+PERL	= perl
+CC	= cc
+CPP	= cpp
+FC	= pgf90 -Mfree
+FCfixed	= pgf90 -Mfixed
+LDR	= pgf90
+
+CDEFS	= -D__PGI -D__FFTW
+
+DEBUG	= -g -C
+OPT	= $(DEBUG) -O
+#OPT	= -O2 -Mvect -fast
+BFLAGS	= $(CDEFS)
+FFLAGS	= $(BFLAGS) $(OPT)
+LFLAGS	= $(BFLAGS) $(OPT)
+
+LIBS	= -llapack -lblas -L${HOME}/lib -lfftw-double
+
+OBJECTS_ARCHITECTURE	= machine_pgi.o

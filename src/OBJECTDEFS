@@ -1,0 +1,27 @@
+OBJECTS_GENERIC	= \
+atoms_input.o coefficients.o coefficient_types.o \
+constraint.o convert_units.o dgs.o dg_rho0s.o dg_types.o \
+dump.o cp2k.o cp2k_input.o environment.o \
+eigenvalueproblems.o global_types.o header.o kinds.o \
+ewalds.o ewald_parameters_types.o \
+fft_tools.o fist.o fist_debug.o fist_global.o fist_input.o \
+fist_force.o fist_force_numer.o \
+fist_intra_force.o fist_nonbond_force.o force_control.o \
+force_fields.o integrator.o input_types.o \
+initialize_particle_types.o initialize_molecule_types.o \
+initialize_extended_types.o io_parameters.o lapack.o \
+linklists.o linklist_control.o linklist_cell_types.o \
+linklist_cell_list.o linklist_utilities.o \
+linklist_verlet_list.o machine.o mathconstants.o \
+mol_force.o molecule_types.o molecule_input.o md.o \
+mp.o nhc.o nose.o pair_potential.o particle_lists.o \
+particle_types.o periodic_table.o parallel.o \
+parallel_include.o parser.o physcon.o pme.o \
+pws.o pw_types.o pw_grids.o pw_grid_types.o \
+simulation_cell.o splines.o stop_program.o \
+string_utilities.o \
+structure_factors.o structure_factor_types.o \
+structure_types.o timesl.o \
+tbmd.o tbmd_debug.o tbmd_force.o tbmd_global.o tbmd_input.o \
+tbmd_types.o \
+timings.o unit.o util.o erf_fn.o

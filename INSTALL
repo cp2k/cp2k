@@ -1,0 +1,86 @@
+
+How to compile CP2K code
+========================
+
+ 1) Extract the archive file:
+
+# gtar zxvf cp2k.tar.gz
+
+or if you do not have GNU tar
+
+# gzip -cd cp2k.tar.gz | tar xvf -
+
+This extract the contents of the archive into the directory ./CP2K; please be
+careful not to overwrite things in there if it already exists
+
+ 2) Go to 'CP2K/tools' and do a 'make' (or 'gmake'); this compiles you an
+executable which will be used when compiling the main source of CP2K
+
+ 3) Go to '../src'; see if there is a suitable file with definitions of the
+architecture:
+
+# machine (~/CP2K/src) : ls -lF ../arch/AIX-POWER2.popt 
+# -rw-r--r--   1 aps      users        464 Mar  9 15:08 ../arch/AIX-POWER2.popt
+
+If your architecture is not present you might have to make a small effort;
+please contact us in you need help. A rather generic FFT, 'FFTW'
+(http://www.fftw.org/) has been interfaced already to the present version
+
+  Define the CP2KHOME in Makefile to be the path to the directory of CP2K
+
+ 4) You most likely need GNU make:
+
+# gmake
+
+If you do not have 'gmake' some tricks have to be made; please contact us in
+you need help
+
+  We have seen problems in SGI with the MIPSpro 7.2.1 compiler; the
+pre-processor does not work as expected. Please contact us for help, or you
+could try by inter-changing the lines of the compilation and pre-processing
+and changing *.F to *.f for the compilation
+
+  You can compile different version by typing e.g.
+
+# gmake popt
+
+"p" stands for parallel (alternatively "s" = serial)
+"opt" means to buil an optimised version (alternatively "dbg" = debugging)
+
+  We have seen some problems in the compilation with PGI on a linux machine:
+In some machines it works, in some not
+
+  In Cray T3E there are some missing routines. Please contact us if you want
+to try out CP2K on a T3E
+
+  On DEC alpha's the pre-processors works somewhat differently than in the
+other architectures; please contact us for help if you want to compile on a
+DEC alpha/OSF1
+
+ 5) The compilation hopefully finishes and you can try it:
+
+# ../AIX-POWER2/cp2k.popt
+#   **** **** ******  **  PROGRAM STARTED AT              Tue Mar 20 18:50:45 2001
+  ...
+
+# No input section &CP2K found 
+ ...
+
+Congratulations, the binary is running!!!
+
+ 6) You can go into one of the test cases and try out the executable
+
+# cd ../tests/Argon
+# ln -s ../../src/cp2k.x .
+# ./cp2k.x input
+
+It hopefully runs now
+
+ 7) In any case please tell us your comments, praise, criticism, thanks, ...
+You can join our mailing lists by sending e-mail to the address below
+
+ 8) Happy computing!
+
+--
+cp2k@prr.mpi-stuttgart.mpg.de
+20. III AD 2001

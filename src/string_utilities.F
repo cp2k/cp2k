@@ -1,0 +1,209 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+
+MODULE string_utilities
+
+! Purpose: Utilities for string manipulations.
+
+! *****************************************************************************
+
+! Index:
+
+! SUBROUTINE compress(string)
+! SUBROUTINE uppercase(string)
+
+! *****************************************************************************
+
+  IMPLICIT NONE
+
+  PRIVATE
+
+  PUBLIC :: compress,uppercase,xstring,str_search,str_comp,make_tuple
+
+! *****************************************************************************
+
+CONTAINS
+
+! *****************************************************************************
+
+!   Purpose: Eliminate multiple space characters in a string.
+!   History: - Creation (23.06.1998, Matthias Krack)
+
+SUBROUTINE compress ( string )
+  
+  IMPLICIT NONE
+  
+  CHARACTER ( LEN = * ), INTENT ( INOUT ) :: string
+  
+! Locals
+  
+  INTEGER :: i, z
+
+!------------------------------------------------------------------------------
+
+  z = 1
+
+  DO i=1,LEN_TRIM(string)
+     IF (z == 1) THEN
+        IF (string(i:i) /= " ") THEN
+           string(z:z) = string(i:i)
+           z = z + 1
+        END IF
+     ELSE
+        IF ((string(i:i) /= " ").OR.(string(z-1:z-1) /= " ")) THEN
+           string(z:z) = string(i:i)
+           z = z + 1
+        END IF
+     END IF
+  END DO
+
+  string(z:) = ""
+
+END SUBROUTINE compress
+
+!******************************************************************************
+
+!   Purpose: Convert all lower case characters in a string to upper case.
+!   History: - Creation (22.06.1998, Matthias Krack)
+
+SUBROUTINE uppercase ( string )
+  
+  IMPLICIT NONE
+  
+  CHARACTER ( LEN = * ), INTENT ( INOUT ) :: string
+  
+! Locals
+  INTEGER :: i, iascii
+  
+!------------------------------------------------------------------------------
+  
+  DO i = 1, LEN_TRIM ( string )
+     iascii = ICHAR ( string (i:i) )
+     IF ( ( iascii >= 97 ) .AND. ( iascii <= 122 ) ) THEN
+        string ( i:i ) = CHAR ( iascii - 32 )
+     END IF
+  END DO
+  
+END SUBROUTINE uppercase
+
+!******************************************************************************
+
+SUBROUTINE xstring(string,ia,ib)
+  
+  IMPLICIT NONE
+  
+  CHARACTER ( LEN = * ), INTENT ( IN ) :: string
+  INTEGER, INTENT ( OUT ) :: ia, ib
+  
+!------------------------------------------------------------------------------
+  
+  ia = 1
+  ib = len_trim(string)
+  IF (ib>0) THEN
+     DO WHILE (string(ia:ia)==' ')
+        ia = ia + 1
+     END DO
+  END IF
+  
+END SUBROUTINE xstring
+
+!******************************************************************************
+
+SUBROUTINE make_tuple(int,nt,na,tuple)
+  IMPLICIT NONE
+  INTEGER, INTENT ( IN ) :: int ( :, : ), nt, na
+  INTEGER :: i, nm
+  CHARACTER ( LEN = * ), INTENT ( OUT ) :: tuple ( : )
+
+  nm = maxval(int(1:nt,1:na))
+  SELECT CASE (nt)
+  CASE DEFAULT
+     STOP 'make_tuple: case not programmed'
+  CASE (1)
+     IF (nm<100) THEN
+        DO i = 1, na
+           WRITE (tuple(i),'(A,I2,A )' ) '[', int(1,i), ']'
+        END DO
+     ELSE
+        DO i = 1, na
+           WRITE (tuple(i),'(A,I4,A )' ) '[', int(1,i), ']'
+        END DO
+     END IF
+  CASE (2)
+     IF (nm<100) THEN
+        DO i = 1, na
+           WRITE (tuple(i),'(A,I2,A,I2,A )' ) '[', int(1,i), '-', int(2,i), &
+                ']'
+        END DO
+     ELSE
+        DO i = 1, na
+           WRITE (tuple(i),'(A,I4,A,I4,A )' ) '[', int(1,i), '-', int(2,i), &
+                ']'
+        END DO
+     END IF
+  CASE (3)
+     IF (nm<100) THEN
+        DO i = 1, na
+           WRITE (tuple(i),'(A,I2,A,I2,A,I2,A )' ) '[', int(1,i), '-', &
+                int(2,i), '-', int(3,i), ']'
+        END DO
+     ELSE
+        DO i = 1, na
+           WRITE (tuple(i),'(A,I4,A,I4,A,I4,A )' ) '[', int(1,i), '-', &
+                int(2,i), '-', int(3,i), ']'
+        END DO
+     END IF
+  CASE (4)
+     IF (nm<100) THEN
+        DO i = 1, na
+           WRITE (tuple(i),'(A,I2,A,I2,A,I2,A,I2,A )' ) '[', int(1,i), '-', &
+                int(2,i), '-', int(3,i), '-', int(4,i), ']'
+        END DO
+     ELSE
+        DO i = 1, na
+           WRITE (tuple(i),'(A,I4,A,I4,A,I4,A,I4,A )' ) '[', int(1,i), '-', &
+                int(2,i), '-', int(3,i), '-', int(4,i), ']'
+        END DO
+     END IF
+  END SELECT
+  
+END SUBROUTINE make_tuple
+
+!******************************************************************************
+
+FUNCTION str_comp(str1,str2) RESULT (equal)
+  IMPLICIT NONE
+  CHARACTER ( LEN = * ), INTENT ( IN ) :: str1, str2
+  LOGICAL equal
+  INTEGER :: i1, i2, j1, j2
+
+  i1 = 0
+  i2 = 0
+  j1 = 0
+  j2 = 0
+  CALL xstring(str1,i1,i2)
+  CALL xstring(str2,j1,j2)
+  equal = (str1(i1:i2)==str2(j1:j2))
+END FUNCTION str_comp
+
+!******************************************************************************
+
+FUNCTION str_search(str1,n,str2) RESULT (pos)
+  CHARACTER ( LEN = * ), INTENT ( IN ) :: str1 ( : ), str2
+  INTEGER, INTENT ( IN ) :: n
+  INTEGER :: pos, i
+
+  pos = 0
+  DO i = 1, n
+     IF (str_comp(str1(i),str2)) THEN
+        pos = i
+        EXIT
+     END IF
+  END DO
+END FUNCTION str_search
+
+!******************************************************************************
+
+END MODULE string_utilities

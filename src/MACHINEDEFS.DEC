@@ -1,0 +1,21 @@
+### Machine dependent ###
+
+PERL	= perl
+CC	= cc
+CPP	= cpp
+FC	= f95 -free
+FCfixed	= f95 -fixed
+LDR	= f95
+
+CDEFS	= -D__DEC -D__FFTW
+
+DEBUG	= -g -C
+#OPT     = -w0 -O5 -fast -ansi_alias -ansi_args -fp_reorder -tune host -std1
+OPT	= -g -C
+BFLAGS	= -u $(CDEFS) -automatic
+FFLAGS	= $(BFLAGS) $(OPT)
+LFLAGS	= $(BFLAGS) $(OPT)
+
+LIBS	= -ldxml -L${HOME}/lib -lfftw-double
+
+OBJECTS_ARCHITECTURE	= machine_dec.o
