@@ -119,8 +119,7 @@ CONTAINS
     IF (stat /= 0) CALL stop_memory(routineP, "psi0d", n_spins)
 
     DO spin=1, n_spins
-       CALL get_mo_set(qs_env%C(spin)%mo_set, eigenvectors=eigenvectors)
-       psi0d(spin)%matrix => eigenvectors
+       CALL get_mo_set(qs_env%C(spin)%mo_set, eigenvectors=psi0d(spin)%matrix)
     END DO
 
     CALL p_env_init(p_env, qs_env, kpp1_env, glob_env, &
@@ -128,6 +127,9 @@ CONTAINS
 
     CALL tddfpt_env_allocate(t_env, p_env, n_ev, glob_env)
     CALL tddfpt_env_init(t_env, p_env, n_ev, glob_env)
+
+    DEALLOCATE(psi0d, stat=stat)
+    IF (stat /= 0) CALL stop_memory(routineP, "psi0d")
 
   END SUBROUTINE tddfpt_init
 
