@@ -22,6 +22,7 @@ MODULE constraint
   USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
+  USE linear_systems, ONLY : solve_system
   USE md, ONLY : simulation_parameters_type, virial_type
   USE molecule_types, ONLY : molecule_structure_type, &
        linklist_dist_constraints, linklist_g3x3_constraints, &
@@ -70,6 +71,11 @@ SUBROUTINE shake_control(molecule,simpar)
         CALL shake_3x3(molecule(imol),simpar,ishake)
      END IF
 
+! 4x6
+     IF (molecule(imol)%ng4x6const_mol /= 0 ) THEN
+        CALL shake_4x6(molecule(imol),simpar,ishake)
+     END IF
+
      ishake = 0
 
 ! dist
@@ -112,6 +118,11 @@ SUBROUTINE rattle_control ( molecule, simpar )
 ! 3x3
      IF ( molecule ( imol ) % ng3x3const_mol /= 0 ) THEN
         CALL rattle_3x3 ( molecule ( imol ), simpar )
+     END IF
+
+! 4x6
+     IF ( molecule ( imol ) % ng4x6const_mol /= 0 ) THEN
+        CALL rattle_4x6 ( molecule ( imol ), simpar )
      END IF
      irattle = 0
 
