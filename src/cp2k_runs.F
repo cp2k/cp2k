@@ -141,7 +141,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: input_file, glob_section
     TYPE(cp_parser_type), pointer :: parser
     TYPE(cp_para_env_type), pointer :: para_env
-    LOGICAL :: failure, echo_input
+    LOGICAL :: failure, echo_input, I_was_ionode
 
     ! -----------------------------------------------------------------------------
     cp2k_run_OK = .FALSE.
@@ -282,12 +282,13 @@ CONTAINS
     END IF
     CALL cp_error_dealloc_ref(error)
 
+    I_was_ionode=globenv%ionode
     CALL cp2k_finalize(globenv)
     CPPostconditionNoFail(globenv%ref_count==1,cp_failure_level,routineP,error)
     CALL globenv_release(globenv)
     CALL cp_para_env_release(para_env)
 #if defined(__HMD)
-    IF (globenv%ionode) CALL _dump_allocated(%VAL(0))
+    IF (I_was_ionode) CALL _dump_allocated(%VAL(0))
 #endif
     cp2k_run_OK = .NOT. failure
   
