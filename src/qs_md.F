@@ -56,6 +56,7 @@ MODULE qs_md
                                              topology_type
   USE particle_types,                  ONLY: particle_prop_type,&
                                              particle_type
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_energy,                       ONLY: qs_energies
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -127,6 +128,9 @@ CONTAINS
     TYPE(virial_type), POINTER                           :: virial
     REAL(wp), POINTER                                    :: constant
     INTEGER, POINTER                                     :: itimes
+    REAL(wp)                                             :: ekin
+    INTEGER                                              :: i,nnodes
+    TYPE(qs_energy_type), POINTER                                 :: energy
 
     INTEGER :: handle,istat,natom,nmolecule
 
@@ -140,6 +144,7 @@ CONTAINS
     NULLIFY (mol_setup)
     NULLIFY (pnode)
     NULLIFY (pstat)
+    NULLIFY (energy)
 
     ALLOCATE (simpar,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"simpar",0)
@@ -167,14 +172,16 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     cell=cell,&
-                    particle_set=particle_set)
+                    particle_set=particle_set,energy=energy)
 
+    ! is not supposed to be working in parallel case !
+    IF (globenv%num_pe .ne. 1) CALL stop_program("qs_md","MD not parallel")
     natom = SIZE(particle_set)
 
     ALLOCATE (pnode(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"pnode",int_size*natom)
 
-    nmolecule = SIZE(mol_setup)
+    nmolecule = SUM(mol_setup(:)%num_mol)
 
     ALLOCATE (molecule(nmolecule),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"molecule",int_size*nmolecule)
@@ -195,6 +202,20 @@ CONTAINS
 
     CALL initialize_npt_type(simpar,globenv,extended_type%npt_info,cell)
 
+
+! JV : NOTICE THIS KIND OF HACK ....
+! GT: !!WARNING!!
+! This is only a temporary setup
+! A general fix of the working units is needed !!
+!JV  box%unit_of_length_name = "BOHR"
+!JV  box%unit_of_length = 1.0_dbl
+!JV  box%scaled_coordinates = .FALSE.
+  do i=1,size(particle_set)
+    particle_set(i)%prop%mass = units%mconv*particle_set(i)%prop%mass
+  end do
+!tmp
+
+
     IF ((simpar%read_type == "POS").OR.&
         (simpar%read_type == "INIT")) THEN
       CALL initialize_velocities(simpar,particle_set,globenv)
@@ -206,7 +227,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,"struc",0)
     CALL init_structure_type(struc(1))
     struc(1)%pnode => pnode
-    struc(1)%part => particle_set
+    struc(1)%part =>  particle_set
 
     CALL init_md_env(md_env)
 
@@ -233,7 +254,17 @@ CONTAINS
 
     DO itimes=1,md_env%simpar%nsteps
       PRINT*,"Step: :",itimes," of ",md_env%simpar%nsteps
+
       CALL velocity_verlet(md_env)
+
+      nnodes = SIZE ( pnode)
+      ekin=0.0_wp
+      DO i = 1, nnodes
+           ekin = ekin + 0.5_dbl*pnode(i)%p%prop%mass*( &
+           pnode(i)%p%v(1)*pnode(i)%p%v(1)+pnode(i)%p%v(2)* &
+           pnode(i)%p%v(2)+pnode(i)%p%v(3)*pnode(i)%p%v(3))
+      END DO
+      write(6,'(A,3F20.12)') "XXXXXXXXXXXXXXXX EKIN,EPOT,TOTAL ",ekin,energy%total,energy%total+ekin
     END DO
 
     CALL timestop(0.0_wp,handle)
