@@ -2,23 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000-2003  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
-
-#include "cp_prep_globals.h"
-
 !!****s* cp2k/mc_environment_types [1.0] *
 !!
 !!   NAME
 !!     mc_environment_types
 !!
 !!   FUNCTION
+!!     contains the subroutines for dealing with the mc_env
 !!
 !!   AUTHOR
 !!     MJM Oct. 15-2003
 !!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
 !******************************************************************************
+
+#include "cp_prep_globals.h"
 
 MODULE mc_environment_types
   USE cp_error_handling,               ONLY: cp_a_l,&
@@ -29,8 +26,7 @@ MODULE mc_environment_types
                                              cp_to_string
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
-  USE cp_para_types,                   ONLY: cp_para_env_type,&
-                                             cp_blacs_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE force_env_types,                 ONLY: force_env_release,&
                                              force_env_retain,&
                                              force_env_type
@@ -46,7 +42,6 @@ MODULE mc_environment_types
      TYPE (cp_para_env_type), POINTER :: para_env 
      TYPE ( mc_simulation_parameters_type ), POINTER :: mc_par
      TYPE ( force_env_type ), POINTER :: force_env  
-     TYPE ( cp_blacs_env_type ), POINTER :: blacs_env  
   END TYPE mc_environment_type
 
 ! *** Public subroutines and data types ***
@@ -64,36 +59,30 @@ MODULE mc_environment_types
 CONTAINS
 
 ! *****************************************************************************
-
-  SUBROUTINE get_mc_env ( mc_env, mc_par, force_env, blacs_env)
-
-!   Purpose: Get the integrator environment...works differently than
-!            set_mc_env
-
-!   ***************************************************************************
-
-    TYPE(mc_environment_type), INTENT(IN)    :: mc_env
-    TYPE(mc_simulation_parameters_type), &
-      OPTIONAL, POINTER                      :: mc_par
-    TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
-    TYPE(cp_blacs_env_type), OPTIONAL, &
-      POINTER                                :: blacs_env
-
-!   ---------------------------------------------------------------------------
-
-    IF ( PRESENT ( mc_par ) ) mc_par => mc_env % mc_par
-    IF ( PRESENT ( force_env ) ) force_env => mc_env % force_env
-    IF ( PRESENT ( blacs_env ) ) blacs_env => mc_env % blacs_env
-
-  END SUBROUTINE get_mc_env
-
-! *****************************************************************************
-
+!!****s* mc_environment_types.F/mc_env_create
+!!
+!!   NAME
+!!     mc_env_create
+!!
+!!   SYNOPSIS
+!!     Subroutine mc_env_create ( mc_env, para_env, error )
+!!       Type(mc_env_type), Pointer :: mc_env
+!!       Type(cp_para_env_type), Pointer :: para_env
+!!     End Subroutine mc_env_create
+!!
+!!   FUNCTION
+!!     creates and initializes an mc_env
+!!
+!!   ARGUMENTS
+!!     - mc_env: the mc_environment you want to create
+!!     - para_env: the cp para environment type you want to associate with
+!!                 this mc_env
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!**************************************************************************
   SUBROUTINE mc_env_create ( mc_env, para_env, error )
-
-!   Purpose: Initialise the integrator environment.
-!   retain the para_env for this environment (should be used for parallel
-!   communications)
 
 !   ***************************************************************************
 
@@ -119,7 +108,6 @@ CONTAINS
 
     NULLIFY ( mc_env % mc_par )
     NULLIFY ( mc_env % force_env )
-    NULLIFY ( mc_env % blacs_env )
     mc_env % para_env => para_env 
     CALL cp_para_env_retain ( mc_env % para_env )
 
@@ -127,21 +115,46 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_mc_env ( mc_env, mc_par, force_env, blacs_env )
-
-!   Purpose: Set the integrator environment to the correct program.
-
+! *****************************************************************************
+!!****s* mc_environment_types.F/set_mc_env
+!!
+!!   NAME
+!!     set_mc_env
+!!
+!!   SYNOPSIS
+!!     Subroutine set_mc_env ( mc_env, mc_par, force_env)
+!!       Type(mc_env_type), Pointer :: mc_env
+!!       Type(mc_simulation_parameters_type), Pointer,Optional:: mc_par
+!!       Type(force_env_type), Pointer,Optional:: force_env
+!!       Type(cp_para_env_type), Pointer,Optional:: para_env
+!!     End Subroutine set_mc_env
+!!
+!!   FUNCTION
+!!     provides a method for attaching various structures to an mc_env
+!!
+!!   ARGUMENTS
+!!     - mc_env: the mc_environment you want to change
+!!     - mc_par: the mc parameters you want to associate with this mc_env
+!!     - force_env: the force environment type you want to associate
+!!                  with this mc_env
+!!     - para_env: the cp para environment type you want to associate
+!!                 with this mc_env
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!**************************************************************************
+  SUBROUTINE set_mc_env ( mc_env,mc_par,force_env,para_env)
 
 !   ***************************************************************************
-    TYPE(mc_environment_type), INTENT(INOUT)   :: mc_env
+    TYPE(mc_environment_type), POINTER   :: mc_env
+    TYPE(cp_para_env_type), POINTER,OPTIONAL :: para_env
     TYPE(mc_simulation_parameters_type), &
       OPTIONAL, POINTER                      :: mc_par
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
-    TYPE(cp_blacs_env_type), OPTIONAL, &
-      POINTER                                :: blacs_env
 
     IF ( PRESENT ( mc_par ) ) mc_env % mc_par => mc_par
-    IF ( PRESENT ( blacs_env ) ) mc_env % blacs_env => blacs_env
+    IF ( PRESENT ( para_env ) ) mc_env % para_env => para_env
     IF ( PRESENT ( force_env )) THEN
        CALL force_env_retain( force_env ) ! accept null pointers?
        IF (ASSOCIATED(mc_env % force_env ))  &
@@ -152,6 +165,53 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
   END SUBROUTINE set_mc_env
+
+! *****************************************************************************
+!!****s* mc_environment_types.F/get_mc_env
+!!
+!!   NAME
+!!     get_mc_env
+!!
+!!   SYNOPSIS
+!!     Subroutine get_mc_env ( mc_env, mc_par, force_env)
+!!       Type(mc_env_type), Pointer :: mc_env
+!!       Type(mc_simulation_parameters_type), Pointer,Optional:: mc_par
+!!       Type(force_env_type), Pointer,Optional:: force_env
+!!       Type(cp_para_env_type), Pointer,Optional:: para_env
+!!     End Subroutine get_mc_env
+!!
+!!   FUNCTION
+!!     provides a method for getting the various structures attached
+!!     to an mc_env
+!!
+!!   ARGUMENTS
+!!     - mc_env: the mc_environment you want to get information on
+!!     - mc_par: the mc parameters you want to point to the parameters
+!!               associated with this mc_env
+!!     - force_env: the force environment type you want to point to the
+!!               force environment associated with this mc_env
+!!     - para_env: the cp para environment type you want to point to the
+!!               para environment associated with this mc_env
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!**************************************************************************
+  SUBROUTINE get_mc_env ( mc_env, mc_par, force_env, para_env)
+
+    TYPE(mc_environment_type), POINTER    :: mc_env
+    TYPE(cp_para_env_type), POINTER,OPTIONAL        :: para_env
+    TYPE(mc_simulation_parameters_type), &
+      OPTIONAL, POINTER                      :: mc_par
+    TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
+
+!   ---------------------------------------------------------------------------
+
+    IF ( PRESENT ( mc_par ) ) mc_par => mc_env % mc_par
+    IF ( PRESENT ( force_env ) ) force_env => mc_env % force_env
+    IF ( PRESENT ( para_env ) ) para_env => mc_env % para_env
+
+  END SUBROUTINE get_mc_env
 
 ! *****************************************************************************
 !***************************************************************************
@@ -180,9 +240,6 @@ CONTAINS
 !!
 !!   AUTHOR
 !!     MJM
-!!
-!!   MODIFICATION HISTORY
-!!     02.2004 created [MJM]
 !!
 !!*** **********************************************************************
 SUBROUTINE mc_env_retain(mc_env, error)
@@ -229,9 +286,6 @@ END SUBROUTINE mc_env_retain
 !!
 !!   AUTHOR
 !!     MJM
-!!
-!!   MODIFICATION HISTORY
-!!     02.2004 created [MJM]
 !!
 !!*** **********************************************************************
 SUBROUTINE mc_env_release(mc_env, error)

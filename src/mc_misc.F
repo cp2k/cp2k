@@ -2,20 +2,17 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/mc [1.0] *
+!!****** cp2k/mc_misc [1.0] *
 !!
 !!   NAME
 !!     mc_misc
 !!
 !!   FUNCTION
-!!
+!!     contains miscellaneous subroutines used in the Monte Carlo runs
+!! 
 !!   AUTHOR
 !!     MJM
 !!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
 !******************************************************************************
 
 MODULE mc_misc
@@ -56,30 +53,33 @@ MODULE mc_misc
 CONTAINS
 
 !******************************************************************************
-!!****** mc/init_mc_averages [1.0] *
+!!****** mc_misc.F/init_mc_averages*
 !!
 !!   NAME
 !!     init_mc_averages
 !!
 !!   SYNOPSIS
+!!     Subroutine init_mc_averages ( averages )
+!!       Type(mc_averages_type), Pointer :: averages
+!!     End Subroutine init_mc_averages
 !!
 !!   FUNCTION
-!!     initializes the array that holds running averages of variables
+!!     initializes the structure that holds running averages of MC variables
+!!
+!!   ARGUMENTS
+!!     - averages: the mc_averages strucutre you want to initialize
+!!
 !!   AUTHOR
 !!     MJM
 !!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   NOTES
-!!*** ************************************************************************
+!!****************************************************************************
 
 SUBROUTINE init_mc_averages ( averages  )
 
 
     TYPE(mc_averages_type), POINTER          :: averages
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_mc_averages"
+    CHARACTER(LEN=*), PARAMETER      :: routineN = "init_mc_averages"
 
     INTEGER                                  :: handle, stat
 
@@ -107,16 +107,32 @@ SUBROUTINE init_mc_averages ( averages  )
 END SUBROUTINE init_mc_averages
 
 !******************************************************************************
-!!****** mc/get_water_data [1.0] *
+!!****** mc_misc.F/get_water_data *
 !!
 !!   NAME
 !!     get_water_data
 !!
 !!   SYNOPSIS
+!!     Subroutine get_water_data (force_env,averages,nnstep,nchain,data)
+!!       Type(force_env_type), Pointer            :: force_env
+!!       Type(mc_averages_type), Pointer          :: averages
+!!       Integer, Intent(IN)                      :: nnstep
+!!       Integer, Intent(IN)                      :: nchain
+!!       Integer, Intent(IN)                      :: data
+!!     End Subroutine get_water_data
 !!
 !!   FUNCTION
-!!     gets the running average of both bond lenths and the bond
-!!     angle of one water molecule in the system
+!!     gets the running average of both bond lengths and the bond
+!!     angle for every water molecule in the system
+!!
+!!   ARGUMENTS
+!!     - force_env: the force_env you want to get information on
+!!     - averages: the mc_averages structure to store the information
+!!     - nnstep: the number of times this these averages have been
+!!               done (including this one)
+!!     - nchain: the number of molecules in this force_env
+!!     - data: the unit to write the data to
+!!
 !!   AUTHOR
 !!     MJM
 !!
@@ -253,18 +269,18 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
                    '***************************'
     WRITE(iw,'(A,T66,F15.8)') " Average Energy [Hartrees]:", &
                 averages%ave_energy
-    IF (averages%ave_energy_squared-averages%ave_energy**2 .LT. 0.0_dp) THEN
-       WRITE(iw,'(A,T66,E15.8)') " Energy Fluctuation [Hartrees]: IMAGINARY PART ", &
-         DSQRT(abs(averages%ave_energy_squared-averages%ave_energy**2))
-    ELSE
-      WRITE(iw,'(A,T66,E15.8)') " Energy Fluctuation [Hartrees]:", &
-            DSQRT(averages%ave_energy_squared-averages%ave_energy**2)
-    ENDIF
-    ! XXXXXXXXXXXXXxx do not use hand coded constants all available (physcon, units, ...)
- !    WRITE(iw,'(A,A,T66,F15.8)') " Heat Capacity at ",&
-  !         "constant volume [J/mol/K]",&
-   !        DSQRT(averages%ave_energy_squared-averages%ave_energy**2)&
-    !       *(4.3597482d-18)**2/(mc_par%temp)**2/1.380658d-23*6.022d23
+!    IF (averages%ave_energy_squared-averages%ave_energy**2 .LT. 0.0_dp) THEN
+!       WRITE(iw,'(A,T66,E15.8)') " Energy Fluctuation [Hartrees]: IMAGINARY PART ", &
+!         DSQRT(abs(averages%ave_energy_squared-averages%ave_energy**2))
+!    ELSE
+!      WRITE(iw,'(A,T66,E15.8)') " Energy Fluctuation [Hartrees]:", &
+!            DSQRT(averages%ave_energy_squared-averages%ave_energy**2)
+!    ENDIF
+!     XXXXXXXXXXXXXxx do not use hand coded constants all available (physcon, units, ...)
+!     WRITE(iw,'(A,A,T66,F15.8)') " Heat Capacity at ",&
+!           "constant volume [J/mol/K]",&
+!           DSQRT(averages%ave_energy_squared-averages%ave_energy**2)&
+!           *(4.3597482d-18)**2/(mc_par%temp)**2/1.380658d-23*6.022d23
     WRITE(iw,'(A,T66,F15.8)') " Average O-H distance 1 [angstroms]:",&
                    averages%bond1*0.529177d0
     WRITE(iw,'(A,T66,F15.8)') " Average O-H distance 2 [angstroms]:",&
@@ -298,17 +314,39 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
       '--------------------------------'
     ENDIF
 
-    IF (moves%transion%attempts .GT. 0) THEN
-       WRITE(iw,'(A,T43,A)') " Transion Moves",&
+    IF (moves%angle%attempts .GT. 0 .OR. &
+                            moves%bond%attempts .GT. 0) THEN
+       WRITE(iw,'(A,T43,A)') " Conformational Moves",&
           "Attempted       Accepted       Percent"
-       write(iw,'(T46,I6,9X,I6,7X,F7.3)') &
-             moves%transion%attempts,&
-             moves%transion%successes,&
-             real(moves%transion%successes,dbl)/ &
-             real(moves%transion%attempts,dbl)*100.0d0
-       WRITE(iw,'(A,T71,F10.5)') &
-            ' Maximum atomic translational displacement [angstroms]= '&
-                  ,mc_par%rmion*0.529177d0
+       WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+          moves%bond%attempts+moves%angle%attempts,&
+          moves%bond%successes+moves%angle%successes,&
+          real(moves%bond%successes+moves%angle%successes,dbl)/ &
+          real(moves%bond%attempts+moves%angle%attempts,dbl)*100.0d0
+       IF (moves%bond%attempts .GT. 0 ) THEN
+          WRITE(iw,'(A,T43,A)') " Bond Changes",&
+            "Attempted       Accepted       Percent"
+          WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+            moves%bond%attempts,&
+            moves%bond%successes,&
+            real(moves%bond%successes,dbl)/ &
+            real(moves%bond%attempts,dbl)*100.0d0
+          WRITE(iw,'(A,T71,F10.5)') &
+            ' Maximum bond displacement [angstroms]= '&
+            ,mc_par%rmbond*0.529177d0
+       ENDIF
+       IF (moves%angle%attempts .GT. 0 ) THEN
+          WRITE(iw,'(A,T43,A)') " Angle Changes",&
+            "Attempted       Accepted       Percent"
+          WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+            moves%angle%attempts,&
+            moves%angle%successes,&
+            real(moves%angle%successes,dbl)/ &
+            real(moves%angle%attempts,dbl)*100.0d0
+          WRITE(iw,'(A,T71,F10.5)') &
+            ' Maximum angle displacement [degrees]= '&
+            ,mc_par%rmangle/3.14159265358979d0*180.0d0
+       ENDIF
        WRITE(6,*) '-----------------------------------------------',&
       '--------------------------------'
     ENDIF
@@ -324,6 +362,9 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
        WRITE(iw,'(A,T71,F10.5)') &
           ' Maximum molecular translational displacement [angstroms]= '&
                   ,mc_par%rmtrans*0.529177d0
+       WRITE(iw,'(A,T71,F10.5)') &
+          ' Total translational displacement [angstroms]=',&
+                  moves%trans_dis*0.529177d0
        WRITE(6,*) '-----------------------------------------------',&
       '--------------------------------'
     ENDIF
@@ -533,21 +574,18 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 
 END SUBROUTINE mc_classical_energy
 
-SUBROUTINE nonbonded_energy(dist,ljsami,ntij)
+SUBROUTINE nonbonded_energy(dist,ljfake,ntij)
 
-! output ljsami is in Hartree, input dist is in a.u.
+! output ljfake is in Hartree, input dist is in a.u.
 
       IMPLICIT NONE
       INTEGER,INTENT(IN) :: ntij
       REAL(KIND=dp),INTENT(IN) :: dist
       REAL(KIND=dp),DIMENSION(2:15,1:3) :: A
-      REAL(KIND=dp),DIMENSION(1:3) :: r_core,pshift
-      REAL(KIND=dp),INTENT(OUT) :: ljsami
-!      REAL(KIND=dp) :: rij
+      REAL(KIND=dp),DIMENSION(1:3) :: r_core,pshift,b,m
+      REAL(KIND=dp),INTENT(OUT) :: ljfake
       INTEGER :: i,j,index
       
-      ljsami=0.0d0
-!      rij=dist/0.529177d0
       index=0
       IF (ntij == 1 ) index=1
       IF (ntij == 2 ) index=2
@@ -559,13 +597,19 @@ SUBROUTINE nonbonded_energy(dist,ljsami,ntij)
       IF (ntij == 22 ) index=3
       IF (ntij == 23 ) index=3
       IF (index == 0) WRITE(6,*) 'index =',index
-      pshift(1)=0.127827d0
+      pshift(1)=0.127827d0 ! Hartree
       pshift(2)=2.22408d0
       pshift(3)=0.256530d0
-      r_core(1)=4.4d0
+      m(1) = 0.0d0   ! Hartree/a.u.
+      m(2) = -0.00437054d0
+      m(3) = 0.00377391d0
+      b(1) = 1.0d23 ! Hartree
+      b(2) = 0.0313652d0
+      b(3) = -0.0206204d0
+      r_core(1)=4.4d0 ! a.u.
       r_core(2)=2.95d0
       r_core(3)=3.165d0
-      A(2,1) = 4.786380682394d0
+      A(2,1) = 4.786380682394d0   ! Hartree*a.u.^2
       A(2,2) = -195.7716013277d0
       A(2,3) = -26.29456010782d0
       A(3,1) = -1543.407053545d0
@@ -608,12 +652,16 @@ SUBROUTINE nonbonded_energy(dist,ljsami,ntij)
       A(15,2) = -157581228915.5d0
       A(15,3) = -79705131323.98d0
       
-      ljsami=0.0d0
+      ljfake=0.0d0
       IF (dist .GT. r_core(index)) THEN
+! use a series expansion of 1/r
          DO j=2,15
-            ljsami=ljsami+A(j,index)/(dist**(j-1)*REAL(j-1))
+            ljfake=ljfake+A(j,index)/(dist**(j-1)*REAL(j-1,dbl))
          ENDDO
-         ljsami=ljsami+pshift(index)
+         ljfake=ljfake+pshift(index)
+      ELSE
+! use a linear potential
+         ljfake=m(index)*dist+b(index)
       ENDIF
 
 END SUBROUTINE nonbonded_energy

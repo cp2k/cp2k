@@ -79,7 +79,8 @@ MODULE mc_control
      CHARACTER ( LEN = 200 ) :: box2_file
      CHARACTER ( LEN = 50 ) :: program
      REAL ( dp ) :: rmvolume
-     REAL ( dp ) :: rmion
+     REAL ( dp ) :: rmbond
+     REAL ( dp ) :: rmangle
      REAL ( dp ) :: rmrot
      REAL ( dp ) :: rmtrans
      REAL ( dp ) :: temp
@@ -137,7 +138,7 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "read_mc_section"
+    CHARACTER(LEN=*), PARAMETER     :: routineN = "read_mc_section"
 
     CHARACTER(LEN=20)                        :: string
     CHARACTER(LEN=5)                         :: label
@@ -243,11 +244,15 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
            CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
                             length=length)
            mc_par%rmvolume=length**3
-        CASE ( 'RMION' )
-           CALL get_next ( mc_par % rmion )
+        CASE ( 'RMBOND' )
+           CALL get_next ( mc_par % rmbond )
 ! convert from angstrom to a.u.
            CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
-                            length=mc_par%rmion)
+                            length=mc_par%rmbond)
+        CASE ( 'RMANGLE' )
+           CALL get_next ( mc_par % rmangle )
+! convert from degrees to radians
+           mc_par%rmangle = mc_par%rmangle/180.0d0*3.14159265358979d0
         CASE ( 'RMROT' )
            CALL get_next ( mc_par % rmrot )
         CASE ( 'RMTRANS' )
@@ -308,8 +313,10 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
                    TRIM(mc_par % restart_file)
      WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmvolume [cubic a.u.]', &
           mc_par % rmvolume
-     WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmion [a.u.]', &
-          mc_par % rmion
+     WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmbond [a.u.]', &
+          mc_par % rmbond
+     WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmangle [radians]', &
+          mc_par % rmangle
      WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmtrans [a.u.]', &
           mc_par % rmtrans
      WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmrot [radians]', &

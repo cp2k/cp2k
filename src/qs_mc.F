@@ -51,44 +51,49 @@ MODULE qs_mc
 
 CONTAINS
 
-!-----------------------------------------------------------------------------!
-! QS QS QS QS QS QS QS QS QS QS QS QS QS QS QS QS QS QS QS QS QS QS QS QS QS  !
-!-----------------------------------------------------------------------------!
-!!****** qs_mc/qs_mon_car [1.0] *
+! *****************************************************************************
+!!****s* qs_mc.F/qs_mon_car
 !!
 !!   NAME
-!!     
+!!     qs_mon_car
 !!
 !!   SYNOPSIS
-!!     Subroutine fist(globenv)
-!!       Implicit None
-!!       Type(global_environment_type), Intent (INOUT):: globenv
-!!     End Subroutine fist
+!!     Subroutine qs_mon_car ( force_env, globenv, error )
+!!       Type(global_environment_type), Pointer   :: globenv
+!!       Type(force_env_type), Pointer            :: force_env
+!!       Type(cp_error_type), Intent(inout),Optional      :: error
+!!     End Subroutine qs_mon_car
 !!
 !!   FUNCTION
-!!     Controls program flow for Quickstep Monte Carlo
+!!     starts the Monte Carlo simulation and determines which ensemble we're
+!!     running
+!!
+!!   ARGUMENTS
+!!     - globenv: the global environment for the simulation
+!!     - force_env: the force environment for the simulation, or
+!!                  the force environment for box 1, depending on which
+!!                  ensemble we're running
+!!     - error: the error type
 !!
 !!   AUTHOR
 !!     MJM
 !!
-!!   MODIFICATION HISTORY
-!!
-!!   USED BY
-!!     cp2k
-!!
-!!*** *************************************************************************
+!!**************************************************************************
 
   SUBROUTINE qs_mon_car ( force_env, globenv, error )
 
 
-! Argument
-    TYPE(force_env_type), POINTER            :: force_env,force_env_2
+! Arguments
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
+! Local Parameters
     CHARACTER(LEN=*), PARAMETER              :: routineN = "qs_mon_car"
 
+! Local Variables
+    TYPE(force_env_type), POINTER            :: force_env_2
     INTEGER                                  :: handle, isos, iw
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys,subsys_2
@@ -101,6 +106,7 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_2
 
 !------------------------------------------------------------------------------
+
 ! begin the timing of the subroutine
   CALL timeset(routineN,'I','',handle)
 

@@ -45,13 +45,14 @@ MODULE mc_move_control
             mc_energy_restart
  
   TYPE mc_moves_type
-     TYPE ( accattempt ), POINTER :: transion
+     TYPE ( accattempt ), POINTER :: bond
+     TYPE ( accattempt ), POINTER :: angle
      TYPE ( accattempt ), POINTER :: trans
      TYPE ( accattempt ), POINTER :: rot
      TYPE ( accattempt ), POINTER :: volume
      TYPE ( accattempt ), POINTER :: Quickstep
-     REAL(KIND = dp) :: classical_energy
-     INTEGER :: force_create
+     REAL(KIND = dp) :: classical_energy,trans_dis,qtrans_dis
+!     INTEGER :: force_create
   END TYPE mc_moves_type
 
   TYPE accattempt
@@ -77,7 +78,7 @@ CONTAINS
 
     TYPE(mc_moves_type), POINTER             :: moves
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_mc_moves"
+    CHARACTER(LEN=*), PARAMETER    :: routineN = "init_mc_moves"
 
     INTEGER                                  :: handle, stat
 
@@ -87,13 +88,16 @@ CONTAINS
 
     CALL timeset(routineN,'I','',handle)
 
-! allocate all the structures...not sure why, but it won't work otherwise
+! allocate all the structures
       ALLOCATE (moves,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves",0)
-      ALLOCATE (moves%transion,stat=stat)
+      ALLOCATE (moves%bond,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                                     "moves%transion",0)
+                                     "moves%bond",0)
+      ALLOCATE (moves%angle,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%angle",0)
       ALLOCATE (moves%trans,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%trans",0)
@@ -107,9 +111,12 @@ CONTAINS
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%Quickstep",0)
 ! set all the counters equal to zero
-      moves%transion%attempts=0
-      moves%transion%successes=0
-      moves%transion%qsuccesses=0
+      moves%bond%attempts=0
+      moves%bond%successes=0
+      moves%bond%qsuccesses=0
+      moves%angle%attempts=0
+      moves%angle%successes=0
+      moves%angle%qsuccesses=0
       moves%trans%attempts=0
       moves%trans%successes=0
       moves%trans%qsuccesses=0
@@ -123,7 +130,9 @@ CONTAINS
       moves%Quickstep%successes=0
       moves%Quickstep%qsuccesses=0
       moves%classical_energy=0.0d0
-      moves%force_create=1
+      moves%trans_dis=0.0d0
+      moves%qtrans_dis=0.0d0
+!      moves%force_create=1
 
  ! end the timing
       CALL timestop(0.0d0,handle)
@@ -140,7 +149,7 @@ SUBROUTINE move_q_reinit ( moves )
 
     TYPE(mc_moves_type), POINTER             :: moves
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_mc_moves"
+    CHARACTER(LEN=*), PARAMETER     :: routineN = "init_mc_moves"
 
     INTEGER                                  :: handle
 
@@ -151,10 +160,12 @@ SUBROUTINE move_q_reinit ( moves )
     CALL timeset(routineN,'I','',handle)
 
 ! set all the counters equal to zero
-      moves%transion%qsuccesses=0
+      moves%bond%qsuccesses=0
+      moves%angle%qsuccesses=0
       moves%trans%qsuccesses=0
       moves%rot%qsuccesses=0
       moves%volume%qsuccesses=0
+      moves%qtrans_dis=0.0d0
 
  ! end the timing
       CALL timestop(0.0d0,handle)
@@ -171,7 +182,7 @@ SUBROUTINE q_move_accept(moves,move_updates)
 
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_mc_moves"
+    CHARACTER(LEN=*), PARAMETER       :: routineN = "init_mc_moves"
 
     INTEGER                                  :: handle
 
@@ -182,18 +193,23 @@ SUBROUTINE q_move_accept(moves,move_updates)
     CALL timeset(routineN,'I','',handle)
 
 ! change the number of successful moves for the total move counter
-    moves%transion%successes=moves%transion%successes&
-           +moves%transion%qsuccesses
+    moves%bond%successes=moves%bond%successes&
+           +moves%bond%qsuccesses
+    moves%angle%successes=moves%angle%successes&
+           +moves%angle%qsuccesses
     moves%trans%successes=moves%trans%successes&
            +moves%trans%qsuccesses
+    moves%trans_dis=moves%trans_dis+moves%qtrans_dis
     moves%rot%successes=moves%rot%successes&
            +moves%rot%qsuccesses
     moves%volume%successes=moves%volume%successes&
            +moves%volume%qsuccesses
 
  ! change the number of successful moves for the move update counter
-    move_updates%transion%successes=move_updates%transion%successes&
-           +move_updates%transion%qsuccesses
+    move_updates%bond%successes=move_updates%bond%successes&
+           +move_updates%bond%qsuccesses
+    move_updates%angle%successes=move_updates%angle%successes&
+           +move_updates%angle%qsuccesses
     move_updates%trans%successes=move_updates%trans%successes&
            +move_updates%trans%qsuccesses
     move_updates%rot%successes=move_updates%rot%successes&
@@ -221,7 +237,7 @@ SUBROUTINE q_move_accept(moves,move_updates)
     TYPE(mc_moves_type), POINTER             :: move_updates
     CHARACTER(LEN=*), INTENT(IN)             :: flag
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "mc_move_update"
+    CHARACTER(LEN=*), PARAMETER       :: routineN = "mc_move_update"
 
     INTEGER                                  :: handle
 
@@ -235,30 +251,51 @@ SUBROUTINE q_move_accept(moves,move_updates)
       CASE DEFAULT
          WRITE(6,*) 'flag =',flag
          CALL stop_program( "mc_move_update","Wrong option passed")
-      CASE ("transion")
+      CASE ("bond")
 
-! update the maximum displacement for ion translation
+! update the maximum displacement for bond length change
 
 ! first account for the extreme cases
-         IF ( move_updates%transion%successes == 0 ) THEN
-            mc_par%rmion=mc_par%rmion/2.0d0
-         ELSEIF ( move_updates%transion%successes == &
-                 move_updates%transion%attempts ) THEN
-            mc_par%rmion=mc_par%rmion*2.0d0
+         IF ( move_updates%bond%successes == 0 ) THEN
+            mc_par%rmbond=mc_par%rmbond/2.0d0
+         ELSEIF ( move_updates%bond%successes == &
+                 move_updates%bond%attempts ) THEN
+            mc_par%rmbond=mc_par%rmbond*2.0d0
          ELSE
 ! now for the middle case
-            mc_par%rmion=mc_par%rmion*(&
-                  (REAL(move_updates%transion%successes,dbl)&
-                  /REAL(move_updates%transion%attempts,dbl))/0.5d0)
+            mc_par%rmbond=mc_par%rmbond*(&
+                  (REAL(move_updates%bond%successes,dbl)&
+                  /REAL(move_updates%bond%attempts,dbl))/0.5d0)
          ENDIF
 
 ! clear the counters
-         move_updates%transion%attempts=0
-         move_updates%transion%successes=0
+         move_updates%bond%attempts=0
+         move_updates%bond%successes=0
+
+      CASE ("angle")
+
+! update the maximum displacement for bond length change
+
+! first account for the extreme cases
+         IF ( move_updates%angle%successes == 0 ) THEN
+            mc_par%rmangle=mc_par%rmangle/2.0d0
+         ELSEIF ( move_updates%angle%successes == &
+                 move_updates%angle%attempts ) THEN
+            mc_par%rmangle=mc_par%rmangle*2.0d0
+         ELSE
+! now for the middle case
+            mc_par%rmangle=mc_par%rmangle*(&
+                  (REAL(move_updates%angle%successes,dbl)&
+                  /REAL(move_updates%angle%attempts,dbl))/0.5d0)
+         ENDIF
+
+! clear the counters
+         move_updates%angle%attempts=0
+         move_updates%angle%successes=0
 
       CASE ("trans")
 
-! update the maximum displacement for ion translation
+! update the maximum displacement for molecule translation
 
 ! first account for the extreme cases
          IF ( move_updates%trans%successes == 0 ) THEN
@@ -351,28 +388,6 @@ SUBROUTINE q_move_accept(moves,move_updates)
     REAL(KIND=dp), INTENT(OUT)               :: energy
     TYPE(cp_error_type), INTENT(INOUT), OPTIONAL   :: error
 
-
-!      CALL force_env_get(force_env,&
-!          qs_env=qs_env,error=error)
-!      CALL get_qs_env(qs_env,id_nr=id_nr)
-!      write(6,*) 'id_nr=',id_nr
-!      IF (id_nr .GT. 1) THEN
-!         CALL system(blah2)
-!         CALL integer_to_string(id_nr,one)
-!         CALL system(blah//one)
-! copy the necessary file
-!       OPEN(15,FILE='RESTART',FORM='UNFORMATTED',ACCESS='DIRECT',RECL=1)
-!       file_name='RESTART-'//one
-!       OPEN(16,FILE=file_name,FORM='UNFORMATTED',ACCESS='DIRECT',RECL=1)
-!       DO
-!          write(6,*) 'dksjfld'
-!          read(15,END=999,ERR=999) a
-!          write(16) a
-!       ENDDO
-! 999   CONTINUE
-!       CLOSE(15)
-!       CLOSE(16)
-!      ENDIF
 
       CALL force_env_calculate_energy(force_env)
       CALL force_env_get(force_env,&

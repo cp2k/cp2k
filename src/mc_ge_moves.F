@@ -400,7 +400,6 @@ CONTAINS
 ! create the new environment to change particle coordinates
       CALL quickstep_create_force_env(test_env, globenv, &
                    new_h_matrix=new_h,error=error)
-      moves%force_create=moves%force_create+1
       CALL force_env_get(force_env,subsys=oldsys,&
                             error=error)
       CALL cp_subsys_get(oldsys(1)%subsys, &
@@ -477,7 +476,6 @@ CONTAINS
          CALL cp_subsys_release(oldsys(1)%subsys)
          CALL quickstep_create_force_env(force_env, globenv,&
                    new_h_matrix=new_h,error=error)
-         moves%force_create=moves%force_create+1
          CALL force_env_get(force_env,subsys=oldsys,&
                             error=error)
          CALL cp_subsys_get(oldsys(1)%subsys, &

@@ -2,26 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations
 !   Copyright (C) 2001 - 2003  CP2K developers group
 !-----------------------------------------------------------------------------!
-
-#include "cp_prep_globals.h"
-
 !!****** cp2k/mc_ensembles [1.0] *
 !!
 !!   NAME
 !!     mc_ensembles
 !!
 !!   FUNCTION
-!!     Perform a Monte Carlo (MC) run using QUICKSTEP and Siepmann group
-!!     code
+!!     Contains the details of the individuals ensembles used in an MC run
 !!
 !!   AUTHOR
 !!     Matthew J. McGrath  (09.26.2003)
 !!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
 !******************************************************************************
+
+#include "cp_prep_globals.h"
 
 MODULE mc_ensembles
   USE checkpoint_handler,              ONLY: write_checkpoint_information
@@ -33,7 +27,6 @@ MODULE mc_ensembles
                                              cp_logger_get_default_unit_nr,&
                                              cp_to_string, &
                                              cp_logger_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsystem_p_type
@@ -88,12 +81,33 @@ MODULE mc_ensembles
 
 CONTAINS
 
-!**********************************************************************
+! *****************************************************************************
+!!****s* mc_ensembles.F/mc_traditional_ensemble
+!!
+!!   NAME
+!!     mc_traditional_ensemble
+!!
+!!   SYNOPSIS
+!!     Subroutine mc_traditional_ensemble ( mc_env, globenv, error )
+!!       Type(mc_env_type), Pointer :: mc_env
+!!       Type(global_environment_type), Pointer   :: globenv
+!!       Type(cp_error_type), Intent(inout),Optional      :: error
+!!     End Subroutine mc_traditional_ensemble
+!!
+!!   FUNCTION
+!!     directs the program in running a one box traditional MC
+!!     simulation (NVT and NpT ensembles)
+!!
+!!   ARGUMENTS
+!!     - mc_env: the mc_environment for the simulation box
+!!     - globenv: the global environment for the simulation
+!!     - error: the error type
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!**************************************************************************
   SUBROUTINE mc_traditional_ensemble ( mc_env, globenv, error )
-
-!   Purpose: Canonical ensemble (NVT) Monte Carlo run using QUICKSTEP.
-
-!   History: - Creation (10.14.2003)
 
 !   ***************************************************************************
 
@@ -106,7 +120,7 @@ CONTAINS
 
     INTEGER                                  :: crd, ene, handle, i, &
                                                 iparticle, iw, nnstep,&
-                                                atom,mol
+                                                mol
     LOGICAL                                  :: PM0, PM1, PM2, PM3, PM4, &
                                                 should_stop
     REAL(KIND=dp)                            :: classical_energy_old, &
@@ -116,7 +130,6 @@ CONTAINS
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: oldsys
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(1:3, 1:mc_env%&
       mc_par%nunits_tot)                     :: r_old
@@ -148,8 +161,7 @@ CONTAINS
   IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
 
 ! make it so we don't have to type mc_env for every structure    
-  CALL get_mc_env ( mc_env, mc_par = mc_par,force_env=force_env,&
-                    blacs_env=blacs_env)
+  CALL get_mc_env ( mc_env, mc_par = mc_par,force_env=force_env)
 
   IF (PM0) THEN
       WRITE(iw,*)
@@ -180,13 +192,15 @@ CONTAINS
    CALL force_env_calculate_energy(force_env)
    CALL force_env_get(force_env,subsys=oldsys,cell=cell,&
              potential_energy=old_energy,error=error)
-   CALL force_env_get(force_env,subsys=oldsys,cell=cell,&
-             error=error)
+!   CALL force_env_get(force_env,subsys=oldsys,cell=cell,&
+!             error=error)
 
    CALL cp_subsys_get(oldsys(1)%subsys, &
              particles=particles_old, error=error)
    OPEN(UNIT=ene)
-      WRITE(ene,*) 'Initial Energy:                        ', old_energy
+      WRITE(ene,*) 'Initial Energy:                        ',&
+                old_energy,energy_check
+
    CLOSE(ene)
    initial_energy=old_energy
    CALL write_particle_coordinates(particles_old%els,cell,&
@@ -232,11 +246,12 @@ CONTAINS
 
             CALL random_number(rand)
             IF(rand .lt. mc_par % pmtraion) THEN
-! translate a single atom in the system
+! change molecular conformation
                CALL random_number(rand)
-               atom=CEILING(rand*mc_par%nunits_tot)
+               mol=CEILING(rand*mc_par%nchain)
+               mol=3*mol-2
                CALL mc_atom_translation(  mc_par,force_env, moves,&
-                        move_updates,nnstep,i,atom,&
+                        move_updates,nnstep,i,mol,&
                         classical_energy_old,error=error)
             ELSEIF(rand .lt. mc_par % pmtrans) THEN
 ! translate a whole molecule in the system
@@ -264,6 +279,7 @@ CONTAINS
          CALL mc_Quickstep_move(mc_par,force_env,moves,&
                         move_updates,energy_check,r_old,&
                         nnstep,old_energy,averages,&
+                        classical_energy_old,&
                         error=error)
 
       ENDIF
@@ -277,7 +293,7 @@ CONTAINS
       DO i=1,nnstep-mc_par%nstart
          READ(ene,*)
       ENDDO
-      WRITE(ene,*) nnstep,old_energy
+      WRITE(ene,*) nnstep,old_energy,energy_check
       CLOSE(ENE)
 
       CALL force_env_get(force_env,subsys=oldsys,cell=cell,&
@@ -315,7 +331,8 @@ CONTAINS
    DO i=1,nnstep-mc_par%nstart
       READ(ene,*)
    ENDDO
-   WRITE(ene,*) 'Final Energy:                        ', old_energy
+   WRITE(ene,*) 'Final Energy:                        ',&
+                  old_energy,energy_check
    CLOSE(ENE)
 
 ! write a bunch of data to the screen
@@ -326,8 +343,7 @@ CONTAINS
 
 
 ! recombine the mc_env
-   CALL set_mc_env( mc_env, mc_par = mc_par, force_env=force_env,&
-                   blacs_env=blacs_env)
+   CALL set_mc_env( mc_env, mc_par = mc_par, force_env=force_env)
 
 ! deallocate some stuff
    CALL cp_subsys_release(oldsys(1)%subsys)
@@ -338,12 +354,36 @@ CONTAINS
 
   END SUBROUTINE mc_traditional_ensemble
 !*********************************************************************
-!**********************************************************************
+
+! *****************************************************************************
+!!****s* mc_ensembles.F/gemc_nvt
+!!
+!!   NAME
+!!     gemc_nvt
+!!
+!!   SYNOPSIS
+!!     Subroutine gemc_nvt ( mc_env_1, mc_env_2, globenv, error )
+!!       Type(mc_env_type), Pointer :: mc_env_1
+!!       Type(mc_env_type), Pointer :: mc_env_2
+!!       Type(global_environment_type), Pointer   :: globenv
+!!       Type(cp_error_type), Intent(inout),Optional      :: error
+!!     End Subroutine gemc_nvt
+!!
+!!   FUNCTION
+!!     directs the program in running a two box Gibbs ensemble MC
+!!     simulation (NVT ensemble)
+!!
+!!   ARGUMENTS
+!!     - mc_env_1: the mc_environment for the first simulation box
+!!     - mc_env_2: the mc_environment for the second simulation box
+!!     - globenv: the global environment for the simulation
+!!     - error: the error type
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!**************************************************************************
   SUBROUTINE gemc_nvt ( mc_env_1, mc_env_2, globenv, error )
-
-!   Purpose: Gibbs canonical ensemble Monte Carlo run using QUICKSTEP.
-
-!   History: - Creation (11.14.2003)
 
 !   ***************************************************************************
 
@@ -356,7 +396,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER              :: routineN = "gemc_nvt"
 
     CHARACTER(LEN=200), DIMENSION(1:2)       :: input_file_names
-    INTEGER                                  :: handle, atom,mol,i,&
+    INTEGER                                  :: handle, mol,i,&
                                                 isos, nnstep,iw,&
                                                 iparticle,com_crd=15
     INTEGER, DIMENSION(1:2)                  :: istep,ene,crd,box_flag
@@ -367,8 +407,6 @@ CONTAINS
     LOGICAL                                  :: PM0, PM1, PM2, PM3, PM4, &
                                                 should_stop
     TYPE(cell_type), POINTER                 :: cell_1, cell_2
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env_1
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env_2
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: oldsys_1, oldsys_2
     TYPE(force_env_type), POINTER :: force_env_1,force_env_2
@@ -390,11 +428,9 @@ CONTAINS
 
 ! make it so we don't have to type mc_env for every structure    
    CALL get_mc_env ( mc_env_1, mc_par = mc_par_1,&
-                     force_env=force_env_1,&
-                     blacs_env=blacs_env_1)
+                     force_env=force_env_1)
    CALL get_mc_env ( mc_env_2, mc_par = mc_par_2,&
-                     force_env=force_env_2,&
-                     blacs_env=blacs_env_2)
+                     force_env=force_env_2)
 
 ! open the coordinate file
   OPEN(UNIT=com_crd,FILE='coordinates')
@@ -535,7 +571,7 @@ CONTAINS
 ! change the volume of the system
 !         CALL volume( mc_par,force_env, moves,move_updates,&
 !                        nnstep,ave_energy,old_energy,globenv,&
-!                        blacs_env,ave_density,error=error)
+!                        ave_density,error=error)
       ELSE
          DO i=1,mc_par_1%nmoves
             CALL random_number(rand)
@@ -543,19 +579,19 @@ CONTAINS
 
 ! translate a single atom in the system
                CALL random_number(rand)
-               atom=CEILING(rand*(mc_par_1%nunits_tot+&
-                                               mc_par_2%nunits_tot))
-               IF (atom .LE. mc_par_1%nunits_tot) THEN
+              mol=CEILING((mc_par_1%nchain+mc_par_2%nchain)*rand)
+               mol=3*mol-2
+               IF (mol .LE. mc_par_1%nunits_tot) THEN
                   box_flag(1)=1
                   CALL mc_atom_translation(  mc_par_1,force_env_1,&
-                        moves_1,move_updates_1,nnstep,i,atom,&
+                        moves_1,move_updates_1,nnstep,i,mol,&
                         classical_energy_old(1),error=error)
 
                ELSE
-                  atom=atom-mc_par_1%nunits_tot
+                  mol=mol-mc_par_1%nunits_tot
                   box_flag(2)=1
                   CALL mc_atom_translation(  mc_par_2,force_env_2,&
-                        moves_2,move_updates_2,nnstep,i,atom,&
+                        moves_2,move_updates_2,nnstep,i,mol,&
                         classical_energy_old(2),error=error)
  
                ENDIF
@@ -737,11 +773,9 @@ CONTAINS
  
 ! deallocate some stuff
    CALL set_mc_env ( mc_env_1, mc_par = mc_par_1,&
-                     force_env=force_env_1,&
-                     blacs_env=blacs_env_1)
+                     force_env=force_env_1)
    CALL set_mc_env ( mc_env_2, mc_par = mc_par_2,&
-                     force_env=force_env_2,&
-                     blacs_env=blacs_env_2)
+                     force_env=force_env_2)
     CALL cp_subsys_release(oldsys_1(1)%subsys)
     NULLIFY(moves_1,move_updates_1,averages_1,particles_old_1)
     CALL cp_subsys_release(oldsys_2(1)%subsys)
@@ -757,7 +791,7 @@ CONTAINS
 !*********************************************************************
   SUBROUTINE external_control(force_env,should_stop,error)
 
-!   Purpose: External manipulations during an MD run.
+!   Purpose: External manipulations during an MC run.
 
 !   History: - Creation (16.09.2003,MK)
 

@@ -29,8 +29,10 @@ MODULE mc_moves
                                              cp_subsystem_p_type,&
                                              cp_subsystem_type
   USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_retain,&
                                              force_env_release,&
-                                             force_env_type
+                                             force_env_type,&
+                                             force_env_set_cell
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
                                              dp
@@ -50,7 +52,7 @@ MODULE mc_moves
 
   IMPLICIT NONE
 
-  PRIVATE
+  PRIVATE  :: change_bond_angle,change_bond_length
 
 ! *** Global parameters ***
 
@@ -64,15 +66,65 @@ MODULE mc_moves
 CONTAINS
 
 ! *****************************************************************************
+!!****s* mc_moves.F/mc_Quickstep_move
+!!
+!!   NAME
+!!     mc_Quickstep_move
+!!
+!!   SYNOPSIS
+!!     Subroutine mc_Quickstep_move(mc_par,force_env,moves,move_updates,
+!!                                  energy_check,r_old,nnstep,old_energy,
+!!                                  averages,classical_energy_old_out,error)
+!!           Type(mc_simulation_parameters_type),Pointer
+!!                                                 :: mc_par
+!!           Type(force_env_type), Pointer         :: force_env
+!!           Type(mc_moves_type), Pointer          :: moves, move_updates
+!!           Real(Kind=dp), Intent(INOUT)          :: energy_check
+!!           Real(Kind=dp),Dimension(1:3, 1:mc_par%nunits_tot),
+!!                Intent(INOUT)                    :: r_old
+!!           Integer,Intent(IN)                    :: nnstep
+!!           Real(Kind=dp), Intent(INOUT)          :: old_energy
+!!           Type(mc_averages_type), Pointer       :: averages
+!!           Type(cp_error_type), Intent(INOUT),Optional
+!!                                                 :: error
+!!           Real(Kind=dp),Intent(inout)           :: classical_energy_old_out
+!!     End Subroutine mc_Quickstep_move
+!!
+!!   FUNCTION
+!!     calls the Quickstep energy routines to calculate the energy of
+!!     the current configuration and determine whether we accept or reject
+!!     all the moves since the last time a Quickstep calculation was made
+!!
+!!   ARGUMENTS
+!!     - mc_par: the mc parameters for the force env
+!!     - force_env: the force environment used in the move
+!!     - moves: the structure that keeps track of how many moves have been
+!!              accepted/rejected
+!!     - move_updates: the structure that keeps track of how many moves have
+!!              been accepted/rejected since the last time the displacements
+!!              were updated
+!!     - energy_check: the running total of how much the energy has changed
+!!                     since the initial configuration
+!!     - r_old: the coordinates of the last accepted move involving a
+!!              Quickstep calculation
+!!     - nnstep: how many times the energy averages have been taken
+!!     - old_energy: the energy of the last accepted move involving a
+!!                   Quickstep calculation
+!!     - averages: the structure that keeps track of the running averages
+!!                 in the system
+!!     - classical_energy_old_out: the classical energy of the configuration
+!!                                 that leaves the routine
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!*****************************************************************************
 
   SUBROUTINE mc_Quickstep_move (mc_par,force_env,moves,&
                         move_updates,energy_check,r_old,&
                         nnstep,old_energy,averages,&
+                        classical_energy_old_out,&
                         error)
-
-!   Purpose: A move calling the Quickstep energy routines
-
-!   History: - Creation (10.14.2003)
 
 !   ***************************************************************************
 
@@ -89,6 +141,7 @@ CONTAINS
     TYPE(mc_averages_type), POINTER          :: averages
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
+    REAL(KIND=dp),INTENT(inout)          :: classical_energy_old_out
 
     CHARACTER(LEN=*), PARAMETER        :: routineN = "mc_Quickstep_move"
 
@@ -135,12 +188,9 @@ CONTAINS
          w=dexp(-mc_par%BETA*((new_energy-classical_energy_new)&
                    -(old_energy-classical_energy_old)))
          IF ( w .GT. 1.0d0 ) w=1.0d0
-!         write(6,*) 'w =',w,new_energy-old_energy,&
-!                 classical_energy_new-classical_energy_old
       ELSE
          w=dexp(-mc_par%BETA*(new_energy-old_energy))
          IF ( w .GT. 1.0d0 ) w=1.0d0
-!         write(6,*) 'w =',w,new_energy,old_energy
       ENDIF
 
       CALL random_number(rand)
@@ -149,18 +199,12 @@ CONTAINS
 ! accept the move
          moves%Quickstep%successes=moves%Quickstep%successes+1
 
-! if we're not biasing, we need to record all accepted moves since last
-! Quickstep calculation
-         IF ( .NOT. mc_par%lclassical) THEN
-            CALL q_move_accept(moves,move_updates)
+! we need to record all accepted moves since last Quickstep calculation
+         CALL q_move_accept(moves,move_updates)
 
 ! reset the counters
-            CALL move_q_reinit(moves)
-            CALL move_q_reinit(move_updates)
-
-         ENDIF
-         write(6,*) 'ACC w =',w,new_energy,old_energy,&
-                 classical_energy_new,classical_energy_old
+         CALL move_q_reinit(moves)
+         CALL move_q_reinit(move_updates)
 
 ! update energies
          energy_check=energy_check+(new_energy-old_energy)
@@ -185,18 +229,14 @@ CONTAINS
             CALL mc_classical_energy(force_env,&
                                          moves%classical_energy,&
                                          mc_par)
-            classical_energy_old=moves%classical_energy            
+            classical_energy_old_out=moves%classical_energy            
          ENDIF
 
       ELSE
 
 ! reject the move
-         IF ( .NOT. mc_par % lclassical ) THEN
-            CALL move_q_reinit(moves)
-            CALL move_q_reinit(move_updates)
-         ENDIF
-         write(6,*) 'REJ w =',w,new_energy,old_energy,&
-                 classical_energy_new,classical_energy_old
+         CALL move_q_reinit(moves)
+         CALL move_q_reinit(move_updates)
 
          averages%ave_energy=averages%ave_energy*&
               REAL(istep-1,dbl)/&
@@ -213,14 +253,16 @@ CONTAINS
          DO iparticle=1,mc_par%nunits_tot
             particles%els(iparticle)%r(1:3)=r_old(1:3,iparticle)
          ENDDO
-         CALL cp_subsys_set(subsys(1)%subsys,particles=particles)
 
 ! if we need to restore the classical energy
          IF ( mc_par % lclassical ) THEN
-            classical_energy_old=moves%classical_energy
+            classical_energy_old_out=moves%classical_energy
          ENDIF
 
       ENDIF
+
+! make sure the coordinates are transferred
+      CALL cp_subsys_set(subsys(1)%subsys,particles=particles)
 
 ! end the timing
   CALL timestop(0.0d0,handle)
@@ -230,10 +272,10 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE mc_atom_translation ( mc_par,force_env, moves,&
-                        move_updates,nnstep,counter,atom,&
+                        move_updates,nnstep,counter,mol,&
                         classical_energy_old,error)
 
-!   Purpose: A move displacing a single atom
+!   Purpose: A move changing the conformation of the molecule
 
 !   History: - Creation (10.14.2003)
 
@@ -243,7 +285,7 @@ CONTAINS
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: nnstep,counter,atom
+    INTEGER, INTENT(IN)                      :: nnstep,counter,mol
     REAL(KIND=dp), INTENT(INOUT)             :: classical_energy_old
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -252,14 +294,16 @@ CONTAINS
 
     INTEGER                                  :: handle, i, imol
     REAL(KIND=dp)                            :: classical_energy_new, &
-                                                dis_ion, rand, w
+                                                dis_ion, rand, w,&
+                                                dis_length
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     REAL(KIND=dp), &
-      DIMENSION(1:3, 1:mc_par%nunits_tot)    :: r
+      DIMENSION(1:3, 1:mc_par%nunits_tot)    :: r,r_new
     TYPE(particle_list_type), POINTER        :: particles
+    LOGICAL :: bond_flag
 
-!   *** Local Counters ***
+
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -267,50 +311,70 @@ CONTAINS
 
 ! nullify some pointers
       NULLIFY(particles,subsys)
+      bond_flag=.FALSE.
 
 ! update the ion translation max displacemnt, if necessary
       IF (MOD(nnstep,mc_par%iuptrans*&
                mc_par%nchain-mc_par%nstart) == 0 .AND. counter==1) THEN
-         CALL mc_move_update(mc_par,move_updates,"transion")
-         WRITE(mc_par%rm,*) nnstep,' rmtraion = ',&
-                                    mc_par%rmion*0.529177d0,' angstoms'
+         CALL mc_move_update(mc_par,move_updates,"bond")
+         WRITE(mc_par%rm,*) nnstep,' rmbond = ',&
+                                    mc_par%rmbond*0.529177d0,' angstoms'
+         CALL mc_move_update(mc_par,move_updates,"angle")
+         WRITE(mc_par%rm,*) nnstep,' rmangle = ',&
+               mc_par%rmangle/3.14159265358979d0*180.0d0,' degrees'
       ENDIF
 
-! record the attempt
-      moves%transion%attempts=moves%transion%attempts+1
-      move_updates%transion%attempts=move_updates%transion%attempts+1
-      IF ( .NOT. mc_par % lclassical ) THEN
-         moves%transion%qsuccesses=moves%transion%qsuccesses+1
-         move_updates%transion%qsuccesses=&
-                  move_updates%transion%qsuccesses+1
-      ENDIF
-
-! move one ion in the system
-
-! call a random number to figure out which direction we're moving
-      CALL random_number(rand)
-      i=aint(3*rand)+1
-
-! call a random number to figure out how far we're moving
-      CALL random_number(rand)
-      dis_ion=mc_par%rmion*(rand-0.5d0)*2.0d0
-
-! now let's grab the coordinates and do the move
+! let's grab the coordinates
       CALL force_env_get(force_env,subsys=subsys,error=error)
       CALL cp_subsys_get(subsys(1)%subsys, &
              particles=particles, error=error)
 
-! save the coords if we're biasing classically
-      IF (mc_par%lclassical) THEN
-         DO imol=1,mc_par%nunits_tot
-            r(1:3,imol)=particles%els(imol)%r(1:3)
-         ENDDO
-      ENDIF
+! save the coords 
+      DO imol=1,mc_par%nunits_tot
+         r(1:3,imol)=particles%els(imol)%r(1:3)
+      ENDDO
+
+! choose if we're changing a bond length or an angle
+      CALL random_number(rand)
+      IF (rand .lt. 0.66666667d0) THEN
+
+! change a bond length
+         bond_flag=.TRUE.
+
+! record the attempt
+         moves%bond%attempts=moves%bond%attempts+1
+         move_updates%bond%attempts=move_updates%bond%attempts+1
+         IF ( .NOT. mc_par % lclassical ) THEN
+            moves%bond%qsuccesses=moves%bond%qsuccesses+1
+            move_updates%bond%qsuccesses=&
+                 move_updates%bond%qsuccesses+1
+         ENDIF
 
 ! do the move
-      particles%els(atom)%r(i)=&
-                   particles%els(atom)%r(i)+dis_ion
+         CALL change_bond_length(r,r_new,mc_par,mol,dis_length)
+
+      ELSE
+
+! record the attempt
+         moves%angle%attempts=moves%angle%attempts+1
+         move_updates%angle%attempts=move_updates%angle%attempts+1
+         IF ( .NOT. mc_par % lclassical ) THEN
+            moves%angle%qsuccesses=moves%angle%qsuccesses+1
+            move_updates%angle%qsuccesses=&
+                 move_updates%angle%qsuccesses+1
+         ENDIF
+
+! do the move
+         CALL change_bond_angle(r,r_new,mc_par,mol)
+         dis_length=1.0d0
+      ENDIF
+
+! set the coordinates
+      DO imol=1,mc_par%nunits_tot
+         particles%els(imol)%r(1:3)=r_new(1:3,imol)
+      ENDDO
       CALL cp_subsys_set(subsys(1)%subsys,particles=particles)
+
 
 ! if we're biasing classical, check for acceptance
       IF(mc_par%lclassical) THEN
@@ -319,22 +383,36 @@ CONTAINS
          CALL mc_classical_energy(force_env,&
                               classical_energy_new,mc_par)
 
-! accept or reject the move based on the Metropolis rule
+! accept or reject the move based on the Metropolis rule with a 
+! correction factor for the change in phase space...dis_length is
+! made unitless in change_bond_length
          w=dexp(-mc_par%BETA*(classical_energy_new-&
-                                 classical_energy_old))
+                    classical_energy_old))*dis_length**2
+
          IF (w .GT. 1.0d0) w=1.0d0
-!         WRITE(6,*) w,classical_energy_new,classical_energy_old
+
          CALL random_number(rand)
 
          IF (rand .lt. w) THEN
 
 ! accept the move
-            moves%transion%successes=moves%transion%successes+1
+            IF (bond_flag) THEN
+               moves%bond%qsuccesses=moves%bond%qsuccesses+1
+               move_updates%bond%qsuccesses=&
+                  move_updates%bond%qsuccesses+1
+            ELSE
+               moves%angle%qsuccesses=moves%angle%qsuccesses+1
+               move_updates%angle%qsuccesses=&
+                  move_updates%angle%qsuccesses+1
+            ENDIF
             classical_energy_old=classical_energy_new
          ELSE
 
 ! reject the move
 ! restore the coordinates
+            CALL force_env_get(force_env,subsys=subsys,error=error)
+            CALL cp_subsys_get(subsys(1)%subsys, &
+             particles=particles, error=error)
             DO imol=1,mc_par%nunits_tot
                particles%els(imol)%r(1:3)=r(1:3,imol)
             ENDDO
@@ -452,12 +530,18 @@ CONTAINS
          IF (rand .lt. w) THEN
 
 ! accept the move
-            moves%trans%successes=moves%trans%successes+1
+            moves%trans%qsuccesses=moves%trans%qsuccesses+1
+            move_updates%trans%qsuccesses=&
+                      move_updates%trans%qsuccesses+1
+            moves%qtrans_dis=moves%qtrans_dis+ABS(dis_mol)
             classical_energy_old=classical_energy_new
          ELSE
 
 ! reject the move
 ! restore the coordinates
+            CALL force_env_get(force_env,subsys=subsys,error=error)
+            CALL cp_subsys_get(subsys(1)%subsys, &
+             particles=particles, error=error)
             DO imol=1,mc_par%nunits_tot
                particles%els(imol)%r(1:3)=r(1:3,imol)
             ENDDO
@@ -652,12 +736,17 @@ CONTAINS
          IF (rand .lt. w) THEN
 
 ! accept the move
-            moves%rot%successes=moves%rot%successes+1
+            moves%rot%qsuccesses=moves%rot%qsuccesses+1
+            move_updates%rot%qsuccesses=move_updates%rot%qsuccesses+1
+!            moves%rot%successes=moves%rot%successes+1
             classical_energy_old=classical_energy_new
          ELSE
 
 ! reject the move
 ! restore the coordinates
+            CALL force_env_get(force_env,subsys=subsys,error=error)
+            CALL cp_subsys_get(subsys(1)%subsys, &
+             particles=particles, error=error)
             DO imol=1,mc_par%nunits_tot
                particles%els(imol)%r(1:3)=r(1:3,imol)
             ENDDO
@@ -712,7 +801,7 @@ CONTAINS
     TYPE(particle_list_type), POINTER :: particles
     TYPE(cp_subsystem_p_type),DIMENSION(:),POINTER :: oldsys,&
                                                       newsys
-    TYPE(cell_type), POINTER :: cell
+    TYPE(cell_type), POINTER :: cell,cell_new
     REAL(KIND =dp),DIMENSION(1:3,1:3) ::       h_matrix,new_h,&
                                                new_h_inverse
     REAL(KIND=dp),DIMENSION(1:3)  :: diff,center_of_mass,&
@@ -765,13 +854,13 @@ CONTAINS
 ! create the new environment to change particle coordinates
       CALL quickstep_create_force_env(test_env, globenv, &
                    new_h_matrix=new_h,error=error)
-      moves%force_create=moves%force_create+1
+!      moves%force_create=moves%force_create+1
       CALL force_env_get(force_env,subsys=oldsys,&
                             error=error)
       CALL cp_subsys_get(oldsys(1)%subsys, &
              particles=particles_old, error=error)
       CALL force_env_get(test_env,subsys=newsys,&
-          error=error)
+          cell=cell_new,error=error)
       CALL cp_subsys_get(newsys(1)%subsys, &
              particles=particles, error=error)
 
@@ -866,16 +955,18 @@ CONTAINS
                REAL(istep,dbl)
 
 ! update coordinates and cell lengths
+         CALL force_env_retain(force_env)
          CALL force_env_release(force_env,error=error)
          CALL cp_subsys_release(oldsys(1)%subsys)
          CALL quickstep_create_force_env(force_env, globenv,&
                    new_h_matrix=new_h,error=error)
-         moves%force_create=moves%force_create+1
          CALL force_env_get(force_env,subsys=oldsys,&
                             error=error)
          CALL cp_subsys_get(oldsys(1)%subsys, &
              particles=particles_old, error=error)
-
+!              WRITE(6,*) 'KDFLSSDJKf'
+!         CALL force_env_set_cell(force_env,cell_new,error=error)
+!               WRITE(6,*) 'KDFLSSDJKf'
          DO imol=1,mc_par%nunits_tot
             particles_old%els(imol)%r(1:3)= &
                   particles%els(imol)%r(1:3)
@@ -953,6 +1044,150 @@ CONTAINS
 
 
   END SUBROUTINE mc_volume_move
+
+!*********************************************************************
+  SUBROUTINE change_bond_length ( r_old,r_new,mc_par,mol,dis_length)
+
+!   Purpose: A move changing a bond length in a molecule
+
+!   History: - Creation (2.4.2004)
+
+!   ***************************************************************************
+
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par
+    REAL(KIND=dp), &
+      DIMENSION(1:3, 1:mc_par%nunits_tot),INTENT(IN) :: r_old
+    REAL(KIND=dp), &
+      DIMENSION(1:3, 1:mc_par%nunits_tot),INTENT(OUT) :: r_new
+    INTEGER,INTENT(IN)    :: mol
+    REAL(KIND=dp),INTENT(OUT)    :: dis_length
+    
+    CHARACTER(LEN=*), PARAMETER :: routineN = "change_bond_length"
+
+! ** Local variables **
+      REAL(KIND=dp) :: rand,old_length
+      REAL(KIND=dp),DIMENSION(1:3) :: OH
+      INTEGER :: hydrogen,ipart,i,handle
+      
+!   ---------------------------------------------------------------------------
+! begin the timing of the subroutine
+
+      CALL timeset(routineN,'I','',handle)
+
+! copy the incoming coordinates so we can change them
+      DO ipart=1,mc_par%nunits_tot
+         r_new(1:3,ipart)=r_old(1:3,ipart)
+      ENDDO
+
+! pick which bond in the molecule at random
+      CALL random_number(rand)
+      IF ( rand .lt. 0.50d0) THEN
+         hydrogen=1
+      ELSE
+         hydrogen=2
+      ENDIF
+
+! choose a displacement
+      CALL random_number(rand)
+      dis_length=mc_par%rmbond*2.0d0*(rand-0.5d0)
+
+! find the bond distance and change it
+      DO i=1,3
+         OH(i)=r_new(i,mol+hydrogen)-r_new(i,mol)
+      ENDDO
+      old_length=DSQRT(DOT_PRODUCT(OH,OH))
+      DO i=1,3
+         r_new(i,mol+hydrogen)=r_new(i,mol)+&
+              OH(i)*(old_length+dis_length)/old_length
+      ENDDO
+
+! correct the value of dis_length for the acceptance rule
+      dis_length=(old_length+dis_length)/old_length
+
+! end the timing
+      CALL timestop(0.0d0,handle)
+
+  END SUBROUTINE change_bond_length
+
+!*********************************************************************
+  SUBROUTINE change_bond_angle ( r_old,r_new,mc_par,mol)
+
+!   Purpose: A move changing a bond angle in water
+
+!   History: - Creation (2.4.2004)
+
+!   ***************************************************************************
+
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par
+    REAL(KIND=dp), &
+      DIMENSION(1:3, 1:mc_par%nunits_tot),INTENT(IN) :: r_old
+    REAL(KIND=dp), &
+      DIMENSION(1:3, 1:mc_par%nunits_tot),INTENT(OUT) :: r_new
+    INTEGER,INTENT(IN)    :: mol
+    
+    CHARACTER(LEN=*), PARAMETER :: routineN = "change_bond_angle"
+
+! ** Local variables **
+      REAL(KIND=dp) :: rand,bis_length,old_length1,old_length2,&
+                       old_angle,new_angle,dis_angle
+      INTEGER :: ipart,i,handle
+      REAL(KIND=dp),DIMENSION(1:3) :: OH1,OH2,bisector,bisector2,&
+                 OH_between,OH_between1,OH_between2,bisector1
+!   ---------------------------------------------------------------------------
+! begin the timing of the subroutine
+
+      CALL timeset(routineN,'I','',handle)
+
+! copy the incoming coordinates so we can change them
+      DO ipart=1,mc_par%nunits_tot
+         r_new(1:3,ipart)=r_old(1:3,ipart)
+      ENDDO
+
+! choose a displacement
+      CALL random_number(rand)
+      dis_angle=mc_par%rmangle*2.0d0*(rand-0.5d0)
+
+! find the bond vectors
+      DO i=1,3
+         OH1(i)=r_new(i,mol+1)-r_new(i,mol)
+         OH2(i)=r_new(i,mol+2)-r_new(i,mol)
+      ENDDO
+      old_length1=DSQRT(DOT_PRODUCT(OH1,OH1))
+      old_length2=DSQRT(DOT_PRODUCT(OH2,OH2))
+      OH_between(1:3)=OH1(1:3)/old_length1-OH2(1:3)/old_length2
+      old_angle=DACOS(DOT_PRODUCT(OH1,OH2)/(old_length1*old_length2))
+      new_angle=old_angle+dis_angle
+
+      DO i=1,3
+         bisector(i)=OH1(i)/old_length1+& ! not yet normalized
+                 OH2(i)/old_length2
+      ENDDO
+      bis_length=DSQRT(DOT_PRODUCT(bisector,bisector))
+
+! now scale the bisector and the vector from H1 to H2
+      OH_between1(1:3) = OH_between(1:3)/DSQRT(DOT_PRODUCT(OH_between,&
+             OH_between))*dsin(new_angle/2.0d0)*old_length1
+      OH_between2(1:3) = -OH_between(1:3)/DSQRT(DOT_PRODUCT(OH_between,&
+             OH_between))*dsin(new_angle/2.0d0)*old_length2
+      bisector1(1:3)=bisector(1:3)/bis_length*&
+             dcos(new_angle/2.0d0)*old_length1
+      bisector2(1:3)=bisector(1:3)/bis_length*&
+             dcos(new_angle/2.0d0)*old_length2
+
+      r_new(:,:)=r_old(:,:)
+      DO i=1,3
+         r_new(i,mol+1)=r_old(i,mol)+&
+              bisector1(i)+OH_between1(i)
+         r_new(i,mol+2)=r_old(i,mol)+&
+              bisector2(i)+OH_between2(i)
+      ENDDO
+      
+! end the timing
+      CALL timestop(0.0d0,handle)
+
+  END SUBROUTINE change_bond_angle
 
 !*********************************************************************
 
