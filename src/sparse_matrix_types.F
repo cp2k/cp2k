@@ -95,7 +95,8 @@ MODULE sparse_matrix_types
 ! *** Public functions ***
 
   PUBLIC :: first_block_node,&
-            next_block_node
+            next_block_node,&
+            find_block_node
 
 ! *****************************************************************************
 
