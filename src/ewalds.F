@@ -218,18 +218,13 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  
 
 ! computing the force
     node = 0
-    DO iparticle_kind = 1, nparticle_kind
-       nparticle_local = local_particles%n_el(iparticle_kind)
-       DO iparticle_local=1,nparticle_local
-          node = node + 1
-          e_igdotr = AIMAG ( summe(gpt) * CONJG &
-             ( exp_igr % ex ( lp, node ) &
-             * exp_igr % ey ( mp, node ) &
-             * exp_igr % ez ( np, node ) ) )
-          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          fg_coulomb ( :, iparticle ) = fg_coulomb ( :, iparticle ) &
-          + charge ( node ) * gauss * e_igdotr * pw_grid % g ( :, gpt )
-       END DO
+    DO node = 1, nnodes
+      e_igdotr = AIMAG ( summe(gpt) * CONJG &
+         ( exp_igr % ex ( lp, node ) &
+         * exp_igr % ey ( mp, node ) &
+         * exp_igr % ez ( np, node ) ) )
+      fg_coulomb ( :, node ) = fg_coulomb ( :, node ) &
+      + charge ( node ) * gauss * e_igdotr * pw_grid % g ( :, gpt )
     END DO
 
 ! compute the virial P*V

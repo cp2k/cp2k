@@ -333,27 +333,27 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
      WRITE(iw,'(3f15.9)')((f_total ( j, i ),j=1,3), i = 1, natoms)
   END IF  
 
-  IF ( ewald_type /= 'NONE' ) THEN
-     SELECT CASE ( ewald_type )
-     CASE ( "EWALD" )
-        DO iparticle_kind = 1, nparticle_kind
-           nparticle_local = local_particles % n_el ( iparticle_kind )
-           DO iparticle_local = 1, nparticle_local
-             ii = local_particles%list(iparticle_kind)%array(iparticle_local)
-             f_total ( 1, ii ) = f_total ( 1, ii ) + fg_coulomb ( 1, ii )
-             f_total ( 2, ii ) = f_total ( 2, ii ) + fg_coulomb ( 2, ii )
-             f_total ( 3, ii ) = f_total ( 3, ii ) + fg_coulomb ( 3, ii )
-           END DO
+! Adding in the reciprocal forces: EWALD is a special
+! case because of distrubted data
+  SELECT CASE ( ewald_type )
+  CASE ( "EWALD" )
+     node = 0
+     DO iparticle_kind = 1, nparticle_kind
+        nparticle_local = local_particles % n_el ( iparticle_kind )
+        DO iparticle_local = 1, nparticle_local
+          ii = local_particles%list(iparticle_kind)%array(iparticle_local)
+          node = node + 1
+          f_total ( 1, ii ) = f_total ( 1, ii ) + fg_coulomb ( 1, node )
+          f_total ( 2, ii ) = f_total ( 2, ii ) + fg_coulomb ( 2, node )
+          f_total ( 3, ii ) = f_total ( 3, ii ) + fg_coulomb ( 3, node )
+          IF ( PRESENT ( debug )  ) THEN
+            debug % f_g ( 1, ii ) =  debug % f_g ( 1, ii ) + fg_coulomb ( 1, node )
+            debug % f_g ( 2, ii ) =  debug % f_g ( 2, ii ) + fg_coulomb ( 2, node )
+            debug % f_g ( 3, ii ) =  debug % f_g ( 3, ii ) + fg_coulomb ( 3, node )
+          ENDIF
         END DO
-     CASE ( "PME" )
-!        f_total ( :, : ) = f_total ( :, : ) + fg_coulomb ( :, : )
-     CASE ( "SPME" )
-!        f_total ( :, : ) = f_total ( :, : ) + fg_coulomb ( :, : )
-     CASE DEFAULT
-        CALL stop_program ( "fist_force", "illegal value of ewald_type: "//&
-                             ewald_type )
-     END SELECT
-  END IF
+     END DO
+  END SELECT
 
   IF (PM2) THEN
      WRITE(iw,'(A)')" FIST:: (2) TOTAL FORCES (1) + ELECTROSTATIC FORCES"
@@ -384,38 +384,11 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
 
   IF ( first_time ) CALL virial_evaluate ( atomic_kind_set, particle_set, &
                                            local_particles, virial, globenv % group )
-!
-! if we are doing debugging, check if variables are present and assign
-!
-  IF ( PRESENT ( debug )  ) THEN
-     debug % pot_nonbond = pot_nonbond
-     debug % pot_bond = pot_bond
-     debug % pot_bend = pot_bend
-     debug % pot_torsion = pot_torsion
-     debug % pot_imptors = pot_imptors
-     debug % pot_onef = pot_onef
-     debug % pot_urey_bradley = pot_urey_bradley
-     debug % f_nonbond = f_nonbond
-     debug % pv_nonbond = pv_nonbond
-     debug % pv_bond = pv_bond
-     debug % pv_bend = pv_bend
-     debug % pv_torsion = pv_torsion
-     debug % pv_imptors = pv_imptors
-     debug % pv_onef = pv_onef
-     debug % pv_ub = pv_urey_bradley
-     IF ( ewald_type /= 'NONE' ) THEN
-        debug % pot_g = vg_coulomb
-        debug % f_g = fg_coulomb
-        debug % pv_g = pv_g
-     ELSE
-        debug % pot_g = 0.0_dp
-        debug % f_g = 0.0_dp
-        debug % pv_g = 0.0_dp
-     END IF
-  END IF
 
+! Sum total forces
   CALL mp_sum ( f_total, globenv % group )
 
+! Assign to particle_set
   SELECT CASE ( ewald_type )
   CASE ( "SPME", "PME" )
     DO i = 1, natoms
@@ -440,6 +413,58 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
      WRITE(iw,'(3f15.9)')((particle_set ( i ) % f ( j ),j=1,3), i = 1, natoms)
      WRITE(iw,'(A,f15.9)')"Energy after FIST calculation.. exiting now ::",thermo%pot
   END IF  
+
+!
+! if we are doing debugging, check if variables are present and assign
+!
+
+  IF ( PRESENT ( debug )  ) THEN
+     CALL mp_sum ( pot_nonbond, globenv % group )
+     debug % pot_nonbond = pot_nonbond
+     CALL mp_sum ( pot_bond, globenv % group )
+     debug % pot_bond = pot_bond
+     CALL mp_sum ( pot_bend, globenv % group )
+     debug % pot_bend = pot_bend
+     CALL mp_sum ( pot_torsion, globenv % group )
+     debug % pot_torsion = pot_torsion
+     CALL mp_sum ( pot_imptors, globenv % group )
+     debug % pot_imptors = pot_imptors
+     CALL mp_sum ( pot_onef, globenv % group )
+     debug % pot_onef = pot_onef
+     CALL mp_sum ( pot_urey_bradley, globenv % group )
+     debug % pot_urey_bradley = pot_urey_bradley
+     CALL mp_sum ( f_nonbond, globenv % group )
+     debug % f_nonbond = f_nonbond
+     CALL mp_sum ( pv_nonbond, globenv % group )
+     debug % pv_nonbond = pv_nonbond
+     CALL mp_sum ( pv_bond, globenv % group )
+     debug % pv_bond = pv_bond
+     CALL mp_sum ( pv_bend, globenv % group )
+     debug % pv_bend = pv_bend
+     CALL mp_sum ( pv_torsion, globenv % group )
+     debug % pv_torsion = pv_torsion
+     CALL mp_sum ( pv_imptors, globenv % group )
+     debug % pv_imptors = pv_imptors
+     CALL mp_sum ( pv_onef, globenv % group )
+     debug % pv_onef = pv_onef
+     CALL mp_sum ( pv_urey_bradley, globenv % group )
+     debug % pv_ub = pv_urey_bradley
+     SELECT CASE ( ewald_type )
+     CASE ( 'PME', 'SPME' )
+        debug % pot_g = vg_coulomb
+        debug % pv_g = pv_g
+        debug % f_g = fg_coulomb
+     CASE ( 'EWALD' )
+        debug % pot_g = vg_coulomb
+        debug % pv_g = pv_g
+        ! debug % fg is computed above because of
+        ! distributed particle data
+     CASE default
+        debug % pot_g = 0.0_dp
+        debug % f_g = 0.0_dp
+        debug % pv_g = 0.0_dp
+     END SELECT
+  END IF
 
 ! deallocating all local variables
   IF ( ALLOCATED ( fg_coulomb ) ) THEN

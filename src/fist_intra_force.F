@@ -137,6 +137,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
   IF ( PRESENT ( f_torsion)) f_torsion = 0.0_dp
   IF ( PRESENT ( f_imptor)) f_imptor = 0.0_dp
   IF ( PRESENT ( f_ub)) f_ub = 0.0_dp
+  IF ( PRESENT ( f_onef)) f_onef = 0.0_dp
   pot_bond =  0.0_dp
   pot_bend =  0.0_dp
   pot_urey_bradley =  0.0_dp

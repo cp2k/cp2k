@@ -51,7 +51,8 @@ MODULE fist_debug
                                                        fist_nonbond_env_get
   USE force_env_types,                          ONLY : force_env_type
   USE global_types,                             ONLY : global_environment_type
-  USE kinds,                                    ONLY: dp,default_string_length
+  USE kinds,                                    ONLY : dp,default_string_length
+  USE message_passing,                          ONLY :  mp_sum
   USE molecule_kind_types,                      ONLY : molecule_kind_type
   USE molecule_types_new,                       ONLY : molecule_type
   USE pair_potential_types,                     ONLY : pair_potential_type
@@ -100,7 +101,7 @@ SUBROUTINE  debug_control ( force_env, globenv )
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 
 ! Locals
-  INTEGER :: iflag, iatom, iw, iwf, ir, nbond, nbend, ntorsion
+  INTEGER ::  iatom, iw, iwf, ir, nbond, nbend, ntorsion, group
   INTEGER, DIMENSION ( 2 ) :: dum
   INTEGER :: i, natoms, nnodes, isos, n, nlocal_particles
   CHARACTER ( len = default_string_length ) :: ewald_type
@@ -128,7 +129,10 @@ SUBROUTINE  debug_control ( force_env, globenv )
   REAL (KIND=dp), DIMENSION ( :, : ), ALLOCATABLE :: f_numer
   REAL (KIND=dp), DIMENSION ( :, : ), ALLOCATABLE :: rel, diff
   LOGICAL, PARAMETER :: box_change = .FALSE.
+  LOGICAL :: ionode
 
+  ionode = globenv % ionode
+  group  = globenv % group
   fist_env => force_env % fist_env
 ! associcating local pointers
   CALL get_fist_env ( fist_env, ewald_pw = ewald_pw, ewald_env = ewald_env, &
@@ -150,11 +154,13 @@ SUBROUTINE  debug_control ( force_env, globenv )
   iw = globenv % scr
   iwf = 7
   ir = 5
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
+  IF ( ionode ) THEN
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
                           '*****************************************'
-  WRITE ( iw, '( 16x,A )' ) '                   BEGIN FIST DEBUG'
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
+    WRITE ( iw, '( 16x,A )' ) '                   BEGIN FIST DEBUG'
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
                           '*****************************************'
+  ENDIF
 ! allocating all arrays involved with debug
   ALLOCATE ( diff ( 3, natoms ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "diff", 3 * natoms )
@@ -200,20 +206,37 @@ SUBROUTINE  debug_control ( force_env, globenv )
 ! Call to analytical force routine:
   CALL fist_force_control ( fist_env, force_env%virial, globenv, &
                             box_change=.FALSE., debug = dbg )
+
+  CALL mp_sum ( dbg % f_bond, group )
+  CALL mp_sum ( dbg % f_bend, group )
+  CALL mp_sum ( dbg % f_torsion, group )
+  CALL mp_sum ( dbg % f_imptors, group )
+  CALL mp_sum ( dbg % f_onef, group )
+  CALL mp_sum ( dbg % f_ub, group )
+  
 ! defining delta
   delta = 1.0E-5_dp
+  IF ( ionode ) &
   WRITE ( iw, '( A, T61, G20.12 )' ) ' DELTA = ', delta
 
 ! Debug real-space non-bonded interactions
 
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
-                          '*****************************************'
-  WRITE ( iw, '( 16x,A )' ) 'NON-BONDED CONTRIBUTIONS'
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
-                          '*****************************************'
+  IF ( ionode ) THEN
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
+                            '*****************************************'
+    WRITE ( iw, '( 16x,A )' ) 'NON-BONDED CONTRIBUTIONS'
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
+                            '*****************************************'
+  END IF
+  f_numer = 0.0_dp
+  energy_numer = 0.0_dp
+  pv_test = 0.0_dp
   CALL force_nonbond_numer ( atomic_kind_set, particle_set, local_particles, &
                              ewald_env, cell, potparm, delta, f_numer, &
                              energy_numer, globenv )
+  CALL mp_sum( f_numer, group )
+  CALL mp_sum( energy_numer, group )
+  IF ( ionode )  THEN
      WRITE ( iw, '( A, T61, G20.12 )' ) &
           ' E ANA NON-BONDED = ', dbg % pot_nonbond
      WRITE ( iw, '( A, T61, G20.12 )' ) &
@@ -265,38 +288,47 @@ SUBROUTINE  debug_control ( force_env, globenv )
        WRITE ( iw, '( A,T21,3G20.12 )' ) &
           ' F NUM NON-BONDED =', f_numer ( :, dum ( 2 ) )
      ENDIF
-
+  END IF
 ! Debug non-bonded virial
 
   CALL pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
                           particle_set, cell, pv_test, delta )
 
+  CALL mp_sum( pv_test, group )
+ 
+  IF ( ionode ) THEN
 ! write out the virials
-  WRITE ( iw, '( A )' ) ' PV ANA NON-BONDED'
-  DO i = 1, 3
+    WRITE ( iw, '( A )' ) ' PV ANA NON-BONDED'
+    DO i = 1, 3
       WRITE ( iw, '( T21,3G20.12 )' ) dbg % pv_nonbond(i,:)
-  END DO
-  WRITE ( iw, '( A )' ) ' PV NUM NON-BONDED'
-  DO i = 1, 3
+    END DO
+    WRITE ( iw, '( A )' ) ' PV NUM NON-BONDED'
+    DO i = 1, 3
      WRITE ( iw, '( T21,3G20.12 )' ) pv_test(i,:)
-  END DO
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
-                          '*****************************************'
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
-                          '*****************************************'
-  WRITE ( iw, '( 16x,A )' ) ' '
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
-                          '*****************************************'
-  WRITE ( iw, '( 16x,A )' ) 'BONDED CONTRIBUTIONS'
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
-                          '*****************************************'
+    END DO
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
+                            '*****************************************'
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
+                            '*****************************************'
+    WRITE ( iw, '( 16x,A )' ) ' '
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
+                            '*****************************************'
+    WRITE ( iw, '( 16x,A )' ) 'BONDED CONTRIBUTIONS'
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
+                            '*****************************************'
+  ENDIF
 
 ! Debug bonds
+  f_numer = 0.0_dp
+  energy_numer = 0.0_dp
   CALL force_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
                           particle_set, f_numer, energy_numer, delta )
-  WRITE ( iw, '( A, T61, G20.12 )' ) &
+  CALL mp_sum( f_numer, group )
+  CALL mp_sum( energy_numer, group )
+  IF ( ionode ) THEN
+     WRITE ( iw, '( A, T61, G20.12 )' ) &
        ' E ANA BOND = ', dbg % pot_bond
-  WRITE ( iw, '( A, T61, G20.12 )' ) &
+     WRITE ( iw, '( A, T61, G20.12 )' ) &
        ' E DBG BOND = ', energy_numer
 
 ! write out all particle numbers and forces
@@ -345,12 +377,14 @@ SUBROUTINE  debug_control ( force_env, globenv )
        WRITE ( iw, '( A,T21,3G20.12 )' ) &
           ' F NUM BOND =', f_numer(:,dum(2))
      END IF
-
+   ENDIF
 ! Debug bond virial
 
-     CALL pv_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                          particle_set, cell, pv_test, delta )
-
+   pv_test = 0.0_dp
+   CALL pv_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
+                        particle_set, cell, pv_test, delta )
+   CALL mp_sum ( pv_test, group )
+   IF ( ionode ) THEN
 ! write out the virials
      WRITE ( iw, '( A )' ) ' PV ANA BOND'
      DO i = 1, 3
@@ -360,421 +394,474 @@ SUBROUTINE  debug_control ( force_env, globenv )
      DO i = 1, 3
         WRITE ( iw, '( T21, 3G20.12 )' ) pv_test ( i, : )
      END DO
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
+     WRITE ( iw, '( A,A )' ) ' **************************************', &
                           '*****************************************'
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
+     WRITE ( iw, '( A,A )' ) ' **************************************', &
                           '*****************************************'
-  WRITE ( iw, '( 16x,A )' ) ' '
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
+     WRITE ( iw, '( 16x,A )' ) ' '
+     WRITE ( iw, '( A,A )' ) ' **************************************', &
                           '*****************************************'
-  WRITE ( iw, '( 16x,A )' ) 'UREY-BRADLEY CONTRIBUTIONS'
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
+     WRITE ( iw, '( 16x,A )' ) 'UREY-BRADLEY CONTRIBUTIONS'
+     WRITE ( iw, '( A,A )' ) ' **************************************', &
                           '*****************************************'
+   ENDIF
 
 ! Debug urey-bradley
+  f_numer = 0.0_dp
+  energy_numer = 0.0_dp
+  pv_test = 0.0_dp
   CALL force_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                                particle_set, f_numer, energy_numer, delta )
-  WRITE ( iw, '( A, T61, G20.12 )' ) &
+                        particle_set, f_numer, energy_numer, delta )
+  
+  CALL mp_sum( f_numer, group )
+  CALL mp_sum( energy_numer, group )
+  IF ( ionode ) THEN
+    WRITE ( iw, '( A, T61, G20.12 )' ) &
        ' E ANA UREY-BRADLEY = ', dbg % pot_urey_bradley
-  WRITE ( iw, '( A, T61, G20.12 )' ) &
+    WRITE ( iw, '( A, T61, G20.12 )' ) &
        ' E DBG UREY-BRADLEY = ', energy_numer
 
 ! write out all particle numbers and forces
-  WRITE ( iw, '( /,A )' ) &
+    WRITE ( iw, '( /,A )' ) &
        'THE FORCES ON ALL PARTICLES (FILE=urey-bradley)'
-  OPEN (UNIT = iwf, &
+    OPEN (UNIT = iwf, &
         FILE = 'urey-bradley', STATUS = 'REPLACE', ACTION = 'WRITE')
-  DO iatom = 1, natoms
+    DO iatom = 1, natoms
         WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
         WRITE ( iwf, '( A,T21,3G20.12 )' ) &
              ' F ANA UREY-BRADLEY =', dbg % f_ub(:,iatom)
         WRITE ( iwf, '( A,T21,3G20.12,/ )' ) &
              ' F NUM UREY-BRADLEY =', f_numer(:,iatom)
-  END DO
-  CLOSE (iwf)
+    END DO
+    CLOSE (iwf)
 
 ! compute the absolute value of the differences in the forces
-  diff = ABS ( ABS (dbg % f_ub) - ABS (f_numer) )
+    diff = ABS ( ABS (dbg % f_ub) - ABS (f_numer) )
 ! find the maximum difference and the relative and absolute errors.
-  IF ( .NOT. ANY ( dbg % f_ub == 0.0_dp ) )  rel = diff / ABS (dbg % f_ub)
+    IF ( .NOT. ANY ( dbg % f_ub == 0.0_dp ) )  rel = diff / ABS (dbg % f_ub)
 
 ! find the maximum difference and the relative and absolute errors
-  WRITE ( iw, '( A,T61,G20.12 )' ) &
+    WRITE ( iw, '( A,T61,G20.12 )' ) &
        ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
-  IF ( .NOT. ANY ( dbg % f_ub == 0.0_dp ) ) THEN
+    IF ( .NOT. ANY ( dbg % f_ub == 0.0_dp ) ) THEN
      WRITE ( iw, '( A,T61,G20.12 )' ) &
     ' MAXIMUM RELATIVE ERROR = ', MAXVAL ( rel )
-  ENDIF
+    ENDIF
 
 ! write out the particle number and forces of
 ! the max absolute and relative error
-   dum = MAXLOC ( diff )
-  WRITE ( iw, '( A,T71,I10 )' ) &
-       ' PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum(2)
-  WRITE ( iw, '( A,T21,3G20.12 )' ) &
-       ' F ANA UREY-BRADLEY =', dbg % f_ub(:,dum(2))
-  WRITE ( iw, '( A,T21,3G20.12 )' ) &
-       ' F NUM UREY-BRADLEY =', f_numer(:,dum(2))
-
-  IF ( .NOT. ANY ( dbg % f_ub == 0.0_dp ) ) THEN
-     dum = MAXLOC ( rel )
+     dum = MAXLOC ( diff )
     WRITE ( iw, '( A,T71,I10 )' ) &
-       ' PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
+       ' PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum(2)
     WRITE ( iw, '( A,T21,3G20.12 )' ) &
        ' F ANA UREY-BRADLEY =', dbg % f_ub(:,dum(2))
     WRITE ( iw, '( A,T21,3G20.12 )' ) &
        ' F NUM UREY-BRADLEY =', f_numer(:,dum(2))
-  END IF
 
+    IF ( .NOT. ANY ( dbg % f_ub == 0.0_dp ) ) THEN
+     dum = MAXLOC ( rel )
+      WRITE ( iw, '( A,T71,I10 )' ) &
+         ' PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
+      WRITE ( iw, '( A,T21,3G20.12 )' ) &
+       ' F ANA UREY-BRADLEY =', dbg % f_ub(:,dum(2))
+      WRITE ( iw, '( A,T21,3G20.12 )' ) &
+         ' F NUM UREY-BRADLEY =', f_numer(:,dum(2))
+    END IF
+  ENDIF
 ! Debug ub virial
   CALL pv_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
                      particle_set, cell, pv_test, delta )
 
+  CALL mp_sum ( pv_test, group )
+  IF ( ionode ) THEN
 ! write out the virials
-  WRITE ( iw, '( A )' ) ' PV ANA UREY-BRADLEY'
-  DO i = 1, 3
+   WRITE ( iw, '( A )' ) ' PV ANA UREY-BRADLEY'
+   DO i = 1, 3
      WRITE ( iw, '( T21,3G20.12 )' ) dbg % pv_ub(i,:)
-  END DO
-  WRITE ( iw, '( A )' ) ' PV NUM UREY-BRADLEY'
-  DO i = 1, 3
+   END DO
+   WRITE ( iw, '( A )' ) ' PV NUM UREY-BRADLEY'
+   DO i = 1, 3
      WRITE ( iw, '( T21, 3G20.12 )' ) pv_test ( i, : )
-  END DO
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
+   END DO
+   WRITE ( iw, '( A,A )' ) ' **************************************', &
                           '*****************************************'
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
+   WRITE ( iw, '( A,A )' ) ' **************************************', &
                           '*****************************************'
-  WRITE ( iw, '( 16x,A )' ) ' '
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
+   WRITE ( iw, '( 16x,A )' ) ' '
+   WRITE ( iw, '( A,A )' ) ' **************************************', &
                           '*****************************************'
-  WRITE ( iw, '( 16x,A )' ) 'ONE-FOUR CONTRIBUTIONS'
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
-                          '*****************************************'
-
+   WRITE ( iw, '( 16x,A )' ) 'ONE-FOUR CONTRIBUTIONS'
+   WRITE ( iw, '( A,A )' ) ' **************************************', &
+                           '*****************************************'
+  ENDIF
 ! Debug onefours
+  f_numer = 0.0_dp
+  energy_numer = 0.0_dp
+  pv_test = 0.0_dp
   CALL force_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, &
                               particle_set, f_numer, energy_numer, delta )
-  WRITE ( iw, '( A, T61, G20.12 )' ) &
+  CALL mp_sum( f_numer, group )
+  CALL mp_sum( energy_numer, group )
+  IF ( ionode ) THEN
+    WRITE ( iw, '( A, T61, G20.12 )' ) &
        ' E ANA ONE-FOUR = ', dbg % pot_onef
-  WRITE ( iw, '( A, T61, G20.12 )' ) &
+    WRITE ( iw, '( A, T61, G20.12 )' ) &
        ' E DBG ONE-FOUR = ', energy_numer
 
 ! write out all particle numbers and forces
-  WRITE ( iw, '( /,A )' ) &
+    WRITE ( iw, '( /,A )' ) &
       'THE FORCES ON ALL PARTICLES (FILE=onefours)'
-  OPEN (UNIT = iwf, &
+    OPEN (UNIT = iwf, &
         FILE = 'onefours', STATUS = 'REPLACE', ACTION = 'WRITE')
-  DO iatom = 1, natoms
-    WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
-    WRITE ( iwf, '( A,T21,3G20.12 )' ) &
+    DO iatom = 1, natoms
+      WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
+      WRITE ( iwf, '( A,T21,3G20.12 )' ) &
          ' F ANA ONE-FOUR =', dbg % f_onef(:,iatom)
-    WRITE ( iwf, '( A,T21,3G20.12,/ )' ) &
+      WRITE ( iwf, '( A,T21,3G20.12,/ )' ) &
          ' F NUM ONE-FOUR =', f_numer(:,iatom)
-  END DO
-  CLOSE (iwf)
+    END DO
+    CLOSE (iwf)
 
 ! compute the absolute value of the differences in the forces
-  diff = ABS ( ABS (dbg % f_onef) - ABS (f_numer) )
+    diff = ABS ( ABS (dbg % f_onef) - ABS (f_numer) )
 ! find the maximum difference and the relative and absolute errors.
-  IF ( .NOT. ANY ( dbg % f_onef == 0.0_dp ) )  rel = diff / ABS (dbg % f_onef)
+    IF ( .NOT. ANY ( dbg % f_onef == 0.0_dp ) )  rel = diff / ABS (dbg % f_onef)
 
 ! find the maximum difference and the relative and absolute errors
-  WRITE ( iw, '( A,T61,G20.12 )' ) &
-       ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
-  IF ( .NOT. ANY ( dbg % f_onef == 0.0_dp ) ) THEN
     WRITE ( iw, '( A,T61,G20.12 )' ) &
+       ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
+    IF ( .NOT. ANY ( dbg % f_onef == 0.0_dp ) ) THEN
+      WRITE ( iw, '( A,T61,G20.12 )' ) &
         ' MAXIMUM RELATIVE ERROR = ', MAXVAL ( rel )
-  ENDIF
+    ENDIF
 
 ! write out the particle number and forces of
 ! the max absolute and relative error
   dum = MAXLOC ( diff )
-  WRITE ( iw, '( A,T71,I10 )' ) &
-       ' PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum(2)
-  WRITE ( iw, '( A,T21,3G20.12 )' ) &
-       ' F ANA ONE-FOUR =', dbg % f_onef(:,dum(2))
-  WRITE ( iw, '( A,T21,3G20.12 )' ) &
-       ' F NUM ONE-FOUR =', f_numer(:,dum(2))
-
-  IF ( .NOT. ANY ( dbg % f_ub == 0.0_dp ) ) THEN
-    dum = MAXLOC ( rel )
     WRITE ( iw, '( A,T71,I10 )' ) &
-       ' PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
+       ' PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum(2)
     WRITE ( iw, '( A,T21,3G20.12 )' ) &
        ' F ANA ONE-FOUR =', dbg % f_onef(:,dum(2))
     WRITE ( iw, '( A,T21,3G20.12 )' ) &
        ' F NUM ONE-FOUR =', f_numer(:,dum(2))
-  END IF
 
+    IF ( .NOT. ANY ( dbg % f_ub == 0.0_dp ) ) THEN
+      dum = MAXLOC ( rel )
+      WRITE ( iw, '( A,T71,I10 )' ) &
+       ' PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
+      WRITE ( iw, '( A,T21,3G20.12 )' ) &
+       ' F ANA ONE-FOUR =', dbg % f_onef(:,dum(2))
+      WRITE ( iw, '( A,T21,3G20.12 )' ) &
+       ' F NUM ONE-FOUR =', f_numer(:,dum(2))
+    END IF
+  ENDIF
 ! Debug ub virial
   CALL pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, &
                           particle_set, cell, pv_test, delta )
-
+  CALL mp_sum ( pv_test, group )
+  IF ( ionode ) THEN
 ! write out the virials
-  WRITE ( iw, '( A )' ) ' PV ANA ONE-FOUR'
-  DO i = 1, 3
-     WRITE ( iw, '( T21,3G20.12 )' ) dbg % pv_onef(i,:)
-  END DO
-  WRITE ( iw, '( A )' ) ' PV NUM ONE-FOUR'
-  DO i = 1, 3
-     WRITE ( iw, '( T21, 3G20.12 )' ) pv_test ( i, : )
-  END DO
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
+    WRITE ( iw, '( A )' ) ' PV ANA ONE-FOUR'
+    DO i = 1, 3
+       WRITE ( iw, '( T21,3G20.12 )' ) dbg % pv_onef(i,:)
+    END DO
+    WRITE ( iw, '( A )' ) ' PV NUM ONE-FOUR'
+    DO i = 1, 3
+       WRITE ( iw, '( T21, 3G20.12 )' ) pv_test ( i, : )
+    END DO
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
+                            '*****************************************'
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
                           '*****************************************'
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
-                          '*****************************************'
-  WRITE ( iw, '( 16x,A )' ) ' '
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
-                          '*****************************************'
-  WRITE ( iw, '( 16x,A )' ) 'BEND CONTRIBUTIONS'
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
-                          '*****************************************'
-
+    WRITE ( iw, '( 16x,A )' ) ' '
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
+                            '*****************************************'
+    WRITE ( iw, '( 16x,A )' ) 'BEND CONTRIBUTIONS'
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
+                            '*****************************************'
+  ENDIF
 ! Debug bends
+  f_numer = 0.0_dp
+  energy_numer = 0.0_dp
+  pv_test = 0.0_dp
   CALL force_bend_numer ( molecule_set, molecule_kind_set, local_molecules, &
                           particle_set, f_numer, energy_numer, delta )
-  WRITE ( iw, '( A, T61, G20.12 )' ) &
+  CALL mp_sum( f_numer, group )
+  CALL mp_sum( energy_numer, group )
+
+  IF ( ionode ) THEN
+    WRITE ( iw, '( A, T61, G20.12 )' ) &
        ' E ANA BEND = ', dbg % pot_bend
-  WRITE ( iw, '( A, T61, G20.12 )' ) &
+    WRITE ( iw, '( A, T61, G20.12 )' ) &
        ' E DBG BEND = ', energy_numer
 
 ! write out all particle numbers and forces
-  WRITE ( iw, '( /,A )' ) &
+    WRITE ( iw, '( /,A )' ) &
        ' THE FORCES ON ALL PARTICLES (FILE=bends)'
-  OPEN (UNIT = iwf, FILE = 'bends', STATUS = 'REPLACE', ACTION = 'WRITE')
-  DO iatom = 1, natoms
-     WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
-     WRITE ( iwf, '( A,T21,3G20.12 )' ) &
+    OPEN (UNIT = iwf, FILE = 'bends', STATUS = 'REPLACE', ACTION = 'WRITE')
+    DO iatom = 1, natoms
+       WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
+       WRITE ( iwf, '( A,T21,3G20.12 )' ) &
           ' F ANA BENDS =', dbg % f_bend(:,iatom)
-     WRITE ( iwf, '( A,T21,3G20.12,/ )' ) &
+       WRITE ( iwf, '( A,T21,3G20.12,/ )' ) &
           ' F NUM BENDS =', f_numer(:,iatom)
-     END DO
-  CLOSE (iwf)
+    END DO
+    CLOSE (iwf)
 
 ! compute the absolute value of the differences in the forces
-  diff = ABS ( ABS (dbg % f_bend) - ABS (f_numer) )
-  IF ( .NOT. ANY ( dbg % f_bend == 0.0_dp ) ) rel = diff / ABS (dbg % f_bend)
+    diff = ABS ( ABS (dbg % f_bend) - ABS (f_numer) )
+    IF ( .NOT. ANY ( dbg % f_bend == 0.0_dp ) ) rel = diff / ABS (dbg % f_bend)
 
 ! find the maximum difference and the relative and absolute errors
-  WRITE ( iw, '( A,T61,G20.12 )' ) &
-       ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
-  IF ( .NOT. ANY ( dbg % f_bend == 0.0_dp ) ) THEN
     WRITE ( iw, '( A,T61,G20.12 )' ) &
+       ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
+    IF ( .NOT. ANY ( dbg % f_bend == 0.0_dp ) ) THEN
+      WRITE ( iw, '( A,T61,G20.12 )' ) &
         ' MAXIMUM RELATIVE ERROR = ', MAXVAL ( rel )
-  ENDIF
+    ENDIF
 
 ! write out the particle number and forces of
 ! the max absolute and relative error
-  dum = MAXLOC ( diff )
-  WRITE ( iw, '( A,T71,I10 )' ) &
+    dum = MAXLOC ( diff )
+    WRITE ( iw, '( A,T71,I10 )' ) &
        ' PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum(2)
-  WRITE ( iw, '( A,T21,3G20.12 )' ) &
+    WRITE ( iw, '( A,T21,3G20.12 )' ) &
        ' F ANA BEND =', dbg % f_bend(:,dum(2))
-  WRITE ( iw, '( A,T21,3G20.12 )' ) &
+    WRITE ( iw, '( A,T21,3G20.12 )' ) &
              ' F NUM BEND =', f_numer(:,dum(2))
 
-  IF ( .NOT. ANY ( dbg % f_bend == 0.0_dp ) ) THEN
-    dum = MAXLOC ( rel )
-    WRITE ( iw, '( A,T71,I10 )' ) &
+    IF ( .NOT. ANY ( dbg % f_bend == 0.0_dp ) ) THEN
+      dum = MAXLOC ( rel )
+      WRITE ( iw, '( A,T71,I10 )' ) &
        ' PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
-    WRITE ( iw, '( A,T21,3G20.12 )' ) &
+      WRITE ( iw, '( A,T21,3G20.12 )' ) &
        ' F ANA BEND =', dbg % f_bend(:,dum(2))
-    WRITE ( iw, '( A,T21,3G20.12 )' ) &
+      WRITE ( iw, '( A,T21,3G20.12 )' ) &
        ' F NUM BEND =', f_numer(:,dum(2))
-  ENDIF
-
+    ENDIF
+  END IF
 ! Debug bend virial
   CALL pv_bend_numer ( molecule_set, molecule_kind_set, local_molecules, &
                        particle_set, cell, pv_test, delta )
-
+  CALL mp_sum ( pv_test, group )
+ 
+  IF ( ionode ) THEN
 ! write out the virials
-  WRITE ( iw, '( A )' ) ' PV ANA BEND'
-  DO i = 1, 3
+    WRITE ( iw, '( A )' ) ' PV ANA BEND'
+    DO i = 1, 3
      WRITE ( iw, '( T21, 3G20.12 )' ) dbg % pv_bend(i,:)
-  END DO
-  WRITE ( iw, '( A )' ) ' PV NUM BEND'
-  DO i = 1, 3
-     WRITE ( iw, '( T21, 3G20.12 )' ) pv_test(i,:)
-  END DO
+    END DO
+    WRITE ( iw, '( A )' ) ' PV NUM BEND'
+    DO i = 1, 3
+       WRITE ( iw, '( T21, 3G20.12 )' ) pv_test(i,:)
+    END DO
 
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
-                          '*****************************************'
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
-                          '*****************************************'
-  WRITE ( iw, '( 16x,A )' ) ' '
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
-                          '*****************************************'
-  WRITE ( iw, '( 16x,A )' ) 'PROPER TORSION CONTRIBUTIONS'
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
-                          '*****************************************'
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
+                            '*****************************************'
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
+                            '*****************************************'
+    WRITE ( iw, '( 16x,A )' ) ' '
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
+                            '*****************************************'
+    WRITE ( iw, '( 16x,A )' ) 'PROPER TORSION CONTRIBUTIONS'
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
+                            '*****************************************'
+  ENDIF
 ! Debug torsions
+  f_numer = 0.0_dp
+  energy_numer = 0.0_dp
+  pv_test = 0.0_dp
   CALL force_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, &
                             particle_set, f_numer, energy_numer, delta )
-  WRITE ( iw, '( A, T61, G20.12 )' ) &
+  CALL mp_sum( f_numer, group )
+  CALL mp_sum( energy_numer, group )
+  
+  IF ( ionode ) THEN
+    WRITE ( iw, '( A, T61, G20.12 )' ) &
        ' E ANA TORSION = ', dbg % pot_torsion
-  WRITE ( iw, '( A, T61, G20.12 )' ) &
+    WRITE ( iw, '( A, T61, G20.12 )' ) &
        ' E DBG TORSION = ', energy_numer
 
 ! write out all particle numbers and forces
-  WRITE ( iw, '( /,A,A )' ) &
+    WRITE ( iw, '( /,A,A )' ) &
     ' THE FORCES ON ALL PARTICLES ',&
     '(FILE=torsions)'
-  OPEN (UNIT = iwf, &
+    OPEN (UNIT = iwf, &
         FILE = 'torsions', STATUS = 'REPLACE', ACTION = 'WRITE')
-  DO iatom = 1, natoms
-  WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
-  WRITE ( iwf, '( A,T21,3G20.12 )' ) ' F ANA TORSION =', &
+    DO iatom = 1, natoms
+      WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
+      WRITE ( iwf, '( A,T21,3G20.12 )' ) ' F ANA TORSION =', &
        dbg % f_torsion(:,iatom)
-  WRITE ( iwf, '( A,T21,3G20.12,/ )' ) ' F NUM TORSION =', &
+      WRITE ( iwf, '( A,T21,3G20.12,/ )' ) ' F NUM TORSION =', &
        f_numer(:,iatom)
-  END DO
-  CLOSE (iwf)
+    END DO
+    CLOSE (iwf)
 
 ! compute the absolute value of the differences in the forces
-  diff = ABS ( ABS (dbg % f_torsion) - ABS (f_numer) )
-  IF ( .NOT. ANY ( dbg % f_torsion ( :, : ) == 0.0_dp ) ) rel = diff / ABS (dbg % f_torsion)
+    diff = ABS ( ABS (dbg % f_torsion) - ABS (f_numer) )
+    IF ( .NOT. ANY ( dbg % f_torsion ( :, : ) == 0.0_dp ) )  &
+    rel = diff / ABS (dbg % f_torsion)
 
 ! find the maximum difference and the relative and absolute errors
-  WRITE ( iw, '( A,T61,G20.12 )' ) &
-       ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
-  IF ( .NOT. ANY ( dbg % f_torsion == 0.0_dp ) ) THEN
     WRITE ( iw, '( A,T61,G20.12 )' ) &
+       ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
+    IF ( .NOT. ANY ( dbg % f_torsion == 0.0_dp ) ) THEN
+      WRITE ( iw, '( A,T61,G20.12 )' ) &
        ' MAXIMUM RELATIVE ERROR = ', MAXVAL ( rel )
-  ENDIF
+    ENDIF
 
 ! write out the particle number and forces of
 ! the max absolute and relative error
-  dum = MAXLOC ( diff )
-  WRITE ( iw, '( A,T71,I10 )' ) &
-       ' PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum(2)
-  WRITE ( iw, '( A,T21,3G20.12 )' ) &
-       ' F ANA TORSION =', dbg % f_torsion(:,dum(2))
-  WRITE ( iw, '( A,T21,3G20.12 )' ) &
-       ' F NUM TORSION =', f_numer(:,dum(2))
-
-  IF ( .NOT. ANY ( dbg % f_torsion == 0.0_dp ) ) THEN
-    dum = MAXLOC ( rel )
+    dum = MAXLOC ( diff )
     WRITE ( iw, '( A,T71,I10 )' ) &
-       ' PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
+       ' PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum(2)
     WRITE ( iw, '( A,T21,3G20.12 )' ) &
        ' F ANA TORSION =', dbg % f_torsion(:,dum(2))
     WRITE ( iw, '( A,T21,3G20.12 )' ) &
        ' F NUM TORSION =', f_numer(:,dum(2))
-  ENDIF
 
+    IF ( .NOT. ANY ( dbg % f_torsion == 0.0_dp ) ) THEN
+      dum = MAXLOC ( rel )
+      WRITE ( iw, '( A,T71,I10 )' ) &
+         ' PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
+      WRITE ( iw, '( A,T21,3G20.12 )' ) &
+       ' F ANA TORSION =', dbg % f_torsion(:,dum(2))
+      WRITE ( iw, '( A,T21,3G20.12 )' ) &
+       ' F NUM TORSION =', f_numer(:,dum(2))
+    ENDIF
+  END IF
 ! Debug torsion virial
   CALL pv_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, &
                           particle_set, cell, pv_test, delta )
+  CALL mp_sum ( pv_test, group )
 
+  IF ( ionode ) THEN
 ! write out the virials
-  WRITE ( iw, '( A )' ) ' PV ANA TORSION'
-  DO i = 1, 3
-     WRITE ( iw, '( T21, 3G20.12 )' ) dbg % pv_torsion(i,:)
-  END DO
-  WRITE ( iw, '( A )' ) ' PV NUM TORSION'
-  DO i = 1, 3
-     WRITE ( iw, '( T21, 3G20.12 )' ) pv_test(i,:)
-  END DO
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
+    WRITE ( iw, '( A )' ) ' PV ANA TORSION'
+    DO i = 1, 3
+       WRITE ( iw, '( T21, 3G20.12 )' ) dbg % pv_torsion(i,:)
+    END DO
+    WRITE ( iw, '( A )' ) ' PV NUM TORSION'
+    DO i = 1, 3
+       WRITE ( iw, '( T21, 3G20.12 )' ) pv_test(i,:)
+    END DO
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
+                            '*****************************************'
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
+                            '*****************************************'
+    WRITE ( iw, '( 16x,A )' ) ' '
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
                           '*****************************************'
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
-                          '*****************************************'
-  WRITE ( iw, '( 16x,A )' ) ' '
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
-                          '*****************************************'
-  WRITE ( iw, '( 16x,A )' ) 'IMPROPER TORSION CONTRIBUTIONS'
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
-                          '*****************************************'
+    WRITE ( iw, '( 16x,A )' ) 'IMPROPER TORSION CONTRIBUTIONS'
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
+                            '*****************************************'
+  ENDIF
 
 ! Debug improper torsions
+  f_numer = 0.0_dp
+  energy_numer = 0.0_dp
+  pv_test = 0.0_dp
   CALL force_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, &
                                   particle_set, f_numer, energy_numer, delta )
-  WRITE ( iw, '( A, T61, G20.12 )' ) &
+  CALL mp_sum( f_numer, group )
+  CALL mp_sum( energy_numer, group )
+  IF ( ionode ) THEN
+    WRITE ( iw, '( A, T61, G20.12 )' ) &
        ' E ANA TORSION = ', dbg % pot_imptors
-  WRITE ( iw, '( A, T61, G20.12 )' ) &
+    WRITE ( iw, '( A, T61, G20.12 )' ) &
        ' E DBG TORSION = ', energy_numer
 
 ! write out all particle numbers and forces
-  WRITE ( iw, '( /,A,A )' ) &
+    WRITE ( iw, '( /,A,A )' ) &
        ' THE FORCES ON ALL PARTICLES ',&
        '(FILE=imptors)'
-  OPEN (UNIT = iwf, &
+    OPEN (UNIT = iwf, &
         FILE = 'imptors', STATUS = 'REPLACE', ACTION = 'WRITE')
-  DO iatom = 1, natoms
+    DO iatom = 1, natoms
      WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
      WRITE ( iwf, '( A,T21,3G20.12 )' ) ' F ANA IMP TORSION =', &
           dbg % f_imptors(:,iatom)
      WRITE ( iwf, '( A,T21,3G20.12,/ )' ) ' F NUM IMP TORSION =', &
           f_numer(:,iatom)
-  END DO
-  CLOSE (iwf)
+    END DO
+    CLOSE (iwf)
 
 ! compute the absolute value of the differences in the forces
-  diff = ABS ( ABS (dbg % f_imptors) - ABS (f_numer) )
-  IF ( .NOT. ANY ( dbg % f_imptors ( :, : ) == 0.0_dp ) ) &
+    diff = ABS ( ABS (dbg % f_imptors) - ABS (f_numer) )
+    IF ( .NOT. ANY ( dbg % f_imptors ( :, : ) == 0.0_dp ) ) &
       rel = diff / ABS (dbg % f_imptors)
 
 ! find the maximum difference and the relative and absolute errors
-  WRITE ( iw, '( A,T61,G20.12 )' ) &
-       ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
-  IF ( .NOT. ANY ( dbg % f_imptors == 0.0_dp ) ) THEN
     WRITE ( iw, '( A,T61,G20.12 )' ) &
+       ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
+    IF ( .NOT. ANY ( dbg % f_imptors == 0.0_dp ) ) THEN
+      WRITE ( iw, '( A,T61,G20.12 )' ) &
        ' MAXIMUM RELATIVE ERROR = ', MAXVAL ( rel )
-  ENDIF
+    ENDIF
 
 ! write out the particle number and forces of
 ! the max absolute and relative error
-  dum = MAXLOC ( diff )
-  WRITE ( iw, '( A,T71,I10 )' ) &
-       ' PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum(2)
-  WRITE ( iw, '( A,T21,3G20.12 )' ) &
-       ' F ANA IMP TORSION =', dbg % f_imptors(:,dum(2))
-  WRITE ( iw, '( A,T21,3G20.12 )' ) &
-       ' F NUM IMP TORSION =', f_numer(:,dum(2))
-
-  IF ( .NOT. ANY ( dbg % f_imptors == 0.0_dp ) ) THEN
-    dum = MAXLOC ( rel )
+    dum = MAXLOC ( diff )
     WRITE ( iw, '( A,T71,I10 )' ) &
-       ' PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
-          WRITE ( iw, '( A,T21,3G20.12 )' ) &
+       ' PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum(2)
+    WRITE ( iw, '( A,T21,3G20.12 )' ) &
        ' F ANA IMP TORSION =', dbg % f_imptors(:,dum(2))
     WRITE ( iw, '( A,T21,3G20.12 )' ) &
        ' F NUM IMP TORSION =', f_numer(:,dum(2))
-  ENDIF
 
+    IF ( .NOT. ANY ( dbg % f_imptors == 0.0_dp ) ) THEN
+      dum = MAXLOC ( rel )
+      WRITE ( iw, '( A,T71,I10 )' ) &
+       ' PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
+          WRITE ( iw, '( A,T21,3G20.12 )' ) &
+       ' F ANA IMP TORSION =', dbg % f_imptors(:,dum(2))
+      WRITE ( iw, '( A,T21,3G20.12 )' ) &
+       ' F NUM IMP TORSION =', f_numer(:,dum(2))
+    ENDIF
+  END IF
 ! Debug torsion virial
   CALL pv_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, &
                           particle_set, cell, pv_test, delta )
+  CALL mp_sum ( pv_test, group )
 
+  IF ( ionode ) THEN
 ! write out the virials
-  WRITE ( iw, '( A )' ) ' PV ANA IMP TORSION'
-  DO i = 1, 3
+    WRITE ( iw, '( A )' ) ' PV ANA IMP TORSION'
+    DO i = 1, 3
      WRITE ( iw, '( T21, 3G20.12 )' ) dbg % pv_imptors (i,:)
-  END DO
-  WRITE ( iw, '( A )' ) ' PV NUM IMP TORSION'
-  DO i = 1, 3
+    END DO
+    WRITE ( iw, '( A )' ) ' PV NUM IMP TORSION'
+    DO i = 1, 3
      WRITE ( iw, '( T21, 3G20.12 )' ) pv_test(i,:)
-  END DO
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
+    END DO
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
                           '*****************************************'
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
                           '*****************************************'
-  WRITE ( iw, '( 16x,A )' ) ' '
+    WRITE ( iw, '( 16x,A )' ) ' '
 
+  END IF
 ! Debug g-space
- CALL ewald_env_get ( ewald_env, ewald_type = ewald_type )
- IF ( ewald_type /= 'NONE' ) THEN
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
-                          '*****************************************'
-  WRITE ( iw, '( 16x,A )' ) 'G-SPACE CONTRIBUTIONS'
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
-                          '*****************************************'
+  CALL ewald_env_get ( ewald_env, ewald_type = ewald_type )
+  IF ( ionode ) THEN
+    IF ( ewald_type /= 'NONE' ) THEN
+      WRITE ( iw, '( A,A )' ) ' **************************************', &
+                              '*****************************************'
+      WRITE ( iw, '( 16x,A )' ) 'G-SPACE CONTRIBUTIONS'
+      WRITE ( iw, '( A,A )' ) ' **************************************', &
+                              '*****************************************'
+    ENDIF
+  ENDIF
   SELECT CASE ( ewald_type )
   CASE ( "EWALD" )
+    energy_numer = 0.0_dp
     CALL ewald_energy_numer ( ewald_env, ewald_pw, atomic_kind_set, &
                               particle_set, local_particles, energy_numer )
+    IF ( ionode ) &
     WRITE ( iw, '( A, T61, G20.12 )' ) ' G-SPACE DBG ENERGY = ', &
          energy_numer
   CASE ( "PME" )
+    IF ( ionode ) &
     WRITE ( iw, '( A, T61, G20.12 )' ) ' G-SPACE ANA ENERGY = ', &
          dbg % pot_g
   CASE ( "SPME" )
@@ -784,63 +871,68 @@ SUBROUTINE  debug_control ( force_env, globenv )
 ! Now forces
   SELECT CASE ( ewald_type )
   CASE ( "EWALD" )
+    f_numer = 0.0_dp
     CALL ewald_force_numer ( ewald_env, ewald_pw, atomic_kind_set,  &
                              particle_set, local_particles, delta, f_numer )
+    CALL mp_sum ( f_numer, group )    
+    CALL mp_sum ( dbg % f_g, group )    
   CASE ( "PME" )
+    f_numer = 0.0_dp
     CALL pme_force_numer ( ewald_env, ewald_pw, particle_set, delta, f_numer )
   CASE ( "SPME" )
     CALL stop_program ( "fist_debug", " NO SPME debug routines " )
   END SELECT
 ! write out all particle numbers and forces
-  WRITE ( iw, '( /,A )' ) &
-  ' THE FORCES ON ALL PARTICLES (FILE=gspace)'
-  OPEN (UNIT = iwf, FILE = 'gspace', STATUS = 'REPLACE', ACTION = 'WRITE')
-  DO iatom = 1, natoms
+  IF ( ionode ) THEN
+   WRITE ( iw, '( /,A )' ) &
+   ' THE FORCES ON ALL PARTICLES (FILE=gspace)'
+   OPEN (UNIT = iwf, FILE = 'gspace', STATUS = 'REPLACE', ACTION = 'WRITE')
+   DO iatom = 1, natoms
      WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
      WRITE ( iwf, '( A,T21,3G20.12 )' ) &
-  ' F ANA GSPACE =', dbg % f_g(:,iatom)
+   ' F ANA GSPACE =', dbg % f_g(:,iatom)
      WRITE ( iwf, '( A,T21,3G20.12,/ )' ) &
-  ' F NUM GSPACE =', f_numer(:,iatom)
-  END DO
-  CLOSE (iwf)
+   ' F NUM GSPACE =', f_numer(:,iatom)
+   END DO
+   CLOSE (iwf)
 
 ! compute the absolute value of the differences in the forces
-
-! compute the absolute value of the differences in the forces
-  diff = ABS ( ABS (dbg % f_g) - ABS (f_numer) )
-  IF ( .NOT. ANY ( dbg % f_g == 0.0_dp ) ) rel = diff / ABS (dbg % f_g)
+   diff = ABS ( ABS (dbg % f_g) - ABS (f_numer) )
+   IF ( .NOT. ANY ( dbg % f_g == 0.0_dp ) ) rel = diff / ABS (dbg % f_g)
 
 ! find the maximum difference and the relative and absolute errors
-  WRITE ( iw, '( A,T61,G20.12 )' ) 'MAXIMUM ABSOLUTE ERROR = ', &
+   WRITE ( iw, '( A,T61,G20.12 )' ) 'MAXIMUM ABSOLUTE ERROR = ', &
        MAXVAL (diff)
-  IF ( .NOT. ANY ( dbg % f_g == 0.0_dp ) ) THEN 
-    WRITE ( iw, '( A,T61,G20.12 )' ) 'MAXIMUM RELATIVE ERROR = ', &
+   IF ( .NOT. ANY ( dbg % f_g == 0.0_dp ) ) THEN 
+     WRITE ( iw, '( A,T61,G20.12 )' ) 'MAXIMUM RELATIVE ERROR = ', &
        MAXVAL (rel)
-  ENDIF
+   ENDIF
 
 ! write out the particle number and forces of the max absolute
 ! and relative error
-  dum = MAXLOC ( diff )
-  WRITE ( iw, '( A,T71,I10 )' ) &
-       ' PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum(2)
-  WRITE ( iw, '( A,T21,3G20.12 )' ) ' F ANA G-SPACE =', &
-       dbg % f_g(:,dum(2))
-  WRITE ( iw, '( A,T21,3G20.12 )' ) ' F NUM G-SPACE =', &
-       f_numer(:,dum(2))
+   dum = MAXLOC ( diff )
+   WRITE ( iw, '( A,T71,I10 )' ) &
+        ' PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum(2)
+   WRITE ( iw, '( A,T21,3G20.12 )' ) ' F ANA G-SPACE =', &
+        dbg % f_g(:,dum(2))
+   WRITE ( iw, '( A,T21,3G20.12 )' ) ' F NUM G-SPACE =', &
+        f_numer(:,dum(2))
 
-  IF ( .NOT. ANY ( dbg % f_g == 0.0_dp ) ) THEN 
-    dum = MAXLOC ( rel )
-    WRITE ( iw, '( A,T71,I10 )' ) &
-       'PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
-    WRITE ( iw, '( A,T21,3G20.12 )' ) ' F ANA G-SPACE =', &
-       dbg % f_g(:,dum(2))
-    WRITE ( iw, '( A,T21,3G20.12 )' ) ' F NUM G-SPACE =', &
-       f_numer(:,dum(2))
-  END IF
+   IF ( .NOT. ANY ( dbg % f_g == 0.0_dp ) ) THEN 
+     dum = MAXLOC ( rel )
+     WRITE ( iw, '( A,T71,I10 )' ) &
+        'PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
+     WRITE ( iw, '( A,T21,3G20.12 )' ) ' F ANA G-SPACE =', &
+        dbg % f_g(:,dum(2))
+     WRITE ( iw, '( A,T21,3G20.12 )' ) ' F NUM G-SPACE =', &
+        f_numer(:,dum(2))
+   END IF
+  ENDIF
 
 ! Debug g-space virial
   SELECT CASE ( ewald_type )
   CASE ( "EWALD" )
+    pv_test = 0.0_dp
     CALL pv_g_numer ( ewald_env, ewald_pw, atomic_kind_set, &
                        particle_set, local_particles, delta, pv_test )
   CASE ( "PME" )
@@ -850,15 +942,16 @@ SUBROUTINE  debug_control ( force_env, globenv )
   END SELECT
 
 ! write out the virials
-  WRITE ( iw, '( A )' ) ' PV NUM G-SPACE'
-  DO i = 1, 3
-     WRITE ( iw, '( T21,3G20.12 )' ) pv_test(i,:)
-  END DO
-  WRITE ( iw, '( A )' ) ' PV ANA G-SPACE'
-  DO i = 1, 3
+  IF ( ionode ) THEN
+   WRITE ( iw, '( A )' ) ' PV NUM G-SPACE'
+   DO i = 1, 3
+    WRITE ( iw, '( T21,3G20.12 )' ) pv_test(i,:)
+   END DO
+   WRITE ( iw, '( A )' ) ' PV ANA G-SPACE'
+   DO i = 1, 3
      WRITE ( iw, '( T21,3G20.12 )' ) dbg % pv_g(i,:)
-  END DO
- END IF
+   END DO
+  ENDIF
 ! deallocating all arrays involved with debug
   DEALLOCATE ( diff, STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "diff", 3 * natoms )
@@ -883,13 +976,15 @@ SUBROUTINE  debug_control ( force_env, globenv )
   IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_ub", 3 * natoms )
   DEALLOCATE ( dbg % f_onef, STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_onef", 3 * natoms )
-  WRITE ( iw, '( )' )
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
-                          '*****************************************'
-  WRITE ( iw, '( 16x, A )' ) &
-       '*                     END FIST DEBUG                   *'
-  WRITE ( iw, '( A,A )' ) ' **************************************', &
-                          '*****************************************'
+  IF ( ionode ) THEN
+    WRITE ( iw, '( )' )
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
+                            '*****************************************'
+    WRITE ( iw, '( 16x, A )' ) &
+         '*                     END FIST DEBUG                   *'
+    WRITE ( iw, '( A,A )' ) ' **************************************', &
+                            '*****************************************'
+  ENDIF
 END SUBROUTINE debug_control
 
 !!*****
