@@ -254,9 +254,9 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_ks,matrix_s,energy, &
                                        para_env=globenv%para_env)
           SELECT CASE (nspin)
           CASE (1)
-               CALL cp_fm_scale_and_add(4.0_wp,qs_ot_env(ispin)%matrix_hc,0.0_wp,qs_ot_env(ispin)%matrix_hc)
+               CALL cp_fm_scale_and_add(4.0_wp,qs_ot_env(ispin)%matrix_hc)
           CASE (2)            
-               CALL cp_fm_scale_and_add(2.0_wp,qs_ot_env(ispin)%matrix_hc,0.0_wp,qs_ot_env(ispin)%matrix_hc)
+               CALL cp_fm_scale_and_add(2.0_wp,qs_ot_env(ispin)%matrix_hc)
           CASE DEFAULT 
                CALL stop_program("OT_SCF_MINI","NSPIN NYI")
           END SELECT 

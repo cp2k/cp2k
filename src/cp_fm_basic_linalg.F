@@ -174,6 +174,7 @@ CONTAINS
                          CPSourceFileRef, &
                          error=error, failure=failure)
           CALL cp_fm_scale(alpha+beta, matrix_a, error=error)
+          CALL timestop(0.0_wp,handle)
           RETURN
        END IF
     END IF
