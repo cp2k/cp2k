@@ -410,7 +410,9 @@ CONTAINS
    REAL(KIND=dp), DIMENSION(:,:,:,:), &
         POINTER                        :: drho_h, drho1_h, drho_s, drho1_s
    REAL(KIND=dp), DIMENSION(:,:,:), &
-        POINTER                        :: vxc_h, vxc_s, vxg_h, vxg_s
+        POINTER                        :: vxc_h, vxc_s
+   REAL(KIND=dp), DIMENSION(:,:,:,:), &
+        POINTER                        :: vxg_h, vxg_s
 
    ! PARAMETERS
    CHARACTER(LEN=*), PARAMETER         :: routineN = "calculate_xc_2nd_deriv_atom", &
@@ -508,6 +510,8 @@ CONTAINS
       ALLOCATE(rho_h(1:na,1:nspins), rho1_h(1:na,1:nspins), &
                rho_s(1:na,1:nspins), rho1_s(1:na,1:nspins), stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(vxc_h(1:na,1:nr,1:nspins), vxc_s(1:na,1:nr,1:nspins), stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE(weight(1:na), stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       IF (gradient_functional) THEN
@@ -516,6 +520,8 @@ CONTAINS
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
          ALLOCATE(oodrho_h(1:na,1:nspins), oodrho1_h(1:na,1:nspins), &
                   oodrho_s(1:na,1:nspins), oodrho1_s(1:na,1:nspins), stat=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         ALLOCATE(vxg_h(1:3,1:na,1:nr,1:nspins), vxg_s(1:3,1:na,1:nr,1:nspins), stat=stat)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       END IF
 
@@ -609,11 +615,11 @@ CONTAINS
       END DO
 
       ! some cleanup
-      DEALLOCATE(rho_h, rho_s, weight, stat=stat)
+      DEALLOCATE(rho_h, rho_s, vxc_h, vxc_s, weight, stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       NULLIFY(rho_h, rho_s, weight)
       IF (gradient_functional) THEN
-         DEALLOCATE(drho_h, drho_s, oodrho_h, oodrho_s, stat=stat)
+         DEALLOCATE(drho_h, drho_s, oodrho_h, oodrho_s, vxg_h, vxg_s, stat=stat)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
          NULLIFY(drho_h, drho_s, oodrho_h, oodrho_s)
       END IF
