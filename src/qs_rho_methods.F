@@ -184,11 +184,13 @@ CONTAINS
         rho%rho_ao_valid=.FALSE.
         rho%rho_g_valid=.FALSE.
         rho%rho_r_valid=.FALSE.
+        rho%tau_g_valid=.FALSE.
+        rho%tau_r_valid=.FALSE.
         last_rho_id_nr=last_rho_id_nr+1
         rho%id_nr=last_rho_id_nr
         rho%updates_since_rebuild=-1
         rho%rebuild_each=5
-        NULLIFY(rho%rho_r, rho%rho_g, rho%rho_ao, rho%tot_rho_r, rho%tot_rho_g)
+        NULLIFY(rho%rho_r, rho%rho_g, rho%rho_ao, rho%tot_rho_r, rho%tot_rho_g, rho%tau_r, rho%tau_g)
         ALLOCATE(rho%tot_rho_r(nspins),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         IF (.not.failure) rho%tot_rho_r=0.0_dp
@@ -258,6 +260,51 @@ CONTAINS
         END DO
      END IF
   END IF
+
+  ! allocate tau_r and tau_g if use_kinetic_energy_density 
+  IF (dft_control%use_kinetic_energy_density) THEN
+     ! tau_r
+     IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho%tau_r)) THEN
+        IF (.NOT.failure) THEN
+           IF (ASSOCIATED(rho%tau_r)) THEN
+              DO i=1,SIZE(rho%tau_r)
+                 CALL coeff_deallocate(rho%tau_r(i))
+              END DO
+              DEALLOCATE(rho%tau_r,stat=stat)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           END IF
+           ALLOCATE(rho%tau_r(nspins),stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        END IF
+        IF (.NOT.failure) THEN
+           DO i=1,nspins
+              CALL pw_pool_init_coeff(auxbas_pw_pool,rho%tau_r(i),&
+                   use_data=REALDATA3D,in_space=REALSPACE,error=error)
+           END DO
+        END IF
+     END IF
+
+     ! tau_g
+     IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho%tau_g)) THEN
+        IF (.NOT.failure) THEN
+           IF (ASSOCIATED(rho%tau_g)) THEN
+              DO i=1,SIZE(rho%tau_g)
+                 CALL coeff_deallocate(rho%tau_g(i))
+              END DO
+              DEALLOCATE(rho%tau_g,stat=stat)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           END IF
+           ALLOCATE(rho%tau_g(nspins),stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        END IF
+        IF (.NOT.failure) THEN
+           DO i=1,nspins
+              CALL pw_pool_init_coeff(auxbas_pw_pool,rho%tau_g(i),&
+                   use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+           END DO
+        END IF
+     END IF
+  END IF  ! use_kinetic_energy_density
   CALL timestop(0.0_dp,handle) 
 END SUBROUTINE qs_rho_rebuild
 !***************************************************************************
@@ -279,6 +326,7 @@ END SUBROUTINE qs_rho_rebuild
 !!
 !!   FUNCTION
 !!     updates rho_r and rho_g to the new (given) ao.
+!!     if use_kinetic_energy_density also computes tau_r and tau_g
 !!
 !!   NOTES
 !!     -
@@ -316,7 +364,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
   INTEGER :: nspins, ispin, stat
   CHARACTER(len=*), PARAMETER :: routineN='qs_rho_update_rho',&
         routineP=moduleN//':'//routineN
-  REAL(KIND = dp) :: ecore, charge_tot
+  REAL(KIND = dp) :: ecore, charge_tot, dum
   TYPE(dft_control_type), POINTER :: dft_control
   TYPE(coeff_type) :: tmp_gspace
   TYPE(coeff_type), DIMENSION(:), POINTER :: mgrid_rspace, mgrid_gspace
@@ -407,6 +455,29 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
              total_rho=rho_struct%tot_rho_r(ispin),&
              qs_env=qs_env,error=error)
      END DO
+     rho_struct%rho_r_valid=.TRUE.
+     rho_struct%rho_g_valid=.TRUE.
+
+     ! if needed compute also the kinetic energy density
+     IF (dft_control%use_kinetic_energy_density) THEN
+         DO ispin=1,nspins
+            CALL calculate_rho_elec(p=rho_ao_new(ispin)%matrix,&
+                 p_old=rho_struct%rho_ao(ispin)%matrix,&
+                 rebuild=my_rebuild,&
+                 rho=rho_struct%tau_r(ispin),&
+                 rho_gspace=tmp_gspace,&
+                 rho_gspace_old=rho_struct%tau_g(ispin),&
+                 mgrid_rspace=mgrid_rspace,&
+                 mgrid_gspace=mgrid_gspace,&
+                 gridlevel_info=pw_env%gridlevel_info,&
+                 cube_info=pw_env%cube_info,&
+                 l_info=pw_env%l_info,&
+                 total_rho=dum, &  ! presumably not meaningful
+                 qs_env=qs_env, compute_tau=.TRUE., error=error)
+         END DO
+         rho_struct%tau_r_valid=.TRUE.
+         rho_struct%tau_g_valid=.TRUE.
+     ENDIF
 
      ! put back grids
      CALL pw_pool_give_back_coeff(auxbas_pw_pool, tmp_gspace, error=error)
@@ -414,8 +485,6 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
      CALL pw_pools_give_back_coeffs(pw_pools, mgrid_gspace, error=error)
      DEALLOCATE(mgrid_gspace, mgrid_rspace,stat=stat)
      
-     rho_struct%rho_r_valid=.TRUE.
-     rho_struct%rho_g_valid=.TRUE.
      IF (update_rho_ao_local) THEN
         DO ispin=1,nspins
            CALL transfer_matrix(rho_ao_new(ispin)%matrix,&

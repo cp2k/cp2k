@@ -107,6 +107,7 @@ MODULE qs_ks_methods
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell
   USE sparse_matrix_types,             ONLY: add_matrices,&
+                                             cp_sm_scale_and_add, &
                                              deallocate_matrix,&
                                              first_block_node,&
                                              get_block_node,&
@@ -308,6 +309,7 @@ CONTAINS
                                                      rho_tot_gspace
     TYPE(coeff_type), DIMENSION(:), POINTER       :: mgrid_gspace, &
                                                      mgrid_rspace
+    TYPE(coeff_type), DIMENSION(:), POINTER       :: v_tau_rspace
 
     failure=.FALSE.
     r_build=rebuild
@@ -434,7 +436,6 @@ CONTAINS
             error=error)
 
 ! *** calculate the xc potential ***       
-
        DO ispin=1,nspins
           CALL pw_pool_init_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
                use_data = REALDATA3D,&
@@ -442,8 +443,20 @@ CONTAINS
           CALL coeff_zero(v_rspace_new(ispin))
        END DO
 
+       IF (dft_control%use_kinetic_energy_density) THEN
+           ALLOCATE(v_tau_rspace(nspins), stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           DO ispin=1,nspins
+              CALL pw_pool_init_coeff(auxbas_pw_pool,v_tau_rspace(ispin),&
+                   use_data = REALDATA3D,&
+                   in_space = REALSPACE, error=error)
+           END DO
+       ELSE
+           NULLIFY(v_tau_rspace)
+       ENDIF
+
        CALL calculate_xc_potential(qs_env=qs_env,&
-            v_rspace_new=v_rspace_new,&
+            v_rspace_new=v_rspace_new, v_tau_rspace=v_tau_rspace, &
             error=error)
 
        energy%total = energy%core_overlap + energy%core_self + &
@@ -479,6 +492,7 @@ CONTAINS
                   ks_env%v_hartree_rspace%pw%cr3d
              
              IF (r_build) CALL set_matrix(ks_env%v(ispin)%matrix,0.0_dp)
+
              CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
                   mgrid_rspace=mgrid_rspace,&
                   mgrid_gspace=mgrid_gspace,&
@@ -490,9 +504,46 @@ CONTAINS
                   rebuild=r_build,p=rho%rho_ao(ispin),h=ks_env%v(ispin),&
                   qs_env=qs_env,&
                   calculate_forces=calculate_forces,error=error)
+
              CALL add_matrices(ks(ispin)%matrix,1.0_dp,h(1)%matrix,1.0_dp,&
                   ks_env%v(ispin)%matrix)
+
           END DO
+
+          IF (dft_control%use_kinetic_energy_density) THEN
+              DO ispin=1,nspins
+                 v_tau_rspace(ispin)%pw%cr3d =&
+                      v_tau_rspace(ispin)%pw%pw_grid%dvol*&
+                      v_tau_rspace(ispin)%pw%cr3d 
+
+                 IF (r_build) THEN
+                     ! we assume we can overwrite this matrix v
+                     CALL set_matrix(ks_env%v(ispin)%matrix,0.0_dp)
+                 ELSE
+                     ! if not rebuild, essentially more memory seems to be needed, but
+                     ! this shouldn't be to difficult to do (save the old v_tau_rspace, 
+                     ! and its matrix representation)
+                     CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                 ENDIF
+
+                 CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin),&
+                      mgrid_rspace=mgrid_rspace,&
+                      mgrid_gspace=mgrid_gspace,&
+                      auxbas_grid=pw_env%auxbas_grid,&
+                      gridlevel_info=pw_env%gridlevel_info,&
+                      cube_info=pw_env%cube_info,&
+                      l_info=pw_env%l_info,&
+                      rebuild=r_build,p=rho%rho_ao(ispin),h=ks_env%v(ispin),&
+                      qs_env=qs_env,&
+                      calculate_forces=calculate_forces,compute_tau=.TRUE., &
+                      error=error)
+
+                 CALL cp_sm_scale_and_add(ks(ispin)%matrix,alpha=1.0_dp, &
+                                          matrix_b=ks_env%v(ispin)%matrix, beta=1.0_dp)
+
+              END DO
+          ENDIF
+
           CALL timestop(0.0_dp,handle2)
        END IF
 
@@ -502,11 +553,21 @@ CONTAINS
           CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
                error=error)
        END DO
+
+       IF (dft_control%use_kinetic_energy_density) THEN
+           DO ispin=1,nspins
+              CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_tau_rspace(ispin),&
+                   error=error)
+           END DO
+           DEALLOCATE(v_tau_rspace, stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
+
        CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
             error=error)
        CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
             error=error)
-       DEALLOCATE(v_rspace_new, stat=stat) ! just to be sure...
+       DEALLOCATE(v_rspace_new, stat=stat) 
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        DEALLOCATE(mgrid_rspace, mgrid_gspace, stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -742,10 +803,11 @@ END SUBROUTINE qs_ks_did_change
 !!     - moved to qs_ks_methods [fawzi]
 !!
 !!*** *********************************************************************
-  SUBROUTINE calculate_xc_potential(v_rspace_new,qs_env,error)
+  SUBROUTINE calculate_xc_potential(v_rspace_new,v_tau_rspace,qs_env,error)
     IMPLICIT NONE
     TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
     TYPE(coeff_type), DIMENSION(:), INTENT(inout) :: v_rspace_new
+    TYPE(coeff_type), DIMENSION(:), POINTER       :: v_tau_rspace
     TYPE(cp_error_type), INTENT(inout), OPTIONAL  :: error
 
 !   *** Local variables ***
@@ -786,6 +848,13 @@ END SUBROUTINE qs_ks_did_change
     CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_struct%rho_r_valid,cp_failure_level,routineP,error,failure)
+    IF (dft_control%use_kinetic_energy_density) THEN
+        CPPrecondition(ASSOCIATED(v_tau_rspace),cp_failure_level,routineP,error,failure)
+        ! just a zero potential for the time being
+        DO i=1,SIZE(v_tau_rspace)
+           CALL coeff_zero(v_tau_rspace(i))
+        ENDDO
+    ENDIF
     IF ( .NOT. failure ) THEN
 
       ! for gradient corrected functional we need the density in g space
@@ -799,6 +868,11 @@ END SUBROUTINE qs_ks_did_change
 
       IF ( dft_control%nspins == 1 .OR. dft_control%nspins == 2) THEN
          CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+
+         ! TPSS
+         ! this call needs to take tau_r / tau_g from rho_struct
+         ! and fill v_tau_rspace with the corresponding 'potential'
+
          CALL xc_calculate_pw2(rho_r=rho_struct%rho_r,&
               rho_g=rho_struct%rho_g, vxc=v_rspace_new,exc=energy%exc,&
               dft_control=dft_control,&

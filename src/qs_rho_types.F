@@ -98,9 +98,11 @@ MODULE qs_rho_types
 !!     - rho_ao: the filterd rho in the localized atom basis (to have rho(r)
 !!       the filtred matrix is enough, but rho(r,r') is lost).
 !!     - rho_r: grids with rho in the real space
+!!     - tau_r: grids with the kinetic energy density in real space
 !!     - rho_g: grids with rho in the g space
-!!     - rho_ao_valid, rho_g_valid, rho_r_valid: if the corresponding
-!!       component is valid
+!!     - tau_g: grids with the kinetic energy density in g space
+!!     - rho_ao_valid, rho_g_valid, rho_r_valid, tau_r_valid, tau_g_valid: if the 
+!!       corresponding component is valid
 !!     - ref_count: the reference count, when it becomes 0 the type
 !!       is deallocated.
 !!     - updates_since_rebuild: how many updates were done since the
@@ -119,9 +121,12 @@ MODULE qs_rho_types
   TYPE qs_rho_type
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao
      TYPE(coeff_type), DIMENSION(:), POINTER :: rho_g, rho_r
+     TYPE(coeff_type), DIMENSION(:), POINTER :: tau_g, tau_r 
      LOGICAL :: rho_ao_valid, &
           rho_g_valid, &
-          rho_r_valid
+          rho_r_valid, &
+          tau_r_valid, &
+          tau_g_valid
      INTEGER :: ref_count, &
           id_nr, &
           updates_since_rebuild, &
@@ -235,11 +240,25 @@ CONTAINS
              DEALLOCATE(rho_struct%rho_r,stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
+          IF (ASSOCIATED(rho_struct%tau_r)) THEN
+             DO i=1,SIZE(rho_struct%tau_r)
+                CALL coeff_deallocate(rho_struct%tau_r(i))
+             END DO
+             DEALLOCATE(rho_struct%tau_r,stat=stat)
+             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          END IF
           IF (ASSOCIATED(rho_struct%rho_g)) THEN
              DO i=1,SIZE(rho_struct%rho_g)
                 CALL coeff_deallocate(rho_struct%rho_g(i))
              END DO
              DEALLOCATE(rho_struct%rho_g,stat=stat)
+             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(rho_struct%tau_g)) THEN
+             DO i=1,SIZE(rho_struct%tau_g)
+                CALL coeff_deallocate(rho_struct%tau_g(i))
+             END DO
+             DEALLOCATE(rho_struct%tau_g,stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
           IF (ASSOCIATED(rho_struct%tot_rho_r)) THEN
@@ -265,7 +284,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine qs_rho_did_change(rho_struct, rho_ao_valid, rho_r_valid,&
-!!         rho_g_valid, error)
+!!         rho_g_valid, tau_r_valid, tau_g_valid, error)
 !!       Type(qs_rho_type), Pointer:: rho_struct
 !!       Logical, Intent (IN), Optional:: rho_ao_valid, rho_r_valid,&
 !!         rho_g_valid
@@ -281,7 +300,7 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - rho_struct: the density structure that changed
-!!     - rho_ao_valid,rho_r_valid, rho_g_valid: actual valid
+!!     - rho_ao_valid,rho_r_valid, rho_g_valid, tau_r_valid, tau_g_valid: actual valid
 !!       representations
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
@@ -294,9 +313,9 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE qs_rho_did_change(rho_struct,rho_ao_valid,rho_r_valid, &
-       rho_g_valid, error)
+       rho_g_valid, tau_r_valid, tau_g_valid, error)
     TYPE(qs_rho_type), POINTER :: rho_struct
-    LOGICAL, INTENT(in), OPTIONAL :: rho_ao_valid, rho_r_valid, rho_g_valid
+    LOGICAL, INTENT(in), OPTIONAL :: rho_ao_valid, rho_r_valid, rho_g_valid, tau_r_valid, tau_g_valid
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -310,6 +329,8 @@ CONTAINS
        IF (PRESENT(rho_ao_valid)) rho_struct%rho_ao_valid=rho_ao_valid
        IF (PRESENT(rho_r_valid)) rho_struct%rho_r_valid=rho_r_valid
        IF (PRESENT(rho_g_valid)) rho_struct%rho_g_valid=rho_g_valid
+       IF (PRESENT(tau_r_valid)) rho_struct%tau_r_valid=tau_r_valid
+       IF (PRESENT(tau_g_valid)) rho_struct%tau_g_valid=tau_g_valid
        CALL cp_assert(rho_struct%rho_ao_valid.OR.&
             rho_struct%rho_r_valid.OR.rho_struct%rho_g_valid,&
             cp_failure_level,cp_assertion_failed,fromWhere=routineP,&
@@ -326,8 +347,8 @@ CONTAINS
 !!     qs_rho_get
 !!
 !!   SYNOPSIS
-!!     Subroutine qs_rho_get(rho_struct, rho_ao, rho_r, rho_g, rho_ao_valid,&
-!!         rho_r_valid, rho_g_valid, rebuild_each, tot_rho_r, error)
+!!     Subroutine qs_rho_get(rho_struct, rho_ao, rho_r, rho_g, tau_r, tau_g, rho_ao_valid,&
+!!         rho_r_valid, rho_g_valid, tau_r_valid, tau_g_valid, rebuild_each, tot_rho_r, error)
 !!       Type(qs_rho_type), Pointer:: rho_struct
 !!       Type(real_matrix_p_type), Dimension(:), Pointer, Optional:: rho_ao
 !!       Type(coeff_type), Dimension(:), Pointer, Optional:: rho_g, rho_r
@@ -357,12 +378,13 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE qs_rho_get(rho_struct, rho_ao, rho_r, rho_g, rho_ao_valid,&
-       rho_r_valid, rho_g_valid, rebuild_each, tot_rho_r, error)
+  SUBROUTINE qs_rho_get(rho_struct, rho_ao, rho_r, rho_g, tau_r, tau_g, rho_ao_valid,&
+       rho_r_valid, rho_g_valid, tau_r_valid, tau_g_valid, rebuild_each, tot_rho_r, error) 
     TYPE(qs_rho_type), POINTER :: rho_struct
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER,OPTIONAL :: rho_ao
-    TYPE(coeff_type), DIMENSION(:), POINTER,OPTIONAL :: rho_g, rho_r
-    LOGICAL, INTENT(out), OPTIONAL :: rho_ao_valid, rho_g_valid, rho_r_valid
+    TYPE(coeff_type), DIMENSION(:), POINTER,OPTIONAL :: rho_g, rho_r, tau_r, tau_g
+    LOGICAL, INTENT(out), OPTIONAL :: rho_ao_valid, rho_g_valid, rho_r_valid, &
+                                      tau_r_valid, tau_g_valid
     INTEGER, INTENT(out), OPTIONAL :: rebuild_each
     REAL(KIND = dp), DIMENSION(:), POINTER, OPTIONAL :: tot_rho_r
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -399,9 +421,27 @@ CONTAINS
              NULLIFY(rho_g)
           END IF
        END IF
+       IF (PRESENT(tau_r)) THEN
+          IF (PRESENT(tau_r_valid).or.rho_struct%tau_r_valid) THEN
+             tau_r => rho_struct%tau_r
+          ELSE
+             CALL cp_unimplemented_error(routineP,"to do",error=error)
+             NULLIFY(tau_r)
+          END IF
+       END IF
+       IF (PRESENT(tau_g)) THEN
+          IF (PRESENT(tau_g_valid).or.rho_struct%tau_g_valid) THEN
+             tau_g => rho_struct%tau_g
+          ELSE
+             CALL cp_unimplemented_error(routineP,"to do",error=error)
+             NULLIFY(tau_g)
+          END IF
+       END IF
        IF (PRESENT(rho_ao_valid)) rho_ao_valid=rho_struct%rho_ao_valid
        IF (PRESENT(rho_r_valid)) rho_r_valid=rho_struct%rho_r_valid
        IF (PRESENT(rho_g_valid)) rho_g_valid=rho_struct%rho_g_valid
+       IF (PRESENT(tau_r_valid)) tau_r_valid=rho_struct%tau_r_valid
+       IF (PRESENT(tau_g_valid)) tau_g_valid=rho_struct%tau_g_valid
        IF (PRESENT(rebuild_each)) rebuild_each=rho_struct%rebuild_each
        ! give error if not valid?
        IF (PRESENT(tot_rho_r)) tot_rho_r => rho_struct%tot_rho_r

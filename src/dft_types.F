@@ -209,7 +209,8 @@ MODULE dft_types
                                         id_nr
      LOGICAL                         :: forces,&
                                         do_tddfpt_calculation, &
-                                        derive_function_rho
+                                        derive_function_rho, &
+                                        use_kinetic_energy_density
   END TYPE dft_control_type
 
   CHARACTER(LEN=*), PARAMETER :: moduleN = "dft_types"
@@ -311,6 +312,7 @@ CONTAINS
     dft_control % do_tddfpt_calculation = .FALSE.
     dft_control % charge = 0
     dft_control % multiplicity = 0
+    dft_control % use_kinetic_energy_density = .FALSE.
 
     dft_control % xc_control % functionals ( 1 ) = "SLATER"
     dft_control % xc_control % functionals ( 2 ) = "PZ"
@@ -397,6 +399,8 @@ CONTAINS
             dft_control%nspins = 2
           CASE ("CHARGE")
              CALL read_object(dft_control%charge)
+          CASE ("KINETIC_ENERGY_DENSITY","TAU")
+             dft_control % use_kinetic_energy_density = .TRUE.
           CASE ("EXCITATIONS")
              CALL read_object(string, lower_to_upper=.TRUE.)
              SELECT CASE (TRIM(string))

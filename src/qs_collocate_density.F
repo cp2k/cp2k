@@ -321,11 +321,14 @@ CONTAINS
   END SUBROUTINE calculate_rho_core
 
 ! *****************************************************************************
+! both rho,rho_gspace are the new rho, also rho_gspace_old is overwritten with
+! the new rho
+! *****************************************************************************
 
   SUBROUTINE calculate_rho_elec(p,p_old,rebuild,rho,rho_gspace,rho_gspace_old,&
                                 mgrid_rspace,mgrid_gspace,&
                                 gridlevel_info,cube_info,l_info,total_rho,&
-                                qs_env,error)
+                                qs_env, compute_tau, error)
 
     TYPE(coeff_type), INTENT(INOUT)             :: rho,rho_gspace
     TYPE(coeff_type), INTENT(INOUT)             :: rho_gspace_old
@@ -336,8 +339,9 @@ CONTAINS
     TYPE(qs_environment_type), INTENT(IN)       :: qs_env
     TYPE(real_matrix_type), POINTER             :: p,p_old
     TYPE(cp_error_type), INTENT(inout),OPTIONAL :: error
-    REAL(KIND = dp), INTENT(OUT)                       :: total_rho
+    REAL(KIND = dp), INTENT(OUT)                :: total_rho
     LOGICAL, INTENT(IN)                         :: rebuild
+    LOGICAL, INTENT(IN), OPTIONAL               :: compute_tau
 
 !   *** Local parameters ***
 
@@ -394,6 +398,7 @@ CONTAINS
     INTEGER                             :: omp_get_thread_num, omp_get_max_threads
     INTEGER, DIMENSION(:), POINTER      :: ub, lb
     TYPE(lgrid_type)                    :: lgrid
+    LOGICAL                             :: my_compute_tau
 !   ---------------------------------------------------------------------------
     CALL timeset("calculate_rho_elec","I","",handle)
 
@@ -404,6 +409,14 @@ CONTAINS
          lb_max,lb_min,npgfa,npgfb,nsgfa,nsgfb,p_block,p_old_block,&
          rpgfa,rpgfb,sphi_a,sphi_b,zeta,zetb,first_sgfa,first_sgfb,&
          tasks,tasks_local,ival,latom,ntasks,asets,atasks,pabt,workt)
+
+    ! by default, do not compute the kinetic energy density (tau)
+    ! if compute_tau, all grids referening to rho are actually tau
+    IF (PRESENT(compute_tau)) THEN 
+       my_compute_tau = compute_tau
+    ELSE
+       my_compute_tau = .FALSE.
+    ENDIF
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&

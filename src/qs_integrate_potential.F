@@ -353,7 +353,7 @@ CONTAINS
   SUBROUTINE integrate_v_rspace_full(v_rspace,mgrid_rspace,mgrid_gspace,&
                                 auxbas_grid,gridlevel_info,&
                                 v_rspace_old,cube_info,l_info,rebuild,&
-                                p,h,qs_env,calculate_forces,error)
+                                p,h,qs_env,calculate_forces,compute_tau,error)
 
     TYPE(coeff_type)                            :: v_rspace
     TYPE(coeff_type), DIMENSION(:), POINTER     :: mgrid_rspace,&
@@ -368,6 +368,7 @@ CONTAINS
     TYPE(real_matrix_p_type), INTENT(INOUT)     :: h
     LOGICAL, INTENT(IN)                         :: calculate_forces,&
                                                    rebuild
+    LOGICAL, INTENT(IN), OPTIONAL               :: compute_tau
     TYPE(cp_error_type),INTENT(inout),OPTIONAL  :: error
 
 !   *** Local parameters ***
@@ -428,11 +429,18 @@ CONTAINS
     REAL(KIND = dp), DIMENSION(:,:), POINTER   :: dab_local, dp_block
     INTEGER  :: dir, n, tp, itask, npme, brow, bcol, ijsets, ijatoms
     REAL(KIND = dp), DIMENSION(3) :: rp
-    LOGICAL :: p_duplicated, h_duplicated
+    LOGICAL :: p_duplicated, h_duplicated, my_compute_tau
     INTEGER  :: ithread, nthread, omp_get_thread_num, omp_get_max_threads
     INTEGER  :: nalimit(2)
 
 !   ---------------------------------------------------------------------------
+
+    ! default, if compute_tau is not present we assume it is false
+    IF (PRESENT(compute_tau)) THEN
+        my_compute_tau = compute_tau
+    ELSE
+        my_compute_tau = .FALSE.
+    ENDIF
 
     IF (calculate_forces) THEN
       CALL timeset("integrate_v_rspace (forces)","I","",handle)
