@@ -1,9 +1,9 @@
 PERL     = perl
 CC       = cc
 CPP      = cpp
-FC       = f95 -free
-FC_fixed = f95 -fixed
-LD       = f95
+FC       = oldf95 -free
+FC_fixed = oldf95 -fixed
+LD       = oldf95
 AR       = ar -r
 CPPFLAGS = -C -D__DEC -D__FFTSG -D__FFTW -P
 FCFLAGS  = -C -D__DEC -D__FFTSG -D__FFTW -automatic -g -u -fpe0 -synchronous_exceptions
