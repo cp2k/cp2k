@@ -135,7 +135,9 @@ CONTAINS
              !
              ! Check analytical forces Vs numerical forces
              !             
-             WRITE(iw,'(A,I5,6F15.9)')"ATOM NUMBER ::",iseq,analyt_forces(iseq,:), numer_forces(ip,:)
+             IF (globenv%ionode) THEN
+                WRITE(iw,'(A,I5,6F15.9)')"ATOM NUMBER ::",iseq,analyt_forces(iseq,:), numer_forces(ip,:)
+             ENDIF
           END DO Atom
           IF (globenv%ionode) THEN
               WRITE(iw,'(A,I5)')"SUMMARY DEBUG :: SUBSYS NUMBER :",isubsys
