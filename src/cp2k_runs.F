@@ -28,7 +28,6 @@ MODULE cp2k_runs
   USE force_env_methods,               ONLY: force_env_calculate_energy
   USE force_env_types,                 ONLY: force_env_type, &
                                              force_env_release,&
-                                             force_env_p_type,&
                                              force_env_set
   USE cp_log_handling,                 ONLY: cp_logger_type, &
                                              cp_failure_level, &
@@ -119,9 +118,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = "cp2k_run",&
                                    routineP=moduleN//':'//routineN  
 
-    TYPE(global_environment_type), pointer :: globenv, para_env_p ( : )
+    TYPE(global_environment_type), pointer :: globenv
     TYPE(cp_error_type) :: error
-    TYPE(force_env_p_type), pointer :: force_env_p ( : )
     TYPE(force_env_type), pointer :: force_env
     TYPE(virial_type), pointer :: virial
     TYPE(meta_env_type), pointer :: meta_env
@@ -131,7 +129,7 @@ CONTAINS
     ! -----------------------------------------------------------------------------
     cp2k_run_OK = .FALSE.
     failure=.false.
-    NULLIFY(globenv, force_env, force_env_p, para_env_p )
+    NULLIFY(globenv, force_env )
     ALLOCATE(globenv,stat=stat)
     IF (stat/=0) STOP "cp2k:cp2k, glob_env allocation"
 
