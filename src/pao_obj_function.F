@@ -36,7 +36,8 @@ module pao_obj_function
   use pao_types, only: pao_env_type, pao_glob_angles_type, cp_get
 !  use pao_env_methods
   use cp_sparse_matrix, only: cp_sparse_matrix_type, cp_get_matrix,&
-       cp_create, cp_dealloc, cp_sparse_matrix_p_type
+       cp_create, cp_dealloc, cp_sparse_matrix_p_type,&
+       cp_sp_alloc_nonsparse_blocks
   use pao_glob_angles_methods, only: pao_g_ang_set, pao_g_ang_did_change
   use pao_l_angles_methods, only: pao_local_angles_type, cp_get_angle,&
        pao_l_ang_init, pao_l_ang_get, cp_get_g_index, cp_set, &
@@ -304,6 +305,7 @@ contains
             d_struct=gf_env%d_struct)
        call cp_create(gf_env%min_work_m,global_env=global_env,&
             matrix_structure=min_bas_m_struct)
+       call cp_sp_alloc_nonsparse_blocks(gf_env%min_work_m,error=error)
        call cp_create(gf_env%full_work_m,global_env=global_env,&
             matrix_structure=full_bas_m_struct)
        gf_env%rebuild_rho=.true.
@@ -615,7 +617,7 @@ contains
                        occupation_numbers=mo_occupation_numbers)
 
        if (present(f)) then
-          f=dot_product(mo_occupation_numbers,mo_eigenvalues)
+          f=dot_product(mo_occupation_numbers,mo_eigenvalues)/2.0_wp
           if (cp_debug .and. debug_this_module) then
              call cp_sm_output(logger=cp_error_get_logger(error), &
                   outputName="obj_f_min_p", &
@@ -668,11 +670,17 @@ contains
                fromWhere=routineP, iter=gf_env%n_eval, matrix=diagMatrix,&
                global_env=g_env,error=error)
           end if
-          ! 2 N S B P V P i^*
-          call blacs_diag_mult(mo_eigenvalues,&
-               gf_env%min_blacs_2,gf_env%min_blacs_3, global_env=g_env)
+          ! 2 N S B P minH P i^*
+          call copy_sparse_to_blacs_matrix(min_density_m,&
+               gf_env%min_blacs_2, g_env)
+          call copy_sparse_to_blacs_matrix(h_matrix%matrix,&
+               gf_env%min_blacs_1,g_env)
           call blacs_gemm('N','N',min_bas_size,min_bas_size,min_bas_size,&
-               0.5_wp,gf_env%min_blacs_2,gf_env%min_blacs_3, 0.0_wp,&
+               1.0_wp,gf_env%min_blacs_1,gf_env%min_blacs_2, 0.0_wp,&
+               gf_env%min_blacs_3,&
+               globenv=g_env)
+          call blacs_gemm('N','N',min_bas_size,min_bas_size,min_bas_size,&
+               -0.5_wp,gf_env%min_blacs_2,gf_env%min_blacs_3, 0.0_wp,&
                gf_env%min_blacs_1,&
                globenv=g_env)
           call copy_blacs_to_sparse_matrix(gf_env%min_blacs_1,&
@@ -681,9 +689,6 @@ contains
                cp_get_matrix(gf_env%full_work_m),glob_angles=angles,&
                qs_env=gf_env%qs_env, global_env=g_env,&
                error=error)
-          !call cp_dealloc_ref(min_pao_m,error=error)
-          !call cp_dealloc_ref(full_pao_m,error=error)
-
           call copy_sparse_to_blacs_matrix(cp_get_matrix(gf_env%full_work_m),&
                gf_env%scf_work2, g_env)
           call copy_sparse_to_blacs_matrix(full_s_rmpv(1)%matrix,&
