@@ -1530,6 +1530,7 @@ CONTAINS
     REAL(dp), DIMENSION(:,:), POINTER        :: hdab_sph
     REAL(dp), DIMENSION(:,:,:), POINTER      :: hdab_spht
     REAL(dp), DIMENSION(:,:), POINTER        :: h_block
+    INTEGER                                  :: omp_get_thread_num
 !   ---------------------------------------------------------------------------
     failure=.FALSE.
     c4pi = fourpi
@@ -1645,7 +1646,11 @@ CONTAINS
 !$OMP shared(npme,tasks,atom_list,particle_set,cell,nddo_mpole) &
 !$OMP shared(pab,habt,hdabt,hadbt,hab_spht,hdab_spht) & 
 !$OMP shared(l0_ikind,calculate_forces,orbtramat,norm_l,force) & 
-!$OMP shared(nspins,ks_matrix)
+!$OMP shared(nspins,ks_matrix) &
+!$OMP shared(zet0,rs_v,cube_info,igrid,l_info,eps_rho_rspace,rpgf0) &
+!$OMP shared(nso,nsoset,nco,ncoset,indco) &
+!$OMP shared(c4pi,dfac,h_block,ikind) &
+!$OMP shared(error,failure)
       DO j=1,npme
 
 !$      ithread=omp_get_thread_num()
