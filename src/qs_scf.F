@@ -336,7 +336,7 @@ CONTAINS
     CHARACTER(LEN=60)  :: method
     CHARACTER(LEN=80)  :: filename
     TYPE(preconditioner_type), TARGET :: ot_preconditioner
-    TYPE(qs_ot_type)                  :: qs_ot_env
+    TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: ot_orbs_to_rotate
     TYPE(cell_type), POINTER          :: cell ! is this one used here 
     INTEGER :: ispin
@@ -422,6 +422,7 @@ CONTAINS
          blacs_env=globenv%blacs_env)
 
     IF (scf_control%use_ot) THEN
+       ALLOCATE(qs_ot_env(dft_control%nspins))
        CALL ot_scf_read_input(qs_ot_env,globenv)
     ENDIF
 
@@ -646,35 +647,42 @@ CONTAINS
 
       CASE(2) ! orbital transforms
 
-        IF (dft_control%nspins.ne.1) CALL stop_program(routine,"NYI")
-
-        CALL get_mo_set(mo_set=mo_set,eigenvectors=mo_eigenvectors)
+        ! in case of LSD the first spin qs_ot_env will drive the minimization
 
         ! might need the KS matrix to init properly, that's why we're here
         IF (.NOT. ot_initialized) THEN
            ot_initialized=.TRUE.
 
-           IF (qs_ot_env%settings%preconditioner_type .NE. "NONE") &
-           CALL make_preconditioner(ot_preconditioner, &
-                                    qs_ot_env%settings%preconditioner_type, &
-                                    ks%matrix,s(1)%matrix,kinetic(1)%matrix, &
-                                    mo_eigenvectors,0.2_wp) 
+           IF (qs_ot_env(1)%settings%preconditioner_type .NE. "NONE") THEN
+              ! constuct the preconditioner based on the first spin set. this might or might not be reasonable. Presumably it is.
+              CALL get_mo_set(mo_set=c(1)%mo_set,eigenvectors=mo_eigenvectors)
+              CALL make_preconditioner(ot_preconditioner, &
+                                       qs_ot_env(1)%settings%preconditioner_type, &
+                                       ks_rmpv(1)%matrix,s(1)%matrix,kinetic(1)%matrix, &
+                                       mo_eigenvectors,0.2_wp) 
+           ENDIF
 
-           CALL ot_scf_init(mo_eigenvectors,s(1)%matrix,qs_ot_env,globenv)
+           CALL ot_scf_init(c,s(1)%matrix,qs_ot_env,globenv)
 
-           IF (qs_ot_env%settings%preconditioner_type .NE. "NONE") &
-           CALL qs_ot_new_preconditioner(qs_ot_env,ot_preconditioner) 
+           IF (qs_ot_env(1)%settings%preconditioner_type .NE. "NONE") THEN
+              DO ispin=1,dft_control%nspins
+                 CALL qs_ot_new_preconditioner(qs_ot_env(ispin),ot_preconditioner) 
+              ENDDO
+           ENDIF
         ENDIF
 
-        CALL ot_scf_mini(mo_eigenvectors,ks%matrix,s(1)%matrix,energy%total, &
+        CALL ot_scf_mini(c,ks_rmpv,s(1)%matrix,energy%total, &
                                           energy_only,delta,qs_ot_env,globenv)
 
-        CALL calculate_density_matrix(mo_set,p%matrix,globenv)
+        DO ispin=1,dft_control%nspins
+           CALL calculate_density_matrix(c(ispin)%mo_set,p_rmpv(ispin)%matrix,globenv)
+        ENDDO
+
         t2 = m_cputime()
         IF (ionode.AND.globenv%print%scf) THEN
               WRITE (UNIT=output_unit,&
                  FMT="(T2,I5,2X,A,T20,F6.2,T30,F8.2,T40,2F20.10)")&
-                         iscf,qs_ot_env%OT_METHOD_FULL,qs_ot_env%ds_min, &
+                         iscf,qs_ot_env(1)%OT_METHOD_FULL,qs_ot_env(1)%ds_min, &
                                                 t2 - t1,delta,energy%total
         END IF
 
@@ -701,7 +709,11 @@ CONTAINS
 
     END DO scf_loop
 
-    IF (scf_control%use_ot) CALL ot_scf_destroy(qs_ot_env,globenv)
+    IF (scf_control%use_ot) THEN
+       DO ispin=1,dft_control%nspins
+            CALL ot_scf_destroy(qs_ot_env(ispin),globenv)
+       ENDDO
+    ENDIF
 
     IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
@@ -1242,7 +1254,9 @@ CONTAINS
 
     ! we need a copy the core matrix for every spin..
     IF (dft_control%nspins.eq.2) THEN
+    IF (.NOT. scf_control%use_ot) THEN
        CALL copy_blacs_to_blacs_matrix(scf_work1(1)%matrix,scf_work1(2)%matrix)
+    ENDIF
     ENDIF
     CALL calculate_first_density_matrix(ortho,c,p_rmpv,s(1), &
              scf_work1,scf_work2,globenv,&

@@ -79,6 +79,8 @@ MODULE qs_ot
   PRIVATE :: qs_ot_p2m
   PRIVATE :: qs_ot_sinc
 
+  ! notice, this variable needs to be copyable !
+  ! needed for spins as e.g. in qs_ot_scf      !
   TYPE qs_ot_settings_type
        CHARACTER(LEN=4)  :: ot_method
        CHARACTER(LEN=4)  :: line_search_method
@@ -201,7 +203,6 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,globenv)
    TYPE(global_environment_type), INTENT(IN) :: globenv
 
    INTEGER i,n,k,m_diis,nrow_block,ncol_block,ortho_k
-
    n      =qs_ot_env%settings%n
    k      =qs_ot_env%settings%k
    ortho_k=qs_ot_env%settings%ortho_k
@@ -214,6 +215,8 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,globenv)
 
    NULLIFY(qs_ot_env%preconditioner)
    NULLIFY(qs_ot_env%matrix_psc0)
+   NULLIFY(qs_ot_env%row_indices)
+   NULLIFY(qs_ot_env%col_indices)
 
    SELECT CASE (qs_ot_env%settings%ot_method)
    CASE ("SD")

@@ -86,7 +86,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    TYPE(qs_ot_type)                          :: qs_ot_env
+    TYPE(qs_ot_type), POINTER, DIMENSION(:)   :: qs_ot_env
     INTEGER                                   :: n,k,nrow_block,ncol_block
     INTEGER                                   :: ieigensolver,handle
     REAL(wp)                                  :: energy,delta
@@ -104,6 +104,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset("ot_eigensolver","I","",handle)
+    NULLIFY(qs_ot_env)
+    ALLOCATE(qs_ot_env(1))
 
     CALL cp_fm_get_info(matrix_c,nrow_block=nrow_block, &
                                                ncol_block=ncol_block, &
@@ -114,24 +116,24 @@ CONTAINS
     IF (present(matrix_orthogonal_space)) ortho=.true.
 
     ! decide settings
-    qs_ot_env%settings%ot_method="CG"
-    qs_ot_env%settings%line_search_method="2PNT"
-    qs_ot_env%settings%ds_min=0.10_wp
-    qs_ot_env%settings%diis_m=7 
-    qs_ot_env%settings%n=n 
-    qs_ot_env%settings%k=k 
+    qs_ot_env(1)%settings%ot_method="CG"
+    qs_ot_env(1)%settings%line_search_method="2PNT"
+    qs_ot_env(1)%settings%ds_min=0.10_wp
+    qs_ot_env(1)%settings%diis_m=7 
+    qs_ot_env(1)%settings%n=n 
+    qs_ot_env(1)%settings%k=k 
     if (ortho) then
        CALL cp_fm_get_info(matrix_orthogonal_space,&
                                   ncol_global=ortho_space_k)
-       qs_ot_env%settings%ortho_k=ortho_space_k+k
+       qs_ot_env(1)%settings%ortho_k=ortho_space_k+k
     else
-       qs_ot_env%settings%ortho_k=k
+       qs_ot_env(1)%settings%ortho_k=k
     endif
-    qs_ot_env%settings%nrow_block=nrow_block
-    qs_ot_env%settings%ncol_block=ncol_block
+    qs_ot_env(1)%settings%nrow_block=nrow_block
+    qs_ot_env(1)%settings%ncol_block=ncol_block
 
     ! allocate
-    CALL qs_ot_allocate(qs_ot_env,globenv)
+    CALL qs_ot_allocate(qs_ot_env(1),globenv)
 
     if (ortho) then
         ! construct an initial guess that is orthogonal to matrix_orthogonal_space
@@ -184,16 +186,16 @@ CONTAINS
                         rone,matrix_c)
 
         ! make matrix_c0 an orthogonal basis, matrix_c contains sc0
-        CALL copy_blacs_to_blacs_matrix(matrix_c,qs_ot_env%matrix_c0)
-        CALL cp_sm_fm_multiply(matrix_s,qs_ot_env%matrix_c0, &
+        CALL copy_blacs_to_blacs_matrix(matrix_c,qs_ot_env(1)%matrix_c0)
+        CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_c0, &
                                 matrix_c,k, &
                                 para_env=globenv%para_env)
-        CALL blacs_make_basis(qs_ot_env%matrix_c0,k, &
+        CALL blacs_make_basis(qs_ot_env(1)%matrix_c0,k, &
                               ortho=matrix_c,otype="SV")
 
-        ! copy sc0 and matrix_s_ortho in qs_ot_env%matrix_sc0
-        CALL blacs_column_copy(matrix_s_ortho,qs_ot_env%matrix_sc0,ortho_space_k,1,1)
-        CALL blacs_column_copy(matrix_c,qs_ot_env%matrix_sc0,k,1,ortho_space_k+1)
+        ! copy sc0 and matrix_s_ortho in qs_ot_env(1)%matrix_sc0
+        CALL blacs_column_copy(matrix_s_ortho,qs_ot_env(1)%matrix_sc0,ortho_space_k,1,1)
+        CALL blacs_column_copy(matrix_c,qs_ot_env(1)%matrix_sc0,k,1,ortho_space_k+1)
 
         CALL cp_fm_release(matrix_buf1_ortho)
         CALL cp_fm_release(matrix_buf2_ortho)
@@ -203,30 +205,30 @@ CONTAINS
     else
 
     ! set c0,sc0
-       CALL copy_blacs_to_blacs_matrix(matrix_c,qs_ot_env%matrix_c0)
-       CALL cp_sm_fm_multiply(matrix_s,qs_ot_env%matrix_c0, &
-                               qs_ot_env%matrix_sc0,qs_ot_env%settings%k, &
+       CALL copy_blacs_to_blacs_matrix(matrix_c,qs_ot_env(1)%matrix_c0)
+       CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_c0, &
+                               qs_ot_env(1)%matrix_sc0,qs_ot_env(1)%settings%k, &
                                para_env=globenv%para_env)
-       CALL blacs_make_basis(qs_ot_env%matrix_c0,k, &
-                             ortho=qs_ot_env%matrix_sc0,otype="SV")
+       CALL blacs_make_basis(qs_ot_env(1)%matrix_c0,k, &
+                             ortho=qs_ot_env(1)%matrix_sc0,otype="SV")
     endif
     ! init
-    CALL qs_ot_init(qs_ot_env,globenv)
-    energy_only=qs_ot_env%energy_only
+    CALL qs_ot_init(qs_ot_env(1),globenv)
+    energy_only=qs_ot_env(1)%energy_only
 
     ! set x
-    CALL cp_fm_set_all(qs_ot_env%matrix_x,0.0_wp)
-    CALL cp_fm_set_all(qs_ot_env%matrix_sx,0.0_wp)
+    CALL cp_fm_set_all(qs_ot_env(1)%matrix_x,0.0_wp)
+    CALL cp_fm_set_all(qs_ot_env(1)%matrix_sx,0.0_wp)
 
     ! get c
-    CALL qs_ot_get_p(qs_ot_env%matrix_x,qs_ot_env%matrix_sx,qs_ot_env,globenv)
-    CALL qs_ot_get_orbitals(matrix_c,qs_ot_env%matrix_x,qs_ot_env,globenv)
+    CALL qs_ot_get_p(qs_ot_env(1)%matrix_x,qs_ot_env(1)%matrix_sx,qs_ot_env(1),globenv)
+    CALL qs_ot_get_orbitals(matrix_c,qs_ot_env(1)%matrix_x,qs_ot_env(1),globenv)
 
     ! if present preconditioner, use it
 
     IF (present(preconditioner)) THEN
        IF (preconditioner_in_use(preconditioner)) THEN
-          CALL qs_ot_new_preconditioner(qs_ot_env,preconditioner) 
+          CALL qs_ot_new_preconditioner(qs_ot_env(1),preconditioner) 
        ELSE
           ! we should presumably make one
        END IF
@@ -240,26 +242,26 @@ CONTAINS
 
       ! the energy is cHc, the gradient is 2*H*c
       CALL cp_sm_fm_multiply(matrix_h,matrix_c, &
-                                     qs_ot_env%matrix_hc,  &
-                                     qs_ot_env%settings%k,&
+                                     qs_ot_env(1)%matrix_hc,  &
+                                     qs_ot_env(1)%settings%k,&
                                      para_env=globenv%para_env)
-      CALL cp_fm_trace(matrix_c,qs_ot_env%matrix_hc,energy)
+      CALL cp_fm_trace(matrix_c,qs_ot_env(1)%matrix_hc,energy)
       if (.not. energy_only) then
-       CALL cp_fm_add(2.0_wp,qs_ot_env%matrix_hc,0.0_wp,qs_ot_env%matrix_hc)
+       CALL cp_fm_add(2.0_wp,qs_ot_env(1)%matrix_hc,0.0_wp,qs_ot_env(1)%matrix_hc)
       endif
  
-      qs_ot_env%etotal=energy
+      qs_ot_env(1)%etotal=energy
       CALL ot_mini(qs_ot_env,globenv)
-      delta           =qs_ot_env%delta
-      energy_only     =qs_ot_env%energy_only
+      delta           =qs_ot_env(1)%delta
+      energy_only     =qs_ot_env(1)%energy_only
 
-      CALL cp_sm_fm_multiply(matrix_s,qs_ot_env%matrix_x, &
-                                         qs_ot_env%matrix_sx, &
-                                         qs_ot_env%settings%k,&
+      CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_x, &
+                                         qs_ot_env(1)%matrix_sx, &
+                                         qs_ot_env(1)%settings%k,&
                                      para_env=globenv%para_env)
 
-      CALL qs_ot_get_p(qs_ot_env%matrix_x,qs_ot_env%matrix_sx,qs_ot_env,globenv)
-      CALL qs_ot_get_orbitals(matrix_c,qs_ot_env%matrix_x,qs_ot_env,globenv)
+      CALL qs_ot_get_p(qs_ot_env(1)%matrix_x,qs_ot_env(1)%matrix_sx,qs_ot_env(1),globenv)
+      CALL qs_ot_get_orbitals(matrix_c,qs_ot_env(1)%matrix_x,qs_ot_env(1),globenv)
 
       IF (delta < eps_gradient) THEN
           if (globenv%ionode) THEN
@@ -279,7 +281,8 @@ CONTAINS
 
     END DO eigensolver_loop
 
-    call qs_ot_destroy(qs_ot_env,globenv)
+    call qs_ot_destroy(qs_ot_env(1),globenv)
+    DEALLOCATE(qs_ot_env)
 
     CALL timestop(0.0_wp,handle)
 

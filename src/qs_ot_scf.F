@@ -13,6 +13,7 @@
 !!     Joost VandeVondele (25.08.2002)
 !!
 !!   MODIFICATION HISTORY
+!!     01.2003 : Joost VandeVondele : adapted for LSD
 !!
 !!   SOURCE
 !******************************************************************************
@@ -24,6 +25,8 @@ MODULE qs_ot_scf
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
                                              wp => dp
+  USE qs_mo_types,                        ONLY: get_mo_set, &
+                                             mo_set_p_type
   USE qs_blacs,                        ONLY: copy_blacs_to_blacs_matrix,&
                                              cp_fm_add,&
                                              cp_fm_set_all,&
@@ -41,7 +44,7 @@ MODULE qs_ot_scf
                                              read_object,&
                                              start_parser,&
                                              test_object
-  USE sparse_matrix_types,             ONLY: real_matrix_type
+  USE sparse_matrix_types,             ONLY: real_matrix_type, real_matrix_p_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -63,25 +66,30 @@ CONTAINS
 
 SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     TYPE(global_environment_type), INTENT(IN)       :: globenv
-    TYPE(qs_ot_type)                                :: qs_ot_env
+    TYPE(qs_ot_type), POINTER, DIMENSION(:)         :: qs_ot_env
 
     ! locals 
     INTEGER :: handle
     CHARACTER(LEN=40) :: keyword
     CHARACTER(LEN=40) :: value
     LOGICAL :: found
+    INTEGER :: nspin,ispin
     ! executable
     CALL timeset("ot_scf_read_input","I","",handle)
     ! decide default settings
-    qs_ot_env%settings%ot_method="CG"
-    qs_ot_env%settings%diis_m=7 
-    qs_ot_env%settings%preconditioner_type="FULL_KINETIC"
-    qs_ot_env%settings%line_search_method="2PNT"
-    qs_ot_env%settings%ds_min=0.15_wp
+
+    nspin=size(qs_ot_env)
+
+    qs_ot_env(1)%settings%ot_method="CG"
+    qs_ot_env(1)%settings%diis_m=7 
+    qs_ot_env(1)%settings%preconditioner_type="FULL_KINETIC"
+    qs_ot_env(1)%settings%line_search_method="2PNT"
+    qs_ot_env(1)%settings%ds_min=0.15_wp
 
     CALL start_parser(file_name=globenv%input_file_name,&
                       globenv=globenv,&
                       start_section_label="OTSCF",section_found=found)
+
     if (found) then 
     DO WHILE (test_object(newline=.TRUE.) /= "EOS")
           CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
@@ -90,14 +98,14 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
                CALL read_object(value,lower_to_upper=.TRUE.)
                SELECT CASE (TRIM(value))
                CASE ("SD")
-                    qs_ot_env%settings%ot_method="SD"
+                    qs_ot_env(1)%settings%ot_method="SD"
                CASE ("CG")
-                    qs_ot_env%settings%ot_method="CG"
+                    qs_ot_env(1)%settings%ot_method="CG"
                CASE ("DIIS")
-                    qs_ot_env%settings%ot_method="DIIS"
-                    qs_ot_env%settings%diis_m=7 
+                    qs_ot_env(1)%settings%ot_method="DIIS"
+                    qs_ot_env(1)%settings%diis_m=7 
                     IF (test_object().eq."INT") THEN
-                       CALL read_object(qs_ot_env%settings%diis_m)
+                       CALL read_object(qs_ot_env(1)%settings%diis_m)
                     ENDIF
                CASE DEFAULT
                     IF (globenv%ionode) write(globenv%scr,*) value
@@ -107,16 +115,16 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
                CALL read_object(value,lower_to_upper=.TRUE.)
                SELECT CASE (TRIM(value))
                CASE ("NONE")
-                    qs_ot_env%settings%line_search_method="NONE"
+                    qs_ot_env(1)%settings%line_search_method="NONE"
                CASE ("2PNT")
-                    qs_ot_env%settings%line_search_method="2PNT"
+                    qs_ot_env(1)%settings%line_search_method="2PNT"
                CASE ("3PNT")
-                    qs_ot_env%settings%line_search_method="3PNT"
+                    qs_ot_env(1)%settings%line_search_method="3PNT"
                CASE ("GOLD")
-                    qs_ot_env%settings%gold_target=0.01 ! 1 percent in the position 
-                    qs_ot_env%settings%line_search_method="GOLD"
+                    qs_ot_env(1)%settings%gold_target=0.01 ! 1 percent in the position 
+                    qs_ot_env(1)%settings%line_search_method="GOLD"
                     IF (test_object().eq."FLT") THEN
-                       CALL read_object(qs_ot_env%settings%gold_target)
+                       CALL read_object(qs_ot_env(1)%settings%gold_target)
                     ENDIF
                CASE DEFAULT
                     IF (globenv%ionode) write(globenv%scr,*) value
@@ -126,21 +134,21 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
                CALL read_object(value,lower_to_upper=.TRUE.)
                SELECT CASE (TRIM(value)) ! somehow in order of efficiency
                CASE ("FULL_SINGLE")
-                    qs_ot_env%settings%preconditioner_type="FULL_SINGLE"
+                    qs_ot_env(1)%settings%preconditioner_type="FULL_SINGLE"
                CASE ("FULL_KINETIC")
-                    qs_ot_env%settings%preconditioner_type="FULL_KINETIC"
+                    qs_ot_env(1)%settings%preconditioner_type="FULL_KINETIC"
                CASE ("FULL_S_INVERSE")
-                    qs_ot_env%settings%preconditioner_type="FULL_S_INVERSE"
+                    qs_ot_env(1)%settings%preconditioner_type="FULL_S_INVERSE"
                CASE ("SPARSE_DIAG")
-                    qs_ot_env%settings%preconditioner_type="SPARSE_DIAG"
+                    qs_ot_env(1)%settings%preconditioner_type="SPARSE_DIAG"
                CASE ("NONE")
-                    qs_ot_env%settings%preconditioner_type="NONE"
+                    qs_ot_env(1)%settings%preconditioner_type="NONE"
                CASE DEFAULT ! others are too experimental to be here
                     IF (globenv%ionode) write(globenv%scr,*) value
                     CALL stop_program("READ OTSCF PRECONDITIONER","VALUE UNKNOWN")
                END SELECT
           CASE ("STEPSIZE")
-               CALL read_object(qs_ot_env%settings%ds_min)
+               CALL read_object(qs_ot_env(1)%settings%ds_min)
           CASE DEFAULT
                IF (globenv%ionode) write(globenv%scr,*) keyword
                CALL stop_program("READ OTSCF","KEYWORD UNKNOWN")
@@ -155,18 +163,18 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     write(6,*) " Orbital Transformations "
     write(6,*) " Joost VandeVondele and Juerg Hutter"
     write(6,*) ""
-    SELECT CASE (qs_ot_env%settings%OT_METHOD)
+    SELECT CASE (qs_ot_env(1)%settings%OT_METHOD)
     CASE ("SD")
          write(6,*) " minimizer      : SD             : steepest descent"
     CASE ("CG")
          write(6,*) " minimizer      : CG             : conjugate gradient"
     CASE ("DIIS")
          write(6,*) " minimizer      : DIIS           : direct inversion in the iterative subspace"
-         write(6,*) "                           using : ",qs_ot_env%settings%diis_m," diis vectors"
+         write(6,*) "                           using : ",qs_ot_env(1)%settings%diis_m," diis vectors"
     CASE DEFAULT
-         write(6,*) " minimizer      :      ",qs_ot_env%settings%OT_METHOD," : UNKNOWN"
+         write(6,*) " minimizer      :      ",qs_ot_env(1)%settings%OT_METHOD," : UNKNOWN"
     END SELECT
-    SELECT CASE (qs_ot_env%settings%preconditioner_type)
+    SELECT CASE (qs_ot_env(1)%settings%preconditioner_type)
     CASE ("FULL_SINGLE")
          write(6,*) " preconditioner : FULL_SINGLE    : diagonalization based "
     CASE ("FULL_KINETIC")
@@ -179,10 +187,10 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     CASE ("NONE")
          write(6,*) " preconditioner : NONE  "
     CASE DEFAULT 
-         write(6,*) " preconditioner : ",qs_ot_env%settings%preconditioner_type," : UNKNOWN"
+         write(6,*) " preconditioner : ",qs_ot_env(1)%settings%preconditioner_type," : UNKNOWN"
     END SELECT
-    IF (qs_ot_env%settings%OT_METHOD .EQ."SD".OR.qs_ot_env%settings%OT_METHOD.EQ."CG") THEN
-       SELECT CASE (qs_ot_env%settings%line_search_method)
+    IF (qs_ot_env(1)%settings%OT_METHOD .EQ."SD".OR.qs_ot_env(1)%settings%OT_METHOD.EQ."CG") THEN
+       SELECT CASE (qs_ot_env(1)%settings%line_search_method)
          CASE ("2PNT")
                     write(6,*) " line search    : 2PNT           : 2 energies, one gradient "
          CASE ("3PNT")
@@ -190,18 +198,22 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
          CASE ("GOLD")
                     write(6,*) " line search    : GOLD           : bracketing and golden section search "
                     write(6,*) "                  target relative accuracy : ", &
-                               qs_ot_env%settings%gold_target
+                               qs_ot_env(1)%settings%gold_target
          CASE ("NONE")
                     write(6,*) " line search    : NONE "
          CASE DEFAULT
                     write(6,*) " line search : ", &
-                               qs_ot_env%settings%line_search_method," : UNKNOWN"
+                               qs_ot_env(1)%settings%line_search_method," : UNKNOWN"
        END SELECT
     ENDIF
-    write(6,*) " stepsize       :",QS_ot_env%settings%ds_min
+    write(6,*) " stepsize       :",qs_ot_env(1)%settings%ds_min
     write(6,*) " "
     write(6,*) " ----------------------------------- OT --------------------------------------"
     ENDIF
+ 
+    do ispin=2,nspin
+       qs_ot_env(ispin)%settings=qs_ot_env(1)%settings
+    enddo
 
 
     CALL timestop(0.0_wp,handle)
@@ -211,84 +223,111 @@ END SUBROUTINE
 ! performs the actual minimisation, needs only limited info
 !
 !
-SUBROUTINE ot_scf_mini(mo_eigenvectors,matrix_ks,matrix_s,energy, &
+SUBROUTINE ot_scf_mini(mo_array,matrix_ks,matrix_s,energy, &
                                      energy_only,delta,qs_ot_env,globenv)
+ 
 
-    TYPE(cp_full_matrix_type), POINTER              :: mo_eigenvectors
-    TYPE(real_matrix_type), POINTER                 :: matrix_ks,matrix_s
+    TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: mo_array
+    TYPE(real_matrix_type), POINTER                 :: matrix_s
+    TYPE(real_matrix_p_type), POINTER, DIMENSION(:) :: matrix_ks
     TYPE(global_environment_type), INTENT(IN)       :: globenv
-    TYPE(qs_ot_type)                                :: qs_ot_env
+    TYPE(qs_ot_type), POINTER, DIMENSION(:)         :: qs_ot_env
     LOGICAL                                         :: energy_only
     REAL(wp)                                        :: energy,delta
 
+    INTEGER nspin,ispin
+    TYPE(cp_full_matrix_type), POINTER        :: mo_eigenvectors
+
+    nspin=SIZE(mo_array)
+
     IF ( .NOT. energy_only) THEN
-       CALL cp_sm_fm_multiply(matrix_ks,mo_eigenvectors,&
-                                    qs_ot_env%matrix_hc,&
-                                   qs_ot_env%settings%k,&
-                               para_env=globenv%para_env)
-       CALL cp_fm_add(4.0_wp,qs_ot_env%matrix_hc,0.0_wp,qs_ot_env%matrix_hc)
+       DO ispin=1,nspin
+          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,eigenvectors=mo_eigenvectors)
+          CALL cp_sm_fm_multiply(matrix_ks(ispin)%matrix,mo_eigenvectors,&
+                                       qs_ot_env(ispin)%matrix_hc,&
+                                       qs_ot_env(ispin)%settings%k,&
+                                       para_env=globenv%para_env)
+          SELECT CASE (nspin)
+          CASE (1)
+               CALL cp_fm_add(4.0_wp,qs_ot_env(ispin)%matrix_hc,0.0_wp,qs_ot_env(ispin)%matrix_hc)
+          CASE (2)            ! right now this is a guess
+               CALL cp_fm_add(2.0_wp,qs_ot_env(ispin)%matrix_hc,0.0_wp,qs_ot_env(ispin)%matrix_hc)
+          CASE DEFAULT 
+               CALL stop_program("OT_SCF_MINI","NSPIN NYI")
+          END SELECT 
+       ENDDO
     ENDIF
 
-    qs_ot_env%etotal=energy
+    ! notice we use (1) for driving all output and the minimization
+    qs_ot_env(1)%etotal=energy
     CALL ot_mini(qs_ot_env,globenv)
-    delta           =qs_ot_env%delta
-    energy_only     =qs_ot_env%energy_only
+    delta           =qs_ot_env(1)%delta
+    energy_only     =qs_ot_env(1)%energy_only
 
-    CALL cp_sm_fm_multiply(matrix_s,qs_ot_env%matrix_x, &
-                                   qs_ot_env%matrix_sx, &
-                                   qs_ot_env%settings%k,&
-                                  para_env=globenv%para_env)
-    CALL qs_ot_get_p(qs_ot_env%matrix_x,qs_ot_env%matrix_sx,qs_ot_env,globenv)
-    CALL qs_ot_get_orbitals(mo_eigenvectors,qs_ot_env%matrix_x,qs_ot_env,globenv)
+    DO ispin=1,nspin
+       CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(ispin)%matrix_x, &
+                                      qs_ot_env(ispin)%matrix_sx, &
+                                      qs_ot_env(ispin)%settings%k,&
+                                      para_env=globenv%para_env)
+       CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin),globenv)
+       CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,eigenvectors=mo_eigenvectors)
+       CALL qs_ot_get_orbitals(mo_eigenvectors,qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin),globenv)
+    ENDDO
 
 END SUBROUTINE
 !
 ! initialises qs_ot_env so that mo_eigenvectors is the current point
 ! and that the mimizization can be started.
 !
-SUBROUTINE ot_scf_init(mo_eigenvectors,matrix_s,qs_ot_env,globenv)
+SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env,globenv)
 
-    TYPE(cp_full_matrix_type), POINTER              :: mo_eigenvectors
+    TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: mo_array
     TYPE(real_matrix_type), POINTER                 :: matrix_s
     TYPE(global_environment_type), INTENT(IN)       :: globenv
-    TYPE(qs_ot_type)                                :: qs_ot_env
+    TYPE(qs_ot_type), POINTER, DIMENSION(:)         :: qs_ot_env
 
     ! locals 
     INTEGER :: handle,nrow_block,ncol_block,n,k
+    TYPE(cp_full_matrix_type), POINTER              :: mo_eigenvectors
+    INTEGER nspin,ispin
     ! executable
     CALL timeset("ot_scf_init","I","",handle)
+    nspin=size(mo_array)
 
-    CALL cp_fm_get_info(mo_eigenvectors,nrow_block=nrow_block, &
-                                        ncol_block=ncol_block, &
-                                                nrow_global=n, &
-                                                  ncol_global=k)
+    DO ispin=1,nspin
+       CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,eigenvectors=mo_eigenvectors)
+       CALL cp_fm_get_info(mo_eigenvectors,nrow_block=nrow_block, &
+                                           ncol_block=ncol_block, &
+                                                   nrow_global=n, &
+                                                     ncol_global=k)
+   
 
+       qs_ot_env(ispin)%settings%n=n
+       qs_ot_env(ispin)%settings%k=k
+       qs_ot_env(ispin)%settings%ortho_k=k
+       qs_ot_env(ispin)%settings%nrow_block=nrow_block
+       qs_ot_env(ispin)%settings%ncol_block=ncol_block
 
-    qs_ot_env%settings%n=n
-    qs_ot_env%settings%k=k
-    qs_ot_env%settings%ortho_k=k
-    qs_ot_env%settings%nrow_block=nrow_block
-    qs_ot_env%settings%ncol_block=ncol_block
+       ! allocate
+       CALL qs_ot_allocate(qs_ot_env(ispin),globenv)
+   
+       ! set c0,sc0
+       CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,qs_ot_env(ispin)%matrix_c0)
+       CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(ispin)%matrix_c0, &
+                              qs_ot_env(ispin)%matrix_sc0,qs_ot_env(ispin)%settings%k, &
+                                                para_env=globenv%para_env)
 
-    ! allocate
-    CALL qs_ot_allocate(qs_ot_env,globenv)
+       ! init
+       CALL qs_ot_init(qs_ot_env(ispin),globenv)
+   
+       ! set x
+       CALL cp_fm_set_all(qs_ot_env(ispin)%matrix_x,0.0_wp)
+       CALL cp_fm_set_all(qs_ot_env(ispin)%matrix_sx,0.0_wp)
+   
+       ! get c
+       CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin),globenv)
 
-    ! set c0,sc0
-    CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,qs_ot_env%matrix_c0)
-    CALL cp_sm_fm_multiply(matrix_s,qs_ot_env%matrix_c0, &
-                           qs_ot_env%matrix_sc0,qs_ot_env%settings%k, &
-                                             para_env=globenv%para_env)
-
-    ! init
-    CALL qs_ot_init(qs_ot_env,globenv)
-
-    ! set x
-    CALL cp_fm_set_all(qs_ot_env%matrix_x,0.0_wp)
-    CALL cp_fm_set_all(qs_ot_env%matrix_sx,0.0_wp)
-
-    ! get c
-    CALL qs_ot_get_p(qs_ot_env%matrix_x,qs_ot_env%matrix_sx,qs_ot_env,globenv)
-
+    END DO
     CALL timestop(0.0_wp,handle)
 END SUBROUTINE
 
