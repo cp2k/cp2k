@@ -464,19 +464,25 @@ CONTAINS
                   DO iatom_local=1,natom_local_a
                     iatom = atom(ikind)%list_local_a_index(iatom_local)
                     atom_a = atom(ikind)%list(iatom)
-                    IF (atom_a == atom_b) THEN
-                      IF (cell000) THEN
-                        include_ab = .FALSE.
+                    IF (cell000) THEN
+                      IF (atom_a > atom_b) THEN
+                        include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                        f = 1.0_dp
                       ELSE
-                        include_ab = .TRUE.
-                        f = 0.5_dp
+                        include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                        f = 1.0_dp
                       END IF
-                    ELSE IF (atom_a > atom_b) THEN
-                      include_ab = (MODULO(atom_a + atom_b,2) /= 0)
-                      f = 1.0_dp
                     ELSE
-                      include_ab = (MODULO(atom_a + atom_b,2) == 0)
-                      f = 1.0_dp
+                      IF (atom_a == atom_b) THEN
+                        include_ab = .TRUE.
+                        f = 1.0_dp
+                      ELSE IF (atom_a > atom_b) THEN
+                        include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                        f = 2.0_dp
+                      ELSE
+                        include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                        f = 2.0_dp
+                      END IF
                     END IF
                     IF (include_ab) THEN
                       rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
@@ -580,19 +586,25 @@ CONTAINS
                           iatom_local = subcell(i,j,k)%atom_list(iatom_subcell)
                           iatom = atom(ikind)%list_local_a_index(iatom_local)
                           atom_a = atom(ikind)%list(iatom)
-                          IF (atom_a == atom_b) THEN
-                            IF (cell000) THEN
-                              include_ab = .FALSE.
+                          IF (cell000) THEN
+                            IF (atom_a > atom_b) THEN
+                              include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                              f = 1.0_dp
                             ELSE
-                              include_ab = .TRUE.
-                              f = 0.5_dp
+                              include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                              f = 1.0_dp
                             END IF
-                          ELSE IF (atom_a > atom_b) THEN
-                            include_ab = (MODULO(atom_a + atom_b,2) /= 0)
-                            f = 1.0_dp
                           ELSE
-                            include_ab = (MODULO(atom_a + atom_b,2) == 0)
-                            f = 1.0_dp
+                            IF (atom_a == atom_b) THEN
+                              include_ab = .TRUE.
+                              f = 1.0_dp
+                            ELSE IF (atom_a > atom_b) THEN
+                              include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                              f = 2.0_dp
+                            ELSE
+                              include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                              f = 2.0_dp
+                            END IF
                           END IF
                           IF (include_ab) THEN
                             rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
