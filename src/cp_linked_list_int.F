@@ -205,7 +205,7 @@ contains
 !!     Subroutine cp_sll_int_create(sll, first_el, rest, error)
 !!       Type(cp_sll_int_type), Pointer:: sll
 !!       Integer, Intent (IN), Optional:: first_el
-!!       Type(cp_sll_int_type), Intent (IN), Target, Optional:: rest
+!!       Type(cp_sll_int_type), Pointer, Optional:: rest
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_sll_int_create
 !!
@@ -232,7 +232,7 @@ contains
   subroutine cp_sll_int_create(sll,first_el,rest,error)
     type(cp_sll_int_type), pointer :: sll
     integer, intent(in), optional :: first_el
-    type(cp_sll_int_type), intent(in), target , optional :: rest
+    type(cp_sll_int_type), pointer, optional :: rest
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
@@ -356,7 +356,7 @@ contains
 !!     Subroutine cp_sll_int_set(sll, first_el, rest, error)
 !!       Type(cp_sll_int_type), Pointer:: sll
 !!       Integer, Intent (IN), Optional:: first_el
-!!       Type(cp_sll_int_type), Intent (IN), Optional, Target:: rest
+!!       Type(cp_sll_int_type), Pointer, Optional:: rest
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_sll_int_set
 !!
@@ -385,7 +385,7 @@ contains
   subroutine cp_sll_int_set(sll,first_el,rest,error)
     type(cp_sll_int_type), pointer :: sll
     integer, intent(in), optional :: first_el
-    type(cp_sll_int_type), intent(in), optional, target :: rest
+    type(cp_sll_int_type), pointer, optional :: rest
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure

@@ -201,14 +201,6 @@ contains
 !!   NAME
 !!     cp_sll_int_ptr_create
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_sll_int_ptr_create(sll, first_el, rest, error)
-!!       Type(cp_sll_int_ptr_type), Pointer:: sll
-!!       Integer, Intent (IN), Target, Optional:: first_el
-!!       Type(cp_sll_int_ptr_type), Intent (IN), Target, Optional:: rest
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_sll_int_ptr_create
-!!
 !!   FUNCTION
 !!    allocates and initializes a single linked list
 !!
@@ -232,7 +224,7 @@ contains
   subroutine cp_sll_int_ptr_create(sll,first_el,rest,error)
     type(cp_sll_int_ptr_type), pointer :: sll
     integer, intent(in),target, optional :: first_el
-    type(cp_sll_int_ptr_type), intent(in), target , optional :: rest
+    type(cp_sll_int_ptr_type), pointer, optional :: rest
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
@@ -262,12 +254,6 @@ contains
 !!
 !!   NAME
 !!     cp_sll_int_ptr_dealloc
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_sll_int_ptr_dealloc(sll, error)
-!!       Type(cp_sll_int_ptr_type), Pointer:: sll
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_sll_int_ptr_dealloc
 !!
 !!   FUNCTION
 !!     deallocates the singly linked list starting at sll.
@@ -305,12 +291,6 @@ contains
 !!
 !!   NAME
 !!     cp_sll_int_ptr_dealloc_node
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_sll_int_ptr_dealloc_node(sll, error)
-!!       Type(cp_sll_int_ptr_type), Pointer:: sll
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_sll_int_ptr_dealloc_node
 !!
 !!   FUNCTION
 !!     deallocates a node of a singly linked list (low level)
@@ -352,14 +332,6 @@ contains
 !!   NAME
 !!     cp_sll_int_ptr_set
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_sll_int_ptr_set(sll, first_el, rest, error)
-!!       Type(cp_sll_int_ptr_type), Pointer:: sll
-!!       Integer, Intent (IN), Target, Optional:: first_el
-!!       Type(cp_sll_int_ptr_type), Intent (IN), Optional, Target:: rest
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_sll_int_ptr_set
-!!
 !!   FUNCTION
 !!     sets tha various attributes of a single linked list
 !!     It is an error to set the rest of an empty list without setting 
@@ -385,7 +357,7 @@ contains
   subroutine cp_sll_int_ptr_set(sll,first_el,rest,error)
     type(cp_sll_int_ptr_type), pointer :: sll
     integer, intent(in),target, optional :: first_el
-    type(cp_sll_int_ptr_type), intent(in), optional, target :: rest
+    type(cp_sll_int_ptr_type), pointer, optional :: rest
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
@@ -412,17 +384,6 @@ contains
 !!
 !!   NAME
 !!     cp_sll_int_ptr_get
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_sll_int_ptr_get(sll, first_el, rest, empty, length,&
-!!         error)
-!!       Type(cp_sll_int_ptr_type), Pointer:: sll
-!!       Integer, Pointer, Optional:: first_el
-!!       Type(cp_sll_int_ptr_type), Optional, Pointer:: rest
-!!       Logical, Optional, Intent (OUT):: empty
-!!       Integer, Intent (OUT), Optional:: length
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_sll_int_ptr_get
 !!
 !!   FUNCTION
 !!     returns various attributes from the linked list
@@ -480,13 +441,6 @@ contains
 !!   NAME
 !!     cp_sll_int_ptr_get_first_el
 !!
-!!   SYNOPSIS
-!!     Function cp_sll_int_ptr_get_first_el(sll, error) Result(res)
-!!       Type(cp_sll_int_ptr_type), Pointer:: sll
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Integer, Pointer:: res
-!!     End Function cp_sll_int_ptr_get_first_el
-!!
 !!   FUNCTION
 !!     returns the first element stored in the list
 !!
@@ -530,14 +484,6 @@ contains
 !!
 !!   NAME
 !!     cp_sll_int_ptr_get_rest
-!!
-!!   SYNOPSIS
-!!     Function cp_sll_int_ptr_get_rest(sll, iter, error) Result(res)
-!!       Type(cp_sll_int_ptr_type), Pointer:: sll
-!!       Integer, Optional:: iter
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Type(cp_sll_int_ptr_type), Pointer:: res
-!!     End Function cp_sll_int_ptr_get_rest
 !!
 !!   FUNCTION
 !!     returns the rest of the list
@@ -615,13 +561,6 @@ contains
 !!   NAME
 !!     cp_sll_int_ptr_get_empty
 !!
-!!   SYNOPSIS
-!!     Function cp_sll_int_ptr_get_empty(sll, error) Result(res)
-!!       Logical:: res
-!!       Type(cp_sll_int_ptr_type), Pointer:: sll
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_sll_int_ptr_get_empty
-!!
 !!   FUNCTION
 !!     -
 !!
@@ -657,13 +596,6 @@ contains
 !!
 !!   NAME
 !!     cp_sll_int_ptr_get_length
-!!
-!!   SYNOPSIS
-!!     Function cp_sll_int_ptr_get_length(sll, error) Result(res)
-!!       Type(cp_sll_int_ptr_type), Intent (IN), Target:: sll
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Integer:: res
-!!     End Function cp_sll_int_ptr_get_length
 !!
 !!   FUNCTION
 !!     returns the length of the list
@@ -710,14 +642,6 @@ contains
 !!
 !!   NAME
 !!     cp_sll_int_ptr_get_el_at
-!!
-!!   SYNOPSIS
-!!     Function cp_sll_int_ptr_get_el_at(sll, index, error) Result(res)
-!!       Integer, Pointer:: res
-!!       Type(cp_sll_int_ptr_type), Pointer:: sll
-!!       Integer, Intent (IN):: index
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_sll_int_ptr_get_el_at
 !!
 !!   FUNCTION
 !!     returns the element at the given index
@@ -768,14 +692,6 @@ contains
 !!
 !!   NAME
 !!     cp_sll_int_ptr_set_el_at
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_sll_int_ptr_set_el_at(sll, index, value, error)
-!!       Integer, Intent (IN), Target:: value
-!!       Type(cp_sll_int_ptr_type), Pointer:: sll
-!!       Integer, Intent (IN):: index
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_sll_int_ptr_set_el_at
 !!
 !!   FUNCTION
 !!     sets the element at the given index
@@ -828,14 +744,6 @@ contains
 !!   NAME
 !!     cp_sll_int_ptr_next
 !!
-!!   SYNOPSIS
-!!     Function cp_sll_int_ptr_next(iterator, el_att, error) Result(res)
-!!       Type(cp_sll_int_ptr_type), Pointer:: iterator
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Integer, Pointer, Optional:: el_att
-!!       Logical:: res
-!!     End Function cp_sll_int_ptr_next
-!!
 !!   FUNCTION
 !!     returns true if the actual element is valid (i.e. iterator ont at end)
 !!     moves the iterator to the next element
@@ -886,13 +794,6 @@ contains
 !!   NAME
 !!     cp_sll_int_ptr_insert_el
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_sll_int_ptr_insert_el(sll, element, error)
-!!       Type(cp_sll_int_ptr_type), Pointer:: sll
-!!       Integer, Intent (IN), Target:: element
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_sll_int_ptr_insert_el
-!!
 !!   FUNCTION
 !!     insert an element at the beginning of the list
 !!
@@ -935,12 +836,6 @@ contains
 !!
 !!   NAME
 !!     cp_sll_int_ptr_rm_first_el
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_sll_int_ptr_rm_first_el(sll, error)
-!!       Type(cp_sll_int_ptr_type), Pointer:: sll
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_sll_int_ptr_rm_first_el
 !!
 !!   FUNCTION
 !!     remove the first element of the linked list
@@ -986,14 +881,6 @@ contains
 !!
 !!   NAME
 !!     cp_sll_int_ptr_insert_el_at
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_sll_int_ptr_insert_el_at(sll, index, element, error)
-!!       Integer, Intent (IN), Target:: element
-!!       Integer, Intent (IN):: index
-!!       Type(cp_sll_int_ptr_type), Pointer:: sll
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_sll_int_ptr_insert_el_at
 !!
 !!   FUNCTION
 !!     inserts the element at the given index
@@ -1047,13 +934,6 @@ contains
 !!
 !!   NAME
 !!     cp_sll_int_ptr_rm_el_at
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_sll_int_ptr_rm_el_at(sll, index, error)
-!!       Type(cp_sll_int_ptr_type), Pointer:: sll
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Integer, Intent (IN):: index
-!!     End Subroutine cp_sll_int_ptr_rm_el_at
 !!
 !!   FUNCTION
 !!     removes the element at the given index
@@ -1109,12 +989,6 @@ contains
 !!   NAME
 !!     cp_sll_int_ptr_rm_all_el
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_sll_int_ptr_rm_all_el(sll, error)
-!!       Type(cp_sll_int_ptr_type), Pointer:: sll
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_sll_int_ptr_rm_all_el
-!!
 !!   FUNCTION
 !!     removes all the elements from the list
 !!
@@ -1160,18 +1034,6 @@ contains
 !!
 !!   NAME
 !!     cp_sll_int_ptr_output
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_sll_int_ptr_output(logger, outputname, fromwhere, iter,&
-!!         sll, comment, error)
-!!       Type(cp_logger_type):: logger
-!!       Character(Len=*), Intent (IN):: outputname
-!!       Character(Len=*), Intent (IN):: fromwhere
-!!       Integer, Intent (IN):: iter
-!!       Type(cp_sll_int_ptr_type), Pointer:: sll
-!!       Character(Len=*), Intent (IN), Optional:: comment
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_sll_int_ptr_output
 !!
 !!   FUNCTION
 !!     outputs the contents of the list as a comma separated parentized list
@@ -1231,13 +1093,6 @@ contains
 !!
 !!   NAME
 !!     cp_sll_int_ptr_write
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_sll_int_ptr_write(sll, unit_nr, error)
-!!       Type(cp_sll_int_ptr_type), Pointer:: sll
-!!       Integer, Intent (IN):: unit_nr
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_sll_int_ptr_write
 !!
 !!   FUNCTION
 !!     writes the list as a comma separated parentized list to the given

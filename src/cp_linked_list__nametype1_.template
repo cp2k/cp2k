@@ -224,7 +224,7 @@ contains
   subroutine cp_sll_[nametype1]_create(sll,first_el,rest,error)
     type(cp_sll_[nametype1]_type), pointer :: sll
     [type1in], optional :: first_el
-    type(cp_sll_[nametype1]_type), intent(in), target , optional :: rest
+    type(cp_sll_[nametype1]_type), pointer, optional :: rest
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
@@ -357,7 +357,7 @@ contains
   subroutine cp_sll_[nametype1]_set(sll,first_el,rest,error)
     type(cp_sll_[nametype1]_type), pointer :: sll
     [type1in], optional :: first_el
-    type(cp_sll_[nametype1]_type), intent(in), optional, target :: rest
+    type(cp_sll_[nametype1]_type), pointer, optional :: rest
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
