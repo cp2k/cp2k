@@ -1,0 +1,11 @@
+&CP2K
+ PROGRAM      farming
+&END
+
+&FARMING
+ NGROUP 1
+&END
+
+&JOBS
+ dir1 C.inp
+&END

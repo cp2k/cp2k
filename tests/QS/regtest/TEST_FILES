@@ -50,3 +50,5 @@ H2O-meta.inp       1
 H2O-qmmm.inp       1
 # tpss
 H2O-tpss.inp       1
+# farming
+farming.inp        0
