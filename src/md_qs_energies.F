@@ -229,7 +229,7 @@ END SUBROUTINE set_qs_energies
 
       temp = temp*kelvin
 
-      WRITE (title,"(A4,I8,A4,F12.3,X,A6,F20.9,X,A6,F9.3,X,A1)")&
+      WRITE (title,"(A4,I8,A4,F12.3,1X,A6,F20.9,1X,A6,F9.3,1X,A1)")&
         " i =",itimes," t =",t,"fs E =",md_env%force_env%qs_env%energy%total,&
         "au T= ",temp,"K"
 
