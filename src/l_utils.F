@@ -17,6 +17,7 @@ MODULE L_UTILS
         real(wp), pointer, dimension(:,:) :: polx,poly,polz,alpha, &
                                              dpy,dpz
         real(wp), pointer, dimension(:)   :: pzyx
+        integer,  pointer, dimension(:,:,:,:,:,:)   :: ipzyx
    END TYPE
 
    TYPE l_info_type
@@ -29,7 +30,7 @@ CONTAINS
 
    SUBROUTINE return_l_info(l_info,la_min,la_max,lb_min,lb_max, &
                             lx_max,lxy_max,lxyz_max,ly_max,lz_max,&
-                            map,polx,poly,polz,dpy,dpz,alpha,pzyx,cmax)
+                            map,polx,poly,polz,dpy,dpz,alpha,pzyx,ipzyx,cmax)
       IMPLICIT NONE
       type(l_info_type) :: l_info
       integer           :: la_min,la_max,lb_min,lb_max
@@ -38,6 +39,7 @@ CONTAINS
       integer, pointer, dimension(:,:)  :: map
       real(wp), pointer, dimension(:,:) :: polx,poly,polz,alpha,dpy,dpz
       real(wp), pointer, dimension(:)   :: pzyx
+      integer,  pointer, dimension(:,:,:,:,:,:)   :: ipzyx
 
       if (la_max.gt.l_info%lmax .or. lb_max.gt.l_info%lmax) then
         CALL stop_program("return_l_info","called with l too large")
@@ -55,6 +57,7 @@ CONTAINS
       dpz=>l_info%data(la_min,la_max,lb_min,lb_max)%dpz
       alpha=>l_info%data(la_min,la_max,lb_min,lb_max)%alpha
       pzyx=>l_info%data(la_min,la_max,lb_min,lb_max)%pzyx
+      ipzyx=>l_info%data(la_min,la_max,lb_min,lb_max)%ipzyx
       cmax=l_info%cmax
    END SUBROUTINE
 
@@ -99,7 +102,7 @@ CONTAINS
       IMPLICIT NONE
       integer               :: la_min,lb_min,la_max,lb_max,cmax
       TYPE(l_set_info_type) :: l_set_info
-      integer lxa,lxb,lya,lyb,lza,lzb,lx,lxy,coef_max
+      integer lxa,lxb,lya,lyb,lza,lzb,lx,lxy,coef_max,lxyz
       coef_max=la_max+lb_max+1
 
       l_set_info%lxyz_max=0
@@ -123,6 +126,8 @@ CONTAINS
       allocate(l_set_info%ly_max(l_set_info%lx_max),l_set_info%lz_max(l_set_info%lxy_max))
       allocate(l_set_info%map(-cmax:cmax,1:3),&
       l_set_info%pzyx(l_set_info%lxyz_max),&
+      l_set_info%ipzyx(0:la_max,0:la_max,0:la_max,&
+                       0:lb_max,0:lb_max,0:lb_max),&
       l_set_info%polz(l_set_info%lxyz_max,-cmax:cmax),&
       l_set_info%poly(l_set_info%lxy_max,-cmax:cmax),&
       l_set_info%polx(coef_max,-cmax:cmax),&
@@ -134,6 +139,7 @@ CONTAINS
       l_set_info%lz_max(:)=0
       lx=0
       lxy=0
+      lxyz=0
       DO lxa=0,la_max
       DO lxb=0,lb_max
          lx=lx+1
@@ -143,7 +149,9 @@ CONTAINS
             l_set_info%ly_max(lx)=l_set_info%ly_max(lx)+1
             DO lza=max(la_min-lxa-lya,0),la_max-lxa-lya
             DO lzb=max(lb_min-lxb-lyb,0),lb_max-lxb-lyb
+               lxyz=lxyz+1
                l_set_info%lz_max(lxy)=l_set_info%lz_max(lxy)+1
+               l_set_info%ipzyx(lxa,lya,lza,lxb,lyb,lzb)=lxyz 
             ENDDO
             ENDDO
          ENDDO
@@ -158,7 +166,7 @@ CONTAINS
       deallocate(l_set_info%ly_max,l_set_info%lz_max,l_set_info%map,&
                  l_set_info%polz,l_set_info%poly,l_set_info%polx,&
                  l_set_info%dpy,l_set_info%dpz,l_set_info%pzyx,&
-                 l_set_info%alpha)
+                 l_set_info%ipzyx,l_set_info%alpha)
    END SUBROUTINE
     
 END MODULE

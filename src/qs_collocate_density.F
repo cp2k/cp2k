@@ -854,6 +854,7 @@ CONTAINS
 
     REAL(wp), pointer :: dpx(:,:)
     REAL(wp), pointer :: pzyx(:), alpha(:,:)
+    integer,  pointer :: ipzyx(:,:,:,:,:,:)
     REAL(wp), pointer :: polz(:,:),dpz(:,:),poly(:,:),dpy(:,:),polx(:,:)
     INTEGER, pointer, dimension(:)  :: sphere_bounds
     REAL(wp)  :: xa,xb,xap,xbp,polypart,cutoff
@@ -897,7 +898,7 @@ CONTAINS
 !   *** get the l_info logic and arrays ***
     CALL return_l_info(l_info,la_min,la_max,lb_min,lb_max,lx_max, &
                        lxy_max,lxyz_max,ly_max,lz_max, &
-                       map,polx,poly,polz,dpy,dpz,alpha,pzyx,cmax)
+                       map,polx,poly,polz,dpy,dpz,alpha,pzyx,ipzyx,cmax)
 
 !   *** position of the gaussian product
 
