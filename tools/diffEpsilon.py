@@ -1,4 +1,3 @@
-
 #! /usr/bin/env python
 
 import sys
@@ -31,6 +30,7 @@ def getCoreLine(file,lineNr):
   import re
   bannerRe=re.compile(r"([ *]+PROGRAM | CP2K\| | IO\| | +[a-zA-Z_\.0-9@]* +has created process number| *$)")
   timingRe=re.compile(" *- +T I M I N G +- *$")
+  timedLineRe=re.compile(" *[0-9][0-9]:[0-9][0-9]:[0-9][0-9] (.*)$")
   scfLineRe=re.compile(" *([0-9]+) +([a-zA-Z/]+) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[-+]?[0-9]*) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[-+]?[0-9]*) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[-+]?[0-9]*) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[+-]?[0-9]*) *$")
   line=file.readline()
   while bannerRe.match(line):
@@ -42,10 +42,12 @@ def getCoreLine(file,lineNr):
     # print "found scfLine=",`line`
     groups=scfLineRe.match(line).groups()
     line=groups[0]+" "+groups[1]+" "+groups[2]+" x x "+groups[5]
-  if timingRe.match(line):
+  elif timingRe.match(line):
     while not line=="":
       lineNr=lineNr+1
       line=file.readline()
+  elif timedLineRe.match(line):
+    line=timedLineRe.match(line).groups()[0]
   if line!="":
     lineNr=lineNr+1
   return (line,lineNr)
