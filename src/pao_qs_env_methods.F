@@ -35,6 +35,7 @@ module pao_qs_env_methods
   use qs_environment_types
   use atomic_kind_types, only: atomic_kind_type, get_atomic_kind,&
        get_atomic_kind_set
+  use particle_types
   implicit none
   private
 
@@ -99,7 +100,7 @@ contains
     failure=.false.
 
     call get_qs_env(qs_env, particle_set=particle_set)
-    call get_atomic_kind(particle_set%atomic_kind,pao_bas_proj=res)
+    call get_atomic_kind(particle_set(atom_nr)%atomic_kind,pao_bas_proj=res)
   end function pao_qs_env_get_b_projection
 !***************************************************************************
 

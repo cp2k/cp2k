@@ -52,7 +52,7 @@ module pao_obj_function
   use pao_qs_env_methods
   use cp_matrix_utils
   use cp_b_matrix_structure
-  use sparse_matrix_types, only: real_matrix_type
+  use sparse_matrix_types
   use pao_unitary_t
   use pao_utils
   implicit none

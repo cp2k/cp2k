@@ -167,7 +167,7 @@ contains
     character(len=*), parameter :: routineP='pao_env_methods:pao_env_init'
     type(cp_error_type) :: iError
     integer :: stat, i, n_atoms, size_excl_bas, size_min_bas
-    type(real_matrix_p_type), dimension(:), pointer :: h
+    type(real_matrix_p_type), dimension(:), pointer :: p
     type(pao_bas_projection_type), pointer :: bproj
     failure=.false.
     call cp_init(iError, template_error=error)
@@ -184,11 +184,11 @@ contains
     CPAssert(.false.,cp_failure_level,routineP,error,failure)
 
 ! others
-    call get_qs_env(qs_env,h=h, natoms=n_atoms)
-    allocate(pao_env%min_density_m(size(h)),stat=stat)
+    call get_qs_env(qs_env,p=p, natoms=n_atoms)
+    allocate(pao_env%min_density_m(size(p)),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     if (.not.failure) then
-       do i=1,size(h)
+       do i=1,size(p)
           nullify(pao_env%min_density_m(i)%matrix)
        end do
     end if

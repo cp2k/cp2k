@@ -44,6 +44,7 @@ module pao_l_angles_methods
   use pao_plain_rot
   use qs_environment_types
   use atomic_kind_types
+  use particle_types
   implicit none
   private
 

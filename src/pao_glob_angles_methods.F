@@ -850,7 +850,7 @@ contains
     if (present(new_value)) then
        n_value => new_value
        if (associated(n_value)) then
-          call cp_retain(new_value,error=error)
+          call cp_retain(n_value,error=error)
           call cp_release(glob_angles%unitary_t, error=error)
           glob_angles%unitary_t => new_value
        else if (associated(glob_angles%unitary_t)) then

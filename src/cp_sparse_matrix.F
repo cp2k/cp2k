@@ -45,11 +45,12 @@ module cp_sparse_matrix
        cp_sparse_matrix_p_type
   public :: cp_create, cp_dealloc, cp_retain, cp_release, &
        cp_consolidate_matrix, cp_get_local_block,&
-       cp_release_block, cp_set_local_block, cp_remove_block
+       cp_release_block, cp_set_local_block, cp_remove_block,&
+       cp_get_matrix
   public :: cp_sp_create, cp_sp_dealloc, cp_sp_retain, cp_sp_release,&
        cp_sp_consolidate_matrix, cp_sp_get_local_block,&
        cp_sp_release_block, cp_sp_set_local_block, cp_sp_remove_block,&
-       cp_sp_array_dealloc
+       cp_sp_array_dealloc, cp_sp_get_matrix
 
   interface cp_create
      module procedure cp_sp_create
@@ -468,6 +469,13 @@ contains
 !!
 !!   NAME
 !!     cp_sp_get_matrix
+!!
+!!   SYNOPSIS
+!!     Function cp_sp_get_matrix(matrix, error) Result(res)
+!!       Type(cp_sparse_matrix_type), Intent (IN), Target:: matrix
+!!       Type(real_matrix_type), Pointer:: res
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Function cp_sp_get_matrix
 !!
 !!   FUNCTION
 !!     returns the underlying sparse matrix (might go away)
