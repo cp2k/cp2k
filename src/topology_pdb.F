@@ -167,7 +167,7 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
     record = line(1:6)
     record = TRIM(record)
 
-    IF(record == "ATOM") THEN
+    IF(record == "ATOM" .OR. record == "HETATM") THEN
       natom = natom + 1
       topology%natoms = natom
       IF(natom > SIZE(atom_info%label_atmname)) THEN
@@ -184,7 +184,7 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
     END IF
 
     SELECT CASE (record)
-    CASE ("ATOM") 
+    CASE ("ATOM","HETATM") 
       atom_info%label_molname(natom) = TRIM(root_mol_name)
       READ(line(13:16),*) atom_info%label_atmname(natom)
       READ(line(18:20),*,IOSTAT=istat) atom_info%label_resname(natom)
