@@ -1,14 +1,13 @@
 .SUFFIXES: .F .dep .o .f90 .for
-export VERSION=sopt
 
 # the home dir is taken from the current directory: you must cd to the makefiles
 # directory before executing make
 CP2KHOME  := $(PWD)/..
 ARCH      = $(shell $(CP2KHOME)/tools/get_arch_code)
-VERSION   = sopt
 SMAKE     = $(MAKE) -r
 PMAKE     = $(SMAKE) -j 4
 LIB1      = cp2klib
+export VERSION=sopt
 
 ### Dependent variables ###
 
@@ -43,11 +42,7 @@ build:
 	@cd $(EXEDIR) || mkdir -p $(EXEDIR)
 	@cd $(LIBDIR)/$(VERSION) || mkdir -p $(LIBDIR)/$(VERSION)
 	@cd $(TOOLDIR) || mkdir -p $(TOOLDIR)
-	$(if $(shell if [ ! -f $(OBJDIR)/$(VERSION)/parallel_include.int -o \
-		! -f $(OBJDIR)/$(VERSION)/parallel_include.dep ] ; then  echo 1 ; fi),\
-		$(shell mkdir -p $(OBJDIR)/$(VERSION) ; \
-			touch $(OBJDIR)/$(VERSION)/parallel_include.int \
-				$(OBJDIR)/$(VERSION)/parallel_include.dep))
+	@cd $(OBJDIR)/$(VERSION) || mkdir -p $(OBJDIR)/$(VERSION)
 	@echo
 	@echo "*** machine file = $(MACHINEDEFS)"	
 	@echo
@@ -59,7 +54,7 @@ $(VERSION_TARGETS):
 	$(SMAKE) -f $(MAKEFILE) VERSION=$@ build
 
 $(CLEAN_TARGETS):
-	$(SMAKE) -f $(MAKEFILE) -C $(OBJDIR)/$(@D) VERSION=$(@D) $(@F)
+	$(SMAKE) -f $(MAKEFILE) VERSION=$(@D) $(@F)
 
 include $(OBJECTDEFS)
 
@@ -114,6 +109,9 @@ vpath %.F $(SRCDIRS)
 
 parallel_include.o: parallel_include.f90
 	$(FC_fixed) -c $(FCFLAGS) $*.f90
+
+parallel_include.dep:
+	touch -a parallel_include.dep parallel_include.int
 
 clean:
 	cd $(OBJDIR)/$(VERSION) ; rm -f *.o *.mod 
