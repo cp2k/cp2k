@@ -270,15 +270,15 @@ CONTAINS
         IF (ASSOCIATED(atomic_kind_set(ikind)%aux_basis_set)) THEN
           CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%aux_basis_set)
         END IF
+        IF (ASSOCIATED(atomic_kind_set(ikind)%soft_basis_set).AND.&
+                                         atomic_kind_set(ikind)%paw_atom) THEN
+          CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%soft_basis_set)
+        ELSEIF(ASSOCIATED(atomic_kind_set(ikind)%soft_basis_set).AND.&
+                                    .NOT.  atomic_kind_set(ikind)%paw_atom) THEN
+          NULLIFY (atomic_kind_set(ikind)%soft_basis_set)
+        END IF
         IF (ASSOCIATED(atomic_kind_set(ikind)%orb_basis_set)) THEN
           CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%orb_basis_set)
-        END IF
-!        IF (ASSOCIATED(atomic_kind_set(ikind)%hard_basis_set)) THEN
-!          CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%hard_basis_set)
-!        END IF
-        IF (ASSOCIATED(atomic_kind_set(ikind)%soft_basis_set).AND.&
-                             atomic_kind_set(ikind)%paw_atom) THEN
-          CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%soft_basis_set)
         END IF
         IF (ASSOCIATED(atomic_kind_set(ikind)%paw_proj_set)) THEN
           CALL deallocate_paw_proj_set(atomic_kind_set(ikind)%paw_proj_set)
