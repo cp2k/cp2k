@@ -55,7 +55,7 @@
         PLATFORM="Cygwin-i686-g95";;
       Linux-*-*-i686)
         if [[ -n $FORT_C_NAME ]]; then
-	  PLATFORM="Linux-i686-$FORT_C_NAME"
+     	  PLATFORM="Linux-i686-$FORT_C_NAME"
         elif [[ -n $G95 ]]; then
           PLATFORM="Linux-i686-g95"
         elif [[ -n $PGI ]]; then
@@ -65,6 +65,12 @@
         else
           PLATFORM="Linux-i686"
         fi;;
+      Linux-*-*-x86_64)
+        if [[ -n $FORT_C_NAME ]]; then
+     	  PLATFORM="Linux-x86-64-$FORT_C_NAME"
+        else
+          PLATFORM="Linux-x86-64"
+		fi;;
       *-unicosmk-*-CRAY*T3E)
         PLATFORM="CRAY-T3E";;
       SunOS-*-sun4u)
