@@ -73,8 +73,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE coulomb2(la_max,zeta,rpgfa,la_min,&
-                      lc_max,zetc,rpgfc,lc_min,&
+  SUBROUTINE coulomb2(la_max,npgfa,zeta,rpgfa,la_min,&
+                      lc_max,npgfc,zetc,rpgfc,lc_min,&
                       rac,rac2,vac)
 
 !   Purpose: Calculation of the primitive two-center Coulomb integrals over
@@ -84,11 +84,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN)                      :: la_max
+    INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
     INTEGER, INTENT(IN)                      :: la_min, lc_max
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetc, rpgfc
-    INTEGER, INTENT(IN)                      :: lc_min
+    INTEGER, INTENT(IN)                      :: lc_min, npgfc
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac
     REAL(KIND=dp), INTENT(IN)                :: rac2
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -118,11 +118,11 @@ CONTAINS
 
     na = 0
 
-    DO ipgf=1,SIZE(zeta)
+    DO ipgf=1,npgfa
 
       nc = 0
 
-      DO jpgf=1,SIZE(zetc)
+      DO jpgf=1,npgfc
 
 !       *** Screening ***
 
@@ -402,8 +402,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE coulomb3(la_max,zeta,rpgfa,la_min,&
-                      lb_max,zetb,rpgfb,lb_min,&
+  SUBROUTINE coulomb3(la_max,npgfa,zeta,rpgfa,la_min,&
+                      lb_max,npgfb,zetb,rpgfb,lb_min,&
                       lc_max,zetc,rpgfc,lc_min,gccc,&
                       rab,rab2,rac,rac2,rbc,rbc2,vabc,int_abc,&
                       maxder,vabc_plus)
@@ -416,11 +416,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN)                      :: la_max
+    INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
     INTEGER, INTENT(IN)                      :: la_min, lb_max
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
-    INTEGER, INTENT(IN)                      :: lb_min, lc_max
+    INTEGER, INTENT(IN)                      :: lb_min, npgfb
+    INTEGER, INTENT(IN)                      :: lc_max
     REAL(KIND=dp), INTENT(IN)                :: zetc, rpgfc
     INTEGER, INTENT(IN)                      :: lc_min
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: gccc
@@ -475,7 +476,7 @@ CONTAINS
     na = 0
     nap = 0
 
-    DO ipgf=1,SIZE(zeta)
+    DO ipgf=1,npgfa
 
 !     *** Screening ***
 
@@ -488,7 +489,7 @@ CONTAINS
       nb = 0
       nbp = 0
 
-      DO jpgf=1,SIZE(zetb)
+      DO jpgf=1,npgfb
 
 !       *** Screening ***
 

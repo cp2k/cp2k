@@ -196,7 +196,7 @@ MODULE hartree_local_types
       IF(PRESENT(aVh1b_s)) aVh1b_s => ecoul_1c(iatom)%aVh1b_s%r_coef
       IF(PRESENT(aVh1b_0)) aVh1b_0 => ecoul_1c(iatom)%aVh1b_0%r_coef
       IF(PRESENT(aVhsb_0s)) aVhsb_0s => ecoul_1c(iatom)%aVhsb_0s%r_coef
-      IF(PRESENT(aVhsb_0s)) aVh3c0b => ecoul_1c(iatom)%aVh3c0b%r_coef
+      IF(PRESENT(aVh3c0b)) aVh3c0b => ecoul_1c(iatom)%aVh3c0b%r_coef
     END IF
     
   END SUBROUTINE get_ecoul_1c

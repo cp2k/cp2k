@@ -149,7 +149,7 @@ MODULE  hartree_local_3centers
                lx, ly, lz, m1, m2, maxch0, maxco_global, maxcoa, maxcob, maxder, &
                maxsoc, maxsgf, maxsgf_set, nkind, nat, natom, nchan0_cart,&
                nchan0_sph, nco1, nco2, ncotota, ncototb, nlist, nnode, nnode_c,&
-               ns1, ns2, nsgfa, nsgfb, nseta, nsetb, nsetc, nsototc
+               ns1, ns2, nsgfa, nsgfb, nseta, nsetb, nsetc, nsototc, nz1, nz2
     INTEGER, DIMENSION(3)                      :: cell_c
     INTEGER, DIMENSION(:),        POINTER      :: atom_list,la_max,la_min,&
                                                   lb_max,lb_min,&
@@ -351,11 +351,12 @@ MODULE  hartree_local_3centers
                 m1 = m1 + maxcoa
               END DO  ! iset1
 !dbg
-!      WRITE(*,*) 'atom', iatom, jatom
-!     WRITE(*,*) 'nc ', ncotota, ncototb
-!    DO ic = 1,ncotota
-!     WRITE(*,'(i4,12f10.6)') ic, CPC_ab(ic,13:24)
-!    END DO 
+      WRITE(*,*) 'atom', iatom, jatom
+     WRITE(*,*) 'nc ', ncotota, ncototb
+    WRITE(*,*) 'CPC '
+    DO ic = 1,ncotota
+     WRITE(*,'(i4,24f10.6)') ic, CPC_ab(ic,1:ncototb)
+    END DO 
 
 !             Allocate array for sum of integrals
               CALL reallocate(Int_ab_sum,1,maxcoa,1,maxcob)
@@ -493,20 +494,22 @@ MODULE  hartree_local_3centers
                   m1 = 0
                   DO iset1 = 1,nseta
                     ifs1 = first_sgfa(1,iset1)
+                    nz1  = npgfa(iset1)
                     nco1 = npgfa(iset1)*ncoset(la_max(iset1))
                     ns1  = nsgfa_set(iset1)
                     m2 = 0
                     DO iset2 = 1,nsetb
                       ifs2 = first_sgfb(1,iset2)
+                      nz2  = npgfb(iset2)
                       nco2 = npgfb(iset2)*ncoset(lb_max(iset2))
                       ns2  = nsgfb_set(iset2)
 
                       Int_ab_sum = 0.0_dp
                       CALL sumup_3c_integrals(&
                            la_max(iset1),la_min(iset1),nco1,m1,&
-                           rpgfa(:,iset1),zeta(:,iset1),&
+                           rpgfa(:,iset1),zeta(:,iset1),nz1,&
                            lb_max(iset2),lb_min(iset2),nco2,m2,&
-                           rpgfb(:,iset2),zetb(:,iset2),&
+                           rpgfb(:,iset2),zetb(:,iset2),nz2,&
                            l0_kkind,ng0_h,ng0_s,rpgf0_h,rpgf0_s,&
                            QN_h,-QN_s,z0_h,z0_s,&
                            rab,rab2,rac,rac2,rbc,rbc2,&
@@ -562,20 +565,22 @@ MODULE  hartree_local_3centers
                   m1 = 0
                   DO iset1 = 1,nsetb
                     ifs1 = first_sgfb(1,iset1)
+                    nz1  = npgfb(iset1)
                     nco1 = npgfb(iset1)*ncoset(lb_max(iset1))
                     ns1  = nsgfb_set(iset1)
                     m2 = 0
                     DO iset2 = 1,nseta
                       ifs2 = first_sgfa(1,iset2)
+                      nz2  = npgfa(iset2)
                       nco2 = npgfa(iset2)*ncoset(la_max(iset2))
                       ns2  = nsgfa_set(iset2)
 
                       Int_ab_sum = 0.0_dp
                       CALL sumup_3c_integrals(&
                            lb_max(iset1),lb_min(iset1),nco1,m1,&
-                           rpgfb(:,iset1),zetb(:,iset1),&
+                           rpgfb(:,iset1),zetb(:,iset1),nz1,&
                            la_max(iset2),la_min(iset2),nco2,m2,&
-                           rpgfa(:,iset2),zeta(:,iset2),&
+                           rpgfa(:,iset2),zeta(:,iset2),nz2,&
                            l0_kkind,ng0_h,ng0_s,rpgf0_h,rpgf0_s,&
                            QN_h,-QN_s,z0_h,z0_s,&
                            -rab,rab2,rbc,rbc2,rac,rac2,&
@@ -626,12 +631,17 @@ MODULE  hartree_local_3centers
 
                 ns1 = SIZE(CPC_ab,1)
                 ns2 = SIZE(CPC_ab,2)
+! dbg
+!    WRITE(*,*) 'sum of intabc for atom ', katom
                 DO ico = 1,nchan0_cart
                   sum_ab_cart(ico,katom) = sum_ab_cart(ico,katom) + &
                                   ieqj*trace_r_AxB(CPC_ab,ns1,Int_abc(:,:,ico),&
                                   ns1,ns1,ns2)
-                END DO  ! ico
+!                  WRITE(*,*)  sum_ab_cart(ico,katom)
 
+                END DO  ! ico
+! dbg
+!  stop 'sum_ab_cart'
 
 
                 sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
@@ -674,7 +684,11 @@ MODULE  hartree_local_3centers
          NULLIFY(aVh3c0b)
          CALL get_ecoul_1c(ecoul_1c=ecoul_1c,iatom=katom,aVh3c0b=aVh3c0b)
          aVh3c0b = 0.0_dp
-
+! dbg
+!    WRITE(*,*) 'katom ', katom
+!    DO ico =1,nchan0_cart
+!             WRITE(*,*) 'int_sum_cart ', ico, sum_ab_cart(ico,katom)
+!    END DO 
          sum_ab_sph = 0.0_dp
          DO lshell = 0,l0_kkind
            DO is = 1,nso(lshell)
@@ -689,6 +703,7 @@ MODULE  hartree_local_3centers
                    SQRT(fourpi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/&
                    dfac(2*lshell+1))
              END DO  ! ico
+!    WRITE(*,*) 'int_sum_sph ', iso , sum_ab_sph(iso)
            END DO  ! iso
          END DO  ! lshell
 
@@ -700,7 +715,8 @@ MODULE  hartree_local_3centers
          END DO 
        END DO  ! kat
     END DO  ! kkind
-
+!dbg
+!  stop 'avb'
 100 CONTINUE
     DEALLOCATE(sum_ab_cart,sum_ab_sph)
 
@@ -710,15 +726,15 @@ MODULE  hartree_local_3centers
 
 !******************************************************************************
 
-  SUBROUTINE sumup_3c_integrals(l1_max,l1_min,nco1,m1,rp1,z1,&
-                                l2_max,l2_min,nco2,m2,rp2,z2,&
+  SUBROUTINE sumup_3c_integrals(l1_max,l1_min,nco1,m1,rp1,z1,nz1,&
+                                l2_max,l2_min,nco2,m2,rp2,z2,nz2,&
                                 l0_max,ng0_h,ng0_s,rp0_h,rp0_s,QN_h,QN_s,z0_h,z0_s,&
                                 r12,r122,r13,r132,r23,r232,vabc,Int_abc,maxder,&
                                 vdabc,vadbc)
 
-    INTEGER, INTENT(IN)                :: l1_max, l1_min, m1, nco1
-    INTEGER, INTENT(IN)                :: l2_max, l2_min, m2, nco2, l0_max   
-    INTEGER, INTENT(IN)                :: maxder
+    INTEGER, INTENT(IN)                :: l1_max, l1_min, m1, nco1, nz1
+    INTEGER, INTENT(IN)                :: l2_max, l2_min, m2, nco2, nz2
+    INTEGER, INTENT(IN)                :: l0_max, maxder
     REAL(dp), INTENT(IN)               :: rp0_h, rp0_s, z0_h, z0_s
     REAL(dp), DIMENSION(:), INTENT(IN) :: rp1, z1
     REAL(dp), DIMENSION(:), INTENT(IN) :: rp2, z2
@@ -757,8 +773,8 @@ MODULE  hartree_local_3centers
              "The vadbc and vdabc pointers are not associated ")
       END IF
 
-      n1_plus = SIZE(z1,1)*ncoset(l1_max+1)
-      n2_plus = SIZE(z2,1)*ncoset(l2_max+1)
+      n1_plus = nz1*ncoset(l1_max+1)
+      n2_plus = nz2*ncoset(l2_max+1)
       ALLOCATE(vabc_plus(n1_plus,n2_plus),STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routine_name,"vabc_plus")
@@ -766,12 +782,15 @@ MODULE  hartree_local_3centers
 
       vabc_plus = 0.0_dp
 
-      CALL coulomb3(l1_max+maxder,z1,rp1,l1_min,l2_max+maxder,z2,rp2,l2_min,&
+      CALL coulomb3(l1_max+maxder,nz1,z1,rp1,l1_min,&
+                  l2_max+maxder,nz2,z2,rp2,l2_min,&
                   l0_max,z0_h,rp0_h,0,QN_h,&
                   r12,r122,r13,r132,r23,r232,vabc,int_tmp,&
                   maxder,vabc_plus)
     ELSE
-      CALL coulomb3(l1_max,z1,rp1,l1_min,l2_max,z2,rp2,l2_min,&
+
+      CALL coulomb3(l1_max,nz1,z1,rp1,l1_min,&
+                  l2_max,nz2,z2,rp2,l2_min,&
                   l0_max,z0_h,rp0_h,0,QN_h,&
                   r12,r122,r13,r132,r23,r232,vabc,int_tmp)
 
@@ -784,28 +803,49 @@ MODULE  hartree_local_3centers
     END DO 
     
     IF(maxder > 0) THEN
-      CALL coulomb3(l1_max+maxder,z1,rp1,l1_min,l2_max+maxder,z2,rp2,l2_min,&
+      CALL coulomb3(l1_max+maxder,nz1,z1,rp1,l1_min,&
+                  l2_max+maxder,nz2,z2,rp2,l2_min,&
                   l0_max,z0_s,rp0_s,0,QN_s,&
                   r12,r122,r13,r132,r23,r232,vabc,int_tmp,&
                   maxder,vabc_plus)
     ELSE
-      CALL coulomb3(l1_max,z1,rp1,l1_min,l2_max,z2,rp2,l2_min,&
+      CALL coulomb3(l1_max,nz1,z1,rp1,l1_min,&
+                  l2_max,nz2,z2,rp2,l2_min,&
                   l0_max,z0_s,rp0_s,0,QN_s,&
                   r12,r122,r13,r132,r23,r232,vabc,int_tmp)
     END IF
 
+!dbg
+!   WRITE(*,*) 'bounds :',1+m1,'to ',nco1+m1,1+m2,' to ',nco2+m2
     DO ico = 1,nch0
        l = indco(1,ico)
+! dbg
+!       WRITE(*,*) 'ico ', ico
+!       WRITE(*,*) 'int_h '
+!       DO ico1 =1+m1,nco1+m1
+!         WRITE(*,'(I3,15f10.6)') ico1+m1, int_abc(ico1,1+m2:m2+nco2,ico)
+!       END DO 
+!       WRITE(*,*) 'int_s '
+!       DO ico1 =1,nco1
+!         WRITE(*,'(I3,15f10.6)') ico1, ng0_s(l) *int_tmp(ico1,1:nco2,ico)
+!       END DO 
+
        Int_abc(1+m1:nco1+m1,1+m2:nco2+m2,ico) = &
                     Int_abc(1+m1:nco1+m1,1+m2:nco2+m2,ico) - &
                     ng0_s(l) * int_tmp(1:nco1,1:nco2,ico)
+! dbg
+!       WRITE(*,*) 'ico ', ico
+!       DO ico1 =1,nco1
+!         WRITE(*,'(I3,15f10.6)') ico1, int_tmp(ico1,1:nco2,ico)
+!       END DO 
     END DO
-
+! dbg
+!   stop 
 
     IF(maxder > 0) THEN
 
-      npgf1 = SIZE(z1,1)
-      npgf2 = SIZE(z2,1)
+      npgf1 = nz1
+      npgf2 = nz2
       n1 = ncoset(l1_max)
       n1L = ncoset(l1_max+maxder)
       n2 = ncoset(l2_max)

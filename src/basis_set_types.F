@@ -550,8 +550,8 @@ CONTAINS
       npgfa = gto_basis_set%npgf(iset)
       rpgfa => gto_basis_set%pgf_radius(1:npgfa,iset)
       zeta => gto_basis_set%zet(1:npgfa,iset)
-      CALL coulomb2(lmax,zeta,rpgfa,lmin,&
-                    lmax,zeta,rpgfa,lmin,&
+      CALL coulomb2(lmax,npgfa,zeta,rpgfa,lmin,&
+                    lmax,npgfa,zeta,rpgfa,lmin,&
                     (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,gaa)
       DO ishell=1,gto_basis_set%nshell(iset)
         DO icgf=gto_basis_set%first_cgf(ishell,iset),&
