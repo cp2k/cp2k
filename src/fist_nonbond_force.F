@@ -41,7 +41,7 @@ MODULE fist_nonbond_force
                                       neighbor_node_type,&
                                       next
   USE simulation_cell, ONLY : cell_type, pbc, get_cell_param, &
-                              real_to_scaled, scaled_to_real,pbc
+                              real_to_scaled, scaled_to_real
   USE termination, ONLY : stop_memory
   USE timings, ONLY : timeset, timestop
   USE util, ONLY : include_list
