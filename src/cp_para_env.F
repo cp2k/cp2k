@@ -35,7 +35,6 @@ MODULE cp_para_env
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_comm_dup,&
                                              mp_comm_free,&
@@ -50,7 +49,7 @@ MODULE cp_para_env
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_para_env'
 
   PUBLIC :: cp_para_env_retain, cp_para_env_release, cp_para_env_create, &
-      cp_para_env_duplicate, cp_para_env_from_globenv,&
+      cp_para_env_duplicate,&
       cp_para_env_write
 !***
 !****************************************************************************
@@ -60,16 +59,6 @@ CONTAINS
 !!
 !!   NAME
 !!     cp_para_env_create
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_para_env_create(para_env, group, source, mepos, num_pe,&
-!!         owns_group, error)
-!!       Type(cp_para_env_type), Pointer:: para_env
-!!       Integer, Intent (IN):: group
-!!       Integer, Intent (IN), Optional:: source, mepos, num_pe
-!!       Logical, Intent (IN), Optional:: owns_group
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_para_env_create
 !!
 !!   FUNCTION
 !!     creates a new para environment
@@ -135,13 +124,6 @@ CONTAINS
 !!   NAME
 !!     cp_para_env_duplicate
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_para_env_duplicate(para_env, template, source, error)
-!!       Type(cp_para_env_type), Pointer:: para_env, template
-!!       Integer, Intent (IN), Optional:: source
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_para_env_duplicate
-!!
 !!   FUNCTION
 !!     creates a new para environment by duplicating an environment
 !!     (and also the undelying mpi group)
@@ -201,12 +183,6 @@ CONTAINS
 !!   NAME
 !!     cp_para_env_retain
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_para_env_retain(para_env, error)
-!!       Type(cp_para_env_type), Pointer:: para_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_para_env_retain
-!!
 !!   FUNCTION
 !!     retains the para object (to be called when you want to keep a
 !!     shared copy of this object)
@@ -250,12 +226,6 @@ CONTAINS
 !!
 !!   NAME
 !!     cp_para_env_release
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_para_env_release(para_env, error)
-!!       Type(cp_para_env_type), Pointer:: para_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_para_env_release
 !!
 !!   FUNCTION
 !!     releases the para object (to be called when you don't want anymore
@@ -350,68 +320,10 @@ CONTAINS
     END IF
   END SUBROUTINE cp_para_env_update
 !***************************************************************************
-
-!!****f* cp_para_env/cp_para_env_from_globenv [1.0] *
-!!
-!!   NAME
-!!     cp_para_env_from_globenv
-!!
-!!   SYNOPSIS
-!!     Function cp_para_env_from_globenv(global_env, error) Result(res)
-!!       Type(cp_para_env_type), Pointer:: res
-!!       Type(global_environment_type), Intent (IN), Target:: global_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_para_env_from_globenv
-!!
-!!   FUNCTION
-!!     returns the parallel environment stored in the global environment
-!!     gives a warning if not initialized
-!!
-!!   NOTES
-!!     should try to generate a para env??
-!!
-!!   INPUTS
-!!     - global_env: the global environment that contains the para_env
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-FUNCTION cp_para_env_from_globenv(global_env, error) RESULT(res)
-    TYPE(global_environment_type), &
-      INTENT(in), TARGET                     :: global_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-    TYPE(cp_para_env_type), POINTER          :: res
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_from_globenv', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-  
-  CPPrecondition(ASSOCIATED(global_env%para_env),cp_failure_level,routineP,error,failure)
-  res => global_env%para_env
-END FUNCTION cp_para_env_from_globenv
-!***************************************************************************
-
 !!****f* cp_para_env/cp_para_env_write [1.0] *
 !!
 !!   NAME
 !!     cp_para_env_write
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_para_env_write(para_env, unit_nr, error)
-!!       Type(cp_para_env_type), Pointer:: para_env
-!!       Integer, Intent (IN):: unit_nr
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_para_env_write
 !!
 !!   FUNCTION
 !!     writes a description of the parallel environment to the given unit
