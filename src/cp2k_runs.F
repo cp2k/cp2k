@@ -169,8 +169,8 @@ CONTAINS
 !FM    IF (globenv%ionode) &
 !FM         CALL input_file_write(input_file,globenv%scr,error=error)
 !FM    CALL input_file_release(input_file,error=error)
-
-    stop "end parsing"
+!JV
+!JV  stop "end parsing"
     ! initialize force_env
     SELECT CASE (globenv%program_name)
     CASE ("ATOM")
