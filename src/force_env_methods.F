@@ -547,7 +547,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   INTEGER :: ip, isubsys
   TYPE(particle_type), DIMENSION(:), POINTER :: particles_qm, particles_mm
   REAL(KIND=dp), DIMENSION(3) :: min_coord,max_coord,transl_v
-  TYPE(cell_type), POINTER :: cell_loc
+  TYPE(cell_type), POINTER :: qm_cell, mm_cell
   REAL(KIND=dp) :: energy_mm, energy_qm
 
   min_coord=HUGE(0.0_dp)
@@ -555,7 +555,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   failure=.false.
   need_f=.true.
   if (present(calc_force)) need_f=calc_force
-  NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm)
+  NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm, qm_cell, mm_cell)
 
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -563,9 +563,9 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   CPPrecondition(force_env%qmmm_env%ref_count>0,cp_failure_level,routineP,error,failure)
   ! transfer position to qm part
   CALL force_env_get(force_env%sub_force_env(1)%force_env,&
-       subsys=subsys_mm,error=error)
+       cell=mm_cell,subsys=subsys_mm,error=error)
   CALL force_env_get(force_env%sub_force_env(2)%force_env,&
-       cell=cell_loc,subsys=subsys_qm,error=error)
+       cell=qm_cell,subsys=subsys_qm,error=error)
   qm_atom_index => force_env%qmmm_env%qm_atom_index
   qm_subsys_index => force_env%qmmm_env%qm_subsys_index
   CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
@@ -582,11 +582,13 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
      min_coord=MIN(min_coord,particles_mm(qm_atom_index(ip))%r)
      max_coord=MAX(max_coord,particles_mm(qm_atom_index(ip))%r)
   END DO
-  ! WRITE(*,*)max_coord, min_coord
+  !
+  ! Always translate all the system in order to centre the QM system in the box
+  !
   transl_v = (max_coord + min_coord) / 2.0_dp
-  transl_v(1) = transl_v(1) - cell_loc%hmat(1,1)/2.0_dp
-  transl_v(2) = transl_v(2) - cell_loc%hmat(2,2)/2.0_dp
-  transl_v(3) = transl_v(3) - cell_loc%hmat(3,3)/2.0_dp
+  transl_v(1) = transl_v(1) - qm_cell%hmat(1,1)/2.0_dp
+  transl_v(2) = transl_v(2) - qm_cell%hmat(2,2)/2.0_dp
+  transl_v(3) = transl_v(3) - qm_cell%hmat(3,3)/2.0_dp
 
   DO isubsys=1,SIZE(subsys_mm)     
      particles_mm => subsys_mm(isubsys)%subsys%particles%els
@@ -607,14 +609,14 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
 
   ! Initialize ks_qmmm_env
   CALL ks_qmmm_env_rebuild(qs_env=force_env%sub_force_env(2)%force_env%qs_env,&
-       qmmm_env=force_env%qmmm_env,&
-       error=error)
+       qmmm_env=force_env%qmmm_env,error=error)
 
   ! Compute the short range QM/MM Electrostatic Potential
   CALL qmmm_el_coupling(globenv=force_env%sub_force_env(2)%force_env%globenv,&
        qs_env=force_env%sub_force_env(2)%force_env%qs_env,&
        qmmm_env=force_env%qmmm_env,&
        mm_particles=particles_mm,&
+       mm_cell=mm_cell,&
        error=error)
 
   !TL
@@ -653,6 +655,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   !
   CALL qmmm_forces(force_env%sub_force_env(2)%force_env%qs_env,&
        force_env%qmmm_env,particles_mm,&
+       mm_cell=mm_cell,&
        calc_force=need_f,error=error)
   !
   ! Print Out information on QS energy calculation...
