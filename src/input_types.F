@@ -20,6 +20,8 @@
 
 MODULE input_types
 
+  USE kinds, ONLY : dbl
+
   IMPLICIT NONE
 
   TYPE setup_parameters_type
@@ -27,10 +29,17 @@ MODULE input_types
      INTEGER                :: perd ( 3 )
      LOGICAL                :: symmetry
      CHARACTER ( LEN = 40 ) :: set_file_name
-     CHARACTER ( LEN = 40 ) :: input_file_name
+     CHARACTER ( LEN = 40 ) :: coord_file_name
      CHARACTER ( LEN = 20 ) :: run_type
      CHARACTER ( LEN = 20 ) :: unit_type
      LOGICAL                :: path_integrals
+     REAL ( dbl )           :: charge
+     INTEGER                :: states
+     INTEGER                :: nspins
+     INTEGER                :: multiplicity
+     REAL ( dbl )           :: spinmoment
+     REAL ( dbl )           :: etemp
+     CHARACTER ( LEN = 40 ) :: broadening_method
   END TYPE setup_parameters_type
 
   PRIVATE
