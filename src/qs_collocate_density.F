@@ -662,8 +662,8 @@ CONTAINS
 !$OMP END PARALLEL
     CALL timestop(0.0_wp,handle2)
 
-    IF (gridlevel_info%ngrid_levels==1 .AND. .NOT.rho%pw%pw_grid%spherical&
-         .AND. rebuild) THEN
+    IF (gridlevel_info%ngrid_levels==1 & !.AND. .NOT.rho%pw%pw_grid%spherical&
+         .AND. rebuild) THEN ! pippo
        CALL rs_pw_transfer(rs_rho(1)%rs_grid,&
             rho%pw,"FORWARD")
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)

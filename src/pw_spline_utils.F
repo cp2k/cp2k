@@ -82,7 +82,7 @@ MODULE pw_spline_utils
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pw_spline_utils'
 
-  PUBLIC :: pw_spline_interpolate_values_g, &
+  PUBLIC :: pw_spline_interpolate_values_g, pw_spline_evaluate_values_g,&
        pw_spline_deriv_r, pw_spline_deriv_g, pw_spline_scale_deriv,&
        pw_spline_test_coeff
 !***
@@ -105,7 +105,7 @@ CONTAINS
 !!     the given values
 !!
 !!   NOTES
-!!     the distance between gridpoints is assumed to be 1
+!!     -
 !!
 !!   INPUTS
 !!     - spline_g: on entry the FFT of the values to interpolate as cc3d,
@@ -188,6 +188,103 @@ CONTAINS
 
     CALL timestop(0.0_wp,handle)
   END SUBROUTINE pw_spline_interpolate_values_g
+!***************************************************************************
+
+!!****f* pw_spline_utils/pw_spline_evaluate_values_g [1.0] *
+!!
+!!   NAME
+!!     pw_spline_evaluate_values_g
+!!
+!!   FUNCTION
+!!     calculates the FFT of the values of the spline given by the
+!!     FFT of the coefficents of the spline (inverse of 
+!!     pw_spline_interpolate_values_g)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - spline_g: on entry the FFT of the values to interpolate as cc3d,
+!!       will contain the FFT of the coefficents of the spline
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     05.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE pw_spline_evaluate_values_g(spline_g,error)
+    TYPE(pw_type),POINTER :: spline_g
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='pw_spline_evaluate_values_g',&
+         routineP=moduleN//':'//routineN
+    REAL (kind=wp) :: c23, c_val, coeff, cosKVal, inv27
+    REAL (kind=wp), DIMENSION(:), ALLOCATABLE :: cosIVals,cosJVals
+    INTEGER, DIMENSION(3) :: n,n_tot
+    INTEGER :: i, j, k, handle, stat
+    INTEGER, DIMENSION (2,3) :: bo
+    TYPE(cp_logger_type), POINTER :: logger
+
+    CALL timeset(routineN,"I","",handle)
+
+    failure=.FALSE.
+    n(1:3) = spline_g%pw_grid%npts_local (1:3)
+    n_tot(1:3) = spline_g%pw_grid%npts (1:3)
+    bo = spline_g%pw_grid%bounds_local
+    inv27=1.0_wp/27.0_wp
+
+    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_g%in_use==COMPLEXDATA3D,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE(cosIVals(bo(1,1):bo(2,1)),cosJVals(bo(1,2):bo(2,2)), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    coeff=twopi/n_tot(1)
+    !$omp parallel do private(i)
+    DO i=bo(1,1),bo(2,1)
+       cosIVals(i)=COS(coeff*REAL(i+n_tot(1)/2,wp))
+    END DO
+    coeff=twopi/n_tot(2)
+    !$omp parallel do private(j)
+    DO j=bo(1,2),bo(2,2)
+       cosJVals(j)=COS(coeff*REAL(j+n_tot(2)/2,wp))
+    END DO
+
+    !$omp parallel do private(k,j,i,cosKVal,coeff,c23)
+    DO k = bo(1,3), bo(2,3)
+       cosKVal=COS(twopi/n_tot(3)*REAL(k+n_tot(3)/2,wp))
+       DO j = bo(1,2), bo(2,2)
+          DO i = bo(1,1), bo(2,1)
+
+             ! no opt
+!FM                coeff=((cosVal(1)*cosVal(2)*cosVal(3))/27.0_wp+&
+!FM                     (cosVal(1)*cosVal(2)+cosVal(1)*cosVal(3)+&
+!FM                     cosVal(2)*cosVal(3))*2.0_wp/27.0_wp+&
+!FM                     (cosVal(1)+cosVal(2)+cosVal(3))*4.0_wp/27.0_wp+&
+!FM                     8.0_wp/27.0_wp)
+             ! opt
+             c23=cosJVals(j)*cosKVal
+             coeff=(cosIVals(i)*c23+&
+                  (cosIVals(i)*cosJVals(j)+cosIVals(i)*cosKVal+c23)*2.0_wp+&
+                  (cosIVals(i)+cosJVals(j)+cosKVal)*4.0_wp+&
+                  8.0_wp)*inv27
+
+             spline_g%cc3d(i,j,k)=spline_g%cc3d(i,j,k)*coeff
+
+          END DO
+       END DO
+    END DO
+    DEALLOCATE(cosIVals, cosJVals, stat=stat)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+    CALL timestop(0.0_wp,handle)
+  END SUBROUTINE pw_spline_evaluate_values_g
 !***************************************************************************
 
 !!****f* xc/pw_spline_deriv_r [1.0] *

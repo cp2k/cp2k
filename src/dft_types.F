@@ -149,7 +149,8 @@ MODULE dft_types
                                         gradient_cut
      INTEGER                         :: nspins,&
                                         charge,&
-                                        multiplicity
+                                        multiplicity,&
+                                        smooth
      LOGICAL                         :: forces,&
                                         gradient_functional,&
                                         smooth_gradient, &
@@ -221,7 +222,7 @@ CONTAINS
 !   *** Local variables ***
 
     CHARACTER(LEN=60) :: keyword, string, str1, str2, str3
-    INTEGER           :: istat
+    INTEGER           :: istat, i ,tmp
     LOGICAL           :: section_found
     REAL ( wp )       :: ecut, mesh(3)
 
@@ -244,6 +245,7 @@ CONTAINS
     dft_control % gradient_functional = .FALSE.
     dft_control % smooth_gradient= .FALSE.
     dft_control % smooth_rho= .FALSE.
+    dft_control % smooth=0
     dft_control % derive_function_rho = .FALSE.
     dft_control % integration_grid % pw_default = .TRUE.
     dft_control % integration_grid % pw_cutoff  = -1._wp
@@ -325,6 +327,22 @@ CONTAINS
          CALL read_object(dft_control%smooth_gradient)
       CASE ("SMOOTH_RHO")
          CALL read_object(dft_control%smooth_rho)
+      CASE ("SMOOTH")
+         !  1 old rho smoothing
+         !  2 spline rho smoothing
+         !  4 vxc partial integration smoothing
+         !  8 vxc final spline smoothing
+         ! 16 old vxc final smoothing
+         ! 32 vxc final spline sharpening
+         ! 64 spline smoothing of the gradient of rho only
+         CALL read_object(tmp)
+         dft_control%smooth=0
+         DO i=1,8
+            IF (MODULO(tmp,2)==1) THEN
+               dft_control%smooth=IBSET(dft_control%smooth,i)
+            END IF
+            tmp=tmp/2
+         END DO
       CASE ("DERIVE_FUNCTION_RHO")
          CALL read_object(dft_control%derive_function_rho)
       END SELECT

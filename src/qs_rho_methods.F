@@ -343,6 +343,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
      ! decides if to rebuild or just update
      my_rebuild=rho_struct%updates_since_rebuild > rho_struct%rebuild_each
      IF (PRESENT(rebuild)) my_rebuild=rebuild
+     my_rebuild=.true. ! pippo
      IF (.NOT.(rho_struct%rho_ao_valid.AND.rho_struct%rho_r_valid).OR.&
           rho_struct%updates_since_rebuild==-1) THEN
         my_rebuild=.TRUE.

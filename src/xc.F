@@ -73,7 +73,8 @@ MODULE xc
                                              pw_spline_deriv_r,&
                                              pw_spline_interpolate_values_g,&
                                              pw_spline_scale_deriv,&
-                                             pw_spline_test_coeff
+                                             pw_spline_test_coeff,&
+                                             pw_spline_evaluate_values_g
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              COMPLEXDATA3D,&
                                              NOSPACE,&
@@ -370,9 +371,10 @@ CONTAINS
     INTEGER, DIMENSION (3,3) :: nd 
     INTEGER, DIMENSION (2,3) :: bo
     TYPE(cp_logger_type), POINTER :: logger
-    TYPE(pw_type), POINTER :: tmp_g, tmp_r, vxc_g,frho_r,frho_g, spline_coeff_g
+    TYPE(pw_type), POINTER :: tmp_g, tmp_r, vxc_g,frho_r,frho_g
     TYPE(pw_p_type), DIMENSION(3) :: drho_r_att
     TYPE(pw_p_type), DIMENSION(:,:), POINTER :: drho_r
+    TYPE(pw_p_type), DIMENSION(:), POINTER :: spline_coeff_g
     REAL ( kind=wp ) , DIMENSION (:,:), ALLOCATABLE :: rgrid, drgrid, pot
     REAL ( kind=wp ) :: eps_rho,alpha
 
@@ -408,7 +410,7 @@ CONTAINS
 
     IF (.NOT.failure) THEN
        n(1:3) = rho_r(1)%pw%pw_grid%npts_local (1:3)
-       bo = rho_r(1)%pw%pw_grid%bounds_local  
+       bo = rho_r(1)%pw%pw_grid%bounds_local
        ntot = PRODUCT ( n )
 
        ALLOCATE(rgrid(ntot,nspins),stat=stat)
@@ -422,17 +424,51 @@ CONTAINS
     END IF
 
     ! introduce a smoothing kernel on the density
-    IF (dft_control%smooth_rho) THEN
-        CALL pw_pool_create_pw(pw_pool,tmp_r, &
-                        use_data=REALDATA3D, in_space=REALSPACE, &
-                        error=error)
-
-        DO ispin=1,nspins
-           call pw_copy(rho_r(ispin)%pw,tmp_r)
-           call pw_smooth(tmp_r,rho_r(ispin)%pw)
-           call pw_transfer(rho_r(ispin)%pw,rho_g(ispin)%pw)
-        ENDDO
-        CALL pw_pool_give_back_pw(pw_pool, tmp_r, error=error)
+    IF (dft_control%smooth_rho.AND.BTEST(dft_control%smooth,1)) THEN
+       PRINT *,"smooth rho old"
+       CALL pw_pool_create_pw(pw_pool,tmp_r, &
+            use_data=REALDATA3D, in_space=REALSPACE, &
+            error=error)
+       
+       DO ispin=1,nspins
+          CALL pw_copy(rho_r(ispin)%pw,tmp_r)
+          CALL pw_smooth(tmp_r,rho_r(ispin)%pw)
+          CALL pw_transfer(rho_r(ispin)%pw,rho_g(ispin)%pw)
+       ENDDO
+       CALL pw_pool_give_back_pw(pw_pool, tmp_r, error=error)
+    END IF
+    IF (dft_control%smooth_gradient) THEN
+       ALLOCATE(spline_coeff_g(nspins),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       
+       DO ispin=1,nspins
+          CALL pw_pool_create_pw(pw_pool, spline_coeff_g(ispin)%pw,&
+               use_data=COMPLEXDATA3D, in_space=RECIPROCALSPACE, &
+               error=error)
+          CALL pw_transfer(rho_r(ispin)%pw, spline_coeff_g(ispin)%pw)
+       
+          IF (BTEST(dft_control%smooth,2).OR.&
+               BTEST(dft_control%smooth,7)) THEN
+             CALL pw_pool_create_pw(pw_pool, tmp_g,&
+                  use_data=COMPLEXDATA3D, in_space=RECIPROCALSPACE, &
+                  error=error)
+             
+             CALL pw_copy(spline_coeff_g(ispin)%pw,tmp_g)
+             IF (BTEST(dft_control%smooth,2)) THEN
+                PRINT *,"smooth rho new"
+                CALL pw_spline_evaluate_values_g(tmp_g,error=error)
+                CALL pw_transfer(tmp_g, rho_r(ispin)%pw)
+             ELSE
+                PRINT *,"smooth rho gradient only"
+             END IF
+             
+             CALL pw_pool_give_back_pw(pw_pool, tmp_g,&
+                  error=error)
+          ELSE
+             CALL pw_spline_interpolate_values_g(spline_coeff_g(ispin)%pw,&
+                  error=error)
+          END IF
+       END DO
     ENDIF
 
     IF (.NOT.failure) THEN
@@ -457,23 +493,17 @@ CONTAINS
              ! calc drho_r=grad rho
               IF (dft_control%smooth_gradient) THEN
                  ! spline deriv
-                 CALL pw_pool_create_pw(pw_pool,spline_coeff_g,&
-                      use_data=COMPLEXDATA3D, in_space=RECIPROCALSPACE, &
-                      error=error)
                  CALL pw_pool_create_pw(pw_pool,tmp_g,&
                       use_data=COMPLEXDATA3D, in_space=RECIPROCALSPACE, &
                       error=error)
 
                  DO ispin=1,nspins
-                    CALL pw_transfer(rho_r(ispin)%pw,spline_coeff_g)
-                    CALL pw_spline_interpolate_values_g(spline_coeff_g,&
-                         error=error)
                     DO idir=1,3
                        NULLIFY(drho_r(idir,ispin)%pw)
                        CALL pw_pool_create_pw(pw_pool,drho_r(idir,ispin)%pw, &
                             use_data=REALDATA3D, in_space=REALSPACE, &
                             error=error)
-                       CALL pw_copy(spline_coeff_g,tmp_g)
+                       CALL pw_copy(spline_coeff_g(ispin)%pw,tmp_g)
                        CALL pw_spline_deriv_g(tmp_g,idir=idir,error=error)
                        CALL pw_transfer(tmp_g,drho_r(idir,ispin)%pw)
                     END DO
@@ -484,7 +514,6 @@ CONTAINS
                          error=error)
                  END DO
 
-                 CALL pw_pool_give_back_pw(pw_pool,spline_coeff_g,error=error)
                  CALL pw_pool_give_back_pw(pw_pool,tmp_g,error=error)
               ELSE
                  ! g-space deriv
@@ -714,8 +743,12 @@ CONTAINS
              DO idir = 1, 3          
                 CALL pw_transfer ( drho_r(idir,ispin)%pw, tmp_g )
                 IF (dft_control%smooth_gradient) THEN
-                   CALL pw_spline_interpolate_values_g(tmp_g,&
-                        error=error)
+                   IF (.NOT.BTEST(dft_control%smooth,3)) THEN
+                      CALL pw_spline_interpolate_values_g(tmp_g,&
+                           error=error)
+                   ELSE
+                      PRINT *,"smoothed partial integration"
+                   END IF
                    CALL pw_spline_deriv_g (tmp_g,idir=idir,&
                         error=error)
                 ELSE
@@ -725,7 +758,26 @@ CONTAINS
              END DO
 
              ! transform back vxc
-             CALL pw_transfer ( vxc_g, vxc(ispin)%pw )
+             IF (BTEST(dft_control%smooth,4)) THEN
+                PRINT *, "smooth final vxc new"
+                CALL pw_spline_evaluate_values_g(vxc_g,error=error)
+             END IF
+             IF (BTEST(dft_control%smooth,6)) THEN
+                PRINT *, "sharpen final vxc new"
+                CALL pw_spline_interpolate_values_g(vxc_g,error=error)
+             END IF
+             IF (dft_control%smooth_gradient.AND.&
+                  rho_r(1)%pw%pw_grid%spherical) THEN
+                ! filters vxc with the spherical grid
+                CALL pw_pool_give_back_pw(pw_pool, tmp_g, error=error)
+                CALL pw_pool_create_pw ( pw_pool, tmp_g,&
+                     use_data=COMPLEXDATA1D,&
+                     in_space=RECIPROCALSPACE, error=error)
+                CALL pw_transfer(vxc_g,tmp_g)
+                CALL pw_transfer(tmp_g,vxc(ispin)%pw)
+             ELSE
+                CALL pw_transfer ( vxc_g, vxc(ispin)%pw )
+             END IF
           END DO
 
           CALL pw_pool_give_back_pw(pw_pool, tmp_g, error=error)
@@ -748,7 +800,8 @@ CONTAINS
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
 
-    IF (dft_control%smooth_rho) THEN
+    IF (dft_control%smooth_rho.AND.BTEST(dft_control%smooth,5)) THEN
+       PRINT *,"smooth vxc final old"
         CALL pw_pool_create_pw(pw_pool,tmp_r, &
                         use_data=REALDATA3D, in_space=REALSPACE, &
                         error=error)
@@ -758,6 +811,15 @@ CONTAINS
         ENDDO
         CALL pw_pool_give_back_pw(pw_pool, tmp_r, error=error)
     ENDIF
+    IF (dft_control%smooth_gradient) THEN
+       DO ispin=1,nspins
+          CALL pw_transfer(spline_coeff_g(ispin)%pw,rho_r(ispin)%pw)
+          CALL pw_pool_give_back_pw(pw_pool,spline_coeff_g(ispin)%pw,&
+               error=error)
+       END DO
+       DEALLOCATE(spline_coeff_g,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    END IF
 
     CALL timestop(0.0_wp,handle)
 
