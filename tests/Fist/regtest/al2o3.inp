@@ -22,7 +22,7 @@
   steps:        2
   timestep:     3.                     time step [fs]
   temperature:  298.0                  temperature [K]
-  restart:      all                    start type (pos,posvel)
+  restart:      init                   start type (pos,posvel)
   constraints:  off     
   nose_parameter   &
     length:    1        &
@@ -32,8 +32,8 @@
   barostat_parameter:   &
     pressure: 0.        &
     timecon: 1000. fs
-  print  files          5
-  print  screen         5
+  print  files          1
+  print  screen         1
 &END
 
 &CELL 
