@@ -533,11 +533,11 @@ SUBROUTINE nonbonded_energy(dist,ljsami,ntij)
 
       IMPLICIT NONE
       INTEGER,INTENT(IN) :: ntij
-      REAL(KIND=8),INTENT(IN) :: dist
-      REAL(KIND=8),DIMENSION(2:15,1:3) :: A
-      REAL(KIND=8),DIMENSION(1:3) :: r_core,pshift
-      REAL(KIND=8),INTENT(OUT) :: ljsami
-!      REAL(KIND=8) :: rij
+      REAL(KIND=dp),INTENT(IN) :: dist
+      REAL(KIND=dp),DIMENSION(2:15,1:3) :: A
+      REAL(KIND=dp),DIMENSION(1:3) :: r_core,pshift
+      REAL(KIND=dp),INTENT(OUT) :: ljsami
+!      REAL(KIND=dp) :: rij
       INTEGER :: i,j,index
       
       ljsami=0.0d0
