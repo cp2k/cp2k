@@ -81,7 +81,7 @@ SUBROUTINE  debug_control ( globenv, kg_env )
   TYPE ( molecule_structure_type ), POINTER :: molecule ( : )
   TYPE ( particle_type ), POINTER  :: part ( : )
   TYPE ( particle_node_type ), POINTER  :: pnode ( : )
-  TYPE ( pw_grid_type ), POINTER :: pw_grids ( : ) 
+  TYPE ( pw_grid_type ), POINTER, DIMENSION ( : ) :: pw_grid
   INTEGER :: iflag, i, natoms, isos, iatom, iw, iwf, ir, ref_grid, gmax
   INTEGER, DIMENSION ( 2 ) :: dum
   REAL ( dbl ) :: delta, energy_numer
@@ -147,12 +147,12 @@ SUBROUTINE  debug_control ( globenv, kg_env )
       WRITE ( iw, '(A,T71,F10.6)' ) ' DELTA = ', delta
     END IF
 
-    CALL get_grids ( pw_grids = pw_grids, &              
+    CALL get_grids ( pw_grids = pw_grid, &              
                       gridlevel_info = gridlevel_info, &
                       l_info = l_info, cube_info = cube_info, &
                       ref_grid = ref_grid ) 
 
-    CALL fpart_gspace_numer ( delta, kg_env, pw_grids, ref_grid, gridlevel_info, &
+    CALL fpart_gspace_numer ( delta, kg_env, pw_grid, ref_grid, gridlevel_info, &
                               l_info, cube_info, f_numer, energy_numer, globenv )
 
     WRITE ( iw, '( A, T61, G20.12 )' ) ' G-SPACE ANA ENERGY = ', &
@@ -227,12 +227,12 @@ SUBROUTINE  debug_control ( globenv, kg_env )
       WRITE ( iw, '(A,T71,F10.6)' ) ' DELTA = ', delta
     END IF
 
-    CALL get_grids ( pw_grids = pw_grids, &              
+    CALL get_grids ( pw_grids = pw_grid, &              
                       gridlevel_info = gridlevel_info, &
                       l_info = l_info, cube_info = cube_info, &
                       ref_grid = ref_grid ) 
 
-!    CALL fpart_bc_numer ( delta, kg_env, pw_grids, ref_grid, gridlevel_info, &
+!    CALL fpart_bc_numer ( delta, kg_env, pw_grid, ref_grid, gridlevel_info, &
 !                              l_info, cube_info, f_numer, energy_numer, globenv )
 
     WRITE ( iw, '( A, T61, G20.12 )' ) ' BOND_CORR ANA ENERGY = ', &
@@ -306,12 +306,12 @@ SUBROUTINE  debug_control ( globenv, kg_env )
       WRITE ( iw, '(A,T71,F10.6)' ) ' DELTA = ', delta
     END IF
 
-    CALL get_grids ( pw_grids = pw_grids, &              
+    CALL get_grids ( pw_grids = pw_grid, &              
                       gridlevel_info = gridlevel_info, &
                       l_info = l_info, cube_info = cube_info, &
                       ref_grid = ref_grid ) 
 
-    CALL fpart_xc_numer ( delta, kg_env, pw_grids, ref_grid, gridlevel_info, &
+    CALL fpart_xc_numer ( delta, kg_env, pw_grid, ref_grid, gridlevel_info, &
                               l_info, cube_info, f_numer, energy_numer, globenv )
 
     WRITE ( iw, '( A, T61, G20.12 )' ) ' XC ANA ENERGY = ', &

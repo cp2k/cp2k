@@ -23,7 +23,7 @@ MODULE kg_core
 ! *****************************************************************************
 
   USE kinds, ONLY: int_size,&
-                   wp => dp,&
+                   dbl,&
                    wp_size => dp_size
 
   USE atomic_kind_types,        ONLY: atomic_kind_type,&
@@ -72,7 +72,7 @@ CONTAINS
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(kg_environment_type), INTENT(INOUT)  :: kg_env
-    REAL(wp), intent (out) :: e_rspace_core
+    REAL(dbl), intent (out) :: e_rspace_core
     TYPE(kg_force_type), DIMENSION(:), POINTER, OPTIONAL  :: force
 
 !   *** Local parameters ***
@@ -83,7 +83,7 @@ CONTAINS
 !   *** Local data types ***
 
     TYPE pbc_coord_type
-      REAL(wp), DIMENSION(:,:), POINTER :: r,s
+      REAL(dbl), DIMENSION(:,:), POINTER :: r,s
     END TYPE pbc_coord_type
 
 !   *** Local variables ***
@@ -91,7 +91,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER :: atomic_kind
     TYPE(cell_type), POINTER        :: cell
     CHARACTER(LEN=8)                :: unit_of_length_name
-    REAL(wp)                        :: a_max,a_min,aab,&
+    REAL(dbl)                        :: a_max,a_min,aab,&
                                        b_max,b_min,&
                                        c_max,c_min,dab,eab,f0,&
                                        rab_max,rab2,rab2_max,rootaab,subcells,&
@@ -102,7 +102,7 @@ CONTAINS
                                        output_unit
     LOGICAL                         :: equal_kinds,ionode
 
-    REAL(wp), DIMENSION(3) :: deab,r,ra_pbc,rab,rb,sa_pbc,sab,sab_max,sb,&
+    REAL(dbl), DIMENSION(3) :: deab,r,ra_pbc,rab,rb,sa_pbc,sab,sab_max,sb,&
                               sb_max,sb_min,sb_pbc
     INTEGER, DIMENSION(3)  :: cell_b,ncell,ngrid,periodic
 
@@ -111,13 +111,13 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER                :: atom_list
 
     TYPE(pbc_coord_type), DIMENSION(:), ALLOCATABLE :: pbc_coord
-    REAL(wp), DIMENSION(:), ALLOCATABLE             :: alpha,radius,qeff
+    REAL(dbl), DIMENSION(:), ALLOCATABLE             :: alpha,radius,qeff
     INTEGER, DIMENSION(:), ALLOCATABLE              :: natom
-    REAL(wp), DIMENSION(:,:,:,:), ALLOCATABLE       :: grid_max,grid_min
+    REAL(dbl), DIMENSION(:,:,:,:), ALLOCATABLE       :: grid_max,grid_min
     INTEGER, DIMENSION(:,:,:), ALLOCATABLE          :: nijk
     INTEGER, DIMENSION(:,:,:,:), ALLOCATABLE        :: ijk
 
-    REAL(wp), EXTERNAL :: erfc
+    REAL(dbl), EXTERNAL :: erfc
 
 !   ---------------------------------------------------------------------------
 
@@ -146,11 +146,11 @@ CONTAINS
 
     ALLOCATE (alpha(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"alpha",nkind*wp_size)
-    alpha(:) = 0.0_wp
+    alpha(:) = 0.0_dbl
 
     ALLOCATE (radius(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"radius",nkind*wp_size)
-    radius(:) = 0.0_wp
+    radius(:) = 0.0_dbl
 
     ALLOCATE (qeff(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"qeff",nkind*int_size)
@@ -177,7 +177,7 @@ CONTAINS
                            core_charge_radius=radius(ikind),&
                            qeff=qeff(ikind))
 
-      IF (alpha(ikind) == 0.0_wp) THEN
+      IF (alpha(ikind) == 0.0_dbl) THEN
 
         NULLIFY (pbc_coord(ikind)%r)
         NULLIFY (pbc_coord(ikind)%s)
@@ -212,22 +212,22 @@ CONTAINS
         "Subcell size in "//unit_of_length_name
     END IF
 
-    e_rspace_core = 0.0_wp
+    e_rspace_core = 0.0_dbl
 
     DO ikind=1,nkind
 
-      IF (alpha(ikind) == 0.0_wp) CYCLE
+      IF (alpha(ikind) == 0.0_dbl) CYCLE
 
       DO jkind=ikind,nkind
 
-        IF (alpha(jkind) == 0.0_wp) CYCLE
+        IF (alpha(jkind) == 0.0_dbl) CYCLE
 
         equal_kinds = (ikind == jkind)
 
-        zab = REAL(qeff(ikind)*qeff(jkind),wp)
+        zab = REAL(qeff(ikind)*qeff(jkind),dbl)
         aab = alpha(ikind)*alpha(jkind)/(alpha(ikind) + alpha(jkind))
         rootaab = SQRT(aab)
-        f0 = 2.0_wp*oorootpi*zab*rootaab
+        f0 = 2.0_dbl*oorootpi*zab*rootaab
 
 !       *** Calculate the square of the maximum interaction distance ***
 
@@ -238,7 +238,7 @@ CONTAINS
         sab_max(:) = real_to_scaled(r(:),cell)
 
         ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
-        ngrid(:) = MAX(1,NINT(0.5_wp*subcells/sab_max(:)))
+        ngrid(:) = MAX(1,NINT(0.5_dbl*subcells/sab_max(:)))
 
 !       *** Print subcell information for the current atomic kind pair ***
 
@@ -246,7 +246,7 @@ CONTAINS
             (globenv%print%level > LOW)) THEN
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
             ikind,jkind,ngrid,&
-            scaled_to_real(1.0_wp/REAL(ngrid(:),wp),cell)/unit_of_length
+            scaled_to_real(1.0_dbl/REAL(ngrid(:),dbl),cell)/unit_of_length
         END IF
 
 !       *** Check, if we have to consider a subcell grid ***
@@ -264,7 +264,7 @@ CONTAINS
                 DO kcell=-ncell(3),ncell(3)
                   cell_b(3) = kcell
 
-                  sb(:) = sb_pbc(:) + REAL(cell_b(:),wp)
+                  sb(:) = sb_pbc(:) + REAL(cell_b(:),dbl)
                   rb(:) = scaled_to_real(sb(:),cell)
 
                   IF (equal_kinds) THEN
@@ -321,14 +321,14 @@ CONTAINS
           END IF
 
           DO igrid=1,ngrid(1)
-            a_min = REAL(igrid-1,wp)/REAL(ngrid(1),wp) - 0.5_wp
-            a_max = REAL(igrid,wp)/REAL(ngrid(1),wp) - 0.5_wp
+            a_min = REAL(igrid-1,dbl)/REAL(ngrid(1),dbl) - 0.5_dbl
+            a_max = REAL(igrid,dbl)/REAL(ngrid(1),dbl) - 0.5_dbl
             DO jgrid=1,ngrid(2)
-              b_min = REAL(jgrid-1,wp)/REAL(ngrid(2),wp) - 0.5_wp
-               b_max = REAL(jgrid,wp)/REAL(ngrid(2),wp) - 0.5_wp
+              b_min = REAL(jgrid-1,dbl)/REAL(ngrid(2),dbl) - 0.5_dbl
+               b_max = REAL(jgrid,dbl)/REAL(ngrid(2),dbl) - 0.5_dbl
               DO kgrid=1,ngrid(3)
-                c_min = REAL(kgrid-1,wp)/REAL(ngrid(3),wp) - 0.5_wp
-                c_max = REAL(kgrid,wp)/REAL(ngrid(3),wp) - 0.5_wp
+                c_min = REAL(kgrid-1,dbl)/REAL(ngrid(3),dbl) - 0.5_dbl
+                c_max = REAL(kgrid,dbl)/REAL(ngrid(3),dbl) - 0.5_dbl
                 grid_min(:,igrid,jgrid,kgrid) = (/a_min,b_min,c_min/)
                 grid_max(:,igrid,jgrid,kgrid) = (/a_max,b_max,c_max/)
               END DO
@@ -337,9 +337,9 @@ CONTAINS
 
           DO iatom=1,natom(ikind)
             sa_pbc(:) = pbc_coord(ikind)%s(:,iatom)
-            igrid = MAX(1,CEILING((sa_pbc(1) + 0.5_wp)*ngrid(1)))
-            jgrid = MAX(1,CEILING((sa_pbc(2) + 0.5_wp)*ngrid(2)))
-            kgrid = MAX(1,CEILING((sa_pbc(3) + 0.5_wp)*ngrid(3)))
+            igrid = MAX(1,CEILING((sa_pbc(1) + 0.5_dbl)*ngrid(1)))
+            jgrid = MAX(1,CEILING((sa_pbc(2) + 0.5_dbl)*ngrid(2)))
+            kgrid = MAX(1,CEILING((sa_pbc(3) + 0.5_dbl)*ngrid(3)))
             nijk(igrid,jgrid,kgrid) = nijk(igrid,jgrid,kgrid) + 1
             ijk(nijk(igrid,jgrid,kgrid),igrid,jgrid,kgrid) = iatom
           END DO
@@ -355,7 +355,7 @@ CONTAINS
                 DO kcell=-ncell(3),ncell(3)
                   cell_b(3) = kcell
 
-                  sb(:) = sb_pbc(:) + REAL(cell_b(:),wp)
+                  sb(:) = sb_pbc(:) + REAL(cell_b(:),dbl)
                   rb(:) = scaled_to_real(sb(:),cell)
                   sb_min(:) = sb(:) - sab_max(:)
                   sb_max(:) = sb(:) + sab_max(:)
@@ -464,7 +464,7 @@ CONTAINS
     DEALLOCATE (pbc_coord,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"pbc_coord")
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dbl,handle)
 
   END SUBROUTINE calculate_ecore_rspace
 
@@ -479,12 +479,12 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(kg_environment_type), INTENT(IN) :: kg_env
-    REAL (wp), intent(OUT) :: ecore_self
+    REAL (dbl), intent(OUT) :: ecore_self
 
 !   *** Local variables ***
 
     TYPE(atomic_kind_type), POINTER :: atomic_kind
-    REAL(wp)                        :: alpha_core_charge,qeff
+    REAL(dbl)                        :: alpha_core_charge,qeff
     INTEGER                         :: ikind,natom
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
@@ -494,7 +494,7 @@ CONTAINS
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set) 
 
-    ecore_self = 0.0_wp
+    ecore_self = 0.0_dbl
 
     DO ikind=1,SIZE(atomic_kind_set)
 
@@ -505,7 +505,7 @@ CONTAINS
                            qeff=qeff,&
                            alpha_core_charge=alpha_core_charge)
 
-      ecore_self = ecore_self - REAL(natom*qeff**2,wp)*SQRT(alpha_core_charge)
+      ecore_self = ecore_self - REAL(natom*qeff**2,dbl)*SQRT(alpha_core_charge)
 
     END DO
 
