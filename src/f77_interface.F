@@ -360,7 +360,7 @@ contains
       pointer                                :: errors_old
     TYPE(cp_logger_type), pointer            :: logger
     TYPE(cp_para_env_type), pointer          :: para_env
-    TYPE(cp_parser_type), pointer            :: parser
+    TYPE(cp_parser_type), pointer            :: cpparser
     TYPE(force_env_p_type), DIMENSION(:), &
       pointer                                :: f_envs_old
     TYPE(global_environment_type), pointer   :: globenv
@@ -420,11 +420,11 @@ contains
     NULLIFY(input_file)
     CALL section_vals_create(input_file,input_structure, error=error)
     CALL section_release(input_structure,error=error)
-    nullify(parser)
-    CALL parser_create(parser,file_name=input_file_path,error=error)
-    CALL section_vals_parse(input_file,parser,root_section=.false.,&
+    nullify(cpparser)
+    CALL parser_create(cpparser,file_name=input_file_path,error=error)
+    CALL section_vals_parse(input_file,cpparser,root_section=.false.,&
          error=error)
-    CALL parser_release(parser,error=error)
+    CALL parser_release(cpparser,error=error)
     IF (globenv%ionode) THEN
        CALL section_vals_write(input_file,unit_nr=globenv%scr,hide_root=.TRUE.,&
             error=error)
