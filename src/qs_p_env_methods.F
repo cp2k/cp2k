@@ -128,7 +128,13 @@ MODULE qs_p_env_methods
   USE string_utilities,                ONLY: compress_all
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
+
+  INTERFACE p_op_l2
+     MODULE PROCEDURE p_op_l2_fawzi, p_op_l2_tom
+  END INTERFACE
+
 
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_env_methods'
   INTEGER, PRIVATE, SAVE :: last_p_env_id=0
@@ -828,7 +834,7 @@ END SUBROUTINE p_env_did_change
 !!     End Subroutine p_op_l2
 !!
 !!   FUNCTION
-!!     evaluates res = alpha kpp1 v + beta res
+!!     evaluates res = alpha kpp1(v)*psi0 + beta res
 !!
 !!   NOTES
 !!     qs_env%rho must be up to date
@@ -850,7 +856,7 @@ END SUBROUTINE p_env_did_change
 !!     02.09.2002 adapted for new qs_p_env_type (TC)
 !!
 !!*** **********************************************************************
-  SUBROUTINE p_op_l2(p_env, qs_env, v, res, alpha, beta, error)
+  SUBROUTINE p_op_l2_fawzi(p_env, qs_env, v, res, alpha, beta, error)
     
     ! arguments
     TYPE(qs_p_env_type), POINTER                             :: p_env
@@ -922,8 +928,60 @@ END SUBROUTINE p_env_did_change
                   para_env=qs_env%para_env, error=error)
           END IF
        END DO
+       CALL p_op_l2_tom(p_env, qs_env, p1_new, res, my_alpha, my_beta, error)
+       CALL deallocate_matrix_set(p1_new)
+    END IF
+
+  END SUBROUTINE p_op_l2_fawzi
+!***************************************************************************
+
+  SUBROUTINE p_op_l2_tom(p_env, qs_env, p1, res, alpha, beta, error)
+    
+    ! ARGUMENTS
+    TYPE(qs_p_env_type), POINTER                             :: p_env
+    TYPE(qs_environment_type), INTENT(inout), TARGET         :: qs_env
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER          :: p1
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(INOUT) :: res
+    REAL(kind=dbl), INTENT(in), OPTIONAL                     :: alpha, beta
+    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT)             :: error
+
+    ! locals
+    LOGICAL                     :: failure
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l2',&
+                                   routineP = moduleN//':'//routineN
+    INTEGER                     :: ispin, n_spins, stat
+    REAL(kind=wp) :: my_alpha, my_beta
+    TYPE(dft_control_type), POINTER :: dft_control
+    TYPE(cp_para_env_type), POINTER :: para_env
+    TYPE(qs_rho_type), POINTER :: rho
+    TYPE(cp_logger_type), POINTER :: logger
+    INTEGER, SAVE :: iter=0
+
+    failure=.FALSE.
+
+    my_alpha=1.0_wp
+    IF (PRESENT(alpha)) my_alpha=alpha
+    my_beta=0.0_wp
+    IF (PRESENT(beta)) my_beta=beta
+
+    iter=iter+1
+    NULLIFY(dft_control, para_env, rho)
+    logger => cp_error_get_logger(error)
+
+    CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
+
+    IF (.NOT. failure) THEN
+       CALL p_env_check_i_alloc(p_env,qs_env=qs_env,error=error)
+
+       CALL get_qs_env(qs_env,dft_control=dft_control,&
+            para_env=para_env, rho=rho, error=error)
+       n_spins = dft_control%nspins
+
+    END IF
+    IF (.not.failure) THEN
        CALL qs_rho_update_rho(rho_struct=p_env%rho1, &
-            rho_ao_new=p1_new,qs_env=qs_env,&
+            rho_ao_new=p1,qs_env=qs_env,&
             rebuild=.TRUE.,error=error)
        CALL kpp1_calc_k_p_p1(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
             k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
@@ -937,7 +995,7 @@ END SUBROUTINE p_env_did_change
        END DO
     END IF
 
-  END SUBROUTINE p_op_l2
+  END SUBROUTINE p_op_l2_tom
 !***************************************************************************
 
 !!****f* qs_p_types/p_env_preortho [1.0] *
