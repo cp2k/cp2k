@@ -36,6 +36,21 @@ MODULE xc_atom
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_copy,&
+                                             pw_create,&
+                                             pw_derive,&
+                                             pw_derive_fd,&
+                                             pw_p_type,&
+                                             pw_release,&
+                                             pw_sumup,&
+                                             pw_transfer,&
+                                             pw_type,&
+                                             pw_zero
+  USE pw_pool_types,                   ONLY: pw_pool_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -409,12 +424,14 @@ CONTAINS
 
 
     TYPE(cp_sll_xc_deriv_type), POINTER           :: pos
+    TYPE(pw_p_type), DIMENSION(:), POINTER        :: vxc_pw
+    TYPE(pw_pool_type), POINTER                   :: pw_pool
     TYPE(xc_control_type), POINTER                :: xc_control
     TYPE(xc_derivative_type), POINTER             :: deriv_att
     REAL(KIND=dp), PARAMETER                      :: f13 = (1.0_dp/3.0_dp)
     REAL(dp)                                      :: drho_cutoff
     REAL(dp), DIMENSION(:,:,:), POINTER           :: deriv_data, norm_drho
-    INTEGER                                       :: handle, i, ia, idir, ispin, nspins, n_deriv, order
+    INTEGER                                       :: handle, i, ia, idir, ispin, nspins, n_deriv, order, stat
     INTEGER, DIMENSION(2,3)                       :: bounds
     LOGICAL                                       :: failure, gradient_f, lsd, tddft
 
@@ -451,6 +468,23 @@ CONTAINS
 
     CALL divide_by_norm_drho(deriv_set, rho_set, bounds, lsd, error)
 
+    NULLIFY(pw_pool)
+    ALLOCATE(vxc_pw(nspins), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO ispin=1, nspins
+       ALLOCATE(vxc_pw(ispin)%pw, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       vxc_pw(ispin)%pw%cr3d => vxc(:,ir:ir,ispin:ispin)
+    END DO
+
+!    CALL xc_calc_2nd_deriv_new(vxc_pw, deriv_set, rho_set, rho1_set, pw_pool, bounds, error)
+
+    DO ispin=1, nspins
+       DEALLOCATE(vxc_pw(ispin)%pw, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END DO
+    DEALLOCATE(vxc_pw, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE xc_2nd_deriv_of_r

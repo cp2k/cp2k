@@ -4383,12 +4383,12 @@ END FUNCTION xc_exc_calc
 
     ! PARAMETER
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv_new', &
-      routineP = moduleN//':'//routineN
+                                   routineP = moduleN//':'//routineN
 
     ! LOCALS
     INTEGER                                  :: handle, i, idir, ispin, j, k, &
                                                 nspins, stat
-    INTEGER, DIMENSION(2, 3)                 :: bounds
+    INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3, 3)                 :: nd
     LOGICAL                                  :: failure, gradient_f, lsd
     REAL(KIND=dp)                            :: dr1dr, fac
@@ -4414,7 +4414,6 @@ END FUNCTION xc_exc_calc
     CPPrecondition(ASSOCIATED(rho1_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(v_xc),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
 
     IF (.NOT. failure) THEN
 
@@ -4430,8 +4429,9 @@ END FUNCTION xc_exc_calc
        ALLOCATE(tmp_r(nspins), tmp_r2(nspins), tmp_a(nspins), tmp_b(nspins),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ispin=1, nspins
-          NULLIFY(tmp_r(ispin)%pw, tmp_b(nspins)%pw)
+          NULLIFY(tmp_r(ispin)%pw, tmp_r2(ispin)%pw, tmp_a(ispin)%pw, tmp_b(nspins)%pw)
        END DO
+
     END IF
 
     ! assesses the argument needed by the functionals
@@ -4444,7 +4444,7 @@ END FUNCTION xc_exc_calc
     IF (needs%drho.OR.needs%drho_spin.OR.needs%norm_drho.OR.&
          needs%norm_drho_spin) gradient_f=.TRUE.
 
-    bounds = rho_set%local_bounds
+    bo = rho_set%local_bounds
 
     IF (lsd) THEN
 
@@ -4458,18 +4458,28 @@ END FUNCTION xc_exc_calc
           CALL xc_rho_set_get(rho_set, drhoa=drhoa, drhob=drhob, error=error)
           CALL xc_rho_set_get(rho1_set,drhoa=drho1a, drhob=drho1b, error=error)
           DO ispin=1, nspins
-             CALL pw_pool_create_pw(pw_pool,tmp_a(ispin)%pw,&
-                  use_data = REALDATA3D,&
-                  in_space = REALSPACE, error=error)
-             CALL pw_zero(tmp_a(ispin)%pw)
-             CALL pw_pool_create_pw(pw_pool,tmp_b(ispin)%pw,&
-                  use_data = REALDATA3D,&
-                  in_space = REALSPACE, error=error)
-             CALL pw_zero(tmp_b(ispin)%pw)
-             CALL pw_pool_create_pw(pw_pool,tmp_r(ispin)%pw,&
-                  use_data = REALDATA3D,&
-                  in_space = REALSPACE, error=error)
-             CALL pw_zero(tmp_r(ispin)%pw)
+             IF (ASSOCIATED(pw_pool)) THEN
+                CALL pw_pool_create_pw(pw_pool,tmp_a(ispin)%pw,&
+                     use_data = REALDATA3D,&
+                     in_space = REALSPACE, error=error)
+                CALL pw_zero(tmp_a(ispin)%pw)
+                CALL pw_pool_create_pw(pw_pool,tmp_b(ispin)%pw,&
+                     use_data = REALDATA3D,&
+                     in_space = REALSPACE, error=error)
+                CALL pw_zero(tmp_b(ispin)%pw)
+                CALL pw_pool_create_pw(pw_pool,tmp_r(ispin)%pw,&
+                     use_data = REALDATA3D,&
+                     in_space = REALSPACE, error=error)
+                CALL pw_zero(tmp_r(ispin)%pw)
+             ELSE
+                ALLOCATE(tmp_a(ispin)%pw, tmp_b(ispin)%pw, tmp_r(ispin)%pw, stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                ALLOCATE(tmp_a(ispin)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
+                     tmp_b(ispin)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
+                     tmp_r(ispin)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
+                     stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
           END DO
        END IF
 
@@ -4479,12 +4489,12 @@ END FUNCTION xc_exc_calc
           CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
                error=error)
           !$omp parallel do private(k,j,i)
-          DO k = bounds(1,3), bounds(2,3)
-             DO j = bounds(1,2), bounds(2,2)
-                DO i = bounds(1,1), bounds(2,1)
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
                    IF (nspins /= 1) THEN
                       v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
-                        deriv_data(i,j,k) * rho1a(i,j,k)
+                           deriv_data(i,j,k) * rho1a(i,j,k)
                    ELSE 
                       v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
                            2.0_dp * deriv_data(i,j,k) * rho1a(i,j,k) !##
@@ -4493,7 +4503,7 @@ END FUNCTION xc_exc_calc
              END DO
           END DO
        END IF
-       
+
        IF (.NOT. dft_control%do_tddfpt_calculation) THEN
           deriv_att=> xc_dset_get_derivative(deriv_set, "(rhob)(rhob)", &
                error=error)
@@ -4501,9 +4511,9 @@ END FUNCTION xc_exc_calc
              CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
                   error=error)
              !$omp parallel do private(k,j,i)
-             DO k = bounds(1,3), bounds(2,3)
-                DO j = bounds(1,2), bounds(2,2)
-                   DO i = bounds(1,1), bounds(2,1)
+             DO k = bo(1,3), bo(2,3)
+                DO j = bo(1,2), bo(2,2)
+                   DO i = bo(1,1), bo(2,1)
                       IF (nspins /= 1) THEN
                          v_xc(2)%pw%cr3d(i,j,k) = v_xc(2)%pw%cr3d(i,j,k) + &
                               deriv_data(i,j,k) * rho1a(i,j,k) !##
@@ -4520,9 +4530,9 @@ END FUNCTION xc_exc_calc
           CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
                error=error)
           !$omp parallel do private(k,j,i)
-          DO k = bounds(1,3), bounds(2,3)
-             DO j = bounds(1,2), bounds(2,2)
-                DO i = bounds(1,1), bounds(2,1)
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
                    IF (nspins /= 1) THEN
                       v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
                            deriv_data(i,j,k) * rho1b(i,j,k) !##
@@ -4538,16 +4548,16 @@ END FUNCTION xc_exc_calc
              END DO
           END DO
        END IF
-       
+
        deriv_att=> xc_dset_get_derivative(deriv_set, "(rhoa)(drhoa)", &
             error=error)
        IF (ASSOCIATED(deriv_att)) THEN
           CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
                error=error)
           !$omp parallel do private(k,j,i,dr1dr)
-          DO k = bounds(1,3), bounds(2,3)
-             DO j = bounds(1,2), bounds(2,2)
-                DO i = bounds(1,1), bounds(2,1)
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
                    dr1dr=0._dp
                    DO idir=1,3
                       dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
@@ -4567,16 +4577,16 @@ END FUNCTION xc_exc_calc
              END DO
           END DO
        END IF
-       
+
        deriv_att=> xc_dset_get_derivative(deriv_set, "(rhob)(drhob)", &
             error=error)
        IF (ASSOCIATED(deriv_att)) THEN
           CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
                error=error)
           !$omp parallel do private(k,j,i,dr1dr)
-          DO k = bounds(1,3), bounds(2,3)
-             DO j = bounds(1,2), bounds(2,2)
-                DO i = bounds(1,1), bounds(2,1)
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
                    IF (nspins /= 1) THEN
                       dr1dr=0._dp
                       DO idir=1,3
@@ -4591,16 +4601,16 @@ END FUNCTION xc_exc_calc
              END DO
           END DO
        END IF
-       
+
        deriv_att=> xc_dset_get_derivative(deriv_set, "(rhoa)(drhob)", &
             error=error)
        IF (ASSOCIATED(deriv_att)) THEN
           CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
                error=error)
           !$omp parallel do private(k,j,i,dr1dr)
-          DO k = bounds(1,3), bounds(2,3)
-             DO j = bounds(1,2), bounds(2,2)
-                DO i = bounds(1,1), bounds(2,1)
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
                    dr1dr=0._dp
                    DO idir=1,3
                       dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
@@ -4620,16 +4630,16 @@ END FUNCTION xc_exc_calc
              END DO
           END DO
        END IF
-       
+
        deriv_att=> xc_dset_get_derivative(deriv_set, "(rhob)(drhoa)", &
             error=error)
        IF (ASSOCIATED(deriv_att)) THEN
           CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
                error=error)
           !$omp parallel do private(k,j,i,dr1dr)
-          DO k = bounds(1,3), bounds(2,3)
-             DO j = bounds(1,2), bounds(2,2)
-                DO i = bounds(1,1), bounds(2,1)
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
                    IF (nspins /= 1) THEN
                       dr1dr=0._dp
                       DO idir=1,3
@@ -4649,16 +4659,16 @@ END FUNCTION xc_exc_calc
              END DO
           END DO
        END IF
-       
+
        deriv_att=> xc_dset_get_derivative(deriv_set, "(rhoa)(norm_drho)", &
             error=error)
        IF (ASSOCIATED(deriv_att)) THEN
           CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
                error=error)
           !$omp parallel do private(k,j,i)
-          DO k = bounds(1,3), bounds(2,3)
-             DO j = bounds(1,2), bounds(2,2)
-                DO i = bounds(1,1), bounds(2,1)
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
                    IF (nspins /= 1) THEN
                       dr1dr=0._dp
                       DO idir=1,3
@@ -4697,16 +4707,16 @@ END FUNCTION xc_exc_calc
              END DO
           END DO
        END IF
-       
+
        deriv_att=> xc_dset_get_derivative(deriv_set, "(drhoa)(norm_drho)", &
             error=error)
        IF (ASSOCIATED(deriv_att)) THEN
           CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
                error=error)
           !$omp parallel do private(k,j,i)
-          DO k = bounds(1,3), bounds(2,3)
-             DO j = bounds(1,2), bounds(2,2)
-                DO i = bounds(1,1), bounds(2,1)
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
                    IF (nspins /= 1) THEN
                       dr1dr=0._dp
                       DO idir=1,3
@@ -4757,16 +4767,16 @@ END FUNCTION xc_exc_calc
              END DO
           END DO
        END IF
-       
+
        deriv_att=> xc_dset_get_derivative(deriv_set, "(rhob)(norm_drho)", &
             error=error)
        IF (ASSOCIATED(deriv_att)) THEN
           CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
                error=error)
           !$omp parallel do private(k,j,i)
-          DO k = bounds(1,3), bounds(2,3)
-             DO j = bounds(1,2), bounds(2,2)
-                DO i = bounds(1,1), bounds(2,1)
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
                    IF (nspins /= 1) THEN
                       dr1dr=0._dp
                       DO idir=1,3
@@ -4794,16 +4804,16 @@ END FUNCTION xc_exc_calc
              END DO
           END DO
        END IF
-       
+
        deriv_att=> xc_dset_get_derivative(deriv_set, "(drhob)(norm_drho)", &
             error=error)
        IF (ASSOCIATED(deriv_att)) THEN
           CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
                error=error)
           !$omp parallel do private(k,j,i)
-          DO k = bounds(1,3), bounds(2,3)
-             DO j = bounds(1,2), bounds(2,2)
-                DO i = bounds(1,1), bounds(2,1)
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
                    IF (nspins /= 1) THEN
                       dr1dr=0._dp
                       DO idir=1,3
@@ -4843,16 +4853,16 @@ END FUNCTION xc_exc_calc
              END DO
           END DO
        END IF
-       
+
        deriv_att=> xc_dset_get_derivative(deriv_set, "(drhoa)(drhoa)", &
             error=error)
        IF (ASSOCIATED(deriv_att)) THEN
           CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
                error=error)
           !$omp parallel do private(k,j,i,dr1dr)
-          DO k = bounds(1,3), bounds(2,3)
-             DO j = bounds(1,2), bounds(2,2)
-                DO i = bounds(1,1), bounds(2,1)
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
                    dr1dr=0._dp
                    DO idir=1,3
                       dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
@@ -4868,16 +4878,16 @@ END FUNCTION xc_exc_calc
              END DO
           END DO
        END IF
-       
+
        deriv_att=> xc_dset_get_derivative(deriv_set, "(drhob)(drhob)", &
             error=error)
        IF (ASSOCIATED(deriv_att)) THEN
           CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
                error=error)
           !$omp parallel do private(k,j,i,dr1dr)
-          DO k = bounds(1,3), bounds(2,3)
-             DO j = bounds(1,2), bounds(2,2)
-                DO i = bounds(1,1), bounds(2,1)
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
                    IF (nspins /= 1) THEN
                       dr1dr=0._dp
                       DO idir=1,3
@@ -4890,16 +4900,16 @@ END FUNCTION xc_exc_calc
              END DO
           END DO
        END IF
-       
+
        deriv_att=> xc_dset_get_derivative(deriv_set, "(drhoa)(drhob)", &
             error=error)
        IF (ASSOCIATED(deriv_att)) THEN
           CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
                error=error)
           !$omp parallel do private(k,j,i,dr1dr)
-          DO k = bounds(1,3), bounds(2,3)
-             DO j = bounds(1,2), bounds(2,2)
-                DO i = bounds(1,1), bounds(2,1)
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
                    dr1dr=0._dp
                    DO idir=1,3
                       dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
@@ -4923,7 +4933,7 @@ END FUNCTION xc_exc_calc
              END DO
           END DO
        END IF
-       
+
        deriv_att=> xc_dset_get_derivative(deriv_set, "(drhoa)", &
             error=error)
        IF (ASSOCIATED(deriv_att)) THEN
@@ -4932,9 +4942,9 @@ END FUNCTION xc_exc_calc
           CALL xc_derivative_get(deriv_att, deriv_data=e_drhoa, &
                error=error)
           !$omp parallel do private(k,j,i,dr1dr)
-          DO k = bounds(1,3), bounds(2,3)
-             DO j = bounds(1,2), bounds(2,2)
-                DO i = bounds(1,1), bounds(2,1)
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
                    dr1dr=0._dp
                    DO idir=1,3
                       dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
@@ -4950,7 +4960,7 @@ END FUNCTION xc_exc_calc
              END DO
           END DO
        END IF
-       
+
        deriv_att=> xc_dset_get_derivative(deriv_set, "(drhob)", &
             error=error)
        IF (ASSOCIATED(deriv_att)) THEN
@@ -4959,9 +4969,9 @@ END FUNCTION xc_exc_calc
           CALL xc_derivative_get(deriv_att, deriv_data=e_drhob, &
                error=error)
           !$omp parallel do private(k,j,i,dr1dr)
-          DO k = bounds(1,3), bounds(2,3)
-             DO j = bounds(1,2), bounds(2,2)
-                DO i = bounds(1,1), bounds(2,1)
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
                    IF (nspins /= 1) THEN
                       dr1dr=0._dp
                       DO idir=1,3
@@ -4974,16 +4984,16 @@ END FUNCTION xc_exc_calc
              END DO
           END DO
        END IF
-       
+
        deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drho)(norm_drho)", &
             error=error)
        IF (ASSOCIATED(deriv_att)) THEN
           CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
                error=error)
           !$omp parallel do private(k,j,i,dr1dr)
-          DO k = bounds(1,3), bounds(2,3)
-             DO j = bounds(1,2), bounds(2,2)
-                DO i = bounds(1,1), bounds(2,1)
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
                    IF (nspins /= 1) THEN
                       dr1dr=0._dp
                       DO idir=1,3
@@ -5028,7 +5038,7 @@ END FUNCTION xc_exc_calc
           CALL xc_derivative_get(deriv_att, deriv_data=e_norm_drho, &
                error=error)
        END IF
-       
+
 
        IF (gradient_f) THEN
 
@@ -5036,9 +5046,9 @@ END FUNCTION xc_exc_calc
           DO idir=1, 3
 
              !$omp parallel do private(k,j,i,dr1dr)
-             DO k = bounds(1,3), bounds(2,3)
-                DO j = bounds(1,2), bounds(2,2)
-                   DO i = bounds(1,1), bounds(2,1)
+             DO k = bo(1,3), bo(2,3)
+                DO j = bo(1,2), bo(2,2)
+                   DO i = bo(1,1), bo(2,1)
 
                       DO ispin=1, nspins
                          tmp_r(ispin)%pw%cr3d(i,j,k) = &
@@ -5094,13 +5104,28 @@ END FUNCTION xc_exc_calc
                         pw_out=v_xc(ispin)%pw,coeffs=nn50_deriv_coeffs,&
                         idir=idir, error=error )
                 CASE (xc_deriv_fd)
-                   CALL pw_pool_create_pw(pw_pool, tmp_t%pw,&
-                        use_data=REALDATA3D, in_space=REALSPACE,&
-                        error=error)
+                   IF (ASSOCIATED(pw_pool)) THEN
+                      CALL pw_pool_create_pw(pw_pool, tmp_t%pw,&
+                           use_data=REALDATA3D, in_space=REALSPACE,&
+                           error=error)
+                   ELSE
+                      ALLOCATE(tmp_t%pw, stat=stat)
+                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                      ALLOCATE(tmp_t%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
+                           stat=stat)
+                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   END IF
                    CALL pw_derive_fd(tmp_r(ispin)%pw,&
                         tmp_t%pw,nd(:,idir))
                    CALL pw_sumup(tmp_t%pw,v_xc(ispin)%pw)
-                   CALL pw_pool_give_back_pw(pw_pool,tmp_t%pw,error=error)
+                   IF (ASSOCIATED(pw_pool)) THEN
+                      CALL pw_pool_give_back_pw(pw_pool,tmp_t%pw,error=error)
+                   ELSE
+                      DEALLOCATE(tmp_t%pw%cr3d, stat=stat)
+                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                      DEALLOCATE(tmp_t%pw, stat=stat)
+                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   END IF
                 CASE default
                    CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
                 END SELECT
@@ -5109,17 +5134,21 @@ END FUNCTION xc_exc_calc
           END DO ! idir
 
           DO ispin=1, nspins
-             CALL pw_pool_give_back_pw(pw_pool,tmp_a(ispin)%pw,error=error)
-             CALL pw_pool_give_back_pw(pw_pool,tmp_b(ispin)%pw,error=error)
-             CALL pw_pool_give_back_pw(pw_pool,tmp_r(ispin)%pw,error=error)
+             IF (ASSOCIATED(pw_pool)) THEN
+                CALL pw_pool_give_back_pw(pw_pool,tmp_a(ispin)%pw,error=error)
+                CALL pw_pool_give_back_pw(pw_pool,tmp_b(ispin)%pw,error=error)
+                CALL pw_pool_give_back_pw(pw_pool,tmp_r(ispin)%pw,error=error)
+             ELSE
+                DEALLOCATE(tmp_a(ispin)%pw%cr3d, tmp_b(ispin)%pw%cr3d, tmp_r(ispin)%pw%cr3d, stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                DEALLOCATE(tmp_a(ispin)%pw, tmp_b(ispin)%pw, tmp_r(ispin)%pw, stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
           END DO
 
        END IF ! gradient_f
 
 
-       DEALLOCATE(tmp_r, tmp_r2, tmp_a, tmp_b, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       
     ELSE
 
        !-----------------!
@@ -5131,10 +5160,18 @@ END FUNCTION xc_exc_calc
        IF (gradient_f) THEN
           CALL xc_rho_set_get(rho_set,drho=drho, error=error)
           CALL xc_rho_set_get(rho1_set,drho=drho1, error=error)
-          CALL pw_pool_create_pw(pw_pool,v_drho%pw,&
-               use_data = REALDATA3D,&
-               in_space = REALSPACE, error=error)
-          CALL pw_zero(v_drho%pw)
+          IF (ASSOCIATED(pw_pool)) THEN
+             CALL pw_pool_create_pw(pw_pool,v_drho%pw,&
+                  use_data = REALDATA3D,&
+                  in_space = REALSPACE, error=error)
+             CALL pw_zero(v_drho%pw)
+          ELSE
+             ALLOCATE(v_drho%pw, stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(v_drho%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
+                  stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
        END IF
 
        deriv_att=> xc_dset_get_derivative(deriv_set, "(rho)(rho)", &
@@ -5143,25 +5180,25 @@ END FUNCTION xc_exc_calc
           CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
                error=error)
           !$omp parallel do private(k,j,i)
-          DO k = bounds(1,3), bounds(2,3)
-             DO j = bounds(1,2), bounds(2,2)
-                DO i = bounds(1,1), bounds(2,1)
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
                    v_xc(1)%pw%cr3d(i,j,k)=&
                         deriv_data(i,j,k)*rho1(i,j,k)
                 END DO
              END DO
           END DO
        END IF
-       
+
        deriv_att=> xc_dset_get_derivative(deriv_set, "(rho)(norm_drho)", &
             error=error)
        IF (ASSOCIATED(deriv_att)) THEN
           CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
                error=error)
           !$omp parallel do private(k,j,i,idir,dr1dr)
-          DO k = bounds(1,3), bounds(2,3)
-             DO j = bounds(1,2), bounds(2,2)
-                DO i = bounds(1,1), bounds(2,1)
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
                    dr1dr=0._dp
                    DO idir=1,3
                       dr1dr=dr1dr+drho(idir)%array(i,j,k)*drho1(idir)%array(i,j,k)
@@ -5181,9 +5218,9 @@ END FUNCTION xc_exc_calc
           CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
                error=error)
           !$omp parallel do private(k,j,i,idir,dr1dr)
-          DO k = bounds(1,3), bounds(2,3)
-             DO j = bounds(1,2), bounds(2,2)
-                DO i = bounds(1,1), bounds(2,1)
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
                    dr1dr=0._dp
                    DO idir=1,3
                       dr1dr=dr1dr+drho(idir)%array(i,j,k)*drho1(idir)%array(i,j,k)
@@ -5194,16 +5231,16 @@ END FUNCTION xc_exc_calc
           END DO
        END IF
 
-       
+
        deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drho)", &
             error=error)
        IF (ASSOCIATED(deriv_att)) THEN
           CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
                error=error)
           !$omp parallel do private(k,j,i,idir,dr1dr)
-          DO k = bounds(1,3), bounds(2,3)
-             DO j = bounds(1,2), bounds(2,2)
-                DO i = bounds(1,1), bounds(2,1)
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
                    dr1dr=0._dp
                    DO idir=1,3
                       dr1dr=dr1dr+drho(idir)%array(i,j,k)*drho1(idir)%array(i,j,k)
@@ -5218,15 +5255,22 @@ END FUNCTION xc_exc_calc
 
           ! this does not work with non orthorombic cells 
           ! (you will have to use a vector of pw with 3 components)
-          CALL pw_pool_create_pw(pw_pool,tmp_r(1)%pw,&
-               use_data = REALDATA3D,&
-               in_space = REALSPACE, error=error)
+          IF (ASSOCIATED(pw_pool)) THEN
+             CALL pw_pool_create_pw(pw_pool,tmp_r(1)%pw,&
+                  use_data = REALDATA3D,&
+                  in_space = REALSPACE, error=error)
+          ELSE
+             ALLOCATE(tmp_r(1)%pw, stat=stat)
+             ALLOCATE(tmp_r(1)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
+                  stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
 
           DO idir=1,3
              !$omp parallel do private(k,j,i)
-             DO k = bounds(1,3), bounds(2,3)
-                DO j = bounds(1,2), bounds(2,2)
-                   DO i = bounds(1,1), bounds(2,1)
+             DO k = bo(1,3), bo(2,3)
+                DO j = bo(1,2), bo(2,2)
+                   DO i = bo(1,1), bo(2,1)
                       tmp_r(1)%pw%cr3d(i,j,k)=drho(idir)%array(i,j,k)*v_drho%pw%cr3d(i,j,k)-&
                            drho1(idir)%array(i,j,k)*deriv_data(i,j,k)
                    END DO
@@ -5263,13 +5307,23 @@ END FUNCTION xc_exc_calc
              END SELECT
 
           END DO
-          CALL pw_pool_give_back_pw(pw_pool,tmp_r(1)%pw,error=error)
+
+          IF (ASSOCIATED(pw_pool)) THEN
+             CALL pw_pool_give_back_pw(pw_pool,tmp_r(1)%pw,error=error)
+             CALL pw_pool_give_back_pw(pw_pool,v_drho%pw,error=error)
+          ELSE
+             DEALLOCATE(tmp_r(1)%pw%cr3d, v_drho%pw%cr3d, stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             DEALLOCATE(tmp_r(1)%pw, v_drho%pw, stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
 
        END IF
 
     END IF
 
-    DEALLOCATE(tmp_r, tmp_r2, stat=stat)
+    DEALLOCATE(tmp_r, tmp_r2, tmp_a, tmp_b, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE xc_calc_2nd_deriv_new
