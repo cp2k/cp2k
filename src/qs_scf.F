@@ -984,9 +984,9 @@ CONTAINS
 !   *** Redistribute the core Hamiltonian matrix in ***
 !   *** order to eliminate redundant atomic blocks  ***
 
-    CALL copy_real_matrix_to_full_matrix(h(1)%matrix,scf_work1(1)%matrix)
 !MK
     IF (gth_potential_present.AND.(.NOT.dft_control%qs_control%new_core)) THEN
+       CALL copy_real_matrix_to_full_matrix(h(1)%matrix,scf_work1(1)%matrix)
        CALL sm_pool_give_back_matrix(qs_env%mpools%H_redundant_sm_pools(1)%pool,&
             qs_env%h(1)%matrix,error=error)
        CALL sm_pool_create_matrix(qs_env%mpools%S_sm_pools(1)%pool,h(1)%matrix,&
@@ -994,13 +994,13 @@ CONTAINS
             error=error)
        CALL copy_full_matrix_to_real_matrix(scf_work1(1)%matrix,&
             qs_env%h(1)%matrix)
+       IF (scf_env%method==ot_method_nr) THEN 
+          CALL cp_fm_release(scf_work1(1)%matrix)
+          DEALLOCATE(scf_work1)
+          NULLIFY(scf_work1, scf_env%scf_work1)
+       ENDIF
     END IF
 
-    IF (scf_env%method==ot_method_nr) THEN 
-       CALL cp_fm_release(scf_work1(1)%matrix)
-       DEALLOCATE(scf_work1)
-       NULLIFY(scf_work1, scf_env%scf_work1)
-    ENDIF
 
 !   *** done redistribute ***
 
@@ -1162,6 +1162,8 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
     TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER :: S_sm_pools
     TYPE(qs_ks_env_type), POINTER :: ks_env
+    LOGICAL :: gth_potential_present
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
 
 !   ---------------------------------------------------------------------------
 
@@ -1179,7 +1181,10 @@ CONTAINS
          c=c,&
          k=k,&
          ks_env=ks_env,&
+         atomic_kind_set=atomic_kind_set,&
          s=s)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+         gth_potential_present=gth_potential_present)
     CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
          S_sm_pools=S_sm_pools,&
          error=error)
@@ -1220,17 +1225,21 @@ CONTAINS
           IF (scf_env%method/=ot_method_nr) THEN
              ALLOCATE(scf_env%scf_work1(dft_control%nspins), stat=stat)
           ELSE
-             ALLOCATE(scf_env%scf_work1(1), stat=stat)
+             IF (gth_potential_present.AND.(.NOT.dft_control%qs_control%new_core)) THEN
+                ALLOCATE(scf_env%scf_work1(1), stat=stat)
+             ENDIF
           END IF
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DO ispin=1,SIZE(scf_env%scf_work1)
-             NULLIFY(scf_env%scf_work1(ispin)%matrix)
-             CALL cp_fm_create(scf_env%scf_work1(ispin)%matrix,&
-                  matrix_struct=ao_ao_fmstruct,&
-                  name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-                  "WORK_MATRIX-1-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-                  error=error)
-          ENDDO
+          IF (ASSOCIATED(scf_env%scf_work1)) THEN
+             DO ispin=1,SIZE(scf_env%scf_work1)
+                NULLIFY(scf_env%scf_work1(ispin)%matrix)
+                CALL cp_fm_create(scf_env%scf_work1(ispin)%matrix,&
+                     matrix_struct=ao_ao_fmstruct,&
+                     name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+                     "WORK_MATRIX-1-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+                     error=error)
+             ENDDO
+          ENDIF
        END IF
        IF (.not.ASSOCIATED(scf_env%ortho).and.scf_env%method/=ot_method_nr) THEN
           CALL cp_fm_create(scf_env%ortho,&
