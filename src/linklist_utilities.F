@@ -125,7 +125,7 @@ MODULE linklist_utilities
       current_neighbor%nimages = 0
 !
       IF ( MAXVAL ( n_images ) /= 0 ) CALL find_images(n_images,lat_vec,s,hmat,perd, &
-                                                       distsq,current_neighbor)
+                                                    distsq,current_neighbor,list_type)
 !
 ! advance the current position in the link_link by one.
 ! however, since we are constantly reusing this list
@@ -145,13 +145,14 @@ MODULE linklist_utilities
 
   END SUBROUTINE update_verlet_list
 !------------------------------------------------------------------------------!
-  SUBROUTINE update_image_list(sij,n,vec,hmat,perd,distsq,current_image)
+  SUBROUTINE update_image_list(sij,n,vec,hmat,perd,distsq,current_image,list_type)
     IMPLICIT NONE
     INTEGER, INTENT ( INOUT ) :: n
     REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: sij, perd, vec
     REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: hmat
     REAL ( dbl ), INTENT ( IN ) :: distsq
     TYPE (linklist_images), POINTER :: current_image
+    INTEGER, intent (in) :: list_type
 ! locals
     REAL ( dbl ), DIMENSION (3) :: rij, s
     REAL ( dbl ) :: rijsq
@@ -170,29 +171,45 @@ MODULE linklist_utilities
 ! if we are within the cutoff, let the current_image
 ! position in the link_list point to the jth atom
 !
-    IF ( rijsq <= distsq .AND. rijsq > 1.e-12_dbl ) THEN
-      n = n + 1
-      current_image % vec = vec
+    IF (list_type == 1) THEN
+       IF ( rijsq <= distsq .AND. rijsq > 1.e-12_dbl ) THEN
+          n = n + 1
+          current_image % vec = vec
 !
 ! advance the current position in the link_link by one.
 ! however, since we are constantly reusing this list
 ! and the number of images may fluctuate, we have to check
 ! to see that the next member of the list exists. If not, create it
 ! and then advance by one.
-      IF ( .NOT. ASSOCIATED ( current_image % next ) ) THEN
-        ALLOCATE ( current_image % next, STAT = isos )
-        IF ( isos /= 0 ) CALL stop_memory ( 'update_verlet_list', &
-             'current_image%next', 0 )
-        current_image => current_image % next
-        NULLIFY ( current_image % next )
-      ELSE
-         current_image => current_image % next
-      END IF
+          IF ( .NOT. ASSOCIATED ( current_image % next ) ) THEN
+            ALLOCATE ( current_image % next, STAT = isos )
+            IF ( isos /= 0 ) CALL stop_memory ( 'update_verlet_list', &
+               'current_image%next', 0 )
+            current_image => current_image % next
+            NULLIFY ( current_image % next )
+          ELSE
+           current_image => current_image % next
+          END IF
+       END IF
+    ELSE
+       IF ( rijsq <= distsq ) THEN
+          n = n + 1
+          current_image % vec = vec
+          IF ( .NOT. ASSOCIATED ( current_image % next ) ) THEN
+            ALLOCATE ( current_image % next, STAT = isos )
+            IF ( isos /= 0 ) CALL stop_memory ( 'update_verlet_list', &
+               'current_image%next', 0 )
+            current_image => current_image % next
+            NULLIFY ( current_image % next )
+          ELSE
+           current_image => current_image % next
+          END IF
+       END IF
     ENDIF
   END SUBROUTINE update_image_list
 !------------------------------------------------------------------------------!
   SUBROUTINE find_images(n_images,lat_vec,s,hmat,perd, &
-                         distsq,current_neighbor)
+                         distsq,current_neighbor,list_type)
     IMPLICIT NONE
     REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: s
     REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: hmat
@@ -200,6 +217,7 @@ MODULE linklist_utilities
     REAL ( dbl ), INTENT ( IN ) :: distsq
     INTEGER, DIMENSION ( : ), INTENT ( IN ) :: n_images, lat_vec
     TYPE ( linklist_neighbor), POINTER :: current_neighbor
+    INTEGER, intent (in) :: list_type
 ! locals
     TYPE ( linklist_images), POINTER :: current_image
     INTEGER :: icell,jcell,kcell,kmin,kmax,jmin,jmax,imin,imax
@@ -226,7 +244,7 @@ MODULE linklist_utilities
           vec ( : )=(/icell,jcell,kcell/)
 
           CALL update_image_list(s,current_neighbor%nimages,vec, &
-                                 hmat,perd,distsq,current_image)
+                                 hmat,perd,distsq,current_image,list_type)
         END DO
       END DO
     END DO
