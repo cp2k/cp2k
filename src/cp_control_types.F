@@ -82,7 +82,7 @@ MODULE cp_control_types
 ! *** some parameters useful for mulliken_restraints
   TYPE mulliken_restraint_type
     REAL(KIND = dp)                 :: strength
-    REAL(KIND = dp)                 :: target
+    REAL(KIND = dp)                 :: TARGET
   END TYPE mulliken_restraint_type
 
 ! *** Control parameters for a KIM-GORDON calculation ***
@@ -233,6 +233,7 @@ MODULE cp_control_types
   INTEGER, PARAMETER, PUBLIC :: tddfpt_singlet=0, tddfpt_triplet=1
   INTEGER, PARAMETER, PUBLIC :: tddfpt_lanczos=0, tddfpt_davidson=1
   INTEGER, PARAMETER, PUBLIC :: oe_none=0, oe_saop=1, oe_sic=2
+  INTEGER, PARAMETER, PUBLIC :: no_excitations=0, tddfpt_excitations=1
   
 
 ! *** Public subroutines ***
@@ -253,12 +254,6 @@ CONTAINS
 !!
 !!   NAME
 !!     dft_control_create
-!!
-!!   SYNOPSIS
-!!     Subroutine dft_control_create(dft_control, error)
-!!       Type(dft_control_type), Pointer:: dft_control
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine dft_control_create
 !!
 !!   FUNCTION
 !!     allocates and perform a very basic initialization
@@ -315,12 +310,6 @@ END SUBROUTINE dft_control_create
 !!   NAME
 !!     dft_control_retain
 !!
-!!   SYNOPSIS
-!!     Subroutine dft_control_retain(dft_control, error)
-!!       Type(dft_control_type), Pointer:: dft_control
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine dft_control_retain
-!!
 !!   FUNCTION
 !!     retains the given dft_control
 !!
@@ -362,12 +351,6 @@ END SUBROUTINE dft_control_retain
 !!
 !!   NAME
 !!     dft_control_release
-!!
-!!   SYNOPSIS
-!!     Subroutine dft_control_release(dft_control, error)
-!!       Type(dft_control_type), Pointer:: dft_control
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine dft_control_release
 !!
 !!   FUNCTION
 !!     releases the given dft_control
@@ -484,7 +467,7 @@ SUBROUTINE tddfpt_control_dealloc_ref(tddfpt_control, error)
     CHARACTER(len=*), PARAMETER :: routineN = "tddfpt_control_dealloc_ref", &
       routineP = moduleN//"/"//routineN
 
-    INTEGER                                  :: stat, ispin
+    INTEGER                                  :: ispin, stat
 
   IF (ASSOCIATED(tddfpt_control%lumos)) THEN
      DO ispin=1, SIZE(tddfpt_control%lumos)
@@ -543,7 +526,8 @@ SUBROUTINE xc_control_dealloc_ref(xc_control, error)
 END SUBROUTINE xc_control_dealloc_ref
 
 SUBROUTINE se_control_init(se_control, error)
-    TYPE(semi_empirical_control_type), INTENT(out)       :: se_control
+    TYPE(semi_empirical_control_type), &
+      INTENT(out)                            :: se_control
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

@@ -25,15 +25,15 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k
-  use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
+  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
        cp_warning_level, cp_note_level, cp_to_string, cp_log
-  use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
+  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
        cp_error_dealloc_ref, cp_error_message, cp_assert,&
        cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
        cp_error_get_logger, cp_a_l, cp_error_check
-  use kinds, only: dp
-  use cp_para_types, only: cp_para_env_type
-  use timings, only: timeset, timestop
+  USE kinds, ONLY: dp
+  USE cp_para_types, ONLY: cp_para_env_type
+  USE timings, ONLY: timeset, timestop
   USE input_section_types, ONLY: section_type, section_create, &
        section_add_keyword, section_add_subsection, section_release,&
        section_describe_html, section_describe_index_html, section_vals_type,&
@@ -49,18 +49,19 @@ MODULE input_cp2k
        xc_rho_spline2_smooth,xc_rho_spline3_smooth,xc_deriv_pw,&
        xc_deriv_spline3, xc_deriv_spline2,&
        xc_deriv_nn50_smooth, xc_deriv_nn10_smooth, xc_deriv_spline2_smooth,&
-       xc_deriv_spline3_smooth
+       xc_deriv_spline3_smooth,sic_none, sic_mauri_us, sic_mauri_spz,&
+       no_excitations,tddfpt_excitations
   USE pw_spline_utils, only: no_precond,precond_spl3_aint, precond_spl3_1
   USE cp_output_handling, only: cp_print_key_section_create
-  use greens_fn, only: periodic3d,& 
+  USE greens_fn, ONLY: periodic3d,& 
        analytic2d,& 
        analytic1d,& 
        analytic0d,& 
        mt2d,&       
        mt1d,&       
        mt0d,&       
-       hockney2d,&  
-       hockney1d,&  
+       hockney2d,&
+       hockney1d,&
        hockney0d 
   implicit none
   private
@@ -679,18 +680,46 @@ contains
          default_c_val="BASISSET",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-
     CALL keyword_create(keyword, name="POTENTIAL_FILE_NAME",&
          description="The path to the pseudo potential file",&
          usage="POTENTIAL_FILE_NAME ../POTENTIAL",&
          default_c_val="POTENTIAL",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-
-    CALL keyword_create(keyword, name="RESTART_FILE_NAME",&
-         description="The path to the pseudo potential file",&
-         usage="RESTART_FILE_NAME ../RESTART",&
-         default_c_val="RESTART",error=error)
+    CALL keyword_create(keyword, name="LSD",&
+         description="If the calculation should open shell",&
+         usage="lsd",&
+         default_l_val=.FALSE.,lone_keyword_l_val=.true.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTRICTED",&
+         description="If the calculation should be restricted",&
+         usage="RESTRICTED",&
+         default_l_val=.FALSE.,lone_keyword_l_val=.true.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="MULTIPLICITY",&
+         description="Two times the total spin plus one.",&
+         usage="MULTIPLICITY 1",&
+         default_i_val=0,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="CHARGE",&
+         description="The total charge of the system",&
+         usage="CHARGE -1",&
+         default_i_val=0,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="EXCITATIONS",&
+         description="If excitations should be calculated",&
+         usage="EXCITATIONS",&
+         enum_c_vals=(/&
+         "NONE  ",&
+         "TDLR  ",&
+         "TDDFPT"/),&
+         enum_i_vals=(/ no_excitations, tddfpt_excitations, &
+         tddfpt_excitations/),&
+         default_i_val=no_excitations, error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -712,6 +741,10 @@ contains
     CALL section_release(subsection,error=error)
 
     CALL create_xc_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
+    CALL create_sic_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
@@ -760,6 +793,12 @@ SUBROUTINE create_qs_section(section,error)
 
      NULLIFY(subsection,keyword)
     
+    CALL keyword_create(keyword, name="RESTART_FILE_NAME",&
+         description="The path to the pseudo potential file",&
+         usage="RESTART_FILE_NAME ../RESTART",&
+         default_c_val="RESTART",error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
      ! Reals
      CALL keyword_create(keyword, name="EPS_DEFAULT",&
           description="Try setting all EPS_xxx to values leading to an energy correct up to EPS_DEFAULT",&
@@ -770,7 +809,7 @@ SUBROUTINE create_qs_section(section,error)
 
      CALL keyword_create(keyword, name="EPS_CORE_CHARGE",&
           description="Precision for mapping the core charges",&
-          usage="EPS_CORE_CHARGE real", default_r_val=1.0E-12_dp,&
+          usage="EPS_CORE_CHARGE real", type_of_var=real_t, n_var=1,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)     
@@ -778,14 +817,14 @@ SUBROUTINE create_qs_section(section,error)
      CALL keyword_create(keyword, name="EPS_GVG_RSPACE",&
           variants=(/"EPS_GVG"/),&
           description="Sets precision of the realspace KS matrix element integration",&
-          usage="EPS_GVG_RSPACE real", default_r_val=1.0E-5_dp,&
+          usage="EPS_GVG_RSPACE real", type_of_var=real_t, n_var=1,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="EPS_PGF_ORB",&
           description="Sets precision of the overlap matrix elements",&
-          usage="EPS_PGF_ORB real", default_r_val=1.0E-5_dp,&
+          usage="EPS_PGF_ORB real", type_of_var=real_t, n_var=1,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
@@ -793,28 +832,28 @@ SUBROUTINE create_qs_section(section,error)
 
      CALL keyword_create(keyword, name="EPS_PPL",&
           description="Sets precision of the local part of the pseudo potential",&
-          usage="EPS_PPL real", default_r_val=1.0E-12_dp,&
+          usage="EPS_PPL real", type_of_var=real_t, n_var=1,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="EPS_PPNL",&
           description="Sets precision of the non-local part of the pseudo potential",&
-          usage="EPS_PPNL real", default_r_val=1.0E-12_dp,&
+          usage="EPS_PPNL real", type_of_var=real_t, n_var=1,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="EPS_RHO",&
           description="Sets precision of the density mapping on the grids",&
-          usage="EPS_RHO real", default_r_val=1.0E-10_dp,&
+          usage="EPS_RHO real", type_of_var=real_t, n_var=1,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="EPS_RHO_RSPACE",&
           description="Sets precision of the density mapping in rspace",&
-          usage="EPS_RHO_RSPACE real", default_r_val=1.0E-10_dp,&
+          usage="EPS_RHO_RSPACE real", type_of_var=real_t, n_var=1,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
@@ -1173,11 +1212,10 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL section_create(subsection, name="grid",&
-            description="The xc parameters used when calculating the xc on the grid",&
-            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            error=error)
-
+    CALL section_create(subsection, name="xc_grid",&!FM to do
+         description="The xc parameters used when calculating the xc on the grid",&
+         n_keywords=5, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+         error=error)
        CALL keyword_create(keyword, name="xc_smooth_rho",&
             description="The density smoothing used for the xc calculation",&
             usage="xc_smooth_rho nn10", default_i_val=xc_rho_no_smooth,&
@@ -1699,6 +1737,7 @@ END SUBROUTINE create_ewald_section
     logical :: failure
     character(len=*), parameter :: routineN='create_subsys_section',&
          routineP=moduleN//':'//routineN
+    TYPE(keyword_type), pointer :: keyword
     TYPE(section_type), pointer :: subsection
 
     failure=.false.
@@ -1710,15 +1749,153 @@ END SUBROUTINE create_ewald_section
             n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       nullify(subsection)
+       NULLIFY(subsection,keyword)
        CALL create_cell_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-!FM    CALL create_coord_section(subsection,error=error)
-!FM    CALL section_add_subsection(section,subsection,error=error)
-!FM    CALL section_release(subsection,error=error)
-!FM
+       CALL section_create(subsection,name="coord",&
+            description="The coordinates for simple systems (like the QM ones)"//&
+            " xyz format by default. More complex systems should be given with"//&
+            " an external pdb file.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="The atoms coordinates in xyz format.",&
+            usage="H 0.7 0.3 0.3", type_of_var=char_t, n_var=-2, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL section_create(subsection,name="kind",&
+            description="The description of the kind of the atoms (mostly for QM)",&
+            n_keywords=5, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="The name of the kind described in this section.",&
+            usage="H", default_c_val="DEFAULT", error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AUX_BASIS_SET",&
+            variants=(/&
+            "AUXILIARY_BASIS_SET",&
+            "AUX_BASIS          "/),&
+            description="The auxliliary basis set (GTO type)",&
+            usage="AUX_BASIS_SET DZVP", type_of_var=char_t, &
+            n_var=1, required=.TRUE., error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="AUX_BASIS_NORMALIZATION",&
+            variants=(/&
+            "AUXILIARY_BASIS_NORMALIZATION",&
+            "AUX_BASIS_NORM               "/),&
+            description="The normalization of the auxliliary basis set",&
+            usage="AUX_BASIS_NORMALIZATION NO", &
+            enum_c_vals=(/&
+            "NONE        ",&
+            "NO          ",&
+            "WFN         ",&
+            "WAVEFUNCTION",&
+            "FUNCTION    ",&
+            "DENS        ",&
+            "DENSITY     ",&
+            "SQUARE      ",&
+            "UNDEFINED   "/),&
+            enum_i_vals=(/0,0,1,1,1,2,2,2,-1/),&
+            default_i_val=-1,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="BASIS_SET",&
+            variants=(/&
+            "ORBITAL_BASIS_SET",&
+            "ORB_BASIS        "/),&
+            description="The basis set (GTO type)",&
+            usage="BASIS_SET DZVP", type_of_var=char_t, &
+            n_var=1, required=.TRUE., error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="BASIS_NORMALIZATION",&
+            variants=(/&
+            "ORBITAL_BASIS_NORMALIZATION",&
+            "ORB_BASIS_NORM             "/),&
+            description="The normalization of the auxliliary basis set",&
+            usage="AUX_BASIS_NORMALIZATION NO", &
+            enum_c_vals=(/&
+            "NONE        ",&
+            "NO          ",&
+            "WFN         ",&
+            "WAVEFUNCTION",&
+            "FUNCTION    ",&
+            "DENS        ",&
+            "DENSITY     ",&
+            "SQUARE      ",&
+            "UNDEFINED   "/),&
+            enum_i_vals=(/0,0,1,1,1,2,2,2,-1/),&
+            default_i_val=-1,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="ELEMENT",&
+            variants=(/ "ELEMENT_SYMBOL" /),&
+            description="The element of the actual kind "//&
+            "(if not given it is inferred from the kind name)",&
+            usage="ELEMENT O", type_of_var=char_t,n_var=1,&
+            error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="MASS",&
+            variants=(/ &
+            "ATOMIC_MASS  ",&
+            "ATOMIC_WEIGHT",&
+            "WEIGHT       "/),&
+            description="The mass of the atom "//&
+            "(if negative or non present it is inferred from the element symbol)",&
+            usage="MASS 2.0", type_of_var=real_t,n_var=1,&
+            required=.FALSE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="POTENTIAL",&
+            variants=(/ "POT" /),&
+            description="The element of the actual kind "//&
+            "(if not given it is inferred from the kind name)",&
+            usage="POTENTIAL ghost", type_of_var=char_t, n_var=1,&
+            error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="HARD_EXP_RADIUS",&
+            description="The region where the hard density is supposed to be confined (GAPW)(in Bohr)",&
+            usage="HARD_EXP_RADIUS 0.9", default_r_val=0.8_dp,&
+            error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RHO0_EXP_RADIUS",&
+            description="the radius which defines the atomic region where "//&
+            "the hard compensation density is confined."//&
+            "should be less than HARD_EXP_RADIUS (GAPW)[Bohr]",&
+            usage="RHO_EXP_RADIUS 0.9", default_r_val=0.8_dp,&
+            error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="LEBEDEV_GRID",&
+            description="The number of points for the angular part of "//&
+            "the local grid (GAPW)",&
+            usage="LEBEDEV_GRID 40", default_i_val=50,&
+            error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RADIAL_GRID",&
+            description="The number of points for the radial part of "//&
+            "the local grid (GAPW)",&
+            usage="RADIAL_GRID 70", default_i_val=50,&
+            error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
 !FM    CALL create_topology_section(subsection,error=error)
 !FM    CALL section_add_subsection(section,subsection,error=error)
 !FM    CALL section_release(subsection,error=error)
@@ -2182,5 +2359,74 @@ END SUBROUTINE create_ewald_section
     END IF
   END SUBROUTINE create_mgrid_section
 !***************************************************************************
+
+!!****f* input_cp2k/create_sic_section *
+!!
+!!   NAME
+!!     create_sic_section
+!!
+!!   FUNCTION
+!!     creates the sic (self interaction correction) section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE create_sic_section(section,error)
+  TYPE(section_type), pointer :: section
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='create_sic_section',&
+        routineP=moduleN//':'//routineN
+  TYPE(section_type), POINTER :: subsection,print_key
+  TYPE(keyword_type), pointer :: keyword
+  failure=.false.
+  
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL section_create(section,"sic",&
+         description="parameters for the self interaction correction",&
+         n_keywords=6, n_subsections=0, repeats=.FALSE., required=.false.,&
+         error=error)
+
+     nullify(keyword)
+
+     CALL keyword_create(keyword, name="SIC_SCALING_A",&
+          description="Scaling to be performed on spin1 to have the total density",&
+          usage="SIC_SCALING_A 2.0",&
+          default_r_val=1.0_dp,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="SIC_SCALING_B",&
+          description="Scaling to be performed on spin2 to have the total density",&
+          usage="SIC_SCALING_B -1.0",&
+          default_r_val=1.0_dp,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="SIC_METHOD",&
+          description="Method used to remove the self interaction",&
+          usage="SIC_METHOD MAURI_US",&
+          default_i_val=sic_none,&
+          enum_c_vals=(/&
+          "NONE     ",&
+          "MAURI_US ",&
+          "MAURI_SPZ"/),&
+          enum_i_vals=(/sic_none,sic_mauri_us,sic_mauri_spz/),&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+  END IF
+END SUBROUTINE create_sic_section
 
 END MODULE input_cp2k

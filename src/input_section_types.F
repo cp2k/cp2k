@@ -1167,8 +1167,8 @@ END SUBROUTINE section_vals_get
 !!   ARGUMENTS
 !!     - section_vals: the root section
 !!     - subsection_name: the name of the requested subsection
-!!     - i_rep_section: index of the repetition of the root section you are
-!!       interested in (defaults to 1)
+!!     - i_rep_section: index of the repetition of section_vals from which
+!!       you want to extract the subsection (defaults to 1)
 !!     - can_return_null: if the results can be null (defaults to false)
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
@@ -1231,8 +1231,8 @@ END FUNCTION section_vals_get_subs_vals
 !!   ARGUMENTS
 !!     - section_vals: the root section
 !!     - i_section: index of the section
-!!     - i_rep_section: index of the repetition of the root section you are
-!!       interested in (defaults to 1)
+!!     - i_rep_section: index of the repetition of section_vals from which
+!!       you want to extract the subsection (defaults to 1)
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!

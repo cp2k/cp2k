@@ -361,7 +361,7 @@ CONTAINS
         IF (.NOT.skip_description) THEN
            CALL section_describe(section,&
                 cp_logger_get_default_unit_nr(logger),&
-                2,error=error)
+                3,error=error)
         END IF
      END IF
   END IF
@@ -395,31 +395,31 @@ END SUBROUTINE section_vals_parse
 !!*** **********************************************************************
 SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,default_value,&
      parser,error)
-    TYPE(val_type), POINTER                  :: val
-    INTEGER, INTENT(in)                      :: type_of_var, n_var
-    TYPE(enumeration_type), POINTER          :: enum
-    TYPE(val_type), OPTIONAL, POINTER        :: default_value
-    TYPE(cp_parser_type), POINTER            :: parser
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+  TYPE(val_type), POINTER                  :: val
+  INTEGER, INTENT(in)                      :: type_of_var, n_var
+  TYPE(enumeration_type), POINTER          :: enum
+  TYPE(val_type), OPTIONAL, POINTER        :: default_value
+  TYPE(cp_parser_type), POINTER            :: parser
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'val_create_parsing', &
-      routineP = moduleN//':'//routineN
+  CHARACTER(len=*), PARAMETER :: routineN = 'val_create_parsing', &
+       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure, l_val
-    LOGICAL, DIMENSION(:), POINTER           :: l_val_p
-    TYPE(cp_error_type)                      :: suberror
-    TYPE(cp_sll_logical_type), POINTER       :: l_first, l_last, l_new
-    INTEGER, DIMENSION(:), pointer :: i_val_p
-    integer :: i_val
-    TYPE(cp_sll_int_type), POINTER           :: i_first, i_last, i_new
-    real(kind=dp) :: r_val
-    CHARACTER(len=default_string_length) :: c_val
-    TYPE(cp_sll_real_type),POINTER :: r_new,r_last,r_first
-    TYPE(cp_sll_char_type),POINTER :: c_new,c_last,c_first
-    REAL(kind=dp),DIMENSION(:), POINTER :: r_val_p
-    CHARACTER(len=default_string_length),DIMENSION(:), POINTER :: c_val_p
+  INTEGER                                  :: i, stat
+  LOGICAL                                  :: failure, l_val
+  LOGICAL, DIMENSION(:), POINTER           :: l_val_p
+  TYPE(cp_error_type)                      :: suberror
+  TYPE(cp_sll_logical_type), POINTER       :: l_first, l_last, l_new
+  INTEGER, DIMENSION(:), pointer :: i_val_p
+  integer :: i_val
+  TYPE(cp_sll_int_type), POINTER           :: i_first, i_last, i_new
+  real(kind=dp) :: r_val
+  CHARACTER(len=default_string_length) :: c_val
+  TYPE(cp_sll_real_type),POINTER :: r_new,r_last,r_first
+  TYPE(cp_sll_char_type),POINTER :: c_new,c_last,c_first
+  REAL(kind=dp),DIMENSION(:), POINTER :: r_val_p
+  CHARACTER(len=default_string_length),DIMENSION(:), POINTER :: c_val_p
 
   failure=.FALSE.
   CALL cp_error_init(suberror,stop_level=cp_fatal_level,template_error=error)
@@ -580,31 +580,42 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,default_value,&
      CASE (char_t)
         NULLIFY(c_val_p)
         IF (parser_test_next_token(parser,error=error)=="EOL") THEN
-           IF (.NOT.ASSOCIATED(default_value)) THEN
-              IF (n_var<1) THEN
-                 ALLOCATE(c_val_p(0),stat=stat)
-                 CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-                 CALL val_create(val,c_vals_ptr=c_val_p,error=error)
-              ELSE
+           IF (n_var<1) THEN
+              ALLOCATE(c_val_p(1),stat=stat)
+              CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+              c_val_p(1)=' '
+              CALL val_create(val,c_vals_ptr=c_val_p,error=error)
+           ELSE
+              IF (.NOT.ASSOCIATED(default_value)) THEN
                  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                       routineP,"no value was given and there is no default value"//&
                       TRIM(parser_location(parser,error=error)),error,failure)
-              END IF
-           ELSE
-              CPPrecondition(ASSOCIATED(default_value%c_val),cp_failure_level,routineP,error,failure)
-              IF (.NOT.failure) THEN
-                 CALL val_create(val,c_vals=default_value%c_val,error=error)
+              ELSE
+                 CPPrecondition(ASSOCIATED(default_value%c_val),cp_failure_level,routineP,error,failure)
+                 IF (.NOT.failure) THEN
+                    CALL val_create(val,c_vals=default_value%c_val,error=error)
+                 END IF
               END IF
            END IF
         ELSE
            IF (n_var<1) THEN
               NULLIFY(c_last,c_first)
-              CALL parser_get_object(parser,c_val,error=error)
+              IF (n_var==-2) THEN
+                 CALL parser_get_object(parser,c_val,string_length=LEN(c_val),&
+                      error=error)
+              ELSE
+                 CALL parser_get_object(parser,c_val,error=error)
+              END IF
               CALL cp_create(c_first,c_val,error=error)
               c_last => c_first
               DO WHILE(parser_test_next_token(parser,error=error)/="EOL"&
                    .AND..NOT.failure)
-                 CALL parser_get_object(parser,c_val,error=error)
+                 IF (n_var==-2) THEN
+                    CALL parser_get_object(parser,c_val,string_length=LEN(c_val),&
+                         error=error)
+                 ELSE
+                    CALL parser_get_object(parser,c_val,error=error)
+                 END IF
                  CALL cp_create(c_new,c_val,error=error)
                  c_last%rest => c_new
                  c_last => c_new

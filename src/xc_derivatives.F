@@ -18,7 +18,6 @@
 !!
 !!****
 MODULE xc_derivatives
-  USE cp_control_types,                ONLY: xc_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -37,7 +36,9 @@ MODULE xc_derivatives
                                              section_add_subsection,&
                                              section_create,&
                                              section_release,&
-                                             section_type
+                                             section_type,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -356,6 +357,150 @@ SUBROUTINE create_xc_fun_section(section,error)
           
   END IF
 END SUBROUTINE create_xc_fun_section
+!***************************************************************************
+
+!!****f* xc_derivatives/xc_functional_get_info [1.0] *
+!!
+!!   NAME
+!!     xc_functional_get_info
+!!
+!!   FUNCTION
+!!     get the information about the given functional
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - functional: the functional you want info about
+!!     - lsd: if you are using lsd or lda
+!!     - reference: the reference to the acticle where the functional is
+!!       explained
+!!     - shortform: the short definition of the functional
+!!     - needs: the flags corresponding to the inputs needed by this 
+!!       functional are set to true (the flags not needed aren't touched)
+!!     - max_deriv: the maximal derivative available
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE xc_functional_get_info_new(functional,lsd,reference,shortform,&
+     needs, max_deriv, error)
+    TYPE(section_vals_type), POINTER         :: functional
+    LOGICAL, INTENT(in)                      :: lsd
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
+    TYPE(xc_rho_cflags_type), &
+      INTENT(inout), OPTIONAL                :: needs
+    INTEGER, INTENT(out), OPTIONAL           :: max_deriv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_get_info_new', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i_param
+    LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: r_param
+
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(functional),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     SELECT CASE(functional%section%name)
+     CASE("BECKE88")
+        IF (lsd) THEN
+           CALL xb88_lsd_info(reference=reference,shortform=shortform,&
+                needs=needs, max_deriv=max_deriv, error=error)
+        ELSE
+           CALL xb88_lda_info(reference=reference,shortform=shortform,&
+                needs=needs, max_deriv=max_deriv, error=error)
+        END IF
+     CASE("LYP")
+        IF (lsd) THEN
+           CALL lyp_lsd_info(reference=reference,shortform=shortform,&
+                needs=needs, max_deriv=max_deriv, error=error)
+        ELSE
+           CALL lyp_lda_info(reference=reference,shortform=shortform,&
+                needs=needs, max_deriv=max_deriv, error=error)
+        END IF
+     CASE("PADE")
+        CALL pade(reference, shortform, lsd=lsd, needs=needs, error=error)
+     CASE("HCTH")
+        CALL section_vals_val_get(functional,"PARAMETER_SET",i_val=i_param,&
+             error=error)
+        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
+        CALL hcth_lda_info(i_param,reference,shortform,needs,max_deriv,error=error)
+     CASE("OPTX")
+        IF (lsd) THEN
+           CALL optx_lsd_info(reference,shortform,needs,max_deriv,error=error)
+        ELSE
+           CALL optx_lda_info(reference,shortform,needs,max_deriv,error=error)
+        ENDIF
+     CASE("CS1")
+        IF (lsd) THEN
+           CALL cs1_lsd_info(reference,shortform,needs,max_deriv,error=error)
+        ELSE
+           CALL cs1_lda_info(reference, shortform, needs=needs, max_deriv=max_deriv,&
+                error=error)
+        ENDIF
+     CASE("XGGA")
+        CALL section_vals_val_get(functional,"FUNCTIONAL",i_val=i_param,&
+             error=error)
+        CALL xgga_info(i_param,lsd,reference,shortform,needs,max_deriv,error=error)
+     CASE("KE_GGA")
+        CALL section_vals_val_get(functional,"FUNCTIONAL",i_val=i_param,&
+             error=error)
+        CALL ke_gga_info(i_param,lsd,reference,shortform,needs,max_deriv,error=error)
+     CASE("P86C")
+        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
+        CALL p86_lda_info(reference,shortform,needs,max_deriv,error=error)
+     CASE("PW92")
+        CALL section_vals_val_get(functional,"PARAMETRIZATION",i_val=i_param,&
+             error=error)
+        CALL perdew_wang_info(i_param,lsd,reference,shortform,needs,max_deriv,error=error)
+     CASE("PZ81")
+        CALL section_vals_val_get(functional,"PARAMETRIZATION",i_val=i_param,&
+             error=error)
+        CALL pz_info(i_param,lsd,reference,shortform,needs,max_deriv,error=error)
+     CASE("TFW")
+        IF (lsd) THEN
+           CALL tfw_lsd_info(reference,shortform,needs,max_deriv,error=error)
+        ELSE
+           CALL tfw_lda_info(reference,shortform,needs,max_deriv,error=error)
+        END IF
+     CASE("TF")
+        CALL thomas_fermi_info(lsd,reference,shortform,needs,max_deriv,error=error)
+     CASE("VWN")
+        CPPrecondition(.NOT.lsd,cp_failure_level,routineP,error,failure)
+        CALL vwn_lda_info(reference,shortform,needs,max_deriv,error=error)
+     CASE("XALPHA")
+        CALL section_vals_val_get(functional,"XA",r_val=r_param,&
+             error=error)
+        CALL xalpha_info(lsd,reference,shortform,needs,max_deriv,&
+             xa_parameter=r_param,error=error)
+     CASE("TPSS")
+        IF (lsd) THEN
+           CALL my_tpss_lsd_info(reference,shortform,needs,max_deriv,error=error)
+        ELSE
+           CALL my_tpss_lda_info(reference,shortform,needs,max_deriv,error=error)
+        END IF
+     CASE("PBE")
+        IF (lsd) THEN
+           CALL pbe_lsd_info(reference,shortform,needs,max_deriv,error=error)
+        ELSE
+           CALL pbe_lda_info(reference,shortform,needs,max_deriv,error=error)
+        END IF
+     CASE default
+        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+             message="unknown functional '"//TRIM(functional%section%name)//&
+             "' in "//&
+             CPSourceFileRef,&
+             error=error)
+     END SELECT
+  END IF
+END SUBROUTINE xc_functional_get_info_new
 !***************************************************************************
 
 !!****f* xc_derivatives/xc_functional_get_info [1.0] *
@@ -791,6 +936,184 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
   END IF
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE xc_functional_eval
+!***************************************************************************
+
+!!****f* xc_derivatives/xc_functional_eval [1.0] *
+!!
+!!   NAME
+!!     xc_functional_eval
+!!
+!!   FUNCTION
+!!     evaluate a functional (and its derivatives)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - functional: a string that describes which functional should be used
+!!     - lsd: if a local spin desnity is performed
+!!     - rho_set: a rho set where all the arguments needed by this functional
+!!       should be valid (which argument are needed can be found with
+!!       xc_functional_get_info)
+!!     - deriv_set: place where to store the functional derivatives (they are
+!!       added to the derivatives)
+!!     - deriv_order: degree of the derivative that should be evalated,
+!!       if positive all the derivatives up to the given degree are evaluated,
+!!       if negative only the given degree is requested (but to simplify 
+!!       the code all the derivatives might be calculated, you should ignore
+!!       them: when adding derivatives of various functionals they might contain
+!!       the derivative of just one functional)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     11.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE xc_functional_eval_new(functional, lsd, rho_set, deriv_set, &
+     deriv_order, error)
+
+    TYPE(section_vals_type), POINTER         :: functional
+    LOGICAL, INTENT(in)                      :: lsd
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    INTEGER, INTENT(IN)                      :: deriv_order
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_eval_new', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i_param
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: density_cut, gradient_cut, &
+                                                r_param
+
+  CALL timeset(routineN,"I","",handle)
+  failure=.FALSE.
+
+  IF (.NOT. failure) THEN
+     CALL xc_rho_set_get(rho_set,rho_cutoff=density_cut,&
+          drho_cutoff=gradient_cut,error=error)
+
+     SELECT CASE(functional%section%name)
+     CASE("BECKE88")
+        IF (lsd) THEN
+           CALL xb88_lsd_eval(rho_set,deriv_set,deriv_order,error=error)
+        ELSE
+           CALL xb88_lda_eval(rho_set,deriv_set,deriv_order,error=error)
+        END IF
+     CASE("LYP")
+        IF (lsd) THEN
+           CALL lyp_lsd_eval(rho_set,deriv_set,deriv_order,error=error)
+        ELSE
+           CALL lyp_lda_eval(rho_set,deriv_set,deriv_order,error=error)
+        END IF
+     CASE("PADE")
+        CALL pade(density_cut)
+        IF (lsd) THEN
+           CALL pade_lsd_pw_eval(deriv_set, rho_set, deriv_order, error=error)
+        ELSE
+           CALL pade_lda_pw_eval(deriv_set, rho_set, deriv_order, error=error)
+        END IF
+     CASE("HCTH")
+        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
+        CALL section_vals_val_get(functional,"PARAMETER_SET",i_val=i_param,&
+             error=error)
+        CALL hcth_lda_eval(i_param,rho_set,deriv_set,deriv_order,error=error)
+     CASE("OPTX")
+        IF (lsd) THEN
+           CALL optx_lsd_eval(rho_set,deriv_set,deriv_order,error=error)
+        ELSE
+           CALL optx_lda_eval(rho_set,deriv_set,deriv_order,error=error)
+        ENDIF
+     CASE("CS1")
+        IF (lsd) THEN
+           CALL cs1_lsd_eval(rho_set,deriv_set,deriv_order,error=error)
+        ELSE
+           CALL cs1_lda_eval(rho_set,deriv_set,deriv_order,error=error)
+        ENDIF
+     CASE("XGGA")
+        CALL section_vals_val_get(functional,"FUNCTIONAL",i_val=i_param,&
+             error=error)
+        CALL xgga_eval(i_param,lsd,rho_set,deriv_set,deriv_order,error=error)
+     CASE("KE_GGA")
+        CALL section_vals_val_get(functional,"FUNCTIONAL",i_val=i_param,&
+             error=error)
+        IF (lsd) THEN
+           CALL ke_gga_lsd_eval(i_param,rho_set,deriv_set,deriv_order,error=error)
+        ELSE
+           CALL ke_gga_lda_eval(i_param,rho_set,deriv_set,deriv_order,error=error)
+        END IF
+     CASE("P86C")
+        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
+        CALL p86_lda_eval(rho_set,deriv_set,deriv_order,error=error)
+     CASE("PW92")
+        CALL section_vals_val_get(functional,"PARAMETRIZATION",i_val=i_param,&
+             error=error)
+        IF (lsd) THEN
+           CALL perdew_wang_lsd_eval(i_param,rho_set,deriv_set,deriv_order,error=error)
+        ELSE
+           CALL perdew_wang_lda_eval(i_param,rho_set,deriv_set,deriv_order,error=error)
+        END IF
+     CASE("PZ81")
+        CALL section_vals_val_get(functional,"PARAMETRIZATION",i_val=i_param,&
+             error=error)
+        IF (lsd) THEN
+           CALL pz_lsd_eval(i_param,rho_set,deriv_set,deriv_order,error=error)
+        ELSE
+           CALL pz_lda_eval(i_param,rho_set,deriv_set,deriv_order,error=error)
+        END IF
+     CASE("TFW")
+        IF (lsd) THEN
+           CALL tfw_lsd_eval(rho_set,deriv_set,deriv_order,error=error)
+        ELSE
+           CALL tfw_lda_eval(rho_set,deriv_set,deriv_order,error=error)
+        END IF
+     CASE ("TF")
+        IF (lsd) THEN
+           CALL thomas_fermi_lsd_eval(rho_set,deriv_set,deriv_order,error=error)
+        ELSE
+           CALL thomas_fermi_lda_eval(rho_set,deriv_set,deriv_order,error=error)
+        END IF        
+     CASE("VWN")
+        CPPrecondition(.NOT.lsd,cp_failure_level,routineP,error,failure)
+        CALL vwn_lda_eval(rho_set,deriv_set,deriv_order,error=error)
+     CASE("XALPHA")
+        CALL section_vals_val_get(functional,"XA",r_val=r_param,&
+             error=error)
+        IF (lsd) THEN
+           CALL xalpha_lsd_eval(rho_set,deriv_set,deriv_order,&
+                xa_parameter=r_param,error=error)
+        ELSE
+           CALL xalpha_lda_eval(rho_set,deriv_set,deriv_order,&
+                xa_parameter=r_param,error=error)
+        END IF
+     CASE("TPSS")
+        IF (lsd) THEN
+           CALL my_tpss_lsd_eval(rho_set,deriv_set,deriv_order,error=error)
+        ELSE
+           CALL my_tpss_lda_eval(rho_set,deriv_set,deriv_order,error=error)
+        END IF
+     CASE("PBE")
+        IF (lsd) THEN
+           CALL pbe_lsd_eval(rho_set,deriv_set,deriv_order,error=error)
+        ELSE
+           CALL pbe_lda_eval(rho_set,deriv_set,deriv_order,error=error)
+        END IF
+     CASE default
+        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+             message="unknown functional '"//TRIM(functional%section%name)//&
+             "' in "//&
+             CPSourceFileRef,&
+             error=error)
+     END SELECT
+  END IF
+  CALL timestop(0.0_dp,handle)
+END SUBROUTINE xc_functional_eval_new
 !***************************************************************************
 
 END MODULE xc_derivatives

@@ -41,8 +41,8 @@ MODULE cp_parser
                                              cp_warning_level,&
                                              open_file
   USE cp_para_env,                     ONLY: cp_para_env_create,&
-                                             cp_para_env_retain,&
-                                             cp_para_env_release
+                                             cp_para_env_release,&
+                                             cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
@@ -262,9 +262,11 @@ END SUBROUTINE parser_retain
     LOGICAL, INTENT(out), OPTIONAL           :: at_end
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    LOGICAL :: my_at_end
-    CHARACTER(len=*), PARAMETER :: routineN="parser_get_next_line",&
-         routineP=moduleN//':'//routineN
+
+    CHARACTER(len=*), PARAMETER :: routineN = "parser_get_next_line", &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: my_at_end
 
 !   ---------------------------------------------------------------------------
 
@@ -378,31 +380,11 @@ SUBROUTINE parser_next_token(parser,string_length,error)
         CALL cp_assert(parser%icol/=-1,cp_failure_level,cp_assertion_failed,&
              routineP,"Unexpectetly reached EOF "//&
              TRIM(parser_location(parser,error=error)),error,failure)
+        length=MIN(LEN_TRIM(parser%input_line)-parser%icol1,length)
         IF (.NOT.failure) THEN
            parser%icol1 = parser%icol + 1
            parser%icol2 = parser%icol + length
            parser%icol = parser%icol2
-
-           CALL cp_assert(parser%icol < LEN(parser%input_line),&
-                cp_failure_level,cp_assertion_failed, routineP,&
-                "Maximum input line length exceeded when reading "//&
-                "an input string using a fixed string length"//&
-                TRIM(parser_location(parser,error=error)),&
-                error,failure)
-           IF (.NOT.failure) THEN
-
-              !     *** Ignore blanks ***
-
-              DO i=parser%icol1,parser%icol2
-                 IF (parser%input_line(i:i) /= blank_character) EXIT
-              END DO
-              parser%icol1 = MIN(i,parser%icol2)
-
-              DO i=parser%icol2,parser%icol1,-1
-                 IF (parser%input_line(i:i) /= blank_character) EXIT
-              END DO
-              parser%icol2 = MAX(i,parser%icol1)
-           END IF
         END IF
      ELSE
 

@@ -22,8 +22,13 @@ MODULE cp_control_utils
                                              oe_saop,&
                                              oe_sic,&
                                              qs_control_type,&
+                                             sic_ad,&
+                                             sic_mauri_spz,&
+                                             sic_mauri_us,&
+                                             sic_none,&
                                              tddfpt_control_type,&
                                              tddfpt_davidson,&
+                                             tddfpt_excitations,&
                                              tddfpt_lanczos,&
                                              tddfpt_singlet,&
                                              tddfpt_triplet,&
@@ -44,24 +49,20 @@ MODULE cp_control_utils
                                              xc_rho_no_smooth,&
                                              xc_rho_spline2_smooth,&
                                              xc_rho_spline3_smooth,&
-                                             xc_test_lsd_f_routine, &
-                                             sic_none,&
-                                             sic_mauri_us,&
-                                             sic_mauri_spz,&
-                                             sic_ad
+                                             xc_test_lsd_f_routine
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
+                                             cp_assertion_failed,&
                                              cp_error_check,&
                                              cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
                                              cp_error_init,&
                                              cp_error_message,&
                                              cp_error_reset,&
-                                             cp_error_type,&
-                                             cp_assertion_failed
-  USE cp_keywords,                     ONLY: keyword_type, &
-                                             list_keywords, &
-                                             find_keyword
+                                             cp_error_type
+  USE cp_keywords,                     ONLY: find_keyword,&
+                                             keyword_type,&
+                                             list_keywords
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_logger_type,&
@@ -69,6 +70,17 @@ MODULE cp_control_utils
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
+  USE input_cp2k,                      ONLY: electronic_spectra_run,&
+                                             energy_force_run,&
+                                             energy_run,&
+                                             geo_opt_run,&
+                                             mc_run,&
+                                             md_run,&
+                                             parsed_cp2k_input
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_get_subs_vals2,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE qs_parser,                       ONLY: finish_parser,&
@@ -296,6 +308,161 @@ CONTAINS
 
 ! *****************************************************************************
 
+  SUBROUTINE read_dft_control_new(dft_control,globenv, error)
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE read_dft_control (MODULE dft_types)"
+
+    INTEGER                                  :: excitations, i, run_id
+    LOGICAL                                  :: failure, l_param, xc_fun_set
+    TYPE(cp_error_type)                      :: sub_error
+    TYPE(section_vals_type), POINTER         :: dft_section, tmp_section, &
+                                                xc_fun_section, &
+                                                xc_grid_section, xc_section
+    TYPE(xc_rho_cflags_type)                 :: needs
+
+!   ---------------------------------------------------------------------------
+
+    failure=.FALSE.
+    CALL dft_control_create(dft_control, error=error)
+    dft_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+    dft_section => section_vals_get_subs_vals(dft_section,"DFT",error=error)
+    xc_section => section_vals_get_subs_vals(dft_section,"XC",error=error)
+    xc_grid_section => section_vals_get_subs_vals(xc_section,"XC_GRID",error=error)
+    xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
+         error=error)
+    
+!   *** Load the default values ***
+
+    
+    CALL section_vals_val_get(dft_section,"LSD",l_val=l_param,error=error)
+    IF (l_param) THEN
+       dft_control % nspins = 2
+    ELSE
+       dft_control % nspins = 1
+    END IF
+    CALL section_vals_val_get(dft_section,"RESTRICTED",l_val=l_param,error=error)
+    dft_control % restricted = l_param
+    
+    dft_control % do_tddfpt_calculation = .FALSE.
+    CALL section_vals_val_get(dft_section,"CHARGE",i_val=dft_control % charge,&
+         error=error)
+    CALL section_vals_val_get(dft_section,"MULTIPLICITY",&
+         i_val=dft_control % multiplicity,error=error)
+
+    dft_control % sic_method_id = sic_none
+    dft_control % sic_scaling_a = 1.0_dp
+    dft_control % sic_scaling_b = 1.0_dp
+
+    !FM! should be removed
+    CALL section_vals_val_get(xc_grid_section,"xc_smooth_rho",&
+         i_val=dft_control % xc_rho_smooth_id,error=error)
+    CALL section_vals_val_get(xc_grid_section,"xc_deriv",&
+         i_val=dft_control % xc_deriv_method_id, error=error)
+    dft_control % derive_function_rho = .FALSE.          !FM to rm
+    dft_control % integration_grid % pw_default = .TRUE. !FM to rm
+    dft_control % integration_grid % pw_cutoff  = -1._dp !FM to rm
+    dft_control % integration_grid % pw_mesh    = -1_dp  !FM to rm
+    dft_control % use_kinetic_energy_density = .FALSE.   !FM to rm
+    DO i=1,SIZE(dft_control % xc_control % functionals)
+       dft_control % xc_control % functionals ( i ) = "" !FM to rm
+    END DO
+    DO i=1,SIZE(dft_control % xc_control % functionals)
+       tmp_section => section_vals_get_subs_vals2(xc_fun_section,i,error=error)
+       IF (.NOT.ASSOCIATED(tmp_section)) EXIT
+       dft_control % xc_control % functionals(i)=tmp_section%section%name
+    END DO
+    CALL section_vals_val_get(xc_section,"density_cutoff",&!FM to rm
+         r_val=dft_control % xc_control % density_cut,error=error)
+    CALL section_vals_val_get(xc_section,"gradient_cutoff",&!FM to rm
+         r_val=dft_control % xc_control % gradient_cut,error=error)
+    dft_control % xc_control % density_smooth_cut_range = 0.0_dp!FM to rm
+    CALL section_vals_val_get(xc_section,"tau_cutoff",&!FM to rm
+         r_val=dft_control % xc_control % tau_cut,error=error)
+    dft_control % xc_control % gradient_functionals = .FALSE.!FM to rm
+    dft_control % xc_control % crossterms = .FALSE.!FM to rm
+    dft_control % xc_control % functional_routine = xc_new_f_routine !FM to rm
+    
+    tmp_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",&
+         error=error)
+    CALL section_vals_val_get(tmp_section,"RUN_TYPE",i_val=run_id,error=error)
+    SELECT CASE (run_id)!FM to rm, ugly!!
+    CASE (energy_run,mc_run,energy_force_run)
+      dft_control%forces = .FALSE.
+    CASE (md_run,geo_opt_run,electronic_spectra_run)
+      dft_control%forces = .TRUE.
+    CASE DEFAULT
+      CALL stop_program(routine,"unknown run type "//TRIM(globenv%run_type))
+    END SELECT
+
+!   *** Read the input section ***
+    tmp_section => section_vals_get_subs_vals(dft_section,"sic",&
+         error=error)
+    CALL section_vals_val_get(tmp_section,"SIC_METHOD",&
+         i_val=dft_control%sic_method_id,error=error)
+    CALL section_vals_val_get(tmp_section,"SIC_SCALING_A",&
+         r_val=dft_control%sic_scaling_a,error=error)
+    CALL section_vals_val_get(tmp_section,"SIC_SCALING_B",&
+         r_val=dft_control%sic_scaling_b,error=error)
+    
+    CALL section_vals_val_get(dft_section,"EXCITATIONS",&
+         i_val=excitations,error=error)
+    dft_control % do_tddfpt_calculation = (excitations==tddfpt_excitations)
+
+    xc_fun_set=.FALSE.
+    DO i=1,SIZE( dft_control % xc_control % functionals )
+       IF (dft_control % xc_control % functionals(i)=="") THEN
+          dft_control % xc_control % functionals(i)="NONE"
+       ELSE
+          xc_fun_set=.TRUE.
+       END IF
+    END DO
+    IF (.NOT.xc_fun_set) THEN
+       dft_control % xc_control % functionals ( 1 ) = "XALPHA"
+       dft_control % xc_control % functionals ( 2 ) = "PZ81_DMC"
+    END IF    
+    
+    IF (.NOT.failure) THEN
+       ! assess the needs of the requested functionals
+       CALL xc_rho_cflags_setall(needs,.FALSE.,error=error)
+       CALL cp_error_init(sub_error,stop_level=cp_fatal_level, &
+            print_level=cp_fatal_level,template_error=error)
+       DO i=1,SIZE(dft_control % xc_control % functionals)
+          IF ( dft_control % xc_control % functionals(i) /= "NONE") THEN
+             CALL xc_functional_get_info(&
+                  functional=dft_control % xc_control % functionals(i),&
+                  lsd=(dft_control % nspins /= 1),&
+                  needs=needs, error=sub_error)
+             CALL cp_error_check(sub_error,failure)
+             
+             IF (failure) THEN
+                failure=.FALSE.
+                CALL cp_error_reset(sub_error)
+             END IF
+          END IF
+       END DO
+       CALL cp_error_dealloc_ref(sub_error)
+       
+       ! sets the flag that the kinetic energy needs to be calculated
+       ! if some functional needs it
+       dft_control % use_kinetic_energy_density=&
+            dft_control % use_kinetic_energy_density .OR.&
+            needs%tau .OR. needs%tau_spin
+       ! fills in the old structure (I would like to remove it)
+       dft_control % xc_control % gradient_functionals=&
+            dft_control % xc_control % gradient_functionals.OR.&
+            needs%norm_drho .OR. needs%norm_drho_spin .OR.&
+            needs%drho .OR. needs%drho_spin
+       ! presence of crossterms cannot be determined before evaluating
+       ! the functional
+    END IF
+
+  END SUBROUTINE read_dft_control_new
+
   SUBROUTINE read_dft_control(dft_control,globenv, error)
 
 !   Purpose: Read the DFT control parameters.
@@ -325,8 +492,7 @@ CONTAINS
 !!<----------------------------------------------------------------------------
 
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -342,6 +508,11 @@ CONTAINS
     TYPE(xc_rho_cflags_type)                 :: needs
 
 !   ---------------------------------------------------------------------------
+
+    IF (parsed_cp2k_input(globenv%input_file,error=error)) THEN
+       CALL read_dft_control_new(dft_control,globenv)
+       RETURN
+    END IF
 
     failure=.FALSE.
     IF (.NOT.ASSOCIATED(dft_control)) THEN
@@ -657,8 +828,8 @@ CONTAINS
 
     CHARACTER(LEN=3)                         :: test_result
     CHARACTER(LEN=60)                        :: keyword, string, string2
-    INTEGER                                  :: igrid_level, istat, &
-                                                ivalue, ngrid_level
+    INTEGER                                  :: igrid_level, istat, ivalue, &
+                                                ngrid_level
     LOGICAL                                  :: cutoff_set, multgrid_set, &
                                                 ngrid_set, progression_set, &
                                                 section_found
@@ -1321,12 +1492,13 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "write_dft_control"
+
     CHARACTER(len=160)                       :: reference
     CHARACTER(len=20)                        :: tmpStr
     INTEGER                                  :: i, output_unit
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: sub_error
-    CHARACTER(LEN=*), PARAMETER              :: routineN="write_dft_control"
 
 !   ---------------------------------------------------------------------------
 
@@ -1741,13 +1913,13 @@ END FUNCTION xc_get_routine_label
       INTENT(INOUT)                          :: functional
     LOGICAL, DIMENSION(:), INTENT(INOUT)     :: gradient_functionals, &
                                                 crossterms
-
-    LOGICAL, PARAMETER :: GRADIENT_FUNCTIONAL = .TRUE., CROSS_TERM = .TRUE.
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = "xc_get_functional", &
       routineP = moduleN//":"//routineN
+    LOGICAL, PARAMETER                       :: CROSS_TERM = .TRUE., &
+                                                GRADIENT_FUNCTIONAL = .TRUE.
 
     INTEGER                                  :: i
     LOGICAL                                  :: failure, moved

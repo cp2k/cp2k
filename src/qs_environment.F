@@ -49,9 +49,6 @@ MODULE qs_environment
   USE cp_error_handling,               ONLY: cp_error_type
   USE cp_fm_struct,                    ONLY: optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size
-  USE cp_fm_types,                     ONLY: cp_fm_p_type, &
-                                             cp_fm_type, &
-                                             cp_fm_create
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
                                              cp_subsys_release,&
                                              cp_subsys_set,&
@@ -62,6 +59,8 @@ MODULE qs_environment
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE hartree_local_methods,           ONLY: init_coulomb_local
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE input_types,                     ONLY: setup_parameters_type
   USE kinds,                           ONLY: dp,&
                                              int_size
@@ -95,11 +94,10 @@ MODULE qs_environment
                                              qs_force_type
   USE qs_interactions,                 ONLY: init_interaction_radii
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
-                                             mo_set_p_type,&
-                                             get_mo_set
-  USE qs_rho0_types,                   ONLY: rho0_mpole_type
+                                             mo_set_p_type
   USE qs_rho0_ggrid,                   ONLY: rho0_s_grid_create
   USE qs_rho0_methods,                 ONLY: init_rho0
+  USE qs_rho0_types,                   ONLY: rho0_mpole_type
   USE qs_rho_atom_methods,             ONLY: init_rho_atom
   USE qs_wf_history_methods,           ONLY: wfi_create
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
@@ -119,7 +117,7 @@ MODULE qs_environment
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals
+
   IMPLICIT NONE
 
   PRIVATE
@@ -149,15 +147,15 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-      INTENT(INOUT)                          :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     REAL(dp), DIMENSION(1:3, 1:3), &
       INTENT(IN), OPTIONAL                   :: new_h_matrix
 
-    CHARACTER(len=*), PARAMETER :: routineN="qs_init",&
-         routineP=module_name//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = "qs_init", &
+      routineP = module_name//":"//routineN
+
     LOGICAL                                  :: use_ref_cell
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -173,7 +171,7 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER :: force_env_section, dft_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
 
     NULLIFY(subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref)
@@ -243,8 +241,7 @@ CONTAINS
     TYPE(cp_subsystem_type), POINTER         :: subsystem
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     LOGICAL, INTENT(in)                      :: use_ref_cell
-    TYPE(global_environment_type), &
-      INTENT(INOUT)                          :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(in)                      :: qmmm
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -255,7 +252,7 @@ CONTAINS
       maxlppnl, multiplicity, n_ao, nelectron, nkind, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
-    LOGICAL                                  :: all_potential_present,ionode
+    LOGICAL                                  :: all_potential_present, ionode
     REAL(dp)                                 :: maxocc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -275,13 +272,11 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(qs_wf_history_type), POINTER        :: wf_history
+    TYPE(rho0_mpole_type), POINTER           :: nddo_mpole, rho0_mpole
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(setup_parameters_type)              :: setup
-    TYPE(cp_fm_p_type), POINTER, DIMENSION(:):: mo_derivs
-    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
-    TYPE(rho0_mpole_type), POINTER           :: nddo_mpole
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
+    TYPE(setup_parameters_type)              :: setup
 
 !   ---------------------------------------------------------------------------
 
@@ -609,11 +604,11 @@ CONTAINS
     ! at as few places as possible, just duplicating the beta orbitals
     IF (dft_control%restricted) THEN
        ! it is really not yet tested till the end ! Joost
-       IF (globenv%ionode) write(globenv%scr,*) ""
-       IF (globenv%ionode) write(globenv%scr,*) " **************************************"
-       IF (globenv%ionode) write(globenv%scr,*) " restricted calculation cutting corners"
-       IF (globenv%ionode) write(globenv%scr,*) " experimental feature, check code      "
-       IF (globenv%ionode) write(globenv%scr,*) " **************************************"
+       IF (globenv%ionode) WRITE(globenv%scr,*) ""
+       IF (globenv%ionode) WRITE(globenv%scr,*) " **************************************"
+       IF (globenv%ionode) WRITE(globenv%scr,*) " restricted calculation cutting corners"
+       IF (globenv%ionode) WRITE(globenv%scr,*) " experimental feature, check code      "
+       IF (globenv%ionode) WRITE(globenv%scr,*) " **************************************"
     ENDIF
 
     DO ispin=1,dft_control%nspins

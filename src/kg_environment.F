@@ -19,12 +19,7 @@
 !******************************************************************************
 
 MODULE kg_environment
-  USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
-                                             atomic_kind_list_release,&
-                                             atomic_kind_list_type
-  USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
-                                             atomic_kind_p_type,&
-                                             atomic_kind_type,&
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              check_atomic_kind_set,&
                                              get_atomic_kind_set,&
                                              init_atomic_kind_set,&
@@ -40,8 +35,6 @@ MODULE kg_environment
                                              write_qs_control
   USE cp_error_handling,               ONLY: cp_error_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_para_env,                     ONLY: cp_para_env_create,&
-                                             cp_para_env_retain
   USE cp_subsystem_types,              ONLY: cp_subsystem_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
@@ -53,69 +46,45 @@ MODULE kg_environment
   USE global_types,                    ONLY: global_environment_type
   USE kg_energy_types,                 ONLY: allocate_kg_energy,&
                                              kg_energy_type
+  USE kg_environment_methods,          ONLY: kg_env_setup
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type,&
                                              set_kg_env
-  USE kg_environment_methods,          ONLY: kg_env_setup
   USE kg_force_types,                  ONLY: allocate_kg_force,&
                                              kg_force_type
-  USE kg_rho_methods,                  ONLY: kg_rho_create
-  USE kg_rho_types,                    ONLY: kg_rho_release,&
-                                             kg_rho_type
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE machine,                         ONLY: m_flush
-  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
-                                             mol_kind_new_list_release,&
-                                             mol_kind_new_list_type
-  USE mol_new_list_types,              ONLY: mol_new_list_create,&
-                                             mol_new_list_release,&
-                                             mol_new_list_type
-  USE molecule_kind_types,             ONLY: allocate_molecule_kind_set,&
-                                             atom_type,&
-                                             get_molecule_kind,&
-                                             molecule_kind_type,&
-                                             set_molecule_kind,&
+  USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                              write_molecule_kind_set
-  USE molecule_types_new,              ONLY: allocate_molecule_set,&
-                                             molecule_type,&
-                                             set_molecule,&
-                                             set_molecule_set
+  USE molecule_types_new,              ONLY: molecule_type
   USE orbital_pointers,                ONLY: init_orbital_pointers
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
-  USE particle_list_types,             ONLY: particle_list_create,&
-                                             particle_list_release,&
-                                             particle_list_type
-  USE particle_types,                  ONLY: allocate_particle_set,&
-                                             particle_type,&
+  USE particle_types,                  ONLY: particle_type,&
                                              write_particle_distances,&
                                              write_qs_particle_coordinates,&
                                              write_structure_data
   USE qs_charges_types,                ONLY: qs_charges_create,&
                                              qs_charges_release,&
                                              qs_charges_type
-  USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
-  USE qs_environment_types,            ONLY: qs_environment_p_type,&
-                                             qs_environment_type,&
-                                             qs_env_create, &
-                                             qs_env_release, &
-                                             get_qs_env,&
-                                             set_qs_env
-  USE qs_interactions,                 ONLY: init_interaction_radii
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              qs_energy_type
+  USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
+  USE qs_environment_types,            ONLY: qs_env_create,&
+                                             qs_env_release,&
+                                             qs_environment_type,&
+                                             set_qs_env
   USE qs_force_types,                  ONLY: allocate_qs_force,&
                                              qs_force_type
+  USE qs_interactions,                 ONLY: init_interaction_radii
   USE qs_wf_history_methods,           ONLY: wfi_create
-  USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
-                                             wfi_release
+  USE qs_wf_history_types,             ONLY: qs_wf_history_type
   USE scf_control_types,               ONLY: scf_c_create,&
                                              scf_c_read_parameters,&
                                              scf_c_release,&
                                              scf_c_write_parameters,&
                                              scf_control_type
   USE simulation_cell,                 ONLY: cell_release,&
-                                             cell_retain,&
                                              cell_type,&
                                              read_cell,&
                                              write_cell
@@ -155,8 +124,7 @@ CONTAINS
   SUBROUTINE kg_init (kg_env,globenv,error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), &
-      INTENT(INOUT)                          :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -166,8 +134,7 @@ CONTAINS
                                                 maxlppl, maxlppnl, nkind, &
                                                 output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
-    LOGICAL                                  :: ionode
-    LOGICAL                                  :: use_ref_cell
+    LOGICAL                                  :: ionode, use_ref_cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell, cell_ref
@@ -439,24 +406,22 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_subsys_setup', &
       routineP = moduleN//':'//routineN
 
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dft_control_type), POINTER          :: dft_control
+    INTEGER                                  :: istat, nkind
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
+    LOGICAL                                  :: failure, use_ref_cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell, cell_ref
-    LOGICAL                                  :: use_ref_cell
-    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_type), POINTER         :: subsys
-    TYPE(qs_wf_history_type), POINTER        :: wf_history
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_energy_type), POINTER            :: qs_energy
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: qs_force
-
-    LOGICAL                                  :: failure
-    INTEGER                                  :: nkind, istat
-    INTEGER, DIMENSION(:), ALLOCATABLE       :: natom_of_kind
+    TYPE(qs_wf_history_type), POINTER        :: wf_history
+    TYPE(scf_control_type), POINTER          :: scf_control
 
 !   ---------------------------------------------------------------------------
 
