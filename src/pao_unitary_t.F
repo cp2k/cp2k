@@ -151,16 +151,6 @@ CONTAINS
 !!   NAME
 !!     pao_calc_u_du_init
 !!
-!!   SYNOPSIS
-!!     Subroutine pao_calc_u_du_init(c_env, local_angles, min_bas, excl_bas,&
-!!         u, error)
-!!       Type(pao_calc_u_du_type), Intent (OUT):: c_env
-!!       Type(pao_local_angles_type), Intent (INOUT), Target:: local_angles
-!!       Integer, Optional, Intent (IN):: min_bas, excl_bas
-!!       Real(KIND = dp), Dimension(:,:), Optional, Intent (IN):: u
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine pao_calc_u_du_init
-!!
 !!   FUNCTION
 !!     calculates the orthonormal matrix u and its derivative with respect 
 !!     to the angles.
@@ -246,7 +236,9 @@ CONTAINS
              CPPrecondition(excl_bas==1,cp_failure_level,routineP,error,failure)
           END IF
           c_env%L=0
-          FORALL (i=1:n_excl_bas) c_env%L(i,i)=1
+          DO i=1,n_excl_bas
+             c_env%L(i,i)=1
+          END DO
           c_env%R=u
           CALL cp_left_compose_p_rot(matrix=c_env%R,&
                angle=-cp_get_angle(local_angles,min_bas=n_min_bas,&
@@ -257,10 +249,10 @@ CONTAINS
        ELSE
           c_env%L=0
           c_env%R=0
-          FORALL (i=1:n_full_bas)
+          DO i=1,n_full_bas
              c_env%L(i,i)=1
              c_env%R(i,i)=1
-          END FORALL
+          END DO
 ! def R
           DO i_excl_bas=n_excl_bas,c_env%excl_bas+1,-1
              DO i_min_bas=n_min_bas,1,-1
@@ -315,13 +307,6 @@ CONTAINS
 !!
 !!   NAME
 !!     pao_calc_u_du_next
-!!
-!!   SYNOPSIS
-!!     Function pao_calc_u_du_next(c_env, error) Result(res)
-!!       Logical:: res
-!!       Type(pao_calc_u_du_type), Intent (INOUT):: c_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function pao_calc_u_du_next
 !!
 !!   FUNCTION
 !!     calculates the next du, returns .true. if there is a next du
@@ -438,17 +423,6 @@ CONTAINS
 !!
 !!   NAME
 !!     pao_calc_u_du_get
-!!
-!!   SYNOPSIS
-!!     Subroutine pao_calc_u_du_get(c_env, u, du, min_bas, excl_bas,&
-!!         local_angles, finished, error)
-!!       Type(pao_calc_u_du_type), Intent (INOUT):: c_env
-!!       Type(pao_local_angles_type), Optional, Pointer:: local_angles
-!!       Integer, Optional, Intent (OUT):: min_bas, excl_bas
-!!       Logical, Optional, Intent (OUT):: finished
-!!       Real(KIND = dp), Optional, Intent (OUT), Dimension(:,:):: u, du
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine pao_calc_u_du_get
 !!
 !!   FUNCTION
 !!     returns various attributes of the calculation
@@ -585,12 +559,6 @@ CONTAINS
 !!
 !!   NAME
 !!     pao_calc_u_du_dealloc_ref
-!!
-!!   SYNOPSIS
-!!     Subroutine pao_calc_u_du_dealloc_ref(c_env, error)
-!!       Type(pao_calc_u_du_type), Intent (INOUT):: c_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine pao_calc_u_du_dealloc_ref
 !!
 !!   FUNCTION
 !!     deallocates the memory allocated by calc_u_du
