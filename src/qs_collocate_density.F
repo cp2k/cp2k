@@ -1425,14 +1425,10 @@ CONTAINS
 !   several different rsgrids that all use the same function
 !   I guess we need a flush (of the grid) to guarantee that we are working 
 !   on an uptodate copy of the grid
-!$  CALL omp_set_lock(rsgrid%lock)
-!$OMP FLUSH(grid)                    
       CALL collocate_core(pzyx(1),polx(1,-cmax),poly(1,-cmax),&
               polz(1,-cmax),grid(1,1,1),alpha(1,1),lx_max,lxy_max,&
               lxyz_max,coef_max,cmax,ly_max(1),lz_max(1),&
               gridbounds(1,1),map(-cmax,1),sphere_bounds(1))
-!$OMP FLUSH(grid)
-!$  CALL omp_unset_lock(rsgrid%lock)
     END IF
 
   END SUBROUTINE collocate_pgf_product_rspace
