@@ -27,8 +27,7 @@ MODULE qs_scf_post
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE coefficient_types,               ONLY: coeff_allocate,&
-                                             coeff_copy,&
+  USE coefficient_types,               ONLY: coeff_copy,&
                                              coeff_reduce,&
                                              coeff_sumup,&
                                              coeff_transform_space,&

@@ -24,9 +24,7 @@
 
 MODULE xc
   USE coefficient_types,               ONLY: PLANEWAVES,&
-                                             coeff_allocate,&
                                              coeff_copy,&
-                                             coeff_deallocate,&
                                              coeff_sumup,&
                                              coeff_transform_space,&
                                              coeff_type,&

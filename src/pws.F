@@ -23,11 +23,8 @@
 !******************************************************************************
 
 MODULE pws
-  USE coefficient_types,               ONLY: PLANEWAVES,&
-                                             SQUARE,&
+  USE coefficient_types,               ONLY: SQUARE,&
                                              SQUAREROOT,&
-                                             coeff_allocate,&
-                                             coeff_deallocate,&
                                              coeff_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&

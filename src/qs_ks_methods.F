@@ -34,9 +34,7 @@ MODULE qs_ks_methods
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE coefficient_types,               ONLY: coeff_add,&
-                                             coeff_allocate,&
                                              coeff_copy,&
-                                             coeff_deallocate,&
                                              coeff_reduce,&
                                              coeff_sumup,&
                                              coeff_transform_space,&

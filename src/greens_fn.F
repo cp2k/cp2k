@@ -26,10 +26,6 @@ MODULE greens_fn
                                              bessj1,&
                                              bessk0,&
                                              bessk1
-  USE coefficient_types,               ONLY: PLANEWAVES,&
-                                             coeff_allocate,&
-                                             coeff_deallocate,&
-                                             coeff_type
   USE kinds,                           ONLY: dbl
   USE mathconstants,                   ONLY: fourpi,&
                                              pi,&

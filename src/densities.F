@@ -21,7 +21,7 @@
 
 MODULE densities
   
-  USE coefficient_types, ONLY : coeff_type, coeff_allocate, coeff_deallocate, &
+  USE coefficient_types, ONLY : coeff_type,  &
        coeff_zero, PLANEWAVES
   USE coefficients, ONLY : integral
   USE dft_types, ONLY : dft_control_type
