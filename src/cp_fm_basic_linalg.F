@@ -1044,8 +1044,8 @@ CONTAINS
     b => matrix_b%local_data
     c => matrix_c%local_data
 
-    nrow_local = matrix_a%matrix_struct%nrow_local(myprow)
-    ncol_local = matrix_a%matrix_struct%ncol_local(mypcol)
+    nrow_local = matrix_a%matrix_struct%nrow_locals(myprow)
+    ncol_local = matrix_a%matrix_struct%ncol_locals(mypcol)
 
     DO icol_local=1,ncol_local
        DO irow_local=1,nrow_local
@@ -1120,8 +1120,8 @@ CONTAINS
     a => matrix_a%local_data
     b => matrix_b%local_data
 
-    nrow_local = matrix_a%matrix_struct%nrow_local(myprow)
-    ncol_local = matrix_b%matrix_struct%ncol_local(mypcol)
+    nrow_local = matrix_a%matrix_struct%nrow_locals(myprow)
+    ncol_local = matrix_b%matrix_struct%ncol_locals(mypcol)
 
     trace = 0.0_wp
 
