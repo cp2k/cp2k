@@ -208,7 +208,8 @@ CONTAINS
      END DO
      ! allocate the required 3d arrays where to store rho and drho
      CALL xc_rho_set_atom_update(rho_set,needs,nspins,na)
-
+     
+     cross_term = .FALSE.
      IF(lsd) THEN
        cross_term = needs%norm_drho .OR. needs%drhoa_drhob
      END IF
