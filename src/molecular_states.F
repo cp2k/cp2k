@@ -127,19 +127,15 @@ SUBROUTINE construct_molecular_states(molecule, mo_localized, &
   ENDIF
 
 #if defined ( __parallel )
-  !WRITE(*,*) "Enter parallel section"
 
   para_env => qs_env % para_env
 
   nproc = para_env%num_pe
 
-  !WRITE(*,*) "nproc = ",nproc
-
   my_nmol = SIZE(molecule)
   nmol = my_nmol
 
   CALL mp_sum(nmol,para_env%group)
-  !WRITE(*,*) "nmol = ",nmol
 
   ALLOCATE(nstates_array(nmol))    !hold the number of states each imol has
   ALLOCATE(nmol_array(nproc))      !hold the number of imol in each procs
@@ -160,19 +156,6 @@ SUBROUTINE construct_molecular_states(molecule, mo_localized, &
   !Set up nmol_array on all procs
   CALL mp_allgather(my_nmol,nmol_array,para_env%group)
 
-  !WRITE(*,*) "nmol_array = ",nmol_array
-
-  !WRITE(*,*) "*****1"
-
-  !states_index(1,1) = 1
-  !states_index(1,2) = 3
-  !states_index(1,3) = 5
-  !states_index(1,4) = 7
-  !states_index(2,1) = 2
-  !states_index(2,2) = 4
-  !states_index(2,3) = 6
-  !states_index(2,4) = 8
-
   ALLOCATE(tmp_index(nstates_max))
   counter = 0
   DO iproc=0,nproc-1
@@ -189,10 +172,6 @@ SUBROUTINE construct_molecular_states(molecule, mo_localized, &
   END DO
   DEALLOCATE(tmp_index)
 
-  !DO imol=1,nmol
-  !  WRITE(*,*) "states_index = ",imol,states_index(imol,:)
-  !END DO
-
   DO imol=1,nmol
     !Count number of states for each molecule using the states_index(:,:) info
     counter = 0
@@ -202,12 +181,8 @@ SUBROUTINE construct_molecular_states(molecule, mo_localized, &
     nstates_array(imol) = counter
   END DO
 
-  !WRITE(*,*) "nstates_array = ",nstates_array
-  !CALL stop_program ("molecular_states","checkpoint")
-
 #else
 
-  !WRITE(*,*) "Enter serial section"
   nmol = SIZE(molecule)
   ALLOCATE(nstates_array(nmol))    !hold the number of states each imol has
 
@@ -235,11 +210,9 @@ SUBROUTINE construct_molecular_states(molecule, mo_localized, &
      WRITE(unit_report,*) nmol,nstates_max, " number of molecules, maximum number of states "
   ENDIF
 
-  !WRITE(*,*) "Start DO loop"
   DO imol = 1, nmol
     ns = nstates_array( imol )
     ind => states_index ( imol, : )
-!    WRITE ( *, * ) '*****',imol,ns,ind
     ALLOCATE ( evals ( ns ), STAT = isos )
     IF ( isos /= 0 ) CALL stop_memory ( "construct_molecular_states", &
                                         "eval", ns )
@@ -344,7 +317,6 @@ SUBROUTINE construct_molecular_states(molecule, mo_localized, &
 
   END DO 
   IF (globenv%ionode) CLOSE(unit_report)
-  !WRITE ( *, * ) '****DONE'
 !------------------------------------------------------------------------------
 END SUBROUTINE construct_molecular_states
 

@@ -108,6 +108,7 @@ SUBROUTINE topology_generate_molecule(natom,atm_mol_name,nbond,bond_a,bond_b,&
   INTEGER :: inum,nnum         !# of molecules of each type
   INTEGER, POINTER :: checkme(:)
   INTEGER :: a,b,iii
+  INTEGER :: istat
   CHARACTER (LEN=20) :: str1,str2
 
 !------------------------------------------------------------------------------
@@ -116,7 +117,8 @@ SUBROUTINE topology_generate_molecule(natom,atm_mol_name,nbond,bond_a,bond_b,&
   nnum = 1
   inum = 0
 
-  ALLOCATE(checkme(natom))
+  ALLOCATE(checkme(natom),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_generate_molecule','checkme')
   !Zero the arrays
   CALL azero(checkme,natom)
   CALL azero(map_mol_typ,natom)
@@ -132,15 +134,11 @@ SUBROUTINE topology_generate_molecule(natom,atm_mol_name,nbond,bond_a,bond_b,&
       ntype=ntype+1
       map_mol_typ(iatom)=ntype
     END IF
-    !WRITE(*,*) "iatom(",iatom,") = ",map_mol_typ(iatom)
   END DO
-
-  WRITE(*,*) "NUMBER OF MOLECULAR TYPE TOTAL = ",ntype
 
   DO itype=1,ntype
     !search for first atom in the type list and last to cut down time
     CALL find_boundary(map_mol_typ,natom,first,last,itype)
-    WRITE(*,*) "itype",itype,"from",first,"to",last
 
     inum = 0
 
@@ -148,17 +146,14 @@ SUBROUTINE topology_generate_molecule(natom,atm_mol_name,nbond,bond_a,bond_b,&
       CALL azero(checkme,natom)
 
       IF(map_mol_num(iatom)==0) THEN
-        !WRITE(*,*) "iatom =",iatom
 
         inum=inum+1
-        !WRITE(*,*) "itype = ",itype,"inum now = ",inum
 
         checkme(iatom)=1
        
         DO WHILE (SUM(checkme)>0)
           DO iiatom=first,last
             IF((checkme(iiatom)==1)) THEN
-              !WRITE(*,*) "iiatom = ",iiatom
               checkme(iiatom)=0
               map_mol_num(iiatom)=inum
               !-------------------------------------------------------------
@@ -182,23 +177,14 @@ SUBROUTINE topology_generate_molecule(natom,atm_mol_name,nbond,bond_a,bond_b,&
               !-------------------------------------------------------------
             END IF
           END DO
-          !WRITE(*,*) "SUM = ",SUM(checkme)
         END DO
       END IF
 
     END DO
-    WRITE(*,*) "MOL_TYPE ",atm_mol_name(first),"CONTAINS",inum,"MOLECULES"
   END DO
 
-  !DO iatom=1,natom
-  !  WRITE(*,*) "iatom = ",iatom,map_mol_typ(iatom),map_mol_num(iatom)
-  !END DO
-
-  !DO iatom=1,natom
-  !  WRITE(*,*) "iatom",iatom,"",map_mol_typ(iatom),map_mol_num(iatom)
-  !END DO
-
-  DEALLOCATE(checkme)
+  DEALLOCATE(checkme,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_generate_molecule','checkme')
 
 END SUBROUTINE topology_generate_molecule
 
@@ -437,10 +423,6 @@ SUBROUTINE sort_bond(nbond,bond_a,bond_b)
     END IF
   END DO
 
-  !DO i=1,nbond
-  !  WRITE(*,*)"BOND SORT ",i,bond_a(i),bond_b(i)
-  !END DO
-
 END SUBROUTINE sort_bond
 
 !******************************************************************************
@@ -518,7 +500,6 @@ SUBROUTINE sort_bend(ntheta,theta_a,theta_b,theta_c)
     search1 = theta_a(i)
     search2 = theta_b(i)
     CALL find_boundary2(theta_a,theta_b,ntheta,first,last,search1,search2)
-    !WRITE(*,*) "find_boundary2 ",first,last
     IF(.NOT.(first==last)) THEN
       DO j=first,last
         DO k=first,last
@@ -534,10 +515,6 @@ SUBROUTINE sort_bend(ntheta,theta_a,theta_b,theta_c)
       i=i+1
     END IF
   END DO
-
-  !DO i=1,ntheta
-  !  WRITE(*,*)"BEND SORT ",i,theta_a(i),theta_b(i),theta_c(i)
-  !END DO
 
 END SUBROUTINE sort_bend
 
@@ -623,7 +600,6 @@ SUBROUTINE sort_dihe(nphi,phi_a,phi_b,phi_c,phi_d)
     search1 = phi_a(i)
     search2 = phi_b(i)
     CALL find_boundary2(phi_a,phi_b,nphi,first,last,search1,search2)
-    !WRITE(*,*) "find_boundary2 ",first,last
     IF(.NOT.(first==last)) THEN
       DO j=first,last
         DO k=first,last
@@ -647,7 +623,6 @@ SUBROUTINE sort_dihe(nphi,phi_a,phi_b,phi_c,phi_d)
     search3 = phi_c(i)
     CALL find_boundary3(phi_a,phi_b,phi_c,nphi,first,last,&
                         search1,search2,search3)
-    !WRITE(*,*) "find_boundary3 ",first,last
     IF(.NOT.(first==last)) THEN
       DO j=first,last
         DO k=first,last
@@ -663,11 +638,6 @@ SUBROUTINE sort_dihe(nphi,phi_a,phi_b,phi_c,phi_d)
       i=i+1
     END IF
   END DO
-
-
-! !DO i=1,ntheta
-! !  WRITE(*,*)"BEND SORT ",i,theta_a(i),theta_b(i),theta_c(i)
-! !END DO
 
 END SUBROUTINE sort_dihe
 !******************************************************************************
@@ -768,7 +738,6 @@ SUBROUTINE topology_generate_bond(cell,r,label_atmname,bond_a,bond_b,&
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
   natom = SIZE(r(1,:))
-  WRITE(*,*) "NATOM = ",natom
 
   !Get the temporary array that we need
   ALLOCATE(tbond_a(2*natom))
@@ -787,7 +756,6 @@ SUBROUTINE topology_generate_bond(cell,r,label_atmname,bond_a,bond_b,&
 !------------------------------------------------------------------------------
   WRITE(*,*) "GENERATING BONDS"
   !Set up the arrays that we need for this routine
-  !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   CALL azero(tbond_a,2*natom)
   CALL azero(tbond_b,2*natom)
 
@@ -795,19 +763,15 @@ SUBROUTINE topology_generate_bond(cell,r,label_atmname,bond_a,bond_b,&
     pos_x(iatom) = r(1,iatom)
     pos_y(iatom) = r(2,iatom)
     pos_z(iatom) = r(3,iatom)
-    !WRITE(*,*) pos_x(iatom),pos_y(iatom),pos_z(iatom)
     
     nelem = SIZE(ptable)
     DO ielem=1,nelem 
-      !WRITE(*,*) "ielem = ",ielem,ptable(ielem)%symbol,atm_symbol(iatom)
       IF(ptable(ielem)%symbol==atm_symbol(iatom)) THEN
-        !WRITE(*,*) "PTABLE = ",ielem
         covalent_radius(iatom) = ptable(ielem)%covalent_radius
         CALL convert_to_cp2k_units("ANGSTROM",length=covalent_radius(iatom))
         atm_mass(iatom) = ptable(ielem)% amass
         !Need to figure out the correct charge!!!
         atm_charge(iatom) = 0.0
-        !WRITE(*,*) covalent_radius(iatom)
         EXIT
       END IF
     END DO
@@ -838,11 +802,9 @@ SUBROUTINE topology_generate_bond(cell,r,label_atmname,bond_a,bond_b,&
       !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
       !Test the distance to the sum of the covalent radius
       IF(r2 < rbond2) THEN
-        !WRITE(*,*) iatom,jatom,SQRT(r2),SQRT(rbond2)
         nbond=nbond+1
         tbond_a(nbond)=iatom
         tbond_b(nbond)=jatom
-        !WRITE(*,*) "NBOND = ",nbond,iatom,jatom
       END IF
     END DO
   END DO
@@ -875,7 +837,6 @@ SUBROUTINE topology_generate_bond(cell,r,label_atmname,bond_a,bond_b,&
   DO WHILE (i<nbond)
     search = bond_a(i)
     CALL find_boundary(bond_a,nbond,first,last,search)
-    !WRITE(iw,*) "find boundary ",search,i,first,last
     IF(.NOT.(first==last)) THEN
       DO j=first,last
         DO k=first,last
@@ -909,7 +870,6 @@ SUBROUTINE topology_generate_bond(cell,r,label_atmname,bond_a,bond_b,&
   DEALLOCATE(covalent_radius)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  !CALL stop_program ("topology_generate_bond","checkpoint")
 END SUBROUTINE topology_generate_bond
 
 
@@ -962,15 +922,11 @@ SUBROUTINE topology_generate_bend(bond_a,bond_b,&
   ALLOCATE(tmp_b(2*nbond))
   ALLOCATE(tmp_c(2*nbond))
 !------------------------------------------------------------------------------
-  !DO ibond=1,nbond
-  !  WRITE(*,*) "BOND ",bond_a(ibond),bond_b(ibond)
-  !END DO
   ntheta=0
   DO ibond=1,nbond
     !Case A
     search = bond_a(ibond)
     CALL find_boundary(bond_a,nbond,first,last,search)
-    !WRITE(*,*) "A first last",first,last,search
     IF (first /= 0) THEN
       DO iibond=first,last
         IF (bond_b(ibond)/=bond_b(iibond)) THEN
@@ -978,14 +934,12 @@ SUBROUTINE topology_generate_bend(bond_a,bond_b,&
           tmp_a(ntheta) = bond_b(ibond)
           tmp_b(ntheta) = search
           tmp_c(ntheta) = bond_b(iibond)
-          !WRITE(*,*) "ABEND ",bond_b(ibond),search,bond_b(iibond)
         END IF
       END DO
     END IF
     !Case B
     search = bond_b(ibond)
     CALL find_boundary(bond_a,nbond,first,last,search)
-    !WRITE(*,*) "B first last",first,last,search
     IF (first /= 0) THEN
       DO iibond=first,last
         IF(bond_a(ibond)/=bond_b(iibond)) THEN
@@ -993,14 +947,12 @@ SUBROUTINE topology_generate_bend(bond_a,bond_b,&
           tmp_a(ntheta) = bond_a(ibond)
           tmp_b(ntheta) = search
           tmp_c(ntheta) = bond_b(iibond)
-          !WRITE(*,*) "BBEND ",bond_a(ibond),search,bond_b(iibond)
         END IF
       END DO
     END IF
     !Case C
     search = bond_b(ibond)
     CALL find_boundary(bond_b,nbond,first,last,search)
-    !WRITE(*,*) "A first last",first,last,search
     IF (first /= 0) THEN
       DO iibond=first,last
         IF (bond_a(ibond)/=bond_a(iibond)) THEN
@@ -1008,7 +960,6 @@ SUBROUTINE topology_generate_bend(bond_a,bond_b,&
           tmp_a(ntheta) = bond_a(ibond)
           tmp_b(ntheta) = search
           tmp_c(ntheta) = bond_a(iibond)
-          !WRITE(*,*) "CBEND ",bond_a(ibond),search,bond_a(iibond)
         END IF
       END DO
     END IF
@@ -1037,9 +988,7 @@ SUBROUTINE topology_generate_bend(bond_a,bond_b,&
   END DO
   ntheta = countme
   WRITE(*,*) "NTHETA = ",ntheta
-  !DO itheta=1,ntheta
-  !  WRITE(*,*) "Final Bend ",theta_a(itheta),theta_b(itheta),theta_c(itheta)
-  !END DO
+
   CALL REALLOCATE(theta_a,1,ntheta)
   CALL REALLOCATE(theta_b,1,ntheta)
   CALL REALLOCATE(theta_c,1,ntheta)
@@ -1049,7 +998,7 @@ SUBROUTINE topology_generate_bend(bond_a,bond_b,&
   DEALLOCATE(tmp_c)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  !CALL stop_program("topology_generate_bend","Need to be tested")
+
 END SUBROUTINE topology_generate_bend
  
  
@@ -1222,7 +1171,6 @@ SUBROUTINE topology_coord_pack (r,label_atmname,particle_set, &
   !Determine the number of kinds (nkind)
   nkind = 0
   DO iatom=1,natom
-    !WRITE(*,*) "iatom = ",label_atmname(iatom)
     new_kind = .TRUE.
     DO ikind=1,nkind
       CALL integer_to_string(kind_label(:,ikind),string)

@@ -171,10 +171,6 @@ SUBROUTINE read_topology_control (mol_setup,setup,globenv)
     END SELECT
   END IF
 
-! send the outcome of the inquiry to all cpus
-! CALL mp_bcast(topo_file % active, globenv%source, globenv%group)
-! CALL mp_bcast(topo_file % type, globenv%source, globenv%group)
-
 END SUBROUTINE read_topology_control
 
 !******************************************************************************
@@ -245,10 +241,6 @@ SUBROUTINE read_coordinate_control (particle_set,atomic_kind_set,mol_setup,&
                          "Unknown type of coordinate file")
     END SELECT
   END IF
-
-! send the outcome of the inquiry to all cpus
-! CALL mp_bcast(topo_file % active, globenv%source, globenv%group)
-! CALL mp_bcast(topo_file % type, globenv%source, globenv%group)
 
 END SUBROUTINE read_coordinate_control
 

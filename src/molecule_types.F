@@ -30,7 +30,7 @@ MODULE molecule_types
   PUBLIC :: molecule_structure_type, linklist_atoms, bond_parameters_type, &
        linklist_bonds, bend_parameters_type, linklist_bends,  &
        torsion_parameters_type, linklist_torsions, linklist_dist_constraints, &
-       linklist_g3x3_constraints, linklist_exclusion, &
+       linklist_g3x3_constraints, linklist_g4x6_constraints, linklist_exclusion, &
        particle_node_type, localization_list
   PUBLIC :: particle_type
   PUBLIC :: molecule_type, molecule_parameter_type
@@ -122,6 +122,18 @@ MODULE molecule_types
      TYPE ( linklist_g3x3_constraints ), POINTER :: next
   END TYPE linklist_g3x3_constraints
 
+  TYPE linklist_g4x6_constraints
+     TYPE ( particle_type ), POINTER :: p1, p2, p3, p4
+     REAL ( dbl ), POINTER :: d12, d13, d14, d23, d24, d34
+     REAL ( dbl ), DIMENSION( 3 ) :: fc1, fc2, fc3, fc4, fc5, fc6
+     REAL ( dbl ), DIMENSION( 6 ) :: lambda, del_lam
+     REAL ( dbl ), DIMENSION( 3 ) :: rold1, rold2, rold3, rold4
+     REAL ( dbl ), DIMENSION( 3 ) :: vold1, vold2, vold3, vold4
+     REAL ( dbl ), DIMENSION( 3 ) :: v1, v2, v3, v4
+     REAL ( dbl ) :: scale, scale_old
+     TYPE ( linklist_g4x6_constraints ), POINTER :: next
+  END TYPE linklist_g4x6_constraints
+
   TYPE intra_parameters_type
      TYPE ( bond_parameters_type ), POINTER :: bond_param ( : )
      TYPE ( bend_parameters_type ), POINTER :: bend_param ( : )
@@ -147,6 +159,8 @@ MODULE molecule_types
      INTEGER, POINTER :: ndc ( :, : )
      INTEGER :: n3x3con
      INTEGER, POINTER :: n3x3c ( :, : )
+     INTEGER :: n4x6con
+     INTEGER, POINTER :: n4x6c ( :, : )
   END TYPE molecule_parameter_type
 
   TYPE molecule_type
@@ -186,6 +200,8 @@ MODULE molecule_types
      TYPE (linklist_dist_constraints), POINTER :: ll_dist_const
      INTEGER :: ng3x3const_mol ! # of 3x3 group constraints in molecule
      TYPE (linklist_g3x3_constraints), POINTER :: ll_g3x3_const
+     INTEGER :: ng4x6const_mol ! # of 4x6 group constraints in molecule
+     TYPE (linklist_g4x6_constraints), POINTER :: ll_g4x6_const
   END TYPE molecule_structure_type
 
 CONTAINS
@@ -200,6 +216,7 @@ CONTAINS
     molpar%ntorsions=0
     molpar%ndcon=0
     molpar%n3x3con=0
+    molpar%n4x6con=0
     NULLIFY(molpar%aname)
     NULLIFY(molpar%alabel)
     NULLIFY(molpar%aweight)
@@ -209,6 +226,7 @@ CONTAINS
     NULLIFY(molpar%torsions)
     NULLIFY(molpar%ndc)
     NULLIFY(molpar%n3x3c)
+    NULLIFY(molpar%n4x6c)
   END SUBROUTINE
 
   SUBROUTINE init_molecule_type(mol)

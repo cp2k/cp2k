@@ -479,16 +479,6 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule )
   INTEGER :: natom_max
   REAL ( KIND = wp ) :: mydist(2)
 
-!  *r(natom)              !atom position
-!  *center(nstate)        !wfc position
-!  *label_atmname(natom)  !name of atom that will match the ptable%symbol
-!  *atm_mol_name(natom)   !name of the molecule that the atom belong in
-!  distance(natom)        !distance of a WFC to each atom
-!  map_mol_typ(natom)     !mol type of atom
-!  map_mol_num(natom)     !mol number of atom
-!  atm_mass(natom)        !mass of atom
-!  atm_charge(natom)      !charge of atom
-
 !---------------------------------------------------------------------------
 !---------------------------------------------------------------------------
   cell => qs_loc_env % cell
@@ -497,7 +487,7 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule )
   nstate = SIZE ( center, 1 )
 
   ALLOCATE(wfc_to_atom_map(nstate),STAT=isos)
-  IF(isos/=0) CALL stop_memory('centers_and_spreads','8a')
+  IF(isos/=0) CALL stop_memory('wfc_to_molecule','wfc_to_atom_map')
 !---------------------------------------------------------------------------
 !---------------------------------------------------------------------------
   nmol = SIZE ( molecule )
@@ -508,26 +498,20 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule )
 
   !Determine the max number of atoms across all the procs
   natom_max = natom
-
   CALL mp_max(natom_max,para_env%group)
 
-  !WRITE(*,*) "natom_loc  = ",natom
-  !WRITE(*,*) "natom_max  = ",natom_max
-  !WRITE(*,*) "nmol   = ",nmol
-  !WRITE(*,*) "nstate = ",nstate
-
   ALLOCATE(r(3,natom_max),STAT=isos)
-  IF(isos/=0) CALL stop_memory('centers_and_spreads','1')
+  IF(isos/=0) CALL stop_memory('wfc_to_molecule','r')
   ALLOCATE(label_atmname(natom_max),STAT=isos)
-  IF(isos/=0) CALL stop_memory('centers_and_spreads','2')
+  IF(isos/=0) CALL stop_memory('wfc_to_molecule','label_atmname')
   ALLOCATE(atm_mol_name(natom_max),STAT=isos)
-  IF(isos/=0) CALL stop_memory('centers_and_spreads','3')
+  IF(isos/=0) CALL stop_memory('wfc_to_molecule','atm_mol_name')
   ALLOCATE(distance(natom_max),STAT=isos)
-  IF(isos/=0) CALL stop_memory('centers_and_spreads','4')
+  IF(isos/=0) CALL stop_memory('wfc_to_molecule','distance')
   ALLOCATE(atm_mass(natom_max),STAT=isos)
-  IF(isos/=0) CALL stop_memory('centers_and_spreads','7')
+  IF(isos/=0) CALL stop_memory('wfc_to_molecule','atm_mass')
   ALLOCATE(atm_charge(natom_max),STAT=isos)
-  IF(isos/=0) CALL stop_memory('centers_and_spreads','8')
+  IF(isos/=0) CALL stop_memory('wfc_to_molecule','atm_charge')
 
   !Zero all the stuff
   DO iatom=1,natom_max
@@ -566,7 +550,6 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule )
       distance(iatom) = SQRT ( DOT_PRODUCT ( r_pbc, r_pbc ) )
     END DO
 
-    !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     !combine distance() from all procs
 
     local_location = MINLOC(distance,DIM=1)
@@ -576,24 +559,20 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule )
 
     CALL mp_minloc(mydist,para_env%group)
     
-    !WRITE(*,*) "mydist1 = ",mydist(1),distance(local_location)
-    !WRITE(*,*) "mydist2 = ",mydist(2)
-
     IF(mydist(2)==para_env%mepos) THEN
       wfc_to_atom_map(istate)  =  local_location
     ELSE
       wfc_to_atom_map(istate)  =  0
     END IF
-    !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   END DO
 !---------------------------------------------------------------------------
 !---------------------------------------------------------------------------
   !If info is stored initially, then this is redundant
   IF (natom /= 0) THEN
     ALLOCATE(map_mol_typ(natom),STAT=isos)
-    IF(isos/=0) CALL stop_memory('centers_and_spreads','5')
+    IF(isos/=0) CALL stop_memory('wfc_to_molecule','map_mol_typ')
     ALLOCATE(map_mol_num(natom),STAT=isos)
-    IF(isos/=0) CALL stop_memory('centers_and_spreads','6')
+    IF(isos/=0) CALL stop_memory('wfc_to_molecule','map_mol_num')
   
     CALL topology_generate_bond(cell,r,label_atmname,bond_a,bond_b,&
                                     atm_mass,atm_charge)
@@ -639,46 +618,34 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule )
 !---------------------------------------------------------------------------
 !---------------------------------------------------------------------------
   DEALLOCATE(r,STAT=isos)
-  IF(isos/=0) CALL stop_memory('centers_and_spreads','11')
+  IF(isos/=0) CALL stop_memory('wfc_to_molecule','r')
   DEALLOCATE(label_atmname,STAT=isos)
-  IF(isos/=0) CALL stop_memory('centers_and_spreads','12')
+  IF(isos/=0) CALL stop_memory('wfc_to_molecule','label_atmname')
   DEALLOCATE(atm_mol_name,STAT=isos)
-  IF(isos/=0) CALL stop_memory('centers_and_spreads','13')
+  IF(isos/=0) CALL stop_memory('wfc_to_molecule','atm_mol_name')
   DEALLOCATE(distance,STAT=isos)
-  IF(isos/=0) CALL stop_memory('centers_and_spreads','14')
+  IF(isos/=0) CALL stop_memory('wfc_to_molecule','distance')
 
   IF(natom/=0) THEN
     DEALLOCATE(map_mol_typ,STAT=isos)
-    IF(isos/=0) CALL stop_memory('centers_and_spreads','15')
+    IF(isos/=0) CALL stop_memory('wfc_to_molecule','map_mol_typ')
     DEALLOCATE(map_mol_num,STAT=isos)
-    IF(isos/=0) CALL stop_memory('centers_and_spreads','16')
+    IF(isos/=0) CALL stop_memory('wfc_to_molecule','map_mol_num')
     DEALLOCATE(atm_mass,STAT=isos)
-    IF(isos/=0) CALL stop_memory('centers_and_spreads','18')
+    IF(isos/=0) CALL stop_memory('wfc_to_molecule','atm_mass')
     DEALLOCATE(bond_b,STAT=isos)
-    IF(isos/=0) CALL stop_memory('centers_and_spreads','21')
+    IF(isos/=0) CALL stop_memory('wfc_to_molecule','bond_b')
     DEALLOCATE(bond_a,STAT=isos)
-    IF(isos/=0) CALL stop_memory('centers_and_spreads','20')
+    IF(isos/=0) CALL stop_memory('wfc_to_molecule','bond_a')
   ENDIF
 
   DEALLOCATE(atm_charge,STAT=isos)
-  IF(isos/=0) CALL stop_memory('centers_and_spreads','19')
+  IF(isos/=0) CALL stop_memory('wfc_to_molecule','atm_charge')
   DEALLOCATE(wfc_to_atom_map,STAT=isos)
-  IF(isos/=0) CALL stop_memory('centers_and_spreads','22')
+  IF(isos/=0) CALL stop_memory('wfc_to_molecule','wfc_to_atom_map')
 !---------------------------------------------------------------------------
 !---------------------------------------------------------------------------
   
-  !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  !Synchronize the procs if some procs doesn't have molecules
-  !Barrier
-  !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-
-
 END SUBROUTINE wfc_to_molecule
 !------------------------------------------------------------------------------
 

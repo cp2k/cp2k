@@ -89,7 +89,6 @@ SUBROUTINE read_coordinate_pdb (r,label_resname,label_atmname,setup,globenv)
 
 ! Arguments
   REAL(dbl), DIMENSION(:,:), POINTER :: r
-  !CHARACTER (LEN=20), DIMENSION (:) :: label_resname,label_atmname
   CHARACTER (LEN=20), POINTER :: label_resname(:),label_atmname(:)
   TYPE ( setup_parameters_type ) :: setup
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
@@ -149,37 +148,19 @@ SUBROUTINE read_coordinate_pdb (r,label_resname,label_atmname,setup,globenv)
       CALL uppercase(string)
       SELECT CASE (string)
       CASE ('ATOM')
-        !WRITE (iw,*) "Case ATOM"
         natom = natom + 1
         CALL get_next(num_atmid(natom))
-        !WRITE (iw,*) num_atmid(natom)
         CALL get_next(tmp_atmname(natom),ilen)
-        !WRITE (iw,*) tmp_atmname(natom)
         CALL get_next(tmp_resname(natom),ilen)
-        !WRITE (iw,*) tmp_resname(natom)
         CALL get_next(num_resid(natom))
-        !WRITE (iw,*) num_resid(natom)
         CALL get_next(pos1(natom))
-        !WRITE (iw,*) pos1(natom)
-        !CALL convert_to_cp2k_units ( "ANGSTROM", length = pos1(natom) ) 
         CALL get_next(pos2(natom))
-        !WRITE (iw,*) pos2(natom)
-        !CALL convert_to_cp2k_units ( "ANGSTROM", length = pos2(natom) ) 
         CALL get_next(pos3(natom))
-        !WRITE (iw,*) pos3(natom)
-        !CALL convert_to_cp2k_units ( "ANGSTROM", length = pos3(natom) ) 
-        !WRITE(iw,*) num_atmid(natom),tmp_resname(natom),&
-        !           tmp_atmname(natom),num_resid(natom),&
-        !           pos1(natom),pos2(natom),pos3(natom)
-        !WRITE(iw,*) pos1(natom),pos2(natom),pos3(natom)
       CASE ('HEATOM')
-        !WRITE (iw,*) "Case HEATOM"
         CALL stop_program ('read_coordinate_pdb','HEATOM not implemented yet')
       CASE ('END')
-        !WRITE (iw,*) "Case END"
         EXIT
       CASE DEFAULT
-        !WRITE(iw,*) "PDB| ",string
       END SELECT
       CALL read_line
     END DO
@@ -201,9 +182,6 @@ SUBROUTINE read_coordinate_pdb (r,label_resname,label_atmname,setup,globenv)
     label_resname(iatom)=tmp_resname(iatom)
     label_atmname(iatom)=tmp_atmname(iatom)
   END DO
-  !DO iatom=1,natom
-  !  WRITE(*,*) r(:,iatom)
-  !END DO
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
   !Deallocate all the temporary arrays
@@ -215,7 +193,6 @@ SUBROUTINE read_coordinate_pdb (r,label_resname,label_atmname,setup,globenv)
   IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','tmp_[res,atm]name')
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  !CALL stop_program ('read_coordinate_pdb','checkpoint')
 
 END SUBROUTINE read_coordinate_pdb
 

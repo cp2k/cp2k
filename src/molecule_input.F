@@ -454,6 +454,7 @@ END SUBROUTINE read_setup_section
 !!I    torsion       ntorsion                                                 I
 !!I    distcon       ndcon                                                    I
 !!I    3x3con        n3x3con                                                  I
+!!I    4x6con        n4x6con                                                  I
 !!I    basis         name library nmax epsilon                                I
 !!I    drho          name library nmax epsilon                                I
 !!I end moleculename                                                          I
@@ -529,6 +530,7 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
            mol_setup(imol) %molpar%ntorsions = 0
            mol_setup(imol) %molpar%ndcon = 0
            mol_setup(imol) %molpar%n3x3con = 0
+           mol_setup(imol) %molpar%n4x6con = 0
 
            IF (test_next()=="C") THEN
               ! short form, single atom molecules
@@ -676,7 +678,7 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
                     IF (na>=0) THEN
                        ALLOCATE (mol_setup(imol)%molpar%n3x3c(6,na),STAT=ios)
                        IF (ios /= 0 ) CALL stop_memory &
-                            ( 'read_molecule_section', 'n3x3c', 3 * na )
+                            ( 'read_molecule_section', 'n3x3c', 6 * na )
                        DO i = 1, na
                           CALL get_next ( mol_setup(imol) %molpar%n3x3c(1,i) )
                           CALL get_next ( mol_setup(imol) %molpar%n3x3c(2,i) )
@@ -684,6 +686,27 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
                           CALL get_next ( mol_setup(imol) %molpar%n3x3c(4,i) )
                           CALL get_next ( mol_setup(imol) %molpar%n3x3c(5,i) )
                           CALL get_next ( mol_setup(imol) %molpar%n3x3c(6,i) )
+                       END DO
+                    END IF
+
+                 CASE ( '4X6CON')
+                    CALL get_next ( mol_setup(imol) %molpar%n4x6con )
+                    na = mol_setup(imol) %molpar%n4x6con
+                    IF (na>=0) THEN
+                       ALLOCATE (mol_setup(imol)%molpar%n4x6c(10,na),STAT=ios)
+                       IF (ios /= 0 ) CALL stop_memory &
+                            ( 'read_molecule_section', 'n4x6c', 10 * na )
+                       DO i = 1, na
+                          CALL get_next ( mol_setup(imol) %molpar%n4x6c(1,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%n4x6c(2,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%n4x6c(3,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%n4x6c(4,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%n4x6c(5,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%n4x6c(6,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%n4x6c(7,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%n4x6c(8,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%n4x6c(9,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%n4x6c(10,i) )
                        END DO
                     END IF
     
@@ -742,6 +765,7 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
         mol_setup(imol) %molpar%ntorsions = 0
         mol_setup(imol) %molpar%ndcon = 0
         mol_setup(imol) %molpar%n3x3con = 0
+        mol_setup(imol) %molpar%n4x6con = 0
      END IF
   END DO
 
@@ -908,6 +932,30 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
               IF ( isos /= 0 ) CALL stop_memory ( 'read_molecule_section', &
                    'tuple', na )
               CALL make_tuple(mol_setup(imol)%molpar%n3x3c,3,na,tuple)
+              CALL xstring(tuple(1),ia,ie)
+              ilen = ie - ia + 1
+              nt = 69/ilen
+              DO i = 1, na, nt
+                 j1 = i
+                 j2 = MIN(j1+nt-1,na)
+                 nf = 69 - ilen*(j2-j1+1)
+                 WRITE ( iw, '( 80(A) )' ) ' MOLECULE| ', bl(1:nf), &
+                      (tuple(j)(ia:ie),j=j1,j2)
+              END DO
+              DEALLOCATE (tuple,STAT=isos)
+              IF ( isos /= 0 ) CALL stop_memory ( 'read_molecule_section', &
+                   'tuple' )
+           END IF
+
+           na = mol_setup(imol) %molpar%n4x6con
+           IF (na>0) THEN
+              WRITE ( iw, '( A,T71,I10 )' ) &
+                   ' MOLECULE| Number of 4x6 constraints', &
+                   mol_setup(imol) %molpar%n4x6con
+              ALLOCATE (tuple(na),STAT=isos)
+              IF ( isos /= 0 ) CALL stop_memory ( 'read_molecule_section', &
+                   'tuple', na )
+              CALL make_tuple(mol_setup(imol)%molpar%n4x6c,4,na,tuple)
               CALL xstring(tuple(1),ia,ie)
               ilen = ie - ia + 1
               nt = 69/ilen

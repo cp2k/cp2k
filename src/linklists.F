@@ -26,7 +26,7 @@ MODULE linklists
        bond_parameters_type, linklist_bonds, bend_parameters_type, &
        linklist_bends, torsion_parameters_type, linklist_torsions, &
        linklist_dist_constraints, linklist_g3x3_constraints,  &
-       linklist_exclusion, particle_node_type, &
+       linklist_g4x6_constraints, linklist_exclusion, particle_node_type, &
        molecule_type
   USE termination, ONLY : stop_memory, stop_program
 
@@ -34,10 +34,10 @@ MODULE linklists
 
   PRIVATE
   PUBLIC :: atom_link_list, exclusion, bond_link_list, bend_link_list
-  PUBLIC :: torsion_link_list, distconst_link_list, g3x3_link_list
-  PUBLIC :: bonds, bends, torsions, dist_constraints, g3x3_constraints
+  PUBLIC :: torsion_link_list, distconst_link_list, g3x3_link_list, g4x6_link_list
+  PUBLIC :: bonds, bends, torsions, dist_constraints, g3x3_constraints, g4x6_constraints
 
-  LOGICAL :: bonds, bends, torsions, dist_constraints, g3x3_constraints
+  LOGICAL :: bonds, bends, torsions, dist_constraints, g3x3_constraints, g4x6_constraints
 
 !!*****
 !******************************************************************************
@@ -828,6 +828,102 @@ SUBROUTINE g3x3_link_list ( pnode, molecule, mol_setup, constraint_distance )
   END DO
 
 END SUBROUTINE g3x3_link_list
+
+!!*****
+!******************************************************************************
+!!****** linklists/g4x6_link_list [1.0] *
+!!
+!!   NAME
+!!     g4x6_link_list
+!!
+!!   FUNCTION
+!!     Generates linked lists for intramolecular dependencies
+!!
+!!   AUTHOR
+!!     CJM & JGH
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE g4x6_link_list ( pnode, molecule, mol_setup, constraint_distance )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ), TARGET :: &
+       pnode
+  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
+       molecule
+  TYPE ( molecule_type ), INTENT ( IN ) :: mol_setup ( : )
+  REAL ( dbl ), DIMENSION ( : ), POINTER :: constraint_distance
+! Locals
+  INTEGER :: imol, jmol, nmol, ig4x6, nb, atombase, pTYPE ( 6 )
+  INTEGER :: index ( 4 ), ios
+  TYPE ( linklist_g4x6_constraints ), POINTER :: current_ll_g4x6
+
+!------------------------------------------------------------------------------
+
+  ALLOCATE ( current_ll_g4x6, STAT = ios )
+  IF ( ios /= 0 ) CALL stop_memory ( 'g4x6_link_list', 'current_ll_g4x6', 0 )
+
+  g4x6_constraints = .FALSE.
+  nmol = size ( molecule )
+  atombase = 0
+
+  DO imol = 1, nmol
+     jmol = molecule(imol) % moltype
+     nb = mol_setup(jmol) % molpar % n3x3con
+     g4x6_constraints = g4x6_constraints .OR. ( nb /= 0 )
+     molecule(imol) %ng4x6const_mol = nb
+     molecule(imol) %ll_g4x6_const => current_ll_g4x6
+     DO ig4x6 = 1, nb
+
+!
+!    index(1),index(2),index(3) and index(4) are the part array indices of the
+!    first,second,third and fourth atoms
+!    pTYPE(:) are the constraint types
+!
+        index(1) = atombase + mol_setup(jmol) %molpar%n4x6c(1,ig4x6)
+        index(2) = atombase + mol_setup(jmol) %molpar%n4x6c(2,ig4x6)
+        index(3) = atombase + mol_setup(jmol) %molpar%n4x6c(3,ig4x6)
+        index(4) = atombase + mol_setup(jmol) %molpar%n4x6c(4,ig4x6)
+        pTYPE ( 1) = mol_setup(jmol) %molpar%n4x6c(5,ig4x6)
+        pTYPE ( 2) = mol_setup(jmol) %molpar%n4x6c(6,ig4x6)
+        pTYPE ( 3) = mol_setup(jmol) %molpar%n4x6c(7,ig4x6)
+        pTYPE ( 4) = mol_setup(jmol) %molpar%n4x6c(8,ig4x6)
+        pTYPE ( 5) = mol_setup(jmol) %molpar%n4x6c(9,ig4x6)
+        pTYPE ( 6) = mol_setup(jmol) %molpar%n4x6c(10,ig4x6)
+        current_ll_g4x6%p1 => pnode(index(1)) % p
+        current_ll_g4x6%p2 => pnode(index(2)) % p
+        current_ll_g4x6%p3 => pnode(index(3)) % p
+        current_ll_g4x6%p4 => pnode(index(4)) % p
+        current_ll_g4x6%d12 => constraint_distance(pTYPE ( 1))
+        current_ll_g4x6%d13 => constraint_distance(pTYPE ( 2))
+        current_ll_g4x6%d14 => constraint_distance(pTYPE ( 3))
+        current_ll_g4x6%d23 => constraint_distance(pTYPE ( 4))
+        current_ll_g4x6%d24 => constraint_distance(pTYPE ( 5))
+        current_ll_g4x6%d34 => constraint_distance(pTYPE ( 6))
+        current_ll_g4x6%lambda ( : ) = 0.0_dbl
+        current_ll_g4x6%fc1 ( : ) = 0.0_dbl
+        current_ll_g4x6%fc2 ( : ) = 0.0_dbl
+        current_ll_g4x6%fc3 ( : ) = 0.0_dbl
+        current_ll_g4x6%fc4 ( : ) = 0.0_dbl
+        current_ll_g4x6%fc5 ( : ) = 0.0_dbl
+        current_ll_g4x6%fc6 ( : ) = 0.0_dbl
+
+        ALLOCATE ( current_ll_g4x6 % next, STAT = ios )
+        IF ( ios /= 0 ) &
+             CALL stop_memory ( 'g4x6_link_list', 'current_ll_g4x6%next', 0 )
+
+        current_ll_g4x6 => current_ll_g4x6 % next
+     END DO
+
+     atombase = atombase + mol_setup ( jmol ) % molpar % natom
+  END DO
+
+END SUBROUTINE g4x6_link_list
 
 !!*****
 !******************************************************************************

@@ -166,9 +166,6 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
       CALL get_next(atm_name2(iatom),ilen)
       CALL get_next(atm_charge(iatom))
       CALL get_next(atm_mass(iatom))
-      !WRITE(iw,*) "F ",i,atm_res_name(iatom),atm_res_num(iatom),&
-      !            atm_res_name(iatom),atm_name1(iatom),atm_name2(iatom),&
-      !            atm_charge(iatom),atm_mass(iatom)
     END DO
   END IF
   CALL parser_end
