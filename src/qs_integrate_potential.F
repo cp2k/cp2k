@@ -405,14 +405,12 @@ CONTAINS
       vratio = 1.0_wp
     ELSE
       maxvnew = MAXVAL(ABS(v_rspace%pw%cr3d))
-#if defined(__parallel)
-      CALL mp_max(maxvnew,v_rspace%pw%pw_grid%para%group)
-#endif
+      IF ( v_rspace%pw%pw_grid%para%mode /= 0 ) &
+         CALL mp_max(maxvnew,v_rspace%pw%pw_grid%para%group)
       v_rspace%pw%cr3d = v_rspace%pw%cr3d - v_rspace_old%pw%cr3d
       maxvdiff = MAXVAL(ABS(v_rspace%pw%cr3d))
-#if defined(__parallel)
-      CALL mp_max(maxvdiff,v_rspace%pw%pw_grid%para%group)
-#endif
+      IF ( v_rspace%pw%pw_grid%para%mode /= 0 ) &
+         CALL mp_max(maxvdiff,v_rspace%pw%pw_grid%para%group)
       vratio = maxvdiff/maxvnew
     END IF
 
