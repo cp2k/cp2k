@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# prepares cp2k for checkin
+# performs test runs of cp2k
 
 import sys, re, os, os.path, commands, time, shutil, unittest, glob
 from sys import argv
@@ -48,14 +48,49 @@ class simpleRunTest(unittest.TestCase):
         if (pipe.close()):
             self.fail('error, the command returned an error')
         else:
-            file1=open(join(self.cp2kRoot,"tests","QS","test_outputs",
-                            self.archName,
-                            self.outputFile))
-            file2=open(join(self.testRoot,self.outputFile))
-            diffs=open(join(self.testRoot,self.testName+".diff"),"w")
-            if diffEpsilon.compareCp2kOutput(file1,file2,logFile=diffs)!=0:
-                self.fail('output was different than expected, see '+
-                          diffs.name)
+            file1=open(join(self.testRoot,self.outputFile))
+            if os.access(join(self.cp2kRoot,"tests","QS","test_outputs",
+                              self.archName,
+                              self.outputFile),os.R_OK):
+                diffs=open(join(self.testRoot,self.testName+"-"
+                                +basename(self.command)+".spec.diff"),"w")
+                file2=open(join(self.cp2kRoot,"tests","QS","test_outputs",
+                                self.archName,
+                                self.outputFile))
+                if diffEpsilon.compareCp2kOutput(file1,file2,logFile=diffs)!=0:
+                    arch_spec_test="failed"
+                else:
+                    arch_spec_test="succeded"
+            else:
+                arch_spec_test=0
+            if os.access(join(self.cp2kRoot,"tests","QS","test_outputs",
+                              "generic",self.outputFile),os.R_OK):
+                diffs=open(join(self.testRoot,self.testName+"-"
+                                +basename(self.command)+".gen.diff"),"w")
+                file2=open(join(self.cp2kRoot,"tests","QS","test_outputs",
+                                "generic",self.outputFile))
+                diffVal=diffEpsilon.compareCp2kOutput(file1,file2,logFile=diffs)
+            elif not arch_spec_test:
+                self.fail('no generic output for this test')
+            else:
+                diffVal=0
+                print 'no generic output for this test'
+            if diffVal>1.0e-14:
+                if arch_spec_test=="succeded":
+                    print "** generic diff to be updated? Too different from validated output"
+                    print self.id(),"diff=",str(diffVal),'see',diffs.name
+                elif arch_spec_test:
+                    self.fail('output was different than expected for this platform (and too different from generic output), see '+
+                              diffs.name)
+                else:
+                    self.fail('output was too different from generic output ('
+                              +str(diffVal)+'), see '+diffs.name)
+            else:
+                if arch_spec_test!="succeded":
+                    self.fail('output was different than expected for this platform (but generic output within error", see '+
+                              diffs.name)
+                print self.id(),"generic_diff=",diffVal
+    
     def id(self):
         return "%s.%s-%s" % (self.__class__, self.testName,
                              basename(self.command))
@@ -73,6 +108,12 @@ def simpleTests(cp2kRoot=defaultCp2kRoot,testsRoot=defaultTestsRoot,
     suite.addTest(simpleRunTest(cp2kRoot=cp2kRoot,testName="H2O-32",
                                 testsRoot=testsRoot,command=command))
     return suite
+
+simpleTestsSopt=lambda :simpleTests()
+simpleTestsSdbg=lambda :simpleTests(command="cp2k.sdbg")
+
+for test in simpleTestsSopt()._tests:
+    globals()[test.testName.replace("-","_")]=lambda :test
 
 if __name__=="__main__":
 
