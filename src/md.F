@@ -67,11 +67,12 @@ MODULE md
   END TYPE simulation_parameters_type
 
   TYPE mdio_parameters_type
-     INTEGER :: icrd, ivel, iptens, iener, itemp, idump, iscreen
+     INTEGER :: icrd, ivel, iptens, iener, ipot, itemp, idump, iscreen
      CHARACTER ( LEN = 50 ) :: crd_file_name
      CHARACTER ( LEN = 50 ) :: vel_file_name
      CHARACTER ( LEN = 50 ) :: ptens_file_name
      CHARACTER ( LEN = 50 ) :: ener_file_name
+     CHARACTER ( LEN = 50 ) :: pot_file_name
      CHARACTER ( LEN = 50 ) :: temp_file_name
      CHARACTER ( LEN = 50 ) :: dump_file_name
   END TYPE mdio_parameters_type
@@ -183,12 +184,14 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   mdio % ener_file_name = mdpar % project_name(ia:ie) // '.ener'
   mdio % temp_file_name = mdpar % project_name(ia:ie) // '.temp'
   mdio % dump_file_name = mdpar % project_name(ia:ie) // '.dump'
+  mdio % pot_file_name = mdpar % project_name(ia:ie) // '.pot'
 
 !..print frequency
   mdio % icrd = 1
   mdio % ivel = 1
   mdio % iptens = 1
   mdio % iener = 1
+  mdio % ipot = 1
   mdio % itemp = 1
   mdio % idump = 1
   mdio % iscreen = 1
@@ -311,6 +314,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  mdio % crd_file_name = string(1:ilen) // '.crd'
                  mdio % vel_file_name = string(1:ilen) // '.vel'
                  mdio % ptens_file_name = string(1:ilen) // '.ptens'
+                 mdio % pot_file_name = string(1:ilen) // '.pot'
                  mdio % ener_file_name = string(1:ilen) // '.ener'
                  mdio % temp_file_name = string(1:ilen) // '.temp'
                  mdio % dump_file_name = string(1:ilen) // '.dump'
@@ -320,6 +324,9 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
               CASE ( 'ENERGI' )
                  ilen = 0
                  CALL get_next ( mdio % ener_file_name, ilen )
+              CASE ( 'POTENT' )
+                 ilen = 0
+                 CALL get_next ( mdio % pot_file_name, ilen )
               CASE ( 'PRESSU' )
                  ilen = 0
                  CALL get_next ( mdio % ptens_file_name, ilen )
@@ -357,6 +364,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  mdio % ivel = ia
                  mdio % iener = ia
                  mdio % iptens = ia
+                 mdio % ipot = ia
                  mdio % itemp = ia
                  mdio % idump = ia
               CASE ( 'COORDI' )
@@ -365,6 +373,8 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  CALL get_next ( mdio % iener )
               CASE ( 'PRESSU' )
                  CALL get_next ( mdio % iptens )
+              CASE ( 'POTENT' )
+                 CALL get_next ( mdio % ipot )
               CASE ( 'VELOCI' )
                  CALL get_next ( mdio % ivel )
               CASE ( 'TEMPER' )
@@ -428,6 +438,8 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
           ADJUSTR ( mdio % vel_file_name ( 1:50 ) )
      WRITE ( iw, '( A,T25,i5,T31,A )' ) ' MD| Energies', mdio % iener, &
           ADJUSTR ( mdio % ener_file_name ( 1:50 ) )
+     WRITE ( iw, '( A,T25,i5,T31,A )' ) ' MD| PotentialEnergies', mdio % ipot, &
+          ADJUSTR ( mdio % pot_file_name ( 1:50 ) )
      WRITE ( iw, '( A,T25,i5,T31,A )' ) ' MD| Temperature', mdio % itemp, &
           ADJUSTR ( mdio % temp_file_name ( 1:50 ) )
      WRITE ( iw, '( A,T25,i5,T31,A )' ) ' MD| Pressure Tensor', mdio % iptens, &

@@ -118,6 +118,15 @@ SUBROUTINE velocity_verlet ( md_env )
        END SELECT
     END SELECT
   CASE ( QUICKSTEP )
+  CASE ( KIM_GORDON )
+    SELECT CASE ( md_env % simpar % ensemble )
+       CASE ( 'NVE')
+          CALL nve ( md_env )
+       CASE ( 'NVT')
+          CALL nvt ( md_env )
+       END SELECT
+    CASE DEFAULT
+       CALL stop_program ( 'velocity_verlet','integrator not implemented for KG')
   END SELECT
 
   CALL timestop ( zero, handle )
