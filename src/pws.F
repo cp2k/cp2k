@@ -130,9 +130,10 @@ SUBROUTINE pw_poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress 
       "has to be used before pw_poisson_solver" )
   END IF
 
-
+  NULLIFY (pw_grid)
   IF ( PRESENT ( vhartree ) ) THEN
     pw_grid => vhartree % pw % pw_grid
+     vhartree % pw % in_space = RECIPROCALSPACE
 ! density in G space
     CALL pw_allocate ( rhog, pw_grid, COMPLEXDATA1D )
     rhog % in_space = RECIPROCALSPACE
