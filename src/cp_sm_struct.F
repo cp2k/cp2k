@@ -778,7 +778,7 @@ SUBROUTINE sm_struct_get(sm_struct, ref_count, id_nr, n_local_blocks,&
         first_row => sm_struct%first_row
      END IF
      IF (PRESENT(last_row)) THEN
-        IF (.not.ASSOCIATED(last_row)) THEN
+        IF (.not.ASSOCIATED(sm_struct%last_row)) THEN
            ALLOCATE(sm_struct%last_row(SIZE(sm_struct%block_begins_at_row)-1),&
                 stat=stat)
            sm_struct%last_row=sm_struct%block_begins_at_row(2:)-1
@@ -786,7 +786,7 @@ SUBROUTINE sm_struct_get(sm_struct, ref_count, id_nr, n_local_blocks,&
         last_row => sm_struct%last_row
      END IF
      IF (PRESENT(last_col)) THEN
-        IF (.not.ASSOCIATED(last_col)) THEN
+        IF (.not.ASSOCIATED(sm_struct%last_col)) THEN
            ALLOCATE(sm_struct%last_col(SIZE(sm_struct%block_begins_at_col)-1),&
                 stat=stat)
            sm_struct%last_col=sm_struct%block_begins_at_col(2:)-1
