@@ -1015,8 +1015,8 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
   DO ii=1,npoints
      my_rhoa=rhoa(ii)
      my_rhob=rhob(ii)
-     IF (my_rhoa> epsilon_rho.AND.my_rhob> epsilon_rho) THEN
      my_rho=my_rhoa+my_rhob
+     IF (my_rho>epsilon_rho) THEN
      my_ndrho=norm_drho(ii)
      my_ndrhoa=norm_drhoa(ii)
      my_ndrhob=norm_drhob(ii)
