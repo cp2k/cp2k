@@ -26,6 +26,7 @@ MODULE md
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
        cfield, p_error, get_real, get_int, stop_parser
   USE particle_types, ONLY : particle_type
+  USE read_pimd, ONLY : pimd_parameters_type
   USE string_utilities, ONLY : uppercase, xstring
   USE util, ONLY : gasdev
 
@@ -54,6 +55,7 @@ MODULE md
      REAL ( dbl ), POINTER, DIMENSION ( : ) :: dt_yosh
      REAL ( dbl ) :: shake_tol
      REAL ( dbl ) :: verlet_skin
+     TYPE ( pimd_parameters_type ) :: pimd_params
   END TYPE simulation_parameters_type
 
   TYPE thermodynamic_type

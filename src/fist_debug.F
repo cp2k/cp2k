@@ -72,7 +72,7 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
-     box_ref, thermo, potparm, ensemble, lldata )
+     box_ref, thermo, potparm, lldata )
 
   IMPLICIT NONE
 
@@ -84,9 +84,8 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
   TYPE ( potentialparm_type ), INTENT ( IN ), DIMENSION ( :, : ) :: potparm
   TYPE ( molecule_structure_type ), INTENT ( IN ), DIMENSION ( : ) :: molecule
   TYPE ( cell_type ), INTENT ( INOUT ) :: box
-  TYPE ( cell_type ), INTENT ( IN ) :: box_ref
+  TYPE ( cell_type ), INTENT ( INOUT ) :: box_ref
   TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: ensemble
   TYPE ( linklist_internal_data_type ) :: lldata
 
 ! Locals
@@ -94,13 +93,14 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
   TYPE ( pw_grid_type ) :: ewald_grid
   INTEGER :: iflag, i, natoms, isos, iatom, iw, iwf, ir, npts_s(3), gmax
   INTEGER, DIMENSION ( 2 ) :: dum
-  REAL ( dbl ) :: delta, energy_numer, cutoff
+  REAL ( dbl ) :: delta, energy_numer, cutoff, ecut
   REAL ( dbl ) :: e_numer, pv_test ( 3, 3 )
   REAL ( dbl ) :: err1, numer, denom1, vec ( 3 ), e_bc, e_real, energy_tot
   REAL ( dbl ) :: denom2, err2
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: f_bc, f_real
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: f_numer
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rel, diff
+  LOGICAL, PARAMETER :: box_change = .FALSE.
 
 !------------------------------------------------------------------------------
 
@@ -136,7 +136,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
 
 ! Call to analytical force routine:
   CALL force_control ( molecule, pnode, part, box, box_ref, thermo, &
-       potparm, ewald_param, ensemble, globenv, lldata, dbg )
+       potparm, ewald_param, box_change, globenv, lldata, dbg )
 
 ! Debug real-space non-bonded interactions
   WRITE ( iw, '( A )' ) &
@@ -543,7 +543,8 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
 
        CALL pw_find_cutoff ( npts_s, box_ref, cutoff )
 
-       CALL pw_grid_setup( box_ref, ewald_grid, cutoff, fft_usage = .FALSE. )
+       ecut = 0.5_dbl * cutoff * cutoff
+       CALL pw_grid_setup( box_ref, ewald_grid, ecut, fft_usage = .FALSE. )
 
        WRITE ( iw, '( A )' ) &
             ' DO YOU WANT TO DEBUG YOUR G-SPACE ENERGIES (1=yes)?'

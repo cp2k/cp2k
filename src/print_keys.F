@@ -36,10 +36,11 @@ MODULE print_keys
                cell_parameters,&
                charge_density_matrix,&
                core_hamiltonian_matrix,&
+               core_charge_radii,&
+               density_matrix,&
+               diis_information,&
                distribution,&
-               erf_ppl_radii,&
-               erfc_radii,&
-               exp_ppl_radii,&
+               each_scf_step,&
                hartree_matrix,&
                interaction_thresholds,&
                interatomic_distances,&
@@ -49,31 +50,46 @@ MODULE print_keys
                memory,&
                method_specifications,&
                mo_eigenvalues,&
-               mo_eigenvectors
+               mo_eigenvectors,&
+               mo_occupation_numbers
     LOGICAL :: nl_overlap,&
                nl_verfc,&
-               nl_verf_ppl,&
-               nl_vexp_ppl,&
-               nl_vprj_ppnl,&
+               nl_vppl,&
+               nl_vppnl,&
                ortho_matrix,&
                overlap_matrix,&
                pgf_radii,&
                physcon,&
                potential,&
-               prj_ppnl_radii,&
+               ppl_radii,&
+               ppnl_radii,&
                program_banner,&
                program_run_information,&
                projectors,&
+               pw_grid_information,&
+               scf,&
+               scf_energies,&
                set_radii,&
                spherical_harmonics,&
                timing_information,&
                title,&
+               total_densities,&
                total_numbers
   END TYPE print_key_type
+
+  INTEGER, PARAMETER :: SILENT = 0,&
+                        LOW = 1,&
+                        MEDIUM = 2,&
+                        HIGH = 3,&
+                        DEBUG = 4
 
 ! *** Public data types ***
 
   PUBLIC :: print_key_type
+
+! *** Public variables ***
+
+  PUBLIC :: DEBUG,HIGH,LOW,MEDIUM,SILENT
 
 ! *** Public subroutines ***
 
@@ -121,10 +137,11 @@ CONTAINS
     print_key%cell_parameters = key_value(level,(/t,t,t/))
     print_key%charge_density_matrix = key_value(level,(/f,f,t/))
     print_key%core_hamiltonian_matrix = key_value(level,(/f,f,t/))
+    print_key%core_charge_radii = key_value(level,(/f,t,t/))
+    print_key%density_matrix = key_value(level,(/f,f,t/))
+    print_key%diis_information = key_value(level,(/f,f,t/))
     print_key%distribution = key_value(level,(/f,t,t/))
-    print_key%erf_ppl_radii = key_value(level,(/f,t,t/))
-    print_key%erfc_radii = key_value(level,(/f,t,t/))
-    print_key%exp_ppl_radii = key_value(level,(/f,t,t/))
+    print_key%each_scf_step = key_value(level,(/f,f,t/))
     print_key%hartree_matrix = key_value(level,(/f,t,t/))
     print_key%interaction_thresholds = key_value(level,(/f,t,t/))
     print_key%interatomic_distances = key_value(level,(/f,f,t/))
@@ -135,24 +152,29 @@ CONTAINS
     print_key%method_specifications = key_value(level,(/t,t,t/))
     print_key%mo_eigenvalues = key_value(level,(/f,t,t/))
     print_key%mo_eigenvectors = key_value(level,(/f,f,t/))
+    print_key%mo_occupation_numbers = key_value(level,(/f,t,t/))
     print_key%nl_overlap = key_value(level,(/f,f,t/))
     print_key%nl_verfc = key_value(level,(/f,f,t/))
-    print_key%nl_verf_ppl = key_value(level,(/f,f,t/))
-    print_key%nl_vexp_ppl = key_value(level,(/f,f,t/))
-    print_key%nl_vprj_ppnl = key_value(level,(/f,f,t/))
+    print_key%nl_vppl = key_value(level,(/f,f,t/))
+    print_key%nl_vppnl = key_value(level,(/f,f,t/))
     print_key%ortho_matrix = key_value(level,(/f,f,t/))
     print_key%overlap_matrix = key_value(level,(/f,f,t/))
     print_key%pgf_radii = key_value(level,(/f,f,t/))
     print_key%physcon = key_value(level,(/f,f,t/))
     print_key%potential = key_value(level,(/f,f,t/))
-    print_key%prj_ppnl_radii = key_value(level,(/f,f,t/))
+    print_key%ppl_radii = key_value(level,(/f,t,t/))
+    print_key%ppnl_radii = key_value(level,(/f,f,t/))
     print_key%program_banner = key_value(level,(/t,t,t/))
     print_key%program_run_information = key_value(level,(/t,t,t/))
     print_key%projectors = key_value(level,(/f,t,t/))
-    print_key%set_radii = key_value(level,(/f,t,t/))
+    print_key%pw_grid_information = key_value(level,(/f,t,t/))
+    print_key%scf = key_value(level,(/t,t,t/))
+    print_key%scf_energies = key_value(level,(/f,t,t/))
+    print_key%set_radii = key_value(level,(/f,f,t/))
     print_key%spherical_harmonics = key_value(level,(/f,f,t/))
     print_key%timing_information = key_value(level,(/t,t,t/))
     print_key%title = key_value(level,(/t,t,t/))
+    print_key%total_densities = key_value(level,(/f,f,t/))
     print_key%total_numbers = key_value(level,(/t,t,t/))
 
   END SUBROUTINE init_print_keys
@@ -169,11 +191,11 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     SELECT CASE (level)
-    CASE (:0)
+    CASE (:SILENT)
       value = .FALSE.
-    CASE (1:3)
+    CASE (LOW:HIGH)
       value = level_values(level)
-    CASE (4:)
+    CASE (DEBUG:)
       value = .TRUE.
     END SELECT
 

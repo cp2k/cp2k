@@ -22,12 +22,18 @@
 
 MODULE string_utilities
 
+  USE kinds, ONLY : dbl
+
   IMPLICIT NONE
 
   PRIVATE
 
   PUBLIC :: compress,uppercase,xstring,str_search,str_comp,make_tuple,&
             integer_to_string,string_to_integer
+
+  INTERFACE integer_to_string
+     MODULE PROCEDURE integer_to_string_n, integer_to_string_1
+  END INTERFACE
 
 
 !!*****
@@ -75,7 +81,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE integer_to_string(nascii,string)
+  SUBROUTINE integer_to_string_n(nascii,string)
 
 !   Purpose: Convert a sequence of integer numbers to a string.
 
@@ -102,7 +108,41 @@ CONTAINS
       END IF
     END DO
 
-  END SUBROUTINE integer_to_string
+  END SUBROUTINE integer_to_string_n
+
+! *****************************************************************************
+
+  SUBROUTINE integer_to_string_1(zahl,string)
+
+!   Purpose: Convert an integer to a string.
+
+!   History: - Creation (29.4.2001, JGH)
+
+!   ***************************************************************************
+
+    CHARACTER(LEN=*), INTENT(OUT)     :: string
+    INTEGER, INTENT(IN) :: zahl
+
+!   *** Local variables ***
+
+    INTEGER :: i, z, n
+    INTEGER,ALLOCATABLE,DIMENSION(:) :: nascii
+
+!   ---------------------------------------------------------------------------
+
+    string = ""
+    n = INT ( LOG ( REAL ( zahl, dbl ) ) / LOG ( 10._dbl ) ) + 1
+    ALLOCATE ( nascii ( n ) )
+    z = zahl
+    DO i = 1, n
+      nascii ( i ) = z / 10**(n-i)
+      z = z - nascii ( i )*10**(n-i)
+      nascii ( i ) = nascii ( i ) + ICHAR("0")
+    END DO
+    CALL integer_to_string_n(nascii,string)
+    DEALLOCATE ( nascii )
+
+  END SUBROUTINE integer_to_string_1
 
 ! *****************************************************************************
 

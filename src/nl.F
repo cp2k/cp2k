@@ -56,10 +56,9 @@ MODULE nl
   TYPE(neighbor_list_set_type), POINTER :: aux_neighbor_list_set,&
                                            orb_neighbor_list_set,&
                                            verfc_neighbor_list_set,&
-                                           verf_ppl_neighbor_list_set,&
-                                           vexp_ppl_neighbor_list_set,&
-                                           vprj_ppnl_ac_neighbor_list_set,&
-                                           vprj_ppnl_ca_neighbor_list_set
+                                           vppl_neighbor_list_set,&
+                                           vppnl_ac_neighbor_list_set,&
+                                           vppnl_ca_neighbor_list_set
   LOGICAL                               :: init_pointers_done = .FALSE.
 
 ! *** Public variables ***
@@ -67,9 +66,8 @@ MODULE nl
   PUBLIC :: aux_neighbor_list_set,&
             orb_neighbor_list_set,&
             verfc_neighbor_list_set,&
-            verf_ppl_neighbor_list_set,&
-            vexp_ppl_neighbor_list_set,&
-            vprj_ppnl_ca_neighbor_list_set
+            vppl_neighbor_list_set,&
+            vppnl_ca_neighbor_list_set
 
 ! *** Public subroutines ***
 
@@ -105,11 +103,10 @@ CONTAINS
     IF (.NOT.init_pointers_done) THEN
       NULLIFY (aux_neighbor_list_set)
       NULLIFY (orb_neighbor_list_set)
-      NULLIFY (verf_ppl_neighbor_list_set)
       NULLIFY (verfc_neighbor_list_set)
-      NULLIFY (vexp_ppl_neighbor_list_set)
-      NULLIFY (vprj_ppnl_ac_neighbor_list_set)
-      NULLIFY (vprj_ppnl_ca_neighbor_list_set)
+      NULLIFY (vppl_neighbor_list_set)
+      NULLIFY (vppnl_ac_neighbor_list_set)
+      NULLIFY (vppnl_ca_neighbor_list_set)
       init_pointers_done = .TRUE.
     END IF
 
@@ -143,20 +140,15 @@ CONTAINS
 
     IF (gth_potential_present) THEN
       IF (ionode) THEN
-        IF (allchem.AND.globenv%print%nl_verf_ppl) THEN
-          CALL write_neighbor_list_set(verf_ppl_neighbor_list_set,output_unit)
+        IF (globenv%print%nl_vppl) THEN
+          CALL write_neighbor_list_set(vppl_neighbor_list_set,output_unit)
         END IF
-        IF (globenv%print%nl_vexp_ppl) THEN
-          CALL write_neighbor_list_set(vexp_ppl_neighbor_list_set,output_unit)
-        END IF
-        IF (globenv%print%nl_vprj_ppnl) THEN
-          CALL write_neighbor_list_set(vprj_ppnl_ac_neighbor_list_set,&
-                                       output_unit)
-          CALL write_neighbor_list_set(vprj_ppnl_ca_neighbor_list_set,&
-                                       output_unit)
+        IF (globenv%print%nl_vppnl) THEN
+          CALL write_neighbor_list_set(vppnl_ac_neighbor_list_set,output_unit)
+          CALL write_neighbor_list_set(vppnl_ca_neighbor_list_set,output_unit)
         END IF
       END IF
-      CALL deallocate_neighbor_list_set(vprj_ppnl_ac_neighbor_list_set)
+      CALL deallocate_neighbor_list_set(vppnl_ac_neighbor_list_set)
     END IF
 
     CALL timestop(0.0_wp,handle)
@@ -266,14 +258,9 @@ CONTAINS
     END IF
 
     IF (gth_potential_present) THEN
-      IF (allchem) THEN
-        CALL allocate_neighbor_list_set(verf_ppl_neighbor_list_set,"VERF_PPL")
-      END IF
-      CALL allocate_neighbor_list_set(vexp_ppl_neighbor_list_set,"VEXP_PPL")
-      CALL allocate_neighbor_list_set(vprj_ppnl_ac_neighbor_list_set,&
-                                      "VPRJ_PPNL_AC")
-      CALL allocate_neighbor_list_set(vprj_ppnl_ca_neighbor_list_set,&
-                                      "VPRJ_PPNL_CA")
+      CALL allocate_neighbor_list_set(vppl_neighbor_list_set,"VPPL")
+      CALL allocate_neighbor_list_set(vppnl_ac_neighbor_list_set,"VPPNL_AC")
+      CALL allocate_neighbor_list_set(vppnl_ca_neighbor_list_set,"VPPNL_CA")
     END IF
 
 !   *** Create the neighbor lists for all atoms of each atomic kind ***
@@ -287,27 +274,21 @@ CONTAINS
         DO kkind=1,nkind
           IF (ASSOCIATED(kind_info(kkind)%all_potential)) THEN
             IF (gpw) THEN
-              radius_c = kind_info(kkind)%all_potential%erfc_radius
+              radius_c = kind_info(kkind)%core_charge_radius
               CALL build_neighbor_list(verfc_neighbor_list_set,&
                                        atom_a,cell(:),radius_a,&
                                        kind_info(kkind),radius_c)
             END IF
           ELSE IF (ASSOCIATED(kind_info(kkind)%gth_potential)) THEN
-            IF (allchem) THEN
-              radius_c = kind_info(kkind)%gth_potential%erf_ppl_radius
-              CALL build_neighbor_list(verf_ppl_neighbor_list_set,&
-                                       atom_a,cell(:),radius_a,&
-                                       kind_info(kkind),radius_c)
-            END IF
-            IF (kind_info(kkind)%gth_potential%nexp_ppl > 0) THEN
-              radius_c = kind_info(kkind)%gth_potential%exp_ppl_radius
-              CALL build_neighbor_list(vexp_ppl_neighbor_list_set,&
+            IF ((kind_info(kkind)%gth_potential%nexp_ppl > 0).OR.allchem) THEN
+              radius_c = kind_info(kkind)%gth_potential%ppl_radius
+              CALL build_neighbor_list(vppl_neighbor_list_set,&
                                        atom_a,cell(:),radius_a,&
                                        kind_info(kkind),radius_c)
             END IF
             IF (kind_info(kkind)%gth_potential%nppnl > 0) THEN
-              radius_c = kind_info(kkind)%gth_potential%prj_ppnl_radius
-              CALL build_neighbor_list(vprj_ppnl_ac_neighbor_list_set,&
+              radius_c = kind_info(kkind)%gth_potential%ppnl_radius
+              CALL build_neighbor_list(vppnl_ac_neighbor_list_set,&
                                        atom_a,cell(:),radius_a,&
                                        kind_info(kkind),radius_c)
             END IF
@@ -316,8 +297,8 @@ CONTAINS
       END DO
     END DO
 
-!   *** Create the neighbor list set "VPRJ_PPNL_CA" ***
-!   *** using the neighbor list set "VPRJ_PPNL_AC"  ***
+!   *** Create the neighbor list set "VPPNL_CA" ***
+!   *** using the neighbor list set "VPPNL_AC"  ***
 
     IF (gth_potential_present) THEN
 
@@ -329,7 +310,7 @@ CONTAINS
 
 !     *** Build a list of all operator atoms "c" ***
 
-      neighbor_list => first_neighbor_list(vprj_ppnl_ac_neighbor_list_set)
+      neighbor_list => first_neighbor_list(vppnl_ac_neighbor_list_set)
 
       DO WHILE (ASSOCIATED(neighbor_list))
 
@@ -377,17 +358,17 @@ CONTAINS
 
       atom_prj_ppnl => reallocate(atom_prj_ppnl,1,4,1,natom_prj_ppnl)
 
-!     *** Build the neighbor list set "VPRJ_PPNL_CA" ***
+!     *** Build the neighbor list set "VPPNL_CA" ***
 
       DO iatom_prj_ppnl=1,natom_prj_ppnl
         IF (globenv%mepos /= MODULO(iatom_prj_ppnl,globenv%num_pe)) CYCLE
         atom_c = atom_prj_ppnl(1,iatom_prj_ppnl)
         cell(:) = atom_prj_ppnl(2:4,iatom_prj_ppnl)
         kkind = atom_info(atom_c)%kind
-        radius_c = kind_info(kkind)%gth_potential%prj_ppnl_radius
+        radius_c = kind_info(kkind)%gth_potential%ppnl_radius
         DO ikind=1,nkind
           radius_a = kind_info(ikind)%orb_basis_set%kind_radius
-          CALL build_neighbor_list(vprj_ppnl_ca_neighbor_list_set,&
+          CALL build_neighbor_list(vppnl_ca_neighbor_list_set,&
                                    atom_c,cell,radius_c,&
                                    kind_info(ikind),radius_a)
         END DO

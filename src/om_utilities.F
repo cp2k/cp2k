@@ -193,7 +193,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_spherical_matrix(block_matrix,before,after,globenv)
+  SUBROUTINE write_spherical_matrix(block_matrix,before,after,globenv,&
+                                    matrix_name)
 
 !   Purpose: Write a spherical matrix.
 
@@ -228,6 +229,7 @@ CONTAINS
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(real_matrix_type), POINTER           :: block_matrix
     INTEGER, INTENT(IN)                       :: after,before
+    CHARACTER(LEN=*), OPTIONAL, INTENT(IN)    :: matrix_name
 
 !   *** Local variables ***
 
@@ -249,6 +251,8 @@ CONTAINS
     CALL get_matrix_info(matrix=block_matrix,&
                          matrix_name=name,&
                          matrix_symmetry=symmetry)
+
+    IF (PRESENT(matrix_name)) name = matrix_name
 
     NULLIFY (full_matrix)
 

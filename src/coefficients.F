@@ -21,7 +21,7 @@ MODULE coefficients
 
   USE coefficient_types, ONLY : coeff_type, PLANEWAVES
   USE kinds, ONLY : dbl
-  USE pws, ONLY : pw_integral_a, pw_integral_ab
+  USE pws, ONLY : pw_integral_aa, pw_integral_ab
 
   IMPLICIT NONE
 
@@ -29,7 +29,7 @@ MODULE coefficients
   PUBLIC :: integral
 
   INTERFACE integral
-     MODULE PROCEDURE integral_a, integral_ab
+     MODULE PROCEDURE integral_aa, integral_ab
   END INTERFACE
 
 !!*****
@@ -39,7 +39,7 @@ CONTAINS
 
 !******************************************************************************
 
-FUNCTION integral_a ( coeff, flag ) RESULT ( integral_value )
+FUNCTION integral_aa ( coeff, flag ) RESULT ( integral_value )
 
   TYPE ( coeff_type ), INTENT ( IN ) :: coeff
   INTEGER, INTENT ( IN ), OPTIONAL :: flag
@@ -49,12 +49,12 @@ FUNCTION integral_a ( coeff, flag ) RESULT ( integral_value )
 !------------------------------------------------------------------------------
 
   IF ( coeff % in_use == PLANEWAVES ) THEN
-     integral_value = pw_integral_a ( coeff % pw, flag )
+     integral_value = pw_integral_aa ( coeff % pw, flag )
   ELSE
-     stop "integral_a, not defined"
+     stop "integral_aa, not defined"
   END IF
 
-END FUNCTION integral_a
+END FUNCTION integral_aa
 
 !******************************************************************************
 
@@ -78,3 +78,5 @@ END FUNCTION integral_ab
 !******************************************************************************
 
 END MODULE coefficients
+
+!******************************************************************************

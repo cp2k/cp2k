@@ -26,12 +26,12 @@ MODULE input_utilities
 ! Index:
 
 ! SUBROUTINE broadcast_input_information(ifail)
-! SUBROUTINE close_input_file()
+! SUBROUTINE close_file()
 ! SUBROUTINE finish_input_session()
 ! SUBROUTINE get_next_input_line(nline,ifail)
 ! SUBROUTINE get_next_input_string()
 ! SUBROUTINE get_special_input_character(comment,section)
-! SUBROUTINE open_input_file(input_file_name)
+! SUBROUTINE open_file(file_name,file_form,file_action,unit_number)
 ! SUBROUTINE read_integer_object(object,skip_lines)
 ! SUBROUTINE read_next_input_line(nline,ifail)
 ! SUBROUTINE read_real_object(object,skip_lines)
@@ -89,12 +89,18 @@ MODULE input_utilities
 
 ! *** Public subroutines ***
 
-  PUBLIC :: finish_input_session,&
+  PUBLIC :: close_file,&
+            finish_input_session,&
             get_special_input_character,&
+            open_file,&
             read_object,&
             search,&
             start_input_session,&
             test_object
+
+! *** Public functions ***
+
+  PUBLIC :: get_unit_number
 
 ! *****************************************************************************
 
@@ -131,7 +137,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE close_input_file()
+  SUBROUTINE close_file(unit_number,file_status)
 
 !   Purpose: Close the current input file.
 
@@ -139,15 +145,19 @@ CONTAINS
 
 !   ***************************************************************************
 
+    CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: file_status
+    INTEGER, INTENT(IN)                    :: unit_number
+
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE close_input_file (MODULE input_utilities)"
+      "SUBROUTINE close_file (MODULE input_utilities)"
 
 !   *** Local variables ***
 
-    CHARACTER(LEN=max_file_name_length) :: input_file_name
+    CHARACTER(LEN=max_file_name_length) :: file_name
     CHARACTER(LEN=max_message_length)   :: message
+    CHARACTER(LEN=6)                    :: status_string
     INTEGER                             :: istat
     LOGICAL                             :: exists,opened
 
@@ -155,39 +165,45 @@ CONTAINS
 
 !   *** Check the specified input file name ***
 
-    INQUIRE (UNIT=input_unit,EXIST=exists,OPENED=opened,IOSTAT=istat)
+    INQUIRE (UNIT=unit_number,EXIST=exists,OPENED=opened,IOSTAT=istat)
 
     IF (istat /= 0) THEN
       WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
-        "An error occurred inquiring the input unit ",input_unit,&
+        "An error occurred inquiring the unit with the number ",unit_number,&
         " (IOSTAT = ",istat,")"
       CALL compress(message)
       CALL stop_program(routine,message)
     ELSE IF (.NOT.exists) THEN
       WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
-        "The specified input unit ",input_unit," does not exist"
+        "The specified unit number ",unit_number," does not exist"
       CALL compress(message)
       CALL stop_program(routine,message)
     END IF
 
-!   *** Close the specified input file ***
+!   *** Close the specified file ***
 
     IF (opened) THEN
 
-      CLOSE (UNIT=input_unit,IOSTAT=istat,STATUS="KEEP")
+      IF (PRESENT(file_status)) THEN
+        status_string = file_status
+        CALL uppercase(status_string)
+      ELSE
+        status_string = "KEEP"
+      END IF
+
+      CLOSE (UNIT=unit_number,IOSTAT=istat,STATUS=TRIM(status_string))
 
       IF (istat /= 0) THEN
         WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
-          "An error occurred closing the input file <"//&
-          TRIM(input_file_name)//"> with the unit number ",input_unit,&
-          "(IOSTAT = ",istat,")"
+          "An error occurred closing the file <"//TRIM(file_name)//&
+          "> with the unit number ",unit_number," (IOSTAT = ",istat,")"
         CALL compress(message)
         CALL stop_program(routine,message)
       END IF
 
     END IF
 
-  END SUBROUTINE close_input_file
+  END SUBROUTINE close_file
 
 ! *****************************************************************************
 
@@ -216,7 +232,7 @@ CONTAINS
                           "Cannot finish an input session that was never "//&
                           " started")
       ELSE
-        CALL close_input_file()
+        CALL close_file(unit_number=input_unit)
       END IF
     END IF
 
@@ -457,79 +473,105 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE open_input_file(input_file_name)
+  SUBROUTINE open_file(file_name,file_status,file_form,file_action,unit_number)
 
-!   Purpose: Open the input file with the name "input_file_name".
+!   Purpose: Open the file with the name "file_name".
 
 !   History: - Creation (13.02.2001, Matthias Krack)
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), INTENT(IN) :: input_file_name
+    CHARACTER(LEN=*), INTENT(IN)           :: file_name
+    CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: file_action,file_form,file_status
+    INTEGER, INTENT(OUT)                   :: unit_number
 
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE open_input_file (MODULE input_utilities)"
+      "SUBROUTINE open_file (MODULE input_utilities)"
 
 !   *** Local variables ***
 
     CHARACTER(LEN=max_message_length) :: message
+    CHARACTER(LEN=11)                 :: action_string,form_string,&
+                                         status_string
     INTEGER                           :: istat
     LOGICAL                           :: exists,opened
 
 !   ---------------------------------------------------------------------------
 
+    IF (PRESENT(file_status)) THEN
+      status_string = file_status
+      CALL uppercase(status_string)
+    ELSE
+      status_string = "OLD"
+    END IF
+
+    IF (PRESENT(file_form)) THEN
+      form_string = file_form
+      CALL uppercase(form_string)
+    ELSE
+      form_string = "FORMATTED"
+    END IF
+
+    IF (PRESENT(file_action)) THEN
+      action_string = file_action
+      CALL uppercase(action_string)
+    ELSE
+      action_string = "READ"
+    END IF
+
 !   *** Check the specified input file name ***
 
-    INQUIRE (FILE=input_file_name,EXIST=exists,OPENED=opened,IOSTAT=istat)
+    INQUIRE (FILE=file_name,EXIST=exists,OPENED=opened,IOSTAT=istat)
 
     IF (istat /= 0) THEN
       WRITE (UNIT=message,FMT="(A,I6,A)")&
-        "An error occurred inquiring the input file <"//&
-        TRIM(input_file_name)//"> (IOSTAT = ",istat,")"
+        "An error occurred inquiring the file <"//TRIM(file_name)//&
+        "> (IOSTAT = ",istat,")"
       CALL stop_program(routine,message)
-    ELSE IF (.NOT.exists) THEN
-      CALL stop_program(routine,&
-                        "The specified input file <"//TRIM(input_file_name)//&
-                        "> does not exist")
+    ELSE IF (status_string == "OLD") THEN
+      IF (.NOT.exists) THEN
+        CALL stop_program(routine,&
+                          "The specified file <"//TRIM(file_name)//&
+                          "> does not exist")
+      END IF
     END IF
 
 !   *** Open the specified input file ***
 
     IF (opened) THEN
 
-      INQUIRE (FILE=input_file_name,NUMBER=input_unit)
-      REWIND (input_unit)
+      INQUIRE (FILE=file_name,NUMBER=unit_number)
+      REWIND (UNIT=unit_number)
 
     ELSE
 
 !     *** Find an unused unit number ***
 
-      input_unit = get_unit_number()
+      unit_number = get_unit_number()
 
-      IF (input_unit < 0) THEN
+      IF (unit_number < 0) THEN
         CALL stop_program(routine,&
                           "Could not find a logical unit number which "//&
                           "exists and is not connected")
       END IF
 
-      OPEN (UNIT=input_unit,FILE=input_file_name,STATUS="OLD",&
-            ACCESS="SEQUENTIAL",FORM="FORMATTED",POSITION="REWIND",&
-            ACTION="READ",IOSTAT=istat)
+      OPEN (UNIT=unit_number,FILE=file_name,STATUS=TRIM(status_string),&
+            ACCESS="SEQUENTIAL",FORM=TRIM(form_string),POSITION="REWIND",&
+            ACTION=TRIM(action_string),IOSTAT=istat)
 
       IF (istat /= 0) THEN
         WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
-          "An error occurred opening the input file <"//&
-          TRIM(input_file_name)//"> with the unit number ",input_unit,&
-          "(IOSTAT = ",istat,")"
+          "An error occurred opening the file <"//TRIM(file_name)//&
+          "> with the unit number ",unit_number," (IOSTAT = ",istat,")"
         CALL compress(message)
         CALL stop_program(routine,message)
       END IF
 
     END IF
 
-  END SUBROUTINE open_input_file
+  END SUBROUTINE open_file
 
 ! *****************************************************************************
 
@@ -951,7 +993,7 @@ CONTAINS
 
     IF (ionode) THEN
       IF (input_unit == 0) THEN
-        CALL open_input_file(input_file_name)
+        CALL open_file(file_name=input_file_name,unit_number=input_unit)
       ELSE
         WRITE (UNIT=output_unit,FMT="(/,T2,A,I6,/,T2,A)")&
           "Current input unit: ",input_unit,&

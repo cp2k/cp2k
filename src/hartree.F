@@ -1,76 +1,138 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+!!****** cp2k/hartree [1.0] *
 !!
+!!   NAME
+!!     hartree
 !!
-!!@Author Christopher Mundy
+!!   FUNCTION
+!!     Calculate Hartree energy and potential
+!!
+!!   AUTHOR
+!!     CJM 
+!!
+!!   MODIFICATION HISTORY
+!!     JGH (12-Mar-2001) : 
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE hartree
   
   USE kinds, ONLY : dbl
-  USE coefficient_types, ONLY : coeff_type, PLANEWAVES
-  USE coefficients, ONLY : integral
+  USE coefficient_types, ONLY : coeff_type, coeff_allocate, coeff_deallocate, &
+      PLANEWAVES
   USE pws, ONLY : pw_poisson_solver
+  USE termination, ONLY: stop_memory
+  USE timings, ONLY: timeset, timestop
   
   IMPLICIT NONE
-  
+
+!!*****
+!******************************************************************************
+
 CONTAINS
 
 !******************************************************************************
+!!****** hartree/calculate_hartree [1.0] *
+!!
+!!   NAME
+!!     calculate_hartree
+!!
+!!   FUNCTION
+!!     
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     JGH (12-Mar-2001) : stress
+!!
+!!   SOURCE
+!******************************************************************************
 
-SUBROUTINE calculate_hartree ( n, ehartree, vhartree, dvhartree )
+SUBROUTINE calculate_hartree ( density, ehartree, vhartree, dvhartree, h_stress )
   
 ! Arguments
-  TYPE ( coeff_type ), INTENT ( IN ) :: n   ! Total density
-  
+  TYPE ( coeff_type ), INTENT ( INOUT ) :: density
   REAL ( dbl ), INTENT ( OUT ) :: ehartree
-  !! vxc is optional in case you only want the energy
-  TYPE ( coeff_type ), INTENT ( OUT ), OPTIONAL :: vhartree
-  TYPE ( coeff_type ), DIMENSION ( 3 ), INTENT ( OUT ), &
-       OPTIONAL :: dvhartree
+  TYPE ( coeff_type ), TARGET, INTENT ( OUT ), OPTIONAL :: vhartree
+  TYPE ( coeff_type ), DIMENSION ( 3 ), INTENT ( OUT ), OPTIONAL :: dvhartree
+  REAL ( dbl ), DIMENSION ( 3, 3 ), INTENT ( OUT ), OPTIONAL :: h_stress
   
 ! Local
-  REAL ( dbl ) :: eps0 ! TMPTMPTMP
+  INTEGER :: handle, ierr
+  TYPE ( coeff_type ), POINTER :: vh
   
 !------------------------------------------------------------------------------
   
-  IF ( PRESENT ( dvhartree ) ) THEN
-     CALL poisson_solver ( n, vhartree, dvhartree )
+  CALL timeset ( 'HARTREE', 'I', ' ', handle )
+
+  IF ( PRESENT ( vhartree ) ) THEN
+    vh => vhartree
   ELSE
-     CALL poisson_solver ( n, vhartree )
+    ALLOCATE ( vh, STAT = ierr )
+    IF ( ierr /= 0 ) call stop_memory ( "calculate_hartree", "vh", 0 )
+    CALL coeff_allocate ( vh, density )
   END IF
+
+  CALL poisson_solver ( density, ehartree, vh, dvhartree, h_stress )
   
-eps0 = 1._dbl !TMPTMPTMP
-  ehartree = 0.5_dbl * integral ( n, vhartree ) / eps0
+  IF ( .NOT. PRESENT ( vhartree ) ) THEN
+    CALL coeff_deallocate ( vh )
+    DEALLOCATE ( vh, STAT = ierr )
+    IF ( ierr /= 0 ) call stop_memory ( "calculate_hartree", "vh" )
+  END IF
+
+  CALL timestop ( 0.0_dbl, handle )
   
 END SUBROUTINE calculate_hartree
 
+!!*****
+!******************************************************************************
+!!****** hartree/poisson_solver [1.0] *
+!!
+!!   NAME
+!!     poisson_solver
+!!
+!!   FUNCTION
+!!
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     JGH (12-Mar-2001) : stress
+!!
+!!   SOURCE
 !******************************************************************************
 
-SUBROUTINE poisson_solver ( n, vhartree, dvhartree )
-  
-!! obtains electrostatic potential and its derivatives with respect to r
-!!    from the density
+SUBROUTINE poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress )
   
   IMPLICIT NONE
   
 ! Arguments
-  TYPE ( coeff_type ), INTENT ( IN ) :: n
-  TYPE ( coeff_type ), INTENT ( OUT ), OPTIONAL :: vhartree
-  TYPE ( coeff_type ), DIMENSION ( 3 ), INTENT ( OUT ), &
-       OPTIONAL :: dvhartree
+  TYPE ( coeff_type ), INTENT ( INOUT ) :: density
+  REAL ( dbl ), INTENT ( OUT ) :: ehartree
+  TYPE ( coeff_type ), INTENT ( OUT ) :: vhartree
+  TYPE ( coeff_type ), DIMENSION ( 3 ), INTENT ( OUT ), OPTIONAL :: dvhartree
+  REAL ( dbl ), DIMENSION ( 3, 3 ), INTENT ( OUT ), OPTIONAL :: h_stress
   
 !------------------------------------------------------------------------------
   
-  IF ( n % in_use == PLANEWAVES ) THEN
-     IF ( PRESENT ( dvhartree ) ) THEN
-        CALL pw_poisson_solver ( n, vhartree, dvhartree )
-     ELSE
-        CALL pw_poisson_solver ( n, vhartree )
-     END IF
+  IF ( density % in_use == PLANEWAVES ) THEN
+    CALL pw_poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress )
   ELSE
      stop "poisson_solver, no grid type implemented"
   END IF
   
 END SUBROUTINE poisson_solver
 
+!!*****
 !******************************************************************************
 
 END MODULE hartree
+
+!******************************************************************************

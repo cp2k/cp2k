@@ -77,6 +77,9 @@ SUBROUTINE convert ( units, simpar, part, pstat, box, potparm, &
 ! convert verlet skin
      simpar%verlet_skin = simpar%verlet_skin*units%lconv
 
+! convert omega_p (wp) of PIMD
+     simpar%pimd_params%wp = simpar%pimd_params%wp * units%econv / units%tconv
+     
 ! converting extended system time constants
      SELECT CASE (simpar%ensemble)
      CASE ( 'NVT')

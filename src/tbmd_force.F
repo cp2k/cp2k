@@ -21,10 +21,12 @@
 MODULE tbmd_force
 
   USE dg_types, ONLY : dg_type
+  USE dgs, ONLY : dg_grid_change
   USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE ewalds, ONLY : ewald_gaussian, ewald_initialize
+  USE ewalds, ONLY : ewald_evaluate, ewald_initialize, ewald_setup
   USE fist_nonbond_force, ONLY : force_nonbond
   USE global_types, ONLY : global_environment_type
+  USE greens_fn, ONLY : pw_green_fn_init
   USE kinds, ONLY : dbl
   USE linklist_control, ONLY : list_control
   USE mathconstants, ONLY : pi, zero
@@ -78,7 +80,7 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
-     potparm, ewald_param, ensemble, fc_global, lldata, debug )
+     potparm, ewald_param, box_change, fc_global, lldata, debug )
 
   IMPLICIT NONE
 
@@ -87,11 +89,11 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
   TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ) :: pnode
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
   TYPE ( cell_type ), INTENT ( INOUT ) :: box
-  TYPE ( cell_type ), INTENT ( IN ) :: box_ref
+  TYPE ( cell_type ), INTENT ( INOUT ) :: box_ref
   TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
   TYPE ( potentialparm_type ), DIMENSION ( :,: ), INTENT ( IN ) :: potparm
   TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: ensemble
+  LOGICAL, INTENT ( IN ) :: box_change
   TYPE ( global_environment_type ), INTENT ( IN ) :: fc_global
   TYPE ( linklist_internal_data_type ), INTENT ( INOUT ) :: lldata
   TYPE ( debug_variables_type ), INTENT ( OUT ), OPTIONAL :: debug
@@ -143,18 +145,30 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
   END IF
 
 ! reinitialize the gspace for the new box
-  SELECT CASE ( ensemble ( 1:3 )  )
-  CASE ( 'NPT' )
+  IF ( box_change ) THEN
+
      CALL get_hinv ( box )
 
      SELECT CASE ( ewald_param % ewald_type )
-     CASE ( 'EWALD', 'SPME' )
+     CASE ( 'EWALD' )
+        CALL get_hinv ( box )
         CALL pw_grid_change ( box, grid_ewald )
+        CALL ewald_setup ( grid_ewald, ewald_param, dg )
      CASE ( 'PME' )
-        CALL stop_program ( 'force_control',  &
-             'constant pressure with PME not implemented' )
+        CALL get_hinv ( box )
+        CALL pw_grid_change ( box, grid_b )
+        CALL pw_green_fn_init ( box % green, grid_b )
+        CALL dg_grid_change ( box, grid_b, grid_s )
+        CALL ewald_setup ( grid_s, ewald_param, dg )
+     CASE ( 'SPME' )
+        CALL get_hinv ( box )
+        CALL pw_grid_change ( box, grid_spme )
+        CALL pw_green_fn_init ( box % green, grid_spme, p3m=ewald_param%o_spline, &
+             alpha = ewald_param%alpha )
+        CALL ewald_setup ( grid_spme, ewald_param, dg )
      END SELECT
-  END SELECT
+
+  END IF
 
 !
 ! first check with list_control to update neighbor lists
@@ -189,15 +203,15 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
      SELECT CASE ( ewald_param % ewald_type )
 
      CASE ( "EWALD" )
-        CALL ewald_gaussian ( dg, ewald_param, fg_coulomb, vg_coulomb, &
+        CALL ewald_evaluate ( dg, ewald_param, fg_coulomb, vg_coulomb, &
              pv_g, pnode, box )
 
      CASE ( "PME" )
-        CALL pme_evaluate ( dg, fg_coulomb, vg_coulomb, pv_g, box, &
+        CALL pme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
              grid_s, grid_b, ewald_param )
         
      CASE ( "SPME" )
-        CALL spme_evaluate ( dg, fg_coulomb, vg_coulomb, pv_g, box, &
+        CALL spme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
              grid_spme, ewald_param )
         
      CASE DEFAULT

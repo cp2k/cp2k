@@ -12,7 +12,8 @@
 !!   AUTHOR
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (15-Mar-2001) : New routine ewald_setup (former pme_setup)
+!!     JGH (23-Mar-2001) : Get rid of global variable ewald_grp
 !!
 !!   SOURCE
 !******************************************************************************
@@ -22,6 +23,7 @@ MODULE ewalds
   USE coefficient_types, ONLY : coeff_type
   USE dgs, ONLY : dg_grid_setup
   USE dg_types, ONLY : dg_type
+  USE dg_rho0s, ONLY : dg_rho0_setup
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
@@ -30,9 +32,10 @@ MODULE ewalds
   USE molecule_types, ONLY : particle_node_type
   USE message_passing, ONLY : mp_sum
   USE particle_types, ONLY : particle_type
-  USE pme, ONLY : pme_setup
+  USE particle_lists, ONLY : particle_list_select
   USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE
   USE pw_grids, ONLY : pw_find_cutoff, pw_grid_setup, pw_grid_construct
+  USE realspace_grid_types, ONLY : realspace_grid_type, rs_grid_setup
   USE simulation_cell, ONLY : cell_type
   USE structure_factor_types, ONLY : structure_factor_type
   USE structure_factors, ONLY : structure_factor_evaluate, &
@@ -45,10 +48,8 @@ MODULE ewalds
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: ewald_gaussian, ewald_correction, ewald_self
+  PUBLIC :: ewald_evaluate, ewald_correction, ewald_self, ewald_setup
   PUBLIC :: ewald_print, ewald_initialize
-
-  INTEGER :: ewald_grp
 
 !!*****
 !******************************************************************************
@@ -56,10 +57,10 @@ MODULE ewalds
 CONTAINS
 
 !******************************************************************************
-!!****** ewalds/ewald_gaussian [1.0] *
+!!****** ewalds/ewald_evaluate [1.0] *
 !!
 !!   NAME
-!!     ewald_gaussian
+!!     ewald_evaluate
 !!
 !!   FUNCTION
 !!     computes the potential and the force from the g-space part of
@@ -73,11 +74,12 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     JGH (28-Feb-2001) : added fft_usage flag to pw_grid_setup and calls to
 !!                         pw_grid_construct
+!!     JGH (21-Feb-2001) : changed name
 !!
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE ewald_gaussian (dg, ewald_param, fg_coulomb, vg_coulomb, &
+SUBROUTINE ewald_evaluate (dg, ewald_param, fg_coulomb, vg_coulomb, &
      pv_g, pnode, box )
   
   IMPLICIT NONE
@@ -166,7 +168,7 @@ SUBROUTINE ewald_gaussian (dg, ewald_param, fg_coulomb, vg_coulomb, &
        + pw_grid % ngpts_cut * nnodes * 20.0_dbl
 
 #if defined(__parallel)
-  CALL mp_sum ( summe, ewald_grp )
+  CALL mp_sum ( summe, ewald_param % group )
 #endif
 
 ! looping over the positive g-vectors
@@ -214,7 +216,7 @@ SUBROUTINE ewald_gaussian (dg, ewald_param, fg_coulomb, vg_coulomb, &
      pv_g(2,3) = pv_g(2,3) - common * &
           ( 2.0_dbl * pw_grid % g ( 2, gpt ) * pw_grid % g ( 3, gpt ) * denom )
      pv_g(3,1) = pv_g(3,1) - common * &
-          ( 2.0_dbl * pw_grid % g ( 3, gpt ) * pw_grid % g ( 1, gpt ) * denom)
+          ( 2.0_dbl * pw_grid % g ( 3, gpt ) * pw_grid % g ( 1, gpt ) * denom )
      pv_g(3,2) = pv_g(3,2) - common * &
           ( 2.0_dbl * pw_grid % g ( 3, gpt ) * pw_grid % g ( 2, gpt ) * denom )
      pv_g(3,3) = pv_g(3,3) + common * ( 1.0_dbl &
@@ -224,7 +226,7 @@ SUBROUTINE ewald_gaussian (dg, ewald_param, fg_coulomb, vg_coulomb, &
   flops = flops + pw_grid % ngpts_cut * 55.0_dbl &
        + pw_grid % ngpts_cut * nnodes * 23.0_dbl
 
-  pref = 1.0_dbl / ( ewald_param % eps0 * box % deth )
+  pref = 1.0_dbl / ( ewald_param % eps0 * pw_grid % vol )
   vg_coulomb = vg_coulomb * pref
   pv_g = pv_g * pref
 
@@ -239,7 +241,7 @@ SUBROUTINE ewald_gaussian (dg, ewald_param, fg_coulomb, vg_coulomb, &
   flops = flops * 1.0E-6_dbl
   CALL timestop ( flops, handle )
 
-END SUBROUTINE ewald_gaussian
+END SUBROUTINE ewald_evaluate
 
 !!*****
 !******************************************************************************
@@ -284,12 +286,13 @@ SUBROUTINE ewald_self ( ewald_param, thermo, pnode )
   END DO
 
 #if defined(__parallel)
-  CALL mp_sum(q_self,ewald_grp)
-  CALL mp_sum(q_sum,ewald_grp)
+  CALL mp_sum(q_self,ewald_param%group)
+  CALL mp_sum(q_sum,ewald_param%group)
 #endif
 
   IF ( ewald_param % ewald_type == 'EWALD' .OR. &
-       ewald_param % ewald_type == 'PME' ) THEN
+       ewald_param % ewald_type == 'PME' .OR. &
+       ewald_param % ewald_type == 'SPME' ) THEN
 
      thermo % e_self = -q_self * ewald_param % alpha &
           / ( 4.0_dbl * ewald_param % eps0 * pi * SQRT ( pi ) )
@@ -408,7 +411,9 @@ END SUBROUTINE ewald_print
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!     JGH (12-01-2001): Added SPME part
+!!     JGH (12-Jan-2001): Added SPME part
+!!     JGH (15-Mar-2001): Work newly distributed between initialize, setup,
+!!                        and force routine
 !!
 !!   SOURCE
 !******************************************************************************
@@ -424,7 +429,7 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
   TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ) :: part
   TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
   TYPE ( global_environment_type ), INTENT ( IN ) :: pnode_grp
-  TYPE ( cell_type ), INTENT ( IN ) :: box
+  TYPE ( cell_type ), INTENT ( INOUT ) :: box
   TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
   TYPE ( pw_grid_type ), INTENT ( OUT ), OPTIONAL :: ewald_grid
   TYPE ( pw_grid_type ), INTENT ( OUT ), OPTIONAL :: pme_small_grid
@@ -433,14 +438,16 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
   
 ! Locals
   INTEGER ::  natoms, iat, jat, gmax, npts_s ( 3 ), iw
-  REAL ( dbl ) :: qi, qj, i, cutoff
+  REAL ( dbl ) :: i, cutoff, ecut
+  TYPE ( realspace_grid_type ) :: rs
 
 !------------------------------------------------------------------------------
 
 ! parallelisation is over atoms (pnodes), so the group of processors
 ! has to be the same as the group for the pnodes
-  ewald_grp = pnode_grp % group
-
+! This holds only for normal Ewald sums!
+! For the grid based methods, G-Space/Real Space are distributed differently
+  ewald_param % group = pnode_grp % group
 
   natoms = SIZE ( part )
 
@@ -466,7 +473,7 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
           WRITE ( iw, '( A,T71,I10 )' ) &
                ' Ewald| G-space max. Miller index', ewald_param % gmax
           WRITE ( iw, '( A,T71,I10 )' ) &
-               ' EWALD| Spline interpolation order ', ewald_param % o_spline
+               ' Ewald| Spline interpolation order ', ewald_param % o_spline
        END SELECT
 
     ELSE
@@ -486,7 +493,7 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
      CALL ewald_self ( ewald_param, thermo, pnode )
      
      IF ( PRESENT ( ewald_grid ) ) THEN
-! set up EWALD
+        ! set up EWALD "Classic"
         CALL pw_grid_construct( ewald_grid )
         gmax = ewald_param % gmax
         IF ( gmax == 2 * ( gmax / 2 ) ) THEN
@@ -500,13 +507,12 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
 
         CALL pw_find_cutoff ( npts_s, box, cutoff )
 
-        CALL pw_grid_setup( box, ewald_grid, cutoff = cutoff, &
+        ecut = 0.5_dbl * cutoff * cutoff
+        CALL pw_grid_setup( box, ewald_grid, cutoff = ecut, &
                             info = iw, fft_usage = .FALSE. )
-
-        CALL pme_setup (pnode, ewald_grid, ewald_param, dg )
      
      ELSEIF ( PRESENT ( pme_small_grid ) .AND. PRESENT ( pme_big_grid ) ) THEN
-! set up PME
+        ! set up PME, the double grid method
         CALL pw_grid_construct( pme_small_grid )
         CALL pw_grid_construct( pme_big_grid )
 
@@ -516,7 +522,11 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
              ewald_param % alpha, pme_small_grid, &
              pme_big_grid, ewald_param % ewald_type, pnode_grp )
 
-        CALL pme_setup (pnode, pme_small_grid, ewald_param, dg )
+        CALL rs_grid_setup ( rs, pme_big_grid, pme_small_grid % npts, &
+             pnode_grp % scr )
+
+        ! set up a list with all particles having a chage
+        CALL particle_list_select ( pnode, dg % plist, dg % nparts )
 
         IF ( pnode_grp % ionode ) THEN
           WRITE ( iw, '( A,T71,E10.4 )' ) &
@@ -528,30 +538,80 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
         END IF
 
      ELSEIF ( PRESENT ( spme_grid ) ) THEN
-! set up SPME
+        ! set up SPME
         CALL pw_grid_construct( spme_grid )
         gmax = ewald_param % gmax
-        IF ( gmax == 2 * ( gmax / 2 ) ) THEN
-           IF ( pnode_grp % ionode ) &
-             CALL stop_program ( "initialize_ewalds", "gmax has to be odd" )
-        END IF
-        spme_grid % bounds ( 1, : ) = -gmax / 2
-        spme_grid % bounds ( 2, : ) = +gmax / 2
         npts_s = (/ gmax, gmax, gmax /)
-        spme_grid % grid_span = HALFSPACE
-
         CALL pw_find_cutoff ( npts_s, box, cutoff )
+        spme_grid % grid_span = HALFSPACE
+        spme_grid % bounds ( 1, : ) = -gmax/2
+        spme_grid % bounds ( 2, : ) = -gmax/2 + gmax - 1
 
-        CALL pw_grid_setup( box, spme_grid, cutoff = cutoff, &
-                            info = pnode_grp % scr, fft_usage = .TRUE. )
+        ecut = 0.5_dbl * cutoff * cutoff
+        CALL pw_grid_setup( box, spme_grid, cutoff = ecut, &
+             pe_group = pnode_grp % group, info = pnode_grp % scr, &
+             fft_usage = .TRUE. )
 
-        CALL pme_setup (pnode, spme_grid, ewald_param, dg )
+        npts_s ( : ) = ewald_param % o_spline
+        CALL rs_grid_setup ( rs, spme_grid, npts_s, pnode_grp % scr )
+
+        ! set up a list with all particles having a chage
+        CALL particle_list_select ( pnode, dg % plist, dg % nparts )
 
      END IF
 
   END IF
 
 END SUBROUTINE ewald_initialize
+
+!!*****
+!******************************************************************************
+!!****** ewalds/ewald_setup [1.0] *
+!!
+!!   NAME
+!!     ewald_setup
+!!
+!!   FUNCTION
+!!     Calculates the Fourier transform of the "Ewald function"
+!!
+!!   AUTHOR
+!!     JGH (15-Mar-2001)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE ewald_setup ( pw_grid, ewald_param, dg )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
+  TYPE ( pw_grid_type ), INTENT ( IN ) :: pw_grid
+  TYPE ( dg_type ), INTENT ( OUT ) :: dg
+
+! Locals
+  INTEGER :: isos
+
+!------------------------------------------------------------------------------
+
+! This is the first (and only) double grid
+  dg % grid_index = 1
+
+  ALLOCATE ( dg % dg_rho0 % zet (1) , STAT = isos)
+  IF ( isos /= 0 ) CALL stop_memory ('ewald_setup', 'zet', 0 )
+
+! No contracted Gaussians are used here
+  NULLIFY ( dg % dg_rho0 % gcc )
+
+  dg % dg_rho0 % type = ewald_param % ewald_type
+  dg % dg_rho0 % zet ( 1 ) = ewald_param % alpha
+
+  CALL dg_rho0_setup ( dg % dg_rho0, pw_grid )
+
+END SUBROUTINE ewald_setup
 
 !!*****
 !******************************************************************************

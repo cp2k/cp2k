@@ -48,8 +48,8 @@ MODULE orbital_pointers
 
   INTEGER :: current_maxl = -1
 
-  INTEGER, DIMENSION(:), POINTER :: nco,ncoset,nso,nsoset
-
+  INTEGER, DIMENSION(:), POINTER     :: nco,ncoset,nso,nsoset
+  INTEGER, DIMENSION(:,:), POINTER   :: indco
   INTEGER, DIMENSION(:,:,:), POINTER :: co,coset
 
 ! *** Public subroutines ***
@@ -61,6 +61,7 @@ MODULE orbital_pointers
   PUBLIC :: co,&
             coset,&
             current_maxl,&
+            indco,&
             nco,&
             ncoset,&
             nso
@@ -95,7 +96,7 @@ CONTAINS
 
 !   *** Initialize pointers in the first call ***
 
-    IF (current_maxl == -1) NULLIFY(co,coset,nco,ncoset,nso,nsoset)
+    IF (current_maxl == -1) NULLIFY(co,coset,indco,nco,ncoset,nso,nsoset)
 
 !   *** Number of Cartesian orbitals for each l ***
 
@@ -126,6 +127,17 @@ CONTAINS
           IF (l > maxl) CYCLE
           co(lx,ly,lz) = 1 + (l - lx)*(l - lx + 1)/2 + lz
           coset(lx,ly,lz) = ncoset(l-1) + co(lx,ly,lz)
+        END DO
+      END DO
+    END DO
+
+    indco => reallocate(indco,1,3,1,ncoset(maxl))
+
+    DO l=0,maxl
+      DO lx=0,l
+        DO ly=0,l-lx
+          lz = l - lx - ly
+          indco(1:3,coset(lx,ly,lz)) = (/lx,ly,lz/)
         END DO
       END DO
     END DO

@@ -41,7 +41,7 @@
 !------------------------------------------------------------------------------
 
 PROGRAM cp2k
-  
+
   USE atom_module,ONLY : atomic_code
   USE control_module, ONLY : control
   USE cp2k_input, ONLY : read_cp2k_section
@@ -51,30 +51,26 @@ PROGRAM cp2k
   USE library_tests,ONLY : lib_test
   USE parallel, ONLY : start_parallel, end_parallel
   USE physcon, ONLY : write_physcon
+  USE qs_main, ONLY : quickstep
   USE termination,  ONLY: stop_program
 
-  USE core_hamiltonian,  ONLY: build_core_hamiltonian_matrix
-  USE nl,                ONLY: build_neighbor_list_sets
-  USE readin,            ONLY: read_files
-  USE start_program_run, ONLY: start_qs_program_run
-
   IMPLICIT NONE
-  
+
   TYPE ( global_environment_type ) :: globenv
-  
+
 !------------------------------------------------------------------------------
-  
+
   CALL start_parallel ( globenv )
-  
+
   CALL initialisation ( globenv )
-  
+
   CALL read_cp2k_section ( globenv )
-  
+
   IF ( globenv % ionode .AND. globenv % print_level > 9 ) &
        CALL print_kind_info ( globenv % scr )
   IF ( globenv % ionode .AND. globenv % print_level > 4 ) &
        CALL write_physcon ( globenv % scr )
-  
+
   SELECT CASE ( globenv % program_name )
 
   CASE DEFAULT
@@ -85,25 +81,10 @@ PROGRAM cp2k
   CASE ( "FIST", "TBMD", "WAVE" )
 
      CALL control ( globenv )
-     
+
   CASE ( "QUICKSTEP", "QS" )
 
-!   *** Initialize the Quickstep program run ***
-
-    CALL start_qs_program_run(globenv)
-
-!   *** Read the input and the database files ***
-!   *** and perform further initializations   ***
-
-    CALL read_files(globenv)
-
-!   *** Build neighbor list sets ***
-
-    CALL build_neighbor_list_sets(globenv)
-
-!   *** Calculate the core Hamiltonian integral matrix ***
-
-    CALL build_core_hamiltonian_matrix(globenv)
+     CALL quickstep ( globenv )
 
   CASE ( "ATOM" )
 
@@ -114,11 +95,11 @@ PROGRAM cp2k
      CALL lib_test ( globenv )
 
   END SELECT
-  
+
   CALL end_parallel ( )
-  
+
   CALL trailer ( globenv )
-  
+
 !------------------------------------------------------------------------------
 
 END PROGRAM cp2k

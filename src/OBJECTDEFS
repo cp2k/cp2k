@@ -18,9 +18,11 @@ OBJECTS_GENERIC =\
  cntl_input.o\
  coefficient_types.o\
  coefficients.o\
+ collocate_density.o\
  constraint.o\
  control_module.o\
  convert_units.o\
+ core_energies.o\
  core_hamiltonian.o\
  cp2k.o\
  cp2k_input.o\
@@ -32,6 +34,7 @@ OBJECTS_GENERIC =\
  dg_rho0s.o\
  dg_types.o\
  dgs.o\
+ diis.o\
  dump.o\
  eigenvalueproblems.o\
  environment.o\
@@ -48,7 +51,6 @@ OBJECTS_GENERIC =\
  fist_debug.o\
  fist_force.o\
  fist_force_numer.o\
- fist_input.o\
  fist_intra_force.o\
  fist_nonbond_force.o\
  force_control.o\
@@ -62,8 +64,10 @@ OBJECTS_GENERIC =\
  initialize_extended_types.o\
  initialize_molecule_types.o\
  initialize_particle_types.o\
+ initialize_pimd_types.o \
  input_types.o\
  input_utilities.o\
+ integrate_potential.o\
  integrator.o\
  interactions.o\
  k290.o\
@@ -88,6 +92,7 @@ OBJECTS_GENERIC =\
  memory_utilities.o\
  message_passing.o\
  method_specifications.o\
+ mo_types.o\
  mol_force.o\
  molecule_input.o\
  molecule_types.o\
@@ -120,12 +125,16 @@ OBJECTS_GENERIC =\
  pw_types.o\
  pw_xc.o\
  pws.o\
+ qs_main.o\
+ qs_scf.o\
  radial_grids.o\
  radial_operators.o\
  radial_poisson.o\
  radial_solver.o\
  radial_util.o\
+ read_pimd.o\
  readin.o\
+ realspace_grid_types.o\
  simulation_cell.o\
  slater_koster.o\
  slater_koster_matr.o\
@@ -147,6 +156,7 @@ OBJECTS_GENERIC =\
  termination.o\
  timesl.o\
  timings.o\
+ transformations.o \
  unit.o\
  util.o\
  wf_types.o\

@@ -13,7 +13,7 @@
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (11 May 2001) : cleaning up of support structures
 !!
 !!   SOURCE
 !******************************************************************************
@@ -22,7 +22,7 @@ MODULE fist_nonbond_force
 
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE kinds, ONLY : dbl
-  USE mathconstants, ONLY : pi, zero
+  USE mathconstants, ONLY : pi
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type, &
        linklist_atoms, linklist_neighbor, linklist_exclusion, linklist_images
   USE pair_potential, ONLY : potential_s, potentialparm_type
@@ -59,7 +59,6 @@ SUBROUTINE force_nonbond ( ewald_param, pnode, box, potparm, pot_nonbond, &
   REAL ( dbl ), INTENT ( OUT ) :: pot_nonbond
   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_nonbond
   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: ptens_nonbond
-  REAL ( dbl ), ALLOCATABLE, SAVE , DIMENSION ( :, : ) :: rtest
 
 ! Locals
   INTEGER :: i, j, ii, jj, iatomtype, jatomtype, imol, nmol, iat
@@ -71,18 +70,18 @@ SUBROUTINE force_nonbond ( ewald_param, pnode, box, potparm, pot_nonbond, &
   REAL ( dbl ) :: energy, fscalar, rijsq, flops, rcut
   TYPE (linklist_neighbor), POINTER :: current_neighbor
   TYPE (linklist_images), POINTER :: current_image
-  INTEGER, DIMENSION(:,:,:), ALLOCATABLE, SAVE :: n_images
-  LOGICAL :: first_time
+  INTEGER, DIMENSION(:,:), ALLOCATABLE :: n_images
+  REAL ( dbl ), ALLOCATABLE, DIMENSION ( :, : ) :: rtest
 
 !------------------------------------------------------------------------------
 
   CALL timeset ( 'NONBOND', 'E', 'Mflops', handle )
-  flops = zero
+  flops = 0._dbl
 
 ! initializing the potential energy, pressure tensor and force
-  pot_nonbond = zero
-  f_nonbond = zero
-  ptens_nonbond = zero
+  pot_nonbond = 0._dbl
+  f_nonbond = 0._dbl
+  ptens_nonbond = 0._dbl
 
 ! local copies of the box parameters
   hmat = box % hmat
@@ -91,11 +90,9 @@ SUBROUTINE force_nonbond ( ewald_param, pnode, box, potparm, pot_nonbond, &
 
 ! local copy of cutoffs
   natom_types = SIZE ( potparm, 1 )
-  IF ( .NOT. ALLOCATED ( rtest ) ) THEN
-     ALLOCATE ( rtest ( natom_types, natom_types ), STAT = ios )
-     IF ( ios /= 0 ) CALL stop_memory ( 'fist_nonbond_force', &
+  ALLOCATE ( rtest ( natom_types, natom_types ), STAT = ios )
+  IF ( ios /= 0 ) CALL stop_memory ( 'fist_nonbond_force', &
           'rtest', natom_types ** 2 )
-  END IF
 
   DO i = 1, natom_types
      DO j = 1, natom_types
@@ -103,31 +100,20 @@ SUBROUTINE force_nonbond ( ewald_param, pnode, box, potparm, pot_nonbond, &
      END DO
   END DO
 
-  first_time = .NOT.ALLOCATED ( n_images )
-  IF ( first_time ) THEN
-     IF ( .NOT. ALLOCATED ( n_images ) ) &
-          ALLOCATE ( n_images ( natom_types, natom_types, 3 ), STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'force_control', &
-          'n_images', natom_types ** 2 * 3 )
+  ALLOCATE ( n_images ( natom_types, natom_types ), STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', &
+          'n_images', natom_types ** 2 )
 
-     CALL get_cell_param ( box, cell_lengths )
-
-     DO itype = 1, natom_types
-        DO jtype = 1, natom_types
-           rcut = SQRT ( potparm ( itype, jtype ) % rcutsq )
-           quotient ( : ) = rcut / cell_lengths ( : )
-           DO id=1,3
-              IF ( quotient ( id ) <= 0.5_dbl ) THEN
-                 n_images ( itype, jtype, id ) = 0
-              ELSE
-                 n_images ( itype, jtype, id ) &
-                      = CEILING ( rcut / cell_lengths ( id ) )
-              END IF
-           END DO
-        END DO
+  CALL get_cell_param ( box, cell_lengths )
+  n_images = 0
+  DO itype = 1, natom_types
+     DO jtype = itype, natom_types
+        rcut = SQRT ( rtest ( itype, jtype ) )
+        quotient ( : ) = rcut / cell_lengths ( : )
+        IF ( ANY ( quotient ( : ) > 0.5_dbl ) ) n_images ( itype, jtype ) = 1
+        n_images ( jtype, itype ) = n_images ( itype, jtype )
      END DO
-  END IF
-
+  END DO
 !
 ! starting the force loop
 !
@@ -135,14 +121,13 @@ SUBROUTINE force_nonbond ( ewald_param, pnode, box, potparm, pot_nonbond, &
      iatomtype = pnode ( iat ) % p % prop % ptype
      i = pnode ( iat ) % p % iatom
      ri = pnode ( iat ) % p % r
-
+!
 ! now do neighbors
      current_neighbor => pnode ( iat ) % nl
      DO j = 1, pnode ( iat ) % nneighbor
         jatom = current_neighbor % index
         jatomtype = current_neighbor % p % prop % ptype
         rij = current_neighbor % p % r - ri
-
 !
 ! apply periodic boundary conditions; the following code is the inline version
 ! of the general function pbc
@@ -150,7 +135,7 @@ SUBROUTINE force_nonbond ( ewald_param, pnode, box, potparm, pot_nonbond, &
         s(1) = h_inv(1,1)*rij(1) + h_inv(1,2)*rij(2) + h_inv(1,3)*rij(3)
         s(2) = h_inv(2,1)*rij(1) + h_inv(2,2)*rij(2) + h_inv(2,3)*rij(3)
         s(3) = h_inv(3,1)*rij(1) + h_inv(3,2)*rij(2) + h_inv(3,3)*rij(3)
-        IF ( MAXVAL ( n_images ( iatomtype, jatomtype, : ) ) == 0 ) THEN
+        IF ( n_images ( iatomtype, jatomtype ) == 0 ) THEN
            IF ( ABS ( s ( 1 ) ) > 0.5_dbl ) THEN
               s(1) = s(1) - perd(1) * INT(s(1)+SIGN(0.5_dbl,s(1)))
            END IF
@@ -165,12 +150,11 @@ SUBROUTINE force_nonbond ( ewald_param, pnode, box, potparm, pot_nonbond, &
            rij(3) = hmat(3,1)*s(1) + hmat(3,2)*s(2) + hmat(3,3)*s(3)
         END IF
 
-        rijsq = rij ( 1 ) ** 2 + rij ( 2 ) ** 2 + rij ( 3 ) ** 2
+        rijsq = rij(1) *rij(1) + rij(2) * rij(2) + rij(3) * rij(3)
         flops = flops + 41.0_dbl
         IF ( i /= jatom .AND. rijsq <= rtest ( iatomtype, jatomtype ) ) THEN
            CALL potential_s ( rijsq, potparm, iatomtype, jatomtype, energy, &
                 fscalar )
-
 !
 ! summing up the potential energy,the force and pressure tensor
 !
@@ -179,7 +163,6 @@ SUBROUTINE force_nonbond ( ewald_param, pnode, box, potparm, pot_nonbond, &
            flops = flops + 64.0_dbl
 
         END IF
-
 !
 ! now sum over lattice translations of neighbors
 !
@@ -214,6 +197,11 @@ SUBROUTINE force_nonbond ( ewald_param, pnode, box, potparm, pot_nonbond, &
 !we will add the long range correction
 !
 !       pot_nonbond=pot_nonbond+lrc*(1./box % deth)
+!
+  DEALLOCATE ( rtest, STAT = ios )
+  IF ( ios /= 0 ) CALL stop_memory ( 'fist_nonbond_force', 'rtest' )
+  DEALLOCATE ( n_images, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'n_images' )
 !
   flops = flops * 1.E-6_dbl
   CALL timestop ( flops, handle )

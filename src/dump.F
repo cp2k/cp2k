@@ -25,6 +25,7 @@ MODULE dump
   USE nose, ONLY : lnhc_parameters_type, npt_info_type
   USE structure_types, ONLY : structure_type
   USE util, ONLY : get_unit
+  USE string_utilities, ONLY : xstring, integer_to_string
 
   PRIVATE
   PUBLIC :: dump_variables
@@ -51,104 +52,119 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE dump_variables ( struc, nhc_part, nhc_baro, npt_info,  &
-                            dump_file_name, globenv )
+                            dump_file_name, globenv, is_pimd )
 
 ! routine to dump all simulation variables periodically and at the last step.
 
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( structure_type ), INTENT ( IN ) :: struc
+  TYPE ( structure_type ), DIMENSION ( : ), INTENT ( IN ) :: struc
   CHARACTER ( LEN = * ), INTENT ( IN ) :: dump_file_name
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
-  TYPE ( lnhc_parameters_type ), INTENT ( IN ) :: nhc_part, nhc_baro
+  TYPE ( lnhc_parameters_type ), DIMENSION ( : ), INTENT ( IN ) :: nhc_part, nhc_baro
   TYPE ( npt_info_type ), DIMENSION ( :, : ), INTENT ( IN ) :: npt_info
+  LOGICAL, INTENT ( IN ) :: is_pimd
 
 ! Locals
-  INTEGER :: i, j, size1, size2, natoms, dmp
+  INTEGER :: i, j, size1, size2, natoms, dmp, ibead, beads, ia, ib
+  CHARACTER ( LEN = 80 ) :: file_name
+  CHARACTER ( LEN = 5 ) :: tag
 
 !------------------------------------------------------------------------------
 
-  IF ( globenv % ionode ) THEN
-     dmp = get_unit()
-     OPEN ( UNIT = dmp, FILE = dump_file_name, STATUS = 'unknown', &
-          POSITION = 'rewind' )
-  END IF
+  beads = SIZE ( struc )
 
-  IF (globenv % ionode) THEN
-     natoms = size(struc % part)
-     WRITE (dmp,*) natoms
+  DO ibead = 1, beads
+    IF ( globenv % ionode ) THEN
+       dmp = get_unit()
+       IF ( is_pimd ) THEN
+         CALL xstring ( dump_file_name, ia, ib )
+         CALL integer_to_string ( ibead, tag )
+         file_name = dump_file_name(ia:ib) // '_' // ADJUSTL(tag)
+         OPEN ( UNIT = dmp, FILE = file_name, STATUS = 'unknown', &
+              POSITION = 'rewind' )
+       ELSE
+         OPEN ( UNIT = dmp, FILE = dump_file_name, STATUS = 'unknown', &
+              POSITION = 'rewind' )
+       END IF
+    END IF
+
+    IF (globenv % ionode) THEN
+       natoms = size(struc(ibead) % part)
+       WRITE (dmp,*) natoms
 ! position
-     DO i = 1, natoms
-        WRITE (dmp,*) struc % part(i) %r
-     END DO
+       DO i = 1, natoms
+          WRITE (dmp,*) struc(ibead) % part(i) %r
+       END DO
 ! hmat
-     DO i = 1, 3
-        WRITE (dmp,*) struc % box % hmat(i,:)
-     END DO
+       DO i = 1, 3
+          WRITE (dmp,*) struc(ibead) % box % hmat(i,:)
+       END DO
 ! hmat_ref
-     DO i = 1, 3
-        WRITE (dmp,*) struc % box_ref % hmat(i,:)
-     END DO
+       DO i = 1, 3
+          WRITE (dmp,*) struc(ibead) % box_ref % hmat(i,:)
+       END DO
 ! velocities
-     DO i = 1, natoms
-        WRITE (dmp,*) struc % part(i) % v
-     END DO
+       DO i = 1, natoms
+          WRITE (dmp,*) struc(ibead) % part(i) % v
+       END DO
 ! particle thermostat postions, velocities, masses
-     size1 = SIZE ( nhc_part % nvt, 1 )
-     size2 = SIZE ( nhc_part % nvt, 2 )
-     WRITE ( dmp, * ) size1, size2
-     DO i = 1, size1
-       DO j = 1, size2
-         WRITE ( dmp, * ) nhc_part % nvt ( i, j ) % eta
+       size1 = SIZE ( nhc_part(ibead) % nvt, 1 )
+       size2 = SIZE ( nhc_part(ibead) % nvt, 2 )
+       WRITE ( dmp, * ) size1, size2
+       DO i = 1, size1
+         DO j = 1, size2
+           WRITE ( dmp, * ) nhc_part(ibead) % nvt ( i, j ) % eta
+         ENDDO
        ENDDO
-     ENDDO
-     DO i = 1, size1
-       DO j = 1, size2
-         WRITE ( dmp, * ) nhc_part % nvt ( i, j ) % v
+       DO i = 1, size1
+         DO j = 1, size2
+           WRITE ( dmp, * ) nhc_part(ibead) % nvt ( i, j ) % v
+         ENDDO
        ENDDO
-     ENDDO
-     DO i = 1, size1
-       DO j = 1, size2
-         WRITE ( dmp, * ) nhc_part % nvt ( i, j ) % mass
+       DO i = 1, size1
+         DO j = 1, size2
+           WRITE ( dmp, * ) nhc_part(ibead) % nvt ( i, j ) % mass
+         ENDDO
        ENDDO
-     ENDDO
 ! barostat thermostat postions, velocities, masses
-     size1 = SIZE ( nhc_baro % nvt, 1 )
-     size2 = SIZE ( nhc_baro % nvt, 2 )
-     WRITE ( dmp, * ) size1, size2
-     DO i = 1, size1
-       DO j = 1, size2
-         WRITE ( dmp, * ) nhc_baro % nvt ( i, j ) % eta
+       size1 = SIZE ( nhc_baro(ibead) % nvt, 1 )
+       size2 = SIZE ( nhc_baro(ibead) % nvt, 2 )
+       WRITE ( dmp, * ) size1, size2
+       DO i = 1, size1
+         DO j = 1, size2
+           WRITE ( dmp, * ) nhc_baro(ibead) % nvt ( i, j ) % eta
+         ENDDO
        ENDDO
-     ENDDO
-     DO i = 1, size1
-       DO j = 1, size2
-         WRITE ( dmp, * ) nhc_baro % nvt ( i, j ) % v
+       DO i = 1, size1
+         DO j = 1, size2
+           WRITE ( dmp, * ) nhc_baro(ibead) % nvt ( i, j ) % v
+         ENDDO
        ENDDO
-     ENDDO
-     DO i = 1, size1
-       DO j = 1, size2
-         WRITE ( dmp, * ) nhc_baro % nvt ( i, j ) % mass
+       DO i = 1, size1
+         DO j = 1, size2
+           WRITE ( dmp, * ) nhc_baro(ibead) % nvt ( i, j ) % mass
+         ENDDO
        ENDDO
-     ENDDO
 ! barostat velocities, masses
-     size1 = SIZE ( npt_info, 1 )
-     size2 = SIZE ( npt_info, 2 )
-     WRITE ( dmp, * ) size1, size2
-     DO i = 1, size1
-       DO j = 1, size2
-         WRITE ( dmp, * ) npt_info ( i, j ) % v
+       size1 = SIZE ( npt_info, 1 )
+       size2 = SIZE ( npt_info, 2 )
+       WRITE ( dmp, * ) size1, size2
+       DO i = 1, size1
+         DO j = 1, size2
+           WRITE ( dmp, * ) npt_info ( i, j ) % v
+         ENDDO
        ENDDO
-     ENDDO
-     DO i = 1, size1
-       DO j = 1, size2
-         WRITE ( dmp, * ) npt_info ( i, j ) % mass
+       DO i = 1, size1
+         DO j = 1, size2
+           WRITE ( dmp, * ) npt_info ( i, j ) % mass
+         ENDDO
        ENDDO
-     ENDDO
 
-     CLOSE (dmp)
-  END IF
+       CLOSE (dmp)
+    END IF
+  END DO
 
 END SUBROUTINE dump_variables
 

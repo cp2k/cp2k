@@ -144,13 +144,13 @@ SUBROUTINE read_coord_vel ( atype, filen, globenv )
      CALL mp_bcast ( atype % ptype, source, allgrp )
      CALL mp_bcast ( atype % rtype, source, allgrp )
      CALL mp_bcast ( atype % n, source, allgrp )
-     IF ( .NOT. globenv % ionode ) THEN
+     IF ( .NOT. ASSOCIATED ( atype % c ) ) THEN
         ALLOCATE ( atype % c(1:3,1:atype % n ), STAT = ios )
         IF ( ios /= 0 ) CALL stop_memory ( 'ATOM', 'atype%c', 3 * atype % n )
      END IF
      CALL mp_bcast ( atype % c, source, allgrp )
      IF ( atype % rtype == 'POSVEL' ) THEN
-        IF ( .NOT. globenv % ionode ) THEN
+        IF ( .NOT. ASSOCIATED ( atype % v ) ) THEN
            ALLOCATE (atype % v(1:3,1:atype % n),STAT=ios)
            IF ( ios /= 0 ) CALL stop_memory ( 'ATOM', 'atype%v', 3 * atype % n )
         END IF
@@ -257,9 +257,13 @@ SUBROUTINE read_file ( filen, atype )
      OPEN ( iunit, file = filen )
      READ ( iunit, * ) atype % n
 
-     ALLOCATE ( atype % c ( 1:3, 1:atype % n ), STAT = ios )
-     IF ( ios /= 0 ) CALL stop_memory ( 'ATOM', 'atype%c', 3 * atype % n )
-     NULLIFY ( atype % v )
+     IF (.NOT. ASSOCIATED (atype % c) ) THEN
+        ALLOCATE ( atype % c ( 1:3, 1:atype % n ), STAT = ios )
+        IF ( ios /= 0 ) CALL stop_memory ( 'ATOM', 'atype%c', 3 * atype % n )
+        NULLIFY ( atype % v )
+     ELSE IF (atype % n /= SIZE( atype % c, 2 ) ) THEN
+        CALL stop_program ( 'atoms_input','Inconsistent number of atoms' )
+     END IF
 
      IF ( atype % rtype == 'INIT' ) THEN
         DO i = 1, atype % n
@@ -281,9 +285,11 @@ SUBROUTINE read_file ( filen, atype )
         READ ( iunit, * ) atype % box_ref ( 2, 1:3 )
         READ ( iunit, * ) atype % box_ref ( 3, 1:3 )
      ELSE IF ( atype % rtype == 'POSVEL' ) THEN
-        ALLOCATE ( atype % v ( 1:3, 1:atype % n ), STAT = ios )
-        IF ( ios /= 0 ) &
-             CALL stop_memory ( 'ATOM', 'atype%v', 3 * atype % n )
+        IF (.NOT. ASSOCIATED (atype % v) ) THEN
+           ALLOCATE ( atype % v ( 1:3, 1:atype % n ), STAT = ios )
+           IF ( ios /= 0 ) &
+                CALL stop_memory ( 'ATOM', 'atype%v', 3 * atype % n )
+        END IF
 
         DO i = 1, atype % n
            READ ( iunit, * ) atype % c ( 1:3, i )
@@ -299,9 +305,11 @@ SUBROUTINE read_file ( filen, atype )
            READ ( iunit, * ) atype % v ( 1:3, i )
         END DO
      ELSE IF ( atype % rtype == 'ALL' ) THEN
-        ALLOCATE ( atype % v ( 1:3, 1:atype % n ), STAT = ios )
-        IF ( ios /= 0 ) &
-             CALL stop_memory ( 'ATOM', 'atype%v', 3 * atype % n )
+        IF (.NOT. ASSOCIATED (atype % v) ) THEN
+           ALLOCATE ( atype % v ( 1:3, 1:atype % n ), STAT = ios )
+           IF ( ios /= 0 ) &
+                CALL stop_memory ( 'ATOM', 'atype%v', 3 * atype % n )
+        END IF
 
         DO i = 1, atype % n
            READ ( iunit, * ) atype % c ( 1:3, i )
@@ -395,6 +403,8 @@ SUBROUTINE read_file ( filen, atype )
      ELSE
         CALL stop_program ( 'ATOM', 'this rtype not programmed' )
      END IF
+
+     CLOSE ( iunit )
 
   ELSE
 

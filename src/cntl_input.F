@@ -52,7 +52,7 @@ CONTAINS
 !!I---------------------------------------------------------------------------I
 !!I SECTION: &cntl ... &end                                                   I
 !!I                                                                           I
-!!I simulation       [md,debug]                                               I
+!!I simulation       [md,pimd,debug]                                          I
 !!I printlevel       globenv%print_level                                      I
 !!I units            [kelvin,atomic]                                          I
 !!I periodic         [0,1][0,1][0,1]                                          I
@@ -153,7 +153,7 @@ SUBROUTINE read_cntl_section ( setup, ewald_param, globenv )
 ! if no type specified, assume ewald
         CASE ( 'EWALD_PA')
            ewald_param % alpha = get_real()
-           SELECT CASE (ewald_param % ewald_type ( 1:3))
+           SELECT CASE (ewald_param % ewald_type )
            CASE DEFAULT
               ewald_param % gmax = get_int()
            CASE ( 'PME')

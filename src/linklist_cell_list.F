@@ -175,7 +175,7 @@ SUBROUTINE cell_list ( natom_types, n_cell, rcut, tag, pnode, part, &
         END DO
      END DO
 
-#if defined ( __PGI ) || defined ( __AIX )
+#if defined ( __PGI ) || defined ( __AIX ) || defined ( __DEC )
 !*apsi* Due to some strange "feature" in PGI-3.2
      DO kk = 1, n_cell(3)
         DO jj = 1, n_cell(2)

@@ -28,20 +28,17 @@ MODULE interactions
 ! SUBROUTINE read_interaction_thresholds(start_section,end_section)
 ! SUBROUTINE write_interaction_thresholds(lunit)
 ! SUBROUTINE init_interaction_radii(globenv)
-! SUBROUTINE calculate_erfc_radii
-! SUBROUTINE write_erfc_radii(lunit)
-! SUBROUTINE calculate_erf_ppl_radii
-! SUBROUTINE write_erf_ppl_radii(lunit)
-! SUBROUTINE calculate_exp_ppl_radii
-! SUBROUTINE write_exp_ppl_radii(lunit)
+! SUBROUTINE calculate_core_charge_radii
+! SUBROUTINE write_core_charge_radii(lunit)
 ! SUBROUTINE calculate_pgf_aux_radii
 ! SUBROUTINE write_pgf_aux_radii(lunit)
 ! SUBROUTINE calculate_pgf_orb_radii
 ! SUBROUTINE write_pgf_orb_radii(lunit)
-! SUBROUTINE calculate_prj_ppnl_radii
-! SUBROUTINE write_prj_ppnl_radii(lunit)
+! SUBROUTINE calculate_ppl_radii
+! SUBROUTINE write_ppl_radii(lunit)
+! SUBROUTINE calculate_ppnl_radii
+! SUBROUTINE write_ppnl_radii(lunit)
 
-! FUNCTION erfc_radius(alpha,threshold,prefactor) RESULT(radius)
 ! FUNCTION exp_radius(l,alpha,threshold,prefactor) RESULT(radius)
 
 ! *****************************************************************************
@@ -64,18 +61,28 @@ MODULE interactions
 
   PRIVATE
 
-  REAL(wp) :: eps_erfc,&
-              eps_erf_ppl,&
-              eps_exp_ppl,&
+  REAL(wp) :: eps_core_charge,&
               eps_pgf_aux,&
               eps_pgf_orb,&
-              eps_prj_ppnl
+              eps_ppl,&
+              eps_ppnl,&
+              eps_rho_gspace,&
+              eps_rho_rspace
+
+! *** Public variables ***
+
+  PUBLIC :: eps_rho_gspace,&
+            eps_rho_rspace
 
 ! *** Public subroutines ***
 
   PUBLIC :: init_interaction_radii,&
             read_interaction_thresholds,&
             write_interaction_thresholds
+
+! *** Public functions ***
+
+  PUBLIC :: exp_radius
 
 ! *****************************************************************************
 
@@ -116,12 +123,13 @@ CONTAINS
 
 !   *** Load the default values ***
 
-    eps_erfc = 1.0E-12_wp
-    eps_erf_ppl = 1.0E-12_wp
-    eps_exp_ppl = 1.0E-12_wp
+    eps_core_charge = 1.0E-12_wp
     eps_pgf_aux = 1.0E-6_wp
     eps_pgf_orb = 1.0E-6_wp
-    eps_prj_ppnl = 1.0E-12_wp
+    eps_ppl = 1.0E-12_wp
+    eps_ppnl = 1.0E-12_wp
+    eps_rho_gspace = 1.0E-8_wp
+    eps_rho_rspace = 1.0E-8_wp
 
     CALL start_input_session(globenv%input_file_name,globenv)
 
@@ -140,24 +148,30 @@ CONTAINS
         SELECT CASE (TRIM(keyword))
         CASE ("EPS_DEFAULT","DEFAULT")
           CALL read_object(eps_default)
-          eps_erfc = eps_default
-          eps_erf_ppl = eps_default
-          eps_exp_ppl = eps_default
+          eps_core_charge = eps_default
           eps_pgf_aux = eps_default
           eps_pgf_orb = eps_default
-          eps_prj_ppnl = eps_default
-        CASE ("EPS_ERFC")
-          CALL read_object(eps_erfc)
-        CASE ("EPS_ERF_PPL")
-          CALL read_object(eps_erf_ppl)
-        CASE ("EPS_EXP_PPL")
-          CALL read_object(eps_exp_ppl)
+          eps_ppl = eps_default
+          eps_ppnl = eps_default
+          eps_rho_gspace = eps_default
+          eps_rho_rspace = eps_default
+        CASE ("EPS_CORE_CHARGE")
+          CALL read_object(eps_core_charge)
         CASE ("EPS_PGF_AUX")
           CALL read_object(eps_pgf_aux)
         CASE ("EPS_PGF_ORB")
           CALL read_object(eps_pgf_orb)
-        CASE ("EPS_PRJ_PPNL","EPS_PPNL")
-          CALL read_object(eps_prj_ppnl)
+        CASE ("EPS_PPL")
+          CALL read_object(eps_ppl)
+        CASE ("EPS_PPNL")
+          CALL read_object(eps_ppnl)
+        CASE ("EPS_RHO")
+          CALL read_object(eps_rho_gspace)
+          eps_rho_rspace = eps_rho_gspace
+        CASE ("EPS_RHO_GSPACE")
+          CALL read_object(eps_rho_gspace)
+        CASE ("EPS_RHO_RSPACE")
+          CALL read_object(eps_rho_rspace)
         CASE DEFAULT
           IF (keyword == end_section) THEN
             EXIT
@@ -194,23 +208,25 @@ CONTAINS
 
     WRITE (UNIT=lunit,FMT="(/,/,T2,A,/)") "INTERACTION THRESHOLDS"
 
-    WRITE (UNIT=lunit,FMT="(T3,A,ES8.1)") "eps_pgf_orb:  ",eps_pgf_orb
+    WRITE (UNIT=lunit,FMT="(T3,A,T20,ES8.1)") "eps_pgf_orb:",eps_pgf_orb
 
     IF (allchem) THEN
-      WRITE (UNIT=lunit,FMT="(T3,A,ES8.1)") "eps_pgf_aux:  ",eps_pgf_aux
-    END IF
-
-    IF (gpw.AND.all_potential_present) THEN
-      WRITE (UNIT=lunit,FMT="(T3,A,ES8.1)") "eps_erfc:     ",eps_erfc
+      WRITE (UNIT=lunit,FMT="(T3,A,T20,ES8.1)")&
+        "eps_pgf_aux:",eps_pgf_aux
+    ELSE
+      WRITE (UNIT=lunit,FMT="(T3,A,T20,ES8.1)")&
+        "eps_core_charge:",eps_core_charge
     END IF
 
     IF (gth_potential_present) THEN
-      IF (allchem) THEN
-        WRITE (UNIT=lunit,FMT="(T3,A,ES8.1)") "eps_erf_ppl:  ",eps_erf_ppl
-      END IF
-      WRITE (UNIT=lunit,FMT="(T3,A,ES8.1)") "eps_exp_ppl:  ",eps_exp_ppl,&
-                                   "eps_prj_ppnl: ",eps_prj_ppnl
+      WRITE (UNIT=lunit,FMT="(T3,A,T20,ES8.1)")&
+        "eps_ppl:",eps_ppl,&
+        "eps_ppnl:",eps_ppnl
     END IF
+
+    WRITE (UNIT=lunit,FMT="(T3,A,T20,ES8.1)")&
+      "eps_rho_rspace:",eps_rho_rspace,&
+      "eps_rho_gspace:",eps_rho_gspace
 
   END SUBROUTINE write_interaction_thresholds
 
@@ -242,29 +258,21 @@ CONTAINS
     IF (allchem) THEN
       CALL calculate_pgf_aux_radii
       IF (ionode) CALL write_pgf_aux_radii(globenv)
-    END IF
-
-    IF (gpw.AND.all_potential_present) THEN
-      CALL calculate_erfc_radii
-      IF (ionode.AND.globenv%print%erfc_radii) THEN
-        CALL write_erfc_radii(output_unit)
+    ELSE
+      CALL calculate_core_charge_radii
+      IF (ionode.AND.globenv%print%core_charge_radii) THEN
+        CALL write_core_charge_radii(output_unit)
       END IF
     END IF
 
     IF (gth_potential_present) THEN
-      IF (allchem) THEN
-        CALL calculate_erf_ppl_radii
-        IF (ionode.AND.globenv%print%erf_ppl_radii) THEN
-          CALL write_erf_ppl_radii(output_unit)
-        END IF
+      CALL calculate_ppl_radii
+      IF (ionode.AND.globenv%print%ppl_radii) THEN
+        CALL write_ppl_radii(output_unit)
       END IF
-      CALL calculate_exp_ppl_radii
-      IF (ionode.AND.globenv%print%exp_ppl_radii) THEN
-        CALL write_exp_ppl_radii(output_unit)
-      END IF
-      CALL calculate_prj_ppnl_radii
-      IF (ionode.AND.globenv%print%prj_ppnl_radii) THEN
-        CALL write_prj_ppnl_radii(output_unit)
+      CALL calculate_ppnl_radii
+      IF (ionode.AND.globenv%print%ppnl_radii) THEN
+        CALL write_ppnl_radii(output_unit)
       END IF
     END IF
 
@@ -272,10 +280,10 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_erfc_radii
+  SUBROUTINE calculate_core_charge_radii
 
-!   Purpose: Calculate the radii of the nuclear charge distributions for a
-!            given threshold.
+!   Purpose: Calculate the radii of the core charge distributions for a given
+!            threshold.
 
 !   History: - Creation (15.09.2000, Matthias Krack)
 
@@ -288,20 +296,18 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     DO ikind=1,nkind
-      IF (ASSOCIATED(kind_info(ikind)%all_potential)) THEN
-        kind_info(ikind)%all_potential%erfc_radius =&
-          erfc_radius(kind_info(ikind)%alpha_erf,eps_erfc,&
-                      REAL(kind_info(ikind)%z,wp))
-      END IF
+      kind_info(ikind)%core_charge_radius =&
+        exp_radius(0,kind_info(ikind)%alpha_core_charge,eps_core_charge,&
+                   kind_info(ikind)%ccore_charge)
     END DO
 
-  END SUBROUTINE calculate_erfc_radii
+  END SUBROUTINE calculate_core_charge_radii
 
 ! *****************************************************************************
 
-  SUBROUTINE write_erfc_radii(lunit)
+  SUBROUTINE write_core_charge_radii(lunit)
 
-!   Purpose: Write the radii of the nuclear charge distributions to the logical
+!   Purpose: Write the radii of the core charge distributions to the logical
 !            unit number "lunit".
 
 !   History: - Creation (15.09.2000, Matthias Krack)
@@ -319,152 +325,16 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     WRITE (UNIT=lunit,FMT="(/,/,T2,A,/,/,T3,A,T10,A,T22,A,/)")&
-      "RADII OF THE NUCLEAR CHARGE DISTRIBUTIONS IN "//&
+      "RADII OF THE CORE CHARGE DISTRIBUTIONS IN "//&
       TRIM(unit_of_length_name),"Kind","Label","Radius"
 
     DO ikind=1,nkind
-      IF (ASSOCIATED(kind_info(ikind)%all_potential)) THEN
-        WRITE (UNIT=lunit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
-          ikind,kind_info(ikind)%label,&
-          kind_info(ikind)%all_potential%erfc_radius/unit_of_length
-      END IF
+      WRITE (UNIT=lunit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
+        ikind,kind_info(ikind)%label,&
+        kind_info(ikind)%core_charge_radius/unit_of_length
     END DO
 
-  END SUBROUTINE write_erfc_radii
-
-! *****************************************************************************
-
-  SUBROUTINE calculate_erf_ppl_radii
-
-!   Purpose: Calculate the radii of the error functions of the Goedecker
-!            pseudopotential (GTH, local part).
-
-!   History: - Creation (07.11.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-!   *** Local variables ***
-
-    REAL(wp) :: alpha,c
-    INTEGER  :: ikind
-
-!   ---------------------------------------------------------------------------
-
-    DO ikind=1,nkind
-      IF (ASSOCIATED(kind_info(ikind)%gth_potential)) THEN
-        alpha = kind_info(ikind)%gth_potential%alpha_exp_ppl
-        c = kind_info(ikind)%cerf
-        kind_info(ikind)%gth_potential%erf_ppl_radius =&
-          exp_radius(0,alpha,eps_erf_ppl,c)
-      END IF
-    END DO
-
-  END SUBROUTINE calculate_erf_ppl_radii
-
-! *****************************************************************************
-
-  SUBROUTINE write_erf_ppl_radii(lunit)
-
-!   Purpose: Write the radii of the error functions of the Goedecker
-!            pseudopotential (GTH, local part) to the logical unit number
-!            "lunit".
-
-!   History: - Creation (07.11.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    USE cell_parameters, ONLY: unit_of_length,unit_of_length_name
-
-    INTEGER, INTENT(IN) :: lunit
-
-!   *** Local variables ***
-
-    INTEGER :: ikind
-
-!   ---------------------------------------------------------------------------
-
-    WRITE (UNIT=lunit,FMT="(/,/,T2,A,/,/,T3,A,T10,A,T22,A,/)")&
-      "RADII OF THE ERROR FUNCTIONS OF THE GTH PSEUDOPOTENTIAL IN "//&
-      TRIM(unit_of_length_name),"Kind","Label","Radius"
-
-    DO ikind=1,nkind
-      IF (ASSOCIATED(kind_info(ikind)%gth_potential)) THEN
-        WRITE (UNIT=lunit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
-          ikind,kind_info(ikind)%label,&
-          kind_info(ikind)%gth_potential%erf_ppl_radius/unit_of_length
-      END IF
-    END DO
-
-  END SUBROUTINE write_erf_ppl_radii
-
-! *****************************************************************************
-
-  SUBROUTINE calculate_exp_ppl_radii
-
-!   Purpose: Calculate the radii of the exponential functions of the Goedecker
-!            pseudopotential (GTH, local part).
-
-!   History: - Creation (06.10.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp) :: alpha_exp_ppl,cexp_ppl,exp_ppl_radius
-    INTEGER  :: iexp_ppl,ikind,lppl
-
-!   ---------------------------------------------------------------------------
-
-    DO ikind=1,nkind
-      IF (ASSOCIATED(kind_info(ikind)%gth_potential)) THEN
-        alpha_exp_ppl = kind_info(ikind)%gth_potential%alpha_exp_ppl
-        exp_ppl_radius = 0.0_wp
-        DO iexp_ppl=1,kind_info(ikind)%gth_potential%nexp_ppl
-          lppl = 2*(iexp_ppl - 1)
-          cexp_ppl = kind_info(ikind)%gth_potential%cexp_ppl(iexp_ppl)
-          exp_ppl_radius = MAX(exp_ppl_radius,&
-                               exp_radius(lppl,alpha_exp_ppl,eps_exp_ppl,&
-                                          cexp_ppl))
-        END DO
-        kind_info(ikind)%gth_potential%exp_ppl_radius = exp_ppl_radius
-      END IF
-    END DO
-
-  END SUBROUTINE calculate_exp_ppl_radii
-
-! *****************************************************************************
-
-  SUBROUTINE write_exp_ppl_radii(lunit)
-
-!   Purpose: Write the radii of the exponential functions of the Goedecker
-!            pseudopotential (GTH, local part) to the logical unit number
-!            "lunit".
-
-!   History: - Creation (06.10.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    USE cell_parameters, ONLY: unit_of_length,unit_of_length_name
-
-    INTEGER, INTENT(IN) :: lunit
-
-!   *** Local variables ***
-
-    INTEGER :: ikind
-
-!   ---------------------------------------------------------------------------
-
-    WRITE (UNIT=lunit,FMT="(/,/,T2,A,/,/,T3,A,T10,A,T22,A,/)")&
-      "RADII OF THE EXPONENTIAL FUNCTIONS OF THE GTH PSEUDOPOTENTIAL IN "//&
-      TRIM(unit_of_length_name),"Kind","Label","Radius"
-
-    DO ikind=1,nkind
-      IF (ASSOCIATED(kind_info(ikind)%gth_potential)) THEN
-        WRITE (UNIT=lunit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
-          ikind,kind_info(ikind)%label,&
-          kind_info(ikind)%gth_potential%exp_ppl_radius/unit_of_length
-      END IF
-    END DO
-
-  END SUBROUTINE write_exp_ppl_radii
+  END SUBROUTINE write_core_charge_radii
 
 ! *****************************************************************************
 
@@ -688,7 +558,76 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_prj_ppnl_radii
+  SUBROUTINE calculate_ppl_radii
+
+!   Purpose: Calculate the radii of the local part of the Goedecker pseudo-
+!            potential (GTH).
+
+!   History: - Creation (06.10.2000, Matthias Krack)
+
+!   ***************************************************************************
+
+    REAL(wp) :: alpha_ppl,cerf_ppl,cexp_ppl,ppl_radius
+    INTEGER  :: iexp_ppl,ikind,lppl
+
+!   ---------------------------------------------------------------------------
+
+    DO ikind=1,nkind
+      IF (ASSOCIATED(kind_info(ikind)%gth_potential)) THEN
+        alpha_ppl = kind_info(ikind)%gth_potential%alpha_ppl
+        cerf_ppl = kind_info(ikind)%gth_potential%cerf_ppl
+        ppl_radius = exp_radius(0,alpha_ppl,eps_ppl,cerf_ppl)
+        DO iexp_ppl=1,kind_info(ikind)%gth_potential%nexp_ppl
+          lppl = 2*(iexp_ppl - 1)
+          cexp_ppl = kind_info(ikind)%gth_potential%cexp_ppl(iexp_ppl)
+          ppl_radius = MAX(ppl_radius,&
+                           exp_radius(lppl,alpha_ppl,eps_ppl,cexp_ppl))
+        END DO
+        kind_info(ikind)%gth_potential%ppl_radius = ppl_radius
+      END IF
+    END DO
+
+  END SUBROUTINE calculate_ppl_radii
+
+! *****************************************************************************
+
+  SUBROUTINE write_ppl_radii(lunit)
+
+!   Purpose: Write the radii of the exponential functions of the Goedecker
+!            pseudopotential (GTH, local part) to the logical unit number
+!            "lunit".
+
+!   History: - Creation (06.10.2000, Matthias Krack)
+
+!   ***************************************************************************
+
+    USE cell_parameters, ONLY: unit_of_length,unit_of_length_name
+
+    INTEGER, INTENT(IN) :: lunit
+
+!   *** Local variables ***
+
+    INTEGER :: ikind
+
+!   ---------------------------------------------------------------------------
+
+    WRITE (UNIT=lunit,FMT="(/,/,T2,A,/,/,T3,A,T10,A,T22,A,/)")&
+      "RADII OF THE LOCAL PART OF THE GTH PSEUDOPOTENTIAL IN "//&
+      TRIM(unit_of_length_name),"Kind","Label","Radius"
+
+    DO ikind=1,nkind
+      IF (ASSOCIATED(kind_info(ikind)%gth_potential)) THEN
+        WRITE (UNIT=lunit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
+          ikind,kind_info(ikind)%label,&
+          kind_info(ikind)%gth_potential%ppl_radius/unit_of_length
+      END IF
+    END DO
+
+  END SUBROUTINE write_ppl_radii
+
+! *****************************************************************************
+
+  SUBROUTINE calculate_ppnl_radii
 
 !   Purpose: Calculate the radii of the projector functions of the Goedecker
 !            pseudopotential (GTH, non-local part).
@@ -697,34 +636,34 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp) :: alpha_prj_ppnl,cprj_ppnl,prj_ppnl_radius
+    REAL(wp) :: alpha_ppnl,cprj_ppnl,ppnl_radius
     INTEGER  :: ikind,iprj_ppnl,l,lprj_ppnl,nprj_ppnl
 
 !   ---------------------------------------------------------------------------
 
     DO ikind=1,nkind
       IF (ASSOCIATED(kind_info(ikind)%gth_potential)) THEN
-        prj_ppnl_radius = 0.0_wp
+        ppnl_radius = 0.0_wp
         DO l=0,kind_info(ikind)%gth_potential%lppnl
-          alpha_prj_ppnl = kind_info(ikind)%gth_potential%alpha_prj_ppnl(l)
+          alpha_ppnl = kind_info(ikind)%gth_potential%alpha_ppnl(l)
           nprj_ppnl = kind_info(ikind)%gth_potential%nprj_ppnl(l)
           DO iprj_ppnl=1,nprj_ppnl
             lprj_ppnl = l + 2*(iprj_ppnl - 1)
             cprj_ppnl = kind_info(ikind)%gth_potential%cprj_ppnl(iprj_ppnl,l)
-            prj_ppnl_radius = MAX(prj_ppnl_radius,&
-                                  exp_radius(lprj_ppnl,alpha_prj_ppnl,&
-                                             eps_prj_ppnl,cprj_ppnl))
+            ppnl_radius = MAX(ppnl_radius,&
+                              exp_radius(lprj_ppnl,alpha_ppnl,eps_ppnl,&
+                                         cprj_ppnl))
           END DO
         END DO
-        kind_info(ikind)%gth_potential%prj_ppnl_radius = prj_ppnl_radius
+        kind_info(ikind)%gth_potential%ppnl_radius = ppnl_radius
       END IF
     END DO
 
-  END SUBROUTINE calculate_prj_ppnl_radii
+  END SUBROUTINE calculate_ppnl_radii
 
 ! *****************************************************************************
 
-  SUBROUTINE write_prj_ppnl_radii(lunit)
+  SUBROUTINE write_ppnl_radii(lunit)
 
 !   Purpose: Write the radii of the projector functions of the Goedecker
 !            pseudopotential (GTH, non-local part) to the logical unit number
@@ -745,121 +684,18 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     WRITE (UNIT=lunit,FMT="(/,/,T2,A,/,/,T3,A,T10,A,T22,A,/)")&
-      "RADII OF THE PROJECTOR FUNCTIONS OF THE GTH PSEUDOPOTENTIAL IN "//&
+      "RADII OF THE NON-LOCAL PART OF THE GTH PSEUDOPOTENTIAL IN "//&
       TRIM(unit_of_length_name),"Kind","Label","Radius"
 
     DO ikind=1,nkind
       IF (ASSOCIATED(kind_info(ikind)%gth_potential)) THEN
         WRITE (UNIT=lunit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
           ikind,kind_info(ikind)%label,&
-          kind_info(ikind)%gth_potential%prj_ppnl_radius/unit_of_length
+          kind_info(ikind)%gth_potential%ppnl_radius/unit_of_length
       END IF
     END DO
 
-  END SUBROUTINE write_prj_ppnl_radii
-
-! *****************************************************************************
-
-  FUNCTION erfc_radius(alpha,threshold,prefactor) RESULT(radius)
-
-!   Purpose: The radius of the function prefactor*erfc(alpha*r) for a given
-!            threshold is calculated. The Newton-Raphson procedure is used to
-!            locate the requested radius.
-
-!            g(r) = prefactor*erfc(alpha*r) - threshold = 0
-
-!   History: - Creation (04.08.1999, Matthias Krack)
-
-!   ***************************************************************************
-
-!   alpha    : Prefactor of r.
-!   prefactor: Prefactor of the function.
-!   radius   : Calculated radius of the function.
-!   threshold: Threshold for the radius.
-
-!   delta  : Newton-Raphson step length.
-!   dg     : First derivative of the function g(r).
-!   epsiter: Convergence criterion of the Newton-Raphson iteration.
-!   g      : The function g(r).
-!   maxiter: Maximum number of Newton-Raphson iterations.
-
-!   ***************************************************************************
-
-    USE mathconstants, ONLY: pi
-    USE termination,   ONLY: stop_program
-
-    REAL(wp), INTENT(IN) :: alpha,prefactor,threshold
-
-    REAL(wp) :: radius
-
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "FUNCTION erfc_radius (MODULE mathlib)"
-
-    REAL(wp), PARAMETER :: epsiter = 1.0E-12_wp
-    INTEGER, PARAMETER  :: maxiter = 50
-
-!   *** Local variables ***
-
-    REAL(wp) :: a,ar,c,d,delta,dg,g,r,t
-    INTEGER  :: iter
-
-!   *** Functions ***
-
-    REAL(wp), EXTERNAL :: erfc
-
-!   ---------------------------------------------------------------------------
-
-!   *** Initialize function value ***
-
-    radius = 0.0_wp
-
-!   *** Load and check parameter values ***
-
-    IF (alpha == 0.0_wp) THEN
-      CALL stop_program(routine,"The requested exponent is zero")
-    ELSE
-      a = ABS(alpha)
-    END IF
-
-    IF (threshold == 0.0_wp) THEN
-      CALL stop_program(routine,"The requested threshold is zero")
-    ELSE
-      t = ABS(threshold)
-    END IF
-
-    IF (prefactor == 0.0_wp) THEN
-      RETURN
-    ELSE
-      d = ABS(prefactor)
-    END IF
-
-    c = -2.0_wp*a/SQRT(pi)
-
-    t = t/d
-
-!   *** Define an initial radius for the Newton-Raphson iteration ***
-
-    r = SQRT(-LOG(t)/a**2)
-
-!   *** Perform a Newton-Raphson procedure to find the requested radius ***
-
-    DO iter=1,maxiter
-      ar = a*r
-      g = erfc(ar) - t
-      dg = c*exp(-ar**2)
-      delta = g/dg
-      r = r - SIGN(MIN(ABS(delta),0.5_wp*r),delta)
-      IF (ABS(delta) < epsiter) THEN
-        radius = r
-        RETURN
-      END IF
-    END DO
-
-    CALL stop_program(routine,"Maximum number of iterations exceeded")
-
-  END FUNCTION erfc_radius
+  END SUBROUTINE write_ppnl_radii
 
 ! *****************************************************************************
 
@@ -947,7 +783,7 @@ CONTAINS
     ar2 = a*r*r
 
     IF (l == 0) THEN
-      g = d*EXP(-ar2)
+      g = d
     ELSE
       g = d*r**l*EXP(-ar2)
     END IF

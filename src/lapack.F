@@ -8,130 +8,229 @@
 !!     lapack
 !!
 !!   FUNCTION
+!!     Interface to the LAPACK F77 library
 !!
 !!   AUTHOR
+!!     APSI
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (26-5-2001): New flag __sp_lib
+!!                    : Added SVD routines
+!!     JGH (30-5-2001): Added Cholesky facotrisation and triangular inverse
 !!
 !!   SOURCE
 !******************************************************************************
 
-#if ! defined ( __YMP ) && ! defined ( __T3E )
-
-!! We are using LAPACK interfaces, so please make sure in IBM/AIX you have
-!!    the lapack library before essl: "xlf90 ... -llapack -lessl" !!!
-
 MODULE lapack
 
-  IMPLICIT NONE
-
-  PRIVATE
-  PUBLIC :: lapack_ssyev, lapack_chpev, lapack_chpgv
-
+#if defined (__sp_lib)
   INTERFACE lapack_ssyev
      SUBROUTINE ssyev ( jobz, uplo, n, a, lda, w, work, lwork, info )
+       USE kinds, ONLY : dbl
        CHARACTER :: jobz, uplo
        INTEGER :: INFO, LDA, LWORK, N
-       REAL ( KIND = 4 ) :: A( LDA, * ), W( * ), WORK( * )
+       REAL ( KIND = dbl ) :: A( LDA, * ), W( * ), WORK( * )
      END SUBROUTINE ssyev
+  END INTERFACE
 
+  INTERFACE lapack_chpev
+     SUBROUTINE chpev ( jobz, uplo, n, ap, w, z, ldz, work, rwork, info )
+       USE kinds, ONLY : dbl
+       CHARACTER :: jobz, uplo
+       INTEGER :: n, ldz, info
+       REAL ( KIND = dbl ) :: w ( * ), rwork ( * )
+       COMPLEX ( KIND = dbl ) :: ap ( * ), work ( * ), z ( ldz, * )
+     END SUBROUTINE chpev
+  END INTERFACE
+
+  INTERFACE lapack_sspgv
+     SUBROUTINE sspgv ( itype, jobz, uplo, n, ap, bp, w, z, ldz, work, &
+          info )
+       USE kinds, ONLY : dbl
+       CHARACTER :: jobz, uplo
+       INTEGER :: itype, n, ldz, info
+       REAL ( KIND = dbl ) :: w ( * )
+       COMPLEX ( KIND = dbl ) :: ap ( * ), bp ( * ), work ( * ), z ( ldz, * )
+     END SUBROUTINE sspgv
+  END INTERFACE
+
+  INTERFACE lapack_chpgv
+     SUBROUTINE chpgv ( itype, jobz, uplo, n, ap, bp, w, z, ldz, work, &
+          rwork, info )
+       USE kinds, ONLY : dbl
+       CHARACTER :: jobz, uplo
+       INTEGER :: itype, n, ldz, info
+       REAL ( KIND = dbl ) :: w ( * ), rwork ( * )
+       COMPLEX ( KIND = dbl ) :: ap ( * ), bp ( * ), work ( * ), z ( ldz, * )
+     END SUBROUTINE chpgv
+  END INTERFACE
+
+  INTERFACE lapack_sgesvd
+     SUBROUTINE sgesvd ( jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, &
+          work, lwork, info )
+       USE kinds, ONLY : dbl
+       USE kinds, ONLY : dbl
+       CHARACTER :: jobz, jobvt
+       INTEGER :: m, n, lda, ldu, ldvt, lwork, info
+       REAL ( KIND = dbl ) :: a ( lda, * ), s ( * ), u ( ldu, * ), &
+                              vt ( ldvt, * ), work ( * )
+     END SUBROUTINE sgesvd
+  END INTERFACE
+
+  INTERFACE lapack_cgesvd
+     SUBROUTINE cgesvd ( jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, &
+          work, lwork, rwork, info )
+       USE kinds, ONLY : dbl
+       USE kinds, ONLY : dbl
+       CHARACTER :: jobz, jobvt
+       INTEGER :: m, n, lda, ldu, ldvt, lwork, info
+       REAL ( KIND = dbl ) :: s ( * ), rwork ( * )
+       COMPLEX ( KIND = dbl ) :: a ( lda, * ), u ( ldu, * ), &
+                                 vt ( ldvt, * ), work ( * )
+     END SUBROUTINE cgesvd
+  END INTERFACE
+
+  INTERFACE lapack_spotrf
+     SUBROUTINE spotrf ( uplo, n, a, lda, info )
+       USE kinds, ONLY : dbl
+       CHARACTER :: uplo
+       INTEGER :: info, n, lda
+       REAL ( KIND = dbl ) :: a( lda, * )
+     END SUBROUTINE spotrf
+  END INTERFACE
+
+  INTERFACE lapack_cpotrf
+     SUBROUTINE cpotrf ( uplo, n, a, lda, info )
+       USE kinds, ONLY : dbl
+       CHARACTER :: uplo
+       INTEGER :: info, n, lda
+       COMPLEX ( KIND = dbl ) :: a( lda, * )
+     END SUBROUTINE cpotrf
+  END INTERFACE
+
+  INTERFACE lapack_strtri
+     SUBROUTINE strtri ( uplo, diag, n, a, lda, info )
+       USE kinds, ONLY : dbl
+       CHARACTER :: uplo, diag
+       INTEGER :: info, n, lda
+       COMPLEX ( KIND = dbl ) :: a( lda, * )
+     END SUBROUTINE strtri
+  END INTERFACE
+
+  INTERFACE lapack_ctrtri
+     SUBROUTINE ctrtri ( uplo, diag, n, a, lda, info )
+       USE kinds, ONLY : dbl
+       CHARACTER :: uplo, diag
+       INTEGER :: info, n, lda
+       COMPLEX ( KIND = dbl ) :: a( lda, * )
+     END SUBROUTINE ctrtri
+  END INTERFACE
+
+#else
+
+  INTERFACE lapack_ssyev
      SUBROUTINE dsyev ( jobz, uplo, n, a, lda, w, work, lwork, info )
+       USE kinds, ONLY : dbl
        CHARACTER :: jobz, uplo
        INTEGER :: INFO, LDA, LWORK, N
-       REAL ( KIND = 8 ) :: A( LDA, * ), W( * ), WORK( * )
+       REAL ( KIND = dbl ) :: A( LDA, * ), W( * ), WORK( * )
      END SUBROUTINE dsyev
   END INTERFACE
 
   INTERFACE lapack_chpev
-     SUBROUTINE chpev ( jobz, uplo, n, ap, w, z, ldz, work, rwork, info )
-       CHARACTER :: jobz, uplo
-       INTEGER :: n, ldz, info
-       REAL ( KIND = 4 ) :: w ( * ), rwork ( * )
-       COMPLEX ( KIND = 4 ) :: ap ( * ), work ( * ), z ( ldz, * )
-     END SUBROUTINE chpev
-
      SUBROUTINE zhpev ( jobz, uplo, n, ap, w, z, ldz, work, rwork, info )
+       USE kinds, ONLY : dbl
        CHARACTER :: jobz, uplo
        INTEGER :: n, ldz, info
-       REAL ( KIND = 8 ) :: w ( * ), rwork ( * )
-       COMPLEX ( KIND = 8 ) :: ap ( * ), work ( * ), z ( ldz, * )
+       REAL ( KIND = dbl ) :: w ( * ), rwork ( * )
+       COMPLEX ( KIND = dbl ) :: ap ( * ), work ( * ), z ( ldz, * )
      END SUBROUTINE zhpev
   END INTERFACE
 
-  INTERFACE lapack_chpgv
-     SUBROUTINE chpgv ( itype, jobz, uplo, n, ap, bp, w, z, ldz, work, &
-          rwork, info )
+  INTERFACE lapack_sspgv
+     SUBROUTINE dspgv ( itype, jobz, uplo, n, ap, bp, w, z, ldz, work, &
+          info )
+       USE kinds, ONLY : dbl
        CHARACTER :: jobz, uplo
        INTEGER :: itype, n, ldz, info
-       REAL ( KIND = 4 ) :: w ( * ), rwork ( * )
-       COMPLEX ( KIND = 4 ) :: ap ( * ), bp ( * ), work ( * ), z ( ldz, * )
-     END SUBROUTINE chpgv
+       REAL ( KIND = dbl ) :: w ( * )
+       REAL ( KIND = dbl ) :: ap ( * ), bp ( * ), work ( * ), z ( ldz, * )
+     END SUBROUTINE dspgv
+  END INTERFACE
 
+  INTERFACE lapack_chpgv
      SUBROUTINE zhpgv ( itype, jobz, uplo, n, ap, bp, w, z, ldz, work, &
           rwork, info )
+       USE kinds, ONLY : dbl
        CHARACTER :: jobz, uplo
        INTEGER :: itype, n, ldz, info
-       REAL ( KIND = 8 ) :: w ( * ), rwork ( * )
-       COMPLEX ( KIND = 8 ) :: ap ( * ), bp ( * ), work ( * ), z ( ldz, * )
+       REAL ( KIND = dbl ) :: w ( * ), rwork ( * )
+       COMPLEX ( KIND = dbl ) :: ap ( * ), bp ( * ), work ( * ), z ( ldz, * )
      END SUBROUTINE zhpgv
   END INTERFACE
 
-END MODULE lapack
-
-#else
-
-MODULE lapack
-
-  INTERFACE lapack_ssyev
-     SUBROUTINE gsyev ( jobz, uplo, n, a, lda, w, work, lwork, info )
-       CHARACTER :: jobz, uplo
-       INTEGER :: INFO, LDA, LWORK, N
-       REAL ( KIND = 4 ) :: A( LDA, * ), W( * ), WORK( * )
-     END SUBROUTINE gsyev
-
-     SUBROUTINE ssyev ( jobz, uplo, n, a, lda, w, work, lwork, info )
-       CHARACTER :: jobz, uplo
-       INTEGER :: INFO, LDA, LWORK, N
-       REAL ( KIND = 8 ) :: A( LDA, * ), W( * ), WORK( * )
-     END SUBROUTINE ssyev
+  INTERFACE lapack_sgesvd
+     SUBROUTINE dgesvd ( jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, &
+          work, lwork, info )
+       USE kinds, ONLY : dbl
+       CHARACTER :: jobu, jobvt
+       INTEGER :: m, n, lda, ldu, ldvt, lwork, info
+       REAL ( KIND = dbl ) :: a ( lda, * ), s ( * ), u ( ldu, * ), &
+                              vt ( ldvt, * ), work ( * )
+     END SUBROUTINE dgesvd
   END INTERFACE
 
-  INTERFACE lapack_chpev
-     SUBROUTINE ghpev ( jobz, uplo, n, ap, w, z, ldz, work, rwork, info )
-       CHARACTER :: jobz, uplo
-       INTEGER :: n, ldz, info
-       REAL ( KIND = 4 ) :: w ( * ), rwork ( * )
-       COMPLEX ( KIND = 4 ) :: ap ( * ), work ( * ), z ( ldz, * )
-     END SUBROUTINE ghpev
-
-     SUBROUTINE chpev ( jobz, uplo, n, ap, w, z, ldz, work, rwork, info )
-       CHARACTER :: jobz, uplo
-       INTEGER :: n, ldz, info
-       REAL ( KIND = 8 ) :: w ( * ), rwork ( * )
-       COMPLEX ( KIND = 8 ) :: ap ( * ), work ( * ), z ( ldz, * )
-     END SUBROUTINE chpev
+  INTERFACE lapack_cgesvd
+     SUBROUTINE zgesvd ( jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, &
+          work, lwork, rwork, info )
+       USE kinds, ONLY : dbl
+       CHARACTER :: jobu, jobvt
+       INTEGER :: m, n, lda, ldu, ldvt, lwork, info
+       REAL ( KIND = dbl ) :: s ( * ), rwork ( * )
+       COMPLEX ( KIND = dbl ) :: a ( lda, * ), u ( ldu, * ), &
+                                 vt ( ldvt, * ), work ( * )
+     END SUBROUTINE zgesvd
   END INTERFACE
 
-  INTERFACE lapack_chpgv
-     SUBROUTINE ghpgv ( itype, jobz, uplo, n, ap, bp, w, z, ldz, work, &
-          rwork, info )
-       CHARACTER :: jobz, uplo
-       INTEGER :: itype, n, ldz, info
-       REAL ( KIND = 4 ) :: w ( * ), rwork ( * )
-       COMPLEX ( KIND = 4 ) :: ap ( * ), bp ( * ), work ( * ), z ( ldz, * )
-     END SUBROUTINE ghpgv
-
-     SUBROUTINE chpgv ( itype, jobz, uplo, n, ap, bp, w, z, ldz, work, &
-          rwork, info )
-       CHARACTER :: jobz, uplo
-       INTEGER :: itype, n, ldz, info
-       REAL ( KIND = 8 ) :: w ( * ), rwork ( * )
-       COMPLEX ( KIND = 8 ) :: ap ( * ), bp ( * ), work ( * ), z ( ldz, * )
-     END SUBROUTINE chpgv
+  INTERFACE lapack_spotrf
+     SUBROUTINE dpotrf ( uplo, n, a, lda, info )
+       USE kinds, ONLY : dbl
+       CHARACTER :: uplo
+       INTEGER :: info, n, lda
+       REAL ( KIND = dbl ) :: a( lda, * )
+     END SUBROUTINE dpotrf
   END INTERFACE
 
-END MODULE lapack
+  INTERFACE lapack_cpotrf
+     SUBROUTINE zpotrf ( uplo, n, a, lda, info )
+       USE kinds, ONLY : dbl
+       CHARACTER :: uplo
+       INTEGER :: info, n, lda
+       COMPLEX ( KIND = dbl ) :: a( lda, * )
+     END SUBROUTINE zpotrf
+  END INTERFACE
+
+  INTERFACE lapack_strtri
+     SUBROUTINE dtrtri ( uplo, diag, n, a, lda, info )
+       USE kinds, ONLY : dbl
+       CHARACTER :: uplo, diag
+       INTEGER :: info, n, lda
+       REAL ( KIND = dbl ) :: a( lda, * )
+     END SUBROUTINE dtrtri
+  END INTERFACE
+
+  INTERFACE lapack_ctrtri
+     SUBROUTINE ztrtri ( uplo, diag, n, a, lda, info )
+       USE kinds, ONLY : dbl
+       CHARACTER :: uplo, diag
+       INTEGER :: info, n, lda
+       COMPLEX ( KIND = dbl ) :: a( lda, * )
+     END SUBROUTINE ztrtri
+  END INTERFACE
 
 #endif
+
+END MODULE lapack
+
 !!*****
+!******************************************************************************

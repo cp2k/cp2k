@@ -34,12 +34,15 @@ MODULE cell_parameters
 
   USE kinds, ONLY: wp => dp
 
+  USE simulation_cell, ONLY: cell_type,get_hinv
+
   IMPLICIT NONE
 
   PRIVATE
 
+  TYPE(cell_type)  :: cell
   CHARACTER(LEN=8) :: unit_of_length_name = "BOHR"
-  REAL(wp)         :: omega = 0.0_wp,&
+  REAL(wp)         :: cutoff,omega = 0.0_wp,&
                       unit_of_length = 1.0_wp
   LOGICAL          :: scaled_coordinates = .FALSE.
 
@@ -48,6 +51,8 @@ MODULE cell_parameters
 ! *** Public variables ***
 
   PUBLIC :: abc,&
+            cell,&
+            cutoff,&
             omega,&
             scaled_coordinates,&
             unit_of_length,&
@@ -124,6 +129,9 @@ CONTAINS
           CALL read_object(abc(1))
           CALL read_object(abc(2))
           CALL read_object(abc(3))
+        CASE ("CUTOFF")
+          CALL read_object(cutoff)
+          cutoff = 0.5_wp*cutoff
         CASE ("UNIT")
           CALL read_object(string)
           SELECT CASE (TRIM(string))
@@ -191,6 +199,13 @@ CONTAINS
       END IF
     END IF
 
+    cell%hmat(:,:) = 0.0_wp
+    cell%hmat(1,1) = abc(1)
+    cell%hmat(2,2) = abc(2)
+    cell%hmat(3,3) = abc(3)
+
+    CALL get_hinv(cell)
+
   END SUBROUTINE read_cell_parameters
 
 ! *****************************************************************************
@@ -208,9 +223,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    WRITE (lunit,"(/,/,T2,A,/)") "CELL PARAMETERS"
+    WRITE (UNIT=lunit,FMT="(/,/,T2,A,/)") "CELL PARAMETERS"
 
-    WRITE (lunit,"(T3,A,T26,3F10.3,/,/,T3,A,T31,F15.3,A)")&
+    WRITE (UNIT=lunit,FMT="(T3,A,T26,3F10.3,/,/,T3,A,T31,F15.3,A)")&
       "Cell size in "//TRIM(unit_of_length_name)//":",&
       abc(:)/unit_of_length,&
       "Cell volume in "//TRIM(unit_of_length_name)//"**3:",&

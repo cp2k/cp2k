@@ -47,7 +47,7 @@ MODULE pw_grids
   USE mathconstants, ONLY : twopi
   USE message_passing, ONLY : mp_environ, mp_sum, mp_cart_create, mp_group, &
                               mp_max, mp_min, mp_cart_coords, mp_dims_create, &
-                              mp_cart_rank, mp_sync
+                              mp_cart_rank, mp_sync, mp_comm_free, mp_comm_dup
   USE pw_grid_types, ONLY : pw_grid_type, map_pn, HALFSPACE, FULLSPACE
   USE output_utilities, ONLY : print_warning
   USE simulation_cell, ONLY : cell_type
@@ -114,7 +114,7 @@ END SUBROUTINE pw_grid_construct
 !!     JGH (7-Feb-2001)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (22-Mar-2001) : release group communicators
 !!
 !!   SOURCE
 !******************************************************************************
@@ -140,10 +140,6 @@ SUBROUTINE pw_grid_destruct ( pw_grid )
   IF ( ASSOCIATED ( pw_grid % g_hat ) ) THEN
     DEALLOCATE ( pw_grid % g_hat, STAT = ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", "pw_grid % g_hat" )
-  END IF
-  IF ( ASSOCIATED ( pw_grid % glsq ) ) THEN
-    DEALLOCATE ( pw_grid % glsq, STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", "pw_grid % glsq" )
   END IF
   IF ( ASSOCIATED ( pw_grid % mapl % pos ) ) THEN
     DEALLOCATE ( pw_grid % mapl % pos, STAT = ierr )
@@ -196,7 +192,13 @@ SUBROUTINE pw_grid_destruct ( pw_grid )
       IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", &
         "pw_grid % para % bo" )
     END IF
+
+    ! also release groups
+    CALL mp_comm_free ( pw_grid % para % group )
+    CALL mp_comm_free ( pw_grid % para % rs_group )
+
   END IF
+  
 
 END SUBROUTINE pw_grid_destruct
 
@@ -255,35 +257,40 @@ END function pw_grid_compare
 !!     Christopher Mundy
 !!
 !!   MODIFICATION HISTORY
-!!     JGH (20-12-2000) : Adapted for parallel use
-!!     JGH (28-02-2001) : New optional argument fft_usage
+!!     JGH (20-Dec-2000) : Adapted for parallel use
+!!     JGH (28-Feb-2001) : New optional argument fft_usage
+!!     JGH (21-Mar-2001) : Reference grid code
+!!     JGH (21-Mar-2001) : New optional argument symm_usage
+!!     JGH (22-Mar-2001) : Simplify group assignment (mp_comm_dup)
 !!
 !!   SOURCE
 !******************************************************************************
 
 SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
-                           ref_grid )
+                           symm_usage, ref_grid, orthorhombic )
 
   IMPLICIT NONE
 
 ! Arguments
   TYPE ( cell_type ), INTENT ( IN ) :: cell
   TYPE ( pw_grid_type ), INTENT ( INOUT ) :: pw_grid
-  REAL ( dbl ), INTENT ( IN ), OPTIONAL :: cutoff
+  REAL ( dbl ), INTENT ( IN ), OPTIONAL :: cutoff ! in atomic units
   INTEGER, OPTIONAL, INTENT ( IN ) :: pe_group ! parent group for this grid
   INTEGER, OPTIONAL, INTENT ( IN ) :: info  ! output unit for information on grid
   LOGICAL, OPTIONAL, INTENT ( IN ) :: fft_usage  ! has the grid size to be 
                                                  ! compatible with the FFT
+  LOGICAL, OPTIONAL, INTENT ( IN ) :: symm_usage ! has the grid size to be 
+                                                 ! symmetric (g <-> -g)    
+  LOGICAL, OPTIONAL, INTENT ( IN ) :: orthorhombic
   TYPE ( pw_grid_type ), OPTIONAL, INTENT ( IN ) :: ref_grid
 
 ! Locals
   REAL ( dbl ) :: ecut
   INTEGER, DIMENSION ( :, : ), ALLOCATABLE :: yz_mask
-  INTEGER, DIMENSION ( : ), ALLOCATABLE :: group_list
   INTEGER :: allocstat, group_size, my_pos, i, n(3), ntest(3)
   REAL ( dbl ) :: rv(3,3)
   INTEGER :: aver, amax, amin
-  LOGICAL :: fft
+  LOGICAL :: fft, symmetry
 
 !------------------------------------------------------------------------------
   ! default is to use only fft compatible grids
@@ -291,6 +298,12 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
     fft = fft_usage
   ELSE
     fft = .TRUE.
+  END IF
+  ! default is to use only symmetric grids
+  IF ( PRESENT ( symm_usage ) ) THEN
+    symmetry = symm_usage
+  ELSE
+    symmetry = .TRUE.
   END IF
 
   ! assign a unique tag to this grid
@@ -301,12 +314,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
   IF (PRESENT ( pe_group ) ) THEN
     CALL mp_environ ( group_size, my_pos, pe_group )
     IF ( group_size > 1 ) THEN
-      ALLOCATE ( group_list ( group_size ), STAT = allocstat )
-      IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_setup", "group_list", &
-          group_size )
-      group_list = (/( I, I = 0, group_size - 1 )/)
-      CALL mp_group ( group_list, group_size, pe_group, &
-                      pw_grid % para % group )
+      CALL mp_comm_dup ( pe_group, pw_grid % para % group )
       CALL mp_environ ( pw_grid % para % group_size, &
                         pw_grid % para % my_pos, &
                         pw_grid % para % group )
@@ -314,8 +322,6 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
       pw_grid % para % group_head = &
                 ( pw_grid % para % group_head_id == pw_grid % para % my_pos )
       pw_grid % para % mode = 1
-      DEALLOCATE ( group_list, STAT = allocstat )
-      IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_setup", "group_list" )
     ELSE
       pw_grid % para % mode = 0
     END IF
@@ -327,9 +333,9 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
      ecut = cutoff
      IF ( SUM ( ABS ( pw_grid % bounds ( :, : ) ) ) == 0 ) &
                CALL pw_grid_find_bounds &
-               ( pw_grid % bounds, cell % h_inv, 0.5_dbl * ecut, fft )
+               ( pw_grid % bounds, cell % h_inv, ecut, fft, orthorhombic )
      pw_grid % spherical = .TRUE.
-     pw_grid % cutoff = 0.5_dbl * ABS ( ecut )
+     pw_grid % cutoff = ABS ( ecut )
   ELSE
      ecut = 1.e10_dbl              ! all g-vectors in the box will be included
      IF ( SUM ( ABS ( pw_grid % bounds ( :, : ) ) ) == 0 ) THEN
@@ -345,7 +351,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
        ntest = pw_grid % bounds ( 2, : ) - pw_grid % bounds ( 1, : ) + 1
        ! without a cutoff and HALFSPACE we have to be sure that there is
        ! a negative counterpart to every g vector (-> odd number of grid points)
-       IF ( pw_grid % grid_span == HALFSPACE ) THEN
+       IF ( pw_grid % grid_span == HALFSPACE .AND. symmetry ) THEN
 
          CALL fft_radix_operations ( ntest(1), n(1), FFT_RADIX_NEXT_ODD )
          CALL fft_radix_operations ( ntest(2), n(2), FFT_RADIX_NEXT_ODD )
@@ -364,7 +370,8 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
        n = pw_grid % bounds ( 2, : ) - pw_grid % bounds ( 1, : ) + 1
        ! without a cutoff and HALFSPACE we have to be sure that there is
        ! a negative counterpart to every g vector (-> odd number of grid points)
-       IF ( pw_grid % grid_span == HALFSPACE ) n = n + MOD ( n + 1, 2 )
+       IF ( pw_grid % grid_span == HALFSPACE .AND. symmetry ) &
+          n = n + MOD ( n + 1, 2 )
 
      END IF
 
@@ -414,7 +421,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
   CALL pw_grid_assign ( cell % h_inv, pw_grid, ecut )
   
   ! Sort g vector wrt length (only local for each processor)
-  CALL pw_grid_sort ( pw_grid )
+  CALL pw_grid_sort ( pw_grid, ref_grid )
   
   CALL pw_grid_remap ( pw_grid, yz_mask )
 
@@ -906,7 +913,7 @@ SUBROUTINE pw_grid_count ( h_inv, pw_grid, cutoff, yz_mask )
 
            gi ( 1 ) = REAL(l,dbl)
            length = twopi * twopi * dotprod_3d ( matvec_3x3 ( gmat, gi ), gi )
-           IF ( length <= cutoff * cutoff ) THEN
+           IF ( 0.5_dbl * length <= cutoff ) THEN
              gpt = gpt + 1
              yz_mask ( mm, nn ) = yz_mask ( mm, nn ) + 1
            END IF
@@ -998,7 +1005,7 @@ SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
              length = length_x ** 2 + length_y ** 2 + length_z ** 2
              length = twopi * twopi * length
 
-             IF ( length <= cutoff * cutoff ) THEN
+             IF ( 0.5_dbl * length <= cutoff ) THEN
                 gpt = gpt + 1
                 pw_grid % g ( 1, gpt ) = twopi * length_x
                 pw_grid % g ( 2, gpt ) = twopi * length_y
@@ -1044,7 +1051,7 @@ SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
             length = length_x ** 2 + length_y ** 2 + length_z ** 2
             length = twopi * twopi * length
           
-            IF ( length <= cutoff * cutoff ) THEN
+            IF ( 0.5_dbl * length <= cutoff ) THEN
                gpt = gpt + 1
                pw_grid % g ( 1, gpt ) = twopi * length_x
                pw_grid % g ( 2, gpt ) = twopi * length_y
@@ -1129,11 +1136,11 @@ SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
   ENDIF
 
   pw_grid % have_g0 = .FALSE.
-  pw_grid % first_gne0 = 2
-  DO gpt = 1, pw_grid % ngpts_cut
+  pw_grid % first_gne0 = 1
+  DO gpt = 1, pw_grid % ngpts_cut_local
      IF ( ALL ( pw_grid % g_hat ( :, gpt ) == 0 ) ) THEN
         pw_grid % have_g0 = .TRUE.
-        pw_grid % first_gne0 = 1
+        pw_grid % first_gne0 = 2
         EXIT
      END IF
   END DO
@@ -1256,7 +1263,7 @@ END SUBROUTINE pw_grid_set_maps
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE pw_grid_find_bounds ( bounds, h_inv, cutoff, fft )
+SUBROUTINE pw_grid_find_bounds ( bounds, h_inv, cutoff, fft, orthorhombic )
 
   IMPLICIT NONE
 
@@ -1265,6 +1272,7 @@ SUBROUTINE pw_grid_find_bounds ( bounds, h_inv, cutoff, fft )
   REAL ( dbl ), INTENT ( IN ) :: cutoff
   REAL ( dbl ), DIMENSION ( 3, 3 ), INTENT ( IN ) :: h_inv
   LOGICAL, INTENT ( IN ) :: fft
+  LOGICAL, OPTIONAL, INTENT ( IN ) :: orthorhombic
 
 ! Locals
   INTEGER :: l, m, n, test_max, rin(3), rout(3)
@@ -1275,36 +1283,46 @@ SUBROUTINE pw_grid_find_bounds ( bounds, h_inv, cutoff, fft )
 
   bounds ( :, : ) = 0
 
-  gmat = MATMUL ( h_inv, TRANSPOSE ( h_inv ) )
-  gi = 1._dbl
-  length = twopi * SQRT ( dotprod_3d ( matvec_3x3 ( gmat, gi ), gi ) )
-  test_max = 2 * NINT ( cutoff / length )
+  IF (PRESENT(orthorhombic)) THEN
+
+    bounds(2,1) = FLOOR(SQRT(2.0_dbl*cutoff)/(twopi*h_inv(1,1)))
+    bounds(2,2) = FLOOR(SQRT(2.0_dbl*cutoff)/(twopi*h_inv(2,2)))
+    bounds(2,3) = FLOOR(SQRT(2.0_dbl*cutoff)/(twopi*h_inv(3,3)))
+
+  ELSE
+
+    gmat = MATMUL ( h_inv, TRANSPOSE ( h_inv ) )
+    gi = 1._dbl
+    length = twopi * SQRT ( dotprod_3d ( matvec_3x3 ( gmat, gi ), gi ) )
+    test_max = 2 * NINT ( cutoff / length )
 
 ! finds valid g-points within grid
-  DO n = 0, test_max
-     gi ( 3 ) = REAL ( n, dbl )
-     DO m = 0, test_max
-        gi ( 2 ) = REAL ( m, dbl )
-        DO l = 0, test_max
-           gi ( 1 ) = REAL ( l, dbl )
-           length = 0.5_dbl * twopi * twopi * &
-                    dotprod_3d ( matvec_3x3 ( gmat, gi ), gi )
+    DO n = 0, test_max
+       gi ( 3 ) = REAL ( n, dbl )
+       DO m = 0, test_max
+          gi ( 2 ) = REAL ( m, dbl )
+          DO l = 0, test_max
+             gi ( 1 ) = REAL ( l, dbl )
+             length = 0.5_dbl * twopi * twopi * &
+                      dotprod_3d ( matvec_3x3 ( gmat, gi ), gi )
            
-           IF ( length <= cutoff ) THEN
-              bounds ( 2, 1 ) = MAX ( bounds ( 2, 1 ), l )
-              bounds ( 2, 2 ) = MAX ( bounds ( 2, 2 ), m )
-              bounds ( 2, 3 ) = MAX ( bounds ( 2, 3 ), n )
-           END IF
+             IF ( length <= cutoff ) THEN
+                bounds ( 2, 1 ) = MAX ( bounds ( 2, 1 ), l )
+                bounds ( 2, 2 ) = MAX ( bounds ( 2, 2 ), m )
+                bounds ( 2, 3 ) = MAX ( bounds ( 2, 3 ), n )
+             END IF
 
-        END DO
-     END DO
-  END DO
+          END DO
+       END DO
+    END DO
 
-  IF ( bounds ( 2, 1 ) == test_max .OR. &
-       bounds ( 2, 2 ) == test_max .OR. &
-       bounds ( 2, 3 ) == test_max ) THEN
-       CALL print_warning ( "pw_grid_find_bounds", &
-                            "initial bounds maybe too small:" )
+    IF ( bounds ( 2, 1 ) == test_max .OR. &
+         bounds ( 2, 2 ) == test_max .OR. &
+         bounds ( 2, 3 ) == test_max ) THEN
+         CALL print_warning ( "pw_grid_find_bounds", &
+                              "initial bounds maybe too small:" )
+    END IF
+
   END IF
 
   IF ( fft ) THEN
@@ -1416,6 +1434,9 @@ END SUBROUTINE pw_grid_allocate
 !!                        WARNING: Global ordering depends now on the number
 !!                                 of cpus.
 !!     JGH (28-02-2001) : check for ordering against reference grid
+!!     JGH (01-05-2001) : sort spherical cutoff grids also within shells
+!!                        reference grids for non-spherical cutoffs
+!!     JGH (20-06-2001) : do not sort non-spherical grids
 !!
 !!   SOURCE
 !******************************************************************************
@@ -1429,46 +1450,65 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
   TYPE ( pw_grid_type ), OPTIONAL, INTENT ( IN ) :: ref_grid
 
 ! Locals
-  INTEGER :: gpt, gpt_curr, gpt_tmp, int_tmp ( 3 ), allocstat, ng, ngr
-  INTEGER, ALLOCATABLE, DIMENSION ( : ) :: idx
-  REAL ( dbl ) :: real_tmp ( 3 )
+  INTEGER :: ig, allocstat, ng, ngr
+  INTEGER, ALLOCATABLE, DIMENSION ( : ) :: idx, int_tmp
+  REAL ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: real_tmp
 
 !------------------------------------------------------------------------------
 
-  ng = SIZE ( pw_grid % gsq ( : ) )
-  ALLOCATE ( idx ( ng ), STAT = allocstat )
-  IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "idx", ng )
+  IF ( pw_grid % spherical ) THEN
 
-  CALL sort ( pw_grid % gsq, ng, idx )
+    ! spherical grids are (locally) ordered by length of G-vectors
+    ng = SIZE ( pw_grid % gsq ( : ) )
+    ALLOCATE ( idx ( ng ), STAT = allocstat )
+    IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "idx", ng )
+    ALLOCATE ( int_tmp ( ng ), STAT = allocstat )
+    IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "int_tmp", ng )
+    ALLOCATE ( real_tmp ( ng ), STAT = allocstat )
+    IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "real_tmp", ng )
 
-  DO gpt = 1, ng - 1
-     gpt_curr = gpt
+    CALL sort ( pw_grid % gsq, ng, idx )
+    CALL sort_shells ( pw_grid % gsq, pw_grid % g_hat, idx )
 
-     DO
-        IF ( idx ( gpt_curr ) == gpt ) EXIT
+    real_tmp ( 1:ng ) = pw_grid % g ( 1, 1:ng )
+    pw_grid % g ( 1, 1:ng ) = real_tmp ( idx ( 1:ng ) )
+    real_tmp ( 1:ng ) = pw_grid % g ( 2, 1:ng )
+    pw_grid % g ( 2, 1:ng ) = real_tmp ( idx ( 1:ng ) )
+    real_tmp ( 1:ng ) = pw_grid % g ( 3, 1:ng )
+    pw_grid % g ( 3, 1:ng ) = real_tmp ( idx ( 1:ng ) )
+    int_tmp ( 1:ng ) = pw_grid % g_hat ( 1, 1:ng )
+    pw_grid % g_hat ( 1, 1:ng ) = int_tmp ( idx ( 1:ng ) )
+    int_tmp ( 1:ng ) = pw_grid % g_hat ( 2, 1:ng )
+    pw_grid % g_hat ( 2, 1:ng ) = int_tmp ( idx ( 1:ng ) )
+    int_tmp ( 1:ng ) = pw_grid % g_hat ( 3, 1:ng )
+    pw_grid % g_hat ( 3, 1:ng ) = int_tmp ( idx ( 1:ng ) )
 
-        real_tmp ( : ) = pw_grid % g ( :, gpt_curr )
-        pw_grid % g ( :, gpt_curr ) = pw_grid % g ( :, idx ( gpt_curr ) )
-        pw_grid % g ( :, idx ( gpt_curr ) ) = real_tmp ( : )
+    DEALLOCATE ( idx, STAT = allocstat )
+    IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "idx" )
+    DEALLOCATE ( int_tmp, STAT = allocstat )
+    IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "int_tmp" )
+    DEALLOCATE ( real_tmp, STAT = allocstat )
+    IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "real_tmp" )
 
-        int_tmp ( : ) = pw_grid % g_hat ( :, gpt_curr )
-        pw_grid % g_hat ( :, gpt_curr ) &
-             = pw_grid % g_hat ( :, idx ( gpt_curr ) )
-        pw_grid % g_hat ( :, idx ( gpt_curr ) ) = int_tmp ( : )
+  ELSE
 
-        gpt_tmp = gpt_curr
-        gpt_curr = idx ( gpt_curr )
-        idx ( gpt_tmp ) = gpt_tmp
+    ! We do not sort non-spherical grids, but we have to make sure that
+    ! possible reference grids are compatible
+    ! We have to test if the new grid is larger then the reference grid
+    IF ( PRESENT ( ref_grid ) ) THEN
+      IF ( ALL ( pw_grid % npts >= ref_grid % npts ) ) THEN
+        idx = 0
+        ngr = SIZE ( ref_grid % gsq ( : ) )
+        ! stop here as this code is not yet working
+        CALL stop_program ( "pw_grid_sort", "Reference grid code for"//&
+            " non-spherical cutoff not yet working")
+      ELSE
+        CALL stop_program ( "pw_grid_sort", "Reference grid has to"//&
+            " be smaller then new grid for non-spherical cutoff")
+      END IF
+    END IF
 
-        IF ( idx ( gpt_curr ) == gpt ) then
-           idx ( gpt_curr ) = gpt_curr
-           EXIT
-        END IF
-     END DO
-  END DO
-
-  DEALLOCATE ( idx, STAT = allocstat )
-  IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "idx" )
+  END IF
 
   ! check if ordering is compatible to reference grid
   IF ( PRESENT ( ref_grid ) ) THEN
@@ -1481,6 +1521,79 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
   END IF
 
 END SUBROUTINE pw_grid_sort
+
+SUBROUTINE sort_shells ( gsq, g_hat, idx )
+
+  IMPLICIT NONE
+
+! Argument
+  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: gsq
+  INTEGER, DIMENSION ( :, : ), INTENT ( IN ) :: g_hat
+  INTEGER, DIMENSION ( : ), INTENT ( INOUT ) :: idx
+
+! Locals
+  REAL ( dbl ), PARAMETER :: small = 1.e-12_dbl
+  REAL ( dbl ) :: s_begin
+  INTEGER :: ng, ig, s1, s2
+
+  ng = SIZE ( gsq )
+  s_begin = -1._dbl
+  s1 = 0
+  s2 = 0
+  ig = 1
+  DO ig = 1, ng
+    IF ( ABS ( gsq ( ig ) - s_begin ) < small ) THEN
+      s2 = ig
+    ELSE
+      CALL redist ( g_hat, idx, s1, s2)
+      s_begin = gsq ( ig )
+      s1 = ig
+      s2 = ig
+    END IF
+  END DO
+  CALL redist ( g_hat, idx, s1, s2 )
+
+END SUBROUTINE sort_shells
+
+SUBROUTINE redist ( g_hat, idx, s1, s2 )
+
+  IMPLICIT NONE
+
+! Argument
+  INTEGER, DIMENSION ( :, : ), INTENT ( IN ) :: g_hat
+  INTEGER, DIMENSION ( : ), INTENT ( INOUT ) :: idx
+  INTEGER, INTENT ( IN ) :: s1, s2
+
+! Locals
+  INTEGER :: ns, info, i, ii
+  INTEGER, DIMENSION ( : ), ALLOCATABLE :: indl
+  REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: slen
+
+  IF ( s2 <= s1 ) RETURN
+  ns = s2 - s1 + 1
+  ALLOCATE ( indl ( ns ), STAT = info )
+  IF ( info /= 0 ) call stop_memory ( "redist", "indl", ns )
+  ALLOCATE ( slen ( ns ), STAT = info )
+  IF ( info /= 0 ) call stop_memory ( "redist", "slen", ns )
+
+  DO i = s1, s2
+    ii = idx ( i )
+    slen ( i - s1 + 1 ) = 1000._dbl * REAL(g_hat(1,ii),dbl) + &
+       REAL(g_hat(2,ii),dbl) + 0.001_dbl * REAL(g_hat(3,ii),dbl)
+  END DO
+  CALL sort ( slen, ns, indl )
+  DO i = 1, ns
+    ii = indl ( i ) + s1 - 1
+    indl ( i ) = idx ( ii )
+  END DO
+  idx ( s1:s2 ) = indl ( 1:ns )
+
+  DEALLOCATE ( indl, STAT = info )
+  IF ( info /= 0 ) call stop_memory ( "redist", "indl" )
+  DEALLOCATE ( slen, STAT = info )
+  IF ( info /= 0 ) call stop_memory ( "redist", "slen" )
+
+END SUBROUTINE redist
 
 !!*****
 !****************************************************************************
@@ -1670,19 +1783,19 @@ SUBROUTINE pw_find_cutoff ( npts, box, cutoff )
 
 ! compute 2*pi*h_inv^t*g  where g = (npts[1],0,0)
   gdum ( : ) = twopi * box % h_inv ( 1, : ) &
-       * REAL ( npts ( 1 ), dbl ) / 2.0_dbl
+       * REAL ( ( npts ( 1 ) - 1 ) / 2, dbl )
   length = SQRT ( dotprod_3d ( gdum, gdum ) )
   gcut = length
 
 ! compute 2*pi*h_inv^t*g  where g = (0,npts[2],0)
   gdum ( : ) = twopi * box % h_inv ( 2, : ) &
-       * REAL ( npts ( 2 ), dbl ) / 2.0_dbl
+       * REAL ( ( npts ( 2 ) - 1 ) / 2, dbl )
   length = SQRT ( dotprod_3d ( gdum, gdum ) )
   gcut = MIN ( gcut, length )
 
 ! compute 2*pi*h_inv^t*g  where g = (0,0,npts[3])
   gdum ( : ) = twopi * box % h_inv ( 3, : ) &
-       * REAL ( npts ( 3 ), dbl ) / 2.0_dbl
+       * REAL ( ( npts ( 3 ) - 1 ) / 2, dbl )
   length = SQRT ( dotprod_3d ( gdum, gdum ) )
   gcut = MIN ( gcut, length )
 

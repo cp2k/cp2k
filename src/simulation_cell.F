@@ -24,12 +24,14 @@ MODULE simulation_cell
 
   USE mathconstants, ONLY : pi
   USE termination, ONLY : stop_program
-  USE greens_fn, ONLY : greens_function_type
+  USE greens_fn, ONLY : greens_function_type, &
+            PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, &
+            MT2D, MT1D, MT0D, HOCKNEY2D, HOCKNEY1D, HOCKNEY0D
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: get_hinv, cell_type, pbc, get_cell_param
+  PUBLIC :: get_hinv, cell_type, pbc, get_cell_param, init_cell
 
   TYPE cell_type
      REAL ( dbl ), DIMENSION ( 3, 3 ) :: hmat
@@ -44,6 +46,21 @@ MODULE simulation_cell
 
 CONTAINS
 
+!******************************************************************************
+!!****** simulation_cell/get_hinv [1.0] *
+!!
+!!   NAME
+!!     get_hinv
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE get_hinv ( box )
@@ -81,6 +98,22 @@ SUBROUTINE get_hinv ( box )
 
 END SUBROUTINE get_hinv
 
+!!*****
+!******************************************************************************
+!!****** simulation_cell/pbc [1.0] *
+!!
+!!   NAME
+!!     pbc
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 FUNCTION pbc ( rin, box, nl ) RESULT ( rout )
@@ -110,6 +143,22 @@ FUNCTION pbc ( rin, box, nl ) RESULT ( rout )
 
 END FUNCTION pbc
 
+!!*****
+!******************************************************************************
+!!****** simulation_cell/get_cell_param [1.0] *
+!!
+!!   NAME
+!!     get_cell_param
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE get_cell_param ( box, cell_length, cell_angle )
@@ -157,6 +206,137 @@ SUBROUTINE get_cell_param ( box, cell_length, cell_angle )
 
 END SUBROUTINE get_cell_param
 
+!!*****
+!******************************************************************************
+!!****** simulation_cell/init_cell [1.0] *
+!!
+!!   NAME
+!!     init_cell
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH (12-Mar-2001)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE init_cell ( box, hmat, periodic, poisson_solver )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( cell_type ), INTENT ( OUT ) :: box
+  REAL ( dbl ), DIMENSION ( 3, 3 ), INTENT ( IN ) :: hmat
+  INTEGER , DIMENSION ( 3 ), INTENT ( IN ) :: periodic
+  CHARACTER ( LEN = * ), INTENT ( IN ), OPTIONAL :: poisson_solver
+
+! Locals
+  INTEGER :: dim
+
+!------------------------------------------------------------------------------
+
+  box % hmat = hmat
+  box % perd = periodic
+
+  box % green % special_dimension = 0
+  box % green % radius = 0._dbl
+  box % green % slab_size = 0._dbl
+  box % green % alpha = 0._dbl
+  box % green % volume = 0._dbl
+
+  dim = COUNT ( box % perd == 1 )
+  SELECT CASE ( dim )
+  CASE ( 0 )
+    box % green % method = ANALYTIC0D
+    box % green % radius = 0._dbl
+  CASE ( 1 )
+    box % green % method = ANALYTIC1D
+    box % green % special_dimension = MAXLOC ( box % perd, 1 )
+    box % green % radius = 0._dbl
+  CASE ( 2 )
+    box % green % method = ANALYTIC2D
+    box % green % special_dimension = MINLOC ( box % perd, 1 )
+    box % green % slab_size = 0._dbl
+  CASE ( 3 )
+    box % green % method = PERIODIC3D
+  CASE DEFAULT
+    CALL stop_program ( "init_cell", "illegal perd values" )
+  END SELECT
+
+  NULLIFY ( box % green % influence_function )
+
+  IF ( PRESENT ( poisson_solver ) ) THEN
+    SELECT CASE ( poisson_solver )
+    CASE ( "PERIODIC" )
+      box % green % method = PERIODIC3D
+      IF ( dim /= 3 ) THEN
+        CALL stop_program ( "init_cell", &
+             "illegal combination of periodicity and Poisson solver (PERIODIC)" )
+      END IF
+    CASE ( "ANALYTIC" )
+
+      SELECT CASE ( dim )
+      CASE ( 0 )
+        box % green % method = ANALYTIC0D
+      CASE ( 1 )
+        box % green % method = ANALYTIC1D
+      CASE ( 2 )
+        box % green % method = ANALYTIC2D
+      CASE ( 3 )
+        box % green % method = PERIODIC3D
+      CASE DEFAULT
+        CALL stop_program ( "init_cell", "illegal perd values" )
+      END SELECT
+
+    CASE ( "HOCKNEY" )
+
+      SELECT CASE ( dim )
+      CASE ( 0 )
+        box % green % method = HOCKNEY0D
+      CASE ( 1 )
+        box % green % method = HOCKNEY1D
+      CASE ( 2 )
+        box % green % method = HOCKNEY2D
+      CASE ( 3 )
+        CALL stop_program ( "init_cell", &
+             "illegal combination of periodicity and Poisson solver (HOCKNEY)" )
+      CASE DEFAULT
+        CALL stop_program ( "init_cell", "illegal perd values" )
+      END SELECT
+
+    CASE ( "MT" )
+
+      SELECT CASE ( dim )
+      CASE ( 0 )
+        box % green % method = MT0D
+      CASE ( 1 )
+        box % green % method = MT1D
+      CASE ( 2 )
+        box % green % method = MT2D
+      CASE ( 3 )
+        CALL stop_program ( "init_cell", &
+             "illegal combination of periodicity and Poisson solver (MT)" )
+      CASE DEFAULT
+        CALL stop_program ( "init_cell", "illegal perd values" )
+      END SELECT
+
+    CASE DEFAULT
+
+      CALL stop_program ( "init_cell", "Unknown Poisson solver" )
+
+    END SELECT
+
+  END IF
+
+END SUBROUTINE init_cell
+
+!!*****
 !******************************************************************************
 
 END MODULE simulation_cell
+
+!******************************************************************************

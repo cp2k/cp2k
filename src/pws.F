@@ -14,6 +14,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     JGH (4-Jan-2001) : fft_wrap moved to coefficient_types and pw_types
+!!     JGH (13-Mar-2001) : new pw_poisson_solver, delete pw_greens_fn
 !!
 !!   SOURCE
 !******************************************************************************
@@ -22,12 +23,16 @@ MODULE pws
 
   USE coefficient_types, ONLY : coeff_type, coeff_allocate, coeff_deallocate, &
        SQUARE, SQUAREROOT, PLANEWAVES
+  USE greens_fn, ONLY : pw_green_fn, greens_function_type, &
+                        PERIODIC3D, ANALYTIC2D, &
+                        ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, &
+                        HOCKNEY2D, HOCKNEY1D, HOCKNEY0D
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : fourpi
   USE message_passing, ONLY : mp_sum
   USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE, FULLSPACE
   USE pw_types, ONLY : pw_type, pw_allocate, pw_deallocate, &
-       pw_gather, pw_scatter, pw_fft_wrap, &
+       pw_copy, pw_derive, pw_transfer, pw_gather, pw_scatter, pw_fft_wrap, &
        REALDATA1D, COMPLEXDATA1D, REALDATA3D, COMPLEXDATA3D, &
        NOSPACE, REALSPACE, RECIPROCALSPACE
   USE termination, ONLY : stop_memory, stop_program
@@ -36,14 +41,50 @@ MODULE pws
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: pw_poisson_solver, pw_kinetic_evaluate
-  PUBLIC :: pw_integral_a, pw_integral_ab, pw_h_psi
+  PUBLIC :: pw_poisson_solver, pw_kinetic_evaluate, init_pw_poisson_solver
+  PUBLIC :: pw_integral_aa, pw_integral_ab, pw_integral_a2b, pw_h_psi, &
+            pw_collect
+
+! Global variable
+  TYPE ( greens_function_type ), POINTER :: gf
 
 !!*****
 !******************************************************************************
 
 CONTAINS
 
+!******************************************************************************
+!!****** pws/init_pw_poisson_solver [1.0] *
+!!
+!!   NAME
+!!     init_pw_poisson_solver
+!!
+!!   FUNCTION
+!!     Initialize the module variable gf, used in the poisson solver
+!!
+!!   AUTHOR
+!!     JGH (12-Mar-2001)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE init_pw_poisson_solver ( gftype )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( greens_function_type ), INTENT ( IN ), TARGET :: gftype
+
+!------------------------------------------------------------------------------
+
+  gf => gftype
+
+END SUBROUTINE init_pw_poisson_solver
+
+!!*****
 !******************************************************************************
 !!****** pws/pw_poisson_solver [1.0] *
 !!
@@ -59,163 +100,104 @@ CONTAINS
 !!     apsi
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (13-Mar-2001) : completely revised
 !!
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE pw_poisson_solver ( density, vhartree, dvhartree, h_stress )
+SUBROUTINE pw_poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress )
 
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( coeff_type ), INTENT ( IN ), TARGET :: density
-  TYPE ( coeff_type ), INTENT ( OUT ), OPTIONAL :: vhartree
+  TYPE ( coeff_type ), INTENT ( INOUT ), TARGET :: density
+  REAL ( dbl ) , INTENT ( OUT ) :: ehartree
+  TYPE ( coeff_type ), INTENT ( OUT ) :: vhartree
   TYPE ( coeff_type ), DIMENSION ( 3 ), INTENT ( OUT ), OPTIONAL :: dvhartree
   REAL ( dbl ), DIMENSION ( 3, 3 ), INTENT ( OUT ), OPTIONAL :: h_stress
 
 ! Locals
-  INTEGER :: gpt, dir
-  REAL ( dbl ) :: gf
-  COMPLEX ( dbl ) :: i_cmplx
-  INTEGER :: lp, mp, np, ln, mn, nn
-  INTEGER, DIMENSION ( : ), POINTER :: ghat
-
-  INTEGER, DIMENSION ( :, : ), POINTER :: g_hat
   TYPE ( pw_grid_type ), POINTER :: pw_grid
-  TYPE ( pw_type ) :: rho_g, cfft
+  TYPE ( pw_type ) :: rhog, dvg ( 3 )
+  REAL ( dbl ) :: ffa
+  INTEGER, DIMENSION ( 3 ) :: n
+  INTEGER :: i, gpt, alpha, beta
 
 !------------------------------------------------------------------------------
 
-  i_cmplx = ( 0._dbl, 1._dbl )
-
   pw_grid => density % pw % pw_grid
-  g_hat => pw_grid % g_hat
 
-  CALL pw_allocate ( rho_g, pw_grid, use_data = COMPLEXDATA3D )
-
-  CALL pw_allocate ( cfft, pw_grid, use_data = COMPLEXDATA3D )
-  cfft % in_space = RECIPROCALSPACE
-
-!..FWFFT ( real to g space )
-  CALL pw_fft_wrap ( density%pw, rho_g )
-
-  IF ( PRESENT ( vhartree ) ) THEN
-     cfft % cc3d = 0._dbl
-
-     DO gpt = 1, pw_grid % ngpts_cut
-
-        ! compute Green's function  '''
-        CALL pw_greens_function ( gf, pw_grid % g ( :, gpt ) )
-
-        ghat => g_hat ( :, gpt )
-
-        lp = pw_grid % mapl % pos ( ghat ( 1 ) )
-        ln = pw_grid % mapl % neg ( ghat ( 1 ) )
-        mp = pw_grid % mapm % pos ( ghat ( 2 ) )
-        mn = pw_grid % mapm % neg ( ghat ( 2 ) )
-        np = pw_grid % mapn % pos ( ghat ( 3 ) )
-        nn = pw_grid % mapn % neg ( ghat ( 3 ) )
-
-        lp = lp + LBOUND ( cfft % cc3d, 1 )
-        mp = mp + LBOUND ( cfft % cc3d, 2 )
-        np = np + LBOUND ( cfft % cc3d, 3 )
-        ln = ln + LBOUND ( cfft % cc3d, 1 )
-        mn = mn + LBOUND ( cfft % cc3d, 2 )
-        nn = nn + LBOUND ( cfft % cc3d, 3 )
-
-        cfft % cc3d ( lp, mp, np ) = gf * rho_g % cc3d ( lp, mp, np )
-        cfft % cc3d ( ln, mn, nn ) = gf * rho_g % cc3d ( ln, mn, nn )
-     END DO
-
-! get phi_r
-!..BWFFT ( g to real space )
-     CALL pw_fft_wrap ( cfft, vhartree%pw )
+  IF ( .NOT. ASSOCIATED ( gf ) ) THEN
+    CALL stop_program ( "pw_poisson_solver", "init_pw_poisson_solver "// &
+      "has to be used before pw_poisson_solver" )
   END IF
 
-! multiply by the Green's function   '''
+  ! density in G space
+  CALL pw_allocate ( rhog, pw_grid, COMPLEXDATA1D )
+  rhog % in_space = RECIPROCALSPACE
 
-  IF ( PRESENT ( dvhartree ) ) THEN
-     DO dir = 1, 3
-        cfft % cc3d = 0.0_dbl
+  ! update the greens function
+  CALL pw_green_fn ( gf )
 
-        DO gpt = 1, pw_grid % ngpts_cut
+  SELECT CASE ( gf % method )
+  CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D )
+    CALL pw_transfer ( density % pw, rhog )
+    rhog % cc = rhog % cc * gf % influence_function % cr
+    CALL pw_transfer ( rhog, vhartree % pw )
+  CASE ( HOCKNEY2D, HOCKNEY1D, HOCKNEY0D )
+     CALL stop_program ( "pw_poisson_solver", " Method not implemented ")
+  CASE DEFAULT
+     CALL stop_program ( "pw_poisson_solver", " Method not implemented ")
+  END SELECT
 
-           ! compute Green's function   '''
-           CALL pw_greens_function ( gf, pw_grid % g ( :, gpt ) )
+  ehartree = 0.5_dbl * pw_integral_ab ( density % pw, vhartree % pw )
 
-           ghat => g_hat ( :, gpt )
+  ! do we need to calculate the derivative of the potential?
+  IF ( PRESENT ( h_stress ) .OR. PRESENT ( dvhartree ) ) THEN
+    IF ( gf % method /= PERIODIC3D ) THEN
+      CALL stop_program ( "pw_poisson_solver", &
+        "Pressure calculation works only for fully priodic systems" )
+    END IF
+    DO i = 1, 3
+      CALL pw_allocate ( dvg ( i ), pw_grid, COMPLEXDATA1D )
+      dvg ( i ) % in_space = RECIPROCALSPACE
+      n = 0
+      n ( i ) = 1
+      CALL pw_derive ( rhog, dvg ( i ), n )
+    END DO
+    ! save the derivatives
+    IF ( PRESENT ( dvhartree ) ) THEN
+      DO i = 1, 3
+        CALL pw_transfer ( dvg ( i ), dvhartree ( i ) % pw )
+      END DO
+    END IF
+    ! calculate the contribution to the stress tensor
+    ! this is only the contribution from the Greens function
+    ! and the volume factor of the plane waves
+    IF ( PRESENT ( h_stress ) ) THEN
 
-           lp = pw_grid % mapl % pos ( ghat ( 1 ) )
-           ln = pw_grid % mapl % neg ( ghat ( 1 ) )
-           mp = pw_grid % mapm % pos ( ghat ( 2 ) )
-           mn = pw_grid % mapm % neg ( ghat ( 2 ) )
-           np = pw_grid % mapn % pos ( ghat ( 3 ) )
-           nn = pw_grid % mapn % neg ( ghat ( 3 ) )
-
-           lp = lp + LBOUND ( cfft % cc3d, 1 )
-           mp = mp + LBOUND ( cfft % cc3d, 2 )
-           np = np + LBOUND ( cfft % cc3d, 3 )
-           ln = ln + LBOUND ( cfft % cc3d, 1 )
-           mn = mn + LBOUND ( cfft % cc3d, 2 )
-           nn = nn + LBOUND ( cfft % cc3d, 3 )
-
-           cfft % cc3d ( lp, mp, np ) = &
-                  i_cmplx * pw_grid % g ( dir, gpt ) * gf &
-                * rho_g % cc3d ( lp, mp, np )
-           cfft % cc3d ( ln, mn, nn ) = &
-                - i_cmplx * pw_grid % g ( dir, gpt ) * gf &
-                * rho_g % cc3d ( ln, mn, nn )
+      ffa = -pw_grid % vol / fourpi
+      h_stress = 0._dbl
+      DO alpha = 1, 3
+        h_stress ( alpha, alpha ) = ehartree
+        DO beta = alpha, 3
+          h_stress ( alpha, beta ) = h_stress ( alpha, beta ) &
+             + ffa * pw_integral_ab ( dvg ( alpha ), dvg ( beta ) )
+          h_stress ( beta, alpha ) = h_stress ( alpha, beta )
         END DO
-
-! get derivative of phi_r
-!..BWFFT ( g to real space )
-        CALL pw_fft_wrap ( cfft, dvhartree ( dir ) %pw)
-     END DO
+      END DO
+   
+    END IF
+    DO i = 1, 3
+      CALL pw_deallocate ( dvg ( i ) )
+    END DO
   END IF
 
-  CALL pw_deallocate ( cfft )
-
-  CALL pw_deallocate ( rho_g )
+  CALL pw_deallocate ( rhog )
 
 END SUBROUTINE pw_poisson_solver
 
 !!*****
-!******************************************************************************
-
-SUBROUTINE pw_greens_function ( gf, g )
-  IMPLICIT NONE
-
-! Arguments
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: g
-  REAL ( dbl ), INTENT ( OUT ) :: gf
-
-! Locals
-  INTEGER :: dimensionality  !TMPTMPTMP
-  REAL ( dbl ) :: g2
-
-!------------------------------------------------------------------------------
-
-  dimensionality = SIZE ( g )
-
-  SELECT CASE ( dimensionality )
-    CASE ( 3 )                   ! 3-dim
-       g2 = dotprod_3d ( g, g )
-       IF ( g2 > 1.0E-10_dbl ) THEN
-          gf = fourpi / g2
-       ELSE
-          gf = 0.0_dbl
-       END IF
-    CASE ( 2 )                   ! 2-dim
-       stop "greens_function, no 2-dim function implemented yet"
-    CASE ( 1 )                   ! 1-dim
-       stop "greens_function, no 1-dim function implemented yet"
-    CASE ( 0 )                   ! 0-dim = cluster
-       stop "greens_function, no 0-dim function implemented yet"
-  END SELECT
-
-END SUBROUTINE pw_greens_function
-
 !******************************************************************************
 !!****** pws/pw_integral [1.0] *
 !!
@@ -229,7 +211,7 @@ END SUBROUTINE pw_greens_function
 !!     apsi
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (14-Mar-2001) : Parallel sum and some tests, HALFSPACE case
 !!
 !!   SOURCE
 !******************************************************************************
@@ -242,6 +224,10 @@ FUNCTION pw_integral_ab ( pw1, pw2, flag ) RESULT ( integral_value )
   REAL ( dbl ) :: integral_value
 
 !------------------------------------------------------------------------------
+
+  IF ( pw1 % pw_grid % identifier /= pw2 % pw_grid % identifier ) THEN
+     CALL stop_program ( "integral_ab", "grids incompatible" )
+  END IF
 
   IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D ) THEN
      integral_value = SUM ( pw1 % cr3d ( :, :, : ) &
@@ -277,19 +263,25 @@ FUNCTION pw_integral_ab ( pw1, pw2, flag ) RESULT ( integral_value )
 
   IF ( pw1 % in_use == REALDATA3D .OR. pw1 % in_use == COMPLEXDATA3D ) THEN
      integral_value = integral_value * pw1 % pw_grid % dvol
-  ELSE IF ( pw1 % in_use == COMPLEXDATA1D ) THEN
-     integral_value = integral_value
   ELSE
-     CALL stop_program ( "pw_integral_ab", "volume element not implemented" )
+     integral_value = integral_value * pw1 % pw_grid % vol
+  ENDIF
+  IF ( pw1 % in_use == COMPLEXDATA1D ) THEN
+     IF ( pw1 % pw_grid % grid_span == HALFSPACE ) THEN
+        integral_value = 2._dbl * integral_value
+        IF ( pw1 % pw_grid % have_g0 ) integral_value = integral_value - &
+             CONJG ( pw1 % cc ( 1 ) ) * pw2 % cc ( 1 )
+     END IF
   END IF
 
-!tmptmp  IF ( pw1 % group_id >= 0 ) CALL mp_sum ( integral_value, pw1 % group_id )
+  IF ( pw1 % pw_grid % para % mode == 1 ) &
+     CALL mp_sum ( integral_value, pw1 % pw_grid % para % group )
 
 END FUNCTION pw_integral_ab
 
 !******************************************************************************
 
-FUNCTION pw_integral_a ( pw1, flag ) RESULT ( integral_value )
+FUNCTION pw_integral_aa ( pw1, flag ) RESULT ( integral_value )
 
   TYPE ( pw_type ), INTENT ( IN ) :: pw1
   INTEGER, INTENT ( IN ), OPTIONAL :: flag
@@ -310,6 +302,11 @@ FUNCTION pw_integral_a ( pw1, flag ) RESULT ( integral_value )
         ELSE IF ( pw1 % in_use == COMPLEXDATA1D ) THEN
            integral_value = SUM ( CONJG ( pw1 % cc ( : ) ) &
                 * pw1 % cc ( : ) )
+           IF ( pw1 % pw_grid % grid_span == HALFSPACE ) THEN
+              integral_value = 2._dbl * integral_value
+              IF ( pw1 % pw_grid % have_g0 ) integral_value = integral_value - &
+                   CONJG ( pw1 % cc ( 1 ) ) * pw1 % cc ( 1 )
+           END IF
         ELSE
            CALL stop_program ( "integral_aa", "no possible SQUARE data" )
         END IF
@@ -332,12 +329,56 @@ FUNCTION pw_integral_a ( pw1, flag ) RESULT ( integral_value )
      END IF
   END IF
 
-  IF ( pw1 % in_use == REALDATA3D ) &
-       integral_value = integral_value * pw1 % pw_grid % dvol
+  IF ( pw1 % in_use == REALDATA3D .OR. pw1 % in_use == COMPLEXDATA3D ) THEN
+     integral_value = integral_value * pw1 % pw_grid % dvol
+  ELSE
+     integral_value = integral_value * pw1 % pw_grid % vol
+  END IF
 
-!tmptmp  IF ( pw1 % group_id >= 0 ) CALL mp_sum ( integral_value, pw1 % group_id )
+  IF ( pw1 % pw_grid % para % mode == 1 ) &
+     CALL mp_sum ( integral_value, pw1 % pw_grid % para % group )
 
-END FUNCTION pw_integral_a
+END FUNCTION pw_integral_aa
+
+!******************************************************************************
+
+FUNCTION pw_integral_a2b ( pw1, pw2 ) RESULT ( integral_value )
+
+  TYPE ( pw_type ), INTENT ( IN ) :: pw1
+  TYPE ( pw_type ), INTENT ( IN ) :: pw2
+
+  REAL ( dbl ) :: integral_value
+
+!------------------------------------------------------------------------------
+
+  IF ( pw1 % pw_grid % identifier /= pw2 % pw_grid % identifier ) THEN
+     CALL stop_program ( "integral_a2b", "grids incompatible" )
+  END IF
+  IF ( pw1 % in_use == REALDATA1D .AND. &
+       pw2 % in_use == REALDATA1D ) THEN
+     integral_value = SUM ( pw1 % cr ( : ) * pw2 % cr ( : ) &
+                            * pw1 % pw_grid % gsq ( : ) )
+  ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
+            pw2 % in_use == COMPLEXDATA1D ) THEN
+     integral_value = SUM ( REAL ( CONJG ( pw1 % cc ( : ) ) &
+          * pw2 % cc ( : ), dbl ) * pw1 % pw_grid % gsq ( : ) )
+     IF ( pw1 % pw_grid % grid_span == HALFSPACE ) THEN
+        integral_value = 2._dbl * integral_value
+     END IF
+  ELSE
+     CALL stop_program ( "integral_a2b", "no possible data" )
+  END IF
+
+  IF ( pw1 % in_use == REALDATA3D .OR. pw1 % in_use == COMPLEXDATA3D ) THEN
+     integral_value = integral_value * pw1 % pw_grid % dvol
+  ELSE
+     integral_value = integral_value * pw1 % pw_grid % vol
+  END IF
+
+  IF ( pw1 % pw_grid % para % mode == 1 ) &
+     CALL mp_sum ( integral_value, pw1 % pw_grid % para % group )
+
+END FUNCTION pw_integral_a2b
 
 !!*****
 !******************************************************************************
@@ -520,6 +561,54 @@ SUBROUTINE pw_stateset_density ( psi_iks, n_s )
 END SUBROUTINE pw_stateset_density
 
 !!*****
+!******************************************************************************
+
+SUBROUTINE pw_collect ( pw, label, op )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( pw_type ), INTENT ( IN ) :: pw
+  CHARACTER ( LEN = * ) :: label
+  CHARACTER ( LEN = * ), OPTIONAL :: op
+
+! Local
+  REAL ( dbl ) :: xsum
+
+!------------------------------------------------------------------------------
+
+  IF ( .NOT. PRESENT ( op ) ) THEN
+    IF ( pw % in_use == COMPLEXDATA1D ) THEN
+      xsum = ABS ( SUM ( pw % cc ) )
+    ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
+      xsum = ABS ( SUM ( pw % cc3d ) )
+    ELSEIF ( pw % in_use == REALDATA1D ) THEN
+      xsum = SUM ( pw % cr )
+    ELSEIF ( pw % in_use == REALDATA3D ) THEN
+      xsum = SUM ( pw % cr3d )
+    END IF
+  ELSE
+    IF ( pw % in_use == COMPLEXDATA1D ) THEN
+      xsum = SUM ( ABS ( pw % cc ) ) 
+    ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
+      xsum = SUM ( ABS ( pw % cc3d ) )
+    ELSEIF ( pw % in_use == REALDATA1D ) THEN
+      xsum = SUM ( ABS ( pw % cr ) )
+    ELSEIF ( pw % in_use == REALDATA3D ) THEN
+      xsum = SUM ( ABS ( pw % cr3d ) )
+    END IF
+  END IF
+
+  IF ( pw % pw_grid % para % mode == 1 ) THEN
+    CALL mp_sum ( xsum, pw % pw_grid % para % group )
+    IF ( pw % pw_grid % para % group_head ) &
+      WRITE ( *, '(A,A10,G20.8)' ) " COLLECT ",label,xsum
+  ELSE
+    WRITE ( *, '(A,A10,G20.8)' ) " COLLECT ",label,xsum
+  END IF
+
+END SUBROUTINE pw_collect
+
 !******************************************************************************
 
 END MODULE pws

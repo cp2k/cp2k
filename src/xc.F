@@ -103,7 +103,7 @@ SUBROUTINE calculate_xc ( density, exc, vxc, &
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( density_type ), INTENT ( IN ) :: density
+  TYPE ( density_type ), INTENT ( IN ), TARGET :: density
   REAL ( dbl ), INTENT ( OUT ) :: exc
   REAL ( dbl ), OPTIONAL, INTENT ( OUT ) :: vxc
   INTEGER, OPTIONAL, INTENT ( IN ) :: alpha_spin, beta_spin

@@ -71,7 +71,9 @@ MODULE atomic_kinds
                                                 orb_basis_set_name,&
                                                 potential_name
     CHARACTER(LEN=2)                         :: element_symbol
-    REAL(wp)                                 :: alpha_erf,cerf,mass,&
+    REAL(wp)                                 :: alpha_core_charge,&
+                                                ccore_charge,&
+                                                core_charge_radius,mass,&
                                                 prj_paw_radius
     INTEGER                                  :: natom,z,zeff
     INTEGER, DIMENSION(:), POINTER           :: atom_list,elec_conf
@@ -96,14 +98,14 @@ MODULE atomic_kinds
 
 ! *** Public parameters ***
 
-  PUBLIC :: max_kind_label_length
+  PUBLIC :: max_basis_set_name_length,&
+            max_kind_label_length
 
 ! *** Public variables ***
 
   PUBLIC :: all_potential_present,&
             gth_potential_present,&
             kind_info,&
-            max_basis_set_name_length,&
             nkind
 
 ! *****************************************************************************
@@ -223,7 +225,6 @@ CONTAINS
     IF (SIZE(natom_of_kind) /= nkind) THEN
       CALL stop_program(routine,"The first dimension of the argument "//&
                                 "natom_of_kind has an invalid size")
-      CALL stop_program(routine,"")
     END IF
 
     IF (SIZE(atom_list,1) /= nkind) THEN
@@ -465,20 +466,20 @@ CONTAINS
       IF (apname == "ALL") THEN
         CALL allocate_potential(kind_info(ikind)%all_potential)
         CALL read_potential(kind_info(ikind)%element_symbol,apname,&
-                            kind_info(ikind)%alpha_erf,&
+                            kind_info(ikind)%alpha_core_charge,&
                             kind_info(ikind)%elec_conf,&
+                            kind_info(ikind)%zeff,&
                             kind_info(ikind)%all_potential,&
                             globenv)
-        kind_info(ikind)%zeff = kind_info(ikind)%z
         all_potential_present = .TRUE.
       ELSE IF (apname == "GTH") THEN
         CALL allocate_potential(kind_info(ikind)%gth_potential)
         CALL read_potential(kind_info(ikind)%element_symbol,apname,&
-                            kind_info(ikind)%alpha_erf,&
+                            kind_info(ikind)%alpha_core_charge,&
                             kind_info(ikind)%elec_conf,&
+                            kind_info(ikind)%zeff,&
                             kind_info(ikind)%gth_potential,&
                             globenv)
-        kind_info(ikind)%zeff = SUM(kind_info(ikind)%gth_potential%elec_conf)
         gth_potential_present = .TRUE.
       ELSE
         CALL stop_program(routine,&
@@ -490,8 +491,9 @@ CONTAINS
                           TRIM(globenv%input_file_name)//">")
       END IF
 
-      kind_info(ikind)%cerf = REAL(kind_info(ikind)%zeff,wp)*&
-                              (kind_info(ikind)%alpha_erf**2/pi)**1.5_wp
+      kind_info(ikind)%ccore_charge =&
+        REAL(kind_info(ikind)%zeff,wp)*&
+        SQRT((kind_info(ikind)%alpha_core_charge/pi)**3)
 
 !     *** Check the number of electrons ***
 
@@ -536,7 +538,7 @@ CONTAINS
     output_unit = globenv%scr
 
     IF (globenv%print%basis_set.OR.globenv%print%potential) THEN
-      WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") "KIND INFORMATION"
+      WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") "ATOMIC KIND INFORMATION"
     END IF
 
     DO ikind=1,nkind
@@ -549,7 +551,8 @@ CONTAINS
 
       IF (globenv%print%basis_set) THEN
 
-        WRITE (UNIT=output_unit,FMT="(/,T3,A)") "a) Basis set information"
+        WRITE (UNIT=output_unit,FMT="(/,T3,A)")&
+          "a) GTO basis set information"
 
         WRITE (UNIT=output_unit,FMT="(/,T6,A)")&
           "Orbital basis set name: "//TRIM(kind_info(ikind)%orb_basis_set_name)
@@ -646,8 +649,8 @@ CONTAINS
             "             "//&
             TRIM(kind_info(ikind)%all_potential%description(2))
           WRITE (UNIT=output_unit,FMT="(/,T6,A,F12.6)")&
-            "Gaussian exponent of the nuclear charge distribution: ",&
-            kind_info(ikind)%alpha_erf**2
+            "Gaussian exponent of the core charge distribution: ",&
+            kind_info(ikind)%alpha_core_charge
           WRITE (UNIT=output_unit,FMT="(/,T6,A,10I3)")&
             "Electronic configuration (s p d ...):",&
             kind_info(ikind)%elec_conf
@@ -660,12 +663,12 @@ CONTAINS
             "             "//&
             TRIM(kind_info(ikind)%gth_potential%description(3))
           WRITE (UNIT=output_unit,FMT="(/,T6,A,F12.6)")&
-            "Gaussian exponent of the nuclear charge distribution: ",&
-            kind_info(ikind)%alpha_erf**2
+            "Gaussian exponent of the core charge distribution: ",&
+            kind_info(ikind)%alpha_core_charge
           WRITE (UNIT=output_unit,FMT="(/,T6,A,10I3)")&
             "Electronic configuration (s p d ...):",&
             kind_info(ikind)%gth_potential%elec_conf
-          r = SQRT(0.5_wp)/kind_info(ikind)%alpha_erf
+          r = 1.0_wp/SQRT(2.0_wp*kind_info(ikind)%gth_potential%alpha_ppl)
           WRITE (UNIT=output_unit,FMT="(/,T6,A,/,/,T8,A,/,T8,4F12.6)")&
             "Parameters of the local part of the GTH pseudopotential:",&
             "      rloc        C1          C2          C3          C4",&
@@ -676,7 +679,7 @@ CONTAINS
               "Parameters of the non-local part of the GTH pseudopotential:",&
               " l      r(l)      h(i,j,l)"
             DO l=0,kind_info(ikind)%gth_potential%lppnl
-              r = SQRT(0.5_wp/kind_info(ikind)%gth_potential%alpha_prj_ppnl(l))
+              r = SQRT(0.5_wp/kind_info(ikind)%gth_potential%alpha_ppnl(l))
               WRITE (UNIT=output_unit,FMT="(T6,I2,F12.6,4F12.6)")&
                 l,r,(kind_info(ikind)%gth_potential%hprj_ppnl(1,j,l),&
                      j=1,kind_info(ikind)%gth_potential%nprj_ppnl(l))

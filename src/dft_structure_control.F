@@ -64,7 +64,7 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE dft_force_control ( molecule, pnode, part, box, thermo, &
-     potparm, ewald_param, ensemble, lldata, dft_control, kp, &
+     potparm, ewald_param, box_change, lldata, dft_control, kp, &
      dftpar, wavepar )
   
   IMPLICIT NONE
@@ -77,7 +77,7 @@ SUBROUTINE dft_force_control ( molecule, pnode, part, box, thermo, &
   TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
   TYPE ( potentialparm_type ), DIMENSION ( :,: ), INTENT ( IN ) :: potparm
   TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: ensemble
+  LOGICAL, INTENT ( IN ) :: box_change
   TYPE ( linklist_internal_data_type), INTENT (INOUT) :: lldata
   TYPE ( global_environment_type ), INTENT ( IN ) :: dftpar, wavepar
   TYPE ( dft_control_type ), INTENT ( IN ) :: dft_control

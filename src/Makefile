@@ -1,11 +1,11 @@
 .SUFFIXES: .F .d .o
 
-CP2KHOME  = $(HOME)/CP2K
+CP2KHOME  = $(HOME)/CP2K/
 ARCH      = $(shell $(CP2KHOME)/tools/get_arch_code)
-VERSION   = sdbg
-SMAKE     = gmake -r
+VERSION   = sopt
+SMAKE     = make -r
 PMAKE     = $(SMAKE) -j 1
-LIB1      = fftsg
+LIB1      = cp2klib
 
 ### Dependent variables ###
 
@@ -54,11 +54,11 @@ include $(MACHINEDEFS)
 
 OBJECTS = $(OBJECTS_GENERIC) $(OBJECTS_ARCHITECTURE)
 
-LIB1_OBJECTS = ctrig.o fftpre.o fftrot.o fftstp.o mltfftsg.o
+LIB1_OBJECTS = ctrig.o fftpre.o fftrot.o fftstp.o mltfftsg.o fast.o
 
 DEPENDENCIES = $(OBJECTS:.o=.d)
 
-LIBRARIES = $(LIBS) -L$(LIBDIR)/$(VERSION) -l$(LIB1)
+LIBRARIES = -L$(LIBDIR)/$(VERSION) -l$(LIB1) $(LIBS)
 
 ### Slave rules ###
 
@@ -79,18 +79,17 @@ $(PROG): $(OBJECTS)
 
 %.d: %.F
 	$(CPP) $(CPPFLAGS) $< $*.f
-	-$(FORPAR) $*.f
+	$(FORPAR) $*.f
 	$(PERL) $(SFMAKEDEPEND) $*.d $*.f
-	rm -f $*.f $*.d.old
+	@rm -f $*.f $*.d.old
 
 parallel_include.o: parallel_include.F
 	$(FC_fixed) -c $(FCFLAGS) $<
 
 parallel_include.d: parallel_include.F
 	$(CPP) $(CPPFLAGS) $< $*.f
-	-$(FORPAR) -fix $*.f
 	$(PERL) $(SFMAKEDEPEND) $*.d $*.f
-	rm -f $*.f $*.d.old
+	@rm -f $*.f $*.d.old
 
 clean:
 	rm -f *.o *.mod F*.f

@@ -32,10 +32,12 @@ MODULE external_potential_types
 ! SUBROUTINE init_cprj_ppnl(gth_potential)
 ! SUBROUTINE init_gth_potential(gth_potential)
 ! SUBROUTINE init_vprj_ppnl(gth_potential)
-! SUBROUTINE read_all_potential(element_symbol,potential_name,alpha_erf,&
-!                               elec_conf,all_potential,globenv)
-! SUBROUTINE read_gth_potential(element_symbol,potential_name,alpha_erf,&
-!                               elec_conf,gth_potential,globenv)
+! SUBROUTINE read_all_potential(element_symbol,potential_name,&
+!                               alpha_core_charge,elec_conf,zeff,&
+!                               all_potential,globenv)
+! SUBROUTINE read_gth_potential(element_symbol,potential_name,&
+!                               alpha_core_charge,elec_conf,zeff,&
+!                               gth_potential,globenv)
 
 ! *****************************************************************************
 
@@ -52,7 +54,6 @@ MODULE external_potential_types
 
   TYPE all_potential_type
     CHARACTER(LEN=60), DIMENSION(2) :: description
-    REAL(wp)                        :: erfc_radius
   END TYPE all_potential_type
 
 ! *** Define the GTH potential type ***
@@ -64,11 +65,11 @@ MODULE external_potential_types
 
   TYPE gth_potential_type
     CHARACTER(LEN=60), DIMENSION(3)     :: description
-    REAL(wp)                            :: alpha_exp_ppl,erf_ppl_radius,&
-                                           exp_ppl_radius,prj_ppnl_radius
+    REAL(wp)                            :: alpha_ppl,cerf_ppl,ppl_radius,&
+                                           ppnl_radius
     INTEGER                             :: lppnl,lprj_ppnl_max,nexp_ppl,&
                                            nppnl,nprj_ppnl_max
-    REAL(wp), DIMENSION(:), POINTER     :: alpha_prj_ppnl,cexp_ppl
+    REAL(wp), DIMENSION(:), POINTER     :: alpha_ppnl,cexp_ppl
     INTEGER, DIMENSION(:), POINTER      :: elec_conf,nprj_ppnl
     REAL(wp), DIMENSION(:,:), POINTER   :: cprj,cprj_ppnl,vprj_ppnl
     REAL(wp), DIMENSION(:,:,:), POINTER :: hprj_ppnl
@@ -184,7 +185,7 @@ CONTAINS
 
     IF (istat /= 0) CALL stop_memory(routine,"gth_potential",0)
 
-    NULLIFY (gth_potential%alpha_prj_ppnl)
+    NULLIFY (gth_potential%alpha_ppnl)
     NULLIFY (gth_potential%cexp_ppl)
     NULLIFY (gth_potential%elec_conf)
     NULLIFY (gth_potential%cprj)
@@ -269,8 +270,8 @@ CONTAINS
 !   *** Deallocate the parameters of the non-local part ***
 
     IF (gth_potential%nppnl > 0) THEN
-      DEALLOCATE (gth_potential%alpha_prj_ppnl,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"gth_potential%alpha_prj_ppnl")
+      DEALLOCATE (gth_potential%alpha_ppnl,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"gth_potential%alpha_ppnl")
       DEALLOCATE (gth_potential%cprj,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"gth_potential%cprj")
       DEALLOCATE (gth_potential%cprj_ppnl,STAT=istat)
@@ -308,7 +309,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(wp) :: alpha_prj_ppnl,cp
+    REAL(wp) :: alpha_ppnl,cp
     INTEGER  :: cpx,cpy,cpz,cx,cy,cz,ico,iprj,iprj_ppnl,l,lp,lprj_ppnl,nprj,&
                 px,py,pz
 
@@ -317,12 +318,12 @@ CONTAINS
     nprj = 0
 
     DO l=0,gth_potential%lppnl
-      alpha_prj_ppnl = gth_potential%alpha_prj_ppnl(l)
+      alpha_ppnl = gth_potential%alpha_ppnl(l)
       DO iprj_ppnl=1,gth_potential%nprj_ppnl(l)
         lp = iprj_ppnl - 1
         lprj_ppnl = l + 2*lp
         cp = SQRT(2.0_wp**(2.0_wp*REAL(lprj_ppnl,wp) + 3.5_wp)*&
-                  alpha_prj_ppnl**(REAL(lprj_ppnl,wp) + 1.5_wp)/&
+                  alpha_ppnl**(REAL(lprj_ppnl,wp) + 1.5_wp)/&
                   (SQRT(pi)*dfac(2*lprj_ppnl + 1)))
         gth_potential%cprj_ppnl(iprj_ppnl,l) = cp
         DO cx=0,l
@@ -426,8 +427,9 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_all_potential(element_symbol,potential_name,alpha_erf,&
-                                elec_conf,all_potential,globenv)
+  SUBROUTINE read_all_potential(element_symbol,potential_name,&
+                                alpha_core_charge,elec_conf,zeff,&
+                                all_potential,globenv)
 
 !   Purpose: Read an atomic all-electron potential data structure from the
 !            database file.
@@ -449,7 +451,8 @@ CONTAINS
     TYPE(all_potential_type), POINTER         :: all_potential
     TYPE(global_environment_type), INTENT(IN) :: globenv
     CHARACTER(LEN=*), INTENT(IN)              :: element_symbol,potential_name
-    REAL(wp), INTENT(OUT)                     :: alpha_erf
+    REAL(wp), INTENT(OUT)                     :: alpha_core_charge
+    INTEGER, INTENT(OUT)                      :: zeff
     INTEGER, DIMENSION(:), POINTER            :: elec_conf
 
 !   *** Local parameters ***
@@ -506,12 +509,14 @@ CONTAINS
             CALL test_object(test_result)
           END DO
 
+          zeff = SUM(elec_conf)
+
 !         *** Read r(loc) to define the exponent ***
-!         *** of the nuclear charge distribution ***
+!         *** of the core charge distribution    ***
 
           CALL read_object(r,skip_lines=1)
 
-          alpha_erf = 1.0_wp/(SQRT(2.0_wp)*r)
+          alpha_core_charge = 1.0_wp/(2.0_wp*r**2)
 
           EXIT search_loop
 
@@ -537,8 +542,9 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_gth_potential(element_symbol,potential_name,alpha_erf,&
-                                elec_conf,gth_potential,globenv)
+  SUBROUTINE read_gth_potential(element_symbol,potential_name,&
+                                alpha_core_charge,elec_conf,zeff,&
+                                gth_potential,globenv)
 
 !   Purpose: Read an atomic GTH potential data structure from the database
 !            file.
@@ -558,6 +564,7 @@ CONTAINS
                                 search,&
                                 start_input_session,&
                                 test_object
+    USE mathconstants,    ONLY: pi
     USE mathlib,          ONLY: symmetrize_matrix
     USE memory_utilities, ONLY: reallocate
     USE orbital_pointers, ONLY: init_orbital_pointers,nco,ncoset
@@ -567,7 +574,8 @@ CONTAINS
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(gth_potential_type), POINTER         :: gth_potential
     CHARACTER(LEN=*), INTENT(IN)              :: element_symbol,potential_name
-    REAL(wp), INTENT(OUT)                     :: alpha_erf
+    REAL(wp), INTENT(OUT)                     :: alpha_core_charge
+    INTEGER, INTENT(OUT)                      :: zeff
     INTEGER, DIMENSION(:), POINTER            :: elec_conf
 
 !   *** Local parameters ***
@@ -656,14 +664,18 @@ CONTAINS
 
           DEALLOCATE (gth_elec_conf)
 
+          zeff = SUM(gth_potential%elec_conf)
+
 !         *** Read r(loc) to define the exponent ***
-!         *** of the nuclear charge distribution ***
+!         *** of the core charge distribution    ***
 
           CALL read_object(r,skip_lines=1)
 
-          alpha_erf = 1.0_wp/(SQRT(2.0_wp)*r)
+          alpha_core_charge = 1.0_wp/(2.0_wp*r**2)
 
-          gth_potential%alpha_exp_ppl = alpha_erf**2
+          gth_potential%alpha_ppl = alpha_core_charge
+          gth_potential%cerf_ppl = REAL(zeff,wp)*&
+                                   SQRT((alpha_core_charge/pi)**3)
 
 !         *** Read the parameters for the local part ***
 !         *** of the GTH pseudopotential (ppl)       ***
@@ -675,7 +687,7 @@ CONTAINS
           DO i=1,n
             CALL read_object(gth_potential%cexp_ppl(i))
             gth_potential%cexp_ppl(i) =&
-              (2.0_wp*gth_potential%alpha_exp_ppl)**(i - 1)*&
+              (2.0_wp*gth_potential%alpha_ppl)**(i - 1)*&
               gth_potential%cexp_ppl(i)
           END DO
 
@@ -705,8 +717,8 @@ CONTAINS
 
 !           *** Load the parameter for n non-local projectors ***
 
-            gth_potential%alpha_prj_ppnl =>&
-              reallocate(gth_potential%alpha_prj_ppnl,0,lppnl)
+            gth_potential%alpha_ppnl =>&
+              reallocate(gth_potential%alpha_ppnl,0,lppnl)
             gth_potential%nprj_ppnl =>&
               reallocate(gth_potential%nprj_ppnl,0,lppnl)
 
@@ -715,7 +727,7 @@ CONTAINS
 
             DO l=0,lppnl
               CALL read_object(r,skip_lines=1)
-              gth_potential%alpha_prj_ppnl(l) = 1.0_wp/(2.0_wp*r**2)
+              gth_potential%alpha_ppnl(l) = 1.0_wp/(2.0_wp*r**2)
               CALL read_object(nprj_ppnl)
               gth_potential%nprj_ppnl(l) = nprj_ppnl
               nppnl = nppnl + nprj_ppnl*nco(l)

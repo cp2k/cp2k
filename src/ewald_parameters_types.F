@@ -32,7 +32,7 @@ MODULE ewald_parameters_types
     INTEGER   :: ns_max              ! # grid points for small grid (PME)
     INTEGER   :: o_spline            ! order of spline (SPME)
     INTEGER   :: gtot                ! total number of g-vectors
-    INTEGER   :: ewald_grp           ! parallel group
+    INTEGER   :: group               ! parallel group
   END TYPE ewald_parameters_type
 
   PRIVATE

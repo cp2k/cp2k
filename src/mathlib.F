@@ -196,8 +196,6 @@ CONTAINS
 
 !   ***************************************************************************
 
-    USE timings, ONLY: timeset,timestop
-
     REAL(wp), DIMENSION(:,:), INTENT(INOUT) :: a
     REAL(wp), DIMENSION(:,:), INTENT(OUT)   :: eigvec
     REAL(wp), DIMENSION(:), INTENT(OUT)     :: eigval
@@ -205,7 +203,7 @@ CONTAINS
 !   *** Local variables ***
 
     REAL(wp) :: abstol
-    INTEGER  :: handle,info,istat,liwork,lwork,m,n,n_eigvec,nb
+    INTEGER  :: info,istat,liwork,lwork,m,n,n_eigvec,nb
 
     REAL(wp), DIMENSION(:), ALLOCATABLE :: work
     INTEGER, DIMENSION(:), ALLOCATABLE  :: ifail,iwork
@@ -218,10 +216,6 @@ CONTAINS
     EXTERNAL dsyevx
 
 !   ---------------------------------------------------------------------------
-
-!   *** Start timer ***
-
-    CALL timeset("diamat (diagonalize_matrix)","I","",handle)
 
 !   *** Get the size of the matrix a ***
 
@@ -309,10 +303,6 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory("SUBROUTINE diagonalize_matrix "//&
                                      "(MODULE mathlib)","ifail")
 
-!   *** Stop timer ***
-
-    CALL timestop(0.0_wp,handle)
-
   END SUBROUTINE diamat
 
 ! *****************************************************************************
@@ -333,8 +323,6 @@ CONTAINS
 
 !   ***************************************************************************
 
-    USE timings, ONLY: timeset,timestop
-
     REAL(wp), DIMENSION(:,:), INTENT(INOUT) :: a
     REAL(wp), DIMENSION(:), INTENT(OUT)     :: eigval
 
@@ -342,7 +330,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER  :: handle,info,istat,liwork,lwork,n,nb
+    INTEGER  :: info,istat,liwork,lwork,n,nb
     LOGICAL  :: divide_and_conquer
 
     REAL(wp), DIMENSION(:), ALLOCATABLE :: work
@@ -352,13 +340,10 @@ CONTAINS
 
     INTEGER, EXTERNAL :: ilaenv
 
-    EXTERNAL dsyev,dsyevd
+!MK EXTERNAL dsyev,dsyevd
+    EXTERNAL dsyev
 
 !   ---------------------------------------------------------------------------
-
-!   *** Start timer ***
-
-    CALL timeset("diamat_all (diagonalize_matrix)","I","",handle)
 
 !   *** Get the size of the matrix a ***
 
@@ -380,11 +365,11 @@ CONTAINS
 
 !   *** Check, if the divide-and-conquer algorithm is requested ***
 
-    IF (PRESENT(dac)) THEN
-      divide_and_conquer = dac
-    ELSE
+!MK IF (PRESENT(dac)) THEN
+!     divide_and_conquer = dac
+!   ELSE
       divide_and_conquer = .FALSE.
-    END IF
+!   END IF
 
 !   *** Get the optimal work storage size ***
 
@@ -409,12 +394,12 @@ CONTAINS
 
 !   *** Diagonalize the matrix a ***
 
-    IF (divide_and_conquer) THEN
-      CALL dsyevd("V","U",n,a(:,:),n,eigval(:),work(:),lwork,iwork(:),liwork,&
-                  info)
-    ELSE
-      CALL dsyev("V","U",n,a(:,:),n,eigval(:),work(:),lwork,info)
-    END IF
+!MK IF (divide_and_conquer) THEN
+!     CALL dsyevd("V","U",n,a(:,:),n,eigval(:),work(:),lwork,iwork(:),liwork,&
+!                 info)
+!   ELSE
+      CALL dsyev("V","U",n,a(1,1),n,eigval(1),work(1),lwork,info)
+!   END IF
 
     IF (info /= 0) THEN
       IF (divide_and_conquer) THEN
@@ -436,10 +421,6 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory("SUBROUTINE diagonalize_matrix "//&
                                        "(MODULE mathlib)","iwork")
     END IF
-
-!   *** Stop timer ***
-
-    CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE diamat_all
 
@@ -565,7 +546,6 @@ CONTAINS
 !   ***************************************************************************
 
     USE termination, ONLY: get_error_unit
-    USE timings,     ONLY: timeset,timestop
 
     REAL(wp), INTENT(OUT) :: error
 
@@ -579,7 +559,7 @@ CONTAINS
     CHARACTER(LEN=80) :: message
     CHARACTER(LEN=1)  :: norm,trans
     REAL(wp)          :: a_norm,old_error,r_cond
-    INTEGER           :: handle,info,istat,iter,n,output_unit
+    INTEGER           :: info,istat,iter,n,output_unit
 
     REAL(wp), DIMENSION(:), ALLOCATABLE :: berr,ferr,work
     INTEGER, DIMENSION(:), ALLOCATABLE  :: ipiv,iwork
@@ -593,10 +573,6 @@ CONTAINS
     EXTERNAL dgecon,dgerfs,dgetrf,dgetrs
 
 !   ---------------------------------------------------------------------------
-
-!   *** Start timer ***
-
-    CALL timeset("invert_matrix","I","",handle)
 
 !   *** Check for optional parameter ***
 
@@ -753,10 +729,6 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory("SUBROUTINE invert_matrix "//&
                                      "(MODULE mathlib)","a_lu")
 
-!   *** Stop timer ***
-
-    CALL timestop(0.0_wp,handle)
-
   END SUBROUTINE invert_matrix
 
 ! *****************************************************************************
@@ -783,8 +755,6 @@ CONTAINS
 
 !   ***************************************************************************
 
-    USE timings, ONLY: timeset,timestop
-
     REAL(wp), DIMENSION(:,:), INTENT(INOUT) :: a
     REAL(wp), DIMENSION(:,:), INTENT(OUT)   :: a_power
 
@@ -797,7 +767,7 @@ CONTAINS
 !   *** Local variables ***
 
     REAL(wp) :: eps_eigval,expa
-    INTEGER  :: handle,i,istat,n,n_dep
+    INTEGER  :: i,istat,n,n_dep
     LOGICAL  :: divide_and_conquer
 
     REAL(wp), DIMENSION(:), ALLOCATABLE :: eigval
@@ -805,10 +775,6 @@ CONTAINS
     EXTERNAL dsyrk
 
 !   ---------------------------------------------------------------------------
-
-!   *** Start timer ***
-
-    CALL timeset("power_matrix","I","",handle)
 
 !   *** Define the threshold for the eigenvalue quenching ***
 
@@ -844,7 +810,8 @@ CONTAINS
 !   *** Check, if the divide-and-conquer algorithm is requested ***
 
     IF (PRESENT(dac)) THEN
-      divide_and_conquer = dac
+!MK   divide_and_conquer = dac
+      divide_and_conquer = .FALSE.
     ELSE
       divide_and_conquer = .FALSE.
     END IF
@@ -886,10 +853,6 @@ CONTAINS
     DEALLOCATE (eigval,STAT=istat)
     IF (istat /= 0) CALL stop_memory("SUBROUTINE power_matrix "//&
                                      "(MODULE mathlib)","eigval")
-
-!   *** Stop timer ***
-
-    CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE power_matrix
 

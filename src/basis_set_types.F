@@ -60,7 +60,10 @@ MODULE basis_set_types
     REAL(wp), DIMENSION(:,:,:), POINTER      :: gcc
   END TYPE gto_basis_set_type
 
-  INTEGER :: maxlcgf = 0
+  INTEGER :: maxco = 0,&
+             maxlcgf = 0,&
+             maxsgf = 0,&
+             maxsgf_set = 0
 
 ! *** Public subroutines ***
 
@@ -77,7 +80,10 @@ MODULE basis_set_types
 
 ! *** Public variables ***
 
-  PUBLIC :: maxlcgf
+  PUBLIC :: maxco,&
+            maxlcgf,&
+            maxsgf,&
+            maxsgf_set
 
 ! *****************************************************************************
 
@@ -483,7 +489,13 @@ CONTAINS
 
 !   ***************************************************************************
 
+    USE orbital_pointers, ONLY: ncoset
+
     TYPE(gto_basis_set_type), POINTER :: gto_basis_set
+
+!   *** Local variables ***
+
+    INTEGER :: first_sgfa,iset,la_max,last_sgfa,npgfa,nsgfa,nshella
 
 !   ---------------------------------------------------------------------------
 
@@ -499,6 +511,21 @@ CONTAINS
 !   *** Initialize the transformation matrices "pgf" -> "cgf" ***
 
     CALL init_cphi_and_sphi(gto_basis_set)
+
+!   *** Update maximum numbers for work storage allocation ***
+
+    maxsgf = MAX(maxsgf,gto_basis_set%nsgf)
+
+    DO iset=1,gto_basis_set%nset
+      nshella = gto_basis_set%nshell(iset)
+      first_sgfa = gto_basis_set%first_sgf(1,iset)
+      last_sgfa = gto_basis_set%last_sgf(nshella,iset)
+      nsgfa = last_sgfa - first_sgfa + 1
+      maxsgf_set = MAX(maxsgf_set,nsgfa)
+      npgfa = gto_basis_set%npgf(iset)
+      la_max = gto_basis_set%lmax(iset)
+      maxco = MAX(maxco,npgfa*ncoset(la_max))
+    END DO
 
   END SUBROUTINE init_orb_basis_set
 
@@ -558,7 +585,7 @@ CONTAINS
                                      start_input_session
     USE memory_utilities,      ONLY: reallocate
     USE method_specifications, ONLY: maxder
-    USE orbital_pointers,      ONLY: init_orbital_pointers,nco,ncoset,nso
+    USE orbital_pointers,      ONLY: init_orbital_pointers,indco,nco,ncoset,nso
     USE orbital_symbols,       ONLY: cgf_symbol,sgf_symbol
     USE string_utilities,      ONLY: uppercase
     USE termination,           ONLY: stop_memory,stop_program
@@ -578,7 +605,7 @@ CONTAINS
     CHARACTER(LEN=240)                 :: line
     CHARACTER(LEN=LEN(element_symbol)) :: symbol
 
-    INTEGER :: i,ipgf,iset,ishell,istat,lshell,lx,ly,lz,m,maxco,maxl,maxpgf,&
+    INTEGER :: i,ico,ipgf,iset,ishell,istat,lshell,m,maxco,maxl,maxpgf,&
                maxshell,ncgf,ncgf_set,nmin,nset,nsgf
     LOGICAL :: found
 
@@ -756,16 +783,15 @@ CONTAINS
           DO iset=1,nset
             DO ishell=1,nshell(iset)
               lshell = gto_basis_set%l(ishell,iset)
-              DO lx=lshell,0,-1
-                DO ly=lshell-lx,0,-1
-                  lz = lshell - lx - ly
-                  ncgf = ncgf + 1
-                  gto_basis_set%lx(ncgf) = lx
-                  gto_basis_set%ly(ncgf) = ly
-                  gto_basis_set%lz(ncgf) = lz
-                  gto_basis_set%cgf_symbol(ncgf) =&
-                    cgf_symbol(n(ishell,iset),(/lx,ly,lz/))
-                END DO
+              DO ico=ncoset(lshell-1)+1,ncoset(lshell)
+                ncgf = ncgf + 1
+                gto_basis_set%lx(ncgf) = indco(1,ico)
+                gto_basis_set%ly(ncgf) = indco(2,ico)
+                gto_basis_set%lz(ncgf) = indco(3,ico)
+                gto_basis_set%cgf_symbol(ncgf) =&
+                  cgf_symbol(n(ishell,iset),(/gto_basis_set%lx(ncgf),&
+                                              gto_basis_set%ly(ncgf),&
+                                              gto_basis_set%lz(ncgf)/))
               END DO
               DO m=-lshell,lshell
                 nsgf = nsgf + 1

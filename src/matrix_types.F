@@ -178,9 +178,9 @@ CONTAINS
     USE memory_utilities, ONLY: reallocate
     USE termination,      ONLY: stop_memory,stop_program
 
-    TYPE(real_matrix_type), POINTER            :: matrix
-    INTEGER, INTENT(IN)                        :: block_col,block_row
-    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER:: block
+    TYPE(real_matrix_type), POINTER             :: matrix
+    INTEGER, INTENT(IN)                         :: block_col,block_row
+    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER :: block
 
 !   *** Local parameters ***
 
@@ -408,13 +408,12 @@ CONTAINS
     TYPE(real_block_node_type), POINTER :: source_block_node,&
                                            target_block_node
 
-    INTEGER :: source_first_col,source_first_row,&
+    INTEGER :: first_col,first_row,iblock_col,iblock_row,icol,irow,istat,&
+               jblock_col,jblock_row,jcol,jrow,last_col,last_row,&
+               source_first_col,source_first_row,&
                source_last_col,source_last_row,&
                target_first_col,target_first_row,&
-               target_last_col,target_last_row,&
-               first_col,first_row,&
-               iblock_col,iblock_row,icol,irow,istat,&
-               jblock_col,jblock_row,jcol,jrow
+               target_last_col,target_last_row
 
 !   ---------------------------------------------------------------------------
 
@@ -463,18 +462,24 @@ CONTAINS
                 IF ((target_first_col <= source_last_col).AND.&
                     (target_last_col >= source_first_col)) THEN
 
-                  first_row = MAX(source_first_row,target_first_row)
                   first_col = MAX(source_first_col,target_first_col)
+                  first_row = MAX(source_first_row,target_first_row)
 
-                  DO irow=first_row-source_first_row+1,&
-                          source_last_row-source_first_row+1
-                    jrow = first_row - target_first_row + irow
-                    DO icol=first_col-source_first_col+1,&
-                            source_last_col-source_first_col+1
-                      jcol = first_col - target_first_col + icol
+                  last_col = MIN(source_last_col,target_last_col)
+                  last_row = MIN(source_last_row,target_last_row)
+
+                  jcol = first_col - target_first_col + 1
+
+                  DO icol=first_col-source_first_col+1,&
+                          last_col-source_first_col+1
+                    jrow = first_row - target_first_row + 1
+                    DO irow=first_row-source_first_row+1,&
+                            last_row-source_first_row+1
                       target_block_node%block(jrow,jcol) =&
                         source_block_node%block(irow,icol)
+                      jrow = jrow + 1
                     END DO
+                    jcol = jcol + 1
                   END DO
 
                 END IF

@@ -15,7 +15,8 @@
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (15-Mar-2001) : Pass logical for box change to force routine
+!!     Harald Forbert (Apr-2001): added path integral routine pimd_nvt
 !!
 !!   SOURCE
 !******************************************************************************
@@ -37,13 +38,14 @@ MODULE integrator
        mdio_parameters_type
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type, &
        linklist_atoms
-  USE message_passing, ONLY : mp_sum
-  USE nose, ONLY : lnhc_parameters_type, npt_info_type, lnhc
+  USE message_passing, ONLY : mp_sum, mp_sync, mp_comm_dup
+  USE nose, ONLY : lnhc_parameters_type, npt_info_type, lnhc, yoshida_coef
   USE particle_types, ONLY : particle_type
   USE simulation_cell, ONLY : get_cell_param
   USE structure_types, ONLY : structure_type, interaction_type
   USE termination, ONLY : stop_memory, stop_program
   USE timings, ONLY : timeset, timestop
+  USE transformations, ONLY : u2r, fr2fu
   USE util, ONLY : get_unit, matvec_3x3, matmul_3x3, transpose_3d
 
   IMPLICIT NONE
@@ -113,8 +115,9 @@ SUBROUTINE velocity_verlet ( itimes, constant, simpar, inter, &
   REAL ( dbl ), INTENT ( INOUT ) :: constant
   TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
   TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  TYPE ( structure_type ), INTENT ( INOUT ) :: struc
-  TYPE ( lnhc_parameters_type ), INTENT ( INOUT ) :: nhc_part, nhc_baro
+  TYPE ( structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: struc
+  TYPE ( lnhc_parameters_type ), DIMENSION ( : ), &
+        INTENT ( INOUT ) :: nhc_part, nhc_baro
   TYPE ( npt_info_type ), INTENT ( INOUT ), DIMENSION ( :, : ) :: npt
   TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
   TYPE ( interaction_type ), INTENT ( IN ) :: inter
@@ -125,24 +128,34 @@ SUBROUTINE velocity_verlet ( itimes, constant, simpar, inter, &
 
 !------------------------------------------------------------------------------
   CALL timeset ( 'VERLET', 'I', ' ', handle )
-  SELECT CASE ( simpar % ensemble )
-  CASE DEFAULT
-     CALL stop_program ( 'velocity_verlet','integrator not implemented')
-  CASE ( 'NVE')
-     CALL nve ( itimes, constant, simpar, inter, thermo, struc, ewald_param, &
-          dft_control, kp )
-  CASE ( 'NVT')
-     CALL nvt ( itimes, constant, simpar, inter, thermo, struc, ewald_param, &
-          nhc_part, dft_control, kp )
-  CASE ( 'NPT_I')
-     CALL npt_i(itimes,constant,simpar,inter,thermo,struc,ewald_param, &
-                nhc_part,nhc_baro,npt, dft_control, kp )
-  CASE ( 'NPT_F')
-     CALL npt_f(itimes,constant,simpar,inter,thermo,struc,ewald_param, &
-                nhc_part,nhc_baro,npt, dft_control, kp )
-  END SELECT
-
-  CALL energy(itimes,constant,simpar,struc,thermo,nhc_part,nhc_baro,npt)
+  IF (simpar % pimd_params % beads > 0) THEN
+     SELECT CASE ( simpar % ensemble )
+     CASE DEFAULT
+        CALL stop_program('velocity','PIMD not possible yet with this integrator')
+     CASE ( 'NVT' )
+        CALL pimd_nvt(itimes,constant,simpar,inter,thermo,struc, &
+                      ewald_param, nhc_part, dft_control, kp )
+     END SELECT
+     CALL energy(itimes,constant,simpar,struc,thermo,nhc_part,nhc_baro,npt)
+  ELSE
+    SELECT CASE ( simpar % ensemble )
+    CASE DEFAULT
+       CALL stop_program ( 'velocity_verlet','integrator not implemented')
+    CASE ( 'NVE')
+       CALL nve ( itimes, constant, simpar, inter, thermo, struc(1), ewald_param, &
+            dft_control, kp )
+    CASE ( 'NVT')
+       CALL nvt ( itimes, constant, simpar, inter, thermo, struc(1), ewald_param, &
+            nhc_part(1), dft_control, kp )
+    CASE ( 'NPT_I')
+       CALL npt_i(itimes,constant,simpar,inter,thermo,struc(1),ewald_param, &
+                  nhc_part(1),nhc_baro(1),npt, dft_control, kp )
+    CASE ( 'NPT_F')
+       CALL npt_f(itimes,constant,simpar,inter,thermo,struc(1),ewald_param, &
+                  nhc_part(1),nhc_baro(1),npt, dft_control, kp )
+    END SELECT
+    CALL energy(itimes,constant,simpar,struc,thermo,nhc_part,nhc_baro,npt)
+  END IF
 
   CALL timestop ( zero, handle )
 
@@ -162,7 +175,7 @@ END SUBROUTINE velocity_verlet
 !!     JGH
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (29-Mar-2001) : duplicate communicator, instead of copy
 !!
 !!   NOTES
 !!     Call this subroutine before the first call to energy or velocity_verlet
@@ -173,6 +186,7 @@ END SUBROUTINE velocity_verlet
 
 
 SUBROUTINE set_integrator ( globenv, mdio )
+
   IMPLICIT NONE
 
 ! Arguments
@@ -182,10 +196,11 @@ SUBROUTINE set_integrator ( globenv, mdio )
 !------------------------------------------------------------------------------
 
   intenv = globenv
+  CALL mp_comm_dup ( globenv % group, intenv % group )
 
-  ionode = globenv % ionode
-  int_group = globenv % group
-  scr = globenv % scr
+  ionode = intenv % ionode
+  int_group = intenv % group
+  scr = intenv % scr
 
   crd_file_name = mdio % crd_file_name
   vel_file_name = mdio % vel_file_name
@@ -273,9 +288,9 @@ SUBROUTINE energy ( itimes, constant, simpar, struc, thermo,  &
   INTEGER, INTENT ( IN ) :: itimes
   REAL ( dbl ), INTENT ( INOUT ) :: constant
   TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE (structure_type ), INTENT ( INOUT ) :: struc
+  TYPE (structure_type ), DIMENSION(:), INTENT ( INOUT ) :: struc
   TYPE (thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  TYPE (lnhc_parameters_type ), INTENT ( INOUT ) :: nhc_part, nhc_baro
+  TYPE (lnhc_parameters_type ), DIMENSION(:), INTENT ( INOUT ) :: nhc_part, nhc_baro
   TYPE (npt_info_type ), INTENT ( INOUT ), DIMENSION ( :, : ) :: npt
 
 ! Locals
@@ -306,11 +321,11 @@ SUBROUTINE energy ( itimes, constant, simpar, struc, thermo,  &
 
   iw = scr
   thermo % kin = zero
-  nnodes = SIZE ( struc % pnode )
+  nnodes = SIZE ( struc(1) % pnode )
   DO i = 1, nnodes
-     thermo%kin = thermo%kin + 0.5_dbl*struc%pnode(i) %p%prop%mass*(struc &
-          %pnode(i)%p%v(1)*struc%pnode(i)%p%v(1)+struc%pnode(i)%p%v(2)*struc &
-          %pnode(i)%p%v(2)+struc%pnode(i)%p%v(3)*struc%pnode(i)%p%v(3))
+     thermo%kin = thermo%kin + 0.5_dbl*struc(1)%pnode(i) %p%prop%mass*(struc(1) &
+          %pnode(i)%p%v(1)*struc(1)%pnode(i)%p%v(1)+struc(1)%pnode(i)%p%v(2)*struc(1) &
+          %pnode(i)%p%v(2)+struc(1)%pnode(i)%p%v(3)*struc(1)%pnode(i)%p%v(3))
   END DO
 
 ! sum all contributions to energy over calculated parts on all processors
@@ -331,31 +346,31 @@ SUBROUTINE energy ( itimes, constant, simpar, struc, thermo,  &
 
   IF (ionode .AND. mod(itimes,icrd)==0) THEN
      DO i=1, nnodes
-        WRITE (crd,'(i6,3(2x,f12.5) )' ) itimes, struc%pnode(i) %p%r
+        WRITE (crd,'(i6,3(2x,f12.5) )' ) itimes, struc(1)%pnode(i) %p%r
      END DO
   END IF
 
-IF (ionode .AND. mod(itimes,ivel)==0) THEN
+  IF (ionode .AND. mod(itimes,ivel)==0) THEN
      DO i=1, nnodes
-        WRITE (vel,'(i6,3f10.5 )' ) itimes, struc%pnode(i) %p%v
+        WRITE (vel,'(i6,3f10.5 )' ) itimes, struc(1)%pnode(i) %p%v
      END DO
   END IF
 
   IF (simpar%ensemble/='NVE') THEN
      nhc_part_kin = 0.0_dbl
      nhc_part_pot = 0.0_dbl
-     DO n = 1, nhc_part % num_nhc
-        DO l = 1, nhc_part % nhc_len
+     DO n = 1, nhc_part(1) % num_nhc
+        DO l = 1, nhc_part(1) % nhc_len
            nhc_part_kin = nhc_part_kin +  &
-           0.5_dbl * nhc_part % nvt ( l, n ) % mass * &
-           nhc_part % nvt ( l, n ) % v * nhc_part % nvt ( l, n ) % v
+           0.5_dbl * nhc_part(1) % nvt ( l, n ) % mass * &
+           nhc_part(1) % nvt ( l, n ) % v * nhc_part(1) % nvt ( l, n ) % v
 
-           nhc_part_pot = nhc_part_pot + nhc_part % nvt ( l, n ) % nkt *  &
-                          nhc_part % nvt ( l, n ) % eta
+           nhc_part_pot = nhc_part_pot + nhc_part(1) % nvt ( l, n ) % nkt *  &
+                          nhc_part(1) % nvt ( l, n ) % eta
         END DO
      END DO
 #if defined(__parallel)
-     IF (nhc_part%dis_type=='DIS_REP') THEN
+     IF (nhc_part(1)%dis_type=='DIS_REP') THEN
         CALL mp_sum(nhc_part_kin,int_group)
         CALL mp_sum(nhc_part_pot,int_group)
      END IF
@@ -365,18 +380,18 @@ IF (ionode .AND. mod(itimes,ivel)==0) THEN
   IF (simpar%ensemble (1:3 ) == 'NPT' ) THEN
      nhc_baro_kin = 0.0_dbl
      nhc_baro_pot = 0.0_dbl
-     DO n = 1, nhc_baro % num_nhc
-        DO l = 1, nhc_baro % nhc_len
+     DO n = 1, nhc_baro(1) % num_nhc
+        DO l = 1, nhc_baro(1) % nhc_len
            nhc_baro_kin = nhc_baro_kin +  &
-           0.5_dbl * nhc_baro % nvt ( l, n ) % mass * &
-           nhc_baro % nvt ( l, n ) % v * nhc_baro % nvt ( l, n ) % v
+           0.5_dbl * nhc_baro(1) % nvt ( l, n ) % mass * &
+           nhc_baro(1) % nvt ( l, n ) % v * nhc_baro(1) % nvt ( l, n ) % v
 
-           nhc_baro_pot = nhc_baro_pot + nhc_baro % nvt ( l, n ) % nkt *  &
-                          nhc_baro % nvt ( l, n ) % eta
+           nhc_baro_pot = nhc_baro_pot + nhc_baro(1) % nvt ( l, n ) % nkt *  &
+                          nhc_baro(1) % nvt ( l, n ) % eta
         END DO
      END DO
 #if defined(__parallel)
-     IF (nhc_part%dis_type=='DIS_REP') THEN
+     IF (nhc_part(1)%dis_type=='DIS_REP') THEN
         CALL mp_sum(nhc_baro_kin,int_group)
         CALL mp_sum(nhc_baro_pot,int_group)
      END IF
@@ -384,11 +399,11 @@ IF (ionode .AND. mod(itimes,ivel)==0) THEN
   END IF
 
   IF ( simpar%ensemble == 'NPT_I' ) THEN
-     baro_pot = simpar % p_ext * struc % box % deth
+     baro_pot = simpar % p_ext * struc(1) % box % deth
      baro_kin = 0.5_dbl * npt ( 1, 1 ) % v * npt ( 1, 1 ) % v * &
           npt ( 1, 1 ) % mass
   ELSE IF ( simpar%ensemble=='NPT_F' ) THEN
-     baro_pot =  simpar % p_ext * struc % box % deth
+     baro_pot =  simpar % p_ext * struc(1) % box % deth
      baro_kin = 0._dbl
      DO i = 1, 3
         DO j = 1, 3
@@ -400,7 +415,7 @@ IF (ionode .AND. mod(itimes,ivel)==0) THEN
 
   IF (simpar%ensemble(1:3)=='NPT') THEN
 #if defined(__parallel)
-     IF (nhc_baro%dis_type=='DIS_REP') THEN
+     IF (nhc_baro(1)%dis_type=='DIS_REP') THEN
         CALL mp_sum(baro_kin,int_group)
         CALL mp_sum(baro_pot,int_group)
      END IF
@@ -423,12 +438,12 @@ IF (ionode .AND. mod(itimes,ivel)==0) THEN
   IF (itimes /= 0 ) econs = abs((cons-constant)/constant)
 
 ! cell parameters:
-  CALL get_cell_param ( struc % box, cell, ang )
+  CALL get_cell_param ( struc(1) % box, cell, ang )
 
 ! initializing pv_const=0
   IF (itimes==0) THEN
      thermo%pv_const = 0._dbl
-     CALL pressure(struc%pnode,thermo)
+     CALL pressure(struc(1)%pnode,thermo)
   END IF
 
 ! computing the scalar pressure
@@ -436,7 +451,7 @@ IF (ionode .AND. mod(itimes,ivel)==0) THEN
   DO i = 1, 3
      pv_scalar = pv_scalar + thermo%ptens(i,i)
   END DO
-  pv_scalar = pv_scalar/3._dbl/struc%box%deth
+  pv_scalar = pv_scalar/3._dbl/struc(1)%box%deth
   pv_scalar = pv_scalar*p_conv
 
 ! average quantities:
@@ -452,7 +467,7 @@ IF (ionode .AND. mod(itimes,ivel)==0) THEN
      averages%avetemp = temp
      averages%avepot = thermo%pot
      averages%avekin = thermo%kin
-     averages%avevol = struc%box%deth
+     averages%avevol = struc(1)%box%deth
      averages%aveca = cell(1)
      averages%avecb = cell(2)
      averages%avecc = cell(3)
@@ -469,7 +484,7 @@ IF (ionode .AND. mod(itimes,ivel)==0) THEN
           real(itimes)
      averages%avekin = (averages%avekin*real(itimes-1)+thermo%kin)/ &
           real(itimes)
-     averages%avevol = (averages%avevol*real(itimes-1)+struc%box%deth)/ &
+     averages%avevol = (averages%avevol*real(itimes-1)+struc(1)%box%deth)/ &
           real(itimes)
      averages%aveca = (averages%aveca*real(itimes-1)+cell(1))/real(itimes)
      averages%avecb = (averages%avecb*real(itimes-1)+cell(2))/real(itimes)
@@ -532,7 +547,7 @@ IF (ionode .AND. mod(itimes,ivel)==0) THEN
           adjustl(temp_label), '= ', temp, averages%avetemp
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' PRESSURE', &
           adjustl(pres_label), '= ', pv_scalar, averages%avepress
-     CALL get_ll_parm ( struc % ll_data, lup, aup )
+     CALL get_ll_parm ( struc(1) % ll_data, lup, aup )
      IF (simpar%ensemble(1:3)=='NPT') THEN
         WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' VOLUME', &
              adjustl(vol_label), '= ', struc%box%deth, averages%avevol
@@ -562,9 +577,22 @@ END SUBROUTINE energy
 
 !!*****
 !******************************************************************************
-
-! nve integrator for particle positions & momenta
-!    velocity Verlet
+!!****** integrator/nve [1.0] *
+!!
+!!   NAME
+!!     nve
+!!
+!!   FUNCTION
+!!     nve integrator for particle positions & momenta
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE nve ( itimes, constant, simpar, inter, thermo, struc, ewald_param, &
      dft_control, kp )
@@ -585,6 +613,7 @@ SUBROUTINE nve ( itimes, constant, simpar, inter, thermo, struc, ewald_param, &
 ! Local
   INTEGER :: i, nnodes
   REAL ( dbl ) :: dtom
+  LOGICAL, PARAMETER :: box_change = .FALSE.
 
 !------------------------------------------------------------------------------
 
@@ -618,8 +647,8 @@ SUBROUTINE nve ( itimes, constant, simpar, inter, thermo, struc, ewald_param, &
 !
 ! get new forces
 !
-  CALL force ( struc, inter, thermo, simpar, ewald_param, intenv, &
-       dft_control, kp )
+  CALL force ( struc, inter, thermo, simpar, ewald_param, box_change, &
+               intenv, dft_control, kp )
   
 !
 ! second half of velocity verlet
@@ -647,6 +676,23 @@ SUBROUTINE nve ( itimes, constant, simpar, inter, thermo, struc, ewald_param, &
 
 END SUBROUTINE nve
 
+!!*****
+!******************************************************************************
+!!****** integrator/nvt [1.0] *
+!!
+!!   NAME
+!!     nvt
+!!
+!!   FUNCTION
+!!     nvt integrator for particle positions & momenta
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE nvt ( itimes, constant, simpar, inter, thermo, struc, &
@@ -669,6 +715,7 @@ SUBROUTINE nvt ( itimes, constant, simpar, inter, thermo, struc, &
 ! Locals
   INTEGER :: i, nnodes
   REAL ( dbl ) :: dtom
+  LOGICAL, PARAMETER :: box_change = .FALSE.
 
 !------------------------------------------------------------------------------
 
@@ -704,9 +751,8 @@ SUBROUTINE nvt ( itimes, constant, simpar, inter, thermo, struc, &
 !
 ! get new forces
 !
-  CALL force ( struc, inter, thermo, simpar, ewald_param, intenv, &
-       dft_control, kp )
-  
+  CALL force ( struc, inter, thermo, simpar, ewald_param, box_change, &
+               intenv, dft_control, kp )
 !
 ! second half of velocity verlet
 !
@@ -735,6 +781,24 @@ SUBROUTINE nvt ( itimes, constant, simpar, inter, thermo, struc, &
 
 END SUBROUTINE nvt
 
+!!*****
+!******************************************************************************
+!!****** integrator/npt_i [1.0] *
+!!
+!!   NAME
+!!     npt_i
+!!
+!!   FUNCTION
+!!     npt_i integrator for particle positions & momenta
+!!     isotropic box changes
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE npt_i ( itimes, constant, simpar, inter, thermo, struc, &
@@ -764,6 +828,7 @@ SUBROUTINE npt_i ( itimes, constant, simpar, inter, thermo, struc, &
   REAL ( dbl ) :: arg_r, poly_r, scale_r, roll_tol
   REAL ( dbl ) :: arg_v, poly_v, scale_v, kin, fdotr, infree
   REAL ( dbl ), DIMENSION (3) :: vector_r, vector_v
+  LOGICAL, PARAMETER :: box_change = .TRUE.
   LOGICAL :: first
 
 !------------------------------------------------------------------------------
@@ -853,8 +918,8 @@ SUBROUTINE npt_i ( itimes, constant, simpar, inter, thermo, struc, &
 !
 ! get new forces
 !
-  CALL force ( struc, inter, thermo, simpar, ewald_param, intenv, &
-       dft_control, kp )
+  CALL force ( struc, inter, thermo, simpar, ewald_param, box_change, &
+               intenv, dft_control, kp )
   
 !
 ! second half of velocity verlet
@@ -902,10 +967,25 @@ SUBROUTINE npt_i ( itimes, constant, simpar, inter, thermo, struc, &
 
 END SUBROUTINE npt_i
 
+!!*****
 !******************************************************************************
-
-! computes the kinetic part of the pressure tensor and updates
-!    the full VIRIAL (PV)
+!!****** integrator/pressure [1.0] *
+!!
+!!   NAME
+!!     pressure
+!!
+!!   FUNCTION
+!!     Computes the kinetic part of the pressure tensor and updates
+!!     the full VIRIAL (PV)
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE pressure ( pnode, thermo )
 
@@ -947,6 +1027,22 @@ SUBROUTINE pressure ( pnode, thermo )
 
 END SUBROUTINE pressure
 
+!!*****
+!******************************************************************************
+!!****** integrator/update_structure [1.0] *
+!!
+!!   NAME
+!!     update_structure
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE update_structure(struc,task)
@@ -966,7 +1062,7 @@ SUBROUTINE update_structure(struc,task)
 
   CALL timeset ( 'UPDATE_STRUCTURE', 'E', ' ', handle )
 
-  natoms = size(struc%part)
+  natoms = SIZE ( struc % part )
   ALLOCATE (atot(3,natoms),STAT=ios)
   IF ( ios /= 0 ) CALL stop_memory ( 'update_structure', 'atot', 3 * natoms )
   atot = zero
@@ -1012,6 +1108,22 @@ SUBROUTINE update_structure(struc,task)
 
 END SUBROUTINE update_structure
 
+!!*****
+!******************************************************************************
+!!****** integrator/set [1.0] *
+!!
+!!   NAME
+!!     set
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE set(struc,npt,char)
@@ -1067,6 +1179,23 @@ SUBROUTINE set(struc,npt,char)
 
 END SUBROUTINE set
 
+!!*****
+!******************************************************************************
+!!****** integrator/npt_f [1.0] *
+!!
+!!   NAME
+!!     npt_f
+!!
+!!   FUNCTION
+!!     Velocity Verlet integrator for the NPT ensemble with fully flexible cell
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE npt_f ( itimes, constant, simpar, inter, thermo, struc, &
@@ -1097,6 +1226,7 @@ SUBROUTINE npt_f ( itimes, constant, simpar, inter, thermo, struc, &
   REAL ( dbl ), DIMENSION (3,3) :: pv_kinetic, u, uh
   REAL ( dbl ), DIMENSION (3) :: arg_r, poly_r, scale_r, e_val, ur, uv, uf
   REAL ( dbl ), DIMENSION (3) :: arg_v, poly_v, scale_v
+  LOGICAL, PARAMETER :: box_change = .TRUE.
   LOGICAL :: first
 
 !------------------------------------------------------------------------------
@@ -1194,8 +1324,8 @@ SUBROUTINE npt_f ( itimes, constant, simpar, inter, thermo, struc, &
 !
 ! get new forces
 !
-  CALL force ( struc, inter, thermo, simpar, ewald_param, intenv, &
-       dft_control, kp )
+  CALL force ( struc, inter, thermo, simpar, ewald_param, box_change, &
+               intenv, dft_control, kp )
   
 !
 ! second half of velocity verlet
@@ -1241,6 +1371,22 @@ SUBROUTINE npt_f ( itimes, constant, simpar, inter, thermo, struc, &
 
 END SUBROUTINE npt_f
 
+!!*****
+!******************************************************************************
+!!****** integrator/rattle_roll_setup [1.0] *
+!!
+!!   NAME
+!!     rattle_roll_setup
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE rattle_roll_setup ( npt, struc, thermo, simpar, vector_v,  &
@@ -1293,6 +1439,22 @@ SUBROUTINE rattle_roll_setup ( npt, struc, thermo, simpar, vector_v,  &
 
 END SUBROUTINE rattle_roll_setup
 
+!!*****
+!******************************************************************************
+!!****** integrator/get_veps [1.0] *
+!!
+!!   NAME
+!!     get_veps
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE get_veps ( npt, simpar, struc, thermo, infree )
@@ -1366,6 +1528,202 @@ SUBROUTINE get_veps ( npt, simpar, struc, thermo, infree )
 
 END SUBROUTINE get_veps
 
+!!*****
+!******************************************************************************
+!!****** integrator/pimd_nvt [1.0] *
+!!
+!!   NAME
+!!     pimd_nvt
+!!
+!!   FUNCTION
+!!     pimd_nvt integrator for particle positions & momenta
+!!
+!!   AUTHOR
+!!     HAF
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE pimd_nvt(itimes,constant,simpar,inter,thermo,struc, &
+     ewald_param,nhc,dft_control,kp)
+  
+  IMPLICIT NONE
+  
+! Arguments
+  INTEGER, INTENT ( IN ) :: itimes
+  REAL ( dbl ), INTENT ( INOUT ) :: constant
+  TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
+  TYPE (thermodynamic_type ), INTENT ( INOUT ) :: thermo
+  TYPE (structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: struc
+  TYPE (lnhc_parameters_type ), DIMENSION ( : ), INTENT ( INOUT ) :: nhc
+  TYPE (ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
+  TYPE (interaction_type ), INTENT ( IN ) :: inter
+  TYPE ( dft_control_type ) :: dft_control
+  TYPE ( kpoint_type ), INTENT ( IN ) :: kp
+  
+! Locals
+  INTEGER :: i, j, k, nnodes, beads
+  REAL ( dbl ) :: dtom, transdt, old_u, fac
+  LOGICAL, PARAMETER :: box_change=.false.
+  
+!------------------------------------------------------------------------------
+
+  beads = simpar % pimd_params % beads
+  
+  DO i = 1, beads
+     CALL lnhc ( nhc(i), struc(i) % pnode, int_group )
+  END DO
+  
+!  IF ( simpar % constraint ) CALL getold ( struc % molecule )
+  IF ( simpar % constraint ) CALL stop_program('pimd_nvt', &
+                                     'contraints not supported atm with PIMD')
+#if defined(__parallel)
+  CALL stop_program('pimd_nvt','parallel computation not supported with PIMD atm')
+#endif
+
+!
+! first half of velocity verlet
+!
+  fac = 0.5_dbl/beads
+  nnodes = size(struc(1)%pnode)
+  DO j=1, beads
+     transdt = simpar%dt*struc(j)%pimd_data%ismeff
+     DO i = 1, nnodes
+        dtom = fac*transdt/struc(j)%pnode(i) %p%prop%mass
+        struc(j)%pnode(i) %p%v(1) = struc(j)%pnode(i) %p%v(1) + &
+             dtom*struc(j)%pnode(i) %p%f(1)
+        struc(j)%pnode(i) %p%v(2) = struc(j)%pnode(i) %p%v(2) + &
+             dtom*struc(j)%pnode(i) %p%f(2)
+        struc(j)%pnode(i) %p%v(3) = struc(j)%pnode(i) %p%v(3) + &
+             dtom*struc(j)%pnode(i) %p%f(3)
+     END DO
+  END DO
+  
+!  IF ( simpar % constraint ) CALL shake_control ( struc % molecule, simpar )
+#if defined(__parallel)
+!  CALL update_structure ( struc, 'POS' )
+#endif
+
+! Harmonic bead-bead forces, assuming diagonalizing transformation for now
+
+  DO j=1, beads
+    DO i=1, nnodes
+      old_u = struc(j)%pimd_data%u(1,i)
+      struc(j)%pimd_data%u(1,i)= old_u * struc(j)%pimd_data%harmonic_prop(1,1)&
+            + struc(j)%pnode(i)%p%v(1) * struc(j)%pimd_data%harmonic_prop(1,2)
+      struc(j)%pnode(i)%p%v(1) = old_u * struc(j)%pimd_data%harmonic_prop(2,1)&
+            + struc(j)%pnode(i)%p%v(1) * struc(j)%pimd_data%harmonic_prop(2,2)
+
+      old_u = struc(j)%pimd_data%u(2,i)
+      struc(j)%pimd_data%u(2,i)= old_u * struc(j)%pimd_data%harmonic_prop(1,1)&
+            + struc(j)%pnode(i)%p%v(2) * struc(j)%pimd_data%harmonic_prop(1,2)
+      struc(j)%pnode(i)%p%v(2) = old_u * struc(j)%pimd_data%harmonic_prop(2,1)&
+            + struc(j)%pnode(i)%p%v(2) * struc(j)%pimd_data%harmonic_prop(2,2)
+
+      old_u = struc(j)%pimd_data%u(3,i)
+      struc(j)%pimd_data%u(3,i)= old_u * struc(j)%pimd_data%harmonic_prop(1,1)&
+            + struc(j)%pnode(i)%p%v(3) * struc(j)%pimd_data%harmonic_prop(1,2)
+      struc(j)%pnode(i)%p%v(3) = old_u * struc(j)%pimd_data%harmonic_prop(2,1)&
+            + struc(j)%pnode(i)%p%v(3) * struc(j)%pimd_data%harmonic_prop(2,2)
+    END DO
+  END DO
+  IF (simpar%pimd_params%ndelta > 1) THEN
+     ! double time step for thermostats
+     DO i=1, beads
+        CALL yoshida_coef(nhc(i),2.0_dbl*simpar % dt / &
+                          simpar % pimd_params % ndelta)
+     END DO
+     DO k= 2, simpar%pimd_params%ndelta
+        DO i = 1, beads
+           CALL lnhc ( nhc(i), struc(i) % pnode, int_group )
+           DO j=1, nnodes
+              old_u = struc(i)%pimd_data%u(1,j)
+              struc(i)%pimd_data%u(1,j)= old_u * &
+                         struc(i)%pimd_data%harmonic_prop(1,1) &
+                       + struc(i)%pnode(j)%p%v(1) * &
+                         struc(i)%pimd_data%harmonic_prop(1,2)
+              struc(i)%pnode(j)%p%v(1) = old_u * &
+                         struc(i)%pimd_data%harmonic_prop(2,1) &
+                       + struc(i)%pnode(j)%p%v(1) * &
+                         struc(i)%pimd_data%harmonic_prop(2,2)
+
+              old_u = struc(i)%pimd_data%u(2,j)
+              struc(i)%pimd_data%u(2,j)= old_u * &
+                         struc(i)%pimd_data%harmonic_prop(1,1) &
+                       + struc(i)%pnode(j)%p%v(2) * &
+                         struc(i)%pimd_data%harmonic_prop(1,2)
+              struc(i)%pnode(j)%p%v(2) = old_u * &
+                         struc(i)%pimd_data%harmonic_prop(2,1) &
+                       + struc(i)%pnode(j)%p%v(2) * &
+                         struc(i)%pimd_data%harmonic_prop(2,2)
+
+              old_u = struc(i)%pimd_data%u(3,j)
+              struc(i)%pimd_data%u(3,j)= old_u * &
+                         struc(i)%pimd_data%harmonic_prop(1,1) &
+                       + struc(i)%pnode(j)%p%v(3) * &
+                         struc(i)%pimd_data%harmonic_prop(1,2)
+              struc(i)%pnode(j)%p%v(3) = old_u * &
+                         struc(i)%pimd_data%harmonic_prop(2,1) &
+                       + struc(i)%pnode(j)%p%v(3) * &
+                         struc(i)%pimd_data%harmonic_prop(2,2)
+           END DO
+        END DO
+     END DO
+     ! set time step for thermostats back to normal
+     DO i=1, beads
+        CALL yoshida_coef(nhc(i),simpar % dt / &
+                          simpar % pimd_params % ndelta)
+     END DO
+  END IF
+
+  CALL u2r (struc, simpar)
+!
+! get new forces
+!
+  CALL force ( struc, inter, thermo, simpar, ewald_param, box_change, &
+                  intenv, dft_control, kp )
+
+  CALL fr2fu (struc, simpar)
+  
+!
+! second half of velocity verlet
+!
+
+  DO j=1, beads
+     transdt = 0.5_dbl*simpar%dt*struc(j)%pimd_data%ismeff / beads
+     DO i = 1, nnodes
+        dtom = transdt/struc(j)%pnode(i) %p%prop%mass
+        struc(j)%pnode(i) %p%v(1) = struc(j)%pnode(i) %p%v(1) + &
+             dtom*struc(j)%pnode(i) %p%f(1)
+        struc(j)%pnode(i) %p%v(2) = struc(j)%pnode(i) %p%v(2) + &
+             dtom*struc(j)%pnode(i) %p%f(2)
+        struc(j)%pnode(i) %p%v(3) = struc(j)%pnode(i) %p%v(3) + &
+             dtom*struc(j)%pnode(i) %p%f(3)
+     END DO
+  END DO
+
+!  IF ( simpar % constraint ) CALL rattle_control ( struc % molecule, simpar )
+  
+  DO i = 1, beads
+     CALL lnhc ( nhc(i), struc(i) % pnode, int_group )
+  END DO
+  
+#if defined(__parallel)
+!  CALL update_structure(struc,'VEL')
+#endif
+  
+! updating the virial
+!  IF (simpar%constraint) CALL pv_constraint(struc%molecule,thermo, &
+!                                            'FULL',int_group )
+!+++ that is not right yet either:
+  CALL pressure(struc(1)%pnode,thermo)
+  
+END SUBROUTINE pimd_nvt
+
+!!*****
 !******************************************************************************
 
 END MODULE integrator

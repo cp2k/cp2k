@@ -32,7 +32,9 @@ MODULE pw_xc
             NOSPACE, REALSPACE, RECIPROCALSPACE
   USE functionals, ONLY : xc_type, becke88, lyp, pade, pbe_c, pbe_x, &
                           perdew86_x, perdew86_c, slater, vwn_c, vwn_x
-  
+
+  IMPLICIT NONE
+
   INTERFACE pw_calculate_xc
      MODULE PROCEDURE pw_calculate_xcns, pw_calculate_xcspin
   END INTERFACE
@@ -76,7 +78,7 @@ CONTAINS
 ! Local
   TYPE ( pw_type ) :: rho, drho, v_xc, v_xcg, dv, dvg, vg
   TYPE ( pw_type ) :: rhog, drhog, drho_i ( 3 )
-  INTEGER :: i, n ( 3 )
+  INTEGER :: i, j, n ( 3 )
 
 !------------------------------------------------------------------------------
 
@@ -256,7 +258,7 @@ CONTAINS
   TYPE ( pw_type ) :: rhoa, rhob, drhoa, drhob, v_xca, v_xcb, &
                       v_xcga, v_xcgb, v_xcgab, dv, dvg, vg
   TYPE ( pw_type ) :: rhoga, rhogb, drhoga, drhogb, drho_ia ( 3 ), drho_ib ( 3 )
-  INTEGER :: i, n ( 3 )
+  INTEGER :: i, j, n ( 3 )
 
 !------------------------------------------------------------------------------
 
@@ -387,7 +389,7 @@ CONTAINS
        CALL pw_allocate ( dvg, xc_grid, COMPLEXDATA1D )
        dvg % in_space = RECIPROCALSPACE
        CALL pw_allocate ( vg, xc_grid, COMPLEXDATA1D )
-       vg % in_space = RECIPROCAaLSPACE
+       vg % in_space = RECIPROCALSPACE
 
        ! alpha spin
        CALL pw_zero ( vg )

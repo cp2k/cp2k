@@ -84,17 +84,17 @@ MODULE core_hamiltonian
 ! SUBROUTINE build_core_hamiltonian_matrix(globenv)
 ! SUBROUTINE distribute_s_matrix()
 ! SUBROUTINE build_h_matrix()
-! SUBROUTINE add_prj_ppnl_matrix()
+! SUBROUTINE add_ppnl_matrix()
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: wp => dp,&
-                   wp_size => dp_size
+  USE kinds, ONLY: wp => dp
 
   USE atoms,                    ONLY: atom_info,natom,nsgf
   USE atomic_kinds,             ONLY: all_potential_present,&
                                       gth_potential_present,&
                                       kind_info,nkind
+  USE basis_set_types,          ONLY: maxco,maxsgf
   USE global_types,             ONLY: global_environment_type
   USE matrix_types,             ONLY: add_block_node,&
                                       allocate_matrix,&
@@ -121,9 +121,8 @@ MODULE core_hamiltonian
                                       next_neighbor_node
   USE nl,                       ONLY: orb_neighbor_list_set,&
                                       verfc_neighbor_list_set,&
-                                      verf_ppl_neighbor_list_set,&
-                                      vexp_ppl_neighbor_list_set,&
-                                      vprj_ppnl_ca_neighbor_list_set
+                                      vppl_neighbor_list_set,&
+                                      vppnl_ca_neighbor_list_set
   USE om_utilities,             ONLY: write_spherical_matrix
   USE orbital_pointers,         ONLY: nco,ncoset
   USE external_potential_types, ONLY: maxlppnl
@@ -139,7 +138,7 @@ MODULE core_hamiltonian
   TYPE(real_matrix_set_type) :: h,s,sca_prj_ppnl,scb_prj_ppnl,t
   LOGICAL                    :: init_pointers_done = .FALSE.
 
-  REAL(wp), DIMENSION(:,:), ALLOCATABLE :: hab,sab,work
+  REAL(wp), DIMENSION(:,:), POINTER :: hab,sab,work
 
 ! *** Public variables ***
 
@@ -172,7 +171,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: handle,ikind,iset,istat,la_max,maxco,maxfun,maxprj,maxsgf,npgfa
+    INTEGER :: handle,istat,maxfun
 
 !   ---------------------------------------------------------------------------
 
@@ -191,41 +190,19 @@ CONTAINS
 
 !   *** Allocate work storage ***
 
-    maxco = 0
-    maxsgf = 0
+    maxfun = MAX(maxco,ncoset(maxlppnl))
 
-    DO ikind=1,nkind
-      DO iset=1,kind_info(ikind)%orb_basis_set%nset
-        maxsgf = MAX(maxsgf,kind_info(ikind)%orb_basis_set%nsgf)
-        npgfa = kind_info(ikind)%orb_basis_set%npgf(iset)
-        la_max = kind_info(ikind)%orb_basis_set%lmax(iset) + maxder
-        maxco = MAX(maxco,npgfa*ncoset(la_max))
-      END DO
-    END DO
+    NULLIFY (hab,sab,work)
 
-    maxprj = ncoset(maxlppnl)
+    hab => reallocate(hab,1,maxco,1,maxco)
+    sab => reallocate(sab,1,maxfun,1,maxco)
+    work => reallocate(work,1,maxfun,1,maxsgf)
 
-    ALLOCATE (hab(maxco,maxco),STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routine,"hab",wp_size*maxco*maxco)
-    END IF
-    hab(:,:) = 0.0_wp
-
-    maxfun = MAX(maxco,maxprj)
-
-    ALLOCATE (sab(maxfun,maxco),STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routine,"sab",wp_size*maxfun*maxco)
-    END IF
-    sab(:,:) = 0.0_wp
-
-    ALLOCATE (work(maxfun,maxsgf),STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routine,"work",wp_size*maxfun*maxsgf)
-    END IF
-    work(:,:) = 0.0_wp
+!   *** Allocate the overlap matrix and distribute the atomic blocks ***
 
     CALL distribute_s_matrix(globenv)
+
+!   *** Allocate the core Hamiltonian matrix ***
 
     CALL replicate_matrix_structure(source=s%matrix,&
                                     target=h%matrix,&
@@ -237,7 +214,11 @@ CONTAINS
                                       target_name="KINETIC ENERGY MATRIX")
     END IF
 
+!   *** Calculate the overlap and the core Hamiltonian matrix ***
+
     CALL build_h_matrix(globenv)
+
+!   *** Printing ***
 
     IF (globenv%print%overlap_matrix) THEN
       CALL write_spherical_matrix(s%matrix,4,6,globenv)
@@ -253,21 +234,21 @@ CONTAINS
 
 !   *** Release work storage ***
 
-    IF (ALLOCATED(hab)) THEN
+    IF (ASSOCIATED(hab)) THEN
       DEALLOCATE (hab,STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routine,"hab")
       END IF
     END IF
 
-    IF (ALLOCATED(sab)) THEN
+    IF (ASSOCIATED(sab)) THEN
       DEALLOCATE (sab,STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routine,"sab")
       END IF
     END IF
 
-    IF (ALLOCATED(work)) THEN
+    IF (ASSOCIATED(work)) THEN
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routine,"work")
@@ -432,8 +413,7 @@ CONTAINS
 
     TYPE(neighbor_list_type), POINTER :: orb_neighbor_list,&
                                          verfc_neighbor_list,&
-                                         verf_ppl_neighbor_list,&
-                                         vexp_ppl_neighbor_list
+                                         vppl_neighbor_list
 
     REAL(wp) :: dab,dac,dbc,rab2,rac2,rbc2,radius_a,radius_b,radius_c,zetc
     INTEGER  :: first_sgfa,first_sgfb,i,&
@@ -446,18 +426,17 @@ CONTAINS
     REAL(wp), DIMENSION(1)            :: gccc
     REAL(wp), DIMENSION(3)            :: rab,rac,rbc
     INTEGER, DIMENSION(:), POINTER    :: orb_neighbors,verfc_neighbors,&
-                                         verf_ppl_neighbors,vexp_ppl_neighbors
-    REAL(wp), DIMENSION(:), POINTER   :: orb_r2,rpgfa,rpgfb,verfc_r2,&
-                                         verf_ppl_r2,vexp_ppl_r2,zeta,zetb
+                                         vppl_neighbors
+    REAL(wp), DIMENSION(:), POINTER   :: orb_r2,rpgfa,rpgfb,verfc_r2,vppl_r2,&
+                                         zeta,zetb
     REAL(wp), DIMENSION(:,:), POINTER :: h_block,orb_r,s_block,t_block,&
-                                         verfc_r,verf_ppl_r,vexp_ppl_r
+                                         verfc_r,vppl_r
 
 !   ---------------------------------------------------------------------------
 
     NULLIFY (orb_neighbor_list,orb_neighbors,orb_r,orb_r2)
     NULLIFY (verfc_neighbor_list,verfc_neighbors,verfc_r,verfc_r2)
-    NULLIFY (verf_ppl_neighbor_list,verf_ppl_neighbors,verf_ppl_r,verf_ppl_r2)
-    NULLIFY (vexp_ppl_neighbor_list,vexp_ppl_neighbors,vexp_ppl_r,vexp_ppl_r2)
+    NULLIFY (vppl_neighbor_list,vppl_neighbors,vppl_r,vppl_r2)
 
 !   *** Loop over all atoms ***
 
@@ -479,19 +458,11 @@ CONTAINS
       END IF
 
       IF (gth_potential_present) THEN
-        IF (allchem) THEN
-          verf_ppl_neighbor_list =>&
-            find_neighbor_list(verf_ppl_neighbor_list_set,iatom)
-          IF (ASSOCIATED(verf_ppl_neighbor_list)) THEN
-            CALL extract_neighbor_list(verf_ppl_neighbor_list,verf_ppl_r2,&
-                                       verf_ppl_neighbors,verf_ppl_r)
-          END IF
-        END IF
-        vexp_ppl_neighbor_list =>&
-          find_neighbor_list(vexp_ppl_neighbor_list_set,iatom)
-        IF (ASSOCIATED(vexp_ppl_neighbor_list)) THEN
-          CALL extract_neighbor_list(vexp_ppl_neighbor_list,vexp_ppl_r2,&
-                                     vexp_ppl_neighbors,vexp_ppl_r)
+        vppl_neighbor_list =>&
+          find_neighbor_list(vppl_neighbor_list_set,iatom)
+        IF (ASSOCIATED(vppl_neighbor_list)) THEN
+          CALL extract_neighbor_list(vppl_neighbor_list,vppl_r2,&
+                                     vppl_neighbors,vppl_r)
         END IF
       END IF
 
@@ -639,17 +610,17 @@ CONTAINS
 
 !               *** GTH pseudopotential atoms ***
 
-                IF (ASSOCIATED(verf_ppl_neighbor_list)) THEN
+                IF (ASSOCIATED(vppl_neighbor_list)) THEN
 
-                  DO jneighbor=1,SIZE(verf_ppl_neighbors)
+                  DO jneighbor=1,SIZE(vppl_neighbors)
 
-                    katom = verf_ppl_neighbors(jneighbor)
+                    katom = vppl_neighbors(jneighbor)
                     kkind = atom_info(katom)%kind
 
-                    radius_c = kind_info(kkind)%gth_potential%erf_ppl_radius
+                    radius_c = kind_info(kkind)%gth_potential%ppl_radius
 
-                    rac2 = verf_ppl_r2(jneighbor)
-                    rac(:) = verf_ppl_r(:,jneighbor)
+                    rac2 = vppl_r2(jneighbor)
+                    rac(:) = vppl_r(:,jneighbor)
                     dac = SQRT(rac2)
 
                     IF (radius_a + radius_c < dac) CYCLE
@@ -660,8 +631,8 @@ CONTAINS
 
                     IF (radius_b + radius_c < dbc) CYCLE
 
-                    zetc = kind_info(kkind)%gth_potential%alpha_exp_ppl
-                    gccc(1) = -kind_info(kkind)%cerf
+                    zetc = kind_info(kkind)%gth_potential%alpha_ppl
+                    gccc(1) = -kind_info(kkind)%gth_potential%cerf_ppl
 
                     CALL coulomb3(la_max,zeta,rpgfa,la_min,&
                                   lb_max,zetb,rpgfb,lb_min,&
@@ -683,7 +654,7 @@ CONTAINS
                     katom = verfc_neighbors(jneighbor)
                     kkind = atom_info(katom)%kind
 
-                    radius_c = kind_info(kkind)%all_potential%erfc_radius
+                    radius_c = kind_info(kkind)%core_charge_radius
 
                     rac2 = verfc_r2(jneighbor)
                     rac(:) = verfc_r(:,jneighbor)
@@ -697,13 +668,13 @@ CONTAINS
 
                     IF (radius_b + radius_c < dbc) CYCLE
 
-                    zetc = kind_info(kkind)%alpha_erf**2
+                    zetc = kind_info(kkind)%alpha_core_charge
 
                     CALL verfc(la_max,zeta,rpgfa,la_min,&
                                lb_max,zetb,rpgfb,lb_min,&
                                zetc,radius_c,&
                                REAL(kind_info(kkind)%z,wp),&
-                               kind_info(kkind)%cerf,&
+                               kind_info(kkind)%ccore_charge,&
                                rab,rab2,rac,rac2,rbc,rbc2,hab)
 
                   END DO
@@ -714,17 +685,17 @@ CONTAINS
 
 !             *** GTH pseudopotential atoms ***
 
-              IF (ASSOCIATED(vexp_ppl_neighbor_list)) THEN
+              IF (ASSOCIATED(vppl_neighbor_list)) THEN
 
-                DO jneighbor=1,SIZE(vexp_ppl_neighbors)
+                DO jneighbor=1,SIZE(vppl_neighbors)
 
-                  katom = vexp_ppl_neighbors(jneighbor)
+                  katom = vppl_neighbors(jneighbor)
                   kkind = atom_info(katom)%kind
 
-                  radius_c = kind_info(kkind)%gth_potential%exp_ppl_radius
+                  radius_c = kind_info(kkind)%gth_potential%ppl_radius
 
-                  rac2 = vexp_ppl_r2(jneighbor)
-                  rac(:) = vexp_ppl_r(:,jneighbor)
+                  rac2 = vppl_r2(jneighbor)
+                  rac(:) = vppl_r(:,jneighbor)
                   dac = SQRT(rac2)
 
                   IF (radius_a + radius_c < dac) CYCLE
@@ -735,7 +706,7 @@ CONTAINS
 
                   IF (radius_b + radius_c < dbc) CYCLE
 
-                  zetc = kind_info(kkind)%gth_potential%alpha_exp_ppl
+                  zetc = kind_info(kkind)%gth_potential%alpha_ppl
 
                   CALL overlap_ppl(la_max,zeta,rpgfa,la_min,&
                                    lb_max,zetb,rpgfb,lb_min,&
@@ -783,7 +754,7 @@ CONTAINS
 
 !   *** Add the V(non-local) contribution of the GTH pseudopotential ***
 
-    IF (gth_potential_present) CALL add_prj_ppnl_matrix()
+    IF (gth_potential_present) CALL add_ppnl_matrix()
 
 !   *** Release work storage ***
 
@@ -829,45 +800,24 @@ CONTAINS
       END IF
     END IF
 
-    IF (ASSOCIATED(verf_ppl_neighbors)) THEN
-      DEALLOCATE (verf_ppl_neighbors,STAT=istat)
+    IF (ASSOCIATED(vppl_neighbors)) THEN
+      DEALLOCATE (vppl_neighbors,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"verf_ppl_neighbors")
+        CALL stop_memory(routine,"vppl_neighbors")
       END IF
     END IF
 
-    IF (ASSOCIATED(verf_ppl_r)) THEN
-      DEALLOCATE (verf_ppl_r,STAT=istat)
+    IF (ASSOCIATED(vppl_r)) THEN
+      DEALLOCATE (vppl_r,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"verf_ppl_r")
+        CALL stop_memory(routine,"vppl_r")
       END IF
     END IF
 
-    IF (ASSOCIATED(verf_ppl_r2)) THEN
-      DEALLOCATE (verf_ppl_r2,STAT=istat)
+    IF (ASSOCIATED(vppl_r2)) THEN
+      DEALLOCATE (vppl_r2,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"verf_ppl_r2")
-      END IF
-    END IF
-
-    IF (ASSOCIATED(vexp_ppl_neighbors)) THEN
-      DEALLOCATE (vexp_ppl_neighbors,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routine,"vexp_ppl_neighbors")
-      END IF
-    END IF
-
-    IF (ASSOCIATED(vexp_ppl_r)) THEN
-      DEALLOCATE (vexp_ppl_r,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routine,"vexp_ppl_r")
-      END IF
-    END IF
-
-    IF (ASSOCIATED(vexp_ppl_r2)) THEN
-      DEALLOCATE (vexp_ppl_r2,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routine,"vexp_ppl_r2")
+        CALL stop_memory(routine,"vppl_r2")
       END IF
     END IF
 
@@ -875,7 +825,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE add_prj_ppnl_matrix()
+  SUBROUTINE add_ppnl_matrix()
 
 !   Purpose: Add the non-local contribution of the GTH pseudopotential to the
 !            core Hamiltonian matrix.
@@ -887,7 +837,7 @@ CONTAINS
     USE ai_overlap, ONLY: overlap
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE add_prj_ppnl_matrix (MODULE core_hamiltonian)"
+      "SUBROUTINE add_ppnl_matrix (MODULE core_hamiltonian)"
 
     TYPE(neighbor_list_type), POINTER   :: neighbor_list
     TYPE(real_block_node_type), POINTER :: block_node_ca,block_node_cb
@@ -913,7 +863,7 @@ CONTAINS
 !   *** Get the number of operator atoms ***
 
     CALL get_neighbor_list_set_info(neighbor_list_set=&
-                                      vprj_ppnl_ca_neighbor_list_set,&
+                                      vppnl_ca_neighbor_list_set,&
                                     nlist=natom_prj_ppnl)
 
 !   *** Prepare the allocation of the projector (ppnl) overlap matrix ***
@@ -924,7 +874,7 @@ CONTAINS
     iatom_prj_ppnl = 0
     nprj_ppnl = 0
 
-    neighbor_list => first_neighbor_list(vprj_ppnl_ca_neighbor_list_set)
+    neighbor_list => first_neighbor_list(vppnl_ca_neighbor_list_set)
 
     DO WHILE (ASSOCIATED(neighbor_list))
       iatom_prj_ppnl = iatom_prj_ppnl + 1
@@ -967,7 +917,7 @@ CONTAINS
 
     iatom_prj_ppnl = 0
 
-    neighbor_list => first_neighbor_list(vprj_ppnl_ca_neighbor_list_set)
+    neighbor_list => first_neighbor_list(vppnl_ca_neighbor_list_set)
 
     DO WHILE (ASSOCIATED(neighbor_list))
 
@@ -981,7 +931,7 @@ CONTAINS
       CALL extract_neighbor_list(neighbor_list,r2,neighbors,r,cell)
 
       kkind = atom_info(katom)%kind
-      rprjc(1) = kind_info(kkind)%gth_potential%prj_ppnl_radius
+      rprjc(1) = kind_info(kkind)%gth_potential%ppnl_radius
 
 !     *** Loop over all neighbor atoms of the current operator atom "katom" ***
 
@@ -1026,7 +976,7 @@ CONTAINS
 
           lc_max = l + 2*(kind_info(kkind)%gth_potential%nprj_ppnl(l) - 1)
           lc_min = l
-          zetc(1) = kind_info(kkind)%gth_potential%alpha_prj_ppnl(l)
+          zetc(1) = kind_info(kkind)%gth_potential%alpha_ppnl(l)
           ncoc = ncoset(lc_max)
 
           DO iset=1,nseta
@@ -1224,7 +1174,7 @@ CONTAINS
       END IF
     END IF
 
-  END SUBROUTINE add_prj_ppnl_matrix
+  END SUBROUTINE add_ppnl_matrix
 
 ! *****************************************************************************
 

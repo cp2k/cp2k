@@ -1249,7 +1249,7 @@ SUBROUTINE pvg_numer(ewald_param,pnode,box,pw_grid,pv_test,delta)
   REAL ( dbl ), DIMENSION (3,3) :: dvdh
   REAL ( dbl ) :: idelta, vm, vp
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: s
-  REAL ( dbl ) :: alpha, epsilon0, cutoff
+  REAL ( dbl ) :: alpha, epsilon0, cutoff, ecut
   REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: gauss
   COMPLEX ( dbl ), DIMENSION ( : ), ALLOCATABLE :: sum_igr
   INTEGER :: i, j, k, ii, jj, natoms, isos, gmax, npts_s(3), ngtot
@@ -1286,6 +1286,7 @@ SUBROUTINE pvg_numer(ewald_param,pnode,box,pw_grid,pv_test,delta)
   gmax = ewald_param % gmax
   npts_s = (/ gmax, gmax, gmax /)
   CALL pw_find_cutoff ( npts_s, box, cutoff )
+  ecut = 0.5_dbl * cutoff * cutoff
 
 ! Defining the increments
   idelta = 1.0_dbl/(2.0_dbl*delta)
@@ -1303,7 +1304,7 @@ SUBROUTINE pvg_numer(ewald_param,pnode,box,pw_grid,pv_test,delta)
 
 ! compute the g-vectors
         CALL pw_grid_construct( pw_grid_local )
-        CALL pw_grid_setup( box_local, pw_grid_local, cutoff)
+        CALL pw_grid_setup( box_local, pw_grid_local, ecut)
 
         CALL potential_g_numer ( vp, pnode_local, sum_igr, gauss, alpha, &
              pw_grid_local % g, ngtot )
@@ -1321,7 +1322,7 @@ SUBROUTINE pvg_numer(ewald_param,pnode,box,pw_grid,pv_test,delta)
         END DO
 
 ! compute the g-vectors
-        CALL pw_grid_setup( box_local, pw_grid_local, cutoff)
+        CALL pw_grid_setup( box_local, pw_grid_local, ecut)
 
         CALL potential_g_numer ( vm, pnode_local, sum_igr, gauss, alpha, &
              pw_grid_local % g, ngtot )

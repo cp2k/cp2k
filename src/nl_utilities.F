@@ -245,7 +245,7 @@ CONTAINS
 
 !   *** Write headline ***
 
-    WRITE (lunit,"(/,/,T2,A,/,/,T3,A,7X,A,2(11X,A),10X,A)")&
+    WRITE (UNIT=lunit,FMT="(/,/,T2,A,/,/,T3,A,7X,A,2(11X,A),10X,A)")&
       TRIM(name)//" NEIGHBOR LIST IN "//TRIM(unit_of_length_name),&
       "Atom  Neighbor  Cell(i,j,k)","X","Y","Z","Distance"
 
@@ -262,7 +262,7 @@ CONTAINS
 
       ra(:) = atom_info(iatom)%r_pbc(:) + REAL(cell(:),wp)*abc(:)
 
-      WRITE (lunit,"(/,T2,I5,3X,I6,2X,3I4,3F12.6)")&
+      WRITE (UNIT=lunit,FMT="(/,T2,I5,3X,I6,2X,3I4,3F12.6)")&
         iatom,nneighbor,cell(:),ra(:)/unit_of_length
 
 !     *** Direct the work pointer to the start point of the current list ***
@@ -282,7 +282,7 @@ CONTAINS
 
         rb(:) = ra(:) + rab(:)
 
-        WRITE (lunit,"(T10,I6,2X,3I4,3F12.6,2X,F12.6)")&
+        WRITE (UNIT=lunit,FMT="(T10,I6,2X,3I4,3F12.6,2X,F12.6)")&
           neighbor,cell(:),rb(:)/unit_of_length,SQRT(rab2)/unit_of_length
 
         neighbor_node => next_neighbor_node(neighbor_node)

@@ -23,7 +23,7 @@ MODULE cp2k_input
 
   USE kinds, ONLY : dbl
 
-  USE fft_tools, ONLY : init_fft
+  USE fft_tools, ONLY : init_fft, fft3d
   USE global_types, ONLY : global_environment_type
   USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
@@ -76,7 +76,8 @@ SUBROUTINE read_cp2k_section ( globenv )
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
 
 ! Locals
-  INTEGER :: ierror, ilen, iw, source, allgrp, i1, i2
+  INTEGER :: ierror, ilen, iw, source, allgrp, i1, i2, n(3), stat
+  COMPLEX ( dbl ) :: zz(4,4,4)
   CHARACTER ( LEN = 6 ) :: string
   CHARACTER ( LEN = 5 ) :: label
 
@@ -140,8 +141,15 @@ SUBROUTINE read_cp2k_section ( globenv )
 ! initialize FFT library
    CALL xstring ( globenv % default_fft_library, i1, i2 )
    CALL init_fft ( fftlib = globenv % default_fft_library ( i1:i2 ) )
-
-
+! test for FFT library
+   n = 4
+   zz = 0._dbl
+   CALL fft3d ( 1, n, zz, status=stat )
+   IF ( stat /= 0 .AND. globenv % ionode ) THEN
+     CALL stop_program ( "read_cp2k_section", &
+            "Default FFT library not available" )
+   END IF
+!
    IF ( globenv % ionode ) THEN
 ! ..write some information to output
      WRITE ( iw, '( A, T41, A )' ) ' CP2K| Program name ', &

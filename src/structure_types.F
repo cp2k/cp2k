@@ -35,8 +35,18 @@ MODULE structure_types
 
   PUBLIC :: cell_type, particle_type, particle_node_type
   PUBLIC :: molecule_structure_type
+  PUBLIC :: pimd_data_type
   PUBLIC :: potentialparm_type, tbatom_param_type, tb_hopping_type
 
+  TYPE pimd_data_type
+     REAL ( dbl ), DIMENSION ( : , : ), POINTER :: u
+     REAL ( dbl ) :: lbd
+     REAL ( dbl ) :: slbd
+     REAL ( dbl ) :: meff
+     REAL ( dbl ) :: ismeff
+     REAL ( dbl ), DIMENSION ( 2 , 2 ) :: harmonic_prop
+  END TYPE pimd_data_type
+  
   TYPE structure_type
      CHARACTER ( LEN = 30 ) :: name
      TYPE ( cell_type ) :: box
@@ -45,6 +55,7 @@ MODULE structure_types
      TYPE ( particle_node_type ), POINTER :: pnode ( : )
      TYPE ( molecule_structure_type ), POINTER :: molecule ( : )
      TYPE ( linklist_internal_data_type) :: ll_data
+     TYPE ( pimd_data_type ) :: pimd_data
   END TYPE structure_type
 
   TYPE interaction_type

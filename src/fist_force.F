@@ -22,11 +22,13 @@
 MODULE fist_force
 
   USE dg_types, ONLY : dg_type
+  USE dgs, ONLY : dg_grid_change
   USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE ewalds, ONLY : ewald_gaussian, ewald_initialize
+  USE ewalds, ONLY : ewald_evaluate, ewald_initialize, ewald_setup
   USE fist_intra_force, ONLY : force_intra_control
   USE fist_nonbond_force, ONLY : force_nonbond, bonded_correct_gaussian
   USE global_types, ONLY : global_environment_type
+  USE greens_fn, ONLY : pw_green_fn_init
   USE kinds, ONLY : dbl
   USE linklist_control, ONLY : list_control
   USE mathconstants, ONLY : pi, zero
@@ -41,7 +43,7 @@ MODULE fist_force
   USE pw_grid_types, ONLY : pw_grid_type
   USE pw_grids, ONLY : pw_grid_change
   USE simulation_cell, ONLY : cell_type, get_hinv
-  USE spme, ONLY : spme_evaluate
+  USE spme, ONLY : spme_evaluate, spme_coeff_calculate
   USE termination, ONLY : stop_program, stop_memory
   USE timings, ONLY : timeset, timestop
   USE linklist_types, ONLY : linklist_internal_data_type
@@ -63,7 +65,7 @@ MODULE fist_force
 CONTAINS
 
 !******************************************************************************
-!!****** fist_force/force_control [1.0] *
+!!****** fist_force/force_control [1.1] *
 !!
 !!   NAME
 !!     force_control
@@ -78,13 +80,16 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     Harald Forbert (Dec-2000): Changes for multiple linked lists
 !!     cjm, 20-Feb-2001: box_ref used to initialize ewald.  Now
-!!     have consistent restarts with npt and ewald
+!!                       have consistent restarts with npt and ewald
+!!     JGH (15-Mar-2001) : box_change replaces ensemble parameter
+!!                         Call ewald_setup if box has changed
+!!                         Consistent setup for PME and SPME
 !!
 !!   SOURCE
 !******************************************************************************
 
 SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
-     potparm, ewald_param, ensemble, fc_global, lldata,  debug)
+     potparm, ewald_param, box_change, fc_global, lldata,  debug)
 
   IMPLICIT NONE
 
@@ -93,17 +98,17 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
   TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ) :: pnode
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
   TYPE ( cell_type ), INTENT ( INOUT ) :: box
-  TYPE ( cell_type ), INTENT ( IN ) :: box_ref
+  TYPE ( cell_type ), INTENT ( INOUT ) :: box_ref
   TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
   TYPE ( potentialparm_type ), DIMENSION ( :,: ), INTENT ( IN ) :: potparm
   TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: ensemble
+  LOGICAL, INTENT ( IN ) :: box_change
   TYPE ( global_environment_type ), INTENT ( IN ) :: fc_global
   TYPE ( linklist_internal_data_type), INTENT (INOUT) :: lldata
   TYPE ( debug_variables_type ), INTENT ( OUT ), OPTIONAL :: debug
 
 ! Locals
-  INTEGER :: id, i, ii, natoms, nnodes, handle, isos
+  INTEGER :: id, i, ii, natoms, nnodes, handle, isos, n
   REAL ( dbl ) :: pot_nonbond, pot_bond, pot_bend, pot_torsion, vg_coulomb
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE, SAVE :: f_nonbond
   REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_nonbond, pv_bond, pv_bend, pv_torsion
@@ -135,6 +140,8 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
     ALLOCATE ( f_nonbond ( 3,natoms ), STAT = isos )
     IF ( isos /= 0 ) &
        CALL stop_memory ( 'force_control', 'f_nonbond', 3 * natoms )
+    ! change in system, do a full reinitialisation
+    first_time = .TRUE.
   END IF
 
 ! initialize ewalds with the REFERENCE box ( for consistent NPT restarts )
@@ -152,25 +159,35 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
         CALL ewald_initialize ( dg, part, pnode, fc_global, &
              ewald_param, box_ref, thermo, &
              spme_grid = grid_spme )
+        n = ewald_param%o_spline
+        ALLOCATE ( box % green % p3m_coeff ( -(n-1):n-1, 0:n-1 ), STAT = isos )
+        IF ( isos /= 0 ) CALL stop_memory ( 'spme','coeff', 2*n*n )
+        CALL spme_coeff_calculate ( n,  box % green % p3m_coeff )
      END SELECT
 
   END IF
 
 ! reinitialize the gspace for the new box
-  SELECT CASE ( ensemble ( 1:3 )  )
-  CASE ( 'NPT' )
+  IF ( box_change .OR. first_time ) THEN
 
      CALL get_hinv ( box )
-     
+
      SELECT CASE ( ewald_param % ewald_type )
-     CASE ( 'EWALD', 'SPME' )
+     CASE ( 'EWALD' )
         CALL pw_grid_change ( box, grid_ewald )
+        CALL ewald_setup ( grid_ewald, ewald_param, dg )
      CASE ( 'PME' )
-        CALL stop_program ( 'force_control',  &
-             'constant pressure with PME not implemented' )
+        CALL pw_grid_change ( box, grid_b )
+        CALL pw_green_fn_init ( box % green, grid_b )
+        CALL dg_grid_change ( box, grid_b, grid_s )
+        CALL ewald_setup ( grid_s, ewald_param, dg )
+     CASE ( 'SPME' )
+        CALL pw_grid_change ( box, grid_spme )
+        CALL pw_green_fn_init ( box % green, grid_spme, p3m=ewald_param%o_spline, &
+             alpha = ewald_param%alpha )
      END SELECT
 
-  END SELECT
+  END IF
 
 !
 ! first check with list_control to update neighbor lists
@@ -193,30 +210,38 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
 ! get real-space non-bonded forces:
 !
   f_nonbond = zero
-  CALL force_nonbond ( ewald_param,pnode,box,potparm, &
-       pot_nonbond,f_nonbond,pv_nonbond )
+  CALL force_nonbond ( ewald_param, pnode, box, potparm, &
+       pot_nonbond, f_nonbond, pv_nonbond )
 !
 ! get g-space non-bonded forces:
 !
   IF ( ewald_param % ewald_type /= 'NONE' ) THEN
-     IF ( .NOT. ALLOCATED ( fg_coulomb )  ) &
-          ALLOCATE ( fg_coulomb ( 3,nnodes ), STAT=isos )
-     IF ( isos /= 0 ) &
-          CALL stop_memory ( 'force_control', 'fg_coulomb', 3 * nnodes )
 
-! compute g-space part of the ewald sum
+     ! compute g-space part of the ewald sum
      SELECT CASE ( ewald_param % ewald_type )
 
      CASE ( "EWALD" )
-        CALL ewald_gaussian ( dg, ewald_param, fg_coulomb, vg_coulomb, &
+        ! Parallelisation over atoms --> allocate only nnodes
+        ALLOCATE ( fg_coulomb ( 3, nnodes ), STAT=isos )
+        IF ( isos /= 0 ) &
+          CALL stop_memory ( 'force_control', 'fg_coulomb', 3 * nnodes )
+        CALL ewald_evaluate ( dg, ewald_param, fg_coulomb, vg_coulomb, &
              pv_g, pnode, box )
         
      CASE ( "PME" )
-        CALL pme_evaluate ( dg, fg_coulomb, vg_coulomb, pv_g, box, &
+        ! Parallelisation over grids --> allocate all atoms
+        ALLOCATE ( fg_coulomb ( 3, natoms ), STAT=isos )
+        IF ( isos /= 0 ) &
+          CALL stop_memory ( 'force_control', 'fg_coulomb', 3 * nnodes )
+        CALL pme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
              grid_s, grid_b, ewald_param )
         
      CASE ( "SPME" )
-        CALL spme_evaluate ( dg, fg_coulomb, vg_coulomb, pv_g, box, &
+        ! Parallelisation over grids --> allocate all atoms
+        ALLOCATE ( fg_coulomb ( 3, natoms ), STAT=isos )
+        IF ( isos /= 0 ) &
+          CALL stop_memory ( 'force_control', 'fg_coulomb', 3 * nnodes )
+        CALL spme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
              grid_spme, ewald_param )
         
      CASE DEFAULT
@@ -267,8 +292,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
 ! ewald forces are strictly local -> sum only over pnode
 ! We first sum the forces in f_nonbond, this allows for a more efficient
 ! global sum in the parallel code and in the end copy them back to part
-  isos = 0
-  IF ( .NOT. ALLOCATED ( f_total ) ) ALLOCATE ( f_total ( 3,natoms ), STAT=isos )
+  ALLOCATE ( f_total ( 3,natoms ), STAT=isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'f_total', 3 * natoms )
   DO i = 1, natoms
      f_total ( 1, i ) = part ( i ) % f ( 1 ) + f_nonbond ( 1, i )
@@ -276,12 +300,22 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
      f_total ( 3, i ) = part ( i ) % f ( 3 ) + f_nonbond ( 3, i )
   END DO
   IF ( ewald_param % ewald_type /= 'NONE' ) THEN
-     DO i = 1, nnodes
-        ii = pnode ( i ) % p % iatom
-        f_total ( 1, ii ) = f_total ( 1, ii ) + fg_coulomb ( 1, i )
-        f_total ( 2, ii ) = f_total ( 2, ii ) + fg_coulomb ( 2, i )
-        f_total ( 3, ii ) = f_total ( 3, ii ) + fg_coulomb ( 3, i )
-     END DO
+     SELECT CASE ( ewald_param % ewald_type )
+     CASE ( "EWALD" )
+        DO i = 1, nnodes
+           ii = pnode ( i ) % p % iatom
+           f_total ( 1, ii ) = f_total ( 1, ii ) + fg_coulomb ( 1, i )
+           f_total ( 2, ii ) = f_total ( 2, ii ) + fg_coulomb ( 2, i )
+           f_total ( 3, ii ) = f_total ( 3, ii ) + fg_coulomb ( 3, i )
+        END DO
+     CASE ( "PME" )
+        f_total ( :, : ) = f_total ( :, : ) + fg_coulomb ( :, : )
+     CASE ( "SPME" )
+        f_total ( :, : ) = f_total ( :, : ) + fg_coulomb ( :, : )
+     CASE DEFAULT
+        CALL stop_program ( "force_control", "illegal value of ewald_type: "//&
+                            ewald_param % ewald_type )
+     END SELECT
   END IF
 
 ! add up all the pressure tensors
@@ -340,12 +374,14 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
   END DO
 
 ! deallocating all local variables
-  isos = 0
-  IF ( ALLOCATED ( fg_coulomb )  ) DEALLOCATE ( fg_coulomb, STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fg_coulomb' )
-  isos = 0
-  IF ( ALLOCATED ( f_total )  ) DEALLOCATE ( f_total, STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'f_total' )
+  IF ( ALLOCATED ( fg_coulomb ) ) THEN
+    DEALLOCATE ( fg_coulomb, STAT = isos )
+    IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fg_coulomb' )
+  END IF
+  IF ( ALLOCATED ( f_total ) ) THEN
+    DEALLOCATE ( f_total, STAT = isos )
+    IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'f_total' )
+  END IF
 
   CALL timestop ( zero, handle )
 

@@ -32,8 +32,9 @@ MODULE global_types
   TYPE global_environment_type
      TYPE(print_key_type), POINTER :: print
      CHARACTER ( LEN = 200 ) :: basis_set_file_name,&
+                                input_file_name,&
                                 potential_file_name,&
-                                input_file_name
+                                restart_file_name
      CHARACTER ( LEN = 200 ) :: program_name
      CHARACTER ( LEN = 200 ) :: project_name
      CHARACTER ( LEN = 200 ) :: default_fft_library

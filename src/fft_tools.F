@@ -456,36 +456,40 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
     ld ( 1 ) = SIZE ( zin ( :, 1, 1) )
     ld ( 2 ) = SIZE ( zin ( 1, :, 1) )
     ld ( 3 ) = SIZE ( zin ( 1, 1, :) )
-    in_sum = ABS ( SUM ( zin ) )
+    in_sum = SUM ( ABS ( zin ) )
   ENDIF
 
   sign = fsign
 
   SELECT CASE ( fft_type )
   CASE ( 1 )
-    IF ( PRESENT ( zout ) ) THEN
-      CALL sg_fft3d ( sign, norm, n, zin, zout )
-    ELSE
-      CALL sg_fft3d ( sign, norm, n, zin )
-    END IF
+    CALL sg_fft3d ( sign, norm, n, zin, zout )
+!   IF ( PRESENT ( zout ) ) THEN
+!     CALL sg_fft3d ( sign, norm, n, zin, zout )
+!   ELSE
+!     CALL sg_fft3d ( sign, norm, n, zin )
+!   END IF
   CASE ( 2 )
-    IF ( PRESENT ( zout ) ) THEN
-      CALL w_fft3d ( sign, norm, n, zin, zout )
-    ELSE
-      CALL w_fft3d ( sign, norm, n, zin )
-    END IF
+    CALL w_fft3d ( sign, norm, n, zin, zout )
+!   IF ( PRESENT ( zout ) ) THEN
+!     CALL w_fft3d ( sign, norm, n, zin, zout )
+!   ELSE
+!     CALL w_fft3d ( sign, norm, n, zin )
+!   END IF
   CASE ( 3 )
-    IF ( PRESENT ( zout ) ) THEN
-      CALL i_fft3d ( sign, norm, n, zin, zout )
-    ELSE
-      CALL i_fft3d ( sign, norm, n, zin )
-    END IF
+    CALL i_fft3d ( sign, norm, n, zin, zout )
+!   IF ( PRESENT ( zout ) ) THEN
+!     CALL i_fft3d ( sign, norm, n, zin, zout )
+!   ELSE
+!     CALL i_fft3d ( sign, norm, n, zin )
+!   END IF
   CASE ( 4 )
-    IF ( PRESENT ( zout ) ) THEN
-      CALL sgi_fft3d ( sign, norm, n, zin, zout )
-    ELSE
-      CALL sgi_fft3d ( sign, norm, n, zin )
-    END IF
+    CALL sgi_fft3d ( sign, norm, n, zin, zout )
+!   IF ( PRESENT ( zout ) ) THEN
+!     CALL sgi_fft3d ( sign, norm, n, zin, zout )
+!   ELSE
+!     CALL sgi_fft3d ( sign, norm, n, zin )
+!   END IF
   CASE DEFAULT
     CALL stop_program ("fft3d", "Unknown FFT library")
   END SELECT
@@ -500,7 +504,7 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
 
   IF ( test ) THEN
     IF ( PRESENT ( zout ) ) THEN
-      out_sum = ABS ( SUM ( zout ) )
+      out_sum = SUM ( ABS ( zout ) )
       lo ( 1 ) = SIZE ( zout ( :, 1, 1) )
       lo ( 2 ) = SIZE ( zout ( 1, :, 1) )
       lo ( 3 ) = SIZE ( zout ( 1, 1, :) )
@@ -511,7 +515,7 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
       WRITE ( *, '(A,T61,E20.14)') "     Sum of input data ",in_sum
       WRITE ( *, '(A,T61,E20.14)') "     Sum of output data ",out_sum
     ELSE
-      out_sum = ABS ( SUM ( zin ) )
+      out_sum = SUM ( ABS ( zin ) )
       WRITE ( *, '(A)') "  In place 3D FFT (local)  : fft3d_s"
       WRITE ( *, '(A,T60,3I7)') "     Transform lengths ",n
       WRITE ( *, '(A,T60,3I7)') "     Input/output array dimensions ",ld
@@ -1427,7 +1431,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       ALLOCATE ( abuf ( n(3), mx*my ), STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "abuf", n(3)*mx*my )
 
-      CALL Zcopy(n(3)*mx*my,bbuf,1,abuf,1)
+      CALL zcopy(n(3)*mx*my,bbuf,1,abuf,1)
 
       DEALLOCATE ( bbuf, STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "bbuf" )
@@ -1540,6 +1544,7 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
 
   CALL mp_transpose ( sb, scount, sdispl, rr, rcount, rdispl, group )
 
+  tb = 0._dbl
   nx = bo ( 2, 1, mpr ) - bo ( 1, 1, mpr ) + 1
   DO ip = 0, np - 1
     nr = nray ( ip )
@@ -1635,7 +1640,7 @@ SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb )
   nx = bo ( 2, 1, mpr ) - bo ( 1, 1, mpr ) + 1
   DO ip = 0, np - 1
     nr = nray ( ip )
-    scount ( ip ) = nm * nx
+    scount ( ip ) = nr * nx
     sdispl ( ip ) = nm * nx * ip
   END DO
 

@@ -13,7 +13,8 @@
 !!     apsi
 !!
 !!   MODIFICATION HISTORY
-!!     JGH (29-12-2000) : Changes for parallel use
+!!     JGH (29-Dec-2000) : Changes for parallel use
+!!     JGH (13-Mar-2001) : added timing calls
 !!
 !!   NOTES
 !!     If parallel mode is distributed certain combination of
@@ -63,6 +64,10 @@ MODULE pw_types
 
   ! Flags for the structure member 'in_space'
   INTEGER, PARAMETER :: NOSPACE = 371, REALSPACE = 372, RECIPROCALSPACE = 373
+
+  INTERFACE pw_derive
+     MODULE PROCEDURE pw_derive_a, pw_derive_ab
+  END INTERFACE
 
   INTERFACE pw_gather
      MODULE PROCEDURE pw_gather_s, pw_gather_p
@@ -288,21 +293,24 @@ SUBROUTINE pw_copy ( pw1, pw2 )
   TYPE ( pw_type ), INTENT ( INOUT ) :: pw2
 
 ! Local
-  INTEGER :: ng1, ng2, ng
+  INTEGER :: ng1, ng2, ng, handle, ns
+  REAL ( dbl ) :: zc
   
 !------------------------------------------------------------------------------
   
+  CALL timeset ( 'PW_COPY', 'I', 'Mcopy', handle )
+
   IF ( pw1 % pw_grid % identifier /= pw2 % pw_grid % identifier ) THEN
 
     IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
          pw2 % in_use == COMPLEXDATA1D .AND. &
-         pw1 % in_space == RECIPROCALSPACE .AND. &
-         pw2 % in_space == RECIPROCALSPACE ) THEN
+         pw1 % in_space == RECIPROCALSPACE ) THEN
        ng1 = SIZE ( pw1 % cc )
        ng2 = SIZE ( pw2 % cc )
        ng = MIN ( ng1, ng2 )
        pw2 % cc ( 1:ng ) = pw1 % cc ( 1:ng )
        IF ( ng2 > ng ) pw2 % cc ( ng+1:ng2 ) = CMPLX ( 0._dbl, 0._dbl, dbl )
+       ns = ng
     ELSE
        CALL stop_program ( "pw_copy", "no suitable data field" )
     END IF
@@ -311,19 +319,28 @@ SUBROUTINE pw_copy ( pw1, pw2 )
 
     IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D ) THEN
        pw2 % cr = pw1 % cr
+       ns = SIZE ( pw1 % cr )
     ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
          pw2 % in_use == COMPLEXDATA1D ) THEN
        pw2 % cc = pw1 % cc
+       ns = 2 * SIZE ( pw1 % cc )
     ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D ) THEN
        pw2 % cr3d = pw1 % cr3d
+       ns = SIZE ( pw1 % cr3d )
     ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
          pw2 % in_use == COMPLEXDATA3D ) THEN
        pw2 % cc3d = pw1 % cc3d
+       ns = 2 * SIZE ( pw1 % cc3d )
     ELSE
        CALL stop_program ( "pw_copy", "no suitable data field" )
     END IF
 
   END IF
+
+  pw2 % in_space = pw1 % in_space
+
+  zc = REAL ( ns, dbl ) * 1.e-6_dbl
+  CALL timestop ( zc, handle )
   
 END SUBROUTINE pw_copy
 
@@ -335,7 +352,7 @@ END SUBROUTINE pw_copy
 !!     pw_derive
 !!
 !!   FUNCTION
-!!     Calculate the deivative of a plane wave vector
+!!     Calculate the derivative of a plane wave vector
 !!
 !!   AUTHOR
 !!     JGH (25-Feb-2001)
@@ -350,7 +367,7 @@ END SUBROUTINE pw_copy
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE pw_derive ( pw, n )
+SUBROUTINE pw_derive_a ( pw, n )
 
   IMPLICIT NONE
 
@@ -359,10 +376,14 @@ SUBROUTINE pw_derive ( pw, n )
   INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: n
 
 ! Local
-  INTEGER :: m
+  INTEGER :: m, handle, ierr, cnt
   COMPLEX ( dbl ) :: im
+  COMPLEX ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: cc
+  REAL ( dbl ) :: flop
 
 !------------------------------------------------------------------------------
+
+  CALL timeset ( 'PW_DERIVE', 'I', 'Mflops', handle )
 
   IF ( pw % in_space == RECIPROCALSPACE .AND. &
        pw % in_use == COMPLEXDATA1D ) THEN
@@ -370,23 +391,39 @@ SUBROUTINE pw_derive ( pw, n )
     m = sum ( n )
     im = CMPLX ( 0._dbl, 1._dbl, dbl ) ** m
 
+    cnt = REAL ( SIZE ( pw % cc ), dbl )
+    flop = 0._dbl
+
+    ALLOCATE ( cc ( cnt ), STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "pw_derive_a", "cc", cnt )
+    cc = pw % cc
+
     IF ( ANY ( n < 0 ) ) CALL stop_program ( "pw_derive", "n < 0" )
 
     IF ( n ( 1 ) == 1 ) THEN
-      pw % cc ( : ) = pw % cc ( : ) * pw % pw_grid % g ( 1, : )
+      pw % cc ( : ) = cc ( : ) * pw % pw_grid % g ( 1, : )
+      flop = flop + 6 * cnt
     ELSE IF ( n ( 1 ) > 1 ) THEN
-      pw % cc ( : ) = pw % cc ( : ) * pw % pw_grid % g ( 1, : ) ** n ( 1 )
+      pw % cc ( : ) = cc ( : ) * ( pw % pw_grid % g ( 1, : ) ** n ( 1 ) )
+      flop = flop + 7 * cnt
     END IF
     IF ( n ( 2 ) == 1 ) THEN
-      pw % cc ( : ) = pw % cc ( : ) * pw % pw_grid % g ( 2, : )
+      pw % cc ( : ) = cc ( : ) * pw % pw_grid % g ( 2, : )
+      flop = flop + 6 * cnt
     ELSE IF ( n ( 2 ) > 1 ) THEN
-      pw % cc ( : ) = pw % cc ( : ) * pw % pw_grid % g ( 2, : ) ** n ( 2 )
+      pw % cc ( : ) = cc ( : ) * ( pw % pw_grid % g ( 2, : ) ** n ( 2 ) )
+      flop = flop + 7 * cnt
     END IF
     IF ( n ( 3 ) == 1 ) THEN
-      pw % cc ( : ) = pw % cc ( : ) * pw % pw_grid % g ( 3, : )
+      pw % cc ( : ) = cc ( : ) * pw % pw_grid % g ( 3, : )
+      flop = flop + 6 * cnt
     ELSE IF ( n ( 3 ) > 1 ) THEN
-      pw % cc ( : ) = pw % cc ( : ) * pw % pw_grid % g ( 3, : ) ** n ( 3 )
+      pw % cc ( : ) = cc ( : ) * ( pw % pw_grid % g ( 3, : ) ** n ( 3 ) )
+      flop = flop + 7 * cnt
     END IF
+
+    DEALLOCATE ( cc, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "pw_derive_a", "cc" )
 
     ! im can take the values 1, -1, i, -i
     ! skip this if im == 1
@@ -398,7 +435,82 @@ SUBROUTINE pw_derive ( pw, n )
     CALL stop_program ( "pw_derive", "no suitable data field" )
   END IF
 
-END SUBROUTINE pw_derive
+  flop = flop * 1.e-6_dbl
+  CALL timestop ( flop, handle )
+
+END SUBROUTINE pw_derive_a
+
+!******************************************************************************
+
+SUBROUTINE pw_derive_ab ( pw, dpw, n )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( pw_type ), INTENT ( IN ) :: pw
+  TYPE ( pw_type ), INTENT ( INOUT ) :: dpw
+  INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: n
+
+! Local
+  INTEGER :: m, handle
+  COMPLEX ( dbl ) :: im
+  REAL ( dbl ) :: flop, cnt
+
+!------------------------------------------------------------------------------
+
+  CALL timeset ( 'PW_DERIVE', 'I', 'Mflops', handle )
+
+  IF ( pw % in_space == RECIPROCALSPACE .AND. &
+       pw % in_use == COMPLEXDATA1D .AND. &
+       dpw % in_use == COMPLEXDATA1D ) THEN
+
+    m = sum ( n )
+    im = CMPLX ( 0._dbl, 1._dbl, dbl ) ** m
+
+    IF ( ANY ( n < 0 ) ) CALL stop_program ( "pw_derive", "n < 0" )
+
+    cnt = REAL ( SIZE ( pw % cc ), dbl )
+    flop = 0._dbl
+
+    IF ( n ( 1 ) == 1 ) THEN
+      dpw % cc ( : ) = pw % cc ( : ) * pw % pw_grid % g ( 1, : )
+      flop = flop + 6 * cnt
+    ELSE IF ( n ( 1 ) > 1 ) THEN
+      dpw % cc ( : ) = pw % cc ( : ) * ( pw % pw_grid % g ( 1, : ) ** n ( 1 ) )
+      flop = flop + 7 * cnt
+    END IF
+    IF ( n ( 2 ) == 1 ) THEN
+      dpw % cc ( : ) = pw % cc ( : ) * pw % pw_grid % g ( 2, : )
+      flop = flop + 6 * cnt
+    ELSE IF ( n ( 2 ) > 1 ) THEN
+      dpw % cc ( : ) = pw % cc ( : ) * ( pw % pw_grid % g ( 2, : ) ** n ( 2 ) )
+      flop = flop + 7 * cnt
+    END IF
+    IF ( n ( 3 ) == 1 ) THEN
+      dpw % cc ( : ) = pw % cc ( : ) * pw % pw_grid % g ( 3, : )
+      flop = flop + 6 * cnt
+    ELSE IF ( n ( 3 ) > 1 ) THEN
+      dpw % cc ( : ) = pw % cc ( : ) * ( pw % pw_grid % g ( 3, : ) ** n ( 3 ) )
+      flop = flop + 7 * cnt
+    END IF
+
+    ! im can take the values 1, -1, i, -i
+    ! skip this if im == 1
+    IF ( ABS ( REAL ( im, dbl ) - 1._dbl ) > 1.e-10 ) THEN
+      dpw % cc ( : ) = im * dpw % cc ( : )
+      flop = flop + 6 * cnt
+    END IF
+
+    dpw % in_space = RECIPROCALSPACE
+
+  ELSE
+    CALL stop_program ( "pw_derive", "no suitable data field" )
+  END IF
+
+  flop = flop * 1.e-6_dbl
+  CALL timestop ( flop, handle )
+
+END SUBROUTINE pw_derive_ab
 
 !!*****
 !******************************************************************************
@@ -414,7 +526,7 @@ END SUBROUTINE pw_derive
 !!     JGH (25-Feb-2001)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (13-Mar-2001) : added gather/scatter cases
 !!
 !!   NOTES
 !!     Copy routine that allows for in_space changes
@@ -432,16 +544,35 @@ SUBROUTINE pw_transfer ( pw1, pw2 )
 
 !------------------------------------------------------------------------------
 
-  IF ( ( pw1 % in_space == REALSPACE .AND. pw2 % in_space == REALSPACE ) .OR. &
-       ( pw1 % in_space == RECIPROCALSPACE .AND. &
-         pw2 % in_space == RECIPROCALSPACE ) ) THEN
+  IF ( pw1 % in_space == REALSPACE .AND. pw2 % in_space == REALSPACE ) THEN
 
-  ! simple copy should do
+     ! simple copy should do
      CALL pw_copy ( pw1, pw2 )
+
+  ELSEIF ( pw1 % in_space == RECIPROCALSPACE .AND. &
+         pw2 % in_space == RECIPROCALSPACE ) THEN
+
+     IF ( pw1 % in_use == pw2 % in_use ) THEN
+
+        ! simple copy should do
+        CALL pw_copy ( pw1, pw2 )
+     
+     ELSE
+
+       ! we have to gather/scatter the data
+       IF ( pw1 % in_use == COMPLEXDATA1D ) THEN
+         CALL pw_scatter ( pw1, pw2 % cc3d )
+       ELSEIF ( pw2 % in_use == COMPLEXDATA1D ) THEN
+         CALL pw_gather ( pw2, pw1 % cc3d )
+       ELSE
+         CALL stop_program ( "pw_transfer", "Do not know what to do" )
+       END IF
+
+     END IF
 
   ELSE
 
-  ! FFT needed, all further tests done in pw_fft_wrap
+     ! FFT needed, all further tests done in pw_fft_wrap
      CALL pw_fft_wrap ( pw1, pw2 )
 
   END IF
@@ -479,23 +610,36 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
   TYPE ( pw_type ), INTENT ( IN ) :: pw1, pw2
   TYPE ( pw_type ), INTENT ( INOUT ) :: pw3
   
+! Local
+  INTEGER :: handle
+  REAL ( dbl ) :: flop
+  
 !------------------------------------------------------------------------------
   
+  CALL timeset ( 'PW_ADD', 'I', 'Mflops', handle )
+
   IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D .AND. &
        pw3 % in_use == REALDATA1D ) THEN
      pw3 % cr = pw1 % cr + pw2 % cr
+     flop = REAL ( SIZE ( pw2 % cr ), dbl )
   ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
        pw2 % in_use == COMPLEXDATA1D .AND. pw3 % in_use == COMPLEXDATA1D ) THEN
      pw3 % cc = pw1 % cc + pw2 % cc
+     flop = REAL ( 2 * SIZE ( pw2 % cc ), dbl )
   ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D .AND. &
        pw3 % in_use == REALDATA3D ) THEN
      pw3 % cr3d = pw1 % cr3d + pw2 % cr3d
+     flop = REAL ( SIZE ( pw2 % cr3d ), dbl )
   ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
        pw2 % in_use == COMPLEXDATA3D .AND. pw3 % in_use == COMPLEXDATA3D ) THEN
      pw3 % cc3d = pw1 % cc3d + pw2 % cc3d
+     flop = REAL ( 2 * SIZE ( pw2 % cc3d ), dbl )
   ELSE
      CALL stop_program ( "pw_add", "no suitable data field" )
   END IF
+
+  flop = flop * 1.e-6_dbl
+  CALL timestop ( flop, handle )
   
 END SUBROUTINE pw_add
 
@@ -526,37 +670,52 @@ SUBROUTINE pw_sumup_square ( pw1, pw2 )
   TYPE ( pw_type ), INTENT ( INOUT ) :: pw1
   TYPE ( pw_type ), INTENT ( IN ) :: pw2
   
+! Local
+  INTEGER :: handle
+  REAL ( dbl ) :: flop
+  
 !------------------------------------------------------------------------------
+
+  CALL timeset ( 'PW_SUMUP_SQUARE', 'I', 'Mflops', handle )
   
   IF ( pw1 % in_use == REALDATA1D ) THEN
      IF ( pw2 % in_use == REALDATA1D ) THEN
         pw1 % cr = pw1 % cr + pw2 % cr * pw2 % cr
+        flop = REAL ( 2 * SIZE ( pw2 % cr ), dbl )
      ELSE IF ( pw2 % in_use == COMPLEXDATA1D ) THEN
-        pw1 % cr = pw1 % cr + REAL ( pw2 % cc * pw2 % cc, dbl )
+        pw1 % cr = pw1 % cr + REAL ( pw2 % cc * CONJG ( pw2 % cc ), dbl )
+        flop = REAL ( 7 * SIZE ( pw2 % cc ), dbl )
      ELSE
         CALL stop_program ( "pw_sumup_square", "no suitable data fields" )
      END IF
   ELSE IF ( pw1 % in_use == COMPLEXDATA1D ) THEN
      IF ( pw2 % in_use == COMPLEXDATA1D ) THEN
-        pw1 % cc = pw1 % cc + pw2 % cc * pw2 % cc
+        pw1 % cc = pw1 % cc + pw2 % cc * CONJG ( pw2 % cc )
+        flop = REAL ( 8 * SIZE ( pw2 % cc ), dbl )
      ELSE
         CALL stop_program ( "pw_sumup_square", "no suitable data fields" )
      END IF
   ELSE IF ( pw1 % in_use == REALDATA3D ) THEN
      IF ( pw2 % in_use == REALDATA3D ) THEN
         pw1 % cr3d = pw1 % cr3d + pw2 % cr3d * pw2 % cr3d
+        flop = REAL ( 2 * SIZE ( pw2 % cr3d ), dbl )
      ELSE IF ( pw2 % in_use == COMPLEXDATA3D ) THEN
-        pw1 % cr3d = pw1 % cr3d + REAL ( pw2 % cc3d * pw2 % cc3d, dbl )
+        pw1 % cr3d = pw1 % cr3d + REAL ( pw2 % cc3d * CONJG ( pw2 % cc3d ), dbl )
+        flop = REAL ( 7 * SIZE ( pw2 % cr3d ), dbl )
      ELSE
         CALL stop_program ( "pw_sumup_square", "no suitable data fields" )
      END IF
   ELSE IF ( pw1 % in_use == COMPLEXDATA3D ) THEN
      IF ( pw2 % in_use == COMPLEXDATA3D ) THEN
-        pw1 % cc3d = pw1 % cc3d + pw2 % cc3d * pw2 % cc3d
+        pw1 % cc3d = pw1 % cc3d + pw2 % cc3d * CONJG ( pw2 % cc3d )
+        flop = REAL ( 8 * SIZE ( pw2 % cr3d ), dbl )
      ELSE
         CALL stop_program ( "pw_sumup_square", "no suitable data fields" )
      END IF
   END IF
+
+  flop = flop * 1.e-6_dbl
+  CALL timestop ( flop, handle )
   
 END SUBROUTINE pw_sumup_square
 
@@ -590,22 +749,35 @@ SUBROUTINE pw_sumup ( pw1, pw2 )
 ! Arguments
   TYPE ( pw_type ), INTENT ( IN ) :: pw1
   TYPE ( pw_type ), INTENT ( INOUT ) :: pw2
+  
+! Local
+  INTEGER :: handle
+  REAL ( dbl ) :: flop
  
 !------------------------------------------------------------------------------
  
+  CALL timeset ( 'PW_SUMUP', 'I', 'Mflops', handle )
+
   IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D ) THEN
      pw2 % cr = pw2 % cr + pw1 % cr
+     flop = REAL ( SIZE ( pw2 % cr ), dbl )
   ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
        pw2 % in_use == COMPLEXDATA1D ) THEN
      pw2 % cc = pw2 % cc + pw1 % cc
+     flop = REAL ( 2 * SIZE ( pw2 % cc ), dbl )
   ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D ) THEN
      pw2 % cr3d = pw2 % cr3d + pw1 % cr3d
+     flop = REAL ( SIZE ( pw2 % cr3d ), dbl )
   ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
        pw2 % in_use == COMPLEXDATA3D ) THEN
      pw2 % cc3d = pw2 % cc3d + pw1 % cc3d
+     flop = REAL ( 2 * SIZE ( pw2 % cc3d ), dbl )
   ELSE
      CALL stop_program ( "pw_sumup", "no suitable data field" )
   END IF
+
+  flop = flop * 1.e-6_dbl
+  CALL timestop ( flop, handle )
  
 END SUBROUTINE pw_sumup
 
@@ -640,23 +812,36 @@ SUBROUTINE pw_subtract ( pw1, pw2, pw3 )
   TYPE ( pw_type ), INTENT ( IN ) :: pw1, pw2
   TYPE ( pw_type ), INTENT ( INOUT ) :: pw3
   
+! Local
+  INTEGER :: handle
+  REAL ( dbl ) :: flop
+  
 !------------------------------------------------------------------------------
   
+  CALL timeset ( 'PW_SUBTRACT', 'I', 'Mflops', handle )
+
   IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D .AND. &
        pw3 % in_use == REALDATA1D ) THEN
      pw3 % cr = pw1 % cr - pw2 % cr
+     flop = REAL ( SIZE ( pw2 % cr ), dbl )
   ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
        pw2 % in_use == COMPLEXDATA1D .AND. pw3 % in_use == COMPLEXDATA1D ) THEN
      pw3 % cc = pw1 % cc - pw2 % cc
+     flop = REAL ( 2 * SIZE ( pw2 % cc ), dbl )
   ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D .AND. &
        pw3 % in_use == REALDATA3D ) THEN
      pw3 % cr3d = pw1 % cr3d - pw2 % cr3d
+     flop = REAL ( SIZE ( pw2 % cr3d ), dbl )
   ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
        pw2 % in_use == COMPLEXDATA3D .AND. pw3 % in_use == COMPLEXDATA3D ) THEN
      pw3 % cc3d = pw1 % cc3d - pw2 % cc3d
+     flop = REAL ( 2 * SIZE ( pw2 % cc3d ), dbl )
   ELSE
      CALL stop_program ( "pw_subtract", "no suitable data field" )
   END IF
+
+  flop = flop * 1.e-6_dbl
+  CALL timestop ( flop, handle )
   
 END SUBROUTINE pw_subtract
 
@@ -690,22 +875,35 @@ SUBROUTINE pw_reduce ( pw1, pw2 )
 ! Arguments
   TYPE ( pw_type ), INTENT ( IN ) :: pw1
   TYPE ( pw_type ), INTENT ( INOUT ) :: pw2
+
+! Local
+  INTEGER :: handle
+  REAL ( dbl ) :: flop
   
 !------------------------------------------------------------------------------
   
+  CALL timeset ( 'PW_REDUCE', 'I', 'Mflops', handle )
+
   IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D ) THEN
      pw2 % cr = pw2 % cr - pw1 % cr
+     flop = REAL ( SIZE ( pw2 % cr ), dbl )
   ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
        pw2 % in_use == COMPLEXDATA1D ) THEN
      pw2 % cc = pw2 % cc - pw1 % cc
+     flop = REAL ( 2 * SIZE ( pw2 % cc ), dbl )
   ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D ) THEN
      pw2 % cr3d = pw2 % cr3d - pw1 % cr3d
+     flop = REAL ( SIZE ( pw2 % cr3d ), dbl )
   ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
        pw2 % in_use == COMPLEXDATA3D ) THEN
      pw2 % cc3d = pw2 % cc3d - pw1 % cc3d
+     flop = REAL ( 2 * SIZE ( pw2 % cc3d ), dbl )
   ELSE
      CALL stop_program ( "pw_reduce", "no suitable data field" )
   END IF
+
+  flop = flop * 1.e-6_dbl
+  CALL timestop ( flop, handle )
   
 END SUBROUTINE pw_reduce
 
@@ -1182,7 +1380,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
   COMPLEX ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: grays
   REAL ( dbl ) :: norm
   INTEGER, DIMENSION ( : ), POINTER :: n
-  INTEGER :: dir, out_space, ierr, nrays, my_pos, nloc ( 3 )
+  INTEGER :: dir, out_space, ierr, nrays, my_pos, nloc ( 3 ), handle
   CHARACTER ( LEN = 9 ) :: mode
   LOGICAL :: test
   
@@ -1318,6 +1516,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         !     nothing to do
       CASE ( "BW_C3DR3D" )
         !     use real part only
+        IF ( test ) write ( *,'(A)') "  REAL part "
         pw2 % cr3d = REAL ( c_out, dbl )
         DEALLOCATE ( c_out, STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out" )
@@ -1325,10 +1524,12 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         !     nothing to do
       CASE ( "BW_C1DR3D" )
         !     use real part only
+        IF ( test ) write ( *,'(A)') "  REAL part "
         pw2 % cr3d = REAL ( c_out, dbl )
         DEALLOCATE ( c_out, STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out" )
     END SELECT
+    IF ( test ) WRITE ( *,'(A)') " End of FFT Protocol "
 
   ELSE
 
@@ -1415,6 +1616,8 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
       CASE ( "BW_C1DC3D" )
         ! nothing to do
       CASE ( "BW_C1DR3D" )
+        IF ( test .AND. pw1%pw_grid%para%group_head ) &
+            write ( *,'(A)') "  Real part "
         pw2 % cr3d = REAL ( c_in, dbl )
         DEALLOCATE ( c_in, STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_in" )
@@ -1427,6 +1630,10 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
 
 !..update the space tag for pw2
   pw2 % in_space = out_space
+
+  IF ( test .AND. pw1 % pw_grid % para % group_head ) THEN
+      WRITE ( *,'(A)') " End of FFT Protocol "
+  END IF
 
 END SUBROUTINE fft_wrap_pw1pw2
 

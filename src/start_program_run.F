@@ -171,7 +171,7 @@ CONTAINS
                                 search,&
                                 start_input_session,&
                                 test_object
-    USE print_keys,       ONLY: init_print_keys
+    USE print_keys,       ONLY: DEBUG,HIGH,init_print_keys,LOW,MEDIUM,SILENT
     USE string_utilities, ONLY: uppercase
     USE termination,      ONLY: stop_program
 
@@ -210,15 +210,15 @@ CONTAINS
         CALL uppercase(keyword)
         SELECT CASE (TRIM(keyword))
         CASE ("SILENT")
-          globenv%print%level = 0
+          globenv%print%level = SILENT
         CASE ("LOW","DEFAULT")
-          globenv%print%level = 1
+          globenv%print%level = LOW
         CASE ("MEDIUM")
-          globenv%print%level = 2
+          globenv%print%level = MEDIUM
         CASE ("HIGH")
-          globenv%print%level = 3
+          globenv%print%level = HIGH
         CASE ("DEBUG","ALL","FULL")
-          globenv%print%level = 4
+          globenv%print%level = DEBUG
         CASE DEFAULT
           CALL stop_program(routine,&
                             "Invalid keyword <"//TRIM(keyword)//&
@@ -259,16 +259,18 @@ CONTAINS
           globenv%print%cell_parameters = print_request
         CASE ("CHARGE_DENSITY_MATRIX","G_MATRIX")
           globenv%print%charge_density_matrix = print_request
-        CASE ("CORE_HAMILTONIAN_MATRIX","CORE_HAMILTONIAN","H_MATRIX")
+        CASE ("CORE_HAMILTONIAN_MATRIX","H_MATRIX")
           globenv%print%core_hamiltonian_matrix = print_request
+        CASE ("CORE_CHARGE_RADII","CORE_RADII")
+          globenv%print%core_charge_radii = print_request
+        CASE ("DENSITY_MATRIX","P_MATRIX")
+          globenv%print%density_matrix = print_request
+        CASE ("DIIS_INFORMATION","DIIS_INFO","DIIS")
+          globenv%print%diis_information = print_request
         CASE ("DISTRIBUTION")
           globenv%print%distribution = print_request
-        CASE ("ERFC_RADII")
-          globenv%print%erfc_radii = print_request
-        CASE ("ERF_PPL_RADII")
-          globenv%print%erf_ppl_radii = print_request
-        CASE ("EXP_PPL_RADII")
-          globenv%print%exp_ppl_radii = print_request
+        CASE ("EACH_SCF_STEP")
+          globenv%print%each_scf_step = print_request
         CASE ("HARTREE_MATRIX")
           globenv%print%hartree_matrix = print_request
         CASE ("INTERACTION_THRESHOLDS","THRESHOLDS")
@@ -290,25 +292,27 @@ CONTAINS
           globenv%print%method_specifications = print_request
         CASE ("MO_EIGENVALUES")
           globenv%print%mo_eigenvalues = print_request
-        CASE ("MO_EIGENVECTORS")
+        CASE ("MO_EIGENVECTORS","MOS")
+          globenv%print%mo_eigenvalues = print_request
           globenv%print%mo_eigenvectors = print_request
+          globenv%print%mo_occupation_numbers = print_request
+        CASE ("MO_OCCUPATION_NUMBERS")
+          globenv%print%mo_eigenvalues = print_request
+          globenv%print%mo_occupation_numbers = print_request
         CASE ("NEIGHBOR_LISTS")
           globenv%print%nl_overlap = print_request
           globenv%print%nl_verfc = print_request
-          globenv%print%nl_verf_ppl = print_request
-          globenv%print%nl_vexp_ppl = print_request
-          globenv%print%nl_vprj_ppnl = print_request
+          globenv%print%nl_vppl = print_request
+          globenv%print%nl_vppnl = print_request
         CASE ("NL_OVERLAP")
           globenv%print%nl_overlap = print_request
         CASE ("NL_VERFC")
           globenv%print%nl_verfc = print_request
-        CASE ("NL_VERF_PPL")
-          globenv%print%nl_verf_ppl = print_request
-        CASE ("NL_VEXP_PPL")
-          globenv%print%nl_vexp_ppl = print_request
-        CASE ("NL_VPRJ_PPNL")
-          globenv%print%nl_vprj_ppnl = print_request
-        CASE ("ORTHOGONALIZATION_MATRIX","ORTHO_MATRIX")
+        CASE ("NL_VPPL")
+          globenv%print%nl_vppl = print_request
+        CASE ("NL_VPPNL")
+          globenv%print%nl_vppnl = print_request
+        CASE ("ORTHOGONALISATION_MATRIX","ORTHO_MATRIX")
           globenv%print%ortho_matrix = print_request
         CASE ("OVERLAP_MATRIX","OVERLAP","S_MATRIX")
           globenv%print%overlap_matrix = print_request
@@ -318,22 +322,30 @@ CONTAINS
           globenv%print%physcon = print_request
         CASE ("POTENTIALS","POTENTIAL")
           globenv%print%potential = print_request
+        CASE ("PPL_RADII")
+          globenv%print%ppl_radii = print_request
+        CASE ("PPNL_RADII")
+          globenv%print%ppnl_radii = print_request
         CASE ("PROGRAM_BANNER","BANNER")
           globenv%print%program_banner = print_request
         CASE ("PROGRAM_RUN_INFORMATION","PROGRAM_RUN_INFO","RUN_INFO")
           globenv%print%program_run_information = print_request
-        CASE ("PRJ_PPNL_RADII")
-          globenv%print%prj_ppnl_radii = print_request
         CASE ("PROJECTORS")
           globenv%print%projectors = print_request
         CASE ("RADII")
-          globenv%print%erfc_radii = print_request
-          globenv%print%erf_ppl_radii = print_request
-          globenv%print%exp_ppl_radii = print_request
+          globenv%print%core_charge_radii = print_request
           globenv%print%kind_radii = print_request
-          globenv%print%prj_ppnl_radii = print_request
+          globenv%print%ppl_radii = print_request
+          globenv%print%ppnl_radii = print_request
           globenv%print%set_radii = print_request
           globenv%print%pgf_radii = print_request
+        CASE ("PW_GRID_INFORMATION","PW_GRID_INFO","GRID_INFO")
+          globenv%print%pw_grid_information = print_request
+        CASE ("SCF")
+          globenv%print%scf = print_request
+        CASE ("SCF_ENERGIES")
+          globenv%print%scf = print_request
+          globenv%print%scf_energies = print_request
         CASE ("SET_RADII")
           globenv%print%set_radii = print_request
         CASE ("SPHERICAL_HARMONICS")
@@ -344,6 +356,8 @@ CONTAINS
           globenv%print%title = print_request
         CASE ("TOTAL_NUMBERS")
           globenv%print%total_numbers = print_request
+        CASE ("TOTAL_DENSITIES")
+          globenv%print%total_densities = print_request
         CASE DEFAULT
           IF (keyword == end_section) THEN
             EXIT
@@ -394,7 +408,7 @@ CONTAINS
       "**                                                                          **",&
       "**                                                ... make the atoms dance  **",&
       "**                                                                          **",&
-      "**                         Version 3.0 (Nov. 2000)                          **",&
+      "**                         Version 3.0 (May 2001)                           **",&
       "**                                                                          **",&
       "**     Copyright (C) by MPI fuer Festkoerperforschung, Stuttgart (2000)     **",&
       "**                                                                          **",&

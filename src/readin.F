@@ -25,7 +25,6 @@ MODULE readin
 ! Index:
 
 ! SUBROUTINE read_files(globenv)
-! SUBROUTINE read_title(start_section,end_section,globenv)
 ! SUBROUTINE write_total_numbers(lunit)
 
 ! *****************************************************************************
@@ -81,9 +80,11 @@ CONTAINS
                                                read_method_specifications,&
                                                write_method_specifications
     USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
+    USE qs_scf,                          ONLY: read_scf_parameters,&
+                                               write_scf_parameters
     USE timings,                         ONLY: timeset,timestop
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(global_environment_type), INTENT(INOUT) :: globenv
 
 !   *** Local variables ***
 
@@ -218,6 +219,14 @@ CONTAINS
 !   *** Initialize the atomic interaction radii ***
 
     CALL init_interaction_radii(globenv)
+
+!   *** Read SCF parameters ***
+
+    CALL read_scf_parameters(section_character//"SCF",end_section,globenv)
+
+    IF (ionode.AND.globenv%print%scf) THEN
+      CALL write_scf_parameters(output_unit)
+    END IF
 
     CALL timestop(0.0_wp,handle)
 

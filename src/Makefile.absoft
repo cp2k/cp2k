@@ -58,7 +58,7 @@ LIB1_OBJECTS = ctrig.o fftpre.o fftrot.o fftstp.o mltfftsg.o
 
 DEPENDENCIES = $(OBJECTS:.o=.d)
 
-LIBRARIES = $(LIBS) -L$(LIBDIR)/$(VERSION) -l$(LIB1)
+LIBRARIES = -L$(LIBDIR)/$(VERSION) -l$(LIB1) $(LIBS)
 
 ### Slave rules ###
 

@@ -83,13 +83,13 @@ SUBROUTINE structure_factor_allocate ( bds, nparts, exp_igr, &
 
   ALLOCATE ( exp_igr % ex ( bds ( 1, 1 ):bds ( 2, 1 ) + 1, nparts ), &
        STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'ewald_gaussian', 'ex', 0 )
+  IF ( isos /= 0 ) CALL stop_memory ( 'structure_factor_allocate', 'ex', 0 )
   ALLOCATE ( exp_igr % ey ( bds ( 1, 2 ):bds ( 2, 2 ) + 1, nparts ), &
        STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ('ewald_gaussian', 'ey', 0 )
+  IF ( isos /= 0 ) CALL stop_memory ('structure_factor_allocate', 'ey', 0 )
   ALLOCATE ( exp_igr % ez ( bds ( 1, 3 ):bds ( 2, 3 ) + 1, nparts ), &
        STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ('ewald_gaussian', 'ez', 0 )
+  IF ( isos /= 0 ) CALL stop_memory ('structure_factor_allocate', 'ez', 0 )
   NULLIFY ( exp_igr % centre )
 
   exp_igr % lb(1) = LBOUND ( exp_igr % ex, 1 )
@@ -100,7 +100,7 @@ SUBROUTINE structure_factor_allocate ( bds, nparts, exp_igr, &
     IF ( allocate_centre ) THEN
       ALLOCATE ( exp_igr % centre ( 3, nparts ), STAT = isos )
       IF ( isos /= 0 ) &
-           CALL stop_memory ( 'ewald_gaussian', 'centre', 3 * nparts)
+         CALL stop_memory ( 'structure_factor_allocate', 'centre', 3 * nparts)
     END IF
   END IF
 
@@ -144,19 +144,22 @@ SUBROUTINE structure_factor_evaluate ( delta, npts, lb, ex, ey, ez )
   ey ( m1 ) = 1.0_dbl
   ez ( n1 ) = 1.0_dbl
 
-  fp = CMPLX ( COS ( vec ( 1 ) ), -SIN ( vec ( 1 ) ) ); fm = CONJG ( fp )
+  fp = CMPLX ( COS ( vec ( 1 ) ), -SIN ( vec ( 1 ) ), dbl )
+  fm = CONJG ( fp )
   DO j = 1, -l0
      ex (  j + l0 ) = ex (  j + l0 - 1 ) * fp
      ex ( -j + l1 ) = ex ( -j + l1 + 1 ) * fm
   END DO
 
-  fp = CMPLX ( COS ( vec ( 2 ) ), -SIN ( vec ( 2 ) ) ); fm = CONJG ( fp )
+  fp = CMPLX ( COS ( vec ( 2 ) ), -SIN ( vec ( 2 ) ), dbl )
+  fm = CONJG ( fp )
   DO j = 1, -m0
      ey (  j + m0 ) = ey (  j + m0 - 1 ) * fp
      ey ( -j + m1 ) = ey ( -j + m1 + 1 ) * fm
   END DO
 
-  fp = CMPLX ( COS ( vec ( 3 ) ), -SIN ( vec ( 3 ) ) ); fm = CONJG ( fp )
+  fp = CMPLX ( COS ( vec ( 3 ) ), -SIN ( vec ( 3 ) ), dbl )
+  fm = CONJG ( fp )
   DO j = 1, -n0
      ez (  j + n0 ) = ez (  j + n0 - 1 ) * fp
      ez ( -j + n1 ) = ez ( -j + n1 + 1 ) * fm

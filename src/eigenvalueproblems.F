@@ -8,11 +8,13 @@
 !!     eigenvalueproblems
 !!
 !!   FUNCTION
+!!     Provides interfaces to LAPACK eigenvalue/SVD routines
 !!
 !!   AUTHOR
+!!     APSI
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (26-5-2001): delay D/S C/Z problem to the lapack library call
 !!
 !!   NOTES
 !!     We are using LAPACK interfaces, so please make sure in IBM/AIX you have
@@ -24,25 +26,28 @@
 MODULE eigenvalueproblems
 
   USE kinds, ONLY : dbl
-
-  USE lapack, ONLY : lapack_ssyev, lapack_chpev, lapack_chpgv
+  USE lapack, ONLY : lapack_ssyev, lapack_chpev, lapack_sspgv, lapack_chpgv, &
+                     lapack_sgesvd, lapack_cgesvd
   USE termination, ONLY : stop_program
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: diagonalise, diagonalise_overlap
+  PUBLIC :: diagonalise, diagonalise_general_packed, singular_values
 
   INTERFACE diagonalise
      MODULE PROCEDURE diagonalise_ssyev
-     MODULE PROCEDURE diagonalise_dsyev
      MODULE PROCEDURE diagonalise_chpev
-     MODULE PROCEDURE diagonalise_zhpev
   END INTERFACE
 
-  INTERFACE diagonalise_overlap
+  INTERFACE diagonalise_general_packed
+     MODULE PROCEDURE diagonalise_sspgv
      MODULE PROCEDURE diagonalise_chpgv
-     MODULE PROCEDURE diagonalise_zhpgv
+  END INTERFACE
+
+  INTERFACE singular_values
+     MODULE PROCEDURE cp2k_sgesvd
+     MODULE PROCEDURE cp2k_cgesvd
   END INTERFACE
 
 !!*****
@@ -60,16 +65,16 @@ SUBROUTINE diagonalise_ssyev ( matrix, mysize, storageform, eigenvalues, &
 ! Arguments
   CHARACTER ( LEN = * ), INTENT ( IN ) :: storageform
   INTEGER, INTENT ( IN ) :: mysize
-  REAL ( KIND = 4 ), INTENT ( IN ) :: matrix ( :, : )
-  REAL ( KIND = 4 ), INTENT ( OUT ) :: eigenvalues ( : )
-  REAL ( KIND = 4 ), INTENT ( OUT ) :: eigenvectors ( :, : )
+  REAL ( KIND = dbl ), INTENT ( IN ) :: matrix ( :, : )
+  REAL ( KIND = dbl ), INTENT ( OUT ) :: eigenvalues ( : )
+  REAL ( KIND = dbl ), INTENT ( OUT ) :: eigenvectors ( :, : )
 
 ! Local
   CHARACTER :: jobz = "V", uplo
   INTEGER :: info, itype
 
   INTEGER :: lwork, lda
-  REAL ( KIND = 4 ) :: work ( 3 * mysize - 1 )
+  REAL ( KIND = dbl ) :: work ( 3 * mysize - 1 )
 
 !------------------------------------------------------------------------------
 
@@ -88,7 +93,6 @@ SUBROUTINE diagonalise_ssyev ( matrix, mysize, storageform, eigenvalues, &
   lda = SIZE ( matrix, 1 )
   lwork = 3 * mysize - 1
 
-!*apsi* Because 'ssyev' is in-place...
   eigenvectors = matrix
 
   CALL lapack_ssyev ( jobz, uplo, mysize, eigenvectors, lda, eigenvalues, &
@@ -101,55 +105,6 @@ END SUBROUTINE diagonalise_ssyev
 
 !******************************************************************************
 
-SUBROUTINE diagonalise_dsyev ( matrix, mysize, storageform, eigenvalues, &
-     eigenvectors )
-
-  IMPLICIT NONE
-
-! Arguments
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: storageform
-  INTEGER, INTENT ( IN ) :: mysize
-  REAL ( KIND = 8 ), INTENT ( IN ) :: matrix ( :, : )
-  REAL ( KIND = 8 ), INTENT ( OUT ) :: eigenvalues ( : )
-  REAL ( KIND = 8 ), INTENT ( OUT ) :: eigenvectors ( :, : )
-
-! Local
-  CHARACTER :: jobz = "V", uplo
-  INTEGER :: info, itype
-
-  INTEGER :: lwork, lda
-  REAL ( KIND = 8 ) :: work ( 3 * mysize - 1 )
-
-!------------------------------------------------------------------------------
-
-  IF ( storageform ( 1:5 ) == "Lower" .OR. &
-       storageform ( 1:5 ) == "LOWER" .OR. &
-       storageform ( 1:5 ) == "lower" ) THEN
-     uplo = "L"
-  ELSE IF ( storageform ( 1:5 ) == "Upper" .OR. &
-       storageform ( 1:5 ) == "upper" .OR. &
-       storageform ( 1:5 ) == "UPPER" ) then
-     uplo = "U"
-  ELSE
-     CALL stop_program ( "diagonalise_dsyev", "unknown form of storage" )
-  END IF
-
-  lda = SIZE ( matrix, 1 )
-  lwork = 3 * mysize - 1
-
-!*apsi* Because 'dsyev' is in-place...
-  eigenvectors = matrix
-
-  CALL lapack_ssyev ( jobz, uplo, mysize, eigenvectors, lda, eigenvalues, &
-       work, lwork, info )
-  IF ( info /= 0 ) THEN
-     CALL stop_program ( "diagonalise_dsyev", "error in diagonalisation" )
-  END IF
-
-END SUBROUTINE diagonalise_dsyev
-
-!******************************************************************************
-
 SUBROUTINE diagonalise_chpev ( matrix, mysize, storageform, eigenvalues, &
      eigenvectors )
 
@@ -158,16 +113,16 @@ SUBROUTINE diagonalise_chpev ( matrix, mysize, storageform, eigenvalues, &
 ! Arguments
   CHARACTER ( LEN = * ), INTENT ( IN ) :: storageform
   INTEGER, INTENT ( IN ) :: mysize
-  REAL ( KIND = 4 ), INTENT ( OUT ) :: eigenvalues ( : )
-  COMPLEX ( KIND = 4 ), INTENT ( OUT ) :: eigenvectors ( :, : )
-  COMPLEX ( KIND = 4 ), INTENT ( INOUT ) :: matrix ( : )
+  REAL ( KIND = dbl ), INTENT ( OUT ) :: eigenvalues ( : )
+  COMPLEX ( KIND = dbl ), INTENT ( OUT ) :: eigenvectors ( :, : )
+  COMPLEX ( KIND = dbl ), INTENT ( INOUT ) :: matrix ( : )
 
 ! Local
   CHARACTER :: jobz = "V", uplo
   INTEGER :: info, itype
 
-  REAL ( KIND = 4 ) :: rwork ( 3 * mysize - 2 )
-  COMPLEX ( KIND = 4 ) :: work ( 2 * mysize - 1 )
+  REAL ( KIND = dbl ) :: rwork ( 3 * mysize - 2 )
+  COMPLEX ( KIND = dbl ) :: work ( 2 * mysize - 1 )
 
 !------------------------------------------------------------------------------
 
@@ -193,66 +148,22 @@ END SUBROUTINE diagonalise_chpev
 
 !******************************************************************************
 
-SUBROUTINE diagonalise_zhpev ( matrix, mysize, storageform, eigenvalues, &
-     eigenvectors )
+SUBROUTINE diagonalise_sspgv ( matrix, overlap, mysize, type, storageform, &
+     eigenvalues, eigenvectors )
 
   IMPLICIT NONE
 
 ! Arguments
   CHARACTER ( LEN = * ), INTENT ( IN ) :: storageform
-  INTEGER, INTENT ( IN ) :: mysize
-  REAL ( KIND = 8 ), INTENT ( OUT ) :: eigenvalues ( : )
-  COMPLEX ( KIND = 8 ), INTENT ( OUT ) :: eigenvectors ( :, : )
-  COMPLEX ( KIND = 8 ), INTENT ( INOUT ) :: matrix ( : )
-
-! Local
-  CHARACTER :: jobz = "V", uplo
-  INTEGER :: info, itype
-
-  REAL ( KIND = 8 ) :: rwork ( 3 * mysize - 2 )
-  COMPLEX ( KIND = 8 ) :: work ( 2 * mysize - 1 )
-
-!------------------------------------------------------------------------------
-
-  IF ( storageform ( 1:5 ) == "Lower" .OR. &
-       storageform ( 1:5 ) == "LOWER" .OR. &
-       storageform ( 1:5 ) == "lower" ) THEN
-     uplo = "L"
-  ELSE IF ( storageform ( 1:5 ) == "Upper" .OR. &
-       storageform ( 1:5 ) == "upper" .OR. &
-       storageform ( 1:5 ) == "UPPER" ) then
-     uplo = "U"
-  ELSE
-     CALL stop_program ( "diagonalise_chpev", "unknown form of storage" )
-  END IF
-
-  CALL lapack_chpev ( jobz, uplo, mysize, matrix, eigenvalues, &
-       eigenvectors, mysize, work, rwork, info )
-  IF ( info /= 0 ) THEN
-     CALL stop_program ( "diagonalise_zhpev", "error in diagonalisation" )
-  END IF
-
-END SUBROUTINE diagonalise_zhpev
-
-!**********************************************************************
-
-SUBROUTINE diagonalise_chpgv ( matrix, overlap, mysize, type, storageform, &
-     eigenvalues, eigenvectors )
-
-  implicit none
-
-! Arguments
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: storageform
   INTEGER, INTENT ( IN ) :: type, mysize
-  REAL ( KIND = 4 ), INTENT ( OUT ) :: eigenvalues ( : )
-  COMPLEX ( KIND = 4 ), INTENT ( OUT ) :: eigenvectors ( :, : )
-  COMPLEX ( KIND = 4 ), INTENT ( INOUT ) :: matrix ( : ), overlap ( : )
+  REAL ( KIND = dbl ), INTENT ( OUT ) :: eigenvalues ( : )
+  REAL ( KIND = dbl ), INTENT ( OUT ) :: eigenvectors ( :, : )
+  REAL ( KIND = dbl ), INTENT ( INOUT ) :: matrix ( : ), overlap ( : )
 
 ! Local
   CHARACTER :: jobz = "V", uplo
-  integer :: info
-  real ( kind = 4 ) :: rwork ( 3 * mysize - 2 )
-  COMPLEX ( kind = 4 ) :: work ( 2 * mysize - 1 )
+  INTEGER :: info
+  REAL ( kind = dbl ) :: work ( 2 * mysize - 1 )
 
 !----------------------------------------------------------------------
 
@@ -265,7 +176,49 @@ SUBROUTINE diagonalise_chpgv ( matrix, overlap, mysize, type, storageform, &
        storageform ( 1:5 ) == "UPPER" ) then
      uplo = "U"
   ELSE
-     CALL stop_program ( "diagonalise_chpev", "unknown form of storage" )
+     CALL stop_program ( "diagonalise_sspgv", "unknown form of storage" )
+  END IF
+
+  CALL lapack_sspgv ( type, jobz, uplo, mysize, matrix, overlap, eigenvalues, &
+       eigenvectors, mysize, work, info )
+  IF ( info /= 0 ) THEN
+     CALL stop_program ( "diagonalise_sspgv", "error in diagonalisation" )
+  END IF
+
+END SUBROUTINE diagonalise_sspgv
+
+!******************************************************************************
+
+SUBROUTINE diagonalise_chpgv ( matrix, overlap, mysize, type, storageform, &
+     eigenvalues, eigenvectors )
+
+  IMPLICIT NONE
+
+! Arguments
+  CHARACTER ( LEN = * ), INTENT ( IN ) :: storageform
+  INTEGER, INTENT ( IN ) :: type, mysize
+  REAL ( KIND = dbl ), INTENT ( OUT ) :: eigenvalues ( : )
+  COMPLEX ( KIND = dbl ), INTENT ( OUT ) :: eigenvectors ( :, : )
+  COMPLEX ( KIND = dbl ), INTENT ( INOUT ) :: matrix ( : ), overlap ( : )
+
+! Local
+  CHARACTER :: jobz = "V", uplo
+  INTEGER :: info
+  REAL ( kind = dbl ) :: rwork ( 3 * mysize - 2 )
+  COMPLEX ( kind = dbl ) :: work ( 2 * mysize - 1 )
+
+!----------------------------------------------------------------------
+
+  IF ( storageform ( 1:5 ) == "Lower" .OR. &
+       storageform ( 1:5 ) == "LOWER" .OR. &
+       storageform ( 1:5 ) == "lower" ) THEN
+     uplo = "L"
+  ELSE IF ( storageform ( 1:5 ) == "Upper" .OR. &
+       storageform ( 1:5 ) == "upper" .OR. &
+       storageform ( 1:5 ) == "UPPER" ) then
+     uplo = "U"
+  ELSE
+     CALL stop_program ( "diagonalise_chpgv", "unknown form of storage" )
   END IF
 
   CALL lapack_chpgv ( type, jobz, uplo, mysize, matrix, overlap, eigenvalues, &
@@ -278,45 +231,75 @@ END SUBROUTINE diagonalise_chpgv
 
 !******************************************************************************
 
-SUBROUTINE diagonalise_zhpgv ( matrix, overlap, mysize, type, storageform, &
-     eigenvalues, eigenvectors )
+SUBROUTINE cp2k_sgesvd ( matrix, svalues, mrow, ncol, uvec, vtvec )
 
   IMPLICIT NONE
 
 ! Arguments
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: storageform
-  INTEGER, INTENT ( IN ) :: type, mysize
-  REAL ( KIND = 8 ), INTENT ( OUT ) :: eigenvalues ( : )
-  COMPLEX ( KIND = 8 ), INTENT ( OUT ) :: eigenvectors ( :, : )
-  COMPLEX ( KIND = 8 ), INTENT ( INOUT ) :: matrix ( : )
-  COMPLEX ( KIND = 8 ), INTENT ( INOUT ) :: overlap ( : )
+  INTEGER, INTENT ( IN ) :: mrow, ncol
+  REAL ( KIND = dbl ), INTENT ( IN ) :: matrix ( :, : )
+  REAL ( KIND = dbl ), INTENT ( OUT ) :: svalues ( : )
+  REAL ( KIND = dbl ), INTENT ( OUT ) :: uvec ( :, : )
+  REAL ( KIND = dbl ), INTENT ( OUT ) :: vtvec ( :, : )
 
 ! Local
-  CHARACTER :: jobz = "V", uplo
-  INTEGER :: info
-  REAL ( KIND = 8 ) :: rwork ( 3 * mysize - 2 )
-  COMPLEX ( KIND = 8 ) :: work ( 2 * mysize - 1 )
+  CHARACTER, PARAMETER :: jobu = "A", jobvt = "A"
+  INTEGER :: lda, ldu, ldvt, lwork, info
+  REAL ( kind = dbl ) :: work ( 25 * ( mrow + ncol ) )
 
-!------------------------------------------------------------------------------
+!----------------------------------------------------------------------
 
-  IF ( storageform ( 1:5 ) == "Lower" .OR. &
-       storageform ( 1:5 ) == "LOWER" .OR. &
-       storageform ( 1:5 ) == "lower" ) THEN
-     uplo = "L"
-  ELSE IF ( storageform ( 1:5 ) == "Upper" .OR. &
-       storageform ( 1:5 ) == "upper" .OR. &
-       storageform ( 1:5 ) == "UPPER" ) then
-     uplo = "U"
-  ELSE
-     CALL stop_program ( "diagonalise_chpev", "unknown form of storage" )
-  END IF
+  lwork = 25 * ( mrow + ncol )
+  lda = SIZE ( matrix, 1 )
+  ldu = SIZE ( uvec, 1 )
+  ldvt = SIZE ( vtvec, 1 )
 
-  CALL lapack_chpgv ( type, jobz, uplo, mysize, matrix, overlap, eigenvalues, &
-       eigenvectors, mysize, work, rwork, info )
+  CALL lapack_sgesvd( jobu, jobvt, mrow, ncol, matrix, lda, svalues, &
+        uvec, ldu, vtvec, ldvt, work, lwork, info )
   IF ( info /= 0 ) THEN
-     CALL stop_program ( "diagonalise_zhpgv", "error in diagonalisation" )
+     CALL stop_program ( "cp2k_sgesvd", &
+                         "error in singular value decomposition" )
   END IF
 
-END SUBROUTINE diagonalise_zhpgv
+END SUBROUTINE cp2k_sgesvd
+
+!******************************************************************************
+
+SUBROUTINE cp2k_cgesvd ( matrix, svalues, mrow, ncol, uvec, vtvec )
+
+  IMPLICIT NONE
+
+! Arguments
+  INTEGER, INTENT ( IN ) :: mrow, ncol
+  COMPLEX ( KIND = dbl ), INTENT ( IN ) :: matrix ( :, : )
+  REAL ( KIND = dbl ), INTENT ( OUT ) :: svalues ( : )
+  COMPLEX ( KIND = dbl ), INTENT ( OUT ) :: uvec ( :, : )
+  COMPLEX ( KIND = dbl ), INTENT ( OUT ) :: vtvec ( :, : )
+
+! Local
+  CHARACTER, PARAMETER :: jobu = "A", jobvt = "A"
+  INTEGER :: lda, ldu, ldvt, lwork, info
+  REAL ( kind = dbl ) :: rwork ( 25 * ( mrow + ncol ) )
+  COMPLEX ( kind = dbl ) :: work ( 25 * ( mrow + ncol ) )
+
+!----------------------------------------------------------------------
+
+  lwork = 25 * ( mrow + ncol )
+  lda = SIZE ( matrix, 1 )
+  ldu = SIZE ( uvec, 1 )
+  ldvt = SIZE ( vtvec, 1 )
+
+  CALL lapack_cgesvd( jobu, jobvt, mrow, ncol, matrix, lda, svalues, &
+        uvec, ldu, vtvec, ldvt, work, lwork, rwork, info )
+  IF ( info /= 0 ) THEN
+     CALL stop_program ( "cp2k_cgesvd", &
+                         "error in singular value decomposition" )
+  END IF
+
+END SUBROUTINE cp2k_cgesvd
+
+!******************************************************************************
 
 END MODULE eigenvalueproblems
+
+!******************************************************************************
