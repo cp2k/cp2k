@@ -41,6 +41,8 @@ dir_last=${dir_base}/LAST-${dir_triplet}-${cp2k_version}
 dir_out=${dir_base}/TEST-${dir_triplet}-${cp2k_version}-${datum_short}
 changelog_diff=${dir_out}/ChangeLog.diff
 error_description_file=${dir_out}/error_summary
+mkdir -p ${dir_out}
+mkdir -p ${dir_last}
 rm -fR ${error_description_file}
 touch  ${error_description_file}
 
@@ -101,8 +103,6 @@ echo " started on " `date`
 echo " checking version -D ${datum_full} "
 echo "--------------------------------------------------------------------------"
 
-mkdir -p ${dir_out}
-mkdir -p ${dir_last}
 
 # *** cvs update src
 cd ${dir_base}/cp2k/src
