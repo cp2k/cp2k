@@ -21,7 +21,8 @@
 
 MODULE molecule_types_new
 
-  USE kinds,                           ONLY: dp,int_size
+  USE kinds,                           ONLY: dp,&
+                                             int_size
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -126,6 +127,7 @@ CONTAINS
     DO imolecule=1,nmolecule
       NULLIFY (molecule_set(imolecule)%molecule_kind)
       NULLIFY (molecule_set(imolecule)%lmi)
+      NULLIFY (molecule_set(imolecule)%lci)
       molecule_set(imolecule)%first_atom = 0
       molecule_set(imolecule)%last_atom = 0
     END DO
@@ -215,14 +217,13 @@ CONTAINS
       POINTER                                :: molecule_kind
     TYPE(local_molecule_type), OPTIONAL, &
       POINTER                                :: lmi
-    TYPE(local_dist_constraint_type), OPTIONAL, &
-      POINTER                                :: ldist ( : )
-    TYPE(local_g3x3_constraint_type), OPTIONAL, &
-      POINTER                                :: lg3x3 ( : )
-    TYPE(local_g4x6_constraint_type), OPTIONAL, &
-      POINTER                                :: lg4x6 ( : )
-    INTEGER, OPTIONAL                        :: first_atom
-    INTEGER, OPTIONAL                        :: last_atom
+    TYPE(local_g3x3_constraint_type), &
+      OPTIONAL, POINTER                      :: lg3x3( : )
+    TYPE(local_g4x6_constraint_type), &
+      OPTIONAL, POINTER                      :: lg4x6( : )
+    TYPE(local_dist_constraint_type), &
+      OPTIONAL, POINTER                      :: ldist( : )
+    INTEGER, OPTIONAL                        :: first_atom, last_atom
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "get_molecule"
 
@@ -285,12 +286,12 @@ CONTAINS
       POINTER                                :: lmi
     TYPE(local_constraint_type), OPTIONAL, &
       POINTER                                :: lci
-    TYPE(local_dist_constraint_type), OPTIONAL, &
-      POINTER                                :: ldist ( : )
-    TYPE(local_g3x3_constraint_type), OPTIONAL, &
-      POINTER                                :: lg3x3 ( : )
-    TYPE(local_g4x6_constraint_type), OPTIONAL, &
-      POINTER                                :: lg4x6 ( : )
+    TYPE(local_dist_constraint_type), &
+      OPTIONAL, POINTER                      :: ldist( : )
+    TYPE(local_g3x3_constraint_type), &
+      OPTIONAL, POINTER                      :: lg3x3( : )
+    TYPE(local_g4x6_constraint_type), &
+      OPTIONAL, POINTER                      :: lg4x6( : )
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "set_molecule"
 
@@ -347,9 +348,7 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     INTEGER, DIMENSION(:), INTENT(IN), &
-      OPTIONAL                               :: first_atom
-    INTEGER, DIMENSION(:), INTENT(IN), &
-      OPTIONAL                               :: last_atom
+      OPTIONAL                               :: first_atom, last_atom
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_molecule_set"
 
