@@ -51,6 +51,7 @@
           ALPHA  1.50
           QMMM_SCALE_FACTOR 0.0
           FIST_SCALE_FACTOR 0.0
+          RADIUS 0.80
          &END LINK
          &LINK
           LINK_TYPE IMOMM
@@ -59,6 +60,7 @@
           ALPHA  1.50
           QMMM_SCALE_FACTOR 0.0
           FIST_SCALE_FACTOR 0.0
+          RADIUS 0.80
          &END LINK
          #
         &END QMMM

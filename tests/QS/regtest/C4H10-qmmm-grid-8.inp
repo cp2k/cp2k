@@ -49,6 +49,7 @@
           QM_INDEX 5
           MM_INDEX 1
           ALPHA  1.50
+          RADIUS 0.80
           &MOVE_MM_CHARGE
             MM1  1
             MM2  2
@@ -70,6 +71,7 @@
           QM_INDEX 8
           MM_INDEX 11
           ALPHA  1.50
+          RADIUS 0.80
           &MOVE_MM_CHARGE
             MM1  11
             MM2  12
