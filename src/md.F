@@ -843,7 +843,6 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
            ( mass * part ( i ) % v ( 3 ) * part ( i ) % v ( 3 ) )
         END IF
      END DO
-
      temp = 2.0_dbl * akin / REAL ( simpar % nfree, dbl )
 
 ! scale velocities to get the correct initial temperature and

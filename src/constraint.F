@@ -1288,6 +1288,9 @@ SUBROUTINE rattle_3x3( molecule, particle_set, vel, simpar)
          lg3x3 ( iconst ) % lambda ( 3 ) * lg3x3 ( iconst ) % fc
      fc3=-lg3x3 ( iconst ) % lambda ( 2 ) * lg3x3 ( iconst ) % fb - &
          lg3x3 ( iconst ) % lambda ( 3 ) * lg3x3 ( iconst ) % fc
+     vel ( :, index_a ) = vel ( :, index_a ) + imass1 * dtby2 * fc1 ( : )
+     vel ( :, index_b ) = vel ( :, index_b ) + imass2 * dtby2 * fc2 ( : )
+     vel ( :, index_c ) = vel ( :, index_c ) + imass3 * dtby2 * fc3 ( : )
   END DO
 
 END SUBROUTINE rattle_3x3
