@@ -1049,6 +1049,17 @@ SUBROUTINE create_tddfpt_section(section,error)
      NULLIFY(subsection,keyword)
 
      ! Integer
+     CALL keyword_create(keyword, name="MAX_ITER",&
+          variants=s2a("MAXITER",&
+                     "MAXIMUM_ITERATIONS"),&
+          description=" maximal number of iterations",&
+          usage="MAX_ITER someInteger>0",&
+          n_var=1,type_of_var=integer_t,&
+          required=.FALSE., &
+          default_i_val=20, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
      CALL keyword_create(keyword, name="NEV",&
           variants=(/"N_EV",&
                      "EV  "/),&
