@@ -75,6 +75,12 @@
         else
           PLATFORM="Linux-x86-64"
 		fi;;
+      Linux-*-*-ia64)
+        if [[ -n $FORT_C_NAME ]]; then
+	  PLATFORM="Linux-ia64-$FORT_C_NAME"
+        else
+	  PLATFORM="Linux-ia64-intel"
+	fi;;
       *-unicosmk-*-CRAY*T3E)
         PLATFORM="CRAY-T3E";;
       SunOS-*-sun4u)
