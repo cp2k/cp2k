@@ -75,6 +75,8 @@ MODULE topology_util
                                              atom_info_type,&
                                              connectivity_info_type,&
                                              constraint_info_type,&
+                                             force_field_amber_info_type,&
+                                             force_field_charmm_info_type,&
                                              force_field_input_info_type
 
   IMPLICIT NONE
@@ -1576,6 +1578,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
   DEALLOCATE(last_list,STAT=istat)
   IF(istat/=0) CALL stop_memory('coordinate_pack','last_list')
 
+
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 7. Set and NULLIFY the molecule_set(imol)%lmi via set_molecule_set
@@ -2165,52 +2168,75 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   !-----------------------------------------------------------------------------
   ! 10. Set up atomic_kind_set()%elp_potentail%qeff
   !-----------------------------------------------------------------------------
-IF(topology%ff) THEN
-  ALLOCATE(charge(SIZE(atomic_kind_set)),STAT=istat)
-  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','charge')
-  DO i=1,SIZE(atomic_kind_set)
-    atomic_kind => atomic_kind_set(i)
-    CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                      name=atmname) 
-
-    found = .FALSE.
-
-    DO j=1,SIZE(topology%atom_info%label_atmname)
-      IF(TRIM(topology%atom_info%label_atmname(j))==atmname) THEN
-        charge(i) = topology%atom_info%atm_charge(j)
-      END IF
-    END DO
-
-    ! loop over params from amber
-
-    ! loop over params from charmm
-
-    ! always have the input param last to overwrite all the other ones
-    IF(ASSOCIATED(topology%ffin_info%ff_charge_atm)) THEN
-      DO j=1,SIZE(topology%ffin_info%ff_charge_atm)
-        IF(TRIM(topology%ffin_info%ff_charge_atm(j))==atmname) THEN
-          charge(i) = topology%ffin_info%ff_charge(j)
-          IF(found .AND. PM1) &
-            WRITE(iw,*) "    Multiple Charge declarations: overwriting"
-          found = .TRUE.
+  IF(topology%ff) THEN
+    ALLOCATE(charge(SIZE(atomic_kind_set)),STAT=istat)
+    IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','charge')
+    DO i=1,SIZE(atomic_kind_set)
+      atomic_kind => atomic_kind_set(i)
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                        name=atmname) 
+  
+      found = .FALSE.
+  
+      DO j=1,SIZE(topology%atom_info%label_atmname)
+        IF(TRIM(topology%atom_info%label_atmname(j))==atmname) THEN
+          charge(i) = topology%atom_info%atm_charge(j)
         END IF
       END DO
+  
+!     ! loop over params from amber
+!     IF(ASSOCIATED(topology%ffam_info%ff_charge_atm)) THEN
+!       DO j=1,SIZE(topology%ffam_info%ff_charge_atm)
+!         IF(TRIM(topology%ffam_info%ff_charge_atm(j))==atmname) THEN
+!           charge(i) = topology%ffam_info%ff_charge(j)
+!           IF(found .AND. PM1) &
+!             WRITE(iw,*) "    Multiple Charge declarations: overwriting"
+!           found = .TRUE.
+!         END IF
+!       END DO
+!     END IF
+! 
+!     ! loop over params from charmm
+!     IF(ASSOCIATED(topology%ffch_info%ff_charge_atm)) THEN
+!       DO j=1,SIZE(topology%ffch_info%ff_charge_atm)
+!         IF(TRIM(topology%ffch_info%ff_charge_atm(j))==atmname) THEN
+!           charge(i) = topology%ffch_info%ff_charge(j)
+!           IF(found .AND. PM1) &
+!             WRITE(iw,*) "    Multiple Charge declarations: overwriting"
+!           found = .TRUE.
+!         END IF
+!       END DO
+!     END IF
+  
+      ! always have the input param last to overwrite all the other ones
+      IF(ASSOCIATED(topology%ffin_info%ff_charge_atm)) THEN
+        DO j=1,SIZE(topology%ffin_info%ff_charge_atm)
+          IF(TRIM(topology%ffin_info%ff_charge_atm(j))==atmname) THEN
+            charge(i) = topology%ffin_info%ff_charge(j)
+            IF(found .AND. PM1) &
+              WRITE(iw,*) "    Multiple Charge declarations: overwriting"
+            found = .TRUE.
+          END IF
+        END DO
+      END IF
+
+      IF(.NOT.found) THEN
+        CALL stop_program("FF_coordinate_pack","missing qeff parm")
+      END IF
+
+      NULLIFY(elp_potential)
+      CALL allocate_potential(elp_potential)
+      CALL set_potential(potential=elp_potential,&
+                         qeff=charge(i))
+      CALL set_atomic_kind(atomic_kind=atomic_kind,&
+                           elp_potential=elp_potential)
+    END DO
+    DEALLOCATE (charge,STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory('topology_coordinate_pack','release work storage')
     END IF
-
-    NULLIFY(elp_potential)
-    CALL allocate_potential(elp_potential)
-    CALL set_potential(potential=elp_potential,&
-                       qeff=charge(i))
-    CALL set_atomic_kind(atomic_kind=atomic_kind,&
-                         elp_potential=elp_potential)
-
-  END DO
-  DEALLOCATE (charge,STAT=istat)
-  IF (istat /= 0) THEN
-    CALL stop_memory('topology_coordinate_pack',&
-              'release work storage')
   END IF
-END IF
+
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -2575,6 +2601,8 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
     routineP = moduleN//':'//routineN
 
   TYPE(force_field_input_info_type),POINTER     :: ffin_info
+  TYPE(force_field_charmm_info_type),POINTER    :: ffch_info
+  TYPE(force_field_amber_info_type),POINTER     :: ffam_info
 
   INTEGER                                  :: istat, iw, i, j, k
   LOGICAL                                  :: PM1, PM2, PM3, PM4
@@ -2625,6 +2653,8 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
   IF(PM1) WRITE(iw,*) "  Entering topology_force_field_pack"
 
   ffin_info => topology%ffin_info
+  ffch_info => topology%ffch_info
+  ffam_info => topology%ffam_info
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -2853,18 +2883,60 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_b)
       found = .FALSE.
-      DO k=1,SIZE(ffin_info%ff_bond_a)
-        IF( ((TRIM(ffin_info%ff_bond_a(k))==TRIM(name_atm_a)) .AND. &
-             (TRIM(ffin_info%ff_bond_b(k))==TRIM(name_atm_b))) .OR. &
-            ((TRIM(ffin_info%ff_bond_a(k))==TRIM(name_atm_b)) .AND. &
-             (TRIM(ffin_info%ff_bond_b(k))==TRIM(name_atm_a))) ) THEN
-          bond_list(j)%bond_kind%k  = ffin_info%ff_bond_k(k)
-          bond_list(j)%bond_kind%r0 = ffin_info%ff_bond_r0(k)
-          found = .TRUE.
-          EXIT
-        END IF
-      END DO
+
+      ! loop over params from amber
+!     IF(ASSOCIATED(ffam_info%ff_bond_a)) THEN
+!       DO k=1,SIZE(ffam_info%ff_bond_a)
+!         IF( ((TRIM(ffam_info%ff_bond_a(k))==TRIM(name_atm_a)) .AND. &
+!              (TRIM(ffam_info%ff_bond_b(k))==TRIM(name_atm_b))) .OR. &
+!             ((TRIM(ffam_info%ff_bond_a(k))==TRIM(name_atm_b)) .AND. &
+!              (TRIM(ffam_info%ff_bond_b(k))==TRIM(name_atm_a))) ) THEN
+!           bond_list(j)%bond_kind%k  = ffam_info%ff_bond_k(k)
+!           bond_list(j)%bond_kind%r0 = ffam_info%ff_bond_r0(k)
+!         IF(found .AND. PM1) &
+!            WRITE(iw,*) "    Multiple Bond declarations: overwriting"
+!           found = .TRUE.
+!           EXIT
+!         END IF
+!       END DO
+!     END IF
+
+      ! loop over params from charmm
+      IF(ASSOCIATED(ffch_info%ff_bond_a)) THEN
+        DO k=1,SIZE(ffch_info%ff_bond_a)
+          IF( ((TRIM(ffch_info%ff_bond_a(k))==TRIM(name_atm_a)) .AND. &
+               (TRIM(ffch_info%ff_bond_b(k))==TRIM(name_atm_b))) .OR. &
+              ((TRIM(ffch_info%ff_bond_a(k))==TRIM(name_atm_b)) .AND. &
+               (TRIM(ffch_info%ff_bond_b(k))==TRIM(name_atm_a))) ) THEN
+            bond_list(j)%bond_kind%k  = ffch_info%ff_bond_k(k)
+            bond_list(j)%bond_kind%r0 = ffch_info%ff_bond_r0(k)
+          IF(found .AND. PM1) &
+             WRITE(iw,*) "    Multiple Bond declarations: overwriting"
+            found = .TRUE.
+            EXIT
+          END IF
+        END DO
+      END IF
+
+      ! always have the input param last to overwrite all the other ones
+      IF(ASSOCIATED(ffin_info%ff_bond_a)) THEN
+        DO k=1,SIZE(ffin_info%ff_bond_a)
+          IF( ((TRIM(ffin_info%ff_bond_a(k))==TRIM(name_atm_a)) .AND. &
+               (TRIM(ffin_info%ff_bond_b(k))==TRIM(name_atm_b))) .OR. &
+              ((TRIM(ffin_info%ff_bond_a(k))==TRIM(name_atm_b)) .AND. &
+               (TRIM(ffin_info%ff_bond_b(k))==TRIM(name_atm_a))) ) THEN
+            bond_list(j)%bond_kind%k  = ffin_info%ff_bond_k(k)
+            bond_list(j)%bond_kind%r0 = ffin_info%ff_bond_r0(k)
+          IF(found .AND. PM1) &
+             WRITE(iw,*) "    Multiple Bond declarations: overwriting"
+            found = .TRUE.
+            EXIT
+          END IF
+        END DO
+      END IF
+
       IF(.NOT.found) CALL stop_program("FF_pack","missing bond parm")
+
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
                            bond_list=bond_list)
@@ -2894,20 +2966,66 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_c)
       found = .FALSE.
-      DO k=1,SIZE(ffin_info%ff_bend_a)
-        IF( ((TRIM(ffin_info%ff_bend_a(k))==TRIM(name_atm_a)) .AND. &
-             (TRIM(ffin_info%ff_bend_b(k))==TRIM(name_atm_b)) .AND. &
-             (TRIM(ffin_info%ff_bend_c(k))==TRIM(name_atm_c))) .OR. &
-            ((TRIM(ffin_info%ff_bend_a(k))==TRIM(name_atm_c)) .AND. &
-             (TRIM(ffin_info%ff_bend_b(k))==TRIM(name_atm_b)) .AND. &
-             (TRIM(ffin_info%ff_bend_c(k))==TRIM(name_atm_a))) ) THEN
-          bend_list(j)%bend_kind%k      = ffin_info%ff_bend_k(k)
-          bend_list(j)%bend_kind%theta0 = ffin_info%ff_bend_theta0(k)
-          found = .TRUE.
-          EXIT
-        END IF
-      END DO
+
+      ! loop over params from amber
+!     IF(ASSOCIATED(ffam_info%ff_bend_a)) THEN
+!       DO k=1,SIZE(ffam_info%ff_bend_a)
+!         IF( ((TRIM(ffam_info%ff_bend_a(k))==TRIM(name_atm_a)) .AND. &
+!              (TRIM(ffam_info%ff_bend_b(k))==TRIM(name_atm_b)) .AND. &
+!              (TRIM(ffam_info%ff_bend_c(k))==TRIM(name_atm_c))) .OR. &
+!             ((TRIM(ffam_info%ff_bend_a(k))==TRIM(name_atm_c)) .AND. &
+!              (TRIM(ffam_info%ff_bend_b(k))==TRIM(name_atm_b)) .AND. &
+!              (TRIM(ffam_info%ff_bend_c(k))==TRIM(name_atm_a))) ) THEN
+!           bend_list(j)%bend_kind%k      = ffam_info%ff_bend_k(k)
+!           bend_list(j)%bend_kind%theta0 = ffam_info%ff_bend_theta0(k)
+!           IF(found .AND. PM1) &
+!              WRITE(iw,*) "    Multiple Bend declarations: overwriting"
+!           found = .TRUE.
+!           EXIT
+!         END IF
+!       END DO
+!     END IF
+
+      ! loop over params from charmm
+      IF(ASSOCIATED(ffch_info%ff_bend_a)) THEN
+        DO k=1,SIZE(ffch_info%ff_bend_a)
+          IF( ((TRIM(ffch_info%ff_bend_a(k))==TRIM(name_atm_a)) .AND. &
+               (TRIM(ffch_info%ff_bend_b(k))==TRIM(name_atm_b)) .AND. &
+               (TRIM(ffch_info%ff_bend_c(k))==TRIM(name_atm_c))) .OR. &
+              ((TRIM(ffch_info%ff_bend_a(k))==TRIM(name_atm_c)) .AND. &
+               (TRIM(ffch_info%ff_bend_b(k))==TRIM(name_atm_b)) .AND. &
+               (TRIM(ffch_info%ff_bend_c(k))==TRIM(name_atm_a))) ) THEN
+            bend_list(j)%bend_kind%k      = ffch_info%ff_bend_k(k)
+            bend_list(j)%bend_kind%theta0 = ffch_info%ff_bend_theta0(k)
+            IF(found .AND. PM1) &
+               WRITE(iw,*) "    Multiple Bend declarations: overwriting"
+            found = .TRUE.
+            EXIT
+          END IF
+        END DO
+      END IF
+
+      ! always have the input param last to overwrite all the other ones
+      IF(ASSOCIATED(ffin_info%ff_bend_a)) THEN
+        DO k=1,SIZE(ffin_info%ff_bend_a)
+          IF( ((TRIM(ffin_info%ff_bend_a(k))==TRIM(name_atm_a)) .AND. &
+               (TRIM(ffin_info%ff_bend_b(k))==TRIM(name_atm_b)) .AND. &
+               (TRIM(ffin_info%ff_bend_c(k))==TRIM(name_atm_c))) .OR. &
+              ((TRIM(ffin_info%ff_bend_a(k))==TRIM(name_atm_c)) .AND. &
+               (TRIM(ffin_info%ff_bend_b(k))==TRIM(name_atm_b)) .AND. &
+               (TRIM(ffin_info%ff_bend_c(k))==TRIM(name_atm_a))) ) THEN
+            bend_list(j)%bend_kind%k      = ffin_info%ff_bend_k(k)
+            bend_list(j)%bend_kind%theta0 = ffin_info%ff_bend_theta0(k)
+            IF(found .AND. PM1) &
+               WRITE(iw,*) "    Multiple Bend declarations: overwriting"
+            found = .TRUE.
+            EXIT
+          END IF
+        END DO
+      END IF
+
       IF(.NOT.found) CALL stop_program("FF_pack","missing bend parm")
+
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
                            bend_list=bend_list)
@@ -2941,22 +3059,72 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_d)
       found = .FALSE.
-      DO k=1,SIZE(ffin_info%ff_torsion_a)
-        IF( ((TRIM(ffin_info%ff_torsion_a(k))==TRIM(name_atm_a)) .AND. &
-             (TRIM(ffin_info%ff_torsion_b(k))==TRIM(name_atm_b)) .AND. &
-             (TRIM(ffin_info%ff_torsion_c(k))==TRIM(name_atm_c)) .AND. &
-             (TRIM(ffin_info%ff_torsion_d(k))==TRIM(name_atm_d))) .OR. &
-            ((TRIM(ffin_info%ff_torsion_a(k))==TRIM(name_atm_d)) .AND. &
-             (TRIM(ffin_info%ff_torsion_b(k))==TRIM(name_atm_c)) .AND. &
-             (TRIM(ffin_info%ff_torsion_c(k))==TRIM(name_atm_b)) .AND. &
-             (TRIM(ffin_info%ff_torsion_d(k))==TRIM(name_atm_a))) ) THEN
-          torsion_list(j)%torsion_kind%k      = ffin_info%ff_torsion_k(k)
-          torsion_list(j)%torsion_kind%phi0 = ffin_info%ff_torsion_phi0(k)
-          found = .TRUE.
-          EXIT
-        END IF
-      END DO
+
+      ! loop over params from amber
+!     IF(ASSOCIATED(ffch_info%ff_torsion_a)) THEN
+!       DO k=1,SIZE(ffch_info%ff_torsion_a)
+!         IF( ((TRIM(ffch_info%ff_torsion_a(k))==TRIM(name_atm_a)) .AND. &
+!              (TRIM(ffch_info%ff_torsion_b(k))==TRIM(name_atm_b)) .AND. &
+!              (TRIM(ffch_info%ff_torsion_c(k))==TRIM(name_atm_c)) .AND. &
+!              (TRIM(ffch_info%ff_torsion_d(k))==TRIM(name_atm_d))) .OR. &
+!             ((TRIM(ffch_info%ff_torsion_a(k))==TRIM(name_atm_d)) .AND. &
+!              (TRIM(ffch_info%ff_torsion_b(k))==TRIM(name_atm_c)) .AND. &
+!              (TRIM(ffch_info%ff_torsion_c(k))==TRIM(name_atm_b)) .AND. &
+!              (TRIM(ffch_info%ff_torsion_d(k))==TRIM(name_atm_a))) ) THEN
+!           torsion_list(j)%torsion_kind%k      = ffch_info%ff_torsion_k(k)
+!           torsion_list(j)%torsion_kind%phi0 = ffch_info%ff_torsion_phi0(k)
+!           IF(found .AND. PM1) &
+!              WRITE(iw,*) "    Multiple Torsion declarations: overwriting"
+!           found = .TRUE.
+!           EXIT
+!         END IF
+!       END DO
+!     END IF
+
+      ! loop over params from charmm
+      IF(ASSOCIATED(ffch_info%ff_torsion_a)) THEN
+        DO k=1,SIZE(ffch_info%ff_torsion_a)
+          IF( ((TRIM(ffch_info%ff_torsion_a(k))==TRIM(name_atm_a)) .AND. &
+               (TRIM(ffch_info%ff_torsion_b(k))==TRIM(name_atm_b)) .AND. &
+               (TRIM(ffch_info%ff_torsion_c(k))==TRIM(name_atm_c)) .AND. &
+               (TRIM(ffch_info%ff_torsion_d(k))==TRIM(name_atm_d))) .OR. &
+              ((TRIM(ffch_info%ff_torsion_a(k))==TRIM(name_atm_d)) .AND. &
+               (TRIM(ffch_info%ff_torsion_b(k))==TRIM(name_atm_c)) .AND. &
+               (TRIM(ffch_info%ff_torsion_c(k))==TRIM(name_atm_b)) .AND. &
+               (TRIM(ffch_info%ff_torsion_d(k))==TRIM(name_atm_a))) ) THEN
+            torsion_list(j)%torsion_kind%k      = ffch_info%ff_torsion_k(k)
+            torsion_list(j)%torsion_kind%phi0 = ffch_info%ff_torsion_phi0(k)
+            IF(found .AND. PM1) &
+               WRITE(iw,*) "    Multiple Torsion declarations: overwriting"
+            found = .TRUE.
+            EXIT
+          END IF
+        END DO
+      END IF
+
+      ! always have the input param last to overwrite all the other ones
+      IF(ASSOCIATED(ffin_info%ff_torsion_a)) THEN
+        DO k=1,SIZE(ffin_info%ff_torsion_a)
+          IF( ((TRIM(ffin_info%ff_torsion_a(k))==TRIM(name_atm_a)) .AND. &
+               (TRIM(ffin_info%ff_torsion_b(k))==TRIM(name_atm_b)) .AND. &
+               (TRIM(ffin_info%ff_torsion_c(k))==TRIM(name_atm_c)) .AND. &
+               (TRIM(ffin_info%ff_torsion_d(k))==TRIM(name_atm_d))) .OR. &
+              ((TRIM(ffin_info%ff_torsion_a(k))==TRIM(name_atm_d)) .AND. &
+               (TRIM(ffin_info%ff_torsion_b(k))==TRIM(name_atm_c)) .AND. &
+               (TRIM(ffin_info%ff_torsion_c(k))==TRIM(name_atm_b)) .AND. &
+               (TRIM(ffin_info%ff_torsion_d(k))==TRIM(name_atm_a))) ) THEN
+            torsion_list(j)%torsion_kind%k      = ffin_info%ff_torsion_k(k)
+            torsion_list(j)%torsion_kind%phi0 = ffin_info%ff_torsion_phi0(k)
+            IF(found .AND. PM1) &
+               WRITE(iw,*) "    Multiple Torsion declarations: overwriting"
+            found = .TRUE.
+            EXIT
+          END IF
+        END DO
+      END IF
+
       IF(.NOT.found) CALL stop_program("FF_pack","missing torsion parm")
+
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
                            torsion_list=torsion_list)
@@ -2977,15 +3145,15 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
       CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_b)
       found = .FALSE.
       DO k=1,SIZE(ffin_info%ff_nonbonded)
-        WRITE(*,*) "TESTING ",TRIM(name_atm_a),TRIM(name_atm_b)," with ",&
-            TRIM(ffin_info%ff_nonbonded(k)%at1),&
+        IF(PM2) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
+            " with ",TRIM(ffin_info%ff_nonbonded(k)%at1),&
             TRIM(ffin_info%ff_nonbonded(k)%at2)
         IF(((TRIM(name_atm_a)==TRIM(ffin_info%ff_nonbonded(k)%at1))  .AND. &
             (TRIM(name_atm_b)==TRIM(ffin_info%ff_nonbonded(k)%at2))) .OR.  &
            ((TRIM(name_atm_b)==TRIM(ffin_info%ff_nonbonded(k)%at1))  .AND. &
             (TRIM(name_atm_a)==TRIM(ffin_info%ff_nonbonded(k)%at2))) ) THEN
           potparm(i,j) = ffin_info%ff_nonbonded(k)
-          WRITE(*,*) "FOUND ",TRIM(name_atm_a),TRIM(name_atm_b)
+          IF(PM2) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
           found = .TRUE.
           EXIT
         END IF

@@ -91,7 +91,28 @@ MODULE topology_types
   END TYPE force_field_input_info_type
 
   TYPE force_field_charmm_info_type
-    INTEGER                                   :: nothing_here_yet
+    CHARACTER (LEN=default_string_length), POINTER :: ff_bond_a(:)
+    CHARACTER (LEN=default_string_length), POINTER :: ff_bond_b(:)
+    REAL (dbl), POINTER                            :: ff_bond_k(:)
+    REAL (dbl), POINTER                            :: ff_bond_r0(:)
+
+    CHARACTER (LEN=default_string_length), POINTER :: ff_bend_a(:)
+    CHARACTER (LEN=default_string_length), POINTER :: ff_bend_b(:)
+    CHARACTER (LEN=default_string_length), POINTER :: ff_bend_c(:)
+    REAL (dbl), POINTER                            :: ff_bend_k(:)
+    REAL (dbl), POINTER                            :: ff_bend_theta0(:)
+
+    CHARACTER (LEN=default_string_length), POINTER :: ff_torsion_a(:)
+    CHARACTER (LEN=default_string_length), POINTER :: ff_torsion_b(:)
+    CHARACTER (LEN=default_string_length), POINTER :: ff_torsion_c(:)
+    CHARACTER (LEN=default_string_length), POINTER :: ff_torsion_d(:)
+    REAL (dbl), POINTER                            :: ff_torsion_k(:)
+    REAL (dbl), POINTER                            :: ff_torsion_phi0(:)
+    CHARACTER (LEN=default_string_length), POINTER :: ff_nonbond_a(:)
+    REAL (dbl), POINTER                            :: ff_nonbond_eps(:)
+    REAL (dbl), POINTER                            :: ff_nonbond_rmin2(:)
+    REAL (dbl), POINTER                            :: ff_nonbond_eps_14(:)
+    REAL (dbl), POINTER                            :: ff_nonbond_rmin2_14(:)
   END TYPE force_field_charmm_info_type
 
   TYPE force_field_amber_info_type
@@ -104,7 +125,7 @@ MODULE topology_types
     TYPE (constraint_info_type),POINTER          :: cons_info
     TYPE (force_field_input_info_type),POINTER   :: ffin_info
     TYPE (force_field_charmm_info_type),POINTER  :: ffch_info
-    TYPE (force_field_charmm_info_type),POINTER  :: ffam_info
+    TYPE (force_field_amber_info_type),POINTER   :: ffam_info
     TYPE ( cell_type ), POINTER                  :: cell
     !TRY TO REMOVE THIS FOUR VARIABLE IN THE FUTURE
     INTEGER                                   :: natoms, natom_type
@@ -308,7 +329,26 @@ SUBROUTINE init_topology (topology)
   !-----------------------------------------------------------------------------
   ! 7. Initialize and Nullify things in topology%ffch_info
   !-----------------------------------------------------------------------------
-    
+  NULLIFY(topology%ffch_info%ff_bond_a)
+  NULLIFY(topology%ffch_info%ff_bond_b)
+  NULLIFY(topology%ffch_info%ff_bond_k)
+  NULLIFY(topology%ffch_info%ff_bond_r0)
+  NULLIFY(topology%ffch_info%ff_bend_a)
+  NULLIFY(topology%ffch_info%ff_bend_b)
+  NULLIFY(topology%ffch_info%ff_bend_c)
+  NULLIFY(topology%ffch_info%ff_bend_k)
+  NULLIFY(topology%ffch_info%ff_bend_theta0)
+  NULLIFY(topology%ffch_info%ff_torsion_a)
+  NULLIFY(topology%ffch_info%ff_torsion_b)
+  NULLIFY(topology%ffch_info%ff_torsion_c)
+  NULLIFY(topology%ffch_info%ff_torsion_d)
+  NULLIFY(topology%ffch_info%ff_torsion_k)
+  NULLIFY(topology%ffch_info%ff_torsion_phi0)
+  NULLIFY(topology%ffch_info%ff_nonbond_a)
+  NULLIFY(topology%ffch_info%ff_nonbond_eps)
+  NULLIFY(topology%ffch_info%ff_nonbond_rmin2)
+  NULLIFY(topology%ffch_info%ff_nonbond_eps_14)
+  NULLIFY(topology%ffch_info%ff_nonbond_rmin2_14)
 
 
   !-----------------------------------------------------------------------------
@@ -577,7 +617,86 @@ SUBROUTINE deallocate_topology (topology)
   !-----------------------------------------------------------------------------
   ! 5. DEALLOCATE things in topology%ffch_info
   !-----------------------------------------------------------------------------
-
+  IF(ASSOCIATED(topology%ffch_info%ff_bond_a)) THEN
+    DEALLOCATE(topology%ffch_info%ff_bond_a,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_bond_a')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_bond_b)) THEN
+    DEALLOCATE(topology%ffch_info%ff_bond_b,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_bond_b')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_bond_k)) THEN
+    DEALLOCATE(topology%ffch_info%ff_bond_k,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_bond_k')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_bond_r0)) THEN
+    DEALLOCATE(topology%ffch_info%ff_bond_r0,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_bond_r0')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_bend_a)) THEN
+    DEALLOCATE(topology%ffch_info%ff_bend_a,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_bend_a')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_bend_b)) THEN
+    DEALLOCATE(topology%ffch_info%ff_bend_b,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_bend_b')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_bend_c)) THEN
+    DEALLOCATE(topology%ffch_info%ff_bend_c,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_bend_c')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_bend_k)) THEN
+    DEALLOCATE(topology%ffch_info%ff_bend_k,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_bend_k')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_bend_theta0)) THEN
+    DEALLOCATE(topology%ffch_info%ff_bend_theta0,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_bend_theta0')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_torsion_a)) THEN
+    DEALLOCATE(topology%ffch_info%ff_torsion_a,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_torsion_a')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_torsion_b)) THEN
+    DEALLOCATE(topology%ffch_info%ff_torsion_b,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_torsion_b')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_torsion_c)) THEN
+    DEALLOCATE(topology%ffch_info%ff_torsion_c,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_torsion_c')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_torsion_d)) THEN
+    DEALLOCATE(topology%ffch_info%ff_torsion_d,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_torsion_d')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_torsion_k)) THEN
+    DEALLOCATE(topology%ffch_info%ff_torsion_k,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_torsion_k')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_torsion_phi0)) THEN
+    DEALLOCATE(topology%ffch_info%ff_torsion_phi0,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_torsion_phi0')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_nonbond_a)) THEN
+    DEALLOCATE(topology%ffch_info%ff_nonbond_a,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_nonbond_a')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_nonbond_eps)) THEN
+    DEALLOCATE(topology%ffch_info%ff_nonbond_eps,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_nonbond_eps')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_nonbond_rmin2)) THEN
+    DEALLOCATE(topology%ffch_info%ff_nonbond_rmin2,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_nonbond_rmin2')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_nonbond_eps_14)) THEN
+    DEALLOCATE(topology%ffch_info%ff_nonbond_eps_14,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_nonbond_eps_14')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_nonbond_rmin2_14)) THEN
+    DEALLOCATE(topology%ffch_info%ff_nonbond_rmin2_14,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_nonbond_rmin2_14')
+  END IF
 
 
   !-----------------------------------------------------------------------------

@@ -161,10 +161,10 @@ SUBROUTINE read_topology_section ( topology, globenv )
            CALL uppercase(str2)
            IF (str2 == "CHM") THEN
               topology%ff = .TRUE.
-              topology%ff_type = "PDB"
+              topology%ff_type = "CHM"
            ELSE IF (str2 == "AMB") THEN
               topology%ff = .TRUE.
-              topology%ff_type = "CHM"
+              topology%ff_type = "AMB"
            ELSE IF (str2 == "ON") THEN
               topology%ff = .TRUE.
               topology%ff_type = "ON"

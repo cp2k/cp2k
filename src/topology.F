@@ -160,7 +160,9 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   !-----------------------------------------------------------------------------
   ! 6. Read in force field informations
   !-----------------------------------------------------------------------------
-  CALL force_field_control(topology,globenv)
+  IF(topology%ff) THEN
+    CALL force_field_control(topology,globenv)
+  END IF
 
 
   !-----------------------------------------------------------------------------
@@ -505,8 +507,6 @@ SUBROUTINE force_field_control(topology,globenv)
   IF((topology%ff).AND.(topology%ff_type/="ON")) THEN
     SELECT CASE (topology%ff_type)
     CASE ("CHM")
-      CALL stop_program ("force_field_control",&
-                         "force field type not implemented")
       CALL read_force_field_charmm(topology,globenv)
     CASE ("AMB")
       CALL stop_program ("force_field_control",&

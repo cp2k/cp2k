@@ -45,6 +45,8 @@ MODULE force_fields
                                              stop_program
   USE topology_types,                  ONLY: topology_parameters_type,&
                                              constraint_info_type,&
+                                             force_field_amber_info_type,&
+                                             force_field_charmm_info_type,&
                                              force_field_input_info_type
 
 
@@ -774,6 +776,20 @@ SUBROUTINE input_constraints(topology,globenv)
     CHARACTER(LEN=40)                        :: string
     INTEGER                                  :: i, ierror, ilen, iw
 
+  LOGICAL                                  :: PM1, PM2, PM3, PM4
+
+!------------------------------------------------------------------------------
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  END IF
 !------------------------------------------------------------------------------
 
   cons_info => topology%cons_info
@@ -875,6 +891,188 @@ SUBROUTINE read_force_field_charmm ( topology , globenv )
     TYPE(global_environment_type), &
       INTENT(IN),OPTIONAL                    :: globenv
 
+    TYPE(force_field_charmm_info_type),POINTER       :: ffch_info
+
+  LOGICAL                                  :: PM1, PM2, PM3, PM4
+    INTEGER                                  :: i, istat, ilen, iw
+    INTEGER                                  :: nbond,nbend,ntorsion,nnonbond
+
+    CHARACTER(LEN=default_string_length)     :: label
+    CHARACTER(LEN=default_string_length)     :: string,string2,string3,string4
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  END IF
+
+  ffch_info => topology%ffch_info
+  CALL parser_init(topology%ff_file_name,globenv)
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 1. Read in all the Bonds info from the param file here
+  !-----------------------------------------------------------------------------
+! nbond = 0
+! label = 'BONDS'
+! CALL search_label ( label, istat, ignore_case=.TRUE. )
+! IF (istat == 0) THEN
+!    CALL read_line
+!    DO WHILE (test_next()/='X')
+!      ilen = 7
+!      CALL get_next(string,ilen)
+!      CALL uppercase ( string )
+!      IF(string == "ANGLES") EXIT
+!      CALL get_next(string2,ilen)
+!      nbond = nbond + 1
+!      CALL reallocate(ffch_info%ff_bond_a,1,nbond)
+!      CALL reallocate(ffch_info%ff_bond_b,1,nbond)
+!      CALL reallocate(ffch_info%ff_bond_k,1,nbond)
+!      CALL reallocate(ffch_info%ff_bond_r0,1,nbond)
+!      ffch_info%ff_bond_a(nbond) = string
+!      ffch_info%ff_bond_b(nbond) = string2
+!      CALL get_next(ffch_info%ff_bond_k(nbond))
+!      CALL get_next(ffch_info%ff_bond_r0(nbond))
+!      IF(PM1) WRITE(iw,*) "    CHM BOND ",nbond,&
+!                          TRIM(ffch_info%ff_bond_a(nbond))," ",&
+!                          TRIM(ffch_info%ff_bond_b(nbond))," ",&
+!                          ffch_info%ff_bond_k(nbond),&
+!                          ffch_info%ff_bond_r0(nbond)
+!      CALL read_line
+!    END DO
+! END IF
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 2. Read in all the Bends info from the param file here
+  !-----------------------------------------------------------------------------
+! nbend = 0
+! label = 'ANGLES'
+! CALL search_label ( label, istat, ignore_case=.TRUE. )
+! IF (istat == 0) THEN
+!    CALL read_line
+!    DO WHILE (test_next()/='X')
+!      ilen = 7
+!      CALL get_next(string,ilen)
+!      CALL uppercase ( string )
+!      IF(string == "DIHEDRALS") EXIT
+!      CALL get_next(string2,ilen)
+!      CALL get_next(string3,ilen)
+!      nbend = nbend + 1
+!      CALL reallocate(ffch_info%ff_bend_a,1,nbend)
+!      CALL reallocate(ffch_info%ff_bend_b,1,nbend)
+!      CALL reallocate(ffch_info%ff_bend_c,1,nbend)
+!      CALL reallocate(ffch_info%ff_bend_k,1,nbend)
+!      CALL reallocate(ffch_info%ff_bend_theta0,1,nbend)
+!      ffch_info%ff_bend_a(nbend) = string
+!      ffch_info%ff_bend_b(nbend) = string2
+!      ffch_info%ff_bend_c(nbend) = string3
+!      CALL get_next(ffch_info%ff_bend_k(nbend))
+!      CALL get_next(ffch_info%ff_bend_theta0(nbend))
+!      IF(PM1) WRITE(iw,*) "    CHM BEND ",nbend,&
+!                          TRIM(ffch_info%ff_bend_a(nbend))," ",&
+!                          TRIM(ffch_info%ff_bend_b(nbend))," ",&
+!                          TRIM(ffch_info%ff_bend_c(nbend))," ",&
+!                          ffch_info%ff_bend_k(nbend),&
+!                          ffch_info%ff_bend_theta0(nbend)
+!      CALL read_line
+!    END DO
+! END IF
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 3. Read in all the Dihedrals info from the param file here
+  !-----------------------------------------------------------------------------
+! ntorsion = 0
+! label = 'DIHEDRALS'
+! CALL search_label ( label, istat, ignore_case=.TRUE. )
+! IF (istat == 0) THEN
+!    CALL read_line
+!    DO WHILE (test_next()/='X')
+!      ilen = 7
+!      CALL get_next(string,ilen)
+!      CALL uppercase ( string )
+!      IF(string == "NONBONDED") EXIT
+!      CALL get_next(string2,ilen)
+!      CALL get_next(string3,ilen)
+!      CALL get_next(string4,ilen)
+!      ntorsion = ntorsion + 1
+!      CALL reallocate(ffch_info%ff_torsion_a,1,ntorsion)
+!      CALL reallocate(ffch_info%ff_torsion_b,1,ntorsion)
+!      CALL reallocate(ffch_info%ff_torsion_c,1,ntorsion)
+!      CALL reallocate(ffch_info%ff_torsion_c,1,ntorsion)
+!      CALL reallocate(ffch_info%ff_torsion_k,1,ntorsion)
+!      CALL reallocate(ffch_info%ff_torsion_phi0,1,ntorsion)
+!      ffch_info%ff_torsion_a(ntorsion) = string
+!      ffch_info%ff_torsion_b(ntorsion) = string2
+!      ffch_info%ff_torsion_c(ntorsion) = string3
+!      ffch_info%ff_torsion_d(ntorsion) = string4
+!      CALL get_next(ffch_info%ff_torsion_k(ntorsion))
+!      CALL get_next(ffch_info%ff_torsion_phi0(ntorsion))
+!      IF(PM1) WRITE(iw,*) "    CHM TORSION ",ntorsion,&
+!                          TRIM(ffch_info%ff_torsion_a(ntorsion))," ",&
+!                          TRIM(ffch_info%ff_torsion_b(ntorsion))," ",&
+!                          TRIM(ffch_info%ff_torsion_c(ntorsion))," ",&
+!                          TRIM(ffch_info%ff_torsion_d(ntorsion))," ",&
+!                          ffch_info%ff_torsion_k(ntorsion),&
+!                          ffch_info%ff_torsion_phi0(ntorsion)
+!      CALL read_line
+!    END DO
+! END IF
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 4. Read in all the Nonbonded info from the param file here
+  !-----------------------------------------------------------------------------
+! nnonbond = 0
+! label = 'NONBONDED'
+! CALL search_label ( label, istat, ignore_case=.TRUE. )
+! IF (istat == 0) THEN
+!    CALL read_line
+!    DO WHILE (test_next()/='X')
+!      ilen = 7
+!      CALL get_next(string,ilen)
+!      CALL uppercase ( string )
+!      IF(string == "HBOND") EXIT
+!      nnonbond = nnonbond + 1
+!      CALL reallocate(ffch_info%ff_nonbond_a,1,nnonbond)
+!      CALL reallocate(ffch_info%ff_nonbond_eps,1,nnonbond)
+!      CALL reallocate(ffch_info%ff_nonbond_rmin2,1,nnonbond)
+!      CALL reallocate(ffch_info%ff_nonbond_eps_14,1,nnonbond)
+!      CALL reallocate(ffch_info%ff_nonbond_rmin2_14,1,nnonbond)
+!      ffch_info%ff_nonbond_a(nnonbond) = string
+!      CALL get_next(ffch_info%ff_nonbond_eps(nnonbond))
+!      CALL get_next(ffch_info%ff_nonbond_rmin2(nnonbond))
+!      CALL get_next(ffch_info%ff_nonbond_eps_14(nnonbond))
+!      CALL get_next(ffch_info%ff_nonbond_rmin2_14(nnonbond))
+!      IF(PM1) WRITE(iw,*) "    CHM NONBOND ",nnonbond,&
+!                          TRIM(ffch_info%ff_nonbond_a(nnonbond))," ",&
+!                          ffch_info%ff_nonbond_eps(nnonbond),&
+!                          ffch_info%ff_nonbond_rmin2(nnonbond),&
+!                          ffch_info%ff_nonbond_eps_14(nnonbond),&
+!                          ffch_info%ff_nonbond_rmin2_14(nnonbond)
+!      CALL read_line
+!    END DO
+! END IF
+
+
+  CALL parser_end
+
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 END SUBROUTINE read_force_field_charmm
 
 
@@ -905,7 +1103,48 @@ SUBROUTINE read_force_field_amber ( topology , globenv )
     TYPE(global_environment_type), &
       INTENT(IN),OPTIONAL                    :: globenv
 
+    !TYPE(force_field_input_info_type),POINTER       :: ffin_info
+
+  LOGICAL                                  :: PM1, PM2, PM3, PM4
+    INTEGER                                  :: i, istat, ilen, iw
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  END IF
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 1. Do something
+  !-----------------------------------------------------------------------------
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 2. Do something else
+  !-----------------------------------------------------------------------------
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 3. Hopefully Do the last thing
+  !-----------------------------------------------------------------------------
+
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 END SUBROUTINE read_force_field_amber
+
+
 END MODULE force_fields
 
 !******************************************************************************
