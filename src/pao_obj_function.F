@@ -27,7 +27,7 @@
 !*****************************************************************************
 module pao_obj_function
   use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
-       cp_log, cp_logger_type, cp_note_level
+       cp_log, cp_logger_type, cp_note_level,cp_get_default_logger
   use cp_error_handling, only: cp_error_type, cp_assert, cp_error_message,&
        cp_assertion_failed, cp_debug, cp_precondition_failed, cp_error_init,&
        cp_error_dealloc_ref, cp_error_get_logger, cp_init
@@ -46,7 +46,8 @@ module pao_obj_function
        copy_sparse_to_blacs_matrix,deallocate_blacs_matrix,&
        blacs_trace, add_blacs_to_block_diag_sm, blacs_diag_mult,&
        copy_blacs_to_blacs_matrix, blacs_gemm, copy_blacs_to_sparse_matrix,&
-       blacs_syrk,blacs_syevx,blacs_symm,get_blacs_matrix_info
+       blacs_syrk,blacs_syevx,blacs_symm,get_blacs_matrix_info,&
+       symmetrise_blacs_matrix, power_blacs_matrix
   use sparse_matrix_types, only: symmetrise_diagonal_blocks
   use timings, only: timeset, timestop
   USE qs_mo_types, ONLY: calculate_density_matrix,&
@@ -64,12 +65,14 @@ module pao_obj_function
   use sparse_matrix_types, only: real_matrix_p_type, real_matrix_type,&
        get_matrix_info
   use atomic_kind_types, only: atomic_kind_type, get_atomic_kind_set
-  use cp_array_utils, only: cp_1d_r_output
+  use cp_array_utils, only: cp_1d_r_output, cp_2d_r_output
+  use cp_output_handling, only: cp_write_output
 !  use pao_utils
   implicit none
   private
   
   logical, private, parameter :: debug_this_module=.true.
+  character(len=*), private, parameter :: moduleN="pao_obj_function"
   integer, parameter :: cp_optimal_blacs_block_size=32
   
   ! type
@@ -133,7 +136,6 @@ module pao_obj_function
 !!     - min_overlap_m: qs_blacs matrix with the overlap in the min basis
 !!     - density_m: qs_blacs matrix with the density matrix
 !!     - work_m: qs_blacs matrix in the small basis
-!!     - blacs_context: the qs_blacs context
 !!     - alpha_mo: molecular orbitals
 !!     - scf_work1, scf_work2, scf_work3: qs_blacs matrices in the big basis
 !!     - diag_matrix: diagonal sparse matrix
@@ -159,7 +161,6 @@ module pao_obj_function
      type(blacs_matrix_type), POINTER :: min_blacs_1, min_blacs_2,&
           min_blacs_3
      type(blacs_matrix_type), pointer :: scf_work1, scf_work2, scf_work3
-     integer :: blacs_context
      type(mo_set_p_type), dimension(:), pointer :: mo_set
      type(cp_sparse_matrix_type), pointer :: diag_matrix, full_work_m,&
           min_work_m
@@ -231,17 +232,14 @@ contains
     type(cp_b_matrix_struct_type), pointer :: min_bas_m_struct, full_bas_m_struct
     type(pao_env_type), pointer :: pao_env
     type(atomic_kind_type), dimension(:), pointer :: atomic_kind_set
+    nullify(diagMatrix, min_bas_m_struct, full_bas_m_struct, pao_env,&
+         atomic_kind_set)
     failure=.false.
 
     gf_env%qs_env => qs_env
     gf_env%global_env => global_env
     gf_env%n_eval = 0
     if (.not.failure) then
-#ifdef __parallel
-       call blacs_get(0,0,gf_env%blacs_context) ! the default context
-#else
-       gf_env%blacs_context=0
-#endif
        call get_qs_env(gf_env%qs_env, s=full_overlap_m, pao_env=pao_env,&
             atomic_kind_set=atomic_kind_set, natoms=n_atoms)
        call pao_qs_env_get(gf_env%qs_env, global_env=global_env,&
@@ -464,7 +462,8 @@ contains
 !!     and unitary transformation
 !!
 !!   NOTES
-!!     -
+!!     min_p, and the density are twice the P used for the pao functional
+!!     (closed shell electrons)
 !!
 !!   INPUTS
 !!     gf_env: the gerd functional environement
@@ -512,13 +511,15 @@ contains
     REAL(wp), DIMENSION(:), POINTER  :: mo_eigenvalues,&
                                         mo_occupation_numbers
     integer :: n_atom, min_bas_size, full_bas_size, block_row, block_col,&
-         min_bas, excl_bas, stat
+         min_bas, excl_bas, stat,size_null_space
     real(kind=wp) :: f1,f2,f3
     real(kind=wp), dimension(:,:), pointer :: du, block_val
     type(pao_local_angles_type) :: local_angles
     type(real_matrix_type), pointer :: diagMatrix
     call cp_init(iError, template_error=error)
-    nullify(diagMatrix)
+    nullify(diagMatrix, mo_eigenvalues, mo_occupation_numbers,min_density_m,&
+         min_d_smpv,full_h_rmpv,full_s_rmpv, h_matrixes, s_matrixes, h_matrix,&
+         s_matrix, angles, pao_env)
     g_env => gf_env%global_env
     failure=.false.
     
@@ -573,16 +574,17 @@ contains
        call copy_sparse_to_blacs_matrix(sparse_matrix=cp_get_matrix(s_matrix),&
             blacs_matrix=gf_env%min_blacs_1, &
             globenv=g_env)
-
+       call calculate_ortho_matrix(ortho=gf_env%min_blacs_1,&
+            work=gf_env%min_blacs_2,ndep=size_null_space,&
+            globenv=g_env)
+       call copy_sparse_to_blacs_matrix(sparse_matrix=cp_get_matrix(h_matrix),&
+            blacs_matrix=gf_env%min_blacs_2, &
+            globenv=g_env)
        call orthogonalise_matrix(ortho=gf_env%min_blacs_1,&
             ks=gf_env%min_blacs_2,&
             work=gf_env%min_blacs_3,&
             globenv=g_env)
        
-       call copy_sparse_to_blacs_matrix(sparse_matrix=cp_get_matrix(h_matrix),&
-            blacs_matrix=gf_env%min_blacs_2, &
-            globenv=g_env)
-
        ! min_blacs1 = S^{-1/2}, min_blacs2= H_{KS}
        call eigensolver(ks=gf_env%min_blacs_2,&
             mo_set=gf_env%mo_set(1)%mo_set,&
@@ -614,18 +616,28 @@ contains
 
        if (present(f)) then
           f=dot_product(mo_occupation_numbers,mo_eigenvalues)
-          print *, "f =", f
+          if (cp_debug .and. debug_this_module) then
+             call cp_sm_output(logger=cp_error_get_logger(error), &
+                  outputName="obj_f_min_p", &
+                  fromWhere=routineP, iter=gf_env%n_eval,&
+                  matrix=min_density_m,&
+                  global_env=g_env,error=error)
+             call cp_write_output(logger=cp_error_get_logger(error),&
+                  fromWhere=routineP,&
+                  outputName="obj_f_f", iter=gf_env%n_eval,&
+                  message="f ="//cp_to_string(f), error=error)
+          end if
 ! good test: check if equal
 !!$          ! Tr[P (N U i)^* H (N U i)]
 !!$          call blacs_trace(gf_env%min_blacs_2,gf_env%min_hamiltonian_m,f1,&
-!!$               gf_env%blacs_context, g_env)
+!!$               g_env)
 !!$          ! Tr[V(P (N U i)^* S (N U i) P)]
 !!$          call blacs_gemm('N','N',min_bas_size,min_bas_size,min_bas_size,&
 !!$               1.0_wp, gf_env%min_blacs_2,gf_env%min_blacs_1,0.0_wp,&
-!!$               gf_env%min_blacs_3, gf_env%blacs_context,g_env)
+!!$               gf_env%min_blacs_3, g_env)
 !!$          call blacs_diag_mult(mo_eigenvalues,gf_env%min_blacs_3)
 !!$          call blacs_trace(gf_env%min_blacs_2,gf_env%min_blacs_3,f2,&
-!!$               gf_env%blacs_context,g_env)
+!!$               g_env)
 !!$          ! Tr[VP]
 !!$          f3=cp_trace(mo_eigenvalues,min_density_m)
 !!$          f=f1-f2+f3
@@ -635,14 +647,14 @@ contains
           diagMatrix => cp_get_matrix(gf_env%diag_matrix) ! for xlf...
           ! ** gf_env%diag_matrix = df/du_{i,j}
                     
-          ! N H B P i^*
+          ! 2 N H B P i^*
           call copy_sparse_to_blacs_matrix(full_h_rmpv(1)%matrix,&
                gf_env%scf_work1,g_env)
           call cp_m2f_with_B_M_pi(min_density_m,cp_get_matrix(gf_env%full_work_m),&
                glob_angles=angles, qs_env=gf_env%qs_env, global_env=g_env,&
                error=error)
           call copy_sparse_to_blacs_matrix(cp_get_matrix(gf_env%full_work_m),&
-               gf_env%scf_work2,g_env)
+               gf_env%scf_work2, g_env)
           call blacs_gemm('N','N',full_bas_size,full_bas_size,full_bas_size,&
                1.0_wp,gf_env%scf_work1,gf_env%scf_work2,0.0_wp,&
                gf_env%scf_work3,g_env)
@@ -650,15 +662,21 @@ contains
           call add_blacs_to_block_diag_sm(gf_env%scf_work3,&
                diagMatrix,&
                global_env=g_env,d_struct=gf_env%d_struct, error=error)
-          ! N S B P V P i^*
+          if (cp_debug .and. debug_this_module) then
+             call cp_sm_output(logger=cp_error_get_logger(error), &
+               outputName="obj_f_NHBPpi", &
+               fromWhere=routineP, iter=gf_env%n_eval, matrix=diagMatrix,&
+               global_env=g_env,error=error)
+          end if
+          ! 2 N S B P V P i^*
           call blacs_diag_mult(mo_eigenvalues,&
                gf_env%min_blacs_2,gf_env%min_blacs_3, global_env=g_env)
           call blacs_gemm('N','N',min_bas_size,min_bas_size,min_bas_size,&
-               1.0_wp,gf_env%min_blacs_2,gf_env%min_blacs_3, 0.0_wp,&
+               0.5_wp,gf_env%min_blacs_2,gf_env%min_blacs_3, 0.0_wp,&
                gf_env%min_blacs_1,&
                globenv=g_env)
           call copy_blacs_to_sparse_matrix(gf_env%min_blacs_1,&
-               cp_get_matrix(gf_env%min_work_m),g_env)
+               cp_get_matrix(gf_env%min_work_m), g_env)
           call cp_m2f_with_B_M_pi(cp_get_matrix(gf_env%min_work_m),&
                cp_get_matrix(gf_env%full_work_m),glob_angles=angles,&
                qs_env=gf_env%qs_env, global_env=g_env,&
@@ -667,12 +685,12 @@ contains
           !call cp_dealloc_ref(full_pao_m,error=error)
 
           call copy_sparse_to_blacs_matrix(cp_get_matrix(gf_env%full_work_m),&
-               gf_env%scf_work2,g_env)
+               gf_env%scf_work2, g_env)
           call copy_sparse_to_blacs_matrix(full_s_rmpv(1)%matrix,&
-               gf_env%scf_work1,g_env)
+               gf_env%scf_work1, g_env)
           call blacs_gemm('N','N',full_bas_size,full_bas_size,full_bas_size,&
                1.0_wp,gf_env%scf_work1,gf_env%scf_work2,0.0_wp,&
-               gf_env%scf_work3,g_env)
+               gf_env%scf_work3, g_env)
           call add_blacs_to_block_diag_sm(gf_env%scf_work3,&
                diagMatrix,&
                global_env=g_env,d_struct=gf_env%d_struct, error=error)
@@ -726,6 +744,36 @@ contains
 
 !=========== qs_scf rip off (to avoid circular ref) to do =========
 
+  SUBROUTINE calculate_ortho_matrix(ortho,work,ndep,globenv)
+
+!   Purpose: Calculate the orthogonalization matrix (S**(-1/2))
+
+!   History: - Creation (01.05.2001, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(blacs_matrix_type), POINTER          :: ortho,work
+    INTEGER, INTENT(OUT)                      :: ndep
+
+!   *** Local variables ***
+
+    INTEGER :: handle,nao
+    real(kind=wp), parameter :: eps_eigval = 1.0E-5_wp, work_syevx = 1.0_wp
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("calculate_ortho_matrix","I","",handle)
+
+    CALL power_blacs_matrix(ortho,work,-0.5_wp,eps_eigval,ndep,work_syevx,&
+                            globenv)
+    CALL symmetrise_blacs_matrix(ortho,work,globenv)
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE calculate_ortho_matrix
+
+
   SUBROUTINE orthogonalise_matrix(ortho,ks,work,globenv)
 
 !   Purpose: Orthogonalisation matrix (S**(-1/2))
@@ -746,8 +794,10 @@ contains
     CALL timeset("orthogonalise_matrix","I","",handle)
 
     CALL get_blacs_matrix_info(matrix=ks,nrow_global=nao)
-    CALL blacs_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp,work,globenv)
-    CALL blacs_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,ks,globenv)
+    CALL blacs_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp,work,&
+                    globenv)
+    CALL blacs_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,ks,&
+                    globenv)
 
     CALL timestop(0.0_wp,handle)
 
@@ -771,10 +821,12 @@ contains
 !   *** Local variables ***
 
     INTEGER :: handle,imo,nao,nmo
+    integer, save :: iter=0
 
     TYPE(blacs_matrix_type), POINTER :: mo_eigenvectors
     REAL(wp), DIMENSION(:), POINTER  :: mo_eigenvalues
-
+    character(len=*), parameter :: routineN="eigensolver",&
+         routineP=moduleN//':'//routineN
 !   ---------------------------------------------------------------------------
 
     CALL timeset("eigensolver","I","",handle)
@@ -792,6 +844,15 @@ contains
     CALL blacs_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
                     mo_eigenvectors,globenv)
 
+    if (cp_debug .and. debug_this_module) then
+       iter=iter+1
+       call cp_1d_r_output(logger=cp_get_default_logger(),&
+            outputName="obj_f_mo_eval", &
+            fromWhere=routineP, iter=iter, array=mo_eigenvalues)
+!       call cp_2d_r_output(logger=cp_get_default_logger(),&
+!            outputName="obj_f_mo_evect", &
+!            fromWhere=routineP, iter=iter, array=mo_eigenvectors)
+    end if
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE eigensolver

@@ -291,8 +291,8 @@ contains
           block_rows=size(b_dims%block_begins_at_row)-1
           block_cols=size(b_dims%block_begins_at_col)-1
           call allocate_matrix(matrix%matrix,&
-               nrow=b_dims%block_begins_at_row(block_rows+1),&
-               ncol=b_dims%block_begins_at_col(block_cols+1),&
+               nrow=b_dims%block_begins_at_row(block_rows+1)-1,&
+               ncol=b_dims%block_begins_at_col(block_cols+1)-1,&
                nblock_row=block_rows,&
                nblock_col=block_cols,&
                first_row=b_dims%block_begins_at_row(1:block_rows),&

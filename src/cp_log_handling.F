@@ -786,7 +786,7 @@ end function cp_get_global_logger
   function cp_real_dp_to_string(val) result(res)
     character(len=10) :: res
     real(kind=kind(1.0D0)), intent(in):: val
-    write (res,'(es10.4)') val
+    write (res,'(es10.3)') val
   end function cp_real_dp_to_string
 
 end module cp_log_handling

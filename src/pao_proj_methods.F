@@ -135,13 +135,13 @@ contains
     type(cp_matrix_block_iterator) :: iterator
     integer :: brow,bcol, stat, max_bsize,i,j
     integer, dimension(:), pointer :: l_index,r_index
-    real(kind=wp), dimension(:,:), pointer :: block_val, u_col, u_row
+    real(kind=wp), dimension(:,:), pointer :: block_val, u_row
     real(kind=wp),allocatable, dimension(:,:) :: t1_m
     type(pao_local_angles_type) :: l_angles_col, l_angles_row
     type(cp_error_type) :: iError
     type(pao_env_type), pointer :: pao_env
     call cp_error_init(iError,template_error=error)
-    nullify(block_val)
+    nullify(block_val,l_index,r_index,u_row,pao_env)
     failure=.false.
 
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
@@ -174,7 +174,7 @@ contains
                   block_val=block_val)
 ! get u
              call cp_set(l_angles_col, atom_nr=bcol,error=error)
-             call cp_get(l_angles_col, unitary_t=u_col, proj_indexes=l_index)
+             call cp_get(l_angles_col, proj_indexes=l_index)
              call cp_set(l_angles_row, atom_nr=brow,error=error)
              call cp_get(l_angles_row,unitary_t=u_row, proj_indexes=r_index)
 
@@ -194,7 +194,7 @@ contains
                      CPSourceFileRef,&
                      error,failure)
              end if
-             if (.not.failure) then ! put result in the small basis block
+             if (.not.failure) then ! t1_m = i block_val pi
                 do i=1,size(block_val,1)
                    do j=1,size(block_val,2)
                       t1_m(l_index(i),r_index(j))=block_val(i,j)
@@ -204,7 +204,6 @@ contains
 
 
 ! size(u_row,1)==size(u_row,2)==size(target_m,1)
-! size(u_col,1)==size(u_col,2)==size(target_m,2)
 
 ! get full basis block
              call get_block_node(target_m, block_col=bcol,&
@@ -216,8 +215,8 @@ contains
              end if
 ! block_val = u t1_m
              if (.not.failure) then
-                call dgemm('N','N',size(u_row,1),size(u_row,2),&
-                     size(u_col,2),1.0_wp,&
+                call dgemm('N','N',size(u_row,1),size(block_val,2),&
+                     size(u_row,2),1.0_wp,&
                      u_row,size(u_row,1),&
                      t1_m,size(t1_m,1),&
                      0.0_wp,block_val,size(block_val,1))
@@ -294,7 +293,7 @@ contains
     type(cp_error_type) :: iError
     type(pao_env_type), pointer :: pao_env
     call cp_error_init(iError,template_error=error)
-    nullify(block_val)
+    nullify(block_val,l_index,r_index,u_col, u_row,pao_env)
     failure=.false.
 
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
@@ -451,7 +450,7 @@ contains
     type(cp_error_type) :: iError
     type(pao_env_type), pointer :: pao_env
     call cp_error_init(iError,template_error=error)
-    nullify(block_val)
+    nullify(block_val,l_index,r_index,block_val, u_col, u_row,pao_env)
     failure=.false.
 
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
@@ -609,6 +608,7 @@ contains
     type(pao_env_type), pointer :: pao_env
     call cp_error_init(iError, template_error=error)
     failure=.false.
+    nullify(full_h, full_s, pao_env)
 
     !call timeset(routineN//','//moduleN,'I',"",handle)
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)

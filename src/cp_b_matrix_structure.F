@@ -889,7 +889,7 @@ contains
 
        if (present(d_struct)) then
           m_struct%distribution => d_struct
-          call cp_retain(m_struct%distribution, error)
+          call cp_retain(m_struct%distribution, error=error)
        else
           CPPrecondition(present(global_env),cp_failure_level,routineP,error,failure)
           if (.not.present(b_dims)) then
