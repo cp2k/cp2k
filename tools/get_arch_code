@@ -48,6 +48,8 @@
         fi;;
       (*-unicosmk-*-CRAY*T3E)
         PLATFORM="CRAY-T3E";;
+      (SunOS-*-sun4u)
+        PLATFORM="SUN";;
       (*)
         PLATFORM='unknown';;
     esac
