@@ -3219,6 +3219,23 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="MM_SUBSYS",&
+            variants=(/"PROTEIN"/),&
+            description="In a QM/MM run all  MM atoms are fixed. Only the QM fragment is allowed to move."//&
+            " Default .FALSE.",&
+            usage="MM_SUBSYS logical",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="QM_SUBSYS",&
+            description="In a QM/MM run all QM atoms are fixed. Only the MM fragment is allowed to move."//&
+            " Default .FALSE.",&
+            usage="QM_SUBSYS logical",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
     END IF
 
   END SUBROUTINE create_fixed_atom_section
@@ -4165,6 +4182,16 @@ END SUBROUTINE create_ewald_section
             usage="nocenter LOGICAL",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="typ_center",&
+            description="This keyword specifies whether the centering is performes continuosly (NONE) "//&
+            "or by unit grid steps (GRID).",&
+            usage="typ_center (NONE|GRID)",&
+            enum_c_vals=s2a( "NONE","GRID"),&
+            enum_i_vals=(/ do_center_none, do_center_grid /),&
+            default_i_val=do_center_none, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)     
 
        CALL keyword_create(keyword, name="E_COUPL",&
@@ -4250,6 +4277,13 @@ END SUBROUTINE create_ewald_section
             description="Specifies the index of the MM atom involved in the QM/MM link",&
             usage="MM_INDEX integer",n_var=1,type_of_var=integer_t,&
             error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RADIUS",&
+            description="Overwrite the specification of the radius only for the MM atom involved in the link."//&
+            "Default is to use the same radius as for the specified type.",&
+            usage="RADIUS real",n_var=1,type_of_var=real_t,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

@@ -484,7 +484,7 @@ SUBROUTINE write_topology_psf (topology,globenv)
 
   WRITE(file_unit,*) " ",topology%natoms," !NATOM"
   DO i=1,topology%natoms
-    WRITE(file_unit,'(I7,1X,A5,I7,1X,A5,A5,A5,F10.5,F10.5,I7)') &
+    WRITE(file_unit,'(I8,1X,A5,I4,1X,A5,A5,A5,F10.6,4X,F10.4,4X,I8)') &
       i,&
       atom_info%label_molname(i),&
       atom_info%map_mol_num(i),&
@@ -500,7 +500,7 @@ SUBROUTINE write_topology_psf (topology,globenv)
   DO i=1,SIZE(conn_info%bond_a),4
     j=0
     DO WHILE ((j<4).AND.((i+j)<=SIZE(conn_info%bond_a)))
-      WRITE(file_unit,'(I7,I7)',ADVANCE="NO") &
+      WRITE(file_unit,'(I8,I8)',ADVANCE="NO") &
             conn_info%bond_a(i+j),conn_info%bond_b(i+j)
       j=j+1
     END DO
@@ -512,7 +512,7 @@ SUBROUTINE write_topology_psf (topology,globenv)
   DO i=1,SIZE(conn_info%theta_a),3
     j=0
     DO WHILE ((j<3).AND.((i+j)<=SIZE(conn_info%theta_a)))
-      WRITE(file_unit,'(I7,I7,I7)',ADVANCE="NO") &
+      WRITE(file_unit,'(I8,I8,I8)',ADVANCE="NO") &
             conn_info%theta_a(i+j),conn_info%theta_b(i+j),&
             conn_info%theta_c(i+j)
       j=j+1
@@ -525,7 +525,7 @@ SUBROUTINE write_topology_psf (topology,globenv)
   DO i=1,SIZE(conn_info%phi_a),2
     j=0
     DO WHILE ((j<2).AND.((i+j)<=SIZE(conn_info%phi_a)))
-      WRITE(file_unit,'(I7,I7,I7,I7)',ADVANCE="NO") &
+      WRITE(file_unit,'(I8,I8,I8,I8)',ADVANCE="NO") &
             conn_info%phi_a(i+j),conn_info%phi_b(i+j),&
             conn_info%phi_c(i+j),conn_info%phi_d(i+j)
       j=j+1
@@ -538,7 +538,7 @@ SUBROUTINE write_topology_psf (topology,globenv)
   DO i=1,SIZE(conn_info%impr_a),2
     j=0
     DO WHILE ((j<2).AND.((i+j)<=SIZE(conn_info%impr_a)))
-      WRITE(file_unit,'(I7,I7,I7,I7)',ADVANCE="NO") &
+      WRITE(file_unit,'(I8,I8,I8,I8)',ADVANCE="NO") &
             conn_info%impr_a(i+j),conn_info%impr_b(i+j),&
             conn_info%impr_c(i+j),conn_info%impr_d(i+j)
       j=j+1

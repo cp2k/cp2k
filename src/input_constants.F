@@ -80,7 +80,9 @@ MODULE input_constants
                                 do_qmmm_grid=1,&
                                 do_qmmm_gauss=2,&
                                 do_qmmm_link_imomm=1,&
-                                do_qmmm_link_gho=2
+                                do_qmmm_link_gho=2,&
+                                do_center_none=0,&
+                                do_center_grid=1
 
   INTEGER, PARAMETER, PUBLIC :: do_nhcopt_global=0, &
                                 do_nhcopt_molecule=1,&

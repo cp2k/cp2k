@@ -115,7 +115,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   REAL (KIND=dp), DIMENSION ( 3,3 ) :: pv_bc
   CHARACTER ( len = default_string_length ) :: ewald_type
   TYPE ( fist_energy_type ), POINTER :: thermo
-  TYPE ( particle_type ), POINTER :: particle_set ( : )
+  TYPE ( particle_type ), DIMENSION(:), POINTER :: particle_set 
   TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
   TYPE(atomic_kind_type), DIMENSION(:), &
@@ -406,8 +406,12 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
     CALL stop_program ( "fist_force", "illegal value of ewald_type: "//&
                          ewald_type )
   END SELECT
-
-
+  ! Check if we have to delete some gradients.. i.e. some atom is considered fixed...
+  IF (ANY(particle_set%is_fixed)) THEN
+     DO i = 1, natoms
+        IF (particle_set(i)%is_fixed) particle_set(i)%f = 0.0_dp
+     END DO
+  END IF
   IF (PM2) THEN
      WRITE(iw,'(A)')" FIST:: (3) TOTAL FORCES - THE END..."
      WRITE(iw,'(3f15.9)')((particle_set ( i ) % f ( j ),j=1,3), i = 1, natoms)

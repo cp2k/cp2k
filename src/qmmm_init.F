@@ -82,6 +82,7 @@ MODULE qmmm_init
                                              add_set_type,&
                                              create_add_set_type,&
                                              add_set_release
+  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
   USE qmmm_gaussian_init,              ONLY: qmmm_gaussian_initialize
   USE qmmm_pw_grid,                    ONLY: qmmm_pw_grid_init
@@ -119,7 +120,7 @@ MODULE qmmm_init
        section_describe_html, section_describe_index_html, section_vals_type,&
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
   USE input_constants, ONLY: RADIUS_QMMM_DEFAULT, do_qmmm_link_imomm, do_qmmm_link_gho,&
-                        do_qmmm_gauss
+                        do_qmmm_gauss, do_center_none, do_center_grid
   USE fist_environment_types,  ONLY: set_fist_env
   
   IMPLICIT NONE
@@ -298,7 +299,8 @@ CONTAINS
        qmmm_env_qm%mm_el_pot_radius => mm_el_pot_radius
 
        IF (qmmm_link) THEN 
-          CALL setup_qmmm_links(qmmm_section, qmmm_links, error=error)
+          CALL setup_qmmm_links(qmmm_section, qmmm_links, mm_el_pot_radius, mm_atom_index,&
+               qm_cell_small, error=error)
           qmmm_env_qm%qmmm_links    => qmmm_links
 
           CALL print_qmmm_links(globenv, qmmm_section, qmmm_links, error)
@@ -365,6 +367,19 @@ CONTAINS
                               pw_env=qs_env%pw_env,&
                               cell=qm_cell_small,&
                               error=error)
+
+       !
+       ! Preparing for PBC...
+       !
+       CALL setup_origin_mm_cell(qmmm_section, qmmm_env_qm, mm_cell, qm_cell_small,&
+            dr=qs_env%pw_env%pw_pools(qs_env%pw_env%auxbas_grid)%pool%pw_grid%dr,&
+            error=error)
+       !
+       ! Initialize constraints specific to QM/MM, all other constraints will
+       ! be specified elsewhere
+       !
+       CALL qmmm_setup_constaints(subsys_mm, force_env_section, qm_atom_index,&
+            mm_atom_index, error)
 
        CALL cell_release(qm_cell_small, error)                       
        CALL qs_env_release(qs_env,error=error)
@@ -982,7 +997,7 @@ CONTAINS
     REAL(KIND=dp)                                :: tmp_radius
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(section_vals_type), POINTER         :: mm_kinds
-    LOGICAL :: explicit
+    LOGICAL :: explicit, is_qm
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cell_par
     INTEGER, DIMENSION(:), POINTER           :: mm_link_atoms
 
@@ -1047,6 +1062,7 @@ CONTAINS
              Set_Radius_Pot_1: DO IkindR = 1, SIZE(atomic_kinds%els)
                 atomic_kind => atomic_kinds%els(IkindR)
                 CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname)
+                is_qm = qmmm_ff_precond_only_qm(atmname)
                 IF (TRIM(mm_atom_kind)==atmname) THEN
                    CALL get_atomic_kind(atomic_kind=atomic_kind,&
                         elp_potential=elp_potential)
@@ -1339,19 +1355,24 @@ CONTAINS
   !!     12.2004 created [tlaino]
   !!
   !!*************************************************************************
-  SUBROUTINE  setup_qmmm_links(qmmm_section, qmmm_links, error)
+  SUBROUTINE  setup_qmmm_links(qmmm_section, qmmm_links, mm_el_pot_radius, mm_atom_index, &
+       qm_cell_small, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(section_vals_type), POINTER         :: qmmm_section, qmmm_link_section
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius
+    INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
+    TYPE(cell_type), POINTER                 :: qm_cell_small
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
     ! Local variables
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_links',&
          routineP = moduleN//':'//routineN
     INTEGER  :: ikind, nlinks, n_imomm, n_gho, link_type, qm_index, mm_index, stat
-    LOGICAL  :: failure, charge_scale
-    REAL(KIND=dp) :: alpha, scale_factor
+    INTEGER  :: n_rep_val
+    LOGICAL  :: failure, charge_scale, explicit
+    REAL(KIND=dp) :: alpha, scale_factor, my_radius
 
     failure = .FALSE.
     n_imomm = 0
@@ -1383,9 +1404,14 @@ CONTAINS
              CALL section_vals_val_get(qmmm_link_section,"QM_INDEX",i_rep_section=ikind,i_val=qm_index,error=error)
              CALL section_vals_val_get(qmmm_link_section,"MM_INDEX",i_rep_section=ikind,i_val=mm_index,error=error)
              CALL section_vals_val_get(qmmm_link_section,"ALPHA_IMOMM",i_rep_section=ikind,r_val=alpha,error=error)
+             CALL section_vals_val_get(qmmm_link_section,"RADIUS",i_rep_section=ikind,n_rep_val=n_rep_val,error=error)
              qmmm_links%imomm(n_imomm)%link%qm_index = qm_index
              qmmm_links%imomm(n_imomm)%link%mm_index = mm_index
              qmmm_links%imomm(n_imomm)%link%alpha    = alpha
+             IF (n_rep_val == 1) THEN
+                CALL section_vals_val_get(qmmm_link_section,"RADIUS",i_rep_section=ikind,r_val=my_radius,error=error)
+                WHERE ( mm_atom_index == mm_index ) mm_el_pot_radius = my_radius * qm_cell_small%unit_of_length
+             END IF
           END IF
        END DO
     END IF
@@ -1592,5 +1618,137 @@ CONTAINS
         added_charges%mm_el_pot_radius(icount) = my_radius
      END IF
    END SUBROUTINE set_add_set_type
+
+  !!****f* qmmm_init/qmmm_setup_constraints [1.0] *
+  !!
+  !!   NAME
+  !!     qmmm_setup_constraints
+  !!
+  !!   FUNCTION
+  !!     this routine sets up all variables of the add_set_type type
+  !!
+  !!   NOTES
+  !!
+  !!
+  !!   INPUTS
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino
+  !!
+  !!   MODIFICATION HISTORY
+  !!     02.2005 created [tlaino]
+  !!
+  !!*************************************************************************
+   SUBROUTINE  qmmm_setup_constaints(subsys_mm, force_env_section, qm_atom_index,&
+        mm_atom_index, error)
+     IMPLICIT NONE
+     ! Arguments
+     TYPE(cp_subsystem_p_type), &
+          DIMENSION(:), POINTER                  :: subsys_mm     
+     TYPE(section_vals_type), POINTER         :: force_env_section, constraint_section     
+     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, mm_atom_index
+     TYPE(cp_error_type), INTENT(inout), &
+          OPTIONAL                            :: error
+     ! Local Variables
+     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_setup_constraints',&
+          routineP = moduleN//':'//routineN
+     LOGICAL :: failure, freeze_mm, freeze_qm, explicit
+     TYPE(section_vals_type), POINTER         :: fix_section
+     INTEGER :: n_fix, i_fix, i
+
+     failure = .FALSE.
+     IF (.NOT.failure) THEN
+        freeze_mm = .FALSE.
+        freeze_qm = .FALSE.
+        constraint_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
+        constraint_section => section_vals_get_subs_vals(constraint_section,"CONSTRAINT",error=error)
+        !
+        ! Check for fix_atom section.. At the moment the only QM/MM dependent constraint 
+        ! are in that subsection
+        ! 
+        fix_section => section_vals_get_subs_vals(constraint_section,"FIXED_ATOMS",error=error)
+        CALL section_vals_get(fix_section, explicit=explicit, n_repetition=n_fix, error=error)
+        IF (explicit) THEN
+           DO i_fix = 1, n_fix
+              CALL section_vals_val_get(fix_section,"MM_SUBSYS",l_val=freeze_mm,i_rep_section=i_fix,error=error)
+              IF (freeze_mm) THEN
+                 DO i = 1, SIZE(mm_atom_index)
+                    subsys_mm(1)%subsys%particles%els(mm_atom_index(i))%is_fixed = .TRUE.
+                 END DO
+              END IF
+              CALL section_vals_val_get(fix_section,"QM_SUBSYS",l_val=freeze_qm,i_rep_section=i_fix,error=error)
+              IF (freeze_qm) THEN
+                 DO i = 1, SIZE(qm_atom_index)
+                    subsys_mm(1)%subsys%particles%els(qm_atom_index(i))%is_fixed = .TRUE.
+                 END DO
+              END IF
+           END DO
+        END IF
+     END IF
+
+   END SUBROUTINE qmmm_setup_constaints
+
+   !!****f* qmmm_init/setup_origin_mm_cell [1.0] *
+   !!
+   !!   NAME
+   !!     setup_origin_mm_cell
+   !!
+   !!   FUNCTION
+   !!     this routine sets up the origin of the MM cell respect to the 
+   !!     origin of the QM cell. The origin of the QM cell is assumed to be 
+   !!     in (0.0,0.0,0.0)...
+   !!
+   !!   NOTES
+   !!
+   !!
+   !!   INPUTS
+   !!     - error: variable to control error logging, stopping,... 
+   !!       see module cp_error_handling 
+   !!
+   !!   AUTHOR
+   !!     Teodoro Laino
+   !!
+   !!   MODIFICATION HISTORY
+   !!     02.2005 created [tlaino]
+   !!
+   !!*************************************************************************
+   SUBROUTINE setup_origin_mm_cell(qmmm_section, qmmm_env, mm_cell, qm_cell_small, &
+        dr, error)
+     IMPLICIT NONE
+     ! Arguments
+     TYPE(section_vals_type), POINTER            :: qmmm_section
+     TYPE(cell_type), POINTER :: mm_cell, qm_cell_small
+     TYPE(qmmm_env_qm_type), POINTER             :: qmmm_env
+     REAL(KIND=dp), DIMENSION(3), INTENT(in) :: dr
+     TYPE(cp_error_type), INTENT(inout), &
+          OPTIONAL                               :: error     
+     ! Local Variabels
+     CHARACTER(len=*), PARAMETER :: routineN = 'setup_origin_mm_cell',&
+          routineP = moduleN//':'//routineN
+     LOGICAL :: failure
+     REAL(KIND=dp), DIMENSION(3) :: tmp
+     INTEGER :: my_type
+     
+     failure = .FALSE.
+     IF (.NOT.failure) THEN
+        ! This is the vector that corrects position to apply properly the PBC
+        tmp(1) =  qm_cell_small%hmat(1,1)
+        tmp(2) =  qm_cell_small%hmat(2,2)
+        tmp(3) =  qm_cell_small%hmat(3,3)
+        CPPostcondition(ALL(tmp>0),cp_failure_level,routineP,error,failure)     
+        qmmm_env%dOmmOqm = tmp/2.0_dp
+        ! This is unit vector to translate the QM system in order to center it
+        ! in QM cell
+        CALL section_vals_val_get(qmmm_section,"TYP_CENTER",i_val=my_type,error=error)
+        SELECT CASE(my_type)
+        CASE(do_center_none)
+           qmmm_env%utrasl = 1.0_dp
+        CASE(do_center_grid)
+           qmmm_env%utrasl = dr
+        END SELECT
+     END IF
+   END SUBROUTINE setup_origin_mm_cell
 
 END MODULE qmmm_init

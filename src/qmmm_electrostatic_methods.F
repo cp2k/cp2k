@@ -255,6 +255,7 @@ CONTAINS
          qmmm_env%mm_atom_index,&
          qmmm_env%num_mm_atoms,&
          mm_cell,&
+         qmmm_env%dOmmOqm,&
          error)
 
     IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
@@ -269,6 +270,7 @@ CONTAINS
             qmmm_env%added_charges%mm_atom_index,&
             qmmm_env%added_charges%num_mm_atoms,&
             mm_cell,&
+            qmmm_env%dOmmOqm,&
             error)       
 
     END IF
@@ -300,7 +302,7 @@ CONTAINS
 !!*** ********************************************************************** 
   SUBROUTINE qmmm_electrostatic_on_grid_low(v_qmmm, Varray, potentials,&
        mm_particles, mm_charges, mm_el_pot_radius, mm_atom_index, &
-       num_mm_atoms, mm_cell, error)
+       num_mm_atoms, mm_cell, dOmmOqm, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(coeff_type), INTENT(INOUT)          :: v_qmmm
@@ -310,6 +312,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges, mm_el_pot_radius
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     INTEGER, INTENT(IN)                      :: num_mm_atoms
     TYPE(cell_type), POINTER                 :: mm_cell
@@ -353,7 +356,7 @@ CONTAINS
           Imm = Pot%mm_atom_index(Imp)
           IndMM = mm_atom_index(Imm) 
           rc = mm_el_pot_radius(Imm)
-          r_pbc=pbc(mm_particles(IndMM)%r, mm_cell)
+          r_pbc=pbc(mm_particles(IndMM)%r-dOmmOqm, mm_cell)+dOmmOqm
           rt1= r_pbc(1) 
           rt2= r_pbc(2) 
           rt3= r_pbc(3) 
@@ -476,7 +479,8 @@ CONTAINS
          qmmm_env%mm_atom_chrg, qmmm_env%mm_el_pot_radius, qmmm_env%mm_atom_index,  &
          qmmm_env%num_mm_atoms, cube_info, para_env, eps_mm_rspace, qmmm_env%pgfs,  &
          auxbas_grid, coarser_grid, pw_pools, aug_pools, qmmm_env%potentials,       &
-         interp_section=interp_section, mm_cell=mm_cell, error=error)
+         interp_section=interp_section, mm_cell=mm_cell, dOmmOqm=qmmm_env%dOmmOqm,  &
+         error=error)
 
     IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
 
@@ -485,7 +489,8 @@ CONTAINS
          qmmm_env%added_charges%mm_atom_index, qmmm_env%added_charges%num_mm_atoms,       & 
          cube_info, para_env, eps_mm_rspace, qmmm_env%added_charges%pgfs,auxbas_grid,     &
          coarser_grid, pw_pools, aug_pools, qmmm_env%added_charges%potentials,            &
-         interp_section=interp_section, mm_cell=mm_cell, error=error)
+         interp_section=interp_section, mm_cell=mm_cell, dOmmOqm=qmmm_env%dOmmOqm,        &
+         error=error)
 
     END IF
 
@@ -546,7 +551,7 @@ CONTAINS
   SUBROUTINE qmmm_elec_with_gaussian_low( tmp_grid, mm_particles,&
          mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
          cube_info, para_env, eps_mm_rspace, pgfs, auxbas_grid, coarser_grid,&
-         pw_pools, aug_pools, potentials, interp_section, mm_cell, error)
+         pw_pools, aug_pools, potentials, interp_section, mm_cell, dOmmOqm, error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: tmp_grid
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
@@ -557,6 +562,7 @@ CONTAINS
       POINTER                                :: cube_info
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), INTENT(IN)                :: eps_mm_rspace
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
     INTEGER, INTENT(IN)                      :: auxbas_grid, coarser_grid
@@ -576,7 +582,7 @@ CONTAINS
                                                 igrid, ilevel, Imm, IndMM, &
                                                 IRadTyp, ithread, LIndMM, stat
     INTEGER, DIMENSION(3)                    :: ndim
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure,ll
     REAL(KIND=dp)                            :: alpha, height, W
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xdat, ydat, zdat
@@ -613,7 +619,7 @@ CONTAINS
              Icg       =   Icg + 1
              LIndMM    =   pot%mm_atom_index(Imm)
              IndMM     =   mm_atom_index(LIndMM)
-             ra(:)     =   pbc(mm_particles(IndMM)%r, mm_cell)
+             ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm, mm_cell)+dOmmOqm
              W         =   mm_charges(LIndMM) * height
              IF (W == 0.0_dp) CYCLE Atoms
              CALL collocate_gf_rspace_NoPBC(zetp=alpha,&
@@ -630,7 +636,6 @@ CONTAINS
           END DO Atoms
        END DO Gaussian
     END DO Radius
-
     IF (ASSOCIATED(xdat)) THEN
        DEALLOCATE (xdat, STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -655,6 +660,7 @@ CONTAINS
                                         coarser_grid_level=coarser_grid,&
                                         potentials=potentials,&
                                         mm_cell=mm_cell,&
+                                        dOmmOqm=dOmmOqm,&
                                         error=error)
     CALL timestop(0.0_dp,handle)
 
@@ -686,7 +692,7 @@ CONTAINS
 !!**************************************************************************
   SUBROUTINE qmmm_elec_with_gaussian_LR(pgfs, grid, mm_charges,&
        mm_atom_index, mm_particles, mm_el_pot_radius, para_env,&
-       coarser_grid_level, potentials, mm_cell, error)
+       coarser_grid_level, potentials, mm_cell, dOmmOqm, error)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
     TYPE(pw_type), POINTER                   :: grid
@@ -694,6 +700,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: coarser_grid_level
@@ -738,7 +745,8 @@ CONTAINS
        Atoms: DO Imm = 1, SIZE(pot%mm_atom_index)
           LIndMM    =   pot%mm_atom_index(Imm)
           IndMM     =   mm_atom_index(LIndMM)
-          ra(:)     =   pbc(mm_particles(IndMM)%r,mm_cell)
+          ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
+!          WRITE(*,*)IndMM, mm_particles(IndMM)%r, ra
           qt        =   mm_charges(LIndMM)
           IF (qt == 0.0_dp) CYCLE Atoms
           rt1 = ra(1)

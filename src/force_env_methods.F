@@ -622,14 +622,17 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   IF (do_translate) THEN
      !
      ! The first time we always translate all the system in order 
-     ! to centre the QM system in the box. For DEBUG run_type after
-     ! the first translation nomore translation have to be done !!
+     ! to centre the QM system in the box.
      !
      transl_v = (max_coord + min_coord) / 2.0_dp
      transl_v(1) = transl_v(1) - qm_cell%hmat(1,1)/2.0_dp
      transl_v(2) = transl_v(2) - qm_cell%hmat(2,2)/2.0_dp
      transl_v(3) = transl_v(3) - qm_cell%hmat(3,3)/2.0_dp
 
+     IF (ANY(force_env%qmmm_env%utrasl /= 1.0_dp)) THEN
+        transl_v = REAL( FLOOR(transl_v/force_env%qmmm_env%utrasl),KIND=dp) *&
+             force_env%qmmm_env%utrasl
+     END IF
      DO isubsys=1,SIZE(subsys_mm)     
         particles_mm => subsys_mm(isubsys)%subsys%particles%els
         DO ip=1,subsys_mm(isubsys)%subsys%particles%n_els
@@ -754,6 +757,12 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
      END DO
      ! If add charges get rid of their derivatives right NOW!
      IF (qmmm_added_chrg) CALL qmmm_added_chrg_forces(force_env%qmmm_env, particles_mm, error)
+     ! Check if we have to delete some gradients.. i.e. some atom is considered fixed...
+     IF (ANY(particles_mm%is_fixed)) THEN
+        DO ip = 1, SIZE(particles_mm)
+           IF (particles_mm(ip)%is_fixed) particles_mm(ip)%f = 0.0_dp
+        END DO
+     END IF
   END IF
 
   print_key => section_vals_get_subs_vals(qmmm_section,"qmmm_derivatives",&

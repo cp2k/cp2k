@@ -142,6 +142,7 @@ MODULE qmmm_types
      INTEGER                                                 :: num_qm_atoms
      INTEGER                                                 :: num_mm_atoms
      REAL(KIND=dp)                                           :: eps_mm_rspace
+     REAL(KIND=dp), DIMENSION(3)                             :: dOmmOqm, utrasl
      REAL(KIND=dp), DIMENSION(:), POINTER                    :: maxradius
      INTEGER,        DIMENSION(:), POINTER                   :: qm_subsys_index
      INTEGER,        DIMENSION(:), POINTER                   :: qm_atom_index
