@@ -42,6 +42,8 @@ module xc_derivatives
   logical, parameter          :: debug_this_module=.false.
   character(len=*), parameter :: moduleN = 'xc_derivatives'
 
+  public :: xc_calc_derivatives
+
 !****************************************************************************
 
 contains
@@ -60,8 +62,6 @@ contains
   !!     - gradient_functionals:
   !!     - crossterms     :
   !!     - order          : up to which order to derive
-  !!     - density_cutoff :
-  !!     - gradient_cutoff:
   !!     - rhoa           : in spin-restricted calc the density (on a grid)
   !!                        in spin-unrestricted calc the alpha spin-density
   !!     - rhob, optional : in spin-unrestricted calc the beta spin-density
@@ -86,8 +86,8 @@ contains
     type(xc_derivative_set_type), pointer        :: derivative_set
     type(xc_control_type), intent(in)            :: xc_control
     integer, intent(in)                          :: order
-    real(KIND = dp), dimension(:,:), intent(in)    :: rhoa
-    real(KIND = dp), dimension(:,:), intent(in), optional :: rhob, drhoa, drhob
+    real(KIND = dp), dimension(:), intent(in)    :: rhoa
+    real(KIND = dp), dimension(:), intent(in), optional :: rhob, drhoa, drhob
     type(cp_error_type), optional, intent(inout) :: error
     
     ! locals
@@ -100,6 +100,7 @@ contains
                                    routineP = moduleN//'/'//routineN
 
     failure = .false.
+    do_lsd = .false.
     if (present(rhob)) do_lsd = .true.
 
     !-------------!
@@ -122,7 +123,8 @@ contains
        if (.not.failure) then
           npot = xc_get_pot_size(do_lsd, any(xc_control%gradient_functionals), &
                                  do_lsd .and. any(xc_control%crossterms), order)
-          allocate(derivative_set%data(derivative_set%npoints,npot), stat=stat)
+          ! for compatability 0:npot-1 later simply npot
+          allocate(derivative_set%data(derivative_set%npoints,0:npot-1), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        end if
        
@@ -135,17 +137,17 @@ contains
              call xc_lsd ( xc_control%functionals, &
                            xc_control%gradient_functionals, &
                            xc_control%crossterms, &
-                           rhoa(:,1), rhob(:,1), &
-                           derivative_set%data, order, &
-                           drho_a=drhoa(:,1), drho_b=drhob(:,1), &
+                           rhoa(:), rhob(:), &
+                           derivative_set, order, &
+                           drho_a=drhoa(:), drho_b=drhob(:), &
                            error=error )
           else
              call xc_lda ( xc_control%functionals,&
                            xc_control%gradient_functionals, &
                            xc_control%crossterms, &
-                           rhoa(:,1),  &
-                           derivative_set%data, order=order, &
-                           drho=drhoa(:,1), &
+                           rhoa(:),  &
+                           derivative_set, order=order, &
+                           drho=drhoa(:), &
                            error=error )
           end if
        else
@@ -153,19 +155,21 @@ contains
              call xc_lsd ( xc_control%functionals, &
                            xc_control%gradient_functionals, &
                            xc_control%crossterms, &
-                           rhoa(:,1), rhob(:,1), &
-                           derivative_set%data, order, &
+                           rhoa(:), rhob(:), &
+                           derivative_set, order, &
                            error=error )
           else
              call xc_lda ( xc_control%functionals,&
                            xc_control%gradient_functionals, &
                            xc_control%crossterms, &
-                           rhoa(:,1), &
-                           derivative_set%data, order, &
+                           rhoa(:), &
+                           derivative_set, order, &
                            error=error )
           end if
        end if
 
+       
+       
     end if
 
   end subroutine xc_calc_derivatives

@@ -133,6 +133,8 @@ MODULE qs_kpp1_env_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: xc_prep_2nd_deriv1, xc_calc_2nd_deriv1
+  USE xc_derivative_types,             ONLY: xc_derivative_set_type, &
+                                             xc_derivative_set_release
   IMPLICIT NONE
 
   PRIVATE
@@ -200,7 +202,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        NULLIFY(kpp1_env%v_rspace, kpp1_env%v_ao, kpp1_env%drho_r,&
-            kpp1_env%deriv_xc, kpp1_env%spin_pot, kpp1_env%grad_pot,&
+            kpp1_env%derivative_set, kpp1_env%spin_pot, kpp1_env%grad_pot,&
             kpp1_env%ndiag_term)
        kpp1_env%ref_count=1
        kpp1_env%rebuild_each=5
@@ -237,12 +239,6 @@ CONTAINS
 !!       looks at rebuild_each
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     10.2002 created [fawzi]
 !!
 !!*** **********************************************************************
   SUBROUTINE kpp1_calc_k_p_p1(kpp1_env,qs_env,k_p_p1,rho,rho1,&
@@ -358,9 +354,6 @@ CONTAINS
 
        IF (logger%print_keys%total_densities) THEN
           total_rho_gspace = calculate_total_rho(rho1_tot_gspace)
-!FM          if (cp_would_output(logger,outputName="kpp1_charges",&
-!FM               fromWhere=routineP,iter=iter,&
-!FM               local=.false.,error=error)) THEN
           IF (logger%para_env%mepos==logger%para_env%source) THEN
              output_unit=cp_unitnr_for_output(logger,&
                   outputName="kpp1_charges",&
@@ -402,38 +395,18 @@ CONTAINS
           CALL coeff_zero(v_rspace_new(ispin))
        END DO
 
-
-!!!       IF (cp_would_output(logger,outputName="kpp1_energies",&
-!!!            fromWhere=routineP,iter=200*(kpp1_env%id_nr-1)+kpp1_env%iter,&
-!!!            local=.FALSE.,error=error)) THEN
-!!!          IF (logger%para_env%mepos==logger%para_env%source) THEN
-!!!             output_unit=cp_unitnr_for_output(logger,&
-!!!                  outputName="kpp1_energies",&
-!!!                  fromWhere=routineP, &
-!!!                  iter=200*(kpp1_env%id_nr-1)+kpp1_env%iter,&
-!!!                  local=.FALSE.,error=error)
-!!!             WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-!!!                  "KPP1 Hartree energy:                           ",&
-!!!                  energy_hartree
-!!!             CALL cp_finished_output(logger, outputName="kpp1_energies",&
-!!!                  fromWhere=routineP, &
-!!!                  iter=200*(kpp1_env%id_nr-1)+kpp1_env%iter, &
-!!!                  unit_nr=output_unit,local=.FALSE.,error=error)
-!!!          END IF
-!!!       END IF
-
        CALL qs_rho_get(rho,rho_r=rho_r,rho_g=rho_g,error=error)
        CALL qs_rho_get(rho1,rho_r=rho1_r,rho_g=rho1_g,error=error)
-       CALL xc_calc_2nd_deriv1(rho_r=rho_r,drho_r=kpp1_env%drho_r,&
-            rho1_r=rho1_r,&
-            rho1_g=rho1_g,&
-            dft_control=dft_control,&
-            pot=kpp1_env%deriv_xc,&
-            spin_pot=kpp1_env%spin_pot,grad_pot=kpp1_env%grad_pot,&
-            ndiag_term=kpp1_env%ndiag_term,&
-            v_rspace_new=v_rspace_new,&
-            pw_pool=auxbas_pw_pool,&
-            error=error)
+       CALL xc_calc_2nd_deriv1(kpp1_env%derivative_set, &
+                               rho_r=rho_r,drho_r=kpp1_env%drho_r,&
+                               rho1_r=rho1_r,&
+                               rho1_g=rho1_g,&
+                               dft_control=dft_control,&
+                               spin_pot=kpp1_env%spin_pot,grad_pot=kpp1_env%grad_pot,&
+                               ndiag_term=kpp1_env%ndiag_term,&
+                               v_rspace_new=v_rspace_new,&
+                               pw_pool=auxbas_pw_pool,&
+                               error=error)
 
 
        !-------------------------------!
@@ -723,11 +696,11 @@ CONTAINS
           END IF
        END IF
        
-       if (.not.(associated(kpp1_env%deriv_xc).and.&
+       if (.not.(associated(kpp1_env%derivative_set).and.&
                  associated(kpp1_env%spin_pot).and.&
                  associated(kpp1_env%grad_pot).and.&
                  associated(kpp1_env%ndiag_term))) then
-          call cp_assert(.not.associated(kpp1_env%deriv_xc).and.&
+          call cp_assert(.not.associated(kpp1_env%derivative_set).and.&
                          .not.associated(kpp1_env%spin_pot).and.&
                          .not.associated(kpp1_env%grad_pot).and.&
                          .not.associated(kpp1_env%ndiag_term),&
@@ -741,9 +714,10 @@ CONTAINS
           ! now the derivative is actually computed !
           !-----------------------------------------!
           call qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g, error=error)
-          call xc_prep_2nd_deriv1(rho_r=rho_r, rho_g=rho_g,&
+          call xc_prep_2nd_deriv1(kpp1_env%derivative_set, &
+                                  rho_r=rho_r, rho_g=rho_g,&
                                   dft_control=dft_control, pw_pool=auxbas_pw_pool,&
-                                  drho_r=kpp1_env%drho_r, pot=kpp1_env%deriv_xc,&
+                                  drho_r=kpp1_env%drho_r,&
                                   spin_pot=kpp1_env%spin_pot, grad_pot=kpp1_env%grad_pot,&
                                   ndiag_term=kpp1_env%ndiag_term, error=error)
        end if
@@ -821,9 +795,9 @@ CONTAINS
              deallocate(kpp1_env%drho_r, stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           end if
-          if (associated(kpp1_env%deriv_xc)) then
-             deallocate(kpp1_env%deriv_xc,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          if (associated(kpp1_env%derivative_set)) then
+             call xc_derivative_set_release(kpp1_env%derivative_set, error=error)
+             nullify(kpp1_env%derivative_set)
           end if
           if (associated(kpp1_env%spin_pot)) then
              deallocate(kpp1_env%spin_pot, stat=stat)

@@ -85,6 +85,10 @@ MODULE qs_kpp1_env_types
                                              pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE xc_derivative_types,             ONLY: xc_derivative_set_type, &
+                                             xc_derivative_set_create, &
+                                             xc_derivative_set_release
+  
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: qs_kpp1_env_type, qs_kpp1_env_p_type
@@ -134,13 +138,6 @@ MODULE qs_kpp1_env_types
 !!     - ndiag_term(ipot): it the term is an off diagonal term (see 
 !!       xc_create_2nd_deriv_info)
 !!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!     11.2002 ref-count, actually used to calculate [fawzi]
-!!     12.2002 cached pot [fawzi]
 !!
 !!   SOURCE
   !***************************************************************************
@@ -150,7 +147,8 @@ MODULE qs_kpp1_env_types
      TYPE(coeff_type), DIMENSION(:), POINTER :: v_rspace
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: v_ao
      TYPE(pw_p_type), DIMENSION(:,:), pointer :: drho_r
-     REAL ( KIND = dp ) , DIMENSION (:,:), pointer :: deriv_xc
+     !     REAL ( KIND = dp ) , DIMENSION (:,:), pointer :: deriv_xc
+     type(xc_derivative_set_type), pointer :: derivative_set
      INTEGER, DIMENSION(:,:), POINTER :: spin_pot
      LOGICAL, DIMENSION(:,:), POINTER :: grad_pot
      LOGICAL, DIMENSION(:), POINTER :: ndiag_term
@@ -251,9 +249,9 @@ CONTAINS
              deallocate(kpp1_env%drho_r, stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           end if
-          if (associated(kpp1_env%deriv_xc)) then
-             deallocate(kpp1_env%deriv_xc,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          if (associated(kpp1_env%derivative_set)) then
+             call xc_derivative_set_release(kpp1_env%derivative_set, error=error)
+             nullify(kpp1_env%derivative_set)
           end if
           if (associated(kpp1_env%spin_pot)) then
              deallocate(kpp1_env%spin_pot, stat=stat)
@@ -467,12 +465,12 @@ CONTAINS
              write (unit=my_unit_nr,fmt="(a)") " drho_r=*null*"
           end if
 
-          if (associated(kpp1_env%deriv_xc)) then
+          if (associated(kpp1_env%derivative_set)) then
              if (my_long_description) then
                 call cp_2d_r_output(logger=logger,&
-                     outputName=base_filename//"%deriv_xc", &
+                     outputName=base_filename//"%derivative_set%data", &
                      fromWhere=routineP, iter=kpp1_env%print_count,&
-                     array=kpp1_env%deriv_xc,&
+                     array=kpp1_env%derivative_set%data,&
                      local=my_local, error=error)
              else
                 write (unit=my_unit_nr,fmt="(a)") " deriv_xc=*associated*,"

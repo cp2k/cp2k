@@ -39,9 +39,11 @@ MODULE kg_kxc
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: xc_calculate_pw1
-  USE xc_functionals,                  ONLY: xc_get_pot_size,&
-                                             xc_lda,&
-                                             xc_set
+  USE xc_derivative_types,             ONLY: xc_derivative_set_type, &
+                                             xc_derivative_set_create, &
+                                             xc_derivative_set_release
+  USE xc_derivatives,                  ONLY: xc_calc_derivatives
+
   IMPLICIT NONE
 
   PRIVATE
@@ -202,12 +204,14 @@ SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,dft_control )
 
 ! Local
   REAL ( dbl ) , DIMENSION (:), ALLOCATABLE :: rgrid
-  REAL ( dbl ) , DIMENSION (:,:), ALLOCATABLE :: pot
   LOGICAL, DIMENSION  (3) :: gradient_functionals, crossterms
   INTEGER :: stat, ntot, n(3), i, j, k, ii, order, ik, npot
   INTEGER, DIMENSION (3,3) :: nd
   INTEGER, DIMENSION (2,3) :: bo
   LOGICAL :: failure, spezgrid, do_lsd
+  TYPE(xc_derivative_set_type), pointer :: derivative_set
+
+! Parameters
   CHARACTER(len=*), PARAMETER :: routineN='xc_calculate_derivatives',&
                                  routineP=moduleN//':'//routineN
 !------------------------------------------------------------------------------
@@ -237,10 +241,10 @@ SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,dft_control )
         END DO
      END DO
   END IF
-  order = 3
-! allocate potential
-! no gradient corrections are implemented for derivatives
 
+  order = 3
+
+! no gradient corrections are implemented for derivatives
   gradient_functionals = dft_control%xc_control%gradient_functionals
   do_lsd = (dft_control%nspins > 1)
   crossterms = (dft_control%xc_control%crossterms.AND.do_lsd)
@@ -248,15 +252,10 @@ SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,dft_control )
      CALL stop_program(routineP, "not yet implemented")
   END IF
 
-  npot = xc_get_pot_size ( do_lsd, ANY(gradient_functionals), ANY(crossterms), order )
-  ALLOCATE ( pot ( ntot, 0:npot-1 ), STAT = stat )
-  IF ( stat /= 0 ) CALL stop_memory ( routineP, "pot", ntot*npot )
-
-! calculate functionals
-  CALL xc_set ( dft_control%xc_control%density_cut, dft_control%xc_control%gradient_cut )
-  CALL xc_lda ( dft_control%xc_control%functionals, &
-                gradient_functionals, crossterms, &
-                rgrid, pot, order )
+  CALL xc_derivative_set_create(derivative_set, ntot)
+  CALL xc_calc_derivatives(derivative_set, &
+                           dft_control%xc_control, order, &
+                           rgrid)
   ! copy back to structure
   IF ( spezgrid ) THEN
      ! transform to lower cutoff
@@ -267,8 +266,8 @@ SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,dft_control )
         DO j = bo(1,2), bo(2,2)
            DO i = bo(1,1), bo(2,1)
               ii = ii + 1
-              v1%cr3d(i,j,k) = pot(ii,2)*rhop_r%cr3d(i,j,k)
-              v2%cr3d(i,j,k) = pot(ii,3)*rhop_r%cr3d(i,j,k)
+              v1%cr3d(i,j,k) = derivative_set%data(ii,2)*rhop_r%cr3d(i,j,k)
+              v2%cr3d(i,j,k) = derivative_set%data(ii,3)*rhop_r%cr3d(i,j,k)
            END DO
         END DO
      END DO
@@ -284,8 +283,7 @@ SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,dft_control )
      DEALLOCATE ( rgrid, STAT = stat )
      IF ( stat /= 0 ) CALL stop_memory ( routineP, "rgrid" )
   END IF
-  DEALLOCATE ( pot, STAT = stat )
-  IF ( stat /= 0 ) CALL stop_memory ( routineP, "pot" )
+  CALL xc_derivative_set_release(derivative_set)
 
 END SUBROUTINE xc_calculate_derivatives
 

@@ -36,6 +36,7 @@ MODULE xc_functionals
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE xc_cs1,                          ONLY: cs1
+  USE xc_derivative_types,             ONLY: xc_derivative_set_type
   USE xc_exchange_gga,                 ONLY: b88,&
                                              optx,&
                                              pbex,&
@@ -174,13 +175,13 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE xc_lda ( functional, gradient_functionals, crossterms, &
-                      rho, pot, order, drho, error )
+                      rho, derivative_set, order, drho, error )
      IMPLICIT NONE
      CHARACTER (LEN=*), DIMENSION ( 3 ), INTENT(IN) :: functional
      LOGICAL, DIMENSION ( 3 ), INTENT(IN) :: gradient_functionals, crossterms
      REAL ( dbl ), DIMENSION (:), INTENT(in) :: rho
      REAL ( dbl ), DIMENSION (:), INTENT(in), OPTIONAL :: drho
-     REAL ( dbl ), DIMENSION (:,:), INTENT(INOUT) :: pot
+     TYPE(xc_derivative_set_type), POINTER :: derivative_set
      INTEGER, INTENT(IN) :: order
      TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
@@ -194,25 +195,27 @@ CONTAINS
      ! no crossterms in unpolarised spin calculations
      cross_term = .FALSE.
 
-     CALL dcopy(SIZE(pot,1)*SIZE(pot,2), 0.0_dbl, 0, pot, 1)
+     CALL dcopy(SIZE(derivative_set%data,1)*SIZE(derivative_set%data,2), &
+                0.0_dbl, 0, derivative_set%data, 1)
 
      IF ( .NOT. gradient_correction ) THEN
-       IF ( SIZE ( pot, 2 ) < order + 1 ) &
-          CALL stop_program ( "xc_lda", "Size of array POT too small" )
+       IF (xc_get_pot_size(.FALSE., gradient_correction, cross_term, order) &
+            > SIZE ( derivative_set%data, 2 )) &
+          CALL stop_program ( "xc_lda", "Size of array DERIVATIVE_SET%DATA too small" )
        CALL xc_calculate_lda ( functional=functional(1), rho=rho,&
-            pot=pot, order=order, error=error )
+            pot=derivative_set%data, order=order, error=error )
        CALL xc_calculate_lda ( functional=functional(2), rho=rho,&
-            pot=pot, order=order, error=error )
+            pot=derivative_set%data, order=order, error=error )
        CALL xc_calculate_lda ( functional=functional(3), rho=rho,&
-            pot=pot, order=order, error=error )
+            pot=derivative_set%data, order=order, error=error )
      ELSE
        CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
        docalc ( : ) = ( INDEX ( functional(:), "NONE" ) == 0 )
-       np = SIZE ( pot, 1 )
-       mp = SIZE ( pot, 2 )
+       np = SIZE ( derivative_set%data, 1 )
+       mp = SIZE ( derivative_set%data, 2 )
        lpmax = xc_get_pot_size ( .FALSE., .TRUE., cross_term, order )
        IF ( lpmax > mp ) CALL stop_program ( "xc_lda", &
-                                             "Size of array POT too small" )
+                                             "Size of array DERIVATIVE_SET%DATA too small" )
        ALLOCATE ( locpot ( np, mp ), STAT = ierr )
        IF ( ierr /= 0 ) CALL stop_memory ( "xc_lda", "locpot", np*mp )
        DO ifun = 1, 3
@@ -224,7 +227,7 @@ CONTAINS
            CALL xc_get_order ( .FALSE., gradient_functionals(ifun), .FALSE., &
                                gradient_correction, .FALSE., order, ind(1:lp) )
            DO i = 1, lp
-             CALL daxpy ( np, 1._dbl, locpot(1,i), 1, pot(1,ind(i)), 1 )
+             CALL daxpy ( np, 1._dbl, locpot(1,i), 1, derivative_set%data(1,ind(i)), 1 )
            END DO
          END IF
        END DO
@@ -237,16 +240,16 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE xc_lsd ( functional, gradient_functionals, crossterms, &
-                      rho_a, rho_b, pot, order, &
+                      rho_a, rho_b, derivative_set, order, &
                       drho_a, drho_b, error )
 
      IMPLICIT NONE
 
      ! arguments
      CHARACTER (LEN=*), DIMENSION ( 3 ), INTENT(IN) :: functional
-     LOGICAL, DIMENSION ( 3 ), INTENT(IN) :: gradient_functionals, crossterms
-     REAL ( dbl ), DIMENSION (:), INTENT(in) :: rho_a, rho_b
-     REAL ( dbl ), DIMENSION (:,:), INTENT(INOUT) :: pot
+     LOGICAL, DIMENSION ( 3 ), INTENT(IN)           :: gradient_functionals, crossterms
+     REAL ( dbl ), DIMENSION (:), INTENT(in)        :: rho_a, rho_b
+     TYPE(xc_derivative_set_type), POINTER          :: derivative_set
      REAL ( dbl ), DIMENSION (:), INTENT(in), OPTIONAL :: drho_a, drho_b
      INTEGER, INTENT(IN) :: order
      TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
@@ -264,16 +267,16 @@ CONTAINS
      gradient_correction = ANY ( gradient_functionals )
      cross_term = ANY ( crossterms )
 
-     CALL dcopy(SIZE(pot,1)*SIZE(pot,2), 0.0_dbl, 0, pot, 1)
+     CALL dcopy(SIZE(derivative_set%data,1)*SIZE(derivative_set%data,2), 0.0_dbl, 0, derivative_set%data, 1)
 
      IF ( .NOT. gradient_correction ) THEN
         
-        IF (xc_get_pot_size(.TRUE., gradient_correction, cross_term, order) > SIZE(pot,2)) &
-             CALL stop_program ( routineP, "Size of array POT too small" )
+        IF (xc_get_pot_size(.TRUE., gradient_correction, cross_term, order) > SIZE(derivative_set%data,2)) &
+             CALL stop_program ( routineP, "Size of array DERIVATIVE_SET%DATA too small" )
         
-        CALL xc_calculate_lsd ( functional(1), rho_a, rho_b, pot, order, error=error )
-        CALL xc_calculate_lsd ( functional(2), rho_a, rho_b, pot, order, error=error )
-        CALL xc_calculate_lsd ( functional(3), rho_a, rho_b, pot, order, error=error )
+        CALL xc_calculate_lsd ( functional(1), rho_a, rho_b, derivative_set%data, order, error=error )
+        CALL xc_calculate_lsd ( functional(2), rho_a, rho_b, derivative_set%data, order, error=error )
+        CALL xc_calculate_lsd ( functional(3), rho_a, rho_b, derivative_set%data, order, error=error )
 
      ELSE
         CPPreconditionNoFail(PRESENT(drho_a),cp_failure_level,routineP,error)
@@ -281,12 +284,12 @@ CONTAINS
         
         docalc ( : ) = ( INDEX ( functional(:), "NONE" ) == 0 )
         
-        np = SIZE ( pot, 1 )
-        mp = SIZE ( pot, 2 )
+        np = SIZE ( derivative_set%data, 1 )
+        mp = SIZE ( derivative_set%data, 2 )
         
         lpmax = xc_get_pot_size ( .TRUE., gradient_correction, cross_term, order )
         
-        IF ( lpmax > mp ) CALL stop_program ( routineP, "Size of array POT too small" )
+        IF ( lpmax > mp ) CALL stop_program ( routineP, "Size of array DERIVATIVE_SET%DATA too small" )
         
         ALLOCATE ( locpot ( np, mp ), STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( routineP, "locpot", np*mp )
@@ -299,7 +302,7 @@ CONTAINS
               CALL xc_get_order ( .TRUE., gradient_functionals(ifun), crossterms(ifun), &
                    gradient_correction, cross_term, order, ind(1:lp) )
               DO i = 1, lp
-                 CALL daxpy ( np, 1._dbl, locpot(1,i), 1, pot(1,ind(i)), 1 )
+                 CALL daxpy ( np, 1._dbl, locpot(1,i), 1, derivative_set%data(1,ind(i)), 1 )
               END DO
            END IF
         END DO

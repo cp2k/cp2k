@@ -49,7 +49,7 @@ module xc_derivative_types
   type xc_derivative_type
      integer                                   :: ref_count, id_nr
      character(len=MAX_DERIVATIVE_DESC_LENGTH) :: description
-     real(KIND = dp), dimension(:), pointer      :: derivative
+     real(KIND = dp), dimension(:), pointer    :: data
      type(xc_derivative_type), pointer         :: next
   end type xc_derivative_type
 
@@ -75,7 +75,9 @@ module xc_derivative_types
   end type xc_derivative_set_type
 
   public :: xc_derivative_type, &
-            xc_derivative_set_type, xc_derivative_set_create, &
+            xc_derivative_set_type, &
+            xc_derivative_set_create, &
+            xc_derivative_set_release, &
             xc_dset_get_derivative
 
 contains
@@ -173,7 +175,7 @@ contains
     integer :: stat
 
     ! parameters
-    character(len=*), parameter :: routineN = 'xc_dset_get_derivative',&
+    character(len=*), parameter :: routineN = 'xc_derivative_set_create',&
                                    routineP = moduleN//':'//routineN
 
     failure=.false.
@@ -190,10 +192,67 @@ contains
        derivative_set%ref_count = 1
        derivative_set%id_nr     = derivative_set_id_nr
        derivative_set_id_nr     = derivative_set_id_nr + 1
+       derivative_set%npoints   = 0
        derivative_set%npoints   = npoints
     end if
 
   end subroutine xc_derivative_set_create
+  !***************************************************************************
+
+  !!****f* xc_derivative_types/xc_derivative_set_release [1.0] *
+  !!
+  !!   NAME
+  !!     xc_derivative_set_release
+  !!
+  !!   FUNCTION
+  !!     releases a derivative set
+  !!
+  !!   INPUTS
+  !!     - set     : the set to release
+  !!     - error   : variable to control error logging, stopping,... 
+  !!                 see module cp_error_handling 
+  !!
+  !!*** **********************************************************************
+  subroutine xc_derivative_set_release(derivative_set, error)
+
+    ! arguments
+    type(xc_derivative_set_type), pointer        :: derivative_set
+    type(cp_error_type), optional, intent(inout) :: error
+
+    ! locals
+    logical :: failure
+    integer :: stat
+    type(xc_derivative_type), pointer :: pos, tmp
+
+    ! parameters
+    character(len=*), parameter :: routineN = 'xc_derivative_set_release',&
+                                   routineP = moduleN//':'//routineN
+
+    failure=.false.
+    
+    CPPrecondition(associated(derivative_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(derivative_set%ref_count>0,cp_failure_level,routineP,error,failure)
+
+    if (.not. failure) then
+       derivative_set%ref_count = derivative_set%ref_count - 1
+       if (derivative_set%ref_count == 0) then
+          if (associated(derivative_set%data)) then
+             deallocate(derivative_set%data, stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          end if
+          pos => derivative_set%first
+          do while (associated(pos))
+             tmp => pos
+             pos => pos%next
+             call xc_derivative_release(tmp, error=error)
+          end do
+          deallocate(derivative_set, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          nullify(derivative_set)
+       end if
+    end if
+
+  end subroutine xc_derivative_set_release
   !***************************************************************************
 
   !!****f* xc_derivative_types/xc_derivative_create [1.0] *
@@ -208,18 +267,20 @@ contains
   !!     the space for the derivative (array) is not! allocated
   !!
   !!   INPUTS
-  !!     - xc_deriv  : the object to create
-  !!     - deriv_desc: the derivative description
-  !!     - error     : variable to control error logging, stopping,... 
-  !!                   see module cp_error_handling 
+  !!     - derivative  : the object to create
+  !!     - description : the derivative description
+  !!     - data        : pointer to the data
+  !!     - error       : variable to control error logging, stopping,... 
+  !!                     see module cp_error_handling 
   !!
   !!*** **********************************************************************
-  subroutine xc_derivative_create(derivative, description, error)
+  subroutine xc_derivative_create(derivative, description, data, error)
 
     ! arguments
-    type(xc_derivative_type), pointer            :: derivative
-    character(len=*), intent(in)                 :: description
-    type(cp_error_type), optional, intent(inout) :: error
+    type(xc_derivative_type), pointer              :: derivative
+    character(len=*), intent(in)                   :: description
+    real(kind=dp), dimension(:), pointer, optional :: data
+    type(cp_error_type), optional, intent(inout)   :: error
 
     ! locals
     logical                                   :: failure
@@ -236,16 +297,65 @@ contains
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     if (.not. failure) then
-       nullify(derivative%derivative)
+       nullify(derivative%data)
        nullify(derivative%next)
        derivative%ref_count = 1
        derivative%id_nr     = derivative_id_nr
        derivative_id_nr     = derivative_id_nr + 1
        my_description = standardize_dervitative_desc(description)
        derivative%description = my_description
+       if (present(data)) derivative%data => data
     end if
 
   end subroutine xc_derivative_create
+  !***************************************************************************
+
+  !!****f* xc_derivative_types/xc_derivative_release [1.0] *
+  !!
+  !!   NAME
+  !!     xc_derivative_release
+  !!
+  !!   FUNCTION
+  !!     allocates and initializes a derivative type
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   INPUTS
+  !!     - derivative  : the object to create
+  !!     - error       : variable to control error logging, stopping,... 
+  !!                     see module cp_error_handling 
+  !!
+  !!*** **********************************************************************
+  subroutine xc_derivative_release(derivative, error)
+
+    ! arguments
+    type(xc_derivative_type), pointer              :: derivative
+    type(cp_error_type), optional, intent(inout)   :: error
+
+    ! locals
+    logical                                   :: failure
+    integer                                   :: stat
+    character(len=MAX_DERIVATIVE_DESC_LENGTH) :: my_description
+
+    ! parameters
+    character(len=*), parameter :: routineN = 'xc_derivative_release',&
+                                   routineP = moduleN//':'//routineN
+
+    failure=.false.
+
+    CPPrecondition(associated(derivative),cp_failure_level,routineP,error,failure)
+    ! current implementation does not support multiple referencing of
+    ! the derivatives (but multiple referencing of the derivative_set is ok)
+    CPPrecondition(derivative%ref_count==1,cp_failure_level,routineP,error,failure)
+
+    if (.not.failure) then
+       deallocate(derivative, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       nullify(derivative)
+    end if
+
+  end subroutine xc_derivative_release
   !***************************************************************************
 
 end module xc_derivative_types
