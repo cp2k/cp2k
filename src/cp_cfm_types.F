@@ -431,7 +431,7 @@ CONTAINS
   END SUBROUTINE CP_cFM_INIT_RANDOM
 ! *****************************************************************************
 
-  SUBROUTINE cp_cfm_set_all(matrix,alpha,error)
+  SUBROUTINE cp_cfm_set_all(matrix,alpha,beta,error)
 
 !   Purpose: Set the FULL matrix elements to alpha.
 
@@ -441,20 +441,22 @@ CONTAINS
 
     TYPE(cp_complex_full_matrix_type), POINTER           :: matrix
     COMPLEX(wp), INTENT(IN)                         :: alpha
+    COMPLEX(wp), OPTIONAL, INTENT(IN)               :: beta
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local variables ***
 
-    INTEGER :: mypcol,myprow
+    INTEGER :: mypcol,myprow,i
     TYPE(cp_blacs_env_type), POINTER :: context
 
 !   ---------------------------------------------------------------------------
 
-    context => matrix%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-
     matrix%local_data(:,:) = alpha
+    IF (present(beta)) THEN
+      DO i=1,matrix%matrix_struct%nrow_global
+         CALL cp_cfm_set_element(matrix,i,i,beta)
+      ENDDO
+    ENDIF
 
   END SUBROUTINE cp_cfm_set_all
 
@@ -476,7 +478,7 @@ CONTAINS
 !!
 !!   MODIFICATION HISTORY
 !!     , TCH, created
-!!
+!!     always return the answer
 !!   SEE ALSO
 !!     
 !!
@@ -517,6 +519,7 @@ CONTAINS
     ELSE
       alpha = CMPLX(0.0_wp,0.0_wp)
     END IF
+    CALL mp_sum(alpha,matrix%matrix_struct%para_env%group)
 
 #else
     alpha = matrix%local_data(irow_global,icol_global)
