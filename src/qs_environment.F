@@ -25,6 +25,9 @@
 !******************************************************************************
 
 MODULE qs_environment
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
+                                             atomic_kind_list_release,&
+                                             atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set,&
                                              init_atomic_kind_set,&
@@ -44,6 +47,9 @@ MODULE qs_environment
   USE cp_error_handling,               ONLY: cp_error_type
   USE cp_fm_struct,                    ONLY: optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size
+  USE cp_subsystem_types,              ONLY: cp_subsys_create,&
+                                             cp_subsys_set,&
+                                             cp_subsystem_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
@@ -53,6 +59,12 @@ MODULE qs_environment
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE machine,                         ONLY: m_flush
+  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
+                                             mol_kind_new_list_release,&
+                                             mol_kind_new_list_type
+  USE mol_new_list_types,              ONLY: mol_new_list_create,&
+                                             mol_new_list_release,&
+                                             mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                              write_molecule_kind_set
   USE molecule_types_new,              ONLY: molecule_type
@@ -60,6 +72,9 @@ MODULE qs_environment
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
   USE pao_read_section,                ONLY: pao_env_init_from_file
   USE pao_types,                       ONLY: pao_env_type
+  USE particle_list_types,             ONLY: particle_list_create,&
+                                             particle_list_release,&
+                                             particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_distances,&
                                              write_qs_particle_coordinates,&
@@ -131,18 +146,97 @@ CONTAINS
     REAL(dp), DIMENSION(1:3, 1:3), &
       INTENT(IN), OPTIONAL                   :: new_h_matrix
 
+    LOGICAL                                  :: use_ref_cell
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell, cell_ref
+    TYPE(cp_subsystem_type), POINTER         :: subsystem
+    TYPE(mol_kind_new_list_type), POINTER    :: mol_kinds
+    TYPE(mol_new_list_type), POINTER         :: mols
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+
+    NULLIFY(subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
+         particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref)
+    CALL cp_subsys_create(subsystem,para_env=globenv%para_env,error=error)
+    
+
+!   *** Read the input section with the cell parameters ***
+
+    IF (PRESENT(new_h_matrix)) THEN
+        WRITE(6,*) 'DONT USE THE H-MATRIX LIKE THIS'
+        STOP
+!        CALL read_cell(cell,globenv,new_h_matrix)
+    ELSE
+        CALL read_cell(cell,globenv,cell_ref=cell_ref,&
+           use_ref_cell=use_ref_cell)
+    ENDIF
+
+!   *** Print the cell parameters ***
+
+    CALL write_cell(cell,globenv)
+
+!   *** Read the particle coordinates and allocate the atomic kind, ***
+!   *** the molecule kind, and the molecule data structures         ***
+! topology_control
+    CALL topology_control (atomic_kind_set,particle_set,&
+                         molecule_kind_set,molecule_set,&
+                         globenv)
+  
+    CALL read_atomic_kind_set(atomic_kind_set,globenv)
+
+    CALL particle_list_create(particles,els_ptr=particle_set,error=error)
+    CALL atomic_kind_list_create(atomic_kinds,els_ptr=atomic_kind_set,error=error)
+    CALL mol_new_list_create(mols,els_ptr=molecule_set,error=error)
+    CALL mol_kind_new_list_create(mol_kinds,els_ptr=molecule_kind_set,error=error)
+    CALL cp_subsys_set(subsystem,particles=particles,atomic_kinds=atomic_kinds,&
+         molecules_new=mols,molecule_kinds_new=mol_kinds,error=error)
+    CALL particle_list_release(particles,error=error)
+    CALL atomic_kind_list_release(atomic_kinds,error=error)
+    CALL mol_new_list_release(mols,error=error)
+    CALL mol_kind_new_list_release(mol_kinds,error=error)
+    
+    CALL qs_init_subsys(qs_env,subsystem,cell,cell_ref,use_ref_cell,&
+         globenv,error)
+    
+  END SUBROUTINE qs_init
+
+
+  SUBROUTINE qs_init_subsys(qs_env,subsystem,cell,cell_ref,use_ref_cell,&
+       globenv,error)
+
+!   Purpose: Read the input and the database files for the setup of the
+!            QUICKSTEP environment.
+
+!   History: - Creation (22.05.2000,MK)
+
+!   ***************************************************************************
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_subsystem_type), POINTER         :: subsystem
+    TYPE(cell_type), POINTER                 :: cell, cell_ref
+    LOGICAL, INTENT(in)                      :: use_ref_cell
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "qs_init"
 
-    INTEGER :: handle, ispin, istat, lmax_sphere, maxl, maxlgto, maxlppl, maxlppnl, &
-      multiplicity, n_ao, nelectron, nkind, output_unit
+    INTEGER :: handle, ispin, istat, lmax_sphere, maxl, maxlgto, maxlppl, &
+      maxlppnl, multiplicity, n_ao, nelectron, nkind, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
-    LOGICAL                                  :: ionode,use_ref_cell
+    LOGICAL                                  :: ionode
     REAL(dp)                                 :: maxocc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cell_type), POINTER                 :: cell_ref
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
@@ -175,19 +269,18 @@ CONTAINS
 
 !   *** Initialise the Quickstep environment ***
 
-    NULLIFY (atomic_kind_set)
     NULLIFY (c)
-    NULLIFY (cell)
-    NULLIFY (cell_ref)
     NULLIFY (dft_control)
     NULLIFY (energy)
     NULLIFY (force)
     NULLIFY (local_molecules)
     NULLIFY (local_particles)
-    NULLIFY (molecule_set)
     NULLIFY (pao_env)
-    NULLIFY (particle_set)
     NULLIFY (scf_control)
+    particle_set => subsystem%particles%els
+    atomic_kind_set => subsystem%atomic_kinds%els
+    molecule_set => subsystem%molecules_new%els
+    molecule_kind_set => subsystem%molecule_kinds_new%els
 
 !   *** Print the Quickstep program banner (copyright and version number) ***
 
@@ -209,33 +302,9 @@ CONTAINS
 
     CALL write_qs_control(dft_control%qs_control,globenv)
 
-!   *** Read the input section with the cell parameters ***
-
-    IF (PRESENT(new_h_matrix)) THEN
-        WRITE(6,*) 'DONT USE THE H-MATRIX LIKE THIS'
-        STOP
-!        CALL read_cell(cell,globenv,new_h_matrix)
-    ELSE
-        CALL read_cell(cell,globenv,cell_ref=cell_ref,&
-           use_ref_cell=use_ref_cell)
-    ENDIF
-
-!   *** Print the cell parameters ***
-
-    CALL write_cell(cell,globenv)
-
     CALL read_cntl_section(setup,globenv)
 
     CALL read_setup_section(setup,globenv)
-
-!   *** Read the particle coordinates and allocate the atomic kind, ***
-!   *** the molecule kind, and the molecule data structures         ***
-! topology_control
-    CALL topology_control (atomic_kind_set,particle_set,&
-                         molecule_kind_set,molecule_set,&
-                         globenv)
-  
-    CALL read_atomic_kind_set(atomic_kind_set,globenv)
 
 !   *** Print the unnormalized basis set information (input data) ***
 
@@ -351,9 +420,8 @@ CONTAINS
                     error=error)
 
 !   *** Set the current Quickstep environment ***
-
+    CALL set_qs_env(qs_env, subsys=subsystem,error=error)
     CALL set_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
                     cell_ref=cell_ref,&
                     use_ref_cell=use_ref_cell,&
@@ -362,10 +430,7 @@ CONTAINS
                     force=force,&
                     local_molecules=local_molecules,&
                     local_particles=local_particles,&
-                    molecule_kind_set=molecule_kind_set,&
-                    molecule_set=molecule_set,&
                     pao_env=pao_env,&
-                    particle_set=particle_set,&
                     scf_control=scf_control,&
                     wf_history=wf_history)
 
@@ -503,7 +568,7 @@ CONTAINS
 
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
-  END SUBROUTINE qs_init
+  END SUBROUTINE qs_init_subsys
 
 ! *****************************************************************************
 
