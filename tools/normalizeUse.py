@@ -102,9 +102,12 @@ def writeUseLong(modules,outFile):
                               m['renames'][0])
                 for i in range(1,len(m['renames'])):
                     outFile.write(",&\n"+string.ljust("",45)+m['renames'][i])
-        if m.has_key('comments'):
-            for commt in m['comments']:
-                outfile.write("&\n"+m['comments'][i])
+        if m.has_key('comments') and m['comments']:
+            comments=m['comments'].splitlines()
+            outfile.write("&")
+            for i in range(0,len(comments)-1):
+                outfile.write("\n&"+comments[i])
+            outfile.write("\n"+comments[-1])
         outfile.write("\n")
 
 def rewriteUse(inFile,outFile):
