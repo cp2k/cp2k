@@ -363,10 +363,12 @@ CONTAINS
     INTEGER, DIMENSION(3) :: n
     INTEGER, DIMENSION (3,3) :: nd 
     INTEGER, DIMENSION (2,3) :: bo
+    INTEGER :: npot,ifun
     TYPE(cp_logger_type), POINTER :: logger
-    TYPE(pw_type), POINTER :: tmp_g, vxc_g
+    TYPE(pw_type), POINTER :: tmp_g, vxc_g,frho_r,frho_g
     TYPE(pw_p_type), DIMENSION(:,:), POINTER :: drho_r
     REAL ( kind=wp ) , DIMENSION (:,:), ALLOCATABLE :: rgrid, drgrid, pot
+    REAL ( kind=wp ) :: eps_rho,alpha
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -427,41 +429,105 @@ CONTAINS
        END DO
 
        IF (gradient_f) THEN
-          IF (dft_control%smooth_gradient) THEN
-             ! spline deriv
-             DO ispin=1,nspins
-                DO idir=1,3
-                   NULLIFY(drho_r(idir,ispin)%pw)
-                   CALL pw_pool_create_pw(pw_pool,drho_r(idir,ispin)%pw, &
-                        use_data=REALDATA3D, in_space=REALSPACE, &
-                        error=error)
-                   CALL pw_zero(drho_r(idir,ispin)%pw)
-                END DO
-             END DO
-             CALL pw_spline_deriv(rho_r=rho_r, drho_r=drho_r,&
-                  cell=cell,pw_pool=pw_pool, error=error)
+          ! XXXXXXXXXXXXXXXXXX orig XXXXXXXXXXX
+          IF (.not. dft_control%derive_function_rho) THEN
+              IF (dft_control%smooth_gradient) THEN
+                 ! spline deriv
+                 DO ispin=1,nspins
+                    DO idir=1,3
+                       NULLIFY(drho_r(idir,ispin)%pw)
+                       CALL pw_pool_create_pw(pw_pool,drho_r(idir,ispin)%pw, &
+                            use_data=REALDATA3D, in_space=REALSPACE, &
+                            error=error)
+                       CALL pw_zero(drho_r(idir,ispin)%pw)
+                    END DO
+                 END DO
+                 CALL pw_spline_deriv(rho_r=rho_r, drho_r=drho_r,&
+                      cell=cell,pw_pool=pw_pool, error=error)
+              ELSE
+                 ! g-space deriv
+                 CALL timeset("g_space_deriv","I","",handle2)
+                 ! calc drho_r=grad rho
+                 CALL pw_pool_create_pw(pw_pool,tmp_g, &
+                      use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+                      error=error)
+                 DO ispin=1,nspins
+                    DO idir=1,3
+                       NULLIFY(drho_r(idir,ispin)%pw)
+                       CALL pw_pool_create_pw(pw_pool,drho_r(idir,ispin)%pw, &
+                            use_data=REALDATA3D, in_space=REALSPACE, &
+                            error=error)
+                       CALL pw_copy ( rho_g(ispin)%pw, tmp_g )
+                       CALL pw_derive ( tmp_g, nd(:,idir) )
+                       CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
+                    END DO
+                 END DO
+                 CALL pw_pool_give_back_pw(pw_pool,tmp_g,&
+                                              error=error)
+                 CALL timestop(0.0_wp,handle2)
+             END IF
           ELSE
-             ! g-space deriv
-             CALL timeset("g_space_deriv","I","",handle2)
-             ! calc drho_r=grad rho
-             CALL pw_pool_create_pw(pw_pool,tmp_g, &
-                  use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                  error=error)
-             DO ispin=1,nspins
-                DO idir=1,3
-                   NULLIFY(drho_r(idir,ispin)%pw)
-                   CALL pw_pool_create_pw(pw_pool,drho_r(idir,ispin)%pw, &
-                        use_data=REALDATA3D, in_space=REALSPACE, &
-                        error=error)
-                   CALL pw_copy ( rho_g(ispin)%pw, tmp_g )
-                   CALL pw_derive ( tmp_g, nd(:,idir) )
-                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
-                END DO
-             END DO
-             CALL pw_pool_give_back_pw(pw_pool,tmp_g,&
-                  error=error)
-             CALL timestop(0.0_wp,handle2)
-          END IF
+              eps_rho = dft_control%density_cut
+              alpha = 1.00_wp / 2.0_wp               ! XXXXXXXXXXXXXXXXXXXXxx alpha hard-coded here XXXXXXXXXXXXXXX
+              NULLIFY(frho_r,frho_g)
+              CALL pw_pool_create_pw(pw_pool,frho_r, &
+                    use_data=REALDATA3D, in_space=REALSPACE, &
+                    error=error)
+              CALL pw_pool_create_pw(pw_pool,frho_g, &
+                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
+                    error=error)
+               CALL pw_pool_create_pw(pw_pool,tmp_g, &
+                    use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+                    error=error)
+              DO ispin=1,nspins
+                 ! compute a simple function of rho e.g. log
+                 DO k = bo(1,3), bo(2,3)
+                    DO j = bo(1,2), bo(2,2)
+                       DO i = bo(1,1), bo(2,1)
+                          ! frho_r%cr3d(i,j,k)=log(MAX(eps_rho,rho_r(ispin)%pw%cr3d(i,j,k)))
+                          ! frho_r%cr3d(i,j,k)=rho_r(ispin)%pw%cr3d(i,j,k)
+                          ! frho_r%cr3d(i,j,k)= sqrt(MAX(eps_rho,rho_r(ispin)%pw%cr3d(i,j,k)))
+                          frho_r%cr3d(i,j,k)=MAX(eps_rho,rho_r(ispin)%pw%cr3d(i,j,k))**alpha
+                       END DO
+                    END DO
+                 END DO
+                 ! get the simple function in g-space
+                 CALL pw_transfer(frho_r,frho_g)
+                 ! get derivs
+                 DO idir=1,3
+                    NULLIFY(drho_r(idir,ispin)%pw)
+                    CALL pw_pool_create_pw(pw_pool,drho_r(idir,ispin)%pw, &
+                         use_data=REALDATA3D, in_space=REALSPACE, &
+                         error=error)
+                    CALL pw_copy ( frho_g, tmp_g )
+                    CALL pw_derive ( tmp_g, nd(:,idir) )
+                    CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
+                    ! get the derivative of the dens as e.g exp(log(rho))*(d/dx log(rho))
+                    ! where the last term was computed in g-space
+                    DO k = bo(1,3), bo(2,3)
+                       DO j = bo(1,2), bo(2,2)
+                          DO i = bo(1,1), bo(2,1)
+!                             drho_r(idir,ispin)%pw%cr3d(i,j,k)=drho_r(idir,ispin)%pw%cr3d(i,j,k) * &
+!                                                       exp(MAX(eps_rho,rho_r(ispin)%pw%cr3d(i,j,k)))
+!                             drho_r(idir,ispin)%pw%cr3d(i,j,k)=drho_r(idir,ispin)%pw%cr3d(i,j,k) * &
+!                                                               1.0_wp
+!                              drho_r(idir,ispin)%pw%cr3d(i,j,k)=drho_r(idir,ispin)%pw%cr3d(i,j,k) * &
+!                                            (2.0_wp) * frho_r%cr3d(i,j,k)
+                               drho_r(idir,ispin)%pw%cr3d(i,j,k)=drho_r(idir,ispin)%pw%cr3d(i,j,k) * &
+                                             (1.0_wp/alpha) *  frho_r%cr3d(i,j,k) **(1.0_wp/alpha-1.0_wp)
+                          END DO
+                       END DO
+                    END DO
+                 END DO
+              ENDDO
+              CALL pw_pool_give_back_pw(pw_pool,tmp_g,&
+                    error=error)
+              CALL pw_pool_give_back_pw(pw_pool,frho_r,&
+                    error=error)
+              CALL pw_pool_give_back_pw(pw_pool,frho_g,&
+                    error=error)
+
+          ENDIF
 
           CPAssert(.not.tot_grad,cp_failure_level,routineP,error,failure)
           DO ispin=1,nspins

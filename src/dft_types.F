@@ -153,7 +153,8 @@ MODULE dft_types
      LOGICAL                         :: forces,&
                                         gradient_functional,&
                                         smooth_gradient, &
-                                        do_tddfpt_calculation
+                                        do_tddfpt_calculation, &
+                                        derive_function_rho
      LOGICAL, DIMENSION (2,3)        :: ftags
   END TYPE dft_control_type
 
@@ -241,6 +242,7 @@ CONTAINS
     dft_control % ftags = .FALSE.
     dft_control % gradient_functional = .FALSE.
     dft_control % smooth_gradient= .FALSE.
+    dft_control % derive_function_rho = .FALSE.
     dft_control % integration_grid % pw_default = .TRUE.
     dft_control % integration_grid % pw_cutoff  = -1._wp
     dft_control % integration_grid % pw_mesh    = -1_wp
@@ -319,6 +321,8 @@ CONTAINS
          END SELECT
       CASE ("SMOOTH_GRADIENT")
          CALL read_object(dft_control%smooth_gradient)
+      CASE ("DERIVE_FUNCTION_RHO")
+         CALL read_object(dft_control%derive_function_rho)
       END SELECT
     END DO
 
@@ -976,6 +980,11 @@ CONTAINS
 
       IF ( dft_control % smooth_gradient )  WRITE ( output_unit, '( A, T79, A )' ) &
            " DFT| Density gradient smoothing ","ON"
+      IF ( dft_control % derive_function_rho )  WRITE ( output_unit, '( A, T79, A )' ) &
+           " DFT| Density function derivative ","ON"
+
+      IF ( dft_control % smooth_gradient .AND. dft_control % derive_function_rho ) &
+        WRITE( output_unit, '( A, T79, A )' ) " DFT| ---- NO NO NO NO don't use both options at the same time !! "
 
       IF ( dft_control % integration_grid % pw_default ) THEN
          WRITE ( output_unit, '( A, T74, A )' ) " DFT| XC mesh (PW density)", "default"
