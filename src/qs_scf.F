@@ -1963,9 +1963,9 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,mgrid_gspace,&
-         mgrid_rspace,c,atomic_kind_set,particle_set,rho, mo_eigenvectors,&
-         ks_rmpv,qs_loc_env, scf_control,unoccupied_orbs,pfull,mo_eigenvalues, &
-          unoccupied_evals,fm_struct_tmp)
+            mgrid_rspace,c,atomic_kind_set,particle_set,rho,mo_eigenvectors,&
+            ks_rmpv,s,qs_loc_env,scf_control,unoccupied_orbs,pfull,&
+            mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     output_unit= cp_logger_get_default_unit_nr(logger,local=.FALSE.)

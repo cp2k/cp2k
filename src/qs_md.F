@@ -242,7 +242,7 @@ CONTAINS
        CALL initialize_nhc_part_new(cell,simpar,molecule_kinds_new%els,&
                                     extended_type%nhc_part(isubsys),globenv)
        CALL initialize_nhc_baro(simpar,globenv,&
-            extended_type%nhc_baro(isubsys))
+                                extended_type%nhc_baro(isubsys))
     END DO
     CALL initialize_npt_type(simpar,globenv,extended_type%npt_info,cell)
 
@@ -286,12 +286,12 @@ CONTAINS
                               nhc_baro, &
                               extended_type%npt_info )
     END SELECT
-    DO isubsys=1,SIZE(subsys)
-       nhc_part => extended_type%nhc_part(isubsys)
-       nhc_baro => extended_type%nhc_baro(isubsys)
-       CALL initialize_nhc_forces (nhc_part, &
-            nhc_baro)
-    END DO
+
+!MK    DO isubsys=1,SIZE(subsys)
+!MK      nhc_part => extended_type%nhc_part(isubsys)
+!MK      nhc_baro => extended_type%nhc_baro(isubsys)
+!MK      CALL initialize_nhc_forces (nhc_part,nhc_baro)
+!MK    END DO
 
     DO isubsys=1,SIZE(subsys)
        CALL init_structure_type(struc(isubsys))
@@ -299,11 +299,11 @@ CONTAINS
             pnode=struc(isubsys)%pnode, particles=particles,&
             local_molecules=local_molecules, error=error)
        struc(isubsys)%part => particles%els
-       struc(isubsys)%molecule => local_molecules%els
+!MK       struc(isubsys)%molecule => local_molecules%els
     END DO
 
     CALL init_md_env(md_env, globenv % para_env)
-    
+
     CALL set_md_env(md_env=md_env,&
                     simpar=simpar,&
                     struc=struc,&

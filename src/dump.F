@@ -331,8 +331,6 @@ END SUBROUTINE dump_kg_variables
     TYPE(lnhc_parameters_type), DIMENSION(:), POINTER :: nhc_part
     TYPE(particle_type), DIMENSION(:), POINTER        :: particle_set
 
-    TYPE(npt_info_type ), DIMENSION(:,:), POINTER :: npt_info
-
 !   ---------------------------------------------------------------------------
 
     IF (globenv%ionode) THEN
@@ -378,7 +376,8 @@ END SUBROUTINE dump_kg_variables
 !     *** Particle thermostat positions, velocities, masses ***
 
       nhc_part => md_env%nhc_part
-      npt_info => md_env%npt
+
+      IF (ASSOCIATED(nhc_part(1)%nvt)) THEN
 
       size1 = SIZE(nhc_part(1)%nvt,1)
       size2 = SIZE(nhc_part(1)%nvt,2)
@@ -403,9 +402,11 @@ END SUBROUTINE dump_kg_variables
         END DO
       END DO
 
+      END IF
+
 !     *** Close dump unit and keep it ***
 
-      CALL close_file (unit_number=dump_unit)
+      CALL close_file(unit_number=dump_unit)
 
     END IF
 
@@ -436,73 +437,83 @@ END SUBROUTINE dump_kg_variables
 !!     09.2003 created [fawzi]
 !!
 !!*** **********************************************************************
+
   SUBROUTINE dump_force_env_variables(md_env,force_env,dump_file_name,error)
-    TYPE(md_environment_type), INTENT(IN) :: md_env
-    TYPE(force_env_type), POINTER :: force_env
-    CHARACTER(LEN=*), INTENT(IN) :: dump_file_name
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN="dump_force_env_variables",&
-         routineP=moduleN//":"//routineN
-    INTEGER :: dump_unit,i,j,natom,size1,size2, handle
-    TYPE(lnhc_parameters_type), DIMENSION(:), POINTER :: nhc_part
-    TYPE(npt_info_type ), DIMENSION(:,:), POINTER :: npt_info
+    TYPE(md_environment_type), INTENT(IN)        :: md_env
+    TYPE(force_env_type), POINTER                :: force_env
+    CHARACTER(LEN=*), INTENT(IN)                 :: dump_file_name
+    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN="dump_force_env_variables",&
+                                   routineP=moduleN//":"//routineN
+
     TYPE(cp_para_env_type), POINTER :: para_env
-    TYPE(cp_logger_type), POINTER :: logger,new_logger
-    TYPE(cp_error_type) :: new_error
+    TYPE(cp_logger_type), POINTER   :: logger,new_logger
 
-    !   ---------------------------------------------------------------------------
+    TYPE(cp_error_type) :: new_error
+    INTEGER             :: dump_unit,handle,i,j,natom,size1,size2
+
+    TYPE(lnhc_parameters_type), DIMENSION(:), POINTER :: nhc_part
+
+!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
-    NULLIFY(nhc_part,npt_info,para_env,new_logger)
-    CALL force_env_get(force_env, para_env=para_env)
+
+    NULLIFY(nhc_part,para_env,new_logger)
+
+    CALL force_env_get(force_env,para_env=para_env)
+
     logger => cp_error_get_logger(error)
     CALL cp_logger_create(new_logger,para_env=para_env,template_logger=logger)
     CALL cp_error_init(new_error,logger=new_logger,template_error=error)
 
     IF (para_env%mepos==para_env%source) THEN
-       CALL open_file(file_name=dump_file_name,&
-            file_action="WRITE",&
-            file_form="FORMATTED",&
-            file_status="REPLACE",&
-            unit_number=dump_unit)
+      CALL open_file(file_name=dump_file_name,&
+                     file_action="WRITE",&
+                     file_form="FORMATTED",&
+                     file_status="REPLACE",&
+                     unit_number=dump_unit)
     END IF
 
     CALL force_env_write_variables(force_env,unit_nr=dump_unit,error=new_error)
 
     IF (para_env%mepos==para_env%source) THEN
 
-       !     *** Particle thermostat positions, velocities, masses ***
+!     *** Particle thermostat positions, velocities, masses ***
 
-       nhc_part => md_env%nhc_part
-       npt_info => md_env%npt
+      nhc_part => md_env%nhc_part
 
-       size1 = SIZE(nhc_part(1)%nvt,1)
-       size2 = SIZE(nhc_part(1)%nvt,2)
+      IF (ASSOCIATED(nhc_part(1)%nvt)) THEN
 
-       WRITE (UNIT=dump_unit,FMT=*) size1,size2
+        size1 = SIZE(nhc_part(1)%nvt,1)
+        size2 = SIZE(nhc_part(1)%nvt,2)
 
-       DO i=1,size1
+        WRITE (UNIT=dump_unit,FMT=*) size1,size2
+
+        DO i=1,size1
           DO j=1,size2
-             WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%eta
+            WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%eta
           END DO
-       END DO
+        END DO
 
-       DO i=1,size1
+        DO i=1,size1
           DO j=1,size2
-             WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%v
-          ENDDO
-       ENDDO
-
-       DO i=1,size1
-          DO j=1,size2
-             WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%mass
+            WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%v
           END DO
-       END DO
+        END DO
 
-       !     *** Close dump unit and keep it ***
+        DO i=1,size1
+          DO j=1,size2
+            WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%mass
+          END DO
+        END DO
 
-       CALL close_file (unit_number=dump_unit)
+      END IF
+
+!     *** Close dump unit and keep it ***
+
+      CALL close_file (unit_number=dump_unit)
 
     END IF
 
@@ -510,7 +521,9 @@ END SUBROUTINE dump_kg_variables
     CALL cp_logger_release(new_logger)
 
     CALL timestop(0.0_dbl,handle)
+
   END SUBROUTINE dump_force_env_variables
+
 !***************************************************************************
 
 END MODULE dump

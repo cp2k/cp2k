@@ -221,7 +221,8 @@ SUBROUTINE fragment_create(fragment, para_env, error)
      NULLIFY(fragment%atomic_kinds, fragment%particles, &
           fragment%local_particles, fragment%molecule_kinds,&
           fragment%local_molecules, fragment%molecules_new,&
-          fragment%molecule_kinds_new, fragment%local_molecules_new)
+          fragment%molecule_kinds_new, fragment%local_molecules_new,&
+          fragment%pnode)
   END IF
 END SUBROUTINE fragment_create
 !***************************************************************************

@@ -441,7 +441,11 @@ CONTAINS
                       molecules_new=molecules_new,&
                       error=error)
     IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
-    IF (PRESENT(molecule)) molecule => local_molecules_old%els
+    IF (PRESENT(molecule)) THEN
+      IF (ASSOCIATED(local_molecules_old)) THEN
+        molecule => local_molecules_old%els
+      END IF
+    END IF
     IF (PRESENT(particle_set)) particle_set => particles%els
     IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els
     IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
