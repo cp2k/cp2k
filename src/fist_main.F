@@ -69,6 +69,7 @@ MODULE fist_main
   USE md_environment_types,            ONLY: init_md_env,&
                                              md_environment_type,&
                                              set_md_env,&
+                                             destroy_md_env, &
                                              zero_virial
   USE md_fist_energies,                ONLY: md_energy_fist,&
                                              set_fist_energies,&
@@ -263,6 +264,8 @@ SUBROUTINE fist ( globenv )
   CALL read_molecule_section ( mol_setup, setup, globenv )
 
   CALL read_topology_section ( topo, setup, globenv )
+
+  STOP
 
 ! read force_field information for classical MD in *.set
 
@@ -547,7 +550,7 @@ SUBROUTINE control_work ( globenv, units, simpar, fist_env, md_env, &
   CALL force_env_create ( force_env, fist_env = fist_env )
 
 ! set the integrator environment
-  CALL init_md_env ( md_env )
+  CALL init_md_env ( md_env, globenv%para_env )
   CALL set_md_env ( md_env, simpar=simpar, struc=struc,           &
                             virial=fist_env % thermo % virial,    &
                             nhc_part=extended_type % nhc_part,    &
@@ -576,9 +579,13 @@ SUBROUTINE control_work ( globenv, units, simpar, fist_env, md_env, &
      CALL control_md_work ( globenv, fist_env, md_env, units, mdio )
      
   END SELECT
+
   
   DEALLOCATE ( struc, STAT = isos )  
   IF ( isos /= 0 ) CALL stop_memory ( 'deallocstruc', 'struc' )
+
+  CALL destroy_md_env ( md_env )
+
   CALL timestop ( zero, handle )
   
 END SUBROUTINE control_work

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2001 - 2002  CP2K developers group
+!   Copyright (C) 2001 - 2003  CP2K developers group
 !-----------------------------------------------------------------------------!
 !!****** cp2k/qs_md [1.0] *
 !!
@@ -65,6 +65,7 @@ MODULE qs_md
   USE md_environment_types,            ONLY: init_md_env,&
                                              md_environment_type,&
                                              set_md_env,&
+                                             destroy_md_env, &
                                              zero_virial
   USE molecule_input,                  ONLY: read_molecule_section,&
                                              read_setup_section,&
@@ -95,6 +96,8 @@ MODULE qs_md
                                              timestop
   USE unit,                            ONLY: set_units,&
                                              unit_convert_type
+  USE util,                            ONLY: get_share
+
   USE velocity_verlet_control,         ONLY: velocity_verlet
   IMPLICIT NONE
 
@@ -154,12 +157,13 @@ CONTAINS
     INTEGER, POINTER                                     :: itimes
     REAL(wp)                                             :: ekin
     REAL(wp)                                             :: econs 
-    INTEGER                                              :: i,nnodes
+    INTEGER                                              :: i
     TYPE(qs_energy_type), POINTER                        :: energy
     TYPE(qs_wf_history_type), POINTER                    :: wf_history
     TYPE(force_env_type), POINTER                        :: force_env
 
     INTEGER :: handle,istat,natom,nmolecule
+    INTEGER :: nmoltype, nmol, nnodes, nsh
 
 !   ---------------------------------------------------------------------------
 
@@ -185,7 +189,7 @@ CONTAINS
     CALL read_setup_section(mol_setup,setup,globenv)
 
     CALL read_molecule_section(mol_setup,setup,globenv)
-
+  
     CALL read_topology_section(topo,setup,globenv)
 
     CALL read_md_section(simpar,globenv,mdio)
@@ -204,17 +208,23 @@ CONTAINS
                     cell=cell,&
                     particle_set=particle_set,energy=energy)
 
-    ! is not supposed to be working in parallel case !
-    IF (globenv%num_pe .NE. 1) CALL stop_program("qs_md","MD not parallel")
+    ! just to get a working parallel version.
+    ! clearly a full clean-up of fist/qs/kg is needed 
     natom = SIZE(particle_set)
-
-    ALLOCATE (pnode(natom),STAT=istat)
+    nmoltype = SIZE ( mol_setup )
+    nmol = 0
+    nnodes = 0
+    DO i = 1, nmoltype
+       nsh = get_share ( mol_setup ( i ) % num_mol, &
+            globenv % num_pe, globenv % mepos )
+       nmol = nmol + nsh
+       nnodes = nnodes + nsh * mol_setup ( i ) % molpar % natom
+    END DO
+    ALLOCATE (pnode(nnodes),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"pnode",int_size*natom)
-
-    nmolecule = SUM(mol_setup(:)%num_mol)
-
-    ALLOCATE (molecule(nmolecule),STAT=istat)
+    ALLOCATE (molecule(nmol),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"molecule",int_size*nmolecule)
+
 
     CALL initialize_molecule_type(mol_setup,intra_param,pnode,&
                                   particle_set,molecule,globenv)
@@ -244,8 +254,9 @@ CONTAINS
     CALL init_structure_type(struc(1))
     struc(1)%pnode => pnode
     struc(1)%part =>  particle_set
+    struc(1)%molecule =>  molecule
 
-    CALL init_md_env(md_env)
+    CALL init_md_env(md_env, globenv % para_env)
 
     CALL set_md_env(md_env=md_env,&
                     simpar=simpar,&
@@ -268,25 +279,16 @@ CONTAINS
     itimes => md_env%itimes
     itimes = 0
 
-!FM    CALL qs_forces(qs_env,globenv)
-
     DO itimes=1,md_env%simpar%nsteps
-      PRINT*,"Step: :",itimes," of ",md_env%simpar%nsteps
-
+      IF (globenv%ionode) WRITE(globenv%scr,*) "Step :",itimes," of ",md_env%simpar%nsteps
       CALL velocity_verlet(md_env)
-
       CALL compute_conserved_quantity (md_env, energy%total, econs, ekin=ekin)
-      WRITE(6,'(A,3F20.12)') "XXXXXXXXXXXXXXXX EKIN,EPOT,TOTAL ",ekin,energy%total,econs
-!!      nnodes = SIZE ( pnode)
-!!      ekin=0.0_wp
-!!      DO i = 1, nnodes
-!!           ekin = ekin + 0.5_wp*pnode(i)%p%prop%mass*( &
-!!           pnode(i)%p%v(1)*pnode(i)%p%v(1)+pnode(i)%p%v(2)* &
-!!           pnode(i)%p%v(2)+pnode(i)%p%v(3)*pnode(i)%p%v(3))
-!!      END DO
-!!    write(6,'(A,3F20.12)') "XXXXXXXXXXXXXXXX EKIN,EPOT,TOTAL ",ekin,energy%total,energy%total+ekin
+      IF (globenv%ionode) WRITE(globenv%scr,'(A,I9,3F20.12)') "XXXXXXXXXX,itimes,EKIN,EPOT,TOTAL ", &
+                          itimes,ekin,energy%total,econs
       CALL write_particle_coordinates(qs_env%particle_set,qs_env%cell,globenv)
     END DO
+
+    CALL destroy_md_env(md_env)
 
     CALL timestop(0.0_wp,handle)
 

@@ -263,7 +263,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % tau_nhc_coef = 1000.0_dbl
   simpar % tau_cell = 1000.0_dbl
   simpar % verlet_skin = 1.0_dbl
-  simpar % qs_md_param % wf_interpolation_method_nr = wfi_use_prev_p_method_nr
+  simpar % qs_md_param % wf_interpolation_method_nr = wfi_linear_p_method_nr
   simpar % qs_md_param % neighbor_lists_from_scratch = .TRUE.
 
   iw = mdpar % scr

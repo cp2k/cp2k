@@ -23,6 +23,8 @@
 !******************************************************************************
 
 MODULE environment
+  
+  USE cp_log_handling,                 ONLY: cp_init_default_logger
   USE fft_tools,                       ONLY: fft3d,&
                                              init_fft
   USE global_types,                    ONLY: DEBUG,&
@@ -154,6 +156,12 @@ CONTAINS
 
     globenv%scr = 6
     CALL set_error_unit(globenv%scr)
+
+!   *** Init the default logger 
+
+    globenv%print%ref_count=1 ! ugly
+    call cp_init_default_logger(para_env=globenv%para_env,&
+         print_keys=globenv%print)
 
     ionode = globenv%ionode
 

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2001 - 2002  CP2K developers group
+!   Copyright (C) 2001 - 2003  CP2K developers group
 !-----------------------------------------------------------------------------!
 !!****** cp2k/qs_force [1.0] *
 !!
@@ -21,8 +21,7 @@
 MODULE qs_force
 
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
+                                             wp => dp
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set

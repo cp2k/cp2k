@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000-2003  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 !!****s* cp2k/structure_types [1.0] *
 !!
@@ -90,7 +90,7 @@ CONTAINS
 
   SUBROUTINE init_structure_type ( struc )
 
-!   Purpose: Initialise the FIST environment.
+!   Purpose: Initialise the structure (?) environment.
 
 !   ***************************************************************************
 

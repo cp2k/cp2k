@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000-2003  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/parallel [1.0] *
 !!
@@ -20,11 +20,10 @@
 
 MODULE parallel
 
-  USE global_types, ONLY : global_environment_type, print_key_type
+  USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE message_passing, ONLY : mp_start, mp_world_setup, mp_end
   USE cp_para_env, ONLY: cp_para_env_create
-  use cp_log_handling, only: cp_init_default_logger
 
   IMPLICIT NONE
 
@@ -57,9 +56,6 @@ SUBROUTINE start_parallel ( globenv )
   nullify(globenv%para_env)
   call cp_para_env_create (globenv%para_env, group=globenv%group,&
       owns_group=.false.,source=globenv%source)
-  globenv%print%ref_count=1 ! ugly
-  call cp_init_default_logger(para_env=globenv%para_env,&
-       print_keys=globenv%print)
 
 END SUBROUTINE start_parallel
 

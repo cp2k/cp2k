@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000-2003  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 #include "cp_prep_globals.h"
 !!****** cp2k/force_control [1.0] *
@@ -133,7 +133,7 @@ MODULE force_control
      INTEGER :: id_nr,ref_count,in_use
      TYPE ( fist_environment_type ), POINTER :: fist_env 
      TYPE ( kg_environment_type ), POINTER :: kg_env
-     TYPE ( qs_environment_type ), POINTER :: qs_env
+     TYPE ( qs_environment_type ), POINTER :: qs_env ! should get one for every beat in PIMD ?
      TYPE (particle_1d_a_type), DIMENSION(:), POINTER :: particle_sets
      TYPE (atomic_kind_1d_a_type), DIMENSION(:), POINTER :: atomic_kind_sets
      TYPE (cp_local_lists_p_type), DIMENSION(:), POINTER :: local_particles

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2001 - 2002  CP2K developers group
+!   Copyright (C) 2001 - 2003  CP2K developers group
 !-----------------------------------------------------------------------------!
 !!****** cp2k/qs_main [1.0] *
 !!
@@ -113,7 +113,7 @@ CONTAINS
       CALL qs_mol_dyn(qs_env,globenv)
     CASE ("WAVEFUNCTION OPTIMIZATION")
       CALL qs_energies(qs_env,globenv)
-      CALL tddfpt_calculation(qs_env, globenv)
+      CALL tddfpt_calculation(qs_env, globenv) ! should possibly go in qs_scf/scf_env_post_calc
     CASE ("EP")
       CALL qs_ep_calculation(qs_env,globenv)
     CASE DEFAULT

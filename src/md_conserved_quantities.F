@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000-2003  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/md_conserved_quantities [1.0] *
 !!
@@ -8,8 +8,8 @@
 !!     conserved_quantities
 !!
 !!   FUNCTION
-!!     computes the conserved quantities for a given md ensamble 
-!!     and also kinetic energies, thermo/barostat stuf
+!!     computes the conserved quantities for a given md ensemble 
+!!     and also kinetic energies, thermo/barostat stuff
 !!
 !!   AUTHOR
 !!     gtb, 05.02.2003 
@@ -24,6 +24,7 @@ MODULE md_conserved_quantities
   USE atomic_kind_types,             ONLY : atomic_kind_type,&
                                             get_atomic_kind
   USE coefficient_types,             ONLY : coeff_type
+  USE cp_para_types,                 ONLY : cp_para_env_type
   USE kinds,                         ONLY : dbl
   USE mathconstants,                 ONLY : zero
   USE md,                            ONLY : simulation_parameters_type
@@ -52,10 +53,11 @@ MODULE md_conserved_quantities
   REAL (dbl) :: temp_coefs  
   END TYPE md_ener_type
 
-  INTEGER :: int_group
+  INTEGER :: int_group ! this should go, no module variables...
 
   PUBLIC :: compute_conserved_quantity, &
             compute_conserved_quantity_pimd                                    
+
 
 !******************************************************************************
 CONTAINS
@@ -90,7 +92,7 @@ CONTAINS
 !!*** *************************************************************************
 
 SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
-                                          temp, ekin_coefs, temp_coefs)                            
+                                          temp, ekin_coefs, temp_coefs )                            
 
   IMPLICIT NONE
 
@@ -110,16 +112,19 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
   INTEGER, POINTER :: itimes
   REAL (dbl), POINTER :: constant
   type (md_ener_type) :: md_ener
+  type (cp_para_env_type) ,POINTER :: para_env
 
 !------------------------------------------------------------------------------
-
   md_ener%epot=epot 
 
   CALL get_md_env (md_env=md_env,&
                    constant=constant,&
                    itimes=itimes,&
                    simpar=simpar,&
-                   struc=struc)
+                   struc=struc, &
+                   para_env = para_env)
+
+  int_group = para_env % group  
  
   CALL get_part_ke ( struc(1), md_ener%ekin )
   
@@ -181,6 +186,7 @@ SUBROUTINE compute_conserved_quantity_pimd (md_env, epot, cons,&
   REAL(dbl) :: ke, t, atmp, btmp, mass 
   REAL(dbl) :: nhc_part_kin, nhc_part_pot, nhc_baro_kin 
   REAL(dbl) :: nhc_baro_pot, baro_kin, baro_pot 
+  TYPE(cp_para_env_type), POINTER :: para_env
 
 !------------------------------------------------------------------------------
 
@@ -192,7 +198,10 @@ SUBROUTINE compute_conserved_quantity_pimd (md_env, epot, cons,&
                    nhc_part=nhc_part,&
                    npt=npt,&
                    simpar=simpar,&
-                   struc=struc)
+                   struc=struc, &
+                   para_env = para_env)
+
+  int_group = para_env % group  
 
   nnodes = SIZE ( struc ( 1 ) % pnode )
   beads = SIZE ( struc )

@@ -73,7 +73,8 @@ MODULE kg_main
   USE md_environment_types,            ONLY: init_md_env,&
                                              md_environment_type,&
                                              set_md_env,&
-                                             zero_virial
+                                             zero_virial, &
+                                             destroy_md_env
   USE md_kg_energies,                  ONLY: md_energy_kg,&
                                              set_kg_energies,&
                                              set_kg_energies_param
@@ -505,7 +506,7 @@ SUBROUTINE control_work ( globenv, units, simpar, kg_env, md_env, &
   CALL force_env_create ( force_env, kg_env=kg_env )
 
 ! set the integrator environment
-  CALL init_md_env ( md_env )
+  CALL init_md_env ( md_env , globenv % para_env )
 
   IF (kgpol) THEN
     CALL set_md_env ( md_env, simpar=simpar, struc=struc,           &
@@ -555,6 +556,7 @@ SUBROUTINE control_work ( globenv, units, simpar, kg_env, md_env, &
 
   DEALLOCATE ( struc, STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'deallocstruc', 'struc' )
+  CALL destroy_md_env(md_env)
   CALL timestop ( zero, handle )
 
 END SUBROUTINE control_work
