@@ -332,6 +332,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
 
      virial % pv_virial = pv_nonbond + pv_bond + pv_bend + &
                           pv_torsion + pv_imptors + pv_urey_bradley +pv_bc
+
      CALL mp_sum ( virial % pv_virial, globenv % group )
 
      virial % pv_virial = virial % pv_virial + &

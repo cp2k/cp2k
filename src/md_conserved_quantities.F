@@ -441,7 +441,7 @@ SUBROUTINE get_econs_npt ( md_env, md_ener, cons, int_grp)
 
     REAL(KIND=dp)                                :: baro_kin, baro_pot, &
                                                 nhc_baro_kin, nhc_baro_pot,&
-                                                nhc_part_kin, nhc_part_pot
+                                                nhc_part_kin, nhc_part_pot, nfree
     TYPE(cell_type), POINTER                 :: box
     TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_part( : )
     TYPE(npt_info_type), POINTER             :: npt( :, : )
@@ -459,6 +459,9 @@ SUBROUTINE get_econs_npt ( md_env, md_ener, cons, int_grp)
   CALL get_nhc_energies ( nhc_baro ( 1 ), nhc_baro_pot, nhc_baro_kin, int_grp )
 
   CALL get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp )
+
+  nfree = SIZE ( npt, 1 ) * SIZE ( npt, 2 )
+  md_ener % temp_baro = 2.0_dp * baro_kin / nfree
 
   cons = md_ener%ekin + md_ener%epot +  nhc_part_kin + nhc_part_pot  &
        + nhc_baro_kin + nhc_baro_pot + baro_kin + baro_pot

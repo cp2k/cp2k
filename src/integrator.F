@@ -902,6 +902,8 @@ END SUBROUTINE set_integrator
     LOGICAL, PARAMETER :: box_change = .TRUE.
     LOGICAL :: first
     INTEGER :: iroll
+! dbg
+    INTEGER :: ii,jj
 
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
@@ -1573,6 +1575,7 @@ END SUBROUTINE set_integrator
 ! Update h_mat
 
        cell % hmat ( 1, 1 ) = cell % hmat ( 1, 1 ) * scale_r * scale_r 
+
 
 ! Update the inverse
       CALL get_hinv ( cell )
@@ -2350,12 +2353,13 @@ SUBROUTINE get_veps_particle_set ( box, npt, simpar, atomic_kind_set, particle_s
     END DO 
   END DO
 
+  CALL mp_sum( pv_kin, int_group )
+
   kin = 0.0_dp
   DO ii = 1, 3
      kin = kin +  pv_kin ( ii, ii )
   END DO
 
-  CALL mp_sum( pv_kin, int_group )
 
 
 ! updating the constraint virial
@@ -2384,7 +2388,7 @@ SUBROUTINE get_veps_particle_set ( box, npt, simpar, atomic_kind_set, particle_s
 !    trace = trace / 3.0_dp
 !    npt ( :, : ) % f = trace * unit ( :, : )
 ! dbg
-  ELSEIF ( simpar % ensemble == 'NPH_UNIAXIAL' ) THEN
+  ELSEIF ( simpar % ensemble (1:3) == 'NPH' ) THEN
      v = box % deth
      vi = 1._dp/v
      v0 = simpar % v0 
@@ -2405,6 +2409,7 @@ SUBROUTINE get_veps_particle_set ( box, npt, simpar, atomic_kind_set, particle_s
 ! update barostat velocities
      npt ( :, : ) % v = npt ( :, : ) % v + &
      0.5_dp * simpar % dt * npt ( :, : ) % f / npt ( :, : ) % mass
+
 
 END SUBROUTINE get_veps_particle_set
 
@@ -2478,13 +2483,12 @@ SUBROUTINE get_veps_velocity ( box, npt, simpar, atomic_kind_set, vel, particle_
     END DO 
   END DO
 
+  CALL mp_sum( pv_kin, int_group )
+
   kin = 0.0_dp
   DO ii = 1, 3
      kin = kin +  pv_kin ( ii, ii )
   END DO
-
-  CALL mp_sum( pv_kin, int_group )
-
 
 ! updating the constraint virial
   IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
@@ -2492,7 +2496,7 @@ SUBROUTINE get_veps_velocity ( box, npt, simpar, atomic_kind_set, vel, particle_
                                                   molecule_kind_set, &
                                                   particle_set, virial, &
                                                   "FULL", int_group )
-
+ 
   IF ( simpar % ensemble == 'NPT_I' ) THEN
 ! get force on barostat
      fdotr = 0.0_dp
@@ -2513,7 +2517,7 @@ SUBROUTINE get_veps_velocity ( box, npt, simpar, atomic_kind_set, vel, particle_
 !    trace = trace / 3.0_dp
 !    npt ( :, : ) % f = trace * unit ( :, : )
 ! dbg
-  ELSEIF ( simpar % ensemble == 'NPH_UNIAXIAL' ) THEN
+  ELSEIF ( simpar % ensemble (1:3) == 'NPH' ) THEN
      v = box % deth
      vi = 1._dp/v
      v0 = simpar % v0 

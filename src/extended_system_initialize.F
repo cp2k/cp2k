@@ -75,79 +75,133 @@ SUBROUTINE initialize_nhc(nhc,tau_nhc,temp_ext, globenv )
 
   nhc % nvt ( :, : ) % mass = nhc % nvt ( :, : ) % nkt * tau_nhc * tau_nhc
 
-  rannumneed = nhc%num_nhc*nhc%nhc_len
-  ALLOCATE ( rn_need_per_proc( globenv % num_pe ), STAT = isos )
-  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
-                                'failed to allocate rn_need_per_proc')
-  rn_need_per_proc ( : ) = 0
 
-  CALL mp_allgather ( rannumneed, rn_need_per_proc, globenv % group )
+  SELECT CASE ( nhc % dis_type )
+    CASE ( 'REP_REP' )  ! for NPT 
+    CASE DEFAULT
+      rannumneed = nhc%num_nhc*nhc%nhc_len
+      ALLOCATE ( rn_need_per_proc( globenv % num_pe ), STAT = isos )
+      IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                                    'failed to allocate rn_need_per_proc')
+      rn_need_per_proc ( : ) = 0
 
-  IF (nhc % dis_type=='INTER_REP') THEN
-    tot_rn = rn_need_per_proc(1)
-  ELSE
-    tot_rn = SUM ( rn_need_per_proc )
-  ENDIF
+      CALL mp_allgather ( rannumneed, rn_need_per_proc, globenv % group )
 
-  DEALLOCATE ( rn_need_per_proc, STAT = isos )
-  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
-                                'failed to deallocate rn_need_per_proc')
+      IF (nhc % dis_type=='INTER_REP') THEN
+        tot_rn = rn_need_per_proc(1)
+      ELSE
+        tot_rn = SUM ( rn_need_per_proc )
+      ENDIF
 
-  ALLOCATE(array_of_rn( tot_rn), STAT = isos)
-  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
-                                'failed to allocate array_of_rn')
-  array_of_rn(:) = 0.0_dp
+      DEALLOCATE ( rn_need_per_proc, STAT = isos )
+      IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                                    'failed to deallocate rn_need_per_proc')
 
-  DO i=1,tot_rn
-    array_of_rn(i) = gasdev ( globenv % idum )
-  END DO
+      ALLOCATE(array_of_rn( tot_rn), STAT = isos)
+      IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                                    'failed to allocate array_of_rn')
+      array_of_rn(:) = 0.0_dp
+  END SELECT 
 
-
+  SELECT CASE ( nhc % dis_type )
+    CASE ( 'REP_REP' ) ! for NPT
+      IF ( globenv % ionode ) THEN
 ! Map deterministically determined random number to nhc % v
-  DO i = 1, nhc % num_nhc
-     icount = nhc % index(i)
-     icount = (icount-1) * nhc % nhc_len
-     DO j = 1, nhc % nhc_len
-        icount = icount + 1
-        nhc % nvt(j,i) % v = array_of_rn ( icount )
-     END DO
-  END DO
-
-  DEALLOCATE ( array_of_rn, STAT = isos )
-  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
-                                'failed to deallocate array_of_rn')
+        DO i = 1, nhc % num_nhc
+           DO j = 1, nhc % nhc_len
+              nhc % nvt(j,i) % v = gasdev ( globenv % idum )
+           END DO
+        END DO
   
-  akin = 0.0_dp
-  DO i = 1, nhc % num_nhc
-     DO j = 1, nhc % nhc_len
-        akin = akin + 0.5_dp * ( nhc % nvt ( j , i ) % mass * &
-                                  nhc % nvt ( j , i ) % v * &
-                                  nhc % nvt ( j , i ) % v )
-     END DO
-  END DO
-  number = nhc % num_nhc
-
-  IF (nhc % dis_type=='DIS_REP') CALL mp_sum(akin,globenv % group)
-  IF (nhc % dis_type=='DIS_REP') CALL mp_sum(number,globenv % group)
+        akin = 0.0_dp
+        DO i = 1, nhc % num_nhc
+           DO j = 1, nhc % nhc_len
+              akin = akin + 0.5_dp * ( nhc % nvt ( j , i ) % mass * &
+                                       nhc % nvt ( j , i ) % v * &
+                                       nhc % nvt ( j , i ) % v )
+           END DO
+        END DO
+        number = nhc % num_nhc
 
 ! scale velocities to get the correct initial temperature
-  temp = 2.0_dp*akin/REAL(number)
-  temp = sqrt(temp_ext/temp)
-  DO i = 1, nhc % num_nhc
-     DO j = 1, nhc % nhc_len
-        nhc % nvt(j,i) % v = temp * nhc % nvt(j,i) % v
-        nhc % nvt(j,i) % eta = 0.0_dp
-     END DO
-  END DO
+        temp = 2.0_dp*akin/REAL(number)
+        temp = sqrt(temp_ext/temp)
+        DO i = 1, nhc % num_nhc
+           DO j = 1, nhc % nhc_len
+              nhc % nvt(j,i) % v = temp * nhc % nvt(j,i) % v
+              nhc % nvt(j,i) % eta = 0.0_dp
+           END DO
+        END DO
 
 ! initializing all of the forces on the thermostats
-  DO i = 1, nhc % num_nhc
-     DO j = 2, nhc % nhc_len
-        nhc % nvt(j,i) % f = nhc % nvt(j-1,i) % mass*nhc % nvt(j-1,i) % v* &
-             nhc % nvt(j-1,i) % v - nhc % nvt(j,i) % nkt
-        nhc % nvt(j,i) % f = nhc % nvt(j,i) % f/nhc % nvt(j,i) % mass
-     END DO
-  END DO
+        DO i = 1, nhc % num_nhc
+           DO j = 2, nhc % nhc_len
+              nhc % nvt(j,i) % f = nhc % nvt(j-1,i) % mass*nhc % nvt(j-1,i) % v* &
+                   nhc % nvt(j-1,i) % v - nhc % nvt(j,i) % nkt
+              nhc % nvt(j,i) % f = nhc % nvt(j,i) % f/nhc % nvt(j,i) % mass
+           END DO
+        END DO
+      END IF
+! Broadcast
+      DO i = 1, SIZE ( nhc % nvt, 1 )
+        DO j = 1, SIZE ( nhc % nvt, 2 )
+          CALL mp_bcast ( nhc % nvt ( i, j ) % v, globenv % source, globenv % group )
+        END DO
+      END DO
+
+    CASE DEFAULT
+      DO i=1,tot_rn
+        array_of_rn(i) = gasdev ( globenv % idum )
+      END DO
+! Map deterministically determined random number to nhc % v
+      DO i = 1, nhc % num_nhc
+         icount = nhc % index(i)
+         icount = (icount-1) * nhc % nhc_len
+         DO j = 1, nhc % nhc_len
+            icount = icount + 1
+            nhc % nvt(j,i) % v = array_of_rn ( icount )
+         END DO
+      END DO
+
+      DEALLOCATE ( array_of_rn, STAT = isos )
+      IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                                'failed to deallocate array_of_rn')
+  
+      akin = 0.0_dp
+      DO i = 1, nhc % num_nhc
+         DO j = 1, nhc % nhc_len
+            akin = akin + 0.5_dp * ( nhc % nvt ( j , i ) % mass * &
+                                      nhc % nvt ( j , i ) % v * &
+                                      nhc % nvt ( j , i ) % v )
+         END DO
+      END DO
+      number = nhc % num_nhc
+
+      IF (nhc % dis_type=='DIS_REP') CALL mp_sum(akin,globenv % group)
+      IF (nhc % dis_type=='DIS_REP') CALL mp_sum(number,globenv % group)
+
+! scale velocities to get the correct initial temperature
+      temp = 2.0_dp*akin/REAL(number)
+      temp = sqrt(temp_ext/temp)
+      DO i = 1, nhc % num_nhc
+         DO j = 1, nhc % nhc_len
+            nhc % nvt(j,i) % v = temp * nhc % nvt(j,i) % v
+            nhc % nvt(j,i) % eta = 0.0_dp
+         END DO
+      END DO
+
+! initializing all of the forces on the thermostats
+      DO i = 1, nhc % num_nhc
+         DO j = 2, nhc % nhc_len
+            nhc % nvt(j,i) % f = nhc % nvt(j-1,i) % mass*nhc % nvt(j-1,i) % v* &
+                 nhc % nvt(j-1,i) % v - nhc % nvt(j,i) % nkt
+            nhc % nvt(j,i) % f = nhc % nvt(j,i) % f/nhc % nvt(j,i) % mass
+         END DO
+      END DO
+
+  END SELECT
+
+
 
 END SUBROUTINE initialize_nhc
 
@@ -205,49 +259,58 @@ SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
           * temp_ext * tau_cell ** 2
   END SELECT
 
+  IF ( globenv % ionode ) THEN
 ! initializing velocities
-  DO i = 1, size ( npt,1)
-     DO j = i, size ( npt,2)
-        v = gasdev ( globenv % idum)
+    DO i = 1, size ( npt,1)
+       DO j = i, size ( npt,2)
+          v = gasdev ( globenv % idum)
 ! symmetrizing the initial barostat velocities to ensure
 ! no rotation of the cell under NPT_F
-        npt(j,i) % v = v
-        npt(i,j) % v = v
-     END DO
-  END DO
+          npt(j,i) % v = v
+          npt(i,j) % v = v
+       END DO
+    END DO
 
-  akin = 0.0_dp
-  DO i = 1, SIZE( npt,1 )
-     DO j = 1, SIZE( npt,2 )
-        akin = akin + 0.5_dp*( npt(j,i) % mass* npt(j,i) % v* npt &
-             (j,i) % v)
-     END DO
-  END DO
+    akin = 0.0_dp
+    DO i = 1, SIZE( npt,1 )
+       DO j = 1, SIZE( npt,2 )
+          akin = akin + 0.5_dp*( npt(j,i) % mass* npt(j,i) % v* npt &
+               (j,i) % v)
+       END DO
+    END DO
 
-  number = SIZE ( npt, 1 ) * SIZE ( npt, 2 )
+    number = SIZE ( npt, 1 ) * SIZE ( npt, 2 )
 
 ! scale velocities to get the correct initial temperature
-  IF ( number /= 0 ) THEN
-    temp = 2.0_dp * akin / REAL ( number,KIND=dp)
-    temp = sqrt(temp_ext/temp)
-  ENDIF
-  DO i = 1, size(npt,1)
-     DO j = i, size(npt,2)
-        npt(j,i) % v = temp * npt(j,i) % v
-        npt(i,j) % v = npt(j,i) % v
+    IF ( number /= 0 ) THEN
+      temp = 2.0_dp * akin / REAL ( number,KIND=dp)
+      temp = sqrt(temp_ext/temp)
+    ENDIF
+    DO i = 1, size(npt,1)
+       DO j = i, size(npt,2)
+          npt(j,i) % v = temp * npt(j,i) % v
+          npt(i,j) % v = npt(j,i) % v
 ! dbg ISOTROPIC LIMIT
 !       npt(j,i) % v = 0.0_dp
 !       npt(i,j) % v = 0.0_dp
 !       write (*, *) 'INTIAL v_eps', npt(j,i) % v
 ! dbg 
-     END DO
-  END DO
+       END DO
+    END DO
 
 ! Zero barostat velocities for npu_uniaxial
-  SELECT CASE ( ensemble )
-  CASE ( 'NPH_UNIAXIAL', 'NPH_UNIAXIAL_DAMPED' )
-     npt(:,:) % v = 0.0_dp
-  END SELECT
+    SELECT CASE ( TRIM ( ensemble ) )
+    CASE ( 'NPH_UNIAXIAL', 'NPH_UNIAXIAL_DAMPED' )
+       npt(:,:) % v = 0.0_dp
+    END SELECT
+  ENDIF 
+#if defined(__parallel)
+  DO i = 1, SIZE ( npt, 1 )
+    DO j = 1, SIZE ( npt, 2 )
+       CALL mp_bcast ( npt ( i, j ) % v, globenv % source, globenv % group )
+    END DO
+  END DO
+#endif
 
 END SUBROUTINE initialize_npt
 

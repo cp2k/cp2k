@@ -83,7 +83,7 @@ SUBROUTINE nhc_barostat_setup ( simpar, nhc, globenv )
   iw = globenv % scr
 !
   nhc % dis_type = 'NONE'
-  IF ( globenv % num_pe > 1 ) nhc % dis_type = 'DIS_REP'
+  IF ( globenv % num_pe > 1 ) nhc % dis_type = 'REP_REP'
   SELECT CASE (TRIM(simpar%ensemble))
   CASE  DEFAULT
     ALLOCATE ( nhc % nvt ( 0, 0 ), STAT = isos )
@@ -102,7 +102,6 @@ SUBROUTINE nhc_barostat_setup ( simpar, nhc, globenv )
 ! NPT_F )
 
     nhc % num_nhc = 1
-    nhc % dis_type = 'NONE'
 ! allocate the index array
     ALLOCATE ( nhc % index ( 1 ), STAT = isos ) 
     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_barostat_setup', &
@@ -173,7 +172,6 @@ SUBROUTINE nhc_barostat_setup ( simpar, nhc, globenv )
 ! Counting the total number of thermostats ( = 1 )
 
     nhc % num_nhc = 1
-    nhc % dis_type = 'NONE'
 ! allocate the index array
     ALLOCATE ( nhc % index ( 1 ), STAT = isos ) 
     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_barostat_setup', &
@@ -196,10 +194,8 @@ SUBROUTINE nhc_barostat_setup ( simpar, nhc, globenv )
 
 ! Begin the mapping loop
 
-    DO i = 1, 1
-      nhc % p_kin ( 1, i ) % point => nhc % s_kin ( 1 )
-      nhc % p_scale ( 1, i ) % point => nhc % v_scale ( 1 )
-    END DO
+    nhc % p_kin ( 1, 1 ) % point => nhc % s_kin ( 1 )
+    nhc % p_scale ( 1, 1 ) % point => nhc % v_scale ( 1 )
     nhc % index ( 1 ) = 1
 
     ALLOCATE ( nhc % nvt ( nhc % nhc_len, nhc % num_nhc ), STAT = isos )

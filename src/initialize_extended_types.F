@@ -79,6 +79,7 @@ SUBROUTINE initialize_npt_type ( simpar, globenv, npt_info, box )
     TYPE(cell_type), INTENT(inout)           :: box
 
     INTEGER                                  :: isos
+    REAL ( KIND=dp )                         :: temp
 
 !------------------------------------------------------------------------------
 ! first allocating the npt_info_type
@@ -89,16 +90,25 @@ SUBROUTINE initialize_npt_type ( simpar, globenv, npt_info, box )
      IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
           'failed to allocate npt_info')
      npt_info  ( :, : ) % eps = LOG ( box % deth ) / 3.0_dp
+     temp = simpar % temp_ext
 
   CASE ( 'NPT_F')
      ALLOCATE ( npt_info ( 3, 3 ), STAT = isos )
      IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
           'failed to allocate npt_info')
+     temp = simpar % temp_ext
 
-  CASE ( 'NPH_UNIAXIAL', 'NPH_UNIAXIAL_DAMPED' )
+  CASE ( 'NPH_UNIAXIAL' )
      ALLOCATE ( npt_info ( 1, 1 ), STAT = isos )
      IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
           'failed to allocate npt_info')
+     temp = simpar % temp_ext
+
+  CASE ( 'NPH_UNIAXIAL_DAMPED' )
+     ALLOCATE ( npt_info ( 1, 1 ), STAT = isos )
+     IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
+          'failed to allocate npt_info')
+     temp = simpar % temp_baro
 
   CASE  DEFAULT
      ALLOCATE ( npt_info ( 0, 0 ), STAT = isos )
@@ -107,7 +117,7 @@ SUBROUTINE initialize_npt_type ( simpar, globenv, npt_info, box )
   END SELECT
 
   IF ( simpar % read_type /= 'ALL' ) &
-  CALL initialize_npt ( npt_info, simpar % tau_cell, simpar % temp_ext,  &
+  CALL initialize_npt ( npt_info, simpar % tau_cell, temp,  &
                        box % deth, simpar % nfree, simpar % ensemble, globenv )
 
 END SUBROUTINE initialize_npt_type
@@ -139,6 +149,8 @@ SUBROUTINE initialize_nhc_baro ( simpar, globenv, nhc )
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
 
+    REAL ( KIND = dp )                       :: temp
+
 !------------------------------------------------------------------------------
 ! fire up the thermostats, if NPT
 
@@ -148,9 +160,16 @@ SUBROUTINE initialize_nhc_baro ( simpar, globenv, nhc )
 
 ! Initializing thermostat forces and velocities for the Nose-Hoover
 ! Chain variables
+      SELECT CASE ( TRIM ( simpar % ensemble ) )
+      CASE DEFAULT
+        temp = simpar % temp_ext 
+      CASE ( 'NPH_UNIAXIAL_DAMPED' )
+        temp = simpar % temp_baro
+      END SELECT
+
       IF ( nhc % nhc_len /= 0 ) &
-       CALL initialize_nhc ( nhc, simpar % tau_nhc,  &
-                       simpar % temp_ext, globenv )
+      CALL initialize_nhc ( nhc, simpar % tau_nhc,  &
+                            temp, globenv )
   END IF
 
 END SUBROUTINE initialize_nhc_baro

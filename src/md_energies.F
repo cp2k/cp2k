@@ -258,7 +258,7 @@ END SUBROUTINE set_energies
      temp_baro = temp_baro*kelvin
 
    END IF
-
+ 
   CALL get_cell ( cell, abc = abc,  &
                   alpha = cell_angle ( 3 ), &
                   beta = cell_angle ( 2 ), &
@@ -324,7 +324,7 @@ END SUBROUTINE set_energies
            adjustl( unit % e_label), '= ', ekin
         WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL TEMPERATURE', &
            adjustl( unit % temp_label ), '= ', temp
-        IF ( simpar % ensemble (1:3) == 'NPH' ) &
+        IF ( simpar % ensemble (1:2) == 'NP' ) &
         WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL BAROSTAT TEMP', &
            adjustl( unit % temp_label), '= ', temp_baro
         IF ( virial % pv_availability ) &
@@ -429,13 +429,12 @@ END SUBROUTINE set_energies
           IF ( virial % pv_availability ) &
           WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' PRESSURE', &
                adjustl(unit % pres_label), '= ', pv_scalar, averages%avepress
-          IF (simpar%ensemble(1:12)=='NPH_UNIAXIAL') THEN
+          IF (simpar%ensemble(1:12)=='NPH_UNIAXIAL') &
             WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' P_XX', &
                adjustl(unit % pres_label), '= ', pv_xx, averages%avepxx
-            WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' BAROSTAT TEMP', &
-               adjustl(unit % temp_label), '= ', temp_baro, averages%avetemp_baro
-          ENDIF
           IF (simpar%ensemble(1:2)=='NP') THEN
+             WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' BAROSTAT TEMP', &
+               adjustl(unit % temp_label), '= ', temp_baro, averages%avetemp_baro
              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' VOLUME', &
                   adjustl(unit % vol_label), '= ', cell%deth, averages%avevol
              WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' CELL LNTHS', &
