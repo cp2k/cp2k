@@ -136,7 +136,7 @@ CONTAINS
 !!  spin             nspins                                                   !
 !!  lsd                                                                       !
 !!  grid             plane_wave     [cutoff ecut, mesh nx ny nz]              !
-!!  charge           charge
+!!  charge           charge                                                   !
 !!                                                                            !
 !!<----------------------------------------------------------------------------
 
