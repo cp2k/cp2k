@@ -78,7 +78,7 @@ MODULE cp_log_handling
   PUBLIC :: cp_get_default_logger, cp_init_default_logger, cp_destroy_default_logger
 ! logger routines
   PUBLIC :: cp_logger_create, cp_logger_retain, cp_logger_release,&
-       cp_logger_would_log,&
+       cp_logger_would_log, cp_logger_set,&
        cp_logger_get_default_unit_nr, cp_logger_get_unit_nr, &
        cp_logger_set_log_level, cp_logger_generate_filename
   PUBLIC :: cp_to_string, cp_log
@@ -147,9 +147,13 @@ MODULE cp_log_handling
 !!       created by this logger. Can be used to guarantee the unicity of
 !!       generated filename
 !!     - local_filename: the root of the name of the file used for local
-!!       logging
+!!       logging (can be different from the name of the file corresponding
+!!       to default_local_unit_nr, only the one used if the unit needs to
+!!       be opened)
 !!     - global_filename: the root of the name of the file used for 
-!!       global logging
+!!       global logging (can be different from the name of the file
+!!       corresponding to default_global_unit_nr, only the one used if
+!!       the unit needs to be opened)
 !!     - print_keys: print keys that tell what should be logged/outputted
 !!
 !!   AUTHOR
@@ -806,7 +810,7 @@ CONTAINS
     IF (lggr%ref_count<1) CALL stop_program(routineP,&
          "logger%ref_count<1")
 
-    loc=.FALSE.
+    loc=.TRUE.
     IF (PRESENT(local)) loc=local
     IF (cp_logger_would_log(lggr,level,fromWhere,local=loc)) THEN
        SELECT CASE (level)
@@ -967,7 +971,7 @@ CONTAINS
     LOGICAL                                  :: exists, loc
     TYPE(cp_logger_type), POINTER            :: lggr
 
-    loc=.FALSE.
+    loc=.TRUE.
     IF (PRESENT(logger)) THEN
        lggr => logger
     ELSE
@@ -1165,6 +1169,42 @@ CONTAINS
     END IF
     CALL compress(res,full=.TRUE.)
   END SUBROUTINE cp_logger_generate_filename
+!***************************************************************************
+
+!!****f* cp_log_handling/cp_logger_set [1.0] *
+!!
+!!   NAME
+!!     cp_logger_set
+!!
+!!   FUNCTION
+!!     sets various attributes of the given logger
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - logger: the logger you want to change
+!!     - local_filename: the root of the name of the file used for local
+!!       logging
+!!     - global_filename: the root of the name of the file used for 
+!!       global logging
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_logger_set(logger,local_filename,global_filename)
+  TYPE(cp_logger_type), pointer :: logger
+  CHARACTER(len=*), INTENT(in), OPTIONAL :: local_filename, global_filename
+
+  CHARACTER(len=*), PARAMETER :: routineN="cp_logger_set",&
+       routineP=moduleN//":"//routineN
+  
+  IF (.NOT.ASSOCIATED(logger)) CALL stop_program(routineP,&
+       "unassociated logger")
+  if (present(local_filename)) logger%local_filename=local_filename
+  if (present(global_filename)) logger%global_filename=global_filename
+END SUBROUTINE cp_logger_set
 !***************************************************************************
 
 ! ============= to string  ============
