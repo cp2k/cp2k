@@ -127,20 +127,26 @@ CONTAINS
                 END DO
                 particles(ip)%r(k) = std_value
                 numer_forces(ip,k) = - (numer_energy(1) - numer_energy(2) ) / (2.0_dp*Dx)
-                WRITE(iw,'(A,I5,A,I5,4F15.9)')"ATOM NUMBER ::",iseq," COORD:",k,numer_energy,&
+                IF (globenv%ionode) THEN
+                   WRITE(iw,'(A,I5,A,I5,4F15.9)')"ATOM NUMBER ::",iseq," COORD:",k,numer_energy,&
                      numer_forces(ip,k), analyt_forces(iseq,k)
+                ENDIF
              END DO Coord
              !
              ! Check analytical forces Vs numerical forces
              !             
              WRITE(iw,'(A,I5,6F15.9)')"ATOM NUMBER ::",iseq,analyt_forces(iseq,:), numer_forces(ip,:)
           END DO Atom
-          WRITE(iw,'(A,I5)')"SUMMARY DEBUG :: SUBSYS NUMBER :",isubsys
+          IF (globenv%ionode) THEN
+              WRITE(iw,'(A,I5)')"SUMMARY DEBUG :: SUBSYS NUMBER :",isubsys
+          ENDIF
           iseq = iseq - subsys(isubsys)%subsys%particles%n_els
           DO ip = 1, subsys(isubsys)%subsys%particles%n_els
-             iseq = iseq + 1
-             WRITE(iw,'(A,I5,9F12.6)')"ATOM NUMBER ::",iseq,analyt_forces(iseq,:), numer_forces(ip,:),&
-                  analyt_forces(iseq,:) - numer_forces(ip,:)   
+             iseq = iseq + 1 
+             IF (globenv%ionode) THEN
+                 WRITE(iw,'(A,I5,9F12.6)')"ATOM NUMBER ::",iseq,analyt_forces(iseq,:), numer_forces(ip,:),&
+                      analyt_forces(iseq,:) - numer_forces(ip,:)   
+             ENDIF
           END DO
           !
           ! Runtime check...
@@ -152,14 +158,19 @@ CONTAINS
                    Err(K) = (analyt_forces(ip,K)-numer_forces(ip,K))/numer_forces(ip,K)*100.0_dp
                 END IF
              END DO
-             WRITE(*,100)ip,Analyt_Forces(Ip,1),Err(1),&
+             IF (globenv%ionode) THEN
+                 WRITE(iw,100)ip,Analyt_Forces(Ip,1),Err(1),&
                             Analyt_Forces(Ip,2),Err(2),&
                             Analyt_Forces(Ip,3),Err(3)
+             ENDIF
              my_MaxErr = MaxErr
              IF (ABS(Analyt_Forces(Ip,1)) <= 0.0001_dp ) my_MaxErr(1)=my_MaxErr(1)*5.0_dp
              IF (ABS(Analyt_Forces(Ip,2)) <= 0.0001_dp ) my_MaxErr(1)=my_MaxErr(2)*5.0_dp
              IF (ABS(Analyt_Forces(Ip,3)) <= 0.0001_dp ) my_MaxErr(1)=my_MaxErr(3)*5.0_dp
-             WRITE(*,*)my_MaxErr
+             ! ? does the whole of this routine actually work in parallel 
+             IF (globenv%ionode) THEN
+                WRITE(iw,*)my_MaxErr
+             ENDIF
              CPPostcondition(ABS(Err(1))<=my_MaxErr(1),cp_failure_level,routineP,error,failure)
              CPPostcondition(ABS(Err(2))<=my_MaxErr(2),cp_failure_level,routineP,error,failure)
              CPPostcondition(ABS(Err(3))<=my_MaxErr(3),cp_failure_level,routineP,error,failure)

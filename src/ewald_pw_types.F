@@ -276,6 +276,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, green, cell, cell_ref, ewald_env, error )
   logger => cp_error_get_logger ( error )
   pw_grid_information=logger%print_keys%pw_grid_information
   ionode=(logger%para_env%mepos==logger%para_env%source)
+  output_unit=-1
   IF (ionode) output_unit=cp_logger_get_default_unit_nr(logger)
 
   CPPrecondition(ASSOCIATED ( ewald_pw ),cp_failure_level,routineP,error,failure)
