@@ -220,8 +220,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER                   :: routine_name = "vxc_of_r_new",&
                                          routineP = module_name//':'//routine_name
 
-    REAL(dp), DIMENSION(:,:), POINTER             :: tau
-
 
     TYPE(cp_sll_xc_deriv_type), POINTER           :: pos
     TYPE(xc_derivative_type), POINTER             :: deriv_att
@@ -243,182 +241,10 @@ CONTAINS
     nspins = 1
     IF(lsd) nspins = 2
 
-   ! some checks
-    SELECT CASE(nspins)
-    CASE(1)
-       CPPrecondition(SIZE(rho,2)==1,cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.needs%rho_spin,cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.needs%drho_spin,cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.needs%norm_drho_spin,cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.needs%drhoa_drhob,cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.needs%rho_spin_1_3,cp_failure_level,routineP,error,failure)
-    CASE(2)
-       CPPrecondition(SIZE(rho,2)==2,cp_failure_level,routineP,error,failure)
-    CASE default
-       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-    END SELECT
-
     gradient_f=(needs%drho_spin.OR.needs%norm_drho_spin.OR.&
                 needs%drhoa_drhob.OR.needs%drho.OR.needs%norm_drho)
 
-    SELECT CASE(nspins)
-    CASE(1)
-!     Give rho to 1/3  
-      IF (needs%rho_1_3) THEN
-        DO ia = 1,na
-          rho_set%rho_1_3(ia,1,1) = MAX(rho(ia,1),0.0_dp)**f13
-        END DO
-        rho_set%owns%rho_1_3=.TRUE.
-        rho_set%has%rho_1_3=.TRUE.
-      END IF
-!     Give the density
-      IF (needs%rho) THEN
-        DO ia = 1,na
-          rho_set%rho(ia,1,1) = rho(ia,1)
-        END DO
-        rho_set%owns%rho=.TRUE.
-        rho_set%has%rho=.TRUE.
-      END IF
-!     Give the norm of the gradient of the density
-      IF (needs%norm_drho) THEN
-        DO ia = 1,na
-          rho_set%norm_drho(ia,1,1) = drho(4,ia,ir_pnt,1)
-        END DO
-        rho_set%owns%norm_drho=.TRUE.
-        rho_set%has%norm_drho=.TRUE.
-      END IF
-!     Give the three components of the gradient of the density
-      IF (needs%drho) THEN
-        DO idir = 1,3
-          DO ia = 1,na
-            rho_set%drho(idir)%array(ia,1,1) = drho(idir,ia,ir_pnt,1)
-          END DO
-        END DO
-        rho_set%owns%drho=.TRUE.
-        rho_set%has%drho=.TRUE.
-      END IF
-    CASE(2)
-!     Give the total density
-      IF (needs%rho) THEN
-     ! this should never be the case unless you use LDA functionals with LSD
-        DO ia = 1,na
-          rho_set%rho(ia,1,1) = rho(ia,1)+rho(ia,2)
-        END DO
-        rho_set%owns%rho=.TRUE.
-        rho_set%has%rho=.TRUE.
-      END IF
-!     Give the total density to 1/3  
-      IF (needs%rho_1_3) THEN
-        DO ia = 1,na
-          rho_set%rho_1_3(ia,1,1) = MAX(rho(ia,1)+rho(ia,2),0.0_dp)**f13
-        END DO
-        rho_set%owns%rho_1_3=.TRUE.
-        rho_set%has%rho_1_3=.TRUE.
-      END IF
-!     Give the spin densities to 1/3  
-      IF (needs%rho_spin_1_3) THEN
-        DO ia = 1,na
-          rho_set%rhoa_1_3(ia,1,1) = MAX(rho(ia,1),0.0_dp)**f13
-          rho_set%rhob_1_3(ia,1,1) = MAX(rho(ia,2),0.0_dp)**f13
-        END DO
-        rho_set%owns%rho_spin_1_3=.TRUE.
-        rho_set%has%rho_spin_1_3=.TRUE.
-      END IF
-!     Give the spin densities rhoa and rhob
-      IF (needs%rho_spin) THEN
-        DO ia = 1,na
-          rho_set%rhoa(ia,1,1) = rho(ia,1)
-          rho_set%rhob(ia,1,1) = rho(ia,2)
-        END DO
-        rho_set%owns%rho_spin=.TRUE.
-        rho_set%has%rho_spin=.TRUE.
-      END IF
-!     Give the norm of the gradient of the total density
-      IF (needs%norm_drho) THEN
-        DO ia = 1,na
-          rho_set%norm_drho(ia,1,1) = SQRT(&
-                (drho(1,ia,ir_pnt,1)+drho(1,ia,ir_pnt,2))**2+&
-                (drho(2,ia,ir_pnt,1)+drho(2,ia,ir_pnt,2))**2+&
-                (drho(3,ia,ir_pnt,1)+drho(3,ia,ir_pnt,2))**2)
-        END DO
-        rho_set%owns%norm_drho=.TRUE.
-        rho_set%has%norm_drho=.TRUE.
-      END IF
-!     Give the norm of the gradient of rhoa and of rhob separatedly
-      IF (needs%norm_drho_spin) THEN
-        DO ia = 1,na
-          rho_set%norm_drhoa(ia,1,1) = drho(4,ia,ir_pnt,1)
-          rho_set%norm_drhob(ia,1,1) = drho(4,ia,ir_pnt,2)
-        END DO
-        rho_set%owns%norm_drho_spin=.TRUE.
-        rho_set%has%norm_drho_spin=.TRUE.
-      END IF
-!
-      IF (needs%drhoa_drhob) THEN
-        DO ia =1,na
-          rho_set%drhoa_drhob(ia,1,1) =&
-                (drho(1,ia,ir_pnt,1)*drho(1,ia,ir_pnt,2))+&
-                (drho(2,ia,ir_pnt,1)*drho(2,ia,ir_pnt,2))+&
-                (drho(3,ia,ir_pnt,1)*drho(3,ia,ir_pnt,2))   
-        END DO
-        rho_set%owns%drhoa_drhob=.TRUE.
-        rho_set%has%drhoa_drhob=.TRUE.
-      END IF
-!     Give the components of the gradient for the total rho
-      IF (needs%drho) THEN
-        DO idir = 1,3
-          DO ia = 1,na
-            rho_set%drho(idir)%array(ia,1,1) = drho(idir,ia,ir_pnt,1)+drho(idir,ia,ir_pnt,2)
-          END DO
-        END DO
-        rho_set%owns%drho=.TRUE.        
-        rho_set%has%drho=.TRUE.
-      END IF
-!     Give the components of the gradient for rhoa and rhob
-      IF (needs%drho_spin) THEN
-        DO idir = 1,3
-          DO ia = 1,na
-            rho_set%drhoa(idir)%array(ia,1,1) = drho(idir,ia,ir_pnt,1)
-            rho_set%drhob(idir)%array(ia,1,1) = drho(idir,ia,ir_pnt,2)
-          END DO
-        END DO
-        rho_set%owns%drho_spin=.TRUE.        
-        rho_set%has%drho_spin=.TRUE.
-      END IF
-!
-    END SELECT
-
-    ! tau part
-    IF (needs%tau.OR.needs%tau_spin) THEN
-       CALL stop_program(routine_name,module_name,__LINE__,&
-                        "GAPW + metafunctionals not implemented yet")
-       CPPrecondition(ASSOCIATED(tau),cp_failure_level,routineP,error,failure)
-       CPPrecondition(SIZE(tau,2)==nspins,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (needs%tau) THEN
-      IF (nspins==2) THEN
-        DO ia = 1,na
-          rho_set%tau(ia,1,1) = tau(ia,1)+tau(ia,2)
-        END DO
-        rho_set%owns%tau=.TRUE.
-        rho_set%has%tau=.TRUE.
-      ELSE
-        DO ia = 1,na
-          rho_set%tau(ia,1,1) = tau(ia,1)
-        END DO
-        rho_set%owns%tau=.TRUE.
-        rho_set%has%tau=.TRUE.
-      END IF
-    END IF
-    IF (needs%tau_spin) THEN
-      DO ia = 1,na
-       rho_set%tau_a(ia,1,1) = tau(ia,1)
-       rho_set%tau_b(ia,1,1) = tau(ia,2)
-      END DO
-      rho_set%owns%tau_spin=.TRUE.
-      rho_set%has%tau_spin=.TRUE.
-    END IF
-
+    CALL fill_rho_set(rho_set,lsd,.FALSE.,needs,rho,drho,oodrho,w,na,ir_pnt,error)
 
 !  Calculate the derivatives
     DO i=1,SIZE(xc_control%functionals)
@@ -697,5 +523,287 @@ CONTAINS
   END SUBROUTINE xc_rho_set_atom_update
 
 !   ***************************************************************************
+
+  SUBROUTINE fill_rho_set(rho_set,lsd,tddft,needs,rho,drho,oodrho,w,na,ir,error)
+
+    ! ARGUMENTS
+    TYPE(xc_rho_set_type), POINTER                :: rho_set
+    LOGICAL, INTENT(IN)                           :: lsd, tddft
+    TYPE(xc_rho_cflags_type), INTENT(in)          :: needs
+    REAL(dp), DIMENSION(:,:),  POINTER            :: rho 
+    REAL(dp), DIMENSION(:,:,:,:),  POINTER        :: drho 
+    REAL(dp), DIMENSION(:,:),  POINTER            :: oodrho 
+    REAL(dp), DIMENSION(:),  POINTER              :: w 
+    INTEGER, INTENT(IN)                           :: na, ir
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                                    :: error
+
+    ! LOCALS
+    INTEGER                                       :: ia, idir, nspins
+    LOGICAL                                       :: failure
+    LOGICAL                                       :: gradient_f, tddft_split
+    REAL(dp), DIMENSION(:,:), POINTER             :: tau
+
+    ! PARAMETERS
+    REAL(KIND=dp), PARAMETER                      :: f13 = (1.0_dp/3.0_dp)
+    CHARACTER(LEN=*), PARAMETER                   :: routine_name = "fill_rho_set",&
+                                                     routineP = module_name//':'//routine_name
+        
+
+    NULLIFY(tau)
+    failure = .FALSE.
+    tddft_split = tddft.AND.(.NOT.lsd)
+    nspins = 1
+    IF (lsd .OR. tddft_split) nspins = 2
+
+    ! some checks
+    IF (lsd) THEN
+       CPPrecondition(SIZE(rho,2)==2,cp_failure_level,routineP,error,failure)
+    ELSE
+       CPPrecondition(SIZE(rho,2)==1,cp_failure_level,routineP,error,failure)
+    END IF
+    SELECT CASE(nspins)
+    CASE(1)
+       CPPrecondition(.NOT.needs%rho_spin,cp_failure_level,routineP,error,failure)
+       CPPrecondition(.NOT.needs%drho_spin,cp_failure_level,routineP,error,failure)
+       CPPrecondition(.NOT.needs%norm_drho_spin,cp_failure_level,routineP,error,failure)
+       CPPrecondition(.NOT.needs%drhoa_drhob,cp_failure_level,routineP,error,failure)
+       CPPrecondition(.NOT.needs%rho_spin_1_3,cp_failure_level,routineP,error,failure)
+    CASE(2)
+    CASE default
+       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+    END SELECT
+
+    gradient_f=(needs%drho_spin.OR.needs%norm_drho_spin.OR.&
+                needs%drhoa_drhob.OR.needs%drho.OR.needs%norm_drho)
+    
+    SELECT CASE(nspins)
+    CASE(1)
+       ! Give rho to 1/3  
+       IF (needs%rho_1_3) THEN
+          DO ia = 1,na
+             rho_set%rho_1_3(ia,1,1) = MAX(rho(ia,1),0.0_dp)**f13
+          END DO
+          rho_set%owns%rho_1_3=.TRUE.
+          rho_set%has%rho_1_3=.TRUE.
+       END IF
+       ! Give the density
+       IF (needs%rho) THEN
+          DO ia = 1,na
+             rho_set%rho(ia,1,1) = rho(ia,1)
+          END DO
+          rho_set%owns%rho=.TRUE.
+          rho_set%has%rho=.TRUE.
+       END IF
+       ! Give the norm of the gradient of the density
+       IF (needs%norm_drho) THEN
+          DO ia = 1,na
+             rho_set%norm_drho(ia,1,1) = drho(4,ia,ir,1)
+          END DO
+          rho_set%owns%norm_drho=.TRUE.
+          rho_set%has%norm_drho=.TRUE.
+       END IF
+       ! Give the three components of the gradient of the density
+       IF (needs%drho) THEN
+          DO idir = 1,3
+             DO ia = 1,na
+                rho_set%drho(idir)%array(ia,1,1) = drho(idir,ia,ir,1)
+             END DO
+          END DO
+          rho_set%owns%drho=.TRUE.
+          rho_set%has%drho=.TRUE.
+       END IF
+    CASE(2)
+       ! Give the total density
+       IF (needs%rho) THEN
+          ! this should never be the case unless you use LDA functionals with LSD
+          IF (.NOT.tddft_split) THEN
+             DO ia = 1,na
+                rho_set%rho(ia,1,1) = rho(ia,1)+rho(ia,2)
+             END DO
+          ELSE
+             DO ia = 1,na
+                rho_set%rho(ia,1,1) = rho(ia,1)
+             END DO
+          END IF
+          rho_set%owns%rho=.TRUE.
+          rho_set%has%rho=.TRUE.
+       END IF
+       ! Give the total density to 1/3  
+       IF (needs%rho_1_3) THEN
+          IF (.NOT.tddft_split) THEN
+             DO ia = 1,na
+                rho_set%rho_1_3(ia,1,1) = MAX(rho(ia,1)+rho(ia,2),0.0_dp)**f13
+             END DO
+          ELSE
+             DO ia = 1,na
+                rho_set%rho_1_3(ia,1,1) = MAX(rho(ia,1),0.0_dp)**f13
+             END DO
+          END IF
+          rho_set%owns%rho_1_3=.TRUE.
+          rho_set%has%rho_1_3=.TRUE.
+       END IF
+       ! Give the spin densities to 1/3  
+       IF (needs%rho_spin_1_3) THEN
+          IF (.NOT.tddft_split) THEN
+             DO ia = 1,na
+                rho_set%rhoa_1_3(ia,1,1) = MAX(rho(ia,1),0.0_dp)**f13
+                rho_set%rhob_1_3(ia,1,1) = MAX(rho(ia,2),0.0_dp)**f13
+             END DO
+          ELSE
+             DO ia = 1,na
+                rho_set%rhoa_1_3(ia,1,1) = MAX(0.5_dp*rho(ia,1),0.0_dp)**f13
+                rho_set%rhob_1_3(ia,1,1) = rho_set%rhoa_1_3(ia,1,1)
+             END DO
+          END IF
+          rho_set%owns%rho_spin_1_3=.TRUE.
+          rho_set%has%rho_spin_1_3=.TRUE.
+       END IF
+       ! Give the spin densities rhoa and rhob
+       IF (needs%rho_spin) THEN
+          IF (.NOT.tddft_split) THEN
+             DO ia = 1,na
+                rho_set%rhoa(ia,1,1) = rho(ia,1)
+                rho_set%rhob(ia,1,1) = rho(ia,2)
+             END DO
+          ELSE
+             DO ia = 1,na
+                rho_set%rhoa(ia,1,1) = 0.5_dp*rho(ia,1)
+                rho_set%rhob(ia,1,1) = rho_set%rhoa(ia,1,1)
+             END DO
+          END IF
+          rho_set%owns%rho_spin=.TRUE.
+          rho_set%has%rho_spin=.TRUE.
+       END IF
+       ! Give the norm of the gradient of the total density
+       IF (needs%norm_drho) THEN
+          IF (.NOT.tddft_split) THEN
+             DO ia = 1,na
+                rho_set%norm_drho(ia,1,1) = SQRT(&
+                     (drho(1,ia,ir,1)+drho(1,ia,ir,2))**2+&
+                     (drho(2,ia,ir,1)+drho(2,ia,ir,2))**2+&
+                     (drho(3,ia,ir,1)+drho(3,ia,ir,2))**2)
+             END DO
+          ELSE
+             DO ia = 1,na
+                rho_set%norm_drho(ia,1,1) = SQRT(&
+                     (drho(1,ia,ir,1))**2+&
+                     (drho(2,ia,ir,1))**2+&
+                     (drho(3,ia,ir,1))**2)
+             END DO
+          END IF
+          rho_set%owns%norm_drho=.TRUE.
+          rho_set%has%norm_drho=.TRUE.
+       END IF
+       ! Give the norm of the gradient of rhoa and of rhob separatedly
+       IF (needs%norm_drho_spin) THEN
+          IF (.NOT.tddft_split) THEN
+             DO ia = 1,na
+                rho_set%norm_drhoa(ia,1,1) = drho(4,ia,ir,1)
+                rho_set%norm_drhob(ia,1,1) = drho(4,ia,ir,2)
+             END DO
+          ELSE
+             DO ia = 1,na
+                rho_set%norm_drhoa(ia,1,1) = 0.5_dp*drho(4,ia,ir,1)
+                rho_set%norm_drhob(ia,1,1) = rho_set%norm_drhoa(ia,1,1)
+             END DO
+          END IF
+          rho_set%owns%norm_drho_spin=.TRUE.
+          rho_set%has%norm_drho_spin=.TRUE.
+       END IF
+       !
+       IF (needs%drhoa_drhob) THEN
+          IF (.NOT.tddft_split) THEN
+             DO ia =1,na
+                rho_set%drhoa_drhob(ia,1,1) =&
+                     (drho(1,ia,ir,1)*drho(1,ia,ir,2))+&
+                     (drho(2,ia,ir,1)*drho(2,ia,ir,2))+&
+                     (drho(3,ia,ir,1)*drho(3,ia,ir,2))   
+             END DO
+          ELSE
+             DO ia =1,na
+                rho_set%drhoa_drhob(ia,1,1) =&
+                     (0.25_dp*drho(1,ia,ir,1)**2)+&
+                     (0.25_dp*drho(2,ia,ir,1)**2)+&
+                     (0.25_dp*drho(3,ia,ir,1)**2)   
+             END DO
+          END IF
+          rho_set%owns%drhoa_drhob=.TRUE.
+          rho_set%has%drhoa_drhob=.TRUE.
+       END IF
+       ! Give the components of the gradient for the total rho
+       IF (needs%drho) THEN
+          IF (.NOT.tddft_split) THEN
+             DO idir = 1,3
+                DO ia = 1,na
+                   rho_set%drho(idir)%array(ia,1,1) = drho(idir,ia,ir,1)+drho(idir,ia,ir,2)
+                END DO
+             END DO
+          ELSE
+             DO idir = 1,3
+                DO ia = 1,na
+                   rho_set%drho(idir)%array(ia,1,1) = drho(idir,ia,ir,1)
+                END DO
+             END DO
+          END IF
+          rho_set%owns%drho=.TRUE.        
+          rho_set%has%drho=.TRUE.
+       END IF
+       ! Give the components of the gradient for rhoa and rhob
+       IF (needs%drho_spin) THEN
+          IF (.NOT.tddft_split) THEN
+             DO idir = 1,3
+                DO ia = 1,na
+                   rho_set%drhoa(idir)%array(ia,1,1) = drho(idir,ia,ir,1)
+                   rho_set%drhob(idir)%array(ia,1,1) = drho(idir,ia,ir,2)
+                END DO
+             END DO
+          ELSE
+             DO idir = 1,3
+                DO ia = 1,na
+                   rho_set%drhoa(idir)%array(ia,1,1) = 0.5_dp*drho(idir,ia,ir,1)
+                   rho_set%drhob(idir)%array(ia,1,1) = rho_set%drhoa(idir)%array(ia,1,1)
+                END DO
+             END DO
+          END IF
+          rho_set%owns%drho_spin=.TRUE.        
+          rho_set%has%drho_spin=.TRUE.
+       END IF
+       !
+    END SELECT
+
+    ! tau part
+    IF (needs%tau.OR.needs%tau_spin) THEN
+       CALL stop_program(routine_name,module_name,__LINE__,&
+            "GAPW + metafunctionals not implemented yet")
+       CPPrecondition(ASSOCIATED(tau),cp_failure_level,routineP,error,failure)
+       CPPrecondition(SIZE(tau,2)==nspins,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (needs%tau) THEN
+       IF (nspins==2) THEN
+          DO ia = 1,na
+             rho_set%tau(ia,1,1) = tau(ia,1)+tau(ia,2)
+          END DO
+          rho_set%owns%tau=.TRUE.
+          rho_set%has%tau=.TRUE.
+       ELSE
+          DO ia = 1,na
+             rho_set%tau(ia,1,1) = tau(ia,1)
+          END DO
+          rho_set%owns%tau=.TRUE.
+          rho_set%has%tau=.TRUE.
+       END IF
+    END IF
+    IF (needs%tau_spin) THEN
+       DO ia = 1,na
+          rho_set%tau_a(ia,1,1) = tau(ia,1)
+          rho_set%tau_b(ia,1,1) = tau(ia,2)
+       END DO
+       rho_set%owns%tau_spin=.TRUE.
+       rho_set%has%tau_spin=.TRUE.
+    END IF
+
+
+  END SUBROUTINE fill_rho_set
 
 END MODULE xc_atom
