@@ -29,7 +29,7 @@ MODULE pol_debug_pw
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE linklist_types, ONLY : linklist_internal_data_type
-  USE md, ONLY : thermodynamic_type
+  USE md, ONLY : thermodynamic_type, simulation_parameters_type
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type
   USE pair_potential, ONLY : potentialparm_type
   USE particle_types, ONLY : particle_type
@@ -51,7 +51,7 @@ MODULE pol_debug_pw
 SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
            molecule, box, box_ref, drho_basis_info, rho0_basis_info, &
            coef_pos, coef_vel, coef_force, proj, pw_grid, thermo,  &
-           potparm, empparm, ll_data )
+           potparm, empparm, simpar, ll_data )
                         
 ! Routine to execute numerical tests for debugging 
   IMPLICIT NONE
@@ -73,6 +73,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
   TYPE ( kind_info_type ), POINTER, DIMENSION ( : ) :: rho0_basis_info
   TYPE ( linklist_internal_data_type), DIMENSION ( : ), INTENT ( INOUT ) :: ll_data
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
+  TYPE ( simulation_parameters_type ), INTENT (in) :: simpar
   TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
 !
 ! begin local variable declaration
@@ -128,7 +129,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
   CALL force_control ( molecule, pnode, part, box, box_ref, &
      drho_basis_info, rho0_basis_info, coef_pos, coef_vel, coef_force, &
      proj, pw_grid, thermo, potparm, empparm, ewald_param, box_change, &
-     globenv, ll_data, dbg)
+     globenv, ll_data, simpar, dbg)
 
 ! get local copies of the polarization grids
 
