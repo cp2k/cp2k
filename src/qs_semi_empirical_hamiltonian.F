@@ -425,7 +425,7 @@ CONTAINS
                                                 ilist,nlist,iatom,jatom,&
                                                 inode,nnode,iab,irow,icol
     REAL ( dp ), DIMENSION (3)               :: rij
-    REAL ( dp )                              :: ecoulomb
+    REAL ( dp )                              :: ecoul
     REAL ( dp )                              :: gss,gsp,gpp,gp2,hsp
     TYPE(cell_type), POINTER                 :: cell
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -450,9 +450,6 @@ CONTAINS
 
 !   ----------------------------------------------------------------------------
 
-!deb
-    write(6,*) " START BUILD FOCK MATRIX "
-!deb
     failure=.FALSE.
     NULLIFY(matrix_h,matrix_p,dft_control,cell,logger)
 
@@ -478,6 +475,11 @@ CONTAINS
 
     IF ( .NOT. failure ) THEN
 
+       DO ispin=1,nspins
+          ! copy the core matrix into the fock matrix
+          CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix)
+       END DO
+
        matrix_p => rho%rho_ao
 
        CALL get_qs_env(qs_env=qs_env,&
@@ -498,7 +500,6 @@ CONTAINS
        END SELECT
 
        nkind = SIZE(atomic_kind_set)
-       ecoulomb = 0._dp
 
        DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
@@ -679,24 +680,24 @@ CONTAINS
        IF (qs_env%qmmm) THEN
        END IF
 
-       IF ( .NOT. just_energy) THEN
-          DO ispin=1,nspins
-             ! copy the core matrix into the fock matrix
-             CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix)
-          END DO
-       END IF
+       energy%hartree=-energy%core
+       DO ispin=1,nspins
+          CALL calculate_ecore(ks_matrix(ispin)%matrix,&
+                               matrix_p(ispin)%matrix,ecoul,para_env)
+          energy%hartree=energy%hartree+ecoul
+       END DO
 
        energy%mulliken = 0.0_dp
+       energy%exc = 0._dp
 
        energy%total = energy%core + energy%hartree + energy%exc + &
-            energy%core_overlap + &
+            energy%core_overlap + energy%core_self + &
             energy%qmmm_el + energy%mulliken
 
        IF (ionode.AND.logger%print_keys%scf_energies) THEN
           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
                "Core Hamiltonian energy:                       ",energy%core,&
-               "Hartree energy:                                ",energy%hartree,&
-               "Exchange energy:                               ",energy%exc
+               "Two-electron integral energy:                  ",energy%hartree
        END IF
        IF (qs_env%qmmm) THEN
           WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
@@ -706,9 +707,6 @@ CONTAINS
     END IF
 
     CALL timestop(0.0_dp,handle)
-!deb
-    write(6,*) " END BUILD FOCK MATRIX "
-!deb
 
   END SUBROUTINE build_se_fock_matrix
 
@@ -844,8 +842,10 @@ CONTAINS
     REAL(KIND = dp)                          :: enuc
     REAL(KIND = dp), DIMENSION(100)          :: wint
     REAL(KIND = dp), DIMENSION(10)           :: e1b,e2a
-    REAL(KIND = dp), DIMENSION(10)           :: ppa,ppb,ppab
-    INTEGER                                  :: na,nb
+    REAL(KIND = dp), DIMENSION(10)           :: ppa,ppb
+    REAL(KIND = dp), DIMENSION(10)           :: ca,cb
+    REAL(KIND = dp), DIMENSION(4,4)          :: kab
+    INTEGER                                  :: na,nb,i,ii
 
     na = SIZE ( pa, 1 )
     nb = SIZE ( pb, 1 )
@@ -885,6 +885,15 @@ CONTAINS
     ELSE IF ( na==4 .AND. nb==4 ) THEN
       CALL contract( pa, ppa )
       CALL contract( pb, ppb )
+      DO i=1,10
+        ii = (i-1)*10 + 1
+        ca(i) = SUM ( wint(ii:ii+9)*ppb(1:10) )
+        cb(i) = SUM ( wint(i:90+i:10)*ppa(1:10) )
+      END DO
+      CALL expand( fa, ca )
+      CALL expand( fb, cb )
+      CALL exchange_sp ( kab, pab, wint )
+      fab(1:4,1:4) = fab(1:4,1:4) - 0.5_dp*kab(1:4,1:4)
     ELSE
       CPPrecondition(na<=4,cp_failure_level,routineP,error,failure)
       CPPrecondition(nb<=4,cp_failure_level,routineP,error,failure)
@@ -959,6 +968,112 @@ CONTAINS
     amat(3,3) = amat(3,3) + avec(10)
 
   END SUBROUTINE expand
+
+  SUBROUTINE exchange_sp ( kab, pab, w )
+    REAL ( dp ), INTENT ( OUT ), DIMENSION (:,:)  :: kab
+    REAL ( dp ), INTENT ( IN ), DIMENSION (:,:)   :: pab
+    REAL ( dp ), INTENT ( IN ), DIMENSION (:)     :: w
+    REAL ( dp ), DIMENSION (16)                   :: pk
+
+    pk( 1) = pab(1,1)
+    pk( 2) = pab(1,4)
+    pk( 3) = pab(1,2)
+    pk( 4) = pab(1,3)
+    pk( 5) = pab(4,1)
+    pk( 6) = pab(4,4)
+    pk( 7) = pab(4,2)
+    pk( 8) = pab(4,3)
+    pk( 9) = pab(2,1)
+    pk(10) = pab(2,4)
+    pk(11) = pab(2,2)
+    pk(12) = pab(2,3)
+    pk(13) = pab(3,1)
+    pk(14) = pab(3,4)
+    pk(15) = pab(3,2)
+    pk(16) = pab(3,3)
+
+    kab(1,1)= &
+      +PK( 1)*W(  1)+PK( 2)*W(  2)+PK( 3)*W(  4)+PK( 4)*W(  7) &
+      +PK( 5)*W( 11)+PK( 6)*W( 12)+PK( 7)*W( 14)+PK( 8)*W( 17) &
+      +PK( 9)*W( 31)+PK(10)*W( 32)+PK(11)*W( 34)+PK(12)*W( 37) &
+      +PK(13)*W( 61)+PK(14)*W( 62)+PK(15)*W( 64)+PK(16)*W( 67)
+    kab(1,4)= &
+      +PK( 1)*W(  2)+PK( 2)*W(  3)+PK( 3)*W(  5)+PK( 4)*W(  8) &
+      +PK( 5)*W( 12)+PK( 6)*W( 13)+PK( 7)*W( 15)+PK( 8)*W( 18) &
+      +PK( 9)*W( 32)+PK(10)*W( 33)+PK(11)*W( 35)+PK(12)*W( 38) &
+      +PK(13)*W( 62)+PK(14)*W( 63)+PK(15)*W( 65)+PK(16)*W( 68)
+    kab(1,2)= &
+      +PK( 1)*W(  4)+PK( 2)*W(  5)+PK( 3)*W(  6)+PK( 4)*W(  9) &
+      +PK( 5)*W( 14)+PK( 6)*W( 15)+PK( 7)*W( 16)+PK( 8)*W( 19) &
+      +PK( 9)*W( 34)+PK(10)*W( 35)+PK(11)*W( 36)+PK(12)*W( 39) &
+      +PK(13)*W( 64)+PK(14)*W( 65)+PK(15)*W( 66)+PK(16)*W( 69)
+    kab(1,3)= &
+      +PK( 1)*W(  7)+PK( 2)*W(  8)+PK( 3)*W(  9)+PK( 4)*W( 10) &
+      +PK( 5)*W( 17)+PK( 6)*W( 18)+PK( 7)*W( 19)+PK( 8)*W( 20) &
+      +PK( 9)*W( 37)+PK(10)*W( 38)+PK(11)*W( 39)+PK(12)*W( 40) &
+      +PK(13)*W( 67)+PK(14)*W( 68)+PK(15)*W( 69)+PK(16)*W( 70)
+    kab(4,1)= &
+      +PK( 1)*W( 11)+PK( 2)*W( 12)+PK( 3)*W( 14)+PK( 4)*W( 17) &
+      +PK( 5)*W( 21)+PK( 6)*W( 22)+PK( 7)*W( 24)+PK( 8)*W( 27) &
+      +PK( 9)*W( 41)+PK(10)*W( 42)+PK(11)*W( 44)+PK(12)*W( 47) &
+      +PK(13)*W( 71)+PK(14)*W( 72)+PK(15)*W( 74)+PK(16)*W( 77)
+    kab(4,4)= &
+      +PK( 1)*W( 12)+PK( 2)*W( 13)+PK( 3)*W( 15)+PK( 4)*W( 18) &
+      +PK( 5)*W( 22)+PK( 6)*W( 23)+PK( 7)*W( 25)+PK( 8)*W( 28) &
+      +PK( 9)*W( 42)+PK(10)*W( 43)+PK(11)*W( 45)+PK(12)*W( 48) &
+      +PK(13)*W( 72)+PK(14)*W( 73)+PK(15)*W( 75)+PK(16)*W( 78)
+    kab(4,2)= &
+      +PK( 1)*W( 14)+PK( 2)*W( 15)+PK( 3)*W( 16)+PK( 4)*W( 19) &
+      +PK( 5)*W( 24)+PK( 6)*W( 25)+PK( 7)*W( 26)+PK( 8)*W( 29) &
+      +PK( 9)*W( 44)+PK(10)*W( 45)+PK(11)*W( 46)+PK(12)*W( 49) &
+      +PK(13)*W( 74)+PK(14)*W( 75)+PK(15)*W( 76)+PK(16)*W( 79)
+    kab(4,3)= &
+      +PK( 1)*W( 17)+PK( 2)*W( 18)+PK( 3)*W( 19)+PK( 4)*W( 20) &
+      +PK( 5)*W( 27)+PK( 6)*W( 28)+PK( 7)*W( 29)+PK( 8)*W( 30) &
+      +PK( 9)*W( 47)+PK(10)*W( 48)+PK(11)*W( 49)+PK(12)*W( 50) &
+      +PK(13)*W( 77)+PK(14)*W( 78)+PK(15)*W( 79)+PK(16)*W( 80)
+    kab(2,1)= &
+      +PK( 1)*W( 31)+PK( 2)*W( 32)+PK( 3)*W( 34)+PK( 4)*W( 37) &
+      +PK( 5)*W( 41)+PK( 6)*W( 42)+PK( 7)*W( 44)+PK( 8)*W( 47) &
+      +PK( 9)*W( 51)+PK(10)*W( 52)+PK(11)*W( 54)+PK(12)*W( 57) &
+      +PK(13)*W( 81)+PK(14)*W( 82)+PK(15)*W( 84)+PK(16)*W( 87)
+    kab(2,4)= &
+      +PK( 1)*W( 32)+PK( 2)*W( 33)+PK( 3)*W( 35)+PK( 4)*W( 38) &
+      +PK( 5)*W( 42)+PK( 6)*W( 43)+PK( 7)*W( 45)+PK( 8)*W( 48) &
+      +PK( 9)*W( 52)+PK(10)*W( 53)+PK(11)*W( 55)+PK(12)*W( 58) &
+      +PK(13)*W( 82)+PK(14)*W( 83)+PK(15)*W( 85)+PK(16)*W( 88)
+    kab(2,2)= &
+      +PK( 1)*W( 34)+PK( 2)*W( 35)+PK( 3)*W( 36)+PK( 4)*W( 39) &
+      +PK( 5)*W( 44)+PK( 6)*W( 45)+PK( 7)*W( 46)+PK( 8)*W( 49) &
+      +PK( 9)*W( 54)+PK(10)*W( 55)+PK(11)*W( 56)+PK(12)*W( 59) &
+      +PK(13)*W( 84)+PK(14)*W( 85)+PK(15)*W( 86)+PK(16)*W( 89)
+    kab(2,3)= &
+      +PK( 1)*W( 37)+PK( 2)*W( 38)+PK( 3)*W( 39)+PK( 4)*W( 40) &
+      +PK( 5)*W( 47)+PK( 6)*W( 48)+PK( 7)*W( 49)+PK( 8)*W( 50) &
+      +PK( 9)*W( 57)+PK(10)*W( 58)+PK(11)*W( 59)+PK(12)*W( 60) &
+      +PK(13)*W( 87)+PK(14)*W( 88)+PK(15)*W( 89)+PK(16)*W( 90)
+    kab(3,1)= &
+      +PK( 1)*W( 61)+PK( 2)*W( 62)+PK( 3)*W( 64)+PK( 4)*W( 67) &
+      +PK( 5)*W( 71)+PK( 6)*W( 72)+PK( 7)*W( 74)+PK( 8)*W( 77) &
+      +PK( 9)*W( 81)+PK(10)*W( 82)+PK(11)*W( 84)+PK(12)*W( 87) &
+      +PK(13)*W( 91)+PK(14)*W( 92)+PK(15)*W( 94)+PK(16)*W( 97)
+    kab(3,4)= &
+      +PK( 1)*W( 62)+PK( 2)*W( 63)+PK( 3)*W( 65)+PK( 4)*W( 68) &
+      +PK( 5)*W( 72)+PK( 6)*W( 73)+PK( 7)*W( 75)+PK( 8)*W( 78) &
+      +PK( 9)*W( 82)+PK(10)*W( 83)+PK(11)*W( 85)+PK(12)*W( 88) &
+      +PK(13)*W( 92)+PK(14)*W( 93)+PK(15)*W( 95)+PK(16)*W( 98)
+    kab(3,2)= &
+      +PK( 1)*W( 64)+PK( 2)*W( 65)+PK( 3)*W( 66)+PK( 4)*W( 69) &
+      +PK( 5)*W( 74)+PK( 6)*W( 75)+PK( 7)*W( 76)+PK( 8)*W( 79) &
+      +PK( 9)*W( 84)+PK(10)*W( 85)+PK(11)*W( 86)+PK(12)*W( 89) &
+      +PK(13)*W( 94)+PK(14)*W( 95)+PK(15)*W( 96)+PK(16)*W( 99)
+    kab(3,3)= &
+      +PK( 1)*W( 67)+PK( 2)*W( 68)+PK( 3)*W( 69)+PK( 4)*W( 70) &
+      +PK( 5)*W( 77)+PK( 6)*W( 78)+PK( 7)*W( 79)+PK( 8)*W( 80) &
+      +PK( 9)*W( 87)+PK(10)*W( 88)+PK(11)*W( 89)+PK(12)*W( 90) &
+      +PK(13)*W( 97)+PK(14)*W( 98)+PK(15)*W( 99)+PK(16)*W(100)
+
+  END SUBROUTINE exchange_sp
 
 ! *****************************************************************************
 

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2001 - 2002  CP2K developers group
+!   Copyright (C) 2001 - 2004  CP2K developers group
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
@@ -159,7 +159,8 @@ MODULE qs_scf
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_post,                     ONLY: scf_post_calculation
   USE qs_scf_types,                    ONLY: ao_mixing_nr,&
-                                             diagonalisation_method_nr,&
+                                             special_diag_method_nr,&
+                                             general_diag_method_nr,&
                                              no_mixing_nr,&
                                              ot_method_nr,&
                                              qs_scf_env_type,&
@@ -276,13 +277,17 @@ CONTAINS
        scf_env%nelectron=0
 
 ! sets the method
-       scf_env%method=diagonalisation_method_nr ! default with diagonalisation
+       scf_env%method=general_diag_method_nr ! default with diagonalisation
+       IF (dft_control%qs_control%semi_empirical) THEN
+         IF (dft_control%qs_control%se_control%orthogonal_basis) &
+           scf_env%method=special_diag_method_nr
+       END IF
        IF (scf_control%use_ot) scf_env%method=ot_method_nr
 
        SELECT CASE(scf_env%method)
        CASE(ot_method_nr)
           scf_env%mixing_method=no_mixing_nr
-       CASE default
+       CASE DEFAULT
           scf_env%mixing_method=ao_mixing_nr
        END SELECT
 
@@ -537,7 +542,11 @@ CONTAINS
        ENDDO
 
        IF (logger%print_keys%mo_orthonormality) THEN
-          CALL calculate_orthonormality(mos,matrix_s(1)%matrix,orthonormality)
+          IF(scf_env%method==special_diag_method_nr) THEN
+            CALL calculate_orthonormality(orthonormality,mos)
+          ELSE
+            CALL calculate_orthonormality(orthonormality,mos,matrix_s(1)%matrix)
+          END IF
           IF (ionode) THEN
              WRITE(output_unit,'(T8,A,T60,E20.4)')  &
                     " Maximum deviation from MO S-orthonormality",orthonormality
@@ -549,81 +558,118 @@ CONTAINS
        IF (scf_env%mixing_method==ao_mixing_nr) scf_env%iter_param = scf_env%p_mix
 
        SELECT CASE (scf_env%method)
-       CASE(diagonalisation_method_nr) ! diagonalisation (default)
+         CASE DEFAULT
+            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                 routineP,"unknown scf method method:"//&
+                 cp_to_string(scf_env%method),error,failure)
 
-          DO ispin=1,dft_control%nspins 
+         CASE(general_diag_method_nr) ! diagonalisation (default)
+
+            DO ispin=1,dft_control%nspins 
              CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,scf_work1(ispin)%matrix)
-          ENDDO
+            ENDDO
 
-          IF (scf_env%iter_count > 1) THEN
-             CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_work1,&
-                  scf_work2,scf_env%iter_delta,diis_error,diis_step,&
-                  qs_env,error=error)
-          END IF
+            IF (scf_env%iter_count > 1) THEN
+               CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_work1,&
+                    scf_work2,scf_env%iter_delta,diis_error,diis_step,&
+                    scf_control%eps_diis,s_matrix=matrix_s,error=error)
+            END IF
 
-          do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
+            do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
                ((scf_control%density_guess == "CORE").OR.(scf_env%iter_count > 1)))
 
-          IF (diis_step) THEN
-             scf_env%p_mix = 1.0_dp
-             scf_env%iter_param = diis_error
-             IF (use_jacobi) THEN
-                scf_env%iter_method = "DIIS/Jacobi"
-             ELSE
-                scf_env%iter_method = "DIIS/Diag."
-             END IF
-          ELSE
-             IF (use_jacobi) THEN
-                scf_env%iter_method = "Mixing/Jacobi"
-             ELSE
-                scf_env%iter_method = "Mixing/Diag."
-             END IF
-          END IF
+            IF (diis_step) THEN
+               scf_env%p_mix = 1.0_dp
+               scf_env%iter_param = diis_error
+               IF (use_jacobi) THEN
+                  scf_env%iter_method = "DIIS/Jacobi"
+               ELSE
+                  scf_env%iter_method = "DIIS/Diag."
+               END IF
+            ELSE
+               IF (use_jacobi) THEN
+                  scf_env%iter_method = "Mixing/Jacobi"
+               ELSE
+                  scf_env%iter_method = "Mixing/Diag."
+               END IF
+            END IF
 
-          IF ((scf_env%iter_count > 1).AND.(scf_env%iter_delta < scf_control%eps_jacobi)) THEN
-             use_jacobi = .TRUE.
-          ELSE
-             use_cholesky = scf_control%use_cholesky
-             use_jacobi = .FALSE.
-          END IF
+            IF ((scf_env%iter_count > 1).AND.(scf_env%iter_delta < scf_control%eps_jacobi)) THEN
+               use_jacobi = .TRUE.
+            ELSE
+               use_cholesky = scf_control%use_cholesky
+               use_jacobi = .FALSE.
+            END IF
 
-          scf_env%iter_delta=0.0_dp
+            scf_env%iter_delta=0.0_dp
 
-          DO ispin=1,dft_control%nspins
+            DO ispin=1,dft_control%nspins
 
-             CALL eigensolver(scf_work1(ispin)%matrix, mos(ispin)%mo_set,ortho,scf_work2,&
-                  do_level_shift,scf_control%level_shift,&
-                  use_cholesky=use_cholesky,&
-                  work_syevx=scf_control%work_syevx,&
-                  use_jacobi=use_jacobi,&
-                  jacobi_threshold=scf_control%jacobi_threshold,&
-                  smear=scf_control%smear, &
-                  error=error)
+               CALL eigensolver(scf_work1(ispin)%matrix, mos(ispin)%mo_set,ortho,scf_work2,&
+                    do_level_shift,scf_control%level_shift,&
+                    use_cholesky=use_cholesky,&
+                    work_syevx=scf_control%work_syevx,&
+                    use_jacobi=use_jacobi,&
+                    jacobi_threshold=scf_control%jacobi_threshold,&
+                    smear=scf_control%smear, &
+                    error=error)
 
-             IF (logger%print_keys%each_scf_step) THEN
-                CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
-             END IF
+               IF (logger%print_keys%each_scf_step) THEN
+                  CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
+               END IF
 
-             CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                  scf_env%p_mix_new(ispin)%matrix,error=error)
+               CALL calculate_density_matrix(mos(ispin)%mo_set,&
+                    scf_env%p_mix_new(ispin)%matrix,error=error)
 
-          ENDDO
+            ENDDO
 
+         CASE(special_diag_method_nr)
+           ! diagonalization for orthogonal basis sets
+            DO ispin=1,dft_control%nspins
+              CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,scf_work1(ispin)%matrix)
+            ENDDO
+            IF (scf_env%iter_count > 1) THEN
+               CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_work1,&
+                    scf_work2,scf_env%iter_delta,diis_error,diis_step,&
+                    scf_control%eps_diis,error=error)
+            END IF
+            do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
+               ((scf_control%density_guess == "CORE").OR.(scf_env%iter_count > 1)))
+            IF (diis_step) THEN
+               scf_env%p_mix = 1.0_dp
+               scf_env%iter_param = diis_error
+               scf_env%iter_method = "DIIS/Diag."
+            ELSE
+               scf_env%iter_method = "Mixing/Diag."
+            END IF
+            scf_env%iter_delta=0.0_dp
+            DO ispin=1,dft_control%nspins
+               CALL simple_eigensolver(scf_work1(ispin)%matrix,&
+                    mos(ispin)%mo_set,do_level_shift,scf_control%level_shift,&
+                    work_syevx=scf_control%work_syevx,&
+                    smear=scf_control%smear,error=error)
+               IF (logger%print_keys%each_scf_step) THEN
+                  CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,&
+                       particle_set,4,6,globenv)
+               END IF
+               CALL calculate_density_matrix(mos(ispin)%mo_set,&
+                    scf_env%p_mix_new(ispin)%matrix,error=error)
+            ENDDO
 
-       CASE(ot_method_nr) ! orbital transforms
+         CASE(ot_method_nr) ! orbital transforms
 
-! in case of LSD the first spin qs_ot_env will drive the minimization
+           ! in case of LSD the first spin qs_ot_env will drive the minimization
 
-          CALL ot_scf_mini(mos,matrix_ks,matrix_s(1)%matrix,energy%total, &
+            CALL ot_scf_mini(mos,matrix_ks,matrix_s(1)%matrix,energy%total, &
                energy_only,scf_env%iter_delta,scf_env%qs_ot_env,globenv)
 
-          DO ispin=1,dft_control%nspins
-             CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                   rho%rho_ao(ispin)%matrix,error=error)
-          ENDDO
+            DO ispin=1,dft_control%nspins
+               CALL calculate_density_matrix(mos(ispin)%mo_set,&
+                     rho%rho_ao(ispin)%matrix,error=error)
+            ENDDO
 
-          scf_env%iter_method=scf_env%qs_ot_env(1)%OT_METHOD_FULL
-          scf_env%iter_param=scf_env%qs_ot_env(1)%ds_min
+            scf_env%iter_method=scf_env%qs_ot_env(1)%OT_METHOD_FULL
+            scf_env%iter_param=scf_env%qs_ot_env(1)%ds_min
 
        END SELECT
 
@@ -723,18 +769,26 @@ CONTAINS
             qs_charges%total_rho_core_rspace,&
             "Total charge density (g-space):     ",qs_charges%total_rho_gspace
        END IF
-       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+       IF (dft_control%qs_control%semi_empirical) THEN
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+            "Core-core energy:                              ",energy%core_overlap,&
+            "Atomic reference energy:                       ",energy%core_self,&
+            "Core Hamiltonian energy:                       ",energy%core,&
+            "Two-electron energy:                           ",energy%hartree
+       ELSE
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
             "Overlap energy of the core charge distribution:",energy%core_overlap,&
             "Self energy of the core charge distribution:   ",energy%core_self,&
             "Core Hamiltonian energy:                       ",energy%core,&
             "Hartree energy:                                ",energy%hartree,&
             "Exchange-correlation energy:                   ",energy%exc
-       IF(gapw) THEN
-          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+         IF(gapw) THEN
+           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
               "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&
               "GAPW| local Eh = 1 center integrals:           ",energy%hartree_1c,&
               "GAPW| local Eh = 2 center integrals:           ",energy%hartree_2c,&
               "GAPW| local Eh = 3 centers integrals:          ",energy%hartree_3c
+         END IF
        END IF
        IF  (qs_env%qmmm) THEN
           WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
@@ -786,7 +840,7 @@ CONTAINS
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
 ! *** print out info
-    IF (.NOT.should_stop) THEN
+    IF (.NOT.should_stop .AND. .NOT.dft_control%qs_control%semi_empirical) THEN
        CALL scf_post_calculation(scf_env=scf_env, qs_env=qs_env, &
             globenv=globenv, error=error)
     END IF
@@ -988,8 +1042,7 @@ CONTAINS
 ! calc ortho matrix
     ndep = 0
     IF (scf_env%method /= ot_method_nr .AND. &
-        ( .NOT. dft_control%qs_control%semi_empirical .OR. &
-          .NOT. dft_control%qs_control%se_control%orthogonal_basis ) ) THEN
+        scf_env%method /= special_diag_method_nr ) THEN
        IF (scf_control%use_cholesky ) THEN
           CALL copy_sm_to_fm(matrix_s(1)%matrix,ortho)
           CALL cp_fm_cholesky_decompose(ortho)
@@ -1012,7 +1065,11 @@ CONTAINS
 
 ! *** method dependent initializations ***
     SELECT CASE (scf_env%method)
-    CASE (diagonalisation_method_nr)
+    CASE DEFAULT
+      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"unknown scf method method:"//&
+               cp_to_string(scf_env%method),error,failure)
+    CASE (general_diag_method_nr,special_diag_method_nr)
        IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN       
           CALL qs_diis_b_create(scf_env%scf_diis_buffer,&
                nbuffer=scf_control%max_diis,&
@@ -1189,7 +1246,9 @@ CONTAINS
              ENDDO
           ENDIF
        END IF
-       IF (.not.ASSOCIATED(scf_env%ortho).and.scf_env%method/=ot_method_nr) THEN
+       IF (.NOT.ASSOCIATED(scf_env%ortho).AND. &
+             (scf_env%method/=ot_method_nr.AND.&
+              scf_env%method/=special_diag_method_nr) ) THEN
           CALL cp_fm_create(scf_env%ortho,&
                matrix_struct=ao_ao_fmstruct,&
                name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
@@ -1396,6 +1455,56 @@ CONTAINS
   END SUBROUTINE eigensolver
 
 ! *****************************************************************************
+  SUBROUTINE simple_eigensolver(matrix_ks,mo_set,do_level_shift,level_shift,&
+             work_syevx,smear,error)
+
+    TYPE(cp_fm_type), POINTER                :: matrix_ks
+    TYPE(mo_set_type), POINTER               :: mo_set
+    LOGICAL, INTENT(IN)                      :: do_level_shift
+    REAL(KIND=dp), INTENT(IN)                :: level_shift
+    REAL(KIND=dp), INTENT(IN)                :: work_syevx
+    REAL(KIND=dp), INTENT(IN)                :: smear
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    INTEGER                                  :: handle, homo, imo, nao, nmo
+    REAL(KIND=dp)                            :: alpha
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
+    TYPE(cp_fm_type), POINTER                :: mo_eigenvectors
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("eigensolver","I"," ",handle)
+
+    CALL get_mo_set(mo_set=mo_set,&
+         nao=nao,&
+         nmo=nmo,&
+         homo=homo, &
+         eigenvalues=mo_eigenvalues,&
+         eigenvectors=mo_eigenvectors)
+
+    IF (do_level_shift) THEN
+      DO imo=homo+1,nmo
+         ! now unnecessary broadcast of element
+         CALL cp_fm_get_element(matrix_ks,imo,imo,alpha)
+         alpha=alpha+level_shift
+         CALL cp_fm_set_element(matrix_ks,imo,imo,alpha)
+      END DO
+    END IF
+
+    CALL cp_fm_syevx(matrix_ks,mo_eigenvectors,mo_eigenvalues,nmo,work_syevx)
+
+    IF (do_level_shift) THEN
+      CALL correct_mo_eigenvalues(mo_set,level_shift)
+    END IF
+
+    IF (smear /= 0.0_dp) CALL set_mo_occupation(mo_set,smear)
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE simple_eigensolver
+
+! *****************************************************************************
 
 !!****f* qs_scf/cp_sm_mix [1.0] *
 !!
@@ -1535,6 +1644,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: p_rmpv, s_sparse
     TYPE(scf_control_type), POINTER          :: scf_control
+    LOGICAL                                  :: ortho_basis
 
 !   ---------------------------------------------------------------------------
 
@@ -1549,6 +1659,7 @@ CONTAINS
          particle_set=particle_set,mos=mo_array, matrix_s=s_sparse,&
          scf_control=scf_control, id_nr=qs_env_id, dft_control=dft_control,&
          error=error)
+
     nspin=dft_control%nspins
 
     p_rmpv => qs_env%rho%rho_ao
@@ -1556,11 +1667,18 @@ CONTAINS
     work2 => scf_env%scf_work2
     ortho => scf_env%ortho
 
+    ortho_basis = .FALSE.
+    IF ( dft_control%qs_control%semi_empirical ) THEN
+       IF ( dft_control%qs_control%se_control%orthogonal_basis ) &
+          ortho_basis = .TRUE.
+    END IF
+
     IF (scf_control%use_ot .AND. .NOT.  &
          (scf_control%density_guess == "RANDOM" .OR.  &
          (scf_control%density_guess == "RESTART" .AND. &
          scf_control%level_shift == 0.0_dp))) THEN
-       CALL stop_program("calculate_first_density_matrix","OT needs GUESS RESTART : other options NYI")
+       CALL stop_program("calculate_first_density_matrix",&
+            "OT needs GUESS RESTART : other options NYI")
     ENDIF
 
     IF (scf_control%density_guess == "RESTART") THEN
@@ -1581,13 +1699,17 @@ CONTAINS
           ! make all nmo vectors present orthonormal
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                eigenvectors=mo_eigenvectors, nmo=nmo, homo=homo)
-          ! ortho so that one can restart for different positions (basis sets?)
-          CALL cp_fm_create(sv,mo_eigenvectors%matrix_struct,"SV")
-          CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_eigenvectors,sv,nmo,&
-               para_env=qs_env%para_env)
-          CALL make_basis(mo_eigenvectors,nmo, &
-               ortho=sv,otype="SV")
-          CALL cp_fm_release(sv)
+          IF(ortho_basis) THEN
+            CALL make_basis(mo_eigenvectors,nmo)
+          ELSE
+            ! ortho so that one can restart for different positions (basis sets?)
+            CALL cp_fm_create(sv,mo_eigenvectors%matrix_struct,"SV")
+            CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_eigenvectors,sv,nmo,&
+                 para_env=qs_env%para_env)
+            CALL make_basis(mo_eigenvectors,nmo, &
+                 ortho=sv,otype="SV")
+            CALL cp_fm_release(sv)
+          END IF
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
                p_rmpv(ispin)%matrix,error=error)
        ENDDO
@@ -1598,22 +1720,26 @@ CONTAINS
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                eigenvectors=mo_eigenvectors, nmo=nmo)
           CALL cp_fm_init_random(mo_eigenvectors,nmo)
-! ortho so that one can restart for different positions (basis sets?)
-          CALL cp_fm_create(sv,mo_eigenvectors%matrix_struct,"SV")
-          CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_eigenvectors,sv,nmo,&
-               para_env=qs_env%para_env)
-          CALL make_basis(mo_eigenvectors,nmo, &
-               ortho=sv,otype="SV")
-          CALL cp_fm_release(sv)
+          IF(ortho_basis) THEN
+            CALL make_basis(mo_eigenvectors,nmo)
+          ELSE
+            ! ortho so that one can restart for different positions (basis sets?)
+            CALL cp_fm_create(sv,mo_eigenvectors%matrix_struct,"SV")
+            CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_eigenvectors,sv,nmo,&
+                 para_env=qs_env%para_env)
+            CALL make_basis(mo_eigenvectors,nmo, &
+                 ortho=sv,otype="SV")
+            CALL cp_fm_release(sv)
+          END IF
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
                p_rmpv(ispin)%matrix,error=error)
        ENDDO
 
     ELSE IF (scf_control%density_guess == "CORE") THEN
 
-! work1(1) should contain the core hamiltonian
-! we need a copy the core matrix for every spin (the dumbest solution,
-! we should copy the mos)..
+       ! work1(1) should contain the core hamiltonian
+       ! we need a copy the core matrix for every spin (the dumbest solution,
+       ! we should copy the mos)..
        IF (dft_control%nspins.eq.2) THEN
           IF (.NOT. scf_control%use_ot) THEN
              CALL cp_fm_to_fm(work1(1)%matrix,&
@@ -1621,7 +1747,12 @@ CONTAINS
           ENDIF
        ENDIF
        DO ispin=1,nspin
-          CALL eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,ortho,work2, &
+          IF(ortho_basis) THEN
+            CALL simple_eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,&
+                 .FALSE.,0.0_dp,work_syevx=scf_control%work_syevx,&
+                 smear=0.0_dp,error=error)
+          ELSE
+            CALL eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,ortho,work2, &
                .FALSE.,0.0_dp,&
                use_cholesky=scf_control%use_cholesky, &
                work_syevx=scf_control%work_syevx,&
@@ -1629,6 +1760,7 @@ CONTAINS
                jacobi_threshold=scf_control%jacobi_threshold,&
                smear=0.0_dp,&
                error=error)
+          END IF
           IF (scf_control%level_shift /= 0.0_dp) THEN
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                   eigenvectors=mo_eigenvectors)
@@ -1659,8 +1791,12 @@ CONTAINS
 
       ALLOCATE (sdiag(nao),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineP,"sdiag",nao*dp_size)
-      CALL get_matrix_diagonal(s_sparse(1)%matrix,sdiag)
-      CALL mp_sum(sdiag,group)
+      IF (ortho_basis) THEN
+        sdiag=1._dp
+      ELSE
+        CALL get_matrix_diagonal(s_sparse(1)%matrix,sdiag)
+        CALL mp_sum(sdiag,group)
+      END IF
 
       DO ispin=1,nspin
 
@@ -1939,9 +2075,11 @@ CONTAINS
           ENDDO
           DEALLOCATE(scf_env%qs_ot_env,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       CASE(diagonalisation_method_nr)
+       CASE(general_diag_method_nr)
           !
-       CASE default
+       CASE(special_diag_method_nr)
+          !
+       CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"unknown scf method method:"//&
                cp_to_string(scf_env%method),error,failure)
@@ -2006,7 +2144,6 @@ SUBROUTINE scf_env_did_change(scf_env,error)
      END IF
   END IF
 END SUBROUTINE scf_env_did_change
-
 
 !***************************************************************************
 

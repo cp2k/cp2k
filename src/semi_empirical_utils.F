@@ -446,9 +446,10 @@ CONTAINS
             WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
                "alp [A^-1]      :",alp/angstrom,&
                "eisol [eV]      :",eisol*evolt
-            WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F7.3))") &
-               "One-centre-two-electron integrals","gss=",gss," gsp=",gsp,&
-               " gpp=",gpp," gp2=",gp2," hsp=",hsp
+            WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F8.3))") &
+               "One-centre-two-electron integrals [eV]",&
+               " gss=",gss*evolt," gsp=",gsp*evolt,&
+               " gpp=",gpp*evolt," gp2=",gp2*evolt," hsp=",hsp*evolt
           ELSE
             WRITE (UNIT=output_unit,FMT="(T55,A)")&
                "Parameters are not defined"
@@ -476,9 +477,10 @@ CONTAINS
             WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
                "alp [A^-1]      :",alp/angstrom,&
                "eisol [eV]      :",eisol*evolt
-            WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F7.3))") &
-               "One-centre-two-electron integrals","gss=",gss," gsp=",gsp,&
-               " gpp=",gpp," gp2=",gp2," hsp=",hsp
+            WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F8.3))") &
+               "One-centre-two-electron integrals [eV]",&
+               " gss=",gss*evolt," gsp=",gsp*evolt,&
+               " gpp=",gpp*evolt," gp2=",gp2*evolt," hsp=",hsp*evolt
           ELSE
             WRITE (UNIT=output_unit,FMT="(T55,A)")&
                "Parameters are not defined"
@@ -505,9 +507,10 @@ CONTAINS
             WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
                "alp [A^-1]      :",alp/angstrom,&
                "eisol [eV]      :",eisol*evolt
-            WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F7.3))") &
-               "One-centre-two-electron integrals","gss=",gss," gsp=",gsp,&
-               " gpp=",gpp," gp2=",gp2," hsp=",hsp
+            WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F8.3))") &
+               "One-centre-two-electron integrals [eV]",&
+               " gss=",gss*evolt," gsp=",gsp*evolt,&
+               " gpp=",gpp*evolt," gp2=",gp2*evolt," hsp=",hsp*evolt
           ELSE
             WRITE (UNIT=output_unit,FMT="(T55,A)")&
                "Parameters are not defined"

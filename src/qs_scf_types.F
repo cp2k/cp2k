@@ -57,8 +57,10 @@ MODULE qs_scf_types
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_scf_types'
 
-  INTEGER, PARAMETER, PUBLIC :: pao_mehod_nr=0, diagonalisation_method_nr=1,&
-       ot_method_nr=2
+  INTEGER, PARAMETER, PUBLIC :: pao_mehod_nr=0,&
+                                general_diag_method_nr=1,&
+                                special_diag_method_nr=2,&
+                                ot_method_nr=3
   INTEGER, PARAMETER, PUBLIC :: no_mixing_nr=0, ao_mixing_nr=1
 
   PUBLIC :: qs_scf_env_type, qs_scf_env_p_type

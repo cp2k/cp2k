@@ -79,7 +79,6 @@ MODULE basis_set_types
     CHARACTER(LEN=default_string_length)       :: name
     INTEGER                                    :: nshell
     CHARACTER(LEN=6), DIMENSION(:), POINTER    :: symbol
-    REAL(KIND = dp), DIMENSION(:), POINTER     :: shell_radius
     INTEGER, DIMENSION(:), POINTER             :: nq,lq
     REAL(KIND = dp), DIMENSION(:), POINTER     :: zet
   END TYPE sto_basis_set_type
@@ -1343,7 +1342,6 @@ CONTAINS
                                      "sto_basis_set",0)
 
     NULLIFY (sto_basis_set%symbol)
-    NULLIFY (sto_basis_set%shell_radius)
     NULLIFY (sto_basis_set%nq)
     NULLIFY (sto_basis_set%lq)
     NULLIFY (sto_basis_set%zet)
@@ -1364,10 +1362,6 @@ CONTAINS
     DEALLOCATE (sto_basis_set%symbol,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "sto_basis_set%symbol")
-
-    DEALLOCATE (sto_basis_set%shell_radius,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "sto_basis_set%shell_radius")
 
     DEALLOCATE (sto_basis_set%nq,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&

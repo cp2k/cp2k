@@ -357,7 +357,7 @@ CONTAINS
        ENDDO
 
 !      IF (logger%print_keys%mo_orthonormality) THEN
-!          CALL calculate_orthonormality(c,s(1)%matrix,orthonormality)
+!          CALL calculate_orthonormality(orthonormality,c,s(1)%matrix)
 !         IF (ionode) THEN
 !            WRITE(output_unit,'(T8,A,T60,E20.4)')  &
 !                   " Maximum deviation from MO S-orthonormality",orthonormality
@@ -377,7 +377,7 @@ CONTAINS
 !          IF (scf_env%iter_count > 1) THEN
 !             CALL qs_diis_b_step(scf_env%scf_diis_buffer,c,scf_work1,&
 !                  scf_work2,scf_env%iter_delta,diis_error,diis_step,&
-!                  qs_env,error=error)
+!                  !!!!,error=error)
 !          END IF
 !
 !          do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
@@ -759,7 +759,7 @@ CONTAINS
 !
 !! *** method dependent initializations ***
 !    SELECT CASE (scf_env%method)
-!    CASE (diagonalisation_method_nr)
+!    CASE (general_diag_method_nr)
 !       IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN       
 !          CALL qs_diis_b_create(scf_env%scf_diis_buffer,&
 !               nbuffer=scf_control%max_diis,&
@@ -1538,7 +1538,7 @@ CONTAINS
 !          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 !       CASE(pao_mehod_nr)
 !!    call pao_opt_dealloc(pao_optimizer,pao_obj_f,qs_env,globenv,error)
-!       CASE(diagonalisation_method_nr)
+!       CASE(general_diag_method_nr)
 !          !
 !       CASE default
 !          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&

@@ -32,6 +32,7 @@ MODULE qs_overlap
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
                                              cp_fm_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
@@ -139,6 +140,7 @@ CONTAINS
     LOGICAL           :: new_atom_b,return_s_derivatives
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
+    TYPE(distribution_2d_type), POINTER                   :: distribution_2d
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: matrix_s
@@ -165,11 +167,13 @@ CONTAINS
 
     CALL timeset(routine_name,"I","",handle)
 
+    NULLIFY ( atomic_kind_set,particle_set,matrix_s,sab_orb,distribution_2d)
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set,&
                     matrix_s=matrix_s,&
-                    sab_orb=sab_orb)
+                    sab_orb=sab_orb,&
+                    distribution_2d=distribution_2d)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -214,7 +218,8 @@ CONTAINS
                          first_col=first_sgf,&
                          last_col=last_sgf,&
                          matrix_name="OVERLAP MATRIX",&
-                         matrix_symmetry="symmetric")
+                         matrix_symmetry="symmetric",&
+                         distribution_2d=distribution_2d)
 
     DEALLOCATE (first_sgf,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&

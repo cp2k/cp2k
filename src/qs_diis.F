@@ -53,11 +53,8 @@ MODULE qs_diis
                                              dp_size
   USE mathlib,                         ONLY: diamat_all
   USE qs_diis_types,                   ONLY: qs_diis_buffer_type
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
@@ -278,7 +275,7 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE qs_diis_b_step(diis_buffer,mo_array,kc,sc,delta,error_max,&
-       diis_step,qs_env,error)
+       diis_step,eps_diis,s_matrix,error)
 
     TYPE(qs_diis_buffer_type), POINTER       :: diis_buffer
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -289,7 +286,9 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: delta
     REAL(KIND=dp), INTENT(OUT)               :: error_max
     LOGICAL, INTENT(OUT)                     :: diis_step
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    REAL(KIND=dp), INTENT(IN)                :: eps_diis
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER, OPTIONAL                      :: s_matrix
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -300,16 +299,13 @@ CONTAINS
                                                 nao, nb, nb1, nmo, nspin, &
                                                 output_unit
     LOGICAL                                  :: failure, ionode
-    REAL(KIND=dp)                            :: eps_diis, tmp
+    REAL(KIND=dp)                            :: tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ev
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct
     TYPE(cp_fm_type), POINTER                :: c, new_errors, old_errors, &
                                                 parameters
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
-    TYPE(scf_control_type), POINTER          :: scf_control
 
 !   ---------------------------------------------------------------------------
 
@@ -317,7 +313,7 @@ CONTAINS
 
     nspin=SIZE(mo_array)
     failure=.FALSE.
-    NULLIFY(c,scf_control,matrix_s,new_errors,old_errors,parameters,matrix_struct,a,b)
+    NULLIFY(c,new_errors,old_errors,parameters,matrix_struct,a,b)
     logger => cp_error_get_logger(error)
 
     diis_step = .FALSE.
@@ -328,10 +324,6 @@ CONTAINS
     ELSE
         output_unit= 0
     ENDIF
-
-    CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s,scf_control=scf_control)
-
-    eps_diis=scf_control%eps_diis
 
     !   *** Quick return, if no DIIS is requested ***
     IF ( diis_buffer%nbuffer < 1) THEN
@@ -361,13 +353,19 @@ CONTAINS
        CALL cp_fm_to_fm(kc(ispin)%matrix,parameters)
        CALL cp_fm_symm("L","U",nao,nmo,2.0_dp,parameters,c,0.0_dp,kc(ispin)%matrix)
 
-       new_errors => diis_buffer%error(ib,ispin)%matrix
-       ! I guess that this copy can be avoided for LSD
-       CALL copy_sm_to_fm(matrix_s(1)%matrix,new_errors)
-       CALL cp_fm_symm("L","U",nao,nmo,2.0_dp,new_errors,c,0.0_dp,sc)
+       IF (PRESENT(s_matrix)) THEN
+         new_errors => diis_buffer%error(ib,ispin)%matrix
+         ! I guess that this copy can be avoided for LSD
+         CALL copy_sm_to_fm(s_matrix(1)%matrix,new_errors)
+         CALL cp_fm_symm("L","U",nao,nmo,2.0_dp,new_errors,c,0.0_dp,sc)
 
-       CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_dp,sc,kc(ispin)%matrix, 0.0_dp,new_errors)
-       CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_dp,kc(ispin)%matrix,sc,-1.0_dp,new_errors)
+         CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_dp,sc,kc(ispin)%matrix, 0.0_dp,new_errors)
+         CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_dp,kc(ispin)%matrix,sc,-1.0_dp,new_errors)
+       ELSE
+         new_errors => diis_buffer%error(ib,ispin)%matrix
+         CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_dp,c,kc(ispin)%matrix, 0.0_dp,new_errors)
+         CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_dp,kc(ispin)%matrix,c,-1.0_dp,new_errors)
+       END IF
 
        CALL cp_fm_maxabsval(new_errors,tmp)
        error_max=MAX(error_max,tmp)

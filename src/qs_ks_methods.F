@@ -710,9 +710,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
                error=error)
         ELSE
           CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
-               ks_matrix=matrix_ks,&
-               rho=rho,&
-             energy=energy,&
+               ks_matrix=matrix_ks,rho=rho,energy=energy,&
                calculate_forces=c_forces,just_energy=energy_only,&
                error=error)
         END IF

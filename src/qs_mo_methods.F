@@ -615,11 +615,11 @@ CONTAINS
 ! computes the effective orthonormality of a set of mos given an s-matrix
 ! orthonormality is the max deviation from unity of the C^T S C
 ! *****************************************************************************
-  SUBROUTINE calculate_orthonormality(mo_array,matrix_s,orthonormality)
+  SUBROUTINE calculate_orthonormality(orthonormality,mo_array,matrix_s)
+    REAL(KIND=dp)                            :: orthonormality
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
-    TYPE(real_matrix_type), POINTER          :: matrix_s
-    REAL(KIND=dp)                            :: orthonormality
+    TYPE(real_matrix_type),POINTER, OPTIONAL :: matrix_s
 
     INTEGER                                  :: handle, i, ispin, j, k, n, &
                                                 ncol_local, nrow_local, nspin
@@ -636,29 +636,43 @@ CONTAINS
    max_alpha=0.0_dp
 
    DO ispin=1,nspin
-          ! get S*C
-          CALL cp_fm_create(svec,mo_array(ispin)%mo_set%eigenvectors%matrix_struct)       
-          CALL cp_fm_get_info(mo_array(ispin)%mo_set%eigenvectors,nrow_global=n,ncol_global=k)
-          CALL cp_sm_fm_multiply(matrix_s,mo_array(ispin)%mo_set%eigenvectors, svec, &
-                                      k, para_env=mo_array(ispin)%mo_set%eigenvectors%matrix_struct%para_env)
-          ! get C^T (S*C)
-          CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=k,ncol_global=k, &
-                                   para_env=mo_array(ispin)%mo_set%eigenvectors%matrix_struct%para_env, &
-                                   context=mo_array(ispin)%mo_set%eigenvectors%matrix_struct%context)
-          CALL cp_fm_create(overlap,tmp_fm_struct)       
-          CALL cp_fm_struct_release(tmp_fm_struct)
-          CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mo_array(ispin)%mo_set%eigenvectors,svec,0.0_dp,overlap)
-          CALL cp_fm_get_info(overlap,nrow_local=nrow_local,ncol_local=ncol_local, &
-                              row_indices=row_indices,col_indices=col_indices)
-          DO i=1,nrow_local
-           DO j=1,ncol_local
-              alpha=overlap%local_data(i,j)
-              IF (row_indices(i).eq.col_indices(j)) alpha=alpha-1.0_dp
-              max_alpha=MAX(max_alpha,ABS(alpha))
-           ENDDO
-          ENDDO
-          CALL cp_fm_release(svec)
-          CALL cp_fm_release(overlap)
+      IF (PRESENT(matrix_s)) THEN
+        ! get S*C
+        CALL cp_fm_create(svec,mo_array(ispin)%mo_set%eigenvectors%matrix_struct)       
+        CALL cp_fm_get_info(mo_array(ispin)%mo_set%eigenvectors,&
+             nrow_global=n,ncol_global=k)
+        CALL cp_sm_fm_multiply(matrix_s,mo_array(ispin)%mo_set%eigenvectors,&
+             svec,k,para_env=mo_array(ispin)%mo_set%eigenvectors%matrix_struct%para_env)
+        ! get C^T (S*C)
+        CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=k,ncol_global=k, &
+             para_env=mo_array(ispin)%mo_set%eigenvectors%matrix_struct%para_env, &
+             context=mo_array(ispin)%mo_set%eigenvectors%matrix_struct%context)
+        CALL cp_fm_create(overlap,tmp_fm_struct)       
+        CALL cp_fm_struct_release(tmp_fm_struct)
+        CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mo_array(ispin)%mo_set%eigenvectors,&
+             svec,0.0_dp,overlap)
+        CALL cp_fm_release(svec)
+      ELSE
+        ! orthogonal basis C^T C
+        CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=k,ncol_global=k, &
+             para_env=mo_array(ispin)%mo_set%eigenvectors%matrix_struct%para_env, &
+             context=mo_array(ispin)%mo_set%eigenvectors%matrix_struct%context)
+        CALL cp_fm_create(overlap,tmp_fm_struct)       
+        CALL cp_fm_struct_release(tmp_fm_struct)
+        CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mo_array(ispin)%mo_set%eigenvectors,&
+             mo_array(ispin)%mo_set%eigenvectors,0.0_dp,overlap)
+        CALL cp_fm_release(svec)
+      ENDIF
+      CALL cp_fm_get_info(overlap,nrow_local=nrow_local,ncol_local=ncol_local, &
+           row_indices=row_indices,col_indices=col_indices)
+      DO i=1,nrow_local
+         DO j=1,ncol_local
+            alpha=overlap%local_data(i,j)
+            IF (row_indices(i).eq.col_indices(j)) alpha=alpha-1.0_dp
+            max_alpha=MAX(max_alpha,ABS(alpha))
+         ENDDO
+      ENDDO
+      CALL cp_fm_release(overlap)
     ENDDO
     CALL mp_max(max_alpha,mo_array(1)%mo_set%eigenvectors%matrix_struct%para_env%group)
     orthonormality=max_alpha
