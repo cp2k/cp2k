@@ -32,7 +32,7 @@ module pao_obj_function
   use global_types, only: global_environment_type
   use pao_types
   use pao_env_methods
-  use pao_matrix_methods
+  use cp_sparse_matrix
   use pao_glob_angles_methods
   use pao_l_angles_methods
   use pao_proj_methods
@@ -47,8 +47,11 @@ module pao_obj_function
                          get_mo_set,&
                          mo_set_type
   use message_passing, only: mp_sum
+  use qs_environment_types
   use pao_unitary_t
+  use pao_qs_env_methods
   use cp_matrix_utils
+  use cp_b_matrix_structure
   use sparse_matrix_types, only: real_matrix_type
   use pao_unitary_t
   use pao_utils
@@ -138,13 +141,13 @@ module pao_obj_function
 !***************************************************************************
   type pao_gerd_functional_type
      logical :: initialized
-     type(pao_env_type), pointer :: pao_env
+     type(qs_environment_type), pointer :: qs_env
      type(blacs_matrix_type), POINTER :: min_hamiltonian_m, min_overlap_m,&
           min_density_m, work_m
      type(blacs_matrix_type), pointer :: scf_work1, scf_work2, scf_work3
      integer :: blacs_context
      type(mo_set_type), pointer :: alpha_mo
-     type(pao_matrix_type), pointer :: diag_matrix, full_work_m, min_work_m
+     type(cp_sparse_matrix_type), pointer :: diag_matrix, full_work_m, min_work_m
      integer, dimension(:), pointer :: d_struct
   end type pao_gerd_functional_type
 !!***
@@ -189,10 +192,11 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine pao_gerd_f_init(gf_env,pao_env, scf_work1,scf_work2,&
+  subroutine pao_gerd_f_init(gf_env,qs_env,global_env, scf_work1,scf_work2,&
        scf_work3, mo_orbital, error)
     type(pao_gerd_functional_type), intent(out) :: gf_env
-    type(pao_env_type), intent(inout), target :: pao_env
+    type(qs_environment_type), intent(inout), target :: qs_env ! modifies pao_env
+    type(global_environment_type), intent(in),target :: global_env
     type(blacs_matrix_type), intent(in), target :: scf_work1, scf_work2,&
          scf_work3
     type(mo_set_type), target, intent(in) :: mo_orbital
@@ -201,21 +205,26 @@ contains
     logical :: failure
     character(len=*), parameter :: routineP='pao_obj_function:pao_gerd_f_init'
     integer :: ntot_min_bas, ntot_full_bas
-    type(pao_matrix_type), pointer :: full_overlap_m
-    type(real_matrix_type), pointer:: diagMatrix !dbg
+    type(real_matrix_p_type), pointer:: full_overlap_m
+    type(real_matrix_type), pointer :: diagMatrix
+    type(cp_b_matrix_struct_type), pointer :: min_bas_m_struct, full_bas_m_struct
+    type(pao_env_type), pointer :: pao_env
     failure=.false.
 
-    CPPrecondition(cp_valid(pao_env),cp_failure_level,routineP,error,failure)
+    gf_env%qs_env => qs_env
     if (.not.failure) then
-       gf_env%pao_env => pao_env
 #ifdef __parallel
        call blacs_get(0,0,gf_env%blacs_context) ! the default context
 #else
        gf_env%blacs_context=0
 #endif
-       call cp_get(gf_env%pao_env, ntot_full_bas=ntot_full_bas,&
-            ntot_min_bas=ntot_min_bas, full_overlap_m=full_overlap_m,&
+       call get_qs_env(gf_env%qs_env, s=full_overlap_m, pao_env=pao_env)
+       call pao_qs_env_get(gf_env%qs_env, global_env=global_env,&
+            pao_tot_full_bas=ntot_full_bas,&
+            pao_tot_min_bas=ntot_min_bas,&
             error=error)
+       call cp_get(pao_env,min_bas_m_struct=min_bas_m_struct,&
+            full_bas_m_struct=full_bas_m_struct, error=error)
        call allocate_blacs_matrix(gf_env%min_hamiltonian_m,&
             nrow_global=ntot_min_bas,&
             ncol_global=ntot_min_bas,&
@@ -223,7 +232,7 @@ contains
             ncol_block=cp_optimal_blacs_block_size,&
             name='min hamiltonian',&
             context=gf_env%blacs_context,&
-            globenv=cp_get_global_env(pao_env,error=error))
+            globenv=global_env)
        call allocate_blacs_matrix(gf_env%min_overlap_m,&
             nrow_global=ntot_min_bas,&
             ncol_global=ntot_min_bas,&
@@ -231,7 +240,7 @@ contains
             ncol_block=cp_optimal_blacs_block_size,&
             name='min overlap',&
             context=gf_env%blacs_context,&
-            globenv=cp_get_global_env(pao_env,error=error))
+            globenv=global_env)
        call allocate_blacs_matrix(gf_env%min_density_m,&
             nrow_global=ntot_min_bas,&
             ncol_global=ntot_min_bas,&
@@ -239,7 +248,7 @@ contains
             ncol_block=cp_optimal_blacs_block_size,&
             name='min density',&
             context=gf_env%blacs_context,&
-            globenv=cp_get_global_env(pao_env,error=error))
+            globenv=global_env)
        call allocate_blacs_matrix(gf_env%work_m,&
             nrow_global=ntot_min_bas,&
             ncol_global=ntot_min_bas,&
@@ -247,28 +256,25 @@ contains
             ncol_block=cp_optimal_blacs_block_size,&
             name='min work matrix',&
             context=gf_env%blacs_context,&
-            globenv=cp_get_global_env(pao_env,error=error))
+            globenv=global_env)
        gf_env%scf_work1 => scf_work1
        gf_env%scf_work2 => scf_work2
        gf_env%scf_work3 => scf_work3
        gf_env%alpha_mo => mo_orbital
-       call cp_create(gf_env%diag_matrix,pao_env=pao_env,&
-            min_bas_cols=.true., min_bas_rows=.true.,&
-            should_dealloc_matrix=.true.)
+       call cp_create(gf_env%diag_matrix,global_env=global_env,&
+            matrix_structure=min_bas_m_struct)
        call cp_d_struct_create(gf_env%d_struct,&
-            matrix=cp_get_matrix(full_overlap_m),&
-            global_env=cp_get_global_env(gf_env%pao_env),error=error)
+            matrix=full_overlap_m%matrix,&
+            global_env=global_env,error=error)
        diagMatrix => cp_get_matrix(gf_env%diag_matrix) ! for xlf...
        call cp_init_diagonal_blocks(diagMatrix,&
-            global_env=cp_get_global_env(pao_env),&
+            global_env=global_env,&
             default_value=0.0_wp,&
             d_struct=gf_env%d_struct)
-       call cp_create(gf_env%min_work_m, pao_env=pao_env,&
-            min_bas_cols=.true., min_bas_rows=.true.,&
-            should_dealloc_matrix=.true.)
-       call cp_create(gf_env%full_work_m, pao_env=pao_env,&
-            min_bas_cols=.true., min_bas_rows=.false.,&
-            should_dealloc_matrix=.false.)
+       call cp_create(gf_env%min_work_m,global_env=global_env,&
+            matrix_structure=min_bas_m_struct)
+       call cp_create(gf_env%full_work_m,global_env=global_env,&
+            matrix_structure=full_bas_m_struct)
        gf_env%initialized=.true.
     end if
   end subroutine pao_gerd_f_init
@@ -375,14 +381,14 @@ contains
     if (.not.(associated(gf_env%scf_work1).and.&
          associated(gf_env%scf_work2).and.&
          associated(gf_env%scf_work3).and.&
-         associated(gf_env%pao_env).and.&
+         associated(gf_env%qs_env).and.&
          associated(gf_env%diag_matrix).and.&
          associated(gf_env%full_work_m).and.&
          associated(gf_env%min_work_m))) then
        CPPrecondition(associated(gf_env%scf_work1),cp_warning_level,routineP,error,failure)
        CPPrecondition(associated(gf_env%scf_work2),cp_warning_level,routineP,error,failure)
        CPPrecondition(associated(gf_env%scf_work3),cp_warning_level,routineP,error,failure)
-       CPPrecondition(associated(gf_env%pao_env),cp_warning_level,routineP,error,failure)
+       CPPrecondition(associated(gf_env%qs_env),cp_warning_level,routineP,error,failure)
        CPPrecondition(associated(gf_env%diag_matrix),cp_warning_level,routineP,error,failure)
        CPPrecondition(associated(gf_env%full_work_m),cp_warning_level,routineP,error,failure)
        CPPrecondition(associated(gf_env%min_work_m),cp_warning_level,routineP,error,failure)
@@ -439,13 +445,13 @@ contains
     logical :: failure
     character(len=*), parameter :: routineP='pao_obj_function:pao_gerd_f_eval_at'
     type(pao_glob_angles_type), pointer :: angles
-    type(pao_matrix_type), pointer :: d_matrix, h_matrix, s_matrix, &
+    type(cp_sparse_matrix_type), pointer :: d_matrix, h_matrix, s_matrix, &
          full_hamiltonian_m
     type(cp_error_type) :: iError
     type(global_environment_type), pointer :: g_env
     type(pao_calc_u_du_type) :: calc_u_du
     type(cp_matrix_block_iterator) :: block_iterator
-    type(pao_matrix_type) :: full_pao_m, min_pao_m
+    type(cp_sparse_matrix_type) :: full_pao_m, min_pao_m
     REAL(wp), DIMENSION(:), POINTER  :: mo_eigenvalues,&
                                         mo_occupation_numbers
     integer :: n_atom, min_bas_size, full_bas_size, block_row, block_col,&
@@ -459,149 +465,149 @@ contains
     failure=.false.
     
     CPAssert(cp_valid(gf_env,error=error),cp_failure_level,routineP,error,failure)
-    if (.not.failure) then
-       ! get actual min_hamiltonian_m and min_overlap_m
-       call cp_get(gf_env%pao_env,angles_att=angles, global_env=g_env,&
-            min_density_m=d_matrix, full_hamiltonian_m=full_hamiltonian_m,&
-            n_atom=n_atom, ntot_full_bas=full_bas_size,&
-            ntot_min_bas=min_bas_size, error=error)
-       CPPostcondition(associated(angles),cp_failure_level,routineP,error,failure)
-    end if
-    if (.not.failure) then
-       call cp_set(angles,angles=x,error=error)
-       call cp_did_change(angles, angles_changed=.true., s_changed=.false.,&
-            h_changed=.false., full_reset=.false., error=error)
-       call cp_get(angles, min_hamiltonian_m=h_matrix,&
-            min_overlap_m=s_matrix,&
-            error=error)
-
-       ! calculates the new density matrix with diagonalization
-       ! do not do it every time?
-       call copy_sparse_to_blacs_matrix(sparse_matrix=cp_get_matrix(s_matrix),&
-            blacs_matrix=gf_env%min_overlap_m, &
-            context=gf_env%blacs_context, &
-            globenv=g_env)
-       
-       call orthogonalise_matrix(gf_env%min_overlap_m,gf_env%min_density_m,&
-            gf_env%work_m,gf_env%blacs_context,g_env)
-       
-       call copy_sparse_to_blacs_matrix(sparse_matrix=cp_get_matrix(h_matrix),&
-            blacs_matrix=gf_env%min_density_m, &
-            context=gf_env%blacs_context, &
-            globenv=g_env)
-
-       call eigensolver(gf_env%min_density_m,gf_env%alpha_mo,&
-            gf_env%min_overlap_m,gf_env%work_m,gf_env%blacs_context,g_env)
-       
-       call calculate_density_matrix(gf_env%alpha_mo,gf_env%min_density_m,&
-            gf_env%blacs_context,g_env)
-       
-       call copy_blacs_to_sparse_matrix(gf_env%min_density_m,&
-            cp_get_matrix(d_matrix),gf_env%blacs_context,g_env)
-
-       call symmetrise_diagonal_blocks(cp_get_matrix(d_matrix))
-
-       ! could be avoided by having two more qs_blacs matrices
-       ! (copy from qs_blacs to qs_blacs does not need communication)
-       call copy_sparse_to_blacs_matrix(sparse_matrix=cp_get_matrix(h_matrix),&
-            blacs_matrix=gf_env%min_hamiltonian_m, &
-            context=gf_env%blacs_context, &
-            globenv=g_env)
-       call copy_sparse_to_blacs_matrix(sparse_matrix=cp_get_matrix(s_matrix),&
-            blacs_matrix=gf_env%min_overlap_m, &
-            context=gf_env%blacs_context, &
-            globenv=g_env)
-
-       CALL get_mo_set(mo_set=gf_env%alpha_mo,&
-                       eigenvalues=mo_eigenvalues,&
-                       occupation_numbers=mo_occupation_numbers)
-
-       if (present(f)) then
-          f=dot_product(mo_occupation_numbers,mo_eigenvalues)
-! good test: check if equal
-!!$          ! Tr[P (N U i)^* H (N U i)]
-!!$          call blacs_trace(gf_env%min_density_m,gf_env%min_hamiltonian_m,f1,&
-!!$               gf_env%blacs_context, g_env)
-!!$          ! Tr[V(P (N U i)^* S (N U i) P)]
-!!$          call blacs_gemm('N','N',min_bas_size,min_bas_size,min_bas_size,&
-!!$               1.0_wp, gf_env%min_density_m,gf_env%min_overlap_m,0.0_wp,&
-!!$               gf_env%work_m, gf_env%blacs_context,g_env)
-!!$          call blacs_diag_mult(mo_eigenvalues,gf_env%work_m)
-!!$          call blacs_trace(gf_env%min_density_m,gf_env%work_m,f2,&
-!!$               gf_env%blacs_context,g_env)
-!!$          ! Tr[VP]
-!!$          f3=cp_trace(mo_eigenvalues,d_matrix)
-!!$          f=f1-f2+f3
-       end if
-
-       if (present(gradient)) then
-          diagMatrix => cp_get_matrix(gf_env%diag_matrix) ! for xlf...
-          ! ** gf_env%diag_matrix = df/du_{i,j}
-                    
-          ! N H B P i^*
-          call copy_sparse_to_blacs_matrix(cp_get_matrix(full_hamiltonian_m),&
-               gf_env%scf_work1,gf_env%blacs_context,g_env)
-          call cp_m2f_with_B_M_pi(d_matrix,gf_env%full_work_m,angles,&
-               error=error)
-          call copy_sparse_to_blacs_matrix(cp_get_matrix(gf_env%full_work_m),&
-               gf_env%scf_work2, gf_env%blacs_context,g_env)
-          call blacs_gemm('N','N',full_bas_size,full_bas_size,full_bas_size,&
-               1.0_wp,gf_env%scf_work1,gf_env%scf_work2,0.0_wp,&
-               gf_env%scf_work3,gf_env%blacs_context,g_env)
-          call cp_set_to(diagMatrix,value=0.0_wp)
-          call add_blacs_to_block_diag_sm(gf_env%scf_work3,&
-               diagMatrix,&
-               global_env=g_env,d_struct=gf_env%d_struct, error=error)
-          ! N S B P V P i^*
-          call blacs_diag_mult(mo_eigenvalues,&
-               gf_env%min_density_m,gf_env%work_m, global_env=g_env)
-          call blacs_gemm('N','N',min_bas_size,min_bas_size,min_bas_size,&
-               1.0_wp,gf_env%min_density_m,gf_env%work_m, 0.0_wp,&
-               gf_env%min_hamiltonian_m, context=gf_env%blacs_context,&
-               globenv=g_env)
-          call copy_blacs_to_sparse_matrix(gf_env%min_hamiltonian_m,&
-               cp_get_matrix(gf_env%min_work_m),gf_env%blacs_context, g_env)
-          call cp_m2f_with_B_M_pi(gf_env%min_work_m,&
-               gf_env%full_work_m,glob_angles=angles,&
-               error=error)
-          call cp_dealloc_ref(min_pao_m,error=error)
-          call cp_dealloc_ref(full_pao_m,error=error)
-
-          call copy_sparse_to_blacs_matrix(cp_get_matrix(gf_env%full_work_m),&
-               gf_env%scf_work2, gf_env%blacs_context, g_env)
-          call copy_sparse_to_blacs_matrix(cp_get_matrix(s_matrix),&
-               gf_env%scf_work1, gf_env%blacs_context, g_env)
-          call blacs_gemm('N','N',full_bas_size,full_bas_size,full_bas_size,&
-               1.0_wp,gf_env%scf_work1,gf_env%scf_work2,0.0_wp,&
-               gf_env%scf_work3, gf_env%blacs_context, g_env)
-          call add_blacs_to_block_diag_sm(gf_env%scf_work3,&
-               diagMatrix,&
-               global_env=g_env,d_struct=gf_env%d_struct, error=error)
-          
-          ! ** gradient = df/du_{i,j} du_{i,j}/dtheta_k
-          gradient=0.0_wp
-          call cp_init(block_iterator,matrix=cp_get_matrix(gf_env%diag_matrix))
-          do
-             if (.not.cp_next(block_iterator)) exit
-             call cp_get(block_iterator, block_row=block_row,&
-                  block_col=block_col, block_val=block_val)
-             if (block_col==block_row) then
-                call cp_set(local_angles, atom_nr=block_col)
-                call cp_init(calc_u_du,local_angles)
-                do
-                   if (.not.cp_next(calc_u_du)) exit
-                   call cp_get(calc_u_du, du=du, &
-                        min_bas=min_bas, excl_bas=excl_bas)
-                   gradient(cp_get_g_index(local_angles,&
-                         min_bas=min_bas, excl_bas=excl_bas))=&
-                         sum(du*block_val)
-                end do
-                call cp_dealloc_ref(calc_u_du)
-             end if
-          end do
-          call mp_sum(gradient,g_env%group)
-       end if
-    end if
+!!FM    if (.not.failure) then
+!!FM       ! get actual min_hamiltonian_m and min_overlap_m
+!!FM       call cp_get(gf_env%qs_env,angles_att=angles, global_env=g_env,&
+!!FM            min_density_m=d_matrix, full_hamiltonian_m=full_hamiltonian_m,&
+!!FM            n_atom=n_atom, ntot_full_bas=full_bas_size,&
+!!FM            ntot_min_bas=min_bas_size, error=error)
+!!FM       CPPostcondition(associated(angles),cp_failure_level,routineP,error,failure)
+!!FM    end if
+!!FM    if (.not.failure) then
+!!FM       call cp_set(angles,angles=x,error=error)
+!!FM       call cp_did_change(angles, angles_changed=.true., s_changed=.false.,&
+!!FM            h_changed=.false., full_reset=.false., error=error)
+!!FM       call cp_get(angles, min_hamiltonian_m=h_matrix,&
+!!FM            min_overlap_m=s_matrix,&
+!!FM            error=error)
+!!FM
+!!FM       ! calculates the new density matrix with diagonalization
+!!FM       ! do not do it every time?
+!!FM       call copy_sparse_to_blacs_matrix(sparse_matrix=cp_get_matrix(s_matrix),&
+!!FM            blacs_matrix=gf_env%min_overlap_m, &
+!!FM            context=gf_env%blacs_context, &
+!!FM            globenv=g_env)
+!!FM       
+!!FM       call orthogonalise_matrix(gf_env%min_overlap_m,gf_env%min_density_m,&
+!!FM            gf_env%work_m,gf_env%blacs_context,g_env)
+!!FM       
+!!FM       call copy_sparse_to_blacs_matrix(sparse_matrix=cp_get_matrix(h_matrix),&
+!!FM            blacs_matrix=gf_env%min_density_m, &
+!!FM            context=gf_env%blacs_context, &
+!!FM            globenv=g_env)
+!!FM
+!!FM       call eigensolver(gf_env%min_density_m,gf_env%alpha_mo,&
+!!FM            gf_env%min_overlap_m,gf_env%work_m,gf_env%blacs_context,g_env)
+!!FM       
+!!FM       call calculate_density_matrix(gf_env%alpha_mo,gf_env%min_density_m,&
+!!FM            gf_env%blacs_context,g_env)
+!!FM       
+!!FM       call copy_blacs_to_sparse_matrix(gf_env%min_density_m,&
+!!FM            cp_get_matrix(d_matrix),gf_env%blacs_context,g_env)
+!!FM
+!!FM       call symmetrise_diagonal_blocks(cp_get_matrix(d_matrix))
+!!FM
+!!FM       ! could be avoided by having two more qs_blacs matrices
+!!FM       ! (copy from qs_blacs to qs_blacs does not need communication)
+!!FM       call copy_sparse_to_blacs_matrix(sparse_matrix=cp_get_matrix(h_matrix),&
+!!FM            blacs_matrix=gf_env%min_hamiltonian_m, &
+!!FM            context=gf_env%blacs_context, &
+!!FM            globenv=g_env)
+!!FM       call copy_sparse_to_blacs_matrix(sparse_matrix=cp_get_matrix(s_matrix),&
+!!FM            blacs_matrix=gf_env%min_overlap_m, &
+!!FM            context=gf_env%blacs_context, &
+!!FM            globenv=g_env)
+!!FM
+!!FM       CALL get_mo_set(mo_set=gf_env%alpha_mo,&
+!!FM                       eigenvalues=mo_eigenvalues,&
+!!FM                       occupation_numbers=mo_occupation_numbers)
+!!FM
+!!FM       if (present(f)) then
+!!FM          f=dot_product(mo_occupation_numbers,mo_eigenvalues)
+!!FM! good test: check if equal
+!!FM!!$          ! Tr[P (N U i)^* H (N U i)]
+!!FM!!$          call blacs_trace(gf_env%min_density_m,gf_env%min_hamiltonian_m,f1,&
+!!FM!!$               gf_env%blacs_context, g_env)
+!!FM!!$          ! Tr[V(P (N U i)^* S (N U i) P)]
+!!FM!!$          call blacs_gemm('N','N',min_bas_size,min_bas_size,min_bas_size,&
+!!FM!!$               1.0_wp, gf_env%min_density_m,gf_env%min_overlap_m,0.0_wp,&
+!!FM!!$               gf_env%work_m, gf_env%blacs_context,g_env)
+!!FM!!$          call blacs_diag_mult(mo_eigenvalues,gf_env%work_m)
+!!FM!!$          call blacs_trace(gf_env%min_density_m,gf_env%work_m,f2,&
+!!FM!!$               gf_env%blacs_context,g_env)
+!!FM!!$          ! Tr[VP]
+!!FM!!$          f3=cp_trace(mo_eigenvalues,d_matrix)
+!!FM!!$          f=f1-f2+f3
+!!FM       end if
+!!FM
+!!FM       if (present(gradient)) then
+!!FM          diagMatrix => cp_get_matrix(gf_env%diag_matrix) ! for xlf...
+!!FM          ! ** gf_env%diag_matrix = df/du_{i,j}
+!!FM                    
+!!FM          ! N H B P i^*
+!!FM          call copy_sparse_to_blacs_matrix(cp_get_matrix(full_hamiltonian_m),&
+!!FM               gf_env%scf_work1,gf_env%blacs_context,g_env)
+!!FM          call cp_m2f_with_B_M_pi(d_matrix,gf_env%full_work_m,angles,&
+!!FM               error=error)
+!!FM          call copy_sparse_to_blacs_matrix(cp_get_matrix(gf_env%full_work_m),&
+!!FM               gf_env%scf_work2, gf_env%blacs_context,g_env)
+!!FM          call blacs_gemm('N','N',full_bas_size,full_bas_size,full_bas_size,&
+!!FM               1.0_wp,gf_env%scf_work1,gf_env%scf_work2,0.0_wp,&
+!!FM               gf_env%scf_work3,gf_env%blacs_context,g_env)
+!!FM          call cp_set_to(diagMatrix,value=0.0_wp)
+!!FM          call add_blacs_to_block_diag_sm(gf_env%scf_work3,&
+!!FM               diagMatrix,&
+!!FM               global_env=g_env,d_struct=gf_env%d_struct, error=error)
+!!FM          ! N S B P V P i^*
+!!FM          call blacs_diag_mult(mo_eigenvalues,&
+!!FM               gf_env%min_density_m,gf_env%work_m, global_env=g_env)
+!!FM          call blacs_gemm('N','N',min_bas_size,min_bas_size,min_bas_size,&
+!!FM               1.0_wp,gf_env%min_density_m,gf_env%work_m, 0.0_wp,&
+!!FM               gf_env%min_hamiltonian_m, context=gf_env%blacs_context,&
+!!FM               globenv=g_env)
+!!FM          call copy_blacs_to_sparse_matrix(gf_env%min_hamiltonian_m,&
+!!FM               cp_get_matrix(gf_env%min_work_m),gf_env%blacs_context, g_env)
+!!FM          call cp_m2f_with_B_M_pi(gf_env%min_work_m,&
+!!FM               gf_env%full_work_m,glob_angles=angles,&
+!!FM               error=error)
+!!FM          call cp_dealloc_ref(min_pao_m,error=error)
+!!FM          call cp_dealloc_ref(full_pao_m,error=error)
+!!FM
+!!FM          call copy_sparse_to_blacs_matrix(cp_get_matrix(gf_env%full_work_m),&
+!!FM               gf_env%scf_work2, gf_env%blacs_context, g_env)
+!!FM          call copy_sparse_to_blacs_matrix(cp_get_matrix(s_matrix),&
+!!FM               gf_env%scf_work1, gf_env%blacs_context, g_env)
+!!FM          call blacs_gemm('N','N',full_bas_size,full_bas_size,full_bas_size,&
+!!FM               1.0_wp,gf_env%scf_work1,gf_env%scf_work2,0.0_wp,&
+!!FM               gf_env%scf_work3, gf_env%blacs_context, g_env)
+!!FM          call add_blacs_to_block_diag_sm(gf_env%scf_work3,&
+!!FM               diagMatrix,&
+!!FM               global_env=g_env,d_struct=gf_env%d_struct, error=error)
+!!FM          
+!!FM          ! ** gradient = df/du_{i,j} du_{i,j}/dtheta_k
+!!FM          gradient=0.0_wp
+!!FM          call cp_init(block_iterator,matrix=cp_get_matrix(gf_env%diag_matrix))
+!!FM          do
+!!FM             if (.not.cp_next(block_iterator)) exit
+!!FM             call cp_get(block_iterator, block_row=block_row,&
+!!FM                  block_col=block_col, block_val=block_val)
+!!FM             if (block_col==block_row) then
+!!FM                call cp_set(local_angles, atom_nr=block_col)
+!!FM                call cp_init(calc_u_du,local_angles)
+!!FM                do
+!!FM                   if (.not.cp_next(calc_u_du)) exit
+!!FM                   call cp_get(calc_u_du, du=du, &
+!!FM                        min_bas=min_bas, excl_bas=excl_bas)
+!!FM                   gradient(cp_get_g_index(local_angles,&
+!!FM                         min_bas=min_bas, excl_bas=excl_bas))=&
+!!FM                         sum(du*block_val)
+!!FM                end do
+!!FM                call cp_dealloc_ref(calc_u_du)
+!!FM             end if
+!!FM          end do
+!!FM          call mp_sum(gradient,g_env%group)
+!!FM       end if
+!!FM    end if
   end subroutine pao_gerd_f_eval_at
 !***************************************************************************
 

@@ -31,6 +31,7 @@ module pao_read_section
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
   use qs_parser, only: start_parser, finish_parser, test_object, read_object
+  use qs_environment_types, only: qs_environment_type, get_qs_env
   use string_utilities, only: uppercase
   use cp_linked_list_int
   use pao_types, only: pao_env_type
@@ -81,9 +82,9 @@ contains
 !!     3.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine pao_env_init_from_file(pao_env, global_env, section_label,&
+  subroutine pao_env_init_from_file(qs_env, global_env, section_label,&
        error)
-    type(pao_env_type), intent(out) :: pao_env
+    type(qs_environment_type), intent(inout) :: qs_env
     type(global_environment_type), intent(in), target :: global_env
     character(len=*), intent(in), optional :: section_label
     type(cp_error_type), optional, intent(inout) :: error
@@ -100,10 +101,12 @@ contains
     integer, parameter :: max_kinds=200, max_bas_size=1000
     type(cp_error_type) :: newErr
     type(cp_logger_type) :: fileLogger
+    type(pao_env_type), pointer :: pao_env
     failure=.false.
     wanted_subspace_pos_precision=1.0e-4
     wanted_in_subspace_precision=1.0e-4
 
+    call get_qs_env(qs_env, pao_env=pao_env)
     if (present(section_label)) then
        call start_parser(file_name=global_env%input_file_name,&
             globenv=global_env,&

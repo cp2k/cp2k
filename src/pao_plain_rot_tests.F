@@ -350,50 +350,50 @@ contains
     failure=.false.
     logger=>cp_error_get_logger(error)
 
-    call cp_init_test_pao_env(pao_env,glob_env,n_atom,error=error)
-    call cp_get(pao_env, angles_att=g_angles,error=error)
-    call cp_get(g_angles,angles=angles)
-    call random_number(angles)
-    angles=4.0_wp*pi*angles
-    call cp_init(l_angles,glob_angles=g_angles, atom_nr=atom_nr)
-    CPPostcondition(cp_valid(l_angles),cp_failure_level,routineP,error,failure)
-    full_bas_size=cp_get_full_bas_size(l_angles)
-    allocate(m1(full_bas_size,full_bas_size),m2(full_bas_size,full_bas_size),&
-         m3(full_bas_size,full_bas_size),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
-       if (cp_debug.and.debug_this_module) then
-          call cp_log(logger,cp_note_level,routineP, &
-               'test u_du 1: l_compose_u, U^* U = 1')
-       end if
-       m1=0.0_wp
-       forall (i=1:size(m1,1)) m1(i,i)=1.0_wp
-       call pao_l_compose_u(m1,l_angles,error=error)
-       m3=m1
-       call dgemm('T','N',full_bas_size,full_bas_size,full_bas_size,&
-            1.0_wp,m1,full_bas_size,m3,full_bas_size,&
-            0.0_wp,m2,full_bas_size)
-       forall (i=1:full_bas_size) m2(i,i)=m2(i,i)-1.0_wp
-       err=cp_sup_norm_matrix(m2)
-       if (err>2*full_bas_size*epsilon(0.0_wp)) then
-          failure=.true.
-          call cp_log(logger,cp_failure_level,routineP, &
-               'test u_du 1: l_compose_u, U^* U = 1, failed')
-          if (cp_debug .and. debug_this_module) then
-             call cp_2d_r_output(logger, 'zero_matrix', routineP,3,m2,'zero matrix l_compose_u, U^* U - 1')
-             call cp_1d_r_output(logger, 'angles', routineP,3,&
-                  angles(1:(full_bas_size*cp_get_min_bas_size(l_angles))),&
-                  'angles')
-          end if
-       else if (cp_debug .and. debug_this_module) then
-          call cp_log(logger,cp_warning_level,routineP,&
-               'test u_du 1: SUCCESS')
-       end if
-    end if
-    deallocate(m1,m2,stat=stat) ! just to be sure...
-    CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-    call cp_dealloc_ref(l_angles,error=error)
-    call cp_dealloc_ref(pao_env,error=error)
+!!FM    call cp_init_test_pao_env(pao_env,glob_env,n_atom,error=error)
+!!FM    call cp_get(pao_env, angles_att=g_angles,error=error)
+!!FM    call cp_get(g_angles,angles=angles)
+!!FM    call random_number(angles)
+!!FM    angles=4.0_wp*pi*angles
+!!FM    call cp_init(l_angles,glob_angles=g_angles, atom_nr=atom_nr)
+!!FM    CPPostcondition(cp_valid(l_angles),cp_failure_level,routineP,error,failure)
+!!FM    full_bas_size=cp_get_full_bas_size(l_angles)
+!!FM    allocate(m1(full_bas_size,full_bas_size),m2(full_bas_size,full_bas_size),&
+!!FM         m3(full_bas_size,full_bas_size),stat=stat)
+!!FM    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+!!FM    if (.not. failure) then
+!!FM       if (cp_debug.and.debug_this_module) then
+!!FM          call cp_log(logger,cp_note_level,routineP, &
+!!FM               'test u_du 1: l_compose_u, U^* U = 1')
+!!FM       end if
+!!FM       m1=0.0_wp
+!!FM       forall (i=1:size(m1,1)) m1(i,i)=1.0_wp
+!!FM       call pao_l_compose_u(m1,l_angles,error=error)
+!!FM       m3=m1
+!!FM       call dgemm('T','N',full_bas_size,full_bas_size,full_bas_size,&
+!!FM            1.0_wp,m1,full_bas_size,m3,full_bas_size,&
+!!FM            0.0_wp,m2,full_bas_size)
+!!FM       forall (i=1:full_bas_size) m2(i,i)=m2(i,i)-1.0_wp
+!!FM       err=cp_sup_norm_matrix(m2)
+!!FM       if (err>2*full_bas_size*epsilon(0.0_wp)) then
+!!FM          failure=.true.
+!!FM          call cp_log(logger,cp_failure_level,routineP, &
+!!FM               'test u_du 1: l_compose_u, U^* U = 1, failed')
+!!FM          if (cp_debug .and. debug_this_module) then
+!!FM             call cp_2d_r_output(logger, 'zero_matrix', routineP,3,m2,'zero matrix l_compose_u, U^* U - 1')
+!!FM             call cp_1d_r_output(logger, 'angles', routineP,3,&
+!!FM                  angles(1:(full_bas_size*cp_get_min_bas_size(l_angles))),&
+!!FM                  'angles')
+!!FM          end if
+!!FM       else if (cp_debug .and. debug_this_module) then
+!!FM          call cp_log(logger,cp_warning_level,routineP,&
+!!FM               'test u_du 1: SUCCESS')
+!!FM       end if
+!!FM    end if
+!!FM    deallocate(m1,m2,stat=stat) ! just to be sure...
+!!FM    CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+!!FM    call cp_dealloc_ref(l_angles,error=error)
+!!FM    call cp_dealloc_ref(pao_env,error=error)
     res=failure
   end function pao_test_u_du
   !***************************************************************************

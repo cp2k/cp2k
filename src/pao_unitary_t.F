@@ -184,6 +184,7 @@ contains
     logical :: failure
     character(len=*), parameter :: routineP='pao_plain_rot:pao_calc_u_du_init'
     integer :: n_excl_bas,n_min_bas, stat, i_excl_bas, i_min_bas, i, n_full_bas
+    integer, dimension(:), pointer :: proj_indexes, non_proj_indexes
     failure=.false.
     c_env%initialized=.true.
     c_env%status=0
@@ -199,8 +200,10 @@ contains
     else
        c_env%excl_bas=0
     end if
-    call cp_get(local_angles, n_excl_bas=n_excl_bas, n_min_bas=n_min_bas,&
-         n_full_bas=n_full_bas, error=error)
+    call cp_get(local_angles, size_excl_bas=n_excl_bas, &
+         size_min_bas=n_min_bas,&
+         size_full_bas=n_full_bas, proj_indexes=proj_indexes,&
+         non_proj_indexes=non_proj_indexes, error=error)
     CPPrecondition(n_excl_bas>=0,cp_failure_level,routineP,error,failure)
     allocate(c_env%L(n_full_bas,n_full_bas),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -222,8 +225,8 @@ contains
           call cp_left_compose_p_rot(matrix=c_env%R,&
                angle=-cp_get_angle(local_angles,min_bas=n_min_bas,&
                excl_bas=n_excl_bas,error=error),&
-               i=cp_get_p_index(local_angles,i=n_min_bas,error=error),&
-               j=cp_get_non_p_index(local_angles,i=n_excl_bas,error=error),&
+               i=cp_get_p_index(local_angles,min_bas=n_min_bas,error=error),&
+               j=cp_get_non_p_index(local_angles,excl_bas=n_excl_bas,error=error),&
                error=error)
        else
           c_env%L=0
@@ -238,9 +241,8 @@ contains
                 call cp_left_compose_p_rot(matrix=c_env%R,&
                      angle=cp_get_angle(local_angles,min_bas=i_min_bas,&
                      excl_bas=i_excl_bas,error=error),&
-                     i=cp_get_p_index(local_angles,i=i_min_bas,error=error),&
-                     j=cp_get_non_p_index(local_angles,&
-                     i=i_excl_bas,error=error),&
+                     i=proj_indexes(i_min_bas),&
+                     j=non_proj_indexes(i_excl_bas),&
                      error=error)
              end do
           end do
@@ -249,9 +251,8 @@ contains
              call cp_left_compose_p_rot(matrix=c_env%R,&
                   angle=cp_get_angle(local_angles,min_bas=i_min_bas,&
                   excl_bas=i_excl_bas,error=error),&
-                  i=cp_get_p_index(local_angles,i=i_min_bas,error=error),&
-                  j=cp_get_non_p_index(local_angles,&
-                  i=i_excl_bas, error=error),&
+                  i=proj_indexes(i_min_bas),&
+                  j=non_proj_indexes(i_excl_bas),&
                   error=error)
           end do
 ! def L
@@ -260,9 +261,8 @@ contains
                 call cp_right_compose_p_rot(matrix=c_env%L,&
                      angle=cp_get_angle(local_angles,min_bas=i_min_bas,&
                      excl_bas=i_excl_bas,error=error),&
-                     i=cp_get_p_index(local_angles,i=i_min_bas,error=error),&
-                     j=cp_get_non_p_index(local_angles,&
-                     i=i_excl_bas,error=error),&
+                     i=proj_indexes(i_min_bas),&
+                     j=non_proj_indexes(i_excl_bas),&
                      error=error)
              end do
           end do
@@ -271,9 +271,8 @@ contains
              call cp_right_compose_p_rot(matrix=c_env%L,&
                   angle=cp_get_angle(local_angles,min_bas=i_min_bas,&
                   excl_bas=i_excl_bas,error=error),&
-                  i=cp_get_p_index(local_angles,i=i_min_bas,error=error),&
-                  j=cp_get_non_p_index(local_angles,&
-                  i=i_excl_bas,error=error),&
+                  i=proj_indexes(i_min_bas),&
+                  j=non_proj_indexes(i_excl_bas),&
                   error=error)
           end do
        end if
@@ -336,12 +335,12 @@ contains
     if (.not. failure) then
        old_min_bas=c_env%min_bas
        old_excl_bas=c_env%excl_bas
-       if (c_env%min_bas>=cp_get_min_bas_size(c_env%local_angles)) then
-          if (c_env%excl_bas>=cp_get_excl_bas_size(c_env%local_angles)) then
+       if (c_env%min_bas>=cp_get_size_min_bas(c_env%local_angles)) then
+          if (c_env%excl_bas>=cp_get_size_excl_bas(c_env%local_angles)) then
              c_env%status=2
              res=.false.
              return
-          else if (cp_get_excl_bas_size(c_env%local_angles)==0) then
+          else if (cp_get_size_excl_bas(c_env%local_angles)==0) then
              c_env%status=2
              res=.false.
              return
@@ -468,8 +467,8 @@ contains
        CPPrecondition(associated(c_env%tmp_m),cp_failure_level,routineP,error,failure)
     end if
     if (.not. failure) then
-       call cp_get(c_env%local_angles,n_excl_bas=n_excl_bas,&
-            n_full_bas=n_full_bas)
+       call cp_get(c_env%local_angles,size_excl_bas=n_excl_bas,&
+            size_full_bas=n_full_bas)
        angle=cp_get_angle(c_env%local_angles,min_bas=c_env%min_bas,&
             excl_bas=c_env%excl_bas,error=error)
        if (present(u)) then
@@ -477,7 +476,10 @@ contains
           CPPrecondition(size(u,2)==n_full_bas,cp_failure_level,routineP,error,failure)
           c_env%tmp_m=c_env%L
           call cp_right_compose_p_rot(matrix=c_env%tmp_m,&
-               angle=angle, i=c_env%min_bas, j=c_env%excl_bas,error=error)
+               angle=angle,&
+               i=cp_get_p_index(c_env%local_angles,c_env%min_bas,error=error),&
+               j=cp_get_non_p_index(c_env%local_angles,c_env%excl_bas,&
+               error=error),error=error)
           call dgemm('N','N',n_full_bas,n_full_bas,n_full_bas,1.0_wp,&
                c_env%tmp_m,n_full_bas,c_env%R,n_full_bas,0.0_wp,u,n_full_bas)
        end if
@@ -486,7 +488,10 @@ contains
           CPPrecondition(size(du,2)==n_full_bas,cp_failure_level,routineP,error,failure)
           c_env%tmp_m=c_env%L
           call cp_right_compose_p_rot_deriv(matrix=c_env%tmp_m,&
-               angle=angle, i=c_env%min_bas, j=c_env%excl_bas,error=error)
+               angle=angle,&
+               i=cp_get_p_index(c_env%local_angles,c_env%min_bas,error=error),&
+               j=cp_get_non_p_index(c_env%local_angles,c_env%excl_bas,&
+               error=error),error=error)
           call dgemm('N','N',n_full_bas,n_full_bas,n_full_bas,1.0_wp,&
                c_env%tmp_m,n_full_bas,c_env%R,n_full_bas,0.0_wp,u,n_full_bas)
        end if
