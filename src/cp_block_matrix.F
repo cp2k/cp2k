@@ -52,7 +52,7 @@ module cp_block_matrix
        cp_get_local_block,&
        cp_release_block, cp_set_local_block, cp_remove_block,&
        cp_get_matrix, cp_set_to, cp_get
-  public :: cp_sp_create, cp_sp_dealloc, cp_sp_retain, cp_sp_release,&
+  public :: cp_sp_create, cp_sp_retain, cp_sp_release,&
        cp_sp_get_local_block,&
        cp_sp_block_handle_release, cp_sp_set_local_block, cp_sp_remove_block,&
        cp_sp_array_dealloc, cp_sp_get_matrix, cp_sp_array_release,&
@@ -65,9 +65,9 @@ module cp_block_matrix
   interface cp_create
      module procedure cp_sp_create
   end interface
-  interface cp_dealloc
-     module procedure cp_sp_dealloc
-  end interface
+!FM  interface cp_dealloc
+!FM     module procedure cp_sp_dealloc
+!FM  end interface
   interface cp_retain
      module procedure cp_sp_retain
   end interface
