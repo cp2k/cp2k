@@ -996,7 +996,7 @@ CONTAINS
     ALLOCATE(vecbuffer(1,nao))
     DO ispin=1,nspin
         nmo=mo_array(ispin)%mo_set%nmo
-        write(restart_unit) nmo
+        IF (globenv%ionode) write(restart_unit) nmo
         DO i=1,nmo
            CALL blacs_replicated_copy(mo_array(ispin)%mo_set%eigenvectors,vecbuffer,i,1,1,"B2R")
            IF (globenv%ionode) WRITE(restart_unit) vecbuffer
