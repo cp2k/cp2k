@@ -1,0 +1,382 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2002  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
+!!****h* cp2k/qs_p_sparse_psi [1.0] *
+!!
+!!   NAME
+!!     qs_p_sparse_psi
+!!
+!!   FUNCTION
+!!     utilities to represent orbitals that are localized on few atoms
+!!
+!!   NOTES
+!!     -
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!     11.2002 updated and checked [fawzi]
+!!
+!!   SOURCE
+!****************************************************************************
+MODULE qs_p_sparse_psi
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_fm_get_submatrix,&
+                                             cp_fm_set_submatrix,&
+                                             cp_full_matrix_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  USE particle_types,                  ONLY: particle_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  IMPLICIT NONE
+  PRIVATE
+
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_sparse_psi'
+  INTEGER, SAVE, PRIVATE :: last_proj_id_nr=0
+
+!***
+!****************************************************************************
+
+!!****s* qs_p_sparse_psi/qs_p_projection_type [1.0] *
+!!
+!!   NAME
+!!     qs_p_projection_type
+!!
+!!   FUNCTION
+!!     represent a simple projection that involves orbitals from a small
+!!     group of atoms
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     - atoms: array with the indexes of the atoms that form this group
+!!     - proj_indexes: the mapping between the indexes of the reduced
+!!       vectors and the full vectors
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!   SOURCE
+  !***************************************************************************
+  TYPE qs_p_projection_type
+     INTEGER, DIMENSION(:), POINTER :: atoms
+     INTEGER, DIMENSION(:), POINTER :: proj_indexes
+     INTEGER :: ref_count, id_nr
+  END TYPE qs_p_projection_type
+!!***
+  !****************************************************************************
+
+CONTAINS
+
+!!****f* qs_p_sparse_psi/p_proj_create [1.0] *
+!!
+!!   NAME
+!!     p_proj_create
+!!
+!!   FUNCTION
+!!     allocates and initializes a qs_p_projection_type
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - p_proj: the projection to initialize
+!!     - atoms: the atoms that are part of the projection group.
+!!     - proj_indexes: the (global) indexes of the ao that are part of the
+!!       projection. If not given then particle_set must be given and it
+!!       defaults to all the ones of the atoms.
+!!     - particle_set: the particle set from where to extract the indexes
+!!       of the ao
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE p_proj_create(p_proj, atoms, proj_indexes, particle_set, error)
+  TYPE(qs_p_projection_type), POINTER :: p_proj
+  INTEGER, DIMENSION(:), INTENT(in) :: atoms
+  INTEGER, DIMENSION(:), INTENT(in), OPTIONAL :: proj_indexes
+  TYPE(particle_type), DIMENSION(:), INTENT(in), OPTIONAL :: particle_set
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  INTEGER :: stat, size_proj, i, j, pos
+  CHARACTER(len=*), PARAMETER :: routineN='p_proj_create',&
+        routineP=moduleN//':'//routineN
+
+  failure=.FALSE.
+    NULLIFY(p_proj%atoms, p_proj%proj_indexes)
+  IF (.NOT. failure) THEN
+     ALLOCATE(p_proj%atoms(SIZE(atoms)),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF (.not.failure) THEN
+     IF (PRESENT(proj_indexes)) THEN
+        ALLOCATE(p_proj%proj_indexes(SIZE(proj_indexes)), stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     ELSE
+        CPPrecondition(PRESENT(particle_set),cp_failure_level,routineP,error,failure)
+        IF (.not.failure) THEN
+           size_proj=0
+           DO i=1,SIZE(p_proj%atoms)
+              size_proj=size_proj+particle_set(p_proj%atoms(i))%last_sgf &
+                   - particle_set(p_proj%atoms(i))%first_sgf + 1
+           END DO
+           ALLOCATE(p_proj%proj_indexes(size_proj),stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        END IF
+        IF (.not.failure) THEN
+           pos=1
+           DO i=1,SIZE(p_proj%atoms)
+              DO j=particle_set(p_proj%atoms(i))%first_sgf,&
+                   particle_set(p_proj%atoms(i))%last_sgf
+                 p_proj%proj_indexes(pos)=j
+                 pos=pos+1
+              END DO
+           END DO
+        END IF
+     END IF
+  END IF
+  IF (.not.failure) THEN
+     p_proj%atoms=atoms
+     last_proj_id_nr=last_proj_id_nr+1
+     p_proj%id_nr=last_proj_id_nr
+     p_proj%ref_count=1
+  END IF
+END SUBROUTINE p_proj_create
+!***************************************************************************
+
+!!****f* qs_p_sparse_psi/p_proj_retain [1.0] *
+!!
+!!   NAME
+!!     p_proj_retain
+!!
+!!   FUNCTION
+!!     augments the retain count by one, to be called to hold a shared copy
+!!     of this object
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - p_proj: the projection to retain
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE p_proj_retain(p_proj, error)
+  TYPE(qs_p_projection_type), POINTER :: p_proj
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='p_proj_retain',&
+        routineP=moduleN//':'//routineN
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(p_proj),cp_failure_level,routineP,error,failure)
+  IF (.not.failure) THEN
+     CPPrecondition(p_proj%ref_count>0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF (.not.failure) THEN
+     p_proj%ref_count=p_proj%ref_count+1
+  END IF
+END SUBROUTINE p_proj_retain
+!***************************************************************************
+
+!!****f* qs_p_sparse_psi/p_proj_release [1.0] *
+!!
+!!   NAME
+!!     p_proj_release
+!!
+!!   FUNCTION
+!!     decreases the retain count by one, deleting the objecs when it hits 0.
+!!     To be called when you no longer need a shared copy you retained
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - p_proj: the projection to release
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE p_proj_release(p_proj, error)
+  TYPE(qs_p_projection_type), POINTER :: p_proj
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  INTEGER :: stat
+  CHARACTER(len=*), PARAMETER :: routineN='p_proj_release',&
+        routineP=moduleN//':'//routineN
+  failure=.FALSE.
+  
+  IF (ASSOCIATED(p_proj)) THEN
+     CPPrecondition(p_proj%ref_count>0,cp_failure_level,routineP,error,failure)
+     p_proj%ref_count=p_proj%ref_count-1
+     IF (p_proj%ref_count<1) THEN
+        DEALLOCATE(p_proj%atoms,stat=stat)
+        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        DEALLOCATE(p_proj%proj_indexes,stat=stat)
+        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        p_proj%ref_count=0
+        DEALLOCATE(p_proj, stat=stat)
+        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+     END IF
+  END IF
+END SUBROUTINE p_proj_release
+!***************************************************************************
+
+!!****f* qs_p_sparse_psi/p_proj_transfer_blacs_to_f [1.0] *
+!!
+!!   NAME
+!!     p_proj_transfer_blacs_to_f
+!!
+!!   FUNCTION
+!!     injects the columns of a blacs matrix of the minimal system
+!!     into the full basis:
+!!     full_m= i min_m
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - p_proj: the projection that defines the injection
+!!     - min_m: the full matrix in the reduced basis
+!!     - full_m: the full matrix in the full basis that gets the new
+!!       values
+!!     - start_col: the column of full_m at which the first column of
+!!       (i min_m) will be written (defaults to 1)
+!!     - ncol: number of columns to set (defaults to all the columns of
+!!       min_m
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
+     start_col_full, start_col_min, ncol, error)
+  TYPE(qs_p_projection_type), POINTER :: p_proj
+  TYPE(cp_full_matrix_type), POINTER :: min_m, full_m
+  INTEGER, INTENT(in), OPTIONAL :: start_col_min, start_col_full, ncol
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='p_proj_transfer_blacs_to_f',&
+        routineP=moduleN//':'//routineN
+  INTEGER, PARAMETER          :: max_blocksize = 100
+  INTEGER :: ncol_min, ncol_full, nrow_min, nrow_full, blocksize, stat,&
+       my_start_col_min, my_start_col_full, my_ncol, handle, icol,i
+  REAL(kind=wp), DIMENSION(:,:), ALLOCATABLE :: tmp_min,tmp_full
+
+  CALL timeset(routineN,"I","",handle)
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(p_proj),cp_failure_level,routineP,error,failure)
+  IF (.not.failure) THEN
+     CPPrecondition(p_proj%ref_count>0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF (.not.failure) THEN
+     CALL cp_fm_get_info(min_m, nrow_global=nrow_min, ncol_global=ncol_min,&
+          error=error)
+     CALL cp_fm_get_info(full_m, nrow_global=nrow_full, ncol_global=ncol_full,&
+          error=error)
+
+     my_start_col_full=1
+     IF (PRESENT(start_col_full)) my_start_col_full=start_col_full
+     my_start_col_min=1
+     IF (PRESENT(start_col_min)) my_start_col_min=start_col_min
+     my_ncol=ncol_min-my_start_col_min
+     IF (PRESENT(ncol)) my_ncol=ncol
+     blocksize=MIN(my_ncol,max_blocksize)
+
+     CPPrecondition(my_ncol>=0,cp_failure_level,routineP,error,failure)
+     CPPrecondition(my_start_col_min+my_ncol<=ncol_min,cp_failure_level,routineP,error,failure)
+     CPPrecondition(my_start_col_full+my_ncol<=ncol_full,cp_failure_level,routineP,error,failure)
+     CPPrecondition(nrow_min>=SIZE(p_proj%proj_indexes),cp_failure_level,routineP,error,failure)
+
+     ALLOCATE(tmp_min(blocksize,nrow_min), tmp_full(blocksize,nrow_full),&
+          stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF (.NOT. failure) THEN
+
+     DO icol=0,my_ncol-1,blocksize
+        IF (icol+blocksize>my_ncol) blocksize=my_ncol-icol
+        CALL cp_fm_get_submatrix(min_m, target_m=tmp_min, &
+             start_col=icol+my_start_col_min, n_cols=blocksize, &
+             transpose_target_m=.TRUE.,&
+             error=error)
+        
+        CALL dcopy(SIZE(tmp_full,1)*SIZE(tmp_full,2),0.0_wp,0,tmp_full(1,1),1)
+        DO i=1,SIZE(p_proj%proj_indexes)
+           tmp_full(1:blocksize,p_proj%proj_indexes(i))=tmp_min(1:blocksize,i)
+        END DO
+
+        CALL cp_fm_set_submatrix(full_m, new_values=tmp_full, &
+             start_col=icol+my_start_col_full, n_cols=blocksize, &
+             transpose_new_val=.TRUE.,&
+             error=error)
+     END DO
+
+     DEALLOCATE(tmp_min, tmp_full, stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  END IF
+  
+  CALL timestop(0.0_wp,handle)
+END SUBROUTINE p_proj_transfer_blacs_to_f
+!***************************************************************************
+
+END MODULE qs_p_sparse_psi

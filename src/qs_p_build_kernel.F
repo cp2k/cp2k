@@ -91,7 +91,8 @@ MODULE qs_p_build_kernel
                                              pw_transfer,&
                                              pw_type,&
                                              pw_zero
-  USE pws,                             ONLY: init_pw_poisson_solver,&
+  USE pws,                             ONLY: cleanup_pw_poisson_solver,&
+                                             init_pw_poisson_solver,&
                                              pw_poisson_solver
   USE qs_build_ks_matrix,              ONLY: qs_ks_did_change,&
                                              qs_ks_env_type,&
@@ -382,13 +383,14 @@ CONTAINS
          v_hartree_rspace,&
          rho1_tot_gspace
     TYPE(cp_logger_type), POINTER                 :: logger
+    TYPE(cell_type), POINTER :: cell
 
     CALL timeset(moduleN,"I","",handle)
     failure=.FALSE.
     logger => cp_error_get_logger(error)
     NULLIFY(dft_control,auxbas_pw_pool, pw_pools,&
          pw_env,v_rspace_new,rho_r,rho_g,rho1_r, rho1_g,&
-         mgrid_rspace, mgrid_gspace,logger)
+         mgrid_rspace, mgrid_gspace,logger,cell)
 
     CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(k_p_p1),cp_failure_level,routineP,error,failure)
@@ -404,6 +406,7 @@ CONTAINS
        CALL get_qs_env(qs_env=qs_env,&
             dft_control=dft_control,&
             pw_env=pw_env,&
+            cell=cell,&
             error=error)
 
        nspins=dft_control%nspins
@@ -484,8 +487,10 @@ CONTAINS
           END IF
        END IF
 
+       CALL init_pw_poisson_solver(cell%green,error=error)
        CALL calculate_hartree(rho1_tot_gspace,energy_hartree,&
             v_hartree_gspace)
+       CALL cleanup_pw_poisson_solver(cell%green,error=error)
 
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho1_tot_gspace,&
             error=error)

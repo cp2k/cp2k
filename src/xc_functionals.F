@@ -144,18 +144,18 @@ CONTAINS
 
      IF ( .NOT. LSD ) THEN
         IF ( gc_all .AND. .NOT. gc ) THEN
-           index ( 1 ) = 1
-           IF ( order >= 1 ) index ( 2 ) = 2
-           IF ( order >= 2 ) index ( 3 ) = 4
-           IF ( order >= 3 ) index ( 4 ) = 7
+           INDEX ( 1 ) = 1
+           IF ( order >= 1 ) INDEX ( 2 ) = 2
+           IF ( order >= 2 ) INDEX ( 3 ) = 4
+           IF ( order >= 3 ) INDEX ( 4 ) = 7
         ELSE
            DO i = 1, SIZE ( index )
-              index ( i ) = i
+              INDEX ( i ) = i
            END DO
         END IF
      ELSE
         IF ( order == 0 ) THEN
-           index ( 1 ) = 1
+           INDEX ( 1 ) = 1
         ELSEIF ( order == 1 ) THEN
            CALL stop_program ( "xc_get_order", "not implemented" )
         ELSE
@@ -167,14 +167,18 @@ CONTAINS
 
 !******************************************************************************
 
-  SUBROUTINE xc_lda ( functional, ftags, rho, drho, pot, order )
+  SUBROUTINE xc_lda ( functional, ftags, rho, pot, order, drho, error )
      IMPLICIT NONE
      CHARACTER (LEN=*), DIMENSION ( 3 ), INTENT(IN) :: functional
      LOGICAL, DIMENSION ( 2, 3 ), INTENT(IN) :: ftags
-     REAL ( dbl ), DIMENSION (:), INTENT(IN) :: rho, drho
+     REAL ( dbl ), DIMENSION (:), INTENT(in) :: rho
+     REAL ( dbl ), DIMENSION (:), INTENT(in), OPTIONAL :: drho
      REAL ( dbl ), DIMENSION (:,:), INTENT(INOUT) :: pot
      INTEGER, INTENT(IN) :: order
+     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
+     CHARACTER(len=*), PARAMETER :: routineN='xc_lda',&
+          routineP=moduleN//':'//routineN
      LOGICAL :: gradient_correction, cross_term, docalc ( 3 )
      REAL ( dbl ), DIMENSION (:,:), ALLOCATABLE :: locpot
      INTEGER :: ifun, i, ierr, np, mp, lp, lpmax, ind ( 100 )
@@ -187,10 +191,14 @@ CONTAINS
      IF ( .NOT. gradient_correction ) THEN
        IF ( SIZE ( pot, 2 ) < order + 1 ) &
           CALL stop_program ( "xc_lda", "Size of array POT too small" )
-       CALL xc_calculate_lda ( functional(1), rho, drho, pot, order )
-       CALL xc_calculate_lda ( functional(2), rho, drho, pot, order )
-       CALL xc_calculate_lda ( functional(3), rho, drho, pot, order )
+       CALL xc_calculate_lda ( functional=functional(1), rho=rho,&
+            pot=pot, order=order, error=error )
+       CALL xc_calculate_lda ( functional=functional(2), rho=rho,&
+            pot=pot, order=order, error=error )
+       CALL xc_calculate_lda ( functional=functional(3), rho=rho,&
+            pot=pot, order=order, error=error )
      ELSE
+       CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
        docalc ( : ) = ( INDEX ( functional(:), "NONE" ) == 0 )
        np = SIZE ( pot, 1 )
        mp = SIZE ( pot, 2 )
@@ -203,7 +211,8 @@ CONTAINS
          IF ( docalc ( ifun ) ) THEN
            lp = xc_get_pot_size ( .FALSE., ftags(1,ifun), .FALSE., order )
            locpot(:,1:lp) = 0._dbl
-           CALL xc_calculate_lda ( functional(ifun), rho, drho, locpot, order )
+           CALL xc_calculate_lda ( functional=functional(ifun),&
+                rho=rho, drho=drho, pot=locpot, order=order, error=error )
            CALL xc_get_order ( .FALSE., ftags(1,ifun), .FALSE., &
                                gradient_correction, .FALSE., order, ind(1:lp) )
            DO i = 1, lp
@@ -219,14 +228,18 @@ CONTAINS
 
 !******************************************************************************
 
-  SUBROUTINE xc_calculate_lda ( functional, rho, drho, pot, order )
+  SUBROUTINE xc_calculate_lda ( functional, rho, pot, order, drho ,error )
      IMPLICIT NONE
      CHARACTER (LEN=*), INTENT(IN) :: functional
-     REAL ( dbl ), DIMENSION (:), INTENT(IN) :: rho, drho
+     REAL ( dbl ), DIMENSION (:), INTENT(in) :: rho
+     REAL ( dbl ), DIMENSION (:), INTENT(in), OPTIONAL :: drho
      REAL ( dbl ), DIMENSION (:,:), INTENT(INOUT) :: pot
      INTEGER, INTENT(IN) :: order
+     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
      INTEGER :: ierr
+     CHARACTER(len=3),PARAMETER :: routineN='xc_calculate_lda',&
+          routineP=moduleN//':'//routineN
 
      ierr = 0
 
@@ -241,21 +254,27 @@ CONTAINS
         CALL xalpha ( rho, pot, order )
      CASE ( "BECKE88" )
         CALL b88 ( cutoff )
+        CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
         CALL b88 ( rho, drho, pot, order )
      CASE ( "X_PW86" )
         CALL x_pw86 ( cutoff )
+        CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
         CALL x_pw86 ( rho, drho, pot, order )
      CASE ( "X_PW91" )
         CALL x_pw91 ( cutoff )
+        CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
         CALL x_pw91 ( rho, drho, pot, order )
      CASE ( "PBEX" )
         CALL pbex ( cutoff )
+        CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
         CALL pbex ( rho, drho, pot, order )
      CASE ( "REVPBEX" )
         CALL revpbex ( cutoff )
+        CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
         CALL revpbex ( rho, drho, pot, order )
      CASE ( "OPTX" )
         CALL optx ( cutoff )
+        CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
         CALL optx ( rho, drho, pot, order )
 !correlation functional
      CASE ( "PZ" )
@@ -272,12 +291,15 @@ CONTAINS
         CALL pade ( rho, pot, order )
      CASE ( "PERDEW86" )
         CALL perdew86 ( cutoff )
+        CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
         CALL perdew86 ( rho, drho, pot, order )
      CASE ( "LYP" )
         CALL lyp ( cutoff )
+        CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
         CALL lyp ( rho, drho, pot, order )
      CASE ( "CS1" )
         CALL cs1 ( cutoff )
+        CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
         CALL cs1 ( rho, drho, pot, order )
 !kinetic energy functional
      CASE ( "TF" )
@@ -285,27 +307,35 @@ CONTAINS
         CALL thomas_fermi ( rho, pot, order )
      CASE ( "TFW" )
         CALL tfw ( cutoff )
+        CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
         CALL tfw ( rho, drho, pot, order )
      CASE ( "OL1" )
         CALL ol1 ( cutoff )
+        CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
         CALL ol1 ( rho, drho, pot, order )
      CASE ( "OL2" )
         CALL ol2 ( cutoff )
+        CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
         CALL ol2 ( rho, drho, pot, order )
      CASE ( "LLP" )
         CALL llp ( cutoff )
+        CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
         CALL llp ( rho, drho, pot, order )
      CASE ( "KE_PW86" )
         CALL ke_pw86 ( cutoff )
+        CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
         CALL ke_pw86 ( rho, drho, pot, order )
      CASE ( "KE_PW91" )
         CALL ke_pw91 ( cutoff )
+        CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
         CALL ke_pw91 ( rho, drho, pot, order )
      CASE ( "LC" )
         CALL lc ( cutoff )
+        CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
         CALL lc ( rho, drho, pot, order )
      CASE ( "T92" )
         CALL t92 ( cutoff )
+        CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
         CALL t92 ( rho, drho, pot, order )
      END SELECT
 
@@ -316,14 +346,19 @@ CONTAINS
 
 !******************************************************************************
 
-  SUBROUTINE xc_calculate_lsd ( functional, rhoa, rhob, drhoa, drhob, pot, order )
+  SUBROUTINE xc_calculate_lsd ( functional, rhoa, rhob, pot, &
+       order, drhoa, drhob, error )
      IMPLICIT NONE
      CHARACTER (LEN=*), INTENT(IN) :: functional
-     REAL ( dbl ), DIMENSION (:), INTENT(IN) :: rhoa, rhob, drhoa, drhob
+     REAL ( dbl ), DIMENSION (:), INTENT(in) :: rhoa, rhob
+     REAL ( dbl ), DIMENSION (:), INTENT(in), OPTIONAL :: drhoa, drhob
      REAL ( dbl ), DIMENSION (:,:), INTENT(INOUT) :: pot
      INTEGER, INTENT(IN) :: order
+     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
      INTEGER :: ierr
+     CHARACTER(len=3),PARAMETER :: routineN='xc_calculate_lsd',&
+          routineP=moduleN//':'//routineN
 
      ierr = 0
 
@@ -338,21 +373,33 @@ CONTAINS
         CALL xalpha ( rhoa, rhob, pot, order )
      CASE ( "BECKE88" )
         CALL b88 ( cutoff )
+        CPPreconditionNoFail(PRESENT(drhoa),cp_failure_level,routineP,error)
+        CPPreconditionNoFail(PRESENT(drhob),cp_failure_level,routineP,error)
         CALL b88 ( rhoa, rhob, drhoa, drhob, pot, order )
      CASE ( "X_PW86" )
         CALL x_pw86 ( cutoff )
+        CPPreconditionNoFail(PRESENT(drhoa),cp_failure_level,routineP,error)
+        CPPreconditionNoFail(PRESENT(drhob),cp_failure_level,routineP,error)
         CALL x_pw86 ( rhoa, rhob, drhoa, drhob, pot, order )
      CASE ( "X_PW91" )
         CALL x_pw91 ( cutoff )
+        CPPreconditionNoFail(PRESENT(drhoa),cp_failure_level,routineP,error)
+        CPPreconditionNoFail(PRESENT(drhob),cp_failure_level,routineP,error)
         CALL x_pw91 ( rhoa, rhob, drhoa, drhob, pot, order )
      CASE ( "PBEX" )
         CALL pbex ( cutoff )
+        CPPreconditionNoFail(PRESENT(drhoa),cp_failure_level,routineP,error)
+        CPPreconditionNoFail(PRESENT(drhob),cp_failure_level,routineP,error)
         CALL pbex ( rhoa, rhob, drhoa, drhob, pot, order )
      CASE ( "REVPBEX" )
         CALL revpbex ( cutoff )
+        CPPreconditionNoFail(PRESENT(drhoa),cp_failure_level,routineP,error)
+        CPPreconditionNoFail(PRESENT(drhob),cp_failure_level,routineP,error)
         CALL revpbex ( rhoa, rhob, drhoa, drhob, pot, order )
      CASE ( "OPTX" )
         CALL optx ( cutoff )
+        CPPreconditionNoFail(PRESENT(drhoa),cp_failure_level,routineP,error)
+        CPPreconditionNoFail(PRESENT(drhob),cp_failure_level,routineP,error)
         CALL optx ( rhoa, rhob, drhoa, drhob, pot, order )
 !correlation functional
      CASE ( "PZ" )
@@ -369,9 +416,13 @@ CONTAINS
         CALL pade ( rhoa, rhob, pot, order )
      CASE ( "PERDEW86" )
         CALL perdew86 ( cutoff )
+        CPPreconditionNoFail(PRESENT(drhoa),cp_failure_level,routineP,error)
+        CPPreconditionNoFail(PRESENT(drhob),cp_failure_level,routineP,error)
         CALL perdew86 ( rhoa, rhob, drhoa, drhob, pot, order )
      CASE ( "LYP" )
         CALL lyp ( cutoff )
+        CPPreconditionNoFail(PRESENT(drhoa),cp_failure_level,routineP,error)
+        CPPreconditionNoFail(PRESENT(drhob),cp_failure_level,routineP,error)
         CALL lyp ( rhoa, rhob, drhoa, drhob, pot, order )
 !kinetic energy functional
      CASE ( "TF" )
@@ -379,27 +430,43 @@ CONTAINS
         CALL thomas_fermi ( rhoa, rhob, pot, order )
      CASE ( "TFW" )
         CALL tfw ( cutoff )
+        CPPreconditionNoFail(PRESENT(drhoa),cp_failure_level,routineP,error)
+        CPPreconditionNoFail(PRESENT(drhob),cp_failure_level,routineP,error)
         CALL tfw ( rhoa, rhob, drhoa, drhob, pot, order )
      CASE ( "OL1" )
         CALL ol1 ( cutoff )
+        CPPreconditionNoFail(PRESENT(drhoa),cp_failure_level,routineP,error)
+        CPPreconditionNoFail(PRESENT(drhob),cp_failure_level,routineP,error)
         CALL ol1 ( rhoa, rhob, drhoa, drhob, pot, order )
      CASE ( "OL2" )
         CALL ol2 ( cutoff )
+        CPPreconditionNoFail(PRESENT(drhoa),cp_failure_level,routineP,error)
+        CPPreconditionNoFail(PRESENT(drhob),cp_failure_level,routineP,error)
         CALL ol2 ( rhoa, rhob, drhoa, drhob, pot, order )
      CASE ( "LLP" )
         CALL llp ( cutoff )
+        CPPreconditionNoFail(PRESENT(drhoa),cp_failure_level,routineP,error)
+        CPPreconditionNoFail(PRESENT(drhob),cp_failure_level,routineP,error)
         CALL llp ( rhoa, rhob, drhoa, drhob, pot, order )
      CASE ( "KE_PW86" )
         CALL ke_pw86 ( cutoff )
+        CPPreconditionNoFail(PRESENT(drhoa),cp_failure_level,routineP,error)
+        CPPreconditionNoFail(PRESENT(drhob),cp_failure_level,routineP,error)
         CALL ke_pw86 ( rhoa, rhob, drhoa, drhob, pot, order )
      CASE ( "KE_PW91" )
         CALL ke_pw91 ( cutoff )
+        CPPreconditionNoFail(PRESENT(drhoa),cp_failure_level,routineP,error)
+        CPPreconditionNoFail(PRESENT(drhob),cp_failure_level,routineP,error)
         CALL ke_pw91 ( rhoa, rhob, drhoa, drhob, pot, order )
      CASE ( "LC" )
         CALL lc ( cutoff )
+        CPPreconditionNoFail(PRESENT(drhoa),cp_failure_level,routineP,error)
+        CPPreconditionNoFail(PRESENT(drhob),cp_failure_level,routineP,error)
         CALL lc ( rhoa, rhob, drhoa, drhob, pot, order )
      CASE ( "T92" )
         CALL t92 ( cutoff )
+        CPPreconditionNoFail(PRESENT(drhoa),cp_failure_level,routineP,error)
+        CPPreconditionNoFail(PRESENT(drhob),cp_failure_level,routineP,error)
         CALL t92 ( rhoa, rhob, drhoa, drhob, pot, order )
      END SELECT
 
@@ -725,6 +792,16 @@ CONTAINS
 !!
 !!   NAME
 !!     xc_create_2nd_deriv_info
+!!
+!!   SYNOPSIS
+!!     Subroutine xc_create_2nd_deriv_info(lsd, gradient, crossterms,&
+!!         spin_pot, grad_pot, ndiag_term, error)
+!!       Logical, Intent (IN):: lsd, gradient, crossterms
+!!       Integer, Dimension(:,:), Pointer:: spin_pot
+!!       Logical, Dimension(:,:), Pointer:: grad_pot
+!!       Logical, Dimension(:), Pointer:: ndiag_term
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine xc_create_2nd_deriv_info
 !!
 !!   FUNCTION
 !!     allocates and fills out spins_pot cross_pot and grad_pot

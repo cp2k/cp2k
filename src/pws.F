@@ -2,6 +2,9 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
 !!****** cp2k/pws [1.0] *
 !!
 !!   NAME
@@ -20,33 +23,76 @@
 !******************************************************************************
 
 MODULE pws
-
-  USE coefficient_types, ONLY : coeff_type, coeff_allocate, coeff_deallocate, &
-       SQUARE, SQUAREROOT, PLANEWAVES
-  USE greens_fn, ONLY : pw_green_fn, greens_function_type, &
-                        PERIODIC3D, ANALYTIC2D, &
-                        ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, &
-                        HOCKNEY2D, HOCKNEY1D, HOCKNEY0D
-  USE kinds, ONLY : dbl
-  USE mathconstants, ONLY : fourpi
-  USE message_passing, ONLY : mp_sum
-  USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE, FULLSPACE
-  USE pw_types, ONLY : pw_type, pw_allocate, pw_deallocate, &
-       pw_copy, pw_derive, pw_transfer, pw_gather, pw_scatter, pw_fft_wrap, &
-       REALDATA1D, COMPLEXDATA1D, REALDATA3D, COMPLEXDATA3D, &
-       NOSPACE, REALSPACE, RECIPROCALSPACE
-  USE termination, ONLY : stop_memory, stop_program
-  USE util, ONLY : dotprod_3d
-
+  USE coefficient_types,               ONLY: PLANEWAVES,&
+                                             SQUARE,&
+                                             SQUAREROOT,&
+                                             coeff_allocate,&
+                                             coeff_deallocate,&
+                                             coeff_type
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE greens_fn,                       ONLY: ANALYTIC0D,&
+                                             ANALYTIC1D,&
+                                             ANALYTIC2D,&
+                                             HOCKNEY0D,&
+                                             HOCKNEY1D,&
+                                             HOCKNEY2D,&
+                                             MT0D,&
+                                             MT1D,&
+                                             MT2D,&
+                                             PERIODIC3D,&
+                                             greens_function_type,&
+                                             pw_green_fn
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: fourpi
+  USE message_passing,                 ONLY: mp_sum
+  USE pw_grid_types,                   ONLY: FULLSPACE,&
+                                             HALFSPACE,&
+                                             pw_grid_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             COMPLEXDATA3D,&
+                                             NOSPACE,&
+                                             REALDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_allocate,&
+                                             pw_copy,&
+                                             pw_deallocate,&
+                                             pw_derive,&
+                                             pw_fft_wrap,&
+                                             pw_gather,&
+                                             pw_scatter,&
+                                             pw_transfer,&
+                                             pw_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE util,                            ONLY: dotprod_3d
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: pw_poisson_solver, pw_kinetic_evaluate, init_pw_poisson_solver
+  PUBLIC :: pw_poisson_solver, pw_kinetic_evaluate, init_pw_poisson_solver,&
+       cleanup_pw_poisson_solver
   PUBLIC :: pw_integral_aa, pw_integral_ab, pw_integral_a2b, pw_h_psi, &
             pw_collect
 
 ! Global variable
   TYPE ( greens_function_type ), POINTER :: gf
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='pws'
 
 !!*****
 !******************************************************************************
@@ -59,8 +105,19 @@ CONTAINS
 !!   NAME
 !!     init_pw_poisson_solver
 !!
+!!   SYNOPSIS
+!!     Subroutine init_pw_poisson_solver(gftype, error)
+!!       Implicit None
+!!       Type(greens_function_type), Intent (IN), Target:: gftype
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine init_pw_poisson_solver
+!!
 !!   FUNCTION
 !!     Initialize the module variable gf, used in the poisson solver
+!!     You should call this just before calling the work routine
+!!     pw_poisson_solver (don't assume that no other piece of the program
+!!     uses the poisson solver in another context).
+!!     Call cleanup_pw_poisson_solver when you have finished
 !!
 !!   AUTHOR
 !!     JGH (12-Mar-2001)
@@ -68,28 +125,100 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!******************************************************************************
-
-SUBROUTINE init_pw_poisson_solver ( gftype )
+!!*** *************************************************************************
+SUBROUTINE init_pw_poisson_solver ( gftype, error )
 
   IMPLICIT NONE
 
 ! Arguments
   TYPE ( greens_function_type ), INTENT ( IN ), TARGET :: gftype
+  TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+
+! Locals
+  LOGICAL, SAVE :: first_time=.TRUE.
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='init_pw_poisson_solver',&
+       routineP=moduleN//':'//routineN
 
 !------------------------------------------------------------------------------
 
+  failure=.FALSE.
+  IF (first_time) THEN
+     first_time=.FALSE.
+  ELSE
+     CPPrecondition(.not.ASSOCIATED(gf),cp_failure_level,routineP,error,failure)
+  END IF
   gf => gftype
 
 END SUBROUTINE init_pw_poisson_solver
-
-!!*****
 !******************************************************************************
+
+!!****** pws/cleanup_pw_poisson_solver [1.0] *
+!!
+!!   NAME
+!!     cleanup_pw_poisson_solver
+!!
+!!   SYNOPSIS
+!!     Subroutine cleanup_pw_poisson_solver(gftype, error)
+!!       Implicit None
+!!       Type(greens_function_type), Intent (IN), Target, Optional:: gftype
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine cleanup_pw_poisson_solver
+!!
+!!   FUNCTION
+!!     Frees again the module variable gf, used in the poisson solver.
+!!     call this as soon as you don't need the poisson solver anymore
+!!     (so that other pieces of the program can use it).
+!!
+!!   AUTHOR
+!!     fawzi (11.2002)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** *************************************************************************
+SUBROUTINE cleanup_pw_poisson_solver ( gftype, error)
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( greens_function_type ), INTENT ( IN ), TARGET, OPTIONAL :: gftype
+  TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+
+! Locals
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cleanup_pw_poisson_solver',&
+       routineP=moduleN//':'//routineN
+
+!------------------------------------------------------------------------------
+
+  failure=.FALSE.
+  IF (PRESENT(gftype)) THEN
+     CPPrecondition(ASSOCIATED(gf),cp_failure_level,routineP,error,failure)
+     IF (.not.failure) THEN
+        CPPrecondition(gf%id_nr==gftype%id_nr,cp_failure_level,routineP,error,failure)
+     END IF
+  END IF
+  NULLIFY(gf)
+
+END SUBROUTINE cleanup_pw_poisson_solver
+!******************************************************************************
+
 !!****** pws/pw_poisson_solver [1.0] *
 !!
 !!   NAME
 !!     pw_poisson_solver
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_poisson_solver(density, ehartree, vhartree, dvhartree,&
+!!         h_stress)
+!!       Implicit None
+!!       Type(coeff_type), Intent (IN):: density
+!!       Real(Kind=dbl), Intent (OUT), Optional:: ehartree
+!!       Type(coeff_type), Intent (OUT), Target, Optional:: vhartree
+!!       Type(coeff_type), Dimension(3), Intent (OUT), Optional:: dvhartree
+!!       Real(Kind=dbl), Dimension(3,3), Intent (OUT), Optional:: h_stress
+!!     End Subroutine pw_poisson_solver
 !!
 !!   FUNCTION
 !!     Solve Poisson equation in a plane wave basis set
@@ -170,7 +299,7 @@ SUBROUTINE pw_poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress 
   IF ( PRESENT ( h_stress ) .OR. PRESENT ( dvhartree ) ) THEN
     IF ( gf % method /= PERIODIC3D ) THEN
       CALL stop_program ( "pw_poisson_solver", &
-        "Pressure calculation works only for fully priodic systems" )
+        "Pressure calculation works ONLY for fully priodic systems" )
     END IF
     DO i = 1, 3
       CALL pw_allocate ( dvg ( i ), pw_grid, COMPLEXDATA1D )
@@ -274,7 +403,7 @@ FUNCTION pw_integral_ab ( pw1, pw2, flag ) RESULT ( integral_value )
        .AND. pw2 % in_use == COMPLEXDATA1D ) THEN
      integral_value = SUM ( CONJG ( pw1 % cc ( : ) ) * pw2 % cc ( : ) )
   ELSE
-     CALL stop_program ( "integral_ab", "no possible data" )
+     CALL stop_program ( "integral_ab", "no possible DATA" )
   END IF
 
   IF ( pw1 % in_use == REALDATA3D .OR. pw1 % in_use == COMPLEXDATA3D ) THEN
@@ -324,7 +453,7 @@ FUNCTION pw_integral_aa ( pw1, flag ) RESULT ( integral_value )
                    CONJG ( pw1 % cc ( 1 ) ) * pw1 % cc ( 1 )
            END IF
         ELSE
-           CALL stop_program ( "integral_aa", "no possible SQUARE data" )
+           CALL stop_program ( "integral_aa", "no possible SQUARE DATA" )
         END IF
 
      ELSE IF ( flag == SQUAREROOT ) THEN
@@ -341,7 +470,7 @@ FUNCTION pw_integral_aa ( pw1, flag ) RESULT ( integral_value )
      ELSE IF ( pw1 % in_use == COMPLEXDATA1D ) THEN
         integral_value = SUM ( pw1 % cc ( : ) )
      ELSE
-        CALL stop_program ( "integral_aa", "no possible data" )
+        CALL stop_program ( "integral_aa", "no possible DATA" )
      END IF
   END IF
 
@@ -382,7 +511,7 @@ FUNCTION pw_integral_a2b ( pw1, pw2 ) RESULT ( integral_value )
         integral_value = 2._dbl * integral_value
      END IF
   ELSE
-     CALL stop_program ( "integral_a2b", "no possible data" )
+     CALL stop_program ( "integral_a2b", "no possible DATA" )
   END IF
 
   IF ( pw1 % in_use == REALDATA3D .OR. pw1 % in_use == COMPLEXDATA3D ) THEN
@@ -402,6 +531,17 @@ END FUNCTION pw_integral_a2b
 !!
 !!   NAME
 !!     pw_kinetic_evaluate
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_kinetic_evaluate(psi, xkpt, e_kinetic,&
+!!         kinetic_oper_psi, stress_kinetic)
+!!       Implicit None
+!!       Type(coeff_type), Intent (IN):: psi
+!!       Real(Kind=dbl), Intent (IN):: xkpt(3)
+!!       Real(Kind=dbl), Intent (OUT), Optional:: e_kinetic
+!!       Type(coeff_type), Intent (INOUT), Optional:: kinetic_oper_psi
+!!       Real(Kind=dbl), Intent (INOUT), Optional:: stress_kinetic(3,3)
+!!     End Subroutine pw_kinetic_evaluate
 !!
 !!   FUNCTION
 !!     Calculate kinetic energy, potential, derivative of potential and
@@ -441,7 +581,7 @@ SUBROUTINE pw_kinetic_evaluate ( psi, xkpt, e_kinetic, kinetic_oper_psi, &
   
   IF ( psi % pw % in_use /= COMPLEXDATA1D .OR. &
        kinetic_oper_psi % pw % in_use /= COMPLEXDATA1D ) THEN
-     CALL stop_program ( "pw_kinetic_evaluate", "wrong data in use" )
+     CALL stop_program ( "pw_kinetic_evaluate", "wrong DATA in USE" )
   END IF
 
   !OpenMP: parallel do
@@ -467,6 +607,16 @@ END SUBROUTINE pw_kinetic_evaluate
 !!
 !!   NAME
 !!     pw_h_psi
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_h_psi(psi_iks, xkpt, vloc, h_psi, psi_iks_r)
+!!       Implicit None
+!!       Type(coeff_type), Intent (IN):: psi_iks
+!!       Type(coeff_type), Intent (IN), Optional:: psi_iks_r
+!!       Type(coeff_type), Intent (IN):: vloc
+!!       Real(Kind=dbl), Intent (IN):: xkpt(3)
+!!       Type(coeff_type), Intent (INOUT):: h_psi
+!!     End Subroutine pw_h_psi
 !!
 !!   FUNCTION
 !!     Apply local potential to a wavefunction in plane wave basis
@@ -532,7 +682,7 @@ SUBROUTINE pw_h_psi ( psi_iks, xkpt, vloc, h_psi, psi_iks_r )
 
   CALL pw_fft_wrap ( cfft, h_psi%pw )
 
-  !! This must be done after the local potential
+!! This must be done after the local potential
   CALL pw_kinetic_evaluate ( psi_iks, xkpt, ekinetic, h_psi )
 
   CALL pw_deallocate ( cfft )

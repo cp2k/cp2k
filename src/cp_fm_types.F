@@ -164,7 +164,7 @@ CONTAINS
     CALL cp_fm_struct_release(matrix_struct)
   END SUBROUTINE cp_fm_create2
 
-!!****f* qs_blacs/cp_fm_create [1.0] *
+!!****f* cp_fm_types/cp_fm_create [1.0] *
 !!
 !!   NAME
 !!     cp_fm_create
@@ -249,7 +249,7 @@ CONTAINS
   END SUBROUTINE cp_fm_create
 !***************************************************************************
 
-!!****f* qs_blacs/cp_fm_retain [1.0] *
+!!****f* cp_fm_types/cp_fm_retain [1.0] *
 !!
 !!   NAME
 !!     cp_fm_retain
@@ -295,7 +295,7 @@ CONTAINS
   END SUBROUTINE cp_fm_retain
 !***************************************************************************
 
-!!****f* qs_blacs/cp_fm_release [1.0] *
+!!****f* cp_fm_types/cp_fm_release [1.0] *
 !!
 !!   NAME
 !!     cp_fm_release
@@ -355,7 +355,7 @@ CONTAINS
 !***************************************************************************
 
 ! *****************************************************************************
-! init ncol vectors of a blacs matrix with random numbers
+! init ncol vectors of a full matrix with random numbers
 ! *****************************************************************************
   SUBROUTINE CP_FM_INIT_RANDOM(matrix,ncol,error)
 
@@ -417,7 +417,7 @@ CONTAINS
 
   SUBROUTINE cp_fm_set_all(matrix,alpha,error)
 
-!   Purpose: Set the BLACS matrix elements to alpha.
+!   Purpose: Set the FULL matrix elements to alpha.
 
 !   History: - Creation (12.06.2001, Matthias Krack)
 
@@ -512,7 +512,7 @@ CONTAINS
 
   SUBROUTINE cp_fm_set_element(matrix,irow_global,icol_global,alpha,error)
 
-!   Purpose: Set the BLACS matrix element (irow_global,icol_global) to alpha.
+!   Purpose: Set the FULL matrix element (irow_global,icol_global) to alpha.
 
 !   History: - Creation (08.06.2001, Matthias Krack)
 
@@ -562,25 +562,36 @@ CONTAINS
 #endif
   END SUBROUTINE cp_fm_set_element
 
-!!****f* qs_blacs/blacs_submatrix_set [1.0] *
+!!****f* cp_fm_types/cp_fm_set_submatrix [1.0] *
 !!
 !!   NAME
-!!     blacs_submatrix_set
+!!     cp_fm_set_submatrix
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_fm_set_submatrix(full_matrix, new_values, start_row,&
+!!         start_col, n_rows, n_cols, alpha, beta, transpose_new_val,&
+!!         error)
+!!       Type(cp_full_matrix_type), Pointer:: full_matrix
+!!       Real(Kind=wp), Dimension(:,:), Intent (IN):: new_values
+!!       Integer, Intent (IN), Optional:: start_row, start_col, n_rows,&
+!!         n_cols
+!!       Real(Kind=wp), Intent (IN), Optional:: alpha, beta
+!!       Logical, Intent (IN), Optional:: transpose_new_val
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine cp_fm_set_submatrix
 !!
 !!   FUNCTION
-!!     sets a submatrix of a blacs matrix
-!!      blacs_matrix(start_row:start_row+n_rows,start_col:start_col+n_cols)
+!!     sets a submatrix of a full matrix
+!!      full_matrix(start_row:start_row+n_rows,start_col:start_col+n_cols)
 !!      = alpha*op(new_values)(1:n_rows,1:n_cols)+ beta 
-!!      * blacs_matrix(start_row:start_row+n_rows,start_col:start_col+n_cols)
+!!      * full_matrix(start_row:start_row+n_rows,start_col:start_col+n_cols)
 !!
 !!   NOTES
 !!     optimized for full column updates and alpha=1.0, beta=0.0
-!!     col_indices, and row_indices should be cached in some structure
-!!     common to all the "similar" blacs matrixes
 !!
 !!   INPUTS
 !!     - new_values: a replicated full matrix with the new values
-!!     - blacs_matrix: the blacs to change
+!!     - full_matrix: the full to change
 !!     - start_row: the starting row of b_matrix (defaults to 1)
 !!     - start_col: the starting col of b_matrix (defaults to 1)
 !!     - n_rows: the number of row to change in b (defaults to
@@ -602,128 +613,136 @@ CONTAINS
 !!     07.2002 created borrowing from Joost's blacs_replicated_copy [fawzi]
 !!
 !!*** *********************************************************************
-  SUBROUTINE cp_fm_set_submatrix(blacs_matrix,new_values,start_row,&
+  SUBROUTINE cp_fm_set_submatrix(full_matrix,new_values,start_row,&
        start_col, n_rows, n_cols, alpha, beta, transpose_new_val, error)
-    TYPE(cp_full_matrix_type) , POINTER :: blacs_matrix
-    REAL(wp), DIMENSION(:,:), POINTER :: new_values
+    TYPE(cp_full_matrix_type) , POINTER :: full_matrix
+    REAL(wp), DIMENSION(:,:), INTENT(in) :: new_values
     INTEGER, INTENT(in), OPTIONAL :: start_row, start_col,&
          n_rows, n_cols
     REAL(kind=wp), INTENT(in), OPTIONAL :: alpha, beta
     LOGICAL, INTENT(in), OPTIONAL :: transpose_new_val
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: blacs_block
+    REAL(kind=wp), DIMENSION(:,:), POINTER :: full_block
     REAL(kind=wp) :: al,be
     INTEGER :: i0,j0,ncol,nrow,i,j,nrow_global,ncol_global,ncol_block,&
          this_col,this_row,nrow_local,ncol_local,nrow_block,handle
     INTEGER, DIMENSION(:), POINTER :: row_indices,col_indices
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_set_submatrix',&
          routineP=moduleN//':'//routineN
-    LOGICAL :: tr_a
+    LOGICAL :: tr_a, failure
     TYPE(cp_para_env_type), POINTER :: para_env
     TYPE(cp_blacs_env_type), POINTER :: context
     al=1.0_wp; be=0.0_wp; i0=1; j0=1; tr_a=.FALSE.
 
     CALL timeset(routineN//','//moduleN,"I","",handle)
 
-    IF (PRESENT(alpha)) al=alpha
-    IF (PRESENT(beta)) be=beta
-    IF (PRESENT(start_row)) i0=start_row
-    IF (PRESENT(start_col)) j0=start_col
-    IF (PRESENT(transpose_new_val)) tr_a=transpose_new_val
-    IF (tr_a) THEN
-       nrow=SIZE(new_values,2)
-       ncol=SIZE(new_values,1)
-    ELSE
-       nrow=SIZE(new_values,1)
-       ncol=SIZE(new_values,2)
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(full_matrix),cp_failure_level,routineP,error,failure)
+    IF (.not.failure) THEN
+       CPPrecondition(full_matrix%ref_count>0,cp_failure_level,routineP,error,failure)
     END IF
-    IF (PRESENT(n_rows)) nrow=n_rows
-    IF (PRESENT(n_cols)) ncol=n_cols
+    IF (.not.failure) THEN
+       IF (PRESENT(alpha)) al=alpha
+       IF (PRESENT(beta)) be=beta
+       IF (PRESENT(start_row)) i0=start_row
+       IF (PRESENT(start_col)) j0=start_col
+       IF (PRESENT(transpose_new_val)) tr_a=transpose_new_val
+       IF (tr_a) THEN
+          nrow=SIZE(new_values,2)
+          ncol=SIZE(new_values,1)
+       ELSE
+          nrow=SIZE(new_values,1)
+          ncol=SIZE(new_values,2)
+       END IF
+       IF (PRESENT(n_rows)) nrow=n_rows
+       IF (PRESENT(n_cols)) ncol=n_cols
 
-    para_env => blacs_matrix%matrix_struct%para_env
-    context => blacs_matrix%matrix_struct%context
+       para_env => full_matrix%matrix_struct%para_env
+       context => full_matrix%matrix_struct%context
 
-    blacs_block => blacs_matrix%local_data
+       full_block => full_matrix%local_data
 
-    CALL cp_fm_get_info(matrix=blacs_matrix,&
-         nrow_global=nrow_global,ncol_global=ncol_global,&
-         nrow_block =nrow_block ,ncol_block =ncol_block ,&
-         nrow_local =nrow_local ,ncol_local =ncol_local ,&
-         row_indices=row_indices,col_indices=col_indices)
+       CALL cp_fm_get_info(matrix=full_matrix,&
+            nrow_global=nrow_global,ncol_global=ncol_global,&
+            nrow_block =nrow_block ,ncol_block =ncol_block ,&
+            nrow_local =nrow_local ,ncol_local =ncol_local ,&
+            row_indices=row_indices,col_indices=col_indices)
 
-    IF (al==1.0.AND.be==0.0) THEN
-       DO j=1,ncol_local
-          this_col=col_indices(j)-j0+1
-          IF (this_col.GE.1 .AND. this_col.LE.ncol) THEN
-             IF (tr_a) THEN
-                IF (i0==1.AND.nrow_global==nrow) THEN
+       IF (al==1.0.AND.be==0.0) THEN
+          DO j=1,ncol_local
+             this_col=col_indices(j)-j0+1
+             IF (this_col.GE.1 .AND. this_col.LE.ncol) THEN
+                IF (tr_a) THEN
+                   IF (i0==1.AND.nrow_global==nrow) THEN
+                      DO i=1,nrow_local
+                         full_block(i,j)=new_values(this_col,row_indices(i))
+                      END DO
+                   ELSE
+                      DO i=1,nrow_local
+                         this_row=row_indices(i)-i0+1
+                         IF (this_row>=1 .AND. this_row<=nrow) THEN
+                            full_block(i,j)=new_values(this_col,this_row)
+                         END IF
+                      END DO
+                   END IF
+                ELSE
+                   IF (i0==1.AND.nrow_global==nrow) THEN
+                      DO i=1,nrow_local
+                         full_block(i,j)=new_values(row_indices(i),this_col)
+                      END DO
+                   ELSE
+                      DO i=1,nrow_local
+                         this_row=row_indices(i)-i0+1
+                         IF (this_row>=1 .AND. this_row<=nrow) THEN
+                            full_block(i,j)=new_values(this_row,this_col)
+                         END IF
+                      END DO
+                   END IF
+                END IF
+             END IF
+          END DO
+       ELSE
+          DO j=1,ncol_local
+             this_col=col_indices(j)-j0+1
+             IF (this_col.GE.1 .AND. this_col.LE.ncol) THEN
+                IF (tr_a) THEN
                    DO i=1,nrow_local
-                      blacs_block(i,j)=new_values(this_col,row_indices(i))
+                      this_row=row_indices(i)-i0+1
+                      IF (this_row>=1 .AND. this_row<=nrow) THEN
+                         full_block(i,j)=al*new_values(this_col,this_row)+&
+                              be*full_block(i,j)
+                      END IF
                    END DO
                 ELSE
                    DO i=1,nrow_local
                       this_row=row_indices(i)-i0+1
                       IF (this_row>=1 .AND. this_row<=nrow) THEN
-                         blacs_block(i,j)=new_values(this_col,this_row)
-                      END IF
-                   END DO
-                END IF
-             ELSE
-                IF (i0==1.AND.nrow_global==nrow) THEN
-                   DO i=1,nrow_local
-                      blacs_block(i,j)=new_values(row_indices(i),this_col)
-                   END DO
-                ELSE
-                   DO i=1,nrow_local
-                      this_row=row_indices(i)-i0+1
-                      IF (this_row>=1 .AND. this_row<=nrow) THEN
-                         blacs_block(i,j)=new_values(this_row,this_col)
+                         full_block(i,j)=al*new_values(this_row,this_col)+&
+                              be*full_block(i,j)
                       END IF
                    END DO
                 END IF
              END IF
-          END IF
-       END DO
-    ELSE
-       DO j=1,ncol_local
-          this_col=col_indices(j)-j0+1
-          IF (this_col.GE.1 .AND. this_col.LE.ncol) THEN
-             IF (tr_a) THEN
-                DO i=1,nrow_local
-                   this_row=row_indices(i)-i0+1
-                   IF (this_row>=1 .AND. this_row<=nrow) THEN
-                      blacs_block(i,j)=al*new_values(this_col,this_row)+&
-                           be*blacs_block(i,j)
-                   END IF
-                END DO
-             ELSE
-                DO i=1,nrow_local
-                   this_row=row_indices(i)-i0+1
-                   IF (this_row>=1 .AND. this_row<=nrow) THEN
-                      blacs_block(i,j)=al*new_values(this_row,this_col)+&
-                           be*blacs_block(i,j)
-                   END IF
-                END DO
-             END IF
-          END IF
-       END DO
+          END DO
+       END IF
     END IF
 
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE cp_fm_set_submatrix
 
-!!****f* qs_blacs/cp_fm_get_submatrix [1.0] *
+!!****f* cp_fm_types/cp_fm_get_submatrix [1.0] *
 !!
 !!   NAME
 !!     cp_fm_get_submatrix
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_fm_get_submatrix(blacs_matrix, target_m, start_row,&
+!!     Subroutine cp_fm_get_submatrix(full_matrix, target_m, start_row,&
 !!         start_col, n_rows, n_cols, transpose_target_m, error)
-!!       Type(cp_full_matrix_type), Pointer:: blacs_matrix
-!!       Real(Kind=wp), Dimension(:,:), Pointer:: target_m
+!!       Type(cp_full_matrix_type), Pointer:: full_matrix
+!!       Real(Kind=wp), Dimension(:,:), Intent (OUT):: target_m
 !!       Integer, Intent (IN), Optional:: start_row, start_col, n_rows,&
 !!         n_cols
 !!       Logical, Intent (IN), Optional:: transpose_target_m
@@ -731,19 +750,17 @@ CONTAINS
 !!     End Subroutine cp_fm_get_submatrix
 !!
 !!   FUNCTION
-!!     gets a submatrix of a blacs matrix
+!!     gets a submatrix of a full matrix
 !!      op(target_m)(1:n_rows,1:n_cols)
-!!      =blacs_matrix(start_row:start_row+n_rows,start_col:start_col+n_cols)
+!!      =full_matrix(start_row:start_row+n_rows,start_col:start_col+n_cols)
 !!
 !!   NOTES
 !!     optimized for full column updates. Zeros out a little too much
 !!     of target_m
-!!     col_indices, and row_indices should be cached in some structure
-!!     common to all the "similar" blacs matrixes
 !!
 !!   INPUTS
 !!     - target_m: a replicated full matrix that will contain the result
-!!     - blacs_matrix: the blacs you want to get the info from
+!!     - full_matrix: the full you want to get the info from
 !!     - start_row: the starting row of b_matrix (defaults to 1)
 !!     - start_col: the starting col of b_matrix (defaults to 1)
 !!     - n_rows: the number of row to change in b (defaults to
@@ -763,91 +780,99 @@ CONTAINS
 !!     07.2002 created borrowing from Joost's blacs_replicated_copy [fawzi]
 !!
 !!*** *********************************************************************
-  SUBROUTINE cp_fm_get_submatrix(blacs_matrix,target_m, start_row,&
+  SUBROUTINE cp_fm_get_submatrix(full_matrix,target_m, start_row,&
        start_col, n_rows, n_cols, transpose_target_m, error)
-    TYPE(cp_full_matrix_type) , POINTER :: blacs_matrix
-    REAL(wp), DIMENSION(:,:), POINTER :: target_m
+    TYPE(cp_full_matrix_type) , POINTER :: full_matrix
+    REAL(wp), DIMENSION(:,:), INTENT(out) :: target_m
     INTEGER, INTENT(in), OPTIONAL :: start_row, start_col,&
          n_rows, n_cols
     LOGICAL, INTENT(in), OPTIONAL :: transpose_target_m
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: blacs_block
+    REAL(kind=wp), DIMENSION(:,:), POINTER :: full_block
     INTEGER :: i0,j0,ncol,nrow,i,j,nrow_global,ncol_global,ncol_block,&
          this_col,this_row,nrow_local,ncol_local,nrow_block,handle
     INTEGER, DIMENSION(:), POINTER :: row_indices,col_indices
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_get_submatrix',&
          routineP=moduleN//':'//routineN
-    LOGICAL :: tr_a
+    LOGICAL :: tr_a, failure
     TYPE(cp_para_env_type), POINTER :: para_env
     TYPE(cp_blacs_env_type), POINTER :: context
-    i0=1; j0=1; tr_a=.FALSE.
 
     CALL timeset(routineN//','//moduleN,"I","",handle)
 
-    IF (PRESENT(start_row)) i0=start_row
-    IF (PRESENT(start_col)) j0=start_col
-    IF (PRESENT(transpose_target_m)) tr_a=transpose_target_m
-    IF (tr_a) THEN
-       nrow=SIZE(target_m,2)
-       ncol=SIZE(target_m,1)
-    ELSE
-       nrow=SIZE(target_m,1)
-       ncol=SIZE(target_m,2)
+    i0=1; j0=1; tr_a=.FALSE.
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(full_matrix),cp_failure_level,routineP,error,failure)
+    IF (.not.failure) THEN
+       CPPrecondition(full_matrix%ref_count>0,cp_failure_level,routineP,error,failure)
     END IF
-    IF (PRESENT(n_rows)) nrow=n_rows
-    IF (PRESENT(n_cols)) ncol=n_cols
+    IF (.not.failure) THEN
+       IF (PRESENT(start_row)) i0=start_row
+       IF (PRESENT(start_col)) j0=start_col
+       IF (PRESENT(transpose_target_m)) tr_a=transpose_target_m
+       IF (tr_a) THEN
+          nrow=SIZE(target_m,2)
+          ncol=SIZE(target_m,1)
+       ELSE
+          nrow=SIZE(target_m,1)
+          ncol=SIZE(target_m,2)
+       END IF
+       IF (PRESENT(n_rows)) nrow=n_rows
+       IF (PRESENT(n_cols)) ncol=n_cols
 
-    para_env => blacs_matrix%matrix_struct%para_env
-    context => blacs_matrix%matrix_struct%context
+       para_env => full_matrix%matrix_struct%para_env
+       context => full_matrix%matrix_struct%context
 
-    blacs_block => blacs_matrix%local_data
+       full_block => full_matrix%local_data
 #if defined(__SCALAPACK)
-! zero-out whole target_m 
-    CALL dcopy(SIZE(target_m,1)*SIZE(target_m,2),0.0_wp,0,target_m(1,1),1)
+       ! zero-out whole target_m 
+       CALL dcopy(SIZE(target_m,1)*SIZE(target_m,2),0.0_wp,0,target_m(1,1),1)
 #endif
 
-    CALL cp_fm_get_info(matrix=blacs_matrix, &
-         nrow_global=nrow_global,ncol_global=ncol_global, &
-         nrow_block =nrow_block ,ncol_block =ncol_block , &
-         nrow_local =nrow_local ,ncol_local =ncol_local , &
-         row_indices=row_indices,col_indices=col_indices)
+       CALL cp_fm_get_info(matrix=full_matrix, &
+            nrow_global=nrow_global,ncol_global=ncol_global, &
+            nrow_block =nrow_block ,ncol_block =ncol_block , &
+            nrow_local =nrow_local ,ncol_local =ncol_local , &
+            row_indices=row_indices,col_indices=col_indices)
 
 
-    DO j=1,ncol_local
-       this_col=col_indices(j)-j0+1
-       IF (this_col.GE.1 .AND. this_col.LE.ncol) THEN
-          IF (tr_a) THEN
-             IF (i0==1.AND.nrow_global==nrow) THEN
-                DO i=1,nrow_local
-                   target_m(this_col,row_indices(i))=blacs_block(i,j)
-                END DO
+       DO j=1,ncol_local
+          this_col=col_indices(j)-j0+1
+          IF (this_col.GE.1 .AND. this_col.LE.ncol) THEN
+             IF (tr_a) THEN
+                IF (i0==1.AND.nrow_global==nrow) THEN
+                   DO i=1,nrow_local
+                      target_m(this_col,row_indices(i))=full_block(i,j)
+                   END DO
+                ELSE
+                   DO i=1,nrow_local
+                      this_row=row_indices(i)-i0+1
+                      IF (this_row>=1 .AND. this_row<=nrow) THEN
+                         target_m(this_col,this_row)=full_block(i,j)
+                      END IF
+                   END DO
+                END IF
              ELSE
-                DO i=1,nrow_local
-                   this_row=row_indices(i)-i0+1
-                   IF (this_row>=1 .AND. this_row<=nrow) THEN
-                      target_m(this_col,this_row)=blacs_block(i,j)
-                   END IF
-                END DO
-             END IF
-          ELSE
-             IF (i0==1.AND.nrow_global==nrow) THEN
-                DO i=1,nrow_local
-                   target_m(row_indices(i),this_col)=blacs_block(i,j)
-                END DO
-             ELSE
-                DO i=1,nrow_local
-                   this_row=row_indices(i)-i0+1
-                   IF (this_row>=1 .AND. this_row<=nrow) THEN
-                      target_m(this_row,this_col)=blacs_block(i,j)
-                   END IF
-                END DO
+                IF (i0==1.AND.nrow_global==nrow) THEN
+                   DO i=1,nrow_local
+                      target_m(row_indices(i),this_col)=full_block(i,j)
+                   END DO
+                ELSE
+                   DO i=1,nrow_local
+                      this_row=row_indices(i)-i0+1
+                      IF (this_row>=1 .AND. this_row<=nrow) THEN
+                         target_m(this_row,this_col)=full_block(i,j)
+                      END IF
+                   END DO
+                END IF
              END IF
           END IF
-       END IF
-    END DO
+       END DO
 
-    CALL mp_sum(target_m,para_env%group)
+       CALL mp_sum(target_m,para_env%group)
+    END IF
 
     CALL timestop(0.0_wp,handle)
 
@@ -856,9 +881,9 @@ CONTAINS
   SUBROUTINE cp_fm_get_info(matrix,name,nrow_global,ncol_global,&
        nrow_block,ncol_block,nrow_local,ncol_local,&
        row_indices,col_indices,local_data,context,&
-       matrix_struct,error)!,para_env)
+       matrix_struct,para_env,error)
 
-!   Purpose: Return informations about the specified BLACS matrix.
+!   Purpose: Return informations about the specified FULL matrix.
 !   the indices vectors are cached.
 !   indices is an array that maps the local indices to the global ones
 !   local data is a little hole to access the blacs block, needed in some rare cases
@@ -874,7 +899,7 @@ CONTAINS
          nrow_block,nrow_global,&
          nrow_local,ncol_local
     INTEGER, OPTIONAL, DIMENSION(:), POINTER   :: row_indices,col_indices
-!type(cp_para_env_type), pointer, optional :: para_env ! to do:bring it back as output
+    TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
     TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
     TYPE(cp_fm_struct_type),POINTER,OPTIONAL :: matrix_struct
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
@@ -955,6 +980,8 @@ CONTAINS
 #endif
        END IF
     ENDIF
+
+    IF (PRESENT(para_env)) para_env => matrix%matrix_struct%para_env
 
   END SUBROUTINE cp_fm_get_info
 

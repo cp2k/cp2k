@@ -22,18 +22,33 @@
 !******************************************************************************
 
 MODULE greens_fn
-  
-  USE bessel_lib, ONLY : bessj0, bessj1, bessk0, bessk1
-  USE coefficient_types, ONLY : coeff_type, coeff_allocate, coeff_deallocate, &
-                                PLANEWAVES
-  USE kinds, ONLY : dbl
-  USE mathconstants, ONLY : fourpi, twopi, pi
-  USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE
-  USE pw_types, ONLY : pw_type, pw_allocate, pw_deallocate, pw_transfer, &
-       REALDATA1D, COMPLEXDATA1D, REALDATA3D, COMPLEXDATA3D, &
-       NOSPACE, REALSPACE, RECIPROCALSPACE
-  USE termination, ONLY : stop_program, stop_memory
-  
+  USE bessel_lib,                      ONLY: bessj0,&
+                                             bessj1,&
+                                             bessk0,&
+                                             bessk1
+  USE coefficient_types,               ONLY: PLANEWAVES,&
+                                             coeff_allocate,&
+                                             coeff_deallocate,&
+                                             coeff_type
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: fourpi,&
+                                             pi,&
+                                             twopi
+  USE pw_grid_types,                   ONLY: HALFSPACE,&
+                                             pw_grid_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             COMPLEXDATA3D,&
+                                             NOSPACE,&
+                                             REALDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_allocate,&
+                                             pw_deallocate,&
+                                             pw_transfer,&
+                                             pw_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   IMPLICIT NONE
   
   PRIVATE
@@ -44,6 +59,7 @@ MODULE greens_fn
   TYPE greens_function_type
     INTEGER :: method
     INTEGER :: special_dimension
+    INTEGER :: id_nr
     REAL ( dbl ) :: radius
     REAL ( dbl ) :: slab_size
     REAL ( dbl ) :: alpha
@@ -61,6 +77,7 @@ MODULE greens_fn
                         ANALYTIC1D = 1002, ANALYTIC0D = 1003,  &
                         MT2D = 1101, MT1D = 1102, MT0D = 1103, &
                         HOCKNEY2D = 1201, HOCKNEY1D = 1202, HOCKNEY0D = 1203
+  INTEGER, SAVE, PRIVATE :: last_greens_fn_id_nr=0
 
 !!*****
 !******************************************************************************
@@ -72,6 +89,15 @@ CONTAINS
 !!
 !!   NAME
 !!     pw_green_fn_init
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_green_fn_init(gftype, grid, p3m, alpha)
+!!       Implicit None
+!!       Type(greens_function_type), Intent (INOUT):: gftype
+!!       Type(pw_grid_type), Intent (IN):: grid
+!!       Integer, Optional, Intent (IN):: p3m
+!!       Real(Kind=dbl), Optional, Intent (IN):: alpha
+!!     End Subroutine pw_green_fn_init
 !!
 !!   FUNCTION
 !!     Initialisation
@@ -103,7 +129,7 @@ SUBROUTINE pw_green_fn_init ( gftype, grid, p3m, alpha )
   SELECT CASE ( gftype % method )
   CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D )
      ALLOCATE ( gftype % influence_function, STAT = ierr )
-     IF ( ierr /= 0 ) call stop_memory ( "pw_green_fn_init", &
+     IF ( ierr /= 0 ) CALL stop_memory ( "pw_green_fn_init", &
        "gftype % influence_function", 0 )
      use_data = REALDATA1D
      CALL pw_allocate ( gftype % influence_function, grid, use_data )
@@ -114,10 +140,10 @@ SUBROUTINE pw_green_fn_init ( gftype, grid, p3m, alpha )
         IF ( PRESENT ( alpha ) ) THEN
           gftype % p3m_alpha = alpha
         ELSE
-          CALL stop_program ( "pw_green_fn_init", "P3M needs alpha parameter")
+          CALL stop_program ( "pw_green_fn_init", "P3M needs alpha PARAMETER")
         END IF
         ALLOCATE ( gftype % p3m_charge, STAT = ierr )
-        IF ( ierr /= 0 ) call stop_memory ( "pw_green_fn_init", &
+        IF ( ierr /= 0 ) CALL stop_memory ( "pw_green_fn_init", &
            "gftype % p3m_charge", 0 )
         CALL pw_allocate ( gftype % p3m_charge, grid, REALDATA1D )
         gftype % p3m_charge % in_space = RECIPROCALSPACE
@@ -130,6 +156,8 @@ SUBROUTINE pw_green_fn_init ( gftype, grid, p3m, alpha )
   CASE DEFAULT
      CALL stop_program ( "pw_green_fn_init", " Method not implemented ")
   END SELECT
+  last_greens_fn_id_nr = last_greens_fn_id_nr+1
+  gftype % id_nr = last_greens_fn_id_nr
 
 END SUBROUTINE pw_green_fn_init
 
@@ -139,6 +167,12 @@ END SUBROUTINE pw_green_fn_init
 !!
 !!   NAME
 !!     pw_green_fn
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_green_fn(gftype)
+!!       Implicit None
+!!       Type(greens_function_type), Intent (INOUT):: gftype
+!!     End Subroutine pw_green_fn
 !!
 !!   FUNCTION
 !!     Calculates the Green's function in reciprocal space  '''
@@ -176,7 +210,7 @@ SUBROUTINE pw_green_fn ( gftype )
   CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D )
     IF ( gf % in_space /= RECIPROCALSPACE .OR. &
          gf % in_use /= REALDATA1D ) &
-      CALL stop_program ( "greens_fn", "gf wrong space or data type" )
+      CALL stop_program ( "greens_fn", "gf wrong space or DATA TYPE" )
   CASE ( HOCKNEY2D, HOCKNEY1D, HOCKNEY0D )
      CALL stop_program ( "pw_green_fn", " Method not implemented ")
   CASE DEFAULT

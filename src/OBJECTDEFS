@@ -196,6 +196,7 @@ OBJECTS_GENERIC =\
  qs_environment.o\
  qs_environment_methods.o\
  qs_environment_types.o\
+ qs_ep_methods.o\
  qs_force.o\
  qs_force_types.o\
  qs_integrate_potential.o\
@@ -212,6 +213,7 @@ OBJECTS_GENERIC =\
  preconditioner.o\
  qs_overlap.o\
  qs_p_build_kernel.o\
+ qs_p_sparse_psi.o\
  qs_p_types.o\
  qs_p_utils.o\
  qs_parser.o\

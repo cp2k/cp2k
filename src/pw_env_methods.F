@@ -53,8 +53,8 @@ MODULE pw_env_methods
                                              gridlevel_info_type,&
                                              init_gaussian_gridlevel
   USE global_types,                    ONLY: global_environment_type
-  USE greens_fn, ONLY: greens_function_type,&
-       pw_green_fn_init
+  USE greens_fn,                       ONLY: greens_function_type,&
+                                             pw_green_fn_init
   USE kinds,                           ONLY: wp=>dp
   USE l_utils,                         ONLY: destroy_l_info,&
                                              init_l_info,&
@@ -76,7 +76,7 @@ MODULE pw_env_methods
                                              pw_pool_type,&
                                              pw_pools_copy,&
                                              pw_pools_dealloc
-  use pws, only: init_pw_poisson_solver
+  USE pws,                             ONLY: init_pw_poisson_solver
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -100,6 +100,13 @@ CONTAINS
 !!
 !!   NAME
 !!     pw_env_create
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_env_create(pw_env, qs_env, error)
+!!       Type(pw_env_type), Pointer:: pw_env
+!!       Type(qs_environment_type), Intent (IN), Target, Optional:: qs_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_env_create
 !!
 !!   FUNCTION
 !!     creates a pw_env, if qs_env is given calls pw_env_rebuild
@@ -147,6 +154,13 @@ END SUBROUTINE pw_env_create
 !!
 !!   NAME
 !!     pw_env_rebuild
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_env_rebuild(pw_env, qs_env, error)
+!!       Type(pw_env_type), Pointer:: pw_env
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_env_rebuild
 !!
 !!   FUNCTION
 !!     rebuilds the pw_env data (necessary at the beginning or if the
@@ -302,9 +316,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      ! init green's function
      CALL pw_green_fn_init(cell%green,&
           pw_env%pw_pools(pw_env%auxbas_grid)%pool%pw_grid)
-     ! init poisson solver
-     call init_pw_poisson_solver(cell%green)
-
   END IF
   CALL timestop(0.0_wp,handle)
 END SUBROUTINE pw_env_rebuild

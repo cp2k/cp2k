@@ -211,16 +211,19 @@ CONTAINS
          "SUBROUTINE cp_sm_fm_multiply (MODULE qs_blacs)"
 
 !   *** Local variables ***
+    LOGICAL :: failure
     REAL(wp), DIMENSION(:,:), POINTER :: rep_v_in,rep_v_out
-    INTEGER i,nrow_in,nrow_out,ncol_block,handle,blocksize
+    INTEGER i,nrow_in,nrow_out,ncol_block,handle,blocksize, stat
 !   ---------------------------------------------------------------------------
     CALL timeset("cp_sm_fm_multiply","I","",handle)
 
+    failure=.FALSE.
     nrow_in=v_in%matrix_struct%nrow_global
     nrow_out=v_out%matrix_struct%nrow_global
     blocksize=MIN(ncol,max_blocksize)
-    ALLOCATE(rep_v_in(blocksize,nrow_in))
-    ALLOCATE(rep_v_out(blocksize,nrow_out))
+    ALLOCATE(rep_v_in(blocksize,nrow_in),rep_v_out(blocksize,nrow_out),&
+         stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
 
     DO i=1,ncol,blocksize
        ncol_block=MIN(ncol-i+1,blocksize)
@@ -234,7 +237,8 @@ CONTAINS
 
     ENDDO
 
-    DEALLOCATE(rep_v_in,rep_v_out)
+    DEALLOCATE(rep_v_in,rep_v_out,stat=stat)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
     CALL timestop(0.0_wp,handle)
   END SUBROUTINE cp_sm_fm_multiply
 

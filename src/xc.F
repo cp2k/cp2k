@@ -213,8 +213,15 @@ SUBROUTINE xc_calculate_pw_lda ( rho_r, rho_g, vxc, exc, dft_control )
   pot = 0._dbl
 ! calculate functionals
   CALL xc_set ( dft_control%density_cut, dft_control%gradient_cut )
-  CALL xc_lda ( dft_control%functional, dft_control%ftags, &
-                rgrid, drgrid, pot, order )
+  IF (dft_control%gradient_functional) THEN
+     CALL xc_lda ( functional=dft_control%functional, &
+          ftags=dft_control%ftags, &
+          rho=rgrid, drho=drgrid, pot=pot, order=order, error=error )
+  ELSE
+     CALL xc_lda ( functional=dft_control%functional, &
+          ftags=dft_control%ftags, &
+          rho=rgrid, pot=pot, order=order, error=error )
+  END IF
   exc = SUM ( pot(:,0) )
   IF ( rho_r%pw_grid%para%mode == 1 ) THEN
      CALL mp_sum ( exc, rho_r%pw_grid%para%group )
@@ -332,10 +339,10 @@ END SUBROUTINE xc_calculate_pw_lda
 !!     xc_calc_2nd_deriv
 !!
 !!   SYNOPSIS
-!!     Subroutine xc_calc_2nd_deriv(rho, rho1, dft_control, v_rspace_new,&
-!!         pw_pool, error)
-!!       Type(qs_rho_type), Pointer:: rho
-!!       Type(qs_rho_type), Pointer:: rho1
+!!     Subroutine xc_calc_2nd_deriv(rho_r, rho_g, rho1_r, rho1_g,&
+!!         dft_control, v_rspace_new, pw_pool, error)
+!!       Type(coeff_type), Dimension(:), Pointer:: rho_r, rho_g, rho1_r,&
+!!         rho1_g
 !!       Type(dft_control_type), Pointer:: dft_control
 !!       Type(coeff_type), Dimension(:), Pointer:: v_rspace_new
 !!       Type(pw_pool_type), Pointer:: pw_pool
@@ -355,8 +362,9 @@ END SUBROUTINE xc_calculate_pw_lda
 !!     sometime readability suffered a little
 !!
 !!   INPUTS
-!!     - rho: point where to evaluate the (functional) derivative of exc
-!!     - rho1: direction of the first derivative
+!!     - rho_r,rho_g: point where to evaluate the (functional) derivative
+!!       of exc in r and g space
+!!     - rho1_r, rho1_g: direction of the first derivative in r and g space
 !!     - dft_control: informations about the functional that should be
 !!       derived
 !!     - v_rspace_new: will contain the new potential. The array iterates
@@ -399,14 +407,12 @@ END SUBROUTINE xc_calculate_pw_lda
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
-    NULLIFY( tmp_g, rho_r, rho_g, rho1_r,&
-         rho1_g, spin_pot,grad_pot,ndiag_term)
+    NULLIFY(tmp_g, tmp_r, v_deriv_g,&
+         spin_pot,grad_pot,ndiag_term)
     nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
 
     CPPrecondition(ASSOCIATED(rho_r),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rho1_r),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(rho_g),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(rho1_g),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(v_rspace_new),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
@@ -415,7 +421,11 @@ END SUBROUTINE xc_calculate_pw_lda
        gradient_f=dft_control%gradient_functional
        crossterms=ANY(dft_control%ftags(2,:))
        nspins=dft_control%nspins
-       
+
+       IF (gradient_f) THEN
+          CPPrecondition(ASSOCIATED(rho_g),cp_failure_level,routineP,error,failure)
+          CPPrecondition(ASSOCIATED(rho1_g),cp_failure_level,routineP,error,failure)
+       END IF       
        CPPrecondition(SIZE(v_rspace_new)==nspins,cp_failure_level,routineP,error,failure)
     END IF
     CALL cp_assert(dft_control%integration_grid%pw_default,&
@@ -502,8 +512,17 @@ END SUBROUTINE xc_calculate_pw_lda
        CALL xc_set ( dft_control%density_cut, dft_control%gradient_cut )
        SELECT CASE ( nspins )
        CASE (1)
-          CALL xc_lda ( dft_control%functional, dft_control%ftags, &
-               rgrid(:,1), drgrid(:,1), pot, order )
+          IF (gradient_f) THEN
+             CALL xc_lda ( functional=dft_control%functional,&
+                  ftags=dft_control%ftags, &
+                  rho=rgrid(:,1), drho=drgrid(:,1), pot=pot, &
+                  order=order, error=error )
+          ELSE
+             CALL xc_lda ( functional=dft_control%functional,&
+                  ftags=dft_control%ftags, &
+                  rho=rgrid(:,1), pot=pot, &
+                  order=order, error=error )
+          END IF
        CASE (2)
           CALL cp_unimplemented_error(fromWhere=routineP,&
                message='lsd not yet implemented '//&
@@ -519,6 +538,12 @@ END SUBROUTINE xc_calculate_pw_lda
        CALL xc_create_2nd_deriv_info(lsd=nspins>1,gradient=gradient_f,&
             crossterms=crossterms,spin_pot=spin_pot,grad_pot=grad_pot,&
             ndiag_term=ndiag_term,error=error)
+    END IF
+
+! dealloc rgrid
+    IF (.not.failure) THEN
+       DEALLOCATE(rgrid,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
 
     IF (gradient_f) THEN
@@ -784,6 +809,12 @@ END SUBROUTINE xc_calculate_pw_lda
 ! dealloc pot
     IF (.NOT.failure) THEN
        DEALLOCATE(pot,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    END IF
+
+! dealloc drgrid
+    IF (.not.failure) THEN
+       DEALLOCATE(drgrid,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
 

@@ -26,21 +26,20 @@
 !******************************************************************************
 
 MODULE qs_main
-
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
-  USE qs_md,                           ONLY: qs_mol_dyn
   USE qs_build_ks_matrix,              ONLY: qs_ks_env_type
   USE qs_energy,                       ONLY: qs_energies
   USE qs_environment,                  ONLY: qs_finalize,&
                                              qs_init
   USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_ep_methods,                   ONLY: qs_ep_calculation
   USE qs_force,                        ONLY: qs_forces
+  USE qs_md,                           ONLY: qs_mol_dyn
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
   IMPLICIT NONE
 
   PRIVATE
@@ -101,8 +100,10 @@ CONTAINS
       CALL qs_mol_dyn(qs_env,globenv,ks_env)
     CASE ("WAVEFUNCTION OPTIMIZATION")
       CALL qs_energies(qs_env,globenv,ks_env)
+    CASE ("PE")
+      CALL qs_ep_calculation(qs_env,globenv)
     CASE DEFAULT
-      CALL stop_program(routine,"Invalid run type <"//&
+      CALL stop_program(routine,"Invalid run TYPE <"//&
                                 TRIM(globenv%run_type)//&
                                 "> was specified for "//&
                                 TRIM(globenv%program_name),globenv)

@@ -77,7 +77,7 @@ MODULE cp_fm_struct
 !***
 !****************************************************************************
 
-!!****s* qs_blacs/cp_fm_struct_type [1.0] *
+!!****s* cp_fm_struct/cp_fm_struct_type [1.0] *
 !!
 !!   NAME
 !!     cp_fm_struct_type
@@ -133,7 +133,7 @@ MODULE cp_fm_struct
 
 CONTAINS
 
-!!****f* qs_blacs/cp_fm_struct_create [1.0] *
+!!****f* cp_fm_struct/cp_fm_struct_create [1.0] *
 !!
 !!   NAME
 !!     cp_fm_struct_create
@@ -319,7 +319,7 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
 END SUBROUTINE cp_fm_struct_create
 !***************************************************************************
 
-!!****f* qs_blacs/cp_fm_struct_retain [1.0] *
+!!****f* cp_fm_struct/cp_fm_struct_retain [1.0] *
 !!
 !!   NAME
 !!     cp_fm_struct_retain
@@ -365,7 +365,7 @@ SUBROUTINE cp_fm_struct_retain(fmstruct,error)
 END SUBROUTINE cp_fm_struct_retain
 !***************************************************************************
 
-!!****f* qs_blacs/cp_fm_struct_release [1.0] *
+!!****f* cp_fm_struct/cp_fm_struct_release [1.0] *
 !!
 !!   NAME
 !!     cp_fm_struct_release
@@ -426,7 +426,7 @@ SUBROUTINE cp_fm_struct_release(fmstruct,error)
 END SUBROUTINE cp_fm_struct_release
 !***************************************************************************
 
-!!****f* qs_blacs/cp_fm_struct_equivalent [1.0] *
+!!****f* cp_fm_struct/cp_fm_struct_equivalent [1.0] *
 !!
 !!   NAME
 !!     cp_fm_struct_equivalent
