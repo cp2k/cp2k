@@ -43,6 +43,8 @@ OBJECTS_GENERIC =\
  dump.o\
  eigenvalueproblems.o\
  empirical_parameters.o\
+ energy_input.o\
+ energy_output.o\
  environment.o\
  erf_fn.o\
  ewald_parameters_types.o\
