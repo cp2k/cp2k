@@ -141,7 +141,7 @@ SUBROUTINE wave_header ( iw )
        '                  UNIVERSITY OF ZURICH                 ', &
        '                          2001                         ', &
        '                                                       ', &
-       '                     Version 0.0                       ', &
+       '                     Version 0.01                      ', &
        '                                                       '
 
 END SUBROUTINE wave_header
@@ -171,5 +171,6 @@ END SUBROUTINE atom_header
 
 !******************************************************************************
 
-
 END MODULE header
+
+!******************************************************************************

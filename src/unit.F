@@ -106,6 +106,7 @@ SUBROUTINE set_units ( unit_char, units )
      units % l_label = '[bohr]'
      units % vol_label = '[bohr^3]'
      units % e_label = '[hartree]'
+
   ELSE
 
      CALL stop_program ( 'unit', 'unknown unit type' )
