@@ -1,7 +1,7 @@
 <HTML>
 <HEAD><TITLE> The CP2K project : automatic regression tester </TITLE>
 <META NAME="description" content="CP2K">
-<META NAME="keywords" contents="Fortran,scientific,computing,CPMD,CP2K,Quickstep,Car-Parrinello,Fist,GPW,GAPW>
+<META NAME="keywords" contents="Fortran,scientific,computing,CPMD,CP2K,Quickstep,Car-Parrinello,Fist,GPW,GAPW">
 <META http-equiv="Pragma" content="no-cache">
 </HEAD>
 
@@ -23,11 +23,11 @@
 CP2K should be kept in good shape throughout its development. 
 Bugs that are fixed should stay fixed, features that are working should remain in that state. 
 In order to do so, an automated tester downloads/builds/tests CP2K every night. 
-<A HREF="#correct">Correctness of results</A> and <A HREF="#leaks">memory leak tests</A> are reported. 
-<H3> Informational </H3> 
-Correctness runs are serial runs using the NAG compiler with full error checking on a PC architecture. Even though we strive to reach the above goal, the rapid development of CP2K does imply that not all features are working or passing the high standard of Fortran conformance we require during this testing. Failing tests are an indication of possible problems, but as yet still quite common.
-Memory leak checking is performed using the free fortran compiler g95 (<A HREF="http://www.g95.org/">www.g95.org</A>).
-<H3> <a NAME="correct">Correctness of results and Fortran conformance</a> </H3> 
+Correctness of results (<A HREF="#correct_serial">serial</A> and <A HREF="#correct_parallel">parallel</A>)  and <A HREF="#leaks">memory leak tests</A> are reported. 
+<H3> Info </H3> 
+Correctness runs are serial/parallel runs using the NAG compiler with full error checking on a PC architecture. Even though we strive to reach the above goal, the rapid development of CP2K does imply that not all features are working or passing the high standard of Fortran conformance we require during this testing. Failing tests are an indication of possible problems, but as yet still quite common.
+Memory leak checking is performed using the free Fortran compiler g95 (<A HREF="http://www.g95.org/">www.g95.org</A>).
+<H3> <a NAME="correct_serial">Serial correctness of results and Fortran conformance</a> </H3> 
 <CENTER>
 The <A HREF="regtest.txt">latest build report</A> is available. <BR>
 These are the reports from
@@ -47,6 +47,24 @@ days ago.
 <H4> Recent errors </H4>
 <IMG SRC="latest_errors.png"><BR>
 </CENTER>
+<H3> <a NAME="correct_parallel">Parallel results</a> </H3>
+<CENTER>
+The <A HREF="par-regtest.txt">latest build report</A> is available. <BR>
+These are the reports from
+<A HREF="par-regtest-1.txt">1</A>,
+<A HREF="par-regtest-2.txt">2</A>,
+<A HREF="par-regtest-3.txt">3</A>,
+<A HREF="par-regtest-4.txt">4</A>,
+<A HREF="par-regtest-5.txt">5</A>,
+<A HREF="par-regtest-6.txt">6</A>,
+<A HREF="par-regtest-7.txt">7</A>,
+<A HREF="par-regtest-8.txt">8</A>,
+<A HREF="par-regtest-9.txt">9</A>,
+<A HREF="par-regtest-10.txt">10</A>
+days ago.
+<IMG SRC="summary-par.png"><BR>
+</CENTER>
+
 <H3> <a NAME="leaks">Memory leaks</A> </H3>
 <CENTER>
 The <A HREF="memory_leaks.txt">latest memory leak report</A> is available. <BR>
