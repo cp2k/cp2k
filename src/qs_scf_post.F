@@ -667,7 +667,7 @@ CONTAINS
 !    **** the Kohn-Sham matrix itself
        IF (globenv%print%kohn_sham_matrix) THEN
           CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&
-               rebuild=.TRUE.,error=error,&
+               error=error,&
                calculate_forces=.FALSE.,just_energy=.FALSE.)
           CALL Write_sparse_matrix(ks_rmpv(1)%matrix,4,6,Qs_env,Globenv)
        END IF

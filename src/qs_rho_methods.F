@@ -43,8 +43,7 @@ MODULE qs_rho_methods
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_init_coeff,&
                                              pw_pool_p_type,&
                                              pw_pool_type,&
                                              pw_pools_give_back_coeffs,&
@@ -175,7 +174,6 @@ CONTAINS
         rho%tau_r_valid=.FALSE.
         last_rho_id_nr=last_rho_id_nr+1
         rho%id_nr=last_rho_id_nr
-        rho%updates_since_rebuild=-1
         rho%rebuild_each=5
         NULLIFY(rho%rho_r, rho%rho_g, rho%rho_ao, rho%tot_rho_r, rho%tot_rho_g, rho%tau_r, rho%tau_g)
         ALLOCATE(rho%tot_rho_r(nspins),stat=stat)
@@ -302,12 +300,12 @@ END SUBROUTINE qs_rho_rebuild
 !!     qs_rho_update_rho
 !!
 !!   SYNOPSIS
-!!     Subroutine qs_rho_update_rho(rho_struct, rho_ao_new, qs_env, rebuild,&
+!!     Subroutine qs_rho_update_rho(rho_struct, rho_ao_new, qs_env, &
 !!         update_rho_ao, error)
 !!       Type(qs_rho_type), Pointer:: rho_struct
 !!       Type(qs_environment_type), Intent (IN):: qs_env
 !!       Type(real_matrix_p_type), Dimension(:), Intent (IN):: rho_ao_new
-!!       Logical, Intent (IN), Optional:: rebuild, update_rho_ao
+!!       Logical, Intent (IN), Optional::  update_rho_ao
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine qs_rho_update_rho
 !!
@@ -324,9 +322,6 @@ END SUBROUTINE qs_rho_rebuild
 !!       rho%rho_ao, it forces a rebuild)
 !!     - qs_env: the qs_env rho_struct refers to
 !!       the integrated charge in r space
-!!     - rebuild: if false builds rho_r by just updating the parts
-!!       of rho that changed with respect to the old density,
-!!       (by default looks at how may updates were done without rebuild).
 !!     - update_rho_ao: if rho_ao should also be updated (defaults
 !!       to true)
 !!     - error: variable to control error logging, stopping,... 
@@ -340,12 +335,12 @@ END SUBROUTINE qs_rho_rebuild
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
-     rebuild,update_rho_ao, error)
+     update_rho_ao, error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(real_matrix_p_type), DIMENSION(:), &
       INTENT(in)                             :: rho_ao_new
     TYPE(qs_environment_type), INTENT(in)    :: qs_env
-    LOGICAL, INTENT(in), OPTIONAL            :: rebuild, update_rho_ao
+    LOGICAL, INTENT(in), OPTIONAL            :: update_rho_ao
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -353,10 +348,9 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, nspins, stat
-    LOGICAL                                  :: failure, my_rebuild, &
+    LOGICAL                                  :: failure, &
                                                 update_rho_ao_local
     REAL(KIND=dp)                            :: dum
-    TYPE(coeff_type)                         :: tmp_gspace
     TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -364,34 +358,23 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: h, s
 
   failure=.FALSE.
   update_rho_ao_local=.TRUE.
   IF (PRESENT(update_rho_ao)) update_rho_ao_local=update_rho_ao
   NULLIFY(dft_control, mgrid_rspace, mgrid_gspace, pw_env, auxbas_pw_pool,&
-       pw_pools, para_env, h, s)
+       pw_pools, para_env )
 
   CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
   CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
 
-     CALL get_qs_env(qs_env, dft_control=dft_control, h=h,&
-          s=s,pw_env=pw_env, para_env=para_env)
+     CALL get_qs_env(qs_env, dft_control=dft_control, &
+          pw_env=pw_env, para_env=para_env)
      nspins=dft_control%nspins
      
-     ! decides if to rebuild or just update
-     my_rebuild=rho_struct%updates_since_rebuild > rho_struct%rebuild_each
-     IF (PRESENT(rebuild)) my_rebuild=rebuild
-     my_rebuild=.true. ! pippo
-     IF (.NOT.(rho_struct%rho_ao_valid.AND.rho_struct%rho_r_valid).OR.&
-          rho_struct%updates_since_rebuild==-1) THEN
-        my_rebuild=.TRUE.
-     END IF
      IF (rho_ao_new(1)%matrix%id_nr==rho_struct%rho_ao(1)%matrix%id_nr) THEN
         ! assumes that equality is valid for all the spins
-        my_rebuild=.TRUE.
         update_rho_ao_local=.FALSE.
         rho_struct%rho_ao_valid=.TRUE.
         DO ispin=2,nspins
@@ -413,11 +396,6 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
                 error=error,failure=failure)
         END DO
      END IF
-     IF (my_rebuild) THEN
-        rho_struct%updates_since_rebuild=0
-     ELSE
-        rho_struct%updates_since_rebuild=rho_struct%updates_since_rebuild+1
-     END IF
      ! alloc multigrids
      CALL pw_env_get(pw_env, pw_pools=pw_pools, auxbas_pw_pool=auxbas_pw_pool,&
           error=error)
@@ -427,8 +405,6 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
   END IF
   IF (.NOT.failure) THEN
      ! get tmp grids
-     CALL pw_pool_init_coeff(auxbas_pw_pool, tmp_gspace, &
-          use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, error=error)
      CALL pw_pools_init_coeffs(pw_pools, mgrid_rspace,&
           use_data=REALDATA3D, in_space=REALSPACE, error=error)
      CALL pw_pools_init_coeffs(pw_pools, mgrid_gspace,&
@@ -436,11 +412,8 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
     
      DO ispin=1,nspins
         CALL calculate_rho_elec(p=rho_ao_new(ispin)%matrix,&
-             p_old=rho_struct%rho_ao(ispin)%matrix,&
-             rebuild=my_rebuild,&
              rho=rho_struct%rho_r(ispin),&
-             rho_gspace=tmp_gspace,&
-             rho_gspace_old=rho_struct%rho_g(ispin),&
+             rho_gspace=rho_struct%rho_g(ispin),&
              mgrid_rspace=mgrid_rspace,&
              mgrid_gspace=mgrid_gspace,&
              gridlevel_info=pw_env%gridlevel_info,&
@@ -456,11 +429,8 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
      IF (dft_control%use_kinetic_energy_density) THEN
          DO ispin=1,nspins
             CALL calculate_rho_elec(p=rho_ao_new(ispin)%matrix,&
-                 p_old=rho_struct%rho_ao(ispin)%matrix,&
-                 rebuild=my_rebuild,&
                  rho=rho_struct%tau_r(ispin),&
-                 rho_gspace=tmp_gspace,&
-                 rho_gspace_old=rho_struct%tau_g(ispin),&
+                 rho_gspace=rho_struct%tau_g(ispin),&
                  mgrid_rspace=mgrid_rspace,&
                  mgrid_gspace=mgrid_gspace,&
                  gridlevel_info=pw_env%gridlevel_info,&
@@ -474,7 +444,6 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
      ENDIF
 
      ! put back grids
-     CALL pw_pool_give_back_coeff(auxbas_pw_pool, tmp_gspace, error=error)
      CALL pw_pools_give_back_coeffs(pw_pools, mgrid_rspace, error=error)
      CALL pw_pools_give_back_coeffs(pw_pools, mgrid_gspace, error=error)
      DEALLOCATE(mgrid_gspace, mgrid_rspace,stat=stat)

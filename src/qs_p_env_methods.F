@@ -636,7 +636,7 @@ END SUBROUTINE p_env_did_change
                error=error)
 
           ! tells ks_env that p changed
-          CALL qs_ks_did_change(ks_env=ks_env,qs_env=qs_env,&
+          CALL qs_ks_did_change(ks_env=ks_env,&
                rho_changed=.TRUE., error=error)
           
        END IF
@@ -969,16 +969,16 @@ END SUBROUTINE p_env_did_change
     IF (.not.failure) THEN
        CALL qs_rho_update_rho(rho_struct=p_env%rho1, &
             rho_ao_new=p1, qs_env=qs_env,&
-            rebuild=.TRUE., error=error)
+            error=error)
 
        IF (fdiff) THEN
           CALL kpp1_calc_k_p_p1_fdiff(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
                                       k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
-                                      rebuild=.TRUE.,error=error)
+                                      error=error)
        ELSE
           CALL kpp1_calc_k_p_p1(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
                                 k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
-                                rebuild=.TRUE.,error=error)
+                                error=error)
        END IF
 
        DO ispin=1,n_spins

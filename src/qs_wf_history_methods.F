@@ -673,7 +673,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
         END DO
         CALL qs_rho_update_rho(rho, rho_ao_new=rho%rho_ao,&
              qs_env=qs_env, error=error)
-        CALL qs_ks_did_change(qs_env%ks_env,qs_env=qs_env,&
+        CALL qs_ks_did_change(qs_env%ks_env,&
              rho_changed=.TRUE., error=error)
      CASE(wfi_use_prev_p_method_nr)
         t0_state => wfi_get_snapshot(wf_history, index=1, error=error)
@@ -686,7 +686,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
         !FM wrong matrix structure
         CALL qs_rho_update_rho(rho, rho_ao_new=rho%rho_ao,&
              qs_env=qs_env, error=error)
-        CALL qs_ks_did_change(qs_env%ks_env,qs_env=qs_env,&
+        CALL qs_ks_did_change(qs_env%ks_env,&
              rho_changed=.TRUE., error=error)
      CASE(wfi_use_guess_method_nr)
         !FM more clean to do it here, but it
@@ -728,7 +728,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
            END DO
            CALL qs_rho_update_rho(rho, rho_ao_new=rho%rho_ao,&
                 qs_env=qs_env, error=error)
-           CALL qs_ks_did_change(qs_env%ks_env,qs_env=qs_env,&
+           CALL qs_ks_did_change(qs_env%ks_env,&
                 rho_changed=.TRUE., error=error)
            END IF
      CASE(wfi_linear_p_method_nr)
@@ -759,7 +759,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
               ! purify ?
               CALL qs_rho_update_rho(rho, rho_ao_new=rho%rho_ao,&
                    qs_env=qs_env, error=error)
-              CALL qs_ks_did_change(qs_env%ks_env,qs_env=qs_env,&
+              CALL qs_ks_did_change(qs_env%ks_env,&
                    rho_changed=.TRUE., error=error)
               ! wf not calculated, extract with PSC renormalized?
               ! use wf_linear?
@@ -804,7 +804,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
            END DO
            CALL qs_rho_update_rho(rho, rho_ao_new=rho%rho_ao,&
                 qs_env=qs_env, error=error)
-           CALL qs_ks_did_change(qs_env%ks_env,qs_env=qs_env,&
+           CALL qs_ks_did_change(qs_env%ks_env,&
                 rho_changed=.TRUE., error=error)
         END IF
     CASE(wfi_ps_method_nr)
@@ -850,7 +850,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
            END DO
            CALL qs_rho_update_rho(rho, rho_ao_new=rho%rho_ao,&
                 qs_env=qs_env, error=error)
-           CALL qs_ks_did_change(qs_env%ks_env,qs_env=qs_env,&
+           CALL qs_ks_did_change(qs_env%ks_env,&
                 rho_changed=.TRUE., error=error)
     CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&

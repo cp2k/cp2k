@@ -97,9 +97,7 @@ MODULE qs_ks_types
      ! ugly to keep it always around only for a cube output...
      TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
      TYPE(coeff_type) :: v_hartree_rspace
-     TYPE(coeff_type), DIMENSION(:), POINTER :: v_rspace
 
-     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: v
   END TYPE qs_ks_env_type
 !!***
 !****************************************************************************
@@ -180,22 +178,6 @@ CONTAINS
 
        IF (ks_env%ref_count<1) THEN
           CALL pw_pool_give_back_coeff(ks_env%auxbas_pw_pool,ks_env%v_hartree_rspace)
-          IF (ASSOCIATED(ks_env%v_rspace)) THEN
-             DO ispin=1,SIZE(ks_env%v_rspace)
-                CALL pw_pool_give_back_coeff(ks_env%auxbas_pw_pool,ks_env%v_rspace(ispin))
-             END DO
-             DEALLOCATE(ks_env%v_rspace,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          END IF
-          IF (ASSOCIATED(ks_env%v)) THEN
-             DO ispin=1,SIZE(ks_env%v)
-                IF (ASSOCIATED(ks_env%v(ispin)%matrix)) THEN
-                   CALL deallocate_matrix(ks_env%v(ispin)%matrix)
-                END IF
-             END DO
-             DEALLOCATE(ks_env%v, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          END IF
           CALL pw_pool_release(ks_env%auxbas_pw_pool)
           DEALLOCATE(ks_env, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

@@ -28,6 +28,7 @@
 !!     JGH [04.12.03] OpneMP parallelization of main loops
 !!     Joost VandeVondele (12.2003)
 !!          1) modified to compute tau
+!!     Joost removed incremental build feature
 !!
 !!   SOURCE
 !***********************************************************************
@@ -245,7 +246,7 @@ CONTAINS
         CALL integrate_pgf_product_rspace(0,alpha_core_charge,0,&
              0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,&
              rs_v,cube_info,l_info,hab,pab=pab,o1=0,o2=0,&
-             vratio=1.0_dp,eps_gvg_rspace=eps_rho_rspace,&
+             eps_gvg_rspace=eps_rho_rspace,&
              calculate_forces=.TRUE.,force_a=force_a,&
              force_b=force_b)
 
@@ -303,7 +304,7 @@ CONTAINS
                   gridlevel_info=pw_env%gridlevel_info,&
                   cube_info=pw_env%cube_info,&
                   l_info=pw_env%l_info,&
-                  rebuild=.TRUE.,h=matrix_v,&
+                  h=matrix_v,&
                   qs_env=qs_env,&
                   calculate_forces=.FALSE.)
 
@@ -318,9 +319,6 @@ CONTAINS
 ! space grid) = v_rspace using a multi grid technique (mgrid_*)
 ! over the basis set producing a number for every element of h 
 ! (should have the same sparsity structure of S)
-! it is possible to rebuild h if only small changes happened in v_rspace
-! (using v_rpsace_old,rebuild, if not using this kind of trick 
-! v_rspace_old might be a nullified pointer)
 ! additional screening is available using the magnitude of the 
 ! elements in p (? I'm not sure this is a very good idea)
 ! this argument is optional
@@ -330,19 +328,16 @@ CONTAINS
  
   SUBROUTINE integrate_v_rspace_full(v_rspace,mgrid_rspace,mgrid_gspace,&
                                 auxbas_grid,gridlevel_info,&
-                                v_rspace_old,cube_info,l_info,rebuild,&
+                                cube_info,l_info,&
                                 p,h,qs_env,calculate_forces,compute_tau,error)
 
     TYPE(coeff_type)                         :: v_rspace
     TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
     INTEGER, INTENT(IN)                      :: auxbas_grid
     TYPE(gridlevel_info_type), INTENT(IN)    :: gridlevel_info
-    TYPE(coeff_type), INTENT(INOUT), &
-      OPTIONAL                               :: v_rspace_old
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(l_info_type), INTENT(IN)            :: l_info
-    LOGICAL, INTENT(IN)                      :: rebuild
     TYPE(real_matrix_p_type), INTENT(IN), &
       OPTIONAL                               :: p
     TYPE(real_matrix_p_type), INTENT(INOUT)  :: h
@@ -374,7 +369,7 @@ CONTAINS
                                                 p_duplicated
     REAL(KIND=dp)                            :: dab, eps_gvg_rspace, &
                                                 kind_radius_b, maxvdiff, &
-                                                maxvnew, rab2, scale, vratio, &
+                                                maxvnew, rab2, scale,  &
                                                 zetp
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, &
                                                 rb, rp
@@ -427,22 +422,6 @@ CONTAINS
             ival,latom,dab_local,asets,atasks)
 
 !   *** Get difference potential ***
-    IF (.NOT.PRESENT(v_rspace_old) .AND. .NOT.rebuild) THEN
-       CALL stop_program("integrate_v_rspace","need v_rspace_old for rebuild")
-    ENDIF
-    IF (rebuild) THEN
-      vratio = 1.0_dp
-    ELSE
-      maxvnew = MAXVAL(ABS(v_rspace%pw%cr3d))
-      IF ( v_rspace%pw%pw_grid%para%mode /= 0 ) &
-         CALL mp_max(maxvnew,v_rspace%pw%pw_grid%para%group)
-      v_rspace%pw%cr3d = v_rspace%pw%cr3d - v_rspace_old%pw%cr3d
-      maxvdiff = MAXVAL(ABS(v_rspace%pw%cr3d))
-      IF ( v_rspace%pw%pw_grid%para%mode /= 0 ) &
-         CALL mp_max(maxvdiff,v_rspace%pw%pw_grid%para%group)
-      vratio = maxvdiff/maxvnew
-    END IF
-
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
@@ -809,7 +788,7 @@ CONTAINS
 !$OMP shared(deltap,calculate_forces,atom_of_kind,ival,npgfa,npgfb,la_max,lb_max) &
 !$OMP shared(first_sgfa,first_sgfb,sphi_a,sphi_b,maxco,maxsgf_set,dab_local) &
 !$OMP shared(ncoset,zeta,zetb,la_min,lb_min,rs_v,cube_info,l_info,eps_gvg_rspace) &
-!$OMP shared(vratio,force,ikind,jkind,igrid_level,nsgfa,nsgfb,pabt,habt,workt,my_compute_tau)
+!$OMP shared(force,ikind,jkind,igrid_level,nsgfa,nsgfb,pabt,habt,workt,my_compute_tau)
           ithread = 0
 !$        ithread = omp_get_thread_num()
           nalimit = get_limit(natom_pairs,nthread,ithread)
@@ -906,7 +885,7 @@ CONTAINS
                           ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
                           cube_info(igrid_level),l_info,&
                           hab,pab=pab,o1=na1-1,o2=nb1-1, &
-                          vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
+                          eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=calculate_forces,&
                           force_a=force_a,force_b=force_b,ithread=ithread,compute_tau=my_compute_tau)
                    ELSE
@@ -916,7 +895,7 @@ CONTAINS
                           rb,-rab,rab2,rs_v(igrid_level)%rs_grid,&
                           cube_info(igrid_level),l_info,&
                           hab,pab=pab,o1=nb1-1,o2=na1-1, &
-                          vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
+                          eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=calculate_forces,&
                           force_a=force_b,force_b=force_a,ithread=ithread,compute_tau=my_compute_tau)
                    END IF
@@ -928,7 +907,7 @@ CONTAINS
                           ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
                           cube_info(igrid_level),l_info,&
                           hab,o1=na1-1,o2=nb1-1,&
-                          vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
+                          eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=calculate_forces,&
                           force_a=force_a,force_b=force_b,ithread=ithread,compute_tau=my_compute_tau)
                    ELSE
@@ -938,7 +917,7 @@ CONTAINS
                           rb,-rab,rab2,rs_v(igrid_level)%rs_grid,&
                           cube_info(igrid_level),l_info,&
                           hab,o1=nb1-1,o2=na1-1,&
-                          vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
+                          eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=calculate_forces,&
                           force_a=force_b,force_b=force_a,ithread=ithread,compute_tau=my_compute_tau)
                    END IF
@@ -1020,16 +999,6 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
     END IF
 
-!   *** Reconstruct the potential ***
-
-    IF (.NOT.rebuild) THEN
-      v_rspace%pw%cr3d = v_rspace%pw%cr3d + v_rspace_old%pw%cr3d
-    END IF
-
-    IF (PRESENT(v_rspace_old)) THEN
-       v_rspace_old%pw%cr3d = v_rspace%pw%cr3d
-    ENDIF
-
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE integrate_v_rspace_full
@@ -1040,7 +1009,7 @@ CONTAINS
                                             lb_max,zetb,lb_min,&
                                             ra,rab,rab2,rsgrid,&
                                             cube_info,l_info,hab,pab,o1,o2,&
-                                            vratio,eps_gvg_rspace,&
+                                            eps_gvg_rspace,&
                                             calculate_forces,force_a,force_b,&
                                             ithread,mytimings,compute_tau)
 
@@ -1058,7 +1027,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: pab
     INTEGER, INTENT(IN)                      :: o1, o2
-    REAL(KIND=dp), INTENT(IN)                :: vratio, eps_gvg_rspace
+    REAL(KIND=dp), INTENT(IN)                :: eps_gvg_rspace
     LOGICAL, INTENT(IN)                      :: calculate_forces
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: force_a, force_b
@@ -1133,16 +1102,13 @@ CONTAINS
     rp(:) = ra(:) + rap(:)  ! this is the gaussian center in real coordinates
     rb(:) = ra(:) + rab(:)
 
-! the cutoff could be vratio instead of 1.0_dp if not rebuild
-! in this case the minimization goes fine up to the point where the energy is
-! noisy
     cutoff=1.0_dp
     IF (PRESENT(pab)) THEN
     radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,o1,o2,ra,rb,rp,&
-                                    zetp,eps_gvg_rspace,prefactor*vratio,cutoff)
+                                    zetp,eps_gvg_rspace,prefactor,cutoff)
     ELSE
     radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,ra=ra,rb=rb,rp=rp,&
-            zetp=zetp,eps=eps_gvg_rspace,prefactor=prefactor*vratio,cutoff=cutoff)
+            zetp=zetp,eps=eps_gvg_rspace,prefactor=prefactor,cutoff=cutoff)
     ENDIF
 
     IF (radius == 0.0_dp) THEN

@@ -31,6 +31,7 @@
 !!     - refactoring and new loop ordering (JGH 23.11.03)
 !!     - OpenMP parallelization (JGH 03.12.03)
 !!     - Modified to compute tau (Joost 12.03)
+!!     - removed the incremental density rebuild (Joost 01.04)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -301,19 +302,16 @@ CONTAINS
   END SUBROUTINE calculate_rho_core
 
 ! *****************************************************************************
-! both rho,rho_gspace are the new rho, also rho_gspace_old is overwritten with
-! the new rho
+! both rho,rho_gspace are the new rho,
 ! *****************************************************************************
 
-  SUBROUTINE calculate_rho_elec(p,p_old,rebuild,rho,rho_gspace,rho_gspace_old,&
+  SUBROUTINE calculate_rho_elec(p,rho,rho_gspace,&
                                 mgrid_rspace,mgrid_gspace,&
                                 gridlevel_info,cube_info,l_info,total_rho,&
                                 qs_env, compute_tau, error)
 
-    TYPE(real_matrix_type), POINTER          :: p, p_old
-    LOGICAL, INTENT(IN)                      :: rebuild
-    TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace, &
-                                                rho_gspace_old
+    TYPE(real_matrix_type), POINTER          :: p
+    TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
     TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
     TYPE(gridlevel_info_type), INTENT(IN)    :: gridlevel_info
     TYPE(cube_info_type), DIMENSION(:), &
@@ -350,7 +348,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb, rp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dab_local, p_block, &
-                                                p_old_block, pab, pblock, &
+                                                pab, pblock, &
                                                 rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 work, zeta, zetb
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -383,7 +381,7 @@ CONTAINS
          sab_orb_neighbor_node,deltap,atomic_kind_set,sab_orb,particle_set,&
          rs_rho,pw_env,rs_pools,para_env,pblock,dist_ab,dab_local,&
          set_radius_a,set_radius_b,la_max,la_min,&
-         lb_max,lb_min,npgfa,npgfb,nsgfa,nsgfb,p_block,p_old_block,&
+         lb_max,lb_min,npgfa,npgfb,nsgfa,nsgfb,p_block,&
          rpgfa,rpgfb,sphi_a,sphi_b,zeta,zetb,first_sgfa,first_sgfb,&
          tasks,tasks_local,ival,latom,ntasks,asets,atasks,pabt,workt)
 
@@ -565,17 +563,7 @@ CONTAINS
              NULLIFY ( pblock )
              CALL add_block_node ( deltap, brow, bcol, pblock )
 
-             IF (rebuild) THEN
-               pblock = p_block
-             ELSE
-               CALL get_block_node(matrix=p_old,&
-                                   block_row=brow,&
-                                   block_col=bcol,&
-                                   BLOCK=p_old_block)
-               IF (.NOT.ASSOCIATED(p_old_block)) &
-                  CALL stop_program(routine,"p_old_block not associated")
-               pblock = p_block - p_old_block
-             END IF
+             pblock = p_block
    
              IF ( ALL ( 100.0_dp*ABS(pblock) < eps_rho_rspace) ) THEN
                sab_orb_neighbor_node => next(sab_orb_neighbor_node)
@@ -864,8 +852,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,"pabt,workt,ntasks,"//&
         "tasks,tasks_local,ival,latom,dist_ab,dab_local,asets,atasks")
 
-    IF (gridlevel_info%ngrid_levels==1 .AND. .NOT.rho%pw%pw_grid%spherical&
-         .AND. rebuild) THEN
+    IF (gridlevel_info%ngrid_levels==1 .AND. .NOT.rho%pw%pw_grid%spherical) THEN
        CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,"FORWARD")
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
 !FM copy also in mgrid_rspace?
@@ -887,16 +874,10 @@ CONTAINS
           CALL coeff_sumup(mgrid_gspace(igrid_level),rho_gspace)
        END DO
 
-       !   *** Save real-space density ***
-       IF (.NOT. rebuild) THEN
-          CALL coeff_sumup(rho_gspace_old,rho_gspace)
-       END IF
-
        CALL coeff_transform_space(rho_gspace,rho)
 
     END IF
     
-    CALL coeff_copy(rho_gspace,rho_gspace_old)
     total_rho = calculate_total_rho(rho)
 
     CALL timestop(0.0_dp,handle)

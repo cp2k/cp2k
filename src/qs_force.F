@@ -177,10 +177,9 @@ CONTAINS
                                        globenv=globenv,&
                                        calculate_forces=.TRUE.)
 
-!FM CALL qs_ks_did_change(ks_env,qs_env,rho_changed=.TRUE.)
+!FM CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.)
     CALL qs_ks_update_qs_env(ks_env=ks_env,&
                              qs_env=qs_env,&
-                             rebuild=.TRUE.,&
                              calculate_forces=.TRUE.)
 
     DO ikind=1,SIZE(force)

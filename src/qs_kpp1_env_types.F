@@ -89,9 +89,6 @@ MODULE qs_kpp1_env_types
 !!       With LSD contains the various orbitals.
 !!     - v_ao: the potential in the ao basis (used togheter with v_rspace
 !!       to update only what changed
-!!     - rebuild_each: how often a full rebuild should be performed
-!!     - updates_since_rebuild: how many updates have been done since the
-!!       last rebuild (if -1, forcces the rebuild)
 !!     - id_nr: identification number, unique for each kpp1 env
 !!     - print_count: counter to create unique filename
 !!     - iter: number of iterations
@@ -111,7 +108,7 @@ MODULE qs_kpp1_env_types
 !!   SOURCE
   !***************************************************************************
   TYPE qs_kpp1_env_type
-     INTEGER :: ref_count, rebuild_each, updates_since_rebuild, id_nr,&
+     INTEGER :: ref_count, id_nr,&
           print_count, iter
      TYPE(coeff_type), DIMENSION(:), POINTER :: v_rspace
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: v_ao

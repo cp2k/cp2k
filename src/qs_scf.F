@@ -41,6 +41,7 @@
 !!     - parallel FFT (JGH 22.05.2002)
 !!     - 06.2002 moved KS matrix construction to qs_build_KS_matrix.F [fawzi]
 !!     - started to include more LSD (01.2003,Joost VandeVondele)
+!!     - got rid of nrebuild (01.2004, Joost VandeVondele)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -90,8 +91,7 @@ MODULE qs_scf
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
@@ -414,7 +414,7 @@ CONTAINS
     INTEGER                                  :: handle, handle2, ispin, &
                                                 output_unit
     LOGICAL :: diis_step, do_level_shift, energy_only, failure, ionode, &
-      rebuild, should_stop, use_cholesky, use_jacobi
+      should_stop, use_cholesky, use_jacobi
     REAL(KIND=dp)                            :: diis_error, orthonormality, &
                                                 t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -497,7 +497,6 @@ CONTAINS
 
     scf_env%iter_count = 0
     diis_step = .FALSE.
-    rebuild = .TRUE.
     use_jacobi = .FALSE.
 
     IF (ionode.AND.logger%print_keys%scf) THEN
@@ -522,7 +521,7 @@ CONTAINS
 ! ** here qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date
 
        CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,&
-            rebuild=rebuild,error=error,&
+            error=error,&
             calculate_forces=.FALSE.,just_energy=energy_only)
 
 !FM      CALL pw_env_flush_cache(pw_env,error=error)
@@ -539,8 +538,6 @@ CONTAINS
           END IF
 
        ENDDO
-
-       rebuild = (MODULO(scf_env%iter_count,scf_control%nrebuild) == 0)
 
        IF (logger%print_keys%mo_orthonormality) THEN
           CALL calculate_orthonormality(c,s(1)%matrix,orthonormality)
@@ -606,10 +603,8 @@ CONTAINS
                   use_cholesky=use_cholesky,&
                   work_syevx=scf_control%work_syevx,&
                   use_jacobi=use_jacobi,&
-                  eps_jacobi=scf_control%eps_jacobi,&
                   jacobi_threshold=scf_control%jacobi_threshold,&
-                  smear=scf_control%smear, para_env=qs_env%para_env,&
-                  blacs_env=qs_env%blacs_env,&
+                  smear=scf_control%smear, &
                   error=error)
 
              IF (logger%print_keys%each_scf_step) THEN
@@ -683,8 +678,8 @@ CONTAINS
 
 ! ** update qs_env%rho
        CALL qs_rho_update_rho(rho, rho_ao_new=scf_env%p_new, qs_env=qs_env,&
-            rebuild=rebuild, error=error)
-       CALL qs_ks_did_change(ks_env,qs_env,rho_changed=.TRUE.,error=error)      
+            error=error)
+       CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)      
 
        CALL timestop(0.0_dp,handle2)
     END DO scf_loop
@@ -731,8 +726,8 @@ CONTAINS
 
 ! ** update qs_env%rho
     CALL qs_rho_update_rho(rho, rho_ao_new=scf_env%p_new, qs_env=qs_env,&
-         rebuild=rebuild, error=error)
-    CALL qs_ks_did_change(ks_env,qs_env,rho_changed=.TRUE.,error=error)
+         error=error)
+    CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
 ! *** print out info
     IF (.NOT.should_stop) THEN
@@ -981,8 +976,7 @@ CONTAINS
 
           ! might need the KS matrix to init properly
           CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&
-               rebuild=.TRUE.,error=error,&
-               calculate_forces=.FALSE.,just_energy=.FALSE.)
+               error=error, calculate_forces=.FALSE.,just_energy=.FALSE.)
        
           IF (scf_env%qs_ot_env(1)%settings%preconditioner_type .NE. "NONE") THEN
              ! constuct the preconditioner based on the first spin set. this might or might not be reasonable. Presumably it is.
@@ -1218,9 +1212,8 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE eigensolver(ks,mo_set,ortho,work,do_level_shift,level_shift,&
-       use_cholesky, work_syevx,&
-       use_jacobi,eps_jacobi,jacobi_threshold,smear,&
-       blacs_env, para_env,error)
+       use_cholesky, work_syevx, use_jacobi,jacobi_threshold,smear,&
+       error)
 
 !   Purpose: Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
 !            vectors and MO eigenvalues.
@@ -1238,10 +1231,8 @@ CONTAINS
     LOGICAL, INTENT(INOUT)                   :: use_cholesky
     REAL(KIND=dp), INTENT(IN)                :: work_syevx
     LOGICAL, INTENT(IN)                      :: use_jacobi
-    REAL(KIND=dp), INTENT(IN)                :: eps_jacobi, jacobi_threshold, &
+    REAL(KIND=dp), INTENT(IN)                :: jacobi_threshold, &
                                                 smear
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1569,10 +1560,8 @@ CONTAINS
                use_cholesky=scf_control%use_cholesky, &
                work_syevx=scf_control%work_syevx,&
                use_jacobi=.FALSE.,&
-               eps_jacobi=scf_control%eps_jacobi,&
                jacobi_threshold=scf_control%jacobi_threshold,&
-               smear=0.0_dp, para_env=qs_env%para_env,&
-               blacs_env=qs_env%blacs_env,&
+               smear=0.0_dp,&
                error=error)
           IF (scf_control%level_shift /= 0.0_dp) THEN
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
@@ -1795,9 +1784,8 @@ CONTAINS
                globenv=globenv, error=error)
 ! update qs_env%rho
           CALL qs_rho_update_rho(qs_env%rho, rho_ao_new=scf_env%p_new,&
-               qs_env=qs_env,&
-               rebuild=.TRUE., error=error)
-          CALL qs_ks_did_change(qs_env%ks_env,qs_env,rho_changed=.TRUE.,&
+               qs_env=qs_env, error=error)
+          CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
                error=error)
        END IF
     END IF
@@ -1930,10 +1918,8 @@ CONTAINS
 !!     03.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE scf_env_did_change(scf_env,qs_env,s_mstruct_changed,error)
+SUBROUTINE scf_env_did_change(scf_env,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(in)                      :: s_mstruct_changed
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

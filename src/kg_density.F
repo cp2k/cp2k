@@ -955,7 +955,7 @@ CONTAINS
                                           0,0.0_dbl,0,&
                                           ra,(/0.0_dbl,0.0_dbl,0.0_dbl/),0.0_dbl,&
                                           rs_pot,cube_info,l_info,&
-                                          hab,pab,0,0,1.0_dbl,&
+                                          hab,pab,0,0,&
                                           eps_rho_rspace,&
                                           .TRUE.,force_a,force_b)
 
@@ -1010,7 +1010,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     LOGICAL                                  :: calculate_forces
     REAL(dbl)                                :: dab, eps_gvg_rspace, rab2, &
-                                                scale, vratio, zetp
+                                                scale, zetp
     REAL(dbl), DIMENSION(3)                  :: force_a, force_b, ra, rab, rb
     REAL(dbl), DIMENSION(:, :), POINTER      :: hab, pab, rpgfa, sphi_a, &
                                                 work, zeta
@@ -1031,7 +1031,6 @@ CONTAINS
 
     CALL timeset("calculate_v_rspace_forces","I","",handle)
 
-    vratio = 1.0_dbl
     calculate_forces =.TRUE.
 
 !   *** Get the potential on the subgrids in real space, via fft ***
@@ -1165,7 +1164,7 @@ CONTAINS
                         ra,rab,rab2,rs_pot,&
                         cube_info(igrid_level),l_info,&
                         hab,pab=pab,o1=na1-1,o2=0,&
-                        vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
+                        eps_gvg_rspace=eps_gvg_rspace,&
                         calculate_forces=calculate_forces,&
                         force_a=force_a,force_b=force_b)
 
@@ -1248,7 +1247,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     LOGICAL                                  :: calculate_forces
     REAL(dbl)                                :: dab, eps_gvg_rspace, rab2, &
-                                                scale, vratio, zetp
+                                                scale, zetp
     REAL(dbl), DIMENSION(3)                  :: force_a, force_b, ra, rab, rb
     REAL(dbl), DIMENSION(:, :), POINTER      :: hab, pab, rpgfa, sphi_a, &
                                                 work, zeta
@@ -1268,7 +1267,6 @@ CONTAINS
 
     CALL timeset("calculate_v_rspace_forces","I","",handle)
 
-    vratio = 1.0_dbl
     calculate_forces =.TRUE.
 
 !   *** Get the potential on the subgrids in real space, via fft ***
@@ -1400,7 +1398,7 @@ CONTAINS
                         ra,rab,rab2,rs_pot,&             
                         cube_info(igrid_level),l_info,&
                         hab,pab,na1-1,0,&
-                        vratio,eps_gvg_rspace,calculate_forces,&
+                        eps_gvg_rspace,calculate_forces,&
                         force_a,force_b)
 
            END DO
@@ -1488,7 +1486,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     LOGICAL                                  :: calculate_forces
     REAL(dbl)                                :: dab, eps_gvg_rspace, rab2, &
-                                                scale, vratio, zetp
+                                                scale, zetp
     REAL(dbl), DIMENSION(3)                  :: force_a, force_b, ra, rab, rb
     REAL(dbl), DIMENSION(:, :), POINTER      :: hab, pab, rpgfa, sphi_a, &
                                                 work, zeta
@@ -1508,7 +1506,6 @@ CONTAINS
 
     CALL timeset("calculate_v_rspace_forces","I","",handle)
 
-    vratio = 1.0_dbl
     calculate_forces =.FALSE.
 
 !   *** Get the potential on the subgrids in real space, via fft ***
@@ -1630,7 +1627,7 @@ CONTAINS
                       ra,rab,rab2,rs_pot,&             
                       cube_info(igrid_level),l_info,&
                       hab,pab,na1-1,0,&
-                      vratio,eps_gvg_rspace,calculate_forces,&
+                      eps_gvg_rspace,calculate_forces,&
                       force_a, force_b)  
 
          END DO

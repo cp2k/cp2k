@@ -109,10 +109,9 @@ CONTAINS
 !!     kpp1_create
 !!
 !!   SYNOPSIS
-!!     Subroutine kpp1_create(kpp1_env, qs_env, rebuild_each, error)
+!!     Subroutine kpp1_create(kpp1_env, qs_env,  error)
 !!       Type(qs_kpp1_env_type), Pointer:: kpp1_env
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
-!!       Integer, Intent (IN), Optional:: rebuild_each
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine kpp1_create
 !!
@@ -135,11 +134,10 @@ CONTAINS
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE kpp1_create(kpp1_env,qs_env, rebuild_each, error)
+  SUBROUTINE kpp1_create(kpp1_env,qs_env, error)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(qs_environment_type), INTENT(in), &
       TARGET                                 :: qs_env
-    INTEGER, INTENT(in), OPTIONAL            :: rebuild_each
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -158,9 +156,6 @@ CONTAINS
             kpp1_env%derivative_set, kpp1_env%spin_pot, kpp1_env%grad_pot,&
             kpp1_env%ndiag_term)
        kpp1_env%ref_count=1
-       kpp1_env%rebuild_each=5
-       IF (PRESENT(rebuild_each)) kpp1_env%rebuild_each=rebuild_each
-       kpp1_env%updates_since_rebuild=-1
        last_kpp1_id_nr=last_kpp1_id_nr+1
        kpp1_env%id_nr=last_kpp1_id_nr
        kpp1_env%iter=0
@@ -188,14 +183,12 @@ CONTAINS
 !!       with with its grid representations, that must be valid)
 !!     - rho1: the density that represent the first direction along which
 !!       you should evaluate the derivatives
-!!     - rebuild: if the potential should be reevaluated from scratch
-!!       looks at rebuild_each
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
 !!*** **********************************************************************
   SUBROUTINE kpp1_calc_k_p_p1(kpp1_env,qs_env,k_p_p1,rho,rho1,&
-       rebuild,error)
+       error)
     
 
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
@@ -204,7 +197,6 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: k_p_p1
     TYPE(qs_rho_type), POINTER               :: rho, rho1
-    LOGICAL, intent(in), OPTIONAL            :: rebuild
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -213,7 +205,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, nspins, ntot, &
                                                 output_unit = 6, stat
-    LOGICAL                                  :: failure, my_rebuild
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: energy_hartree, &
                                                 total_rho_gspace
     TYPE(cell_type), POINTER                 :: cell
@@ -259,18 +251,6 @@ CONTAINS
 
     IF (.NOT.failure) THEN
        kpp1_env%iter=kpp1_env%iter+1
-
-! decides if to rebuild or just update
-       my_rebuild=kpp1_env%updates_since_rebuild > kpp1_env%rebuild_each
-       IF (PRESENT(rebuild)) my_rebuild=rebuild
-       IF (kpp1_env%updates_since_rebuild==-1) THEN
-          my_rebuild=.TRUE.
-       END IF
-       IF (my_rebuild) THEN
-          kpp1_env%updates_since_rebuild=0
-       ELSE
-          kpp1_env%updates_since_rebuild=kpp1_env%updates_since_rebuild+1
-       END IF
     END IF
 
 ! gets the tmp grids
@@ -394,16 +374,16 @@ CONTAINS
           END IF
 
           ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
-          IF (my_rebuild) CALL set_matrix(kpp1_env%v_ao(ispin)%matrix,0.0_dp)
+          CALL set_matrix(kpp1_env%v_ao(ispin)%matrix,0.0_dp)
           CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
                mgrid_rspace=mgrid_rspace,&
                mgrid_gspace=mgrid_gspace,&
                auxbas_grid=pw_env%auxbas_grid,&
                gridlevel_info=pw_env%gridlevel_info,&
-               v_rspace_old=kpp1_env%v_rspace(ispin),&
+               ! v_rspace_old=kpp1_env%v_rspace(ispin),&
                cube_info=pw_env%cube_info,&
                l_info=pw_env%l_info,&
-               rebuild=my_rebuild,p=rho%rho_ao(ispin),&
+               p=rho%rho_ao(ispin),&
                h=kpp1_env%v_ao(ispin),&
                qs_env=qs_env,&
                calculate_forces=.FALSE.,error=error)
@@ -455,8 +435,6 @@ CONTAINS
 !!       with with its grid representations, that must be valid)
 !!     - rho1: the density that represent the first direction along which
 !!       you should evaluate the derivatives
-!!     - rebuild: if the potential should be reevaluated from scratch
-!!       looks at rebuild_each
 !!     - diff: the amount of the finite difference step
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
@@ -469,14 +447,13 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE kpp1_calc_k_p_p1_fdiff(kpp1_env,qs_env,k_p_p1,rho,rho1,&
-       rebuild, diff, error)
+       diff, error)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(qs_environment_type), &
       INTENT(inout), TARGET                  :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: k_p_p1
     TYPE(qs_rho_type), POINTER               :: rho, rho1
-    LOGICAL, intent(in), OPTIONAL            :: rebuild
     real(KIND=dp), intent(in), optional      :: diff
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -514,7 +491,7 @@ CONTAINS
 
     call qs_ks_build_kohn_sham_matrix(ks_env=qs_env%ks_env,&
          qs_env=qs_env,ks=k_p_p1,rho=rho,energy=qs_energy,&
-         rebuild=.true.,calculate_forces=.false.,&
+         calculate_forces=.false.,&
          just_energy=.false.,error=error)
 
     allocate(ks_2(dft_control%nspins),stat=stat)
@@ -538,7 +515,7 @@ CONTAINS
 
     call qs_ks_build_kohn_sham_matrix(ks_env=qs_env%ks_env,&
          qs_env=qs_env,ks=ks_2,rho=rho,energy=qs_energy,&
-         rebuild=.true.,calculate_forces=.false.,&
+         calculate_forces=.false.,&
          just_energy=.false.,error=error)
 
     ! rho = rho0
@@ -622,12 +599,6 @@ CONTAINS
 
     IF (.NOT. failure) THEN
 
-
-       IF (.NOT.ASSOCIATED(kpp1_env%v_rspace).OR.&
-            .NOT.ASSOCIATED(kpp1_env%v_ao)) THEN
-          ! force rebuild if allocs something
-          kpp1_env%updates_since_rebuild=-1
-       END IF
 
        CALL get_qs_env(qs_env, pw_env=pw_env, dft_control=dft_control,&
                        s=s, error=error, rho=rho)
@@ -753,7 +724,6 @@ CONTAINS
     END IF
     IF (.not.failure) THEN
        IF (my_s_struct_changed) THEN
-          kpp1_env%updates_since_rebuild=-1
           IF (ASSOCIATED(kpp1_env%v_ao)) THEN
              CALL deallocate_matrix_set(kpp1_env%v_ao)
           END IF
@@ -780,7 +750,6 @@ CONTAINS
        end if
        IF (PRESENT(grid_changed)) THEN
           IF (grid_changed) THEN
-             kpp1_env%updates_since_rebuild=-1
              IF (ASSOCIATED(kpp1_env%v_rspace)) THEN
                 DO i=1,SIZE(kpp1_env%v_rspace)
                    CALL coeff_deallocate(kpp1_env%v_rspace(i))

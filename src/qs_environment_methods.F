@@ -285,7 +285,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
 
   ! *** tell ks_env ***
   IF (ASSOCIATED(qs_env%ks_env)) THEN
-     CALL qs_ks_did_change(qs_env%ks_env,qs_env=qs_env,s_mstruct_changed=.TRUE.,&
+     CALL qs_ks_did_change(qs_env%ks_env,s_mstruct_changed=.TRUE.,&
           error=error)
   END IF
 
@@ -294,8 +294,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
 
   ! *** tell scf_env ***
   IF (ASSOCIATED(qs_env%scf_env)) THEN
-     CALL scf_env_did_change(qs_env%scf_env,qs_env=qs_env,&
-          s_mstruct_changed=.TRUE.,&
+     CALL scf_env_did_change(qs_env%scf_env,&
           error=error)
   END IF
 

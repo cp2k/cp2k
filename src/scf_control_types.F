@@ -85,7 +85,6 @@ MODULE scf_control_types
 !!     - max_iter_lumus: maxumum number of iterations used to calculate
 !!       the lumos at the end of the scf
 !!     - max_scf: max scf iterations
-!!     - nrebuild: how often to rebuild the operator from scratch
 !!     - write_restart_each: after how many iterations a restart file 
 !!       should be written if the convergence is not yet acheived
 !!       (<0 never, 0 only upon convergence)
@@ -107,10 +106,10 @@ MODULE scf_control_types
      REAL(KIND = dp)          :: eps_eigval,eps_scf,level_shift,p_mix,smear,&
           work_syevx,eps_lumos, eps_diis,eps_jacobi,jacobi_threshold
      INTEGER           :: max_iter_lumos, max_diis
-     INTEGER           :: max_scf,nrebuild,nrow_block,&
+     INTEGER           :: max_scf,nrow_block,&
           ncol_block,maxl,nkind, write_restart_each
      LOGICAL           :: gradient_functional,gth_potential_present,&
-          rebuild,use_cholesky,use_ot
+          use_cholesky,use_ot
      INTEGER           :: ref_count,id_nr
   END TYPE scf_control_type
 !!***
@@ -175,7 +174,6 @@ CONTAINS
        scf_control%level_shift = 0.0_dp
        scf_control%max_diis = 4
        scf_control%max_scf = 50
-       scf_control%nrebuild = 1
        scf_control%nrow_block = 32
        scf_control%ncol_block = 32
        scf_control%p_mix = 0.4_dp
@@ -387,9 +385,6 @@ CONTAINS
              CALL read_object(scf_control%max_diis)
           CASE ("MAX_SCF_STEP_NUMBER","MAX_SCF")
              CALL read_object(scf_control%max_scf)
-          CASE ("NREBUILD")
-             CALL read_object(scf_control%nrebuild)
-             scf_control%nrebuild = MAX(1,scf_control%nrebuild)
           CASE ("SMEAR")
              CALL read_object(scf_control%smear)
           CASE ("WORK_SYEVX")
@@ -476,9 +471,8 @@ CONTAINS
           output_unit = globenv%scr
           WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/)") "SCF PARAMETERS"
           WRITE (UNIT=output_unit,&
-               FMT="(T3,A,/,4(/,T3,A,I5),5(/,T3,A,ES9.2),4(/,T3,A,F5.2))")&
+               FMT="(T3,A,/,3(/,T3,A,I5),5(/,T3,A,ES9.2),4(/,T3,A,F5.2))")&
                "Density guess: "//TRIM(scf_control%density_guess),&
-               "nrebuild:          ",scf_control%nrebuild,&
                "max_scf:           ",scf_control%max_scf,&
                "max_diis:          ",scf_control%max_diis,&
                "write_restart_each:",scf_control%write_restart_each,&

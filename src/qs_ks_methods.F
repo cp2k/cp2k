@@ -83,12 +83,8 @@ MODULE qs_ks_methods
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE simulation_cell,                 ONLY: cell_type
-  USE sparse_matrix_types,             ONLY: add_matrices,&
-                                             cp_sm_scale_and_add,&
-                                             deallocate_matrix,&
-                                             real_matrix_p_type,&
-                                             replicate_matrix_structure,&
-                                             set_matrix
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
+                                             transfer_matrix
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -149,7 +145,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, nspins, stat
+    INTEGER                                  :: handle, nspins, stat
     LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -163,7 +159,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     IF (.not.failure) THEN
-       NULLIFY( ks_env%v_rspace, ks_env%v, pw_env, auxbas_pw_pool,&
+       NULLIFY( pw_env, auxbas_pw_pool,&
             pw_env, cell)
        CALL get_qs_env(qs_env=qs_env,&
             dft_control=dft_control,&
@@ -180,16 +176,10 @@ CONTAINS
        last_ks_id_nr=last_ks_id_nr+1
        ks_env%id_nr=last_ks_id_nr
 
-       ALLOCATE(ks_env%v_rspace(nspins),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF (.NOT.failure) THEN
        ks_env%auxbas_pw_pool=>auxbas_pw_pool
        CALL pw_pool_retain(ks_env%auxbas_pw_pool)
-       DO ispin=1,nspins
-          CALL pw_pool_init_coeff(auxbas_pw_pool,ks_env%v_rspace(ispin),&
-               use_data=REALDATA3D, in_space=REALSPACE,error=error)
-       END DO
        CALL pw_pool_init_coeff(auxbas_pw_pool,ks_env%v_hartree_rspace,&
             use_data=REALDATA3D, in_space=REALSPACE)
     END IF
@@ -206,13 +196,13 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine qs_ks_build_kohn_sham_matrix(ks_env, qs_env, ks, rho,&
-!!         energy, rebuild, calculate_forces, just_energy, error)
+!!         energy,  calculate_forces, just_energy, error)
 !!       Type(qs_ks_env_type), Pointer:: ks_env
 !!       Type(qs_environment_type), Intent (INOUT):: qs_env
 !!       Type(real_matrix_p_type), Dimension(:), Intent (INOUT):: ks
 !!       Type(qs_rho_type), Pointer:: rho
 !!       Type(qs_energy_type), Intent (INOUT), Target:: energy
-!!       Logical, Intent (IN):: calculate_forces, rebuild, just_energy
+!!       Logical, Intent (IN):: calculate_forces, just_energy
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine qs_ks_build_kohn_sham_matrix
 !!
@@ -228,7 +218,6 @@ CONTAINS
 !!     - ks_env: the ks_env that old all the temporary objects that
 !!       the calculation of the KS matrix needs
 !!     - qs_env: the qs_env to update
-!!     - rebuild: if true builds again the potential
 !!     - calculate_forces: if true calculate the quantities needed
 !!       to calculate the forces. Defaults to false.
 !!     - just_energy: if true updates the energies but not the
@@ -250,7 +239,7 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE qs_ks_build_kohn_sham_matrix(ks_env,qs_env,ks,&
-       rho,energy,rebuild,calculate_forces,just_energy,error)
+       rho,energy,calculate_forces,just_energy,error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), INTENT(INOUT) :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -258,7 +247,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), INTENT(inout), &
       TARGET                                 :: energy
-    LOGICAL, INTENT(in)                      :: rebuild, calculate_forces, &
+    LOGICAL, INTENT(in)                      :: calculate_forces, &
                                                 just_energy
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -266,10 +255,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_kohn_sham', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, handle2, ispin, &
+    INTEGER                                  :: handle, ispin, &
                                                 n_electrons, nspins, &
                                                 output_unit, stat
-    LOGICAL                                  :: failure, ionode, r_build
+    LOGICAL                                  :: failure, ionode
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -293,13 +282,11 @@ CONTAINS
 ! shorter for output
 
     failure=.FALSE.
-    r_build=rebuild
     NULLIFY(h,s,dft_control,atomic_kind_set,auxbas_pw_pool, pw_pools,&
          pw_env,rho_core,cell, logger, mgrid_rspace, mgrid_gspace)
     !   -----------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
-    CALL timeset(routineN//"_energy","I","",handle2)
 
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -341,38 +328,6 @@ CONTAINS
        CALL pw_pool_init_coeff(auxbas_pw_pool,v_hartree_gspace,&
                use_data = COMPLEXDATA1D,&
                in_space = RECIPROCALSPACE, error=error)
-       CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
-            use_data = COMPLEXDATA1D,&
-            in_space = RECIPROCALSPACE, error=error)
-       CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
-            use_data = REALDATA3D,&
-            in_space = REALSPACE, error=error)
-    END IF
-
-    IF (.NOT.failure) THEN
-       IF (ks_env%s_mstruct_changed) THEN
-          IF (ASSOCIATED(ks_env%v)) THEN
-             DO ispin=1,SIZE(ks_env%v)
-                IF (ASSOCIATED(ks_env%v(ispin)%matrix)) THEN
-                   CALL deallocate_matrix(ks_env%v(ispin)%matrix)
-                END IF
-             END DO
-             DEALLOCATE(ks_env%v,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          END IF
-          ALLOCATE(ks_env%v(nspins),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          IF (.NOT. failure) THEN
-             DO ispin=1,nspins
-                NULLIFY(ks_env%v(ispin)%matrix)
-                CALL replicate_matrix_structure(h(1)%matrix,&
-                     ks_env%v(ispin)%matrix,&
-                     "POTENTIAL MATRIX "//ADJUSTL(cp_to_string(ispin)))
-             END DO
-          END IF
-          r_build=.TRUE.
-          ks_env%s_mstruct_changed=.FALSE.
-       END IF
     END IF
 
 ! *** calculate the hartree potential on the total density ***
@@ -412,8 +367,16 @@ CONTAINS
        CALL calculate_hartree(rho_tot_gspace,energy%hartree,&
             v_hartree_gspace)
        CALL cleanup_pw_poisson_solver(cell%green,error=error)
-
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_tot_gspace,&
+            error=error)
+       IF (.NOT. just_energy) THEN
+          CALL coeff_transform_space(v_hartree_gspace,&
+               ks_env%v_hartree_rspace)
+          ks_env%v_hartree_rspace%pw%cr3d =&
+               ks_env%v_hartree_rspace%pw%pw_grid%dvol*&
+               ks_env%v_hartree_rspace%pw%cr3d
+       ENDIF
+       CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,&
             error=error)
 
 ! *** calculate the xc potential ***       
@@ -436,6 +399,7 @@ CONTAINS
            NULLIFY(v_tau_rspace)
        ENDIF
 
+       ! if just energy, we could do with just the xc energy (OT LS)
        CALL calculate_xc_potential(qs_env=qs_env,&
             v_rspace_new=v_rspace_new, v_tau_rspace=v_tau_rspace, &
             error=error)
@@ -449,16 +413,14 @@ CONTAINS
             "Hartree energy:                                ",energy%hartree,&
             "Exchange-correlation energy:                   ",energy%exc
        END IF
-       CALL timestop(0.0_dp,handle2)
 
        IF (.NOT. just_energy) THEN
-          CALL timeset(routineN//"_pot","I","",handle2)
-
-          CALL coeff_transform_space(v_hartree_gspace,&
-               ks_env%v_hartree_rspace)
-          ks_env%v_hartree_rspace%pw%cr3d =&
-               ks_env%v_hartree_rspace%pw%pw_grid%dvol*&
-               ks_env%v_hartree_rspace%pw%cr3d
+          CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
+                use_data = COMPLEXDATA1D,&
+                in_space = RECIPROCALSPACE, error=error)
+          CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
+                use_data = REALDATA3D,&
+                in_space = REALSPACE, error=error)
 
           IF (calculate_forces) THEN
              CALL integrate_v_core_rspace(ks_env%v_hartree_rspace,&
@@ -471,23 +433,21 @@ CONTAINS
                   v_rspace_new(ispin)%pw%pw_grid%dvol*&
                   v_rspace_new(ispin)%pw%cr3d +&
                   ks_env%v_hartree_rspace%pw%cr3d
-             
-             IF (r_build) CALL set_matrix(ks_env%v(ispin)%matrix,0.0_dp)
-
+          
+             ! copy the core ham into the ks matrix
+             CALL transfer_matrix(h(1)%matrix,ks(ispin)%matrix)
+ 
+             ! add the part due to v_rspace
              CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
                   mgrid_rspace=mgrid_rspace,&
                   mgrid_gspace=mgrid_gspace,&
                   auxbas_grid=pw_env%auxbas_grid,&
                   gridlevel_info=pw_env%gridlevel_info,&
-                  v_rspace_old=ks_env%v_rspace(ispin),&
                   cube_info=pw_env%cube_info,&
                   l_info=pw_env%l_info,&
-                  rebuild=r_build,p=rho%rho_ao(ispin),h=ks_env%v(ispin),&
+                  p=rho%rho_ao(ispin),h=ks(ispin),&
                   qs_env=qs_env,&
                   calculate_forces=calculate_forces,error=error)
-
-             CALL add_matrices(ks(ispin)%matrix,1.0_dp,h(1)%matrix,1.0_dp,&
-                  ks_env%v(ispin)%matrix)
 
           END DO
 
@@ -497,16 +457,6 @@ CONTAINS
                       v_tau_rspace(ispin)%pw%pw_grid%dvol*&
                       v_tau_rspace(ispin)%pw%cr3d 
 
-                 IF (r_build) THEN
-                     ! we assume we can overwrite this matrix v
-                     CALL set_matrix(ks_env%v(ispin)%matrix,0.0_dp)
-                 ELSE
-                     ! if not rebuild, essentially more memory seems to be needed, but
-                     ! this shouldn't be to difficult to do (save the old v_tau_rspace, 
-                     ! and its matrix representation)
-                     CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-                 ENDIF
-
                  CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin),&
                       mgrid_rspace=mgrid_rspace,&
                       mgrid_gspace=mgrid_gspace,&
@@ -514,22 +464,21 @@ CONTAINS
                       gridlevel_info=pw_env%gridlevel_info,&
                       cube_info=pw_env%cube_info,&
                       l_info=pw_env%l_info,&
-                      rebuild=r_build,p=rho%rho_ao(ispin),h=ks_env%v(ispin),&
+                      p=rho%rho_ao(ispin),h=ks(ispin),&
                       qs_env=qs_env,&
                       calculate_forces=calculate_forces,compute_tau=.TRUE., &
                       error=error)
 
-                 CALL cp_sm_scale_and_add(ks(ispin)%matrix,alpha=1.0_dp, &
-                                          matrix_b=ks_env%v(ispin)%matrix, beta=1.0_dp)
-
               END DO
           ENDIF
 
-          CALL timestop(0.0_dp,handle2)
+          CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
+               error=error)
+          CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
+               error=error)
+
        END IF
 
-       CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,&
-            error=error)
        DO ispin=1,nspins
           CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
                error=error)
@@ -544,10 +493,6 @@ CONTAINS
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDIF
 
-       CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
-            error=error)
-       CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
-            error=error)
        DEALLOCATE(v_rspace_new, stat=stat) 
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        DEALLOCATE(mgrid_rspace, mgrid_gspace, stat=stat)
@@ -566,11 +511,11 @@ CONTAINS
 !!     qs_ks_update_qs_env
 !!
 !!   SYNOPSIS
-!!     Subroutine qs_ks_update_qs_env(ks_env, qs_env, rebuild,&
+!!     Subroutine qs_ks_update_qs_env(ks_env, qs_env, &
 !!         calculate_forces, just_energy, error)
 !!       Type(qs_ks_env_type), Pointer:: ks_env
 !!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
-!!       Logical, Intent (IN), Optional:: rebuild, calculate_forces,&
+!!       Logical, Intent (IN), Optional::  calculate_forces,&
 !!         just_energy
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine qs_ks_update_qs_env
@@ -585,7 +530,6 @@ CONTAINS
 !!     - ks_env: the ks_env that old all the temporary objects that
 !!       the calculation of the KS matrix needs
 !!     - qs_env: the qs_env to update
-!!     - rebuild: if true builds again th
 !!     - calculate_forces: if true calculate the quantities needed
 !!       to calculate the forces. Defaults to false.
 !!     - just_energy: if true updates the energies but not the
@@ -601,11 +545,11 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
-     rebuild,calculate_forces, just_energy, error)
+     calculate_forces, just_energy, error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), &
       INTENT(inout), TARGET                  :: qs_env
-    LOGICAL, INTENT(in), OPTIONAL            :: rebuild, calculate_forces, &
+    LOGICAL, INTENT(in), OPTIONAL            :: calculate_forces, &
                                                 just_energy
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -615,7 +559,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
 
     INTEGER                                  :: handle, ispin
     LOGICAL                                  :: c_forces, did_update, &
-                                                energy_only, failure, r_build
+                                                energy_only, failure
     REAL(KIND=dp)                            :: ecore
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -623,12 +567,12 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: h, ks, p, s
+      POINTER                                :: h, ks
 
-  r_build=.FALSE.; c_forces=.FALSE.; energy_only = .FALSE.
+  c_forces=.FALSE.
+  energy_only = .FALSE.
   IF (PRESENT(just_energy)) energy_only=just_energy
   IF (PRESENT(calculate_forces)) c_forces=calculate_forces
-  IF (PRESENT(rebuild)) r_build=rebuild
 
   IF (c_forces) THEN
      CALL timeset(routineN//" (forces)","I","",handle)
@@ -638,7 +582,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
 
   failure=.FALSE.
   did_update=.FALSE.
-  NULLIFY(ks,h,s,energy, logger, rho, dft_control, para_env)
+  NULLIFY(ks,h,energy, logger, rho, dft_control, para_env)
   logger => cp_error_get_logger(error)
 
   CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
@@ -650,7 +594,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
         did_update=.TRUE.
         CALL get_qs_env(qs_env,k=ks,rho=rho,energy=energy,&
              dft_control=dft_control,&
-             h=h,para_env=para_env,s=s,error=error)
+             h=h,para_env=para_env,error=error)
 
         ! update ecore
         CALL cp_assert(rho%rho_ao_valid,cp_warning_level,&
@@ -670,7 +614,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
 
         CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
              ks=ks,&
-             rho=rho,energy=energy,rebuild=r_build,&
+             rho=rho,energy=energy,&
              calculate_forces=c_forces,just_energy=energy_only,&
              error=error)
         IF(.NOT.energy_only) THEN
@@ -701,7 +645,7 @@ END SUBROUTINE qs_ks_update_qs_env
 !!     qs_ks_did_change
 !!
 !!   SYNOPSIS
-!!     Subroutine qs_ks_did_change(ks_env, qs_env, s_mstruct_changed,&
+!!     Subroutine qs_ks_did_change(ks_env, s_mstruct_changed,&
 !!         rho_changed, full_reset, error)
 !!       Type(qs_ks_env_type), Pointer:: ks_env
 !!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
@@ -720,7 +664,6 @@ END SUBROUTINE qs_ks_update_qs_env
 !!
 !!   INPUTS
 !!     - ks_env: the environement that is informed about the changes
-!!     - qs_env: the qs_environement
 !!     - s_mstruct_changed: if true it means that the structure of the
 !!       overlap matrix has changed
 !!       (atoms have moved)
@@ -736,11 +679,8 @@ END SUBROUTINE qs_ks_update_qs_env
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE qs_ks_did_change(ks_env,qs_env,s_mstruct_changed,&
-     rho_changed,full_reset,error)
+SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,full_reset,error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(qs_environment_type), &
-      INTENT(inout), TARGET                  :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: s_mstruct_changed, &
                                                 rho_changed, full_reset
     TYPE(cp_error_type), INTENT(inout), &
@@ -815,8 +755,6 @@ END SUBROUTINE qs_ks_did_change
     INTEGER                                  :: handle, i
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tau_xc_energy
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: drho, rho, vxc
     TYPE(cell_type), POINTER                 :: cell
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -829,7 +767,7 @@ END SUBROUTINE qs_ks_did_change
     CALL timeset( routineN ,"I","",handle)
 
     failure=.FALSE.
-    NULLIFY(drho,rho,vxc,dft_control,rho_struct,energy,pw_env,auxbas_pw_pool,&
+    NULLIFY(dft_control,rho_struct,energy,pw_env,auxbas_pw_pool,&
          cell)
 
     CALL get_qs_env(qs_env=qs_env,&

@@ -84,8 +84,6 @@ MODULE qs_rho_types
 !!       corresponding component is valid
 !!     - ref_count: the reference count, when it becomes 0 the type
 !!       is deallocated.
-!!     - updates_since_rebuild: how many updates were done since the
-!!       last rebuild (-1 if rebuild is needed)
 !!     - rebuild_each: how often a rebuild should be done by default
 !!     - tot_rho_r: the total charge in r space (valid only if rho_r is)
 !!
@@ -108,7 +106,6 @@ MODULE qs_rho_types
           tau_g_valid
      INTEGER :: ref_count, &
           id_nr, &
-          updates_since_rebuild, &
           rebuild_each
      REAL(KIND = dp), DIMENSION(:), POINTER :: tot_rho_r, tot_rho_g
   END TYPE qs_rho_type
