@@ -1932,6 +1932,8 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
         END IF
         IF(found) EXIT
       END DO
+
+      found = .FALSE.
   
 !     ! loop over params from amber
 !     IF(ASSOCIATED(topology%ffam_info%ff_charge_atm)) THEN
