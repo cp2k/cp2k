@@ -215,7 +215,6 @@ CONTAINS
     DO i=1,n
        CALL cp_cfm_get_element(matrix_a,i,i,diag(i)) !  not completely optimal in speed i would say
     ENDDO
-    CALL mp_sum(diag,matrix_a%matrix_struct%para_env%group)
     determinant=CMPLX(1.0_wp,0.0_wp)
     do i=1,n
        determinant=determinant*diag(i)
