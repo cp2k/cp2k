@@ -10,8 +10,9 @@
 % pdflatex manual.tex
 %
 % History: - Creation (13.08.2002,MK)
+%          - PDF bookmarks added, some keyword updates (21.02.03,MK)
 %
-\documentclass[12pt,twoside]{article}
+\documentclass[12pt,twoside,a4paper]{article}
 %
 \makeatletter
 %
@@ -19,14 +20,19 @@
 %
 \usepackage{mathptmx}
 \usepackage{times}
-\usepackage[hyperindex]{hyperref}
+\usepackage[colorlinks=true,
+            linkcolor=blue,
+            citecolor=blue,
+            urlcolor=blue,
+            hyperindex]{hyperref}
+\usepackage[square,comma,numbers,sort&compress]{natbib}
 \usepackage{makeidx}
 \makeindex
 %
 % Page layout (twoside DIN A4 portrait with standard headings)
 %
-\setlength{\paperheight}{297mm}
-\setlength{\paperwidth}{210mm}
+\setlength{\paperheight}{297 true mm}
+\setlength{\paperwidth}{210 true mm}
 \setlength{\textheight}{230mm}
 \setlength{\textwidth}{150mm}
 \setlength{\evensidemargin}{-0.4mm}
@@ -36,7 +42,16 @@
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{0pt}
 \renewcommand{\baselinestretch}{1.0}
-\pagestyle{headings}
+\def\ps@myheadings{%
+ \def\@evenfoot{}%
+ \def\@oddfoot{}%
+ \def\@evenhead{\underline{\makebox[\textwidth][l]{{\rm\thepage}\hfill{\sl\leftmark}}}}%
+ \def\@oddhead{\underline{\makebox[\textwidth][l]{{\sl\rightmark}\hfill{\rm\thepage}}}}%
+ \let\@mkboth\markboth
+ \def\sectionmark##1{\markboth{\ifnum\c@secnumdepth>\z@\thesection\quad\fi##1}{}}
+ \def\subsectionmark##1{\markright{\ifnum\c@secnumdepth>\@ne\thesubsection\quad\fi##1}}}
+\pagestyle{myheadings}
+%\pagestyle{headings}
 %
 % Release data
 %
@@ -58,12 +73,34 @@
 % Modify some predefined environments
 %
 \renewenvironment{description}
- {\list{}{\setlength{\labelwidth}{0pt}
-          \setlength{\leftmargin}{5mm}
-          \setlength{\itemindent}{-\leftmargin}
-          \let\makelabel\descriptionlabel}}
+ {\list{}
+       {\setlength{\labelwidth}{0pt}
+        \setlength{\leftmargin}{5mm}
+        \setlength{\itemindent}{-\leftmargin}
+        \let\makelabel\descriptionlabel}}
  {\endlist}
 \renewcommand{\descriptionlabel}[1]{\hspace\labelsep\kf #1}
+%
+\renewenvironment{thebibliography}[1]{
+      \section*{\refname
+        \@mkboth{\MakeUppercase\refname}{\MakeUppercase\refname}}%
+      \addcontentsline{toc}{section}{\refname}
+      \list{\@biblabel{\@arabic\c@enumiv}}%
+           {\settowidth\labelwidth{\@biblabel{#1}}%
+            \leftmargin\labelwidth
+            \advance\leftmargin\labelsep
+            \@openbib@code
+            \usecounter{enumiv}%
+            \let\p@enumiv\@empty
+            \renewcommand\theenumiv{\@arabic\c@enumiv}}%
+      \sloppy
+      \clubpenalty4000
+      \@clubpenalty \clubpenalty
+      \widowpenalty4000%
+      \sfcode`\.\@m}
+     {\def\@noitemerr
+       {\@latex@warning{Empty `thebibliography' environment}}%
+      \endlist}
 %
 \renewenvironment{theindex}
  {\columnseprule\z@
@@ -72,7 +109,8 @@
   \@mkboth{\MakeUppercase\indexname}%
           {\MakeUppercase\indexname}%
   \parskip\z@ \@plus .3\p@\relax
-  \let\item\@idxitem}
+  \let\item\@idxitem
+  \addcontentsline{toc}{section}{\indexname}}
  {\onecolumn}
 %
 % Shorthands
@@ -81,6 +119,8 @@
 \newcommand{\ec}{\end{center}}
 \newcommand{\bd}{\begin{description}}
 \newcommand{\ed}{\end{description}}
+\newcommand{\be}{\begin{equation}}
+\newcommand{\ee}{\end{equation}}
 \newcommand{\bi}{\begin{itemize}}
 \newcommand{\ei}{\end{itemize}}
 \newcommand{\la}{$\langle$}
@@ -97,8 +137,6 @@
 \renewcommand\Huge{\@setfontsize\Huge\@xxxpt{36}}
 \newcommand\@xxxxiiipt{43.00}
 \newcommand\HUGE{\@setfontsize\HUGE\@xxxxiiipt{52}}
-%
-\makeatother
 %
 \begin{document}
 \thispagestyle{empty}
@@ -130,13 +168,13 @@ continuously improved and extended. Therefore the ultimate reference is
 always the CP2K source code.\\[2mm]
 Please cite this manual as:\\[2mm]
 The CP2K developers group,
-{\em CP2K User Manual (Release \releasenumber)}, Zurich, 2002
+{\em CP2K User Manual (Release \releasenumber)}, Zurich, \number\year
 \vfill
 %
 \subsection*{Copyright}
 %
 CP2K: A program package to perform molecular dynamics simulations\\[2mm]
-Copyright \copyright\ 2002
+Copyright \copyright\ \number\year\,
 \href{http://developer.berlios.de/project/?group_id=129}
      {The CP2K developers group}\\[2mm]
 This program is free software; you can redistribute it and/or modify
@@ -154,26 +192,32 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 \newpage
 %
-\tableofcontents
+% \tableofcontents explicitly
+\markboth{\MakeUppercase\contentsname}{\MakeUppercase\contentsname}
+\section*{\contentsname}
+\hypertarget{\contentsname}{}
+\pdfbookmark[1]{\contentsname}{\contentsname}
+\@starttoc{toc}
 \newpage\null\newpage
 %
 \section{Introduction}
 %
 The CP2K project was started in 2000 at the Max-Planck institute for
 solid state research in Stuttgart. Now it is continued at the
-ETH Zurich (CSCS) and at the University Zurich.
+ETH Zurich (CSCS) and at the University of Zurich.
 
 The current members of the CP2K developers group are
 \bi
- \item Thomas Chassaing (University Zurich)
- \item Harald Forbert (University Bochum)
- \item J\"urg Hutter (University Zurich)
+ \item Thomas Chassaing (University of Zurich)
+ \item Harald Forbert (University of Bochum)
+ \item J\"urg Hutter (University of Zurich)
  \item Matthias Krack (ETH Zurich/CSCS)
+ \item William Kuo (LLNL)
  \item Fawzi Mohamed (ETH Zurich/CSCS)
  \item Christopher J. Mundy (LLNL)
- \item Ari P. Seitsonen (University Zurich)
+ \item Ari P. Seitsonen (University of Zurich)
  \item Gloria Tabacchi (Universit\`a degli studi dell'Insubria, Como)
- \item Joost VandeVondele (University Zurich)
+ \item Joost VandeVondele (University of Zurich)
 \ei
 \newpage
 %
@@ -283,7 +327,7 @@ explained in the corresponding default database files.
        to be delimited by \kw{" "}.
 \ei
 %
-\subsection{Section \&CP2K \ldots \&END}
+\subsection{Section \&CP2K}
 \isr{\&CP2K}
 %
 The global CP2K section.
@@ -320,8 +364,8 @@ The global CP2K section.
   default: \kw{project}
 \ed
 %
-\subsection{Section \&IO \ldots \&END}
-\hyperdef{section}{IO}{}\iso{\&IO}
+\subsection{Section \&IO}
+\hypertarget{Section \&IO}{}\iso{\&IO}
 %
 In this section the names of input and/or output files can be
 modified.
@@ -336,11 +380,11 @@ modified.
   default: \kw{POTENTIAL}
  \item[RESTART\_FILE] \kw{\{\la{\rm file name}\ra\}}
   \ko{RESTART\_FILE}\\
-  Name of the restart file.\index{restart program run}\\
+  Name of the restart file.\\
   default: \kw{RESTART}
 \ed
 %
-\subsection{Section \&CELL \ldots \&END}
+\subsection{Section \&CELL}
 \isr{\&CELL}
 %
 This section is always needed to define the simulation cell.
@@ -358,12 +402,6 @@ This section is always needed to define the simulation cell.
 \subsubsection{Optional keywords}
 %
 \bd
- \item[SUBCELLS] \kw{\{\la{\rm real}\ra\}}
-  \ko{SUBCELLS}\\
-  The simulation cell is divided into subcells for the generation of the
-  neighbor lists. The specified value defines the size of the subcells.
-  Values between \kw{1.0} and \kw{2.0} show a good performance.\\
-  default: \kw{1.5}
  \item[UNIT] \kw{\{ANGSTROM,BOHR,SCALED\_ANGSTROM,SCALED\_BOHR\}}
   \ko{UNIT}\karg{ANGSTROM}\karg{BOHR}\karg{SCALED\_ANGSTROM}
            \karg{SCALED\_BOHR}\\
@@ -374,7 +412,7 @@ This section is always needed to define the simulation cell.
   default: \kw{BOHR}
 \ed
 %
-\subsection{Section \&COORD \ldots \&END}
+\subsection{Section \&COORD}
 \isr{\&COORD}
 %
 Each non-empty input line in this section defines an atom of the
@@ -384,7 +422,7 @@ be a \la string\ra\ or an \la integer\ra\ number. The kind name has
 to follow a set of three \la real\ra\ numbers defining the $x$, $y$,
 and $z$ coordinates of the atom.
 %
-\subsection{Section \&KIND \ldots \&END}
+\subsection{Section \&KIND}
 \isr{\&KIND}
 %
 This section has to be defined for each atomic kind in a {\sc Quickstep}
@@ -410,11 +448,11 @@ One or more {\kf \&KIND} sections are required for a {\sc Quickstep} run.
   \kr{ORBITAL\_BASIS\_SET}\kr{BASIS\_SET}\kr{BAS}\\
   Name of the Gaussian orbital basis set which has to be read from the
   Gaussian basis set database file (see
-  \hyperref{}{section}{IO}{section \kw{\&IO}}).
+  \hyperlink{Section \&IO}{section \kw{\&IO}}).
  \item[POTENTIAL,POT] \kw{\{\la{\rm string}\ra\}}
   \kr{POTENTIAL}\\
   Name of the atomic potential which has to be read from the potential
-  database file (see \hyperref{}{section}{IO}{section \kw{\&IO}}).
+  database file (see \hyperlink{Section \&IO}{section \kw{\&IO}}).
 \ed
 %
 \subsubsection{Optional keywords}
@@ -433,28 +471,29 @@ One or more {\kf \&KIND} sections are required for a {\sc Quickstep} run.
   the PAOs with respect to the full basis set.
 \ed
 %
-\subsection{Section \&DFT \ldots \&END}
+\subsection{Section \&DFT}
 \iso{\&DFT}
 %
 In this section the configuration of a density functional calculation (DFT)
 can be modified.
 %
 \bd
+ \item[CHARGE] \kw{\{\la{\rm integer}\ra\}}
+  \ko{CHARGE}\\
+  The total charge of the system.\\
+  default: \kw{0}
+ \item[CORRELATION-FUNCTIONAL,C-FUNCTIONAL] \kw{\{LYP,P86,NONE\}}\\
+  Name of the requested correlation functional.\\
+  default: \kw{PADE}
  \item[EXCHANGE-CORRELATION-FUNCTIONAL,XC-FUNCTIONAL,FUNCTIONAL]~\\
   \kw{\{BLYP,BP86,LDA,PADE,PBE,NONE\}}
-  \ko{EXCHANGE-CORRELATION-\\FUNCTIONAL}\ko{XC-FUNCTIONAL}\ko{XC-FUN}
-  \karg{PADE}\karg{LDA}\karg{PBE}\\
+  \ko{EXCHANGE-CORRELATION-\\FUNCTIONAL}\ko{XC-FUNCTIONAL}\ko{FUNCTIONAL}
+  \karg{BLYP}\karg{BP86}\karg{LDA}\karg{PADE}\karg{PBE}\\
   Name of the requested exchange-correlation functional for a density
   functional calculation.\\
   default: \kw{PADE}
  \item[EXCHANGE-FUNCTIONAL,X-FUNCTIONAL] \kw{\{B88,SLATER,NONE\}}\\
   Name of the requested exchange functional.\\
-  default: \kw{NONE}
- \item[CORRELATION-FUNCTIONAL,C-FUNCTIONAL] \kw{\{LYP,P86,NONE\}}\\
-  Name of the requested correlation functional.\\
-  default: \kw{PADE}
- \item[KINETIC-ENERGY-FUNCTIONAL,KE-FUNCTIONAL] \kw{\{NONE\}}\\
-  Name of the requested kinetic energy functional.\\
   default: \kw{NONE}
  \item[DENSITY\_CUTOFF] \kw{\{\la{\rm real}\ra\}}\\
   Cutoff for the calculation of the density.\\
@@ -472,15 +511,20 @@ can be modified.
    \item[PLANE\_WAVES,PW]~\\
     default
   \ed
- \item[FORCES]~\\
-  The calculation of the forces is requested.\\
-  default: no force calculation
- \item[CHARGE] \kw{\{\la{\rm integer}\ra\}}\\
-  The total charge of the system.\\
-  default: \kw{0}
+ \item[KINETIC-ENERGY-FUNCTIONAL,KE-FUNCTIONAL] \kw{\{NONE\}}\\
+  Name of the requested kinetic energy functional.\\
+  default: \kw{NONE}
+ \item[LSD]
+  \ko{LSD}~\\
+  A spin-polarized (unrestricted Kohn-Sham) calculation is requested.
+ \item[MULTIPLICITY,MULTIP] \kw{\{\la{\rm integer}\ra\}}
+  \ko{MULTIPLICITY}\ko{MULTIP}\\
+  The multiplicity, i.~e.\ the number of unpaired electrons in the system plus
+  one.\\
+  default: \kw{1} for an even and \kw{2} for an odd number of electrons
 \ed
 %
-\subsection{Section \&QS \ldots \&END}
+\subsection{Section \&QS}
 \iso{\&QS}
 %
 Program parameters {\sc Quickstep}
@@ -562,7 +606,7 @@ Program parameters {\sc Quickstep}
   default: no PAO
 \ed
 %
-\subsection{Section \&SCF \ldots \&END}
+\subsection{Section \&SCF}
 \iso{\&SCF}
 This section defines the parameters for the configuration of the self
 consistent field (SCF) procedure which is used for the wavefunction
@@ -579,17 +623,11 @@ optimization.
   Decides whether the Cholesky decomposition is used in the eigensolver
   or not.\\
   default: \kw{CHOLESKY\_ON}
- \item[DENSITY\_GUESS,SCF\_GUESS,GUESS] \kw{\{ATOMIC,CORE,RESTART\}}
-  \ko{DENSITY\_GUESS}\ko{SCF\_GUESS}\ko{GUESS}\karg{ATOMIC}\karg{CORE}
-  \karg{RESTART}~\\
+ \item[DENSITY\_GUESS,SCF\_GUESS,GUESS] \kw{\{ATOMIC,CORE\}}
+  \ko{DENSITY\_GUESS}\ko{SCF\_GUESS}\ko{GUESS}\karg{ATOMIC}\karg{CORE}~\\
   Defines the type of guess which is employed to generate the first density
-  matrix. For \kw{RESTART} a valid restart has to be supplied.
-  \index{restart program run}\\
+  matrix.\\
   default: \kw{ATOMIC}
- \item[OT]
-  \ko{OT}~\\
-  An orbital transformation approach instead of a diagonalization is used
-  for the wavefunction optimization during the SCF iteration procedure.
  \item[DENSITY\_MIXING,MIXING] \kw{\{\la{\rm real}\ra\}}
   \ko{DENSITY\_MIXING}\ko{MIXING}\\
   Factor for the mixing of the old and new density matrix during the
@@ -605,12 +643,24 @@ optimization.
   Threshold value for eigenvector quenching when S$^{-1/2}$ is used as the
   orthogonalization matrix in the eigensolver.\\
   default: \kw{1.0E-5}
+ \item[EPS\_JACOBI] \kw{\{\la{\rm real}\ra\}}
+  \ko{EPS\_JACOBI}\\
+  Pseudo diagonalization (Jacobi rotations) \cite{Stewart:1982} is used, if
+  the maximum difference between the corresponding density matrix elements
+  of two consecutive SCF iteration steps is smaller than the specified
+  threshold value.\\
+  default: \kw{0.0}
  \item[EPS\_SCF] \kw{\{\la{\rm real}\ra\}}
   \ko{EPS\_SCF}\\
-  SCF convergence criterion, i.e. the maximum difference between the
+  SCF convergence criterion, i.~e.\ the maximum difference between the
   corresponding density matrix elements of two consecutive SCF iteration
   steps.\\
   default: \kw{1.0E-5}
+ \item[JACOBI\_THRESHOLD] \kw{\{\la{\rm real}\ra\}}
+  \ko{JACOBI\_THRESHOLD}\\
+  Threshold value for a Kohn-Sham matrix matrix element in the MO basis to
+  perform a Jacobi rotations, if pseudo diagonalization is used.\\
+  default: \kw{1.0E-7}
  \item[LEVEL\_SHIFT] \kw{\{\la{\rm real}\ra\}}
   \ko{LEVEL\_SHIFT}\\
   Shift value for the unoccupied (virtual) molecular orbitals (MOs) in
@@ -629,6 +679,10 @@ optimization.
   Number of SCF steps between two full calculations of the electronic
   charge density.
   default: \kw{1}
+ \item[OT]
+  \ko{OT}~\\
+  An orbital transformation approach instead of a diagonalization is used
+  for the wavefunction optimization during the SCF iteration procedure.
  \item[SMEAR] \kw{\{\la{\rm real}\ra\}}
   \ko{SMEAR}\\
   Window size in atomic units with respect to the eigenvalue of the highest
@@ -645,7 +699,7 @@ optimization.
   default: \kw{0.0}
 \ed
 %
-\subsection{Section \&PRINT \ldots \&END}
+\subsection{Section \&PRINT}
 \iso{\&PRINT}
 %
 This sections allows for detailed output control when running {\sc Quickstep}.
@@ -675,7 +729,7 @@ in the \kw{\&PRINT} section. The default print level is \kw{LOW}.
   {\kf INTEGER}, or {\tt LOGICAL}.
  \item[BASIS\_SETS,BASIS\_SET,BASIS]
   \ko{BASIS\_SETS}\ko{BASIS}~\\
-  Print the Gaussian basis set information, i.e. all Gaussian function
+  Print the Gaussian basis set information, i.~e.\ all Gaussian function
   exponents and the corresponding contraction coefficients as read
   from the Gaussian basis set da\-ta\-ba\-se file. Furthermore, the
   normalized contraction coefficients are printed.
@@ -837,6 +891,7 @@ in the \kw{\&PRINT} section. The default print level is \kw{LOW}.
  PROGRAM      Quickstep
  IOLEVEL      10
  FFTLIB       FFTSG
+ RUN_TYPE     WFN_OPT
 &END
 
 &DFT
@@ -845,9 +900,6 @@ in the \kw{\&PRINT} section. The default print level is \kw{LOW}.
 
 &QS
  CUTOFF       300
- EPS_DEFAULT  1.0E-12
- EPS_RHO      1.0E-8
- EPS_GVG      1.0E-6
  REL_CUTOFF   30
 &END
 
@@ -861,7 +913,7 @@ in the \kw{\&PRINT} section. The default print level is \kw{LOW}.
 &END
 
 &PRINT medium
-NO_BLACS_INFO
+ NO_BLACS_INFO
 &END
 
 &KIND Ar
@@ -889,11 +941,11 @@ NO_BLACS_INFO
  PROGRAM      Quickstep
  IOLEVEL      10
  FFTLIB       FFTSG
+ RUN_TYPE     GEO_OPT
 &END
 
 &DFT
  FUNCTIONAL   Pade
- FORCES
 &END
 
 &QS
@@ -938,82 +990,110 @@ NO_BLACS_INFO
 \subsection{GPW method}
 %
 The electronic energy functional for a molecular or crystalline system in
-the framework of the Gaussian Plane Waves (GPW) method is defined as
-\cite{GPW}
+the framework of the Gaussian plane waves (GPW) method \cite{GPW} using the
+Kohn-Sham formulation of density functional theory (DFT)
+\cite{Hohenberg:1964,Kohn:1965} is defined as
 \begin{eqnarray}
  \label{GPW-GTH-PP}
  E^{\rm el}[n] &=& E^{\rm T}[n] + E^{\rm V}[n] + E^{\rm H}[n] +
-                   E^{\rm XC}[n] \nn \\
+                   E^{\rm XC}[n]\\
                &=& \sum_{\mu\nu} P_{\mu\nu}
                     \langle
                      \varphi_\mu({\bf r})
-                     \mid -\sfrac{1}{2}\nabla^2 \mid
+                     \mid -\frac{1}{2}\nabla^2 \mid
                      \varphi_\nu({\bf r})
-                    \rangle + \nn \\
+                    \rangle +\nn\\
                & & \sum_{\mu\nu} P_{\mu\nu}
                     \langle
                      \varphi_\mu({\bf r})
                      \mid V_{\rm loc}^{\rm PP}(r) \mid
                      \varphi_\nu({\bf r})
-                    \rangle -\\
+                    \rangle +\nn\\
                & & \sum_{\mu\nu} P_{\mu\nu}
                     \langle
                      \varphi_\mu({\bf r})
                      \mid V_{\rm nl}^{\rm PP}({\bf r},{\bf r}^\prime) \mid
                      \varphi_\nu({\bf r}^\prime)
-                    \rangle + \nn \\
+                    \rangle +\nn\\
                & & 4\pi\,\Omega \sum_{|{\bf G}| < G_{\rm C}}
                     \frac{\tilde n^*({\bf G})\,
-                          \tilde n({\bf G})}{{\bf G}^2} + \nn \\
+                          \tilde n({\bf G})}{{\bf G}^2} +\nn\\
                & & \int\tilde n({\bf r})\,\varepsilon_{\rm XC}[\tilde n]\,
-                   d{\bf r}
+                   d{\bf r}\nn
 \end{eqnarray}
 where $E^{\rm T}[n]$ is the kinetic energy, $E^{\rm V}[n]$ is the electronic
 interaction with the ionic cores, $E^{\rm H}[n]$ is the electronic Hartree
 (Coulomb) energy and $E^{\rm XC}[n]$ is the exchange-correlation energy.
 
 The electronic density
-\[
+\be
  n({\bf r}) = \sum_{\mu\nu} P_{\mu\nu}\varphi_\mu({\bf r})\varphi_\nu({\bf r})
-\]
+\ee
 is expanded in a set of contracted Gaussian functions
-\[
- \varphi_\mu({\bf r}) = \sum_i C_{i\mu} g_i({\bf r})
-\]
+\be
+ \varphi_\mu({\bf r}) = \sum_i d_{i\mu} g_i({\bf r})
+\ee
 $P_{\mu\nu}$ is a density matrix element, $g_i({\bf r})$ is a primitive
-Gaussian function and $C_{i\mu}$ is the corresponding contraction coefficient.
+Gaussian function and $d_{i\mu}$ is the corresponding contraction coefficient.
+
 
 An auxiliary basis set of plane waves is used as an intermediate basis set
 to describe the electronic charge density
-\[
+\be
  \tilde n({\bf r}) = \frac{1}{\Omega}\sum_{|{\bf G}| < G_{\rm C}}
                      n({\bf G}) {\rm e}^{i {\bf Gr}}
-\]
+\ee
 which is used for the calculation of the density dependent contributions
 $E^{\rm H}[n]$ and $E^{\rm XC}[n]$.
-$\Omega$ is the volume of the periodic cell. The plane wave expansion is
-truncated by the specification of a cutoff value for the kinetic energy
-\[
+$\Omega$ is the volume of the periodic simulation cell.
+The plane wave expansion is truncated by the specification of a
+cut-off value for the kinetic energy
+\be
  E_{\rm C} = \frac{1}{2} G_{\rm C}^2
-\]
+\ee
 of the plane waves.
 Since the $G = 0$ term of the Hartree energy is treated with the Ewald method,
 the nuclear charges are represented by a Gaussian charge distribution and not
 by point charges.
 
 The GPW method works like pure plane waves methods with atomic pseudo
-potentials, since an expansion of Gaussian functions with large exponents
-is numerically not efficient or even not feasible.
-The current implemention of the GPW method uses only the pseudo potentials
-of Goedecker, Teter and Hutter (GTH) \cite{GTH:1996,GTH:1998} which
-consist of a local part $V_{\rm loc}^{\rm PP}(r)$ and a non-local part
-$V_{\rm nl}^{\rm PP}({\bf r},{\bf r}^\prime)$ as shown in
-Eq. \ref{GPW-GTH-PP}.
+potentials (PP), since an expansion of Gaussian functions with large
+exponents is numerically not efficient or even not feasible.
+
+The current implementation of the GPW method uses only the pseudo potentials
+of G\"o\-decker, Teter, and Hutter (GTH) \cite{GTH:1996} which are available for
+the whole periodic table \cite{GTH:1998}. The separable dual-space GTH pseudo
+potentials consist of a local part
+\begin{eqnarray}
+ V^{\rm PP}_{\rm local}(r)
+  & = & -\frac{Z_{\rm ion}}{r} {\rm erf} \left( \alpha^{\rm PP} r \right) +
+        \sum_{i=1}^4
+         C^{\rm PP}_i \left( \sqrt{2} \alpha^{\rm PP} r \right)^{2i-2}
+         \exp\left[ -\left( \alpha^{\rm PP} r \right)^2 \right]\\[2mm]
+ \mbox{with}\quad\alpha^{\rm PP}
+  & = & \frac{1}{\sqrt{2}r^{\rm PP}_{\rm local}}\nn\\[5mm]
+\noalign{and a non-local part}\nn\\
+ V^{\rm PP}_{\rm nl}({\bf r},{\bf r'}) & = &
+  \sum\limits_{lm} \sum\limits_{ij} \langle\,{\bf r}\,|\,p_i^{lm} \,\rangle
+  \,h_{ij}^{l}\,\langle\,p_j^{lm} \,|\,{\bf r'} \,\rangle \\[2mm]
+ \noalign{with the Gaussian-type projectors}
+ \langle\, {\bf r}\,|\,p_i^{lm}\,\rangle & = &
+ N_i^{l} Y^{lm}(\hat r) r^{l+2i-2}
+ \exp\left[-\frac{1}{2}\left(\frac{r}{r_l}\right)^2\right]\nn
+\end{eqnarray}
+as shown in Eq.~\ref{GPW-GTH-PP}
+resulting in a fully analytical formulation which requires only
+the definition of a small parameter set for each element. Moreover,
+the GTH pseudo potentials are transferable and norm-conserving.
+Nevertheless, plane waves methods employ this pseudo potential type
+only for reference calculations or if no other reliable pseudo
+potentials are available, since this type requires relative   
+high cut-off values, i.~e.\ more plane waves.
+However, in the framework of the GPW method there are no such
+limitations, since all contributions are integrals over Gaussian
+functions which can be calculated analytically.
 \newpage
-%
-\bibliographystyle{plain}
+\bibliographystyle{apsrev}
 \bibliography{manual}
-%
 \printindex
-%
 \end{document}
