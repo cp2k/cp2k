@@ -1227,7 +1227,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_qm_atom_list',&
          routineP = moduleN//':'//routineN
     LOGICAL :: explicit, failure
-    INTEGER :: num_qm_atom_tot, nkind, ikind, nlinks, stat, mm_index
+    INTEGER :: num_qm_atom_tot, nkind, ikind, nlinks, stat, mm_index, n_var, k
     INTEGER :: qm_subsys_type
     INTEGER, DIMENSION(:), POINTER           :: mm_indexes
     TYPE(section_vals_type), POINTER         :: qm_kinds, qmmm_links
@@ -1244,9 +1244,13 @@ CONTAINS
     qm_kinds => section_vals_get_subs_vals(qmmm_section,"QM_KIND",error=error)
     CALL section_vals_get(qm_kinds,n_repetition=nkind,error=error)
     DO ikind=1,nkind
-       CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,i_vals=mm_indexes,&
-            error=error)
-       num_qm_atom_tot = num_qm_atom_tot + SIZE(mm_indexes)             
+       CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,n_rep_val=n_var,&
+            error=error)       
+       DO k = 1, n_var
+          CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,i_rep_val=k,&
+               i_vals=mm_indexes,error=error)
+          num_qm_atom_tot = num_qm_atom_tot + SIZE(mm_indexes)
+       END DO             
     END DO
     !
     ! QM/MM LINKS
@@ -1275,22 +1279,26 @@ CONTAINS
     IF (PRESENT(qm_subsys_index)) qm_subsys_index  =   0
     num_qm_atom_tot = 1
     DO ikind=1,nkind
-       CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,i_vals=mm_indexes,&
-            error=error)
-       IF (PRESENT(qm_atom_index)) THEN
-          qm_atom_index(num_qm_atom_tot:num_qm_atom_tot + SIZE(mm_indexes)-1)   = mm_indexes(:)
-       END IF
-       IF (PRESENT(qm_atom_type)) THEN
-          CALL section_vals_val_get(qm_kinds,"_SECTION_PARAMETERS_",i_rep_section=ikind,&
-               c_val=qm_atom_kind,error=error)
-          qm_atom_type (num_qm_atom_tot:num_qm_atom_tot + SIZE(mm_indexes)-1)   = qm_atom_kind
-       END IF
-       IF (PRESENT(qm_subsys_index)) THEN
-          CALL section_vals_val_get(qm_kinds,"SUBSYS",i_rep_section=ikind,i_val=qm_subsys_type,&
-               error=error)
-          qm_subsys_index(num_qm_atom_tot:num_qm_atom_tot + SIZE(mm_indexes)-1) = qm_subsys_type
-       END IF
-       num_qm_atom_tot = num_qm_atom_tot + SIZE(mm_indexes)
+       CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,n_rep_val=n_var,&
+            error=error)       
+       DO k = 1, n_var
+          CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,i_rep_val=k,&
+               i_vals=mm_indexes,error=error)
+          IF (PRESENT(qm_atom_index)) THEN
+             qm_atom_index(num_qm_atom_tot:num_qm_atom_tot + SIZE(mm_indexes)-1)   = mm_indexes(:)
+          END IF
+          IF (PRESENT(qm_atom_type)) THEN
+             CALL section_vals_val_get(qm_kinds,"_SECTION_PARAMETERS_",i_rep_section=ikind,&
+                  c_val=qm_atom_kind,error=error)
+             qm_atom_type (num_qm_atom_tot:num_qm_atom_tot + SIZE(mm_indexes)-1)   = qm_atom_kind
+          END IF
+          IF (PRESENT(qm_subsys_index)) THEN
+             CALL section_vals_val_get(qm_kinds,"SUBSYS",i_rep_section=ikind,i_val=qm_subsys_type,&
+                  error=error)
+             qm_subsys_index(num_qm_atom_tot:num_qm_atom_tot + SIZE(mm_indexes)-1) = qm_subsys_type
+          END IF
+          num_qm_atom_tot = num_qm_atom_tot + SIZE(mm_indexes)
+       END DO
     END DO
     IF (PRESENT(mm_link_scale_factor))     mm_link_scale_factor = 0.0_dp
     IF (PRESENT(fist_scale_charge_link)) fist_scale_charge_link = 0.0_dp

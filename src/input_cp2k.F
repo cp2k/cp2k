@@ -4223,7 +4223,7 @@ END SUBROUTINE create_ewald_section
        CALL keyword_create(keyword, name="MM_INDEX",&
             description="The indexes of the mm atoms that have this kind",&
             usage="MM_INDEX 1 2",&
-            n_var=-1,type_of_var=integer_t,error=error)
+            n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
