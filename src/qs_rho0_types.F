@@ -16,6 +16,8 @@
 
 MODULE qs_rho0_types
 
+  USE coefficient_types,               ONLY: coeff_deallocate,&
+                                             coeff_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
@@ -39,7 +41,8 @@ MODULE qs_rho0_types
   TYPE  mpole_rho_atom
     REAL(dp), DIMENSION(:), POINTER             ::  Qlm_h, &
                                                     Qlm_s, & 
-                                                    Qlm_tot
+                                                    Qlm_tot,&
+                                                    Qlm_tot_c
     REAL(dp)                                    ::  Qlm_z
   END TYPE mpole_rho_atom
 
@@ -52,11 +55,15 @@ MODULE qs_rho0_types
     TYPE(mpole_rho_atom), DIMENSION(:), POINTER  :: mp_rho
     TYPE(mpole_gau_overlap), DIMENSION(:), &
                                       POINTER   :: mp_gau
-    REAL(dp)                                    :: zet0_h,zet0_s
+    REAL(dp)                                    :: zet0_h,zet0_s,&
+                                                   total_rho0_h,&
+                                                   total_rho0_s
     REAL(dp), DIMENSION(:), POINTER             :: norm_g0l_h, &
                                                    norm_g0l_s
     INTEGER, DIMENSION(:),  POINTER             :: lmax0_kind
-    INTEGER                                     :: lmax_0
+    INTEGER                                     :: lmax_0,igrid_zet0_s
+    TYPE(coeff_type), POINTER                   :: rho0_s_rs,&
+                                                   rho0_s_gs  
   END TYPE rho0_mpole_type
 
   TYPE rho0_atom_type
@@ -106,6 +113,7 @@ CONTAINS
       NULLIFY(mp_rho(iat)%Qlm_h)
       NULLIFY(mp_rho(iat)%Qlm_s)
       NULLIFY(mp_rho(iat)%Qlm_tot)
+      NULLIFY(mp_rho(iat)%Qlm_tot_c)
     END DO
 
     IF(ASSOCIATED(mp_gau)) THEN
@@ -203,6 +211,8 @@ CONTAINS
     NULLIFY(rho0%norm_g0l_h)
     NULLIFY(rho0%norm_g0l_s)
     NULLIFY(rho0%lmax0_kind)
+    NULLIFY(rho0%rho0_s_rs)
+    NULLIFY(rho0%rho0_s_gs)
 
   END SUBROUTINE allocate_rho0_mpole
 
@@ -308,8 +318,10 @@ CONTAINS
       DEALLOCATE(mp_rho(iat)%Qlm_h,STAT=istat)
       DEALLOCATE(mp_rho(iat)%Qlm_s,STAT=istat) 
       DEALLOCATE(mp_rho(iat)%Qlm_tot,STAT=istat)
+      DEALLOCATE(mp_rho(iat)%Qlm_tot_c,STAT=istat)
+
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                      "Qlm_h,Qlm_s,Qlm_tot")
+                      "Qlm_h,Qlm_s,Qlm_tot,Qlm_tot_c")
     END DO
 
     DEALLOCATE(mp_rho,STAT=istat)
@@ -392,6 +404,16 @@ CONTAINS
                          "rho0%norm_g0l_s")
       END IF
 
+      IF (ASSOCIATED(rho0%rho0_s_rs)) THEN
+          CALL coeff_deallocate(rho0%rho0_s_rs)
+          DEALLOCATE(rho0%rho0_s_rs)
+      ENDIF
+
+      IF (ASSOCIATED(rho0%rho0_s_gs)) THEN
+          CALL coeff_deallocate(rho0%rho0_s_gs)
+          DEALLOCATE(rho0%rho0_s_gs)
+      ENDIF
+
       DEALLOCATE (rho0,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                        "rho0_mpole")
@@ -407,7 +429,7 @@ CONTAINS
 ! ******************************************************************************
   SUBROUTINE get_rho0_mpole(rho0_mpole, g0_h, g0_s, iat, ikind, lmax_0, l0_ikind,&
                             lmax0_kind, mp_gau_ikind, mp_rho, norm_g0l_h, norm_g0l_s,&
-                            Qlm_gg, zet0_h, zet0_s)
+                            Qlm_gg, Qlm_tot_c, zet0_h, zet0_s, igrid_zet0_s)
 
     TYPE(rho0_mpole_type),  POINTER              :: rho0_mpole
 
@@ -417,11 +439,13 @@ CONTAINS
     REAL(dp), INTENT(OUT), OPTIONAL              :: zet0_h,zet0_s
     REAL(dp), DIMENSION(:), OPTIONAL,POINTER     :: norm_g0l_h, &
                                                     norm_g0l_s
+    REAL(dp), DIMENSION(:), OPTIONAL,POINTER     :: Qlm_tot_c
     REAL(dp), DIMENSION(:,:), OPTIONAL,POINTER   :: g0_h, g0_s
     REAL(dp), DIMENSION(:,:,:), OPTIONAL, & 
                                        POINTER   :: Qlm_gg
     INTEGER, DIMENSION(:),  OPTIONAL,POINTER     :: lmax0_kind
     INTEGER ,INTENT(OUT), OPTIONAL               :: lmax_0, l0_ikind
+    INTEGER ,INTENT(OUT), OPTIONAL               :: igrid_zet0_s
     INTEGER, INTENT(IN), OPTIONAL                :: iat, ikind
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_rho0_mpole"
@@ -436,6 +460,7 @@ CONTAINS
       IF(PRESENT(norm_g0l_s)) norm_g0l_s => rho0_mpole%norm_g0l_s
       IF(PRESENT(zet0_h)) zet0_h = rho0_mpole%zet0_h
       IF(PRESENT(zet0_s)) zet0_s = rho0_mpole%zet0_s
+      IF(PRESENT(igrid_zet0_s)) igrid_zet0_s = rho0_mpole%igrid_zet0_s
 
       IF(PRESENT(ikind)) THEN
         IF(PRESENT(l0_ikind))     l0_ikind = rho0_mpole%lmax0_kind(ikind)
@@ -443,6 +468,9 @@ CONTAINS
         IF(PRESENT(g0_h))         g0_h => rho0_mpole%mp_gau(ikind)%g0_h
         IF(PRESENT(g0_s))         g0_s => rho0_mpole%mp_gau(ikind)%g0_s
         IF(PRESENT(Qlm_gg))       Qlm_gg => rho0_mpole%mp_gau(ikind)%Qlm_gg
+      END IF
+      IF(PRESENT(iat)) THEN
+        IF(PRESENT(Qlm_tot_c)) Qlm_tot_c => rho0_mpole%mp_rho(iat)%Qlm_tot_c
       END IF
 
     ELSE
@@ -454,22 +482,24 @@ CONTAINS
   END SUBROUTINE get_rho0_mpole
 
 ! ******************************************************************************
-  SUBROUTINE initialize_mpole_rho(mp_rho,nchannels,zeff)
+  SUBROUTINE initialize_mpole_rho(mp_rho,nchan_s,nchan_c,zeff)
 
     TYPE(mpole_rho_atom)         :: mp_rho
-    INTEGER , INTENT(IN)         :: nchannels , zeff
+    INTEGER , INTENT(IN)         :: nchan_c, nchan_s , zeff
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "initialize_mpole_rho"
 
 !   ---------------------------------------------------------------------------
 
-   CALL reallocate(mp_rho%Qlm_h,1,nchannels)
-   CALL reallocate(mp_rho%Qlm_s,1,nchannels)
-   CALL reallocate(mp_rho%Qlm_tot,1,nchannels)
+   CALL reallocate(mp_rho%Qlm_h,1,nchan_s)
+   CALL reallocate(mp_rho%Qlm_s,1,nchan_s)
+   CALL reallocate(mp_rho%Qlm_tot,1,nchan_s)
+   CALL reallocate(mp_rho%Qlm_tot_c,1,nchan_c)
 
    mp_rho%Qlm_h = 0.0_dp
    mp_rho%Qlm_s = 0.0_dp
    mp_rho%Qlm_tot = 0.0_dp
+   mp_rho%Qlm_tot_c = 0.0_dp
    mp_rho%Qlm_z = -2._dp*ROOTPI*Zeff
 
 

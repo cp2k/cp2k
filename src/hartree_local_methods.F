@@ -302,7 +302,8 @@ MODULE  hartree_local_methods
                     rho_atom_set= rho_atom_set,&
                     rho0_atom_set=rho0_atom_set, &
                     rho0_mpole=rho0_mpole,&
-                    rhoz_set=rhoz_set,ecoul_1c=ecoul_1c)
+                    rhoz_set=rhoz_set,&
+                    ecoul_1c=ecoul_1c)
 
     nkind = SIZE(atomic_kind_set,1)
 
@@ -385,7 +386,7 @@ MODULE  hartree_local_methods
 
         CALL calculate_Vh_1center(Vh1_h,Vh1_s,r_h,r_s,rrad_0,rrad_z,grid_atom)
 
-!       Calculate the contributions to Ecoul coming from Vh1_h*rhoz and Vh1_s*rho0
+!       Calculate the contributions to Ecoul coming from Vh1_h*rhoz 
 
         ecoul_1_z = 0.0_dp
         DO ir = 1,nr
@@ -393,6 +394,7 @@ MODULE  hartree_local_methods
         END DO
         ecoul_1_z = 0.5_dp*ecoul_1_z
 
+!       Calculate the contributions to Ecoul coming from  Vh1_s*rho0
         ecoul_1_0 = 0.0_dp
         DO iso = 1,nchan_0
           ec_tmp = 0.0_dp

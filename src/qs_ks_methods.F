@@ -320,7 +320,8 @@ CONTAINS
     TYPE(coeff_type)                         :: rho_tot_gspace, &
                                                 v_hartree_gspace
     TYPE(coeff_type), DIMENSION(:), POINTER  :: v_rspace_new, v_tau_rspace
-    TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(coeff_type), POINTER                :: rho_core,&
+                                                rho0_s_gs
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -330,12 +331,13 @@ CONTAINS
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: h, s
+    REAL(dp)                                 :: tot1_h, tot1_s 
 
 ! shorter for output
 
     failure=.FALSE.
     NULLIFY(h,s,dft_control,atomic_kind_set,auxbas_pw_pool, pw_pools,&
-         pw_env,rho_core,cell, logger, v_rspace_new, v_tau_rspace)
+         pw_env,rho_core,rho0_s_gs,cell, logger, v_rspace_new, v_tau_rspace)
 
     !   -----------------------------------------------------------------------
 
@@ -356,6 +358,7 @@ CONTAINS
          pw_env=pw_env,&
          cell=cell,&
          rho_core=rho_core,&
+         rho0_s_gs=rho0_s_gs,&
          qs_charges=qs_charges)
 
     nspins=dft_control%nspins
@@ -389,7 +392,12 @@ CONTAINS
             use_data = COMPLEXDATA1D,&
             in_space = RECIPROCALSPACE, error=error)
 
-       CALL coeff_add(rho_core,rho%rho_g(1),rho_tot_gspace)
+       IF(dft_control%qs_control%gapw) THEN
+         CPPrecondition(ASSOCIATED(rho0_s_gs),cp_failure_level,routineP,error,failure)
+         CALL coeff_add(rho0_s_gs,rho%rho_g(1),rho_tot_gspace)
+       ELSE
+         CALL coeff_add(rho_core,rho%rho_g(1),rho_tot_gspace)
+       END IF
        DO ispin=2,nspins
           CALL coeff_sumup(rho%rho_g(ispin),rho_tot_gspace)
        END DO
@@ -408,12 +416,31 @@ CONTAINS
                "Total core charge density (r-space):",&
                qs_charges%total_rho_core_rspace,&
                qs_charges%total_rho_core_rspace - REAL(n_electrons,dp)
-          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+          IF(dft_control%qs_control%gapw) THEN
+            tot1_h =  qs_charges%total_rho1_hard(1)
+            tot1_s =  qs_charges%total_rho1_soft(1)
+            DO ispin=2,nspins
+              tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
+              tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
+            END DO
+            WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
+                "Hard and soft local densities (lebedev):",&
+                tot1_h, tot1_s
+            WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+               "Total charge density (r-space):     ",&
+               SUM(rho%tot_rho_r)+&
+               tot1_h - tot1_s + qs_charges%total_rho_core_rspace,&
+               "Total soft rho + rho0 soft (g-space):",&
+               qs_charges%total_rho_gspace
+          ELSE  
+            WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                "Total charge density (r-space):     ",&
                SUM(rho%tot_rho_r)+&
                qs_charges%total_rho_core_rspace,&
                "Total charge density (g-space):     ",&
                qs_charges%total_rho_gspace
+          END IF
+
        END IF
 
        CALL init_pw_poisson_solver(cell%green,error=error)

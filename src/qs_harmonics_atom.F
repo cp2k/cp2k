@@ -44,19 +44,15 @@ MODULE qs_harmonics_atom
 
   TYPE harmonics_atom_type
 
-     INTEGER                         :: max_s_harm, &
-                                        max_iso_not0, &
-                                        maxcg, ngrid
-     INTEGER, DIMENSION(:,:,:), &
-                           POINTER   :: ncg
-     INTEGER, DIMENSION(:,:,:,:), &
-                           POINTER   :: ind_cg_a,ind_cg_b
-     REAL(dp), DIMENSION(:,:), &
-                             POINTER :: slm
-     REAL(dp), DIMENSION(:,:,:), &
-                             POINTER :: dslm
-     REAL(dp), DIMENSION(:,:,:), &
-                             POINTER :: my_CG
+     INTEGER                              :: max_s_harm, &
+                                             max_iso_not0, &
+                                             maxcg, ngrid
+     INTEGER, DIMENSION(:,:,:), POINTER   :: ncg
+     INTEGER, DIMENSION(:,:,:,:), POINTER :: ind_cg_a,ind_cg_b
+     REAL(dp), DIMENSION(:,:),    POINTER :: slm
+     REAL(dp), DIMENSION(:,:,:),  POINTER :: dslm
+     REAL(dp), DIMENSION(:,:,:),  POINTER :: my_CG
+     REAL(dp), DIMENSION(:), POINTER      :: slm_int
 
   END TYPE harmonics_atom_type
 
@@ -107,6 +103,7 @@ MODULE qs_harmonics_atom
     NULLIFY(harmonics%ind_cg_b)
     NULLIFY(harmonics%slm)
     NULLIFY(harmonics%dslm)
+    NULLIFY(harmonics%slm_int)
     NULLIFY(harmonics%ncg)
     NULLIFY(harmonics%my_CG)
 
@@ -153,6 +150,13 @@ MODULE qs_harmonics_atom
         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "harmonics%dslm")
       ENDIF
+
+      IF(ASSOCIATED(harmonics%slm_int)) THEN
+        DEALLOCATE (harmonics%slm_int,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "harmonics%slm_int")
+      ENDIF
+
       IF(ASSOCIATED(harmonics%ncg)) THEN
         DEALLOCATE (harmonics%ncg,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -177,24 +181,25 @@ MODULE qs_harmonics_atom
 ! *****************************************************************************
 
   SUBROUTINE create_harmonics_atom(harmonics,orb_basis,my_CG,na,&
-                                   llmax,max_s_harm,ll,globenv)
+                                   llmax,max_s_harm,ll,wa,globenv)
 
     TYPE(harmonics_atom_type), POINTER     :: harmonics
     TYPE(gto_basis_set_type), POINTER      :: orb_basis
     REAL(dp), DIMENSION(:,:,:), POINTER    :: my_CG
-    INTEGER                                :: ll,na,llmax,max_s_harm 
+    INTEGER,  INTENT(IN)                   :: ll,na,llmax,max_s_harm 
     TYPE(global_environment_type)          :: globenv
+    REAL(dp), DIMENSION(:), INTENT(IN)     :: wa
 
     CHARACTER(len=*), PARAMETER :: routine_name = 'create_harmonics_atom', &
       routineP = module_name//':'//routine_name
 
-    REAL(dp), DIMENSION(:), POINTER      :: y 
+    REAL(dp), DIMENSION(:), POINTER      :: y , slm_int
     REAL(dp), DIMENSION(:,:), POINTER    :: slm
     REAL(dp), DIMENSION(:,:,:), POINTER  :: dslm
     INTEGER, DIMENSION(:), POINTER       :: lmax, lmin
     INTEGER, DIMENSION(:), ALLOCATABLE :: ind_cg_a,ind_cg_b
 
-    INTEGER   :: i, incg, is1, is2, iso, iso1, iso2, l, l1, l2, &
+    INTEGER   :: i, ia, incg, is1, is2, iso, iso1, iso2, l, l1, l2, &
                  m, mm, maxcg, maxl, maxs, nset,max_iso_not0
 
 ! *****************************************************************************
@@ -223,9 +228,12 @@ MODULE qs_harmonics_atom
       call reallocate(harmonics%dslm,1,2,1,na,1,max_s_harm)
       call reallocate(harmonics%ncg,1,max_s_harm,1,nset,1,nset)
       call reallocate(y,1,na)
+      CALL reallocate(harmonics%slm_int,1,max_s_harm)
 
       slm => harmonics%slm
       dslm => harmonics%dslm
+      slm_int => harmonics%slm_int
+      slm_int = 0.0_dp
 
       DO iso = 1,max_s_harm
 
@@ -245,7 +253,12 @@ MODULE qs_harmonics_atom
 !!        CALL dy_lm(lebedev_grid(ll)%r,dy,l,m,i)
           dslm(i,1:na,iso) =   y(1:na)  !dydteta(1:na) 
         END DO 
-      END DO
+
+        DO i = 1,na
+           slm_int(iso) = slm_int(iso) + slm(i,iso)*wa(i)
+        END DO ! i
+
+      END DO  ! iso
 
 !   *** Assign indexes for the non null CG coefficients ***      
       mm = nsoset(maxl)*nsoset(maxl)

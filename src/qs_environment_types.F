@@ -318,7 +318,7 @@ CONTAINS
                         distribution_2d,molecule_kind_set,molecule_set,&
                         subsys,error,oce,rho_atom_set,&
                         rho0_atom_set,rho0_mpole,&
-                        rhoz_set,ecoul_1c)
+                        rhoz_set,ecoul_1c,rho0_s_rs,rho0_s_gs)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -392,6 +392,8 @@ CONTAINS
                          OPTIONAL, POINTER   :: rhoz_set
     TYPE(ecoul_1center_type), DIMENSION(:),&
                          OPTIONAL, POINTER   :: ecoul_1c
+    TYPE(coeff_type), OPTIONAL, POINTER      :: rho0_s_rs,&
+                                                rho0_s_gs
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
       routineP = moduleN//':'//routineN
@@ -401,6 +403,7 @@ CONTAINS
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(rho0_mpole_type),  POINTER          :: rho0_m
 
 !   ---------------------------------------------------------------------------
 
@@ -460,6 +463,16 @@ CONTAINS
          CALL get_local_rho(qs_env%local_rho_set, rhoz_set=rhoz_set)
     IF (PRESENT(ecoul_1c)) &
          CALL get_hartree_local(qs_env%hartree_local,ecoul_1c=ecoul_1c)
+    IF (PRESENT(rho0_s_rs)) THEN
+       CALL get_local_rho(qs_env%local_rho_set,  rho0_mpole=rho0_m)
+       rho0_s_rs => rho0_m%rho0_s_rs
+    END IF
+    IF (PRESENT(rho0_s_gs)) THEN
+       CALL get_local_rho(qs_env%local_rho_set,  rho0_mpole=rho0_m)
+       IF(ASSOCIATED(rho0_m)) THEN      
+         rho0_s_gs => rho0_m%rho0_s_gs
+       END IF
+    END IF
 
     CALL cp_subsys_get(qs_env%subsys,&
                       atomic_kinds=atomic_kinds,&
@@ -557,7 +570,7 @@ CONTAINS
                         wf_history,scf_env,local_particles,local_molecules,&
                         distribution_2d,molecule_kind_set,molecule_set,&
                         subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,&
-                        rhoz_set,ecoul_1c,error)
+                        rhoz_set,rhoz_tot,ecoul_1c,error)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -624,6 +637,7 @@ CONTAINS
     TYPE(rho0_mpole_type), OPTIONAL, POINTER :: rho0_mpole 
     TYPE(rhoz_type), DIMENSION(:),&
                           OPTIONAL, POINTER  :: rhoz_set
+    REAL(dp), OPTIONAL                       :: rhoz_tot
     TYPE(ecoul_1center_type), DIMENSION(:),& 
                           OPTIONAL, POINTER  :: ecoul_1c
 
@@ -739,6 +753,7 @@ CONTAINS
     IF (PRESENT(rhoz_set)) THEN
         CALL set_local_rho(qs_env%local_rho_set,rhoz_set=rhoz_set)
     END IF
+    IF (PRESENT(rhoz_tot)) qs_env%local_rho_set%rhoz_tot = rhoz_tot
     IF (PRESENT(ecoul_1c)) THEN
         CALL set_hartree_local(qs_env%hartree_local,ecoul_1c=ecoul_1c)
     END IF

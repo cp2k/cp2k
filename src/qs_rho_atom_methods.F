@@ -83,57 +83,47 @@ MODULE qs_rho_atom_methods
  CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE calculate_rho_atom(qs_env,atom_kind,atom_list,grid_atom,natom)
+  SUBROUTINE calculate_rho_atom(qs_env,atom_kind,atom_list,grid_atom,natom,&
+                                nspins,tot_rho1_h,tot_rho1_s)
 
     TYPE(qs_environment_type), INTENT(inout) :: qs_env
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     INTEGER, DIMENSION(:), INTENT(IN)        :: atom_list
     TYPE(grid_atom_type),  INTENT(IN)        :: grid_atom
-    INTEGER, INTENT(IN)                      :: natom
+    INTEGER, INTENT(IN)                      :: natom,nspins
+    REAL(dp), DIMENSION(:), INTENT(INOUT)    :: tot_rho1_h,&
+                                                tot_rho1_s
 
     CHARACTER(len=*), PARAMETER :: routine_name = 'calculate_rho_atom', &
       routineP = module_name//':'//routine_name
 
     INTEGER :: i, i1, i2, iat, iatom, icg, &
-      ipgf1, ipgf2, iset1, iset2, iso, iso1, &
+      ipgf1, ipgf2, ir, iset1, iset2, iso, iso1, &
       iso1_first, iso1_last, iso2, iso2_first, iso2_last, istat, l, lmax12, &
       lmin12, m1s, m2s, max_iso_not0, maxcg, maxco, maxl, maxso, &
-      n1s, n2s, nr, nset, nspins, size1, size2
+      n1s, n2s, nr, nset, size1, size2
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
+    REAL(dp)                                 :: rho_h, rho_s
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: g1, g2
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: dgg, gg
     REAL(dp), DIMENSION(:, :), POINTER       :: coeff, CPCH_sphere, &
                                                 CPCS_sphere, zet
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
-    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
 
-!dbg
-!    REAL(dp), DIMENSION(:,:), POINTER     :: sab
-!    REAL(dp), DIMENSION(3)     :: rab
-!    INTEGER, DIMENSION(:), POINTER        :: nsgf_s
-!    INTEGER, DIMENSION(:,:), POINTER     :: first_sgf
-!    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE :: ai_work
-    REAL(dp)                              :: rtot1, rtot2
-    INTEGER                               :: ia,ir
-!    REAL(dp), DIMENSION(:,:), POINTER     :: rpgf
-! dbg
+
 ! *****************************************************************************
 
     NULLIFY(rho_atom_set)
-    NULLIFY(dft_control)
     NULLIFY(orb_basis)
     NULLIFY(harmonics)
 
     NULLIFY(lmin,lmax,npgf,zet,my_CG,coeff,CPCH_sphere,CPCS_sphere)
 
-    CALL get_qs_env(qs_env=qs_env,rho_atom_set=rho_atom_set,&
-                    dft_control=dft_control)
-
-    nspins = dft_control%nspins
+    CALL get_qs_env(qs_env=qs_env,rho_atom_set=rho_atom_set)
 
     CALL get_atomic_kind(atomic_kind=atom_kind, orb_basis_set=orb_basis,&
                          harmonics=harmonics)
@@ -162,12 +152,6 @@ MODULE qs_rho_atom_methods
     CALL reallocate(CPCH_sphere,1,nsoset(maxl),1,nsoset(maxl))
     CALL reallocate(CPCS_sphere,1,nsoset(maxl),1,nsoset(maxl))
 
-!    ldai = ncoset(maxl + 1)
-!    ALLOCATE(ai_work(ldai,ldai,ncoset(1)))
-!    CALL reallocate(sab,1,maxco,1,maxco)
-!    rab = 0.0_dp
-!    dab = 0.0_dp
- 
     ALLOCATE(g1(nr),g2(nr),gg(nr,0:2*maxl),dgg(nr,0:2*maxl),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "g1,g2,gg,dgg")
@@ -176,34 +160,25 @@ MODULE qs_rho_atom_methods
 
     g1 = 0.0_dp
     g2 = 0.0_dp
-!    m1 = 0
     m1s = 0
 
     DO iset1 = 1,nset
-!      n1 = ncoset(lmax(iset1))
       n1s = nsoset(lmax(iset1))
       DO ipgf1  = 1,npgf(iset1)
-!        ico1_first = ncoset(lmin(iset1)-1)+1+n1*(ipgf1-1)+m1
-!        ico1_last  = ncoset(lmax(iset1))+n1*(ipgf1-1)+m1
+
         iso1_first = nsoset(lmin(iset1)-1)+1+n1s*(ipgf1-1)+m1s
         iso1_last  = nsoset(lmax(iset1))+n1s*(ipgf1-1)+m1s
         size1 = iso1_last - iso1_first + 1
-!        ico1 = ncoset(lmin(iset1)-1)+1
         i1 = nsoset(lmin(iset1)-1)+1
 
         g1(1:nr) = EXP(-zet(ipgf1,iset1)*grid_atom%rad2(1:nr))
-!        m2 = 0
         m2s = 0
         DO iset2 = 1,nset
-!          n2 = ncoset(lmax(iset2))
           n2s=nsoset(lmax(iset2))
           DO ipgf2 = 1,npgf(iset2)
-!            ico2_first = ncoset(lmin(iset2)-1)+1+n2*(ipgf2-1)+m2
-!            ico2_last  = ncoset(lmax(iset2))+n2*(ipgf2-1)+m2
             iso2_first = nsoset(lmin(iset2)-1)+1+n2s*(ipgf2-1)+m2s
             iso2_last  = nsoset(lmax(iset2))+n2s*(ipgf2-1)+m2s
             size2 = iso2_last - iso2_first + 1
-!            ico2 = ncoset(lmin(iset2)-1)+1
             i2 = nsoset(lmin(iset2)-1)+1
 
             g2(1:nr) = EXP(-zet(ipgf2,iset2)*grid_atom%rad2(1:nr))
@@ -244,28 +219,6 @@ MODULE qs_rho_atom_methods
                 CPCS_sphere(i1:i1+size1-1,i2:i2+size2-1) = &
                   coeff(iso1_first:iso1_last,iso2_first:iso2_last)
 
-
-!**********************************************************************************
-!dbg
-!        do iso1 = nsoset(lmin(iset1)-1)+1,nsoset(lmax(iset1))
-!          do iso2 = nsoset(lmin(iset2)-1)+1,nsoset(lmax(iset2))
-!             l = indso(1,iso1) + indso(1,iso2)
-!!             if(iso1<5 .AND. iso2<5)then
-!             do is2 = 1,nr
-!               do is1 = 1,grid_atom%ng_sphere
-!                  rtot1 = rtot1 + gg(is2,l)*CPCH_sphere(iso1,iso2)*&
-!                         harmonics%slm(is1,iso1)*harmonics%slm(is1,iso2)*&
-!                         grid_atom%wr(is2)*grid_atom%wa(is1)
-!                  rtot2 = rtot2 + gg(is2,l)*CPCS_sphere(iso1,iso2)*&
-!                         harmonics%slm(is1,iso1)*harmonics%slm(is1,iso2)*&
-!                         grid_atom%wr(is2)*grid_atom%wa(is1)
-!               enddo
-!             enddo
-!!             endif
-!          enddo
-!        enddo
-
-!***********************************************************************************
                 DO iso = 1,max_iso_not0
                   DO icg = 1,harmonics%ncg(iso,iset1,iset2)
                     iso1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
@@ -296,36 +249,33 @@ MODULE qs_rho_atom_methods
             ENDDO  ! iat
         
           ENDDO ! ipgf2
-!          m2 = m2+maxco
           m2s = m2s+maxso
 
         ENDDO  ! iset2
       ENDDO   ! ipgf1
-!      m1 = m1 + maxco
       m1s = m1s+maxso
     ENDDO    ! iset1
-!    write(*,*) 'rho 1 2 A', rtot1,rtot2
-!    rtot1 = 0.0_dp
-!    rtot2 = 0.0_dp
-!dbg
-!********************************************************************************
-!           DO iso = 1,max_iso_not0
-!             do ir = 1,nr
-!               do is1 = 1,grid_atom%ng_sphere
-!                  rtot1 = rtot1 + rho_atom_set(3)%rho_rad_h(1)%r_coef(is2,iso)*&
-!                         harmonics%slm(is1,iso)*&
-!                         grid_atom%wr(is2)*grid_atom%wa(is1)
-!                   rtot2 = rtot2 + rho_atom_set(3)%rho_rad_s(1)%r_coef(is2,iso)*&
-!                         harmonics%slm(is1,iso)*&
-!                         grid_atom%wr(is2)*grid_atom%wa(is1)
-!               enddo
-!            WRITE(*,*) iso,ir, rho_atom_set(1)%rho_rad_h(1)%r_coef(ir,iso),&
-!                      rho_atom_set(1)%rho_rad_s(1)%r_coef(ir,iso)
-!             enddo
-!          ENDDO   
-!   stop 'rhorad'
-!    write(*,*) 'rho 1 2 B', rtot1,rtot2
-!********************************************************************************
+
+    DO i = 1,nspins
+
+      DO iat = 1,natom
+        iatom = atom_list(iat) 
+        DO iso = 1,max_iso_not0
+          rho_s = 0.0_dp
+          rho_h = 0.0_dp
+          DO ir = 1,nr
+            rho_h = rho_h + &
+                    rho_atom_set(iatom)%rho_rad_h(i)%r_coef(ir,iso)*&
+                    grid_atom%wr(ir)
+            rho_s = rho_s + &
+                    rho_atom_set(iatom)%rho_rad_s(i)%r_coef(ir,iso)*&
+                    grid_atom%wr(ir)
+          END DO  ! ir
+          tot_rho1_h(i) = tot_rho1_h(i) + rho_h*harmonics%slm_int(iso)
+          tot_rho1_s(i) = tot_rho1_s(i) + rho_s*harmonics%slm_int(iso)
+        END DO  ! iso
+      END DO  ! iat
+    END DO  ! ispin
 
     DEALLOCATE(g1,g2,gg,dgg,STAT=istat)
     IF (istat /= 0) THEN
@@ -730,7 +680,7 @@ MODULE qs_rho_atom_methods
       nsotot, nspins, quadrature
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: paw_atom
-    REAL(dp)                                 :: cosia
+    REAL(dp)                                 :: cosia, phi
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rga
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -842,6 +792,14 @@ MODULE qs_rho_atom_methods
       na = lebedev_grid(ll)%n
       grid_atom%ng_sphere = na
       grid_atom%nr = nr
+      IF(llmax>ll) THEN
+        WRITE(6,'(/,72("*"))')
+        WRITE(6,'(T2,A,T66,I4)') & 
+          "WARNING: the lebedev grid is built for angular momentum l up to ",ll,&
+          "            the max l of spherical harminics is larger, l_max = ", llmax,&
+          "                   good integration is guaranteed only for l <= ", ll
+        WRITE(6,'(72("*"),/)')
+      END IF
 
 !     *** calculate the radial grid ***
       CALL create_grid_atom(grid_atom,nr,na,llmax,quadrature,globenv)
@@ -852,11 +810,14 @@ MODULE qs_rho_atom_methods
         cosia = lebedev_grid(ll)%r(3,ia)
         grid_atom%cos_teta(ia) = cosia 
         grid_atom%sin_teta(ia) =  SQRT(1-cosia*cosia)
+        phi = ATAN2(lebedev_grid(ll)%r(2,ia),lebedev_grid(ll)%r(1,ia))
+        grid_atom%cos_phi(ia)=cos(phi)
+        grid_atom%sin_phi(ia)=sin(phi)
       ENDDO
 
 !     *** calculate the spherical harmonics on the grid ***
       CALL create_harmonics_atom(harmonics,orb_basis_set,&
-                   my_CG,na,llmax,max_s_harm,ll,globenv)
+                   my_CG,na,llmax,max_s_harm,ll,grid_atom%wa,globenv)
 
       CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                              maxco=maxco,maxso=maxso,nset=nset)

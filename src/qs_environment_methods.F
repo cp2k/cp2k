@@ -271,13 +271,15 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
        nspins=dft_control%nspins,particle_set=particle_set,&
        para_env=para_env, error=error)
 
+  IF(.NOT. dft_control%qs_control%gapw) THEN
   ! *** updates rho core ***
-  CPPrecondition(ASSOCIATED(qs_env%rho_core),cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(qs_env%pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CALL calculate_rho_core(qs_env%rho_core, &
-          qs_env%qs_charges%total_rho_core_rspace,qs_env,error=error)
+    CPPrecondition(ASSOCIATED(qs_env%rho_core),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(qs_env%pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL calculate_rho_core(qs_env%rho_core, &
+            qs_env%qs_charges%total_rho_core_rspace,qs_env,error=error)
+    END IF
   END IF
 
   ! *** tell ks_env ***
@@ -341,13 +343,15 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
     TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: new_pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
   failure=.FALSE.
 
   ! rebuild pw_env
-  CALL get_qs_env(qs_env, pw_env=new_pw_env)
+  NULLIFY(dft_control)
+  CALL get_qs_env(qs_env, pw_env=new_pw_env, dft_control=dft_control)
   IF (.NOT.ASSOCIATED(new_pw_env)) THEN
      CALL pw_env_create(new_pw_env,qs_env=qs_env,error=error)
      CALL set_qs_env(qs_env,pw_env=new_pw_env)
@@ -359,20 +363,28 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
   ! reallocate rho_core
   CALL get_qs_env(qs_env, pw_env=new_pw_env, rho_core=rho_core)
   CPPrecondition(ASSOCIATED(new_pw_env),cp_failure_level,routineP,error,failure)
-  IF (ASSOCIATED(rho_core)) THEN
-     CALL coeff_deallocate(rho_core)
-     DEALLOCATE(rho_core,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  IF(dft_control%qs_control%gapw) THEN
+    IF (ASSOCIATED(rho_core)) THEN
+       CALL coeff_deallocate(rho_core)
+       DEALLOCATE(rho_core,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    END IF
   ELSE
-     ALLOCATE(rho_core,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF (.NOT.failure) THEN
-     CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
-     CALL pw_pool_init_coeff(pool=auxbas_pw_pool, coeff=rho_core, &
-          use_data=COMPLEXDATA1D, error=error)
-     rho_core%pw%in_space=RECIPROCALSPACE
-     CALL set_qs_env(qs_env, rho_core=rho_core,error=error)
+    IF (ASSOCIATED(rho_core)) THEN
+       CALL coeff_deallocate(rho_core)
+       DEALLOCATE(rho_core,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    ELSE
+       ALLOCATE(rho_core,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (.NOT.failure) THEN
+       CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
+       CALL pw_pool_init_coeff(pool=auxbas_pw_pool, coeff=rho_core, &
+            use_data=COMPLEXDATA1D, error=error)
+       rho_core%pw%in_space=RECIPROCALSPACE
+       CALL set_qs_env(qs_env, rho_core=rho_core,error=error)
+    END IF
   END IF
 
 END SUBROUTINE qs_env_rebuild_pw_env
@@ -477,20 +489,24 @@ SUBROUTINE qs_env_update_rho_core(qs_env,error)
 
     LOGICAL                                  :: failure
     TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_charges_type), POINTER           :: qs_charges
 
   failure=.FALSE.
 
-  CALL get_qs_env(qs_env, pw_env=pw_env, rho_core=rho_core,&
+  CALL get_qs_env(qs_env, dft_control=dft_control,&
+       pw_env=pw_env, rho_core=rho_core,&
        qs_charges=qs_charges,error=error)
   CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(rho_core),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(qs_charges),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CALL calculate_rho_core(rho_core, &
+  IF(.NOT. dft_control%qs_control%gapw) THEN
+    CPPrecondition(ASSOCIATED(rho_core),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL calculate_rho_core(rho_core, &
           qs_charges%total_rho_core_rspace,qs_env,error)
-  END IF
+    END IF
+  END IF 
 END SUBROUTINE qs_env_update_rho_core
 !***************************************************************************
 

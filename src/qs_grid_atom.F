@@ -40,7 +40,8 @@ MODULE qs_grid_atom
      INTEGER                         :: nr, ng_sphere
      REAL(dp), DIMENSION(:), POINTER :: rad,rad2,&
                                         wr,wa,&
-                                        cos_teta,sin_teta
+                                        cos_teta,sin_teta,&
+                                        cos_phi,sin_phi
      REAL(dp), DIMENSION(:,:), &
                              POINTER :: rad2l,oorad2l
 
@@ -94,6 +95,8 @@ MODULE qs_grid_atom
     NULLIFY (grid_atom%wa)
     NULLIFY (grid_atom%cos_teta)
     NULLIFY (grid_atom%sin_teta)
+    NULLIFY (grid_atom%cos_phi)
+    NULLIFY (grid_atom%sin_phi)
     NULLIFY (grid_atom%rad2l)
     NULLIFY (grid_atom%oorad2l)
 
@@ -155,6 +158,18 @@ MODULE qs_grid_atom
                                      "grid_atom%sin_teta")
       END IF
 
+      IF (ASSOCIATED(grid_atom%cos_phi)) THEN
+         DEALLOCATE (grid_atom%cos_phi,STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "grid_atom%cos_phi")
+      END IF
+
+      IF (ASSOCIATED(grid_atom%sin_phi)) THEN
+         DEALLOCATE (grid_atom%sin_phi,STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "grid_atom%sin_phi")
+      END IF
+
       IF (ASSOCIATED(grid_atom%rad2l)) THEN
          DEALLOCATE (grid_atom%rad2l,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -203,6 +218,8 @@ MODULE qs_grid_atom
       CALL reallocate(grid_atom%wa,1,na)
       CALL reallocate(grid_atom%cos_teta,1,na)
       CALL reallocate(grid_atom%sin_teta,1,na)
+      CALL reallocate(grid_atom%cos_phi,1,na)
+      CALL reallocate(grid_atom%sin_phi,1,na)
       CALL reallocate(grid_atom%rad2l,1,nr,0,llmax+1)
       CALL reallocate(grid_atom%oorad2l,1,nr,0,llmax+1)
 

@@ -257,19 +257,6 @@ CONTAINS
           iset = jset
           n = maxsoa*(iset-1) 
 
-!            CALL dgemm("N","N",np_sph,nsgfb(jset),ncob,&
-!                      1.0_dp,ovs(1,1+m1),SIZE(ovs,1),&
-!                      sphi_b(1,isgfb),SIZE(sphi_b,1),&
-!                      0.0_dp,spa_sb(1,isgfb),SIZE(spa_sb,1))
-!
-!            CALL dgemm("T","N",nsoatot,nsgfb(jset),np_sph,&
-!                      1.0_dp,cprj_s,SIZE(cprj_s,1),&
-!                      spa_sb(1,isgfb),SIZE(spa_sb,1),&
-!                      0.0_dp,oceh(1)%block(1,isgfb),SIZE(oceh(1)%block,1))
-!       do i = 1,nsoatot
-!       write(*,'(i3,14f10.5)') i,oceh(1)%block(i,isgfb:lsgfb)
-!       enddo
-!       oceh(1)%block(:,isgfb:lsgfb) = 0.0_dp
           CALL get_paw_proj_set(paw_proj_set=paw_proj_a, &
                                 local_oce_sphi_h=local_oce_h, & 
                                 local_oce_sphi_s=local_oce_s)
@@ -277,10 +264,6 @@ CONTAINS
                     local_oce_h(1:maxsoa,isgfb:lsgfb)
           oces(1)%block(n+1:n+maxsoa,isgfb:lsgfb) = &
                     local_oce_s(1:maxsoa,isgfb:lsgfb)
-!       do i = 1,nsoatot
-!       write(*,'(i3,14f10.5)') i,oceh(1)%block(i,isgfb:lsgfb)
-!       enddo
-!       stop
 
           DO ider =2,maxder
             first_col = (ider - 1)*maxcob + 1 + m1
@@ -473,11 +456,6 @@ CONTAINS
                                 rac,dac,&
                                 nder,ai_work,ldai)
 
-!        do i = 1,size(oceh(1)%block,1)
-!            write(*,'(i3,14f10.5)') i,oceh(1)%block(i,:)
-!        enddo
-
-
            IF(jatom == iatom) THEN
              sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
              CYCLE
@@ -505,13 +483,9 @@ CONTAINS
  
            sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
 
-!        do i = 1,size(oceh(1)%block,1)
-!            write(*,'(i3,14f10.5)') i,oceh(1)%block(i,:)
-!        enddo
-
        ENDDO  knodeloop ! kneighbor
     ENDDO  ! kkind
-!      stop 'oce'
+
   END SUBROUTINE set_up_oce
 
 ! *****************************************************************************

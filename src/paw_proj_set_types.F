@@ -619,11 +619,6 @@ CONTAINS
       ENDDO          ! ipgf 
     ENDDO            ! iset
 
-!    write(*,*) 'cphi '
-!    do ic = 1,maxco
-!      write(*,'(i3,15f10.5)') ic,paw_proj%local_oce_cphi_h(ic,1:ncgf)
-!    enddo
-
 
 !   *** Spherical***
     DO ic = 1,maxco
@@ -645,24 +640,14 @@ CONTAINS
             sphi_h(ic,is1) =  sphi_h(ic,is1) + &
                paw_proj%local_oce_cphi_h(ic,is2) * &
                orbtramat(lshell)%c2s(iso,ico) ! * &
- !               sqrt(4.0_dp*pi/dfac(2*lshell+1)*&
-  !              dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
+!               sqrt(4.0_dp*pi/dfac(2*lshell+1)*&
+!              dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
  
             sphi_s(ic,is1) =  sphi_s(ic,is1) + &
                paw_proj%local_oce_cphi_s(ic,is2) * &
                orbtramat(lshell)%c2s(iso,ico)  !* &
- !               sqrt(4.0_dp*pi/dfac(2*lshell+1)*&
- !               dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
-
-!        CALL dgemm("N","T",maxco,ns,nc,1.0_dp,&
-!                   paw_proj%local_oce_cphi_h(1,icgfmin),maxco,&
-!                   orbtramat(lshell)%c2s(1,1),ns,0.0_dp,&
-!                   sphi_h(1,isgfmin),maxco)
-!
-!        CALL dgemm("N","T",maxco,ns,nc,1.0_dp,&
-!                   paw_proj%local_oce_cphi_s(1,icgfmin),maxco,&
-!                   orbtramat(lshell)%c2s(1,1),ns,0.0_dp,&
-!                   sphi_s(1,isgfmin),maxco)
+!               sqrt(4.0_dp*pi/dfac(2*lshell+1)*&
+!               dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
 
           ENDDO  ! ico
         ENDDO  ! iso
@@ -670,15 +655,6 @@ CONTAINS
     END DO  ! iset
     ENDDO  ! ic
 
-
-!    write(*,*) 'sphi 1'
-!    do ic = 1,maxco
-!      write(*,'(i3,15f10.5)') ic,sphi_h(ic,1:nsgf)
-!    enddo
-!    write(*,*) 'sphi 2'
-!    do ic = 1,maxco
-!      write(*,'(i3,15f10.5)') ic, orb_basis%sphi(ic,1:nsgf)
-!    enddo
 
     DO iset=1,nset
       ns = nsoset(lmax(iset))
@@ -707,15 +683,6 @@ CONTAINS
                     sqrt(4.0_dp*pi/dfac(2*lshell+1)*&
                     dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
 
-!          CALL dgemm("N","N",nso(lshell),ms,nco(lshell),&
-!                     1.0_dp,orbtramat(lshell)%c2s(1,1),nso(lshell),&
-!                     sphi_h(ico,isgfmin),maxco,0.0_dp,&
-!                      paw_proj%local_oce_sphi_h(iso,isgfmin),maxso)
-
-!          CALL dgemm("N","N",nso(lshell),ms,nco(lshell),&
-!                     1.0_dp,orbtramat(lshell)%c2s(1,1),nso(lshell),&
-!                     sphi_s(ico,isgfmin),maxco,0.0_dp,&
-!                      paw_proj%local_oce_sphi_s(iso,isgfmin),maxso) 
               ENDDO  ! ic2
             ENDDO  ! is2
           ENDDO  ! lshell 
@@ -723,20 +690,14 @@ CONTAINS
       ENDDO  ! is1
     ENDDO  ! iset
 
-!    write(*,*) 'sphi 3'
-!    do ic = 1,maxso
-!      write(*,'(i3,15f10.5)') ic,paw_proj%local_oce_sphi_h(ic,1:nsgf)
-!    enddo
-
-!    stop 'sphi'
-
     NULLIFY(sphi_s,sphi_h)
 
   END SUBROUTINE  build_projector
 
 ! *****************************************************************************
 
-  SUBROUTINE get_paw_proj_set(paw_proj_set,cprj,cprj_s,first_prj,first_prjs,last_prj, & 
+  SUBROUTINE get_paw_proj_set(paw_proj_set,cprj,cprj_s,&
+                              first_prj,first_prjs,last_prj, & 
                               local_oce_sphi_h,local_oce_sphi_s,&
                               maxl,ncgauprj,nsgauprj,nprj,&
                               rcprj,rzetprj,zisomin,zetprj)
@@ -755,7 +716,7 @@ CONTAINS
     REAL(dp), DIMENSION(:,:), OPTIONAL, POINTER     :: rzetprj 
     REAL(dp), DIMENSION(:,:), OPTIONAL, POINTER     :: cprj     
     REAL(dp), DIMENSION(:,:), OPTIONAL, POINTER     :: cprj_s
-!!    REAL(dp), DIMENSION(:,:), POINTER,OPTIONAL, POINTER     :: local_oce_cphi,local_oce_cphi_s 
+
     REAL(dp), DIMENSION(:,:),OPTIONAL, POINTER     :: local_oce_sphi_h,local_oce_sphi_s 
 
 
@@ -815,246 +776,6 @@ CONTAINS
   END SUBROUTINE set_paw_proj_set
 ! *****************************************************************************
 
-!------------------------------------------------------------------------------!
-  SUBROUTINE sph2cart_mat(mat,ld_mat,sd_mat,n,lmax1,lmax2)
-!------------------------------------------------------------------------------!
-!in:
-  integer            :: ld_mat,sd_mat,n,lmax1,lmax2
-  real(dp)         :: mat(ld_mat,sd_mat,n)
-!locals:
-  real(dp)         :: mat_aux(ncoset(lmax1),nsoset(lmax2),n)
-  integer            :: idx_l2,idx_l1
-  REAL(dp) :: s_root1o4pi,&
-              s_root3o4pi,&
-              s_root15o4pi,&
-              s_root105o4pi,&
-              s_root1o16pi,&
-              s_root5o16pi,&
-              s_2root5o16pi,&
-              s_3root5o16pi,&
-              s_18root5o16pi,&
-              s_2root7o16pi,&
-              s_3root7o16pi,&
-              s_root15o16pi,&
-              s_3root35o16pi,&
-              s_root105o16pi,&
-              s_root1o32pi,&
-              s_3root5o32pi,&
-              s_9root5o32pi,&
-              s_12root5o32pi,&
-              s_root21o32pi,&
-              s_4root21o32pi,&
-              s_root35o32pi,&
-              s_3root35o32pi,&
-              s_9root35o32pi,&
-              s_18root35o32pi,&
-              s_root1o64pi,&
-              s_3root5o64pi,&
-              s_18root5o64pi,&
-              s_root1o256pi,&
-              s_3root1o256pi,&
-              s_9root1o256pi,&
-              s_18root1o256pi,&
-              s_24root1o256pi,&
-              s_72root1o256pi,&
-              s_3root35o256pi,&
-              s_18root35o256pi
-
-    s_root1o4pi=0.5_dp*oorootpi
-    s_root3o4pi=sqrt(3.0_dp)*s_root1o4pi
-    s_root15o4pi=sqrt(15.0_dp)*s_root1o4pi
-    s_root105o4pi=sqrt(105.0_dp)*s_root1o4pi
-    s_root1o16pi=0.25_dp*oorootpi
-    s_root5o16pi=sqrt(5.0_dp)*s_root1o16pi
-    s_2root5o16pi=2.0_dp*s_root5o16pi
-    s_3root5o16pi=3.0_dp*s_root5o16pi
-    s_18root5o16pi=18.0_dp*s_root5o16pi
-    s_2root7o16pi=2.0_dp*sqrt(7.0_dp)*s_root1o16pi
-    s_3root7o16pi=3.0_dp*sqrt(7.0_dp)*s_root1o16pi
-    s_root15o16pi=sqrt(15.0_dp)*s_root1o16pi
-    s_3root35o16pi=sqrt(5.0_dp)*s_3root7o16pi
-    s_root105o16pi=0.5_dp*s_root105o4pi
-    s_root1o32pi=0.25_dp*sqrt(0.5_dp)*oorootpi
-    s_3root5o32pi=3.0_dp*sqrt(5.0_dp)*s_root1o32pi
-    s_9root5o32pi=9.0_dp*sqrt(5.0_dp)*s_root1o32pi
-    s_12root5o32pi=12.0_dp*sqrt(5.0_dp)*s_root1o32pi
-    s_root21o32pi=sqrt(21.0_dp)*s_root1o32pi
-    s_4root21o32pi=4.0_dp*s_root21o32pi
-    s_root35o32pi=sqrt(35.0_dp)*s_root1o32pi
-    s_3root35o32pi=3.0_dp*s_root35o32pi
-    s_9root35o32pi=9.0_dp*s_root35o32pi
-    s_18root35o32pi=18.0_dp*s_root35o32pi
-    s_root1o64pi=0.125_dp*oorootpi
-    s_3root5o64pi=3.0_dp*sqrt(5.0_dp)*s_root1o64pi
-    s_18root5o64pi=18.0_dp*sqrt(5.0_dp)*s_root1o64pi
-    s_root1o256pi=0.0625_dp*oorootpi
-    s_3root1o256pi=3.0_dp*s_root1o256pi
-    s_9root1o256pi=9.0_dp*s_root1o256pi
-    s_18root1o256pi=18.0_dp*s_root1o256pi
-    s_24root1o256pi=24.0_dp*s_root1o256pi
-    s_72root1o256pi=72.0_dp*s_root1o256pi
-    s_3root35o256pi=3.0_dp*sqrt(35.0_dp)*s_root1o256pi
-    s_18root35o256pi=18.0_dp*sqrt(35.0_dp)*s_root1o256pi
-
-!------------------------------------------------------------------------------!
-
-  if (lmax1>3.or.lmax2>3) CALL stop_program('sph2cart_mat',module_name,__LINE__,&
-                                           'l>3 not implemented')
-  do idx_l2=1,nsoset(lmax2)
-
-    mat_aux(1,idx_l2,:)&
-     =s_root1o4pi*mat(1,idx_l2,:)
-
-    if (lmax1==0) cycle
-
-    mat_aux(2,idx_l2,:)&
-     =-s_root3o4pi*mat(4,idx_l2,:)
-
-    mat_aux(3,idx_l2,:)&
-     =-s_root3o4pi*mat(2,idx_l2,:)
-
-    mat_aux(4,idx_l2,:)&
-     =s_root3o4pi*mat(3,idx_l2,:)
-
-    if (lmax1==1) cycle
-
-    mat_aux(5,idx_l2,:)&
-     =-s_root5o16pi*mat(7,idx_l2,:)&
-      +s_root15o16pi*mat(9,idx_l2,:)
-
-    mat_aux(6,idx_l2,:)&
-     =s_root15o4pi*mat(5,idx_l2,:)
-
-    mat_aux(7,idx_l2,:)&
-     =-s_root5o16pi*mat(7,idx_l2,:)&
-      -s_root15o16pi*mat(9,idx_l2,:)
-
-    mat_aux(8,idx_l2,:)&
-     =-s_root15o4pi*mat(8,idx_l2,:)
-
-    mat_aux(9,idx_l2,:)&
-     =-s_root15o4pi*mat(6,idx_l2,:)
-
-    mat_aux(10,idx_l2,:)&
-     =s_2root5o16pi*mat(7,idx_l2,:)
-
-    if (lmax1==2) cycle
-
-    mat_aux(11,idx_l2,:)&
-     =-s_root21o32pi*mat(14,idx_l2,:)&
-      +s_root35o32pi*mat(16,idx_l2,:)
-
-    mat_aux(12,idx_l2,:)&
-     =-s_3root35o32pi*mat(10,idx_l2,:)&
-      +s_root21o32pi*mat(12,idx_l2,:)
-
-    mat_aux(13,idx_l2,:)&
-     =s_root21o32pi*mat(14,idx_l2,:)&
-     +s_3root35o32pi*mat(16,idx_l2,:)
-
-    mat_aux(14,idx_l2,:)&
-     =s_root35o32pi*mat(10,idx_l2,:)&
-     +s_root21o32pi*mat(12,idx_l2,:)
-
-    mat_aux(15,idx_l2,:)&
-     =-s_3root7o16pi*mat(13,idx_l2,:)&
-      +s_root105o16pi*mat(15,idx_l2,:)
-
-    mat_aux(16,idx_l2,:)&
-     =s_root105o4pi*mat(11,idx_l2,:)
-
-    mat_aux(17,idx_l2,:)&
-     =-s_3root7o16pi*mat(13,idx_l2,:)&
-      -s_root105o16pi*mat(15,idx_l2,:)
-
-    mat_aux(18,idx_l2,:)&
-     =-s_4root21o32pi*mat(14,idx_l2,:)
-
-    mat_aux(19,idx_l2,:)&
-     =-s_4root21o32pi*mat(12,idx_l2,:)
-
-    mat_aux(20,idx_l2,:)&
-     =s_2root7o16pi*mat(13,idx_l2,:)
-
-  enddo
-
-  do idx_l1=1,ncoset(lmax1)
-
-    mat(idx_l1,1,:)&
-     =s_root1o4pi*mat_aux(idx_l1,1,:)
-
-    if (lmax2==0) cycle
-
-    mat(idx_l1,2,:)&
-     =-s_root3o4pi*mat_aux(idx_l1,4,:)
-
-    mat(idx_l1,3,:)&
-     =-s_root3o4pi*mat_aux(idx_l1,2,:)
-
-    mat(idx_l1,4,:)&
-     =s_root3o4pi*mat_aux(idx_l1,3,:)
-
-    if (lmax2==1) cycle
-
-    mat(idx_l1,5,:)&
-     =-s_root5o16pi*mat_aux(idx_l1,7,:)&
-      +s_root15o16pi*mat_aux(idx_l1,9,:)
-
-    mat(idx_l1,6,:)&
-     =s_root15o4pi*mat_aux(idx_l1,5,:)
-
-    mat(idx_l1,7,:)&
-     =-s_root5o16pi*mat_aux(idx_l1,7,:)&
-      -s_root15o16pi*mat_aux(idx_l1,9,:)
-
-    mat(idx_l1,8,:)&
-     =-s_root15o4pi*mat_aux(idx_l1,8,:)
-
-    mat(idx_l1,9,:)&
-     =-s_root15o4pi*mat_aux(idx_l1,6,:)
-
-    mat(idx_l1,10,:)&
-     =s_2root5o16pi*mat_aux(idx_l1,7,:)
-
-    if (lmax2==2) cycle
-
-    mat(idx_l1,11,:)&
-     =-s_root21o32pi*mat_aux(idx_l1,14,:)&
-      +s_root35o32pi*mat_aux(idx_l1,16,:)
-
-    mat(idx_l1,12,:)&
-     =-s_3root35o32pi*mat_aux(idx_l1,10,:)&
-      +s_root21o32pi*mat_aux(idx_l1,12,:)
-
-    mat(idx_l1,13,:)&
-     =s_root21o32pi*mat_aux(idx_l1,14,:)&
-     +s_3root35o32pi*mat_aux(idx_l1,16,:)
-
-    mat(idx_l1,14,:)&
-     =s_root35o32pi*mat_aux(idx_l1,10,:)&
-     +s_root21o32pi*mat_aux(idx_l1,12,:)
-
-    mat(idx_l1,15,:)&
-     =-s_3root7o16pi*mat_aux(idx_l1,13,:)&
-      +s_root105o16pi*mat_aux(idx_l1,15,:)
-
-    mat(idx_l1,16,:)&
-     =s_root105o4pi*mat_aux(idx_l1,11,:)
-
-    mat(idx_l1,17,:)&
-     =-s_3root7o16pi*mat_aux(idx_l1,13,:)&
-      -s_root105o16pi*mat_aux(idx_l1,15,:)
-  
-    mat(idx_l1,18,:)&
-     =-s_4root21o32pi*mat_aux(idx_l1,14,:)
-
-    mat(idx_l1,19,:)&
-     =-s_4root21o32pi*mat_aux(idx_l1,12,:)
-
-    mat(idx_l1,20,:)&
-     =s_2root7o16pi*mat_aux(idx_l1,13,:)
-
-  enddo
-
-END SUBROUTINE sph2cart_mat
 END MODULE paw_proj_set_types
+
+! *****************************************************************************

@@ -21,9 +21,6 @@ MODULE hartree_local_types
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_error_dealloc_ref,&
-                                             cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
@@ -62,7 +59,7 @@ MODULE hartree_local_types
 
   PUBLIC :: allocate_ecoul_1center, get_ecoul_1c,  &
             get_hartree_local, hartree_local_create,&
-            hartree_local_release, set_ecoul_1c,&
+            hartree_local_release, set_ecoul_1c, &
             set_hartree_local
 
 ! *** Public data types ***
@@ -186,6 +183,7 @@ MODULE hartree_local_types
     TYPE(hartree_local_type), INTENT(IN), TARGET  :: hartree_local
     TYPE(ecoul_1center_type), DIMENSION(:), &
                             OPTIONAL, POINTER     :: ecoul_1c
+
     CHARACTER(len=*), PARAMETER :: routineN = 'get_hartree_local'
 
 !   ---------------------------------------------------------------------------
@@ -260,7 +258,7 @@ MODULE hartree_local_types
       IF(PRESENT(ecoul_1_z)) ecoul_1c(iatom)%ecoul_1_z=ecoul_1_z
     END IF
 
-   END SUBROUTINE set_ecoul_1c
+    END SUBROUTINE set_ecoul_1c
 
 ! *****************************************************************************
 

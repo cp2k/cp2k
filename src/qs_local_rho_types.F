@@ -34,6 +34,7 @@ MODULE qs_local_rho_types
   USE mathconstants,                   ONLY: fourpi,pi
   USE memory_utilities,                ONLY: reallocate
   USE qs_grid_atom,                    ONLY: grid_atom_type
+  USE qs_harmonics_atom,               ONLY: harmonics_atom_type
   USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set, &
                                              rho_atom_type
   USE qs_rho0_types,                   ONLY: deallocate_rho0_atom,&
@@ -54,6 +55,7 @@ MODULE qs_local_rho_types
 
   TYPE  rhoz_type
     REAL(dp), DIMENSION(:), POINTER      ::  r_coef
+    REAL(dp), DIMENSION(:), POINTER      ::  dr_coef
   END TYPE rhoz_type
 
   TYPE local_rho_type
@@ -61,6 +63,7 @@ MODULE qs_local_rho_types
     TYPE(rho0_mpole_type), POINTER                        :: rho0_mpole
     TYPE(rho0_atom_type), DIMENSION(:), POINTER           :: rho0_atom_set
     TYPE(rhoz_type),  DIMENSION(:), POINTER               :: rhoz_set
+    REAL(dp)                                              :: rhoz_tot
   END TYPE local_rho_type
 
 ! Public Types
@@ -101,36 +104,47 @@ MODULE qs_local_rho_types
 
     DO ikind = 1,nkind 
       NULLIFY(rhoz_set(ikind)%r_coef) 
+      NULLIFY(rhoz_set(ikind)%dr_coef)
     ENDDO
 
   END SUBROUTINE allocate_rhoz
 
 ! ******************************************************************************
 
-  SUBROUTINE calculate_rhoz(rhoz,grid_atom,alpha,zeff)
+  SUBROUTINE calculate_rhoz(rhoz,grid_atom,alpha,zeff,rhoz_tot,harmonics)
  
     TYPE(rhoz_type)             :: rhoz
     TYPE(grid_atom_type)        :: grid_atom
-    REAL(dp)                    :: alpha
+    TYPE(harmonics_atom_type)   :: harmonics
+    REAL(dp), INTENT(IN)        :: alpha
+    REAL(dp), INTENT(INOUT)     :: rhoz_tot
     INTEGER                     :: zeff
  
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_rhoz"
 
-    INTEGER                     :: ir,nr
-    REAL(dp)                    :: c1, c2, prefactor
-
+    INTEGER                     :: ir,nr,na,ia
+    REAL(dp)                    :: c1, c2, prefactor, prefactor2
+    REAL(dp)                    :: sum
 !   ---------------------------------------------------------------------------
 
     nr = grid_atom%nr
-    CALL reallocate(rhoz%r_coef,1,nr)   
+    na = grid_atom%ng_sphere
+    CALL reallocate(rhoz%r_coef,1,nr) 
+    CALL reallocate(rhoz%dr_coef,1,nr) 
+
     c1 = alpha/pi
     c2 = c1*c1*c1*fourpi
     prefactor = zeff*sqrt(c2)
+    prefactor2 = -2.0_dp*alpha
 
+    sum = 0.0_dp
     DO ir = 1,nr
       c1 = -alpha*grid_atom%rad2(ir)
       rhoz%r_coef(ir) = -exp(c1)*prefactor
+      rhoz%dr_coef(ir) = prefactor2*rhoz%r_coef(ir)
+      sum = sum + rhoz%r_coef(ir)*grid_atom%wr(ir)
     END DO
+    rhoz_tot = rhoz_tot + sum*harmonics%slm_int(1)
 
   END SUBROUTINE calculate_rhoz
 
