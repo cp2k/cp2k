@@ -57,6 +57,14 @@ MODULE topology_types
     INTEGER, POINTER :: phi_a(:),phi_b(:),phi_c(:),phi_d(:)
     REAL (dbl), POINTER :: atm_charge(:)
     REAL (dbl), POINTER :: atm_mass(:)
+
+    LOGICAL                                   :: constraint
+    LOGICAL                                   :: const_atom
+    LOGICAL                                   :: const_dist
+    LOGICAL                                   :: const_33
+    REAL (dbl), POINTER :: occup(:)
+    REAL (dbl), POINTER :: beta(:)
+
   END TYPE topology_parameters_type
 
   PUBLIC :: topology_parameters_type,init_topology,deallocate_topology
@@ -123,6 +131,13 @@ SUBROUTINE init_topology (topology)
   NULLIFY(topology%phi_d)
   NULLIFY(topology%atm_charge)
   NULLIFY(topology%atm_mass)
+
+  topology%constraint=.FALSE.
+  topology%const_atom=.FALSE.
+  topology%const_dist=.FALSE.
+  topology%const_33=.FALSE.
+  NULLIFY(topology%occup)
+  NULLIFY(topology%beta)
     
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
@@ -248,6 +263,16 @@ SUBROUTINE deallocate_topology (topology)
   IF(ASSOCIATED(topology%atm_mass)) THEN
     DEALLOCATE(topology%atm_mass,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_topology','atm_mass')
+  END IF
+
+  IF(ASSOCIATED(topology%occup)) THEN
+    DEALLOCATE(topology%occup,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','occup')
+  END IF
+
+  IF(ASSOCIATED(topology%beta)) THEN
+    DEALLOCATE(topology%beta,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','beta')
   END IF
 
 !-------------------------------------------------------------------------------

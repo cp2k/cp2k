@@ -137,6 +137,8 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
   NULLIFY(topology%r)
   NULLIFY(topology%atm_mass)
   NULLIFY(topology%atm_charge)
+  NULLIFY(topology%occup)
+  NULLIFY(topology%beta)
 
   CALL reallocate(topology%label_molname,1,nblock_atom)
   CALL reallocate(topology%label_resname,1,nblock_atom)
@@ -144,6 +146,8 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
   CALL reallocate(topology%r,1,3,1,nblock_atom)
   CALL reallocate(topology%atm_mass,1,nblock_atom)
   CALL reallocate(topology%atm_charge,1,nblock_atom)
+  CALL reallocate(topology%occup,1,nblock_atom)
+  CALL reallocate(topology%beta,1,nblock_atom)
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -173,6 +177,8 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
         CALL reallocate(topology%r,1,3,1,natom+nblock_atom)
         CALL reallocate(topology%atm_mass,1,natom+nblock_atom)
         CALL reallocate(topology%atm_charge,1,natom+nblock_atom)
+        CALL reallocate(topology%occup,1,natom+nblock_atom)
+        CALL reallocate(topology%beta,1,natom+nblock_atom)
       END IF
     END IF
 
@@ -189,6 +195,8 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
       READ(line(31:38),*) topology%r(1,natom)
       READ(line(39:46),*) topology%r(2,natom)
       READ(line(47:54),*) topology%r(3,natom)
+      READ(line(55:60),*) topology%occup
+      READ(line(61:66),*) topology%beta
       topology%atm_mass(natom)  =0.0_dbl
       topology%atm_charge(natom)=0.0_dbl
       IF(PM2) WRITE(iw,'(5X,A4,3F8.3,A4)') &
