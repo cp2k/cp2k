@@ -68,8 +68,7 @@ MODULE xc
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
-  USE kinds,                           ONLY: dp,&
-                                             dp
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE pw_grid_types,                   ONLY: PW_MODE_DISTRIBUTED,&
                                              pw_grid_type
