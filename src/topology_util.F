@@ -1500,7 +1500,6 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-
   PM1 = .FALSE.
   PM2 = .FALSE.
   PM3 = .FALSE.
@@ -2164,7 +2163,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
 
     CHARACTER(LEN=default_string_length)     :: atmname
     LOGICAL                                  :: found
-    REAL(KIND=dp)                                :: qeff
+    REAL(KIND=dp)                                :: qeff, alpha_core_charge
     TYPE(elp_potential_type), POINTER        :: elp_potential
 
 
@@ -2414,6 +2413,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
       atomic_kind => atomic_kind_set(i)
       CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname)
       qeff = -10000.0_dp
+      alpha_core_charge = -10000.0_dp
       DO j=1,SIZE(atom_info%label_atmname)
         IF(atmname == atom_info%label_atmname(j)) THEN
           qeff = atom_info%atm_charge(j)
@@ -2422,7 +2422,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
       END DO
       NULLIFY(elp_potential)
       CALL allocate_potential(elp_potential)
-      CALL set_potential(potential=elp_potential,qeff=qeff)
+      CALL set_potential(potential=elp_potential,qeff=qeff,alpha_core_charge=alpha_core_charge)
       CALL set_atomic_kind(atomic_kind=atomic_kind,elp_potential=elp_potential)
     END DO
   END IF
