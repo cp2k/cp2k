@@ -27,22 +27,24 @@
 !!   SOURCE
 !*****************************************************************************
 module pao_l_angles_methods
-  use cp_log_handling
-  use cp_error_handling
+  use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level
+  use cp_error_handling, only: cp_error_type, cp_assert, cp_error_message,&
+       cp_assertion_failed, cp_debug, cp_precondition_failed, cp_error_init,&
+       cp_dealloc_ref
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
-  use pao_types
-  use pao_glob_angles_methods
-  use pao_env_methods
+  use pao_types, only: pao_env_type, pao_glob_angles_type, pao_env_get
+  use pao_glob_angles_methods, only: pao_g_ang_get, cp_validate
   use sparse_matrix_types, only: real_matrix_type, replicate_matrix, &
        copy_matrix,&
        allocate_matrix, deallocate_matrix, get_matrix_info, get_block_node,&
        add_block_node, put_block_node
-  use cp_sparse_matrix
-  use pao_bas_projection_types
-  use pao_plain_rot
-  use qs_environment_types
+  use cp_sparse_matrix, only: cp_sparse_matrix_type, cp_sparse_matrix_p_type,&
+       cp_get_matrix
+  use pao_bas_projection_types, only: pao_bas_projection_type, cp_proj_get
+  use pao_plain_rot, only: cp_left_compose_p_rot
+  use qs_environment_types, only: qs_environment_type, get_qs_env
   use atomic_kind_types, only:atomic_kind_type, get_atomic_kind
   use particle_types, only: particle_type
   implicit none
@@ -513,7 +515,7 @@ contains
              CPPostcondition(associated(local_angles%projection),cp_failure_level,routineP,error,failure)
           end if
           if (.not.failure) then
-             call cp_get(local_angles%projection,&
+             call cp_proj_get(local_angles%projection,&
                   size_min_bas=local_angles%size_min_bas, error=error)
           end if
        else
@@ -610,7 +612,7 @@ contains
        CPPrecondition(associated(local_angles%projection),cp_failure_level,routineP,error,failure)
     end if
     if (.not.failure) then
-       call cp_get(local_angles%projection, size_min_bas=size_min_bas,&
+       call cp_proj_get(local_angles%projection, size_min_bas=size_min_bas,&
             size_full_bas=size_full_bas, size_excl_bas=size_excl_bas,&
             proj_indexes=proj_indexes, non_proj_indexes=non_proj_indexes,&
             error=error)
@@ -718,7 +720,7 @@ contains
     end if
 
     if (.not. failure) then
-       call cp_get(local_angles%projection, proj_indexes=res,error=error)
+       call cp_proj_get(local_angles%projection, proj_indexes=res,error=error)
     else
        nullify(res)
     end if
@@ -772,7 +774,7 @@ contains
     end if
 
     if (.not. failure) then
-       call cp_get(local_angles%projection, non_proj_indexes=res,error=error)
+       call cp_proj_get(local_angles%projection, non_proj_indexes=res,error=error)
     else
        nullify(res)
     end if
@@ -831,7 +833,7 @@ contains
     end if
 
     if (.not. failure) then
-       call cp_get(local_angles%projection, proj_indexes=p,error=error)
+       call cp_proj_get(local_angles%projection, proj_indexes=p,error=error)
        res=p(min_bas)
     else
        res=-1
@@ -890,7 +892,7 @@ contains
     end if
 
     if (.not. failure) then
-       call cp_get(local_angles%projection, non_proj_indexes=np,error=error)
+       call cp_proj_get(local_angles%projection, non_proj_indexes=np,error=error)
        res=np(excl_bas)
     else
        res=-1
@@ -956,7 +958,7 @@ contains
           CPPrecondition(associated(local_angles%projection),cp_failure_level,routineP,error,failure)
        end if
        if (.not.failure) then
-          call cp_get(local_angles%projection,size_excl_bas=size_excl_bas,&
+          call cp_proj_get(local_angles%projection,size_excl_bas=size_excl_bas,&
                error=error)
           call cp_assert(min_bas>0.and.min_bas <= &
                local_angles%size_min_bas,&
@@ -1044,7 +1046,7 @@ contains
                "min_bas out of range in "//&
                CPSourceFileRef,&
                error,failure)
-          call cp_get(local_angles%projection,size_excl_bas=size_excl_bas,&
+          call cp_proj_get(local_angles%projection,size_excl_bas=size_excl_bas,&
                error=error)
           call cp_assert(excl_bas>0.and.excl_bas <= &
                size_excl_bas,&
@@ -1107,7 +1109,7 @@ contains
     CPPrecondition(local_angles%initialized, cp_failure_level,routineP,error,failure)
     CPPrecondition(associated(local_angles%projection),cp_failure_level,routineP,error,failure)
     if (.not.failure) then
-       call cp_get(local_angles%projection,size_excl_bas=res,error=error)
+       call cp_proj_get(local_angles%projection,size_excl_bas=res,error=error)
     else
        res=-1
     end if
@@ -1207,7 +1209,7 @@ contains
     CPPrecondition(local_angles%initialized, cp_failure_level,routineP,error,failure)
     CPPrecondition(associated(local_angles%projection),cp_failure_level,routineP,error,failure)
     if (.not.failure) then
-       call cp_get(local_angles%projection,size_full_bas=res,error=error)
+       call cp_proj_get(local_angles%projection,size_full_bas=res,error=error)
     else
        res=-1
     end if
@@ -1312,7 +1314,7 @@ contains
     CPPrecondition(local_angles%initialized,cp_failure_level,routineP,error,failure)
     CPPrecondition(local_angles%atom_nr>0,cp_failure_level,routineP,error,failure)
     if (.not. failure) then
-       call cp_get(local_angles%glob_angles,qs_env=local_angles%qs_env,&
+       call pao_g_ang_get(local_angles%glob_angles,qs_env=local_angles%qs_env,&
             global_env=local_angles%global_env, unitary_t=full_u_t,&
             error=error)
        CPPrecondition(associated(full_u_t),cp_warning_level,routineP,error,failure)
@@ -1378,7 +1380,7 @@ contains
     integer, dimension(:), pointer :: proj_indexes, non_proj_indexes
     failure=.false.
 
-    call cp_get(local_angles,&
+    call pao_l_ang_get(local_angles,&
          size_full_bas=n_full_bas, proj_indexes=proj_indexes,&
          non_proj_indexes=non_proj_indexes)
     CPPrecondition(size(proj_indexes)>0,cp_warning_level,routineP,error,failure)
@@ -1445,7 +1447,7 @@ contains
 
     CPPrecondition(cp_valid(local_angles),cp_failure_level,routineP,error,failure)
     if (.not. failure) then
-       call cp_get(local_angles%glob_angles,qs_env=local_angles%qs_env,&
+       call pao_g_ang_get(local_angles%glob_angles,qs_env=local_angles%qs_env,&
             global_env=local_angles%global_env, unitary_t=unitary_t,&
             error=error)
        CPPrecondition(associated(unitary_t),cp_failure_level,routineP,error,failure)

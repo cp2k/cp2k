@@ -27,16 +27,18 @@
 !!   SOURCE
 !*****************************************************************************
 module pao_types
-  use cp_log_handling
-  use cp_error_handling
+  use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
+       cp_note_level
+  use cp_error_handling, only: cp_debug, cp_error_type, cp_assert, &
+       cp_error_message
   use kinds, only: wp=>dp
   use sparse_matrix_types, only: real_matrix_type, replicate_matrix, copy_matrix,&
        allocate_matrix, deallocate_matrix, get_matrix_info, get_block_node,&
        add_block_node, put_block_node
   use global_types, only: global_environment_type
-  use cp_sparse_matrix
-  use cp_b_matrix_structure
-  use pao_bas_projection_types
+  use cp_sparse_matrix, only: cp_sparse_matrix_type,cp_sparse_matrix_p_type
+  use cp_b_matrix_structure, only: cp_b_matrix_struct_type, cp_get
+  use pao_bas_projection_types, only: pao_bas_projection_type, cp_get
   implicit none
   private
 

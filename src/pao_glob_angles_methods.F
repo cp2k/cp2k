@@ -27,18 +27,22 @@
 !!   SOURCE
 !****************************************************************************
 module pao_glob_angles_methods
-  use cp_log_handling
-  use cp_error_handling
+  use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
+       cp_note_level
+  use cp_error_handling, only: cp_debug, cp_error_type, cp_assert, &
+       cp_error_message, cp_assertion_failed, cp_error_init,&
+       cp_error_get_print_level, cp_error_get_stop_level, cp_error_get_level,&
+       cp_set, cp_init, cp_dealloc_ref, cp_error_propagate_error
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
-  use pao_types
-  use cp_sparse_matrix
-  use cp_b_matrix_structure
-  use pao_utils
-  use pao_qs_env_methods
-  use qs_environment_types
-  use cp_array_utils!, only: cp_guarantee_size
+  use pao_types, only: pao_glob_angles_type, pao_env_type, cp_get
+  use cp_sparse_matrix, only: cp_sparse_matrix_type, cp_sparse_matrix_p_type,&
+       cp_create, cp_dealloc, cp_get_matrix, cp_retain, cp_release
+  use cp_b_matrix_structure, only: cp_b_matrix_struct_type
+  use pao_bas_projection_types, only: pao_bas_projection_type
+  use qs_environment_types, only: qs_environment_type, get_qs_env
+  use cp_array_utils, only: cp_guarantee_size, cp_1d_r_guarantee_size
   implicit none
   private
 
@@ -603,7 +607,7 @@ contains
           end if
        end if
        if (present(angles)) then
-          call cp_guarantee_size(glob_angles%angles,size(angles),&
+          call cp_1d_r_guarantee_size(glob_angles%angles,size(angles),&
                error=iError)
           call cp_assert(cp_error_get_level(iError)<cp_failure_level,&
                cp_failure_level,cp_assertion_failed,routineP,&
@@ -629,7 +633,7 @@ contains
                error=error)
        end if
        if (.not.failure) then
-          call cp_guarantee_size(glob_angles%angles,&
+          call cp_1d_r_guarantee_size(glob_angles%angles,&
                pao_env%angles_begin_at(size(pao_env%angles_begin_at))-1,&
                error=error)
        end if

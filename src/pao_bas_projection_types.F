@@ -26,13 +26,14 @@
 !!   SOURCE
 !****************************************************************************
 module pao_bas_projection_types
-  use cp_log_handling
-  use cp_error_handling
+  use cp_log_handling, only: cp_failure_level, cp_warning_level, cp_to_string
+  use cp_error_handling, only: cp_error_type, cp_assert, cp_debug
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
   use cp_array_utils, only: cp_write
-  use cp_linked_list_int
+  use cp_linked_list_int, only: cp_create, cp_insert, cp_dealloc,&
+       cp_sll_int_type, cp_next
   implicit none
   private
 
@@ -46,16 +47,16 @@ module pao_bas_projection_types
   public :: cp_proj_create, cp_proj_dealloc, cp_proj_init,&
        cp_proj_dealloc_ref, cp_proj_valid, cp_proj_get,&
        cp_proj_get_proj_indexes, cp_proj_get_non_proj_indexes,&
-       cp_proj_write, cp_proj_init2, cp_proj_create2
+       cp_proj_write , cp_proj_init2, cp_proj_create2
 
   interface cp_create
-     module procedure cp_proj_create, cp_proj_create2
+     module procedure cp_proj_create , cp_proj_create2
   end interface
   interface cp_dealloc
      module procedure cp_proj_dealloc
   end interface
   interface  cp_init
-     module procedure cp_proj_init, cp_proj_init2
+     module procedure cp_proj_init , cp_proj_init2
   end interface
   interface cp_dealloc_ref
      module procedure cp_proj_dealloc_ref

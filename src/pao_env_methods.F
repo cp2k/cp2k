@@ -27,21 +27,24 @@
 !!   SOURCE
 !*****************************************************************************
 module pao_env_methods
-  use cp_log_handling
-  use cp_error_handling
+  use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
+       cp_note_level, cp_logger_type
+  use cp_error_handling, only: cp_debug, cp_error_type, cp_assert, &
+       cp_error_message, cp_assertion_failed, cp_error_init,&
+       cp_error_get_print_level, cp_error_get_stop_level, cp_error_get_level,&
+       cp_dealloc_ref, cp_error_get_logger
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
-  use atomic_kind_types!, only: atom_info, atom_info_type
-!  use atomic_kinds, only: kind_info,nkind
-  use pao_types
-  use qs_environment_types
-  use pao_utils
-  use cp_sparse_matrix
-  use pao_glob_angles_methods
-  use sparse_matrix_types
-  use pao_qs_env_methods
-  use pao_bas_projection_types
+  use pao_types, only: pao_glob_angles_type, pao_env_type, cp_get, cp_valid
+  use qs_environment_types, only: qs_environment_type, get_qs_env
+  use cp_sparse_matrix, only: cp_sparse_matrix_type, cp_sparse_matrix_p_type,&
+       cp_create, cp_dealloc, cp_get_matrix, cp_retain, cp_release
+  use pao_glob_angles_methods, only: pao_g_ang_init, cp_dealloc, cp_set, &
+        pao_g_ang_did_change
+  use sparse_matrix_types, only: real_matrix_p_type, real_matrix_type
+  use pao_bas_projection_types, only: pao_bas_projection_type
+  use pao_qs_env_methods, only: cp_get_b_projection
   implicit none
   private
 
@@ -165,7 +168,7 @@ contains
     type(real_matrix_p_type), dimension(:), pointer :: p
     type(pao_bas_projection_type), pointer :: bproj
     failure=.false.
-    call cp_init(iError, template_error=error)
+    call cp_error_init(iError, template_error=error)
 
     nullify(pao_env%angles_begin_at)
     pao_env%min_d_m_valid=.false.
@@ -202,8 +205,8 @@ contains
     end if
 ! angles_att
     if (.not.failure) then
-       call cp_init(pao_env%angles_att, global_env=global_env,qs_env=qs_env,&
-            error=error)
+       call pao_g_ang_init(pao_env%angles_att, global_env=global_env,&
+            qs_env=qs_env, error=error)
     end if
 ! angles_begin_at
     if (.not.failure) then
@@ -602,7 +605,7 @@ subroutine pao_env_did_change(pao_env,h_changed, s_changed,&
      if (present(s_changed)) s_c=s_changed
      if (present(angles_changed)) a_c=angles_changed
      if (present(full_reset)) full_r=full_reset
-     call cp_did_change(pao_env%angles_att, h_changed, s_changed,&
+     call pao_g_ang_did_change(pao_env%angles_att, h_changed, s_changed,&
           angles_changed, full_reset, error)
   end if
 end subroutine pao_env_did_change

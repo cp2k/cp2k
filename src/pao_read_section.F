@@ -25,17 +25,23 @@
 !!   SOURCE
 !****************************************************************************
 module pao_read_section
-  use cp_log_handling
-  use cp_error_handling
+  use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
+       cp_log, cp_logger_type, cp_note_level, cp_init, &
+       cp_dealloc_ref
+  use cp_error_handling, only: cp_error_type, cp_assert, cp_error_message,&
+       cp_assertion_failed, cp_debug, cp_precondition_failed, cp_error_init,&
+       cp_error_dealloc_ref, cp_error_get_logger, cp_error_get_print_level,&
+       cp_internal_error
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
   use qs_parser, only: start_parser, finish_parser, test_object, read_object
   use qs_environment_types, only: qs_environment_type, get_qs_env
   use string_utilities, only: uppercase
-  use cp_linked_list_int
+  use cp_linked_list_int, only: cp_sll_int_type, cp_create, cp_dealloc,&
+       cp_next, cp_get
   use pao_types, only: pao_env_type
-  use pao_bas_projection_types
+  use pao_bas_projection_types, only: pao_bas_projection_type, cp_get
   use atomic_kind_types, only: atomic_kind_type, get_atomic_kind
   implicit none
   private
@@ -148,7 +154,7 @@ contains
              call read_object(wanted_in_subspace_precision)
           case ("DO_TESTS")
              call cp_init(fileLogger,filename="pao_tests.log")
-             call cp_init(newErr,logger=fileLogger)
+             call cp_error_init(newErr,logger=fileLogger)
              call cp_log(cp_error_get_logger(error),cp_note_level,&
                   routineP," performing pao tests")
              ! if it crashes while testing use error instread of newErr
@@ -160,7 +166,7 @@ contains
                 call cp_error_message(cp_note_level,routineP,&
                      ' +++++ all the pao tests were SUCCESSFULL ++++',error)
              end if
-             call cp_dealloc_ref(newErr)
+             call cp_error_dealloc_ref(newErr)
              call cp_dealloc_ref(fileLogger)
           case DEFAULT
              call cp_error_message(cp_warning_level,routineP,&
@@ -177,7 +183,8 @@ contains
             call get_atomic_kind(atomic_kind_set(i),pao_bas_proj=pao_bas_proj)
             if (.not.associated(pao_bas_proj)) then
               call get_atomic_kind(atomic_kind_set(i),name=name)
-              call cp_assert(.false.,cp_failure_level, cp_internal_error,routineP,&
+              call cp_assert(.false.,cp_failure_level, cp_internal_error,&
+                   routineP,&
                   "mimimal basis not defined in kind "//name//", "//&
                   CPSourceFileRef,&
                   error=error,failure=failure)

@@ -26,18 +26,22 @@
 !!   SOURCE
 !*****************************************************************************
 module pao_types_tests
-  use cp_log_handling
-  use cp_error_handling
+  use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
+       cp_log
+  use cp_error_handling, only: cp_error_type, cp_assert, cp_error_message,&
+       cp_assertion_failed, cp_debug, cp_precondition_failed, cp_error_init,&
+       cp_dealloc_ref
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use pao_utils, only:  cp_get_random_integer
   use cp_matrix_utils, only: cp_sup_norm_matrix
-  use pao_types
-  use pao_proj_methods
-  use pao_env_methods
-  use cp_sparse_matrix
-  use pao_l_angles_methods
-  use pao_glob_angles_methods
+  use pao_types, only: pao_env_type, pao_glob_angles_type
+!  use pao_proj_methods
+  use pao_env_methods, only: pao_env_init
+  use cp_sparse_matrix, only: cp_sparse_matrix_type, cp_create, cp_retain, &
+       cp_dealloc, cp_release
+  use pao_l_angles_methods, only: pao_local_angles_type, cp_init, cp_get
+!  use pao_glob_angles_methods
   implicit none
 
   logical, private, parameter :: debug_this_module=.true.

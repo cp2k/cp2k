@@ -27,6 +27,7 @@
 !!   SOURCE
 !****************************************************************************
 module cp_array_i_utils
+  use kinds, only: wp=>dp
   use cp_log_handling
   use cp_error_handling
   use global_types, only: global_environment_type
@@ -66,14 +67,6 @@ contains
 !!
 !!   NAME
 !!     cp_i_write
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_i_write(element, unit_nr, el_format, error)
-!!       Integer, Intent (IN):: element
-!!       Integer, Intent (IN):: unit_nr
-!!       Character(Len=*), Intent (IN), Optional:: el_format
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_i_write
 !!
 !!   FUNCTION
 !!     writes an element to the given unit
@@ -122,18 +115,6 @@ end subroutine cp_i_write
 !!
 !!   NAME
 !!     cp_1d_i_output
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_1d_i_output(logger, outputname, fromwhere, iter, array,&
-!!         comment, el_format, error)
-!!       Type(cp_logger_type):: logger
-!!       Character(Len=*), Intent (IN):: outputname
-!!       Character(Len=*), Intent (IN):: fromwhere
-!!       Integer, Intent (IN):: iter
-!!       Integer, Intent (IN), Dimension(:):: array
-!!       Character(Len=*), Intent (IN), Optional:: comment, el_format
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_1d_i_output
 !!
 !!   FUNCTION
 !!     writes a 1d array to the output
@@ -202,14 +183,6 @@ end subroutine cp_i_write
 !!   NAME
 !!     cp_1d_i_write
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_1d_i_write(array, unit_nr, el_format, error)
-!!       Integer, Dimension(:), Intent (IN):: array
-!!       Integer, Intent (IN):: unit_nr
-!!       Character(Len=*), Intent (IN), Optional:: el_format
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_1d_i_write
-!!
 !!   FUNCTION
 !!     writes an array to the given unit
 !!
@@ -260,18 +233,6 @@ end subroutine cp_1d_i_write
 !!
 !!   NAME
 !!     cp_2d_i_output
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_2d_i_output(logger, outputname, fromwhere, iter, array,&
-!!         comment, el_format, error)
-!!       Type(cp_logger_type):: logger
-!!       Character(Len=*), Intent (IN):: outputname
-!!       Character(Len=*), Intent (IN):: fromwhere
-!!       Integer, Intent (IN):: iter
-!!       Integer, Intent (IN), Dimension(:,:):: array
-!!       Character(Len=*), Intent (IN), Optional:: comment, el_format
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_2d_i_output
 !!
 !!   FUNCTION
 !!     writes a 2d array to the output
@@ -344,14 +305,6 @@ end subroutine cp_1d_i_write
 !!   NAME
 !!     cp_2d_i_write
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_2d_i_write(array, unit_nr, el_format, error)
-!!       Integer, Dimension(:,:), Intent (IN):: array
-!!       Integer, Intent (IN):: unit_nr
-!!       Character(Len=*), Intent (IN), Optional:: el_format
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_2d_i_write
-!!
 !!   FUNCTION
 !!     writes an array to the given unit
 !!
@@ -405,14 +358,6 @@ end subroutine cp_2d_i_write
 !!
 !!   NAME
 !!     cp_1d_i_guarantee_size
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_1d_i_guarantee_size(array, n, init, error)
-!!       Integer, Dimension(:), Pointer:: array
-!!       Integer, Intent (IN):: n
-!!       Integer, Intent (IN), Optional:: init
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_1d_i_guarantee_size
 !!
 !!   FUNCTION
 !!     If the size of the array is changes reallocate it.

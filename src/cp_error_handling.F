@@ -39,8 +39,9 @@ module cp_error_handling
   use cp_log_handling
   use termination, only: stop_program
   implicit none
-  logical, private, parameter :: debug_this_module=.false.
   private
+
+  logical, private, parameter :: debug_this_module=.false.
 
   ! types
   public :: cp_error_type

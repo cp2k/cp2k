@@ -38,6 +38,7 @@ module cp_output_handling
   use cp_error_handling
   use kinds, only: wp=>dp
   implicit none
+  private
 
   logical, private, parameter :: debug_this_module=.true.
   

@@ -25,17 +25,19 @@
 !!   SOURCE
 !****************************************************************************
 module pao_qs_env_methods
-  use cp_log_handling
-  use cp_error_handling
+  use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
+       cp_note_level
+  use cp_error_handling, only: cp_debug, cp_error_type, cp_assert, &
+       cp_error_message
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
-  use pao_types
-  use pao_bas_projection_types
-  use qs_environment_types
+  use pao_types, only: pao_env_type
+  use pao_bas_projection_types, only: pao_bas_projection_type
+  use qs_environment_types, only: qs_environment_type, get_qs_env
   use atomic_kind_types, only: atomic_kind_type, get_atomic_kind,&
        get_atomic_kind_set
-  use particle_types
+  use particle_types, only: particle_type
   implicit none
   private
 
@@ -45,6 +47,7 @@ module pao_qs_env_methods
   public :: cp_get_b_projection
   ! underlying routines
   public :: pao_qs_env_get_b_projection, pao_qs_env_get
+  public :: pao_bas_projection_type ! for the intel compiler
   interface cp_get_b_projection
      module procedure pao_qs_env_get_b_projection
   end interface

@@ -26,16 +26,21 @@
 !!   SOURCE
 !*****************************************************************************
 module pao_obj_function
-  use cp_log_handling
-  use cp_error_handling
+  use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
+       cp_log, cp_logger_type, cp_note_level
+  use cp_error_handling, only: cp_error_type, cp_assert, cp_error_message,&
+       cp_assertion_failed, cp_debug, cp_precondition_failed, cp_error_init,&
+       cp_error_dealloc_ref, cp_error_get_logger, cp_init
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
-  use pao_types
-  use pao_env_methods
-  use cp_sparse_matrix
-  use pao_glob_angles_methods
-  use pao_l_angles_methods
-  use pao_proj_methods
+  use pao_types, only: pao_env_type, pao_glob_angles_type, cp_get
+!  use pao_env_methods
+  use cp_sparse_matrix, only: cp_sparse_matrix_type, cp_get_matrix,&
+       cp_create, cp_dealloc
+!  use pao_glob_angles_methods, only:
+  use pao_l_angles_methods, only: pao_local_angles_type, cp_get_angle,&
+       pao_l_ang_init, pao_l_ang_get
+  use pao_proj_methods, only: cp_m2f_with_B_M_pi
   use qs_blacs, only: blacs_matrix_type,allocate_blacs_matrix,&
        copy_sparse_to_blacs_matrix,deallocate_blacs_matrix,&
        blacs_trace, add_blacs_to_block_diag_sm, blacs_diag_mult,&
@@ -47,14 +52,17 @@ module pao_obj_function
                          get_mo_set,&
                          mo_set_type
   use message_passing, only: mp_sum
-  use qs_environment_types
-  use pao_unitary_t
-  use pao_qs_env_methods
-  use cp_matrix_utils
-  use cp_b_matrix_structure
-  use sparse_matrix_types
-  use pao_unitary_t
-  use pao_utils
+  use qs_environment_types, only: qs_environment_type, get_qs_env
+  use pao_unitary_t, only: pao_calc_u_du_type, cp_init, cp_next
+  use pao_qs_env_methods, only: pao_qs_env_get!, cp_get_b_projection
+  use cp_matrix_utils, only: cp_matrix_block_iterator, cp_matrix_b_i_init,&
+       cp_next, cp_next, cp_matrix_b_i_dealloc_ref,cp_d_struct_create,&
+       cp_init_diagonal_blocks
+
+  use cp_b_matrix_structure, only: cp_b_matrix_struct_type
+  use sparse_matrix_types, only: real_matrix_p_type, real_matrix_type,&
+       get_matrix_info
+!  use pao_utils
   implicit none
   private
   

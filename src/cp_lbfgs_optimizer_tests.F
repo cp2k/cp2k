@@ -25,13 +25,18 @@
 !!
 !!*** ************************************************************************
 module cp_lbfgs_optimizer_tests
-  use cp_log_handling
-  use cp_error_handling
+  use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
+       cp_log, cp_logger_type, cp_note_level
+  use cp_error_handling, only: cp_error_type, cp_assert, cp_error_message,&
+       cp_assertion_failed, cp_debug, cp_precondition_failed, cp_error_init,&
+       cp_dealloc_ref, cp_error_get_logger, cp_error_get_print_level
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
-  use cp_lbfgs_optimizer_e_rosen
-  use cp_e_rosenbrok_function
+  use cp_lbfgs_optimizer_e_rosen, only: cp_lbfgs_opt_e_rosen_type,&
+     cp_init, cp_dealloc_ref, cp_next, cp_get
+  use cp_e_rosenbrok_function, only: cp_e_rosenbrok_f_type,&
+       cp_ros_f_init, cp_bounds_and_x_ros_f_init, cp_dealloc_ref
   implicit none
   private
 
@@ -116,6 +121,8 @@ function cp_lbfgs_e_rosen_test(global_env,error) result(res)
      call cp_get(optimizer, f=f, at_end=finished)
      CPPostcondition(finished,cp_warning_level,routineP,error,failure)
      CPPostcondition(f<2.0e7*epsilon(0.0_wp),cp_warning_level,routineP,error,failure)
+     call cp_dealloc_ref(optimizer,error=error)
+     call cp_dealloc_ref(obj_f,error=error)
   end if
   res=.not.failure
   call timestop(0.0_wp,handle)

@@ -17,15 +17,10 @@
 ! (otherwise make the file reference in the makefile relative vs. absolute)
 #define CPSourceFileRef __FILE__//' line '//cp_to_string(__LINE__)
 
-! if the following macro is defined the shortest possible form of macro 
-! expansions is used (but then the error messages are not so meaningful)
-#ifdef  __INTEL
+! if the following macro is defined the longest form of macro 
+! expansions is used (and the error messages are more meaningful)
 
-#define FD_SHORT_EXPANSIONS
-
-#endif
-
-#ifndef FD_SHORT_EXPANSIONS
+#ifdef FD_LONG_EXPANSIONS
 
 ! inlines the test but does not write the file name, but that should
 ! be easily recovered from the routineP variable (that should contain

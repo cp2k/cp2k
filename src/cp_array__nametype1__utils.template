@@ -27,6 +27,7 @@
 !!   SOURCE
 !****************************************************************************
 module cp_array_[nametype1]_utils
+  use kinds, only: wp=>dp
   use cp_log_handling
   use cp_error_handling
   use global_types, only: global_environment_type

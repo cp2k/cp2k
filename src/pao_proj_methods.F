@@ -27,19 +27,23 @@
 !!   SOURCE
 !*****************************************************************************
 module pao_proj_methods
-  use cp_log_handling
-  use cp_error_handling
+  use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level
+  use cp_error_handling, only: cp_error_type, cp_assert, cp_error_message,&
+       cp_assertion_failed, cp_debug, cp_precondition_failed, cp_error_init,&
+       cp_dealloc_ref, cp_error_propagate_error
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
-  use pao_types
-  use cp_matrix_utils 
-  use pao_utils
-  use cp_sparse_matrix
-  use pao_l_angles_methods
-  use pao_qs_env_methods
-  use sparse_matrix_types
-  use qs_environment_types
+  use pao_types, only: pao_env_type, pao_glob_angles_type, pao_env_get
+  use cp_matrix_utils, only: cp_matrix_block_iterator, cp_next, cp_init,&
+       cp_dealloc_ref, cp_get
+  use cp_sparse_matrix, only: cp_sparse_matrix_p_type, cp_sparse_matrix_type
+  use pao_l_angles_methods, only: pao_local_angles_type, cp_get, cp_init, &
+       cp_dealloc_ref, cp_set
+  use pao_qs_env_methods, only: pao_qs_env_get
+  use sparse_matrix_types, only: real_matrix_type, real_matrix_p_type,&
+       get_block_node, add_block_node
+  use qs_environment_types, only: qs_environment_type, get_qs_env
   use message_passing, only: mp_sum
   implicit none
   private
@@ -48,12 +52,6 @@ module pao_proj_methods
   character(len=*), private, parameter :: moduleN='pao_proj_methods'
 
   public :: cp_get
-
-! core procedures
-!  public :: cp_init, cp_dealloc_ref, cp_set, cp_get, cp_create, cp_dealloc
-
-! core functions
-!  public :: cp_validate, cp_valid
 
 ! projection - injection
   public :: cp_m2f, cp_f2m, cp_m2f_with_B_M_pi
@@ -140,7 +138,7 @@ contains
     type(pao_local_angles_type) :: l_angles_col, l_angles_row
     type(cp_error_type) :: iError
     type(pao_env_type), pointer :: pao_env
-    call cp_init(iError,template_error=error)
+    call cp_error_init(iError,template_error=error)
     nullify(block_val)
     failure=.false.
 
@@ -293,7 +291,7 @@ contains
     type(pao_local_angles_type) :: l_angles_col, l_angles_row
     type(cp_error_type) :: iError
     type(pao_env_type), pointer :: pao_env
-    call cp_init(iError,template_error=error)
+    call cp_error_init(iError,template_error=error)
     nullify(block_val)
     failure=.false.
 
@@ -450,7 +448,7 @@ contains
     type(pao_local_angles_type) :: l_angles_col, l_angles_row
     type(cp_error_type) :: iError
     type(pao_env_type), pointer :: pao_env
-    call cp_init(iError,template_error=error)
+    call cp_error_init(iError,template_error=error)
     nullify(block_val)
     failure=.false.
 
@@ -603,7 +601,7 @@ subroutine pao_g_ang_get_min_m(glob_angles,qs_env,global_env,&
   character(len=*), parameter :: routineN='pao_g_ang_get_min_m',&
        routineP=moduleN//':'//routineN
   type(cp_error_type) :: iError
-  call cp_init(iError, template_error=error)
+  call cp_error_init(iError, template_error=error)
   failure=.false.
   
   !call timeset(routineN//','//moduleN,'I',"",handle)

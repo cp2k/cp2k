@@ -60,11 +60,11 @@ module cp_log_handling
        cp_log, cp_set_log_level, cp_get_default_unit_nr
   public :: cp_to_string
 ! underlying routines
-  public :: cp_logger_init, cp_logger_dealloc_ref, cp_logger_would_log,&
-       cp_logger_get_unit_nr, cp_logger_log, cp_logger_set_log_level,&
-       cp_logger_get_default_unit_nr
-  public :: cp_int_to_string, cp_real_sp_to_string, &
-       cp_real_dp_to_string
+!!FM  public ::  cp_logger_dealloc_ref, cp_logger_would_log,&
+!!FM       cp_logger_get_unit_nr, cp_logger_log, cp_logger_set_log_level,&
+!!FM       cp_logger_get_default_unit_nr
+!!FM  public :: cp_int_to_string, cp_real_sp_to_string, &
+!!FM       cp_real_dp_to_string
 
   character(len=*), private, parameter :: moduleN='cp_log_handling'
   logical, private, parameter :: debug_this_module=.true.
