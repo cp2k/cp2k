@@ -82,12 +82,30 @@ MODULE cp_fm_types
   INTEGER,SAVE,PRIVATE :: last_fm_id_nr=0
 
 
-  PUBLIC :: cp_fm_type, cp_fm_p_type
-  PUBLIC :: cp_fm_create, cp_fm_retain, cp_fm_release,&
-       cp_fm_init_random, cp_fm_set_element, cp_fm_set_all,&
-       cp_fm_set_submatrix, cp_fm_get_submatrix, cp_fm_get_info,&
-       cp_fm_maxval, cp_fm_write, cp_fm_get_element, cp_fm_to_fm
-!***
+
+  PUBLIC :: cp_fm_type, &
+            cp_fm_p_type
+
+  PUBLIC :: cp_fm_create, &
+            cp_fm_retain, &
+            cp_fm_release,&
+            cp_fm_get_info, &
+            cp_fm_set_element, &
+            cp_fm_get_element, &
+            cp_fm_set_all, &           ! set all elements and diagonal
+            cp_fm_set_submatrix, &     ! set a submatrix to given values
+            cp_fm_get_submatrix, &     ! get a submatrix of given values
+            cp_fm_init_random, &         
+            cp_fm_maxval, &            ! find the maximum value
+            cp_fm_write, &             
+            cp_fm_to_fm                ! copy (parts of) a fm to a fm
+
+
+  INTERFACE cp_fm_to_fm
+    MODULE PROCEDURE cp_fm_to_fm_matrix, &  ! a full matrix
+                     cp_fm_to_fm_columns    ! just a number of columns
+  END INTERFACE 
+
 !****************************************************************************
 
 !!****s* cp_fm_types/cp_fm_type [1.0] *
@@ -1119,7 +1137,7 @@ CONTAINS
 
 ! ********************************************************************************
 
-  SUBROUTINE cp_fm_to_fm(source,destination,error)
+  SUBROUTINE cp_fm_to_fm_matrix(source,destination,error)
 
 !   copies a full matrix to an identical sized full matrix 
 !   History: - Creation (08.06.2001, Matthias Krack)
@@ -1181,6 +1199,43 @@ CONTAINS
       CPAssert(.FALSE.,cp_failure_level,routine,error,failure)
 #endif
    END IF
-  END SUBROUTINE cp_fm_to_fm
+  END SUBROUTINE cp_fm_to_fm_matrix
+
+
+  SUBROUTINE cp_fm_to_fm_columns(msource,mtarget,ncol,source_start,target_start)
+    TYPE(cp_fm_type), POINTER                 :: msource,mtarget
+    INTEGER, INTENT(IN)                       :: ncol
+    INTEGER, INTENT(IN), OPTIONAL             :: source_start,target_start
+
+    REAL(wp), DIMENSION(:,:), POINTER         :: a,b
+    INTEGER                                   :: nprow,npcol,&
+                                                 myprow,mypcol,i,n
+    INTEGER, DIMENSION(9)                     :: desca,descb
+    TYPE(cp_blacs_env_type), POINTER          :: context
+    INTEGER ss,ts
+    ss=1
+    ts=1
+    IF (PRESENT(source_start)) ss=source_start
+    IF (PRESENT(target_start)) ts=target_start
+
+    context => msource%matrix_struct%context
+    myprow=context%mepos(1)
+    mypcol=context%mepos(2)
+    n = msource%matrix_struct%nrow_global
+
+    a => msource%local_data
+    b => mtarget%local_data
+
+#if defined(__SCALAPACK)
+    desca(:) = msource%matrix_struct%descriptor(:)
+    descb(:) = mtarget%matrix_struct%descriptor(:)
+    DO i=0,ncol-1
+      CALL pdcopy(n,a(1,1),1,ss+i,desca,1,b(1,1),1,ts+i,descb,1)
+    ENDDO
+#else
+    CALL dcopy(ncol*n,a(1,ss),1,b(1,ts),1)
+#endif
+
+  END SUBROUTINE cp_fm_to_fm_columns
 
 END MODULE cp_fm_types

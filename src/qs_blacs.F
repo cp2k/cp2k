@@ -95,8 +95,7 @@ MODULE qs_blacs
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='qs_blacs'
 
 ! *** Public subroutines ***
-  PUBLIC :: blacs_column_copy,&
-            write_blacs_matrix, &
+  PUBLIC :: write_blacs_matrix, &
             blacs_make_basis
 
 ! *****************************************************************************
@@ -283,44 +282,6 @@ CONTAINS
     CALL timestop(0.0_wp,handle)
 
     END SUBROUTINE blacs_make_basis
-
-! *****************************************************************************
-
-  SUBROUTINE blacs_column_copy(msource,mtarget,ncol,source_start,target_start)
-    TYPE(cp_fm_type), POINTER          :: msource,mtarget
-    INTEGER, INTENT(IN)                       :: ncol
-    INTEGER, INTENT(IN), OPTIONAL             :: source_start,target_start
-
-    REAL(wp), DIMENSION(:,:), POINTER         :: a,b
-    INTEGER                                   :: nprow,npcol,&
-                                                 myprow,mypcol,i,n
-    INTEGER, DIMENSION(9)                     :: desca,descb
-    TYPE(cp_blacs_env_type), POINTER          :: context
-    INTEGER ss,ts
-    ss=1
-    ts=1
-    IF (PRESENT(source_start)) ss=source_start
-    IF (PRESENT(target_start)) ts=target_start
-
-    context => msource%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    n = msource%matrix_struct%nrow_global
-
-    a => msource%local_data
-    b => mtarget%local_data
-
-#if defined(__SCALAPACK)
-    desca(:) = msource%matrix_struct%descriptor(:)
-    descb(:) = mtarget%matrix_struct%descriptor(:)
-    DO i=0,ncol-1
-      CALL pdcopy(n,a(1,1),1,ss+i,desca,1,b(1,1),1,ts+i,descb,1)
-    ENDDO
-#else
-    CALL dcopy(ncol*n,a(1,ss),1,b(1,ts),1)
-#endif
-
-  END SUBROUTINE blacs_column_copy
 
 ! *****************************************************************************
 
