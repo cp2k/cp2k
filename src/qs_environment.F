@@ -48,6 +48,7 @@ MODULE qs_environment
   USE cp_fm_struct,                    ONLY: optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
+                                             cp_subsys_release,&
                                              cp_subsys_set,&
                                              cp_subsystem_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
@@ -166,7 +167,6 @@ CONTAINS
     NULLIFY(subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref)
     CALL cp_subsys_create(subsystem,para_env=globenv%para_env,error=error)
-    
 
 !   *** Read the input section with the cell parameters ***
 
@@ -207,7 +207,8 @@ CONTAINS
          globenv,error)
     CALL cell_release(cell,error=error)
     CALL cell_release(cell_ref,error=error)
-    
+    CALL cp_subsys_release(subsystem,error=error)
+
   END SUBROUTINE qs_init
 
 

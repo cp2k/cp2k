@@ -33,6 +33,7 @@ MODULE environment
                                              cp_para_env_release
   USE fft_tools,                       ONLY: fft3d,&
                                              init_fft
+  USE gamma,                           ONLY: deallocate_md_ftable
   USE global_types,                    ONLY: BLACS_GRID_COL,&
                                              BLACS_GRID_ROW,&
                                              BLACS_GRID_SQUARE,&
@@ -1032,6 +1033,7 @@ CONTAINS
 
     CALL deallocate_spherical_harmonics()
     CALL deallocate_orbital_pointers()
+    CALL deallocate_md_ftable()
 
     ! write message passing performance info
     CALL mp_perf_end ( globenv%group,globenv%scr )

@@ -210,7 +210,7 @@ CONTAINS
 
     CALL cp2k_finalize(globenv)
 #if defined(__HMD)
-!MK    IF (globenv%ionode) CALL _dump_allocated(%VAL(0))
+    IF (globenv%ionode) CALL _dump_allocated(%VAL(0))
 #endif
     cp2k_run_OK = .NOT. failure
   

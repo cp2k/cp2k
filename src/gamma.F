@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2003  CP2K developers group                          !
+!   Copyright (C) 2000 - 2004  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/gamma [1.0] *
 !!
@@ -15,25 +15,12 @@
 !!     Matthias Krack (07.01.1999)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     - restructured and cleaned (24.05.2004,MK)
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE gamma
-
-! *****************************************************************************
-
-! Index:
-
-! SUBROUTINE build_ftable(nmax,tmin,tmax,tdelta)
-! SUBROUTINE fgamma_0(nmax,t,f)
-! SUBROUTINE fgamma_1(nmax,t,f)
-! SUBROUTINE init_md_ftable(nmax)
-
-! FUNCTION fgamma_ref(nmax,t) RESULT(f)
-
-! *****************************************************************************
 
   USE kinds,                           ONLY: dp,&
                                              dp_size
@@ -61,7 +48,8 @@ MODULE gamma
 
 ! *** Public subroutines ***
 
-  PUBLIC :: fgamma,&
+  PUBLIC :: deallocate_md_ftable,&
+            fgamma,&
             init_md_ftable
 
 ! *****************************************************************************
@@ -77,16 +65,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_ftable(nmax,tmin,tmax,tdelta)
+  SUBROUTINE create_md_ftable(nmax,tmin,tmax,tdelta)
 
 !   Purpose: Build a table of F_n(t) values in the range tmin <= t <= tmax
 !            with a stepsize of tdelta up to n equal to nmax.
 
-!   History: - Creation (11.01.1999, Matthias Krack)
+!   History: - Creation (11.01.1999,MK)
 
 !   ***************************************************************************
-
-!   List of local variables:
 
 !   nmax  : Maximum n value of F_n(t).
 !   tdelta: Difference between two consecutive t abcissas (step size).
@@ -98,12 +84,26 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nmax
     REAL(KIND=dp), INTENT(IN)                :: tmin, tmax, tdelta
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "build_ftable"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "create_md_ftable"
 
-    INTEGER                                  :: istat, itab, itabmax, itabmin
+    INTEGER                                  :: istat, itab, itabmax, itabmin,&
+                                                n
     REAL(KIND=dp)                            :: t
 
 !   ---------------------------------------------------------------------------
+
+    IF (current_nmax > -1) THEN
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "An incomplete Gamma function table is already "//&
+                        " allocated. Use the init routine for an update")
+    END IF
+
+    IF (nmax < 0) THEN
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "A negative n value for the initialization of the "//&
+                        "incomplete Gamma function is invalid")
+    END IF
+
 !   *** Check arguments ***
 
     IF ((tmax < 0.0_dp).OR.&
@@ -113,33 +113,59 @@ CONTAINS
       CALL stop_program(routine_name,module_name,__LINE__,"Invalid arguments")
     END IF
 
-!   *** Deallocate the current table, if it is not the first call ***
-
-    IF (current_nmax > -1) THEN
-      DEALLOCATE (ftable,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"ftable")
-      END IF
-    END IF
+    n = nmax + 6
 
     itabmin = FLOOR(tmin/tdelta)
     itabmax = CEILING((tmax - tmin)/tdelta)
 
-    ALLOCATE (ftable(0:nmax,itabmin:itabmax),STAT=istat)
+    ALLOCATE (ftable(0:n,itabmin:itabmax),STAT=istat)
     IF (istat /= 0) THEN
       CALL stop_memory(routine_name,module_name,__LINE__,"ftable",&
-                       (nmax + 1)*(itabmax - itabmin + 1)*dp_size)
+                       (n + 1)*(itabmax - itabmin + 1)*dp_size)
     END IF
-    ftable(:,:) = 0.0_dp
+    ftable = 0.0_dp
 
 !   *** Fill table ***
 
     DO itab=itabmin,itabmax
       t = REAL(itab,dp)*tdelta
-      ftable(0:nmax,itab) = fgamma_ref(nmax,t)
+      ftable(0:n,itab) = fgamma_ref(n,t)
     END DO
 
-  END SUBROUTINE build_ftable
+!   *** Save initialization status ***
+
+    current_nmax = nmax
+
+  END SUBROUTINE create_md_ftable
+
+! *****************************************************************************
+
+  SUBROUTINE deallocate_md_ftable()
+
+!   Purpose: Deallocate the table of F_n(t) values.
+
+!   History: - Creation (24.05.2004,MK)
+
+!   ***************************************************************************
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_md_ftable"
+
+    INTEGER :: istat
+
+!   ---------------------------------------------------------------------------
+
+    IF (current_nmax > -1) THEN
+
+      DEALLOCATE (ftable,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"ftable")
+      END IF
+
+      current_nmax = -1
+
+    END IF
+
+  END SUBROUTINE deallocate_md_ftable
 
 ! *****************************************************************************
 
@@ -151,9 +177,9 @@ CONTAINS
 
 !   Literature: L. E. McMurchie, E. R. Davidson, J. Comp. Phys. 26, 218 (1978)
 
-!   History: - Creation (08.01.1999, Matthias Krack)
+!   History: - Creation (08.01.1999,MK)
 !            - Changed from a FUNCTION to a SUBROUTINE
-!              (09.06.1999, Matthias Krack)
+!              (09.06.1999,MK)
 
 !   ***************************************************************************
 
@@ -180,6 +206,7 @@ CONTAINS
     REAL(KIND=dp)                            :: expt, g, tdelta, ttab
 
 !   ---------------------------------------------------------------------------
+
 !   *** Calculate F(t) ***
 
     IF (t < teps) THEN
@@ -287,7 +314,7 @@ CONTAINS
 
 !   Literature: L. E. McMurchie, E. R. Davidson, J. Comp. Phys. 26, 218 (1978)
 
-!   History: - Creation (08.01.1999, Matthias Krack)
+!   History: - Creation (08.01.1999,MK)
 
 !   ***************************************************************************
 
@@ -424,11 +451,9 @@ CONTAINS
 
 !   Literature: F. E. Harris, Int. J. Quant. Chem. 23, 1469 (1983)
 
-!   History: - Creation (07.01.1999, Matthias Krack)
+!   History: - Creation (07.01.1999,MK)
 
 !   ***************************************************************************
-
-!   List of local parameters:
 
 !   eps : Numerical convergence criterion.
 !   kmax: Maximum number of iterations.
@@ -459,6 +484,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(kmax+10)        :: r
 
 !   ------------------------------------------------------------------
+
 !   *** Initialization ***
 
     f(:) = 0.0_dp
@@ -556,30 +582,42 @@ CONTAINS
 
   SUBROUTINE init_md_ftable(nmax)
 
-!   Purpose: Build a table of F_n(t) values in the range 0 <= t <= 12 with a
-!            stepsize of 0.1 up to n equal to nmax for the Taylor series
+!   Purpose: Initalize a table of F_n(t) values in the range 0 <= t <= 12 with
+!            a stepsize of 0.1 up to n equal to nmax for the Taylor series
 !            expansion used by McMurchie-Davidson (MD).
 
-!   History: - Creation (10.06.1999, Matthias Krack)
+!   History: - Creation (10.06.1999,MK)
 
 !   ***************************************************************************
 
+!   nmax: Maximum n value of F_n(t)
+
+!   ---------------------------------------------------------------------------
+
     INTEGER, INTENT(IN)                      :: nmax
 
-! Maximum n value of F_n(t).
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_md_ftable"
+
 !   ---------------------------------------------------------------------------
-!   *** Quick return, if the current initialization is sufficient ***
 
-    IF (nmax <= current_nmax) RETURN
+    IF (nmax < 0) THEN
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "A negative n value for the initialization of the "//&
+                        "incomplete Gamma function is invalid")
+    END IF
 
-!   *** Pretabulation of the F_n(t) function ***
-!   *** for the Taylor series expansion      ***
+!   *** Check, if the current initialization is sufficient ***
 
-    CALL build_ftable(nmax+6,0.0_dp,12.0_dp,0.1_dp)
+    IF (nmax > current_nmax) THEN
 
-!   *** Save the new initialization status ***
+      CALL deallocate_md_ftable()
 
-    current_nmax = nmax
+!     *** Pretabulation of the F_n(t) function ***
+!     *** for the Taylor series expansion      ***
+
+      CALL create_md_ftable(nmax,0.0_dp,12.0_dp,0.1_dp)
+
+    END IF
 
   END SUBROUTINE init_md_ftable
 
