@@ -141,6 +141,7 @@ SUBROUTINE qs_ot_mini(qs_ot_env,globenv)
                                      qs_ot_env%matrix_sx, &
                                      qs_ot_env%matrix_gx,qs_ot_env,globenv)
       CALL blacs_trace(qs_ot_env%matrix_gx,qs_ot_env%matrix_gx,qs_ot_env%delta,globenv)
+      qs_ot_env%delta=sqrt(qs_ot_env%delta/(qs_ot_env%settings%k*qs_ot_env%settings%n))
    ENDIF
 
    IF (.not. qs_ot_env%ot_linesearch) THEN       ! find a new direction
