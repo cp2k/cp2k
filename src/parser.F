@@ -22,9 +22,9 @@
 !!----------------------------------------------------------------------------
 !!          F R E E - F O R M A T  I N P U T  R O U T I N E S
 !!
-!! Subroutine  READ_LINE(iunit) : reads an input line, physical end of lines
-!!                                can be masked by a & character, no further
-!!                                characters are alowed to the right
+!! Subroutine  READ_LINE : reads an input line, physical end of lines
+!!                         can be masked by a & character, no further
+!!                         characters are alowed to the right
 !! Function    TEST_NEXT() : tests contains of next input field, return values
 !!                           are : E (blank); C (text); N (number);
 !!                                 K (bracket); S (! comment); X (&END);
@@ -67,22 +67,24 @@ MODULE parser
   INTEGER :: num_inp_line
   INTEGER :: p_line, p_char
   INTEGER :: iunit
-  CHARACTER ( LEN = 1 ), PARAMETER :: newline_default = '&'
-  CHARACTER ( LEN = 1 ), PARAMETER :: comment_default = '!'
-  CHARACTER ( LEN = 4 ), PARAMETER :: ends_default = '&END'
+  CHARACTER ( LEN = 1 ), PARAMETER :: newline = '&'
   CHARACTER ( LEN = 1 ), PARAMETER :: blank = ' '
 
   TYPE(global_environment_type) :: parenv
   LOGICAL :: parallel_io, ionode
-  CHARACTER ( LEN = 1 ) :: newline
-  CHARACTER ( LEN = 1 ) :: comment
-  CHARACTER ( LEN = 10 ) :: ends
-  INTEGER :: lens
+  CHARACTER ( LEN = 1 ), PARAMETER :: comment_default='!'
+  CHARACTER ( LEN = 1 ) :: comment_sign = comment_default
+  CHARACTER ( LEN = 4 ), PARAMETER :: end_section_default='&END'
+  CHARACTER ( LEN = 10 ) :: end_section = end_section_default
+  INTEGER :: end_section_length
 
   INTERFACE get_next
     MODULE PROCEDURE get_real, get_int, cfield
   END INTERFACE
 
+  INTERFACE read_line
+    MODULE PROCEDURE read_line_s, read_line_p
+  END INTERFACE
 
 !******************************************************************************
 
@@ -90,14 +92,12 @@ CONTAINS
 
 !******************************************************************************
 
-SUBROUTINE parser_init ( file_name, globenv, &
-                         newline_character, comment_character, end_string )
+SUBROUTINE parser_init ( file_name, globenv, section_end, comment )
   IMPLICIT NONE
   CHARACTER ( LEN = * ), INTENT ( IN ) :: file_name
   TYPE(global_environment_type), INTENT ( IN ), OPTIONAL :: globenv
-  CHARACTER ( LEN = 1 ), INTENT ( IN ), OPTIONAL :: newline_character
-  CHARACTER ( LEN = 1 ), INTENT ( IN ), OPTIONAL :: comment_character
-  CHARACTER ( LEN = * ), INTENT ( IN ), OPTIONAL :: end_string
+  CHARACTER ( LEN = * ), INTENT ( IN ), OPTIONAL :: section_end
+  CHARACTER ( LEN = 1 ), INTENT ( IN ), OPTIONAL :: comment
   CHARACTER ( LEN = 132 ) :: line
   INTEGER :: ios
   LOGICAL :: exists
@@ -105,7 +105,7 @@ SUBROUTINE parser_init ( file_name, globenv, &
 !------------------------------------------------------------------------------
 
 ! setup parameters for parallel parser
-  IF ( Present(globenv) ) THEN
+  IF ( PRESENT(globenv) ) THEN
     ionode = globenv%ionode
     parallel_io = .true.
     parenv = globenv
@@ -114,25 +114,21 @@ SUBROUTINE parser_init ( file_name, globenv, &
     parallel_io = .false.
   ENDIF
 
-  IF ( Present(newline_character) ) THEN
-    newline = newline_character
+  IF ( PRESENT(section_end) ) THEN
+    end_section = section_end
+    end_section_length = LEN_TRIM ( section_end )
   ELSE
-    newline = newline_default
+    end_section = end_section_default
+    end_section_length = 4
   ENDIF
 
-  IF ( Present(comment_character) ) THEN
-    comment = comment_character
+  IF ( PRESENT(comment) ) THEN
+    comment_sign = comment
   ELSE
-    comment = comment_default
+    comment_sign = comment_default
   ENDIF
 
-  ends = blank
-  IF ( Present(end_string) ) THEN
-    ends = end_string
-  ELSE
-    ends(1:4) = ends_default
-  ENDIF
-  lens = LEN(TRIM(ends))
+
 
   IF(ionode) THEN
 
@@ -173,7 +169,7 @@ SUBROUTINE search_label ( label, ierr, ignore_case )
 
   CHARACTER ( LEN = 132 ) :: line
   INTEGER :: ios
-  LOGICAL :: exists
+  LOGICAL :: exists, igc
 
 !------------------------------------------------------------------------------
 
@@ -181,7 +177,10 @@ SUBROUTINE search_label ( label, ierr, ignore_case )
 
   IF(ionode) THEN
 
-    IF ( ignore_case ) CALL uppercase ( label )
+    igc = .FALSE.
+    IF ( PRESENT ( ignore_case ) ) igc = ignore_case
+
+    IF ( igc ) CALL uppercase ( label )
 
     REWIND ( iunit )
 
@@ -193,7 +192,7 @@ SUBROUTINE search_label ( label, ierr, ignore_case )
           ierr = 2
           EXIT
        ELSE
-          IF ( ignore_case ) CALL uppercase ( line )
+          IF ( igc ) CALL uppercase ( line )
           IF ( index ( line, label ) /= 0 ) EXIT
        END IF
     END DO
@@ -204,13 +203,35 @@ SUBROUTINE search_label ( label, ierr, ignore_case )
 END SUBROUTINE search_label
 
 !******************************************************************************
+SUBROUTINE read_line_s ( line )
+  IMPLICIT NONE
+  CHARACTER ( LEN = * ) :: line
+  INTEGER :: ios
 
-SUBROUTINE read_line
+!------------------------------------------------------------------------------
+
+  IF ( ionode ) THEN
+
+    READ (iunit,iostat=ios,fmt='(a)' ) line
+    IF ( ios /= 0 ) CALL stop_parser ( 'read_line','error while reading file')
+
+  END IF
+
+!..distribute the line to all processors (for parallel parser)
+  IF(parallel_io) THEN
+    CALL mp_bcast(line,parenv%source,parenv%group)
+  END IF
+
+END SUBROUTINE read_line_s
+
+!******************************************************************************
+
+RECURSIVE SUBROUTINE read_line_p
   IMPLICIT NONE
   INTEGER :: llen, i, j, ii, ios
   CHARACTER ( LEN = 132 ) :: line
   CHARACTER ( LEN = 1 ) :: last
-  LOGICAL :: in_comment
+  LOGICAL :: comment
 
 !------------------------------------------------------------------------------
 
@@ -245,18 +266,6 @@ SUBROUTINE read_line
        inp_line(i) (llen:llen) = blank
     END DO
 
-!..delete empty lines
-    j = 0
-    DO i = 1, num_inp_line
-       llen = len_trim(inp_line(i))
-       IF (llen>0) THEN
-          j = j + 1
-          IF (j/=i) inp_line(j) = inp_line(i)
-       END IF
-    END DO
-
-    num_inp_line = j
-
 !..convert all delimiter characters to blanks
     DO i = 1, num_inp_line
        llen = len_trim(inp_line(i))
@@ -275,29 +284,36 @@ SUBROUTINE read_line
        END DO
     END DO
 
-!..delete multiple blanks
-    DO i = 1, num_inp_line
-       CALL compress ( inp_line ( i ) )
-    END DO
-
 !..delete comment sections
     DO i = 1, num_inp_line
        line = blank
        llen = len_trim(inp_line(i))
-       ii = 0
-       in_comment = .FALSE.
+       comment = .FALSE.
        DO j = 1, llen
-          IF (inp_line(i)(j:j)=='!' .AND. .NOT. in_comment) THEN
-             in_comment = .TRUE.
-          ELSE IF (inp_line(i)(j:j)=='!' .AND. in_comment) THEN
-             in_comment = .FALSE.
-          ELSE IF (in_comment) THEN
-          ELSE
-             ii = ii + 1
-             line(ii:ii) = inp_line(i) (j:j)
+          IF (inp_line(i)(j:j)==comment_sign .AND. .NOT. comment) THEN
+             comment = .TRUE.
+             inp_line(i)(j:j)= blank
+          ELSE IF (inp_line(i)(j:j)==comment_sign .AND. comment) THEN
+             comment = .FALSE.
+             inp_line(i)(j:j)= blank
+          ELSE IF (comment) THEN
+             inp_line(i)(j:j)= blank
           END IF
        END DO
+       CALL compress ( inp_line ( i ) )
     END DO
+
+!..delete empty lines
+    j = 0
+    DO i = 1, num_inp_line
+       llen = len_trim(inp_line(i))
+       IF (llen>0) THEN
+          j = j + 1
+          IF (j/=i) inp_line(j) = inp_line(i)
+       END IF
+    END DO
+
+    num_inp_line = j
 
 !..add line seperators
     DO i = 1, num_inp_line - 1
@@ -323,7 +339,9 @@ SUBROUTINE read_line
   p_line = 1
   p_char = 1
 
-END SUBROUTINE read_line
+  IF ( num_inp_line == 0 ) CALL read_line_p
+
+END SUBROUTINE read_line_p
 
 !******************************************************************************
 
@@ -333,44 +351,36 @@ FUNCTION test_next()
 
 ! Locals
   CHARACTER ( LEN = 1 ) :: test_next
+  INTEGER :: n
 
 !------------------------------------------------------------------------------
 
-  IF (inp_line(p_line)(p_char:p_char+lens-1)==ends(1:lens)) THEN
-
-    test_next = 'X'
-
-  ELSE
-  
-    SELECT CASE (inp_line(p_line)(p_char:p_char))
-    CASE (blank)
-       test_next = 'E'
-    CASE ( 'A':'Z')
-       test_next = 'C'
-    CASE ( 'a':'z')
-       test_next = 'C'
-    CASE ( '0':'9')
-       test_next = 'N'
-    CASE ( '+')
-       test_next = 'N'
-    CASE ( '-')
-       test_next = 'N'
-    CASE ( '.')
-       test_next = 'N'
-    CASE ( '[')
-       test_next = 'K'
-    CASE ( '%')
-       test_next = 'P'
-    CASE DEFAULT
-       test_next = 'O'
-    END SELECT
-
-  END IF
-
-  IF (test_next=='O') THEN
-     IF (inp_line(p_line)(p_char:p_char)==comment) test_next = 'S'
-  END IF
-
+  SELECT CASE (inp_line(p_line)(p_char:p_char))
+  CASE (blank)
+     test_next = 'E'
+  CASE ( 'A':'Z')
+     test_next = 'C'
+  CASE ( 'a':'z')
+     test_next = 'C'
+  CASE ( '0':'9')
+     test_next = 'N'
+  CASE ( '+')
+     test_next = 'N'
+  CASE ( '-')
+     test_next = 'N'
+  CASE ( '.')
+     test_next = 'N'
+  CASE ( '[')
+     test_next = 'K'
+  CASE ( '!')
+     test_next = 'S'
+  CASE ( '%')
+     test_next = 'P'
+  CASE DEFAULT
+     test_next = 'O'
+  END SELECT
+  n = end_section_length
+  IF (inp_line(p_line)(p_char:p_char+n-1)==end_section(1:n)) test_next = 'X'
 END FUNCTION test_next
 
 !******************************************************************************

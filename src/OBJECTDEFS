@@ -185,6 +185,7 @@ OBJECTS_GENERIC =\
  termination.o\
  timesl.o\
  timings.o\
+ topology.o\
  transformations.o\
  unit.o\
  util.o\

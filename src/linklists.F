@@ -448,7 +448,7 @@ END FUNCTION getnode
 !!     CJM & JGH
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (26-01-2002) : index pointer to bond list
 !!
 !!   SOURCE
 !******************************************************************************
@@ -463,11 +463,11 @@ SUBROUTINE bond_link_list ( pnode, molecule, mol_setup, bond_parm )
   TYPE ( molecule_structure_type ), INTENT ( INOUT ), DIMENSION ( : ) :: &
        molecule
   TYPE ( molecule_type ), INTENT ( IN ) :: mol_setup ( : )
-  TYPE ( bond_parameters_type ), INTENT ( IN ), DIMENSION ( :, : ), &
+  TYPE ( bond_parameters_type ), INTENT ( IN ), DIMENSION ( : ), &
        TARGET :: bond_parm
 
 ! Locals
-  INTEGER :: imol, jmol, nmol, ibond, nb, atombase, pTYPE ( 2 )
+  INTEGER :: imol, jmol, nmol, ibond, nb, atombase, pTYPE
   INTEGER :: index ( 2 ), ios
   TYPE ( linklist_bonds ), POINTER :: current_ll_bonds
 
@@ -490,16 +490,15 @@ SUBROUTINE bond_link_list ( pnode, molecule, mol_setup, bond_parm )
 !
 ! index(1) and index(2) are the part array indices
 ! of the first and second atoms in
-! the ibond bond pair. pTYPE ( 1) and pTYPE ( 2) are their atom types.
+! the ibond bond pair. pTYPE is the bond type
 !
         index(1) = atombase + mol_setup(jmol) %molpar%bonds(1,ibond)
         index(2) = atombase + mol_setup(jmol) %molpar%bonds(2,ibond)
-        pTYPE ( 1) = pnode(index(1)) %p%prop%ptype
-        pTYPE ( 2) = pnode(index(2)) %p%prop%ptype
+        pTYPE = mol_setup(jmol) %molpar%bonds(3,ibond)
         current_ll_bonds%p1 => pnode(index(1)) %p
         current_ll_bonds%p2 => pnode(index(2)) %p
         current_ll_bonds%index = index
-        current_ll_bonds%bond_param => bond_parm(pTYPE ( 1),pTYPE ( 2))
+        current_ll_bonds%bond_param => bond_parm(pTYPE)
         ALLOCATE (current_ll_bonds%next,STAT=ios)
         IF ( ios /= 0 ) &
              CALL stop_memory ( 'bond_link_list', 'current_ll_bonds%next', 0 )
@@ -524,7 +523,7 @@ END SUBROUTINE bond_link_list
 !!     CJM & JGH
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (26-01-2002) : index pointer to bend list
 !!
 !!   SOURCE
 !******************************************************************************
@@ -539,11 +538,11 @@ SUBROUTINE bend_link_list ( pnode, molecule, mol_setup, bend_parm )
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
        molecule
   TYPE ( molecule_type ), INTENT ( IN ) :: mol_setup ( : )
-  TYPE ( bend_parameters_type ), DIMENSION (:,:,:), INTENT ( IN ), &
+  TYPE ( bend_parameters_type ), DIMENSION (:), INTENT ( IN ), &
        TARGET :: bend_parm
 
 ! Locals
-  INTEGER :: imol, jmol, nmol, ibend, nb, atombase, pTYPE ( 3 )
+  INTEGER :: imol, jmol, nmol, ibend, nb, atombase, pTYPE
   INTEGER :: index ( 3 ), ios
   TYPE ( linklist_bends ), POINTER :: current_ll_bends
 
@@ -566,19 +565,16 @@ SUBROUTINE bend_link_list ( pnode, molecule, mol_setup, bend_parm )
 !
 ! index(1),index(2) and index(3) are the part array indices of the
 !    first, second and third atoms in
-!    the ibend bend trio. pTYPE(1), pTYPE(2) and pTYPE(3) are their atom types
+!    the ibend bend trio. pTYPE is the bend type
 !
         index(1) = atombase + mol_setup(jmol) %molpar%bends(1,ibend)
         index(2) = atombase + mol_setup(jmol) %molpar%bends(2,ibend)
         index(3) = atombase + mol_setup(jmol) %molpar%bends(3,ibend)
-        pTYPE ( 1) = pnode(index(1)) %p%prop%ptype
-        pTYPE ( 2) = pnode(index(2)) %p%prop%ptype
-        pTYPE ( 3) = pnode(index(3)) %p%prop%ptype
+        pTYPE = mol_setup(jmol) %molpar%bends(4,ibend)
         current_ll_bends%p1 => pnode(index(1)) %p
         current_ll_bends%p2 => pnode(index(2)) %p
         current_ll_bends%p3 => pnode(index(3)) %p
-        current_ll_bends%bend_param => bend_parm(pTYPE ( 1),pTYPE ( 2), &
-             pTYPE ( 3))
+        current_ll_bends%bend_param => bend_parm(pTYPE)
         current_ll_bends%index = index
         ALLOCATE (current_ll_bends%next,STAT=ios)
         IF ( ios /= 0 ) &
@@ -604,7 +600,7 @@ END SUBROUTINE bend_link_list
 !!     CJM & JGH
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (26-01-2002) : index pointer to torsion list
 !!
 !!   SOURCE
 !******************************************************************************
@@ -619,11 +615,11 @@ SUBROUTINE torsion_link_list ( pnode, molecule, mol_setup, torsion_parm )
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
        molecule
   TYPE ( molecule_type ), INTENT ( IN ) :: mol_setup ( : )
-  TYPE ( torsion_parameters_type ), INTENT ( IN ), DIMENSION (:,:,:,:), &
+  TYPE ( torsion_parameters_type ), INTENT ( IN ), DIMENSION (:), &
        TARGET :: torsion_parm
 
 ! Locals
-  INTEGER :: imol, jmol, nmol, itorsion, nb, atombase, pTYPE ( 4 )
+  INTEGER :: imol, jmol, nmol, itorsion, nb, atombase, pTYPE
   INTEGER :: index ( 4 ), ios
   TYPE (linklist_torsions), POINTER :: current_ll_torsions
 
@@ -647,24 +643,19 @@ SUBROUTINE torsion_link_list ( pnode, molecule, mol_setup, torsion_parm )
 !
 ! index(1),index(2),index(3) and index(4) are the part array indices of the
 ! first,second,third and fourth atoms in
-! the itorsion torsion quartet. pTYPE ( 1), pTYPE ( 2), pTYPE ( 3)
-! and pTYPE ( 4) are their atom types.
+! the itorsion torsion quartet. pTYPE is the torsion type
 !
 
         index(1) = atombase + mol_setup(jmol) %molpar%torsions(1,itorsion)
         index(2) = atombase + mol_setup(jmol) %molpar%torsions(2,itorsion)
         index(3) = atombase + mol_setup(jmol) %molpar%torsions(3,itorsion)
         index(4) = atombase + mol_setup(jmol) %molpar%torsions(4,itorsion)
-        pTYPE ( 1) = pnode(index(1)) %p%prop%ptype
-        pTYPE ( 2) = pnode(index(2)) %p%prop%ptype
-        pTYPE ( 3) = pnode(index(3)) %p%prop%ptype
-        pTYPE ( 4) = pnode(index(4)) %p%prop%ptype
+        pTYPE = mol_setup(jmol) %molpar%torsions(5,itorsion)
         current_ll_torsions%p1 => pnode(index(1)) %p
         current_ll_torsions%p2 => pnode(index(2)) %p
         current_ll_torsions%p3 => pnode(index(3)) %p
         current_ll_torsions%p4 => pnode(index(4)) %p
-        current_ll_torsions%torsion_param => torsion_parm(pTYPE ( 1), &
-             pTYPE ( 2),pTYPE ( 3),pTYPE ( 4))
+        current_ll_torsions%torsion_param => torsion_parm(pTYPE)
         current_ll_torsions%index = index
         ALLOCATE (current_ll_torsions%next,STAT=ios)
         IF ( ios /= 0 ) CALL stop_memory ( 'torsion_link_list', &
@@ -690,7 +681,7 @@ END SUBROUTINE torsion_link_list
 !!     CJM & JGH
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (26-01-2002) : index pointer to distcon list
 !!
 !!   SOURCE
 !******************************************************************************
@@ -706,11 +697,11 @@ SUBROUTINE distconst_link_list ( pnode, molecule, mol_setup, &
   TYPE ( molecule_structure_type ), INTENT ( INOUT ), DIMENSION ( : ) :: &
        molecule
   TYPE ( molecule_type ), INTENT ( IN ) :: mol_setup ( : )
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ), TARGET :: &
+  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ), TARGET :: &
        constraint_distance
 
 ! Locals
-  INTEGER :: imol, jmol, nmol, idcon, nb, atombase, pTYPE ( 2 )
+  INTEGER :: imol, jmol, nmol, idcon, nb, atombase, pTYPE
   INTEGER :: index ( 2 ), ios
   TYPE ( linklist_dist_constraints ), POINTER :: current_ll_dconst
 
@@ -734,16 +725,14 @@ SUBROUTINE distconst_link_list ( pnode, molecule, mol_setup, &
 !
 ! index(1) and index(2) are the part array indices of the
 ! first and second atoms in
-! the iconst const. pair. pTYPE ( 1) and pTYPE ( 2) are their atom types.
+! the iconst const. pair. pTYPE is the constraint type
 !
         index(1) = atombase + mol_setup(jmol) %molpar%ndc(1,idcon)
         index(2) = atombase + mol_setup(jmol) %molpar%ndc(2,idcon)
-        pTYPE ( 1) = pnode(index(1)) %p%prop%ptype
-        pTYPE ( 2) = pnode(index(2)) %p%prop%ptype
+        pTYPE = mol_setup(jmol) %molpar%ndc(3,idcon)
         current_ll_dconst%p1 => pnode(index(1)) %p
         current_ll_dconst%p2 => pnode(index(2)) %p
-        current_ll_dconst%distance => constraint_distance(pTYPE ( 1), &
-             pTYPE ( 2))
+        current_ll_dconst%distance => constraint_distance(pTYPE)
         current_ll_dconst%lambda = 0._dbl
         current_ll_dconst%fc ( : ) = 0._dbl
         ALLOCATE (current_ll_dconst%next,STAT=ios)
@@ -772,7 +761,7 @@ END SUBROUTINE distconst_link_list
 !!     CJM & JGH
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (26-01-2002) : index pointer to distcon list
 !!
 !!   SOURCE
 !******************************************************************************
@@ -787,7 +776,7 @@ SUBROUTINE g3x3_link_list ( pnode, molecule, mol_setup, constraint_distance )
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
        molecule
   TYPE ( molecule_type ), INTENT ( IN ) :: mol_setup ( : )
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ), TARGET :: &
+  REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ), TARGET :: &
        constraint_distance
 ! Locals
   INTEGER :: imol, jmol, nmol, ig3x3, nb, atombase, pTYPE ( 3 )
@@ -812,22 +801,22 @@ SUBROUTINE g3x3_link_list ( pnode, molecule, mol_setup, constraint_distance )
      DO ig3x3 = 1, nb
 
 !
-! index(1),index(2) and index(3) are the part array indices of the
+!    index(1),index(2) and index(3) are the part array indices of the
 !    first,second and third atoms in
-!    the ibend bend trio. pTYPE(1), pTYPE(2) and pTYPE(3) are their atom types
+!    the ibend bend trio. pTYPE(:) are the constraint types
 !
         index(1) = atombase + mol_setup(jmol) %molpar%n3x3c(1,ig3x3)
         index(2) = atombase + mol_setup(jmol) %molpar%n3x3c(2,ig3x3)
         index(3) = atombase + mol_setup(jmol) %molpar%n3x3c(3,ig3x3)
-        pTYPE ( 1) = pnode(index(1)) %p%prop%ptype
-        pTYPE ( 2) = pnode(index(2)) %p%prop%ptype
-        pTYPE ( 3) = pnode(index(3)) %p%prop%ptype
+        pTYPE ( 1) = mol_setup(jmol) %molpar%n3x3c(4,ig3x3)
+        pTYPE ( 2) = mol_setup(jmol) %molpar%n3x3c(5,ig3x3)
+        pTYPE ( 3) = mol_setup(jmol) %molpar%n3x3c(6,ig3x3)
         current_ll_g3x3%p1 => pnode(index(1)) % p
         current_ll_g3x3%p2 => pnode(index(2)) % p
         current_ll_g3x3%p3 => pnode(index(3)) % p
-        current_ll_g3x3%d12 => constraint_distance(pTYPE ( 1), pTYPE ( 2))
-        current_ll_g3x3%d13 => constraint_distance(pTYPE ( 1), pTYPE ( 3))
-        current_ll_g3x3%d23 => constraint_distance(pTYPE ( 2), pTYPE ( 3))
+        current_ll_g3x3%d12 => constraint_distance(pTYPE ( 1))
+        current_ll_g3x3%d13 => constraint_distance(pTYPE ( 2))
+        current_ll_g3x3%d23 => constraint_distance(pTYPE ( 3))
         current_ll_g3x3%lambda ( : ) = 0.0_dbl
         current_ll_g3x3%fc1 ( : ) = 0.0_dbl
         current_ll_g3x3%fc2 ( : ) = 0.0_dbl

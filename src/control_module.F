@@ -62,8 +62,10 @@ MODULE control_module
   USE md, ONLY : read_md_section, simulation_parameters_type, &
        initialize_velocities, thermodynamic_type, mdio_parameters_type
   USE method_specifications, ONLY : get_maxder
-  USE molecule_input, ONLY : read_molecule_section, read_setup_section
-  USE molecule_types, ONLY : molecule_type, intra_parameters_type
+  USE molecule_input, ONLY : read_molecule_section, read_setup_section, &
+       read_topology_section
+  USE molecule_types, ONLY : molecule_type, intra_parameters_type,&
+       topology_type
   USE pair_potential, ONLY : spline_nonbond_control
   USE particle_types, ONLY : particle_prop_type, particle_type
   USE pol_coefs, ONLY :  allocate_pol_coefs, initialize_pol_coefs, dump_pol_coefs
@@ -112,6 +114,7 @@ CONTAINS
 !!     Harald Forbert (Feb-2001): added path integral support
 !!     CJM (June-2001): added pol support and new structure
 !!                      for extended system variables
+!!     JGH (26-01-2001): added call to read topology section
 !!
 !!   USED BY
 !!     cp2k
@@ -140,6 +143,7 @@ SUBROUTINE control ( globenv )
   
   TYPE ( particle_prop_type ), DIMENSION ( : ), POINTER :: pstat
   TYPE ( molecule_type ), DIMENSION ( : ), POINTER :: mol_setup
+  TYPE ( topology_type ) :: topology
   TYPE ( unit_convert_type ) :: units
   TYPE ( simulation_parameters_type ) :: simpar
   TYPE ( structure_type ), ALLOCATABLE, DIMENSION ( : ) :: struc
@@ -272,6 +276,8 @@ SUBROUTINE control ( globenv )
   CALL read_setup_section ( mol_setup, setup, globenv )
 
   CALL read_molecule_section ( mol_setup, setup, globenv )
+
+  CALL read_topology_section ( topology, setup, globenv )
 
 ! read force_field information for classical MD
 ! read pair potential information for TB

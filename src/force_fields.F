@@ -15,6 +15,9 @@
 !!   MODIFICATION HISTORY
 !!     Subroutine input_torsions changed (DG) 05-Dec-2000
 !!     Output formats changed (DG) 05-Dec-2000
+!!     JGH (26-01-2002) : force field parameters stored in tables, not in
+!!       matrices. Input changed to have parameters labeled by the position
+!!       and not atom pairs (triples etc)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -121,17 +124,16 @@ SUBROUTINE read_force_field_section ( setup, mol_setup, set_fn, intra_param, &
   CALL input_nonbonded(potparm,setup % atom_names,set_fn)
 
 !..read the bond parameters
-  CALL input_bonds(intra_param % bond_param,setup % atom_names,set_fn)
+  CALL input_bonds(intra_param % bond_param,set_fn)
 
 !..read the bend parameters
-  CALL input_bends(intra_param % bend_param,setup % atom_names,set_fn)
+  CALL input_bends(intra_param % bend_param,set_fn)
 
 !..read the torsion parameters
-  CALL input_torsions(intra_param % torsion_param,setup % atom_names,set_fn)
+  CALL input_torsions(intra_param % torsion_param,set_fn)
 
 !..read the distance constraint parameters
-  CALL input_distance_constraints ( intra_param % constraint_distance, &
-       setup % atom_names, set_fn )
+  CALL input_distance_constraints ( intra_param % constraint_distance, set_fn )
 
 !..end the parser session
   CALL parser_end()
@@ -216,8 +218,8 @@ SUBROUTINE input_nonbonded ( potparm, atom_names, set_fn )
   CALL search_label ( label, ierror, ignore_case=.TRUE. )
   IF (ierror /= 0 ) THEN
      IF (globenv%ionode .AND. globenv%print_level >= 2) THEN
-        WRITE ( iw, '( a )' ) ' No input section &FORCE_FIELD found on file '
-        WRITE ( iw, '( a )' ) set_fn
+        WRITE ( iw, '( A )' ) ' No input section &FORCE_FIELD found on file '
+        WRITE ( iw, '( T2, A )' ) set_fn
      END IF
   ELSE
      CALL read_line
@@ -370,9 +372,8 @@ END SUBROUTINE input_nonbonded
 !!     input_bonds
 !!
 !!   FUNCTION
-!!     Read all the bond parameters. Put them in the
-!!     bond_parm matrix. Symmetrize this matrix since a bond between atoms
-!!     A and B is the same as between B and A. While we read the bond_pot_type,
+!!     Read all the bond parameters. Put them in the bond_parm table.
+!!     While we read the bond_pot_type,
 !!     we (so far) will do nothing with this information. It appears that
 !!     all major parameters sets, such as CHARMM or AMBER, all have only
 !!     one type of bonded interaction (harmonic).
@@ -381,14 +382,15 @@ END SUBROUTINE input_nonbonded
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (26-01-2002) Bond parameters are now stored in tables. The position
+!!        within the table is used as handle for the topology
 !!
 !!   NOTES
 !!I---------------------------------------------------------------------------I
 !!I SECTION: &force_field ... &end                                            I
 !!I                                                                           I
-!!I bonds                                                                     I
-!!I    harmonic atom1 atom2 bp1 bp2                                           I
+!!I bonds nbonds                                                              I
+!!I    harmonic bp1 bp2                                                       I
 !!I end bonds                                                                 I
 !!I                                                                           I
 !!I---------------------------------------------------------------------------I
@@ -396,34 +398,25 @@ END SUBROUTINE input_nonbonded
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE input_bonds(bond_parm,atom_names,set_fn)
+SUBROUTINE input_bonds(bond_parm,set_fn)
   IMPLICIT NONE
 
 ! Arguments
-  TYPE (bond_parameters_type ), POINTER :: bond_parm ( :, : )
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: atom_names ( : )
+  TYPE (bond_parameters_type ), POINTER :: bond_parm ( : )
   CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
 
 ! Locals
-  INTEGER :: i1, i2, ierror, ilen, ios
-  INTEGER :: nb, iw, allgrp, source, natom_types
+  INTEGER :: i, ierror, ilen, ios
+  INTEGER :: nb, iw, allgrp, source
   LOGICAL :: exists
-  CHARACTER ( LEN = 20 ) :: type, at1, at2
+  CHARACTER ( LEN = 20 ) :: type
   CHARACTER ( LEN = 40 ) :: string, string2
   CHARACTER ( LEN = 12 ) :: label
   REAL ( dbl ) :: bp1, bp2
 
 !------------------------------------------------------------------------------
 
-  natom_types=SIZE(atom_names)
   nb = 0
-  ALLOCATE (bond_parm(natom_types,natom_types),STAT=ios)
-  IF ( ios /= 0 ) CALL stop_memory ( 'input_bonds', &
-       'bond_parm', natom_types ** 2 )
-
-  bond_parm ( :, : ) %type = 'null'
-  bond_parm ( :, : ) %r0 = 0._dbl
-  bond_parm ( :, : ) %k = 0._dbl
   iw = scr
 !..parse the input section
   label = '&FORCE_FIELD'
@@ -435,6 +428,13 @@ SUBROUTINE input_bonds(bond_parm,atom_names,set_fn)
         CALL get_next(string,ilen)
         CALL uppercase ( string )
         IF (index(string,'BONDS') /= 0 ) THEN
+           CALL get_next(nb)
+           ALLOCATE (bond_parm(nb),STAT=ios)
+           IF ( ios /= 0 ) CALL stop_memory ( 'input_bonds', 'bond_parm', nb )
+           bond_parm ( : ) %type = 'null'
+           bond_parm ( : ) %r0 = 0._dbl
+           bond_parm ( : ) %k = 0._dbl
+           i = 0
            DO
               CALL read_line
               ilen = 0
@@ -445,21 +445,12 @@ SUBROUTINE input_bonds(bond_parm,atom_names,set_fn)
                  CALL p_error()
                  CALL stop_parser( 'input_bond','unknown option')
               CASE ( 'HARMONIC')
-                 nb = nb + 1
-                 ilen = 0
-                 CALL get_next(at1,ilen)
-                 ilen = 0
-                 CALL get_next(at2,ilen)
+                 i = i + 1
                  CALL get_next ( bp1 )
                  CALL get_next ( bp2 )
-                 i1 = str_search(atom_names,natom_types,at1)
-                 IF (i1==0) CALL stop_parser( 'input_bonds','atom not found')
-                 i2 = str_search(atom_names,natom_types,at2)
-                 IF (i2==0) CALL stop_parser( 'input_bonds','atom not found')
-                 bond_parm(i1,i2) %type = string2
-                 bond_parm(i1,i2) %r0 = bp1
-                 bond_parm(i1,i2) %k = bp2
-                 bond_parm(i2,i1) = bond_parm(i1,i2)
+                 bond_parm(i) %type = string2
+                 bond_parm(i) %r0 = bp1
+                 bond_parm(i) %k = bp2
               CASE ( 'END')
                  ilen = 0
                  CALL get_next(string2,ilen)
@@ -475,17 +466,14 @@ SUBROUTINE input_bonds(bond_parm,atom_names,set_fn)
   IF ( globenv % ionode ) THEN
      IF (globenv % print_level>=0 .AND. nb>0) THEN
         WRITE ( iw, '( A )' ) ' FORCE FIELD| Bond interaction parameters'
-        DO i1 = 1, natom_types
-           DO i2 = i1, natom_types
-              IF (index(bond_parm(i1,i2)%type,'HARMONIC') /= 0 ) THEN
-                 WRITE ( iw, '( A, T30, A, T37, A, T58, A, T71, F10.2 )' ) &
-                      ' FORCE FIELD| harmonic', &
-                      ADJUSTL ( atom_names ( i1 ) ), ADJUSTL ( atom_names ( i2 ) ), &
-                      '      r0 [A]', bond_parm ( i1, i2 ) % r0
+        DO i = 1, nb
+          IF (index(bond_parm(i)%type,'HARMONIC') /= 0 ) THEN
+                 WRITE ( iw, '( A, T30, A, I5, T58, A, T71, F10.2 )' ) &
+                      ' FORCE FIELD| harmonic', ' bond nr. ',i,&
+                      '      r0 [A]', bond_parm ( i ) % r0
                  WRITE ( iw, '( A, T58, A, T71, F10.2 )' ) ' FORCE FIELD| ', &
-                      ' k [K*A^-2)]', bond_parm ( i1, i2 ) % k
-              END IF
-           END DO
+                      ' k [K*A^-2)]', bond_parm ( i ) % k
+          END IF
         END DO
         WRITE ( iw, '( )' )
      END IF
@@ -501,9 +489,8 @@ END SUBROUTINE input_bonds
 !!     input_bends
 !!
 !!   FUNCTION
-!!     Read all the bend parameters. Put them in the
-!!     bend_parm matrix. Fill this matrix since a bend between atoms
-!!     A-B-C is the same as between C-B-A. While we read the bend_pot_type,
+!!     Read all the bend parameters. Put them in the bend_parm table.
+!!     While we read the bend_pot_type,
 !!     we (so far) will do nothing with this information. It appears that
 !!     all major parameters sets, such as CHARMM or AMBER, all have only
 !!     only one type of bend interaction (harmonic).
@@ -512,14 +499,15 @@ END SUBROUTINE input_bonds
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (26-01-2002) Bend parameters are now stored in tables. The position
+!!        within the table is used as handle for the topology
 !!
 !!   NOTES
 !!I---------------------------------------------------------------------------I
 !!I SECTION: &force_field ... &end                                            I
 !!I                                                                           I
-!!I bends                                                                     I
-!!I    harmonic atom1 atom2 atom3 bp1 bp2                                     I
+!!I bends nbends                                                              I
+!!I    harmonic bp1 bp2                                                       I
 !!I end bends                                                                 I
 !!I                                                                           I
 !!I---------------------------------------------------------------------------I
@@ -527,36 +515,28 @@ END SUBROUTINE input_bonds
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE input_bends ( bend_parm, atom_names, set_fn )
+SUBROUTINE input_bends ( bend_parm, set_fn )
 
   IMPLICIT NONE
 
 ! Arguments
-  TYPE (bend_parameters_type ), POINTER  :: bend_parm(:,:,:)
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: atom_names ( : )
+  TYPE (bend_parameters_type ), POINTER  :: bend_parm(:)
   CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
 
 ! Locals
-  INTEGER :: i1, i2, i3, ierror, ilen, ios
-  INTEGER ::  nb, iw, allgrp, source, natom_types
-  CHARACTER ( LEN = 20 ) :: type, at1, at2, at3
+  INTEGER :: i, ierror, ilen, ios
+  INTEGER ::  nb, iw, allgrp, source
+  CHARACTER ( LEN = 20 ) :: type
   CHARACTER ( LEN = 40 ) :: string, string2
   CHARACTER ( LEN = 12 ) :: label
   REAL ( dbl ) :: bp1, bp2, torad, todeg
 
 !------------------------------------------------------------------------------
 
-  natom_types=SIZE(atom_names)
-  nb = 0
   torad = pi / 180.0_dbl
   todeg = 180.0_dbl/pi
-  ALLOCATE (bend_parm(natom_types,natom_types,natom_types),STAT=ios)
-  IF ( ios /= 0 ) CALL stop_memory ( 'input_bends', &
-       'bend_parm', natom_types ** 3 )
-  bend_parm(:,:,:) %type = 'null'
-  bend_parm(:,:,:) %theta0 = 0._dbl
-  bend_parm(:,:,:) %k = 0._dbl
 
+  nb = 0
   iw = scr
 !..parse the input section
   label = '&FORCE_FIELD'
@@ -568,6 +548,13 @@ SUBROUTINE input_bends ( bend_parm, atom_names, set_fn )
         CALL get_next(string,ilen)
         CALL uppercase ( string )
         IF (index(string,'BENDS') /= 0 ) THEN
+           CALL get_next ( nb )
+           ALLOCATE (bend_parm(nb),STAT=ios)
+           IF ( ios /= 0 ) CALL stop_memory ( 'input_bends', 'bend_parm', nb )
+           bend_parm(:) %type = 'null'
+           bend_parm(:) %theta0 = 0._dbl
+           bend_parm(:) %k = 0._dbl
+           i=0
            DO
               CALL read_line
               ilen = 0
@@ -578,25 +565,12 @@ SUBROUTINE input_bends ( bend_parm, atom_names, set_fn )
                  CALL p_error()
                  CALL stop_parser( 'input_bond','unknown option')
               CASE ( 'HARMONIC')
-                 nb = nb + 1
-                 ilen = 0
-                 CALL get_next(at1,ilen)
-                 ilen = 0
-                 CALL get_next(at2,ilen)
-                 ilen = 0
-                 CALL get_next(at3,ilen)
+                 i = i + 1
                  CALL get_next ( bp1 )
                  CALL get_next ( bp2 )
-                 i1 = str_search(atom_names,natom_types,at1)
-                 IF (i1==0) CALL stop_parser( 'input_bends','atom not found')
-                 i2 = str_search(atom_names,natom_types,at2)
-                 IF (i2==0) CALL stop_parser( 'input_bends','atom not found')
-                 i3 = str_search(atom_names,natom_types,at3)
-                 IF (i3==0) CALL stop_parser( 'input_bends','atom not found')
-                 bend_parm(i1,i2,i3) %type = string2
-                 bend_parm(i1,i2,i3) %theta0 = bp1*torad
-                 bend_parm(i1,i2,i3) %k = bp2
-                 bend_parm(i3,i2,i1) = bend_parm(i1,i2,i3)
+                 bend_parm(i) %type = string2
+                 bend_parm(i) %theta0 = bp1*torad
+                 bend_parm(i) %k = bp2
               CASE ( 'END')
                  ilen = 0
                  CALL get_next(string2,ilen)
@@ -612,19 +586,14 @@ SUBROUTINE input_bends ( bend_parm, atom_names, set_fn )
   IF ( globenv % ionode ) THEN
      IF (globenv % print_level>=0 .AND. nb>0) THEN
         WRITE ( iw, '( A )' ) ' FORCE FIELD| Bend interaction parameters'
-        DO i1 = 1, natom_types
-           DO i2 = 1, natom_types
-              DO i3 = i1, natom_types
-                 IF (index(bend_parm(i1,i2,i3)%type,'HARMONIC') /= 0 ) THEN
-                    WRITE ( iw, '( A,T30,A,T37,A,T44,A,T58,A,T71,F10.2 )' ) &
-                         ' FORCE FIELD| harmonic', &
-                         adjustl(atom_names(i1)), adjustl(atom_names(i2)), adjustl(atom_names(i3)), &
-                         'theta0 [deg]', bend_parm(i1,i2,i3) %theta0*todeg
-                    WRITE ( iw, '( A,T58,A,T71,F10.2 )' ) ' FORCE FIELD| ', &
-                         '       k [K]', bend_parm(i1,i2,i3) %k
-                 END IF
-              END DO
-           END DO
+        DO i = 1, nb
+           IF (index(bend_parm(i)%type,'HARMONIC') /= 0 ) THEN
+              WRITE ( iw, '( A,T30,A,I5,T58,A,T71,F10.2 )' ) &
+                   ' FORCE FIELD| harmonic', ' bend nr ',i, &
+                   'theta0 [deg]', bend_parm(i) %theta0*todeg
+              WRITE ( iw, '( A,T58,A,T71,F10.2 )' ) ' FORCE FIELD| ', &
+                   '       k [K]', bend_parm(i) %k
+           END IF
         END DO
         WRITE ( iw, '( )' )
      END IF
@@ -640,9 +609,8 @@ END SUBROUTINE input_bends
 !!     input_torsions
 !!
 !!   FUNCTION
-!!     Read all the torsion parameters. Put them in the
-!!     torsion_parm matrix. Fill this matrix since a torsion between atoms
-!!     A-B-C-D is the same as between D-C-B-A. We have defined the
+!!     Read all the torsion parameters. Put them in the torsion_parm table.
+!!     We have defined the
 !!     torsion_parameter type with 7 coefficients for 0 to 6. Hopefully
 !!     this will be generic enough to handle all torsion potentials.
 !!     Since different types will be used, we need to store the type of torsion
@@ -652,14 +620,15 @@ END SUBROUTINE input_bends
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (26-01-2002) Torsion parameters are now stored in tables. The position
+!!        within the table is used as handle for the topology
 !!
 !!   NOTES
 !!I---------------------------------------------------------------------------I
 !!I SECTION: &force_field ... &end                                            I
 !!I                                                                           I
-!!I torsions                                                                  I
-!!I    jorgensen atom1 atom2 atom3 atom4 tp[1-4]                              I
+!!I torsions  ntors                                                           I
+!!I    jorgensen tp[1-4]                                                      I
 !!I end torsions                                                              I
 !!I                                                                           I
 !!I---------------------------------------------------------------------------I
@@ -667,39 +636,26 @@ END SUBROUTINE input_bends
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
+SUBROUTINE input_torsions ( torsion_parm, set_fn )
 
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( torsion_parameters_type ), POINTER :: torsion_parm ( :, :, :, : )
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: atom_names ( : )
+  TYPE ( torsion_parameters_type ), POINTER :: torsion_parm ( : )
   CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
 
 ! Locals
-  INTEGER :: i, i1, i2, i3, i4, ierror, ilen, ios
-  INTEGER :: nb, iw, allgrp, source, natom_types
-  CHARACTER ( LEN = 20 ) :: type, at1, at2, at3, at4
+  INTEGER :: i, j, ierror, ilen, ios
+  INTEGER :: nb, iw, allgrp, source
+  CHARACTER ( LEN = 20 ) :: type
   CHARACTER ( LEN = 40 ) :: string, string2
   CHARACTER ( LEN = 12 ) :: label
   REAL ( dbl ), DIMENSION (0:3) :: tp
 
 !------------------------------------------------------------------------------
 
-  natom_types=SIZE(atom_names)
   nb = 0
-  ALLOCATE ( &
-       torsion_parm ( natom_types, natom_types, natom_types, natom_types ), &
-       STAT = ios )
-  IF ( ios /= 0 ) CALL stop_memory ( 'input_torsions', &
-       'torsion_parm', natom_types ** 4 )
-  torsion_parm ( :, :, :, : ) % type = 'null'
-  DO i = 0, SIZE ( torsion_parm(1,1,1,1) % a ) - 1
-     torsion_parm(:,:,:,:) %a(i) = 0._dbl
-  END DO
-
   iw = scr
-
 !..parse the input section
   label = '&FORCE_FIELD'
   CALL search_label ( label, ierror, ignore_case=.TRUE. )
@@ -710,6 +666,15 @@ SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
         CALL get_next(string,ilen)
         CALL uppercase ( string )
         IF (index(string,'TORSIONS') /= 0 ) THEN
+           CALL get_next ( nb )
+           ALLOCATE ( torsion_parm ( nb ), STAT = ios )
+           IF ( ios /= 0 ) CALL stop_memory ( 'input_torsions', &
+              'torsion_parm', nb )
+           torsion_parm ( : ) % type = 'null'
+           DO i = 0, SIZE ( torsion_parm(1) % a ) - 1
+              torsion_parm(:) %a(i) = 0._dbl
+           END DO
+           i = 0
            DO
               CALL read_line
               ilen = 0
@@ -720,35 +685,11 @@ SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
                  CALL p_error()
                  CALL stop_parser( 'input_torsion','unknown option')
               CASE ( 'JORGENSEN')
-                 nb = nb + 1
-                 ilen = 0
-                 CALL get_next(at1,ilen)
-                 ilen = 0
-                 CALL get_next(at2,ilen)
-                 ilen = 0
-                 CALL get_next(at3,ilen)
-                 ilen = 0
-                 CALL get_next(at4,ilen)
-                 DO i = 0, SIZE(tp) - 1
-                    CALL get_next ( tp(i) )
+                 i = i + 1
+                 torsion_parm(i) %type = string2
+                 DO j = 0, SIZE(tp) - 1
+                    CALL get_next ( torsion_parm(i) %a(j) )
                  END DO
-                 i1 = str_search(atom_names,natom_types,at1)
-                 IF (i1==0) CALL stop_parser( 'input_torsions', &
-                      'atom not found')
-                 i2 = str_search(atom_names,natom_types,at2)
-                 IF (i2==0) CALL stop_parser( 'input_torsions', &
-                      'atom not found')
-                 i3 = str_search(atom_names,natom_types,at3)
-                 IF (i3==0) CALL stop_parser( 'input_torsions', &
-                      'atom not found')
-                 i4 = str_search(atom_names,natom_types,at4)
-                 IF (i4==0) CALL stop_parser( 'input_torsions', &
-                      'atom not found')
-                 torsion_parm(i1,i2,i3,i4) %type = string2
-                 DO i = 1, SIZE(tp) - 1
-                 torsion_parm(i1,i2,i3,i4) %a(i) = tp(i)
-                 END DO
-                 torsion_parm(i4,i3,i2,i1) = torsion_parm(i1,i2,i3,i4)
               CASE ( 'END')
                  ilen = 0
                  CALL get_next(string2,ilen)
@@ -765,29 +706,18 @@ SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
      IF ( globenv % print_level >= 0 .AND. nb > 0 ) THEN
         WRITE ( iw, '( A )' ) &
              ' FORCE FIELD| Torsion interaction parameters'
-        DO i1 = 1, natom_types
-           DO i2 = 1, natom_types
-              DO i3 = i2, natom_types
-                 DO i4 = i1, natom_types
-                    IF ( index ( torsion_parm(i1,i2,i3,i4) % type, &
-                         'JORGENSEN' ) /= 0 ) THEN
-                       WRITE ( iw, '( A, T30, A, T37, A, T44, A, T51, A, T58, A, T71, F10.2 )' ) &
-                            ' FORCE FIELD| Jorgensen', &
-                            ADJUSTL ( atom_names(i1)), &
-                            ADJUSTL ( atom_names(i2)), &
-                            ADJUSTL ( atom_names(i3)), &
-                            ADJUSTL ( atom_names(i4)), &
-                            '      a0 [K]', torsion_parm ( i1, i2, i3, i4 ) % a(0)
+        DO i = 1, nb
+           IF ( index ( torsion_parm(i) % type, 'JORGENSEN' ) /= 0 ) THEN
+              WRITE ( iw, '( A, T30, A, i5, T58, A, T71, F10.2 )' ) &
+                ' FORCE FIELD| Jorgensen', ' torsion nr ',i, &
+                            '      a0 [K]', torsion_parm ( i ) % a(0)
                        WRITE ( iw, '( A, T58, A, T71, F10.2 )' ) ' FORCE FIELD| ', &
-                            '      a1 [K]', torsion_parm ( i1, i2, i3, i4 ) % a(1)
+                            '      a1 [K]', torsion_parm ( i ) % a(1)
                        WRITE ( iw, '( A, T58, A, T71, F10.2 )' ) ' FORCE FIELD| ', &
-                            '      a2 [K]', torsion_parm ( i1, i2, i3, i4 ) % a(2)
+                            '      a2 [K]', torsion_parm ( i ) % a(2)
                        WRITE ( iw, '( A, T58, A, T71, F10.2 )' ) ' FORCE FIELD| ', &
-                            '      a3 [K]', torsion_parm ( i1, i2, i3, i4 ) % a(3)
-                    END IF
-                 END DO
-              END DO
-           END DO
+                            '      a3 [K]', torsion_parm ( i ) % a(3)
+           END IF
         END DO
         WRITE ( iw, '( )' )
      END IF
@@ -804,21 +734,21 @@ END SUBROUTINE input_torsions
 !!
 !!   FUNCTION
 !!     Read all the distance parameters. Put them in the
-!!     constraint_distance array. Symmetrize this matrix since a bond between
-!!     atoms A and B is the same as between B and A.
+!!     constraint_distance array.
 !!
 !!   AUTHOR
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (26-01-2002) Distance parameters are now stored in tables. The position
+!!        within the table is used as handle for the topology
 !!
 !!   NOTES
 !!I---------------------------------------------------------------------------I
 !!I SECTION: &force_field ... &end                                            I
 !!I                                                                           I
-!!I distcon                                                                   I
-!!I     atom1 atom2 dp                                                        I
+!!I distcon  ndist                                                            I
+!!I     dp                                                                    I
 !!I end distcon                                                               I
 !!I                                                                           I
 !!I---------------------------------------------------------------------------I
@@ -826,35 +756,25 @@ END SUBROUTINE input_torsions
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE input_distance_constraints ( constraint_distance, atom_names, &
-     set_fn )
+SUBROUTINE input_distance_constraints ( constraint_distance, set_fn )
 
   IMPLICIT NONE
 
 ! Arguments
-  REAL ( dbl ), POINTER :: constraint_distance ( :, : )
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: atom_names ( : )
+  REAL ( dbl ), POINTER :: constraint_distance ( : )
   CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
 
 ! Locals
-  INTEGER :: i1, i2, ierror, ilen, ios
-  INTEGER :: nb, iw, allgrp, source, natom_types
-  CHARACTER ( LEN = 20 ) :: at1, at2
+  INTEGER :: i, ierror, ilen, ios
+  INTEGER :: nb, iw, allgrp, source
   CHARACTER ( LEN = 40 ) :: string, string2, string2_tmp
   CHARACTER ( LEN = 12 ) :: label
   REAL ( dbl ) :: dp
 
 !------------------------------------------------------------------------------
 
-  natom_types=SIZE(atom_names)
   nb = 0
-  ALLOCATE (constraint_distance(natom_types,natom_types),STAT=ios)
-  IF ( ios /= 0 ) CALL stop_memory ( 'input_distance_constraints', &
-       'constraint_distance', natom_types ** 2 )
-  constraint_distance ( :, : ) = 0.0_dbl
-
   iw = scr
-
 !..parse the input section
   label = '&FORCE_FIELD'
   CALL search_label ( label, ierror, ignore_case=.TRUE. )
@@ -866,28 +786,14 @@ SUBROUTINE input_distance_constraints ( constraint_distance, atom_names, &
         CALL uppercase ( string )
 
         IF ( INDEX ( string, 'DISTCON' ) /= 0 ) THEN
-           DO
-              CALL read_line()
-
-              ilen = 0
-              CALL get_next ( string2, ilen )
-              string2_tmp = string2
-              CALL uppercase ( string2_tmp )
-              IF ( INDEX ( string2_tmp, 'END' ) /= 0 ) EXIT
-
-              at1 = string2
-              nb = nb + 1
-              ilen = 0
-              CALL get_next ( at2, ilen )
-              i1 = str_search ( atom_names, natom_types, at1 )
-              IF ( i1 == 0 ) CALL stop_parser ( 'input_distance_constraints', &
-                   'atom not found' )
-              i2 = str_search ( atom_names, natom_types, at2 )
-              IF ( i2 == 0 ) CALL stop_parser ( 'input_distance_constraints', &
-                   'atom not found' )
-              CALL get_next ( dp )
-              constraint_distance ( i1, i2 ) = dp
-              constraint_distance ( i2, i1 ) = dp
+           CALL get_next ( nb )
+           ALLOCATE (constraint_distance(nb),STAT=ios)
+           IF ( ios /= 0 ) CALL stop_memory ( 'input_distance_constraints', &
+                'constraint_distance', nb )
+           constraint_distance ( : ) = 0.0_dbl
+           CALL read_line()
+           DO i = 1, nb
+              CALL get_next ( constraint_distance ( i ) )
            END DO
         END IF
         CALL read_line
@@ -898,16 +804,12 @@ SUBROUTINE input_distance_constraints ( constraint_distance, atom_names, &
   IF ( globenv % ionode ) THEN
      IF ( globenv % print_level >= 0 .AND. nb > 0 ) THEN
         WRITE ( iw, '( A )' ) ' FORCE FIELD| Distance constraints '
-        DO i1 = 1, natom_types
-           DO i2 = i1, natom_types
-              IF ( constraint_distance ( i1, i2 ) /= 0.0_dbl ) THEN
-                 WRITE ( iw, '( A, T30, A, T37, A, T71, F10.4 )' ) &
-                      ' FORCE FIELD| Constraint: ', &
-                      ADJUSTL ( atom_names ( i1 ) ), &
-                      ADJUSTL ( atom_names ( i2 ) ), &
-                      constraint_distance ( i1, i2 )
-              END IF
-           END DO
+        DO i = 1, nb
+          IF ( constraint_distance ( i ) /= 0.0_dbl ) THEN
+            WRITE ( iw, '( A, T30, A, T37, A, T71, F10.4 )' ) &
+              ' FORCE FIELD| Constraint: ', ' distcon nr. ',i, &
+                      constraint_distance ( i )
+          END IF
         END DO
         WRITE ( iw, '()' )
      END IF

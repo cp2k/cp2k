@@ -13,7 +13,7 @@
 !!     CJM & JGH
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (26-01-2002) : Store bonds, bends etc in tables not in matrices
 !!
 !!   SOURCE
 !******************************************************************************
@@ -34,6 +34,7 @@ MODULE molecule_types
   PUBLIC :: particle_type, particle_prop_type
   PUBLIC :: molecule_type, molecule_parameter_type, read_basis_type
   PUBLIC :: intra_parameters_type
+  PUBLIC :: topology_type
 
   TYPE linklist_images
      REAL ( dbl ), DIMENSION(3) :: vec
@@ -131,10 +132,10 @@ MODULE molecule_types
   END TYPE linklist_g3x3_constraints
 
   TYPE intra_parameters_type
-     TYPE (bond_parameters_type ), POINTER :: bond_param ( :, : )
-     TYPE (bend_parameters_type ), POINTER :: bend_param(:,:,:)
-     TYPE (torsion_parameters_type ), POINTER :: torsion_param(:,:,:,:)
-     REAL ( dbl ), POINTER :: constraint_distance ( :, : )
+     TYPE (bond_parameters_type ), POINTER :: bond_param ( : )
+     TYPE (bend_parameters_type ), POINTER :: bend_param ( : )
+     TYPE (torsion_parameters_type ), POINTER :: torsion_param ( : )
+     REAL ( dbl ), POINTER :: constraint_distance ( : )
   END TYPE intra_parameters_type
 
   TYPE read_basis_type
@@ -174,6 +175,15 @@ MODULE molecule_types
      CHARACTER ( LEN = 20 ) :: nhcopt
      TYPE ( molecule_parameter_type ) :: molpar
   END TYPE molecule_type
+
+  TYPE topology_type
+     INTEGER :: nbond
+     INTEGER, DIMENSION (:,:), POINTER :: bond
+     INTEGER :: nbend
+     INTEGER, DIMENSION (:,:), POINTER :: bend
+     INTEGER :: ntors
+     INTEGER, DIMENSION (:,:), POINTER :: torsion
+  END TYPE topology_type
 
   TYPE molecule_structure_type
      CHARACTER ( LEN = 30 ) :: mol_name ! name of molecule

@@ -14,7 +14,7 @@
 !!     JGH
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (26-01-2002) Added read_topology_section
 !!
 !!   SOURCE
 !******************************************************************************
@@ -25,7 +25,7 @@ MODULE molecule_input
   USE input_types, ONLY : setup_parameters_type
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : pi, zero
-  USE molecule_types, ONLY : molecule_type
+  USE molecule_types, ONLY : molecule_type, topology_type
   USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
        p_error, get_next, stop_parser, search_label
@@ -33,11 +33,13 @@ MODULE molecule_input
   USE string_utilities, ONLY : uppercase, xstring, str_search, &
        str_comp, make_tuple
   USE termination, ONLY : stop_memory, stop_program
+  USE topology, ONLY : read_topology_file, get_molecules_topology, &
+       set_molecule_type_topology, get_molecule_structure_topology
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: read_setup_section, read_molecule_section
+  PUBLIC :: read_setup_section, read_molecule_section, read_topology_section
 
 !!*****
 !******************************************************************************
@@ -102,13 +104,24 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
 
 ! Locals
   INTEGER :: ilen, iw, source, group, icount, nmol_type, ios
-  INTEGER :: ierror, ierr2, i, j
-  LOGICAL :: sim
+  INTEGER :: ierror, i, j, nmol_topo
+  LOGICAL :: sim, section_found
   CHARACTER ( LEN = 20 ) :: string, string2
   CHARACTER ( LEN = 6 ) :: label
   CHARACTER ( LEN = 12 ) :: default_thermostat
   CHARACTER ( LEN = 3 ), PARAMETER :: yn ( 0:1 ) = (/ ' NO', 'YES' /)
 
+!------------------------------------------------------------------------------
+! look for a possible topology file
+  CALL read_topology_file ( setup % topology_file_name, globenv )
+! molecule types defined on topology file
+  nmol_topo = get_molecules_topology ()
+  if ( nmol_topo > 0 ) THEN
+!    allocate space for the molecules
+     ALLOCATE (mol_setup(nmol_topo ),STAT=ios)
+     IF ( ios /= 0 ) CALL stop_memory ( 'read_setup_section', &
+        'mol_setup', nmol_topo )
+  END IF
 !------------------------------------------------------------------------------
 
   default_thermostat = "GLOBAL"
@@ -140,7 +153,9 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
         WRITE ( iw, '( A )' ) ' No input section &SETUP found on files '
         WRITE ( iw, '( T2, A )' ) setup % set_file_name
      END IF
+     section_found = .FALSE.
   ELSE
+     section_found = .TRUE.
 !    count number of molecule entries
      nmol_type = 0
      CALL read_line
@@ -169,13 +184,32 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
         END SELECT
         CALL read_line
      END DO
+!    molecule types defined on topology file
+     if ( nmol_topo > 0 ) THEN
+        IF ( nmol_topo < nmol_type ) &
+          CALL stop_program ( 'read_setup_section', &
+                ' inconsistent number of molecules specified ')
+        nmol_type = nmol_topo
+     END IF
 !    allocate space for the molecules
-     ALLOCATE (mol_setup(nmol_type ),STAT=ios)
-     IF ( ios /= 0 ) CALL stop_memory ( 'read_setup_section', &
-        'mol_setup', nmol_type )
-!    reinitiate the parser at the beginning of the section
+     IF ( nmol_topo == 0 ) THEN
+        ALLOCATE (mol_setup(nmol_type ),STAT=ios)
+        IF ( ios /= 0 ) CALL stop_memory ( 'read_setup_section', &
+           'mol_setup', nmol_type )
+     END IF
+  END IF
+  CALL parser_end
+
+  mol_setup (:) % molpar % name = "#"
+
+! process the information from the topology file
+  CALL set_molecule_type_topology ( mol_setup, default_thermostat )
+
+  IF ( section_found ) THEN
+! reinitiate the parser at the beginning of the section
+     CALL parser_init ( setup % set_file_name, globenv )
      CALL search_label ( label, ierror, ignore_case=.TRUE. )
-     IF ( ierr2 /= 0 ) CALL stop_parser ('read_setup_section','reinit failed')
+     IF ( ierror /= 0 ) CALL stop_parser ('read_setup_section','reinit failed')
      IF ( .NOT. ASSOCIATED ( mol_setup ) ) &
           CALL stop_program ( 'read_setup_section', &
           'number of molecule types not yet specified')
@@ -317,7 +351,7 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
   END IF
   CALL parser_end
 
-!..cell setup
+! cell setup
   IF ( SUM ( ABS (setup % reference_cell % hmat) ) == 0._dbl ) THEN
     setup % reference_cell = setup % simulation_cell
   ELSE IF ( SUM ( ABS (setup % reference_cell % hmat) ) == 0._dbl ) THEN
@@ -326,7 +360,8 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
   IF ( SUM ( ABS (setup % reference_cell % hmat) ) == 0._dbl ) THEN
     CALL stop_program ( "read_setup_section", "No cell information available" )
   END IF
-!..write some information to output
+
+! write some information to output
   IF ( globenv % ionode ) THEN
      IF (globenv%print_level>=0) THEN
         IF ( nmol_type > 0 ) THEN
@@ -440,7 +475,10 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
      molname(i) = mol_setup(i) %molpar%name
   END DO
 
-!..parse the input section
+  ! get molecule structures from topology file
+  CALL get_molecule_structure_topology ( molname, mol_setup )
+
+  ! parse the input section
   label = '&MOLEC'
   CALL parser_init ( setup % set_file_name, globenv )
   CALL search_label ( label, ierror, ignore_case=.TRUE. )
@@ -457,7 +495,9 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
         imol = str_search(molname,nmol_type,string)
         nat = -1
         IF (imol>0) THEN
-!          we have found a valid molecule description
+           ! we have found a valid molecule description
+           ! it would be better to first deallocate all structures already
+           ! allocated at this point
            mol_setup(imol) %molpar%natom_type = 0
            mol_setup(imol) %molpar%nbonds = 0
            mol_setup(imol) %molpar%nbends = 0
@@ -468,7 +508,7 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
            mol_setup(imol) %molpar%nbasis_rho0 = 0
 
            IF (test_next()=="C") THEN
-!             short form, single atom molecules
+              ! short form, single atom molecules
               mol_setup(imol) %molpar%natom_type = 1
               mol_setup(imol) %molpar%natom = 1
               ALLOCATE (mol_setup(imol)%molpar%aname(1),STAT=ios)
@@ -550,12 +590,13 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
                     CALL get_next ( mol_setup(imol) %molpar%nbonds )
                     na = mol_setup(imol) %molpar%nbonds
                     IF (na>=0) THEN
-                       ALLOCATE (mol_setup(imol)%molpar%bonds(2,na),STAT=ios)
+                       ALLOCATE (mol_setup(imol)%molpar%bonds(3,na),STAT=ios)
                        IF (ios /= 0 ) CALL stop_memory &
-                            ( 'read_molecule_section', 'bonds', 2 * na )
+                            ( 'read_molecule_section', 'bonds', 3 * na )
                        DO i = 1, na
                           CALL get_next ( mol_setup(imol) %molpar%bonds(1,i) )
                           CALL get_next ( mol_setup(imol) %molpar%bonds(2,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%bonds(3,i) )
                        END DO
                     END IF
    
@@ -563,13 +604,14 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
                     CALL get_next ( mol_setup(imol) %molpar%nbends )
                     na = mol_setup(imol) %molpar%nbends
                     IF (na>=0) THEN
-                       ALLOCATE (mol_setup(imol)%molpar%bends(3,na),STAT=ios)
+                       ALLOCATE (mol_setup(imol)%molpar%bends(4,na),STAT=ios)
                        IF (ios /= 0 ) CALL stop_memory &
-                            ( 'read_molecule_section', 'bends', 3 * na )
+                            ( 'read_molecule_section', 'bends', 4 * na )
                        DO i = 1, na
                           CALL get_next ( mol_setup(imol) %molpar%bends(1,i) )
                           CALL get_next ( mol_setup(imol) %molpar%bends(2,i) )
                           CALL get_next ( mol_setup(imol) %molpar%bends(3,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%bends(4,i) )
                        END DO
                     END IF
    
@@ -578,15 +620,16 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
                     na = mol_setup(imol) %molpar%ntorsions
                     IF (na>=0) THEN
                        ALLOCATE ( &
-                            mol_setup ( imol ) % molpar % torsions ( 4, na ), &
+                            mol_setup ( imol ) % molpar % torsions ( 5, na ), &
                             STAT = ios )
                        IF ( ios /= 0 ) CALL stop_memory &
-                            ( 'read_molecule_section', 'torsions', 4 * na )
+                            ( 'read_molecule_section', 'torsions', 5 * na )
                        DO i = 1, na
                           CALL get_next ( mol_setup(imol) %molpar%torsions(1,i) )
                           CALL get_next ( mol_setup(imol) %molpar%torsions(2,i) )
                           CALL get_next ( mol_setup(imol) %molpar%torsions(3,i) )
                           CALL get_next ( mol_setup(imol) %molpar%torsions(4,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%torsions(5,i) )
                        END DO
                     END IF
    
@@ -594,12 +637,13 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
                     CALL get_next ( mol_setup(imol) %molpar%ndcon )
                     na = mol_setup(imol) %molpar%ndcon
                     IF (na>=0) THEN
-                       ALLOCATE (mol_setup(imol)%molpar%ndc(2,na),STAT=ios)
+                       ALLOCATE (mol_setup(imol)%molpar%ndc(3,na),STAT=ios)
                        IF ( ios /= 0 ) CALL stop_memory &
-                            ( 'read_molecule_section', 'ndc', 2 * na )
+                            ( 'read_molecule_section', 'ndc', 3 * na )
                        DO i = 1, na
                           CALL get_next ( mol_setup(imol) %molpar%ndc(1,i) )
                           CALL get_next ( mol_setup(imol) %molpar%ndc(2,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%ndc(3,i) )
                        END DO
                     END IF
    
@@ -607,13 +651,16 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
                     CALL get_next ( mol_setup(imol) %molpar%n3x3con )
                     na = mol_setup(imol) %molpar%n3x3con
                     IF (na>=0) THEN
-                       ALLOCATE (mol_setup(imol)%molpar%n3x3c(3,na),STAT=ios)
+                       ALLOCATE (mol_setup(imol)%molpar%n3x3c(6,na),STAT=ios)
                        IF (ios /= 0 ) CALL stop_memory &
                             ( 'read_molecule_section', 'n3x3c', 3 * na )
                        DO i = 1, na
                           CALL get_next ( mol_setup(imol) %molpar%n3x3c(1,i) )
                           CALL get_next ( mol_setup(imol) %molpar%n3x3c(2,i) )
                           CALL get_next ( mol_setup(imol) %molpar%n3x3c(3,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%n3x3c(4,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%n3x3c(5,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%n3x3c(6,i) )
                        END DO
                     END IF
     
@@ -658,7 +705,7 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
    
               END DO
 
-!..count number of atom types
+!             count number of atom types
               mol_setup(imol) %molpar%natom_type = 1
               DO i = 2, mol_setup(imol) %molpar%natom
                  j = str_search ( &
@@ -712,7 +759,7 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
   DEALLOCATE (molname,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'read_molecule_section', 'molname')
 
-!..count total number of molecules and atoms
+! count total number of molecules and atoms
   setup % nmol = 0
   setup % natoms = 0
   setup % natom_type = 0
@@ -724,7 +771,7 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
           mol_setup(i) % molpar % natom_type
   END DO
 
-!..generate unique atom list
+! generate unique atom list
   ALLOCATE ( setup % atom_names ( setup % natom_type ), STAT = ios )
   IF ( ios /= 0 ) CALL stop_memory ( 'read_molecule_section', &
        'setup % atom_names', setup % natom_type )
@@ -920,6 +967,156 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
   END IF
 
 END SUBROUTINE read_molecule_section
+
+!!*****
+!******************************************************************************
+!!****** molecule_input/read_topology_section [1.0] *
+!!
+!!   NAME
+!!     read_topology_section
+!!
+!!   FUNCTION
+!!     reads the input section topology
+!!
+!!   AUTHOR
+!!     JGH (26-01-2002)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!I---------------------------------------------------------------------------I
+!!I SECTION: &topology ... &end                                               I
+!!I                                                                           I
+!!I    bonds         nbonds                                                   I
+!!I     iat jat nb                                                            I
+!!I    bends         nbends                                                   I
+!!I     iat jat kat nb                                                        I
+!!I    torsion       ntors                                                    I
+!!I     iat jat kat lat nt                                                    I
+!!I                                                                           I
+!!I---------------------------------------------------------------------------I
+!******************************************************************************
+SUBROUTINE read_topology_section ( topo, setup, globenv )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( topology_type ) :: topo
+  TYPE ( setup_parameters_type ) :: setup
+  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+
+! Locals
+  INTEGER :: ierror,i,n,ilen,iw
+  CHARACTER ( LEN = 20 ) :: string
+  CHARACTER ( LEN = 6 ) :: label
+
+!------------------------------------------------------------------------------
+
+  iw = globenv % scr
+
+  topo%nbond = 0
+  topo%nbend = 0
+  topo%ntors = 0
+
+! CALL get_topology_from_file ( )
+
+  ! parse the input section
+  label = '&TOPOL'
+  CALL parser_init ( setup % set_file_name, globenv )
+  CALL search_label ( label, ierror, ignore_case=.TRUE. )
+  IF ( ierror /= 0 ) THEN
+     IF ( globenv % ionode .AND. globenv % print_level >= 2 ) THEN
+        WRITE ( iw, '( A )' ) ' No input section &TOPOLOGY found on file '
+        WRITE ( iw, '( T2, A )' ) setup % set_file_name
+     END IF
+  ELSE
+     CALL read_line
+     DO WHILE (test_next()/='X')
+        ilen = 0
+        CALL get_next(string,ilen)
+        CALL uppercase ( string )
+        SELECT CASE ( string )
+        CASE ( 'BOND')
+          CALL get_next ( n )
+          topo%nbond = n
+          ALLOCATE ( topo%bond(3,n), STAT=ierror )
+          IF ( ierror /= 0 ) CALL stop_memory ( "read_topology_section", &
+            "topo%bond", 3*n )
+          CALL read_line
+          DO i = 1, n
+            CALL get_next ( topo%bond(1,i) )
+            CALL get_next ( topo%bond(2,i) )
+            CALL get_next ( topo%bond(3,i) )
+          END DO
+        CASE ( 'BEND')
+          CALL get_next ( n )
+          topo%nbend = n
+          ALLOCATE ( topo%bend(4,n), STAT=ierror )
+          IF ( ierror /= 0 ) CALL stop_memory ( "read_topology_section", &
+            "topo%bend", 4*n )
+          CALL read_line
+          DO i = 1, n
+            CALL get_next ( topo%bend(1,i) )
+            CALL get_next ( topo%bend(2,i) )
+            CALL get_next ( topo%bend(3,i) )
+            CALL get_next ( topo%bend(4,i) )
+          END DO
+        CASE ( 'TORSION')
+          CALL get_next ( n )
+          topo%ntors = n
+          ALLOCATE ( topo%torsion(5,n), STAT=ierror )
+          IF ( ierror /= 0 ) CALL stop_memory ( "read_topology_section", &
+            "topo%torsion", 5*n )
+          CALL read_line
+          DO i = 1, n
+            CALL get_next ( topo%torsion(1,i) )
+            CALL get_next ( topo%torsion(2,i) )
+            CALL get_next ( topo%torsion(3,i) )
+            CALL get_next ( topo%torsion(4,i) )
+            CALL get_next ( topo%torsion(5,i) )
+          END DO
+        CASE DEFAULT
+           CALL stop_program ( "read_topology_section", &
+               "Unknown option "//string )
+        END SELECT
+     END DO
+  END IF
+
+  CALL parser_end
+
+! write some information to output
+  IF (globenv%ionode) THEN
+     IF (globenv%print_level>=0) THEN
+       IF (topo%nbond > 0) THEN
+         WRITE ( iw,'( )' )
+         DO i=1,topo%nbond
+           WRITE ( iw,'( A,T40,A,I7,T55,A,I7,T70,A,I3 )' ) &
+                 "TOPOLOGY| Bond","atom",topo%bond(1,i),"atom",&
+                 topo%bond(2,i),"bondtype",topo%bond(3,i)
+         END DO
+       ENDIF
+       IF (topo%nbend > 0) THEN
+         WRITE ( iw,'( )' )
+         DO i=1,topo%nbond
+           WRITE ( iw,'(A,T25,A,I7,T40,A,I7,T55,A,I7,T70,A,I3 )' ) &
+                 "TOPOLOGY| Bend","atom",topo%bend(1,i),"atom",&
+                 topo%bend(2,i),"atom",topo%bend(3,i),"bendtype",topo%bend(4,i)
+         END DO
+       ENDIF
+       IF (topo%ntors > 0) THEN
+         WRITE ( iw,'( )' )
+         DO i=1,topo%ntors
+           WRITE ( iw,'(A,T20,A,I6,T33,A,I6,T46,A,I6,T59,A,i6,T72,A,I5 )' ) &
+             "TOPOLOGY| Torsion","atom",topo%torsion(1,i),"atom",&
+             topo%torsion(2,i),"atom",topo%torsion(3,i),"atom",&
+             topo%torsion(4,i),"type",topo%torsion(5,i)
+         END DO
+       ENDIF
+     ENDIF
+  ENDIF
+
+END SUBROUTINE read_topology_section
 
 !!*****
 !******************************************************************************
