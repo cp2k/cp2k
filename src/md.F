@@ -40,6 +40,7 @@ MODULE md
      INTEGER :: nsteps
      REAL ( dbl ) :: dt
      REAL ( dbl ) :: temp_ext, pol_temp
+     REAL ( dbl ) :: pol_mass 
      REAL ( dbl ) :: p_ext
      CHARACTER ( LEN = 20 ) :: ensemble, pol_ensemble
      CHARACTER ( LEN = 20 ) :: read_type, pol_read_type
@@ -68,12 +69,15 @@ MODULE md
 
   TYPE mdio_parameters_type
      INTEGER :: icrd, ivel, iptens, iener, itemp, idump, iscreen
+     INTEGER :: iepol, icoef
      CHARACTER ( LEN = 50 ) :: crd_file_name
      CHARACTER ( LEN = 50 ) :: vel_file_name
      CHARACTER ( LEN = 50 ) :: ptens_file_name
      CHARACTER ( LEN = 50 ) :: ener_file_name
      CHARACTER ( LEN = 50 ) :: temp_file_name
      CHARACTER ( LEN = 50 ) :: dump_file_name
+     CHARACTER ( LEN = 50 ) :: epol_file_name
+     CHARACTER ( LEN = 50 ) :: coef_file_name
   END TYPE mdio_parameters_type
 
 !!*****
@@ -100,11 +104,12 @@ CONTAINS
 !!I SECTION: &md ... &end                                                     I
 !!I                                                                           I
 !!I ensemble:    [nve,nvt]               ensemble type                        I
-!!I pol ensemble:    [nve,nvt]           ensemble type                        I
+!!I pol_ensemble:    [nve,nvt]           ensemble type                        I
 !!I steps:       n                       total number of steps                I
 !!I timestep:    dt                      time step [fs]                       I
 !!I temperature: T                       temperature [K]                      I
-!!I coef temperature: T                  temperature [K]                      I
+!!I coef_temperature: T                  temperature [K]                      I
+!!I coef_mass: m                         effective coef mass                  I
 !!I restart:     [pos,posvel]            start type                           I
 !!I constraints: [on,off]                constraints                          I
 !!I shake:       eps                     convergence for Shake algorithm      I
@@ -171,6 +176,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % dt = 0.0_dbl
   simpar % temp_ext = 0.0_dbl
   simpar % pol_temp = 0.0_dbl
+  simpar % pol_mass = 1.0_dbl
   simpar % p_ext = 0.0_dbl
   simpar % read_type = 'POS'
   simpar % pol_read_type = 'INIT'
@@ -197,6 +203,8 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   mdio % ptens_file_name = mdpar % project_name(ia:ie) // '.ptens'
   mdio % ener_file_name = mdpar % project_name(ia:ie) // '.ener'
   mdio % temp_file_name = mdpar % project_name(ia:ie) // '.temp'
+  mdio % epol_file_name = mdpar % project_name(ia:ie) // '.epol'
+  mdio % coef_file_name = mdpar % project_name(ia:ie) // '.coef'
   mdio % dump_file_name = mdpar % project_name(ia:ie) // '.dump'
 
 !..print frequency
@@ -206,6 +214,8 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   mdio % iener = 1
   mdio % itemp = 1
   mdio % idump = 1
+  mdio % icoef = 1
+  mdio % iepol = 1
   mdio % iscreen = 1
 
 !..parse the input section
@@ -232,7 +242,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
            CALL uppercase ( string )
            simpar % ensemble = string ( 1:ilen )
 
-        CASE ( 'POL_E' )
+        CASE ( 'POL_EN' )
            ilen = 0
            CALL cfield ( string, ilen )
            CALL uppercase ( string )
@@ -255,8 +265,11 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
         CASE ( 'TEMPER' )
            simpar % temp_ext = get_real()
 
-        CASE ( 'POL_T' )
+        CASE ( 'COEF_T' )
            simpar % pol_temp = get_real()
+
+        CASE ( 'COEF_M' )
+           simpar % pol_mass = get_real()
 
         CASE ( 'RESTAR' )
            ilen = 0
@@ -280,7 +293,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
         CASE ( 'SHAKE' )
            simpar % shake_tol = get_real()
 
-        CASE ( 'POL_N' )
+        CASE ( 'POL_NO' )
            DO WHILE ( test_next() == 'C' )
 
               ilen = 6
@@ -371,6 +384,8 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  mdio % ener_file_name = string(1:ilen) // '.ener'
                  mdio % temp_file_name = string(1:ilen) // '.temp'
                  mdio % dump_file_name = string(1:ilen) // '.dump'
+                 mdio % coef_file_name = string(1:ilen) // '.coef'
+                 mdio % epol_file_name = string(1:ilen) // '.epol'
               CASE ( 'COORDI' )
                  ilen = 0
                  CALL cfield ( mdio % crd_file_name, ilen )
@@ -389,6 +404,12 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
               CASE ( 'DUMP' )
                  ilen = 0
                  CALL cfield ( mdio % dump_file_name, ilen )
+              CASE ( 'COEF' )
+                 ilen = 0
+                 CALL cfield ( mdio % coef_file_name, ilen )
+              CASE ( 'EPOL' )
+                 ilen = 0
+                 CALL cfield ( mdio % epol_file_name, ilen )
               END SELECT
            END DO
 
@@ -415,6 +436,8 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  mdio % iener = ia
                  mdio % iptens = ia
                  mdio % itemp = ia
+                 mdio % icoef = ia
+                 mdio % iepol = ia
                  mdio % idump = ia
               CASE ( 'COORDI' )
                  mdio % icrd = get_int()
@@ -426,6 +449,10 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  mdio % ivel = get_int()
               CASE ( 'TEMPER' )
                  mdio % itemp = get_int()
+              CASE ( 'EPOL' )
+                 mdio % iepol = get_int()
+              CASE ( 'COEF' )
+                 mdio % icoef = get_int()
               CASE ( 'DUMP' )
                  mdio % idump = get_int()
               END SELECT
@@ -475,11 +502,13 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
         WRITE ( iw, '( A,T71,G10.4 )' ) ' MD| Tolerance for shake ', &
              simpar % shake_tol
      END IF
-     IF ( simpar % pol_ensemble /= 'NVE' )  THEN
+     IF ( mdpar % program_name == 'POL' )  THEN
        WRITE ( iw, '( A,T61,A )' ) ' MD| Pol Ensemble Type ', &
               ADJUSTR ( simpar % pol_ensemble )
        WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Pol Temperature [K] ', &
               simpar % pol_temp
+       WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Pol Mass [au] ', &
+              simpar % pol_mass
        WRITE ( iw, '( A )' ) ' MD| Pol Nose-Hoover-Chain parameters '
        WRITE ( iw, '( A,T77,I4 )' ) ' MD| Pol Nose-Hoover-Chain length ', &
             simpar % pol_nhclen
