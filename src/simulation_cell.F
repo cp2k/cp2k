@@ -43,6 +43,9 @@ MODULE simulation_cell
                                              pw_green_fn_destroy
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: degree
+  USE mathlib,                         ONLY: angle,&
+                                             det_3x3,&
+                                             inv_3x3
   USE physcon,                         ONLY: bohr
   USE qs_parser,                       ONLY: finish_parser,&
                                              read_object,&
@@ -56,7 +59,8 @@ MODULE simulation_cell
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='simulation_cell'
+  CHARACTER(LEN=*), PARAMETER :: module_name = "simulation_cell"
+
   INTEGER, SAVE, PRIVATE :: last_cell_id=0
 
   TYPE cell_type
@@ -95,7 +99,7 @@ MODULE simulation_cell
 ! *****************************************************************************
 
   INTERFACE pbc
-    MODULE PROCEDURE pbc1,pbc2
+    MODULE PROCEDURE pbc1,pbc2,pbc3
   END INTERFACE
 
 !!***
@@ -111,7 +115,7 @@ CONTAINS
 
 !   Purpose: Get informations about a simulation cell.
 
-!   History: - Creation (16.01.2002, Matthias Krack)
+!   History: - Creation (16.01.2002,MK)
 
 !   ***************************************************************************
 
@@ -147,7 +151,7 @@ CONTAINS
 
 !   *** Calculate the lengths of the cell vectors a, b, and c ***
 
-    IF (PRESENT(abc).OR.PRESENT(alpha).OR.PRESENT(beta).OR.PRESENT(gamma)) THEN
+    IF (PRESENT(abc)) THEN
       a = SQRT(cell%hmat(1,1)*cell%hmat(1,1) +&
                cell%hmat(2,1)*cell%hmat(2,1) +&
                cell%hmat(3,1)*cell%hmat(3,1))
@@ -157,35 +161,22 @@ CONTAINS
       c = SQRT(cell%hmat(1,3)*cell%hmat(1,3) +&
                cell%hmat(2,3)*cell%hmat(2,3) +&
                cell%hmat(3,3)*cell%hmat(3,3))
+      abc(:) = (/a,b,c/)
     END IF
-
-    IF (PRESENT(abc)) abc(:) = (/a,b,c/)
 
 !   *** Angles between the cell vectors a, b, and c   ***
 
 !   *** alpha = <(b,c) ***
 
-    IF (PRESENT(alpha)) THEN
-      alpha = ACOS((cell%hmat(1,2)*cell%hmat(1,3) +&
-                    cell%hmat(2,2)*cell%hmat(2,3) +&
-                    cell%hmat(3,2)*cell%hmat(3,3))/(b*c))*degree
-    END IF
+    IF (PRESENT(alpha)) alpha = angle(cell%hmat(:,2),cell%hmat(:,3))*degree
 
 !   *** beta = <(a,c) ***
 
-    IF (PRESENT(beta)) THEN
-      beta = ACOS((cell%hmat(1,1)*cell%hmat(1,3) +&
-                   cell%hmat(2,1)*cell%hmat(2,3) +&
-                   cell%hmat(3,1)*cell%hmat(3,3))/(a*c))*degree
-    END IF
+    IF (PRESENT(beta)) beta = angle(cell%hmat(:,1),cell%hmat(:,3))*degree
 
 !   *** gamma = <(a,b) ***
 
-    IF (PRESENT(gamma)) THEN
-      gamma = ACOS((cell%hmat(1,1)*cell%hmat(1,2) +&
-                    cell%hmat(2,1)*cell%hmat(2,2) +&
-                    cell%hmat(3,1)*cell%hmat(3,2))/(a*b))*degree
-    END IF
+    IF (PRESENT(gamma)) gamma = angle(cell%hmat(:,1),cell%hmat(:,2))*degree
 
     IF (PRESENT(id_nr)) id_nr=cell%id_nr
 
@@ -206,7 +197,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(OUT), OPTIONAL                  :: cell_angle
 
-    REAL(KIND=dp)                            :: alpha, beta, gamm
+    REAL(KIND=dp)                            :: alpha, beta, gamma
     TYPE(cell_type), POINTER                 :: cell
 
 !   ---------------------------------------------------------------------------
@@ -216,8 +207,8 @@ CONTAINS
     CALL get_cell(cell=cell,abc=cell_length)
 
     IF (PRESENT(cell_angle)) THEN
-      CALL get_cell(cell=cell,alpha=alpha,beta=beta,gamma=gamm)
-      cell_angle(:) = (/alpha,beta,gamm/)
+      CALL get_cell(cell=cell,alpha=alpha,beta=beta,gamma=gamma)
+      cell_angle(:) = (/alpha,beta,gamma/)
     END IF
 
   END SUBROUTINE get_cell_param
@@ -234,39 +225,21 @@ CONTAINS
 
     TYPE(cell_type), INTENT(INOUT)           :: box
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE get_hinv (MODULE simulation_cell)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_hinv"
 
     REAL(KIND=dp)                            :: dethinv
-    REAL(KIND=dp), DIMENSION(3, 3)           :: h
 
 !   ---------------------------------------------------------------------------
 
-    h(:,:) = box%hmat(:,:)
-
-!   *** Calculate the determinant of the matrix h ***
-
-    box%deth = h(1,1)*(h(2,2)*h(3,3) - h(2,3)*h(3,2)) + &
-               h(1,2)*(h(2,3)*h(3,1) - h(2,1)*h(3,3)) + &
-               h(1,3)*(h(2,1)*h(3,2) - h(2,2)*h(3,1))
+    box%deth = det_3x3(box%hmat)
 
     IF (box%deth < 1.0E-10_dp) THEN
-      CALL stop_program(routine,&
+      CALL stop_program(module_name,routine_name,__LINE__,&
                         "An invalid set of box vectors was specified. "//&
                         "The determinant det(h) is too small")
     END IF
 
-    dethinv = 1.0_dp/box%deth
-
-    box%h_inv(1,1) = (h(2,2)*h(3,3) - h(3,2)*h(2,3))*dethinv
-    box%h_inv(2,1) = (h(2,3)*h(3,1) - h(3,3)*h(2,1))*dethinv
-    box%h_inv(3,1) = (h(2,1)*h(3,2) - h(3,1)*h(2,2))*dethinv
-    box%h_inv(1,2) = (h(1,3)*h(3,2) - h(3,3)*h(1,2))*dethinv
-    box%h_inv(2,2) = (h(1,1)*h(3,3) - h(3,1)*h(1,3))*dethinv
-    box%h_inv(3,2) = (h(1,2)*h(3,1) - h(3,2)*h(1,1))*dethinv
-    box%h_inv(1,3) = (h(1,2)*h(2,3) - h(2,2)*h(1,3))*dethinv
-    box%h_inv(2,3) = (h(1,3)*h(2,1) - h(2,3)*h(1,1))*dethinv
-    box%h_inv(3,3) = (h(1,1)*h(2,2) - h(2,1)*h(1,2))*dethinv
+    box%h_inv = inv_3x3(box%hmat)
 
   END SUBROUTINE get_hinv
 
@@ -328,7 +301,6 @@ CONTAINS
     INTEGER                                  :: dim, i
     REAL(KIND=dp)                            :: dethinv
     REAL(KIND=dp), DIMENSION(3)              :: abc
-    REAL(KIND=dp), DIMENSION(3, 3)           :: h
 
 !   ---------------------------------------------------------------------------
 
@@ -339,13 +311,9 @@ CONTAINS
     cell%id_nr=last_cell_id
     cell%ref_count=1
 
-    h(:,:) = cell%hmat(:,:)
-
 !   *** Calculate the determinant of the matrix h ***
 
-    cell%deth = h(1,1)*(h(2,2)*h(3,3) - h(2,3)*h(3,2)) + &
-                h(1,2)*(h(2,3)*h(3,1) - h(2,1)*h(3,3)) + &
-                h(1,3)*(h(2,1)*h(3,2) - h(2,2)*h(3,1))
+    cell%deth = det_3x3(cell%hmat)
 
     IF (cell%deth < 1.0E-10_dp) THEN
       CALL stop_program(routine,&
@@ -353,17 +321,7 @@ CONTAINS
                         "The determinant det(h) is too small")
     END IF
 
-    dethinv = 1.0_dp/cell%deth
-
-    cell%h_inv(1,1) = (h(2,2)*h(3,3) - h(3,2)*h(2,3))*dethinv
-    cell%h_inv(2,1) = (h(2,3)*h(3,1) - h(3,3)*h(2,1))*dethinv
-    cell%h_inv(3,1) = (h(2,1)*h(3,2) - h(3,1)*h(2,2))*dethinv
-    cell%h_inv(1,2) = (h(1,3)*h(3,2) - h(3,3)*h(1,2))*dethinv
-    cell%h_inv(2,2) = (h(1,1)*h(3,3) - h(3,1)*h(1,3))*dethinv
-    cell%h_inv(3,2) = (h(1,2)*h(3,1) - h(3,2)*h(1,1))*dethinv
-    cell%h_inv(1,3) = (h(1,2)*h(2,3) - h(2,2)*h(1,3))*dethinv
-    cell%h_inv(2,3) = (h(1,3)*h(2,1) - h(2,3)*h(1,1))*dethinv
-    cell%h_inv(3,3) = (h(1,1)*h(2,2) - h(2,1)*h(1,2))*dethinv
+    cell%h_inv = inv_3x3(cell%hmat)
 
     IF ((cell%hmat(1,2) == 0.0_dp).AND.(cell%hmat(1,3) == 0.0_dp).AND.&
         (cell%hmat(2,1) == 0.0_dp).AND.(cell%hmat(2,3) == 0.0_dp).AND.&
@@ -380,8 +338,9 @@ CONTAINS
     cell%green%slab_size = 0.0_dp
     cell%green%alpha = 0.0_dp
     cell%green%volume = 0.0_dp
-    NULLIFY( cell%green%influence_function, cell%green%p3m_charge )
-    NULLIFY( cell%green%p3m_coeff, cell%green%p3m_bm2 )
+
+    NULLIFY (cell%green%influence_function,cell%green%p3m_charge)
+    NULLIFY (cell%green%p3m_coeff,cell%green%p3m_bm2)
 
     dim = COUNT(cell%perd == 1)
 
@@ -555,6 +514,52 @@ CONTAINS
     END IF
 
   END FUNCTION pbc2
+
+! *****************************************************************************
+
+  FUNCTION pbc3(ra,rb,cell) RESULT(rab_pbc)
+
+!   Purpose: Apply the periodic boundary conditions defined by the simulation
+!            cell cell to the vector pointing from atom a to atom b.
+
+!   History: - Creation (11.03.2004,MK)
+
+!   ***************************************************************************
+
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra,rb
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(3)              :: rab_pbc
+
+    REAL(KIND=dp)                            :: rab2,rab2_pbc
+    INTEGER                                  :: icell,jcell,kcell
+    REAL(KIND=dp), DIMENSION(3)              :: r,ra_pbc,rab,rb_image,rb_pbc
+    INTEGER, DIMENSION(3)                    :: periodic
+
+!   ---------------------------------------------------------------------------
+
+    CALL get_cell(cell=cell,periodic=periodic)
+
+    ra_pbc(:) = pbc(ra(:),cell)
+    rb_pbc(:) = pbc(rb(:),cell)
+
+    rab2_pbc = HUGE(1.0_dp)
+
+    DO icell=-periodic(1),periodic(1)
+      DO jcell=-periodic(2),periodic(2)
+        DO kcell=-periodic(3),periodic(3)
+          r = REAL((/icell,jcell,kcell/),dp)
+          rb_image(:) = rb_pbc(:) + scaled_to_real(r,cell)
+          rab(:) = rb_image(:) - ra_pbc(:)
+          rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+          IF (rab2 < rab2_pbc) THEN
+            rab2_pbc = rab2
+            rab_pbc(:) = rab(:)
+          END IF
+        END DO
+      END DO
+    END DO
+
+  END FUNCTION pbc3
 
 ! *****************************************************************************
 
@@ -740,7 +745,7 @@ CONTAINS
       INTENT(IN)                             :: globenv
 
     INTEGER                                  :: output_unit
-    REAL(KIND=dp)                            :: alpha, beta, gamm
+    REAL(KIND=dp)                            :: alpha, beta, gamma
     REAL(KIND=dp), DIMENSION(3)              :: abc
 
 !   ---------------------------------------------------------------------------
@@ -751,7 +756,7 @@ CONTAINS
 
       output_unit = globenv%scr
 
-      CALL get_cell(cell=cell,abc=abc,alpha=alpha,beta=beta,gamma=gamm)
+      CALL get_cell(cell=cell,abc=abc,alpha=alpha,beta=beta,gamma=gamma)
 
       WRITE (UNIT=output_unit,FMT="(/,T2,A,T61,F20.3)")&
         "CELL| Volume ["//TRIM(cell%unit_of_length_name)//"**3]:",&
@@ -769,7 +774,7 @@ CONTAINS
       WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
         "CELL| Angle (b,c) [degree]: ",alpha,&
         "CELL| Angle (a,c) [degree]: ",beta,&
-        "CELL| Angle (a,b) [degree]: ",gamm
+        "CELL| Angle (a,b) [degree]: ",gamma
       WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
         "CELL| Grid size for subcell generation",cell%subcells
 
@@ -804,8 +809,8 @@ CONTAINS
 !!     - hmat: the h matrix that defines the cell
 !!     - periodic: periodicity of the cell
 !!     - poisson_solver: the poisson solver to use
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -825,13 +830,13 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_create', &
-      routineP = moduleN//':'//routineN
+      routineP = module_name//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
     ALLOCATE(cell,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -860,8 +865,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - cell: the cell to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -876,12 +881,12 @@ SUBROUTINE cell_retain(cell,error)
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_retain', &
-      routineP = moduleN//':'//routineN
+      routineP = module_name//':'//routineN
 
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPreconditionNoFail(cell%ref_count>0,cp_failure_level,routineP,error)
@@ -909,8 +914,8 @@ END SUBROUTINE cell_retain
 !!
 !!   INPUTS
 !!     - cell: the cell to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -925,13 +930,13 @@ SUBROUTINE cell_release(cell,error)
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_release', &
-      routineP = moduleN//':'//routineN
+      routineP = module_name//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(cell)) THEN
      CPPreconditionNoFail(cell%ref_count>0,cp_failure_level,routineP,error)
      cell%ref_count=cell%ref_count-1

@@ -27,6 +27,7 @@
 MODULE geo_opt
 
   USE bfgs_optimizer,                  ONLY: geoopt_bfgs
+  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
@@ -89,6 +90,8 @@ MODULE geo_opt
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(qs_environment_type), POINTER       :: qs_env
 
+    CALL write_checkpoint_information("entering "//routineN,globenv)
+
      CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
      CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
      
@@ -97,13 +100,14 @@ MODULE geo_opt
      CALL gopt_param_read(gopt_param, globenv, error=error)
      
      IF (gopt_param%method == "BFGS") THEN
-       CALL force_env_get(force_env=force_env,qs_env=qs_env)
-       CALL geoopt_bfgs(qs_env,globenv,gopt_param)
+       CALL geoopt_bfgs(force_env,globenv,gopt_param)
      ELSE
        CALL gopt_do_opt(force_env,gopt_param,globenv,error=error)
      END IF  
 
      CALL gopt_param_release(gopt_param, error=error)
+
+    CALL write_checkpoint_information("leaving "//routineN,globenv)
 
   END SUBROUTINE qs_geo_opt
 

@@ -940,13 +940,15 @@ CONTAINS
                homo=homo, &
                nelectron=nelectron_spin, &
                nao=nao)
-          WRITE (UNIT=output_unit,fmt="(/,A,I2)") " For spin ",ispin
-          WRITE (UNIT=output_unit,FMT="(/,(T3,A,I10))")&
-               "Number of electrons:                    ",nelectron_spin,&
-               "Number of occupied orbitals:            ",homo
+          IF (dft_control%nspins > 1) THEN
+            WRITE (UNIT=output_unit,FMT="(/,T3,A,I2)") "Spin",ispin
+          END IF
+          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T31,I10))")&
+            "Number of electrons:",nelectron_spin,&
+            "Number of occupied orbitals:",homo
        ENDDO
-       WRITE(UNIT=output_unit,FMT="(/,(T3,A,I10))")&
-            "Number of orbital functions:            ",nao
+       WRITE (UNIT=output_unit,FMT="(T3,A,T31,I10)")&
+         "Number of orbital functions:",nao
     END IF
 
 ! calc ortho matrix
@@ -1805,9 +1807,9 @@ CONTAINS
           END IF
        END IF
        IF (ionode) &
-       WRITE (unit=cp_logger_get_default_unit_nr(logger), &
-            fmt="(t3,'extrapolation method:',a)")&
-            wfi_get_method_label(extrapolation_method_nr,error=error)
+       WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T3,A)")&
+         "Extrapolation method: "//&
+         TRIM(wfi_get_method_label(extrapolation_method_nr,error=error))
        IF (extrapolation_method_nr==wfi_use_guess_method_nr) THEN
           CALL calculate_first_density_matrix(scf_env=scf_env,qs_env=qs_env,&
                globenv=globenv, error=error)

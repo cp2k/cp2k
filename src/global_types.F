@@ -73,8 +73,7 @@ MODULE global_types
 !!
   TYPE print_key_type
     INTEGER :: level,precision,ref_count
-    LOGICAL :: angles,&
-               atomic_coordinates,&
+    LOGICAL :: atomic_coordinates,&
                basic_data_types,&
                basis_set,&
                blacs_info,&
@@ -210,7 +209,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     print_key%ref_count=1
-    print_key%angles = key_value(level,(/f,f,t/))
     print_key%atomic_coordinates = key_value(level,(/t,t,t/))
     print_key%basic_data_types = key_value(level,(/f,f,f/))
     print_key%basis_set = key_value(level,(/f,t,t/))

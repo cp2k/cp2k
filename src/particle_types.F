@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000 - 2004  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****s* cp2k/particle_types [1.0] *
 !!
@@ -35,6 +35,9 @@ MODULE particle_types
                                              dp,&
                                              dp_size,&
                                              int_size
+  USE mathconstants,                   ONLY: degree
+  USE mathlib,                         ONLY: angle,&
+                                             dihedral_angle
   USE memory_utilities,                ONLY: reallocate
   USE molecule_kind_types,             ONLY: allocate_molecule_kind_set,&
                                              atom_type,&
@@ -112,7 +115,8 @@ MODULE particle_types
             read_particle_set,&
             write_qs_particle_coordinates,&
             write_particle_distances, &
-            write_particle_coordinates
+            write_particle_coordinates,&
+            write_structure_data
 
 !!***
 ! *****************************************************************************
@@ -398,7 +402,7 @@ CONTAINS
 ! blocking for number of kinds
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I",'',handle)
+    CALL timeset(routine_name,"I","",handle)
 
     NULLIFY (atom_list)
     NULLIFY (first_atom_of_molecule)
@@ -1009,8 +1013,8 @@ CONTAINS
 
     SELECT CASE (TRIM(format))
     CASE ("XMOL")
-      WRITE(iunit,'(I8)') natom
-      WRITE(iunit,'(A)')  TRIM(title)
+      WRITE(iunit,"(I8)") natom
+      WRITE(iunit,"(A)")  TRIM(title)
       DO iatom=1,natom
         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                              element_symbol=element_symbol)
@@ -1100,7 +1104,7 @@ CONTAINS
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
         "ATOMIC COORDINATES IN "//TRIM(unit_of_length_name)
       WRITE (UNIT=output_unit,&
-           FMT="(/,T3,A,'       ',2(A1,11X),A1,'        ',A8,'     ',A6,/)")&
+           FMT="(/,T3,A,7X,2(A1,11X),A1,8X,A8,5X,A6,/)")&
         "Atom  Kind  Element","X","Y","Z","  Z(eff)","  Mass"
 
       natom = SIZE(particle_set)
@@ -1112,7 +1116,7 @@ CONTAINS
                              z=z,&
                              zeff=zeff)
         WRITE (output_unit,&
-             "(T2,I5,' ',I4,'   ',A2,'  ',I3,3F12.6,'    ',I5,'   ',F11.4)")&
+             "(T2,I5,1X,I4,3X,A2,2X,I3,3F12.6,4X,I6,2X,F11.4)")&
           iatom,ikind,element_symbol,z,&
           particle_set(iatom)%r(1:3)/unit_of_length,zeff,mass/massunit
       END DO
@@ -1120,6 +1124,172 @@ CONTAINS
     END IF
 
   END SUBROUTINE write_qs_particle_coordinates
+
+! *****************************************************************************
+
+  SUBROUTINE write_structure_data(particle_set,cell,globenv)
+
+!   Purpose: Write structure data requested by a separate structure data input
+!            section to the output unit.
+
+!   History: - Creation (11.03.2004,MK)
+
+!   ***************************************************************************
+
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_structure_data",&
+                                   start_section_label = "STRUCTURE_DATA"
+
+    CHARACTER(LEN=default_string_length)     :: string
+    CHARACTER(LEN=8)                         :: unit_of_length_name
+    CHARACTER(LEN=3)                         :: test_result
+    INTEGER                                  :: handle,i,iatom,icode,jatom,&
+                                                katom,latom,natom,output_unit
+    LOGICAL                                  :: ionode,section_found
+    REAL(KIND=dp)                            :: dab,unit_of_length
+    REAL(KIND=dp), DIMENSION(3)              :: n_abc,n_bcd,rab,rbc,rcd
+    INTEGER, DIMENSION(3)                    :: periodic
+    INTEGER, DIMENSION(4)                    :: atomic_index
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routine_name,"I","",handle)
+
+    ionode = globenv%ionode
+    output_unit = globenv%scr
+
+    natom = SIZE(particle_set)
+
+    CALL get_cell(cell=cell,&
+                  periodic=periodic,&
+                  unit_of_length=unit_of_length,&
+                  unit_of_length_name=unit_of_length_name)
+
+    CALL start_parser(file_name=globenv%input_file_name,&
+                      globenv=globenv,&
+                      start_section_label=start_section_label,&
+                      section_found=section_found)
+
+    IF (section_found) THEN
+      IF (ionode) THEN
+        WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,4(T3,A,/))")&
+          "REQUESTED STRUCTURE DATA",&
+          "r(i)      : position vector of atom i in "//&
+          TRIM(unit_of_length_name),&
+          "r(i,j)    : distance vector from atom i to atom j in "//&
+          TRIM(unit_of_length_name),&
+          "a(i,j,k)  : angle between the distance vectors r(j,i) and r(j,k) "//&
+          "in DEGREE",&
+          "d(i,j,k,l): dihedral angle defined by the atoms i, j, k, and l "//&
+          "in DEGREE"
+      END IF
+      test_result = test_object()
+      IF (test_result /= "EOL") THEN
+        CALL read_object(string)
+        CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
+      END IF
+      DO
+        test_result = test_object(newline=.TRUE.)
+        IF (test_result == "EOS") THEN
+          EXIT
+        ELSE IF (test_result == "EOF") THEN
+          CALL stop_parser(routine_name,module_name,__LINE__,"EOF")
+        ELSE
+          icode = 0
+          CALL read_object(iatom,newline=.TRUE.)
+          DO
+            icode = icode + 1
+            IF ((iatom < 1).OR.(iatom > natom)) THEN
+              CALL stop_parser(routine_name,module_name,__LINE__,&
+                               "The atomic index is out of range")
+            END IF
+            atomic_index(icode) = iatom
+            test_result = test_object()
+            IF (test_result == "EOL") THEN
+              EXIT
+            ELSE IF (icode == 4) THEN
+              CALL stop_parser(routine_name,module_name,__LINE__,&
+                               "Data beyond the 4th atomic index found")
+            END IF
+            CALL read_object(iatom)
+            DO i=1,icode-1
+              IF (iatom == atomic_index(i)) THEN
+                CALL stop_parser(routine_name,module_name,__LINE__,&
+                                 "Duplicate atomic indices found")
+              END IF
+            END DO
+          END DO
+          IF (ionode) THEN
+            SELECT CASE (icode)
+            CASE (1)
+              iatom = atomic_index(1)
+              string = ""
+              WRITE (UNIT=string,FMT="(A,I6,A)")&
+                "r(",iatom,")"
+              CALL compress(string,full=.TRUE.)
+              WRITE (UNIT=output_unit,FMT="(T3,A,T26,A1,3F12.6)")&
+                TRIM(string),"=",&
+                pbc(particle_set(iatom)%r(:),cell)/unit_of_length
+            CASE (2)
+              iatom = atomic_index(1)
+              jatom = atomic_index(2)
+              rab(:) = pbc(particle_set(iatom)%r(:),&
+                           particle_set(jatom)%r(:),cell)
+              dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
+              string = ""
+              WRITE (UNIT=string,FMT="(A,2(I6,A))")&
+                "r(",iatom,",",jatom,")"
+              CALL compress(string,full=.TRUE.)
+              WRITE (UNIT=output_unit,FMT="(T3,A,T26,A1,3F12.6,1X,A,F12.6)")&
+                TRIM(string),"=",rab(:)/unit_of_length,&
+                "|r| =",dab/unit_of_length
+            CASE (3)
+              iatom = atomic_index(1)
+              jatom = atomic_index(2)
+              katom = atomic_index(3)
+              rab(:) = pbc(particle_set(iatom)%r(:),&
+                           particle_set(jatom)%r(:),cell)
+              rbc(:) = pbc(particle_set(jatom)%r(:),&
+                           particle_set(katom)%r(:),cell)
+              string = ""
+              WRITE (UNIT=string,FMT="(A,3(I6,A))")&
+                "a(",iatom,",",jatom,",",katom,")"
+              CALL compress(string,full=.TRUE.)
+              WRITE (UNIT=output_unit,FMT="(T3,A,T26,A1,F8.2)")&
+                TRIM(string),"=",angle(-rab,rbc)*degree
+            CASE (4)
+              iatom = atomic_index(1)
+              jatom = atomic_index(2)
+              katom = atomic_index(3)
+              latom = atomic_index(4)
+              rab(:) = pbc(particle_set(iatom)%r(:),&
+                           particle_set(jatom)%r(:),cell)
+              rbc(:) = pbc(particle_set(jatom)%r(:),&
+                           particle_set(katom)%r(:),cell)
+              rcd(:) = pbc(particle_set(katom)%r(:),&
+                           particle_set(latom)%r(:),cell)
+              string = ""
+              WRITE (UNIT=string,FMT="(A,4(I6,A))")&
+                "d(",iatom,",",jatom,",",katom,",",latom,")"
+              CALL compress(string,full=.TRUE.)
+              WRITE (UNIT=output_unit,FMT="(T3,A,T26,A1,F8.2)")&
+                TRIM(string),"=",dihedral_angle(rab,rbc,rcd)*degree
+            END SELECT
+          END IF
+        END IF
+      END DO
+    END IF
+
+    CALL finish_parser()
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE write_structure_data
 
 ! *****************************************************************************
 
@@ -1141,15 +1311,14 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=8)                         :: unit_of_length_name
-    INTEGER                                  :: from, iatom, icell, icol, &
-                                                ikind, istat, jatom, jcell, &
-                                                kcell, natom, output_unit, to
+    INTEGER                                  :: from, iatom, icol, &
+                                                ikind, istat, jatom, &
+                                                natom, output_unit, to
     INTEGER, DIMENSION(3)                    :: periodic
-    REAL(KIND=dp)                            :: dab, dab_image, unit_of_length
+    REAL(KIND=dp)                            :: dab, unit_of_length
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: distance_matrix
-    REAL(KIND=dp), DIMENSION(3)              :: r, ra, rab, rab_image, rb, &
-                                                rb_image
+    REAL(KIND=dp), DIMENSION(3)              :: rab
 
 !   ---------------------------------------------------------------------------
 
@@ -1173,38 +1342,13 @@ CONTAINS
       distance_matrix(:,:) = 0.0_dp
 
       DO iatom=1,natom
-
-        ra(:) = pbc(particle_set(iatom)%r(:),cell)
-
         DO jatom=iatom+1,natom
-
-          rb(:) = pbc(particle_set(jatom)%r(:),cell)
-
-          rab(:) = rb(:) - ra(:)
-
+          rab(:) = pbc(particle_set(iatom)%r(:),&
+                       particle_set(jatom)%r(:),cell)
           dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
-
-!         *** Search for the image of atom B which is closest to atome A ***
-
-          DO icell=-periodic(1),periodic(1)
-            DO jcell=-periodic(2),periodic(2)
-              DO kcell=-periodic(3),periodic(3)
-                r = REAL((/icell,jcell,kcell/),dp)
-                rb_image(:) = rb(:) + scaled_to_real(r,cell)
-                rab_image(:) = rb_image(:) - ra(:)
-                dab_image = SQRT(rab_image(1)*rab_image(1) +&
-                                 rab_image(2)*rab_image(2) +&
-                                 rab_image(3)*rab_image(3))
-                IF (dab_image < dab) dab = dab_image
-              END DO
-            END DO
-          END DO
-
           distance_matrix(iatom,jatom) = dab/unit_of_length
           distance_matrix(jatom,iatom) = distance_matrix(iatom,jatom)
-
         END DO
-
       END DO
 
 !     *** Print the distance matrix ***
@@ -1215,13 +1359,13 @@ CONTAINS
       DO jatom=1,natom,5
         from = jatom
         to = MIN(from+4,natom)
-        WRITE (UNIT=output_unit,FMT="(/,T2,'           ',5('    ',I5,'    '))")&
+        WRITE (UNIT=output_unit,FMT="(/,T2,11X,5(4X,I5,4X))")&
           (icol,icol=from,to)
         DO iatom=1,natom
           CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                                kind_number=ikind,&
                                element_symbol=element_symbol)
-          WRITE (UNIT=output_unit,FMT="(T2,I5,'  ',A2,'  ',5(' ',F12.6))")&
+          WRITE (UNIT=output_unit,FMT="(T2,I5,2X,A2,2X,5(1X,F12.6))")&
             iatom,element_symbol,&
             (distance_matrix(iatom,icol),icol=from,to)
         END DO

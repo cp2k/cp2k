@@ -5,24 +5,27 @@
 
 MODULE bfgs_optimizer
 
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_p_type
+  USE force_env_types,                 ONLY: force_env_calculate_force,&
+                                             force_env_get,&
+                                             force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_types,                    ONLY: gopt_param_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
-  USE mathlib,                         ONLY: diamat
+  USE mathlib,                         ONLY: diamat_all
   USE message_passing,                 ONLY: mp_bcast
+  USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_coordinates,&
                                              write_particle_distances,&
-                                             write_qs_particle_coordinates
-  USE qs_energy_types,                 ONLY: qs_energy_type
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
-  USE qs_force,                        ONLY: qs_forces
+                                             write_qs_particle_coordinates,&
+                                             write_structure_data
   USE qs_parser,                       ONLY: close_file,&
                                              finish_parser,&
                                              open_file,&
@@ -48,9 +51,9 @@ CONTAINS
 
 !!*** **********************************************************************
 
-  SUBROUTINE geoopt_bfgs(qs_env,globenv,gopt_param)
+  SUBROUTINE geoopt_bfgs(force_env,globenv,gopt_param)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     TYPE(gopt_param_type), POINTER           :: gopt_param
@@ -67,13 +70,16 @@ CONTAINS
                                                 pred, rad, rat, step
     REAL(KIND=dp), ALLOCATABLE :: dg(:), dr(:), dx(:), eigval(:), &
       eigvec(:,:), g(:), gold(:), hes(:), hes_mat(:,:), work(:), x(:), xold(:)
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
 
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 
@@ -87,13 +93,19 @@ CONTAINS
     rad         = 0.10_dp
     rat         = 0.0_dp
 
-    CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    cell=cell,&
-                    particle_set=particle_set)
+    CALL force_env_get(force_env,&
+                       cell=cell,&
+                       subsys=subsys)
 
-    nkind = SIZE(atomic_kind_set)
-    natom = SIZE(particle_set)
+    CALL cp_subsys_get(subsys=subsys(1)%subsys,&
+                       atomic_kinds=atomic_kinds,&
+                       particles=particles)
+
+    nkind = atomic_kinds%n_els
+    atomic_kind_set => atomic_kinds%els
+
+    natom = particles%n_els  
+    particle_set => particles%els    
 
     ALLOCATE(gopt_param%to_move(natom))
 
@@ -158,19 +170,19 @@ CONTAINS
 ! Geometry optimization starts now
 
   IF(ionode)THEN
-    WRITE(UNIT=output_unit,FMT="(/,T2,80('*'))")
-    WRITE(UNIT=output_unit,FMT="(T2,2('*'),23X,A,23X,2('*'))")&
-    "STARTING GEOMETRY OPTIMIZATION"
-    WRITE(UNIT=output_unit,FMT="(T2,80('*'))")
-
-    WRITE(UNIT=output_unit,FMT="(/,T2,A,I10)")"No. of free atoms         = ",nfree
-    WRITE(UNIT=output_unit,FMT="(T2,A,I10)")  "No. of degrees of freedom = ",ndf
-
+    WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
+    WRITE(UNIT=output_unit,FMT="(T2,A,T22,A,T78,A)")&
+      "***","STARTING GEOMETRY OPTIMIZATION","***"
+    WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
+    WRITE(UNIT=output_unit,FMT="(/,(T2,A,I10))")&
+      "Number of free atoms         = ",nfree,&
+      "Number of degrees of freedom = ",ndf
     CALL m_flush(output_unit)
   END IF
 
   CALL write_qs_particle_coordinates(particle_set,cell,globenv) 
   CALL write_particle_distances(particle_set,cell,globenv)
+  CALL write_structure_data(particle_set,cell,globenv)
 
   IF(ionode)THEN
     CALL open_file(file_name="HESSIAN",&
@@ -188,7 +200,7 @@ CONTAINS
 
 ! Calculate Energy & Gradients
 
-  CALL qs_forces(qs_env,globenv)
+  CALL force_env_calculate_force(force_env,box_change=.FALSE.)
 
 ! Copy forces to g, the gradients
 
@@ -209,10 +221,9 @@ CONTAINS
         END DO
   END DO
 
-  CALL get_qs_env(qs_env=qs_env,energy=energy)
+  CALL force_env_get(force_env=force_env,potential_energy=etot)
 
-  etot = energy % total
-  emin = energy % total
+  emin = etot
 
   it = 0
   
@@ -223,26 +234,25 @@ CONTAINS
      IF(it > maxiter )THEN
        IF(ionode)THEN
          WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
-         "*** MAXIMUM NUMBER OF OPTIMIZATION STEPS REACHED ***"
+           "*** MAXIMUM NUMBER OF OPTIMIZATION STEPS REACHED ***"
          WRITE(UNIT=output_unit,FMT="(T2,A)")&
-         "***        EXITING GEOMETRY OPTIMIZATION         ***" 
+           "***        EXITING GEOMETRY OPTIMIZATION         ***" 
          CALL m_flush(output_unit)
        END IF
        EXIT
      END IF
 
      IF (ionode)THEN
-        WRITE(UNIT=output_unit,FMT="(/,T2,26('-'))")
-        WRITE(UNIT=output_unit,FMT="(T2,A,I6)")&
-       "OPTIMIZATION STEP : ", it
-        WRITE(UNIT=output_unit,FMT="(T2,26('-'))")
+       WRITE(UNIT=output_unit,FMT="(/,T2,26('-'))")
+       WRITE(UNIT=output_unit,FMT="(T2,A,I6)")&
+         "OPTIMIZATION STEP: ",it
+       WRITE(UNIT=output_unit,FMT="(T2,26('-'))")
        CALL m_flush(output_unit)
      END IF
 
-
 !    ** Hessian update/restarting **
 
-     IF( (it == 1) .AND. hesrest )THEN
+     IF ((it == 1).AND.hesrest) THEN
 
        IF(ionode)THEN
          DO i=1,SIZE(hes)
@@ -255,7 +265,7 @@ CONTAINS
            conv = .TRUE.
          ELSE
            WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
-           "** Initial Hessian has been restarted successfully **"
+             "*** Initial Hessian has been restarted successfully ***"
          END IF
   
        END IF
@@ -280,9 +290,6 @@ CONTAINS
         END IF
      END IF   
 
-!    ** Print hessian **
-
-
 !    ** Setting the present positions & gradients as old **
 
      CALL DCOPY(ndf,x,1,xold,1)
@@ -293,13 +300,13 @@ CONTAINS
      DO indf = 1, ndf
        DO j = 1, indf
          i = indf*(indf-1)/2 + j
-         hes_mat(indf,j) = hes(i)
-         hes_mat(j,indf) = hes(i)
+         eigvec(indf,j) = hes(i)
+         eigvec(j,indf) = hes(i)
        END DO
      END DO
 
-     CALL diamat(hes_mat,eigvec,eigval)
-  
+     CALL diamat_all(eigvec,eigval,dac=.FALSE.)
+
      CALL set_hes_eig(ndf,eigval,work)
 
      CALL DCOPY(ndf,eigval,1,dx,1)
@@ -309,8 +316,7 @@ CONTAINS
      CALL geoopt_get_step(ndf,eigval,eigvec,hes_mat,dr,g)
 
      CALL trust_radius(ndf,nfree,step,rad,rat,dr,output_unit,ionode)
-
-      
+     
 !   ** Updating the present positions ** 
 
     indf = 0
@@ -339,18 +345,20 @@ CONTAINS
                                      "XMOL","POS",TRIM(title))
      CALL m_flush(dataunit)
      CALL write_qs_particle_coordinates(particle_set,cell,globenv)
-     CALL write_particle_distances(particle_set,cell,globenv)
    END IF
+
+   CALL write_particle_distances(particle_set,cell,globenv)
+   CALL write_structure_data(particle_set,cell,globenv)
 
    CALL energy_predict(ndf,work,hes,dr,g,ionode,output_unit,conv,pred)
 
-   IF(conv)EXIT
+   IF (conv) EXIT
 
-   eold = etot
+     eold = etot
 
 !    ** Energy & Gradients at new step **
-      
-     CALL qs_forces(qs_env,globenv)
+
+     CALL force_env_calculate_force(force_env,box_change=.FALSE.)
 
      indf = 0
      DO ikind=1,nkind
@@ -369,12 +377,9 @@ CONTAINS
         END DO
      END DO
 
-    CALL get_qs_env(qs_env=qs_env,energy=energy)
-
-    etot = energy%total
+    CALL force_env_get(force_env=force_env,potential_energy=etot)
 
     ediff = etot - eold
-
 
     IF(ionode) CALL write_cycle_infos &
                (output_unit,it,etot,ediff,pred,rat,step,rad,emin)
@@ -719,33 +724,21 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
     INTEGER                                  :: i, indf, j
-    REAL(KIND=dp), ALLOCATABLE               :: tmp(:,:)
+    REAL(KIND=dp)                            :: tmp(ndf,ndf)
 
-     DO indf = 1, ndf
-       eigval(indf) = one / eigval(indf)
-       DO j = 1, ndf
-          hes_mat(j,indf) = eigvec(j,indf) * eigval(indf)
-       END DO
+     hes_mat(:,:) = eigvec(:,:)
+
+     DO indf=1,ndf
+       eigval(indf) = one/eigval(indf)
+       CALL dscal(ndf,eigval(indf),hes_mat(1,indf),1)
      END DO
 
-     ALLOCATE(tmp(ndf,ndf))
-     tmp = TRANSPOSE(eigvec)
-     DO i = 1, ndf
-       DO j = 1, ndf
-         eigvec(i,j) = tmp(i,j)
-       END DO
-     END DO
-     tmp = MATMUL(hes_mat,eigvec)
-     DO i = 1, ndf
-       DO j = 1, ndf
-          hes_mat(i,j) = tmp(i,j)
-       END DO
-     END DO
-     DEALLOCATE(tmp)
+     CALL dgemm ("N","T",ndf,ndf,ndf,one,hes_mat,ndf,eigvec,ndf,zero,&
+                 tmp,ndf)
 
-     DO i = 1, ndf
-       DO j = 1, ndf
-         hes_mat(j,i) = 0.5_dp * (hes_mat(j,i)+hes_mat(i,j))
+     DO i=1,ndf
+       DO j=1,ndf
+         hes_mat(j,i) = 0.5_dp*(tmp(j,i) + tmp(i,j))
          hes_mat(i,j) = hes_mat(j,i)
        END DO
      END DO

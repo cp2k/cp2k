@@ -51,7 +51,7 @@ MODULE qs_diis
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE kinds,                           ONLY: dp,&
                                              dp_size
-  USE mathlib,                         ONLY: diagonalize_matrix
+  USE mathlib,                         ONLY: diamat_all
   USE qs_diis_types,                   ONLY: qs_diis_buffer_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -434,7 +434,7 @@ CONTAINS
 
        !     *** Solve the linear DIIS equation system ***
 
-       CALL diagonalize_matrix(b(1:nb1,1:nb1),ev(1:nb1))
+       CALL diamat_all(b(1:nb1,1:nb1),ev(1:nb1))
 
        a(1:nb1,1:nb1) = b(1:nb1,1:nb1)
 

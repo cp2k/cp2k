@@ -23,7 +23,8 @@
 !!     none
 !!
 !!   SOURCE
-!!
+!*******************************************************************************
+
 MODULE qs_main
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&

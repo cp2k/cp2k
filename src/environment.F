@@ -424,8 +424,6 @@ CONTAINS
           END IF
           ipos2 = LEN_TRIM(keyword)
           SELECT CASE (keyword(ipos1:ipos2))
-          CASE ("ANGLES")
-            globenv%print%angles = print_request
           CASE ("ATOMIC_COORDINATES","COORDINATES","COORD")
             globenv%print%atomic_coordinates = print_request
           CASE ("BASIC_DATA_TYPES")
@@ -450,8 +448,6 @@ CONTAINS
             globenv%print%density_matrix = print_request
           CASE ("DENSITY_MATRIX_MAGNITUDE")
             globenv%print%density_matrix_magnitude = print_request
-          CASE ("OVERLAP_MATRIX_MAGNITUDE")
-            globenv%print%overlap_matrix_magnitude = print_request
           CASE ("DERIVATIVES")
             globenv%print%derivatives = print_request
           CASE ("DIIS_INFORMATION","DIIS_INFO","DIIS")
@@ -498,6 +494,8 @@ CONTAINS
             globenv%print%ortho_matrix = print_request
           CASE ("OVERLAP_MATRIX","S_MATRIX","S-MATRIX")
             globenv%print%overlap_matrix = print_request
+          CASE ("OVERLAP_MATRIX_MAGNITUDE")
+            globenv%print%overlap_matrix_magnitude = print_request
           CASE ("PGF_RADII")
             globenv%print%pgf_radii = print_request
           CASE ("PHYSICAL_CONSTANTS","PHYSCON")
