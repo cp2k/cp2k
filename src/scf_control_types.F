@@ -51,6 +51,7 @@ MODULE scf_control_types
                                              open_file,&
                                              read_object,&
                                              start_parser,&
+                                             stop_parser,&
                                              test_object
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -396,6 +397,9 @@ CONTAINS
              CALL read_object(scf_control%max_iter_lumos)
           CASE ("WRITE_RESTART_EACH")
              CALL read_object(scf_control%write_restart_each)
+          CASE DEFAULT
+            CALL stop_parser(routine=routineN,message="INVALID_KEYWORD "&
+                 //keyword)
           END SELECT
        END DO
 
