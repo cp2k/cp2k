@@ -1964,7 +1964,7 @@ CONTAINS
        ENDIF
 
        IF (globenv%print%mulliken_analysis)  &
-            CALL mulliken_charges(c,s(1)%matrix,globenv%scr,globenv%ionode)
+            CALL mulliken_charges(c,s(1)%matrix,particle_set,globenv%scr,globenv%ionode)
 
 !   *** write additional information about the converged system
        IF (globenv%print%e_density_cube) THEN ! write the electron density

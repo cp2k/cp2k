@@ -23,6 +23,7 @@
 
 MODULE mulliken
 
+  USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cp_fm_basic_linalg,              ONLY: cp_sm_fm_multiply, &
                                              cp_sm_plus_fm_fm_t
   USE cp_fm_types,                     ONLY: cp_full_matrix_type, &
@@ -30,6 +31,7 @@ MODULE mulliken
                                              cp_fm_release
   USE kinds,                           ONLY: wp => dp
   USE message_passing,                 ONLY: mp_sum
+  USE particle_types,                  ONLY: particle_type
   USE qs_mo_types,                     ONLY: mo_set_p_type, &
                                              get_mo_set
   USE sparse_matrix_types,             ONLY: real_matrix_type, &
@@ -39,6 +41,7 @@ MODULE mulliken
                                              deallocate_matrix, &
                                              get_block_node, &
                                              get_matrix_info
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -60,9 +63,10 @@ CONTAINS
 ! we give a breakup in alpha and beta spin
 ! still needs generalization for smear
 
-  SUBROUTINE mulliken_charges(mo_array,s_matrix,scr,ionode)
+  SUBROUTINE mulliken_charges(mo_array,s_matrix,particle_set,scr,ionode)
     TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
     TYPE(real_matrix_type), POINTER                    :: s_matrix
+    TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
     LOGICAL                                            :: ionode
     INTEGER                                            :: scr
 
@@ -73,6 +77,8 @@ CONTAINS
     TYPE(cp_full_matrix_type), POINTER                 :: fm_temp,eigenvectors
     REAL(KIND=wp), DIMENSION(:,:), POINTER             :: block
     REAL(KIND=wp), DIMENSION(:,:), POINTER              :: charges
+        CHARACTER(LEN=2) :: element_symbol
+        integer :: zeff
 
     INTEGER :: nblock,iblock,i
     REAL(KIND=wp)       :: total_charge
@@ -130,25 +136,31 @@ CONTAINS
 
     IF (ionode) THEN
        write(scr,'(A)') ""
-       write(scr,'(A)') "  Mulliken charges (... substract core charge ...)"
+       write(scr,'(A)') "  Mulliken charges "
        SELECT CASE (nspin)
        CASE(1)
-       write(scr,'(A)') "  Atom |    Charge"
+       write(scr,'(A)') "  Atom     |    Charge"
        CASE DEFAULT
-       write(scr,'(A)') "  Atom |    Charge | Spin diff charge"
+       write(scr,'(A)') "  Atom     |    Charge | Spin diff charge"
        END SELECT
        total_charge = 0.0_wp
+       if (size(particle_set) .NE. nblock) call stop_program("Mulliken","unexpected number of atoms")
        DO iblock=1,nblock
+          CALL get_atomic_kind(atomic_kind=particle_set(iblock)%atomic_kind,&
+                             element_symbol=element_symbol,&
+                             zeff=zeff)
+
           SELECT CASE (nspin)
           CASE(1)
-          write(scr,'(I6,F12.6)') iblock, 2.0*charges(iblock,1)
-          total_charge=total_charge+ 2.0*charges(iblock,1)
+          write(scr,'(I6,A2,A2,F12.6)') iblock,"  ",element_symbol,zeff-2.0*charges(iblock,1)
+          total_charge=total_charge+ zeff-2.0*charges(iblock,1)
           CASE DEFAULT
-          write(scr,'(I6,2F12.6)') iblock, (charges(iblock,1)+charges(iblock,2)),(charges(iblock,1)-charges(iblock,2))
-          total_charge=total_charge+ (charges(iblock,1)+charges(iblock,2))
+          write(scr,'(I6,A2,A2,2F12.6)') iblock,"  ",element_symbol, &
+                      zeff-(charges(iblock,1)+charges(iblock,2)),(charges(iblock,1)-charges(iblock,2))
+          total_charge=total_charge+ zeff-(charges(iblock,1)+charges(iblock,2))
           END SELECT
        ENDDO
-       write(scr,'(A,F10.6)') "  Total ",total_charge
+       write(scr,'(A,F10.6)') "  Total     ",total_charge
 
     ENDIF
 
