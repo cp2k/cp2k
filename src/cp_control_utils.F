@@ -122,17 +122,18 @@ INTEGER, PARAMETER, PRIVATE :: qs_key_EPSFIT=20
 INTEGER, PARAMETER, PRIVATE :: qs_key_EPSISO=21
 INTEGER, PARAMETER, PRIVATE :: qs_key_EPSRHO0=22
 INTEGER, PARAMETER, PRIVATE :: qs_key_QUADRATURE=23
-INTEGER, PARAMETER, PRIVATE :: qs_key_LMAXN0=24
-INTEGER, PARAMETER, PRIVATE :: qs_key_LADDN0=25
-INTEGER, PARAMETER, PRIVATE :: qs_key_ALPHA0_H=26
-INTEGER, PARAMETER, PRIVATE :: qs_key_ALPHA0_S=27
-INTEGER, PARAMETER, PRIVATE :: qs_key_PAO=28
-INTEGER, PARAMETER, PRIVATE :: qs_key_PW_GRID=29
-INTEGER, PARAMETER, PRIVATE :: qs_key_RS_GRID=30
-INTEGER, PARAMETER, PRIVATE :: qs_key_EXTRAPOLATION=31
-INTEGER, PARAMETER, PRIVATE :: qs_key_METHOD=32
-INTEGER, PARAMETER, PRIVATE :: qs_key_MULLIKEN_RESTRAINT=33
-INTEGER, PARAMETER, PRIVATE :: N_qs_keywords = 33
+INTEGER, PARAMETER, PRIVATE :: qs_key_LMAXN1=24
+INTEGER, PARAMETER, PRIVATE :: qs_key_LMAXN0=25
+INTEGER, PARAMETER, PRIVATE :: qs_key_LADDN0=26
+INTEGER, PARAMETER, PRIVATE :: qs_key_ALPHA0_H=27
+INTEGER, PARAMETER, PRIVATE :: qs_key_ALPHA0_S=28
+INTEGER, PARAMETER, PRIVATE :: qs_key_PAO=29
+INTEGER, PARAMETER, PRIVATE :: qs_key_PW_GRID=30
+INTEGER, PARAMETER, PRIVATE :: qs_key_RS_GRID=31
+INTEGER, PARAMETER, PRIVATE :: qs_key_EXTRAPOLATION=32
+INTEGER, PARAMETER, PRIVATE :: qs_key_METHOD=33
+INTEGER, PARAMETER, PRIVATE :: qs_key_MULLIKEN_RESTRAINT=34
+INTEGER, PARAMETER, PRIVATE :: N_qs_keywords = 34
 TYPE(keyword_type), PRIVATE, DIMENSION(1:N_qs_keywords) :: qs_keywords
 
 
@@ -236,10 +237,14 @@ CONTAINS
                                        "QUADRATURE {GC_SIMPLE|GC_TRANSFORMED|GC_LOG}",&
                                        "GAPW: algorithm to construct the atomic radial grids",&
                                        "","","")
+     qs_keywords(qs_key_LMAXN1)=keyword_type("LMAXN1", &
+                                       "LMAXN1 integer",&
+                                       "GAPW : max L number for espansion of the atomic densities in spherical gaussians",&
+                                       "LMAXRHO1","","")
      qs_keywords(qs_key_LMAXN0)=keyword_type("LMAXN0", &
                                        "LMAXN0 integer",&
-                                       "GAPW : max L number for the compensation densities",&
-                                       "","","")
+                                       "GAPW : max L number for the expansion compensation densities in spherical gaussians",&
+                                       "LMAXRHO0","","")
      qs_keywords(qs_key_LADDN0)=keyword_type("LADDN0", &
                                        "LADDN0 integer",&
                                        "GAPW : XXXXXXXXXX",&
@@ -662,12 +667,12 @@ CONTAINS
 
     qs_control%gapw_control%eps_fit =  1.0E-4_dp
     qs_control%gapw_control%eps_iso =  1.0E-12_dp
-    qs_control%gapw_control%eps_Vrho0  = 1.0E-8_dp
+    qs_control%gapw_control%eps_Vrho0  = 1.0E-6_dp
     qs_control%gapw_control%ladd_rho0 = 99
-    qs_control%gapw_control%lmax_rho0 = 4
-    qs_control%gapw_control%lmax_sphere = 8 
-    qs_control%gapw_control%quadrature = 1
-    qs_control%gapw_control%quadrature_name = "Gauss-Chebyshev"
+    qs_control%gapw_control%lmax_rho0 = 2
+    qs_control%gapw_control%lmax_sphere = 6 
+    qs_control%gapw_control%quadrature = 3
+    qs_control%gapw_control%quadrature_name = "LogTrans-Gauss-Chebyshev"
     qs_control%gapw_control%lrho1_eq_lrho0 = .FALSE.
     qs_control%gapw_control%alpha0_hard_from_input = .FALSE.
     qs_control%gapw_control%alpha0_soft_from_input = .FALSE.
@@ -853,6 +858,9 @@ CONTAINS
             CASE DEFAULT
               CALL stop_parser(routine,"quadrature definition")
             END SELECT
+          CASE (qs_key_LMAXN1)
+            CALL read_object(ivalue)
+            qs_control%gapw_control%lmax_sphere = ivalue
           CASE (qs_key_LMAXN0)
             CALL read_object(ivalue)
             qs_control%gapw_control%lmax_rho0 = ivalue

@@ -29,8 +29,6 @@ MODULE  hartree_local_3centers
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp,dp_size,&
                                              int_size
-  USE hartree_local_types,             ONLY: ecoul_1center_type,&
-                                             get_ecoul_1c
   USE mathconstants,                   ONLY: dfac,fourpi,pi
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_sum
@@ -63,6 +61,9 @@ MODULE  hartree_local_3centers
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_mpole_type
+  USE qs_rho_atom_types,               ONLY: get_rho_atom,&
+                                             rho_atom_coeff,&
+                                             rho_atom_type
   USE qs_util,                         ONLY: trace_r_AxB
   USE simulation_cell,                 ONLY: cell_type,&
                                              pbc
@@ -72,7 +73,8 @@ MODULE  hartree_local_3centers
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: locate
+  USE util,                            ONLY: get_limit, &
+                                             locate
 
   IMPLICIT NONE
 
@@ -113,8 +115,6 @@ MODULE  hartree_local_3centers
                                   POINTER      :: atomic_kind_set
     TYPE(atomic_kind_type),       POINTER      :: atom_kind
     TYPE(cell_type),              POINTER      :: cell
-    TYPE(ecoul_1center_type), DIMENSION(:), & 
-                                 POINTER       :: ecoul_1c
     TYPE(gto_basis_set_type),     POINTER      :: orb_basis
     TYPE(neighbor_list_set_p_type), &
                          DIMENSION(:), POINTER :: sab_orb,sbc_3c
@@ -131,10 +131,15 @@ MODULE  hartree_local_3centers
     TYPE(qlist_type),             POINTER      :: sac_3c_neighbor 
     TYPE(qs_force_type), DIMENSION(:), POINTER :: force
     TYPE(rho0_mpole_type),        POINTER      :: rho0_mpole 
+    TYPE(rho_atom_type), DIMENSION(:), &
+                                     POINTER   :: rho_atom_set
+    TYPE(rho_atom_type),       POINTER         :: rho_atom
+    TYPE(rho_atom_coeff), DIMENSION(:), &
+        POINTER                                :: int_local_h,int_local_s
     TYPE(vtriple_type), DIMENSION(:,:),&
                                   POINTER      :: VH_3c_list
-    REAL(dp) :: alpha_core, c1, dab, fac, ieqj, ra(3), rab(3), rab2, rac(3), rac2, rb(3), &
-                rbc(3), rbc2,  rc(3), rpgf0_s, r_V0, trace, z0_h, z0_s, zhard 
+    REAL(dp) :: alpha_core, c1, dab, fac, ieqj, rab(3), rab2, rac(3), rac2, &
+                rbc(3), rbc2,  rpgf0_s, r_V0, trace, z0_h, z0_s, zhard 
     REAL(dp), DIMENSION(:),       POINTER      :: ng0_h, ng0_s
     REAL(dp), DIMENSION(:),   ALLOCATABLE      :: normhard
     REAL(dp), DIMENSION(:),   ALLOCATABLE      :: sum_ab_sph
@@ -144,33 +149,34 @@ MODULE  hartree_local_3centers
     REAL(dp), DIMENSION(:,:),     POINTER      :: rpgfa,rpgfb,&
                                                   sphi_a,sphi_b,&
                                                   zeta,zetb
+    REAL(dp), DIMENSION(:,:),     POINTER      :: set_radius_3c
     REAL(dp), DIMENSION(:,:),     POINTER      :: CPC_ab
     REAL(dp), DIMENSION(:,:),     POINTER      :: hab
     REAL(dp), DIMENSION(:,:),     POINTER      :: Int_ab_sum
-    REAL(dp), DIMENSION(:,:),     POINTER      :: aVh3c0b
     REAL(dp), DIMENSION(:,:,:),   POINTER      :: Qlm_gg
     REAL(dp), DIMENSION(:,:,:),   POINTER      :: Int_abc
     REAL(dp), DIMENSION(:,:,:), POINTER        :: Int_dab_sum, Int_adb_sum
 
-    INTEGER :: ab, bc, handle, iatom,  i_atom, i, ic, ico, icol, idir, ifs1, ifs2, ikind,&
-               ilist, inode, irow, iset1, iset2, is, iso, istat, jatom, j_atom, jkind, &
-               katom, kat, k_atom, kkind, kneighbor, knode, l0_kkind, last_jatom, lmax_0, &
-               lshell, lx, ly, lz, m1, m2, maxch0, maxco_global, maxcoa, maxcob, maxder, &
-               maxsoc, maxsgf, maxsgf_set, nkind, nat, natom, nchan0_car,&
-               nchan0_sph, nco1, nco2, ncotota, ncototb, nlist, nnode, nnode_c,&
-               ns1, ns2, nsgfa, nsgfb, nseta, nsetb, nsetc, nsototc, nz1, nz2
+    INTEGER :: ab, bc, bo(2), handle, iatom,  i_atom, i, ic, ico, icol, &
+               idir, ifs1, ifs2, ikind, ilist, inode, irow, iset1, iset2,&
+               is, iso, istat, ispin_bis, jatom, j_atom, jkind, katom, kat, k_atom, &
+               kkind, kneighbor, knode, l0_kkind, lmax_0, lshell, lx, ly, lz,&
+               m1, m2, maxch0, maxco_global, maxcoa, maxcob, maxder, &
+               maxsoc, maxsgf, maxsgf_set, mepos, nat, natom, nchan0_car,&
+               nchan0_sph, nco1, nco2, ncotota, ncototb, nkind, nlist, nnode, nnode_c,&
+               ns1, ns2, nsgfa, nsgfb, nseta, nsetb, nsetc, nsototc, num_pe, nz1, nz2
     INTEGER, DIMENSION(3)                      :: cell_c
     INTEGER, DIMENSION(:),        POINTER      :: atom_list,la_max,la_min,&
                                                   lb_max,lb_min,&
                                                   npgfa,npgfb,nsgfa_set,nsgfb_set
     INTEGER, DIMENSION(:),        ALLOCATABLE  :: atom_of_kind
     INTEGER, DIMENSION(:,:),      POINTER      :: first_sgfa,first_sgfb
-    LOGICAL                                    :: new_atom_b, paw_atom, my_tddft
+    LOGICAL                                    :: paw_atom, my_tddft
     INTEGER  :: ic1, ic2, ip1,ip2, n1, n2, nn1, nn2,jc
 
 !   ---------------------------------------------------------------------------
 
-    NULLIFY(atomic_kind_set,cell,ecoul_1c)
+    NULLIFY(atomic_kind_set,cell)
     NULLIFY( para_env,particle_set,rho0_mpole)
     NULLIFY(sab_orb,sbc_3c,VH_3c_list)
 
@@ -188,16 +194,17 @@ MODULE  hartree_local_3centers
     END IF
 
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
-                    cell=cell,ecoul_1c=ecoul_1c,&
+                    cell=cell,&
                     para_env=para_env,& 
                     particle_set=particle_set,&
                     rho0_mpole=rho0_mpole,&
+                    rho_atom_set=rho_atom_set,&
                     VH_3c_list=VH_3c_list,&
                     sab_orb=sab_orb,sbc_3c=sbc_3c)
 
     IF (my_tddft) THEN
        rho0_mpole   => p_env%local_rho_set%rho0_mpole
-       ecoul_1c => p_env%hartree_local%ecoul_1c
+       rho_atom_set => p_env%local_rho_set%rho_atom_set
     END IF
 
     nkind = SIZE(atomic_kind_set,1)
@@ -230,7 +237,8 @@ MODULE  hartree_local_3centers
     NULLIFY(ng0_h,ng0_s)
 
     CALL get_rho0_mpole(rho0_mpole=rho0_mpole,zet0_h=z0_h,zet0_s=z0_s,&
-                        norm_g0l_h=ng0_h,norm_g0l_s=ng0_s,lmax_0=lmax_0)
+                        norm_g0l_h=ng0_h,norm_g0l_s=ng0_s,lmax_0=lmax_0,&
+                        set_radius_3c=set_radius_3c)
 
     maxch0 = ncoset(lmax_0)
 
@@ -315,9 +323,6 @@ MODULE  hartree_local_3centers
           CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,&
                                  atom=iatom, nnode=nnode)
 
-          ra(:) = pbc(particle_set(iatom)%r,cell)
-
-          last_jatom = 0
           sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
 
           DO inode=1,nnode
@@ -326,17 +331,8 @@ MODULE  hartree_local_3centers
                                    neighbor=jatom,&
                                    r=rab)
 
-            IF (jatom /= last_jatom) THEN
-              new_atom_b = .TRUE.
-              last_jatom = jatom
-            ELSE
-
-            END IF
-
             rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
             dab = sqrt(rab2)
-
-            rb(:) = pbc(particle_set(jatom)%r,cell)
 
             IF(iatom == jatom) THEN
               ieqj = 1.0_dp
@@ -376,7 +372,6 @@ MODULE  hartree_local_3centers
                   nco2 = npgfb(iset2)*ncoset(lb_max(iset2))
                   ns2  = nsgfb_set(iset2)
 
-!                 hab = 0.0_dp
                   CALL dgemm("N","N",nco1,ns2,ns1,&
                               1.0_dp,sphi_a(1,ifs1),maxcoa,&
                               p_block(ifs1,ifs2),nsgfa,&
@@ -408,6 +403,8 @@ MODULE  hartree_local_3centers
               IF(calculate_forces) THEN
                 CALL reallocate(Int_dab_sum,1,maxcoa,1,maxcob,1,3)
                 CALL reallocate(Int_adb_sum,1,maxcoa,1,maxcob,1,3)
+                Int_dab_sum=0.0_dp
+                Int_adb_sum=0.0_dp
               END IF
 !             Allocate array for the 3-centers integrals
               CALL reallocate(Int_abc,1,ncotota,1,ncototb,1,maxch0)
@@ -447,18 +444,18 @@ MODULE  hartree_local_3centers
                              sphi_a(1,ifs2), maxcoa,&
                              0.0_dp,hab(1,1),maxcob)
 
-                 DO ip1 = 1,npgfb(iset1)
-                   ic1 = ncoset(lb_min(iset1)-1)+1
-                   n1 = ncoset(lb_max(iset1))*(ip1-1)
-                   nn1 = ncoset(lb_max(iset1))*ip1
-                   DO ip2 = 1,npgfa(iset2)
-                     ic2 = ncoset(la_min(iset2)-1)+1
-                     n2 =  ncoset(la_max(iset2))*(ip2-1)
-                     nn2 = ncoset(la_max(iset2))*ip2
-                     CPC_ab(ic1+n1+m1:nn1+m1,ic2+n2+m2:nn2+m2) = hab(ic1+n1:nn1,ic2+n2:nn2)
-                   END DO
-                 END DO
-                 m2 = m2 + maxcoa
+                  DO ip1 = 1,npgfb(iset1)
+                    ic1 = ncoset(lb_min(iset1)-1)+1
+                    n1 = ncoset(lb_max(iset1))*(ip1-1)
+                    nn1 = ncoset(lb_max(iset1))*ip1
+                    DO ip2 = 1,npgfa(iset2)
+                      ic2 = ncoset(la_min(iset2)-1)+1
+                      n2 =  ncoset(la_max(iset2))*(ip2-1)
+                      nn2 = ncoset(la_max(iset2))*ip2
+                      CPC_ab(ic1+n1+m1:nn1+m1,ic2+n2+m2:nn2+m2) = hab(ic1+n1:nn1,ic2+n2:nn2)
+                    END DO
+                  END DO
+                  m2 = m2 + maxcoa
                 END DO  ! iset2
                 m1 = m1 + maxcob
               END DO  ! iset1
@@ -468,6 +465,8 @@ MODULE  hartree_local_3centers
               IF(calculate_forces) THEN
                 CALL reallocate(Int_dab_sum,1,maxcob,1,maxcoa,1,3)
                 CALL reallocate(Int_adb_sum,1,maxcob,1,maxcoa,1,3)
+                Int_dab_sum=0.0_dp
+                Int_adb_sum=0.0_dp
               END IF
 !             Allocate array for the 3-centers integrals
               CALL reallocate(Int_abc,1,ncototb,1,ncotota,1,maxch0)
@@ -523,7 +522,6 @@ MODULE  hartree_local_3centers
 
 
                  rbc2= rbc(1)*rbc(1) + rbc(2)*rbc(2) + rbc(3)*rbc(3) 
-                 rc(:) = pbc(particle_set(katom)%r,cell)
                  
                  tmp_neighbor => VH_3c_list(kkind,iatom)%neighbor
                  DO i=1, 3
@@ -570,22 +568,23 @@ MODULE  hartree_local_3centers
 
                   m1 = 0
                   DO iset1 = 1,nseta
+
+                    IF(rac2<=set_radius_3c(iset1,ikind)) THEN
+
                     ifs1 = first_sgfa(1,iset1)
                     nz1  = npgfa(iset1)
                     nco1 = npgfa(iset1)*ncoset(la_max(iset1))
                     ns1  = nsgfa_set(iset1)
                     m2 = 0
                     DO iset2 = 1,nsetb
+                      IF(rbc2<=set_radius_3c(iset2,jkind)) THEN
+
                       ifs2 = first_sgfb(1,iset2)
                       nz2  = npgfb(iset2)
                       nco2 = npgfb(iset2)*ncoset(lb_max(iset2))
                       ns2  = nsgfb_set(iset2)
 
                       Int_ab_sum = 0.0_dp
-                      IF(calculate_forces) THEN
-                        Int_dab_sum = 0.0_dp
-                        Int_adb_sum = 0.0_dp
-                      END IF
                       CALL sumup_3c_integrals(&
                            la_max(iset1),la_min(iset1),nco1,m1,&
                            rpgfa(:,iset1),zeta(:,iset1),nz1,&
@@ -636,8 +635,13 @@ MODULE  hartree_local_3centers
 
                       END IF
 
+                      END IF  ! set_radius_3c
+
                       m2 = m2 + maxcob
                     END DO  ! iset2
+
+                    END IF  ! set_radius_3c
+
                     m1 = m1 + maxcoa
                   END DO  ! iset1
 
@@ -645,22 +649,24 @@ MODULE  hartree_local_3centers
 
                   m1 = 0
                   DO iset1 = 1,nsetb
+
+                    IF(rbc2<=set_radius_3c(iset1,jkind)) THEN
+
                     ifs1 = first_sgfb(1,iset1)
                     nz1  = npgfb(iset1)
                     nco1 = npgfb(iset1)*ncoset(lb_max(iset1))
                     ns1  = nsgfb_set(iset1)
                     m2 = 0
                     DO iset2 = 1,nseta
+
+                      IF(rac2<=set_radius_3c(iset2,ikind)) THEN
+
                       ifs2 = first_sgfa(1,iset2)
                       nz2  = npgfa(iset2)
                       nco2 = npgfa(iset2)*ncoset(la_max(iset2))
                       ns2  = nsgfa_set(iset2)
 
                       Int_ab_sum = 0.0_dp
-                      IF(calculate_forces) THEN
-                        Int_dab_sum = 0.0_dp
-                        Int_adb_sum = 0.0_dp
-                      END IF
                       CALL sumup_3c_integrals(&
                            lb_max(iset1),lb_min(iset1),nco1,m1,&
                            rpgfb(:,iset1),zetb(:,iset1),nz1,&
@@ -708,8 +714,14 @@ MODULE  hartree_local_3centers
 
                         END DO 
                       END IF
+
+                      END IF  ! set_radius_3c
+
                       m2 = m2 + maxcoa
                     END DO  ! iset2
+
+                    END IF  ! set_radius_3c
+
                     m1 = m1 + maxcob
                   END DO  ! iset1
 
@@ -723,6 +735,7 @@ MODULE  hartree_local_3centers
                                   ieqj*trace_r_AxB(CPC_ab,ns1,Int_abc(:,:,ico),&
                                   ns1,ns1,ns2)
                 END DO  ! ico
+
                 sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
               END DO knodeloop  ! knode
             END DO  !kkind
@@ -764,12 +777,17 @@ MODULE  hartree_local_3centers
        nchan0_car = ncoset(l0_kkind)
        nchan0_sph = nsoset(l0_kkind)
 
-       DO kat = 1,nat
+!      Distribute the atoms of this kind
+       num_pe = para_env%num_pe
+       mepos  = para_env%mepos
+       bo = get_limit( nat, num_pe, mepos )
+
+       DO kat = bo(1), bo(2) !1,nat
          katom = atom_list(kat)
 
-         NULLIFY(aVh3c0b)
-         CALL get_ecoul_1c(ecoul_1c=ecoul_1c,iatom=katom,aVh3c0b=aVh3c0b)
-         IF(ispin==1) aVh3c0b = 0.0_dp
+         rho_atom => rho_atom_set(katom)
+         CALL get_rho_atom(rho_atom=rho_atom,&
+              ga_Vlocal_gb_h=int_local_h,ga_Vlocal_gb_s=int_local_s)
 
          sum_ab_sph = 0.0_dp
          DO lshell = 0,l0_kkind
@@ -791,12 +809,29 @@ MODULE  hartree_local_3centers
 
          DO iso = 1,nchan0_sph
            DO is = 1,nsototc
-              aVh3c0b(1:nsototc,is) = aVh3c0b(1:nsototc,is) + &
-                            sum_ab_sph(iso)*Qlm_gg(1:nsototc,is,iso)
+
+             DO ispin_bis = 1,qs_env%dft_control%nspins
+
+                int_local_h(ispin_bis)%r_coef(1:nsototc,is) = &
+                          int_local_h(ispin_bis)%r_coef(1:nsototc,is) + &
+                          sum_ab_sph(iso)*Qlm_gg(1:nsototc,is,iso)
+                int_local_s(ispin_bis)%r_coef(1:nsototc,is) = &
+                          int_local_s(ispin_bis)%r_coef(1:nsototc,is) + &
+                          sum_ab_sph(iso)*Qlm_gg(1:nsototc,is,iso)
+             END DO
            END DO
          END DO 
 
        END DO  ! kat
+
+!      The Calculation of ga_Vlocal_gp is complete at this point
+       DO kat = 1,nat
+          katom  = atom_list(kat)
+          CALL  mp_sum(rho_atom_set(katom)%ga_Vlocal_gb_h(ispin)%r_coef,&
+                       para_env%group)
+          CALL  mp_sum(rho_atom_set(katom)%ga_Vlocal_gb_s(ispin)%r_coef,&
+                       para_env%group)
+       END DO
     END DO  ! kkind
 
 100 CONTINUE

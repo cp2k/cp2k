@@ -74,6 +74,8 @@ MODULE qs_rho0_types
     REAL(dp)                                    :: max_rpgf0_s
     REAL(dp), DIMENSION(:), POINTER             :: norm_g0l_h, &
                                                    norm_g0l_s
+    REAL(dp), DIMENSION(:), POINTER             :: orb_radius_3c
+    REAL(dp), DIMENSION(:,:), POINTER           :: set_radius_3c
     INTEGER, DIMENSION(:),  POINTER             :: lmax0_kind
     INTEGER                                     :: lmax_0,igrid_zet0_s
     TYPE(coeff_type), POINTER                   :: rho0_s_rs,&
@@ -240,6 +242,8 @@ CONTAINS
     NULLIFY(rho0%mp_gau)
     NULLIFY(rho0%norm_g0l_h)
     NULLIFY(rho0%norm_g0l_s)
+    NULLIFY(rho0%orb_radius_3c)
+    NULLIFY(rho0%set_radius_3c)
     NULLIFY(rho0%lmax0_kind)
     NULLIFY(rho0%rho0_s_rs)
     NULLIFY(rho0%rho0_s_gs)
@@ -485,6 +489,18 @@ CONTAINS
                          "rho0%norm_g0l_s")
       END IF
 
+      IF (ASSOCIATED(rho0%orb_radius_3c)) THEN
+         DEALLOCATE(rho0%orb_radius_3c, STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                         "rho0%orb_radius_3c")
+      END IF
+
+      IF (ASSOCIATED(rho0%set_radius_3c)) THEN
+         DEALLOCATE(rho0%set_radius_3c, STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                         "rho0%set_radius_3c")
+      END IF
+
       IF (ASSOCIATED(rho0%rho0_s_rs)) THEN
           CALL coeff_deallocate(rho0%rho0_s_rs)
           DEALLOCATE(rho0%rho0_s_rs)
@@ -510,9 +526,9 @@ CONTAINS
 ! ******************************************************************************
   SUBROUTINE get_rho0_mpole(rho0_mpole, g0_h, g0_s, vg0_h, iat, ikind, lmax_0, l0_ikind,&
                             lmax0_kind, mp_gau_ikind, mp_rho, norm_g0l_h, norm_g0l_s,&
-                            Qlm_gg, Qlm_car_h,Qlm_car_s,Qlm_tot, zet0_h, zet0_s, &
-                            igrid_zet0_s, rpgf0_h,rpgf0_s,r_V0hmV0s,max_rpgf0_s, &
-                            rho0_s_rs, rho0_s_gs)
+                            orb_radius_3c, set_radius_3c, Qlm_gg, Qlm_car_h, Qlm_car_s, Qlm_tot,  &
+                            zet0_h, zet0_s, igrid_zet0_s, rpgf0_h,rpgf0_s, &
+                            r_V0hmV0s, max_rpgf0_s, rho0_s_rs, rho0_s_gs)
 
     TYPE(rho0_mpole_type),  POINTER              :: rho0_mpole
 
@@ -525,6 +541,8 @@ CONTAINS
     REAL(dp), INTENT(OUT), OPTIONAL              :: max_rpgf0_s
     REAL(dp), DIMENSION(:), OPTIONAL,POINTER     :: norm_g0l_h, &
                                                     norm_g0l_s
+    REAL(dp), DIMENSION(:), OPTIONAL,POINTER     :: orb_radius_3c
+    REAL(dp), DIMENSION(:,:), OPTIONAL,POINTER   :: set_radius_3c
     REAL(dp), DIMENSION(:), OPTIONAL,POINTER     :: Qlm_car_h, Qlm_car_s
     REAL(dp), DIMENSION(:), OPTIONAL,POINTER     :: Qlm_tot
     REAL(dp), DIMENSION(:,:), OPTIONAL,POINTER   :: g0_h, g0_s, vg0_h
@@ -546,6 +564,8 @@ CONTAINS
       IF(PRESENT(mp_rho)) mp_rho => rho0_mpole%mp_rho
       IF(PRESENT(norm_g0l_h)) norm_g0l_h => rho0_mpole%norm_g0l_h
       IF(PRESENT(norm_g0l_s)) norm_g0l_s => rho0_mpole%norm_g0l_s
+      IF(PRESENT(orb_radius_3c)) orb_radius_3c => rho0_mpole%orb_radius_3c
+      IF(PRESENT(set_radius_3c)) set_radius_3c => rho0_mpole%set_radius_3c
       IF(PRESENT(zet0_h)) zet0_h = rho0_mpole%zet0_h
       IF(PRESENT(zet0_s)) zet0_s = rho0_mpole%zet0_s
       IF(PRESENT(igrid_zet0_s)) igrid_zet0_s = rho0_mpole%igrid_zet0_s
@@ -669,20 +689,25 @@ CONTAINS
             "- rho0 max L and radii in "//TRIM(unit_of_length_name)//&
             " for the atom kind :", ikind
 
-        WRITE (UNIT=output_unit,FMT="(T2,T25,A,T55,I5)")&
+        WRITE (UNIT=output_unit,FMT="(T2,T20,A,T55,I5)")&
             "=> l max  :",rho0_mpole%lmax0_kind(ikind)
 
-        WRITE (UNIT=output_unit,FMT="(T2,T25,A,T55,f20.10)")&
+        WRITE (UNIT=output_unit,FMT="(T2,T20,A,T55,f20.10)")&
             "=> radius of Vh(rho0_h-rho0_s): ",&
             rho0_mpole%mp_gau(ikind)%r_V0hmV0s/unit_of_length
 
-        WRITE (UNIT=output_unit,FMT="(T2,T25,A,T55,f20.10)")&
+        WRITE (UNIT=output_unit,FMT="(T2,T20,A,T55,f20.10)")&
             "=> max radius of g0 hard: ",&
             rho0_mpole%mp_gau(ikind)%rpgf0_h/unit_of_length
 
-        WRITE (UNIT=output_unit,FMT="(T2,T25,A,T55,f20.10)")&
+        WRITE (UNIT=output_unit,FMT="(T2,T20,A,T55,f20.10)")&
             "=> max radius of g0 soft: ",&
             rho0_mpole%mp_gau(ikind)%rpgf0_s/unit_of_length
+
+        WRITE (UNIT=output_unit,FMT="(T2,T20,A,T55,f20.10)")&
+            "=> orb_radius for the 3c lists: ",&
+            rho0_mpole%orb_radius_3c(ikind)/unit_of_length
+
       END DO  ! ikind
 
     ELSE

@@ -59,7 +59,8 @@ MODULE ai_coulomb
   USE orbital_pointers,                ONLY: coset,&
                                              ncoset
   USE termination,                     ONLY: stop_memory
-
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
 
   PRIVATE
@@ -103,6 +104,7 @@ CONTAINS
     INTEGER                                  :: ax, ay, az, coc, cocx, cocy, &
                                                 cocz, cx, cy, cz, i, ipgf, istat, j, &
                                                 jpgf, la, lc, n, na, nc, nmax
+    INTEGER                                  :: handle
     INTEGER                                  :: maxder_local, nap
     REAL(KIND=dp)                            :: dac, f0, f1, f2, f3, f4, f5, &
                                                 f6, fcx, fcy, fcz, rho, t, &
@@ -114,6 +116,8 @@ CONTAINS
       ALLOCATABLE                            :: v
 
 !   ---------------------------------------------------------------------------
+
+    CALL timeset(routine_name,"I"," ",handle)
 
     ALLOCATE(v(ncoset(la_max),ncoset(lc_max), la_max+lc_max+1),STAT=istat)
     ALLOCATE(f(0:la_max+lc_max),STAT=istat)
@@ -433,6 +437,8 @@ CONTAINS
       CALL stop_memory(routine_name,"deallocate v f")
     END IF
 
+    CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE coulomb2
 
 ! *****************************************************************************
@@ -482,6 +488,7 @@ CONTAINS
                                                 la_start, lb, lc, n, na, nb, &
                                                 nmax
     INTEGER                                  :: maxder_local, nap
+    INTEGER                                  :: handle
     REAL(KIND=dp)                            :: dab, dac, dbc, f0, f1, f2, &
                                                 f3, f4, f5, f6, f7, fcx, fcy, &
                                                 fcz, fx, fy, fz, t, zetp, &
@@ -493,6 +500,8 @@ CONTAINS
                   ALLOCATABLE                :: v
 
 !   ---------------------------------------------------------------------------
+
+    CALL timeset(routine_name,"I"," ",handle)
 
     ALLOCATE(v(ncoset(la_max),ncoset(lb_max),ncoset(lc_max),la_max+lb_max+lc_max+1),&
              STAT=istat)
@@ -1630,6 +1639,8 @@ CONTAINS
     IF (istat /= 0) THEN
       CALL stop_memory(routine_name,"deallocate v f")
     END IF
+
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE coulomb3
 

@@ -583,7 +583,7 @@ CONTAINS
 !   *** Print the shell set radii ***
 
     IF (globenv%print%set_radii) THEN
-      WRITE (UNIT=output_unit,FMT="(/,T2,A,,T51,A,T57,A,T65,A,T75,A)")&
+      WRITE (UNIT=output_unit,FMT="(/,T2,A,T51,A,T57,A,T65,A,T75,A)")&
         "RADII: SHELL SETS OF "//TRIM(bas)//" BASIS in "//&
         TRIM(unit_of_length_name),"Kind","Label","Set","Radius"
       DO ikind=1,nkind

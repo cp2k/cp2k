@@ -240,18 +240,11 @@ CONTAINS
      mepos  = para_env%mepos
      bo = get_limit( natom, num_pe, mepos )
 
-     DO iat = 1,natom
-       iatom = atom_list(iat)
-       DO ispin = 1,nspins
-         rho_atom_set(iatom)%ga_Vxc_gb_h(ispin)%r_coef = 0.0_dp
-         rho_atom_set(iatom)%ga_Vxc_gb_s(ispin)%r_coef = 0.0_dp
-       END DO
-       rho_atom_set(iatom)%exc_h = 0.0_dp
-       rho_atom_set(iatom)%exc_s = 0.0_dp
-     END DO
-
      DO iat = bo(1),bo(2) !1,natom
        iatom = atom_list(iat)
+
+       rho_atom_set(iatom)%exc_h = 0.0_dp
+       rho_atom_set(iatom)%exc_s = 0.0_dp
 
        rho_atom => rho_atom_set(iatom)
        IF(gradient_f) THEN
@@ -333,15 +326,6 @@ CONTAINS
 
    ENDDO ! ikind
 
-   natom = SIZE(rho_atom_set,1)
-   DO iatom = 1,natom
-     DO ispin = 1,nspins
-       CALL mp_sum(rho_atom_set(iatom)%ga_Vxc_gb_h(ispin)%r_coef,para_env%group)
-       CALL mp_sum(rho_atom_set(iatom)%ga_Vxc_gb_s(ispin)%r_coef,para_env%group)
-     END DO
-     CALL mp_sum(rho_atom_set(iatom)%exc_h,para_env%group)
-     CALL mp_sum(rho_atom_set(iatom)%exc_s,para_env%group)
-   END DO
    CALL mp_sum(energy%exc1,para_env%group)
 
    DEALLOCATE(rho_h,rho_s,weight,vxc_h,vxc_s,STAT=istat)
@@ -523,25 +507,17 @@ CONTAINS
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       END IF
 
-      DO iatom = 1,natom
-         atom = atom_list(iatom)
-         DO ispin = 1,nspins
-            rho_atom_set(atom)%ga_Vxc_gb_h(ispin)%r_coef = 0.0_dp
-            rho_atom_set(atom)%ga_Vxc_gb_s(ispin)%r_coef = 0.0_dp
-            rho1_atom_set(atom)%ga_Vxc_gb_h(ispin)%r_coef = 0.0_dp
-            rho1_atom_set(atom)%ga_Vxc_gb_s(ispin)%r_coef = 0.0_dp
-         END DO
-         rho_atom_set(atom)%exc_h = 0.0_dp
-         rho_atom_set(atom)%exc_s = 0.0_dp
-         rho1_atom_set(atom)%exc_h = 0.0_dp
-         rho1_atom_set(atom)%exc_s = 0.0_dp
-      END DO
 
       ! parallelization
       local_loop_limit = get_limit( natom, para_env%num_pe, para_env%mepos )
 
       DO iatom = local_loop_limit(1), local_loop_limit(2) !1,natom
          atom = atom_list(iatom)
+
+         rho_atom_set(atom)%exc_h = 0.0_dp
+         rho_atom_set(atom)%exc_s = 0.0_dp
+         rho1_atom_set(atom)%exc_h = 0.0_dp
+         rho1_atom_set(atom)%exc_s = 0.0_dp
 
          rho_atom => rho_atom_set(atom)
          rho1_atom => rho1_atom_set(atom)
@@ -725,35 +701,6 @@ CONTAINS
          DO iso = 1,harmonics%max_iso_not0
             DO ia = 1,na
                usin_ia = grid_atom%usin_theta(ia) 
-!dbg
-!                 *** Derivatives in spherical coordinates ***
-!                 *** d/dr
-!                  drho_h(1,ia,ir,ispin) = drho_h(1,ia,irispin) + &
-!                                       dr_h(ispin)%r_coef(ir,iso)*&
-!                                       harmonics%slm(ia,iso)
-!                  drho_s(1,ia,ir,ispin) = drho_s(1,ia,ir,ispin) + &
-!                                       dr_s(ispin)%r_coef(ir,iso)*&
-!                                      harmonics%slm(ia,iso)
-!
-!                 *** d/d theta
-!                  drho_h(2,ia,ir,ispin) = drho_h(2,ia,ir,ispin) + &
-!                                       r_h(ispin)%r_coef(ir,iso)*&
-!                                       urad*&
-!                                       harmonics%dslm(1,ia,iso) 
-!                  drho_s(2,ia,ir,ispin) = drho_s(2,ia,ir,ispin) + &
-!                                       r_s(ispin)%r_coef(ir,iso)*&
-!                                       urad*&
-!                                       harmonics%dslm(1,ia,iso)
-
-!                 *** d/d phi
-!                  drho_h(3,ia,ir,ispin) = drho_h(3,ia,ir,ispin) + &
-!                                       r_h(ispin)%r_coef(ir,iso)*&
-!                                       urad*usin_ia*&
-!                                       harmonics%dslm(2,ia,iso)
-!                  drho_s(3,ia,ir,ispin) = drho_s(3,ia,ir,ispin) + &
-!                                       r_s(ispin)%r_coef(ir,iso)*&
-!                                       urad*usin_ia*&
-!                                       harmonics%dslm(2,ia,iso)
 
 !              icomponents of the gradient of rho1 hard 
                drho_h(1,ia,ir,ispin) = drho_h(1,ia,ir,ispin) + & 
@@ -816,20 +763,6 @@ CONTAINS
 
             END DO  ! ia
          END DO  ! iso
-!  WRITE(*,*) 'iatom ', iatom, 'ir=10', grid_atom%rad(ir)
-!  DO ia = 1,na
-!    WRITE(50,'(I4,11f16.10)') ia,grid_atom%theta(ia),grid_atom%phi(ia),&
-!             harmonics%slm(ia,1:9)   
-!    WRITE(51,'(I4,11f16.10)') ia,grid_atom%theta(ia),grid_atom%phi(ia),&
-!             harmonics%dslm(1,ia,1:9)   
-!    WRITE(52,'(I4,11f16.10)') ia,grid_atom%theta(ia),grid_atom%phi(ia),&
-!             harmonics%dslm(2,ia,1:9)   
-! if(iatom == 3) then
-!    WRITE(51,'(I4,7f16.10)') ia,grid_atom%rad(ir),rho_h(ia,ispin),&
-!                  drho_h(ia,1,ispin),drho_h(ia,2,ispin),drho_h(ia,3,ispin),drho_h(ia,4,ispin)
-! end if
-!  end do 
-!    WRITE(46,*)
       END DO  ! ispin
    END IF
 
@@ -854,7 +787,7 @@ CONTAINS
     TYPE(harmonics_atom_type), &
                            POINTER        :: harmonics
     TYPE(rho_atom_coeff),  DIMENSION(:), &
-                           POINTER        :: int_h, int_s
+                           POINTER        :: int_hh, int_ss
 
     REAL(dp), DIMENSION(:), ALLOCATABLE   :: g1,g2
     REAL(dp), DIMENSION(:,:), ALLOCATABLE :: gg,&
@@ -906,9 +839,9 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                                      "vx",na*nr*dp_size)
 
-    NULLIFY(int_h,int_s)
+    NULLIFY(int_hh,int_ss)
 
-    CALL get_rho_atom(rho_atom=rho_atom,ga_Vxc_gb_h=int_h,ga_Vxc_gb_s=int_s)
+    CALL get_rho_atom(rho_atom=rho_atom,ga_Vlocal_gb_h=int_hh,ga_Vlocal_gb_s=int_ss)
 
     g1 = 0.0_dp
     g2 = 0.0_dp
@@ -979,10 +912,10 @@ CONTAINS
               DO ic = nsoset(lmin(iset2)-1)+1,nsoset(lmax(iset2))
                 iso1 = nsoset(lmin(iset1)-1)+1
                 iso2 = ngau2+ic
-                CALL dcopy(size1,matso_h(iso1,ic),1,&
-                           int_h(ispin)%r_coef(nngau1+1,iso2),1)
-                CALL dcopy(size1,matso_s(iso1,ic),1,&
-                           int_s(ispin)%r_coef(nngau1+1,iso2),1)
+                CALL daxpy(size1,1.0_dp,matso_h(iso1,ic),1,&
+                           int_hh(ispin)%r_coef(nngau1+1,iso2),1)
+                CALL daxpy(size1,1.0_dp,matso_s(iso1,ic),1,&
+                           int_ss(ispin)%r_coef(nngau1+1,iso2),1)
                END DO
 
             END DO ! ispin
@@ -1022,7 +955,7 @@ CONTAINS
     TYPE(harmonics_atom_type),&
                            POINTER        :: harmonics
     TYPE(rho_atom_coeff),  DIMENSION(:), &
-                           POINTER        :: int_h, int_s
+                           POINTER        :: int_hh, int_ss
     REAL(dp)                              :: rad,urad,usin_ia
     REAL(dp), DIMENSION(:), ALLOCATABLE   :: g1,g2
     REAL(dp), DIMENSION(:,:), ALLOCATABLE :: gg,dgg,&
@@ -1072,15 +1005,14 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "gVXCg_h,gVXCg_s",12*na*maxl*dp_size)
 
-    NULLIFY(int_h,int_s)
+    NULLIFY(int_hh,int_ss)
 
     ALLOCATE(matso_h(nsoset(maxl),nsoset(maxl)),&
              matso_s(nsoset(maxl),nsoset(maxl)),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                        "matso_h,matso_s",2*nsoset(maxl)*nsoset(maxl)*dp_size)
 
-    CALL get_rho_atom(rho_atom=rho_atom,&
-                      ga_Vxc_gb_h=int_h,ga_Vxc_gb_s=int_s)
+    CALL get_rho_atom(rho_atom=rho_atom, ga_Vlocal_gb_h=int_hh,ga_Vlocal_gb_s=int_ss)
 
     DO ispin=1,nspins
 
@@ -1113,11 +1045,8 @@ CONTAINS
               gg(1:nr,lmin12) = g1(1:nr)*g2(1:nr)
             ELSE
               gg(1:nr,lmin12) = grid_atom%rad2l(1:nr,lmin12)*g1(1:nr)*g2(1:nr)
-!              dgg(1:nr,lmin12) = REAL(lmin12,dp)*grid_atom%oorad2l(1:nr,1)*&
-!                                gg(1:nr,lmin12)
             END IF
             DO l=lmin12+1,lmax12
-!              dgg(1:nr,l) = REAL(l,dp)*gg(1:nr,l-1)
               gg(1:nr,l) = grid_atom%rad(1:nr)*gg(:,l-1)
               dgg(1:nr,l-1) = dgg(1:nr,l-1) -2.0_dp*(zet(ipgf1,iset1)+ &
                              zet(ipgf2,iset2))*gg(1:nr,l)
@@ -1131,7 +1060,6 @@ CONTAINS
               gVXGg_h = 0.0_dp
               gVXGg_s = 0.0_dp
 
-!              IF(cross_term) THEN
 
 !             Cross Term
               DO l = lmin12,lmax12
@@ -1225,10 +1153,10 @@ CONTAINS
               DO ic = nsoset(lmin(iset2)-1)+1,nsoset(lmax(iset2))
                 iso1 = nsoset(lmin(iset1)-1)+1
                 iso2 = ngau2+ic
-                CALL dcopy(size1,matso_h(iso1,ic),1,&
-                           int_h(ispin)%r_coef(nngau1+1,iso2),1)
-                CALL dcopy(size1,matso_s(iso1,ic),1,&
-                           int_s(ispin)%r_coef(nngau1+1,iso2),1)
+                CALL daxpy(size1,1.0_dp,matso_h(iso1,ic),1,&
+                           int_hh(ispin)%r_coef(nngau1+1,iso2),1)
+                CALL daxpy(size1,1.0_dp,matso_s(iso1,ic),1,&
+                           int_ss(ispin)%r_coef(nngau1+1,iso2),1)
                END DO
 
           END DO ! ipfg2

@@ -100,7 +100,7 @@ CONTAINS
                                                  paw_atom
     REAL(dp), DIMENSION(3)                   :: rbc
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: C_coeff_h, C_coeff_s
+      DIMENSION(:, :)                        :: C_int_h, C_int_s
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
     REAL(dp), DIMENSION(3,3)                 :: force_tmp
     REAL(kind=dp)                            :: factor
@@ -172,11 +172,6 @@ CONTAINS
                                atom_of_kind=atom_of_kind)
     END IF
 
-
-    ALLOCATE (C_coeff_h(max_gau,max_nsgf),STAT=istat)
-    ALLOCATE (C_coeff_s(max_gau,max_nsgf),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
-         "C_coeff_h,C_coeff_s")
 
     nkind = SIZE(atomic_kind_set)
 
@@ -287,11 +282,15 @@ CONTAINS
                                    orb_basis_set=orb_basis,&
                                    paw_atom=paw_atom)
 
+              IF(.NOT. paw_atom)  CYCLE
+
               CALL  get_gto_basis_set(gto_basis_set=orb_basis,&
                                       nset =nsetc,maxso=maxsoc)
               nsoctot = maxsoc*nsetc
-
-              IF(.NOT. paw_atom)  CYCLE
+              ALLOCATE (C_int_h(nsoctot,max_nsgf),STAT=istat)
+              ALLOCATE (C_int_s(nsoctot,max_nsgf),STAT=istat)
+              IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+                              "C_int_h,C_int_s",nsoctot*max_nsgf*dp_size)
 
               CALL get_neighbor_list(neighbor_list=sbc_oce_neighbor_list,&
                                      nnode=nnode_c)
@@ -340,7 +339,7 @@ CONTAINS
                 rho_at => rho_atom(katom)
                 CALL add_vhxca_to_ks(h_block,oce,rho_at,ecoul_1c,ispin, &
                                     iatom,nsgfa,jatom,nsgfb,katom,nsoctot,&
-                                    C_coeff_h,C_coeff_s,max_gau,factor)
+                                    factor,C_int_h,C_int_s)
 
                 IF(forces)THEN
                   ia_kind = atom_of_kind(iatom)
@@ -350,8 +349,7 @@ CONTAINS
                     rho_at => rho_atom(katom)
                     force_tmp(1:3,1:3) = 0.0_dp 
                     CALL add_vhxca_forces(p_block,oce,rho_at,force_tmp,ecoul_1c,&
-                                    ispin,iatom,nsgfa,jatom,nsgfb,katom,nsoctot,&
-                                    C_coeff_h,C_coeff_s,max_gau)
+                                    ispin,iatom,nsgfa,jatom,nsgfb,katom,nsoctot)
                     force(kkind)%vhxc_atom(1:3,ka_kind) = &
                                           force(kkind)%vhxc_atom(1:3,ka_kind) + &
                                           force_tmp(1:3,3) 
@@ -365,8 +363,7 @@ CONTAINS
                     rho_at => rho_atom(katom)
                     force_tmp(1:3,1:3) = 0.0_dp 
                     CALL add_vhxca_forces(p_block,oce,rho_at,force_tmp,ecoul_1c,&
-                                    ispin,jatom,nsgfb,iatom,nsgfa,katom,nsoctot,&
-                                    C_coeff_h,C_coeff_s,max_gau)
+                                    ispin,jatom,nsgfb,iatom,nsgfa,katom,nsoctot)
                     force(kkind)%vhxc_atom(1:3,ka_kind) = &
                                           force(kkind)%vhxc_atom(1:3,ka_kind) + &
                                           force_tmp(1:3,3) 
@@ -381,6 +378,11 @@ CONTAINS
 
                 sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
               ENDDO knodeloop    ! knode
+
+              DEALLOCATE (C_int_h,C_int_s,STAT=istat)
+              IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+                              "C_int_h,C_int_s")
+
             ENDDO    ! kkind
 
             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
@@ -389,9 +391,6 @@ CONTAINS
       ENDDO    ! jkind
     ENDDO    ! ikind
 
-    DEALLOCATE (C_coeff_h,C_coeff_s,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
-         "C_coeff_h,C_coeff_s")
     IF(forces) DEALLOCATE (atom_of_kind,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
          "atom_of_kind")
@@ -402,7 +401,7 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE add_vhxca_to_ks(h_block,oce,rho_atom,ecoul_1c,ispin,ia,na,ja,nb,&
-                             ka,nsp,C_h,C_s,ld1, factor)
+                             ka,nsp,factor,C_int_h,C_int_s)
 
 !   Arguments
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block
@@ -411,184 +410,131 @@ CONTAINS
     TYPE(ecoul_1center_type), DIMENSION(:), & 
                                  POINTER     :: ecoul_1c
     INTEGER, INTENT(IN)                      :: ispin, ia, na, ja, nb, ka, &
-                                                nsp, ld1
-    REAL(KIND=dp), DIMENSION(:,:)            :: C_s, C_h
+                                                nsp
     REAL(KIND=dp), INTENT(IN)                :: factor
+    REAL(KIND=dp), DIMENSION(:,:)            :: C_int_h,C_int_s
 
 !   Parameters
     CHARACTER(LEN=*), PARAMETER              :: routine = "add_vhxca_to_ks"
 
 !   Local Variables
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: c_block, IntC_h, IntC_s
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: C_ss , C_hh 
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: int_hard, int_soft
     TYPE(rho_atom_coeff), DIMENSION(:), &
-      POINTER                                :: int_xc_h, int_xc_s
-    REAL(dp), DIMENSION(:,:), POINTER        :: int_h_h, int_h_s, &
-                                                int_h_0h, int_h_0s,&
-                                                int_h_2c, int_h_3c
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE    :: int_hard, int_soft
+      POINTER                                :: int_local_h,int_local_s
     INTEGER                                  :: is1, is2, istat
 
 !******************************************************************************
 
-    NULLIFY(intC_h,intC_s)
-    NULLIFY(int_xc_h, int_xc_s,int_h_h, int_h_s, int_h_0h, int_h_0s)
-    NULLIFY(int_h_2c, int_h_3c)
 
-    ALLOCATE(int_hard(nsp,nsp),int_soft(nsp,nsp),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
-         "int_hard,int_soft",2*nsp*nsp*dp_size)
- 
+    NULLIFY(int_local_h,int_local_s,int_hard,int_soft)
     CALL get_rho_atom(rho_atom=rho_atom,&
-                     ga_Vxc_gb_h=int_xc_h,ga_Vxc_gb_s=int_xc_s)
+                     ga_Vlocal_gb_h=int_local_h,ga_Vlocal_gb_s=int_local_s)
 
-    CALL get_ecoul_1c(ecoul_1c=ecoul_1c,iatom=ka,aVh1b_h=int_h_h,&
-                      aVh1b_s=int_h_s,aVh1b_0=int_h_0h,&
-                      aVhsb_0s=int_h_0s, &
-                      aVh2c0b=int_h_2c, aVh3c0b=int_h_3c)
-
-    DO is1 = 1,nsp
-      DO is2 = is1,nsp
-        int_hard(is2,is1) = int_xc_h(ispin)%r_coef(is2,is1) + &
-                         int_h_h(is2,is1) - int_h_0h(is2,is1) +&
-                         int_h_0s(is2,is1) + &
-                         int_h_2c(is2,is1) + int_h_3c(is2,is1)
-        int_soft(is2,is1) = int_xc_s(ispin)%r_coef(is2,is1) + &
-                         int_h_s(is2,is1) - int_h_0h(is2,is1) +&
-                         int_h_0s(is2,is1) + &
-                         int_h_2c(is2,is1) + int_h_3c(is2,is1)
-        int_hard(is1,is2) = int_hard(is2,is1)
-        int_soft(is1,is2) = int_soft(is2,is1)
-      END DO
-    END DO
+    int_hard => int_local_h(ispin)%r_coef
+    int_soft => int_local_s(ispin)%r_coef
 
     IF (ia <= ja) THEN
-      NULLIFY(c_block)
+      NULLIFY(C_hh)
       CALL get_block_node(matrix=oce%hardo(1)%matrix,&
                         block_row=ka,&
                         block_col=ja,&
-                        BLOCK=c_block)
-      C_h = 0.0_dp
-      C_h(1:nsp,1:nb)=c_block(1:nsp,1:nb)
+                        BLOCK=C_hh)
 
-      NULLIFY(c_block)
+      NULLIFY(C_ss)
       CALL get_block_node(matrix=oce%softo(1)%matrix,&
                         block_row=ka,&
                         block_col=ja,&
-                        BLOCK=c_block)
-      C_s = 0.0_dp
-      C_s(1:nsp,1:nb)=c_block(1:nsp,1:nb)
+                        BLOCK=C_ss)
 
-      CALL reallocate(intC_h,1,nsp,1,nb)
-      CALL reallocate(intC_s,1,nsp,1,nb)
 
       CALL dgemm("N","N",nsp,nb,nsp,&
                1.0_dp,int_hard,nsp,&
-               C_h,ld1,0.0_dp,&
-               intC_h,nsp)
+               C_hh,SIZE(C_hh,1),0.0_dp,&
+               C_int_h,nsp)
 
       CALL dgemm("N","N",nsp,nb,nsp,&
                1.0_dp,int_soft,nsp,&
-               C_s,ld1,0.0_dp,&
-               intC_s,nsp)
+               C_ss,SIZE(C_ss,1),0.0_dp,&
+               C_int_s,nsp)
 
-      NULLIFY(c_block)
+      NULLIFY(C_hh)
       CALL get_block_node(matrix=oce%hardo(1)%matrix,&
                         block_row=ka,&
                         block_col=ia,&
-                        BLOCK=c_block)
-      C_h = 0.0_dp
-      C_h(1:nsp,1:na)=c_block(1:nsp,1:na)
+                        BLOCK=C_hh)
 
-      NULLIFY(c_block)
+      NULLIFY(C_ss)
       CALL get_block_node(matrix=oce%softo(1)%matrix,&
                         block_row=ka,&
                         block_col=ia,&
-                        BLOCK=c_block)
-      C_s = 0.0_dp
-      C_s(1:nsp,1:na)=c_block(1:nsp,1:na)
+                        BLOCK=C_ss)
 
       CALL dgemm("T","N",na,nb,nsp,&
-               factor,C_h,ld1,&
-               intC_h,nsp,1.0_dp,&
+               factor,C_hh,SIZE(C_hh,1),&
+               C_int_h,nsp,1.0_dp,&
                h_block,SIZE(h_block,1))
        
       CALL dgemm("T","N",na,nb,nsp,&
-               -factor,C_s,ld1,&
-               intC_s,nsp,1.0_dp,&
+               -factor,C_ss,SIZE(C_ss,1),&
+               C_int_s,nsp,1.0_dp,&
                h_block,SIZE(h_block,1))
 
     ELSE
 
-      NULLIFY(c_block)
+      NULLIFY(C_hh)
       CALL get_block_node(matrix=oce%hardo(1)%matrix,&
                         block_row=ka,&
                         block_col=ia,&
-                        BLOCK=c_block)
-      C_h = 0.0_dp
-      C_h(1:nsp,1:na)=c_block(1:nsp,1:na)
+                        BLOCK=C_hh)
 
-      NULLIFY(c_block)
+      NULLIFY(C_ss)
       CALL get_block_node(matrix=oce%softo(1)%matrix,&
                         block_row=ka,&
                         block_col=ia,&
-                        BLOCK=c_block)
-      C_s = 0.0_dp
-      C_s(1:nsp,1:na)=c_block(1:nsp,1:na)
+                        BLOCK=C_ss)
 
-      CALL reallocate(intC_h,1,nsp,1,na)
-      CALL reallocate(intC_s,1,nsp,1,na)
 
       CALL dgemm("N","N",nsp,na,nsp,&
                1.0_dp,int_hard,nsp,&
-               C_h,ld1,0.0_dp,&
-               intC_h,nsp)
+               C_hh,SIZE(C_hh,1),0.0_dp,&
+               C_int_h,nsp)
 
       CALL dgemm("N","N",nsp,na,nsp,&
                1.0_dp,int_soft,nsp,&
-               C_s,ld1,0.0_dp,&
-               intC_s,nsp)
+               C_ss,SIZE(C_ss,1),0.0_dp,&
+               C_int_s,nsp)
 
-      NULLIFY(c_block)
+      NULLIFY(C_hh)
       CALL get_block_node(matrix=oce%hardo(1)%matrix,&
                         block_row=ka,&
                         block_col=ja,&
-                        BLOCK=c_block)
-      C_h = 0.0_dp
-      C_h(1:nsp,1:nb)=c_block(1:nsp,1:nb)
+                        BLOCK=C_hh)
 
-      NULLIFY(c_block)
+      NULLIFY(C_ss)
       CALL get_block_node(matrix=oce%softo(1)%matrix,&
                         block_row=ka,&
                         block_col=ja,&
-                        BLOCK=c_block)
-      C_s = 0.0_dp
-      C_s(1:nsp,1:nb)=c_block(1:nsp,1:nb)
+                        BLOCK=C_ss)
 
       CALL dgemm("T","N",nb,na,nsp,&
-               factor,C_h,ld1,&
-               intC_h,nsp,1.0_dp,&
+               factor,C_hh,SIZE(C_hh,1),&
+               C_int_h,nsp,1.0_dp,&
                h_block,SIZE(h_block,1))
 
       CALL dgemm("T","N",nb,na,nsp,&
-               -factor,C_s,ld1,&
-               intC_s,nsp,1.0_dp,&
+               -factor,C_ss,SIZE(C_ss,1),&
+               C_int_s,nsp,1.0_dp,&
                h_block,SIZE(h_block,1))
 
     END IF
-
-    DEALLOCATE(intC_h,intC_s,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
-         "intC_h,intC_s")
-    DEALLOCATE(int_hard,int_soft,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
-         "int_hard,int_soft")
 
   END SUBROUTINE add_vhxca_to_ks
 
 ! *****************************************************************************
 
   SUBROUTINE add_vhxca_forces(p_block,oce,rho_atom,force,ecoul_1c,ispin,&
-                            ia,na,ja,nb,ka,nsp,C_h,C_s,ldc)
+                            ia,na,ja,nb,ka,nsp)
 
 ! *****************************************************************************
 
@@ -599,20 +545,17 @@ CONTAINS
     TYPE(ecoul_1center_type), DIMENSION(:), & 
                                  POINTER     :: ecoul_1c
     INTEGER, INTENT(IN)                      :: ispin, ia, na, ja, nb, ka, &
-                                                nsp, ldc
-    REAL(KIND=dp), DIMENSION(:,:)            :: C_s, C_h
+                                                nsp
 
     CHARACTER(LEN=*), PARAMETER              :: routine = "add_vhxca_forces"
 
     INTEGER                                  :: dir
     REAL(KIND=dp)                            :: ieqj, trace
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: c_block, dCPC_h, dCPC_s, &
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dCPC_h, dCPC_s, &
                                                 PC_h, PC_s
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: C_hh, C_ss
     TYPE(rho_atom_coeff), DIMENSION(:), &
-      POINTER                                :: int_xc_h, int_xc_s
-    REAL(dp), DIMENSION(:,:), POINTER        :: int_h_h, int_h_s, &
-                                                int_h_0h, int_h_0s,&
-                                                int_h_2c, int_h_3c
+      POINTER                                :: int_local_h,int_local_s
     REAL(dp), DIMENSION(:,:), POINTER        :: int_hard, int_soft
     INTEGER                                  :: ig, jg, is1, is2, istat
 
@@ -620,92 +563,63 @@ CONTAINS
 
 !   *** factor 2 because only half of the pairs with ia =/ ja are  considered
     ieqj = 2.0_dp
-
     IF(ia == ja) ieqj = 1.0_dp
 
     NULLIFY(PC_h, PC_s, dCPC_h, dCPC_s)
-    NULLIFY(int_xc_h, int_xc_s,int_h_h, int_h_s, int_h_0h, int_h_0s)
-    NULLIFY(int_h_2c, int_h_3c)
+    CALL reallocate(dCPC_h,1,nsp,1,nsp)
+    CALL reallocate(dCPC_s,1,nsp,1,nsp)
 
-    ALLOCATE(int_hard(nsp,nsp),int_soft(nsp,nsp),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
-        "int_hard,int_soft",2*nsp*nsp*dp_size)
-
+    NULLIFY(int_local_h,int_local_s,int_hard,int_soft)
     CALL get_rho_atom(rho_atom=rho_atom,&
-                     ga_Vxc_gb_h=int_xc_h,ga_Vxc_gb_s=int_xc_s)
+                     ga_Vlocal_gb_h=int_local_h,ga_Vlocal_gb_s=int_local_s)
 
-    CALL get_ecoul_1c(ecoul_1c=ecoul_1c,iatom=ka,aVh1b_h=int_h_h,&
-                      aVh1b_s=int_h_s,aVh1b_0=int_h_0h,aVhsb_0s=int_h_0s,&
-                      aVh2c0b=int_h_2c,aVh3c0b=int_h_3c)
+    int_hard => int_local_h(ispin)%r_coef
+    int_soft => int_local_s(ispin)%r_coef
 
-    DO is1 = 1,nsp
-      DO is2 = is1,nsp
-        int_hard(is2,is1) = int_xc_h(ispin)%r_coef(is2,is1) + &
-                         int_h_h(is2,is1) - int_h_0h(is2,is1) + &
-                         int_h_0s(is2,is1) + &
-                         int_h_2c(is2,is1) + int_h_3c(is2,is1)
-        int_soft(is2,is1) = int_xc_s(ispin)%r_coef(is2,is1) + &
-                         int_h_s(is2,is1) - int_h_0h(is2,is1) + &
-                         int_h_0s(is2,is1) + &
-                         int_h_2c(is2,is1) + int_h_3c(is2,is1)
-        int_hard(is1,is2) = int_hard(is2,is1)
-        int_soft(is1,is2) = int_soft(is2,is1)
-      END DO
-    END DO
 
-    NULLIFY(c_block)
+    NULLIFY(C_hh)
     CALL get_block_node(matrix=oce%hardo(1)%matrix,&
                         block_row=ka,&
                         block_col=ja,&
-                        BLOCK=c_block)
-    C_h = 0.0_dp
-    C_h(1:nsp,1:nb)=c_block(1:nsp,1:nb)
+                        BLOCK=C_hh)
 
-    NULLIFY(c_block)
+    NULLIFY(C_ss)
     CALL get_block_node(matrix=oce%softo(1)%matrix,&
                         block_row=ka,&
                         block_col=ja,&
-                        BLOCK=c_block)
-    C_s = 0.0_dp
-    C_s(1:nsp,1:nb)=c_block(1:nsp,1:nb)
+                        BLOCK=C_ss)
 
     CALL reallocate(PC_h,1,na,1,nsp)
     CALL reallocate(PC_s,1,na,1,nsp)
 
     CALL dgemm("N","T",na,nsp,nb,&
                1.0_dp,p_block,SIZE(p_block,1),&
-               C_h,ldc,0.0_dp,&
+               C_hh,SIZE(C_hh,1),0.0_dp,&
                PC_h,na)
 
     CALL dgemm("N","T",na,nsp,nb,&
                1.0_dp,p_block,SIZE(p_block,1),&
-               C_s,ldc,0.0_dp,&
+               C_ss,SIZE(C_ss,1),0.0_dp,&
                PC_s,na)
 
     DO dir = 2,4
-       NULLIFY(c_block)
+       NULLIFY(C_hh)
        CALL get_block_node(matrix=oce%hardo(dir)%matrix,&
                         block_row=ka,&
                         block_col=ia,&
-                        BLOCK=c_block)
-       C_h = 0.0_dp
-       C_h(1:nsp,1:na)=c_block(1:nsp,1:na)
+                        BLOCK=C_hh)
 
-       NULLIFY(c_block)
+       NULLIFY(C_ss)
        CALL get_block_node(matrix=oce%softo(dir)%matrix,&
                         block_row=ka,&
                         block_col=ia,&
-                        BLOCK=c_block)
-       C_s = 0.0_dp
-       C_s(1:nsp,1:na)=c_block(1:nsp,1:na)
+                        BLOCK=C_ss)
 
-       CALL reallocate(dCPC_h,1,nsp,1,nsp)
-       CALL reallocate(dCPC_s,1,nsp,1,nsp)
 
 
        CALL dgemm("T","T",nsp,nsp,na,&
                   1.0_dp,&
-                  PC_h,na,C_h,ldc,0.0_dp,&
+                  PC_h,na,C_hh,SIZE(C_hh,1),0.0_dp,&
                   dCPC_h,nsp)
 
 
@@ -717,7 +631,7 @@ CONTAINS
 
        CALL dgemm("T","T",nsp,nsp,na,&
                   1.0_dp,PC_s,na,&
-                  C_s,ldc,0.0_dp,&
+                  C_ss,SIZE(C_ss,1),0.0_dp,&
                   dCPC_s,nsp)
 
        trace = trace_r_AxB(dCPC_s,nsp,int_soft,nsp,nsp,nsp)
@@ -731,58 +645,48 @@ CONTAINS
 ! j-k contributions
 
 
-    NULLIFY(c_block)
+    NULLIFY(C_hh)
     CALL get_block_node(matrix=oce%hardo(1)%matrix,&
                         block_row=ka,&
                         block_col=ia,&
-                        BLOCK=c_block)
-    C_h = 0.0_dp
-    C_h(1:nsp,1:na)=c_block(1:nsp,1:na)
+                        BLOCK=C_hh)
 
-    NULLIFY(c_block)
+    NULLIFY(C_ss)
     CALL get_block_node(matrix=oce%softo(1)%matrix,&
                         block_row=ka,&
                         block_col=ia,&
-                        BLOCK=c_block)
-    C_s = 0.0_dp
-    C_s(1:nsp,1:na)=c_block(1:nsp,1:na)
+                        BLOCK=C_ss)
 
     CALL reallocate(PC_h,1,nb,1,nsp)
     CALL reallocate(PC_s,1,nb,1,nsp)
 
     CALL dgemm("T","T",nb,nsp,na,&
                1.0_dp,p_block,SIZE(p_block,1),&
-               C_h,ldc,0.0_dp,&
+               C_hh,SIZE(C_hh,1),0.0_dp,&
                PC_h,nb)
 
     CALL dgemm("T","T",nb,nsp,na,&
                1.0_dp,p_block,SIZE(p_block,1),&
-               C_s,ldc,0.0_dp,&
+               C_ss,SIZE(C_ss,1),0.0_dp,&
                PC_s,nb)
 
     DO dir = 2,4
-       NULLIFY(c_block)
+       NULLIFY(C_hh)
        CALL get_block_node(matrix=oce%hardo(dir)%matrix,&
                         block_row=ka,&
                         block_col=ja,&
-                        BLOCK=c_block)
-       C_h = 0.0_dp
-       C_h(1:nsp,1:nb)=c_block(1:nsp,1:nb)
+                        BLOCK=C_hh)
 
-       NULLIFY(c_block)
+       NULLIFY(C_ss)
        CALL get_block_node(matrix=oce%softo(dir)%matrix,&
                         block_row=ka,&
                         block_col=ja,&
-                        BLOCK=c_block)
-       C_s = 0.0_dp
-       C_s(1:nsp,1:nb)=c_block(1:nsp,1:nb)
+                        BLOCK=C_ss)
 
-       CALL reallocate(dCPC_h,1,nsp,1,nsp)
-       CALL reallocate(dCPC_s,1,nsp,1,nsp)
 
        CALL dgemm("T","T",nsp,nsp,nb,&
                   1.0_dp,PC_h,nb,&
-                  C_h,ldc,0.0_dp,&
+                  C_hh,SIZE(C_hh,1),0.0_dp,&
                   dCPC_h,nsp)
 
 
@@ -794,7 +698,7 @@ CONTAINS
 
        CALL dgemm("T","T",nsp,nsp,nb,&
                   1.0_dp,PC_s,nb,&
-                  C_s,ldc,0.0_dp,&
+                  C_ss,SIZE(C_ss,1),0.0_dp,&
                   dCPC_s,nsp)
 
        trace = trace_r_AxB(dCPC_s,nsp,int_soft,nsp,nsp,nsp)
@@ -807,9 +711,7 @@ CONTAINS
     DEALLOCATE(PC_h,PC_s,dCPC_h,dCPC_s,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
          "PC_h,PC_s,dCPC_h,dCPC_s")
-    DEALLOCATE(int_hard,int_soft,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
-         "int_hard,int_soft")
+
   END SUBROUTINE add_vhxca_forces
 
 ! *****************************************************************************

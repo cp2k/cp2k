@@ -44,8 +44,6 @@ MODULE qs_rho0_ggrid
   USE cube_utils,                      ONLY: cube_info_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
-  USE hartree_local_types,             ONLY: ecoul_1center_type,&
-                                             get_ecoul_1c
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE l_utils,                         ONLY: l_info_type
@@ -79,6 +77,9 @@ MODULE qs_rho0_ggrid
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_mpole_type
+  USE qs_rho_atom_types,               ONLY: get_rho_atom,&
+                                             rho_atom_coeff,&
+                                             rho_atom_type
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                              rs_get_my_tasks,&
                                              rs_grid_zero,&
@@ -432,8 +433,6 @@ MODULE qs_rho0_ggrid
     TYPE(cube_info_type),  DIMENSION(:), &
                          POINTER             :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(ecoul_1center_type), DIMENSION(:), &
-                            POINTER          :: ecoul_1c
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     TYPE(l_info_type)                        :: l_info
@@ -447,6 +446,11 @@ MODULE qs_rho0_ggrid
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: pw_pool, pw_aux
     TYPE(rho0_mpole_type),      POINTER      :: rho0_mpole
+    TYPE(rho_atom_type), DIMENSION(:), &
+                                     POINTER   :: rho_atom_set
+    TYPE(rho_atom_type),       POINTER         :: rho_atom
+    TYPE(rho_atom_coeff), DIMENSION(:), &
+        POINTER                                :: int_local_h,int_local_s
 
     INTEGER :: auxbas_grid, bo(2), dir, handle, iat, iatom, ic, icg, ico, ig1, ig2,&
                igrid, ikind, ipgf1, ipgf2, is, iset1, iset2, iso, iso1, iso2, ispin,&
@@ -463,7 +467,6 @@ MODULE qs_rho0_ggrid
     REAL(dp), DIMENSION(:),     POINTER      :: Qlm
     REAL(dp), DIMENSION(:), POINTER          :: hab_sph
     REAL(dp), DIMENSION(:,:), POINTER        :: hab_spht
-    REAL(dp), DIMENSION(:,:),    POINTER     :: aVhsb_0s
     REAL(dp), DIMENSION(:,:), POINTER        :: hab, hdab_sph, pab
     REAL(dp), DIMENSION(:,:,:), POINTER      :: habt, hdab_spht
     REAL(dp), DIMENSION(:,:,:),  POINTER     :: Qlm_gg
@@ -477,7 +480,7 @@ MODULE qs_rho0_ggrid
     CALL timeset("integrate_vhg0_rspace","I","",handle)
 
     NULLIFY(atomic_kind_set,dft_control,para_env,particle_set)
-    NULLIFY(cell,force,pw_env,rho0_mpole,ecoul_1c,tasks)
+    NULLIFY(cell,force,pw_env,rho0_mpole,rho_atom_set,tasks)
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft
@@ -489,12 +492,12 @@ MODULE qs_rho0_ggrid
                     para_env=para_env,&
                     force=force,pw_env=pw_env,&
                     rho0_mpole=rho0_mpole,&
-                    ecoul_1c=ecoul_1c,&
+                    rho_atom_set=rho_atom_set,&
                     particle_set=particle_set)
     
     IF (my_tddft) THEN
        rho0_mpole   => p_env%local_rho_set%rho0_mpole
-       ecoul_1c => p_env%hartree_local%ecoul_1c
+       rho_atom_set   => p_env%local_rho_set%rho_atom_set
     END IF
 
 
@@ -618,11 +621,6 @@ MODULE qs_rho0_ggrid
                              nset=nset, npgf=npgf)
                            
 !     Initialize the local KS integrals
-
-      DO iat = 1,nat
-        iatom = atom_list(iat)
-        ecoul_1c(iatom)%aVhsb_0s%r_coef = 0.0_dp
-      END DO
   
       nch_ik = ncoset(l0_ikind)
       pab = 1.0_dp
@@ -666,11 +664,11 @@ MODULE qs_rho0_ggrid
 !$OMP private(lshell,is,iso,hab,hdab,hadb,hab_sph,hdab_sph)&
 !$OMP private(lx,ly,lz,ic,ico,Qlm)&
 !$OMP private(iset1,iset2,ipgf1,ipgf2,n1,n2,m1,m2,ig1,ig2,iso1,iso2)&
-!$OMP private(force_tmp,aVhsb_0s)&
+!$OMP private(force_tmp,rho_atom,int_local_h,int_local_s)&
 !$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_v,ikind) &
 !$OMP shared(habt,hdabt,hadbt,hab_spht,hdab_spht)&
 !$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s,l0_ikind) &
-!$OMP shared(norm_l,calculate_forces,c4pi,ecoul_1c)&
+!$OMP shared(norm_l,calculate_forces,c4pi,rho_atom_set)&
 !$OMP shared(nset,npgf,lmax,maxso,harmonics,force,nso,nsoset,nco,ncoset,indco,orbtramat,dfac,Qlm_gg)&
 !$OMP shared(rho0_mpole,r_V0)
       DO j=1,npme
@@ -752,11 +750,12 @@ MODULE qs_rho0_ggrid
         END IF
 
 ! Calculate Integrals <aVb> and forces on iatom from the gradient og g0_s 
-        IF (calculate_forces) THEN
-          NULLIFY(aVhsb_0s)
+        rho_atom => rho_atom_set(iatom)
+        CALL get_rho_atom(rho_atom=rho_atom,&
+              ga_Vlocal_gb_h=int_local_h,ga_Vlocal_gb_s=int_local_s)
 
-          CALL  get_ecoul_1c(ecoul_1c,iatom=iatom,aVhsb_0s=aVhsb_0s)
-          aVhsb_0s = 0.0_dp
+        IF (calculate_forces) THEN
+
           force_tmp(1:3) = 0.0_dp
 
           DO iso = 1,nsoset(l0_ikind)
@@ -782,8 +781,17 @@ MODULE qs_rho0_ggrid
                       ig2 = iso2 + n2*(ipgf2-1) + m2
 
                       ! sum up the contribution
-                      aVhsb_0s(ig1,ig2) = aVhsb_0s(ig1,ig2) +&
-                                     Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
+
+                      DO ispin = 1,qs_env%dft_control%nspins
+
+                        int_local_h(ispin)%r_coef(ig1,ig2) = &
+                                  int_local_h(ispin)%r_coef(ig1,ig2) + &
+                                  Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
+                            
+                        int_local_s(ispin)%r_coef(ig1,ig2) = &
+                                  int_local_s(ispin)%r_coef(ig1,ig2) + &
+                                  Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
+                      END DO
 
                     END DO  ! icg
                   END DO  ! iso
@@ -802,9 +810,6 @@ MODULE qs_rho0_ggrid
 
         ELSE
 
-          CALL  get_ecoul_1c(ecoul_1c,iatom=iatom,aVhsb_0s=aVhsb_0s)
-
-          aVhsb_0s = 0.0_dp
           m1 = 0
           DO iset1 = 1,nset
             n1 = nsoset(lmax(iset1))
@@ -821,8 +826,19 @@ MODULE qs_rho0_ggrid
                       ig1 = iso1 + n1*(ipgf1-1) + m1
                       ig2 = iso2 + n2*(ipgf2-1) + m2
                       ! sum up the contribution
-                      aVhsb_0s(ig1,ig2) = aVhsb_0s(ig1,ig2) +&
-                                     Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
+
+                      DO ispin = 1,qs_env%dft_control%nspins
+
+                        int_local_h(ispin)%r_coef(ig1,ig2) = &
+                                  int_local_h(ispin)%r_coef(ig1,ig2) + &
+                                  Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
+                            
+                        int_local_s(ispin)%r_coef(ig1,ig2) = &
+                                  int_local_s(ispin)%r_coef(ig1,ig2) + &
+                                  Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
+                      END DO
+
+
                     END DO  ! icg
                   END DO  ! iso
 
@@ -837,11 +853,6 @@ MODULE qs_rho0_ggrid
 
       END DO  ! j
     END DO  ! ikind  
-
-    natom = SIZE(ecoul_1c,1)
-    DO iatom = 1,natom
-      CALL mp_sum(ecoul_1c(iatom)%aVhsb_0s%r_coef,para_env%group)
-    END DO
 
     CALL rs_pool_give_back_rs(rs_pool,rs_v,error=error)
 

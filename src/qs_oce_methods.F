@@ -22,7 +22,7 @@ MODULE qs_oce_methods
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_error_handling,               ONLY: cp_error_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,dp_size
   USE mathconstants,                   ONLY: dfac,&
                                              pi
   USE memory_utilities,                ONLY: reallocate
@@ -48,7 +48,11 @@ MODULE qs_oce_methods
   USE qs_oce_types,                    ONLY: oce_matrix_type
   USE sparse_matrix_types,             ONLY: add_1d_block_node,&
                                              get_block_node
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+
   USE util,                            ONLY: locate
 
   IMPLICIT NONE
@@ -99,8 +103,8 @@ CONTAINS
     REAL(dp), DIMENSION(:,:), POINTER          :: cprj_s, local_oce_s, local_oce_h, &
                                                   rpgfb, rzetprja, &
                                                   sphi_b, zetb, zetprja
-    REAL(dp), DIMENSION(:,:), POINTER          :: spa_bb,spa_sb,spa_tmp,ovc,ovs
-    REAL(dp), DIMENSION(:,:,:), POINTER        :: spa_bbt,spa_sbt,spa_tmpt,sdpa_tmp
+    REAL(dp), DIMENSION(:,:), POINTER          :: spa_sb,spa_tmp,ovc,ovs
+    REAL(dp), DIMENSION(:,:,:), POINTER        :: spa_sbt,spa_tmpt,sdpa_tmp
     REAL(dp), DIMENSION(:,:,:,:), POINTER      :: sdpa_tmpt
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE    :: s
 
@@ -161,7 +165,9 @@ CONTAINS
 
     lm = MAX(maxlb, maxlprj)
     lds = ncoset(lm+nder+1)
-    ALLOCATE(s(lds,lds,ncoset(nder+1)))
+    ALLOCATE(s(lds,lds,ncoset(nder+1)),STAT= istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+         "s",lds*ncoset(nder+1)*dp_size)
 
     CALL reallocate(spa_sbt,1,np_car,1,ntotsgfb,0,nthread-1)
     CALL reallocate(spa_tmpt,1,maxnprja*ncoset(maxlprj),1,maxcob*maxder,0,nthread-1)
@@ -311,6 +317,7 @@ CONTAINS
           iset = jset
           n = maxsoa*(iset-1) 
 
+          NULLIFY(local_oce_h,local_oce_s)
           CALL get_paw_proj_set(paw_proj_set=paw_proj_a, &
                                 local_oce_sphi_h=local_oce_h, & 
                                 local_oce_sphi_s=local_oce_s)
@@ -389,7 +396,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "set_up_oce"
 
-    INTEGER                                  :: i, ibc, j, katom, kkind, &
+    INTEGER                                  :: handle, i, ibc, j, katom, kkind, &
                                                 kkneighbor, kneighbor, ndist, nkind, &
                                                 nneighbor
     INTEGER, DIMENSION(3)                    :: cell_c
@@ -409,6 +416,8 @@ CONTAINS
     TYPE(qlist_type), POINTER                :: sac_oce_neighbor
 
 !   ***************************************************************************
+
+    CALL timeset(routine_name,"I"," ",handle)
 
     NULLIFY(atomic_kind_set)
     NULLIFY(sac_oce)
@@ -490,7 +499,7 @@ CONTAINS
 
 !          *** Check whether this block is already done
            add_oce = .FALSE.
-!           IF(oce%block_added(katom,iatom)) THEN
+
            IF(oce%couple(katom,iatom)%block_created) THEN
              dist_done = .FALSE.
              DO i = 1,oce%couple(katom,iatom)%ndist
@@ -499,8 +508,7 @@ CONTAINS
                     ABS(rdist(2)-rac(2))< 1.E-8_dp .AND.&
                     ABS(rdist(3)-rac(3))< 1.E-8_dp ) THEN
                  dist_done = .TRUE.
-!     WRITE(*,'(A,2I3,A,3f12.6,I6,A,3I4,A,3f12.6)') 'DONE k i ', &
-!           katom,iatom,' rac ',rac(1:3),kneighbor,' c ',cell_c(1:3),' rbc ',rbc(1:3)
+
                  GOTO 10
                END IF
              END DO
@@ -558,7 +566,7 @@ CONTAINS
            ENDIF
 !          *** Check whether this block is already done
            add_oce = .FALSE.
-!           IF(oce%block_added(katom,jatom)) THEN
+
            IF(oce%couple(katom,jatom)%block_created) THEN
              dist_done = .FALSE.
              DO i = 1,oce%couple(katom,jatom)%ndist
@@ -567,8 +575,7 @@ CONTAINS
                     ABS(rdist(2)-rbc(2))< 1.E-8_dp .AND.&
                     ABS(rdist(3)-rbc(3))< 1.E-8_dp ) THEN
                  dist_done = .TRUE.
-!     WRITE(*,'(A,2I3,A,3f12.6,I6,A,3I4)') 'DONE k j ', &
-!                         katom,jatom,' rbc ',rbc(1:3),kneighbor,' c ',cell_c(1:3)
+
                  GOTO 20
                END IF
              END DO
@@ -626,6 +633,8 @@ CONTAINS
        ENDDO  knodeloop ! kneighbor
     ENDDO  ! kkind
  
+    CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE set_up_oce
 
 ! *****************************************************************************

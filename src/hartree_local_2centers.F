@@ -25,8 +25,6 @@ MODULE  hartree_local_2centers
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp,dp_size,&
                                              int_size
-  USE hartree_local_types,             ONLY: ecoul_1center_type,&
-                                             get_ecoul_1c
   USE mathconstants,                   ONLY: dfac,fourpi,pi
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_sum
@@ -57,6 +55,9 @@ MODULE  hartree_local_2centers
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_mpole_type
+  USE qs_rho_atom_types,               ONLY: get_rho_atom,&
+                                             rho_atom_coeff,&
+                                             rho_atom_type
   USE qs_util,                         ONLY: trace_r_AxB
   USE simulation_cell,                 ONLY: cell_type,&
                                              pbc
@@ -64,6 +65,7 @@ MODULE  hartree_local_2centers
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop 
+  USE util,                            ONLY: get_limit
 
   IMPLICIT NONE
 
@@ -100,8 +102,6 @@ MODULE  hartree_local_2centers
     TYPE(atomic_kind_type),       POINTER      :: atom_kind
     TYPE(cell_type),              POINTER      :: cell
     TYPE(gto_basis_set_type),     POINTER      :: orb_basis
-    TYPE(ecoul_1center_type), DIMENSION(:), & 
-                                 POINTER       :: ecoul_1c
     TYPE(neighbor_list_set_p_type), &
                          DIMENSION(:), POINTER :: sab_2c
     TYPE(neighbor_list_type),     POINTER      :: sab_2c_neighbor_list,&
@@ -112,43 +112,49 @@ MODULE  hartree_local_2centers
                                      POINTER   :: particle_set
     TYPE(qs_force_type), DIMENSION(:), POINTER :: force
     TYPE(rho0_mpole_type),        POINTER      :: rho0_mpole
+    TYPE(rho_atom_type), DIMENSION(:), &
+                                     POINTER   :: rho_atom_set
+    TYPE(rho_atom_type),       POINTER         :: rho_atom
+    TYPE(rho_atom_coeff), DIMENSION(:), &
+        POINTER                                :: int_local_h,int_local_s
+
     REAL(dp) :: ene_2c, force_a(3), ieqj, ra(3), rab(3), rab2, rb(3),&
                 r0cut_a, r0cut_b,  rpgf0_s_a, rpgf0_s_b, z0_h, z0_s
     REAL(dp), DIMENSION(:),       POINTER      :: ng0_h, ng0_s
     REAL(dp), DIMENSION(:),       POINTER      :: QN_h_a,QN_s_a,&
-                                                  QN_h_b,QN_s_b !,Qlm_tot
+                                                  QN_h_b,QN_s_b 
     REAL(dp), DIMENSION(:),       ALLOCATABLE  :: Isum_a_sph
-    REAL(dp), DIMENSION(:,:),     POINTER      :: aVh2c0b
     REAL(dp), DIMENSION(:,:),     ALLOCATABLE  :: Isum_a_car
     REAL(dp), DIMENSION(:,:,:),   POINTER      :: Qlm_gg
 
-    INTEGER :: ab, handle, i_atom, iat, iatom, ic, ico, idir, ikind, ilist, &
-               inode, is, iso, istat, j_atom, jatom, jkind, l0_a, l0_b, &
-               lmax_0, lshell, lx, ly, lz, maxch0, maxder, maxso, nat, natom, &
-               nch0_sph, nkind, nlist, nnode, nset, nsotot
+    INTEGER :: ab, bo(2), handle, i_atom, iat, iatom, ic, ico, idir, ikind, ilist, &
+               inode, is, iso, ispin, istat, j_atom, jatom, jkind, l0_a, l0_b, &
+               lmax_0, lshell, lx, ly, lz, maxch0, maxder, maxso, mepos, nat, natom, &
+               nch0_sph, nkind, nlist, nnode, nset, nsotot, num_pe
     INTEGER, DIMENSION(:),        POINTER      :: atom_list
     INTEGER, DIMENSION(:),        ALLOCATABLE  :: atom_of_kind
     LOGICAL                                    :: paw_atom, my_tddft
 
 !   ---------------------------------------------------------------------------
 
-    NULLIFY(atomic_kind_set,cell,ecoul_1c)
+    NULLIFY(atomic_kind_set,cell)
     NULLIFY(para_env,particle_set,rho0_mpole)
-    NULLIFY(sab_2c)
+    NULLIFY(rho_atom_set,sab_2c)
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft
 
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
-                    cell=cell,ecoul_1c=ecoul_1c,&
+                    cell=cell,&
                     para_env=para_env,& 
                     particle_set=particle_set,&
                     rho0_mpole=rho0_mpole,&
+                    rho_atom_set=rho_atom_set,&
                     sab_2c=sab_2c)
 
     IF (my_tddft) THEN
        rho0_mpole   => p_env%local_rho_set%rho0_mpole
-       ecoul_1c => p_env%hartree_local%ecoul_1c
+       rho_atom_set => p_env%local_rho_set%rho_atom_set
     END IF
 
     nkind = SIZE(atomic_kind_set,1)
@@ -316,11 +322,17 @@ MODULE  hartree_local_2centers
 
        nch0_sph = nsoset(l0_a)
 
-       DO iat = 1,nat
+!      Distribute the atoms of this kind
+       num_pe = para_env%num_pe
+       mepos  = para_env%mepos
+       bo = get_limit( nat, num_pe, mepos )
+
+       DO iat = bo(1), bo(2) !1,nat
          iatom = atom_list(iat)
 
-         CALL get_ecoul_1c(ecoul_1c=ecoul_1c,iatom=iatom,aVh2c0b=aVh2c0b)
-         aVh2c0b = 0.0_dp
+         rho_atom => rho_atom_set(iatom)
+         CALL get_rho_atom(rho_atom=rho_atom,&
+              ga_Vlocal_gb_h=int_local_h,ga_Vlocal_gb_s=int_local_s)
 
          Isum_a_sph = 0.0_dp
          DO lshell = 0,l0_a
@@ -341,8 +353,17 @@ MODULE  hartree_local_2centers
 
          DO iso = 1,nch0_sph
            DO is = 1,nsotot
-              aVh2c0b(1:nsotot,is) = aVh2c0b(1:nsotot,is) + &
-                            Isum_a_sph(iso)*Qlm_gg(1:nsotot,is,iso)
+
+              DO ispin = 1,qs_env%dft_control%nspins
+                int_local_h(ispin)%r_coef(1:nsotot,is) = &
+                          int_local_h(ispin)%r_coef(1:nsotot,is) + &
+                          Isum_a_sph(iso)*Qlm_gg(1:nsotot,is,iso)
+                            
+                int_local_s(ispin)%r_coef(1:nsotot,is) = &
+                          int_local_s(ispin)%r_coef(1:nsotot,is) + &
+                          Isum_a_sph(iso)*Qlm_gg(1:nsotot,is,iso)
+              END DO
+ 
            END DO
          END DO
 

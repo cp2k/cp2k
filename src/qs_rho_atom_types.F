@@ -65,8 +65,8 @@ MODULE qs_rho_atom_types
     REAL(dp)                            :: exc_h,&
                                            exc_s
     TYPE(rho_atom_coeff),DIMENSION(:),&
-                              POINTER   :: ga_Vxc_gb_h,&
-                                           ga_Vxc_gb_s
+                              POINTER   :: ga_Vlocal_gb_h,&
+                                           ga_Vlocal_gb_s
   END TYPE rho_atom_type
 
 
@@ -121,8 +121,8 @@ MODULE qs_rho_atom_types
       NULLIFY (rho_atom_set(iat)%rho_rad_s_d)
       NULLIFY (rho_atom_set(iat)%vrho_rad_h)
       NULLIFY (rho_atom_set(iat)%vrho_rad_s)
-      NULLIFY (rho_atom_set(iat)%ga_Vxc_gb_h)
-      NULLIFY (rho_atom_set(iat)%ga_Vxc_gb_s)
+      NULLIFY (rho_atom_set(iat)%ga_Vlocal_gb_h)
+      NULLIFY (rho_atom_set(iat)%ga_Vlocal_gb_s)
 
     ENDDO
 
@@ -152,8 +152,8 @@ MODULE qs_rho_atom_types
             DO i = 1,n 
               deallocate(rho_atom_set(iat)%cpc_h(i)%r_coef)
               deallocate(rho_atom_set(iat)%cpc_s(i)%r_coef)
-              deallocate(rho_atom_set(iat)%ga_Vxc_gb_h(i)%r_coef)
-              deallocate(rho_atom_set(iat)%ga_Vxc_gb_s(i)%r_coef)
+              deallocate(rho_atom_set(iat)%ga_Vlocal_gb_h(i)%r_coef)
+              deallocate(rho_atom_set(iat)%ga_Vlocal_gb_s(i)%r_coef)
               DEALLOCATE(rho_atom_set(iat)%drho_rad_h(i)%r_coef)
               DEALLOCATE(rho_atom_set(iat)%drho_rad_s(i)%r_coef)
               DO j = 1,3
@@ -168,8 +168,8 @@ MODULE qs_rho_atom_types
           DEALLOCATE (rho_atom_set(iat)%drho_rad_s)
           DEALLOCATE (rho_atom_set(iat)%rho_rad_h_d)
           DEALLOCATE (rho_atom_set(iat)%rho_rad_s_d)
-          DEALLOCATE (rho_atom_set(iat)%ga_Vxc_gb_h)
-          DEALLOCATE (rho_atom_set(iat)%ga_Vxc_gb_s)
+          DEALLOCATE (rho_atom_set(iat)%ga_Vlocal_gb_h)
+          DEALLOCATE (rho_atom_set(iat)%ga_Vlocal_gb_s)
 
         ENDIF
 
@@ -225,7 +225,8 @@ MODULE qs_rho_atom_types
 
   SUBROUTINE get_rho_atom(rho_atom,cpc_h,cpc_s,rho_rad_h,rho_rad_s,&
                           drho_rad_h,drho_rad_s,vrho_rad_h,vrho_rad_s,&
-                          ga_Vxc_gb_h,ga_Vxc_gb_s,rho_rad_h_d,rho_rad_s_d)
+                          rho_rad_h_d,rho_rad_s_d,&
+                          ga_Vlocal_gb_h,ga_Vlocal_gb_s)
 
     TYPE(rho_atom_type), POINTER        :: rho_atom
     TYPE(rho_atom_coeff), DIMENSION(:), &
@@ -243,8 +244,8 @@ MODULE qs_rho_atom_types
                                            rho_rad_s_d
 
     TYPE(rho_atom_coeff),DIMENSION(:),POINTER, &
-                               OPTIONAL :: ga_Vxc_gb_h,&
-                                           ga_Vxc_gb_s
+                               OPTIONAL :: ga_Vlocal_gb_h,&
+                                           ga_Vlocal_gb_s
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_rho_atom"
 
@@ -262,8 +263,8 @@ MODULE qs_rho_atom_types
       IF (PRESENT(rho_rad_s_d)) rho_rad_s_d => rho_atom%rho_rad_s_d
       IF (PRESENT(vrho_rad_h)) vrho_rad_h => rho_atom%vrho_rad_h
       IF (PRESENT(vrho_rad_s)) vrho_rad_s => rho_atom%vrho_rad_s
-      IF (PRESENT(ga_Vxc_gb_h)) ga_Vxc_gb_h => rho_atom%ga_Vxc_gb_h
-      IF (PRESENT(ga_Vxc_gb_s)) ga_Vxc_gb_s => rho_atom%ga_Vxc_gb_s
+      IF (PRESENT(ga_Vlocal_gb_h)) ga_Vlocal_gb_h => rho_atom%ga_Vlocal_gb_h
+      IF (PRESENT(ga_Vlocal_gb_s)) ga_Vlocal_gb_s => rho_atom%ga_Vlocal_gb_s
     ELSE
       CALL stop_program(routine_name,module_name,__LINE__,&
                         "The pointer rho_atom is not associated")

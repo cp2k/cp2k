@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000-2004  CP2K developers group                                 !
+!   Copyright (C) 2000-2004  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/hartree_local_methods
 !!
@@ -139,12 +139,6 @@ MODULE  hartree_local_methods
         CALL reallocate(ecoul_1c(iatom)%Vh1_h%r_coef,1,nr,1,max_iso_not0)
         CALL reallocate(ecoul_1c(iatom)%Vh1_s%r_coef,1,nr,1,max_iso_not0)
         IF(.NOT. paw_atom) CYCLE
-        CALL reallocate(ecoul_1c(iatom)%aVh1b_h%r_coef,1,nsotot,1,nsotot)
-        CALL reallocate(ecoul_1c(iatom)%aVh1b_s%r_coef,1,nsotot,1,nsotot)
-        CALL reallocate(ecoul_1c(iatom)%aVh1b_0%r_coef,1,nsotot,1,nsotot)
-        CALL reallocate(ecoul_1c(iatom)%aVhsb_0s%r_coef,1,nsotot,1,nsotot)
-        CALL reallocate(ecoul_1c(iatom)%aVh2c0b%r_coef,1,nsotot,1,nsotot)
-        CALL reallocate(ecoul_1c(iatom)%aVh3c0b%r_coef,1,nsotot,1,nsotot)
 
       END DO
     END DO
@@ -287,6 +281,8 @@ MODULE  hartree_local_methods
                                  POINTER       :: vr_h,vr_s
     TYPE(rho_atom_coeff), DIMENSION(:),&
                                       POINTER  :: cpc_h, cpc_s
+    TYPE(rho_atom_coeff), DIMENSION(:),&
+                                      POINTER  :: int_local_h,int_local_s
     REAL(dp)                                   :: ec_tmp,es_tmp,&
                                                   e_1_h,e_1_s,&
                                                   gVg_h, gVg_s,&
@@ -301,8 +297,8 @@ MODULE  hartree_local_methods
     REAL(dp), DIMENSION(:,:), POINTER          :: gsph
     REAL(dp), DIMENSION(:,:),    POINTER       :: Vh1_h, Vh1_s
     REAL(dp), DIMENSION(:,:),    POINTER       :: rrad_0, vrrad_0
-    REAL(dp), DIMENSION(:,:),    POINTER       :: aVh1b_h, aVh1b_s,&
-                                                  aVh1b_0
+    REAL(dp), DIMENSION(:,:),  ALLOCATABLE     :: aVh1b_hh, aVh1b_ss,&
+                                                  aVh1b_00
     REAL(dp), DIMENSION(:,:), POINTER          :: zet
     REAL(dp), DIMENSION(:,:), POINTER          :: g0_h
     REAL(dp), DIMENSION(:,:,:),  POINTER       :: Qlm_gg
@@ -385,6 +381,12 @@ MODULE  hartree_local_methods
       nsotot = maxso*nset
       CALL reallocate(gsph,1,max_nr,1,nsotot)
 
+      ALLOCATE(aVh1b_hh(nsotot,nsotot),STAT=istat)
+      ALLOCATE(aVh1b_ss(nsotot,nsotot),STAT=istat)
+      ALLOCATE(aVh1b_00(nsotot,nsotot),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+         "aVh1b_hh,aVh1b_ss,aVh1b_00",3*nsotot*nsotot)
+
       NULLIFY(Qlm_gg,g0_h)
       CALL get_rho0_mpole(rho0_mpole=rho0_mpole, ikind=ikind, &
                            l0_ikind=lmax0, &
@@ -429,9 +431,6 @@ MODULE  hartree_local_methods
         iatom = atom_list(iat)
         ecoul_1c(iatom)%Vh1_h%r_coef = 0.0_dp
         ecoul_1c(iatom)%Vh1_s%r_coef = 0.0_dp
-        ecoul_1c(iatom)%aVh1b_h%r_coef = 0.0_dp
-        ecoul_1c(iatom)%aVh1b_s%r_coef = 0.0_dp
-        ecoul_1c(iatom)%aVh1b_0%r_coef = 0.0_dp
       END DO
 
 !     Distribute the atoms of this kind
@@ -443,11 +442,14 @@ MODULE  hartree_local_methods
         iatom = atom_list(iat)
 
         NULLIFY(rho_atom,r_h,r_s,vr_h,vr_s,cpc_h,cpc_s)
+        NULLIFY(int_local_h,int_local_s)
         rho_atom => rho_atom_set(iatom)
         CALL get_rho_atom(rho_atom=rho_atom,&
-                   rho_rad_h=r_h,rho_rad_s=r_s,&
-               vrho_rad_h=vr_h,vrho_rad_s=vr_s,&
-                        cpc_h=cpc_h,cpc_s=cpc_s)
+                          rho_rad_h=r_h,rho_rad_s=r_s,&
+                          vrho_rad_h=vr_h,vrho_rad_s=vr_s,&
+                          cpc_h=cpc_h,cpc_s=cpc_s,&
+                          ga_Vlocal_gb_h=int_local_h,&
+                          ga_Vlocal_gb_s=int_local_s)
 
         NULLIFY(Vh1_h,Vh1_s,rrad_0)
         CALL  get_ecoul_1c(ecoul_1c,iatom=iatom,Vh1_h=Vh1_h,Vh1_s=Vh1_s)
@@ -503,9 +505,9 @@ MODULE  hartree_local_methods
         IF(.NOT. paw_atom) CYCLE
 
 !       Calculate the integrals of the potential with 2 primitives
-        NULLIFY(aVh1b_h,aVh1b_s,aVh1b_0)
-        CALL  get_ecoul_1c(ecoul_1c,iatom=iatom,&
-                           aVh1b_h=aVh1b_h,aVh1b_s=aVh1b_s,aVh1b_0=aVh1b_0)
+        aVh1b_hh = 0.0_dp
+        aVh1b_ss = 0.0_dp
+        aVh1b_00 = 0.0_dp
 
         m1 = 0
         DO iset1 = 1,nset
@@ -535,11 +537,11 @@ MODULE  hartree_local_methods
                        gVg_0 = gVg_0 + Vh1_s(ir,iso)*g0_h_w(ir,l_ang)
                     END DO  ! ir
 
-                    aVh1b_h(iso1,iso2) = aVh1b_h(iso1,iso2) + &
+                    aVh1b_hh(iso1,iso2) = aVh1b_hh(iso1,iso2) + &
                                          gVg_h*my_CG(is1,is2,iso)
-                    aVh1b_s(iso1,iso2) = aVh1b_s(iso1,iso2) + &
+                    aVh1b_ss(iso1,iso2) = aVh1b_ss(iso1,iso2) + &
                                          gVg_s*my_CG(is1,is2,iso)
-                    aVh1b_0(iso1,iso2) = aVh1b_0(iso1,iso2) + &
+                    aVh1b_00(iso1,iso2) = aVh1b_00(iso1,iso2) + &
                                          Qlm_gg(iso1,iso2,iso)*gVg_0
 
                   END DO  !icg
@@ -561,9 +563,9 @@ MODULE  hartree_local_methods
                                        Vh1_s(ir,iso)
                     END DO  ! ir
 
-                    aVh1b_h(iso1,iso2) = aVh1b_h(iso1,iso2) + &
+                    aVh1b_hh(iso1,iso2) = aVh1b_hh(iso1,iso2) + &
                                          gVg_h*my_CG(is1,is2,iso)
-                    aVh1b_s(iso1,iso2) = aVh1b_s(iso1,iso2) + &
+                    aVh1b_ss(iso1,iso2) = aVh1b_ss(iso1,iso2) + &
                                          gVg_s*my_CG(is1,is2,iso)
 
                   END DO  !icg
@@ -595,15 +597,17 @@ MODULE  hartree_local_methods
         ecoul_1_h = 0.0_dp
         ecoul_1_s = 0.0_dp
         DO ispin = 1,nspins
-           ecoul_1_h  =  ecoul_1_h + &
-                      trace_r_AxB(aVh1b_h,nsotot,&
-                          cpc_h(ispin)%r_coef,nsotot,&
-                          nsotot,nsotot) 
+           ecoul_1_h  = ecoul_1_h + trace_r_AxB(aVh1b_hh,nsotot,&
+                         cpc_h(ispin)%r_coef,nsotot, nsotot,nsotot) 
 
-           ecoul_1_s  =  ecoul_1_s + &
-                      trace_r_AxB(aVh1b_s,nsotot,&
-                          cpc_s(ispin)%r_coef,nsotot,&
-                          nsotot,nsotot) 
+           ecoul_1_s  =  ecoul_1_s + trace_r_AxB(aVh1b_ss,nsotot,&
+                         cpc_s(ispin)%r_coef,nsotot, nsotot,nsotot) 
+
+           CALL daxpy(nsotot*nsotot,1.0_dp,aVh1b_hh,1,int_local_h(ispin)%r_coef,1)
+           CALL daxpy(nsotot*nsotot,1.0_dp,aVh1b_ss,1,int_local_s(ispin)%r_coef,1)
+           CALL daxpy(nsotot*nsotot,-1.0_dp,aVh1b_00,1,int_local_h(ispin)%r_coef,1)
+           CALL daxpy(nsotot*nsotot,-1.0_dp,aVh1b_00,1,int_local_s(ispin)%r_coef,1)
+
         END DO  ! ispin
 
         ecoul_1_h = 0.5_dp*ecoul_1_h
@@ -617,14 +621,13 @@ MODULE  hartree_local_methods
 
       END DO  ! iat
 
+      DEALLOCATE(aVh1b_hh,STAT=istat)
+      DEALLOCATE(aVh1b_ss,STAT=istat)
+      DEALLOCATE(aVh1b_00,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+            "aVh1b_hh,aVh1b_ss,aVh1b_00")
     END DO  ! ikind 
 
-    nat = SIZE(ecoul_1c,1)
-    DO iatom = 1,nat
-      CALL mp_sum(ecoul_1c(iatom)%aVh1b_h%r_coef,para_env%group)
-      CALL mp_sum(ecoul_1c(iatom)%aVh1b_s%r_coef,para_env%group)
-      CALL mp_sum(ecoul_1c(iatom)%aVh1b_0%r_coef,para_env%group)
-    END DO
     CALL mp_sum(energy_hartree_1c,para_env%group)
 
     DEALLOCATE(gexp,gsph,g0_h_w,sqrtwr,STAT=istat)

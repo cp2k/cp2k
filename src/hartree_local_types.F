@@ -47,9 +47,6 @@ MODULE hartree_local_types
 
   TYPE ecoul_1center_type
     TYPE(rho_atom_coeff), POINTER   :: Vh1_h, Vh1_s
-    TYPE(rho_atom_coeff), POINTER   :: aVh1b_h, aVh1b_s, &
-                                       aVh1b_0, aVhsb_0s,&
-                                       aVh2c0b,aVh3c0b
     REAL(dp)                        :: ecoul_1_h, ecoul_1_s, &
                                        ecoul_1_z, ecoul_1_0
   END TYPE ecoul_1center_type
@@ -101,19 +98,6 @@ MODULE hartree_local_types
       NULLIFY(ecoul_1c(iat)%Vh1_h%r_coef)
       ALLOCATE(ecoul_1c(iat)%Vh1_s)
       NULLIFY(ecoul_1c(iat)%Vh1_s%r_coef)
-      ALLOCATE(ecoul_1c(iat)%aVh1b_h)
-      NULLIFY(ecoul_1c(iat)%aVh1b_h%r_coef)
-      ALLOCATE(ecoul_1c(iat)%aVh1b_s)
-      NULLIFY(ecoul_1c(iat)%aVh1b_s%r_coef)
-      ALLOCATE(ecoul_1c(iat)%aVh1b_0)
-      NULLIFY(ecoul_1c(iat)%aVh1b_0%r_coef)
-      ALLOCATE(ecoul_1c(iat)%aVhsb_0s)
-      NULLIFY(ecoul_1c(iat)%aVhsb_0s%r_coef)
-      ALLOCATE(ecoul_1c(iat)%aVh2c0b)
-      NULLIFY(ecoul_1c(iat)%aVh2c0b%r_coef)
-      ALLOCATE(ecoul_1c(iat)%aVh3c0b)
-      NULLIFY(ecoul_1c(iat)%aVh3c0b%r_coef)
-
     END DO
 
   END SUBROUTINE allocate_ecoul_1center
@@ -143,34 +127,6 @@ MODULE hartree_local_types
                        "ecoul_1c%Vh1_s%r_coef")
       NULLIFY(ecoul_1c(iat)%Vh1_s)
 
-      IF(ASSOCIATED(ecoul_1c(iat)%aVh1b_h%r_coef)) THEN
-        DEALLOCATE(ecoul_1c(iat)%aVh1b_h%r_coef,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                       "ecoul_1c%aVh1b_h%r_coef")
-        DEALLOCATE(ecoul_1c(iat)%aVh1b_s%r_coef,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                       "ecoul_1c%aVh1b_s%r_coef")
-        DEALLOCATE(ecoul_1c(iat)%aVh1b_0%r_coef,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                       "ecoul_1c%aVh1b_0%r_coef")
-        DEALLOCATE(ecoul_1c(iat)%aVhsb_0s%r_coef,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                       "ecoul_1c%aVhsb_0s%r_coef")
-        DEALLOCATE(ecoul_1c(iat)%aVh2c0b%r_coef,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                       "ecoul_1c%aVh2c0b%r_coef")
-        DEALLOCATE(ecoul_1c(iat)%aVh3c0b%r_coef,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                       "ecoul_1c%aVh3c0b%r_coef")
-      END IF
-
-      NULLIFY(ecoul_1c(iat)%aVh1b_h)
-      NULLIFY(ecoul_1c(iat)%aVh1b_s)
-      NULLIFY(ecoul_1c(iat)%aVh1b_0)
-      NULLIFY(ecoul_1c(iat)%aVhsb_0s)
-      NULLIFY(ecoul_1c(iat)%aVh2c0b)
-      NULLIFY(ecoul_1c(iat)%aVh3c0b)
-
     END DO
 
     DEALLOCATE(ecoul_1c, STAT=istat)
@@ -181,15 +137,11 @@ MODULE hartree_local_types
 
 ! *****************************************************************************
 
-  SUBROUTINE get_ecoul_1c(ecoul_1c,iatom,Vh1_h,Vh1_s,aVh1b_h,aVh1b_s,&
-                          aVh1b_0,aVhsb_0s,aVh2c0b,aVh3c0b)
+  SUBROUTINE get_ecoul_1c(ecoul_1c,iatom,Vh1_h,Vh1_s)
 
     TYPE(ecoul_1center_type), DIMENSION(:),&
                               INTENT(IN), TARGET  ::  ecoul_1c
     REAL(dp), DIMENSION(:,:), OPTIONAL, POINTER   :: Vh1_h, Vh1_s
-    REAL(dp), DIMENSION(:,:), OPTIONAL, POINTER   :: aVh1b_h, aVh1b_s, &
-                                                     aVh1b_0, aVhsb_0s,&
-                                                     aVh2c0b, aVh3c0b
     INTEGER, INTENT(IN), OPTIONAL                 :: iatom
 
 !   ---------------------------------------------------------------------------
@@ -197,12 +149,6 @@ MODULE hartree_local_types
     IF(PRESENT(iatom)) THEN
       IF(PRESENT(Vh1_h)) Vh1_h => ecoul_1c(iatom)%Vh1_h%r_coef
       IF(PRESENT(Vh1_s)) Vh1_s => ecoul_1c(iatom)%Vh1_s%r_coef
-      IF(PRESENT(aVh1b_h)) aVh1b_h => ecoul_1c(iatom)%aVh1b_h%r_coef
-      IF(PRESENT(aVh1b_s)) aVh1b_s => ecoul_1c(iatom)%aVh1b_s%r_coef
-      IF(PRESENT(aVh1b_0)) aVh1b_0 => ecoul_1c(iatom)%aVh1b_0%r_coef
-      IF(PRESENT(aVhsb_0s)) aVhsb_0s => ecoul_1c(iatom)%aVhsb_0s%r_coef
-      IF(PRESENT(aVh2c0b)) aVh2c0b => ecoul_1c(iatom)%aVh2c0b%r_coef
-      IF(PRESENT(aVh3c0b)) aVh3c0b => ecoul_1c(iatom)%aVh3c0b%r_coef
     END IF
     
   END SUBROUTINE get_ecoul_1c

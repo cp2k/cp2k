@@ -146,17 +146,18 @@ CONTAINS
     INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, maxatom, &
       maxatom_local, natom_a, natom_local_a, natom_local_b, nkind, &
       output_unit, imol
-    LOGICAL                                  :: gth_potential_present, &
+    LOGICAL                                  :: all_potential_present,&
+                                                gth_potential_present, &
                                                 print_subcell_grid,&
                                                 paw_atom_present,paw_atom,&
                                                 rho0_present
-    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_present, ppl_present, &
-                                                ppnl_present,oce_present,&
-                                                Qlm_present
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: all_present, orb_present,&
+                                                oce_present, ppl_present, &
+                                                ppnl_present, Qlm_present
     REAL(dp)                                 :: r_skin,rcprj
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orb_radius, ppl_radius, &
-                                                ppnl_radius, oce_radius,&
-                                                V0hmv0s_radius
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orb_rad_3c, orb_radius, &
+                                                oce_radius, ppl_radius, &
+                                                ppnl_radius, V0hmv0s_radius
     REAL(dp), DIMENSION(3)                   :: r_pbc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -210,6 +211,8 @@ CONTAINS
     NULLIFY (sab_2c)
     NULLIFY (sac_3c)
     NULLIFY (sbc_3c)
+!    NULLIFY (sac_all)
+!    NULLIFY (sbc_all)
 
     output_unit = globenv%scr
 
@@ -245,12 +248,15 @@ CONTAINS
                     sab_2c=sab_2c,&
                     sac_3c=sac_3c,&
                     sbc_3c=sbc_3c)
+!                    sac_all=sac_all,&
+!                    sbc_all=sbc_all)
 
     rho0_present=ASSOCIATED(rho0_mpole)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              gth_potential_present=gth_potential_present,&
                              paw_atom_present=paw_atom_present,&
+                             all_potential_present=all_potential_present,&
                              maxatom=maxatom)
 
 !   *** Allocate work storage ***
@@ -317,6 +323,12 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                        "V0hmV0s_radius",nkind*dp_size)
       V0hmV0s_radius = 0.0_dp
+
+      ALLOCATE (orb_rad_3c(nkind),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "orb_rad_3c",nkind*dp_size)
+      orb_rad_3c = 0.0_dp
+
     END IF
 
 !   *** Initialize the local data structures ***
@@ -337,6 +349,7 @@ CONTAINS
 
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            atom_list=atom(ikind)%list,&
+!                           all_potential=all_potential,&
                            gth_potential=gth_potential,&
                            orb_basis_set=orb_basis_set,&
                            paw_proj_set=paw_proj,&
@@ -490,8 +503,10 @@ CONTAINS
         IF(ABS(rhoz_set(ikind)%one_atom) > 1.E-8_dp) THEN
           Qlm_present(ikind) = .TRUE.
           CALL get_rho0_mpole(rho0_mpole=rho0_mpole, ikind=ikind,&
-                              r_V0hmV0s=V0hmV0s_radius(ikind))
+                              rpgf0_s=V0hmV0s_radius(ikind))
+!                              r_V0hmV0s=V0hmV0s_radius(ikind))
         END IF
+        orb_rad_3c(ikind) = rho0_mpole%orb_radius_3c(ikind)
       END IF
 
     END DO
@@ -607,10 +622,11 @@ CONTAINS
       END IF
 
       name = " ORBITAL GTH-3C VH" 
+
       CALL build_gth_ppnl_neighbor_lists(sac_3c,sbc_3c,atom,cell,r_skin,&
                                maxatom,maxatom_local,print_subcell_grid,&
                                output_unit,orb_present,Qlm_present,&
-                               orb_radius,V0hmV0s_radius,name)
+                               orb_rad_3c,V0hmV0s_radius,name)
 
 !     *** Put the generated neighbor lists into the QS environment ***
 
@@ -621,7 +637,7 @@ CONTAINS
                              "ORBITAL(A) 3-CENTERS-VH NEIGHBOR LISTS")
       END IF
       IF (globenv%print%sbc_oce_neighbor_lists) THEN
-         CALL write_neighbor_lists(sbc_3c,particle_set,cell,globenv,&
+        CALL write_neighbor_lists(sbc_3c,particle_set,cell,globenv,&
                              "ORBITAL(B) 3-CENTERS-VH NEIGHBOR LISTS")
       END IF
 
@@ -713,6 +729,9 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                        "V0hmV0s_radius")
 
+      DEALLOCATE(orb_rad_3c,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "hard_radius")
     ENDIF
 
     CALL timestop(0.0_dp,handle)

@@ -138,7 +138,7 @@ SUBROUTINE pw_env_create(pw_env,qs_env,error)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      NULLIFY(pw_env%pw_pools, pw_env%gridlevel_info,&
-          pw_env%l_info, pw_env%cube_info, pw_env%rs_pools)
+          pw_env%l_info, pw_env%l_info_rho0, pw_env%cube_info, pw_env%rs_pools)
      pw_env%auxbas_grid=-1
      pw_env%ref_count=1
      IF (PRESENT(qs_env)) CALL pw_env_rebuild(pw_env,qs_env=qs_env,error=error)

@@ -56,6 +56,7 @@ MODULE qs_rho_atom_methods
                                              qlist_type
   USE qs_oce_types,                    ONLY: oce_matrix_type
   USE qs_rho_atom_types,               ONLY: allocate_rho_atom_set,&
+                                             rho_atom_coeff,&
                                              rho_atom_type
   USE qs_util,                         ONLY: symmetric_add
   USE sparse_matrix_types,             ONLY: get_block_node,&
@@ -399,13 +400,12 @@ MODULE qs_rho_atom_methods
     INTEGER, DIMENSION(:), POINTER           :: a_list
     LOGICAL                                  :: new_atom_b, new_atom_c, paw_atom
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: C_coeff_h_a, C_coeff_h_b, &
-                                                C_coeff_s_a, C_coeff_s_b, PC
+      DIMENSION(:, :)                        :: PC
+    REAL(KIND=dp), POINTER, DIMENSION(:, :)  :: C_coeff_hh_a, C_coeff_hh_b, &
+                                                C_coeff_ss_a, C_coeff_ss_b
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: coef_aux_h, coef_aux_s, &
-                                                p_coeff
+      DIMENSION(:, :, :)                     :: coef_aux_h, coef_aux_s
     REAL(KIND=dp), DIMENSION(3)              :: rab, rbc
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: c_block, p_block, p_blockt
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -422,6 +422,8 @@ MODULE qs_rho_atom_methods
     TYPE(qlist_type), DIMENSION(:, :, :), &
       POINTER                                :: tmp_neigh
     TYPE(qlist_type), POINTER                :: sac_oce_neighbor
+    TYPE(rho_atom_coeff), DIMENSION(:), &
+      POINTER                                :: p_block_spin
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
 
@@ -436,7 +438,6 @@ MODULE qs_rho_atom_methods
     NULLIFY(sbc_oce)
     NULLIFY(rho_atom)
     NULLIFY(orb_basis_set)
-    NULLIFY(c_block,p_block)
 
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -452,22 +453,22 @@ MODULE qs_rho_atom_methods
 
     nspins=dft_control%nspins
 
+    ALLOCATE(p_block_spin(nspins),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                         "p_block_spin")
+    DO ispin = 1,nspins
+      NULLIFY(p_block_spin(ispin)%r_coef)
+    END DO
+
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxsgf=max_nsgf,&
                              maxgtops=max_gau,natom=natom)
 
-    ALLOCATE (C_coeff_h_a(max_gau,max_nsgf),STAT=istat)
-    ALLOCATE (C_coeff_s_a(max_gau,max_nsgf),STAT=istat)
-    ALLOCATE (C_coeff_h_b(max_gau,max_nsgf),STAT=istat)
-    ALLOCATE (C_coeff_s_b(max_gau,max_nsgf),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-         "C_coeff_h_a,C_coeff_s_a,C_coeff_h_b,C_coeff_s_b",2*max_gau*max_nsgf*dp_size)
-    ALLOCATE (p_coeff(max_nsgf,max_nsgf,nspins),STAT=istat)
     ALLOCATE (PC(max_nsgf,max_gau),STAT=istat)
     ALLOCATE (coef_aux_h(max_gau,max_gau,nspins),STAT=istat)
     ALLOCATE (coef_aux_s(max_gau,max_gau,nspins),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-         "p_coeff,PC,coef_aux_h,coef_aux_s",3*nspins*max_gau*max_gau*dp_size)
+         "PC,coef_aux_h,coef_aux_s",3*nspins*max_gau*max_gau*dp_size)
 
     nkind = SIZE(atomic_kind_set)
 !   Inizialize to 0 the CPC coefficients and the local density arrays
@@ -492,6 +493,8 @@ MODULE qs_rho_atom_methods
           END DO
           rho_atom(iatom)%vrho_rad_h(ispin)%r_coef = 0.0_dp
           rho_atom(iatom)%vrho_rad_s(ispin)%r_coef = 0.0_dp
+          rho_atom(iatom)%ga_Vlocal_gb_h(ispin)%r_coef = 0.0_dp
+          rho_atom(iatom)%ga_Vlocal_gb_s(ispin)%r_coef = 0.0_dp
         ENDDO  ! ispin
       ENDDO  ! i
     END DO ! ikind
@@ -560,27 +563,24 @@ MODULE qs_rho_atom_methods
             IF (iatom <= jatom) THEN
                irow = iatom
                icol = jatom
+
                DO ispin = 1,nspins
-                  NULLIFY(p_block)
+                  NULLIFY(p_block_spin(ispin)%r_coef)
                   CALL get_block_node(matrix=rho_ao(ispin)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
-                                    BLOCK=p_block)
-                  p_coeff(1:nsgfa,1:nsgfb,ispin) = p_block(1:nsgfa,1:nsgfb)
+                                    BLOCK=p_block_spin(ispin)%r_coef)
                ENDDO
 
             ELSE
                irow = jatom
                icol = iatom
                DO ispin = 1,nspins
-                  NULLIFY(p_blockt)
-                  NULLIFY(p_block)
+                  NULLIFY(p_block_spin(ispin)%r_coef)
                   CALL get_block_node(matrix=rho_ao(ispin)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
-                                    BLOCK=p_blockt)
-
-                  p_coeff(1:nsgfb,1:nsgfa,ispin)= p_blockt(1:nsgfb,1:nsgfa)
+                                    BLOCK=p_block_spin(ispin)%r_coef)
 
                ENDDO
             ENDIF
@@ -662,79 +662,76 @@ MODULE qs_rho_atom_methods
                    CYCLE
                 END IF
 
-                NULLIFY(c_block)
+                NULLIFY(C_coeff_hh_a)
                 CALL get_block_node(matrix=oce%hardo(1)%matrix,&
                                     block_row=katom,&
                                     block_col=iatom,&
-                                    BLOCK=c_block)
-                C_coeff_h_a = 0.0_dp
-                C_coeff_h_a(1:nsoctot,1:nsgfa)=c_block(1:nsoctot,1:nsgfa)
+                                    BLOCK=C_coeff_hh_a)
 
-                NULLIFY(c_block)
+                NULLIFY(C_coeff_ss_a)
                 CALL get_block_node(matrix=oce%softo(1)%matrix,&
                                     block_row=katom,&
                                     block_col=iatom,&
-                                    BLOCK=c_block)
-                C_coeff_s_a = 0.0_dp
-                C_coeff_s_a(1:nsoctot,1:nsgfa)=c_block(1:nsoctot,1:nsgfa)
+                                    BLOCK=C_coeff_ss_a)
 
                 IF(iatom == jatom) THEN
 
                    DO ispin = 1,nspins
-                     CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,1.0_dp,p_coeff(1,1,ispin),&
-                                SIZE(p_coeff,1),C_coeff_h_a,SIZE(C_coeff_h_a,1),&
+                     CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,1.0_dp,&
+                                p_block_spin(ispin)%r_coef,&
+                                SIZE(p_block_spin(ispin)%r_coef,1),&
+                                C_coeff_hh_a,SIZE(C_coeff_hh_a,1),&
                                 0.0_dp,PC,max_nsgf)
 
-                     CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,1.0_dp,C_coeff_h_a,&
-                                max_gau,PC,max_nsgf,1.0_dp,&
+                     CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,1.0_dp,C_coeff_hh_a,&
+                                SIZE(C_coeff_hh_a,1),PC,max_nsgf,1.0_dp,&
                                 rho_atom(katom)%cpc_h(ispin)%r_coef,nsoctot)
 
-                     CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,1.0_dp,p_coeff(1,1,ispin),&
-                                SIZE(p_coeff,1),C_coeff_s_a,SIZE(C_coeff_s_a,1),&
+                     CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,1.0_dp,&
+                                p_block_spin(ispin)%r_coef,&
+                                SIZE(p_block_spin(ispin)%r_coef,1),&
+                                C_coeff_ss_a,SIZE(C_coeff_ss_a,1),&
                                 0.0_dp,PC,max_nsgf)
 
-                     CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,1.0_dp,C_coeff_s_a,&
-                                max_gau,PC,max_nsgf,1.0_dp,&
+                     CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,1.0_dp,C_coeff_ss_a,&
+                                SIZE(C_coeff_ss_a,1),PC,max_nsgf,1.0_dp,&
                                 rho_atom(katom)%cpc_s(ispin)%r_coef,nsoctot)
                    END DO
 
                 ELSEIF(iatom < jatom) THEN
-                   NULLIFY(c_block)
+                   NULLIFY(C_coeff_hh_b)
                    CALL get_block_node(matrix=oce%hardo(1)%matrix,&
                                     block_row=katom,&
                                     block_col=jatom,&
-                                    BLOCK=c_block)
-                   C_coeff_h_b = 0.0_dp
-                   C_coeff_h_b(1:nsoctot,1:nsgfb)=c_block(1:nsoctot,1:nsgfb)
+                                    BLOCK=C_coeff_hh_b)
 
-                   NULLIFY(c_block)
+                   NULLIFY(C_coeff_ss_b)
                    CALL get_block_node(matrix=oce%softo(1)%matrix,&
                                     block_row=katom,&
                                     block_col=jatom,&
-                                    BLOCK=c_block)
-                   C_coeff_s_b = 0.0_dp
-                   C_coeff_s_b(1:nsoctot,1:nsgfb)=c_block(1:nsoctot,1:nsgfb)
-
+                                    BLOCK=C_coeff_ss_b)
 
                    DO ispin = 1,nspins
-                      CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,&
-                                 1.0_dp,p_coeff(1,1,ispin),SIZE(p_coeff,1),&
-                                 C_coeff_h_b,SIZE(C_coeff_h_b,1),&
+                      CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,1.0_dp,&
+                                 p_block_spin(ispin)%r_coef,&
+                                 SIZE(p_block_spin(ispin)%r_coef,1),&
+                                 C_coeff_hh_b,SIZE(C_coeff_hh_b,1),&
                                  0.0_dp,PC,max_nsgf)
 
 
                       CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,&
-                                 1.0_dp,C_coeff_h_a,max_gau,&
+                                 1.0_dp,C_coeff_hh_a,SIZE(C_coeff_hh_a,1),&
                                  PC,max_nsgf,0.0_dp,&
                                  coef_aux_h(1,1,ispin),max_gau)
 
                       CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,1.0_dp,&
-                                 p_coeff(1,1,ispin),SIZE(p_coeff,1),&
-                                 C_coeff_s_b,SIZE(C_coeff_h_b,1),&
+                                 p_block_spin(ispin)%r_coef,&
+                                 SIZE(p_block_spin(ispin)%r_coef,1),&
+                                 C_coeff_ss_b,SIZE(C_coeff_ss_b,1),&
                                  0.0_dp,PC,max_nsgf)
 
                       CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,1.0_dp,&
-                                 C_coeff_s_a,max_gau,PC,&
+                                 C_coeff_ss_a,SIZE(C_coeff_ss_a,1),PC,&
                                  max_nsgf,0.0_dp,&
                                  coef_aux_s(1,1,ispin),max_gau)
 
@@ -745,42 +742,39 @@ MODULE qs_rho_atom_methods
                    END DO
 
                 ELSEIF(iatom > jatom) THEN
-                   NULLIFY(c_block)
+                   NULLIFY(C_coeff_hh_b)
                    CALL get_block_node(matrix=oce%hardo(1)%matrix,&
                                     block_row=katom,&
                                     block_col=jatom,&
-                                    BLOCK=c_block)
-                   C_coeff_h_b = 0.0_dp
-                   C_coeff_h_b(1:nsoctot,1:nsgfb)=c_block(1:nsoctot,1:nsgfb)
+                                    BLOCK=C_coeff_hh_b)
 
-                   NULLIFY(c_block)
+                   NULLIFY(C_coeff_ss_b)
                    CALL get_block_node(matrix=oce%softo(1)%matrix,&
                                     block_row=katom,&
                                     block_col=jatom,&
-                                    BLOCK=c_block)
-                   C_coeff_s_b = 0.0_dp
-                   C_coeff_s_b(1:nsoctot,1:nsgfb)=c_block(1:nsoctot,1:nsgfb)
-
+                                    BLOCK=C_coeff_ss_b)
 
                    DO ispin = 1,nspins
-                      CALL dgemm('N','T',nsgfb,nsoctot,nsgfa,&
-                                 1.0_dp,p_coeff(1,1,ispin),SIZE(p_coeff,1),&
-                                 C_coeff_h_a,SIZE(C_coeff_h_a,1),&
+                      CALL dgemm('N','T',nsgfb,nsoctot,nsgfa,1.0_dp,&
+                                 p_block_spin(ispin)%r_coef,&
+                                 SIZE(p_block_spin(ispin)%r_coef,1),&
+                                 C_coeff_hh_a,SIZE(C_coeff_hh_a,1),&
                                  0.0_dp,PC,max_nsgf)
 
 
                       CALL dgemm('N','N',nsoctot,nsoctot,nsgfb,&
-                                 1.0_dp,C_coeff_h_b,max_gau,&
+                                 1.0_dp,C_coeff_hh_b,SIZE(C_coeff_hh_b,1),&
                                  PC,max_nsgf,0.0_dp,&
                                  coef_aux_h(1,1,ispin),max_gau)
 
                       CALL dgemm('N','T',nsgfb,nsoctot,nsgfa,1.0_dp,&
-                                 p_coeff(1,1,ispin),SIZE(p_coeff,1),&
-                                 C_coeff_s_a,SIZE(C_coeff_h_a,1),&
+                                 p_block_spin(ispin)%r_coef,&
+                                 SIZE(p_block_spin(ispin)%r_coef,1),&
+                                 C_coeff_ss_a,SIZE(C_coeff_ss_a,1),&
                                  0.0_dp,PC,max_nsgf)
 
                       CALL dgemm('N','N',nsoctot,nsoctot,nsgfb,1.0_dp,&
-                                 C_coeff_s_b,max_gau,PC,&
+                                 C_coeff_ss_b,SIZE(C_coeff_ss_b,1),PC,&
                                  max_nsgf,0.0_dp,&
                                  coef_aux_s(1,1,ispin),max_gau)
 
@@ -809,13 +803,9 @@ MODULE qs_rho_atom_methods
 
     END DO
 
-
-    DEALLOCATE (C_coeff_h_a,C_coeff_s_a,C_coeff_h_b,C_coeff_s_b,STAT=istat)
+    DEALLOCATE (PC,coef_aux_h,coef_aux_s,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-        "C_coeff_h_a,C_coeff_s_a,C_coeff_h_b,C_coeff_s_b")
-    DEALLOCATE (p_coeff,PC,coef_aux_h,coef_aux_s,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-        "p_coeff,PC,coef_aux_h,coef_aux_s")
+        "PC,coef_aux_h,coef_aux_s")
 
    CALL timestop(0.0_dp,handle)
 
@@ -980,7 +970,7 @@ MODULE qs_rho_atom_methods
         END IF
 
         grid_atom%sin_theta(ia) = SIN( grid_atom%theta(ia) ) 
-        IF(abs(grid_atom%sin_theta(ia)) > 1.E-8_dp) THEN
+        IF(abs(grid_atom%sin_theta(ia)) > EPSILON(1.0_dp)) THEN
           grid_atom%usin_theta(ia)  = 1.0_dp/grid_atom%sin_theta(ia)
         ELSE
           grid_atom%usin_theta(ia) = 1.0_dp
@@ -1100,11 +1090,13 @@ MODULE qs_rho_atom_methods
           ALLOCATE (rho_atom_set(iatom)%drho_rad_s(nspins),STAT=istat)
           ALLOCATE (rho_atom_set(iatom)%rho_rad_h_d(3,nspins),STAT=istat)
           ALLOCATE (rho_atom_set(iatom)%rho_rad_s_d(3,nspins),STAT=istat)
-
-          ALLOCATE (rho_atom_set(iatom)%ga_Vxc_gb_h(nspins),STAT=istat)
-          ALLOCATE (rho_atom_set(iatom)%ga_Vxc_gb_s(nspins),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-              "cpc_h,cpc_s,drho_rad_h,drho_rad_s,rho_rad_h_d,rho_rad_s_d,ga_Vxc_gb_h,ga_Vxc_gb_s")
+              "cpc_h,cpc_s,drho_rad_h,drho_rad_s,rho_rad_h_d,rho_rad_s_d")
+
+          ALLOCATE (rho_atom_set(iatom)%ga_Vlocal_gb_h(nspins),STAT=istat)
+          ALLOCATE (rho_atom_set(iatom)%ga_Vlocal_gb_s(nspins),STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+              "ga_Vlocal_gb_h,ga_Vlocal_gb_s")
 
           IF( paw_atom) THEN 
              DO ispin = 1,nspins
@@ -1130,19 +1122,18 @@ MODULE qs_rho_atom_methods
                    ALLOCATE(rho_atom_set(iatom)%rho_rad_s_d(j,ispin)%r_coef(nr,max_iso_not0),STAT=istat)
                 END DO
 
-                NULLIFY(rho_atom_set(iatom)%ga_Vxc_gb_h(ispin)%r_coef)
-                CALL reallocate(rho_atom_set(iatom)%ga_Vxc_gb_h(ispin)%r_coef,&
+                NULLIFY(rho_atom_set(iatom)%ga_Vlocal_gb_h(ispin)%r_coef)
+                CALL reallocate(rho_atom_set(iatom)%ga_Vlocal_gb_h(ispin)%r_coef,&
                      1,nsotot,1,nsotot)
-                NULLIFY(rho_atom_set(iatom)%ga_Vxc_gb_s(ispin)%r_coef)
-                CALL reallocate(rho_atom_set(iatom)%ga_Vxc_gb_s(ispin)%r_coef,&
+                NULLIFY(rho_atom_set(iatom)%ga_Vlocal_gb_s(ispin)%r_coef)
+                CALL reallocate(rho_atom_set(iatom)%ga_Vlocal_gb_s(ispin)%r_coef,&
                      1,nsotot,1,nsotot)
 
              END DO
 
              IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                  " r_coef of cpc_h,cpc_s,drho_rad_h,drho_rad_s,rho_rad_h_d,"//&
-                 "rho_rad_s_d,ga_Vxc_gb_h,ga_Vxc_gb_s",&
-                 (5*nr*max_iso_not0+4*nsotot*nsotot)*nspins*dp_size)
+                 "rho_rad_s_d",(5*nr*max_iso_not0+4*nsotot*nsotot)*nspins*dp_size)
           ELSE
              DO ispin = 1,nspins
                 NULLIFY(rho_atom_set(iatom)%cpc_h(ispin)%r_coef)
@@ -1154,8 +1145,8 @@ MODULE qs_rho_atom_methods
                    NULLIFY(rho_atom_set(iatom)%rho_rad_h_d(j,ispin)%r_coef)
                    NULLIFY(rho_atom_set(iatom)%rho_rad_s_d(j,ispin)%r_coef)
                 END DO
-                NULLIFY(rho_atom_set(iatom)%ga_Vxc_gb_h(ispin)%r_coef)
-                NULLIFY(rho_atom_set(iatom)%ga_Vxc_gb_s(ispin)%r_coef)
+                NULLIFY(rho_atom_set(iatom)%ga_Vlocal_gb_h(ispin)%r_coef)
+                NULLIFY(rho_atom_set(iatom)%ga_Vlocal_gb_s(ispin)%r_coef)
              END DO
           ENDIF
 
