@@ -278,8 +278,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
   CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(qs_env%pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     CALL calculate_rho_core(qs_env%rho_core,qs_env%pw_env%cube_info(1),&
-          qs_env%pw_env%l_info,&
+     CALL calculate_rho_core(qs_env%rho_core, &
           qs_env%qs_charges%total_rho_core_rspace,qs_env,error=error)
   END IF
 
@@ -480,8 +479,7 @@ SUBROUTINE qs_env_update_rho_core(qs_env,error)
   CPPrecondition(ASSOCIATED(rho_core),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(qs_charges),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     CALL calculate_rho_core(rho_core,pw_env%cube_info(1),&
-          pw_env%l_info,&
+     CALL calculate_rho_core(rho_core, &
           qs_charges%total_rho_core_rspace,qs_env,error)
   END IF
 END SUBROUTINE qs_env_update_rho_core

@@ -241,7 +241,8 @@ SUBROUTINE get_boys_foster_operator ( qs_loc_env, qs_env )
       ENDDO
       ENDDO
 ! do the actual integration
-      CALL integrate_v_rspace(op_rspace,qs_loc_env%operator(j,i),qs_env)
+      CALL set_matrix(qs_loc_env%operator(j,i)%matrix,0.0_dp)
+      CALL integrate_v_rspace(op_rspace,h=qs_loc_env%operator(j,i),qs_env=qs_env,calculate_forces=.FALSE.)
    ENDDO
   ENDDO
 

@@ -518,7 +518,6 @@ CONTAINS
 
        scf_env%iter_count = scf_env%iter_count + 1
 
-
 ! ** here qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date
 
        CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,&

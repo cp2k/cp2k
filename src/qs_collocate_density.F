@@ -1,7 +1,10 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2003 CP2K developers group                           !
+!   Copyright (C) 2000 - 2003, 2004 CP2K developers group                     !
 !-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
 !!****** cp2k/qs_collocate_density [1.0] *
 !!
 !!   NAME
@@ -50,6 +53,8 @@ MODULE qs_collocate_density
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
+                                             cp_debug,&
+                                             cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
   USE cp_fm_types,                     ONLY: cp_fm_get_element,&
@@ -57,10 +62,20 @@ MODULE qs_collocate_density
                                              cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE pw_pool_types,                   ONLY: pw_pool_p_type,&
+                                             pw_pools_give_back_coeffs,&
+                                             pw_pools_init_coeffs
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              cp_rs_pool_type,&
                                              rs_pool_create_rs,&
@@ -150,11 +165,9 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_rho_core(rho_core,cube_info,l_info,total_rho,qs_env,error)
+  SUBROUTINE calculate_rho_core(rho_core,total_rho,qs_env,error)
 
     TYPE(coeff_type), INTENT(INOUT)          :: rho_core
-    TYPE(cube_info_type), INTENT(IN)         :: cube_info
-    TYPE(l_info_type), INTENT(IN)            :: l_info
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(qs_environment_type), INTENT(IN)    :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
@@ -183,6 +196,8 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(realspace_grid_type), POINTER       :: rs_rho
+    TYPE(cube_info_type)                     :: cube_info
+    TYPE(l_info_type)                        :: l_info
 
 !   ---------------------------------------------------------------------------
 
@@ -201,7 +216,8 @@ CONTAINS
                     para_env=para_env,pw_env=pw_env)
     CALL pw_env_get(pw_env,auxbas_rs_pool=auxbas_rs_pool,&
          auxbas_pw_pool=auxbas_pw_pool,error=error)
-
+    cube_info=pw_env%cube_info(1)
+    l_info=pw_env%l_info
     ! be careful in parallel nsmax is choosen with multigrid in mind!
     CALL rs_pool_create_rs(auxbas_rs_pool,rs_rho)
     CALL rs_grid_zero(rs_rho)
@@ -302,18 +318,11 @@ CONTAINS
 ! both rho,rho_gspace are the new rho,
 ! *****************************************************************************
 
-  SUBROUTINE calculate_rho_elec(p,rho,rho_gspace,&
-                                mgrid_rspace,mgrid_gspace,&
-                                gridlevel_info,cube_info,l_info,total_rho,&
+  SUBROUTINE calculate_rho_elec(p,rho,rho_gspace, total_rho,&
                                 qs_env, compute_tau, error)
 
     TYPE(real_matrix_type), POINTER          :: p
     TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
-    TYPE(gridlevel_info_type), INTENT(IN)    :: gridlevel_info
-    TYPE(cube_info_type), DIMENSION(:), &
-      POINTER                                :: cube_info
-    TYPE(l_info_type), INTENT(IN)            :: l_info
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(qs_environment_type), INTENT(IN)    :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau
@@ -331,7 +340,7 @@ CONTAINS
       maxco, maxsgf, maxsgf_set, n, na1, na2, nalimit(2), natom_pairs, nb1, &
       nb2, ncoa, ncob, nkind, nlist, nnode, npme, nseta, nsetb, nthread, &
       omp_get_max_threads, &
-      omp_get_thread_num, pdim1, pdim2, sgfa, sgfb, tp
+      omp_get_thread_num, pdim1, pdim2, sgfa, sgfb, tp, stat
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb, ntasks, ub
@@ -370,16 +379,25 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: deltap
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    LOGICAL                                  :: failure
+    TYPE(gridlevel_info_type)                :: gridlevel_info
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
+    TYPE(l_info_type)                        :: l_info
 
 !   ---------------------------------------------------------------------------
-
+    failure=.FALSE.
     NULLIFY(atomic_kind,cell,dft_control,orb_basis_set,sab_orb_neighbor_list,&
          sab_orb_neighbor_node,deltap,atomic_kind_set,sab_orb,particle_set,&
          rs_rho,pw_env,rs_pools,para_env,pblock,dist_ab,dab_local,&
          set_radius_a,set_radius_b,la_max,la_min,&
          lb_max,lb_min,npgfa,npgfb,nsgfa,nsgfb,p_block,&
          rpgfa,rpgfb,sphi_a,sphi_b,zeta,zetb,first_sgfa,first_sgfb,&
-         tasks,tasks_local,ival,latom,ntasks,asets,atasks,pabt,workt)
+         tasks,tasks_local,ival,latom,ntasks,asets,atasks,pabt,workt,mgrid_rspace,&
+         mgrid_gspace,pw_pools)
 
     ! by default, do not compute the kinetic energy density (tau)
     ! if compute_tau, all grids referening to rho are actually tau
@@ -403,8 +421,26 @@ CONTAINS
                     sab_orb=sab_orb,&
                     para_env=para_env,&
                     pw_env=pw_env)
-    CALL pw_env_get(pw_env, rs_pools=rs_pools,error=error)
 
+    ! *** set up the pw multi-grids 
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routine,error,failure)
+    CALL pw_env_get(pw_env, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
+    ALLOCATE(mgrid_rspace(SIZE(pw_pools)), mgrid_gspace(SIZE(pw_pools)),&
+             stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
+                use_data = COMPLEXDATA1D,&
+                in_space = RECIPROCALSPACE, error=error)
+    CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
+                use_data = REALDATA3D,&
+                in_space = REALSPACE, error=error)
+
+    ! *** assign from pw_env
+    gridlevel_info=pw_env%gridlevel_info
+    cube_info=>pw_env%cube_info
+    l_info=pw_env%l_info
+
+    ! *** set up the rs multi-grids
     CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
@@ -876,6 +912,12 @@ CONTAINS
     
     total_rho = calculate_total_rho(rho)
 
+    ! *** give back the pw multi-grids
+    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
+         error=error)
+    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
+         error=error)
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_rho_elec
@@ -888,18 +930,11 @@ CONTAINS
 ! Currently it's only meant to provide a way to plot an MO
 ! *****************************************************************************
   SUBROUTINE calculate_wavefunction(mo_vectors,ivector,rho,rho_gspace,&
-                                    mgrid_rspace,mgrid_gspace,&
-                                    gridlevel_info,cube_info,l_info,&
                                     qs_env,error)
 
     TYPE(cp_fm_type), POINTER                :: mo_vectors
     INTEGER                                  :: ivector
     TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
-    TYPE(gridlevel_info_type), INTENT(IN)    :: gridlevel_info
-    TYPE(cube_info_type), DIMENSION(:), &
-      POINTER                                :: cube_info
-    TYPE(l_info_type), INTENT(IN)            :: l_info
     TYPE(qs_environment_type), INTENT(IN)    :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -908,22 +943,20 @@ CONTAINS
       "SUBROUTINE calculate_wavefunction (MODULE qs_collocate_density)"
 
     INTEGER :: handle, i, iatom, igrid_level, ipgf, iset, istat, maxco, &
-      maxsgf_set, na1, na2, nao, natom, ncoa, ncol_global, nseta, offset, sgfa
-    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
-                                                npgfa, npgfb, nsgfa, nsgfb
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
+      maxsgf_set, na1, na2, nao, natom, ncoa, ncol_global, nseta, offset, sgfa, stat
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, &
+                                                npgfa, nsgfa
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     LOGICAL                                  :: local
     REAL(KIND=dp)                            :: dab, eps_rho_rspace, rab2, &
                                                 scale, zetp
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvector, set_radius_a, &
-                                                set_radius_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block, pab, rpgfa, rpgfb, &
-                                                sphi_a, sphi_b, work, zeta, &
-                                                zetb
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvector 
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  ::  pab, &
+                                                sphi_a,  work, zeta
+                                                
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
@@ -931,27 +964,33 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
-    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list
-    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(REALSPACE_GRID_P_TYPE), &
       DIMENSION(:), POINTER                  :: rs_rho
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    LOGICAL                                  :: failure
+    TYPE(gridlevel_info_type)                :: gridlevel_info
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
+    TYPE(l_info_type)                        :: l_info
 
 !   ---------------------------------------------------------------------------
+    failure=.FALSE.
 
     CALL timeset("calculate_wavefunction","I","",handle)
 
     CALL cp_fm_get_info(matrix=mo_vectors,nrow_global=nao,ncol_global=ncol_global) 
 
-    NULLIFY(eigenvector, atomic_kind,cell,dft_control, orb_basis_set,&
-         sab_orb_neighbor_list,&
-         sab_orb_neighbor_node, atomic_kind_set, sab_orb, particle_set,&
-         pab,work,set_radius_a, set_radius_b, la_max, la_min,&
-         lb_max, npgfa, npgfb, nsgfa, nsgfb, p_block,&
-         rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb, first_sgfa, first_sgfb,&
-         rs_rho,pw_env,rs_pools)
+    NULLIFY(eigenvector, cell,dft_control, orb_basis_set,&
+         atomic_kind_set, sab_orb, particle_set,&
+         pab,work,la_max, la_min,&
+         npgfa, nsgfa, &
+         sphi_a,  zeta,  first_sgfa, &
+         rs_rho,pw_env,rs_pools,pw_pools,mgrid_rspace,mgrid_gspace)
 
     ALLOCATE(eigenvector(nao), stat=istat)
     IF (istat.NE.0) THEN
@@ -972,8 +1011,24 @@ CONTAINS
                     particle_set=particle_set,&
                     sab_orb=sab_orb,&
                     pw_env=pw_env)
-    CALL pw_env_get(pw_env, rs_pools=rs_pools,error=error)
 
+    ! *** set up the pw multi-grids
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routine,error,failure)
+    CALL pw_env_get(pw_env, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
+    ALLOCATE(mgrid_rspace(SIZE(pw_pools)), mgrid_gspace(SIZE(pw_pools)),&
+             stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
+                use_data = COMPLEXDATA1D,&
+                in_space = RECIPROCALSPACE, error=error)
+    CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
+                use_data = REALDATA3D,&
+                in_space = REALSPACE, error=error)
+
+    gridlevel_info=pw_env%gridlevel_info
+    cube_info=>pw_env%cube_info
+    l_info=pw_env%l_info
+    ! *** set up rs multi-grids
     CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
@@ -1075,6 +1130,12 @@ CONTAINS
 
     DEALLOCATE (work,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"work")
+
+    ! *** give back the pw multi-grids
+    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
+         error=error)
+    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
+         error=error)
 
     CALL timestop(0.0_dp,handle)
 

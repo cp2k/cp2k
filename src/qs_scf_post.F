@@ -65,9 +65,7 @@ MODULE qs_scf_post
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
-                                             pw_pool_type,&
-                                             pw_pools_give_back_coeffs,&
-                                             pw_pools_init_coeffs
+                                             pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
@@ -165,7 +163,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: wf_g, wf_r
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace
     TYPE(coeff_type), POINTER                :: rho_core
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_orbs
@@ -192,9 +189,7 @@ CONTAINS
          REAL(KIND = dp), DIMENSION(:), POINTER :: evals
     END TYPE
     TYPE (evals_p_type), DIMENSION(:), POINTER :: unoccupied_evals
-    TYPE(real_matrix_type), POINTER :: pfull
-    INTEGER :: ispin,n, output_unit, stat, nmo,handle
-    CHARACTER(LEN=6)   :: extension
+    INTEGER :: ispin,n, output_unit, nmo,handle
     CHARACTER(LEN=200) :: file_name
     INTEGER            :: file_unit,ivector,nao,nlumos, homo
     CHARACTER(LEN=80)  :: filename
@@ -208,9 +203,9 @@ CONTAINS
     CALL write_available_results(qs_env,globenv,error)
 
     failure=.FALSE.
-    NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,mgrid_gspace,&
-            mgrid_rspace,c,atomic_kind_set,particle_set,rho,mo_eigenvectors,&
-            ks_rmpv,s,qs_loc_env,scf_control,unoccupied_orbs,pfull,&
+    NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,&
+            c,atomic_kind_set,particle_set,rho,mo_eigenvectors,&
+            ks_rmpv,s,qs_loc_env,scf_control,unoccupied_orbs,&
             mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule_set,center,rho_core)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -240,15 +235,6 @@ CONTAINS
           CALL pw_pool_init_coeff(auxbas_pw_pool,wf_g,&
                use_data = COMPLEXDATA1D,&
                in_space = RECIPROCALSPACE, error=error)
-          ALLOCATE(mgrid_rspace(SIZE(pw_pools)), mgrid_gspace(SIZE(pw_pools)),&
-               stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
-               use_data = COMPLEXDATA1D,&
-               in_space = RECIPROCALSPACE, error=error)
-          CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
-               use_data = REALDATA3D,&
-               in_space = REALSPACE, error=error)
        END IF
 
 ! *** makes the MOs eigenstates, computes eigenvalues, write cubes 
@@ -267,10 +253,7 @@ CONTAINS
              IF (globenv%print%cubes) THEN
                 DO ivector=MAX(1,homo-globenv%print%nhomos+1),homo
                    CALL calculate_wavefunction(mo_eigenvectors,ivector,wf_r, &
-                        wf_g,mgrid_rspace,&
-                        mgrid_gspace,&
-                        pw_env%gridlevel_info,pw_env%cube_info, &
-                        pw_env%l_info,&
+                        wf_g,&
                         qs_env,error=error)
 
                    WRITE(filename,'(a13,I5.5,a1,I1.1,a5)') "WAVEFUNCTION_",ivector,"_",ispin,".cube"
@@ -327,10 +310,7 @@ CONTAINS
                 ! obviously we need a smarter scheme to select them. 
                 DO ivector=1,mo_localized%matrix_struct%ncol_global   
                    CALL calculate_wavefunction(mo_localized,ivector,wf_r, &
-                        wf_g,mgrid_rspace,&
-                        mgrid_gspace,&
-                        pw_env%gridlevel_info,pw_env%cube_info, &
-                        pw_env%l_info,&
+                        wf_g,&
                         qs_env,error=error)
 
                    WRITE(filename,'(a7,I5.5,a1,I1.1,a5)') "WANNIER",ivector,"_",ispin,".cube"
@@ -349,9 +329,8 @@ CONTAINS
                                                     mo_eigenvectors, mo_eigenvalues, &
                                                     ks_rmpv ( ispin ) % matrix, &
                                                     s(1)%matrix, &
-                                                    globenv, pw_env, qs_env,    &
-                                                    wf_r, wf_g, mgrid_rspace,   &
-                                                    mgrid_gspace )
+                                                    globenv, qs_env,    &
+                                                    wf_r, wf_g)
              ENDIF
              CALL cp_fm_release(mo_localized)
 
@@ -415,11 +394,6 @@ CONTAINS
                    CALL calculate_wavefunction(mo_vectors=unoccupied_orbs(ispin)%matrix,&
                         ivector=ivector,rho=wf_r, &
                         rho_gspace=wf_g,&
-                        mgrid_rspace=mgrid_rspace,&
-                        mgrid_gspace=mgrid_gspace,&
-                        gridlevel_info=pw_env%gridlevel_info,&
-                        cube_info=pw_env%cube_info, &
-                        l_info=pw_env%l_info,&
                         qs_env=qs_env,error=error)
 
                    WRITE(filename,'(a13,I5.5,a1,I1.1,a5)') "WAVEFUNCTION_",homo+ivector,"_",ispin,".cube"
@@ -452,13 +426,6 @@ CONTAINS
                error=error)
           CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_g,&
                error=error)
-          CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
-               error=error)
-          CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
-               error=error)
-          DEALLOCATE(mgrid_rspace, mgrid_gspace, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-
        END IF
 
 ! *** destroy the localization environment
@@ -523,16 +490,10 @@ CONTAINS
 
     LOGICAL                                  :: failure, ionode
     REAL(KIND=dp)                            :: total_abs_spin_dens
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: wf_r
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: unoccupied_orbs
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: mo_eigenvectors
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -544,7 +505,6 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, s
@@ -553,21 +513,17 @@ CONTAINS
     TYPE evals_p_type
          REAL(KIND = dp), DIMENSION(:), POINTER :: evals
     END TYPE
-    TYPE (evals_p_type), DIMENSION(:), POINTER :: unoccupied_evals
     TYPE(real_matrix_type), POINTER :: pfull
-    INTEGER :: ispin,n, output_unit, stat, nmo
+    INTEGER :: ispin,n, output_unit
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=200) :: file_name
-    INTEGER            :: file_unit,ivector,nao,nlumos, homo
-    CHARACTER(LEN=80)  :: filename
-    CHARACTER(LEN=80) :: title
-    REAL(KIND = dp)           :: volume
+    INTEGER            :: file_unit
 
     failure=.FALSE.
-    NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,mgrid_gspace,&
-            mgrid_rspace,c,atomic_kind_set,particle_set,rho,mo_eigenvectors,&
-            ks_rmpv,s,qs_loc_env,scf_control,unoccupied_orbs,pfull,&
-            mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule_set)
+    NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,&
+            c,atomic_kind_set,particle_set,rho,&
+            ks_rmpv,s,scf_control,pfull,&
+            molecule_set)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     output_unit= cp_logger_get_default_unit_nr(logger,local=.FALSE.)

@@ -52,9 +52,7 @@ MODULE qs_kpp1_env_methods
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
-                                             pw_pool_type,&
-                                             pw_pools_give_back_coeffs,&
-                                             pw_pools_init_coeffs
+                                             pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
@@ -212,8 +210,7 @@ CONTAINS
     TYPE(coeff_type)                         :: rho1_tot_gspace, &
                                                 v_hartree_gspace, &
                                                 v_hartree_rspace
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace, &
-                                                rho1_g, rho1_r, rho_g, rho_r, &
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho1_g, rho1_r, rho_g, rho_r, &
                                                 v_rspace_new
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -226,7 +223,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(dft_control,auxbas_pw_pool, pw_pools,&
          pw_env,v_rspace_new,rho_r,rho_g,rho1_r, rho1_g,&
-         mgrid_rspace, mgrid_gspace,cell)
+         cell)
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,error,failure)
@@ -259,21 +256,12 @@ CONTAINS
             pw_pools=pw_pools)
        ALLOCATE(v_rspace_new(nspins), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(mgrid_rspace(SIZE(pw_pools)), mgrid_gspace(SIZE(pw_pools)),&
-            stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF (.NOT.failure) THEN
        CALL pw_pool_init_coeff(auxbas_pw_pool,v_hartree_gspace,&
             use_data = COMPLEXDATA1D,&
             in_space = RECIPROCALSPACE, error=error)
        CALL pw_pool_init_coeff(auxbas_pw_pool,v_hartree_rspace,&
-            use_data = REALDATA3D,&
-            in_space = REALSPACE, error=error)
-       CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
-            use_data = COMPLEXDATA1D,&
-            in_space = RECIPROCALSPACE, error=error)
-       CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
             use_data = REALDATA3D,&
             in_space = REALSPACE, error=error)
     END IF
@@ -376,13 +364,6 @@ CONTAINS
           ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
           CALL set_matrix(kpp1_env%v_ao(ispin)%matrix,0.0_dp)
           CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-               mgrid_rspace=mgrid_rspace,&
-               mgrid_gspace=mgrid_gspace,&
-               auxbas_grid=pw_env%auxbas_grid,&
-               gridlevel_info=pw_env%gridlevel_info,&
-               ! v_rspace_old=kpp1_env%v_rspace(ispin),&
-               cube_info=pw_env%cube_info,&
-               l_info=pw_env%l_info,&
                p=rho%rho_ao(ispin),&
                h=kpp1_env%v_ao(ispin),&
                qs_env=qs_env,&
@@ -399,13 +380,7 @@ CONTAINS
           CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
                error=error)
        END DO
-       CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
-            error=error)
-       CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
-            error=error)
        DEALLOCATE(v_rspace_new, stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       DEALLOCATE(mgrid_rspace, mgrid_gspace, stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
 

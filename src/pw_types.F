@@ -589,7 +589,6 @@ SUBROUTINE pw_derive ( pw, n )
     INTEGER, DIMENSION(3), INTENT(IN)        :: n
 
     COMPLEX(dbl)                             :: im
-    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: cc
     INTEGER                                  :: cnt, handle, i, m
     REAL(dbl)                                :: flop
 
@@ -2084,7 +2083,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
       DIMENSION(:, :)                        :: grays
     COMPLEX(dbl), DIMENSION(:, :, :), &
       POINTER                                :: c_in, c_out
-    INTEGER                                  :: dir, handle, handle2, i, ierr, l1, l2, &
+    INTEGER                                  :: dir, handle, handle2, ierr, l1, l2, &
                                                 l3, my_pos, nloc( 3 ), nrays, &
                                                 nsize, out_space
     INTEGER, DIMENSION(:), POINTER           :: n

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2002  CP2K developers group                                 !
+!   Copyright (C) 2002,2003,2004  CP2K developers group                       !
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
@@ -62,9 +62,7 @@ MODULE qs_ks_methods
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
                                              pw_pool_retain,&
-                                             pw_pool_type,&
-                                             pw_pools_give_back_coeffs,&
-                                             pw_pools_init_coeffs
+                                             pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
@@ -263,8 +261,7 @@ CONTAINS
                                                 v_hartree_gspace
     TYPE(coeff_type), ALLOCATABLE, &
       DIMENSION(:)                           :: v_rspace_new
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace, &
-                                                v_tau_rspace
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: v_tau_rspace
     TYPE(coeff_type), POINTER                :: rho_core
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -280,7 +277,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(h,s,dft_control,atomic_kind_set,auxbas_pw_pool, pw_pools,&
-         pw_env,rho_core,cell, logger, mgrid_rspace, mgrid_gspace)
+         pw_env,rho_core,cell, logger)
     !   -----------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
@@ -316,9 +313,6 @@ CONTAINS
        CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
             pw_pools=pw_pools)
        ALLOCATE(v_rspace_new(nspins), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(mgrid_rspace(SIZE(pw_pools)), mgrid_gspace(SIZE(pw_pools)),&
-            stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF (.NOT.failure) THEN
@@ -412,17 +406,8 @@ CONTAINS
        END IF
 
        IF (.NOT. just_energy) THEN
-          CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
-                use_data = COMPLEXDATA1D,&
-                in_space = RECIPROCALSPACE, error=error)
-          CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
-                use_data = REALDATA3D,&
-                in_space = REALSPACE, error=error)
-
           IF (calculate_forces) THEN
-             CALL integrate_v_core_rspace(ks_env%v_hartree_rspace,&
-                  pw_env%cube_info(1),&
-                  pw_env%l_info,qs_env)
+             CALL integrate_v_core_rspace(ks_env%v_hartree_rspace, qs_env)
           END IF
 
           DO ispin=1,nspins
@@ -436,12 +421,6 @@ CONTAINS
  
              ! add the part due to v_rspace
              CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                  mgrid_rspace=mgrid_rspace,&
-                  mgrid_gspace=mgrid_gspace,&
-                  auxbas_grid=pw_env%auxbas_grid,&
-                  gridlevel_info=pw_env%gridlevel_info,&
-                  cube_info=pw_env%cube_info,&
-                  l_info=pw_env%l_info,&
                   p=rho%rho_ao(ispin),h=ks(ispin),&
                   qs_env=qs_env,&
                   calculate_forces=calculate_forces,error=error)
@@ -455,12 +434,6 @@ CONTAINS
                       v_tau_rspace(ispin)%pw%cr3d 
 
                  CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin),&
-                      mgrid_rspace=mgrid_rspace,&
-                      mgrid_gspace=mgrid_gspace,&
-                      auxbas_grid=pw_env%auxbas_grid,&
-                      gridlevel_info=pw_env%gridlevel_info,&
-                      cube_info=pw_env%cube_info,&
-                      l_info=pw_env%l_info,&
                       p=rho%rho_ao(ispin),h=ks(ispin),&
                       qs_env=qs_env,&
                       calculate_forces=calculate_forces,compute_tau=.TRUE., &
@@ -468,11 +441,6 @@ CONTAINS
 
               END DO
           ENDIF
-
-          CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
-               error=error)
-          CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
-               error=error)
 
        END IF
 
@@ -492,9 +460,6 @@ CONTAINS
 
        DEALLOCATE(v_rspace_new, stat=stat) 
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       DEALLOCATE(mgrid_rspace, mgrid_gspace, stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-
     END IF
 
     CALL timestop(0.0_dp,handle)

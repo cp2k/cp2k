@@ -25,8 +25,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_rho_methods
-  USE coefficient_types,               ONLY: coeff_deallocate,&
-                                             coeff_type
+  USE coefficient_types,               ONLY: coeff_deallocate
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
@@ -44,9 +43,7 @@ MODULE qs_rho_methods
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_init_coeff,&
                                              pw_pool_p_type,&
-                                             pw_pool_type,&
-                                             pw_pools_give_back_coeffs,&
-                                             pw_pools_init_coeffs
+                                             pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
@@ -319,10 +316,9 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_update_rho', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, nspins, stat
+    INTEGER                                  :: ispin, nspins
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dum
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -331,7 +327,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
   failure=.FALSE.
-  NULLIFY(dft_control, mgrid_rspace, mgrid_gspace, pw_env, auxbas_pw_pool,&
+  NULLIFY(dft_control, pw_env, auxbas_pw_pool,&
        pw_pools, para_env )
 
   CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
@@ -344,26 +340,14 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
      ! alloc multigrids
      CALL pw_env_get(pw_env, pw_pools=pw_pools, auxbas_pw_pool=auxbas_pw_pool,&
           error=error)
-     ALLOCATE(mgrid_gspace(SIZE(pw_pools)), mgrid_rspace(SIZE(pw_pools)),&
-          stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
   IF (.NOT.failure) THEN
      ! get tmp grids
-     CALL pw_pools_init_coeffs(pw_pools, mgrid_rspace,&
-          use_data=REALDATA3D, in_space=REALSPACE, error=error)
-     CALL pw_pools_init_coeffs(pw_pools, mgrid_gspace,&
-          use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, error=error)
     
      DO ispin=1,nspins
         CALL calculate_rho_elec(p=rho_struct%rho_ao(ispin)%matrix,&
              rho=rho_struct%rho_r(ispin),&
              rho_gspace=rho_struct%rho_g(ispin),&
-             mgrid_rspace=mgrid_rspace,&
-             mgrid_gspace=mgrid_gspace,&
-             gridlevel_info=pw_env%gridlevel_info,&
-             cube_info=pw_env%cube_info,&
-             l_info=pw_env%l_info,&
              total_rho=rho_struct%tot_rho_r(ispin),&
              qs_env=qs_env,error=error)
      END DO
@@ -376,22 +360,12 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
             CALL calculate_rho_elec(p=rho_struct%rho_ao(ispin)%matrix,&
                  rho=rho_struct%tau_r(ispin),&
                  rho_gspace=rho_struct%tau_g(ispin),&
-                 mgrid_rspace=mgrid_rspace,&
-                 mgrid_gspace=mgrid_gspace,&
-                 gridlevel_info=pw_env%gridlevel_info,&
-                 cube_info=pw_env%cube_info,&
-                 l_info=pw_env%l_info,&
                  total_rho=dum, &  ! presumably not meaningful
                  qs_env=qs_env, compute_tau=.TRUE., error=error)
          END DO
          rho_struct%tau_r_valid=.TRUE.
          rho_struct%tau_g_valid=.TRUE.
      ENDIF
-
-     ! put back grids
-     CALL pw_pools_give_back_coeffs(pw_pools, mgrid_rspace, error=error)
-     CALL pw_pools_give_back_coeffs(pw_pools, mgrid_gspace, error=error)
-     DEALLOCATE(mgrid_gspace, mgrid_rspace,stat=stat)
   END IF
 END SUBROUTINE qs_rho_update_rho
 !***************************************************************************

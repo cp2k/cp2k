@@ -75,8 +75,7 @@ CONTAINS
 
 SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
                                    mo_eigenvectors, mo_eigenvalues, &
-                                   Hks,matrix_S,globenv,pw_env,qs_env,wf_r,wf_g, &
-                                   mgrid_rspace,mgrid_gspace)
+                                   Hks,matrix_S,globenv,qs_env,wf_r,wf_g)
 
 
     TYPE(molecule_type), DIMENSION(:), &
@@ -86,10 +85,8 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
     TYPE(real_matrix_type), POINTER          :: Hks, matrix_S
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
-    TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_environment_type), INTENT(IN)    :: qs_env
     TYPE(coeff_type), INTENT(INOUT)          :: wf_r, wf_g
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
 
     CHARACTER(LEN=default_string_length)     :: filename
     INTEGER                                  :: i, imol, iproc, isos, j, k, &
@@ -253,9 +250,7 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
       DO i=1,ns
         j=ind(i)
         CALL calculate_wavefunction(rot_e_vectors,i,wf_r, &
-                                    wf_g,mgrid_rspace, mgrid_gspace, &
-                                    pw_env%gridlevel_info,pw_env%cube_info, &
-                                    pw_env%l_info, qs_env, error = error )
+                                    wf_g, qs_env, error = error )
 
         WRITE(filename,'(a9,I2.2,a1,I3.3,a5)')  &
               "MOLECULE_",imol,"_",j,".cube"

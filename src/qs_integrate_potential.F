@@ -2,6 +2,9 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2003 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
 !!****** cp2k/qs_integrate_potential [1.0] *
 !!
 !!   NAME
@@ -46,11 +49,14 @@ MODULE qs_integrate_potential
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
+                                             cp_debug,&
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -112,8 +118,7 @@ MODULE qs_integrate_potential
                                              deallocate_matrix,&
                                              get_block_node,&
                                              real_matrix_p_type,&
-                                             real_matrix_type,&
-                                             set_matrix
+                                             real_matrix_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -126,10 +131,6 @@ MODULE qs_integrate_potential
 
 ! *** Public subroutines ***
 
-  INTERFACE integrate_v_rspace
-      MODULE PROCEDURE integrate_v_rspace_light, integrate_v_rspace_full
-  END INTERFACE
-
   PUBLIC :: integrate_v_rspace,&
             integrate_v_core_rspace,&
             integrate_pgf_product_rspace
@@ -141,11 +142,9 @@ CONTAINS
 
 ! **********************************************************************
 
-  SUBROUTINE integrate_v_core_rspace(v_rspace,cube_info,l_info,qs_env)
+  SUBROUTINE integrate_v_core_rspace(v_rspace,qs_env)
 
     TYPE(coeff_type), INTENT(INOUT)          :: v_rspace
-    TYPE(cube_info_type), INTENT(IN)         :: cube_info
-    TYPE(l_info_type), INTENT(IN)            :: l_info
     TYPE(qs_environment_type), INTENT(INOUT) :: qs_env
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
@@ -245,7 +244,7 @@ CONTAINS
 
         CALL integrate_pgf_product_rspace(0,alpha_core_charge,0,&
              0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,&
-             rs_v,cube_info,l_info,hab,pab=pab,o1=0,o2=0,&
+             rs_v,pw_env%cube_info(1),pw_env%l_info,hab,pab=pab,o1=0,o2=0,&
              eps_gvg_rspace=eps_rho_rspace,&
              calculate_forces=.TRUE.,force_a=force_a,&
              force_b=force_b)
@@ -268,53 +267,6 @@ CONTAINS
   END SUBROUTINE integrate_v_core_rspace
 
 ! **********************************************************************
-! The simplest possible interface to integrate_v_rspace 
-! real space pw object in, sparse matrix out
-! gets all the needed info from qs_env
-! I guess one could use this style for the more general function as well
-! **********************************************************************
-  SUBROUTINE integrate_v_rspace_light(v_rspace,matrix_v,qs_env)
-
-    TYPE(coeff_type)                         :: v_rspace
-    TYPE(real_matrix_p_type), INTENT(INOUT)  :: matrix_v
-    TYPE(qs_environment_type), INTENT(IN)    :: qs_env
-
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pw_pools
-
-    NULLIFY(mgrid_gspace,mgrid_rspace,pw_pools,pw_env)
-
-    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
-    ! set up all the necessary extra grids
-    CALL pw_env_get(pw_env,pw_pools=pw_pools)
-    ALLOCATE(mgrid_rspace(SIZE(pw_pools)), mgrid_gspace(SIZE(pw_pools)))
-    CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
-            use_data = COMPLEXDATA1D,&
-            in_space = RECIPROCALSPACE)
-    CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
-            use_data = REALDATA3D,&
-            in_space = REALSPACE)
-    CALL set_matrix(matrix_v%matrix,0.0_dp)
-    CALL integrate_v_rspace_full(v_rspace=v_rspace,&
-                  mgrid_rspace=mgrid_rspace,&
-                  mgrid_gspace=mgrid_gspace,&
-                  auxbas_grid=pw_env%auxbas_grid,&
-                  gridlevel_info=pw_env%gridlevel_info,&
-                  cube_info=pw_env%cube_info,&
-                  l_info=pw_env%l_info,&
-                  h=matrix_v,&
-                  qs_env=qs_env,&
-                  calculate_forces=.FALSE.)
-
-    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace)
-    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace)
-    DEALLOCATE(mgrid_rspace,mgrid_gspace)
-
-  END SUBROUTINE integrate_v_rspace_light
-
-! **********************************************************************
 ! integrates a given potential (or other object on a real 
 ! space grid) = v_rspace using a multi grid technique (mgrid_*)
 ! over the basis set producing a number for every element of h 
@@ -326,18 +278,10 @@ CONTAINS
 ! coordinates can be computed as well
 ! ***********************************************************************
  
-  SUBROUTINE integrate_v_rspace_full(v_rspace,mgrid_rspace,mgrid_gspace,&
-                                auxbas_grid,gridlevel_info,&
-                                cube_info,l_info,&
+  SUBROUTINE integrate_v_rspace(v_rspace,&
                                 p,h,qs_env,calculate_forces,compute_tau,error)
 
     TYPE(coeff_type)                         :: v_rspace
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
-    INTEGER, INTENT(IN)                      :: auxbas_grid
-    TYPE(gridlevel_info_type), INTENT(IN)    :: gridlevel_info
-    TYPE(cube_info_type), DIMENSION(:), &
-      POINTER                                :: cube_info
-    TYPE(l_info_type), INTENT(IN)            :: l_info
     TYPE(real_matrix_p_type), INTENT(IN), &
       OPTIONAL                               :: p
     TYPE(real_matrix_p_type), INTENT(INOUT)  :: h
@@ -348,7 +292,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE integrate_v_rspace_full (MODULE qs_integrate_potential)"
+      "SUBROUTINE integrate_v_rspace (MODULE qs_integrate_potential)"
     INTEGER, PARAMETER                       :: add_tasks = 1000, &
                                                 max_tasks = 3000
 
@@ -358,7 +302,7 @@ CONTAINS
       na1, na2, nalimit(2), natom, natom_pairs, nb1, nb2, ncoa, ncob, nkind, &
       nlist, nnode, npme, nseta, nsetb, nthread, omp_get_max_threads, &
       omp_get_thread_num, sgfa, &
-      sgfb, tp
+      sgfb, tp, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
@@ -402,10 +346,20 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: deltap, dh
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    LOGICAL                                  :: failure
+    INTEGER                                  :: auxbas_grid
+    TYPE(gridlevel_info_type)                :: gridlevel_info
+    TYPE(l_info_type)                        :: l_info
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
 
 !   ---------------------------------------------------------------------------
-! default, if compute_tau is not present we assume it is false
+    failure=.FALSE.
 
+! default, if compute_tau is not present we assume it is false
     IF (PRESENT(compute_tau)) THEN
         my_compute_tau = compute_tau
     ELSE
@@ -419,9 +373,8 @@ CONTAINS
     END IF
 
     NULLIFY(pw_env,rs_pools,ntasks,tasks,dist_ab,tasks_local,&
-            ival,latom,dab_local,asets,atasks)
+            ival,latom,dab_local,asets,atasks,mgrid_rspace,mgrid_gspace,pw_pools)
 
-!   *** Get difference potential ***
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
@@ -431,8 +384,26 @@ CONTAINS
                     para_env=para_env,&
                     force=force,pw_env=pw_env)
 
-!   *** Get the potential on the subgrids in real space, via fft ***
+    ! *** set up the pw multi-grids
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routine,error,failure)
+    CALL pw_env_get(pw_env, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
+    ALLOCATE(mgrid_rspace(SIZE(pw_pools)), mgrid_gspace(SIZE(pw_pools)),&
+             stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
+                use_data = COMPLEXDATA1D,&
+                in_space = RECIPROCALSPACE, error=error)
+    CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
+                use_data = REALDATA3D,&
+                in_space = REALSPACE, error=error)
 
+    ! *** assign from pw_env
+    auxbas_grid=pw_env%auxbas_grid
+    gridlevel_info=pw_env%gridlevel_info
+    cube_info=>pw_env%cube_info
+    l_info=pw_env%l_info
+
+!   *** Get the potential on the subgrids in real space, via fft ***
     CALL coeff_transform_space(v_rspace,mgrid_gspace(auxbas_grid))
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
@@ -999,9 +970,15 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
     END IF
 
+    ! *** give back the pw multi-grids
+    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
+         error=error)
+    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
+         error=error)
+
     CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE integrate_v_rspace_full
+  END SUBROUTINE integrate_v_rspace
 
 ! *****************************************************************************
 
