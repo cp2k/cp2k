@@ -29,7 +29,7 @@ MODULE pol_setup
   USE kinds, ONLY : dbl
   USE qs_interactions, ONLY :  exp_radius
   USE molecule_types , ONLY : molecule_type, read_basis_type 
-  USE orbital_pointers,  ONLY: coset,nco,ncoset,nso
+  USE orbital_pointers,  ONLY: coset,nco,ncoset,nso,init_orbital_pointers
   USE particle_types, ONLY : particle_type
   USE string_utilities, ONLY : str_search
   USE termination, ONLY : stop_memory, stop_program
@@ -377,6 +377,7 @@ MODULE pol_setup
 !   *** Build the Cartesian transformation matrix "cphi" ***
  
     DO iset=1,orb_basis_set%nset
+      CALL init_orbital_pointers(orb_basis_set%lmax(iset)+1)
       n = ncoset(orb_basis_set%lmax(iset))
       DO ishell=1,orb_basis_set%nshell(iset)
         DO icgf=orb_basis_set%first_cgf(ishell,iset),&

@@ -851,7 +851,7 @@ CONTAINS
 
 !         *** Maximum angular momentum quantum number of the atomic kind ***
 
-          CALL init_orbital_pointers(maxl+1)
+          CALL init_orbital_pointers(maxl)
 
 !         *** Allocate the global variables ***
 

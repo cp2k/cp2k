@@ -69,6 +69,7 @@ MODULE qs_environment
   USE kinds,                           ONLY: int_size,&
                                              wp => dp
   USE machine,                         ONLY: m_flush
+  USE orbital_pointers,                ONLY: init_orbital_pointers
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
   USE pao_read_section,                ONLY: pao_env_init_from_file
   USE pao_types,                       ONLY: pao_env_type
@@ -245,6 +246,9 @@ CONTAINS
 
     lmax = MAX(maxl,maxlppl,maxlppnl)
 
+    IF (dft_control%forces) lmax = lmax + 1
+
+    CALL init_orbital_pointers(lmax)
     CALL init_spherical_harmonics(lmax,globenv)
 
 !   *** Initialize the pretabulation for the calculation of the   ***
