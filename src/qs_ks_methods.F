@@ -510,6 +510,7 @@ CONTAINS
                 "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&
                 "GAPW| local Eh = 1 center integrals:           ",energy%hartree_1c
           END IF
+          WRITE(*,*)'QM/MM enabled:', qs_env%qmmm
           If  (qs_env%qmmm) Then
              WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                "QM/MM Electrostatic energy:                    ",energy%qmmm_el

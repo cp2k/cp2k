@@ -48,7 +48,7 @@ MODULE qmmm_types
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qmmm_types'
   INTEGER, SAVE, PRIVATE :: last_qmmm_env_id_nr=0
 
-  PUBLIC :: qmmm_env_type, qmmm_el_grid_type
+  PUBLIC :: qmmm_env_type
   PUBLIC :: qmmm_env_retain, qmmm_env_release, qmmm_env_create
 
 !***
@@ -76,10 +76,6 @@ MODULE qmmm_types
 !!
 !!   SOURCE
   !***************************************************************************
-  TYPE qmmm_el_grid_type
-     INTEGER :: Exponential_Pot
-  END TYPE qmmm_el_grid_type
-
   TYPE qmmm_env_type
      INTEGER :: ref_count, id_nr
      CHARACTER(len=default_string_length)  :: qmmm_coupl_type
@@ -88,7 +84,6 @@ MODULE qmmm_types
      INTEGER, DIMENSION(:), POINTER :: mm_atom_index
      REAL(dbl), DIMENSION(:), POINTER :: mm_atom_chrg, mm_el_pot_radius
      INTEGER :: num_qm_atoms, num_mm_atoms
-     TYPE(qmmm_el_grid_type) :: grid_pot
   END TYPE qmmm_env_type
 !!***
   !****************************************************************************
@@ -138,7 +133,6 @@ SUBROUTINE qmmm_env_create(qmmm_env, error)
      qmmm_env%qmmm_coupl_type=" "
      qmmm_env%num_qm_atoms=0
      qmmm_env%num_mm_atoms=0
-     qmmm_env%grid_pot%Exponential_Pot=0
   END IF
 END SUBROUTINE qmmm_env_create
 !***************************************************************************

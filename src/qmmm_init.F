@@ -53,7 +53,8 @@ MODULE qmmm_init
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
-                                             dp
+                                             dp,&
+                                             dbl
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
                                              mol_kind_new_list_release,&
                                              mol_kind_new_list_type
@@ -80,6 +81,8 @@ MODULE qmmm_init
                                              cell_clone
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
   USE topology,                        ONLY: connectivity_control,&
                                              force_field_control,&
                                              coordinate_control
@@ -98,7 +101,10 @@ MODULE qmmm_init
                                              start_parser,&
                                              stop_parser,&
                                              test_object
+  USE external_potential_types,        ONLY: elp_potential_type,&
+                                             get_potential
   USE fist_main, only:fist_create_force_env
+  USE qmmm_input, only:qmmm_namelist_read
 
   IMPLICIT NONE
   PRIVATE
@@ -144,12 +150,10 @@ CONTAINS
 
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: qm_atom_type
-    CHARACTER(len=default_string_length)     :: keyword, qm_atom_kind, qmmm_coupl_type
     INTEGER                                  :: handle, isubf, stat,string_length
-    INTEGER                                  :: num_qm_atoms, i, iw
-    INTEGER                                  :: qm_num_atom_kind, qm_num_atom_tot
+    INTEGER                                  :: i, iw
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, mm_atom_index, qm_subsys_index
-    LOGICAL                                  :: failure, section_found, keyword_found
+    LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
@@ -161,6 +165,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     CHARACTER(len=3)                         :: test_result
     REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, mm_el_pot_radius
+    CHARACTER(len=default_string_length)     :: qmmm_coupl_type
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -180,7 +185,7 @@ CONTAINS
        ! Create QM/MM Environment..
        CALL qmmm_env_create(qmmm_env,error=error)
 
-       ! quando sara' pronto fist bisogna modificare questa chiamata...
+       ! First Initialize Fist...
        globenv%program_name="FIST"       
        CALL fist_create_force_env(sub_force_env(1)%force_env, &
             globenv, error=error)
@@ -195,7 +200,17 @@ CONTAINS
        END IF
        CALL cell_clone(mm_cell, qm_cell_small,.true.)
 
-       CALL qmmm_namelist_read
+       CALL qmmm_namelist_read(globenv,&
+                               qmmm_env,&
+                               subsys_mm,&
+                               qm_atom_type,&
+                               qm_atom_index,&
+                               mm_atom_index,&
+                               qm_subsys_index,&
+                               qm_cell_small,&
+                               qmmm_coupl_type,&
+                               error)
+                               
        qmmm_env%qm_atom_index   => qm_atom_index
        qmmm_env%mm_atom_index   => mm_atom_index
        qmmm_env%qm_subsys_index => qm_subsys_index
@@ -207,21 +222,26 @@ CONTAINS
        qmmm_env%num_mm_atoms = size(mm_atom_index)
        Write(iw,'(A,I6)')"Number of QM atoms: ",qmmm_env%num_qm_atoms 
        Write(iw,'(A,I6)')"Number of MM atoms: ",qmmm_env%num_mm_atoms
- 
-!TL Preliminary code - da cambiare quando ci sara' FIST
-!FM       CALL get_mm_charges(mm_chrg=mm_atom_chrg,&
-!FM                           mm_radius=mm_el_pot_radius,&
-!FM                           mm_atom_index=mm_atom_index,&
-!FM                           globenv=globenv)
+       !
+       ! Assign charges and mm_el_pot_radius from fist_topology
+       !
        ALLOCATE(mm_atom_chrg(SIZE(mm_atom_index)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       mm_atom_chrg=0._dp
-       mm_el_pot_radius=1._dp
-       qmmm_env%mm_atom_chrg => mm_atom_chrg
-       qmmm_env%mm_el_pot_radius => mm_el_pot_radius
-!TL Preliminary code
+       ALLOCATE(mm_el_pot_radius(SIZE(mm_atom_index)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       mm_atom_chrg     = 0.0_dbl
+       mm_el_pot_radius = 0.0_dbl
+       
+       CALL assign_mm_charges_and_radius(subsys=subsys_mm,&
+                                         mm_atom_chrg=mm_atom_chrg,&
+                                         mm_el_pot_radius=mm_el_pot_radius,&
+                                         mm_atom_index=mm_atom_index,&
+                                         error=error)
 
-      globenv%program_name="QS"
+       qmmm_env%mm_atom_chrg     => mm_atom_chrg
+       qmmm_env%mm_el_pot_radius => mm_el_pot_radius
+
+       globenv%program_name="QS"
        CALL create_small_subsystem(subsys_qm,&
             big_subsys=subsys_mm,small_para_env=para_env,&
             small_cell=qm_cell_small,sub_atom_index=qm_atom_index,&
@@ -251,163 +271,7 @@ CONTAINS
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
     CALL timestop(0.0_dp,handle)
-    !!
-    CONTAINS
-      !!****f* qmmm_init/qmmm_create_force_env/qmmm_namelist_read [1.0] *
-      !!
-      !!   NAME
-      !!     qmmm_namelist_read
-      !!
-      !!   FUNCTION
-      !!     Read "QMMM" Namelist Arguments
-      !!     Arguments:
-      !!     &QMMM
-      !!        QM_ATOMS Number_of_QM_atoms
-      !!        Atom_LABEL Number_of_this_atomic_Kind
-      !!        Index1 Index2 ... IndexN
-      !!        Atom_LABEL Number_of_this_atomic_Kind
-      !!        Index1 Index2 ... IndexL
-      !!   
-      !!        ABC_QM x y z
-      !!        ECOUPL (E_COUPL) [GRID] [GAUSS] [QS]
-      !!        EXP_POT N
-      !!               
-      !!     &END
-      !!   NOTES
-      !!     -
-      !!
-      !!   INPUTS
-      !!     - error: variable to control error logging, stopping,... 
-      !!       see module cp_error_handling 
-      !!
-      !!   AUTHOR
-      !!     Teodoro Laino
-      !!
-      !!   MODIFICATION HISTORY
-      !!     05.2004 created [tlaino]
-      !!
-      !!*************************************************************************
-      SUBROUTINE qmmm_namelist_read
-        Implicit None
-        CHARACTER(len=*), PARAMETER :: subroutineN = 'qmmm_namelist_read',&
-             subroutineP1 = moduleN//':'//routineN//":"//subroutineN
-        INTEGER :: i, j, icount, size_mm_system
-        LOGICAL :: is_mm
 
-        keyword_found   = .false.
-        qmmm_coupl_type = "NONE"
-        !
-        ! Check for &QMMM Namelist
-        !
-        CALL start_parser(file_name=globenv%input_file_name,&
-             globenv=globenv,&
-             start_section_label="QMMM",&
-             section_found=section_found)
-       
-        If (section_found) then
-           !
-           ! Read Info from QMMM Namelist
-           !
-           DO
-              test_result = test_object(newline=.TRUE.)
-              IF (test_result == "EOS") THEN
-                 EXIT
-              ELSE IF (test_result == "EOF") THEN
-                 CALL stop_parser(subroutineP1,modulen,__LINE__,"EOF")
-              END IF
-              CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
-              SELECT CASE(TRIM(keyword))
-              CASE("QMATOMS","QM_ATOMS")
-                 qm_num_atom_tot = 0
-                 CALL read_object(num_qm_atoms)
-                 ALLOCATE(qm_atom_index(num_qm_atoms),& 
-                          qm_atom_type(num_qm_atoms),&
-                          qm_subsys_index(num_qm_atoms),&
-                          stat=stat)
-                 CPPostcondition(stat==0,cp_failure_level,subroutineP1,error,failure)
-                 ! Read the QM Atomic Infos..
-                 do while (qm_num_atom_tot /= num_qm_atoms)
-                    CALL read_object(qm_atom_kind,newline=.TRUE.)
-                    CALL read_object(qm_num_atom_kind)
-                    if (qm_num_atom_kind /= 0) then
-                       i = qm_num_atom_tot + 1
-                       CALL read_object(qm_atom_index(i),newline=.TRUE.)
-                       qm_atom_type(i) = qm_atom_kind
-                       do i = qm_num_atom_tot + 2, qm_num_atom_kind + qm_num_atom_tot
-                          CALL read_object(qm_atom_index(i))
-                          qm_atom_type(i) = qm_atom_kind
-                       End do
-                    End If
-                    qm_num_atom_tot = qm_num_atom_tot + qm_num_atom_kind
-                 End do
-                 qm_subsys_index=1
-                 keyword_found = .true.
-              CASE ("A_QM","B_QM","C_QM","ABC_QM")
-                 SELECT CASE(TRIM(keyword))
-                 CASE ("A_QM")
-                    CALL read_object(qm_cell_small%hmat(1,1))
-                    CALL read_object(qm_cell_small%hmat(2,1))
-                    CALL read_object(qm_cell_small%hmat(3,1))
-                 CASE ("ABC_QM")
-                    CALL read_object(qm_cell_small%hmat(1,1))
-                    CALL read_object(qm_cell_small%hmat(2,2))
-                    CALL read_object(qm_cell_small%hmat(3,3))
-                 CASE ("B_QM")
-                    CALL read_object(qm_cell_small%hmat(1,2))
-                    CALL read_object(qm_cell_small%hmat(2,2))
-                    CALL read_object(qm_cell_small%hmat(3,2))
-                 CASE ("C_QM")
-                    CALL read_object(qm_cell_small%hmat(1,3))
-                    CALL read_object(qm_cell_small%hmat(2,3))
-                    CALL read_object(qm_cell_small%hmat(3,3))
-                 END SELECT
-                 qm_cell_small%hmat=qm_cell_small%hmat(:,:)*qm_cell_small%unit_of_length
-              CASE("ECOUPL","E_COUPL")
-                 CALL read_object(qmmm_coupl_type)
-              CASE("EXP_POT")
-                 CALL read_object(qmmm_env%grid_pot%Exponential_pot)
-              CASE("&END")
-                 EXIT 
-              CASE DEFAULT
-                 CALL stop_parser(subroutineP1,"Invalid keyword found")
-              END SELECT              
-           END DO
-           CPPostcondition(keyword_found,cp_failure_level,subroutineP1,error,failure)
-        else
-           !
-           ! I keep this part for the regtest...
-           ! 
-           ALLOCATE(qm_atom_index(3), qm_atom_type(3),qm_subsys_index(3), stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,subroutineP1,error,failure)
-           qm_atom_index=(/ 1,2,3 /)
-           qm_atom_type=(/ "O","H","H"/)
-           qm_subsys_index=1
-        endif
-        ! Initialize cell parameters..
-        call init_qmmm_cell(qm_cell_small)
-        ! Build MM atoms list
-        size_mm_system = size(subsys_mm(1)%subsys%particles%els) -&
-                         size(qm_atom_index)
-        ALLOCATE(mm_atom_index(size_mm_system))
-        ALLOCATE(mm_el_pot_radius(size_mm_system))
-        icount = 0
-        Do i = 1, size(subsys_mm(1)%subsys%particles%els)
-           is_mm = .true.
-           Do j = 1, size(qm_atom_index)
-              If (i.eq.qm_atom_index(j)) then
-                 is_mm = .false.
-              End if
-           End Do
-           if (is_mm) then
-              icount = icount + 1
-              mm_atom_index(icount) = i
-           end if
-        End Do
-        !
-        CPPostcondition(icount==size_mm_system,cp_failure_level,subroutineP1,error,failure)
-        ! Terminate parser..
-        CALL finish_parser()
-      END SUBROUTINE qmmm_namelist_read
   END SUBROUTINE qmmm_create_force_env
 !***************************************************************************
 
@@ -607,34 +471,66 @@ CONTAINS
   END SUBROUTINE create_small_subsystem
 !***************************************************************************
 
+!!****f* qmmm_init/assign_mm_charges_and_radius [1.0] *
+!!
+!!   NAME
+!!     assign_mm_charges_and_radius
+!!
+!!   FUNCTION
+!!     Assigns charges and radius to evaluate the MM electrostatic potential
+!!
+!!   NOTES
+!!     
+!!
+!!   INPUTS
+!!     - subsys: the subsystem containing the MM charges
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     06.2004 created [tlaino]
+!!
+!!*** **********************************************************************
+ SUBROUTINE assign_mm_charges_and_radius(subsys, mm_atom_chrg,mm_el_pot_radius,&
+                                         mm_atom_index, error)
+   IMPLICIT NONE
+   ! Arguments
+   TYPE(cp_subsystem_p_type), &
+        DIMENSION(:), POINTER                  :: subsys
+   REAL(dp), DIMENSION(:), POINTER             :: mm_atom_chrg, mm_el_pot_radius
+   INTEGER, DIMENSION(:), POINTER              :: mm_atom_index
+   TYPE(cp_error_type), INTENT(inout), &
+        OPTIONAL                               :: error
+   ! Local Variables
+   TYPE(atomic_kind_type), POINTER             :: my_kind
+    TYPE(elp_potential_type), POINTER          :: my_potential
+   TYPE(particle_list_type), POINTER           :: particles
+   TYPE(particle_type), DIMENSION(:), &
+        POINTER                                :: particle_set
+   INTEGER  :: I, IndMM
+   REAL(dp) :: qi, ri
 
-! Preliminary Subroutine
-! Questa subroutine dovra' essere sostituita quando funzionera' FIST.
-! setta le cariche e i raggi per le interazioni elettrostatiche
-Subroutine get_mm_charges(mm_chrg, mm_radius, mm_atom_index,globenv)
-  USE simulation_cell,                 ONLY: read_cell
-  USE topology_input,                  ONLY: read_topology_section
-  Implicit None
-  Real(dp), dimension(:), pointer          :: mm_chrg, mm_radius
-  Integer, dimension(:), pointer           :: mm_atom_index
-  TYPE(topology_parameters_type)           :: topology 
-  TYPE(global_environment_type), POINTER   :: globenv
-  INTEGER :: stat, i
+   NULLIFY(particle_set, my_kind)
+   CALL cp_subsys_get(subsys=subsys(1)%subsys,&
+                      particles=particles)
+   particle_set => particles%els
+   
+   DO I = 1, SIZE(mm_atom_index)
+      IndMM = mm_atom_index(I)
+      my_kind => particle_set(IndMM)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=my_kind, elp_potential=my_potential)
+      CALL get_potential  (potential=my_potential,& 
+                           qeff=qi,&
+                           core_charge_radius=ri)
+      mm_atom_chrg(I)  = qi
+      mm_el_pot_radius = ri
+      WRITE(*,*)'MM ATOM:',IndMM,'RADIUS: ',ri,'CHARGE: ',qi
+   END DO
+   
 
-  CALL init_topology(topology)
-  CALL read_cell(topology%cell,globenv)
-  CALL read_topology_section(topology,globenv)
-  CALL coordinate_control(topology,globenv)
-  If (topology%coord_type == "PDB") Then
-     ALLOCATE(mm_chrg(size(mm_atom_index)),stat=stat)
-     Do i=1, size(mm_atom_index)
-        mm_chrg(i)   = topology%atom_info%occup(mm_atom_index(i))
-        mm_radius(i) = topology%atom_info%beta(mm_atom_index(i))
-        write(*,*)'mm charge and radius of atom ',i,mm_atom_index(i),' = ',mm_chrg(i), mm_radius(i)
-     End Do
-  End If
-  CALL deallocate_topology(topology)
-
-End Subroutine get_mm_charges
+ END SUBROUTINE assign_mm_charges_and_radius
 
 END MODULE qmmm_init

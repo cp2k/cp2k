@@ -156,9 +156,6 @@ CONTAINS
     CASE("GAUSS")
        Write(6,'(T3,A)')"QM/MM Coupling computed analytically within GTO."
        stop
-    CASE("QS")
-       Write(6,'(T3,A)')"QM/MM Coupling computed with the dual scheme GTO/GRID."
-       stop
     CASE("NONE")
        Write(6,'(T3,A)')"No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
     CASE DEFAULT

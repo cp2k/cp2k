@@ -670,7 +670,6 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,box_change,calculate_force
              particles_mm(ip)%r - transl_v
      END DO
   END DO
-!  WRITE(*,'(A)')'PIPPO'
 !  CALL force_env_write_variables(force_env, 6, .true., error)
   isubsys=-1
   DO ip=1,SIZE(qm_atom_index)

@@ -750,6 +750,10 @@ CONTAINS
               "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&
               "GAPW| local Eh = 1 center integrals:           ",energy%hartree_1c
        END IF
+       IF  (qs_env%qmmm) THEN
+          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+               "QM/MM Electrostatic energy:                    ",energy%qmmm_el
+       END IF
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
             "Total energy:                                  ",energy%total
        CALL m_flush(output_unit)
