@@ -336,7 +336,8 @@ CONTAINS
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=200) :: file_name
     INTEGER            :: file_unit,ivector,nao,nlumos
-    CHARACTER(LEN=60)  :: filename,method
+    CHARACTER(LEN=60)  :: method
+    CHARACTER(LEN=80)  :: filename
     TYPE(preconditioner_type), TARGET :: ot_preconditioner
 
 
@@ -766,80 +767,82 @@ CONTAINS
             use_data = REALDATA3D,&
             in_space = REALSPACE, error=error)
     END IF
+
     IF (globenv%print%homos) THEN
-      ! write eigenvalues and a set of cubes
-      CALL get_mo_set(mo_set=mo_set,eigenvectors=mo_eigenvectors,homo=homo)
-      IF (globenv%ionode) WRITE(globenv%scr,*) " "
-      IF (globenv%ionode) WRITE(globenv%scr,*) " Eigenvalues of the occupied subspace"
-      IF (globenv%ionode) WRITE(globenv%scr,*) " ------------------------------------"
-      CALL calculate_subspace_eigenvalues(mo_eigenvectors,ks%matrix, &
-              para_env=globenv%para_env,ctxt=globenv%blacs_env,scr=globenv%scr, &
-              ionode=globenv%ionode)
+      DO ispin=1,dft_control%nspins
+         ! write eigenvalues and a set of cubes
+         CALL get_mo_set(mo_set=c(ispin)%mo_set,eigenvectors=mo_eigenvectors,homo=homo)
+         IF (globenv%ionode) WRITE(globenv%scr,*) " "
+         IF (globenv%ionode) WRITE(globenv%scr,*) " Eigenvalues of the occupied subspace spin ",ispin
+         IF (globenv%ionode) WRITE(globenv%scr,*) " ---------------------------------------------"
+         CALL calculate_subspace_eigenvalues(mo_eigenvectors,ks_rmpv(ispin)%matrix, &
+                 para_env=globenv%para_env,ctxt=globenv%blacs_env,scr=globenv%scr, &
+                 ionode=globenv%ionode)
 
-      DO ivector=MAX(1,homo-globenv%print%nhomos+1),homo
-         CALL calculate_wavefunction(mo_eigenvectors,ivector,wf_r, &
-                                     wf_g,mgrid_rspace,&
-                                     mgrid_gspace,&
-                                     pw_env%gridlevel_info,pw_env%cube_info, &
-                                     pw_env%l_info,&
-                                     qs_env,globenv)
+         DO ivector=MAX(1,homo-globenv%print%nhomos+1),homo
+            CALL calculate_wavefunction(mo_eigenvectors,ivector,wf_r, &
+                                        wf_g,mgrid_rspace,&
+                                        mgrid_gspace,&
+                                        pw_env%gridlevel_info,pw_env%cube_info, &
+                                        pw_env%l_info,&
+                                        qs_env,globenv)
 
-         WRITE(filename,'(a13,I5.5,a5)') "WAVEFUNCTION_",ivector,".cube"
-         IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
-         WRITE(filename,*) "WAVEFUNCTION ",ivector," i.e. HOMO - ",ivector-homo
-         CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,filename)
-         IF (globenv%ionode) CLOSE(21)
+            WRITE(filename,'(a13,I5.5,a1,I1.1,a5)') "WAVEFUNCTION_",ivector,"_",ispin,".cube"
+            IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
+            WRITE(filename,*) "WAVEFUNCTION ",ivector," spin ",ispin," i.e. HOMO - ",ivector-homo
+            CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,filename)
+            IF (globenv%ionode) CLOSE(21)
+         ENDDO
       ENDDO
     ENDIF
 
     IF (globenv%print%lumos) THEN
-      ! write eigenvalues and a set of cubes
-      IF (globenv%ionode) WRITE(globenv%scr,*) " "
-      IF (globenv%ionode) WRITE(globenv%scr,*) " Lowest Eigenvalues of the unoccupied subspace"
-      IF (globenv%ionode) WRITE(globenv%scr,*) " ---------------------------------------------"
-      CALL get_mo_set(mo_set=mo_set,eigenvectors=mo_eigenvectors,homo=homo,nao=nao)
-      CALL cp_fm_get_info(mo_eigenvectors,nrow_block=scf_control%nrow_block, &
-           ncol_block=scf_control%ncol_block, &
-           nrow_global=n, &
-           ncol_global=k)
-      nlumos=MAX(1,MIN(globenv%print%nlumos,nao-homo))
-      CALL cp_fm_create2(new_matrix=unoccupied_orbs, &
-           nrow_block=scf_control%nrow_block, &
-           ncol_block=scf_control%ncol_block, &
-           nrow_global=n, &
-           ncol_global=nlumos, &
-           name="unoccupied_orbs", &
-           globenv=globenv)
-      CALL cp_fm_init_random(unoccupied_orbs,nlumos)
+      DO ispin=1,dft_control%nspins
+         ! write eigenvalues and a set of cubes
+         IF (globenv%ionode) WRITE(globenv%scr,*) " "
+         IF (globenv%ionode) WRITE(globenv%scr,*) " Lowest Eigenvalues of the unoccupied subspace spin ",ispin
+         IF (globenv%ionode) WRITE(globenv%scr,*) " -----------------------------------------------------"
+         CALL get_mo_set(mo_set=c(ispin)%mo_set,eigenvectors=mo_eigenvectors,homo=homo,nao=nao)
+         CALL cp_fm_get_info(mo_eigenvectors, nrow_global=n, ncol_global=k)
+         nlumos=MAX(1,MIN(globenv%print%nlumos,nao-homo))
+         CALL cp_fm_create2(new_matrix=unoccupied_orbs, &
+              nrow_block=scf_control%nrow_block, &
+              ncol_block=scf_control%ncol_block, &
+              nrow_global=n, &
+              ncol_global=nlumos, &
+              name="unoccupied_orbs", &
+              globenv=globenv)
+         CALL cp_fm_init_random(unoccupied_orbs,nlumos)
 
-      CALL ot_eigensolver(matrix_h=ks%matrix,matrix_s=s(1)%matrix, &
-                          matrix_c=unoccupied_orbs, &
-                          matrix_orthogonal_space=mo_eigenvectors, &
-                          eps_gradient=scf_control%eps_lumos, &
-                          preconditioner=ot_preconditioner, &
-                          iter_max=scf_control%max_iter_lumos,globenv=globenv)
+         CALL ot_eigensolver(matrix_h=ks_rmpv(ispin)%matrix,matrix_s=s(1)%matrix, &
+                             matrix_c=unoccupied_orbs, &
+                             matrix_orthogonal_space=mo_eigenvectors, &
+                             eps_gradient=scf_control%eps_lumos, &
+                             preconditioner=ot_preconditioner, &
+                             iter_max=scf_control%max_iter_lumos,globenv=globenv)
   
-      CALL calculate_subspace_eigenvalues(unoccupied_orbs,ks%matrix,&
-              para_env=globenv%para_env,ctxt=globenv%blacs_env,scr=globenv%scr, &
-              ionode=globenv%ionode)
+         CALL calculate_subspace_eigenvalues(unoccupied_orbs,ks_rmpv(ispin)%matrix,&
+                 para_env=globenv%para_env,ctxt=globenv%blacs_env,scr=globenv%scr, &
+                 ionode=globenv%ionode)
 
-      DO ivector=1,nlumos
-         CALL calculate_wavefunction(mo_vectors=unoccupied_orbs,&
-              ivector=ivector,rho=wf_r, &
-              rho_gspace=wf_g,&
-              mgrid_rspace=mgrid_rspace,&
-              mgrid_gspace=mgrid_gspace,&
-              gridlevel_info=pw_env%gridlevel_info,&
-              cube_info=pw_env%cube_info, &
-              l_info=pw_env%l_info,&
-              qs_env=qs_env,globenv=globenv)
+         DO ivector=1,nlumos
+            CALL calculate_wavefunction(mo_vectors=unoccupied_orbs,&
+                 ivector=ivector,rho=wf_r, &
+                 rho_gspace=wf_g,&
+                 mgrid_rspace=mgrid_rspace,&
+                 mgrid_gspace=mgrid_gspace,&
+                 gridlevel_info=pw_env%gridlevel_info,&
+                 cube_info=pw_env%cube_info, &
+                 l_info=pw_env%l_info,&
+                 qs_env=qs_env,globenv=globenv)
 
-         WRITE(filename,'(a13,I5.5,a5)') "WAVEFUNCTION_",homo+ivector,".cube"
-         IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
-         WRITE(filename,*) "WAVEFUNCTION ",homo+ivector," i.e. LUMO + ",ivector-1
-         CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,filename)
-         IF (globenv%ionode) CLOSE(21)
+            WRITE(filename,'(a13,I5.5,a1,I1.1,a5)') "WAVEFUNCTION_",homo+ivector,"_",ispin,".cube"
+            IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
+            WRITE(filename,*) "WAVEFUNCTION ",homo+ivector," spin ",ispin," i.e. LUMO + ",ivector-1
+            CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,filename)
+            IF (globenv%ionode) CLOSE(21)
 
+         ENDDO
       ENDDO
    ENDIF
 
