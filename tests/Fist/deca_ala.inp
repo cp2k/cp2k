@@ -1,8 +1,8 @@
 &CP2K  
   PROGRAM   FIST
-  PROJECT   water3
+  PROJECT   deca_ala
   IOLEVEL   1
-  FFTLIB    FFTW
+  FFTLIB    FFTSG
   RUN_TYPE   md
 &END
 
@@ -31,23 +31,10 @@
 &END
 
 &FORCE_FIELD
- constraints
-   g3x3 add 1 1 2 3 1.8897268 1.8897268 3.0859239
- end constraints
- charges
-   O -0.8476
-   H  0.4238
- end
- bonds
-  harmonic O H 0. 1.8
- end
- bends
-  harmonic H O H 0. 1.8
- end
- nonbonded
-  LENNARD-JONES O O 78.198 3.166 11.4
-  LENNARD-JONES O H 0.0 3.6705 11.4
-  LENNARD-JONES H H 0.0 3.30523 11.4
+ torsions
+   jorgensen  HA CT3 CT1 NH1 1.0 0.0
+   jorgensen  HA CT3 CT1  HB 2.0 0.0
+   jorgensen  HA CT3 CT1   C 3.0 0.0
  end
 &END
 
