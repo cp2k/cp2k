@@ -956,13 +956,15 @@ CONTAINS
 
 !******************************************************************
 !
-! op can be SOLVE (out = U^-1 * in ) or MULTIPLY   (out = U * in )
+! op can be "SOLVE" (out = U^-1 * in ) or "MULTIPLY"   (out = U * in )
+! pos can be "LEFT" or "RIGHT" (U at the left or at the right)
 !
 !******************************************************************
-  SUBROUTINE blacs_cholesky_restore(matrix,neig,matrixb,matrixout,op)
+  SUBROUTINE blacs_cholesky_restore(matrix,neig,matrixb,matrixout,op,pos)
     TYPE(cp_full_matrix_type), POINTER          :: matrix,matrixb,matrixout
     INTEGER, INTENT(IN)                       :: neig
     CHARACTER ( LEN = * ), INTENT ( IN )      :: op
+    CHARACTER ( LEN = * ), INTENT ( IN ), optional      :: pos
 
     REAL(wp), DIMENSION(:,:), POINTER         :: a,b,out
     INTEGER                                   :: info,itype,handle
@@ -972,6 +974,7 @@ CONTAINS
     INTEGER                                   :: myprow, mypcol, i
     INTEGER, DIMENSION(9)                     :: desca,descb,descout
     TYPE(cp_blacs_env_type), POINTER          :: context
+    CHARACTER                                 :: chol_pos
 
     CALL timeset("blacs_cholesky_restore","I","",handle)
 
@@ -982,6 +985,19 @@ CONTAINS
     itype = 1
     IF (op .NE. "SOLVE" .AND. op .NE. "MULTIPLY") THEN
        CALL stop_program("blacs_cholesky_restore","wrong argument op")
+    ENDIF
+
+    IF (PRESENT(pos)) THEN 
+       SELECT CASE(pos)
+       CASE("LEFT")
+         chol_pos='L'
+       CASE("RIGHT")
+         chol_pos='R'
+       CASE DEFAULT
+         CALL stop_program("choleksy_restore","wrong argument pos")
+       END SELECT
+    ELSE
+       chol_pos='L'
     ENDIF
 
     ! notice b is the cholesky guy
@@ -999,18 +1015,18 @@ CONTAINS
       CALL pdcopy(n,a(1,1),1,i,desca,1,out(1,1),1,i,descout,1)
     ENDDO
     IF (op.EQ."SOLVE") THEN
-      CALL pdtrsm('L','U','N','N',n,neig,alpha,b(1,1),1,1,descb,out(1,1),1,1,descout)
+      CALL pdtrsm(chol_pos,'U','N','N',n,neig,alpha,b(1,1),1,1,descb,out(1,1),1,1,descout)
     ELSE
-      CALL pdtrmm('L','U','N','N',n,neig,alpha,b(1,1),1,1,descb,out(1,1),1,1,descout)
+      CALL pdtrmm(chol_pos,'U','N','N',n,neig,alpha,b(1,1),1,1,descb,out(1,1),1,1,descout)
     ENDIF
 #else
 
     alpha=1.0_wp
     CALL dcopy(neig*n,a(1,1),1,out(1,1),1)
     IF (op.EQ."SOLVE") THEN
-      CALL dtrsm('L','U','N','N',n,neig,alpha,b(1,1),n,out(1,1),n)
+      CALL dtrsm(chol_pos,'U','N','N',n,neig,alpha,b(1,1),n,out(1,1),n)
     ELSE
-      CALL dtrmm('L','U','N','N',n,neig,alpha,b(1,1),n,out(1,1),n)
+      CALL dtrmm(chol_pos,'U','N','N',n,neig,alpha,b(1,1),n,out(1,1),n)
     ENDIF
 
 #endif
@@ -2299,7 +2315,6 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 !   ---------------------------------------------------------------------------
 
     CALL cp_fm_create(new_matrix,prototype_matrix%matrix_struct)
-    context => prototype_matrix%matrix_struct%context
     CALL dcopy(SIZE(new_matrix%local_data,1)*&
          SIZE(new_matrix%local_data,2),&
          prototype_matrix%local_data(1,1),&
@@ -2451,7 +2466,7 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 !   ***************************************************************************
 
     TYPE(cp_full_matrix_type), POINTER          :: matrix
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(global_environment_type), INTENT(IN), OPTIONAL :: globenv
     INTEGER, INTENT(IN)                       :: lunit
     LOGICAL, INTENT(IN), OPTIONAL             :: formatted
 
@@ -2477,7 +2492,7 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
          WRITE(6,*) "row ,col ,value"
          DO j=1,ncol_local
          DO i=1,nrow_local
-         WRITE (UNIT=lunit,FMT='(I5,I5,F6.2)') i,j,matrix%local_data(i,j)
+         WRITE (UNIT=lunit,FMT='(I5,I5,E16.8)') i,j,matrix%local_data(i,j)
          ENDDO
          ENDDO
        ELSE
