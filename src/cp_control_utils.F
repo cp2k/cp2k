@@ -32,7 +32,8 @@ MODULE cp_control_utils
                                              xc_rho_no_smooth,&
                                              xc_rho_spline2_smooth,&
                                              xc_rho_spline3_smooth,&
-                                             xc_test_f_routine
+                                             xc_test_f_routine,&
+                                             xc_test_lsd_f_routine
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
@@ -293,6 +294,9 @@ CONTAINS
              CASE ("TEST")
                 dft_control % xc_control % functional_routine = &
                      xc_test_f_routine
+             CASE ("TEST_LSD")
+                dft_control % xc_control % functional_routine = &
+                     xc_test_lsd_f_routine
              CASE DEFAULT
                 CALL stop_parser(routine=routine,message="INVALID_KEYWORD for FUNCTIONAL_ROUTINE "//str1)
              END SELECT

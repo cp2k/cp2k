@@ -192,7 +192,7 @@ MODULE cp_control_types
        xc_deriv_spline3=2, xc_deriv_spline2_smooth=3,&
        xc_deriv_spline3_smooth=4
   INTEGER, PARAMETER, PUBLIC :: xc_old_f_routine=0, xc_new_f_routine=1,&
-       xc_test_f_routine=2
+       xc_test_f_routine=2, xc_test_lsd_f_routine=3
   INTEGER, SAVE :: last_dft_control_id=0
 
 ! *** Public data types ***
