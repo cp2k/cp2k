@@ -63,6 +63,7 @@ MODULE qs_scf
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
+  USE cp_files,                        ONLY: close_file,open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_symm,&
                                              cp_fm_upper_to_full
@@ -732,9 +733,10 @@ CONTAINS
        END IF
 
 ! ** convergence check
-       IF (qs_env%para_env%source==qs_env%para_env%mepos) &
-            INQUIRE(file="EXIT",exist=should_stop)
-       CALL mp_bcast(should_stop,qs_env%para_env%source,qs_env%para_env%group)
+!       IF (qs_env%para_env%source==qs_env%para_env%mepos) &
+!            INQUIRE(file="EXIT_SCF",exist=should_stop)
+!       CALL mp_bcast(should_stop,qs_env%para_env%source,qs_env%para_env%group)
+       CALL external_control(scf_env,should_stop,error)
        IF (scf_env%iter_delta < scf_control%eps_scf) THEN
           IF (ionode.AND.logger%print_keys%scf) THEN
              WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&
@@ -2331,6 +2333,54 @@ SUBROUTINE scf_env_did_change(scf_env,error)
      END IF
   END IF
 END SUBROUTINE scf_env_did_change
+
+! *****************************************************************************
+
+  SUBROUTINE external_control(scf_env,should_stop,error)
+
+!   Purpose: External manipulations during an QS SCF loop
+
+!   History: - Creation (10.03.2005,MI)
+
+!   ***************************************************************************
+
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    LOGICAL, INTENT(OUT)                     :: should_stop
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: exit_file_name = "EXIT_SCF", &
+      routine_name = "external_control", &
+      routineP = moduleN//':'//routine_name
+
+    INTEGER                                  :: handle, unit_number
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
+
+!   ---------------------------------------------------------------------------
+
+!   CALL timeset(routine_name,"I","",handle)
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
+
+    logger => cp_error_get_logger(error)
+    should_stop = .FALSE.
+
+    IF (logger%para_env%source==logger%para_env%mepos) THEN
+       INQUIRE (FILE=exit_file_name,EXIST=should_stop)
+
+       IF (should_stop) THEN
+          CALL open_file(file_name=exit_file_name,unit_number=unit_number)
+          CALL close_file(unit_number=unit_number,file_status="DELETE")
+          WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
+               "*** SCF loop terminated by external request ***"
+       END IF
+    END IF
+    CALL mp_bcast(should_stop,logger%para_env%source,logger%para_env%group)
+
+!    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE external_control
 
 !***************************************************************************
 

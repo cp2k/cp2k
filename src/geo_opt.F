@@ -123,7 +123,7 @@ MODULE geo_opt
      
      SELECT CASE (gopt_param%method_id)
      CASE (default_bfgs_method_id)
-       CALL geoopt_bfgs(force_env,globenv,gopt_param)
+       CALL geoopt_bfgs(force_env,globenv,gopt_param,error=error)
      CASE (default_lbfgs_method_id)
         CALL gopt_do_opt(force_env,gopt_param,globenv,error=error)
      CASE DEFAULT

@@ -1,7 +1,25 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2001  CP2K developers group                                 !
+!   Copyright (C) 2001 - 2005  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
+!!****** cp2k/bfgs_optimizer [1.0] *
+!!
+!!   NAME
+!!     bfgs_optimizer
+!!
+!!   FUNCTION
+!!     Routines for Geometry optimization using BFGS algorithm 
+!!
+!!   AUTHOR
+!!     
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!***************************************************************************
 
 MODULE bfgs_optimizer
 
@@ -9,6 +27,19 @@ MODULE bfgs_optimizer
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_files,                        ONLY: close_file,open_file
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
@@ -47,12 +78,14 @@ CONTAINS
 
 !!*** **********************************************************************
 
-  SUBROUTINE geoopt_bfgs(force_env,globenv,gopt_param)
+  SUBROUTINE geoopt_bfgs(force_env,globenv,gopt_param,error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     TYPE(gopt_param_type), POINTER           :: gopt_param
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = 'geoopt_bfgs'
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
@@ -61,7 +94,7 @@ CONTAINS
     INTEGER :: atom, dataunit, handle, hesunit, i, iatom, ikind, indf, istat, &
       it, j, maxiter, natom, ndf, nfixed, nfree, nkind, output_unit
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: conv, hesrest, ionode
+    LOGICAL                                  :: conv, hesrest, ionode,should_stop
     REAL(KIND=dp)                            :: ediff, emin, eold, etot, &
                                                 pred, rad, rat, step
     REAL(KIND=dp), ALLOCATABLE :: dg(:), dr(:), dx(:), eigval(:), &
@@ -71,6 +104,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
@@ -80,6 +114,9 @@ CONTAINS
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 
     CALL timeset(routine_name,"I","",handle)
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
 
     ionode      = globenv%ionode
     output_unit = globenv%scr
@@ -235,6 +272,9 @@ CONTAINS
        END IF
        EXIT
      END IF
+     ! check for an external exit command 
+     CALL external_control(force_env,should_stop,error)
+     IF(should_stop) EXIT
 
      IF (ionode)THEN
        WRITE(UNIT=output_unit,FMT="(/,T2,26('-'))")
@@ -978,5 +1018,52 @@ CONTAINS
     END IF
 
   END SUBROUTINE check_converg
+! *****************************************************************************
+
+  SUBROUTINE external_control(force_env,should_stop,error)
+
+!   Purpose: External manipulations during an GEOPT run
+
+!   History: - Creation (10.03.2005,MI)
+
+!   ***************************************************************************
+
+   TYPE(force_env_type), POINTER            :: force_env
+   LOGICAL, INTENT(OUT)                     :: should_stop
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: exit_file_name = "EXIT_GOP", &
+      routine_name = "external_control", &
+      routineP = moduleN//':'//routine_name
+
+    INTEGER                                  :: handle, unit_number
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
+
+!   ---------------------------------------------------------------------------
+
+   failure=.FALSE.
+    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
+
+    logger => cp_error_get_logger(error)
+    should_stop = .FALSE.
+
+    IF (logger%para_env%source==logger%para_env%mepos) THEN
+       INQUIRE (FILE=exit_file_name,EXIST=should_stop)
+
+       IF (should_stop) THEN
+          CALL open_file(file_name=exit_file_name,unit_number=unit_number)
+          CALL close_file(unit_number=unit_number,file_status="DELETE")
+          WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
+               "*** GOP run terminated by external request ***"
+       END IF
+    END IF
+    CALL mp_bcast(should_stop,logger%para_env%source,logger%para_env%group)
+
+  END SUBROUTINE external_control
+
+!***************************************************************************
+
 
 END MODULE bfgs_optimizer 
