@@ -53,6 +53,8 @@ MODULE realspace_grid_types
                                              mp_max,&
                                              mp_min,&
                                              mp_sendrecv,&
+                                             mp_isendrecv,&
+                                             mp_waitall,&
                                              mp_shift,&
                                              mp_sum
   USE pw_grid_types,                   ONLY: pw_grid_type, &
@@ -94,7 +96,7 @@ MODULE realspace_grid_types
      INTEGER, DIMENSION (3) :: lb                        ! lower bounds
      INTEGER, DIMENSION (3) :: ub                        ! upper bounds
      INTEGER, DIMENSION (:), POINTER :: px,py,pz         ! index translators
-     REAL (KIND=dp), DIMENSION ( :, :, : ),POINTER :: r    ! the grid
+     REAL(KIND=dp), DIMENSION ( :, :, : ),POINTER :: r    ! the grid
      INTEGER :: border                                   ! border points
      INTEGER :: ngpts_local                              ! local dimensions
      INTEGER, DIMENSION (3) :: npts_local
@@ -433,13 +435,13 @@ CONTAINS
              END IF
              nn = rs % npts_local ( dir )
              CALL mp_sum ( nn, rs % group )
-             pp ( 1 ) = REAL ( nn,KIND=dp) / REAL ( PRODUCT ( rs % group_dim ),KIND=dp)
+             pp ( 1 ) = REAL ( nn, KIND=dp ) / REAL ( PRODUCT ( rs % group_dim ), KIND=dp )
              nn = rs % npts_local ( dir )
              CALL mp_max ( nn, rs % group )
-             pp ( 2 ) = REAL ( nn,KIND=dp)
+             pp ( 2 ) = REAL ( nn, KIND=dp )
              nn = rs % npts_local ( dir )
              CALL mp_min ( nn, rs % group )
-             pp ( 3 ) = REAL ( nn,KIND=dp)
+             pp ( 3 ) = REAL ( nn, KIND=dp )
              IF ( rs % group_head ) THEN
                 WRITE ( iounit, '(A,T48,A)' ) " RS_GRID:   Distribution", &
                      "  Average         Max         Min"
@@ -519,6 +521,178 @@ CONTAINS
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
     CHARACTER(LEN=*), INTENT(IN)             :: dir
 
+    INTEGER :: nn, handle, handle2
+
+!-----------------------------------------------------------------------------!
+
+    CALL timeset("rs_pw_transfer_all",'I',' ',handle2)
+    CALL timeset("rs_pw_transfer_"//dir//"_"// &
+                 TRIM(ADJUSTL(cp_to_string(pw%pw_grid%identifier))),'I',' ',handle)
+
+    IF ( rs % identifier /= pw % pw_grid % identifier ) &
+       CALL stop_program ( "rs_pw_transfer", "different rs and pw indentitfiers")
+    IF ( (pw%in_use .NE. REALDATA3D) .AND. (pw%in_use .NE. COMPLEXDATA3D)) &
+       CALL stop_program ( "rs_pw_transfer", "Need REALDATA3D or COMPLEXDATA3D" )
+    IF ( (dir.NE."BACKWARD") .AND. (dir.NE."FORWARD") ) &
+       CALL stop_program ( "rs_pw_transfer", "direction must be forward or backward")
+
+    IF (  rs % parallel ) THEN
+       IF ( rs % group_dim ( 1 ) == 1 ) THEN
+          CALL rs_pw_transfer_replicated(rs,pw,dir)
+       ELSE
+          CALL rs_pw_transfer_distributed(rs,pw,dir)
+       END IF
+    ELSE ! treat simple serial case locally
+       nn = SIZE ( rs % r )
+       IF ( dir == "FORWARD" ) THEN
+          IF ( pw % in_use == REALDATA3D ) THEN
+             CALL dcopy ( nn, rs % r, 1, pw % cr3d, 1 )
+          ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
+             CALL copy_rc ( nn, rs % r, pw % cc3d )
+          ELSE
+             CALL stop_program ( "rs_pw_transfer", "Pw type not compatible" )
+          END IF
+       ELSE
+          IF ( pw % in_use == REALDATA3D ) THEN
+             CALL dcopy ( nn, pw % cr3d, 1, rs % r, 1 )
+          ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
+             CALL copy_cr ( nn, pw % cc3d, rs % r )
+          ELSE
+             CALL stop_program ( "rs_pw_transfer", "Pw type not compatible" )
+          END IF
+       END IF
+    END IF
+    CALL timestop(0.0_dp,handle)
+    CALL timestop(0.0_dp,handle2)
+  END SUBROUTINE rs_pw_transfer
+
+  ! treat the two different parallel cases here
+  SUBROUTINE rs_pw_transfer_replicated(rs,pw,dir)
+    TYPE(realspace_grid_type), INTENT(INOUT) :: rs
+    TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
+    CHARACTER(LEN=*), INTENT(IN)             :: dir
+
+    INTEGER                                  :: dest, group, handle, handle2, idir, &
+                                                ierr, ii, ip, ix, iy, iz, &
+                                                mepos, nma, nn, np, source, &
+                                                subgroup
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount
+    INTEGER, DIMENSION(3)                    :: lb, lc, ub, uc
+    INTEGER, DIMENSION(:, :), POINTER        :: pbo
+    INTEGER, DIMENSION(:, :, :), POINTER     :: bo
+    REAL(KIND=dp), POINTER, DIMENSION(:)         :: sendbuf,recvbuf,swapptr 
+    REAL(KIND=dp), DIMENSION(:,:,:), POINTER     :: grid
+    INTEGER                                  :: req(2),s(3)
+
+    np = pw % pw_grid % para % group_size
+    bo => pw % pw_grid % para % bo (1:2,1:3,0:np-1,1)
+    pbo => pw % pw_grid % bounds
+    group = pw % pw_grid % para % rs_group
+    mepos = pw % pw_grid % para % rs_mpo 
+    ALLOCATE ( rcount ( 0 : np - 1 ), STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "rcount", 2*np )
+    DO ip = 1, np
+       rcount ( ip-1 ) = PRODUCT ( bo(2,:,ip) - bo(1,:,ip) + 1 )
+    END DO
+    nma = MAXVAL ( rcount ( 0 : np - 1 ) )
+    ALLOCATE(sendbuf(nma),recvbuf(nma), STAT=ierr)
+    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "sendbuf/recvbuf", 2*nma )
+    grid=>rs%r
+
+    IF ( dir == "FORWARD" ) THEN
+       dest  =MODULO(mepos+1,np)
+       source=MODULO(mepos-1,np)
+       sendbuf=0.0_dp
+
+       DO ip = 1, np
+
+          lb = pbo(1,:)+bo(1,:,MODULO(mepos-ip,np)+1)-1
+          ub = pbo(1,:)+bo(2,:,MODULO(mepos-ip,np)+1)-1
+          ! this loop takes about the same time as the message passing call
+          ! notice that the range of ix is only a small fraction of the first index of grid
+          ! therefore it seems faster to have the second index as the innermost loop
+          ! if this runs on many cpus
+          ! tested on itanium, pentium4, opteron, ultrasparc...
+          s=ub-lb+1
+          DO iz = lb(3), ub(3)
+           DO ix = lb(1), ub(1)
+             ii= (iz-lb(3))*s(1)*s(2)+(ix-lb(1))+1
+             DO iy = lb(2), ub(2) 
+                sendbuf(ii) = sendbuf(ii) + grid(ix,iy,iz)
+                ii=ii+s(1)
+            END DO
+           END DO
+          END DO
+          IF ( ip .EQ. np ) EXIT
+          CALL mp_isendrecv(sendbuf,dest,recvbuf,source, &
+                                   group,req(1),req(2),13) 
+          CALL mp_waitall(req)
+          swapptr=>sendbuf
+          sendbuf=>recvbuf
+          recvbuf=>swapptr
+       ENDDO
+       nn = rcount(mepos)
+       IF ( pw % in_use == REALDATA3D ) THEN
+          CALL dcopy ( nn, sendbuf, 1, pw % cr3d, 1 )
+       ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
+          CALL copy_rc ( nn, sendbuf, pw % cc3d )
+       ELSE
+          CALL stop_program ( "rs_pw_transfer", "PW type not compatible" )
+       END IF
+    ELSE
+       nn = rcount ( mepos )
+       IF ( pw % in_use == REALDATA3D ) THEN
+          CALL dcopy ( nn, pw % cr3d, 1, sendbuf, 1 )
+       ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
+          CALL dcopy ( nn, pw % cc3d, 2, sendbuf, 1 )
+       ELSE
+          CALL stop_program ( "rs_pw_transfer", "PW type not compatible" )
+       END IF
+
+       dest  =MODULO(mepos+1,np)
+       source=MODULO(mepos-1,np)
+
+       DO ip = 0, np-1
+          ! we must shift the buffer only np-1 times around
+          IF (ip .NE. np-1) THEN
+              CALL mp_isendrecv(sendbuf,dest,recvbuf,source, &
+                                group,req(1),req(2),13) 
+          ENDIF
+          lb = pbo(1,:)+bo(1,:,MODULO(mepos-ip,np)+1)-1
+          ub = pbo(1,:)+bo(2,:,MODULO(mepos-ip,np)+1)-1
+          ii = 0
+          ! this loop takes about the same time as the message passing call
+          DO iz = lb(3), ub(3)
+             DO iy = lb(2), ub(2)
+                DO ix = lb(1), ub(1)
+                   ii=ii+1
+                   grid(ix,iy,iz) = sendbuf(ii)
+                END DO
+             END DO
+          END DO
+          IF (ip .NE. np-1) THEN
+              CALL mp_waitall(req)
+          ENDIF
+          swapptr=>sendbuf
+          sendbuf=>recvbuf
+          recvbuf=>swapptr
+       ENDDO
+
+    END IF
+
+    DEALLOCATE ( rcount, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "rcount" )
+    DEALLOCATE ( sendbuf, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "sendbuf" )
+    DEALLOCATE ( recvbuf, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "recvbuf" )
+  END SUBROUTINE rs_pw_transfer_replicated
+
+  SUBROUTINE rs_pw_transfer_distributed(rs,pw,dir)
+    TYPE(realspace_grid_type), INTENT(INOUT) :: rs
+    TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
+    CHARACTER(LEN=*), INTENT(IN)             :: dir
+
     INTEGER                                  :: dest, group, handle, handle2, idir, &
                                                 ierr, ii, ip, ix, iy, iz, &
                                                 mepos, nma, nn, np, source, &
@@ -532,247 +706,105 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: buffer
 
-!-----------------------------------------------------------------------------!
 
-    CALL timeset("rs_pw_transfer_all",'I',' ',handle2)
-    CALL timeset("rs_pw_transfer_"//TRIM(ADJUSTL(cp_to_string(pw%pw_grid%identifier))),'I',' ',handle)
-    IF ( rs % identifier /= pw % pw_grid % identifier ) THEN
-       CALL stop_program ( "rs_pw_transfer", &
-            "Real space grid and pw type not compatible" )
-    END IF
+    !Both grids are distributed, we have to do some reshuffling of data
+    IF ( dir == "FORWARD" ) THEN
 
-    IF ( pw % in_use == REALDATA1D .OR. &
-         pw % in_use == COMPLEXDATA1D ) THEN
-       CALL stop_program ( "rs_pw_transfer", "PW type not compatible" )
-    END IF
+       ! The border data has to be send/received from the neighbors
+       ! First we calculate the source and destination processes for the shift
+       ! The first shift is "downwards"
+       CALL mp_cart_shift ( rs % group, 0, -1, source, dest )
+       idir = rs % direction
+       lb ( : ) = rs % lb_local ( : )
+       ub ( : ) = rs % ub_local ( : )
+       ub ( idir ) = lb ( idir ) + rs % border - 1 
+       ! Allocate a scratch array to receive the data
+       nn = PRODUCT ( ub - lb + 1 )
+       ALLOCATE ( buffer ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ), STAT=ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","buffer",nn)
+       CALL mp_sendrecv ( rs % r ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ), &
+            dest, buffer, source, rs % group )
+       lb ( : ) = rs % lb_local ( : )
+       ub ( : ) = rs % ub_local ( : )
+       ub ( idir ) = ub ( idir ) - rs % border
+       lb ( idir ) = ub ( idir ) - rs % border + 1
+       ! Sum the data in the RS Grid
+       rs % r ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ) = &
+            rs % r ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ) + buffer ( :, :, : )
+       ! Now for the other direction
+       CALL mp_cart_shift ( rs % group, 0, 1, source, dest )
+       lb ( : ) = rs % lb_local ( : )
+       ub ( : ) = rs % ub_local ( : )
+       lb ( idir ) = ub ( idir ) - rs % border + 1 
+       CALL mp_sendrecv ( rs % r ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ), &
+            dest, buffer, source, rs % group )
+       lb ( : ) = rs % lb_local ( : )
+       ub ( : ) = rs % ub_local ( : )
+       lb ( idir ) = lb ( idir ) + rs % border
+       ub ( idir ) = lb ( idir ) + rs % border - 1
+       ! Sum the data in the RS Grid
+       rs % r ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ) = &
+            rs % r ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ) + buffer ( :, :, : )
+       ! Get rid of the scratch space
+       DEALLOCATE ( buffer, STAT=ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","buffer")
 
-    IF (  rs % parallel ) THEN
+       ! We have to sum up the data within the RS groups
+       ! We generate a subgroup that covers all processors with the same RS grid
+       subdim ( 1 ) = .FALSE.
+       subdim ( 2 ) = .TRUE.
+       CALL mp_cart_sub ( rs % group, subdim, subgroup )
+       ! Now we do the sum (exclude border areas)
+       lb ( : ) = rs % lb_local ( : )
+       ub ( : ) = rs % ub_local ( : )
+       lb ( idir ) = lb ( idir ) + rs % border
+       ub ( idir ) = ub ( idir ) - rs % border
+       CALL mp_sum ( rs % r ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ), subgroup )
+       ! And we release the communicator again
+       CALL mp_comm_free ( subgroup )
 
-       IF ( rs % group_dim ( 1 ) == 1 ) THEN
-        
-          np = pw % pw_grid % para % group_size
-          bo => pw % pw_grid % para % bo (1:2,1:3,0:np-1,1)
-          pbo => pw % pw_grid % bounds
-          group = pw % pw_grid % para % rs_group
-          mepos = pw % pw_grid % para % rs_mpo 
-          ALLOCATE ( rcount ( 0 : np - 1 ), STAT = ierr )
-          IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "rcount", 2*np )
-          DO ip = 1, np
-             rcount ( ip-1 ) = PRODUCT ( bo(2,:,ip) - bo(1,:,ip) + 1 )
-          END DO
-          nma = MAXVAL ( rcount ( 0 : np - 1 ) )
-          ALLOCATE ( rlocal ( nma ), STAT = ierr )
-          IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "rlocal", nma )
-
-          IF ( dir == "FORWARD" ) THEN
-             rlocal=0.0_dp
-             DO ip = 1, np
-                lb = pbo(1,:)+bo(1,:,MODULO(mepos-ip,np)+1)-1
-                ub = pbo(1,:)+bo(2,:,MODULO(mepos-ip,np)+1)-1
-                ii = 0
-                DO iz = lb(3), ub(3)
-                   DO iy = lb(2), ub(2)
-                      DO ix = lb(1), ub(1)
-                         ii=ii+1
-                         rlocal(ii) = rlocal(ii)+rs%r(ix,iy,iz)
-                      END DO
-                   END DO
-                END DO
-                IF ( ip .EQ. np ) EXIT
-                CALL mp_shift(rlocal,group,1)
-             ENDDO
-             nn = rcount(mepos)
-             IF ( pw % in_use == REALDATA3D ) THEN
-                CALL dcopy ( nn, rlocal, 1, pw % cr3d, 1 )
-             ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
-                CALL copy_rc ( nn, rlocal, pw % cc3d )
-             ELSE
-                CALL stop_program ( "rs_pw_transfer", "PW type not compatible" )
-             END IF
-          ELSEIF ( dir == "BACKWARD" ) THEN
-             nn = rcount ( mepos )
-             IF ( pw % in_use == REALDATA3D ) THEN
-                CALL dcopy ( nn, pw % cr3d, 1, rlocal, 1 )
-             ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
-                CALL dcopy ( nn, pw % cc3d, 2, rlocal, 1 )
-             ELSE
-                CALL stop_program ( "rs_pw_transfer", "PW type not compatible" )
-             END IF
-             lb = pbo(1,:)+bo(1,:,mepos+1)-1
-             ub = pbo(1,:)+bo(2,:,mepos+1)-1
-             ii = 0
-             DO iz = lb(3), ub(3)
-                DO iy = lb(2), ub(2)
-                   DO ix = lb(1), ub(1)
-                      ii=ii+1
-                      rs%r(ix,iy,iz) = rlocal(ii)
-                   END DO
-                END DO
-             END DO
-             DO ip = 1, np-1
-
-                CALL mp_shift(rlocal,group,1)
-
-                lb = pbo(1,:)+bo(1,:,MODULO(mepos-ip,np)+1)-1
-                ub = pbo(1,:)+bo(2,:,MODULO(mepos-ip,np)+1)-1
-                ii = 0
-                DO iz = lb(3), ub(3)
-                   DO iy = lb(2), ub(2)
-                      DO ix = lb(1), ub(1)
-                         ii=ii+1
-                         rs%r(ix,iy,iz) = rlocal(ii)
-                      END DO
-                   END DO
-                END DO
-             ENDDO
-          ELSE
-
-             CALL stop_program ( "rs_pw_transfer", &
-                  "Parameter dir ="//dir//" not allowed" )
-
-          END IF
-
-          DEALLOCATE ( rcount, STAT = ierr )
-          IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "rcount" )
-          DEALLOCATE ( rlocal, STAT = ierr )
-          IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "rlocal" )
-
-       ELSE
-          !Both grids are distributed, we have to do some reshuffling of data
-
-          IF ( dir == "FORWARD" ) THEN
-
-             ! The border data has to be send/received from the neighbors
-             ! First we calculate the source and destination processes for the shift
-             ! The first shift is "downwards"
-             CALL mp_cart_shift ( rs % group, 0, -1, source, dest )
-             idir = rs % direction
-             lb ( : ) = rs % lb_local ( : )
-             ub ( : ) = rs % ub_local ( : )
-             ub ( idir ) = lb ( idir ) + rs % border - 1 
-             ! Allocate a scratch array to receive the data
-             nn = PRODUCT ( ub - lb + 1 )
-             ALLOCATE ( buffer ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ), STAT=ierr )
-             IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","buffer",nn)
-             CALL mp_sendrecv ( rs % r ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ), &
-                  dest, buffer, source, rs % group )
-             lb ( : ) = rs % lb_local ( : )
-             ub ( : ) = rs % ub_local ( : )
-             ub ( idir ) = ub ( idir ) - rs % border
-             lb ( idir ) = ub ( idir ) - rs % border + 1
-             ! Sum the data in the RS Grid
-             rs % r ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ) = &
-                  rs % r ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ) + buffer ( :, :, : )
-             ! Now for the other direction
-             CALL mp_cart_shift ( rs % group, 0, 1, source, dest )
-             lb ( : ) = rs % lb_local ( : )
-             ub ( : ) = rs % ub_local ( : )
-             lb ( idir ) = ub ( idir ) - rs % border + 1 
-             CALL mp_sendrecv ( rs % r ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ), &
-                  dest, buffer, source, rs % group )
-             lb ( : ) = rs % lb_local ( : )
-             ub ( : ) = rs % ub_local ( : )
-             lb ( idir ) = lb ( idir ) + rs % border
-             ub ( idir ) = lb ( idir ) + rs % border - 1
-             ! Sum the data in the RS Grid
-             rs % r ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ) = &
-                  rs % r ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ) + buffer ( :, :, : )
-             ! Get rid of the scratch space
-             DEALLOCATE ( buffer, STAT=ierr )
-             IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","buffer")
-
-             ! We have to sum up the data within the RS groups
-             ! We generate a subgroup that covers all processors with the same RS grid
-             subdim ( 1 ) = .FALSE.
-             subdim ( 2 ) = .TRUE.
-             CALL mp_cart_sub ( rs % group, subdim, subgroup )
-             ! Now we do the sum (exclude border areas)
-             lb ( : ) = rs % lb_local ( : )
-             ub ( : ) = rs % ub_local ( : )
-             lb ( idir ) = lb ( idir ) + rs % border
-             ub ( idir ) = ub ( idir ) - rs % border
-             CALL mp_sum ( rs % r ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ), subgroup )
-             ! And we release the communicator again
-             CALL mp_comm_free ( subgroup )
-
-             ! This is the real redistribution
-             CALL send_forward ( rs, pw )
-
-          ELSEIF ( dir == "BACKWARD" ) THEN
-
-             ! This is the real redistribution
-             CALL send_backward ( rs, pw )
-             ! Redistribution of the border area
-             CALL mp_cart_shift ( rs % group, 0, -1, source, dest )
-             idir = rs % direction
-             lb ( : ) = rs % lb_local ( : )
-             ub ( : ) = rs % ub_local ( : )
-             lb ( idir ) = lb ( idir ) + rs % border
-             ub ( idir ) = lb ( idir ) + rs % border - 1
-             lc ( : ) = rs % lb_local ( : )
-             uc ( : ) = rs % ub_local ( : )
-             lc ( idir ) = uc ( idir ) - rs % border + 1
-             nn = PRODUCT ( uc - lc + 1 )
-             ALLOCATE ( buffer ( lc(1):uc(1), lc(2):uc(2), lc(3):uc(3) ), STAT=ierr )
-             IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","buffer",nn)
-             CALL mp_sendrecv ( rs % r ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ), &
-                  dest, buffer, source, rs % group )
-             rs % r ( lc(1):uc(1), lc(2):uc(2), lc(3):uc(3) ) = buffer ( :, :, : )
-             ! Now for the other direction
-             CALL mp_cart_shift ( rs % group, 0, 1, source, dest )
-             lb ( : ) = rs % lb_local ( : )
-             ub ( : ) = rs % ub_local ( : )
-             ub ( idir ) = ub ( idir ) - rs % border
-             lb ( idir ) = ub ( idir ) - rs % border + 1
-             lc ( : ) = rs % lb_local ( : )
-             uc ( : ) = rs % ub_local ( : )
-             uc ( idir ) = lc ( idir ) + rs % border - 1
-             CALL mp_sendrecv ( rs % r ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ), &
-                  dest, buffer, source, rs % group )
-             rs % r ( lc(1):uc(1), lc(2):uc(2), lc(3):uc(3) ) = buffer ( :, :, : )
-             DEALLOCATE ( buffer, STAT=ierr )
-             IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","buffer")
-
-          ELSE
-             CALL stop_program ( "rs_pw_transfer", &
-                  "Parameter dir ="//dir//" not allowed" )
-          END IF
-
-       END IF
+       ! This is the real redistribution
+       CALL send_forward ( rs, pw )
 
     ELSE
 
-       ! non parallel case
-       nn = SIZE ( rs % r )
-       IF ( dir == "FORWARD" ) THEN
-          IF ( pw % in_use == REALDATA3D ) THEN
-             CALL dcopy ( nn, rs % r, 1, pw % cr3d, 1 )
-          ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
-             CALL copy_rc ( nn, rs % r, pw % cc3d )
-          ELSE
-             CALL stop_program ( "rs_pw_transfer", "Pw type not compatible" )
-          END IF
-       ELSEIF ( dir == "BACKWARD" ) THEN
-          IF ( pw % in_use == REALDATA3D ) THEN
-             CALL dcopy ( nn, pw % cr3d, 1, rs % r, 1 )
-          ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
-             CALL copy_cr ( nn, pw % cc3d, rs % r )
-          ELSE
-             CALL stop_program ( "rs_pw_transfer", "Pw type not compatible" )
-          END IF
-       ELSE
-          CALL stop_program ( "rs_pw_transfer", &
-               "Parameter dir ="//dir//" not allowed" )
-       END IF
+       ! This is the real redistribution
+       CALL send_backward ( rs, pw )
+       ! Redistribution of the border area
+       CALL mp_cart_shift ( rs % group, 0, -1, source, dest )
+       idir = rs % direction
+       lb ( : ) = rs % lb_local ( : )
+       ub ( : ) = rs % ub_local ( : )
+       lb ( idir ) = lb ( idir ) + rs % border
+       ub ( idir ) = lb ( idir ) + rs % border - 1
+       lc ( : ) = rs % lb_local ( : )
+       uc ( : ) = rs % ub_local ( : )
+       lc ( idir ) = uc ( idir ) - rs % border + 1
+       nn = PRODUCT ( uc - lc + 1 )
+       ALLOCATE ( buffer ( lc(1):uc(1), lc(2):uc(2), lc(3):uc(3) ), STAT=ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","buffer",nn)
+       CALL mp_sendrecv ( rs % r ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ), &
+            dest, buffer, source, rs % group )
+       rs % r ( lc(1):uc(1), lc(2):uc(2), lc(3):uc(3) ) = buffer ( :, :, : )
+       ! Now for the other direction
+       CALL mp_cart_shift ( rs % group, 0, 1, source, dest )
+       lb ( : ) = rs % lb_local ( : )
+       ub ( : ) = rs % ub_local ( : )
+       ub ( idir ) = ub ( idir ) - rs % border
+       lb ( idir ) = ub ( idir ) - rs % border + 1
+       lc ( : ) = rs % lb_local ( : )
+       uc ( : ) = rs % ub_local ( : )
+       uc ( idir ) = lc ( idir ) + rs % border - 1
+       CALL mp_sendrecv ( rs % r ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ), &
+            dest, buffer, source, rs % group )
+       rs % r ( lc(1):uc(1), lc(2):uc(2), lc(3):uc(3) ) = buffer ( :, :, : )
+       DEALLOCATE ( buffer, STAT=ierr )
+       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","buffer")
 
     END IF
-    CALL timestop(0.0_dp,handle)
-    CALL timestop(0.0_dp,handle2)
-
-  END SUBROUTINE rs_pw_transfer
+  END SUBROUTINE rs_pw_transfer_distributed
 
 !******************************************************************************
-
 SUBROUTINE send_forward ( rs, pw )
 
     TYPE(realspace_grid_type), INTENT(INOUT) :: rs
@@ -826,7 +858,7 @@ SUBROUTINE send_forward ( rs, pw )
           buffer ( lz(1):uz(1), lz(2):uz(2), lz(3):uz(3) )
      ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
        pw % cc3d ( lz(1):uz(1), lz(2):uz(2), lz(3):uz(3) ) = &
-          CMPLX ( buffer ( lz(1):uz(1), lz(2):uz(2), lz(3):uz(3) ), KIND=dp)
+          CMPLX ( buffer ( lz(1):uz(1), lz(2):uz(2), lz(3):uz(3) ), KIND = dp )
      ELSE
        CALL stop_program ( "rs_pw_transfer", "Pw type not compatible" )
      END IF
@@ -891,7 +923,7 @@ SUBROUTINE send_backward ( rs, pw )
           pw % cr3d ( lz(1):uz(1), lz(2):uz(2), lz(3):uz(3) )
      ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
        buffer ( lz(1):uz(1), lz(2):uz(2), lz(3):uz(3) ) = &
-          REAL ( pw % cc3d ( lz(1):uz(1), lz(2):uz(2), lz(3):uz(3) ),KIND=dp)
+          REAL ( pw % cc3d ( lz(1):uz(1), lz(2):uz(2), lz(3):uz(3) ), KIND=dp )
      ELSE
        CALL stop_program ( "rs_pw_transfer", "Pw type not compatible" )
      END IF
@@ -1263,7 +1295,7 @@ END SUBROUTINE rs_grid_release
 !!       Integer, Dimension(:,:), Pointer:: tasks
 !!       Integer, Intent (OUT):: npme
 !!       Integer, Dimension(:,:), Pointer, Optional:: ival
-!!       REAL(KIND=dp), Dimension(:,:), Pointer, Optional:: rval
+!!       Real(KIND=dp), Dimension(:,:), Pointer, Optional:: rval
 !!       Type(real_matrix_type), Pointer, Optional:: pmat
 !!       Integer, Dimension(:,:), Pointer, Optional:: pcor
 !!     End Subroutine rs_get_my_tasks
