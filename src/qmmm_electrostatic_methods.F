@@ -339,7 +339,7 @@ CONTAINS
     INTEGER                                  :: handle, i, Imm, Imp, IndMM, &
                                                 Ipot, ix, j, jj, k, my_j, &
                                                 my_k, n1, n2, n3
-    INTEGER, DIMENSION(2, 3)                 :: bo
+    INTEGER, DIMENSION(2, 3)                 :: bo,gbo
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dr1, dr2, dr3, dx, qt, r, rc, &
                                                 rt1, rt2, rt3, rv1, rv2, rv3, &
@@ -355,9 +355,10 @@ CONTAINS
     CPPrecondition(ASSOCIATED(mm_atom_index),cp_failure_level,routineP,error,failure)
 
     bo = v_qmmm%pw%pw_grid%bounds_local  
-    n1 = v_qmmm%pw%pw_grid%npts (1)   
-    n2 = v_qmmm%pw%pw_grid%npts (2)   
-    n3 = v_qmmm%pw%pw_grid%npts (3)   
+    gbo = v_qmmm%pw%pw_grid%bounds
+    n1 = v_qmmm%pw%pw_grid%npts_local (1)   
+    n2 = v_qmmm%pw%pw_grid%npts_local (2)   
+    n3 = v_qmmm%pw%pw_grid%npts_local (3)   
     dr1 = v_qmmm%pw%pw_grid%dr(1)
     dr2 = v_qmmm%pw%pw_grid%dr(2)
     dr3 = v_qmmm%pw%pw_grid%dr(3)
@@ -380,14 +381,14 @@ CONTAINS
           !$omp                   dr1,dr2,dr3, xs1,xs2,xs3, rv1,rv2,rv3, rt1,rt2,rt3)&
           !$omp                            shared(Varray,pot0_2,dx,bo,n1,n2,n3)
           LoopOnGrid: DO k = bo(1,3), bo(2,3)
-             my_k=(k+n3/2)
+             my_k=k-gbo(1,3)
              xs3 = REAL(my_k,dp)*dr3
-             my_j=bo(1,2)+n2/2
-             jj=my_k*n1*n2+my_j*n1
+             my_j=bo(1,2)-gbo(1,2)
+             jj=(k-bo(1,3))*n1*n2
              xs2 = REAL(my_j,dp)*dr2
              rv3 = rt3 - xs3
              DO j = bo(1,2), bo(2,2)
-                xs1 = (bo(1,1)+n1/2)*dr1
+                xs1 = (bo(1,1)-gbo(1,1))*dr1
                 rv2 = rt2 - xs2
                 DO i = bo(1,1), bo(2,1)
                    jj=jj+1
@@ -526,8 +527,8 @@ CONTAINS
                             error=error)
        END DO
     ENDIF
-    lb = v_qmmm%pw%pw_grid%bounds(1,:)
-    ub = v_qmmm%pw%pw_grid%bounds(2,:)
+    lb = v_qmmm%pw%pw_grid%bounds_local(1,:)
+    ub = v_qmmm%pw%pw_grid%bounds_local(2,:)
 
     v_qmmm%pw%cr3d = grids(auxbas_grid)%pw%cr3d (lb(1):ub(1),&
                                                  lb(2):ub(2),&
@@ -730,7 +731,7 @@ CONTAINS
     INTEGER                                  :: handle, i, Imm, IndMM, &
                                                 IRadTyp, ix, j, k, LIndMM, &
                                                 my_j, my_k, n1, n2, n3
-    INTEGER, DIMENSION(2, 3)                 :: bo
+    INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     REAL(KIND=dp)                            :: dr1, dr2, dr3, dx, qt, r, r2, &
                                                 rt1, rt2, rt3, rv1, rv2, rv3, &
                                                 rx, rx2, rx3, Term, xs1, xs2, &
@@ -749,8 +750,8 @@ CONTAINS
     dr1 = grid%pw_grid%dr(1) 
     dr2 = grid%pw_grid%dr(2) 
     dr3 = grid%pw_grid%dr(3) 
-    bo(1,:) = grid%pw_grid%bounds(1,:)
-    bo(2,:) = grid%pw_grid%bounds(2,:)
+    bo  = grid%pw_grid%bounds_local
+    gbo = grid%pw_grid%bounds
 
     Radius: DO IRadTyp = 1, SIZE(pgfs) 
        pot => potentials(IRadTyp)%pot
@@ -760,20 +761,19 @@ CONTAINS
           LIndMM    =   pot%mm_atom_index(Imm)
           IndMM     =   mm_atom_index(LIndMM)
           ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
-!          WRITE(*,*)IndMM, mm_particles(IndMM)%r, ra
           qt        =   mm_charges(LIndMM)
           IF (qt == 0.0_dp) CYCLE Atoms
           rt1 = ra(1)
           rt2 = ra(2)
           rt3 = ra(3)
           LoopOnGrid: DO k = bo(1,3), bo(2,3)
-             my_k = (k+n3/2)
+             my_k=k-gbo(1,3)
              xs3  = REAL(my_k,dp)*dr3
-             my_j = bo(1,2)+n2/2
+             my_j=bo(1,2)-gbo(1,2)
              xs2 = REAL(my_j,dp)*dr2
              rv3 = rt3 - xs3
              DO j =  bo(1,2), bo(2,2)
-                xs1 = (bo(1,1)+n1/2)*dr1
+                xs1 = (bo(1,1)-gbo(1,1))*dr1
                 rv2 = rt2 - xs2
                 DO i =  bo(1,1), bo(2,1)
                    rv1  = rt1 - xs1

@@ -173,8 +173,6 @@ CONTAINS
        last_ks_qmmm_nr=last_ks_qmmm_nr+1
        ks_qmmm_env%id_nr=last_ks_qmmm_nr
 
-    END IF
-    IF (.NOT.failure) THEN
        CALL pw_pool_init_coeff(auxbas_pw_pool,ks_qmmm_env%v_qmmm_rspace,&
             use_data=REALDATA3D, in_space=REALSPACE)
   
