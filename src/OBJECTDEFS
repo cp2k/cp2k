@@ -14,7 +14,6 @@ OBJECTS_GENERIC =\
  atom_util.o\
  atomic_kind_list_types.o\
  atomic_kind_types.o\
- atomic_kinds.o\
  atoms_input.o\
  basis_set_types.o\
  bessel_lib.o\
@@ -86,7 +85,6 @@ OBJECTS_GENERIC =\
  dump.o\
  dynamical_coeff_types.o\
  eigenvalueproblems.o\
- empirical_parameters.o\
  environment.o\
  erf_fn.o\
  ewald_environment_types.o\
