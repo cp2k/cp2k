@@ -132,7 +132,7 @@ CONTAINS
     
     CPPrecondition(p_env%initialized, cp_failure_level, routineP, error, failure)
 
-    n_spins = p_env%qs_env%n_spins
+    n_spins = p_env%qs_env%dft_control%nspins
     DO spin=1, n_spins
 
        CALL replicate_blacs_matrix(p_env%psi0d(1)%matrix, tmp, &
@@ -280,7 +280,7 @@ CONTAINS
 
     CPPrecondition(p_env%initialized, cp_failure_level, routineP, error, failure)
     
-    n_spins = p_env%qs_env%n_spins
+    n_spins = p_env%qs_env%dft_control%nspins
     DO spin=1, n_spins
 
        CALL cp_fm_get_info(v(1)%matrix, &
@@ -368,7 +368,7 @@ CONTAINS
 
     CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
 
-    n_spins = p_env%qs_env%n_spins
+    n_spins = p_env%qs_env%dft_control%nspins
     DO spin=1, n_spins
 
        CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, tmp, &
@@ -388,11 +388,17 @@ CONTAINS
 
        ! check result matrix ?
        IF (.NOT. failure) THEN     
-          CALL cp_fm_gemm('N', 'T', cols, p_env%n_mo(spin), p_env%n_ao(spin), 1.0_dbl,&
-                          v(spin)%matrix, p_env%psi0d(spin)%matrix, &
-                          0.0_dbl, tmp)
-          CALL cp_fm_gemm('N', 'T', p_env%n_ao(spin), cols, p_env%n_ao(spin), -1.0_dbl, &
-                          p_env%S_psi0(spin)%matrix, tmp, &
+!!          CALL cp_fm_gemm('N', 'T', cols, p_env%n_mo(spin), p_env%n_ao(spin), 1.0_dbl,&
+!!                          v(spin)%matrix, p_env%psi0d(spin)%matrix, &
+!!                          0.0_dbl, tmp)
+!!          CALL cp_fm_gemm('N', 'T', p_env%n_ao(spin), cols, p_env%n_ao(spin), -1.0_dbl, &
+!!                          p_env%S_psi0(spin)%matrix, tmp, &
+!!                          1.0_dbl, v(spin)%matrix)
+          call cp_fm_gemm('N', 'T', p_env%n_mo(spin), cols, p_env%n_ao(spin), &
+                          1.0_dbl, p_env%psi0d(spin)%matrix, v(spin)%matrix, &
+                          0.0_dbl, tmp);
+          call cp_fm_gemm('N', 'N', p_env%n_ao(spin), cols, p_env%n_mo(spin), &
+                          -1.0_dbl, p_env%S_psi0(spin)%matrix, tmp, &
                           1.0_dbl, v(spin)%matrix)
        END IF
        

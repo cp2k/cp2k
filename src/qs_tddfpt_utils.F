@@ -140,7 +140,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER  :: routineN = "tddfpt_testing", &
                                     routineP = moduleN//"/"//routineN
 
-    n_spins = p_env%qs_env%n_spins
+    n_spins = p_env%qs_env%dft_control%nspins
 
     ! create the temporary matrizes
     ALLOCATE(tmp(n_spins), stat=stat)
@@ -151,7 +151,7 @@ CONTAINS
                                    routineP//" tmp matrix")
     END DO
 
-    CALL p_op_l1(p_env, t_env%c_plus, tmp, glob_env, error=error)
+    CALL p_op_l1(p_env, t_env%x, tmp, glob_env, error=error)
     
   END SUBROUTINE tddfpt_testing
 

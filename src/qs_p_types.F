@@ -212,8 +212,8 @@ CONTAINS
     p_env%ks_env => ks_env
     p_env%K_P_P1_env => K_P_P1_env
 
-    n_spins = p_env%qs_env%n_spins
-    DO spin=1, qs_env%n_spins
+    n_spins = p_env%qs_env%dft_control%nspins
+    DO spin=1, n_spins
 
        IF (PRESENT(psi0d)) THEN
           CALL cp_fm_get_info(psi0d(spin)%matrix, &
@@ -380,7 +380,7 @@ CONTAINS
 
     IF (.NOT. failure) THEN
        
-       n_spins = p_env%qs_env%n_spins
+       n_spins = p_env%qs_env%dft_control%nspins
        DO spin=1, n_spins
 
           CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, tmp, &

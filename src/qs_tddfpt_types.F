@@ -32,8 +32,8 @@ MODULE qs_tddfpt_types
   IMPLICIT NONE
 
   TYPE tddfpt_env_type
-     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: c_plus
-     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: c_minus
+     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: x ! right eigenvect
+     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: y ! left eigenvect
   END TYPE tddfpt_env_type
   
   CHARACTER(len=*), PARAMETER :: moduleN = "qs_tddfpt_types"
@@ -82,25 +82,25 @@ CONTAINS
   	! code
     n_spins = SIZE(p_env%qs_env%k)
 
-    ALLOCATE(t_env%c_plus(n_spins), t_env%c_minus(n_spins), stat=stat)
+    ALLOCATE(t_env%x(n_spins), t_env%y(n_spins), stat=stat)
     IF (stat /= 0) THEN
-       CALL stop_memory(routineP, "t_env%c_plus / t_env%c_minus", n_spins)
+       CALL stop_memory(routineP, "t_env%x / t_env%y", n_spins)
     END IF
   
     DO spin=1, n_spins
        CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, &
-                                   t_env%c_plus(spin)%matrix, &
-                                   name = "C_plus_matrix")
+                                   t_env%x(spin)%matrix, &
+                                   name = "X_matrix")
        CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, &
-                                   t_env%c_minus(spin)%matrix, &
-                                   name = "C_minus_matrix")
+                                   t_env%y(spin)%matrix, &
+                                   name = "Y_matrix")
     END DO
 
     ! now fill the c_plus and c_minus with something meaningfull
 
     ! finally make them orthogonal to the p_env%psi0d
-    CALL p_preortho(p_env, t_env%c_plus, glob_env)
-    CALL p_preortho(p_env, t_env%c_minus, glob_env)
+    CALL p_preortho(p_env, t_env%x, glob_env)
+    CALL p_preortho(p_env, t_env%y, glob_env)
 
   END SUBROUTINE tddfpt_env_init
 
