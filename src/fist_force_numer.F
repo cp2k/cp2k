@@ -548,7 +548,7 @@ SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
            lat_vec ( 1 ) = perd(1)*INT(s(1)+SIGN(0.5_dbl,s(1)))
            lat_vec ( 2 ) = perd(2)*INT(s(2)+SIGN(0.5_dbl,s(2)))
            lat_vec ( 3 ) = perd(3)*INT(s(3)+SIGN(0.5_dbl,s(3)))
-           IF ( MAXVAL ( n_images ) ==0 ) THEN
+           IF ( MAXVAL ( n_images ) == 0 ) THEN
              IF(ABS(s(1)) > 0.5_dbl) THEN
                s(1) = s(1) - lat_vec ( 1 )
              END IF
@@ -621,12 +621,15 @@ SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
            s(3) = box % h_inv(3,1)*rij(1) &
                 + box % h_inv(3,2)*rij(2) &
                 + box % h_inv(3,3)*rij(3)
+          
+           IF ( MAXVAL ( n_images ) == 0 ) lat_vec = 0
 
            DO kcell = -zz - lat_vec ( 3 ), zz - lat_vec ( 3 )
               DO jcell = -yy - lat_vec ( 2 ), yy - lat_vec ( 2 )
                  DO icell = -xx - lat_vec ( 1 ), xx - lat_vec ( 1 )
 
                     vec ( : ) = (/ icell, jcell, kcell /)
+                    IF ( MAXVAL ( n_images ) == 0 ) CYCLE
                     CALL find_image(s,perd,vec,box % hmat,rijsq,rij)
                     IF ( rijsq <= potparm(iatomtype,jatomtype ) % rcutsq ) THEN
                        delta = 0.0_dbl
@@ -1965,10 +1968,12 @@ SUBROUTINE getv_ptens ( ewald_param, pnode, x, vnb, box, potparm )
            s(3) = box % h_inv(3,1)*rij(1) &
                 + box % h_inv(3,2)*rij(2) &
                 + box % h_inv(3,3)*rij(3)
+           IF ( MAXVAL ( ncell ) == 0 )  lat_vec = 0
            DO kcell = -zz - lat_vec ( 3 ), zz - lat_vec ( 3 )
               DO jcell = -yy - lat_vec ( 2 ), yy - lat_vec ( 2 )
                  DO icell = -xx - lat_vec ( 1 ), xx - lat_vec ( 1 )
                     vec ( : ) = (/icell,jcell,kcell/)
+                    IF ( MAXVAL ( ncell ) == 0 )  CYCLE
                     CALL find_image(s,perd,vec,box % hmat,rijsq,rij)
                     IF ( rijsq <= potparm ( iatomtype, jatomtype ) % rcutsq ) &
                          THEN
