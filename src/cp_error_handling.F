@@ -42,15 +42,16 @@ module cp_error_handling
   private
 
   logical, private, parameter :: debug_this_module=.false.
+  character(len=*), private, parameter :: moduleN='cp_error_handling'
 
   ! types
   public :: cp_error_type
   ! parameters var
   public :: cp_debug, cp_no_error, cp_caller_error, cp_wrong_args_error,&
        cp_precondition_failed, cp_internal_error, cp_postcondition_failed,&
-       cp_invariant_failed, cp_assertion_failed
+       cp_invariant_failed, cp_assertion_failed, cp_unimplemented_error_nr
   ! public routines
-  public :: cp_assert
+  public :: cp_assert, cp_unimplemented_error
   ! generic routines
   public :: cp_init, cp_dealloc_ref, cp_set, cp_get, cp_reset, cp_get_level,&
        cp_get_print_level, cp_get_nr, cp_get_logger, cp_get_stop_level,&
@@ -88,6 +89,8 @@ module cp_error_handling
   integer, parameter :: cp_invariant_failed = -100
 !! error number: assertion failure
   integer, parameter :: cp_assertion_failed = -300
+!! error number: not implemented
+  integer, parameter :: cp_unimplemented_error_nr = -1000
 
   interface cp_init
      module procedure cp_error_init
@@ -947,6 +950,60 @@ contains
        end if
     end if
   end subroutine cp_error_propagate_error
+!***************************************************************************
+
+!!****f* cp_error_handling/cp_unimplemented_error [1.0] *
+!!
+!!   NAME
+!!     cp_unimplemented_error
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_unimplemented_error(fromwhere, message, error,&
+!!         error_level)
+!!       Character(Len=*), Intent (IN):: fromwhere
+!!       Character(Len=*), Intent (IN), Optional:: message
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Integer, Intent (IN), Optional:: error_level
+!!     End Subroutine cp_unimplemented_error
+!!
+!!   FUNCTION
+!!     comodity call to signat that something is not implemented
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     05.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine cp_unimplemented_error(fromWhere, message, error, error_level)
+  character(len=*), intent(in) :: fromWhere
+  character(len=*), intent(in), optional :: message
+  type(cp_error_type), optional, intent(inout) :: error
+  integer, intent(in),optional :: error_level
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_unimplemented_error',&
+        routineP=moduleN//':'//routineN
+  integer :: err_l
+  err_l=cp_failure_level
+
+  if(present(error_level)) err_l=error_level
+  if (present(message)) then
+     call cp_assert(.false.,err_l,cp_unimplemented_error_nr,&
+          fromWhere, "UNIMPLEMENTED, "//message, error=error)
+  else
+     call cp_assert(.false.,err_l,cp_unimplemented_error_nr,&
+          fromWhere, "UNIMPLEMENTED", error=error)
+  end if
+end subroutine cp_unimplemented_error
 !***************************************************************************
 
 end module cp_error_handling
