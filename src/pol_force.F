@@ -132,6 +132,8 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   ncoefs = size ( coef_pos % ao % cr )
   isos = 0
   pot_overlap = 0._dbl
+  pot_electrostatics = 0._dbl
+  pot_nonbond = 0._dbl
   pot_thk = 0
 
   first_time = .NOT. ALLOCATED ( f_nonbond )
@@ -190,9 +192,13 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
      part ( i ) % f ( 2 ) = 0.0_dbl
      part ( i ) % f ( 3 ) = 0.0_dbl
   END DO
+  coef_force % ao % cr (:) = 0.0_dbl
   thermo % pot = 0.0_dbl
+  thermo % e_class = 0.0_dbl
+  thermo % e_electro = 0.0_dbl
+  thermo % e_overlap = 0.0_dbl
+  thermo % e_thk = 0.0_dbl
   thermo % pv = 0.0_dbl
-
 
   IF ( .NOT. ALLOCATED ( fe_part )  ) &
          ALLOCATE ( fe_part ( 3, nnodes ), STAT=isos )
@@ -221,19 +227,18 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
 
 ! get overlap forces
 
-  CALL force_overlap( coef_pos % ao, drho_basis_info, part, pnode, box, & 
-                       empparm, pot_overlap, fo_coef, fo_part )
+   CALL force_overlap( coef_pos % ao, drho_basis_info, part, pnode, box, & 
+                        empparm, pot_overlap, fo_coef, fo_part )
 
 ! get first order hk contribution
 
-  CALL force_thk( coef_pos % ao, empparm, fthk, pot_thk)
+   CALL force_thk( coef_pos % ao, empparm, fthk, pot_thk)
 
 ! get electrostatics forces   
 
    CALL electrostatics (dg_atom, dg_coef, part, coef_pos, box,  &
                         small_grid, big_grid, ewald_param, iref, &
                         pot_electrostatics, fe_coef, fe_part )
-
  
 !
 ! get real-space non-bonded forces:
@@ -245,10 +250,10 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
 !
 ! add up all the potential energies
 !
-  
+
 ! add up all the forces:
    DO i = 1, ncoefs
-     coef_force % ao % cr ( i )  = fo_coef ( i ) + fthk ( i ) + fe_coef ( i )  
+     coef_force % ao % cr ( i )  = fo_coef ( i ) + fthk ( i )  + fe_coef ( i )  
    END DO
 
 ! Nonbonded forces might be calculated for atoms not on this node
@@ -268,9 +273,9 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
 
   DO i = 1, nnodes
      ii = pnode ( i ) % p % iatom
-     f_total ( 1, ii ) = f_total ( 1, ii ) + fe_part ( 1, i )
-     f_total ( 2, ii ) = f_total ( 2, ii ) + fe_part ( 2, i )
-     f_total ( 3, ii ) = f_total ( 3, ii ) + fe_part ( 3, i )
+     f_total ( 1, ii ) = f_total ( 1, ii ) + fe_part ( 1, i ) + fo_part ( 1, i )
+     f_total ( 2, ii ) = f_total ( 2, ii ) + fe_part ( 2, i ) + fo_part ( 2, i )
+     f_total ( 3, ii ) = f_total ( 3, ii ) + fe_part ( 3, i ) + fo_part ( 3, i )
   END DO
 
   IF ( PRESENT ( debug )  ) THEN
@@ -281,6 +286,12 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
      debug % f_elec_part = fe_part
      debug % f_elec_coef = fe_coef
   END IF
+
+  thermo % e_class = pot_nonbond
+  thermo % e_electro = pot_electrostatics
+  thermo % e_overlap = pot_overlap
+  thermo % e_thk = pot_thk
+  thermo % pot = pot_nonbond + pot_electrostatics + pot_overlap + pot_thk
 
 #if defined ( __parallel )
   CALL mp_sum ( f_total, fc_global % group )
