@@ -911,8 +911,8 @@ CONTAINS
     line2 = ""
     symbol2 = ""
     apname2 = ""
-    nmax=0
-    nalpha_ppl=0
+    nalpha_ppl = 0
+    nmax = 0
     
 
     potential%name = potential_name
@@ -962,32 +962,38 @@ CONTAINS
 
           CALL read_object(nalpha_ppl,newline=.TRUE.)
 
-          potential%nalpha_ppl=nalpha_ppl
-          IF (nalpha_ppl>0) THEN
+          potential%nalpha_ppl = nalpha_ppl
+
+          IF (nalpha_ppl > 0) THEN
             CALL reallocate(potential%alpha_ppl,1,nalpha_ppl)
             CALL reallocate(potential%nexp_ppl,1,nalpha_ppl)
             DO i=1,nalpha_ppl
               CALL read_object(potential%alpha_ppl(i),newline=.TRUE.)
               CALL read_object(n)
               potential%nexp_ppl(i)=n
-              IF (n>nmax) THEN
-                nmax=n
+              IF (n > nmax) THEN
+                nmax = n
                 CALL reallocate(potential%cexp_ppl,1,nalpha_ppl,1,nmax)
               END IF
               DO j=1,n
                  CALL read_object(potential%cexp_ppl(i,j))
                  potential%cexp_ppl(i,j) = (2.0_dp*potential%alpha_ppl(i))**(j - 1)*&
-                                   potential%cexp_ppl(i,j)
+                                           potential%cexp_ppl(i,j)
               END DO
             END DO
-! check if alpha_core_charge=alpha_ppl(1) 
-            IF(potential%alpha_core_charge/=potential%alpha_ppl(1)) THEN
-               CALL stop_program(routine_name,module_name,__LINE__,&
-                       "exponent of the core charge and alpha_ppl(1) must be equal") 
+
+!           *** Check if alpha_core_charge = alpha_ppl(1) ***
+ 
+            IF (potential%alpha_core_charge /= potential%alpha_ppl(1)) THEN
+              CALL stop_program(routine_name,module_name,__LINE__,&
+                                "exponent of the core charge and "//&
+                                "alpha_ppl(1) must be equal")
             END IF
+
             maxlppl = 2*(nmax - 1)
 
-            CALL init_orbital_pointers(maxlppl)
+            IF (maxlppl > -1)  CALL init_orbital_pointers(maxlppl)
+
           END IF 
 
           EXIT search_loop
@@ -1138,7 +1144,7 @@ CONTAINS
 
           maxlppl = 2*(n - 1)
 
-          CALL init_orbital_pointers(maxlppl)
+          IF (maxlppl > -1) CALL init_orbital_pointers(maxlppl)
 
 !         *** Read the parameters for the non-local  ***
 !         *** part of the GTH pseudopotential (ppnl) ***
