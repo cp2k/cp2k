@@ -460,7 +460,7 @@ CONTAINS
                                      "onfo_kind_set",nkind*int_size)
 
     DO ikind=1,nkind
-      onfo_kind_set(ikind)%name = ""
+      onfo_kind_set(ikind)%name = "UNSET"
       onfo_kind_set(ikind)%kind_number = ikind
       NULLIFY(onfo_kind_set(ikind)%spline_env)
     END DO

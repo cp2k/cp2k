@@ -71,31 +71,37 @@ MODULE molecule_kind_types
   TYPE bond_type
     TYPE(bond_kind_type), POINTER :: bond_kind
     INTEGER :: a,b
+    CHARACTER(LEN=default_string_length)  :: name
   END TYPE bond_type
 
   TYPE bend_type
     TYPE(bend_kind_type), POINTER :: bend_kind
     INTEGER :: a,b,c
+    CHARACTER(LEN=default_string_length)  :: name
   END TYPE bend_type
 
   TYPE ub_type
     TYPE(ub_kind_type), POINTER :: ub_kind
     INTEGER :: a,b,c
+    CHARACTER(LEN=default_string_length)  :: name
   END TYPE ub_type
 
   TYPE torsion_type
     TYPE(torsion_kind_type), POINTER :: torsion_kind
     INTEGER :: a,b,c,d
+    CHARACTER(LEN=default_string_length)  :: name
   END TYPE torsion_type
 
   TYPE impr_type
     TYPE(impr_kind_type), POINTER :: impr_kind
     INTEGER :: a,b,c,d
+    CHARACTER(LEN=default_string_length)  :: name
   END TYPE impr_type
 
   TYPE onfo_type
     TYPE(onfo_kind_type), POINTER :: onfo_kind
     INTEGER :: a,b
+    CHARACTER(LEN=default_string_length)  :: name
   END TYPE onfo_type
 
   TYPE dist_constraint_type

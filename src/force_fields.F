@@ -57,7 +57,8 @@ MODULE force_fields
                                              allocate_ub_kind_set,&
                                              ub_kind_dealloc_ref,&
                                              allocate_onfo_kind_set,&
-                                             onfo_kind_dealloc_ref,&
+                                             deallocate_bond_kind_set,&
+                                             deallocate_bend_kind_set,&
                                              allocate_impr_kind_set,&
                                              allocate_torsion_kind_set,&
                                              bend_kind_type,&
@@ -2176,8 +2177,9 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                (TRIM(chm_info%bond_b(k))==TRIM(name_atm_b))) .OR. &
               ((TRIM(chm_info%bond_a(k))==TRIM(name_atm_b)) .AND. &
                (TRIM(chm_info%bond_b(k))==TRIM(name_atm_a))) ) THEN
-            bond_list(j)%bond_kind%k  = chm_info%bond_k(k)
-            bond_list(j)%bond_kind%r0 = chm_info%bond_r0(k)
+            bond_list(j)%bond_kind%name = "CHARMM"
+            bond_list(j)%bond_kind%k    = chm_info%bond_k(k)
+            bond_list(j)%bond_kind%r0   = chm_info%bond_r0(k)
           IF(found .AND. PM1) &
              WRITE(iw,*) "    Multiple Bond declarations: overwriting"
             found = .TRUE.
@@ -2193,8 +2195,9 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                (TRIM(inp_info%bond_b(k))==TRIM(name_atm_b))) .OR. &
               ((TRIM(inp_info%bond_a(k))==TRIM(name_atm_b)) .AND. &
                (TRIM(inp_info%bond_b(k))==TRIM(name_atm_a))) ) THEN
-            bond_list(j)%bond_kind%k  = inp_info%bond_k(k)
-            bond_list(j)%bond_kind%r0 = inp_info%bond_r0(k)
+            bond_list(j)%bond_kind%name = "INPUT"
+            bond_list(j)%bond_kind%k    = inp_info%bond_k(k)
+            bond_list(j)%bond_kind%r0   = inp_info%bond_r0(k)
           IF(found .AND. PM1) &
              WRITE(iw,*) "    Multiple Bond declarations: overwriting"
             found = .TRUE.
@@ -2273,6 +2276,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
               ((TRIM(chm_info%bend_a(k))==TRIM(name_atm_c)) .AND. &
                (TRIM(chm_info%bend_b(k))==TRIM(name_atm_b)) .AND. &
                (TRIM(chm_info%bend_c(k))==TRIM(name_atm_a))) ) THEN
+            bend_list(j)%bend_kind%name   = "CHARMM"
             bend_list(j)%bend_kind%k      = chm_info%bend_k(k)
             bend_list(j)%bend_kind%theta0 = chm_info%bend_theta0(k)
             IF(found .AND. PM1) &
@@ -2292,6 +2296,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
               ((TRIM(inp_info%bend_a(k))==TRIM(name_atm_c)) .AND. &
                (TRIM(inp_info%bend_b(k))==TRIM(name_atm_b)) .AND. &
                (TRIM(inp_info%bend_c(k))==TRIM(name_atm_a))) ) THEN
+            bend_list(j)%bend_kind%name   = "INPUT"
             bend_list(j)%bend_kind%k      = inp_info%bend_k(k)
             bend_list(j)%bend_kind%theta0 = inp_info%bend_theta0(k)
             IF(found .AND. PM1) &
@@ -2395,6 +2400,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
               ((TRIM(inp_info%ub_a(k))==TRIM(name_atm_c)) .AND. &
                (TRIM(inp_info%ub_b(k))==TRIM(name_atm_b)) .AND. &
                (TRIM(inp_info%ub_c(k))==TRIM(name_atm_a))) ) THEN
+            ub_list(j)%ub_kind%name   = "INPUT"
             ub_list(j)%ub_kind%k      = inp_info%ub_k(k)
             ub_list(j)%ub_kind%r0     = inp_info%ub_r0(k)
             IF(found .AND. PM1) &
@@ -2513,7 +2519,8 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                (TRIM(inp_info%torsion_b(k))==TRIM(name_atm_c)) .AND. &
                (TRIM(inp_info%torsion_c(k))==TRIM(name_atm_b)) .AND. &
                (TRIM(inp_info%torsion_d(k))==TRIM(name_atm_a))) ) THEN
-            torsion_list(j)%torsion_kind%k      = inp_info%torsion_k(k)
+            torsion_list(j)%torsion_kind%name    = "INPUT"
+            torsion_list(j)%torsion_kind%k       = inp_info%torsion_k(k)
             torsion_list(j)%torsion_kind%cosphi0 = inp_info%torsion_cosphi0(k)
             IF(found .AND. PM1) &
                WRITE(iw,*) "    Multiple Torsion declarations: overwriting"
@@ -2612,7 +2619,8 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                (TRIM(chm_info%impr_b(k))==TRIM(name_atm_c)) .AND. &
                (TRIM(chm_info%impr_c(k))==TRIM(name_atm_b)) .AND. &
                (TRIM(chm_info%impr_d(k))==TRIM(name_atm_a))) ) THEN
-            impr_list(j)%impr_kind%k      = chm_info%impr_k(k)
+            impr_list(j)%impr_kind%name = "CHARMM"
+            impr_list(j)%impr_kind%k    = chm_info%impr_k(k)
             impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
             IF(found .AND. PM1) &
                WRITE(iw,*) "    Multiple Improper declarations: overwriting"
@@ -2633,7 +2641,8 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                (TRIM(inp_info%impr_b(k))==TRIM(name_atm_c)) .AND. &
                (TRIM(inp_info%impr_c(k))==TRIM(name_atm_b)) .AND. &
                (TRIM(inp_info%impr_d(k))==TRIM(name_atm_a))) ) THEN
-            impr_list(j)%impr_kind%k      = inp_info%impr_k(k)
+            impr_list(j)%impr_kind%name = "INPUT"
+            impr_list(j)%impr_kind%k    = inp_info%impr_k(k)
             impr_list(j)%impr_kind%phi0 = inp_info%impr_phi0(k)
             IF(found .AND. PM1) &
                WRITE(iw,*) "    Multiple Improper declarations: overwriting"
@@ -3242,19 +3251,32 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
   INTEGER                                  :: istat, iw, i, j, k
   LOGICAL                                  :: PM1, PM2, PM3, PM4
 
+  TYPE(bond_kind_type), DIMENSION(:), POINTER       :: bond_kind_set
+  TYPE(bond_kind_type), DIMENSION(:), POINTER       :: new_bond_kind_set
+  TYPE(bond_type), DIMENSION(:), POINTER            :: bond_list
+  TYPE(bond_type), DIMENSION(:), POINTER            :: new_bond_list
+  TYPE(bend_kind_type), DIMENSION(:), POINTER       :: bend_kind_set
+  TYPE(bend_kind_type), DIMENSION(:), POINTER       :: new_bend_kind_set
+  TYPE(bend_type), DIMENSION(:), POINTER            :: bend_list
+  TYPE(bend_type), DIMENSION(:), POINTER            :: new_bend_list
   TYPE(ub_kind_type), DIMENSION(:), POINTER         :: ub_kind_set
   TYPE(ub_kind_type), DIMENSION(:), POINTER         :: new_ub_kind_set
   TYPE(ub_type), DIMENSION(:), POINTER              :: ub_list
   TYPE(ub_type), DIMENSION(:), POINTER              :: new_ub_list
-  TYPE(onfo_kind_type), DIMENSION(:), POINTER       :: onfo_kind_set
-  TYPE(onfo_kind_type), DIMENSION(:), POINTER       :: new_onfo_kind_set
-  TYPE(onfo_type), DIMENSION(:), POINTER            :: onfo_list
-  TYPE(onfo_type), DIMENSION(:), POINTER            :: new_onfo_list
-  INTEGER                                  :: ikind,newkind,iub,ionfo
+  INTEGER                                  :: ikind,newkind,ibond,ibend,iub
   TYPE(molecule_kind_type), POINTER        :: molecule_kind
   INTEGER, POINTER                         :: bad1(:),bad2(:)
   INTEGER                                  :: counter
-  INTEGER                                  :: nub,nonfo
+  INTEGER                                  :: nbond,nbend,nub
+  INTEGER                                  :: idist,ndist
+  INTEGER                                  :: ig3x3,ng3x3
+  INTEGER                                  :: ig4x6,ng4x6
+  INTEGER                                  :: atm_a,atm_b,atm_c,atm_d
+  INTEGER                                  :: atm2_a,atm2_b,atm2_c,atm2_d
+  TYPE(dist_constraint_type), DIMENSION(:), POINTER :: dist_list
+  TYPE(g3x3_constraint_type), DIMENSION(:), POINTER :: g3x3_list
+  TYPE(g4x6_constraint_type), DIMENSION(:), POINTER :: g4x6_list
+  LOGICAL                                  :: unsetme,valid_kind
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
   PM1 = .FALSE.
@@ -3274,10 +3296,332 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 1. Lets Tag the unwanted bonds due to the use of distance constraint
+  !-----------------------------------------------------------------------------
+  DO ikind=1,SIZE(molecule_kind_set)
+    molecule_kind => molecule_kind_set(ikind)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           ndist=ndist,&
+                           dist_list=dist_list,&
+                           nbond=nbond,&
+                           bond_kind_set=bond_kind_set,&
+                           bond_list=bond_list)
+    DO idist=1,ndist
+      atm_a = dist_list(idist)%a
+      atm_b = dist_list(idist)%b
+      DO ibond=1,nbond
+        unsetme = .FALSE.
+        atm2_a = bond_list(ibond)%a
+        atm2_b = bond_list(ibond)%b
+        IF(atm2_a==atm_a .AND. atm2_b==atm_b) unsetme=.TRUE.
+        IF(atm2_a==atm_a .AND. atm2_b==atm_c) unsetme=.TRUE.
+        IF(unsetme) bond_list(ibond)%name = "UNSET"
+      END DO
+    END DO
+  END DO
+
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 1. Count the number of UNSET Urey-Bradley kinds there are
+  ! 2. Lets Tag the unwanted bonds due to the use of 3x3
+  !-----------------------------------------------------------------------------
+  DO ikind=1,SIZE(molecule_kind_set)
+    molecule_kind => molecule_kind_set(ikind)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           ng3x3=ng3x3,&
+                           g3x3_list=g3x3_list,&
+                           nbond=nbond,&
+                           bond_kind_set=bond_kind_set,&
+                           bond_list=bond_list)
+    DO ig3x3=1,ng3x3
+      atm_a = g3x3_list(ig3x3)%a
+      atm_b = g3x3_list(ig3x3)%b
+      atm_c = g3x3_list(ig3x3)%c
+      DO ibond=1,nbond
+        unsetme = .FALSE.
+        atm2_a = bond_list(ibond)%a
+        atm2_b = bond_list(ibond)%b
+        IF(atm2_a==atm_a .AND. atm2_b==atm_b) unsetme=.TRUE.
+        IF(atm2_a==atm_a .AND. atm2_b==atm_c) unsetme=.TRUE.
+        IF(atm2_a==atm_c .AND. atm2_b==atm_c) unsetme=.TRUE.
+        IF(unsetme) bond_list(ibond)%name = "UNSET"
+      END DO
+    END DO
+  END DO
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 3. Lets Tag the unwanted bends due to the use of 3x3
+  !-----------------------------------------------------------------------------
+  DO ikind=1,SIZE(molecule_kind_set)
+    molecule_kind => molecule_kind_set(ikind)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           ng3x3=ng3x3,&
+                           g3x3_list=g3x3_list,&
+                           nbend=nbend,&
+                           bend_kind_set=bend_kind_set,&
+                           bend_list=bend_list)
+    DO ig3x3=1,ng3x3
+      atm_a = g3x3_list(ig3x3)%a
+      atm_b = g3x3_list(ig3x3)%b
+      atm_c = g3x3_list(ig3x3)%c
+      DO ibend=1,nbend
+        unsetme = .FALSE.
+        atm2_a = bend_list(ibend)%a
+        atm2_b = bend_list(ibend)%b
+        atm2_c = bend_list(ibend)%c
+        IF(atm2_a==atm_a .AND. atm2_b==atm_b .AND. atm2_c==atm_c) unsetme=.TRUE.
+        IF(atm2_a==atm_a .AND. atm2_b==atm_c .AND. atm2_c==atm_b) unsetme=.TRUE.
+        IF(atm2_a==atm_b .AND. atm2_b==atm_a .AND. atm2_c==atm_c) unsetme=.TRUE.
+        IF(atm2_a==atm_b .AND. atm2_b==atm_c .AND. atm2_c==atm_a) unsetme=.TRUE.
+        IF(unsetme) bend_list(ibend)%name = "UNSET"
+      END DO
+    END DO
+  END DO
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 4. Lets Tag the unwanted bonds due to the use of 4x6
+  !-----------------------------------------------------------------------------
+  DO ikind=1,SIZE(molecule_kind_set)
+    molecule_kind => molecule_kind_set(ikind)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           ng4x6=ng4x6,&
+                           g4x6_list=g4x6_list,&
+                           nbond=nbond,&
+                           bond_kind_set=bond_kind_set,&
+                           bond_list=bond_list)
+    DO ig4x6=1,ng4x6
+      atm_a = g4x6_list(ig4x6)%a
+      atm_b = g4x6_list(ig4x6)%b
+      atm_c = g4x6_list(ig4x6)%c
+      atm_d = g4x6_list(ig4x6)%d
+      DO ibond=1,nbond
+        unsetme = .FALSE.
+        atm2_a = bond_list(ibond)%a
+        atm2_b = bond_list(ibond)%b
+        IF(atm2_a==atm_a .AND. atm2_b==atm_b) unsetme=.TRUE.
+        IF(atm2_a==atm_a .AND. atm2_b==atm_c) unsetme=.TRUE.
+        IF(atm2_a==atm_a .AND. atm2_b==atm_d) unsetme=.TRUE.
+        IF(unsetme) bond_list(ibond)%name = "UNSET"
+      END DO
+    END DO
+  END DO
+
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 5. Lets Tag the unwanted bends due to the use of 4x6
+  !-----------------------------------------------------------------------------
+  DO ikind=1,SIZE(molecule_kind_set)
+    molecule_kind => molecule_kind_set(ikind)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           ng4x6=ng4x6,&
+                           g4x6_list=g4x6_list,&
+                           nbend=nbend,&
+                           bend_kind_set=bend_kind_set,&
+                           bend_list=bend_list)
+    DO ig4x6=1,ng4x6
+      atm_a = g4x6_list(ig4x6)%a
+      atm_b = g4x6_list(ig4x6)%b
+      atm_c = g4x6_list(ig4x6)%c
+      atm_d = g4x6_list(ig4x6)%d
+      DO ibend=1,nbend
+        unsetme = .FALSE.
+        atm2_a = bend_list(ibend)%a
+        atm2_b = bend_list(ibend)%b
+        atm2_c = bend_list(ibend)%c
+        IF(atm2_a==atm_b .AND. atm2_b==atm_a .AND. atm2_c==atm_c) unsetme=.TRUE.
+        IF(atm2_a==atm_b .AND. atm2_b==atm_a .AND. atm2_c==atm_d) unsetme=.TRUE.
+        IF(atm2_a==atm_c .AND. atm2_b==atm_a .AND. atm2_c==atm_d) unsetme=.TRUE.
+        IF(unsetme) bend_list(ibend)%name = "UNSET"
+      END DO
+    END DO
+  END DO
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 6. Count the number of UNSET bond kinds there are
+  !-----------------------------------------------------------------------------
+  DO ikind=1,SIZE(molecule_kind_set)
+    molecule_kind => molecule_kind_set(ikind)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           nbond=nbond,&
+                           bond_kind_set=bond_kind_set,&
+                           bond_list=bond_list)
+   IF(nbond>0) THEN
+    IF(PM1) WRITE(iw,*) "    Mol(",ikind,") Old BOND Count: ",&
+                        SIZE(bond_list),SIZE(bond_kind_set)
+    NULLIFY(bad1,bad2)
+    ALLOCATE(bad1(SIZE(bond_kind_set)),STAT=istat)
+    IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad1')
+    bad1(:)=0
+    DO ibond=1,SIZE(bond_kind_set)
+      unsetme=.FALSE.
+      IF(bond_kind_set(ibond)%name=="UNSET") unsetme = .TRUE.
+      valid_kind=.FALSE.
+      DO i=1,SIZE(bond_list)
+        IF(bond_list(i)%name/="UNSET".AND.&
+           bond_list(i)%bond_kind%kind_number==ibond) THEN
+          valid_kind=.TRUE.
+          EXIT
+        END IF
+      END DO
+      IF(.NOT.valid_kind) unsetme = .TRUE.
+      IF(unsetme) bad1(ibond) = 1
+    END DO
+    IF(SUM(bad1)/=0) THEN
+      counter = SIZE(bond_kind_set)-SUM(bad1)
+      CALL allocate_bond_kind_set(new_bond_kind_set,counter)
+      counter=0
+      DO ibond=1,SIZE(bond_kind_set)
+        IF(bad1(ibond)==0) THEN
+          counter=counter+1
+          new_bond_kind_set(counter)= bond_kind_set(ibond)     
+        END IF
+      END DO
+      counter=0
+      ALLOCATE(bad2(SIZE(bond_list)),STAT=istat)
+      IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad2')
+      bad2(:)=0
+      DO ibond=1,SIZE(bond_list)
+        unsetme = .FALSE.
+        IF(bond_list(ibond)%bond_kind%name=="UNSET") unsetme = .TRUE.
+        IF(bond_list(ibond)%name=="UNSET")           unsetme = .TRUE.
+        IF(unsetme) bad2(ibond) = 1
+      END DO
+      IF(SUM(bad2)/=0) THEN
+        counter = SIZE(bond_list)-SUM(bad2)
+        ALLOCATE(new_bond_list(counter),STAT=istat)
+        IF(istat/=0) CALL stop_memory('clean_intra_force_kind','new_bond_list')
+        counter=0
+        DO ibond=1,SIZE(bond_list)
+          IF(bad2(ibond)==0) THEN
+            counter=counter+1
+            new_bond_list(counter) = bond_list(ibond)
+            newkind = bond_list(ibond)%bond_kind%kind_number
+            newkind = newkind - SUM(bad1(1:newkind))
+            new_bond_list(counter)%bond_kind => new_bond_kind_set(newkind)
+          END IF
+        END DO
+        CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                               nbond=SIZE(new_bond_list),&
+                               bond_kind_set=new_bond_kind_set,&
+                               bond_list=new_bond_list)
+        DO ibond=1,SIZE(new_bond_kind_set)
+          new_bond_kind_set(ibond)%kind_number=ibond
+        END DO
+      END IF
+      DEALLOCATE(bad2,STAT=istat)
+      IF(istat/=0) CALL stop_memory('clean_intra_force_kind','bad2')
+      CALL deallocate_bond_kind_set(bond_kind_set)
+      DEALLOCATE(bond_list,STAT=istat)
+      IF(istat/=0) CALL stop_memory('clean_intra_force_kind','bond_list')
+      IF(PM1) WRITE(iw,*) "    Mol(",ikind,") New BOND Count: ",&
+                          SIZE(new_bond_list),SIZE(new_bond_kind_set)
+    END IF
+    DEALLOCATE(bad1,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad1')
+   END IF
+  END DO
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 7. Count the number of UNSET bend kinds there are
+  !-----------------------------------------------------------------------------
+  DO ikind=1,SIZE(molecule_kind_set)
+    molecule_kind => molecule_kind_set(ikind)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           nbend=nbend,&
+                           bend_kind_set=bend_kind_set,&
+                           bend_list=bend_list)
+   IF(nbend>0) THEN
+    IF(PM1) WRITE(iw,*) "    Mol(",ikind,") Old BEND Count: ",&
+                        SIZE(bend_list),SIZE(bend_kind_set)
+    NULLIFY(bad1,bad2)
+    ALLOCATE(bad1(SIZE(bend_kind_set)),STAT=istat)
+    IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad1')
+    bad1(:)=0
+    DO ibend=1,SIZE(bend_kind_set)
+      unsetme=.FALSE.
+      IF(bend_kind_set(ibend)%name=="UNSET") unsetme = .TRUE.
+      valid_kind=.FALSE.
+      DO i=1,SIZE(bend_list)
+        IF(bend_list(i)%name/="UNSET".AND.&
+           bend_list(i)%bend_kind%kind_number==ibend) THEN
+          valid_kind=.TRUE.
+          EXIT
+        END IF
+      END DO
+      IF(.NOT.valid_kind) unsetme = .TRUE.
+      IF(unsetme) bad1(ibend) = 1
+    END DO
+    IF(SUM(bad1)/=0) THEN
+      counter = SIZE(bend_kind_set)-SUM(bad1)
+      CALL allocate_bend_kind_set(new_bend_kind_set,counter)
+      counter=0
+      DO ibend=1,SIZE(bend_kind_set)
+        IF(bad1(ibend)==0) THEN
+          counter=counter+1
+          new_bend_kind_set(counter)= bend_kind_set(ibend)     
+        END IF
+      END DO
+      counter=0
+      ALLOCATE(bad2(SIZE(bend_list)),STAT=istat)
+      IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad2')
+      bad2(:)=0
+      DO ibend=1,SIZE(bend_list)
+        unsetme = .FALSE.
+        IF(bend_list(ibend)%bend_kind%name=="UNSET") unsetme = .TRUE.
+        IF(bend_list(ibend)%name=="UNSET")           unsetme = .TRUE.
+        IF(unsetme) bad2(ibend) = 1
+      END DO
+      IF(SUM(bad2)/=0) THEN
+        counter = SIZE(bend_list)-SUM(bad2)
+        ALLOCATE(new_bend_list(counter),STAT=istat)
+        IF(istat/=0) CALL stop_memory('clean_intra_force_kind','new_bend_list')
+        counter=0
+        DO ibend=1,SIZE(bend_list)
+          IF(bad2(ibend)==0) THEN
+            counter=counter+1
+            new_bend_list(counter) = bend_list(ibend)
+            newkind = bend_list(ibend)%bend_kind%kind_number
+            newkind = newkind - SUM(bad1(1:newkind))
+            new_bend_list(counter)%bend_kind => new_bend_kind_set(newkind)
+          END IF
+        END DO
+        CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                               nbend=SIZE(new_bend_list),&
+                               bend_kind_set=new_bend_kind_set,&
+                               bend_list=new_bend_list)
+        DO ibend=1,SIZE(new_bend_kind_set)
+          new_bend_kind_set(ibend)%kind_number=ibend
+        END DO
+      END IF
+      DEALLOCATE(bad2,STAT=istat)
+      IF(istat/=0) CALL stop_memory('clean_intra_force_kind','bad2')
+      CALL deallocate_bend_kind_set(bend_kind_set)
+      DEALLOCATE(bend_list,STAT=istat)
+      IF(istat/=0) CALL stop_memory('clean_intra_force_kind','bend_list')
+      IF(PM1) WRITE(iw,*) "    Mol(",ikind,") New BEND Count: ",&
+                          SIZE(new_bend_list),SIZE(new_bend_kind_set)
+    END IF
+    DEALLOCATE(bad1,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad1')
+   END IF
+  END DO
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 8. Count the number of UNSET Urey-Bradley kinds there are
   !-----------------------------------------------------------------------------
   DO ikind=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(ikind)
@@ -3293,7 +3637,18 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
     IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad1')
     bad1(:)=0
     DO iub=1,SIZE(ub_kind_set)
-      IF(ub_kind_set(iub)%name=="UNSET") bad1(iub)=1 
+      unsetme=.FALSE.
+      IF(ub_kind_set(iub)%name=="UNSET") unsetme = .TRUE.
+      valid_kind=.FALSE.
+      DO i=1,SIZE(ub_list)
+        IF(ub_list(i)%name/="UNSET".AND.&
+           ub_list(i)%ub_kind%kind_number==iub) THEN
+          valid_kind=.TRUE.
+          EXIT
+        END IF
+      END DO
+      IF(.NOT.valid_kind) unsetme = .TRUE.
+      IF(unsetme) bad1(iub) = 1
     END DO
     IF(SUM(bad1)/=0) THEN
       counter = SIZE(ub_kind_set)-SUM(bad1)
@@ -3310,12 +3665,15 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
       IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad2')
       bad2(:)=0
       DO iub=1,SIZE(ub_list)
-        IF(ub_list(iub)%ub_kind%name=="UNSET") bad2(iub)=1 
+        unsetme = .FALSE.
+        IF(ub_list(iub)%ub_kind%name=="UNSET") unsetme = .TRUE.
+        IF(ub_list(iub)%name=="UNSET")           unsetme = .TRUE.
+        IF(unsetme) bad2(iub) = 1
       END DO
       IF(SUM(bad2)/=0) THEN
         counter = SIZE(ub_list)-SUM(bad2)
         ALLOCATE(new_ub_list(counter),STAT=istat)
-        IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','new_ub_list')
+        IF(istat/=0) CALL stop_memory('clean_intra_force_kind','new_ub_list')
         counter=0
         DO iub=1,SIZE(ub_list)
           IF(bad2(iub)==0) THEN
@@ -3335,10 +3693,10 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
         END DO
       END IF
       DEALLOCATE(bad2,STAT=istat)
-      IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad2')
+      IF(istat/=0) CALL stop_memory('clean_intra_force_kind','bad2')
       CALL ub_kind_dealloc_ref(ub_kind_set)
       DEALLOCATE(ub_list,STAT=istat)
-      IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','ub_list')
+      IF(istat/=0) CALL stop_memory('clean_intra_force_kind','ub_list')
       IF(PM1) WRITE(iw,*) "    Mol(",ikind,") New UB Count: ",&
                           SIZE(new_ub_list),SIZE(new_ub_kind_set)
     END IF
@@ -3346,81 +3704,6 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
     IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad1')
    END IF
   END DO
-
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 2. Count the number of UNSET One-Four kinds there are
-  !-----------------------------------------------------------------------------
-!  DO ikind=1,SIZE(molecule_kind_set)
-!    molecule_kind => molecule_kind_set(ikind)
-!    CALL get_molecule_kind(molecule_kind=molecule_kind,&
-!                           nonfo=nonfo,&
-!                           onfo_kind_set=onfo_kind_set,&
-!                           onfo_list=onfo_list)
-!   IF(nub>0) THEN
-!    IF(PM1) WRITE(iw,*) "    Mol(",ikind,") Old ONFO Count: ",&
-!                        SIZE(onfo_list),SIZE(onfo_kind_set)
-!    NULLIFY(bad1,bad2)
-!    ALLOCATE(bad1(SIZE(onfo_kind_set)),STAT=istat)
-!    IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad1')
-!    bad1(:)=0
-!    DO ionfo=1,SIZE(onfo_kind_set)
-!      IF(onfo_kind_set(ionfo)%name=="UNSET") bad1(ionfo)=1 
-!    END DO
-!    IF(SUM(bad1)/=0) THEN
-!      WRITE(*,*) "Acounter = ",counter
-!      counter = SIZE(onfo_kind_set)-SUM(bad1)
-!      WRITE(*,*) "Bcounter = ",counter
-!      CALL allocate_onfo_kind_set(new_onfo_kind_set,counter)
-!      counter=0
-!      DO ionfo=1,SIZE(onfo_kind_set)
-!        IF(bad1(ionfo)==0) THEN
-!          counter=counter+1
-!          new_onfo_kind_set(counter)= onfo_kind_set(ionfo)     
-!        END IF
-!      END DO
-!      counter=0
-!      ALLOCATE(bad2(SIZE(onfo_list)),STAT=istat)
-!      IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad2')
-!      bad2(:)=0
-!      DO ionfo=1,SIZE(onfo_list)
-!        IF(onfo_list(ionfo)%onfo_kind%name=="UNSET") bad2(ionfo)=1 
-!      END DO
-!      IF(SUM(bad2)/=0) THEN
-!        counter = SIZE(onfo_list)-SUM(bad2)
-!        ALLOCATE(new_onfo_list(counter),STAT=istat)
-!        IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','new_onfo_list')
-!        counter=0
-!        DO ionfo=1,SIZE(onfo_list)
-!          IF(bad2(ionfo)==0) THEN
-!            counter=counter+1
-!            new_onfo_list(counter) = onfo_list(ionfo)
-!            newkind = onfo_list(ionfo)%onfo_kind%kind_number
-!            newkind = newkind - SUM(bad1(1:newkind))
-!            new_onfo_list(counter)%onfo_kind => new_onfo_kind_set(newkind)
-!          END IF
-!        END DO
-!        CALL set_molecule_kind(molecule_kind=molecule_kind,&
-!                               nonfo=SIZE(new_onfo_list),&
-!                               onfo_kind_set=new_onfo_kind_set,&
-!                               onfo_list=new_onfo_list)
-!        DO ionfo=1,SIZE(new_onfo_kind_set)
-!          new_onfo_kind_set(ionfo)%kind_number=ionfo
-!        END DO
-!      END IF
-!      DEALLOCATE(bad2,STAT=istat)
-!      IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad2')
-!      CALL onfo_kind_dealloc_ref(onfo_kind_set)
-!      DEALLOCATE(onfo_list,STAT=istat)
-!      IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','onfo_list')
-!      IF(PM1) WRITE(iw,*) "    Mol(",ikind,") New UB Count: ",&
-!                          SIZE(new_onfo_list),SIZE(new_onfo_kind_set)
-!    END IF
-!    DEALLOCATE(bad1,STAT=istat)
-!    IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad1')
-!   END IF
-!  END DO
 
 
 !------------------------------------------------------------------------------

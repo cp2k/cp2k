@@ -1946,6 +1946,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
         counter=counter+1
         bond_list(counter)%a=conn_info%bond_a(j)-first+1
         bond_list(counter)%b=conn_info%bond_b(j)-first+1
+        bond_list(counter)%name="BOND"
         !point this to the right bond_kind_type if using force field
         NULLIFY(bond_list(counter)%bond_kind)
         IF(PM2) THEN
@@ -2012,6 +2013,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
         bend_list(counter)%a=conn_info%theta_a(j)-first+1
         bend_list(counter)%b=conn_info%theta_b(j)-first+1
         bend_list(counter)%c=conn_info%theta_c(j)-first+1
+        bend_list(counter)%name="BEND"
         !point this to the right bond_kind_type if using force field
         NULLIFY(bend_list(counter)%bend_kind)
         IF(PM2) THEN
@@ -2079,6 +2081,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
         ub_list(counter)%a=conn_info%ub_a(j)-first+1
         ub_list(counter)%b=conn_info%ub_b(j)-first+1
         ub_list(counter)%c=conn_info%ub_c(j)-first+1
+        ub_list(counter)%name="UB"
         !point this to the right ub_kind_type if using force field
         NULLIFY(ub_list(counter)%ub_kind)
         IF(PM2) THEN
@@ -2151,6 +2154,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
         torsion_list(counter)%b=conn_info%phi_b(j)-first+1
         torsion_list(counter)%c=conn_info%phi_c(j)-first+1
         torsion_list(counter)%d=conn_info%phi_d(j)-first+1
+        torsion_list(counter)%name="TORSION"
         !point this to the right bond_kind_type if using force field
         NULLIFY(torsion_list(counter)%torsion_kind)
         IF(PM2) THEN
@@ -2225,6 +2229,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
         impr_list(counter)%b=conn_info%impr_b(j)-first+1
         impr_list(counter)%c=conn_info%impr_c(j)-first+1
         impr_list(counter)%d=conn_info%impr_d(j)-first+1
+        impr_list(counter)%name="IMPROPER"
         !point this to the right impr_kind_type if using force field
         NULLIFY(impr_list(counter)%impr_kind)
         IF(PM2) THEN
@@ -2291,6 +2296,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
         counter=counter+1
         onfo_list(counter)%a=conn_info%onfo_a(j)-first+1
         onfo_list(counter)%b=conn_info%onfo_b(j)-first+1
+        onfo_list(counter)%name="ONE-FOUR"
         !point this to the right onfo_kind_type if using force field
         NULLIFY(onfo_list(counter)%onfo_kind)
         IF(PM2) THEN
