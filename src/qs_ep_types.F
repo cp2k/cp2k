@@ -49,6 +49,9 @@ MODULE qs_ep_types
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: wp=>dp
+  USE preconditioner,                  ONLY: destroy_preconditioner,&
+                                             preconditioner_p_type,&
+                                             preconditioner_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_release,&
                                              qs_environment_p_type,&
@@ -111,6 +114,7 @@ MODULE qs_ep_types
      TYPE(qs_p_env_type), POINTER :: main_p_env
      TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: pi_Hrho_psi0d
      TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: psi1
+     TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: precond
   END TYPE qs_ep_env_type
 !!***
   !****************************************************************************
@@ -252,6 +256,13 @@ SUBROUTINE ep_env_release(ep_env, error)
         CALL p_env_release(ep_env%main_p_env,error=error)
         CALL cp_fm_vect_dealloc(ep_env%pi_Hrho_psi0d,error=error)
         CALL cp_fm_vect_dealloc(ep_env%psi1,error=error)
+        IF (ASSOCIATED(ep_env%precond)) THEN
+           DO i=1,SIZE(ep_env%precond)
+              CALL destroy_preconditioner(ep_env%precond(i)%preconditioner)
+           END DO
+           DEALLOCATE(ep_env%precond,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
         DEALLOCATE(ep_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
@@ -266,15 +277,17 @@ END SUBROUTINE ep_env_release
 !!
 !!   SYNOPSIS
 !!     Subroutine ep_env_get(ep_env, id_nr, sub_qs_env, sub_proj,&
-!!         main_qs_env, main_p_env, nspins, error)
+!!         main_qs_env, main_p_env, preconditioner, error)
 !!       Type(qs_ep_env_type), Pointer:: ep_env
-!!       Integer, Intent (OUT), Optional:: id_nr, nspins
+!!       Integer, Intent (OUT), Optional:: id_nr
 !!       Type(qs_environment_p_type), Dimension(:), Pointer, Optional::&
 !!         sub_qs_env
 !!       Type(qs_p_projection_p_type), Dimension(:), Pointer, Optional::&
 !!         sub_proj
 !!       Type(qs_environment_type), Pointer, Optional:: main_qs_env
 !!       Type(qs_p_env_type), Pointer, Optional:: main_p_env
+!!       Type(preconditioner_p_type), Dimension(:), Pointer, Optional::&
+!!         preconditioner
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine ep_env_get
 !!
@@ -299,13 +312,14 @@ END SUBROUTINE ep_env_release
 !!
 !!*** **********************************************************************
 SUBROUTINE ep_env_get(ep_env,id_nr, sub_qs_env, sub_proj, main_qs_env,&
-     main_p_env, nspins, error)
+     main_p_env, preconditioner, error)
   TYPE(qs_ep_env_type), POINTER :: ep_env
-  INTEGER, INTENT(out), OPTIONAL :: id_nr, nspins
+  INTEGER, INTENT(out), OPTIONAL :: id_nr
   TYPE(qs_environment_p_type), DIMENSION(:), POINTER, OPTIONAL :: sub_qs_env
   TYPE(qs_p_projection_p_type), DIMENSION(:), POINTER, OPTIONAL :: sub_proj
   TYPE(qs_environment_type), POINTER, OPTIONAL :: main_qs_env
   TYPE(qs_p_env_type), POINTER, OPTIONAL :: main_p_env
+  TYPE(preconditioner_p_type), DIMENSION(:), POINTER, OPTIONAL :: preconditioner
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -324,11 +338,14 @@ SUBROUTINE ep_env_get(ep_env,id_nr, sub_qs_env, sub_proj, main_qs_env,&
      IF (PRESENT(sub_proj)) sub_proj => ep_env%sub_proj
      IF (PRESENT(main_qs_env)) main_qs_env => ep_env%main_qs_env
      IF (PRESENT(main_p_env)) main_p_env => ep_env%main_p_env
-     IF (PRESENT(nspins)) THEN
-        CPPrecondition(ASSOCIATED(ep_env%main_qs_env),cp_failure_level,routineP,error,failure)
-        IF (.not.failure) THEN
-           nspins=ep_env%main_qs_env%dft_control%nspins
-        END IF
+!FM     IF (PRESENT(nspins)) THEN
+!FM        CPPrecondition(ASSOCIATED(ep_env%main_qs_env),cp_failure_level,routineP,error,failure)
+!FM        IF (.not.failure) THEN
+!FM           nspins=ep_env%main_qs_env%dft_control%nspins
+!FM        END IF
+!FM     END IF
+     IF (PRESENT(preconditioner)) THEN
+        preconditioner => ep_env%precond
      END IF
   END IF
 END SUBROUTINE ep_env_get

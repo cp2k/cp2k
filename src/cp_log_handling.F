@@ -1086,10 +1086,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN='cp_logger_generate_filename',&
          routineP=moduleN//':'//routineN
     TYPE(cp_logger_type), POINTER :: lggr
+
     failure=.FALSE.
     loc=.FALSE.
-
+    res=' '
     lggr => logger
+
     IF (.NOT.ASSOCIATED(lggr)) lggr => cp_get_default_logger()
     IF (lggr%ref_count<1) CALL stop_program(routineP,&
          "logger%ref_count<1")

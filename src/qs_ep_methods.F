@@ -81,6 +81,11 @@ MODULE qs_ep_methods
   USE greens_fn,                       ONLY: pw_green_fn_init
   USE kinds,                           ONLY: wp=>dp
   USE particle_types,                  ONLY: particle_type
+  USE preconditioner,                  ONLY: apply_preconditioner,&
+                                             init_preconditioner,&
+                                             make_preconditioner,&
+                                             preconditioner_p_type,&
+                                             preconditioner_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_release,&
                                              pw_env_retain,&
@@ -228,12 +233,14 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
 
   TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: psi1, L_psi1
   TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools
+  TYPE(dft_control_type), POINTER :: dft_control
   INTEGER :: ispin, nspins
 
   CALL timeset(routineN,"I","",handle)
   
   failure=.FALSE.
-  NULLIFY(particle_set,ep_env,sub_qs,psi1,L_psi1,ao_mo_fm_pools)
+  NULLIFY(particle_set,ep_env,sub_qs,psi1,L_psi1,ao_mo_fm_pools,&
+       dft_control)
   logger => cp_error_get_logger(error)
   unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
 
@@ -246,8 +253,9 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
   CALL cp_log(logger,cp_note_level,routineP,&
        "Defining projections (i.e. subsystmes)")
   IF (.NOT. failure) THEN
-     CALL get_qs_env(qs_env,particle_set=particle_set)
+     CALL get_qs_env(qs_env,particle_set=particle_set, dft_control=dft_control)
      natoms=SIZE(particle_set)
+     nspins=dft_control%nspins
 
      NULLIFY(sub_proj(1)%projection, sub_proj(2)%projection)
 
@@ -280,7 +288,6 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
           error=error)
      CALL cp_log(logger,cp_note_level,routineP,&
           "Creating ep_env_created")
-     CALL ep_env_get(ep_env,nspins=nspins,error=error)
      CALL cp_error_check(error,failure)
   END IF
 
@@ -386,9 +393,9 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
   CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools,psi1,error=error)
   CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools,L_psi1,error=error)
 
-  CALL p_env_write_ep_matrix(p_env=ep_env%main_p_env, &
-       qs_env=ep_env%main_qs_env, &
-       name="ep_op", error=error)
+!FM  CALL p_env_write_ep_matrix(p_env=ep_env%main_p_env, &
+!FM       qs_env=ep_env%main_qs_env, &
+!FM       name="ep_op", error=error)
 
   CALL stupid_solve(ep_env,eps_r=1.0e-5_wp,error=error)
 
@@ -464,6 +471,7 @@ END SUBROUTINE qs_ep_calculation
     TYPE(pw_env_type), POINTER :: pw_env
     TYPE(cell_type), POINTER :: sub_cell
     TYPE(cp_logger_type), POINTER :: logger
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: psi0
     TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools
 
     CALL timeset(routineN,"I","",handle)
@@ -472,14 +480,15 @@ END SUBROUTINE qs_ep_calculation
     NULLIFY(atom_list, sub_atom_list, dft_control,scf_control,&
          para_env, blacs_env, sub_c,atomic_kind_set,sub_qs_charges,&
          proj, sub_qs, particle_set, p_set, sub_rho_core, auxbas_pw_pool,&
-         pw_env, sub_cell, ao_mo_fm_pools)
+         pw_env, sub_cell, psi0, ao_mo_fm_pools)
 
     ALLOCATE(ep_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     IF (.NOT. failure) THEN
        NULLIFY(ep_env%sub_qs_env, ep_env%sub_proj, ep_env%main_qs_env,&
-            ep_env%main_p_env, ep_env%pi_Hrho_psi0d, ep_env%psi1)
+            ep_env%main_p_env, ep_env%pi_Hrho_psi0d, ep_env%psi1,&
+            ep_env%precond)
        nsub=SIZE(projections)
        CALL get_qs_env(main_qs_env, dft_control=dft_control, &
             particle_set=particle_set,&
@@ -656,6 +665,33 @@ END SUBROUTINE qs_ep_calculation
        CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,ep_env%psi1,&
             name="ep_env"//TRIM(ADJUSTL(cp_to_string(ep_env%id_nr)))//"%psi1",&
             error=error)
+
+       ALLOCATE(psi0(dft_control%nspins),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF (.NOT.failure) THEN
+          DO ispin=1,dft_control%nspins
+             NULLIFY(psi0(ispin)%matrix)
+             CALL get_mo_set(ep_env%main_qs_env%c(ispin)%mo_set,&
+                  eigenvectors=psi0(ispin)%matrix)
+          END DO
+       END IF
+       ! initializes the preconditioner
+       ALLOCATE(ep_env%precond(dft_control%nspins),stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       DO ispin=1,dft_control%nspins
+          ALLOCATE(ep_env%precond(ispin)%preconditioner,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          ! use same precond for both spins?
+          CALL init_preconditioner(ep_env%precond(ispin)%preconditioner,&
+               para_env=para_env,&
+               blacs_env=blacs_env)
+          CALL make_preconditioner(ep_env%precond(ispin)%preconditioner,&
+               "FULL_KINETIC",&
+               ep_env%main_qs_env%k(ispin)%matrix,&
+               ep_env%main_qs_env%s(1)%matrix,&
+               ep_env%main_qs_env%kinetic(1)%matrix,&
+               psi0(ispin)%matrix,0.2_wp)
+       END DO
     END IF
 
     CALL timestop(0.0_wp,handle)
@@ -834,13 +870,14 @@ SUBROUTINE ep_env_transfer_psi0(ep_env, error)
   unit_nr=cp_logger_get_default_unit_nr(logger, local=.FALSE.)
   
   CPPrecondition(ASSOCIATED(ep_env),cp_failure_level,routineP,error,failure)
-  CALL ep_env_get(ep_env,nspins=nspins,sub_qs_env=sub_qs_env,&
+  CALL ep_env_get(ep_env,sub_qs_env=sub_qs_env,&
        sub_proj=sub_proj,main_qs_env=main_qs_env,error=error)
   CALL cp_error_check(error,failure)
   CPPrecondition(ASSOCIATED(sub_qs_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(sub_proj),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(main_qs_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
+     nspins=main_qs_env%dft_control%nspins
      CALL get_qs_env(main_qs_env,c=c,error=error)
      DO ispin=1,nspins ! transfer also occupation_numbers ?
         start_col=1
@@ -920,18 +957,18 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='stupid_solve',&
         routineP=moduleN//':'//routineN
-  TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: p,p_ortho, Ap,r
+  TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: p,p_ortho, Ap,r,z
   TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools
   TYPE(dft_control_type), POINTER :: dft_control
   TYPE(cp_logger_type), POINTER :: logger
   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
-  REAL(kind=wp) :: r_norm2, r_norm2_s, r_norm2_new, alpha, beta,&
+  REAL(kind=wp) :: r_norm2, r_norm2_s, r_z,r_z_s,r_z_new, alpha, beta,&
        Ap_p, Ap_p_s, p_ortho_norm, p_ortho_norm_s
   INTEGER :: i,j, ispin, nspins
 
   failure=.FALSE.
   logger => cp_error_get_logger(error)
-  NULLIFY(p,p_ortho,Ap,r,ao_mo_fm_pools,dft_control,s)
+  NULLIFY(p,p_ortho,Ap,r,z,ao_mo_fm_pools,dft_control,s)
 
   CPPrecondition(ASSOCIATED(ep_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(ep_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -949,6 +986,8 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
           error=error)
      CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,r,name="ep_CG_r",&
           error=error)
+     CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,z,name="ep_CG_z",&
+          error=error)
      CALL cp_error_check(error,failure)
   END IF
   IF (.not.failure) THEN
@@ -958,14 +997,8 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
              qs_env=ep_env%main_qs_env, v=ep_env%psi1,&
              n_cols=ep_env%main_p_env%n_mo, error=error)
         ! r=b-A x
-!FM        CALL cp_fm_vect_write(matrixes=ep_env%psi1, &
-!FM             unit_nr=cp_logger_get_default_unit_nr(logger),&
-!FM             long_description=.TRUE., error=error) !pippo
         CALL p_op_ep(p_env=ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
              v=ep_env%psi1, res=r,error=error)
-!FM        CALL cp_fm_vect_write(matrixes=r, &
-!FM             unit_nr=cp_logger_get_default_unit_nr(logger),&
-!FM             long_description=.TRUE., error=error) !pippo
         DO ispin=1,nspins
            CALL cp_fm_add(alpha=-1.0_wp,matrix_a=r(ispin)%matrix,&
                 beta=1.0_wp,matrix_b=ep_env%pi_Hrho_psi0d(ispin)%matrix,&
@@ -984,10 +1017,23 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
         END DO
         IF (r_norm2<eps_r**2) EXIT
         
-        ! p=r
+        ! z=M^-1 r
+        DO ispin=1,nspins
+           CALL apply_preconditioner(ep_env%precond(ispin)%preconditioner,&
+                matrix_in=r(ispin)%matrix,&
+                matrix_out=z(ispin)%matrix)
+        END DO
+
+        ! p=z
         DO ispin=1,nspins
            CALL cp_fm_add(alpha=0.0_wp,matrix_a=p(ispin)%matrix,beta=1.0_wp,&
-                matrix_b=r(ispin)%matrix,error=error)
+                matrix_b=z(ispin)%matrix,error=error)
+        END DO
+        r_z=0.0_wp
+        DO ispin=1,nspins
+           CALL cp_fm_trace(matrix_a=r(ispin)%matrix,&
+                matrix_b=z(ispin)%matrix,trace=r_z_s,error=error)
+           r_z=r_z+r_z_s
         END DO
 
         DO j=1,10
@@ -1027,9 +1073,6 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
               CALL cp_fm_add(alpha=1.0_wp/p_ortho_norm,&
                    matrix_a=p_ortho(ispin)%matrix,error=error)
            END DO
-!FM           CALL cp_fm_vect_write(matrixes=p_ortho, &
-!FM                unit_nr=cp_logger_get_default_unit_nr(logger),&
-!FM                long_description=.TRUE., error=error) !pippo
 
            ! Ap=A p_ortho=p_ortho_norm A p
            CALL p_op_ep(p_env=ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
@@ -1045,16 +1088,16 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
               Ap_p=Ap_p+Ap_p_s
            END DO
            
-           ! check if A is almost indefinite (in this case Conjugate 
-           ! Residual would be better)
-           CALL cp_assert(p_ortho_norm*Ap_p>r_norm2*MIN(eps_r,1.0e-6_wp),&
-                cp_warning_level,cp_assertion_failed,routineP,&
-                "A is almost indefinite (Conjugate Residual would be better)"//&
-                CPSourceFileRef,&
-                error=error)
+!FM           ! check if A is almost indefinite (in this case Conjugate 
+!FM           ! Residual would be better)
+!FM           CALL cp_assert(p_ortho_norm*Ap_p>r_norm2*MIN(eps_r,1.0e-6_wp),&
+!FM                cp_warning_level,cp_assertion_failed,routineP,&
+!FM                "A is almost indefinite (Conjugate Residual would be better)"//&
+!FM                CPSourceFileRef,&
+!FM                error=error)
            
            ! this alpha is the alpha in alg. desc. times p_ortho_norm
-           alpha=r_norm2/Ap_p
+           alpha=r_z/Ap_p
 
            ! x=x+alpha p_ortho
            DO ispin=1,nspins
@@ -1073,21 +1116,35 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
                    error=error)
            END DO
            
-           r_norm2_new=0.0_wp
+           r_norm2=0.0_wp
            DO ispin=1,nspins
               CALL cp_fm_trace(matrix_a=r(ispin)%matrix,&
                    matrix_b=r(ispin)%matrix,trace=r_norm2_s,error=error)
-              r_norm2_new=r_norm2_new+r_norm2_s
+              r_norm2=r_norm2+r_norm2_s
            END DO
-           IF (r_norm2_new<eps_r**2) EXIT
-
-           beta= r_norm2_new/r_norm2
-           r_norm2=r_norm2_new
+           IF (r_norm2<eps_r**2) EXIT
            
-           ! p=beta p+r
+           ! z=M^-1 r
+           DO ispin=1,nspins
+              CALL apply_preconditioner(ep_env%precond(ispin)%preconditioner,&
+                   matrix_in=r(ispin)%matrix,&
+                   matrix_out=z(ispin)%matrix)
+           END DO
+
+           r_z_new=0.0_wp
+           DO ispin=1,nspins
+              CALL cp_fm_trace(matrix_a=r(ispin)%matrix,&
+                   matrix_b=z(ispin)%matrix,trace=r_z_s,error=error)
+              r_z_new=r_z_new+r_z_s
+           END DO
+
+           beta= r_z_new/r_z
+           r_z=r_z_new
+           
+           ! p=beta p+z
            DO ispin=1,nspins
               CALL cp_fm_add(alpha=beta,matrix_a=p(ispin)%matrix,&
-                   beta=1.0_wp,matrix_b=r(ispin)%matrix,&
+                   beta=1.0_wp,matrix_b=z(ispin)%matrix,&
                    error=error)
            END DO
         END DO
@@ -1102,6 +1159,7 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
      CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools,p,error=error)
      CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools,Ap,error=error)
      CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools,r,error=error)
+     CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools,z,error=error)
   END IF
            
 END SUBROUTINE stupid_solve

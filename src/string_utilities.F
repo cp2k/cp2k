@@ -21,9 +21,7 @@
 !******************************************************************************
 
 MODULE string_utilities
-
-  USE kinds, ONLY : dbl
-
+  USE kinds,                           ONLY: dbl
   IMPLICIT NONE
 
   PRIVATE
@@ -322,6 +320,11 @@ END FUNCTION str_search
 !!   NAME
 !!     compress_all
 !!
+!!   SYNOPSIS
+!!     Subroutine compress_all(string)
+!!       Character(Len=*), Intent (INOUT):: string
+!!     End Subroutine compress_all
+!!
 !!   FUNCTION
 !!     removes all the blacs from the given string, putting them at end
 !!
@@ -347,13 +350,15 @@ SUBROUTINE compress_all(string)
   INTEGER :: i, pos2
 
   pos2=1
-  DO i=1,LEN(string)
+  DO i=1,LEN_TRIM(string)
      IF (string(i:i)/=' ') THEN
         string(pos2:pos2)=string(i:i)
         pos2=pos2+1
      END IF
   END DO
-  IF (pos2<LEN(string)) string(pos2:LEN(string))=""
+  IF (pos2<LEN(string)) THEN
+     string(pos2:LEN(string))=""
+  END IF
 
 END SUBROUTINE compress_all
 !***************************************************************************

@@ -81,7 +81,7 @@ MODULE cp_fm_types
                                              real_matrix_type,&
                                              sparse_plus_rep_rept,&
                                              sparse_times_replicated
-  USE string_utilities,                ONLY: compress
+  USE string_utilities,                ONLY: compress_all
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -1133,6 +1133,7 @@ CONTAINS
     CHARACTER(len=60):: filename
 
     failure=.FALSE.; loc=.FALSE.; my_long_description=.FALSE.
+    filename=' '
 
     IF (PRESENT(local)) loc=local
     IF (PRESENT(long_description)) my_long_description=long_description
@@ -1146,13 +1147,13 @@ CONTAINS
           IF (para_env%mepos==para_env%source) THEN
              filename=TRIM(matrix%name)//&
                   ADJUSTL(cp_to_string(matrix%print_count))
-             CALL compress(filename)
+             CALL compress_all(filename)
              WRITE (unit=desc_unit,&
                   fmt="(' <cp_fm_types>:{ id_nr=',i10,' written to files ',a,'*')",&
                   iostat=iostat) matrix%id_nr, TRIM(filename)
           END IF
           CALL cp_logger_generate_filename(logger=logger,res=filename,&
-               root=TRIM(filename)//"-"//&
+               root=TRIM(matrix%name)//"-"//&
                TRIM(ADJUSTL(cp_to_string(matrix%print_count))),&
                postfix=".desc",local=.TRUE.)
           INQUIRE (FILE=TRIM(filename),EXIST=exists)
@@ -1162,7 +1163,7 @@ CONTAINS
                unit_number=desc_unit)
 
           CALL cp_logger_generate_filename(logger=logger,res=filename,&
-            root=TRIM(filename)//"-"//&
+            root=TRIM(matrix%name)//"-"//&
             TRIM(ADJUSTL(cp_to_string(matrix%print_count))),&
             postfix=".dat",local=.TRUE.)
           INQUIRE (FILE=TRIM(filename),EXIST=exists)

@@ -410,7 +410,8 @@ CONTAINS
     rebuild = .TRUE.
     use_jacobi = .FALSE.
 
-    CALL init_preconditioner(ot_preconditioner,globenv)
+    CALL init_preconditioner(ot_preconditioner,para_env=globenv%para_env,&
+         blacs_env=globenv%blacs_env)
 
     IF (scf_control%use_ot) THEN
        CALL ot_scf_read_input(qs_ot_env,globenv)
