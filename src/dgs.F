@@ -902,8 +902,8 @@ SUBROUTINE dg_get_patch_1 ( rho0, rhos1, charge1, ex1, ey1, ez1 )
 ! Locals
   INTEGER :: n, nd ( 3 ), ierr, n1, n2, n3
   COMPLEX ( dbl ) :: za, zb
-  COMPLEX ( dbl ), DIMENSION ( : ), ALLOCATABLE :: zs
-  COMPLEX ( dbl ), DIMENSION ( :,:,: ), ALLOCATABLE :: cd
+  COMPLEX ( dbl ), DIMENSION ( : ), ALLOCATABLE, SAVE :: zs
+  COMPLEX ( dbl ), DIMENSION ( :,:,: ), ALLOCATABLE, SAVE :: cd
 
 !------------------------------------------------------------------------------
 
