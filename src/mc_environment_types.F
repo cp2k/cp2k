@@ -22,9 +22,11 @@
 
 MODULE mc_environment_types
   USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_error_type
+                                             cp_error_type, &
+                                             cp_assert
   USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_warning_level
+                                             cp_warning_level,&
+                                             cp_to_string
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type,&
