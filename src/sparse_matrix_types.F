@@ -102,7 +102,7 @@ MODULE sparse_matrix_types
             allocate_matrix,&
             allocate_matrix_set,&
             copy_matrix,&
-            copy_sparse_to_fm,&
+            copy_local_sm_to_replicated_fm,&
             deallocate_matrix,&
             deallocate_matrix_row,&
             deallocate_matrix_set,&
@@ -831,10 +831,10 @@ END SUBROUTINE cp_sm_scale_and_add
 
 ! *****************************************************************************
 
-  SUBROUTINE copy_sparse_to_fm(sparse_matrix,fm)
+  SUBROUTINE copy_local_sm_to_replicated_fm(sparse_matrix,fm)
 
-!   Purpose: Copy the matrix blocks of a sparse matrix to the corresponding
-!            full matrix which is allocated in this routine.
+!   Purpose: copy to local blocks of a sparse matrix in a replicated full matrix (why ??)
+!            ! according to me this routine is a bug in parallel JVDV 
 
 !   History: - Creation (19.06.2001, MK)
 
@@ -846,7 +846,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE copy_sparse_to_fm (MODULE sparse_matrix_types)"
+      "SUBROUTINE copy_local_sm_to_replicated_fm (MODULE sparse_matrix_types)"
 
 !   *** Local variables ***
 
@@ -912,7 +912,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     END DO
 
-  END SUBROUTINE copy_sparse_to_fm
+  END SUBROUTINE copy_local_sm_to_replicated_fm
 
 ! *****************************************************************************
 ! multiplies a sparse matrix times ncol local vectors, adding it the the output

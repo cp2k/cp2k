@@ -60,7 +60,7 @@ MODULE cp_matrix_utils
   USE mathlib,                         ONLY: symmetrize_matrix
   USE message_passing,                 ONLY: mp_sum
   USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             copy_sparse_to_fm,&
+                                             copy_local_sm_to_replicated_fm,&
                                              find_block_node,&
                                              first_block_node,&
                                              get_block_node,&
@@ -1371,7 +1371,7 @@ SUBROUTINE cp_sm_output(logger, outputName, &
              matrix_symmetry=symmetry)
         
         NULLIFY (fm)
-        CALL copy_sparse_to_fm(matrix,fm)
+        CALL copy_local_sm_to_replicated_fm(matrix,fm)
         IF (symmetry == "symmetric") THEN
            CALL symmetrize_matrix(fm,"upper_to_lower")
         ELSE IF (symmetry == "antisymmetric") THEN

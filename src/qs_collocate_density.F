@@ -126,7 +126,6 @@ MODULE qs_collocate_density
   USE simulation_cell,                 ONLY: cell_type,&
                                              pbc
   USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             copy_sparse_to_fm,&
                                              deallocate_matrix,&
                                              get_block_node,&
                                              get_matrix_info,&

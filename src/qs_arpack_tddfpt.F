@@ -43,8 +43,7 @@ MODULE qs_arpack_tddfpt
                                              p_op_l1_spin,&
                                              p_op_l2
   USE qs_p_env_types,                  ONLY: qs_p_env_type
-  USE sparse_matrix_types,             ONLY: copy_sparse_to_fm,&
-                                             real_matrix_type
+  USE sparse_matrix_types,             ONLY: real_matrix_type
   IMPLICIT NONE
   
   TYPE op_tddfpt_type

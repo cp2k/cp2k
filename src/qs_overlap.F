@@ -62,7 +62,7 @@ MODULE qs_overlap
   USE sparse_matrix_types,    ONLY: add_block_node,&
                                     allocate_matrix,&
                                     allocate_matrix_set,&
-                                    copy_sparse_to_fm,&
+                                    copy_local_sm_to_replicated_fm,&
                                     deallocate_matrix,&
                                     get_block_node,&
                                     get_matrix_info,&
@@ -805,7 +805,7 @@ CONTAINS
 
     NULLIFY (matrix)
 
-    CALL copy_sparse_to_fm(sparse_matrix,matrix)
+    CALL copy_local_sm_to_replicated_fm(sparse_matrix,matrix)
 
     IF (matrix_symmetry == "symmetric") THEN
       CALL symmetrize_matrix(matrix,"upper_to_lower")

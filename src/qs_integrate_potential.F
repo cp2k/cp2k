@@ -126,7 +126,6 @@ MODULE qs_integrate_potential
                                              pbc
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              allocate_matrix,&
-                                             copy_sparse_to_fm,&
                                              cp_sm_get_block_list,&
                                              cp_sm_scale_and_add,&
                                              deallocate_matrix,&
