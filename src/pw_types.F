@@ -323,8 +323,10 @@ SUBROUTINE pw_copy ( pw1, pw2 )
        ng1 = SIZE ( pw1 % cc )
        ng2 = SIZE ( pw2 % cc )
        ng = MIN ( ng1, ng2 )
-       pw2 % cc ( 1:ng ) = pw1 % cc ( 1:ng )
-       IF ( ng2 > ng ) pw2 % cc ( ng+1:ng2 ) = CMPLX ( 0._dbl, 0._dbl, dbl )
+       ! pw2 % cc ( 1:ng ) = pw1 % cc ( 1:ng )
+       CALL DCOPY(2*ng,pw1%cc,1,pw2%cc,1)
+       !IF ( ng2 > ng ) pw2 % cc ( ng+1:ng2 ) = CMPLX ( 0._dbl, 0._dbl, dbl )
+       IF ( ng2 > ng ) CALL DCOPY(2*(ng2-ng),0.0_dbl,0,pw2%cc(ng+1),1)
        ns = ng
     ELSE
        CALL stop_program ( "pw_copy", "no suitable data field" )
@@ -333,19 +335,19 @@ SUBROUTINE pw_copy ( pw1, pw2 )
   ELSE
 
     IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D ) THEN
-       pw2 % cr = pw1 % cr
        ns = SIZE ( pw1 % cr )
+       CALL DCOPY(ns, pw1 % cr, 1, pw2 % cr, 1)
     ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
          pw2 % in_use == COMPLEXDATA1D ) THEN
-       pw2 % cc = pw1 % cc
        ns = 2 * SIZE ( pw1 % cc )
+       CALL DCOPY(ns, pw1 % cc, 1, pw2 % cc, 1)
     ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D ) THEN
-       pw2 % cr3d = pw1 % cr3d
        ns = SIZE ( pw1 % cr3d )
+       CALL DCOPY(ns, pw1 % cr3d, 1, pw2 % cr3d, 1)
     ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
          pw2 % in_use == COMPLEXDATA3D ) THEN
-       pw2 % cc3d = pw1 % cc3d
        ns = 2 * SIZE ( pw1 % cc3d )
+       CALL DCOPY(ns, pw1 % cc3d, 1, pw2 % cc3d, 1)
     ELSE
        CALL stop_program ( "pw_copy", "no suitable data field" )
     END IF
