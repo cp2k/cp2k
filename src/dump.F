@@ -146,7 +146,7 @@ CONTAINS
 !-----------------------------------------------------------------------------
  nhc_len = SIZE(nhc_part(1)%nvt,1)
  num_nhc = SIZE(nhc_part(1)%nvt,2)
- numneed = num_nhc*nhc_len
+ numneed = num_nhc
  ALLOCATE ( nhc_per_proc( para_env % num_pe ), STAT = isos )
  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
                                'failed to allocate nhc_per_proc')
@@ -166,12 +166,12 @@ CONTAINS
   !-----------------------------------------------------------------------------
   ! nhc_part%eta  
   !-----------------------------------------------------------------------------
-  ALLOCATE(eta(tot_nhcneed), STAT = isos )
+  ALLOCATE(eta(tot_nhcneed*nhc_len), STAT = isos )
   IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
                                'failed to allocate eta')
   DO iproc=1,para_env%num_pe
-    CALL reallocate(work,1,nhc_per_proc(iproc))
-    CALL reallocate(index,1,nhc_per_proc(iproc)/nhc_len)
+    CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
+    CALL reallocate(index,1,nhc_per_proc(iproc))
     IF(para_env%mepos == (iproc-1)) THEN
       index(:)=0
       counter=0
@@ -189,7 +189,7 @@ CONTAINS
     CALL mp_bcast(index,iproc-1,para_env%group)
     counter=0
     DO i=1,nhc_len
-      DO j=1,nhc_per_proc(iproc)/nhc_len
+      DO j=1,nhc_per_proc(iproc)
         counter = counter+1
         eta((index(j)-1)*nhc_len+i) = work(counter)
       END DO
@@ -201,11 +201,11 @@ CONTAINS
   !-----------------------------------------------------------------------------
   ! nhc_part % veta   
   !-----------------------------------------------------------------------------
-  ALLOCATE(veta(tot_nhcneed), STAT = isos )
+  ALLOCATE(veta(tot_nhcneed*nhc_len), STAT = isos )
   IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
                                'failed to allocate veta')
   DO iproc=1,para_env%num_pe
-    CALL reallocate(work,1,nhc_per_proc(iproc))
+    CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
     CALL reallocate(index,1,nhc_per_proc(iproc))
     IF(para_env%mepos == (iproc-1)) THEN
       index(:)=0
@@ -224,7 +224,7 @@ CONTAINS
     CALL mp_bcast(index,iproc-1,para_env%group)
     counter=0
     DO i=1,nhc_len
-      DO j=1,nhc_per_proc(iproc)/nhc_len
+      DO j=1,nhc_per_proc(iproc)
         counter = counter+1
         veta((index(j)-1)*nhc_len+i) = work(counter)
       END DO
@@ -236,11 +236,11 @@ CONTAINS
   !-----------------------------------------------------------------------------
   ! nhc_part % force
   !-----------------------------------------------------------------------------
-  ALLOCATE(fnhc(tot_nhcneed), STAT = isos )
+  ALLOCATE(fnhc(tot_nhcneed*nhc_len), STAT = isos )
   IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
                                'failed to allocate fnhc')
   DO iproc=1,para_env%num_pe
-    CALL reallocate(work,1,nhc_per_proc(iproc))
+    CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
     CALL reallocate(index,1,nhc_per_proc(iproc))
     IF(para_env%mepos == (iproc-1)) THEN
       index(:)=0
@@ -259,7 +259,7 @@ CONTAINS
     CALL mp_bcast(index,iproc-1,para_env%group)
     counter=0
     DO i=1,nhc_len
-      DO j=1,nhc_per_proc(iproc)/nhc_len
+      DO j=1,nhc_per_proc(iproc)
         counter = counter+1
         fnhc((index(j)-1)*nhc_len+i) = work(counter)
       END DO
@@ -271,11 +271,11 @@ CONTAINS
   !-----------------------------------------------------------------------------
   ! nhc_part % mass
   !-----------------------------------------------------------------------------
-  ALLOCATE(mnhc(tot_nhcneed), STAT = isos)
+  ALLOCATE(mnhc(tot_nhcneed*nhc_len), STAT = isos)
   IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
                                'failed to allocate mnhc')
   DO iproc=1,para_env%num_pe
-    CALL reallocate(work,1,nhc_per_proc(iproc))
+    CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
     CALL reallocate(index,1,nhc_per_proc(iproc))
     IF(para_env%mepos == (iproc-1)) THEN
       index(:)=0
@@ -294,7 +294,7 @@ CONTAINS
     CALL mp_bcast(index,iproc-1,para_env%group)
     counter=0
     DO i=1,nhc_len
-      DO j=1,nhc_per_proc(iproc)/nhc_len
+      DO j=1,nhc_per_proc(iproc)
         counter = counter+1
         mnhc((index(j)-1)*nhc_len+i) = work(counter)
       END DO
