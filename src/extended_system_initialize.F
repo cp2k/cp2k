@@ -177,7 +177,7 @@ SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
 
 
     TYPE(npt_info_type), DIMENSION(:, :), &
-      INTENT(OUT)                            :: npt
+      INTENT(INOUT)                          :: npt
     REAL(dbl), INTENT(IN)                    :: tau_cell, temp_ext, deth
     INTEGER, INTENT(IN)                      :: nfree
     CHARACTER(LEN=20), INTENT(IN)            :: ensemble
