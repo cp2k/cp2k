@@ -140,6 +140,10 @@ MODULE qs_environment_types
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE greens_fn,                       ONLY: greens_function_type,&
+                                             pw_green_release,&
+                                             pw_green_retain,&
+                                             pw_green_create
   USE input_section_types, ONLY: section_vals_type, section_vals_retain,&
        section_vals_release
   IMPLICIT NONE
@@ -253,6 +257,7 @@ MODULE qs_environment_types
     LOGICAL :: requires_mo_derivs
     TYPE(cell_type), POINTER                              :: cell
     TYPE(cell_type), POINTER                              :: cell_ref
+    TYPE(greens_function_type), POINTER                   :: green
     TYPE(dft_control_type), POINTER                       :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: mos
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER             :: mo_derivs
@@ -322,7 +327,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,cell_ref,use_ref_cell,&
-                        dft_control,mos,sab_orb,qmmm,&
+                        dft_control,mos,sab_orb,qmmm,green,&
                         sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
                         particle_set,energy,force,&
@@ -348,6 +353,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
+    TYPE(greens_function_type), POINTER, OPTIONAL  :: green
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
     LOGICAL, OPTIONAL                        :: use_ref_cell
     TYPE(dft_control_type), OPTIONAL, &
@@ -448,6 +454,7 @@ CONTAINS
 
     IF (PRESENT(cell)) cell => qs_env%cell
     IF (PRESENT(cell_ref)) cell_ref => qs_env%cell_ref
+    IF (PRESENT(green)) green => qs_env%green
     IF (PRESENT(use_ref_cell)) use_ref_cell = qs_env%use_ref_cell
     IF (PRESENT(qmmm)) qmmm = qs_env%qmmm
     IF (PRESENT(dft_control)) dft_control => qs_env%dft_control
@@ -551,6 +558,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     NULLIFY (qs_env%blacs_env)
+    NULLIFY (qs_env%green)
     NULLIFY (qs_env%cell)
     NULLIFY (qs_env%cell_ref)
     NULLIFY (qs_env%dft_control)
@@ -611,7 +619,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE set_qs_env(qs_env,cell,cell_ref,use_ref_cell, &
-                        dft_control,mos,qmmm,&
+                        dft_control,mos,qmmm,green,&
                         sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
                         energy,force,&
@@ -631,6 +639,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(greens_function_type), POINTER,OPTIONAL  :: green
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
     LOGICAL, OPTIONAL                        :: use_ref_cell
     TYPE(dft_control_type), OPTIONAL, &
@@ -713,6 +722,11 @@ CONTAINS
        CALL cell_retain(cell_ref, error=error)
        CALL cell_release(qs_env%cell_ref,error=error)
        qs_env%cell_ref => cell_ref
+    END IF
+    IF (PRESENT(green)) THEN
+       CALL pw_green_retain(green, error=error)
+       CALL pw_green_release(qs_env%green,error=error)
+       qs_env%green => green
     END IF
     IF (PRESENT(dft_control)) THEN
        CALL dft_control_retain(dft_control, error=error)
@@ -972,6 +986,7 @@ SUBROUTINE qs_env_release(qs_env,error)
      IF (qs_env%ref_count<1) THEN
         CALL cell_release(qs_env%cell)
         CALL cell_release(qs_env%cell_ref)
+        CALL pw_green_release(qs_env%green)
         CALL dft_control_release(qs_env%dft_control, error=error)
         IF (ASSOCIATED(qs_env%mos)) THEN
            DO i=1,SIZE(qs_env%mos)

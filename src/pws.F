@@ -108,16 +108,15 @@ CONTAINS
 SUBROUTINE init_pw_poisson_solver ( gftype, error )
 
 
-    TYPE(greens_function_type), INTENT(IN), &
-      TARGET                                 :: gftype
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+  TYPE(greens_function_type), POINTER      :: gftype
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+  
+  CHARACTER(len=*), PARAMETER :: routineN = 'init_pw_poisson_solver', &
+       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'init_pw_poisson_solver', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    LOGICAL, SAVE                            :: first_time = .TRUE.
+  LOGICAL                                  :: failure
+  LOGICAL, SAVE                            :: first_time = .TRUE.
 
 !------------------------------------------------------------------------------
 
@@ -152,8 +151,7 @@ END SUBROUTINE init_pw_poisson_solver
 SUBROUTINE cleanup_pw_poisson_solver ( gftype, error)
 
 
-    TYPE(greens_function_type), INTENT(IN), &
-      OPTIONAL, TARGET                       :: gftype
+  TYPE(greens_function_type),POINTER, OPTIONAL:: gftype
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

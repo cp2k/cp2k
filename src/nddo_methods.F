@@ -118,6 +118,7 @@ MODULE nddo_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
+  USE greens_fn,                       ONLY: greens_function_type
 
   IMPLICIT NONE
 
@@ -1124,6 +1125,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(coeff_type)                         :: v_gspace
     REAL(KIND=dp)                            :: tot_rs_int
+    TYPE(greens_function_type), POINTER                   :: green
 
 ! -----------------------------------------------------------------------------
 
@@ -1148,7 +1150,7 @@ CONTAINS
       CALL put_rho0_s_on_grid(qs_env,atomic_kind_set,nddo_mpole,tot_rs_int,error)
 
       NULLIFY (cell,pw_env,auxbas_pw_pool)
-      CALL get_qs_env(qs_env=qs_env, cell=cell, pw_env=pw_env)
+      CALL get_qs_env(qs_env=qs_env, green=green, cell=cell, pw_env=pw_env)
       CPPostcondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
       CPPostcondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
       CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool)
@@ -1157,9 +1159,9 @@ CONTAINS
                               use_data = COMPLEXDATA1D,&
                               in_space = RECIPROCALSPACE, error=error)
 
-      CALL init_pw_poisson_solver(cell%green,error=error)
+      CALL init_pw_poisson_solver(green,error=error)
       CALL calculate_hartree(nddo_mpole%rho0_s_gs,energy%hartree,v_gspace)
-      CALL cleanup_pw_poisson_solver(cell%green,error=error)
+      CALL cleanup_pw_poisson_solver(green,error=error)
 
       IF (.NOT. just_energy) THEN
           CALL coeff_transform_space(v_gspace,ks_env%v_hartree_rspace)

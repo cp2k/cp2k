@@ -106,7 +106,7 @@ MODULE qs_kpp1_env_methods
                                              xc_rho_set_release,&
                                              xc_rho_set_type,&
                                              xc_rho_set_update
-
+  USE greens_fn,                       ONLY: greens_function_type
   IMPLICIT NONE
 
   PRIVATE
@@ -233,6 +233,7 @@ CONTAINS
                                                 energy_hartree_1c,&
                                                 energy_hartree_2c,&
                                                 energy_hartree_3c
+    TYPE(greens_function_type), POINTER      :: green
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: rho1_tot_gspace, &
                                                 v_hartree_gspace, &
@@ -257,7 +258,7 @@ CONTAINS
 
     NULLIFY(dft_control, auxbas_pw_pool, pw_pools, pw_env, v_rspace_new, &
             rho1_r, rho1_g_pw, tau_pw, cell, v_xc, rho1_set,&
-            tddfpt_control)
+            tddfpt_control,green)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
 
@@ -276,6 +277,7 @@ CONTAINS
             dft_control=dft_control,&
             pw_env=pw_env,&
             cell=cell,&
+            green=green,&
             error=error)
 
        nspins = dft_control%nspins
@@ -331,11 +333,11 @@ CONTAINS
 
        IF (.NOT.(nspins==1 .AND. dft_control%do_tddfpt_calculation .AND. &
                  tddfpt_control%res_etype /= tddfpt_singlet )) THEN
-          CALL init_pw_poisson_solver(cell%green,error=error)
+          CALL init_pw_poisson_solver(green,error=error)
           CALL calculate_hartree(rho1_tot_gspace, &
                                  energy_hartree, & 
                                  v_hartree_gspace)
-          CALL cleanup_pw_poisson_solver(cell%green,error=error)
+          CALL cleanup_pw_poisson_solver(green,error=error)
           CALL coeff_transform_space(v_hartree_gspace,&
                                      v_hartree_rspace)
        END IF

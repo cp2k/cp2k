@@ -127,12 +127,14 @@ MODULE qs_ep_methods
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
   USE scf_control_types,               ONLY: scf_c_retain,&
                                              scf_control_type
-  USE simulation_cell,                 ONLY: cell_type
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             cell_clone
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              real_matrix_p_type,&
                                              replicate_matrix_structure
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE greens_fn,                       ONLY: greens_function_type
 
   IMPLICIT NONE
   PRIVATE
@@ -431,6 +433,7 @@ END SUBROUTINE qs_ep_calculation
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: sub_cell
+    TYPE(greens_function_type), POINTER      :: green
     TYPE(coeff_type), POINTER                :: sub_rho_core
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -458,7 +461,7 @@ END SUBROUTINE qs_ep_calculation
     NULLIFY(atom_list, sub_atom_list, dft_control,scf_control,&
          para_env, blacs_env, sub_mos,atomic_kind_set,sub_qs_charges,&
          proj, sub_qs, particle_set, p_set, sub_rho_core, auxbas_pw_pool,&
-         pw_env, sub_cell, psi0, ao_mo_fm_pools, mpools)
+         pw_env, sub_cell, psi0, ao_mo_fm_pools, mpools, green)
 
     ALLOCATE(ep_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -516,7 +519,7 @@ END SUBROUTINE qs_ep_calculation
 !          sub_qs%atomic_kind_set = atomic_kind_set
           ALLOCATE(sub_qs%cell, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          sub_qs%cell = ep_env%main_qs_env%cell
+          CALL cell_clone(ep_env%main_qs_env%cell,sub_qs%cell, error=error)
           sub_qs%dft_control => dft_control
           sub_qs%scf_control => scf_control
           CALL scf_c_retain(scf_control, error=error)
@@ -612,9 +615,9 @@ END SUBROUTINE qs_ep_calculation
                nrow_block=scf_control%nrow_block,&
                ncol_block=scf_control%ncol_block,error=error)
           ! init green's function
-          CALL get_qs_env(sub_qs, cell=sub_cell, pw_env=pw_env,&
+          CALL get_qs_env(sub_qs, cell=sub_cell, green=green, pw_env=pw_env,&
                rho_core=sub_rho_core, error=error)
-          CALL pw_green_fn_rebuild(sub_cell%green,&
+          CALL pw_green_fn_rebuild(green,&
                pw_env%pw_pools(pw_env%auxbas_grid)%pool)
           ! reallocate rho_core
           IF (ASSOCIATED(sub_rho_core)) THEN

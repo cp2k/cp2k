@@ -55,7 +55,7 @@ MODULE pw_env_methods
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
-  USE greens_fn,                       ONLY: pw_green_fn_destroy
+  USE greens_fn,                       ONLY: pw_green_release
   USE greens_fns,                      ONLY: pw_green_fn_rebuild
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: init_l_info,&
@@ -84,6 +84,7 @@ MODULE pw_env_methods
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE greens_fn,                       ONLY: greens_function_type
 
   IMPLICIT NONE
   PRIVATE
@@ -191,6 +192,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     REAL(KIND=dp)                            :: alpha, cutilev, drmin, &
                                                 maxradius, rel_cutoff, &
                                                 max_rpgf0_s, zet0_s, zetp
+    TYPE(greens_function_type), POINTER      :: green
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta, zetb
@@ -214,7 +216,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
   CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
   NULLIFY(cutoff,cell,pw_grid,old_pw_grid,dft_control,atomic_kind_set,&
-          pw_pools,rho0_mpole,rs_pools, para_env,cell_ref)
+          pw_pools,rho0_mpole,rs_pools, para_env,cell_ref, green)
   logger => cp_error_get_logger(error)
   pw_grid_information=logger%print_keys%pw_grid_information
  
@@ -274,7 +276,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
   IF (.NOT.failure) THEN
      CALL get_qs_env(qs_env=qs_env,&
           dft_control=dft_control,atomic_kind_set=atomic_kind_set,&
-          cell_ref=cell_ref, cell=cell,para_env=para_env)
+          cell_ref=cell_ref, green=green, cell=cell,para_env=para_env)
      rel_cutoff = dft_control%qs_control%relative_cutoff
      cutoff => dft_control%qs_control%e_cutoff
      ngrid_level = SIZE(cutoff)
@@ -492,20 +494,19 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      END DO
 
      ! complete init of green's function
-     CALL pw_green_fn_rebuild(cell%green,&
-          pw_env%pw_pools(pw_env%auxbas_grid)%pool)
-     CALL pw_green_fn_rebuild(cell_ref%green,&
+     CALL pw_green_fn_rebuild(green,&
           pw_env%pw_pools(pw_env%auxbas_grid)%pool)
   END IF
 
-! If reference cell is present, then use pw_grid_change to keep bounds constant...MJM is looking at a way to phase this out, because it doesn't seem like everything gets initialized properly
+! If reference cell is present, then use pw_grid_change to keep bounds constant...
+! MJM is looking at a way to phase this out, because it doesn't seem like everything gets initialized properly
   CALL get_qs_env ( qs_env, use_ref_cell = use_ref_cell )
   IF ( use_ref_cell ) THEN
       DO igrid_level = 1, SIZE ( pw_pools )
         CALL pw_grid_change ( cell, pw_pools ( igrid_level ) % pool % pw_grid )
       ENDDO
-      CALL pw_green_fn_destroy(cell%green)
-      CALL pw_green_fn_rebuild(cell%green,&
+      CALL pw_green_release(green)
+      CALL pw_green_fn_rebuild(green,&
           pw_env%pw_pools(pw_env%auxbas_grid)%pool)
   ENDIF
   CALL timestop(0.0_dp,handle)

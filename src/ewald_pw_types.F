@@ -72,6 +72,9 @@ MODULE ewald_pw_types
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE greens_fn,                       ONLY: greens_function_type,&
+                                             pw_green_release,&
+                                             pw_green_retain
   IMPLICIT NONE
 
   PRIVATE
@@ -81,17 +84,15 @@ MODULE ewald_pw_types
             ewald_pw_retain, ewald_pw_create, &
             ewald_pw_get, ewald_pw_set 
 
-! definition of all variables (densities, potentials, grids....)
-! needed to perform any ewald calculation 
+
   TYPE ewald_pw_type
      PRIVATE
      INTEGER :: ref_count, id_nr
-     TYPE ( pw_pool_type ), POINTER     :: pw_small_pool
-     TYPE ( pw_pool_type ), POINTER     :: pw_big_pool
-!!     TYPE ( cp_rs_pool_type ), POINTER  :: rs_pool
-     TYPE ( cell_type ),    POINTER     :: cell, cell_ref
-! Double grid data type
-     TYPE ( dg_type ), POINTER          :: dg
+     TYPE ( pw_pool_type ), POINTER       :: pw_small_pool
+     TYPE ( pw_pool_type ), POINTER       :: pw_big_pool
+     TYPE ( cell_type ),    POINTER       :: cell, cell_ref
+     TYPE(greens_function_type), POINTER  :: green     
+     TYPE ( dg_type ), POINTER            :: dg
   END TYPE ewald_pw_type
 !-----------------------------------------------------------------------------!
 
@@ -138,8 +139,9 @@ END SUBROUTINE ewald_pw_retain
 !!   MODIFICATION HISTORY
 !!
 !!*** **********************************************************************
-SUBROUTINE ewald_pw_create ( ewald_pw, cell, cell_ref, ewald_env, error )
+SUBROUTINE ewald_pw_create ( ewald_pw, green, cell, cell_ref, ewald_env, error )
   TYPE(ewald_pw_type), POINTER :: ewald_pw
+  TYPE(greens_function_type), POINTER  :: green
   TYPE ( cell_type ), POINTER :: cell, cell_ref
   TYPE(ewald_environment_type), POINTER :: ewald_env
   TYPE(cp_error_type), OPTIONAL, INTENT ( inout ) :: error
@@ -158,6 +160,7 @@ SUBROUTINE ewald_pw_create ( ewald_pw, cell, cell_ref, ewald_env, error )
   IF (.NOT. failure) THEN
      NULLIFY ( ewald_pw % pw_big_pool ) 
      NULLIFY ( ewald_pw % pw_small_pool ) 
+     NULLIFY ( ewald_pw % green )
      NULLIFY ( ewald_pw % cell ) 
      NULLIFY ( ewald_pw % cell_ref ) 
      CALL dg_create ( dg, error )
@@ -165,7 +168,7 @@ SUBROUTINE ewald_pw_create ( ewald_pw, cell, cell_ref, ewald_env, error )
      ewald_pw%ref_count=1
      last_ewald_pw_id_nr=last_ewald_pw_id_nr+1
      ewald_pw%id_nr=last_ewald_pw_id_nr
-     CALL ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
+     CALL ewald_pw_init ( ewald_pw, green, cell, cell_ref, ewald_env, error )
   END IF
 END SUBROUTINE ewald_pw_create
 !***************************************************************************
@@ -205,6 +208,7 @@ END SUBROUTINE ewald_pw_create
      IF (ewald_pw%ref_count<1) THEN
       CALL pw_pool_release ( ewald_pw % pw_small_pool, error = error )
       CALL pw_pool_release ( ewald_pw % pw_big_pool, error = error )
+      CALL pw_green_release( ewald_pw % green, error=error)
       CALL cell_release ( ewald_pw % cell, error )
       CALL cell_release ( ewald_pw % cell_ref, error )
       CALL dg_release ( ewald_pw % dg, error )
@@ -237,13 +241,14 @@ END SUBROUTINE ewald_pw_create
 !!*****
 !******************************************************************************
 
-SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
+SUBROUTINE ewald_pw_init ( ewald_pw, green, cell, cell_ref, ewald_env, error )
   
   IMPLICIT NONE
 
 ! Arguments
   TYPE ( ewald_environment_type ), POINTER :: ewald_env
   TYPE ( ewald_pw_type ), POINTER :: ewald_pw
+  TYPE(greens_function_type), POINTER                   :: green
   TYPE ( cell_type ), POINTER :: cell, cell_ref
   TYPE ( cp_error_type ), OPTIONAL, INTENT ( inout ) :: error
   
@@ -275,6 +280,8 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
 
   CPPrecondition(ASSOCIATED ( ewald_pw ),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED ( ewald_env ),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED ( green ),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED ( cell ),cp_failure_level,routineP,error,failure)
   CPPrecondition(ewald_pw%ref_count>0,cp_failure_level,routineP,error,failure)
   IF ( .NOT. failure ) THEN
     CALL ewald_env_get ( ewald_env = ewald_env,&
@@ -368,9 +375,9 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
             fft_usage = .TRUE. )
 
        n = o_spline
-       ALLOCATE ( cell % green % p3m_coeff ( -(n-1):n-1, 0:n-1 ), STAT = isos )
+       ALLOCATE ( green % p3m_coeff ( -(n-1):n-1, 0:n-1 ), STAT = isos )
        IF ( isos /= 0 ) CALL stop_memory ( 'spme','coeff', 2*n*n )
-       CALL spme_coeff_calculate ( n,  cell % green % p3m_coeff )
+       CALL spme_coeff_calculate ( n,  green % p3m_coeff )
      ! pw pools initialized
        NULLIFY (pw_pool)
        CALL pw_pool_create(pw_pool, pw_grid=pw_big_grid)     
@@ -383,10 +390,13 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
     END SELECT
     CALL cell_retain ( cell )
     CALL cell_retain ( cell_ref )
+    CALL pw_green_retain ( green )
     CALL cell_release ( ewald_pw % cell )
     CALL cell_release ( ewald_pw % cell_ref )
+    CALL pw_green_release ( ewald_pw % green )
     ewald_pw % cell => cell
     ewald_pw % cell_ref => cell_ref
+    ewald_pw % green => green
     CALL pw_grid_release ( pw_small_grid, error )
     CALL pw_grid_release ( pw_big_grid, error )
   ENDIF
@@ -397,7 +407,7 @@ END SUBROUTINE ewald_pw_init
 
 ! *****************************************************************************
   SUBROUTINE ewald_pw_get (ewald_pw, cell, cell_ref, pw_big_pool,  &
-                            pw_small_pool, dg )
+                            pw_small_pool, green, dg )
 !
 !   Purpose: get the ewald_pw environment to the correct program.
 !
@@ -407,12 +417,14 @@ END SUBROUTINE ewald_pw_init
     TYPE ( pw_pool_type ), POINTER, OPTIONAL :: pw_big_pool
     TYPE ( pw_pool_type ), POINTER, OPTIONAL :: pw_small_pool
     TYPE ( dg_type ), POINTER, OPTIONAL      :: dg
+    TYPE(greens_function_type), POINTER, OPTIONAL :: green
     TYPE ( cell_type ), POINTER, OPTIONAL    :: cell
     TYPE ( cell_type ), POINTER, OPTIONAL    :: cell_ref
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "ewald_pw_set", &
       routineP = moduleN//':'//routine_name
 
+    IF ( PRESENT ( green ) ) green => ewald_pw % green
     IF ( PRESENT ( pw_big_pool ) )  pw_big_pool => ewald_pw % pw_big_pool
     IF ( PRESENT ( pw_small_pool ) )  pw_small_pool => ewald_pw % pw_small_pool
     IF ( PRESENT ( dg ) )  dg => ewald_pw % dg
@@ -423,7 +435,7 @@ END SUBROUTINE ewald_pw_init
          
 ! *****************************************************************************
   SUBROUTINE ewald_pw_set (ewald_pw, cell, cell_ref, pw_big_pool,  &
-                           pw_small_pool, dg, error )
+                           pw_small_pool, dg, green, error )
 
 !!   Purpose: Set the ewald_pw environment to the correct program.
 
@@ -432,6 +444,7 @@ END SUBROUTINE ewald_pw_init
     TYPE ( ewald_pw_type ), POINTER          :: ewald_pw
     TYPE ( pw_pool_type ), POINTER, OPTIONAL :: pw_big_pool
     TYPE ( pw_pool_type ), POINTER, OPTIONAL :: pw_small_pool
+    TYPE(greens_function_type), POINTER, OPTIONAL :: green
     TYPE ( dg_type ), POINTER, OPTIONAL      :: dg
     TYPE ( cell_type ), POINTER, OPTIONAL    :: cell
     TYPE ( cell_type ), POINTER, OPTIONAL    :: cell_ref
@@ -440,6 +453,11 @@ END SUBROUTINE ewald_pw_init
     CHARACTER(LEN=*), PARAMETER :: routine_name = "ewald_pw_set", &
       routineP = moduleN//':'//routine_name
 
+    IF ( PRESENT (green ) ) THEN
+       CALL pw_green_retain ( green )
+       CALL pw_green_release ( ewald_pw % green )
+       ewald_pw % green => green
+    END IF
     IF ( PRESENT ( pw_big_pool ) )  THEN 
         CALL pw_pool_retain ( pw_big_pool )
         CALL pw_pool_release ( ewald_pw % pw_big_pool )

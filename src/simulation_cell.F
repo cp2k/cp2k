@@ -39,9 +39,9 @@ MODULE simulation_cell
                                              MT1D,&
                                              MT2D,&
                                              PERIODIC3D
-  USE greens_fn,                       ONLY: greens_function_type,&
-                                             pw_green_fn_destroy,&
-                                             pw_green_fn_init1
+!  USE greens_fn,                       ONLY: greens_function_type,&
+!                                             pw_green_release,&
+!                                             pw_green_create
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: degree
   USE mathlib,                         ONLY: angle,&
@@ -69,17 +69,14 @@ MODULE simulation_cell
   INTEGER, SAVE, PRIVATE :: last_cell_id=0
 
   TYPE cell_type
-!MK  PRIVATE works currently only for the QS modules
-     TYPE(greens_function_type) :: green
      CHARACTER(LEN=8)           :: unit_of_length_name
-     REAL(KIND = dp)                   :: deth,subcells,unit_of_length
+     REAL(KIND = dp)            :: deth,subcells,unit_of_length
      LOGICAL                    :: orthorhombic,scaled_coordinates
      INTEGER, DIMENSION(3)      :: perd
      REAL(KIND = dp), DIMENSION(3,3)   :: hmat,h_inv
      INTEGER                    :: ref_count, id_nr
    END TYPE cell_type
 
-! MJM added this to get arrays of cells
    TYPE cell_p_type
       TYPE(cell_type),POINTER :: cell
    END TYPE cell_p_type
@@ -121,9 +118,8 @@ MODULE simulation_cell
 
 CONTAINS
 
-  SUBROUTINE cell_clone (cell_in, cell_out, nullify_pointer, error)
+  SUBROUTINE cell_clone (cell_in, cell_out, error)
     TYPE(cell_type), POINTER                 :: cell_in, cell_out
-    LOGICAL, INTENT(IN)                      :: nullify_pointer
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -135,16 +131,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(cell_in),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(cell_out),cp_failure_level,routineP,error,failure)
 
-    IF (nullify_pointer) THEN
-       NULLIFY(cell_out%green%p3m_coeff, &
-               cell_out%green%p3m_bm2, &
-               cell_out%green%influence_function, &
-               cell_out%green%screen_function, &
-               cell_out%green%p3m_charge)
-    ELSE
-       !CPAssert(.FALSE.,cp_failure_level,RoutineP,error,failure)
-       cell_out % green = cell_in % green
-    ENDIF
+!    CALL pw_green_create(cell_out%green)
 
     cell_out%unit_of_length_name = cell_in%unit_of_length_name
     cell_out%deth =                cell_in%deth
@@ -322,7 +309,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_cell(cell,hmat,periodic,poisson_solver)
+  SUBROUTINE init_cell(cell,hmat,periodic)
 
 !   Purpose: Initialise a simulation cell.
 
@@ -335,7 +322,6 @@ CONTAINS
       INTENT(IN), OPTIONAL                   :: hmat
     INTEGER, DIMENSION(3), INTENT(IN), &
       OPTIONAL                               :: periodic
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: poisson_solver
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE init_cell (MODULE simulation_cell)"
@@ -371,101 +357,9 @@ CONTAINS
     ELSE
       cell%orthorhombic = .FALSE.
     END IF
-
-    CALL get_cell(cell=cell,abc=abc)
-
-    CALL pw_green_fn_init1(cell%green)
     dim = COUNT(cell%perd == 1)
-
-    SELECT CASE (dim)
-    CASE (0)
-      IF (.NOT.cell%orthorhombic) THEN
-        CALL stop_program(routine,"Not ortho and not periodic")
-      END IF
-      cell%green%method = ANALYTIC0D
-      cell%green%radius = 0.5_dp*MINVAL(abc)
-    CASE (1)
-      IF (.NOT.cell%orthorhombic) THEN
-        CALL stop_program(routine,"Not ortho and not periodic")
-      END IF
-      cell%green%method = ANALYTIC1D
-      cell%green%special_dimension = MAXLOC(cell%perd,1)
-      cell%green%radius = MAXVAL(abc)
-      DO i=1,3
-        IF (i == cell%green%special_dimension) CYCLE
-        cell%green%radius = MIN(cell%green%radius,0.5_dp*abc(i))
-      END DO
-    CASE (2)
-      IF (.NOT.cell%orthorhombic) THEN
-        CALL stop_program(routine,"Not ortho and not periodic")
-      END IF
-      cell%green%method = ANALYTIC2D
-      i = MINLOC(cell%perd,1)
-      cell%green%special_dimension = i
-      cell%green%slab_size = abc(i)
-     CASE (3)
-      cell%green%method = periodic3D
-    CASE DEFAULT
-      CALL stop_program(routine,"Illegal value for perd found")
-    END SELECT
-
-    IF (PRESENT(poisson_solver)) THEN
-
-      SELECT CASE (TRIM(poisson_solver))
-      CASE ("PERIODIC")
-        cell%green%method = PERIODIC3D
-        IF (dim /= 3) THEN
-          CALL stop_program(routine,&
-                            "Illegal combination of periodicity and "//&
-                            "Poisson solver (perd)")
-        END IF
-      CASE ("ANALYTIC")
-        SELECT CASE (dim)
-        CASE (0)
-          cell%green%method = ANALYTIC0D
-        CASE (1)
-          cell%green%method = ANALYTIC1D
-        CASE (2)
-          cell%green%method = ANALYTIC2D
-        CASE (3)
-          cell%green%method = PERIODIC3D
-        CASE DEFAULT
-          CALL stop_program(routine,"Illegal value for perd found")
-        END SELECT
-      CASE ("HOCKNEY")
-        SELECT CASE (dim )
-        CASE (0)
-          cell%green%method = HOCKNEY0D
-        CASE (1)
-          cell%green%method = HOCKNEY1D
-        CASE (2)
-          cell%green%method = HOCKNEY2D
-        CASE (3)
-          CALL stop_program(routine,&
-                            "Illegal combination of periodicity and "//&
-                            "Poisson solver (HOCKNEY)")
-        CASE DEFAULT
-          CALL stop_program(routine,"Illegal value for perd found")
-        END SELECT
-      CASE ("MT")
-        SELECT CASE (dim)
-        CASE (0)
-          cell%green%method = MT0D
-        CASE (1)
-          cell%green%method = MT1D
-        CASE (2)
-          cell%green%method = MT2D
-        CASE (3)
-          CALL stop_program(routine,&
-                            "Illegal combination of periodicity and "//&
-                            "Poisson solver (MT)")
-        CASE DEFAULT
-          CALL stop_program(routine,"Illegal value for perd found")
-        END SELECT
-      CASE DEFAULT
-        CALL stop_program(routine,"An unknown Poisson solver was specified")
-      END SELECT
-
+    IF ((dim/=3).AND.(.NOT.cell%orthorhombic)) THEN
+       CALL stop_program(routine,"Not ortho and not periodic")
     END IF
 
   END SUBROUTINE init_cell
@@ -785,7 +679,7 @@ CONTAINS
 
 ! Default is to clone cell into cell_ref.  If there is a REF_CELL
 ! section, then cell_ref will be overwritten
-    CALL cell_clone (cell, cell_ref, .FALSE., error)
+    CALL cell_clone (cell, cell_ref, error)
 
 
 ! check to see if we have a reference cell
@@ -1007,7 +901,7 @@ CONTAINS
           CALL read_cell_new(cell_ref, cell_ref, globenv, use_ref_cell, error=error,&
                cell_section=cell_section, check_for_ref=.FALSE.)
        ELSE
-          CALL cell_clone (cell, cell_ref, .FALSE., error)
+          CALL cell_clone (cell, cell_ref, error)
        END IF
     END IF
   END SUBROUTINE read_cell_new
@@ -1170,7 +1064,7 @@ CONTAINS
     ALLOCATE(cell,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL init_cell(cell,hmat,periodic,poisson_solver)
+       CALL init_cell(cell,hmat,periodic)
     END IF
   END SUBROUTINE cell_create
 !***************************************************************************
@@ -1258,7 +1152,6 @@ SUBROUTINE cell_release(cell,error)
      CPPreconditionNoFail(cell%ref_count>0,cp_failure_level,routineP,error)
      cell%ref_count=cell%ref_count-1
      IF (cell%ref_count==0) THEN
-        CALL pw_green_fn_destroy( cell % green )
         DEALLOCATE(cell,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF

@@ -101,7 +101,10 @@ MODULE kg_environment_types
   USE simulation_cell,                 ONLY: cell_release,&
                                              cell_retain,&
                                              cell_type
-
+  USE greens_fn,                       ONLY: greens_function_type,&
+                                             pw_green_release,&
+                                             pw_green_retain,&
+                                             pw_green_create
   PRIVATE
 
   character(len=*), private, parameter :: moduleN='kg_environment_types'
@@ -110,6 +113,7 @@ MODULE kg_environment_types
   TYPE kg_environment_type
     INTEGER :: id_nr, ref_count
     LOGICAL :: use_ref_cell
+    TYPE(greens_function_type), POINTER                   :: green
     TYPE(cell_type), POINTER                              :: cell
     TYPE(cell_type), POINTER                              :: cell_ref
     TYPE(cp_blacs_env_type), POINTER                      :: blacs_env
@@ -149,7 +153,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_kg_env( kg_env,atomic_kind_set,cell,cell_ref,&
+  SUBROUTINE get_kg_env( kg_env,atomic_kind_set,cell,cell_ref, green,&
                          use_ref_cell,sub_qs_env,&
                          dft_control,distribution_2d,&
                          dyn_coeff_set,energy,force,&
@@ -168,6 +172,7 @@ CONTAINS
       TARGET                                 :: kg_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
+    TYPE(greens_function_type), POINTER, OPTIONAL :: green
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
     LOGICAL, OPTIONAL                        :: use_ref_cell
     TYPE(dft_control_type), OPTIONAL, &
@@ -231,6 +236,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(kg_env%subsys),cp_failure_level,routineP,error,failure)
 
     IF (PRESENT(blacs_env)) blacs_env => kg_env%blacs_env
+    IF (PRESENT(green)) green => kg_env%green
     IF (PRESENT(cell)) cell => kg_env%cell
     IF (PRESENT(cell_ref)) cell_ref => kg_env%cell_ref
     IF (PRESENT(use_ref_cell)) use_ref_cell = kg_env%use_ref_cell
@@ -293,6 +299,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     NULLIFY (kg_env%blacs_env)
+    NULLIFY (kg_env%green)
     NULLIFY (kg_env%cell)
     NULLIFY (kg_env%cell_ref)
     kg_env%use_ref_cell = .FALSE.
@@ -324,7 +331,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_kg_env( kg_env,atomic_kind_set,cell,cell_ref,use_ref_cell,  &
+  SUBROUTINE set_kg_env( kg_env,atomic_kind_set,green,cell,cell_ref,use_ref_cell,  &
                          dft_control,distribution_2d,dyn_coeff_set,energy,force, &
                          kg_fm_set,local_particles,local_molecules,&
                          molecule_kind_set,molecule_set,&
@@ -339,6 +346,7 @@ CONTAINS
       intent(inout), TARGET                  :: kg_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
+    TYPE(greens_function_type), POINTER, OPTIONAL :: green
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(cell_type), OPTIONAL, POINTER       :: cell_ref
     LOGICAL, OPTIONAL                        :: use_ref_cell
@@ -392,6 +400,11 @@ CONTAINS
 !    CPPrecondition(ASSOCIATED(kg_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(kg_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
+    IF (PRESENT(green)) THEN
+       CALL pw_green_retain(green, error=error)
+       CALL pw_green_release(kg_env%green, error=error)
+       kg_env%green => green
+    END IF
     IF (PRESENT(cell)) THEN
        CALL cell_retain(cell, error=error)
        CALL cell_release(kg_env%cell,error=error)
@@ -633,6 +646,7 @@ SUBROUTINE kg_env_release(kg_env,error)
      CPPrecondition(kg_env%ref_count>0,cp_failure_level,routineP,error,failure)
      kg_env%ref_count=kg_env%ref_count-1
      IF (kg_env%ref_count<1) THEN
+        CALL pw_green_release(kg_env%green, error=error)
         CALL cell_release(kg_env%cell)
         CALL cell_release(kg_env%cell_ref)
         CALL dft_control_release(kg_env%dft_control, error=error)

@@ -62,7 +62,7 @@ MODULE pme
                                              structure_factor_deallocate
   USE timings,                         ONLY: timeset,&
                                              timestop
-
+  USE greens_fn,                       ONLY: greens_function_type
   IMPLICIT NONE
 
   PRIVATE
@@ -121,14 +121,15 @@ SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
     REAL (KIND=dp)                            :: alpha, eps0
     INTEGER                                 :: group
     TYPE ( cell_type ), POINTER             :: box
+    TYPE(greens_function_type), POINTER      :: green
 
 !------------------------------------------------------------------------------
 !-------------- INITIALISATION ---------------------
-
+    NULLIFY( box, green)
   CALL timeset ( 'PME', 'I', ' ', handle )
   CALL ewald_env_get (ewald_env, alpha=alpha, eps0 = eps0, group = group )
   CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_big_pool, & 
-                     pw_small_pool=pw_small_pool, cell=box, dg = dg )
+                     pw_small_pool=pw_small_pool, cell=box, green=green, dg = dg )
 
   grid_b => pw_big_pool % pw_grid
   grid_s => pw_small_pool % pw_grid
@@ -195,7 +196,7 @@ SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
                             use_data = REALDATA3D, &
                             in_space = REALSPACE )
 
-  CALL init_pw_poisson_solver ( box % green )
+  CALL init_pw_poisson_solver ( green )
 
   CALL calculate_hartree ( rhob_r, vg_coulomb, phi_r, dphi_g, h_stress )
 
@@ -272,7 +273,7 @@ SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
   CALL pw_pool_give_back_coeff ( pw_small_pool, rhos1 )
   CALL pw_pool_give_back_coeff ( pw_small_pool, rhos2 )
   CALL structure_factor_deallocate ( exp_igr )
-  CALL cleanup_pw_poisson_solver ( box % green )
+  CALL cleanup_pw_poisson_solver ( green )
 
   CALL timestop ( 0.0_dp, handle )
 

@@ -54,6 +54,7 @@ MODULE ewald_pw_methods
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE greens_fn,                       ONLY: greens_function_type
 
   IMPLICIT NONE
 
@@ -94,13 +95,14 @@ SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env )
     CHARACTER(len=default_string_length)     :: ewald_type
     INTEGER                                  :: o_spline
     REAL(dp)                                 :: alpha
+    TYPE(greens_function_type), POINTER      :: green
     TYPE(cell_type), POINTER                 :: cell
     TYPE(dg_type), POINTER                   :: dg
     TYPE(pw_pool_type), POINTER              :: pw_big_pool, pw_small_pool
 
   NULLIFY ( pw_big_pool )
   NULLIFY ( pw_small_pool )
-  NULLIFY ( cell )
+  NULLIFY ( cell, green )
   NULLIFY ( dg )
 
   CALL ewald_env_get ( ewald_env, ewald_type = ewald_type, &
@@ -113,18 +115,18 @@ SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env )
      CALL ewald_pw_rho0_setup ( ewald_env, pw_big_pool % pw_grid, dg )
      CALL ewald_pw_set ( ewald_pw, pw_big_pool = pw_big_pool, dg = dg )
   CASE ( 'PME' )
-     CALL ewald_pw_get ( ewald_pw, cell = cell, pw_big_pool = pw_big_pool, &
+     CALL ewald_pw_get ( ewald_pw, cell = cell, green = green, pw_big_pool = pw_big_pool, &
                          pw_small_pool = pw_small_pool, dg = dg )
      CALL pw_grid_change ( cell, pw_big_pool % pw_grid )
-     CALL pw_green_fn_rebuild ( cell % green, pw_big_pool )
+     CALL pw_green_fn_rebuild ( green, pw_big_pool )
      CALL dg_grid_change ( cell, pw_big_pool % pw_grid, pw_small_pool % pw_grid )
      CALL ewald_pw_rho0_setup ( ewald_env, pw_small_pool % pw_grid, dg )
      CALL ewald_pw_set ( ewald_pw, pw_big_pool = pw_big_pool,  &
                          pw_small_pool = pw_small_pool, dg = dg )
   CASE ( 'SPME' )
-     CALL ewald_pw_get ( ewald_pw, cell = cell, pw_big_pool = pw_big_pool )
+     CALL ewald_pw_get ( ewald_pw, cell = cell, green = green, pw_big_pool = pw_big_pool )
      CALL pw_grid_change ( cell, pw_big_pool % pw_grid )
-     CALL pw_green_fn_rebuild ( cell % green, pw_big_pool, p3m=o_spline, &
+     CALL pw_green_fn_rebuild ( green, pw_big_pool, p3m=o_spline, &
                              alpha = alpha )
      CALL ewald_pw_set ( ewald_pw, pw_big_pool = pw_big_pool )
   END SELECT

@@ -58,7 +58,10 @@ MODULE kg_gpw_pw_env_types
                                              cell_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-
+  USE greens_fn,                       ONLY: greens_function_type,&
+                                             pw_green_release,&
+                                             pw_green_retain,&
+                                             pw_green_create
   IMPLICIT NONE
 
   PRIVATE
@@ -79,6 +82,7 @@ MODULE kg_gpw_pw_env_types
     INTEGER :: natom, nmolecule_local
     REAL(dp) :: rab_max, rad_max
     TYPE(pw_env_type) , POINTER                 :: pw_env_mol 
+    TYPE(greens_function_type), POINTER         :: green
     TYPE(cell_type), POINTER                    :: cell_mol
     TYPE(rho_mol_blocks_type), DIMENSION(:),&
       POINTER                                   :: rho_mol_blocks
@@ -144,11 +148,12 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_molbox_env(molbox_env, natom, nmolecule_local,&
-                            cell_mol,pw_env_mol,rho_mol_blocks)
+                            cell_mol,green,pw_env_mol,rho_mol_blocks)
 
     TYPE(kg_molbox_env_type), POINTER          :: molbox_env
     INTEGER, INTENT(OUT), OPTIONAL             :: natom, nmolecule_local
     TYPE(cell_type) , POINTER, OPTIONAL        :: cell_mol
+    TYPE(greens_function_type), POINTER ,OPTIONAL     :: green
     TYPE(pw_env_type) , POINTER, OPTIONAL      :: pw_env_mol
     TYPE(rho_mol_blocks_type), DIMENSION(:),&
       POINTER, OPTIONAL                        :: rho_mol_blocks
@@ -156,6 +161,7 @@ CONTAINS
     IF(PRESENT(natom))  natom = molbox_env%natom
     IF(PRESENT(nmolecule_local)) nmolecule_local =  molbox_env%nmolecule_local
     IF(PRESENT(cell_mol)) cell_mol => molbox_env%cell_mol
+    IF(PRESENT(green)) green => molbox_env%green
     IF(PRESENT(pw_env_mol)) pw_env_mol => molbox_env%pw_env_mol
     IF(PRESENT(rho_mol_blocks)) rho_mol_blocks => molbox_env%rho_mol_blocks
 
@@ -225,6 +231,7 @@ CONTAINS
         kg_sub_pw_env%molbox_env_set(i)%natom = 0
         kg_sub_pw_env%molbox_env_set(i)%nmolecule_local = 0
         NULLIFY(kg_sub_pw_env%molbox_env_set(i)%cell_mol)
+        NULLIFY(kg_sub_pw_env%molbox_env_set(i)%green)
         NULLIFY(kg_sub_pw_env%molbox_env_set(i)%pw_env_mol)
         NULLIFY(kg_sub_pw_env%molbox_env_set(i)%rho_mol_blocks)
       END DO
@@ -255,7 +262,8 @@ CONTAINS
 
     DO ikind = 1,n
       nmol = molbox_env_set(ikind)%nmolecule_local
- 
+      
+      CALL pw_green_release(molbox_env_set(ikind)%green)
       CALL cell_release(molbox_env_set(ikind)%cell_mol)
       CALL pw_env_release(molbox_env_set(ikind)%pw_env_mol,error=error)
 
@@ -363,10 +371,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_molbox_env(molbox_env,cell_mol,pw_env_mol,rho_mol_blocks,error)
+  SUBROUTINE set_molbox_env(molbox_env,cell_mol,green,pw_env_mol,rho_mol_blocks,error)
 
     TYPE(kg_molbox_env_type), POINTER          :: molbox_env
     TYPE(cell_type) , POINTER, OPTIONAL        :: cell_mol
+    TYPE(greens_function_type), POINTER, OPTIONAL      :: green
     TYPE(pw_env_type) , POINTER, OPTIONAL      :: pw_env_mol
     TYPE(rho_mol_blocks_type), DIMENSION(:),&
       POINTER, OPTIONAL                        :: rho_mol_blocks
@@ -381,6 +390,11 @@ CONTAINS
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(molbox_env),cp_failure_level,routineP,error,failure)
 
+    IF(PRESENT(green)) THEN
+      CALL pw_green_retain(green, error=error)
+      CALL pw_green_release(molbox_env%green, error=error)
+      molbox_env%green => green
+    END IF
     IF(PRESENT(cell_mol)) THEN
       CALL cell_retain(cell_mol, error=error)
       CALL cell_release(molbox_env%cell_mol, error=error)

@@ -97,7 +97,8 @@ MODULE qmmm_init
                                              init_qmmm_cell,&
                                              cell_clone,&
                                              cell_release,&
-                                             write_cell
+                                             write_cell,&
+                                             get_cell
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: connectivity_control,&
@@ -122,6 +123,9 @@ MODULE qmmm_init
   USE input_constants, ONLY: RADIUS_QMMM_DEFAULT, do_qmmm_link_imomm, do_qmmm_link_gho,&
                         do_qmmm_gauss, do_center_none, do_center_grid
   USE fist_environment_types,  ONLY: set_fist_env
+  USE greens_fn,                       ONLY: greens_function_type,&
+                                             pw_green_release
+  USE greens_fns,                      ONLY: pw_green_setup  
   
   IMPLICIT NONE
   PRIVATE
@@ -185,11 +189,13 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, mm_el_pot_radius
     REAL(KIND=dp)                            :: eps_mm_rspace
     INTEGER                                  :: qmmm_coupl_type
-    TYPE(section_vals_type), POINTER         :: force_env_section, qmmm_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, qmmm_section, poisson_section
     TYPE(qmmm_links_type), pointer           :: qmmm_links
     REAL(KIND=dp),  DIMENSION(:), POINTER    :: mm_link_scale_factor, fist_scale_charge_link
     LOGICAL                                  :: move_mm_charges, add_mm_charges, nocenter
     TYPE(add_set_type), POINTER              :: added_charges
+    TYPE(greens_function_type), POINTER                   :: green
+    REAL(KIND=dp), DIMENSION(3)              :: abc
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -198,13 +204,14 @@ CONTAINS
          qmmm_env_qm, subsys_mm,subsys_qm, mm_cell, qm_cell_small,       &
          qs_env, para_env, mm_atom_chrg,mm_el_pot_radius, qmmm_env_mm,   &
          mm_link_atoms, mm_link_scale_factor, qmmm_links, added_charges, &
-         fist_scale_charge_link)
+         fist_scale_charge_link, green, poisson_section)
     para_env => globenv%para_env
     iw = globenv%scr
     IF (.NOT. failure) THEN
        ! Input section...
        force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
        qmmm_section => section_vals_get_subs_vals(force_env_section,"QMMM",error=error)
+       poisson_section => section_vals_get_subs_vals(force_env_section,"POISSON",error=error)
 
        ALLOCATE(sub_force_env(2),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -249,7 +256,7 @@ CONTAINS
           ALLOCATE (qm_cell_small,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       CALL cell_clone(mm_cell, qm_cell_small,.true.)
+       CALL cell_clone(mm_cell, qm_cell_small )
 
        ! Set up QM/MM Options       
        CALL setup_qmmm_vars_qm (qmmm_section,&
@@ -277,6 +284,8 @@ CONTAINS
        WRITE(iw,'(A,I6)')" Number of MM atoms: ",qmmm_env_qm%num_mm_atoms
        WRITE(iw,'(A)')" QM cell ::"
        CALL write_cell(qm_cell_small, globenv)
+       CALL get_cell(qm_cell_small, abc=abc)
+       CALL pw_green_setup ( green, poisson_section, qm_cell_small%perd, abc, error )
        !
        ! Assign charges and mm_el_pot_radius from fist_topology
        !
@@ -332,7 +341,7 @@ CONTAINS
 
        CALL qs_init_subsys(qs_env,subsystem=subsys_qm,cell=qm_cell_small,&
             cell_ref=qm_cell_small, use_ref_cell=.FALSE.,qmmm=.TRUE.,&
-            globenv=globenv,&
+            globenv=globenv,green=green,&
             error=error)
 
        CALL cp_subsys_release(subsys_qm,error=error)
@@ -381,6 +390,7 @@ CONTAINS
        CALL qmmm_setup_constraints(subsys_mm, force_env_section, qm_atom_index,&
             mm_atom_index, error)
 
+       CALL pw_green_release(green, error)
        CALL cell_release(qm_cell_small, error)                       
        CALL qs_env_release(qs_env,error=error)
 

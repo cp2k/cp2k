@@ -72,7 +72,8 @@ MODULE fist_environment
   USE simulation_cell,                 ONLY: cell_type,&
                                              cell_release,&
                                              read_cell,&
-                                             write_cell
+                                             write_cell,&
+                                             get_cell
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -81,6 +82,10 @@ MODULE fist_environment
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
+  USE greens_fn,                       ONLY: greens_function_type,&
+                                             pw_green_release
+  USE greens_fns,                      ONLY: pw_green_setup
+
   IMPLICIT NONE
 
   PRIVATE
@@ -130,6 +135,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
   TYPE(atomic_kind_type), DIMENSION(:), &
     POINTER                                :: atomic_kind_set
+  TYPE(greens_function_type), POINTER                   :: green
   TYPE(cell_type), POINTER                 :: cell, cell_ref
   TYPE(cp_subsystem_type), POINTER         :: subsystem
   TYPE(mol_kind_new_list_type), POINTER    :: mol_kinds
@@ -146,9 +152,9 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   TYPE ( ewald_environment_type ), POINTER :: ewald_env
   TYPE ( fist_nonbond_env_type ), POINTER ::  fist_nonbond_env
   INTEGER                                  :: handle
-  TYPE(section_vals_type), POINTER         :: cell_section
+  TYPE(section_vals_type), POINTER         :: cell_section, poisson_section
 ! Local parameters 
-
+  REAL(KIND=dp), DIMENSION(3)              :: abc
   CHARACTER(LEN=*), PARAMETER :: routine_name = "fist_init"
   TYPE (qmmm_env_mm_type), POINTER :: qmmm_env
 !   ---------------------------------------------------------------------------
@@ -159,14 +165,19 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 
   NULLIFY ( subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
             particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref)
-  NULLIFY ( ewald_env, fist_nonbond_env, qmmm_env, cell_section)
+  NULLIFY ( ewald_env, fist_nonbond_env, qmmm_env, cell_section, poisson_section, green)
 
   cell_section => section_vals_get_subs_vals(globenv%input_file,&
        "FORCE_EVAL%SUBSYS%CELL",error=error)
+  poisson_section => section_vals_get_subs_vals(globenv%input_file,&
+       "FORCE_EVAL%POISSON",error=error)
   CALL cp_subsys_create ( subsystem, para_env = globenv % para_env, error = error )
 
   CALL read_cell( cell, cell_ref, globenv, use_ref_cell = use_ref_cell, error=error,&
        cell_section=cell_section)
+  CALL get_cell (cell, abc=abc)
+
+  CALL pw_green_setup ( green, poisson_section, cell%perd, abc, error )
 
 ! Print the cell parameters ***
   CALL write_cell ( cell, globenv )
@@ -201,9 +212,10 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL mol_new_list_release ( mols, error = error )
   CALL mol_kind_new_list_release ( mol_kinds, error = error )
 
-  CALL fist_init_subsys ( fist_env, subsystem, cell, cell_ref, use_ref_cell, &
+  CALL fist_init_subsys ( fist_env, subsystem, green, cell, cell_ref, use_ref_cell, &
                           fist_nonbond_env, ewald_env, globenv, error )
 
+  CALL pw_green_release(green, error=error)
   CALL cell_release(cell,error=error)
   CALL cell_release(cell_ref,error=error)
   CALL ewald_env_release ( ewald_env, error )
@@ -215,7 +227,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   END SUBROUTINE fist_init
 
 !   ***************************************************************************
-  SUBROUTINE fist_init_subsys ( fist_env, subsystem, cell, cell_ref, use_ref_cell, &
+  SUBROUTINE fist_init_subsys ( fist_env, subsystem, green, cell, cell_ref, use_ref_cell, &
                                 fist_nonbond_env, ewald_env, globenv, error )
 
 !   Purpose: Read the input and the database files for the setup of the
@@ -226,6 +238,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 !   ***************************************************************************
   TYPE ( fist_environment_type ), POINTER       :: fist_env
   TYPE ( cp_subsystem_type ), POINTER           :: subsystem
+  TYPE(greens_function_type), POINTER                   :: green
   TYPE ( cell_type ), POINTER                   :: cell, cell_ref
   TYPE ( fist_nonbond_env_type ), POINTER       :: fist_nonbond_env
   TYPE ( ewald_environment_type ), POINTER      :: ewald_env
@@ -291,7 +304,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
                                  error=error )
 
 ! Initialize ewald grids
-  CALL ewald_pw_create ( ewald_pw, cell, cell_ref, ewald_env, error )
+  CALL ewald_pw_create ( ewald_pw, green, cell, cell_ref, ewald_env, error )
 
 ! Initialize self-interaction and neutralizing background
   CALL ewald_self ( ewald_env, atomic_kind_set, local_particles, &

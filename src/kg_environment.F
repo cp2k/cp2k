@@ -100,7 +100,8 @@ MODULE kg_environment
   USE simulation_cell,                 ONLY: cell_release,&
                                              cell_type,&
                                              read_cell,&
-                                             write_cell
+                                             write_cell,&
+                                             get_cell
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -108,6 +109,9 @@ MODULE kg_environment
   USE topology,                        ONLY: topology_control
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
+  USE greens_fn,                       ONLY: greens_function_type,&
+                                             pw_green_release
+  USE greens_fns,                      ONLY: pw_green_setup  
 
   IMPLICIT NONE
 
@@ -168,8 +172,9 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: cell_section
-!------------------------------------------------------------------------------
+    TYPE(section_vals_type), POINTER         :: cell_section, poisson_section
+    REAL(kind=dp), DIMENSION(3)              :: abc
+    TYPE(greens_function_type), POINTER                   :: green
 
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 
@@ -179,8 +184,8 @@ CONTAINS
     output_unit = globenv%scr
 
     ! nullifying  pointers
-    NULLIFY ( atomic_kind_set, cell_section)
-    NULLIFY ( cell )
+    NULLIFY ( atomic_kind_set, cell_section, poisson_section)
+    NULLIFY ( cell, green)
     NULLIFY ( dft_control )
     NULLIFY ( dyn_coeff_set )
     NULLIFY ( energy )
@@ -193,7 +198,9 @@ CONTAINS
     NULLIFY ( cell_ref )
 
     cell_section => section_vals_get_subs_vals(globenv%input_file,&
-         "FORCE_EVAL%SUBSYS%CELL",error=error)    
+         "FORCE_EVAL%SUBSYS%CELL",error=error) 
+    poisson_section => section_vals_get_subs_vals(globenv%input_file,&
+       "FORCE_EVAL%POISSON",error=error)
     ! Read/write the input section with the dft and qs control parameters
     CALL read_dft_control ( dft_control, globenv, error )
     CALL read_qs_control ( dft_control % qs_control, globenv )
@@ -203,7 +210,9 @@ CONTAINS
     ! Read/write the input section with the cell parameters
     CALL read_cell ( cell, cell_ref, globenv,  use_ref_cell=use_ref_cell,&
          cell_section=cell_section, error=error)
+    CALL get_cell( cell, abc=abc)    
     CALL write_cell ( cell, globenv )
+    call pw_green_setup(green, poisson_section, cell%perd, abc, error )
 
     ! topology
     CALL topology_control (atomic_kind_set,particle_set,&
@@ -307,6 +316,7 @@ CONTAINS
     CALL set_kg_env ( kg_env=kg_env,&
                       atomic_kind_set=atomic_kind_set,&
                       cell=cell, &
+                      green=green,&
                       cell_ref=cell_ref, &
                       use_ref_cell=use_ref_cell, &
                       dft_control=dft_control, &
@@ -320,6 +330,7 @@ CONTAINS
     
     CALL cell_release(cell,error=error)
     CALL cell_release(cell_ref,error=error)
+    CALL pw_green_release( green, error=error)
     CALL distribution_1d_release(local_particles,error=error)
     CALL distribution_1d_release(local_molecules,error=error)
     CALL dft_control_release(dft_control, error=error)
@@ -468,19 +479,25 @@ CONTAINS
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(scf_control_type), POINTER          :: scf_control
     INTEGER, DIMENSION(2)                    :: added_mos
-
+    TYPE(greens_function_type), POINTER                   :: green
+    TYPE(section_vals_type), POINTER         :: poisson_section
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
 
-    NULLIFY(qs_env,subsys,scf_control,cell,cell_ref,atomic_kind_set,&
-            para_env,dft_control,distribution_2d,wf_history,qs_energy,qs_force)
+    NULLIFY(qs_env,subsys,scf_control,cell,cell_ref,atomic_kind_set,green,&
+            para_env,dft_control,distribution_2d,wf_history,qs_energy,qs_force,&
+            poisson_section)
 
     NULLIFY(distribution_1d,kg_fm,molecule_kind_set,molecule_set,particle_set)
+
+    poisson_section => section_vals_get_subs_vals(globenv%input_file,&
+         "FORCE_EVAL%POISSON",error=error)
 
     CALL get_kg_env(kg_env=kg_env,&
                     dft_control=dft_control,&
                     atomic_kind_set=atomic_kind_set,&
+                    green=green,&
                     cell=cell,&
                     cell_ref=cell_ref,&
                     distribution_2d=distribution_2d,&
@@ -521,6 +538,7 @@ CONTAINS
     CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.FALSE.)
 
     CALL set_qs_env(qs_env=qs_env,&
+                    green=green               ,&
                     cell=cell                 ,&
                     cell_ref=cell_ref         ,&
                     use_ref_cell=use_ref_cell ,&
@@ -608,7 +626,8 @@ CONTAINS
       molbox_env => kg_sub_pw_env%molbox_env_set(imolecule_kind)
       fm_mol_set => kg_fm%kg_fm_mol_set(imolecule_kind) 
       CALL build_molbox_env(kg_sub_pw_env%molbox_env_set(imolecule_kind),&
-                            fm_mol_set,qs_env,error=error)
+                            fm_mol_set,qs_env,poisson_section=poisson_section,&
+                            error=error)
     END DO
 
     CALL set_qs_env(qs_env=qs_env,kg_sub_pw_env=kg_sub_pw_env)

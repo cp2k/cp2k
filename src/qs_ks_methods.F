@@ -139,6 +139,7 @@ MODULE qs_ks_methods
   USE qmmm_methods,                    ONLY: qmmm_calculate_energy,&
                                              qmmm_modify_hartree_pot
   USE qs_ks_qmmm_methods,              ONLY: qs_ks_qmmm_create
+  USE greens_fn,                       ONLY: greens_function_type
   IMPLICIT NONE
 
   PRIVATE
@@ -304,6 +305,7 @@ CONTAINS
     INTEGER                                  :: handle, ispin, n_electrons, &
                                                 nspins, output_unit, stat
     LOGICAL                                  :: failure, gapw, ionode, my_kg_gpw
+    TYPE(greens_function_type), POINTER      :: green
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: rho_tot_gspace, &
                                                 v_hartree_gspace, v_sic_rspace
@@ -330,7 +332,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(matrix_h,matrix_s,dft_control,auxbas_pw_pool, pw_pools,&
-         pw_env, cell, logger, v_rspace_new, v_tau_rspace )
+         pw_env, cell, logger, v_rspace_new, v_tau_rspace, green)
 
     !   -----------------------------------------------------------------------
 
@@ -353,6 +355,7 @@ CONTAINS
          matrix_s=matrix_s,&
          pw_env=pw_env,&
          cell=cell,&
+         green=green,&
          para_env=para_env)
 
     nspins=dft_control%nspins
@@ -394,10 +397,10 @@ CONTAINS
        CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
        IF (ionode) CALL print_densities(qs_env, rho_tot_gspace, rho)
 
-       CALL init_pw_poisson_solver(cell%green,error=error)
+       CALL init_pw_poisson_solver(green,error=error)
        CALL calculate_hartree(rho_tot_gspace,energy%hartree,&
             v_hartree_gspace)
-       CALL cleanup_pw_poisson_solver(cell%green,error=error)
+       CALL cleanup_pw_poisson_solver(green,error=error)
 
        IF (.NOT. just_energy) THEN
           CALL coeff_transform_space(v_hartree_gspace,&
@@ -415,10 +418,10 @@ CONTAINS
        CASE ( sic_none )
        CASE ( sic_mauri_us, sic_mauri_spz )
           CALL coeff_subtract(rho%rho_g(1),rho%rho_g(2),rho_tot_gspace)
-          CALL init_pw_poisson_solver(cell%green,error=error)
+          CALL init_pw_poisson_solver(green,error=error)
           CALL calculate_hartree(rho_tot_gspace, ener, v_hartree_gspace)
           energy%hartree=energy%hartree - dft_control % sic_scaling_a * ener
-          CALL cleanup_pw_poisson_solver(cell%green,error=error)
+          CALL cleanup_pw_poisson_solver(green,error=error)
           IF (.NOT. just_energy) THEN
              CALL pw_pool_init_coeff(auxbas_pw_pool,v_sic_rspace,&
                                      use_data=REALDATA3D, in_space=REALSPACE)
@@ -439,10 +442,10 @@ CONTAINS
           CALL coeff_add(rho%rho_g(1),rho%rho_g(2),rho_tot_gspace)
           scaling = 1.0_dp / REAL(nelec,KIND=dp)
           CALL coeff_scale(rho_tot_gspace,scaling)
-          CALL init_pw_poisson_solver(cell%green,error=error)
+          CALL init_pw_poisson_solver(green,error=error)
           CALL calculate_hartree(rho_tot_gspace, ener, v_hartree_gspace)
           energy%hartree=energy%hartree - dft_control % sic_scaling_a * nelec * ener
-          CALL cleanup_pw_poisson_solver(cell%green,error=error)
+          CALL cleanup_pw_poisson_solver(green,error=error)
           IF (.NOT. just_energy) THEN
              CALL pw_pool_init_coeff(auxbas_pw_pool,v_sic_rspace,&
                                      use_data=REALDATA3D, in_space=REALSPACE)

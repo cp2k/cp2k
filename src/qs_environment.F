@@ -110,13 +110,16 @@ MODULE qs_environment
   USE simulation_cell,                 ONLY: cell_release,&
                                              cell_type,&
                                              read_cell,&
-                                             write_cell
+                                             write_cell,&
+                                             get_cell
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control
-
+  USE greens_fn,                       ONLY: greens_function_type,&
+                                             pw_green_release
+  USE greens_fns,                      ONLY: pw_green_setup  
   IMPLICIT NONE
 
   PRIVATE
@@ -168,17 +171,23 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: force_env_section, cell_section
+    TYPE(section_vals_type), POINTER         :: force_env_section,&
+                                                cell_section,&
+                                                poisson_section
+    REAL(kind=dp), dimension(3)              :: abc
+    TYPE(greens_function_type), POINTER                   :: green
 
     NULLIFY(subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref,&
-         cell_section)
+         cell_section, poisson_section, green)
     
     force_env_section => section_vals_get_subs_vals(globenv%input_file,&
          "FORCE_EVAL",error=error)
     cell_section => section_vals_get_subs_vals(force_env_section,&
          "SUBSYS%CELL",error=error)
-    
+    poisson_section => section_vals_get_subs_vals(force_env_section,&
+         "POISSON",error=error)
+        
     CALL set_qs_env(qs_env,input=force_env_section,error=error)
     
     CALL cp_subsys_create(subsystem,para_env=globenv%para_env,error=error)
@@ -187,6 +196,9 @@ CONTAINS
 
     CALL read_cell(cell, cell_ref, globenv, use_ref_cell=use_ref_cell, cell_section=cell_section,&
          error=error)
+    CALL get_cell ( cell, abc=abc)
+
+    CALL pw_green_setup ( green, poisson_section, cell%perd, abc, error )
 
 !   *** Print the cell parameters ***
 
@@ -213,17 +225,18 @@ CONTAINS
     CALL mol_new_list_release(mols,error=error)
     CALL mol_kind_new_list_release(mol_kinds,error=error)
     
-    CALL qs_init_subsys(qs_env,subsystem,cell,cell_ref,use_ref_cell,&
+    CALL qs_init_subsys(qs_env,subsystem,green,cell,cell_ref,use_ref_cell,&
          globenv,.FALSE.,error)
 
     CALL cell_release(cell,error=error)
     CALL cell_release(cell_ref,error=error)
+    CALL pw_green_release(green, error=error)
     CALL cp_subsys_release(subsystem,error=error)
 
   END SUBROUTINE qs_init
 
 
-  SUBROUTINE qs_init_subsys(qs_env,subsystem,cell,cell_ref,use_ref_cell,&
+  SUBROUTINE qs_init_subsys(qs_env,subsystem,green,cell,cell_ref,use_ref_cell,&
        globenv,qmmm,error)
 
 !   Purpose: Read the input and the database files for the setup of the
@@ -235,6 +248,7 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_subsystem_type), POINTER         :: subsystem
+    TYPE(greens_function_type), POINTER                   :: green
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     LOGICAL, INTENT(in)                      :: use_ref_cell
     TYPE(global_environment_type), POINTER   :: globenv
@@ -449,6 +463,7 @@ CONTAINS
     CALL set_qs_env(qs_env, subsys=subsystem,error=error)
     CALL set_qs_env(qs_env=qs_env,&
                     cell=cell,&
+                    green=green,&
                     cell_ref=cell_ref,&
                     use_ref_cell=use_ref_cell,&
                     qmmm=qmmm,&

@@ -110,6 +110,7 @@ MODULE kg_force
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: xc_vxc_pw_create1
+  USE greens_fn,                       ONLY: greens_function_type
 
   IMPLICIT NONE
 
@@ -220,6 +221,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(greens_function_type), POINTER      :: green
     TYPE(coeff_type), POINTER                :: rho_core, rho_r, rho_g,&
                                                 rhop_r, rhop_g, &  
                                                 v_gspace, &
@@ -251,11 +253,11 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
   NULLIFY(force,energy,part,atomic_kind_set,atomic_kind,cell,dft_control,&
           dyn_coeff_set,local_coeffs,rho,rspw,auxbas_pw_pool)
   NULLIFY(rho_r,rho_g,rhop_r,rhop_g,rho_core,v_gspace,v_rspace,&
-          vxc_r,v1xc_r,v2xc_r)
+          vxc_r,v1xc_r,v2xc_r,green)
   NULLIFY(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau)
 
   CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
-                    dft_control=dft_control, energy=energy, cell=cell,&
+                    dft_control=dft_control, energy=energy, cell=cell, green=green,&
                     dyn_coeff_set=dyn_coeff_set, force=force,particle_set=part,rho=rho,rspw=rspw)
 
   CPPrecondition(ASSOCIATED(rho),cp_failure_level,routine,error,failure)
@@ -391,9 +393,9 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
   CALL coeff_sumup(rhop_g,rho_g)
 
 ! calculate electrostatic potential
-  CALL init_pw_poisson_solver(cell%green)
+  CALL init_pw_poisson_solver(green)
   CALL calculate_hartree(rho_g, energy % hartree,v_gspace)
-  CALL cleanup_pw_poisson_solver(cell%green)
+  CALL cleanup_pw_poisson_solver(green)
 
 !  calclation of the forces on the ions
 
@@ -542,6 +544,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(greens_function_type), POINTER      :: green
     TYPE(coeff_type), POINTER                :: rho_core, rho_r, rho_g,&
                                                 v_gspace, &
                                                 v_rspace, vxc_r
@@ -567,12 +570,12 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
   ionode=globenv%ionode
   output_unit=globenv%scr
   NULLIFY(force,energy,part,atomic_kind_set,atomic_kind,cell,dft_control,&
-          rho,rspw,auxbas_pw_pool)
+          rho,rspw,auxbas_pw_pool,green)
   NULLIFY(rho_r,rho_g,rho_core,v_gspace,v_rspace,vxc_r)
   NULLIFY(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau)
   CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control, energy=energy, cell=cell,&
-                    force=force,particle_set=part,rho=rho,rspw=rspw)
+                    force=force,particle_set=part,rho=rho,rspw=rspw, green=green)
   CPPrecondition(ASSOCIATED(rho),cp_failure_level,routine,error,failure)
   CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
   IF(.NOT.failure) THEN
@@ -675,9 +678,9 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
   rho%total_rho_gspace = calculate_total_density(rho_g)
 
 ! calculate electrostatic potential
-  CALL init_pw_poisson_solver(cell%green)
+  CALL init_pw_poisson_solver(green)
   CALL calculate_hartree(rho_g, energy % hartree,v_gspace)
-  CALL cleanup_pw_poisson_solver(cell%green)
+  CALL cleanup_pw_poisson_solver(green)
 
 !  calclation of the forces on the ions
   CALL coeff_transform_space(v_gspace,v_rspace)

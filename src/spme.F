@@ -115,14 +115,16 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
     TYPE(pw_grid_type), POINTER              :: grid_spme
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cell_type), POINTER           :: box
+    TYPE(greens_function_type), POINTER      :: green
 
 !------------------------------------------------------------------------------
 !-------------- INITIALISATION ---------------------
 
+    NULLIFY(box, green)
   CALL timeset ( 'SPME', 'I', ' ', handle )
   CALL ewald_env_get ( ewald_env, alpha=alpha, eps0 = eps0, &
                        o_spline = o_spline, group = group )
-  CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, cell = box )
+  CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, cell = box, green=green )
   grid_spme => pw_pool % pw_grid
 
   inv_fourpi_eps0 = 1.0_dp / ( fourpi * eps0 )
@@ -150,7 +152,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
      IF ( p1 == 0 ) EXIT
 
      ! calculate function on small boxes
-     CALL get_patch ( particle_set, box, grid_spme % npts, p1, rhos )
+     CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos )
 
      ! add boxes to real space grid (big box)
      CALL dg_sum_patch ( rden, rhos, centre(:,p1) )
@@ -171,8 +173,8 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
                            in_space = RECIPROCALSPACE )
   CALL coeff_transform_space ( rhob_r, rhob_g )
   ! update charge function
-  CALL p3m_update ( box % green )
-  rhob_g % pw % cc = rhob_g % pw % cc * box % green % p3m_charge % cr
+  CALL p3m_update ( green )
+  rhob_g % pw % cc = rhob_g % pw % cc * green % p3m_charge % cr
 
 !-------------- ELECTROSTATIC CALCULATION -----------
 
@@ -186,7 +188,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
                            use_data = COMPLEXDATA1D,   &
                            in_space = RECIPROCALSPACE )
 
-  CALL init_pw_poisson_solver ( box % green )
+  CALL init_pw_poisson_solver ( green )
 
   CALL calculate_hartree ( rhob_g, vg_coulomb, phi_g, dphi_g, h_stress )
 
@@ -218,7 +220,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
   CALL rs_grid_allocate ( drpot ( 1 : 3 ) )
   DO i = 1, 3
      dphi_g ( i ) % pw % cc = dphi_g ( i ) % pw % cc * &
-                              box % green % p3m_charge % cr
+                              green % p3m_charge % cr
      CALL coeff_transform_space ( dphi_g ( i ), rhob_r )
      CALL pw_pool_give_back_coeff ( pw_pool, dphi_g ( i ) )
      CALL rs_pw_transfer ( drpot ( i ), rhob_r % pw, "BACKWARD" )
@@ -240,7 +242,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
      IF ( p1 == 0 ) EXIT
 
      ! calculate function on small boxes
-     CALL get_patch ( particle_set, box, grid_spme % npts, p1, rhos )
+     CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos )
 
      ! add boxes to real space grid (big box)
      CALL dg_sum_patch_force_3d ( drpot, rhos, centre(:,p1), fat )
@@ -259,7 +261,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "rhos" )
   DEALLOCATE ( centre, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "centre" )
-  CALL cleanup_pw_poisson_solver ( box % green )
+  CALL cleanup_pw_poisson_solver ( green )
 
   CALL timestop ( 0.0_dp, handle )
 
@@ -270,8 +272,7 @@ END SUBROUTINE spme_evaluate
 SUBROUTINE p3m_update ( gf )
 
 
-    TYPE(greens_function_type), &
-      INTENT(INOUT), TARGET                  :: gf
+    TYPE(greens_function_type), pointer      :: gf
 
     INTEGER                                  :: ig, l, m, n
     REAL(KIND=dp)                                :: arg, novol
@@ -319,12 +320,13 @@ END SUBROUTINE p3m_update
 !!
 !!*** *************************************************************************
 
-SUBROUTINE get_patch ( part, box, npts, p, rhos )
+SUBROUTINE get_patch ( part, box, green, npts, p, rhos )
 
 
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: part
     TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(greens_function_type), POINTER      :: green
     INTEGER, DIMENSION(3), INTENT(IN)        :: npts
     INTEGER, INTENT(IN)                      :: p
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -343,7 +345,7 @@ SUBROUTINE get_patch ( part, box, npts, p, rhos )
 
   CALL get_delta ( box, r, npts, delta, nbox )
 
-  CALL spme_get_patch ( rhos, nbox, delta, q, box % green % p3m_coeff )
+  CALL spme_get_patch ( rhos, nbox, delta, q, green % p3m_coeff )
 
 END SUBROUTINE get_patch 
 

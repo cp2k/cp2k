@@ -96,6 +96,7 @@ MODULE kg_energy
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: xc_vxc_pw_create1
+  USE greens_fn,                       ONLY: greens_function_type
 
   IMPLICIT NONE
 
@@ -492,6 +493,7 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv,error )
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(greens_function_type), POINTER      :: green
     TYPE(coeff_type), POINTER                :: rho_core, rho_r, rho_g,&
                                                 rhop_r, rhop_g, &
                                                 v_gspace, &
@@ -518,11 +520,11 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv,error )
   NULLIFY(energy,atomic_kind_set,cell,dft_control,&
           dyn_coeff_set,rho,rspw,local_coeffs,forces)
   NULLIFY(rho_r,rho_g,rhop_r,rhop_g,rho_core,v_gspace,v_rspace,&
-          v1xc_r,v2xc_r)
+          v1xc_r,v2xc_r,green)
 
   CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control, energy=energy, cell=cell,&
-                    rho=rho,rspw=rspw,dyn_coeff_set=dyn_coeff_set)
+                    rho=rho,rspw=rspw,dyn_coeff_set=dyn_coeff_set, green=green)
   CPPrecondition(ASSOCIATED(rho),cp_failure_level,routine,error,failure)
   CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
   IF(.NOT.failure) THEN
@@ -584,9 +586,9 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv,error )
   CALL coeff_sumup(rhop_g,rho_g)
 
 ! calculate electrostatic potential
-  CALL init_pw_poisson_solver(cell%green)
+  CALL init_pw_poisson_solver(green)
   CALL calculate_hartree(rho_g, energy % hartree,v_gspace)        
-  CALL cleanup_pw_poisson_solver(cell%green)
+  CALL cleanup_pw_poisson_solver(green)
 
   CALL coeff_transform_space(v_gspace,v_rspace)
   CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_gspace,error=error)

@@ -132,7 +132,6 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   !-----------------------------------------------------------------------------
   CALL init_topology(topology)
 
-
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 2. Get the cell info
@@ -140,20 +139,17 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   CALL read_cell ( topology%cell, topology%cell_ref, globenv, error=error,&
        cell_section=cell_section)
 
-
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 3. Read in the topology section in the input file if any
   !-----------------------------------------------------------------------------
   CALL read_topology_section(topology,globenv)
 
-
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 4. Read in the constraints section
   !-----------------------------------------------------------------------------
   CALL read_constraints_section(topology,globenv)
-
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -221,9 +217,6 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   ! 11. Cleanup the topology structure type
   !-----------------------------------------------------------------------------
   CALL deallocate_topology(topology)
-
-
-
 
   IF((globenv%ionode).AND.(globenv%print%level>0))THEN
     WRITE(iw,*) "Exiting  topology_control"

@@ -59,7 +59,8 @@ MODULE kg_gpw_pw_env_methods
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
-  USE greens_fns,                      ONLY: pw_green_fn_rebuild
+  USE greens_fns,                      ONLY: pw_green_fn_rebuild,&
+                                             pw_green_setup
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
   USE kg_gpw_collocate_den,            ONLY: calculate_rho_mol
@@ -114,13 +115,17 @@ MODULE kg_gpw_pw_env_methods
                                              cell_retain,&
                                              cell_type,&
                                              init_cell,&
-                                             pbc
+                                             pbc,&
+                                             get_cell
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
-
+  USE greens_fn,                       ONLY: greens_function_type,&
+                                             pw_green_release,&
+                                             pw_green_retain,&
+                                             pw_green_create
+  USE input_section_types,             ONLY: section_vals_type  
   IMPLICIT NONE
 
   PRIVATE
@@ -162,13 +167,15 @@ CONTAINS
 !!
 !!*** *************************************************************************
  
-  SUBROUTINE build_molbox_env(molbox_env,fm_mol,qs_env,error)
+  SUBROUTINE build_molbox_env(molbox_env,fm_mol,qs_env,poisson_section,error)
 
     TYPE(kg_molbox_env_type) , TARGET          :: molbox_env
     TYPE(kg_fm_mol_set_type), POINTER          :: fm_mol
     TYPE(qs_environment_type), POINTER         :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                 :: error
+    TYPE(section_vals_type), POINTER, OPTIONAL :: poisson_section
+
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_molbox_env',&
       routineP = module_name//':'//routineN
@@ -182,6 +189,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cell_type), POINTER                 :: cell, cell_ref, cell_mol
+    TYPE(greens_function_type), POINTER      :: green
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: basis_set
@@ -196,11 +204,12 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env,new_pw_mol
     TYPE(rho_mol_blocks_type), DIMENSION(:),&
       POINTER                                :: rho_mol_blocks
+    REAL(KIND=dp), DIMENSION(3)              :: abc
 
     CALL timeset(routineN,"I","",handle)
 
     NULLIFY(cell,cell_ref,cell_mol,dft_control,para_env,particle_set,pw_env)
-    NULLIFY(atom_kind,basis_set,fm_mol_blocks)
+    NULLIFY(atom_kind,basis_set,fm_mol_blocks,green)
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)
@@ -287,6 +296,8 @@ CONTAINS
     cell_mol%perd(:) = 0
     cell_mol%hmat(:,:) = 0.0_dp
     cell_mol%h_inv(:,:) = 0.0_dp
+    CALL get_cell(cell_mol, abc=abc)
+    CALL pw_green_setup(green, poisson_section, cell_mol%perd, abc, error )
 
     num_pe = para_env%num_pe
     molbox_env_p => molbox_env
@@ -322,10 +333,11 @@ CONTAINS
       IF (cutoff(i) == dft_control%qs_control%cutoff) new_pw_mol%auxbas_grid=i
     END DO
 
-    CALL get_molbox_env(molbox_env=molbox_env_p,cell_mol=cell_mol)
    ! complete init of green's function
-    CALL pw_green_fn_rebuild(cell_mol%green,&
+    CALL pw_green_fn_rebuild(green,&
             new_pw_mol%pw_pools(new_pw_mol%auxbas_grid)%pool)
+    CALL set_molbox_env(molbox_env=molbox_env_p,green=green)
+    CALL pw_green_release(green, error=error)
 
    ! And now initialize the rho sructure for each molecule
     NULLIFY(rho_mol_blocks)

@@ -71,7 +71,7 @@ MODULE kg_rspw_methods
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-
+  USE greens_fn,                       ONLY: greens_function_type
   IMPLICIT NONE
 
   PRIVATE
@@ -160,6 +160,7 @@ END SUBROUTINE kg_rspw_create
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(greens_function_type), POINTER      :: green
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -177,13 +178,14 @@ END SUBROUTINE kg_rspw_create
     failure=.FALSE.
 
     NULLIFY(cutoff,cell,pw_grid,dft_control,para_env,rs_pools,old_pw_grid,&
-            atomic_kind_set)
+            atomic_kind_set,green)
     logger => cp_error_get_logger(error)
     pw_grid_information=logger%print_keys%pw_grid_information
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
+                    green=green,&
                     dft_control=dft_control,&
                     para_env=para_env)
 
@@ -383,7 +385,7 @@ END SUBROUTINE kg_rspw_create
 !      poisson solver initialized only for the reference cutoff grid
 !      Total density and potentials are allocated on the reference grid
 
-       CALL pw_green_fn_rebuild(cell%green,&
+       CALL pw_green_fn_rebuild(green,&
           kg_rspw%pw_pools(kg_rspw%auxbas_grid)%pool)
 
     END IF
