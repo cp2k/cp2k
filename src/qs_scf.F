@@ -83,7 +83,8 @@ MODULE qs_scf
   USE message_passing,          ONLY: mp_max,mp_sum,mp_sync,&
                                       mp_range,mp_allgather
   USE particle_types,           ONLY: particle_type
-  USE qs_arpack,                ONLY: arpack_diag
+  USE qs_arpack,                ONLY: arpack_diag_sy
+  use qs_arpack_full,           only: full_m_op_type
   USE qs_blacs,                 ONLY: cp_fm_create2,&
                                       blacs_add_to_element,&
                                       cp_fm_add, &
@@ -1081,9 +1082,9 @@ CONTAINS
 !   *** Local variables ***
 
     INTEGER :: handle,imo,nao,nmo,homo,ncv,handle2
-
     TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
     REAL(wp), DIMENSION(:), POINTER  :: mo_eigenvalues
+    type(full_m_op_type)             :: full_m_op
 
 !   ---------------------------------------------------------------------------
 
@@ -1115,7 +1116,13 @@ CONTAINS
 
        ncv = nmo + 64
        CALL blacs_cholesky_reduce(ks,ortho)
-       CALL arpack_diag(ks,work,mo_eigenvalues,nmo,ncv,.false.,globenv)
+!       CALL arpack_diag_sy(ks,work,mo_eigenvalues,nmo,ncv,.false.,globenv)
+
+       full_m_op%a => ks
+       full_m_op%buffer => mo_eigenvectors
+       CALL arpack_diag_sy(work,mo_eigenvalues,nmo,ncv,.false.,globenv, &
+                           full_m_op=full_m_op)
+
        CALL blacs_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
 
     ELSE
@@ -1465,8 +1472,8 @@ CONTAINS
     p_mix = 0.4_wp
     smear = 0.0_wp
     work_syevx = 1.0_wp
-    use_cholesky = .true.
-    use_arpack = .false.
+    use_cholesky = .false.
+    use_arpack = .true.
     use_ot = .false.
 
     CALL start_parser(file_name=globenv%input_file_name,&

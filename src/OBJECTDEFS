@@ -194,6 +194,8 @@ OBJECTS_GENERIC =\
  pw_xc.o\
  pws.o\
  qs_arpack.o\
+ qs_arpack_diag_sy.o\
+ qs_arpack_full.o\
  qs_blacs.o\
  qs_build_ks_matrix.o\
  qs_collocate_density.o\
