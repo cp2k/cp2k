@@ -3056,7 +3056,8 @@ END SUBROUTINE potential_nonbond
 
     CALL timeset(routine_name,"I","",handle)
    
-
+    f_numer=0.0_dp
+    energy_numer=0.0_dp
 
 !   *** Allocate and initialize the new neighbor list structure ***
 
