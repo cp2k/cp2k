@@ -111,12 +111,6 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
 
   iw = globenv%scr
 
-! DO i=2,10
-!   WRITE(iw,*) "i = ",i
-! END DO
-
-! CALL stop_program ( "read_topology_psf", "doesn't work yet")
-
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
   WRITE(iw,*) 'Parsing the NATOM section'
@@ -134,13 +128,27 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
     CALL get_next (natom)
     WRITE(iw,*) 'NATOM = ',natom
     !malloc the memory that we need
-    ALLOCATE(atm_mol_name(natom))
-    ALLOCATE(atm_res_num(natom))
-    ALLOCATE(atm_res_name(natom))
-    ALLOCATE(atm_name1(natom))
-    ALLOCATE(atm_name2(natom))
-    ALLOCATE(atm_charge(natom))
-    ALLOCATE(atm_mass(natom))
+    ALLOCATE(atm_mol_name(natom),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','atm_mol_name',nphi)
+    ALLOCATE(atm_res_num(natom),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','atm_res_num',nphi)
+    ALLOCATE(atm_res_name(natom),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','atm_res_name',nphi)
+    ALLOCATE(atm_name1(natom),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','atm_name1',nphi)
+    ALLOCATE(atm_name2(natom),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','atm_name2',nphi)
+    ALLOCATE(atm_charge(natom),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','atm_charge',nphi)
+    ALLOCATE(atm_mass(natom),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','atm_mass',nphi)
     !Read in the atom info
     DO iatom=1,natom
       CALL read_line
@@ -174,8 +182,12 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
     CALL get_next (nbond)
     WRITE(iw,*) 'NBOND = ',nbond
     !malloc the memory that we need
-    ALLOCATE(bond_a(nbond))
-    ALLOCATE(bond_b(nbond))
+    ALLOCATE(bond_a(nbond),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','bond_a',nphi)
+    ALLOCATE(bond_b(nbond),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','bond_b',nphi)
     !Read in the atom info
     DO ibond=1,nbond,4
       CALL read_line
@@ -206,9 +218,15 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
     CALL get_next (ntheta)
     WRITE(iw,*) 'NTHETA = ',ntheta
     !malloc the memory that we need
-    ALLOCATE(theta_a(ntheta))
-    ALLOCATE(theta_b(ntheta))
-    ALLOCATE(theta_c(ntheta))
+    ALLOCATE(theta_a(ntheta),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','theta_a',nphi)
+    ALLOCATE(theta_b(ntheta),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','theta_b',nphi)
+    ALLOCATE(theta_c(ntheta),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','theta_c',nphi)
     !Read in the atom info
     DO itheta=1,ntheta,3
       CALL read_line
@@ -240,10 +258,18 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
     CALL get_next (nphi)
     WRITE(iw,*) 'NPHI = ',nphi
     !malloc the memory that we need
-    ALLOCATE(phi_a(nphi))
-    ALLOCATE(phi_b(nphi))
-    ALLOCATE(phi_c(nphi))
-    ALLOCATE(phi_d(nphi))
+    ALLOCATE(phi_a(nphi),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','phi_a',nphi)
+    ALLOCATE(phi_b(nphi),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','phi_b',nphi)
+    ALLOCATE(phi_c(nphi),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','phi_c',nphi)
+    ALLOCATE(phi_d(nphi),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','phi_d',nphi)
     !Read in the atom info
     DO iphi=1,nphi,2
       CALL read_line
@@ -274,8 +300,12 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
   !----------------------------------------------------------------------------
   !----------------------------------------------------------------------------
   !get the temporary memory
-  ALLOCATE (map_mol_typ(natom))
-  ALLOCATE (map_mol_num(natom))
+  ALLOCATE (map_mol_typ(natom),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','map_mol_typ',nphi)
+  ALLOCATE (map_mol_num(natom),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','map_mol_num',nphi)
   !----------------------------------------------------------------------------
   !----------------------------------------------------------------------------
   !Sort the bonds
@@ -352,6 +382,7 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
     j = last - first + 1
     j = j / map_mol_num(last)
     mol_setup(i)%molpar%natom=j
+
     mol_setup(i)%molpar%natom_type=1
     DO j=2,mol_setup(i)%molpar%natom
       IF(.NOT.(atm_name2(j-1)==atm_name2(j))) THEN
@@ -375,8 +406,7 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
       ('read_topology_psf','acharge',mol_setup(i)%molpar%natom)
     DO j=1,mol_setup(i)%molpar%natom
       !Stuff the aname,alabel,aweight,acharge
-      mol_setup(i)%molpar%aname(j) = atm_name1(first+j-1)
-      mol_setup(i)%molpar%aname(j) = atm_name2(first+j-1)
+      mol_setup(i)%molpar%aname(j)   = atm_name2(first+j-1)
       mol_setup(i)%molpar%aweight(j) = atm_mass(first+j-1)
       mol_setup(i)%molpar%acharge(j) = atm_charge(first+j-1)
     END DO
@@ -398,7 +428,9 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
     END DO
     mol_setup(i)%molpar%nbonds = SUM(checkme)
     WRITE(iw,*) "moltype = ",i,"nbonds = ",mol_setup(i)%molpar%nbonds
-    ALLOCATE(mol_setup(i)%molpar%bonds(3,mol_setup(i)%molpar%nbonds))
+    ALLOCATE(mol_setup(i)%molpar%bonds(3,mol_setup(i)%molpar%nbonds),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','mol_setup(i)%molpar%bonds',nbond)
     k=0
     DO j=1,nbond
       IF (checkme(j)==1) THEN
@@ -415,7 +447,8 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
       !ERROR STOP PROGRAM
       CALL stop_program ( "read_topology_psf", "nbonds counting error")
     END IF
-    DEALLOCATE(checkme)
+    DEALLOCATE(checkme,STAT=ierror)
+    IF (ierror /= 0) CALL stop_memory ('read_molecule_section','checkme')
     !---------------------------------------------------------------------------
     !---------------------------------------------------------------------------
     !Stuff the theata info
@@ -435,6 +468,9 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
     mol_setup(i)%molpar%nbends = SUM(checkme)
     WRITE(iw,*) "moltype = ",i,"nbends = ",mol_setup(i)%molpar%nbends
     ALLOCATE(mol_setup(i)%molpar%bends(4,mol_setup(i)%molpar%nbends))
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','mol_setup(i)%molpar%bends',&
+       mol_setup(i)%molpar%nbends)
     k=0
     DO j=1,ntheta
       IF (checkme(j)==1) THEN
@@ -452,7 +488,8 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
       !ERROR STOP PROGRAM
       CALL stop_program ( "read_topology_psf", "nbends counting error")
     END IF
-    DEALLOCATE(checkme)
+    DEALLOCATE(checkme,STAT=ierror)
+    IF (ierror /= 0) CALL stop_memory ('read_molecule_section','checkme')
     !---------------------------------------------------------------------------
     !---------------------------------------------------------------------------
     !Stuff the torsion info
@@ -491,7 +528,8 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
       !ERROR STOP PROGRAM
       CALL stop_program ( "read_topology_psf", "ntorsions counting error")
     END IF
-    DEALLOCATE(checkme)
+    DEALLOCATE(checkme,STAT=ierror)
+    IF (ierror /= 0) CALL stop_memory ('read_molecule_section','checkme')
     !---------------------------------------------------------------------------
     !---------------------------------------------------------------------------
     !Stuff the ndc info
@@ -502,11 +540,46 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
     mol_setup(i)%molpar%n3x3con = 0
     !---------------------------------------------------------------------------
     !---------------------------------------------------------------------------
-
   END DO
 
-  !CALL stop_program ( "read_topology_psf", "doesn't work yet")
+  DEALLOCATE(atm_mol_name,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','atm_mol_name')
+  DEALLOCATE(atm_res_num,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','atm_res_num')
+  DEALLOCATE(atm_res_name,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','atm_res_name')
+  DEALLOCATE(atm_name1,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','atm_name1')
+  DEALLOCATE(atm_name2,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','atm_name2')
+  DEALLOCATE(atm_charge,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','atm_charge')
+  DEALLOCATE(atm_mass,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','atm_mass')
+  DEALLOCATE(map_mol_typ,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','map_mol_typ')
+  DEALLOCATE(map_mol_num,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','map_mol_num')
+  DEALLOCATE(bond_a,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','bond_a')
+  DEALLOCATE(bond_b,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','bond_b')
+  DEALLOCATE(theta_a,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','theta_a')
+  DEALLOCATE(theta_b,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','theta_b')
+  DEALLOCATE(theta_c,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','theta_c')
+  DEALLOCATE(phi_a,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','phi_a')
+  DEALLOCATE(phi_b,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','phi_b')
+  DEALLOCATE(phi_c,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','phi_c')
+  DEALLOCATE(phi_d,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','phi_d')
 
+  !CALL stop_program ( "read_topology_psf", "checkme")
 
 END SUBROUTINE read_topology_psf
 

@@ -120,7 +120,7 @@ SUBROUTINE topology_generate_molecule(natom,atm_mol_name,nbond,bond_a,bond_b,&
 
         checkme(iatom)=1
        
-        DO WHILE (SUM(checkme))
+        DO WHILE (SUM(checkme)>0)
           DO iiatom=first,last
             IF((checkme(iiatom)==1)) THEN
               !WRITE(*,*) "iiatom = ",iiatom

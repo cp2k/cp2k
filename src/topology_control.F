@@ -100,11 +100,6 @@ SUBROUTINE read_topology_control (mol_setup,setup,globenv)
     CASE DEFAULT
       CALL stop_program (" read_topology_file ","Unknown type of topology file")
     END SELECT
-  ELSE
-   !Parse the input file to just read in the coordinates
-   !Set every atom read in to be its own residue and molecule
-   !most likely only used for QuickStep
-   !Eventualy, no molecules in &SETUP, no &MOLECULES section, no &TOP section
   END IF
 
 ! send the outcome of the inquiry to all cpus

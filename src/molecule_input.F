@@ -145,7 +145,6 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
   IF(setup%topology) THEN
     CALL read_topology_control(mol_setup,setup,globenv)
     nmol_topo = SIZE(mol_setup)
-    WRITE (iw,*) "nmol_topo = ",nmol_topo
   END IF
 
 !..parse the input section
@@ -764,8 +763,6 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
         END IF
      END DO
   END DO
-
-  WRITE(iw,*) "n = ",n
 
   IF ( n /= setup % natom_type ) CALL stop_program ( 'read_molecule_section', &
        'natom_type mismatch' )
