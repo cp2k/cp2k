@@ -29,7 +29,7 @@ MODULE xc_derivatives
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_control_types,                       ONLY: xc_control_type
+  USE cp_control_types,                ONLY: xc_control_type
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -38,6 +38,7 @@ MODULE xc_derivatives
                                              xc_lda,&
                                              xc_lsd,&
                                              xc_set
+  USE xc_pade,                         ONLY: pade_lda_pw_eval, pade
   USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
                                              xc_rho_set_type
   USE xc_xbecke88,                     ONLY: xb88_lda_eval,&
@@ -264,6 +265,13 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
      CASE("BECKE88_LSD")
         CALL xb88_lsd_info(reference=reference,shortform=shortform,&
              needs=needs, max_deriv=max_deriv, error=error)
+     CASE("PADE")
+        IF (lsd) THEN
+           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                message="not yet implemented", error=error)
+        ELSE
+           CALL pade(reference, shortform, lsd=.FALSE., needs=needs, error=error)
+        END IF
      CASE("NONE")
         IF (PRESENT(reference)) reference=""
         IF (PRESENT(shortform)) shortform=""
@@ -285,12 +293,12 @@ END SUBROUTINE xc_functional_get_info
 !!
 !!   SYNOPSIS
 !!     Subroutine xc_functional_eval(functional, lsd, rho_set, deriv_set,&
-!!         grad_deriv, error)
+!!         deriv_order, error)
 !!       Character(Len=*), Intent (IN):: functional
 !!       Logical, Intent (IN):: lsd
 !!       Type(xc_rho_set_type), Pointer:: rho_set
 !!       Type(xc_derivative_set_type), Pointer:: deriv_set
-!!       Integer, Intent (IN):: grad_deriv
+!!       Integer, Intent (IN):: deriv_order
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine xc_functional_eval
 !!
@@ -308,7 +316,7 @@ END SUBROUTINE xc_functional_get_info
 !!       xc_functional_get_info)
 !!     - deriv_set: place where to store the functional derivatives (they are
 !!       added to the derivatives)
-!!     - grad_deriv: degree of the derivative that should be evalated,
+!!     - deriv_order: degree of the derivative that should be evalated,
 !!       if positive all the derivatives up to the given degree are evaluated,
 !!       if negative only the given degree is requested (but to simplify 
 !!       the code all the derivatives might be calculated, you should ignore
@@ -325,12 +333,12 @@ END SUBROUTINE xc_functional_get_info
 !!
 !!*** **********************************************************************
 SUBROUTINE xc_functional_eval(functional, lsd, rho_set,deriv_set,&
-     grad_deriv,error)
+     deriv_order,error)
   CHARACTER(len=*),INTENT(in) :: functional
   LOGICAL, INTENT(in) :: lsd
   TYPE(xc_rho_set_type), POINTER :: rho_set
   TYPE(xc_derivative_set_type), POINTER :: deriv_set
-  INTEGER, INTENT(in) :: grad_deriv
+  INTEGER, INTENT(in) :: deriv_order
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -344,19 +352,24 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set,deriv_set,&
      CASE("BECKE88")
         IF (lsd) THEN
            CALL xb88_lsd_eval(rho_set=rho_set,deriv_set=deriv_set,&
-                grad_deriv=grad_deriv,error=error)
+                grad_deriv=deriv_order,error=error)
         ELSE
            CALL xb88_lda_eval(rho_set=rho_set,deriv_set=deriv_set,&
-                grad_deriv=grad_deriv,error=error)
+                grad_deriv=deriv_order,error=error)
         END IF
      CASE("BECKE88_LDA")
         CALL xb88_lda_eval(rho_set=rho_set,deriv_set=deriv_set,&
-                grad_deriv=grad_deriv,error=error)
+                grad_deriv=deriv_order,error=error)
      CASE("BECKE88_LSD")
         CALL xb88_lsd_eval(rho_set=rho_set,deriv_set=deriv_set,&
-                grad_deriv=grad_deriv,error=error)
+                grad_deriv=deriv_order,error=error)
      CASE("PADE")
-!TC        CALL pade_pw_eval(rho_set, deriv_set, grad_deriv, error=error)
+        IF (lsd) THEN
+           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                message="not yet implemented", error=error)
+        ELSE
+           CALL pade_lda_pw_eval(deriv_set, rho_set, deriv_order, error=error)
+        END IF
      CASE("NONE")
         !
      CASE default

@@ -320,9 +320,12 @@ CONTAINS
             cell=cell, pw_pool=pw_pool, error=error)
 !FM       PRINT *, "did calculate xc (old)"
 !FM       PRINT *, "about to calculate xc (new)"
-!FM       CALL xc_calculate_pw_new(rho_r=my_rho_r, rho_g=my_rho_g,&
-!FM            vxc=vxc2, exc=exc2, dft_control=dft_control,&
-!FM            cell=cell, pw_pool=pw_pool, error=error)
+!TC       CALL xc_calculate_pw_new(rho_r=my_rho_r, rho_g=my_rho_g,&
+!TC            vxc=vxc2, exc=exc2, dft_control=dft_control,&
+!TC            cell=cell, pw_pool=pw_pool, error=error)
+!TC       CALL xc_calculate_pw_new(rho_r=my_rho_r, rho_g=my_rho_g,&
+!TC            vxc=my_vxc, exc=exc, dft_control=dft_control,&
+!TC            cell=cell, pw_pool=pw_pool, error=error)
 !FM       PRINT *, "did calculate xc (new)"
 !FM       
 !FM       maxDiff=0.0_dp
@@ -1046,7 +1049,7 @@ CONTAINS
        DO i=1,SIZE(xc_control%functionals)
           CALL xc_functional_eval(xc_control%functionals(i),lsd=lsd,&
                rho_set=rho_set,deriv_set=deriv_set,&
-               grad_deriv=1,error=error)
+               deriv_order=1,error=error)
        END DO
     END IF
 

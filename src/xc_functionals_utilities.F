@@ -44,7 +44,7 @@ MODULE xc_functionals_utilities
   CHARACTER(len=*), PARAMETER :: moduleN="xc_functionals_utilities"
 
   PUBLIC :: set_util, setup_calculation, calc_rs, calc_rho13, calc_fx, &
-            calc_wave_vector, calc_srs, calc_z
+            calc_wave_vector, calc_srs, calc_z, calc_rs_pw
 
   INTERFACE calc_fx
      MODULE PROCEDURE calc_fx_array, calc_fx_single
@@ -182,7 +182,7 @@ CONTAINS
 !   rs parameter : f*rho**(-1/3)
 !   ---------------------------------------------------------------------------
 
-    REAL(dbl), INTENT(IN), DIMENSION(:)  :: rho
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
     REAL(dbl), INTENT(OUT), DIMENSION(:) :: rs
 
     INTEGER :: k
@@ -203,6 +203,33 @@ CONTAINS
     END DO
 
   END SUBROUTINE calc_rs_array
+
+! *****************************************************************************
+
+  SUBROUTINE calc_rs_pw ( rho, rs, n )
+    
+!   ---------------------------------------------------------------------------
+!   rs parameter : f*rho**(-1/3)
+!   ---------------------------------------------------------------------------
+
+    REAL(KIND=dbl), DIMENSION(*), INTENT(IN)  :: rho
+    REAL(KIND=dbl), DIMENSION(*), INTENT(OUT) :: rs
+    INTEGER, INTENT(IN) :: n
+
+    INTEGER :: k
+
+!   ---------------------------------------------------------------------------
+
+!$omp parallel do private(k)
+    DO k=1, n
+       IF ( rho(k) < eps_rho ) THEN
+          rs(k) = 0.0_dbl
+       ELSE
+          rs(k) = rsfac * rho(k)**(-f13)
+       END IF
+    END DO
+
+  END SUBROUTINE calc_rs_pw
 
 ! *****************************************************************************
 
