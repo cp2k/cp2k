@@ -18,7 +18,7 @@
 &END
 
 &TOPOLOGY
- FOFI_FIL        par_all27_prot_lipid.inp
+ FOFI_FIL        charmm.pot
  FORCEFIELD      CHM
  COORDINATE      PDB
  COORD_FILE_NAME deca_ala.pdb
@@ -31,6 +31,16 @@
 &END
 
 &FORCE_FIELD
+ charges
+   CT3 0.0
+   HA  0.0
+   C   0.0
+   O   0.0
+   NH1 0.0
+   H   0.0
+   CT1 0.0
+   HB  0.0
+ end
  torsions
    jorgensen  HA CT3 CT1 NH1 1.0 0.0
    jorgensen  HA CT3 CT1  HB 2.0 0.0
