@@ -123,9 +123,9 @@ MODULE qmmm_init
   USE input_constants, ONLY: RADIUS_QMMM_DEFAULT, do_qmmm_link_imomm, do_qmmm_link_gho,&
                         do_qmmm_gauss, do_center_none, do_center_grid
   USE fist_environment_types,  ONLY: set_fist_env
-  USE greens_fn,                       ONLY: greens_function_type,&
+  USE green_types,                     ONLY: greens_function_type,&
                                              pw_green_release
-  USE greens_fns,                      ONLY: pw_green_setup  
+  USE green_methods,                   ONLY: pw_green_setup  
   
   IMPLICIT NONE
   PRIVATE
@@ -211,7 +211,7 @@ CONTAINS
        ! Input section...
        force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
        qmmm_section => section_vals_get_subs_vals(force_env_section,"QMMM",error=error)
-       poisson_section => section_vals_get_subs_vals(force_env_section,"POISSON",error=error)
+       poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON",error=error)
 
        ALLOCATE(sub_force_env(2),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

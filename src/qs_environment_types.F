@@ -140,7 +140,7 @@ MODULE qs_environment_types
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE greens_fn,                       ONLY: greens_function_type,&
+  USE green_types,                     ONLY: greens_function_type,&
                                              pw_green_release,&
                                              pw_green_retain,&
                                              pw_green_create

@@ -106,7 +106,7 @@ MODULE qs_kpp1_env_methods
                                              xc_rho_set_release,&
                                              xc_rho_set_type,&
                                              xc_rho_set_update
-  USE greens_fn,                       ONLY: greens_function_type
+  USE green_types,                     ONLY: greens_function_type
   IMPLICIT NONE
 
   PRIVATE

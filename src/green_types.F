@@ -3,10 +3,10 @@
 !   Copyright (C) 2000,2003  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 #include "cp_prep_globals.h"
-!!****** cp2k/greens_fn [1.0] *
+!!****** cp2k/green_types [1.0] *
 !!
 !!   NAME
-!!     greens_fn
+!!     green_types
 !!
 !!   FUNCTION
 !!     Routines to calculate the Green's function for the Poisson equation '''
@@ -22,7 +22,7 @@
 !!   SOURCE
 !******************************************************************************
 
-MODULE greens_fn
+MODULE green_types
   USE bessel_lib,                      ONLY: bessj0,&
                                              bessj1,&
                                              bessk0,&
@@ -91,14 +91,14 @@ MODULE greens_fn
 
 
   INTEGER, SAVE, PRIVATE :: last_greens_fn_id_nr=0
-  CHARACTER(len=*),PARAMETER,PRIVATE :: moduleN='greens_fn'
+  CHARACTER(len=*),PARAMETER,PRIVATE :: moduleN='green_types'
 !!*****
 !******************************************************************************
 
 CONTAINS
 
   !******************************************************************************
-  !!****** greens_fn/pw_green_retain [1.0] *
+  !!****** green_types/pw_green_retain [1.0] *
   !!
   !!   NAME
   !!     pw_green_retain
@@ -134,7 +134,7 @@ CONTAINS
   END SUBROUTINE pw_green_retain
 
   !******************************************************************************
-  !!****** greens_fn/pw_green_release [1.0] *
+  !!****** green_types/pw_green_release [1.0] *
   !!
   !!   NAME
   !!     pw_green_release
@@ -257,7 +257,7 @@ CONTAINS
   END SUBROUTINE pw_green_create
   !***************************************************************************
   
-  !!****** greens_fn/pw_green_fn [1.0] *
+  !!****** green_types/pw_green_fn [1.0] *
   !!
   !!   NAME
   !!     pw_green_fn
@@ -291,7 +291,7 @@ CONTAINS
     CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D )
        IF ( gf % in_space /= RECIPROCALSPACE .OR. &
             gf % in_use /= REALDATA1D ) &
-            CALL stop_program ( "greens_fn", "gf wrong space or DATA TYPE" )
+            CALL stop_program ( "green_types", "gf wrong space or DATA TYPE" )
     CASE ( HOCKNEY2D, HOCKNEY1D, HOCKNEY0D )
        CALL stop_program ( "pw_green_fn", " Method not implemented ")
     CASE DEFAULT
@@ -384,7 +384,7 @@ CONTAINS
     
   END SUBROUTINE pw_green_fn
   
-  !!****** greens_fn/influence_factor [1.0] *
+  !!****** green_types/influence_factor [1.0] *
   !!
   !!   NAME
   !!     influence_factor
@@ -467,6 +467,6 @@ CONTAINS
     IF ( ierr /= 0 ) CALL stop_memory ( 'influence_factor', 'm_assign', 0 )    
   END SUBROUTINE influence_factor
   
-END MODULE greens_fn
+END MODULE green_types
 
 !******************************************************************************

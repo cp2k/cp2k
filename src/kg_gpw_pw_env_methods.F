@@ -59,7 +59,7 @@ MODULE kg_gpw_pw_env_methods
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
-  USE greens_fns,                      ONLY: pw_green_fn_rebuild,&
+  USE green_methods,                   ONLY: pw_green_fn_rebuild,&
                                              pw_green_setup
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
@@ -121,7 +121,7 @@ MODULE kg_gpw_pw_env_methods
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE greens_fn,                       ONLY: greens_function_type,&
+  USE green_types,                     ONLY: greens_function_type,&
                                              pw_green_release,&
                                              pw_green_retain,&
                                              pw_green_create

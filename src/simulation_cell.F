@@ -39,9 +39,6 @@ MODULE simulation_cell
                                              MT1D,&
                                              MT2D,&
                                              PERIODIC3D
-!  USE greens_fn,                       ONLY: greens_function_type,&
-!                                             pw_green_release,&
-!                                             pw_green_create
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: degree
   USE mathlib,                         ONLY: angle,&

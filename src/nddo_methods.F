@@ -118,7 +118,7 @@ MODULE nddo_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
-  USE greens_fn,                       ONLY: greens_function_type
+  USE green_types,                     ONLY: greens_function_type
 
   IMPLICIT NONE
 

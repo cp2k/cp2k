@@ -129,8 +129,8 @@ OBJECTS_GENERIC =\
  geo_opt.o\
  global_types.o\
  gopt_f_types.o\
- greens_fn.o\
- greens_fns.o\
+ green_types.o\
+ green_methods.o\
  hartree.o\
  hartree_local_2centers.o\
  hartree_local_3centers.o\

@@ -46,7 +46,7 @@ MODULE pws
                                              MT1D,&
                                              MT2D,&
                                              PERIODIC3D
-  USE greens_fn,                       ONLY: greens_function_type,&
+  USE green_types,                     ONLY: greens_function_type,&
                                              pw_green_fn
   USE kinds,                           ONLY: dp, mp
   USE mathconstants,                   ONLY: fourpi

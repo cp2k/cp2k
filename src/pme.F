@@ -62,7 +62,7 @@ MODULE pme
                                              structure_factor_deallocate
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE greens_fn,                       ONLY: greens_function_type
+  USE green_types,                     ONLY: greens_function_type
   IMPLICIT NONE
 
   PRIVATE

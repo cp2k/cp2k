@@ -5,10 +5,10 @@
 
 #include "cp_prep_globals.h"
 
-!!****h* cp2k/greens_fns [1.0] *
+!!****h* cp2k/green_methods [1.0] *
 !!
 !!   NAME
-!!     greens_fns
+!!     green_methods
 !!
 !!   FUNCTION
 !!     initializations of the green functions
@@ -24,7 +24,7 @@
 !!
 !!   SOURCE
 !****************************************************************************
-MODULE greens_fns
+MODULE green_methods
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
@@ -45,7 +45,7 @@ MODULE greens_fns
                                              MT1D,&
                                              MT2D,&
                                              PERIODIC3D
-  USE greens_fn,                       ONLY: greens_function_type,&
+  USE green_types,                     ONLY: greens_function_type,&
                                              influence_factor,&
                                              pw_green_create
   USE kinds,                           ONLY: dp,&
@@ -70,7 +70,7 @@ MODULE greens_fns
   PUBLIC :: pw_green_fn_rebuild,&
             pw_green_setup
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='greens_fns'
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='green_methods'
 
 !!***
 !****************************************************************************
@@ -257,4 +257,4 @@ CONTAINS
     END IF
   END SUBROUTINE pw_green_setup
 
-END MODULE greens_fns
+END MODULE green_methods

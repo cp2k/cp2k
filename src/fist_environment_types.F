@@ -80,7 +80,7 @@ MODULE fist_environment_types
                                              qmmm_env_mm_create,&
                                              qmmm_env_mm_release,&
                                              qmmm_env_mm_retain
-  USE greens_fn,                       ONLY: greens_function_type,&
+  USE green_types,                     ONLY: greens_function_type,&
                                              pw_green_release,&
                                              pw_green_retain,&
                                              pw_green_create

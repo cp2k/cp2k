@@ -58,7 +58,7 @@ MODULE kg_gpw_pw_env_types
                                              cell_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE greens_fn,                       ONLY: greens_function_type,&
+  USE green_types,                     ONLY: greens_function_type,&
                                              pw_green_release,&
                                              pw_green_retain,&
                                              pw_green_create

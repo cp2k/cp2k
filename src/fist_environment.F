@@ -82,9 +82,9 @@ MODULE fist_environment
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
-  USE greens_fn,                       ONLY: greens_function_type,&
+  USE green_types,                     ONLY: greens_function_type,&
                                              pw_green_release
-  USE greens_fns,                      ONLY: pw_green_setup
+  USE green_methods,                   ONLY: pw_green_setup
 
   IMPLICIT NONE
 
@@ -170,7 +170,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   cell_section => section_vals_get_subs_vals(globenv%input_file,&
        "FORCE_EVAL%SUBSYS%CELL",error=error)
   poisson_section => section_vals_get_subs_vals(globenv%input_file,&
-       "FORCE_EVAL%POISSON",error=error)
+       "FORCE_EVAL%MM%POISSON",error=error)
   CALL cp_subsys_create ( subsystem, para_env = globenv % para_env, error = error )
 
   CALL read_cell( cell, cell_ref, globenv, use_ref_cell = use_ref_cell, error=error,&

@@ -72,7 +72,7 @@ MODULE ewald_pw_types
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE greens_fn,                       ONLY: greens_function_type,&
+  USE green_types,                     ONLY: greens_function_type,&
                                              pw_green_release,&
                                              pw_green_retain
   IMPLICIT NONE

@@ -139,7 +139,7 @@ MODULE qs_ks_methods
   USE qmmm_methods,                    ONLY: qmmm_calculate_energy,&
                                              qmmm_modify_hartree_pot
   USE qs_ks_qmmm_methods,              ONLY: qs_ks_qmmm_create
-  USE greens_fn,                       ONLY: greens_function_type
+  USE green_types,                       ONLY: greens_function_type
   IMPLICIT NONE
 
   PRIVATE

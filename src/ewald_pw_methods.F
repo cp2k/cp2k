@@ -44,7 +44,7 @@ MODULE ewald_pw_methods
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_set,&
                                              ewald_pw_type
-  USE greens_fns,                      ONLY: pw_green_fn_rebuild
+  USE green_methods,                   ONLY: pw_green_fn_rebuild
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE pw_grid_types,                   ONLY: pw_grid_type
@@ -54,7 +54,7 @@ MODULE ewald_pw_methods
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE greens_fn,                       ONLY: greens_function_type
+  USE green_types,                     ONLY: greens_function_type
 
   IMPLICIT NONE
 

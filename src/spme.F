@@ -31,7 +31,7 @@ MODULE spme
                                              ewald_env_get
   USE ewald_pw_types,                  ONLY: ewald_pw_type, &
                                              ewald_pw_get
-  USE greens_fn,                       ONLY: greens_function_type
+  USE green_types,                     ONLY: greens_function_type
   USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi

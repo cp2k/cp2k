@@ -55,7 +55,7 @@ MODULE pw_env_methods
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
-  USE greens_fns,                      ONLY: pw_green_fn_rebuild
+  USE green_methods,                   ONLY: pw_green_fn_rebuild
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: init_l_info,&
                                              l_info_retain,&
@@ -83,7 +83,7 @@ MODULE pw_env_methods
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE greens_fn,                       ONLY: greens_function_type
+  USE green_types,                     ONLY: greens_function_type
 
   IMPLICIT NONE
   PRIVATE

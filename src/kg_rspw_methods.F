@@ -48,7 +48,7 @@ MODULE kg_rspw_methods
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
-  USE greens_fns,                      ONLY: pw_green_fn_rebuild
+  USE green_methods,                   ONLY: pw_green_fn_rebuild
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
   USE kg_rspw_types,                   ONLY: kg_rspw_type,&
@@ -71,7 +71,7 @@ MODULE kg_rspw_methods
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE greens_fn,                       ONLY: greens_function_type
+  USE green_types,                     ONLY: greens_function_type
   IMPLICIT NONE
 
   PRIVATE

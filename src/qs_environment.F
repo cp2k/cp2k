@@ -117,9 +117,9 @@ MODULE qs_environment
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control
-  USE greens_fn,                       ONLY: greens_function_type,&
+  USE green_types,                     ONLY: greens_function_type,&
                                              pw_green_release
-  USE greens_fns,                      ONLY: pw_green_setup  
+  USE green_methods,                   ONLY: pw_green_setup  
   IMPLICIT NONE
 
   PRIVATE
@@ -186,7 +186,7 @@ CONTAINS
     cell_section => section_vals_get_subs_vals(force_env_section,&
          "SUBSYS%CELL",error=error)
     poisson_section => section_vals_get_subs_vals(force_env_section,&
-         "POISSON",error=error)
+         "DFT%POISSON",error=error)
         
     CALL set_qs_env(qs_env,input=force_env_section,error=error)
     

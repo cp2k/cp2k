@@ -67,7 +67,7 @@ MODULE qs_ep_methods
                                              cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
-  USE greens_fns,                      ONLY: pw_green_fn_rebuild
+  USE green_methods,                   ONLY: pw_green_fn_rebuild
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE particle_types,                  ONLY: particle_type
@@ -134,7 +134,7 @@ MODULE qs_ep_methods
                                              replicate_matrix_structure
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE greens_fn,                       ONLY: greens_function_type
+  USE green_types,                     ONLY: greens_function_type
 
   IMPLICIT NONE
   PRIVATE
