@@ -624,7 +624,8 @@ MODULE qs_rho0_ggrid
 !$OMP shared(habt,hdabt,hadbt,hab_spht,hdab_spht)&
 !$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s,l0_ikind) &
 !$OMP shared(norm_l,calculate_forces,c4pi,ecoul_1c)&
-!$OMP shared(nset,npgf,lmax,maxso,harmonics,force,nso,nsoset,nco,ncoset,indco,orbtramat,dfac,Qlm_gg)
+!$OMP shared(nset,npgf,lmax,maxso,harmonics,force,nso,nsoset,nco,ncoset,indco,orbtramat,dfac,Qlm_gg)&
+!$OMP shared(rho0_mpole)
       DO j=1,npme
 
 !$      ithread=omp_get_thread_num()
