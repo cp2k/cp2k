@@ -132,8 +132,11 @@ CONTAINS
                     error=error)
     ks_qmmm_env_loc => qs_env%ks_qmmm_env
     Write(6,'(T3,A)')"Information on the QM/MM Electrostatic Potential:"
-    ! Zeroing v_qmmm_rspace 
+    !
+    ! Initializing vectors:
+    !        Zeroing v_qmmm_rspace 
     CALL coeff_zero(coeff=ks_qmmm_env_loc%v_qmmm_rspace)
+    !
     !
     ! Electrostatic Interaction type...
     !
@@ -224,7 +227,7 @@ CONTAINS
     MainLoopMM: Do Imm = 1, num_mm_atoms
        IndMM = mm_atom_index(Imm)
        r0 = mm_el_pot_radius(Imm) 
-       !$omp parallel do private(k,j,i)
+       !$omp parallel do private(k,j,i,r,rv,xs)
        LoopOnGrid: Do k = bo(1,3), bo(2,3)
           xs(3) = float(k)/float(n(3))
           Do j = bo(1,2), bo(2,2)
@@ -232,7 +235,7 @@ CONTAINS
              Do i = bo(1,1), bo(2,1)
                 xs(1) =  float(i)/float(n(1))
                 rv = mm_particles(IndMM)%r(:) - matmul(cell%hmat,xs) 
-                r  = rv(1)*rv(1) + rv(2)*rv(2) + rv(3)*rv(3)
+                r  = sqrt(rv(1)*rv(1) + rv(2)*rv(2) + rv(3)*rv(3))
                 v_qmmm%pw%cr3d(i,j,k) = v_qmmm%pw%cr3d(i,j,k) + &
                                         mm_charges(Imm) * Vpot(Nexp,r,r0)
              End Do
