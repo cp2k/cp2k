@@ -216,6 +216,7 @@ MODULE pol_coefs
                    ao % kind_info (icoef) % element_symbol = ki (ikind) % element_symbol
                    ao % kind_info (icoef) % natom = ki (ikind) % natom
                    ao % kind_info (icoef) % z = ki (ikind) % z
+                   NULLIFY (ao % kind_info ( icoef ) % atom_list )
                    IF (.NOT.ASSOCIATED(ao % kind_info (icoef) % atom_list)) THEN         
                      ALLOCATE (ao % kind_info (icoef) % atom_list (natoms) , STAT = ios)
                    END IF
