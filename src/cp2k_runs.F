@@ -24,7 +24,6 @@ MODULE cp2k_runs
                                              dp
   USE library_tests,                   ONLY: lib_test
   USE qs_main,                         ONLY: quickstep_create_force_env
-  USE timings,                         ONLY: trace_debug
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release

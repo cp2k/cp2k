@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2k developers group                                 !
+!   Copyright (C) 2000 - 2005 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/fist_neighbor_list_control [1.0] *
 !!
@@ -25,13 +25,13 @@ MODULE fist_neighbor_list_control
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY: dp, default_string_length
   USE fist_environment_types, ONLY : fist_environment_type
+  USE fist_neighbor_list_types, ONLY: neighbor_list_set_p_type
   USE fist_neighbor_lists, ONLY : build_fist_neighbor_lists
   USE fist_nonbond_env_types, ONLY : fist_nonbond_env_type, &
                                      fist_nonbond_env_get, &
                                      fist_nonbond_env_set
   USE message_passing, ONLY : mp_max, mp_sum
   USE particle_types, ONLY : particle_type
-  USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
   USE simulation_cell, ONLY : cell_type, real_to_scaled, scaled_to_real
   USE termination, ONLY : stop_memory, stop_program
   USE timings, ONLY : timeset, timestop

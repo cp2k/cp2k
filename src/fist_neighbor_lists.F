@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2003  CP2K developers group                          !
+!   Copyright (C) 2000 - 2005  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/fist_neighbor_lists [1.0] *
 !!
@@ -24,33 +24,47 @@ MODULE fist_neighbor_lists
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE global_types,                    ONLY: LOW,&
-                                             global_environment_type
-  USE kinds,                           ONLY: dp,&
-                                             dp_size,&
-                                             int_size
-  USE particle_types,                  ONLY: particle_type
-  USE qs_neighbor_list_types,          ONLY: add_neighbor_list,&
+  USE fist_neighbor_list_types,        ONLY: add_neighbor_list,&
                                              add_neighbor_node,&
                                              allocate_neighbor_list_set,&
                                              deallocate_neighbor_list_set,&
+                                             first_list,&
+                                             first_node,&
+                                             get_neighbor_list,&
+                                             get_neighbor_list_set,&
+                                             get_neighbor_node,&
                                              neighbor_list_p_type,&
                                              neighbor_list_set_p_type,&
-                                             neighbor_list_set_type
+                                             neighbor_list_set_type,&
+                                             neighbor_list_type,&
+                                             neighbor_node_type,&
+                                             next
+  USE global_types,                    ONLY: LOW,&
+                                             MEDIUM,&
+                                             global_environment_type
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
+                                             dp_size,&
+                                             int_size
+  USE machine,                         ONLY: m_flush
+  USE message_passing,                 ONLY: mp_sum,&
+                                             mp_sync
+  USE particle_types,                  ONLY: particle_type
   USE qs_neighbor_lists,               ONLY: allocate_subcell,&
                                              deallocate_subcell,&
                                              local_atoms_type,&
-                                             subcell_type,&
-                                             write_distribution,&
-                                             write_neighbor_lists
+                                             subcell_type
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell,&
                                              pbc,&
                                              plane_distance,&
                                              real_to_scaled,&
                                              scaled_to_real
+  USE string_utilities,                ONLY: compress
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -589,6 +603,313 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE build_neighbor_lists
+
+! *****************************************************************************
+
+  SUBROUTINE write_distribution(ab,atomic_kind_set,globenv)
+
+!   Purpose: Print the distribution of the simple pair neighbor list.
+
+!   History: - Creation (19.06.2003,MK)
+
+!   ***************************************************************************
+
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: ab
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_distribution"
+
+    INTEGER :: group, iab, ikind, ilist, ipe, istat, jkind, mype, n, nkind, &
+      nlist, nnode, npe, nsgf_a, nsgf_b, output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
+    LOGICAL                                  :: ionode
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list
+
+!   ---------------------------------------------------------------------------
+!   *** Quick return, if no printing is requested ***
+
+    IF (.NOT.globenv%print%distribution) RETURN
+
+    group = globenv%group
+    ionode = globenv%ionode
+    mype = globenv%mepos + 1
+    npe = globenv%num_pe
+    output_unit = globenv%scr
+
+!   *** Allocate work storage ***
+
+    ALLOCATE (nblock(npe),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "nblock",npe*int_size)
+    nblock(:) = 0
+
+    ALLOCATE (nelement(npe),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "nelement",npe*int_size)
+    nelement(:) = 0
+
+    nkind = SIZE(atomic_kind_set)
+
+    DO ikind=1,nkind
+
+      atomic_kind => atomic_kind_set(ikind)
+
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           orb_basis_set=orb_basis_set)
+
+      IF (ASSOCIATED(orb_basis_set)) THEN
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=nsgf_a)
+      ELSE
+        nsgf_a = 1
+      END IF
+
+      DO jkind=1,nkind
+
+        iab = ikind + nkind*(jkind - 1)
+
+        neighbor_list_set => ab(iab)%neighbor_list_set
+
+        IF (.NOT.ASSOCIATED(neighbor_list_set)) CYCLE
+
+        atomic_kind => atomic_kind_set(jkind)
+
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             orb_basis_set=orb_basis_set)
+
+        IF (ASSOCIATED(orb_basis_set)) THEN
+          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=nsgf_b)
+        ELSE
+          nsgf_b = 1
+        END IF
+
+        n = nsgf_a*nsgf_b
+
+        CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
+                                   nlist=nlist)
+
+        neighbor_list => first_list(neighbor_list_set)
+
+        DO ilist=1,nlist
+
+          CALL get_neighbor_list(neighbor_list=neighbor_list,&
+                                 nnode=nnode)
+
+          nblock(mype) = nblock(mype) + nnode
+          nelement(mype) = nelement(mype) + n*nnode
+
+          neighbor_list => next(neighbor_list)
+
+        END DO
+
+      END DO
+
+    END DO
+
+    CALL mp_sum(nblock,group)
+    CALL mp_sum(nelement,group)
+
+    IF (ionode) THEN
+      WRITE (UNIT=output_unit,&
+             FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I6,T27,I10,T55,I10))")&
+        "DISTRIBUTION OF THE NEIGHBOR LISTS",&
+        "Process   Number of particle pairs   Number of matrix elements",&
+        (ipe-1,nblock(ipe),nelement(ipe),ipe=1,npe)
+      WRITE (UNIT=output_unit,FMT="(/,T7,A3,T27,I10,T55,I10)")&
+        "Sum",SUM(nblock),SUM(nelement)
+    END IF
+
+!   *** Release work storage ***
+
+    DEALLOCATE (nblock,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "nblock")
+
+    DEALLOCATE (nelement,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "nelement")
+
+  END SUBROUTINE write_distribution
+
+! *****************************************************************************
+
+  SUBROUTINE write_neighbor_lists(ab,particle_set,cell,globenv,name)
+
+!   Purpose: Write a set of neighbor lists to the output unit.
+
+!   History: - Creation (04.03.2002,MK)
+!            - Adapted to the new parallelized neighbor list version
+!              (26.06.2003,MK)
+
+!   ***************************************************************************
+
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), INTENT(IN)               :: ab
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    CHARACTER(LEN=*), INTENT(IN)             :: name
+
+    CHARACTER(LEN=8)                         :: unit_of_length_name
+    CHARACTER(LEN=default_string_length)     :: string
+    INTEGER                                  :: atom_a, atom_b, group, iab, &
+                                                ilist, inode, ipe, mype, &
+                                                nlist, nneighbor, nnode, npe, &
+                                                output_unit
+    INTEGER, DIMENSION(3)                    :: cell_a, cell_b
+    LOGICAL                                  :: ionode, print_headline
+    REAL(dp)                                 :: dab, unit_of_length
+    REAL(dp), DIMENSION(3)                   :: ra, rab, rb
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list
+    TYPE(neighbor_node_type), POINTER        :: neighbor_node
+
+!   ---------------------------------------------------------------------------
+
+    group = globenv%group
+    ionode = globenv%ionode
+    mype = globenv%mepos + 1
+    npe = globenv%num_pe
+    output_unit = globenv%scr
+
+    CALL get_cell(cell=cell,&
+                  unit_of_length=unit_of_length,&
+                  unit_of_length_name=unit_of_length_name)
+
+    CALL mp_sync(group)
+    CALL m_flush(output_unit)
+    CALL mp_sync(group)
+
+!   *** Create the headline ***
+
+    string = ""
+
+    IF (npe == 1) THEN
+      string = TRIM(name)//" IN "//TRIM(unit_of_length_name)
+    ELSE
+      WRITE (UNIT=string,FMT="(A,I5,A)")&
+        TRIM(name)//" IN "//TRIM(unit_of_length_name)//" (PROCESS",mype-1,")"
+        CALL compress(string)
+    END IF
+
+    print_headline = .TRUE.
+
+!   *** All processes print now their neighbor lists portion consecutively ***
+
+    nneighbor = 0
+
+    DO ipe=1,npe
+
+      IF (ipe == mype) THEN
+
+!       *** Print first part of headline ***
+
+        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") TRIM(string)
+
+        DO iab=1,SIZE(ab)
+
+          neighbor_list_set => ab(iab)%neighbor_list_set
+
+          IF (.NOT.ASSOCIATED(neighbor_list_set)) CYCLE
+
+!         *** Loop over all atoms and their corresponding neighbor lists ***
+
+          CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
+                                     nlist=nlist)
+
+          neighbor_list => first_list(neighbor_list_set)
+
+          DO ilist=1,nlist
+
+            CALL get_neighbor_list(neighbor_list=neighbor_list,&
+                                   atom=atom_a,&
+                                   cell=cell_a,&
+                                   nnode=nnode)
+            nneighbor = nneighbor + nnode
+
+            IF (globenv%print%level > LOW) THEN
+
+!             *** Print second part of headline ***
+
+              IF (print_headline) THEN
+                WRITE (UNIT=output_unit,FMT="(/,T3,A,7X,A,2(11X,A),10X,A)")&
+                  "Atom  Neighbors  Cell(i,j,k)","X","Y","Z","Distance"
+                print_headline = .FALSE.
+              END IF
+
+              ra(:) = pbc(particle_set(atom_a)%r,cell,cell_a)
+
+              WRITE (UNIT=output_unit,FMT="(/,T2,I5,3X,I6,3X,3I4,3F12.6)")&
+                atom_a,nnode,cell_a(1:3),ra(1:3)/unit_of_length
+
+!             *** Direct the work pointer to the  ***
+!             *** start point of the current list ***
+
+              neighbor_node => first_node(neighbor_list)
+
+!             *** Traverse the neighbor list of the current ***
+!             *** atom and print the stored information     ***
+
+              IF (globenv%print%level > MEDIUM) THEN
+
+                DO inode=1,nnode
+
+                  CALL get_neighbor_node(neighbor_node=neighbor_node,&
+                                         neighbor=atom_b,&
+                                         cell=cell_b,&
+                                         r=rab)
+
+                  rb(:) = ra(:) + rab(:)
+                  dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
+
+                  WRITE (UNIT=output_unit,&
+                         FMT="(T10,I6,3X,3I4,3F12.6,2X,F12.6)")&
+                    atom_b,cell_b(1:3),rb(1:3)/unit_of_length,dab/unit_of_length
+
+                  neighbor_node => next(neighbor_node)
+
+                END DO
+
+              END IF
+
+            END IF
+
+            neighbor_list => next(neighbor_list)
+
+          END DO
+
+        END DO
+
+        string = ""
+
+        IF (npe == 1) THEN
+          WRITE (UNIT=string,FMT="(A,I12)")&
+            "Total number of neighbor interactions:",nneighbor
+        ELSE
+          WRITE (UNIT=string,FMT="(A,I12,A,I12)")&
+            "Total number of neighbor interactions for process",mype-1,":",&
+            nneighbor
+        END IF
+        CALL compress(string)
+        WRITE (UNIT=output_unit,FMT="(/,T2,A)") TRIM(string)
+
+      END IF
+
+      CALL mp_sync(group)
+      CALL m_flush(output_unit)
+      CALL mp_sync(group)
+
+    END DO
+
+  END SUBROUTINE write_neighbor_lists
 
 ! *****************************************************************************
 

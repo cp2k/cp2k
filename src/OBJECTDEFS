@@ -112,6 +112,7 @@ OBJECTS_GENERIC =\
  fist_intra_force.o\
  fist_main.o\
  fist_neighbor_list_control.o\
+ fist_neighbor_list_types.o\
  fist_neighbor_lists.o\
  fist_nonbond_env_types.o\
  fist_nonbond_force.o\

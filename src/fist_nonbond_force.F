@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000 - 2005 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/fist_nonbond_force [1.0] *
 !!
@@ -27,15 +27,7 @@ MODULE fist_nonbond_force
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_environment_type, &
                                              ewald_env_get
-  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type, &
-                                             fist_nonbond_env_get
-  USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi
-  USE message_passing, ONLY : mp_sum
-  USE pair_potential,                  ONLY: potential_s
-  USE pair_potential_types,            ONLY: pair_potential_type
-  USE particle_types,                  ONLY: particle_type
-  USE qs_neighbor_list_types,          ONLY: first_list,&
+  USE fist_neighbor_list_types,        ONLY: first_list,&
                                              first_node,&
                                              get_neighbor_list,&
                                              get_neighbor_list_set,&
@@ -45,6 +37,14 @@ MODULE fist_nonbond_force
                                              neighbor_list_type,&
                                              neighbor_node_type,&
                                              next
+  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type, &
+                                             fist_nonbond_env_get
+  USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: pi
+  USE message_passing,                 ONLY : mp_sum
+  USE pair_potential,                  ONLY: potential_s
+  USE pair_potential_types,            ONLY: pair_potential_type
+  USE particle_types,                  ONLY: particle_type
   USE simulation_cell,                 ONLY: cell_type,&
                                              scaled_to_real
   USE splines,                         ONLY: spline_environment_type, &
@@ -55,6 +55,9 @@ MODULE fist_nonbond_force
   IMPLICIT NONE
 
   PRIVATE
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "fist_nonbond_force"
+
   PUBLIC :: force_nonbond, bonded_correct_gaussian
 
 !!***
@@ -78,12 +81,10 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
     REAL(KIND=dp), INTENT(OUT)                   :: pot_nonbond
     REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: f_nonbond, ptens_nonbond
 
-    CHARACTER(LEN=*), PARAMETER :: module_name = "fist_nonbond_force", &
-      routine_name = "force_nonbond", &
-      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "force_nonbond"
 
     INTEGER                                  :: ab, atom_a, atom_b, &
-                                                cell_b( 3 ), handle, ikind, &
+                                                handle, ikind, &
                                                 ilist, inode, jkind, nkinds, &
                                                 nlist, nnode, nexl
     REAL(KIND=dp)                                :: energy, flops, fscalar, rab2, &
@@ -102,7 +103,6 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
     TYPE ( spline_environment_type ), POINTER     :: spline_env
     TYPE ( pair_potential_type ), POINTER     :: potparm ( :, : )
 
-!MK
 !------------------------------------------------------------------------------
 
   CALL timeset ( routine_name, 'E', 'Mflops', handle )
@@ -152,7 +152,6 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
 
             CALL get_neighbor_node(neighbor_node=neighbor_node,&
                                    neighbor=atom_b,&
-                                   cell=cell_b,&
                                    s=rab)
 
             drb(:) = particle_set(atom_b)%r(:) - &

@@ -76,8 +76,7 @@ MODULE fist_environment
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
-                                             timestop,&
-                                             trace_debug
+                                             timestop
   USE topology,                        ONLY: topology_control
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   IMPLICIT NONE

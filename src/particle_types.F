@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2004  CP2K developers group                          !
+!   Copyright (C) 2000 - 2005  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****s* cp2k/particle_types [1.0] *
 !!
@@ -19,6 +19,7 @@
 !!     - Allow for general coordinate input (MK,13.09.2003)
 !!     - Molecule concept introduced (MK,26.09.2003)
 !!     - Last atom information added (jgh,23.05.2004)
+!!     - particle_type cleaned (MK,03.02.2005)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -106,17 +107,12 @@ MODULE particle_types
 
   TYPE particle_type
      TYPE(atomic_kind_type), POINTER       :: atomic_kind ! atomic kind information
-     TYPE(local_particle_type), POINTER    :: lpi ! local particle information
-     REAL(KIND = dp), DIMENSION(3)         :: f,& ! force
-                                              r,& ! position
-                                              v   ! velocity
-     LOGICAL                               :: is_fixed
-!MK this components should become obsolete and they are only present
-!MK for compatability reasons
-     INTEGER                               :: abase,first_cgf,first_cgf_aux,&
-                                              first_sgf,first_sgf_aux,grid_id,&
-                                              iatom,kind,last_cgf,last_sgf
-     INTEGER, DIMENSION(:), POINTER        :: coef_list
+     TYPE(local_particle_type), POINTER    :: lpi         ! local particle information
+     REAL(KIND = dp), DIMENSION(3)         :: f,&         ! force
+                                              r,&         ! position
+                                              v           ! velocity
+     INTEGER                               :: iatom       ! atomic index
+     LOGICAL                               :: is_fixed    ! force is set to zero
   END TYPE particle_type
 
 ! *** Public data types ***
@@ -160,8 +156,8 @@ CONTAINS
 !!     - nullify_non_owned_pointers: if the pointers to shared structures
 !!       should be nullified. If false, copies the pointer (but does not
 !!       try to perform any memory handling).
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -180,26 +176,17 @@ SUBROUTINE clone_particle(p_in,p_out,nullify_non_owned_pointers,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'clone_particle', &
       routineP = module_name//':'//routineN
 
-  NULLIFY(p_out%atomic_kind, p_out%lpi,p_out%coef_list)
+  NULLIFY(p_out%atomic_kind)
+  NULLIFY(p_out%lpi)
   IF (.NOT.nullify_non_owned_pointers) THEN
      p_out%atomic_kind => p_in%atomic_kind
      p_out%lpi => p_in%lpi
-     p_out%coef_list => p_in%coef_list
   END IF
   p_out%r=p_in%r
   p_out%f=p_in%f
   p_out%v=p_in%v
   p_out%is_fixed=p_in%is_fixed
-  p_out%abase=p_in%abase
-  p_out%first_cgf=p_in%first_cgf
-  p_out%first_cgf_aux=p_in%first_cgf_aux
-  p_out%first_sgf=p_in%first_sgf
-  p_out%first_sgf_aux=p_in%first_sgf_aux
-  p_out%grid_id=p_in%grid_id
   p_out%iatom=p_in%iatom
-  p_out%kind=p_in%kind
-  p_out%last_cgf=p_in%last_cgf
-  p_out%last_sgf=p_in%last_sgf
 END SUBROUTINE clone_particle
 !***************************************************************************
 
@@ -231,10 +218,7 @@ END SUBROUTINE clone_particle
 
     DO iparticle=1,nparticle
       NULLIFY (particle_set(iparticle)%atomic_kind)
-      NULLIFY (particle_set(iparticle)%coef_list)
       NULLIFY (particle_set(iparticle)%lpi)
-      particle_set(iparticle)%abase = 0
-      particle_set(iparticle)%grid_id = 0
       particle_set(iparticle)%iatom = iparticle
       particle_set(iparticle)%f(:) = 0.0_dp
       particle_set(iparticle)%r(:) = 0.0_dp
@@ -267,12 +251,6 @@ END SUBROUTINE clone_particle
     IF (ASSOCIATED(particle_set)) THEN
 
       DO iparticle=1,SIZE(particle_set)
-
-        IF (ASSOCIATED(particle_set(iparticle)%coef_list)) THEN
-          DEALLOCATE (particle_set(iparticle)%coef_list,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                           "particle_set(iparticle)%coef_list")
-        END IF
 
         IF (ASSOCIATED(particle_set(iparticle)%lpi)) THEN
           IF (ASSOCIATED(particle_set(iparticle)%lpi%exclusion)) THEN
@@ -655,7 +633,7 @@ END SUBROUTINE clone_particle
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_particle_set"
     CHARACTER(LEN=4), PARAMETER              :: required_descriptors = "AXYZ"
-    INTEGER, PARAMETER                       :: nblock1 = 1, nblock2 = 1   
+    INTEGER, PARAMETER                       :: nblock1 = 1, nblock2 = 1
 
     CHARACTER(LEN=1)                         :: descriptor
     CHARACTER(LEN=200)                       :: message

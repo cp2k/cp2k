@@ -33,10 +33,10 @@ MODULE fist_nonbond_env_types
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE fist_neighbor_list_types,        ONLY: neighbor_list_set_p_type, &
+                                             deallocate_neighbor_list_set
   USE kinds,                           ONLY: dp, &
                                              default_string_length
-  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type, &
-                                             deallocate_neighbor_list_set
   USE splines,                         ONLY: spline_environment_type,&
                                              spline_env_retain, &
                                              spline_env_release

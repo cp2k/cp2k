@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000 - 2005 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/fist_force_numer [1.0] *
 !!
@@ -25,6 +25,16 @@ MODULE fist_force_numer
   USE distribution_1d_types,           ONLY : distribution_1d_type
   USE ewald_environment_types,         ONLY : ewald_environment_type, ewald_env_get
   USE ewald_pw_types,                  ONLY : ewald_pw_type, ewald_pw_get
+  USE fist_neighbor_list_types,        ONLY: first_list,&
+                                             first_node,&
+                                             get_neighbor_list,&
+                                             get_neighbor_list_set,&
+                                             get_neighbor_node,&
+                                             neighbor_list_set_p_type,&
+                                             neighbor_list_set_type,&
+                                             neighbor_list_type,&
+                                             neighbor_node_type,&
+                                             next
   USE fist_nonbond_env_types,          ONLY : fist_nonbond_env_type, fist_nonbond_env_get
   USE global_types,                    ONLY : global_environment_type
   USE kinds,                           ONLY: dp, default_string_length, int_size, dp_size
@@ -51,16 +61,6 @@ MODULE fist_force_numer
   USE pme,                            ONLY: pme_evaluate
   USE qs_neighbor_lists,              ONLY: local_atoms_type,&
                                              subcell_type
-  USE qs_neighbor_list_types,         ONLY: first_list,&
-                                            first_node,&
-                                            get_neighbor_list,&
-                                            get_neighbor_list_set,&
-                                            get_neighbor_node,&
-                                            neighbor_list_set_p_type,&
-                                            neighbor_list_set_type,&
-                                            neighbor_list_type,&
-                                            neighbor_node_type,&
-                                            next
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell,&
                                              plane_distance,&
