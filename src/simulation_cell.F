@@ -646,7 +646,7 @@ CONTAINS
         CALL read_object(cell%hmat(3,3))
       CASE ("SUBCELLS")
         CALL read_object(cell%subcells)
-      CASE ("UNIT")
+      CASE ("UNIT","UNITS")
         CALL read_object(string,lower_to_upper=.TRUE.)
         SELECT CASE (TRIM(string))
         CASE ("ANGSTROM")
@@ -670,6 +670,8 @@ CONTAINS
                            "Invalid name for the cell unit of length <"//&
                            TRIM(string)//"> found")
         END SELECT
+      CASE DEFAULT
+          CALL stop_parser(routine,"Invalid keyword found")
       END SELECT
     END DO
 
