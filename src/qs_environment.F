@@ -54,9 +54,9 @@ MODULE qs_environment
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
-  USE hartree_local_methods,           ONLY: init_coulomb_local
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
+  USE hartree_local_methods,           ONLY: init_coulomb_local
   USE input_types,                     ONLY: setup_parameters_type
   USE kinds,                           ONLY: dp,&
                                              int_size
@@ -149,6 +149,8 @@ CONTAINS
     REAL(dp), DIMENSION(1:3, 1:3), &
       INTENT(IN), OPTIONAL                   :: new_h_matrix
 
+    CHARACTER(len=*), PARAMETER :: routineN="qs_init",&
+         routineP=module_name//":"//routineN
     LOGICAL                                  :: use_ref_cell
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -172,8 +174,7 @@ CONTAINS
 !   *** Read the input section with the cell parameters ***
 
     IF (PRESENT(new_h_matrix)) THEN
-        WRITE(6,*) 'DONT USE THE H-MATRIX LIKE THIS'
-        STOP
+        CALL stop_program(routineP,'DONT USE THE H-MATRIX LIKE THIS')
 !        CALL read_cell(cell,globenv,new_h_matrix)
     ELSE
         CALL read_cell(cell,globenv,cell_ref=cell_ref,&
@@ -205,7 +206,7 @@ CONTAINS
     CALL mol_kind_new_list_release(mol_kinds,error=error)
     
     CALL qs_init_subsys(qs_env,subsystem,cell,cell_ref,use_ref_cell,&
-         globenv,.false.,error)
+         globenv,.FALSE.,error)
     CALL cell_release(cell,error=error)
     CALL cell_release(cell_ref,error=error)
     CALL cp_subsys_release(subsystem,error=error)
@@ -227,9 +228,9 @@ CONTAINS
     TYPE(cp_subsystem_type), POINTER         :: subsystem
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     LOGICAL, INTENT(in)                      :: use_ref_cell
-    LOGICAL, INTENT(in)                      :: qmmm
     TYPE(global_environment_type), &
       INTENT(INOUT)                          :: globenv
+    LOGICAL, INTENT(in)                      :: qmmm
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -435,11 +436,12 @@ CONTAINS
                     dft_control=dft_control,&
                     energy=energy,&
                     force=force,&
-                    local_molecules=local_molecules,&
-                    local_particles=local_particles,&
                     pao_env=pao_env,&
                     scf_control=scf_control,&
                     wf_history=wf_history)
+
+    CALL cp_subsys_set(subsystem,local_molecules_new=local_molecules,&
+         local_particles=local_particles,error=error)
 
     CALL distribution_1d_release(local_particles,error=error)
     CALL distribution_1d_release(local_molecules,error=error)

@@ -19,16 +19,18 @@
 !******************************************************************************
 
 MODULE kg_environment
-
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
+                                             atomic_kind_list_release,&
+                                             atomic_kind_list_type
   USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
-                                             atomic_kind_type,&
                                              atomic_kind_p_type,&
+                                             atomic_kind_type,&
                                              attach_atomic_kind_set,&
-                                             get_atomic_kind_set,&
                                              get_atomic_kind,&
-                                             set_atomic_kind,&
+                                             get_atomic_kind_set,&
                                              init_atomic_kind_set,&
                                              read_atomic_kind_set,&
+                                             set_atomic_kind,&
                                              write_atomic_kind_set,&
                                              write_gto_basis_sets
   USE checkpoint_handler,              ONLY: write_checkpoint_information
@@ -39,13 +41,15 @@ MODULE kg_environment
                                              write_dft_control,&
                                              write_qs_control
   USE cp_error_handling,               ONLY: cp_error_type
+  USE cp_para_env,                     ONLY: cp_para_env_create
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_para_env,                     ONLY: cp_para_env_create,&
-                                             cp_para_env_retain
+  USE cp_subsystem_types,              ONLY: cp_subsys_create,&
+                                             cp_subsys_release,&
+                                             cp_subsys_set,&
+                                             cp_subsystem_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
-  USE distribution_2d_types,           ONLY: distribution_2d_create,&
-                                             distribution_2d_release,&
+  USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d,&
                                              distribute_molecules_2d
@@ -61,41 +65,47 @@ MODULE kg_environment
                                              set_kg_env
   USE kg_force_types,                  ONLY: allocate_kg_force,&
                                              kg_force_type
-  USE kg_rho_methods,                  ONLY: kg_rho_create,&
-                                             kg_rho_setup
+  USE kg_rho_methods,                  ONLY: kg_rho_create
   USE kg_rho_types,                    ONLY: kg_rho_release,&
                                              kg_rho_type
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_comm_split
+  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
+                                             mol_kind_new_list_release,&
+                                             mol_kind_new_list_type
+  USE mol_new_list_types,              ONLY: mol_new_list_create,&
+                                             mol_new_list_release,&
+                                             mol_new_list_type
   USE molecule_kind_types,             ONLY: allocate_molecule_kind_set,&
-                                             deallocate_molecule_kind_set,&
-                                             molecule_kind_type,&
                                              atom_type,&
                                              get_molecule_kind,&
+                                             molecule_kind_type,&
                                              set_molecule_kind,&
                                              write_molecule_kind_set
-  USE molecule_types_new,              ONLY: molecule_type,&
-                                             allocate_molecule_set,&
-                                             set_molecule_set,&
-                                             set_molecule
+  USE molecule_types_new,              ONLY: allocate_molecule_set,&
+                                             molecule_type,&
+                                             set_molecule,&
+                                             set_molecule_set
   USE orbital_pointers,                ONLY: init_orbital_pointers
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
+  USE particle_list_types,             ONLY: particle_list_create,&
+                                             particle_list_release,&
+                                             particle_list_type
   USE particle_types,                  ONLY: allocate_particle_set,&
-                                             deallocate_particle_set,&
                                              particle_type,&
                                              write_particle_distances,&
                                              write_qs_particle_coordinates,&
                                              write_structure_data
-  USE qs_environment_types,            ONLY: qs_environment_p_type,&
-                                             qs_env_create, &
-                                             set_qs_env
-  USE qs_interactions,                 ONLY: init_interaction_radii
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              qs_energy_type
+  USE qs_environment_types,            ONLY: qs_env_create,&
+                                             qs_environment_p_type,&
+                                             set_qs_env
   USE qs_force_types,                  ONLY: allocate_qs_force,&
                                              qs_force_type
+  USE qs_interactions,                 ONLY: init_interaction_radii
   USE scf_control_types,               ONLY: scf_c_create,&
                                              scf_c_read_parameters,&
                                              scf_c_release,&
@@ -128,8 +138,6 @@ CONTAINS
 !!
 !!   NAME
 !!     kg_init
-!!
-!!   SYNOPSIS
 !!
 !!   FUNCTION
 !!   reads the input and database file for KG
@@ -350,13 +358,13 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(kg_rho_type), POINTER               :: rho
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(kg_rho_type), POINTER               :: rho
 
     failure=.FALSE.
 
@@ -478,56 +486,43 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_subsys_setup', &
       routineP = moduleN//':'//routineN
 
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(distribution_1d_type), POINTER      :: local_molecules
-
+    INTEGER :: first_atom, i, iatom, ierror, ikind, imol, iset, j, jmol, &
+      last_atom, n, natom, ngroups, nkind, nmol, nmol_tot, nset, sub_comm
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, &
+                                                group_distribution, &
+                                                molecule_list, natom_of_kind
     LOGICAL                                  :: failure
-
-    INTEGER, DIMENSION(:),POINTER            :: group_distribution
-    INTEGER                                  :: sub_comm, ngroups, ierror
-    TYPE(cp_para_env_type), POINTER          :: sub_para_env
-
-    TYPE(qs_environment_p_type), DIMENSION(:), &
-      POINTER                                :: qs_env
-    INTEGER                                  :: nkind, nmol_tot, imol, nset
+    TYPE(atom_type), DIMENSION(:), POINTER   :: mol_atom_list
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_p_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set_list
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: sub_atomic_kind
-
-    INTEGER                                  :: i, jmol, ikind, nmol, &
-                                                natom, first_atom, last_atom
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind,&
-                                                sub_molecule_kind
+    TYPE(cell_type), POINTER                 :: cell, sub_cell
+    TYPE(cp_para_env_type), POINTER          :: para_env, sub_para_env
+    TYPE(cp_subsystem_type), POINTER         :: subsystem
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(mol_kind_new_list_type), POINTER    :: mol_kinds
+    TYPE(mol_new_list_type), POINTER         :: mols
     TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: sub_molecule_kind_set
-    INTEGER, DIMENSION(:),POINTER            :: molecule_list
+      POINTER                                :: molecule_kind_set, &
+                                                sub_molecule_kind_set
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind, &
+                                                sub_molecule_kind
     TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: sub_molecule_set
+      POINTER                                :: molecule_set, sub_molecule_set
     TYPE(molecule_type), POINTER             :: sub_molecule
-
-    INTEGER, DIMENSION(:),POINTER            :: atom_list, natom_of_kind
-    TYPE(atom_type), DIMENSION(:), POINTER   :: mol_atom_list
+    TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: sub_particle_set
-
-    INTEGER                                  :: n, j, iset, iatom
-
+      POINTER                                :: particle_set, sub_particle_set
     TYPE(qs_energy_type), POINTER            :: sub_energy
+    TYPE(qs_environment_p_type), &
+      DIMENSION(:), POINTER                  :: qs_env
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: sub_force
-
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(cell_type), POINTER                 :: sub_cell
 
 !   ---------------------------------------------------------------------------
 
@@ -657,13 +652,32 @@ CONTAINS
         sub_cell => cell
         CALL cell_retain(cell,error)
 
+        !FM initializes the subsys
+        NULLIFY(subsystem,particles,atomic_kinds,mols,mol_kinds)
+        CALL cp_subsys_create(subsystem,para_env=para_env,error=error)
+        CALL particle_list_create(particles,els_ptr=sub_particle_set,error=error)
+        CALL atomic_kind_list_create(atomic_kinds,&
+             els_ptr=atomic_kind_set_list(jmol)%atomic_kind_set,&
+             owns_els=.TRUE.,& !FM correct? should that be false?
+             error=error)
+        CALL mol_new_list_create(mols,els_ptr=sub_molecule_set,error=error)
+        CALL mol_kind_new_list_create(mol_kinds,els_ptr=sub_molecule_kind_set,error=error)
+        CALL cp_subsys_set(subsystem,particles=particles,&
+             atomic_kinds=atomic_kinds,&
+             molecules_new=mols,molecule_kinds_new=mol_kinds,error=error)
+        CALL particle_list_release(particles,error=error)
+        CALL atomic_kind_list_release(atomic_kinds,error=error)
+        CALL mol_new_list_release(mols,error=error)
+        CALL mol_kind_new_list_release(mol_kinds,error=error)
+       !FM you might want to have a list of subsys, and just one qs_env per proc.
+       !FM where you swap the subsys, in that case qs_environment:qs_init_subsys
+       !FM would be a starting point, but you should further split up
+       !FM the initializazion that don't need to be done a second time.
+
         CALL set_qs_env(qs_env=qs_env(jmol)%qs_env,&
-                        atomic_kind_set=&
-                               atomic_kind_set_list(jmol)%atomic_kind_set,&
                         cell=sub_cell             ,&
                         dft_control=dft_control   ,&
 !d                      c=                        ,&
-                        particle_set=sub_particle_set,&
                         energy=sub_energy         ,&
                         force=sub_force           ,&
 !d                      h=                        ,&
@@ -683,11 +697,10 @@ CONTAINS
 !d                      local_particles=          ,&
 !d                      local_molecules=          ,&
                         distribution_2d=distribution_2d,&
-                        molecule_kind_set=sub_molecule_kind_set,&
-                        molecule_set=sub_molecule_set,&
-!d                      subsys=                   ,&
+                        subsys=subsystem          ,&
                         error=error                 )
 
+        CALL cp_subsys_release(subsystem,error=error)
         CALL distribution_2d_release(distribution_2d, error=error)
 
         DEALLOCATE ( atom_list, STAT=ierror )
