@@ -59,7 +59,7 @@ $(VERSION_TARGETS):
 	$(SMAKE) -f $(MAKEFILE) VERSION=$@ build
 
 $(CLEAN_TARGETS):
-	$(SMAKE) -f $(MAKEFILE) -C $(OBJDIR)/$(@D) -f $(MAKEFILE) VERSION=$(@D) $(@F)
+	$(SMAKE) -f $(MAKEFILE) -C $(OBJDIR)/$(@D) VERSION=$(@D) $(@F)
 
 include $(OBJECTDEFS)
 
