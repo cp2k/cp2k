@@ -26,7 +26,12 @@ MODULE qs_localization
   USE coefficient_types,               ONLY: coeff_type,&
                                              coeff_zero
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_sm_fm_multiply
+                                             cp_sm_fm_multiply, &
+                                             cp_fm_lu_decompose
+  USE cp_cfm_basic_linalg,             ONLY: cp_cfm_lu_decompose
+  USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                             cp_cfm_release,&
+                                             cp_complex_full_matrix_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -141,9 +146,9 @@ SUBROUTINE qs_loc_init(qs_loc_env,qs_env)
       DO iz=op_rspace%pw%pw_grid%bounds_local(1,3),op_rspace%pw%pw_grid%bounds_local(2,3)
       DO iy=op_rspace%pw%pw_grid%bounds_local(1,2),op_rspace%pw%pw_grid%bounds_local(2,2)
       DO ix=op_rspace%pw%pw_grid%bounds_local(1,1),op_rspace%pw%pw_grid%bounds_local(2,1)
-         x=DBLE(ix-op_rspace%pw%pw_grid%bounds(1,1))*twopi/DBLE(op_rspace%pw%pw_grid%npts(1))
-         y=DBLE(iy-op_rspace%pw%pw_grid%bounds(1,2))*twopi/DBLE(op_rspace%pw%pw_grid%npts(2))
-         z=DBLE(iz-op_rspace%pw%pw_grid%bounds(1,3))*twopi/DBLE(op_rspace%pw%pw_grid%npts(3)) 
+         x=REAL(ix-op_rspace%pw%pw_grid%bounds(1,1),wp)*twopi/REAL(op_rspace%pw%pw_grid%npts(1),wp)
+         y=REAL(iy-op_rspace%pw%pw_grid%bounds(1,2),wp)*twopi/REAL(op_rspace%pw%pw_grid%npts(2),wp)
+         z=REAL(iz-op_rspace%pw%pw_grid%bounds(1,3),wp)*twopi/REAL(op_rspace%pw%pw_grid%npts(3),wp) 
          SELECT CASE (i)
          CASE (1)
             thearg=x
@@ -188,18 +193,21 @@ SUBROUTINE qs_loc_compute_set(qs_loc_env,vectors,ionode,iunit)
   INTEGER :: iunit
 
   TYPE(cp_full_matrix_type), POINTER :: opvec
+  TYPE(cp_complex_full_matrix_type), POINTER :: complexresult
   TYPE(cp_full_matrix_p_type), DIMENSION(2,3) :: RESULT
   TYPE(cp_fm_struct_type), POINTER :: tmp_fm_struct
 
   INTEGER :: n,k
   INTEGER :: i,j,l
   INTEGER :: handle
+  COMPLEX(wp) :: almost_determinant
 
   COMPLEX(kind=wp) :: z
+
   REAL(wp) :: realpart,imagpart,pos(3),width(3)
 
   CALL timeset("qs_loc_compute_set","I","",handle)
-  NULLIFY(tmp_fm_struct)
+  NULLIFY(tmp_fm_struct,complexresult,opvec)
 
   ! get rows and cols of the input
   CALL cp_fm_get_info(vectors,nrow_global=n,ncol_global=k)
@@ -217,6 +225,7 @@ SUBROUTINE qs_loc_compute_set(qs_loc_env,vectors,ionode,iunit)
         CALL cp_fm_create(RESULT(j,i)%matrix,tmp_fm_struct)
     ENDDO
   ENDDO
+  CALL cp_cfm_create(complexresult,tmp_fm_struct)
   ! release one instance of the fm_struct
   CALL cp_fm_struct_release(tmp_fm_struct) 
 
@@ -247,12 +256,23 @@ SUBROUTINE qs_loc_compute_set(qs_loc_env,vectors,ionode,iunit)
     IF (ionode) WRITE(iunit,'(A,6F12.8)') "He",pos(1:3),width(1:3)
   ENDDO
 
+  ! now, find the localization length of the many body wavefunction (haha)
+  RESULT(1,1)%matrix%local_data(1,1)=0.0
+  DO i=1,3
+     complexresult%local_data(:,:)=CMPLX(result(1,i)%matrix%local_data(:,:), &
+                                         result(2,i)%matrix%local_data(:,:))
+     call cp_cfm_lu_decompose(complexresult,almost_determinant)
+     IF (ionode) WRITE(6,*) "D Eq. 11 ",i,sqrt(-2.0*k*log(abs(almost_determinant)))
+  ENDDO
+
+
   ! release results
   DO i=1,3
     DO j=1,2
        CALL cp_fm_release(RESULT(j,i)%matrix)
     ENDDO
   ENDDO
+  CALL cp_cfm_release(complexresult)
   CALL timestop(0.0_wp,handle) 
 
 END SUBROUTINE qs_loc_compute_set

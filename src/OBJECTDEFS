@@ -38,10 +38,12 @@ OBJECTS_GENERIC =\
  cp_e_rosenbrok_function.o\
  cp_error_handling.o\
  cp_fm_basic_linalg.o\
+ cp_cfm_basic_linalg.o\
  cp_fm_cholesky.o\
  cp_fm_pool_types.o\
  cp_fm_struct.o\
  cp_fm_types.o\
+ cp_cfm_types.o\
  cp_fm_utils.o\
  cp_fm_vect.o\
  cp_lbfgs.o\

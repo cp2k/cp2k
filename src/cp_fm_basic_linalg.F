@@ -54,6 +54,7 @@ MODULE cp_fm_basic_linalg
                                              cp_fm_retain,&
                                              cp_fm_set_all,&
                                              cp_fm_set_element,&
+                                             cp_fm_get_element,&
                                              cp_fm_set_submatrix,&
                                              cp_full_matrix_p_type,&
                                              cp_full_matrix_type
@@ -90,8 +91,6 @@ MODULE cp_fm_basic_linalg
                                              sparse_plus_rep_rept,&
                                              sparse_times_replicated
   USE string_utilities,                ONLY: compress
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
@@ -103,7 +102,7 @@ MODULE cp_fm_basic_linalg
 
   PUBLIC :: cp_fm_add, cp_sm_fm_multiply, cp_sm_plus_fm_fm_t,&
        cp_fm_gemm, cp_fm_symm, cp_fm_syrk, cp_fm_schur_product,&
-       cp_fm_trace, cp_fm_triangular_multiply
+       cp_fm_trace, cp_fm_triangular_multiply, cp_fm_lu_decompose
 !!***
 !****************************************************************************
 CONTAINS
@@ -336,7 +335,62 @@ CONTAINS
 
     CALL timestop(0.0_wp,handle)
   END SUBROUTINE cp_sm_plus_fm_fm_t
+
 ! *****************************************************************************
+! computes the LU decomposition of a given matrix
+! the actual purpose right now is to compute the determinant of a given matrix
+! which is most efficiently done this way, but, indeed, destroys the matrix
+! SERIOUS WARNING (KNOWN BUG) : the sign of the determinant depends on ipivot
+! one should be able to find out if ipivot is an even or an odd permutation...
+! *****************************************************************************
+  SUBROUTINE cp_fm_lu_decompose(matrix_a,almost_determinant)
+    TYPE(cp_full_matrix_type), POINTER :: matrix_a
+    REAL(wp), INTENT(OUT)              :: almost_determinant
+
+! *** locals ***
+    INTEGER :: handle,lda,i,n,istat,info,npe
+    INTEGER, DIMENSION(9) :: desca
+    REAL(wp), DIMENSION(:,:), POINTER :: a
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: ipivot
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+         "SUBROUTINE cp_fm_lu_decompose"
+    REAL(wp), DIMENSION(:), POINTER :: diag
+    REAL(wp) :: determinant
+
+    CALL timeset("cp_fm_lu_decompose","I","",handle)
+
+    a => matrix_a%local_data
+    n = matrix_a%matrix_struct%nrow_global
+    ALLOCATE(ipivot(n))
+
+#if defined(__SCALAPACK)
+    desca(:) = matrix_a%matrix_struct%descriptor(:)
+    CALL pdgetrf(n,n,a(1,1),1,1,desca,ipivot,info)
+    ALLOCATE(diag(n))
+    diag(:)=0.0_wp
+    DO i=1,n
+       CALL cp_fm_get_element(matrix_a,i,i,diag(i)) !  not completely optimal in speed i would say
+    ENDDO
+    CALL mp_sum(diag,matrix_a%matrix_struct%para_env%group)
+    determinant=1.0_wp
+    do i=1,n
+       determinant=determinant*diag(i)
+    enddo
+    DEALLOCATE(diag)
+#else
+    lda=size(a,1)
+    CALL dgetrf(n,n,a(1,1),lda,ipivot,info)
+    determinant=1.0_wp
+    do i=1,n
+       determinant=determinant*a(i,i)
+    enddo
+#endif
+    ! info is allowed to be zero
+    ! this does just signal a zero diagonal element
+    DEALLOCATE(ipivot)
+    almost_determinant=determinant ! notice that the sign is random
+
+  END SUBROUTINE
 
 
 ! *****************************************************************************
