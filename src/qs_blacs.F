@@ -54,10 +54,12 @@ MODULE qs_blacs
                                  timestop
   USE timesl,              ONLY: cputime
 
-  use cp_error_handling, only: cp_assert, cp_error_message, cp_error_type
+  use cp_error_handling, only: cp_assert, cp_error_message, cp_error_type,&
+       cp_assertion_failed
   use cp_log_handling, only: cp_to_string, cp_warning_level, cp_failure_level
   use cp_matrix_utils, only: cp_init, cp_dealloc_ref, cp_next, cp_get, &
        cp_matrix_block_iterator
+  use cp_mpi_env, only: cp_mpi_env_type, cp_mpi_get_from_glob
 
   IMPLICIT NONE
 
@@ -92,6 +94,15 @@ MODULE qs_blacs
     TYPE(blacs_matrix_type), POINTER :: blacs_matrix
   END TYPE blacs_matrix_p_type
 
+  ! the default blacs block sizes
+  ! consider using #ifdefs to give them the optimal values
+  INTEGER, PARAMETER :: optimal_blacs_col_block_size=32
+  INTEGER, PARAMETER :: optimal_blacs_row_block_size=32
+
+! *** Public parameters ***
+  PUBLIC :: optimal_blacs_col_block_size,&
+       optimal_blacs_row_block_size
+
 ! *** Public data types ***
 
   PUBLIC :: blacs_matrix_p_type,&
@@ -123,7 +134,9 @@ MODULE qs_blacs
             blacs_init_random,  blacs_schur_product, &
             blacs_transpose,  blacs_scale_matrix, &
             blacs_set_local_block,  sparse_times_blacs, &
-            sparse_plus_blacs_blacst
+            sparse_plus_blacs_blacst, allocate_blacs_matrix_vect,&
+            deallocate_blacs_matrix_vect, blacs_get_submatrix, &
+            blacs_set_submatrix
 
 ! *****************************************************************************
 
@@ -289,6 +302,61 @@ CONTAINS
   END SUBROUTINE allocate_blacs_matrix
 
 ! *****************************************************************************
+!!****f* qs_blacs/allocate_blacs_matrix_vect [1.0] *
+!!
+!!   NAME
+!!     allocate_blacs_matrix_vect
+!!
+!!   FUNCTION
+!!     allocates an array of identical blacs matrixes
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - blacs_matrixes: a pointer that will point to the array of matrixes
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine allocate_blacs_matrix_vect(blacs_matrixes,n_matrixes,&
+     nrow_global,ncol_global,globenv,name,&
+     nrow_block,ncol_block,error)
+  type(blacs_matrix_p_type), dimension(:), pointer :: blacs_matrixes
+  type(global_environment_type), intent(in):: globenv
+  character(len=*), intent(in) :: name
+  integer, intent(in) :: n_matrixes, nrow_global, ncol_global
+  integer, intent(in), optional :: nrow_block, ncol_block
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='blacs_matrixes',&
+        routineP=moduleN//':'//routineN
+  integer :: i, stat, row_bl, col_bl
+  failure=.false.
+  row_bl=optimal_blacs_row_block_size
+  col_bl=optimal_blacs_col_block_size
+  if (present(nrow_block)) row_bl=nrow_block
+  if (present(ncol_block)) col_bl=ncol_block
+  
+  allocate(blacs_matrixes(n_matrixes),stat=stat)
+  CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+  if (.not. failure) then
+     do i=1,n_matrixes
+        call allocate_blacs_matrix(blacs_matrixes(i)%blacs_matrix,&
+             nrow_global, ncol_global,row_bl,col_bl,name//cp_to_string(i),&
+             globenv)
+     end do
+  end if
+end subroutine allocate_blacs_matrix_vect
+!***************************************************************************
+
   SUBROUTINE blacs_set_local_block(matrix,block,globenv)
 ! *****************************************************************************
 
@@ -500,12 +568,16 @@ CONTAINS
 ! *****************************************************************************
 
 ! *****************************************************************************
-  SUBROUTINE sparse_times_blacs(sparse_matrix,v_in,v_out,ncol,globenv)
+  SUBROUTINE sparse_times_blacs(sparse_matrix,v_in,v_out,ncol, &
+       globenv,alpha,beta,mpi_env,block_owner)
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
     TYPE(blacs_matrix_type) , POINTER :: v_in
     TYPE(blacs_matrix_type) , POINTER :: v_out
     INTEGER, INTENT(IN)               :: ncol
-    TYPE(global_environment_type), INTENT(IN)      :: globenv
+    TYPE(global_environment_type), INTENT(IN),optional :: globenv
+    type(cp_mpi_env_type), intent(in),optional :: mpi_env
+    real(kind=wp), intent(in), optional :: alpha, beta
+    integer, intent(in), dimension(:,:), optional :: block_owner
 
 !   *** Local parameters ***
     INTEGER, PARAMETER          :: blocksize = 100
@@ -514,19 +586,36 @@ CONTAINS
 
 !   *** Local variables ***
     REAL(wp), DIMENSION(:,:), POINTER :: rep_v_in,rep_v_out
-    integer i,nrow,ncol_block,handle
+    integer i,nrow_in,nrow_out,ncol_block,handle
+    type(cp_mpi_env_type) :: mpienv
 !   ---------------------------------------------------------------------------
     CALL timeset("sparse_times_blacs","I","",handle)
-    nrow=v_in%nrow_global
-    allocate(rep_v_in(blocksize,nrow))
-    allocate(rep_v_out(blocksize,nrow))
+    if (present(mpi_env)) then
+       mpienv=mpi_env
+    else if (present(globenv)) then
+       mpienv=cp_mpi_get_from_glob(globenv)
+    else
+       call cp_assert(.false.,cp_failure_level,cp_assertion_failed,routine,&
+            "either globenv or mpi_env must be given")
+    end if
+    nrow_in=v_in%nrow_global
+    nrow_out=v_out%nrow_global
+    allocate(rep_v_in(blocksize,nrow_in))
+    allocate(rep_v_out(blocksize,nrow_out))
 
     DO i=1,ncol,blocksize
        ncol_block=MIN(ncol-i+1,blocksize)
-       call blacs_replicated_copy(v_in,rep_v_in,i,ncol_block,blocksize,"B2R",globenv)
+       call blacs_get_submatrix(v_in,rep_v_in,start_col=i,n_cols=ncol_block,&
+            mpi_env=mpienv)
+       !FM call blacs_replicated_copy(v_in,rep_v_in,i,ncol_block,blocksize,"B2R",globenv)
        call sparse_times_replicated(sparse_matrix,rep_v_in,rep_v_out,ncol_block, &
-                                    blocksize,globenv)
-       call blacs_replicated_copy(v_out,rep_v_out,i,ncol_block,blocksize,"R2B",globenv)
+                                    blocksize,mpienv, block_owner)
+       !FM call blacs_replicated_copy(v_out,rep_v_out,i,ncol_block,blocksize,"R2B",globenv)
+       call blacs_set_submatrix(v_out,rep_v_out,&
+            mpi_env=mpienv,&
+            start_col=i,n_cols=ncol_block,transpose_new_val=.true.,&
+            alpha=alpha,beta=beta)
+            
     ENDDO
 
     deallocate(rep_v_in,rep_v_out)
@@ -1403,6 +1492,7 @@ CONTAINS
        CALL dcopy(nblock*nrow_global,0.0_wp,0,rep_v(1,1),1)
     endif
 #endif
+
     DO i=1,ncol_local
        this_col=col_indices(i)-firstcol+1
        if (this_col.ge.1 .and. this_col.le.ncol) then
@@ -1412,7 +1502,7 @@ CONTAINS
              enddo
           else
              do j=1,nrow_local
-               blacs_block(j,i)=rep_v(this_col,row_indices(j))
+                blacs_block(j,i)=rep_v(this_col,row_indices(j))
              enddo
           endif
        endif
@@ -1429,6 +1519,300 @@ CONTAINS
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE blacs_replicated_copy
+
+  !!****f* qs_blacs/blacs_submatrix_set [1.0] *
+  !!
+  !!   NAME
+  !!     blacs_submatrix_set
+  !!
+  !!   FUNCTION
+  !!     sets a submatrix of a blacs matrix
+  !!      blacs_matrix(start_row:start_row+n_rows,start_col:start_col+n_cols)
+  !!      = alpha*op(new_values)(1:n_rows,1:n_cols)+ beta 
+  !!      * blacs_matrix(start_row:start_row+n_rows,start_col:start_col+n_cols)
+  !!
+  !!   NOTES
+  !!     optimized for full column updates and alpha=1.0, beta=0.0
+  !!     col_indices, and row_indices should be cached in some structure
+  !!     common to all the "similar" blacs matrixes
+  !!
+  !!   INPUTS
+  !!     - new_values: a replicated full matrix with the new values
+  !!     - blacs_matrix: the blacs to change
+  !!     - mpi_env: the mpi environment
+  !!     - start_row: the starting row of b_matrix (defaults to 1)
+  !!     - start_col: the starting col of b_matrix (defaults to 1)
+  !!     - n_rows: the number of row to change in b (defaults to
+  !!       size(op(new_values),1))
+  !!     - n_cols: the number of columns to change in b (defaults to
+  !!       size(op(new_values),2))
+  !!     - alpha: rescaling factor for the new values (defaults to 1.0)
+  !!     - beta: rescaling factor for the old values (defaults to 0.0)
+  !!     - transpose_a: if new_values should be transposed: if true
+  !!       op(new_values)=new_values^T, else op(new_values)=new_values
+  !!       (defaults to false)
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     Fawzi Mohamed
+  !!
+  !!   MODIFICATION HISTORY
+  !!     07.2002 created borrowing from Joost's blacs_replicated_copy [fawzi]
+  !!
+  !!*** *********************************************************************
+  subroutine blacs_set_submatrix(blacs_matrix,new_values,mpi_env, start_row,&
+       start_col, n_rows, n_cols, alpha, beta, transpose_new_val, error)
+    type(blacs_matrix_type) , pointer :: blacs_matrix
+    real(wp), dimension(:,:), pointer :: new_values
+    type(cp_mpi_env_type), intent(in)      :: mpi_env
+    integer, intent(in), optional :: start_row, start_col,&
+         n_rows, n_cols
+    real(kind=wp), intent(in), optional :: alpha, beta
+    logical, intent(in), optional :: transpose_new_val
+    type(cp_error_type), intent(inout), optional :: error
+
+    real(kind=wp), dimension(:,:), pointer :: blacs_block
+    real(kind=wp) :: al,be
+    integer :: i0,j0,ncol,nrow,i,j,nrow_global,ncol_global,ncol_block,&
+         source,myprow,mypcol,nprow,npcol,context, &
+         this_col,this_row,nrow_local,ncol_local,nrow_block,handle
+    integer, dimension(:), pointer :: row_indices,col_indices
+    character(len=*), parameter :: routineN='blacs_set_submatrix',&
+         routineP=moduleN//':'//routineN
+    logical :: tr_a
+    al=1.0_wp; be=0.0_wp; i0=1; j0=1; tr_a=.false.
+
+    call timeset(routineN//','//moduleN,"I","",handle)
+
+    if (present(alpha)) al=alpha
+    if (present(beta)) be=beta
+    if (present(start_row)) i0=start_row
+    if (present(start_col)) j0=start_col
+    if (present(transpose_new_val)) tr_a=transpose_new_val
+    if (tr_a) then
+       nrow=size(new_values,2)
+       ncol=size(new_values,1)
+    else
+       nrow=size(new_values,1)
+       ncol=size(new_values,2)
+    end if
+    if (present(n_rows)) nrow=n_rows
+    if (present(n_cols)) ncol=n_cols
+
+    source =mpi_env%source
+    context=blacs_matrix%context
+
+#if defined(__parallel)
+    call blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
+    blacs_block => blacs_matrix%p(myprow,mypcol)%block
+#else
+    blacs_block => blacs_matrix%p(source,source)%block
+#endif
+
+    call get_blacs_matrix_info(matrix=blacs_matrix, &
+         nrow_global=nrow_global,ncol_global=ncol_global, &
+         nrow_block =nrow_block ,ncol_block =ncol_block , &
+         nrow_local =nrow_local ,ncol_local =ncol_local , &
+         row_indices=row_indices,col_indices=col_indices,&
+         mpi_env=mpi_env)
+
+
+    if (al==1.0.and.be==0.0) then
+       do j=1,ncol_local
+          this_col=col_indices(j)-j0+1
+          if (this_col.ge.1 .and. this_col.le.ncol) then
+             if (tr_a) then
+                if (i0==1.and.nrow_global==nrow) then
+                   do i=1,nrow_local
+                      blacs_block(i,j)=new_values(this_col,row_indices(i))
+                   end do
+                else
+                   do i=1,nrow_local
+                      this_row=row_indices(i)-i0+1
+                      if (this_row>=1 .and. this_row<=nrow) then
+                         blacs_block(i,j)=new_values(this_col,this_row)
+                      end if
+                   end do
+                end if
+             else
+                if (i0==1.and.nrow_global==nrow) then
+                   do i=1,nrow_local
+                      blacs_block(i,j)=new_values(row_indices(i),this_col)
+                   end do
+                else
+                   do i=1,nrow_local
+                      this_row=row_indices(i)-i0+1
+                      if (this_row>=1 .and. this_row<=nrow) then
+                         blacs_block(i,j)=new_values(this_row,this_col)
+                      end if
+                   end do
+                end if
+             end if
+          end if
+       end do
+    else
+       do j=1,ncol_local
+          this_col=col_indices(j)-j0+1
+          if (this_col.ge.1 .and. this_col.le.ncol) then
+             if (tr_a) then
+                do i=1,nrow_local
+                   this_row=row_indices(i)-i0+1
+                   if (this_row>=1 .and. this_row<=nrow) then
+                      blacs_block(i,j)=al*new_values(this_col,this_row)+&
+                           be*blacs_block(i,j)
+                   end if
+                end do
+             else
+                do i=1,nrow_local
+                   this_row=row_indices(i)-i0+1
+                   if (this_row>=1 .and. this_row<=nrow) then
+                      blacs_block(i,j)=al*new_values(this_row,this_col)+&
+                           be*blacs_block(i,j)
+                   end if
+                end do
+             end if
+          end if
+       end do
+    end if
+    deallocate(row_indices,col_indices)
+
+    call timestop(0.0_wp,handle)
+
+  end subroutine blacs_set_submatrix
+
+  !!****f* qs_blacs/blacs_get_submatrix [1.0] *
+  !!
+  !!   NAME
+  !!     blacs_get_submatrix
+  !!
+  !!   FUNCTION
+  !!     gets a submatrix of a blacs matrix
+  !!      op(target_m)(1:n_rows,1:n_cols)
+  !!      =blacs_matrix(start_row:start_row+n_rows,start_col:start_col+n_cols)
+  !!
+  !!   NOTES
+  !!     optimized for full column updates. Zeros out a little too much
+  !!     of target_m
+  !!     col_indices, and row_indices should be cached in some structure
+  !!     common to all the "similar" blacs matrixes
+  !!
+  !!   INPUTS
+  !!     - target_m: a replicated full matrix that will contain the result
+  !!     - blacs_matrix: the blacs you want to get the info from
+  !!     - start_row: the starting row of b_matrix (defaults to 1)
+  !!     - start_col: the starting col of b_matrix (defaults to 1)
+  !!     - n_rows: the number of row to change in b (defaults to
+  !!       size(op(new_values),1))
+  !!     - n_cols: the number of columns to change in b (defaults to
+  !!       size(op(new_values),2))
+  !!     - transpose_target_m: if target_m should be transposed: if true
+  !!       op(target_m)=target_m^T, else op(target_m)=target_m
+  !!       (defaults to false)
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     Fawzi Mohamed
+  !!
+  !!   MODIFICATION HISTORY
+  !!     07.2002 created borrowing from Joost's blacs_replicated_copy [fawzi]
+  !!
+  !!*** *********************************************************************
+  subroutine blacs_get_submatrix(blacs_matrix,target_m,mpi_env, start_row,&
+       start_col, n_rows, n_cols, transpose_target_m, error)
+    type(blacs_matrix_type) , pointer :: blacs_matrix
+    real(wp), dimension(:,:), pointer :: target_m
+    type(cp_mpi_env_type), intent(in)      :: mpi_env
+    integer, intent(in), optional :: start_row, start_col,&
+         n_rows, n_cols
+    logical, intent(in), optional :: transpose_target_m
+    type(cp_error_type), intent(inout), optional :: error
+
+    real(kind=wp), dimension(:,:), pointer :: blacs_block
+    integer :: i0,j0,ncol,nrow,i,j,nrow_global,ncol_global,ncol_block,&
+         source,myprow,mypcol,nprow,npcol,context, &
+         this_col,this_row,nrow_local,ncol_local,nrow_block,handle
+    integer, dimension(:), pointer :: row_indices,col_indices
+    character(len=*), parameter :: routineN='blacs_get_submatrix',&
+         routineP=moduleN//':'//routineN
+    logical :: tr_a
+    i0=1; j0=1; tr_a=.false.
+
+    call timeset(routineN//','//moduleN,"I","",handle)
+
+    if (present(start_row)) i0=start_row
+    if (present(start_col)) j0=start_col
+    if (present(transpose_target_m)) tr_a=transpose_target_m
+    if (tr_a) then
+       nrow=size(target_m,2)
+       ncol=size(target_m,1)
+    else
+       nrow=size(target_m,1)
+       ncol=size(target_m,2)
+    end if
+    if (present(n_rows)) nrow=n_rows
+    if (present(n_cols)) ncol=n_cols
+
+    source =mpi_env%source
+    context=blacs_matrix%context
+
+#if defined(__parallel)
+    ! zero-out whole target_m 
+    call dcopy(size(target_m,1)*size(target_m,2),0.0_wp,0,target_m(1,1),1)
+    call blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
+    blacs_block => blacs_matrix%p(myprow,mypcol)%block
+#else
+    blacs_block => blacs_matrix%p(source,source)%block
+#endif
+
+    call get_blacs_matrix_info(matrix=blacs_matrix, &
+         nrow_global=nrow_global,ncol_global=ncol_global, &
+         nrow_block =nrow_block ,ncol_block =ncol_block , &
+         nrow_local =nrow_local ,ncol_local =ncol_local , &
+         row_indices=row_indices,col_indices=col_indices,&
+         mpi_env=mpi_env)
+
+
+    do j=1,ncol_local
+       this_col=col_indices(j)-j0+1
+       if (this_col.ge.1 .and. this_col.le.ncol) then
+          if (tr_a) then
+             if (i0==1.and.nrow_global==nrow) then
+                do i=1,nrow_local
+                   target_m(this_col,row_indices(i))=blacs_block(i,j)
+                end do
+             else
+                do i=1,nrow_local
+                   this_row=row_indices(i)-i0+1
+                   if (this_row>=1 .and. this_row<=nrow) then
+                      target_m(this_col,this_row)=blacs_block(i,j)
+                   end if
+                end do
+             end if
+          else
+             if (i0==1.and.nrow_global==nrow) then
+                do i=1,nrow_local
+                   target_m(row_indices(i),this_col)=blacs_block(i,j)
+                end do
+             else
+                do i=1,nrow_local
+                   this_row=row_indices(i)-i0+1
+                   if (this_row>=1 .and. this_row<=nrow) then
+                      target_m(this_row,this_col)=blacs_block(i,j)
+                   end if
+                end do
+             end if
+          end if
+       end if
+    end do
+    deallocate(row_indices,col_indices)
+
+    call mp_sum(target_m,mpi_env%group)
+    
+    call timestop(0.0_wp,handle)
+
+  end subroutine blacs_get_submatrix
 
 !******************************************************************
 ! used to replace the cholesky decomposition by the inverse
@@ -2826,8 +3210,50 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,"matrix")
 
   END SUBROUTINE deallocate_blacs_matrix
-
 ! *****************************************************************************
+
+!!****f* qs_blacs/deallocate_blacs_matrix_vect [1.0] *
+!!
+!!   NAME
+!!     deallocate_blacs_matrix_vect
+!!
+!!   FUNCTION
+!!     deallocate an array of pointers to blacs matrixes
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - blacs_matrixes: the array of matrixes to deallocate
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine deallocate_blacs_matrix_vect(blacs_matrixes, error)
+  type(blacs_matrix_p_type), dimension(:), pointer :: blacs_matrixes
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='blacs_matrixes',&
+        routineP=moduleN//':'//routineN
+  integer :: stat, i
+  failure=.false.
+  
+  if (associated(blacs_matrixes)) then
+     do i=1,size(blacs_matrixes)
+        call deallocate_blacs_matrix(blacs_matrixes(i)%blacs_matrix)
+     end do
+     deallocate(blacs_matrixes,stat=stat)
+     CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+  end if
+end subroutine deallocate_blacs_matrix_vect
+!***************************************************************************
 
   SUBROUTINE finish_blacs(globenv)
 
@@ -2956,7 +3382,7 @@ CONTAINS
 
   SUBROUTINE get_blacs_matrix_info(matrix,name,nrow_global,ncol_global,&
                                    nrow_block,ncol_block,nrow_local,ncol_local,&
-                                   row_indices,col_indices,globenv)
+                                   row_indices,col_indices,globenv, mpi_env)
 
 !   Purpose: Return informations about the specified BLACS matrix.
 !   always allocates the indices vector if present.
@@ -2973,6 +3399,7 @@ CONTAINS
                                                nrow_local,ncol_local
     INTEGER, OPTIONAL, DIMENSION(:), POINTER:: row_indices,col_indices
     TYPE(global_environment_type), INTENT(IN), OPTIONAL :: globenv
+    type(cp_mpi_env_type), intent(in), optional :: mpi_env
 
     INTEGER source,i,nprow,npcol,myprow,mypcol,context
 #if defined(__parallel)
@@ -2991,9 +3418,15 @@ CONTAINS
         source=globenv%source
         context=globenv%context
     ENDIF
+    if (present(mpi_env)) then
+       source=mpi_env%source
+       context=matrix%context
+    end if
 
     IF (present(nrow_local)) THEN
-      IF (.not. present(globenv)) CALL stop_program("get_blacs_matrix_info","globenv")
+      IF (.not. present(globenv).and..not.present(mpi_env)) then
+         CALL stop_program("get_blacs_matrix_info","globenv")
+      END IF
 #if defined(__parallel)
           CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
           nrow_local = matrix%p(myprow,mypcol)%nrow_local
@@ -3003,7 +3436,9 @@ CONTAINS
     ENDIF
 
     IF (present(ncol_local)) THEN
-      IF (.not. present(globenv)) CALL stop_program("get_blacs_matrix_info","globenv")
+      IF (.not. present(globenv).and..not.present(mpi_env)) then
+         CALL stop_program("get_blacs_matrix_info","globenv")
+      END IF
 #if defined(__parallel)
           CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
           ncol_local = matrix%p(myprow,mypcol)%ncol_local
@@ -3013,7 +3448,9 @@ CONTAINS
     ENDIF
 
     IF (present(row_indices)) THEN
-       IF (.not. present(globenv)) CALL stop_program("get_blacs_matrix_info","globenv")
+      IF (.not. present(globenv).and..not.present(mpi_env)) then
+         CALL stop_program("get_blacs_matrix_info","globenv")
+      END IF
 #if defined(__parallel)
        CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
        allocate(row_indices(matrix%p(myprow,mypcol)%nrow_local))
@@ -3029,7 +3466,9 @@ CONTAINS
     ENDIF
 
     IF (present(col_indices)) THEN
-       IF (.not. present(globenv)) CALL stop_program("get_blacs_matrix_info","globenv")
+      IF (.not. present(globenv).and..not.present(mpi_env)) then
+         CALL stop_program("get_blacs_matrix_info","globenv")
+      END IF
 #if defined(__parallel)
        CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
        allocate(col_indices(matrix%p(myprow,mypcol)%ncol_local))
