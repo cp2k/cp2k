@@ -225,7 +225,8 @@ CONTAINS
     CALL init_md_ftable(maxl)
 
     ! Initialise/print the atomic/molecular kind set
-    CALL init_atomic_kind_set(atomic_kind_set,globenv)
+    CALL init_atomic_kind_set(atomic_kind_set,globenv,&
+                              method=dft_control%qs_control%method)
     CALL write_atomic_kind_set(atomic_kind_set,globenv)
     CALL write_molecule_kind_set(molecule_kind_set,globenv)
     CALL write_total_numbers(atomic_kind_set,particle_set,globenv)

@@ -893,7 +893,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_atomic_kind(atomic_kind,globenv)
+  SUBROUTINE init_atomic_kind(atomic_kind,globenv,method)
 
 !   Purpose: Initialise an atomic kind data set.
 
@@ -905,6 +905,8 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
+    CHARACTER(LEN=10),INTENT(IN), OPTIONAL   :: method
+
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "init_atomic_kind"
 
@@ -934,8 +936,17 @@ CONTAINS
         END IF
       ELSE IF (globenv%program_name == "KG") THEN
         IF (ASSOCIATED(atomic_kind%orb_basis_set))THEN
-          IF(atomic_kind%orb_basis_set%norm_type < 0) &
-                        atomic_kind%orb_basis_set%norm_type = 1
+          IF(atomic_kind%orb_basis_set%norm_type < 0) THEN
+            IF(PRESENT(method)) THEN
+              IF(method == "KG_GPW") THEN
+                atomic_kind%orb_basis_set%norm_type = 2
+              ELSE
+                atomic_kind%orb_basis_set%norm_type = 1
+              END IF
+            ELSE
+              atomic_kind%orb_basis_set%norm_type = 1
+            END IF
+          END IF
           CALL init_orb_basis_set(atomic_kind%orb_basis_set)
         END IF
         IF (ASSOCIATED(atomic_kind%aux_basis_set))THEN
@@ -960,7 +971,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_atomic_kind_set(atomic_kind_set,globenv)
+  SUBROUTINE init_atomic_kind_set(atomic_kind_set,globenv,method)
 
 !   Purpose: Initialise an atomic kind set data set.
 
@@ -973,6 +984,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
+    CHARACTER(LEN=10),INTENT(IN), OPTIONAL   :: method
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "init_atomic_kind_set"
 
@@ -987,7 +999,7 @@ CONTAINS
 
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
-        CALL init_atomic_kind(atomic_kind,globenv)
+        CALL init_atomic_kind(atomic_kind,globenv,method=method)
       END DO
 
     ELSE

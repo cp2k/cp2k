@@ -110,8 +110,8 @@ MODULE kg_gpw_fm_mol_types
 
   PUBLIC ::  allocate_fm_mol_blocks, allocate_mol_mo_set, &
              get_fm_mol_block, get_kg_fm_mol_set,&
-             init_mol_mo_set, kg_fm_mol_set_create, &
-             kg_fm_mol_set_release, &
+             get_mol_mo_set,init_mol_mo_set, &
+             kg_fm_mol_set_create, kg_fm_mol_set_release, &
              kg_fm_mol_set_retain, set_kg_fm_mol_set
 
 ! *** Public data types ***
@@ -167,8 +167,8 @@ CONTAINS
   SUBROUTINE allocate_mol_mo_set(mo_set,n_ao,nmo,maxocc,nelectron,error)
 
     TYPE(mol_mo_set_type), POINTER            :: mo_set
-    INTEGER                                   :: n_ao,nmo,nelectron
-    REAL(dp)                                  :: maxocc
+    INTEGER, INTENT(IN)                       :: n_ao,nmo,nelectron
+    REAL(dp), INTENT(IN)                      :: maxocc
     TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                               :: error
 
@@ -198,6 +198,28 @@ CONTAINS
 
 ! *****************************************************************************
 
+  SUBROUTINE get_mol_mo_set(mo_set,homo,lfomo,maxocc,nmo,&
+                            mo,eigenvalues,occupation_numbers)
+
+    TYPE(mol_mo_set_type), POINTER            :: mo_set
+    INTEGER, INTENT(OUT), OPTIONAL            :: homo,lfomo,nmo
+    REAL(dp), INTENT(OUT), OPTIONAL           :: maxocc
+    REAL(dp), DIMENSION(:,:), POINTER,&
+      OPTIONAL                                :: mo
+    REAL(dp), DIMENSION(:), POINTER, OPTIONAL :: eigenvalues,&
+                                                 occupation_numbers
+    IF(PRESENT(mo)) mo  => mo_set%mo
+    IF(PRESENT(occupation_numbers)) &
+        occupation_numbers  => mo_set%occupation_numbers
+    IF(PRESENT(eigenvalues)) eigenvalues => mo_set%eigenvalues
+    IF(PRESENT(maxocc)) maxocc  = mo_set%maxocc
+    IF(PRESENT(homo)) homo = mo_set%homo
+    IF(PRESENT(lfomo)) lfomo = mo_set%lfomo
+    IF(PRESENT(nmo)) nmo = mo_set%nmo
+
+  END SUBROUTINE get_mol_mo_set 
+
+! *****************************************************************************
   SUBROUTINE init_mol_mo_set(mo_set,n_ao,nmo,error)
 
     TYPE(mol_mo_set_type), POINTER            :: mo_set
