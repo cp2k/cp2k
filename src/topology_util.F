@@ -2069,24 +2069,24 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   !-----------------------------------------------------------------------------
   ! 9. ????????????????????????????????????????????
   !-----------------------------------------------------------------------------
-  ALLOCATE(charge(topology%natom_type),STAT=istat)
-  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','charge')
-  charge(:)=0.0_dbl
-  IF (globenv%program_name == "FIST") THEN
-    CALL  init_atomic_kind_set(atomic_kind_set,globenv)
-    DO ikind=1,topology%natom_type
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                        elp_potential=elp_potential) 
-      CALL set_potential(potential=elp_potential,&
-                        qeff=charge(ikind))
-    END DO
-  END IF
-  DEALLOCATE (charge,STAT=istat)
-  IF (istat /= 0) THEN
-    CALL stop_memory('topology_coordinate_pack',&
-              'release work storage')
-  END IF
+!  ALLOCATE(charge(topology%natom_type),STAT=istat)
+!  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','charge')
+!  charge(:)=0.0_dbl
+!  IF (globenv%program_name == "FIST") THEN
+!    CALL  init_atomic_kind_set(atomic_kind_set,globenv)
+!    DO ikind=1,topology%natom_type
+!      atomic_kind => atomic_kind_set(ikind)
+!      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                        elp_potential=elp_potential) 
+!      CALL set_potential(potential=elp_potential,&
+!                        qeff=charge(ikind))
+!    END DO
+!  END IF
+!  DEALLOCATE (charge,STAT=istat)
+!  IF (istat /= 0) THEN
+!    CALL stop_memory('topology_coordinate_pack',&
+!              'release work storage')
+!  END IF
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------

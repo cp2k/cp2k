@@ -347,11 +347,11 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
 
 
        IF ( ionode ) THEN
-         WRITE ( iw, '( A,T71,E10.4 )' ) &
+         WRITE ( output_unit, '( A,T71,E10.4 )' ) &
             ' EWALD| Gaussian tolerance (effective) ', epsilon
-         WRITE ( iw, '( A,T63,3I6 )' ) &
+         WRITE ( output_unit, '( A,T63,3I6 )' ) &
             ' EWALD| Small box grid ', pw_small_grid % npts
-         WRITE ( iw, '( A,T63,3I6 )' ) &
+         WRITE ( output_unit, '( A,T63,3I6 )' ) &
             ' EWALD| Full box grid ', pw_big_grid % npts
        END IF
 

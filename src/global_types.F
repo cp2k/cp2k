@@ -24,6 +24,7 @@
 MODULE global_types
 
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE kinds,                           ONLY: default_string_length
 
   IMPLICIT NONE
 
@@ -161,20 +162,20 @@ MODULE global_types
 !!   SOURCE
 !!
   TYPE global_environment_type
-     TYPE(cp_para_env_type), POINTER  :: para_env
-     TYPE(print_key_type)             :: print
-     CHARACTER(LEN=200)               :: basis_set_file_name,&
-                                         coord_file_name,&
-                                         default_fft_library,&
-                                         error_file_name,&
-                                         input_file_name,&
-                                         output_file_name,&
-                                         potential_file_name,&
-                                         pp_library_path,&
-                                         program_name,&
-                                         project_name,&
-                                         restart_file_name
-     CHARACTER(LEN=60)                :: run_type
+     TYPE(cp_para_env_type), POINTER         :: para_env
+     TYPE(print_key_type)                    :: print
+     CHARACTER(LEN=default_string_length)    :: basis_set_file_name,&
+                                                coord_file_name,&
+                                                default_fft_library,&
+                                                error_file_name,&
+                                                input_file_name,&
+                                                output_file_name,&
+                                                potential_file_name,&
+                                                pp_library_path,&
+                                                program_name,&
+                                                project_name,&
+                                                restart_file_name
+     CHARACTER(LEN=default_string_length)    :: run_type
      INTEGER :: group        !! group handle for all processors
      INTEGER :: idum         !! random number seed
      INTEGER :: mepos        !! position number for local processor
