@@ -65,22 +65,19 @@ MODULE input_parsing
   USE input_val_types,                 ONLY: logical_t,&
                                              no_t,&
                                              val_create,&
-                                             val_type
+                                             val_type,&
+                                             val_write, integer_t,real_t,char_t,&
+                                             enum_t
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE output_utilities,                ONLY: print_message
-!  USE cp_linked_list_int, ONLY: cp_sll_int_type, cp_create,cp_to_array,&
-
-!       cp_dealloc
-
-!  USE cp_linked_list_real, ONLY: cp_sll_real_type, cp_create,cp_to_array,&
-
-!       cp_dealloc
-
-!  USE cp_linked_list_char, ONLY: cp_sll_char_type, cp_create,cp_to_array,&
-
-!       cp_dealloc
-
+  USE cp_linked_list_int, ONLY: cp_sll_int_type, cp_create,cp_to_array,&
+       cp_dealloc
+  USE cp_linked_list_real, ONLY: cp_sll_real_type, cp_create,cp_to_array,&
+       cp_dealloc
+  USE cp_linked_list_char, ONLY: cp_sll_char_type, cp_create,cp_to_array,&
+       cp_dealloc
+  USE input_enumeration_types, ONLY: enumeration_type, enum_i2c, enum_c2i
   USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -91,6 +88,7 @@ MODULE input_parsing
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='input_parsing'
 
+  PUBLIC :: section_vals_parse, val_create_parsing
 !***
 !****************************************************************************
 CONTAINS
@@ -107,6 +105,7 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
+!!     - root_section: if the root section should be parsed (defaults to true)
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -114,9 +113,11 @@ CONTAINS
 !!     fawzi
 !!
 !!*** **********************************************************************
-  RECURSIVE SUBROUTINE section_vals_parse(section_vals,parser,error)
+  RECURSIVE SUBROUTINE section_vals_parse(section_vals,parser, &
+       root_section,error)
     TYPE(section_vals_type), POINTER         :: section_vals
     TYPE(cp_parser_type), POINTER            :: parser
+    LOGICAL, INTENT(in), optional :: root_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -127,16 +128,20 @@ CONTAINS
     INTEGER                                  :: desc_level, ik, irs, is
     LOGICAL                                  :: compatible_end, failure, &
                                                 skip_description, skip_help, &
-                                                whole_section
+                                                whole_section, root_sect,&
+                                                at_end,suberror_happened
     TYPE(cp_error_type)                      :: suberror
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sll_val_type), POINTER           :: last_val, new_val
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: el
+    integer nsub
 
   failure=.FALSE.
-  
+  root_sect=.true.
+  if (present(root_section)) root_sect=root_section
+
   CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
   CALL cp_error_init(suberror,stop_level=cp_fatal_level,template_error=error)
@@ -144,20 +149,22 @@ CONTAINS
   IF (.NOT.failure) THEN
      CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
      CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
-     IF (parser%icol1<=parser%icol2) &
+     IF (root_sect.and.parser%icol1>parser%icol2) &
           CALL cp_assert(.FALSE.,cp_failure_level,&
           cp_assertion_failed,routineP,&
-          "this routine must be called just after having parsed the start of the section "&
+          "Error 1: this routine must be called just after having parsed the start of the section "&
           //TRIM(parser_location(parser,error=error)),error,failure)
   END IF
   IF (.NOT.failure) THEN
      section => section_vals%section
-     token=parser%input_line(parser%icol1:parser%icol2)
-     CALL uppercase(token)
-     IF (token==parser%section_character//section%name)&
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-          "this routine must be called just after having parsed the start of the section "&
-          //TRIM(parser_location(parser,error=error)), error,failure)
+     IF (root_sect) THEN
+        token=parser%input_line(parser%icol1:parser%icol2)
+        CALL uppercase(token)
+        IF (token/=parser%section_character//section%name)&
+             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+             "Error 2: this routine must be called just after having parsed the start of the section "&
+             //TRIM(parser_location(parser,error=error)), error,failure)
+     END IF
   END IF
   IF (.NOT. failure) THEN
      skip_description=.FALSE.
@@ -165,12 +172,12 @@ CONTAINS
      CALL section_vals_add_values(section_vals,error=error)
      irs=SIZE(section_vals%values,2)
 
-     IF (ASSOCIATED(section%keywords(-1)%keyword)) THEN ! reads keyword params
+     IF (ASSOCIATED(section%keywords(-1)%keyword)) THEN ! reads section params
         keyword => section%keywords(-1)%keyword
         NULLIFY(el)
         CALL val_create_parsing(el,type_of_var=keyword%type_of_var,&
              n_var=keyword%n_var,default_value=keyword%lone_keyword_value,&
-             parser=parser,error=suberror)
+             enum=keyword%enum,parser=parser,error=suberror)
         CALL cp_error_propagate_error(suberror,routineP,"parsing section "//&
              TRIM(section%name)//" parameters",error=error,failure=failure)
         IF (.NOT.failure) THEN
@@ -181,30 +188,48 @@ CONTAINS
      END IF
      DO WHILE (.NOT.failure)
         CALL parser_get_object(parser,token,newline=.TRUE.,&
-             lower_to_upper=.TRUE.,error=suberror)
+             lower_to_upper=.TRUE.,at_end=at_end,error=suberror)
         CALL cp_error_propagate_error(suberror,routineP,&
              "parsing section "// TRIM(section%name),&
              error=error,failure=failure)
+        IF (at_end) THEN
+           CALL cp_assert(.not.root_sect,cp_failure_level,&
+                cp_assertion_failed,routineP,&
+                "unexpected end of file while parsing section "//&
+                TRIM(section%name)//" "//TRIM(parser_location(parser,error=error)),&
+                error,failure)
+           EXIT
+        END IF
         IF (failure) EXIT
         IF (token(1:1)==parser%section_character) THEN
            IF (token=="&END") THEN
               ! end of section
               compatible_end=.TRUE.
-              IF (parser_test_next_token(parser)/="EOS") THEN
-                 CALL parser_get_object(parser,token,newline=.TRUE.,&
+              IF (parser_test_next_token(parser)/="EOL") THEN
+                 CALL parser_get_object(parser,token,newline=.false.,&
                       lower_to_upper=.TRUE.,error=suberror)
-                 IF (token/="SECTION") compatible_end=.FALSE.
+                 IF (token/="SECTION") THEN
+                    PRINT *,TRIM(token),"/=","SECTION"
+                    compatible_end=.FALSE.
+                 END IF
               END IF
-              IF (parser_test_next_token(parser)/="EOS") THEN
-                 CALL parser_get_object(parser,token,newline=.TRUE.,&
+              IF (parser_test_next_token(parser)/="EOL") THEN
+                 CALL parser_get_object(parser,token,newline=.FALSE.,&
                       lower_to_upper=.TRUE.,error=suberror)
-                 IF (token/=section%name) compatible_end=.FALSE.
+                 IF (token/=section%name) THEN
+                    PRINT *,trim(token),"/=",trim(section%name)
+                    compatible_end=.FALSE.
+                 END IF
               END IF
               IF (.NOT.compatible_end) THEN
                  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                      routineP,"unmatched end of section "//&
+                      routineP,"non-compatible end of section "//TRIM(section%name)//" "//&
                       TRIM(parser_location(parser,error=error)),error,failure)
                  skip_description=.TRUE.
+              ELSE
+                 CALL cp_error_propagate_error(suberror,routineP,&
+                      "parsing end of section "// TRIM(section%name),&
+                      error=error,failure=failure)
               END IF
 !              call cp_error_dealloc_ref(suberror)
 !              RETURN
@@ -214,14 +239,37 @@ CONTAINS
            IF (is>0) THEN
               CALL section_vals_parse(section_vals%subs_vals(is,irs)%section_vals,&
                    parser=parser,error=suberror)
+              suberror_happened=.false.
               CALL cp_error_propagate_error(suberror,routineP,&
                    "parsing subsection "//TRIM(section%subsections(is)%section%name)&
                    //" of section "// TRIM(section%name),&
-                   error=error,failure=failure)
+                   error=error,failure=suberror_happened)
+              IF (.NOT. failure .AND. suberror_happened) THEN
+                 failure=.true.
+                 skip_description=.true.
+                 skip_help=.true.
+              END IF
            ELSE
-              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+              ! this should be an error (failure)
+              CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
                    routineP,"unknown subsection "//TRIM(token)//" of section "&
-                   //TRIM(section%name),error,failure)
+                   //TRIM(section%name),error)
+              nSub=1
+              DO WHILE (nSub>0)
+                 CALL parser_get_object(parser,token,newline=.TRUE.,&
+                      error=suberror)
+                 CALL cp_error_propagate_error(suberror,routineP,&
+                      "parsing end of section "// TRIM(section%name),&
+                      error=error,failure=failure)
+                 IF (failure) EXIT
+                 IF (token(1:1)==parser%section_character) THEN
+                    IF (token=="&END") THEN
+                       nSub=nSub-1
+                    ELSE
+                       nSub=nSub+1
+                    END IF
+                 END IF
+              END DO
            END IF
         ELSE ! token is a keyword
            IF (token=="DESCRIBE") THEN
@@ -265,19 +313,23 @@ CONTAINS
               IF (.NOT.failure) THEN
                  keyword => section%keywords(ik)%keyword
                  NULLIFY(el)
+!FM                 PRINT *,"about to parse keyword ",TRIM(token)," in section ",TRIM(section%name)
                  CALL val_create_parsing(el,type_of_var=keyword%type_of_var,&
                       n_var=keyword%n_var,default_value=keyword%lone_keyword_value,&
-                      parser=parser,error=suberror)
+                      enum=keyword%enum,parser=parser,error=suberror)
                  CALL cp_error_propagate_error(suberror,routineP,"parsing keyword "//&
-                      TRIM(token)//"in section "// TRIM(section%name),&
+                      TRIM(token)//" in section "// TRIM(section%name),&
                       error=error,failure=failure)
                  IF (.NOT.failure.AND.ASSOCIATED(el)) THEN
                     NULLIFY(new_val)
                     CALL cp_sll_val_create(new_val,el,error=error)
-                    last_val => section_vals%values(-1,irs)%list
+                    last_val => section_vals%values(ik,irs)%list
                     IF (.NOT.ASSOCIATED(last_val)) THEN
-                       section_vals%values(-1,irs)%list => new_val
+                       section_vals%values(ik,irs)%list => new_val
                     ELSE
+                       CALL cp_assert(keyword%repeats,cp_failure_level,cp_assertion_failed,&
+                         routineP,"Keyword "//TRIM(token)//&
+                         " in section "//TRIM(section%name)//" should not repeat.",error,failure)
                        DO WHILE(ASSOCIATED(last_val%rest))
                           last_val => last_val%rest
                        END DO
@@ -291,13 +343,14 @@ CONTAINS
      IF (failure) THEN
         IF (.NOT.skip_help) THEN
            CALL print_message(&
-                ' You can have a description of the whole input by using the keyword '//&
-                'DESCRIBE_SECTIONS in the CP2K section optionally followed by the level of output.',&
+                ' You can have a description of the input by using the keyword '//&
+                'DESCRIBE in the CP2K section optionally followed by the level of output (1-4).',&
                 cp_logger_get_default_unit_nr(logger,local=.TRUE.),0,0,0)
            CALL print_message(&
-                ' You can describe a single section using the keyword DESCRIBE in the '//&
-                'section optionally followed by the level of output and '//&
-                '(IF you just want some keywords) by the keywords you want to describe',&
+                ' Putting the keyword DESCRIBE in a subsection describes '//&
+                'just that section and all its subsections. '//&
+                'If you just want the description of some keywords you can '//&
+                'just add their name to the DESCRIBE directive.',&
                 cp_logger_get_default_unit_nr(logger,local=.TRUE.),0,0,0)
         END IF
         IF (.NOT.skip_description) THEN
@@ -335,9 +388,11 @@ END SUBROUTINE section_vals_parse
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE val_create_parsing(val,type_of_var, n_var,default_value, parser,error)
+SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,default_value,&
+     parser,error)
     TYPE(val_type), POINTER                  :: val
     INTEGER, INTENT(in)                      :: type_of_var, n_var
+    TYPE(enumeration_type), POINTER          :: enum
     TYPE(val_type), OPTIONAL, POINTER        :: default_value
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(cp_error_type), INTENT(inout), &
@@ -351,16 +406,15 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,default_value, parser,error
     LOGICAL, DIMENSION(:), POINTER           :: l_val_p
     TYPE(cp_error_type)                      :: suberror
     TYPE(cp_sll_logical_type), POINTER       :: l_first, l_last, l_new
-
-!  real(kind=dp) :: r_val
-! , i_val
-!  character(len=default_string_length) :: c_val
-!  TYPE(cp_sll_real_type),POINTER :: r_new,r_last,r_first
-!  TYPE(cp_sll_int_type),POINTER :: i_new,i_last,i_first
-!  TYPE(cp_sll_char_type),POINTER :: c_new,c_last,c_first
-!  REAL(kind=dp),dimension(:), pointer :: r_val_p
-!  INTEGER,dimension(:), pointer :: i_val_p
-!  CHARACTER(len=default_string_length),dimension(:), pointer :: c_val_p
+    INTEGER, DIMENSION(:), pointer :: i_val_p
+    integer :: i_val
+    TYPE(cp_sll_int_type), POINTER           :: i_first, i_last, i_new
+    real(kind=dp) :: r_val
+    CHARACTER(len=default_string_length) :: c_val
+    TYPE(cp_sll_real_type),POINTER :: r_new,r_last,r_first
+    TYPE(cp_sll_char_type),POINTER :: c_new,c_last,c_first
+    REAL(kind=dp),DIMENSION(:), POINTER :: r_val_p
+    CHARACTER(len=default_string_length),DIMENSION(:), POINTER :: c_val_p
 
   failure=.FALSE.
   CALL cp_error_init(suberror,stop_level=cp_fatal_level,template_error=error)
@@ -370,7 +424,7 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,default_value, parser,error
      CASE(no_t)
      CASE (logical_t)
         NULLIFY(l_val_p)
-        IF (parser_test_next_token(parser,error=error)=="EOS") THEN
+        IF (parser_test_next_token(parser,error=error)=="EOL") THEN
            IF (.NOT.ASSOCIATED(default_value)) THEN
               IF (n_var<1) THEN
                  ALLOCATE(l_val_p(0),stat=stat)
@@ -393,7 +447,7 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,default_value, parser,error
               CALL parser_get_object(parser,l_val,error=error)
               CALL cp_create(l_first,l_val,error=error)
               l_last => l_first
-              DO WHILE(parser_test_next_token(parser,error=error)/="EOS"&
+              DO WHILE(parser_test_next_token(parser,error=error)/="EOL"&
                    .AND..NOT.failure)
                  CALL parser_get_object(parser,l_val,error=error)
                  CALL cp_create(l_new,l_val,error=error)
@@ -418,10 +472,218 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,default_value, parser,error
               CALL val_create(val,l_vals_ptr=l_val_p,error=error)
            END IF
         END IF
+     CASE (integer_t)
+        NULLIFY(i_val_p)
+        IF (parser_test_next_token(parser,error=error)=="EOL") THEN
+           IF (.NOT.ASSOCIATED(default_value)) THEN
+              IF (n_var<1) THEN
+                 ALLOCATE(i_val_p(0),stat=stat)
+                 CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+                 CALL val_create(val,i_vals_ptr=i_val_p,error=error)
+              ELSE
+                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                      routineP,"no value was given and there is no default value"//&
+                      TRIM(parser_location(parser,error=error)),error,failure)
+              END IF
+           ELSE
+              CPPrecondition(ASSOCIATED(default_value%i_val),cp_failure_level,routineP,error,failure)
+              IF (.NOT.failure) THEN
+                 CALL val_create(val,i_vals=default_value%i_val,error=error)
+              END IF
+           END IF
+        ELSE
+           IF (n_var<1) THEN
+              NULLIFY(i_last,i_first)
+              CALL parser_get_object(parser,i_val,error=error)
+              CALL cp_create(i_first,i_val,error=error)
+              i_last => i_first
+              DO WHILE(parser_test_next_token(parser,error=error)/="EOL"&
+                   .AND..NOT.failure)
+                 CALL parser_get_object(parser,i_val,error=error)
+                 CALL cp_create(i_new,i_val,error=error)
+                 i_last%rest => i_new
+                 i_last => i_new
+              END DO
+              i_val_p => cp_to_array(i_first,error=error)
+              CALL cp_dealloc(i_first,error=error)
+           ELSE
+              ALLOCATE(i_val_p(n_var),stat=stat)
+              CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+              IF (.NOT.failure) THEN
+                 DO i=1,n_var
+                    CALL parser_get_object(parser,i_val_p(i),error=suberror)
+                    CALL cp_error_propagate_error(suberror,routineP,error=error,&
+                         failure=failure)
+                    IF (failure) EXIT
+                 END DO
+              END IF
+           END IF
+           IF (ASSOCIATED(i_val_p)) THEN
+              CALL val_create(val,i_vals_ptr=i_val_p,error=error)
+           END IF
+        END IF
+     CASE (real_t)
+        NULLIFY(r_val_p)
+        IF (parser_test_next_token(parser,error=error)=="EOL") THEN
+           IF (.NOT.ASSOCIATED(default_value)) THEN
+              IF (n_var<1) THEN
+                 ALLOCATE(r_val_p(0),stat=stat)
+                 CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+                 CALL val_create(val,r_vals_ptr=r_val_p,error=error)
+              ELSE
+                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                      routineP,"no value was given and there is no default value"//&
+                      TRIM(parser_location(parser,error=error)),error,failure)
+              END IF
+           ELSE
+              CPPrecondition(ASSOCIATED(default_value%r_val),cp_failure_level,routineP,error,failure)
+              IF (.NOT.failure) THEN
+                 CALL val_create(val,r_vals=default_value%r_val,error=error)
+              END IF
+           END IF
+        ELSE
+           IF (n_var<1) THEN
+              NULLIFY(r_last,r_first)
+              CALL parser_get_object(parser,r_val,error=error)
+              CALL cp_create(r_first,r_val,error=error)
+              r_last => r_first
+              DO WHILE(parser_test_next_token(parser,error=error)/="EOL"&
+                   .AND..NOT.failure)
+                 CALL parser_get_object(parser,r_val,error=error)
+                 CALL cp_create(r_new,r_val,error=error)
+                 r_last%rest => r_new
+                 r_last => r_new
+              END DO
+              r_val_p => cp_to_array(r_first,error=error)
+              CALL cp_dealloc(r_first,error=error)
+           ELSE
+              ALLOCATE(r_val_p(n_var),stat=stat)
+              CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+              IF (.NOT.failure) THEN
+                 DO i=1,n_var
+                    CALL parser_get_object(parser,r_val_p(i),error=suberror)
+                    CALL cp_error_propagate_error(suberror,routineP,error=error,&
+                         failure=failure)
+                    IF (failure) EXIT
+                 END DO
+              END IF
+           END IF
+           IF (ASSOCIATED(r_val_p)) THEN
+              CALL val_create(val,r_vals_ptr=r_val_p,error=error)
+           END IF
+        END IF
+     CASE (char_t)
+        NULLIFY(c_val_p)
+        IF (parser_test_next_token(parser,error=error)=="EOL") THEN
+           IF (.NOT.ASSOCIATED(default_value)) THEN
+              IF (n_var<1) THEN
+                 ALLOCATE(c_val_p(0),stat=stat)
+                 CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+                 CALL val_create(val,c_vals_ptr=c_val_p,error=error)
+              ELSE
+                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                      routineP,"no value was given and there is no default value"//&
+                      TRIM(parser_location(parser,error=error)),error,failure)
+              END IF
+           ELSE
+              CPPrecondition(ASSOCIATED(default_value%c_val),cp_failure_level,routineP,error,failure)
+              IF (.NOT.failure) THEN
+                 CALL val_create(val,c_vals=default_value%c_val,error=error)
+              END IF
+           END IF
+        ELSE
+           IF (n_var<1) THEN
+              NULLIFY(c_last,c_first)
+              CALL parser_get_object(parser,c_val,error=error)
+              CALL cp_create(c_first,c_val,error=error)
+              c_last => c_first
+              DO WHILE(parser_test_next_token(parser,error=error)/="EOL"&
+                   .AND..NOT.failure)
+                 CALL parser_get_object(parser,c_val,error=error)
+                 CALL cp_create(c_new,c_val,error=error)
+                 c_last%rest => c_new
+                 c_last => c_new
+              END DO
+              c_val_p => cp_to_array(c_first,error=error)
+              CALL cp_dealloc(c_first,error=error)
+           ELSE
+              ALLOCATE(c_val_p(n_var),stat=stat)
+              CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+              IF (.NOT.failure) THEN
+                 DO i=1,n_var
+                    CALL parser_get_object(parser,c_val_p(i),error=suberror)
+                    CALL cp_error_propagate_error(suberror,routineP,error=error,&
+                         failure=failure)
+                    IF (failure) EXIT
+                 END DO
+              END IF
+           END IF
+           IF (ASSOCIATED(c_val_p)) THEN
+              CALL val_create(val,c_vals_ptr=c_val_p,error=error)
+           END IF
+        END IF
+     CASE (enum_t)
+        CPPrecondition(ASSOCIATED(enum),cp_failure_level,routineP,error,failure)
+        NULLIFY(i_val_p)
+        IF (parser_test_next_token(parser,error=error)=="EOL") THEN
+           IF (.NOT.ASSOCIATED(default_value)) THEN
+              IF (n_var<1) THEN
+                 ALLOCATE(i_val_p(0),stat=stat)
+                 CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+                 CALL val_create(val,i_vals_ptr=i_val_p,error=error)
+              ELSE
+                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                      routineP,"no value was given and there is no default value"//&
+                      TRIM(parser_location(parser,error=error)),error,failure)
+              END IF
+           ELSE
+              CPPrecondition(ASSOCIATED(default_value%i_val),cp_failure_level,routineP,error,failure)
+              IF (.NOT.failure) THEN
+                 CALL val_create(val,i_vals=default_value%i_val,&
+                      enum=default_value%enum,error=error)
+              END IF
+           END IF
+        ELSE
+           IF (n_var<1) THEN
+              NULLIFY(i_last,i_first)
+              CALL parser_get_object(parser,c_val,error=error)
+              CALL cp_create(i_first,enum_c2i(enum,c_val,error=error),error=error)
+              i_last => i_first
+              DO WHILE(parser_test_next_token(parser,error=error)/="EOL"&
+                   .AND..NOT.failure)
+                 CALL parser_get_object(parser,c_val,error=error)
+                 CALL cp_create(i_new,enum_c2i(enum,c_val,error=error),error=error)
+                 i_last%rest => i_new
+                 i_last => i_new
+              END DO
+              i_val_p => cp_to_array(i_first,error=error)
+              CALL cp_dealloc(i_first,error=error)
+           ELSE
+              ALLOCATE(i_val_p(n_var),stat=stat)
+              CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+              IF (.NOT.failure) THEN
+                 DO i=1,n_var
+                    CALL parser_get_object(parser,c_val,error=suberror)
+                    i_val_p(i)=enum_c2i(enum,c_val,error=suberror)
+                    CALL cp_error_propagate_error(suberror,routineP,error=error,&
+                         failure=failure)
+                    IF (failure) EXIT
+                 END DO
+              END IF
+           END IF
+           IF (ASSOCIATED(i_val_p)) THEN
+              CALL val_create(val,i_vals_ptr=i_val_p,enum=enum,error=error)
+           END IF
+        END IF
      CASE default
-        CALL cp_unimplemented_error(routineP, "to do", error,cp_failure_level)
+        CALL cp_unimplemented_error(routineP, "type "//cp_to_string(i)//&
+             "unknown to the parser"//&
+             CPSourceFileRef,&
+             error,cp_failure_level)
      END SELECT
   END IF
+!FM  PRINT *,"parsed val:"
+!FM  CALL val_write(val,6,error=error)
   CALL cp_error_dealloc_ref(suberror)
 END SUBROUTINE val_create_parsing
 !***************************************************************************

@@ -36,6 +36,10 @@ MODULE input_val_types
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE input_enumeration_types,         ONLY: enum_i2c,&
+                                             enum_release,&
+                                             enum_retain,&
+                                             enumeration_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE timings,                         ONLY: timeset,&
@@ -55,7 +59,7 @@ MODULE input_val_types
 !****************************************************************************
 
   INTEGER, PARAMETER, PUBLIC :: no_t=0, logical_t=1, &
-       integer_t=2, real_t=3, char_t=4
+       integer_t=2, real_t=3, char_t=4, enum_t=5
   
 !!****s* input_val_types/val_p_type [1.0] *
 !!
@@ -99,6 +103,7 @@ MODULE input_val_types
 !!     - l_val, i_val, c_val, r_val: arrays with logical,integer,character
 !!       or real values. Only one should be associated (and namely the one
 !!       specified in type_of_var).
+!!     - enum: an enumaration to map char to integers
 !!
 !!   AUTHOR
 !!     fawzi
@@ -112,6 +117,7 @@ MODULE input_val_types
      CHARACTER(len=default_string_length), DIMENSION(:), POINTER :: &
           c_val
      REAL(kind=dp), DIMENSION(:), POINTER :: r_val
+     TYPE(enumeration_type), POINTER :: enum
   END TYPE val_type
 !!***
   !****************************************************************************
@@ -126,7 +132,7 @@ CONTAINS
 !!     creates a keyword value
 !!
 !!   NOTES
-!!     -
+!!     using an enumeration only i_val/i_vals/i_vals_ptr are accepted
 !!
 !!   INPUTS
 !!     - val: the object to be created
@@ -136,6 +142,7 @@ CONTAINS
 !!       characters to be stored in val
 !!     - l_vals_ptr, i_vals_ptr, r_vals_ptr, c_vals_ptr: an array of logicals,
 !!       ... to be stored in val, val will get the ownership of the pointer 
+!!     - enum: the enumaration type this value is using
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -144,7 +151,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
-     r_val,r_vals,r_vals_ptr,c_val,c_vals,c_vals_ptr,error)
+     r_val,r_vals,r_vals_ptr,c_val,c_vals,c_vals_ptr,enum,error)
     TYPE(val_type), POINTER                  :: val
     LOGICAL, INTENT(in), OPTIONAL            :: l_val
     LOGICAL, DIMENSION(:), INTENT(in), &
@@ -159,12 +166,13 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
       INTENT(in), OPTIONAL                   :: r_vals
     REAL(KIND=DP), DIMENSION(:), OPTIONAL, &
       POINTER                                :: r_vals_ptr
-    CHARACTER(LEN=*), &
-      INTENT(in), OPTIONAL                   :: c_val
-    CHARACTER(LEN=*), &
-      DIMENSION(:), INTENT(in), OPTIONAL     :: c_vals
+    CHARACTER(LEN=*), INTENT(in), OPTIONAL   :: c_val
+    CHARACTER(LEN=*), DIMENSION(:), &
+      INTENT(in), OPTIONAL                   :: c_vals
     CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
       DIMENSION(:), OPTIONAL, POINTER        :: c_vals_ptr
+    TYPE(enumeration_type), OPTIONAL, &
+      POINTER                                :: enum
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -180,7 +188,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
   ALLOCATE(val,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     NULLIFY(val%l_val,val%i_val,val%r_val,val%c_val)
+     NULLIFY(val%l_val,val%i_val,val%r_val,val%c_val,val%enum)
      val%type_of_var=no_t
      last_val_id=last_val_id+1
      val%id_nr=last_val_id
@@ -280,6 +288,20 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
         val%type_of_var=char_t
      END IF
      CPPostcondition(narg<=1,cp_failure_level,routineP,error,failure)
+     IF (PRESENT(enum)) THEN
+        IF (ASSOCIATED(enum)) THEN
+           IF (val%type_of_var/=no_t.AND.val%type_of_var/=integer_t.AND.&
+                val%type_of_var/=enum_t) THEN
+              CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+           END IF
+           IF (ASSOCIATED(val%i_val)) THEN
+              val%type_of_var=enum_t
+              val%enum=>enum
+              CALL enum_retain(enum,error=error)
+           END IF
+        END IF
+     END IF
+     CPPostcondition(ASSOCIATED(val%enum).eqv.val%type_of_var==enum_t,cp_failure_level,routineP,error,failure)
   END IF
 END SUBROUTINE val_create
 !***************************************************************************
@@ -337,6 +359,7 @@ SUBROUTINE val_release(val,error)
            DEALLOCATE(val%c_val,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
+        CALL enum_release(val%enum,error=error)
         val%type_of_var=no_t
         DEALLOCATE(val,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -395,7 +418,7 @@ END SUBROUTINE val_retain
 !!     returns the stored values
 !!
 !!   NOTES
-!!     -
+!!     using an enumeration only i_val/i_vals/i_vals_ptr are accepted
 !!
 !!   INPUTS
 !!     - val: the object from which you want to extract the values
@@ -411,7 +434,7 @@ END SUBROUTINE val_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE val_get(val,has_l,has_i,has_r,has_c,l_val,l_vals,i_val,&
-     i_vals,r_val,r_vals,c_val,c_vals,type_of_var,error)
+     i_vals,r_val,r_vals,c_val,c_vals,type_of_var,enum,error)
     TYPE(val_type), POINTER                  :: val
     LOGICAL, INTENT(out), OPTIONAL           :: has_l, has_i, has_r, has_c, &
                                                 l_val
@@ -421,11 +444,12 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_c,l_val,l_vals,i_val,&
     REAL(KIND=DP), INTENT(out), OPTIONAL     :: r_val
     REAL(KIND=DP), DIMENSION(:), OPTIONAL, &
       POINTER                                :: r_vals
-    CHARACTER(LEN=*), &
-      INTENT(out), OPTIONAL                  :: c_val
+    CHARACTER(LEN=*), INTENT(out), OPTIONAL  :: c_val
     CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
       DIMENSION(:), OPTIONAL, POINTER        :: c_vals
     INTEGER, INTENT(out), OPTIONAL           :: type_of_var
+    TYPE(enumeration_type), OPTIONAL, &
+      POINTER                                :: enum
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -494,6 +518,8 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_c,l_val,l_vals,i_val,&
 
   IF (PRESENT(type_of_var)) type_of_var=val%type_of_var
 
+  IF (PRESENT(enum)) enum => val%enum
+
 END SUBROUTINE val_get
 !***************************************************************************
 
@@ -527,6 +553,7 @@ SUBROUTINE val_write(val,unit_nr,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'val_write', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(len=default_string_length)     :: c_string
     INTEGER                                  :: i, l
     LOGICAL                                  :: failure
 
@@ -558,7 +585,7 @@ SUBROUTINE val_write(val,unit_nr,error)
         IF (ASSOCIATED(val%r_val)) THEN
            DO i=1,SIZE(val%r_val)
               IF (MODULO(i,10)==0) WRITE(unit=unit_nr,fmt="(' \')")
-              WRITE(unit=unit_nr,fmt="(' ',i8)",advance="NO")&
+              WRITE(unit=unit_nr,fmt="(' ',f8.3)",advance="NO")&
                    val%r_val(i)
            END DO
         ELSE
@@ -568,11 +595,11 @@ SUBROUTINE val_write(val,unit_nr,error)
         IF (ASSOCIATED(val%c_val)) THEN
            l=0
            DO i=1,SIZE(val%c_val)
-              IF (l>10.AND.l+LEN(val%c_val(i))>76)THEN
+              IF (l>10.AND.l+LEN_TRIM(val%c_val(i))>76)THEN
                  WRITE(unit=unit_nr,fmt="(' \')")
                  l=0
               ELSE
-                 l=l+LEN(val%c_val(i))+3
+                 l=l+LEN_TRIM(val%c_val(i))+3
               END IF
               WRITE(unit=unit_nr,fmt="(' ',a,a,a)",advance="NO")&
                    '"',TRIM(val%c_val(i)),'"'
@@ -580,6 +607,24 @@ SUBROUTINE val_write(val,unit_nr,error)
         ELSE
            CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
         END IF
+     CASE (enum_t)
+        IF (ASSOCIATED(val%i_val)) THEN
+           l=0
+           DO i=1,SIZE(val%i_val)
+              c_string=enum_i2c(val%enum,val%i_val(i),error=error)
+              IF (l>10.AND.l+LEN_TRIM(c_string)>76)THEN
+                 WRITE(unit=unit_nr,fmt="(' \')")
+                 l=0
+              ELSE
+                 l=l+LEN_TRIM(c_string)+3
+              END IF
+              WRITE(unit=unit_nr,fmt="(' ',a,a,a)",advance="NO")&
+                   '"',TRIM(c_string),'"'
+           END DO
+        ELSE
+           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
+        
      CASE(no_t)
         WRITE(unit=unit_nr,fmt="(' *empty*')",advance="NO")
      CASE default

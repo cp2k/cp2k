@@ -36,7 +36,7 @@ MODULE input_section_types
   use cp_para_types, only: cp_para_env_type
   use timings, only: timeset, timestop
   USE input_val_types, ONLY: val_type, val_create, val_retain, val_release,&
-       val_write,val_get
+       val_write,val_get,no_t
   USE input_keyword_types, ONLY: keyword_type, keyword_create, keyword_retain,&
        keyword_release, description_string_length, keyword_p_type,&
        keyword_describe
@@ -206,6 +206,9 @@ contains
 !!     - n_keywords: hint about the number of keywords, defaults to 10
 !!     - n_sections: a hint about how many sections will be added to this
 !!       structure, defaults to 0
+!!     - repeats: if this section can repeat (defaults to false)
+!!     - required: if this section is required (and thus it cannot be 
+!!       totally default). Defaults to false.
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -248,7 +251,7 @@ SUBROUTINE section_create(section,name,description,n_keywords,&
      CPPrecondition(LEN_TRIM(description)<=LEN(section%description),cp_warning_level,routineP,error,failure)
      section%description=description
      section%frozen=.FALSE.
-     section%required=.TRUE.
+     section%required=.FALSE.
      section%repeats=.FALSE.
      IF (PRESENT(required)) section%required=required
      IF (PRESENT(repeats)) section%repeats=repeats
@@ -766,7 +769,7 @@ SUBROUTINE section_add_keyword(section,keyword,error)
            section%keywords => new_keywords
         END IF
         section%n_keywords=section%n_keywords+1
-        new_keywords(section%n_keywords)%keyword => keyword
+        section%keywords(section%n_keywords)%keyword => keyword
      END IF
      IF (keyword%required) section%required=.TRUE.
   END IF
@@ -817,7 +820,7 @@ SUBROUTINE section_add_subsection(section,subsection,error)
         DO i=1,section%n_subsections
            new_subsections(i)%section => section%subsections(i)%section
         END DO
-        DO i=section%n_subsections,SIZE(new_subsections)
+        DO i=section%n_subsections+1,SIZE(new_subsections)
            nullify(new_subsections(i)%section)
         END DO
         DEALLOCATE(section%subsections,stat=stat)
@@ -881,11 +884,12 @@ RECURSIVE SUBROUTINE section_vals_create(section_vals,section,error)
      CALL section_retain(section,error=error)
      section_vals%section => section
      section%frozen=.true.
-     ALLOCATE(section_vals%values(section%n_keywords,0),stat=stat)
+     ALLOCATE(section_vals%values(-1:section%n_keywords,0),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      ALLOCATE(section_vals%subs_vals(section%n_subsections,1),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      DO i=1,section%n_subsections
+        nullify(section_vals%subs_vals(i,1)%section_vals)
         CALL section_vals_create(section_vals%subs_vals(i,1)%section_vals,&
              section=section%subsections(i)%section,error=error)
      END DO
@@ -1141,17 +1145,17 @@ SUBROUTINE section_vals_add_values(section_vals,error)
   CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
   CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     ALLOCATE(new_values(SIZE(section_vals%values,1),SIZE(section_vals%values,2)+1),stat=stat)
+     ALLOCATE(new_values(-1:UBOUND(section_vals%values,1),SIZE(section_vals%values,2)+1),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      DO j=1,SIZE(section_vals%values,2)
-        DO i=1,SIZE(section_vals%values,1)
+        DO i=-1,UBOUND(section_vals%values,1)
            new_values(i,j)%list => section_vals%values(i,j)%list
         END DO
      END DO
      DEALLOCATE(section_vals%values,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      section_vals%values => new_values
-     DO i=1,SIZE(new_values,1)
+     DO i=-1,UBOUND(new_values,1)
         j=SIZE ( new_values, 2 )
         NULLIFY(new_values(i,j)%list)
      END DO
@@ -1354,7 +1358,7 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
 
   failure=.false.
   my_hide_root=.false.
-  if (hide_root) my_hide_root=hide_root
+  if (present(hide_root)) my_hide_root=hide_root
 
   CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
   CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -1369,22 +1373,24 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
            DO ik=-1,section%n_keywords
               keyword => section%keywords(ik)%keyword
               IF (ASSOCIATED(keyword)) THEN
-                 CALL section_vals_val_get(section_vals,keyword%names(1),&
-                      i_rep_s,n_rep_val=nval,error=error)
-                 DO ival=1,nval
+                 IF (keyword%type_of_var/=no_t) THEN
                     CALL section_vals_val_get(section_vals,keyword%names(1),&
-                         i_rep_s,i_rep_val=ival,val=val,error=suberror)
-                    CALL cp_error_propagate_error(suberror, fromWhere=routineP,&
-                         message="for val "// TRIM(keyword%names(1))//" in section "//&
-                         TRIM(section%name),error=error, failure=failure)
-                    WRITE(unit=unit_nr,fmt="(' ',a,' ')",advance="NO")&
-                         TRIM(keyword%names(1))
-                    CALL val_write(val,unit_nr=unit_nr,error=suberror)
-                    CALL cp_error_propagate_error(suberror, fromWhere=routineP,&
-                         message="for val "// TRIM(keyword%names(1))//" in section "//&
-                         TRIM(section%name),error=error, failure=failure)
-                    IF (failure) EXIT
-                 END DO
+                         i_rep_s,n_rep_val=nval,error=error)
+                    DO ival=1,nval
+                       CALL section_vals_val_get(section_vals,keyword%names(1),&
+                            i_rep_s,i_rep_val=ival,val=val,error=suberror)
+                       CALL cp_error_propagate_error(suberror, fromWhere=routineP,&
+                            message="for val "// TRIM(keyword%names(1))//" in section "//&
+                            TRIM(section%name),error=error, failure=failure)
+                       WRITE(unit=unit_nr,fmt="(' ',a,' ')",advance="NO")&
+                            TRIM(keyword%names(1))
+                       CALL val_write(val,unit_nr=unit_nr,error=suberror)
+                       CALL cp_error_propagate_error(suberror, fromWhere=routineP,&
+                            message="for val "// TRIM(keyword%names(1))//" in section "//&
+                            TRIM(section%name),error=error, failure=failure)
+                       IF (failure) EXIT
+                    END DO
+                 END IF
               END IF
               IF (failure) EXIT
            END DO

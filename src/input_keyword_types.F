@@ -36,7 +36,12 @@ MODULE input_keyword_types
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE input_enumeration_types,         ONLY: enum_create,&
+                                             enum_release,&
+                                             enum_retain,&
+                                             enumeration_type
   USE input_val_types,                 ONLY: char_t,&
+                                             enum_t,&
                                              integer_t,&
                                              logical_t,&
                                              no_t,&
@@ -120,6 +125,8 @@ MODULE input_keyword_types
 !!       section
 !!     - required: if the keyword is required (leaving it out will give an
 !!       error)
+!!     - enum: enumeration that defines the mapping between integers and
+!!       strings
 !!     - default_value: the default value for the keyword
 !!     - lone_keyword_value: value to be used in presence of the keyword
 !!       without any parameter
@@ -136,6 +143,7 @@ MODULE input_keyword_types
      CHARACTER(LEN=description_string_length) :: description
      INTEGER :: type_of_var,n_var
      LOGICAL :: repeats, required
+     TYPE(enumeration_type), POINTER :: enum
      
      TYPE(val_type), POINTER :: default_value
      TYPE(val_type), POINTER :: lone_keyword_value
@@ -173,7 +181,8 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
      default_l_vals, default_r_vals, default_c_vals, default_i_vals,&
      lone_keyword_val, lone_keyword_l_val, lone_keyword_r_val, lone_keyword_c_val,&
      lone_keyword_i_val, lone_keyword_l_vals, lone_keyword_r_vals, &
-     lone_keyword_c_vals, lone_keyword_i_vals, error)
+     lone_keyword_c_vals, lone_keyword_i_vals, enum_c_vals, enum_i_vals, &
+     enum,enum_strict,error)
     TYPE(keyword_type), POINTER              :: keyword
     CHARACTER(len=*), INTENT(in)             :: name, description, usage
     INTEGER, INTENT(in), OPTIONAL            :: type_of_var, n_var
@@ -207,6 +216,13 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
       INTENT(in), OPTIONAL                   :: lone_keyword_c_vals
     INTEGER, DIMENSION(:), INTENT(in), &
       OPTIONAL                               :: lone_keyword_i_vals
+    CHARACTER(len=*), DIMENSION(:), &
+      INTENT(in), OPTIONAL                   :: enum_c_vals
+    INTEGER, DIMENSION(:), INTENT(in), &
+      OPTIONAL                               :: enum_i_vals
+    TYPE(enumeration_type), OPTIONAL, &
+      POINTER                                :: enum
+    LOGICAL, INTENT(in), OPTIONAL            :: enum_strict
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -254,6 +270,20 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
      keyword%required=.FALSE.
      IF (PRESENT(required)) keyword%required=required
 
+     NULLIFY(keyword%enum)
+     IF (PRESENT(enum)) THEN
+        keyword%enum => enum
+        IF (ASSOCIATED(enum)) CALL enum_retain(enum,error=error)
+     END IF
+     IF (PRESENT(enum_i_vals)) THEN
+        CPPrecondition(PRESENT(enum_c_vals),cp_failure_level,routineP,error,failure)
+        CPPrecondition(.NOT.ASSOCIATED(keyword%enum),cp_failure_level,routineP,error,failure)
+        CALL enum_create(keyword%enum,c_vals=enum_c_vals,i_vals=enum_i_vals,&
+             strict=enum_strict,error=error)
+     ELSE
+        CPPrecondition(.NOT.PRESENT(enum_c_vals),cp_failure_level,routineP,error,failure)
+     END IF
+
      NULLIFY(keyword%default_value, keyword%lone_keyword_value)
      IF (PRESENT(default_val)) THEN
         CALL cp_assert(.NOT.(PRESENT(default_l_val).OR.PRESENT(default_l_vals).OR.&
@@ -264,13 +294,23 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
              "you should pass either default_val or a default value, not both",&
              error,failure)
         keyword%default_value => default_val
+        IF (ASSOCIATED(default_val%enum)) THEN
+           IF (ASSOCIATED(keyword%enum)) THEN
+              CPAssert(keyword%enum%id_nr==default_val%enum%id_nr,cp_failure_level,routineP,error,failure)
+           ELSE
+              keyword%enum => default_val%enum
+              CALL enum_retain(keyword%enum,error=error)
+           END IF
+        ELSE
+           CPAssert(.NOT.ASSOCIATED(keyword%enum),cp_failure_level,routineP,error,failure)
+        END IF
         CALL val_retain(default_val,error=error)
      END IF
      IF (.not.ASSOCIATED(keyword%default_value)) THEN
         CALL val_create(keyword%default_value,l_val=default_l_val,&
              l_vals=default_l_vals,i_val=default_i_val,i_vals=default_i_vals,&
              r_val=default_r_val,r_vals=default_r_vals,c_val=default_c_val,&
-             c_vals=default_c_vals)
+             c_vals=default_c_vals,enum=keyword%enum,error=error)
      END IF
 
      keyword%type_of_var=keyword%default_value%type_of_var
@@ -311,12 +351,23 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
              error,failure)
         keyword%lone_keyword_value => lone_keyword_val
         CALL val_retain(lone_keyword_val,error=error)
+        IF (ASSOCIATED(lone_keyword_val%enum)) THEN
+           IF (ASSOCIATED(keyword%enum)) THEN
+              CPAssert(keyword%enum%id_nr==lone_keyword_val%enum%id_nr,cp_failure_level,routineP,error,failure)
+           ELSE
+              CPPrecondition(.NOT.ASSOCIATED(keyword%lone_keyword_value),cp_failure_level,routineP,error,failure)
+              keyword%enum => lone_keyword_val%enum
+              CALL enum_retain(keyword%enum,error=error)
+           END IF
+        ELSE
+           CPAssert(.NOT.ASSOCIATED(keyword%enum),cp_failure_level,routineP,error,failure)
+        END IF
      END IF
      IF (.NOT.ASSOCIATED(keyword%lone_keyword_value)) THEN
         CALL val_create(keyword%lone_keyword_value,l_val=lone_keyword_l_val,&
              l_vals=lone_keyword_l_vals,i_val=lone_keyword_i_val,i_vals=lone_keyword_i_vals,&
              r_val=lone_keyword_r_val,r_vals=lone_keyword_r_vals,c_val=lone_keyword_c_val,&
-             c_vals=lone_keyword_c_vals)
+             c_vals=lone_keyword_c_vals,enum=keyword%enum,error=error)
      END IF
      IF (ASSOCIATED(keyword%lone_keyword_value)) THEN
         IF (keyword%lone_keyword_value%type_of_var==no_t) THEN
@@ -334,7 +385,7 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
         SELECT CASE(keyword%default_value%type_of_var)
         CASE(logical_t)
            keyword%n_var=SIZE(keyword%default_value%l_val)
-        CASE(integer_t)
+        CASE(integer_t,enum_t)
            keyword%n_var=SIZE(keyword%default_value%i_val)
         CASE(real_t)
            keyword%n_var=SIZE(keyword%default_value%r_val)
@@ -431,6 +482,7 @@ SUBROUTINE keyword_release(keyword, error)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         CALL val_release(keyword%default_value,error=error)
         CALL val_release(keyword%lone_keyword_value,error=error)
+        CALL enum_release(keyword%enum,error=error)
         DEALLOCATE(keyword,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
@@ -527,7 +579,8 @@ SUBROUTINE keyword_describe(keyword, unit_nr, level,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_describe', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
+    CHARACTER(len=default_string_length)     :: c_string
+    INTEGER                                  :: i, l
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -578,13 +631,43 @@ SUBROUTINE keyword_describe(keyword, unit_nr, level,error)
               ELSE
                  WRITE(unit_nr,"(i6,' words are expected')") keyword%n_var
               END IF
+           CASE (enum_t)
+              IF (keyword%n_var==-1) THEN
+                 WRITE(unit_nr,"('  A list of keywords is expected')")
+              ELSE IF (keyword%n_var==1) THEN
+                 WRITE(unit_nr,"('  A keyword is expected')")
+              ELSE
+                 WRITE(unit_nr,"(i6,' keywords are expected')") keyword%n_var
+              END IF
            CASE (no_t)
               WRITE(unit_nr,"('  Nonstadard type.')")
            CASE default
               CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)           
            END SELECT
         END IF
-
+        IF (keyword%type_of_var==enum_t) THEN
+           WRITE(unit_nr,"('  valid keywords:')",advance='NO')
+           l=17
+           DO i=1,SIZE(keyword%enum%c_vals)
+              c_string=keyword%enum%c_vals(i)
+              IF (l+LEN_TRIM(c_string)>72.and.l>14) THEN
+                 WRITE (unit_nr,"(/,'    ')",advance='NO')
+                 l=4
+              END IF
+              IF (level>3) THEN
+                 WRITE (unit_nr,"(' ',a,a,a,':',i6)",advance='NO') '"',&
+                      TRIM(c_string),'"',keyword%enum%i_vals(i)
+                 l=LEN_TRIM(c_string)+10
+              ELSE
+                 WRITE (unit_nr,"(' ',a,a,a)",advance='NO') '"',TRIM(c_string),'"'
+                 l=LEN_TRIM(c_string)+3
+              END IF
+           END DO
+           WRITE (unit_nr,"()")
+           IF (.NOT.keyword%enum%strict) THEN
+              WRITE (unit_nr,"('     other integer values are also accepted.')")
+           END IF
+        END IF
         IF (ASSOCIATED(keyword%default_value).AND.keyword%type_of_var/=no_t) THEN
            WRITE(unit_nr,"('default_value : ')",advance="NO")
            CALL val_write(keyword%default_value,unit_nr=unit_nr,error=error)
