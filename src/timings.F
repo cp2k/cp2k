@@ -113,7 +113,11 @@ SUBROUTINE timeset ( name, ct, pu, handle )
 ! Locals
   INTEGER :: i
   CHARACTER ( LEN = 40 )  :: sformat
+  CHARACTER ( LEN = 20 )  :: mytag
   CHARACTER ( LEN = 400 ) :: mystring
+#if defined(__HPM)
+#include "f_hpm.h"
+#endif
 
 !------------------------------------------------------------------------------
 
@@ -144,6 +148,12 @@ SUBROUTINE timeset ( name, ct, pu, handle )
      routine_calls ( handle ) = 0
      routine_stack_depth ( handle ) = 0
   END IF
+
+#if defined(__HPM)
+  mytag=TRIM(routine_name)
+  mytag(20:20)=CHAR(0)
+  CALL f_hpmstart(handle,mytag)
+#endif
  
 !..start clock (if not yet started, i.e. recursive calls)
   IF ( clock_status ( handle ) ==0 ) THEN
@@ -206,6 +216,9 @@ SUBROUTINE timestop ( perf, handle )
   INTEGER :: i
   CHARACTER ( LEN = 40 )  :: sformat
   CHARACTER ( LEN = 400 )  :: mystring
+#if defined(__HPM)
+#include "f_hpm.h"
+#endif
 
 !------------------------------------------------------------------------------
 
@@ -225,6 +238,9 @@ SUBROUTINE timestop ( perf, handle )
      print*,'handle > num_timer in routine timestop'
      CALL mp_abort()
   ELSE
+#if defined(__HPM)
+     CALL f_hpmstop(handle)
+#endif
      cpt = m_cputime ( ) - clock_start ( handle )
      wt = m_walltime ( ) - wallclock_start ( handle )
      clock_accu ( handle ) = clock_accu ( handle ) + cpt

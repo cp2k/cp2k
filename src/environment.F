@@ -141,6 +141,9 @@ CONTAINS
     CHARACTER(LEN=26) :: datx
     INTEGER           :: initial_random,l,narg,output_unit,pid,strstart,strend
     LOGICAL           :: ionode
+#if defined(__HPM)
+#include "f_hpm.h"    
+#endif
 
 !   ---------------------------------------------------------------------------
 
@@ -155,6 +158,10 @@ CONTAINS
 !   *** Initialize message passing environment ***
 
     CALL start_parallel(globenv)
+
+#if defined(__HPM)
+    CALL f_hpminit(globenv%para_env%mepos,"CP2K") 
+#endif
 
 !   *** Set the default logical output and error unit number ***
 
@@ -953,15 +960,22 @@ CONTAINS
     CHARACTER(LEN=60) :: cwd
     CHARACTER(LEN=30) :: host_name,user_name
     CHARACTER(LEN=26) :: datx
-    INTEGER           :: l,output_unit,pid
+    INTEGER           :: l,output_unit,pid,dum
+#if defined(__HPM)
+#include "f_hpm.h"
+#endif
 
 !   ---------------------------------------------------------------------------
 
 !   *** Release message passing environment ***
-
+    dum = globenv%para_env%mepos
     CALL end_parallel(globenv)
 
     CALL timestop(0.0_dp,handle)
+
+#if defined(__HPM)
+    CALL f_hpmterminate(dum) 
+#endif
 
     IF (globenv%ionode) THEN
 
