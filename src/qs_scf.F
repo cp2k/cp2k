@@ -1273,6 +1273,7 @@ END SUBROUTINE scf
   
     NULLIFY(scf_env%scf_work1)
     ALLOCATE(scf_env%scf_work1(dft_control%nspins))
+    scf_work1 => scf_env%scf_work1
 
     CALL cp_fm_create2(new_matrix=scf_env%scf_work1(1)%matrix,&
                                nrow_global=nao,&
@@ -1306,7 +1307,6 @@ END SUBROUTINE scf
                                  ncol_block=ncol_block,&
                                  name="SCF WORK MATRIX 2",&
                                  globenv=globenv)
-    scf_work1 => scf_env%scf_work1
     scf_work2 => scf_env%scf_work2
     ortho => scf_env%ortho
       
