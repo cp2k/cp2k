@@ -249,7 +249,7 @@ MODULE qs_rho0_ggrid
 !$OMP parallel do &
 !$OMP default(none) &
 !$OMP private(j,iat,iatom,ra,ithread) &
-!$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_grid) &
+!$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_grid,r_V0) &
 !$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s,rho0,Qlm_c,nch_ik,l0_ikind)  
       DO j=1,npme
 
@@ -652,7 +652,7 @@ MODULE qs_rho0_ggrid
 !$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s,l0_ikind) &
 !$OMP shared(norm_l,calculate_forces,c4pi,ecoul_1c)&
 !$OMP shared(nset,npgf,lmax,maxso,harmonics,force,nso,nsoset,nco,ncoset,indco,orbtramat,dfac,Qlm_gg)&
-!$OMP shared(rho0_mpole)
+!$OMP shared(rho0_mpole,r_V0)
       DO j=1,npme
 
 !$      ithread=omp_get_thread_num()
