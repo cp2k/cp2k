@@ -262,6 +262,7 @@ CONTAINS
        IF (PRESENT(m)) optimizer%m=m
        optimizer%master= 0
        optimizer%para_env => para_env
+       CALL cp_para_env_retain(para_env)
        optimizer%obj_funct => obj_funct
        CALL [type1_retain](obj_funct, error=error)
        optimizer%max_f_per_iter=20
@@ -782,7 +783,7 @@ END SUBROUTINE cp_opt_[nametype1]_release
        projected_gradient,error)
     TYPE(cp_lbfgs_opt_[nametype1]_type), pointer :: optimizer
     INTEGER, OPTIONAL, INTENT(out) :: n_iter
-    REAL(kind=dp), OPTIONAL, INTENT(out) :: f, last_f, projected_gradient
+    REAL(kind=dp), OPTIONAL, INTENT(inout) :: f, last_f, projected_gradient
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
