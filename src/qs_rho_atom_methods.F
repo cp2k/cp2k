@@ -952,96 +952,141 @@ MODULE qs_rho_atom_methods
 
 !     *** calculate the spherical harmonics on the grid ***
 
-      CALL create_harmonics_atom(harmonics,orb_basis_set,&
+      CALL create_harmonics_atom(harmonics, orb_basis_set,&
                    my_CG,na,llmax,max_s_harm,ll,grid_atom%wa,&
                    grid_atom%phi,grid_atom%cos_theta,grid_atom%cotan_theta,globenv)
 
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
-                             maxco=maxco,maxso=maxso,nset=nset)
-      nsotot = maxso * nset 
-      ncotot = maxco * nset
-      max_iso_not0 = harmonics%max_iso_not0
-
-      DO iat = 1,nat
-        iatom = atom_list(iat) 
-!       *** allocate the radial density for each LM,for each atom ***
-
-        ALLOCATE (rho_atom_set(iatom)%rho_rad_h(nspins))
-        ALLOCATE (rho_atom_set(iatom)%rho_rad_s(nspins))
-        ALLOCATE (rho_atom_set(iatom)%vrho_rad_h(nspins))
-        ALLOCATE (rho_atom_set(iatom)%vrho_rad_s(nspins))
- 
-        DO i = 1,nspins
-          ALLOCATE(rho_atom_set(iatom)%rho_rad_h(i)%r_coef(&
-                                      1:nr,1:max_iso_not0))
-          rho_atom_set(iatom)%rho_rad_h(i)%r_coef=0.0_dp
-          ALLOCATE(rho_atom_set(iatom)%rho_rad_s(i)%r_coef(& 
-                                      1:nr,1:max_iso_not0))
-          rho_atom_set(iatom)%rho_rad_s(i)%r_coef=0.0_dp
-          ALLOCATE(rho_atom_set(iatom)%vrho_rad_h(i)%r_coef(&
-                                      1:nr,1:max_iso_not0))
-          rho_atom_set(iatom)%vrho_rad_h(i)%r_coef=0.0_dp
-          ALLOCATE(rho_atom_set(iatom)%vrho_rad_s(i)%r_coef(& 
-                                      1:nr,1:max_iso_not0))
-          rho_atom_set(iatom)%vrho_rad_s(i)%r_coef=0.0_dp
-        END DO
-
-        ALLOCATE (rho_atom_set(iatom)%cpc_h(nspins))
-        ALLOCATE (rho_atom_set(iatom)%cpc_s(nspins))
-        ALLOCATE (rho_atom_set(iatom)%drho_rad_h(nspins))
-        ALLOCATE (rho_atom_set(iatom)%drho_rad_s(nspins))
-        ALLOCATE (rho_atom_set(iatom)%rho_rad_h_d(3,nspins))
-        ALLOCATE (rho_atom_set(iatom)%rho_rad_s_d(3,nspins))
-
-        ALLOCATE (rho_atom_set(iatom)%ga_Vxc_gb_h(nspins))
-        ALLOCATE (rho_atom_set(iatom)%ga_Vxc_gb_s(nspins))
-
-        IF( paw_atom) THEN 
-          DO i = 1,nspins
-
-            ALLOCATE(rho_atom_set(iatom)%cpc_h(i)%r_coef(1:nsotot,1:nsotot))
-            ALLOCATE(rho_atom_set(iatom)%cpc_s(i)%r_coef(1:nsotot,1:nsotot))
-            rho_atom_set(iatom)%cpc_h(i)%r_coef = 0.0_dp
-            rho_atom_set(iatom)%cpc_s(i)%r_coef = 0.0_dp
-            ALLOCATE(rho_atom_set(iatom)%drho_rad_h(i)%r_coef(nr,max_iso_not0))
-            ALLOCATE(rho_atom_set(iatom)%drho_rad_s(i)%r_coef(nr,max_iso_not0))
-            DO j = 1,3
-              allocate(rho_atom_set(iatom)%rho_rad_h_d(j,i)%r_coef(nr,max_iso_not0))
-              allocate(rho_atom_set(iatom)%rho_rad_s_d(j,i)%r_coef(nr,max_iso_not0))
-
-            END DO
-
-            CALL reallocate(rho_atom_set(iatom)%ga_Vxc_gb_h(i)%r_coef,&
-                                      1,nsotot,1,nsotot)
-            CALL reallocate(rho_atom_set(iatom)%ga_Vxc_gb_s(i)%r_coef,&
-                                      1,nsotot,1,nsotot)
-
-          END DO
-
-        ELSE
-          DO i = 1,nspins
-            NULLIFY(rho_atom_set(iatom)%cpc_h(i)%r_coef)
-            NULLIFY(rho_atom_set(iatom)%cpc_s(i)%r_coef)
-            NULLIFY(rho_atom_set(iatom)%drho_rad_h(i)%r_coef)
-            NULLIFY(rho_atom_set(iatom)%drho_rad_s(i)%r_coef)
-
-            DO j = 1,3
-              NULLIFY(rho_atom_set(iatom)%rho_rad_h_d(j,i)%r_coef)
-              NULLIFY(rho_atom_set(iatom)%rho_rad_s_d(j,i)%r_coef)
-            END DO
-            NULLIFY(rho_atom_set(iatom)%ga_Vxc_gb_h(i)%r_coef)
-            NULLIFY(rho_atom_set(iatom)%ga_Vxc_gb_s(i)%r_coef)
-          END DO
-        ENDIF
-
-      END DO ! iat
-
     END DO
+
+    CALL allocate_rho_atom_internals(qs_env, rho_atom_set)
 
     CALL set_qs_env(qs_env=qs_env, rho_atom_set=rho_atom_set)
 
   END SUBROUTINE init_rho_atom
 
 ! *****************************************************************************
+
+  SUBROUTINE allocate_rho_atom_internals(qs_env, rho_atom_set)
+
+    ! ARGUMENTS
+    TYPE(qs_environment_type),POINTER        :: qs_env
+    TYPE(rho_atom_type), DIMENSION(:), &
+      POINTER                                :: rho_atom_set
+
+    ! LOCALS
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    INTEGER                                  :: ikind, nkind
+    INTEGER                                  :: iat, nat
+    INTEGER                                  :: iatom
+    INTEGER                                  :: ispin, nspins
+    INTEGER                                  :: nr, j, max_iso_not0
+    INTEGER                                  :: maxso, nset, nsotot
+    LOGICAL                                  :: paw_atom
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(harmonics_atom_type), POINTER       :: harmonics
+    
+    NULLIFY(atomic_kind_set)
+    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)
+
+    nkind = SIZE(atomic_kind_set)
+    nspins = qs_env%dft_control%nspins
+  
+    DO ikind = 1, nkind
+
+       NULLIFY(atom_list, atomic_kind, harmonics)
+
+       atomic_kind => atomic_kind_set(ikind)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                            orb_basis_set=orb_basis_set, &
+                            atom_list=atom_list,natom=nat, &
+                            paw_atom=paw_atom,&
+                            harmonics=harmonics,&
+                            ngrid_rad=nr)
+
+       CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+                              maxso=maxso, nset=nset)
+       nsotot = maxso * nset 
+       max_iso_not0 = harmonics%max_iso_not0
+       
+       DO iat = 1,nat
+          iatom = atom_list(iat) 
+          !       *** allocate the radial density for each LM,for each atom ***
+
+          ALLOCATE (rho_atom_set(iatom)%rho_rad_h(nspins))
+          ALLOCATE (rho_atom_set(iatom)%rho_rad_s(nspins))
+          ALLOCATE (rho_atom_set(iatom)%vrho_rad_h(nspins))
+          ALLOCATE (rho_atom_set(iatom)%vrho_rad_s(nspins))
+
+          DO ispin = 1,nspins
+             ALLOCATE(rho_atom_set(iatom)%rho_rad_h(ispin)%r_coef(&
+                  1:nr,1:max_iso_not0))
+             rho_atom_set(iatom)%rho_rad_h(ispin)%r_coef=0.0_dp
+             ALLOCATE(rho_atom_set(iatom)%rho_rad_s(ispin)%r_coef(& 
+                  1:nr,1:max_iso_not0))
+             rho_atom_set(iatom)%rho_rad_s(ispin)%r_coef=0.0_dp
+             ALLOCATE(rho_atom_set(iatom)%vrho_rad_h(ispin)%r_coef(&
+                  1:nr,1:max_iso_not0))
+             rho_atom_set(iatom)%vrho_rad_h(ispin)%r_coef=0.0_dp
+             ALLOCATE(rho_atom_set(iatom)%vrho_rad_s(ispin)%r_coef(& 
+                  1:nr,1:max_iso_not0))
+             rho_atom_set(iatom)%vrho_rad_s(ispin)%r_coef=0.0_dp
+          END DO
+
+          ALLOCATE (rho_atom_set(iatom)%cpc_h(nspins))
+          ALLOCATE (rho_atom_set(iatom)%cpc_s(nspins))
+          ALLOCATE (rho_atom_set(iatom)%drho_rad_h(nspins))
+          ALLOCATE (rho_atom_set(iatom)%drho_rad_s(nspins))
+          ALLOCATE (rho_atom_set(iatom)%rho_rad_h_d(3,nspins))
+          ALLOCATE (rho_atom_set(iatom)%rho_rad_s_d(3,nspins))
+
+          ALLOCATE (rho_atom_set(iatom)%ga_Vxc_gb_h(nspins))
+          ALLOCATE (rho_atom_set(iatom)%ga_Vxc_gb_s(nspins))
+
+          IF( paw_atom) THEN 
+             DO ispin = 1,nspins
+
+                ALLOCATE(rho_atom_set(iatom)%cpc_h(ispin)%r_coef(1:nsotot,1:nsotot))
+                ALLOCATE(rho_atom_set(iatom)%cpc_s(ispin)%r_coef(1:nsotot,1:nsotot))
+                rho_atom_set(iatom)%cpc_h(ispin)%r_coef = 0.0_dp
+                rho_atom_set(iatom)%cpc_s(ispin)%r_coef = 0.0_dp
+                ALLOCATE(rho_atom_set(iatom)%drho_rad_h(ispin)%r_coef(nr,max_iso_not0))
+                ALLOCATE(rho_atom_set(iatom)%drho_rad_s(ispin)%r_coef(nr,max_iso_not0))
+                DO j = 1,3
+                   allocate(rho_atom_set(iatom)%rho_rad_h_d(j,ispin)%r_coef(nr,max_iso_not0))
+                   allocate(rho_atom_set(iatom)%rho_rad_s_d(j,ispin)%r_coef(nr,max_iso_not0))
+
+                END DO
+
+                CALL reallocate(rho_atom_set(iatom)%ga_Vxc_gb_h(ispin)%r_coef,&
+                     1,nsotot,1,nsotot)
+                CALL reallocate(rho_atom_set(iatom)%ga_Vxc_gb_s(ispin)%r_coef,&
+                     1,nsotot,1,nsotot)
+
+             END DO
+
+          ELSE
+             DO ispin = 1,nspins
+                NULLIFY(rho_atom_set(iatom)%cpc_h(ispin)%r_coef)
+                NULLIFY(rho_atom_set(iatom)%cpc_s(ispin)%r_coef)
+                NULLIFY(rho_atom_set(iatom)%drho_rad_h(ispin)%r_coef)
+                NULLIFY(rho_atom_set(iatom)%drho_rad_s(ispin)%r_coef)
+
+                DO j = 1,3
+                   NULLIFY(rho_atom_set(iatom)%rho_rad_h_d(j,ispin)%r_coef)
+                   NULLIFY(rho_atom_set(iatom)%rho_rad_s_d(j,ispin)%r_coef)
+                END DO
+                NULLIFY(rho_atom_set(iatom)%ga_Vxc_gb_h(ispin)%r_coef)
+                NULLIFY(rho_atom_set(iatom)%ga_Vxc_gb_s(ispin)%r_coef)
+             END DO
+          ENDIF
+
+       END DO ! iat
+
+    END DO
+
+  END SUBROUTINE allocate_rho_atom_internals
 
 END MODULE qs_rho_atom_methods
