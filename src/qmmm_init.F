@@ -323,7 +323,6 @@ CONTAINS
                     CALL read_object(qm_cell_small%hmat(2,3))
                     CALL read_object(qm_cell_small%hmat(3,3))
                  END SELECT
-                 call init_qmmm_cell(qm_cell_small)
               CASE("&END")
                  EXIT 
               CASE DEFAULT
@@ -341,6 +340,9 @@ CONTAINS
            qm_atom_type=(/ "O","H","H"/)
            qm_subsys_index=1
         endif
+        ! Initialize cell parameters..
+        call init_qmmm_cell(qm_cell_small)
+        ! Terminate parser..
         CALL finish_parser()
       END SUBROUTINE qmmm_namelist_read
   END SUBROUTINE qmmm_create_force_env
