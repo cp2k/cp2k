@@ -52,28 +52,65 @@ call qs_error_message(level,routineN,msg//' in file'//QSSourceFileRef(),error)
 
 ! (qs_precondition_failed = 200)
 #define QSPrecondition(cond,level,routineN,error,failure) \
-if(cond) call qs_assert(.true.,level,200,routineN,\
+if(.not.(cond)) call qs_assert(.false.,level,200,routineN,\
 'PRECONDITION(cond) failed at line '//qs_to_string(__LINE__),error,failure)
 
 ! (qs_postcondition_failed = -200)
 #define QSPostcondition(cond,level,routineN,error,failure) \
-if(cond) call qs_assert(.true.,level,-200,routineN,\
+if(.not.(cond)) call qs_assert(.false.,level,-200,routineN,\
 'POSTCONDITION(cond) failed at line '//qs_to_string(__LINE__),error,failure)
 
 ! (qs_invariant_failed = -100)
 #define QSInvariant(cond,level,routineN,error,failure) \
-if(cond) call qs_assert(.true., level, -100,routineN,\
+if(.not.(cond)) call qs_assert(.false., level, -100,routineN,\
 'INVARIANT (cond) failed at line '//qs_to_string(__LINE__),error,failure)
 
 ! (qs_assert_failed = -300)
 #define QSAssert(cond,level,routineN,error,failure) \
-if(cond) call qs_assert(.true.,level,-300,routineN,\
+if(.not.(cond)) call qs_assert(.false.,level,-300,routineN,\
 'ASSERTION (cond) failed at line '//qs_to_string(__LINE__),error,failure)
 
 #define QSErrorMessage(level,routineN,msg,error) \
 call qs_error_message(level,routineN,msg//' at line '//qs_to_string(__LINE__),error)
 
 #endif
+
+#define QSPreconditionNoFail(cond,level,routineN,error) \
+if(.not.(cond)) call qs_assert(.false.,level,200,routineN,\
+'PRECONDITION(cond) failed at line '//qs_to_string(__LINE__),error)
+
+! (qs_postcondition_failed = -200)
+#define QSPostconditionNoFail(cond,level,routineN,error) \
+if(.not.(cond)) call qs_assert(.false.,level,-200,routineN,\
+'POSTCONDITION(cond) failed at line '//qs_to_string(__LINE__),error)
+
+! (qs_invariant_failed = -100)
+#define QSInvariantNoFail(cond,level,routineN,error) \
+if(.not.(cond)) call qs_assert(.false., level, -100,routineN,\
+'INVARIANT (cond) failed at line '//qs_to_string(__LINE__),error)
+
+! (qs_assert_failed = -300)
+#define QSAssertNoFail(cond,level,routineN,error) \
+if(.not.(cond)) call qs_assert(.false.,level,-300,routineN,\
+'ASSERTION (cond) failed at line '//qs_to_string(__LINE__),error)
+
+
+#define QSPreconditionNoErr(cond, level, routine_name) \
+IF (.NOT.(cond)) CALL qs_assert(.false., level, 200, routine_name ,\
+"PRECONDITION failed on line " //qs_to_string(__LINE__))
+
+#define QSPostconditionNoErr(cond, level, routine_name) \
+IF (.NOT.(cond)) CALL qs_assert(.false., level, -200, routine_name ,\
+"POSTCONDITION failed on line " //qs_to_string(__LINE__))
+
+#define QSInvariantNoErr(cond,level,routineN) \
+if(.not.(cond)) call qs_assert(.false., level, -100,routineN,\
+'INVARIANT (cond) failed at line '//qs_to_string(__LINE__))
+
+! (qs_assert_failed = -300)
+#define QSAssertNoErr(cond,level,routineN) \
+if(.not.(cond)) call qs_assert(.false.,level,-300,routineN,\
+'ASSERTION (cond) failed at line '//qs_to_string(__LINE__))
 
 
 #endif
