@@ -337,7 +337,7 @@ SUBROUTINE nhc_particle_setup ( simpar, molecule, mol_setup, nhc, globenv )
     ELSE IF (nhc%dis_type=='INTER_REP' ) THEN
        atm_offset = 0
        mol_off = 0
-       DO i = 1, nmol_type
+       DO i = 1, SIZE(molecule) ! JVDV was : nmol_type
           j = molecule ( i ) % moltype
           natoms_mol(i) = mol_setup(j) %molpar%natom
           point(1,i) = atm_offset + 1
@@ -546,7 +546,7 @@ SUBROUTINE nhc_particle_setup ( simpar, molecule, mol_setup, nhc, globenv )
     ELSE IF (nhc%dis_type=="INTER_REP") THEN
 
 !  Begin the mapping loop
-     DO i = 1, nmol_type
+     DO i = 1, SIZE(molecule) ! JVDV was : nmol_type
         opt = mol_setup(i) %nhcopt
 
 ! Search for user defined thermostatting options first
