@@ -22,37 +22,32 @@ MODULE qs_oce_methods
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_error_handling,               ONLY: cp_error_type
-  USE distribution_2d_types,           ONLY: distribution_2d_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
-  USE mathconstants,                   ONLY: dfac,pi
+  USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: dfac,&
+                                             pi
   USE memory_utilities,                ONLY: reallocate
-  USE orbital_pointers,                ONLY: coset,&
-                                             indco,nco,ncoset,nso,&
-                                             nsoset, indso
+  USE orbital_pointers,                ONLY: indco,&
+                                             nco,&
+                                             ncoset,&
+                                             nso
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                              paw_proj_set_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_neighbor_list_types,          ONLY: find_neighbor_list,&
-                                             first_list,&
+  USE qs_neighbor_list_types,          ONLY: block_p_type,&
+                                             find_neighbor_list,&
                                              first_node,&
                                              get_neighbor_list,&
                                              get_neighbor_node,&
-                                             qlist_type,&
-                                             block_p_type,&
                                              neighbor_list_set_p_type,&
                                              neighbor_list_type,&
                                              neighbor_node_type,&
-                                             next
+                                             next,&
+                                             qlist_type
   USE qs_oce_types,                    ONLY: oce_matrix_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
   USE sparse_matrix_types,             ONLY: add_1d_block_node
-  USE util,                            ONLY: locate,&
-                                             sort
+  USE util,                            ONLY: locate
 
   IMPLICIT NONE
 
@@ -130,7 +125,7 @@ CONTAINS
    CALL get_atomic_kind(atomic_kind=atom_kb,orb_basis_set=orb_basis_b,&
                          paw_proj_set=paw_proj_b,paw_atom=paw_atom_b)
 
-   IF(.not. paw_atom_a) RETURN
+   IF(.NOT. paw_atom_a) RETURN
 
    CALL get_paw_proj_set(paw_proj_set=paw_proj_a,cprj_s=cprj_s,maxl=maxlprj, &
                          nprj=nprjla,ncgauprj=np_car,nsgauprj=np_sph,rcprj=rcprja, & 
@@ -158,7 +153,7 @@ CONTAINS
     maxnprja = SIZE(zetprja,1)
 
     IF(nder > 0) THEN
-      calculate_forces = .true.
+      calculate_forces = .TRUE.
     ENDIF
 
     CALL reallocate(spa_sbt,1,np_car,1,ntotsgfb,0,nthread-1)
@@ -195,28 +190,28 @@ CONTAINS
                        rpgfb(:,jset),zetb(:,jset),&
                        rab,dab,spa_tmp,&
                        nder,calculate_forces,ai_work,ldai)
-          do ipgf = 1,nprjla(lprj)
+          DO ipgf = 1,nprjla(lprj)
             n = (ipgf -1)*ncoset(lprj)
             lpoint = ncoset(lprj -1)+1+ n
             m = fp_cara(lprj)+(ipgf -1)*nco(lprj)
-            do ider =1,maxder
+            DO ider =1,maxder
             is = (ider-1)*maxcob
-            do ip = 1,npgfb(jset)
+            DO ip = 1,npgfb(jset)
                ic = (ip-1)*ncoset(lb_max(jset))
-               do jc = ncoset(lb_min(jset)-1)+1,ncoset(lb_max(jset)) 
+               DO jc = ncoset(lb_min(jset)-1)+1,ncoset(lb_max(jset)) 
                  ovc(m:m-1+nco(lprj),jc+ic+is+m1) = spa_tmp(lpoint:lpoint-1+nco(lprj),ic+jc+is)
-               enddo
-            enddo
-            enddo
-          enddo
+               ENDDO
+            ENDDO
+            ENDDO
+          ENDDO
         ENDDO
 
         n = ncoset(lb_max(jset))
-        do ider =1,maxder
+        DO ider =1,maxder
         is = (ider-1)*maxcob
-        do ipgf = 1,npgfb(jset)
-          do lshell = lb_min(jset),lb_max(jset)
-            do ic = 1,nco(lshell)
+        DO ipgf = 1,npgfb(jset)
+          DO lshell = lb_min(jset),lb_max(jset)
+            DO ic = 1,nco(lshell)
               igau = ic + ncoset(lshell-1) + n*(ipgf-1) + m1 + is
               DO lprj = 0,maxlprj
                 DO ip = 1,nprjla(lprj)
@@ -229,16 +224,16 @@ CONTAINS
                       iprjc = fp_cara(lprj) + ico - 1 + nco(lprj)*(ip-1)
                       ovs(iprjs,igau) = ovs(iprjs,igau) + &
                          orbtramat(lprj)%c2s(iso,ico) * ovc(iprjc,igau) /&
-                         sqrt((4.0_dp*pi)/dfac(2*lprj+1)*&
+                         SQRT((4.0_dp*pi)/dfac(2*lprj+1)*&
                          dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
                     ENDDO ! ico
                   ENDDO ! iso
                 ENDDO ! ip
               ENDDO ! lprj
-            enddo ! ic
-          enddo ! lshell
-        enddo ! ipgf 
-        enddo ! ider
+            ENDDO ! ic
+          ENDDO ! lshell
+        ENDDO ! ipgf 
+        ENDDO ! ider
 
       
         IF(paw_atom_b) THEN
@@ -333,7 +328,7 @@ CONTAINS
     
 ! stop 'oce'
 
-    deallocate(spa_sbt)
+    DEALLOCATE(spa_sbt)
 
   END SUBROUTINE build_oce_block
 
@@ -348,36 +343,35 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), POINTER        :: qs_env
-    TYPE(oce_matrix_type), POINTER            :: oce
-    TYPE(block_p_type), DIMENSION(:), POINTER :: oceh,oces
-    INTEGER, INTENT(IN)                       :: ikind, iatom, &
-                                                 jkind, jatom, & 
-                                                 ldai, nder
-    REAL(KIND = dp), DIMENSION(ldai,ldai,*)   :: ai_work
-    REAL(dp), DIMENSION(3), INTENT(IN)        :: rab
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(oce_matrix_type), POINTER           :: oce
+    INTEGER, INTENT(IN)                      :: ikind, iatom, jkind, jatom
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: rab
+    TYPE(block_p_type), DIMENSION(:), &
+      POINTER                                :: oceh, oces
+    INTEGER, INTENT(IN)                      :: nder, ldai
+    REAL(KIND=dp), DIMENSION(ldai, ldai, *)  :: ai_work
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_up_oce"
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "set_up_oce"
 
-
-    TYPE(atomic_kind_type), DIMENSION(:),&
-                            POINTER     :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER     :: atomic_kind,at_a,at_b
-    TYPE(gto_basis_set_type), POINTER   :: orb_basis_set
+    INTEGER                                  :: i, ibc, katom, kkind, &
+                                                kkneighbor, kneighbor, nkind, &
+                                                nneighbor
+    INTEGER, DIMENSION(3)                    :: cell_c
+    LOGICAL                                  :: paw_atom
+    REAL(KIND=dp)                            :: dac, dbc
+    REAL(KIND=dp), DIMENSION(3)              :: rac, rbc
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: at_a, at_b, atomic_kind
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
-              DIMENSION(:), POINTER     :: sac_oce,sbc_oce
-    TYPE(neighbor_list_type), POINTER   :: sac_oce_neighbor_list,&
-                                           sbc_oce_neighbor_list
-    TYPE(neighbor_node_type), POINTER   :: sac_oce_neighbor_node,&
-                                           sbc_oce_neighbor_node
-    TYPE(qlist_type), POINTER            :: sac_oce_neighbor
-
-    INTEGER                             :: i, iac, ibc, katom, kkind, kneighbor,& 
-                                           kkneighbor, nkind, nneighbor
-    INTEGER, DIMENSION(3)               :: cell_c
-    REAL(KIND = dp)                     :: rac2,dac,rbc2,dbc
-    REAL(KIND = dp), DIMENSION(3)       :: rac,rbc
-    LOGICAL                             :: paw_atom
+      DIMENSION(:), POINTER                  :: sac_oce, sbc_oce
+    TYPE(neighbor_list_type), POINTER        :: sbc_oce_neighbor_list
+    TYPE(neighbor_node_type), POINTER        :: sbc_oce_neighbor_node
+    TYPE(qlist_type), DIMENSION(:, :, :), &
+      POINTER                                :: tmp_neigh
+    TYPE(qlist_type), POINTER                :: sac_oce_neighbor
 
 !   ***************************************************************************
 
@@ -426,11 +420,12 @@ CONTAINS
                             neighbor=katom,&
                             cell=cell_c,&
                             r=rbc)
-          dbc = sqrt(rbc(1)*rbc(1)+ rbc(2)*rbc(2) + rbc(3)*rbc(3))
+          dbc = SQRT(rbc(1)*rbc(1)+ rbc(2)*rbc(2) + rbc(3)*rbc(3))
 
+          tmp_neigh => oce%voce(kkind,iatom)%neighbor
           DO i=1, 3
-            IF ( (cell_c(i) < LBOUND(oce%voce(kkind,iatom)%neighbor,i)) .OR. &
-                 (cell_c(i) > UBOUND(oce%voce(kkind,iatom)%neighbor,i))) THEN
+            IF ( (cell_c(i) < LBOUND(tmp_neigh,i)) .OR. &
+                 (cell_c(i) > UBOUND(tmp_neigh,i))) THEN
               sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
               CYCLE knodeloop
             END IF
@@ -454,19 +449,19 @@ CONTAINS
            END IF
 
            rac(:) = sac_oce_neighbor%r(:,kkneighbor)
-           dac = sqrt(rac(1)*rac(1)+ rac(2)*rac(2) + rac(3)*rac(3))
+           dac = SQRT(rac(1)*rac(1)+ rac(2)*rac(2) + rac(3)*rac(3))
 
            DO i=1,SIZE(oce%hardo)
               NULLIFY (oceh(i)%block)
               CALL add_1d_block_node(matrix=oce%hardo(i)%matrix,&
                                  block_row=katom,&
                                  block_col=iatom,&
-                                 block=oceh(i)%block)
+                                 BLOCK=oceh(i)%block)
               NULLIFY (oces(i)%block)
               CALL add_1d_block_node(matrix=oce%softo(i)%matrix,&
                                  block_row=katom,&
                                  block_col=iatom,&
-                                 block=oces(i)%block)
+                                 BLOCK=oces(i)%block)
            ENDDO
 
            at_a => atomic_kind_set(kkind)
@@ -492,12 +487,12 @@ CONTAINS
              CALL add_1d_block_node(matrix=oce%hardo(i)%matrix,&
                                block_row=katom,&
                                block_col=jatom,&
-                               block=oceh(i)%block)
+                               BLOCK=oceh(i)%block)
              NULLIFY (oces(i)%block)
              CALL add_1d_block_node(matrix=oce%softo(i)%matrix,&
                                block_row=katom,&
                                block_col=jatom,&
-                               block=oces(i)%block)
+                               BLOCK=oces(i)%block)
            ENDDO
 
            at_a => atomic_kind_set(kkind)

@@ -17,8 +17,6 @@
 
 MODULE qs_rho_atom_methods
 
-  USE ai_overlap_new,                  ONLY: overlap
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -27,8 +25,7 @@ MODULE qs_rho_atom_methods
   USE cp_control_types,                ONLY: dft_control_type,&
                                              gapw_control_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+  USE kinds,                           ONLY: dp
   USE lebedev,                         ONLY: get_number_of_lebedev_grid,&
                                              init_lebedev_grids,&
                                              lebedev_grid
@@ -38,8 +35,6 @@ MODULE qs_rho_atom_methods
   USE orbital_pointers,                ONLY: indso,&
                                              ncoset,&
                                              nsoset
-  USE particle_types,                  ONLY: get_particle_set,&
-                                             particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -53,23 +48,20 @@ MODULE qs_rho_atom_methods
                                              get_neighbor_list,&
                                              get_neighbor_list_set,&
                                              get_neighbor_node,&
-                                             qlist_type, &
                                              neighbor_list_set_p_type,&
                                              neighbor_list_type,&
                                              neighbor_node_type,&
-                                             next
+                                             next,&
+                                             qlist_type
   USE qs_oce_types,                    ONLY: oce_matrix_type
   USE qs_rho_atom_types,               ONLY: allocate_rho_atom_set,&
                                              rho_atom_type
-  USE qs_util,                         ONLY: symmetric_add,&
-                                             transform_c2s,&
-                                             transform_c2s_new
+  USE qs_util,                         ONLY: symmetric_add
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type
   USE spherical_harmonics,             ONLY: clebsch_gordon,&
                                              clebsch_gordon_init
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE util,                            ONLY: locate
 
   IMPLICIT NONE
@@ -93,46 +85,38 @@ MODULE qs_rho_atom_methods
 ! *****************************************************************************
   SUBROUTINE calculate_rho_atom(qs_env,atom_kind)
 
-    TYPE(qs_environment_type), INTENT(inout):: qs_env
-    TYPE(atomic_kind_type), POINTER         :: atom_kind
+    TYPE(qs_environment_type), INTENT(inout) :: qs_env
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
 
     CHARACTER(len=*), PARAMETER :: routine_name = 'calculate_rho_atom', &
       routineP = module_name//':'//routine_name
 
-    TYPE(dft_control_type), POINTER       :: dft_control
-    TYPE(rho_atom_type), DIMENSION(:),&
-                           POINTER        :: rho_atom_set
-    TYPE(gto_basis_set_type), POINTER     :: orb_basis
-    TYPE(grid_atom_type), POINTER         :: grid_atom
-    TYPE(harmonics_atom_type), POINTER    :: harmonics
-    INTEGER, DIMENSION(:), POINTER        :: atom_list
-    INTEGER, DIMENSION(:), POINTER        :: lmax,lmin,npgf
-    REAL(dp), DIMENSION(:), ALLOCATABLE   :: g1,g2
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE :: gg,dgg
-    REAL(dp), DIMENSION(:,:), POINTER     :: zet
-    REAL(dp), DIMENSION(:,:), POINTER     :: coeff,&
-                                             CPCH_sphere,CPCS_sphere
-    REAL(dp), DIMENSION(:,:,:),POINTER    :: my_CG
-
-    INTEGER                   :: i, iat, iatom, ico1, ico1_first, ico1_last, &
-                                 iso1_first, iso1_last, iso2_first, iso2_last,&
-                                 ico2, ico2_first, ico2_last, icg, ipgf1, &
-                                 ipgf2, iset1, iset2, iso, iso1, iso2, istat,&
-                                 l, lmin12, lmax12, m1, m2, max_s_harm,&
-                                 maxcg, maxco, maxl, n1, n2, natom, nr, nset,&
-                                 nspins, size1, size2,i1,i2
+    INTEGER :: i, i1, i2, iat, iatom, icg, ico1, ico1_first, ico1_last, ico2, &
+      ico2_first, ico2_last, ipgf1, ipgf2, iset1, iset2, iso, iso1, &
+      iso1_first, iso1_last, iso2, iso2_first, iso2_last, istat, l, lmax12, &
+      lmin12, m1, m1s, m2, m2s, max_s_harm, maxcg, maxco, maxl, maxso, n1, &
+      n1s, n2, n2s, natom, nr, nset, nspins, size1, size2
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
+    REAL(dp)                                 :: rtot1, rtot2
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: g1, g2
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: dgg, gg
+    REAL(dp), DIMENSION(:, :), POINTER       :: coeff, CPCH_sphere, &
+                                                CPCS_sphere, zet
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(grid_atom_type), POINTER            :: grid_atom
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis
+    TYPE(harmonics_atom_type), POINTER       :: harmonics
+    TYPE(rho_atom_type), DIMENSION(:), &
+      POINTER                                :: rho_atom_set
 
 !dbg
-   INTEGER :: ic,jc,jcs,is1,is2,ldai
 !    REAL(dp), DIMENSION(:,:), POINTER     :: sab
 !    REAL(dp), DIMENSION(3)     :: rab
-    REAL(dp) :: dab,rtot1,rtot2
 !    INTEGER, DIMENSION(:), POINTER        :: nsgf_s
 !    INTEGER, DIMENSION(:,:), POINTER     :: first_sgf
 !    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE :: ai_work
-
 !    REAL(dp), DIMENSION(:,:), POINTER     :: rpgf
-    INTEGER  :: n1s,n2s,m1s,m2s,maxso
 ! dbg
 ! *****************************************************************************
 
@@ -231,12 +215,12 @@ MODULE qs_rho_atom_methods
               gg(1:nr,lmin12) = g1(1:nr)*g2(1:nr)
             ELSE
               gg(1:nr,lmin12) = grid_atom%rad(1:nr)**lmin12*g1(1:nr)*g2(1:nr)
-              dgg(1:nr,lmin12) = real(lmin12,dp)/grid_atom%rad(1:nr)*&
+              dgg(1:nr,lmin12) = REAL(lmin12,dp)/grid_atom%rad(1:nr)*&
                                 gg(1:nr,lmin12)
             END IF
 
             DO l=lmin12+1,lmax12
-              dgg(1:nr,l) = real(l,dp)*gg(1:nr,l-1)
+              dgg(1:nr,l) = REAL(l,dp)*gg(1:nr,l-1)
               gg(1:nr,l) = grid_atom%rad(1:nr)*gg(1:nr,l-1)
               dgg(1:nr,l-1) = dgg(1:nr,l-1) -2.0_dp*(zet(ipgf1,iset1)+ &
                              zet(ipgf2,iset2))*gg(1:nr,l)
@@ -350,52 +334,48 @@ MODULE qs_rho_atom_methods
 
   SUBROUTINE calculate_rho_atom_coeff(globenv,qs_env,rho_ao)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:),&
-                                 POINTER    :: rho_ao
     TYPE(global_environment_type), &
-      INTENT(IN)                            :: globenv
+      INTENT(IN)                             :: globenv
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_rho_atom_coeff"
 
-    TYPE(atomic_kind_type), DIMENSION(:),&
-                            POINTER     :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER     :: atomic_kind
-    TYPE(gto_basis_set_type), POINTER   :: orb_basis_set
-    TYPE(oce_matrix_type), POINTER      :: oce
-    TYPE(rho_atom_type), DIMENSION(:), &
-                              POINTER   :: rho_atom
-    TYPE(qlist_type), POINTER            :: sac_oce_neighbor
+    INTEGER :: i, iab, iatom, ibc, icol, ikind, ilist, inode, irow, ispin, &
+      jatom, jkind, katom, kkind, kneighbor, knode, max_gau, max_nsgf, &
+      maxsoc, natom, nkind, nlist, nnode, nnode_c, nsetc, nsgfa, nsgfb, &
+      nsoctot, nspins
+    INTEGER, DIMENSION(3)                    :: cell_c
+    LOGICAL                                  :: paw_atom
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: C_coeff_h_a, C_coeff_h_b, &
+                                                C_coeff_s_a, C_coeff_s_b, PC
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: coef_aux_h, coef_aux_s, &
+                                                p_coeff
+    REAL(KIND=dp), DIMENSION(3)              :: rab, rbc
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: c_block, p_block, p_blockt
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:),           POINTER   :: sab_orb, sac_oce, sbc_oce
-    TYPE(neighbor_list_type), POINTER   :: sac_oce_neighbor_list, &
-                                           sab_orb_neighbor_list, &
-                                           sab_orb_neighbor_list_local,&
-                                           sbc_oce_neighbor_list
-    TYPE(neighbor_node_type), POINTER   :: sac_oce_neighbor_node, &
-                                           sab_orb_neighbor_node, &
-                                           sbc_oce_neighbor_node
-    TYPE(dft_control_type),   POINTER   :: dft_control
-    INTEGER                             :: i, iab, iatom, ibc, icol, ikind, ilist,&
-                                           inode, irow, ispin, jatom, &
-                                           jkind, katom, kkind, kneighbor, knode,  &
-                                           max_gau, max_nsgf, maxsoc, natom, &
-                                           nsoctot, nkind, nlist, nnode, nneighbor,&
-                                           nnode_c, nsgfa, nsgfb, nsetc, nspins
-    INTEGER, DIMENSION(3)               :: cell_c
-    REAL(KIND = dp), DIMENSION(3)       :: rab,rbc
-    REAL(KIND = dp), DIMENSION(:,:), &
-                              POINTER   :: c_block,p_block,p_blockt
-    REAL(KIND = dp), DIMENSION(:,:), &
-                           ALLOCATABLE  :: C_coeff_h_a,C_coeff_s_a,&
-                                           C_coeff_h_b,C_coeff_s_b,PC
-    REAL(KIND = dp), DIMENSION(:,:,:), &
-                           ALLOCATABLE  :: p_coeff, coef_aux_h, coef_aux_s
-    LOGICAL                             :: paw_atom
+      DIMENSION(:), POINTER                  :: sab_orb, sac_oce, sbc_oce
+    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
+                                                sab_orb_neighbor_list_local, &
+                                                sbc_oce_neighbor_list
+    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node, &
+                                                sbc_oce_neighbor_node
+    TYPE(oce_matrix_type), POINTER           :: oce
+    TYPE(qlist_type), DIMENSION(:, :, :), &
+      POINTER                                :: tmp_neigh
+    TYPE(qlist_type), POINTER                :: sac_oce_neighbor
+    TYPE(rho_atom_type), DIMENSION(:), &
+      POINTER                                :: rho_atom
 
-    INTEGER     :: istat,ic,jc,is1,is2
 ! *****************************************************************************
-
 
     NULLIFY(dft_control)
     NULLIFY(atomic_kind_set)
@@ -501,7 +481,7 @@ MODULE qs_rho_atom_methods
                   CALL get_block_node(matrix=rho_ao(ispin)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
-                                    block=p_block)
+                                    BLOCK=p_block)
                   p_coeff(1:nsgfa,1:nsgfb,ispin) = p_block(1:nsgfa,1:nsgfb)
                ENDDO
             ELSE
@@ -513,9 +493,9 @@ MODULE qs_rho_atom_methods
                   CALL get_block_node(matrix=rho_ao(ispin)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
-                                    block=p_blockt)
+                                    BLOCK=p_blockt)
 
-                  p_coeff(1:nsgfa,1:nsgfb,ispin)=transpose( p_blockt )
+                  p_coeff(1:nsgfa,1:nsgfb,ispin)=TRANSPOSE( p_blockt )
 
                ENDDO
             ENDIF
@@ -556,10 +536,11 @@ MODULE qs_rho_atom_methods
                           neighbor=katom,&
                           cell=cell_c,&
                           r=rbc)
-
+                
+                tmp_neigh => oce%voce(kkind,iatom)%neighbor
                 DO i=1, 3
-                   IF ( (cell_c(i) < LBOUND(oce%voce(kkind,iatom)%neighbor,i)) .OR. &
-                         (cell_c(i) > UBOUND(oce%voce(kkind,iatom)%neighbor,i))) THEN
+                   IF ( (cell_c(i) < LBOUND(tmp_neigh,i)) .OR. &
+                         (cell_c(i) > UBOUND(tmp_neigh,i))) THEN
                       sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
                       CYCLE knodeloop
                    END IF
@@ -587,7 +568,7 @@ MODULE qs_rho_atom_methods
                  CALL get_block_node(matrix=oce%hardo(1)%matrix,&
                                     block_row=katom,&
                                     block_col=iatom,&
-                                    block=c_block)
+                                    BLOCK=c_block)
                  C_coeff_h_a = 0.0_dp
                  C_coeff_h_a(1:nsoctot,1:nsgfa)=c_block(1:nsoctot,1:nsgfa)
 
@@ -595,11 +576,11 @@ MODULE qs_rho_atom_methods
                  CALL get_block_node(matrix=oce%softo(1)%matrix,&
                                     block_row=katom,&
                                     block_col=iatom,&
-                                    block=c_block)
+                                    BLOCK=c_block)
                  C_coeff_s_a = 0.0_dp
                  C_coeff_s_a(1:nsoctot,1:nsgfa)=c_block(1:nsoctot,1:nsgfa)
 
-                 if(iatom == jatom) then
+                 IF(iatom == jatom) THEN
 !        if(katom == iatom) then
                    DO ispin = 1,nspins
                      CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,1.0_dp,p_coeff(1,1,ispin),&
@@ -634,12 +615,12 @@ MODULE qs_rho_atom_methods
 !     enddo
 !    endif
 !      stop 'katom'
-                 else
+                 ELSE
                     NULLIFY(c_block)
                     CALL get_block_node(matrix=oce%hardo(1)%matrix,&
                                     block_row=katom,&
                                     block_col=jatom,&
-                                    block=c_block)
+                                    BLOCK=c_block)
                     C_coeff_h_b = 0.0_dp
                     C_coeff_h_b(1:nsoctot,1:nsgfb)=c_block(1:nsoctot,1:nsgfb)
 
@@ -648,7 +629,7 @@ MODULE qs_rho_atom_methods
                     CALL get_block_node(matrix=oce%softo(1)%matrix,&
                                     block_row=katom,&
                                     block_col=jatom,&
-                                    block=c_block)
+                                    BLOCK=c_block)
                     C_coeff_s_b = 0.0_dp
                     C_coeff_s_b(1:nsoctot,1:nsgfb)=c_block(1:nsoctot,1:nsgfb)
 
@@ -683,8 +664,8 @@ MODULE qs_rho_atom_methods
 !     do i = 1,nsoctot
 !     write(*,'(i3,32f8.3)') i,rho_atom(katom)%cpc_h(1)%r_coef(i,1:nsoctot)
 !     enddo
-                 endif
-10   continue
+                 ENDIF
+10   CONTINUE
                  sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
               ENDDO  knodeloop ! knode
             ENDDO  ! kkind
@@ -722,36 +703,30 @@ MODULE qs_rho_atom_methods
 
   SUBROUTINE init_rho_atom(qs_env,globenv)
 
-    TYPE(qs_environment_type), POINTER  :: qs_env
-    TYPE(global_environment_type)       :: globenv
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type)            :: globenv
 
-    CHARACTER(LEN=*), PARAMETER         :: routine_name = "init_rho_atom"
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "init_rho_atom"
 
-    TYPE(rho_atom_type), DIMENSION(:), & 
-            POINTER                     :: rho_atom_set
+    INTEGER :: i, ia, iat, iatom, ikind, il, iso, iso1, iso2, l1, l1l2, l2, &
+      lc1, lc2, ll, llmax, lmax_sphere, lp, m1, m2, max_s_harm, max_s_set, &
+      maxco, maxlgto, maxso, mm, mp, na, nat, natom, ncotot, nkind, nr, nset, &
+      nsotot, nspins, quadrature
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: paw_atom
+    REAL(dp)                                 :: cosia
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rga
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                           :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER     :: atomic_kind
-    TYPE(dft_control_type), POINTER     :: dft_control
-    TYPE(gapw_control_type), POINTER    :: gapwc
-    TYPE(grid_atom_type), POINTER       :: grid_atom
-    TYPE(harmonics_atom_type), POINTER  :: harmonics
-    TYPE(gto_basis_set_type), POINTER   :: orb_basis_set
-    INTEGER                             :: i, ia, iat, iatom, ikind, &
-                                           il, iso, iso1,&
-                                           iso2, l1, m1, l2, m2, l1l2, &
-                                           lc1,lc2,ll,llmax,&
-                                           lmax_sphere, lp, max_s_harm, &
-                                           max_s_set, maxco, maxso, max_gau, &
-                                           maxlgto, mm, mp, na, nat, natom, &
-                                           ncotot, nsotot, nkind, nset, nspins, nr
-    INTEGER                             :: quadrature
-    INTEGER, DIMENSION(:), POINTER      :: atom_list
-    LOGICAL                             :: paw_atom
-    REAL(dp)                            :: cosia
-    REAL(dp), DIMENSION(:,:,:), POINTER :: my_CG
-    REAL(dp), DIMENSION(:,:), & 
-                            ALLOCATABLE :: rga
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gapw_control_type), POINTER         :: gapwc
+    TYPE(grid_atom_type), POINTER            :: grid_atom
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(harmonics_atom_type), POINTER       :: harmonics
+    TYPE(rho_atom_type), DIMENSION(:), &
+      POINTER                                :: rho_atom_set
 
 ! *****************************************************************************
 
@@ -778,7 +753,7 @@ MODULE qs_rho_atom_methods
     gapwc => dft_control%qs_control%gapw_control
     lmax_sphere = gapwc%lmax_sphere
 
-    llmax = max(lmax_sphere, 2*maxlgto)
+    llmax = MAX(lmax_sphere, 2*maxlgto)
     max_s_harm = nsoset(llmax)
     max_s_set = nsoset(maxlgto)
 
@@ -865,7 +840,7 @@ MODULE qs_rho_atom_methods
       DO ia = 1,na
         cosia = lebedev_grid(ll)%r(3,ia)
         grid_atom%cos_teta(ia) = cosia 
-        grid_atom%sin_teta(ia) =  sqrt(1-cosia*cosia)
+        grid_atom%sin_teta(ia) =  SQRT(1-cosia*cosia)
       ENDDO
 
 !     *** calculate the spherical harmonics on the grid ***
@@ -895,9 +870,9 @@ MODULE qs_rho_atom_methods
                                       1,nsotot,1,nsotot)
           CALL reallocate(rho_atom_set(iatom)%cpc_s(i)%r_coef,&
                                       1,nsotot,1,nsotot)
-          allocate(rho_atom_set(iatom)%rho_rad_h(i)%r_coef(&
+          ALLOCATE(rho_atom_set(iatom)%rho_rad_h(i)%r_coef(&
                                       1:nr,1:max_s_harm))
-          allocate(rho_atom_set(iatom)%rho_rad_s(i)%r_coef(& 
+          ALLOCATE(rho_atom_set(iatom)%rho_rad_s(i)%r_coef(& 
                                       1:nr,1:max_s_harm))
 
           CALL reallocate(rho_atom_set(iatom)%drho_rad_h(i)%r_coef,&

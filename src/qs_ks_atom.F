@@ -31,31 +31,27 @@ MODULE qs_ks_atom
   USE cp_log_handling,                 ONLY: cp_failure_level
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_sum
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_neighbor_list_types,          ONLY: find_neighbor_list,&
                                              first_list,&
                                              first_node,&
-                                             qlist_type, &
                                              get_neighbor_list,&
                                              get_neighbor_list_set,&
                                              get_neighbor_node,&
                                              neighbor_list_set_p_type,&
                                              neighbor_list_type,&
                                              neighbor_node_type,&
-                                             next
+                                             next,&
+                                             qlist_type
   USE qs_oce_types,                    ONLY: oce_matrix_type
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
   USE qs_util,                         ONLY: trace_r_AxB
   USE sparse_matrix_types,             ONLY: get_block_node,&
-                                             real_matrix_p_type,&
-                                             transfer_matrix
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+                                             real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: locate
@@ -76,52 +72,45 @@ CONTAINS
 
   SUBROUTINE update_ks_vxc_atom(qs_env,ks,p,ispin,forces,error)
 
+    TYPE(qs_environment_type), INTENT(IN)    :: qs_env
     TYPE(real_matrix_p_type), INTENT(INOUT)  :: ks
     TYPE(real_matrix_p_type), INTENT(IN)     :: p
-    TYPE(qs_environment_type), INTENT(IN)    :: qs_env
+    INTEGER                                  :: ispin
     LOGICAL, INTENT(IN)                      :: forces
-
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine = "update_ks_vxc_atom"
+    CHARACTER(LEN=*), PARAMETER              :: routine = "update_ks_vxc_atom"
 
-    TYPE(atomic_kind_type), DIMENSION(:),&
-                            POINTER          :: atomic_kind_set
-    TYPE(atomic_kind_type),  POINTER         :: atomic_kind
+    INTEGER :: i, iab, iatom, ibc, ikind, ilist, inode, jatom, jkind, katom, &
+      kkind, kneighbor, knode, max_gau, max_nsgf, maxsoc, natom, nkind, &
+      nlist, nnode, nnode_c, nsetc, nsgfa, nsgfb, nsoctot
+    INTEGER, DIMENSION(3)                    :: cell_c
+    LOGICAL                                  :: paw_atom
+    REAL(dp), DIMENSION(3)                   :: rbc
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: C_coeff_h, C_coeff_s
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb, sac_oce, sbc_oce
+    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
+                                                sab_orb_neighbor_list_local, &
+                                                sbc_oce_neighbor_list
+    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node, &
+                                                sbc_oce_neighbor_node
+    TYPE(oce_matrix_type), POINTER           :: oce
+    TYPE(qlist_type), DIMENSION(:, :, :), &
+      POINTER                                :: tmp_neigh
+    TYPE(qlist_type), POINTER                :: sac_oce_neighbor
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis
-
-    TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(rho_atom_type), DIMENSION(:), &
-                                   POINTER   :: rho_atom
+      POINTER                                :: rho_atom
     TYPE(rho_atom_type), POINTER             :: rho_at
-    TYPE(neighbor_list_set_p_type), &
-               DIMENSION(:),  POINTER        :: sab_orb, sac_oce, sbc_oce
-
-    TYPE(qlist_type), POINTER                 :: sac_oce_neighbor
-    TYPE(neighbor_list_type), POINTER        :: sac_oce_neighbor_list, &
-                                                sab_orb_neighbor_list, &
-                                                sab_orb_neighbor_list_local,&
-                                                sbc_oce_neighbor_list
-    TYPE(neighbor_node_type), POINTER        :: sac_oce_neighbor_node, &
-                                                sab_orb_neighbor_node, &
-                                                sbc_oce_neighbor_node
-    REAL(dp), DIMENSION(3)                   :: rbc
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: c_block,h_block, &
-                                                p_block
-    REAL(KIND = dp), DIMENSION(:,:), &
-                                ALLOCATABLE  :: C_coeff_h,&
-                                                C_coeff_s
- 
-    LOGICAL                                  :: paw_atom
-
-    INTEGER     ::  i,iab, iac, iatom, ibc, ikind, ilist, inode, ispin, istat, jatom, &
-                    jkind, katom, kkind, kneighbor, knode, max_gau, max_nsgf, &
-                    maxsoc, natom, nsoctot, nkind, nlist, nnode, &
-                    nneighbor, nnode_c, nsgfa, nsgfb, nsgfc, nsetc
-    INTEGER, DIMENSION(3)                    :: cell_c
 
 !******************************************************************************
 
@@ -197,12 +186,12 @@ CONTAINS
               CALL get_block_node(matrix=ks%matrix,&
                                   block_row=iatom,&
                                   block_col=jatom,&
-                                  block=h_block)
+                                  BLOCK=h_block)
             ELSE
               CALL get_block_node(matrix=ks%matrix,&
                                   block_row=jatom,&
                                   block_col=iatom,&
-                                  block=h_block)
+                                  BLOCK=h_block)
             END IF
 !dbg
 !  write(*,*) 'iat ', iatom,jatom
@@ -217,13 +206,13 @@ CONTAINS
                 CALL get_block_node(matrix=p%matrix,&
                                   block_row=iatom,&
                                   block_col=jatom,&
-                                  block=p_block)
+                                  BLOCK=p_block)
               ELSE
                 NULLIFY ( p_block )
                 CALL get_block_node(matrix=p%matrix,&
                                     block_row=jatom,&
                                     block_col=iatom,&
-                                    block=p_block)
+                                    BLOCK=p_block)
               END IF
             END IF
 
@@ -262,9 +251,10 @@ CONTAINS
                           neighbor=katom,&
                           cell=cell_c,&
                           r=rbc)
+                tmp_neigh => oce%voce(kkind,iatom)%neighbor
                 DO i=1, 3
-                   IF ( (cell_c(i) < LBOUND(oce%voce(kkind,iatom)%neighbor,i)) .OR. &
-                         (cell_c(i) > UBOUND(oce%voce(kkind,iatom)%neighbor,i))) THEN
+                   IF ( (cell_c(i) < LBOUND(tmp_neigh,i)) .OR. &
+                         (cell_c(i) > UBOUND(tmp_neigh,i))) THEN
                       sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
                       CYCLE knodeloop
                    END IF
@@ -333,23 +323,27 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(rho_atom_type), POINTER             :: rho_atom
-    INTEGER, INTENT(IN)                      :: ia,&  ! i atom index 
-                                                ispin, & ! spin index
-                                                na, & ! # spherical contr. iatom
-                                                ja, & ! j atom index
-                                                ldc, & ! dimension of work arrays
-                                                nb, & ! # spherical contr. jatom
-                                                ka, & ! k atom index 
-                                                nsp ! # spherical primitives katom
-    REAL(KIND = dp), DIMENSION(ldc,nb)       :: C_h,C_s ! work arrays
+    INTEGER, INTENT(IN)                      :: ispin, ia, na, ja, nb, ka, &
+                                                nsp, ldc
+    REAL(KIND=dp), DIMENSION(ldc, nb)        :: C_s, C_h
 
-    CHARACTER(LEN=*), PARAMETER :: routine = "add_vxca_to_ks"
+    CHARACTER(LEN=*), PARAMETER              :: routine = "add_vxca_to_ks"
 
-    TYPE(rho_atom_coeff), DIMENSION(:),POINTER :: int_h, int_s
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: c_block, IntC_h, IntC_s
+    TYPE(rho_atom_coeff), DIMENSION(:), &
+      POINTER                                :: int_h, int_s
+
+! i atom index 
+! spin index
+! # spherical contr. iatom
+! j atom index
+! dimension of work arrays
+! # spherical contr. jatom
+! k atom index 
+! # spherical primitives katom
+! work arrays
 !dbg
 !    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_test
-    INTEGER :: i
 !******************************************************************************
 
     NULLIFY(int_h,int_s,intC_h,intC_s)
@@ -362,7 +356,7 @@ CONTAINS
       CALL get_block_node(matrix=oce%hardo(1)%matrix,&
                         block_row=ka,&
                         block_col=ja,&
-                        block=c_block)
+                        BLOCK=c_block)
       C_h = 0.0_dp
       C_h(1:nsp,1:nb)=c_block(1:nsp,1:nb)
 
@@ -376,7 +370,7 @@ CONTAINS
       CALL get_block_node(matrix=oce%softo(1)%matrix,&
                         block_row=ka,&
                         block_col=ja,&
-                        block=c_block)
+                        BLOCK=c_block)
       C_s = 0.0_dp
       C_s(1:nsp,1:nb)=c_block(1:nsp,1:nb)
 
@@ -386,15 +380,15 @@ CONTAINS
 !  enddo
 
 
-      call reallocate(intC_h,1,nsp,1,nb)
-      call reallocate(intC_s,1,nsp,1,nb)
+      CALL reallocate(intC_h,1,nsp,1,nb)
+      CALL reallocate(intC_s,1,nsp,1,nb)
 
-      call dgemm("N","N",nsp,nb,nsp,&
+      CALL dgemm("N","N",nsp,nb,nsp,&
                1.0_dp,int_h(ispin)%r_coef,nsp,&
                C_h,ldc,0.0_dp,&
                intC_h,nsp)
 
-      call dgemm("N","N",nsp,nb,nsp,&
+      CALL dgemm("N","N",nsp,nb,nsp,&
                1.0_dp,int_s(ispin)%r_coef,nsp,&
                C_s,ldc,0.0_dp,&
                intC_s,nsp)
@@ -408,7 +402,7 @@ CONTAINS
       CALL get_block_node(matrix=oce%hardo(1)%matrix,&
                         block_row=ka,&
                         block_col=ia,&
-                        block=c_block)
+                        BLOCK=c_block)
       C_h = 0.0_dp
       C_h(1:nsp,1:na)=c_block(1:nsp,1:na)
 
@@ -421,7 +415,7 @@ CONTAINS
       CALL get_block_node(matrix=oce%softo(1)%matrix,&
                         block_row=ka,&
                         block_col=ia,&
-                        block=c_block)
+                        BLOCK=c_block)
       C_s = 0.0_dp
       C_s(1:nsp,1:na)=c_block(1:nsp,1:na)
 !write(*,*) 'C_s_a ',nsp,na
@@ -429,12 +423,12 @@ CONTAINS
 !    write(*,'(i3,20f10.5)') i,C_s(i,1:na)
 !  enddo
 
-      call dgemm("T","N",na,nb,nsp,&
+      CALL dgemm("T","N",na,nb,nsp,&
                1.0_dp,C_h,ldc,&
                intC_h,nsp,1.0_dp,&
                h_block,SIZE(h_block,1))
        
-      call dgemm("T","N",na,nb,nsp,&
+      CALL dgemm("T","N",na,nb,nsp,&
                -1.0_dp,C_s,ldc,&
                intC_s,nsp,1.0_dp,&
                h_block,SIZE(h_block,1))
@@ -445,7 +439,7 @@ CONTAINS
       CALL get_block_node(matrix=oce%hardo(1)%matrix,&
                         block_row=ka,&
                         block_col=ia,&
-                        block=c_block)
+                        BLOCK=c_block)
       C_h = 0.0_dp
       C_h(1:nsp,1:na)=c_block(1:nsp,1:na)
 
@@ -453,19 +447,19 @@ CONTAINS
       CALL get_block_node(matrix=oce%softo(1)%matrix,&
                         block_row=ka,&
                         block_col=ia,&
-                        block=c_block)
+                        BLOCK=c_block)
       C_s = 0.0_dp
       C_s(1:nsp,1:na)=c_block(1:nsp,1:na)
 
-      call reallocate(intC_h,1,nsp,1,na)
-      call reallocate(intC_s,1,nsp,1,na)
+      CALL reallocate(intC_h,1,nsp,1,na)
+      CALL reallocate(intC_s,1,nsp,1,na)
 
-      call dgemm("N","N",nsp,na,nsp,&
+      CALL dgemm("N","N",nsp,na,nsp,&
                1.0_dp,int_h(ispin)%r_coef,nsp,&
                C_h,ldc,0.0_dp,&
                intC_h,nsp)
 
-      call dgemm("N","N",nsp,na,nsp,&
+      CALL dgemm("N","N",nsp,na,nsp,&
                1.0_dp,int_s(ispin)%r_coef,nsp,&
                C_s,ldc,0.0_dp,&
                intC_s,nsp)
@@ -474,7 +468,7 @@ CONTAINS
       CALL get_block_node(matrix=oce%hardo(1)%matrix,&
                         block_row=ka,&
                         block_col=ja,&
-                        block=c_block)
+                        BLOCK=c_block)
       C_h = 0.0_dp
       C_h(1:nsp,1:nb)=c_block(1:nsp,1:nb)
 
@@ -482,16 +476,16 @@ CONTAINS
       CALL get_block_node(matrix=oce%softo(1)%matrix,&
                         block_row=ka,&
                         block_col=ja,&
-                        block=c_block)
+                        BLOCK=c_block)
       C_s = 0.0_dp
       C_s(1:nsp,1:nb)=c_block(1:nsp,1:nb)
 
-      call dgemm("T","N",nb,na,nsp,&
+      CALL dgemm("T","N",nb,na,nsp,&
                1.0_dp,C_h,ldc,&
                intC_h,nsp,1.0_dp,&
                h_block,SIZE(h_block,1))
 
-      call dgemm("T","N",nb,na,nsp,&
+      CALL dgemm("T","N",nb,na,nsp,&
                -1.0_dp,C_s,ldc,&
                intC_s,nsp,1.0_dp,&
                h_block,SIZE(h_block,1))
@@ -510,17 +504,19 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(rho_atom_type), POINTER             :: rho_atom
-    INTEGER, INTENT(IN)                      :: ia,ispin,na,ja,ldc,nb,ka,nsp
-    REAL(KIND = dp), DIMENSION(ldc,nb)        :: C_h,C_s
     TYPE(qs_force_type)                      :: force
+    INTEGER, INTENT(IN)                      :: ispin, ia, na, ja, nb, ka, &
+                                                nsp, ldc
+    REAL(KIND=dp), DIMENSION(ldc, nb)        :: C_s, C_h
 
-    CHARACTER(LEN=*), PARAMETER :: routine = "add_vxca_forces"
+    CHARACTER(LEN=*), PARAMETER              :: routine = "add_vxca_forces"
 
-    TYPE(rho_atom_coeff), DIMENSION(:), POINTER :: int_h, int_s
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: c_block, PC_h, PC_s, &
-                                                dCPC_h, dCPC_s, p_blockt
-    REAL(KIND=dp)                            :: trace
     INTEGER                                  :: dir
+    REAL(KIND=dp)                            :: trace
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: c_block, dCPC_h, dCPC_s, &
+                                                p_blockt, PC_h, PC_s
+    TYPE(rho_atom_coeff), DIMENSION(:), &
+      POINTER                                :: int_h, int_s
 
 ! *****************************************************************************
 
@@ -536,7 +532,7 @@ CONTAINS
     CALL get_block_node(matrix=oce%hardo(1)%matrix,&
                         block_row=ka,&
                         block_col=ja,&
-                        block=c_block)
+                        BLOCK=c_block)
     C_h = 0.0_dp
     C_h(1:nsp,1:nb)=c_block(1:nsp,1:nb)
 
@@ -544,19 +540,19 @@ CONTAINS
     CALL get_block_node(matrix=oce%softo(1)%matrix,&
                         block_row=ka,&
                         block_col=ja,&
-                        block=c_block)
+                        BLOCK=c_block)
     C_s = 0.0_dp
     C_s(1:nsp,1:nb)=c_block(1:nsp,1:nb)
 
-    call reallocate(PC_h,1,na,1,nsp)
-    call reallocate(PC_s,1,na,1,nsp)
+    CALL reallocate(PC_h,1,na,1,nsp)
+    CALL reallocate(PC_s,1,na,1,nsp)
 
-    call dgemm("N","T",na,nsp,nb,&
+    CALL dgemm("N","T",na,nsp,nb,&
                1.0_dp,p_block,SIZE(p_block,1),&
                C_h,ldc,0.0_dp,&
                PC_h,na)
 
-    call dgemm("N","N",na,nsp,nb,&
+    CALL dgemm("N","N",na,nsp,nb,&
                1.0_dp,p_block,SIZE(p_block,1),&
                C_s,ldc,0.0_dp,&
                PC_s,na)
@@ -566,7 +562,7 @@ CONTAINS
        CALL get_block_node(matrix=oce%hardo(dir)%matrix,&
                         block_row=ka,&
                         block_col=ia,&
-                        block=c_block)
+                        BLOCK=c_block)
        C_h = 0.0_dp
        C_h(1:nsp,1:na)=c_block(1:nsp,1:na)
 
@@ -574,15 +570,15 @@ CONTAINS
        CALL get_block_node(matrix=oce%softo(dir)%matrix,&
                         block_row=ka,&
                         block_col=ia,&
-                        block=c_block)
+                        BLOCK=c_block)
        C_s = 0.0_dp
        C_s(1:nsp,1:na)=c_block(1:nsp,1:na)
 
-       call reallocate(dCPC_h,1,nsp,1,nsp)
-       call reallocate(dCPC_s,1,nsp,1,nsp)
+       CALL reallocate(dCPC_h,1,nsp,1,nsp)
+       CALL reallocate(dCPC_s,1,nsp,1,nsp)
 
 
-       call dgemm("N","N",nsp,nsp,na,&
+       CALL dgemm("N","N",nsp,nsp,na,&
                   1.0_dp,C_h,ldc,&
                   PC_h,na,0.0_dp,&
                   dCPC_h,nsp)
@@ -592,7 +588,7 @@ CONTAINS
        force%vxc_atom(dir,ka) = force%vxc_atom(dir,ka) + 2.0_dp * trace
        force%vxc_atom(dir,ia) = force%vxc_atom(dir,ia) - 2.0_dp * trace
 
-       call dgemm("N","N",nsp,nsp,na,&
+       CALL dgemm("N","N",nsp,nsp,na,&
                   1.0_dp,C_s,ldc,&
                   PC_s,na,0.0_dp,&
                   dCPC_s,nsp)
@@ -608,13 +604,13 @@ CONTAINS
 
     NULLIFY( PC_h, PC_s, dCPC_h, dCPC_s)
 
-    p_blockt = transpose(p_block)
+    p_blockt = TRANSPOSE(p_block)
 
     NULLIFY(c_block)
     CALL get_block_node(matrix=oce%hardo(1)%matrix,&
                         block_row=ka,&
                         block_col=ia,&
-                        block=c_block)
+                        BLOCK=c_block)
     C_h = 0.0_dp
     C_h(1:nsp,1:nb)=c_block(1:nsp,1:nb)
 
@@ -622,19 +618,19 @@ CONTAINS
     CALL get_block_node(matrix=oce%softo(1)%matrix,&
                         block_row=ka,&
                         block_col=ia,&
-                        block=c_block)
+                        BLOCK=c_block)
     C_s = 0.0_dp
     C_s(1:nsp,1:na)=c_block(1:nsp,1:na)
 
-    call reallocate(PC_h,1,nb,1,nsp)
-    call reallocate(PC_s,1,nb,1,nsp)
+    CALL reallocate(PC_h,1,nb,1,nsp)
+    CALL reallocate(PC_s,1,nb,1,nsp)
 
-    call dgemm("N","T",nb,nsp,na,&
+    CALL dgemm("N","T",nb,nsp,na,&
                1.0_dp,p_blockt,SIZE(p_block,1),&
                C_h,ldc,0.0_dp,&
                PC_h,nb)
 
-    call dgemm("N","N",nb,nsp,na,&
+    CALL dgemm("N","N",nb,nsp,na,&
                1.0_dp,p_blockt,SIZE(p_block,1),&
                C_s,ldc,0.0_dp,&
                PC_s,nb)
@@ -644,7 +640,7 @@ CONTAINS
        CALL get_block_node(matrix=oce%hardo(dir)%matrix,&
                         block_row=ka,&
                         block_col=ja,&
-                        block=c_block)
+                        BLOCK=c_block)
        C_h = 0.0_dp
        C_h(1:nsp,1:nb)=c_block(1:nsp,1:nb)
 
@@ -652,14 +648,14 @@ CONTAINS
        CALL get_block_node(matrix=oce%softo(dir)%matrix,&
                         block_row=ka,&
                         block_col=ja,&
-                        block=c_block)
+                        BLOCK=c_block)
        C_s = 0.0_dp
        C_s(1:nsp,1:nb)=c_block(1:nsp,1:nb)
 
-       call reallocate(dCPC_h,1,nsp,1,nsp)
-       call reallocate(dCPC_s,1,nsp,1,nsp)
+       CALL reallocate(dCPC_h,1,nsp,1,nsp)
+       CALL reallocate(dCPC_s,1,nsp,1,nsp)
 
-       call dgemm("N","N",nsp,nsp,nb,&
+       CALL dgemm("N","N",nsp,nsp,nb,&
                   1.0_dp,C_h,ldc,&
                   PC_h,na,0.0_dp,&
                   dCPC_h,nsp)
@@ -669,7 +665,7 @@ CONTAINS
        force%vxc_atom(dir,ka) = force%vxc_atom(dir,ka) + 2.0_dp * trace
        force%vxc_atom(dir,ja) = force%vxc_atom(dir,ja) - 2.0_dp * trace
 
-       call dgemm("N","N",nsp,nsp,nb,&
+       CALL dgemm("N","N",nsp,nsp,nb,&
                   1.0_dp,C_s,ldc,&
                   PC_s,na,0.0_dp,&
                   dCPC_s,nsp)
