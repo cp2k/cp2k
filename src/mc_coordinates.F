@@ -776,6 +776,8 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
                                                 total_running_weight
     REAL(KIND=dp), DIMENSION(:,:,:),&
       ALLOCATABLE                            :: r
+    REAL(KIND=dp), DIMENSION(:,:),&
+      ALLOCATABLE                            :: r_old
     REAL(KIND=dp), DIMENSION(:),&
       ALLOCATABLE                            :: boltz_weight
     REAL(KIND=dp), DIMENSION(1:3)            :: r_insert,center_of_mass,&
@@ -811,6 +813,9 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
          end_atom=3*imolecule
       ENDIF
 
+      ALLOCATE(r_old(1:3,1:natoms),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+         "r_old",3*natoms*dp_size)
       ALLOCATE(r(1:3,1:natoms,1:nswapmoves),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
          "r",3*natoms*nswapmoves*dp_size)
@@ -825,27 +830,21 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
       loverlap_array(:)=.FALSE.
       loverlap=.FALSE.
       boltz_weight(:) = 0.0d0
-
-! need to calculate the classical energy for just the molecule inserted, which
-! is always the last molecule
-      CALL mc_classical_energy(force_env,classical_energy,nmols,&
-         imolecule,imolecule,6.211D0/angstrom)
-
-! calculate the Bolztmann weight for the first config
-      boltz_weight(1)=DEXP(-BETA*classical_energy)
+      r(:,:,:)=0.0d0
 
 ! save the positions of the molecules
-      DO iatom=1,natoms
-         r(1:3,iatom,1)=particles%els(iatom)%r(1:3)
+      DO imove=1,nswapmoves
+         DO iatom=1,natoms
+            r(1:3,iatom,imove)=particles%els(iatom)%r(1:3)
+         ENDDO
       ENDDO
 
-      DO imove=2,nswapmoves
-         
-! initialize the array with the first configuration
-         DO iatom=1,natoms
-            r(1:3,iatom,imove)=r(1:3,iatom,1)
-         ENDDO
+      DO iatom=1,natoms
+         r_old(1:3,iatom)=particles%els(iatom)%r(1:3)
+      ENDDO
 
+      DO imove=1,nswapmoves
+         
 ! find a new insertion point
          DO i=1,3
             CALL random_number(rand)
@@ -853,22 +852,26 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
          ENDDO
 
 ! find the center of mass of the insertion molecule
-         CALL get_center_of_mass(r(:,natoms-2:natoms,1),3,&
+         CALL get_center_of_mass(r(:,start_atom:end_atom,imove),3,&
             center_of_mass(:),(/15.999d0,1.008d0,1.008d0/))
 
 ! move the molecule to the insertion point
          DO i=1,3
             diff(i)=r_insert(i)-center_of_mass(i)
          ENDDO
-!         WRITE(6,*) 'mcnv,nmx',r_insert(1:3)*0.529177d0
-!         WRITE(6,*) ',nmx',center_of_mass(1:3)*0.529177d0
 
-         DO iatom=natoms-2,natoms
+         DO iatom=start_atom,end_atom
             r(1:3,iatom,imove)=r(1:3,iatom,imove)+diff(1:3)
          ENDDO
 
 ! rotate the molecule
-         CALL rotate_water_molecule(r(:,natoms-2:natoms,imove))
+         CALL rotate_water_molecule(r(:,start_atom:end_atom,imove))
+
+         IF(imove == 1 .AND. PRESENT(rem_molecule)) THEN
+            DO iatom=1,natoms
+               r(1:3,iatom,1)=r_old(1:3,iatom)
+            ENDDO
+         ENDIF
 
 ! check for overlap
          CALL check_for_overlap(r(:,:,imove),natoms,cell_length,&
@@ -880,7 +883,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
             particles%els(iatom)%r(1:3)=r(1:3,iatom,imove)
          ENDDO
          CALL mc_classical_energy(force_env,classical_energy,&
-            nmols,imolecule,imolecule,6.211D0/angstrom,loptional=.TRUE.)
+            nmols,imolecule,imolecule,6.211D0/angstrom)
          boltz_weight(imove)=DEXP(-BETA*classical_energy)
      
       ENDDO
@@ -905,6 +908,9 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 
       IF(all_overlaps) THEN
          loverlap = .TRUE.
+         DEALLOCATE(r_old,STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+            __LINE__,"r_old")
          DEALLOCATE(r,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,module_name,&
             __LINE__,"r")
@@ -930,6 +936,9 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
          particles%els(iatom)%r(1:3)=r(1:3,iatom,choosen)
       ENDDO
 
+      DEALLOCATE(r_old,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         __LINE__,"r_old")
       DEALLOCATE(r,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,&
          __LINE__,"r")

@@ -620,30 +620,31 @@ CONTAINS
 ! fold the coordinates into the box and check for overlaps
          CALL mc_coordinate_fold(r_insert(:,:),ins_atoms,&
             abc_insert(1))
-         loverlap=.FALSE.
-         CALL check_for_overlap(r_insert(:,:),ins_atoms,&
-            abc_insert(1),loverlap)
+!         loverlap=.FALSE.
+!         CALL check_for_overlap(r_insert(:,:),ins_atoms,&
+!            abc_insert(1),loverlap)
       ENDIF
       
-      CALL mp_bcast(loverlap,source,group)
+
+!      CALL mp_bcast(loverlap,source,group)
       
-      IF(loverlap .AND. nswapmoves .EQ. 1) THEN
+!      IF(loverlap .AND. nswapmoves .EQ. 1) THEN
 ! deallocate some stuff
-         DEALLOCATE(r_insert,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-            __LINE__,"r_insert")
-         DEALLOCATE(r_insert_mol,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-            __LINE__,"r_insert_mol")
-         DEALLOCATE(oldsys,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-            __LINE__,"oldsys")
-         DEALLOCATE(particles_old,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-            __LINE__,"particles_old")
-         CALL timestop(0.0d0,handle)
-         RETURN
-      ENDIF
+!         DEALLOCATE(r_insert,STAT=istat)
+!         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+!            __LINE__,"r_insert")
+!         DEALLOCATE(r_insert_mol,STAT=istat)
+!         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+!            __LINE__,"r_insert_mol")
+!         DEALLOCATE(oldsys,STAT=istat)
+!         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+!            __LINE__,"oldsys")
+!         DEALLOCATE(particles_old,STAT=istat)
+!         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+!            __LINE__,"particles_old")
+!         CALL timestop(0.0d0,handle)
+!         RETURN
+!      ENDIF
 
 ! allocate r_remove
       IF (rem_atoms == 0) THEN
@@ -718,70 +719,64 @@ CONTAINS
       globenv%input_file_name=dat_file(remove_box)
       CALL quickstep_create_force_env(remove_env, globenv, error=error)
 
-! now we need to do something different if we're trying multiple insertions...
-! we don't need to do anything with the removal box here
-      IF(nswapmoves .GT. 1) THEN
-
 ! allocate an array we'll need
-         ALLOCATE(r_cbmc(1:3,1:ins_atoms),STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-            "r_cbmc",3*ins_atoms*dp_size)
-
-         IF(ionode) THEN
-            loverlap=.FALSE.
-            CALL generate_cbmc_swap_config(insert_env,&
-               BETA,nswapmoves,loverlap,weight_new)
-
-            CALL generate_cbmc_swap_config(force_env(remove_box)%force_env,&
-               BETA,nswapmoves,loverlap,weight_old,rem_molecule=imolecule)
-            
-            CALL force_env_get(insert_env,&
-            subsys=insert_sys,error=error)
-            CALL cp_subsys_get(insert_sys(1)%subsys, &
-            particles=particles_insert,error=error)
-            
-            DO iatom=1,ins_atoms
-               r_cbmc(1:3,iatom)=particles_insert%els(iatom)%r(1:3)
-            ENDDO
-            
-         ENDIF
+      ALLOCATE(r_cbmc(1:3,1:ins_atoms),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      "r_cbmc",3*ins_atoms*dp_size)
+      
+      IF(ionode) THEN
+         loverlap=.FALSE.
+         CALL generate_cbmc_swap_config(insert_env,&
+            BETA,nswapmoves,loverlap,weight_new)
          
-! make sure there is no overlap
-         CALL mp_bcast(loverlap,source,group)
-         IF(loverlap) THEN
-! deallocate some stuff
-            DEALLOCATE(r_cbmc,STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-               __LINE__,"r_cbmc")
-            DEALLOCATE(oldsys,STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-               __LINE__,"oldsys")
-            DEALLOCATE(particles_old,STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-               __LINE__,"particles_old")
-            CALL timestop(0.0d0,handle)
-            RETURN
-         ENDIF
-
-! broadcast the choosen coordiantes to all processors
-         CALL mp_bcast(r_cbmc(:,:),source,group)
-
+         CALL generate_cbmc_swap_config(force_env(remove_box)%force_env,&
+            BETA,nswapmoves,loverlap,weight_old,rem_molecule=imolecule)
+         
          CALL force_env_get(insert_env,&
             subsys=insert_sys,error=error)
          CALL cp_subsys_get(insert_sys(1)%subsys, &
             particles=particles_insert,error=error)
-            
+         
          DO iatom=1,ins_atoms
-            particles_insert%els(iatom)%r(1:3)= &
-               r_cbmc(1:3,iatom)
+            r_cbmc(1:3,iatom)=particles_insert%els(iatom)%r(1:3)
          ENDDO
-
+         
+      ENDIF
+         
+! make sure there is no overlap
+      CALL mp_bcast(loverlap,source,group)
+      IF(loverlap) THEN
+! deallocate some stuff
          DEALLOCATE(r_cbmc,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,module_name,&
             __LINE__,"r_cbmc")
-
+         DEALLOCATE(oldsys,STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+            __LINE__,"oldsys")
+         DEALLOCATE(particles_old,STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+            __LINE__,"particles_old")
+         CALL timestop(0.0d0,handle)
+         RETURN
       ENDIF
 
+! broadcast the choosen coordiantes to all processors
+      CALL mp_bcast(r_cbmc(:,:),source,group)
+
+      CALL force_env_get(insert_env,&
+         subsys=insert_sys,error=error)
+      CALL cp_subsys_get(insert_sys(1)%subsys, &
+         particles=particles_insert,error=error)
+      
+      DO iatom=1,ins_atoms
+         particles_insert%els(iatom)%r(1:3)= &
+         r_cbmc(1:3,iatom)
+      ENDDO
+      
+      DEALLOCATE(r_cbmc,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         __LINE__,"r_cbmc")
+      
 ! if we made it this far, we have no overlaps
       moves(insert_box)%moves%grown=&
          moves(insert_box)%moves%grown+1
@@ -823,26 +818,27 @@ CONTAINS
 ! rule, based on numbers of particles and volumes
 
       IF (ionode) THEN
-         prefactor=REAL(nchain(remove_box),dbl)*&
-            abc_insert(1)/&
-            (REAL(nchain(insert_box)+1,dbl)&
-            *abc_remove(1))
+         prefactor=REAL(nchain(remove_box),dbl)/&
+            REAL(nchain(insert_box)+1,dbl)*&
+            abc_insert(1)**3/abc_remove(1)**3
 
 ! now to calculate the full weight
          del_quickstep_energy=new_energy(insert_box)-&
             old_energy(insert_box)+new_energy(remove_box)-&
             old_energy(remove_box)
+
          del_classical_energy=classical_energy_new(insert_box)-&
             classical_energy_old(insert_box)+&
             classical_energy_new(remove_box)-&
             classical_energy_old(remove_box)
-         IF(nswapmoves .GT. 1 ) THEN
-            wratio=weight_new/weight_old
-            w=prefactor*DEXP(-BETA*(del_quickstep_energy-&
-               del_classical_energy))*wratio
-         ELSE
-            w=prefactor*DEXP(-BETA*(del_quickstep_energy))
-         ENDIF
+         wratio=weight_new/weight_old
+         w=prefactor*DEXP(-BETA*(del_quickstep_energy-&
+            del_classical_energy))*wratio
+
+         WRITE(6,*) 'kdjfs',weight_new,weight_old
+         WRITE(6,*) del_quickstep_energy,del_classical_energy
+         WRITE(6,*) (abc_insert(1)*angstrom)**3,(abc_remove(1)*angstrom)**3
+         
 ! check if the move is accepted
             
 !!!!!!!!!!!!!!!
