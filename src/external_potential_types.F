@@ -406,7 +406,7 @@ CONTAINS
 
 !     *** Deallocate the parameters of the local part ***
 
-      IF (potential%nexp_ppl > 0) THEN
+      IF (ASSOCIATED(potential%cexp_ppl)) THEN
         DEALLOCATE (potential%cexp_ppl,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                          "potential%cexp_ppl")
@@ -414,7 +414,7 @@ CONTAINS
 
 !     *** Deallocate the parameters of the non-local part ***
 
-      IF (potential%nppnl > 0) THEN
+      IF (ASSOCIATED(potential%alpha_ppnl)) THEN
 
         DEALLOCATE (potential%alpha_ppnl,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
