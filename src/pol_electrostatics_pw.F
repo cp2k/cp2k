@@ -100,6 +100,7 @@ SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s,  &
   TYPE ( coeff_type ) :: rho_tot, coeff_dummy 
   REAL ( dbl ) :: inv_fourpi_eps0
   REAL ( dbl ) :: e_rho_rho
+  REAL ( dbl ) :: dvols
   LOGICAL :: first_time, match
 
 !------------------------------------------------------------------------------
@@ -234,8 +235,9 @@ SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s,  &
 
   IF ( PRESENT ( f_coef ) )  THEN 
 
-    f_coef = CMPLX ( 2._dbl * REAL ( phi1_r % pw % cc, dbl ), &
-                    -2._dbl * AIMAG ( phi1_r % pw % cc ), dbl )
+    dvols = rho_tot % pw % pw_grid % dvol * inv_fourpi_eps0
+    f_coef = CMPLX ( 2._dbl * dvols * REAL ( phi1_r % pw % cc, dbl ), &
+                    -2._dbl * dvols * AIMAG ( phi1_r % pw % cc ), dbl )
   ENDIF 
 
   CALL coeff_deallocate ( phi1_r )
