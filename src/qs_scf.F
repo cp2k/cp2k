@@ -1889,6 +1889,7 @@ CONTAINS
     LOGICAL :: failure, ionode
     CHARACTER(len=*), PARAMETER :: routineN='scf_env_post_calc',&
          routineP=moduleN//':'//routineN
+    TYPE(cell_type), POINTER :: cell
     TYPE(dft_control_type), POINTER :: dft_control
     TYPE(pw_env_type), POINTER :: pw_env
     TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
@@ -1917,9 +1918,10 @@ CONTAINS
     CHARACTER(LEN=200) :: file_name
     INTEGER            :: file_unit,ivector,nao,nlumos, homo
     CHARACTER(LEN=80)  :: filename
+    REAL(wp)           :: volume
 
     failure=.FALSE.
-    NULLIFY(dft_control,pw_env,auxbas_pw_pool,pw_pools,mgrid_gspace,&
+    NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,mgrid_gspace,&
          mgrid_rspace,c,atomic_kind_set,particle_set,rho, mo_eigenvectors,&
          ks_rmpv,qs_loc_env, scf_control,unoccupied_orbs,pfull,mo_eigenvalues, &
           unoccupied_evals)
@@ -1933,7 +1935,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL get_qs_env(qs_env,dft_control=dft_control,&
             c=c,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
-            rho=rho,k=ks_rmpv,scf_control=scf_control,s=s,error=error)
+            rho=rho,k=ks_rmpv,scf_control=scf_control,s=s,cell=cell,error=error)
 
        IF (ASSOCIATED(qs_env%wf_history)) THEN
           CALL wfi_update(qs_env%wf_history,qs_env=qs_env,dt=1.0_wp,&
@@ -2172,8 +2174,12 @@ CONTAINS
        IF (globenv%print%optical_conductivity) THEN
            IF (globenv%ionode) WRITE(globenv%scr,*) " "
            IF (globenv%ionode) WRITE(globenv%scr,*) " Computing the optical conductivity "
-           IF (.NOT. globenv%print%lumos) CALL stop_program("optical_conductivity","put LUMOS XX in the print section")
-           IF (.NOT. globenv%print%homos) CALL stop_program("optical_conductivity","put HOMOS XX in the print section")
+           IF (globenv%ionode) WRITE(globenv%scr,*) " Experimental version " 
+           IF (globenv%ionode) WRITE(globenv%scr,*) " Check the code before believing results " 
+           IF (.NOT. globenv%print%lumos) &
+              CALL stop_program("optical_conductivity","put LUMOS XX in the print section")
+           IF (.NOT. globenv%print%homos) &
+              CALL stop_program("optical_conductivity","put HOMOS XX in the print section")
            IF (globenv%ionode) THEN
               File_name="CONDUCTIVITY"
               CALL Open_file(File_name=File_name,&
@@ -2182,12 +2188,13 @@ CONTAINS
                   File_status="Replace",&
                   Unit_number=File_unit)
            ENDIF
+           CALL get_cell(cell,deth=volume)
            DO ispin=1,dft_control%nspins
               CALL get_mo_set(mo_set=c(ispin)%mo_set,eigenvectors=mo_eigenvectors, &
                                                      eigenvalues=mo_eigenvalues)
               CALL optical_conductivity(s,mo_eigenvectors,mo_eigenvalues, &
                                           unoccupied_orbs(ispin)%matrix,unoccupied_evals(ispin)%evals, &
-                                          globenv%ionode,File_unit) 
+                                          volume,globenv%ionode,File_unit) 
            ENDDO
            IF (globenv%ionode) CALL Close_file(Unit_number=File_unit)
            IF (globenv%ionode) WRITE(globenv%scr,*) " Results written to file ",File_name

@@ -338,7 +338,8 @@ CONTAINS
       nder = 1
     END IF
 
-    IF (globenv%print%derivatives) nder = 1
+    ! Matthias, could you check if this is right ?
+    IF (globenv%print%derivatives .OR. globenv%print%optical_conductivity) nder = 1
 
     maxder = ncoset(nder)
 

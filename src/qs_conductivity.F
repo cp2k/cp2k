@@ -33,7 +33,7 @@ MODULE qs_conductivity
                                              cp_full_matrix_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE kinds,                           ONLY: wp => dp
-  USE mathconstants,                   ONLY: twopi
+  USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -48,10 +48,11 @@ MODULE qs_conductivity
 CONTAINS
 
 SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
-                                unoccupied_orbs,unoccupied_evals,ionode,scr)
+                                unoccupied_orbs,unoccupied_evals,volume,ionode,scr)
    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_s
    TYPE(cp_full_matrix_type), POINTER              :: occupied_orbs, unoccupied_orbs
    REAL(wp), DIMENSION(:), POINTER                 :: occupied_evals, unoccupied_evals
+   REAL(wp)                                        :: volume
    LOGICAL                                         :: ionode
    INTEGER                                         :: scr
 
@@ -66,7 +67,7 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
    REAL(wp)                                        :: emin,emax,strength,occ_max,unocc_min,unocc_max,energy
    INTEGER, DIMENSION(:), POINTER                  :: row_indices,col_indices
 
-   CALL stop_program("optical_conductivity","NYI")
+   ! CALL stop_program("optical_conductivity","NYI")
    ! very much *not* tested and most likely to be wrong
    ! the core is present 
    CALL timeset("optical_conductivity","I","",handle)
@@ -93,22 +94,31 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
    occ_max=MAXVAL(occupied_evals)
    unocc_max=MAXVAL(unoccupied_evals)
    unocc_min=MINVAL(unoccupied_evals)
-   ! this is the only part of the spectrum that is correct
+   ! we retain only these transitions that have an energy in the range
+   ! where all transitions are computed (i.e. as soon as we start neglecting HOMO -> unoccupied,
+   ! we stop recording other transitions)
    emin=(unocc_min-occ_max)
-   emax=(unocc_max-occ_max) 
-
+   emax=MAX((unocc_max-occ_max),emin+1.0E-16)
    DO component=1,3
       result=0.0_wp
       call cp_sm_fm_multiply(matrix_s(component+1)%matrix,unoccupied_orbs,buf,nunocc,template%para_env)
-      call cp_fm_gemm("T","N",nocc,nunocc,nao,1.0_wp,occupied_orbs,unoccupied_orbs,0.0_wp,matrix_elements)
+      call cp_fm_gemm("T","N",nocc,nunocc,nao,1.0_wp,occupied_orbs,buf,0.0_wp,matrix_elements)
       DO j=1,ncol_local
         DO i=1,nrow_local
-           strength=(matrix_elements%local_data(i,j))**2 ! not yet correct !!!
+
+           ! the energy of the transition
            energy=-occupied_evals(row_indices(i))+unoccupied_evals(col_indices(j)) 
+
+           ! this should be the strength of the transition.
+           strength=Pi*(matrix_elements%local_data(i,j))**2 / (volume*energy)
+           ! write(6,*) i,j,matrix_elements%local_data(i,j)
+
+           ! put the transitions in the correct bin
            index=FLOOR(((energy-emin)/(emax-emin))*npoints)
            IF (index.GE.0 .AND. index.LT.npoints) THEN
               result(index)=result(index)+strength
            ENDIF
+
         ENDDO
       ENDDO
       CALL mp_sum(result,template%para_env%group)
