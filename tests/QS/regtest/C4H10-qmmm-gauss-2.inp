@@ -7,6 +7,7 @@
 &END
 
 &PRINT MEDIUM
+V_QMMM
 &END
 
 &GEOOPT
@@ -44,12 +45,14 @@
           QM_INDEX 5
           MM_INDEX 1
           ALPHA  1.50
+          FIST_SCALE_FACTOR 0.0
          &END LINK
          &LINK
           LINK_TYPE IMOMM
           QM_INDEX 8
           MM_INDEX 11
           ALPHA  1.50
+          FIST_SCALE_FACTOR 0.0
          &END LINK
          #
         &END QMMM

@@ -50,12 +50,16 @@
           QM_INDEX 14
           MM_INDEX 11
           ALPHA  1.50
+          QMMM_SCALE_FACTOR 0.0
+          FIST_SCALE_FACTOR 0.0
          &END LINK
          &LINK
           LINK_TYPE IMOMM
           QM_INDEX 23
           MM_INDEX 26
           ALPHA  1.50
+          QMMM_SCALE_FACTOR 0.0
+          FIST_SCALE_FACTOR 0.0
          &END LINK
          #
         &END QMMM

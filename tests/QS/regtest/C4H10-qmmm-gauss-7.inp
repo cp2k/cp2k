@@ -49,12 +49,49 @@
           QM_INDEX 5
           MM_INDEX 1
           ALPHA  1.50
+          &MOVE_MM_CHARGE
+            MM1  1
+            MM2  2
+            ALPHA 0.5
+          &END MOVE_MM_CHARGE
+          &MOVE_MM_CHARGE
+            MM1  1
+            MM2  3
+            ALPHA 0.5
+          &END MOVE_MM_CHARGE
+          &MOVE_MM_CHARGE
+            MM1  1
+            MM2  4
+            ALPHA 0.5
+          &END MOVE_MM_CHARGE
          &END LINK
          &LINK
           LINK_TYPE IMOMM
           QM_INDEX 8
           MM_INDEX 11
           ALPHA  1.50
+          &MOVE_MM_CHARGE
+            MM1  11
+            MM2  12
+            ALPHA 0.5
+          &END MOVE_MM_CHARGE
+          &MOVE_MM_CHARGE
+            MM1  11
+            MM2  13
+            ALPHA 0.5
+          &END MOVE_MM_CHARGE
+          &MOVE_MM_CHARGE
+            MM1  11
+            MM2  14
+            ALPHA 0.5
+          &END MOVE_MM_CHARGE
+          &ADD_MM_CHARGE
+            MM1    11
+            MM2     8
+            ALPHA   2
+            RADIUS  0.78
+            CHARGE  0.2
+          &END ADD_MM_CHARGE
          &END LINK
          #
         &END QMMM
