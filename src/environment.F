@@ -45,6 +45,7 @@ MODULE environment
                                              global_environment_type,&
                                              init_print_keys
   USE kinds,                           ONLY: dp,&
+                                             int_size,&
                                              print_kind_info
   USE machine,                         ONLY: m_datum,&
                                              m_getarg,&
@@ -57,7 +58,8 @@ MODULE environment
   USE message_passing,                 ONLY: mp_bcast, &
                                              mp_perf_end, &
                                              mp_perf_start, &
-                                             mp_environ
+                                             mp_environ,&
+                                             mp_sum
   USE physcon,                         ONLY: init_physcon,&
                                              write_physcon
   USE qs_parser,                       ONLY: finish_parser,&
@@ -66,7 +68,10 @@ MODULE environment
                                              start_parser,&
                                              stop_parser,&
                                              test_object
+  USE string_utilities,                ONLY: ascii_to_string,&
+                                             string_to_ascii
   USE termination,                     ONLY: set_error_unit,&
+                                             stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeprint,&
                                              timeset,&
@@ -137,13 +142,20 @@ CONTAINS
 
     TYPE(global_environment_type), INTENT(INOUT) :: globenv
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "cp2k_init"
+
 !   *** Local variables ***
 
     CHARACTER(LEN=60) :: cwd
-    CHARACTER(LEN=30) :: host_name,user_name
+    CHARACTER(LEN=30) :: host_name,string,user_name
     CHARACTER(LEN=26) :: datx
-    INTEGER           :: initial_random,l,narg,output_unit,pid,strstart,strend
+    INTEGER           :: initial_random,ipe,istat,l,narg,output_unit,pid,&
+                         strstart,strend
     LOGICAL           :: ionode
+
+    INTEGER, DIMENSION(:), ALLOCATABLE   :: all_pid
+    INTEGER, DIMENSION(:,:), ALLOCATABLE :: all_host
+
 #if defined(__HPM)
 #include "f_hpm.h"    
 #endif
@@ -162,11 +174,40 @@ CONTAINS
     CALL cp_para_env_create (globenv%para_env, group=globenv%group,&
         owns_group=.false.,source=globenv%source)
 
-    ! only on ionode, otherwise we need a local logger for just a single line
-    ! if this info is needed on the screen, send it to ionode for output
-    IF (globenv % ionode) &
-        WRITE (UNIT=globenv%scr,FMT="(T2,A,T71,I10)")&
-          TRIM(user_name)//"@"//TRIM(host_name)//" has created process number",pid
+!   *** Print a list of all started processes ***
+
+    ALLOCATE (all_pid(globenv%num_pe),STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,"all_pid",&
+                       globenv%num_pe*int_size)
+    END IF
+    all_pid(:) = 0
+    all_pid(globenv%mepos+1) = pid
+    CALL mp_sum(all_pid,globenv%group)
+    ALLOCATE (all_host(30,globenv%num_pe),STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,"all_host",&
+                       30*globenv%num_pe*int_size)
+    END IF
+    all_host(:,:) = 0
+    CALL string_to_ascii(host_name,all_host(:,globenv%mepos+1))
+    CALL mp_sum(all_host,globenv%group)
+    IF (globenv%ionode) THEN
+      DO ipe=1,globenv%num_pe
+        CALL ascii_to_string(all_host(:,ipe),string)
+        WRITE (UNIT=globenv%scr,FMT="(T2,A,T63,I8,T71,I10)")&
+          TRIM(user_name)//"@"//TRIM(string)//&
+          " has created process number",ipe-1,all_pid(ipe)
+      END DO
+    END IF
+    DEALLOCATE (all_pid,STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,"all_pid")
+    END IF
+    DEALLOCATE (all_host,STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,"all_host")
+    END IF
 
     ! create a timer_env
     CALL init_timer_env()
