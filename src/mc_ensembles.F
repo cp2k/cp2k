@@ -42,14 +42,16 @@ MODULE mc_ensembles
   USE machine,                         ONLY: m_flush
   USE mc_control,                      ONLY: write_mc_restart
   USE mc_environment_types,            ONLY: get_mc_env,&
-                                             mc_environment_type
+                                             mc_environment_type,&
+                                             set_mc_env
   USE mc_ge_moves,                     ONLY: mc_ge_quickstep_move,&
                                              mc_ge_swap_move,&
                                              mc_ge_volume_move
   USE mc_coordinates,                  ONLY: get_water_data,&
                                              mc_classical_energy
   USE mc_misc,                         ONLY: final_mc_write,&
-                                             init_mc_averages
+                                             mc_averages_create,&
+                                             mc_averages_release
   USE mc_move_control,                 ONLY: init_mc_moves,&
                                              mc_move_update,&
                                              mc_moves_release,&
@@ -134,7 +136,7 @@ CONTAINS
                                                 iuptrans,iupvolume
     LOGICAL                               :: PM0, PM1, PM2, PM3, PM4, &
                                               should_stop,ionode,exists,&
-                                              should_retain,lstop
+                                              lstop
     REAL(KIND=dp), DIMENSION(1:3)        :: abc
     REAL(KIND=dp)                    :: energy_check, initial_energy, &
                                          old_energy, rand,final_energy,&
@@ -218,7 +220,7 @@ CONTAINS
          CALL init_mc_moves(move_updates)
 
 ! initialize the averages array
-         CALL init_mc_averages(averages)
+         CALL mc_averages_create(averages)
 ! back to parallel mode
       ENDIF
 
@@ -494,20 +496,13 @@ CONTAINS
 ! back to parallel
       ENDIF
 
-      should_retain=.FALSE.
-      IF (ionode)THEN
-         IF( moves%volume%successes .GT. 0) &
-               should_retain=.TRUE.
-      ENDIF
-      CALL mp_bcast(should_retain,source,group)
-
-      IF (should_retain) THEN
-         CALL force_env_retain(force_env)
-      ENDIF
+      CALL set_mc_env ( mc_env, mc_par = mc_par,force_env=force_env)
 
 ! deallocate some stuff
       CALL cp_subsys_release(oldsys(1)%subsys)
-      NULLIFY(moves,move_updates,averages,particles_old)
+      CALL mc_moves_release(move_updates)
+      CALL mc_moves_release(moves)
+      CALL mc_averages_release(averages)
 
       DEALLOCATE(particle_positions,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
@@ -563,8 +558,7 @@ CONTAINS
                                                 move_unit,istep,nchain,&
                                                 nunits_tot,diff,cl,rm
     LOGICAL                                  :: ionode, PM0, PM1, PM2, PM3, &
-                                                PM4, should_retain, &
-                                                should_stop,lstop
+                                                PM4, should_stop,lstop
     REAL(KIND=dp)                            :: rand,pmvolume,pmswap,&
       pmtraion,pmtrans
     REAL(KIND=dp), ALLOCATABLE, &
@@ -677,7 +671,7 @@ CONTAINS
       DO i=1,2
          CALL init_mc_moves(moves(i)%moves)
          CALL init_mc_moves(move_updates(i)%moves)
-         CALL init_mc_averages(averages(i)%averages)
+         CALL mc_averages_create(averages(i)%averages)
       ENDDO
 
 ! find the energy of the initial configuration
@@ -1169,24 +1163,11 @@ CONTAINS
 
       ENDIF
 
-! retain the force environments if we changed where they point
-      should_retain=.FALSE.
-      IF (ionode)THEN
-         IF(moves(1)%moves%swap%successes .GT. 0 .OR. &
-               moves(1)%moves%volume%successes .GT. 0) &
-               should_retain=.TRUE.
-      ENDIF
-      CALL mp_bcast(should_retain,source,group)
-      IF (should_retain) THEN
-         CALL force_env_retain(force_env(1)%force_env)
-         CALL force_env_retain(force_env(2)%force_env)
-      ENDIF
-
 !     deallocate some stuff
-!      CALL set_mc_env ( mc_env_1, mc_par = mc_par(1)%mc_par,&
-!         force_env=force_env(1)%force_env)
-!      CALL set_mc_env ( mc_env_2, mc_par = mc_par(2)%mc_par,&
-!         force_env=force_env(2)%force_env)
+      CALL set_mc_env ( mc_env_1, mc_par = mc_par(1)%mc_par,&
+         force_env=force_env(1)%force_env)
+      CALL set_mc_env ( mc_env_2, mc_par = mc_par(2)%mc_par,&
+         force_env=force_env(2)%force_env)
       CALL cp_subsys_release(oldsys_1(1)%subsys)
       NULLIFY(particles_old_1)
       CALL cp_subsys_release(oldsys_2(1)%subsys)
@@ -1198,9 +1179,6 @@ CONTAINS
       DEALLOCATE(r_old,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                        "r_old deallocate")
-      DEALLOCATE(averages,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                       "averages deallocate")
       DEALLOCATE(force_env,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                        "force_env deallocate")
@@ -1212,8 +1190,12 @@ CONTAINS
       DO i=1,2
          CALL mc_moves_release(moves(i)%moves)
          CALL mc_moves_release(move_updates(i)%moves)
+         CALL mc_averages_release(averages(i)%averages)
       ENDDO
       
+      DEALLOCATE(averages,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "averages deallocate")
       DEALLOCATE(moves,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                        "moves deallocate")

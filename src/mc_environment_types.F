@@ -102,8 +102,8 @@ CONTAINS
 
     NULLIFY ( mc_env % mc_par )
     NULLIFY ( mc_env % force_env )
-    mc_env % para_env => para_env 
-    CALL cp_para_env_retain ( mc_env % para_env )
+!    mc_env % para_env => para_env 
+!    CALL cp_para_env_retain ( mc_env % para_env )
 
   END SUBROUTINE mc_env_create
 
@@ -143,9 +143,9 @@ CONTAINS
     IF ( PRESENT ( mc_par ) ) mc_env % mc_par => mc_par
     IF ( PRESENT ( para_env ) ) mc_env % para_env => para_env
     IF ( PRESENT ( force_env )) THEN
-       CALL force_env_retain( force_env ) ! accept null pointers?
-       IF (ASSOCIATED(mc_env % force_env ))  &
-           CALL force_env_release( mc_env % force_env )
+!       CALL force_env_retain( force_env ) ! accept null pointers?
+!       IF (ASSOCIATED(mc_env % force_env ))  &
+!           CALL force_env_release( mc_env % force_env )
        mc_env % force_env => force_env
     END IF
     
@@ -189,7 +189,7 @@ CONTAINS
 
     IF ( PRESENT ( mc_par ) ) mc_par => mc_env % mc_par
     IF ( PRESENT ( force_env ) ) force_env => mc_env % force_env
-    IF ( PRESENT ( para_env ) ) para_env => mc_env % para_env
+!    IF ( PRESENT ( para_env ) ) para_env => mc_env % para_env
 
   END SUBROUTINE get_mc_env
 
@@ -274,9 +274,10 @@ SUBROUTINE mc_env_release(mc_env, error)
      mc_env%ref_count=mc_env%ref_count-1
      IF (mc_env%ref_count==0) THEN
         mc_env%ref_count=1
-        CALL cp_para_env_release ( mc_env % para_env, error = error )
+!        CALL cp_para_env_release ( mc_env % para_env, error = error )
         NULLIFY ( mc_env % mc_par )
-        CALL force_env_release( mc_env % force_env) 
+        NULLIFY ( mc_env % force_env)
+!        CALL force_env_release( mc_env % force_env) 
         mc_env%ref_count=0
         DEALLOCATE(mc_env,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

@@ -19,7 +19,8 @@
 
 MODULE qs_mc
   USE cp2k_units,                      ONLY: init_cp2k_units
-  USE cp_error_handling,               ONLY: cp_a_l,&
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_a_l,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_get_default_unit_nr,&
@@ -39,7 +40,8 @@ MODULE qs_mc
   USE mc_environment_types,            ONLY: mc_env_release,&
                                              mc_env_create,&
                                              mc_environment_type,&
-                                             set_mc_env
+                                             set_mc_env,&
+                                             get_mc_env
   USE mc_types,                        ONLY: mc_simulation_parameters_type,&
                                              read_mc_section,&
                                              get_mc_par,&
@@ -186,8 +188,9 @@ CONTAINS
   SELECT CASE(ensemble)
   CASE("traditional")
 ! pull all the information together into one environment
-      CALL set_mc_env( mc_env, mc_par = mc_par, force_env=force_env)
-      CALL mc_traditional_ensemble(mc_env,globenv,error)
+!      CALL set_mc_env( mc_env, mc_par = mc_par, force_env=force_env)
+!      CALL mc_traditional_ensemble(mc_env,globenv,error)
+!      CALL mc_traditional_ensemble(mc_par,force_env,globenv,error)
   CASE("gemc")
 
 ! prepare the second box
@@ -250,9 +253,15 @@ CONTAINS
       CALL set_mc_env( mc_env_2, mc_par = mc_par_2,force_env=force_env_2)
 
       CALL gemc_nvt(mc_env,mc_env_2,globenv,error)
+!      CALL gemc_nvt(mc_par,mc_par_2,force_env,force_env_2,globenv,error)
+
+      CALL get_mc_env( mc_env_2, mc_par = mc_par_2,force_env=force_env_2)
 
       globenv%input_file_name=box2_file
       CALL mc_env_release ( mc_env_2, error )
+      CALL force_env_release(force_env_2)
+      DEALLOCATE ( mc_par_2, STAT = isos )
+      CPPostconditionNoFail(isos==0,cp_warning_level,routineP,error)
 
   CASE DEFAULT
       IF (ionode .AND. print_level>=0) THEN
@@ -260,7 +269,10 @@ CONTAINS
       ENDIF
   END SELECT
 
-!  CALL mc_env_release ( mc_env, error )
+  CALL get_mc_env( mc_env, mc_par = mc_par,force_env=force_env)
+  DEALLOCATE ( mc_par, STAT = isos )
+  CPPostconditionNoFail(isos==0,cp_warning_level,routineP,error)
+  CALL mc_env_release ( mc_env, error )
 
 END SUBROUTINE qs_mon_car
 

@@ -41,7 +41,8 @@ MODULE mc_misc
 
   IMPLICIT NONE
 
-  PUBLIC :: final_mc_write,init_mc_averages,mc_make_dat_file
+  PUBLIC :: final_mc_write,mc_averages_create,mc_averages_release,&
+            mc_make_dat_file
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "mc_misc"
 
@@ -50,10 +51,10 @@ MODULE mc_misc
 CONTAINS
 
 !******************************************************************************
-!!****** mc_misc.F/init_mc_averages*
+!!****** mc_misc.F/mc_averages_create*
 !!
 !!   NAME
-!!     init_mc_averages
+!!     mc_averages_create
 !!
 !!   FUNCTION
 !!     initializes the structure that holds running averages of MC variables
@@ -66,13 +67,13 @@ CONTAINS
 !!
 !!****************************************************************************
 
-SUBROUTINE init_mc_averages ( averages  )
+SUBROUTINE mc_averages_create ( averages  )
 
 
     TYPE(mc_averages_type), POINTER          :: averages
 
     CHARACTER(LEN=*), PARAMETER              :: &
-      routineN = "init_mc_averages"
+      routineN = "mc_averages_create"
 
     INTEGER                                  :: handle, stat
 
@@ -98,7 +99,52 @@ SUBROUTINE init_mc_averages ( averages  )
        CALL timestop(0.0d0,handle)
 
 
-END SUBROUTINE init_mc_averages
+END SUBROUTINE mc_averages_create
+
+!******************************************************************************
+!!****** mc_misc.F/init_mc_averages*
+!!
+!!   NAME
+!!     mc_averages_release
+!!
+!!   FUNCTION
+!!     deallocates the structure that holds running averages of MC variables
+!!
+!!   ARGUMENTS
+!!     - averages: the mc_averages strucutre you want to release
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!****************************************************************************
+
+SUBROUTINE mc_averages_release ( averages  )
+
+
+    TYPE(mc_averages_type), POINTER          :: averages
+
+    CHARACTER(LEN=*), PARAMETER              :: &
+      routineN = "release_mc_averages"
+
+    INTEGER                                  :: handle, stat
+
+!------------------------------------------------------------------------------
+! begin the timing of the subroutine
+
+      CALL timeset(routineN,'I','',handle)
+
+! deallocate 
+      DEALLOCATE (averages,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "averages")
+
+      NULLIFY(averages)
+
+! end the timing
+       CALL timestop(0.0d0,handle)
+
+
+END SUBROUTINE mc_averages_release
 
 !******************************************************************************
 !!****s* mc_misc.F/final_mc_write

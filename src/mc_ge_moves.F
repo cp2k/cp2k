@@ -255,6 +255,11 @@ CONTAINS
                new_energy(2)-old_energy(2)))
          ENDIF
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ !        w = 1.0d0
+!         w=0.0d0
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
          IF ( w .GE. 1.0d0 ) THEN
             w=1.0d0
             rand=0.0D0
@@ -262,6 +267,7 @@ CONTAINS
             CALL RANDOM_NUMBER(rand)
          ENDIF
 
+         
 ! back to parallel
       ENDIF
 
@@ -535,6 +541,9 @@ CONTAINS
  
 ! exit if the box is empty
       CALL mp_bcast(loverlap,source,group)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      loverlap=.TRUE.
 
       IF(loverlap) THEN
 ! deallocate some stuff
@@ -1212,7 +1221,7 @@ CONTAINS
                   center_of_mass_new(1:3)=center_of_mass(1:3)*&
                      new_cell_length(i)/test_cell_length(i)
                   DO j=1,3
-                     diff(i)=center_of_mass_new(j)-center_of_mass(j)
+                     diff(j)=center_of_mass_new(j)-center_of_mass(j)
 ! now change the particle positions
                      particles_test(i)%list%els(iatom)%r(j)=&
                         particles_test(i)%list%els(iatom)%r(j)+diff(j)
@@ -1377,7 +1386,7 @@ CONTAINS
          ENDIF
 
 !!!!!!!!!!!
-!         w=1.0D0
+         w=1.0D0
 !         w=0.0D0
 !!!!!!!!!!!
          IF ( w .GE. 1.0d0 ) THEN
@@ -1466,12 +1475,12 @@ CONTAINS
             CALL force_env_release(test_env(i)%force_env,error=error)
          ENDDO
 
-         DEALLOCATE(test_env,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-            __LINE__,"test_env")
       ENDIF
 
 ! free up some memory
+      DEALLOCATE(test_env,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         __LINE__,"test_env")
       DEALLOCATE(r,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
          "r")
