@@ -107,6 +107,7 @@ CONTAINS
     TYPE(qs_energy_type), POINTER                 :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER    :: force
     type(scf_control_type), pointer               :: scf_control
+    TYPE(cp_para_env_type), pointer               :: para_env
 
     INTEGER :: handle,ikind,istat,lmax,maxl,maxlppl,maxlppnl,nkind,output_unit
     LOGICAL :: ionode
@@ -131,7 +132,8 @@ CONTAINS
     NULLIFY (force)
     nullify (scf_control)
 
-    CALL init_qs_env(qs_env, para_env=cp_para_env_from_globenv(globenv))
+    para_env=>cp_para_env_from_globenv(globenv) 
+    CALL init_qs_env(qs_env, para_env=para_env)
 
 !   *** Print the Quickstep program banner (copyright and version number) ***
 
