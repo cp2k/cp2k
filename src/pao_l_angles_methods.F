@@ -65,7 +65,6 @@ MODULE pao_l_angles_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             allocate_matrix,&
                                              copy_matrix,&
                                              deallocate_matrix,&
                                              get_block_node,&

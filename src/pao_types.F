@@ -48,7 +48,6 @@ MODULE pao_types
   USE pao_bas_projection_types,        ONLY: cp_get,&
                                              pao_bas_projection_type
   USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             allocate_matrix,&
                                              copy_matrix,&
                                              deallocate_matrix,&
                                              get_block_node,&
