@@ -2,33 +2,48 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/physcon [1.0] *
+!!
+!!   NAME
+!!     physcon
+!!
+!!   FUNCTION
+!!      Definition of physical constants.
+!!
+!!      List of variables:
+!!
+!!      a_bohr    : Bohr radius [m].
+!!      a_fine    : Fine-structure constant.
+!!      angstrom  : Conversion factor [Bohr] -> [Angstrom]
+!!      bohr      : Conversion factor [Angstrom] -> [Bohr].
+!!      c_light   : Speed of light in vacuum [m/s].
+!!      e_charge  : Elementary charge [C].
+!!      e_mass    : Electron mass [kg].
+!!      a_mass    : Atomic mass unit[kg].
+!!      esu       : Conversion factors [Hartree] -> [esu].
+!!      evolt     : Conversion factor [Hartree] -> [eV].
+!!      h_planck  : Planck constant [J*s].
+!!      hz        : Conversion factor [Hartree] -> [Hz].
+!!      kcalmol   : Conversion factor [Hartree] -> [kcal/mol].
+!!      kjmol     : Conversion factor [Hartree] -> [kJ/mol].
+!!      joule     : Conversion factor [Hartree] -> [J].
+!!      mhz       : Conversion factor [Hartree] -> [MHz].
+!!      mu_perm   : Permeability of vacuum [N/A**2].
+!!      boltzmann : Boltzman constant [J/Kelvin].
+!!      n_avogadro: Avogrado constant [1/mol].
+!!      rydberg   : Rydberg constant [1/m].
+!!      vibfac    : Conversion factor [Hartree/Bohr**2] -> [1/cm].
+!!      wavenum   : Conversion factor [Hartree] -> [1/cm] (wave numbers).
+!!
+!!   AUTHOR
+!!     Matthias Krack
+!!
+!!   MODIFICATION HISTORY
+!!     Adapted for use in CP2K (JGH)
+!!
+!!   SOURCE
+!******************************************************************************
 !
-!!>Definition of physical constants.
-!!
-!! List of variables:
-!!
-!! a_bohr    : Bohr radius [m].
-!! a_fine    : Fine-structure constant.
-!! angstrom  : Conversion factor [Bohr] -> [Angstrom]
-!! bohr      : Conversion factor [Angstrom] -> [Bohr].
-!! c_light   : Speed of light in vacuum [m/s].
-!! e_charge  : Elementary charge [C].
-!! e_mass    : Electron mass [kg].
-!! a_mass    : Atomic mass unit[kg].
-!! esu       : Conversion factors [Hartree] -> [esu].
-!! evolt     : Conversion factor [Hartree] -> [eV].
-!! h_planck  : Planck constant [J*s].
-!! hz        : Conversion factor [Hartree] -> [Hz].
-!! kcalmol   : Conversion factor [Hartree] -> [kcal/mol].
-!! kjmol     : Conversion factor [Hartree] -> [kJ/mol].
-!! joule     : Conversion factor [Hartree] -> [J].
-!! mhz       : Conversion factor [Hartree] -> [MHz].
-!! mu_perm   : Permeability of vacuum [N/A**2].
-!! boltzmann : Boltzman constant [J/Kelvin].
-!! n_avogadro: Avogrado constant [1/mol].
-!! rydberg   : Rydberg constant [1/m].
-!! vibfac    : Conversion factor [Hartree/Bohr**2] -> [1/cm].
-!!<wavenum   : Conversion factor [Hartree] -> [1/cm] (wave numbers).
 
 MODULE physcon
   
@@ -50,12 +65,36 @@ MODULE physcon
   
   REAL ( dbl ), DIMENSION (maxmom) :: esu
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
 !******************************************************************************
+!!****** physcon/init_physcon [1.0] *
+!!
+!!   NAME
+!!     init_physcon
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   CREATION DATE
+!!     14-NOV-2000
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!     Fundamental physical constants (SI units)
+!!     Literature: The 1986 CODATA Recommended Values of the
+!!                 Fundamental Physical Constants,
+!!                 E. R. Cohen, B. N. Taylor,
+!!                 J. Res. Natl. Bur. Stand. 92(2), 1 (1987)
+!!   SOURCE
+!******************************************************************************
 
-!! Initialization of physical constants.
-  
 SUBROUTINE init_physcon()
   
   USE mathconstants, ONLY : pi
@@ -67,13 +106,6 @@ SUBROUTINE init_physcon()
   INTEGER :: i
   
 !-----------------------------------------------------------------------------!
-!
-!   *** Fundamental physical constants (SI units) ***
-!
-!   *** Literature: The 1986 CODATA Recommended Values of the ***
-!   ***             Fundamental Physical Constants,           ***
-!   ***             E. R. Cohen, B. N. Taylor,                ***
-!   ***             J. Res. Natl. Bur. Stand. 92(2), 1 (1987) ***
   
 !   *** Speed of light in vacuum [m/s] ***
   c_light = 2.99792458E+8_dbl
@@ -216,6 +248,9 @@ SUBROUTINE print_physcon ( iunit )
   
 END SUBROUTINE print_physcon
 
+!!*****
 !******************************************************************************
 
 END MODULE physcon
+
+!******************************************************************************

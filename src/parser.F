@@ -2,30 +2,48 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!-----------------------------------------------------------------------------!
-!!>         F R E E - F O R M A T  I N P U T  R O U T I N E S                 !
-!!                                                                            !
-!! Function    INSCAN(iunit,label) : looks for an input dection started by    !
-!!                                   label un file associated with unit iunit !
-!! Subroutine  READ_LINE(iunit) : reads an input line, physical end of lines  !
-!!                                can be masked by a & character, no further  !
-!!                                characters are alowed to the right          !
-!! Function    TEST_NEXT() : tests contains of next input field, return values!
-!!                           are : E (blank); C (text); N (number);           !
-!!                                 K (bracket); S (! comment); X (&END);      !
-!!                                 O all other                                !
-!! Subroutine  CFIELD(string,length) : extracts the next field from the       !
-!!                                     input line, at most length charcters   !
-!!                                     are returned in string, if length is 0 !
-!!                                     the full field is returned, possible   !
-!!                                     field seperators are: blank, comma,    !
-!!                                     colon, semicolon, bracket, equal sign  !
-!! Subroutine  P_ERROR : writes out current input line and current position   !
-!!                       within the line, does not stop code                  !
-!! Function    GET_INT() : read an integer from the input line                !
-!! Function    GET_REAL() : read an real value from the input line            !
-!!<Function    GET_ARRAY(I,J) : read an array field [I:J] or [I]              !
-!-----------------------------------------------------------------------------!
+!!****** cp2k/parser [1.0] *
+!!
+!!   NAME
+!!     parser
+!!
+!!   FUNCTION
+!!     Provides all the functions needed to parse an input section
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!---------------------------------------------------------------------------- 
+!!          F R E E - F O R M A T  I N P U T  R O U T I N E S                  
+!!                                                                             
+!! Function    INSCAN(iunit,label) : looks for an input dection started by     
+!!                                   label un file associated with unit iunit  
+!! Subroutine  READ_LINE(iunit) : reads an input line, physical end of lines   
+!!                                can be masked by a & character, no further   
+!!                                characters are alowed to the right           
+!! Function    TEST_NEXT() : tests contains of next input field, return values 
+!!                           are : E (blank); C (text); N (number);            
+!!                                 K (bracket); S (! comment); X (&END);       
+!!                                 O all other                                 
+!! Subroutine  CFIELD(string,length) : extracts the next field from the        
+!!                                     input line, at most length charcters    
+!!                                     are returned in string, if length is 0  
+!!                                     the full field is returned, possible    
+!!                                     field seperators are: blank, comma,     
+!!                                     colon, semicolon, bracket, equal sign   
+!! Subroutine  P_ERROR : writes out current input line and current position    
+!!                       within the line, does not stop code                   
+!! Function    GET_INT() : read an integer from the input line                 
+!! Function    GET_REAL() : read an real value from the input line             
+!! Function    GET_ARRAY(I,J) : read an array field [I:J] or [I]               
+!!---------------------------------------------------------------------------- 
+!!
+!!   SOURCE
+!----------------------------------------------------------------------------- 
 
 MODULE parser
   
@@ -51,6 +69,8 @@ MODULE parser
   
   TYPE(global_environment_type) :: parenv
   LOGICAL :: parallel_io, ionode
+
+!******************************************************************************
 
 CONTAINS
 
@@ -785,3 +805,6 @@ END SUBROUTINE stop_parser
 !******************************************************************************
 
 END MODULE parser
+
+!******************************************************************************
+!!*****

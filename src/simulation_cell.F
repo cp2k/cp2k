@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/simulation_cell [1.0] *
+!!
+!!   NAME
+!!     simulation_cell
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE simulation_cell
   
@@ -20,6 +35,9 @@ MODULE simulation_cell
      REAL ( dbl ) :: deth
      INTEGER :: perd ( 3 )
   END TYPE cell_type
+
+!!*****
+!******************************************************************************
   
 CONTAINS
 

@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/particle_lists [1.0] *
+!!
+!!   NAME
+!!     particle_lists
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE particle_lists
   
@@ -21,6 +36,9 @@ MODULE particle_lists
      TYPE ( particle_list_type ), POINTER :: next
   END TYPE particle_list_type
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
 !******************************************************************************

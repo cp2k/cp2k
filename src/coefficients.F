@@ -2,6 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/coefficients [1.0] *
+!!
+!!   NAME
+!!     coefficients
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE coefficients
   
@@ -18,6 +32,9 @@ MODULE coefficients
      MODULE PROCEDURE integral_a, integral_ab
   END INTERFACE
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
 !******************************************************************************

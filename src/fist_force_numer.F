@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/fist_force_numer [1.0] *
+!!
+!!   NAME
+!!     fist_force_numer
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE fist_force_numer
   
@@ -23,6 +38,9 @@ MODULE fist_force_numer
   PUBLIC :: force_recip_numer, pvbond_numer, pvbend_numer, ptens_numer
   PUBLIC :: pvg_numer, de_g_numer, potential_g_numer, energy_recip_numer
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
 !******************************************************************************
@@ -168,7 +186,7 @@ SUBROUTINE force_bend_numer ( molecule, f_bend_numer, v_bend_numer, &
         DO idim = 1, 3
            delta(idim) = numerical_shift
            b32_minus_delta = b32 - delta
-           d32m = sqrt(dot_product(b32_minus_delta,b12_minus_delta))
+           d32m = sqrt(dot_product(b32_minus_delta,b32_minus_delta))
            id32m = 1.0_dbl/d32m
            dist = dot_product(b32_minus_delta,b12)
            theta = acos(dist*id32m*id12)
@@ -300,7 +318,7 @@ SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
                     delta(id) = numerical_shift
                     rij_minus_delta_sq = dot_product(rij-delta,rij-delta)
                     rij_plus_delta_sq = dot_product(rij+delta,rij+delta)
-   		    IF (qi==0.AND.qj==0) THEN
+                    IF (qi==0.AND.qj==0) THEN
                       CALL potential_f(rij_minus_delta_sq,potparm,qi,qj, &
                          iatomtype, jatomtype, energy_minus )
                       CALL potential_f(rij_plus_delta_sq,potparm,qi,qj, &
@@ -315,13 +333,13 @@ SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
                     f_numer(id,j) = f_numer(id,j) - (energy_plus-energy_minus)
                     delta = 0.0_dbl
                  END DO DIM_LOOP
-	         IF (qi==0.AND.qj==0) THEN
+                 IF (qi==0.AND.qj==0) THEN
                    CALL potential_f ( rijsq, potparm, qi, qj, &
                       iatomtype, jatomtype, energy )
                  ELSE
                    CALL potential_f ( rijsq, potparm, qi, qj, &
                       iatomtype, jatomtype, energy, ewald_param )
-		 ENDIF
+                 ENDIF
                  
                  energy_numer = energy_numer + energy
               END IF NOTMATCH
@@ -353,17 +371,17 @@ SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
                           delta(id) = numerical_shift
                           rij_minus_delta_sq = dot_product(rij-delta,rij-delta)
                           rij_plus_delta_sq = dot_product(rij+delta,rij+delta)
-			  IF (qi==0.AND.qj==0) THEN
+                          IF (qi==0.AND.qj==0) THEN
                             CALL potential_f(rij_minus_delta_sq,potparm,qi,qj, &
                                iatomtype, jatomtype, energy_minus )
                             CALL potential_f(rij_plus_delta_sq,potparm,qi,qj, &
                                iatomtype, jatomtype, energy_plus )
-			  ELSE
+                          ELSE
                             CALL potential_f(rij_minus_delta_sq,potparm,qi,qj, &
                                iatomtype, jatomtype, energy_minus, ewald_param )
                             CALL potential_f(rij_plus_delta_sq,potparm,qi,qj, &
                                iatomtype, jatomtype, energy_plus, ewald_param )
-			  ENDIF
+                          ENDIF
                           f_numer(id,i) = f_numer(id,i) &
                                + (energy_plus-energy_minus)
                           f_numer(id,j) = f_numer(id,j) &
@@ -371,13 +389,13 @@ SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
                           delta = 0.0_dbl
                        END DO DIM_LOOP2
                        
-	               IF (qi==0.AND.qj==0) THEN
+                       IF (qi==0.AND.qj==0) THEN
                          CALL potential_f ( rijsq, potparm, qi, qj, &
                             iatomtype, jatomtype, energy )
                        ELSE
                          CALL potential_f ( rijsq, potparm, qi, qj, &
                             iatomtype, jatomtype, energy, ewald_param )
-		       ENDIF
+                       ENDIF
                        energy_numer = energy_numer + energy
                     END IF
                  END DO
@@ -403,17 +421,17 @@ SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
                           delta(id) = numerical_shift
                           rij_minus_delta_sq = dot_product(rij-delta,rij-delta)
                           rij_plus_delta_sq = dot_product(rij+delta,rij+delta)
-			  IF (qi==0.AND.qj==0) THEN
+                          IF (qi==0.AND.qj==0) THEN
                             CALL potential_f(rij_minus_delta_sq,potparm,qi,qj, &
                                iatomtype, jatomtype, energy_minus )
                             CALL potential_f(rij_plus_delta_sq,potparm,qi,qj, &
                                iatomtype, jatomtype, energy_plus )
-			  ELSE
+                          ELSE
                             CALL potential_f(rij_minus_delta_sq,potparm,qi,qj, &
                                iatomtype, jatomtype, energy_minus, ewald_param )
                             CALL potential_f(rij_plus_delta_sq,potparm,qi,qj, &
                                iatomtype, jatomtype, energy_plus, ewald_param )
-			  ENDIF
+                          ENDIF
                           f_numer(id,i) = f_numer(id,i) &
                                + (energy_plus-energy_minus)
                           f_numer(id,i) = f_numer(id,i) &
@@ -421,13 +439,13 @@ SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
                           delta = 0.0_dbl
                        END DO DIM_LOOP3
                        
-	               IF (qi==0.AND.qj==0) THEN
+                       IF (qi==0.AND.qj==0) THEN
                          CALL potential_f ( rijsq, potparm, qi, qj, &
                             iatomtype, jatomtype, energy )
                        ELSE
                          CALL potential_f ( rijsq, potparm, qi, qj, &
                             iatomtype, jatomtype, energy, ewald_param )
-		       ENDIF
+                       ENDIF
                        energy_numer = energy_numer + energy
                     END IF
                  END DO
@@ -498,10 +516,10 @@ SUBROUTINE force_recip_numer ( ewald_param, pnode, box, pw_grid,  &
      DO idim = 1, 3
         r_delta(idim) = r_delta(idim) + numerical_shift
         CALL de_g_numer(ep, sum_igr, gauss, pnode(i) % p % r ,  &
-	                r_delta, charge, pw_grid % g, ngtot)
+                        r_delta, charge, pw_grid % g, ngtot)
         r_delta(idim) = r_delta(idim) - 2.0_dbl*numerical_shift
         CALL de_g_numer(em, sum_igr, gauss, pnode(i) % p % r ,  &
-	                r_delta, charge, pw_grid % g, ngtot)
+                        r_delta, charge, pw_grid % g, ngtot)
         f_numer(idim,i) = ( em - ep ) / epsilon0 / box % deth
         r_delta(idim) = r_delta(idim) + numerical_shift
      END DO
@@ -1217,13 +1235,13 @@ SUBROUTINE getv_ptens ( ewald_param, pnode, x, vnb, box, potparm )
               END DO EXCL
               
               NOTMATCH: IF ( .NOT. match) THEN
-   		 IF (qi==0.AND.qj==0) THEN
+                 IF (qi==0.AND.qj==0) THEN
                    CALL potential_f ( rijsq, potparm, qi, qj, &
                       iatomtype, jatomtype, energy )
-		 ELSE
+                 ELSE
                    CALL potential_f ( rijsq, potparm, qi, qj, &
                       iatomtype, jatomtype, energy, ewald_param )
-		 ENDIF
+                 ENDIF
 !     
 ! summing up the potential energy
 !
@@ -1252,13 +1270,13 @@ SUBROUTINE getv_ptens ( ewald_param, pnode, x, vnb, box, potparm )
                     CALL find_image(s,perd,vec,box % hmat,rijsq,rij)
                     IF ( rijsq <= potparm ( iatomtype, jatomtype ) % rcutsq ) &
                          THEN
-   		      IF (qi==0.AND.qj==0) THEN
+                      IF (qi==0.AND.qj==0) THEN
                         CALL potential_f ( rijsq, potparm, qi, qj, &
                            iatomtype, jatomtype, energy )
-		      ELSE
+                      ELSE
                         CALL potential_f ( rijsq, potparm, qi, qj, &
                            iatomtype, jatomtype, energy, ewald_param )
-		      ENDIF
+                      ENDIF
                       vnb = vnb + energy
                     END IF
                  END DO
@@ -1280,13 +1298,13 @@ SUBROUTINE getv_ptens ( ewald_param, pnode, x, vnb, box, potparm )
                     CALL find_image ( s, perd, vec, box % hmat, rijsq, rij )
                     IF ( rijsq <= potparm ( iatomtype, iatomtype ) % rcutsq ) &
                          THEN
-   		      IF (qi==0.AND.qj==0) THEN
+                      IF (qi==0.AND.qj==0) THEN
                         CALL potential_f ( rijsq, potparm, qi, qj, &
                            iatomtype, jatomtype, energy )
-		      ELSE
+                      ELSE
                         CALL potential_f ( rijsq, potparm, qi, qj, &
                            iatomtype, jatomtype, energy, ewald_param )
-		      ENDIF
+                      ENDIF
                       vnb = vnb + energy
                     END IF
                     
@@ -1303,3 +1321,5 @@ END SUBROUTINE getv_ptens
 !******************************************************************************
 
 END MODULE fist_force_numer
+
+!******************************************************************************

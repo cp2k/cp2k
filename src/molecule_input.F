@@ -2,6 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/molecule_input [1.0] *
+!!
+!!   NAME
+!!     molecule_input
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE molecule_input
   
@@ -21,29 +35,49 @@ MODULE molecule_input
   PRIVATE
   PUBLIC :: read_setup_section, read_molecule_section, charge, multiplicity
   
-!!total charge of the system
+! total charge of the system
   
   REAL ( dbl ) :: charge
   
-!!multiplicity of the system
+! multiplicity of the system
   
   INTEGER :: multiplicity
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
-!!>---------------------------------------------------------------------------!
-!!  SECTION: &setup ... &end                                                  !
-!!                                                                            !
-!!  charge           charge                                                   !
-!!  multiplicity     multiplicity                                             !
-!!  moltype          nmol_types                                               !
-!!  molecule                                                                  !
-!!     name          molname                                                  !
-!!     nummol        nmol                                                     !
-!!     nhcopt        [molecule,global,massive,...]                            !
-!!  end molecule                                                              !
-!!                                                                            !
-!!<---------------------------------------------------------------------------!
+!******************************************************************************
+!!****** molecule_input/read_setup_section [1.0] *
+!!
+!!   NAME
+!!     read_setup_section
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!I---------------------------------------------------------------------------I
+!!I SECTION: &setup ... &end                                                  I
+!!I                                                                           I
+!!I charge           charge                                                   I
+!!I multiplicity     multiplicity                                             I
+!!I moltype          nmol_types                                               I
+!!I molecule                                                                  I
+!!I    name          molname                                                  I
+!!I    nummol        nmol                                                     I
+!!I    nhcopt        [molecule,global,massive,...]                            I
+!!I end molecule                                                              I
+!!I                                                                           I
+!!I---------------------------------------------------------------------------I
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE read_setup_section ( mol_setup, set_fn, globenv )
   
@@ -154,24 +188,40 @@ SUBROUTINE read_setup_section ( mol_setup, set_fn, globenv )
   
 END SUBROUTINE read_setup_section
 
+!!*****
 !******************************************************************************
-
-!!>---------------------------------------------------------------------------!
-!!  SECTION: &molecule ... &end                                               !
-!!                                                                            !
-!!  moleculename                                                              !
-!!     numat         n                                                        !
-!!     atom          name label mass charge                                   !
-!!     bonds         nbonds                                                   !
-!!     bends         nbends                                                   !
-!!     torsion       ntorsion                                                 !
-!!     distcon       ndcon                                                    !
-!!     3x3con        n3x3con                                                  !
-!!     basis         name library nmax epsilon                                !
-!!     drho          name library nmax epsilon                                !
-!!  end moleculename                                                          !
-!!                                                                            !
-!!<---------------------------------------------------------------------------!
+!!****** cp2k/molecule_input [1.0] *
+!!
+!!   NAME
+!!     molecule_input
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!I---------------------------------------------------------------------------I
+!!I SECTION: &molecule ... &end                                               I
+!!I                                                                           I
+!!I moleculename                                                              I
+!!I    numat         n                                                        I
+!!I    atom          name label mass charge                                   I
+!!I    bonds         nbonds                                                   I
+!!I    bends         nbends                                                   I
+!!I    torsion       ntorsion                                                 I
+!!I    distcon       ndcon                                                    I
+!!I    3x3con        n3x3con                                                  I
+!!I    basis         name library nmax epsilon                                I
+!!I    drho          name library nmax epsilon                                I
+!!I end moleculename                                                          I
+!!I                                                                           I
+!!I---------------------------------------------------------------------------I
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
   
@@ -275,23 +325,8 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
                     IF (ios /= 0 ) CALL stop_memory &
                          ( 'read_molecule_section', 'bonds', 2 * na )
                     DO i = 1, na
-                       ilen = 0
-                       CALL cfield(at1,ilen)
-                       i1 = str_search ( &
-                            mol_setup ( imol ) % molpar % alabel, nat, at1 )
-                       IF ( i1 == 0 ) &
-                            CALL stop_parser ( 'read_molecule_section', &
-                            'atom label in bonds not found' )
-                       
-                       ilen = 0
-                       CALL cfield(at2,ilen)
-                       i2 = str_search ( &
-                            mol_setup ( imol ) % molpar % alabel, nat, at2 )
-                       IF ( i2 == 0 ) &
-                            CALL stop_parser ( 'read_molecule_section', &
-                            'atom label in bonds not found' )
-                       mol_setup(imol) %molpar%bonds(1,i) = i1
-                       mol_setup(imol) %molpar%bonds(2,i) = i2
+                       mol_setup(imol) %molpar%bonds(1,i) = get_int()
+                       mol_setup(imol) %molpar%bonds(2,i) = get_int()
                     END DO
                  END IF
                  
@@ -303,30 +338,9 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
                     IF (ios /= 0 ) CALL stop_memory &
                          ( 'read_molecule_section', 'bends', 3 * na )
                     DO i = 1, na
-                       ilen = 0
-                       CALL cfield(at1,ilen)
-                       i1 = str_search ( &
-                            mol_setup(imol)%molpar%alabel,nat,at1)
-                       IF ( i1 == 0 ) CALL stop_parser &
-                            ( 'read_molecule_section', &
-                            'atom label in bends not found' )
-                       ilen = 0
-                       CALL cfield(at2,ilen)
-                       i2 = str_search ( &
-                            mol_setup(imol)%molpar%alabel,nat,at2)
-                       IF ( i2 == 0 ) &
-                            CALL stop_parser ( 'read_molecule_section', &
-                            'atom label in bends not found' )
-                       ilen = 0
-                       CALL cfield(at3,ilen)
-                       i3 = str_search ( &
-                            mol_setup(imol)%molpar%alabel,nat,at3)
-                       IF ( i3 == 0 ) &
-                            CALL stop_parser ( 'read_molecule_section', &
-                            'atom label in bends not found' )
-                       mol_setup(imol) %molpar%bends(1,i) = i1
-                       mol_setup(imol) %molpar%bends(2,i) = i2
-                       mol_setup(imol) %molpar%bends(3,i) = i3
+                       mol_setup(imol) %molpar%bends(1,i) = get_int()
+                       mol_setup(imol) %molpar%bends(2,i) = get_int()
+                       mol_setup(imol) %molpar%bends(3,i) = get_int()
                     END DO
                  END IF
                  
@@ -340,38 +354,10 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
                     IF ( ios /= 0 ) CALL stop_memory &
                          ( 'read_molecule_section', 'torsions', 4 * na )
                     DO i = 1, na
-                       ilen = 0
-                       CALL cfield(at1,ilen)
-                       i1 = str_search ( &
-                            mol_setup(imol)%molpar%alabel,nat,at1)
-                       IF ( i1 == 0 ) CALL stop_parser &
-                            ( 'read_molecule_section', &
-                            'atom label in torsions not found' )
-                       ilen = 0
-                       CALL cfield(at2,ilen)
-                       i2 = str_search ( &
-                            mol_setup(imol)%molpar%alabel,nat,at2)
-                       IF ( i2 == 0 ) CALL stop_parser &
-                            ( 'read_molecule_section', &
-                            'atom label in torsions not found' )
-                       ilen = 0
-                       CALL cfield(at3,ilen)
-                       i3 = str_search ( &
-                            mol_setup(imol)%molpar%alabel,nat,at3)
-                       IF ( i3 == 0 ) CALL stop_parser &
-                            ( 'read_molecule_section', &
-                            'atom label in torsions not found' )
-                       ilen = 0
-                       CALL cfield(at4,ilen)
-                       i4 = str_search ( &
-                            mol_setup(imol)%molpar%alabel,nat,at4)
-                       IF ( i4 == 0 ) CALL stop_parser &
-                            ( 'read_molecule_section', &
-                            'atom label in torsions not found' )
-                       mol_setup(imol) %molpar%torsions(1,i) = i1
-                       mol_setup(imol) %molpar%torsions(2,i) = i2
-                       mol_setup(imol) %molpar%torsions(3,i) = i3
-                       mol_setup(imol) %molpar%torsions(4,i) = i4
+                       mol_setup(imol) %molpar%torsions(1,i) = get_int()
+                       mol_setup(imol) %molpar%torsions(2,i) = get_int()
+                       mol_setup(imol) %molpar%torsions(3,i) = get_int()
+                       mol_setup(imol) %molpar%torsions(4,i) = get_int()
                     END DO
                  END IF
                  
@@ -383,22 +369,8 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
                     IF ( ios /= 0 ) CALL stop_memory &
                          ( 'read_molecule_section', 'ndc', 2 * na )
                     DO i = 1, na
-                       ilen = 0
-                       CALL cfield(at1,ilen)
-                       i1 = str_search ( &
-                            mol_setup(imol)%molpar%alabel,nat,at1)
-                       IF ( i1 == 0 ) CALL stop_parser &
-                            ( 'read_molecule_section', &
-                            'atom label in distcons not found' )
-                       ilen = 0
-                       CALL cfield(at2,ilen)
-                       i2 = str_search ( &
-                            mol_setup(imol)%molpar%alabel,nat,at2)
-                       IF ( i2 == 0 ) CALL stop_parser &
-                            ( 'read_molecule_section', &
-                            'atom label in distcons not found' )
-                       mol_setup(imol) %molpar%ndc(1,i) = i1
-                       mol_setup(imol) %molpar%ndc(2,i) = i2
+                       mol_setup(imol) %molpar%ndc(1,i) = get_int()
+                       mol_setup(imol) %molpar%ndc(2,i) = get_int()
                     END DO
                  END IF
                  
@@ -410,30 +382,9 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
                     IF (ios /= 0 ) CALL stop_memory &
                          ( 'read_molecule_section', 'n3x3c', 3 * na )
                     DO i = 1, na
-                       ilen = 0
-                       CALL cfield(at1,ilen)
-                       i1 = str_search ( &
-                            mol_setup(imol)%molpar%alabel,nat,at1)
-                       IF ( i1 == 0 ) CALL stop_parser &
-                            ( 'read_molecule_section', &
-                            'atom label in g3x3con not found' )
-                       ilen = 0
-                       CALL cfield(at2,ilen)
-                       i2 = str_search ( &
-                            mol_setup(imol)%molpar%alabel,nat,at2)
-                       IF ( i2 == 0 ) CALL stop_parser &
-                            ( 'read_molecule_section', &
-                            'atom label in g3x3con not found' )
-                       ilen = 0
-                       CALL cfield(at3,ilen)
-                       i3 = str_search ( &
-                            mol_setup(imol)%molpar%alabel,nat,at3)
-                       IF ( i3 == 0 ) CALL stop_parser &
-                            ( 'read_molecule_section', &
-                            'atom label in g3x3con not found' )
-                       mol_setup(imol) %molpar%n3x3c(1,i) = i1
-                       mol_setup(imol) %molpar%n3x3c(2,i) = i2
-                       mol_setup(imol) %molpar%n3x3c(3,i) = i3
+                       mol_setup(imol) %molpar%n3x3c(1,i) = get_int()
+                       mol_setup(imol) %molpar%n3x3c(2,i) = get_int()
+                       mol_setup(imol) %molpar%n3x3c(3,i) = get_int()
                     END DO
                  END IF
                  
@@ -610,6 +561,9 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
   
 END SUBROUTINE read_molecule_section
 
+!!*****
 !******************************************************************************
 
 END MODULE molecule_input
+
+!******************************************************************************

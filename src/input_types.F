@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****s* cp2k/input_types [1.0] *
+!!
+!!   NAME
+!!     input_types
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE input_types
   
@@ -21,3 +36,6 @@ MODULE input_types
   PUBLIC :: setup_parameters_type
   
 END MODULE input_types
+
+!!*****
+!******************************************************************************

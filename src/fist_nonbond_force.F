@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/fist_nonbond_force [1.0] *
+!!
+!!   NAME
+!!     fist_nonbond_force
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE fist_nonbond_force
   
@@ -20,6 +35,9 @@ MODULE fist_nonbond_force
   
   PRIVATE
   PUBLIC :: force_nonbond, bonded_correct_gaussian, find_image
+
+!!*****
+!******************************************************************************
   
 CONTAINS
 

@@ -2,6 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/constraint [1.0] *
+!!
+!!   NAME
+!!     constraint
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE constraint
   
@@ -23,6 +37,9 @@ MODULE constraint
   
   REAL ( dbl ) :: scale
   REAL ( dbl ), DIMENSION (3,3) :: r_rattle
+
+!!*****
+!******************************************************************************
   
 CONTAINS
 

@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/header [1.0] *
+!!
+!!   NAME
+!!     header
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     APSI & CJM & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE header
 
@@ -9,7 +24,11 @@ MODULE header
   
   PRIVATE
   PUBLIC :: fist_header, tbmd_header, qs_header, wave_header, faust_header
+  PUBLIC :: atom_header
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
 !******************************************************************************
@@ -155,5 +174,29 @@ SUBROUTINE faust_header ( iw )
 END SUBROUTINE faust_header
 
 !******************************************************************************
+
+SUBROUTINE atom_header ( iw )
+  IMPLICIT NONE
+  INTEGER :: iw
+ 
+!------------------------------------------------------------------------------
+ 
+  WRITE ( iw, '( / )' )
+  WRITE ( iw, '( 14(25x,a,/) )' ) &
+       '  ****  ******  ****   ****   ', &
+       ' **  ** ****** **  ** ******  ', &
+       ' ******   **   **  ** **  **  ', &
+       ' **  **   **    ****  **  **  ', &
+       '                              ', &
+       '    University of Zurich      ', &
+       '           2000               ', &
+       '                              ', &
+       '        Version 0.0           ', &
+       '                                          '
+
+END SUBROUTINE atom_header
+
+!******************************************************************************
+
 
 END MODULE header

@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/parallel [1.0] *
+!!
+!!   NAME
+!!     parallel
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE parallel
   
@@ -12,6 +27,8 @@ MODULE parallel
   PRIVATE
   PUBLIC :: start_parallel, end_parallel
   
+!******************************************************************************
+
 CONTAINS
 
 !******************************************************************************
@@ -47,3 +64,6 @@ END SUBROUTINE end_parallel
 !******************************************************************************
 
 END MODULE parallel
+
+!******************************************************************************
+!!*****

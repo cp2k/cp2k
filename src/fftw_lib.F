@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/fftw_lib [1.0] *
+!!
+!!   NAME
+!!     fftw_lib
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE fftw_lib
   
@@ -45,13 +60,28 @@ MODULE fftw_lib
       parameter(FFTW_SCRAMBLED_INPUT=8192)
       parameter(FFTW_SCRAMBLED_OUTPUT=16384)
 
+!!*****
 !******************************************************************************
 
 CONTAINS
   
 !******************************************************************************
-
-!! Give the allowed lengths of FFT's   '''
+!!****** fftw_lib/fft_get_lengths [1.0] *
+!!
+!!   NAME
+!!     fft_get_lengths
+!!
+!!   FUNCTION
+!!     Give the allowed lengths of FFT's   '''
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE fft_get_lengths ( data, max_length )
   
@@ -140,10 +170,25 @@ SUBROUTINE fft_get_lengths ( data, max_length )
   
 END SUBROUTINE fft_get_lengths
 
+!!*****
 !******************************************************************************
-
-! routine with wrapper for all fft calls:
-! Does transform with exp(+ig.r*sign):
+!!****** fftw_lib/fft3d [1.0] *
+!!
+!!   NAME
+!!     fft3d
+!!
+!!   FUNCTION
+!!     Routine with wrapper for 3dfft calls:
+!!     Does transform with exp(+ig.r*sign):
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
   
@@ -306,6 +351,7 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
 
 END SUBROUTINE fft3d
 
+!!*****
 !******************************************************************************
 
 END MODULE fftw_lib

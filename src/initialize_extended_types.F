@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/initialize_extended_types [1.0] *
+!!
+!!   NAME
+!!     initialize_extended_types
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE initialize_extended_types
   
@@ -19,8 +34,26 @@ MODULE initialize_extended_types
   PUBLIC :: initialize_extended_type
   PRIVATE
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
+!******************************************************************************
+!!****** initialize_extended_types/initialize_extended_type [1.0] *
+!!
+!!   NAME
+!!     initialize_extended_types
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE initialize_extended_type ( box, simpar, molecule, mol_setup, nhcp, &
@@ -68,6 +101,22 @@ SUBROUTINE initialize_extended_type ( box, simpar, molecule, mol_setup, nhcp, &
   
 END SUBROUTINE initialize_extended_type
 
+!!*****
+!******************************************************************************
+!!****** initialize_extended_types/get_nfree [1.0] *
+!!
+!!   NAME
+!!     get_nfree
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     29-Nov-00 (JGH) correct counting of DOF if constraints are off
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE get_nfree ( simpar, molecule, globenv )
@@ -84,13 +133,17 @@ SUBROUTINE get_nfree ( simpar, molecule, globenv )
   
 !------------------------------------------------------------------------------
   
-  nconst = 0
   natoms = 0
   DO imol = 1, SIZE ( molecule )
-     nconst = nconst + molecule ( imol ) % ndistconst_mol
-     nconst = nconst + 3 * molecule ( imol ) % ng3x3const_mol
      natoms = natoms + molecule ( imol ) % natoms_mol
   END DO
+  nconst = 0
+  IF ( simpar % constraint ) THEN
+    DO imol = 1, SIZE ( molecule )
+       nconst = nconst + molecule ( imol ) % ndistconst_mol
+       nconst = nconst + 3 * molecule ( imol ) % ng3x3const_mol
+    END DO
+  END IF
   
 #if defined(__parallel)
   CALL mp_sum(nconst,globenv % group)
@@ -115,6 +168,9 @@ SUBROUTINE get_nfree ( simpar, molecule, globenv )
   
 END SUBROUTINE get_nfree
 
+!!*****
 !******************************************************************************
 
 END MODULE initialize_extended_types
+
+!******************************************************************************

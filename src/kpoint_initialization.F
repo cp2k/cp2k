@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations          !
 !   Copyright (C) 2000  CP2K developers group                                  !
 !------------------------------------------------------------------------------!
+!!****** cp2k/kpoint_initialization [1.0] *
+!!
+!!   NAME
+!!     kpoint_initialization
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 ! 
     MODULE kpoint_initialization
 ! 
@@ -18,11 +33,29 @@
       PRIVATE
 !
       PUBLIC :: initialize_kpoints
+
+!!*****
 !------------------------------------------------------------------------------!
 !
     CONTAINS
 !
 !------------------------------------------------------------------------------!
+!!****** kpoint_initialization/initialize_kpoints [1.0] *
+!!
+!!   NAME
+!!     initialize_kpoints
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
       SUBROUTINE initialize_kpoints(inpar,kp,symm,hmat,part)
 
         IMPLICIT NONE
@@ -59,6 +92,10 @@
         END IF
 
       END SUBROUTINE initialize_kpoints
+
+!!*****
 !------------------------------------------------------------------------------!
+
     END MODULE kpoint_initialization
+
 !------------------------------------------------------------------------------!

@@ -2,6 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/dg_rho0s [1.0] *
+!!
+!!   NAME
+!!     dg_rho0s
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE dg_rho0s
   
@@ -28,6 +42,9 @@ MODULE dg_rho0s
      REAL ( dbl ), DIMENSION ( : ), POINTER :: zet
      TYPE ( coeff_type ) :: density 
   END TYPE dg_rho0_type
+
+!!*****
+!******************************************************************************
   
 CONTAINS
 

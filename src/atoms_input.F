@@ -2,6 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/atoms_input [1.0] *
+!!
+!!   NAME
+!!     atoms_input
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE atoms_input
   
@@ -28,21 +42,38 @@ MODULE atoms_input
      REAL ( dbl ), POINTER :: v ( :, : )
   END TYPE system_type
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
-!!>---------------------------------------------------------------------------!
-!!                                                                            !
-!!  OPTIONS: either read the section &atoms in the input file or              !
-!!           read the coordinates from the file project_name.dat              !
-!!  SECTION: &atoms ... &end                                                  !
-!!      file:   file_name                                                     !
-!!      cell:   b11 b12 b13 &                                                 !
-!!              b21 b22 b23 &                                                 !
-!!              b31 b32 b33                                                   !
-!!                                                                            !
-!!                                                                            !
-!!                                                                            !
-!!<---------------------------------------------------------------------------!
+!******************************************************************************
+!!****** atoms_input/read_coord_vel [1.0] *
+!!
+!!   NAME
+!!     read_coord_vel
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!  OPTIONS
+!!    either read the section &atoms in the input file or
+!!    read the coordinates from the file project_name.dat
+!!
+!!  INPUTS
+!!I---------------------------------------------------------------------------I
+!!I SECTION: &atoms ... &end                                                  I
+!!I     file:   file_name                                                     I
+!!I     cell:   b11 b12 b13 &                                                 I
+!!I             b21 b22 b23 &                                                 I
+!!I             b31 b32 b33                                                   I
+!!I---------------------------------------------------------------------------I
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE read_coord_vel ( atype, filen, globenv )
   
@@ -132,6 +163,7 @@ SUBROUTINE read_coord_vel ( atype, filen, globenv )
   
 END SUBROUTINE read_coord_vel
 
+!!*****
 !******************************************************************************
 
 SUBROUTINE read_file ( filen, atype )

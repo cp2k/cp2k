@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/stop_program [1.0] *
+!!
+!!   NAME
+!!     stop_program
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE stop_program
 
@@ -20,11 +35,28 @@ MODULE stop_program
   
   INTEGER :: iw
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
 !******************************************************************************
-
-!!    Initialise the output channel and the processor number
+!!****** stop_program/set_stop [1.0] *
+!!
+!!   NAME
+!!     set_stop
+!!
+!!   FUNCTION
+!!     Initialise the output channel and the processor number
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE set_stop ( output_channel )
   
@@ -36,9 +68,24 @@ SUBROUTINE set_stop ( output_channel )
   
 END SUBROUTINE set_stop
 
+!!*****
 !******************************************************************************
-
-!!    stop the program and write some final comments to the output
+!!****** stop_program/stop_prg [1.0] *
+!!
+!!   NAME
+!!     stop_prg
+!!
+!!   FUNCTION
+!!     stop the program and write some final comments to the output
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE stop_prg ( routine, &
      comment1, comment2, comment3, comment4, comment5 )
@@ -96,21 +143,32 @@ SUBROUTINE stop_prg ( routine, &
   
 END SUBROUTINE stop_prg
 
+!!*****
+!******************************************************************************
+!!****** stop_program/stop_allocate [1.0] *
+!!
+!!   NAME
+!!     stop_allocate
+!!
+!!   FUNCTION
+!!     The memory allocation for an array failed. Print an error message
+!!     and stop the program execution.
+!!
+!!   AUTHOR
+!!     (12.10.1999, Matthias Krack)
+!!
+!!   MODIFICATION HISTORY
+!!     CP2K by JGH 21.08.2000
+!!   
+!!   NOTES
+!!     array:   Name of the array.
+!!     memory:  Size of array in bytes.
+!!     routine: Name of the calling routine.
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE stop_allocate ( routine, array, memory )
-  
-!   Purpose: The memory allocation for an array failed. Print an error message
-!            and stop the program execution.
-  
-!   History: - Creation (12.10.1999, Matthias Krack)
-!              CP2K by JH 21.08.2000
-  
-!   array:   Name of the array.
-!   memory:  Size of array in bytes.
-!   routine: Name of the calling routine.
-  
-!   ***************************************************************************
   
 ! Arguments
   CHARACTER ( LEN = * ), INTENT ( IN ) :: array, routine
@@ -136,23 +194,32 @@ SUBROUTINE stop_allocate ( routine, array, memory )
   
 END SUBROUTINE stop_allocate
 
+!!*****
+!******************************************************************************
+!!****** stop_program/stop_deallocate [1.0] *
+!!
+!!   NAME
+!!     stop_deallocate
+!!
+!!   FUNCTION
+!!     The memory deallocation for an array failed. Print an error
+!!     message and stop the program execution.
+!!
+!!   AUTHOR
+!!     (20.10.1999, Matthias Krack)
+!!
+!!   MODIFICATION HISTORY
+!!     CP2K by JGH 21.08.2000
+!!
+!!   NOTES
+!!     array:   Name of the array.
+!!     routine: Name of the calling routine.
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE stop_deallocate ( routine, array )
 
-!   Purpose: The memory deallocation for an array failed. Print an error
-!            message and stop the program execution.
-
-!   History: - Creation (20.10.1999, Matthias Krack)
-!              CP2K by JH 21.08.2000
-
-!   ***************************************************************************
-
-!   array:   Name of the array.
-!   routine: Name of the calling routine.
-
-!   ***************************************************************************
-  
 ! Arguments
   CHARACTER ( LEN = * ), INTENT ( IN ) :: array, routine
   
@@ -167,6 +234,9 @@ SUBROUTINE stop_deallocate ( routine, array )
   
 END SUBROUTINE stop_deallocate
 
+!!*****
 !******************************************************************************
 
 END MODULE stop_program
+
+!******************************************************************************

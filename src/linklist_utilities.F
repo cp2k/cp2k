@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/linklist_utilities [1.0] *
+!!
+!!   NAME
+!!     linklist_utilities
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE linklist_utilities
   
@@ -22,6 +37,8 @@ MODULE linklist_utilities
     TYPE ( linklist_images), POINTER :: image
   END TYPE startlist_images_type
 
+!!*****
+!------------------------------------------------------------------------------!
 
   CONTAINS
 

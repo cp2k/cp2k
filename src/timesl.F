@@ -2,6 +2,22 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/timesl [1.0] *
+!!
+!!   NAME
+!!     timesl
+!!
+!!   FUNCTION
+!!     Provides cputime, wallclock and date information
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE timesl
   
@@ -10,6 +26,8 @@ MODULE timesl
   
   PRIVATE
   PUBLIC :: walltime, cputime, datum
+
+!******************************************************************************
   
 CONTAINS
 
@@ -51,3 +69,6 @@ END SUBROUTINE datum
 !******************************************************************************
 
 END MODULE timesl
+
+!******************************************************************************
+!!*****

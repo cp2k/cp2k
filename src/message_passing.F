@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/message_passing [1.0] *
+!!
+!!   NAME
+!!     message_passing
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE message_passing
   
@@ -31,6 +46,9 @@ MODULE message_passing
      MODULE PROCEDURE mp_min_i, mp_min_r, mp_min_rv
   END INTERFACE
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
 !******************************************************************************

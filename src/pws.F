@@ -2,6 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/pws [1.0] *
+!!
+!!   NAME
+!!     pws
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE pws
   
@@ -29,6 +43,9 @@ MODULE pws
           fft_wrap_pw1c2, fft_wrap_pw1pw2
   END INTERFACE
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
 !******************************************************************************

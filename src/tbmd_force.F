@@ -2,6 +2,22 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C ) 2000  CP2K developers group                                !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/tbmd_force [1.0] *
+!!
+!!   NAME
+!!     tbmd_force
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
 MODULE tbmd_force
   
   USE dg_types, ONLY : dg_type
@@ -24,6 +40,7 @@ MODULE tbmd_force
   USE simulation_cell, ONLY : cell_type, get_hinv
   USE stop_program, ONLY : stop_prg, stop_memory
   USE timings, ONLY : timeset, timestop
+  USE linklist_types, ONLY : linklist_internal_data_type
   
   PRIVATE
   PUBLIC :: force_control, debug_variables_type
@@ -34,15 +51,32 @@ MODULE tbmd_force
      REAL ( dbl ), DIMENSION ( 3, 3 ) :: pv_nonbond, pv_g
   END TYPE debug_variables_type
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
 !******************************************************************************
-
-!! Calculates the total potential energy, total force, and the
-!! total pressure tensor from the potentials
+!!****** tbmd_force/force_control [1.0] *
+!!
+!!   NAME
+!!     force_control
+!!
+!!   FUNCTION
+!!     Calculates the total potential energy, total force, and the
+!!     total pressure tensor from the potentials
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     Harald Forbert (Dec-2000): Changes for multiple linked lists
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE force_control ( molecule, pnode, part, box, thermo, &
-     potparm, ewald_param, ensemble, fc_global, debug )
+     potparm, ewald_param, ensemble, fc_global, lldata, debug )
 
   IMPLICIT NONE
 
@@ -56,6 +90,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, thermo, &
   TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
   CHARACTER ( LEN = * ), INTENT ( IN ) :: ensemble
   TYPE ( global_environment_type ), INTENT ( IN ) :: fc_global
+  TYPE ( linklist_internal_data_type ), INTENT ( INOUT ) :: lldata
   TYPE ( debug_variables_type ), INTENT ( OUT ), OPTIONAL :: debug
   
 ! Locals
@@ -113,7 +148,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, thermo, &
 !
 ! first check with list_control to update neighbor lists
 !
-  CALL list_control ( pnode, part, box )
+  CALL list_control ( lldata, pnode, part, box )
 !
 ! initial force, energy and pressure tensor arrays
 !
@@ -249,6 +284,9 @@ SUBROUTINE force_control ( molecule, pnode, part, box, thermo, &
   
 END SUBROUTINE force_control
 
+!!*****
 !******************************************************************************
 
 END MODULE tbmd_force
+
+!******************************************************************************

@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/tbmd_debug [1.0] *
+!!
+!!   NAME
+!!     tbmd_debug
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE tbmd_debug
   
@@ -21,20 +36,38 @@ MODULE tbmd_debug
   USE pw_grids, ONLY : pw_find_cutoff, pw_grid_setup
   USE simulation_cell, ONLY : cell_type
   USE stop_program, ONLY : stop_memory, stop_prg
+  USE linklist_types, ONLY : linklist_internal_data_type
   
   IMPLICIT NONE
   
   PRIVATE
   PUBLIC :: debug_control
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
 !******************************************************************************
-
-! Routine to execute numerical tests for debugging 
+!!****** tbmd_debug/debug_control [1.0] *
+!!
+!!   NAME
+!!     debug_control
+!!
+!!   FUNCTION
+!!     Routine to execute numerical tests for debugging 
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     Harald Forbert (Dec-2000): Changes for multiple linked lists
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
-     thermo, potparm, ensemble )
+     thermo, potparm, ensemble, lldata )
   
   IMPLICIT NONE
   
@@ -48,6 +81,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
   TYPE ( cell_type ), INTENT ( INOUT ) :: box
   TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
   CHARACTER ( LEN = * ), INTENT ( IN ) :: ensemble
+  TYPE ( linklist_internal_data_type ) :: lldata
   
 ! Locals
   TYPE ( debug_variables_type ) :: dbg
@@ -89,7 +123,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
   
 ! call to analytical nonbond force routine: 
   CALL force_control ( molecule, pnode, part, box, thermo, & 
-       potparm, ewald_param, ensemble, globenv, dbg )
+       potparm, ewald_param, ensemble, globenv, lldata, dbg )
   
 ! Debug real-space nonbond
   WRITE ( iw, '( A )' ) &
@@ -288,6 +322,9 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
        '***************************************************'
 END SUBROUTINE debug_control
 
+!!*****
 !******************************************************************************
 
 END MODULE tbmd_debug
+
+!******************************************************************************

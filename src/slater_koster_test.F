@@ -2,7 +2,23 @@
 !   CP2K: A general program to perform molecular dynamics simulations          !
 !   Copyright (C) 2000  CP2K developers group                                  !
 !------------------------------------------------------------------------------!
-!   Test for Slater-Koster matrices
+!!****** cp2k/slater_koster_test [1.0] *
+!!
+!!   NAME
+!!     slater_koster_test
+!!
+!!   FUNCTION
+!!     Test for Slater-Koster matrices
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+
+!!   SOURCE
+!!*****
+!******************************************************************************
 ! 
     MODULE slater_koster_test
 !------------------------------------------------------------------------------!
@@ -15,6 +31,7 @@
       PRIVATE
       PUBLIC :: sk_test, dsk_test
 !
+!!*****
 !------------------------------------------------------------------------------!
 !
     CONTAINS

@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/fist_input [1.0] *
+!!
+!!   NAME
+!!     fist_input
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE fist_input
   
@@ -16,22 +31,43 @@ MODULE fist_input
   
   PRIVATE
   PUBLIC :: read_fist_section
+
+!!*****
+!******************************************************************************
   
 CONTAINS
 
-!!>---------------------------------------------------------------------------!
-!!  SECTION: &fist ... &end                                                   !
-!!                                                                            !
-!!  simulation       [md,debug]                                               !
-!!  printlevel       fistpar%print_level                                      !
-!!  units            [kelvin,atomic]                                          !
-!!  periodic         [0,1][0,1][0,1]                                          !
-!!  Ewald_type       [pme_gauss,ewald_gauss]                                  !
-!!  Ewald_param      alpha,[gmax,ns_max,epsilon]                              !
-!!  set_file         "filename"                                               !
-!!  input_file       "filename"                                               !
-!!                                                                            !
-!!<---------------------------------------------------------------------------!
+!******************************************************************************
+!!****** fist_input/read_fist_section [1.0] *
+!!
+!!   NAME
+!!     read_fist_section
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   INPUTS
+!!I---------------------------------------------------------------------------I
+!!I SECTION: &fist ... &end                                                   I
+!!I                                                                           I
+!!I simulation       [md,debug]                                               I
+!!I printlevel       fistpar%print_level                                      I
+!!I units            [kelvin,atomic]                                          I
+!!I periodic         [0,1][0,1][0,1]                                          I
+!!I Ewald_type       [pme_gauss,ewald_gauss]                                  I
+!!I Ewald_param      alpha,[gmax,ns_max,epsilon]                              I
+!!I set_file         "filename"                                               I
+!!I input_file       "filename"                                               I
+!!I                                                                           I
+!!I---------------------------------------------------------------------------I
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE read_fist_section ( setup, ewald_param, fistpar )
   
@@ -162,6 +198,9 @@ SUBROUTINE read_fist_section ( setup, ewald_param, fistpar )
   
 END SUBROUTINE read_fist_section
 
+!!*****
 !******************************************************************************
 
 END MODULE fist_input
+
+!******************************************************************************

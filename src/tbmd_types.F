@@ -2,8 +2,25 @@
 !   CP2K: A general program to perform molecular dynamics simulations          !
 !   Copyright (C) 2000  CP2K developers group                                  !
 !------------------------------------------------------------------------------!
+!!****s* cp2k/tbmd_types [1.0] *
+!!
+!!   NAME
+!!     tbmd_types
+!!
+!!   FUNCTION
+!!     Define basic types for Tight-Binding Calculations
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
     MODULE tbmd_types
-!------------------------------------------------------------------------------!
+
       USE kinds, ONLY : dbl
 !
       IMPLICIT NONE
@@ -44,4 +61,5 @@
 !------------------------------------------------------------------------------!
     END MODULE tbmd_types
 !------------------------------------------------------------------------------!
+!!*****
 

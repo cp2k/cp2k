@@ -2,6 +2,22 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C ) 2000  CP2K developers group                                !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/fist_force [1.0] *
+!!
+!!   NAME
+!!     fist_force
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
 MODULE fist_force
   
   USE dg_types, ONLY : dg_type
@@ -15,7 +31,8 @@ MODULE fist_force
   USE mathconstants, ONLY : pi, zero
   USE md, ONLY : thermodynamic_type
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type, &
-       linklist_neighbor, linklist_exclusion, linklist_bonds, linklist_bends
+       linklist_neighbor, linklist_exclusion, linklist_bonds, &
+       linklist_bends, linklist_torsions
   USE message_passing, ONLY : mp_sum
   USE pair_potential, ONLY : potentialparm_type
   USE particle_types, ONLY : particle_type
@@ -25,26 +42,45 @@ MODULE fist_force
   USE simulation_cell, ONLY : cell_type, get_hinv
   USE stop_program, ONLY : stop_prg, stop_memory
   USE timings, ONLY : timeset, timestop
+  USE linklist_types, ONLY : linklist_internal_data_type
   
   PRIVATE
   PUBLIC :: force_control, debug_variables_type
   
   TYPE debug_variables_type
-     REAL ( dbl ) :: pot_nonbond, pot_g, pot_bond, pot_bend
+     REAL ( dbl ) :: pot_nonbond, pot_g, pot_bond, pot_bend, pot_torsion
      REAL ( dbl ), DIMENSION ( :, : ), POINTER :: &
-          f_nonbond, f_g, f_bond, f_bend
-     REAL ( dbl ), DIMENSION ( 3, 3 ) :: pv_nonbond, pv_g, pv_bond, pv_bend
+          f_nonbond, f_g, f_bond, f_bend, f_torsion
+     REAL ( dbl ), DIMENSION ( 3, 3 ) :: pv_nonbond, pv_g, pv_bond, &
+          pv_bend, pv_torsion
   END TYPE debug_variables_type
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
 !******************************************************************************
-
-!! Calculates the total potential energy, total force, and the
-!! total pressure tensor from the potentials
+!!****** fist_force/force_control [1.0] *
+!!
+!!   NAME
+!!     force_control
+!!
+!!   FUNCTION
+!!     Calculates the total potential energy, total force, and the
+!!     total pressure tensor from the potentials
+!!
+!!   AUTHOR
+!!     CJM & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     Harald Forbert (Dec-2000): Changes for multiple linked lists
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE force_control ( molecule, pnode, part, box, thermo, &
-     potparm, ewald_param, ensemble, fc_global, debug )
+     potparm, ewald_param, ensemble, fc_global, lldata,  debug)
 
   IMPLICIT NONE
 
@@ -58,14 +94,16 @@ SUBROUTINE force_control ( molecule, pnode, part, box, thermo, &
   TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
   CHARACTER ( LEN = * ), INTENT ( IN ) :: ensemble
   TYPE ( global_environment_type ), INTENT ( IN ) :: fc_global
+  TYPE ( linklist_internal_data_type), INTENT (INOUT) :: lldata
   TYPE ( debug_variables_type ), INTENT ( OUT ), OPTIONAL :: debug
   
 ! Locals
   INTEGER :: id, i, ii, natoms, nnodes, handle, isos
-  REAL ( dbl ) :: pot_nonbond, pot_bond, pot_bend, vg_coulomb
+  REAL ( dbl ) :: pot_nonbond, pot_bond, pot_bend, pot_torsion, vg_coulomb
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE, SAVE :: f_nonbond
-  REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_nonbond, pv_bond, pv_bend
+  REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_nonbond, pv_bond, pv_bend, pv_torsion
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fg_coulomb
+  REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: f_total
   REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_g, ident
   REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_bc
   TYPE ( pw_grid_type ), SAVE :: grid_s, grid_b, grid_ewald
@@ -122,7 +160,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, thermo, &
 !
 ! first check with list_control to update neighbor lists
 !
-  CALL list_control ( pnode, part, box )
+  CALL list_control ( lldata, pnode, part, box )
 !
 ! initial force, energy and pressure tensor arrays
 !
@@ -133,6 +171,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, thermo, &
   END DO
   pv_bond = 0.0_dbl
   pv_bend = 0.0_dbl
+  pv_torsion = 0.0_dbl
   thermo % pot = 0.0_dbl
   thermo % pv = 0.0_dbl
 !
@@ -175,23 +214,24 @@ SUBROUTINE force_control ( molecule, pnode, part, box, thermo, &
 ! get intramolecular forces
 !
   IF ( PRESENT ( debug )  ) THEN
-     CALL force_intra_control ( molecule, pot_bond, pot_bend, &
-          pv_bond, pv_bend, debug % f_bond,debug % f_bend )
+     CALL force_intra_control ( molecule, pot_bond, pot_bend, pot_torsion, &
+          pv_bond, pv_bend, pv_torsion, &
+          debug % f_bond, debug % f_bend, debug % f_torsion )
   ELSE
-     CALL force_intra_control ( molecule, pot_bond, pot_bend, &
-          pv_bond, pv_bend )
+     CALL force_intra_control ( molecule, pot_bond, pot_bend, pot_torsion, &
+          pv_bond, pv_bend, pv_torsion )
   END IF
   
 !
 ! add up all the potential energies
 !
   IF ( ewald_param % ewald_type == 'NONE' ) THEN
-     thermo % pot = pot_nonbond + pot_bond + pot_bend
+     thermo % pot = pot_nonbond + pot_bond + pot_bend + pot_torsion
 #if defined ( __parallel )
      CALL mp_sum ( thermo % pot,fc_global % group )
 #endif
   ELSE
-     thermo % pot = pot_nonbond + pot_bond + pot_bend + thermo % e_bonded
+     thermo % pot = pot_nonbond + pot_bond + pot_bend + pot_torsion + thermo % e_bonded
      thermo % gspace = vg_coulomb
 #if defined ( __parallel )
      CALL mp_sum ( thermo % pot,fc_global % group )
@@ -208,23 +248,26 @@ SUBROUTINE force_control ( molecule, pnode, part, box, thermo, &
 ! ewald forces are strictly local -> sum only over pnode
 ! We first sum the forces in f_nonbond, this allows for a more efficient
 ! global sum in the parallel code and in the end copy them back to part
+  isos = 0
+  IF ( .NOT. ALLOCATED ( f_total ) ) ALLOCATE ( f_total ( 3,natoms ), STAT=isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'f_total', 3 * natoms )
   DO i = 1, natoms
-     f_nonbond ( 1, i ) = part ( i ) % f ( 1 ) + f_nonbond ( 1, i )
-     f_nonbond ( 2, i ) = part ( i ) % f ( 2 ) + f_nonbond ( 2, i )
-     f_nonbond ( 3, i ) = part ( i ) % f ( 3 ) + f_nonbond ( 3, i )
+     f_total ( 1, i ) = part ( i ) % f ( 1 ) + f_nonbond ( 1, i )
+     f_total ( 2, i ) = part ( i ) % f ( 2 ) + f_nonbond ( 2, i )
+     f_total ( 3, i ) = part ( i ) % f ( 3 ) + f_nonbond ( 3, i )
   END DO
   IF ( ewald_param % ewald_type /= 'NONE' ) THEN
      DO i = 1, nnodes
         ii = pnode ( i ) % p % iatom
-        f_nonbond ( 1, ii ) = f_nonbond ( 1, ii ) + fg_coulomb ( 1, i )
-        f_nonbond ( 2, ii ) = f_nonbond ( 2, ii ) + fg_coulomb ( 2, i )
-        f_nonbond ( 3, ii ) = f_nonbond ( 3, ii ) + fg_coulomb ( 3, i )
+        f_total ( 1, ii ) = f_total ( 1, ii ) + fg_coulomb ( 1, i )
+        f_total ( 2, ii ) = f_total ( 2, ii ) + fg_coulomb ( 2, i )
+        f_total ( 3, ii ) = f_total ( 3, ii ) + fg_coulomb ( 3, i )
      END DO
   END IF
 
 ! add up all the pressure tensors
   IF ( ewald_param % ewald_type == 'NONE' ) THEN
-     thermo % pv = pv_nonbond + pv_bond + pv_bend
+     thermo % pv = pv_nonbond + pv_bond + pv_bend + pv_torsion
 #if defined ( __parallel )
      CALL mp_sum ( thermo % pv, fc_global % group )
 #endif
@@ -234,7 +277,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, thermo, &
         ident ( i, i ) = 1.0_dbl
      END DO
      
-     thermo % pv = pv_nonbond + pv_bond + pv_bend + pv_bc
+     thermo % pv = pv_nonbond + pv_bond + pv_bend + pv_torsion + pv_bc
 #if defined ( __parallel )
      CALL mp_sum ( thermo % pv,fc_global % group )
 #endif
@@ -249,11 +292,13 @@ SUBROUTINE force_control ( molecule, pnode, part, box, thermo, &
   IF ( PRESENT ( debug )  ) THEN
      debug % pot_bond = pot_bond
      debug % pot_bend = pot_bend
+     debug % pot_torsion = pot_torsion
      debug % pot_nonbond = pot_nonbond
      debug % f_nonbond = f_nonbond
      debug % pv_nonbond = pv_nonbond
      debug % pv_bond = pv_bond
      debug % pv_bend = pv_bend
+     debug % pv_torsion = pv_torsion
      IF ( ewald_param % ewald_type /= 'NONE' ) THEN
         debug % pot_g = vg_coulomb
         debug % f_g = fg_coulomb
@@ -265,25 +310,31 @@ SUBROUTINE force_control ( molecule, pnode, part, box, thermo, &
      END IF
   END IF
   
+#if defined ( __parallel )
+  CALL mp_sum ( f_total, fc_global % group )
+#endif
+
+  DO i = 1, natoms
+    part ( i ) % f ( 1 ) = f_total ( 1, i )
+    part ( i ) % f ( 2 ) = f_total ( 2, i )
+    part ( i ) % f ( 3 ) = f_total ( 3, i )
+  END DO
+  
 ! deallocating all local variables
   isos = 0
   IF ( ALLOCATED ( fg_coulomb )  ) DEALLOCATE ( fg_coulomb, STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fg_coulomb' )
-  
-#if defined ( __parallel )
-  CALL mp_sum ( f_nonbond, fc_global % group )
-#endif
+  isos = 0
+  IF ( ALLOCATED ( f_total )  ) DEALLOCATE ( f_total, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'f_total' )
 
-  DO i = 1, natoms
-    part ( i ) % f ( 1 ) = f_nonbond ( 1, i )
-    part ( i ) % f ( 2 ) = f_nonbond ( 2, i )
-    part ( i ) % f ( 3 ) = f_nonbond ( 3, i )
-  END DO
-  
   CALL timestop ( zero, handle )
   
 END SUBROUTINE force_control
 
+!!*****
 !******************************************************************************
 
 END MODULE fist_force
+
+!******************************************************************************

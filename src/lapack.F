@@ -2,6 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/lapack [1.0] *
+!!
+!!   NAME
+!!     lapack
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 #if ! defined ( __YMP ) && ! defined ( __T3E )
 
@@ -120,3 +134,4 @@ MODULE lapack
 END MODULE lapack
 
 #endif
+!!*****

@@ -1,19 +1,29 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+!!****** cp2k/spherical_harmonics [1.0] *
+!!
+!!   NAME
+!!     spherical_harmonics
+!!
+!!   FUNCTION
+!!     Calculate spherical harmonics
+!!
+!!   AUTHOR
+!!     JGH 6-Oct-2000
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!     Numerical Stability up to L=15
+!!     Accuracy > 1.E-12 up to L=15 tested
+!!
+!!   SOURCE
+!******************************************************************************
+
 MODULE spherical_harmonics
-
-! Purpose: Calculate spherical harmonics
-
-! History: Creation (06.10.00 JH)
-
-! *****************************************************************************
-!
-! Numerical Stability up to L=15
-! Accuracy > 1.E-12 up to L=15 tested
-!
-! *****************************************************************************
-
-! Index:
-
-! SUBROUTINE y_lm ( r, y, l, m )
 
 ! *****************************************************************************
 
@@ -32,6 +42,7 @@ MODULE spherical_harmonics
   END INTERFACE
 
 
+!!*****
 ! *****************************************************************************
 
 CONTAINS

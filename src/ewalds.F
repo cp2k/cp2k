@@ -2,6 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/ewalds [1.0] *
+!!
+!!   NAME
+!!     ewalds
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE ewalds
   
@@ -36,6 +50,9 @@ MODULE ewalds
   
   INTEGER :: ewald_grp
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
 !******************************************************************************

@@ -2,19 +2,24 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/string_utilities [1.0] *
+!!
+!!   NAME
+!!     string_utilities
+!!
+!!   FUNCTION
+!!     Utilities for string manipulations.
+!!
+!!   AUTHOR
+!!     Matthias Krack & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     Adapted compress and uppercase for use in CP2K (JGH)
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE string_utilities
-
-! Purpose: Utilities for string manipulations.
-
-! *****************************************************************************
-
-! Index:
-
-! SUBROUTINE compress(string)
-! SUBROUTINE uppercase(string)
-
-! *****************************************************************************
 
   IMPLICIT NONE
 
@@ -22,6 +27,7 @@ MODULE string_utilities
 
   PUBLIC :: compress,uppercase,xstring,str_search,str_comp,make_tuple
 
+!!*****
 ! *****************************************************************************
 
 CONTAINS

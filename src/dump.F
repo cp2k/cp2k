@@ -2,6 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/dump [1.0] *
+!!
+!!   NAME
+!!     dump
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE dump
   
@@ -14,8 +28,25 @@ MODULE dump
   PRIVATE
   PUBLIC :: dump_variables
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
+!******************************************************************************
+!!****** dump/dump_variables [1.0] *
+!!
+!!   NAME
+!!     dump_variables
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE dump_variables ( struc, dump_file_name, globenv )
@@ -57,6 +88,9 @@ SUBROUTINE dump_variables ( struc, dump_file_name, globenv )
   
 END SUBROUTINE dump_variables
 
+!!*****
 !******************************************************************************
 
 END MODULE dump
+
+!******************************************************************************

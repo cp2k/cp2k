@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/nhc [1.0] *
+!!
+!!   NAME
+!!     nhc
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE nhc
   
@@ -21,11 +36,28 @@ MODULE nhc
   
   REAL ( dbl ), TARGET :: scale
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
 !******************************************************************************
-
-! creates the thermostatting maps use global_mod
+!!****** nhc/nhc_control [1.0] *
+!!
+!!   NAME
+!!     nhc_control
+!!
+!!   FUNCTION
+!!     Creates the thermostatting maps
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     29-Nov-00 (JGH) correct counting of DOF if constraints are off
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
   
@@ -200,6 +232,11 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
         mol_off(i+1) = mol_off(i) + get_share(mol_setup(i)%num_mol,globenv%num_pe, &
              globenv%mepos)
      END DO
+  END IF
+
+  IF ( .NOT. simpar % constraint ) THEN
+    const_mol = 0._dbl
+    tot_const = 0._dbl
   END IF
   
 ! count the number of atoms on this processor
@@ -620,6 +657,9 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
 
 END SUBROUTINE nhc_control
 
+!!*****
 !******************************************************************************
 
 END MODULE nhc
+
+!******************************************************************************

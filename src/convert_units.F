@@ -2,6 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/convert_units [1.0] *
+!!
+!!   NAME
+!!     convert_units
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE convert_units
 
@@ -20,6 +34,9 @@ MODULE convert_units
   PRIVATE
   PUBLIC :: convert
   
+!!*****
+!-----------------------------------------------------------------------------!
+
 CONTAINS
   
 !-----------------------------------------------------------------------------!
@@ -145,9 +162,9 @@ SUBROUTINE convert ( units, simpar, part, pstat, box, potparm, &
      intra_param % bend_param(:,:,:) % k &
           = intra_param % bend_param(:,:,:) % k * units%econv
      
-     DO i = 1, 6
-        intra_param % torsion_param(:,:,:,:) % parm(i) =  &
-             intra_param % torsion_param(:,:,:,:) % parm(i)*units%econv
+     DO i = 0, SIZE ( intra_param % torsion_param(1,1,1,1) % a ) - 1
+        intra_param % torsion_param(:,:,:,:) % a(i) =  &
+             intra_param % torsion_param(:,:,:,:) % a(i)*units%econv
      END DO
      intra_param % constraint_distance ( :, : ) &
           = intra_param % constraint_distance ( :, : ) * units%lconv
@@ -158,3 +175,5 @@ END SUBROUTINE convert
 !******************************************************************************
 
 END MODULE convert_units
+
+!******************************************************************************

@@ -2,6 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****s* cp2k/pw_types [1.0] *
+!!
+!!   NAME
+!!     pw_types
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE pw_types
   
@@ -39,6 +53,9 @@ MODULE pw_types
   !! Flags for the structure member 'in_space'
   INTEGER, PARAMETER :: NOSPACE = 371, REALSPACE = 372, RECIPROCALSPACE = 373
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
 !******************************************************************************

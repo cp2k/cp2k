@@ -8,7 +8,7 @@ FCfixed	= xlf90 -qfixed
 LDR	= xlf90
 AR	= ar -r
 
-CDEFS	= -D__AIX -D__FFTW
+CDEFS	= -D__AIX -D__FFTW -D__FFTSG -D__FFTESSL
 
 DEBUG	= -g -C -d -qextchk -qinitauto=AA -qlanglvl=90pure \
  -qflttrap=overflow:zerodivide:invalid:enable \

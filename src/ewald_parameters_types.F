@@ -2,6 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****s* cp2k/ewald_parameters_types [1.0] *
+!!
+!!   NAME
+!!     ewald_parameters_types
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE ewald_parameters_types
   
@@ -24,3 +38,6 @@ MODULE ewald_parameters_types
   PUBLIC :: ewald_parameters_type
   
 END MODULE ewald_parameters_types
+
+!******************************************************************************
+!!*****

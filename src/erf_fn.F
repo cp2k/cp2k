@@ -1,3 +1,17 @@
+!******************************************************************************
+!!****f* cp2k/CALERF [1.0] *
+!!
+!!   NAME
+!!     CALERF
+!!
+!!   FUNCTION
+!!     Calculates error function and complementary error function
+!!
+!!   MODIFICATION HISTORY
+!!     adapted to F95
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE CALERF(ARG,RESULT,JINT)
 
@@ -346,3 +360,4 @@ FUNCTION ERFCX(X)
   RETURN
 !---------- Last card of DERFCX ----------
 END
+!!*****

@@ -1,0 +1,136 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+!!****** cp2k/radial_poisson [1.0] *
+!!
+!!   NAME
+!!     radial_poisson
+!!
+!!   FUNCTION
+!!     Poisson solver for radial grids
+!!
+!!   AUTHOR
+!!     JGH 17-NOV-2000
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+MODULE radial_poisson
+  
+  USE kinds, ONLY : dbl
+  USE stop_program, ONLY : stop_prg, stop_memory
+  USE radial_grids, ONLY : radial_grid_type
+  USE radial_solver, ONLY : numerov, diff5p
+  USE radial_util, ONLY : radial_integrate
+  
+  IMPLICIT NONE
+  
+  PRIVATE
+  PUBLIC :: rg_poisson
+
+!!*****
+!-----------------------------------------------------------------------------!
+  
+CONTAINS
+
+!-----------------------------------------------------------------------------!
+!!****** radial_poisson/rg_poisson [1.0] *
+!!
+!!   NAME
+!!     rg_poisson
+!!
+!!   FUNCTION
+!!     Poisson solver for radial grids
+!!
+!!   AUTHOR
+!!     JGH 17-NOV-2000
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!-----------------------------------------------------------------------------!
+
+  SUBROUTINE rg_poisson ( rho, vh, nu, rg, method )
+  
+!Arguments
+  REAL ( dbl ), DIMENSION ( 0: ), INTENT ( IN ) :: rho
+  REAL ( dbl ), DIMENSION ( 0: ), INTENT ( OUT ) :: vh
+  INTEGER, INTENT ( IN ) :: nu
+  TYPE ( radial_grid_type ), INTENT ( IN ) :: rg
+  CHARACTER ( LEN=* ), OPTIONAL :: method
+  
+!Locals
+  REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: f, g
+  REAL ( dbl ) :: corr ( 3 )
+  REAL ( dbl ) :: rn, h12, h60, res
+  INTEGER :: n, ierr, i
+  
+!------------------------------------------------------------------------------
+
+  n = rg % n
+  ALLOCATE ( f ( 0:n+1 ), STAT = ierr )
+  IF ( ierr /= 0 ) call stop_memory ( "radial_poisson", "f", n )
+  ALLOCATE ( g ( 0:n+1 ), STAT = ierr )
+  IF ( ierr /= 0 ) call stop_memory ( "radial_poisson", "g", n )
+
+  corr = 0._dbl
+  g = ( rg % r ** nu ) * rho / ( rg % w ** 2 )
+  CALL radial_integrate ( n+2, g, rg % h, res, ierr )
+  IF ( ierr /= 0 ) call stop_prg ( "radial_poisson", "radial_integrate" )
+  corr ( 3 ) = res * rg % w ( n+1 ) / rg % rmax ** nu
+  vh ( 0 ) = 0._dbl
+  vh ( n+1 ) = corr ( 3 ) / rg % w ( n+1 )
+
+  rn = REAL ( nu, dbl )
+  f ( 0 ) = 0._dbl
+  g ( 0 ) = 0._dbl
+  DO i = 1, n + 1
+    f ( i ) = - rg % wdd ( i ) / rg % w ( i ) - rn * ( rn + 1._dbl ) / &
+      ( rg % w ( i )**4 * rg % r ( i )**2 )
+    g ( i ) = - ( 2._dbl * rn + 1._dbl ) / &
+      ( rg % w ( i )**3 * rg % r ( i ) ) * rho ( i )
+  END DO
+
+  IF ( PRESENT ( method ) ) THEN
+    SELECT CASE ( method )
+    CASE DEFAULT
+      CALL stop_prg ( "radial_poisson", "method unknown", method )
+    CASE ( "NUMEROV" )
+      h12 = rg % h**2 / 12._dbl
+      f = h12 * f
+      g = h12 * g
+      CALL numerov ( f, g, rg % w, corr )
+    CASE ( "DIFF5P" )
+      h60 = 60._dbl * rg % h**2
+      f = h60 * f
+      g = h60 * g
+      CALL diff5p ( f, g, rg % w )
+    END SELECT
+  ELSE
+!..use Numerov
+    h12 = rg % h**2 / 12._dbl
+    f = h12 * f
+    g = h12 * g
+    CALL numerov ( f, g, rg % w, corr )
+  END IF
+
+  vh ( 1:n ) = g ( 1:n )
+
+  DEALLOCATE ( f, STAT = ierr )
+  IF ( ierr /= 0 ) call stop_memory ( "radial_poisson", "f" )
+  DEALLOCATE ( g, STAT = ierr )
+  IF ( ierr /= 0 ) call stop_memory ( "radial_poisson", "g" )
+
+  END SUBROUTINE rg_poisson
+
+!!*****
+!******************************************************************************
+
+END MODULE radial_poisson
+
+!******************************************************************************

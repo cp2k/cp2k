@@ -2,6 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/dgs [1.0] *
+!!
+!!   NAME
+!!     dgs
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE dgs
   
@@ -27,6 +41,9 @@ MODULE dgs
        dg_sum_patch_force, dg_get_1x_patch, dg_get_2x_patch, &
        dg_get_strucfac, dg_get_rho_tot
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
 !******************************************************************************

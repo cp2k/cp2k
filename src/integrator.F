@@ -2,19 +2,33 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/integrator [1.0] *
+!!
+!!   NAME
+!!     integrator
+!!
+!!   FUNCTION
+!!     Provides integrator routines (velocity verlet) for all the
+!!     ensemble types
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE integrator
   
-!  USE constraint, ONLY : shake_control, rattle_control, getold, &
-!       pv_constraint, initialize_roll, rattle_roll_control, &
-!       shake_roll_control
-  USE constraint
+  USE constraint, ONLY: shake_control, rattle_control, pv_constraint, getold, &
+      roll, initialize_roll, shake_roll_control, rattle_roll_control
   USE global_types, ONLY: global_environment_type
   USE eigenvalueproblems, ONLY : diagonalise
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE force_control, ONLY : force
   USE kinds, ONLY : dbl
-!*apsi      USE lapack, ONLY : rs
   USE linklist_control, ONLY : get_ll_parm
   USE mathconstants, ONLY : pi, zero
   USE md, ONLY : simulation_parameters_type, thermodynamic_type, &
@@ -67,10 +81,26 @@ MODULE integrator
   
   TYPE ( global_environment_type ) :: intenv
 
+!!*****
 !******************************************************************************
 
 CONTAINS
 
+!******************************************************************************
+!!****** integrator/velocity_verlet [1.0] *
+!!
+!!   NAME
+!!     velocity_verlet
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE velocity_verlet ( itimes, constant, simpar, inter, &
@@ -113,10 +143,29 @@ SUBROUTINE velocity_verlet ( itimes, constant, simpar, inter, &
   
 END SUBROUTINE velocity_verlet
 
+!!*****
+!******************************************************************************
+!!****** integrator/set_integrator [1.0] *
+!!
+!!   NAME
+!!     set_integrator
+!!
+!!   FUNCTION
+!!     setup of parameters for integrator
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!     Call this subroutine before the first call to energy or velocity_verlet
+!!     or if you want to change ionode and/or output files
+!!
+!!   SOURCE
 !******************************************************************************
 
-! call this subroutine before the first call to energy or velocity_verlet
-!    or if you want to change ionode and/or output files
 
 SUBROUTINE set_integrator ( globenv, mdio )
   IMPLICIT NONE
@@ -150,6 +199,22 @@ SUBROUTINE set_integrator ( globenv, mdio )
   
 END SUBROUTINE set_integrator
 
+!!*****
+!******************************************************************************
+!!****** integrator/set_energy_parm [1.0] *
+!!
+!!   NAME
+!!     set_energy_parm
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE set_energy_parm ( pconv, tempconv, l, vol, e, pres, temp, angl )
@@ -173,9 +238,26 @@ SUBROUTINE set_energy_parm ( pconv, tempconv, l, vol, e, pres, temp, angl )
   IF ( PRESENT ( angl)) angl_label = angl
 END SUBROUTINE set_energy_parm
 
+!!*****
 !******************************************************************************
-! this routine computes the conserved quantity, temperature
-!    and things like that and prints them out
+!!****** integrator/energy [1.0] *
+!!
+!!   NAME
+!!     energy
+!!
+!!   FUNCTION
+!!     This routine computes the conserved quantity, temperature
+!!     and things like that and prints them out
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
 
 SUBROUTINE energy ( itimes, constant, simpar, struc, thermo, nhcp )
   
@@ -418,7 +500,7 @@ IF (ionode .AND. mod(itimes,ivel)==0) THEN
           adjustl(temp_label), '= ', temp, averages%avetemp
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' PRESSURE', &
           adjustl(pres_label), '= ', pv_scalar, averages%avepress
-     CALL get_ll_parm(lup,aup)
+     CALL get_ll_parm(struc%ll_data,lup,aup)
      IF (simpar%ensemble(1:3)=='NPT') THEN
         WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' VOLUME', &
              adjustl(vol_label), '= ', struc%box%deth, averages%avevol
@@ -446,6 +528,7 @@ IF (ionode .AND. mod(itimes,ivel)==0) THEN
   
 END SUBROUTINE energy
 
+!!*****
 !******************************************************************************
 
 ! nve integrator for particle positions & momenta
@@ -1114,3 +1197,5 @@ END SUBROUTINE rattle_init
 !******************************************************************************
 
 END MODULE integrator
+
+!******************************************************************************

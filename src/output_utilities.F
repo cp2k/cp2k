@@ -2,10 +2,22 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-
-! Purpose: Output utilities.
-! History: - Creation (06.10.1999, Matthias Krack)
-!          - CP2K by JH 21.08.2000
+!!****** cp2k/output_utilities [1.0] *
+!!
+!!   NAME
+!!     output_utilities
+!!
+!!   AUTHOR
+!!     Matthias Krack
+!!
+!!   CREATION DATE
+!!     06.10.1999
+!!
+!!   MODIFICATION HISTORY
+!!     CP2K Version by JGH 21.08.2000
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE output_utilities
   
@@ -16,27 +28,40 @@ MODULE output_utilities
   
   INTEGER, PARAMETER :: out = 6
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
 !******************************************************************************
-
-!   Purpose: Write a message string to the logical output unit lunit.
-!   History: - Creation (28.08.1996, Matthias Krack)
-!            - Translated to Fortran 90/95 (07.10.1999, Matthias Krack)
-!            - CP2K by JH 21.08.2000
+!!****** output_utilities/print_message [1.0] *
+!!
+!!   NAME
+!!     print_message
+!!
+!!   AUTHOR
+!!     Matthias Krack
+!!
+!!   CREATION DATE
+!!     28.08.1996
+!!
+!!   MODIFICATION HISTORY
+!!     - Creation (28.08.1996, Matthias Krack)
+!!     - Translated to Fortran 90/95 (07.10.1999, Matthias Krack)
+!!     - CP2K by JH 21.08.2000
+!!
+!!    NOTES
+!!      after  : Number of empty lines after the message.
+!!      before : Number of empty lines before the message.
+!!      declev : Decoration level (0,1,2, ... star lines).
+!!      lunit  : Number of the logical output unit.
+!!      message: String with the message text.
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE print_message ( message, lunit, declev, before, after )
   
-!   ***************************************************************************
-
-!   after  : Number of empty lines after the message.
-!   before : Number of empty lines before the message.
-!   declev : Decoration level (0,1,2, ... star lines).
-!   lunit  : Number of the logical output unit.
-!   message: String with the message text.
-
-!   ***************************************************************************
-
 ! Arguments
   CHARACTER ( LEN = * ), INTENT ( IN ) :: message
   INTEGER, INTENT ( IN ), OPTIONAL :: after, before, declev, lunit
@@ -49,8 +74,6 @@ SUBROUTINE print_message ( message, lunit, declev, before, after )
   INTEGER :: msglen, nrow, output_unit, rowlen
   
 !------------------------------------------------------------------------------
-  
-!   IF (my_pe /= io_pe) RETURN
   
   IF ( PRESENT ( after ) ) THEN
      blank_lines_after = MAX ( after, 0 )
@@ -180,22 +203,33 @@ SUBROUTINE print_message ( message, lunit, declev, before, after )
   
 END SUBROUTINE print_message
 
+!!*****
+!******************************************************************************
+!!****** output_utilities/print_warning [1.0] *
+!!
+!!   NAME
+!!     print_warning
+!!
+!!   AUTHOR
+!!     Matthias Krack
+!!
+!!   CREATION DATE
+!!     28.08.1996
+!!
+!!   MODIFICATION HISTORY
+!!     - Creation (28.08.1996, Matthias Krack)
+!!     - Translated to Fortran 90/95 (07.10.1999, Matthias Krack)
+!!     - CP2K by JH 21.08.2000
+!!
+!!    NOTES
+!!      message: Message text.
+!!      routine: Name of the calling routine.
+!!      lunit  : Output unit
+!!
+!!   SOURCE
 !******************************************************************************
 
-!   Purpose: Print a warning message.
-!   History: - Creation (28.08.1996, Matthias Krack)
-!            - Translated to Fortran 90/95 (07.10.1999, Matthias Krack)
-!            - CP2K by JH 21.08.2000
-
 SUBROUTINE print_warning ( routine, message, lunit )
-  
-!   ***************************************************************************
-  
-!   message: Message text.
-!   routine: Name of the calling routine.
-!   lunit  : Output unit
-  
-!   ***************************************************************************
   
 ! Arguments
   CHARACTER ( LEN = * ), INTENT ( IN ) :: message, routine
@@ -215,6 +249,9 @@ SUBROUTINE print_warning ( routine, message, lunit )
   
 END SUBROUTINE print_warning
 
+!!*****
 !******************************************************************************
 
 END MODULE output_utilities
+ 
+!******************************************************************************

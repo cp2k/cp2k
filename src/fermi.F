@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations          !
 !   Copyright (C) 2000  CP2K developers group                                  !
 !------------------------------------------------------------------------------!
+!!****** cp2k/fermi [1.0] *
+!!
+!!   NAME
+!!     fermi
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 ! 
     MODULE fermi
 ! 
@@ -25,11 +40,27 @@
         INTEGER :: multiplicity
         INTEGER :: nstate, na, nb
       END TYPE fermi_distribution_type
+!!*****
 !------------------------------------------------------------------------------!
 !
     CONTAINS
 !
 !------------------------------------------------------------------------------!
+!!****** fermi/init_fermi_dist [1.0] *
+!!
+!!   NAME
+!!     init_fermi_dist
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
       SUBROUTINE init_fermi_dist(fdist,nel,etemp,lsd,mult,nstate)
         IMPLICIT NONE
         TYPE (fermi_distribution_type), INTENT (INOUT) :: fdist
@@ -130,7 +161,23 @@
           END IF
         END IF
       END SUBROUTINE init_fermi_dist
+!!*****
 !------------------------------------------------------------------------------!
+!!****** fermi/fermi_info [1.0] *
+!!
+!!   NAME
+!!     fermi_info
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
       SUBROUTINE fermi_info(fdist,plevel,punit)
         IMPLICIT NONE
         TYPE (fermi_distribution_type), INTENT (IN) :: fdist
@@ -171,6 +218,9 @@
           END IF
         END IF
       END SUBROUTINE fermi_info
+!!*****
 !------------------------------------------------------------------------------!
+
     END MODULE fermi
+
 !------------------------------------------------------------------------------!

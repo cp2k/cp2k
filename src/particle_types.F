@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****s* cp2k/particle_types [1.0] *
+!!
+!!   NAME
+!!     particle_types
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE particle_types
 
@@ -29,3 +44,6 @@ MODULE particle_types
   END TYPE particle_type
   
 END MODULE particle_types
+
+!******************************************************************************
+!!*****

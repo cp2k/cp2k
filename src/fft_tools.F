@@ -2,19 +2,35 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-
-!
-! How to add a new FFT library:
-!  - create a new interface library : fftXX_lib with the entries
-!    fft3d and fft_get_lengths, see fftw_lib for a template
-!  - add in this file the entries to the new library; in each
-!    subroutine there will be an additional CASE
-!
+!!****** cp2k/fft_tools [1.0] *
+!!
+!!   NAME
+!!     fft_tools
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!     How to add a new FFT library:
+!!      - create a new interface library : fftXX_lib with the entries
+!!        fft3d and fft_get_lengths, see fftw_lib for a template
+!!      - add in this file the entries to the new library; in each
+!!        subroutine there will be an additional CASE
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE fft_tools
   
   USE kinds, ONLY: dbl, sgl
   USE stop_program, ONLY : stop_prg
+  USE fftessl_lib, ONLY : i_fft3d => fft3d, &
+                       i_fft_get_lengths => fft_get_lengths
   USE fftw_lib, ONLY : w_fft3d => fft3d, &
                        w_fft_get_lengths => fft_get_lengths
   USE fftsg_lib, ONLY : sg_fft3d => fft3d, &
@@ -35,10 +51,31 @@ MODULE fft_tools
   
   INTEGER :: fft_type = 0
 
+!!*****
 !******************************************************************************
 
 CONTAINS
   
+!******************************************************************************
+!!****** fft_tools/init_fft [1.0] *
+!!
+!!   NAME
+!!     init_fft
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     30-Nov-2000 (JGH) ESSL FFT Library added
+!!
+!!   NOTES
+!!     Label 1 : FFTsg
+!!     Label 2 : FFTw 
+!!     Label 3 : FFT ESSL
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE init_fft ( fftlib, fftnum )
@@ -53,11 +90,13 @@ SUBROUTINE init_fft ( fftlib, fftnum )
   IF ( PRESENT ( fftlib ) ) THEN
     SELECT CASE ( fftlib )
     CASE DEFAULT
-      CALL stop_prg ("init_fft","Unknown FFT library")
+      CALL stop_prg ("init_fft","Unknown FFT library",fftlib)
     CASE ( "FFTSG" )
       fft_type = 1
     CASE ( "FFTW" )
       fft_type = 2
+    CASE ( "FFTESSL" )
+      fft_type = 3
     END SELECT
   ELSE IF ( PRESENT ( fftnum ) ) THEN
     fft_type = fftnum
@@ -82,6 +121,22 @@ SUBROUTINE init_fft ( fftlib, fftnum )
 
 END SUBROUTINE init_fft
 
+!!*****
+!******************************************************************************
+!!****** fft_tools/get_fft_library [1.0] *
+!!
+!!   NAME
+!!     get_fft_library
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     30-Nov-2000 (JGH) ESSL FFT Library added
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE get_fft_library ( fft_handle, library )
@@ -99,10 +154,29 @@ SUBROUTINE get_fft_library ( fft_handle, library )
   CASE ( 2 )
     library = " FFTw library initialized "
     fft_handle = 2
+  CASE ( 3 )
+    library = " ESSL FFT library initialized "
+    fft_handle = 3
   END SELECT
 
 END SUBROUTINE get_fft_library
 
+!!*****
+!******************************************************************************
+!!****** fft_tools/fft_radix_operations [1.0] *
+!!
+!!   NAME
+!!     fft_radix_operations
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     Ari Seitsonen
+!!
+!!   MODIFICATION HISTORY
+!!     new library structure (JGH)
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE fft_radix_operations ( radix_in, radix_out, operation )
@@ -125,6 +199,8 @@ SUBROUTINE fft_radix_operations ( radix_in, radix_out, operation )
     CALL sg_fft_get_lengths ( data, max_length = 1024 )
   CASE ( 2 )
     CALL w_fft_get_lengths ( data, max_length = 1024 )
+  CASE ( 3 )
+    CALL i_fft_get_lengths ( data, max_length = 1024 )
   CASE DEFAULT
     CALL stop_prg ("fft3d","Unknown FFT library")
   END SELECT
@@ -176,6 +252,23 @@ SUBROUTINE fft_radix_operations ( radix_in, radix_out, operation )
   
 END SUBROUTINE fft_radix_operations
 
+!!*****
+!******************************************************************************
+!!****** fft_tools/fft3d [1.0] *
+!!
+!!   NAME
+!!     fft3d
+!!
+!!   FUNCTION
+!!     Calls the 3D-FFT function from the initialized library
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     30-Nov-2000 (JGH) ESSL FFT Library added
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE fft3d ( fsign, n, zg, zg_out, scale, status )
@@ -214,6 +307,12 @@ SUBROUTINE fft3d ( fsign, n, zg, zg_out, scale, status )
     ELSE
       CALL w_fft3d ( sign, norm, n, zg )
     END IF
+  CASE ( 3 )
+    IF ( PRESENT ( zg_out ) ) THEN
+      CALL i_fft3d ( sign, norm, n, zg, zg_out )
+    ELSE
+      CALL i_fft3d ( sign, norm, n, zg )
+    END IF
   CASE DEFAULT
     CALL stop_prg ("fft3d","Unknown FFT library")
   END SELECT
@@ -228,6 +327,7 @@ SUBROUTINE fft3d ( fsign, n, zg, zg_out, scale, status )
 
 END SUBROUTINE fft3d 
 
+!!*****
 !******************************************************************************
 
 END MODULE fft_tools

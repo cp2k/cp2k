@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****s* cp2k/structure_factor_types [1.0] *
+!!
+!!   NAME
+!!     structure_factor_types
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!!
+!******************************************************************************
 
 MODULE structure_factor_types
   
@@ -19,3 +34,6 @@ MODULE structure_factor_types
   END TYPE structure_factor_type
   
 END MODULE structure_factor_types
+
+!!*****
+!******************************************************************************

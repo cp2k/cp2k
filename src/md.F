@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/md [1.0] *
+!!
+!!   NAME
+!!     md
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE md
   
@@ -56,48 +71,68 @@ MODULE md
      CHARACTER ( LEN = 50 ) :: dump_file_name
   END TYPE mdio_parameters_type
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
-!!>---------------------------------------------------------------------------!
-!! SECTION: &md ... &end                                                      !
-!!                                                                            !
-!!  ensemble:    [nve,nvt]               ensemble type                        !
-!!  steps:       n                       total number of steps                !
-!!  timestep:    dt                      time step [fs]                       !
-!!  temperature: T                       temperature [K]                      !
-!!  restart:     [pos,posvel]            start type                           !
-!!  constraints: [on,off]                constraints                          !
-!!  shake:       eps                     convergence for Shake algorithm      !
-!!  verlet_skin  vs                      buffer size for Verlet lists         !
-!!  cells        x y z                   Number of cells in each direction    !
-!!  Nose_parameter        &              parameter of Nose-Hoover-chains      !
-!!    length:    nhclen   &                 length of thermostat              !
-!!    Yoshida:   nyosh    &                 order of Yoshida integrator       !
-!!    mts:       nc       &                 number of multiple time steps     !
-!!    timecon:   tau_nhc                    NHC time constant                 !
-!!  Barostat_parameter                      parameter of barostat             !
-!!    pressure: P         &                 pressure [bar]                    !
-!!    timecon:  tau_cell  &                 barostat time constant            !
-!!  FILES                           &                                         !
-!!    filebody    "filename"        &                                         !
-!!    coordinates "filename.crd"    &                                         !
-!!    velocities  "filename.vel"    &                                         !
-!!    pressure    "filename.ptens"  &                                         !
-!!    energies    "filename.ener"   &                                         !
-!!    temperature "filename.temp"   &                                         !
-!!    dump        "filename.dum"                                              !
-!!  PRINT                           &                                         !
-!!    screen       iscreen          &                                         !
-!!    files        ifiles           &                                         !
-!!    coordinates  icrd             &                                         !
-!!    velocities   ivel             &                                         !
-!!    pressure     iptens           &                                         !
-!!    energies     iener            &                                         !
-!!    temperature  itemp            &                                         !
-!!    dump         idump                                                      !
-!!                                                                            !
-!!                                                                            !
-!!<---------------------------------------------------------------------------!
+!******************************************************************************
+!!****** md/read_md_section [1.0] *
+!!
+!!   NAME
+!!     read_md_section
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!I---------------------------------------------------------------------------I
+!!I SECTION: &md ... &end                                                     I
+!!I                                                                           I
+!!I ensemble:    [nve,nvt]               ensemble type                        I
+!!I steps:       n                       total number of steps                I
+!!I timestep:    dt                      time step [fs]                       I
+!!I temperature: T                       temperature [K]                      I
+!!I restart:     [pos,posvel]            start type                           I
+!!I constraints: [on,off]                constraints                          I
+!!I shake:       eps                     convergence for Shake algorithm      I
+!!I verlet_skin  vs                      buffer size for Verlet lists         I
+!!I cells        x y z                   Number of cells in each direction    I
+!!I Nose_parameter        &              parameter of Nose-Hoover-chains      I
+!!I   length:    nhclen   &                 length of thermostat              I
+!!I   Yoshida:   nyosh    &                 order of Yoshida integrator       I
+!!I   mts:       nc       &                 number of multiple time steps     I
+!!I   timecon:   tau_nhc                    NHC time constant                 I
+!!I Barostat_parameter                      parameter of barostat             I
+!!I   pressure: P         &                 pressure [bar]                    I
+!!I   timecon:  tau_cell  &                 barostat time constant            I
+!!I FILES                           &                                         I
+!!I   filebody    "filename"        &                                         I
+!!I   coordinates "filename.crd"    &                                         I
+!!I   velocities  "filename.vel"    &                                         I
+!!I   pressure    "filename.ptens"  &                                         I
+!!I   energies    "filename.ener"   &                                         I
+!!I   temperature "filename.temp"   &                                         I
+!!I   dump        "filename.dum"                                              I
+!!I PRINT                           &                                         I
+!!I   screen       iscreen          &                                         I
+!!I   files        ifiles           &                                         I
+!!I   coordinates  icrd             &                                         I
+!!I   velocities   ivel             &                                         I
+!!I   pressure     iptens           &                                         I
+!!I   energies     iener            &                                         I
+!!I   temperature  itemp            &                                         I
+!!I   dump         idump                                                      I
+!!I                                                                           I
+!!I                                                                           I
+!!I---------------------------------------------------------------------------I
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   
@@ -397,9 +432,24 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   
 END SUBROUTINE read_md_section
 
+!!*****
 !******************************************************************************
-
-! Initializes the velocities to the Maxwellian distribution
+!!****** md/initialize_velocities [1.0] *
+!!
+!!   NAME
+!!     initialize_velocities
+!!
+!!   FUNCTION
+!!     Initializes the velocities to the Maxwellian distribution
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE initialize_velocities ( simpar, part, mdpar )
   
@@ -494,6 +544,9 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
   
 END SUBROUTINE initialize_velocities
 
+!!*****
 !******************************************************************************
 
 END MODULE md
+
+!******************************************************************************

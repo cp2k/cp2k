@@ -2,12 +2,26 @@
 !   CP2K: A general program to perform molecular dynamics simulations          !
 !   Copyright (C) 2000  CP2K developers group                                  !
 !------------------------------------------------------------------------------!
+!!****** cp2k/tbmd_input [1.0] *
+!!
+!!   NAME
+!!     tbmd_input
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
     MODULE tbmd_input
-!------------------------------------------------------------------------------!
+
       USE kinds, ONLY : dbl
       USE tbmd_types, ONLY : tbatom_param_type, tb_hopping_type
       USE stop_program, ONLY : stop_prg, stop_memory
-      USE util, ONLY : get_unit
       USE string_utilities, ONLY : uppercase, xstring, &
         str_search, str_comp, make_tuple
       USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
@@ -19,11 +33,27 @@
       PRIVATE
       PUBLIC :: read_tb_hamiltonian, read_tb_hopping_elements
 ! 
+!!*****
 !------------------------------------------------------------------------------!
 ! 
     CONTAINS
 ! 
 !------------------------------------------------------------------------------!
+!!****** tbmd_input/read_tb_hamiltonian [1.0] *
+!!
+!!   NAME
+!!     read_tb_hamiltonian
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE read_tb_hamiltonian ( setup, atom_names, tbatom, tbmdpar )
 
@@ -153,7 +183,24 @@ SUBROUTINE set_basis(basis,bsf)
   END DO
 END SUBROUTINE set_basis
 
+!!*****
 !------------------------------------------------------------------------------!
+!!****** tbmd_input/read_tb_hopping_elements [1.0] *
+!!
+!!   NAME
+!!     read_tb_hopping_elements
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
 SUBROUTINE read_tb_hopping_elements ( setup, atom_names, tbatom, tbhop, tbmdpar )
 
   IMPLICIT NONE
@@ -354,6 +401,7 @@ SUBROUTINE set_int(itype,int)
   END DO
 END SUBROUTINE set_int
 
+!!*****
 !------------------------------------------------------------------------------!
 END MODULE tbmd_input
 !------------------------------------------------------------------------------!

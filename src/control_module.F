@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/control_module [1.0] *
+!!
+!!   NAME
+!!     control_module
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH, 14-NOV-2000
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE control_module
   
@@ -20,7 +35,6 @@ MODULE control_module
   USE fist_debug, ONLY : fist_debug_control => debug_control
   USE tbmd_debug, ONLY : tbmd_debug_control => debug_control
   USE tbmd_initialize, ONLY : tbmd_init, tb_get_numel
-  USE tbmd_global, ONLY : tbatom, tbhop
   USE tbmd_input, ONLY : read_tb_hamiltonian, read_tb_hopping_elements
   USE cntl_input, ONLY : read_cntl_section
   USE force_fields, ONLY : read_force_field_section, ATOMNAMESLENGTH
@@ -53,12 +67,31 @@ MODULE control_module
   PUBLIC :: control
   
   TYPE ( mdio_parameters_type ) :: mdio
+
+!!*****
+!-----------------------------------------------------------------------------!
   
 CONTAINS
 
 !-----------------------------------------------------------------------------!
 ! CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL  !
 !-----------------------------------------------------------------------------!
+!!****** control_module/control [1.0] *
+!!
+!!   NAME           
+!!     control
+!!
+!!   FUNCTION       
+!!     Controls program flow for FIST and TBMD
+!!
+!!   AUTHOR         
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     Harald Forbert (Dec-2000): enable multiple linked lists
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE control ( globenv )
   
@@ -97,6 +130,23 @@ SUBROUTINE control ( globenv )
   
   CALL timeset ( 'CONTROL', 'I', ' ', handle1 )
   CALL timeset ( 'CNTL_INIT', 'I', ' ', handle2 )
+!
+  struc % ll_data % natom_types = 0
+  struc % ll_data % list_type = 0
+  struc % ll_data % counter = 0
+  struc % ll_data % last_update = 0
+  struc % ll_data % num_update = 0
+  struc % ll_data % print_level = 1
+  NULLIFY ( struc % ll_data % r_last_update )
+  NULLIFY ( struc % ll_data % rlist_cut )
+  NULLIFY ( struc % ll_data % rlist_cutsq )
+  NULLIFY ( struc % ll_data % pp_images )
+  NULLIFY ( struc % ll_data % pp_ncell )
+  NULLIFY ( struc % ll_data % pp_startlist_im )
+  NULLIFY ( struc % ll_data % pp_startlist_nl )
+  NULLIFY ( struc % ll_data % pp_neighbor )
+  NULLIFY ( struc % ll_data % pp_startlist_cell )
+  NULLIFY ( struc % ll_data % pp_cell_ll )
   
   IF ( globenv % program_name == 'FIST' ) THEN
     fist = .true.
@@ -185,6 +235,7 @@ SUBROUTINE control ( globenv )
 !  so it also has the right units
   CALL get_hinv ( struc % box )
   
+
 !..initialize molecule_type
   CALL initialize_molecule_type ( mol_setup, intra_param, struc % pnode, &
        struc % part, struc % molecule, globenv )
@@ -210,10 +261,10 @@ SUBROUTINE control ( globenv )
   
   rcut ( :, : ) = inter%potparm ( :, : ) % rcutsq
   
-  CALL set_ll_parm ( globenv, simpar % verlet_skin, &
+  CALL set_ll_parm ( struc%ll_data, globenv, simpar % verlet_skin, &
        setup % natom_type, rcut, simpar % n_cell )
   
-  CALL set_ll_parm ( globenv, printlevel = globenv % print_level, &
+  CALL set_ll_parm ( struc%ll_data, globenv, printlevel = globenv % print_level, &
        ltype = 'NONBOND' )
   
   DEALLOCATE ( rcut, STAT = isos )
@@ -231,7 +282,7 @@ SUBROUTINE control ( globenv )
   END IF
 !
 !..initialize the on-site terms for TB
-  IF ( tbmd ) CALL tbmd_init ( struc % part, tbatom, tbhop )
+  IF ( tbmd ) CALL tbmd_init ( struc % part, inter%tbatom, inter%tbhop )
 !
 !..Symmetry and K-points
 !
@@ -246,7 +297,7 @@ SUBROUTINE control ( globenv )
 !..nota bene: we use the defaults for the elctron temperature and
 !             spin polarisation
   IF ( tbmd ) then
-    nel = tb_get_numel ( tbatom, charge )
+    nel = tb_get_numel ( inter%tbatom, charge )
     CALL init_fermi_dist(fd,nel)
     IF (globenv%ionode) CALL fermi_info(fd,globenv%print_level,globenv%scr)
     CALL init_band_structure(bs,fd,kp)
@@ -262,10 +313,10 @@ SUBROUTINE control ( globenv )
 
     IF ( fist ) then
       CALL fist_debug_control( globenv, ewald_param, struc%part, struc%pnode, &
-                 struc%molecule, struc%box, thermo, inter%potparm, simpar % ensemble )
+                 struc%molecule, struc%box, thermo, inter%potparm, simpar % ensemble, struc%ll_data )
     ELSE IF ( tbmd ) THEN
       CALL tbmd_debug_control( globenv, ewald_param, struc%part, struc%pnode, &
-                 struc%molecule, struc%box, thermo, inter%potparm, simpar % ensemble )
+                 struc%molecule, struc%box, thermo, inter%potparm, simpar % ensemble , struc%ll_data )
     ENDIF
      
   ELSE
@@ -303,6 +354,7 @@ SUBROUTINE control ( globenv )
   
 END SUBROUTINE control
 
+!!*****
 !-----------------------------------------------------------------------------!
 ! CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL  !
 !-----------------------------------------------------------------------------!

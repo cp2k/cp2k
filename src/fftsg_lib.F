@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/fftsg_lib [1.0] *
+!!
+!!   NAME
+!!     fftsg_lib
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE fftsg_lib
   
@@ -14,13 +29,28 @@ MODULE fftsg_lib
   PUBLIC :: fft3d
   PUBLIC :: fft_get_lengths
   
+!!*****
 !******************************************************************************
 
 CONTAINS
   
 !******************************************************************************
-
-!! Give the allowed lengths of FFT's   '''
+!!****** fftsg_lib/fft_get_lengths [1.0] *
+!!
+!!   NAME
+!!     fft_get_lengths
+!!
+!!   FUNCTION
+!!     Give the allowed lengths of FFT's   '''
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE fft_get_lengths ( data, max_length )
   
@@ -58,10 +88,25 @@ SUBROUTINE fft_get_lengths ( data, max_length )
   
 END SUBROUTINE fft_get_lengths
 
+!!*****
 !******************************************************************************
-
-! routine with wrapper for all fft calls:
-! Does transform with exp(+ig.r*sign):
+!!****** fftsg_lib/fft_3d [1.0] *
+!!
+!!   NAME
+!!     fft_3d
+!!
+!!   FUNCTION
+!!     Routine with wrapper for all 3dfft call:
+!!     Does transform with exp(+ig.r*sign):
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
   
@@ -148,6 +193,7 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
 
 END SUBROUTINE fft3d
 
+!!*****
 !******************************************************************************
 
 END MODULE fftsg_lib

@@ -2,6 +2,22 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/cp2k_input [1.0] *
+!!
+!!   NAME
+!!     cp2k_input
+!!
+!!   FUNCTION
+!!     Master input
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE cp2k_input
   
@@ -11,22 +27,45 @@ MODULE cp2k_input
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
        cfield, p_error, get_real, get_int
   USE stop_program, ONLY : stop_prg
-  USE string_utilities, ONLY : uppercase
+  USE string_utilities, ONLY : uppercase, xstring
+  USE fft_tools, ONLY : init_fft
   
   PRIVATE
   PUBLIC :: read_cp2k_section
+
+!!*****
+!******************************************************************************
   
 CONTAINS
 
-!!>---------------------------------------------------------------------------!
-!!                                                                            !
-!!  SECTION: &cp2k ... &end                                                   !
-!!                                                                            !
-!!  program prg_name                                                          !
-!!  project name                                                              !
-!!  iolevel n                                                                 !
-!!                                                                            !
-!!<---------------------------------------------------------------------------!
+!******************************************************************************
+!!****** cp2k_input/read_cp2k_section [1.0] *
+!!
+!!   NAME
+!!     read_cp2k_section
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     2-Dec-2000 (JGH) added default fft library
+!!
+!!   INPUTS
+!!I---------------------------------------------------------------------------I
+!!I                                                                           I
+!!I SECTION: &cp2k ... &end                                                   I
+!!I                                                                           I
+!!I program prg_name                                                          I
+!!I project name                                                              I
+!!I iolevel n                                                                 I
+!!I fftlib  default_fft_library                                               I
+!!I                                                                           I
+!!I---------------------------------------------------------------------------I
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE read_cp2k_section ( globenv )
   
@@ -36,7 +75,7 @@ SUBROUTINE read_cp2k_section ( globenv )
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
   
 ! Locals
-  INTEGER :: ierror, ilen, iw, source, allgrp
+  INTEGER :: ierror, ilen, iw, source, allgrp, i1, i2
   CHARACTER ( LEN = 6 ) :: string
   CHARACTER ( LEN = 5 ) :: label
   
@@ -44,6 +83,7 @@ SUBROUTINE read_cp2k_section ( globenv )
   globenv%program_name = 'NONE'
   globenv%project_name = 'project'
   globenv%print_level = 0
+  globenv%default_fft_library = 'FFTSG'
   
    iw = globenv % scr
 ! ..parse the input section
@@ -77,8 +117,14 @@ SUBROUTINE read_cp2k_section ( globenv )
             ilen = 0
             CALL cfield ( globenv % project_name, ilen )
             
-         CASE ( 'IOLEVE')
+         CASE ( 'IOLEVE' )
             globenv%print_level = get_int()
+
+         CASE ( 'FFTLIB' )
+            ilen = 0
+            CALL cfield ( globenv % default_fft_library, ilen )
+            CALL uppercase ( globenv % default_fft_library )
+
          END SELECT
          
          CALL read_line()
@@ -89,6 +135,11 @@ SUBROUTINE read_cp2k_section ( globenv )
 ! ..end of parsing the input section
      
    IF ( globenv % program_name == 'QUICKSTEP' ) globenv % program_name = 'QS'
+
+! initialize FFT library
+   CALL xstring ( globenv % default_fft_library, i1, i2 )
+   CALL init_fft ( fftlib = globenv % default_fft_library ( i1:i2 ) )
+
      
    IF ( globenv % ionode ) THEN
 ! ..write some information to output
@@ -98,6 +149,8 @@ SUBROUTINE read_cp2k_section ( globenv )
           ADJUSTR ( globenv % input_file_name ( 1:40 ) )
      WRITE ( iw, '( A, T41, A )' ) ' CP2K| Project name ', &
           ADJUSTR ( globenv % project_name ( 1:40 ) )
+     WRITE ( iw, '( A, T41, A )' ) ' CP2K| Default FFT library ', &
+          ADJUSTR ( globenv % default_fft_library ( 1:40 ) )
      WRITE ( iw, '( A, T77, I4 )' ) ' CP2K| Global print level ', &
           globenv % print_level
      WRITE ( iw, '( A, T75, I6 )' ) ' CP2K| Total number of processors ', &
@@ -109,6 +162,9 @@ SUBROUTINE read_cp2k_section ( globenv )
   
 END SUBROUTINE read_cp2k_section
 
+!!*****
 !******************************************************************************
 
 END MODULE cp2k_input
+
+!******************************************************************************

@@ -1,27 +1,44 @@
-!-----------------------------------------------------------------------------!
-!                                                                             !
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
-!                                                                             !
-!   This program is free software; you can redistribute it and/or modify      !
-!   it under the terms of the GNU General Public License as published by      !
-!   the Free Software Foundation; either version 2 of the License, or         !
-!   (at your option) any later version.                                       !
-!                                                                             !
-!   This program is distributed in the hope that it will be useful,           !
-!   but WITHOUT ANY WARRANTY; without even the implied warranty of            !
-!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             !
-!   GNU General Public License for more details.                              !
-!                                                                             !
-!   You should have received a copy of the GNU General Public License         !
-!   along with this program; if not, write to the Free Software               !
-!   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.                 !
-!                                                                             !
-!-----------------------------------------------------------------------------!
-! 
-!!  Main Program
-!!       - performs only basic initialisations
-!!       - calls major modules
+!!****** cp2k/cp2k [1.0] *
+!!
+!!   NAME
+!!     cp2k, The main program
+!!
+!!   COPYRIGHT
+!!I---------------------------------------------------------------------------I
+!!I                                                                           I
+!!I CP2K: A general program to perform molecular dynamics simulations         I
+!!I Copyright (C) 2000  CP2K developers group                                 I
+!!I                                                                           I
+!!I This program is free software; you can redistribute it and/or modify      I
+!!I it under the terms of the GNU General Public License as published by      I
+!!I the Free Software Foundation; either version 2 of the License, or         I
+!!I (at your option) any later version.                                       I
+!!I                                                                           I
+!!I This program is distributed in the hope that it will be useful,           I
+!!I but WITHOUT ANY WARRANTY; without even the implied warranty of            I
+!!I MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             I
+!!I GNU General Public License for more details.                              I
+!!I                                                                           I
+!!I You should have received a copy of the GNU General Public License         I
+!!I along with this program; if not, write to the Free Software               I
+!!I Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.                 I
+!!I                                                                           I
+!!I---------------------------------------------------------------------------I
+!!
+!!   FUNCTION
+!!      Main Program
+!!
+!!   AUTHOR
+!!      CJM & JGH
+!!
+!!   MODIFICATION HISTORY
+!!      none
+!!
+!!   NOTES
+!!     Main Program
+!!
+!!   SOURCE
+!------------------------------------------------------------------------------
 
 PROGRAM cp2k
   
@@ -30,6 +47,7 @@ PROGRAM cp2k
   USE control_module, ONLY : control
   USE global_types, ONLY : global_environment_type
   USE library_tests,ONLY : lib_test
+  USE atom_module,ONLY : atomic_code
   USE kinds, ONLY : dbl, print_kind_info
   USE parallel, ONLY : start_parallel, end_parallel
   USE physcon, ONLY : print_physcon
@@ -56,6 +74,10 @@ PROGRAM cp2k
 
      CALL control ( globenv )
      
+  ELSE IF ( globenv % program_name == 'ATOM' ) THEN
+
+     CALL atomic_code ( globenv )
+
   ELSE IF ( globenv % program_name == 'TEST' ) THEN
 
      CALL lib_test ( globenv )
@@ -66,4 +88,9 @@ PROGRAM cp2k
   
   CALL end_parallel ( )
   
+!------------------------------------------------------------------------------
+
 END PROGRAM cp2k
+
+!------------------------------------------------------------------------------
+!!*****

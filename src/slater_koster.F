@@ -2,13 +2,26 @@
 !   CP2K: A general program to perform molecular dynamics simulations          !
 !   Copyright (C) 2000  CP2K developers group                                  !
 !------------------------------------------------------------------------------!
-!!> Calculation of two-center s-f Slater-Koster integrals
-!!  A.K. McMahan, Phys. Rev. B, 58, p4293 (1998)
+!!****** cp2k/slater_koster [1.0] *
 !!
-!!  Sign convention: t(lp,lq)=(-1)**(lp+lq)*(lp m,lq m)
-!!  where (lp m,lq m) is the integral in the diatomic coordinate system
+!!   NAME
+!!     slater_koster
 !!
-!!<
+!!   FUNCTION
+!!     Calculation of two-center s-f Slater-Koster integrals
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!     A.K. McMahan, Phys. Rev. B, 58, p4293 (1998)
+!!
+!!   SOURCE
+!******************************************************************************
+
     MODULE slater_koster
 !------------------------------------------------------------------------------!
       USE kinds, ONLY : dbl
@@ -19,11 +32,34 @@
       PRIVATE
       PUBLIC :: m_integrals
 !
+!!*****
 !------------------------------------------------------------------------------!
 !
     CONTAINS
 !
 !------------------------------------------------------------------------------!
+!!****** slater_koster/m_integrals [1.0] *
+!!
+!!   NAME
+!!     m_integrals
+!!
+!!   FUNCTION
+!!     Calculation of two-center s-f Slater-Koster integrals
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!     A.K. McMahan, Phys. Rev. B, 58, p4293 (1998)
+!!
+!!     Sign convention: t(lp,lq)=(-1)**(lp+lq)*(lp m,lq m)
+!!     where (lp m,lq m) is the integral in the diatomic coordinate system
+!!
+!!   SOURCE
+!******************************************************************************
       SUBROUTINE m_integrals(l1,l2,r,tll,hmm)
         IMPLICIT NONE
         INTEGER, INTENT (IN) :: l1, l2
@@ -66,6 +102,7 @@
           END DO
         END IF
       END SUBROUTINE m_integrals
+!!*****
 !------------------------------------------------------------------------------!
       SUBROUTINE dm_integrals(l1,l2,r,tllr,dtll,pmm,grad)
         IMPLICIT NONE

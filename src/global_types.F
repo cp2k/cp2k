@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****s* cp2k/global_types [1.0] *
+!!
+!!   NAME
+!!     global_types
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE global_types
   
@@ -16,6 +31,7 @@ MODULE global_types
      CHARACTER ( LEN = 200 ) :: input_file_name
      CHARACTER ( LEN = 200 ) :: program_name
      CHARACTER ( LEN = 200 ) :: project_name
+     CHARACTER ( LEN = 200 ) :: default_fft_library
      LOGICAL :: ionode        !! this processor performs global output
      INTEGER :: group         !! group handle for all processors
      INTEGER :: source        !! processor id for global output node
@@ -27,3 +43,6 @@ MODULE global_types
   END TYPE global_environment_type
   
 END MODULE global_types
+
+!!*****
+!******************************************************************************

@@ -1,6 +1,6 @@
 .SUFFIXES: .o .F .d
 
-CP2KHOME= ${HOME}/CP2K/
+CP2KHOME= ${HOME}/CP2K
 FORPAR	= $(CP2KHOME)/tools/forpar.x -chkint
 SFMAKEDEPEND	= $(CP2KHOME)/tools/sfmakedepend -m int -s -f
 

@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations          !
 !   Copyright (C) 2000  CP2K developers group                                  !
 !------------------------------------------------------------------------------!
+!!****** cp2k/brillouin [1.0] *
+!!
+!!   NAME
+!!     brillouin
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 ! 
     MODULE brillouin
 ! 
@@ -29,21 +44,40 @@
         REAL (dbl), DIMENSION (:), POINTER :: weight
         REAL (dbl), DIMENSION (:,:), POINTER :: xk
       END TYPE kpoint_type
+!!*****
 !------------------------------------------------------------------------------!
 !
     CONTAINS
 !
-!!>----------------------------------------------------------------------------!
-!!  SECTION: &kpoint... &end                                                   !
-!!                                                                             !
-!!  scheme           [Gamma, Monkhorst-Pack, MacDonald, General]               !
-!!    { nx ny nz }                                                             !
-!!    { nx ny nz  sx sy sz }                                                   !
-!!    { nkpt  x1 y1 z1 w1 ... xn yn zn wn }                                    !
-!!  symmetry         [on, off]                                                 !
-!!  wavefunction     [real, complex]                                           !
-!!                                                                             !
-!!<----------------------------------------------------------------------------!
+!------------------------------------------------------------------------------!
+!!****** brillouin/kpoint_input [1.0] *
+!!
+!!   NAME
+!!     kpoint_input
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   INPUTS
+!!I----------------------------------------------------------------------------I
+!!I SECTION: &kpoint... &end                                                   I
+!!I                                                                            I
+!!I scheme           [Gamma, Monkhorst-Pack, MacDonald, General]               I
+!!I   { nx ny nz }                                                             I
+!!I   { nx ny nz  sx sy sz }                                                   I
+!!I   { nkpt  x1 y1 z1 w1 ... xn yn zn wn }                                    I
+!!I symmetry         [on, off]                                                 I
+!!I wavefunction     [real, complex]                                           I
+!!I                                                                            I
+!!I----------------------------------------------------------------------------I
+!!
+!!   SOURCE
+!******************************************************************************
       SUBROUTINE kpoint_input(kp,inpar)
 
         IMPLICIT NONE
@@ -155,7 +189,23 @@
           kp%scheme = 'GAMMA'
         END IF
       END SUBROUTINE kpoint_input
+!!*****
 !------------------------------------------------------------------------------!
+!!****** brillouin/brillouin_info [1.0] *
+!!
+!!   NAME
+!!     brillouin_info
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
       SUBROUTINE brillouin_info(kp,punit)
         IMPLICIT NONE
         TYPE (kpoint_type), INTENT (IN) :: kp
@@ -198,6 +248,10 @@
           END DO
         END IF
       END SUBROUTINE brillouin_info
+
+!!*****
 !------------------------------------------------------------------------------!
+
     END MODULE brillouin
+
 !------------------------------------------------------------------------------!

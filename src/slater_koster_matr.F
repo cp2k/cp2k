@@ -2,13 +2,22 @@
 !   CP2K: A general program to perform molecular dynamics simulations          !
 !   Copyright (C) 2000  CP2K developers group                                  !
 !------------------------------------------------------------------------------!
-!!> Calculation of two-center s-f Slater-Koster integrals
-!!  A.K. McMahan, Phys. Rev. B, 58, p4293 (1998)
+!!****** cp2k/slater_koster_matr [1.0] *
 !!
-!!  Sign convention: t(lp,lq)=(-1)**(lp+lq)*(lp m,lq m)
-!!  where (lp m,lq m) is the integral in the diatomic coordinate system
+!!   NAME
+!!     slater_koster_matr
 !!
-!!<
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
     MODULE slater_koster_matr
 !------------------------------------------------------------------------------!
       USE kinds, ONLY : dbl
@@ -21,6 +30,8 @@
 !
       REAL (dbl), PARAMETER :: zero = 0._dbl
       REAL (dbl), PARAMETER :: one = 1._dbl
+
+!!*****
 !------------------------------------------------------------------------------!
 !
     CONTAINS

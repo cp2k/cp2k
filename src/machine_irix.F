@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/machine_irix [1.0] *
+!!
+!!   NAME
+!!     machine_irix
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     APSI & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE machine_irix
   
@@ -10,6 +25,9 @@ MODULE machine_irix
   PRIVATE
   PUBLIC :: m_walltime, m_cputime, m_datum
   PUBLIC :: m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg
+
+!!*****
+!******************************************************************************
 
 CONTAINS
 

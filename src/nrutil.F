@@ -1,3 +1,17 @@
+!!****** cp2k/nrutil [1.0] *
+!!
+!!   NAME
+!!     nrutil
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
     MODULE nrutil
       USE kinds, ONLY : dbl
       IMPLICIT NONE
@@ -73,6 +87,7 @@
         MODULE PROCEDURE put_diag_rv, put_diag_r
       END INTERFACE
 
+!!*****
     CONTAINS
 !BL
       SUBROUTINE array_copy_r(src,dest,n_copied,n_not_copied)

@@ -9,7 +9,7 @@ MODULE force_fit
   
   USE amoeba, ONLY : amoeba_evaluate
   USE global_types, ONLY : globenv
-  USE io_parameters, ONLY : scr
+! USE io_parameters, ONLY : scr
   USE kinds, ONLY : dbl
   USE md, ONLY : simulation_parameters_type, thermodynamic_type
   USE pair_potential, ONLY : potentialparm_type, spline_nonbond_control
@@ -90,11 +90,13 @@ SUBROUTINE read_fit_section ( fit_param )
   TYPE ( fit_parameter_type ), INTENT ( OUT ) :: fit_param
   
 ! Locals
-  INTEGER :: ierror, ilen
+  INTEGER :: ierror, ilen, scr
   CHARACTER ( len = 20 ) :: string
   CHARACTER ( len = 5 ) :: label
   
 !------------------------------------------------------------------------------
+! this is just a temporary fix to get rid of io_parameters
+  scr = 6
   
 !..defaults
   fit_param % max_tol = 1.0E-6_dbl

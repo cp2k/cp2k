@@ -2,6 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****s* cp2k/pw_grid_types [1.0] *
+!!
+!!   NAME
+!!     pw_grid_types
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE pw_grid_types
   
@@ -49,3 +63,6 @@ MODULE pw_grid_types
   INTEGER, PARAMETER :: HALFSPACE = 211, FULLSPACE = 212
   
 END MODULE pw_grid_types
+
+!******************************************************************************
+!!*****

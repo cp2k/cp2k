@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/unit [1.0] *
+!!
+!!   NAME
+!!     unit
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE unit
   
@@ -19,17 +34,34 @@ MODULE unit
      CHARACTER ( LEN = 10 ) :: e_label, l_label, vol_label,  &
           temp_label, pres_label,angl_label
   END TYPE unit_convert_type
+
+!!*****
+!******************************************************************************
   
 CONTAINS
 
 !******************************************************************************
-
-! routine which defines internal units and conversion factors
-! Internal units for the code are as follows:
-! mass is in amu; energy is in kelvin; length is in angstroms
-! IT IS ASSUMED THAT 
-! input time is in femtoseconds; output pressure in bar
-! mass is in amu ALWAYS
+!!****** unit/set_units [1.0] *
+!!
+!!   NAME
+!!     unit
+!!
+!!   FUNCTION
+!!     routine which defines internal units and conversion factors
+!!     Internal units for the code are as follows:
+!!     mass is in amu; energy is in kelvin; length is in angstroms
+!!     IT IS ASSUMED THAT 
+!!     input time is in femtoseconds; output pressure in bar
+!!     mass is in amu ALWAYS
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE set_units ( unit_char, units )
   
@@ -81,6 +113,9 @@ SUBROUTINE set_units ( unit_char, units )
   
 END SUBROUTINE set_units
 
+!!*****
 !******************************************************************************
 
 END MODULE unit
+
+!******************************************************************************

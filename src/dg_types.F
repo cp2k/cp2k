@@ -2,6 +2,19 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****s* cp2k/dg_types [1.0] *
+!!
+!!   NAME
+!!     dg_types
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!******************************************************************************
 MODULE dg_types
 
   USE dg_rho0s, ONLY : dg_rho0_type
@@ -21,5 +34,8 @@ MODULE dg_types
   PUBLIC :: dg_type
 
 !-----------------------------------------------------------------------------!
+
 END MODULE dg_types
+
 !-----------------------------------------------------------------------------!
+!!*****

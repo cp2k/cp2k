@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/initialize_molecule_types [1.0] *
+!!
+!!   NAME
+!!     initialize_molecule_types
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE initialize_molecule_types
   
@@ -20,8 +35,26 @@ MODULE initialize_molecule_types
   PUBLIC :: initialize_molecule_type
   PRIVATE
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
+!******************************************************************************
+!!****** initialize_molecule_types/initialize_molecule_type [1.0] *
+!!
+!!   NAME
+!!     initialize_molecule_types
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE initialize_molecule_type ( mol_setup, intra_param, &
@@ -135,6 +168,9 @@ SUBROUTINE initialize_molecule_type ( mol_setup, intra_param, &
   
 END SUBROUTINE initialize_molecule_type
 
+!!*****
 !******************************************************************************
 
 END MODULE initialize_molecule_types
+
+!******************************************************************************

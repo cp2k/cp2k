@@ -2,6 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/pme [1.0] *
+!!
+!!   NAME
+!!     pme
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE pme
 
@@ -30,6 +44,9 @@ MODULE pme
 
   PRIVATE
   PUBLIC :: pme_evaluate, pme_setup
+
+!!*****
+!******************************************************************************
 
 CONTAINS
 
@@ -182,17 +199,19 @@ SUBROUTINE pme_evaluate ( dg, fg_coulomb, vg_coulomb, pv_g, box, &
   ELSE
      size_of_rhos_r_save = SIZE ( rhos_r_save_dbl ) * bytes_per_real
   END IF
-  
-  IF ( size_of_rhos_r_save /= previous_size_of_rhos_r_save ) THEN
-     IF ( size_of_rhos_r_save / 1024**2 > 4 ) THEN
-        WRITE ( 6, '( /, A, I4, A, / )' ) " DG| SIZE(rho) = ", &
-             size_of_rhos_r_save / 1024**2, " MB"
-     ELSE
-        WRITE ( 6, '( /, A, I4, A, / )' ) " DG| SIZE(rho) = ", &
-             size_of_rhos_r_save / 1024, " kB"
-     END IF
-     previous_size_of_rhos_r_save = size_of_rhos_r_save
-  END IF
+! 
+! this code has to be changed in order to be compliant with the output
+! unit set and with parallel computing
+! IF ( size_of_rhos_r_save /= previous_size_of_rhos_r_save ) THEN
+!    IF ( size_of_rhos_r_save / 1024**2 > 4 ) THEN
+!       WRITE ( 6, '( /, A, I4, A, / )' ) " DG| SIZE(rho) = ", &
+!            size_of_rhos_r_save / 1024**2, " MB"
+!    ELSE
+!       WRITE ( 6, '( /, A, I4, A, / )' ) " DG| SIZE(rho) = ", &
+!            size_of_rhos_r_save / 1024, " kB"
+!    END IF
+!    previous_size_of_rhos_r_save = size_of_rhos_r_save
+! END IF
   
   lb_pbc ( : ) = bounds_b ( 1, : ) + bounds_s ( 1, : )
   ub_pbc ( : ) = bounds_b ( 2, : ) + bounds_s ( 2, : ) + 2

@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****s* cp2k/structure_types [1.0] *
+!!
+!!   NAME
+!!     structure_types
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     Harald Forbert (Dec-2000): Add ll-data to structure_type
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE structure_types
   
@@ -11,6 +26,7 @@ MODULE structure_types
   USE simulation_cell, ONLY : cell_type
   USE pair_potential, ONLY : potentialparm_type
   USE tbmd_types, ONLY : tbatom_param_type, tb_hopping_type
+  USE linklist_types, ONLY : linklist_internal_data_type
   
   IMPLICIT NONE
   
@@ -27,6 +43,7 @@ MODULE structure_types
      TYPE ( particle_type ), POINTER :: part ( : )
      TYPE ( particle_node_type ), POINTER :: pnode ( : )
      TYPE ( molecule_structure_type ), POINTER :: molecule ( : )
+     TYPE ( linklist_internal_data_type) :: ll_data
   END TYPE structure_type
   
   TYPE interaction_type
@@ -36,3 +53,6 @@ MODULE structure_types
   END TYPE interaction_type
 
 END MODULE structure_types
+
+!!*****
+!******************************************************************************

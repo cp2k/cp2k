@@ -2,6 +2,22 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/library_tests [1.0] *
+!!
+!!   NAME
+!!     library_tests
+!!
+!!   FUNCTION
+!!     Performance tests for basic tasks like matrix multiplies, copy, fft.
+!!
+!!   AUTHOR
+!!     JGH  6-NOV-2000
+!!
+!!   MODIFICATION HISTORY
+!!     30-Nov-2000 (JGH) added input 
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE library_tests
   
@@ -11,6 +27,9 @@ MODULE library_tests
   USE global_types, ONLY : global_environment_type
   USE machine, ONLY : m_cputime
   USE stop_program, ONLY : stop_memory
+  USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
+       cfield, p_error, get_real, get_int, stop_parser
+  USE string_utilities, ONLY : uppercase
   
   IMPLICIT NONE
   
@@ -18,11 +37,29 @@ MODULE library_tests
   PUBLIC :: lib_test
 
   INTEGER :: runtest ( 100 ) 
+  REAL ( dbl ) :: max_memory
 
+!!*****
 !******************************************************************************
   
 CONTAINS
 
+!******************************************************************************
+!!****** library_tests/lib_test [1.0] *
+!!
+!!   NAME
+!!     lib_test
+!!
+!!   FUNCTION
+!!     Master routine for tests
+!!
+!!   AUTHOR
+!!     JGH  6-NOV-2000
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE lib_test ( globenv )
@@ -38,18 +75,115 @@ SUBROUTINE lib_test ( globenv )
     WRITE ( iw, '(T2,79("*"))' )
   END IF
 !
-! CALL test_input ( globenv )
-  runtest = 0
-  runtest ( 3 ) = 1
+  CALL test_input ( globenv )
 !
-  IF ( runtest ( 1 ) == 1 ) CALL copy_test ( globenv )
+  IF ( runtest ( 1 ) /= 0 ) CALL copy_test ( globenv )
 !
-  IF ( runtest ( 2 ) == 1 ) CALL matmul_test ( globenv )
+  IF ( runtest ( 2 ) /= 0 ) CALL matmul_test ( globenv )
 !
-  IF ( runtest ( 3 ) == 1 ) CALL fft_test ( globenv )
+  IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( globenv )
 
 END SUBROUTINE lib_test
 
+!!*****
+!******************************************************************************
+!!****** library_tests/test_input [1.0] *
+!!
+!!   NAME
+!!     test_input
+!!
+!!   FUNCTION
+!!     Reads input section &TEST ... &END
+!!
+!!   AUTHOR
+!!     JGH 30-NOV-2000
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!I---------------------------------------------------------------------------I
+!!I SECTION: &TEST ... &END                                                   I
+!!I                                                                           I
+!!I    MEMORY   max_memory                                                    I
+!!I    COPY     n                                                             I
+!!I    MATMUL   n                                                             I
+!!I    FFT      n                                                             I
+!!I                                                                           I
+!!I---------------------------------------------------------------------------I
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE test_input ( globenv )
+
+  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+
+  INTEGER :: iw, ierror, ilen
+  CHARACTER ( LEN = 20 ) :: string
+  CHARACTER ( LEN = 5 ) :: label
+!
+  iw = globenv % scr
+!..defaults
+  runtest = 0
+  max_memory = 256.e6_dbl
+!..parse the input section
+  label = '&TEST'
+  CALL parser_init ( globenv % input_file_name, label, ierror, globenv )
+  IF (ierror /= 0 ) THEN
+     IF( globenv % ionode ) &
+        WRITE ( iw, '( a )' ) ' No input section &TEST found '
+  ELSE
+     CALL read_line
+     DO WHILE ( test_next() /= 'X' )
+        ilen = 6
+        CALL cfield ( string, ilen )
+        CALL uppercase ( string )
+
+        SELECT CASE ( string )
+        CASE DEFAULT
+           CALL p_error()
+           CALL stop_parser ( 'test_input', 'unknown option' )
+        CASE ( 'MEMORY' )
+           max_memory = get_real ()
+        CASE ( 'COPY' )
+           runtest ( 1 ) = get_int ()
+        CASE ( 'MATMUL' )
+           runtest ( 2 ) = get_int ()
+        CASE ( 'FFT' )
+           runtest ( 3 ) = get_int ()
+        END SELECT
+        CALL read_line
+     END DO
+
+  END IF
+  CALL parser_end
+!..end of parsing the input section
+
+END SUBROUTINE test_input
+
+!!*****
+!******************************************************************************
+!!****** library_tests/copy_test [1.0] *
+!!
+!!   NAME
+!!     copy_test
+!!
+!!   FUNCTION
+!!     Tests the performance to copy two vectors.
+!!
+!!   AUTHOR
+!!     JGH  6-NOV-2000
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!     The results of these tests allow to determine the size of the cache
+!!     of the CPU. This can be used to optimize the performance of the 
+!!     FFTSG library.
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE copy_test ( globenv )
@@ -57,14 +191,16 @@ SUBROUTINE copy_test ( globenv )
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 
   REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: ca, cb
-  INTEGER :: len, ntim, iw, ierr, i, j
+  INTEGER :: len, ntim, iw, ierr, i, j, siz
   REAL ( dbl ) :: perf, tstart, tend, t
 
 ! test for copy --> Cache size
+  siz = ABS ( runtest ( 1 ) )
   iw = globenv % scr
   IF ( globenv % ionode ) WRITE ( iw, '(//,A,/)' ) " Test of copy ( F95 ) "
   DO i = 6, 24
     len = 2**i
+    IF ( 8._dbl * REAL ( len, dbl ) > max_memory * 0.5_dbl ) EXIT
     ALLOCATE ( ca ( len ), STAT = ierr )
     IF ( ierr /= 0 ) EXIT
     ALLOCATE ( cb ( len ), STAT = ierr )
@@ -73,7 +209,7 @@ SUBROUTINE copy_test ( globenv )
     CALL random_number ( ca )
     ntim = NINT ( 1.e7_dbl / REAL ( len, dbl ) )
     ntim = MAX ( ntim, 1 )
-    ntim = MIN ( ntim, 50000 )
+    ntim = MIN ( ntim, siz * 10000 )
 
     tstart = m_cputime ( )
     DO j = 1, ntim
@@ -97,6 +233,24 @@ SUBROUTINE copy_test ( globenv )
 
 END SUBROUTINE copy_test
 
+!!*****
+!******************************************************************************
+!!****** library_tests/matmul_test [1.0] *
+!!
+!!   NAME
+!!     matmul_test
+!!
+!!   FUNCTION
+!!     Tests the performance of different kinds of matrix matrix multiply
+!!     kernels for the BLAS and F95 intrinsic matmul.
+!!
+!!   AUTHOR
+!!     JGH  6-NOV-2000
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE matmul_test ( globenv )
@@ -104,14 +258,16 @@ SUBROUTINE matmul_test ( globenv )
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: ma, mb, mc
-  INTEGER :: len, ntim, iw, ierr, i, j
+  INTEGER :: len, ntim, iw, ierr, i, j, siz
   REAL ( dbl ) :: perf, tstart, tend, t
 
 ! test for matrix multpies
+  siz = ABS ( runtest ( 2 ) )
   iw = globenv % scr
   IF ( globenv % ionode ) WRITE ( iw, '(//,A,/)' ) " Test of matmul ( F95 ) "
   DO i = 4, 10, 2
     len = 2**i + 1
+    IF ( 8._dbl * REAL ( len*len, dbl ) > max_memory * 0.3_dbl ) EXIT
     ALLOCATE ( ma ( len, len ), STAT = ierr )
     IF ( ierr /= 0 ) EXIT
     ALLOCATE ( mb ( len, len ), STAT = ierr )
@@ -123,7 +279,7 @@ SUBROUTINE matmul_test ( globenv )
     CALL random_number ( mb )
     ntim = NINT ( 1.e8_dbl / ( 2._dbl * REAL ( len, dbl )**3 ) )
     ntim = MAX ( ntim, 1 )
-    ntim = MIN ( ntim, 1000 )
+    ntim = MIN ( ntim, siz * 200 )
 
     tstart = m_cputime ( )
     DO j = 1, ntim
@@ -193,6 +349,7 @@ SUBROUTINE matmul_test ( globenv )
   IF ( globenv % ionode ) WRITE ( iw, '(//,A,/)' ) " Test of matmul ( BLAS ) "
   DO i = 4, 10, 2
     len = 2**i + 1
+    IF ( 8._dbl * REAL ( len*len, dbl ) > max_memory * 0.3_dbl ) EXIT
     ALLOCATE ( ma ( len, len ), STAT = ierr )
     IF ( ierr /= 0 ) EXIT
     ALLOCATE ( mb ( len, len ), STAT = ierr )
@@ -269,6 +426,23 @@ SUBROUTINE matmul_test ( globenv )
 
 END SUBROUTINE matmul_test
 
+!!*****
+!******************************************************************************
+!!****** library_tests/fft_test [1.0] *
+!!
+!!   NAME
+!!     fft_test
+!!
+!!   FUNCTION
+!!     Tests the performance of all available FFT libraries for 3D FFTs
+!!
+!!   AUTHOR
+!!     JGH  6-NOV-2000
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE fft_test ( globenv )
@@ -280,13 +454,14 @@ SUBROUTINE fft_test ( globenv )
   COMPLEX ( dbl ), DIMENSION ( 4, 4, 4 ) :: zz
   INTEGER :: len, ntim, iw, ierr, i, j, it, n(3), iall
   REAL ( dbl ) :: perf, tstart, tend, t, flops, scale
-  INTEGER :: radix_in, radix_out, stat
-  INTEGER :: ndate ( 3 ) = (/ 12, 48, 128 /)
-  CHARACTER ( LEN = 6 ) :: method
+  INTEGER :: radix_in, radix_out, stat, siz
+  INTEGER :: ndate ( 3 ) = (/ 12, 48, 96 /)
+  CHARACTER ( LEN = 7 ) :: method
 
 ! test for 3d FFT
   iw = globenv % scr
   IF ( globenv % ionode ) WRITE ( iw, '(//,A,/)' ) " Test of 3D-FFT "
+  siz = ABS ( runtest ( 3 ) )
 
   DO iall = 1, 100 
     SELECT CASE ( iall )
@@ -294,10 +469,13 @@ SUBROUTINE fft_test ( globenv )
       EXIT
     CASE ( 1 )
       CALL init_fft ( "FFTSG" )
-      method = "FFTSG "
+      method = "FFTSG  "
     CASE ( 2 )
       CALL init_fft ( "FFTW" )
-      method = "FFTW  "
+      method = "FFTW   "
+    CASE ( 3 )
+      CALL init_fft ( "FFTESSL" )
+      method = "FFTESSL"
     END SELECT
     n = 4
     CALL fft3d ( 1, n, zz, status=stat )
@@ -307,6 +485,7 @@ SUBROUTINE fft_test ( globenv )
         CALL fft_radix_operations ( radix_in, radix_out, FFT_RADIX_CLOSEST )
         len = radix_out
         n = len
+        IF ( 16._dbl * REAL ( len*len*len, dbl ) > max_memory * 0.5_dbl ) EXIT
         ALLOCATE ( ra ( len, len, len ), STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ra", len*len*len )
         ALLOCATE ( ca ( len, len, len ), STAT = ierr )
@@ -316,9 +495,9 @@ SUBROUTINE fft_test ( globenv )
           CALL random_number ( ra )
           ca = ca + CMPLX ( 0._dbl, 1._dbl ) * ra
           flops = REAL ( len**3, dbl ) * 15._dbl * LOG ( REAL ( len, dbl ) )
-          ntim = NINT ( 5.e7_dbl / flops )
+          ntim = NINT ( siz * 1.e7_dbl / flops )
           ntim = MAX ( ntim, 1 )
-          ntim = MIN ( ntim, 1000 )
+          ntim = MIN ( ntim, 200 )
           scale = 1._dbl / REAL ( len**3, dbl )
           tstart = m_cputime ( )
           DO j = 1, ntim
@@ -345,6 +524,7 @@ SUBROUTINE fft_test ( globenv )
 
 END SUBROUTINE fft_test
 
+!!*****
 !******************************************************************************
 
 END MODULE library_tests

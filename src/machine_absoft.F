@@ -2,6 +2,23 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/machine_absoft [1.0] *
+!!
+!!   NAME
+!!     machine_absoft
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     APSI & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!!*****
+!******************************************************************************
+
 MODULE machine_absoft
   
   USE kinds, ONLY : dbl, sgl
@@ -9,6 +26,9 @@ MODULE machine_absoft
   PRIVATE
   PUBLIC :: m_walltime, m_cputime, m_datum
   PUBLIC :: m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg
+
+!!*****
+!******************************************************************************
 
 CONTAINS
 

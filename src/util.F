@@ -2,6 +2,22 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/util [1.0] *
+!!
+!!   NAME
+!!     util
+!!
+!!   FUNCTION
+!!     All kind of helpfull little routines
+!!
+!!   AUTHOR
+!!     CJM & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE util
 
@@ -18,6 +34,8 @@ MODULE util
   INTERFACE sort
      MODULE PROCEDURE sort2, sort2i
   END INTERFACE
+
+!******************************************************************************
   
 CONTAINS
 
@@ -639,3 +657,6 @@ END FUNCTION matmul_3x3
 !******************************************************************************
 
 END MODULE util
+
+!******************************************************************************
+!!*****

@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations          !
 !   Copyright (C) 2000  CP2K developers group                                  !
 !------------------------------------------------------------------------------!
+!!****** cp2k/band [1.0] *
+!!
+!!   NAME
+!!     band
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 ! 
     MODULE band
 ! 
@@ -28,11 +43,28 @@
       REAL (dbl), PARAMETER :: precpar = 1.E-10_dbl, &
         delta = 1.E-6_dbl/27.212_dbl
       REAL (dbl), PARAMETER :: toll = 1.E-13_dbl
+!!*****
 !------------------------------------------------------------------------------!
 !
     CONTAINS
 !
 !------------------------------------------------------------------------------!
+!!****** band/init_band_structure [1.0] *
+!!
+!!   NAME
+!!     init_band_structure
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
       SUBROUTINE init_band_structure(bs,fd,kp)
         IMPLICIT NONE
         TYPE (band_structure_type), INTENT (INOUT) :: bs
@@ -58,7 +90,23 @@
           'bs%oc',ns*nk*nspin)
 
       END SUBROUTINE init_band_structure
+!!*****
 !------------------------------------------------------------------------------!
+!!****** band/band_structure_info [1.0] *
+!!
+!!   NAME
+!!     band_structure_info
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
       SUBROUTINE band_structure_info(bs,punit)
         IMPLICIT NONE
         TYPE (band_structure_type), INTENT (IN) :: bs
@@ -127,6 +175,7 @@
         WRITE (punit,'(1x,79("-"),/)')
 
       END SUBROUTINE band_structure_info
+!!*****
 !------------------------------------------------------------------------------!
       SUBROUTINE adjust_mu(bs)
 !

@@ -2,10 +2,23 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!! This module defines the grid data type and some basic operations on it
-!! 
-!!@Author apsi
-!!@Author Christopher Mundy
+!!****** cp2k/pw_grids [1.0] *
+!!
+!!   NAME
+!!     pw_grids
+!!
+!!   FUNCTION
+!!     This module defines the grid data type and some basic operations on it
+!!
+!!   AUTHOR
+!!     apsi
+!!     Christopher Mundy
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE pw_grids
   
@@ -21,6 +34,9 @@ MODULE pw_grids
   PRIVATE
   PUBLIC :: pw_grid_setup, pw_grid_change, pw_find_cutoff
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
 !******************************************************************************

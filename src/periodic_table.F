@@ -2,8 +2,22 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-
-!! Periodic Table related data definitions
+!!****** cp2k/periodic_table [1.0] *
+!!
+!!   NAME
+!!     periodic_table
+!!
+!!   FUNCTION
+!!     Periodic Table related data definitions
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE periodic_table
 
@@ -30,8 +44,27 @@ MODULE periodic_table
   INTEGER, PARAMETER :: nelem = 106
   TYPE ( atom ) :: ptable ( 0:nelem )
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
+!******************************************************************************
+!!****** periodic_table/init_periodic_table [1.0] *
+!!
+!!   NAME
+!!     init_periodic_table
+!!
+!!   FUNCTION
+!!     Initialization of Periodic Table related data
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE init_periodic_table()
@@ -1227,6 +1260,9 @@ SUBROUTINE init_periodic_table()
   
 END SUBROUTINE init_periodic_table
 
+!!*****
 !******************************************************************************
 
 END MODULE periodic_table
+ 
+!******************************************************************************

@@ -2,8 +2,26 @@
 !   CP2K: A general program to perform molecular dynamics simulations          !
 !   Copyright (C) 2000  CP2K developers group                                  !
 !------------------------------------------------------------------------------!
-! invmat uses lapack routines --> should be handled by a more general f95
-! interface
+!!****** cp2k/k290 [1.0] *
+!!
+!!   NAME
+!!     k290
+!!
+!!   FUNCTION
+!!     K-points and symmetry routines
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!     invmat uses lapack routines --> should be handled by a more general f95
+!!     interface
+!!
+!!   SOURCE
+!******************************************************************************
 ! 
     MODULE k290
 ! 
@@ -27,6 +45,8 @@
       REAL (dbl) :: a1(3), a2(3), a3(3), alat
       REAL (dbl) :: strain(3,3) = 0._dbl, wvk0(3) = 0._dbl
       REAL (dbl) :: delta = 1.E-6_dbl
+
+!!*****
 !------------------------------------------------------------------------------!
 !
     CONTAINS

@@ -2,6 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/cntl_input [1.0] *
+!!
+!!   NAME
+!!     cntl_input
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE cntl_input
   
@@ -16,22 +30,41 @@ MODULE cntl_input
   PRIVATE
   PUBLIC :: read_cntl_section
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
-!!>---------------------------------------------------------------------------!
-!!  SECTION: &cntl ... &end                                                   !
-!!                                                                            !
-!!  simulation       [md,debug]                                               !
-!!  printlevel       globenv%print_level                                      !
-!!  units            [kelvin,atomic]                                          !
-!!  periodic         [0,1][0,1][0,1]                                          !
-!!  Ewald_type       [pme_gauss,ewald_gauss]                                  !
-!!  Ewald_param      alpha,[gmax,ns_max,epsilon]                              !
-!!  set_file         "filename"                                               !
-!!  input_file       "filename"                                               !
-!!  symmetry         [on,off]
-!!                                                                            !
-!!<---------------------------------------------------------------------------!
+!******************************************************************************
+!!****** cntl_input/read_cntl_section [1.0] *
+!!
+!!   NAME
+!!     read_cntl_section
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   INPUTS
+!!I---------------------------------------------------------------------------I
+!!I SECTION: &cntl ... &end                                                   I
+!!I                                                                           I
+!!I simulation       [md,debug]                                               I
+!!I printlevel       globenv%print_level                                      I
+!!I units            [kelvin,atomic]                                          I
+!!I periodic         [0,1][0,1][0,1]                                          I
+!!I Ewald_type       [pme_gauss,ewald_gauss]                                  I
+!!I Ewald_param      alpha,[gmax,ns_max,epsilon]                              I
+!!I set_file         "filename"                                               I
+!!I input_file       "filename"                                               I
+!!I symmetry         [on,off]                                                 I
+!!I                                                                           I
+!!I---------------------------------------------------------------------------I
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE read_cntl_section ( setup, ewald_param, globenv )
   
@@ -173,6 +206,9 @@ SUBROUTINE read_cntl_section ( setup, ewald_param, globenv )
   
 END SUBROUTINE read_cntl_section
 
+!!*****
 !******************************************************************************
 
 END MODULE cntl_input
+
+!******************************************************************************

@@ -2,6 +2,22 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/timings [1.0] *
+!!
+!!   NAME
+!!     timings
+!!
+!!   FUNCTION
+!!     Timing routines for accounting
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE timings
   
@@ -38,8 +54,27 @@ MODULE timings
   INTEGER :: iod = 0
   LOGICAL :: trace = .false.
  
+!!*****
+!******************************************************************************
+
 CONTAINS
 
+!******************************************************************************
+!!****** timings/timeset [1.0] *
+!!
+!!   NAME
+!!     timeset
+!!
+!!   FUNCTION
+!!     Start timer 
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE timeset ( name, ct, pu, handle )
@@ -98,6 +133,23 @@ SUBROUTINE timeset ( name, ct, pu, handle )
   
 END SUBROUTINE timeset
 
+!!*****
+!******************************************************************************
+!!****** timings/timeset [1.0] *
+!!
+!!   NAME
+!!     timeset
+!!
+!!   FUNCTION
+!!     End timer 
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE timestop ( perf, handle )
@@ -141,6 +193,23 @@ SUBROUTINE timestop ( perf, handle )
   
 END SUBROUTINE timestop
 
+!!*****
+!******************************************************************************
+!!****** timings/timeprint [1.0] *
+!!
+!!   NAME
+!!     timeprint
+!!
+!!   FUNCTION
+!!     Print accumulated information on timers
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE timeprint ( iw, global_print_level )
@@ -225,6 +294,23 @@ SUBROUTINE timeprint ( iw, global_print_level )
   
 END SUBROUTINE timeprint
 
+!!*****
+!******************************************************************************
+!!****** timings/trace_debug [1.0] *
+!!
+!!   NAME
+!!     trace_debug
+!!
+!!   FUNCTION
+!!     Set routine tracer
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE trace_debug ( set, iw )
@@ -251,7 +337,25 @@ SUBROUTINE trace_debug ( set, iw )
 
 END SUBROUTINE trace_debug
 
+!!*****
 !******************************************************************************
+!!****** timings/print_stack [1.0] *
+!!
+!!   NAME
+!!     print_stack
+!!
+!!   FUNCTION
+!!     Print current routine stack
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
 SUBROUTINE print_stack ( iw )
 
   IMPLICIT NONE
@@ -271,6 +375,10 @@ SUBROUTINE print_stack ( iw )
   END DO
 
 END SUBROUTINE print_stack
+
+!!*****
 !******************************************************************************
 
 END MODULE timings
+
+!******************************************************************************

@@ -2,6 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/amoeba [1.0] *
+!!
+!!   NAME
+!!     amoeba, NUMERICAL RECIPIES SUBROUTINE AMOEBA ADAPTED FOR USE IN CP2K
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE amoeba
   
@@ -13,8 +27,24 @@ MODULE amoeba
   PRIVATE
   PUBLIC :: amoeba_evaluate
   
+!!*****
+
 CONTAINS
 
+!!****** amoeba/amoeba_evaluate [1.0] *
+!!
+!!   NAME
+!!     amoeba_evaluate
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 !-----------------------------------------------------------------------------!
 !   NUMERICAL RECIPIES SUBROUTINE AMOEBA ADAPTED FOR USE IN CP2K              !
 !-----------------------------------------------------------------------------!
@@ -115,6 +145,7 @@ CONTAINS
   
 END SUBROUTINE amoeba_evaluate
 
+!!*****
 !******************************************************************************
 
 END MODULE amoeba

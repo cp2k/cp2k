@@ -2,6 +2,22 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/force_control [1.0] *
+!!
+!!   NAME
+!!     force_control
+!!
+!!   FUNCTION
+!!     Interface routine for the force calculations
+!!
+!!   AUTHOR
+!!     CJM & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE force_control
 
@@ -18,9 +34,28 @@ MODULE force_control
   
   PRIVATE
   PUBLIC :: force
+
+!!*****
+!******************************************************************************
   
 CONTAINS
 
+!******************************************************************************
+!!****** force_control/force [1.0] *
+!!
+!!   NAME
+!!     force
+!!
+!!   FUNCTION
+!!     Interface routine for force calculations
+!!
+!!   AUTHOR
+!!     CJM & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     Harald Forbert (Dec-2000): Changes for multiple linked lists
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE force ( struc, inter, thermo, simpar, ewald_param, globenv )
@@ -44,17 +79,20 @@ SUBROUTINE force ( struc, inter, thermo, simpar, ewald_param, globenv )
   CASE ( 'FIST' )
      CALL fist_force_control ( struc % molecule, struc % pnode, struc % part, &
           struc % box, thermo, inter%potparm, ewald_param, simpar % ensemble, &
-          globenv )
+          globenv, struc%ll_data )
      
   CASE ( 'TBMD' )
      CALL tbmd_force_control ( struc % molecule, struc % pnode, struc % part, &
           struc % box, thermo, inter%potparm, ewald_param, simpar % ensemble, &
-          globenv )
+          globenv , struc%ll_data )
      
   END SELECT
   
 END SUBROUTINE force
 
+!!*****
 !******************************************************************************
 
 END MODULE force_control
+
+!******************************************************************************

@@ -2,7 +2,22 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!! Definition of mathematical constants and functions.
+!!****** cp2k/mathconstants [1.0] *
+!!
+!!   NAME
+!!     mathconstants
+!!
+!!   FUNCTION
+!!     Definition of mathematical constants and functions.
+!!
+!!   AUTHOR
+!!     Matthias Krack
+!!
+!!   MODIFICATION HISTORY
+!!     Adapted for use in CP2K (JGH)
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE mathconstants
   
@@ -32,8 +47,27 @@ MODULE mathconstants
   REAL ( dbl ), DIMENSION (0:maxfac) :: fac
   REAL ( dbl ), DIMENSION (-1:2*maxfac+1) :: dfac
 
+!!*****
+!******************************************************************************
+
 CONTAINS
 
+!******************************************************************************
+!!****** cp2k/init_mathcon [1.0] *
+!!
+!!   NAME
+!!     init_mathcon
+!!
+!!   FUNCTION
+!!     Definition of mathematical constants and functions.
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
   
 SUBROUTINE init_mathcon
@@ -66,6 +100,9 @@ SUBROUTINE init_mathcon
   
 END SUBROUTINE init_mathcon
 
+!!*****
 !******************************************************************************
 
 END MODULE mathconstants
+
+!******************************************************************************

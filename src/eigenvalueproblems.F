@@ -2,9 +2,24 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-
-!! We are using LAPACK interfaces, so please make sure in IBM/AIX you have
-!!    the lapack library before essl: "xlf90 ... -llapack -lessl" !!!
+!!****** cp2k/eigenvalueproblems [1.0] *
+!!
+!!   NAME
+!!     eigenvalueproblems
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!     We are using LAPACK interfaces, so please make sure in IBM/AIX you have
+!!     the lapack library before essl: "xlf90 ... -llapack -lessl" !!!
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE eigenvalueproblems
   
@@ -29,6 +44,9 @@ MODULE eigenvalueproblems
      MODULE PROCEDURE diagonalise_zhpgv
   END INTERFACE
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
 !******************************************************************************

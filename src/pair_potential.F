@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/pair_potential [1.0] *
+!!
+!!   NAME
+!!     pair_potential
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE pair_potential
   
@@ -54,6 +69,9 @@ MODULE pair_potential
   
 ! splines for interaction n
   TYPE ( spline_data ), DIMENSION ( : ), POINTER, SAVE :: spline_table
+
+!!*****
+!******************************************************************************
 
 CONTAINS
 

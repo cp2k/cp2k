@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/fist_intra_force [1.0] *
+!!
+!!   NAME
+!!     fist_intra_force
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE fist_intra_force
   
@@ -9,20 +24,38 @@ MODULE fist_intra_force
   USE mol_force, ONLY : force_bonds, force_bends, force_torsions, &
        get_pv_bond, get_pv_bend, get_pv_torsion
   USE molecule_types, ONLY : molecule_structure_type, linklist_bonds, &
-       linklist_bends
+       linklist_bends, linklist_torsions
   USE timings, ONLY : timeset, timestop
   
   IMPLICIT NONE
   
   PRIVATE
   PUBLIC :: force_intra_control
+
+!!*****
+!******************************************************************************
   
 CONTAINS
 
 !******************************************************************************
+!!****** fist_intra_force/force_intra_control [1.0] *
+!!
+!!   NAME
+!!     force_intra_control
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
-SUBROUTINE force_intra_control ( molecule, v_bond, v_bend, pvbond, pvbend, &
-          f_bond, f_bend )
+SUBROUTINE force_intra_control ( molecule, pot_bond, pot_bend, pot_torsion, &
+           pv_bond, pv_bend, pv_torsion, f_bond, f_bend, f_torsion )
   
 ! parses up intramolecular properties
   
@@ -30,17 +63,22 @@ SUBROUTINE force_intra_control ( molecule, v_bond, v_bend, pvbond, pvbend, &
   
 ! Arguments
   TYPE (molecule_structure_type ), DIMENSION ( : ), INTENT ( IN ) :: molecule
-  REAL ( dbl ), INTENT ( INOUT ) :: v_bond, v_bend
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( INOUT ) :: pvbond, pvbend
-  REAL ( dbl ), DIMENSION ( :, : ), OPTIONAL, INTENT ( OUT ) :: f_bond, f_bend
+  REAL ( dbl ), INTENT ( INOUT ) :: pot_bond, pot_bend, pot_torsion
+  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( INOUT ) :: &
+                pv_bond, pv_bend, pv_torsion
+  REAL ( dbl ), DIMENSION ( :, : ), OPTIONAL, INTENT ( OUT ) :: &
+                f_bond, f_bend, f_torsion
   
 ! Locals
-  REAL ( dbl ) :: d12, d32, id12, id32, dist, theta
+  REAL ( dbl ) :: d12, d32, id12, id32, s12, s32, is12, is32, &
+                  dist, dist1, dist2, w1, w2, iw1, iw2, theta
   REAL ( dbl ) :: energy, fscalar
-  REAL ( dbl ), DIMENSION (3) :: rij, b12, b32, g1, g2, g3
+  REAL ( dbl ), DIMENSION (3) :: rij, b12, b32, t12, t32, t43, &
+                                 u1, u2, g1, g2, g3, gt1, gt2, gt3, gt4
   TYPE (linklist_bonds), POINTER :: llbond
   TYPE (linklist_bends), POINTER :: llbend
-  INTEGER :: ibond, ibend, imol, handle
+  TYPE (linklist_torsions), POINTER :: lltorsion
+  INTEGER :: ibond, ibend, itorsion, imol, handle
   
 !------------------------------------------------------------------------------
 
@@ -48,24 +86,27 @@ SUBROUTINE force_intra_control ( molecule, v_bond, v_bend, pvbond, pvbend, &
   
   IF ( PRESENT ( f_bond)) f_bond = 0._dbl
   IF ( PRESENT ( f_bend)) f_bend = 0._dbl
-  v_bond =  0._dbl
-  v_bend =  0._dbl
+  IF ( PRESENT ( f_torsion)) f_torsion = 0._dbl
+  pot_bond =  0._dbl
+  pot_bend =  0._dbl
+  pot_torsion =  0._dbl
   
   MOL: DO imol = 1, size(molecule)
      llbond => molecule(imol) %ll_bonds
      llbend => molecule(imol) %ll_bends
+     lltorsion => molecule(imol) %ll_torsions
      
      BOND: DO ibond = 1, molecule(imol) %nbonds_mol
         rij = llbond%p1%r - llbond%p2%r
         CALL force_bonds(rij,llbond%bond_param%r0,llbond%bond_param%k, &
              energy,fscalar)
-        v_bond = v_bond + energy
+        pot_bond = pot_bond + energy
         llbond%p1%f = llbond%p1%f - rij*fscalar
         llbond%p2%f = llbond%p2%f + rij*fscalar
         
 ! computing the pressure tensor
         CALL get_pv_bond ( -rij * fscalar, rij * fscalar, &
-             llbond%p1%r, llbond%p2%r, pvbond )
+             llbond%p1%r, llbond%p2%r, pv_bond )
         
 ! the contribution from the bonds. ONLY FOR DEBUG
         IF ( PRESENT ( f_bond)) THEN
@@ -90,14 +131,14 @@ SUBROUTINE force_intra_control ( molecule, v_bond, v_bend, pvbond, pvbend, &
         CALL force_bends(b12,b32,d12,d32,id12,id32,dist,theta, &
              llbend%bend_param%theta0,llbend%bend_param%k,g1,g2,g3,energy, &
              fscalar)
-        v_bend = v_bend + energy
+        pot_bend = pot_bend + energy
         llbend%p1%f = llbend%p1%f + fscalar*g1
         llbend%p2%f = llbend%p2%f + fscalar*g2
         llbend%p3%f = llbend%p3%f + fscalar*g3
         
 ! computing the pressure tensor
         CALL get_pv_bend(fscalar*g1,fscalar*g2,fscalar*g3,llbend%p1%r, &
-             llbend%p2%r,llbend%p3%r,pvbend)
+             llbend%p2%r,llbend%p3%r,pv_bend)
         
 ! the contribution from the bends. ONLY FOR DEBUG
         IF ( PRESENT ( f_bend)) THEN
@@ -112,12 +153,58 @@ SUBROUTINE force_intra_control ( molecule, v_bond, v_bend, pvbond, pvbend, &
         llbend => llbend%next
      END DO BEND
      
+     TORSION: DO itorsion = 1, molecule(imol) %ntorsions_mol
+        t12 = lltorsion%p1%r - lltorsion%p2%r
+        t32 = lltorsion%p3%r - lltorsion%p2%r
+        t43 = lltorsion%p4%r - lltorsion%p3%r
+        s12 = sqrt(dot_product(t12,t12))
+        is12 = 1._dbl/s12
+        s32 = sqrt(dot_product(t32,t32))
+        is32 = 1._dbl/s32
+        dist1 = dot_product(t12,t32)
+        dist2 = dot_product(t43,t32)
+        u1 = t12 - dist1*t32*is32**2
+        u2 = t43 - dist2*t32*is32**2
+        w1 = sqrt(dot_product(u1,u1))
+        w2 = sqrt(dot_product(u2,u2))
+        iw1 = 1._dbl/w1
+        iw2 = 1._dbl/w2
+        CALL force_torsions(is32,dist1,dist2,u1,u2,iw1,iw2, &
+             lltorsion%torsion_param%a,gt1,gt2,gt3,gt4,energy,fscalar)
+        pot_torsion = pot_torsion + energy
+        lltorsion%p1%f = lltorsion%p1%f + fscalar*gt1
+        lltorsion%p2%f = lltorsion%p2%f + fscalar*gt2
+        lltorsion%p3%f = lltorsion%p3%f + fscalar*gt3
+        lltorsion%p4%f = lltorsion%p4%f + fscalar*gt4
+        
+! computing the pressure tensor
+        CALL get_pv_torsion(fscalar*gt1,fscalar*gt2,fscalar*gt3,fscalar*gt4, &
+             lltorsion%p1%r,lltorsion%p2%r,lltorsion%p3%r,lltorsion%p4%r,pv_torsion)
+        
+! the contribution from the torsions. ONLY FOR DEBUG
+        IF ( PRESENT ( f_torsion)) THEN
+           f_torsion(:,lltorsion%index(1)) = f_torsion(:,lltorsion%index(1)) + &
+                fscalar*gt1
+           f_torsion(:,lltorsion%index(2)) = f_torsion(:,lltorsion%index(2)) + &
+                fscalar*gt2
+           f_torsion(:,lltorsion%index(3)) = f_torsion(:,lltorsion%index(3)) + &
+                fscalar*gt3
+           f_torsion(:,lltorsion%index(4)) = f_torsion(:,lltorsion%index(4)) + &
+                fscalar*gt3
+        END IF
+        
+        lltorsion => lltorsion%next
+     END DO TORSION
+     
   END DO MOL
 
   CALL timestop ( 0._dbl, handle )
   
 END SUBROUTINE force_intra_control
 
+!!*****
 !******************************************************************************
 
 END MODULE fist_intra_force
+
+!******************************************************************************

@@ -2,6 +2,22 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/linklists [1.0] *
+!!
+!!   NAME
+!!     linklists
+!!
+!!   FUNCTION
+!!     Generate linked lists for intramolecular dependencies
+!!
+!!   AUTHOR
+!!     CJM & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE linklists
 
@@ -22,9 +38,28 @@ MODULE linklists
   PUBLIC :: bonds, bends, torsions, dist_constraints, g3x3_constraints
   
   LOGICAL :: bonds, bends, torsions, dist_constraints, g3x3_constraints
+
+!!*****
+!******************************************************************************
   
 CONTAINS
 
+!******************************************************************************
+!!****** linklists/atom_link_list [1.0] *
+!!
+!!   NAME
+!!     atom_link_list
+!!
+!!   FUNCTION
+!!     Generate linked lists for intramolecular dependencies
+!!
+!!   AUTHOR
+!!     CJM & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE atom_link_list ( molecule, pnode )
@@ -61,6 +96,23 @@ SUBROUTINE atom_link_list ( molecule, pnode )
   
 END SUBROUTINE atom_link_list
 
+!!*****
+!******************************************************************************
+!!****** linklists/exclusion [1.0] *
+!!
+!!   NAME
+!!     exclusion
+!!
+!!   FUNCTION
+!!     Generate linked lists for intramolecular dependencies
+!!
+!!   AUTHOR
+!!     CJM & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     Debugged parallel code, (JGH) 25-Nov-2000
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE exclusion(molecule,pnode)
@@ -174,7 +226,7 @@ SUBROUTINE exclusion(molecule,pnode)
            END DO
            BENDIF: IF (match) THEN
               DO ii = 1, 3
-                 CALL checklist(pnode(jatom),match,jatom,bend(ii))
+                 CALL checklist(pnode(jnode),match,jatom,bend(ii))
                  IF ( .NOT. match) THEN
                     i = getnode(molecule,bend(ii))
                     current_excl%p => pnode(i) %p
@@ -366,6 +418,23 @@ FUNCTION getnode ( molecule, atom ) RESULT ( node )
   
 END FUNCTION getnode
 
+!!*****
+!******************************************************************************
+!!****** linklists/bond_link_list [1.0] *
+!!
+!!   NAME
+!!     bond_link_list
+!!
+!!   FUNCTION
+!!     Generate linked lists for intramolecular dependencies
+!!
+!!   AUTHOR
+!!     CJM & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE bond_link_list ( pnode, molecule, mol_setup, bond_parm )
@@ -425,6 +494,23 @@ SUBROUTINE bond_link_list ( pnode, molecule, mol_setup, bond_parm )
   
 END SUBROUTINE bond_link_list
 
+!!*****
+!******************************************************************************
+!!****** linklists/bend_link_list [1.0] *
+!!
+!!   NAME
+!!     bend_link_list
+!!
+!!   FUNCTION
+!!     Generate linked lists for intramolecular dependencies
+!!
+!!   AUTHOR
+!!     CJM & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE bend_link_list ( pnode, molecule, mol_setup, bend_parm )
@@ -488,6 +574,23 @@ SUBROUTINE bend_link_list ( pnode, molecule, mol_setup, bend_parm )
   
 END SUBROUTINE bend_link_list
 
+!!*****
+!******************************************************************************
+!!****** linklists/torsion_link_list [1.0] *
+!!
+!!   NAME
+!!     torsion_link_list
+!!
+!!   FUNCTION
+!!     Generate linked lists for intramolecular dependencies
+!!
+!!   AUTHOR
+!!     CJM & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE torsion_link_list ( pnode, molecule, mol_setup, torsion_parm )
@@ -557,6 +660,23 @@ SUBROUTINE torsion_link_list ( pnode, molecule, mol_setup, torsion_parm )
   
 END SUBROUTINE torsion_link_list
 
+!!*****
+!******************************************************************************
+!!****** linklists/distconst_link_list [1.0] *
+!!
+!!   NAME
+!!     distconst_link_list
+!!
+!!   FUNCTION
+!!     Generate linked lists for intramolecular dependencies
+!!
+!!   AUTHOR
+!!     CJM & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE distconst_link_list ( pnode, molecule, mol_setup, &
@@ -621,6 +741,23 @@ SUBROUTINE distconst_link_list ( pnode, molecule, mol_setup, &
   
 END SUBROUTINE distconst_link_list
 
+!!*****
+!******************************************************************************
+!!****** linklists/g3x3_link_list [1.0] *
+!!
+!!   NAME
+!!     g3x3_link_list
+!!
+!!   FUNCTION
+!!     Generate linked lists for intramolecular dependencies
+!!
+!!   AUTHOR
+!!     CJM & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE g3x3_link_list ( pnode, molecule, mol_setup, constraint_distance )
@@ -688,6 +825,9 @@ SUBROUTINE g3x3_link_list ( pnode, molecule, mol_setup, constraint_distance )
   
 END SUBROUTINE g3x3_link_list
 
+!!*****
 !******************************************************************************
 
 END MODULE linklists
+
+!******************************************************************************

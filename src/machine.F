@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/machine [1.0] *
+!!
+!!   NAME
+!!     machine
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     APSI & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE machine
 
@@ -44,3 +59,5 @@ MODULE machine
 !
 
 END MODULE machine
+
+!!*****

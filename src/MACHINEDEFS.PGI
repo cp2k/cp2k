@@ -8,7 +8,7 @@ FCfixed	= pgf90 -Mfixed
 LDR	= pgf90
 AR	= ar -r
 
-CDEFS	= -D__PGI -D__FFTW
+CDEFS	= -D__PGI -D__FFTW -D__FFTSG
 
 DEBUG	= -g -C
 OPT	= -O2 -fast

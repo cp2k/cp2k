@@ -20,6 +20,6 @@ clean:
 	rm -f *.o *.mod
 
 realclean:
-	rm -f *.a *.o *.mod *~ F*.f *.lst
+	rm -f $(LIB) *.o *.mod *~ F*.f *.lst
 
 ####################

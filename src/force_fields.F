@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/force_fields [1.0] *
+!!
+!!   NAME
+!!     force_fields
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE force_fields
   
@@ -32,6 +47,9 @@ MODULE force_fields
   
   INTEGER :: scr
   TYPE ( global_environment_type ) :: globenv
+
+!!*****
+!******************************************************************************
   
 CONTAINS
 
@@ -297,8 +315,8 @@ SUBROUTINE input_nonbonded ( potparm, atom_names, set_fn )
         DO i1 = 1, natom_types
            DO i2 = i1, natom_types
               IF (potparm(i1,i2)%type=='LENNARD-JONES') THEN
-                 WRITE ( iw, '( A,A,T35,A,T45,A,T58,A,T71,F10.4 )' ) &
-                      ' FORCE FIELD| ', 'Lennard-Jones(12-6)', &
+                 WRITE ( iw, '( A,A,T30,A,T37,A,T58,A,T71,F10.4 )' ) &
+                      ' FORCE FIELD| ', 'LJ (12-6)', &
                       adjustl(atom_names(i1)), adjustl(atom_names(i2)), &
                       ' epsilon [K]', potparm(i1,i2) %lj%epsilon
                  WRITE ( iw, '( A,T58,A,T71,F10.4 )' ) ' FORCE FIELD| ', &
@@ -306,7 +324,7 @@ SUBROUTINE input_nonbonded ( potparm, atom_names, set_fn )
                  WRITE ( iw, '( A,T58,A,T71,F10.4 )' ) ' FORCE FIELD| ', &
                       '    rcut [A]', sqrt(potparm(i1,i2)%rcutsq)
               ELSE IF (potparm(i1,i2)%type=='WILLIAMS') THEN
-                 WRITE ( iw, '( A,A,T30,A,T40,A,T55,A,T68,E13.4 )' ) &
+                 WRITE ( iw, '( A,A,T30,A,T37,A,T55,A,T68,E13.4 )' ) &
                       ' FORCE FIELD| ', 'Williams', adjustl(atom_names(i1)), &
                       adjustl(atom_names(i2)), 'A[K]', potparm(i1,i2) %willis%a
                  WRITE ( iw, '( A,T47,A,T71,F10.4 )' ) ' FORCE FIELD| ', &
@@ -316,7 +334,7 @@ SUBROUTINE input_nonbonded ( potparm, atom_names, set_fn )
                  WRITE ( iw, '( A,T47,A,T71,F10.4 )' ) ' FORCE FIELD| ', &
                       '    rcut [A]', sqrt(potparm(i1,i2)%rcutsq)
               ELSE IF (potparm(i1,i2)%type=='GOODWIN') THEN
-                 WRITE ( iw, '( A,A,T30,A,T40,A,T55,A,T68,E13.4 )' ) &
+                 WRITE ( iw, '( A,A,T30,A,T37,A,T55,A,T68,E13.4 )' ) &
                       ' FORCE FIELD| ', 'Goodwin', adjustl(atom_names(i1)), &
                       adjustl(atom_names(i2)), 'Ve0[eV]', &
                       potparm(i1,i2) %goodwin%vr0
@@ -404,6 +422,7 @@ SUBROUTINE input_bonds(bond_parm,atom_names,set_fn)
               CALL read_line
               ilen = 0
               CALL cfield(string2,ilen)
+              CALL uppercase(string2)
               SELECT CASE (string2)
               CASE DEFAULT
                  CALL p_error()
@@ -443,12 +462,12 @@ SUBROUTINE input_bonds(bond_parm,atom_names,set_fn)
         DO i1 = 1, natom_types
            DO i2 = i1, natom_types
               IF (index(bond_parm(i1,i2)%type,'HARMONIC') /= 0 ) THEN
-                 WRITE ( iw, '( A, A, T30, A, T40, A, T57, F10.4, F14.2 )' ) &
-                      ' FIST| ', ADJUSTL ( bond_parm ( i1, i2 ) % type ), &
-                      ADJUSTL ( atom_names ( i1 ) ), &
-                      ADJUSTL ( atom_names ( i2 ) ), &
-                      bond_parm ( i1, i2 ) % r0, &
-                      bond_parm ( i1, i2 ) % k
+                 WRITE ( iw, '( A, T30, A, T37, A, T58, A, T71, F10.2 )' ) &
+                      ' FORCE FIELD| harmonic', &
+                      ADJUSTL ( atom_names ( i1 ) ), ADJUSTL ( atom_names ( i2 ) ), &
+                      '      r0 [A]', bond_parm ( i1, i2 ) % r0
+                 WRITE ( iw, '( A, T58, A, T71, F10.2 )' ) ' FORCE FIELD| ', &
+                      ' k [K*A^-2)]', bond_parm ( i1, i2 ) % k
               END IF
            END DO
         END DO
@@ -495,11 +514,11 @@ SUBROUTINE input_bends ( bend_parm, atom_names, set_fn )
   
   natom_types=SIZE(atom_names)
   nb = 0
+  torad = pi / 180.0_dbl
+  todeg = 180.0_dbl/pi
   ALLOCATE (bend_parm(natom_types,natom_types,natom_types),STAT=ios)
   IF ( ios /= 0 ) CALL stop_memory ( 'input_bends', &
        'bend_parm', natom_types ** 3 )
-  torad = pi / 180.0_dbl
-  todeg = 180.0_dbl/pi
   bend_parm(:,:,:) %type = 'null'
   bend_parm(:,:,:) %theta0 = 0._dbl
   bend_parm(:,:,:) %k = 0._dbl
@@ -525,6 +544,7 @@ SUBROUTINE input_bends ( bend_parm, atom_names, set_fn )
               CALL read_line
               ilen = 0
               CALL cfield(string2,ilen)
+              CALL uppercase(string2)
               SELECT CASE (string2)
               CASE DEFAULT
                  CALL p_error()
@@ -544,7 +564,7 @@ SUBROUTINE input_bends ( bend_parm, atom_names, set_fn )
                  i2 = str_search(atom_names,natom_types,at2)
                  IF (i2==0) CALL stop_parser( 'input_bends','atom not found')
                  i3 = str_search(atom_names,natom_types,at3)
-                 IF (i2==0) CALL stop_parser( 'input_bends','atom not found')
+                 IF (i3==0) CALL stop_parser( 'input_bends','atom not found')
                  bend_parm(i1,i2,i3) %type = string2
                  bend_parm(i1,i2,i3) %theta0 = bp1*torad
                  bend_parm(i1,i2,i3) %k = bp2
@@ -569,11 +589,12 @@ SUBROUTINE input_bends ( bend_parm, atom_names, set_fn )
            DO i2 = 1, natom_types
               DO i3 = i1, natom_types
                  IF (index(bend_parm(i1,i2,i3)%type,'HARMONIC') /= 0 ) THEN
-                    WRITE ( iw, '( A,A,T20,A,T30,A,T40,A,T57,F10.4,F14.2 )' ) &
-                         ' FIST| ', adjustl(bend_parm(i1,i2,i3)%type ), &
-                         adjustl(atom_names(i1)), adjustl(atom_names(i2)), &
-                         adjustl(atom_names(i3)), bend_parm(i1,i2,i3) %theta0* &
-                         todeg, bend_parm(i1,i2,i3) %k
+                    WRITE ( iw, '( A,T30,A,T37,A,T44,A,T58,A,T71,F10.2 )' ) &
+                         ' FORCE FIELD| harmonic', &
+                         adjustl(atom_names(i1)), adjustl(atom_names(i2)), adjustl(atom_names(i3)), & 
+                         'theta0 [deg]', bend_parm(i1,i2,i3) %theta0*todeg
+                    WRITE ( iw, '( A,T58,A,T71,F10.2 )' ) ' FORCE FIELD| ', &
+                         '       k [K]', bend_parm(i1,i2,i3) %k
                  END IF
               END DO
            END DO
@@ -596,9 +617,9 @@ END SUBROUTINE input_bends
 !!>---------------------------------------------------------------------------!
 !!  SECTION: &force_field ... &end                                            !
 !!                                                                            !
-!!  torsion                                                                   !
-!!     power atom1 atom2 atom3 atom4 parm[]                                   !
-!!  end torsion                                                               !
+!!  torsions                                                                   !
+!!     jorgensen atom1 atom2 atom3 atom4 tp[1-4]                                   !
+!!  end torsions                                                               !
 !!                                                                            !
 !!<---------------------------------------------------------------------------!
 SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
@@ -611,17 +632,15 @@ SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
   CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
   
 ! Locals
-  REAL ( dbl ) :: parm(0:6), torad, todeg
   INTEGER :: i, i1, i2, i3, i4, ierror, ilen, ios
   INTEGER :: nb, iw, allgrp, source, natom_types
   CHARACTER ( LEN = 20 ) :: type, at1, at2, at3, at4
   CHARACTER ( LEN = 40 ) :: string, string2
   CHARACTER ( LEN = 12 ) :: label
+  REAL ( dbl ), DIMENSION (0:3) :: tp
   
 !------------------------------------------------------------------------------
   
-  torad = pi/180._dbl
-  todeg = 180._dbl/pi
   natom_types=SIZE(atom_names)
   nb = 0
   ALLOCATE ( &
@@ -630,8 +649,8 @@ SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
   IF ( ios /= 0 ) CALL stop_memory ( 'input_torsions', &
        'torsion_parm', natom_types ** 4 )
   torsion_parm ( :, :, :, : ) % type = 'null'
-  DO i = 0, SIZE ( torsion_parm(1,1,1,1) % parm ) - 1
-     torsion_parm(:,:,:,:) %parm(i) = 0._dbl
+  DO i = 0, SIZE ( torsion_parm(1,1,1,1) % a ) - 1
+     torsion_parm(:,:,:,:) %a(i) = 0._dbl
   END DO
   
   iw = scr
@@ -650,19 +669,20 @@ SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
   ELSE
      CALL read_line
      DO WHILE (test_next()/='X')
-        ilen = 7
+        ilen = 8
         CALL cfield(string,ilen)
         CALL uppercase ( string )
-        IF (index(string,'TORSION') /= 0 ) THEN
+        IF (index(string,'TORSIONS') /= 0 ) THEN
            DO
               CALL read_line
               ilen = 0
               CALL cfield(string2,ilen)
+              CALL uppercase(string2)
               SELECT CASE (string2)
               CASE DEFAULT
                  CALL p_error()
                  CALL stop_parser( 'input_torsion','unknown option')
-              CASE ( 'POWER')
+              CASE ( 'JORGENSEN')
                  nb = nb + 1
                  ilen = 0
                  CALL cfield(at1,ilen)
@@ -672,8 +692,8 @@ SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
                  CALL cfield(at3,ilen)
                  ilen = 0
                  CALL cfield(at4,ilen)
-                 DO i = 1, size(parm)
-                    parm(i) = get_real()
+                 DO i = 0, SIZE(tp) - 1
+                    tp(i) = get_real()
                  END DO
                  i1 = str_search(atom_names,natom_types,at1)
                  IF (i1==0) CALL stop_parser( 'input_torsions', &
@@ -687,8 +707,10 @@ SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
                  i4 = str_search(atom_names,natom_types,at4)
                  IF (i4==0) CALL stop_parser( 'input_torsions', &
                       'atom not found')
-                 torsion_parm(i1,i2,i3,i4) %type = type
-                 torsion_parm(i1,i2,i3,i4) %parm = parm
+                 torsion_parm(i1,i2,i3,i4) %type = string2
+                 DO i = 1, SIZE(tp) - 1
+                 torsion_parm(i1,i2,i3,i4) %a(i) = tp(i)
+                 END DO
                  torsion_parm(i4,i3,i2,i1) = torsion_parm(i1,i2,i3,i4)
               CASE ( 'END')
                  ilen = 0
@@ -706,22 +728,26 @@ SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
   IF ( globenv % ionode ) THEN
      IF ( globenv % print_level >= 0 .AND. nb > 0 ) THEN
         WRITE ( iw, '( A )' ) &
-             ' FORCE FIELD| Torsion inatom_typeseraction parameters'
+             ' FORCE FIELD| Torsion interaction parameters'
         DO i1 = 1, natom_types
            DO i2 = 1, natom_types
               DO i3 = i2, natom_types
                  DO i4 = i1, natom_types
                     IF ( index ( torsion_parm(i1,i2,i3,i4) % type, &
-                         'POWER' ) == 0 ) THEN
-                       WRITE ( iw, &
-                            '( 2A, T20, A, T30, A, T40, A, T50, A, 7F10.4 )' )&
-                            ' FIST| ', &
-                            ADJUSTL ( torsion_parm ( i1,i2,i3,i4 ) % type ), &
+                         'JORGENSEN' ) /= 0 ) THEN
+                       WRITE ( iw, '( A, T30, A, T37, A, T44, A, T51, A, T58, A, T71, F10.2 )' ) &
+                            ' FORCE FIELD| Jorgensen', &
                             ADJUSTL ( atom_names(i1)), &
                             ADJUSTL ( atom_names(i2)), &
                             ADJUSTL ( atom_names(i3)), &
                             ADJUSTL ( atom_names(i4)), &
-                            torsion_parm ( i1, i2, i3, i4 ) % parm
+                            '      a0 [K]', torsion_parm ( i1, i2, i3, i4 ) % a(0)
+                       WRITE ( iw, '( A, T58, A, T71, F10.2 )' ) ' FORCE FIELD| ', &
+                            '      a1 [K]', torsion_parm ( i1, i2, i3, i4 ) % a(1)
+                       WRITE ( iw, '( A, T58, A, T71, F10.2 )' ) ' FORCE FIELD| ', &
+                            '      a2 [K]', torsion_parm ( i1, i2, i3, i4 ) % a(2)
+                       WRITE ( iw, '( A, T58, A, T71, F10.2 )' ) ' FORCE FIELD| ', &
+                            '      a3 [K]', torsion_parm ( i1, i2, i3, i4 ) % a(3)
                     END IF
                  END DO
               END DO
@@ -828,7 +854,7 @@ SUBROUTINE input_distance_constraints ( constraint_distance, atom_names, &
         DO i1 = 1, natom_types
            DO i2 = i1, natom_types
               IF ( constraint_distance ( i1, i2 ) /= 0.0_dbl ) THEN
-                 WRITE ( iw, '( A, T30, A, T40, A, T71, F10.4 )' ) &
+                 WRITE ( iw, '( A, T30, A, T37, A, T71, F10.4 )' ) &
                       ' FORCE FIELD| Constraint: ', &
                       ADJUSTL ( atom_names ( i1 ) ), &
                       ADJUSTL ( atom_names ( i2 ) ), &

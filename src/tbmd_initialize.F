@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations          !
 !   Copyright (C) 2000  CP2K developers group                                  !
 !------------------------------------------------------------------------------!
+!!****** cp2k/tbmd_initialize [1.0] *
+!!
+!!   NAME
+!!     tbmd_initialize
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 ! 
     MODULE tbmd_initialize
 ! 
@@ -16,11 +31,28 @@
       PRIVATE
       PUBLIC :: tbmd_init, tb_get_numel, tb_get_basize
 ! 
+!!*****
 !------------------------------------------------------------------------------!
 !
     CONTAINS
 !
 !------------------------------------------------------------------------------!
+!!****** tbmd_initialize/tbmd_init [1.0] *
+!!
+!!   NAME
+!!     tbmd_init
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
       SUBROUTINE tbmd_init(part,tbatom,tbhop)
         IMPLICIT NONE
         TYPE (particle_type), INTENT (IN) :: part(:)
@@ -99,6 +131,7 @@
         END DO
 ! 
       END SUBROUTINE tbmd_init
+!!*****
 !------------------------------------------------------------------------------!
       FUNCTION tb_get_basize(tbatom) RESULT (basis_size)
         IMPLICIT NONE

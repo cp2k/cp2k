@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****s* cp2k/molecule_types [1.0] *
+!!
+!!   NAME
+!!     molecule_types
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE molecule_types
   
@@ -84,7 +99,7 @@ MODULE molecule_types
   
   TYPE torsion_parameters_type
      CHARACTER ( LEN = 20 ) :: type
-     REAL ( dbl ), DIMENSION (0:6) :: parm
+     REAL ( dbl ), DIMENSION (0:3) :: a
   END TYPE torsion_parameters_type
   
   TYPE linklist_torsions
@@ -171,3 +186,6 @@ MODULE molecule_types
   END TYPE molecule_structure_type
   
 END MODULE molecule_types
+
+!******************************************************************************
+!!*****

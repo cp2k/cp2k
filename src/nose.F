@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/nose [1.0] *
+!!
+!!   NAME
+!!     nose
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE nose
   
@@ -59,8 +74,28 @@ MODULE nose
      REAL ( dbl ), POINTER :: s_kin ( : )
   END TYPE extended_parameters_type
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
+!******************************************************************************
+!!****** nose/lnhc [1.0] *
+!!
+!!   NAME
+!!     lnhc
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   CREATION DATE
+!!     14-NOV-2000
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE lnhc ( nhcp, pnode, group )
@@ -194,6 +229,24 @@ SUBROUTINE lnhc ( nhcp, pnode, group )
   
 END SUBROUTINE lnhc
 
+!!*****
+!******************************************************************************
+!!****** nose/lnhcp [1.0] *
+!!
+!!   NAME
+!!     lnhcp
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   CREATION DATE
+!!     14-NOV-2000
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE lnhcp ( nhcp, molecule, pnode, pv_virial, pv_kin, pv_const, pext, &
@@ -392,6 +445,24 @@ SUBROUTINE lnhcp ( nhcp, molecule, pnode, pv_virial, pv_kin, pv_const, pext, &
   
 END SUBROUTINE lnhcp
 
+!!*****
+!******************************************************************************
+!!****** nose/lnhcpf [1.0] *
+!!
+!!   NAME
+!!     lnhcpf
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   CREATION DATE
+!!     14-NOV-2000
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE lnhcpf ( nhcp, molecule, pnode, pv_virial, pv_kin, pv_const, pext, &
@@ -643,10 +714,29 @@ SUBROUTINE lnhcpf ( nhcp, molecule, pnode, pv_virial, pv_kin, pv_const, pext, &
   flops = flops*1.E-6_dbl
   CALL timestop(flops,handle)
 END SUBROUTINE lnhcpf
+
+!!*****
+!******************************************************************************
+!!****** nose/initial_nhc [1.0] *
+!!
+!!   NAME
+!!     initial_nhc
+!!
+!!   FUNCTION
+!!     Initializes the NHC velocities to the Maxwellian distribution
+!!
+!!   AUTHOR
+!!
+!!   CREATION DATE
+!!     14-NOV-2000
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE initial_nhc(nhcp,tau_nhc,temp_ext, globenv )
-! Initializes the NHC velocities to the Maxwellian distribution
   IMPLICIT NONE
   TYPE (extended_parameters_type ), INTENT ( INOUT ) :: nhcp
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
@@ -680,15 +770,12 @@ SUBROUTINE initial_nhc(nhcp,tau_nhc,temp_ext, globenv )
   IF (nhcp % dis_type=='DIS_REP') CALL mp_sum(number,globenv % group)
 #endif
 
-  temp = 2.0_dbl*akin/REAL(number)
-
 ! scale velocities to get the correct initial temperature
+  temp = 2.0_dbl*akin/REAL(number)
+  temp = sqrt(temp_ext/temp)
   DO i = 1, nhcp % num_nhc
      DO j = 1, nhcp % nhc_len
-        nhcp % nvt(j,i) % v = sqrt(temp_ext/temp)*nhcp % nvt(j,i) % v
-! dbg
-!            nhcp % nvt(j,i) % v = 0._dbl
-! dbg
+        nhcp % nvt(j,i) % v = temp * nhcp % nvt(j,i) % v
         nhcp % nvt(j,i) % eta = 0.0_dbl
      END DO
   END DO
@@ -704,9 +791,26 @@ SUBROUTINE initial_nhc(nhcp,tau_nhc,temp_ext, globenv )
   
 END SUBROUTINE initial_nhc
 
+!!*****
 !******************************************************************************
-
-! Initializes the NHC velocities to the Maxwellian distribution
+!!****** nose/initial_npt [1.0] *
+!!
+!!   NAME
+!!     initial_npt
+!!
+!!   FUNCTION
+!!     Initializes the NHC velocities to the Maxwellian distribution
+!!
+!!   AUTHOR
+!!
+!!   CREATION DATE
+!!     14-NOV-2000
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE initial_npt ( nhcp, tau_cell, temp_ext, deth, nfree, ensemble, &
      globenv )
@@ -763,15 +867,12 @@ SUBROUTINE initial_npt ( nhcp, tau_cell, temp_ext, deth, nfree, ensemble, &
   END DO
   number = SIZE ( nhcp % npt, 1 ) * SIZE ( nhcp % npt, 2 )
   
-  temp = 2.0_dbl * akin / REAL ( number, dbl )
-  
 ! scale velocities to get the correct initial temperature
+  temp = 2.0_dbl * akin / REAL ( number, dbl )
+  temp = sqrt(temp_ext/temp)
   DO i = 1, size(nhcp % npt,1)
      DO j = 1, size(nhcp % npt,2)
-        nhcp % npt(j,i) % v = sqrt(temp_ext/temp)*nhcp % npt(j,i) % v
-! dbg
-!            nhcp % npt(j,i) % v = 0._dbl
-! dbg
+        nhcp % npt(j,i) % v = temp * nhcp % npt(j,i) % v
      END DO
   END DO
   
@@ -780,10 +881,27 @@ SUBROUTINE initial_npt ( nhcp, tau_cell, temp_ext, deth, nfree, ensemble, &
   
 END SUBROUTINE initial_npt
 
+!!*****
 !******************************************************************************
-
-! this lists the coefficients for the Yoshida method (higher
-!    order integrator used in NVT)
+!!****** nose/yoshida_coef [1.0] *
+!!
+!!   NAME
+!!     yoshida_coef
+!!
+!!   FUNCTION
+!!     This lists the coefficients for the Yoshida method (higher
+!!     order integrator used in NVT)
+!!
+!!   AUTHOR
+!!
+!!   CREATION DATE
+!!     14-NOV-2000
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE yoshida_coef ( nhcp, dt )
   
@@ -854,7 +972,9 @@ SUBROUTINE yoshida_coef ( nhcp, dt )
   
 END SUBROUTINE yoshida_coef
 
+!!*****
 !******************************************************************************
 
 END MODULE nose
 
+!******************************************************************************

@@ -2,7 +2,22 @@
 !   CP2K: A general program to perform molecular dynamics simulations          !
 !   Copyright (C) 2000  CP2K developers group                                  !
 !------------------------------------------------------------------------------!
-! Some utility functions for the Slater-Koster Modules
+!!****** cp2k/slater_koster_util [1.0] *
+!!
+!!   NAME
+!!     slater_koster_util
+!!
+!!   FUNCTION
+!!     Some utility functions for the Slater-Koster Modules
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 !
     MODULE slater_koster_util
 !------------------------------------------------------------------------------!
@@ -13,6 +28,7 @@
       PRIVATE
       PUBLIC :: sph, dsph, out_prod, out_dprod, dpro
 !
+!!*****
 !------------------------------------------------------------------------------!
 !
     CONTAINS

@@ -2,6 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/mol_force [1.0] *
+!!
+!!   NAME
+!!     mol_force
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE mol_force
   
@@ -11,6 +26,9 @@ MODULE mol_force
   PUBLIC :: force_bonds, force_bends, force_torsions
   PUBLIC :: get_pv_bond, get_pv_bend, get_pv_torsion
   
+!!*****
+!******************************************************************************
+
 CONTAINS
 
 !******************************************************************************
@@ -74,108 +92,190 @@ END SUBROUTINE force_bends
 
 !******************************************************************************
 
-SUBROUTINE force_torsions
+SUBROUTINE force_torsions ( is32, dist1, dist2, u1, u2, iw1, iw2, &
+           a, gt1, gt2, gt3, gt4, energy, fscalar )
+  
   IMPLICIT NONE
   
-  STOP 1991
+! Arguments
+  REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: u1, u2
+  REAL ( dbl ), INTENT ( INOUT ), DIMENSION ( : ) :: gt1, gt2, gt3, gt4
+  REAL ( dbl ), INTENT ( IN ) :: is32, dist1, dist2, iw1, iw2
+  REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: a
+  REAL ( dbl ), INTENT ( OUT ) :: fscalar, energy
+  
+! Locals
+  REAL ( dbl ) :: cosphi
+  
+!------------------------------------------------------------------------------
+  
+! define 
+  cosphi = DOT_PRODUCT ( u1, u2 ) * iw1 * iw2 
+  
+! compute energy
+  energy = a(0) + a(1) + 2._dbl * a(3) & 
+           + ( a(1) - 3._dbl * a(3) ) * cosphi & 
+           - 2._dbl * a(2) * cosphi ** 2 + 4._dbl * a(3) * cosphi ** 3
+  
+! compute fscalar
+  fscalar = - a(1) + 3._dbl * a(3) + 4._dbl * a(2) * cosphi - 12._dbl * a(3) * cosphi ** 2
+  
+! compute the gradients
+  gt1 = ( u2 * iw2 - cosphi * u1 * iw1 ) * iw1
+  gt4 = ( u1 * iw1 - cosphi * u2 * iw2 ) * iw2
+  gt2 = ( dist1 * is32 ** 2 - 1._dbl ) * gt1 + dist2 * is32 ** 2 * gt4
+  gt3 = ( - dist2 * is32 ** 2 - 1._dbl ) * gt4 - dist1 * is32 ** 2 * gt1
+  
 END SUBROUTINE force_torsions
 
 !******************************************************************************
 
-SUBROUTINE get_pv_bond(f1,f2,r1,r2,pvbond)
+SUBROUTINE get_pv_bond(f1,f2,r1,r2,pv_bond)
   IMPLICIT NONE
   REAL ( dbl ), DIMENSION (3), INTENT ( IN ) :: f1, f2, r1, r2
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( INOUT ) :: pvbond
+  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( INOUT ) :: pv_bond
   
 !------------------------------------------------------------------------------
   
 ! p(1,1)
-  pvbond(1,1) = pvbond(1,1) + f1(1)*r1(1)
-  pvbond(1,1) = pvbond(1,1) + f2(1)*r2(1)
+  pv_bond(1,1) = pv_bond(1,1) + f1(1)*r1(1)
+  pv_bond(1,1) = pv_bond(1,1) + f2(1)*r2(1)
 ! p(1,2)
-  pvbond(1,2) = pvbond(1,2) + f1(1)*r1(2)
-  pvbond(1,2) = pvbond(1,2) + f2(1)*r2(2)
+  pv_bond(1,2) = pv_bond(1,2) + f1(1)*r1(2)
+  pv_bond(1,2) = pv_bond(1,2) + f2(1)*r2(2)
 ! p(1,3)
-  pvbond(1,3) = pvbond(1,3) + f1(1)*r1(3)
-  pvbond(1,3) = pvbond(1,3) + f2(1)*r2(3)
+  pv_bond(1,3) = pv_bond(1,3) + f1(1)*r1(3)
+  pv_bond(1,3) = pv_bond(1,3) + f2(1)*r2(3)
 ! p(2,1)
-  pvbond(2,1) = pvbond(2,1) + f1(2)*r1(1)
-  pvbond(2,1) = pvbond(2,1) + f2(2)*r2(1)
+  pv_bond(2,1) = pv_bond(2,1) + f1(2)*r1(1)
+  pv_bond(2,1) = pv_bond(2,1) + f2(2)*r2(1)
 ! p(2,2)
-  pvbond(2,2) = pvbond(2,2) + f1(2)*r1(2)
-  pvbond(2,2) = pvbond(2,2) + f2(2)*r2(2)
+  pv_bond(2,2) = pv_bond(2,2) + f1(2)*r1(2)
+  pv_bond(2,2) = pv_bond(2,2) + f2(2)*r2(2)
 ! p(2,3)
-  pvbond(2,3) = pvbond(2,3) + f1(2)*r1(3)
-  pvbond(2,3) = pvbond(2,3) + f2(2)*r2(3)
+  pv_bond(2,3) = pv_bond(2,3) + f1(2)*r1(3)
+  pv_bond(2,3) = pv_bond(2,3) + f2(2)*r2(3)
 ! p(3,1)
-  pvbond(3,1) = pvbond(3,1) + f1(3)*r1(1)
-  pvbond(3,1) = pvbond(3,1) + f2(3)*r2(1)
+  pv_bond(3,1) = pv_bond(3,1) + f1(3)*r1(1)
+  pv_bond(3,1) = pv_bond(3,1) + f2(3)*r2(1)
 ! p(3,2)
-  pvbond(3,2) = pvbond(3,2) + f1(3)*r1(2)
-  pvbond(3,2) = pvbond(3,2) + f2(3)*r2(2)
+  pv_bond(3,2) = pv_bond(3,2) + f1(3)*r1(2)
+  pv_bond(3,2) = pv_bond(3,2) + f2(3)*r2(2)
 ! p(3,3)
-  pvbond(3,3) = pvbond(3,3) + f1(3)*r1(3)
-  pvbond(3,3) = pvbond(3,3) + f2(3)*r2(3)
+  pv_bond(3,3) = pv_bond(3,3) + f1(3)*r1(3)
+  pv_bond(3,3) = pv_bond(3,3) + f2(3)*r2(3)
   
 END SUBROUTINE get_pv_bond
 
 !******************************************************************************
 
-SUBROUTINE get_pv_bend(f1,f2,f3,r1,r2,r3,pvbend)
+SUBROUTINE get_pv_bend(f1,f2,f3,r1,r2,r3,pv_bend)
   
   IMPLICIT NONE
   
 ! Arguments
   REAL ( dbl ), DIMENSION (3), INTENT ( IN ) :: f1, f2, f3, r1, r2, r3
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( INOUT ) :: pvbend
+  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( INOUT ) :: pv_bend
   
 !------------------------------------------------------------------------------
   
 !p(1,1)
-  pvbend(1,1) = pvbend(1,1) + f1(1)*r1(1)
-  pvbend(1,1) = pvbend(1,1) + f2(1)*r2(1)
-  pvbend(1,1) = pvbend(1,1) + f3(1)*r3(1)
+  pv_bend(1,1) = pv_bend(1,1) + f1(1)*r1(1)
+  pv_bend(1,1) = pv_bend(1,1) + f2(1)*r2(1)
+  pv_bend(1,1) = pv_bend(1,1) + f3(1)*r3(1)
 !p(1,2)
-  pvbend(1,2) = pvbend(1,2) + f1(1)*r1(2)
-  pvbend(1,2) = pvbend(1,2) + f2(1)*r2(2)
-  pvbend(1,2) = pvbend(1,2) + f3(1)*r3(2)
+  pv_bend(1,2) = pv_bend(1,2) + f1(1)*r1(2)
+  pv_bend(1,2) = pv_bend(1,2) + f2(1)*r2(2)
+  pv_bend(1,2) = pv_bend(1,2) + f3(1)*r3(2)
 !p(1,3)
-  pvbend(1,3) = pvbend(1,3) + f1(1)*r1(3)
-  pvbend(1,3) = pvbend(1,3) + f2(1)*r2(3)
-  pvbend(1,3) = pvbend(1,3) + f3(1)*r3(3)
+  pv_bend(1,3) = pv_bend(1,3) + f1(1)*r1(3)
+  pv_bend(1,3) = pv_bend(1,3) + f2(1)*r2(3)
+  pv_bend(1,3) = pv_bend(1,3) + f3(1)*r3(3)
 !p(2,1)
-  pvbend(2,1) = pvbend(2,1) + f1(2)*r1(1)
-  pvbend(2,1) = pvbend(2,1) + f2(2)*r2(1)
-  pvbend(2,1) = pvbend(2,1) + f3(2)*r3(1)
+  pv_bend(2,1) = pv_bend(2,1) + f1(2)*r1(1)
+  pv_bend(2,1) = pv_bend(2,1) + f2(2)*r2(1)
+  pv_bend(2,1) = pv_bend(2,1) + f3(2)*r3(1)
 !p(2,2)
-  pvbend(2,2) = pvbend(2,2) + f1(2)*r1(2)
-  pvbend(2,2) = pvbend(2,2) + f2(2)*r2(2)
-  pvbend(2,2) = pvbend(2,2) + f3(2)*r3(2)
+  pv_bend(2,2) = pv_bend(2,2) + f1(2)*r1(2)
+  pv_bend(2,2) = pv_bend(2,2) + f2(2)*r2(2)
+  pv_bend(2,2) = pv_bend(2,2) + f3(2)*r3(2)
 !p(2,3)
-  pvbend(2,3) = pvbend(2,3) + f1(2)*r1(3)
-  pvbend(2,3) = pvbend(2,3) + f2(2)*r2(3)
-  pvbend(2,3) = pvbend(2,3) + f3(2)*r3(3)
+  pv_bend(2,3) = pv_bend(2,3) + f1(2)*r1(3)
+  pv_bend(2,3) = pv_bend(2,3) + f2(2)*r2(3)
+  pv_bend(2,3) = pv_bend(2,3) + f3(2)*r3(3)
 !p(3,1)
-  pvbend(3,1) = pvbend(3,1) + f1(3)*r1(1)
-  pvbend(3,1) = pvbend(3,1) + f2(3)*r2(1)
-  pvbend(3,1) = pvbend(3,1) + f3(3)*r3(1)
+  pv_bend(3,1) = pv_bend(3,1) + f1(3)*r1(1)
+  pv_bend(3,1) = pv_bend(3,1) + f2(3)*r2(1)
+  pv_bend(3,1) = pv_bend(3,1) + f3(3)*r3(1)
 !p(3,2)
-  pvbend(3,2) = pvbend(3,2) + f1(3)*r1(2)
-  pvbend(3,2) = pvbend(3,2) + f2(3)*r2(2)
-  pvbend(3,2) = pvbend(3,2) + f3(3)*r3(2)
+  pv_bend(3,2) = pv_bend(3,2) + f1(3)*r1(2)
+  pv_bend(3,2) = pv_bend(3,2) + f2(3)*r2(2)
+  pv_bend(3,2) = pv_bend(3,2) + f3(3)*r3(2)
 !p(3,3)
-  pvbend(3,3) = pvbend(3,3) + f1(3)*r1(3)
-  pvbend(3,3) = pvbend(3,3) + f2(3)*r2(3)
-  pvbend(3,3) = pvbend(3,3) + f3(3)*r3(3)
+  pv_bend(3,3) = pv_bend(3,3) + f1(3)*r1(3)
+  pv_bend(3,3) = pv_bend(3,3) + f2(3)*r2(3)
+  pv_bend(3,3) = pv_bend(3,3) + f3(3)*r3(3)
   
 END SUBROUTINE get_pv_bend
 
 !******************************************************************************
 
-SUBROUTINE get_pv_torsion()
+SUBROUTINE get_pv_torsion(f1,f2,f3,f4,r1,r2,r3,r4,pv_torsion)
+
   IMPLICIT NONE
+
+! Arguments
+  REAL ( dbl ), DIMENSION (3), INTENT ( IN ) :: f1, f2, f3, f4, r1, r2, r3, r4
+  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( INOUT ) :: pv_torsion
   
-  STOP 1990
+!------------------------------------------------------------------------------
+  
+!p(1,1)
+  pv_torsion(1,1) = pv_torsion(1,1) + f1(1)*r1(1)
+  pv_torsion(1,1) = pv_torsion(1,1) + f2(1)*r2(1)
+  pv_torsion(1,1) = pv_torsion(1,1) + f3(1)*r3(1)
+  pv_torsion(1,1) = pv_torsion(1,1) + f4(1)*r4(1)
+!p(1,2)
+  pv_torsion(1,2) = pv_torsion(1,2) + f1(1)*r1(2)
+  pv_torsion(1,2) = pv_torsion(1,2) + f2(1)*r2(2)
+  pv_torsion(1,2) = pv_torsion(1,2) + f3(1)*r3(2)
+  pv_torsion(1,2) = pv_torsion(1,2) + f4(1)*r4(2)
+!p(1,3)
+  pv_torsion(1,3) = pv_torsion(1,3) + f1(1)*r1(3)
+  pv_torsion(1,3) = pv_torsion(1,3) + f2(1)*r2(3)
+  pv_torsion(1,3) = pv_torsion(1,3) + f3(1)*r3(3)
+  pv_torsion(1,3) = pv_torsion(1,3) + f4(1)*r4(3)
+!p(2,1)
+  pv_torsion(2,1) = pv_torsion(2,1) + f1(2)*r1(1)
+  pv_torsion(2,1) = pv_torsion(2,1) + f2(2)*r2(1)
+  pv_torsion(2,1) = pv_torsion(2,1) + f3(2)*r3(1)
+  pv_torsion(2,1) = pv_torsion(2,1) + f4(2)*r4(1)
+!p(2,2)
+  pv_torsion(2,2) = pv_torsion(2,2) + f1(2)*r1(2)
+  pv_torsion(2,2) = pv_torsion(2,2) + f2(2)*r2(2)
+  pv_torsion(2,2) = pv_torsion(2,2) + f3(2)*r3(2)
+  pv_torsion(2,2) = pv_torsion(2,2) + f4(2)*r4(2)
+!p(2,3)
+  pv_torsion(2,3) = pv_torsion(2,3) + f1(2)*r1(3)
+  pv_torsion(2,3) = pv_torsion(2,3) + f2(2)*r2(3)
+  pv_torsion(2,3) = pv_torsion(2,3) + f3(2)*r3(3)
+  pv_torsion(2,3) = pv_torsion(2,3) + f4(2)*r4(3)
+!p(3,1)
+  pv_torsion(3,1) = pv_torsion(3,1) + f1(3)*r1(1)
+  pv_torsion(3,1) = pv_torsion(3,1) + f2(3)*r2(1)
+  pv_torsion(3,1) = pv_torsion(3,1) + f3(3)*r3(1)
+  pv_torsion(3,1) = pv_torsion(3,1) + f4(3)*r4(1)
+!p(3,2)
+  pv_torsion(3,2) = pv_torsion(3,2) + f1(3)*r1(2)
+  pv_torsion(3,2) = pv_torsion(3,2) + f2(3)*r2(2)
+  pv_torsion(3,2) = pv_torsion(3,2) + f3(3)*r3(2)
+  pv_torsion(3,2) = pv_torsion(3,2) + f4(3)*r4(2)
+!p(3,3)
+  pv_torsion(3,3) = pv_torsion(3,3) + f1(3)*r1(3)
+  pv_torsion(3,3) = pv_torsion(3,3) + f2(3)*r2(3)
+  pv_torsion(3,3) = pv_torsion(3,3) + f3(3)*r3(3)
+  pv_torsion(3,3) = pv_torsion(3,3) + f4(3)*r4(3)
+  
 END SUBROUTINE get_pv_torsion
 
 !******************************************************************************

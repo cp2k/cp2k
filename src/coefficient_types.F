@@ -2,6 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****s* cp2k/coefficient_types [1.0] *
+!!
+!!   NAME
+!!     coefficient_types
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE coefficient_types
   
@@ -42,6 +56,9 @@ MODULE coefficient_types
   INTEGER, PARAMETER :: PW_COMPLEXDATA1D = COMPLEXDATA1D
   INTEGER, PARAMETER :: PW_REALDATA3D = REALDATA3D
   INTEGER, PARAMETER :: PW_COMPLEXDATA3D = COMPLEXDATA3D
+
+!!*****
+!******************************************************************************
   
 CONTAINS
 

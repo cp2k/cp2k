@@ -2,6 +2,25 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+!!****** cp2k/environment [1.0] *
+!!
+!!   NAME
+!!     environment
+!!
+!!   FUNCTION
+!!     Sets up and terminates the global environment vaiables
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   USED BY
+!!     cp2k
+!!
+!!   SOURCE
+!******************************************************************************
 
 MODULE environment
   
@@ -15,7 +34,6 @@ MODULE environment
   USE timesl, ONLY : walltime, cputime, datum
   USE timings, ONLY : timeprint, timeset, timestop
   USE util, ONLY : ran2
-  USE fft_tools, ONLY : init_fft
   
   IMPLICIT NONE
   
@@ -28,9 +46,28 @@ MODULE environment
   INTEGER :: my_pid = 0 !! process ID
   INTEGER :: my_uid = 0 !! user ID
   INTEGER :: handle
+
+!!*****
+!******************************************************************************
   
 CONTAINS
 
+!******************************************************************************
+!!****** environment/initialisation [1.0] *
+!!
+!!   NAME
+!!     initialisation
+!!
+!!   FUNCTION
+!!     Initializes global environment vaiables
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE initialisation ( globenv )
@@ -42,7 +79,7 @@ SUBROUTINE initialisation ( globenv )
   
 ! Locals
   CHARACTER ( LEN = 26 ) :: datx
-  INTEGER :: iw, l, initial_random
+  INTEGER :: iw, l, initial_random, i1, i2
   
 !------------------------------------------------------------------------------
   
@@ -88,11 +125,25 @@ SUBROUTINE initialisation ( globenv )
 ! initialize physical constants
   CALL init_physcon()
 
-! initialize FFT library
-  CALL init_fft ( )
-  
 END SUBROUTINE initialisation
 
+!!*****
+!******************************************************************************
+!!****** environment/trailer [1.0] *
+!!
+!!   NAME
+!!     trailer
+!!
+!!   FUNCTION
+!!     Writes final timings and banner
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE trailer ( globenv )
@@ -139,6 +190,23 @@ SUBROUTINE trailer ( globenv )
   
 END SUBROUTINE trailer
 
+!!*****
+!******************************************************************************
+!!****** environment/set_environment [1.0] *
+!!
+!!   NAME
+!!     set_environment
+!!
+!!   FUNCTION
+!!     Calls for UNIX environment variabls
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
 !******************************************************************************
 
 SUBROUTINE set_environment ( globenv )
@@ -175,6 +243,9 @@ SUBROUTINE set_environment ( globenv )
   
 END SUBROUTINE set_environment
 
+!!*****
 !******************************************************************************
 
 END MODULE environment
+
+!******************************************************************************

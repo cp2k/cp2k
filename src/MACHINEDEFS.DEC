@@ -8,7 +8,7 @@ FCfixed	= f95 -fixed
 LDR	= f95
 AR	= ar -r
 
-CDEFS	= -D__DEC -D__FFTW
+CDEFS	= -D__DEC -D__FFTW -D__FFTSG
 
 DEBUG	= -g -C
 OPT	= -w0 -O5 -fast -ansi_alias -ansi_args -fp_reorder -tune host -std1
