@@ -1417,7 +1417,7 @@ CONTAINS
 
       CALL timeset("blacs_syevx (nmo)","I","",handle1)
       CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
-      CALL timestop(0.0_wp,handle2)
+      CALL timestop(0.0_wp,handle1)
 
       CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,&
                       mo_eigenvectors)
