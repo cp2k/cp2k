@@ -155,7 +155,8 @@ MODULE qs_core_hamiltonian
   TYPE(gto_basis_set_type), POINTER :: orb_basis_set
   CHARACTER(LEN=12)                 :: cgfsym
   CHARACTER(LEN=60)                 :: name
-  INTEGER                           :: ldsab,maxder,maxl,maxsgf,nder,nkind
+  INTEGER                           :: ldsab,ldwork,maxder,maxl,maxsgf,nder,&
+                                       nkind
 
 
   TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
@@ -385,6 +386,7 @@ CONTAINS
                              maxder=MAX(1,nder))
 
     ldsab = MAX(maxco,maxppnl)
+    ldwork = MAX(ldsab,maxsgf)
 
     ALLOCATE (hab(maxco,maxco*maxder),STAT=istat)
     IF (istat /= 0) THEN
@@ -404,9 +406,9 @@ CONTAINS
     END IF
     sdab(:,:,:) = 0.0_wp
 
-    ALLOCATE (work(ldsab,MAX(ldsab,maxsgf)*maxder),STAT=istat)
+    ALLOCATE (work(ldwork,ldwork*maxder),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"work",ldsab*MAX(ldsab,maxsgf)*maxder*wp_size)
+      CALL stop_memory(routine,"work",ldwork*ldwork*maxder*wp_size)
     END IF
     work(:,:) = 0.0_wp
 
@@ -1811,7 +1813,7 @@ CONTAINS
 
     IF (calculate_forces) THEN
       DEALLOCATE (v_block,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"vab")
+      IF (istat /= 0) CALL stop_memory(routine,"v_block")
     END IF
 
     DEALLOCATE (scaint,STAT=istat)
