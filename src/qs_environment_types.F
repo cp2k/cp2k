@@ -921,8 +921,10 @@ SUBROUTINE qs_env_release(qs_env,error)
         CALL pw_env_release(qs_env%pw_env, error=error)
         CALL cp_para_env_release(qs_env%para_env,error=error)
         CALL cp_blacs_env_release(qs_env%blacs_env, error=error)
-        IF (ASSOCIATED(qs_env%rho_core)) &
+        IF (ASSOCIATED(qs_env%rho_core)) THEN
              CALL coeff_deallocate(qs_env%rho_core)
+             DEALLOCATE(qs_env%rho_core)
+        ENDIF
         CALL qs_charges_release(qs_env%qs_charges, error=error)
         CALL qs_ks_release(qs_env%ks_env, error=error)
         CALL wfi_release(qs_env%wf_history,error=error)
