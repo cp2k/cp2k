@@ -4,88 +4,53 @@ How to compile CP2K code
 
  1) Acquire the code:
 
- 1a) The preferred method is to download it from the CVS, using
-       http://cp2k.berlios.de/
+    The preferred method is to download it from the CVS, 
+    using http://cp2k.berlios.de/
+    put the code in ~/cp2k/ or equivalent
 
- 1b) Get the tar file from CSCS; extract the archive file:
+ 2a) gnu make should be on your system (gmake or make on linux), 
+     go to http://www.gnu.org/software/make/make.html to get it
+ 2b) a f90 compiler, blass and lapack should be installed
+ 2c) mpi and scalapack might be needed for parallel runs
+ 2d) fftw could be an advantage but is not needed
 
-# gtar zxvf cp2k.tar.gz
+ 3) to compile the code use : 
 
-or if you do not have GNU tar
+    > cd cp2k/makefiles; make sopt; make popt 
 
-# gzip -cd cp2k.tar.gz | tar xvf -
+    "p" stands for parallel (alternatively "s" = serial)
+    "opt" means to buil an optimised version (alternatively "dbg" = debugging)
 
-This extract the contents of the archive into the directory ./CP2K; please be
-careful not to overwrite things in there if it already exists
+ 3b) These easily fails, but there are a number of easy fixes (step 4,5)
 
- 2) Go to 'CP2K/tools' and do a 'make' (or 'gmake'); this compiles you an
-executable which will be used when compiling the main source of CP2K
+ 4) In the likely order of occurence :
 
- 3) Go to '../src'; see if there is a suitable file with definitions of the
-architecture:
+    - ~/cp2k/arch/*.* files have some paths to libraries hard-wired 
+       (e.g. blass, lapack, ...). 
+       be sure to remove e.g. __FFTW if you don not have it. __FFTSG 
+       is always there. 
 
-# machine (~/CP2K/src) : ls -lF ../arch/AIX-POWER2.popt 
-# -rw-r--r--   1 aps      users        464 Mar  9 15:08 ../arch/AIX-POWER2.popt
+    - ~/cp2k/tools/get_arch_code returns unknown for the architecture
+      try to have it return the closest possible match.
+      have a look in ~/cp2k/arch for the possible options (or see step 7)
+ 
+ 5) If your machine is really not there, it shouldn't be too difficult to add.
+    Only ~/cp2k/src/machine*.F should be affected.
 
-If your architecture is not present you might have to make a small effort;
-please contact us in you need help. A rather generic FFT, 'FFTW'
-(http://www.fftw.org/) has been interfaced already to the present version
+ 6) If compilation works fine, you can go into one of the test cases 
+    and try out the executable
 
-  Define the CP2KHOME in Makefile to be the path to the directory of CP2K
+>  cd ~/cp2k/tests/QS/
+> ~/cp2k/exe/YOURMACHINE/cp2k.sopt H2O.inp
 
- 4) You most likely need GNU make:
-
-# gmake
-
-If you do not have 'gmake' some tricks have to be made; please contact us in
-you need help
-
-  We have seen problems in SGI with the MIPSpro 7.2.1 compiler; the
-pre-processor does not work as expected. Please contact us for help, or you
-could try by inter-changing the lines of the compilation and pre-processing
-and changing *.F to *.f for the compilation
-
-  You can compile different version by typing e.g.
-
-# gmake popt
-
-"p" stands for parallel (alternatively "s" = serial)
-"opt" means to buil an optimised version (alternatively "dbg" = debugging)
-
-  We have seen some problems in the compilation with PGI on a linux machine:
-In some machines it works, in some not
-
-  In Cray T3E there are some missing routines. Please contact us if you want
-to try out CP2K on a T3E
-
-  On DEC alpha's the pre-processors works somewhat differently than in the
-other architectures; please contact us for help if you want to compile on a
-DEC alpha/OSF1
-
- 5) The compilation hopefully finishes and you can try it:
-
-# ../AIX-POWER2/cp2k.popt
-#   **** **** ******  **  PROGRAM STARTED AT              Tue Mar 20 18:50:45 2001
-  ...
-
-# No input section &CP2K found 
- ...
-
-Congratulations, the binary is running!!!
-
- 6) You can go into one of the test cases and try out the executable
-
-# cd ../tests/Argon
-# ln -s ../../src/cp2k.x .
-# ./cp2k.x input
-
-It hopefully runs now
+ 6b) you could have a look in ~/cp2k/doc if your run fails
 
  7) In any case please tell us your comments, praise, criticism, thanks, ...
-You can join our mailing lists by sending e-mail to the address below
+
+    you can sent email to the people in the team :
+
+    http://developer.berlios.de/project/memberlist.php?groud_id=129
 
  8) Happy computing!
 
---
-cp2k@cscs.ch
-10/02/2002
+ the cp2k team.
