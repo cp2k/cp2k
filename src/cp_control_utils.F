@@ -120,14 +120,15 @@ INTEGER, PARAMETER, PRIVATE :: qs_key_REL_CUTOFF=18
 INTEGER, PARAMETER, PRIVATE :: qs_key_NGRID=19
 INTEGER, PARAMETER, PRIVATE :: qs_key_EPSFIT=20
 INTEGER, PARAMETER, PRIVATE :: qs_key_EPSISO=21
-INTEGER, PARAMETER, PRIVATE :: qs_key_LMAXN0=22
-INTEGER, PARAMETER, PRIVATE :: qs_key_LADDN0=23
-INTEGER, PARAMETER, PRIVATE :: qs_key_PAO=24
-INTEGER, PARAMETER, PRIVATE :: qs_key_PW_GRID=25
-INTEGER, PARAMETER, PRIVATE :: qs_key_RS_GRID=26
-INTEGER, PARAMETER, PRIVATE :: qs_key_EXTRAPOLATION=27
-INTEGER, PARAMETER, PRIVATE :: qs_key_METHOD=28
-INTEGER, PARAMETER, PRIVATE :: N_qs_keywords = 28
+INTEGER, PARAMETER, PRIVATE :: qs_key_QUADRATURE=22
+INTEGER, PARAMETER, PRIVATE :: qs_key_LMAXN0=23
+INTEGER, PARAMETER, PRIVATE :: qs_key_LADDN0=24
+INTEGER, PARAMETER, PRIVATE :: qs_key_PAO=25
+INTEGER, PARAMETER, PRIVATE :: qs_key_PW_GRID=26
+INTEGER, PARAMETER, PRIVATE :: qs_key_RS_GRID=27
+INTEGER, PARAMETER, PRIVATE :: qs_key_EXTRAPOLATION=28
+INTEGER, PARAMETER, PRIVATE :: qs_key_METHOD=29
+INTEGER, PARAMETER, PRIVATE :: N_qs_keywords = 29
 TYPE(keyword_type), PRIVATE, DIMENSION(1:N_qs_keywords) :: qs_keywords
 
 
@@ -217,15 +218,19 @@ CONTAINS
                                        "NGRID_LEVEL","","")
      qs_keywords(qs_key_EPSFIT)=keyword_type("EPSFIT", &
                                        "EPSFIT real",&
-                                       "GAPW : XXXXXXXXXX",&
+                                       "GAPW : precision to determine the gaussian radius",&
                                        "","","")
      qs_keywords(qs_key_EPSISO)=keyword_type("EPSISO", &
                                        "EPSISO real",&
-                                       "GAPW : XXXXXXXXXX",&
+                                       "GAPW : precision to determine an isolated projector",&
+                                       "","","")
+     qs_keywords(qs_key_QUADRATURE)=keyword_type("QUADRATURE", &
+                                       "QUADRATURE {GC_SIMPLE|GC_TRANSFORMED|GC_LOG}",&
+                                       "GAPW: algorithm to construct the atomic radial grids",&
                                        "","","")
      qs_keywords(qs_key_LMAXN0)=keyword_type("LMAXN0", &
                                        "LMAXN0 integer",&
-                                       "GAPW : XXXXXXXXX",&
+                                       "GAPW : max L number for the compensation densities",&
                                        "","","")
      qs_keywords(qs_key_LADDN0)=keyword_type("LADDN0", &
                                        "LADDN0 integer",&
@@ -637,6 +642,7 @@ CONTAINS
     qs_control%gapw_control%lmax_rho0 = 2
     qs_control%gapw_control%lmax_sphere = 8 
     qs_control%gapw_control%quadrature = 1
+    qs_control%gapw_control%quadrature_name = "Gauss-Chebyshev"
 
 !
     cutoff_set = .FALSE.
@@ -784,6 +790,21 @@ CONTAINS
           CASE (qs_key_EPSISO)
             CALL read_object(value)
             qs_control%gapw_control%eps_iso = value
+          CASE (qs_key_QUADRATURE)
+            CALL read_object(string,lower_to_upper=.TRUE.)
+            SELECT CASE (string)
+            CASE ("GC_SIMPLE")
+              qs_control%gapw_control%quadrature=1
+              qs_control%gapw_control%quadrature_name="Gauss-Chebyshev"
+            CASE ("GC_TRANSFORMED")
+              qs_control%gapw_control%quadrature=2
+              qs_control%gapw_control%quadrature_name="Trans_Gauss-Chebyshev"
+            CASE ("GC_LOG")
+              qs_control%gapw_control%quadrature=3
+              qs_control%gapw_control%quadrature_name="LogTrans-Gauss-Chebyshev"
+            CASE DEFAULT
+              CALL stop_parser(routine,"quadrature definition")
+            END SELECT
           CASE (qs_key_LMAXN0)
             CALL read_object(ivalue)
             qs_control%gapw_control%lmax_rho0 = ivalue
@@ -1287,9 +1308,10 @@ CONTAINS
            qs_control%gapw_control%eps_fit,&
            "QS| GAPW|                   eps_iso:",&
            qs_control%gapw_control%eps_iso
-         WRITE (UNIT=output_unit,FMT="(T2,A,T71,I10)")&
+         WRITE (UNIT=output_unit,FMT="(T2,A,T55,A30)")&
            "QS| GAPW|   atom-r-grid: quadrature:",&
-           qs_control%gapw_control%quadrature,&
+           qs_control%gapw_control%quadrature_name
+         WRITE (UNIT=output_unit,FMT="(T2,A,T71,I10)")&
            "QS| GAPW|      atom-s-grid:  max l :",&
            qs_control%gapw_control%lmax_sphere ,& 
            "QS| GAPW|      max_l_rho0 :",&

@@ -1,0 +1,293 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000-2004  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+#include "cp_prep_globals.h"
+!!****** cp2k/qs_rho0_types
+!!
+!!   NAME
+!!     qs_rho0_types
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   SOURCE
+!******************************************************************************
+
+MODULE qs_local_rho_types
+
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
+                                             int_size
+  USE mathconstants,                   ONLY: pi
+  USE memory_utilities,                ONLY: reallocate
+  USE qs_grid_atom,                    ONLY: grid_atom_type
+  USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set, &
+                                             rho_atom_type
+  USE qs_rho0_types,                   ONLY: deallocate_rho0_atom,&
+                                             deallocate_rho0_mpole,&
+                                             rho0_atom_type,&
+                                             rho0_mpole_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  IMPLICIT NONE
+
+  PRIVATE
+
+! *** Global parameters (only in this module)
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_local_rho_types"
+
+! *** Define multipole type ***
+
+  TYPE  rhoz_type
+    REAL(dp), DIMENSION(:), POINTER      ::  r_coef
+  END TYPE rhoz_type
+
+  TYPE local_rho_type
+    TYPE(rho_atom_type), DIMENSION(:), POINTER            :: rho_atom_set
+    TYPE(rho0_mpole_type), POINTER                        :: rho0_mpole
+    TYPE(rho0_atom_type), DIMENSION(:), POINTER           :: rho0_atom_set
+    TYPE(rhoz_type),  DIMENSION(:), POINTER               :: rhoz_set
+  END TYPE local_rho_type
+
+! Public Types
+
+  PUBLIC ::  local_rho_type, rhoz_type
+
+! Public Subroutine
+ 
+  PUBLIC :: allocate_rhoz, calculate_rhoz, deallocate_rhoz,& 
+            get_local_rho, local_rho_set_create, &
+            local_rho_set_release, set_local_rho
+
+!******************************************************************************
+ 
+  CONTAINS
+ 
+!******************************************************************************
+ 
+  SUBROUTINE allocate_rhoz(rhoz_set,nkind)
+
+    TYPE(rhoz_type), DIMENSION(:), &
+                                   POINTER :: rhoz_set
+    INTEGER                                :: nkind
+    
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_rhoz"
+
+    INTEGER                                :: ikind, istat
+
+!   ---------------------------------------------------------------------------
+
+    IF(ASSOCIATED(rhoz_set)) THEN
+      CALL deallocate_rhoz(rhoz_set)
+    END IF 
+
+    ALLOCATE (rhoz_set(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                            "rhoz_set",nkind*int_size)
+
+    DO ikind = 1,nkind 
+      NULLIFY(rhoz_set(ikind)%r_coef) 
+    ENDDO
+
+  END SUBROUTINE allocate_rhoz
+
+! ******************************************************************************
+
+  SUBROUTINE calculate_rhoz(rhoz,grid_atom,alpha,zeff)
+ 
+    TYPE(rhoz_type)             :: rhoz
+    TYPE(grid_atom_type)        :: grid_atom
+    REAL(dp)                    :: alpha
+    INTEGER                     :: zeff
+ 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_rhoz"
+
+    INTEGER                     :: ir,nr
+    REAL(dp)                    :: c1, c2, prefactor
+
+!   ---------------------------------------------------------------------------
+
+    nr = grid_atom%nr
+    CALL reallocate(rhoz%r_coef,1,nr)   
+    c1 = alpha/pi
+    c2 = c1*c1*c1 
+    prefactor = zeff*sqrt(c1)
+
+    DO ir = 1,nr
+      c1 = -alpha*grid_atom%rad2(ir)
+      rhoz%r_coef(ir) = -exp(c1)*prefactor
+    END DO
+
+  END SUBROUTINE calculate_rhoz
+
+! ******************************************************************************
+
+  SUBROUTINE deallocate_rhoz(rhoz_set)
+
+    TYPE(rhoz_type), DIMENSION(:), POINTER :: rhoz_set
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_rhoz"
+
+    INTEGER                     :: ikind, istat, nkind
+
+!   ---------------------------------------------------------------------------
+
+    nkind = SIZE(rhoz_set)
+
+    DO ikind = 1,nkind
+      DEALLOCATE(rhoz_set(ikind)%r_coef,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "rhoz_set%r_coef")
+    END DO
+
+    DEALLOCATE(rhoz_set,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                     "rhoz_set")
+          
+  END SUBROUTINE  deallocate_rhoz
+
+! ******************************************************************************
+  SUBROUTINE  get_local_rho(local_rho_set,rho_atom_set,rho0_atom_set,&
+                            rho0_mpole,rhoz_set)
+
+    TYPE(local_rho_type), INTENT(IN), TARGET     :: local_rho_set
+    TYPE(rho_atom_type), DIMENSION(:),  &
+                             OPTIONAL, POINTER   :: rho_atom_set
+    TYPE(rho0_atom_type), DIMENSION(:), &
+                              OPTIONAL, POINTER  :: rho0_atom_set
+    TYPE(rho0_mpole_type),     OPTIONAL, POINTER :: rho0_mpole
+    TYPE(rhoz_type), DIMENSION(:), &
+                         OPTIONAL, POINTER       :: rhoz_set
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_local_rho'
+
+!   ---------------------------------------------------------------------------
+
+    IF (PRESENT(rho_atom_set)) rho_atom_set => local_rho_set%rho_atom_set
+    IF (PRESENT(rho0_atom_set)) rho0_atom_set => local_rho_set%rho0_atom_set
+    IF (PRESENT(rho0_mpole))  rho0_mpole =>  local_rho_set%rho0_mpole
+    IF (PRESENT(rhoz_set))  rhoz_set => local_rho_set%rhoz_set
+
+  END SUBROUTINE get_local_rho
+
+! ******************************************************************************
+
+  SUBROUTINE local_rho_set_create(local_rho_set, error)
+
+   TYPE(local_rho_type), POINTER     :: local_rho_set
+       TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = "local_rho_set_create" 
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+!   ---------------------------------------------------------------------------
+    failure=.FALSE.
+
+    ALLOCATE(local_rho_set, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+  
+    NULLIFY (local_rho_set%rho_atom_set)
+    NULLIFY (local_rho_set%rho0_atom_set)
+    NULLIFY (local_rho_set%rho0_mpole)
+    NULLIFY (local_rho_set%rhoz_set)
+
+  END SUBROUTINE local_rho_set_create
+
+! ******************************************************************************
+  SUBROUTINE local_rho_set_release(local_rho_set,error)
+
+   TYPE(local_rho_type), POINTER         :: local_rho_set
+   TYPE(cp_error_type), INTENT(inout), &
+                      OPTIONAL           :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'local_rho_set_release', &
+      routineP = module_name//':'//routineN
+
+    INTEGER                                  :: stat
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(local_rho_set)) THEN
+      IF (ASSOCIATED(local_rho_set%rho_atom_set)) THEN
+         CALL deallocate_rho_atom_set(local_rho_set%rho_atom_set)
+      END IF
+      IF (ASSOCIATED(local_rho_set%rho0_atom_set)) THEN
+        CALL deallocate_rho0_atom(local_rho_set%rho0_atom_set)
+      END IF
+      IF (ASSOCIATED(local_rho_set%rho0_mpole)) THEN
+        CALL deallocate_rho0_mpole(local_rho_set%rho0_mpole)
+      END IF
+      IF(ASSOCIATED(local_rho_set%rhoz_set)) THEN
+        CALL deallocate_rhoz(local_rho_set%rhoz_set)
+      ENDIF
+
+      DEALLOCATE(local_rho_set,stat=stat)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    END IF 
+
+  END SUBROUTINE local_rho_set_release
+
+! ******************************************************************************
+
+  SUBROUTINE set_local_rho(local_rho_set,rho_atom_set,rho0_atom_set,&
+                            rho0_mpole,rhoz_set)
+
+    TYPE(local_rho_type), INTENT(INout), TARGET     :: local_rho_set
+    TYPE(rho_atom_type), DIMENSION(:),  &
+                                OPTIONAL, POINTER   :: rho_atom_set
+    TYPE(rho0_atom_type), DIMENSION(:), &
+                                 OPTIONAL, POINTER  :: rho0_atom_set
+    TYPE(rho0_mpole_type),        OPTIONAL, POINTER :: rho0_mpole
+    TYPE(rhoz_type),  DIMENSION(:), &
+                            OPTIONAL, POINTER       :: rhoz_set
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_local_rho'
+
+!   ---------------------------------------------------------------------------
+
+    IF (PRESENT(rho_atom_set)) THEN
+       IF(ASSOCIATED(local_rho_set%rho_atom_set)) THEN
+         CALL deallocate_rho_atom_set(local_rho_set%rho_atom_set)
+       ENDIF
+       local_rho_set%rho_atom_set => rho_atom_set
+    END IF   
+
+    IF (PRESENT(rho0_atom_set)) THEN
+       IF(ASSOCIATED(local_rho_set%rho0_atom_set)) THEN
+         CALL deallocate_rho0_atom(local_rho_set%rho0_atom_set)
+       ENDIF
+       local_rho_set%rho0_atom_set => rho0_atom_set
+    END IF 
+
+    IF (PRESENT(rho0_mpole)) THEN
+       IF(ASSOCIATED(local_rho_set%rho0_mpole)) THEN
+         CALL deallocate_rho0_mpole(local_rho_set%rho0_mpole)
+       ENDIF
+       local_rho_set%rho0_mpole => rho0_mpole
+    END IF 
+
+    IF (PRESENT(rhoz_set)) THEN
+       IF(ASSOCIATED(local_rho_set%rhoz_set)) THEN
+         CALL deallocate_rhoz(local_rho_set%rhoz_set)
+       ENDIF
+       local_rho_set%rhoz_set => rhoz_set
+    END IF
+
+  END SUBROUTINE set_local_rho
+
+! ******************************************************************************
+
+END MODULE qs_local_rho_types
+
+!******************************************************************************

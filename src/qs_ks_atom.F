@@ -62,7 +62,7 @@ MODULE qs_ks_atom
 
   CHARACTER(LEN=*), PRIVATE, PARAMETER :: module_name='qs_ks_atom'
 
-  PUBLIC :: update_ks_vxc_atom
+  PUBLIC :: update_ks_atom
 
 !******************************************************************************
 
@@ -70,7 +70,7 @@ CONTAINS
 
 !******************************************************************************
 
-  SUBROUTINE update_ks_vxc_atom(qs_env,ks,p,ispin,forces,error)
+  SUBROUTINE update_ks_atom(qs_env,ks,p,ispin,forces,error)
 
     TYPE(qs_environment_type), INTENT(IN)    :: qs_env
     TYPE(real_matrix_p_type), INTENT(INOUT)  :: ks
@@ -277,19 +277,19 @@ CONTAINS
                 rho_at => rho_atom(katom)
 !dbg
 !   write(*,*) 'katom ', katom
-                CALL add_vxca_to_ks(h_block,oce,rho_at,ispin, &
+                CALL add_vhxca_to_ks(h_block,oce,rho_at,ispin, &
                                     iatom,nsgfa,jatom,nsgfb,katom,nsoctot,&
                                     C_coeff_h,C_coeff_s,max_gau)
 
                 IF(forces)THEN
                   IF(iatom <= jatom) THEN
                     rho_at => rho_atom(katom)
-                    CALL add_vxca_forces(p_block,oce,rho_at,force(kkind),ispin,&
+                    CALL add_vhxca_forces(p_block,oce,rho_at,force(kkind),ispin,&
                                     iatom,nsgfa,jatom,nsgfb,katom,nsoctot,&
                                     C_coeff_h,C_coeff_s,max_gau)
                   ELSE
                     rho_at => rho_atom(katom)
-                    CALL add_vxca_forces(p_block,oce,rho_at,force(kkind),ispin,&
+                    CALL add_vhxca_forces(p_block,oce,rho_at,force(kkind),ispin,&
                                     jatom,nsgfb,iatom,nsgfa,katom,nsoctot,&
                                     C_coeff_h,C_coeff_s,max_gau)
                   END IF
@@ -314,10 +314,11 @@ CONTAINS
     DEALLOCATE (C_coeff_s)
 
 
-  END SUBROUTINE update_ks_vxc_atom
+  END SUBROUTINE update_ks_atom
 !******************************************************************************
 
-  SUBROUTINE add_vxca_to_ks(h_block,oce,rho_atom,ispin,ia,na,ja,nb,ka,nsp,C_h,C_s,ldc)
+  SUBROUTINE add_vhxca_to_ks(h_block,oce,rho_atom,ispin,ia,na,ja,nb,&
+                             ka,nsp,C_h,C_s,ldc)
 
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block
@@ -327,7 +328,7 @@ CONTAINS
                                                 nsp, ldc
     REAL(KIND=dp), DIMENSION(ldc, nb)        :: C_s, C_h
 
-    CHARACTER(LEN=*), PARAMETER              :: routine = "add_vxca_to_ks"
+    CHARACTER(LEN=*), PARAMETER              :: routine = "add_vhxca_to_ks"
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: c_block, IntC_h, IntC_s
     TYPE(rho_atom_coeff), DIMENSION(:), &
@@ -492,11 +493,11 @@ CONTAINS
 
     END IF
 
-  END SUBROUTINE add_vxca_to_ks
+  END SUBROUTINE add_vhxca_to_ks
 
 ! *****************************************************************************
 
-  SUBROUTINE add_vxca_forces(p_block,oce,rho_atom,force,ispin,&
+  SUBROUTINE add_vhxca_forces(p_block,oce,rho_atom,force,ispin,&
                             ia,na,ja,nb,ka,nsp,C_h,C_s,ldc)
 
 ! *****************************************************************************
@@ -509,7 +510,7 @@ CONTAINS
                                                 nsp, ldc
     REAL(KIND=dp), DIMENSION(ldc, nb)        :: C_s, C_h
 
-    CHARACTER(LEN=*), PARAMETER              :: routine = "add_vxca_forces"
+    CHARACTER(LEN=*), PARAMETER              :: routine = "add_vhxca_forces"
 
     INTEGER                                  :: dir
     REAL(KIND=dp)                            :: trace
@@ -678,7 +679,7 @@ CONTAINS
     END DO
 
 
-  END SUBROUTINE add_vxca_forces
+  END SUBROUTINE add_vhxca_forces
 
 ! *****************************************************************************
 

@@ -37,7 +37,6 @@ MODULE soft_basis_set
   USE orbital_symbols,                 ONLY: cgf_symbol,&
                                              sgf_symbol
   USE orbital_transformation_matrices, ONLY: orbtramat
-  USE physcon,                         ONLY: bohr
   USE qs_util,                         ONLY: exp_radius
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -72,7 +71,7 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER   :: orb_basis,soft_basis
     TYPE(gapw_control_type),  POINTER   :: gapw
-    REAL(dp), INTENT(INOUT)             :: rc
+    REAL(dp), INTENT(IN)                :: rc
     LOGICAL, INTENT(INOUT)              :: paw_atom
 
     CHARACTER(LEN=*), PARAMETER :: routine = "create_soft_basis"
@@ -101,7 +100,6 @@ CONTAINS
     CALL get_gto_basis_set(gto_basis_set=orb_basis,name=bsname,&
                            maxpgf=maxpgf,maxshell=maxshell,nset=nset)
 
-    rc =  0.8_dp*bohr
     paw_atom = .FALSE.
         
     soft_basis%name = TRIM(bsname)//"_soft"

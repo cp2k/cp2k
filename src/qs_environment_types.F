@@ -65,6 +65,12 @@ MODULE qs_environment_types
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
+  USE hartree_local_types,             ONLY: ecoul_1center_type, & 
+                                             get_hartree_local,&
+                                             hartree_local_create, &
+                                             hartree_local_release,&
+                                             hartree_local_type,&
+                                             set_hartree_local
   USE kinds,                           ONLY: dp
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
                                              mol_kind_new_list_release,&
@@ -95,6 +101,12 @@ MODULE qs_environment_types
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type,&
                                              qs_ks_qmmm_release,&
                                              qs_ks_qmmm_retain
+  USE qs_local_rho_types,              ONLY: local_rho_set_create,&
+                                             local_rho_set_release,&
+                                             get_local_rho,&
+                                             local_rho_type,&
+                                             rhoz_type,&
+                                             set_local_rho
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              mpools_release,&
                                              mpools_retain,&
@@ -203,9 +215,9 @@ MODULE qs_environment_types
 !!     - mpools: all the pools of matrixes
 !!     - distribution_2d: distribution of the atom pairs between the processors
 !!     - subsys: the particles, molecules,... of this environment
-!!     - rho_atom_set : soft and hard densities localized on atoms
-!!     - rho0_mpole : multipoles for soft and hard compensation densities
-!!     - rho0_atom_set :  soft and hard compensation densities for each atom
+!!     - local_rho_set: contains the atomic, compensations and core densities
+!!                      and the local parts of the xc terms
+!!     - hartree_local: contains the 1, 2 and 3 centers coulomb terms 
 !!
 !!     compatibility get (things that you should get from the subsys):
 !!     - atomic_kind_set: array with infos about the species (atomic_kinds)
@@ -258,9 +270,8 @@ MODULE qs_environment_types
     TYPE(distribution_2d_type), POINTER                   :: distribution_2d
     TYPE(cp_subsystem_type), POINTER                      :: subsys
     TYPE(oce_matrix_type), POINTER                        :: oce
-    TYPE(rho_atom_type), DIMENSION(:), POINTER            :: rho_atom_set
-    TYPE(rho0_mpole_type), POINTER                        :: rho0_mpole
-    TYPE(rho0_atom_type), DIMENSION(:), POINTER           :: rho0_atom_set
+    TYPE(local_rho_type), POINTER                         :: local_rho_set
+    TYPE(hartree_local_type),  POINTER                    :: hartree_local
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -305,7 +316,9 @@ CONTAINS
                         wf_history,scf_env,&
                         id_nr,local_particles,local_molecules,&
                         distribution_2d,molecule_kind_set,molecule_set,&
-                        subsys,error,oce,rho_atom_set,rho0_atom_set,rho0_mpole)
+                        subsys,error,oce,rho_atom_set,&
+                        rho0_atom_set,rho0_mpole,&
+                        rhoz_set,ecoul_1c)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -375,6 +388,10 @@ CONTAINS
     TYPE(rho0_atom_type), DIMENSION(:), &
                           OPTIONAL, POINTER  :: rho0_atom_set
     TYPE(rho0_mpole_type), OPTIONAL, POINTER :: rho0_mpole
+    TYPE(rhoz_type),   DIMENSION(:),  &
+                         OPTIONAL, POINTER   :: rhoz_set
+    TYPE(ecoul_1center_type), DIMENSION(:),&
+                         OPTIONAL, POINTER   :: ecoul_1c
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
       routineP = moduleN//':'//routineN
@@ -432,9 +449,17 @@ CONTAINS
     IF (PRESENT(para_env)) para_env => qs_env%para_env
     IF (PRESENT(distribution_2d)) distribution_2d => qs_env%distribution_2d
     IF (PRESENT(oce)) oce =>  qs_env%oce
-    IF (PRESENT(rho_atom_set)) rho_atom_set => qs_env%rho_atom_set
-    IF (PRESENT(rho0_atom_set)) rho0_atom_set => qs_env%rho0_atom_set
-    IF (PRESENT(rho0_mpole))  rho0_mpole => qs_env%rho0_mpole
+
+    IF (PRESENT(rho_atom_set)) &
+       CALL get_local_rho(qs_env%local_rho_set, rho_atom_set=rho_atom_set)
+    IF (PRESENT(rho0_atom_set)) &
+       CALL get_local_rho(qs_env%local_rho_set, rho0_atom_set=rho0_atom_set)
+    IF (PRESENT(rho0_mpole)) &
+         CALL get_local_rho(qs_env%local_rho_set,  rho0_mpole=rho0_mpole)
+    IF (PRESENT(rhoz_set)) & 
+         CALL get_local_rho(qs_env%local_rho_set, rhoz_set=rhoz_set)
+    IF (PRESENT(ecoul_1c)) &
+         CALL get_hartree_local(qs_env%hartree_local,ecoul_1c=ecoul_1c)
 
     CALL cp_subsys_get(qs_env%subsys,&
                       atomic_kinds=atomic_kinds,&
@@ -503,9 +528,11 @@ CONTAINS
     NULLIFY (qs_env%subsys)
     NULLIFY (qs_env%blacs_env)
     NULLIFY (qs_env%oce)
-    NULLIFY (qs_env%rho_atom_set)
-    NULLIFY (qs_env%rho0_atom_set)
-    NULLIFY (qs_env%rho0_mpole)
+    NULLIFY (qs_env%local_rho_set)
+    NULLIFY (qs_env%hartree_local)
+
+    CALL local_rho_set_create(qs_env%local_rho_set, error=error)
+    CALL hartree_local_create(qs_env%hartree_local, error=error)
 
     CALL cp_subsys_create(qs_env%subsys, para_env=para_env, error=error)
     CALL cp_para_env_retain(para_env,error=error)
@@ -526,10 +553,11 @@ CONTAINS
                         sac_oce,sbc_oce,&
                         pao_env,particle_set,energy,force,h,k,s,w,&
                         pw_env,mpools,rho,rho_soft,kinetic,&
-                        scf_control,qs_charges,rho_core, ks_env, ks_qmmm_env,&
+                        scf_control,qs_charges,rho_core, ks_env,ks_qmmm_env,&
                         wf_history,scf_env,local_particles,local_molecules,&
                         distribution_2d,molecule_kind_set,molecule_set,&
-                        subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,error)
+                        subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,&
+                        rhoz_set,ecoul_1c,error)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -594,7 +622,10 @@ CONTAINS
     TYPE(rho0_atom_type), DIMENSION(:),&
                           OPTIONAL, POINTER  :: rho0_atom_set
     TYPE(rho0_mpole_type), OPTIONAL, POINTER :: rho0_mpole 
-    
+    TYPE(rhoz_type), DIMENSION(:),&
+                          OPTIONAL, POINTER  :: rhoz_set
+    TYPE(ecoul_1center_type), DIMENSION(:),& 
+                          OPTIONAL, POINTER  :: ecoul_1c
 
     CHARACTER(len=*), PARAMETER :: routineN = "set_qs_env", &
       routineP = moduleN//':'//routineN
@@ -697,23 +728,23 @@ CONTAINS
        qs_env%mpools => mpools
     END IF
     IF (PRESENT(rho_atom_set)) THEN
-       IF(ASSOCIATED(qs_env%rho_atom_set)) THEN
-         CALL deallocate_rho_atom_set(qs_env%rho_atom_set)
-       ENDIF       
-       qs_env%rho_atom_set =>  rho_atom_set
+        CALL set_local_rho(qs_env%local_rho_set,rho_atom_set=rho_atom_set)
     END IF
     IF (PRESENT(rho0_atom_set)) THEN
-       IF(ASSOCIATED(qs_env%rho0_atom_set)) THEN
-         CALL deallocate_rho0_atom(qs_env%rho0_atom_set)
-       ENDIF       
-       qs_env%rho0_atom_set =>  rho0_atom_set 
+        CALL set_local_rho(qs_env%local_rho_set,rho0_atom_set=rho0_atom_set)
     END IF
     IF (PRESENT(rho0_mpole)) THEN
-       IF(ASSOCIATED(qs_env%rho0_mpole)) THEN
-         CALL deallocate_rho0_mpole(qs_env%rho0_mpole)
-       ENDIF       
-       qs_env%rho0_mpole =>  rho0_mpole 
+        CALL set_local_rho(qs_env%local_rho_set,rho0_mpole=rho0_mpole)
     END IF
+    IF (PRESENT(rhoz_set)) THEN
+        CALL set_local_rho(qs_env%local_rho_set,rhoz_set=rhoz_set)
+    END IF
+    IF (PRESENT(ecoul_1c)) THEN
+        CALL set_hartree_local(qs_env%hartree_local,ecoul_1c=ecoul_1c)
+    END IF
+
+
+
     IF (PRESENT(subsys)) THEN
        CALL cp_subsys_retain(subsys,error=error)
        CALL cp_subsys_release(qs_env%subsys,error=error)
@@ -1009,14 +1040,11 @@ SUBROUTINE qs_env_release(qs_env,error)
         IF (ASSOCIATED(qs_env%w)) CALL deallocate_matrix_set(qs_env%w)
         IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce)
 
-        IF (ASSOCIATED(qs_env%rho_atom_set)) THEN
-           CALL deallocate_rho_atom_set(qs_env%rho_atom_set)
+        IF (ASSOCIATED(qs_env%local_rho_set)) THEN 
+           CALL local_rho_set_release(qs_env%local_rho_set)
         END IF
-        IF (ASSOCIATED(qs_env%rho0_atom_set)) THEN
-           CALL deallocate_rho0_atom(qs_env%rho0_atom_set)
-        END IF
-        IF (ASSOCIATED(qs_env%rho0_mpole)) THEN
-           CALL deallocate_rho0_mpole(qs_env%rho0_mpole)
+        IF (ASSOCIATED(qs_env%hartree_local)) THEN 
+           CALL hartree_local_release(qs_env%hartree_local)
         END IF
         IF (ASSOCIATED(qs_env%kinetic))&
              CALL deallocate_matrix_set(qs_env%kinetic)

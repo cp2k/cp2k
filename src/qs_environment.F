@@ -54,6 +54,7 @@ MODULE qs_environment
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
+  USE hartree_local_methods,           ONLY: init_coulomb_local
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE input_types,                     ONLY: setup_parameters_type
@@ -322,7 +323,7 @@ CONTAINS
                              maxlgto=maxlgto,&
                              maxlppl=maxlppl,&
                              maxlppnl=maxlppnl)
-
+    
     lmax_sphere = dft_control%qs_control%gapw_control%lmax_sphere
     maxl = MAX(maxlgto,maxlppl,maxlppnl,lmax_sphere)
 
@@ -566,6 +567,8 @@ CONTAINS
       CALL init_rho_atom(qs_env,gapw_control,globenv)
 !     *** Allocate and initialize the compensation density rho0 ***
       CALL init_rho0(qs_env,gapw_control,globenv)
+!     *** Allocate and Initialize the local coulomb terms (1,2 and 3 centers) ***
+      CALL init_coulomb_local(qs_env,gapw_control,globenv)
     ENDIF
 
     IF (ionode) CALL m_flush(output_unit)

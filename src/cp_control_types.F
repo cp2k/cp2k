@@ -60,6 +60,7 @@ MODULE cp_control_types
     REAL(KIND = dp)                 :: eps_fit,eps_iso
     INTEGER                         :: ladd_rho0,lmax_rho0,&
                                        lmax_sphere, quadrature
+    CHARACTER(LEN=30)               :: quadrature_name
   END TYPE gapw_control_type
 
 ! *** Control parameters for a KIM-GORDON calculation ***

@@ -81,7 +81,7 @@ MODULE atomic_kind_types
                                              paw_proj_set_type,&
                                              projectors
   USE periodic_table,                  ONLY: ptable
-  USE physcon,                         ONLY: massunit
+  USE physcon,                         ONLY: bohr,massunit
   USE qs_grid_atom,                    ONLY: allocate_grid_atom,&
                                              deallocate_grid_atom,&
                                              grid_atom_type
@@ -119,8 +119,9 @@ MODULE atomic_kind_types
     TYPE(gto_basis_set_type), POINTER      :: soft_basis_set
     TYPE(gto_basis_set_type), POINTER      :: hard_basis_set
     TYPE(paw_proj_set_type),  POINTER      :: paw_proj_set
-    REAL(dp)                               :: hard_radius 
-    LOGICAL                                :: paw_atom
+    REAL(dp)                               :: hard_radius  ! for hard and soft exp
+    REAL(dp)                               :: hard0_radius ! for hard exp of rho0
+    LOGICAL                                :: paw_atom     ! needs atomic rho1
     CHARACTER(LEN=default_string_length)   :: name
     CHARACTER(LEN=2)                       :: element_symbol
     REAL(KIND = dp)                        :: mass
@@ -215,6 +216,8 @@ CONTAINS
       atomic_kind_set(ikind)%number_of_grid_points = 0
       atomic_kind_set(ikind)%ldaCoreRadius = 0.0_dp
       atomic_kind_set(ikind)%paw_atom = .FALSE.
+      atomic_kind_set(ikind)%hard_radius = 0.8_dp*bohr
+      atomic_kind_set(ikind)%hard0_radius = 0.65_dp*bohr
       atomic_kind_set(ikind)%ngrid_rad = 40 
       atomic_kind_set(ikind)%ngrid_ang = 50 
     END DO
@@ -307,8 +310,9 @@ CONTAINS
                              core_charge_radius,ncgf,nsgf,z,zeff,qeff,&
                              pao_bas_proj,ldaCoreRadius,soft_basis_set,&
                              hard_basis_set,paw_proj_set,&
-                             paw_atom,hard_radius,&
-                             harmonics, grid_atom, ngrid_ang, ngrid_rad)
+                             paw_atom,hard_radius,hard0_radius,&
+                             harmonics, max_s_harm,&
+                             grid_atom, ngrid_ang, ngrid_rad)
 
 !   Purpose: Get informations about an atomic kind.
 
@@ -324,7 +328,12 @@ CONTAINS
     TYPE(gth_potential_type), OPTIONAL, &
       POINTER                                :: gth_potential
     TYPE(gto_basis_set_type), OPTIONAL, &
-      POINTER                                :: aux_basis_set, orb_basis_set
+      POINTER                                :: aux_basis_set,&
+                                                orb_basis_set,&
+                                                soft_basis_set,&
+                                                hard_basis_set
+    TYPE(paw_proj_set_type),  OPTIONAL, &
+      POINTER                                :: paw_proj_set
     CHARACTER(LEN=2), INTENT(OUT), OPTIONAL  :: element_symbol
     CHARACTER(LEN=default_string_length), &
       INTENT(OUT), OPTIONAL                  :: name
@@ -334,22 +343,23 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha_core_charge, &
                                                 ccore_charge, &
                                                 core_charge_radius
-    INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, nsgf, z, zeff
+    INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, ngrid_ang,&
+                                                ngrid_rad, nsgf,&
+                                                z, zeff
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: qeff
     TYPE(pao_bas_projection_type), &
       OPTIONAL, POINTER                      :: pao_bas_proj
     REAL(kind=dp), DIMENSION(4), &
       INTENT(out), OPTIONAL                  :: ldaCoreRadius
-    TYPE(gto_basis_set_type), OPTIONAL, &
-      POINTER                                :: soft_basis_set, hard_basis_set
-    TYPE(paw_proj_set_type), OPTIONAL, &
-      POINTER                                :: paw_proj_set
-    LOGICAL, INTENT(OUT), OPTIONAL           :: paw_atom
-    REAL(dp), INTENT(OUT), OPTIONAL          :: hard_radius
+    LOGICAL, OPTIONAL,  INTENT(OUT)          :: paw_atom
+    REAL(dp), OPTIONAL, INTENT(OUT)          :: hard_radius
+    REAL(dp), OPTIONAL, INTENT(OUT)          :: hard0_radius
     TYPE(harmonics_atom_type), OPTIONAL, &
-      POINTER                                :: harmonics
-    TYPE(grid_atom_type), OPTIONAL, POINTER  :: grid_atom
-    INTEGER, INTENT(OUT), OPTIONAL           :: ngrid_ang, ngrid_rad
+                                 POINTER     :: harmonics
+    INTEGER, INTENT(OUT), OPTIONAL           :: max_s_harm
+    TYPE(grid_atom_type), OPTIONAL, &
+                            POINTER          :: grid_atom
+
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_atomic_kind"
 
@@ -458,10 +468,18 @@ CONTAINS
       IF (PRESENT(paw_proj_set))   paw_proj_set => atomic_kind%paw_proj_set
       IF (PRESENT(paw_atom)) paw_atom = atomic_kind%paw_atom
       IF (PRESENT(hard_radius)) hard_radius = atomic_kind%hard_radius
+      IF (PRESENT(hard0_radius)) hard0_radius = atomic_kind%hard0_radius
       IF (PRESENT(harmonics))  harmonics => atomic_kind%harmonics
+      IF (PRESENT(max_s_harm)) THEN 
+         IF(ASSOCIATED(atomic_kind%harmonics)) THEN 
+            max_s_harm = atomic_kind%harmonics%max_s_harm
+         ELSE
+            max_s_harm = 0
+         END IF
+      END IF
       IF (PRESENT(grid_atom))  grid_atom => atomic_kind%grid_atom
       IF (PRESENT(ngrid_ang))  ngrid_ang = atomic_kind%ngrid_ang
-      IF (PRESENT(ngrid_ang))  ngrid_rad = atomic_kind%ngrid_rad
+      IF (PRESENT(ngrid_rad))  ngrid_rad = atomic_kind%ngrid_rad
     ELSE
 
       CALL stop_program(routine_name,module_name,__LINE__,&
@@ -485,7 +503,7 @@ CONTAINS
                                  all_potential_present,gth_potential_present,&
                                  elp_potential_present,paw_atom_present,&
                                  atom_of_kind,kind_of,natom_of_kind,maxder,&
-                                 max_ldaCoreRadius)
+                                 max_ldaCoreRadius,max_ngrid_rad,max_sph_harm)
 
 !   Purpose: Get informations about an atomic kind set.
 
@@ -496,13 +514,16 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     INTEGER, INTENT(OUT), OPTIONAL :: maxatom, maxcgf, maxco, maxco_proj, &
-      maxgtop, maxgtops, maxlgto, maxlppl, maxlppnl, maxpgf, maxppnl, maxsgf, &
+      maxgtop,maxgtops, maxlgto, maxlppl, maxlppnl, maxpgf, maxppnl, maxsgf, &
       maxsgf_set, maxshell, pao_max_min_bas, pao_max_full_bas, &
-      pao_max_excl_bas, pao_tot_min_bas, pao_tot_full_bas, pao_tot_excl_bas, &
-      pao_max_l_angles, natom, nelectron, ncgf, ncgf_aux, npgf, nset, nsgf, &
-      nshell
-    LOGICAL, INTENT(OUT), OPTIONAL :: all_potential_present, &
-      gth_potential_present, elp_potential_present, paw_atom_present
+      pao_max_excl_bas, pao_tot_min_bas,pao_tot_full_bas, pao_tot_excl_bas, &
+      pao_max_l_angles, natom, nelectron, &
+      ncgf, ncgf_aux, npgf, nset, nsgf, nshell, &
+      max_ngrid_rad, max_sph_harm
+    LOGICAL, INTENT(OUT), OPTIONAL           :: all_potential_present, &
+                                                gth_potential_present, &
+                                                elp_potential_present, &
+                                                paw_atom_present
     INTEGER, DIMENSION(:), INTENT(OUT), &
       OPTIONAL                               :: atom_of_kind, kind_of, &
                                                 natom_of_kind
@@ -512,8 +533,8 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_atomic_kind_set"
 
-    INTEGER :: atom_a, iatom, ikind, imax, n, nkind, p_excl_bas, &
-      p_excl_bas_max, p_full_bas, p_full_bas_max, p_full_bas_tot, &
+    INTEGER :: atom_a, iatom, ikind, imax, max_s_harm, n, ngrid_rad, nkind, &
+      p_excl_bas, p_excl_bas_max, p_full_bas, p_full_bas_max, p_full_bas_tot, &
       p_l_angles_max, p_min_bas, p_min_bas_max, p_min_bas_tot, zeff
     INTEGER, DIMENSION(:), POINTER           :: n_ppl
     LOGICAL                                  :: pao, paw_atom
@@ -523,7 +544,7 @@ CONTAINS
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, orb_basis_set
-    TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
+    TYPE(paw_proj_set_type),  POINTER        :: paw_proj_set
 
 !   ---------------------------------------------------------------------------
 
@@ -580,6 +601,9 @@ CONTAINS
       IF (PRESENT(max_ldaCoreRadius)) THEN
          max_ldaCoreRadius=0.0_dp
       END IF
+      IF (PRESENT(max_ngrid_rad))  max_ngrid_rad = 0
+      IF (PRESENT(max_sph_harm))   max_sph_harm = 0
+
       nkind = SIZE(atomic_kind_set)
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
@@ -590,6 +614,8 @@ CONTAINS
                              aux_basis_set=aux_basis_set,&
                              orb_basis_set=orb_basis_set,&
                              ldaCoreRadius=ldaCoreRadius,&
+                             ngrid_rad=ngrid_rad,&
+                             max_s_harm=max_s_harm, &
                              paw_atom=paw_atom)
         IF (PRESENT(max_ldaCoreRadius)) THEN
            max_ldaCoreRadius=MAX(max_ldaCoreRadius,ldaCoreRadius)
@@ -816,6 +842,12 @@ CONTAINS
            p_min_bas_tot=p_min_bas_tot+p_min_bas*SIZE(atomic_kind%atom_list)
            p_full_bas_tot=p_full_bas_tot+p_full_bas*SIZE(atomic_kind%atom_list)
         END IF
+        IF(PRESENT(max_ngrid_rad)) THEN
+          max_ngrid_rad = MAX(max_ngrid_rad,ngrid_rad)
+        ENDIF
+        IF(PRESENT(max_sph_harm)) THEN
+          max_sph_harm = MAX(max_sph_harm,max_s_harm)
+        ENDIF
       END DO
       IF (PRESENT(pao_max_excl_bas)) pao_max_excl_bas=p_excl_bas_max
       IF (PRESENT(pao_max_full_bas)) pao_max_full_bas=p_full_bas_max
@@ -950,7 +982,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(gapw_control_type), POINTER         :: gapw
+    TYPE(gapw_control_type),  POINTER        :: gapw
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 
@@ -962,6 +994,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis, soft_basis
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
+    CHARACTER(LEN=default_string_length):: bsname
 
 ! *****************************************************************************
 
@@ -977,16 +1010,17 @@ CONTAINS
 
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              orb_basis_set=orb_basis,&
-                             soft_basis_set=soft_basis)
+                             soft_basis_set=soft_basis,&
+                             hard_radius=rc)
 
 !        bsname = orb_basis%name
 !        atomic_kind%hard_basis_set%name = TRIM(bsname)//"_hard"
 
         paw_atom = .FALSE.
-        rc = 10.0_dp
+
         CALL create_soft_basis(orb_basis,soft_basis,gapw,rc,paw_atom)
         CALL set_atomic_kind(atomic_kind=atomic_kind,&
-                             paw_atom=paw_atom,hard_radius=rc)
+                             paw_atom=paw_atom)
         IF(paw_atom) THEN
           CALL write_gto_basis_set(soft_basis,globenv)
 !         the hard_basis points to the orb_basis
@@ -1032,9 +1066,11 @@ CONTAINS
     CHARACTER(LEN=2)                         :: current_symbol, element_symbol
     CHARACTER(LEN=3)                         :: test_result
     CHARACTER(LEN=default_string_length) :: aux_basis_set_name, keyword, &
-      norm_sym, orb_basis_set_name, potential_name, potential_type
-    INTEGER                                  :: i, ipos, min_b_index, naux, &
-                                                norb, z
+                                                norm_sym, orb_basis_set_name, &
+                                                potential_name, potential_type
+    INTEGER                                  :: i, ipos, &
+                                                min_b_index, naux, &
+                                                ngrid_ang, ngrid_rad, norb, z
     LOGICAL                                  :: failure, section_found
     TYPE(cp_error_type)                      :: error
     TYPE(cp_sll_int_type), POINTER           :: min_bas_sll
@@ -1142,6 +1178,13 @@ CONTAINS
              DO i=1,SIZE(atomic_kind%ldaCoreRadius)
                 CALL read_object(atomic_kind%ldaCoreRadius(i))
              END DO
+          CASE ("HARD_EXP_RADIUS")
+             CALL read_object(atomic_kind%hard_radius)
+          CASE ("RHO0_EXP_RADIUS")
+             CALL read_object(atomic_kind%hard0_radius)
+             CALL cp_assert(atomic_kind%hard_radius>atomic_kind%hard0_radius,&
+                       cp_failure_level,cp_assertion_failed,routineP,&
+                      "rc0 should be <= rc",error,failure)
           CASE ("LEBEDEV_GRID")
              CALL read_object(atomic_kind%ngrid_ang)
              CALL cp_assert(atomic_kind%ngrid_ang > 0,&
@@ -1356,7 +1399,7 @@ CONTAINS
       OPTIONAL                               :: atom_list
     TYPE(pao_bas_projection_type), &
       INTENT(IN), OPTIONAL, TARGET           :: pao_bas_proj
-    LOGICAL, INTENT(in), OPTIONAL            :: paw_atom
+    LOGICAL, INTENT(IN), OPTIONAL            :: paw_atom
     REAL(dp), INTENT(IN), OPTIONAL           :: hard_radius
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_atomic_kind"
@@ -1442,8 +1485,16 @@ CONTAINS
         END IF
         CALL write_orb_basis_set(atomic_kind%orb_basis_set,globenv)
         IF (atomic_kind%paw_atom) THEN
-          WRITE (UNIT=output_unit,FMT="(/,T2,A,/)")&
-          "For GAPW this atomic kind requires a soft basis set"
+          WRITE (UNIT=output_unit,FMT="(/,T2,A,A)")&
+          "***** GAPW  Atomic Kind: Soft Basis Set and",&
+              "Atomic and Compensation Density are Required ***"
+          WRITE (UNIT=output_unit,FMT="(/,T6,A,T35,F10.3)")&
+          "GAPW|  Hard Gaussians Radius:",atomic_kind%hard_radius
+          WRITE (UNIT=output_unit,FMT="(T6,A,T35,F10.3,/)")&
+          "GAPW|  Rho0 Radius:",atomic_kind%hard0_radius
+          WRITE (UNIT=output_unit,FMT="(T10,A))")&
+          "***** Soft Basis Set *****"
+
           CALL write_orb_basis_set(atomic_kind%soft_basis_set,globenv)
         ENDIF
         CALL write_aux_basis_set(atomic_kind%aux_basis_set,globenv)

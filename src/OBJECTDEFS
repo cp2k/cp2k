@@ -128,6 +128,8 @@ OBJECTS_GENERIC =\
  gopt_f_types.o\
  greens_fn.o\
  hartree.o\
+ hartree_local_methods.o\
+ hartree_local_types.o\
  header.o\
  initialize_extended_types.o\
  initialize_molecule_types.o\
@@ -269,6 +271,7 @@ OBJECTS_GENERIC =\
  qs_ks_methods.o\
  qs_ks_types.o\
  qs_ks_qmmm_types.o\
+ qs_local_rho_types.o\
  qs_localization.o\
  qs_localization_methods.o\
  qs_main.o\

@@ -38,6 +38,8 @@ MODULE qs_rho0_methods
                                              allocate_rho0_atom,&
                                              allocate_rho0_atom_rad,&
                                              allocate_rho0_mpole,&
+                                             calculate_g0,&
+                                             get_rho0_mpole, &
                                              initialize_mpole_rho,&
                                              mpole_gau_overlap,&
                                              mpole_rho_atom,&
@@ -47,6 +49,9 @@ MODULE qs_rho0_methods
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
+  USE qs_local_rho_types,              ONLY: allocate_rhoz,&
+                                             calculate_rhoz,&
+                                             rhoz_type
   USE qs_util,                         ONLY: exp_radius,&
                                              gaussint_sph,&
                                              trace_r_AxB
@@ -93,23 +98,23 @@ MODULE qs_rho0_methods
     NULLIFY(lmax,lmin,npgf,my_CG,zet)
 
     CALL reallocate(mp_gau%Qlm_gg,1,nsotot,1,nsotot,1,nchannels)
-    
+
     CALL get_gto_basis_set(gto_basis_set = orb_basis, &
                                lmax=lmax,lmin=lmin,maxso=maxso,&
                                npgf=npgf,nset=nset,zet=zet)
     my_CG => harmonics%my_CG
 
     m1 = 0
-    m2 = 0
     DO iset1 = 1,nset
       n1 = nsoset(lmax(iset1))
       DO ipgf1 = 1,npgf(iset1)
         zet1 = zet(ipgf1,iset1)
+        m2 = 0
         DO iset2 = 1,nset
           n2 = nsoset(lmax(iset2))
           DO ipgf2 = 1,npgf(iset2)
             zet2 = zet(ipgf2,iset2)
-          
+
             DO iso = 1,nchannels
               l = indso(1,iso)
               DO icg = 1,harmonics%ncg(iso,iset1,iset2)
@@ -119,6 +124,7 @@ MODULE qs_rho0_methods
                  l2 = indso(1,iso2)
                  ig1 = iso1 + n1*(ipgf1-1) + m1
                  ig2 = iso2 + n2*(ipgf2-1) + m2
+
                  mp_gau%Qlm_gg(ig1,ig2,iso) = fourpi/(2._dp*l+1._dp)*&
                         my_CG(iso1,iso2,iso)*gaussint_sph(zet1+zet2,l+l1+l2)
               END DO  ! icg
@@ -141,16 +147,16 @@ MODULE qs_rho0_methods
     TYPE(qs_environment_type), INTENT(inout) :: qs_env
     INTEGER, DIMENSION(:), INTENT(IN)        :: a_list
     TYPE(grid_atom_type), INTENT(IN)         :: g_atom
-    TYPE(rho0_mpole_type), INTENT(INOUT)     :: rho0_mp
+    TYPE(rho0_mpole_type), POINTER           :: rho0_mp
     INTEGER, INTENT(IN)                      :: ikind, natom
     LOGICAL, INTENT(IN)                      :: paw_atom
 
     CHARACTER(len=*), PARAMETER :: routine_name = 'calculate_rho0_atom', &
       routineP = module_name//':'//routine_name
 
-    REAL(dp)                                 :: z_h, z_s
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: gh_tmp,gs_tmp
-    REAL(dp), ALLOCATABLE, DIMENSION(:,:)    :: g0_h, g0_s
+!    REAL(dp)                                 :: z_h, z_s
+!    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: gh_tmp,gs_tmp
+    REAL(dp), DIMENSION(:,:), POINTER        :: g0_h, g0_s
     TYPE(mpole_rho_atom),  POINTER           :: mpole_rho
     TYPE(mpole_gau_overlap), POINTER         :: mpole_gau
     TYPE(rho0_atom_type), DIMENSION(:),&
@@ -159,21 +165,26 @@ MODULE qs_rho0_methods
     TYPE(rho_atom_type), DIMENSION(:), &
                            POINTER           :: rho_atom_set
 
-    INTEGER :: iat, iatom, iso, istat, l, lmax0, nchannels, nr
+    INTEGER :: iat, iatom, iso, istat, l, lmax0, nchannels, nr,i
 !   ---------------------------------------------------------------------------
 
     NULLIFY(mpole_gau)
     NULLIFY(mpole_rho)
     NULLIFY(rho0_atom_set)
     NULLIFY(rho_atom_set)
+    NULLIFY(g0_h, g0_s)
 
     CALL get_qs_env(qs_env=qs_env,rho_atom_set=rho_atom_set,&
                     rho0_atom_set=rho0_atom_set)
 
-    mpole_gau => rho0_mp%mp_gau(ikind)
-    lmax0 = rho0_mp%lmax0_kind(ikind)
-    z_h = rho0_mp%zet0_h
-    z_s = rho0_mp%zet0_s
+    CALL get_rho0_mpole(rho0_mpole=rho0_mp,ikind=ikind, &
+                        l0_ikind=lmax0,mp_gau_ikind=mpole_gau,&
+                        g0_h=g0_h,g0_s=g0_s)
+
+!    mpole_gau => rho0_mp%mp_gau(ikind)
+!    lmax0 = rho0_mp%lmax0_kind(ikind)
+!    z_h = rho0_mp%zet0_h
+!    z_s = rho0_mp%zet0_s
     nchannels = nsoset(lmax0) 
     nr = g_atom%nr
 
@@ -186,28 +197,26 @@ MODULE qs_rho0_methods
       rho0_mp%mp_rho(iatom)%Qlm_tot(1) = rho0_mp%mp_rho(iatom)%Qlm_z
     ENDDO
 
-    ALLOCATE(g0_h(nr,0:lmax0),g0_s(nr,0:lmax0),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "g0_h,g0_s")
-    ALLOCATE(gh_tmp(nr),gs_tmp(nr),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "gh_tmp,gs_tmp")
-    gh_tmp = 0.0_dp
-    gs_tmp = 0.0_dp
+!    ALLOCATE(g0_h(nr,0:lmax0),g0_s(nr,0:lmax0),STAT=istat)
+!    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+!                                     "g0_h,g0_s")
+!    ALLOCATE(gh_tmp(nr),gs_tmp(nr),STAT=istat)
+!    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+!                                     "gh_tmp,gs_tmp")
+!    gh_tmp = 0.0_dp
+!    gs_tmp = 0.0_dp
+!    gh_tmp(1:nr) = EXP(-z_h*g_atom%rad2(1:nr))
+!    g0_h(1:nr,0) = gh_tmp(1:nr)*rho0_mp%norm_g0l_h(0)
+!    gs_tmp(1:nr) = EXP(-z_s*g_atom%rad2(1:nr))
+!    g0_s(1:nr,0) = gs_tmp(1:nr)*rho0_mp%norm_g0l_s(0)
 
 
-
-    gh_tmp(1:nr) = EXP(-z_h*g_atom%rad2(1:nr))
-    g0_h(1:nr,0) = gh_tmp(1:nr)*rho0_mp%norm_g0l_h(0)
-    gs_tmp(1:nr) = EXP(-z_s*g_atom%rad2(1:nr))
-    g0_s(1:nr,0) = gs_tmp(1:nr)*rho0_mp%norm_g0l_s(0)
-
-    DO l = 1,lmax0
-      gh_tmp(1:nr) = gh_tmp(1:nr)*g_atom%rad(1:nr)
-      g0_h(1:nr,l) = gh_tmp(1:nr)*rho0_mp%norm_g0l_h(l)
-      gs_tmp(1:nr) = gs_tmp(1:nr)*g_atom%rad(1:nr)
-      g0_s(1:nr,l) = gs_tmp(1:nr)*rho0_mp%norm_g0l_s(l)
-    END DO  ! l
+!    DO l = 1,lmax0
+!      gh_tmp(1:nr) = gh_tmp(1:nr)*g_atom%rad(1:nr)
+!      g0_h(1:nr,l) = gh_tmp(1:nr)*rho0_mp%norm_g0l_h(l)
+!      gs_tmp(1:nr) = gs_tmp(1:nr)*g_atom%rad(1:nr)
+!      g0_s(1:nr,l) = gs_tmp(1:nr)*rho0_mp%norm_g0l_s(l)
+!    END DO  ! l
 
     DO iso = 1, nsoset(lmax0)
       l = indso(1,iso)
@@ -218,15 +227,16 @@ MODULE qs_rho0_methods
          IF(paw_atom) CALL calculate_Qlm_atom(mpole_gau,mpole_rho,rho_atom,iso)
          rho0_atom_set(iatom)%rho0_rad_h%r_coef(1:nr,iso) = &
               g0_h(1:nr,l) * mpole_rho%Qlm_tot(iso)  
+!   WRITE(*,'(3i3,3f10.5)') l, iso, iat,  mpole_rho%Qlm_h(iso), mpole_rho%Qlm_s(iso),&
+!            mpole_rho%Qlm_tot(iso)
       END DO  ! iat
-
     END DO  ! iso
-    
-    DEALLOCATE(g0_h,g0_s,gh_tmp,gs_tmp,STAT=istat)
-    IF (istat /= 0) THEN
-       CALL stop_memory(routine_name,module_name,__LINE__,&
-                         "g0_h,g0_s,gh_tmp,gs_tmp")
-    ENDIF
+!    stop 'qlm'
+!    DEALLOCATE(g0_h,g0_s,gh_tmp,gs_tmp,STAT=istat)
+!    IF (istat /= 0) THEN
+!       CALL stop_memory(routine_name,module_name,__LINE__,&
+!                         "g0_h,g0_s,gh_tmp,gs_tmp")
+!    ENDIF
 
   END SUBROUTINE calculate_rho0_atom
 
@@ -264,6 +274,8 @@ MODULE qs_rho0_methods
                         cpc_s(ispin)%r_coef,nsotot,&
                         nsotot,nsotot)
     END DO  ! ispin
+
+
     mpole_rho%Qlm_tot(iso) = mpole_rho%Qlm_tot(iso) + &
                              mpole_rho%Qlm_h(iso)-mpole_rho%Qlm_s(iso)
 
@@ -288,9 +300,12 @@ MODULE qs_rho0_methods
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(rho0_atom_type), DIMENSION(:), &
                            POINTER           :: rho0_atom_set
-    REAL(dp)                                 :: ecut, eps_fit, gcut, &
+    TYPE(grid_atom_type), POINTER            :: grid_atom
+    TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
+    REAL(dp)                                 :: alpha_core,&
+                                                ecut, eps_fit, gcut, &
                                                 radius, rc_orb, rc_min
-    INTEGER  ::  iat, iatom, ikind, l, laddg, lmaxg, maxl, maxso, nat, &
+    INTEGER  ::  iat, iatom, ikind, l, laddg, lmaxg, max_nr, maxl, maxso, nat, &
                  natom, nchannels, nkind, nr, nset, nsotot,  zeff
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: paw_atom
@@ -309,10 +324,10 @@ MODULE qs_rho0_methods
                     dft_control=dft_control)
 
     ecut = dft_control%qs_control%cutoff 
-    nkind = size(atomic_kind_set)
+    nkind = SIZE(atomic_kind_set,1)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             natom=natom)
+                             natom=natom,max_ngrid_rad=max_nr)
 
 !   Initialize the multipole and the compensation charge type 
     CALL allocate_rho0_mpole(rho0_mpole)
@@ -320,6 +335,9 @@ MODULE qs_rho0_methods
 
 !   Allocate the multipole set
     CALL allocate_multipoles(rho0_mpole%mp_rho,natom,rho0_mpole%mp_gau,nkind)
+
+!   Allocate the core density on the radial grid for each kind: rhoz_set
+    CALL allocate_rhoz(rhoz_set,nkind)
 
 !   For each kind, determine the max l for the compensation charge density
     lmaxg = gapw_control%lmax_rho0
@@ -335,11 +353,15 @@ MODULE qs_rho0_methods
       CALL get_atomic_kind(atomic_kind=atom_kind,&
                           orb_basis_set=orb_basis, &
                           atom_list=atom_list,natom=nat, &
-                          harmonics=harmonics,ngrid_rad=nr,&
-                          paw_atom=paw_atom,zeff=zeff)
+                          harmonics=harmonics,&
+                          grid_atom=grid_atom,&
+                          ngrid_rad=nr,&
+                          paw_atom=paw_atom,zeff=zeff,&
+                          alpha_core_charge=alpha_core,&
+                          hard0_radius=rc_orb)
 
       CALL get_gto_basis_set(gto_basis_set=orb_basis,&
-                             kind_radius=rc_orb,maxl=maxl,&
+                             maxl=maxl,&
                              maxso=maxso,nset=nset)
 
       IF(paw_atom) THEN
@@ -354,6 +376,7 @@ MODULE qs_rho0_methods
       nchannels = nsoset(rho0_mpole%lmax0_kind(ikind))
       nsotot = maxso * nset
 
+
       DO iat = 1,nat
          iatom = atom_list(iat)
 
@@ -364,19 +387,27 @@ MODULE qs_rho0_methods
 !        This is calculated on the radial grid centered at the atomic position
          CALL allocate_rho0_atom_rad(rho0_atom_set(iatom),nr,nchannels)
       END DO
-
+!     
       IF(paw_atom) THEN
+!        Calculate multipoles given by the prodct of 2 primitives Qlm_gg
          CALL calculate_mpole_gau(rho0_mpole%mp_gau(ikind),&
                                   orb_basis,harmonics,nchannels,nsotot)
       END IF
-        
+
+!     Calculate the core density rhoz 
+!                  exp(-alpha_c**2 r**2)Z(alpha_c**2/pi)**(3/2)
+!     on the logarithmic radial grid
+      CALL calculate_rhoz(rhoz_set(ikind),grid_atom,alpha_core,zeff)
+
+
     END DO   ! ikind
 
+!    rc_min = rc_min*0.8_dp
 !   Calculate the hard and soft esponents for the spherical gaussians
 !   used for the construction of the compensation charge densities (g0_lm_h,g0_lm_s)
     rho0_mpole%zet0_h =  0.1_dp
     DO
-      radius=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_h,1.0_dp,eps_fit)
+      radius=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_h,eps_fit,1.0_dp)
       IF (radius<=rc_min) EXIT
       rho0_mpole%zet0_h=rho0_mpole%zet0_h+0.1_dp 
     END DO
@@ -384,8 +415,8 @@ MODULE qs_rho0_methods
     rho0_mpole%zet0_s = 0.25_dp/rho0_mpole%zet0_h
 
     DO
-      gcut=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_s,1.0_dp,eps_fit)
-      If (gcut<=SQRT(ecut)) EXIT
+      gcut=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_s,eps_fit,1.0_dp)
+      IF (gcut<=SQRT(2.0_dp*ecut)) EXIT
       rho0_mpole%zet0_s=rho0_mpole%zet0_s*1.1_dp 
     END DO
     rho0_mpole%zet0_s=0.25_dp/rho0_mpole%zet0_s
@@ -393,6 +424,7 @@ MODULE qs_rho0_methods
 ! check whether this is necessary to build the proper grid
 ! expmax=max(expmax,rho0_mpole%zet0_h)
 !  expmin=min(expmin,rho0_mpole%zet0_s)
+
 
 !   Allocate and calculate the normalization factors for g0_lm_h and g0_lm_s
     CALL reallocate(rho0_mpole%norm_g0l_h,0,rho0_mpole%lmax_0)
@@ -404,15 +436,24 @@ MODULE qs_rho0_methods
                                  ( fourpi*gaussint_sph(rho0_mpole%zet0_s,2*l))
     END DO
 
+
+!   Allocate and Initialize the g0 gaussians used to build the compensation density
+    DO ikind = 1,nkind
+      atom_kind => atomic_kind_set(ikind)
+      CALL get_atomic_kind(atomic_kind=atom_kind,&
+                           grid_atom=grid_atom)
+      CALL  calculate_g0(rho0_mpole,grid_atom,ikind)
+    END DO
+
     CALL set_qs_env(qs_env=qs_env, rho0_mpole = rho0_mpole, &
-                                   rho0_atom_set=rho0_atom_set)
+                                   rho0_atom_set=rho0_atom_set,&
+                                   rhoz_set = rhoz_set)
 
     IF(globenv%print%rho0_information) THEN
       CALL write_rho0_info(rho0_mpole,globenv)
     END IF
 
   END SUBROUTINE init_rho0
-! *****************************************************************************
 
 ! *****************************************************************************
 END MODULE qs_rho0_methods

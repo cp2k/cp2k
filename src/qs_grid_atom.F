@@ -41,6 +41,8 @@ MODULE qs_grid_atom
      REAL(dp), DIMENSION(:), POINTER :: rad,rad2,&
                                         wr,wa,&
                                         cos_teta,sin_teta
+     REAL(dp), DIMENSION(:,:), &
+                             POINTER :: rad2l,oorad2l
 
   END TYPE grid_atom_type
 
@@ -92,6 +94,8 @@ MODULE qs_grid_atom
     NULLIFY (grid_atom%wa)
     NULLIFY (grid_atom%cos_teta)
     NULLIFY (grid_atom%sin_teta)
+    NULLIFY (grid_atom%rad2l)
+    NULLIFY (grid_atom%oorad2l)
 
   END SUBROUTINE allocate_grid_atom
 
@@ -118,43 +122,54 @@ MODULE qs_grid_atom
       IF (ASSOCIATED(grid_atom%rad)) THEN
          DEALLOCATE (grid_atom%rad,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "deallocate_grid_atom")
+                                     "grid_atom%rad")
       END IF
 
       IF (ASSOCIATED(grid_atom%rad2)) THEN
          DEALLOCATE (grid_atom%rad2,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "deallocate_grid_atom")
+                                     "grid_atom%rad2")
       END IF
 
       IF (ASSOCIATED(grid_atom%wr)) THEN
          DEALLOCATE (grid_atom%wr,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "deallocate_grid_atom")
+                                     "grid_atom%wr")
       END IF
 
       IF (ASSOCIATED(grid_atom%wa)) THEN
          DEALLOCATE (grid_atom%wa,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "deallocate_grid_atom")
+                                     "grid_atom%wa")
       END IF
 
       IF (ASSOCIATED(grid_atom%cos_teta)) THEN
          DEALLOCATE (grid_atom%cos_teta,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "deallocate_grid_atom")
+                                     "grid_atom%cos_teta")
       END IF
 
       IF (ASSOCIATED(grid_atom%sin_teta)) THEN
          DEALLOCATE (grid_atom%sin_teta,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "deallocate_grid_atom")
+                                     "grid_atom%sin_teta")
       END IF
 
+      IF (ASSOCIATED(grid_atom%rad2l)) THEN
+         DEALLOCATE (grid_atom%rad2l,STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "grid_atom%rad2l")
+      END IF
+
+      IF (ASSOCIATED(grid_atom%oorad2l)) THEN
+         DEALLOCATE (grid_atom%oorad2l,STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "grid_atom%oorad2l")
+      END IF
 
       DEALLOCATE (grid_atom,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "deallocate_grid_atom")
+                                     "grid_atom")
     ELSE
       CALL stop_program(routine_name,module_name,__LINE__,&
                         "The pointer grid_atom is not associated and "//&
@@ -164,15 +179,16 @@ MODULE qs_grid_atom
 
 ! *****************************************************************************
 
-  SUBROUTINE create_grid_atom(grid_atom,nr,na,quadrature,globenv)
+  SUBROUTINE create_grid_atom(grid_atom,nr,na,llmax,quadrature,globenv)
 
     TYPE(grid_atom_type), POINTER   :: grid_atom
-    INTEGER                         :: na,nr, quadrature
+    INTEGER, INTENT(IN)             :: llmax,na,nr, quadrature
     TYPE(global_environment_type)   :: globenv
 
     CHARACTER(LEN=*), PARAMETER         :: routine_name ="create_grid_atom"
 
     REAL(dp), DIMENSION(:), POINTER :: rad,rad2,wr 
+    INTEGER                         :: l
 
 ! *****************************************************************************
 
@@ -180,28 +196,36 @@ MODULE qs_grid_atom
  
     IF(ASSOCIATED(grid_atom)) THEN
   
-!   *** allocate the radial grid arrays *** 
-    CALL reallocate(grid_atom%rad,1,nr)
-    CALL reallocate(grid_atom%rad2,1,nr)
-    CALL reallocate(grid_atom%wr,1,nr)
-    CALL reallocate(grid_atom%wa,1,na)
-    CALL reallocate(grid_atom%cos_teta,1,na)
-    CALL reallocate(grid_atom%sin_teta,1,na)
+!     *** allocate the radial grid arrays *** 
+      CALL reallocate(grid_atom%rad,1,nr)
+      CALL reallocate(grid_atom%rad2,1,nr)
+      CALL reallocate(grid_atom%wr,1,nr)
+      CALL reallocate(grid_atom%wa,1,na)
+      CALL reallocate(grid_atom%cos_teta,1,na)
+      CALL reallocate(grid_atom%sin_teta,1,na)
+      CALL reallocate(grid_atom%rad2l,1,nr,0,llmax+1)
+      CALL reallocate(grid_atom%oorad2l,1,nr,0,llmax+1)
 
-!   *** calculate the radial grid for this kind ***
-    rad => grid_atom%rad
-    rad2 => grid_atom%rad2
-    wr => grid_atom%wr
+!     *** calculate the radial grid for this kind ***
+      rad => grid_atom%rad
+      rad2 => grid_atom%rad2
+      wr => grid_atom%wr
 
-    CALL radial_grid(nr,rad,rad2,wr,quadrature) 
+      CALL radial_grid(nr,rad,rad2,wr,quadrature) 
+
+      grid_atom%rad2l(:,0) = 1._dp
+      grid_atom%oorad2l(:,0) = 1._dp
+      DO l = 1,llmax+1
+        grid_atom%rad2l(:,l)=grid_atom%rad2l(:,l-1)*rad(:)
+        grid_atom%oorad2l(:,l)=grid_atom%rad2l(:,l-1)/rad(:)
+      ENDDO
+
     ELSE
       CALL stop_program(routine_name,module_name,__LINE__,&
                "The pointer grid_atom is not associated",&
                 globenv)
     END IF
   END SUBROUTINE create_grid_atom
-
-
 
 ! *****************************************************************************
 

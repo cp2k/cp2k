@@ -56,6 +56,7 @@ MODULE qs_ks_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
   USE hartree,                         ONLY: calculate_hartree
+  USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -80,7 +81,7 @@ MODULE qs_ks_methods
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
   USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                              integrate_v_rspace
-  USE qs_ks_atom,                      ONLY: update_ks_vxc_atom
+  USE qs_ks_atom,                      ONLY: update_ks_atom
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
   USE qs_rho_types,                    ONLY: qs_rho_type
@@ -378,11 +379,11 @@ CONTAINS
     END IF
 
 ! ***  Prepare densities for gapw ***
-       IF(dft_control%qs_control%gapw) THEN
-         CALL prepare_gapw_den(qs_env,error)
-       ENDIF
+    IF(dft_control%qs_control%gapw) THEN
+      CALL prepare_gapw_den(qs_env,error)
+    ENDIF
 
-! *** calculate the hartree potential on the total density ***
+! *** calculate the hartree potential on the pw density ***
     IF (.NOT. failure) THEN
        CALL pw_pool_init_coeff(auxbas_pw_pool,rho_tot_gspace,&
             use_data = COMPLEXDATA1D,&
@@ -445,7 +446,8 @@ CONTAINS
                                         error=error)
        End If
 
-       ! *** calculate the xc potential ***       
+! *** calculate the xc potential on the pw density ***       
+
        CALL qs_vxc_create(qs_env=qs_env,&
             vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
             calculate_forces=calculate_forces, &
@@ -454,6 +456,7 @@ CONTAINS
 ! ***  Single atom contributions ***
        IF(dft_control%qs_control%gapw) THEN
          CALL calculate_vxc_atom(qs_env,error)
+         CALL Vh_1c_gg_integrals(qs_env,error)
        ENDIF
 
        energy%total = energy%core_overlap + energy%core_self + &
@@ -530,7 +533,7 @@ CONTAINS
 !        ***  Single atom contributions ***
           IF(dft_control%qs_control%gapw) THEN
              DO ispin = 1,nspins
-                CALL update_ks_vxc_atom(qs_env,ks(ispin),rho%rho_ao(ispin),&
+                CALL update_ks_atom(qs_env,ks(ispin),rho%rho_ao(ispin),&
                      ispin,calculate_forces,error)
              ENDDO
           ENDIF
