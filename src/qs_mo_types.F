@@ -47,7 +47,8 @@ MODULE qs_mo_types
                                   get_blacs_info,&
                                   read_blacs_matrix,&
                                   write_blacs_matrix,&
-                                  sparse_plus_blacs_blacst
+                                  sparse_plus_blacs_blacst, &
+                                  blacs_replicated_copy
   USE global_types,         ONLY: global_environment_type
   USE particle_types,       ONLY: particle_type
   USE qs_parser,            ONLY: close_file,&
@@ -101,7 +102,12 @@ MODULE qs_mo_types
 ! *****************************************************************************
 
   INTERFACE write_mo_set
-    MODULE PROCEDURE write_mo_set_to_output_unit,write_mo_set_to_restart_unit
+    MODULE PROCEDURE write_mo_set_to_output_unit,write_mo_set_to_restart_unit, &
+                     write_mo_set_to_restart_new
+  END INTERFACE
+  INTERFACE read_mo_set
+    MODULE PROCEDURE read_mo_set_old, &
+                     read_mo_set_from_restart_new
   END INTERFACE
 
   INTERFACE calculate_density_matrix
@@ -241,8 +247,11 @@ CONTAINS
 
     CALL timeset("calculate_density_matrix","I","",handle)
 
-    if (mo_set%lfomo-1 .ne. mo_set%nmo)  &
-          call stop_program("calculate_density_matrix_sparse","NYI")
+    if (mo_set%lfomo-1 .ne. mo_set%nmo)  then
+          if (globenv%ionode) write(globenv%scr,*) mo_set%lfomo,mo_set%nmo
+          call stop_program("calculate_density_matrix_sparse", &
+                           "mo_set%lfomo-1 .ne. mo_set%nmo NYI")
+    endif
 
        CALL set_matrix(density_matrix,0.0_wp)
        CALL sparse_plus_blacs_blacst(density_matrix,mo_set%eigenvectors, &
@@ -398,7 +407,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_mo_set(mo_set,globenv)
+  SUBROUTINE read_mo_set_old(mo_set,globenv)
 
 !   Purpose: Read the MO eigenvectors from the restart file.
 
@@ -441,7 +450,7 @@ CONTAINS
 
     CALL close_file(unit_number=restart_unit)
 
-  END SUBROUTINE read_mo_set
+  END SUBROUTINE read_mo_set_old
 
 ! *****************************************************************************
 
@@ -576,6 +585,272 @@ CONTAINS
     CALL close_file(unit_number=restart_unit)
 
   END SUBROUTINE write_mo_set_to_restart_unit
+
+! *****************************************************************************
+  SUBROUTINE write_mo_set_to_restart_new(mo_set,atomic_kind_set,particle_set,globenv)
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(global_environment_type), INTENT(IN)     :: globenv
+    TYPE(mo_set_type), POINTER                    :: mo_set
+    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
+
+!   *** Local variables ***
+    CHARACTER(LEN=6)   :: extension
+    CHARACTER(LEN=200) :: file_name
+    INTEGER            :: mype,npe,restart_unit
+    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
+    INTEGER           :: iatom,icol,irow,iset,isgf,iso,ishell,istat,jcol,&
+                         left,lshell,natom,ncol,nset,nsgf,output_unit,right, &
+                         nao,nmo,i,nset_max,nshell_max
+                         
+    INTEGER, DIMENSION(:), POINTER          :: nshell
+    REAL(wp), DIMENSION(:,:), POINTER       :: matrix
+    INTEGER, DIMENSION(:,:), POINTER        :: l
+
+    INTEGER, DIMENSION(:), POINTER :: nset_info
+    INTEGER, DIMENSION(:,:), POINTER :: nshell_info
+    INTEGER, DIMENSION(:,:,:), POINTER :: nso_info
+
+    REAL(wp) , DIMENSION(:,:), POINTER :: vecbuffer
+
+    nmo=mo_set%nmo
+    nao=mo_set%nao
+
+    if (globenv%ionode) then
+
+      file_name = globenv%restart_file_name
+      CALL open_file(file_name=file_name,&
+                     file_action="WRITE",&
+                     file_form="UNFORMATTED",&
+                     file_status="REPLACE",&
+                     unit_number=restart_unit)
+
+
+      ! create some info about the basis set first
+
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                               natom=natom,&
+                               nsgf=nsgf)
+
+
+      nset_max=0
+      nshell_max=0
+
+      DO iatom=1,natom
+         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                              orb_basis_set=orb_basis_set)
+         CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                nset=nset,&
+                                nshell=nshell,&
+                                l=l)
+  
+         nset_max=MAX(nset_max,nset)
+         DO iset=1,nset
+           nshell_max=MAX(nshell_max,nshell(iset))
+         END DO
+      END DO
+
+
+      allocate(nso_info   (nshell_max,nset_max,natom))
+      allocate(nshell_info(nset_max,natom))
+      allocate(nset_info  (natom))
+
+      nset_info(:)=0
+      nshell_info(:,:)=0
+      nso_info(:,:,:)=0
+
+      DO iatom=1,natom
+         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                              orb_basis_set=orb_basis_set)
+         CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                nset=nset,&
+                                nshell=nshell,&
+                                l=l)
+         nset_info(iatom)=nset
+         DO iset=1,nset
+           nshell_info(iset,iatom)=nshell(iset)
+           DO ishell=1,nshell(iset)
+             lshell = l(ishell,iset)
+             nso_info(ishell,iset,iatom)= nso(lshell)
+           ENDDO
+         END DO
+      END DO
+
+      ! write the bs information
+
+      write(restart_unit) natom,nmo,nao,nset_max,nshell_max
+      write(restart_unit) nset_info
+      write(restart_unit) nshell_info
+      write(restart_unit) nso_info
+
+      deallocate(nset_info,nshell_info,nso_info)
+
+    endif
+
+
+    allocate(vecbuffer(1,nao))
+    do i=1,nmo
+       call blacs_replicated_copy(mo_set%eigenvectors,vecbuffer,i,1,1,"B2R",globenv)
+       if (globenv%ionode) write(restart_unit) vecbuffer
+    enddo
+    deallocate(vecbuffer)
+
+    if (globenv%ionode) CALL close_file(unit_number=restart_unit)
+
+  END SUBROUTINE write_mo_set_to_restart_new
+
+! *****************************************************************************
+
+! *****************************************************************************
+  SUBROUTINE read_mo_set_from_restart_new(mo_set,atomic_kind_set,particle_set,globenv)
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(global_environment_type), INTENT(IN)     :: globenv
+    TYPE(mo_set_type), POINTER                    :: mo_set
+    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
+
+!   *** Local variables ***
+    CHARACTER(LEN=6)   :: extension
+    CHARACTER(LEN=200) :: file_name
+    INTEGER            :: mype,npe,restart_unit
+    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
+    INTEGER           :: iatom,icol,irow,iset,isgf,iso,ishell,istat,jcol,&
+                         left,lshell,natom,ncol,nset,nsgf,output_unit,right, &
+                         nao,nmo,i,nset_max,nshell_max,natom_read,nao_read,nmo_read
+                         
+    INTEGER, DIMENSION(:), POINTER          :: nshell
+    REAL(wp), DIMENSION(:,:), POINTER       :: matrix
+    INTEGER, DIMENSION(:,:), POINTER        :: l
+
+    INTEGER, DIMENSION(:), POINTER :: nset_info
+    INTEGER, DIMENSION(:,:), POINTER :: nshell_info
+    INTEGER, DIMENSION(:,:,:), POINTER :: nso_info,offset_info
+
+    REAL(wp) , DIMENSION(:,:), POINTER :: vecbuffer,vecbuffer_read
+
+    integer :: irow_read,nset_read,ishell_read,iset_read,offset_read
+    logical :: use_this,did_change
+
+    nmo=mo_set%nmo
+    nao=mo_set%nao
+
+    if (globenv%ionode) then
+
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                               natom=natom,&
+                               nsgf=nsgf)
+
+      file_name = globenv%restart_file_name
+      CALL open_file(file_name=file_name,&
+                     file_action="READ",&
+                     file_form="UNFORMATTED",&
+                     file_status="OLD",&
+                     unit_number=restart_unit)
+
+      read(restart_unit) natom_read,nmo_read,nao_read,nset_max,nshell_max
+
+      if (nmo_read.ne.nmo) &
+         call stop_program("read_mo_set_from_restart","incorrect nmo")
+      if (natom_read.ne.natom) &
+         call stop_program("read_mo_set_from_restart","incorrect natom")
+
+      allocate(nso_info   (nshell_max,nset_max,natom_read))
+      allocate(offset_info   (nshell_max,nset_max,natom_read))
+      allocate(nshell_info(nset_max,natom_read))
+      allocate(nset_info  (natom_read))
+
+      if (nao_read.ne.nao) then
+         write(globenv%scr,*) "READ RESTART : WARNING : DIFFERENT # AOs ",nao,nao_read
+         write(globenv%scr,*) "writing out mapping"
+         did_change=.true.
+      endif
+
+      read(restart_unit) nset_info
+      read(restart_unit) nshell_info
+      read(restart_unit) nso_info
+
+      i=1
+      do iatom=1,natom
+       do iset=1,nset_info(iatom)
+        do ishell=1,nshell_info(iset,iatom)
+           offset_info(ishell,iset,iatom)=i
+           i=i+nso_info(ishell,iset,iatom)
+        enddo
+       enddo
+      enddo
+
+      allocate(vecbuffer_read(1,nao_read))
+
+    endif
+
+
+    allocate(vecbuffer(1,nao))
+    do i=1,nmo
+       if (globenv%ionode) then 
+            read(restart_unit) vecbuffer_read
+            ! now, try to assign the read to the real vector
+            ! in case the basis set changed this involves some guessing
+            irow=1
+            DO iatom=1,natom
+               CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                                    orb_basis_set=orb_basis_set)
+               CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                      nset=nset,&
+                                      nshell=nshell,&
+                                      l=l)
+
+               use_this=.true.
+               iset_read=1
+               DO iset=1,nset
+                  ishell_read=1
+                  DO ishell=1,nshell(iset)
+                     lshell = l(ishell,iset)
+                     if (iset_read.gt.nset_info(iatom)) use_this=.false.
+                     if (use_this .and. nso(lshell).eq.nso_info(ishell_read,iset_read,iatom)) then
+                         offset_read=offset_info(ishell_read,iset_read,iatom)
+                         ishell_read=ishell_read+1
+                         if (ishell_read.gt.nshell_info(iset,iatom)) then
+                            ishell_read=1
+                            iset_read=iset_read+1
+                         endif
+                     else
+                         use_this=.false.
+                     endif
+                     DO iso=1,nso(lshell)
+                        if (use_this) then
+                            if (offset_read-1+iso.lt.1 .or. offset_read-1+iso.gt.nao_read) then
+                               ! this indicates a bug
+                               if (did_change) write(globenv%scr,*) "-?-",irow,offset_read-1+iso
+                               vecbuffer(1,irow)=0.0_wp
+                            else
+                               vecbuffer(1,irow)=vecbuffer_read(1,offset_read-1+iso)
+                               if (did_change) write(globenv%scr,*) "   ",irow,offset_read-1+iso
+                            endif
+                        else
+                            vecbuffer(1,irow)=0.0_wp
+                        endif
+                        irow=irow+1
+                     ENDDO
+                     use_this=.true.
+                  ENDDO
+               ENDDO
+            ENDDO
+
+       else
+            vecbuffer(1,:)=0.0_wp
+       endif
+       CALL mp_sum(vecbuffer,globenv%group)  ! the usual ugly way
+       call blacs_replicated_copy(mo_set%eigenvectors,vecbuffer,i,1,1,"R2B",globenv)
+       did_change=.false.
+    enddo
+    deallocate(vecbuffer)
+
+    if (globenv%ionode) then
+       deallocate(nset_info,nshell_info,nso_info,vecbuffer_read,offset_info)
+       CALL close_file(unit_number=restart_unit)
+    endif
+
+  END SUBROUTINE read_mo_set_from_restart_new
 
 ! *****************************************************************************
 
@@ -722,6 +997,7 @@ CONTAINS
             DO ishell=1,nshell(iset)
               lshell = l(ishell,iset)
               DO iso=1,nso(lshell)
+                write(UNIT=output_unit,FMT=*) iset,ishell,iso
                 WRITE (UNIT=output_unit,FMT=fmtstr3)&
                   irow,iatom,element_symbol,sgf_symbol(isgf),&
                   (matrix(irow,jcol),jcol=from,to)

@@ -640,7 +640,8 @@ CONTAINS
 
 !   *** Write restart file ***
 
-    CALL write_mo_set(mo_set,globenv)
+    ! CALL write_mo_set(mo_set,globenv)
+    CALL write_mo_set(mo_set,atomic_kind_set,particle_set,globenv)
 
 !    call pao_opt_dealloc(pao_optimizer,pao_obj_f,qs_env,globenv,error)
 
@@ -865,8 +866,8 @@ CONTAINS
     END IF
 
 
-    CALL calculate_first_density_matrix(ortho,mo_set,p_rmpv(1),scf_work1,scf_work2,&
-                                        globenv)
+    CALL calculate_first_density_matrix(ortho,mo_set,p_rmpv(1),s(1), &
+                                        scf_work1,scf_work2,globenv)
 
     CALL timestop(0.0_wp,handle)
 
@@ -1066,12 +1067,12 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_first_density_matrix(ortho,mo_set,p,work1,work2,globenv)
+  SUBROUTINE calculate_first_density_matrix(ortho,mo_set,p,s_sparse,work1,work2,globenv)
 
     TYPE(blacs_matrix_type), POINTER          :: ortho,work1,work2
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
-    TYPE(real_matrix_p_type), INTENT(INOUT)   :: p
+    TYPE(real_matrix_p_type), INTENT(INOUT)   :: p,s_sparse
 
 !   *** Local parameters ***
 
@@ -1082,7 +1083,7 @@ CONTAINS
 
     TYPE(all_potential_type), POINTER :: all_potential
     TYPE(atomic_kind_type), POINTER   :: atomic_kind
-    TYPE(blacs_matrix_type), POINTER  :: mo_eigenvectors
+    TYPE(blacs_matrix_type), POINTER  :: mo_eigenvectors,sv
     TYPE(gth_potential_type), POINTER :: gth_potential
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
 
@@ -1106,21 +1107,33 @@ CONTAINS
 
     IF (density_guess == "RESTART") THEN
 
-      CALL read_mo_set(mo_set,globenv)
+      ! CALL read_mo_set(mo_set,globenv)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
+      ! particle set should be already init here
+      CALL read_mo_set(mo_set,atomic_kind_set,particle_set,globenv)
+
       IF (level_shift /= 0.0_wp) THEN
         CALL get_mo_set(mo_set=mo_set,&
                         eigenvectors=mo_eigenvectors)
         CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
       END IF
-      CALL calculate_density_matrix(mo_set,work1,globenv)
-      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,globenv)
-      CALL symmetrise_diagonal_blocks(p%matrix)
+
+      CALL get_mo_set(mo_set=mo_set,&
+                        eigenvectors=mo_eigenvectors, nmo=nmo)
+      ! ortho so that one can restart for different positions (basis sets?)
+      CALL replicate_blacs_matrix(mo_eigenvectors,sv,"SV")
+      CALL sparse_times_blacs(s_sparse%matrix,mo_eigenvectors,sv,nmo,globenv)
+      CALL blacs_make_basis(mo_eigenvectors,nmo,globenv, &
+                             ortho=sv,otype="SV")
+      CALL deallocate_blacs_matrix(sv)
+      CALL calculate_density_matrix(mo_set,p%matrix,globenv)
 
      ELSE IF (density_guess == "RANDOM") THEN
 
       CALL get_mo_set(mo_set=mo_set,&
                         eigenvectors=mo_eigenvectors, nmo=nmo)
       CALL blacs_init_random(mo_eigenvectors,nmo,globenv)
+
 
      ELSE IF (density_guess == "CORE") THEN
 
