@@ -521,11 +521,12 @@ CONTAINS
        energy%mulliken = 0.0_dp
        IF (dft_control%qs_control%mulliken_restraint) THEN
            IF (just_energy) THEN
-               CALL mulliken_restraint(para_env,s(1)%matrix, &
-                             rho%rho_ao,energy=energy%mulliken)
+               CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
+                             para_env,s(1)%matrix, rho%rho_ao,energy=energy%mulliken)
            ELSE
-               CALL mulliken_restraint(para_env,s(1)%matrix, &
-                             rho%rho_ao,energy=energy%mulliken,ks_matrix=ks_matrix)
+               CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control,&
+                             para_env,s(1)%matrix,rho%rho_ao,energy=energy%mulliken, &
+                             ks_matrix=ks_matrix)
            ENDIF
        ENDIF
 
@@ -547,7 +548,6 @@ CONTAINS
                 "GAPW| local Eh = 2 center integrals:           ",energy%hartree_2c,&
                 "GAPW| local Eh = 3 centers integrals:          ",energy%hartree_3c
           END IF
-          WRITE(*,*)'QM/MM enabled:', qs_env%qmmm
           If  (qs_env%qmmm) Then
              WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                "QM/MM Electrostatic energy:                    ",energy%qmmm_el

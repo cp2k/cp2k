@@ -24,6 +24,7 @@
 
 MODULE mulliken
   USE atomic_kind_types,               ONLY: get_atomic_kind
+  USE cp_control_types,                ONLY: mulliken_restraint_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_release,&
                                              cp_fm_type
@@ -82,6 +83,7 @@ CONTAINS
 !!     needed for orbital and ionic forces respectively
 !!
 !!   INPUTS
+!!    - mulliken_restraint_control  : additional parameters needed to control the restraint
 !!    - para_env                    : para_env of the matrices 
 !!    - s_matrix,p_matrix : containing the respective quantities
 !!
@@ -90,7 +92,9 @@ CONTAINS
 !!
 !!   SOURCE
 !!*** **********************************************************************
-  SUBROUTINE mulliken_restraint(para_env,s_matrix,p_matrix,energy,ks_matrix,w_matrix)
+  SUBROUTINE mulliken_restraint(mulliken_restraint_control,para_env, &
+                                s_matrix,p_matrix,energy,ks_matrix,w_matrix)
+    TYPE(mulliken_restraint_type), INTENT(IN):: mulliken_restraint_control
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(real_matrix_type), POINTER          :: s_matrix
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -114,7 +118,8 @@ CONTAINS
     ALLOCATE(charges(nblock,nspin))
     ALLOCATE(charges_deriv(nblock,nspin))
     CALL compute_charges(p_matrix,s_matrix,charges,para_env)
-    CALL restraint_functional(charges,charges_deriv,my_energy)
+    CALL restraint_functional(mulliken_restraint_control, &
+                              charges,charges_deriv,my_energy)
 
     IF (PRESENT(energy)) THEN 
         energy=energy+my_energy
@@ -192,19 +197,21 @@ CONTAINS
 !!
 !!   SOURCE
 !!*** **********************************************************************
-SUBROUTINE restraint_functional(charges,charges_deriv,energy)
-    REAL(KIND=dp), DIMENSION(:,:), POINTER :: charges, charges_deriv
-    REAL(KIND=dp)                          :: energy
-    REAL(KIND=dp)                          :: dum,strength
+SUBROUTINE restraint_functional(mulliken_restraint_control,charges, &
+                                charges_deriv,energy)
+    TYPE(mulliken_restraint_type), INTENT(IN)  :: mulliken_restraint_control
+    REAL(KIND=dp), DIMENSION(:,:), POINTER     :: charges, charges_deriv
+    REAL(KIND=dp), INTENT(OUT)                 :: energy
+    REAL(KIND=dp)                              :: dum,strength
 
     charges_deriv=0.0_dp
     energy=0.0_dp
-    strength=0.4_dp
-
-    dum=(charges(2,1)-charges(2,2)) - 1.0_dp
+    strength=mulliken_restraint_control%strength
+    ! spin density on the first atom
+    dum=(charges(1,1)-charges(1,2)) - mulliken_restraint_control%target
     energy=energy+strength*dum**2
-    charges_deriv(2,1)=  strength*2*dum
-    charges_deriv(2,2)= -strength*2*dum
+    charges_deriv(1,1)=  strength*2*dum
+    charges_deriv(1,2)= -strength*2*dum
 END SUBROUTINE restraint_functional
 
 !!****f* mulliken/compute_charges *

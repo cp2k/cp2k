@@ -63,6 +63,12 @@ MODULE cp_control_types
     CHARACTER(LEN=30)               :: quadrature_name
   END TYPE gapw_control_type
 
+! *** some parameters useful for mulliken_restraints
+  TYPE mulliken_restraint_type
+    REAL(KIND = dp)                 :: strength=0.1_dp
+    REAL(KIND = dp)                 :: target=1.0_dp
+  END TYPE mulliken_restraint_type
+
 ! *** Control parameters for a KIM-GORDON calculation ***
 ! *** Control parameters for a QUICKSTEP calculation ***
 
@@ -89,6 +95,7 @@ MODULE cp_control_types
     LOGICAL                         :: gapw,gpw,pao
     LOGICAL                         :: polarization
     LOGICAL                         :: mulliken_restraint
+    TYPE (mulliken_restraint_type)  :: mulliken_restraint_control
     REAL(KIND = dp)                        :: cutoff
     REAL(KIND = dp), DIMENSION(:), POINTER :: e_cutoff
     TYPE (gapw_control_type), POINTER :: gapw_control
@@ -185,7 +192,7 @@ MODULE cp_control_types
             qs_control_type,&
             gapw_control_type,&
             wave_control_type, tddfpt_control_type, &
-            pw_grid_option, xc_control_type
+            pw_grid_option, xc_control_type, mulliken_restraint_type
 
 ! *** Public parameters ***
 

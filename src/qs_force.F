@@ -179,8 +179,8 @@ CONTAINS
 
 !   *** from an eventual mulliken restraint
     IF (dft_control%qs_control%mulliken_restraint) THEN
-        CALL mulliken_restraint(globenv%para_env,s(1)%matrix, &
-                                rho%rho_ao,w_matrix=w)
+        CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
+                                globenv%para_env,s(1)%matrix, rho%rho_ao,w_matrix=w)
     ENDIF
 
     CALL set_qs_env(qs_env=qs_env,w=w)

@@ -821,6 +821,25 @@ CONTAINS
             qs_control%pao = .TRUE.
           CASE (qs_key_MULLIKEN_RESTRAINT)
             qs_control%mulliken_restraint = .TRUE.
+            SELECT CASE (test_object())
+            CASE ("STR")
+                CALL read_object(string,lower_to_upper=.TRUE.)
+                SELECT CASE (string)
+                CASE ("STRENGTH")
+                   CALL read_object(qs_control%mulliken_restraint_control%strength, &
+                                    lower_to_upper=.TRUE.)
+                CASE ("TARGET")
+                   CALL read_object(qs_control%mulliken_restraint_control%target, &
+                                    lower_to_upper=.TRUE.)
+                CASE DEFAULT
+                  CALL stop_parser(routine,"unexpected string (" &
+                                   //TRIM(string)//") following MULLIKEN_RESTRAINT")
+                END SELECT
+            CASE ("EOL")
+                ! do nothing
+            CASE DEFAULT
+              CALL stop_parser(routine,"unexpected data following MULLIKEN_RESTRAINT")
+            END SELECT
           CASE (qs_key_PW_GRID)
             CALL read_object(string,lower_to_upper=.TRUE.)
             SELECT CASE (string)
