@@ -115,11 +115,13 @@ CONTAINS
     ! locals
     LOGICAL :: do_lsd
     LOGICAL :: failure
-    INTEGER :: npot, stat
+    INTEGER :: npot, stat, handle
     
     ! parameters
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_derivatives', &
                                    routineP = moduleN//'/'//routineN
+
+    CALL timeset(routineN,"I","",handle)
 
     failure = .FALSE.
     do_lsd = .FALSE.
@@ -184,6 +186,8 @@ CONTAINS
        END IF
        
     END IF
+
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE xc_calc_derivatives
 
