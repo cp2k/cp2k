@@ -26,9 +26,11 @@
 !****************************************************************************
 MODULE qs_environment_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE coefficient_types,               ONLY: coeff_deallocate,&
                                              coeff_type
+  USE cp_array_i_utils,                ONLY: cp_1d_i_p_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -51,6 +53,10 @@ MODULE qs_environment_methods
                                              cp_fm_struct_release,&
                                              cp_fm_struct_retain,&
                                              cp_fm_struct_type
+  USE cp_local_lists_types,            ONLY: cp_ll_create,&
+                                             cp_ll_release,&
+                                             cp_ll_retain,&
+                                             cp_local_lists_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -199,14 +205,15 @@ SUBROUTINE qs_env_setup(qs_env,error)
   TYPE(dft_control_type), POINTER               :: dft_control
   TYPE(scf_control_type), POINTER               :: scf_control
   TYPE(qs_charges_type), POINTER                :: qs_charges
+  TYPE(cp_para_env_type), POINTER               :: para_env
   INTEGER :: n_mo, n_ao
 
   failure=.FALSE.
-  NULLIFY(atomic_kind_set, dft_control, scf_control, qs_charges)
+  NULLIFY(atomic_kind_set, dft_control, scf_control, qs_charges, para_env)
   
   CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set,&
        dft_control=dft_control, scf_control=scf_control,&
-       error=error)
+       para_env=para_env, error=error)
   CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
@@ -221,10 +228,15 @@ SUBROUTINE qs_env_setup(qs_env,error)
 
      ! rebuilds fm_pools
      CALL mpools_rebuild_fm_pools(qs_env%mpools,mos=qs_env%c,&
-          blacs_env=qs_env%blacs_env, para_env=qs_env%para_env,&
-          nrow_block=scf_control%nrow_block, ncol_block=scf_control%ncol_block,&
+          blacs_env=qs_env%blacs_env, para_env=para_env,&
+          nrow_block=scf_control%nrow_block,&
+          ncol_block=scf_control%ncol_block,&
           error=error)
 
+     ! create local_particles
+     CALL rr_local_particles_create(qs_env%local_particles,&
+          para_env=para_env, atomic_kind_set=atomic_kind_set,&
+          error=error)
   END IF
 END SUBROUTINE qs_env_setup
 !***************************************************************************
@@ -507,6 +519,84 @@ SUBROUTINE qs_env_update_rho_core(qs_env,error)
           qs_charges%total_rho_core_rspace,qs_env,error)
   END IF
 END SUBROUTINE qs_env_update_rho_core
+!***************************************************************************
+
+!!****f* qs_environment_methods/rr_local_particles_create [1.0] *
+!!
+!!   NAME
+!!     rr_local_particles_create
+!!
+!!   FUNCTION
+!!     distributes the particles with a stupid round-robin schema
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - local_particles: the local particles
+!!     - atomic_kind_set: the atomic kind set to distribute
+!!     - para_env: the parallel environement at the basis of the distribution
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     02.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE rr_local_particles_create(local_particles, para_env,&
+     atomic_kind_set, error)
+  TYPE(cp_local_lists_type), POINTER :: local_particles
+  TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+  TYPE(cp_para_env_type), POINTER :: para_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='rr_local_particles_create',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: natom, natomSum, ikind, local_index, first_index, i, stat
+  INTEGER, DIMENSION(:), ALLOCATABLE :: n_el
+  INTEGER, DIMENSION(:), POINTER :: atom_list
+
+  failure=.FALSE.
+  NULLIFY(atom_list)
+  
+  CPPrecondition(.NOT.ASSOCIATED(local_particles),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(atomic_kind_set), cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     ALLOCATE(n_el(SIZE(atomic_kind_set)), stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+     natomSum=0
+     DO ikind=1,SIZE(atomic_kind_set)
+        CALL get_atomic_kind(atomic_kind_set(ikind),natom=natom)
+        n_el(ikind)=natom/para_env%num_pe
+        IF (para_env%mepos<MODULO(natom+natomSum,para_env%num_pe)) THEN
+           n_el(ikind)=n_el(ikind)+1
+        END IF
+        natomSum=natomSum+natom
+     END DO
+
+     CALL cp_ll_create(local_particles,n_el=n_el,&
+          para_env=para_env,error=error)
+
+     first_index=para_env%mepos
+     DO ikind=1,SIZE(atomic_kind_set)
+        CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=atom_list)
+        local_index=0
+        DO i=first_index,SIZE(atom_list),para_env%num_pe
+           local_index=local_index+1
+           local_particles%list(ikind)%array(local_index)=atom_list(i)
+        END DO
+        first_index=MODULO(first_index+SIZE(atom_list),para_env%num_pe)+1
+     END DO
+
+     DEALLOCATE(n_el,stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  END IF
+END SUBROUTINE rr_local_particles_create
 !***************************************************************************
 
 END MODULE qs_environment_methods

@@ -49,6 +49,7 @@ MODULE pw_pool_types
   USE cp_linked_list_pw,               ONLY: cp_sll_pw_dealloc,&
                                              cp_sll_pw_get_first_el,&
                                              cp_sll_pw_insert_el,&
+                                             cp_sll_pw_insert_ordered,&
                                              cp_sll_pw_next,&
                                              cp_sll_pw_rm_first_el,&
                                              cp_sll_pw_type
@@ -82,7 +83,7 @@ MODULE pw_pool_types
   PUBLIC :: pw_pool_type, pw_pool_p_type
   PUBLIC :: pw_pool_create, pw_pool_retain, pw_pool_release,&
        pw_pool_create_pw, pw_pool_give_back_pw, pw_pool_give_back_coeff,&
-       pw_pool_init_coeff, pw_pool_flush_cache
+       pw_pool_init_coeff, pw_pool_flush_cache, pw_pool_write
   PUBLIC :: pw_pools_init_coeffs, pw_pools_give_back_coeffs,&
        pw_pools_copy, pw_pools_dealloc, pw_pools_flush_cache
 !!***
@@ -574,7 +575,7 @@ CONTAINS
 
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    LOGICAL :: failure
+    LOGICAL :: failure, did_insert
     CHARACTER(len=*), PARAMETER :: routineN='pw_pool_give_back_pw',&
          routineP=moduleN//':'//routineN
     INTEGER :: stat, handle
@@ -606,13 +607,37 @@ CONTAINS
 
        SELECT CASE(pw%in_use)
        CASE(REALDATA1D)
-          CALL cp_sll_pw_insert_el(pool%real1d_pw, element=pw)
+          IF (cp_debug) THEN
+             CALL cp_sll_pw_insert_ordered(pool%real1d_pw, el=pw,&
+                  insert_equals=.FALSE., did_insert=did_insert)
+             CPAssert(did_insert,cp_failure_level,routineP,error,failure)
+          ELSE
+             CALL cp_sll_pw_insert_el(pool%real1d_pw, el=pw)
+          END IF
        CASE(REALDATA3D)
-          CALL cp_sll_pw_insert_el(pool%real3d_pw, element=pw)
+          IF (cp_debug) THEN
+             CALL cp_sll_pw_insert_ordered(pool%real3d_pw, el=pw,&
+                  insert_equals=.FALSE., did_insert=did_insert)
+             CPAssert(did_insert,cp_failure_level,routineP,error,failure)
+          ELSE
+             CALL cp_sll_pw_insert_el(pool%real3d_pw, el=pw)
+          END IF
        CASE(COMPLEXDATA1D)
-          CALL cp_sll_pw_insert_el(pool%complex1d_pw, element=pw)
+          IF (cp_debug) THEN
+             CALL cp_sll_pw_insert_ordered(pool%complex1d_pw, el=pw,&
+                  insert_equals=.FALSE., did_insert=did_insert)
+             CPAssert(did_insert,cp_failure_level,routineP,error,failure)
+          ELSE
+             CALL cp_sll_pw_insert_el(pool%complex1d_pw, el=pw)
+          END IF
        CASE(COMPLEXDATA3D)
-          CALL cp_sll_pw_insert_el(pool%complex3d_pw, element=pw)
+          IF (cp_debug) THEN
+             CALL cp_sll_pw_insert_ordered(pool%complex3d_pw, el=pw,&
+                  insert_equals=.FALSE., did_insert=did_insert)
+             CPAssert(did_insert,cp_failure_level,routineP,error,failure)
+          ELSE
+             CALL cp_sll_pw_insert_el(pool%complex3d_pw, el=pw)
+          END IF
        CASE default
 ! unknown in_use
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -633,7 +658,7 @@ CONTAINS
 !!     Subroutine pw_pool_init_coeff(pool, coeff, use_data, in_space,&
 !!         mass_flag, error)
 !!       Type(pw_pool_type), Pointer:: pool
-!!       Type(coeff_type), Intent (OUT):: coeff
+!!       Type(coeff_type), Intent (INOUT):: coeff
 !!       Integer, Intent (IN):: use_data
 !!       Logical, Intent (IN), Optional:: mass_flag
 !!       Integer, Intent (IN), Optional:: in_space
@@ -665,7 +690,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE pw_pool_init_coeff(pool, coeff, use_data, in_space, mass_flag,error)
     TYPE(pw_pool_type), POINTER :: pool
-    TYPE(coeff_type), INTENT(out) :: coeff
+    TYPE(coeff_type), INTENT(inout) :: coeff
     INTEGER, INTENT(in) :: use_data
     LOGICAL, INTENT(in), OPTIONAL :: mass_flag
     INTEGER, INTENT(in), OPTIONAL :: in_space
@@ -680,6 +705,7 @@ SUBROUTINE pw_pool_init_coeff(pool, coeff, use_data, in_space, mass_flag,error)
   CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
   
   IF (.NOT. failure) THEN
+     NULLIFY(coeff%pw)
      CALL pw_pool_create_pw(pool,coeff%pw,use_data,mass_flag=mass_flag,&
           in_space=in_space, error=error)
      coeff%in_use=PLANEWAVES
@@ -742,7 +768,7 @@ END SUBROUTINE pw_pool_give_back_coeff
 !!     Subroutine pw_pools_init_coeffs(pools, coeffs, use_data, mass_flag,&
 !!         in_space, error)
 !!       Type(pw_pool_p_type), Dimension(:), Pointer:: pools
-!!       Type(coeff_type), Dimension(:), Intent (OUT):: coeffs
+!!       Type(coeff_type), Dimension(:), Intent (INOUT):: coeffs
 !!       Integer, Intent (IN):: use_data
 !!       Logical, Intent (IN), Optional:: mass_flag
 !!       Integer, Intent (IN), Optional:: in_space
@@ -775,7 +801,7 @@ END SUBROUTINE pw_pool_give_back_coeff
 SUBROUTINE pw_pools_init_coeffs(pools, coeffs, use_data,&
      mass_flag, in_space, error)
   TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pools
-  TYPE(coeff_type), DIMENSION(:), INTENT(out)    :: coeffs
+  TYPE(coeff_type), DIMENSION(:), INTENT(inout)    :: coeffs
   INTEGER, INTENT(in) :: use_data
   LOGICAL, INTENT(in), OPTIONAL :: mass_flag
   INTEGER, INTENT(in), OPTIONAL :: in_space
@@ -1002,6 +1028,87 @@ SUBROUTINE pw_pools_flush_cache(pools,error)
      END DO
   END IF
 END SUBROUTINE pw_pools_flush_cache
+!***************************************************************************
+
+!!****f* pw_pool_types/pw_pool_write [1.0] *
+!!
+!!   NAME
+!!     pw_pool_write
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_pool_write(pw_pool, unit_nr, error)
+!!       Type(pw_pool_type), Pointer:: pw_pool
+!!       Integer:: unit_nr
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_pool_write
+!!
+!!   FUNCTION
+!!     writes the actual contents of the pw_pool
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     02.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_pool_write(pw_pool,unit_nr,error)
+  TYPE(pw_pool_type), POINTER :: pw_pool
+  INTEGER :: unit_nr
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='pw_pool_write',&
+        routineP=moduleN//':'//routineN
+  TYPE(pw_type), POINTER :: pw_att
+  TYPE(cp_sll_pw_type), POINTER :: iter
+
+  failure=.FALSE.
+  
+  IF (ASSOCIATED(pw_pool)) THEN
+     WRITE (unit=unit_nr, fmt="(' <pw_pool>{ id_nr=',i8,', ref_count=',i8,',')")&
+          pw_pool%id_nr,pw_pool%ref_count
+
+     WRITE (unit=unit_nr, fmt="('real1d_pw=(')",advance="no")
+     iter => pw_pool%real1d_pw
+     DO WHILE(cp_sll_pw_next(iter,el_att=pw_att,error=error))
+        WRITE (unit=unit_nr, fmt="(i8,',')",advance="no") pw_att%id_nr
+     END DO
+     WRITE (unit=unit_nr, fmt="('),')")
+
+     WRITE (unit=unit_nr, fmt="('real3d_pw=(')",advance="no")
+     iter => pw_pool%real3d_pw
+     DO WHILE(cp_sll_pw_next(iter,el_att=pw_att,error=error))
+        WRITE (unit=unit_nr, fmt="(i8,',')",advance="no") pw_att%id_nr
+     END DO
+     WRITE (unit=unit_nr, fmt="('),')")
+
+     WRITE (unit=unit_nr, fmt="('complex1d_pw=(')",advance="no")
+     iter => pw_pool%complex1d_pw
+     DO WHILE(cp_sll_pw_next(iter,el_att=pw_att,error=error))
+        WRITE (unit=unit_nr, fmt="(i8,',')",advance="no") pw_att%id_nr
+     END DO
+     WRITE (unit=unit_nr, fmt="('),')")
+
+     WRITE (unit=unit_nr, fmt="('complex3d_pw=(')",advance="no")
+     iter => pw_pool%complex3d_pw
+     DO WHILE(cp_sll_pw_next(iter,el_att=pw_att,error=error))
+        WRITE (unit=unit_nr, fmt="(i8,',')",advance="no") pw_att%id_nr
+     END DO
+     WRITE (unit=unit_nr, fmt="(')')")
+     
+     WRITE (unit=unit_nr, fmt="('}')")
+  ELSE
+     WRITE (unit=unit_nr, fmt="('<pw_pool *null*>')")
+  END IF
+END SUBROUTINE pw_pool_write
 !***************************************************************************
 
 END MODULE pw_pool_types

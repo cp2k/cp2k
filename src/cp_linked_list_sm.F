@@ -339,6 +339,7 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(sll%initialized,cp_failure_level,routineP,error,failure)
+    sll%initialized=.false.
     DEALLOCATE(sll, stat=stat)
     CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
   END SUBROUTINE cp_sll_sm_dealloc_node
@@ -798,7 +799,7 @@ CPSourceFileRef,&
           CPPrecondition(iterator%initialized,cp_failure_level,routineP,error,failure)
        END IF
        res=.NOT.failure
-       el_att => iterator%first_el
+       if (present(el_att)) el_att => iterator%first_el
        iterator => iterator%rest
     ELSE
        res=.FALSE.
@@ -822,7 +823,7 @@ CPSourceFileRef,&
 !!   INPUTS
 !!     sll: the single linked list point at the beginning of which 
 !!          you want to add the element
-!!     element: the element to add
+!!     el: the element to add
 !!     error: variable to control error logging, stopping,... 
 !!            see module cp_error_handling 
 !!
@@ -833,9 +834,9 @@ CPSourceFileRef,&
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_sm_insert_el(sll,element,error)
+  SUBROUTINE cp_sll_sm_insert_el(sll,el,error)
     TYPE(cp_sll_sm_type), POINTER :: sll
-    type(real_matrix_type), pointer:: element
+    type(real_matrix_type), pointer:: el
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -845,7 +846,7 @@ CPSourceFileRef,&
     failure=.FALSE.
     NULLIFY(newSlot)
 
-    CALL cp_sll_sm_create(newSlot,first_el=element,&
+    CALL cp_sll_sm_create(newSlot,first_el=el,&
          rest=sll,error=error)
     sll => newSlot
   END SUBROUTINE cp_sll_sm_insert_el
@@ -911,7 +912,7 @@ CPSourceFileRef,&
 !!     sll: the list you get the element from
 !!     index: the position of the element (stating at 1). 
 !!            If it is -1, it means at end
-!!     element: the new element
+!!     el: the new element
 !!     error: variable to control error logging, stopping,... 
 !!            see module cp_error_handling 
 !!
@@ -922,8 +923,8 @@ CPSourceFileRef,&
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_sm_insert_el_at(sll,element,index,error)
-    type(real_matrix_type), pointer :: element
+  SUBROUTINE cp_sll_sm_insert_el_at(sll,el,index,error)
+    type(real_matrix_type), pointer :: el
     INTEGER, INTENT(in) :: index
     TYPE(cp_sll_sm_type), POINTER :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -934,7 +935,7 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     IF (index==1) THEN
-       CALL cp_sll_sm_insert_el(sll,element,error=error)
+       CALL cp_sll_sm_insert_el(sll,el,error=error)
     ELSE
        IF (index==-1) THEN
           pos => cp_sll_sm_get_rest(sll, iter=-1,error=error)
@@ -943,7 +944,7 @@ CPSourceFileRef,&
        END IF
        CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
        IF (.NOT.failure) THEN
-          CALL cp_sll_sm_insert_el(pos%rest,element,error=error)
+          CALL cp_sll_sm_insert_el(pos%rest,el,error=error)
        END IF
     END IF
   END SUBROUTINE cp_sll_sm_insert_el_at
@@ -963,7 +964,7 @@ CPSourceFileRef,&
 !!   INPUTS
 !!     sll: the list you get the element from
 !!     index: the position of the element (stating at 1)
-!!     element: the new element
+!!     el: the new element
 !!     error: variable to control error logging, stopping,... 
 !!            see module cp_error_handling 
 !!
@@ -1320,12 +1321,14 @@ SUBROUTINE cp_sll_sm_insert_ordered(sll,el,insert_equals,&
   
   IF (PRESENT(did_insert)) did_insert=.FALSE.
   IF (PRESENT(pos)) NULLIFY(pos)
+
   IF (PRESENT(insert_equals)) i_eq=insert_equals
   IF (.NOT.ASSOCIATED(sll)) THEN
      CALL cp_sll_sm_create(sll,first_el=el,error=error)
      IF (PRESENT(did_insert)) did_insert=.TRUE.
      IF (PRESENT(pos)) pos=>sll
   ELSE IF (.NOT.CP_SLL_SM_LESS_Q(sll%first_el,el)) THEN
+     CPPrecondition(sll%initialized,cp_failure_level,routineP,error,failure)
      IF (PRESENT(pos)) pos=>sll
      IF (i_eq.OR.CP_SLL_SM_LESS_Q(el,sll%first_el)) THEN
         CALL cp_sll_sm_insert_el(sll,el,error=error)
@@ -1333,14 +1336,17 @@ SUBROUTINE cp_sll_sm_insert_ordered(sll,el,insert_equals,&
         IF (PRESENT(pos)) pos=>sll
      END IF
   ELSE
+     CPPrecondition(sll%initialized,cp_failure_level,routineP,error,failure)
      iter => sll
      DO
         IF (.NOT.ASSOCIATED(iter%rest)) THEN
            CALL cp_sll_sm_insert_el(iter%rest,el,error=error)
+           IF (PRESENT(did_insert)) did_insert=.TRUE.
+           IF (PRESENT(pos)) pos=>iter%rest
            EXIT
         ELSE IF (.NOT.CP_SLL_SM_LESS_Q(iter%rest%first_el,el)) THEN
            IF (PRESENT(pos)) pos=>iter
-           IF (i_eq.OR. CP_SLL_SM_LESS_Q(el,sll%first_el)) THEN
+           IF (i_eq.OR. CP_SLL_SM_LESS_Q(el,iter%rest%first_el)) THEN
               CALL cp_sll_sm_insert_el(iter%rest,el,error=error)
               IF (PRESENT(did_insert)) did_insert=.TRUE.
               IF (PRESENT(pos)) pos=>iter%rest
@@ -1384,7 +1390,7 @@ END SUBROUTINE cp_sll_sm_insert_ordered
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_sll_sm_insert_ordered2(sll,el,compare_function,&
-     insert_equals,error)
+     insert_equals,did_insert,pos,error)
   TYPE(cp_sll_sm_type), POINTER :: sll
   type(real_matrix_type), pointer :: el
   INTERFACE
@@ -1397,6 +1403,8 @@ USE cp_matrix_utils, ONLY: cp_sm_write
      END FUNCTION compare_function
   END INTERFACE
   LOGICAL, OPTIONAL, INTENT(in) :: insert_equals
+  LOGICAL, OPTIONAL, INTENT(out) :: did_insert
+  TYPE(cp_sll_sm_type), POINTER, OPTIONAL :: pos
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure,i_eq
@@ -1407,27 +1415,38 @@ USE cp_matrix_utils, ONLY: cp_sm_write
   failure=.FALSE.
   i_eq=.FALSE.
   
+  IF (PRESENT(did_insert)) did_insert=.FALSE.
+  IF (PRESENT(pos)) NULLIFY(pos)
+
   IF (PRESENT(insert_equals)) i_eq=insert_equals
   IF (.NOT.ASSOCIATED(sll)) THEN
      CALL cp_sll_sm_create(sll,first_el=el,error=error)
+     IF (PRESENT(did_insert)) did_insert=.TRUE.
+     IF (PRESENT(pos)) pos=>iter%rest
      RETURN
   END IF
   comp=compare_function(sll%first_el,el)
   IF (comp>=0) THEN
      IF (i_eq.OR.comp/=0) THEN
         CALL cp_sll_sm_insert_el(sll,el,error=error)
+        IF (PRESENT(did_insert)) did_insert=.TRUE.
+        IF (PRESENT(pos)) pos=>iter%rest
      END IF
   ELSE
      iter => sll
      DO
         IF (.NOT.ASSOCIATED(iter%rest)) THEN
            CALL cp_sll_sm_insert_el(iter%rest,el,error=error)
+           IF (PRESENT(did_insert)) did_insert=.TRUE.
+           IF (PRESENT(pos)) pos=>iter%rest
            EXIT
         END IF
         comp=compare_function(iter%rest%first_el,el)
         IF (comp>=0) THEN
            IF (i_eq.OR. comp/=0) THEN
               CALL cp_sll_sm_insert_el(iter%rest,el,error=error)
+              IF (PRESENT(did_insert)) did_insert=.TRUE.
+              IF (PRESENT(pos)) pos=>iter%rest
            END IF
            EXIT
         END IF

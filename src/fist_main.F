@@ -24,6 +24,8 @@ MODULE fist_main
                                              system_type
   USE cntl_input,                      ONLY: read_cntl_section
   USE convert_units,                   ONLY: convert
+  USE cp_local_lists_types,            ONLY: cp_local_lists_p_type,&
+                                             cp_local_lists_type
   USE dump,                            ONLY: dump_variables
   USE ewald_parameters_types,          ONLY: ewald_parameters_type
   USE ewalds,                          ONLY: ewald_print
@@ -32,6 +34,7 @@ MODULE fist_main
   USE fist_environment_types,          ONLY: fist_environment_type,&
                                              fist_thermodynamic_type,&
                                              init_fist_env,&
+                                             replica_env_init,&
                                              replica_environment_type,&
                                              set_fist_env
   USE force_control,                   ONLY: force_env_calculate_force,&
@@ -45,7 +48,8 @@ MODULE fist_main
                                              initialize_nhc_baro,&
                                              initialize_nhc_part,&
                                              initialize_npt_type
-  USE initialize_molecule_types,       ONLY: initialize_molecule_type
+  USE initialize_molecule_types,       ONLY: initialize_molecule_type,&
+                                             mol_local_particles_create
   USE initialize_pimd_types,           ONLY: initialize_pimd
   USE input_types,                     ONLY: setup_parameters_type
   USE integrator,                      ONLY: set_integrator
@@ -232,6 +236,7 @@ SUBROUTINE fist ( globenv )
 ! Allocating and setting up the INTERNAL_DATA_TYPE and CELL_TYPE for  
 ! general use with path integrals
   DO ibead = 1, beads
+    CALL replica_env_init( rep_env ( ibead ))
     ALLOCATE ( rep_env ( ibead ) % box, STAT = isos )
     IF ( isos /=0 ) CALL stop_memory ( 'allocstruc', 'box', 1 )
     ALLOCATE ( rep_env ( ibead ) % box_ref, STAT = isos )
@@ -348,6 +353,14 @@ SUBROUTINE fist ( globenv )
                                     rep_env ( ibead ) % molecule, &
                                     globenv )
 
+!..initialize local_particles
+    CALL mol_local_particles_create ( &
+         local_particles=rep_env( ibead )%local_particles,&
+         atomic_kind_set=rep_env(ibead)%atomic_kind_set,&
+         local_molecules=rep_env(ibead)%molecule,&
+         particles=rep_env(ibead)%part,&
+         para_env=globenv%para_env)
+    
 !..allocate lnhc_parameters_type for particles and get
 !  number of degrees of freedom and initialize if necessary
     CALL initialize_nhc_part ( rep_env ( ibead ) % box, simpar, &
@@ -780,5 +793,6 @@ SUBROUTINE deallocmem ( rep_env )
 END SUBROUTINE deallocmem
 
 !******************************************************************************
+
 
 END MODULE fist_main

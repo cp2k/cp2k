@@ -13,6 +13,11 @@
 !!   FUNCTION
 !!     pool for for elements that are retained and released
 !!
+!!     *** TEMPLATE ***
+!!
+!!     This is generated from a template, do *NOT* modify the .F file,
+!!     modify the .template and .instantiation files !
+!!
 !!   NOTES
 !!     -
 !!
@@ -46,6 +51,7 @@ MODULE cp_fm_pool_types
   USE cp_linked_list_fm,               ONLY: cp_sll_fm_dealloc,&
                                              cp_sll_fm_get_first_el,&
                                              cp_sll_fm_insert_el,&
+                                             cp_sll_fm_insert_ordered,&
                                              cp_sll_fm_next,&
                                              cp_sll_fm_rm_first_el,&
                                              cp_sll_fm_type
@@ -529,7 +535,7 @@ CONTAINS
     TYPE(cp_full_matrix_type), POINTER :: element
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    LOGICAL :: failure
+    LOGICAL :: failure, did_insert
     CHARACTER(len=*), PARAMETER :: routineN='fm_pool_give_back_fm',&
          routineP=moduleN//':'//routineN
     INTEGER :: stat
@@ -548,7 +554,13 @@ CONTAINS
 
     IF (.NOT. failure) THEN
        CPPreconditionNoFail(element%ref_count==1,cp_warning_level,routineP,error)
-       CALL cp_sll_fm_insert_el(pool%cache, element=element)
+       IF (cp_debug) THEN
+          CALL cp_sll_fm_insert_ordered(pool%cache, el=element,&
+               insert_equals=.FALSE., did_insert=did_insert, error=error)
+          CPPostcondition(did_insert,cp_failure_level,routineP,error,failure)
+       ELSE
+          CALL cp_sll_fm_insert_el(pool%cache, el=element)
+       END IF
     END IF
     NULLIFY(element)
   END SUBROUTINE fm_pool_give_back_fm

@@ -56,9 +56,14 @@ MODULE xc
                                              cp_unitnr_for_output,&
                                              cp_would_output
   USE dft_types,                       ONLY: dft_control_type,&
-       xc_deriv_pw, xc_deriv_spline2, xc_deriv_spline2_smooth,&
-       xc_deriv_spline3, xc_deriv_spline3_smooth,&
-       xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth
+                                             xc_deriv_pw,&
+                                             xc_deriv_spline2,&
+                                             xc_deriv_spline2_smooth,&
+                                             xc_deriv_spline3,&
+                                             xc_deriv_spline3_smooth,&
+                                             xc_rho_no_smooth,&
+                                             xc_rho_spline2_smooth,&
+                                             xc_rho_spline3_smooth
   USE kinds,                           ONLY: dbl,&
                                              wp => dp
   USE mathconstants,                   ONLY: twopi
@@ -73,16 +78,16 @@ MODULE xc
                                              pw_pool_type,&
                                              pw_pools_give_back_coeffs,&
                                              pw_pools_init_coeffs
-  USE pw_spline_utils,                 ONLY: pw_spline3_deriv_g,&
-                                             pw_spline3_deriv_r,&
-                                             pw_spline3_evaluate_values_g,&
-                                             pw_spline3_interpolate_values_g,&
-                                             pw_spline3_test_coeff,&
-                                             pw_spline2_deriv_g,&
+  USE pw_spline_utils,                 ONLY: pw_spline2_deriv_g,&
                                              pw_spline2_deriv_r,&
                                              pw_spline2_evaluate_values_g,&
                                              pw_spline2_interpolate_values_g,&
                                              pw_spline2_test_coeff,&
+                                             pw_spline3_deriv_g,&
+                                             pw_spline3_deriv_r,&
+                                             pw_spline3_evaluate_values_g,&
+                                             pw_spline3_interpolate_values_g,&
+                                             pw_spline3_test_coeff,&
                                              pw_spline_scale_deriv
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              COMPLEXDATA3D,&
@@ -436,20 +441,20 @@ CONTAINS
        DO ispin=1,nspins
           ! introduce a smoothing kernel on the density
           IF (dft_control%xc_rho_smooth_id==xc_rho_no_smooth) THEN
-             my_rho_r_local=.false.
-             my_rho_g_local=.false.
+             my_rho_r_local=.FALSE.
+             my_rho_g_local=.FALSE.
              my_rho_r => rho_r(ispin)%pw
              my_rho_g => rho_g(ispin)%pw
           ELSE
-             my_rho_r_local=.true.
-             my_rho_g_local=.true.
+             my_rho_r_local=.TRUE.
+             my_rho_g_local=.TRUE.
              CALL pw_pool_create_pw(pw_pool, my_rho_r,&
                   use_data=REALDATA3D, in_space=REALSPACE, &
                   error=error)
              CALL pw_pool_create_pw(pw_pool, my_rho_g,&
                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
                   error=error)
-             CALL pw_transfer(rho_g(ispin)%pw,my_rho_g)
+             CALL pw_copy(rho_g(ispin)%pw,my_rho_g)
              SELECT CASE(dft_control%xc_rho_smooth_id)
              CASE (xc_rho_spline2_smooth)
                 CALL pw_spline2_evaluate_values_g(my_rho_g,error=error)
@@ -481,14 +486,14 @@ CONTAINS
                         use_data=REALDATA3D, in_space=REALSPACE, &
                         error=error)
                    CALL pw_copy(rho_r(ispin)%pw,my_rho_r)
-                   my_rho_r_local=.true.
+                   my_rho_r_local=.TRUE.
                 END IF
                 IF (.NOT.my_rho_g_local) THEN
                    CALL pw_pool_create_pw(pw_pool, my_rho_g,&
                         use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
                         error=error)
 !FM                   CALL pw_copy(rho_g(ispin)%pw,my_rho_g)
-                   my_rho_g_local=.true.
+                   my_rho_g_local=.TRUE.
                 END IF
 
                 eps_rho = dft_control%density_cut
@@ -537,13 +542,13 @@ CONTAINS
                 CALL pw_spline2_interpolate_values_g(my_rho_g,error=error)
                 DO idir=1,3
                    CALL pw_copy ( my_rho_g, tmp_g )
-                   CALL pw_spline2_deriv_g ( tmp_g, idir=ispin, error=error )
+                   CALL pw_spline2_deriv_g ( tmp_g, idir=idir, error=error )
                    CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
                 END DO
              CASE (xc_deriv_spline2_smooth)
                 DO idir=1,3
                    CALL pw_copy ( my_rho_g, tmp_g )
-                   CALL pw_spline2_deriv_g ( tmp_g, idir=ispin, error=error )
+                   CALL pw_spline2_deriv_g ( tmp_g, idir=idir, error=error )
                    CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
                 END DO
              CASE (xc_deriv_spline3)
@@ -557,13 +562,13 @@ CONTAINS
                 CALL pw_spline3_interpolate_values_g(my_rho_g,error=error)
                 DO idir=1,3
                    CALL pw_copy ( my_rho_g, tmp_g )
-                   CALL pw_spline3_deriv_g ( tmp_g, idir=ispin, error=error )
+                   CALL pw_spline3_deriv_g ( tmp_g, idir=idir, error=error )
                    CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
                 END DO
              CASE (xc_deriv_spline3_smooth)
                 DO idir=1,3
                    CALL pw_copy ( my_rho_g, tmp_g )
-                   CALL pw_spline3_deriv_g ( tmp_g, idir=ispin, error=error )
+                   CALL pw_spline3_deriv_g ( tmp_g, idir=idir, error=error )
                    CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
                 END DO
              CASE default
@@ -584,8 +589,8 @@ CONTAINS
              !        the (maybe smoothed) rho
 
              IF (my_rho_g_local) THEN
-                my_rho_g_local=.false.
-                call pw_pool_give_back_pw(pw_pool, my_rho_g ,error=error)
+                my_rho_g_local=.FALSE.
+                CALL pw_pool_give_back_pw(pw_pool, my_rho_g ,error=error)
              END IF
              NULLIFY(my_rho_g)
              CALL pw_pool_give_back_pw(pw_pool, tmp_g ,error=error)
@@ -633,12 +638,12 @@ CONTAINS
           END IF
 
           IF (my_rho_g_local) THEN
-             my_rho_g_local=.false.
-             call pw_pool_give_back_pw(pw_pool, my_rho_g ,error=error)
+             my_rho_g_local=.FALSE.
+             CALL pw_pool_give_back_pw(pw_pool, my_rho_g ,error=error)
           END IF
           IF (my_rho_r_local) THEN
-             my_rho_r_local=.false.
-             call pw_pool_give_back_pw(pw_pool, my_rho_r ,error=error)
+             my_rho_r_local=.FALSE.
+             CALL pw_pool_give_back_pw(pw_pool, my_rho_r ,error=error)
           END IF
           NULLIFY(my_rho_r, my_rho_g)
        END DO
@@ -784,14 +789,14 @@ CONTAINS
                       CALL pw_derive ( tmp_g, nd(:,idir) )
                    CASE (xc_deriv_spline2)
                       CALL pw_spline2_interpolate_values_g(tmp_g,error=error)
-                      CALL pw_spline2_deriv_g ( tmp_g, idir=ispin, error=error )
+                      CALL pw_spline2_deriv_g ( tmp_g, idir=idir, error=error )
                    CASE (xc_deriv_spline2_smooth)
-                      CALL pw_spline2_deriv_g ( tmp_g, idir=ispin, error=error )
+                      CALL pw_spline2_deriv_g ( tmp_g, idir=idir, error=error )
                    CASE (xc_deriv_spline3)
                       CALL pw_spline3_interpolate_values_g(tmp_g,error=error)
-                      CALL pw_spline3_deriv_g ( tmp_g, idir=ispin, error=error )
+                      CALL pw_spline3_deriv_g ( tmp_g, idir=idir, error=error )
                    CASE (xc_deriv_spline3_smooth)
-                      CALL pw_spline3_deriv_g ( tmp_g, idir=ispin, error=error )
+                      CALL pw_spline3_deriv_g ( tmp_g, idir=idir, error=error )
                    CASE default
                       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
                    END SELECT

@@ -37,6 +37,11 @@ MODULE force_control
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
+  USE cp_local_lists_types,            ONLY: cp_ll_create,&
+                                             cp_ll_release,&
+                                             cp_ll_retain,&
+                                             cp_local_lists_p_type,&
+                                             cp_local_lists_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -89,8 +94,8 @@ MODULE force_control
 !!
 !!   NOTES
 !!     as always direct manipulation of these attributes can have very
-!!     bad effects. In this case it can be quite bad aand the variables 
-!!     might not be up to date. You are warned...
+!!     bad effects. In this case it can be quite bad and the variables 
+!!     might not be up to date. You are warned, use only the get method...
 !!
 !!   ATTRIBUTES
 !!     - id_nr: identification number
@@ -131,8 +136,7 @@ MODULE force_control
      TYPE ( qs_environment_type ), POINTER :: qs_env
      TYPE (particle_1d_a_type), DIMENSION(:), POINTER :: particle_sets
      TYPE (atomic_kind_1d_a_type), DIMENSION(:), POINTER :: atomic_kind_sets
-     TYPE (neighbor_group_p_type), DIMENSION(:), POINTER ::&
-          local_particles
+     TYPE (cp_local_lists_p_type), DIMENSION(:), POINTER :: local_particles
   END TYPE force_env_type
 !!***
   !****************************************************************************
@@ -325,11 +329,9 @@ SUBROUTINE force_env_create(force_env,fist_env,qs_env,kg_env,error)
                 rep_att%atomic_kind_set
            force_env%particle_sets(i)%particle_set => &
                 rep_att%part
-           NULLIFY(force_env%local_particles(i)%neigh_group)
-           CALL neigh_group_create(&
-                force_env%local_particles(i)%neigh_group,&
-                n_kinds=SIZE(rep_att%atomic_kind_set),&
-                neigh_sets_ptr=rep_att%ll_data(1)%nonbonded,&
+           force_env%local_particles(i)%local_lists => &
+                rep_att%local_particles
+           CALL cp_ll_retain(force_env%local_particles(i)%local_lists,&
                 error=error)
         END DO
 
@@ -343,7 +345,7 @@ SUBROUTINE force_env_create(force_env,fist_env,qs_env,kg_env,error)
              force_env%kg_env%atomic_kind_set
         force_env%particle_sets(1)%particle_set => &
              force_env%kg_env%part
-        NULLIFY(force_env%local_particles(1)%neigh_group)
+        NULLIFY(force_env%local_particles(1)%local_lists)
 
      CASE(use_qs_force)
         ALLOCATE(force_env%particle_sets(1),&
@@ -354,12 +356,7 @@ SUBROUTINE force_env_create(force_env,fist_env,qs_env,kg_env,error)
         CALL get_qs_env(force_env%qs_env,&
              atomic_kind_set=force_env%atomic_kind_sets(1)%atomic_kind_set,&
              particle_set=force_env%particle_sets(1)%particle_set,&
-             sab_orb=sab_orb,&
-             error=error)
-        CALL neigh_group_create(&
-             force_env%local_particles(1)%neigh_group,&
-             n_kinds=SIZE(force_env%atomic_kind_sets(1)%atomic_kind_set),&
-             neigh_sets_ptr=sab_orb,&
+             local_particles=force_env%local_particles(1)%local_lists,&
              error=error)
      END SELECT
      
@@ -463,7 +460,7 @@ SUBROUTINE force_env_release(force_env, error)
         NULLIFY(force_env%particle_sets, force_env%atomic_kind_sets)
         IF (ASSOCIATED(force_env%local_particles)) THEN
            DO i=1,SIZE(force_env%local_particles)
-              CALL neigh_group_release(force_env%local_particles(i)%neigh_group,&
+              CALL cp_ll_release(force_env%local_particles(i)%local_lists,&
                    error=error)
            END DO
            DEALLOCATE(force_env%local_particles,stat=stat)
@@ -496,7 +493,7 @@ END SUBROUTINE force_env_release
 !!         particle_sets
 !!       Type(atomic_kind_1d_a_type), Dimension(:), Pointer, Optional::&
 !!         atomic_kind_sets
-!!       Type(neighbor_group_p_type), Dimension(:), Pointer, Optional::&
+!!       Type(cp_local_lists_p_type), Dimension(:), Pointer, Optional::&
 !!         local_particles
 !!       Integer, Intent (OUT), Optional:: in_use
 !!       Type(fist_environment_type), Pointer, Optional:: fist_env
@@ -530,7 +527,7 @@ SUBROUTINE force_env_get(force_env, atomic_kind_sets,particle_sets,&
   TYPE (particle_1d_a_type), DIMENSION(:), POINTER, OPTIONAL :: particle_sets
   TYPE (atomic_kind_1d_a_type), DIMENSION(:), POINTER, OPTIONAL :: &
        atomic_kind_sets
-  TYPE (neighbor_group_p_type), DIMENSION(:), POINTER, OPTIONAL ::&
+  TYPE (cp_local_lists_p_type), DIMENSION(:), POINTER, OPTIONAL ::&
        local_particles
   INTEGER, INTENT(out), OPTIONAL :: in_use
   TYPE ( fist_environment_type ), POINTER, OPTIONAL :: fist_env 
@@ -558,13 +555,7 @@ SUBROUTINE force_env_get(force_env, atomic_kind_sets,particle_sets,&
         ! don't check ?
         CPPreconditionNoFail(.NOT.PRESENT(fist_env),cp_warning_level,routineP,error)
         CPPreconditionNoFail(.NOT.PRESENT(kg_env),cp_warning_level,routineP,error)
-        
-        IF (PRESENT(local_particles)) THEN
-           ! if rebuild was used this is not necessary
-           CALL get_qs_env(force_env%qs_env,&
-                sab_orb=force_env%local_particles(1)%neigh_group%neigh_sets,&
-                error=error)
-        END IF
+        ! at the moment all the info needed doesn't change
      CASE (use_fist_force)
         CPPrecondition(ASSOCIATED(force_env%fist_env),cp_failure_level,routineP,error,failure)
         ! don't check ?
@@ -574,8 +565,12 @@ SUBROUTINE force_env_get(force_env, atomic_kind_sets,particle_sets,&
         IF (PRESENT(local_particles)) THEN
            DO i=1,SIZE(force_env%fist_env%rep_env)
               rep_att => force_env%fist_env%rep_env(i)
-              force_env%local_particles(i)%neigh_group%neigh_sets => &
-                   rep_att %ll_data(1) %nonbonded
+              CALL cp_ll_release(force_env%local_particles(i)%local_lists,&
+                   error=error)
+              force_env%local_particles(i)%local_lists => &
+                   rep_att %local_particles
+              CALL cp_ll_retain(force_env%local_particles(i)%local_lists,&
+                   error=error)
            END DO
         END IF
      CASE (use_kg_force)
@@ -585,7 +580,7 @@ SUBROUTINE force_env_get(force_env, atomic_kind_sets,particle_sets,&
         CPPreconditionNoFail(.NOT.PRESENT(fist_env),cp_warning_level,routineP,error)
         
         IF (PRESENT(local_particles)) THEN
-           ! kg does not use qs_neighbor lists!!!
+           ! not yet implemented
            CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)
         END IF
      CASE default

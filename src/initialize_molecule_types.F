@@ -2,6 +2,9 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
 !!****** cp2k/initialize_molecule_types [1.0] *
 !!
 !!   NAME
@@ -19,22 +22,54 @@
 !******************************************************************************
 
 MODULE initialize_molecule_types
-
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE linklists, ONLY : atom_link_list, exclusion, bond_link_list, &
-       bend_link_list, torsion_link_list, distconst_link_list, g3x3_link_list
-  USE md, ONLY : simulation_parameters_type
-  USE molecule_types, ONLY : molecule_type, intra_parameters_type, &
-       particle_node_type, molecule_structure_type
-  USE particle_types, ONLY : particle_type
-  USE util, ONLY : get_limit
-
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error,&
+                                             cp_unimplemented_error_nr
+  USE cp_local_lists_types,            ONLY: cp_ll_create,&
+                                             cp_ll_release,&
+                                             cp_ll_retain,&
+                                             cp_local_lists_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE linklists,                       ONLY: atom_link_list,&
+                                             bend_link_list,&
+                                             bond_link_list,&
+                                             distconst_link_list,&
+                                             exclusion,&
+                                             g3x3_link_list,&
+                                             torsion_link_list
+  USE md,                              ONLY: simulation_parameters_type
+  USE molecule_types,                  ONLY: intra_parameters_type,&
+                                             molecule_structure_type,&
+                                             molecule_type,&
+                                             particle_node_type
+  USE particle_types,                  ONLY: particle_type
+  USE util,                            ONLY: get_limit
   IMPLICIT NONE
 
-  PUBLIC :: initialize_molecule_type
+  PUBLIC :: initialize_molecule_type, mol_local_particles_create
   PRIVATE
 
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="initialize_molecule_type"
 !!*****
 !******************************************************************************
 
@@ -58,7 +93,8 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE initialize_molecule_type ( mol_setup, intra_param, &
-                                      pnode, part, molecule, globenv )
+                                      pnode, part, molecule,&
+                                      globenv )
 
   IMPLICIT NONE
   TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( IN ) :: mol_setup
@@ -71,6 +107,7 @@ SUBROUTINE initialize_molecule_type ( mol_setup, intra_param, &
 
 ! Locals
   INTEGER :: imol, i, j, k, atombase, iat, nlim ( 2 ), iw, nmol_type
+  INTEGER, DIMENSION(:), ALLOCATABLE :: i_att
 
 !------------------------------------------------------------------------------
 
@@ -99,7 +136,7 @@ SUBROUTINE initialize_molecule_type ( mol_setup, intra_param, &
            atombase = atombase + mol_setup(i) % molpar % natom
         END DO
      END DO
-     DO iat = 1, size(pnode)
+     DO iat = 1, SIZE(pnode)
         pnode(iat) %p => part(iat)
      END DO
 
@@ -134,7 +171,7 @@ SUBROUTINE initialize_molecule_type ( mol_setup, intra_param, &
      END DO
 
      k = 0
-     DO imol = 1, size(molecule)
+     DO imol = 1, SIZE(molecule)
         atombase = molecule(imol) % atombase - 1
         DO j = 1, molecule(imol) % natoms_mol
            k = k + 1
@@ -170,6 +207,124 @@ END SUBROUTINE initialize_molecule_type
 
 !!*****
 !******************************************************************************
+
+!!****f* initialize_molecule_type/mol_local_particles_create [1.0] *
+!!
+!!   NAME
+!!     mol_local_particles_create
+!!
+!!   SYNOPSIS
+!!     Subroutine mol_local_particles_create(local_particles,&
+!!         atomic_kind_set, particles, local_molecules, para_env, error)
+!!       Type(cp_local_lists_type), Pointer:: local_particles
+!!       Type(atomic_kind_type), Dimension(:), Pointer:: atomic_kind_set
+!!       Type(molecule_structure_type), Dimension(:), Pointer::&
+!!         local_molecules
+!!       Type(particle_type), Dimension(:), Pointer:: particles
+!!       Type(cp_para_env_type), Pointer:: para_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine mol_local_particles_create
+!!
+!!   FUNCTION
+!!     create a local_particles structure from a molecule structure
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - local_particles: the object to create
+!!     - atomic_kind_set: tha atomic kind set object
+!!     - local_molecule: structure of the molecules that are local to this
+!!       processor
+!!     - particles: array with all the particles
+!!     - para_env: parallel einvironment on which the distribution is based
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     06.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE mol_local_particles_create(local_particles, atomic_kind_set,&
+     particles, local_molecules, para_env, error)
+  TYPE(cp_local_lists_type), POINTER :: local_particles
+  TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+  TYPE(molecule_structure_type), DIMENSION(:), POINTER :: local_molecules
+  TYPE(particle_type), DIMENSION(:), POINTER :: particles
+  TYPE(cp_para_env_type), POINTER :: para_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='mol_local_particles_create',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: stat, ikind, imol,j, atombase
+  INTEGER, DIMENSION(:), ALLOCATABLE :: multiindex
+  INTEGER, DIMENSION(:), POINTER :: atom_list
+
+  failure=.FALSE.
+  NULLIFY(atom_list)
+  
+  CPPrecondition(.NOT.ASSOCIATED(local_particles),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(local_molecules),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     para_env => local_particles%para_env
+
+     ALLOCATE(multiindex(SIZE(atomic_kind_set)),stat=stat)
+
+     IF (para_env%num_pe==1) THEN
+        DO ikind=1,SIZE(atomic_kind_set)
+           CALL get_atomic_kind(atomic_kind_set(ikind),natom=multiindex(ikind))
+        END DO
+
+        CALL cp_ll_create(local_particles,para_env=para_env,n_el=multiindex,&
+             listbased_distribution=.FALSE.,error=error)
+
+        DO ikind=1,SIZE(atomic_kind_set)
+           CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=atom_list)
+           local_particles%list(ikind)%array=atom_list
+        END DO
+
+     ELSE
+        ! not so efficent at the moment
+
+        multiindex=0
+        !$omp parallel do private(imol,j,atombase,ikind)
+        DO imol = 1, SIZE(local_molecules)
+           atombase = local_molecules(imol) % atombase - 1
+           DO j = 1, local_molecules(imol) % natoms_mol
+              CALL get_atomic_kind(particles( atombase + j )%atomic_kind,&
+                   kind_number=ikind)
+              multiindex(ikind)=multiindex(ikind)+1
+           END DO
+        END DO
+
+        CALL cp_ll_create(local_particles,para_env=para_env,n_el=multiindex,&
+             listbased_distribution=.FALSE.,error=error)
+
+        multiindex=0
+        !$omp parallel do private(imol,j,atombase,ikind)
+        DO imol = 1, SIZE(local_molecules)
+           atombase = local_molecules(imol) % atombase - 1
+           DO j = 1, local_molecules(imol) % natoms_mol
+              CALL get_atomic_kind(particles( atombase + j )%atomic_kind,&
+                   kind_number=ikind)
+              multiindex(ikind)=multiindex(ikind)+1
+              local_particles%list(ikind)%array(multiindex(ikind))=atombase+j
+           END DO
+        END DO
+        
+     END IF
+
+     DEALLOCATE(multiindex,stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+  END IF
+END SUBROUTINE mol_local_particles_create
+!***************************************************************************
 
 END MODULE initialize_molecule_types
 

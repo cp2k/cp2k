@@ -46,7 +46,8 @@ MODULE cp_[el_name]_pool_types
                                              cp_sll_[el_name]_insert_el,&
                                              cp_sll_[el_name]_next,&
                                              cp_sll_[el_name]_rm_first_el,&
-                                             cp_sll_[el_name]_type
+                                             cp_sll_[el_name]_type,&
+                                             cp_sll_[el_name]_insert_ordered
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -478,7 +479,7 @@ CONTAINS
     [el_type], POINTER :: element
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    LOGICAL :: failure
+    LOGICAL :: failure, did_insert
     CHARACTER(len=*), PARAMETER :: routineN='[el_name]_pool_give_back_[el_name]',&
          routineP=moduleN//':'//routineN
     INTEGER :: stat
@@ -493,7 +494,13 @@ CONTAINS
 
     IF (.NOT. failure) THEN
        CPPreconditionNoFail(element%ref_count==1,cp_warning_level,routineP,error)
-       CALL cp_sll_[el_name]_insert_el(pool%cache, element=element)
+       IF (cp_debug) THEN
+          CALL cp_sll_[el_name]_insert_ordered(pool%cache, el=element,&
+               insert_equals=.FALSE., did_insert=did_insert, error=error)
+          CPPostcondition(did_insert,cp_failure_level,routineP,error,failure)
+       ELSE
+          CALL cp_sll_[el_name]_insert_el(pool%cache, el=element)
+       END IF
     END IF
     NULLIFY(element)
   END SUBROUTINE [el_name]_pool_give_back_[el_name]

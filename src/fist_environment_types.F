@@ -20,20 +20,20 @@
 !******************************************************************************
 
 MODULE fist_environment_types
-
-  USE atomic_kind_types, ONLY: atomic_kind_type
-  USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE kinds, ONLY : dbl
-  USE linklist_types, ONLY : linklist_internal_data_type
-  USE md, ONLY : virial_type
-  USE molecule_types, ONLY : molecule_structure_type, particle_node_type
-  USE pair_potential, ONLY : potentialparm_type
-  USE particle_types, ONLY : particle_type
-  USE simulation_cell, ONLY : cell_type
-
+  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE cp_local_lists_types,            ONLY: cp_local_lists_type
+  USE ewald_parameters_types,          ONLY: ewald_parameters_type
+  USE kinds,                           ONLY: dbl
+  USE linklist_types,                  ONLY: linklist_internal_data_type
+  USE md,                              ONLY: virial_type
+  USE molecule_types,                  ONLY: molecule_structure_type,&
+                                             particle_node_type
+  USE pair_potential,                  ONLY: potentialparm_type
+  USE particle_types,                  ONLY: particle_type
+  USE simulation_cell,                 ONLY: cell_type
   PRIVATE
 
-  character(len=*), private, parameter :: moduleN='fist_environment_types'
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='fist_environment_types'
 
   TYPE pimd_environment_type
      REAL ( dbl ), DIMENSION ( : , : ), POINTER :: u
@@ -58,6 +58,7 @@ MODULE fist_environment_types
     TYPE ( particle_type ), POINTER :: part ( : )
     TYPE ( particle_node_type ), POINTER :: pnode ( : )
     TYPE ( pimd_environment_type ), POINTER :: pimd_env
+    TYPE ( cp_local_lists_type ), POINTER :: local_particles
   END TYPE replica_environment_type
 
   TYPE fist_environment_type
@@ -79,7 +80,8 @@ MODULE fist_environment_types
 
   PUBLIC :: get_fist_env,&
             init_fist_env,&
-            set_fist_env
+            set_fist_env,&
+            replica_env_init
 
 !!***
 ! *****************************************************************************
@@ -155,6 +157,33 @@ CONTAINS
 
 !***************************************************************************
   END SUBROUTINE set_fist_env
+!***************************************************************************
+
+!!****f* fist_environment_type/replica_env_init [1.0] *
+!!
+!!   NAME
+!!     replica_env_init
+!!
+!!   SYNOPSIS
+!!     Subroutine replica_env_init(replica_env)
+!!       Type(replica_environment_type), Intent (INOUT):: replica_env
+!!     End Subroutine replica_env_init
+!!
+!!   FUNCTION
+!!     initializes a replica environment
+!!
+!!   MODIFICATION HISTORY
+!!     06.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE replica_env_init(replica_env)
+  TYPE(replica_environment_type), INTENT(inout) :: replica_env
+  
+  NULLIFY(replica_env%atomic_kind_set, replica_env%box_ref, &
+       replica_env%ll_data, replica_env%molecule, replica_env%part, &
+       replica_env%pnode, replica_env%pimd_env, &
+       replica_env%local_particles)
+END SUBROUTINE replica_env_init
 !***************************************************************************
 
 END MODULE fist_environment_types

@@ -55,6 +55,7 @@ OBJECTS_GENERIC =\
  cp_linked_list_pw.o\
  cp_linked_list_rs.o\
  cp_linked_list_sm.o\
+ cp_local_lists_types.o\
  cp_log_handling.o\
  cp_matrix_utils.o\
  cp_output_handling.o\

@@ -13,6 +13,11 @@
 !!   FUNCTION
 !!     pool for for elements that are retained and released
 !!
+!!     *** TEMPLATE ***
+!!
+!!     This is generated from a template, do *NOT* modify the .F file,
+!!     modify the .template and .instantiation files !
+!!
 !!   NOTES
 !!     -
 !!
@@ -39,6 +44,7 @@ MODULE cp_rs_pool_types
   USE cp_linked_list_rs,               ONLY: cp_sll_rs_dealloc,&
                                              cp_sll_rs_get_first_el,&
                                              cp_sll_rs_insert_el,&
+                                             cp_sll_rs_insert_ordered,&
                                              cp_sll_rs_next,&
                                              cp_sll_rs_rm_first_el,&
                                              cp_sll_rs_type
@@ -153,7 +159,7 @@ CONTAINS
 !!       Type(cp_rs_pool_type), Pointer:: pool
 !!       Type(pw_grid_type), Pointer:: el_struct
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Integer, Dimension(3), Intent (IN):: nsmax
+!!       Integer, Intent (IN):: nsmax
 !!     End Subroutine rs_pool_create
 !!
 !!   FUNCTION
@@ -510,7 +516,7 @@ CONTAINS
     TYPE(realspace_grid_type), POINTER :: element
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    LOGICAL :: failure
+    LOGICAL :: failure, did_insert
     CHARACTER(len=*), PARAMETER :: routineN='rs_pool_give_back_rs',&
          routineP=moduleN//':'//routineN
     INTEGER :: stat
@@ -529,7 +535,13 @@ CONTAINS
 
     IF (.NOT. failure) THEN
        CPPreconditionNoFail(element%ref_count==1,cp_warning_level,routineP,error)
-       CALL cp_sll_rs_insert_el(pool%cache, element=element)
+       IF (cp_debug) THEN
+          CALL cp_sll_rs_insert_ordered(pool%cache, el=element,&
+               insert_equals=.FALSE., did_insert=did_insert, error=error)
+          CPPostcondition(did_insert,cp_failure_level,routineP,error,failure)
+       ELSE
+          CALL cp_sll_rs_insert_el(pool%cache, el=element)
+       END IF
     END IF
     NULLIFY(element)
   END SUBROUTINE rs_pool_give_back_rs

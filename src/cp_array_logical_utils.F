@@ -4,6 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
+#define CP_L_LESS_Q(el1,el2) ( (.not.el1).and.el2 )
 
 !!****h* cp2k/cp_array_logical_utils [1.0] *
 !!
@@ -69,7 +70,8 @@ MODULE cp_array_logical_utils
        cp_1d_logical_guarantee_size, cp_logical_write,&
        cp_1d_logical_write, cp_2d_logical_write,&
        cp_3d_logical_write,&
-       cp_2d_logical_guarantee_size
+       cp_2d_logical_guarantee_size,&
+       cp_1d_logical_bsearch
 
   INTERFACE cp_output
      MODULE PROCEDURE cp_1d_logical_output, &
@@ -881,12 +883,85 @@ END SUBROUTINE cp_3d_logical_write
   END SUBROUTINE cp_2d_logical_guarantee_size
 !***************************************************************************
 
+!!****f* cp_array_logical_utils/cp_1d_logical_bsearch [1.0] *
+!!
+!!   NAME
+!!     cp_1d_logical_bsearch
+!!
+!!   SYNOPSIS
+!!     Function cp_1d_logical_bsearch(array, el, l_index, u_index, error)&
+!!         Result(res)
+!!       Logical, Dimension(:), Intent (IN):: array
+!!       Logical, Intent (IN):: el
+!!       Integer, Intent (IN), Optional:: l_index, u_index
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Integer:: res
+!!     End Function cp_1d_logical_bsearch
+!!
+!!   FUNCTION
+!!     returns the index at which the element el should be inserted in the
+!!     array to keep it ordered (array(i)>=el).
+!!     If the element is bigger than all the elements in the array returns
+!!     the last index+1.
+!!
+!!   NOTES
+!!     the array should be ordered in growing order
+!!
+!!   INPUTS
+!!     - array: the array to search
+!!     - el: the element to look for
+!!     - l_index: the lower index for binary search (defaults to 1)
+!!     - u_index: the upper index for binary search (defaults to size(array))
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     06.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+FUNCTION cp_1d_logical_bsearch(array, el, l_index, u_index, error)&
+     RESULT(res)
+  LOGICAL, DIMENSION(:), INTENT(in) :: array
+  LOGICAL, INTENT(in) :: el
+  INTEGER, INTENT(in), OPTIONAL :: l_index, u_index
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  INTEGER :: res
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_1d_logical_bsearch',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: lindex,uindex,aindex
+  failure=.FALSE.
+  
+  lindex=1
+  uindex=SIZE(array)
+  IF (PRESENT(l_index)) lindex=l_index
+  IF (PRESENT(u_index)) uindex=u_index
+  DO WHILE (lindex <= uindex)
+     aindex=(lindex+uindex)/2
+     IF (CP_L_LESS_Q(array(aindex),el)) THEN
+        lindex=aindex+1
+     ELSE
+        uindex=aindex-1
+     END IF
+  END DO
+  res=lindex
+END FUNCTION cp_1d_logical_bsearch
+!***************************************************************************
+
   ! template def put here so that line numbers in template and derived 
   ! files are almost the same (multi-line use change it a bit)
-  ! [template(type1,nametype1,USE,defaultFormatType1)]
+  ! [template(type1,nametype1,USE,defaultFormatType1,lessQ,defines)]
 ! ARGS:
 !  USE = ""
 !  defaultFormatType1 = ""(l1)""
+!  defines = 
+!    "#define CP_L_LESS_Q(el1,el2) ( (.not.el1).and.el2 )
+!     "
+!  lessQ = "CP_L_LESS_Q"
 !  nametype1 = "logical"
 !  type1 = "logical"
 

@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
-
+[defines]
 !!****h* cp2k/cp_array_[nametype1]_utils [1.0] *
 !!
 !!   NAME
@@ -57,7 +57,8 @@ MODULE cp_array_[nametype1]_utils
        cp_1d_[nametype1]_guarantee_size, cp_[nametype1]_write,&
        cp_1d_[nametype1]_write, cp_2d_[nametype1]_write,&
        cp_3d_[nametype1]_write,&
-       cp_2d_[nametype1]_guarantee_size
+       cp_2d_[nametype1]_guarantee_size,&
+       cp_1d_[nametype1]_bsearch
 
   INTERFACE cp_output
      MODULE PROCEDURE cp_1d_[nametype1]_output, &
@@ -781,8 +782,67 @@ END SUBROUTINE cp_3d_[nametype1]_write
   END SUBROUTINE cp_2d_[nametype1]_guarantee_size
 !***************************************************************************
 
+!!****f* cp_array_[nametype1]_utils/cp_1d_[nametype1]_bsearch [1.0] *
+!!
+!!   NAME
+!!     cp_1d_[nametype1]_bsearch
+!!
+!!   FUNCTION
+!!     returns the index at which the element el should be inserted in the
+!!     array to keep it ordered (array(i)>=el).
+!!     If the element is bigger than all the elements in the array returns
+!!     the last index+1.
+!!
+!!   NOTES
+!!     the array should be ordered in growing order
+!!
+!!   INPUTS
+!!     - array: the array to search
+!!     - el: the element to look for
+!!     - l_index: the lower index for binary search (defaults to 1)
+!!     - u_index: the upper index for binary search (defaults to size(array))
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     06.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+FUNCTION cp_1d_[nametype1]_bsearch(array, el, l_index, u_index, error)&
+     result(res)
+  [type1], DIMENSION(:), intent(in) :: array
+  [type1], intent(in) :: el
+  INTEGER, INTENT(in), OPTIONAL :: l_index, u_index
+  type(cp_error_type), optional, intent(inout) :: error
+  integer :: res
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_1d_[nametype1]_bsearch',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: lindex,uindex,aindex
+  failure=.false.
+  
+  lindex=1
+  uindex=size(array)
+  if (present(l_index)) lindex=l_index
+  if (present(u_index)) uindex=u_index
+  DO WHILE (lindex <= uindex)
+     aindex=(lindex+uindex)/2
+     IF ([lessQ](array(aindex),el)) THEN
+        lindex=aindex+1
+     ELSE
+        uindex=aindex-1
+     END IF
+  END DO
+  res=lindex
+END FUNCTION cp_1d_[nametype1]_bsearch
+!***************************************************************************
+
   ! template def put here so that line numbers in template and derived 
   ! files are almost the same (multi-line use change it a bit)
-  ! [template(type1,nametype1,USE,defaultFormatType1)]
+  ! [template(type1,nametype1,USE,defaultFormatType1,lessQ,defines)]
 
 END MODULE cp_array_[nametype1]_utils

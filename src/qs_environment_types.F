@@ -54,6 +54,10 @@ MODULE qs_environment_types
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_full_matrix_type
+  USE cp_local_lists_types,            ONLY: cp_ll_create,&
+                                             cp_ll_release,&
+                                             cp_ll_retain,&
+                                             cp_local_lists_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -199,6 +203,8 @@ MODULE qs_environment_types
 !!       stored (used during the md to extrapolate the new starting point)
 !!     - scf_env: place where temporary information used in the scf is stored
 !!     - mpools: all the pools of matrixes
+!!     - local_particles: lists with the indexes of the particles that are
+!!       local to the actual processor (a list for each kind)
 !!     
 !!   AUTHOR
 !!     Matthias Krack
@@ -234,6 +240,7 @@ MODULE qs_environment_types
     TYPE(qs_wf_history_type), POINTER                     :: wf_history
     TYPE(qs_scf_env_type), POINTER                        :: scf_env
     TYPE(qs_matrix_pools_type), POINTER                   :: mpools
+    TYPE(cp_local_lists_type), POINTER                    :: local_particles
   END TYPE qs_environment_type
 ! *****************************************************************************
 
@@ -273,7 +280,7 @@ CONTAINS
                         para_env, blacs_env, scf_control,&
                         kinetic,qs_charges, rho_core, ks_env,&
                         wf_history,scf_env,&
-                        id_nr,error)
+                        id_nr,local_particles,error)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -312,6 +319,7 @@ CONTAINS
     TYPE(qs_wf_history_type), OPTIONAL, POINTER :: wf_history
     TYPE(qs_scf_env_type), OPTIONAL, POINTER    :: scf_env
     INTEGER, INTENT(out), OPTIONAL              :: id_nr
+    TYPE(cp_local_lists_type), POINTER, OPTIONAL :: local_particles
     TYPE(cp_error_type), OPTIONAL,INTENT(inout) :: error
 !   ---------------------------------------------------------------------------
 
@@ -346,6 +354,7 @@ CONTAINS
     IF (PRESENT(wf_history)) wf_history => qs_env%wf_history
     IF (PRESENT(scf_env)) scf_env => qs_env%scf_env
     IF (PRESENT(id_nr)) id_nr=qs_env%id_nr
+    IF (PRESENT(local_particles)) local_particles => qs_env%local_particles
 
   END SUBROUTINE get_qs_env
 
@@ -394,6 +403,7 @@ CONTAINS
     NULLIFY (qs_env%ks_env)
     NULLIFY (qs_env%wf_history)
     NULLIFY (qs_env%scf_env)
+    NULLIFY (qs_env%local_particles)
 
     CALL cp_para_env_retain(para_env,error=error)
     qs_env%para_env => para_env
@@ -411,7 +421,7 @@ CONTAINS
                         pao_env,particle_set,energy,force,h,k,s,&
                         pw_env,mpools,rho,kinetic,&
                         scf_control,qs_charges,rho_core, ks_env,&
-                        wf_history, scf_env, error)
+                        wf_history, scf_env, local_particles, error)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -447,6 +457,7 @@ CONTAINS
     TYPE(qs_wf_history_type), POINTER, OPTIONAL :: wf_history
     TYPE(qs_scf_env_type), POINTER, OPTIONAL  :: scf_env
     TYPE(qs_matrix_pools_type), POINTER, OPTIONAL  :: mpools
+    TYPE(cp_local_lists_type), POINTER, OPTIONAL :: local_particles
     TYPE(cp_error_type),INTENT(inout),OPTIONAL:: error
 
 !   ---------------------------------------------------------------------------
@@ -510,6 +521,11 @@ CONTAINS
        CALL mpools_retain(mpools,error=error)
        CALL mpools_release(mpools, error=error)
        qs_env%mpools => mpools
+    END IF
+    IF (PRESENT(local_particles)) THEN
+       CALL cp_ll_retain(local_particles,error=error)
+       CALL cp_ll_release(local_particles, error=error)
+       qs_env%local_particles => local_particles
     END IF
   END SUBROUTINE set_qs_env
 
@@ -748,6 +764,7 @@ SUBROUTINE qs_env_release(qs_env,error)
         CALL qs_charges_release(qs_env%qs_charges, error=error)
         CALL qs_ks_release(qs_env%ks_env, error=error)
         CALL mpools_release(qs_env%mpools,error=error)
+        CALL cp_ll_release(qs_env%local_particles, error=error)
 
 !FM        if (associated(qs_env%pao_env)) then ! circular ref
 !FM           call pao_env_dealloc_ref(pao_env_dealloc_ref,error=error)

@@ -1,3 +1,4 @@
+
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2002  CP2K developers group                                 !
@@ -40,6 +41,7 @@ MODULE cp_sm_pool_types
   USE cp_linked_list_sm,               ONLY: cp_sll_sm_dealloc,&
                                              cp_sll_sm_get_first_el,&
                                              cp_sll_sm_insert_el,&
+                                             cp_sll_sm_insert_ordered,&
                                              cp_sll_sm_next,&
                                              cp_sll_sm_rm_first_el,&
                                              cp_sll_sm_type
@@ -553,7 +555,7 @@ CONTAINS
     TYPE(real_matrix_type), POINTER :: matrix
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    LOGICAL :: failure
+    LOGICAL :: failure, did_insert
     CHARACTER(len=*), PARAMETER :: routineN='sm_pool_give_back_matrix',&
          routineP=moduleN//':'//routineN
     INTEGER :: stat
@@ -572,7 +574,13 @@ CONTAINS
 
     IF (.NOT. failure) THEN
        CPPreconditionNoFail(matrix%ref_count==1,cp_warning_level,routineP,error)
-       CALL cp_sll_sm_insert_el(pool%cache, element=matrix)
+       IF (cp_debug) THEN
+          CALL cp_sll_sm_insert_ordered(pool%cache, el=matrix,&
+               insert_equals=.FALSE., did_insert=did_insert)
+          CPAssert(did_insert,cp_failure_level,routineP,error,failure)
+       ELSE
+          CALL cp_sll_sm_insert_el(pool%cache, el=matrix)
+       END IF
     END IF
     NULLIFY(matrix)
   END SUBROUTINE sm_pool_give_back_matrix

@@ -122,7 +122,7 @@ CONTAINS
 !!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     06.2002 created [fawzi]
+!!     06.2003 created [fawzi]
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_spline2_interpolate_values_g(spline_g,error)
@@ -224,7 +224,7 @@ CONTAINS
 !!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     05.2002 created [fawzi]
+!!     06.2003 created [fawzi]
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_spline3_interpolate_values_g(spline_g,error)
@@ -332,7 +332,7 @@ CONTAINS
 !!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     06.2002 created [fawzi]
+!!     06.2003 created [fawzi]
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_spline2_evaluate_values_g(spline_g,error)
@@ -433,7 +433,7 @@ CONTAINS
 !!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     05.2002 created [fawzi]
+!!     06.2003 created [fawzi]
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_spline3_evaluate_values_g(spline_g,error)
@@ -898,7 +898,7 @@ CONTAINS
 !!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     05.2002 created [fawzi]
+!!     06.2003 created [fawzi]
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_spline_scale_deriv(deriv_vals_r,cell,transpose,scale,error)
@@ -1002,7 +1002,7 @@ CONTAINS
 !!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     05.2002 created [fawzi]
+!!     06.2003 created [fawzi]
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_spline3_deriv_g(spline_g,idir,error)
@@ -1168,7 +1168,7 @@ CONTAINS
 !!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     05.2002 created [fawzi]
+!!     06.2003 created [fawzi]
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_spline2_deriv_g(spline_g,idir,error)
