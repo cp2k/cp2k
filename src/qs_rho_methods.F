@@ -211,7 +211,7 @@ CONTAINS
            ELSE
               CALL replicate_matrix_structure(s(1)%matrix,&
                    rho%rho_ao(i)%matrix,&
-                   "RHO%RHO_AO -"//ADJUSTL(cp_to_string(i)))
+                   "DENSITY_MATRIX_FOR_SPIN_"//TRIM(ADJUSTL(cp_to_string(i))))
            END IF
         END DO
      END IF

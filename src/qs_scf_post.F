@@ -682,7 +682,9 @@ CONTAINS
 
 !    *** write the density matrix ***
        IF (globenv%print%density_matrix) THEN
-          CALL write_sparse_matrix(rho%rho_ao(1)%matrix,4,6,qs_env,globenv)
+         DO ispin=1,dft_control%nspins
+           CALL write_sparse_matrix(rho%rho_ao(ispin)%matrix,4,6,qs_env,globenv)
+         END DO
        END IF
 
 !    *** a coarse grained version of the density matrix ***
