@@ -304,8 +304,8 @@ CONTAINS
     CALL scf_c_release(scf_control)
 
 !   *** Initialize pools ***
-      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set,&
-           dft_control=dft_control)
+      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, &
+           dft_control=dft_control, scf_control=scf_control)
       CALL get_atomic_kind_set(atomic_kind_set, nsgf=n_ao, nelectron=n_mo)
       n_mo = n_mo-dft_control%charge
 
