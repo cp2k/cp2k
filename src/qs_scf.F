@@ -140,8 +140,7 @@ MODULE qs_scf
   USE pao_types,                       ONLY: pao_env_get,&
                                              pao_env_type,&
                                              pao_glob_angles_type
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_coordinates
+  USE particle_types,                  ONLY: particle_type
   USE preconditioner,                  ONLY: destroy_preconditioner,&
                                              init_preconditioner,&
                                              make_preconditioner,&
@@ -599,8 +598,6 @@ CONTAINS
     diis_step = .FALSE.
     rebuild = .TRUE.
     use_jacobi = .FALSE.
-
-    ! CALL write_particle_coordinates(particle_set,cell,globenv)
 
     IF (ionode.AND.logger%print_keys%scf) THEN
        WRITE (UNIT=output_unit,&

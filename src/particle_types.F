@@ -48,6 +48,7 @@ MODULE particle_types
   USE string_utilities,                ONLY: integer_to_string,&
                                              string_to_integer,&
                                              uppercase
+  USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   IMPLICIT NONE
@@ -76,8 +77,9 @@ MODULE particle_types
             get_particle_set,&
             init_particle_set,&
             read_particle_set,&
-            write_particle_coordinates,&
-            write_particle_distances
+            write_qs_particle_coordinates,&
+            write_particle_distances, &
+            write_particle_coordinates
 
 !!***
 ! *****************************************************************************
@@ -276,6 +278,7 @@ CONTAINS
   SUBROUTINE read_particle_set(particle_set,atomic_kind_set,cell,globenv)
 
 !   Purpose: Read the input section with the atomic coordinates.
+!            the format is xmol like : KIND X Y Z
 
 !   History: - Creation (19.05.2000, Matthias Krack)
 
@@ -463,8 +466,57 @@ CONTAINS
   END SUBROUTINE read_particle_set
 
 ! *****************************************************************************
+!  should be able to write a few formats e.g. xmol, and some binary format (dcd)
+!  some format can be used for x,v,f
+!  should work for fist, qs, kg
+!  still needs some rethinking of the units
+!  FORMAT   CONTENT                                    UNITS x,v,f
+!  XMOL     POS, VEL, FORCE, POS_VEL, POS_VEL_FORCE          Angstrom, a.u., a.u. !hmmmm
+! *****************************************************************************
+  SUBROUTINE write_particle_coordinates(particle_set,iunit,format,content,title)
+    TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
+    INTEGER                                    :: iunit
+    LOGICAL                                    :: ionode
+    CHARACTER(LEN=*)                                :: format
+    CHARACTER(LEN=*)                                :: content
+    CHARACTER(LEN=*)                                :: title
 
-  SUBROUTINE write_particle_coordinates(particle_set,cell,globenv)
+  INTEGER :: natom,iatom
+  CHARACTER(LEN=2) :: element_symbol
+ 
+  natom = SIZE(particle_set)
+
+  SELECT CASE (TRIM(format))
+  CASE ("XMOL")
+       write(iunit,'(I8)') natom
+       write(iunit,'(A)')  TRIM(title)
+       DO iatom=1,natom
+          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                               element_symbol=element_symbol)
+          SELECT CASE (TRIM(content))
+          CASE ("POS")
+               WRITE (iunit,"(T2,A2,X,3F20.10)") element_symbol,particle_set(iatom)%r(1:3)*angstrom
+          CASE ("VEL")
+               WRITE (iunit,"(T2,A2,X,3F20.10)") element_symbol,particle_set(iatom)%v(1:3)
+          CASE ("FORCE")
+               WRITE (iunit,"(T2,A2,X,3F20.10)") element_symbol,particle_set(iatom)%f(1:3)
+          CASE ("POS_VEL")
+               WRITE (iunit,"(T2,A2,X,6F20.10)") element_symbol,particle_set(iatom)%r(1:3)*angstrom, &
+                                                                particle_set(iatom)%v(1:3)
+          CASE ("POS_VEL_FORCE")
+               WRITE (iunit,"(T2,A2,X,9F20.10)") element_symbol,particle_set(iatom)%r(1:3)*angstrom, &
+                                                                particle_set(iatom)%v(1:3), &
+                                                                particle_set(iatom)%f(1:3)
+          END SELECT
+       ENDDO
+  CASE DEFAULT
+    ! others todo
+  END SELECT
+
+  END SUBROUTINE write_particle_coordinates
+
+! *****************************************************************************
+  SUBROUTINE write_qs_particle_coordinates(particle_set,cell,globenv)
 
 !   Purpose: Write the atomic coordinates to the output unit.
 
@@ -501,8 +553,6 @@ CONTAINS
         "Atom  Kind  Element","X","Y","Z","Z(eff)","Mass"
 
       natom = SIZE(particle_set)
-      ! WRITE (19,*) natom
-      ! WRITE (19,*) ""
       DO iatom=1,natom
         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                              kind_number=ikind,&
@@ -513,11 +563,9 @@ CONTAINS
         WRITE (output_unit,"(T2,I5,1X,I4,3X,A2,2X,I3,3F12.6,4X,I3,3X,F8.4)")&
           iatom,ikind,element_symbol,z,&
           particle_set(iatom)%r(1:3)/unit_of_length,zeff,mass/massunit
-        ! WRITE (19,"(T2,A2,3F22.18)") element_symbol,particle_set(iatom)%r(1:3)/unit_of_length
       END DO
-      ! CALL m_flush(19)
 
-  END SUBROUTINE write_particle_coordinates
+  END SUBROUTINE write_qs_particle_coordinates
 
 ! *****************************************************************************
 

@@ -44,7 +44,8 @@ MODULE qs_md
   USE extended_system_types,           ONLY: extended_system_type
   USE force_control,                   ONLY: force_env_create,&
                                              force_env_release,&
-                                             force_env_type
+                                             force_env_type,&
+                                             force_env_calculate_force
   USE global_types,                    ONLY: global_environment_type
   USE initialize_extended_types,       ONLY: initialize_nhc_baro,&
                                              initialize_nhc_part,&
@@ -61,12 +62,14 @@ MODULE qs_md
                                              read_md_section,&
                                              simulation_parameters_type,&
                                              virial_type
-  USE md_conserved_quantities,         ONLY: compute_conserved_quantity
   USE md_environment_types,            ONLY: init_md_env,&
                                              md_environment_type,&
                                              set_md_env,&
                                              destroy_md_env, &
                                              zero_virial
+  USE md_qs_energies,                  ONLY: md_energy_qs,&
+                                             set_qs_energies,&
+                                             set_qs_energies_param
   USE molecule_input,                  ONLY: read_molecule_section,&
                                              read_setup_section,&
                                              read_topology_section
@@ -75,8 +78,7 @@ MODULE qs_md
                                              molecule_type,&
                                              particle_node_type,&
                                              topology_type
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_coordinates
+  USE particle_types,                  ONLY: particle_type
   USE qs_energy,                       ONLY: qs_energies
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -247,6 +249,7 @@ CONTAINS
       CALL initialize_velocities(simpar,particle_set,globenv)
     END IF
 
+
     CALL force_env_create(force_env, qs_env=qs_env, error=error)
 
     ALLOCATE (struc(1),STAT=istat)
@@ -279,13 +282,19 @@ CONTAINS
     itimes => md_env%itimes
     itimes = 0
 
+    CALL set_qs_energies ( globenv, mdio )
+
+    CALL set_qs_energies_param ( units % pconv, units % econv, units % l_label, &
+       units % vol_label, units % e_label, units % pres_label, &
+       units % temp_label, units % angl_label )
+
+    ! the verlet integrator needs to be started with the correct forces alreay initialized
+    CALL force_env_calculate_force ( md_env%force_env, globenv, box_change = .FALSE. )
+    CALL md_energy_qs(md_env) ! inits the print env at itimes == 0
+
     DO itimes=1,md_env%simpar%nsteps
-      IF (globenv%ionode) WRITE(globenv%scr,*) "Step :",itimes," of ",md_env%simpar%nsteps
       CALL velocity_verlet(md_env)
-      CALL compute_conserved_quantity (md_env, energy%total, econs, ekin=ekin)
-      IF (globenv%ionode) WRITE(globenv%scr,'(A,I9,3F20.12)') "XXXXXXXXXX,itimes,EKIN,EPOT,TOTAL ", &
-                          itimes,ekin,energy%total,econs
-      CALL write_particle_coordinates(qs_env%particle_set,qs_env%cell,globenv)
+      CALL md_energy_qs(md_env)
     END DO
 
     CALL destroy_md_env(md_env)

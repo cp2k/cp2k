@@ -79,7 +79,7 @@ MODULE qs_environment
   USE particle_types,                  ONLY: init_particle_set,&
                                              particle_type,&
                                              read_particle_set,&
-                                             write_particle_coordinates,&
+                                             write_qs_particle_coordinates,&
                                              write_particle_distances
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              qs_energy_type
@@ -271,7 +271,7 @@ CONTAINS
 
 !   *** Print the atomic coordinates ***
     IF (globenv%print%atomic_coordinates) &
-        CALL write_particle_coordinates(particle_set,cell,globenv)
+        CALL write_qs_particle_coordinates(particle_set,cell,globenv)
 
 !   *** Print the interatomic distances ***
 
