@@ -45,6 +45,7 @@ OBJECTS_GENERIC =\
  cp_lbfgs_optimizer_gerd_f.o\
  cp_lbfgs_optimizer_tests.o\
  cp_linked_list_int.o\
+ cp_linked_list_pw.o\
  cp_log_handling.o\
  cp_matrix_utils.o\
  cp_output_handling.o\
@@ -183,6 +184,7 @@ OBJECTS_GENERIC =\
  pol_thk_pw.o\
  potential_types.o\
  potentials.o\
+ pw_grid_pool.o\
  pw_grid_types.o\
  pw_grids.o\
  pw_types.o\
