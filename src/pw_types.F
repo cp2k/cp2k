@@ -664,7 +664,7 @@ SUBROUTINE pw_derive ( pw, n )
   IF ( pw % in_space == RECIPROCALSPACE .AND. &
        pw % in_use == COMPLEXDATA1D ) THEN
 
-    cnt = REAL ( SIZE ( pw % cc ),KIND=dp)
+    cnt = SIZE ( pw % cc )
 
     IF ( n ( 1 ) == 1 ) THEN
 !$omp parallel do private (i)

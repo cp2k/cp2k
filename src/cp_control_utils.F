@@ -830,7 +830,7 @@ CONTAINS
     CHARACTER(LEN=3)                         :: test_result
     CHARACTER(LEN=60)                        :: keyword, string, string2
     INTEGER                                  :: igrid_level, istat, ivalue, &
-                                                ngrid_level
+                                                ngrid_level,i
     LOGICAL                                  :: cutoff_set, multgrid_set, &
                                                 ngrid_set, progression_set, &
                                                 section_found
@@ -883,8 +883,6 @@ CONTAINS
     qs_control%gapw_control%alpha0_hard = 0.0_dp
     qs_control%gapw_control%alpha0_soft = 0.0_dp
 
-    qs_control%mulliken_restraint_control%strength=0.1_dp
-    qs_control%mulliken_restraint_control%target=1.0_dp
 
 !
     cutoff_set = .FALSE.
@@ -1100,6 +1098,19 @@ CONTAINS
                 CASE ("TARGET")
                    CALL read_object(qs_control%mulliken_restraint_control%target, &
                                     lower_to_upper=.TRUE.)
+                CASE ("NATOMS")
+                   CALL read_object(qs_control%mulliken_restraint_control%natoms, &
+                                    lower_to_upper=.TRUE.)
+                CASE ("ATOMS")
+                   IF (qs_control%mulliken_restraint_control%natoms.LE.0) THEN
+                      CALL stop_parser(routine,"MULLIKEN_RESTRAINT: NATOMS<=0 (specify before ATOMS)")
+                   ENDIF
+                   ALLOCATE(qs_control%mulliken_restraint_control%atoms( &
+                                       qs_control%mulliken_restraint_control%natoms))
+                   DO I=1,qs_control%mulliken_restraint_control%natoms
+                      CALL read_object(qs_control%mulliken_restraint_control%atoms(I), &
+                                    lower_to_upper=.TRUE.)
+                   ENDDO
                 CASE DEFAULT
                   CALL stop_parser(routine,"unexpected string (" &
                                    //TRIM(string)//") following MULLIKEN_RESTRAINT")
@@ -1750,6 +1761,15 @@ CONTAINS
            qs_control%gapw_control%lmax_sphere ,& 
            "QS| GAPW|      max_l_rho0 :",&
             qs_control%gapw_control%lmax_rho0
+      END IF
+      IF (qs_control%mulliken_restraint) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
+           "QS| Mulliken restraint target", qs_control%mulliken_restraint_control%target
+         WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
+           "QS| Mulliken restraint strength", qs_control%mulliken_restraint_control%strength
+         WRITE (UNIT=output_unit,FMT="(T2,A,T73,I8)")&
+           "QS| Mulliken restraint atoms: ", qs_control%mulliken_restraint_control%natoms
+         WRITE (UNIT=output_unit,FMT="(5I8)") qs_control%mulliken_restraint_control%atoms
       END IF
     END IF
 

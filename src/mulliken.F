@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2003  CP2K group                                            !
+!   Copyright (C) 2003-2005  CP2K group                                       !
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
@@ -90,7 +90,7 @@ CONTAINS
 !!   SOURCE
 !!*** **********************************************************************
   SUBROUTINE mulliken_restraint(mulliken_restraint_control,para_env, &
-                                s_matrix,p_matrix,energy,ks_matrix,w_matrix)
+                                s_matrix,p_matrix,energy,order_p,ks_matrix,w_matrix)
     TYPE(mulliken_restraint_type), INTENT(IN):: mulliken_restraint_control
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(real_matrix_type), POINTER          :: s_matrix
@@ -99,12 +99,12 @@ CONTAINS
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
                     POINTER, OPTIONAL        :: ks_matrix, w_matrix
-    REAL(KIND=dp), OPTIONAL                  :: energy
+    REAL(KIND=dp), OPTIONAL                  :: energy, order_p
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges_deriv
     INTEGER :: iblock_row, iblock_col, ispin, nspin, nblock
-    REAL(kind=dp)                            :: mult, my_energy, strength
+    REAL(kind=dp)                            :: mult, my_energy, strength, my_order_p
     TYPE(real_block_node_type), POINTER      :: block_node
     REAL(kind=dp), DIMENSION(:,:), POINTER   :: s_block, ks_block, p_block, w_block
 
@@ -120,10 +120,13 @@ CONTAINS
     ! CALL rf_deriv_check(mulliken_restraint_control,charges)
     ! 
     CALL restraint_functional(mulliken_restraint_control, &
-                              charges,charges_deriv,my_energy)
+                              charges,charges_deriv,my_energy,my_order_p)
 
+    IF (PRESENT(order_p)) THEN
+        order_p=my_order_p
+    ENDIF
     IF (PRESENT(energy)) THEN 
-        energy=energy+my_energy
+        energy=my_energy
     ENDIF
 
     IF (PRESENT(ks_matrix)) THEN
@@ -191,9 +194,12 @@ CONTAINS
 !!      restraint_functional
 !!   FUNCTION
 !!      computes energy and derivatives given a set of charges
+!!      this implementation uses the spin density on a number of atoms 
+!!      as a penalty function
 !!     
 !!   NOTES
-!!      still hard coded right now
+!!      should be easy to adapt for other specialized cases
+!!
 !!   INPUTS
 !!    - charges(nblock,nspin)
 !!    - output :
@@ -202,33 +208,32 @@ CONTAINS
 !!
 !!   MODIFICATION HISTORY
 !!     06.2004 created [Joost VandeVondele]
+!!     02.2005 added more general form [Joost VandeVondele]
 !!
 !!   SOURCE
 !!*** **********************************************************************
 SUBROUTINE restraint_functional(mulliken_restraint_control,charges, &
-                                charges_deriv,energy)
+                                charges_deriv,energy,order_p)
     TYPE(mulliken_restraint_type), INTENT(IN)  :: mulliken_restraint_control
     REAL(KIND=dp), DIMENSION(:,:), POINTER     :: charges, charges_deriv
-    REAL(KIND=dp), INTENT(OUT)                 :: energy
-    REAL(KIND=dp)                              :: dum,strength, order_p
-    INTEGER                                    :: Natom,I
+    REAL(KIND=dp), INTENT(OUT)                 :: energy,order_p
+    REAL(KIND=dp)                              :: dum
+    INTEGER                                    :: I
 
     charges_deriv=0.0_dp
-    strength=mulliken_restraint_control%strength
-    ! the sum of the squares of the spin charges is the order_p
-    Natom=SIZE(charges,1)
     order_p=0.0_dp
-    DO I=1,Natom
-       order_p=order_p+(charges(I,1)-charges(I,2))**2
+
+    DO I=1,mulliken_restraint_control%natoms
+       order_p=order_p+charges(mulliken_restraint_control%atoms(I),1) &
+                      -charges(mulliken_restraint_control%atoms(I),2)  ! spin density on the relevant atoms
     ENDDO
     ! energy
-    energy=strength*(order_p-mulliken_restraint_control%target)**2
-    write(6,*) "Order_p,energy",order_p,energy
+    energy=mulliken_restraint_control%strength*(order_p-mulliken_restraint_control%target)**2
     ! derivative
-    dum=2*strength*(order_p-mulliken_restraint_control%target)
-    DO I=1,Natom
-       charges_deriv(I,1)=  dum*2*(charges(I,1)-charges(I,2))
-       charges_deriv(I,2)= -dum*2*(charges(I,1)-charges(I,2))
+    dum=2*mulliken_restraint_control%strength*(order_p-mulliken_restraint_control%target)
+    DO I=1,mulliken_restraint_control%natoms
+       charges_deriv(mulliken_restraint_control%atoms(I),1)=  dum
+       charges_deriv(mulliken_restraint_control%atoms(I),2)= -dum
     ENDDO
 END SUBROUTINE restraint_functional
 
@@ -255,7 +260,7 @@ SUBROUTINE rf_deriv_check(mulliken_restraint_control,charges)
     REAL(KIND=dp), DIMENSION(:,:), POINTER     :: charges 
 
     REAL(KIND=dp), PARAMETER                   :: stepsize=0.00001_dp
-    REAL(KIND=dp)                              :: energy1,energy2
+    REAL(KIND=dp)                              :: energy1,energy2,dum
     REAL(KIND=dp), DIMENSION(:,:), POINTER     :: charges_local, charges_deriv, deriv_num
     INTEGER                                    :: I,J
 
@@ -270,12 +275,12 @@ SUBROUTINE rf_deriv_check(mulliken_restraint_control,charges)
          ! x+dx
          charges_local(I,J)=charges_local(I,J)+stepsize
          CALL restraint_functional(mulliken_restraint_control,charges_local, &
-                                   charges_deriv,energy1)
+                                   charges_deriv,energy1,dum)
          charges_local(I,J)=charges_local(I,J)-stepsize ! back to orig
          ! x-dx
          charges_local(I,J)=charges_local(I,J)-stepsize
          CALL restraint_functional(mulliken_restraint_control,charges_local, &
-                                   charges_deriv,energy2)
+                                   charges_deriv,energy2,dum)
          charges_local(I,J)=charges_local(I,J)+stepsize ! back to orig
          ! num deriv
          deriv_num(I,J)=(energy1-energy2)/(2*stepsize)
@@ -283,7 +288,7 @@ SUBROUTINE rf_deriv_check(mulliken_restraint_control,charges)
     ENDDO do_i
     ! analytic results vs deriv_num
     CALL restraint_functional(mulliken_restraint_control,charges, &
-                                   charges_deriv,energy2)
+                                   charges_deriv,energy2,dum)
     write(6,*) "deriv check : max abs diff, max abs", MAXVAL(ABS(charges_deriv-deriv_num)), &
                                                       MAXVAL(ABS(charges_deriv))
 

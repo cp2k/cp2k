@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2003  CP2K developers group                          !
+!   Copyright (C) 2000 - 2005  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
@@ -78,8 +78,11 @@ MODULE cp_control_types
 
 ! *** some parameters useful for mulliken_restraints
   TYPE mulliken_restraint_type
+    INTEGER                         :: ref_count
     REAL(KIND = dp)                 :: strength
     REAL(KIND = dp)                 :: TARGET
+    INTEGER                         :: natoms
+    INTEGER, POINTER, DIMENSION(:)  :: atoms
   END TYPE mulliken_restraint_type
 
 ! *** Control parameters for a KIM-GORDON calculation ***
@@ -109,11 +112,11 @@ MODULE cp_control_types
     LOGICAL                         :: semi_empirical
     LOGICAL                         :: polarization
     LOGICAL                         :: mulliken_restraint
-    TYPE (mulliken_restraint_type)  :: mulliken_restraint_control
-    TYPE (semi_empirical_control_type)  :: se_control
-    REAL(KIND = dp)                        :: cutoff
-    REAL(KIND = dp), DIMENSION(:), POINTER :: e_cutoff
-    TYPE (gapw_control_type), POINTER :: gapw_control
+    TYPE (mulliken_restraint_type), POINTER :: mulliken_restraint_control
+    TYPE (semi_empirical_control_type)      :: se_control
+    REAL(KIND = dp)                         :: cutoff
+    REAL(KIND = dp), DIMENSION(:), POINTER  :: e_cutoff
+    TYPE (gapw_control_type), POINTER       :: gapw_control
     TYPE ( pw_grid_option )         :: pw_grid_opt
     LOGICAL                         :: rs_distributed
     INTEGER                         :: wf_interpolation_method_nr
@@ -241,12 +244,88 @@ MODULE cp_control_types
   PUBLIC :: dft_control_retain,&
             dft_control_release,&
             dft_control_create,&
-            gapw_control_create
+            gapw_control_create,&
+            mulliken_control_create,&
+            mulliken_control_retain,&
+            mulliken_control_release
 
 !!***
 ! *****************************************************************************
 
 CONTAINS
+
+!!****f* cp_control_types/mulliken_control_create/retain/release *
+!!
+!!   NAME
+!!      mulliken_control_create/retain/release
+!!   FUNCTION
+!!      create retain releasethe mulliken_restraint_type
+!!   NOTES
+!!      
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     02.2005 created [Joost VandeVondele]
+!!
+!!   SOURCE
+!!*** **********************************************************************
+SUBROUTINE mulliken_control_create(mulliken_restraint_control,error)
+   TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+   TYPE(mulliken_restraint_type), POINTER :: mulliken_restraint_control
+   CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_control_create', &
+      routineP = moduleN//':'//routineN
+
+   INTEGER :: stat
+   LOGICAL :: failure 
+   failure=.FALSE.
+
+   CPPrecondition(.NOT.ASSOCIATED(mulliken_restraint_control),cp_failure_level,routineP,error,failure)  
+   ALLOCATE(mulliken_restraint_control,stat=stat)
+   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+   mulliken_restraint_control%ref_count=1
+   mulliken_restraint_control%strength=0.1_dp
+   mulliken_restraint_control%target=1.0_dp
+   mulliken_restraint_control%natoms=0
+   mulliken_restraint_control%atoms=>NULL()
+
+END SUBROUTINE mulliken_control_create
+
+SUBROUTINE mulliken_control_release(mulliken_restraint_control,error)
+   TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+   TYPE(mulliken_restraint_type), POINTER :: mulliken_restraint_control
+   CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_control_release', &
+      routineP = moduleN//':'//routineN
+   LOGICAL :: failure 
+   failure=.FALSE.
+   CPPrecondition(ASSOCIATED(mulliken_restraint_control),cp_failure_level,routineP,error,failure)  
+   CPPrecondition(mulliken_restraint_control%ref_count>0,cp_failure_level,routineP,error,failure)  
+   mulliken_restraint_control%ref_count=mulliken_restraint_control%ref_count-1
+   IF (mulliken_restraint_control%ref_count==0) THEN
+      IF (ASSOCIATED(mulliken_restraint_control%atoms)) &
+          DEALLOCATE(mulliken_restraint_control%atoms)
+      mulliken_restraint_control%ref_count=0
+      mulliken_restraint_control%strength=0.0_dp
+      mulliken_restraint_control%target=0.0_dp
+      mulliken_restraint_control%natoms=0
+      DEALLOCATE(mulliken_restraint_control)
+   ENDIF
+END SUBROUTINE mulliken_control_release
+
+SUBROUTINE mulliken_control_retain(mulliken_restraint_control,error)
+   TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+   TYPE(mulliken_restraint_type), POINTER :: mulliken_restraint_control
+   CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_control_retain', &
+      routineP = moduleN//':'//routineN
+   LOGICAL :: failure 
+   failure=.FALSE.
+   CPPrecondition(ASSOCIATED(mulliken_restraint_control),cp_failure_level,routineP,error,failure)  
+
+   mulliken_restraint_control%ref_count=mulliken_restraint_control%ref_count+1
+END SUBROUTINE mulliken_control_retain
 
 ! *****************************************************************************
 
@@ -426,6 +505,10 @@ SUBROUTINE qs_control_init(qs_control, error)
 
   NULLIFY(qs_control%e_cutoff)
   NULLIFY(qs_control%gapw_control)
+  NULLIFY(qs_control%mulliken_restraint_control)
+
+  CALL mulliken_control_create(qs_control%mulliken_restraint_control)
+
   CALL se_control_init(qs_control%se_control, error=error)
 END SUBROUTINE qs_control_init
 
@@ -439,14 +522,17 @@ SUBROUTINE qs_control_dealloc_ref(qs_control, error)
 
     INTEGER                                  :: stat
 
-  IF (ASSOCIATED(qs_control%e_cutoff)) THEN
-     DEALLOCATE(qs_control%e_cutoff,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-  END IF
-  IF (ASSOCIATED(qs_control%gapw_control))THEN
-     DEALLOCATE(qs_control%gapw_control,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-  END IF
+    CALL mulliken_control_release(qs_control%mulliken_restraint_control)
+
+    IF (ASSOCIATED(qs_control%e_cutoff)) THEN
+       DEALLOCATE(qs_control%e_cutoff,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    END IF
+    IF (ASSOCIATED(qs_control%gapw_control))THEN
+       DEALLOCATE(qs_control%gapw_control,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    END IF
+
 END SUBROUTINE qs_control_dealloc_ref
 
 SUBROUTINE tddfpt_control_init(tddfpt_control, error)

@@ -323,7 +323,7 @@ CONTAINS
     INTEGER :: n,k,k2, nelec, nelec_a, nelec_b
     REAL(KIND=dp), DIMENSION(:), POINTER :: scaling_factor,occupation_numbers
     TYPE(cp_fm_type), POINTER            :: mo_coeff,hc_tmp
-    REAL(KIND=dp)                        :: ener, scaling
+    REAL(KIND=dp)                        :: ener, scaling, mulliken_order_p
 
 ! shorter for output
 
@@ -599,11 +599,12 @@ CONTAINS
        IF (dft_control%qs_control%mulliken_restraint) THEN
            IF (just_energy) THEN
                CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
-                             para_env,matrix_s(1)%matrix, rho%rho_ao,energy=energy%mulliken)
+                             para_env,matrix_s(1)%matrix, rho%rho_ao,energy=energy%mulliken, &
+                             order_p=mulliken_order_p)
            ELSE
                CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control,&
                              para_env,matrix_s(1)%matrix,rho%rho_ao,energy=energy%mulliken, &
-                             ks_matrix=ks_matrix)
+                             ks_matrix=ks_matrix, order_p=mulliken_order_p)
            ENDIF
        ENDIF
 
@@ -677,8 +678,8 @@ CONTAINS
                "QM/MM Electrostatic energy:                    ",energy%qmmm_el
           End If
           IF (dft_control%qs_control%mulliken_restraint) THEN
-              WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-                "Mulliken restraint energy: ",energy%mulliken
+              WRITE (UNIT=output_unit,FMT="(T3,A,T40,2F20.10)")&
+                "Mulliken restraint (order_p,energy) : ",mulliken_order_p,energy%mulliken
           ENDIF
        END IF
 
