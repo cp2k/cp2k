@@ -46,7 +46,7 @@ build:
 	@echo
 	@echo "*** machine file = $(MACHINEDEFS)"
 	@echo
-	$(SMAKE) -C $(TOOLDIR) -f $(TOOLSRC)/Makefile SRCDIR=$(TOOLSRC)
+	$(SMAKE) -C $(TOOLDIR) -f $(TOOLSRC)/Makefile SRCDIR=$(TOOLSRC) CC=$(CC)
 	$(SMAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) dependencies
 	$(PMAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) all
 
