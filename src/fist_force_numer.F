@@ -29,7 +29,7 @@ MODULE fist_force_numer
        linklist_bends, linklist_torsions, linklist_exclusion, particle_node_type
   USE mol_force, ONLY : force_bonds, force_bends, force_torsions
   USE particle_types, ONLY : particle_type
-  USE pair_potential, ONLY : potential_f, potentialparm_type, potential_s
+  USE pair_potential, ONLY : potential_f, potentialparm_type
   USE pme, ONLY : pme_evaluate
   USE pw_grid_types, ONLY : pw_grid_type
   USE pw_grids, ONLY : pw_find_cutoff, pw_grid_setup, &
@@ -597,13 +597,11 @@ SUBROUTINE force_nonbond_numer ( box, ewald_param, part, pnode, potparm,  &
                            delta = 0.0_dbl
                        END DO DIM_LOOP
                        IF ( qa == 0 .AND. qb == 0 ) THEN
-                !        CALL potential_f ( rab2, potparm, qa, qb, &
-                !           ikind, jkind, energy )
-                          CALL potential_s ( rab2, ikind, jkind, energy, fscalar )
+                        CALL potential_f ( rab2, potparm, qa, qb, &
+                           ikind, jkind, energy )
                        ELSE
-                !         CALL potential_f ( rab2, potparm, qa, qb, &
-                !           ikind, jkind, energy, ewald_param )
-                          CALL potential_s ( rab2, ikind, jkind, energy, fscalar )
+                         CALL potential_f ( rab2, potparm, qa, qb, &
+                           ikind, jkind, energy, ewald_param )
                        ENDIF
                        energy_numer = energy_numer + energy
                      END IF NOTMATCH
