@@ -2121,49 +2121,49 @@ SUBROUTINE create_tddfpt_section(section,error)
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="NSTEP",&
-            description="Specifies the number of MC steps.",&
+            description="Specifies the number of MC cycles.",&
             usage="NSTEP <integer>",&
             default_i_val=100,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="NMOVES",&
-            description="Specifies the number of moves between energy evaluations. ",&
+            description="Specifies the number of classical moves between energy evaluations. ",&
             usage="NMOVES <integer>",&
-            default_i_val=1,error=error)
+            default_i_val=4,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
 
        CALL keyword_create(keyword, name="NVOLMOVES",&
-            description="Matt will provide docs.",&
+            description="How many classical volume moves to bias with.",&
             usage="NVOLMOVES <integer>",&
             default_i_val=1,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
 
        CALL keyword_create(keyword, name="NSWAPMOVES",&
-            description="Matt will provide docs.",&
+            description="How many classical swap moves to try per QS swap move.",&
             usage="NSWAPMOVES <integer>",&
-            default_i_val=1,error=error)
+            default_i_val=16,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)      
 
        CALL keyword_create(keyword, name="LSTOP",&
-            description="Matt will provide docs.",&
+            description="Makes nstep in terms of steps, instead of cycles.",&
             usage="LSTOP <logical>",&
-            default_l_val=.TRUE.,error=error)
+            default_l_val=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="LCLASSICAL",&
-            description="Matt will provide docs.",&
+            description="Bias the moves with an inexpensive classical potential.",&
             usage="LCLASSICAL <logical>",&
-            default_l_val=.FALSE.,error=error)
+            default_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
 
        CALL keyword_create(keyword, name="RESTART",&
-            description="Matt will provide docs.",&
+            description="Read initial configuration from restart file.",&
             usage="RESTART <logical>",&
             default_l_val=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -2172,7 +2172,14 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="IUPVOLUME",&
             description="Every iupvolume steps update maximum volume displacement.",&
             usage="IUPVOLUME <integer>",&
-            default_i_val=1,error=error)
+            default_i_val=10000,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
+       CALL keyword_create(keyword, name="IUPTRANS",&
+            description="Every iuptrans steps update maximum translation.",&
+            usage="IUPTRANS <integer>",&
+            default_i_val=10000,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
 
@@ -2193,119 +2200,119 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="COORDINATE_FILE_NAME",&
-            description="Matt will provide docs.",&
+            description="The file to print the current coordinates to.",&
             usage="COORDINATE_FILE_NAME <filename>",&
             default_c_val="XXXXXXXX",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ENERGY_FILE_NAME",&
-            description="Matt will provide docs.",&
+            description="The file to print current energies to.",&
             usage="ENERGY_FILE_NAME <filename>",&
             default_c_val="XXXXXXXX",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="DATA_FILE_NAME",&
-            description="Matt will provide docs.",&
+            description="The file to print current configurational info to.",&
             usage="DATA_FILE_NAME <filename>",&
             default_c_val="XXXXXXXX",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="CELL_FILE_NAME",&
-            description="Matt will provide docs.",&
+            description="The file to print current cell length info to.",&
             usage="CELL_FILE_NAME <filename>",&
             default_c_val="XXXXXXXX",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MAX_DISP_FILE_NAME",&
-            description="Matt will provide docs.",&
+            description="The file to print current maximum displacement info to.",&
             usage="MAX_DISP_FILE_NAME <filename>",&
             default_c_val="XXXXXXXX",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="BOX2_FILE_NAME",&
-            description="Matt will provide docs.",&
+            description="For GEMC, the name of the input file for the other box.",&
             usage="BOX2_FILE_NAME <filename>",&
             default_c_val="XXXXXXXX",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PRESSURE",&
-            description="Matt will provide docs.",&
+            description="The pressure for NpT simulations, in bar.",&
             usage="PRESSURE <real>",&
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="TEMP",&
-            description="Matt will provide docs.",&
+            description="The temperature of the simulation, in Kelvin.",&
             usage="TEMP <real>",&
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PMSWAP",&
-            description="Matt will provide docs.",&
+            description="The probability of attempting a swap move.",&
             usage="PMSWAP <real>",&
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PMVOLUME",&
-            description="Matt will provide docs.",&
+            description="The probability of attempting a volume move.",&
             usage="PMVOLUME <real>",&
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PMTRAION",&
-            description="Matt will provide docs.",&
+            description="The probability of attempting a conformational change.",&
             usage="PMTRAION <real>",&
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PMTRANS",&
-            description="Matt will provide docs.",&
+            description="The probability of attempting a molecule translation.",&
             usage="PMTRANS <real>",&
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMVOLUME",&
-            description="Matt will provide docs.",&
+            description="Maximum volume displacement, in angstrom**3.",&
             usage="RMVOLUME <real>",&
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMBOND",&
-            description="Matt will provide docs.",&
+            description="Maximum bond length displacement, in angstrom.",&
             usage="RMBOND <real>",&
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMANGLE",&
-            description="Matt will provide docs.",&
+            description="Maximum bond angle distplacement, in degrees.",&
             usage="RMANGLE <real>",&
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMROT",&
-            description="Matt will provide docs.",&
+            description="Maximum rotational displacement, in degrees.",&
             usage="RMROT <real>",&
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMTRANS",&
-            description="Matt will provide docs.",&
+            description="Maximum translational displacement, in angstroms.",&
             usage="RMTRANS <real>",&
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
