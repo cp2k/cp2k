@@ -333,7 +333,7 @@ CONTAINS
 
       IF (ANY(ppl_present)) THEN
 
-        CALL build_gth_ppl_neighbor_lists(r_skin)
+        CALL build_gth_neighbor_lists(r_skin)
 
 !       *** Put the generated neighbor lists into the QS environment ***
 
@@ -344,7 +344,7 @@ CONTAINS
 !         CALL write_neighbor_lists(sac_ppl,"ORBITAL GTH-PPL NEIGHBOR LISTS")
 !       END IF
        
-        CALL build_gth_ppl_neighbor_lists_aux(r_skin)
+        CALL build_gth_neighbor_lists_aux(r_skin)
 
 !       *** Put the generated neighbor lists into the QS environment ***
 
@@ -425,7 +425,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_gth_ppl_neighbor_lists(r_skin)
+  SUBROUTINE build_gth_neighbor_lists(r_skin)
 
 !   Purpose: Build the neighbor lists for the calculation of the local part of
 !            the GTH pseudo potential (PPL).
@@ -439,7 +439,7 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name =&
-      "build_gth_ppl_neighbor_lists"
+      "build_gth_neighbor_lists"
     CHARACTER(LEN=*), PARAMETER :: routine =&
       "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
@@ -696,11 +696,11 @@ CONTAINS
 
     CALL timestop(0.0_dbl,handle)
 
-  END SUBROUTINE build_gth_ppl_neighbor_lists
+  END SUBROUTINE build_gth_neighbor_lists
 
 ! *****************************************************************************
 
-  SUBROUTINE build_gth_ppl_neighbor_lists_aux(r_skin)
+  SUBROUTINE build_gth_neighbor_lists_aux(r_skin)
 
 !   Purpose: Build the neighbor lists for the calculation of the local part of
 !            the GTH pseudo potential (PPL).
@@ -714,7 +714,7 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name =&
-      "build_gth_ppl_neighbor_lists_aux"
+      "build_gth_neighbor_lists_aux"
     CHARACTER(LEN=*), PARAMETER :: routine =&
       "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
@@ -971,7 +971,7 @@ CONTAINS
 
     CALL timestop(0.0_dbl,handle)
 
-  END SUBROUTINE build_gth_ppl_neighbor_lists_aux
+  END SUBROUTINE build_gth_neighbor_lists_aux
 
 ! *****************************************************************************
 
@@ -1099,7 +1099,7 @@ CONTAINS
 
       IF (ASSOCIATED(sac_ppl)) THEN
 
-        CALL rebuild_gth_ppl_neighbor_lists()
+        CALL rebuild_gth_neighbor_lists()
 
 !        IF (ionode.AND.globenv%print%sac_ppl_neighbor_lists) THEN
 !          CALL write_neighbor_lists(sac_ppl,"ORBITAL GTH-PPL NEIGHBOR LISTS")
@@ -1108,7 +1108,7 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(sac_ppl_aux)) THEN
-        CALL rebuild_gth_ppl_neighbor_lists_aux()
+        CALL rebuild_gth_neighbor_lists_aux()
       END IF
 
     END IF
@@ -1157,7 +1157,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE rebuild_gth_ppl_neighbor_lists()
+  SUBROUTINE rebuild_gth_neighbor_lists()
 
 !   Purpose: Rebuild the neighbor lists for the calculation of the local part
 !            of the GTH pseudo potential (PPL).
@@ -1169,7 +1169,7 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name =&
-      "rebuild_gth_ppl_neighbor_lists"
+      "rebuild_gth_neighbor_lists"
     CHARACTER(LEN=*), PARAMETER :: routine =&
       "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
@@ -1396,11 +1396,11 @@ CONTAINS
 
     CALL timestop(0.0_dbl,handle)
 
-  END SUBROUTINE rebuild_gth_ppl_neighbor_lists
+  END SUBROUTINE rebuild_gth_neighbor_lists
 
 ! *****************************************************************************
 
-  SUBROUTINE rebuild_gth_ppl_neighbor_lists_aux()
+  SUBROUTINE rebuild_gth_neighbor_lists_aux()
 
 !   Purpose: Rebuild the neighbor lists for the calculation of the local part
 !            of the GTH pseudo potential (PPL).
@@ -1412,7 +1412,7 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name =&
-      "rebuild_gth_ppl_neighbor_lists_aux"
+      "rebuild_gth_neighbor_lists_aux"
     CHARACTER(LEN=*), PARAMETER :: routine =&
       "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
@@ -1639,7 +1639,7 @@ CONTAINS
 
     CALL timestop(0.0_dbl,handle)
 
-  END SUBROUTINE rebuild_gth_ppl_neighbor_lists_aux
+  END SUBROUTINE rebuild_gth_neighbor_lists_aux
 
 ! *****************************************************************************
 
