@@ -74,7 +74,7 @@ DEPENDENCIES = $(OBJECTS:.o=.dep)
 
 LIBRARIES = -L$(LIBDIR)/$(VERSION) -l$(LIB1) $(LIBS)
 
-.SECONDARY: $(OBJECTS:.o=.f90) $(LIB1_OBJECTS:.o=.f90) parallel_include.f90
+.SECONDARY: $(OBJECTS:.o=.f90) $(LIB1_OBJECTS:.o=.f90)
 
 ### Slave rules ###
 
@@ -95,7 +95,7 @@ ifneq ($(RANLIB),)
 	$(RANLIB) $(LIB1_ARCHIVE)
 endif
 
-$(PROG): $(OBJECTS) $(LIB1_ARCHIVE)
+$(PROG): $(LIB1_ARCHIVE) $(OBJECTS)
 	$(LD) $(LDFLAGS) -o $(PROG) $(OBJECTS) $(LIBRARIES)
 
 vpath %.F $(SRCDIRS)
@@ -112,8 +112,12 @@ vpath %.F $(SRCDIRS)
 	$(PERL) $(SFMAKEDEPEND) $*.dep $*.for
 	@rm -f $*.dep.old $*.for
 
+# Special hack for parallel_include since $(FORPAR) cannot digest
+# the INCLUDE statement which is active for parallel compilations
+
 parallel_include.dep:
 	touch -a parallel_include.dep parallel_include.int
+parallel_include.int: parallel_include.o
 
 clean:
 	cd $(OBJDIR)/$(VERSION) ; rm -f *.o *.mod
