@@ -289,7 +289,7 @@ CONTAINS
 
     ! arguments
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER  :: matrices
-    TYPE(qs_environment_type), INTENT(IN)               :: qs_env
+    TYPE(qs_environment_type), INTENT(IN),TARGET        :: qs_env
     TYPE(qs_p_env_type), POINTER                        :: p_env
     INTEGER, INTENT(IN)                                 :: n_kv
 

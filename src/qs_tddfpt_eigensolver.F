@@ -109,7 +109,7 @@ CONTAINS
     ! ARGUMENTS
     TYPE(tddfpt_env_type), INTENT(INOUT)      :: t_env
     TYPE(qs_p_env_type), POINTER              :: p_env
-    TYPE(qs_environment_type), INTENT(IN)     :: qs_env
+    TYPE(qs_environment_type), INTENT(IN), TARGET     :: qs_env
     TYPE(global_environment_type), INTENT(in) :: glob_env
 
     ! L0CALS
