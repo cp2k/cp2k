@@ -1123,7 +1123,7 @@ SUBROUTINE pv_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
 
   NULLIFY ( cell_local )
  
-  CALL cell_create ( cell_local, hmat = cell % hmat )
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd )
   CALL cell_retain ( cell_local )
 
 ! assigning the local variables
@@ -1238,7 +1238,7 @@ SUBROUTINE pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, 
 
   NULLIFY ( cell_local )
  
-  CALL cell_create ( cell_local, hmat = cell % hmat )
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd )
   CALL cell_retain ( cell_local )
 
 ! assigning the local variables
@@ -1353,7 +1353,7 @@ SUBROUTINE pv_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
 
   NULLIFY ( cell_local )
  
-  CALL cell_create ( cell_local, hmat = cell % hmat )
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd )
   CALL cell_retain ( cell_local )
 
 ! assigning the local variables
@@ -1466,7 +1466,7 @@ SUBROUTINE pv_bend_numer ( molecule_set, molecule_kind_set, local_molecules, &
 !------------------------------------------------------------------------------
   NULLIFY ( cell_local )
  
-  CALL cell_create ( cell_local, hmat = cell % hmat )
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd )
   CALL cell_retain ( cell_local )
 
 ! assigning the local variables
@@ -1575,7 +1575,7 @@ SUBROUTINE pv_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, 
 
   NULLIFY ( cell_local )
  
-  CALL cell_create ( cell_local, hmat = cell % hmat )
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd )
   CALL cell_retain ( cell_local )
 
 ! assigning the local variables
@@ -1682,7 +1682,7 @@ SUBROUTINE pv_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, 
 
   NULLIFY ( cell_local )
  
-  CALL cell_create ( cell_local, hmat = cell % hmat )
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd )
   CALL cell_retain ( cell_local )
 
 ! assigning the local variables
@@ -1790,7 +1790,7 @@ SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
 
   NULLIFY ( cell_local )
  
-  CALL cell_create ( cell_local, hmat = cell % hmat )
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd )
   CALL cell_retain ( cell_local )
 
 ! assigning the local variables
@@ -1914,7 +1914,7 @@ SUBROUTINE pv_g_numer ( ewald_env, ewald_pw, atomic_kind_set, particle_set,  &
 
   NULLIFY ( cell_local )
  
-  CALL cell_create ( cell_local, hmat = cell % hmat )
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd )
   CALL cell_retain ( cell_local )
 
 ! allocating
