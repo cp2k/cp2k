@@ -56,10 +56,12 @@ MODULE qs_ep_methods
   USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_set_all,&
+                                             cp_fm_set_element,&
                                              cp_fm_write,&
                                              cp_full_matrix_p_type,&
                                              cp_full_matrix_type
-  USE cp_fm_vect,                      ONLY: cp_fm_vect_write
+  USE cp_fm_vect,                      ONLY: cp_fm_vect_set_all,&
+                                             cp_fm_vect_write
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -897,13 +899,14 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
      CALL cp_error_check(error,failure)
   END IF
   IF (.not.failure) THEN
-     DO i=1,20
+     DO i=1,5
+        ! orthogonalize x wrt. to psi0
+        CALL p_preortho(p_env=ep_env%main_p_env, &
+             qs_env=ep_env%main_qs_env, v=ep_env%psi1,&
+             n_cols=ep_env%main_p_env%n_mo, error=error)
         ! r=b-A x
-        CALL p_op_l1(p_env=ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
+        CALL p_op_ep(p_env=ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
              v=ep_env%psi1, res=r,error=error)
-        CALL p_op_l2(p_env=ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
-             v=ep_env%psi1, res=r,&
-             alpha=1.0_wp,beta=1.0_wp,error=error)
         DO ispin=1,nspins
            CALL cp_fm_add(alpha=-1.0_wp,matrix_a=r(ispin)%matrix,&
                 beta=1.0_wp,matrix_b=ep_env%pi_Hrho_psi0d(ispin)%matrix,&
@@ -930,11 +933,8 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
                 "j="//cp_to_string(j)//"r_norm2="//cp_to_string(r_norm2))
            
            ! Ap=A p
-           CALL p_op_l1(p_env=ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
+           CALL p_op_ep(p_env=ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
                 v=p, res=Ap,error=error)
-           CALL p_op_l2(p_env=ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
-                v=p, res=Ap,&
-                alpha=1.0_wp,beta=1.0_wp,error=error)
            
            Ap_p=0.0_wp
            DO ispin=1,nspins
@@ -994,6 +994,136 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
   END IF
            
 END SUBROUTINE stupid_solve
+!***************************************************************************
+
+!!****f* qs_ep_methods/p_op_ep [1.0] *
+!!
+!!   NAME
+!!     p_op_ep
+!!
+!!   FUNCTION
+!!     evaluates the ep operator (p_op_l1+p_op_l2) on the given vector
+!!
+!!   NOTES
+!!     no preorthogonalization, thus v must be orthogonal to the psi0
+!!
+!!   ARGUMENTS
+!!     - p_env : perturbation calculation environment
+!!     - qs_env: the qs_env that is perturbed by this p_env
+!!     - v     : the matrix to operate on (must be orthogonal to the psi0)
+!!     - res   : the result
+!!     - error : error handling object (optional)
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     12.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE p_op_ep(p_env, qs_env, v, res, error)
+  TYPE(qs_p_env_type), POINTER                             :: p_env
+  TYPE(qs_environment_type), INTENT(in), TARGET            :: qs_env
+  TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(in)    :: v
+  TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(inout) :: res
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout)             :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='p_op_ep',&
+        routineP=moduleN//':'//routineN
+  failure=.FALSE.
+
+  CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL p_op_l1(p_env=p_env, qs_env=qs_env,&
+          v=v, res=res,error=error)
+     CALL p_op_l2(p_env=p_env, qs_env=qs_env,&
+          v=v, res=res,&
+          alpha=1.0_wp,beta=1.0_wp,error=error)
+     CALL p_postortho(p_env=p_env, qs_env=qs_env, v=res, n_cols=p_env%n_mo,&
+          error=error)
+  END IF
+END SUBROUTINE p_op_ep
+!***************************************************************************
+
+!!****f* qs_ep_methods/p_env_write_ep_matrix [1.0] *
+!!
+!!   NAME
+!!     p_env_write_ep_matrix
+!!
+!!   FUNCTION
+!!     writes out the whole ep interaction matrix (as defined by p_op_ep)
+!!     one column per file
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - p_env: the p_env where to evaluate the interaction matrix
+!!     - qs_env: the qs_env that is perturbed by the p_env
+!!     - name: name used for the matrixes outputted
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     12.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE p_env_write_ep_matrix(p_env, qs_env, name, error)
+  TYPE(qs_p_env_type), POINTER :: p_env
+  TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
+  CHARACTER(len=*), INTENT(in) :: name
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='p_env_write_ep_matrix',&
+        routineP=moduleN//':'//routineN
+  TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: res,v
+  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools
+  TYPE(dft_control_type), POINTER :: dft_control
+  TYPE(cp_logger_type), POINTER :: logger
+  INTEGER :: ispin, imo, iao
+
+  failure=.FALSE.
+  logger => cp_error_get_logger(error)
+  NULLIFY(ao_mo_fm_pools, dft_control)
+  
+  CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL get_qs_env(qs_env,ao_mo_fm_pools=ao_mo_fm_pools,&
+          dft_control=dft_control,error=error)
+     CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,v,error=error)
+     CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,res,name=name,&
+          error=error)
+     
+     DO ispin=1,dft_control%nspins
+        DO imo=1,p_env%n_mo(ispin)
+           DO iao=1,p_env%n_ao(ispin)
+              CALL cp_fm_vect_set_all(v,0.0_wp,error=error)
+              CALL cp_fm_set_element(v(ispin)%matrix,iao,imo,1.0_wp,&
+                   error=error)
+
+              CALL p_preortho(p_env=p_env, qs_env=qs_env, v=v,&
+                   n_cols=p_env%n_mo, error=error)
+              CALL p_op_ep(p_env=p_env, qs_env=qs_env, v=v,&
+                   res=res, error=error)
+              
+              CALL cp_fm_vect_write(matrixes=res, &
+                   unit_nr=cp_logger_get_default_unit_nr(logger),&
+                   long_description=.TRUE., error=error)
+           END DO
+        END DO
+     END DO
+
+     CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools, v, error=error)
+     CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools, res, error=error)
+  END IF
+END SUBROUTINE p_env_write_ep_matrix
 !***************************************************************************
 
 END MODULE qs_ep_methods

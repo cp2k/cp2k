@@ -83,7 +83,7 @@ MODULE cp_fm_vect
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_fm_vect'
 
   PUBLIC :: cp_fm_vect_create2, cp_fm_vect_dealloc, cp_fm_vect_copy,&
-       cp_fm_vect_write
+       cp_fm_vect_write, cp_fm_vect_set_all
 !***
 !****************************************************************************
 CONTAINS
@@ -339,6 +339,63 @@ END SUBROUTINE cp_fm_vect_copy
      END IF
   END IF
 END SUBROUTINE cp_fm_vect_write
+!***************************************************************************
+
+!!****f* cp_fm_vect/cp_fm_vect_set_all [1.0] *
+!!
+!!   NAME
+!!     cp_fm_vect_set_all
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_fm_vect_set_all(matrixes, value, error)
+!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: matrixes
+!!       Real(Kind=wp), Intent (IN), Optional:: value
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_fm_vect_set_all
+!!
+!!   FUNCTION
+!!     sets all the elements of the matrixes to the given value
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - matrixes: the matrixes to change
+!!     - value: the value that the element should receive (defaults to 0)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     12.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_fm_vect_set_all(matrixes,value,error)
+  TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: matrixes
+  REAL(kind=wp), INTENT(in), OPTIONAL :: value
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_fm_vect_set_all',&
+        routineP=moduleN//':'//routineN
+  REAL(kind=wp) :: my_value
+  INTEGER :: i
+
+  failure=.FALSE.
+  my_value=0.0_wp
+  
+  IF (PRESENT(value)) my_value=value
+  
+  CPPrecondition(ASSOCIATED(matrixes),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     DO i=1,SIZE(matrixes)
+        CPPrecondition(ASSOCIATED(matrixes(i)%matrix),cp_failure_level,routineP,error,failure)
+        CALL cp_fm_set_all(matrixes(i)%matrix,my_value,error=error)
+     END DO
+  END IF
+END SUBROUTINE cp_fm_vect_set_all
 !***************************************************************************
 
 END MODULE cp_fm_vect

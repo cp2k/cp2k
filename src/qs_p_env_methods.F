@@ -637,6 +637,9 @@ END SUBROUTINE p_env_did_change
           CALL cp_fm_vect_dealloc(my_psi0,error=error)
        END IF
 
+       ! tells kpp1_env about the change of psi0
+       CALL kpp1_did_change(p_env%kpp1_env,psi0_changed=.TRUE.,error=error)
+
     END IF
 
   END SUBROUTINE p_env_psi0_changed
@@ -668,7 +671,7 @@ END SUBROUTINE p_env_did_change
 !!     - qs_env: the qs_env that is perturbed by this p_env
 !!     - v     : the matrix to operate on
 !!     - res   : the result
-!      - error : error handling object (optional)
+!!     - error : error handling object (optional)
 !!
 !!   AUTHOR
 !!     Thomas Chassaing
@@ -925,7 +928,7 @@ END SUBROUTINE p_env_did_change
 !!       Implicit None
 !!       Type(qs_p_env_type), Pointer:: p_env
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
-!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: v
+!!       Type(cp_full_matrix_p_type), Dimension(:), Intent (INOUT):: v
 !!       Integer, Dimension(:), Intent (IN), Optional:: n_cols
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine p_preortho
@@ -957,11 +960,11 @@ END SUBROUTINE p_env_did_change
     IMPLICIT NONE
 
     ! arguments
-    TYPE(qs_p_env_type), POINTER                           :: p_env
-    TYPE(qs_environment_type), INTENT(in), TARGET          :: qs_env
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER     :: v
-    INTEGER, DIMENSION(:), INTENT(in), OPTIONAL            :: n_cols
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout)           :: error
+    TYPE(qs_p_env_type), POINTER                             :: p_env
+    TYPE(qs_environment_type), INTENT(in), TARGET            :: qs_env
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(inout) :: v
+    INTEGER, DIMENSION(:), INTENT(in), OPTIONAL              :: n_cols
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout)             :: error
 
     ! locals
     LOGICAL                            :: failure
@@ -978,25 +981,28 @@ END SUBROUTINE p_env_did_change
     ! code
     failure=.FALSE.
 
-    NULLIFY(tmp_matrix,ao_maxmo_fm_pool, ao_maxmo_fmstruct,tmp_fmstruct)
+    NULLIFY(tmp_matrix,ao_maxmo_fm_pool, ao_maxmo_fmstruct,tmp_fmstruct,&
+         dft_control)
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF (.NOT. failure) THEN          
-       n_spins = qs_env%dft_control%nspins
        CALL get_qs_env(qs_env, dft_control=dft_control,&
             ao_maxmo_fm_pool=ao_maxmo_fm_pool,error=error)
+       n_spins = qs_env%dft_control%nspins
        ao_maxmo_fmstruct => fm_pool_get_mstruct(ao_maxmo_fm_pool,error=error)
        CALL cp_fm_struct_get(ao_maxmo_fmstruct, nrow_global=nao,ncol_global=maxnmo)
-
+       CPPrecondition(SIZE(v)>=n_spins,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (.not.failure) THEN
        ! alloc tmp storage
        IF (PRESENT(n_cols)) THEN
           max_cols=MAXVAL(n_cols)
        ELSE
           max_cols=0
           DO spin=1, n_spins
-             CALL cp_fm_get_info(v(1)%matrix, ncol_global=v_cols)
+             CALL cp_fm_get_info(v(spin)%matrix, ncol_global=v_cols)
              max_cols = MAX(max_cols, v_cols)
           END DO
        END IF
@@ -1015,7 +1021,7 @@ END SUBROUTINE p_env_did_change
 
        DO spin=1, n_spins
 
-          CALL cp_fm_get_info(v(1)%matrix, &
+          CALL cp_fm_get_info(v(spin)%matrix, &
                nrow_global=v_rows, ncol_global=v_cols)
           CPPrecondition(v_rows>=p_env%n_ao(spin),cp_failure_level,routineP,error,failure)
           cols = v_cols
@@ -1023,7 +1029,7 @@ END SUBROUTINE p_env_did_change
              CPPrecondition(n_cols(spin)<=cols,cp_failure_level,routineP,error,failure)
              cols=n_cols(spin)
           END IF
-          CPPrecondition(cols<=p_env%n_ao(spin),cp_failure_level,routineP,error,failure)
+          CPPrecondition(cols<=max_cols,cp_failure_level,routineP,error,failure)
 
           IF (.NOT. failure) THEN          
              ! tmp_matrix = v^T (S psi0)
@@ -1061,7 +1067,7 @@ END SUBROUTINE p_env_did_change
 !!       Implicit None
 !!       Type(qs_p_env_type), Pointer:: p_env
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
-!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: v
+!!       Type(cp_full_matrix_p_type), Dimension(:), Intent (INOUT):: v
 !!       Integer, Dimension(:), Intent (IN), Optional:: n_cols
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine p_postortho
@@ -1094,11 +1100,11 @@ END SUBROUTINE p_env_did_change
     IMPLICIT NONE
 
     ! arguments
-    TYPE(qs_p_env_type), POINTER                           :: p_env
-    TYPE(qs_environment_type), INTENT(in), TARGET          :: qs_env
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER     :: v
-    INTEGER, DIMENSION(:), INTENT(in), OPTIONAL            :: n_cols
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout)           :: error
+    TYPE(qs_p_env_type), POINTER                             :: p_env
+    TYPE(qs_environment_type), INTENT(in), TARGET            :: qs_env
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(inout) :: v
+    INTEGER, DIMENSION(:), INTENT(in), OPTIONAL              :: n_cols
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout)             :: error
 
     ! locals
     LOGICAL                            :: failure
@@ -1114,7 +1120,8 @@ END SUBROUTINE p_env_did_change
 
     ! code
     failure=.FALSE.
-    NULLIFY(tmp_matrix,ao_maxmo_fm_pool, ao_maxmo_fmstruct,tmp_fmstruct)
+    NULLIFY(tmp_matrix,ao_maxmo_fm_pool, ao_maxmo_fmstruct,tmp_fmstruct,&
+         dft_control)
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -1125,14 +1132,16 @@ END SUBROUTINE p_env_did_change
        n_spins = dft_control%nspins
        ao_maxmo_fmstruct => fm_pool_get_mstruct(ao_maxmo_fm_pool,error=error)
        CALL cp_fm_struct_get(ao_maxmo_fmstruct, nrow_global=nao,ncol_global=maxnmo)
-
+       CPPrecondition(SIZE(v)>=n_spins,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (.not.failure) THEN
        ! alloc tmp storage
        IF (PRESENT(n_cols)) THEN
           max_cols=MAXVAL(n_cols(1:n_spins))
        ELSE
           max_cols=0
           DO spin=1, n_spins
-             CALL cp_fm_get_info(v(1)%matrix, ncol_global=v_cols)
+             CALL cp_fm_get_info(v(spin)%matrix, ncol_global=v_cols)
              max_cols = MAX(max_cols, v_cols)
           END DO
        END IF
@@ -1151,7 +1160,7 @@ END SUBROUTINE p_env_did_change
 
        DO spin=1, n_spins
 
-          CALL cp_fm_get_info(v(1)%matrix, &
+          CALL cp_fm_get_info(v(spin)%matrix, &
                nrow_global=v_rows, ncol_global=v_cols)
           CPPrecondition(v_rows>=p_env%n_ao(spin),cp_failure_level,routineP,error,failure)
           cols = v_cols
@@ -1159,7 +1168,7 @@ END SUBROUTINE p_env_did_change
              CPPrecondition(n_cols(spin)<=cols,cp_failure_level,routineP,error,failure)
              cols=n_cols(spin)
           END IF
-          CPPrecondition(cols<=p_env%n_ao(spin),cp_failure_level,routineP,error,failure)
+          CPPrecondition(cols<=max_cols,cp_failure_level,routineP,error,failure)
 
           IF (.NOT. failure) THEN          
              ! tmp_matrix = v^T psi0d

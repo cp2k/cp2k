@@ -86,6 +86,8 @@ MODULE qs_kpp1_env_types
                                              get_matrix_info,&
                                              real_matrix_p_type,&
                                              real_matrix_type
+  USE pw_types,                        ONLY: pw_p_type,&
+                                             pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -124,14 +126,16 @@ MODULE qs_kpp1_env_types
 !!       last rebuild (if -1, forcces the rebuild)
 !!     - id_nr: identification number, unique for each kpp1 env
 !!     - iter: counter for the iteration number
-!!     - deriv_xc: the second derivative of the xc potential at psi0 
+!!     - drho_r(idir,ispin): the derivative of rho wrt. x,y,z in the real space
+!!     - deriv_xc(ii,ipot): the second derivative of the xc potential at psi0 
 !!       (qs_env%c), if grad pot is true it should already be divised
 !!       by the gradient
-!!     - spin_pot: information about wrt. to which spins the corresponding
-!!       component of deriv_xc was derived (see xc_create_2nd_deriv_info)
-!!     - grad_pot: if the derivative spin_pot was wrt. to the gradient,
-!!       (see xc_create_2nd_deriv_info)
-!!     - ndiag_term: it the term is an off diagonal term (see 
+!!     - spin_pot(1:2,ipot): information about wrt. to which spins the
+!!        corresponding component of deriv_xc was derived (see
+!!        xc_create_2nd_deriv_info)
+!!     - grad_pot(1:2,ipot): if the derivative spin_pot was wrt. to
+!!       the gradient (see xc_create_2nd_deriv_info)
+!!     - ndiag_term(ipot): it the term is an off diagonal term (see 
 !!       xc_create_2nd_deriv_info)
 !!
 !!   AUTHOR
@@ -149,6 +153,7 @@ MODULE qs_kpp1_env_types
           iter
      TYPE(coeff_type), DIMENSION(:), POINTER :: v_rspace
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: v_ao
+     TYPE(pw_p_type), DIMENSION(:,:), pointer :: drho_r
      REAL ( kind=wp ) , DIMENSION (:,:), pointer :: deriv_xc
      INTEGER, DIMENSION(:,:), POINTER :: spin_pot
      LOGICAL, DIMENSION(:,:), POINTER :: grad_pot
@@ -246,6 +251,10 @@ CONTAINS
              DEALLOCATE(kpp1_env%v_ao, stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
+          if (associated(kpp1_env%drho_r)) then
+             deallocate(kpp1_env%drho_r, stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          end if
           if (associated(kpp1_env%deriv_xc)) then
              deallocate(kpp1_env%deriv_xc,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
