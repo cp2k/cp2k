@@ -98,11 +98,12 @@ MODULE md
      REAL ( dbl ) :: p_ext
      CHARACTER ( LEN = 20 ) :: ensemble
      CHARACTER ( LEN = 20 ) :: read_type
+     CHARACTER ( LEN = 20 ) :: output_format
      CHARACTER ( LEN = 20 ) :: PROGRAM
      CHARACTER ( LEN = 20 ) :: ensemble_coef
      CHARACTER ( LEN = 20 ) :: read_type_coef
      CHARACTER ( LEN = 20 ) :: nhcopt_coef
-     CHARACTER ( LEN = 20 ) :: type_of_coef
+     CHARACTER ( LEN = 20 ) :: cmass_storage
      LOGICAL :: constraint
      INTEGER :: nfree
      INTEGER :: nc
@@ -168,9 +169,11 @@ CONTAINS
 !!I---------------------------------------------------------------------------I
 !!I SECTION: &md ... &end                                                     I
 !!I                                                                           I
+!!I output_format[xmol,atomic...]        format for the output of pos,vel,    I
+!!I                                      forces, default is XMOL.             I
 !!I ensemble:    [nve,nvt]               ensemble type                        I
 !!I coef_ensemble:    [nve,nvt]          ensemble type for coefficients       I
-!!I coef_basis:    [ao,pw]               polarization basis type              I
+!!I coef_storage [global,kind,atom,coef] type of effective mass storage       I
 !!I steps:       n                       total number of steps                I
 !!I timestep:    dt                      time step [fs]                       I
 !!I temperature: T                       temperature [K]                      I
@@ -244,9 +247,10 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % units % tau_coef = 'FS'
   simpar % units % tau_cell = 'FS'
   simpar % units % verlet_skin = 'ANGSTROMS'
+  simpar % output_format = 'XMOL'
   simpar % ensemble = 'NVE'
   simpar % ensemble_coef = 'NVE'
-  simpar % type_of_coef = 'AO'
+  simpar % cmass_storage = 'GLOBAL'
   simpar % nhcopt_coef = 'GLOBAL'
   simpar % nsteps = 0
   simpar % dt = 0.0_dbl
@@ -315,6 +319,12 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
            CALL p_error()
            CALL stop_parser ( 'read_md_section', 'unknown option' )
 
+        CASE ( 'OUTPUT' )
+           ilen = 0
+           CALL get_next ( string, ilen )
+           CALL uppercase ( string )
+           simpar % output_format = string ( 1:ilen )
+
         CASE ( 'ENSEMB' )
            ilen = 0
            CALL get_next ( string, ilen )
@@ -327,11 +337,11 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
            CALL uppercase ( string )
            simpar % ensemble_coef = string ( 1:ilen )
 
-        CASE ( 'COEF_B' )
+        CASE ( 'COEF_S' )
            ilen = 0
            CALL get_next ( string, ilen )
            CALL uppercase ( string )
-           simpar % type_of_coef = string ( 1:ilen )
+           simpar % cmass_storage = string ( 1:ilen )
 
         CASE ( 'STEPS' )
            CALL get_next ( simpar % nsteps )
@@ -662,6 +672,8 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
 !..write some information to output
   IF (mdpar % ionode .AND. mdpar % print_level>=0) THEN
      WRITE ( iw, '( A )' ) ' MD| Molecular Dynamics Protocol '
+     WRITE ( iw, '( A,T61,A )' ) ' MD| Output Format ', &
+          ADJUSTR ( simpar % output_format )
      WRITE ( iw, '( A,T61,A )' ) ' MD| Ensemble Type ', &
           ADJUSTR ( simpar % ensemble )
      WRITE ( iw, '( A,T61,A )' ) ' MD| Restart Type ', &
@@ -699,13 +711,13 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
              simpar % shake_tol
      END IF
      IF (  simpar % ensemble_coef ( 1:3 ) == 'NVT' )  THEN
-       WRITE ( iw, '( A,T61,A )' ) ' MD| Coef basis Type ', &
-              ADJUSTR ( simpar % type_of_coef )
+       WRITE ( iw, '( A,T61,A )' ) ' MD| effective mass storage', &
+              ADJUSTR ( simpar % cmass_storage )
        WRITE ( iw, '( A,T61,A )' ) ' MD| CoefEnsemble Type ', &
               ADJUSTR ( simpar % ensemble_coef )
        WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Coef Temperature [K] ', &
               simpar % temp_coef
-       WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Coef Mass [au] ', &
+       WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Coef global Mass [au] ', &
               simpar % mass_coef
        WRITE ( iw, '( A )' ) ' MD| Coef Nose-Hoover-Chain parameters '
        WRITE ( iw, '( A,T77,I4 )' ) ' MD| Coef Nose-Hoover-Chain length ', &

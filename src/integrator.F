@@ -30,6 +30,14 @@ MODULE integrator
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE dynamical_coeff_types,           ONLY: dyn_coeff_mass_atom,&
+                                             dyn_coeff_mass_coeff,&
+                                             dyn_coeff_mass_global,&
+                                             dyn_coeff_mass_kind,&
+                                             dyn_coeff_p_type,&
+                                             dyn_coeff_set_p_type,&
+                                             dyn_coeff_type,&
+                                             get_dyn_coeff_set
   USE extended_system_dynamics,        ONLY: lnhc
   USE extended_system_types,           ONLY: lnhc_parameters_type
   USE force_env_types,                 ONLY: force_env_calculate_force,&
@@ -810,9 +818,10 @@ END SUBROUTINE set_integrator
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "nve_new"
 
-    INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, isubsys, &
-      nparticle, nparticle_kind, nparticle_local
-    REAL(KIND=dp)                            :: dm, dt, mass
+    INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
+      isubsys, mass_storage, nparticle, nparticle_kind, nparticle_local
+    REAL(KIND=dp)                            :: dm, dmcoef, dt, global_mass, &
+                                                mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -822,7 +831,14 @@ END SUBROUTINE set_integrator
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(dyn_coeff_p_type), DIMENSION(:), &
+      POINTER                                :: coeffs_of_kind
+    TYPE(dyn_coeff_set_p_type), &
+      DIMENSION(:), POINTER                  :: dyn_coeff_set
+    TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(force_env_type), POINTER            :: force_env
+    TYPE(lnhc_parameters_type), &
+      DIMENSION(:), POINTER                  :: nhc_coef
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -833,9 +849,12 @@ END SUBROUTINE set_integrator
 !   ---------------------------------------------------------------------------
 !MK thermo => md_env%virial
 
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env)
+    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef)
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
+                    nhc_coef=nhc_coef)
     dt = simpar%dt
-    CALL force_env_get(force_env=force_env,subsys=subsys)
+    CALL force_env_get(force_env=force_env,subsys=subsys,&
+                       dyn_coeff_set=dyn_coeff_set)
 
     DO isubsys=1,SIZE(subsys)
 
@@ -886,6 +905,39 @@ END SUBROUTINE set_integrator
 
 !MK   IF (simpar%constraint) CALL shake_control(struc%molecule,simpar)
 
+!     *** coefficients
+    
+      IF(ASSOCIATED(dyn_coeff_set)) THEN
+        CALL get_dyn_coeff_set(dyn_coeff_set=dyn_coeff_set(isubsys)%dyn_coeff_set,&
+                               coeffs_of_kind=coeffs_of_kind, global_mass=global_mass,&
+                               mass_storage=mass_storage)
+        IF(ASSOCIATED(nhc_coef))THEN
+          CALL lnhc (nhc_coef(isubsys),dyn_coeff_set(isubsys)%dyn_coeff_set,&
+                      int_group)
+        END IF
+        IF(mass_storage==dyn_coeff_mass_global) dmcoef=0.5_dp*dt/global_mass
+        DO iparticle_kind=1,nparticle_kind
+          IF (ASSOCIATED(coeffs_of_kind(iparticle_kind)%coeffs)) THEN
+            coeffs=>coeffs_of_kind(iparticle_kind)%coeffs
+            IF(mass_storage==dyn_coeff_mass_kind) dmcoef=0.5_dp*dt/coeffs%masses(1,1)
+            DO iparticle_local=1,coeffs%n_els
+              DO icoef=1,coeffs%ncoef_atom
+                SELECT CASE (mass_storage)
+                CASE(dyn_coeff_mass_global,dyn_coeff_mass_kind)
+                  coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+&
+                         dmcoef*coeffs%forces(iparticle_local,icoef)     
+                CASE(dyn_coeff_mass_atom,dyn_coeff_mass_coeff)
+                  coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+0.5_dp*dt/ &
+                        coeffs%masses(iparticle_local,icoef)*coeffs%forces(iparticle_local,icoef)
+                END SELECT
+                coeffs%pos(iparticle_local,icoef)=coeffs%pos(iparticle_local,icoef)+ &
+                       dt*coeffs%vel(iparticle_local,icoef)
+              END DO
+            END DO
+          END IF
+        END DO
+      END IF
+
 !     *** Update forces ***
 
       CALL force_env_calculate_force(force_env,box_change=.FALSE.)
@@ -916,6 +968,38 @@ END SUBROUTINE set_integrator
 
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"work")
+
+!     *** coefficients
+
+      IF(ASSOCIATED(dyn_coeff_set)) THEN
+        CALL get_dyn_coeff_set(dyn_coeff_set=dyn_coeff_set(isubsys)%dyn_coeff_set,&
+                               coeffs_of_kind=coeffs_of_kind, global_mass=global_mass,&
+                               mass_storage=mass_storage)
+        IF(mass_storage==dyn_coeff_mass_global) dmcoef=0.5_dp*dt/global_mass
+        DO iparticle_kind=1,nparticle_kind
+          IF (ASSOCIATED(coeffs_of_kind(iparticle_kind)%coeffs)) THEN
+            coeffs=>coeffs_of_kind(iparticle_kind)%coeffs
+            IF(mass_storage==dyn_coeff_mass_kind) dmcoef=0.5_dp*dt/coeffs%masses(1,1)
+            DO iparticle_local=1,coeffs%n_els
+              DO icoef=1,coeffs%ncoef_atom
+                SELECT CASE (mass_storage)
+                CASE(dyn_coeff_mass_global,dyn_coeff_mass_kind) 
+                  coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+&
+                         dmcoef*coeffs%forces(iparticle_local,icoef)
+                CASE(dyn_coeff_mass_atom,dyn_coeff_mass_coeff)
+                  coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+0.5_dp*dt/ &
+                         coeffs%masses(iparticle_local,icoef)*coeffs%forces(iparticle_local,icoef)
+                END SELECT
+              END DO
+            END DO
+          END IF
+        END DO
+        IF(ASSOCIATED(nhc_coef))THEN 
+          CALL lnhc (nhc_coef(isubsys),dyn_coeff_set(isubsys)%dyn_coeff_set,&
+                     int_group)
+        END IF
+      END IF
+
 
 !     *** Update virial ***
 
@@ -957,9 +1041,10 @@ END SUBROUTINE set_integrator
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "nve_new"
 
-    INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, isubsys, &
-      nparticle, nparticle_kind, nparticle_local
-    REAL(KIND=dp)                            :: dm, dt, mass
+    INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
+      isubsys, mass_storage, nparticle, nparticle_kind, nparticle_local
+    REAL(KIND=dp)                            :: dm, dmcoef, dt, global_mass, &
+                                                mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -969,7 +1054,14 @@ END SUBROUTINE set_integrator
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(dyn_coeff_p_type), DIMENSION(:), &
+      POINTER                                :: coeffs_of_kind
+    TYPE(dyn_coeff_set_p_type), &
+      DIMENSION(:), POINTER                  :: dyn_coeff_set
+    TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(force_env_type), POINTER            :: force_env
+    TYPE(lnhc_parameters_type), &
+      DIMENSION(:), POINTER                  :: nhc_coef
     TYPE(lnhc_parameters_type), POINTER      :: nhc( : )
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
@@ -981,9 +1073,12 @@ END SUBROUTINE set_integrator
 !   ---------------------------------------------------------------------------
 !MK thermo => md_env%virial
 
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,nhc_part=nhc)
+    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef)
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
+                    nhc_part=nhc,nhc_coef=nhc_coef)
     dt = simpar%dt
-    CALL force_env_get(force_env=force_env,subsys=subsys)
+    CALL force_env_get(force_env=force_env,subsys=subsys,&
+                       dyn_coeff_set=dyn_coeff_set)
 
     DO isubsys=1,SIZE(subsys)
 
@@ -1038,6 +1133,39 @@ END SUBROUTINE set_integrator
 
 !MK   IF (simpar%constraint) CALL shake_control(struc%molecule,simpar)
 
+!     *** coefficients
+
+      IF(ASSOCIATED(dyn_coeff_set)) THEN
+        CALL get_dyn_coeff_set(dyn_coeff_set=dyn_coeff_set(isubsys)%dyn_coeff_set,&
+                               coeffs_of_kind=coeffs_of_kind, global_mass=global_mass,&
+                               mass_storage=mass_storage)
+        IF(ASSOCIATED(nhc_coef))THEN
+          CALL lnhc (nhc_coef(isubsys),dyn_coeff_set(isubsys)%dyn_coeff_set,&
+                      int_group)
+        END IF
+        IF(mass_storage==dyn_coeff_mass_global) dmcoef=0.5_dp*dt/global_mass
+        DO iparticle_kind=1,nparticle_kind
+          IF (ASSOCIATED(coeffs_of_kind(iparticle_kind)%coeffs)) THEN
+            coeffs=>coeffs_of_kind(iparticle_kind)%coeffs
+            IF(mass_storage==dyn_coeff_mass_kind) dmcoef=0.5_dp*dt/coeffs%masses(1,1)
+            DO iparticle_local=1,coeffs%n_els
+              DO icoef=1,coeffs%ncoef_atom
+                SELECT CASE (mass_storage)
+                CASE(dyn_coeff_mass_global,dyn_coeff_mass_kind)
+                  coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+&
+                         dmcoef*coeffs%forces(iparticle_local,icoef)
+                CASE(dyn_coeff_mass_atom,dyn_coeff_mass_coeff)
+                  coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+0.5_dp*dt/ &
+                        coeffs%masses(iparticle_local,icoef)*coeffs%forces(iparticle_local,icoef)
+                END SELECT
+                coeffs%pos(iparticle_local,icoef)=coeffs%pos(iparticle_local,icoef)+ &
+                       dt*coeffs%vel(iparticle_local,icoef)
+              END DO
+            END DO
+          END IF
+        END DO
+      END IF
+
 !     *** Update forces ***
 
       CALL force_env_calculate_force(force_env,box_change=.FALSE.)
@@ -1087,6 +1215,37 @@ END SUBROUTINE set_integrator
 
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"work")
+
+!     *** coefficients
+
+      IF(ASSOCIATED(dyn_coeff_set)) THEN
+        CALL get_dyn_coeff_set(dyn_coeff_set=dyn_coeff_set(isubsys)%dyn_coeff_set,&
+                               coeffs_of_kind=coeffs_of_kind, global_mass=global_mass,&
+                               mass_storage=mass_storage)
+        IF(mass_storage==dyn_coeff_mass_global) dmcoef=0.5_dp*dt/global_mass
+        DO iparticle_kind=1,nparticle_kind
+          IF (ASSOCIATED(coeffs_of_kind(iparticle_kind)%coeffs)) THEN
+            coeffs=>coeffs_of_kind(iparticle_kind)%coeffs
+            IF(mass_storage==dyn_coeff_mass_kind) dmcoef=0.5_dp*dt/coeffs%masses(1,1)
+            DO iparticle_local=1,coeffs%n_els
+              DO icoef=1,coeffs%ncoef_atom
+                SELECT CASE (mass_storage)
+                CASE(dyn_coeff_mass_global,dyn_coeff_mass_kind)
+                  coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+&
+                         dmcoef*coeffs%forces(iparticle_local,icoef)
+                CASE(dyn_coeff_mass_atom,dyn_coeff_mass_coeff)
+                  coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+0.5_dp*dt/ &
+                         coeffs%masses(iparticle_local,icoef)*coeffs%forces(iparticle_local,icoef)
+                END SELECT
+              END DO
+            END DO
+          END IF
+        END DO
+        IF(ASSOCIATED(nhc_coef))THEN
+          CALL lnhc (nhc_coef(isubsys),dyn_coeff_set(isubsys)%dyn_coeff_set,&
+                     int_group)
+        END IF
+      END IF
 
 !MK   CALL pressure(struc%pnode,thermo)
 

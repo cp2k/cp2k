@@ -29,6 +29,7 @@ MODULE md_energies
                                              cp_to_string
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
+  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_p_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -162,11 +163,14 @@ END SUBROUTINE set_qs_energies
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: file_exists, replace_file
     REAL(KIND=dp)                            :: cons, e_diff, e_old, ekin, &
-                                                epot, rcons, t, temp, x
+                                                ekin_coefs, epot, rcons, t, &
+                                                temp, temp_coefs, x
     REAL(KIND=dp), POINTER                   :: constant, used_time
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
+    TYPE(dyn_coeff_set_p_type), &
+      DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(simulation_parameters_type), &
@@ -176,6 +180,7 @@ END SUBROUTINE set_qs_energies
 
     CALL timeset(routine_name,"E","",handle)
 
+    NULLIFY(dyn_coeff_set)
     CALL get_md_env(md_env=md_env,&
                     itimes=itimes,&
                     constant=constant,&
@@ -186,6 +191,7 @@ END SUBROUTINE set_qs_energies
     CALL force_env_get(force_env=force_env,&
                        cell=cell,&
                        subsys=subsys,&
+                       dyn_coeff_set=dyn_coeff_set,&
                        error=error)
 
     replace_file = .FALSE.
@@ -236,29 +242,52 @@ END SUBROUTINE set_qs_energies
 
     IF (itimes > itimes_old) THEN
 
-      iw = scr
-      CALL force_env_get(force_env,&
-                         potential_energy=epot,&
-                         error=error)
-      CALL compute_conserved_quantity(md_env,&
-                                      epot,&
-                                      cons,&
-                                      cons_rel=rcons,&
-                                      ekin=ekin,&
-                                      temp=temp)
+       iw = scr
+       CALL force_env_get(force_env,&
+                          potential_energy=epot,&
+                          error=error)
+       IF (ASSOCIATED (dyn_coeff_set)) THEN
+         CALL compute_conserved_quantity(md_env,&
+                                         epot,&
+                                         cons,&
+                                         cons_rel=rcons,&
+                                         ekin=ekin,&
+                                         temp=temp,&
+                                         ekin_coefs=ekin_coefs,&
+                                         temp_coefs=temp_coefs)
+        temp_coefs=temp_coefs*kelvin
+        temp = temp*kelvin
 
-      temp = temp*kelvin
+        WRITE (title,"(A4,I8,A4,F12.3,1X,A6,F20.9,1X,A6,F9.3,1X,A6,F9.3,1X,A1)")&
+          " i =",itimes," t =",t,"fs E =",epot,&
+          "au T= ",temp,"K Tc=",temp_coefs,"K"
+      ELSE
+        CALL compute_conserved_quantity(md_env,&
+                                        epot,&
+                                        cons,&
+                                        cons_rel=rcons,&
+                                        ekin=ekin,&
+                                        temp=temp)
+        temp = temp*kelvin
 
-      WRITE (title,"(A4,I8,A4,F12.3,1X,A6,F20.9,1X,A6,F9.3,1X,A1)")&
-        " i =",itimes," t =",t,"fs E =",epot,&
-        "au T= ",temp,"K"
+        WRITE (title,"(A4,I8,A4,F12.3,1X,A6,F20.9,1X,A6,F9.3,1X,A1)")&
+          " i =",itimes," t =",t,"fs E =",epot,&
+          "au T= ",temp,"K"
+      END IF
+
 
       IF (ionode) THEN
 
         IF (MODULO(itimes,iscreen) == 0) THEN
-          WRITE (scr, "(/,T2,A6,I8,F12.3,F20.9,F20.9,F20.9,F20.9,F20.12,F20.6/)")&
-            "-MD-",itimes,t,ekin,temp,epot,&
-            cons,cons-constant, used_time
+          IF (ASSOCIATED (dyn_coeff_set)) THEN
+            WRITE (scr, "(/,T2,A6,I8,F12.3,F16.9,F16.9,F16.9,F16.9,F16.9,F16.9,F20.12,F12.6/)")&
+              "-MD-",itimes,t,ekin,ekin_coefs,temp,temp_coefs,epot,&
+              cons,cons-constant, used_time
+          ELSE
+            WRITE (scr, "(/,T2,A6,I8,F12.3,F20.9,F20.9,F20.9,F20.9,F20.12,F20.6/)")&
+              "-MD-",itimes,t,ekin,temp,epot,&
+              cons,cons-constant, used_time
+          END IF
         END IF
 
         IF (MODULO(itimes,iener) == 0) THEN
@@ -274,7 +303,7 @@ END SUBROUTINE set_qs_energies
                               particles=particles,&
                               error=error)
             CALL write_particle_coordinates(particles%els,cell,crd,&
-                                            "XMOL","POS",title)
+                                            simpar%output_format,"POS",title)
           END DO
           CALL m_flush(crd)
         END IF
@@ -285,7 +314,7 @@ END SUBROUTINE set_qs_energies
                               particles=particles,&
                               error=error)
             CALL write_particle_coordinates(particles%els,cell,vel,&
-                                            "XMOL","POS_VEL_FORCE",title)
+                                            simpar%output_format,"POS_VEL_FORCE",title)
           END DO
           CALL m_flush(vel)
         END IF

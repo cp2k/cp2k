@@ -24,9 +24,9 @@ MODULE kg_kxc
   USE functionals
   USE kinds,                           ONLY: dbl
   USE message_passing,                 ONLY: mp_sum
+  USE pw_grid_types,                   ONLY: PW_MODE_DISTRIBUTED
   USE pw_pool_types,                   ONLY: pw_pool_type
   USE pw_types,                        ONLY: pw_type
-  USE pw_grid_types,                   ONLY: PW_MODE_DISTRIBUTED
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -81,13 +81,14 @@ CONTAINS
     LOGICAL, INTENT(in)                      :: calculate_forces
 
     CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE calc_kxc_derivatives (MODULE kg_kxc)"
+      routine = "calc_kxc_derivatives (MODULE kg_kxc)"
 
     INTEGER                                  :: handle, order
     REAL(dbl), DIMENSION(:, :, :), POINTER   :: v1xc, v2xc
 
 !--------------------------------------------------------
-  CALL timeset ( 'routine','I',' ',handle )
+
+  CALL timeset (routine,'I',' ',handle )
 
   v1xc => v1_r%pw%cr3d(:,:,:)
   v2xc => v2_r%pw%cr3d(:,:,:)

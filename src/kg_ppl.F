@@ -979,9 +979,9 @@ CONTAINS
                     atom_a = atom_of_kind(iatom)
 
                     force(ikind)%f_ppl(:,atom_a) =&
-                      force(ikind)%f_ppl(:,atom_a) + force_a(:)
+                      force(ikind)%f_ppl(:,atom_a) - force_a(:)
                     force(kkind)%f_ppl(:,atom_c) =&
-                      force(kkind)%f_ppl(:,atom_c) - force_a(:)
+                      force(kkind)%f_ppl(:,atom_c) + force_a(:)
 
                   ELSE
 

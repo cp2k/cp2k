@@ -80,7 +80,7 @@ MODULE extended_system_types
      INTEGER :: id_nr, ref_count, in_use
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_part  ( : )
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_baro ( : )
-  !   TYPE ( lnhc_parameters_type ), POINTER :: nhc_coef 
+     TYPE ( lnhc_parameters_type ), POINTER :: nhc_coef (:)
      TYPE ( npt_info_type ), POINTER :: npt_info ( :, : )
   END TYPE extended_system_type
 

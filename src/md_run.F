@@ -42,6 +42,8 @@ MODULE md_run
                                              cp_subsystem_p_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dump,                            ONLY: dump_variables
+  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_initialize,&
+                                             dyn_coeff_set_p_type
   USE extended_system_types,           ONLY: extended_system_type,&
                                              lnhc_parameters_type
   USE force_env_types,                 ONLY: force_env_calculate_force,&
@@ -49,6 +51,7 @@ MODULE md_run
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE initialize_extended_types,       ONLY: initialize_nhc_baro,&
+                                             initialize_nhc_coef,&
                                              initialize_nhc_forces,&
                                              initialize_nhc_part,&
                                              initialize_npt_type
@@ -115,8 +118,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_mol_dyn", &
       routineP = module_name//':'//routine_name
 
-    INTEGER                                  :: handle, i, istat, istep, &
-                                                isubsys
+    INTEGER                                  :: handle, i, iset, istat, &
+                                                istep, isubsys
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, should_stop
     REAL(KIND=dp)                            :: time_iter_start, &
@@ -126,8 +129,10 @@ CONTAINS
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(dyn_coeff_set_p_type), &
+      DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(extended_system_type)               :: extended_type
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro, nhc_part
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro, nhc_coef, nhc_part
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(mdio_parameters_type)               :: mdio
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
@@ -143,8 +148,8 @@ CONTAINS
 
     CALL timeset(routine_name,"I","",handle)
     failure=.FALSE.
-    NULLIFY ( particles, local_molecules, cell, cell_ref,&
-              simpar,virial,itimes,used_time,subsys,nhc_part, nhc_baro )
+    NULLIFY ( particles, local_molecules, cell, cell_ref, dyn_coeff_set,&
+              simpar,virial,itimes,used_time,subsys,nhc_part,nhc_baro,nhc_coef)
     NULLIFY (md_env,molecule_kinds_new, molecules_new)
 
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
@@ -161,7 +166,8 @@ CONTAINS
     CALL read_md_section(simpar,globenv,mdio)
     simpar%program = globenv%program_name
 
-    CALL force_env_get(force_env,subsys=subsys, cell=cell, error=error)
+    CALL force_env_get(force_env,subsys=subsys, cell=cell,&
+                       dyn_coeff_set=dyn_coeff_set, error=error)
 
     !FM probably in some cases it might also be good to connect the same
     !FM termostat to different subsystems (add a way in the input to specify 
@@ -187,6 +193,18 @@ CONTAINS
                                 extended_type%nhc_baro(isubsys))
     END DO
     CALL initialize_npt_type(simpar,globenv,extended_type%npt_info,cell)
+
+! initialize coef thermostats and setup coefficient forces, velocities and effective masses
+    IF (ASSOCIATED(dyn_coeff_set)) THEN
+       ALLOCATE (extended_type%nhc_coef(SIZE(dyn_coeff_set)),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DO iset=1,SIZE(dyn_coeff_set)
+          CALL initialize_nhc_coef(simpar,dyn_coeff_set(iset)%dyn_coeff_set,&
+                                   globenv,extended_type%nhc_coef(iset))
+          CALL dyn_coeff_set_initialize(simpar,dyn_coeff_set(iset)%dyn_coeff_set,globenv) 
+          CALL initialize_nhc_forces (nhc_coef=extended_type% nhc_coef(iset))
+       END DO
+    END IF
 
 ! initialize velocities and read restart files if needed
     SELECT CASE ( simpar % read_type )
@@ -232,7 +250,7 @@ CONTAINS
     DO isubsys=1,SIZE(subsys)
       nhc_part => extended_type%nhc_part(isubsys)
       nhc_baro => extended_type%nhc_baro(isubsys)
-      CALL initialize_nhc_forces ( nhc_part, nhc_baro )
+      CALL initialize_nhc_forces ( nhc_part=nhc_part, nhc_baro=nhc_baro )
     END DO
 
     DO isubsys=1,SIZE(subsys)
@@ -252,6 +270,9 @@ CONTAINS
                     cell=cell,&
                     force_env=force_env)
 
+    IF (ASSOCIATED(dyn_coeff_set)) THEN
+       CALL set_md_env(md_env, nhc_coef=extended_type%nhc_coef)
+    END IF
 
     CALL set_integrator ( globenv )
 

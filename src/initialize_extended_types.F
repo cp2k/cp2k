@@ -22,6 +22,7 @@
 MODULE initialize_extended_types
 
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
   USE extended_system_initialize,      ONLY: initialize_nhc,&
                                              initialize_npt
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
@@ -33,16 +34,15 @@ MODULE initialize_extended_types
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
   USE nhc,                             ONLY: nhc_barostat_setup,&
+                                             nhc_coef_setup,&
                                              nhc_particle_setup
-!, nhc_coef_setup
-
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_program
 
   IMPLICIT NONE
 
   PUBLIC :: initialize_nhc_part, initialize_nhc_baro, initialize_npt_type, &
-            initialize_nhc_forces
+            initialize_nhc_forces, initialize_nhc_coef
   PRIVATE
 
 !!*****
@@ -241,37 +241,37 @@ END SUBROUTINE initialize_nhc_part
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!
+!!   04-02-04 gt: rewritten using new dynamical_coef_type
 !!
 !!   SOURCE
 !******************************************************************************
 
-!SUBROUTINE initialize_nhc_coef ( simpar, coeff, globenv, nhc )
+SUBROUTINE initialize_nhc_coef ( simpar, dyn_coeff_set, globenv, nhc )
 
 !  IMPLICIT NONE
 
-! Arguments
-!  TYPE ( coeff_type ), INTENT ( IN ) :: coeff
-!  TYPE ( simulation_parameters_type ), INTENT ( INOUT ) :: simpar
-!  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-!  TYPE ( lnhc_parameters_type ),  INTENT ( INOUT ) :: nhc
-! locals
-!  INTEGER :: isos
+    TYPE(simulation_parameters_type), &
+      INTENT(INOUT)                          :: simpar
+    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
+    TYPE(global_environment_type), &
+      INTENT(INOUT)                          :: globenv
+    TYPE(lnhc_parameters_type), &
+      INTENT(INOUT)                          :: nhc
 
 !------------------------------------------------------------------------------
-
 ! fire up the thermostats
-!  CALL nhc_coef_setup ( simpar, coeff, nhc, globenv )
 
-!  IF ( simpar % read_type_coef /= 'ALL' ) THEN
+  CALL nhc_coef_setup ( simpar, dyn_coeff_set, nhc, globenv )
+
+  IF ( simpar % read_type_coef /= 'ALL' ) THEN
 
 ! Initializing thermostat forces and velocities for the Nose-Hoover
 ! Chain variables
-!      IF ( nhc % nhc_len /= 0 ) CALL initialize_nhc ( nhc, simpar % tau_nhc_coef,  &
-!                                      simpar % temp_coef, globenv )
-!  END IF
+    IF ( nhc % nhc_len /= 0 ) CALL initialize_nhc ( nhc, simpar % tau_nhc_coef,  &
+                                       simpar % temp_coef, globenv )
+  END IF
 
-!END SUBROUTINE initialize_nhc_coef
+ END SUBROUTINE initialize_nhc_coef
 
 !!*****
 !******************************************************************************
@@ -290,14 +290,15 @@ END SUBROUTINE initialize_nhc_part
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE initialize_nhc_forces ( nhc_part, nhc_baro )
+SUBROUTINE initialize_nhc_forces ( nhc_part, nhc_baro, nhc_coef )
     TYPE(lnhc_parameters_type), &
-      INTENT(INOUT)                          :: nhc_part, nhc_baro
+      INTENT(INOUT), OPTIONAL                :: nhc_part, nhc_baro, nhc_coef
 
     INTEGER                                  :: i, j
 
 ! assign the forces
 
+IF(PRESENT(nhc_part)) THEN
   DO i = 1, SIZE ( nhc_part % nvt, 2 )
      DO j = 2, SIZE ( nhc_part % nvt, 1 )
         nhc_part % nvt ( j, i ) % f = nhc_part % nvt ( j-1, i ) % mass * &
@@ -308,8 +309,11 @@ SUBROUTINE initialize_nhc_forces ( nhc_part, nhc_baro )
                                      /nhc_part % nvt ( j, i ) % mass
      END DO
   END DO
+END IF
 
 ! assign the forces
+
+IF(PRESENT(nhc_baro)) THEN
   DO i = 1, SIZE ( nhc_baro % nvt, 2 )
      DO j = 2, SIZE ( nhc_baro % nvt, 1 )
         nhc_baro % nvt ( j, i ) % f = nhc_baro % nvt ( j-1, i ) % mass * &
@@ -320,8 +324,22 @@ SUBROUTINE initialize_nhc_forces ( nhc_part, nhc_baro )
                                      /nhc_baro % nvt ( j, i ) % mass
      END DO
   END DO
+END IF
 
+! assign the forces
 
+IF(PRESENT(nhc_coef)) THEN
+  DO i = 1, SIZE ( nhc_coef % nvt, 2 )
+     DO j = 2, SIZE ( nhc_coef % nvt, 1 )
+        nhc_coef % nvt ( j, i ) % f = nhc_coef % nvt ( j-1, i ) % mass * &
+                                      nhc_coef % nvt ( j-1, i ) % v *  &
+                                      nhc_coef % nvt ( j-1, i ) % v -  &
+                                      nhc_coef % nvt ( j, i ) % nkt
+        nhc_coef % nvt ( j, i ) % f = nhc_coef % nvt ( j, i ) % f &
+                                     /nhc_coef % nvt ( j, i ) % mass
+     END DO
+  END DO
+END IF
 
 END SUBROUTINE initialize_nhc_forces
 

@@ -20,7 +20,6 @@
 !******************************************************************************
 
 MODULE md_environment_types
-  USE coefficient_types,               ONLY: coeff_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
@@ -63,12 +62,9 @@ MODULE md_environment_types
      REAL ( dbl ), POINTER  :: used_time
      REAL ( dbl ), POINTER :: constant
      TYPE ( cell_type ), POINTER :: cell
-     TYPE ( coeff_type ), POINTER  :: coef_pos ( : )        
-     TYPE ( coeff_type ), POINTER  :: coef_vel ( : )        
-     TYPE ( coeff_type ), POINTER  :: coef_force ( : )      
      TYPE ( force_env_type ), POINTER :: force_env  !? should this also be an array for PIMD
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_part ( : )
-     TYPE ( lnhc_parameters_type ), POINTER :: nhc_coef 
+     TYPE ( lnhc_parameters_type ), POINTER :: nhc_coef ( : )
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_baro ( : )
      TYPE ( npt_info_type ), POINTER :: npt ( :, : )
    !  TYPE ( pimd_environment_type ), POINTER :: pimd_env
@@ -94,11 +90,11 @@ CONTAINS
 ! *****************************************************************************
 
 !  SUBROUTINE get_md_env ( md_env, itimes, constant, cell, simpar, pimd_env, &
-!                          coef_pos, coef_vel, coef_force, virial, &
+!                          virial, &
 !                          nhc_part, nhc_coef, nhc_baro, npt, &
 !                          force_env, para_env )
   SUBROUTINE get_md_env ( md_env, itimes, constant, used_time, cell,  &
-                          simpar,coef_pos, coef_vel, coef_force, virial, &
+                          simpar, virial, &
                           nhc_part, nhc_coef, nhc_baro, npt, force_env, &
                           para_env )
 
@@ -112,11 +108,9 @@ CONTAINS
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(simulation_parameters_type), &
       OPTIONAL, POINTER                      :: simpar
-    TYPE(coeff_type), OPTIONAL, POINTER      :: coef_pos( : ), coef_vel( : ), &
-                                                coef_force( : )
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
     TYPE(lnhc_parameters_type), OPTIONAL, &
-      POINTER                                :: nhc_part( : ), nhc_coef, &
+      POINTER                                :: nhc_part( : ), nhc_coef( : ), &
                                                 nhc_baro( : )
     TYPE(npt_info_type), OPTIONAL, POINTER   :: npt( :, : )
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
@@ -133,9 +127,6 @@ CONTAINS
     IF ( PRESENT ( constant ) ) constant => md_env % constant
     IF ( PRESENT ( used_time ) ) used_time => md_env % used_time
     IF ( PRESENT ( cell ) ) cell => md_env % cell 
-    IF ( PRESENT ( coef_pos ) ) coef_pos => md_env % coef_pos
-    IF ( PRESENT ( coef_vel ) ) coef_vel => md_env % coef_vel
-    IF ( PRESENT ( coef_force ) ) coef_force => md_env % coef_force
     IF ( PRESENT ( simpar ) ) simpar => md_env % simpar
     IF ( PRESENT ( nhc_part ) ) nhc_part => md_env % nhc_part 
     IF ( PRESENT ( nhc_coef ) ) nhc_coef => md_env % nhc_coef
@@ -180,9 +171,6 @@ CONTAINS
     NULLIFY ( md_env % itimes )
     NULLIFY ( md_env % constant )
     NULLIFY ( md_env % cell )
-    NULLIFY ( md_env % coef_pos )
-    NULLIFY ( md_env % coef_vel )
-    NULLIFY ( md_env % coef_force )
     NULLIFY ( md_env % simpar )
     NULLIFY ( md_env % nhc_part )
     NULLIFY ( md_env % nhc_coef )
@@ -311,9 +299,6 @@ SUBROUTINE md_env_release(md_env, error)
         CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         NULLIFY ( md_env % cell )
         NULLIFY ( md_env % simpar )
-        NULLIFY ( md_env % coef_pos )
-        NULLIFY ( md_env % coef_vel )
-        NULLIFY ( md_env % coef_force )
         NULLIFY ( md_env % nhc_part )
         NULLIFY ( md_env % nhc_coef )
         NULLIFY ( md_env % nhc_baro )
@@ -334,8 +319,7 @@ END SUBROUTINE md_env_release
 !                          nhc_part, nhc_coef, nhc_baro, npt, &
 !                          force_env, para_env )
   SUBROUTINE set_md_env ( md_env, itimes, constant, cell, simpar, &
-                          coef_pos, coef_vel, coef_force, virial, &
-                          nhc_part, nhc_coef, nhc_baro, npt, &
+                          nhc_part, nhc_coef, nhc_baro, npt, virial, &
                           force_env, para_env )
 
 !   Purpose: Set the integrator environment to the correct program.
@@ -348,13 +332,11 @@ END SUBROUTINE md_env_release
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(simulation_parameters_type), &
       OPTIONAL, POINTER                      :: simpar
-    TYPE(coeff_type), OPTIONAL, POINTER      :: coef_pos( : ), coef_vel( : ), &
-                                                coef_force( : )
-    TYPE(virial_type), OPTIONAL, POINTER     :: virial
     TYPE(lnhc_parameters_type), OPTIONAL, &
-      POINTER                                :: nhc_part( : ), nhc_coef, &
+      POINTER                                :: nhc_part( : ), nhc_coef( : ), &
                                                 nhc_baro( : )
     TYPE(npt_info_type), OPTIONAL, POINTER   :: npt( :, : )
+    TYPE(virial_type), OPTIONAL, POINTER     :: virial
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
@@ -365,9 +347,6 @@ END SUBROUTINE md_env_release
 !    TYPE ( pimd_environment_type ), POINTER :: pimd_env
 
     IF ( PRESENT ( cell ) ) md_env % cell => cell
-    IF ( PRESENT ( coef_pos ) ) md_env % coef_pos => coef_pos
-    IF ( PRESENT ( coef_vel ) ) md_env % coef_vel => coef_vel
-    IF ( PRESENT ( coef_force ) ) md_env % coef_force => coef_force
 !    IF ( PRESENT ( pimd_env ) ) md_env % pimd_env => pimd_env
     IF ( PRESENT ( simpar ) ) md_env % simpar => simpar
     IF ( PRESENT ( nhc_part ) ) md_env % nhc_part => nhc_part

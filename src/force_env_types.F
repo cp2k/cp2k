@@ -46,6 +46,10 @@ MODULE force_env_types
                                              cp_subsys_release,&
                                              cp_subsys_retain,&
                                              cp_subsystem_p_type
+  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_dump,&
+                                             dyn_coeff_set_p_type,&
+                                             dyn_coeff_set_release,&
+                                             dyn_coeff_set_retain
   USE global_types,                    ONLY: global_environment_type
   USE kg_energy,                       ONLY: kg_energies
   USE kg_energy_types,                 ONLY: kg_energy_type
@@ -134,6 +138,7 @@ MODULE force_env_types
      TYPE ( kg_environment_type ), POINTER :: kg_env
      TYPE ( qs_environment_type ), POINTER :: qs_env 
      TYPE (cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
+     TYPE (dyn_coeff_set_p_type), DIMENSION(:),POINTER :: dyn_coeff_set
      TYPE (global_environment_type), POINTER :: globenv
      TYPE (cp_para_env_type), POINTER :: para_env
   END TYPE force_env_type
@@ -388,7 +393,7 @@ SUBROUTINE force_env_create(force_env,qs_env,kg_env,para_env,&
 !     NULLIFY(force_env%subsys, force_env%fist_env, &
 !          force_env%kg_env, force_env%qs_env, force_env%para_env,&
 !          force_env%globenv)
-     NULLIFY(force_env%subsys, &
+     NULLIFY(force_env%subsys, force_env%dyn_coeff_set, &
           force_env%kg_env, force_env%qs_env, force_env%para_env,&
           force_env%globenv)
      last_force_env_id=last_force_env_id+1
@@ -469,6 +474,16 @@ SUBROUTINE force_env_create(force_env,qs_env,kg_env,para_env,&
              error=error)
         CALL cp_subsys_retain(force_env%subsys(1)%subsys,&
              error=error)
+        IF(kg_env%dft_control%kg_control%polarization) THEN
+           ALLOCATE(force_env%dyn_coeff_set(1), stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           NULLIFY(force_env%dyn_coeff_set(1)%dyn_coeff_set)
+        CALL get_kg_env(force_env%kg_env,&
+             dyn_coeff_set=force_env%dyn_coeff_set(1)%dyn_coeff_set,&
+             error=error)
+        CALL dyn_coeff_set_retain(force_env%dyn_coeff_set(1)%dyn_coeff_set,&
+             error=error)
+        END IF
 
      CASE(use_qs_force)
         ALLOCATE(force_env%subsys(1), stat=stat)
@@ -595,6 +610,13 @@ SUBROUTINE force_env_release(force_env, error)
            DEALLOCATE(force_env%subsys, stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
+        IF (ASSOCIATED(force_env%dyn_coeff_set)) THEN
+           DO i=1,SIZE(force_env%dyn_coeff_set)
+              CALL dyn_coeff_set_release(force_env%dyn_coeff_set(i)%dyn_coeff_set,error=error)
+           END DO
+           DEALLOCATE(force_env%dyn_coeff_set, stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
         CALL cp_para_env_release(force_env%para_env,error=error)
         NULLIFY(force_env%globenv)
         ! not deallocated
@@ -652,7 +674,7 @@ END SUBROUTINE force_env_release
 !!*** **********************************************************************
 !SUBROUTINE force_env_get(force_env, in_use, fist_env, qs_env, kg_env, &
 !     subsys, para_env, potential_energy, kinetic_energy,cell, error)
-SUBROUTINE force_env_get(force_env, in_use, qs_env, kg_env, &
+SUBROUTINE force_env_get(force_env, in_use, qs_env, kg_env, dyn_coeff_set, &
      subsys, para_env, potential_energy, kinetic_energy,cell, error)
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(out), OPTIONAL           :: in_use
@@ -660,6 +682,8 @@ SUBROUTINE force_env_get(force_env, in_use, qs_env, kg_env, &
       POINTER                                :: qs_env
     TYPE(kg_environment_type), OPTIONAL, &
       POINTER                                :: kg_env
+    TYPE(dyn_coeff_set_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: dyn_coeff_set
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: subsys
     TYPE(cp_para_env_type), OPTIONAL, &
@@ -750,6 +774,7 @@ SUBROUTINE force_env_get(force_env, in_use, qs_env, kg_env, &
         CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)
         kg_env => force_env%kg_env
      END IF
+     IF (PRESENT(dyn_coeff_set)) dyn_coeff_set => force_env%dyn_coeff_set
      IF (PRESENT(subsys)) subsys => force_env%subsys
      IF (PRESENT(para_env)) para_env => force_env%para_env
 
@@ -869,14 +894,17 @@ SUBROUTINE force_env_write_variables(force_env, unit_nr, local, error)
     INTEGER                                  :: i, isubsys
     LOGICAL                                  :: failure, my_local, &
                                                 should_write
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
+    TYPE(dyn_coeff_set_p_type), &
+      DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(particle_list_type), POINTER        :: particles
 
   failure=.FALSE.
-  NULLIFY(subsys,cell, particles)
+  NULLIFY(subsys,cell,atomic_kinds,dyn_coeff_set, particles)
   logger => cp_error_get_logger(error)
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -894,6 +922,15 @@ SUBROUTINE force_env_write_variables(force_env, unit_nr, local, error)
      CASE (use_qs_force)
 !     CASE (use_fist_force)
      CASE (use_kg_force)
+       CALL force_env_get(force_env,dyn_coeff_set=dyn_coeff_set)
+       IF(ASSOCIATED(dyn_coeff_set))THEN
+         DO isubsys=1,SIZE(dyn_coeff_set)
+           CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                              atomic_kinds=atomic_kinds)
+           CALL dyn_coeff_set_dump(dyn_coeff_set(isubsys)%dyn_coeff_set,&
+                                   atomic_kinds%els,error=error)
+         END DO
+       END IF
      CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"unknown in_use flag value "//&
@@ -1014,7 +1051,7 @@ SUBROUTINE force_env_read_variables(force_env, unit_nr, local, error)
     TYPE(particle_list_type), POINTER        :: particles
 
   failure=.FALSE.
-  NULLIFY(subsys,cell, particles)
+  NULLIFY(subsys,cell,particles)
   logger => cp_error_get_logger(error)
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)

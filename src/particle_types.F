@@ -1035,6 +1035,26 @@ CONTAINS
                                             particle_set(iatom)%f(1:3)
         END SELECT
       END DO
+    CASE ("ATOMIC")
+      DO iatom=1,natom
+        SELECT CASE (TRIM(content))
+        CASE ("POS")
+         r(:) = particle_set(iatom)%r(:)
+         WRITE (iunit,"(3F20.10)") r(1:3)
+        CASE ("VEL")
+          WRITE (iunit,"(3F20.10)")particle_set(iatom)%v(1:3)
+        CASE ("FORCE")
+          WRITE (iunit,"(3F20.10)") particle_set(iatom)%f(1:3)
+        CASE ("POS_VEL")
+          WRITE (iunit,"(6F20.10)")particle_set(iatom)%r(1:3),&
+                                   particle_set(iatom)%v(1:3)
+        CASE ("POS_VEL_FORCE")
+          r(:) = particle_set(iatom)%r(:)
+          WRITE (iunit,"(9F20.10)")r(1:3),&
+                                   particle_set(iatom)%v(1:3),&
+                                   particle_set(iatom)%f(1:3)
+        END SELECT
+      END DO
     CASE DEFAULT
     ! others todo
     END SELECT

@@ -28,6 +28,8 @@ MODULE kg_force
                                              coeff_transform_space,&
                                              coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
+  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
+                                             dyn_coeff_type
   USE global_types,                    ONLY: global_environment_type
   USE hartree,                         ONLY: calculate_hartree
   USE kg_core,                         ONLY: calculate_ecore_rspace,&
@@ -161,6 +163,8 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv )
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
+    TYPE(dyn_coeff_type), POINTER            :: local_coeffs
     TYPE(kg_energy_type), POINTER            :: energy
     TYPE(kg_force_type), DIMENSION(:), &
       POINTER                                :: force
@@ -176,10 +180,11 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv )
   ionode=globenv%ionode
   output_unit=globenv%scr
   NULLIFY(force,energy,part,atomic_kind_set,atomic_kind,cell,dft_control,&
-          kg_rho_v)
+          dyn_coeff_set,local_coeffs,kg_rho_v)
 
   CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control, energy=energy, cell=cell,&
+                    dyn_coeff_set=dyn_coeff_set,&
                     force=force,particle_set=part,rho=kg_rho_v)
 
   calculate_forces=.TRUE. 
@@ -203,11 +208,21 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv )
   CALL init_kg_force(force)
   CALL init_kg_energy(energy)
 
+!reinitialize total forces
   DO i = 1, natoms
      part ( i ) % f ( 1 ) = 0.0_dbl
      part ( i ) % f ( 2 ) = 0.0_dbl
      part ( i ) % f ( 3 ) = 0.0_dbl
   END DO
+
+!reinitialize forces on coefficents
+  DO ikind= 1, nkind
+    local_coeffs => dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
+    IF(ASSOCIATED(local_coeffs)) THEN
+      local_coeffs%forces(:,:)=0.0_dbl
+    END IF
+  END DO
+
 
 ! self energy 
   CALL calculate_eself ( kg_env, energy % core_self )
@@ -251,14 +266,13 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv )
                         kg_rho_v%v_xc_rspace%pw, energy%exc, dft_control,&
                         kg_rho_v%pw_pool)
 
+  kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:) =dvol*kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:)
+
   CALL calculate_kxc_derivatives(kg_rho_v% pw_pool, & 
                                 kg_rho_v % rho_elec_rspace, kg_rho_v % rho_gspace, &
                                 kg_rho_v % rho_p_rspace, kg_rho_v%v_xc_rspace,&
                                 kg_rho_v%v1_xc_rspace, kg_rho_v%v2_xc_rspace,&
                                 e1_xc, e2_xc, dft_control,calculate_forces)
-
-  kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:) =dvol*kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:)
-  energy%exc=energy%exc+e1_xc+e2_xc
 
 ! calculate the total density
   kg_rho_v%total_rho_rspace = total_rho0_rspace+&
@@ -315,7 +329,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv )
 ! add up all the potential energies
 
   energy % total = energy % core_self + energy % core_overlap + energy % exc + &
-                 energy % hartree + energy % pseudo + energy%ppseudo 
+                 e1_xc + e2_xc + energy % hartree + energy % pseudo + energy%ppseudo 
      
 ! print
     IF (ionode) THEN
@@ -337,6 +351,8 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv )
             "Pseudopotential  energy  due to coefs:         ",energy%ppseudo,&
             "Hartree energy:                                ",energy%hartree,&
             "Exchange-correlation energy:                   ",energy%exc,&
+            "1st order correction to xc energy coefs        ",e1_xc,&
+            "2nd order correction to xc energy coefs        ",e2_xc,&
             "Total energy:                                  ",energy%total
        CALL m_flush(output_unit)
     END IF

@@ -28,6 +28,10 @@ MODULE md_conserved_quantities
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE dynamical_coeff_types,           ONLY: dyn_coeff_mass_global,&
+                                             dyn_coeff_set_p_type,&
+                                             dyn_coeff_set_type,&
+                                             dyn_coeff_type
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
   USE force_env_types,                 ONLY: force_env_get,&
@@ -128,7 +132,7 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
   
   SELECT CASE ( simpar % ensemble ( 1 : 3 ) )
   CASE ( 'NVE')
-    CALL get_econs_nve (md_env, md_ener, cons)
+    CALL get_econs_nve (md_env, md_ener, cons, int_grp)
   CASE ( 'NVT')
     CALL get_econs_nvt (md_env, md_ener, cons, int_grp)
   CASE ( 'NPT')
@@ -282,31 +286,44 @@ END SUBROUTINE compute_conserved_quantity
 !!     none
 !!
 !!*** *************************************************************************
-SUBROUTINE get_econs_nve ( md_env, md_ener, cons )
+SUBROUTINE get_econs_nve ( md_env, md_ener, cons, int_grp )
 
 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), INTENT(inout)        :: md_ener
     REAL(dbl), INTENT(OUT)                   :: cons
+    INTEGER, INTENT(IN)                      :: int_grp
+
+    REAL(dbl)                                :: nhc_coef_kin, nhc_coef_pot
+    TYPE(dyn_coeff_set_p_type), &
+      DIMENSION(:), Pointer                  :: dyn_coeff_set
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(lnhc_parameters_type), &
+      DIMENSION(:), POINTER                  :: nhc_coef
 
 !----------------------------------------------------------------------------
 
+  NULLIFY(dyn_coeff_set, force_env, nhc_coef)
+
+  CALL get_md_env (md_env, force_env=force_env, nhc_coef=nhc_coef)
+  CALL force_env_get (force_env, dyn_coeff_set=dyn_coeff_set)
+
   cons = md_ener % ekin + md_ener % epot 
 
+  IF (ASSOCIATED (dyn_coeff_set)) THEN
 
-!  IF (ASSOCIATED (struc%coef_vel)) THEN
+    CALL get_coef_ke (dyn_coeff_set(1)%dyn_coeff_set, md_ener%ekin_coefs, &
+                      md_ener%temp_coefs, int_grp)
 
-!    CALL get_coef_ke (struc%coef_vel(1), md_ener%ekin_coefs)
-!
-!    CALL get_coef_temp (md_ener%ekin_coefs, struc%coef_vel(1), md_ener%temp_coefs)
-!
-!    CALL get_md_env (md_env=md_env, nhc_coef=nhc_coef)
-!
-!    CALL get_nhc_energies ( nhc_coef, nhc_coef_kin, nhc_coef_pot )
-!
-!    cons = cons + nhc_coef_kin + nhc_coef_pot + md_ener%ekin_coefs
-!
-!  END IF
+    cons = cons + md_ener%ekin_coefs
+
+    IF (ASSOCIATED(nhc_coef)) THEN
+      CALL get_nhc_energies ( nhc_coef(1), nhc_coef_pot, nhc_coef_kin, int_grp )
+      cons = cons + nhc_coef_kin + nhc_coef_pot
+
+    END IF
+
+  END IF
 
 END SUBROUTINE get_econs_nve
 
@@ -335,30 +352,38 @@ SUBROUTINE get_econs_nvt ( md_env, md_ener, cons, int_grp)
     REAL(dbl), INTENT(OUT)                   :: cons
     INTEGER, INTENT(IN)                      :: int_grp
 
-    REAL(dbl)                                :: nhc_part_kin, nhc_part_pot
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_part( : )
+    REAL(dbl)                                :: nhc_coef_kin, nhc_coef_pot, &
+                                                nhc_part_kin, nhc_part_pot
+    TYPE(dyn_coeff_set_p_type), &
+      DIMENSION(:), Pointer                  :: dyn_coeff_set
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(lnhc_parameters_type), &
+      DIMENSION(:), POINTER                  :: nhc_coef, nhc_part
 
 !----------------------------------------------------------------------------
 
-  CALL get_md_env ( md_env, nhc_part = nhc_part )
-  CALL get_nhc_energies ( nhc_part ( 1 ), nhc_part_kin, nhc_part_pot, int_grp )
+  NULLIFY(dyn_coeff_set, force_env, nhc_part, nhc_coef)
+
+  CALL get_md_env (md_env, force_env=force_env, nhc_part=nhc_part, nhc_coef=nhc_coef)
+  CALL force_env_get (force_env, dyn_coeff_set=dyn_coeff_set)
+
+  CALL get_nhc_energies ( nhc_part ( 1 ), nhc_part_pot, nhc_part_kin, int_grp )
 
   cons = md_ener% ekin + md_ener%epot + nhc_part_kin + nhc_part_pot
 
+  IF (ASSOCIATED (dyn_coeff_set)) THEN
 
-!  IF (ASSOCIATED (struc%coef_vel)) THEN
+    CALL get_coef_ke (dyn_coeff_set(1)%dyn_coeff_set, md_ener%ekin_coefs, &
+                      md_ener%temp_coefs, int_grp)
 
-!    CALL get_coef_ke ( struc % coef_vel (1), md_ener%ekin_coefs )
+    cons = cons + md_ener%ekin_coefs
 
-!    CALL get_coef_temp ( md_ener%ekin_coefs, struc%coef_vel(1), md_ener%temp_coefs )
- 
-!    CALL get_md_env (md_env=md_env, nhc_coef=nhc_coef)
+    IF (ASSOCIATED(nhc_coef)) THEN
+      CALL get_nhc_energies ( nhc_coef(1), nhc_coef_pot, nhc_coef_kin, int_grp )
+      cons = cons + nhc_coef_kin + nhc_coef_pot 
+    END IF
 
-!    CALL get_nhc_energies ( nhc_coef, nhc_coef_kin, nhc_coef_pot )
-
-!    cons = cons + nhc_coef_kin + nhc_coef_pot + md_ener%ekin_coefs
-
-!  END IF
+  END IF
 
 END SUBROUTINE get_econs_nvt
 
@@ -468,7 +493,7 @@ SUBROUTINE get_baro_energies ( box, simpar, nhc, npt, baro_kin, baro_pot, int_gr
 END SUBROUTINE get_baro_energies 
 
 !******************************************************************************
-!!****** md_fist_energies/get_nhc_energies [1.0] *
+!!****** md_conserved_quantity/get_nhc_energies [1.0] *
 !!
 !!   NAME
 !!     get_nhc_energies
@@ -509,7 +534,7 @@ SUBROUTINE get_nhc_energies ( nhc, nhc_pot, nhc_kin, int_grp )
    END IF
 END SUBROUTINE get_nhc_energies 
 !******************************************************************************
-!!****** md_fist_energies/get_part_ke [1.0] *
+!!****** md_conserved_quantity/get_part_ke [1.0] *
 !!
 !!   NAME
 !!     get_part_ke
@@ -582,35 +607,7 @@ SUBROUTINE get_part_ke ( md_env, ekin, int_grp )
 END SUBROUTINE get_part_ke 
 
 !******************************************************************************
-!
-! SUBROUTINE get_coef_temp ( ekinc, coef, ctemp )
-
-!   IMPLICIT NONE
-
-! arguments
-!   TYPE ( coeff_type ), INTENT ( IN ) :: coef
-!   REAL (dbl), INTENT ( IN ) :: ekinc
-!   REAL ( dbl ), INTENT ( OUT ) :: ctemp
-! locals
-!   INTEGER :: inuse, ncoef
-
-! to be converted in K in the output routine
- 
-!   inuse = coef % in_use
-!   SELECT CASE ( inuse )
-!   CASE ( 402 )
-!     ncoef = SIZE (coef%ao%cr)
-!     ctemp = 2.0_dbl* ekinc / REAL ( ncoef, dbl ) 
-!   CASE ( 401 )
-!     ncoef = SIZE (coef%pw%cc)
-!     ctemp =  ekinc / REAL ( ncoef, dbl ) 
-!   CASE DEFAULT
-!      CALL stop_program ( 'get_coef_temp','integrator not implemented')
-!   END SELECT
-! END SUBROUTINE  get_coef_temp
-!
-!******************************************************************************
-!!****** md_fist_energies/get_coef_ke [1.0] *
+!!****** md_conserved_quantity/get_coef_ke [1.0] *
 !!
 !!   NAME
 !!     get_coef_ke
@@ -622,48 +619,55 @@ END SUBROUTINE get_part_ke
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     gt 06-02-04 adapted to new dynamical coeffs type
 !!
 !!*****************************************************************************
 !
-! SUBROUTINE get_coef_ke ( coef, ekinc )
+ SUBROUTINE get_coef_ke ( dyn_coeff_set, ekinc, ctemp, int_group )
 
-!   IMPLICIT NONE
-! arguments
-!   TYPE ( coeff_type ), INTENT ( IN ) :: coef
-!   REAL ( dbl ), INTENT ( out ) :: ekinc
-!locals 
-!   INTEGER :: i
-!   INTEGER :: inuse
-!   REAL ( dbl ) :: cmass
+    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
+    REAL(dbl), INTENT(out)                   :: ekinc, ctemp
+    INTEGER                                  :: int_group
 
-!   ekinc = zero
-!   inuse = coef % in_use
-!   SELECT CASE ( inuse )
-!   CASE ( 402 )
-!     DO i = 1, SIZE (coef%ao%cr)
-!        ekinc = ekinc + 0.5_dbl * coef % ao % mass ( i ) * & 
-!                coef % ao % cr ( i ) * coef % ao % cr ( i )
-!     END DO
-!   CASE ( 401 )
-!     DO i = 1, SIZE (coef%pw%cc)
-!        cmass = coef % pw % mass_cc ( i )
-!        ekinc = ekinc + 0.5_dbl * cmass * &
-!         ( REAL ( coef % pw % cc ( i ) ) * REAL ( coef % pw % cc ( i ) ) + &
-!           AIMAG ( coef % pw % cc ( i ) )* AIMAG ( coef % pw % cc ( i ) ) )
-!     END DO
-!   CASE DEFAULT
-!      CALL stop_program ( 'get_coef_ke','integrator not implemented')
-!   END SELECT 
+    INTEGER                                  :: icoef, iel, ikind, ncoefs
+    LOGICAL                                  :: gmass
+    TYPE(dyn_coeff_type), POINTER            :: coeffs
+
+!----------------------------------------------------------------------------
+
+   NULLIFY(coeffs)
+   ekinc = zero
+   ncoefs = 0
+   gmass=(dyn_coeff_set%mass_storage==dyn_coeff_mass_global)
+
+   DO ikind=1,SIZE(dyn_coeff_set%coeffs_of_kind)
+     IF (ASSOCIATED(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs)) THEN
+       coeffs=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
+       DO iel = 1, coeffs%n_els
+         DO icoef = 1, coeffs%ncoef_atom
+           ncoefs=ncoefs+1
+           IF(gmass) THEN
+             ekinc = ekinc + 0.5_dbl*dyn_coeff_set%global_mass* &
+                     coeffs%vel(iel,icoef)*coeffs%vel(iel,icoef)
+           ELSE
+             ekinc = ekinc + 0.5_dbl*coeffs%masses(iel,icoef)* &
+                     coeffs%vel(iel,icoef)*coeffs%vel(iel,icoef)
+           END IF
+         END DO
+       END DO
+     END IF
+   END DO
  
  ! sum all contributions to energy over calculated parts on all processors
-! #if defined(__parallel)
-!   CALL mp_sum(ekinc,int_grp)
-! #endif
-! END SUBROUTINE get_coef_ke
+  CALL mp_sum ( ekinc, int_group )
+  CALL mp_sum ( ncoefs, int_group )
 
+! get coefficient temperature
+
+  ctemp=2.0_dbl*ekinc/REAL(ncoefs,dbl) 
+  
+  END SUBROUTINE get_coef_ke
 !******************************************************************************
 
 END MODULE md_conserved_quantities
-
 !******************************************************************************

@@ -22,10 +22,12 @@
 
 MODULE extended_system_dynamics
  
-  USE ao_types,                        ONLY: ao_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE dynamical_coeff_types,           ONLY: dyn_coeff_mass_global,&
+                                             dyn_coeff_set_type,&
+                                             dyn_coeff_type
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
   USE kinds,                           ONLY: dbl
@@ -41,17 +43,17 @@ MODULE extended_system_dynamics
   PUBLIC :: lnhc
 
   INTERFACE lnhc
-     MODULE PROCEDURE lnhc_particles, lnhc_barostat, lnhc_ao, lnhc_pw
+     MODULE PROCEDURE lnhc_particles, lnhc_barostat, lnhc_coefs, lnhc_pw
   END INTERFACE
 
 !!*****
 !******************************************************************************
 CONTAINS
 !******************************************************************************
-!!****** extended_system_dynamics/lnhc_ao [1.0] *
+!!****** extended_system_dynamics/lnhc_coefs [1.0] *
 !!
 !!   NAME
-!!     lnhc_ao
+!!     lnhc_coefs
 !!
 !!   FUNCTION
 !!
@@ -62,34 +64,54 @@ CONTAINS
 !!     11-Apr-2001
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     05-02-04 adapted to new coefs type
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE lnhc_ao ( nhc, ao, group )
+SUBROUTINE lnhc_coefs ( nhc, dyn_coeff_set, group )
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
-    TYPE(ao_type), INTENT(INOUT)             :: ao
+    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     INTEGER, INTENT(IN)                      :: group
 
-    INTEGER                                  :: handle, i, inc, inhc, iyosh, &
-                                                n, ncoef, nx1, nx2
+    INTEGER                                  :: handle, i, icoef, iel, ikind, &
+                                                inc, inhc, iyosh, n, nkind, &
+                                                nx1, nx2
+    LOGICAL                                  :: gmass
     REAL(dbl)                                :: flops, scale
+    TYPE(dyn_coeff_type), POINTER            :: coeffs
 
   CALL timeset('LNHC','I','Mflops',handle)
   flops = 0._dbl
 
   nx1 = SIZE ( nhc % nvt ,1 )
   nx2 = SIZE ( nhc % nvt ,2 )
+  gmass=(dyn_coeff_set%mass_storage==dyn_coeff_mass_global)
 
 ! get force on first thermostat for all the chains in the system.
   nhc % v_scale = 1.0_dbl
   nhc % s_kin = 0.0_dbl
-  ncoef  = SIZE ( ao % cr)
-  DO i = 1, ncoef 
-    nhc % p_kin(1,i) % point  = nhc % p_kin(1,i) % point + &
-      ao % mass ( i ) * ao % cr ( i )  * ao % cr ( i ) 
+  i  = 0               
+  nkind = SIZE ( dyn_coeff_set%coeffs_of_kind)
+
+  DO ikind=1,nkind
+    IF(ASSOCIATED(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs)) THEN
+      coeffs=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
+      DO iel = 1, coeffs%n_els
+        DO icoef = 1, coeffs%ncoef_atom
+          i = i + 1
+          IF(gmass) THEN
+            nhc % p_kin(1,i) % point  = nhc % p_kin(1,i) % point + &
+            dyn_coeff_set%global_mass*coeffs%vel(iel,icoef)*coeffs%vel(iel,icoef)
+          ELSE
+            nhc % p_kin(1,i) % point  = nhc % p_kin(1,i) % point + &
+            coeffs%masses(iel,icoef)*coeffs%vel(iel,icoef)*coeffs%vel(iel,icoef)
+          END IF 
+        END DO
+      END DO
+    END IF
   END DO
+  IF ( nhc % dis_type == 'INTER_REP' )  CALL mp_sum ( nhc % s_kin, group )
 
 ! force on the first bead in every thermostat chain (f1=sum(m*v**2)-ncoef*KbT)
   DO n = 1, nhc % num_nhc
@@ -162,13 +184,23 @@ YOSH:     DO iyosh = 1, nhc % nyosh
        0.25_dbl * nhc % dt_yosh ( iyosh )
     END DO YOSH
   END DO NCLOOP
+
+  i=0
 ! now scale the coefficients velocities
-  DO i = 1, ncoef
-    ao % cr ( i ) = ao % cr ( i ) * nhc % p_scale ( 1, i ) % point 
+  DO ikind=1,nkind
+    IF(ASSOCIATED(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs)) THEN
+      coeffs=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
+      DO iel = 1, coeffs%n_els
+        DO icoef = 1, coeffs%ncoef_atom
+          i = i + 1
+          coeffs%vel(iel,icoef)=coeffs%vel(iel,icoef)*nhc%p_scale(1,i)%point
+        END DO
+      END DO
+    END IF
   END DO
 !
   CALL timestop(flops,handle)
-END SUBROUTINE lnhc_ao
+END SUBROUTINE lnhc_coefs
 
 !******************************************************************************
 !!****** extended_system_dynamics/lnhc_pw [1.0] *
