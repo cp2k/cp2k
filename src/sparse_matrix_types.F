@@ -66,6 +66,7 @@ MODULE sparse_matrix_types
     PRIVATE
     TYPE(real_block_node_type), POINTER :: first_block_node
     INTEGER                             :: nblock_node
+    TYPE(real_block_node_type), POINTER :: last_used_block_node ! not last in list
   END TYPE real_block_list_type
 
   TYPE real_matrix_type
@@ -572,6 +573,12 @@ END SUBROUTINE cp_sm_scale_and_add
 !   *** Link the new block node to the block list ***
 
     block_node => matrix%block_list(block_row)%first_block_node
+    ! if the last used block node is a short cut, use it
+    IF (ASSOCIATED(matrix%block_list(block_row)%last_used_block_node)) THEN
+       IF (matrix%block_list(block_row)%last_used_block_node%block_col .LT. block_col) THEN
+           block_node => matrix%block_list(block_row)%last_used_block_node
+       ENDIF
+    ENDIF
 
     IF (.NOT.ASSOCIATED(block_node)) THEN
       NULLIFY (new_block_node%next_block_node)
@@ -588,6 +595,9 @@ END SUBROUTINE cp_sm_scale_and_add
       new_block_node%next_block_node => block_node%next_block_node
       block_node%next_block_node => new_block_node
     END IF
+
+    ! update
+    matrix%block_list(block_row)%last_used_block_node => new_block_node
 
 !   *** Increment block counter ***
 
@@ -843,6 +853,7 @@ END SUBROUTINE cp_sm_scale_and_add
     DO irow=1,nblock_row
       NULLIFY (matrix%block_list(irow)%first_block_node)
       matrix%block_list(irow)%nblock_node = 0
+      NULLIFY (matrix%block_list(irow)%last_used_block_node)
     END DO
 
   END SUBROUTINE allocate_real_matrix
@@ -1364,7 +1375,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   ---------------------------------------------------------------------------
 
     current_block_node => matrix%block_list(block_row)%first_block_node
-
+    
     DO WHILE (ASSOCIATED(current_block_node))
       next_block_node => current_block_node%next_block_node
       DEALLOCATE (current_block_node%block,STAT=istat)
@@ -1375,6 +1386,7 @@ END SUBROUTINE cp_sm_scale_and_add
     END DO
 
     NULLIFY (matrix%block_list(block_row)%first_block_node)
+    NULLIFY (matrix%block_list(block_row)%last_used_block_node)
 
     matrix%block_list(block_row)%nblock_node = 0
 
@@ -1438,10 +1450,20 @@ END SUBROUTINE cp_sm_scale_and_add
 
     block_node => matrix%block_list(block_row)%first_block_node
 
+    ! if the last used block node is a short cut, use it
+    IF (ASSOCIATED(matrix%block_list(block_row)%last_used_block_node)) THEN
+       IF (matrix%block_list(block_row)%last_used_block_node%block_col .LE. block_col) THEN
+           block_node => matrix%block_list(block_row)%last_used_block_node
+       ENDIF
+    ENDIF
+
     DO WHILE (ASSOCIATED(block_node))
       IF (block_node%block_col == block_col) EXIT
       block_node => block_node%next_block_node
     END DO
+
+    ! update
+    matrix%block_list(block_row)%last_used_block_node => block_node
 
   END FUNCTION find_real_block_node
 
@@ -2382,6 +2404,8 @@ END SUBROUTINE cp_sm_scale_and_add
     CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        block_node => matrix%block_list(block_row)%first_block_node
+       ! better safe than sorry
+       NULLIFY(matrix%block_list(block_row)%last_used_block_node)
        DO WHILE (ASSOCIATED(block_node))
           IF (block_node%block_col == block_col) EXIT
           old_block => block_node
