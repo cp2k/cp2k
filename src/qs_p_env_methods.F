@@ -107,7 +107,6 @@ MODULE qs_p_env_methods
                                              qs_environment_type
   USE qs_kpp1_env_methods,             ONLY: kpp1_calc_k_p_p1,&
                                              kpp1_calc_k_p_p1_fdiff,&
-                                             kpp1_calc_k_p_p1_tddfpt,&
                                              kpp1_create,&
                                              kpp1_did_change
   USE qs_kpp1_env_types,               ONLY: kpp1_release,&
@@ -991,21 +990,14 @@ END SUBROUTINE p_env_did_change
             rho_ao_new=p1, qs_env=qs_env,&
             rebuild=.TRUE., error=error)
 
-       IF (dft_control%do_tddfpt_calculation .AND. .FALSE.) THEN
-          CALL kpp1_calc_k_p_p1_tddfpt(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
-                                k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
-                                rebuild=.TRUE., &
-                                error=error)
+       IF (fdiff) THEN
+          CALL kpp1_calc_k_p_p1_fdiff(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
+                                      k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
+                                      rebuild=.TRUE.,error=error)
        ELSE
-          IF (fdiff) THEN
-             CALL kpp1_calc_k_p_p1_fdiff(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
-                  k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
-                  rebuild=.TRUE.,error=error)
-          ELSE
-             CALL kpp1_calc_k_p_p1(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
-                  k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
-                  rebuild=.TRUE.,error=error)
-          END IF
+          CALL kpp1_calc_k_p_p1(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
+                                k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
+                                rebuild=.TRUE.,error=error)
        END IF
 
        DO ispin=1,n_spins
