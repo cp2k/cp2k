@@ -173,7 +173,7 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   !-----------------------------------------------------------------------------
   ! 6. Read in or generate the molecular connectivity
   !-----------------------------------------------------------------------------
-  CALL connectivity_control(topology,globenv)
+  CALL connectivity_control(topology,globenv,qmmm,error)
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -247,13 +247,15 @@ END SUBROUTINE topology_control
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE connectivity_control(topology,globenv)
-
+SUBROUTINE connectivity_control(topology,globenv,qmmm,error)
 
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
       INTENT(IN), OPTIONAL                   :: globenv
+    LOGICAL, INTENT(in), OPTIONAL            :: qmmm
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error    
 
     CHARACTER(len=*), PARAMETER :: routineN = 'connectivity_control', &
       routineP = moduleN//':'//routineN
@@ -303,6 +305,11 @@ SUBROUTINE connectivity_control(topology,globenv)
     CALL read_topology_mc(topology,globenv)
   CASE ("PSF")
     CALL read_topology_psf(topology,globenv)
+    !
+    IF (PRESENT(qmmm)) THEN
+       IF (qmmm) CALL qmmm_coordinate_control(topology, globenv, error)
+    END IF
+    !
     CALL topology_generate_molecule(topology,globenv)
   CASE ("GROMOS")
     !WRITE(iw,*) 'Using topology file ',topology%conn_file_name
