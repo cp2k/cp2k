@@ -170,7 +170,7 @@ SUBROUTINE init_topology (topology)
   !-----------------------------------------------------------------------------
   ! 2. Initialize and Nullify things in topology
   !-----------------------------------------------------------------------------
-  NULLIFY(topology%cell)
+  NULLIFY(topology%cell, topology%cell_ref)
   topology%natoms=0
   topology%natom_type=0
   topology%nmol=0
