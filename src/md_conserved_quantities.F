@@ -55,7 +55,9 @@ MODULE md_conserved_quantities
   TYPE md_ener_type
   REAL(KIND=dp) :: epot  
   REAL(KIND=dp) :: ekin  
-  REAL(KIND=dp) :: temp  
+  REAL(KIND=dp) :: temp_part
+  REAL(KIND=dp) :: temp_nose  
+  REAL(KIND=dp) :: temp_baro  
   REAL(KIND=dp) :: ekin_coefs
   REAL(KIND=dp) :: temp_coefs  
   END TYPE md_ener_type
@@ -98,14 +100,16 @@ CONTAINS
 !!*** *************************************************************************
 
 SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
-                                       temp, ekin_coefs, temp_coefs )                            
+                                       temp_part, temp_baro, temp_nose, ekin_coefs, &
+                                       temp_coefs )                            
 
 
     TYPE(md_environment_type), POINTER       :: md_env
     REAL(KIND=dp), INTENT(IN)                    :: epot
     REAL(KIND=dp), INTENT(OUT)                   :: cons
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL         :: cons_rel, ekin, temp, &
-                                                ekin_coefs, temp_coefs
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL         :: cons_rel, ekin, temp_part, &
+                                                ekin_coefs, temp_coefs, temp_baro, &
+                                                temp_nose
 
     INTEGER                                  :: int_grp
     INTEGER, POINTER                         :: itimes
@@ -130,7 +134,7 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
  
   CALL get_part_ke ( md_env, md_ener % ekin, int_grp )
 
-  md_ener % temp = 2.0_dp * md_ener % ekin / REAL ( simpar%nfree,KIND=dp)
+  md_ener % temp_part = 2.0_dp * md_ener % ekin / REAL ( simpar%nfree,KIND=dp)
   
   SELECT CASE ( TRIM(simpar % ensemble)  )
   CASE DEFAULT
@@ -146,6 +150,8 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
     CALL get_econs_npt (md_env, md_ener, cons, int_grp)
   CASE ( 'NPH_UNIAXIAL' )
     CALL get_econs_nph_uniaxial (md_env, md_ener, cons, int_grp)
+  CASE ( 'NPH_UNIAXIAL_DAMPED' )
+    CALL get_econs_nph_damped (md_env, md_ener, cons, int_grp)
   END SELECT
 
   IF (itimes==1) THEN
@@ -157,7 +163,8 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
     cons_rel = ABS((cons-constant)/constant)
   END IF
   IF (PRESENT(ekin)) ekin=md_ener%ekin 
-  IF (PRESENT(temp)) temp=md_ener%temp 
+  IF (PRESENT(temp_part)) temp_part=md_ener%temp_part
+  IF (PRESENT(temp_baro)) temp_baro=md_ener%temp_baro
   IF (PRESENT(ekin_coefs)) ekin_coefs=md_ener%ekin_coefs 
   IF (PRESENT(temp_coefs)) temp_coefs=md_ener%temp_coefs 
 
@@ -426,7 +433,7 @@ SUBROUTINE get_econs_npt ( md_env, md_ener, cons, int_grp)
     INTEGER, INTENT(IN)                      :: int_grp
 
     REAL(KIND=dp)                                :: baro_kin, baro_pot, &
-                                                nhc_baro_kin, nhc_baro_pot, &
+                                                nhc_baro_kin, nhc_baro_pot,&
                                                 nhc_part_kin, nhc_part_pot
     TYPE(cell_type), POINTER                 :: box
     TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_part( : )
@@ -440,9 +447,9 @@ SUBROUTINE get_econs_npt ( md_env, md_ener, cons, int_grp)
                     simpar = simpar, npt = npt, cell = box )
 
 
-  CALL get_nhc_energies ( nhc_part ( 1 ), nhc_part_kin, nhc_part_pot, int_grp )
+  CALL get_nhc_energies ( nhc_part ( 1 ), nhc_part_pot, nhc_part_kin, int_grp )
 
-  CALL get_nhc_energies ( nhc_baro ( 1 ), nhc_baro_kin, nhc_baro_pot, int_grp )
+  CALL get_nhc_energies ( nhc_baro ( 1 ), nhc_baro_pot, nhc_baro_kin, int_grp )
 
   CALL get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp )
 
@@ -477,11 +484,8 @@ SUBROUTINE get_econs_nph_uniaxial ( md_env, md_ener, cons, int_grp)
     REAL(KIND=dp), INTENT(OUT)                   :: cons
     INTEGER, INTENT(IN)                      :: int_grp
 
-    REAL(KIND=dp)                                :: baro_kin, baro_pot, &
-                                                nhc_baro_kin, nhc_baro_pot, &
-                                                nhc_part_kin, nhc_part_pot
+    REAL(KIND=dp)                                :: baro_kin, baro_pot
     TYPE(cell_type), POINTER                 :: box
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_part( : )
     TYPE(npt_info_type), POINTER             :: npt( :, : )
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
@@ -492,11 +496,60 @@ SUBROUTINE get_econs_nph_uniaxial ( md_env, md_ener, cons, int_grp)
 
   CALL get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp )
 
+  md_ener % temp_baro = 2.0_dp * baro_kin 
+
   cons = md_ener%ekin + md_ener%epot + baro_kin + baro_pot
 
 
 END SUBROUTINE get_econs_nph_uniaxial
+!******************************************************************************
+!!******
+!!
+!!   NAME
+!!     get_econs_nph_damped
+!!
+!!   FUNCTION
+!!     calculates conserved quantity for nph_uniaxial_damped
+!!
+!!   AUTHOR
+!!     cjm
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*****************************************************************************
 
+SUBROUTINE get_econs_nph_damped ( md_env, md_ener, cons, int_grp)
+
+
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(md_ener_type), INTENT(inout)        :: md_ener
+    REAL(KIND=dp), INTENT(OUT)                   :: cons
+    INTEGER, INTENT(IN)                      :: int_grp
+
+    REAL(KIND=dp)                                :: baro_kin, baro_pot, &
+                                                    nhc_baro_kin, nhc_baro_pot
+    TYPE(cell_type), POINTER                 :: box
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : )
+    TYPE(npt_info_type), POINTER             :: npt( :, : )
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
+
+!----------------------------------------------------------------------------
+
+  CALL get_md_env ( md_env, simpar = simpar, npt = npt, nhc_baro = nhc_baro, &
+                    cell = box )
+
+  CALL get_nhc_energies ( nhc_baro ( 1 ), nhc_baro_pot, nhc_baro_kin, int_grp )
+
+  CALL get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp )
+
+  md_ener % temp_baro = 2.0_dp * baro_kin 
+
+  cons = md_ener%ekin + md_ener%epot + baro_kin + baro_pot + nhc_baro_kin + nhc_baro_pot
+
+
+END SUBROUTINE get_econs_nph_damped
 !******************************************************************************
 !!****** md_conserved_quantity/get_baro_energies [1.0] *
 !!
@@ -539,7 +592,7 @@ SUBROUTINE get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp )
                       npt ( i, j ) % v * npt ( i, j ) % mass
         END DO
      END DO
-  ELSEIF ( simpar%ensemble == 'NPH_UNIAXIAL' ) THEN
+  ELSEIF ( simpar%ensemble (1:3) == 'NPH' ) THEN
      v0 = simpar % v0
      iv0 = 1._dp / v0
      v_shock = simpar % v_shock
@@ -577,7 +630,7 @@ END SUBROUTINE get_baro_energies
 !!***8*************************************************************************
 SUBROUTINE get_nhc_energies ( nhc, nhc_pot, nhc_kin, int_grp )
     TYPE(lnhc_parameters_type), INTENT(IN)   :: nhc
-    REAL(KIND=dp), INTENT(OUT)                   :: nhc_pot, nhc_kin
+    REAL(KIND=dp), INTENT(OUT)               :: nhc_pot, nhc_kin
     INTEGER                                  :: int_grp
 
     INTEGER                                  :: l, n

@@ -95,7 +95,7 @@ SUBROUTINE initialize_npt_type ( simpar, globenv, npt_info, box )
      IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
           'failed to allocate npt_info')
 
-  CASE ( 'NPH_UNIAXIAL')
+  CASE ( 'NPH_UNIAXIAL', 'NPH_UNIAXIAL_DAMPED' )
      ALLOCATE ( npt_info ( 1, 1 ), STAT = isos )
      IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
           'failed to allocate npt_info')

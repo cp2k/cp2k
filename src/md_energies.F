@@ -72,6 +72,7 @@ MODULE md_energies
 
   TYPE average_quantities_type
      REAL ( dp ) :: avetemp, avepot, avekin, avevol, aveca, avecb, avecc
+     REAL ( dp ) :: avetemp_baro
      REAL ( dp ) :: aveal, avebe, avega, avepress, avekinc, avetempc, avepxx
   END TYPE average_quantities_type
 
@@ -177,7 +178,7 @@ END SUBROUTINE set_energies
     LOGICAL                                  :: file_exists, replace_file
     REAL(KIND=dp)                            :: cons, e_diff, e_old, ekin, &
                                                 ekin_coefs, epot, rcons, t, &
-                                                temp, temp_coefs, x
+                                                temp, temp_coefs, x, temp_baro
     REAL(KIND=dp), POINTER                   :: constant, used_time
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsystem_p_type), &
@@ -227,7 +228,7 @@ END SUBROUTINE set_energies
       ENDIF
 
      IF (itimes == 0) THEN
-       IF ( simpar % ensemble == 'NPH_UNIAXIAL' ) THEN
+       IF ( simpar % ensemble (1:3) == 'NPH' ) THEN
          IF ( simpar % v0 == 0._dp ) simpar % v0 = cell % deth
        ENDIF
      ENDIF
@@ -238,19 +239,23 @@ END SUBROUTINE set_energies
                                       epot,&
                                       cons,&
                                       ekin=ekin,&
-                                      temp=temp,&
+                                      temp_part=temp,&
+                                      temp_baro=temp_baro,&
                                       ekin_coefs=ekin_coefs,&
                                       temp_coefs=temp_coefs)
      temp_coefs=temp_coefs*kelvin
      temp = temp*kelvin
+     temp_baro = temp_baro*kelvin
 
    ELSE
      CALL compute_conserved_quantity(md_env,&
                                      epot,&
                                      cons,&
                                      ekin=ekin,&
-                                     temp=temp)
+                                     temp_part=temp,&
+                                     temp_baro=temp_baro )
      temp = temp*kelvin
+     temp_baro = temp_baro*kelvin
 
    END IF
 
@@ -262,7 +267,7 @@ END SUBROUTINE set_energies
     replace_file = .FALSE.
 
     IF (itimes == 0) THEN
-      IF ( simpar % ensemble == 'NPH_UNIAXIAL' ) THEN
+      IF ( simpar % ensemble (1:3) == 'NPH' ) THEN
         IF ( simpar % e0 == 0._dp ) simpar % e0 = epot + ekin
       ENDIF
       IF (ionode) THEN
@@ -319,6 +324,9 @@ END SUBROUTINE set_energies
            adjustl( unit % e_label), '= ', ekin
         WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL TEMPERATURE', &
            adjustl( unit % temp_label ), '= ', temp
+        IF ( simpar % ensemble (1:3) == 'NPH' ) &
+        WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL BAROSTAT TEMP', &
+           adjustl( unit % temp_label), '= ', temp_baro
         IF ( virial % pv_availability ) &
         WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL PRESSURE', &
            adjustl( unit % pres_label), '= ', pv_scalar
@@ -356,6 +364,7 @@ END SUBROUTINE set_energies
           IF ( virial % pv_availability ) averages%avepress = pv_scalar
           IF ( virial % pv_availability ) averages%avepxx = pv_xx
           averages%avetemp = temp
+          averages%avetemp_baro = temp_baro
           averages%avepot = epot
           averages%avekin = ekin
           averages%avevol = cell % deth
@@ -374,6 +383,8 @@ END SUBROUTINE set_energies
           averages%avepxx = (averages%avepxx*REAL(delta_t-1,dp)+pv_xx)/ &
           REAL ( delta_t, dp )
           averages%avetemp = (averages%avetemp*REAL(delta_t-1,dp)+temp)/ &
+               REAL(delta_t,dp)
+          averages%avetemp_baro= (averages%avetemp_baro*REAL(delta_t-1,dp)+temp_baro)/ &
                REAL(delta_t,dp)
           averages%avepot = (averages%avepot*REAL(delta_t-1,dp)+epot)/ &
                REAL(delta_t,dp)
@@ -418,9 +429,11 @@ END SUBROUTINE set_energies
           IF ( virial % pv_availability ) &
           WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' PRESSURE', &
                adjustl(unit % pres_label), '= ', pv_scalar, averages%avepress
-          IF (simpar%ensemble=='NPH_UNIAXIAL') THEN
+          IF (simpar%ensemble(1:12)=='NPH_UNIAXIAL') THEN
             WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' P_XX', &
                adjustl(unit % pres_label), '= ', pv_xx, averages%avepxx
+            WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' BAROSTAT TEMP', &
+               adjustl(unit % temp_label), '= ', temp_baro, averages%avetemp_baro
           ENDIF
           IF (simpar%ensemble(1:2)=='NP') THEN
              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' VOLUME', &

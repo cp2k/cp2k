@@ -98,6 +98,7 @@ MODULE integrator
   TYPE ( global_environment_type ) :: glob_env
 
   PUBLIC :: set_integrator, nve, nvt, isokin, npt_i, npt_f, nph_uniaxial
+  PUBLIC :: nph_uniaxial_damped
 
   INTERFACE set
      MODULE PROCEDURE set_particle_set, set_vel
@@ -1118,7 +1119,7 @@ END SUBROUTINE set_integrator
 !!     nph_uniaxial
 !!
 !!   SYNOPSIS
-!!     Subroutine npt_i(md_env)
+!!     Subroutine npt_uniaxial(md_env)
 !!       Implicit None
 !!       Type(md_environment_type), Intent (INOUT):: md_env
 !!     End Subroutine npt_i
@@ -1143,12 +1144,11 @@ END SUBROUTINE set_integrator
     IMPLICIT NONE
     TYPE(md_environment_type), POINTER       :: md_env
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "npt_i"
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "npt_uniaxial"
 
     INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, &
                isubsys,  nmolecule, nmolecule_kind, nparticle, &
                nparticle_kind, nparticle_local
-    INTEGER, POINTER :: itimes
     REAL(KIND=dp)                            :: dm, dt, global_mass, &
                                                 mass
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1162,7 +1162,6 @@ END SUBROUTINE set_integrator
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
     TYPE(force_env_p_type), DIMENSION(:), POINTER :: force_env_p
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_part( : ), nhc_baro ( : )
     TYPE ( npt_info_type ), POINTER          :: npt ( :, : )
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
@@ -1188,7 +1187,7 @@ END SUBROUTINE set_integrator
 
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
-                    npt = npt, itimes = itimes )
+                    npt = npt )
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree, dp ) 
 
@@ -1378,6 +1377,280 @@ END SUBROUTINE set_integrator
   END DO
 
   END SUBROUTINE nph_uniaxial
+!!*****
+!******************************************************************************
+!!****** integrator/nph_uniaxial_damped [1.0] *
+!!
+!!   NAME
+!!     nph_uniaxial_damped
+!!
+!!   SYNOPSIS
+!!     Subroutine nph_uniaxial(md_env)
+!!       Implicit None
+!!       Type(md_environment_type), Intent (INOUT):: md_env
+!!     End Subroutine npt_i
+!!
+!!   FUNCTION
+!!     nph_uniaxial integrator (non-Hamiltonian version) 
+!!     for particle positions & momenta undergoing
+!!     uniaxial stress ( in x-direction of orthorhombic cell) 
+!!     due to a shock compression:
+!!     Reed et. al. Physical Review Letters 90, 235503 (2003).
+!!     Added damping (e.g. thermostat to barostat)
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+ SUBROUTINE nph_uniaxial_damped ( md_env )
+  
+    IMPLICIT NONE
+    TYPE(md_environment_type), POINTER       :: md_env
+
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "nph_uniaxial_damped"
+
+    INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, &
+               isubsys,  nmolecule, nmolecule_kind, nparticle, &
+               nparticle_kind, nparticle_local
+    REAL(KIND=dp)                            :: dm, dt, global_mass, &
+                                                mass
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: pos, vel
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
+                                                local_particles
+    TYPE(force_env_p_type), DIMENSION(:), POINTER :: force_env_p
+    TYPE ( npt_info_type ), POINTER          :: npt ( :, : )
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro ( : )
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
+    TYPE(mol_new_list_type), POINTER         :: molecules
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE ( virial_type ), POINTER            :: virial
+    REAL ( dp ), PARAMETER :: e2 = 1._dp/6._dp, e4 = e2/20._dp, &
+       e6 = e4/42._dp, e8 = e6/72._dp
+    REAL ( dp ) :: arg_r, poly_r, scale_r, roll_tol
+    REAL ( dp ) :: arg_v, poly_v, scale_v, kin, infree
+    REAL ( dp ), DIMENSION (3) :: vector_r, vector_v
+    LOGICAL, PARAMETER :: box_change = .TRUE.
+    LOGICAL :: first
+    INTEGER :: iroll
+
+
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
+                    npt = npt, nhc_baro=nhc_baro )
+    dt = simpar%dt
+    infree = 1.0_dp / REAL ( simpar % nfree, dp ) 
+
+    IF (SIZE(force_env_p)/=1) THEN
+       CALL stop_program("npt_i","integrator",__LINE__,&
+       "MD_ENV with more than (or less) than one force_env not supported atm!")
+    END IF
+    CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
+                       virial = virial, cell = cell )
+
+    DO isubsys=1,SIZE(subsys)
+
+      CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
+                        atomic_kinds=atomic_kinds,&
+                        local_particles=local_particles,&
+                        particles=particles, &
+                        local_molecules_new=local_molecules,&
+                        molecules_new=molecules, &
+                        molecule_kinds_new=molecule_kinds )
+
+      nparticle_kind = atomic_kinds%n_els
+      atomic_kind_set => atomic_kinds%els
+      nmolecule_kind = molecule_kinds % n_els
+      molecule_kind_set => molecule_kinds % els
+
+      nparticle = particles%n_els
+      particle_set => particles%els
+      nmolecule = molecules % n_els
+      molecule_set => molecules % els
+
+
+!     *** Allocate work storage for positions and velocities ***
+
+      CALL allocate_old ( particle_set, npt )
+
+      ALLOCATE (pos(3,nparticle),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "pos",3*nparticle*dp_size)
+      ALLOCATE (vel(3,nparticle),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "vel",3*nparticle*dp_size)
+      pos(:,:) = 0.0_dp
+      vel(:,:) = 0.0_dp
+
+!------------------------------------------------------------------------------
+
+! perform Nose'-Hoover chains for barostat
+      CALL lnhc ( nhc_baro ( isubsys ), npt, int_group )
+
+! setting up for ROLL: saving old variables
+      roll_tol = -1.0E+10_dp
+      IF (simpar%constraint) THEN
+        iroll = 1
+        CALL set ( atomic_kind_set, particle_set, local_particles, cell, npt, 'F' )
+        CALL getold ( local_molecules, molecule_set,  &
+                      molecule_kind_set, particle_set)
+      ENDIF
+
+
+      SR: DO WHILE (ABS(roll_tol)>=1.E-10_dp) ! SHAKE-ROLL LOOP
+
+          IF (simpar%constraint) THEN
+             CALL set ( atomic_kind_set, particle_set, local_particles, cell, npt, 'B' )
+          END IF
+          CALL get_veps ( cell, npt, simpar, atomic_kind_set, particle_set, &
+                          local_molecules, molecule_set, molecule_kind_set, &
+                          local_particles, virial, infree, int_group )
+
+!
+! first half of velocity verlet
+!
+          arg_r = ( 0.5_dp * npt ( 1, 1 ) % v * dt ) * &
+                  ( 0.5_dp * npt ( 1, 1 ) % v * dt )
+          poly_r = 1._dp + e2*arg_r + e4*arg_r*arg_r + e6*arg_r**3 + e8*arg_r**4
+
+          arg_v = ( 0.25_dp * npt ( 1, 1 ) % v * dt *  &
+                  (1._dp + infree ) )*( 0.25_dp * npt ( 1, 1 ) % v * &
+                   dt * ( 1._dp + infree ) )
+          poly_v = 1._dp + e2*arg_v + e4*arg_v*arg_v + e6*arg_v**3 + e8*arg_v**4
+
+          scale_r = EXP( 0.5_dp * dt * npt ( 1, 1 ) % v )
+          scale_v = EXP( -0.25_dp * dt * npt ( 1, 1 ) % v * &
+                       (1._dp + infree ) )
+         DO iparticle_kind=1,nparticle_kind
+           atomic_kind => atomic_kind_set(iparticle_kind)
+           CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+           dm = 0.5_dp*dt/mass
+           nparticle_local = local_particles%n_el(iparticle_kind)
+           DO iparticle_local=1,nparticle_local
+             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+             vel ( 1, iparticle ) = particle_set(iparticle)%v(1) * scale_v * scale_v + &
+                                    scale_v * poly_v * dm * particle_set(iparticle)%f(1)
+             vel ( 2, iparticle ) = particle_set(iparticle)%v(2) +  dm * particle_set(iparticle)%f(2)
+             vel ( 3, iparticle ) = particle_set(iparticle)%v(3) +  dm * particle_set(iparticle)%f(3)
+             pos ( 1, iparticle ) = particle_set(iparticle)%r(1) * scale_r * scale_r + &
+                                    scale_r * poly_r * dt * vel ( 1, iparticle )
+             pos ( 2, iparticle ) = particle_set(iparticle)%r(2) + dt*vel(2,iparticle)
+             pos ( 3, iparticle ) = particle_set(iparticle)%r(3) + dt*vel(3,iparticle)
+           END DO
+         END DO
+
+        roll_tol = 0._dp
+        vector_r ( : ) = 0._dp
+        vector_v ( : ) = 0._dp
+        vector_r ( 1 ) = scale_r * poly_r
+        vector_v ( 1 ) = scale_v * poly_v
+
+        IF ( simpar % constraint ) CALL shake_roll_control( local_molecules, &
+                                        molecule_set, molecule_kind_set, &
+                                        particle_set, pos, vel, simpar,  &
+                                        roll_tol, iroll, vector_r, vector_v,  &
+                                        int_group )
+  END DO SR
+
+! Update h_mat
+
+       cell % hmat ( 1, 1 ) = cell % hmat ( 1, 1 ) * scale_r * scale_r 
+
+! Update the inverse
+      CALL get_hinv ( cell )
+
+!     *** Broadcast the new particle positions ***
+      CALL update_particle_set ( particle_set, int_group, pos = pos )
+
+      DEALLOCATE (pos,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"work")
+
+
+!     *** Update forces ***
+
+      CALL force_env_set(force_env_p(1)%force_env,box_changed=.TRUE.)
+      CALL force_env_calc_energy_force(force_env_p(1)%force_env)
+
+!     *** Velocity Verlet (second part) ***
+
+      DO iparticle_kind=1,nparticle_kind
+        atomic_kind => atomic_kind_set(iparticle_kind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        dm = 0.5_dp*dt/mass
+        nparticle_local = local_particles%n_el(iparticle_kind)
+        DO iparticle_local=1,nparticle_local
+          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+          vel ( 1, iparticle ) = vel ( 1, iparticle ) * scale_v * scale_v + &
+                                 scale_v * poly_v * dm * particle_set(iparticle)%f(1)
+          vel ( 2, iparticle ) = vel ( 2, iparticle ) +  dm * particle_set(iparticle)%f(2)
+          vel ( 3, iparticle ) = vel ( 3, iparticle ) +  dm * particle_set(iparticle)%f(3)
+        END DO
+      END DO
+
+      roll_tol = -1.E10_dp
+      IF (simpar%constraint) THEN
+         first = .TRUE.
+         iroll = 1
+         CALL set ( atomic_kind_set, particle_set, vel, local_particles, cell, npt, 'F' )
+      END IF
+
+      RR: DO WHILE (ABS(roll_tol)>=1.E-10_dp) ! RATTLE-ROLL LOOP
+         roll_tol = 0._dp
+         IF ( simpar % constraint ) CALL rattle_roll_setup ( atomic_kind_set, &
+                                      particle_set, local_particles, &
+                                      molecule_kind_set, molecule_set,  &
+                                      local_molecules, vel,  &
+                                      cell, npt, simpar, virial, vector_v,  &
+                                      roll_tol, iroll, infree, first, int_group )
+
+         CALL get_veps ( cell, npt, simpar, atomic_kind_set, vel, particle_set,&
+                         local_molecules, molecule_set, molecule_kind_set, &
+                         local_particles, virial, infree, int_group )
+
+      END DO RR
+
+! Nose-Hoover for the Barostat
+      CALL lnhc ( nhc_baro ( isubsys ), npt, int_group )
+
+!     *** Broadcast the new particle velocities ***
+      CALL update_particle_set ( particle_set, int_group, vel = vel )
+
+!     *** Update constraint virial ***
+      IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
+                                                      molecule_set,    & 
+                                                      molecule_kind_set, &
+                                                      particle_set, virial, &
+                                                      "FULL", int_group )
+
+      DEALLOCATE (vel,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"vel")
+
+      CALL virial_evaluate ( atomic_kind_set, particle_set,  &
+                             local_particles, virial, int_group  )
+
+! Deallocate old variables
+    CALL deallocate_old ( )
+  END DO
+
+  END SUBROUTINE nph_uniaxial_damped
 !!*****
 !******************************************************************************
 !!****** integrator/set [1.0] *

@@ -190,7 +190,7 @@ SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
 !------------------------------------------------------------------------------
 ! first initializing the mass of the nhc variables
 
-  SELECT CASE ( ensemble )
+  SELECT CASE ( TRIM ( ensemble ) )
   CASE ( 'NPT_I')
      npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) &
           * temp_ext * tau_cell ** 2
@@ -198,6 +198,9 @@ SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
      npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) &
           * temp_ext * tau_cell ** 2 / 3.0_dp
   CASE ( 'NPH_UNIAXIAL')
+     npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) &
+          * temp_ext * tau_cell ** 2
+  CASE ( 'NPH_UNIAXIAL_DAMPED')
      npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) &
           * temp_ext * tau_cell ** 2
   END SELECT
@@ -242,7 +245,7 @@ SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
 
 ! Zero barostat velocities for npu_uniaxial
   SELECT CASE ( ensemble )
-  CASE ( 'NPH_UNIAXIAL')
+  CASE ( 'NPH_UNIAXIAL', 'NPH_UNIAXIAL_DAMPED' )
      npt(:,:) % v = 0.0_dp
   END SELECT
 

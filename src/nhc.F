@@ -84,7 +84,7 @@ SUBROUTINE nhc_barostat_setup ( simpar, nhc, globenv )
 !
   nhc % dis_type = 'NONE'
   IF ( globenv % num_pe > 1 ) nhc % dis_type = 'DIS_REP'
-  SELECT CASE ( simpar % ensemble ( 1 : 3 ) )
+  SELECT CASE (TRIM(simpar%ensemble))
   CASE  DEFAULT
     ALLOCATE ( nhc % nvt ( 0, 0 ), STAT = isos )
     IF (isos/=0) CALL stop_program('nhc_barostat_setup', &
@@ -93,7 +93,7 @@ SUBROUTINE nhc_barostat_setup ( simpar, nhc, globenv )
     nhc % nc = 0
     nhc % nhc_len = 0
     nhc % num_nhc = 0
-  CASE ( 'NPT' )
+  CASE ( 'NPT_I', 'NPT_F' )
     nhc % nyosh = simpar % nyosh
     nhc % nc = simpar % nc
     nhc % nhc_len = simpar % nhclen
@@ -164,8 +164,68 @@ SUBROUTINE nhc_barostat_setup ( simpar, nhc, globenv )
     IF (isos/=0) CALL stop_program('nhc_barostat_setup', &
       'failed to allocate nhc%dt_yosh')
     CALL set_yoshida_coef( nhc, simpar % dt )
-  END SELECT
 
+  CASE ( 'NPH_UNIAXIAL_DAMPED' )
+    nhc % nyosh = simpar % nyosh
+    nhc % nc = simpar % nc
+    nhc % nhc_len = simpar % nhclen
+
+! Counting the total number of thermostats ( = 1 )
+
+    nhc % num_nhc = 1
+    nhc % dis_type = 'NONE'
+! allocate the index array
+    ALLOCATE ( nhc % index ( 1 ), STAT = isos ) 
+    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_barostat_setup', &
+      'index', 1 )
+
+! Now we can allocate the target array s_kin and p_kin
+
+    ALLOCATE ( nhc % s_kin ( nhc % num_nhc ), STAT = isos)
+    IF ( isos /= 0 ) CALL stop_program ( 'nhc_barostat_setup', &
+      'failed to allocate nhc%s_kin' )
+    ALLOCATE ( nhc % v_scale ( nhc % num_nhc ), STAT = isos )
+    IF (isos/=0) CALL stop_program('nhc_barostat_setup', &
+      'failed to allocate nhc%v_scale' )
+    ALLOCATE ( nhc % p_kin ( 1, 1 ), STAT = isos )
+    IF (isos/=0) CALL stop_program('nhc_barostat_setup', &
+      'failed to allocate nhc%p_kin' )
+    ALLOCATE ( nhc % p_scale ( 1, 1 ), STAT = isos )
+    IF (isos/=0) CALL stop_program('nhc_barostat_setup', &
+      'failed to allocate nhc%p_scale')
+
+! Begin the mapping loop
+
+    DO i = 1, 1
+      nhc % p_kin ( 1, i ) % point => nhc % s_kin ( 1 )
+      nhc % p_scale ( 1, i ) % point => nhc % v_scale ( 1 )
+    END DO
+    nhc % index ( 1 ) = 1
+
+    ALLOCATE ( nhc % nvt ( nhc % nhc_len, nhc % num_nhc ), STAT = isos )
+    IF (isos/=0) CALL stop_program('nhc_barostat_setup', &
+       'failed to allocate nhc%nvt' )
+!
+! Now that we know how many there are stick this into nhc % static % nkt
+! (number of degrees of freedom times k_B T )
+
+    DO i = 1, nhc % num_nhc
+      nhc % nvt ( 1, i ) % nkt = simpar % temp_baro 
+    END DO
+
+! getting the number of degrees of freedom times k_B T for the rest of the chain
+
+    DO i = 2, nhc % nhc_len
+      nhc % nvt ( i, : ) %  nkt = simpar % temp_baro
+    END DO
+
+! Set up the Yoshida weights
+
+    ALLOCATE (nhc % dt_yosh (1 : nhc % nyosh ), STAT = isos )
+    IF (isos/=0) CALL stop_program('nhc_barostat_setup', &
+      'failed to allocate nhc%dt_yosh')
+    CALL set_yoshida_coef( nhc, simpar % dt )
+  END SELECT
 
 END SUBROUTINE nhc_barostat_setup
 !******************************************************************************
@@ -224,7 +284,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
   SELECT CASE ( TRIM ( simpar % ensemble ) )
     CASE DEFAULT
       CALL stop_program ( 'nhc_particle_setup', 'unknown ensemble '//TRIM(simpar % ensemble) )
-    CASE ( 'NVE', 'ISOKIN', 'NPH_UNIAXIAL' )
+    CASE ( 'NVE', 'ISOKIN', 'NPH_UNIAXIAL', 'NPH_UNIAXIAL_DAMPED' )
      ALLOCATE ( nhc % nvt ( 0, 0 ), STAT = isos )
      IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'nhc%nvt', 0 )
      nhc % nyosh = 0

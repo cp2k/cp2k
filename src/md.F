@@ -88,6 +88,7 @@ MODULE md
      REAL (KIND=dp) :: walltime ! target maximum wall time of a simulation (alternative to nsteps)
      REAL (KIND=dp) :: dt
      REAL (KIND=dp) :: temp_ext
+     REAL (KIND=dp) :: temp_baro
      REAL (KIND=dp) :: temp_tol
      REAL (KIND=dp) :: temp_coef
      REAL (KIND=dp) :: mass_coef
@@ -178,6 +179,7 @@ CONTAINS
 !!I steps:       n                       total number of steps                I
 !!I timestep:    dt                      time step [fs]                       I
 !!I temperature: T                       temperature [K]                      I
+!!I temperature: T_BARO                  temperature [K]                      I
 !!I temp_tol: T                          temperature tolerance [K]            I
 !!I coef_temperature: T                  temperature [K]                      I
 !!I coef_mass: m                         effective coef mass                  I
@@ -263,6 +265,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % walltime = -1.0_dp ! default: don't care
   simpar % dt = 0.0_dp
   simpar % temp_ext = 0.0_dp
+  simpar % temp_baro = 0.0_dp
   simpar % temp_tol = 0.0_dp
   simpar % temp_coef = 0.0_dp
   simpar % mass_coef = 1.0_dp
@@ -440,6 +443,9 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  CALL get_next ( simpar % e0 )
               CASE ( 'VOLUME' )
                  CALL get_next ( simpar % v0 )
+              CASE ( 'TEMP_B' )
+                 CALL get_next ( simpar % temp_baro )
+                 simpar % ensemble = "NPH_UNIAXIAL_DAMPED"
               CASE ( 'TIMECO' )
                  CALL get_next ( simpar % tau_cell )
                  IF ( test_next () == 'C' ) THEN
@@ -796,6 +802,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
 
   CALL convert_to_cp2k_units ( simpar % units % time, time = simpar % dt ) 
   CALL convert_to_cp2k_units ( temperature = simpar % temp_ext ) 
+  CALL convert_to_cp2k_units ( temperature = simpar % temp_baro ) 
   CALL convert_to_cp2k_units ( temperature = simpar % temp_tol ) 
   CALL convert_to_cp2k_units ( temperature = simpar % temp_coef ) 
   CALL convert_to_cp2k_units ( simpar % units % tau, tau_nhc = simpar % tau_nhc ) 
