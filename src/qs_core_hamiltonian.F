@@ -446,6 +446,8 @@ CONTAINS
                                    globenv%print%kinetic_energy_matrix.OR.&
                                    globenv%print%potential_energy_matrix.OR.&
                                    globenv%run_type=="EP")
+    ! assume false by default
+    return_t_derivatives = .FALSE.
 
     IF (build_kinetic_energy_matrix) THEN
       IF (globenv%print%derivatives) THEN
