@@ -71,25 +71,16 @@ END FUNCTION m_iargc
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
     REAL(dbl)                                :: ct
-
-    REAL(dbl)                                :: dclock
-
-  ct = dclock()
+    CALL CPU_TIME(ct)
 END FUNCTION m_cputime
 !******************************************************************************
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
     REAL(dbl)                                :: wt
+    INTEGER*8 :: count,count_rate
+    CALL system_clock(count=count,count_rate=count_rate) 
+    wt=DBLE(count)/DBLE(count_rate)
 
-    REAL(sgl)                                :: etime
-
-  TYPE tb_type
-     SEQUENCE
-     REAL (sgl) usrtime
-     REAL (sgl) systime
-  END TYPE tb_type
-  TYPE (tb_type) etime_struct
-  wt = etime(etime_struct)
 END FUNCTION m_walltime
 !******************************************************************************
 !!  time and date
@@ -182,8 +173,9 @@ END SUBROUTINE m_chdir
 !******************************************************************************
 SUBROUTINE m_getlog(user)
     CHARACTER(len=*), INTENT(OUT)            :: user
-
-  CALL getlog(user)
+    user="username"
+    ! intel 8.0 return 'binary' data here...
+    ! CALL getlog(user)
 END SUBROUTINE m_getlog
 !******************************************************************************
 SUBROUTINE m_getuid(uid)
