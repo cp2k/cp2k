@@ -33,8 +33,10 @@ module qs_p_build_kernel
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
   use qs_environment_types, only: qs_environment_type, get_qs_env
-  use qs_build_ks_matrix, only: qs_ks_env_type
   use cp_block_matrix, only: cp_block_matrix_type, cp_block_matrix_p_type
+  use qs_p_types, only: qs_k_p_p1_env_type
+  use qs_build_ks_matrix, only: qs_ks_env_type, qs_ks_did_change, &
+       qs_ks_update_qs_env
   implicit none
   private
 
@@ -46,36 +48,6 @@ module qs_p_build_kernel
 !***
 !****************************************************************************
   
-  !!****s* qs_p_build_kernel/qs_K_P_P1_env_type [1.0] *
-  !!
-  !!   NAME
-  !!     qs_K_P_P1_env_type
-  !!
-  !!   FUNCTION
-  !!     environement that keeps the informations and temporary
-  !!     val to build the K_P_P1 kernel matrix
-  !!
-  !!   NOTES
-  !!     share grids with ks_env?
-  !!
-  !!   ATTRIBUTES
-  !!     -
-  !!
-  !!   AUTHOR
-  !!     Fawzi Mohamed
-  !!
-  !!   MODIFICATION HISTORY
-  !!     07.2002 created [fawzi]
-  !!
-  !!   SOURCE
-  !***************************************************************************
-  type qs_K_P_P1_env_type
-     integer :: ref_count
-     type(cp_block_matrix_p_type), dimension(:), pointer :: K_P_P1
-  end type qs_K_P_P1_env_type
-  !!***
-  !****************************************************************************
-
 contains
   
 !!****f* qs_p_build_kernel/kpp1_init [1.0] *
