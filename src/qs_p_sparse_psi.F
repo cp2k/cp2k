@@ -63,7 +63,7 @@ MODULE qs_p_sparse_psi
 
   PUBLIC :: qs_p_projection_type, qs_p_projection_p_type
   PUBLIC :: p_proj_create, p_proj_retain, p_proj_release, &
-       p_proj_transfer_blacs_to_f
+       p_proj_transfer_blacs_to_f, p_proj_restrain_f
 !***
 !****************************************************************************
 
@@ -444,6 +444,104 @@ SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
   
   CALL timestop(0.0_wp,handle)
 END SUBROUTINE p_proj_transfer_blacs_to_f
+!***************************************************************************
+
+!!****f* qs_p_sparse_psi/p_proj_restrain_f [1.0] *
+!!
+!!   NAME
+!!     p_proj_restrain_f
+!!
+!!   SYNOPSIS
+!!     Subroutine p_proj_restrain_f(p_proj, full_m, start_col, ncol, error)
+!!       Type(qs_p_projection_type), Pointer:: p_proj
+!!       Type(cp_full_matrix_type), Pointer:: full_m
+!!       Integer, Intent (IN), Optional:: start_col, ncol
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine p_proj_restrain_f
+!!
+!!   FUNCTION
+!!     restrains the requested columns of the full matrix to the space
+!!     of the minimal basis, i.e. computes:
+!!     full_m(:,start_col:star_col+ncol) = i pi full_m(:,start_col:star_col+ncol)
+!!
+!!   NOTES
+!!     keep_row could easily reduced to (min(proj_indexes):max(proj_indexes))
+!!
+!!   ARGUMENTS
+!!     - full_m: the matrix in the full basis to be restrained
+!!     - start_col: the first column to restrain (defaults to 1)
+!!     - ncol: number of columns to restrain
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     03.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol, error)
+  TYPE(qs_p_projection_type), POINTER :: p_proj
+  TYPE(cp_full_matrix_type), POINTER :: full_m
+  INTEGER, INTENT(in), OPTIONAL :: start_col, ncol
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='p_proj_restrain_f',&
+        routineP=moduleN//':'//routineN
+  LOGICAL, DIMENSION(:), ALLOCATABLE :: keep_row
+  INTEGER, DIMENSION(:), POINTER :: row_indices, col_indices
+  INTEGER :: my_start_col,my_end_col, min_index, max_index, handle,&
+       icol,irow, stat, row_index
+  REAL(kind=wp), DIMENSION(:,:), ALLOCATABLE :: tmp_min,tmp_full
+
+  CALL timeset(routineN,"I","",handle)
+
+  failure=.FALSE.
+  NULLIFY(row_indices,col_indices)
+  
+  CPPrecondition(ASSOCIATED(p_proj),cp_failure_level,routineP,error,failure)
+  CPPrecondition(p_proj%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(full_m),cp_failure_level,routineP,error,failure)
+  CPPrecondition(full_m%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     min_index=MINVAL(p_proj%proj_indexes)
+     max_index=MAXVAL(p_proj%proj_indexes)
+     ALLOCATE(keep_row(min_index:max_index),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+     my_start_col=1
+     IF (PRESENT(start_col)) my_start_col=start_col
+     CALL cp_fm_get_info(full_m,ncol_global=my_end_col, &
+          row_indices=row_indices, col_indices=col_indices,error=error)
+     IF (PRESENT(ncol)) my_end_col=start_col+ncol
+
+     keep_row=.FALSE.
+     DO irow=1,SIZE(p_proj%proj_indexes)
+        keep_row(p_proj%proj_indexes(irow))=.TRUE.
+     END DO
+     
+     DO icol=1,SIZE(full_m%local_data,2)
+        IF (col_indices(icol)>start_col .AND.&
+             col_indices(icol)<my_end_col) THEN
+           DO irow=1,SIZE(full_m%local_data,1)
+              row_index=row_indices(irow)
+              IF (row_index<min_index.OR.row_index>max_index) THEN
+                 full_m%local_data(irow,icol)=0.0_wp
+              ELSE IF (.NOT.keep_row(row_index)) THEN
+                 full_m%local_data(irow,irow)=0.0_wp
+              END IF
+           END DO
+        END IF
+     END DO
+
+     DEALLOCATE(keep_row,stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  END IF
+  
+  CALL timestop(0.0_wp,handle)
+END SUBROUTINE p_proj_restrain_f
 !***************************************************************************
 
 END MODULE qs_p_sparse_psi
