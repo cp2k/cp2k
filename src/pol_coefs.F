@@ -180,6 +180,7 @@ MODULE pol_coefs
     LOGICAL :: kind_flag
 
 
+
     SELECT CASE (simpar%pol_read_type)   
 
     CASE ("INIT")
@@ -205,14 +206,22 @@ MODULE pol_coefs
       ncoef = size (c_pos%ao%cr(:))
       OPEN (unit=666,file='coefficent.rst',status='unknown')
         DO icoef = 1, ncoef
-          READ (666,*) c_pos % ao % cr ( icoef )
+          READ (666,*)  c_pos % ao % cr ( icoef ),  &
+                        c_vel % ao % cr ( icoef ), &
+                        c_force % ao % cr ( icoef )
+          c_vel % ao % cr ( icoef )  = 0._dbl
+          c_force % ao % cr ( icoef )  = 0._dbl
         END DO
       CLOSE (666)                                         
       CASE ( PLANEWAVES )
       ncoef = size (c_pos%pw%cc(:))
       OPEN (unit=666,file='coefficent.rst',status='unknown')
         DO icoef = 1, ncoef
-          READ (666,*) c_pos % pw % cc ( icoef )
+          READ ( 666, * ) c_pos % pw % cc ( icoef ), &
+                          c_vel % pw % cc ( icoef ), & 
+                          c_force % pw % cc ( icoef )   
+          c_vel % pw % cc ( icoef ) = 0._dbl
+          c_force % pw % cc ( icoef )  = 0._dbl
         END DO
       CLOSE (666)                                         
       END SELECT 
@@ -224,15 +233,21 @@ MODULE pol_coefs
       CASE ( ATOMICORBITALS )
       ncoef = size (c_pos%ao%cr(:))
         DO icoef = 1, ncoef
-          READ (666,*)  c_pos % ao % cr ( icoef ),  c_vel % ao % cr ( icoef )
+          READ (666,*)  c_pos % ao % cr ( icoef ),  &
+                        c_vel % ao % cr ( icoef ), &
+                        c_force % ao % cr ( icoef )
+          c_force % ao % cr ( icoef )  = 0._dbl
           c_vel % ao % mass ( icoef ) = simpar % pol_mass
         END DO
       CASE ( PLANEWAVES )
       ncoef = size (c_pos%pw%cc(:))
         DO icoef = 1, ncoef
-          READ (666,*)  c_pos % pw % cc ( icoef ),  c_vel % pw % cc ( icoef )
+          READ ( 666, * ) c_pos % pw % cc ( icoef ), &
+                          c_vel % pw % cc ( icoef ), & 
+                          c_force % pw % cc ( icoef )   
+          c_force % pw % cc ( icoef )  = 0._dbl
           c_vel % pw % mass_cc ( icoef ) = CMPLX ( simpar % pol_mass,  &
-                                                   simpar % pol_mass )
+                                                   simpar % pol_mass, dbl )
         END DO
       END SELECT 
       CLOSE (666)                                                          
