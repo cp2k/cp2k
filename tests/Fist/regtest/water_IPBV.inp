@@ -21,8 +21,8 @@
   barostat_parameter:   &
     pressure: 0.        &
     timecon: 1000 fs
-  print  files        10
-  print  screen       10
+  print  files        1
+  print  screen       1
 &END
 
 &TOPOLOGY
