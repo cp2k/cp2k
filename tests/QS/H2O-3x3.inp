@@ -20,7 +20,6 @@
  temperature:  300.0                   temperature [K]
  restart:      init                    start type (pos,posvel)
  constraints:  on
- verlet_skin:  1 angstroms
 &END  
 
 &DFT

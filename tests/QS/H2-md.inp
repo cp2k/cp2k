@@ -15,7 +15,6 @@
   restart:      init                      start type (pos,posvel)
   constraints:  off
   shake:        1.e-10
-  verlet_skin:   1
   print  files          10
   print  screen         10
 &END
