@@ -73,7 +73,8 @@ MODULE qs_mo_types
                                              wp => dp,&
                                              wp_size => dp_size
   USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_sum
+                                             mp_sum, &
+                                             mp_max
   USE orbital_pointers,                ONLY: nso
   USE output_utilities,                ONLY: print_warning
   USE particle_types,                  ONLY: particle_type
@@ -625,6 +626,8 @@ CONTAINS
    REAL(wp) :: alpha,max_alpha
    TYPE(cp_fm_struct_type), POINTER :: tmp_fm_struct
    TYPE(cp_full_matrix_type), POINTER :: svec,overlap
+   INTEGER :: nrow_local,ncol_local
+   INTEGER, DIMENSION(:), POINTER :: row_indices,col_indices
    NULLIFY(tmp_fm_struct,svec,overlap)
 
    CALL timeset("calculate_orthonormality","I","",handle)
@@ -645,17 +648,19 @@ CONTAINS
           CALL cp_fm_create(overlap,tmp_fm_struct)       
           CALL cp_fm_struct_release(tmp_fm_struct)
           CALL cp_fm_gemm('T','N',k,k,n,1.0_wp, mo_array(ispin)%mo_set%eigenvectors,svec,0.0_wp,overlap)
-          ! find deviation from unity (check full matrix)
-          do i=1,k
-           do j=1,k
-              CALL cp_fm_get_element(overlap,i,j,alpha)
-              if (i.eq.j) alpha=alpha-1.0_wp
+          CALL cp_fm_get_info(overlap,nrow_local=nrow_local,ncol_local=ncol_local, &
+                              row_indices=row_indices,col_indices=col_indices)
+          do i=1,nrow_local
+           do j=1,ncol_local
+              alpha=overlap%local_data(i,j)
+              if (row_indices(i).eq.col_indices(j)) alpha=alpha-1.0_wp
               max_alpha=MAX(max_alpha,abs(alpha))
            enddo
           enddo
           CALL cp_fm_release(svec)
           CALL cp_fm_release(overlap)
     ENDDO
+    CALL mp_max(max_alpha,mo_array(1)%mo_set%eigenvectors%matrix_struct%para_env%group)
     orthonormality=max_alpha
     ! write(6,*) "max deviation from orthonormalization ",orthonormality
 
