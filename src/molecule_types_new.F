@@ -122,12 +122,19 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: istat
+    INTEGER :: istat,imolecule
 
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(molecule_set)) THEN
 
+      DO imolecule=1,SIZE(molecule_set)
+         IF (ASSOCIATED(molecule_set(imolecule)%lmi)) THEN
+             DEALLOCATE (molecule_set(imolecule)%lmi,STAT=istat)
+             IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                              "molecule_set(i)%lmi")
+         ENDIF
+      ENDDO
       DEALLOCATE (molecule_set,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                        "molecule_set")
