@@ -35,7 +35,9 @@ MODULE xc_rho_set_types
                                              xc_rho_nn10,&
                                              xc_rho_no_smooth,&
                                              xc_rho_spline2_smooth,&
-                                             xc_rho_spline3_smooth
+                                             xc_rho_spline3_smooth,&
+                                             xc_deriv_nn10_smooth,&
+                                             xc_deriv_fd
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -49,7 +51,8 @@ MODULE xc_rho_set_types
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
-                                             cp_warning_level
+                                             cp_warning_level,&
+                                             cp_logger_get_default_unit_nr
   USE kinds,                           ONLY: dp
   USE pw_pool_types,                   ONLY: pw_pool_create_cr3d,&
                                              pw_pool_create_pw,&
@@ -67,7 +70,12 @@ MODULE xc_rho_set_types
                                              pw_spline3_evaluate_values_g,&
                                              pw_spline3_interpolate_values_g,&
                                              pw_spline_scale_deriv,&
-                                             spline2_deriv_coeffs
+                                             spline2_deriv_coeffs,&
+                                             spline3_deriv_coeffs,&
+                                             nn10_deriv_coeffs,&
+                                             spline2_coeffs,&
+                                             spline3_coeffs,&
+                                             pw_derive_fd_mine
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
@@ -78,7 +86,8 @@ MODULE xc_rho_set_types
                                              pw_p_type,&
                                              pw_transfer,&
                                              pw_type,&
-                                             pw_zero
+                                             pw_zero,&
+                                             pw_derive_fd
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -699,6 +708,16 @@ CONTAINS
              DEALLOCATE(rho_set%rho_1_3, stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
+          IF (rho_set%owns%rho_spin) then
+             IF (ASSOCIATED(rho_set%rhoa_1_3)) THEN
+                DEALLOCATE(rho_set%rhoa_1_3, stat=stat)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             END IF
+             IF (ASSOCIATED(rho_set%rhob_1_3)) THEN
+                DEALLOCATE(rho_set%rhob_1_3, stat=stat)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             END IF
+          END IF
           IF (rho_set%owns%drho) THEN
              DO i=1,3
                 IF (ASSOCIATED(rho_set%drho(i)%array)) THEN
@@ -736,16 +755,6 @@ CONTAINS
           IF (rho_set%owns%drhoa_drhob.AND.ASSOCIATED(rho_set%drhoa_drhob)) THEN
              DEALLOCATE(rho_set%drhoa_drhob, stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          END IF
-          IF (rho_set%owns%rho_spin_1_3) THEN
-             IF (ASSOCIATED(rho_set%rhoa_1_3)) THEN
-                DEALLOCATE(rho_set%rhoa_1_3, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-             END IF
-             IF (ASSOCIATED(rho_set%rhob_1_3)) THEN
-                DEALLOCATE(rho_set%rhob_1_3, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-             END IF
           END IF
           IF (rho_set%owns%kinetic.AND.ASSOCIATED(rho_set%kinetic)) THEN
              DEALLOCATE(rho_set%kinetic, stat=stat)
@@ -977,6 +986,12 @@ CONTAINS
        ELSE
           NULLIFY(rho_set%rho)
        END IF
+       IF (rho_set%owns%rho_1_3) THEN
+          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rho_1_3,&
+               accept_non_compatible=.TRUE.,error=error)
+       ELSE
+          NULLIFY(rho_set%rho_1_3)
+       END IF
        IF (rho_set%owns%drho) THEN
           DO idir=1,3
              CALL pw_pool_give_back_cr3d(pw_pool,rho_set%drho(idir)%array,&
@@ -993,6 +1008,12 @@ CONTAINS
        ELSE
           NULLIFY(rho_set%norm_drho)
        END IF
+       IF (rho_set%owns%kinetic) THEN
+          CALL pw_pool_give_back_cr3d(pw_pool, rho_set%kinetic,&
+               accept_non_compatible=.TRUE., error=error)
+       ELSE
+          NULLIFY(rho_set%kinetic)
+       END IF
        IF (rho_set%owns%rho_spin) THEN
           CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rhoa,&
                accept_non_compatible=.TRUE., error=error)
@@ -1000,6 +1021,14 @@ CONTAINS
                accept_non_compatible=.TRUE., error=error)
        ELSE
           NULLIFY(rho_set%rhoa,rho_set%rhob)
+       END IF
+       IF (rho_set%owns%rho_spin_1_3) THEN
+          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rhoa_1_3,&
+               accept_non_compatible=.TRUE.,error=error)
+          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rhob_1_3,&
+               accept_non_compatible=.TRUE.,error=error)
+       ELSE
+          NULLIFY(rho_set%rhoa_1_3,rho_set%rhob_1_3)
        END IF
        IF (rho_set%owns%drho_spin) THEN
           DO idir=1,3
@@ -1026,6 +1055,14 @@ CONTAINS
                accept_non_compatible=.TRUE., error=error)
        ELSE
           NULLIFY(rho_set%drhoa_drhob)
+       END IF
+       IF (rho_set%owns%kinetic_spin) THEN
+          CALL pw_pool_give_back_cr3d(pw_pool, rho_set%kinetic_a,&
+               accept_non_compatible=.TRUE., error=error)
+          CALL pw_pool_give_back_cr3d(pw_pool, rho_set%kinetic_b,&
+               accept_non_compatible=.TRUE., error=error)
+       ELSE
+          NULLIFY(rho_set%kinetic_a,rho_set%kinetic_b)
        END IF
 
        CALL xc_rho_cflags_setall(rho_set%has,.FALSE.,error=error)
@@ -1062,7 +1099,7 @@ CONTAINS
 !!   ARGUMENTS
 !!     - rho_set: the rho_set to update
 !!     - rho_r: the new density (in r space)
-!!     - rho_g: the new density (in g space, needed for smoothing and
+!!     - rho_g: the new density (in g space, needed for some
 !!       derivatives)
 !!     - needs: the components of rho that are needed
 !!     - dft_control: parameters (LSD/LDA, kind of derivative requested,...)
@@ -1076,23 +1113,25 @@ CONTAINS
        dft_control,cell,pw_pool,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(pw_p_type), DIMENSION(:), &
-      INTENT(inout), TARGET                  :: rho_r
+         INTENT(inout), TARGET                  :: rho_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
     TYPE(xc_rho_cflags_type), INTENT(in)     :: needs
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_update', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: f13 = (1.0_dp/3.0_dp)
 
     INTEGER                                  :: i, idir, ispin, j, k, nspins
     INTEGER, DIMENSION(3, 3)                 :: nd
     LOGICAL                                  :: failure, gradient_f, &
-                                                my_rho_g_local, my_rho_r_local
+         my_rho_g_local,&
+         my_rho_r_local,&
+         needs_rho_g
     REAL(kind=dp)                            :: rho_cutoff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_p_type), DIMENSION(2)            :: my_rho_r, my_rho_r2
@@ -1149,55 +1188,55 @@ CONTAINS
 
     gradient_f=(needs%drho_spin.OR.needs%norm_drho_spin.OR.&
          needs%drhoa_drhob.OR.needs%drho.OR.needs%norm_drho)
+    needs_rho_g=(dft_control%xc_deriv_method_id==xc_deriv_spline3.OR.&
+         dft_control%xc_deriv_method_id==xc_deriv_spline2.OR.&
+         dft_control%xc_deriv_method_id==xc_deriv_pw)
 
     DO ispin=1,nspins
        ! introduce a smoothing kernel on the density
        IF (dft_control%xc_rho_smooth_id==xc_rho_no_smooth) THEN
           my_rho_r_local=.FALSE.
-          my_rho_g_local=.FALSE.
           my_rho_r(ispin)%pw => rho_r(ispin)%pw
-          IF (gradient_f) THEN
-             my_rho_g => rho_g(ispin)%pw
+          IF (needs_rho_g) THEN
+             IF (ASSOCIATED(rho_g)) THEN
+                my_rho_g_local=.FALSE.
+                my_rho_g => rho_g(ispin)%pw
+             END IF
           END IF
        ELSE
           my_rho_r_local=.TRUE.
-          my_rho_g_local=.FALSE.
           CALL pw_pool_create_pw(pw_pool, my_rho_r(ispin)%pw,&
                use_data=REALDATA3D, in_space=REALSPACE, &
                error=error)
 
+          SELECT CASE(dft_control%xc_rho_smooth_id)
+          CASE (xc_rho_no_smooth)
+             CALL pw_copy(rho_r(ispin)%pw,my_rho_r(ispin)%pw)
+          CASE (xc_rho_spline2_smooth)
+             CALL pw_zero(my_rho_r(ispin)%pw)
+             CALL pw_nn_smear_r(pw_in=rho_r(ispin)%pw,&
+                  pw_out=my_rho_r(ispin)%pw,&
+                  coeffs=spline2_coeffs, error=error)
+          CASE (xc_rho_spline3_smooth)
+             CALL pw_zero(my_rho_r(ispin)%pw)
+             CALL pw_nn_smear_r(pw_in=rho_r(ispin)%pw,&
+                  pw_out=my_rho_r(ispin)%pw,&
+                  coeffs=spline3_coeffs, error=error)
+          CASE (xc_rho_nn10)
+             CALL pw_zero(my_rho_r(ispin)%pw)
+             CALL pw_nn_smear_r(pw_in=rho_r(ispin)%pw,&
+                  pw_out=my_rho_r(ispin)%pw,&
+                  coeffs=nn10_coeffs, error=error)
+          CASE default
+             CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+          END SELECT
+       END IF
+       IF (needs_rho_g.AND..NOT.ASSOCIATED(my_rho_g)) THEN
           my_rho_g_local=.TRUE.
           CALL pw_pool_create_pw(pw_pool, my_rho_g,&
                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
                error=error)
-          CALL pw_copy(rho_g(ispin)%pw,my_rho_g)
-
-          SELECT CASE(dft_control%xc_rho_smooth_id)
-          CASE (xc_rho_no_smooth)
-             !
-          CASE (xc_rho_spline2_smooth)
-             CALL pw_spline2_evaluate_values_g(my_rho_g,error=error)
-          CASE (xc_rho_spline3_smooth)
-             CALL pw_spline3_evaluate_values_g(my_rho_g,error=error)
-          CASE (xc_rho_nn10)
-             CALL pw_nn_smear_g(my_rho_g,&
-                  nn10_coeffs, error=error)
-             IF (debug_this_module) THEN
-                NULLIFY(my_rho_r2(ispin)%pw)
-                CALL pw_pool_create_pw(pw_pool, my_rho_r2(ispin)%pw,&
-                     use_data=REALDATA3D, in_space=REALSPACE, &
-                     error=error)
-                CALL pw_zero(my_rho_r2(ispin)%pw)
-                CALL pw_nn_smear_r(pw_in=rho_r(ispin)%pw,&
-                     pw_out=my_rho_r2(ispin)%pw,&
-                     coeffs=nn10_coeffs, error=error)
-                CALL pw_transfer(my_rho_g,my_rho_r(ispin)%pw)
-                CALL pw_compare_debug(my_rho_r(ispin)%pw,my_rho_r2(ispin)%pw)
-                CALL pw_pool_give_back_pw(pw_pool,my_rho_r2(ispin)%pw)
-             END IF
-          END SELECT
-          CALL pw_transfer(my_rho_g,my_rho_r(ispin)%pw)
-
+          CALL pw_transfer(my_rho_r(ispin)%pw,my_rho_g)
        END IF
 
        IF (gradient_f) THEN ! calculate the grad of rho
@@ -1210,93 +1249,106 @@ CONTAINS
                   use_data=REALDATA3D, in_space=REALSPACE, &
                   error=error)
           END DO
-          CALL pw_pool_create_pw(pw_pool, tmp_g,&
-               use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
-               error=error)
-          SELECT CASE(dft_control%xc_deriv_method_id)
-          CASE (xc_deriv_pw)
-             DO idir=1,3
-                CALL pw_copy ( my_rho_g, tmp_g )
-                CALL pw_derive ( tmp_g, nd(:,idir) )
-                CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
-             END DO
-          CASE (xc_deriv_spline2)
-             IF (.NOT.my_rho_g_local) THEN
-                CALL pw_pool_create_pw(pw_pool, my_rho_g,&
-                     use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
-                     error=error)
-                my_rho_g_local=.TRUE.
-                CALL pw_copy(rho_g(ispin)%pw, my_rho_g)
-             END IF
-             CALL pw_spline2_interpolate_values_g(my_rho_g,error=error)
-             DO idir=1,3
-                CALL pw_copy ( my_rho_g, tmp_g )
-                CALL pw_spline2_deriv_g ( tmp_g, idir=idir, error=error )
-                CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
-             END DO
-          CASE (xc_deriv_spline2_smooth)
-             DO idir=1,3
-                CALL pw_copy ( my_rho_g, tmp_g )
-                CALL pw_spline2_deriv_g ( tmp_g, idir=idir, error=error )
-                CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
-                IF (debug_this_module) THEN
-                   CALL cp_log(logger, cp_note_level, routineP , &
-                        "testing spline2Deriv idir="//TRIM(ADJUSTL(cp_to_string(idir)))//&
-                        " ispin="//TRIM(ADJUSTL(cp_to_string(ispin))), local=.TRUE.)
-                   NULLIFY(my_rho_r2(ispin)%pw)
-                   CALL pw_pool_create_pw(pw_pool, my_rho_r2(ispin)%pw,&
-                        use_data=REALDATA3D, in_space=REALSPACE, &
+          IF (needs_rho_g) THEN
+             CALL pw_pool_create_pw(pw_pool, tmp_g,&
+                  use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
+                  error=error)
+             SELECT CASE(dft_control%xc_deriv_method_id)
+             CASE (xc_deriv_pw)
+                DO idir=1,3
+                   CALL pw_copy ( my_rho_g, tmp_g )
+                   CALL pw_derive ( tmp_g, nd(:,idir) )
+                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
+                END DO
+             CASE (xc_deriv_spline2)
+                IF (.NOT.my_rho_g_local) THEN
+                   CALL pw_pool_create_pw(pw_pool, my_rho_g,&
+                        use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
                         error=error)
-                   CALL pw_zero(my_rho_r2(ispin)%pw)
-                   CALL pw_nn_deriv_r(pw_in=my_rho_r(ispin)%pw,&
-                        pw_out=my_rho_r2(ispin)%pw,&
-                        coeffs=spline2_deriv_coeffs, idir=idir, error=error)
-                   CALL pw_compare_debug(drho_r(idir,ispin)%pw,my_rho_r2(ispin)%pw)
-                   CALL pw_pool_give_back_pw(pw_pool,my_rho_r2(ispin)%pw)
+                   my_rho_g_local=.TRUE.
+                   CALL pw_copy(rho_g(ispin)%pw, my_rho_g)
                 END IF
-             END DO
-          CASE (xc_deriv_spline3)
-             IF (.NOT.my_rho_g_local) THEN
-                CALL pw_pool_create_pw(pw_pool, my_rho_g,&
-                     use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
-                     error=error)
-                CALL pw_copy(rho_g(ispin)%pw, my_rho_g)
-                my_rho_g_local=.TRUE.
+                CALL pw_spline2_interpolate_values_g(my_rho_g,error=error)
+                DO idir=1,3
+                   CALL pw_copy ( my_rho_g, tmp_g )
+                   CALL pw_spline2_deriv_g ( tmp_g, idir=idir, error=error )
+                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
+                END DO
+             CASE (xc_deriv_spline3)
+                IF (.NOT.my_rho_g_local) THEN
+                   CALL pw_pool_create_pw(pw_pool, my_rho_g,&
+                        use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
+                        error=error)
+                   CALL pw_copy(rho_g(ispin)%pw, my_rho_g)
+                   my_rho_g_local=.TRUE.
+                END IF
+                CALL pw_spline3_interpolate_values_g(my_rho_g,error=error)
+                DO idir=1,3
+                   CALL pw_copy ( my_rho_g, tmp_g )
+                   CALL pw_spline3_deriv_g ( tmp_g, idir=idir, error=error )
+                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
+                END DO
+             CASE default
+                CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+             END SELECT
+             IF (my_rho_g_local) THEN
+                my_rho_g_local=.FALSE.
+                CALL pw_pool_give_back_pw(pw_pool, my_rho_g ,error=error)
              END IF
-             CALL pw_spline3_interpolate_values_g(my_rho_g,error=error)
-             DO idir=1,3
-                CALL pw_copy ( my_rho_g, tmp_g )
-                CALL pw_spline3_deriv_g ( tmp_g, idir=idir, error=error )
-                CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
-             END DO
-          CASE (xc_deriv_spline3_smooth)
-             DO idir=1,3
-                CALL pw_copy ( my_rho_g, tmp_g )
-                CALL pw_spline3_deriv_g ( tmp_g, idir=idir, error=error )
-                CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
-             END DO
-          CASE default
-             CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-          END SELECT
+             NULLIFY(my_rho_g)
+             CALL pw_pool_give_back_pw(pw_pool, tmp_g ,error=error)
+          ELSE
+             SELECT CASE(dft_control%xc_deriv_method_id)
+             CASE (xc_deriv_spline2_smooth)
+                DO idir=1,3
+                   CALL pw_zero(drho_r(idir,ispin)%pw)
+                   CALL pw_nn_deriv_r(pw_in=my_rho_r(ispin)%pw,&
+                        pw_out=drho_r(idir,ispin)%pw,&
+                        coeffs=spline2_deriv_coeffs, idir=idir, error=error)
+                END DO
+             CASE (xc_deriv_spline3_smooth)
+!FM             DO idir=1,3
+!FM                CALL pw_copy ( my_rho_g, tmp_g )
+!FM                CALL pw_spline3_deriv_g ( tmp_g, idir=idir, error=error )
+!FM                CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
+!FM             END DO
+                DO idir=1,3
+                   CALL pw_zero(drho_r(idir,ispin)%pw)
+                   CALL pw_nn_deriv_r(pw_in=my_rho_r(ispin)%pw,&
+                        pw_out=drho_r(idir,ispin)%pw,&
+                        coeffs=spline3_deriv_coeffs, idir=idir, error=error)
+                END DO
+             CASE (xc_deriv_nn10_smooth)
+                DO idir=1,3
+                   CALL pw_zero(drho_r(idir,ispin)%pw)
+                   CALL pw_nn_deriv_r(pw_in=my_rho_r(ispin)%pw,&
+                        pw_out=drho_r(idir,ispin)%pw,&
+                        coeffs=nn10_deriv_coeffs, idir=idir, error=error)
+                END DO
+             CASE (xc_deriv_fd)
+                DO idir=1,3
+!FM                   CALL pw_derive_fd(my_rho_r(ispin)%pw,&
+!FM                        drho_r(idir,ispin)%pw,&
+!FM                        n=nd(:,idir))
+                   CALL pw_zero(drho_r(idir,ispin)%pw)
+                   CALL pw_derive_fd_mine(pw_in=my_rho_r(ispin)%pw,&
+                        pw_out=drho_r(idir,ispin)%pw,&
+                        idir=idir, error=error)
+                END DO
+             CASE default
+                CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+             END SELECT
+          END IF
 
-          IF (dft_control%xc_deriv_method_id/=xc_deriv_pw) THEN
+          IF (dft_control%xc_deriv_method_id/=xc_deriv_pw &
+               !FM .and.dft_control%xc_deriv_method_id/=xc_deriv_fd &
+             ) THEN
              DO idir=1,3
                 drho_r_att(idir)%pw => drho_r(idir,ispin)%pw
              END DO
              CALL pw_spline_scale_deriv(drho_r_att, cell=cell,&
                   error=error)
           END IF
-
-          ! my_rho_g might be either rho_g or the weights of the spline
-          ! my_rho_r contains the function that has been derived
-
-          IF (my_rho_g_local) THEN
-             my_rho_g_local=.FALSE.
-             CALL pw_pool_give_back_pw(pw_pool, my_rho_g ,error=error)
-          END IF
-          NULLIFY(my_rho_g)
-          CALL pw_pool_give_back_pw(pw_pool, tmp_g ,error=error)
-
        END IF
     END DO
 
@@ -1416,6 +1468,25 @@ CONTAINS
           rho_set%owns%rho_spin=my_rho_r_local
           rho_set%has%rho_spin=.TRUE.
        END IF
+       IF (needs%norm_drho) THEN
+
+          CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drho, &
+               error=error)
+          !$omp parallel do default(none) private(i,j,k) shared(rho_set,drho_r)
+          DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
+             DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
+                DO i=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
+                   rho_set%norm_drho(i,j,k)=SQRT(&
+                        (drho_r(1,1)%pw%cr3d(i,j,k)+drho_r(1,2)%pw%cr3d(i,j,k))**2+&
+                        (drho_r(2,1)%pw%cr3d(i,j,k)+drho_r(2,2)%pw%cr3d(i,j,k))**2+&
+                        (drho_r(3,1)%pw%cr3d(i,j,k)+drho_r(3,2)%pw%cr3d(i,j,k))**2)
+                END DO
+             END DO
+          END DO
+
+          rho_set%owns%norm_drho=.TRUE.
+          rho_set%has%norm_drho=.TRUE.
+       END IF
        IF (needs%norm_drho_spin) THEN
 
           CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drhoa, &
@@ -1519,10 +1590,6 @@ CONTAINS
        END DO
     END IF
 
-!FM    CALL xc_rho_cflags_write(rho_set%has,&
-!FM         cp_logger_get_default_unit_nr(logger,local=.TRUE.),error=error)
-!FM    CALL xc_rho_cflags_write(needs,&
-!FM         cp_logger_get_default_unit_nr(logger,local=.TRUE.),error=error)
     CPPostcondition(xc_rho_cflags_equal(rho_set%has,needs),cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE xc_rho_set_update
