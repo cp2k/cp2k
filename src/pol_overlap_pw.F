@@ -538,7 +538,8 @@ CONTAINS
 
 ! Obtain g-space force on the coefficients
     rho_tot % pw % cc = CONJG ( rho_tot % pw % cc )
-    fo_coef = box % deth * CMPLX ( -2._dbl * REAL ( rho_tot % pw % cc, dbl ),  &
+!    fo_coef = box % deth * CMPLX ( -2._dbl * REAL ( rho_tot % pw % cc, dbl ),  &
+     fo_coef =  CMPLX ( -2._dbl * REAL ( rho_tot % pw % cc, dbl ),  &
                        2._dbl * AIMAG ( rho_tot % pw % cc ), dbl )
   ENDIF  
 

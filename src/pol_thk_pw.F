@@ -205,8 +205,8 @@ CONTAINS
   IF ( PRESENT ( f_coef ) ) THEN
    
     rho_tot % pw % cc = CONJG ( rho_tot % pw % cc )
-    f_coef = CMPLX (-2._dbl * vol * REAL ( rho_tot % pw % cc, dbl ), &
-                    2._dbl * vol * AIMAG ( rho_tot % pw % cc ), dbl )
+    f_coef = CMPLX (-2._dbl * REAL ( rho_tot % pw % cc, dbl ), &
+                    2._dbl * AIMAG ( rho_tot % pw % cc ), dbl )
   ENDIF
   CALL coeff_deallocate ( rho_tot )
  END SUBROUTINE force_thk
