@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2001 - 2002  CP2K developers group                          !
+!   Copyright (C) 2001 - 2003  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
@@ -18,6 +18,7 @@
 !!   MODIFICATION HISTORY
 !!     JGH (22-May-2002) : New routine rs_grid_zero
 !!     JGH (12-Jun-2002) : Bug fix for mpi groups
+!!     JGH (19-Jun-2003) : Added routine for task distribution
 !!
 !!   NOTES
 !!     Basic type for real space grid methods
@@ -47,6 +48,7 @@ MODULE realspace_grid_types
                                              cp_to_string,&
                                              cp_warning_level
   USE kinds,                           ONLY: dbl
+  USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_cart_create,&
                                              mp_cart_shift,&
@@ -57,7 +59,8 @@ MODULE realspace_grid_types
                                              mp_max,&
                                              mp_min,&
                                              mp_sendrecv,&
-                                             mp_sum
+                                             mp_sum, &
+                                             mp_shift
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              COMPLEXDATA3D,&
@@ -77,6 +80,7 @@ MODULE realspace_grid_types
   PUBLIC :: rs_grid_allocate, rs_grid_deallocate, &
             rs_grid_setup, rs_pw_transfer, rs_grid_zero, rs_grid_to_cube, &
             rs_pw_to_cube, rs_grid_write
+  PUBLIC :: rs_get_my_tasks
   PUBLIC :: rs_grid_create, rs_grid_retain, rs_grid_release
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="realspace_grid_types"
@@ -1222,6 +1226,132 @@ SUBROUTINE rs_grid_release(rs_grid,error)
      END IF
   END IF
 END SUBROUTINE rs_grid_release
+
+!***************************************************************************
+!!****f* realspace_grid_types/rs_get_my_tasks [1.0] *
+!!
+!!   NAME
+!!     rs_get_my_tasks
+!!
+!!   SYNOPSIS
+!!     Subroutine rs_get_my_tasks ( rs, tasks, tasks_local, npme )
+!!       TYPE ( realspace_grid_type ), INTENT ( IN ) :: rs
+!!       INTEGER, DIMENSION ( :, : ), POINTER :: tasks, tasks_local
+!!       INTEGER, INTENT ( OUT ) :: npme
+!!     End Subroutine rs_get_my_tasks 
+!!
+!!   FUNCTION
+!!     Assembles tasks to be performed on local grid
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - rs: the grid 
+!!     - tasks: the task set generate on this processor
+!!     - tasks_local: the task set to be processed localy
+!!     - npme: Number of tasks for local processing
+!!
+!!   AUTHOR
+!!     JGH (19.06.2003)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
+
+SUBROUTINE rs_get_my_tasks ( rs, tasks, tasks_local, npme )
+
+  TYPE ( realspace_grid_type ), INTENT ( IN ) :: rs
+  INTEGER, DIMENSION ( :, : ), POINTER :: tasks, tasks_local
+  INTEGER, INTENT ( OUT ) :: npme
+
+  INTEGER :: subgroup, subsize, subpos
+  INTEGER :: isend, ileft, i, j, lb, ub, n1
+  LOGICAL, DIMENSION ( 2 ) :: subdim
+ 
+  IF ( .NOT. ASSOCIATED ( tasks ) ) &
+        CALL stop_program ( "get_my_tasks", "tasks not associated" )
+  IF ( .NOT. ASSOCIATED ( tasks_local ) ) &
+        CALL stop_program ( "get_my_tasks", "tasks_local not associated" )
+
+  n1 = SIZE ( tasks, 1 )
+  IF ( n1 /= SIZE ( tasks_local, 1 ) ) &
+        CALL stop_program ( "get_my_tasks", "tasks_local 1. dimension wrong" )
+
+  IF ( rs%parallel .AND. rs%direction > 0 ) THEN
+
+    npme = 0
+    ! bounds of local grid
+    lb = rs%lb_local ( rs%direction ) + rs%border
+    ub = rs%ub_local ( rs%direction ) - rs%border
+
+    ! We need subgroups along cartesian coordinate 1.
+    subdim ( 1 ) = .TRUE.
+    subdim ( 2 ) = .FALSE.
+    CALL mp_cart_sub ( rs % group, subdim, subgroup )
+    CALL mp_environ ( subsize, subpos, subgroup )
+
+    ! keep tasks to be processed locally
+    ! send remaining tasks to the next processor
+    DO isend = 0, subsize - 1
+      IF ( isend == 0 ) THEN
+        ileft = SIZE ( tasks, 2)
+      ELSE
+        ! count left over tasks
+        j = 0
+        DO i = 1, ileft
+          IF ( tasks(1,i) /= 0 ) THEN
+            j = j + 1
+            tasks(:,j) = tasks(:,i)
+          END IF
+        END DO
+        tasks(:,j+1:ileft) = 0
+        ileft = j
+        CALL mp_max ( ileft, subgroup )
+        IF ( ileft == 0 ) EXIT
+        ! check if local send/receive array is big enough
+        IF ( ileft > SIZE ( tasks, 2 ) ) THEN
+          CALL reallocate ( tasks, 1, n1, 1, ileft )
+        END IF
+        ! send/receive tasks
+        CALL mp_shift ( tasks ( 1:n1, 1:ileft ), subgroup )
+      END IF
+      ! look for tasks do be done on this processor
+      DO i = 1, ileft
+        IF ( tasks(1,i) > 0 ) THEN
+          IF ( tasks(2,i) >= lb .AND. tasks(2,i) <= ub ) THEN
+            ! found new local task
+            npme = npme + 1
+            IF ( npme > SIZE ( tasks_local, 2 ) ) THEN
+              CALL reallocate ( tasks_local, 1, n1, 1, 2*npme )
+            END IF
+            tasks_local ( :, npme ) = tasks ( :, i )
+            tasks ( :, i ) = 0
+          END IF
+        END IF
+      END DO
+    END DO
+    ! are all tasks distributed?
+    IF ( ANY ( tasks(1,:) /= 0 ) ) &
+          CALL stop_program ( "get_my_tasks", "left over tasks" )
+
+    ! Release the communicator
+    CALL mp_comm_free ( subgroup )
+
+  ELSE
+
+    ! fully replicated grids, each processor can process all its tasks
+    npme = SIZE ( tasks, 2)
+    IF ( SIZE ( tasks_local, 2 ) < npme ) THEN
+      CALL reallocate ( tasks_local, 1, n1, 1, npme )
+    END IF
+    tasks_local = tasks
+
+  END IF
+
+END SUBROUTINE rs_get_my_tasks
+
 !***************************************************************************
 
 END MODULE realspace_grid_types

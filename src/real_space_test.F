@@ -14,7 +14,9 @@
 !!     JGH (06.06.2003)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (19.06.2003) : moved get_my_tasks to realspace_grid_types
+!!                        check on center of grid instead of corner
+!!                        generalized first dimension of tasks array
 !!
 !!*****
 !******************************************************************************
@@ -31,12 +33,12 @@ MODULE real_space_test
   USE global_types, ONLY : global_environment_type
   USE termination, ONLY : stop_memory, stop_program
   USE realspace_grid_types, ONLY : realspace_grid_type, rs_grid_allocate, &
-       rs_grid_deallocate, rs_grid_setup, rs_pw_transfer, rs_grid_zero
-  USE message_passing, ONLY : mp_sum, mp_max, mp_bcast, mp_environ, &
-       mp_cart_sub, mp_comm_free, mp_shift
+       rs_grid_deallocate, rs_grid_setup, rs_pw_transfer, rs_grid_zero, &
+       rs_get_my_tasks
+  USE message_passing, ONLY : mp_sum, mp_max, mp_bcast, mp_environ
   USE util, ONLY : get_limit
-  USE memory_utilities, ONLY: reallocate
   USE machine, ONLY : m_cputime
+  USE memory_utilities, ONLY: reallocate
 
   IMPLICIT NONE
 
@@ -100,7 +102,7 @@ SUBROUTINE rs_test ( globenv )
   DO i = 1, nparticle
     s = MATMUL ( box % h_inv, coord ( :, i ) )
     s = s - NINT ( s )
-    refpt ( :, i ) = NINT ( REAL ( np ( : ), dbl ) * s ( : ) ) - bsize(i)/2
+    refpt ( :, i ) = NINT ( REAL ( np ( : ), dbl ) * s ( : ) )
     IF ( refpt ( 1, i ) <= 0 ) refpt ( 1, i ) = refpt ( 1, i ) + np ( 1 )
     IF ( refpt ( 2, i ) <= 0 ) refpt ( 2, i ) = refpt ( 2, i ) + np ( 2 )
     IF ( refpt ( 3, i ) <= 0 ) refpt ( 3, i ) = refpt ( 3, i ) + np ( 3 )
@@ -202,26 +204,19 @@ SUBROUTINE rs_test ( globenv )
   DO i = 1, nparticle
      refco(:,i) = refpt(:,i) + rden%lb(:) - 1
   END DO
-  IF ( dir > 0 ) THEN
-    DO i = 1, nparticle
-       IF ( refco(dir,i) >= rden%ub(dir) - rden%border + 1 ) &
-         refco(dir,i) = refco(dir,i) - rden%npts(dir)
-    END DO
-  END IF
   CALL mp_environ ( n, me, rden%group )
   bo = get_limit ( nparticle, n, me )
   npme = bo(2) - bo(1) + 1
-  ALLOCATE ( tasks ( 3, npme ), STAT=ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks", 3*npme )
+  ALLOCATE ( tasks ( 2, npme ), STAT=ierr )
+  IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks", 2*npme )
   DO i = bo(1), bo(2)
     j = i - bo(1) + 1
     tasks ( 1, j ) = i
     tasks ( 2, j ) = refco(dir,i)
-    tasks ( 3, j ) = bsize(i)
   END DO
-  ALLOCATE ( tasks_local ( 3, npme ), STAT=ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks_local", 1 )
-  CALL get_my_tasks ( rden, tasks, tasks_local, npme )
+  ALLOCATE ( tasks_local ( 2, npme ), STAT=ierr )
+  IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks_local", 2*npme )
+  CALL rs_get_my_tasks ( rden, tasks, tasks_local, npme )
   DO i = 1, npme
     j = tasks_local ( 1, i )
     pt = refco(:,j) - rden%lb_local(:) + 1
@@ -240,17 +235,16 @@ SUBROUTINE rs_test ( globenv )
   CALL mp_environ ( n, me, rden%group )
   bo = get_limit ( nparticle, n, me )
   npme = bo(2) - bo(1) + 1
-  ALLOCATE ( tasks ( 3, npme ), STAT=ierr )
+  ALLOCATE ( tasks ( 2, npme ), STAT=ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks", 3*npme )
   DO i = bo(1), bo(2)
     j = i - bo(1) + 1
     tasks ( 1, j ) = i
     tasks ( 2, j ) = refco(dir,i)
-    tasks ( 3, j ) = bsize(i)
   END DO
-  ALLOCATE ( tasks_local ( 3, npme ), STAT=ierr )
+  ALLOCATE ( tasks_local ( 2, npme ), STAT=ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks_local", 1 )
-  CALL get_my_tasks ( rden, tasks, tasks_local, npme )
+  CALL rs_get_my_tasks ( rden, tasks, tasks_local, npme )
   energy3 = 0._dbl
   DO i = 1, npme
     j = tasks_local ( 1, i )
@@ -300,24 +294,27 @@ SUBROUTINE put_on_grid ( r, nc, np, val, dir )
   REAL ( dbl ) :: val
  
   INTEGER :: i, j, k, ii, jj, kk, nx, ny, nz, ns
+  INTEGER, DIMENSION ( 3 ) :: nl, nu
 
   nx = SIZE ( r, 1 )
   ny = SIZE ( r, 2 )
   nz = SIZE ( r, 3 )
+  nl = -np/2
+  nu = np + nl - 1
   IF ( dir > 0 ) THEN
     ns = SIZE ( r, dir )
-    IF ( nc(dir) <= 0 .OR. nc(dir) + np(dir) - 1 > ns ) stop "out of bounds"
+    IF ( nc(dir) + nl(dir) <= 0 .OR. nc(dir) + nu(dir) > ns ) stop "out of bounds"
   END IF
 
-  DO i = 1, np(3)
-    ii = nc(3) + i -1
-    IF (dir/=3) ii = MOD ( nc(3) + i - 2, nz ) + 1
-    DO j = 1, np(2)
-      jj = nc(2) + j -1
-      IF (dir/=2) jj = MOD ( nc(2) + j - 2, ny ) + 1
-      DO k = 1, np(1)
-        kk = nc(1) + k -1
-        IF (dir/=1) kk = MOD ( nc(1) + k - 2, nx ) + 1
+  DO i = nl(3), nu(3)
+    ii = nc(3) + i
+    IF (dir/=3) ii = MODULO ( nz + nc(3) + i - 1, nz ) + 1
+    DO j = nu(2), nu(2)
+      jj = nc(2) + j 
+      IF (dir/=2) jj = MODULO ( ny + nc(2) + j - 1, ny ) + 1
+      DO k = nl(1), nu(1)
+        kk = nc(1) + k
+        IF (dir/=1) kk = MODULO ( nx + nc(1) + k - 1, nx ) + 1
         r ( kk, jj, ii ) = r ( kk, jj, ii ) + val
       END DO
     END DO
@@ -335,25 +332,28 @@ SUBROUTINE int_on_grid ( r, nc, np, val, dir, integral )
   REAL ( dbl ) :: val, integral
 
   INTEGER :: i, j, k, ii, jj, kk, nx, ny, nz, ns
+  INTEGER, DIMENSION ( 3 ) :: nl, nu
 
   integral = 0._dbl
   nx = SIZE ( r, 1 )
   ny = SIZE ( r, 2 )
   nz = SIZE ( r, 3 )
+  nl = -np/2
+  nu = np + nl - 1
   IF ( dir > 0 ) THEN
     ns = SIZE ( r, dir )
-    IF ( nc(dir) <= 0 .OR. nc(dir) + np(dir) - 1 > ns ) stop "out of bounds"
+    IF ( nc(dir) + nl(dir) <= 0 .OR. nc(dir) + nu(dir) > ns ) stop "out of bounds"
   END IF
 
-  DO i = 1, np(3)
-    ii = nc(3) + i - 1
-    IF (dir/=3) ii = MOD ( nc(3) + i - 2, nz ) + 1
-    DO j = 1, np(2)
-      jj = nc(2) + j - 1
-      IF (dir/=2) jj = MOD ( nc(2) + j - 2, ny ) + 1
-      DO k = 1, np(1)
-        kk = nc(1) + k - 1
-        IF (dir/=1) kk = MOD ( nc(1) + k - 2, nx ) + 1
+  DO i = nl(3), nu(3)
+    ii = nc(3) + i
+    IF (dir/=3) ii = MODULO ( nz + nc(3) + i - 1, nz ) + 1
+    DO j = nl(2), nu(2)
+      jj = nc(2) + j
+      IF (dir/=2) jj = MODULO ( ny + nc(2) + j - 1, ny ) + 1
+      DO k = nl(1), nu(1)
+        kk = nc(1) + k
+        IF (dir/=1) kk = MODULO ( nx + nc(1) + k - 1, nx ) + 1
         integral = integral + r ( kk, jj, ii ) * val
       END DO
     END DO
@@ -423,98 +423,6 @@ SUBROUTINE rs_pw_get ( rs, pw )
    END IF
 
 END SUBROUTINE rs_pw_get
-
-! *****************************************************************************
-
-SUBROUTINE get_my_tasks ( rs, tasks, tasks_local, npme )
-
-  TYPE ( realspace_grid_type ) :: rs
-  INTEGER, DIMENSION ( :,: ), POINTER :: tasks, tasks_local
-  INTEGER :: npme
-  INTEGER :: subgroup, subsize, subpos
-  INTEGER :: isend, ileft, i, j, lb, ub
-  LOGICAL, DIMENSION ( 2 ) :: subdim
- 
-  IF ( .NOT. ASSOCIATED ( tasks ) ) &
-        CALL stop_program ( "get_my_tasks", "tasks not associated" )
-  IF ( .NOT. ASSOCIATED ( tasks_local ) ) &
-        CALL stop_program ( "get_my_tasks", "tasks_local not associated" )
-
-  IF ( rs%parallel .AND. rs%direction > 0 ) THEN
-
-    npme = 0
-    ! bounds of local grid
-    lb = rs%lb_local ( rs%direction )
-    ub = rs%ub_local ( rs%direction )
-
-    ! We need subgroups along cartesian coordinate 1.
-    subdim ( 1 ) = .TRUE.
-    subdim ( 2 ) = .FALSE.
-    CALL mp_cart_sub ( rs % group, subdim, subgroup )
-    CALL mp_environ ( subsize, subpos, subgroup )
-
-    ! keep tasks to be processed locally
-    ! send remaining tasks to the next processor
-    DO isend = 0, subsize - 1
-      IF ( isend == 0 ) THEN
-        ileft = SIZE ( tasks, 2)
-      ELSE
-        ! count left over tasks
-        j = 0
-        DO i = 1, ileft
-          IF ( tasks(1,i) /= 0 ) THEN
-            j = j + 1
-            tasks(:,j) = tasks(:,i)
-          END IF
-        END DO
-        tasks(:,j+1:ileft) = 0
-        ileft = j
-        CALL mp_max ( ileft, subgroup )
-        IF ( ileft == 0 ) EXIT
-        ! check if local send/receive array is big enough
-        IF ( ileft > SIZE ( tasks, 2 ) ) THEN
-          CALL reallocate ( tasks, 1, 3, 1, ileft )
-        END IF
-        ! send/receive tasks
-        CALL mp_shift ( tasks ( 1:3, 1:ileft ), subgroup )
-      END IF
-      ! look for tasks do be done on this processor
-      DO i = 1, ileft
-        IF ( tasks(1,i) > 0 ) THEN
-          IF ( tasks(2,i) >= lb .AND. tasks(2,i) + tasks(3,i) - 1 <= ub ) THEN
-            ! found new local task
-            npme = npme + 1
-            IF ( npme > SIZE ( tasks_local, 2 ) ) THEN
-              CALL reallocate ( tasks_local, 1, 3, 1, 2*npme )
-            END IF
-            tasks_local ( :, npme ) = tasks ( :, i )
-            tasks ( :, i ) = 0
-          END IF
-        END IF
-      END DO
-    END DO
-    ! are all tasks distributed?
-    j = 0
-    DO i = 1, SIZE ( tasks, 2 )
-       IF ( tasks(1,i) /= 0 ) j = j + 1
-    END DO
-    IF ( j /= 0 ) CALL stop_program ( "get_my_tasks", "left over tasks" )
-
-    ! Release the communicator
-    CALL mp_comm_free ( subgroup )
-
-  ELSE
-
-    ! fully replicated grids, each processor can process all its tasks
-    npme = SIZE ( tasks, 2)
-    IF ( SIZE ( tasks_local, 2 ) < npme ) THEN
-      CALL reallocate ( tasks_local, 1, 3, 1, npme )
-    END IF
-    tasks_local = tasks
-
-  END IF
-
-END SUBROUTINE get_my_tasks
 
 ! *****************************************************************************
 
