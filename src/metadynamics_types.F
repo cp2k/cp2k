@@ -13,6 +13,7 @@ MODULE metadynamics_types
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_para_env,                     ONLY: cp_para_env_release
   USE kinds,                           ONLY: default_path_length,&
                                              dp
 
@@ -334,6 +335,7 @@ SUBROUTINE meta_env_release(meta_env,error)
      CPPreconditionNoFail(meta_env%ref_count>0,cp_failure_level,routineP,error)
      meta_env%ref_count=meta_env%ref_count-1
      IF (meta_env%ref_count==0) THEN
+        CALL cp_para_env_release(meta_env%para_env)
         IF (ASSOCIATED(meta_env%colvars)) THEN
            DO i=1,SIZE(meta_env%colvars)
               CALL colvar_dealloc_ref(meta_env%colvars(i),error=error)
