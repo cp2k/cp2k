@@ -1,8 +1,8 @@
 PERL     = perl
 CC       = cc
 CPP      = /usr/ccs/lib/cpp
-FC       = xlf95
-FC_fixed = xlf95 -qfixed
+FC       = xlf95 -qsuffix=f=f90 
+FC_fixed = xlf95 -qfixed -qsuffix=f=f90 
 LD       = xlf95
 AR       = ar -r -X64
 DFLAGS   = -D__AIX -D__ESSL -D__FFTSG -D__FFTESSL

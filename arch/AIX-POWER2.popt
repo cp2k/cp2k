@@ -1,8 +1,8 @@
 PERL     = perl
 CC       = cc
 CPP      = cpp
-FC       = mpxlf90
-FC_fixed = mpxlf90 -qfixed
+FC       = mpxlf90 -qsuffix=f=f90 
+FC_fixed = mpxlf90 -qfixed -qsuffix=f=f90 
 LD       = mpxlf90
 AR       = ar -r
 CPPFLAGS = -C -D__parallel -D__AIX -D__ESSL -D__FFTSG -D__FFTW -D__FFTESSL -P
