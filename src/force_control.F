@@ -25,7 +25,7 @@ MODULE force_control
   USE fist_force,                      ONLY: fist_force_control => force_control
   USE global_types,                    ONLY: global_environment_type
   USE kg_environment_types,            ONLY: kg_environment_type
-  USE kg_force,                        ONLY: kg_force_control => force_control
+  USE kg_force,                        ONLY: kg_force_control
   USE kinds,                           ONLY: dbl
   USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_force,                        ONLY: qs_forces_update

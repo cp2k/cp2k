@@ -72,7 +72,7 @@ MODULE kg_force
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: force_control, debug_variables_type, get_grids, &
+  PUBLIC :: kg_force_control, debug_variables_type, get_grids, &
             kg_force_release
 
 ! debug variables
@@ -116,10 +116,10 @@ MODULE kg_force
 CONTAINS
 
 !******************************************************************************
-!!****** kg_force/force_control [1.1] *
+!!****** kg_force/kg_force_control [1.1] *
 !!
 !!   NAME
-!!     force_control
+!!     kg_force_control
 !!
 !!   FUNCTION
 !!     Calculates the total potential energy, total force, and the
@@ -133,7 +133,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE force_control ( kg_env, globenv, debug )
+SUBROUTINE kg_force_control ( kg_env, globenv, debug )
 
   IMPLICIT NONE
 
@@ -144,7 +144,7 @@ SUBROUTINE force_control ( kg_env, globenv, debug )
 
 ! Local parameters
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE force_control (MODULE kg_force)"
+      "SUBROUTINE kg_force_control (MODULE kg_force)"
 ! Locals
   TYPE ( atomic_kind_type ), DIMENSION(:), POINTER:: atomic_kind_set
   TYPE ( atomic_kind_type ), POINTER   :: atomic_kind
@@ -209,7 +209,7 @@ SUBROUTINE force_control ( kg_env, globenv, debug )
   IF ( first_time ) THEN
 
      ALLOCATE ( kg_rho_v, STAT = isos )
-     IF ( isos /= 0 )  CALL stop_memory ( 'force_control', 'kg_rho_v', 0 )
+     IF ( isos /= 0 )  CALL stop_memory ( 'kg_force_control', 'kg_rho_v', 0 )
 
      CALL init_kg_force_calculation ( kg_rho_v, kg_env, globenv )
  
@@ -376,12 +376,12 @@ SUBROUTINE force_control ( kg_env, globenv, debug )
 
   IF ( ALLOCATED ( f_total ) ) THEN
     DEALLOCATE ( f_total, STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'f_total' )
+    IF ( isos /= 0 ) CALL stop_memory ( 'kg_force_control', 'f_total' )
   END IF
 
   CALL timestop ( zero, handle )
 
-END SUBROUTINE force_control
+END SUBROUTINE kg_force_control
 
 !!*** **********************************************************************
   SUBROUTINE allocate_kg_densities(kg_rho_v, globenv )
@@ -783,7 +783,7 @@ END SUBROUTINE get_grids
   CALL release_kg_rho_v(kg_rho_v,kg_env,globenv)
 
   IF (ASSOCIATED (kg_rho_v))  DEALLOCATE ( kg_rho_v, STAT = isos )
-  IF ( isos /= 0 )  CALL stop_memory ( 'force_control', 'kg_rho_v') 
+  IF ( isos /= 0 )  CALL stop_memory ( 'kg_force_release', 'kg_rho_v') 
 
  END SUBROUTINE  kg_force_release
 

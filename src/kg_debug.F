@@ -24,7 +24,7 @@ MODULE kg_debug
   USE kg_environment_types, ONLY : kg_environment_type
   USE kg_force_numer, ONLY : fpart_gspace_numer,&
                              fpart_xc_numer, fpart_core_rspace_numer
-  USE kg_force, ONLY : force_control, debug_variables_type, get_grids
+  USE kg_force, ONLY : kg_force_control, debug_variables_type, get_grids
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE l_utils, ONLY : l_info_type
@@ -39,7 +39,7 @@ MODULE kg_debug
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: debug_control
+  PUBLIC :: kg_debug_control
 
 !!*****
 !******************************************************************************
@@ -47,10 +47,10 @@ MODULE kg_debug
 CONTAINS
 
 !******************************************************************************
-!!****** kg_debug/debug_control [1.0] *
+!!****** kg_debug/kg_debug_control [1.0] *
 !!
 !!   NAME
-!!     debug_control
+!!     kg_debug_control
 !!
 !!   FUNCTION
 !!     Routine to execute numerical tests for debugging
@@ -62,7 +62,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE  debug_control ( globenv, kg_env )
+SUBROUTINE  kg_debug_control ( globenv, kg_env )
 
   IMPLICIT NONE
 
@@ -113,24 +113,24 @@ SUBROUTINE  debug_control ( globenv, kg_env )
 ! allocating all arrays involved with debug
   natoms = SIZE ( pnode )
   IF ( .NOT. ALLOCATED ( diff ) ) ALLOCATE ( diff ( 3, natoms ), STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "diff", 3 * natoms )
+  IF ( isos /= 0 ) CALL stop_memory ( "kg_debug_control", "diff", 3 * natoms )
   IF ( .NOT. ALLOCATED ( rel ) ) ALLOCATE ( rel ( 3, natoms ), STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "rel", 3 * natoms )
+  IF ( isos /= 0 ) CALL stop_memory ( "kg_debug_control", "rel", 3 * natoms )
   IF ( .NOT. ALLOCATED ( f_numer ) ) &
        ALLOCATE ( f_numer ( 3, natoms ), STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_numer", 3 * natoms )
+  IF ( isos /= 0 ) CALL stop_memory ( "kg_debug_control", "f_numer", 3 * natoms )
   ALLOCATE ( dbg % f_hartree ( 3, natoms ), STAT = isos )
   IF ( isos /= 0 ) &
-       CALL stop_memory ( "debug_control", "f_hartree", 3 * natoms )
+       CALL stop_memory ( "kg_debug_control", "f_hartree", 3 * natoms )
   ALLOCATE ( dbg % f_bc ( 3, natoms ), STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_bc", 3 * natoms )
+  IF ( isos /= 0 ) CALL stop_memory ( "kg_debug_control", "f_bc", 3 * natoms )
   ALLOCATE ( dbg % f_xc ( 3, natoms ), STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_xc", 3 * natoms )
+  IF ( isos /= 0 ) CALL stop_memory ( "kg_debug_control", "f_xc", 3 * natoms )
   ALLOCATE ( dbg % f_rspace_core ( 3, natoms ), STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_rspace_core", 3 * natoms )
+  IF ( isos /= 0 ) CALL stop_memory ( "kg_debug_control", "f_rspace_core", 3 * natoms )
 
 ! Call to analytical force routine:
-  CALL force_control (  kg_env, globenv, dbg )
+  CALL kg_force_control (  kg_env, globenv, dbg )
 
   WRITE ( iw, '( A )' ) &
        ' DO YOU WANT TO DEBUG YOUR G-SPACE INTERACTIONS (1=yes)?'
@@ -444,7 +444,7 @@ SUBROUTINE  debug_control ( globenv, kg_env )
     END IF
   END IF
 
-  END SUBROUTINE debug_control
+  END SUBROUTINE kg_debug_control
 
 !!*****
 !******************************************************************************

@@ -41,7 +41,7 @@ MODULE kg_main
   USE input_types, ONLY : setup_parameters_type
   USE integrator, ONLY : set_integrator
   USE kinds, ONLY : dbl
-  USE kg_debug, ONLY : kg_debug_control => debug_control
+  USE kg_debug, ONLY : kg_debug_control
   USE kg_environment_types, ONLY : kg_environment_type,  &
                                    kg_thermodynamic_type, &
                                    set_kg_env, init_kg_env
