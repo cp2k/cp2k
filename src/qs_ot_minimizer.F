@@ -20,7 +20,7 @@ MODULE qs_ot_minimizer
   USE kinds, ONLY: wp => dp, wp_size => dp_size
   USE termination,         ONLY: stop_memory, stop_program
   USE timings,             ONLY: timeset, timestop
-  USE qs_blacs,            ONLY: cp_fm_trace, cp_fm_add, & 
+  USE qs_blacs,            ONLY: cp_fm_trace, cp_fm_scale_and_add, & 
                                  cp_fm_set_all, copy_blacs_to_blacs_matrix
   USE global_types,        ONLY: global_environment_type
   USE preconditioner,      ONLY: preconditioner_type, & 
@@ -265,11 +265,11 @@ SUBROUTINE do_line_search_gold(qs_ot_env,globenv)
    ! either dx of -gx is the direction to use
    if (qs_ot_env(1)%use_dx) then
        DO ispin=1,nspin
-          CALL cp_fm_add(1.0_wp,qs_ot_env(ispin)%matrix_x,ds,qs_ot_env(ispin)%matrix_dx)
+          CALL cp_fm_scale_and_add(1.0_wp,qs_ot_env(ispin)%matrix_x,ds,qs_ot_env(ispin)%matrix_dx)
        ENDDO
    else
        DO ispin=1,nspin
-          CALL cp_fm_add(1.0_wp,qs_ot_env(ispin)%matrix_x,-ds,qs_ot_env(ispin)%matrix_gx)
+          CALL cp_fm_scale_and_add(1.0_wp,qs_ot_env(ispin)%matrix_x,-ds,qs_ot_env(ispin)%matrix_gx)
        ENDDO
    endif
 
@@ -339,11 +339,11 @@ SUBROUTINE do_line_search_3pnt(qs_ot_env,globenv)
    ! either dx of -gx is the direction to use
    if (qs_ot_env(1)%use_dx) then
        DO ispin=1,nspin
-          CALL cp_fm_add(1.0_wp,qs_ot_env(ispin)%matrix_x,ds,qs_ot_env(ispin)%matrix_dx)
+          CALL cp_fm_scale_and_add(1.0_wp,qs_ot_env(ispin)%matrix_x,ds,qs_ot_env(ispin)%matrix_dx)
        ENDDO
    else
        DO ispin=1,nspin
-          CALL cp_fm_add(1.0_wp,qs_ot_env(ispin)%matrix_x,-ds,qs_ot_env(ispin)%matrix_gx)
+          CALL cp_fm_scale_and_add(1.0_wp,qs_ot_env(ispin)%matrix_x,-ds,qs_ot_env(ispin)%matrix_gx)
        ENDDO
    endif
 
@@ -401,11 +401,11 @@ SUBROUTINE do_line_search_2pnt(qs_ot_env,globenv)
    ! either dx of -gx is the direction to use
    if (qs_ot_env(1)%use_dx) then
        DO ispin=1,nspin
-          CALL cp_fm_add(1.0_wp,qs_ot_env(ispin)%matrix_x, ds,qs_ot_env(ispin)%matrix_dx)
+          CALL cp_fm_scale_and_add(1.0_wp,qs_ot_env(ispin)%matrix_x, ds,qs_ot_env(ispin)%matrix_dx)
        ENDDO
    else
        DO ispin=1,nspin
-          CALL cp_fm_add(1.0_wp,qs_ot_env(ispin)%matrix_x,-ds,qs_ot_env(ispin)%matrix_gx)
+          CALL cp_fm_scale_and_add(1.0_wp,qs_ot_env(ispin)%matrix_x,-ds,qs_ot_env(ispin)%matrix_gx)
        ENDDO
    endif
 
@@ -422,12 +422,12 @@ SUBROUTINE do_line_search_none(qs_ot_env,globenv)
    ! either dx of -gx is the direction to use
    if (qs_ot_env(1)%use_dx) then
        DO ispin=1,nspin
-          CALL cp_fm_add(1.0_wp,qs_ot_env(ispin)%matrix_x, qs_ot_env(1)%ds_min, &
+          CALL cp_fm_scale_and_add(1.0_wp,qs_ot_env(ispin)%matrix_x, qs_ot_env(1)%ds_min, &
                          qs_ot_env(ispin)%matrix_dx)
        ENDDO
    else
        DO ispin=1,nspin
-          CALL cp_fm_add(1.0_wp,qs_ot_env(ispin)%matrix_x,-qs_ot_env(1)%ds_min, &
+          CALL cp_fm_scale_and_add(1.0_wp,qs_ot_env(ispin)%matrix_x,-qs_ot_env(1)%ds_min, &
                          qs_ot_env(ispin)%matrix_gx)
        ENDDO
    endif
@@ -461,7 +461,7 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env,globenv)
              write(globenv%scr,*) "WARNING Preconditioner not positive definite !"
        ENDIF
        DO ispin=1,nspin
-          CALL cp_fm_add(0.0_wp,qs_ot_env(ispin)%matrix_dx,-1.0_wp,qs_ot_env(ispin)%matrix_dx)  
+          CALL cp_fm_scale_and_add(0.0_wp,qs_ot_env(ispin)%matrix_dx,-1.0_wp,qs_ot_env(ispin)%matrix_dx)  
        ENDDO
    ELSE
        qs_ot_env(1)%gnorm=0.0_wp
@@ -539,7 +539,7 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,globenv)
 
    test_down=0.0_wp
    DO ispin=1,nspin
-      CALL cp_fm_add(beta_pr,qs_ot_env(ispin)%matrix_dx,-1.0_wp,qs_ot_env(ispin)%matrix_gx)  
+      CALL cp_fm_scale_and_add(beta_pr,qs_ot_env(ispin)%matrix_dx,-1.0_wp,qs_ot_env(ispin)%matrix_gx)  
       CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_dx,tmp)
       test_down=test_down+tmp
    ENDDO
@@ -547,7 +547,7 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,globenv)
    if (test_down.ge.0.0_wp) then ! reset to SD
          beta_pr=0.0_wp
          DO ispin=1,nspin
-            CALL cp_fm_add(beta_pr,qs_ot_env(ispin)%matrix_dx,-1.0_wp,qs_ot_env(ispin)%matrix_gx)  
+            CALL cp_fm_scale_and_add(beta_pr,qs_ot_env(ispin)%matrix_dx,-1.0_wp,qs_ot_env(ispin)%matrix_gx)  
          ENDDO
    endif
    ! since we change the direction we have to adjust the gradient
@@ -597,7 +597,7 @@ SUBROUTINE ot_diis_step(qs_ot_env,globenv)
              write(globenv%scr,*) "WARNING Preconditioner not positive definite !"
        ENDIF
        DO ispin=1,nspin
-           CALL cp_fm_add(0.0_wp,qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
+           CALL cp_fm_scale_and_add(0.0_wp,qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
                           -qs_ot_env(1)%ds_min,qs_ot_env(ispin)%matrix_h_e(j)%matrix)
        ENDDO
    ELSE
@@ -605,7 +605,7 @@ SUBROUTINE ot_diis_step(qs_ot_env,globenv)
        DO ispin=1,nspin
           CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_gx,tmp)
           qs_ot_env(1)%gnorm=qs_ot_env(1)%gnorm+tmp
-          CALL cp_fm_add(0.0_wp,qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
+          CALL cp_fm_scale_and_add(0.0_wp,qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
                          -qs_ot_env(1)%ds_min,qs_ot_env(ispin)%matrix_gx)
        ENDDO
    ENDIF
@@ -659,11 +659,11 @@ SUBROUTINE ot_diis_step(qs_ot_env,globenv)
        ! OK, add the vectors now
        CALL cp_fm_set_all(qs_ot_env(ispin)%matrix_x,0.0_wp)
        do i=1, diis_bound
-          CALL cp_fm_add(1.0_wp,qs_ot_env(ispin)%matrix_x, qs_ot_env(1)%c_diis(i), &
+          CALL cp_fm_scale_and_add(1.0_wp,qs_ot_env(ispin)%matrix_x, qs_ot_env(1)%c_diis(i), &
                         qs_ot_env(ispin)%matrix_h_e(i)%matrix)
        enddo
        do i=1, diis_bound
-          CALL cp_fm_add(1.0_wp,qs_ot_env(ispin)%matrix_x, qs_ot_env(1)%c_diis(i), &
+          CALL cp_fm_scale_and_add(1.0_wp,qs_ot_env(ispin)%matrix_x, qs_ot_env(1)%c_diis(i), &
                         qs_ot_env(ispin)%matrix_h_x(i)%matrix)
       enddo
    ENDDO

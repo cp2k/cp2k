@@ -78,13 +78,19 @@ MODULE qs_p_env_methods
                                              cp_warning_level
   USE cp_matrix_utils,                 ONLY: cp_sm_output
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
+                                             cp_sm_pool_type,&
+                                             sm_pool_create,&
+                                             sm_pool_get_mstruct,&
+                                             sm_pools_create_matrix_vect,&
+                                             sm_pools_give_back_matrix_vect
   USE dft_types,                       ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
                                              wp=>dp
   USE qs_blacs,                        ONLY: blacs_scale_and_d,&
                                              copy_blacs_to_blacs_matrix,&
-                                             cp_fm_add,&
+                                             cp_fm_scale_and_add,&
                                              cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_restore,&
                                              cp_fm_gemm,&
@@ -154,12 +160,14 @@ CONTAINS
 !!     p_env_create
 !!
 !!   SYNOPSIS
-!!     Subroutine p_env_create(p_env, qs_env, kpp1_env, psi0d,&
+!!     Subroutine p_env_create(p_env, qs_env, kpp1_env, p1_option, psi0d,&
 !!         orthogonal_orbitals, error)
 !!       Implicit None
 !!       Type(qs_p_env_type), Pointer:: p_env
 !!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
 !!       Type(qs_kpp1_env_type), Intent (IN), Target, Optional:: kpp1_env
+!!       Type(real_matrix_p_type), Dimension(:), Pointer, Optional::&
+!!         p1_option
 !!       Type(cp_full_matrix_p_type), Dimension(:), Pointer, Optional::&
 !!         psi0d
 !!       Logical, Intent (IN), Optional:: orthogonal_orbitals
@@ -216,6 +224,7 @@ CONTAINS
     TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools
     TYPE(cp_para_env_type), POINTER :: para_env
     TYPE(cp_fm_struct_type), POINTER :: tmp_fmstruct, ao_mo_fmstruct
+    TYPE(cp_sm_pool_p_type), POINTER :: S_sm_pools
 
     ! code
 
@@ -224,7 +233,8 @@ CONTAINS
     n_spins = qs_env%dft_control%nspins
 
     failure=.FALSE.
-    NULLIFY(atomic_kind_set, dft_control, ao_mo_fm_pools, para_env)
+    NULLIFY(atomic_kind_set, dft_control, ao_mo_fm_pools, para_env,tmp_fmstruct,&
+         ao_mo_fmstruct,S_sm_pools)
     
     ALLOCATE(p_env,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -542,16 +552,19 @@ END SUBROUTINE p_env_did_change
     TYPE(cp_full_matrix_type), POINTER                 :: tmp
     TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: my_psi0
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER    :: S,p
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER    :: S,p_new
     TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: c
     TYPE(cp_para_env_type), POINTER                    :: para_env
     TYPE(qs_ks_env_type), POINTER                      :: ks_env
+    TYPE(qs_rho_type), POINTER                         :: rho
+    TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER     :: S_sm_pools
 
     ! code
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
-    NULLIFY(tmp, ao_mo_fm_pools,c,my_psi0,p,S,c, para_env,ks_env)
+    NULLIFY(tmp, ao_mo_fm_pools,c,my_psi0,S,p_new,c, para_env,ks_env, rho, &
+         S_sm_pools)
     n_spins = qs_env%dft_control%nspins
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
@@ -561,7 +574,8 @@ END SUBROUTINE p_env_did_change
        p_env%iter=p_env%iter+1
 
        CALL get_qs_env(qs_env,ao_mo_fm_pools=ao_mo_fm_pools,&
-            c=c, S=S, para_env=para_env, ks_env=ks_env, p=p, error=error)
+            c=c, S=S, para_env=para_env, ks_env=ks_env, rho=rho,&
+            S_sm_pools=S_sm_pools, error=error)
 
        ! def my_psi0
        IF (PRESENT(psi0)) THEN
@@ -588,6 +602,9 @@ END SUBROUTINE p_env_did_change
           p_env%psi0d => my_psi0
 
        ELSE
+
+          CALL sm_pools_create_matrix_vect(S_sm_pools,p_new,&
+               error=error)
 
           DO spin=1,n_spins
              ! m_epsilon=choleski_decomposition(my_psi0^T S my_psi0)^-1
@@ -642,14 +659,14 @@ END SUBROUTINE p_env_did_change
              CALL get_mo_set(c(spin)%mo_set,lfomo=lfomo,&
                   nmo=nmo,maxocc=maxocc)
              IF (lfomo>nmo) THEN
-                CALL set_matrix(p(spin)%matrix,&
+                CALL set_matrix(p_new(spin)%matrix,&
                      value=0.0_wp)
-                CALL cp_sm_plus_fm_fm_t(p(spin)%matrix,&
+                CALL cp_sm_plus_fm_fm_t(p_new(spin)%matrix,&
                      matrix_v=my_psi0(spin)%matrix,&
                      matrix_g=p_env%psi0d(spin)%matrix,&
                      ncol=p_env%n_mo(spin),error=error)
                 CALL cp_sm_scale_and_add(alpha=maxocc,&
-                     matrix_a=p(spin)%matrix,error=error)
+                     matrix_a=p_new(spin)%matrix,error=error)
              ELSE
                 CALL cp_unimplemented_error(fromWhere=routineP,&
                      message="symmetrized onesided smearing to do",&
@@ -659,9 +676,12 @@ END SUBROUTINE p_env_did_change
 
           ! updates rho
           CALL qs_rho_update_rho(rho_struct=qs_env%rho, &
-               rho_ao_new=p, qs_env=qs_env,&
+               rho_ao_new=p_new, qs_env=qs_env,&
                error=error)
           
+          CALL sm_pools_give_back_matrix_vect(S_sm_pools,p_new,&
+               error=error)
+
           ! tells ks_env that p changed
           CALL qs_ks_did_change(ks_env=ks_env,qs_env=qs_env,&
                p_changed=.TRUE., error=error)
@@ -684,7 +704,7 @@ END SUBROUTINE p_env_did_change
                p_env%S_psi0(spin)%matrix, p_env%n_ao(spin), &
                para_env)
           IF (PRESENT(Hrho_psi0d)) THEN
-             CALL cp_fm_add(alpha=0.0_wp,matrix_a=Hrho_psi0d(spin)%matrix,&
+             CALL cp_fm_scale_and_add(alpha=0.0_wp,matrix_a=Hrho_psi0d(spin)%matrix,&
                   beta=1.0_wp,matrix_b=p_env%S_psi0(spin)%matrix,&
                   error=error)
           END IF
@@ -851,7 +871,7 @@ END SUBROUTINE p_env_did_change
                                                            
     ! locals                                               
     LOGICAL                            :: failure
-    INTEGER                            :: ncol
+    INTEGER                            :: ncol, handle
     TYPE(real_matrix_type), POINTER    :: k_p
     TYPE(cp_full_matrix_type), POINTER :: tmp
     TYPE(cp_para_env_type), POINTER    :: para_env
@@ -861,6 +881,8 @@ END SUBROUTINE p_env_did_change
                                           routineP = moduleN//':'//routineN
 
     ! code
+    CALL timeset(routineN,"I","",handle)
+
     NULLIFY(tmp,mos)
     failure = .FALSE.
     
@@ -889,6 +911,8 @@ END SUBROUTINE p_env_did_change
     CALL cp_sm_fm_multiply(qs_env%s(spin)%matrix, tmp, &
          res, p_env%n_mo(spin), para_env=para_env, alpha=1.0_dbl,beta=1.0_dbl)    
     CALL fm_pool_give_back_matrix(ao_maxmo_fm_pool,tmp); NULLIFY(tmp)
+
+    CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE p_op_l1_spin
 
@@ -946,7 +970,7 @@ END SUBROUTINE p_env_did_change
     LOGICAL                     :: failure
     CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l2',&
                                    routineP = moduleN//':'//routineN
-    INTEGER                     :: ispin, n_spins, stat, lfomo, nmo
+    INTEGER                     :: ispin, n_spins, stat, lfomo, nmo, handle
     REAL(kind=wp) :: my_alpha, my_beta, maxocc
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p1_new, s
     TYPE(dft_control_type), POINTER :: dft_control
@@ -955,6 +979,9 @@ END SUBROUTINE p_env_did_change
     TYPE(cp_logger_type), POINTER :: logger
     TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mos
     INTEGER, SAVE :: iter=0
+    TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER :: S_sm_pools
+
+    CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
 
@@ -964,7 +991,7 @@ END SUBROUTINE p_env_did_change
     IF (PRESENT(beta)) my_beta=beta
 
     iter=iter+1
-    NULLIFY(p1_new, s, dft_control, para_env, rho, mos)
+    NULLIFY(p1_new, s, dft_control, para_env, rho, mos, S_sm_pools)
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
@@ -974,18 +1001,14 @@ END SUBROUTINE p_env_did_change
        CALL p_env_check_i_alloc(p_env,qs_env=qs_env,error=error)
 
        CALL get_qs_env(qs_env,dft_control=dft_control,&
-            para_env=para_env, rho=rho, s=s,c=mos, error=error)
+            para_env=para_env, rho=rho, s=s,c=mos,&
+            error=error)
        n_spins=dft_control%nspins
 
-       ALLOCATE(p1_new(n_spins),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       p1_new => p_env%rho1%rho_ao
     END IF
     IF (.not.failure) THEN
        DO ispin=1,n_spins
-          NULLIFY(p1_new(ispin)%matrix)
-          CALL replicate_matrix_structure(s(1)%matrix,p1_new(ispin)%matrix,&
-               target_name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
-               "%p1_new-"//TRIM(ADJUSTL(cp_to_string(ispin))))
           CALL get_mo_set(mos(ispin)%mo_set,lfomo=lfomo,nmo=nmo,&
                maxocc=maxocc)
           IF (lfomo>nmo) THEN
@@ -1011,13 +1034,14 @@ END SUBROUTINE p_env_did_change
              CALL cp_sm_output(logger=logger, &
                   outputName="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
                   "%p1_new-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-                  fromWhere=routineP, iter=iter, matrix=p_env%p1(ispin)%matrix,&
+                  fromWhere=routineP, iter=iter, matrix=p1_new(ispin)%matrix,&
                   para_env=qs_env%para_env, error=error)
           END IF
        END DO
-       CALL p_op_l2_tom(p_env, qs_env, p_env%p1, res, my_alpha, my_beta, error)
-       CALL deallocate_matrix_set(p1_new)
+       CALL p_op_l2_tom(p_env, qs_env, p1_new, res, my_alpha, my_beta, error)
     END IF
+
+    CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE p_op_l2_fawzi
 !***************************************************************************
@@ -1036,7 +1060,7 @@ END SUBROUTINE p_env_did_change
     LOGICAL                     :: failure
     CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l2',&
                                    routineP = moduleN//':'//routineN
-    INTEGER                     :: ispin, n_spins, stat
+    INTEGER                     :: ispin, n_spins, stat, handle
     REAL(kind=wp) :: my_alpha, my_beta
     TYPE(dft_control_type), POINTER :: dft_control
     TYPE(cp_para_env_type), POINTER :: para_env
@@ -1044,6 +1068,8 @@ END SUBROUTINE p_env_did_change
     TYPE(cp_logger_type), POINTER :: logger
     INTEGER, SAVE :: iter=0
     LOGICAL, PARAMETER :: fdiff=.FALSE.
+
+    CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
 
@@ -1094,6 +1120,8 @@ END SUBROUTINE p_env_did_change
        END DO
 !!       stop
     END IF
+
+    CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE p_op_l2_tom
 !***************************************************************************
@@ -1150,7 +1178,7 @@ END SUBROUTINE p_env_did_change
     LOGICAL                            :: failure
     CHARACTER(len=*), PARAMETER        :: routineN = 'p_preortho',&
          routineP = moduleN//':'//routineN
-    INTEGER                            :: v_rows, v_cols, cols
+    INTEGER                            :: v_rows, v_cols, cols, handle
     INTEGER                            :: n_spins, spin, nao,maxnmo, max_cols
     TYPE(cp_full_matrix_type), POINTER :: tmp_matrix
     TYPE(cp_fm_pool_type), POINTER     :: ao_maxmo_fm_pool
@@ -1159,6 +1187,8 @@ END SUBROUTINE p_env_did_change
     TYPE(dft_control_type), POINTER    :: dft_control
 
     ! code
+    CALL timeset(routineN,"I","",handle)
+
     failure=.FALSE.
 
     NULLIFY(tmp_matrix,ao_maxmo_fm_pool, ao_maxmo_fmstruct,tmp_fmstruct,&
@@ -1234,6 +1264,8 @@ END SUBROUTINE p_env_did_change
        END IF
     END IF
 
+    CALL timestop(0.0_wp,handle)
+
   END SUBROUTINE p_preortho
 !***************************************************************************
 
@@ -1290,7 +1322,7 @@ END SUBROUTINE p_env_did_change
     LOGICAL                            :: failure
     CHARACTER(len=*), PARAMETER        :: routineN = 'p_postortho',&
          routineP = moduleN//':'//routineN
-    INTEGER                            :: v_rows, v_cols, cols
+    INTEGER                            :: v_rows, v_cols, cols, handle
     INTEGER                            :: n_spins, spin, nao,maxnmo, max_cols
     TYPE(cp_full_matrix_type), POINTER :: tmp_matrix
     TYPE(cp_fm_pool_type), POINTER     :: ao_maxmo_fm_pool
@@ -1299,6 +1331,8 @@ END SUBROUTINE p_env_did_change
     TYPE(dft_control_type), POINTER    :: dft_control
 
     ! code
+    CALL timeset(routineN,"I","",handle)
+
     failure=.FALSE.
     NULLIFY(tmp_matrix,ao_maxmo_fm_pool, ao_maxmo_fmstruct,tmp_fmstruct,&
          dft_control)
@@ -1372,6 +1406,8 @@ END SUBROUTINE p_env_did_change
           CALL cp_fm_release(tmp_matrix)
        END IF
     END IF
+
+    CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE p_postortho
 

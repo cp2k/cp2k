@@ -26,7 +26,7 @@ MODULE qs_ot_scf
   USE kinds,                           ONLY: int_size,&
                                              wp => dp
   USE qs_blacs,                        ONLY: copy_blacs_to_blacs_matrix,&
-                                             cp_fm_add,&
+                                             cp_fm_scale_and_add,&
                                              cp_fm_set_all,&
                                              cp_sm_fm_multiply
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -253,9 +253,9 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_ks,matrix_s,energy, &
                                        para_env=globenv%para_env)
           SELECT CASE (nspin)
           CASE (1)
-               CALL cp_fm_add(4.0_wp,qs_ot_env(ispin)%matrix_hc,0.0_wp,qs_ot_env(ispin)%matrix_hc)
+               CALL cp_fm_scale_and_add(4.0_wp,qs_ot_env(ispin)%matrix_hc,0.0_wp,qs_ot_env(ispin)%matrix_hc)
           CASE (2)            ! right now this is a guess
-               CALL cp_fm_add(2.0_wp,qs_ot_env(ispin)%matrix_hc,0.0_wp,qs_ot_env(ispin)%matrix_hc)
+               CALL cp_fm_scale_and_add(2.0_wp,qs_ot_env(ispin)%matrix_hc,0.0_wp,qs_ot_env(ispin)%matrix_hc)
           CASE DEFAULT 
                CALL stop_program("OT_SCF_MINI","NSPIN NYI")
           END SELECT 

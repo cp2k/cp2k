@@ -20,7 +20,7 @@
 MODULE qs_tddfpt_eigensolver
 
   USE cp_error_handling,    ONLY : cp_simple_assert
-  USE cp_fm_basic_linalg,   ONLY : cp_fm_gemm, cp_fm_symm, cp_fm_add
+  USE cp_fm_basic_linalg,   ONLY : cp_fm_gemm, cp_fm_symm, cp_fm_scale_and_add
   USE cp_fm_cholesky,       ONLY : cp_fm_cholesky_decompose, cp_fm_cholesky_invert
   USE cp_fm_pool_types,     ONLY : cp_fm_pool_p_type,&
                                    cp_fm_pool_type,&
@@ -508,7 +508,7 @@ CONTAINS
        END DO
        DO spin=1, n_spins
           index = n_spins*(i-1)+spin
-          CALL cp_fm_add(1.0_dbl, X(spin)%matrix, -1.0_dbl*dot_product, kv(index)%matrix)
+          CALL cp_fm_scale_and_add(1.0_dbl, X(spin)%matrix, -1.0_dbl*dot_product, kv(index)%matrix)
        END DO
     END DO
   END SUBROUTINE reorthogonalize

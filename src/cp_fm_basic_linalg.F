@@ -100,7 +100,7 @@ MODULE cp_fm_basic_linalg
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_fm_basic_linalg'
 
-  PUBLIC :: cp_fm_add, cp_sm_fm_multiply, cp_sm_plus_fm_fm_t,&
+  PUBLIC :: cp_fm_scale_and_add, cp_sm_fm_multiply, cp_sm_plus_fm_fm_t,&
        cp_fm_gemm, cp_fm_symm, cp_fm_syrk, cp_fm_schur_product,&
        cp_fm_trace, cp_fm_triangular_multiply, cp_fm_lu_decompose, &
        cp_fm_scale
@@ -108,7 +108,7 @@ MODULE cp_fm_basic_linalg
 !****************************************************************************
 CONTAINS
 
-  SUBROUTINE cp_fm_add(alpha,matrix_a,beta,matrix_b,error)
+  SUBROUTINE cp_fm_scale_and_add(alpha,matrix_a,beta,matrix_b,error)
 
     !   Purpose: Scale and add two BLACS matrices (a <- alpha*a + beta*b).
 
@@ -127,7 +127,7 @@ CONTAINS
     INTEGER :: handle,mypcol,myprow,npcol,nprow,source
 
     REAL(wp), DIMENSION(:,:), POINTER :: a,b
-    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_add',&
+    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_scale_and_add',&
          routineP=moduleN//':'//routineN
     LOGICAL :: failure
     REAL(wp) :: my_beta
@@ -201,7 +201,7 @@ CONTAINS
     END IF
     CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE cp_fm_add
+  END SUBROUTINE cp_fm_scale_and_add
 
 ! *****************************************************************************
 

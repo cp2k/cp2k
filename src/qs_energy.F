@@ -51,8 +51,7 @@ MODULE qs_energy
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "qs_energy"
 
-  PUBLIC :: qs_energies,&
-            qs_energies_update
+  PUBLIC :: qs_energies
 
 !!***
 ! *****************************************************************************
@@ -61,7 +60,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_energies(qs_env,globenv)
+  SUBROUTINE qs_energies(qs_env,globenv, neighbor_lists_from_scratch)
 
 !   Purpose: QUICKSTEP single point wavefunction optimization.
 
@@ -71,6 +70,7 @@ CONTAINS
 
     TYPE(global_environment_type),INTENT(in) :: globenv
     TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(in), OPTIONAL            :: neighbor_lists_from_scratch
 
 !   *** Local parameters ***
 
@@ -81,7 +81,7 @@ CONTAINS
 !   *** Local variables ***
 
     TYPE(qs_ks_env_type), POINTER :: ks_env
-
+    LOGICAL :: my_neighbor_lists_from_scratch
     INTEGER             :: handle
 
 !   ---------------------------------------------------------------------------
@@ -91,8 +91,16 @@ CONTAINS
     CALL timeset(routine_name,"I","",handle)
 
     NULLIFY(ks_env)
+    my_neighbor_lists_from_scratch=.FALSE.
+    IF (PRESENT(neighbor_lists_from_scratch)) THEN
+       my_neighbor_lists_from_scratch=neighbor_lists_from_scratch
+    END IF
 
-    CALL build_neighbor_lists(qs_env,globenv)
+    IF (my_neighbor_lists_from_scratch.or..not.ASSOCIATED(qs_env%sab_orb)) THEN
+       CALL build_neighbor_lists(qs_env,globenv)
+    ELSE
+       CALL rebuild_neighbor_lists(qs_env,globenv)
+    END IF
 
 !   *** Allocate the overlap matrix and distribute the atomic blocks ***
 
@@ -104,10 +112,6 @@ CONTAINS
     CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
                                        globenv=globenv,&
                                        calculate_forces=.FALSE.)
-
-!   *** Updates rho structure ***
-
-    CALL qs_env_rebuild_rho(qs_env=qs_env)
 
 !   *** init the ks_env
     
@@ -126,58 +130,6 @@ CONTAINS
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
   END SUBROUTINE qs_energies
-
-! *****************************************************************************
-
-  SUBROUTINE qs_energies_update(qs_env,globenv)
-
-!   Purpose: QUICKSTEP single point wavefunction optimization.
-
-!   History: - Creation (29.10.2002,MK)
-
-!   ***************************************************************************
-
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(qs_environment_type), POINTER        :: qs_env
-
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_energies_update"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
-
-!   *** Local variables ***
-
-    INTEGER             :: handle
-
-!   ---------------------------------------------------------------------------
-
-    CALL write_checkpoint_information("entering "//routine_name,globenv)
-
-    CALL timeset(routine_name,"I","",handle)
-
-    CALL rebuild_neighbor_lists(qs_env,globenv)
-
-!   *** Allocate the overlap matrix and distribute the atomic blocks ***
-
-    CALL distribute_overlap_matrix(qs_env,globenv)
-    CALL qs_env_update_s_mstruct(qs_env)
-
-!   *** Calculate the overlap and the core Hamiltonian integral matrix ***
-
-    CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
-                                       globenv=globenv,&
-                                       calculate_forces=.FALSE.)
-
-!   *** Perform a SCF run ***
-
-    CALL scf(qs_env,globenv)
-
-    CALL timestop(0.0_wp,handle)
-
-    CALL write_checkpoint_information("leaving "//routine_name,globenv)
-
-  END SUBROUTINE qs_energies_update
 
 ! *****************************************************************************
 

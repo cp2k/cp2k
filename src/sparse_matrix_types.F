@@ -68,7 +68,7 @@ MODULE sparse_matrix_types
   END TYPE real_block_list_type
 
   TYPE real_matrix_type
-    PRIVATE
+!    PRIVATE
     TYPE(real_block_list_type), DIMENSION(:), POINTER :: block_list
     CHARACTER(LEN=60)                                 :: name
     CHARACTER(LEN=40)                                 :: symmetry
@@ -90,7 +90,8 @@ MODULE sparse_matrix_types
 
   PUBLIC :: real_block_node_type,&
             real_matrix_p_type,&
-            real_matrix_type
+            real_matrix_type,&
+            real_block_list_type
 
 ! *** Public subroutines ***
 

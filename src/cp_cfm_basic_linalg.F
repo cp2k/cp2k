@@ -102,7 +102,7 @@ CONTAINS
     INTEGER :: handle,mypcol,myprow,npcol,nprow,source
 
     COMPLEX(wp), DIMENSION(:,:), POINTER :: a,b
-    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_add',&
+    CHARACTER(len=*), PARAMETER :: routineN='cp_cfm_add',&
          routineP=moduleN//':'//routineN
     LOGICAL :: failure
     COMPLEX(wp) :: my_beta

@@ -706,7 +706,7 @@ FUNCTION cp_sm_diag_trace(diagonal, matrix, para_env, error) RESULT(res)
   failure=.FALSE.
   matrix_ptr => matrix
   
-  CALL timeset(routineN//','//moduleN,'I',"",handle)
+  CALL timeset(routineN,'I',"",handle)
   CALL cp_init(iterator, matrix=matrix)
   CALL get_matrix_info(matrix_ptr, first_row=first_row, first_col=first_col)
   res=0.0_wp
@@ -969,7 +969,7 @@ END SUBROUTINE cp_d_struct_create
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(matrix_ptr),cp_failure_level,routineP,error,failure)
-    CALL timeset(routineN//','//moduleN,'I',"",handle)
+    CALL timeset(routineN,'I',"",handle)
     IF (.not.failure) THEN
        CALL get_matrix_info(matrix_ptr, nblock_row=nrows, nblock_col=ncols)
        CPPreconditionNoFail(nrows==ncols,cp_warning_level,routineP,error)
@@ -1493,10 +1493,11 @@ SUBROUTINE sm_struct_add_sm_local_blocks(sm_struct,matrix,error)
   CHARACTER(len=*), PARAMETER :: routineN='sm_struct_add_sm_local_blocks',&
         routineP=moduleN//':'//routineN
   TYPE(cp_matrix_block_iterator) :: m_iter
-  INTEGER :: block_col, block_row
+  INTEGER :: block_col, block_row, handle
 
   failure=.FALSE.
   
+  CALL timeset(routineN,"I","",handle)
   CPPrecondition(ASSOCIATED(sm_struct),cp_failure_level,routineP,error,failure)
   CPPrecondition(sm_struct%ref_count>0,cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
@@ -1509,6 +1510,7 @@ SUBROUTINE sm_struct_add_sm_local_blocks(sm_struct,matrix,error)
              block_col=block_col, error=error)
      END DO
   END IF
+  CALL timestop(0.0_wp,handle)
 END SUBROUTINE sm_struct_add_sm_local_blocks
 !***************************************************************************
 

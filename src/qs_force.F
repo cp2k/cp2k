@@ -22,6 +22,10 @@ MODULE qs_force
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
+                                             cp_sm_pool_type,&
+                                             sm_pools_create_matrix_vect,&
+                                             sm_pools_give_back_matrix_vect
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
                                              wp => dp,&
@@ -30,8 +34,7 @@ MODULE qs_force
   USE particle_types,                  ONLY: particle_type
   USE qs_core_energies,                ONLY: calculate_ecore_overlap
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
-  USE qs_energy,                       ONLY: qs_energies,&
-                                             qs_energies_update
+  USE qs_energy,                       ONLY: qs_energies
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: init_qs_force,&
@@ -40,7 +43,8 @@ MODULE qs_force
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_p_type,&
                                              qs_ks_env_type
-  USE qs_mo_types,                     ONLY: calculate_w_matrix,&
+  USE qs_mo_types,                     ONLY: calculate_density_matrix,&
+                                             calculate_w_matrix,&
                                              mo_set_p_type,&
                                              mo_set_type
   USE qs_overlap,                      ONLY: write_sparse_matrix
@@ -65,8 +69,7 @@ MODULE qs_force
 
 ! *** Public subroutines ***
 
-  PUBLIC :: qs_forces,&
-            qs_forces_update
+  PUBLIC :: qs_forces
 
 !!***
 ! *****************************************************************************
@@ -94,11 +97,13 @@ CONTAINS
 
 !   *** Local variables ***
 
+    LOGICAL :: gth_potential_present
+
     TYPE(mo_set_type), POINTER      :: mo_set
     TYPE(qs_rho_type), POINTER      :: rho
     TYPE(real_matrix_type), POINTER :: w
 
-    INTEGER :: handle,i,iatom,ikind,istat,natom,output_unit
+    INTEGER :: handle,i,iatom,ikind,istat,natom,output_unit,ispin
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
     TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: c
@@ -138,9 +143,17 @@ CONTAINS
                              atom_of_kind=atom_of_kind,&
                              kind_of=kind_of)
 
-    ! to do calculate redundant density
-    ! CALL calculate_density_matrix(mo_set,rho%rho_ao(1)%matrix,globenv)
-    p => rho%rho_ao
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+         gth_potential_present=gth_potential_present)
+    IF ((qs_env%para_env%num_pe > 1).AND.gth_potential_present) THEN
+       ! to do calculate redundant density
+       CALL sm_pools_create_matrix_vect(qs_env%H_redundant_sm_pools,p)
+       DO ispin=1,SIZE(c)
+          CALL calculate_density_matrix(c(ispin)%mo_set,p(ispin)%matrix,globenv)
+       END DO
+    ELSE
+       p => rho%rho_ao
+    END IF
 
     CALL init_qs_force(force)
 
@@ -167,7 +180,15 @@ CONTAINS
                                        calculate_forces=.TRUE.,&
                                        p=p(1)%matrix,&
                                        w=w)
-    CALL qs_ks_did_change(ks_env,qs_env,p_changed=.TRUE.)
+    
+    IF ((qs_env%para_env%num_pe > 1).AND.gth_potential_present) THEN
+       CALL sm_pools_give_back_matrix_vect(qs_env%H_redundant_sm_pools,&
+            p)
+    ELSE
+       NULLIFY(p)
+    END IF
+
+!FM    CALL qs_ks_did_change(ks_env,qs_env,p_changed=.TRUE.)
     CALL qs_ks_update_qs_env(ks_env=ks_env,&
                              qs_env=qs_env,&
                              rebuild=.TRUE.,&
@@ -192,6 +213,11 @@ CONTAINS
     DO iatom=1,natom
       ikind = kind_of(iatom)
       i = atom_of_kind(iatom)
+      ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      ! the force is - dE/dR, what is called force is actually the gradient
+      ! Things should have the right name
+      ! The minus sign below is a hack
+      ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
       particle_set(iatom)%f(1:3) = force(ikind)%total(1:3,i)
     END DO
 
@@ -210,146 +236,6 @@ CONTAINS
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
   END SUBROUTINE qs_forces
-
-! *****************************************************************************
-
-  SUBROUTINE qs_forces_update(qs_env,globenv)
-
-!   Purpose: Calculate the Quickstep forces.
-
-!   History: - Creation (29.10.2002,MK)
-
-!   ***************************************************************************
-
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(qs_environment_type), POINTER        :: qs_env
-
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_forces_update"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
-
-!   *** Local variables ***
-
-    TYPE(mo_set_type), POINTER      :: mo_set
-    TYPE(qs_rho_type), POINTER      :: rho
-    TYPE(real_matrix_type), POINTER :: w
-
-    INTEGER :: handle,i,iatom,ikind,istat,natom,output_unit
-
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: c
-    TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
-    TYPE(qs_force_type), DIMENSION(:), POINTER      :: force
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,p,s
-    TYPE(qs_ks_env_type), POINTER                   :: ks_env
-
-    INTEGER, DIMENSION(:), ALLOCATABLE :: atom_of_kind,kind_of
-
-!   ---------------------------------------------------------------------------
-
-    CALL write_checkpoint_information("entering "//routine_name,globenv)
-
-    CALL timeset(routine_name,"I","",handle)
-
-    CALL qs_energies_update(qs_env,globenv)
-
-    CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    particle_set=particle_set,&
-                    s=s,&
-                    c=c,&
-                    k=k,&
-                    rho=rho,&
-                    ks_env=ks_env,&
-                    force=force)
-
-    natom = SIZE(particle_set)
-
-    ALLOCATE (atom_of_kind(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
-    ALLOCATE (kind_of(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"kind_of",natom*int_size)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             atom_of_kind=atom_of_kind,&
-                             kind_of=kind_of)
-
-    p => rho%rho_ao
-
-    CALL init_qs_force(force)
-
-!   *** Force component from the core charge distribution overlap ***
-
-    CALL calculate_ecore_overlap(qs_env=qs_env,&
-                                 globenv=globenv,&
-                                 calculate_forces=.TRUE.)
-
-!   *** Load MO set (QS wavefunction) ***
-
-    mo_set => c(1)%mo_set
-
-    NULLIFY (w)
-    CALL replicate_matrix_structure(s(1)%matrix,w,"W MATRIX")
-
-    CALL calculate_w_matrix(mo_set,k(1)%matrix,w,globenv)
-    IF (globenv%ionode.AND.globenv%print%w_matrix) THEN
-      CALL write_sparse_matrix(w,4,6,qs_env,globenv)
-    END IF
-
-    CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
-                                       globenv=globenv,&
-                                       calculate_forces=.TRUE.,&
-                                       p=p(1)%matrix,&
-                                       w=w)
-    CALL qs_ks_did_change(ks_env,qs_env,p_changed=.TRUE.)
-    CALL qs_ks_update_qs_env(ks_env=ks_env,&
-                             qs_env=qs_env,&
-                             rebuild=.TRUE.,&
-                             calculate_forces=.TRUE.)
-
-    DO ikind=1,SIZE(force)
-      CALL mp_sum(force(ikind)%gth_ppl,globenv%group)
-      CALL mp_sum(force(ikind)%gth_ppnl,globenv%group)
-      CALL mp_sum(force(ikind)%kinetic,globenv%group)
-      CALL mp_sum(force(ikind)%overlap,globenv%group)
-      CALL mp_sum(force(ikind)%rho_elec,globenv%group)
-      force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
-                                force(ikind)%core_overlap(:,:) +&
-                                force(ikind)%gth_ppl(:,:) +&
-                                force(ikind)%gth_ppnl(:,:) +&
-                                force(ikind)%kinetic(:,:) +&
-                                force(ikind)%overlap(:,:) +&
-                                force(ikind)%rho_core(:,:) +&
-                                force(ikind)%rho_elec(:,:)
-    END DO
-
-    DO iatom=1,natom
-      ikind = kind_of(iatom)
-      i = atom_of_kind(iatom)
-      ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      ! the force is - dE/dR, it seems that what is called force is actually the gradient
-      ! is that true ? In that case things should have the right name
-      ! The minus sign below is a hack
-      ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      particle_set(iatom)%f(1:3) = - force(ikind)%total(1:3,i)
-    END DO
-
-    CALL write_forces(force,atomic_kind_set,globenv)
-
-    CALL deallocate_matrix(w)
-
-    DEALLOCATE (atom_of_kind,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
-
-    DEALLOCATE (kind_of,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"kind_of")
-
-    CALL timestop(0.0_wp,handle)
-
-    CALL write_checkpoint_information("leaving "//routine_name,globenv)
-
-  END SUBROUTINE qs_forces_update
 
 ! *****************************************************************************
 

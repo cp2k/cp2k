@@ -39,7 +39,7 @@ MODULE qs_wf_history_methods
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_add
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pools_create_matrix_vect,&
@@ -218,7 +218,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,time,error)
         END IF
         DO ispin=1,nspins
            CALL get_mo_set(mos(ispin)%mo_set,eigenvectors=eigenvectors)
-           CALL cp_fm_add(alpha=0.0_wp,&
+           CALL cp_fm_scale_and_add(alpha=0.0_wp,&
                 matrix_a=snapshot%wf(ispin)%matrix,&
                 matrix_b=eigenvectors,error=error)
         END DO
@@ -425,7 +425,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, time, error)
            CALL fm_pools_create_matrix_vect(ao_mo_fm_pools, &
                 tmp_matrix, error=error)
            DO ispin=1,SIZE(tmp_matrix)
-              CALL cp_fm_add(alpha=0.0_wp,matrix_a=tmp_matrix(ispin)%matrix,&
+              CALL cp_fm_scale_and_add(alpha=0.0_wp,matrix_a=tmp_matrix(ispin)%matrix,&
                    matrix_b=old_state%wf(ispin)%matrix,&
                    error=error)
            END DO
@@ -451,10 +451,10 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, time, error)
         IF (.not.failure) THEN
            DO ispin=1,SIZE(mos)
               CALL get_mo_set(mos(ispin)%mo_set,eigenvectors=eigenvectors)
-              CALL cp_fm_add(alpha=0.0_wp,&
+              CALL cp_fm_scale_and_add(alpha=0.0_wp,&
                    matrix_a=tmp_matrix(ispin)%matrix,&
                    matrix_b=eigenvectors,error=error)
-              CALL cp_fm_add(alpha=(t3-t1)/(t2-t1),matrix_a=eigenvectors,&
+              CALL cp_fm_scale_and_add(alpha=(t3-t1)/(t2-t1),matrix_a=eigenvectors,&
                    beta=(t2-t3)/(t2-t1), matrix_b=tmp_matrix(ispin)%matrix,&
                    error=error)
            END DO

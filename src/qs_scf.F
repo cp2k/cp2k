@@ -48,221 +48,230 @@
 MODULE qs_scf
 ! *****************************************************************************
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-       get_atomic_kind,&
-       get_atomic_kind_set
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
-       gto_basis_set_type
+                                             gto_basis_set_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE coefficient_types,               ONLY: coeff_allocate,&
-       coeff_copy,&
-       coeff_reduce,&
-       coeff_sumup,&
-       coeff_transform_space,&
-       coeff_type,&
-       coeff_zero
+                                             coeff_copy,&
+                                             coeff_reduce,&
+                                             coeff_sumup,&
+                                             coeff_transform_space,&
+                                             coeff_type,&
+                                             coeff_zero
   USE cp_array_utils,                  ONLY: cp_1d_r_output
   USE cp_block_matrix,                 ONLY: cp_block_matrix_p_type,&
-       cp_block_matrix_type,&
-       cp_sp_multiplies_blacs
+                                             cp_block_matrix_type,&
+                                             cp_sp_multiplies_blacs
   USE cp_error_handling,               ONLY: cp_a_l,&
-       cp_assert,&
-       cp_assertion_failed,&
-       cp_debug,&
-       cp_error_dealloc_ref,&
-       cp_error_get_logger,&
-       cp_error_init,&
-       cp_error_message,&
-       cp_error_type,&
-       cp_internal_error
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
-       cp_fm_pool_type,&
-       fm_pool_get_mstruct
+                                             cp_fm_pool_type,&
+                                             fm_pool_get_mstruct
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-       cp_fm_struct_get,&
-       cp_fm_struct_release,&
-       cp_fm_struct_type
+                                             cp_fm_struct_get,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create
   USE cp_lbfgs_optimizer_gerd_f,       ONLY: cp_lbfgs_opt_gerd_f_type,&
-       cp_opt_gerd_f_dealloc_ref,&
-       cp_opt_gerd_f_init,&
-       cp_opt_gerd_f_next
+                                             cp_opt_gerd_f_dealloc_ref,&
+                                             cp_opt_gerd_f_init,&
+                                             cp_opt_gerd_f_next
   USE cp_log_handling,                 ONLY: cp_failure_level,&
-       cp_log,&
-       cp_logger_get_default_unit_nr,&
-       cp_logger_type,&
-       cp_note_level,&
-       cp_to_string,&
-       cp_warning_level
+                                             cp_log,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE cp_matrix_utils,                 ONLY: cp_sm_output
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
+                                             cp_sm_pool_type,&
+                                             sm_pool_create_matrix,&
+                                             sm_pool_give_back_matrix
   USE cube_utils,                      ONLY: cube_info_type,&
-       destroy_cube_info,&
-       init_cube_info
+                                             destroy_cube_info,&
+                                             init_cube_info
   USE dft_types,                       ONLY: dft_control_type
   USE external_potential_types,        ONLY: all_potential_type,&
-       get_potential,&
-       gth_potential_type
+                                             get_potential,&
+                                             gth_potential_type
   USE global_types,                    ONLY: DEBUG,&
-       global_environment_type
+                                             global_environment_type
   USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: int_size,&
-       wp => dp
+                                             wp => dp
   USE l_utils,                         ONLY: destroy_l_info,&
-       init_l_info,&
-       l_info_type
+                                             init_l_info,&
+                                             l_info_type
   USE machine,                         ONLY: m_cputime,&
-       m_flush
+                                             m_flush
   USE mathconstants,                   ONLY: fourpi,&
-       twopi
+                                             twopi
   USE message_passing,                 ONLY: mp_allgather,&
-       mp_max,&
-       mp_range,&
-       mp_sum,&
-       mp_sync
+                                             mp_max,&
+                                             mp_range,&
+                                             mp_sum,&
+                                             mp_sync
   USE pao_glob_angles_methods,         ONLY: pao_g_ang_get,&
-       pao_g_ang_set
+                                             pao_g_ang_set
   USE pao_l_angles_methods,            ONLY: pao_guarantee_owned_NUi
   USE pao_obj_function,                ONLY: pao_gerd_f_dealloc_ref,&
-       pao_gerd_f_init,&
-       pao_gerd_functional_type
+                                             pao_gerd_f_init,&
+                                             pao_gerd_functional_type
   USE pao_proj_methods,                ONLY: sm_matrix_transf_p_to_m,&
-       sm_matrix_transf_to_f
+                                             sm_matrix_transf_to_f
   USE pao_qs_env_methods,              ONLY: pao_qs_env_did_change
   USE pao_types,                       ONLY: pao_env_get,&
-       pao_env_type,&
-       pao_glob_angles_type
+                                             pao_env_type,&
+                                             pao_glob_angles_type
   USE particle_types,                  ONLY: particle_type
   USE preconditioner,                  ONLY: destroy_preconditioner,&
-       init_preconditioner,&
-       make_preconditioner,&
-       preconditioner_type
+                                             init_preconditioner,&
+                                             make_preconditioner,&
+                                             preconditioner_type
   USE pw_env_types,                    ONLY: pw_env_flush_cache,&
-       pw_env_get,&
-       pw_env_type
+                                             pw_env_get,&
+                                             pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-       pw_pool_init_coeff,&
-       pw_pool_p_type,&
-       pw_pool_type,&
-       pw_pools_give_back_coeffs,&
-       pw_pools_init_coeffs
+                                             pw_pool_init_coeff,&
+                                             pw_pool_p_type,&
+                                             pw_pool_type,&
+                                             pw_pools_give_back_coeffs,&
+                                             pw_pools_init_coeffs
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-       COMPLEXDATA3D,&
-       REALDATA3D,&
-       REALSPACE,&
-       RECIPROCALSPACE,&
-       pw_type
+                                             COMPLEXDATA3D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_type
   USE qs_arpack,                       ONLY: arpack_diag_sy
   USE qs_arpack_full,                  ONLY: op_symv_type,&
-       setup_op_symv
+                                             setup_op_symv
   USE qs_blacs,                        ONLY: blacs_add_to_element,&
-       blacs_block_jacobi_classic,&
-       blacs_get_element,&
-       blacs_make_basis,&
-       blacs_syevx,&
-       copy_blacs_to_blacs_matrix,&
-       copy_full_matrix_to_real_matrix,&
-       copy_real_matrix_to_full_matrix,&
-       cp_fm_add,&
-       cp_fm_cholesky_decompose,&
-       cp_fm_cholesky_reduce,&
-       cp_fm_cholesky_restore,&
-       cp_fm_create2,&
-       cp_fm_gemm,&
-       cp_fm_get_info,&
-       cp_fm_init_random,&
-       cp_fm_release,&
-       cp_fm_set_all,&
-       cp_fm_set_element,&
-       cp_fm_symm,&
-       cp_fm_trace,&
-       cp_full_matrix_p_type,&
-       cp_full_matrix_type,&
-       cp_sm_fm_multiply,&
-       power_blacs_matrix,&
-       replicate_blacs_matrix,&
-       symmetrise_blacs_matrix,&
-       w_blacs_matrix => write_blacs_matrix
+                                             blacs_block_jacobi_classic,&
+                                             blacs_get_element,&
+                                             blacs_make_basis,&
+                                             blacs_syevx,&
+                                             copy_blacs_to_blacs_matrix,&
+                                             copy_full_matrix_to_real_matrix,&
+                                             copy_real_matrix_to_full_matrix,&
+                                             cp_fm_scale_and_add,&
+                                             cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_reduce,&
+                                             cp_fm_cholesky_restore,&
+                                             cp_fm_create2,&
+                                             cp_fm_gemm,&
+                                             cp_fm_get_info,&
+                                             cp_fm_init_random,&
+                                             cp_fm_release,&
+                                             cp_fm_set_all,&
+                                             cp_fm_set_element,&
+                                             cp_fm_symm,&
+                                             cp_fm_trace,&
+                                             cp_full_matrix_p_type,&
+                                             cp_full_matrix_type,&
+                                             cp_sm_fm_multiply,&
+                                             power_blacs_matrix,&
+                                             replicate_blacs_matrix,&
+                                             symmetrise_blacs_matrix,&
+                                             w_blacs_matrix => write_blacs_matrix
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_rho_core,&
-       calculate_total_abs_rho,&
-       calculate_total_rho,&
-       calculate_wavefunction
+                                             calculate_total_abs_rho,&
+                                             calculate_total_rho,&
+                                             calculate_wavefunction
   USE qs_core_energies,                ONLY: calculate_ecore,&
-       calculate_ecore_overlap,&
-       calculate_ecore_self
+                                             calculate_ecore_overlap,&
+                                             calculate_ecore_self
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
-  USE qs_diis,                         ONLY: scf_diis
+  USE qs_diis,                         ONLY: qs_diis_b_clear,&
+                                             qs_diis_b_create,&
+                                             qs_diis_b_step
+  USE qs_diis_types,                   ONLY: qs_diis_b_release,&
+                                             qs_diis_buffer_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-       qs_environment_type,&
-       set_qs_env
+                                             qs_environment_type,&
+                                             set_qs_env
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
-       qs_ks_update_qs_env
+                                             qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_p_type,&
-       qs_ks_env_type,&
-       qs_ks_release,&
-       qs_ks_retain
+                                             qs_ks_env_type,&
+                                             qs_ks_release,&
+                                             qs_ks_retain
   USE qs_localization,                 ONLY: qs_loc_compute_set,&
-       qs_loc_destroy,&
-       qs_loc_env_type,&
-       qs_loc_init
+                                             qs_loc_destroy,&
+                                             qs_loc_env_type,&
+                                             qs_loc_init
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
-       calculate_density_matrix,&
-       calculate_subspace_eigenvalues,&
-       correct_mo_eigenvalues,&
-       get_mo_set,&
-       init_mo_set,&
-       mo_set_p_type,&
-       mo_set_type,&
-       read_mo_set,&
-       set_mo_occupation,&
-       write_mo_set
+                                             calculate_density_matrix,&
+                                             calculate_subspace_eigenvalues,&
+                                             correct_mo_eigenvalues,&
+                                             get_mo_set,&
+                                             init_mo_set,&
+                                             mo_set_p_type,&
+                                             mo_set_type,&
+                                             read_mo_set,&
+                                             set_mo_occupation,&
+                                             write_mo_set
   USE qs_ot,                           ONLY: qs_ot_new_preconditioner,&
-       qs_ot_type
+                                             qs_ot_type
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
   USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
-       ot_scf_init,&
-       ot_scf_mini,&
-       ot_scf_read_input
+                                             ot_scf_init,&
+                                             ot_scf_mini,&
+                                             ot_scf_read_input
   USE qs_overlap,                      ONLY: write_blacs_matrix,&
-       write_sparse_matrix
+                                             write_sparse_matrix
   USE qs_parser,                       ONLY: close_file,&
-       open_file
+                                             open_file
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_did_change,&
-       qs_rho_get,&
-       qs_rho_type
+                                             qs_rho_get,&
+                                             qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type,&
-       scf_env_release,&
-       scf_env_retain
+                                             scf_env_release,&
+                                             scf_env_retain
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
   USE scf_control_types,               ONLY: scf_control_type
   USE simulation_cell,                 ONLY: cell_type,&
-       get_cell
+                                             get_cell
   USE sparse_matrix_types,             ONLY: add_all_real_matrix_blocks,&
-       add_matrices,&
-       allocate_matrix,&
-       allocate_matrix_set,&
-       cp_sm_scale_and_add,&
-       deallocate_matrix,&
-       deallocate_matrix_set,&
-       first_block_node,&
-       get_block_node,&
-       get_matrix_info,&
-       next_block_node,&
-       real_block_node_type,&
-       real_matrix_p_type,&
-       real_matrix_type,&
-       replicate_matrix,&
-       replicate_matrix_structure,&
-       set_matrix,&
-       symmetrise_diagonal_blocks,&
-       transfer_matrix,&
-       write_blocks_maxabsval
+                                             add_matrices,&
+                                             allocate_matrix,&
+                                             allocate_matrix_set,&
+                                             cp_sm_scale_and_add,&
+                                             deallocate_matrix,&
+                                             deallocate_matrix_set,&
+                                             first_block_node,&
+                                             get_block_node,&
+                                             get_matrix_info,&
+                                             next_block_node,&
+                                             real_block_node_type,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type,&
+                                             replicate_matrix,&
+                                             replicate_matrix_structure,&
+                                             set_matrix,&
+                                             symmetrise_diagonal_blocks,&
+                                             transfer_matrix,&
+                                             write_blocks_maxabsval
   USE termination,                     ONLY: stop_memory,&
-       stop_program
+                                             stop_program
   USE timings,                         ONLY: timeset,&
-       timestop,trace_debug
+                                             timestop,&
+                                             trace_debug
   IMPLICIT NONE
 
   PRIVATE
@@ -282,7 +291,8 @@ MODULE qs_scf
 
 ! *** Public subroutines ***
 
-  PUBLIC :: scf
+  PUBLIC :: scf, scf_env_create, scf_env_do_scf, &
+       scf_env_did_change
 
 ! *****************************************************************************
 
@@ -294,6 +304,13 @@ CONTAINS
 !!
 !!   NAME
 !!     scf_env_create
+!!
+!!   SYNOPSIS
+!!     Subroutine scf_env_create(scf_env, qs_env, error)
+!!       Type(qs_scf_env_type), Pointer:: scf_env
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine scf_env_create
 !!
 !!   FUNCTION
 !!     allocates and initialize an scf_env 
@@ -367,7 +384,8 @@ CONTAINS
        scf_env%print_iter_line=.TRUE.
 
        NULLIFY(scf_env%scf_work1, scf_env%scf_work2, scf_env%ortho,&
-            scf_env%p_new, scf_env%ot_preconditioner, scf_env%qs_ot_env)
+            scf_env%p_new, scf_env%ot_preconditioner, scf_env%qs_ot_env,&
+            scf_env%scf_diis_buffer)
 
     END IF
   END SUBROUTINE scf_env_create
@@ -434,6 +452,14 @@ CONTAINS
 !!   NAME
 !!     scf_env_do_scf
 !!
+!!   SYNOPSIS
+!!     Subroutine scf_env_do_scf(scf_env, qs_env, globenv, error)
+!!       Type(qs_scf_env_type), Pointer:: scf_env
+!!       Type(global_environment_type), Intent (IN):: globenv
+!!       Type(qs_environment_type), Pointer:: qs_env
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine scf_env_do_scf
+!!
 !!   FUNCTION
 !!     perform an scf loop
 !!
@@ -447,7 +473,7 @@ CONTAINS
 !!       see module cp_error_handling 
 !!
 !!   AUTHOR
-!!     fawzi
+!!     Matthias Krack
 !!
 !!   MODIFICATION HISTORY
 !!     long history, see cvs and qs_scf module history
@@ -463,82 +489,47 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "scf"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-         "SUBROUTINE "//routine_name//" (MODULE "//moduleN//")"
+    CHARACTER(LEN=*), PARAMETER :: routineN = "scf_env_do_scf"
+    CHARACTER(LEN=*), PARAMETER :: routineP =&
+         moduleN//':'//routineN
 
 !   *** Local variables ***
 
     TYPE(dft_control_type), POINTER   :: dft_control
-    TYPE(mo_set_type), POINTER :: mo_set
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s
-    REAL(wp) :: diis_error,method_par,pmix,t1,t2,tmp
-    INTEGER  :: handle,handle2,homo,igrid_level,imo,istat,&
-         output_unit,n,k,nrow_block,ncol_block, type_switch, &
-         fileunit
-    LOGICAL  :: diis_step,do_level_shift,ionode, gth_potential_present,&
-         use_jacobi,use_cholesky
-    TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
-
-    LOGICAL :: pao, failure
-    TYPE(pao_env_type),POINTER :: pao_env
-    TYPE(cp_block_matrix_p_type),DIMENSION(:),POINTER :: min_density_m
-    TYPE(cp_full_matrix_type), POINTER :: min_mo,full_mo
-
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: ks_rmpv, p_rmpv, kinetic, p_new
-    TYPE(real_matrix_p_type), POINTER :: ks,p
-
+    REAL(wp) :: diis_error,t1,t2
+    INTEGER  :: handle,handle2,output_unit,ispin
+    LOGICAL  :: diis_step,do_level_shift,ionode,&
+         use_jacobi,use_cholesky, failure,energy_only, rebuild
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s,&
+         ks, p
     TYPE(qs_rho_type), POINTER :: rho
-    TYPE(real_matrix_type), POINTER :: pfull
     TYPE(qs_energy_type), POINTER :: energy
-    LOGICAL :: energy_only, rebuild, ot_initialized
     TYPE(scf_control_type), POINTER   :: scf_control
     TYPE(cp_logger_type), POINTER :: logger
     TYPE(pw_env_type), POINTER :: pw_env
     TYPE(qs_charges_type), POINTER :: qs_charges
-    TYPE(coeff_type) :: wf_r, wf_g
-    TYPE(coeff_type), DIMENSION(:), POINTER :: mgrid_rspace, mgrid_gspace
-    TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
-    TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
     TYPE(qs_ks_env_type), POINTER :: ks_env
-
-    CHARACTER(LEN=6)   :: extension
-    CHARACTER(LEN=200) :: file_name
-    INTEGER            :: file_unit,ivector,nao,nlumos
-    CHARACTER(LEN=60)  :: method
-    CHARACTER(LEN=80)  :: filename
-    TYPE(cell_type), POINTER          :: cell ! is this one used here 
-    INTEGER :: ispin
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
-    INTEGER :: nelectron
-    REAL(wp) :: total_abs_spin_dens
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: scf_work1
     TYPE(cp_full_matrix_type), POINTER  :: ortho,scf_work2
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: ot_orbs_to_rotate
 
 !   ---------------------------------------------------------------------------
 
-    NULLIFY(mo_eigenvectors,min_density_m,&
-         min_mo,full_mo, ks, p, ks_rmpv, p_rmpv,qs_charges, &
-         pfull, energy, scf_control,kinetic,h,s, ks_env,&
-         atomic_kind_set, particle_set,&
-         scf_work1,scf_work2, ortho)
+    NULLIFY(dft_control,h,s,ks,p,rho,energy,scf_control,logger,&
+         pw_env, qs_charges,ks_env,c,atomic_kind_set,particle_set,&
+         scf_work1,ortho,scf_work2)
     logger => cp_error_get_logger(error)
     t1 = m_cputime()
-    ot_initialized=.FALSE.
     failure=.FALSE.
 
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
-         cell=cell,&
          dft_control=dft_control,&
          h=h,&
          s=s,energy=energy,&
-         kinetic=kinetic, &
          particle_set=particle_set,&
-         pao_env=pao_env,&
          pw_env=pw_env,&
          qs_charges=qs_charges,&
          ks_env=ks_env,&
@@ -548,23 +539,15 @@ CONTAINS
 
     IF (scf_control%max_scf < 1) RETURN
 
-    CALL write_checkpoint_information("entering "//routine_name,globenv)
+    CALL write_checkpoint_information("entering "//routineN,globenv)
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
-    ionode = globenv%ionode
-    output_unit = globenv%scr
+    ionode = logger%para_env%source==logger%para_env%mepos
+    output_unit = cp_logger_get_default_unit_nr(logger)
     energy_only = .FALSE.
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-         gth_potential_present=gth_potential_present,&
-         nelectron=nelectron)
-
-    nelectron = nelectron - dft_control%charge ! total number of electrons
-
-    CALL get_cell(cell=cell)
-
-    IF (ionode.AND.globenv%print%scf) THEN
+    IF (ionode.AND.logger%print_keys%scf) THEN
        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
             "SCF WAVEFUNCTION OPTIMIZATION"
     END IF
@@ -578,8 +561,8 @@ CONTAINS
     scf_work2 => scf_env%scf_work2
     ortho => scf_env%ortho
 
-    CALL get_qs_env(qs_env,k=ks_rmpv,rho=rho,c=c)
-    p_rmpv => rho%rho_ao
+    CALL get_qs_env(qs_env,k=ks,rho=rho,c=c)
+    p => rho%rho_ao
 
     scf_env%iter_count = 0
     diis_step = .FALSE.
@@ -587,12 +570,14 @@ CONTAINS
     use_jacobi = .FALSE.
 
 
-    IF (ionode.AND.globenv%print%scf) THEN
+    IF (ionode.AND.logger%print_keys%scf) THEN
        WRITE (UNIT=output_unit,&
             FMT="(/,T3,A,T9,A,T36,A,T49,A,T68,A,/,T3,A)")&
             "Step","Update method","Time","Convergence","Total energy",&
             REPEAT("-",77)
     END IF
+    
+    IF (.NOT. logger%print_keys%timecumul) t1 = m_cputime()
 
 !   *** SCF loop ***
 
@@ -604,8 +589,6 @@ CONTAINS
 
        scf_env%iter_count = scf_env%iter_count + 1
 
-       IF (.NOT. globenv%print%timecumul) t1 = m_cputime()
-
 ! ** here qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date
 
        CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,&
@@ -616,12 +599,13 @@ CONTAINS
 
        DO ispin=1,dft_control%nspins
 
-          IF (globenv%print%density_matrix.AND.globenv%print%each_scf_step) THEN
-             CALL write_sparse_matrix(p_rmpv(ispin)%matrix,4,6,qs_env,globenv)
+          IF (logger%print_keys%density_matrix.AND.&
+               logger%print_keys%each_scf_step) THEN
+             CALL write_sparse_matrix(p(ispin)%matrix,4,6,qs_env,globenv)
           END IF
 
-          IF (globenv%print%kohn_sham_matrix.AND.globenv%print%each_scf_step) THEN
-             CALL write_sparse_matrix(ks_rmpv(ispin)%matrix,4,6,qs_env,globenv)
+          IF (logger%print_keys%kohn_sham_matrix.AND.logger%print_keys%each_scf_step) THEN
+             CALL write_sparse_matrix(ks(ispin)%matrix,4,6,qs_env,globenv)
           END IF
 
        ENDDO
@@ -629,9 +613,6 @@ CONTAINS
        rebuild = (MODULO(scf_env%iter_count,scf_control%nrebuild) == 0)
 
        ispin=1
-       ks => ks_rmpv(ispin)
-       p => p_rmpv(ispin)
-       mo_set => c(ispin)%mo_set
 
        scf_env%p_mix = scf_control%p_mix
        scf_env%iter_param = 0.0_wp
@@ -645,12 +626,13 @@ CONTAINS
        CASE(diagonalisation_method_nr) ! diagonalisation (default)
 
           DO ispin=1,dft_control%nspins 
-             CALL copy_real_matrix_to_full_matrix(ks_rmpv(ispin)%matrix,scf_work1(ispin)%matrix)
+             CALL copy_real_matrix_to_full_matrix(ks(ispin)%matrix,scf_work1(ispin)%matrix)
           ENDDO
 
           IF (scf_env%iter_count > 1) THEN
-             CALL scf_diis(c,scf_work1,scf_work2,scf_env%iter_delta,diis_error,diis_step,&
-                  qs_env,globenv)
+             CALL qs_diis_b_step(scf_env%scf_diis_buffer,c,scf_work1,&
+                  scf_work2,scf_env%iter_delta,diis_error,diis_step,&
+                  qs_env,error=error)
           END IF
 
           scf_env%iter_delta=0.0_wp
@@ -692,7 +674,7 @@ CONTAINS
                   jacobi_threshold=scf_control%jacobi_threshold,&
                   smear=scf_control%smear)
 
-             IF (globenv%print%each_scf_step) THEN
+             IF (logger%print_keys%each_scf_step) THEN
                 CALL write_mo_set(c(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
              END IF
 
@@ -705,30 +687,7 @@ CONTAINS
 
 ! in case of LSD the first spin qs_ot_env will drive the minimization
 
-! might need the KS matrix to init properly, that's why we're here
-          IF (.NOT. ot_initialized) THEN
-             ot_initialized=.TRUE.
-
-             IF (scf_env%qs_ot_env(1)%settings%preconditioner_type .NE. "NONE") THEN
-! constuct the preconditioner based on the first spin set. this might or might not be reasonable. Presumably it is.
-                CALL get_mo_set(mo_set=c(1)%mo_set,eigenvectors=mo_eigenvectors)
-                CALL make_preconditioner(scf_env%ot_preconditioner, &
-                     scf_env%qs_ot_env(1)%settings%preconditioner_type, &
-                     ks_rmpv(1)%matrix,s(1)%matrix,kinetic(1)%matrix, &
-                     mo_eigenvectors,0.2_wp) 
-             ENDIF
-
-             CALL ot_scf_init(c,s(1)%matrix,scf_env%qs_ot_env,globenv)
-
-             IF (scf_env%qs_ot_env(1)%settings%preconditioner_type .NE. "NONE") THEN
-                DO ispin=1,dft_control%nspins
-                   CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
-                        scf_env%ot_preconditioner) 
-                ENDDO
-             ENDIF
-          ENDIF
-
-          CALL ot_scf_mini(c,ks_rmpv,s(1)%matrix,energy%total, &
+          CALL ot_scf_mini(c,ks,s(1)%matrix,energy%total, &
                energy_only,scf_env%iter_delta,scf_env%qs_ot_env,globenv)
 
           DO ispin=1,dft_control%nspins
@@ -746,7 +705,7 @@ CONTAINS
 
        t2 = m_cputime()
 
-       IF (ionode.AND.globenv%print%scf.and.scf_env%print_iter_line) THEN
+       IF (ionode.AND.logger%print_keys%scf.and.scf_env%print_iter_line) THEN
           WRITE (UNIT=output_unit,&
                FMT="(T2,I5,2X,A,T22,E10.2,T32,F8.2,T40,2F20.10)")&
                scf_env%iter_count,TRIM(scf_env%iter_method),&
@@ -756,18 +715,20 @@ CONTAINS
 
 ! ** convergece check
        IF (scf_env%iter_delta < scf_control%eps_scf) THEN
-          IF (ionode.AND.globenv%print%scf) THEN
+          IF (ionode.AND.logger%print_keys%scf) THEN
              WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
                   "*** SCF run converged ***"
           END IF
           EXIT scf_loop
        ELSE IF (scf_env%iter_count == scf_control%max_scf) THEN
-          IF (ionode.AND.globenv%print%scf) THEN
+          IF (ionode.AND.logger%print_keys%scf) THEN
              WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
                   "*** SCF run NOT converged ***"
           END IF
           EXIT scf_loop
        END IF
+
+       IF (.NOT. logger%print_keys%timecumul) t1 = m_cputime()
 
 ! ** update qs_env%rho
        CALL qs_rho_update_rho(rho, rho_ao_new=scf_env%p_new, qs_env=qs_env,&
@@ -776,14 +737,19 @@ CONTAINS
 
     END DO scf_loop
 
-    IF (ionode.AND.globenv%print%scf) THEN
+!   *** Write restart file ***
+ 
+     CALL write_mo_set(c,atomic_kind_set,particle_set,globenv,&
+          id_nr=qs_env%id_nr)
+
+    IF (ionode.AND.logger%print_keys%scf) THEN
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
             "Total electronic density (r-space): ",&
             SUM(rho%tot_rho_r),&
-            SUM(rho%tot_rho_r)+ REAL(nelectron,wp),&
+            SUM(rho%tot_rho_r)+ REAL(scf_env%nelectron,wp),&
             "Total core charge density (r-space):",&
             qs_charges%total_rho_core_rspace,&
-            qs_charges%total_rho_core_rspace - REAL(nelectron+dft_control%charge,wp)
+            qs_charges%total_rho_core_rspace - REAL(scf_env%nelectron+dft_control%charge,wp)
        WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
             "Total charge density (r-space):     ",&
             SUM(rho%tot_rho_r)+&
@@ -808,24 +774,16 @@ CONTAINS
          rebuild=rebuild, error=error)
     CALL qs_ks_did_change(ks_env,qs_env,p_changed=.TRUE.,error=error)
 
-!   *** Save last density matrix in redundant form for the force calculation ***
-    CALL calculate_density_matrix(mo_set,rho%rho_ao(1)%matrix,globenv)
-
 ! *** print out info
     CALL scf_env_post_calc(scf_env=scf_env, qs_env=qs_env, &
          globenv=globenv, error=error)
-
-!   *** Write restart file ***
-
-    CALL write_mo_set(c,atomic_kind_set,particle_set,globenv,&
-         id_nr=qs_env%id_nr)
 
 ! *** cleanup
     CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
 
     CALL timestop(0.0_wp,handle)
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv)
+    CALL write_checkpoint_information("leaving "//routineN,globenv)
 
   END SUBROUTINE scf_env_do_scf
 
@@ -924,9 +882,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_scf_run"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-         "SUBROUTINE "//routine_name//" (MODULE "//moduleN//")"
+    CHARACTER(LEN=*), PARAMETER :: routineN = "init_scf_run"
+    CHARACTER(LEN=*), PARAMETER :: routineP =&
+         moduleN//':'//routineN
 
 !   *** Local variables ***
 
@@ -935,26 +893,27 @@ CONTAINS
     LOGICAL :: ionode, gth_potential_present, failure
     TYPE(scf_control_type), POINTER :: scf_control
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s,k
     TYPE(dft_control_type), POINTER   :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: scf_work1
     TYPE(cp_full_matrix_type), POINTER  :: ortho,scf_work2
     TYPE(cp_logger_type), POINTER :: logger
+    TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("init_scf_run","I","",handle)
 
-    NULLIFY(scf_control,atomic_kind_set,h,s,dft_control,c,scf_work1,&
-         ortho,scf_work2)
+    NULLIFY(scf_control,atomic_kind_set,h,s,k,dft_control,c,scf_work1,&
+         ortho,scf_work2, mo_eigenvectors)
     failure=.FALSE.
     logger => cp_error_get_logger(error)
     CALL get_qs_env(qs_env=qs_env,&
          scf_control=scf_control,&
          dft_control=dft_control,&
          atomic_kind_set=atomic_kind_set,&
-         c=c,&
+         c=c,k=k,&
          h=h,s=s, error=error)
 
 
@@ -974,13 +933,14 @@ CONTAINS
 !   *** order to eliminate redundant atomic blocks  ***
 
     CALL copy_real_matrix_to_full_matrix(h(1)%matrix,scf_work1(1)%matrix)
-
     IF ((qs_env%para_env%num_pe > 1).AND.gth_potential_present) THEN
-       CALL deallocate_matrix(h(1)%matrix)
-       CALL replicate_matrix_structure(s(1)%matrix,h(1)%matrix,&
-            "CORE HAMILTONIAN MATRIX")
-       CALL copy_full_matrix_to_real_matrix(scf_work1(1)%matrix,h(1)%matrix)
-       CALL set_qs_env(qs_env,h=h)
+       CALL sm_pool_give_back_matrix(qs_env%H_redundant_sm_pools(1)%pool,&
+            qs_env%h(1)%matrix,error=error)
+       CALL sm_pool_create_matrix(qs_env%S_sm_pools(1)%pool,h(1)%matrix,&
+            name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//"%h-1",&
+            error=error)
+       CALL copy_full_matrix_to_real_matrix(scf_work1(1)%matrix,&
+            qs_env%h(1)%matrix)
     END IF
 
     IF (scf_env%method==ot_method_nr) THEN 
@@ -1029,7 +989,7 @@ CONTAINS
           CALL copy_real_matrix_to_full_matrix(s(1)%matrix,ortho)
           CALL cp_fm_cholesky_decompose(ortho)
        ELSE
-          CALL calculate_ortho_matrix(ortho,s(1)%matrix,scf_work2,ndep,globenv,&
+          CALL calculate_ortho_matrix(ortho,s(1)%matrix,scf_work2,ndep,&
                scf_control%eps_eigval,scf_control%work_syevx)
           IF (ionode.and.logger%print_keys%scf) THEN
              WRITE (UNIT=output_unit,FMT="(T3,A,I10)")&
@@ -1054,20 +1014,50 @@ CONTAINS
 !FM               globenv=globenv, error=error)
 !FM       end if
     CASE (diagonalisation_method_nr)
-       ;
+       IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN       
+          CALL qs_diis_b_create(scf_env%scf_diis_buffer,&
+               nbuffer=scf_control%max_scf,&
+               error=error)
+       END IF
+       CALL qs_diis_b_clear(scf_env%scf_diis_buffer,error=error)
     CASE (ot_method_nr)
        IF (.NOT. ASSOCIATED(scf_env%ot_preconditioner)) THEN
           ALLOCATE(scf_env%ot_preconditioner, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           CALL init_preconditioner(scf_env%ot_preconditioner,&
                para_env=qs_env%para_env,&
                blacs_env=qs_env%blacs_env)
        END IF
-       IF (.not.ASSOCIATED(scf_env%qs_ot_env)) THEN
+       IF (.NOT.ASSOCIATED(scf_env%qs_ot_env)) THEN
           ALLOCATE(scf_env%qs_ot_env(dft_control%nspins),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           CALL ot_scf_read_input(scf_env%qs_ot_env,globenv)
-       END IF
+
+          ! might need the KS matrix to init properly
+          CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&
+               rebuild=.TRUE.,error=error,&
+               calculate_forces=.FALSE.,just_energy=.FALSE.)
+       
+          IF (scf_env%qs_ot_env(1)%settings%preconditioner_type .NE. "NONE") THEN
+             ! constuct the preconditioner based on the first spin set. this might or might not be reasonable. Presumably it is.
+             CALL get_mo_set(mo_set=c(1)%mo_set,&
+                  eigenvectors=mo_eigenvectors)
+             CALL make_preconditioner(scf_env%ot_preconditioner, &
+                  scf_env%qs_ot_env(1)%settings%preconditioner_type, &
+                  k(1)%matrix,s(1)%matrix,&
+                  qs_env%kinetic(1)%matrix, &
+                  mo_eigenvectors,0.2_wp) 
+          ENDIF
+          
+          CALL ot_scf_init(c,s(1)%matrix,scf_env%qs_ot_env,globenv)
+          
+          IF (scf_env%qs_ot_env(1)%settings%preconditioner_type .NE. "NONE") THEN
+             DO ispin=1,dft_control%nspins
+                CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
+                     scf_env%ot_preconditioner) 
+             ENDDO
+          ENDIF
+       ENDIF
     END SELECT
 
     CALL timestop(0.0_wp,handle)
@@ -1107,7 +1097,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "scf_env_check_i_alloc",&
-         routineP = routineN//":"//moduleN
+         routineP = moduleN//":"//routineN
     INTEGER :: stat,nao,ispin,handle,nrow_block
     LOGICAL :: failure
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k
@@ -1222,15 +1212,13 @@ CONTAINS
                scf_env%p_new(ispin)%matrix,&
                "DENSITY MATRIX")
        END DO
-       CALL set_qs_env(qs_env=qs_env,&
-            p=scf_env%p_new)
     END IF
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE scf_env_check_i_alloc
 !***************************************************************************
 
-  SUBROUTINE calculate_ortho_matrix(ortho,s,work,ndep,globenv,eps_eigval,&
+  SUBROUTINE calculate_ortho_matrix(ortho,s,work,ndep,eps_eigval,&
        work_syevx)
 
 !   Purpose: Calculate the orthogonalization matrix (S**(-1/2))
@@ -1239,7 +1227,6 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(cp_full_matrix_type), POINTER        :: ortho,work
     TYPE(real_matrix_type), POINTER           :: s
     INTEGER, INTENT(OUT)                      :: ndep
@@ -1509,10 +1496,10 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name =&
+    CHARACTER(LEN=*), PARAMETER :: routineN =&
          "calculate_first_density_matrix"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-         "SUBROUTINE "//routine_name//" (MODULE "//moduleN//")"
+    CHARACTER(LEN=*), PARAMETER :: routineP =&
+         moduleN//":"//routineN
 
 !   *** Local variables ***
 
@@ -1553,11 +1540,12 @@ CONTAINS
     CALL timeset("calculate_first_density_matrix","I","",handle)
 
     CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,&
-         particle_set=particle_set,c=mo_array, s=s_sparse, p=p_rmpv,&
+         particle_set=particle_set,c=mo_array, s=s_sparse,&
          scf_control=scf_control, id_nr=qs_env_id, dft_control=dft_control,&
          error=error)
     nspin=dft_control%nspins
 
+    p_rmpv => scf_env%p_new
     work1 => scf_env%scf_work1
     work2 => scf_env%scf_work2
     ortho => scf_env%ortho
@@ -1587,7 +1575,7 @@ CONTAINS
 ! ortho so that one can restart for different positions (basis sets?)
           CALL replicate_blacs_matrix(mo_eigenvectors,sv,"SV")
           CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_eigenvectors,sv,homo,&
-               para_env=globenv%para_env)
+               para_env=qs_env%para_env)
           CALL blacs_make_basis(mo_eigenvectors,homo, &
                ortho=sv,otype="SV")
           CALL cp_fm_release(sv)
@@ -1603,7 +1591,7 @@ CONTAINS
 ! ortho so that one can restart for different positions (basis sets?)
           CALL replicate_blacs_matrix(mo_eigenvectors,sv,"SV")
           CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_eigenvectors,sv,nmo,&
-               para_env=globenv%para_env)
+               para_env=qs_env%para_env)
           CALL blacs_make_basis(mo_eigenvectors,nmo, &
                ortho=sv,otype="SV")
           CALL cp_fm_release(sv)
@@ -1650,7 +1638,7 @@ CONTAINS
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxl=maxl)
 
           ALLOCATE (econf(0:maxl),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"econf",(maxl + 1)*int_size)
+          IF (istat /= 0) CALL stop_memory(routineP,"econf",(maxl + 1)*int_size)
 
           CALL copy_real_matrix_to_full_matrix(s_sparse(1)%matrix,work2)
 
@@ -1714,9 +1702,9 @@ CONTAINS
           END DO
 
           DEALLOCATE (econf,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"econf")
+          IF (istat /= 0) CALL stop_memory(routineP,"econf")
 
-          CALL mp_sum(sum,globenv%group)
+          CALL mp_sum(sum,qs_env%para_env%group)
 
           saa = REAL(nelectron,wp)/sum
 
@@ -1759,7 +1747,7 @@ CONTAINS
 
     ELSE
 
-       CALL stop_program(routine,&
+       CALL stop_program(routineP,&
             "An invalid keyword for the initial density "//&
             "guess was specified")
 
@@ -1805,9 +1793,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN='scf_env_initial_rho_setup',&
          routineP=moduleN//':'//routineN
 
-    integer :: handle
+    INTEGER :: handle
 
-    call timeset(routineN,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -1825,7 +1813,7 @@ CONTAINS
 
        END IF
     END IF
-    call timestop(0.0_wp,handle)
+    CALL timestop(0.0_wp,handle)
   END SUBROUTINE scf_env_initial_rho_setup
 !***************************************************************************
 
@@ -2237,6 +2225,60 @@ CONTAINS
 
     END IF
   END SUBROUTINE scf_env_cleanup
+!***************************************************************************
+
+!!****f* qs_scf/scf_env_did_change [1.0] *
+!!
+!!   NAME
+!!     scf_env_did_change
+!!
+!!   SYNOPSIS
+!!     Subroutine scf_env_did_change(scf_env, qs_env, s_mstruct_changed,&
+!!         error)
+!!       Type(qs_scf_env_type), Pointer:: scf_env
+!!       Type(qs_environment_type), Pointer:: qs_env
+!!       Logical, Intent (IN):: s_mstruct_changed
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine scf_env_did_change
+!!
+!!   FUNCTION
+!!     function to be called to inform the scf_env about changes
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - scf_env: the scf env to inform
+!!     - qs_env: the qs_env in which the scf_env lives
+!!     - s_mstruct_changed: treu if the structure of s changed
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     03.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE scf_env_did_change(scf_env,qs_env,s_mstruct_changed,error)
+  TYPE(qs_scf_env_type), POINTER :: scf_env
+  TYPE(qs_environment_type), POINTER :: qs_env
+  LOGICAL, INTENT(in) :: s_mstruct_changed
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='scf_env_did_change',&
+        routineP=moduleN//':'//routineN
+
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL deallocate_matrix_set(scf_env%p_new)
+  END IF
+END SUBROUTINE scf_env_did_change
 !***************************************************************************
 
 END MODULE qs_scf

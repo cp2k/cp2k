@@ -286,7 +286,8 @@ END SUBROUTINE qs_rho_rebuild
 !!
 !!   INPUTS
 !!     - rho_struct: the rho structure that should be updated
-!!     - rho_ao_new: the new value for rho_ao
+!!     - rho_ao_new: the new value for rho_ao (if it is the same as
+!!       rho%rho_ao, it forces a rebuild)
 !!     - qs_env: the qs_env rho_struct refers to
 !!       the integrated charge in r space
 !!     - rebuild: if false builds rho_r by just updating the parts
@@ -346,12 +347,33 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
           rho_struct%updates_since_rebuild==-1) THEN
         my_rebuild=.TRUE.
      END IF
+     IF (rho_ao_new(1)%matrix%id_nr==rho_struct%rho_ao(1)%matrix%id_nr) THEN
+        ! assumes that equality is valid for all the spins
+        my_rebuild=.TRUE.
+        update_rho_ao_local=.FALSE.
+        DO ispin=2,nspins
+           CALL cp_assert(rho_ao_new(1)%matrix%id_nr==&
+                rho_struct%rho_ao(1)%matrix%id_nr,cp_failure_level,&
+                cp_assertion_failed,routineP,&
+                "assumes that all spin are either equal or different "//&
+                CPSourceFileRef,&
+                error=error,failure=failure)
+        END DO
+     ELSE
+        DO ispin=2,nspins
+           CALL cp_assert(rho_ao_new(1)%matrix%id_nr /= &
+                rho_struct%rho_ao(1)%matrix%id_nr,cp_failure_level,&
+                cp_assertion_failed,routineP,&
+                "assumes that all spin are either equal or different "//&
+                CPSourceFileRef,&
+                error=error,failure=failure)
+        END DO
+     END IF
      IF (my_rebuild) THEN
         rho_struct%updates_since_rebuild=0
      ELSE
         rho_struct%updates_since_rebuild=rho_struct%updates_since_rebuild+1
      END IF
-     
      ! alloc multigrids
      CALL pw_env_get(pw_env, pw_pools=pw_pools, auxbas_pw_pool=auxbas_pw_pool,&
           error=error)

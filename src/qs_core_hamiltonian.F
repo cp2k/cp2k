@@ -96,8 +96,8 @@ MODULE qs_core_hamiltonian
                                              ncoset
   USE orbital_symbols,                 ONLY: cgf_symbol
   USE particle_types,                  ONLY: particle_type
-  USE qs_environment_methods,          ONLY: qs_env_update_h_redundant_pools
   USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_env_update_h_redundant_pools,&
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type

@@ -2,6 +2,9 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2001 - 2002  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
 !!****s* cp2k/realspace_grid_types [1.0] *
 !!
 !!   NAME
@@ -23,26 +26,58 @@
 !******************************************************************************
 
 MODULE realspace_grid_types
-  
-  USE kinds, ONLY : dbl
-  USE message_passing, ONLY : mp_cart_create, mp_comm_free, mp_comm_dup, &
-      mp_sum, mp_max, mp_min, mp_cart_sub, mp_cart_shift, mp_sendrecv, &
-      mp_bcast, mp_environ
-  USE pw_types, ONLY : pw_type, REALDATA1D, COMPLEXDATA1D, &
-      REALDATA3D, COMPLEXDATA3D
-  USE pw_grid_types, ONLY : pw_grid_type
-  USE simulation_cell, ONLY : cell_type
-  USE termination, ONLY : stop_memory, stop_program
-  USE util, ONLY : get_limit
-  USE timings, ONLY : timeset, timestop
-  
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_check,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE kinds,                           ONLY: dbl
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_cart_create,&
+                                             mp_cart_shift,&
+                                             mp_cart_sub,&
+                                             mp_comm_dup,&
+                                             mp_comm_free,&
+                                             mp_environ,&
+                                             mp_max,&
+                                             mp_min,&
+                                             mp_sendrecv,&
+                                             mp_sum
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             COMPLEXDATA3D,&
+                                             REALDATA1D,&
+                                             REALDATA3D,&
+                                             pw_type
+  USE simulation_cell,                 ONLY: cell_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE util,                            ONLY: get_limit
   IMPLICIT NONE
   
   PRIVATE
-  PUBLIC :: realspace_grid_type, rs_grid_allocate, rs_grid_deallocate, &
+  PUBLIC :: realspace_grid_type, realspace_grid_p_type
+  PUBLIC :: rs_grid_allocate, rs_grid_deallocate, &
             rs_grid_setup, rs_pw_transfer, rs_grid_zero, rs_grid_to_cube, &
-            rs_pw_to_cube
-  
+            rs_pw_to_cube, rs_grid_write
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="realspace_grid_types"
+
   TYPE realspace_grid_type
      INTEGER :: identifier                               ! tag of this grid
      INTEGER :: ngpts                                    ! # grid points
@@ -66,6 +101,10 @@ MODULE realspace_grid_types
      INTEGER :: direction                                ! non-periodic direction 
   END TYPE realspace_grid_type
   
+  TYPE realspace_grid_p_type
+     TYPE(realspace_grid_type), POINTER :: rs_grid
+  END TYPE realspace_grid_p_type
+
   INTERFACE rs_grid_allocate
      MODULE PROCEDURE rs_grid_allocate_1, rs_grid_allocate_n
   END INTERFACE
@@ -182,7 +221,7 @@ SUBROUTINE rs_grid_deallocate_1 ( rs )
    INTEGER :: ierr,handle
 
 !-----------------------------------------------------------------------------!
-   call timeset("rs_grid_dealloc",'I',' ',handle)
+   CALL timeset("rs_grid_dealloc",'I',' ',handle)
    DEALLOCATE ( rs % r, STAT = ierr )
    IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_deallocate","rs % r" )
    DEALLOCATE ( rs % px , STAT = ierr )
@@ -196,7 +235,7 @@ SUBROUTINE rs_grid_deallocate_1 ( rs )
      ! release the group communicator
      CALL mp_comm_free ( rs % group )
    END IF
-   call timestop(0.0_dbl,handle)
+   CALL timestop(0.0_dbl,handle)
 
 END SUBROUTINE rs_grid_deallocate_1
 
@@ -438,6 +477,13 @@ END SUBROUTINE rs_grid_setup_n
 !!   NAME
 !!     rs_pw_transfer
 !!
+!!   SYNOPSIS
+!!     Subroutine rs_pw_transfer(rs, pw, dir)
+!!       Type(realspace_grid_type), Intent (INOUT):: rs
+!!       Type(pw_type), Target, Intent (INOUT):: pw
+!!       Character(Len=*), Intent (IN):: dir
+!!     End Subroutine rs_pw_transfer
+!!
 !!   FUNCTION
 !!     Copy a function from/to a PW grid type to/from a real
 !!     space type 
@@ -471,7 +517,7 @@ SUBROUTINE rs_pw_transfer ( rs, pw, dir )
    INTEGER, DIMENSION (:,:,:), POINTER :: bo
 
 !-----------------------------------------------------------------------------!
-   call timeset("rs_pw_transfer",'I',' ',handle)
+   CALL timeset("rs_pw_transfer",'I',' ',handle)
    IF ( rs % identifier /= pw % pw_grid % identifier ) THEN
      CALL stop_program ( "rs_pw_transfer", &
                          "Real space grid and pw type not compatible" )
@@ -696,7 +742,7 @@ SUBROUTINE rs_pw_transfer ( rs, pw, dir )
      END IF
 
    END IF
-   call timestop(0.0_dbl,handle)
+   CALL timestop(0.0_dbl,handle)
 
 END SUBROUTINE rs_pw_transfer
 
@@ -791,7 +837,7 @@ SUBROUTINE send_backward ( rs, pw )
 !-----------------------------------------------------------------------------!
 
    ! initialize the rs grid to zero
-   call rs_grid_zero( rs )
+   CALL rs_grid_zero( rs )
    lbp ( : ) = pw % pw_grid % bounds_local ( 1, : )
    ubp ( : ) = pw % pw_grid % bounds_local ( 2, : )
    ! We only have to do the communication within the subgroups along cartesian
@@ -858,6 +904,11 @@ END SUBROUTINE send_backward
 !!   NAME
 !!     rs_grid_zero
 !!
+!!   SYNOPSIS
+!!     Subroutine rs_grid_zero(rs)
+!!       Type(realspace_grid_type), Intent (INOUT):: rs
+!!     End Subroutine rs_grid_zero
+!!
 !!   FUNCTION
 !!     Initialize grid to zero
 !!
@@ -879,10 +930,10 @@ SUBROUTINE rs_grid_zero ( rs )
 
 !-----------------------------------------------------------------------------!
 
-   call timeset("rs_grid_zero",'I',' ',handle)
+   CALL timeset("rs_grid_zero",'I',' ',handle)
    n = SIZE ( rs % r )
    CALL dcopy ( n, 0._dbl, 0, rs % r, 1 )
-   call timestop(0.0_dbl,handle)
+   CALL timestop(0.0_dbl,handle)
 
 END SUBROUTINE rs_grid_zero
 !******************************************************************************
@@ -895,25 +946,25 @@ SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title )
    INTEGER :: I1,I2,I3
 !-----------------------------------------------------------------------------!
    ! not working for distributed grids !
-   if (rs%ngpts.ne.rs%ngpts_local) call stop_program("rs_grid_to_cube","NYI")
+   IF (rs%ngpts.ne.rs%ngpts_local) CALL stop_program("rs_grid_to_cube","NYI")
    IF (ionode) THEN
      ! this format seems to work for e.g. molekel and gOpenmol
-     write(iunit,'(a11)') "-Quickstep-"
+     WRITE(iunit,'(a11)') "-Quickstep-"
      IF (PRESENT(title)) THEN
-        write(iunit,*) title
+        WRITE(iunit,*) title
      ELSE
-        write(iunit,*) "No Title"
+        WRITE(iunit,*) "No Title"
      ENDIF
-     write(iunit,'(I5,3f12.6)') 0,0.0_dbl,0.0_dbl,0.0_dbl
-     write(iunit,'(I5,3f12.6)') rs%npts(1),rs%dr(1),0.0_dbl,0.0_dbl
-     write(iunit,'(I5,3f12.6)') rs%npts(2),0.0_dbl,rs%dr(2),0.0_dbl
-     write(iunit,'(I5,3f12.6)') rs%npts(3),0.0_dbl,0.0_dbl,rs%dr(3)
+     WRITE(iunit,'(I5,3f12.6)') 0,0.0_dbl,0.0_dbl,0.0_dbl
+     WRITE(iunit,'(I5,3f12.6)') rs%npts(1),rs%dr(1),0.0_dbl,0.0_dbl
+     WRITE(iunit,'(I5,3f12.6)') rs%npts(2),0.0_dbl,rs%dr(2),0.0_dbl
+     WRITE(iunit,'(I5,3f12.6)') rs%npts(3),0.0_dbl,0.0_dbl,rs%dr(3)
      ! write(iunit,'(I5,4f12.6)') 1, 0.0,0.0,0.0,0.0
-     do I1=LBOUND(rs%r,1),UBOUND(rs%r,1)
-       do I2=LBOUND(rs%r,2),UBOUND(rs%r,2)
-        write(iunit,'(6E13.5)') (rs%r(I1,I2,I3),I3=LBOUND(rs%r,3),UBOUND(rs%r,3))
-       enddo
-     enddo
+     DO I1=LBOUND(rs%r,1),UBOUND(rs%r,1)
+       DO I2=LBOUND(rs%r,2),UBOUND(rs%r,2)
+        WRITE(iunit,'(6E13.5)') (rs%r(I1,I2,I3),I3=LBOUND(rs%r,3),UBOUND(rs%r,3))
+       ENDDO
+     ENDDO
    ENDIF
 END SUBROUTINE rs_grid_to_cube
 !******************************************************************************
@@ -930,17 +981,65 @@ SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title )
    INTEGER, DIMENSION(3)          :: nsmax
  !-----------------------------------------------------------------------------!
    nsmax(:)=10000
-   call rs_grid_setup(rs,pw%pw_grid,nsmax)
-   call rs_grid_allocate(rs)
-   call rs_pw_transfer(rs,pw,"BACKWARD")
+   CALL rs_grid_setup(rs,pw%pw_grid,nsmax)
+   CALL rs_grid_allocate(rs)
+   CALL rs_pw_transfer(rs,pw,"BACKWARD")
    IF (PRESENT(title)) THEN
-      call rs_grid_to_cube(rs,iunit,ionode,title)
+      CALL rs_grid_to_cube(rs,iunit,ionode,title)
    ELSE
-      call rs_grid_to_cube(rs,iunit,ionode)
+      CALL rs_grid_to_cube(rs,iunit,ionode)
    ENDIF
-   call rs_grid_deallocate(rs)
+   CALL rs_grid_deallocate(rs)
 END SUBROUTINE rs_pw_to_cube
 !******************************************************************************
+
+!!****f* realspace_grid_types/rs_grid_write [1.0] *
+!!
+!!   NAME
+!!     rs_grid_write
+!!
+!!   SYNOPSIS
+!!     Subroutine rs_grid_write(rs, unit_nr, error)
+!!       Type(realspace_grid_type), Pointer:: rs
+!!       Integer, Intent (IN):: unit_nr
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine rs_grid_write
+!!
+!!   FUNCTION
+!!     writes out information about the given rs grid
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - rs: the realspace grid to output
+!!     - unit_nr: the unit number to output to
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     03.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE rs_grid_write(rs,unit_nr,error)
+  TYPE(realspace_grid_type), POINTER :: rs
+  INTEGER, INTENT(in) :: unit_nr
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='rs_grid_write',&
+        routineP=moduleN//':'//routineN
+
+  failure=.FALSE.
+  
+  CALL cp_unimplemented_error(fromWhere=routineP, message="at "//&
+       CPSourceFileRef,&
+       error=error)
+END SUBROUTINE rs_grid_write
+!***************************************************************************
 
 END MODULE realspace_grid_types
 

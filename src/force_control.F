@@ -28,7 +28,7 @@ MODULE force_control
   USE kg_force,                        ONLY: kg_force_control
   USE kinds,                           ONLY: dbl
   USE qs_environment_types,            ONLY: qs_environment_type
-  USE qs_force,                        ONLY: qs_forces_update
+  USE qs_force,                        ONLY: qs_forces
   USE termination,                     ONLY: stop_program
   IMPLICIT NONE
 
@@ -106,7 +106,7 @@ SUBROUTINE force ( globenv, box_change )
                                     box_change, globenv )
       END SELECT 
     CASE ( QUICKSTEP )
-      CALL qs_forces_update(qs_env,globenv)
+      CALL qs_forces(qs_env,globenv)
     CASE ( POL )
     CASE ( KIM_GORDON )
       CALL kg_force_control ( kg_env, globenv )

@@ -47,7 +47,7 @@ MODULE qs_ep_methods
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_add,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_trace,&
                                              cp_sm_fm_multiply
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
@@ -115,7 +115,6 @@ MODULE qs_ep_methods
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              qs_energy_type
   USE qs_environment_methods,          ONLY: qs_env_rebuild_aomo_pools,&
-                                             qs_env_rebuild_rho,&
                                              qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_create,&
@@ -334,7 +333,7 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
      CALL get_mo_set(mos(ispin)%mo_set,lfomo=lfomo, &
           nmo=nmo, maxocc=maxocc)
      IF (lfomo>nmo) THEN
-        CALL cp_fm_add(alpha=-maxocc,&
+        CALL cp_fm_scale_and_add(alpha=-maxocc,&
              matrix_a=ep_env%m_pi_Hrho_psi0d(ispin)%matrix,error=error)
      ELSE
         CALL cp_unimplemented_error(fromWhere=routineP,&
@@ -766,10 +765,10 @@ SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
   TYPE(cp_full_matrix_type), POINTER :: eigenvectors
   TYPE(cp_para_env_type), POINTER :: para_env
   TYPE(dft_control_type), POINTER :: dft_control
-  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,p,h,s
+  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,h,s
 
   failure=.FALSE.
-  NULLIFY(ks_env, c, eigenvectors, para_env, dft_control,k,p,h,s)
+  NULLIFY(ks_env, c, eigenvectors, para_env, dft_control,k,h,s)
 
   CALL timeset(routineN,"I","",handle)
 
@@ -784,10 +783,6 @@ SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
   CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
        globenv=globenv,&
        calculate_forces=.FALSE.)
-
-  !   *** Updates rho structure ***
-
-  CALL qs_env_rebuild_rho(qs_env=qs_env, error=error)
 
   !   *** init the ks_env
 
@@ -813,20 +808,16 @@ SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
      END DO
   END IF
 
-  !   *** Allocate k and p and put them in the QS environment ***
+  !   *** Allocate k and put it in the QS environment ***
   CALL get_qs_env(qs_env,dft_control=dft_control,s=s)
   CALL allocate_matrix_set(k,dft_control%nspins)
-  CALL allocate_matrix_set(p,dft_control%nspins)
   DO ispin=1,dft_control%nspins
-     NULLIFY (k(ispin)%matrix, p(ispin)%matrix)
+     NULLIFY (k(ispin)%matrix)
      CALL replicate_matrix_structure(s(1)%matrix,k(ispin)%matrix,&
           "KOHN-SHAM MATRIX-"//ADJUSTL(cp_to_string(ispin)))
-     CALL replicate_matrix_structure(s(1)%matrix,p(ispin)%matrix,&
-          "DENSITY MATRIX-"//ADJUSTL(cp_to_string(ispin)))
   END DO
   CALL set_qs_env(qs_env=qs_env,&
-       k=k,&
-       p=p)
+       k=k)
 
 !FM!   *** Redistribute the core Hamiltonian matrix in ***
 !FM!   *** order to eliminate redundant atomic blocks ***
@@ -1018,7 +1009,7 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
         CALL p_op_ep(p_env=ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
              v=ep_env%psi1, res=r,error=error)
         DO ispin=1,nspins
-           CALL cp_fm_add(alpha=-1.0_wp,matrix_a=r(ispin)%matrix,&
+           CALL cp_fm_scale_and_add(alpha=-1.0_wp,matrix_a=r(ispin)%matrix,&
                 beta=1.0_wp,matrix_b=ep_env%m_pi_Hrho_psi0d(ispin)%matrix,&
                 error=error)
         END DO
@@ -1044,7 +1035,7 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
 
         ! p=z
         DO ispin=1,nspins
-           CALL cp_fm_add(alpha=0.0_wp,matrix_a=p(ispin)%matrix,beta=1.0_wp,&
+           CALL cp_fm_scale_and_add(alpha=0.0_wp,matrix_a=p(ispin)%matrix,beta=1.0_wp,&
                 matrix_b=z(ispin)%matrix,error=error)
         END DO
         r_z=0.0_wp
@@ -1060,7 +1051,7 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
            
            ! put the component of p orthogonal to psi0 in p_ortho
            DO ispin=1,nspins
-              CALL cp_fm_add(alpha=0.0_wp, matrix_a=p_ortho(ispin)%matrix,&
+              CALL cp_fm_scale_and_add(alpha=0.0_wp, matrix_a=p_ortho(ispin)%matrix,&
                    beta=1.0_wp,&
                    matrix_b=p(ispin)%matrix,error=error)
            END DO
@@ -1088,7 +1079,7 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
            ! rescale p_ortho
            CPPreconditionNoFail(p_ortho_norm>eps_r*0.5,cp_warning_level,routineP,error)
            DO ispin=1,nspins
-              CALL cp_fm_add(alpha=1.0_wp/p_ortho_norm,&
+              CALL cp_fm_scale_and_add(alpha=1.0_wp/p_ortho_norm,&
                    matrix_a=p_ortho(ispin)%matrix,error=error)
            END DO
 
@@ -1119,7 +1110,7 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
 
            ! x=x+alpha p_ortho
            DO ispin=1,nspins
-              CALL cp_fm_add(alpha=1.0_wp,matrix_a=ep_env%psi1(ispin)%matrix,&
+              CALL cp_fm_scale_and_add(alpha=1.0_wp,matrix_a=ep_env%psi1(ispin)%matrix,&
                    beta=alpha,matrix_b=p_ortho(ispin)%matrix,&
                    error=error)
            END DO
@@ -1129,7 +1120,7 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
            
            ! r=r- alpha Ap
            DO ispin=1,nspins
-              CALL cp_fm_add(alpha=1.0_wp,matrix_a=r(ispin)%matrix,&
+              CALL cp_fm_scale_and_add(alpha=1.0_wp,matrix_a=r(ispin)%matrix,&
                    beta=-alpha,matrix_b=Ap(ispin)%matrix,&
                    error=error)
            END DO
@@ -1161,7 +1152,7 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
            
            ! p=beta p+z
            DO ispin=1,nspins
-              CALL cp_fm_add(alpha=beta,matrix_a=p(ispin)%matrix,&
+              CALL cp_fm_scale_and_add(alpha=beta,matrix_a=p(ispin)%matrix,&
                    beta=1.0_wp,matrix_b=z(ispin)%matrix,&
                    error=error)
            END DO
@@ -1221,7 +1212,9 @@ SUBROUTINE p_op_ep(p_env, qs_env, v, res, error)
   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
   TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mos
   REAL(kind=wp) :: maxocc, scale_factor
-  INTEGER :: lfomo,nmo, ispin
+  INTEGER :: lfomo,nmo, ispin, handle
+
+  CALL timeset(routineN,"I","",handle)
 
   failure=.FALSE.
   NULLIFY(mos)
@@ -1251,6 +1244,9 @@ SUBROUTINE p_op_ep(p_env, qs_env, v, res, error)
      CALL p_postortho(p_env=p_env, qs_env=qs_env, v=res, n_cols=p_env%n_mo,&
           error=error)
   END IF
+
+  CALL timestop(0.0_wp,handle)
+
 END SUBROUTINE p_op_ep
 !***************************************************************************
 
@@ -1333,14 +1329,14 @@ SUBROUTINE p_env_write_ep_matrix(p_env, qs_env, name, error)
               v_norm=SQRT(v_norm)
               CPPreconditionNoFail(v_norm>1.0e-8,cp_warning_level,routineP,error)
               DO ispin2=1,dft_control%nspins
-                 CALL cp_fm_add(1.0_wp/v_norm,v(ispin2)%matrix,error=error)
+                 CALL cp_fm_scale_and_add(1.0_wp/v_norm,v(ispin2)%matrix,error=error)
               END DO
 
               CALL p_op_ep(p_env=p_env, qs_env=qs_env, v=v,&
                    res=res, error=error)
 
               DO ispin2=1,dft_control%nspins
-                 CALL cp_fm_add(v_norm,res(ispin2)%matrix,error=error)
+                 CALL cp_fm_scale_and_add(v_norm,res(ispin2)%matrix,error=error)
               END DO
               
               CALL cp_fm_vect_write(matrixes=res, &

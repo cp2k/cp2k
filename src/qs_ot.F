@@ -33,7 +33,7 @@ MODULE qs_ot
                                              blacs_syevx,&
                                              blacs_transpose,&
                                              copy_blacs_to_blacs_matrix,&
-                                             cp_fm_add,&
+                                             cp_fm_scale_and_add,&
                                              cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert,&
                                              cp_fm_cholesky_reduce,&
@@ -636,7 +636,7 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
 
   ! add the two bs and compute b+b^T
 
-  CALL cp_fm_add(1.0_wp,qs_ot_env%matrix_buf3,1.0_wp,qs_ot_env%matrix_buf2)
+  CALL cp_fm_scale_and_add(1.0_wp,qs_ot_env%matrix_buf3,1.0_wp,qs_ot_env%matrix_buf2)
 
   ! get the b in the eigenvector basis
   CALL cp_fm_gemm('N','T',k,k,k,rone,qs_ot_env%matrix_buf3,qs_ot_env%matrix_r, &
@@ -646,7 +646,7 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
 
 
   CALL blacs_transpose(qs_ot_env%matrix_buf3,qs_ot_env%matrix_buf1)
-  CALL cp_fm_add(1.0_wp,qs_ot_env%matrix_buf3,1.0_wp,qs_ot_env%matrix_buf1)
+  CALL cp_fm_scale_and_add(1.0_wp,qs_ot_env%matrix_buf3,1.0_wp,qs_ot_env%matrix_buf1)
 
   ! and add to the derivative
 

@@ -44,7 +44,7 @@ MODULE preconditioner
                                              copy_blacs_to_blacs_matrix,&
                                              copy_full_matrix_to_real_matrix,&
                                              copy_real_matrix_to_full_matrix,&
-                                             cp_fm_add,&
+                                             cp_fm_scale_and_add,&
                                              cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert,&
                                              cp_fm_cholesky_reduce,&
@@ -914,8 +914,8 @@ SUBROUTINE make_full_s_half(preconditioner_env, matrix_h, matrix_s, &
      CALL cp_fm_cholesky_decompose(fm_yi)
      CALL cp_fm_cholesky_invert(fm_yi)
 
-     CALL cp_fm_add(0.5_wp,fm_y,0.5_wp,fm_zi)
-     CALL cp_fm_add(0.5_wp,fm_z,0.5_wp,fm_yi)
+     CALL cp_fm_scale_and_add(0.5_wp,fm_y,0.5_wp,fm_zi)
+     CALL cp_fm_scale_and_add(0.5_wp,fm_z,0.5_wp,fm_yi)
   ENDDO
 
 
@@ -931,7 +931,7 @@ SUBROUTINE make_full_s_half(preconditioner_env, matrix_h, matrix_s, &
 
   CALL copy_real_matrix_to_full_matrix(matrix_h,fm_y)
   CALL copy_real_matrix_to_full_matrix(matrix_s,fm_zi)
-  CALL cp_fm_add(1.0_wp,fm_y,-energy_homo,fm_zi) ! fm_y = H-eS
+  CALL cp_fm_scale_and_add(1.0_wp,fm_y,-energy_homo,fm_zi) ! fm_y = H-eS
   CALL blacs_scale_and_d(fm_zi,0.0_wp,1.0_wp) ! ugly way to get the full matrix
   CALL cp_fm_symm('L','U',n,n,1.0_wp,fm_y, &
                         fm_zi, &

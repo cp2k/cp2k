@@ -39,7 +39,7 @@ MODULE qs_blacs
                                              cp_error_message,&
                                              cp_error_type,&
                                              cp_unimplemented_error
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_add,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_gemm,&
                                              cp_fm_schur_product,&
                                              cp_fm_symm,&
@@ -151,7 +151,7 @@ MODULE qs_blacs
   PUBLIC :: start_blacs,&
        end_blacs, get_blacs_info
 
-  PUBLIC ::  cp_fm_add,&
+  PUBLIC ::  cp_fm_scale_and_add,&
             blacs_add_to_element, &
             cp_fm_gemm,&
             blacs_vector_symv, &

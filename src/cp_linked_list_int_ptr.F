@@ -561,7 +561,7 @@ CONTAINS
                 ELSE
                    CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
                         routineP, "tried to go past end in "// &
-                        CPSourceFileRef,&
+CPSourceFileRef,&
                         error,failure)
                 END IF
              END DO
@@ -573,7 +573,7 @@ CONTAINS
                    ELSE
                       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
                            routineP, "tried to go past end in "// &
-                           CPSourceFileRef,&
+CPSourceFileRef,&
                            error,failure)
                    END IF
                 END DO
@@ -903,7 +903,7 @@ CONTAINS
     ELSE
        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
             routineP,"tried to remove first el of an empty list in "//&
-            CPSourceFileRef,&
+CPSourceFileRef,&
             error,failure)
     END IF
   END SUBROUTINE cp_sll_int_ptr_rm_first_el

@@ -109,7 +109,7 @@ MODULE qs_environment_methods
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_type
-  USE qs_blacs,                        ONLY: cp_fm_add,&
+  USE qs_blacs,                        ONLY: cp_fm_scale_and_add,&
                                              cp_fm_create2,&
                                              cp_fm_gemm,&
                                              cp_fm_get_info,&
@@ -129,11 +129,13 @@ MODULE qs_environment_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_ks_methods,                   ONLY: qs_ks_did_change
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
+  USE qs_scf,                          ONLY: scf_env_did_change
   USE scf_control_types,               ONLY: scf_c_release,&
                                              scf_c_retain,&
                                              scf_control_type
@@ -152,8 +154,7 @@ MODULE qs_environment_methods
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_environment_methods'
 
   PUBLIC :: qs_env_update_s_mstruct, qs_env_rebuild_pw_env,&
-       qs_env_rebuild_aomo_pools, qs_env_rebuild_rho, qs_env_setup,&
-       qs_env_update_h_redundant_pools
+       qs_env_rebuild_aomo_pools, qs_env_rebuild_rho, qs_env_setup
 !***
 !****************************************************************************
 CONTAINS
@@ -233,7 +234,6 @@ SUBROUTINE qs_env_setup(qs_env,error)
 END SUBROUTINE qs_env_setup
 !***************************************************************************
 
-
 !!****f* qs_environment_types/qs_env_update_s_mstruct [1.0] *
 !!
 !!   NAME
@@ -241,7 +241,7 @@ END SUBROUTINE qs_env_setup
 !!
 !!   SYNOPSIS
 !!     Subroutine qs_env_update_s_mstruct(qs_env, error)
-!!       Type(qs_environment_type), Intent (INOUT):: qs_env
+!!       Type(qs_environment_type), Pointer:: qs_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine qs_env_update_s_mstruct
 !!
@@ -268,7 +268,7 @@ END SUBROUTINE qs_env_setup
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
-  TYPE(qs_environment_type), INTENT(inout)     :: qs_env
+  TYPE(qs_environment_type), POINTER           :: qs_env
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -282,8 +282,11 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
   TYPE(dft_control_type), POINTER :: dft_control
 
   failure=.FALSE.
-  NULLIFY(first_row, first_col, last_row, last_col, para_env)
-  
+  NULLIFY(first_row, first_col, last_row, last_col, para_env,s_mstruct,&
+       dft_control)
+
+  CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+
   CALL get_qs_env(qs_env, para_env=para_env, dft_control=dft_control,&
        error=error)
   n_atoms=SIZE(qs_env%particle_set)
@@ -364,6 +367,22 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
      CALL calculate_rho_core(qs_env%rho_core,qs_env%pw_env%cube_info(1),&
           qs_env%pw_env%l_info,&
           qs_env%qs_charges%total_rho_core_rspace,qs_env,error=error)
+  END IF
+
+  ! *** tell ks_env ***
+  IF (ASSOCIATED(qs_env%ks_env)) THEN
+     CALL qs_ks_did_change(qs_env%ks_env,qs_env=qs_env,s_mstruct_changed=.TRUE.,&
+          error=error)
+  END IF
+  
+  !   *** Updates rho structure ***
+  CALL qs_env_rebuild_rho(qs_env=qs_env)
+  
+  ! *** tell scf_env ***
+  IF (ASSOCIATED(qs_env%scf_env)) THEN
+     CALL scf_env_did_change(qs_env%scf_env,qs_env=qs_env,&
+          s_mstruct_changed=.TRUE.,&
+          error=error)
   END IF
   
 END SUBROUTINE qs_env_update_s_mstruct
@@ -584,7 +603,7 @@ END SUBROUTINE qs_env_rebuild_pw_env
 !!     - qs_env: the environment in which rho should be rebuilt
 !!     - rho_ao_with_h_mstruct: if rho%rho_ao should have the 
 !!       redundant structure of h, or just that of s.
-!!       Defaults to true.
+!!       Defaults to false.
 !!     - rebuild_ao: if it is necessary to rebuild rho_ao. Defaults to true.
 !!     - rebuild_grids: if it in necessary to rebuild rho_r and rho_g.
 !!       Defaults to false.
@@ -605,15 +624,12 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rho_ao_with_h_mstruct,&
        rebuild_grids,rebuild_ao
   TYPE(cp_error_type), OPTIONAL, INTENT(inout)     :: error
   
-  LOGICAL :: failure, my_rho_ao_with_h_mstruct
+  LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='qs_env_rebuild_rho',&
         routineP=moduleN//':'//routineN
 
-  my_rho_ao_with_h_mstruct=.TRUE.
-  IF (PRESENT(rho_ao_with_h_mstruct)) my_rho_ao_with_h_mstruct=rho_ao_with_h_mstruct
-
   CALL qs_rho_rebuild(qs_env%rho,qs_env=qs_env,&
-       rho_ao_with_h_mstruct=my_rho_ao_with_h_mstruct,&
+       rho_ao_with_h_mstruct=rho_ao_with_h_mstruct,&
        rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, error=error)
 END SUBROUTINE qs_env_rebuild_rho
 !***************************************************************************
@@ -665,92 +681,6 @@ SUBROUTINE qs_env_update_rho_core(qs_env,error)
           qs_charges%total_rho_core_rspace,qs_env,error)
   END IF
 END SUBROUTINE qs_env_update_rho_core
-!***************************************************************************
-
-!!****f* qs_environment_methods/qs_env_update_h_redundant_pools [1.0] *
-!!
-!!   NAME
-!!     qs_env_update_h_redundant_pools
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_env_update_h_redundant_pools(qs_env, error)
-!!       Type(qs_environment_type), Pointer:: qs_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_env_update_h_redundant_pools
-!!
-!!   FUNCTION
-!!     updates the H_redundant_sm_pools, to be called after qs_env%h changes
-!!
-!!   NOTES
-!!     qs_env%S_sm_pools should be valid
-!!
-!!   ARGUMENTS
-!!     - qs_env: the qs_env to update
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE qs_env_update_h_redundant_pools(qs_env,error)
-  TYPE(qs_environment_type), POINTER :: qs_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='qs_env_update_h_redundant_pools',&
-        routineP=moduleN//':'//routineN
-  TYPE(cp_sm_struct_type), POINTER :: s_mstruct, h_mstruct
-  INTEGER :: stat, ispin
-
-  failure=.FALSE.
-  NULLIFY(s_mstruct, h_mstruct)
-  
-  CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-    IF (ASSOCIATED(qs_env%H_redundant_sm_pools)) THEN
-       h_mstruct => sm_pool_get_mstruct(qs_env%H_redundant_sm_pools(1)%pool,&
-            error=error)
-       CALL sm_struct_clear_local_blocks(h_mstruct,error=error)
-    ELSE
-       s_mstruct => sm_pool_get_mstruct(qs_env%S_sm_pools(1)%pool,error=error)
-       CALL sm_struct_create(h_mstruct, &
-            block_begins_at_row=s_mstruct%block_begins_at_row,&
-            block_begins_at_col=s_mstruct%block_begins_at_col,&
-            para_env=s_mstruct%para_env, symmetry="symmetric",&
-            error=error)
-    END IF
-
-    CALL sm_struct_add_sm_local_blocks(h_mstruct,&
-         matrix=qs_env%h(1)%matrix,&
-         error=error)  
-
-    IF (.not.ASSOCIATED(qs_env%H_redundant_sm_pools)) THEN
-       ALLOCATE(qs_env%H_redundant_sm_pools(SIZE(qs_env%S_sm_pools)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       
-       NULLIFY(qs_env%H_redundant_sm_pools(1)%pool)
-       CALL sm_pool_create(qs_env%H_redundant_sm_pools(1)%pool,&
-            matrix_struct=h_mstruct,&
-            error=error)
-       CALL sm_struct_release(h_mstruct,error=error)
-     
-       DO ispin=2,SIZE(qs_env%H_redundant_sm_pools)
-          qs_env%H_redundant_sm_pools(ispin)%pool => &
-               qs_env%H_redundant_sm_pools(1)%pool
-          CALL sm_pool_retain(qs_env%H_redundant_sm_pools(ispin)%pool,&
-               error=error)
-       END DO
-    ELSE
-       NULLIFY(h_mstruct)
-       CALL sm_pools_flush_cache(qs_env%H_redundant_sm_pools)
-    END IF
-  END IF
-END SUBROUTINE qs_env_update_h_redundant_pools
 !***************************************************************************
 
 END MODULE qs_environment_methods
