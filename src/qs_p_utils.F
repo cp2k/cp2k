@@ -10,6 +10,12 @@
 !!   NAME
 !!     qs_p_utils
 !!
+!!   NOTES
+!!     - use a pool of temporary matrizes instead of
+!!       allocating them every time needed
+!!     - routines are programmed with spins in mind
+!!       but are as of now not able to handle them
+!!   
 !!   FUNCTION
 !!     Utility functions for the perturbation calculations.
 !!
@@ -49,7 +55,8 @@ MODULE qs_p_utils
        sparse_plus_blacs_blacst, blacs_symm, get_blacs_matrix_info,&
        blacs_scale_and_d, copy_blacs_to_sparse_matrix,&
        blacs_cholesky_decompose, blacs_cholesky_restore, blacs_syrk,&
-       copy_blacs_to_blacs_matrix,blacs_triangular_multiply
+       copy_blacs_to_blacs_matrix,blacs_triangular_multiply, &
+       replicate_blacs_matrix
   USE qs_environment_types, ONLY: qs_environment_type, get_qs_env
   USE atomic_kind_types, ONLY: atomic_kind_type, get_atomic_kind_set
   USE dft_types, ONLY: dft_control_type
@@ -83,8 +90,8 @@ CONTAINS
 !!     Evaluates Fv - Sv(epsilon) and stores it in res
 !!
 !!   NOTES
-!!     unrestricted orbitals work (maybe)
-!!
+!!     -
+!!     
 !!   ARGUMENTS
 !!     - p_env : perturbation calculation environment
 !!     - v     : the matrix to operate on
@@ -99,11 +106,7 @@ CONTAINS
 !!     02.09.2002 adapted to new qs_p_env_type (TC)
 !!
 !!****
-!!FM  subroutine p_op_l1(p_env, v, res, error)
-!!FM    
-!!FM    type(blacs_matrix_p_type), dimension(:), pointer   :: res, v
-!!FM    type(qs_p_env_type), intent(inout)                 :: p_env
-!!FM    
+
   SUBROUTINE p_op_l1(p_env, v, res, glob_env, error)
     
     ! argument
@@ -122,14 +125,18 @@ CONTAINS
                                         routineP = moduleN//':'//routineN
 
     ! code
+    NULLIFY(tmp);
     failure = .FALSE.
+    
     CPPrecondition(p_env%initialized, cp_failure_level, routineP, error, failure)
 
     n_spins = SIZE(v)
-    NULLIFY(tmp)
-    !! call get_tmp_from_pool
 
     DO spin=1, n_spins
+
+       CALL replicate_blacs_matrix(p_env%psi0d(1)%blacs_matrix, tmp, &
+                                   routineP//": temporary matrix")
+
        k_p => p_env%qs_env%k(spin)%matrix
        CALL get_matrix_info(k_p, ncol=ncol)
        CALL sparse_times_blacs(k_p, v(spin)%blacs_matrix, &
@@ -141,6 +148,9 @@ CONTAINS
                                res(spin)%blacs_matrix, p_env%n_mo(spin),&
                                para_env=glob_env%para_env, &
                                alpha=1.0_dbl,beta=1.0_dbl)
+
+       CALL deallocate_blacs_matrix(tmp); NULLIFY(tmp)
+      
     END DO
 
   END SUBROUTINE p_op_l1
@@ -156,7 +166,7 @@ CONTAINS
 !!     evaluates target_m=alpha K_P_P1 C + beta target_m
 !!
 !!   NOTES
-!!     is not yet capable of handling spins !!!
+!!     -
 !!
 !!   INPUTS
 !!     - p_env: the perturbation environment
@@ -174,12 +184,6 @@ CONTAINS
 !!     02.09.2002 adapted for new qs_p_env_type (TC)
 !!
 !!*** **********************************************************************
-!!FM  subroutine p_op_l2(p_env, C, target_m, alpha, beta, error)
-!!FM    type(qs_p_env_type), intent(inout) :: p_env
-!!FM    type(blacs_matrix_p_type), dimension(:),intent(in) :: C
-!!FM    type(blacs_matrix_p_type), dimension(:),intent(inout) :: target_m
-!!FM    real(kind=wp), intent(in), optional :: alpha,beta
-!!FM    type(cp_error_type), optional, intent(inout) :: error
 
   SUBROUTINE p_op_l2(p_env, v, res, glob_env, alpha, beta, error)
     
@@ -234,7 +238,7 @@ CONTAINS
 !!     v = (I-PS)v
 !!
 !!   NOTES
-!!     is not yet capable of handling spins !
+!!     -
 !!
 !!   INPUTS
 !!     - p_env: the perturbation environment
@@ -264,33 +268,45 @@ CONTAINS
     CHARACTER(len=*), PARAMETER      :: routineN = 'p_env_preortho',&
                                         routineP = moduleN//':'//routineN
     INTEGER                          :: v_rows, v_cols, cols
+    INTEGER                          :: spin, n_spins
     TYPE(blacs_matrix_type), POINTER :: tmp
 
     ! code
     failure=.FALSE.
+    n_spins = SIZE(v)
 
     NULLIFY(tmp)
-    ! call get_tmp_from_pool
 
-    CPPrecondition(p_env%initialized, cp_failure_level,routineP,error,failure)
-    CALL get_blacs_matrix_info(v(1)%blacs_matrix,nrow_global=v_rows, &
-                               ncol_global=v_cols)
-    CPPrecondition(v_rows >= p_env%n_ao(1),cp_failure_level, routineP,error,failure)
-    cols=v_cols
-    IF (PRESENT(n_cols)) THEN
-       CPPrecondition(n_cols <= cols,cp_failure_level,routineP,error,failure)
-       cols=n_cols
-    END IF
-    CPPrecondition(cols <= p_env%n_ao(1),cp_failure_level,routineP,error,failure)
+    CPPrecondition(p_env%initialized, cp_failure_level, routineP, error, failure)
+    
+    DO spin=1, n_spins
 
-    IF (.NOT. failure) THEN
-       CALL blacs_gemm('N', 'T', cols, p_env%n_mo(1), p_env%n_ao(1) ,1.0_dbl, &
-                       v(1)%blacs_matrix, p_env%S_psi0(1)%blacs_matrix, & 
-                       0.0_dbl, tmp)
-       CALL blacs_gemm('N', 'T', p_env%n_ao(1), cols, p_env%n_ao(1), -1.0_dbl,&
-                       p_env%psi0d(1)%blacs_matrix, tmp, &
-                       0.0_dbl, v(1)%blacs_matrix)
-    END IF
+       CALL replicate_blacs_matrix(p_env%psi0d(spin)%blacs_matrix, tmp, &
+                                   routineP//": temporary matrix")
+
+       CALL get_blacs_matrix_info(v(1)%blacs_matrix, &
+                                  nrow_global=v_rows, ncol_global=v_cols)
+       CPPrecondition(v_rows >= p_env%n_ao(spin), cp_failure_level, routineP, error, failure)
+       cols = v_cols
+       IF (PRESENT(n_cols)) THEN
+          CPPrecondition(n_cols <= cols, cp_failure_level, routineP, error, failure)
+          cols=n_cols
+       END IF
+       CPPrecondition(cols <= p_env%n_ao(spin), cp_failure_level, routineP, error, failure)
+
+       IF (.NOT. failure) THEN
+          CALL blacs_gemm('N', 'T', cols, p_env%n_mo(spin), p_env%n_ao(spin), 1.0_dbl, &
+                          v(spin)%blacs_matrix, p_env%S_psi0(spin)%blacs_matrix, & 
+                          0.0_dbl, tmp)
+          CALL blacs_gemm('N', 'T', p_env%n_ao(spin), cols, p_env%n_ao(spin), -1.0_dbl,&
+                          p_env%psi0d(spin)%blacs_matrix, tmp, &
+                          0.0_dbl, v(spin)%blacs_matrix)
+       END IF
+
+       CALL deallocate_blacs_matrix(tmp); NULLIFY(tmp)
+
+    END DO
+    
   END SUBROUTINE p_preortho
 !***************************************************************************
 
@@ -304,7 +320,7 @@ CONTAINS
 !!     res = (I-SP) v
 !!
 !!   NOTES
-!!     
+!!     -
 !!
 !!   INPUTS
 !!     - p_env: the perturbation environment
@@ -337,37 +353,48 @@ CONTAINS
     CHARACTER(len=*), PARAMETER      :: routineN = 'p_env_postortho',&
                                         routineP = moduleN//':'//routineN
     INTEGER                          :: v_rows, v_cols, cols
-    INTEGER                          :: n_spins
+    INTEGER                          :: spin, n_spins
     TYPE(blacs_matrix_type), POINTER :: tmp
 
     ! code
     failure=.FALSE.
+    n_spins = SIZE(v)
 
     NULLIFY(tmp)
-    ! call get_tmp_from_pool
 
     CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
-    CALL get_blacs_matrix_info(v(1)%blacs_matrix, nrow_global=v_rows,&
-                                                  ncol_global=v_cols)
-    CPPrecondition(v_rows >= p_env%n_ao(1),cp_failure_level,routineP,error,failure)
 
-    IF (PRESENT(n_cols)) THEN
-       CPPrecondition(n_cols <= v_cols,cp_failure_level,routineP,error,failure)
-       cols = n_cols
-    ELSE
-       cols = v_cols
-    END IF
-    CPPrecondition(cols <= p_env%n_ao(1),cp_failure_level,routineP,error,failure)
-    ! check res?
-    IF (.NOT. failure) THEN     
-       CALL blacs_gemm('N', 'T', cols, &
-                       p_env%n_mo(1), p_env%n_ao(1), 1.0_dbl,&
-                       v(1)%blacs_matrix, p_env%psi0d(1)%blacs_matrix, &
-                       0.0_dbl, tmp)
-       CALL blacs_gemm('N', 'T', p_env%n_ao(1) ,cols, p_env%n_ao(1), -1.0_dbl, &
-                       p_env%S_psi0(1)%blacs_matrix, tmp,&
-                       1.0_dbl, v(1)%blacs_matrix)
-    END IF
+    DO spin=1, n_spins
+
+       CALL replicate_blacs_matrix(p_env%psi0d(spin)%blacs_matrix, tmp, &
+                                   routineP//": temporary matrix")
+
+       CALL get_blacs_matrix_info(v(1)%blacs_matrix, &
+                                  nrow_global = v_rows, ncol_global = v_cols)
+       CPPrecondition(v_rows >= p_env%n_ao(1), cp_failure_level, routineP, error, failure)
+
+       IF (PRESENT(n_cols)) THEN
+          CPPrecondition(n_cols <= v_cols, cp_failure_level, routineP, error, failure)
+          cols = n_cols
+       ELSE
+          cols = v_cols
+       END IF
+       CPPrecondition(cols <= p_env%n_ao(spin), cp_failure_level, routineP, error, failure)
+
+       ! check result matrix ?
+       IF (.NOT. failure) THEN     
+          CALL blacs_gemm('N', 'T', cols, p_env%n_mo(spin), p_env%n_ao(spin), 1.0_dbl,&
+                          v(spin)%blacs_matrix, p_env%psi0d(spin)%blacs_matrix, &
+                          0.0_dbl, tmp)
+          CALL blacs_gemm('N', 'T', p_env%n_ao(spin), cols, p_env%n_ao(spin), -1.0_dbl, &
+                          p_env%S_psi0(spin)%blacs_matrix, tmp, &
+                          1.0_dbl, v(spin)%blacs_matrix)
+       END IF
+       
+       CALL deallocate_blacs_matrix(tmp); NULLIFY(tmp)
+
+    END DO
+
   END SUBROUTINE p_postortho
 
 !***************************************************************************

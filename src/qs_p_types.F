@@ -42,7 +42,8 @@ MODULE qs_p_types
        sparse_plus_blacs_blacst, blacs_symm, get_blacs_matrix_info,&
        blacs_scale_and_d, copy_blacs_to_sparse_matrix,&
        blacs_cholesky_decompose, blacs_cholesky_restore, blacs_syrk,&
-       copy_blacs_to_blacs_matrix,blacs_triangular_multiply
+       copy_blacs_to_blacs_matrix,blacs_triangular_multiply, &
+       replicate_blacs_matrix
   USE qs_environment_types, ONLY: qs_environment_type, get_qs_env
   USE qs_mo_types, ONLY : get_mo_set
   USE atomic_kind_types, ONLY: atomic_kind_type, get_atomic_kind_set
@@ -186,24 +187,22 @@ CONTAINS
   SUBROUTINE p_env_init(p_env, qs_env, ks_env, K_P_P1_env, glob_env,&
                         psi0d, orthogonal_orbitals, error)
     ! arguments
-    TYPE(qs_p_env_type), INTENT(out) :: p_env
-    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-    TYPE(qs_ks_env_type), INTENT(in), TARGET :: ks_env
-    TYPE(qs_K_P_P1_env_type), INTENT(in), TARGET :: K_P_P1_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: glob_env
+    TYPE(qs_p_env_type), INTENT(out)                          :: p_env
+    TYPE(qs_environment_type), INTENT(in), TARGET             :: qs_env
+    TYPE(qs_ks_env_type), INTENT(in), TARGET                  :: ks_env
+    TYPE(qs_K_P_P1_env_type), INTENT(in), TARGET              :: K_P_P1_env
+    TYPE(global_environment_type), INTENT(in), TARGET         :: glob_env
     TYPE(blacs_matrix_p_type), DIMENSION(:),POINTER, OPTIONAL :: psi0d
-    LOGICAL, INTENT(in), OPTIONAL :: orthogonal_orbitals
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    LOGICAL, INTENT(in), OPTIONAL                             :: orthogonal_orbitals
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout)              :: error
 
     ! locals
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='p_env_init',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: n_ao, n_mo, n_spins, spin, istat
+    CHARACTER(len=*), PARAMETER      :: routineN='p_env_init',&
+                                        routineP=moduleN//':'//routineN
+    INTEGER                          :: n_ao, n_mo, n_spins, spin, istat
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(dft_control_type), POINTER :: dft_control
-    ! needed because qs_mo_set doesn't provide accessor functions for
-    ! its private members
+    TYPE(dft_control_type), POINTER  :: dft_control
     TYPE(blacs_matrix_type), POINTER :: qs_env_c
 
     ! code
@@ -304,11 +303,11 @@ CONTAINS
   SUBROUTINE p_env_dealloc_ref(p_env, error)
 
     ! arguments
-    TYPE(qs_p_env_type), INTENT(inout) :: p_env
+    TYPE(qs_p_env_type), INTENT(inout)           :: p_env
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     ! locals
-    LOGICAL :: failure
+    LOGICAL                     :: failure
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_dealloc_ref',&
                                    routineP = moduleN//':'//routineN
 
@@ -372,25 +371,30 @@ CONTAINS
     INTEGER                                :: stat
     CHARACTER(len=*), PARAMETER            :: routineN = 'p_env_psi0_changed', &
                                               routineP = moduleN//':'//routineN
-    TYPE(cp_b_matrix_struct_type), POINTER :: s_mstruct
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: S, P, K
     TYPE(blacs_matrix_type), POINTER       :: tmp
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: S
     INTEGER                                :: n_spins, spin
+
+!    TYPE(cp_b_matrix_struct_type), POINTER :: s_mstruct
+!    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: S, P, K
 
     ! code
     failure=.FALSE.
 
     CPPrecondition(p_env%initialized, cp_failure_level, routineP, error, failure)
 
-    NULLIFY(S,P,K,s_mstruct)
+!    NULLIFY(S,P,K,s_mstruct)
+
     NULLIFY(tmp)
-    ! call_get_tmp_from_pool
 
     n_spins = SIZE(p_env%qs_env%k)
 
     IF (.NOT. failure) THEN
        
        DO spin=1, n_spins
+
+          CALL replicate_blacs_matrix(p_env%psi0d(spin)%blacs_matrix, tmp, &
+                                      routineP//": temporary matrix")
 
        ! still needed?
 !!!!       if (p_env%s_mstruct_changed) then
@@ -481,8 +485,12 @@ CONTAINS
 !!!!       call blacs_scale_and_d(p_env%m_epsilon(1)%blacs_matrix,&
 !!!!            scale=-1.0_wp)
 
+          CALL deallocate_blacs_matrix(tmp); NULLIFY(tmp)
+
        END DO
     END IF
+
+
   END SUBROUTINE p_env_psi0_changed
 !***************************************************************************
 
