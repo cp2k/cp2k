@@ -30,7 +30,6 @@ OBJECTS_GENERIC =\
  colvar.o\
  constraint.o\
  convert_units.o\
- cp2k.o\
  cp2k_runs.o\
  cp2k_units.o\
  cp_array_i_utils.o\
@@ -110,6 +109,7 @@ OBJECTS_GENERIC =\
  farming_methods.o\
  farming_types.o\
  fermi.o\
+ f77_interface.o\
  fft_tools.o\
  fftessl_lib.o\
  fftsg_lib.o\

@@ -5,9 +5,11 @@ SHELL = /bin/sh
 CP2KHOME  := $(PWD)/..
 ARCH      := $(shell $(CP2KHOME)/tools/get_arch_code)
 SMAKE     = $(MAKE) -r
-PMAKE     = $(SMAKE) -j 4
-LIB1      = cp2klib
+PMAKE     = $(SMAKE) -j 1
+LIB1      = cp2k_base_lib
+LIBCP2K   = cp2k_lib
 export VERSION=sopt
+export WHAT   =progr
 
 ### Dependent variables ###
 
@@ -29,16 +31,15 @@ LIBDIR       = $(MAINLIBDIR)/$(ARCH)
 OBJDIR       = $(MAINOBJDIR)/$(ARCH)
 OBJECTDEFS   = $(SRCDIR)/OBJECTDEFS
 LIB1_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
+LIB_CP2K_ARCHIVE  = $(LIBDIR)/$(VERSION)/lib$(LIBCP2K).a
 SRCENTRY     = $(wildcard $(SRCDIR)/CVS/Entr*)
 
 ### Definition of the multiple targets ###
 
 VERSION_TARGETS = sopt sdbg popt pdbg ssmp psmp
-CLEAN_TARGETS   = sopt/clean sdbg/clean ssmp/clean\
-                  popt/clean pdbg/clean psmp/clean\
-                  sopt/realclean sdbg/realclean ssmp/realclean\
-                  popt/realclean pdbg/realclean psmp/realclean
-.PHONY : build clean realclean distclean $(CLEAN_TARGETS)
+CLEAN_TARGETS   = sopt/clean sdbg/clean popt/clean pdbg/clean\
+                  sopt/realclean sdbg/realclean popt/realclean pdbg/realclean
+.PHONY : all libs progr lib build clean realclean distclean $(CLEAN_TARGETS)
 ### Master rules ###
 
 build:
@@ -51,7 +52,10 @@ build:
 	@echo
 	$(SMAKE) -C $(TOOLDIR) -f $(TOOLSRC)/Makefile SRCDIR=$(TOOLSRC) CC=$(CC)
 	$(SMAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) dependencies
-	$(PMAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) all
+	$(PMAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) $(WHAT)
+
+libs:
+	$(SMAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=lib build
 
 $(VERSION_TARGETS):
 	$(SMAKE) -f $(MAKEFILE) VERSION=$@ build
@@ -93,7 +97,9 @@ dependencies: $(DEPENDENCIES)
 	@echo "** LIBS     = $(LIBS)"
 	@echo
 
-all: $(PROG)
+all: $(LIB1_ARCHIVE) $(LIB_CP2K_ARCHIVE) $(PROG)
+progr: $(PROG)
+lib: $(LIB1_ARCHIVE) $(LIB_CP2K_ARCHIVE)
 
 $(LIB1_ARCHIVE): $(LIB1_OBJECTS)
 	$(AR) $(LIB1_ARCHIVE) $(LIB1_OBJECTS)
@@ -101,8 +107,14 @@ ifneq ($(RANLIB),)
 	$(RANLIB) $(LIB1_ARCHIVE)
 endif
 
-$(PROG): $(LIB1_ARCHIVE) $(OBJECTS)
-	$(LD) $(LDFLAGS) -o $(PROG) $(OBJECTS) $(LIBRARIES)
+$(PROG): $(LIB1_ARCHIVE) $(OBJECTS) cp2k.o
+	$(LD) $(LDFLAGS) -o $(PROG) $(OBJECTS) cp2k.o $(LIBRARIES)
+
+$(LIB_CP2K_ARCHIVE): $(OBJECTS) f77_int_low.o
+	$(AR) $(LIB_CP2K_ARCHIVE) $(OBJECTS) f77_int_low.o
+ifneq ($(RANLIB),)
+	$(RANLIB) $(LIB_CP2K_ARCHIVE)
+endif
 
 vpath %.F $(SRCDIRS)
 
@@ -153,6 +165,8 @@ distclean:
 
 # lib dependencies
 mltfftsg.o: mltfftsg_tools.o
+cp2k.o: $(LIB1_ARCHIVE) $(OBJECTS)
+f77_int_low.o: f77_interface.o
 
 # to recpp environment.F whenever the CVS/Entries file is updated (and exists)
 ifneq ($(strip $(SRCENTRY)),)
