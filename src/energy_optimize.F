@@ -612,14 +612,14 @@
         f_old (i) = struc % coef_force (1) % pw % cc (i)
      END DO
   END IF
-  struc % coef_vel (1) % pw % cc (:) = CMPLX ( 0.0_dbl, 0.0_dbl )
+  struc % coef_vel (1) % pw % cc (:) = CMPLX ( 0.0_dbl, 0.0_dbl, dbl )
   DO i = 1,ncoef
      struc % coef_pos (1) % pw % cc (i) =  (struc % coef_pos (1) % pw % cc (i) - &
                      step * struc % coef_force (1) % pw % cc (i))
   END DO
 
 ! calculates new forces on coefficients
-  struc % coef_force (1) % pw % cc (:) = CMPLX ( 0.0_dbl, 0.0_dbl )
+  struc % coef_force (1) % pw % cc (:) = CMPLX ( 0.0_dbl, 0.0_dbl, dbl )
   CALL force ( struc, inter, thermo, simpar, ewald_param, box_change, &
               globenv, dft_control, kp )
 

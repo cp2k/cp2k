@@ -545,7 +545,7 @@ CONTAINS
     fo_coef =  CMPLX ( -2._dbl * REAL ( rho_tot % pw % cc, dbl ),  &
                        2._dbl * AIMAG ( rho_tot % pw % cc ), dbl )
 ! renormalize to 0 the force on g=0
-    fo_coef (1) =  CMPLX ( 0.0_dbl, 0.0_dbl )
+    fo_coef (1) =  CMPLX ( 0.0_dbl, 0.0_dbl, dbl )
   ENDIF  
 
   CALL coeff_deallocate ( coeff_dummy ) 

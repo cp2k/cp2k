@@ -232,7 +232,7 @@ CONTAINS
     
     CALL RANDOM_NUMBER ( rand1 ( : ) )
     CALL RANDOM_NUMBER ( rand2 ( : ) )
-    random_number_array = CMPLX ( rand1, rand2 )
+    random_number_array = CMPLX ( rand1, rand2, dbl )
   END FUNCTION get_random_numbers
   
 END SUBROUTINE wf_kset_randomise

@@ -280,14 +280,14 @@ SUBROUTINE force_env_types ( molecule, pnode, part, box, box_ref, &
                                      big_grid, ewald_param )
            DO i = 1, coef_pos % pw % pw_grid % ngpts_cut
               coef_pos % pw % cc (i) = box % deth * coef_pos % pw % cc (i)
-              coef_pos % pw % cc (1) = CMPLX ( 0.0, 0 )
+              coef_pos % pw % cc (1) = CMPLX ( 0.0_dbl, 0.0_dbl, dbl )
            END DO
         CASE ("GAUS")
 ! initialize coeffs with a gaussian
            DO i = 1, coef_pos % pw % pw_grid % ngpts_cut
               e_gsq = exp ( .25 *  coef_pos % pw % pw_grid % gsq ( i ) )
-              coef_pos % pw % cc (i) = CMPLX ( e_gsq, 0 )
-              coef_pos % pw % cc (1) = CMPLX ( 0.0, 0 )
+              coef_pos % pw % cc (i) = CMPLX ( e_gsq, 0.0_dbl, dbl )
+              coef_pos % pw % cc (1) = CMPLX ( 0.0_dbl, 0.0_dbl, dbl )
            ENDDO
         END SELECT
      END IF

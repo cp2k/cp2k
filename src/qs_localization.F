@@ -406,7 +406,7 @@ SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center )
     DO i=1,3
        CALL cp_fm_get_element(zij(1,i)%matrix,l,l,realpart)
        CALL cp_fm_get_element(zij(2,i)%matrix,l,l,imagpart)
-       z=CMPLX(realpart,imagpart)
+       z=CMPLX(realpart,imagpart,dp)
        center (l ,i )=( cell % hmat ( i, i ) / twopi ) * AIMAG ( LOG ( z ) )
        center (l, i+3 )=SQRT( -qs_loc_env % weights ( i ) * 2.0_dp * LOG ( ABS ( Z ) ) ) / twopi
     ENDDO
@@ -416,7 +416,7 @@ SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center )
   ! now, find the spread of the orbitals
   DO i=1,3
      complexresult%local_data ( :, : ) = CMPLX (ZIJ(1,i)%matrix%local_data(:,:), &
-                                         ZIJ(2,i)%matrix%local_data(:,:))
+                                         ZIJ(2,i)%matrix%local_data(:,:),dp)
      CALL cp_cfm_lu_decompose ( complexresult, almost_determinant )
      IF (ionode) WRITE(6,'(A,I6,F16.10)') " D Eq. 11 ",i,SQRT(-2.0*nstates*LOG(ABS(almost_determinant)))
   ENDDO

@@ -601,7 +601,7 @@ SUBROUTINE fft_test ( globenv )
       CALL random_number ( ra )
       ca = ra
       CALL random_number ( ra )
-      ca = ca + CMPLX ( 0._dbl, 1._dbl ) * ra
+      ca = ca + CMPLX ( 0._dbl, 1._dbl, dbl ) * ra
       cc = ca
       CALL fft3d ( FWFFT, n, ca, cb )
       tdiff = MAXVAL ( ABS ( ca - cc ) )

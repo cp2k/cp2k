@@ -200,7 +200,7 @@ SUBROUTINE force_fo_kernel ( dg_part, pw, rho0, part, box, grid_s,  &
                    - AIMAG ( coeff_dummy % pw % cc (i)) * AIMAG ( coeff_dummy2 % pw % cc (i)) 
                 b = REAL ( coeff_dummy % pw % cc (i)) * AIMAG ( coeff_dummy2 % pw % cc (i) ) &
                    + AIMAG ( coeff_dummy % pw % cc (i)) * REAL ( coeff_dummy2 % pw % cc (i)) 
-               drhodk1_g % pw % cc (i) = CMPLX ( a, b )
+               drhodk1_g % pw % cc (i) = CMPLX ( a, b, dbl )
              END DO
              CALL coeff_deallocate ( coeff_dummy )
              CALL coeff_deallocate ( coeff_dummy2 )

@@ -81,7 +81,7 @@ SUBROUTINE init_mathcon
 
 !------------------------------------------------------------------------------
 
-  gaussi = CMPLX ( zero, one )
+  gaussi = CMPLX ( zero, one, dbl )
 
 !
 !    *** Factorial function ***

@@ -148,7 +148,7 @@ CONTAINS
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
-    my_beta=CMPLX(0.0_dp,0.0_dp)
+    my_beta=CMPLX(0.0_dp,0.0_dp,dp)
     IF(PRESENT(beta)) my_beta=beta
     NULLIFY(a,b)
 
@@ -162,9 +162,9 @@ CONTAINS
 
     IF (my_beta==0.0_dp) THEN
 
-       IF (alpha==CMPLX(0.0_dp,0.0_dp)) THEN
+       IF (alpha==CMPLX(0.0_dp,0.0_dp,dp)) THEN
           a(:,:)=CMPLX(0.0_dp,0.0_dp)
-       ELSE IF (alpha == CMPLX(1.0_dp,0.0_dp)) THEN
+       ELSE IF (alpha == CMPLX(1.0_dp,0.0_dp,dp)) THEN
           RETURN
        ELSE
           a(:,:) = alpha*a(:,:)
@@ -186,14 +186,14 @@ CONTAINS
 
           b => matrix_b%local_data
 
-          IF (alpha == CMPLX(0.0_dp,0.0_dp)) THEN
-             IF (my_beta == CMPLX(1.0_dp,0.0_dp)) THEN
+          IF (alpha == CMPLX(0.0_dp,0.0_dp,dp)) THEN
+             IF (my_beta == CMPLX(1.0_dp,0.0_dp,dp)) THEN
                 a(:,:) = b(:,:)
              ELSE
                 a(:,:) = my_beta*b(:,:)
              END IF
-          ELSE IF (alpha == CMPLX(1.0_dp,0.0_dp)) THEN
-             IF (my_beta == CMPLX(1.0_dp,0.0_dp)) THEN
+          ELSE IF (alpha == CMPLX(1.0_dp,0.0_dp,dp)) THEN
+             IF (my_beta == CMPLX(1.0_dp,0.0_dp,dp)) THEN
                 a(:,:) = a(:,:) + b(:,:)
              ELSE
                 a(:,:) = a(:,:) + my_beta*b(:,:)
@@ -247,11 +247,11 @@ CONTAINS
     desca(:) = matrix_a%matrix_struct%descriptor(:)
     CALL pzgetrf(n,n,a(1,1),1,1,desca,ipivot,info)
     ALLOCATE(diag(n))
-    diag(:)=CMPLX(0.0_dp,0.0_dp)
+    diag(:)=CMPLX(0.0_dp,0.0_dp,dp)
     DO i=1,n
        CALL cp_cfm_get_element(matrix_a,i,i,diag(i)) !  not completely optimal in speed i would say
     ENDDO
-    determinant=CMPLX(1.0_dp,0.0_dp)
+    determinant=CMPLX(1.0_dp,0.0_dp,dp)
     do i=1,n
        determinant=determinant*diag(i)
     enddo
@@ -259,7 +259,7 @@ CONTAINS
 #else
     lda=size(a,1)
     CALL zgetrf(n,n,a(1,1),lda,ipivot,info)
-    determinant=CMPLX(1.0_dp,0.0_dp)
+    determinant=CMPLX(1.0_dp,0.0_dp,dp)
     do i=1,n
        determinant=determinant*a(i,i)
     enddo
