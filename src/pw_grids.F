@@ -2352,6 +2352,57 @@ END SUBROUTINE pw_grid_release
     END IF
   END SUBROUTINE pw_grid_duplicate
 
+  SUBROUTINE pw_grid_duplicate(pw_grid_in, pw_grid_out, error)
+    ! ugly, to be changed
+    IMPLICIT NONE
+    ! Arguments
+    TYPE(pw_grid_type), POINTER :: pw_grid_in, pw_grid_out
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                                   :: error
+    CHARACTER(len=*), PARAMETER :: routineN='pw_grid_duplicate',&
+         routineP=moduleN//':'//routineN
+    ! Local Variables
+    INTEGER :: stat
+    LOGICAL :: failure
+
+!    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    
+    failure = .false.
+    ALLOCATE(pw_grid_out,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       CALL pw_grid_construct(pw_grid_out)
+
+       pw_grid_out%bounds          =  pw_grid_in%bounds           
+       pw_grid_out%bounds_local    =  pw_grid_in%bounds_local
+       pw_grid_out%npts            =  pw_grid_in%npts
+       pw_grid_out%npts_local      =  pw_grid_out%npts 
+       pw_grid_out%ngpts           =  PRODUCT ( pw_grid_out% npts )
+       pw_grid_out%ngpts_cut       =  pw_grid_in%ngpts_cut
+       pw_grid_out%ngpts_local     =  pw_grid_in%ngpts_local
+       pw_grid_out%ngpts_cut_local =  pw_grid_in%ngpts_cut_local
+       pw_grid_out%ndimension      =  pw_grid_in%ndimension       
+       pw_grid_out%dr              =  pw_grid_in%dr               
+       pw_grid_out%dvol            =  pw_grid_in%dvol             
+       pw_grid_out%vol             =  pw_grid_in%vol              
+       pw_grid_out%cutoff          =  pw_grid_in%cutoff           
+ !!!    TYPE ( map_pn ) :: mapl, mapm, mapn          ! mapping 1D => 3D
+ !!!    TYPE ( pw_para_type ) :: para                ! information on parallelisation
+ !!!    REAL ( dbl ), DIMENSION ( :, : ), POINTER :: g   ! grid point vectors
+ !!!    REAL ( dbl ), DIMENSION ( : ), POINTER :: gsq    ! squared vector lengths
+ !!!    INTEGER, DIMENSION ( :, : ), POINTER :: g_hat    ! grid point indices (Miller)
+       pw_grid_out%grid_span       =  pw_grid_in%grid_span     
+       pw_grid_out%have_g0         =  pw_grid_in%have_g0      
+       pw_grid_out%first_gne0      =  pw_grid_in%first_gne0   
+       pw_grid_out%nglengths       =  pw_grid_in%nglengths
+       grid_tag = grid_tag + 1
+       pw_grid_out % identifier = grid_tag
+ !!!    INTEGER, DIMENSION ( : ), POINTER :: gidx    ! ref grid index
+       pw_grid_out%spherical       =  pw_grid_in%spherical 
+
+    END IF
+  END SUBROUTINE pw_grid_duplicate
+
 END MODULE pw_grids
 
 !******************************************************************************
