@@ -70,6 +70,8 @@ MODULE cp_fm_pool_types
        fm_pool_create_matrix, fm_pool_give_back_matrix,&
        fm_pool_get_mstruct, fm_pool_create_matrix_vect,&
        fm_pool_give_back_matrix_vect
+  PUBLIC :: fm_pools_copy, fm_pools_dealloc, fm_pools_flush_cache,&
+       fm_pools_create_matrix_vect, fm_pools_give_back_matrix_vect
 !***
 !****************************************************************************
 
@@ -639,6 +641,280 @@ FUNCTION fm_pool_get_mstruct(pool,error) RESULT(res)
      NULLIFY(res)
   END IF
 END FUNCTION fm_pool_get_mstruct
+!***************************************************************************
+
+!================== pools ================
+
+!!****f* cp_fm_pool_types/fm_pools_copy [1.0] *
+!!
+!!   NAME
+!!     fm_pools_copy
+!!
+!!   SYNOPSIS
+!!     Subroutine fm_pools_copy(source_pools, target_pools, error)
+!!       Type(cp_fm_pool_p_type), Dimension(:), Pointer:: source_pools,&
+!!         target_pools
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine fm_pools_copy
+!!
+!!   FUNCTION
+!!     shallow copy of an array of pools (retains each pool)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - source_pools: the pools to copy
+!!     - target_pools: will contains the new pools
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     11.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE fm_pools_copy(source_pools, target_pools, error)
+  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: source_pools,&
+       target_pools
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  INTEGER :: stat, i
+  CHARACTER(len=*), PARAMETER :: routineN='fm_pools_copy',&
+        routineP=moduleN//':'//routineN
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(source_pools),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     ALLOCATE(target_pools(SIZE(source_pools)),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF (.NOT.failure) THEN
+     DO i=1,SIZE(source_pools)
+        target_pools(i)%pool => source_pools(i)%pool
+        CALL fm_pool_retain(source_pools(i)%pool,error=error)
+     END DO
+  END IF
+END SUBROUTINE fm_pools_copy
+!***************************************************************************
+
+!!****f* cp_fm_pool_types/fm_pools_dealloc [1.0] *
+!!
+!!   NAME
+!!     fm_pools_dealloc
+!!
+!!   SYNOPSIS
+!!     Subroutine fm_pools_dealloc(pools, error)
+!!       Type(cp_fm_pool_p_type), Dimension(:), Pointer:: pools
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine fm_pools_dealloc
+!!
+!!   FUNCTION
+!!     deallocate an array of pools (releasing each pool)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - pools: the pools to release
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     11.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE fm_pools_dealloc(pools, error)
+  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: pools
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout)   :: error
+  
+  LOGICAL :: failure
+  INTEGER :: stat, i
+  CHARACTER(len=*), PARAMETER :: routineN='fm_pools_dealloc',&
+        routineP=moduleN//':'//routineN
+  failure=.FALSE.
+  
+  IF (ASSOCIATED(pools)) THEN
+     DO i=1,SIZE(pools)
+        CALL fm_pool_release(pools(i)%pool,error=error)
+     END DO
+     DEALLOCATE(pools,stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  END IF
+END SUBROUTINE fm_pools_dealloc
+!***************************************************************************
+
+!!****f* cp_fm_pool_types/fm_pools_flush_cache [1.0] *
+!!
+!!   NAME
+!!     fm_pools_flush_cache
+!!
+!!   SYNOPSIS
+!!     Subroutine fm_pools_flush_cache(pools, error)
+!!       Type(cp_fm_pool_p_type), Dimension(:), Pointer:: pools
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine fm_pools_flush_cache
+!!
+!!   FUNCTION
+!!     deallocates all the cached matrixes of an array of pools
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - pools: the pools to flush
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     09.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE fm_pools_flush_cache(pools, error)
+  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: pools
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout)   :: error
+  
+  LOGICAL :: failure
+  INTEGER :: stat,i
+  CHARACTER(len=*), PARAMETER :: routineN='fm_pools_flush_cache',&
+        routineP=moduleN//':'//routineN
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
+  IF (.NOT.failure) THEN
+     DO i=1,SIZE(pools)
+        CALL fm_pool_flush_cache(pools(i)%pool,error=error)
+     END DO
+  END IF
+END SUBROUTINE fm_pools_flush_cache
+!***************************************************************************
+
+!!****f* cp_fm_pool_types/fm_pools_create_matrix_vect [1.0] *
+!!
+!!   NAME
+!!     fm_pools_create_matrix_vect
+!!
+!!   SYNOPSIS
+!!     Subroutine fm_pools_create_matrix_vect(pools, matrixes, name, error)
+!!       Type(cp_fm_pool_p_type), Dimension(:), Pointer:: pools
+!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: matrixes
+!!       Character(Len=*), Optional, Intent (IN):: name
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine fm_pools_create_matrix_vect
+!!
+!!   FUNCTION
+!!     Returns a matrix vector with a matrix from each pool
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - pools: the pools to create the matrix from
+!!     - matrixes: will contain the vector of matrixes
+!!     - name: optionally a name for the matrixes
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     09.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE fm_pools_create_matrix_vect(pools,matrixes,name,error)
+  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: pools
+  TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: matrixes
+  CHARACTER(len=*), OPTIONAL, INTENT(in) :: name
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  INTEGER :: stat,i
+  CHARACTER(len=*), PARAMETER :: routineN='fm_pools_create_matrix_vect',&
+        routineP=moduleN//':'//routineN
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     ALLOCATE(matrixes(SIZE(pools)),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF (.NOT.failure) THEN
+     DO i=1,SIZE(pools)
+        NULLIFY(matrixes(i)%matrix)
+        IF (PRESENT(name)) THEN
+           CALL fm_pool_create_matrix(pools(i)%pool,matrixes(i)%matrix,&
+                name=name//'-'//ADJUSTL(cp_to_string(i)),error=error)
+        ELSE
+           CALL fm_pool_create_matrix(pools(i)%pool,matrixes(i)%matrix,&
+                error=error)
+        END IF
+     END DO
+  END IF
+END SUBROUTINE fm_pools_create_matrix_vect
+!***************************************************************************
+
+!!****f* cp_fm_pool_p_types/fm_pools_give_back_matrix_vect [1.0] *
+!!
+!!   NAME
+!!     fm_pools_give_back_matrix_vect
+!!
+!!   SYNOPSIS
+!!     Subroutine fm_pools_give_back_matrix_vect(pools, matrixes, error)
+!!       Type(cp_fm_pool_p_type), Dimension(:), Pointer:: pools
+!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: matrixes
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine fm_pools_give_back_matrix_vect
+!!
+!!   FUNCTION
+!!     returns a matrix vector to the pools. The vector is deallocated
+!!     (like cp_fm_vect_dealloc)
+!!
+!!   NOTES
+!!     accept unassociated vect?
+!!
+!!   INPUTS
+!!     - pools: the pool where to give back the matrix vector
+!!     - matrixes: the matrixes to give back
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     09.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE fm_pools_give_back_matrix_vect(pools,matrixes,error)
+  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: pools
+  TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: matrixes
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  INTEGER :: i, stat
+  CHARACTER(len=*), PARAMETER :: routineN='fm_pools_give_back_matrix_vect',&
+        routineP=moduleN//':'//routineN
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(matrixes),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     DO i=1,SIZE(pools)
+        CALL fm_pool_give_back_matrix(pools(i)%pool,&
+             matrixes(i)%matrix,error=error)
+     END DO
+  END IF
+END SUBROUTINE fm_pools_give_back_matrix_vect
 !***************************************************************************
 
 END MODULE cp_fm_pool_types

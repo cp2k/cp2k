@@ -141,14 +141,16 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine cp_fmstruct_create(fmstruct, para_env, context,&
 !!         nrow_global, ncol_global, nrow_block, ncol_block, descriptor,&
-!!         first_p_pos, error)
+!!         first_p_pos, template_fmstruct, error)
 !!       Type(cp_f_matrix_struct_type), Pointer:: fmstruct
-!!       Type(cp_para_env_type), Pointer:: para_env
-!!       Integer, Intent (IN):: nrow_global, ncol_global
+!!       Type(cp_para_env_type), Pointer, Optional:: para_env
+!!       Integer, Intent (IN), Optional:: nrow_global, ncol_global
 !!       Integer, Intent (IN), Optional:: nrow_block, ncol_block
-!!       Type(cp_blacs_env_type), Pointer:: context
+!!       Type(cp_blacs_env_type), Pointer, Optional:: context
 !!       Integer, Dimension(9), Intent (IN), Optional:: descriptor
 !!       Integer, Optional, Dimension(2):: first_p_pos
+!!       Type(cp_f_matrix_struct_type), Pointer, Optional::&
+!!         template_fmstruct
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_fmstruct_create
 !!
@@ -168,6 +170,7 @@ CONTAINS
 !!     - context: the blacs context of this matrix
 !!     - descriptor: the scalapack descriptor of the matrix (if not given
 !!       a new one is allocated
+!!     - template_fmstruct: a matrix structure where to take the default values
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -179,14 +182,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_fmstruct_create(fmstruct,para_env,context, nrow_global,&
-     ncol_global, nrow_block, ncol_block, descriptor, first_p_pos, error)
-  TYPE(cp_f_matrix_struct_type), POINTER :: fmstruct
-  TYPE(cp_para_env_type), POINTER        :: para_env
-  INTEGER, INTENT(in)                    :: nrow_global,ncol_global
-  INTEGER, INTENT(in), OPTIONAL          :: nrow_block,ncol_block
-  TYPE(cp_blacs_env_type), POINTER       :: context
+     ncol_global, nrow_block, ncol_block, descriptor, first_p_pos, &
+     template_fmstruct, error)
+  TYPE(cp_f_matrix_struct_type), POINTER       :: fmstruct
+  TYPE(cp_para_env_type), POINTER, OPTIONAL    :: para_env
+  INTEGER, INTENT(in), OPTIONAL                :: nrow_global,ncol_global
+  INTEGER, INTENT(in), OPTIONAL                :: nrow_block,ncol_block
+  TYPE(cp_blacs_env_type), POINTER, OPTIONAL   :: context
   INTEGER, DIMENSION(9), INTENT(in), OPTIONAL  :: descriptor
   INTEGER,OPTIONAL, DIMENSION(2)               :: first_p_pos
+  TYPE(cp_f_matrix_struct_type), POINTER, OPTIONAL :: template_fmstruct
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
 #if defined(__SCALAPACK)
@@ -198,7 +203,7 @@ SUBROUTINE cp_fmstruct_create(fmstruct,para_env,context, nrow_global,&
         routineP=moduleN//':'//routineN
   INTEGER :: stat
   failure=.FALSE.
-  
+
 #if defined(__parallel) && ! defined(__SCALAPACK)
   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
        routineP,"full matrixes need scalapack for parallel runs "//&
@@ -208,25 +213,55 @@ SUBROUTINE cp_fmstruct_create(fmstruct,para_env,context, nrow_global,&
 
   ALLOCATE(fmstruct,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
   IF (.NOT. failure) THEN
-     fmstruct%context => context
-     CALL cp_blacs_env_retain(context,error=error)
-     fmstruct%para_env => para_env
-     CALL cp_para_env_retain(para_env,error=error)
-     
-     fmstruct%nrow_global=nrow_global
-     fmstruct%ncol_global=ncol_global
-     ! checks for more processes than matrix elements
-     CPAssert(context%num_pe(1)<=nrow_global,cp_warning_level,routineP,error,failure)
-     CPAssert(context%num_pe(2)<=ncol_global,cp_warning_level,routineP,error,failure)
      fmstruct%nrow_block=optimal_blacs_row_block_size
-     IF (PRESENT(nrow_block)) fmstruct%nrow_block=nrow_block
      fmstruct%ncol_block=optimal_blacs_col_block_size
+
+     IF (.NOT.PRESENT(template_fmstruct)) THEN
+        CPPrecondition(PRESENT(para_env),cp_failure_level,routineP,error,failure)
+        CPPrecondition(PRESENT(context),cp_failure_level,routineP,error,failure)
+        CPPrecondition(PRESENT(nrow_global),cp_failure_level,routineP,error,failure)
+        CPPrecondition(PRESENT(ncol_global),cp_failure_level,routineP,error,failure)
+     ELSE
+        fmstruct%context => template_fmstruct%context
+        fmstruct%para_env => template_fmstruct%para_env
+        fmstruct%descriptor = template_fmstruct %descriptor
+        fmstruct %nrow_block = template_fmstruct %nrow_block
+        fmstruct %nrow_global = template_fmstruct %nrow_global
+        fmstruct %ncol_block = template_fmstruct %ncol_block
+        fmstruct %first_p_pos = template_fmstruct %first_p_pos
+     END IF
+
+  END IF
+  IF (.NOT.failure) THEN
+     
+     IF (PRESENT(context)) fmstruct%context => context
+     CALL cp_blacs_env_retain(fmstruct%context,error=error)
+     IF (PRESENT(para_env)) fmstruct%para_env => para_env
+     CALL cp_para_env_retain(fmstruct%para_env,error=error)
+     
+     IF (PRESENT(nrow_global)) fmstruct%nrow_global=nrow_global
+     IF (PRESENT(ncol_global)) fmstruct%ncol_global=ncol_global
+     ! checks for more processes than matrix elements
+     call cp_assert(fmstruct%context%num_pe(1)<=fmstruct%nrow_global,&
+          cp_warning_level,cp_assertion_failed,routineP,&
+          "context%num_pe(1)<=nrow_global"//&
+          CPSourceFileRef,&
+          error)
+     call cp_assert(fmstruct%context%num_pe(2)<=fmstruct%ncol_global,&
+          cp_warning_level,cp_assertion_failed,routineP,&
+          "context%num_pe(2)<=ncol_global"//&
+          CPSourceFileRef,&
+          error)
+     IF (PRESENT(nrow_block)) fmstruct%nrow_block=nrow_block
      IF (PRESENT(ncol_block)) fmstruct%ncol_block=ncol_block
      fmstruct%nrow_block=MAX(1,&
-          MIN(fmstruct%nrow_block,nrow_global/context%num_pe(1)))
+          MIN(fmstruct%nrow_block,&
+          fmstruct%nrow_global/fmstruct%context%num_pe(1)))
      fmstruct%ncol_block=MAX(1,&
-          MIN(fmstruct%ncol_block,ncol_global/context%num_pe(2)))
+          MIN(fmstruct%ncol_block,&
+          fmstruct%ncol_global/fmstruct%context%num_pe(2)))
      IF (fmstruct%nrow_global==fmstruct%ncol_global) THEN
         ! square matrix -> square blocks (otherwise some op fail)
         fmstruct%nrow_block=MIN(fmstruct%nrow_block,fmstruct%ncol_block)
@@ -237,7 +272,7 @@ SUBROUTINE cp_fmstruct_create(fmstruct,para_env,context, nrow_global,&
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
   IF (.NOT.failure) THEN
-     fmstruct%first_p_pos=context%source
+     IF (.NOT.PRESENT(template_fmstruct)) fmstruct%first_p_pos=context%source
      IF (PRESENT(first_p_pos)) fmstruct%first_p_pos=first_p_pos
 
      fmstruct%nrow_local=0
@@ -270,7 +305,7 @@ SUBROUTINE cp_fmstruct_create(fmstruct,para_env,context, nrow_global,&
 
      IF (PRESENT(descriptor)) THEN
         fmstruct%descriptor=descriptor
-     ELSE
+     ELSE IF (.NOT.PRESENT(template_fmstruct)) THEN
         fmstruct%descriptor=0
 #if defined(__SCALAPACK)
         CALL descinit(fmstruct%descriptor,fmstruct%nrow_global,&

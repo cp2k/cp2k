@@ -52,7 +52,10 @@ MODULE qs_environment_methods
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
                                              fm_pool_create,&
                                              fm_pool_release,&
-                                             fm_pool_retain
+                                             fm_pool_retain,&
+                                             cp_fm_pool_p_type,&
+                                             fm_pools_dealloc,&
+                                             fm_pools_copy
   USE cp_fm_struct,                    ONLY: cp_f_matrix_struct_type,&
                                              cp_fmstruct_create,&
                                              cp_fmstruct_release,&
@@ -116,7 +119,7 @@ MODULE qs_environment_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_mo_types,                     ONLY: get_mo_set
+  USE qs_mo_types,                     ONLY: get_mo_set, mo_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_create,&
                                              qs_rho_release,&
                                              qs_rho_type
@@ -138,7 +141,7 @@ MODULE qs_environment_methods
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_environment_methods'
 
   PUBLIC :: qs_env_update_s_mstruct, qs_env_rebuild_pw_env,&
-       qs_env_rebuild_aomo_pool, qs_env_rebuild_rho, qs_env_setup
+       qs_env_rebuild_aomo_pools, qs_env_rebuild_rho, qs_env_setup
 !***
 !****************************************************************************
 CONTAINS
@@ -150,8 +153,8 @@ CONTAINS
 !!
 !!   FUNCTION
 !!     initializes various components of the qs_env, that need only
-!!     atomic_kind_set, cell, dft_control, scf_control and 
-!!     particle_set to be initialized.
+!!     atomic_kind_set, cell, dft_control, scf_control, c(i)%nmo, 
+!!     c(i)%nao, and particle_set to be initialized.
 !!     The previous components of qs_env must be valid.
 !!     Initializes pools, charges and pw_env.
 !!
@@ -203,7 +206,10 @@ SUBROUTINE qs_env_setup(qs_env,error)
      
      ! set up pw_env
      CALL qs_env_rebuild_pw_env(qs_env, error=error)
-     
+
+     ! rebuilds ao_mo_fm_pools
+     CALL qs_env_rebuild_aomo_pools(qs_env, error=error)
+
   END IF
 END SUBROUTINE qs_env_setup
 !***************************************************************************
@@ -305,13 +311,14 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,para_env,error)
 END SUBROUTINE qs_env_update_s_mstruct
 !***************************************************************************
 
-!!****f* qs_environment_types/qs_env_rebuild_aomo_pool [1.0] *
+!!****f* qs_environment_types/qs_env_rebuild_aomo_pools [1.0] *
 !!
 !!   NAME
-!!     qs_env_rebuild_aomo_pool
+!!     qs_env_rebuild_aomo_pools
 !!
 !!   FUNCTION
 !!     rebuilds the pools of the (ao x mo) full matrixes
+!!     mo (qs_env%c) must contain up to date nmo and nao
 !!
 !!   NOTES
 !!     -
@@ -329,27 +336,86 @@ END SUBROUTINE qs_env_update_s_mstruct
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE qs_env_rebuild_aomo_pool(qs_env, fmstruct, error)
+SUBROUTINE qs_env_rebuild_aomo_pools(qs_env, error)
   TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
-  TYPE(cp_f_matrix_struct_type), POINTER           :: fmstruct
   TYPE(cp_error_type), OPTIONAL, INTENT(inout)     :: error
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='qs_env_rebuild_aomo_pool',&
+  CHARACTER(len=*), PARAMETER :: routineN='qs_env_rebuild_aomo_pools',&
         routineP=moduleN//':'//routineN
-  INTEGER :: handle
-  TYPE(cp_fm_pool_type), POINTER          :: aomo_pool
+  INTEGER :: handle, nmo,nao, i, max_nmo, min_nmo, stat
+  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: aomo_pools
+  TYPE(cp_para_env_type), POINTER                :: para_env
+  TYPE(cp_blacs_env_type), POINTER               :: blacs_env
+  TYPE(mo_set_p_type), DIMENSION(:), POINTER     :: mos
+  TYPE(cp_f_matrix_struct_type), POINTER         :: fmstruct
+  TYPE(scf_control_type), POINTER                :: scf_control
   failure=.FALSE.
-  NULLIFY(aomo_pool)
+  NULLIFY(aomo_pools,para_env,blacs_env,mos, fmstruct)
   
   CALL timeset(routineN//', '//moduleN,"I","",handle)
   
-  CALL fm_pool_create(aomo_pool,fmstruct,error=error)
-  CALL set_qs_env(qs_env, ao_mo_fm_pool=aomo_pool, error=error)
-  CALL fm_pool_release(aomo_pool,error=error)
+  ! frees the memory before allocating the new pools
+  CALL set_qs_env(qs_env, ao_mo_fm_pools=aomo_pools,error=error)
 
+  CALL get_qs_env(qs_env,para_env=para_env,blacs_env=blacs_env,&
+       c=mos,scf_control=scf_control, error=error)
+  
+  CPPrecondition(ASSOCIATED(mos),cp_failure_level,routineP,error,failure)
+  IF (.NOT.failure) THEN
+     ALLOCATE(aomo_pools(SIZE(mos)), stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF (.NOT. failure) THEN
+
+     CALL get_mo_set(mos(1)%mo_set,nao=nao,nmo=min_nmo)
+     max_nmo=min_nmo
+     DO i=2,SIZE(mos)
+        CALL get_mo_set(mos(i)%mo_set,nmo=nmo)
+        IF (max_nmo<nmo) THEN
+           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                routineP,&
+                "the mo with the most orbitals must be the first "//&
+                CPSourceFileRef,&
+                error=error,&
+                failure=failure)
+        END IF
+        min_nmo=MIN(min_nmo,nmo)
+     END DO
+  END IF
+  IF (.NOT.failure) THEN
+     IF (max_nmo==min_nmo) THEN
+        CALL cp_fmstruct_create(fmstruct, nrow_global=nao,&
+             ncol_global=max_nmo, para_env=para_env,&
+             context=blacs_env,&
+             nrow_block=scf_control%nrow_block,&
+             ncol_block=scf_control%ncol_block)
+        CALL fm_pool_create(aomo_pools(1)%pool,fmstruct,error=error)
+        CALL cp_fmstruct_release(fmstruct,error=error)
+        DO i=2,SIZE(mos)
+           aomo_pools(i)%pool => aomo_pools(1)%pool
+           CALL fm_pool_retain(aomo_pools(1)%pool,error=error)
+        END DO
+     ELSE
+        DO i=1,SIZE(mos)
+           NULLIFY(aomo_pools(i)%pool)
+           CALL get_mo_set(mos(i)%mo_set,nmo=nmo,nao=nao) 
+           CALL cp_fmstruct_create(fmstruct, nrow_global=nao,&
+                ncol_global=nmo, para_env=para_env,&
+                context=blacs_env,&
+                nrow_block=scf_control%nrow_block,&
+                ncol_block=scf_control%ncol_block)
+           CALL fm_pool_create(aomo_pools(i)%pool,fmstruct,error=error)
+           CALL cp_fmstruct_release(fmstruct,error=error)
+        END DO
+     END IF
+     
+     CALL set_qs_env(qs_env, ao_mo_fm_pools=aomo_pools,error=error)
+     CALL fm_pools_dealloc(aomo_pools,error=error)
+  END IF
+  
   CALL timestop(0.0_wp,handle)
-END SUBROUTINE qs_env_rebuild_aomo_pool
+END SUBROUTINE qs_env_rebuild_aomo_pools
 !***************************************************************************
 
 !!****f* qs_environment_methods/qs_env_rebuild_pw_env [1.0] *

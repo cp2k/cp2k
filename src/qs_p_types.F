@@ -51,10 +51,10 @@ MODULE qs_p_types
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create_matrix,&
-                                             fm_pool_create_matrix_vect,&
+                                             fm_pools_create_matrix_vect,&
                                              fm_pool_get_mstruct,&
                                              fm_pool_give_back_matrix,&
-                                             fm_pool_give_back_matrix_vect
+                                             fm_pools_give_back_matrix_vect
   USE cp_fm_struct,                    ONLY: cp_f_matrix_struct_type,&
                                              cp_fmstruct_get
   USE cp_fm_vect,                      ONLY: cp_fm_vect_copy,&
@@ -240,15 +240,14 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(dft_control_type), POINTER  :: dft_control
     TYPE(cp_full_matrix_type), POINTER :: qs_env_c
-    TYPE(cp_fm_pool_type), POINTER :: ao_mo_fm_pool
-    TYPE(cp_f_matrix_struct_type), POINTER :: ao_mo_fm_struct
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools
     TYPE(cp_para_env_type), POINTER :: para_env
 
     ! code
 
     failure=.FALSE.
 
-    NULLIFY(atomic_kind_set, dft_control, ao_mo_fm_pool, para_env)
+    NULLIFY(atomic_kind_set, dft_control, ao_mo_fm_pools, para_env)
     NULLIFY(p_env%K_P_P1, &
             p_env%m_epsilon, &
             p_env%psi0d, &
@@ -261,7 +260,7 @@ CONTAINS
     p_env%ks_env => ks_env
     p_env%K_P_P1_env => K_P_P1_env
 
-    CALL get_qs_env(qs_env, ao_mo_fm_pool=ao_mo_fm_pool,para_env=para_env)
+    CALL get_qs_env(qs_env, ao_mo_fm_pools=ao_mo_fm_pools,para_env=para_env)
 
     n_spins = p_env%qs_env%dft_control%nspins
     DO spin=1, n_spins
@@ -282,24 +281,21 @@ CONTAINS
     IF (PRESENT(orthogonal_orbitals)) &
          p_env%orthogonal_orbitals=orthogonal_orbitals
 
-    CALL fm_pool_create_matrix_vect(ao_mo_fm_pool,matrixes=p_env%S_psi0,&
-                                    n_matrixes=n_spins,&
-                                    name="p_env_S_psi0", &
-                                    error=error)
-    CALL fm_pool_create_matrix_vect(ao_mo_fm_pool,matrixes=p_env%m_epsilon,&
-                                    n_matrixes=n_spins,&
-                                    name="p_env_m_epsilon", &
-                                    error=error)
+    CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,matrixes=p_env%S_psi0,&
+                                     name="p_env_S_psi0", &
+                                     error=error)
+    CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,matrixes=p_env%m_epsilon,&
+                                     name="p_env_m_epsilon", &
+                                     error=error)
 
     IF (PRESENT(psi0d)) THEN
        IF (ASSOCIATED(psi0d)) THEN
           CALL cp_fm_vect_copy(psi0d,p_env%psi0d,error=error)
        END IF
     ELSE IF (.NOT.p_env%orthogonal_orbitals) THEN
-       CALL fm_pool_create_matrix_vect(ao_mo_fm_pool,matrixes=p_env%psi0d,&
-                                       n_matrixes=n_spins,&
-                                       name="p_env_psi0d", &
-                                       error=error)
+       CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,matrixes=p_env%psi0d,&
+                                        name="p_env_psi0d", &
+                                        error=error)
     END IF
 
     ! do still we need this?
@@ -406,24 +402,24 @@ CONTAINS
     INTEGER                                :: n_spins, spin, stat
     CHARACTER(len=*), PARAMETER            :: routineN = 'p_env_psi0_changed', &
                                               routineP = moduleN//':'//routineN
-    TYPE(cp_full_matrix_type), POINTER       :: tmp
-    TYPE(cp_fm_pool_type), POINTER           :: ao_mo_fm_pool
+    TYPE(cp_full_matrix_type), POINTER                 :: tmp
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: my_psi0
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: S
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER :: c
-    TYPE(cp_para_env_type), POINTER :: para_env
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER    :: S
+    TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: c
+    TYPE(cp_para_env_type), POINTER                    :: para_env
 
     ! code
     failure=.FALSE.
 
     CPPrecondition(p_env%initialized, cp_failure_level, routineP, error, failure)
 
-    NULLIFY(tmp, ao_mo_fm_pool,c,my_psi0, para_env)
+    NULLIFY(tmp, ao_mo_fm_pools,c,my_psi0, para_env)
 
     n_spins = p_env%qs_env%dft_control%nspins
 
     IF (.NOT. failure) THEN
-       CALL get_qs_env(p_env%qs_env,ao_mo_fm_pool=ao_mo_fm_pool,&
+       CALL get_qs_env(p_env%qs_env,ao_mo_fm_pools=ao_mo_fm_pools,&
             c=c, S=S, para_env=para_env)
 
        ! def my_psi0

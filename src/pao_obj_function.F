@@ -47,6 +47,8 @@ MODULE pao_obj_function
                                              cp_error_message,&
                                              cp_error_type,&
                                              cp_precondition_failed
+  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
+                                             cp_fm_pool_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_get_default_logger,&
                                              cp_log,&
@@ -111,7 +113,8 @@ MODULE pao_obj_function
                                              deallocate_mo_set,&
                                              get_mo_set,&
                                              mo_set_p_type,&
-                                             mo_set_type
+                                             mo_set_type,&
+                                             init_mo_set
   USE sparse_matrix_types,             ONLY: get_matrix_info,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
@@ -282,6 +285,7 @@ CONTAINS
     TYPE(cp_b_matrix_struct_type), POINTER :: min_bas_m_struct, full_bas_m_struct
     TYPE(pao_env_type), POINTER :: pao_env
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools
     NULLIFY(diagMatrix, min_bas_m_struct, full_bas_m_struct, pao_env,&
          atomic_kind_set)
     failure=.FALSE.
@@ -291,7 +295,7 @@ CONTAINS
     gf_env%n_eval = 0
     IF (.NOT.failure) THEN
        CALL get_qs_env(gf_env%qs_env, s=full_overlap_m, pao_env=pao_env,&
-            atomic_kind_set=atomic_kind_set)
+            atomic_kind_set=atomic_kind_set, ao_mo_fm_pools=ao_mo_fm_pools)
        CALL pao_qs_env_get(gf_env%qs_env, global_env=global_env,&
             pao_tot_full_bas=ntot_full_bas,&
             pao_tot_min_bas=ntot_min_bas,&
@@ -336,9 +340,8 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           CALL allocate_mo_set(gf_env%mo_set(1)%mo_set,nao=ntot_min_bas,&
                nmo=nelectron/2,&
-               nelectron=nelectron,maxocc=2.0_wp,nrow_block=n_atoms,&
-               ncol_block=n_atoms,&
-               globenv=global_env)
+               nelectron=nelectron,maxocc=2.0_wp)
+          CALL init_mo_set(gf_env%mo_set(1)%mo_set,ao_mo_fm_pools(1)%pool)
           gf_env%should_dealloc_mo=.TRUE.
        END IF
        IF (PRESENT(should_dealloc_mo)) &

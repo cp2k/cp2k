@@ -2,6 +2,9 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
 !-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
 !!****** cp2k/qs_mo_types [1.0] *
 !!
 !!   NAME
@@ -33,6 +36,23 @@ MODULE qs_mo_types
   USE kinds, ONLY: wp => dp,&
                    wp_size => dp_size
   USE cp_para_types,     ONLY: cp_para_env_type, cp_blacs_env_type
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE atomic_kind_types,    ONLY: atomic_kind_type,&
                                   get_atomic_kind,&
                                   get_atomic_kind_set
@@ -57,7 +77,8 @@ MODULE qs_mo_types
                                   blacs_scale_matrix,&
                                   replicate_blacs_matrix, &
                                   cp_fm_get_info
-
+  USE cp_fm_pool_types,     ONLY: cp_fm_pool_type, &
+       cp_fm_pool_p_type, fm_pool_create_matrix, fm_pool_give_back_matrix
   USE global_types,         ONLY: global_environment_type
   USE particle_types,       ONLY: particle_type
   USE qs_parser,            ONLY: close_file,&
@@ -92,6 +113,8 @@ MODULE qs_mo_types
     TYPE(mo_set_type), POINTER :: mo_set
   END TYPE mo_set_p_type
 
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='qs_mo_types'
+ 
 ! *** Public data types ***
 
   PUBLIC :: mo_set_p_type,&
@@ -105,6 +128,7 @@ MODULE qs_mo_types
             correct_mo_eigenvalues,&
             deallocate_mo_set,&
             get_mo_set,&
+            init_mo_set,&
             read_mo_set,&
             set_mo_occupation,&
             write_mo_set, &
@@ -133,14 +157,41 @@ MODULE qs_mo_types
     MODULE PROCEDURE calculate_w_matrix_sparse
   END INTERFACE
 
+!!***
 ! *****************************************************************************
 
 CONTAINS
 
-! *****************************************************************************
-
-  SUBROUTINE allocate_mo_set(mo_set,nao,nmo,nelectron,maxocc,nrow_block,&
-                             ncol_block,globenv)
+  !!****f* qs_mo_types/allocate_mo_set [1.0] *
+  !!
+  !!   NAME
+  !!     allocate_mo_set
+  !!
+  !!   FUNCTION
+  !!     allocate a mo set and partially initializes it (nao,nmo,nelectron
+  !!     are vaild).
+  !!     For the full initialization you need to call init_mo_set
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   INPUTS
+  !!     - mo_set: the mo_set to allocate
+  !!     - nao: number of atom orbitals
+  !!     - nmo: number of molecular orbitals
+  !!     - nelectrons: number of electrons
+  !!     - maxocc: maximum occupation of an orbital (LDA: 2, LSD:1)
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     Matthias Krack
+  !!
+  !!   MODIFICATION HISTORY
+  !!     11.2002 splitted initialization in two phases [fawzi]
+  !!
+  !!*** *********************************************************************
+  SUBROUTINE allocate_mo_set(mo_set,nao,nmo,nelectron,maxocc, error)
 
 !   Purpose: Allocate a wavefunction data structure.
 
@@ -148,11 +199,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
     REAL(wp), INTENT(IN)                      :: maxocc
-    INTEGER, INTENT(IN)                       :: nao,ncol_block,nelectron,nmo,&
-                                                 nrow_block
+    INTEGER, INTENT(IN)                       :: nao,nelectron,nmo
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local parameters ***
 
@@ -162,9 +212,11 @@ CONTAINS
 !   *** Local variables ***
 
     INTEGER :: istat
+    LOGICAL :: failure
 
 !   ---------------------------------------------------------------------------
 
+    failure=.FALSE.
     ALLOCATE (mo_set,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"mo_set",0)
 
@@ -186,27 +238,72 @@ CONTAINS
     mo_set%homo = 0
     mo_set%lfomo = 0
 
-    ALLOCATE (mo_set%eigenvalues(nmo),STAT=istat)
+    NULLIFY(mo_set%eigenvalues, mo_set%occupation_numbers,&
+         mo_set%eigenvectors)
+
+  END SUBROUTINE allocate_mo_set
+
+!****************************************************************************
+
+  !!****f* qs_mo_types/init_mo_set [1.0] *
+  !!
+  !!   NAME
+  !!     init_mo_set
+  !!
+  !!   FUNCTION
+  !!     initializes an allocated mo_set.
+  !!     eigenvalues, eigenvectors, occupation_numbers are valid only
+  !!     after this call.
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   INPUTS
+  !!     - mo_set: the mo_set to initialize
+  !!     - fm_pool: a pool out which you initialize the mo_set
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     Fawzi Mohamed
+  !!
+  !!   MODIFICATION HISTORY
+  !!     11.2002 rewamped [fawzi]
+  !!
+  !!*** *********************************************************************
+  SUBROUTINE init_mo_set(mo_set, fm_pool, error)
+    TYPE(mo_set_type), POINTER                   :: mo_set
+    TYPE(cp_fm_pool_type), POINTER               :: fm_pool
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+
+    LOGICAL :: failure
+    INTEGER :: istat, nmo,nao
+    CHARACTER(len=*), PARAMETER :: routineN='init_mo_set',&
+         routineP=moduleN//':'//routineN
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(mo_set%eigenvectors),cp_failure_level,routineP,error,failure)
+
+    ALLOCATE (mo_set%eigenvalues(mo_set%nmo),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"mo_set%eigenvalues",nmo*wp_size)
+      CALL stop_memory(routineP,"mo_set%eigenvalues",mo_set%nmo*wp_size)
     END IF
     mo_set%eigenvalues(:) = 0.0_wp
 
-    ALLOCATE (mo_set%occupation_numbers(nmo),STAT=istat)
+    ALLOCATE (mo_set%occupation_numbers(mo_set%nmo),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"mo_set%occupation_numbers",nmo*wp_size)
+      CALL stop_memory(routineP,"mo_set%occupation_numbers",mo_set%nmo*wp_size)
     END IF
     CALL set_mo_occupation(mo_set=mo_set,smear=0.0_wp)
 
-    CALL cp_fm_create2(new_matrix=mo_set%eigenvectors,&
-                               nrow_global=nao,&
-                               ncol_global=nmo,&
-                               nrow_block=nrow_block,&
-                               ncol_block=ncol_block,&
-                               name="MO EIGENVECTORS",&
-                               globenv=globenv)
+    CALL fm_pool_create_matrix(fm_pool,mo_set%eigenvectors,&
+         name="MO EIGENVECTORS",error=error)
+    CALL cp_fm_get_info(mo_set%eigenvectors, nrow_global=nao, &
+         ncol_global=nmo,error=error)
+    CPPostcondition(nao>=mo_set%nao,cp_failure_level,routineP,error,failure)
+    CPPostcondition(nmo>=mo_set%nmo,cp_failure_level,routineP,error,failure)
 
-  END SUBROUTINE allocate_mo_set
+  END SUBROUTINE init_mo_set
 
 ! *****************************************************************************
 
@@ -636,16 +733,22 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    DEALLOCATE (mo_set%eigenvalues,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"mo_set%eigenvalues")
-
-    DEALLOCATE (mo_set%occupation_numbers,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"mo_set%occupation_numbers")
-
-    CALL cp_fm_release(mo_set%eigenvectors)
-
-    DEALLOCATE (mo_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"mo_set")
+    IF (ASSOCIATED(mo_set)) THEN
+       IF (ASSOCIATED(mo_set%eigenvalues)) THEN
+          DEALLOCATE (mo_set%eigenvalues,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine,"mo_set%eigenvalues")
+       END IF
+       
+       IF (ASSOCIATED(mo_set%occupation_numbers)) THEN
+          DEALLOCATE (mo_set%occupation_numbers,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine,"mo_set%occupation_numbers")
+       END IF
+       
+       CALL cp_fm_release(mo_set%eigenvectors)
+       
+       DEALLOCATE (mo_set,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routine,"mo_set")
+    END IF
 
   END SUBROUTINE deallocate_mo_set
 

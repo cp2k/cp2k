@@ -70,7 +70,8 @@ MODULE qs_scf
                                              cp_error_message,&
                                              cp_error_type,&
                                              cp_internal_error
-  USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
+  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
+                                             cp_fm_pool_type,&
                                              fm_pool_get_mstruct
   USE cp_fm_struct,                    ONLY: cp_f_matrix_struct_type,&
                                              cp_fmstruct_get
@@ -199,7 +200,8 @@ MODULE qs_scf
                                              mo_set_type,&
                                              read_mo_set,&
                                              set_mo_occupation,&
-                                             write_mo_set
+                                             write_mo_set,&
+                                             init_mo_set
   USE qs_ot,                           ONLY: qs_ot_new_preconditioner,&
                                              qs_ot_type
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
@@ -912,31 +914,33 @@ CONTAINS
     TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
 
     INTEGER :: handle,homo,ikind,istat,nao,ndep,nmo,npcol,nprow,&
-               output_unit, nrow_block, ncol_block
-    LOGICAL :: ionode, pao, gth_potential_present
+               output_unit, nrow_block, ncol_block,i
+    LOGICAL :: ionode, pao, gth_potential_present, failure
     REAL(kind=wp):: ecore_self, ecore_overlap
 
     INTEGER, DIMENSION(0:globenv%num_pe-1) :: nblock_pe,nelement_pe
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k_rmpv, p_rmpv
     TYPE(scf_control_type), POINTER :: scf_control
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(cp_fm_pool_type), POINTER :: ao_mo_fm_pool
+    TYPE(cp_fm_pool_p_type),DIMENSION(:), POINTER :: ao_mo_fm_pools
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s
     TYPE(cp_f_matrix_struct_type), POINTER :: ao_mo_mstruct
+    TYPE(cp_full_matrix_type), POINTER :: eigenvectors
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("init_scf_run","I","",handle)
 
     NULLIFY(k_rmpv, p_rmpv, scf_control, atomic_kind_set,&
-         ao_mo_fm_pool,h,s)
+         ao_mo_fm_pools,h,s)
+    failure=.FALSE.
     CALL get_qs_env(qs_env=qs_env,&
                     scf_control=scf_control,&
                     atomic_kind_set=atomic_kind_set,&
                     c=c,&
                     k=k_rmpv,&
                     p=p_rmpv,&
-                    ao_mo_fm_pool=ao_mo_fm_pool,&
+                    ao_mo_fm_pools=ao_mo_fm_pools,&
                     h=h,s=s)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -951,35 +955,15 @@ CONTAINS
 !   *** Get the dimension of the full SCF matrices, ***
 !   *** i.e. the total number of atomic orbitals    ***
 
-    CALL get_matrix_info(matrix=h(1)%matrix,nrow=nao)
-
-!!FM    IF (globenv%print%mo_eigenvalues.OR.&
-!!FM        (scf_control%level_shift /= 0.0_wp).OR.&
-!!FM        (scf_control%smear /= 0.0_wp)) THEN
-!!FM      nmo = nao
-!!FM    ELSE
-!!FM      nmo = nelectron/2
-!!FM    END IF
-    ao_mo_mstruct => fm_pool_get_mstruct(ao_mo_fm_pool,error=error)
-    CALL cp_fmstruct_get(ao_mo_mstruct, ncol_global=nmo)
-
-!   *** Allocate a MO set ***
-
-    IF (.NOT.ASSOCIATED(c)) THEN
-
-      ALLOCATE (c(1),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"c",int_size)
-      NULLIFY (c(1)%mo_set)
-
-!     *** Allocate the distributed MO eigenvectors ***
-
-      CALL allocate_mo_set(c(1)%mo_set,nao,nmo,nelectron,2.0_wp,nrow_block,&
-                           ncol_block,globenv)
-
-!     *** Put the MO set in the QS environment ***
-
-      CALL set_qs_env(qs_env=qs_env,c=c)
-
+!   *** Initializes the MOs ***
+    CPPrecondition(ASSOCIATED(c),cp_failure_level,routine,error,failure)
+    IF (.NOT.failure) THEN
+       DO i=1,SIZE(c)
+          CALL get_mo_set(c(i)%mo_set,eigenvectors=eigenvectors)
+          IF (.NOT.ASSOCIATED(eigenvectors)) THEN
+             CALL init_mo_set(c(i)%mo_set, ao_mo_fm_pools(i)%pool,error=error)
+          END IF
+       END DO
     END IF
 
 !   *** Get the HOMO and the MO eigenvectors ***
@@ -988,7 +972,8 @@ CONTAINS
 
     CALL get_mo_set(mo_set=mo_set,&
                     homo=homo,&
-                    eigenvectors=mo_eigenvectors)
+                    eigenvectors=mo_eigenvectors,&
+                    nmo=nmo,nao=nao)
 
 !   *** Get BLACS block size of the MO eigenvector matrix      ***
 !   *** which has to fit to the other distributed SCF matrices ***

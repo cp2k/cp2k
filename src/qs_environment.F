@@ -2,6 +2,9 @@
 !   CP2K: A general program to perform molecular dynamics simulations
 !   Copyright (C) 2001 - 2002  CP2K developers group
 !-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
 !!****** cp2k/qs_environment [1.0] *
 !!
 !!   NAME
@@ -79,7 +82,7 @@ MODULE qs_environment
                                              start_blacs
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              qs_energy_type
-  USE qs_environment_methods,          ONLY: qs_env_rebuild_aomo_pool,&
+  USE qs_environment_methods,          ONLY: qs_env_rebuild_aomo_pools,&
                                              qs_env_rebuild_pw_env,&
                                              qs_env_setup
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -89,6 +92,8 @@ MODULE qs_environment
   USE qs_force_types,                  ONLY: allocate_qs_force,&
                                              qs_force_type
   USE qs_interactions,                 ONLY: init_interaction_radii
+  USE qs_mo_types,                     ONLY: mo_set_p_type,&
+       mo_set_type, get_mo_set, allocate_mo_set
   USE scf_control_types,               ONLY: scf_c_create,&
                                              scf_c_read_parameters,&
                                              scf_c_release,&
@@ -151,10 +156,11 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER               :: para_env
     TYPE(cp_blacs_env_type), POINTER              :: blacs_env
     TYPE(cp_f_matrix_struct_type), POINTER        :: fmstruct
+    TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
 
     INTEGER :: handle,ikind,istat,lmax,maxl,maxlppl,maxlppnl,nkind,&
-         output_unit, n_mo, n_ao
-    LOGICAL :: ionode
+         output_unit, n_mo, n_ao, nelectron, ispin
+    LOGICAL :: ionode, failure
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: natom_of_kind
 
@@ -164,6 +170,7 @@ CONTAINS
 
     CALL timeset(routine_name,"I","",handle)
 
+    failure=.FALSE.
     ionode = globenv%ionode
     output_unit = globenv%scr
 
@@ -185,7 +192,7 @@ CONTAINS
     para_env => cp_para_env_from_globenv(globenv)
     blacs_env => cp_blacs_env_from_globenv(globenv)
 
-    CALL init_qs_env(qs_env,para_env=para_env)
+    CALL init_qs_env(qs_env,para_env=para_env,blacs_env=blacs_env)
 
 !   *** Print the Quickstep program banner (copyright and version number) ***
 
@@ -311,32 +318,39 @@ CONTAINS
                     scf_control=scf_control)
     CALL scf_c_release(scf_control)
 
-!   *** Sets up pw_env, qs_charges,... ***
+!   *** allocate mo_types ***
+     CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, &
+          dft_control=dft_control, scf_control=scf_control)
+     CALL get_atomic_kind_set(atomic_kind_set, nsgf=n_ao, nelectron=nelectron)
+     nelectron = nelectron-dft_control%charge
+      IF (globenv%print%mo_eigenvalues.OR.&
+          (scf_control%level_shift /= 0.0_wp).OR.&
+          (scf_control%smear /= 0.0_wp).OR.&
+          (scf_control%eps_jacobi /= 0.0_wp)) THEN
+        n_mo = n_ao
+      ELSE
+         n_mo = nelectron/2
+      END IF
+      ALLOCATE(c(dft_control%nspins),stat=istat)
+      CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
+      IF (.NOT.failure) THEN
+         DO ispin=1,dft_control%nspins
+            NULLIFY(c(ispin)%mo_set)
+            IF (dft_control%nspins==1) THEN
+               CALL allocate_mo_set(c(ispin)%mo_set,&
+                    nao=n_ao,nmo=n_mo,nelectron=nelectron,maxocc=2.0_wp,&
+                    error=error)
+            ELSE
+               CALL allocate_mo_set(c(ispin)%mo_set,&
+                    nao=n_ao,nmo=n_mo,nelectron=nelectron,maxocc=1.0_wp,&
+                    error=error)
+            END IF
+         END DO
+      END IF
+      CALL set_qs_env(qs_env, c=c,error=error)
+
+!   *** Sets up pw_env, qs_charges, ao_mo_fm_pools... ***
      CALL qs_env_setup(qs_env,error=error)
-
-!   *** Initializes aomo pool ***
-      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, &
-           dft_control=dft_control, scf_control=scf_control)
-      CALL get_atomic_kind_set(atomic_kind_set, nsgf=n_ao, nelectron=n_mo)
-      n_mo = n_mo-dft_control%charge
-
-     IF (globenv%print%mo_eigenvalues.OR.&
-         (scf_control%level_shift /= 0.0_wp).OR.&
-         (scf_control%smear /= 0.0_wp).OR.&
-         (scf_control%eps_jacobi /= 0.0_wp)) THEN
-       n_mo = n_ao
-     ELSE
-       n_mo = n_mo/2
-     END IF
-
-     CALL cp_fmstruct_create(fmstruct, nrow_global=n_ao,&
-         ncol_global=n_mo, para_env=para_env,&
-         context=blacs_env,&
-         nrow_block=scf_control%nrow_block,&
-         ncol_block=scf_control%ncol_block)
-     CALL qs_env_rebuild_aomo_pool(qs_env,fmstruct,error=error)
-     CALL cp_fmstruct_release(fmstruct,error=error)
-
 
 !   *** Read the pao section ***
 

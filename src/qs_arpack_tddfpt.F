@@ -115,7 +115,7 @@ CONTAINS
 
     CALL copy_rep_vec_to_fm(vin, v)
     
-    CALL p_op_l1_spin(op%p_env, op%spin, v, res, glob_env)
+    CALL p_op_l1_spin(op%p_env, op%spin, v, res)
     !!!!!!!!! l2 part missing
 
     CALL copy_fm_to_rep_vec(res, vout)

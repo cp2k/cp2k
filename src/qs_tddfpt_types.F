@@ -134,8 +134,8 @@ CONTAINS
 
     ! finally make them orthogonal to the p_env%psi0d
     DO ev=1, n_ev
-       CALL p_preortho(p_env, t_env%x(ev)%spins, glob_env)
-       CALL p_preortho(p_env, t_env%y(ev)%spins, glob_env)
+       CALL p_preortho(p_env, t_env%x(ev)%spins)
+       CALL p_preortho(p_env, t_env%y(ev)%spins)
     END DO
 
   END SUBROUTINE tddfpt_env_init
