@@ -415,9 +415,9 @@ CONTAINS
     END IF
     hab(:,:) = 0.0_wp
 
-    ALLOCATE (sab(ldsab,ldsab*maxder),STAT=istat)
+    ALLOCATE (sab(ldsab,ldsab*SIZE(s)),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"sab",ldsab*ldsab*maxder*wp_size)
+      CALL stop_memory(routine,"sab",ldsab*ldsab*SIZE(s)*wp_size)
     END IF
     sab(:,:) = 0.0_wp
 
