@@ -308,8 +308,6 @@ MODULE  hartree_local_methods
                                                   nsotot, nspins
     INTEGER, DIMENSION(:),        POINTER      :: atom_list, lmin, lmax, npgf
     LOGICAL                                    :: paw_atom
-!dbg
-!    REAL(dp), DIMENSION(:,:),    POINTER       :: rho1
 
 !   -----------------------------------------------------------------------------
 
@@ -357,10 +355,6 @@ MODULE  hartree_local_methods
       nsotot = maxso*nset
       NULLIFY(gsph)
       CALL reallocate(gsph,1,max_nr,1,nsotot)
-!dbg
-!      NULLIFY(rho1)
-!      CALL reallocate(rho1,1,nsotot,1,nsotot)
-!dbg
 
       NULLIFY(Qlm_gg,g0_h)
       CALL get_rho0_mpole(rho0_mpole=rho0_mpole, ikind=ikind, &
@@ -434,8 +428,6 @@ MODULE  hartree_local_methods
           END DO
         END DO
 
-!        CALL calculate_Vh_1center(Vh1_h,Vh1_s,r_h,r_s,rrad_0,rrad_z,grid_atom)
-
 !       Calculate the contributions to Ecoul coming from Vh1_h*rhoz 
 
         ecoul_1_z = 0.0_dp
@@ -489,16 +481,13 @@ MODULE  hartree_local_methods
                     gVg_h = 0.0_dp
                     gVg_s = 0.0_dp
                     gVg_0 = 0.0_dp
-!dbg
-!   ec_tmp = 0.0_dp
+
                     DO ir = 1,nr
                        gVg_h = gVg_h + gsph(ir,iso1)*gsph(ir,iso2)* &
                                        Vh1_h(ir,iso)
                        gVg_s = gVg_s + gsph(ir,iso1)*gsph(ir,iso2)* &
                                        Vh1_s(ir,iso)
                        gVg_0 = gVg_0 + Vh1_s(ir,iso)*g0_h_w(ir,l_ang)
-!dbg
-!     ec_tmp =  ec_tmp + gsph(ir,iso1)*gsph(ir,iso2)
                     END DO  ! ir
 
                     aVh1b_h(iso1,iso2) = aVh1b_h(iso1,iso2) + &
@@ -507,9 +496,6 @@ MODULE  hartree_local_methods
                                          gVg_s*my_CG(is1,is2,iso)
                     aVh1b_0(iso1,iso2) = aVh1b_0(iso1,iso2) + &
                                          Qlm_gg(iso1,iso2,iso)*gVg_0
-!dbg
-!     rho1(iso1,iso2) =  rho1(iso1,iso2) +&
-!                       ec_tmp*my_CG(is1,is2,iso)*harmonics%slm_int(iso)
                   END DO  !icg
                 END DO  ! iso
 !               without contributions to  V1_s*rho0 
@@ -556,28 +542,6 @@ MODULE  hartree_local_methods
                           cpc_s(ispin)%r_coef,nsotot,&
                           nsotot,nsotot) 
         END DO  ! ispin
-!dbg
-!        ec_tmp = trace_r_AxB(rho1,nsotot,&
-!                          cpc_h(1)%r_coef,nsotot,&
-!                          nsotot,nsotot)
-!        WRITE(*,*) 'rho1 h ', ec_tmp        
-!        ec_tmp = trace_r_AxB(rho1,nsotot,&
-!                          cpc_s(1)%r_coef,nsotot,&
-!                          nsotot,nsotot)
-!        WRITE(*,*) 'rho1 s ', ec_tmp
-!        ecoul_1_0 = trace_r_AxB(aVh1b_0,nsotot,&
-!                          cpc_h(1)%r_coef,nsotot,&
-!                          nsotot,nsotot)
-!        ecoul_1_0 = ecoul_1_0 - trace_r_AxB(aVh1b_0,nsotot,&
-!                          cpc_s(1)%r_coef,nsotot,&
-!                          nsotot,nsotot)
-!                    gVg_0 = 0.0_dp
-!                    DO ir = 1,nr
-!                       gVg_0 = gVg_0 + Vh1_s(ir,1)*g0_h_w(ir,0)
-!                    END DO  ! ir
-!        gVg_0 = gVg_0*rho0_mpole%mp_rho(iatom)%Qlm_z/2.0_dp
-!        WRITE(*,*) ' ecoul 0 ' , ecoul_1_0/2.0_dp + gVg_0
-! dbg
         ecoul_1_h = 0.5_dp*ecoul_1_h
         ecoul_1_s = 0.5_dp*ecoul_1_s
 
@@ -587,14 +551,10 @@ MODULE  hartree_local_methods
 
         energy%hartree_1c = energy%hartree_1c + ecoul_1_h - ecoul_1_s 
 
-!  WRITE(*,'(A,I4,4f24.16)') '1c iat ',iat ,  ecoul_1_h , ecoul_1_z ,&
-!                          ecoul_1_s , ecoul_1_0
-!  STOP 'n1+nz-n1s-n0'
       END DO  ! iat
 
     END DO  ! ikind 
 
-!  STOP 'n1+nz-n1s-n0'
 
     DEALLOCATE(gexp,gsph,g0_h_w,sqrtwr)
 

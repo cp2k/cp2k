@@ -264,12 +264,12 @@ CONTAINS
           CALL get_paw_proj_set(paw_proj_set=paw_proj_a, &
                                 local_oce_sphi_h=local_oce_h, & 
                                 local_oce_sphi_s=local_oce_s)
-!          oceh(1)%block(n+1:n+maxsoa,isgfb:lsgfb) = &
-!                    local_oce_h(1:maxsoa,isgfb:lsgfb)
-!          oces(1)%block(n+1:n+maxsoa,isgfb:lsgfb) = &
-!                    local_oce_s(1:maxsoa,isgfb:lsgfb)
+          oceh(1)%block(n+1:n+maxsoa,isgfb:lsgfb) = &
+                    local_oce_h(1:maxsoa,isgfb:lsgfb)
+          oces(1)%block(n+1:n+maxsoa,isgfb:lsgfb) = &
+                    local_oce_s(1:maxsoa,isgfb:lsgfb)
 
-          DO ider =1,maxder
+          DO ider =2,maxder
             first_col = (ider - 1)*maxcob*nsetb + 1 + m1
             CALL dgemm("N","N",np_sph,nsgfb(jset),ncob,&
                       1.0_dp,ovs(1,first_col),SIZE(ovs,1),&

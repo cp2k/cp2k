@@ -243,8 +243,6 @@ MODULE qs_rho0_methods
        iatom = a_list(iat)
        mpole_rho => rho0_mp%mp_rho(iatom)
 
-!     WRITE(*,*) 'size Qlm', SIZE(mpole_rho%Qlm_tot,1) 
-!     WRITE(*,*) 'Qlm ', mpole_rho%Qlm_tot
        DO lshell = 0,lmax0
          DO ic = 1,nco(lshell)
            ico = ic + ncoset(lshell-1)
@@ -258,27 +256,14 @@ MODULE qs_rho0_methods
              iso = is + nsoset(lshell-1)
 
              mpole_rho%Qlm_car_s(ico) = mpole_rho%Qlm_car_s(ico) + &
-!                  orbtramat(lshell)%s2c(is,ic)*mpole_rho%Qlm_tot(iso)*&
                   orbtramat(lshell)%c2s(is,ic)*mpole_rho%Qlm_tot(iso)*&
                   norm_g0l_s(lshell)&
                  /SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)*fourpi/dfac(2*lshell+1))
 
-!                 / SQRT((4.0_dp*pi)/dfac(2*l+1)*&
-!                  dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
-!                *SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/fourpi)
-! second possibility, don't know yet which one is correct
-!                 /SQRT(fourpi)
-
              mpole_rho%Qlm_car_h(ico) = mpole_rho%Qlm_car_h(ico) + &
-!                  orbtramat(lshell)%s2c(is,ic)*mpole_rho%Qlm_tot(iso)*&
                   orbtramat(lshell)%c2s(is,ic)*mpole_rho%Qlm_tot(iso)*&
                   norm_g0l_h(lshell)&
                  /SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)*fourpi/dfac(2*lshell+1))
-
-!                 / SQRT((4.0_dp*pi)/dfac(2*l+1)*&
-!                  dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
-!                 *SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/fourpi)
-!                  /SQRT(fourpi) 
 
            END DO 
          END DO
@@ -472,7 +457,7 @@ MODULE qs_rho0_methods
     END DO
 
 !dbg
-    rho0_mpole%zet0_h = 10._dp
+!    rho0_mpole%zet0_h = 10._dp
 !dbg
 
     rho0_mpole%zet0_s = 0.25_dp/rho0_mpole%zet0_h

@@ -520,8 +520,6 @@ MODULE  hartree_local_3centers
                   sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
                   CYCLE knodeloop
                 END IF
-!dbg
-!   WRITE(*,*) 'kneighbor ' , iatom, jatom, katom
 
                 Int_abc = 0.0_dp
                 NULLIFY(QN_s,QN_h,Qlm)
@@ -547,7 +545,6 @@ MODULE  hartree_local_3centers
                       nco2 = npgfb(iset2)*ncoset(lb_max(iset2))
                       ns2  = nsgfb_set(iset2)
 
-!  WRITE(*,*) ' iset ', iset1, iset2
                       Int_ab_sum = 0.0_dp
                       CALL sumup_3c_integrals(&
                            la_max(iset1),la_min(iset1),nco1,m1,&
@@ -614,7 +611,6 @@ MODULE  hartree_local_3centers
                       nz2  = npgfa(iset2)
                       nco2 = npgfa(iset2)*ncoset(la_max(iset2))
                       ns2  = nsgfa_set(iset2)
-!  WRITE(*,*) ' iset ', iset1, iset2
                       Int_ab_sum = 0.0_dp
                       CALL sumup_3c_integrals(&
                            lb_max(iset1),lb_min(iset1),nco1,m1,&
@@ -669,17 +665,7 @@ MODULE  hartree_local_3centers
 
                 ns1 = SIZE(CPC_ab,1)
                 ns2 = SIZE(CPC_ab,2)
-!dbg
-! WRITE(*,*) 'CPC', ns1,ns2
-!                 DO ic = 1,ns1
-!                  WRITE(*,'(I3,30f12.6)') ic, CPC_ab(ic,1:ns2)
-!                 END DO 
 
-! WRITE(*,*) 'Int_abc', SIZE(Int_abc,1), SIZE(Int_abc,2)
-!                 DO ic = 1,SIZE(Int_abc,1)
-!                  WRITE(*,'(I3,30f12.6)') ic, Int_abc(ic,1:SIZE(Int_abc,2),1)
-!                 END DO 
-!dbg
                 DO ico = 1,nchan0_car
                   sum_ab_car(ico,katom) = sum_ab_car(ico,katom) + &
                                   ieqj*trace_r_AxB(CPC_ab,ns1,Int_abc(:,:,ico),&
@@ -734,13 +720,6 @@ MODULE  hartree_local_3centers
 !        IF PARALLEL sum up the contributions to sum_ab_car coming from
 !        ab pairs handled by different processors
          CALL mp_sum(sum_ab_car(:,katom),para_env%group)
-! dbg
-!    NULLIFY(Qlm)
-!    CALL  get_rho0_mpole(rho0_mpole=rho0_mpole, iat=katom, Qlm_tot=Qlm)
-!    WRITE(*,*) 'katom ', katom
-!    DO ico =1,nchan0_car
-!             WRITE(*,*) 'int_sum_car ', ico, sum_ab_car(ico,katom)
-!    END DO 
 
          sum_ab_sph = 0.0_dp
          DO lshell = 0,l0_kkind
@@ -756,8 +735,6 @@ MODULE  hartree_local_3centers
                    SQRT(fourpi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/&
                    dfac(2*lshell+1))
              END DO  ! ico
-!    WRITE(*,*) 'int_sum_sph ', iso , sum_ab_sph(iso), sum_ab_sph(iso)*Qlm(iso)
-!     e3c = e3c + sum_ab_sph(iso)*Qlm(iso)
            END DO  ! iso
          END DO  ! lshell
 
@@ -767,12 +744,8 @@ MODULE  hartree_local_3centers
                             sum_ab_sph(iso)*Qlm_gg(1:nsototc,is,iso)
            END DO
          END DO 
-!   DO is = 1,nsototc
-!    WRITE(*,'(I4,14f12.6)') is,aVh3c0b(is,1:nsototc)
-!   END DO
        END DO  ! kat
     END DO  ! kkind
-!dbg
 
 100 CONTINUE
     DEALLOCATE(sum_ab_car,sum_ab_sph,STAT=istat)
@@ -780,7 +753,6 @@ MODULE  hartree_local_3centers
       CALL stop_memory(routine_name,module_name,__LINE__,&
                        "sum_ab_car,sum_ab_sph")
     END IF
-!  WRITE(*,*) 'energy%hartree_3c', energy%hartree_3c, e3c
 
     CALL timestop(0.0_dp,handle)
 
@@ -825,15 +797,6 @@ MODULE  hartree_local_3centers
     REAL(dp), DIMENSION(:,:,:),&
                     ALLOCATABLE        :: int_tmp
 
-!dbg
-!    REAL(dp), DIMENSION(:,:),&
-!                    ALLOCATABLE        :: vabc_sph
-!    REAL(dp), DIMENSION(:,:,:),&
-!                    ALLOCATABLE        :: int_tmp,int_tmp_sph
-!    INTEGER  :: ic, ic1, ic2, is, iso,  lx, ly, lz, nch0_sph
-!    REAL(dp)                           :: fact
-!dbg
-
 !   ---------------------------------------------------------------------------
 
     nch0 = ncoset(l0_max)
@@ -842,18 +805,6 @@ MODULE  hartree_local_3centers
     IF (istat /= 0) THEN
       CALL stop_memory(routine_name,module_name,__LINE__,"int_tmp",nco1*nco2*nch0*dp_size)
     END IF
-
-!dbg
-!    nch0_sph = nsoset(l0_max)
-!    ALLOCATE(vabc_sph(nco1,nco2),STAT=istat)
-!    vabc_sph=0.0_dp
-!    ALLOCATE(int_tmp_sph(nco1,nco2,nch0_sph),STAT=istat)
-!    int_tmp_sph = 0.0_dp
-!    IF (istat /= 0) THEN
-!      CALL stop_memory(routine_name,module_name,__LINE__,"vabc_sph,int_tmp_sph",&
-!                       nco1*nco2+nco1*nco2*nch0_sph)
-!    END IF
-!dbg
 
     IF(maxder > 0) THEN
       IF (.NOT.ASSOCIATED(vdabc) .OR. .NOT.ASSOCIATED(vadbc)) THEN
@@ -891,39 +842,6 @@ MODULE  hartree_local_3centers
                   maxder,vabc_plus)
     END IF
 
-!    int_tmp_sph = 0.0_dp 
-!    DO l = 0,l0_max
-!      DO is = 1,nso(l)
-!        iso = nsoset(l-1)+is
-!        DO ic = 1,nco(l)
-!          ico = ncoset(l-1) + ic
-!          lx = indco(1,ico)
-!          ly = indco(2,ico)
-!          lz = indco(3,ico)
-!          fact = orbtramat(l)%c2s(is,ic)/ SQRT((4.0_dp*pi)/dfac(2*l+1)*&
-!                                   dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
-!          DO ic2 = 1,nco2
-!            DO ic1 = 1,nco1
-!              int_tmp_sph(ic1,ic2,iso) = int_tmp_sph(ic1,ic2,iso) + &
-!                                        fact*int_tmp(ic1,ic2,ico)
-!            END DO ! ic1
-!          END DO  ! ic2
-!        END DO  ! ic
-!      END DO  ! is
-!    END DO  ! l
-!    vabc_sph = 0.0_dp
-!    DO l = 0,l0_max
-!      DO is = 1,nso(l)
-!        iso = nsoset(l-1) + is
-!        fact = ng0_h(l)*Qlm(iso)
-!        DO ic2 = 1,nco2
-!          DO ic1 = 1,nco1
-!            vabc_sph(ic1,ic2) = vabc_sph(ic1,ic2) + int_tmp_sph(ic1,ic2,iso)*fact
-!          END DO
-!        END DO
-!      END DO
-!    END DO
-
     DO ico = 1,nch0
        l = indco(1,ico)+indco(2,ico)+indco(3,ico)
 
@@ -946,46 +864,6 @@ MODULE  hartree_local_3centers
 
     END IF
 
-!dbg
-!    int_tmp_sph = 0.0_dp 
-!    DO l = 0,l0_max
-!      DO is = 1,nso(l)
-!        iso = nsoset(l-1)+is
-!        DO ic = 1,nco(l)
-!          ico = ncoset(l-1) + ic
-!          lx = indco(1,ico)
-!          ly = indco(2,ico)
-!          lz = indco(3,ico)
-!          fact = orbtramat(l)%c2s(is,ic)/ SQRT((4.0_dp*pi)/dfac(2*l+1)*&
-!                                   dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
-!          DO ic2 = 1,nco2
-!            DO ic1 = 1,nco1
-!              int_tmp_sph(ic1,ic2,iso) = int_tmp_sph(ic1,ic2,iso) + &
-!                                        fact*int_tmp(ic1,ic2,ico)
-!            END DO ! ic1
-!          END DO  ! ic2
-!        END DO  ! lc
-!      END DO  ! is
-!    END DO  ! l
-!    DO l = 0,l0_max
-!      DO is = 1,nso(l)
-!        iso = nsoset(l-1) + is
-!        fact = ng0_s(l)*Qlm(iso)
-!        DO ic2 = 1,nco2
-!          DO ic1 = 1,nco1
-!            vabc_sph(ic1,ic2) = vabc_sph(ic1,ic2) - int_tmp_sph(ic1,ic2,iso)*fact
-!          END DO
-!        END DO
-!      END DO
-!    END DO
-!WRITE(*,*) 'vabc'
-!          DO ic1 = 1,nco1
-!            WRITE(*,'(I4,32f12.5)') ic1,vabc_sph(ic1,1:nco2)
-!            WRITE(*,'(I4,32f12.5)') ic1,vabc(ic1,1:nco2)
-!          END DO
-!    vabc = vabc_sph
-!dbg
-
     DO ico = 1,nch0
        l = indco(1,ico)+indco(2,ico)+indco(3,ico)
 
@@ -994,14 +872,6 @@ MODULE  hartree_local_3centers
                     ng0_s(l) * int_tmp(1:nco1,1:nco2,ico)
 
     END DO
-! dbg
-!       WRITE(*,'(A,4I5)') 'int_abc ',1+m1,nco1+m1,1+m2,nco2+m2
-!       DO ico1 =1+m1,nco1+m1
-!         WRITE(*,'(I3,22f10.6)') ico1+m1, int_abc(ico1,1+m2:m2+nco2,1)
-!      END DO 
-
-! dbg
-
 
     IF(maxder > 0) THEN
 
@@ -1077,13 +947,6 @@ MODULE  hartree_local_3centers
     IF (istat /= 0) THEN
        CALL stop_memory(routine_name,module_name,__LINE__,"int_tmp,vabc_plus")
     END IF
-
-!dbg
-!    DEALLOCATE(int_tmp_sph,vabc_sph, STAT=istat)
-!    IF (istat /= 0) THEN
-!       CALL stop_memory(routine_name,module_name,__LINE__,"vabc_sph,int_tmp_sph")
-!    END IF
-!dbg
 
   END SUBROUTINE sumup_3c_integrals
 

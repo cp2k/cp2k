@@ -248,7 +248,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_g0"
 
     INTEGER                             :: ir, istat, l, lmax, nr
-    REAL(dp)                            :: c1,prefactor, root_z_h, z_h, z_s
+    REAL(dp)                            :: c1, prefactor, root_z_h, z_h, z_s
     REAL(dp), DIMENSION(:), ALLOCATABLE :: erf_z_h, gexp, gh_tmp, gs_tmp, int1, int2
 
 !   ---------------------------------------------------------------------------
@@ -297,9 +297,7 @@ CONTAINS
     c1 = SQRT(pi*pi*pi/(z_h*z_h*z_h))*rho0_mpole%norm_g0l_h(0)
 
     DO ir = 1,nr
-!      int1(ir) = grid_atom%oorad2l(ir,1)*int1(ir)
-      int1(ir) = int1(ir)/grid_atom%rad(ir)
-!      rho0_mpole%mp_gau(ik)%vg0_h(ir,0) = prefactor*(int1(ir)+int2(ir))
+      int1(ir) = grid_atom%oorad2l(ir,1)*int1(ir)
       rho0_mpole%mp_gau(ik)%vg0_h(ir,0) = c1*erf_z_h(ir)*grid_atom%oorad2l(ir,1)
     END DO
 
@@ -313,7 +311,6 @@ CONTAINS
                                            rho0_mpole%norm_g0l_s(l)
 
       prefactor = fourpi/(2.0_dp*l+1.0_dp)*rho0_mpole%norm_g0l_h(l)
-!      CALL whittaker_c0(int1,grid_atom%rad,gh_tmp,erf_z_h,z_h,2*l,nr)
       CALL whittaker_c0(int1,grid_atom%rad,gexp,erf_z_h,z_h,2*l,nr)
       DO ir = 1,nr
         int1(ir) = grid_atom%oorad2l(ir,l+1)*int1(ir)

@@ -234,7 +234,7 @@ MODULE qs_grid_atom
       grid_atom%oorad2l(:,0) = 1._dp
       DO l = 1,llmax+1
         grid_atom%rad2l(:,l)=grid_atom%rad2l(:,l-1)*rad(:)
-        grid_atom%oorad2l(:,l)=grid_atom%rad2l(:,l-1)/rad(:)
+        grid_atom%oorad2l(:,l)=grid_atom%oorad2l(:,l-1)/rad(:)
       ENDDO
 
     ELSE

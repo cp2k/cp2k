@@ -225,13 +225,7 @@ CONTAINS
                                   block_col=iatom,&
                                   BLOCK=h_block)
             END IF
-!dbg
-!  write(*,*) 'iat ', iatom,jatom
-!  write(*,*) 'size ', size(h_block,1),size(h_block,2)
-!  do i = 1,size(h_block,1)
-!    write(*,'(i3,20f10.5)') i,h_block(i,:)
-!  enddo
-!  stop 'h_b'
+
             IF(forces) THEN
               IF (iatom <= jatom) THEN
                 CALL get_block_node(matrix=p%matrix,&
@@ -352,18 +346,13 @@ CONTAINS
                 sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
               ENDDO knodeloop    ! knode
             ENDDO    ! kkind
-!dbg
-!  write(*,*) 'ks dopo vxc atom'
-!  do i = 1,size(h_block,1)
-!    write(*,'(i3,20f10.5)') i,h_block(i,:)
-!  enddo
 
             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
           ENDDO    ! inode
         ENDDO    ! ilist 
       ENDDO    ! jkind
     ENDDO    ! ikind
-!  stop 'ks up'
+
     DEALLOCATE (C_coeff_h)
     DEALLOCATE (C_coeff_s)
     IF(forces) DEALLOCATE (atom_of_kind)
@@ -451,12 +440,6 @@ CONTAINS
       C_s = 0.0_dp
       C_s(1:nsp,1:nb)=c_block(1:nsp,1:nb)
 
-! write(*,*) 'C_s_b ',nsp,nb
-!  do i = 1,nsp
-!    write(*,'(i3,20f10.5)') i,C_s(i,1:nb)
-!  enddo
-
-
       CALL reallocate(intC_h,1,nsp,1,nb)
       CALL reallocate(intC_s,1,nsp,1,nb)
 
@@ -470,11 +453,6 @@ CONTAINS
                C_s,ldc,0.0_dp,&
                intC_s,nsp)
 
-! write(*,*) 'intC_s_b ',nsp,nb
-!  do i = 1,nsp
-!    write(*,'(i3,20f10.5)') i,intC_s(i,1:nb)
-!  enddo
-
       NULLIFY(c_block)
       CALL get_block_node(matrix=oce%hardo(1)%matrix,&
                         block_row=ka,&
@@ -483,11 +461,6 @@ CONTAINS
       C_h = 0.0_dp
       C_h(1:nsp,1:na)=c_block(1:nsp,1:na)
 
-!write(*,*) 'C_h_a ',nsp,na
-!  do i = 1,nsp
-!    write(*,'(i3,20f10.5)') i,C_h(i,1:na)
-!  enddo
-
       NULLIFY(c_block)
       CALL get_block_node(matrix=oce%softo(1)%matrix,&
                         block_row=ka,&
@@ -495,10 +468,6 @@ CONTAINS
                         BLOCK=c_block)
       C_s = 0.0_dp
       C_s(1:nsp,1:na)=c_block(1:nsp,1:na)
-!write(*,*) 'C_s_a ',nsp,na
-!  do i = 1,nsp
-!    write(*,'(i3,20f10.5)') i,C_s(i,1:na)
-!  enddo
 
       CALL dgemm("T","N",na,nb,nsp,&
                1.0_dp,C_h,ldc,&

@@ -315,7 +315,7 @@ CONTAINS
     REAL(dp), DIMENSION(:,:), POINTER :: gcc,smat,work
     REAL(dp), DIMENSION(:,:), POINTER :: cphi,sphi
 
-    INTEGER :: mc, ms, ic, iprjs, nsgauprj
+    INTEGER :: ic, iprjs, is, isomin, mc, ms, nsgauprj
     REAL(dp), DIMENSION(:,:), POINTER ::  sphi_s,sphi_h
 
 !   ***************************************************************************
@@ -598,12 +598,12 @@ CONTAINS
     CALL reallocate(paw_proj%local_oce_cphi_h, 1,maxco,1,ncgf)
     CALL reallocate(paw_proj%local_oce_sphi_h, 1,maxso,1,nsgf)
     CALL reallocate(paw_proj%sphi_h, 1,maxco,1,nsgf)
-    CALL reallocate(sphi_h, 1,maxco,1,nsgf)
+    CALL reallocate(sphi_h, 1,maxso,1,nsgf)
 
     CALL reallocate(paw_proj%local_oce_cphi_s, 1,maxco,1,ncgf)
     CALL reallocate(paw_proj%local_oce_sphi_s, 1,maxso,1,nsgf)
     CALL reallocate(paw_proj%sphi_s, 1,maxco,1,nsgf)
-    CALL reallocate(sphi_s, 1,maxco,1,nsgf)
+    CALL reallocate(sphi_s, 1,maxso,1,nsgf)
 
 
 !   *** Cartesian ***
@@ -633,7 +633,7 @@ CONTAINS
     ENDDO            ! iset
 
     DO iset = 1,nset
-      n = nsoset(lmax(iset))
+      n = ncoset(lmax(iset))
       DO ipgf = 1,npgf(iset)
         DO ishell = 1,nshell(iset)
           lshell = l(ishell,iset)
@@ -656,6 +656,44 @@ CONTAINS
         ENDDO        ! ishell
       ENDDO          ! ipgf 
     ENDDO            ! iset
+
+
+
+    paw_proj%local_oce_sphi_h = 0.0_dp
+    paw_proj%local_oce_sphi_s = 0.0_dp
+    DO iset = 1,nset
+      n = ncoset(lmax(iset))
+      ns = nsoset(lmax(iset))
+      DO ipgf = 1,npgf(iset)
+        DO ishell = 1,nshell(iset)
+          lshell = l(ishell,iset)
+          icomin = ncoset(lshell-1) + 1 + n*(ipgf - 1)
+          icomax = ncoset(lshell) + n*(ipgf - 1)
+          isgfmin = first_sgf(ishell,iset)
+          isgfmax = last_sgf(ishell,iset)
+          isomin = nsoset(lshell-1) + 1 +ns*(ipgf - 1)
+          DO is = 1,nso(lshell)
+             iso = isomin + is - 1
+             DO ic = 1,nco(lshell)
+                ico = icomin + ic -1
+                lx = indco(1,ic+ncoset(lshell-1))
+                ly = indco(2,ic+ncoset(lshell-1))
+                lz = indco(3,ic+ncoset(lshell-1))
+                DO isgf = isgfmin,isgfmax
+                  paw_proj%local_oce_sphi_h(iso,isgf) = paw_proj%local_oce_sphi_h(iso,isgf) + &
+                           orbtramat(lshell)%s2c(is,ic)*&
+                           paw_proj%sphi_h(ico,isgf)*SQRT((4.0_dp*pi*&
+                           dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))/dfac(2*lshell+1))
+                  paw_proj%local_oce_sphi_s(iso,isgf) = paw_proj%local_oce_sphi_s(iso,isgf) + &
+                           orbtramat(lshell)%s2c(is,ic)*&
+                           paw_proj%sphi_s(ico,isgf)*SQRT((4.0_dp*pi*&
+                           dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))/dfac(2*lshell+1))
+                END DO ! isgf
+             END DO  ! ic
+          END DO  ! is
+        END DO  ! ishell
+      END DO  ! ipgf
+    END DO  ! iset
 
 !   *** Spherical***
 !    DO ic = 1,maxco
@@ -692,40 +730,6 @@ CONTAINS
 !    END DO  ! iset
 !    ENDDO  ! ic
 
-
-    DO iset=1,nset
-      ns = nsoset(lmax(iset))
-      nc = ncoset(lmax(iset))
-      isgfmin = first_sgf(1,iset)
-      ms = orb_basis%nsgf_set(iset)
-      DO is1 = isgfmin,isgfmin+ms-1
-        DO ipgf = 1,npgf(iset)
-          DO lshell = lmin(iset),lmax(iset)
-            iso = nsoset(lshell - 1)  + ns*(ipgf-1) 
-            ico = ncoset(lshell - 1)  + nc*(ipgf-1) 
-            DO is2 = 1,nso(lshell)
-              DO ic = 1,nco(lshell)
-                lx = indco(1,ic+ncoset(lshell-1))
-                ly = indco(2,ic+ncoset(lshell-1))
-                lz = indco(3,ic+ncoset(lshell-1))
-                paw_proj%local_oce_sphi_h(iso+is2,is1) = &
-                    paw_proj%local_oce_sphi_h(iso+is2,is1) + & 
-                    orbtramat(lshell)%c2s(is2,ic)*sphi_h(ico+ic,is1)*&
-                    sqrt(4.0_dp*pi/dfac(2*lshell+1)*&
-                    dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
-
-                paw_proj%local_oce_sphi_s(iso+is2,is1) = &
-                    paw_proj%local_oce_sphi_s(iso+is2,is1) + &
-                    orbtramat(lshell)%c2s(is2,ic)*sphi_s(ico+ic,is1)*&
-                    sqrt(4.0_dp*pi/dfac(2*lshell+1)*&
-                    dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
-
-              ENDDO  ! ic2
-            ENDDO  ! is2
-          ENDDO  ! lshell 
-        ENDDO  ! ipgf
-      ENDDO  ! is1
-    ENDDO  ! iset
 
     NULLIFY(sphi_s,sphi_h)
 

@@ -194,7 +194,7 @@ MODULE  hartree_local_2centers
         END IF
 
         CALL get_rho0_mpole(rho0_mpole=rho0_mpole,ikind=jkind,&
-                         l0_ikind=l0_b,r_V0hmV0s=r0cut_b)!,&
+                         l0_ikind=l0_b,r_V0hmV0s=r0cut_b)
 
         DO ilist = 1,nlist
 
@@ -234,7 +234,7 @@ MODULE  hartree_local_2centers
                        l0_a,r0cut_a,QN_h_a,QN_s_a,&
                        l0_b,r0cut_b,QN_h_b,QN_s_b,&
                        rab,rab2,ieqj,ene_2c,Isum_a_car(:,iatom),&
-                       maxder,force_a)
+                       Isum_a_car(:,jatom),maxder,force_a)
 
 !             ***  sum up in the force arrey  ***
               i_atom = atom_of_kind(iatom)
@@ -252,7 +252,7 @@ MODULE  hartree_local_2centers
                        l0_a,r0cut_a,QN_h_a,QN_s_a,&
                        l0_b,r0cut_b,QN_h_b,QN_s_b,&
                        rab,rab2,ieqj,ene_2c,Isum_a_car(:,iatom),&
-                       maxder,force_a)
+                       Isum_a_car(:,jatom),maxder,force_a)
             END IF 
 
 !           *** sum up in the energy of hartree local from 2 centers terms
@@ -302,9 +302,6 @@ MODULE  hartree_local_2centers
 !        *** pair-interactions calculated on different processors
          CALL mp_sum(Isum_a_car(:,iatom),para_env%group)
 
-!        DO is = 1,ncoset(l0_a)
-!         WRITE(*,*) is,  Isum_a_car(is,iatom)
-!        END DO
          CALL get_ecoul_1c(ecoul_1c=ecoul_1c,iatom=iatom,aVh2c0b=aVh2c0b)
          aVh2c0b = 0.0_dp
 
@@ -331,11 +328,6 @@ MODULE  hartree_local_2centers
                             Isum_a_sph(iso)*Qlm_gg(1:nsotot,is,iso)
            END DO
          END DO
-!dbg
-!   DO is = 1,nsotot
-!      WRITE(*,'(I4,16f10.4)') is, aVh2c0b(is, 1:nsotot/2)
-!   END DO
-!  STOP 'aVh2c0b matrix'
        END DO  ! iat
     END DO  ! ikind
 
@@ -354,7 +346,7 @@ MODULE  hartree_local_2centers
   SUBROUTINE sumup_2c_integrals(z0_h,z0_s,ng0_h,ng0_s,&
                        l0_a,r0_a,QN_h_a,QN_s_a,&
                        l0_b,r0_b,QN_h_b,QN_s_b,&
-                       rab,rab2,ieqj,ene_2c,Isum_a,maxder,force_a) !IntxQN_da)
+                       rab,rab2,ieqj,ene_2c,Isum_a,Isum_b,maxder,force_a)
 
     INTEGER, INTENT(IN)                :: l0_a, l0_b
     INTEGER, INTENT(IN)                :: maxder
@@ -368,7 +360,7 @@ MODULE  hartree_local_2centers
     REAL(dp), DIMENSION(0:), INTENT(IN) :: ng0_h, ng0_s
     REAL(dp), DIMENSION(:), INTENT(IN) :: QN_h_a,QN_s_a
     REAL(dp), DIMENSION(:), INTENT(IN) :: QN_h_b,QN_s_b
-    REAL(dp), DIMENSION(:), INTENT(INOUT)  :: Isum_a
+    REAL(dp), DIMENSION(:), INTENT(INOUT)  :: Isum_a, Isum_b
 
     CHARACTER(LEN=*), PARAMETER   :: routine_name = "sumup_2c_integrals"
 
@@ -379,8 +371,8 @@ MODULE  hartree_local_2centers
     REAL(dp), DIMENSION(:,:), POINTER   :: vab, vab_plus
 
     REAL(dp), DIMENSION(1)              :: zeta,rad_a,rad_b
-!dbg
     REAL(dp) :: ene_hard, ene_soft
+
 !   ---------------------------------------------------------------------------
 
     nch_a = ncoset(l0_a)
@@ -413,9 +405,19 @@ MODULE  hartree_local_2centers
         END DO
 
         ene_2c = ene_2c + QN_h_a(icoa) * I_tmp(icoa)
-        Isum_a(icoa) = Isum_a(icoa) + ieqj * ng0_h(l) * I_tmp(icoa)
+        Isum_a(icoa) = Isum_a(icoa) +  ng0_h(l) * I_tmp(icoa)
 
       END DO
+      IF(ieqj > 1.0_dp) THEN
+        DO icob = 1,nch_b
+          l = indco(1,icob)+indco(2,icob)+indco(3,icob)
+          sumb = 0.0_dp
+          DO icoa = 1,nch_a
+            sumb = sumb + QN_h_a(icoa)*vab(icoa,icob)
+          END DO
+          Isum_b(icob) = Isum_b(icob) + ng0_h(l)*sumb
+        END DO
+      END IF
       DO icoa = ncoset(l0_a)+1,ncoset(l0_a+1)
         DO icob = 1,nch_b
           I_tmp(icoa) = I_tmp(icoa) + QN_h_b(icob)*vab_plus(icoa,icob)
@@ -432,12 +434,10 @@ MODULE  hartree_local_2centers
           icoap = coset(lap(1),lap(2),lap(3))
 
           IF(lam(idir) < 0) THEN
-!            IntxQN_da(icoa,idir) = QN_h_a(icoa)*& 
             force_a(idir) = force_a(idir) + QN_h_a(icoa)*& 
                                    zx2* I_tmp(icoap)
           ELSE
             icoam = coset(lam(1),lam(2),lam(3))
-!            IntxQN_da(icoa,idir) = QN_h_a(icoa)*(&
             force_a(idir) = force_a(idir) + QN_h_a(icoa)*& 
                    (zx2* I_tmp(icoap)-la(idir)*I_tmp(icoam))
           END IF
@@ -462,9 +462,19 @@ MODULE  hartree_local_2centers
 
         ene_2c = ene_2c - QN_s_a(icoa) * I_tmp(icoa)
 
-        Isum_a(icoa) = Isum_a(icoa) - ieqj * ng0_s(l) * I_tmp(icoa)
+        Isum_a(icoa) = Isum_a(icoa) -  ng0_s(l) * I_tmp(icoa)
 
       END DO
+      IF(ieqj > 1.0_dp) THEN
+        DO icob = 1,nch_b
+          l = indco(1,icob)+indco(2,icob)+indco(3,icob)
+          sumb = 0.0_dp
+          DO icoa = 1,nch_a
+            sumb = sumb + QN_s_a(icoa)*vab(icoa,icob)
+          END DO
+          Isum_b(icob) = Isum_b(icob) - ng0_s(l)*sumb
+        END DO
+      END IF
       DO icoa = ncoset(l0_a)+1,ncoset(l0_a+1)
         DO icob = 1,nch_b
           I_tmp(icoa) = I_tmp(icoa) + QN_s_b(icob)*vab_plus(icoa,icob)
@@ -481,12 +491,10 @@ MODULE  hartree_local_2centers
           icoap = coset(lap(1),lap(2),lap(3))
 
           IF(lam(idir) < 0) THEN
-!            IntxQN_da(icoa,idir) = IntxQN_da(icoa,idir) - &
             force_a(idir) = force_a(idir) - &
                              QN_s_a(icoa) * zx2 * I_tmp(icoap)
           ELSE
             icoam = coset(lam(1),lam(2),lam(3))
-!            IntxQN_da(icoa,idir) = IntxQN_da(icoa,idir) - &
             force_a(idir) = force_a(idir) - &
                QN_s_a(icoa)*(zx2*I_tmp(icoap) - la(idir)*I_tmp(icoam))
           END IF
@@ -503,11 +511,6 @@ MODULE  hartree_local_2centers
       rad_b(1) = r0_b      
       CALL coulomb2(l0_a,1,zeta,rad_a,0,l0_b,1,zeta,rad_b,0,&
                     rab,rab2,vab)
-!  DO icoa = 1,ncoset(l0_a)
-!   DO icob = 1,ncoset(l0_b)
-!   WRITE(*,*) icoa, icob,vab(icoa,icob)
-!   END DO
-!  END DO
       DO icoa = 1,nch_a
         l = indco(1,icoa)+indco(2,icoa)+indco(3,icoa)
 
@@ -518,13 +521,19 @@ MODULE  hartree_local_2centers
 
         ene_2c = ene_2c + QN_h_a(icoa) * sumb
 
-!        IntxQN_a(icoa) = QN_h_a(icoa) * sumb
-        Isum_a(icoa) = Isum_a(icoa) + ieqj * ng0_h(l)*sumb
+        Isum_a(icoa) = Isum_a(icoa) +  ng0_h(l)*sumb
       END DO
-!dbg
-!       WRITE (*,*) 'hard ene ', ene_2c
+      IF(ieqj > 1.0_dp) THEN
+        DO icob = 1,nch_b
+          l = indco(1,icob)+indco(2,icob)+indco(3,icob)
+          sumb = 0.0_dp
+          DO icoa = 1,nch_a
+            sumb = sumb + QN_h_a(icoa)*vab(icoa,icob)
+          END DO
+          Isum_b(icob) = Isum_b(icob) + ng0_h(l)*sumb
+        END DO
+      END IF
       ene_hard = ene_2c
-! dbg
       zeta(1)  = z0_s
       rad_a(1) = r0_a
       rad_b(1) = r0_b      
@@ -541,11 +550,19 @@ MODULE  hartree_local_2centers
 
         ene_2c = ene_2c - QN_s_a(icoa) * sumb
 
-!        IntxQN_a(icoa) = IntxQN_a(icoa) - QN_s_a(icoa) * sumb
-        Isum_a(icoa) = Isum_a(icoa) - ieqj * ng0_s(l)*sumb
+        Isum_a(icoa) = Isum_a(icoa) -  ng0_s(l)*sumb
       END DO
-!dbg
-!       WRITE (*,*) 'soft ene ', -(ene_2c-ene_hard)
+      IF(ieqj > 1.0_dp) THEN
+        DO icob = 1,nch_b
+          l = indco(1,icob)+indco(2,icob)+indco(3,icob)
+          sumb = 0.0_dp
+          DO icoa = 1,nch_a
+            sumb = sumb + QN_s_a(icoa)*vab(icoa,icob)
+          END DO
+          Isum_b(icob) = Isum_b(icob) - ng0_s(l)*sumb
+        END DO
+      END IF
+
        ene_soft = -(ene_2c -ene_hard)
 
     END IF

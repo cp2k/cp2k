@@ -107,7 +107,8 @@ MODULE qs_all_potential
     TYPE(qlist_type), DIMENSION(:, :, :), &
                                        POINTER :: tmp_neighbor
     TYPE(qlist_type),             POINTER      :: sac_3c_neighbor
-    INTEGER  :: bc, i, istat, katom, kkind, kneighbor, knode, na_plus, nb_plus, ncoa, ncob, nnode_c 
+    INTEGER  :: bc, i, istat, katom, kkind, kneighbor, knode, na_plus,&
+                nb_plus, ncoa, ncob, nnode_c 
     INTEGER, DIMENSION(3)                      :: cell_c
     REAL(dp) :: cerf, rpgfc, zc, zetc, rab2, rac(3), rac2, rbc(3), rbc2
     REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: Int_ab_sum, Int_ab_plus
@@ -233,6 +234,7 @@ MODULE qs_all_potential
 
         END IF
 
+        sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
       END DO knodeloop  ! knode
 
     END DO  ! kkind

@@ -107,7 +107,7 @@ MODULE qs_rho_atom_methods
       lmin12, m1s, m2s, max_iso_not0, maxcg, maxco, maxl, maxso, &
       n1s, n2s, nr, nset, size1, size2
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
-    REAL(dp)                                 :: c1, rho_h, rho_s, root_zet12, zet12
+    REAL(dp)                                 :: c1, c2, rho_h, rho_s, root_zet12, zet12
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: erf_zet12, g1, g2, gg0, int1, int2
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: dgg, gg
     REAL(dp), ALLOCATABLE, DIMENSION(:,:,:)  :: vgg
@@ -215,9 +215,7 @@ MODULE qs_rho_atom_methods
               gg0(1:nr) = gg(1:nr,lmin12)
             ELSE
               gg0(1:nr) = g1(1:nr)*g2(1:nr)
-!!              gg(1:nr,lmin12) = grid_atom%rad(1:nr)**lmin12*g1(1:nr)*g2(1:nr)
               gg(1:nr,lmin12) = grid_atom%rad2l(1:nr,lmin12)*g1(1:nr)*g2(1:nr)
-!!              dgg(1:nr,lmin12) = REAL(lmin12,dp)/grid_atom%rad(1:nr)*&
               dgg(1:nr,lmin12) = REAL(lmin12,dp)*grid_atom%oorad2l(1:nr,1)*&
                                 gg(1:nr,lmin12)
             END IF
@@ -232,6 +230,8 @@ MODULE qs_rho_atom_methods
             dgg(1:nr,lmax12) = dgg(1:nr,lmax12) -2.0_dp*(zet(ipgf1,iset1)+ &
                              zet(ipgf2,iset2))*grid_atom%rad(1:nr)*&
                              gg(1:nr,lmax12)
+
+            c2 = SQRT(pi*pi*pi/(zet12*zet12*zet12))
             DO iso = 1,max_iso_not0
                l_iso = indso(1,iso)
                c1 = fourpi/(2._dp*l_iso+1._dp)
@@ -243,15 +243,19 @@ MODULE qs_rho_atom_methods
                  IF(done_vgg(l,l_iso)) CYCLE
                  L_sum = l + l_iso
                  L_sub = l - l_iso
+ 
+                 IF(l_sum == 0) THEN
+                  vgg(1:nr,l,l_iso) = erf_zet12(1:nr)* grid_atom%oorad2l(1:nr,1) * c2
+                 ELSE
+                   CALL whittaker_c0(int1,grid_atom%rad,gg0,erf_zet12,zet12,L_sum,nr)
+                   CALL whittaker_ci(int2,grid_atom%rad,gg0,zet12,L_sub,nr)
 
-                 CALL whittaker_c0(int1,grid_atom%rad,gg0,erf_zet12,zet12,L_sum,nr)
-                 CALL whittaker_ci(int2,grid_atom%rad,gg0,zet12,L_sub,nr)
-
-                 DO ir = 1,nr
-                   int1(ir) = grid_atom%oorad2l(ir,l_iso+1)*int1(ir)
-                   int2(ir) = grid_atom%rad2l(ir,l_iso)*int2(ir)
-                   vgg(ir,l,l_iso) = c1 * (int1(ir) + int2(ir))
-                 END DO 
+                   DO ir = 1,nr
+                     int1(ir) = grid_atom%oorad2l(ir,l_iso+1)*int1(ir)
+                     int2(ir) = grid_atom%rad2l(ir,l_iso)*int2(ir)
+                     vgg(ir,l,l_iso) = c1 * (int1(ir) + int2(ir))
+                   END DO
+                 END IF 
                  done_vgg(l,l_iso) = .TRUE.
                END DO
             END DO
@@ -302,7 +306,7 @@ MODULE qs_rho_atom_methods
                       vgg(1:nr,l,l_iso)*CPCS_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
 
                   ENDDO ! icg
-                ENDDO  ! iso     
+                ENDDO  ! iso 
 
               ENDDO ! i
             ENDDO  ! iat
