@@ -139,7 +139,6 @@ SUBROUTINE nve_pw ( md_env )
 ! Local
   LOGICAL, PARAMETER :: box_change = .FALSE.
   INTEGER :: i, nnodes, ncoef
-  INTEGER, POINTER :: itimes
   REAL ( dbl ) :: dtom, dtocm, cmass
   TYPE ( simulation_parameters_type ), POINTER :: simpar
   TYPE ( virial_type ), POINTER :: thermo
@@ -147,7 +146,6 @@ SUBROUTINE nve_pw ( md_env )
 
 !------------------------------------------------------------------------------
 ! Associating local pointers
-  itimes => md_env % itimes
   simpar => md_env % simpar
   thermo => md_env % virial
   struc => md_env % struc ( 1 )
@@ -261,7 +259,6 @@ SUBROUTINE nve_ao ( md_env )
   
 ! Local
   LOGICAL, PARAMETER :: box_change = .FALSE.
-  INTEGER, POINTER :: itimes
   INTEGER :: i, nnodes, ncoef
   REAL ( dbl ) :: dtom, dtocm
   TYPE ( simulation_parameters_type ), POINTER :: simpar
@@ -271,7 +268,6 @@ SUBROUTINE nve_ao ( md_env )
 
 !------------------------------------------------------------------------------
 ! Associating local structures
-  itimes => md_env % itimes
   simpar => md_env % simpar
   thermo => md_env % virial
   struc => md_env % struc ( 1 )
@@ -383,7 +379,6 @@ SUBROUTINE nvt_pw ( md_env )
 
 ! Local
   LOGICAL, PARAMETER :: box_change = .FALSE.
-  INTEGER, POINTER :: itimes
   INTEGER :: i, nnodes, ncoef
   REAL ( dbl ) :: dtom,dtocm,cmass
   TYPE ( simulation_parameters_type ), POINTER :: simpar
@@ -394,7 +389,6 @@ SUBROUTINE nvt_pw ( md_env )
 
 !------------------------------------------------------------------------------
 ! Associating local pointers
-  itimes => md_env % itimes  
   simpar => md_env % simpar
   thermo => md_env % virial
   struc => md_env % struc ( 1 )
@@ -515,7 +509,6 @@ SUBROUTINE nvt_ao ( md_env )
 ! Local
   LOGICAL, PARAMETER :: box_change = .FALSE.
   INTEGER :: i, nnodes, ncoef
-  INTEGER, POINTER :: itimes
   REAL ( dbl ) :: dtom, dtocm
   TYPE ( simulation_parameters_type ), POINTER :: simpar
   TYPE ( virial_type ), POINTER :: thermo
@@ -525,7 +518,6 @@ SUBROUTINE nvt_ao ( md_env )
 
 !------------------------------------------------------------------------------
 ! Associating local pointers
-  itimes => md_env % itimes
   simpar => md_env % simpar
   thermo => md_env % virial
   struc => md_env % struc ( 1 )
@@ -641,7 +633,6 @@ SUBROUTINE nve ( md_env )
 
 ! locals
   LOGICAL, PARAMETER :: box_change = .FALSE.
-  INTEGER, POINTER :: itimes
   INTEGER :: i, nnodes
   REAL ( dbl ) :: dtom
   TYPE ( simulation_parameters_type ), POINTER :: simpar
@@ -649,7 +640,6 @@ SUBROUTINE nve ( md_env )
   TYPE ( structure_type ), POINTER :: struc
 
 ! assigning the locals
-  itimes => md_env % itimes
   simpar => md_env % simpar
   struc => md_env % struc ( 1 )
   thermo => md_env % virial
@@ -743,7 +733,6 @@ SUBROUTINE nvt ( md_env )
   
 ! Locals
   INTEGER :: i, nnodes
-  INTEGER, POINTER :: itimes
   REAL ( dbl ) :: dtom
   TYPE ( simulation_parameters_type ), POINTER :: simpar
   TYPE ( virial_type ), POINTER :: thermo
@@ -752,7 +741,6 @@ SUBROUTINE nvt ( md_env )
   LOGICAL, PARAMETER :: box_change = .FALSE.
 
 ! assigning the locals
-  itimes => md_env % itimes
   simpar => md_env % simpar
   thermo => md_env % virial
   struc => md_env % struc ( 1 )
@@ -848,7 +836,6 @@ SUBROUTINE npt_i ( md_env )
   TYPE ( md_environment_type ), INTENT ( INOUT ) :: md_env
   
 ! Locals
-  INTEGER, POINTER :: itimes
   INTEGER :: i, ii,  nnodes, iroll
   TYPE (cell_type ), POINTER :: box
   TYPE (simulation_parameters_type ), POINTER :: simpar
@@ -1252,7 +1239,6 @@ SUBROUTINE npt_f ( md_env )
   TYPE ( md_environment_type ), INTENT ( INOUT ) :: md_env
   
 ! Locals
-  INTEGER, POINTER :: itimes
   INTEGER :: i, j, nnodes, iroll
   REAL ( dbl ) :: dtom
   REAL ( dbl ), PARAMETER :: e2 = 1._dbl/6._dbl, e4 = e2/20._dbl, &
@@ -1272,7 +1258,6 @@ SUBROUTINE npt_f ( md_env )
   LOGICAL :: first
 
 ! assigning the locals
-  itimes => md_env % itimes
   simpar => md_env % simpar
   thermo => md_env % virial
   struc => md_env % struc ( 1 )
@@ -1613,7 +1598,6 @@ SUBROUTINE nvt_pimd ( md_env )
   TYPE ( md_environment_type ), INTENT ( INOUT ) :: md_env  
   
 ! Locals
-  INTEGER, POINTER :: itimes
   TYPE ( simulation_parameters_type ), POINTER :: simpar
   TYPE ( virial_type ), POINTER :: thermo
   TYPE ( structure_type ), POINTER :: struc ( : )
@@ -1624,7 +1608,6 @@ SUBROUTINE nvt_pimd ( md_env )
   
 !------------------------------------------------------------------------------
 ! Assigning local pointers
-  itimes => md_env % itimes
   thermo => md_env % virial
   simpar => md_env % simpar
   struc => md_env % struc
