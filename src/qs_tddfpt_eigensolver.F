@@ -329,7 +329,7 @@ CONTAINS
        IF (iteration /= 1) THEN
           difference = ABS(eigenvals(n_ev,iteration)-eigenvals(n_ev,iteration-1))
        ELSE
-          difference = 9.9999E99
+          difference = 9.9999E99_dbl
        END IF
        IF (glob_env%ionode) &
        WRITE (glob_env%scr, &
