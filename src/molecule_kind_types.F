@@ -31,7 +31,7 @@ MODULE molecule_kind_types
                                              torsion_kind_type,&
                                              ub_kind_type,&
                                              deallocate_ub_kind_set,&
-                                             deallocate_onfo_kind_type
+                                             onfo_kind_dealloc_ref
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
@@ -212,6 +212,7 @@ CONTAINS
       NULLIFY (molecule_kind_set(imolecule_kind)%ub_kind_set)
       NULLIFY (molecule_kind_set(imolecule_kind)%impr_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%onfo_list)
+      NULLIFY (molecule_kind_set(imolecule_kind)%onfo_kind_set)
       NULLIFY (molecule_kind_set(imolecule_kind)%g3x3_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%g4x6_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%torsion_list)
@@ -306,10 +307,17 @@ CONTAINS
            END IF
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%onfo_list)) THEN
-           do i = 1, size(molecule_kind_set(imolecule_kind)%onfo_list)
-              call deallocate_onfo_kind_type(molecule_kind_set(imolecule_kind)%onfo_list(i)%onfo_kind)
-           end do
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%onfo_list,STAT=istat)
+           DEALLOCATE(molecule_kind_set(imolecule_kind)%onfo_list, STAT=istat)
+           IF (istat /= 0) THEN
+              CALL stop_memory(routine_name,module_name,__LINE__,&
+                   "molecule_kind_set(imolecule_kind)%onfo_list")
+           END IF
+        END IF
+        IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%onfo_kind_set)) THEN
+           DO i = 1, SIZE(molecule_kind_set(imolecule_kind)%onfo_kind_set)
+              CALL onfo_kind_dealloc_ref(molecule_kind_set(imolecule_kind)%onfo_kind_set(i))
+           END DO
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%onfo_kind_set,STAT=istat)
            IF (istat /= 0) THEN
              CALL stop_memory(routine_name,module_name,__LINE__,&
                               "molecule_kind_set(imolecule_kind)%onfo_list")

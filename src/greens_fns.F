@@ -86,7 +86,7 @@ CONTAINS
 
 
     TYPE(greens_function_type), &
-      INTENT(INOUT)                          :: gftype
+      INTENT(INOUT),TARGET                   :: gftype
     TYPE(pw_pool_type), POINTER              :: pw_pool
     INTEGER, INTENT(IN), OPTIONAL            :: p3m
     REAL(dbl), INTENT(IN), OPTIONAL          :: alpha

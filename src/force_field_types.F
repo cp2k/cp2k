@@ -196,7 +196,7 @@ MODULE force_field_types
             bond_kind_type,&
             impr_kind_type,&
             onfo_kind_type,&
-            deallocate_onfo_kind_type,&
+            onfo_kind_dealloc_ref,&
             torsion_kind_type,&
             ub_kind_type,&
             deallocate_ub_kind_set,&
@@ -1120,9 +1120,9 @@ END SUBROUTINE deallocate_ff_type
 !!
 !!   SOURCE
 !******************************************************************************
-  subroutine deallocate_onfo_kind_type(onfo_kind, error)
+  SUBROUTINE  onfo_kind_dealloc_ref(onfo_kind, error)
     implicit none
-    TYPE(onfo_kind_type),  pointer :: onfo_kind
+    TYPE(onfo_kind_type), INTENT(INOUT):: onfo_kind
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
     integer :: stat
     CHARACTER(len=*), PARAMETER :: routineN='deallocate_onfo_kind_type',&
@@ -1130,13 +1130,8 @@ END SUBROUTINE deallocate_ff_type
     logical :: failure
     
     failure = .false.
-    IF (ASSOCIATED(onfo_kind)) THEN
-       CALL spline_env_release(onfo_kind%spline_env, error)
-       DEALLOCATE(onfo_kind, STAT=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       NULLIFY(onfo_kind)
-    END IF
-  end subroutine deallocate_onfo_kind_type
+    CALL spline_env_release(onfo_kind%spline_env, error)
+  END SUBROUTINE onfo_kind_dealloc_ref
 ! *****************************************************************************
 
 END MODULE force_field_types
