@@ -114,7 +114,8 @@ MODULE matrix_types
             put_block_node,&
             replicate_matrix,&
             replicate_matrix_structure,&
-            symmetrise_diagonal_blocks
+            symmetrise_diagonal_blocks,&
+            find_block_node
 
 ! *** Public functions ***
 
