@@ -464,6 +464,11 @@ CONTAINS
                      use_data=REALDATA3D, in_space=REALSPACE, &
                      error=error)
                 CALL pw_transfer(tmp_g, my_rho_r(ispin)%pw)
+                IF (BTEST(dft_control%smooth,5)) THEN
+                   PRINT *,"extra smooth rho gradient"
+                   CALL pw_spline_evaluate_values_g(&
+                        spline_coeff_g(ispin)%pw,error=error)
+                END IF
              ELSE
                 PRINT *,"smooth rho gradient only"
              END IF
