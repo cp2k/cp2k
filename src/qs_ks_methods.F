@@ -69,7 +69,8 @@ MODULE qs_ks_methods
                                              cp_fm_set_all
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_column_scale,&
-                                             cp_fm_scale_and_add
+                                             cp_fm_scale_and_add,&
+                                             cp_fm_transpose
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -601,7 +602,6 @@ CONTAINS
        ! **** Kohn-Sham matrix. This might change in the future, in which case more pieces might need to be assembled 
        ! **** from this routine, notice that this part of the calculation in not linear scaling
        ! **** right now this operation is only non-trivial because of occupation numbers and the restricted keyword
-
        IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
           CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array)
           DO ispin=1,SIZE(mo_derivs)          
@@ -1435,7 +1435,7 @@ END SUBROUTINE qs_vxc_create
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_w_matrix_2(mo_set,mo_deriv,w_matrix,error)
+  SUBROUTINE calculate_w_matrix_2(mo_set,mo_deriv,w_matrix,s_matrix,error)
 
 !   Purpose: Calculate the W matrix from the MO coefs, MO derivs [Joost VandeVondele]
 !   could overwrite the mo_derivs for increased memory efficiency
@@ -1443,7 +1443,7 @@ END SUBROUTINE qs_vxc_create
 !   ***************************************************************************
 
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(real_matrix_type), POINTER          :: w_matrix 
+    TYPE(real_matrix_type), POINTER          :: w_matrix,s_matrix
     TYPE(cp_fm_type), POINTER                :: mo_deriv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1452,8 +1452,9 @@ END SUBROUTINE qs_vxc_create
                                                 ncol_global, nrow_block, &
                                                 nrow_global
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: h_block, weighted_vectors
+    TYPE(cp_fm_type), POINTER                :: h_block,h_block_t,weighted_vectors,gradient
     LOGICAL                                  :: failure
+    LOGICAL, PARAMETER                       :: do_symm=.FALSE., check_gradient=.FALSE.
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_w_matrix_2","I","",handle)
@@ -1471,12 +1472,21 @@ END SUBROUTINE qs_vxc_create
                                             para_env=mo_set%mo_coeff%matrix_struct%para_env, &
                                             context=mo_set%mo_coeff%matrix_struct%context)
     CALL cp_fm_create(h_block,fm_struct_tmp, name="h block")
+    IF (do_symm) CALL cp_fm_create(h_block_t,fm_struct_tmp, name="h block t")
     CALL cp_fm_struct_release(fm_struct_tmp)
 
     ! the convention seems to require the half here, the factor of two is presumably taken care of 
     ! internally in qs_core_hamiltonian
     CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,0.5_dp, &
                     mo_set%mo_coeff,mo_deriv,0.0_dp,h_block)
+
+    IF (do_symm) THEN
+       ! at the minimum things are anyway symmetric, but numerically it might not be the case
+       ! needs some investigation to find out if using this is better
+       CALL cp_fm_transpose(h_block,h_block_t)
+       CALL cp_fm_scale_and_add(0.5_dp,h_block,0.5_dp,h_block_t)
+    ENDIF
+
     ! this could overwrite the mo_derivs to save the weighted_vectors
     CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
                     mo_set%mo_coeff,h_block,0.0_dp,weighted_vectors)
@@ -1487,6 +1497,15 @@ END SUBROUTINE qs_vxc_create
                             matrix_g=weighted_vectors,&
                             ncol=mo_set%homo)
 
+    IF (check_gradient) THEN
+       CALL cp_fm_create(gradient,mo_set%mo_coeff%matrix_struct,"gradient")
+       CALL cp_sm_fm_multiply(s_matrix,weighted_vectors,&
+                                          gradient, ncol_global)
+       write(6,*) " maxabs difference ", MAXVAL(ABS(mo_deriv%local_data-2.0_dp*gradient%local_data))
+       CALL cp_fm_release(gradient)
+    ENDIF
+
+    IF (do_symm) CALL cp_fm_release(h_block_t)
     CALL cp_fm_release(weighted_vectors)
     CALL cp_fm_release(h_block)
     CALL timestop(0.0_dp,handle)

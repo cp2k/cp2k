@@ -185,7 +185,7 @@ CONTAINS
           mo_set => mos(ispin)%mo_set
           IF (scf_control%use_ot) THEN
             CALL calculate_w_matrix(mo_set,mo_derivs(ispin)%matrix,&
-                 matrix_w(ispin)%matrix)
+                 matrix_w(ispin)%matrix,matrix_s(1)%matrix)
           ELSE
             CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix)
           END IF
