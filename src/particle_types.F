@@ -111,7 +111,6 @@ MODULE particle_types
      REAL(KIND = dp), DIMENSION(3)         :: f,&         ! force
                                               r,&         ! position
                                               v           ! velocity
-     INTEGER                               :: iatom       ! atomic index
      LOGICAL                               :: is_fixed    ! force is set to zero
   END TYPE particle_type
 
@@ -186,7 +185,6 @@ SUBROUTINE clone_particle(p_in,p_out,nullify_non_owned_pointers,error)
   p_out%f=p_in%f
   p_out%v=p_in%v
   p_out%is_fixed=p_in%is_fixed
-  p_out%iatom=p_in%iatom
 END SUBROUTINE clone_particle
 !***************************************************************************
 
@@ -219,7 +217,6 @@ END SUBROUTINE clone_particle
     DO iparticle=1,nparticle
       NULLIFY (particle_set(iparticle)%atomic_kind)
       NULLIFY (particle_set(iparticle)%lpi)
-      particle_set(iparticle)%iatom = iparticle
       particle_set(iparticle)%f(:) = 0.0_dp
       particle_set(iparticle)%r(:) = 0.0_dp
       particle_set(iparticle)%v(:) = 0.0_dp
@@ -1089,7 +1086,6 @@ END SUBROUTINE clone_particle
     DO iparticle=1,nparticle
       iparticle_kind = particle_kind_of(iparticle)
       particle_set(iparticle)%atomic_kind => atomic_kind_set(iparticle_kind)
-      particle_set(iparticle)%iatom = iparticle
       particle_set(iparticle)%f(:) = 0.0_dp
       IF (scaled_coordinates) THEN
         particle_set(iparticle)%r(:) =&
