@@ -127,7 +127,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
 
     REAL(wp) :: dab,eps_gvg_rspace,kind_radius_b,maxvdiff,maxvnew,&
-                old_gvg_factor,rab2,scale,vratio,zetp
+                old_gvg_factor,rab2,scale,vratio,zetp,dum,move,v0,vp,vm
     INTEGER  :: ab,first_pgfb,first_setb,handle,iatom,ico,igrid_level,ikind,&
                 ineighbor,ipgf,iset,ishell,istat,jatom,jco,jkind,jpgf,jset,&
                 jshell,katom,maxco,maxsgf_set,na1,na2,nb1,nb2,ncoa,ncob,nkind,&
@@ -136,6 +136,8 @@ CONTAINS
     REAL(wp), DIMENSION(3) :: ra,rab,rb
 
     REAL(wp), DIMENSION(:,:), ALLOCATABLE :: hab,pab,work
+    REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: dhab
+    integer                                 :: i,id
 
     REAL(wp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
     INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,lb_max,lb_min,npgfa,&
@@ -200,6 +202,9 @@ CONTAINS
 
     ALLOCATE (hab(maxco,maxco),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"hab",maxco*maxco*wp_size)
+
+    ALLOCATE (dhab(maxco,maxco,6),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"dhab",6*maxco*maxco*wp_size)
 
     ALLOCATE (pab(maxco,maxco),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*maxco*wp_size)
@@ -363,6 +368,26 @@ CONTAINS
                   END DO
                 END IF
 
+                if (force) then
+                 IF (iatom <= jatom) THEN
+                  DO i=1,6
+                   DO jco=1,ncob
+                    DO ico=1,ncoa
+                      dhab(ico,jco,i) = 0.0_wp
+                    END DO
+                   END DO
+                  END DO
+                 ELSE
+                  DO i=1,6
+                   DO jco=1,ncoa
+                    DO ico=1,ncob
+                      dhab(ico,jco,i) = 0.0_wp
+                    END DO
+                   END DO
+                  END DO
+                 END IF
+                endif
+
                 DO ipgf=1,npgfa(iset)
 
                   IF (rpgfa(ipgf,iset) + set_radius_b(jset) < dab) CYCLE
@@ -388,7 +413,7 @@ CONTAINS
                         ra,rab,rab2,v_rspace(igrid_level)%pw,&
                         cube_info(igrid_level),l_info,&
                         hab(na1:na2,nb1:nb2),pab(na1:na2,nb1:nb2),&
-                        vratio,eps_gvg_rspace,force)
+                        vratio,eps_gvg_rspace,force,dhab(na1:na2,nb1:nb2,1:6))
                     ELSE
                       CALL integrate_pgf_product_rspace(&
                         lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
@@ -396,7 +421,7 @@ CONTAINS
                         rb,-rab,rab2,v_rspace(igrid_level)%pw,&
                         cube_info(igrid_level),l_info,&
                         hab(nb1:nb2,na1:na2),pab(nb1:nb2,na1:na2),&
-                        vratio,eps_gvg_rspace,force)
+                        vratio,eps_gvg_rspace,force,dhab(nb1:nb2,na1:na2,1:6))
                     END IF
 
                   END DO
@@ -449,6 +474,9 @@ CONTAINS
 
     DEALLOCATE (hab,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"hab")
+ 
+    DEALLOCATE (dhab,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"dhab")
 
     DEALLOCATE (pab,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"pab")
@@ -474,7 +502,9 @@ CONTAINS
                                             lb_max,zetb,lb_min,&
                                             ra,rab,rab2,pw,&
                                             cube_info,l_info,hab,pab,&
-                                            vratio,eps_gvg_rspace,force)
+                                            vratio,eps_gvg_rspace,force,dhab)
+
+    IMPLICIT NONE
 
     TYPE(pw_type), TARGET, INTENT(IN)  :: pw
     REAL(wp), INTENT(IN)               :: eps_gvg_rspace,rab2,zeta,zetb,vratio
@@ -484,6 +514,7 @@ CONTAINS
     TYPE(l_info_type),INTENT(IN)       :: l_info
 
     REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(INOUT) :: hab
+    REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max),6), INTENT(INOUT) :: dhab
     REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(IN) :: pab
     LOGICAL, INTENT(IN)                :: force
 
@@ -510,6 +541,7 @@ CONTAINS
 
     INTEGER, pointer, dimension(:) :: ly_max,lz_max
     REAL(wp), pointer :: pzyx(:), alpha(:,:)
+    integer, pointer :: ipzyx(:,:,:,:,:,:)
     REAL(wp), pointer :: polz(:,:),dpz(:,:),poly(:,:),dpy(:,:),polx(:,:)
     REAL(wp), pointer :: dpx(:,:)
     INTEGER, pointer, dimension(:)  :: sphere_bounds
@@ -542,15 +574,14 @@ CONTAINS
 ! in this case the minimization goes fine up to the point where the energy is
 ! noisy
     cutoff=1.0_wp
-    radius=exp_radius_very_extended(la_min_l,la_max_l,lb_min_l,lb_max,pab,ra,rb,rp,&
+    radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,ra,rb,rp,&
                                     zetp,eps_gvg_rspace,prefactor*vratio,cutoff)
 
     IF (radius == 0.0_wp) RETURN
-
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
     CALL return_l_info(l_info,la_min_l,la_max_l,lb_min_l,lb_max,lx_max,lxy_max, &
                          lxyz_max,ly_max,lz_max,&
-                         map,polx,poly,polz,dpy,dpz,alpha,pzyx,cmax)
+                         map,polx,poly,polz,dpy,dpz,alpha,pzyx,ipzyx,cmax)
 
 !   *** properties of the grid ***
 
@@ -588,7 +619,7 @@ CONTAINS
     DO ig=lb_cube(3),ub_cube(3)
       lxyz=0
       rpg = REAL(ig,wp)*dr(3) - roffset(3)
-      zap = EXP(-zetp*rpg**2)*prefactor  ! take into account the prefactor here
+      zap = EXP(-zetp*rpg**2)
       za  = rpg + rap(3)
       zb  = za  - rab(3)
       DO lza=0,la_max_l
@@ -684,30 +715,105 @@ CONTAINS
                         ly_max,lz_max,gridbounds,map,pzyx, &
                         la_min_l,la_max_l,lb_min_l,lb_max,sphere_bounds)
 
+    do i=1,lxyz_max
+       pzyx(i)=pzyx(i)*prefactor
+    enddo
+
 !   *** pzyx contains all the information needed to find the elements of hab
 !   *** and optionally of derivatives of these elements
-
     lxyz=0
-    DO lxa=0,la_max_l
+    DO lxa=0,la_max
     DO lxb=0,lb_max
-       DO lya=0,la_max_l-lxa
+       DO lya=0,la_max-lxa
        DO lyb=0,lb_max-lxb
-          DO lza=max(la_min_l-lxa-lya,0),la_max_l-lxa-lya
-          DO lzb=max(lb_min_l-lxb-lyb,0),lb_max-lxb-lyb
-             lxyz=lxyz+1
-             ! fishy way to return only the wanted part of hab
-             if (lxa+lya+lza.lt.la_min) cycle
-             if (lxb+lyb+lzb.lt.lb_min) cycle
-             if (lxa+lya+lza.gt.la_max) cycle
+          DO lza=max(la_min-lxa-lya,0),la_max-lxa-lya
+          DO lzb=max(lb_min-lxb-lyb,0),lb_max-lxb-lyb
              ico=coset(lxa,lya,lza)
              jco=coset(lxb,lyb,lzb)
-             hab(ico,jco)=hab(ico,jco)+pzyx(lxyz)
+             hab(ico,jco)=hab(ico,jco)+pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb))
+             ! we now compute the derivatives of these matrix elements 
+             if (force) then
+                ! XXXX first component
+                dhab(ico,jco,1)=dhab(ico,jco,1)+ &
+                                 2.0*zeta*f*rab(1)* &
+                                 pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb))
+                if (lxa.ne.0) then
+                    dhab(ico,jco,1)=dhab(ico,jco,1)+                     &
+                             lxa*pzyx(ipzyx(lxa-1,lya,lza,lxb,lyb,lzb))
+                endif
+                dhab(ico,jco,1)    =dhab(ico,jco,1)+ 2.0*zetp*(1-f)*(        &
+                             pzyx(ipzyx(lxa+1,lya,lza,lxb,lyb,lzb))-         &
+                             pzyx(ipzyx(lxa  ,lya,lza,lxb,lyb,lzb))*f*rab(1) )
+
+                ! XXXX second component
+                dhab(ico,jco,2)=dhab(ico,jco,2)+ &
+                                 2.0*zeta*f*rab(2)* &
+                                 pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb))
+                if (lxb.ne.0) then
+                    dhab(ico,jco,2)=dhab(ico,jco,2)+                     &
+                             lxb*pzyx(ipzyx(lxa,lya-1,lza,lxb,lyb,lzb))
+                endif
+                dhab(ico,jco,2)    =dhab(ico,jco,2)+ 2.0*zetp*(1-f)*(        &
+                             pzyx(ipzyx(lxa,lya+1,lza,lxb,lyb,lzb))-         &
+                             pzyx(ipzyx(lxa,lya  ,lza,lxb,lyb,lzb))*f*rab(2) )
+
+
+                ! XXXX third component
+                dhab(ico,jco,3)=dhab(ico,jco,3)+ &
+                                 2.0*zeta*f*rab(3)* &
+                                 pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb))
+                if (lxb.ne.0) then
+                    dhab(ico,jco,3)=dhab(ico,jco,3)+                     &
+                             lxb*pzyx(ipzyx(lxa,lya,lza-1,lxb,lyb,lzb))
+                endif
+                dhab(ico,jco,3)    =dhab(ico,jco,3)+ 2.0*zetp*(1-f)*(        &
+                             pzyx(ipzyx(lxa,lya,lza+1,lxb,lyb,lzb))-         &
+                             pzyx(ipzyx(lxa,lya,lza  ,lxb,lyb,lzb))*f*rab(3) )
+
+                ! XXXX first component, second center
+                dhab(ico,jco,4)=dhab(ico,jco,4)- &
+                                 2.0*zeta*f*rab(1)* &
+                                 pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb))
+                if (lxb.ne.0) then
+                    dhab(ico,jco,4)=dhab(ico,jco,4)+                     &
+                             lxb*pzyx(ipzyx(lxa,lya,lza,lxb-1,lyb,lzb))
+                endif
+                dhab(ico,jco,4)    =dhab(ico,jco,4)+ 2.0*zetp*f*(            &
+                             pzyx(ipzyx(lxa+1,lya,lza,lxb,lyb,lzb))-         &
+                             pzyx(ipzyx(lxa  ,lya,lza,lxb,lyb,lzb))*f*rab(1) )
+
+                ! XXXX second component, second center
+                dhab(ico,jco,5)=dhab(ico,jco,5)- &
+                                 2.0*zeta*f*rab(2)* &
+                                 pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb))
+                if (lyb.ne.0) then
+                    dhab(ico,jco,5)=dhab(ico,jco,5)+                     &
+                             lxb*pzyx(ipzyx(lxa,lya,lza,lxb,lyb-1,lzb))
+                endif
+                dhab(ico,jco,5)    =dhab(ico,jco,5)+ 2.0*zetp*f*(            &
+                             pzyx(ipzyx(lxa,lya+1,lza,lxb,lyb,lzb))-         &
+                             pzyx(ipzyx(lxa,lya  ,lza,lxb,lyb,lzb))*f*rab(2) )
+
+                ! XXXX third component, second center
+                dhab(ico,jco,6)=dhab(ico,jco,6)- &
+                                 2.0*zeta*f*rab(3)* &
+                                 pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb))
+                if (lzb.ne.0) then
+                    dhab(ico,jco,6)=dhab(ico,jco,6)+                     &
+                             lzb*pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb-1))
+                endif
+                dhab(ico,jco,6)    =dhab(ico,jco,6)+ 2.0*zetp*f*(            &
+                             pzyx(ipzyx(lxa,lya,lza+1,lxb,lyb,lzb))-         &
+                             pzyx(ipzyx(lxa,lya,lza  ,lxb,lyb,lzb))*f*rab(3) )
+
+             endif ! force
           ENDDO
           ENDDO
        ENDDO
        ENDDO
     ENDDO
     ENDDO
+
 
   END SUBROUTINE integrate_pgf_product_rspace
 
