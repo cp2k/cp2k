@@ -836,7 +836,7 @@ CONTAINS
 !$OMP shared(deltap,calculate_forces,atom_of_kind,ival,npgfa,npgfb,la_max,lb_max) &
 !$OMP shared(first_sgfa,first_sgfb,sphi_a,sphi_b,maxco,maxsgf_set,dab_local) &
 !$OMP shared(ncoset,zeta,zetb,la_min,lb_min,rs_v,cube_info,l_info,eps_gvg_rspace) &
-!$OMP shared(vratio,force,ikind,jkind,igrid_level,nsgfa,nsgfb,pabt,habt,workt)
+!$OMP shared(vratio,force,ikind,jkind,igrid_level,nsgfa,nsgfb,pabt,habt,workt,my_compute_tau)
           ithread = 0
 !$        ithread = omp_get_thread_num()
           nalimit = get_limit(natom_pairs,nthread,ithread)
