@@ -23,13 +23,19 @@ MODULE dump
   USE fist_environment_types, ONLY : replica_environment_type
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
+  USE kg_environment_types, ONLY : kg_environment_type
   USE md_environment_types, ONLY : md_environment_type
   USE nose, ONLY : lnhc_parameters_type, npt_info_type
   USE util, ONLY : get_unit
   USE string_utilities, ONLY : xstring, integer_to_string
 
   PRIVATE
+
   PUBLIC :: dump_variables
+
+  INTERFACE dump_variables
+   MODULE PROCEDURE dump_fist_variables, dump_kg_variables
+  END INTERFACE
 
 !!*****
 !******************************************************************************
@@ -37,10 +43,10 @@ MODULE dump
 CONTAINS
 
 !******************************************************************************
-!!****** dump/dump_variables [1.0] *
+!!****** dump/dump_fist_variables [1.0] *
 !!
 !!   NAME
-!!     dump_variables
+!!     dump_fist_variables
 !!
 !!   FUNCTION
 !!
@@ -52,7 +58,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE dump_variables ( int_env, rep_env, dump_file_name, globenv, is_pimd )
+SUBROUTINE dump_fist_variables ( int_env, rep_env, dump_file_name, globenv, is_pimd )
 
 ! routine to dump all simulation variables periodically and at the last step.
 
@@ -172,9 +178,97 @@ SUBROUTINE dump_variables ( int_env, rep_env, dump_file_name, globenv, is_pimd )
     END IF
   END DO
 
-END SUBROUTINE dump_variables
+END SUBROUTINE dump_fist_variables
 
 !!*****
 !******************************************************************************
+!******************************************************************************
+!!****** dump/dump_kg_variables [1.0] *
+!!
+!!   NAME
+!!     dump_kg_variables
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE dump_kg_variables ( int_env, kg_env, dump_file_name, globenv )
+
+! routine to dump all simulation variables periodically and at the last step.
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( md_environment_type ), INTENT ( IN ) :: int_env
+  TYPE ( kg_environment_type ), INTENT ( IN ) :: kg_env
+  CHARACTER ( LEN = * ), INTENT ( IN ) :: dump_file_name
+  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+
+! Locals
+  TYPE ( lnhc_parameters_type ), POINTER :: nhc_part ( : )
+  TYPE ( npt_info_type ), POINTER  :: npt_info ( :, : )
+  INTEGER :: i, j, size1, size2, natoms, dmp, ia, ib
+  CHARACTER ( LEN = 80 ) :: file_name
+  CHARACTER ( LEN = 5 ) :: tag
+
+!------------------------------------------------------------------------------
+! Assigning local pointers
+  nhc_part => int_env % nhc_part
+  npt_info => int_env % npt
+
+  IF ( globenv % ionode ) THEN
+     dmp = get_unit()
+     OPEN ( UNIT = dmp, FILE = dump_file_name, STATUS = 'unknown', &
+           POSITION = 'rewind' )
+  END IF
+
+  IF (globenv % ionode) THEN
+     natoms = size(kg_env % part)
+     WRITE (dmp,*) natoms
+! position
+     DO i = 1, natoms
+        WRITE (dmp,*) kg_env % part(i) %r
+     END DO
+! hmat
+     DO i = 1, 3
+        WRITE (dmp,*) kg_env % box % hmat(i,:)
+     END DO
+! hmat_ref
+     DO i = 1, 3
+        WRITE (dmp,*) kg_env % box_ref % hmat(i,:)
+     END DO
+! velocities
+     DO i = 1, natoms
+        WRITE (dmp,*) kg_env % part(i) % v
+     END DO
+! particle thermostat postions, velocities, masses
+     size1 = SIZE ( nhc_part(1) % nvt, 1 )
+     size2 = SIZE ( nhc_part(1) % nvt, 2 )
+     WRITE ( dmp, * ) size1, size2
+     DO i = 1, size1
+       DO j = 1, size2
+         WRITE ( dmp, * ) nhc_part(1) % nvt ( i, j ) % eta
+       ENDDO
+     ENDDO
+     DO i = 1, size1
+       DO j = 1, size2
+         WRITE ( dmp, * ) nhc_part(1) % nvt ( i, j ) % v
+       ENDDO
+     ENDDO
+     DO i = 1, size1
+       DO j = 1, size2
+         WRITE ( dmp, * ) nhc_part(1) % nvt ( i, j ) % mass
+       ENDDO
+     ENDDO
+     CLOSE (dmp)
+  END IF
+
+END SUBROUTINE dump_kg_variables
+!------------------------------------------------------------------------------
 
 END MODULE dump
