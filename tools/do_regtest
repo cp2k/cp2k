@@ -183,8 +183,8 @@ function do_test_grep(){
  error_file=$3
  grep_string=$4
  grep_field=$5 
- e1=`grep "${grep_string}" ${output_old} | tail -1 | ${awk} -v f=${grep_field} '{print $f}'`
- e2=`grep "${grep_string}" ${output_new} | tail -1 | ${awk} -v f=${grep_field} '{print $f}'`
+ e1=`grep -a "${grep_string}" ${output_old} | tail -1 | ${awk} -v f=${grep_field} '{print $f}'`
+ e2=`grep -a "${grep_string}" ${output_new} | tail -1 | ${awk} -v f=${grep_field} '{print $f}'`
  big=`echo "${e1} ${e2}" | ${awk} '{v=sqrt((($1-$2)/$2)^2); if (v>1.0E-14) printf("%16.8e",v); else printf("0") ;}'`
  case ${big} in
  0)
@@ -427,7 +427,7 @@ do
         failed_tests="${failed_tests} ${output_file}"
      else 
         # *** but didn't end !?
-        grep "ENDED" ${output_file} &> /dev/null
+        grep -a "ENDED" ${output_file} &> /dev/null
         if (( $? )); then
            echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
            echo ${output_file} >> ${error_description_file}
@@ -464,10 +464,10 @@ do
      case ${this_test} in
      "NEW" )
         cp ${output_file} ${output_last} 
-        timing=`grep "CP2K   " ${output_file} | ${awk} '{printf("%6.2f",$4)}'`
+        timing=`grep -a "CP2K   " ${output_file} | ${awk} '{printf("%6.2f",$4)}'`
         this_test="${this_test} (${timing} sec)" ;;
      "OK" )
-        timing=`grep "CP2K   " ${output_file} | ${awk} '{printf("%6.2f",$4)}'`
+        timing=`grep -a "CP2K   " ${output_file} | ${awk} '{printf("%6.2f",$4)}'`
         this_test="${this_test} (${timing} sec)" ;;
      esac
      printf "%40s %20s\n" "${dir}/${input_file}" "${this_test}"
