@@ -90,7 +90,7 @@ MODULE xc
   USE xc_functionals,                  ONLY: xc_calculate_lsd,&
                                              xc_create_2nd_deriv_info,&
                                              xc_get_pot_size,&
-                                             xc_lda,&
+                                             xc_lda, xc_lsd, &
                                              xc_set
   PRIVATE
   PUBLIC :: xc_calculate_pw_new, xc_calculate_pw1, xc_calculate_pw2, &
@@ -463,7 +463,9 @@ CONTAINS
     END IF
 
     IF (.NOT.failure) THEN
+
        pot = 0._wp
+
        ! calculate functionals
        CALL xc_set ( dft_control%density_cut, dft_control%gradient_cut )
        SELECT CASE ( nspins )
@@ -726,8 +728,13 @@ END SUBROUTINE xc_prep_2nd_deriv1
 !!     12.2002 many bugfixes, split in prep and calc [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE xc_prep_2nd_deriv(rho_r,rho_g,dft_control,pw_pool,&
-       drho_r,pot,spin_pot,grad_pot,ndiag_term,error)
+  SUBROUTINE xc_prep_2nd_deriv(rho_r, rho_g, dft_control, pw_pool, &
+                               drho_r, pot, spin_pot, grad_pot, ndiag_term, &
+                               error)
+    
+    IMPLICIT NONE
+
+    ! arguments
     TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_r, rho_g
     TYPE(dft_control_type), POINTER :: dft_control
     TYPE(pw_p_type), DIMENSION(:,:),POINTER :: drho_r
@@ -738,7 +745,8 @@ END SUBROUTINE xc_prep_2nd_deriv1
     TYPE(pw_pool_type), POINTER :: pw_pool
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    LOGICAL :: failure, gradient_f, crossterms
+    ! locals
+    LOGICAL :: failure, gradient_f, crossterms, do_lsd
     CHARACTER(len=*), PARAMETER :: routineN='xc_prep_2nd_deriv',&
          routineP=moduleN//':'//routineN
     INTEGER :: handle, nspins, spin, ii, i,j,k, n(3), n_tot, idir, ipot,ntot,&
@@ -748,6 +756,8 @@ END SUBROUTINE xc_prep_2nd_deriv1
     INTEGER, DIMENSION (3,3) :: nd 
     INTEGER, DIMENSION (2,3) :: bo
     TYPE(cp_logger_type), POINTER :: logger
+
+    ! ------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
@@ -762,9 +772,16 @@ END SUBROUTINE xc_prep_2nd_deriv1
     CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
 
     IF (.NOT. failure) THEN
-       gradient_f=dft_control%gradient_functional
+!       gradient_f=dft_control%gradient_functional ! ????
+       gradient_f = ANY(dft_control%ftags(1,:))
+
        nspins=dft_control%nspins
-       crossterms=ANY(dft_control%ftags(2,:)).and.nspins>1
+
+       crossterms = ANY(dft_control%ftags(2,:))
+       IF (.NOT. dft_control%do_tddfpt_calculation) &
+            crossterms = crossterms .AND. nspins>1
+
+       do_lsd = nspins > 1 .OR. dft_control%do_tddfpt_calculation
 
        IF (gradient_f) THEN
           CPPrecondition(ASSOCIATED(rho_g),cp_failure_level,routineP,error,failure)
@@ -846,7 +863,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
     IF (.NOT.failure) THEN
        order = -2
 ! allocate potential
-       npot = xc_get_pot_size ( nspins>1, gradient_f, crossterms, order )
+       npot = xc_get_pot_size ( do_lsd, gradient_f, crossterms, order )
        ALLOCATE ( pot ( ntot, npot ), STAT = stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
@@ -855,34 +872,71 @@ END SUBROUTINE xc_prep_2nd_deriv1
        pot = 0._wp
 ! calculate functionals
        CALL xc_set ( dft_control%density_cut, dft_control%gradient_cut )
-       SELECT CASE ( nspins )
-       CASE (1)
-          IF (gradient_f) THEN
-             CALL xc_lda ( functional=dft_control%functional,&
-                  ftags=dft_control%ftags, &
-                  rho=rgrid(:,1), drho=drgrid(:,1), pot=pot, &
-                  order=order, error=error )
+
+       IF (nspins == 1) THEN
+          IF (dft_control%do_tddfpt_calculation) THEN
+             IF (gradient_f) THEN
+                CALL xc_lsd ( dft_control%functional,&
+                     dft_control%ftags, &
+                     rgrid(:,1), rgrid(:,1), &
+                     pot, order, &
+                     drho_a=drgrid(:,1), drho_b=drgrid(:,1), &
+                     error=error )
+             ELSE
+                CALL xc_lsd ( dft_control%functional,&
+                     dft_control%ftags, &
+                     rgrid(:,1), rgrid(:,1), &
+                     pot, order, &
+                     error=error )
+             END IF
           ELSE
-             CALL xc_lda ( functional=dft_control%functional,&
-                  ftags=dft_control%ftags, &
-                  rho=rgrid(:,1), pot=pot, &
-                  order=order, error=error )
+             IF (gradient_f) THEN
+                CALL xc_lda ( functional=dft_control%functional,&
+                     ftags=dft_control%ftags, &
+                     rho=rgrid(:,1), drho=drgrid(:,1), pot=pot, &
+                     order=order, error=error )
+             ELSE
+                CALL xc_lda ( functional=dft_control%functional,&
+                     ftags=dft_control%ftags, &
+                     rho=rgrid(:,1), pot=pot, &
+                     order=order, error=error )
+             END IF
           END IF
-       CASE (2)
+       ELSE ! nspins == 2
           CALL cp_unimplemented_error(fromWhere=routineP,&
                message='lsd not yet implemented '//&
                CPSourceFileRef,&
                error=error)
-       CASE default
-          CALL cp_unimplemented_error(fromWhere=routineP,&
-               message='ONLY 1 or 2 spin supported '//&
-               CPSourceFileRef,&
-               error=error)
-       END SELECT
+       END IF
+!TC       SELECT CASE ( nspins )
+!TC       CASE (1)
+!TC          IF (gradient_f) THEN
+!TC             CALL xc_lda ( functional=dft_control%functional,&
+!TC                  ftags=dft_control%ftags, &
+!TC                  rho=rgrid(:,1), drho=drgrid(:,1), pot=pot, &
+!TC                  order=order, error=error )
+!TC          ELSE
+!TC             CALL xc_lda ( functional=dft_control%functional,&
+!TC                  ftags=dft_control%ftags, &
+!TC                  rho=rgrid(:,1), pot=pot, &
+!TC                  order=order, error=error )
+!TC          END IF
+!TC       CASE (2)
+!TC          CALL cp_unimplemented_error(fromWhere=routineP,&
+!TC               message='lsd not yet implemented '//&
+!TC               CPSourceFileRef,&
+!TC               error=error)
+!TC       CASE default
+!TC          CALL cp_unimplemented_error(fromWhere=routineP,&
+!TC               message='ONLY 1 or 2 spin supported '//&
+!TC               CPSourceFileRef,&
+!TC               error=error)
+!TC       END SELECT
 
-       CALL xc_create_2nd_deriv_info(lsd=nspins>1,gradient=gradient_f,&
-            crossterms=crossterms,spin_pot=spin_pot,grad_pot=grad_pot,&
-            ndiag_term=ndiag_term,error=error)
+       CALL xc_create_2nd_deriv_info(lsd=do_lsd, gradient=gradient_f,&
+            crossterms=crossterms, spin_pot=spin_pot, grad_pot=grad_pot,&
+            ndiag_term=ndiag_term, error=error)
+
     END IF
 
 ! dealloc rgrid

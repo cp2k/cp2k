@@ -66,7 +66,7 @@ MODULE xc_functionals
             ol1, ol2, llp, ke_pw86, ke_pw91, lc, t92, &
             lyp, pade, xalpha, thomas_fermi, tfw, vwn, perdew_wang, &
             perdew_zunger, perdew86, cs1
-  PUBLIC :: xc_get_functional, xc_print_info, xc_set, xc_lda, &
+  PUBLIC :: xc_get_functional, xc_print_info, xc_set, xc_lda, xc_lsd, &
             xc_get_pot_size, xc_create_2nd_deriv_info, xc_calculate_lsd
 
   REAL ( dbl ), PARAMETER :: default_cutoff = 1.0E-12_dbl
@@ -226,6 +226,81 @@ CONTAINS
      END IF
 
   END SUBROUTINE xc_lda
+
+!******************************************************************************
+
+  SUBROUTINE xc_lsd ( functional, ftags, &
+                      rho_a, rho_b, pot, order, &
+                      drho_a, drho_b, error )
+
+     IMPLICIT NONE
+
+     ! arguments
+     CHARACTER (LEN=*), DIMENSION ( 3 ), INTENT(IN) :: functional
+     LOGICAL, DIMENSION ( 2, 3 ), INTENT(IN) :: ftags
+     REAL ( dbl ), DIMENSION (:), INTENT(in) :: rho_a, rho_b
+     REAL ( dbl ), DIMENSION (:,:), INTENT(INOUT) :: pot
+     REAL ( dbl ), DIMENSION (:), INTENT(in), OPTIONAL :: drho_a, drho_b
+     INTEGER, INTENT(IN) :: order
+     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+
+     ! locals
+     LOGICAL :: gradient_correction, cross_term, docalc ( 3 )
+     REAL ( dbl ), DIMENSION (:,:), ALLOCATABLE :: locpot
+     INTEGER :: ifun, i, ierr, np, mp, lp, lpmax, ind ( 100 )
+
+     CHARACTER(len=*), PARAMETER :: routineN='xc_lsd',&
+                                    routineP=moduleN//':'//routineN
+
+     ! ------------------------------------------------------------
+
+     gradient_correction = ANY ( ftags ( 1, : ) )
+     cross_term = ANY ( ftags ( 2, : ) )
+
+     CALL dscal ( size(pot), 0.0_dbl, pot, 1 ) !     pot = 0._dbl
+
+     IF ( .NOT. gradient_correction ) THEN
+        
+        IF (xc_get_pot_size(.TRUE., gradient_correction, cross_term, order) > SIZE(pot,2)) &
+             CALL stop_program ( routineP, "Size of array POT too small" )
+        
+        CALL xc_calculate_lsd ( functional(1), rho_a, rho_b, pot, order, error=error )
+        CALL xc_calculate_lsd ( functional(2), rho_a, rho_b, pot, order, error=error )
+        CALL xc_calculate_lsd ( functional(3), rho_a, rho_b, pot, order, error=error )
+
+     ELSE
+        CPPreconditionNoFail(PRESENT(drho_a),cp_failure_level,routineP,error)
+        CPPreconditionNoFail(PRESENT(drho_b),cp_failure_level,routineP,error)
+        
+        docalc ( : ) = ( INDEX ( functional(:), "NONE" ) == 0 )
+        
+        np = SIZE ( pot, 1 )
+        mp = SIZE ( pot, 2 )
+        
+        lpmax = xc_get_pot_size ( .TRUE., gradient_correction, cross_term, order )
+        
+        IF ( lpmax > mp ) CALL stop_program ( routineP, "Size of array POT too small" )
+        
+        ALLOCATE ( locpot ( np, mp ), STAT = ierr )
+        IF ( ierr /= 0 ) CALL stop_memory ( routineP, "locpot", np*mp )
+        DO ifun = 1, 3
+           IF ( docalc ( ifun ) ) THEN
+              lp = xc_get_pot_size ( .TRUE., ftags(1,ifun), ftags(2,ifun), order )
+              locpot(:,1:lp) = 0._dbl
+              CALL xc_calculate_lsd ( functional(ifun),&
+                   rho_a, rho_b, locpot, order, drhoa=drho_a, drhob=drho_b, error=error )
+              CALL xc_get_order ( .TRUE., ftags(1,ifun), ftags(2,ifun), &
+                   gradient_correction, cross_term, order, ind(1:lp) )
+              DO i = 1, lp
+                 CALL daxpy ( np, 1._dbl, locpot(1,i), 1, pot(1,ind(i)), 1 )
+              END DO
+           END IF
+        END DO
+        DEALLOCATE ( locpot, STAT = ierr )
+        IF ( ierr /= 0 ) CALL stop_memory ( "xc_lda", "locpot" )
+     END IF
+
+  END SUBROUTINE xc_lsd
 
 !******************************************************************************
 
