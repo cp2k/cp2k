@@ -20,8 +20,8 @@
 
 MODULE fist_main
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE atoms_input,                     ONLY: read_atoms_input, &
-                                             read_md_restart, &
+  USE atoms_input,                     ONLY: read_atoms_input,&
+                                             read_md_restart,&
                                              read_pimd_atoms_input
   USE cntl_input,                      ONLY: read_cntl_section
   USE convert_units,                   ONLY: convert
@@ -32,7 +32,7 @@ MODULE fist_main
   USE dump,                            ONLY: dump_variables
   USE ewald_parameters_types,          ONLY: ewald_parameters_type
   USE ewalds,                          ONLY: ewald_print
-  USE extended_system_dynamics,        ONLY: lnhc_parameters_type, &
+  USE extended_system_dynamics,        ONLY: lnhc_parameters_type,&
                                              npt_info_type
   USE extended_system_types,           ONLY: extended_system_type
   USE fist_debug,                      ONLY: fist_debug_control => debug_control
@@ -49,8 +49,8 @@ MODULE fist_main
   USE force_fields,                    ONLY: read_force_field_section
   USE global_types,                    ONLY: global_environment_type
   USE header,                          ONLY: fist_header
-  USE initialize_extended_types,       ONLY: initialize_nhc_forces,&
-                                             initialize_nhc_baro,&
+  USE initialize_extended_types,       ONLY: initialize_nhc_baro,&
+                                             initialize_nhc_forces,&
                                              initialize_nhc_part,&
                                              initialize_npt_type
   USE initialize_molecule_types,       ONLY: initialize_molecule_type,&
@@ -69,10 +69,10 @@ MODULE fist_main
                                              read_md_section,&
                                              simulation_parameters_type,&
                                              virial_type
-  USE md_environment_types,            ONLY: init_md_env,&
+  USE md_environment_types,            ONLY: destroy_md_env,&
+                                             init_md_env,&
                                              md_environment_type,&
                                              set_md_env,&
-                                             destroy_md_env, &
                                              zero_virial
   USE md_fist_energies,                ONLY: md_energy_fist,&
                                              set_fist_energies,&
@@ -89,10 +89,10 @@ MODULE fist_main
   USE physcon,                         ONLY: boltzmann,&
                                              h_planck
   USE read_pimd,                       ONLY: read_pimd_section
-  USE simulation_cell,                 ONLY: get_hinv,&
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_hinv,&
                                              read_cell,&
-                                             write_cell,&
-                                             cell_type
+                                             write_cell
   USE string_utilities,                ONLY: integer_to_string,&
                                              xstring
   USE structure_types,                 ONLY: init_structure_type,&
@@ -532,7 +532,8 @@ SUBROUTINE control_work ( globenv, units, simpar, fist_env, md_env, &
   ENDDO
 
 ! create the force environment
-  CALL force_env_create ( force_env, fist_env = fist_env )
+  CALL force_env_create ( force_env, fist_env = fist_env, &
+       para_env=globenv%para_env)
 
 ! set the integrator environment
   CALL init_md_env ( md_env, globenv%para_env )

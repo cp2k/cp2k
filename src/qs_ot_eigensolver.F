@@ -21,23 +21,23 @@
 
 MODULE qs_ot_eigensolver
 ! *****************************************************************************
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_release
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: wp => dp
   USE preconditioner,                  ONLY: preconditioner_in_use,&
                                              preconditioner_type
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_type, &
-                                             cp_fm_struct_create, &
-                                             cp_fm_struct_release
-  USE cp_fm_types,                     ONLY: cp_fm_create, &
-                                             cp_fm_release
   USE qs_blacs,                        ONLY: blacs_column_copy,&
                                              blacs_make_basis,&
                                              copy_blacs_to_blacs_matrix,&
-                                             cp_fm_scale_and_add,&
                                              cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert,&
                                              cp_fm_gemm,&
                                              cp_fm_get_info,&
+                                             cp_fm_scale_and_add,&
                                              cp_fm_set_all,&
                                              cp_fm_symm,&
                                              cp_fm_trace,&
@@ -75,8 +75,8 @@ CONTAINS
 ! on output c spans the subspace
 ! *****************************************************************************
   SUBROUTINE ot_eigensolver(matrix_h,matrix_s,matrix_orthogonal_space, &
-                                 matrix_c,preconditioner,eps_gradient, &
-                                                       iter_max,globenv)
+                            matrix_c,preconditioner,eps_gradient, &
+                            iter_max,globenv,size_ortho_space)
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(cp_full_matrix_type), POINTER          :: matrix_c
@@ -102,6 +102,7 @@ CONTAINS
                                                  matrix_buf1_ortho, &
                                                  matrix_buf2_ortho
     TYPE(cp_fm_struct_type), POINTER          :: fm_struct_tmp
+    INTEGER, OPTIONAL                         :: size_ortho_space
 
     
 !   ---------------------------------------------------------------------------
@@ -129,6 +130,7 @@ CONTAINS
     IF (ortho) THEN
        CALL cp_fm_get_info(matrix_orthogonal_space,&
                                   ncol_global=ortho_space_k)
+       IF (PRESENT(size_ortho_space)) ortho_space_k=size_ortho_space
        qs_ot_env(1)%settings%ortho_k=ortho_space_k+k
     ELSE
        qs_ot_env(1)%settings%ortho_k=k

@@ -13,6 +13,7 @@ OBJECTS_GENERIC =\
  atom_types.o\
  atom_util.o\
  atomic_kind_types.o\
+ atomic_kind_list_types.o\
  atomic_kinds.o\
  atoms_input.o\
  band.o\
@@ -46,6 +47,7 @@ OBJECTS_GENERIC =\
  cp_cfm_types.o\
  cp_fm_utils.o\
  cp_fm_vect.o\
+ cp_fragment_types.o\
  cp_lbfgs.o\
  cp_lbfgs_optimizer_e_rosen.o\
  cp_lbfgs_optimizer_gerd_f.o\
@@ -149,6 +151,8 @@ OBJECTS_GENERIC =\
  message_passing.o\
  method_specifications.o\
  mol_force.o\
+ mol_kind_list_types.o\
+ mol_struct_list_types.o\
  molecule_input.o\
  molecule_types.o\
  mulliken.o\
@@ -178,6 +182,7 @@ OBJECTS_GENERIC =\
  parallel_include.o\
  parser.o\
  particle_lists.o\
+ particle_list_types.o\
  particle_types.o\
  periodic_table.o\
  physcon.o\

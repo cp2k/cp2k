@@ -21,7 +21,7 @@ MODULE kg_main
                                              read_atomic_kind_set,&
                                              write_atomic_kind_set,&
                                              write_gto_basis_sets
-  USE atoms_input,                     ONLY: read_atoms_input, &
+  USE atoms_input,                     ONLY: read_atoms_input,&
                                              read_md_restart
   USE cntl_input,                      ONLY: read_cntl_section
   USE coefficient_types,               ONLY: coeff_type
@@ -32,7 +32,7 @@ MODULE kg_main
                                              write_dft_control,&
                                              write_kg_control
   USE dump,                            ONLY: dump_variables
-  USE extended_system_dynamics,        ONLY: lnhc_parameters_type, &
+  USE extended_system_dynamics,        ONLY: lnhc_parameters_type,&
                                              npt_info_type
   USE extended_system_types,           ONLY: extended_system_type
   USE force_control,                   ONLY: force_env_calculate_force,&
@@ -41,9 +41,9 @@ MODULE kg_main
                                              force_env_type
   USE force_fields,                    ONLY: read_force_field_section
   USE global_types,                    ONLY: global_environment_type
-  USE initialize_extended_types,       ONLY: initialize_nhc_forces,&
-                                             initialize_nhc_baro,&
+  USE initialize_extended_types,       ONLY: initialize_nhc_baro,&
                                              initialize_nhc_coef,&
+                                             initialize_nhc_forces,&
                                              initialize_nhc_part,&
                                              initialize_npt_type
   USE initialize_molecule_types,       ONLY: initialize_molecule_type
@@ -72,11 +72,11 @@ MODULE kg_main
                                              read_md_section,&
                                              simulation_parameters_type,&
                                              virial_type
-  USE md_environment_types,            ONLY: init_md_env,&
+  USE md_environment_types,            ONLY: destroy_md_env,&
+                                             init_md_env,&
                                              md_environment_type,&
                                              set_md_env,&
-                                             zero_virial, &
-                                             destroy_md_env
+                                             zero_virial
   USE md_kg_energies,                  ONLY: md_energy_kg,&
                                              set_kg_energies,&
                                              set_kg_energies_param
@@ -97,8 +97,8 @@ MODULE kg_main
   USE qs_interactions,                 ONLY: init_interaction_radii
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_hinv,&
-                                             init_cell, &
-                                             read_cell, &
+                                             init_cell,&
+                                             read_cell,&
                                              write_cell
   USE string_utilities,                ONLY: integer_to_string,&
                                              xstring
@@ -499,7 +499,8 @@ SUBROUTINE control_work ( globenv, units, simpar, kg_env, md_env, &
   CALL set_structure_type ( struc=struc(1), kg_env=kg_env )
 
 ! create the force environment
-  CALL force_env_create ( force_env, kg_env=kg_env )
+  CALL force_env_create ( force_env, kg_env=kg_env, &
+       para_env= globenv%para_env )
 
 ! set the integrator environment
   CALL init_md_env ( md_env , globenv % para_env )

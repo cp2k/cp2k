@@ -21,7 +21,6 @@
 !******************************************************************************
 
 MODULE particle_types
-
   USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
                                              atomic_kind_type,&
                                              get_atomic_kind,&
@@ -34,7 +33,8 @@ MODULE particle_types
   USE machine,                         ONLY: m_flush
   USE memory_utilities,                ONLY: reallocate
   USE periodic_table,                  ONLY: ptable
-  USE physcon,                         ONLY: massunit
+  USE physcon,                         ONLY: angstrom,&
+                                             massunit
   USE qs_parser,                       ONLY: finish_parser,&
                                              read_object,&
                                              search_object,&
@@ -49,10 +49,8 @@ MODULE particle_types
   USE string_utilities,                ONLY: integer_to_string,&
                                              string_to_integer,&
                                              uppercase
-  USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-
   IMPLICIT NONE
 
   PRIVATE
@@ -75,8 +73,7 @@ MODULE particle_types
 
 ! *** Public data types ***
 
-  PUBLIC :: particle_type,&
-            particle_1d_a_type
+  PUBLIC :: particle_type
 
 ! *** Public subroutines ***
 
@@ -91,35 +88,6 @@ MODULE particle_types
 
 !!***
 ! *****************************************************************************
-
-!!****s* particle_types/particle_1d_a_type [1.0] *
-!!
-!!   NAME
-!!     particle_1d_a_type
-!!
-!!   FUNCTION
-!!     represent a pointed to a 1d array of particles (to have arrays of
-!!     1d arrays)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - particle_set: the 1d array of particles
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!   SOURCE
-  !***************************************************************************
-  TYPE particle_1d_a_type
-     TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
-  END TYPE particle_1d_a_type
-!!***
-  !****************************************************************************
 
 CONTAINS
 
@@ -522,11 +490,11 @@ CONTAINS
 !  FORMAT   CONTENT                                    UNITS x,v,f
 !  XMOL     POS, VEL, FORCE, POS_VEL, POS_VEL_FORCE          Angstrom, a.u., a.u. !hmmmm
 ! *****************************************************************************
-  SUBROUTINE write_particle_coordinates(particle_set,iunit,format,content,title)
+  SUBROUTINE write_particle_coordinates(particle_set,iunit,FORMAT,content,title)
     TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
     INTEGER                                    :: iunit
     LOGICAL                                    :: ionode
-    CHARACTER(LEN=*)                                :: format
+    CHARACTER(LEN=*)                                :: FORMAT
     CHARACTER(LEN=*)                                :: content
     CHARACTER(LEN=*)                                :: title
 
@@ -535,10 +503,10 @@ CONTAINS
  
   natom = SIZE(particle_set)
 
-  SELECT CASE (TRIM(format))
+  SELECT CASE (TRIM(FORMAT))
   CASE ("XMOL")
-       write(iunit,'(I8)') natom
-       write(iunit,'(A)')  TRIM(title)
+       WRITE(iunit,'(I8)') natom
+       WRITE(iunit,'(A)')  TRIM(title)
        DO iatom=1,natom
           CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                                element_symbol=element_symbol)

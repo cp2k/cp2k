@@ -1950,7 +1950,7 @@ CONTAINS
     END TYPE
     TYPE (evals_p_type), DIMENSION(:), POINTER :: unoccupied_evals
     TYPE(real_matrix_type), POINTER :: pfull
-    INTEGER :: ispin,n, output_unit, stat
+    INTEGER :: ispin,n, output_unit, stat, nmo
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=200) :: file_name
     INTEGER            :: file_unit,ivector,nao,nlumos, homo
@@ -2156,7 +2156,7 @@ CONTAINS
              IF (globenv%ionode) WRITE(globenv%scr,*) " "
              IF (globenv%ionode) WRITE(globenv%scr,*) " Lowest Eigenvalues of the unoccupied subspace spin ",ispin
              IF (globenv%ionode) WRITE(globenv%scr,*) " -----------------------------------------------------"
-             CALL get_mo_set(mo_set=c(ispin)%mo_set,eigenvectors=mo_eigenvectors,homo=homo,nao=nao)
+             CALL get_mo_set(mo_set=c(ispin)%mo_set,eigenvectors=mo_eigenvectors,homo=homo,nao=nao,nmo=nmo)
              CALL cp_fm_get_info(mo_eigenvectors, nrow_global=n)
              nlumos=MAX(1,MIN(globenv%print%nlumos,nao-homo))
              ALLOCATE(unoccupied_evals(ispin)%evals(nlumos))
@@ -2171,7 +2171,8 @@ CONTAINS
                   matrix_orthogonal_space=mo_eigenvectors, &
                   eps_gradient=scf_control%eps_lumos, &
                   preconditioner=scf_env%ot_preconditioner, &
-                  iter_max=scf_control%max_iter_lumos,globenv=globenv)
+                  iter_max=scf_control%max_iter_lumos,globenv=globenv,&
+                  size_ortho_space=homo)
 
              CALL calculate_subspace_eigenvalues(unoccupied_orbs(ispin)%matrix,ks_rmpv(ispin)%matrix,&
                   unoccupied_evals(ispin)%evals, &

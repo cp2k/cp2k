@@ -24,22 +24,7 @@
 !******************************************************************************
 
 MODULE dft_types
-
   USE band,                            ONLY: band_structure_type
-  USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp => dp,&
-                                             wp_size => dp_size
-  USE pw_grid_types,                   ONLY: pw_grid_type
-  USE qs_parser,                       ONLY: finish_parser,&
-                                             read_object,&
-                                             start_parser,&
-                                             stop_parser,&
-                                             test_object
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
-  USE xc_functionals,                  ONLY: xc_get_functional,&
-                                             xc_print_info,&
-                                             xc_set
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -60,6 +45,20 @@ MODULE dft_types
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp => dp,&
+                                             wp_size => dp_size
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE qs_parser,                       ONLY: finish_parser,&
+                                             read_object,&
+                                             start_parser,&
+                                             stop_parser,&
+                                             test_object
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE xc_functionals,                  ONLY: xc_get_functional,&
+                                             xc_print_info,&
+                                             xc_set
   IMPLICIT NONE
 
   PRIVATE
@@ -835,9 +834,9 @@ CONTAINS
             CALL read_object(string,lower_to_upper=.TRUE.)
             SELECT CASE (string)
             CASE ("DISTRIBUTED")
-                 qs_control%rs_distributed = .true.
+                 qs_control%rs_distributed = .TRUE.
             CASE ("REPLICATED")
-                 qs_control%rs_distributed = .false.
+                 qs_control%rs_distributed = .FALSE.
             CASE DEFAULT
                 CALL stop_parser(routine,"Invalid method <"//TRIM(string)//&
                                          "> specified for RS_GRID")
@@ -1087,10 +1086,10 @@ CONTAINS
 
       tmpStr=xc_get_rho_smooth_label(dft_control%xc_rho_smooth_id)
       WRITE ( output_unit, '( A, T61, A )' ) &
-           " DFT| XC density smoothing ",adjustr(tmpStr)
+           " DFT| XC density smoothing ",ADJUSTR(tmpStr)
       tmpStr=xc_get_deriv_method_label(dft_control%xc_deriv_method_id)
       WRITE ( output_unit, '( A, T61, A )' ) &
-           " DFT| XC derivatives ",adjustr(tmpStr)
+           " DFT| XC derivatives ",ADJUSTR(tmpStr)
       IF ( dft_control % derive_function_rho )  &
            WRITE ( output_unit, '( A, T79, A )' ) &
            " DFT| Density function derivative ","ON"
@@ -1294,7 +1293,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  !!****f* dft_types/xc_get_rho_smooth_label [1.0] *
+!!****f* dft_types/xc_get_rho_smooth_label [1.0] *
 !!
 !!   NAME
 !!     xc_get_rho_smooth_label
@@ -1318,15 +1317,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
 FUNCTION xc_get_rho_smooth_label(xc_rho_smooth_id,error) RESULT(res)
-  INTEGER, intent(in) :: xc_rho_smooth_id
+  INTEGER, INTENT(in) :: xc_rho_smooth_id
   CHARACTER(len=10) :: res
-  type(cp_error_type), optional, intent(inout) :: error
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  character(len=*), parameter :: routineN='xc_get_rho_smooth_label',&
+  CHARACTER(len=*), PARAMETER :: routineN='xc_get_rho_smooth_label',&
         routineP=moduleN//':'//routineN
   LOGICAL :: failure
 
-  failure=.false.
+  failure=.FALSE.
   
   SELECT CASE(xc_rho_smooth_id)
   CASE (xc_rho_no_smooth)
@@ -1368,15 +1367,15 @@ END FUNCTION xc_get_rho_smooth_label
 !!
 !!*** **********************************************************************
 FUNCTION xc_get_deriv_method_label(xc_deriv_method_id,error) RESULT(res)
-  INTEGER, intent(in) :: xc_deriv_method_id
+  INTEGER, INTENT(in) :: xc_deriv_method_id
   CHARACTER(len=20) :: res
-  type(cp_error_type), optional, intent(inout) :: error
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  character(len=*), parameter :: routineN='xc_get_deriv_method_label',&
+  CHARACTER(len=*), PARAMETER :: routineN='xc_get_deriv_method_label',&
         routineP=moduleN//':'//routineN
-  logical :: failure
+  LOGICAL :: failure
   
-  failure=.false.
+  failure=.FALSE.
   
   SELECT CASE(xc_deriv_method_id)
   CASE (xc_deriv_pw)

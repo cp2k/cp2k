@@ -34,7 +34,7 @@ MODULE cp_para_types
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_para_types'
 
-  PUBLIC :: cp_para_env_type, cp_blacs_env_type
+  PUBLIC :: cp_para_env_type, cp_blacs_env_type, cp_para_env_p_type
 !***
 !****************************************************************************
 
@@ -74,6 +74,34 @@ MODULE cp_para_types
   END TYPE cp_para_env_type
 !!***
 !****************************************************************************
+
+!!****s* cp_para_types/cp_para_env_p_type [1.0] *
+!!
+!!   NAME
+!!     cp_para_env_p_type
+!!
+!!   FUNCTION
+!!     represent a pointer to a para env (to build arrays)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     - para_env: the pointer to the para_env
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2003 created [fawzi]
+!!
+!!   SOURCE
+  !***************************************************************************
+  TYPE cp_para_env_p_type
+     TYPE(cp_para_env_type), POINTER :: para_env
+  END TYPE cp_para_env_p_type
+!!***
+  !****************************************************************************
 
 !!****s* cp_para_types/cp_para_cart_type [1.0] *
 !!

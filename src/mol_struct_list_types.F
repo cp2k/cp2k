@@ -28,15 +28,27 @@
 !!   SOURCE
 !****************************************************************************
 MODULE mol_struct_list_types
-  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_logger_type
-  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_a_l, cp_error_check
-  USE kinds, ONLY: wp=>dp
-  USE global_types, ONLY: global_environment_type
-  USE timings, ONLY: timeset, timestop
-  use molecule_types, only: molecule_structure_type
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_check,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  USE molecule_types,                  ONLY: molecule_structure_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
   PRIVATE
 
@@ -82,7 +94,7 @@ MODULE mol_struct_list_types
   TYPE mol_struct_list_type
      INTEGER :: id_nr, ref_count, n_els
      LOGICAL :: owns_els
-     type(molecule_structure_type), DIMENSION(:), POINTER :: els
+     TYPE(molecule_structure_type), DIMENSION(:), POINTER :: els
   END TYPE mol_struct_list_type
 !!***
 !****************************************************************************
@@ -122,6 +134,17 @@ CONTAINS
 !!   NAME
 !!     mol_struct_list_create
 !!
+!!   SYNOPSIS
+!!     Subroutine mol_struct_list_create(list, els_ptr, owns_els, n_els,&
+!!         error)
+!!       Type(mol_struct_list_type), Pointer, Optional:: list
+!!       Type(molecule_structure_type), Dimension(:), Pointer, Optional::&
+!!         els_ptr
+!!       Logical, Intent (IN), Optional:: owns_els
+!!       Integer, Intent (IN), Optional:: n_els
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine mol_struct_list_create
+!!
 !!   FUNCTION
 !!     creates a list
 !!
@@ -149,7 +172,7 @@ CONTAINS
 SUBROUTINE mol_struct_list_create(list, els_ptr, &
      owns_els, n_els, error)
   TYPE(mol_struct_list_type), POINTER, OPTIONAL :: list
-  type(molecule_structure_type), DIMENSION(:), POINTER, OPTIONAL :: els_ptr
+  TYPE(molecule_structure_type), DIMENSION(:), POINTER, OPTIONAL :: els_ptr
   LOGICAL, INTENT(in), OPTIONAL :: owns_els
   INTEGER, INTENT(in), OPTIONAL :: n_els
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -196,6 +219,12 @@ END SUBROUTINE mol_struct_list_create
 !!   NAME
 !!     mol_struct_list_retain
 !!
+!!   SYNOPSIS
+!!     Subroutine mol_struct_list_retain(list, error)
+!!       Type(mol_struct_list_type), Pointer:: list
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine mol_struct_list_retain
+!!
 !!   FUNCTION
 !!     retains a list (see doc/ReferenceCounting.html)
 !!
@@ -236,6 +265,12 @@ END SUBROUTINE mol_struct_list_retain
 !!
 !!   NAME
 !!     mol_struct_list_release
+!!
+!!   SYNOPSIS
+!!     Subroutine mol_struct_list_release(list, error)
+!!       Type(mol_struct_list_type), Pointer:: list
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine mol_struct_list_release
 !!
 !!   FUNCTION
 !!     releases a  list (see doc/ReferenceCounting.html)
