@@ -7,6 +7,7 @@ OBJECTS_GENERIC =\
  ai_overlap3.o\
  ai_overlap_new.o\
  ai_overlap_ppl.o\
+ ai_spherical_gaussian.o\
  ai_verfc.o\
  ao_types.o\
  atom_module.o\
@@ -232,6 +233,7 @@ OBJECTS_GENERIC =\
  slater_koster_test.o\
  slater_koster_util.o\
  sparse_matrix_types.o\
+ spherical_gaussians.o\
  spherical_harmonics.o\
  splines.o\
  spme.o\

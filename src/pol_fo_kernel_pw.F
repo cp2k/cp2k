@@ -219,7 +219,8 @@ SUBROUTINE force_fo_kernel ( dg_part, pw, rho0, part, box, grid_s,  &
              DO i = 1, 3
                n = 0
                n ( i ) = 1
-               CALL pw_derive ( drhodk1_g % pw, dpotk1_g ( i ) % pw, n )
+               CALL pw_copy ( drhodk1_g % pw, dpotk1_g ( i ) % pw )
+               CALL pw_derive ( dpotk1_g ( i ) % pw, n )
              END DO
 
              CALL coeff_deallocate ( drhodk1_g )

@@ -45,7 +45,8 @@ MODULE xc_functionals
             ol1, ol2, llp, ke_pw86, ke_pw91, lc, t92, &
             lyp, pade, xalpha, thomas_fermi, tfw, vwn, perdew_wang, &
             perdew_zunger, perdew86, cs1
-  PUBLIC :: xc_get_functional, xc_print_info, xc_set, xc_lda
+  PUBLIC :: xc_get_functional, xc_print_info, xc_set, xc_lda, &
+            xc_get_pot_size
 
   REAL ( dbl ), PARAMETER :: default_cutoff = 1.0E-12_dbl
   REAL ( dbl ), PARAMETER :: default_g_cutoff = 1.0E-10_dbl
@@ -116,8 +117,6 @@ CONTAINS
      INTEGER, DIMENSION (:), INTENT ( OUT ) :: index
 
      IF ( .NOT. LSD ) THEN
-        IF ( ct .OR. ct_all ) CALL stop_program ( "xc_get_order", &
-                                                  "No crossterms for LDA" )
         IF ( gc_all .AND. .NOT. gc ) THEN
            index ( 1 ) = 1
            IF ( order >= 1 ) index ( 2 ) = 2
@@ -155,8 +154,8 @@ CONTAINS
      INTEGER :: ifun, i, ierr, np, mp, lp, lpmax, ind ( 100 )
 
      gradient_correction = ANY ( ftags ( 1, : ) )
-     cross_term = ANY ( ftags ( 2, : ) )
-     IF ( cross_term ) CALL stop_program ( "xc_lda", "No crossterms in LDA" )
+     ! no crossterms in unpolarised spin calculations
+     cross_term = .FALSE.
 
      pot = 0._dbl
      IF ( .NOT. gradient_correction ) THEN
@@ -166,7 +165,7 @@ CONTAINS
        CALL xc_calculate_lda ( functional(2), rho, drho, pot, order )
        CALL xc_calculate_lda ( functional(3), rho, drho, pot, order )
      ELSE
-       docalc ( : ) = ( INDEX ( functional(:), "NONE" ) /= 0 )
+       docalc ( : ) = ( INDEX ( functional(:), "NONE" ) == 0 )
        np = SIZE ( pot, 1 )
        mp = SIZE ( pot, 2 )
        lpmax = xc_get_pot_size ( .FALSE., .TRUE., cross_term, order )
@@ -234,7 +233,7 @@ CONTAINS
         CALL optx ( rho, drho, pot, order )
 !correlation functional
      CASE ( "PZ" )
-        CALL perdew_zunger ( "DMC", cutoff )
+        CALL perdew_zunger ( "ORIG", cutoff )
         CALL perdew_zunger ( rho, pot, order )
      CASE ( "PW" )
         CALL perdew_wang ( "PWO", cutoff )
@@ -436,6 +435,7 @@ CONTAINS
            functional ( 2 ) = "PERDEW86"
            ftags ( 1, 1 ) = GRADIENT_FUNCTIONAL
            ftags ( 1, 2 ) = GRADIENT_FUNCTIONAL
+           ftags ( 2, 2 ) = CROSS_TERM
         CASE ( "BLYP", "BECKE-LEE-YANG-PARR" )
            functional ( 1 ) = "BECKE88"
            functional ( 2 ) = "LYP"
@@ -447,6 +447,13 @@ CONTAINS
            functional ( 2 ) = "PBEC"
            ftags ( 1, 1 ) = GRADIENT_FUNCTIONAL
            ftags ( 1, 2 ) = GRADIENT_FUNCTIONAL
+           ftags ( 2, 2 ) = CROSS_TERM
+        CASE ( "OLYP" )
+           functional ( 1 ) = "OPTX"
+           functional ( 2 ) = "LYP"
+           ftags ( 1, 1 ) = GRADIENT_FUNCTIONAL
+           ftags ( 1, 2 ) = GRADIENT_FUNCTIONAL
+           ftags ( 2, 2 ) = CROSS_TERM
         END SELECT
 
      CASE ( 1 )
@@ -567,33 +574,45 @@ CONTAINS
 
 !******************************************************************************
 
-  SUBROUTINE xc_print_info ( iunit, functional )
+  SUBROUTINE xc_print_info ( iunit, functional, lsd )
 
     IMPLICIT NONE
     INTEGER, INTENT ( IN ) :: iunit
     CHARACTER ( LEN=* ), DIMENSION ( 3 ), INTENT ( IN ) :: functional
+    LOGICAL, INTENT ( IN ) :: lsd
 
     CHARACTER (LEN=80), DIMENSION ( 3 ) :: reference
     CHARACTER (LEN=80), DIMENSION ( 3 ) :: shortform
+    CHARACTER (LEN=80) :: not_tested
+    LOGICAL, DIMENSION ( 3 ) :: tested
+
+    tested = .FALSE.
+    not_tested = " *** WARNING : THIS FUNCTIONAL IS NOT FULLY TESTED ***"
 
     SELECT CASE (functional(1))
     CASE ( "NONE" )
       reference(1)="NONE" 
       shortform(1)="NONE"
     CASE ( "SLATER" )
+      CALL xalpha ( cutoff, xalpha_coefficient )
       CALL xalpha ( reference(1), shortform(1) )
+      IF ( .NOT. LSD ) tested(1) = .TRUE.
     CASE ( "BECKE88" )
       CALL b88 ( reference(1), shortform(1) )
+      IF ( .NOT. LSD ) tested(1) = .TRUE.
     CASE ( "X_PW86" )
       CALL x_pw86 ( reference(1), shortform(1) )
     CASE ( "X_PW91" )
       CALL x_pw91 ( reference(1), shortform(1) )
     CASE ( "PBEX" )
       CALL pbex ( reference(1), shortform(1) )
+      IF ( .NOT. LSD ) tested(1) = .TRUE.
     CASE ( "REVPBEX" )
       CALL revpbex ( reference(1), shortform(1) )
+      IF ( .NOT. LSD ) tested(1) = .TRUE.
     CASE ( "OPTX" )
       CALL optx ( reference(1), shortform(1) )
+      IF ( .NOT. LSD ) tested(1) = .TRUE.
     CASE DEFAULT
       reference(1)="UNKNOWN" 
       shortform(1)="UNKNOWN"
@@ -605,8 +624,10 @@ CONTAINS
       shortform(2)="NONE"
     CASE ( "PADE" )
       CALL pade ( reference(2), shortform(2) )
+      IF ( .NOT. LSD ) tested(2) = .TRUE.
     CASE ( "VWN" )
       CALL vwn ( reference(2), shortform(2) )
+      IF ( .NOT. LSD ) tested(2) = .TRUE.
     CASE ( "PW" )
       CALL perdew_wang ( reference(2), shortform(2) )
     CASE ( "PZ" )
@@ -615,8 +636,10 @@ CONTAINS
       CALL cs1 ( reference(2), shortform(2) )
     CASE ( "LYP" )
       CALL lyp ( reference(2), shortform(2) )
+      IF ( .NOT. LSD ) tested(2) = .TRUE.
     CASE ( "PERDEW86" )
       CALL perdew86 ( reference(2), shortform(2) )
+      IF ( .NOT. LSD ) tested(2) = .TRUE.
     CASE DEFAULT
       reference(2)="UNKNOWN" 
       shortform(2)="UNKNOWN"
@@ -651,16 +674,21 @@ CONTAINS
 
     WRITE ( iunit, '( A, T41, A )' ) " FUNCTIONAL| Exchange Functional", &
           ADJUSTR ( functional ( 1 ) (1:40) )
-    IF ( functional ( 1 ) (1:4) /= "NONE" ) &
-          WRITE ( iunit, '( A80 )' ) ADJUSTR ( reference ( 1 ) )
+    IF ( functional ( 1 ) (1:4) /= "NONE" ) THEN
+       WRITE ( iunit, '( A80 )' ) ADJUSTR ( reference ( 1 ) )
+       IF ( .NOT. tested(1) ) WRITE ( iunit, '( A80 )' ) ADJUSTR ( not_tested )
+    END IF
     WRITE ( iunit, '( A, T41, A )' ) " FUNCTIONAL| Correlation Functional", &
           ADJUSTR ( functional ( 2 ) (1:40) )
-    IF ( functional ( 2 ) (1:4) /= "NONE" ) &
-          WRITE ( iunit, '( A80 )' ) ADJUSTR ( reference ( 2 ) )
+    IF ( functional ( 2 ) (1:4) /= "NONE" ) THEN
+       WRITE ( iunit, '( A80 )' ) ADJUSTR ( reference ( 2 ) )
+       IF ( .NOT. tested(2) ) WRITE ( iunit, '( A80 )' ) ADJUSTR ( not_tested )
+    END IF
     IF ( functional ( 3 ) (1:4) /= "NONE" ) THEN
-      WRITE ( iunit, '( A, T41, A )' ) " FUNCTIONAL| Kinetic Energy Functional", &
-        ADJUSTR ( functional ( 3 ) (1:40) )
-      WRITE ( iunit, '( A80 )' ) ADJUSTR ( reference ( 3 ) )
+       WRITE ( iunit, '( A, T41, A )' ) " FUNCTIONAL| Kinetic Energy Functional", &
+          ADJUSTR ( functional ( 3 ) (1:40) )
+       WRITE ( iunit, '( A80 )' ) ADJUSTR ( reference ( 3 ) )
+       IF ( .NOT. tested(3) ) WRITE ( iunit, '( A80 )' ) ADJUSTR ( not_tested )
     END IF
 
   END SUBROUTINE xc_print_info

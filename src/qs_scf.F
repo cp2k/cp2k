@@ -661,7 +661,9 @@ CONTAINS
 
 !   *** Save last density matrix in redundant form for the force calculation ***
     CALL calculate_density_matrix(mo_set,rho%rho_ao(1)%matrix,globenv)
-    CALL qs_rho_did_change(rho,rho_ao_valid=.TRUE.,error=error)
+!debCALL qs_rho_did_change(rho,rho_ao_valid=.TRUE.,error=error)
+    rho%rho_ao_valid=.TRUE.
+!deb hack for SGI
 
 !   *** Write last wavefunction ***
 

@@ -107,7 +107,7 @@ MODULE qs_rho_types
           rho_r_valid
      INTEGER :: ref_count, &
           id_nr, &
-          updates_sice_rebuild, &
+          updates_since_rebuild, &
           rebuild_each
   END TYPE qs_rho_type
 !!***

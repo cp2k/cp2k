@@ -177,7 +177,8 @@ SUBROUTINE pw_poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress 
       dvg ( i ) % in_space = RECIPROCALSPACE
       n = 0
       n ( i ) = 1
-      CALL pw_derive ( rhog, dvg ( i ), n )
+      CALL pw_copy ( rhog, dvg ( i ) )
+      CALL pw_derive ( dvg ( i ), n )
     END DO
     ! save the derivatives
     IF ( PRESENT ( dvhartree ) ) THEN

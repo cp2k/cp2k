@@ -339,6 +339,7 @@ CONTAINS
     
     CALL calc_rho13 ( rho, r13 )
     CALL calc_wave_vector ( "u", rho, grho, s )
+
     SELECT CASE (functional)
     CASE (1)
       CALL efactor_b88 ( s, fs, m )
@@ -434,9 +435,13 @@ CONTAINS
     CASE (3)
       CALL efactor_pw91 ( s, fs, m )
     CASE (4)
+      tact = t13
       CALL efactor_pbex ( s, fs, m, 1 )
+      tact = 1._dbl
     CASE (5)
+      tact = t13
       CALL efactor_pbex ( s, fs, m, 2 )
+      tact = 1._dbl
     CASE (6)
       CALL efactor_optx ( s, fs, m )
     CASE DEFAULT
@@ -472,9 +477,13 @@ CONTAINS
     CASE (3)
       CALL efactor_pw91 ( s, fs, m )
     CASE (4)
+      tact = t13
       CALL efactor_pbex ( s, fs, m, 1 )
+      tact = 1._dbl
     CASE (5)
+      tact = t13
       CALL efactor_pbex ( s, fs, m, 2 )
+      tact = 1._dbl
     CASE (6)
       CALL efactor_optx ( s, fs, m )
     CASE DEFAULT
@@ -670,55 +679,74 @@ CONTAINS
     INTEGER :: ip
     REAL(dbl) :: p, q, x, as, sas, asp, asp2, asp3, bs, ys, sbs, sbs3, sbs5
     REAL(dbl) :: w1, w2, beta, f0, f1, f2
-    REAL(dbl) :: t1,t3,t4,t11,t12,t13,t16,t19,t22,t24,t25,t33,t34,t36,t39
-    REAL(dbl) :: t43,t44,t60,t62
+    REAL(dbl) :: t1,t2,t4,t5,t6,t8,t9,t10,t13,t15,t16,t19,t22,t24,t25,t32,t34
+    REAL(dbl) :: t36,t39,t40,t41,t44,t48,t49,t65,t87
 
     beta = 0.0042_dbl
     f0 = 1._dbl/sfac
-    f1 = beta/cx
-    f2 = 6._dbl*beta
-    p = -f1*f0*f0
-    q = f2*f0
+    p = -beta/flsd
+    q = 6._dbl*beta
     DO ip=1,SIZE(s)
-      x = s(ip)
+      x = s(ip) * f0
       bs = beta*x
-      sbs = sqrt(bs*bs+1._dbl)
-      as = log(bs+sbs)
+      sbs = sqrt(x*x+1._dbl)
+      as = log(x+sbs)
       sas = x*as
       ys =  1._dbl/(1._dbl+q*sas)
       SELECT CASE (m)
       CASE (0)
          fs(ip,1) = 1._dbl + p*x*x*ys
       CASE (1)
-         asp = as + bs / sbs
+         asp = as + x / sbs
          fs(ip,1) = 1._dbl + p*x*x*ys
-         fs(ip,2) = 2._dbl*p*x*ys - p*q*x*x*asp*ys*ys
+         fs(ip,2) = ( 2._dbl*p*x*ys - p*q*x*x*asp*ys*ys ) * f0
       CASE (2)
-         asp = as + bs / sbs
-         sbs3 = sbs*sbs*sbs
-         asp2 = 2._dbl*beta / sbs - beta*bs*bs/ sbs3
+         asp = as + x / sbs
+         sbs3 = 1._dbl/(sbs*sbs*sbs)
          fs(ip,1) = 1._dbl + p*x*x*ys
-         fs(ip,2) = 2._dbl*p*x*ys - p*q*x*x*asp*ys*ys
-         fs(ip,3) = 2._dbl*p*ys - p*q*x*(4._dbl*asp+x*asp2)*ys*ys + &
-                    2._dbl*p*q*q*x*x*asp*asp*ys*ys*ys
+         fs(ip,2) = ( 2._dbl*p*x*ys - p*q*x*x*asp*ys*ys ) * f0
+         fs(ip,3) = -f0*f0*p*ys**3*sbs3 * ( q*x*x*x*x*(q*sas + 5._dbl &
+                    - 2._dbl*q*sbs) + 2._dbl*( x*x*(q*q*sas & 
+                    + 3._dbl*q - sbs) - sbs))
       CASE (3)
-         asp = as + bs / sbs
-         sbs3 = sbs*sbs*sbs
-         sbs5 = sbs3*sbs*sbs
-         asp2 = 2._dbl*beta / sbs - beta*bs*bs/ sbs3
-         asp3 = -4._dbl*beta*beta*bs / sbs3 + 3._dbl*beta*beta*bs*bs*bs/ sbs5
+         asp = as + x / sbs
+         sbs3 = 1._dbl/(sbs*sbs*sbs)
          fs(ip,1) = 1._dbl + p*x*x*ys
-         fs(ip,2) = 2._dbl*p*x*ys - p*q*x*x*asp*ys*ys
-         w1 = (4._dbl*asp+x*asp2)
-         fs(ip,3) = 2._dbl*p*ys - p*q*x*w1*ys*ys + &
-                    2._dbl*p*q*q*x*x*asp*asp*ys*ys*ys
-         t1 = q*x; t3 = beta**2; t4 = x**2; t11 = 1+t1*as; t12 = t11**2; t13 = 1/t12
-         t16 = 1/sbs; t19 = q*as+t1*beta*t16; t22 = p*x; t24 = 1/t12/t11; t25 = t19**2
-         t33 = t3*beta; t34 = sbs**2; t36 = 1/t34/sbs; t39 = 2*q*beta*t16-q*t4*t33*t36
-         t43 = p*t4; t44 = t12**2; t60 = t3**2; t62 = t34**2
-         fs(ip,4) = &
-            -6*p*t13*t19+12*t22*t24*t25-6*t22*t13*t39-6*t43/t44*t25*t19+ &
-            6*t43*t24*t19*t39-t43*t13*(-4*q*t33*t36*x+3*q*t4*x*t60*beta/t62/sbs)
+         fs(ip,2) = ( 2._dbl*p*x*ys - p*q*x*x*asp*ys*ys ) * f0
+         fs(ip,3) = -f0*f0*p*ys**3*sbs3 * ( q*x*x*x*x*(q*sas + 5._dbl &
+                    - 2._dbl*q*sbs) + 2._dbl*( x*x*(q*q*sas & 
+                    + 3._dbl*q - sbs) - sbs))
+      t1 = q*x
+      t2 = x**2
+      t4 = sqrt(1+t2)
+      t5 = x+t4
+      t6 = log(t5)
+      t8 = 1+t1*t6
+      t9 = t8**2
+      t10 = 1/t9
+      t13 = 1/t4
+      t15 = 1+t13*x
+      t16 = 1/t5
+      t19 = q*t6+t1*t15*t16
+      t22 = p*x
+      t24 = 1/t9/t8
+      t25 = t19**2
+      t32 = t4**2
+      t34 = 1/t32/t4
+      t36 = -t34*t2+t13
+      t39 = t15**2
+      t40 = t5**2
+      t41 = 1/t40
+      t44 = 2*q*t15*t16+t1*t36*t16-t1*t39*t41
+      t48 = p*t2
+      t49 = t9**2
+      t65 = t32**2
+      t87 = -6*p*t10*t19+12*t22*t24*t25-6*t22*t10*t44-6*t48/t49*t25*t19+ &
+      6*t48*t24*t19*t44-t48*t10*(3*q*t36*t16-3*q*t39*t41+3*t1*(1/t65/t4* &
+      t2*x-t34*x)*t16-3*t1*t36*t41*t15+2*t1*t39*t15/t40/t5)
+
+         fs(ip,4) = t87
+         fs(ip,4) = f0*f0*f0*fs(ip,4)
 
       CASE DEFAULT
          CALL stop_program("efactor_b88","Illegal order")
@@ -799,26 +827,27 @@ CONTAINS
     REAL(dbl) :: f0, x, a, b, y
 
     f0 = 1._dbl/sfac
+    b = -a2/flsd
     DO ip=1,SIZE(s)
-      x = s(ip)
-      a = gamma*f0*f0
-      b = a2/cx
-      y = 1._dbl / (1._dbl + a*x*x)
+      x = s(ip) * f0
+      a = gamma*x*x
+      y = 1._dbl / (1._dbl + a)
       SELECT CASE (m)
       CASE (0)
-         fs(ip,1) = a1 + b * a*x*x*y*y
+         fs(ip,1) = a1 + b * a*a*y*y
       CASE (1)
-         fs(ip,1) = a1 + b * a*x*x*y*y
-         fs(ip,2) = 2._dbl * b * ( a*x*y*y - 2._dbl*a*a*x*x*x*y*y*y)
+         fs(ip,1) = a1 + b * a*a*y*y
+         fs(ip,2) = 4._dbl*b*f0*a*gamma*x * y*y*y
       CASE (2)
-         fs(ip,1) = a1 + b * a*x*x*y*y
-         fs(ip,2) = 2._dbl * b * ( a*x*y*y - 2._dbl*a*a*x*x*x*y*y*y)
-         fs(ip,3) = 2._dbl * b*a* (1._dbl+3._dbl*a*a*x*x*x*x-8._dbl*a*x*x)*y*y*y*y
+         fs(ip,1) = a1 + b * a*a*y*y
+         fs(ip,2) = 4._dbl*b*f0*a*gamma*x * y*y*y
+         fs(ip,3) = -12._dbl * b*f0*f0 * gamma*a*(a-1._dbl) * y*y*y*y
       CASE (3)
-         fs(ip,1) = a1 + b * a*x*x*y*y
-         fs(ip,2) = 2._dbl * b * ( a*x*y*y - 2._dbl*a*a*x*x*x*y*y*y)
-         fs(ip,3) = 2._dbl * b*a* (1._dbl+3._dbl*a*a*x*x*x*x-8._dbl*a*x*x)*y*y*y*y
-         fs(ip,4) = -24._dbl*b*a*a*x*(2._dbl-5._dbl*a*x*x+a*a*x*x*x*x)*y*y*y*y*y
+         fs(ip,1) = a1 + b * a*a*y*y
+         fs(ip,2) = 4._dbl*b*f0*a*gamma*x * y*y*y
+         fs(ip,3) = -12._dbl * b*f0*f0 * gamma*a*(a-1._dbl) * y*y*y*y
+         fs(ip,4) = 24._dbl*b*f0*f0*f0* gamma*gamma*x * &
+                    (1._dbl-5._dbl*a+2._dbl*a*a) * y*y*y*y*y
       CASE DEFAULT
          CALL stop_program("efactor_optx","Illegal order")
       END SELECT
@@ -924,14 +953,16 @@ CONTAINS
     INTEGER, INTENT(IN) :: m, pset
 
     INTEGER :: ip
-    REAL(dbl), PARAMETER :: kappa1=0.804_dbl, kappa2=1.245_dbl, mu=0.21951_dbl
-    REAL(dbl) :: x, x2, mk, y
+    REAL(dbl), PARAMETER :: kappa1=0.804_dbl, kappa2=1.245_dbl, &
+                            mu=0.2195149727645171_dbl
+    REAL(dbl) :: x, x2, mk, y, f0
 
     IF( pset==1 ) mk=mu/kappa1
     IF( pset==2 ) mk=mu/kappa2
 
+    f0 = 1._dbl/tact
     DO ip=1,SIZE(s)
-      x = s(ip)
+      x = s(ip)*f0
       x2 = x*x
       y = 1._dbl/(1._dbl+mk*x2)
       SELECT CASE (m)
@@ -939,16 +970,16 @@ CONTAINS
          fs(ip,1) = 1._dbl + mu*x2*y
       CASE (1)
          fs(ip,1) = 1._dbl + mu*x2*y
-         fs(ip,2) = 2._dbl*mu*x*y*y
+         fs(ip,2) = 2._dbl*mu*x*y*y*f0
       CASE (2)
          fs(ip,1) = 1._dbl + mu*x2*y
-         fs(ip,2) = 2._dbl*mu*x*y*y
-         fs(ip,3) = -2._dbl*mu*(3._dbl*mk*x2-1._dbl)*y*y*y
+         fs(ip,2) = 2._dbl*mu*x*y*y*f0
+         fs(ip,3) = -2._dbl*mu*(3._dbl*mk*x2-1._dbl)*y*y*y*f0*f0
       CASE (3)
          fs(ip,1) = 1._dbl + mu*x2*y
-         fs(ip,2) = 2._dbl*mu*x*y*y
-         fs(ip,3) = -2._dbl*mu*(3._dbl*mk*x2-1._dbl)*y*y*y
-         fs(ip,4) = 24._dbl*mu*mk*x*(mk*x2-1._dbl)*y*y*y*y
+         fs(ip,2) = 2._dbl*mu*x*y*y*f0
+         fs(ip,3) = -2._dbl*mu*(3._dbl*mk*x2-1._dbl)*y*y*y*f0*f0
+         fs(ip,4) = 24._dbl*mu*mk*x*(mk*x2-1._dbl)*y*y*y*y*f0*f0*f0
       CASE DEFAULT
          CALL stop_program("efactor_pbex","Illegal order")
       END SELECT

@@ -169,7 +169,7 @@ CONTAINS
          "array ec too small")
 
     IF (.NOT.initialized) THEN
-       CALL pz_init('PWO', epsilon)
+       CALL pz_init('ORIG', epsilon)
     END IF
 
 !$omp parallel do private ( k, ed, m )
@@ -267,7 +267,7 @@ CONTAINS
     IF (SIZE(ed,2) < m) &
          CALL stop_program("xc_perdew_zunger/pz_lda_ed", "SIZE(ec,2) too small")
     
-    IF (.NOT.initialized) CALL pz_init('PWO', epsilon)
+    IF (.NOT.initialized) CALL pz_init('ORIG', epsilon)
 
 !$omp parallel do private ( k )
     DO k=1, n
@@ -356,7 +356,7 @@ CONTAINS
          "array ec too small")
 
     IF (.NOT.initialized) THEN
-       CALL pz_init('PWO', epsilon)
+       CALL pz_init('ORIG', epsilon)
     END IF
 
 !$omp parallel do private ( k, rho, ed, m )
@@ -470,7 +470,7 @@ CONTAINS
     IF (SIZE(ed,2) < m) &
          CALL stop_program("xc_perdew_zunger/pz_lsd_ed", "SIZE(ed,2) too small")
 
-    IF (.NOT.initialized) CALL pz_init('PWO', epsilon)
+    IF (.NOT.initialized) CALL pz_init('ORIG', epsilon)
 
 !$omp parallel do private ( k )
     DO k=1, n

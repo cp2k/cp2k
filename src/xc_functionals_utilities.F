@@ -273,10 +273,13 @@ CONTAINS
     INTEGER :: n, ip
     REAL(dbl) :: fac
 
+!   TAGS: U: total density, spin wave vector
+!         R: spin density, total density wave vector
 !   ---------------------------------------------------------------------------
 
     fac = 1._dbl / (2._dbl*(3._dbl*pi*pi)**f13)
     IF ( tag(1:1)=="u" .OR. tag(1:1)=="U" ) fac = fac*(2._dbl)**f13
+    IF ( tag(1:1)=="r" .OR. tag(1:1)=="R" ) fac = fac*(2._dbl)**f13
 
     n = SIZE ( rho )
     IF ( n > SIZE(s) ) &

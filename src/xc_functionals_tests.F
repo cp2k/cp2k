@@ -583,7 +583,7 @@ SUBROUTINE fun_init ( fun, cutoff, funtype, crossterm )
       crossterm=.TRUE.
       funtype=3
     CASE (6)
-      CALL perdew_zunger ( "DMC", cutoff )
+      CALL perdew_zunger ( "ORIG", cutoff )
       crossterm=.TRUE.
       funtype=3
     CASE (7)

@@ -24,6 +24,7 @@ MODULE xc_perdew86
 
   USE kinds, ONLY: dbl
   USE xc_functionals_utilities, ONLY: set_util, setup_calculation, calc_rs
+  USE xc_perdew_zunger, ONLY : perdew_zunger
   USE termination, ONLY: stop_memory, stop_program
 
   IMPLICIT NONE
@@ -38,7 +39,8 @@ MODULE xc_perdew86
                           f43 = 4._dbl*f13, &
                           f53 = 5._dbl*f13, &
                           f76 = 7._dbl/6._dbl, &
-                          frs = 1.6119919540164696407_dbl
+                          frs = 1.6119919540164696407_dbl, &
+                          fpe = 0.19199566167376364_dbl
 
   PUBLIC :: perdew86
 
@@ -128,21 +130,25 @@ CONTAINS
     
     CALL calc_rs ( rho, rs )
     IF ( calc(0) ) THEN
+       CALL perdew_zunger ( rho, pot(:,1:1), 0 )
        CALL p86_u_0 ( rho, rs, grho, pot(:,1) )
     END IF
     IF ( calc(1) ) THEN
        m1=mx(1,1)
        m2=mx(1,2)
+       CALL perdew_zunger ( rho, pot(:,m1:m2), -1 )
        CALL p86_u_1 ( rho, grho, rs, pot(:,m1:m2) )
     END IF
     IF ( calc(2) ) THEN
        m1=mx(2,1)
        m2=mx(2,2)
+       CALL perdew_zunger ( rho, pot(:,m1:m2), -2 )
        CALL p86_u_2 ( rho, grho, rs, pot(:,m1:m2) )
     END IF
     IF ( calc(3) ) THEN
        m1=mx(3,1)
        m2=mx(3,2)
+       CALL perdew_zunger ( rho, pot(:,m1:m2), -3 )
        CALL p86_u_3 ( rho, grho, rs, pot(:,m1:m2) )
     END IF
 
@@ -166,7 +172,8 @@ CONTAINS
 
     LOGICAL   :: calc(0:4), allcalc
     REAL(dbl), DIMENSION(:), ALLOCATABLE :: rsa, rsb
-    INTEGER :: n, error, m, mp, mt, ip, mx(0:3,2), m1, m2
+    REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: locpot
+    INTEGER :: n, error, m, mp, mt, ip, mx(0:3,2), m1, m2, k
 
 !   ---------------------------------------------------------------------------
 
@@ -235,7 +242,7 @@ CONTAINS
          x = r*frs
          or = 1._dbl/rho(ip)
          cr= pc1 + (pc2+a*r+b*r*r)/(1._dbl+c*r+d*r*r+1.e4_dbl*b*r*r*r)
-         phi = 0.192_dbl*pci/cr * g * SQRT(x)*or
+         phi = fpe*pci/cr * g * SQRT(x)*or
          ep = EXP(-phi)
          pot(ip) = pot(ip) + x*or*g*g*cr*ep
       END IF
@@ -272,7 +279,7 @@ CONTAINS
          dq = c+2._dbl*d*r+3.e4_dbl*b*r*r
          cr= pc1 + p/q
          dcr = (dp*q-p*dq)/(q*q) * (-f13*r*or)
-         dphig = 0.192_dbl*pci/cr * SQRT(x)*or
+         dphig = fpe*pci/cr * SQRT(x)*or
          phi = dphig * g
          dphir = -phi*(dcr/cr + f76*or)
          ep = EXP(-phi)
@@ -318,7 +325,7 @@ CONTAINS
          dcr = (dp*q-p*dq)/(q*q) * (-f13*r*or)
          d2cr = (d2p*q*q-p*q*d2q-2*dp*dq*q+2*p*dq*dq)/(q*q*q)*(f13*r*or)**2 + &
                 (dp*q-p*dq)/(q*q) * f13*f43*r*or*or
-         dphig = 0.192_dbl*pci/cr * SQRT(x)*or
+         dphig = fpe*pci/cr * SQRT(x)*or
          phi = dphig * g
          dphir = -phi*(dcr/cr + f76*or)
          d2phir = -dphir*(dcr/cr + f76*or)-&
@@ -382,7 +389,7 @@ CONTAINS
          dz = dcr/cr+f76*or
          d2z = d2cr/cr+2*f76*dcr/cr*or+f76/6.*or*or
          d3z = d3cr/cr+3*f76*d2cr/cr*or+3*f76/6.*dcr/cr*or*or-5*f76/36.*or*or*or
-         dphig = 0.192_dbl*pci*oz
+         dphig = fpe*pci*oz
          phi = dphig * g
          dphir = -phi*dz
          dphigr = -dphig*dz

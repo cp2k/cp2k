@@ -82,10 +82,6 @@ MODULE pw_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='pw_types'
 
-  INTERFACE pw_derive
-     MODULE PROCEDURE pw_derive_a, pw_derive_ab
-  END INTERFACE
-
   INTERFACE pw_gather
      MODULE PROCEDURE pw_gather_s, pw_gather_p
   END INTERFACE
@@ -395,7 +391,7 @@ END SUBROUTINE pw_copy
 !!     JGH (25-Feb-2001)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (06-10-2002) allow only for inplace derivatives
 !!
 !!   NOTES
 !!     Calculate the derivative dx^n(1) dy^n(2) dz^n(3) PW
@@ -404,7 +400,7 @@ END SUBROUTINE pw_copy
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE pw_derive_a ( pw, n )
+SUBROUTINE pw_derive ( pw, n )
 
   IMPLICIT NONE
 
@@ -422,132 +418,57 @@ SUBROUTINE pw_derive_a ( pw, n )
 
   CALL timeset ( 'pw_derive', 'I', 'Mflops', handle )
 
+  IF ( ANY ( n < 0 ) ) CALL stop_program ( "pw_derive", "n < 0" )
+
+  m = sum ( n )
+  im = CMPLX ( 0._dbl, 1._dbl, dbl ) ** m
+
+  flop = 0._dbl
+
   IF ( pw % in_space == RECIPROCALSPACE .AND. &
        pw % in_use == COMPLEXDATA1D ) THEN
 
-    m = sum ( n )
-    im = CMPLX ( 0._dbl, 1._dbl, dbl ) ** m
-
     cnt = REAL ( SIZE ( pw % cc ), dbl )
-    flop = 0._dbl
-
-    ALLOCATE ( cc ( cnt ), STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "pw_derive_a", "cc", cnt )
-    cc = pw % cc
-
-    IF ( ANY ( n < 0 ) ) CALL stop_program ( "pw_derive", "n < 0" )
 
     IF ( n ( 1 ) == 1 ) THEN
-      pw % cc ( : ) = cc ( : ) * pw % pw_grid % g ( 1, : )
+      pw % cc ( : ) = pw % cc ( : ) * pw % pw_grid % g ( 1, : )
       flop = flop + 6 * cnt
     ELSE IF ( n ( 1 ) > 1 ) THEN
-      pw % cc ( : ) = cc ( : ) * ( pw % pw_grid % g ( 1, : ) ** n ( 1 ) )
+      pw % cc ( : ) = pw % cc ( : ) * ( pw % pw_grid % g ( 1, : ) ** n ( 1 ) )
       flop = flop + 7 * cnt
     END IF
     IF ( n ( 2 ) == 1 ) THEN
-      pw % cc ( : ) = cc ( : ) * pw % pw_grid % g ( 2, : )
+      pw % cc ( : ) = pw % cc ( : ) * pw % pw_grid % g ( 2, : )
       flop = flop + 6 * cnt
     ELSE IF ( n ( 2 ) > 1 ) THEN
-      pw % cc ( : ) = cc ( : ) * ( pw % pw_grid % g ( 2, : ) ** n ( 2 ) )
+      pw % cc ( : ) = pw % cc ( : ) * ( pw % pw_grid % g ( 2, : ) ** n ( 2 ) )
       flop = flop + 7 * cnt
     END IF
     IF ( n ( 3 ) == 1 ) THEN
-      pw % cc ( : ) = cc ( : ) * pw % pw_grid % g ( 3, : )
+      pw % cc ( : ) = pw % cc ( : ) * pw % pw_grid % g ( 3, : )
       flop = flop + 6 * cnt
     ELSE IF ( n ( 3 ) > 1 ) THEN
-      pw % cc ( : ) = cc ( : ) * ( pw % pw_grid % g ( 3, : ) ** n ( 3 ) )
+      pw % cc ( : ) = pw % cc ( : ) * ( pw % pw_grid % g ( 3, : ) ** n ( 3 ) )
       flop = flop + 7 * cnt
     END IF
-
-    DEALLOCATE ( cc, STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "pw_derive_a", "cc" )
 
     ! im can take the values 1, -1, i, -i
     ! skip this if im == 1
     IF ( ABS ( REAL ( im, dbl ) - 1._dbl ) > 1.e-10 ) THEN
       pw % cc ( : ) = im * pw % cc ( : )
+      flop = flop + 6 * cnt
     END IF
 
   ELSE
+
     CALL stop_program ( "pw_derive", "no suitable data field" )
+
   END IF
 
   flop = flop * 1.e-6_dbl
   CALL timestop ( flop, handle )
 
-END SUBROUTINE pw_derive_a
-
-!******************************************************************************
-
-SUBROUTINE pw_derive_ab ( pw, dpw, n )
-
-  IMPLICIT NONE
-
-! Arguments
-  TYPE ( pw_type ), INTENT ( IN ) :: pw
-  TYPE ( pw_type ), INTENT ( INOUT ) :: dpw
-  INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: n
-
-! Local
-  INTEGER :: m, handle
-  COMPLEX ( dbl ) :: im
-  REAL ( dbl ) :: flop, cnt
-
-!------------------------------------------------------------------------------
-
-  CALL timeset ( 'pw_derive', 'I', 'Mflops', handle )
-
-  IF ( pw % in_space == RECIPROCALSPACE .AND. &
-       pw % in_use == COMPLEXDATA1D .AND. &
-       dpw % in_use == COMPLEXDATA1D ) THEN
-
-    m = sum ( n )
-    im = CMPLX ( 0._dbl, 1._dbl, dbl ) ** m
-
-    IF ( ANY ( n < 0 ) ) CALL stop_program ( "pw_derive", "n < 0" )
-
-    cnt = REAL ( SIZE ( pw % cc ), dbl )
-    flop = 0._dbl
-
-    IF ( n ( 1 ) == 1 ) THEN
-      dpw % cc ( : ) = pw % cc ( : ) * pw % pw_grid % g ( 1, : )
-      flop = flop + 6 * cnt
-    ELSE IF ( n ( 1 ) > 1 ) THEN
-      dpw % cc ( : ) = pw % cc ( : ) * ( pw % pw_grid % g ( 1, : ) ** n ( 1 ) )
-      flop = flop + 7 * cnt
-    END IF
-    IF ( n ( 2 ) == 1 ) THEN
-      dpw % cc ( : ) = pw % cc ( : ) * pw % pw_grid % g ( 2, : )
-      flop = flop + 6 * cnt
-    ELSE IF ( n ( 2 ) > 1 ) THEN
-      dpw % cc ( : ) = pw % cc ( : ) * ( pw % pw_grid % g ( 2, : ) ** n ( 2 ) )
-      flop = flop + 7 * cnt
-    END IF
-    IF ( n ( 3 ) == 1 ) THEN
-      dpw % cc ( : ) = pw % cc ( : ) * pw % pw_grid % g ( 3, : )
-      flop = flop + 6 * cnt
-    ELSE IF ( n ( 3 ) > 1 ) THEN
-      dpw % cc ( : ) = pw % cc ( : ) * ( pw % pw_grid % g ( 3, : ) ** n ( 3 ) )
-      flop = flop + 7 * cnt
-    END IF
-
-    ! im can take the values 1, -1, i, -i
-    ! skip this if im == 1
-    IF ( ABS ( REAL ( im, dbl ) - 1._dbl ) > 1.e-10 ) THEN
-      dpw % cc ( : ) = im * dpw % cc ( : )
-      flop = flop + 6 * cnt
-    END IF
-
-    dpw % in_space = RECIPROCALSPACE
-
-  ELSE
-    CALL stop_program ( "pw_derive", "no suitable data field" )
-  END IF
-
-  flop = flop * 1.e-6_dbl
-  CALL timestop ( flop, handle )
-
-END SUBROUTINE pw_derive_ab
+END SUBROUTINE pw_derive
 
 !!*****
 !******************************************************************************

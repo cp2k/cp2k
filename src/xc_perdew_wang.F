@@ -33,7 +33,6 @@ MODULE xc_perdew_wang
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : zero
   USE termination, ONLY : stop_program
-  USE timings, ONLY : timeset, timestop
   
   IMPLICIT NONE
 
@@ -231,8 +230,6 @@ CONTAINS
     LOGICAL, DIMENSION(0:3) :: calc = .FALSE.
     REAL(DBL), DIMENSION(0:3) :: ed
 
-    CALL timeset('perdew_wang lda', 'I', ' ', timer_handle)
-
     IF (PRESENT(order)) order_ = order
 
     IF (ABS(order_) <= 3) THEN
@@ -287,8 +284,6 @@ CONTAINS
     END DO
 !$omp end parallel do
     
-    CALL timestop(zero, timer_handle)
-
   END SUBROUTINE pw_lda
   
 ! *****************************************************************************
@@ -415,8 +410,6 @@ CONTAINS
     REAL(DBL), DIMENSION(0:9) :: ed
     REAL(DBL) :: rho
 
-    CALL timeset('perdew_wang lsd', 'I', ' ', timer_handle)
-
     IF (PRESENT(order)) order_ = order
     IF (ABS(order_) > 3) CALL stop_program("xc_perdew_wang/pw_lsd", &
          "order must be between -3 and 3")
@@ -473,8 +466,6 @@ CONTAINS
        END IF
        
     END DO
-
-    CALL timestop(zero, timer_handle)
 
   END SUBROUTINE pw_lsd
 

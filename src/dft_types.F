@@ -38,7 +38,7 @@ MODULE dft_types
   USE termination,    ONLY: stop_memory,&
                             stop_program
   USE xc_functionals, ONLY: xc_get_functional,&
-                            xc_print_info
+                            xc_print_info, xc_set
 
   IMPLICIT NONE
 
@@ -188,8 +188,8 @@ CONTAINS
 
 !   *** Load the default values ***
 
-    dft_control % functional ( 1 ) = "NONE"
-    dft_control % functional ( 2 ) = "PADE"
+    dft_control % functional ( 1 ) = "SLATER"
+    dft_control % functional ( 2 ) = "PZ"
     dft_control % functional ( 3 ) = "NONE"
     dft_control % density_cut = 1.0E-10_wp
     dft_control % gradient_cut = 1.0E-8_wp
@@ -788,7 +788,9 @@ CONTAINS
               " DFT| XC mesh (PW density)", dft_control % integration_grid % pw_cutoff
       END IF
 
-      CALL xc_print_info ( output_unit, dft_control % functional )
+      CALL xc_set ( dft_control % density_cut, dft_control % gradient_cut )
+      CALL xc_print_info ( output_unit, dft_control % functional, &
+                           dft_control % nspins /= 1 )
 
     END IF
 
