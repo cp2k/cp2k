@@ -758,7 +758,7 @@ CONTAINS
 
     p = 0.0045_dbl*b*b
     q = 0.0253_dbl*b
-!$omp parallel do private(ip,x,bs,sbs,as,sas,ys,asp,sbs3,asp2,asp3,sbs5,w1,w2) &
+!$omp parallel do private(ip,x,bs,sbs,as,sas,ys,asp,sbs3,asp2,asp3,sbs5,w1) &
 !$omp             private(t1,t3,t4,t11,t12,t13,t16,t19,t22,t24,t25,t33,t34,t36,t39) &
 !$omp             private(t43,t44,t60,t62)
     DO ip=1,SIZE(s)
@@ -883,7 +883,7 @@ CONTAINS
     q = 0.0253_dbl*b
     a1 = 0.072_dbl * b
     a2 = 2._dbl**f53 * b
-!$omp parallel do private(ip,x,as,sas,asp,asp2,asp3,bs,ys,sbs,sbs3,sbs5,w1,w2,t0,s1,s2)
+!$omp parallel do private(ip,x,as,sas,asp,asp2,asp3,bs,ys,sbs,sbs3,sbs5,w1,t0,s1,s2)
     DO ip=1,SIZE(s)
       x = s(ip)
       bs = b*x

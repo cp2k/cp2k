@@ -749,7 +749,7 @@ CONTAINS
     t2 = 14._dbl
     t3 = 0.2_dbl
     f15 = 1._dbl/15._dbl
-!$omp parallel do private(ip,s2,s4,s6,p0,p1,p2,p3,p15,f15)&
+!$omp parallel do private(ip,s2,s4,s6,p0,p1,p15,f15)&
 !$omp  private( t1, t2, t3, t8, t9, t10, t12, t13, t14, t19, t25)
     DO ip=1,SIZE(s)
       s2 = s(ip)*s(ip)

@@ -403,7 +403,7 @@ CONTAINS
        call xc_derivative_get(deriv,deriv_data=e_rbrbrb,error=error)
     END IF
 
-!$omp parallel do private(i,j,k,fx,m1,m2,rhoa,rhob,rs)
+!$omp parallel do private(i,j,k,fx,rhoa,rhob,rs)
     DO i=rho_set%local_bounds(1,1), rho_set%local_bounds(2,1)
        DO j=rho_set%local_bounds(1,2), rho_set%local_bounds(2,2)
           DO k=rho_set%local_bounds(1,3), rho_set%local_bounds(2,3)

@@ -406,6 +406,7 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: deltap, dh
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v
+    INTEGER :: omp_get_thread_num, omp_get_max_threads
 
 !   ---------------------------------------------------------------------------
 ! default, if compute_tau is not present we assume it is false

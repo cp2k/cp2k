@@ -888,6 +888,8 @@ END SUBROUTINE cp_sm_scale_and_add
     REAL(KIND=dp)                            :: alpha_l, alpha_l_ji, flops
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
     TYPE(real_block_node_type), POINTER      :: block_node
+    INTEGER                                  :: omp_get_num_threads, &
+                                                omp_get_thread_num
 
 !   ---------------------------------------------------------------------------
 
@@ -1019,6 +1021,8 @@ END SUBROUTINE cp_sm_scale_and_add
     REAL(KIND=dp)                            :: flops, prefactor
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
     TYPE(real_block_node_type), POINTER      :: block_node
+    INTEGER                                  :: omp_get_num_threads, &
+                                                omp_get_thread_num
 
 !   ---------------------------------------------------------------------------
 !   *** Check the association status of the input matrix ***

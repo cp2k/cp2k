@@ -726,6 +726,7 @@ CONTAINS
     INTEGER                                  :: num_threads, output_unit, stat
     INTEGER, DIMENSION(3)                    :: n
     LOGICAL                                  :: section_found
+    INTEGER                                  :: omp_get_num_threads
 
 !   ---------------------------------------------------------------------------
 !   *** Load the default settings ***

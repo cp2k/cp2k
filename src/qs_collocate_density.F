@@ -184,6 +184,7 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(realspace_grid_type), POINTER       :: rs_rho
+    INTEGER                                  :: omp_get_thread_num
 
 !   ---------------------------------------------------------------------------
 
@@ -372,6 +373,7 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: deltap
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
+    INTEGER :: omp_get_max_threads, omp_get_thread_num
 
 !   ---------------------------------------------------------------------------
 
@@ -413,7 +415,6 @@ CONTAINS
     END DO
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-
     nthread = 1
 !$  nthread = omp_get_max_threads()
 

@@ -449,7 +449,7 @@ SUBROUTINE distribution_2d_build_gdist(distribution_2d,error)
      max_el=0
      DO ilist=1,SIZE(distribution_2d%local_rows)
         max_el1=0
-        !$omp parallel do private(i,max_loc) reduction(max:max_el1)
+        !$omp parallel do private(i) reduction(max:max_el1)
         DO i=1,distribution_2d%n_local_rows(ilist)
            max_el1=MAX(max_el1,distribution_2d%local_rows(ilist)%array(i))
         END DO
@@ -523,7 +523,7 @@ SUBROUTINE distribution_2d_build_gdist(distribution_2d,error)
      max_el=0
      DO ilist=1,SIZE(distribution_2d%local_cols)
         max_el1=0
-        !$omp parallel do private(i,max_loc) reduction(max:max_el1)
+        !$omp parallel do private(i) reduction(max:max_el1)
         DO i=1,distribution_2d%n_local_cols(ilist)
            max_el1=MAX(max_el1,distribution_2d%local_cols(ilist)%array(i))
         END DO
