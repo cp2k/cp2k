@@ -759,6 +759,8 @@ CONTAINS
       IF (PRESENT(bend_list)) molecule_kind%bend_list => bend_list
       IF (PRESENT(ndist)) molecule_kind%ndist = ndist
       IF (PRESENT(dist_list)) molecule_kind%dist_list => dist_list
+      IF (PRESENT(torsion_list)) molecule_kind%torsion_list => torsion_list
+      IF (PRESENT(ntorsion)) molecule_kind%ntorsion = ntorsion
       IF (PRESENT(ng3x3)) molecule_kind%ng3x3 = ng3x3
       IF (PRESENT(g3x3_list)) molecule_kind%g3x3_list => g3x3_list
       IF (PRESENT(bond_kind_set)) molecule_kind%bond_kind_set => bond_kind_set
