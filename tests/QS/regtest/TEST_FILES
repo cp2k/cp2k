@@ -54,3 +54,5 @@ H2O-qmmm-gauss.inp 1
 H2O-tpss.inp       1
 # farming
 farming.inp        0
+# isokinetic ensemble
+H2O-5.inp          1
