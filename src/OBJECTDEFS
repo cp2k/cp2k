@@ -29,6 +29,7 @@ OBJECTS_GENERIC =\
  constraint.o\
  convert_units.o\
  cp2k.o\
+ cp2k_units.o\
  cp_array_i_utils.o\
  cp_array_logical_utils.o\
  cp_array_r_utils.o\
@@ -155,6 +156,7 @@ OBJECTS_GENERIC =\
  mol_force.o\
  mol_kind_list_types.o\
  mol_struct_list_types.o\
+ molecular_states.o\
  molecule_input.o\
  molecule_types.o\
  mulliken.o\
@@ -281,7 +283,6 @@ OBJECTS_GENERIC =\
  topology_psf.o\
  topology_util.o\
  transformations.o\
- unit.o\
  util.o\
  velocity_verlet_control.o\
  wf_types.o\
