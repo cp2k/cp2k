@@ -469,6 +469,8 @@ CONTAINS
             globenv%print%homos = print_request
             IF (test_object() == "INT") CALL read_object(globenv%print%nhomos)
             IF (globenv%print%nhomos <= 0) globenv%print%nhomos = 4
+          CASE ("LOCALIZATION")
+            globenv%print%localization = print_request
           CASE ("TIMECUMUL")
             globenv%print%timecumul = print_request
 !MK

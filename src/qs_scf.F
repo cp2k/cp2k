@@ -195,6 +195,10 @@ MODULE qs_scf
                                              qs_ks_env_type,&
                                              qs_ks_release,&
                                              qs_ks_retain
+  USE qs_localization,                 ONLY: qs_loc_env_type, &
+                                             qs_loc_init, &
+                                             qs_loc_destroy, &
+                                             qs_loc_compute_set
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                              calculate_density_matrix,&
                                              calculate_subspace_eigenvalues,&
@@ -324,6 +328,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
     TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
     TYPE(qs_ks_env_type), POINTER :: ks_env
+    TYPE(qs_loc_env_type), POINTER :: qs_loc_env
 
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=200) :: file_name
@@ -744,6 +749,7 @@ CONTAINS
        CALL write_mo_set(c(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
     ENDDO
 
+
 !   *** Integrated absolute spin density ***
     IF (dft_control%nspins.eq.2) THEN
            CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
@@ -842,6 +848,28 @@ CONTAINS
             IF (globenv%ionode) CLOSE(21)
          ENDDO
       ENDDO
+    ENDIF
+
+!   *** Get localization info *** ! notice, computes this for whatever is in mo_eigenvectors
+!   in particular, will do it for the eigenstates if you switch on the HOMOS keyword
+    IF (globenv%print%localization)THEN
+       NULLIFY(qs_loc_env)
+       ALLOCATE(qs_loc_env)
+       CALL qs_loc_init(qs_loc_env,qs_env)
+       do ispin=1,dft_control%nspins
+          ! just get eigenstates
+          CALL get_mo_set(mo_set=c(ispin)%mo_set,eigenvectors=mo_eigenvectors)
+          IF (globenv%ionode) WRITE(globenv%scr,*) " "
+          IF (globenv%ionode) WRITE(globenv%scr,*) " Eigenvalues of the occupied subspace spin ",ispin
+          IF (globenv%ionode) WRITE(globenv%scr,*) " ---------------------------------------------"
+          CALL calculate_subspace_eigenvalues(mo_eigenvectors,ks_rmpv(ispin)%matrix, &
+                  para_env=globenv%para_env,ctxt=globenv%blacs_env,scr=globenv%scr, &
+                  ionode=globenv%ionode)
+          ! do localization computation
+          CALL qs_loc_compute_set(qs_loc_env,mo_eigenvectors,globenv%ionode)
+       enddo
+       CALL qs_loc_destroy(qs_loc_env)
+       DEALLOCATE(qs_loc_env) 
     ENDIF
 
     IF (globenv%print%lumos) THEN

@@ -97,6 +97,7 @@ MODULE global_types
                homos
      LOGICAL :: timecumul
      INTEGER    nlumos,nhomos
+     LOGICAL :: localization
   END TYPE print_key_type
 
   TYPE global_environment_type
@@ -217,6 +218,7 @@ CONTAINS
     print_key%nlumos = 4
     print_key%nhomos = 4
     print_key%timecumul = key_value(level,(/f,f,f/))
+    print_key%localization = key_value(level,(/f,f,f/))
 
   END SUBROUTINE init_print_keys
 

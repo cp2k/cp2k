@@ -210,6 +210,7 @@ OBJECTS_GENERIC =\
  qs_kpp1_env_types.o\
  qs_ks_methods.o\
  qs_ks_types.o\
+ qs_localization.o\
  qs_main.o\
  qs_md.o\
  qs_mo_types.o\
