@@ -461,24 +461,31 @@ CONTAINS
   END SUBROUTINE CP_FM_INIT_RANDOM
 ! *****************************************************************************
 
-  SUBROUTINE cp_fm_set_all(matrix,alpha,error)
+  SUBROUTINE cp_fm_set_all(matrix,alpha,beta,error)
 
 !   Purpose: Set the FULL matrix elements to alpha.
+!   if beta is present the diagonal gets the value beta
 
 !   ***************************************************************************
 
     TYPE(cp_full_matrix_type), POINTER           :: matrix
     REAL(wp), INTENT(IN)                         :: alpha
+    REAL(wp), INTENT(IN), optional               :: beta
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local variables ***
 
-    INTEGER :: matrix_size
+    INTEGER :: matrix_size,i
 
 !   ---------------------------------------------------------------------------
 
     matrix_size = size(matrix%local_data,1)*size(matrix%local_data,2)
     CALL dcopy (matrix_size, alpha, 0, matrix%local_data, 1)
+    IF (PRESENT(beta)) THEN
+      DO i=1,matrix%matrix_struct%nrow_global
+         CALL cp_fm_set_element(matrix,i,i,beta)
+      ENDDO
+    ENDIF
 
   END SUBROUTINE cp_fm_set_all
 
