@@ -24,6 +24,8 @@ MODULE qs_tddfpt_module
                                              tddfpt_control_type,&
                                              xc_control_type
   USE input_constants,                 ONLY: oe_none,&
+                                             oe_lb,&
+                                             oe_gllb,&
                                              oe_saop,&
                                              oe_sic,&
                                              sic_none,&
@@ -202,8 +204,10 @@ CONTAINS
 
     xc_control%functionals = my_xc_control%functionals
 
-    IF (tddfpt_control%oe_corr == oe_saop) THEN
-       CALL add_saop_pot(qs_env%matrix_ks, qs_env, error)
+    IF (tddfpt_control%oe_corr == oe_saop .OR. &
+        tddfpt_control%oe_corr == oe_lb .OR. &
+        tddfpt_control%oe_corr == oe_gllb) THEN
+       CALL add_saop_pot(qs_env%matrix_ks, qs_env, tddfpt_control%oe_corr, error)
     ELSE IF (tddfpt_control%oe_corr == oe_sic) THEN
     END IF
 

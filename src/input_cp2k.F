@@ -1620,8 +1620,8 @@ SUBROUTINE create_tddfpt_section(section,error)
           description="Which type of orbital eigenvalue correction to use\n"//&
                       "(to yield better HOMO-LUMO energies)",&
           usage="OE_CORR SAOP",&
-          enum_c_vals=s2a("NONE","SAOP","SIC"),&
-          enum_i_vals=(/ oe_none, oe_saop, oe_sic /),&
+          enum_c_vals=s2a("NONE", "LB", "LB_ALPHA", "LB94", "GLLB", "GLB", "SAOP","SIC"),&
+          enum_i_vals=(/ oe_none, oe_lb, oe_lb, oe_lb, oe_gllb, oe_gllb, oe_saop, oe_sic /),&
           default_i_val=oe_none, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)      
