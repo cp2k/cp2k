@@ -407,7 +407,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (ASSOCIATED(impr_kind_set(nkind))) THEN
+    IF (ASSOCIATED(impr_kind_set)) THEN
        DEALLOCATE (impr_kind_set,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
             "impr_kind_set",nkind*int_size)
