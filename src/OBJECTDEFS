@@ -22,6 +22,7 @@ OBJECTS_GENERIC =\
  blacs.o\
  brillouin.o\
  cell_parameters.o\
+ cg_test.o\
  cntl_input.o\
  coefficient_lists.o\
  coefficient_types.o\
@@ -100,6 +101,7 @@ OBJECTS_GENERIC =\
  kinetic.o\
  kpoint_initialization.o\
  lapack.o\
+ lebedev.o\
  library_tests.o\
  linear_systems.o\
  linklist_cell_list.o\

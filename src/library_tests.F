@@ -17,6 +17,7 @@
 !!     30-Nov-2000 (JGH) added input 
 !!     02-Jan-2001 (JGH) Parallel FFT
 !!     15-Feb-2002 (JGH) XC-Functionals
+!!     28-Feb-2002 (JGH) Clebsch-Gordon Coefficients
 !!
 !!   SOURCE
 !******************************************************************************
@@ -29,6 +30,7 @@ MODULE library_tests
                  fft_radix_operations, FWFFT, BWFFT, FFT_RADIX_CLOSEST, &
                  FFT_RADIX_NEXT, FFT_RADIX_NEXT_ODD
   USE functionals_tests, ONLY : functional_test
+  USE cg_test, ONLY : clebsch_gordon_test
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE machine, ONLY : m_cputime
@@ -99,6 +101,8 @@ SUBROUTINE lib_test ( globenv )
   IF ( runtest ( 4 ) /= 0 ) CALL pw_fft_test ( globenv )
 !
   IF ( runtest ( 5 ) /= 0 ) CALL functional_test ( globenv )
+!
+  IF ( runtest ( 6 ) /= 0 ) CALL clebsch_gordon_test ( globenv )
 
 END SUBROUTINE lib_test
 
@@ -128,6 +132,7 @@ END SUBROUTINE lib_test
 !!I    FFT      n                                                             I
 !!I    PW_FFT   n                                                             I
 !!I    FUNCTIONALS n                                                          I
+!!I    Clebsch-Gordon n                                                       I
 !!I                                                                           I
 !!I---------------------------------------------------------------------------I
 !!
@@ -176,6 +181,8 @@ SUBROUTINE test_input ( globenv )
            CALL get_next ( runtest ( 4 ) )
         CASE ( 'FUNCTI' )
            CALL get_next ( runtest ( 5 ) )
+        CASE ( 'CLEBSC' )
+           CALL get_next ( runtest ( 6 ) )
         END SELECT
         CALL read_line
      END DO

@@ -14,11 +14,21 @@
 !!     JGH 6-Oct-2000
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH 28-Feb-2002 : Change of sign convention (-1^m)
+!!     JGH  1-Mar-2002 : Clebsch-Gordon Coefficients
+!!
+!!   TODO
+!!     1) Check if this definition is consistent with the transformation
+!!        routines in module orbital_transformation_matrices
+!!     2) Check if this definition is consistent with the 
+!!        Slater-Koster module
 !!
 !!   NOTES
-!!     Numerical Stability up to L=15
-!!     Accuracy > 1.E-12 up to L=15 tested
+!!     Spherical Harmonics
+!!         Numerical Stability up to L=15
+!!         Accuracy > 1.E-12 up to L=15 tested
+!!     Clebsch-Gordon Coefficients
+!!         Tested up to l=7 (i.e. L=14)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -37,17 +47,267 @@ MODULE spherical_harmonics
   PRIVATE
 
   PUBLIC :: y_lm
+  PUBLIC :: clebsch_gordon_init, clebsch_gordon, clebsch_gordon_getm
 
   INTERFACE y_lm
      MODULE PROCEDURE rvy_lm, rry_lm, cvy_lm, ccy_lm
   END INTERFACE
 
+  INTERFACE clebsch_gordon
+     MODULE PROCEDURE clebsch_gordon_real, clebsch_gordon_complex
+  END INTERFACE
+
+  INTERFACE clebsch_gordon_getm
+     MODULE PROCEDURE getm
+  END INTERFACE
+
+  REAL(dbl), DIMENSION(:,:,:), ALLOCATABLE :: cg_table
+  INTEGER :: lmax=-1
+  REAL(dbl) :: osq2, sq2
 
 !!*****
 ! *****************************************************************************
 
 CONTAINS
 
+! *****************************************************************************
+! Clebsch-Gordon Coefficients
+! *****************************************************************************
+
+  SUBROUTINE clebsch_gordon_complex (l1,m1,l2,m2,clm)
+     IMPLICIT NONE
+     INTEGER, INTENT(IN) :: l1,m1,l2,m2
+     REAL(dbl), DIMENSION (:), INTENT(OUT) :: clm
+     INTEGER :: l, n, icase, lm, ind, lp
+
+     l = l1 + l2
+     IF (l > lmax) CALL clebsch_gordon_init ( l )
+     n = l/2 + 1
+     IF (n > SIZE(clm)) CALL stop_program("clebsch_gordon","Array too small")
+
+     IF ( (m1 >= 0 .AND. m2 >= 0) .OR. (m1 < 0 .AND. m2 < 0) ) THEN
+       icase = 1
+     ELSE
+       icase = 2
+     END IF
+     ind = order(l1,m1,l2,m2)
+
+     DO lp = MOD(l,2),l,2
+       lm = lp/2+1
+       clm(lm) = cg_table(ind,lm,icase)
+     END DO
+     
+  END SUBROUTINE clebsch_gordon_complex
+
+  SUBROUTINE clebsch_gordon_real (l1,m1,l2,m2,rlm)
+     IMPLICIT NONE
+     INTEGER, INTENT(IN) :: l1,m1,l2,m2
+     REAL(dbl), DIMENSION (:,:), INTENT(OUT) :: rlm
+     INTEGER :: l, n, icase1, icase2, lm, ind, lp, mcase, mm(2)
+     REAL(dbl) :: xsi
+
+     l = l1 + l2
+     IF (l > lmax) CALL clebsch_gordon_init ( l )
+     n = l/2 + 1
+     IF (n > SIZE(rlm,1)) CALL stop_program("clebsch_gordon","Array too small")
+
+     ind = order(l1,m1,l2,m2)
+     mm = getm(m1,m2)
+     IF ( (m1 >= 0 .AND. m2 >= 0) .OR. (m1 < 0 .AND. m2 < 0) ) THEN
+       icase1 = 1
+       icase2 = 2
+     ELSE
+       icase1 = 2
+       icase2 = 1
+     END IF
+
+     DO lp = MOD(l,2),l,2
+       lm = lp/2+1
+       xsi = get_factor(m1,m2,mm(1))
+       rlm(lm,1) = xsi*cg_table(ind,lm,icase1)
+       xsi = get_factor(m1,m2,mm(2))
+       rlm(lm,2) = xsi*cg_table(ind,lm,icase2)
+     END DO
+
+  END SUBROUTINE clebsch_gordon_real
+
+! *****************************************************************************
+
+  FUNCTION getm(m1,m2) RESULT(m)
+     INTEGER, INTENT(IN) :: m1,m2
+     INTEGER, DIMENSION(2) :: m
+     INTEGER :: mp, mm
+     mp = m1 + m2
+     mm = m1 - m2
+     IF ( m1*m2 < 0  .OR. (m1*m2==0 .AND. (m1<0 .OR. m2<0))) THEN
+       mp = -ABS(mp)
+       mm = -ABS(mm)
+     ELSE
+       mp = ABS(mp)
+       mm = ABS(mm)
+     END IF
+     m(1) = mp
+     m(2) = mm
+  END FUNCTION getm
+
+  FUNCTION get_factor(m1,m2,m) RESULT(f)
+     INTEGER, INTENT(IN) :: m1,m2,m
+     INTEGER :: mx, my
+     REAL(dbl) :: f
+     f = 1._dbl
+     IF ( ABS(m1)>=ABS(m2) ) THEN
+       mx = m1
+       my = m2
+     ELSE
+       mx = m2
+       my = m1
+     ENDIF
+     IF ( mx*my == 0 ) THEN
+       f = 1._dbl
+     ELSE IF ( m == 0 ) THEN
+       IF(ABS(mx) /= ABS(my)) WRITE(6,'(A,3I6)') " 1) Illegal Case ",m1,m2,m
+       IF(mx*my > 0) THEN
+         f = 1._dbl
+       ELSE
+         f = 0._dbl
+       END IF
+     ELSE IF ( ABS(mx)+ABS(my) == m ) THEN
+       f = osq2
+       IF(mx<0) f = -osq2
+     ELSE IF ( ABS(mx)+ABS(my) == -m ) THEN
+       f = osq2
+     ELSE IF ( ABS(mx)-ABS(my) == -m ) THEN
+       IF(mx*my > 0) WRITE(6,'(A,3I6)') " 2) Illegal Case ",m1,m2,m
+       IF( mx > 0 ) f = -osq2
+       IF( mx < 0 ) f = osq2
+     ELSE IF ( ABS(mx)-ABS(my) == m ) THEN
+       IF(mx*my < 0) WRITE(6,'(A,3I6)') " 3) Illegal Case ",m1,m2,m
+       f = osq2
+     ELSE
+       WRITE(6,'(A,3I6)') " 4) Illegal Case ",m1,m2,m
+     END IF
+  END FUNCTION get_factor
+
+! *****************************************************************************
+
+  SUBROUTINE clebsch_gordon_init ( l )
+     IMPLICIT NONE
+     INTEGER, INTENT(IN) :: l
+     INTEGER :: ierr, n, m, l1, m1, l2, m2, ml, lp, mp, i1, i2, ix, iy
+
+     sq2 = SQRT(2._dbl)
+     osq2 = 1._dbl/sq2
+
+     IF ( l < 0 ) CALL stop_program("clebsch_gordon_init","l < 0")
+     IF ( ALLOCATED ( cg_table ) ) THEN
+        DEALLOCATE ( cg_table, STAT=ierr )
+        IF ( ierr /= 0 ) CALL stop_memory ("clebsch_gordon_init","cg_table")
+     END IF
+     ! maximum size of table
+     n = (l**4 + 6*l**3 + 15*l**2 + 18*l + 8)/8
+     m = l+1
+     ALLOCATE ( cg_table(n,m,2), STAT=ierr )
+     IF ( ierr /= 0 ) CALL stop_memory ("clebsch_gordon_init","cg_table",2*n*m)
+     lmax = l
+
+     DO l1=0,lmax
+       DO m1=0,l1
+         iy = (l1*(l1+1))/2 + m1 + 1
+         DO l2=l1,lmax
+           ml=0
+           IF ( l1==l2 ) ml = m1
+           DO m2=ml,l2
+             ix = (l2*(l2+1))/2 + m2 + 1
+             i1 = (ix*(ix-1))/2 + iy
+             DO lp=MOD(l1+l2,2),l1+l2,2
+               i2 = lp/2 + 1
+               mp = m2 + m1
+               cg_table(i1,i2,1) = cgc(l1,m1,l2,m2,lp,mp)
+               mp = ABS ( m2 - m1 )
+               IF ( m2 >= m1 ) THEN
+                  cg_table(i1,i2,2) = cgc(l1,m1,lp,mp,l2,m2)
+               ELSE
+                  cg_table(i1,i2,2) = cgc(l2,m2,lp,mp,l1,m1)
+               END IF
+             END DO
+           END DO
+         END DO
+       END DO
+     END DO
+     
+  END SUBROUTINE clebsch_gordon_init
+
+! *****************************************************************************
+
+  FUNCTION cgc(l1,m1,l2,m2,lp,mp)
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: l1,m1,l2,m2,lp,mp
+    REAL(dbl) :: cgc
+    REAL(dbl) :: pref, f1, f2
+    INTEGER :: la, ma, lb, mb
+    INTEGER :: ll, s, t, tmin, tmax, z1, z2, z3, z4, z5
+
+    ! m1 >= 0; m2 >= 0; mp >= 0
+    IF ( m1<0 .OR. m2<0 .OR. mp<0 ) THEN
+       write(6,*) l1,l2,lp
+       write(6,*) m1,m2,mp
+       CALL stop_program ( "cgc", "Illegal input values" )
+    END IF
+    IF ( l2 < l1 ) THEN
+      la = l2
+      ma = m2
+      lb = l1
+      mb = m1
+    ELSE
+      la = l1
+      ma = m1
+      lb = l2
+      mb = m2
+    END IF
+
+    IF ( MOD(la+lb+lp,2) == 0 .AND. la+lb >= lp .AND. lp >= lb-la ) THEN
+       ll = (2*lp+1) * (2*la+1) * (2*lb+1)
+       pref = 1._dbl/SQRT(4._dbl*pi) * 0.5_dbl * SQRT ( REAL(ll,dbl) * &
+              (fac(lp-mp)/fac(lp+mp)) * &
+              (fac(la-ma)/fac(la+ma)) * (fac(lb-mb)/fac(lb+mb)) )
+       s = (la+lb+lp)/2
+       tmin = MAX ( 0, -lb+la-mp )
+       tmax = MIN ( lb+la-mp, lp-mp, la-ma )
+       f1 = REAL( 2 * (-1)**(s-lb-ma), dbl ) * (fac(lb+mb)/fac(lb-mb)) * &
+            fac(la+ma)/(fac(s-lp)*fac(s-lb)) * fac(2*s-2*la)/fac(s-la) * &
+            (fac(s)/fac(2*s+1))
+       f2 = 0._dbl
+       DO t=tmin,tmax
+         z1 = lp+mp+t
+         z2 = la+lb-mp-t
+         z3 = lp-mp-t
+         z4 = lb-la+mp+t
+         z5 = la-ma-t
+         f2 = f2 + (-1)**t * (fac(z1)/(fac(t)*fac(z3)))* (fac(z2)/(fac(z4)*fac(z5)))
+!        f2 = f2 + (-1)**t * fac(z1)*fac(z2)/(fac(t)*fac(z3))/(fac(z4)*fac(z5))
+       END DO
+       cgc = pref * f1 * f2
+    ELSE
+       cgc = 0._dbl
+    END IF
+
+  END FUNCTION cgc
+
+! *****************************************************************************
+
+  FUNCTION order(l1,m1,l2,m2) RESULT(ind)
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: l1,m1,l2,m2
+    INTEGER :: ind,i1,i2,ix,iy
+    i1 = (l1*(l1+1))/2 + ABS(m1) + 1
+    i2 = (l2*(l2+1))/2 + ABS(m2) + 1
+    ix = MAX(i1,i2)
+    iy = MIN(i1,i2)
+    ind = (ix*(ix-1))/2+iy
+  END FUNCTION order
+
+! *****************************************************************************
+! Calculation of Spherical Harmonics
 ! *****************************************************************************
 
   SUBROUTINE rvy_lm ( r, y, l, m )
@@ -60,6 +320,7 @@ CONTAINS
 !
 ! Input: r == (x,y,z) : normalised    x^2 + y^2 + z^2 = 1
 !
+  IMPLICIT NONE
   REAL(dbl), DIMENSION (:,:), INTENT(IN) :: r
   REAL(dbl), DIMENSION (:), INTENT(OUT) :: y
   INTEGER, INTENT(IN) :: l, m
@@ -79,13 +340,13 @@ CONTAINS
     CASE DEFAULT
       call stop_program("y_lm","l = 1 and m value out of bounds")
     CASE ( 1 )
-      pf = - SQRT ( 3._dbl / ( 4._dbl * pi ) )
+      pf = SQRT ( 3._dbl / ( 4._dbl * pi ) )
       y ( : ) = pf * r ( 1, : )
     CASE ( 0 )
       pf = SQRT ( 3._dbl / ( 4._dbl * pi ) )
       y ( : ) = pf * r ( 3, : )
     CASE ( -1 )
-      pf = - SQRT ( 3._dbl / ( 4._dbl * pi ) )
+      pf = SQRT ( 3._dbl / ( 4._dbl * pi ) )
       y ( : ) = pf * r ( 2, : )
     END SELECT
   CASE ( 2 )
@@ -96,13 +357,13 @@ CONTAINS
       pf = SQRT ( 15._dbl / ( 16._dbl * pi ) )
       y ( : ) = pf * ( r ( 1, : ) * r ( 1, : ) - r ( 2, : ) * r ( 2, : ) )
     CASE ( 1 )
-      pf = - SQRT ( 15._dbl / ( 4._dbl * pi ) )
+      pf = SQRT ( 15._dbl / ( 4._dbl * pi ) )
       y ( : ) = pf * r ( 3, : ) * r ( 1, : )
     CASE ( 0 )
       pf = SQRT ( 5._dbl / ( 16._dbl * pi ) )
       y ( : ) = pf * ( 3._dbl * r ( 3, : ) * r ( 3, : ) - 1._dbl )
     CASE ( -1 )
-      pf = - SQRT ( 15._dbl / ( 4._dbl * pi ) )
+      pf = SQRT ( 15._dbl / ( 4._dbl * pi ) )
       y ( : ) = pf * r ( 3, : ) * r ( 2, : )
     CASE ( -2 )
       pf = SQRT ( 15._dbl / ( 16._dbl * pi ) )
@@ -113,25 +374,25 @@ CONTAINS
     CASE DEFAULT
       call stop_program("y_lm","l = 3 and m value out of bounds")
     CASE ( 3 )
-      pf = - SQRT ( 35._dbl / ( 32._dbl * pi ) )
+      pf = SQRT ( 35._dbl / ( 32._dbl * pi ) )
       y ( : ) = pf * r ( 1, : ) * ( r ( 1, : )**2 - 3._dbl * r ( 2, : )**2 )
     CASE ( 2 )
       pf = SQRT ( 105._dbl / ( 16._dbl * pi ) )
       y ( : ) = pf * r ( 3, : ) * ( r ( 1, : )**2 - r ( 2, : )**2 )
     CASE ( 1 )
-      pf = - SQRT ( 21._dbl / ( 32._dbl * pi ) )
+      pf = SQRT ( 21._dbl / ( 32._dbl * pi ) )
       y ( : ) = pf * r ( 1, : ) * ( 5._dbl * r ( 3, : ) * r ( 3, : ) - 1._dbl )
     CASE ( 0 )
       pf = SQRT ( 7._dbl / ( 16._dbl * pi ) )
       y ( : ) = pf * r ( 3, : ) * ( 5._dbl * r ( 3, : ) * r ( 3, : ) - 3._dbl )
     CASE ( -1 )
-      pf = - SQRT ( 21._dbl / ( 32._dbl * pi ) )
+      pf = SQRT ( 21._dbl / ( 32._dbl * pi ) )
       y ( : ) = pf * r ( 2, : ) * ( 5._dbl * r ( 3, : ) * r ( 3, : ) - 1._dbl )
     CASE ( -2 )
       pf = SQRT ( 105._dbl / ( 16._dbl * pi ) )
       y ( : ) = pf * 2._dbl * r ( 1, : ) * r ( 2, : ) * r ( 3, : )
     CASE ( -3 )
-      pf = - SQRT ( 35._dbl / ( 32._dbl * pi ) )
+      pf = SQRT ( 35._dbl / ( 32._dbl * pi ) )
       y ( : ) = pf * r ( 2, : ) * ( 3._dbl * r ( 1, : )**2 - r ( 2, : )**2 )
     END SELECT
   CASE DEFAULT
@@ -185,6 +446,7 @@ CONTAINS
 !
 ! Input: r == (x,y,z) : normalised    x^2 + y^2 + z^2 = 1
 !
+  IMPLICIT NONE
   REAL(dbl), DIMENSION (:), INTENT(IN) :: r
   REAL(dbl), INTENT(OUT) :: y
   INTEGER, INTENT(IN) :: l, m
@@ -204,13 +466,13 @@ CONTAINS
     CASE DEFAULT
       call stop_program("y_lm","l = 1 and m value out of bounds")
     CASE ( 1 )
-      pf = - SQRT ( 3._dbl / ( 4._dbl * pi ) )
+      pf = SQRT ( 3._dbl / ( 4._dbl * pi ) )
       y = pf * r ( 1 )
     CASE ( 0 )
       pf = SQRT ( 3._dbl / ( 4._dbl * pi ) )
       y = pf * r ( 3 )
     CASE ( -1 )
-      pf = - SQRT ( 3._dbl / ( 4._dbl * pi ) )
+      pf = SQRT ( 3._dbl / ( 4._dbl * pi ) )
       y = pf * r ( 2 )
     END SELECT
   CASE ( 2 )
@@ -221,13 +483,13 @@ CONTAINS
       pf = SQRT ( 15._dbl / ( 16._dbl * pi ) )
       y = pf * ( r ( 1 ) * r ( 1 ) - r ( 2 ) * r ( 2 ) )
     CASE ( 1 )
-      pf = - SQRT ( 15._dbl / ( 4._dbl * pi ) )
+      pf = SQRT ( 15._dbl / ( 4._dbl * pi ) )
       y = pf * r ( 3 ) * r ( 1 )
     CASE ( 0 )
       pf = SQRT ( 5._dbl / ( 16._dbl * pi ) )
       y = pf * ( 3._dbl * r ( 3 ) * r ( 3 ) - 1._dbl )
     CASE ( -1 )
-      pf = - SQRT ( 15._dbl / ( 4._dbl * pi ) )
+      pf = SQRT ( 15._dbl / ( 4._dbl * pi ) )
       y = pf * r ( 3 ) * r ( 2 )
     CASE ( -2 )
       pf = SQRT ( 15._dbl / ( 16._dbl * pi ) )
@@ -238,25 +500,25 @@ CONTAINS
     CASE DEFAULT
       call stop_program("y_lm","l = 3 and m value out of bounds")
     CASE ( 3 )
-      pf = - SQRT ( 35._dbl / ( 32._dbl * pi ) )
+      pf = SQRT ( 35._dbl / ( 32._dbl * pi ) )
       y = pf * r ( 1 ) * ( r ( 1 )**2 - 3._dbl * r ( 2 )**2 )
     CASE ( 2 )
       pf = SQRT ( 105._dbl / ( 16._dbl * pi ) )
       y = pf * r ( 3 ) * ( r ( 1 )**2 - r ( 2 )**2 )
     CASE ( 1 )
-      pf = - SQRT ( 21._dbl / ( 32._dbl * pi ) )
+      pf = SQRT ( 21._dbl / ( 32._dbl * pi ) )
       y = pf * r ( 1 ) * ( 5._dbl * r ( 3 ) * r ( 3 ) - 1._dbl )
     CASE ( 0 )
       pf = SQRT ( 7._dbl / ( 16._dbl * pi ) )
       y = pf * r ( 3 ) * ( 5._dbl * r ( 3 ) * r ( 3 ) - 3._dbl )
     CASE ( -1 )
-      pf = - SQRT ( 21._dbl / ( 32._dbl * pi ) )
+      pf = SQRT ( 21._dbl / ( 32._dbl * pi ) )
       y = pf * r ( 2 ) * ( 5._dbl * r ( 3 ) * r ( 3 ) - 1._dbl )
     CASE ( -2 )
       pf = SQRT ( 105._dbl / ( 16._dbl * pi ) )
       y = pf * 2._dbl * r ( 1 ) * r ( 2 ) * r ( 3 )
     CASE ( -3 )
-      pf = - SQRT ( 35._dbl / ( 32._dbl * pi ) )
+      pf = SQRT ( 35._dbl / ( 32._dbl * pi ) )
       y = pf * r ( 2 ) * ( 3._dbl * r ( 1 )**2 - r ( 2 )**2 )
     END SELECT
   CASE DEFAULT
@@ -300,7 +562,7 @@ CONTAINS
 
   SUBROUTINE cvy_lm ( r, y, l, m )
 !
-! Real Spherical Harmonics
+! Complex Spherical Harmonics
 !                   _                _
 !                  | [(2l+1)(l-|m|)!] |1/2 m
 !  Y_lm ( t, p ) = |------------------|   P_l(cos(t)) Exp[ i m p ]
@@ -308,6 +570,7 @@ CONTAINS
 !
 ! Input: r == (x,y,z) : normalised    x^2 + y^2 + z^2 = 1
 !
+  IMPLICIT NONE
   REAL(dbl), DIMENSION (:,:), INTENT(IN) :: r
   COMPLEX(dbl), DIMENSION (:), INTENT(OUT) :: y
   INTEGER, INTENT(IN) :: l, m
@@ -328,7 +591,7 @@ CONTAINS
     CASE DEFAULT
       call stop_program("y_lm","l = 1 and m value out of bounds")
     CASE ( 1 )
-      pf = - SQRT ( 3._dbl / ( 8._dbl * pi ) )
+      pf = SQRT ( 3._dbl / ( 8._dbl * pi ) )
       DO i = 1, n
         yp = r ( 1, i )
         ym = r ( 2, i )
@@ -338,7 +601,7 @@ CONTAINS
       pf = SQRT ( 3._dbl / ( 4._dbl * pi ) )
       y ( : ) = pf * r ( 3, : )
     CASE ( -1 )
-      pf = - SQRT ( 3._dbl / ( 8._dbl * pi ) )
+      pf = SQRT ( 3._dbl / ( 8._dbl * pi ) )
       DO i = 1, n
         yp = r ( 1, i )
         ym = r ( 2, i )
@@ -357,7 +620,7 @@ CONTAINS
         y ( i ) = pf * CMPLX ( yp, ym, dbl )
       END DO
     CASE ( 1 )
-      pf = - SQRT ( 15._dbl / ( 8._dbl * pi ) )
+      pf = SQRT ( 15._dbl / ( 8._dbl * pi ) )
       DO i = 1, n
         yp = r ( 3, i ) * r ( 1, i )
         ym = r ( 3, i ) * r ( 2, i )
@@ -367,7 +630,7 @@ CONTAINS
       pf = SQRT ( 5._dbl / ( 16._dbl * pi ) )
       y ( : ) = pf * ( 3._dbl * r ( 3, : ) * r ( 3, : ) - 1._dbl )
     CASE ( -1 )
-      pf = - SQRT ( 15._dbl / ( 8._dbl * pi ) )
+      pf = SQRT ( 15._dbl / ( 8._dbl * pi ) )
       DO i = 1, n
         yp = r ( 3, i ) * r ( 1, i )
         ym = r ( 3, i ) * r ( 2, i )
@@ -386,7 +649,7 @@ CONTAINS
     CASE DEFAULT
       call stop_program("y_lm","l = 3 and m value out of bounds")
     CASE ( 3 )
-      pf = - SQRT ( 35._dbl / ( 64._dbl * pi ) )
+      pf = SQRT ( 35._dbl / ( 64._dbl * pi ) )
       DO i = 1, n
         yp = r ( 1, i ) * ( r ( 1, i )**2 - 3._dbl * r ( 2, i )**2 )
         ym = r ( 2, i ) * ( 3._dbl * r ( 1, i )**2 - r ( 2, i )**2 )
@@ -400,7 +663,7 @@ CONTAINS
         y ( i ) = pf * CMPLX ( yp, ym, dbl )
       END DO
     CASE ( 1 )
-      pf = - SQRT ( 21._dbl / ( 64._dbl * pi ) )
+      pf = SQRT ( 21._dbl / ( 64._dbl * pi ) )
       DO i = 1, n
         yp = r ( 1, i ) * ( 5._dbl * r ( 3, i ) * r ( 3, i ) - 1._dbl )
         ym = r ( 2, i ) * ( 5._dbl * r ( 3, i ) * r ( 3, i ) - 1._dbl )
@@ -410,7 +673,7 @@ CONTAINS
       pf = SQRT ( 7._dbl / ( 16._dbl * pi ) )
       y ( : ) = pf * r ( 3, : ) * ( 5._dbl * r ( 3, : ) * r ( 3, : ) - 3._dbl )
     CASE ( -1 )
-      pf = - SQRT ( 21._dbl / ( 64._dbl * pi ) )
+      pf = SQRT ( 21._dbl / ( 64._dbl * pi ) )
       DO i = 1, n
         yp = r ( 1, i ) * ( 5._dbl * r ( 3, i ) * r ( 3, i ) - 1._dbl )
         ym = r ( 2, i ) * ( 5._dbl * r ( 3, i ) * r ( 3, i ) - 1._dbl )
@@ -424,7 +687,7 @@ CONTAINS
         y ( i ) = pf * CMPLX ( yp, -ym, dbl )
       END DO
     CASE ( -3 )
-      pf = - SQRT ( 35._dbl / ( 64._dbl * pi ) )
+      pf = SQRT ( 35._dbl / ( 64._dbl * pi ) )
       DO i = 1, n
         yp = r ( 1, i ) * ( r ( 1, i )**2 - 3._dbl * r ( 2, i )**2 )
         ym = r ( 2, i ) * ( 3._dbl * r ( 1, i )**2 - r ( 2, i )**2 )
@@ -474,7 +737,7 @@ CONTAINS
 
   SUBROUTINE ccy_lm ( r, y, l, m )
 !
-! Real Spherical Harmonics
+! Complex Spherical Harmonics
 !                   _                _
 !                  | [(2l+1)(l-|m|)!] |1/2 m
 !  Y_lm ( t, p ) = |------------------|   P_l(cos(t)) Exp[ i m p ]
@@ -482,6 +745,7 @@ CONTAINS
 !
 ! Input: r == (x,y,z) : normalised    x^2 + y^2 + z^2 = 1
 !
+  IMPLICIT NONE
   REAL(dbl), DIMENSION (:), INTENT(IN) :: r
   COMPLEX(dbl), INTENT(OUT) :: y
   INTEGER, INTENT(IN) :: l, m
@@ -501,7 +765,7 @@ CONTAINS
     CASE DEFAULT
       call stop_program("y_lm","l = 1 and m value out of bounds")
     CASE ( 1 )
-      pf = - SQRT ( 3._dbl / ( 8._dbl * pi ) )
+      pf = SQRT ( 3._dbl / ( 8._dbl * pi ) )
       yp = r ( 1 )
       ym = r ( 2 )
       y = pf * CMPLX ( yp, ym, dbl )
@@ -509,7 +773,7 @@ CONTAINS
       pf = SQRT ( 3._dbl / ( 4._dbl * pi ) )
       y = pf * r ( 3 )
     CASE ( -1 )
-      pf = - SQRT ( 3._dbl / ( 8._dbl * pi ) )
+      pf = SQRT ( 3._dbl / ( 8._dbl * pi ) )
       yp = r ( 1 )
       ym = r ( 2 )
       y = pf * CMPLX ( yp, -ym, dbl )
@@ -524,7 +788,7 @@ CONTAINS
       ym = 2._dbl * r ( 1 ) * r ( 2 )
       y = pf * CMPLX ( yp, ym, dbl )
     CASE ( 1 )
-      pf = - SQRT ( 15._dbl / ( 8._dbl * pi ) )
+      pf = SQRT ( 15._dbl / ( 8._dbl * pi ) )
       yp = r ( 3 ) * r ( 1 )
       ym = r ( 3 ) * r ( 2 )
       y = pf * CMPLX ( yp, ym, dbl )
@@ -532,7 +796,7 @@ CONTAINS
       pf = SQRT ( 5._dbl / ( 16._dbl * pi ) )
       y = pf * ( 3._dbl * r ( 3 ) * r ( 3 ) - 1._dbl )
     CASE ( -1 )
-      pf = - SQRT ( 15._dbl / ( 8._dbl * pi ) )
+      pf = SQRT ( 15._dbl / ( 8._dbl * pi ) )
       yp = r ( 3 ) * r ( 1 )
       ym = r ( 3 ) * r ( 2 )
       y = pf * CMPLX ( yp, -ym, dbl )
@@ -547,7 +811,7 @@ CONTAINS
     CASE DEFAULT
       call stop_program("y_lm","l = 3 and m value out of bounds")
     CASE ( 3 )
-      pf = - SQRT ( 35._dbl / ( 64._dbl * pi ) )
+      pf = SQRT ( 35._dbl / ( 64._dbl * pi ) )
       yp = r ( 1 ) * ( r ( 1 )**2 - 3._dbl * r ( 2 )**2 )
       ym = r ( 2 ) * ( 3._dbl * r ( 1 )**2 - r ( 2 )**2 )
       y = pf * CMPLX ( yp, ym, dbl )
@@ -557,7 +821,7 @@ CONTAINS
       ym = 2._dbl * r ( 1 ) * r ( 2 ) * r ( 3 )
       y = pf * CMPLX ( yp, ym, dbl )
     CASE ( 1 )
-      pf = - SQRT ( 21._dbl / ( 64._dbl * pi ) )
+      pf = SQRT ( 21._dbl / ( 64._dbl * pi ) )
       yp = r ( 1 ) * ( 5._dbl * r ( 3 ) * r ( 3 ) - 1._dbl )
       ym = r ( 2 ) * ( 5._dbl * r ( 3 ) * r ( 3 ) - 1._dbl )
       y = pf * CMPLX ( yp, ym, dbl )
@@ -565,7 +829,7 @@ CONTAINS
       pf = SQRT ( 7._dbl / ( 16._dbl * pi ) )
       y = pf * r ( 3 ) * ( 5._dbl * r ( 3 ) * r ( 3 ) - 3._dbl )
     CASE ( -1 )
-      pf = - SQRT ( 21._dbl / ( 64._dbl * pi ) )
+      pf = SQRT ( 21._dbl / ( 64._dbl * pi ) )
       yp = r ( 1 ) * ( 5._dbl * r ( 3 ) * r ( 3 ) - 1._dbl )
       ym = r ( 2 ) * ( 5._dbl * r ( 3 ) * r ( 3 ) - 1._dbl )
       y = pf * CMPLX ( yp, -ym, dbl )
@@ -575,7 +839,7 @@ CONTAINS
       ym = 2._dbl * r ( 1 ) * r ( 2 ) * r ( 3 )
       y = pf * CMPLX ( yp, -ym, dbl )
     CASE ( -3 )
-      pf = - SQRT ( 35._dbl / ( 64._dbl * pi ) )
+      pf = SQRT ( 35._dbl / ( 64._dbl * pi ) )
       yp = r ( 1 ) * ( r ( 1 )**2 - 3._dbl * r ( 2 )**2 )
       ym = r ( 2 ) * ( 3._dbl * r ( 1 )**2 - r ( 2 )**2 )
       y = pf * CMPLX ( yp, -ym, dbl )
@@ -621,6 +885,7 @@ CONTAINS
 
   FUNCTION legendre ( x, l, m ) RESULT ( plm )
 
+  IMPLICIT NONE
   REAL(dbl), INTENT(IN) :: x
   INTEGER, INTENT(IN) :: l, m
   REAL(dbl) :: plm
@@ -638,7 +903,7 @@ CONTAINS
     CASE DEFAULT
       call stop_program("legendre","l = 1 and m value out of bounds")
     CASE ( 1 )
-      plm = - SQRT ( 1._dbl - x * x )
+      plm = SQRT ( 1._dbl - x * x )
     CASE ( 0 )
       plm = x
     END SELECT
@@ -649,7 +914,7 @@ CONTAINS
     CASE ( 2 )
       plm = 3._dbl * ( 1._dbl - x * x )
     CASE ( 1 )
-      plm = - 3._dbl * x * SQRT ( 1._dbl - x * x )
+      plm = 3._dbl * x * SQRT ( 1._dbl - x * x )
     CASE ( 0 )
       plm = 1.5_dbl * x * x - 0.5_dbl
     END SELECT
@@ -658,11 +923,11 @@ CONTAINS
     CASE DEFAULT
       call stop_program("legendre","l = 3 and m value out of bounds")
     CASE ( 3 )
-      plm = - 15._dbl * ( 1._dbl - x * x ) ** 1.5_dbl
+      plm = 15._dbl * ( 1._dbl - x * x ) ** 1.5_dbl
     CASE ( 2 )
       plm = 15._dbl * x * ( 1._dbl - x * x )
     CASE ( 1 )
-      plm = ( -7.5_dbl * x * x + 1.5_dbl ) * SQRT ( 1._dbl - x * x )
+      plm = ( 7.5_dbl * x * x - 1.5_dbl ) * SQRT ( 1._dbl - x * x )
     CASE ( 0 )
       plm = 2.5_dbl * x**3 - 1.5_dbl * x
     END SELECT
@@ -673,11 +938,11 @@ CONTAINS
     CASE ( 4 )
       plm = 105._dbl * ( 1._dbl - x * x ) ** 2
     CASE ( 3 )
-      plm = - 105._dbl * x * ( 1._dbl - x * x ) ** 1.5_dbl
+      plm = 105._dbl * x * ( 1._dbl - x * x ) ** 1.5_dbl
     CASE ( 2 )
       plm = ( 52.5_dbl * x * x - 7.5_dbl ) * ( 1._dbl - x * x )
     CASE ( 1 )
-      plm = ( -17.5_dbl * x ** 3 + 7.5_dbl * x ) * SQRT ( 1._dbl - x * x )
+      plm = ( 17.5_dbl * x ** 3 - 7.5_dbl * x ) * SQRT ( 1._dbl - x * x )
     CASE ( 0 )
       plm = 4.375_dbl * x ** 4 - 3.75_dbl * x ** 2 + 0.375_dbl
     END SELECT
@@ -686,15 +951,15 @@ CONTAINS
     CASE DEFAULT
       call stop_program("legendre","l = 5 and m value out of bounds")
     CASE ( 5 )
-      plm = - 945._dbl * ( 1._dbl - x * x ) ** 2.5_dbl
+      plm = 945._dbl * ( 1._dbl - x * x ) ** 2.5_dbl
     CASE ( 4 )
       plm = 945._dbl * x * ( 1._dbl - x * x ) ** 2
     CASE ( 3 )
-      plm = ( -472.5_dbl * x * x + 52.5_dbl ) * ( 1._dbl - x * x ) ** 1.5_dbl
+      plm = -( -472.5_dbl * x * x + 52.5_dbl ) * ( 1._dbl - x * x ) ** 1.5_dbl
     CASE ( 2 )
       plm = ( 157.5_dbl * x ** 3 - 52.5_dbl * x ) * ( 1._dbl - x * x )
     CASE ( 1 )
-      plm = ( -39.375_dbl * x ** 4 + 26.25_dbl * x * x - &
+      plm = -( -39.375_dbl * x ** 4 + 26.25_dbl * x * x - &
               1.875_dbl ) * SQRT ( 1._dbl - x * x )
     CASE ( 0 )
       plm = 7.875_dbl * x ** 5 - 8.75_dbl * x ** 3 + 1.875_dbl * x
@@ -706,17 +971,17 @@ CONTAINS
     CASE ( 6 )
       plm = 10395._dbl * ( 1._dbl - x * x ) ** 3
     CASE ( 5 )
-      plm = - 10395._dbl * x * ( 1._dbl - x * x ) ** 2.5_dbl
+      plm = 10395._dbl * x * ( 1._dbl - x * x ) ** 2.5_dbl
     CASE ( 4 )
       plm = ( 5197.5_dbl * x * x - 472.5_dbl ) * ( 1._dbl - x * x ) ** 2
     CASE ( 3 )
-      plm = ( - 1732.5_dbl * x ** 3 + 472.5_dbl * x ) * &
+      plm = -( - 1732.5_dbl * x ** 3 + 472.5_dbl * x ) * &
             ( 1._dbl - x * x ) ** 1.5_dbl
     CASE ( 2 )
       plm = ( 433.125_dbl * x ** 4 - 236.25_dbl * x ** 2 + &
               13.125_dbl ) * ( 1._dbl - x * x )
     CASE ( 1 )
-      plm = ( -86.625_dbl * x ** 5 + 78.75_dbl * x ** 3 - &
+      plm = -( -86.625_dbl * x ** 5 + 78.75_dbl * x ** 3 - &
               13.125_dbl * x ) * SQRT ( 1._dbl - x * x )
     CASE ( 0 )
       plm = 14.4375_dbl * x ** 6 - 19.6875_dbl * x ** 4 + &
@@ -759,6 +1024,7 @@ CONTAINS
 
   FUNCTION choose ( n, k )
 
+  IMPLICIT NONE
   INTEGER, INTENT ( IN ) :: n, k
   REAL ( dbl ) :: choose
 
@@ -774,6 +1040,7 @@ CONTAINS
 
   FUNCTION cosn ( n, c, s )
 
+  IMPLICIT NONE
   INTEGER, INTENT ( IN ) :: n
   REAL(dbl), INTENT ( IN ) :: c, s
   REAL(dbl) :: cosn
@@ -796,6 +1063,7 @@ CONTAINS
 
   FUNCTION sinn ( n, c, s )
 
+  IMPLICIT NONE
   INTEGER, INTENT ( IN ) :: n
   REAL(dbl), INTENT ( IN ) :: c, s
   REAL(dbl) :: sinn
@@ -818,3 +1086,4 @@ CONTAINS
 
 END MODULE spherical_harmonics
 
+! *****************************************************************************
