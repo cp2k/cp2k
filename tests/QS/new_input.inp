@@ -1,0 +1,42 @@
+&GLOBAL
+ PROGRAM      Quickstep
+ PROJECT      H2O
+ PRINT_LEVEL  LOW
+ FFTLIB       FFTSG
+&END
+
+&FORCE_EVAL
+ &DFT
+  BASIS_SET_FILE_NAME ../BASISSET
+  &SCF
+   MAX_SCF 100
+   EPS_SCF 1.e-6
+  &END SECTION SCF
+  &XC
+   &GRID
+    xc_deriv SPLINE2
+   &END section GRID
+   &XC_FUNCTIONAL
+    &BECKE88
+    &END
+    &LYP
+    &END
+   &END SECTION XC_FUNCTIONAL
+  &END SECTION XC
+  #&qs
+  #&tddfpt
+ &END DFT
+ &SUBSYS
+  #&cell
+  #&topology
+  #&kind
+  #&coord
+ &END
+ #&mm &fist
+ #&qmmm
+ #&metadyn
+&END FORCE_EVAL
+
+&MD_NEW
+ timestep 1.0
+&END
