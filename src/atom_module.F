@@ -22,7 +22,7 @@ MODULE atom_module
   USE termination
 
   USE atom_calculations
-  USE atom_type
+  USE atom_type, ONLY : atom_info, atom_init
 
   IMPLICIT NONE
 

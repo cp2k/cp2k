@@ -3,8 +3,8 @@ MODULE atom_type
   USE kinds, ONLY : dbl
   USE radial_grids
   USE global_types, ONLY : global_environment_type
-  USE string_utilities, ONLY : uppercase
   USE termination, ONLY : stop_program
+  USE string_utilities, ONLY : uppercase
 
   IMPLICIT NONE
 
@@ -102,7 +102,7 @@ MODULE atom_type
           CASE ('Z')
              IF (test_next() == 'N') THEN 
                 this%z = get_int(); z_set = .true.
-                IF (pflag) WRITE (6,'(1X,(A),T47,I3)') "Option Z read with value ", this%z
+                IF (pflag) WRITE (6,'(1X,A,T47,I3)') "Option Z read with value ", this%z
              ELSE 
                 CALL stop_parser("atom_type/atom_init", &
                      "option Z needs numeric argument")
@@ -118,7 +118,7 @@ MODULE atom_type
                      "Option NOELEC read with value (l=", l, ") ", this%nel(l)
                 l = l+1
              END DO
-             IF (.NOT. nel_set) CALL stop_parser("atom_type/atom_init", &
+             IF (.NOT. nel_set ) CALL stop_parser("atom_type/atom_init", &
                   "option NOELEC needs numeric argument")
 
           CASE ('METHOD')

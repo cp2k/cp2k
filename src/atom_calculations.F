@@ -23,9 +23,9 @@ MODULE atom_calculations
 
     IMPLICIT NONE
 
+    INTEGER, INTENT(IN) :: n                    ! size of the matrix
     REAL(DBL), DIMENSION(n,n), INTENT(OUT) :: a ! the matrix in which to store the second derivative
     REAL(DBL), INTENT(IN) :: h                  ! stepsize
-    INTEGER, INTENT(IN) :: n                    ! size of the matrix
 
     INTEGER :: i                                ! loop variables
 
