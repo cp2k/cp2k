@@ -183,13 +183,16 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
 
 ! compute the absolute value of the differences in the forces
      diff = ABS ( ABS (dbg % f_nonbond) - ABS (f_numer) )
-     rel = diff / ABS (dbg % f_nonbond)
+! find the maximum difference and the relative and absolute errors.
+    IF ( .NOT. ANY ( dbg % f_nonbond == 0._dbl ) )  rel = diff / ABS (dbg % f_nonbond)
 
 ! find the maximum difference and the relative and absolute errors
      WRITE ( iw, '( A, T61, G20.12 )' ) &
           ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
-     WRITE ( iw, '( A, T61, G20.12 )' ) &
+     IF ( .NOT. ANY ( dbg % f_nonbond == 0._dbl ) )  THEN
+       WRITE ( iw, '( A, T61, G20.12 )' ) &
           ' MAXIMUM RELATIVE ERROR = ', MAXVAL ( rel )
+     ENDIF
 
 ! write out the particle number and forces of
 ! the max absolute and relative error
@@ -201,13 +204,15 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
      WRITE ( iw, '( A,T21,3G20.12 )' ) &
           ' F NUM NON-BONDED =', f_numer ( :, dum ( 2 ) )
 
-     dum = MAXLOC ( rel )
-     WRITE ( iw, '( A,T71,I10 )' ) &
+     IF ( .NOT. ANY ( dbg % f_nonbond == 0._dbl ) )  THEN
+       dum = MAXLOC ( rel )
+       WRITE ( iw, '( A,T71,I10 )' ) &
           ' PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
-     WRITE ( iw, '( A,T21,3G20.12 )' ) &
+       WRITE ( iw, '( A,T21,3G20.12 )' ) &
           ' F ANA NON-BONDED =', dbg % f_nonbond ( :, dum ( 2 ) )
-     WRITE ( iw, '( A,T21,3G20.12 )' ) &
+       WRITE ( iw, '( A,T21,3G20.12 )' ) &
           ' F NUM NON-BONDED =', f_numer ( :, dum ( 2 ) )
+     ENDIF
   END IF
 
 ! Debug non-bonded virial
@@ -279,13 +284,16 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
 
 ! compute the absolute value of the differences in the forces
         diff = ABS ( ABS (dbg % f_bond) - ABS (f_numer) )
-        rel = diff / ABS (dbg % f_bond)
+! find the maximum difference and the relative and absolute errors.
+        IF ( .NOT. ANY ( dbg % f_bond == 0._dbl ) )  rel = diff / ABS (dbg % f_bond)
 
 ! find the maximum difference and the relative and absolute errors
         WRITE ( iw, '( A,T61,G20.12 )' ) &
              ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
-        WRITE ( iw, '( A,T61,G20.12 )' ) &
-             ' MAXIMUM RELATIVE ERROR = ', MAXVAL ( rel )
+        IF ( .NOT. ANY ( dbg % f_bond == 0._dbl ) ) THEN
+          WRITE ( iw, '( A,T61,G20.12 )' ) &
+              ' MAXIMUM RELATIVE ERROR = ', MAXVAL ( rel )
+        ENDIF
 
 ! write out the particle number and forces of
 ! the max absolute and relative error
@@ -297,13 +305,15 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
         WRITE ( iw, '( A,T21,3G20.12 )' ) &
              ' F NUM BOND =', f_numer(:,dum(2))
 
-        dum = MAXLOC ( rel )
-        WRITE ( iw, '( A,T71,I10 )' ) &
+        IF ( .NOT. ANY ( dbg % f_bond == 0._dbl ) ) THEN
+          dum = MAXLOC ( rel )
+          WRITE ( iw, '( A,T71,I10 )' ) &
              ' PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
-        WRITE ( iw, '( A,T21,3G20.12 )' ) &
+          WRITE ( iw, '( A,T21,3G20.12 )' ) &
              ' F ANA BOND =', dbg % f_bond(:,dum(2))
-        WRITE ( iw, '( A,T21,3G20.12 )' ) &
+          WRITE ( iw, '( A,T21,3G20.12 )' ) &
              ' F NUM BOND =', f_numer(:,dum(2))
+        END IF
      END IF
 
 ! Debug bond virial
@@ -375,13 +385,15 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
 
 ! compute the absolute value of the differences in the forces
         diff = ABS ( ABS (dbg % f_bend) - ABS (f_numer) )
-        rel = diff / ABS (dbg % f_bend)
+        IF ( .NOT. ANY ( dbg % f_bend == 0._dbl ) ) rel = diff / ABS (dbg % f_bend)
 
 ! find the maximum difference and the relative and absolute errors
         WRITE ( iw, '( A,T61,G20.12 )' ) &
              ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
-        WRITE ( iw, '( A,T61,G20.12 )' ) &
-             ' MAXIMUM RELATIVE ERROR = ', MAXVAL ( rel )
+        IF ( .NOT. ANY ( dbg % f_bend == 0._dbl ) ) THEN
+          WRITE ( iw, '( A,T61,G20.12 )' ) &
+              ' MAXIMUM RELATIVE ERROR = ', MAXVAL ( rel )
+        ENDIF
 
 ! write out the particle number and forces of
 ! the max absolute and relative error
@@ -393,13 +405,15 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
         WRITE ( iw, '( A,T21,3G20.12 )' ) &
              ' F NUM BEND =', f_numer(:,dum(2))
 
-        dum = MAXLOC ( rel )
-        WRITE ( iw, '( A,T71,I10 )' ) &
+        IF ( .NOT. ANY ( dbg % f_bend == 0._dbl ) ) THEN
+          dum = MAXLOC ( rel )
+          WRITE ( iw, '( A,T71,I10 )' ) &
              ' PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
-        WRITE ( iw, '( A,T21,3G20.12 )' ) &
+          WRITE ( iw, '( A,T21,3G20.12 )' ) &
              ' F ANA BEND =', dbg % f_bend(:,dum(2))
-        WRITE ( iw, '( A,T21,3G20.12 )' ) &
+          WRITE ( iw, '( A,T21,3G20.12 )' ) &
              ' F NUM BEND =', f_numer(:,dum(2))
+        ENDIF
      END IF
 
 ! Debug bend virial
@@ -473,13 +487,15 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
 
 ! compute the absolute value of the differences in the forces
         diff = ABS ( ABS (dbg % f_torsion) - ABS (f_numer) )
-        rel = diff / ABS (dbg % f_torsion)
+        IF ( .NOT. ANY ( dbg % f_torsion ( :, : ) == 0._dbl ) ) rel = diff / ABS (dbg % f_torsion)
 
 ! find the maximum difference and the relative and absolute errors
         WRITE ( iw, '( A,T61,G20.12 )' ) &
              ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
-        WRITE ( iw, '( A,T61,G20.12 )' ) &
+        IF ( .NOT. ANY ( dbg % f_torsion == 0._dbl ) ) THEN
+          WRITE ( iw, '( A,T61,G20.12 )' ) &
              ' MAXIMUM RELATIVE ERROR = ', MAXVAL ( rel )
+        ENDIF
 
 ! write out the particle number and forces of
 ! the max absolute and relative error
@@ -491,13 +507,15 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
         WRITE ( iw, '( A,T21,3G20.12 )' ) &
              ' F NUM TORSION =', f_numer(:,dum(2))
 
-        dum = MAXLOC ( rel )
-        WRITE ( iw, '( A,T71,I10 )' ) &
+        IF ( .NOT. ANY ( dbg % f_torsion == 0._dbl ) ) THEN
+          dum = MAXLOC ( rel )
+          WRITE ( iw, '( A,T71,I10 )' ) &
              ' PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
-        WRITE ( iw, '( A,T21,3G20.12 )' ) &
+          WRITE ( iw, '( A,T21,3G20.12 )' ) &
              ' F ANA TORSION =', dbg % f_torsion(:,dum(2))
-        WRITE ( iw, '( A,T21,3G20.12 )' ) &
+          WRITE ( iw, '( A,T21,3G20.12 )' ) &
              ' F NUM TORSION =', f_numer(:,dum(2))
+        ENDIF
      END IF
 
 ! Debug torsion virial
@@ -606,13 +624,15 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
 
 ! compute the absolute value of the differences in the forces
           diff = ABS ( ABS (dbg % f_g) - ABS (f_numer) )
-          rel = diff / ABS (dbg % f_g)
+          IF ( .NOT. ANY ( dbg % f_g == 0._dbl ) ) rel = diff / ABS (dbg % f_g)
 
 ! find the maximum difference and the relative and absolute errors
           WRITE ( iw, '( A,T61,G20.12 )' ) 'MAXIMUM ABSOLUTE ERROR = ', &
                MAXVAL (diff)
-          WRITE ( iw, '( A,T61,G20.12 )' ) 'MAXIMUM RELATIVE ERROR = ', &
+          IF ( .NOT. ANY ( dbg % f_g == 0._dbl ) ) THEN 
+            WRITE ( iw, '( A,T61,G20.12 )' ) 'MAXIMUM RELATIVE ERROR = ', &
                MAXVAL (rel)
+          ENDIF
 
 ! write out the particle number and forces of the max absolute
 ! and relative error
@@ -624,13 +644,15 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
           WRITE ( iw, '( A,T21,3G20.12 )' ) ' F NUM G-SPACE =', &
                f_numer(:,dum(2))
 
-          dum = MAXLOC ( rel )
-          WRITE ( iw, '( A,T71,I10 )' ) &
+          IF ( .NOT. ANY ( dbg % f_g == 0._dbl ) ) THEN 
+            dum = MAXLOC ( rel )
+            WRITE ( iw, '( A,T71,I10 )' ) &
                'PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
-          WRITE ( iw, '( A,T21,3G20.12 )' ) ' F ANA G-SPACE =', &
+            WRITE ( iw, '( A,T21,3G20.12 )' ) ' F ANA G-SPACE =', &
                dbg % f_g(:,dum(2))
-          WRITE ( iw, '( A,T21,3G20.12 )' ) ' F NUM G-SPACE =', &
+            WRITE ( iw, '( A,T21,3G20.12 )' ) ' F NUM G-SPACE =', &
                f_numer(:,dum(2))
+          END IF
        END IF
 
 ! Debug g-space virial
@@ -649,8 +671,15 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
           ELSE
              WRITE ( iw, '( A,T71,F10.6 )' ) ' DELTA = ', delta
           END IF
-          CALL pvg_numer ( ewald_param, pnode, box_ref, &
+          SELECT CASE ( ewald_param % ewald_type )
+          CASE ( "EWALD" )
+            CALL pvg_numer ( ewald_param, pnode, box_ref, &
                            pw_ewald, pv_test, delta )
+          CASE ( "PME" )
+            CALL stop_program ( "fist_debug", " NO PME debug routines " )
+          CASE ( "SPME" )
+            CALL stop_program ( "fist_debug", " NO SPME debug routines " )
+          END SELECT
 
 ! write out the virials
           WRITE ( iw, '( A )' ) ' PV NUM G-SPACE'
