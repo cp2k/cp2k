@@ -245,12 +245,9 @@ SUBROUTINE set_environment ( globenv )
 
   SELECT CASE ( narg )
   CASE ( 0 )
-     globenv % input_file_name = 'input'
-  CASE ( 1 )
-     CALL m_getarg ( 1, globenv % input_file_name )
+    globenv % input_file_name = 'input'
   CASE DEFAULT
-     CALL stop_program ( 'set_environment', &
-                         'illegal number of command line arguments passed' )
+    CALL m_getarg ( 1, globenv % input_file_name )
   END SELECT
 
 END SUBROUTINE set_environment

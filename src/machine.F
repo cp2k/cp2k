@@ -29,6 +29,9 @@ MODULE machine
 #elif defined ( __G95 )
   USE machine_g95, ONLY : m_walltime, m_cputime, m_datum,  &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg
+#elif defined ( __INTEL )
+  USE machine_intel, ONLY : m_walltime, m_cputime, m_datum,  &
+       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg
 #elif defined ( __PGI )
   USE machine_pgi, ONLY : m_walltime, m_cputime, m_datum,  &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg

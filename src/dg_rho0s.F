@@ -320,7 +320,7 @@ SUBROUTINE dg_rho0_p_cgf ( dg_rho0, zet, gcc, type )
   REAL ( dbl ) :: coef
 
 !------------------------------------------------------------------------------
-  minus_i = ( 0._dbl, -1.0_dbl ) 
+  minus_i = CMPLX( 0._dbl, -1.0_dbl, dbl )
   ncg = size(zet(:))
 
   pw_grid => dg_rho0 % pw % pw_grid
@@ -378,11 +378,11 @@ SUBROUTINE dg_rho0_p_cgf ( dg_rho0, zet, gcc, type )
         IF ( lp == l0 .AND. mp == m0 .AND. np == n0 ) CYCLE
 
         SELECT CASE (type)
-	 
+ 
         CASE ("PX")
 
            p_on_grid = pw_grid % g (1, gpt) * e_gsq * coef
-	   
+           
         CASE ("PY")
 
            p_on_grid = pw_grid % g (2, gpt) * e_gsq * coef

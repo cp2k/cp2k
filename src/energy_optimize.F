@@ -66,7 +66,7 @@
   REAL(dbl), DIMENSION(:), ALLOCATABLE :: cgrad              
   REAL(dbl), DIMENSION(:), ALLOCATABLE, SAVE ::  hess
   REAL(dbl), DIMENSION(:,:), ALLOCATABLE, SAVE :: c_hist,e_hist
-!	
+!
   ncoef = size(struc % coef_pos (1) % ao % cr)
   nhist = energy_min % ndiis
 
@@ -84,7 +84,7 @@
     END DO
     tol = maxval(abs(cgrad(:)))
 
-! diis optimization	
+! diis optimization
   CASE ('DIIS')
 
     IF(iter==1)THEN

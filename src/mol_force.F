@@ -149,7 +149,7 @@ SUBROUTINE force_torsions ( is32, dist1, dist2, u1, u2, iw1, iw2, &
   REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: u1, u2
   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( : ) :: gt1, gt2, gt3, gt4
   REAL ( dbl ), INTENT ( IN ) :: is32, dist1, dist2, iw1, iw2
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: a
+  REAL ( dbl ), INTENT ( IN ), DIMENSION (0:3) :: a
   REAL ( dbl ), INTENT ( OUT ) :: fscalar, energy
 
 ! Locals

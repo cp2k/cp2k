@@ -994,9 +994,12 @@ CONTAINS
     ng(:) = rho_rspace%pw%pw_grid%npts(3)
 
     rho => rho_rspace%pw%cr3d(:,:,:)
-    drho => drho_rspace%pw%cr3d(:,:,:)
     vxc => v_rspace%pw%cr3d(:,:,:)
-    vxcg => vxcg_rspace%pw%cr3d(:,:,:)
+
+    IF (xc_info%gradient_functional) THEN
+      drho => drho_rspace%pw%cr3d(:,:,:)
+      vxcg => vxcg_rspace%pw%cr3d(:,:,:)
+    END IF
 
     ex = 0.0_wp
     ec = 0.0_wp
@@ -1051,7 +1054,8 @@ CONTAINS
     END DO
 
     CALL mp_sum(vxc,globenv%group)
-    CALL mp_sum(vxcg,globenv%group)
+    IF (xc_info%gradient_functional) CALL mp_sum(vxcg,globenv%group)
+
     CALL mp_sum(ex,globenv%group)
     CALL mp_sum(ec,globenv%group)
 

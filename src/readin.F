@@ -90,7 +90,7 @@ CONTAINS
 
     CHARACTER(LEN=4) :: end_section
     CHARACTER(LEN=1) :: section_character
-    INTEGER          :: handle,ikind,output_unit
+    INTEGER          :: handle,ikind,maxl,output_unit
     LOGICAL          :: ionode
 
 !   ---------------------------------------------------------------------------
@@ -158,12 +158,16 @@ CONTAINS
 !   *** Initialize the spherical harmonics and ***
 !   *** the orbital transformation matrices    ***
 
-    CALL init_spherical_harmonics(MAX(maxlcgf+maxder,maxlppl,maxlppnl),globenv)
+    maxl = MAX(maxlcgf+maxder,maxlppl,maxlppnl)
+
+    CALL init_spherical_harmonics(maxl,globenv)
 
 !   *** Initialize the pretabulation for the calculation of the   ***
 !   *** incomplete Gamma function F_n(t) after McMurchie-Davidson ***
 
-    CALL init_md_ftable(3*maxlcgf+1)
+    maxl = 3*maxlcgf + 1
+
+    CALL init_md_ftable(maxl)
 
 !   *** Initialize the basis set and atomic potential data sets ***
 

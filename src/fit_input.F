@@ -118,7 +118,7 @@ SUBROUTINE read_fit_section ( fit_param, globenv )
            CALL get_next ( string, ilen )
            CALL uppercase ( string ) 
            fit_param % restart = string ( 1:ilen )
-	   
+
         CASE ( 'OUTUNIT' )
            ilen = 6
            CALL get_next ( string, ilen )

@@ -1481,7 +1481,7 @@ SUBROUTINE de_g_numer(energy,sum_igr,gauss,r,r_delta,charge,glocal, &
 
 ! initialize energy
   energy =  0._dbl
-  sum = ( 0._dbl, 0._dbl )
+  sum = CMPLX( 0._dbl, 0._dbl, dbl )
   DO ig = 1, igtot
      gsq = DOT_PRODUCT( glocal(:,ig), glocal(:,ig))
      IF ( gsq <= 1.0E-10_dbl ) CYCLE
