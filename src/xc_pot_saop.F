@@ -50,7 +50,14 @@ MODULE xc_pot_saop
   USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE xc,                              ONLY: xc_vxc_pw_create
-
+  USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
+                                             xc_rho_cflags_setall,&
+                                             xc_rho_set_type,&
+                                             xc_rho_set_create,&
+                                             xc_rho_set_release,&
+                                             xc_rho_set_update
+  USE xc_xbecke88,                     ONLY: xb88_lda_info,&
+                                             xb88_lsd_info
   IMPLICIT NONE
 
   PUBLIC :: add_saop_pot
@@ -83,8 +90,9 @@ CONTAINS
     ! LOCALS
     INTEGER                                  :: ispin, nspins, n_gridpoints
     INTEGER                                  :: output_unit, stat
+    INTEGER, DIMENSION(2, 3)                 :: bo
 
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure, ionode, lsd
 
     REAL(KIND=dp)                            :: xc_energy
 
@@ -97,6 +105,8 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r, tau
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho_struct
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    TYPE(xc_rho_cflags_type)                 :: needs
 
     TYPE(xc_control_type), POINTER           :: xc_control
     TYPE(xc_control_type)                    :: my_xc_control
@@ -105,7 +115,7 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(pw_env, dft_control, xc_control, auxbas_pw_pool)
-    NULLIFY(rho_g, rho_r, tau, rho_struct)
+    NULLIFY(rho_g, rho_r, tau, rho_struct, rho_set)
     NULLIFY(vxc_GLLB, vxc_LB, vxc_LB_tmp, vxc_SAOP, vxc_tau)
     logger => cp_error_get_logger(error)
     ionode = (logger%para_env%mepos==logger%para_env%source)
@@ -123,6 +133,7 @@ CONTAINS
     CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
 
     nspins = dft_control%nspins
+    lsd = (nspins>1)
 
     ALLOCATE(rho_r(nspins), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -180,6 +191,25 @@ CONTAINS
        CALL daxpy(n_gridpoints, 1.0_dp, vxc_LB_tmp(ispin)%pw%cr3d, 1, &
                                         vxc_LB(ispin)%pw%cr3d, 1)
     END DO
+    bo = rho_r(1)%pw%pw_grid%bounds_local
+    CALL xc_rho_set_create(rho_set, bo, &
+                           xc_control%density_cut, &
+                           xc_control%gradient_cut, &
+                           xc_control%tau_cut, &
+                           error=error)
+    CALL xc_rho_cflags_setall(needs,.FALSE.,error)
+    IF (lsd) THEN
+       CALL xb88_lsd_info(needs=needs)
+    ELSE
+       CALL xb88_lda_info(needs=needs)
+    END IF
+    CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs, &
+                           dft_control, cell, auxbas_pw_pool, subsys, error)
+    CALL add_lb_pot(vxc_LB, rho_set, lsd, error)
+    CALL xc_rho_set_release(rho_set, auxbas_pw_pool, error)
+
+    ! now we need the orbitals squared
+
 
     !-------------------------!
     ! restore original values !
@@ -232,56 +262,53 @@ CONTAINS
 
   !*****************************************************************
 
-  SUBROUTINE calc_lb_pot(pot, qs_env, glob_env, error)
+  SUBROUTINE add_lb_pot(pot, rho_set, lsd, error)
 
-    INTEGER, INTENT(OUT)                     :: pot
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-         INTENT(IN), TARGET                  :: glob_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: pot
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    LOGICAL, INTENT(IN)                      :: lsd
     TYPE(cp_error_type), &
          INTENT(INOUT), OPTIONAL             :: error
 
-    INTEGER                                  :: i
-    TYPE(xc_control_type), POINTER           :: xc_control
-    TYPE(dft_control_type), POINTER          :: dft_control
-
-    TYPE(xc_control_type)                    :: my_xc_control
-
+    INTEGER                                  :: i,j,k, ispin
+    INTEGER, DIMENSION(2,3)                  :: bo
     
-    NULLIFY(dft_control, xc_control)
+    REAL(KIND=dp)                            :: n_13, x, x2
 
-    CALL get_qs_env(qs_env, dft_control=dft_control)
-    xc_control => dft_control%xc_control
+    IF (.NOT.lsd) THEN
+       bo(1,:) = LBOUND(rho_set%rho)
+       bo(2,:) = UBOUND(rho_set%rho)
+    ELSE
+       bo(1,:) = LBOUND(rho_set%rhoa)
+       bo(2,:) = UBOUND(rho_set%rhoa)
+    END IF
 
-    !--------------------------------!
-    ! save original values for later !
-    !--------------------------------!
-    my_xc_control%gradient_functionals     = xc_control%gradient_functionals
-    my_xc_control%crossterms               = xc_control%crossterms
-    xc_control%functionals = ""
-    CALL xc_get_functional ( 0, "PBE", xc_control%functionals, &
-                                       xc_control%gradient_functionals, &
-                                       xc_control%crossterms )
-    DO i=1, 3
-       IF (xc_control%functionals(i) == "") THEN 
-          xc_control%functionals(i) = "NONE"
-       END IF
+    DO k=bo(1,3), bo(2,3)
+       DO j=bo(1,2), bo(2,2)
+          DO i=bo(1,1), bo(2,1)
+             IF (.NOT.lsd) THEN
+                n_13 = rho_set%rho_1_3(i,j,k)
+                x    = rho_set%norm_drho(i,j,k)/(rho_set%rho(i,j,k)*n_13)
+                x2   = x*x
+                pot(1)%pw%cr3d(i,j,k) = pot(1)%pw%cr3d(i,j,k) - &
+                     beta*x2*n_13/(1.0_dp+3.0_dp*x*LOG(SQRT(x2+1.0_dp)+x))
+             ELSE
+                n_13 = rho_set%rhoa_1_3(i,j,k)
+                x    = rho_set%norm_drhoa(i,j,k)/(rho_set%rhoa(i,j,k)*n_13)
+                x2   = x*x
+                pot(1)%pw%cr3d(i,j,k) = pot(1)%pw%cr3d(i,j,k) - &
+                     beta*x2*n_13/(1.0_dp+3.0_dp*x*LOG(SQRT(x2+1.0_dp)+x))
+                n_13 = rho_set%rhob_1_3(i,j,k)
+                x    = rho_set%norm_drhob(i,j,k)/(rho_set%rhob(i,j,k)*n_13)
+                x2   = x*x
+                pot(2)%pw%cr3d(i,j,k) = pot(2)%pw%cr3d(i,j,k) - &
+                     beta*x2*n_13/(1.0_dp+3.0_dp*x*LOG(SQRT(x2+1.0_dp)+x))
+             END IF
+          END DO
+       END DO
     END DO
-    
-    ! CALL PBEX AND MULTIPLY BY ALPHA
 
-    ! CALL PBEC AND ADD
-
-    !-------------------------!
-    ! restore original values !
-    !-------------------------!
-    xc_control%functionals = my_xc_control%functionals
-    xc_control%gradient_functionals = my_xc_control%gradient_functionals
-    xc_control%crossterms = my_xc_control%crossterms
-    
-    ! ADD REST
-
-  END SUBROUTINE calc_lb_pot
+  END SUBROUTINE add_lb_pot
 
   !*****************************************************************
 
