@@ -1217,10 +1217,6 @@ CONTAINS
              CASE default
                 CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
              END SELECT
-             IF (my_rho_g_local) THEN
-                my_rho_g_local=.FALSE.
-                CALL pw_pool_give_back_pw(pw_pool, my_rho_g ,error=error)
-             END IF
              NULLIFY(my_rho_g)
              CALL pw_pool_give_back_pw(pw_pool, tmp_g ,error=error)
           ELSE
@@ -1277,6 +1273,12 @@ CONTAINS
              CALL zero_core(drho_r(idir,ispin)%pw,atoms,set_shift=2,error=error)
           END DO
        END IF
+
+       IF (my_rho_g_local) THEN
+          my_rho_g_local=.FALSE.
+          CALL pw_pool_give_back_pw(pw_pool, my_rho_g ,error=error)
+       END IF
+
     END DO
 
     SELECT CASE(nspins)
