@@ -800,7 +800,8 @@ CONTAINS
       OPTIONAL                               :: error
 
     ! locals
-    INTEGER                                  :: output_unit, ionode
+    INTEGER                                  :: output_unit
+    LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: total_rho_gspace
     TYPE(cp_logger_type), POINTER            :: logger
 
