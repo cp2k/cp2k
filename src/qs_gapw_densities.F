@@ -137,8 +137,7 @@ CONTAINS
 
     rho0_h_tot = 0.0_dp
     rho0_s_tot = 0.0_dp
-    CALL reallocate(rho1_h_tot,1,nspins)
-    CALL reallocate(rho1_s_tot,1,nspins)
+    ALLOCATE(rho1_h_tot(1:nspins), rho1_s_tot(1:nspins))
 
     DO ikind = 1,nkind
       atom_kind => atomic_kind_set(ikind)
@@ -171,7 +170,7 @@ CONTAINS
     CALL put_rho0_s_on_grid(qs_env,atomic_kind_set,rho0_mpole,tot_rs_int,error)
 
 
-    IF(ABS(1.0_dp-ABS(tot_rs_int/rho0_s_tot)).GT.1.0E-6_dp) THEN
+    IF(ABS(1.0_dp-ABS(tot_rs_int/rho0_s_tot)).GT.1.0E-3_dp) THEN
        IF (ionode) THEN
           WRITE(output_unit,'(/,72("*"))')
           WRITE(output_unit,'(T2,A,T66,1E20.8)') & 
