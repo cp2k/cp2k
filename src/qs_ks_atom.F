@@ -392,6 +392,10 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
                               "C_int_h,C_int_s")
 
+    DEALLOCATE(mat_h,mat_p, STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+                              "mat_h,mat_p")
+
     IF(forces) THEN
        DEALLOCATE (atom_of_kind,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
