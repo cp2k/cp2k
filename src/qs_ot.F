@@ -792,22 +792,29 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
 
     INTEGER                                  :: handle, k, n, ortho_k
     TYPE(cp_fm_type), POINTER                :: matrix_target
+    TYPE(cp_fm_type), POINTER                :: matrix_hc_local
 
   CALL timeset("qs_ot_get_derivative","I","",handle)
 
   CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k)
 
   ! could in principle be taken inside qs_ot_get_derivative_* for increased efficiency
+  ! create a local rotated version of matrix_hc leaving matrix_hc untouched (needed 
+  ! for lagrangian multipliers)
   IF (qs_ot_env % settings % do_rotation) THEN
       CALL cp_fm_to_fm(matrix_hc,matrix_gx) ! use gx as temporary    
-      CALL cp_fm_gemm('N','T',n,k,k,rone,matrix_gx,qs_ot_env%rot_mat_u,rzero,matrix_hc)
+      CALL cp_fm_create(matrix_hc_local,matrix_hc%matrix_struct)
+      CALL cp_fm_set_all(matrix_hc_local,0.0_dp)
+      CALL cp_fm_gemm('N','T',n,k,k,rone,matrix_gx,qs_ot_env%rot_mat_u,rzero,matrix_hc_local)
+  ELSE
+      matrix_hc_local=>matrix_hc
   ENDIF
 
 
   IF (qs_ot_env % do_taylor) THEN
-     CALL qs_ot_get_derivative_taylor(matrix_hc,matrix_x,matrix_sx,matrix_gx,qs_ot_env)
+     CALL qs_ot_get_derivative_taylor(matrix_hc_local,matrix_x,matrix_sx,matrix_gx,qs_ot_env)
   ELSE
-     CALL qs_ot_get_derivative_diag(matrix_hc,matrix_x,matrix_sx,matrix_gx,qs_ot_env)
+     CALL qs_ot_get_derivative_diag(matrix_hc_local,matrix_x,matrix_sx,matrix_gx,qs_ot_env)
   ENDIF
 
   ! and make it orthogonal
@@ -848,6 +855,10 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
   ! also treat the rot_mat gradient here
   IF (qs_ot_env%settings%do_rotation) THEN
      CALL qs_ot_rot_mat_derivative(qs_ot_env)
+  ENDIF
+
+  IF (qs_ot_env % settings % do_rotation) THEN
+      CALL cp_fm_release(matrix_hc_local)
   ENDIF
 
   CALL timestop(0.0_dp,handle)
