@@ -247,6 +247,8 @@ CONTAINS
                            alpha_core_charge=alpha,&
                            ccore_charge=pab(1,1))
 
+      IF (alpha == 0.0_dp) CYCLE
+
       bo = get_limit ( natom, para_env%num_pe, para_env%mepos )
 
       npme = bo(2) - bo(1) + 1

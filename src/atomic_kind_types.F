@@ -1022,6 +1022,8 @@ CONTAINS
         CALL read_potential(atomic_kind%element_symbol,potential_name,&
                             atomic_kind%gth_potential,globenv)
         CALL set_potential(atomic_kind%gth_potential,z=z)
+      CASE ("GHOST")
+        atomic_kind%mass = 0.0_dp
       CASE ("ELP")
         CALL allocate_potential(atomic_kind%elp_potential)
         CALL read_potential(atomic_kind%element_symbol,potential_name,&

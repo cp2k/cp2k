@@ -373,12 +373,15 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         maxradius=0.0_dp
         DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_set,&
+         
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               orb_basis_set=orb_basis_set,&
                                alpha_core_charge=alpha)
            ! this is to be sure that the core charge is mapped ok
            ! right now, the core is mapped on the auxiliary basis, this should, at a give point be changed
            ! so that also for the core a multigrid is used
-           maxradius=MAX(maxradius,exp_radius( 0, alpha, dft_control%qs_control%eps_rho_rspace, 10.0_dp))
+           IF (alpha > 0.0_dp)&
+             maxradius=MAX(maxradius,exp_radius( 0, alpha, dft_control%qs_control%eps_rho_rspace, 10.0_dp))
            CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                   npgf=npgfa, nset=nseta, zet=zeta,l=lshella,nshell=nshella)
 
@@ -549,8 +552,9 @@ SUBROUTINE get_subgrid_size ( qs_env, cutoff, radius )
                              zetp=lcut,eps=eps_rho_rspace,prefactor=1._dp,cutoff=0._dp)
     IF ( igrid_level == 1 ) THEN
       p=maxcharge
-      radius(1)=MAX(radius(1), exp_radius_very_extended(0,0,0,0,ra=ra,rb=rb,rp=rp,&
-                    zetp=mincoreval,eps=eps_rho_rspace,prefactor=1._dp,cutoff=0._dp) )
+      IF (mincoreval > 0.0_dp)&
+        radius(1)=MAX(radius(1), exp_radius_very_extended(0,0,0,0,ra=ra,rb=rb,rp=rp,&
+                      zetp=mincoreval,eps=eps_rho_rspace,prefactor=1._dp,cutoff=0._dp) )
       p = 1._dp
     END IF
 

@@ -368,6 +368,9 @@ CONTAINS
                            ppl_radius=ppl_radius(ikind),&
                            ppnl_present=ppnl_present(ikind),&
                            ppnl_radius=ppnl_radius(ikind))
+      ELSE
+        ppl_present(ikind) = .FALSE.
+        ppnl_present(ikind) = .FALSE.
       END IF
 
     END DO

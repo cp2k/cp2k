@@ -591,14 +591,16 @@ CONTAINS
           NULLIFY (vppnlt(kkind,j)%neighbor)
           NULLIFY (vppnlt(kkind,j)%nprj_ppnl)
           NULLIFY (vppnlt(kkind,j)%vprj_ppnl)
-          CALL get_potential(potential=gth_potential,&
-                             alpha_ppnl=vppnlt(kkind,j)%alpha_ppnl,&
-                             cprj=vppnlt(kkind,j)%cprj,&
-                             lppnl=vppnlt(kkind,j)%lppnl,&
-                             nppnl=vppnlt(kkind,j)%nppnl,&
-                             nprj_ppnl=vppnlt(kkind,j)%nprj_ppnl,&
-                             ppnl_radius=vppnlt(kkind,j)%ppnl_radius,&
-                             vprj_ppnl=vppnlt(kkind,j)%vprj_ppnl)
+          IF (ASSOCIATED(gth_potential)) THEN
+            CALL get_potential(potential=gth_potential,&
+                               alpha_ppnl=vppnlt(kkind,j)%alpha_ppnl,&
+                               cprj=vppnlt(kkind,j)%cprj,&
+                               lppnl=vppnlt(kkind,j)%lppnl,&
+                               nppnl=vppnlt(kkind,j)%nppnl,&
+                               nprj_ppnl=vppnlt(kkind,j)%nprj_ppnl,&
+                               ppnl_radius=vppnlt(kkind,j)%ppnl_radius,&
+                               vprj_ppnl=vppnlt(kkind,j)%vprj_ppnl)
+          END IF
         END DO
 
       END DO
