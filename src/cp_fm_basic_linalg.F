@@ -153,7 +153,7 @@ CONTAINS
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
-    my_beta=0.0_dp
+    my_beta=1.0_dp
     IF(PRESENT(beta)) my_beta=beta
     NULLIFY(a,b)
 
