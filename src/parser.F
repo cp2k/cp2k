@@ -242,7 +242,7 @@ RECURSIVE SUBROUTINE read_line_p
     DO WHILE (llen==0)
        READ (iunit,iostat=ios,fmt='(a )' ) line
        IF ( ios /= 0 ) CALL stop_parser ( 'read_line','error while reading file')
-       llen = len_trim(line)
+       llen = MAX(len_trim(line),0) ! again the xlf problem (see qs_parser.F)
     END DO
 
 !..now read the input line
