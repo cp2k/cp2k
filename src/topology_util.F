@@ -81,6 +81,8 @@ MODULE topology_util
                                              str_search
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   USE topology_types,                  ONLY: topology_parameters_type,&
                                              atom_info_type,&
                                              connectivity_info_type,&
@@ -1771,7 +1773,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     INTEGER                                  :: ikind,jkind,ityp,inum,ires,imol
     INTEGER                                  :: ibond,c_intra
     LOGICAL                                  :: found
-    INTEGER                                  :: nsgf,nelectron
+    INTEGER                                  :: nsgf,nelectron,handle
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -1787,6 +1789,8 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
     IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
   END IF
+
+  CALL timeset(routineN,'I','',handle)
 
   IF(PM1) WRITE(iw,*) "  Entering topology_connectivity_pack"
 
@@ -2570,6 +2574,8 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
 !------------------------------------------------------------------------------
   IF(PM1) WRITE(iw,*) "  Exiting  topology_connectivity_pack"
 
+  CALL timestop(0.0_dp,handle)
+
   IF(PRESENT(globenv)) THEN
     CALL write_checkpoint_information("leaving "//routineN,globenv)
   END IF
@@ -2640,15 +2646,14 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     LOGICAL                                  :: PM1, PM2, PM3, PM4
     REAL(KIND=dp), DIMENSION(:), POINTER         :: charge, mass
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
-    TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
-    TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
+    TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list,ex_bend_list
+    TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list,ex_bond_list
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(torsion_type), DIMENSION(:), &
-      POINTER                                :: torsion_list
-    !INTEGER, DIMENSION(:), POINTER :: list,list2
-    INTEGER, DIMENSION(:), POINTER :: list
+      POINTER                                :: torsion_list,ex_torsion_list
+    INTEGER, DIMENSION(:), POINTER :: list,list2
     INTEGER                                  :: imolecule,first_atom,last_atom,&
                                                 nbond,nbend,ntorsion
 
@@ -2658,7 +2663,12 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     TYPE(elp_potential_type), POINTER        :: elp_potential
     LOGICAL :: my_qmmm
     
-    INTEGER :: iatom
+    INTEGER :: iatom,handle
+
+    INTEGER, DIMENSION(:), POINTER :: first_mol,last_mol,natom_mol,nbond_mol,nbend_mol,ntorsion_mol
+    INTEGER :: imol_now,imol_minus,imol_plus
+    INTEGER :: ibond,ibend,itorsion,offset
+    LOGICAL :: mol_change,mol_change2
 
 
 !------------------------------------------------------------------------------
@@ -2676,6 +2686,8 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
     IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
   END IF
+
+  CALL timeset(routineN,'I','',handle)
 
   IF(PM1) WRITE(iw,*) "  Entering topology_coordinate_pack"
   my_qmmm = .FALSE.
@@ -2833,66 +2845,142 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   !-----------------------------------------------------------------------------
   ! 8. Fill in the particle_set%lpi%exclusion%list_vdw
   !-----------------------------------------------------------------------------
-  ALLOCATE(atomlist(SIZE(particle_set)),STAT=istat)
-  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomlist')
   ALLOCATE(atomkind(SIZE(particle_set)),STAT=istat)
-  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomkind')
+  IF(istat/=0) CALL stop_memory('topology_coordinate_pack','atomkind')
+  ALLOCATE(natom_mol(SIZE(molecule_set)),STAT=istat)
+  IF(istat/=0) CALL stop_memory('topology_coordinate_pack','natom_mol')
+  ALLOCATE(nbond_mol(SIZE(molecule_set)),STAT=istat)
+  IF(istat/=0) CALL stop_memory('topology_coordinate_pack','nbond_mol')
+  ALLOCATE(nbend_mol(SIZE(molecule_set)),STAT=istat)
+  IF(istat/=0) CALL stop_memory('topology_coordinate_pack','nbend_mol')
+  ALLOCATE(ntorsion_mol(SIZE(molecule_set)),STAT=istat)
+  IF(istat/=0) CALL stop_memory('topology_coordinate_pack','ntorsion_mol')
+  ALLOCATE(first_mol(SIZE(molecule_set)),STAT=istat)
+  IF(istat/=0) CALL stop_memory('topology_coordinate_pack','first_mol')
+  ALLOCATE(last_mol(SIZE(molecule_set)),STAT=istat)
+  IF(istat/=0) CALL stop_memory('topology_coordinate_pack','last_mol')
   DO i=1,SIZE(particle_set)
     atomic_kind => particle_set(i)%atomic_kind
     CALL get_atomic_kind(atomic_kind,kind_number=j)
     atomkind(i) = j
   END DO
+  DO i=1,SIZE(molecule_set)
+    molecule => molecule_set(i)
+    CALL get_molecule(molecule=molecule,&
+                      molecule_kind=molecule_kind,&
+                      first_atom=first_mol(i),&
+                      last_atom=last_mol(i))
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           natom=natom_mol(i),&
+                           nbond=nbond_mol(i),&
+                           nbend=nbend_mol(i),&
+                           ntorsion=ntorsion_mol(i))
+  END DO
+  imol_now=1
+  mol_change=.TRUE.
+  mol_change2=.FALSE.
   DO iatom=1,SIZE(particle_set)
+
+    IF(iatom==first_mol(imol_now)) mol_change =.TRUE.
+    IF(iatom==last_mol(imol_now-1)) mol_change2=.TRUE.
+    IF(mol_change) THEN
+      WRITE(*,*) "MAKE ",iatom
+      imol_now = imol_now + 1
+      imol_minus = MAX(1,imol_now-topology%exclude_check)
+      imol_plus  = MIN(SIZE(molecule_set),imol_now+topology%exclude_check)
+      natom = SUM(natom_mol(imol_minus:imol_plus))
+      nbond = SUM(nbond_mol(imol_minus:imol_plus))
+      nbend = SUM(nbend_mol(imol_minus:imol_plus))
+      ntorsion = SUM(ntorsion_mol(imol_minus:imol_plus))
+
+      ALLOCATE(atomlist(natom),STAT=istat)
+      IF(istat/=0) CALL stop_memory('topology_coordinate_pack','atomlist')
+      ALLOCATE(ex_bond_list(nbond),STAT=istat)
+      IF(istat/=0) CALL stop_memory('topology_coordinate_pack','ex_bond_list')
+      ALLOCATE(ex_bend_list(nbend),STAT=istat)
+      IF(istat/=0) CALL stop_memory('topology_coordinate_pack','ex_bend_list')
+      ALLOCATE(ex_torsion_list(ntorsion),STAT=istat)
+      IF(istat/=0) CALL stop_memory('topology_coordinate_pack','ex_torsion_list')
+      ibond = 1
+      ibend = 1
+      itorsion = 1
+      DO i=imol_minus,imol_plus
+        molecule => molecule_set(i)
+        CALL get_molecule(molecule=molecule,molecule_kind=molecule_kind)
+        CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                               bond_list=bond_list,&
+                               bend_list=bend_list,&
+                               torsion_list=torsion_list)
+        ex_bond_list(ibond:ibond+SIZE(bond_list)-1)%a = &
+                    bond_list(:)%a+first_mol(i)-1
+        ex_bond_list(ibond:ibond+SIZE(bond_list)-1)%b = &
+                    bond_list(:)%b+first_mol(i)-1
+        ex_bend_list(ibend:ibend+SIZE(bend_list)-1)%a = &
+                    bend_list(:)%a+first_mol(i)-1
+        ex_bend_list(ibend:ibend+SIZE(bend_list)-1)%b = &
+                    bend_list(:)%b+first_mol(i)-1
+        ex_bend_list(ibend:ibend+SIZE(bend_list)-1)%c = &
+                    bend_list(:)%c+first_mol(i)-1
+        ex_torsion_list(itorsion:itorsion+SIZE(torsion_list)-1)%a = &
+                       torsion_list(:)%a+first_mol(i)-1
+        ex_torsion_list(itorsion:itorsion+SIZE(torsion_list)-1)%b = &
+                       torsion_list(:)%b+first_mol(i)-1
+        ex_torsion_list(itorsion:itorsion+SIZE(torsion_list)-1)%c = &
+                       torsion_list(:)%c+first_mol(i)-1
+        ex_torsion_list(itorsion:itorsion+SIZE(torsion_list)-1)%d = &
+                       torsion_list(:)%d+first_mol(i)-1
+        ibond = ibond + SIZE(bond_list)
+        ibend = ibend + SIZE(bend_list)
+        itorsion = itorsion + SIZE(torsion_list)
+      END DO
+      offset = first_mol(imol_minus)
+      mol_change=.FALSE.
+    END IF
+
     atomlist(:) = 1 
-    atomlist(iatom) = 0    !exclude yourself???
+    atomlist(iatom-offset+1) = 0    !exclude yourself???
 
     IF(topology%exclude_vdw=="1-2" .OR. &
        topology%exclude_vdw=="1-3" .OR. &
        topology%exclude_vdw=="1-4") THEN
-      nbond = 0
-      IF(ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
       DO j=1,nbond
          IF (PM2) WRITE(iw,*)"bond_list ::",&
-                             conn_info%bond_a(j),&
-                             conn_info%bond_b(j)
-         IF(  (conn_info%bond_a(j)==iatom).OR. &
-              (conn_info%bond_b(j)==iatom) ) THEN
-            atomlist(conn_info%bond_a(j)) = 0
-            atomlist(conn_info%bond_b(j)) = 0
+                             ex_bond_list(j)%a,&
+                             ex_bond_list(j)%b
+         IF(  (ex_bond_list(j)%a==iatom).OR. &
+              (ex_bond_list(j)%b==iatom) ) THEN
+            atomlist(ex_bond_list(j)%a-offset+1) = 0
+            atomlist(ex_bond_list(j)%b-offset+1) = 0
          END IF
       END DO
     END IF
 
     IF(topology%exclude_vdw=="1-3" .OR. &
        topology%exclude_vdw=="1-4") THEN
-      nbend = 0
-      IF(ASSOCIATED(conn_info%theta_a)) nbend = SIZE(conn_info%theta_a)
       DO j=1,nbend
          IF (PM2) WRITE(iw,*)"bend_list ::",&
-                             conn_info%theta_a(j),&
-                             conn_info%theta_a(j),&
-                             conn_info%theta_c(j)
-         IF(  (conn_info%theta_a(j)==iatom).OR. &
-              (conn_info%theta_c(j)==iatom) ) THEN
-            atomlist(conn_info%theta_a(j)) = 0
-            atomlist(conn_info%theta_c(j)) = 0
+                             ex_bend_list(j)%a,&
+                             ex_bend_list(j)%b,&
+                             ex_bend_list(j)%c
+         IF(  (ex_bend_list(j)%a==iatom).OR. &
+              (ex_bend_list(j)%c==iatom) ) THEN
+            atomlist(ex_bend_list(j)%a-offset+1) = 0
+            atomlist(ex_bend_list(j)%c-offset+1) = 0
          END IF
       END DO
     END IF
 
     IF(topology%exclude_vdw=="1-4") THEN
-      ntorsion = 0
-      IF(ASSOCIATED(conn_info%phi_a)) ntorsion = SIZE(conn_info%phi_a)
       DO j=1,ntorsion
          IF (PM2) WRITE(iw,*)"tors_list ::",&
-                             conn_info%phi_a(j),&
-                             conn_info%phi_b(j),&
-                             conn_info%phi_c(j),&
-                             conn_info%phi_d(j)
-         IF(  (conn_info%phi_a(j)==iatom).OR. &
-              (conn_info%phi_d(j)==iatom) ) THEN
-            atomlist(conn_info%phi_a(j)) = 0
-            atomlist(conn_info%phi_d(j)) = 0
+                             ex_torsion_list(j)%a,&
+                             ex_torsion_list(j)%b,&
+                             ex_torsion_list(j)%c,&
+                             ex_torsion_list(j)%d
+         IF(  (ex_torsion_list(j)%a==iatom).OR. &
+              (ex_torsion_list(j)%d==iatom) ) THEN
+            atomlist(ex_torsion_list(j)%a-offset+1) = 0
+            atomlist(ex_torsion_list(j)%d-offset+1) = 0
          END IF
       END DO
     END IF
@@ -2913,7 +3001,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
           DO j = 1, SIZE(qmmm_env%qm_atom_index)
              counter = qmmm_env%qm_atom_index(j)
              IF ((counter >= first_atom).AND.(counter <= last_atom)) &
-                  atomlist(counter)= 0 
+                  atomlist(counter-offset+1) = 0
           END DO
        END IF
     END IF
@@ -2921,14 +3009,20 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     DO j=1,SIZE(atomic_kind_set)
       counter = 0
       NULLIFY(list)
-      DO k=1,SIZE(particle_set)
-        IF((atomkind(k)==j).AND.(atomlist(k)==0)) THEN
+      DO k=1,natom
+        IF((atomkind(k+offset-1)==j).AND.(atomlist(k)==0)) THEN
           counter = counter + 1
           CALL reallocate(list,1,counter)
-          list(counter) = k
+          list(counter) = k+offset-1
         END IF
       END DO
       particle_set(iatom)%lpi%exclusion(j)%list_vdw => list
+      IF(topology%exclude_vdw==topology%exclude_ei) THEN
+        NULLIFY(list2)
+        CALL reallocate(list2,1,counter)
+        list2(:) = list(:)
+        particle_set(iatom)%lpi%exclusion(j)%list_ei => list2
+      END IF
       IF (PM2) THEN 
          IF (ASSOCIATED(list)) &
          WRITE(iw,*)"exclusion list_vdw :: ",&
@@ -2936,77 +3030,172 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
                    list
       END IF
     END DO
+    IF(mol_change2) THEN
+      WRITE(*,*) "CLEAN ",iatom
+      DEALLOCATE(atomlist,STAT=istat)
+      IF(istat/=0) CALL stop_memory('topology_coordinate_pack','atomlist')
+      DEALLOCATE(ex_bond_list,STAT=istat)
+      IF(istat/=0) CALL stop_memory('topology_coordinate_pack','ex_bond_list')
+      DEALLOCATE(ex_bend_list,STAT=istat)
+      IF(istat/=0) CALL stop_memory('topology_coordinate_pack','ex_bend_list')
+      DEALLOCATE(ex_torsion_list,STAT=istat)
+      IF(istat/=0) CALL stop_memory('topology_coordinate_pack','x_torsion_list')
+      mol_change2=.FALSE.
+    END IF
   END DO
-  DEALLOCATE(atomlist,STAT=istat)
-  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomlist')
   DEALLOCATE(atomkind,STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomkind')
+  DEALLOCATE(natom_mol,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','natom_mol')
+  DEALLOCATE(nbond_mol,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','nbond_mol')
+  DEALLOCATE(nbend_mol,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','nbend_mol')
+  DEALLOCATE(ntorsion_mol,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','ntorsion_mol')
 
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 9. Fill in the particle_set%lpi%exclusion%list_ei
   !-----------------------------------------------------------------------------
-    ALLOCATE(atomlist(SIZE(particle_set)),STAT=istat)
-    IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomlist')
+  IF(topology%exclude_vdw/=topology%exclude_ei) THEN
     ALLOCATE(atomkind(SIZE(particle_set)),STAT=istat)
-    IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomkind')
+    IF(istat/=0) CALL stop_memory('topology_coordinate_pack','atomkind')
+    ALLOCATE(natom_mol(SIZE(molecule_set)),STAT=istat)
+    IF(istat/=0) CALL stop_memory('topology_coordinate_pack','natom_mol')
+    ALLOCATE(nbond_mol(SIZE(molecule_set)),STAT=istat)
+    IF(istat/=0) CALL stop_memory('topology_coordinate_pack','nbond_mol')
+    ALLOCATE(nbend_mol(SIZE(molecule_set)),STAT=istat)
+    IF(istat/=0) CALL stop_memory('topology_coordinate_pack','nbend_mol')
+    ALLOCATE(ntorsion_mol(SIZE(molecule_set)),STAT=istat)
+    IF(istat/=0) CALL stop_memory('topology_coordinate_pack','ntorsion_mol')
+    ALLOCATE(first_mol(SIZE(molecule_set)),STAT=istat)
+    IF(istat/=0) CALL stop_memory('topology_coordinate_pack','first_mol')
+    ALLOCATE(last_mol(SIZE(molecule_set)),STAT=istat)
+    IF(istat/=0) CALL stop_memory('topology_coordinate_pack','last_mol')
     DO i=1,SIZE(particle_set)
       atomic_kind => particle_set(i)%atomic_kind
       CALL get_atomic_kind(atomic_kind,kind_number=j)
       atomkind(i) = j
     END DO
+    DO i=1,SIZE(molecule_set)
+      molecule => molecule_set(i)
+      CALL get_molecule(molecule=molecule,&
+                        molecule_kind=molecule_kind,&
+                        first_atom=first_mol(i),&
+                        last_atom=last_mol(i))
+      CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                             natom=natom_mol(i),&
+                             nbond=nbond_mol(i),&
+                             nbend=nbend_mol(i),&
+                             ntorsion=ntorsion_mol(i))
+    END DO
+    imol_now=1
+    mol_change=.TRUE.
+    mol_change2=.FALSE.
     DO iatom=1,SIZE(particle_set)
+  
+      IF(iatom==first_mol(imol_now)) mol_change =.TRUE.
+      IF(iatom==last_mol(imol_now-1)) mol_change2=.TRUE.
+      IF(mol_change) THEN
+        WRITE(*,*) "MAKE ",iatom
+        imol_now = imol_now + 1
+        imol_minus = MAX(1,imol_now-topology%exclude_check)
+        imol_plus  = MIN(SIZE(molecule_set),imol_now+topology%exclude_check)
+        natom = SUM(natom_mol(imol_minus:imol_plus))
+        nbond = SUM(nbond_mol(imol_minus:imol_plus))
+        nbend = SUM(nbend_mol(imol_minus:imol_plus))
+        ntorsion = SUM(ntorsion_mol(imol_minus:imol_plus))
+  
+        ALLOCATE(atomlist(natom),STAT=istat)
+        IF(istat/=0) CALL stop_memory('topology_coordinate_pack','atomlist')
+        ALLOCATE(ex_bond_list(nbond),STAT=istat)
+        IF(istat/=0) CALL stop_memory('topology_coordinate_pack','ex_bond_list')
+        ALLOCATE(ex_bend_list(nbend),STAT=istat)
+        IF(istat/=0) CALL stop_memory('topology_coordinate_pack','ex_bend_list')
+        ALLOCATE(ex_torsion_list(ntorsion),STAT=istat)
+        IF(istat/=0) CALL stop_memory('topology_coordinate_pack','ex_torsion_list')
+        ibond = 1
+        ibend = 1
+        itorsion = 1
+        DO i=imol_minus,imol_plus
+          molecule => molecule_set(i)
+          CALL get_molecule(molecule=molecule,molecule_kind=molecule_kind)
+          CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                                 bond_list=bond_list,&
+                                 bend_list=bend_list,&
+                                 torsion_list=torsion_list)
+          ex_bond_list(ibond:ibond+SIZE(bond_list)-1)%a = &
+                      bond_list(:)%a+first_mol(i)-1
+          ex_bond_list(ibond:ibond+SIZE(bond_list)-1)%b = &
+                      bond_list(:)%b+first_mol(i)-1
+          ex_bend_list(ibend:ibend+SIZE(bend_list)-1)%a = &
+                      bend_list(:)%a+first_mol(i)-1
+          ex_bend_list(ibend:ibend+SIZE(bend_list)-1)%b = &
+                      bend_list(:)%b+first_mol(i)-1
+          ex_bend_list(ibend:ibend+SIZE(bend_list)-1)%c = &
+                      bend_list(:)%c+first_mol(i)-1
+          ex_torsion_list(itorsion:itorsion+SIZE(torsion_list)-1)%a = &
+                         torsion_list(:)%a+first_mol(i)-1
+          ex_torsion_list(itorsion:itorsion+SIZE(torsion_list)-1)%b = &
+                         torsion_list(:)%b+first_mol(i)-1
+          ex_torsion_list(itorsion:itorsion+SIZE(torsion_list)-1)%c = &
+                         torsion_list(:)%c+first_mol(i)-1
+          ex_torsion_list(itorsion:itorsion+SIZE(torsion_list)-1)%d = &
+                         torsion_list(:)%d+first_mol(i)-1
+          ibond = ibond + SIZE(bond_list)
+          ibend = ibend + SIZE(bend_list)
+          itorsion = itorsion + SIZE(torsion_list)
+        END DO
+        offset = first_mol(imol_minus)
+        mol_change=.FALSE.
+      END IF
+  
       atomlist(:) = 1 
-      atomlist(iatom) = 0    !exclude yourself???
+      atomlist(iatom-offset+1) = 0    !exclude yourself???
   
       IF(topology%exclude_ei=="1-2" .OR. &
          topology%exclude_ei=="1-3" .OR. &
          topology%exclude_ei=="1-4") THEN
-        nbond = 0
-        IF(ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
         DO j=1,nbond
            IF (PM2) WRITE(iw,*)"bond_list ::",&
-                               conn_info%bond_a(j),&
-                               conn_info%bond_b(j)
-           IF(  (conn_info%bond_a(j)==iatom).OR. &
-                (conn_info%bond_b(j)==iatom) ) THEN
-              atomlist(conn_info%bond_a(j)) = 0
-              atomlist(conn_info%bond_b(j)) = 0
+                               ex_bond_list(j)%a,&
+                               ex_bond_list(j)%b
+           IF(  (ex_bond_list(j)%a==iatom).OR. &
+                (ex_bond_list(j)%b==iatom) ) THEN
+              atomlist(ex_bond_list(j)%a-offset+1) = 0
+              atomlist(ex_bond_list(j)%b-offset+1) = 0
            END IF
         END DO
       END IF
   
       IF(topology%exclude_ei=="1-3" .OR. &
          topology%exclude_ei=="1-4") THEN
-        nbend = 0
-        IF(ASSOCIATED(conn_info%theta_a)) nbend = SIZE(conn_info%theta_a)
         DO j=1,nbend
            IF (PM2) WRITE(iw,*)"bend_list ::",&
-                               conn_info%theta_a(j),&
-                               conn_info%theta_a(j),&
-                               conn_info%theta_c(j)
-           IF(  (conn_info%theta_a(j)==iatom).OR. &
-                (conn_info%theta_c(j)==iatom) ) THEN
-              atomlist(conn_info%theta_a(j)) = 0
-              atomlist(conn_info%theta_c(j)) = 0
+                               ex_bend_list(j)%a,&
+                               ex_bend_list(j)%b,&
+                               ex_bend_list(j)%c
+           IF(  (ex_bend_list(j)%a==iatom).OR. &
+                (ex_bend_list(j)%c==iatom) ) THEN
+              atomlist(ex_bend_list(j)%a-offset+1) = 0
+              atomlist(ex_bend_list(j)%c-offset+1) = 0
            END IF
         END DO
       END IF
   
       IF(topology%exclude_ei=="1-4") THEN
-        ntorsion = 0
-        IF(ASSOCIATED(conn_info%phi_a)) ntorsion = SIZE(conn_info%phi_a)
         DO j=1,ntorsion
            IF (PM2) WRITE(iw,*)"tors_list ::",&
-                               conn_info%phi_a(j),&
-                               conn_info%phi_b(j),&
-                               conn_info%phi_c(j),&
-                               conn_info%phi_d(j)
-           IF(  (conn_info%phi_a(j)==iatom).OR. &
-                (conn_info%phi_d(j)==iatom) ) THEN
-              atomlist(conn_info%phi_a(j)) = 0
-              atomlist(conn_info%phi_d(j)) = 0
+                               ex_torsion_list(j)%a,&
+                               ex_torsion_list(j)%b,&
+                               ex_torsion_list(j)%c,&
+                               ex_torsion_list(j)%d
+           IF(  (ex_torsion_list(j)%a==iatom).OR. &
+                (ex_torsion_list(j)%d==iatom) ) THEN
+              atomlist(ex_torsion_list(j)%a-offset+1) = 0
+              atomlist(ex_torsion_list(j)%d-offset+1) = 0
            END IF
         END DO
       END IF
@@ -3035,14 +3224,14 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
       DO j=1,SIZE(atomic_kind_set)
         counter = 0
         NULLIFY(list)
-        DO k=1,SIZE(particle_set)
-          IF((atomkind(k)==j).AND.(atomlist(k)==0)) THEN
+        DO k=1,natom
+          IF((atomkind(k+offset-1)==j).AND.(atomlist(k)==0)) THEN
             counter = counter + 1
             CALL reallocate(list,1,counter)
-            list(counter) = k
+            list(counter) = k+offset-1
           END IF
         END DO
-        particle_set(iatom)%lpi%exclusion(j)%list_ei  => list
+        particle_set(iatom)%lpi%exclusion(j)%list_ei => list
         IF (PM2) THEN 
            IF (ASSOCIATED(list)) &
            WRITE(iw,*)"exclusion list_ei :: ",&
@@ -3050,11 +3239,30 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
                      list
         END IF
       END DO
+      IF(mol_change2) THEN
+        WRITE(*,*) "CLEAN ",iatom
+        DEALLOCATE(atomlist,STAT=istat)
+        IF(istat/=0) CALL stop_memory('topology_coordinate_pack','atomlist')
+        DEALLOCATE(ex_bond_list,STAT=istat)
+        IF(istat/=0) CALL stop_memory('topology_coordinate_pack','ex_bond_list')
+        DEALLOCATE(ex_bend_list,STAT=istat)
+        IF(istat/=0) CALL stop_memory('topology_coordinate_pack','ex_bend_list')
+        DEALLOCATE(ex_torsion_list,STAT=istat)
+        IF(istat/=0) CALL stop_memory('topology_coordinate_pack','x_torsion_list')
+        mol_change2=.FALSE.
+      END IF
     END DO
-    DEALLOCATE(atomlist,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomlist')
     DEALLOCATE(atomkind,STAT=istat)
     IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomkind')
+    DEALLOCATE(natom_mol,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','natom_mol')
+    DEALLOCATE(nbond_mol,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','nbond_mol')
+    DEALLOCATE(nbend_mol,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','nbend_mol')
+    DEALLOCATE(ntorsion_mol,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','ntorsion_mol')
+  END IF
 
 
   !-----------------------------------------------------------------------------
@@ -3110,7 +3318,10 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
   IF(PM1) WRITE(iw,*) "  Exiting  topology_coordinate_pack"
-  CALL write_checkpoint_information("leaving "//routineN,globenv)
+  CALL timestop(0.0_dp,handle)
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("leaving "//routineN,globenv)
+  END IF
 
 END SUBROUTINE topology_coordinate_pack
 

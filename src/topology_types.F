@@ -117,6 +117,7 @@ MODULE topology_types
     LOGICAL                                   :: charge_beta
     CHARACTER (LEN=default_string_length)     :: exclude_vdw
     CHARACTER (LEN=default_string_length)     :: exclude_ei
+    INTEGER                                   :: exclude_check
     LOGICAL                                   :: para_res
   END TYPE topology_parameters_type
 
@@ -203,6 +204,7 @@ SUBROUTINE init_topology (topology)
   topology%charge_beta=.FALSE.
   topology%exclude_vdw="1-4"
   topology%exclude_ei="1-4"
+  topology%exclude_check=3
   topology%para_res=.FALSE.
 
 

@@ -211,6 +211,9 @@ SUBROUTINE read_topology_section ( topology, globenv )
            CALL get_next(str2,ilen)
            CALL uppercase(str2)
            topology % exclude_ei = str2
+        CASE ('EXCLUDE_CH','EXCLUDE_CHECK')
+           CALL get_next(topology%exclude_check)
+           WRITE(*,*) "exclude_check ",topology%exclude_check
         CASE ('BONDPARM')
            ilen = 40
            CALL get_next(str2,ilen)

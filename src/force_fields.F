@@ -3695,7 +3695,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
    IF(nbond>0) THEN
     IF(PM1) WRITE(iw,*) "    Mol(",ikind,") Old BOND Count: ",&
                         SIZE(bond_list),SIZE(bond_kind_set)
-    IF (PM1) WRITE(iw,'(2I6)')(bond_list(ibond)%a,bond_list(ibond)%b,ibond=1,size(bond_list))
+    IF (PM2) WRITE(iw,'(2I6)')(bond_list(ibond)%a,bond_list(ibond)%b,ibond=1,size(bond_list))
     NULLIFY(bad1,bad2)
     ALLOCATE(bad1(SIZE(bond_kind_set)),STAT=istat)
     IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad1')
@@ -3763,7 +3763,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
       IF(istat/=0) CALL stop_memory('clean_intra_force_kind','bond_list')
       IF(PM1) WRITE(iw,*) "    Mol(",ikind,") New BOND Count: ",&
                           SIZE(new_bond_list),SIZE(new_bond_kind_set)
-      IF (PM1) WRITE(iw,'(2I6)')(new_bond_list(ibond)%a,new_bond_list(ibond)%b,ibond=1,SIZE(new_bond_list))
+      IF (PM2) WRITE(iw,'(2I6)')(new_bond_list(ibond)%a,new_bond_list(ibond)%b,ibond=1,SIZE(new_bond_list))
     END IF
     DEALLOCATE(bad1,STAT=istat)
     IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad1')
@@ -3784,7 +3784,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
    IF(nbend>0) THEN
     IF(PM1) WRITE(iw,*) "    Mol(",ikind,") Old BEND Count: ",&
                         SIZE(bend_list),SIZE(bend_kind_set)
-    IF (PM1) WRITE(iw,'(3I6)')(bend_list(ibend)%a,bend_list(ibend)%b,&
+    IF (PM2) WRITE(iw,'(3I6)')(bend_list(ibend)%a,bend_list(ibend)%b,&
          bend_list(ibend)%c,ibend=1,SIZE(bend_list))
     NULLIFY(bad1,bad2)
     ALLOCATE(bad1(SIZE(bend_kind_set)),STAT=istat)
@@ -3853,7 +3853,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
       IF(istat/=0) CALL stop_memory('clean_intra_force_kind','bend_list')
       IF(PM1) WRITE(iw,*) "    Mol(",ikind,") New BEND Count: ",&
                           SIZE(new_bend_list),SIZE(new_bend_kind_set)
-    IF (PM1) WRITE(iw,'(3I6)')(new_bend_list(ibend)%a,new_bend_list(ibend)%b,&
+    IF (PM2) WRITE(iw,'(3I6)')(new_bend_list(ibend)%a,new_bend_list(ibend)%b,&
          new_bend_list(ibend)%c,ibend=1,SIZE(new_bend_list))
     END IF
     DEALLOCATE(bad1,STAT=istat)
@@ -3875,7 +3875,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
    IF(nub>0) THEN
     IF(PM1) WRITE(iw,*) "    Mol(",ikind,") Old UB Count: ",&
                         SIZE(ub_list),SIZE(ub_kind_set)
-    IF (PM1) WRITE(iw,'(3I6)')(ub_list(iub)%a,ub_list(iub)%b,&
+    IF (PM2) WRITE(iw,'(3I6)')(ub_list(iub)%a,ub_list(iub)%b,&
          ub_list(iub)%c,iub=1,SIZE(ub_list))
     NULLIFY(bad1,bad2)
     ALLOCATE(bad1(SIZE(ub_kind_set)),STAT=istat)
@@ -3945,7 +3945,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
       IF(istat/=0) CALL stop_memory('clean_intra_force_kind','ub_list')
       IF(PM1) WRITE(iw,*) "    Mol(",ikind,") New UB Count: ",&
                           SIZE(new_ub_list),SIZE(new_ub_kind_set)
-    IF (PM1) WRITE(iw,'(3I6)')(new_ub_list(iub)%a,new_ub_list(iub)%b,&
+    IF (PM2) WRITE(iw,'(3I6)')(new_ub_list(iub)%a,new_ub_list(iub)%b,&
          new_ub_list(iub)%c,iub=1,SIZE(new_ub_list))
     END IF
     DEALLOCATE(bad1,STAT=istat)
@@ -3966,7 +3966,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
    IF(ntorsion>0) THEN
     IF(PM1) WRITE(iw,*) "    Mol(",ikind,") Old TORSION Count: ",&
                         SIZE(torsion_list),SIZE(torsion_kind_set)
-    IF (PM1) WRITE(iw,'(4I6)')(torsion_list(itorsion)%a,torsion_list(itorsion)%b,&
+    IF (PM2) WRITE(iw,'(4I6)')(torsion_list(itorsion)%a,torsion_list(itorsion)%b,&
          torsion_list(itorsion)%c,torsion_list(itorsion)%d,itorsion=1,SIZE(torsion_list))
     NULLIFY(bad1,bad2)
     ALLOCATE(bad1(SIZE(torsion_kind_set)),STAT=istat)
@@ -4052,7 +4052,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
       IF(istat/=0) CALL stop_memory('clean_intra_force_kind','torsion_list')
       IF(PM1) WRITE(iw,*) "    Mol(",ikind,") New TORSION Count: ",&
                           SIZE(new_torsion_list),SIZE(new_torsion_kind_set)
-    IF (PM1) WRITE(iw,'(4I6)')(new_torsion_list(itorsion)%a,new_torsion_list(itorsion)%b,&
+    IF (PM2) WRITE(iw,'(4I6)')(new_torsion_list(itorsion)%a,new_torsion_list(itorsion)%b,&
          new_torsion_list(itorsion)%c,new_torsion_list(itorsion)%d,itorsion=1,&
          SIZE(new_torsion_list))
     END IF
