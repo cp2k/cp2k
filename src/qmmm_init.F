@@ -87,7 +87,6 @@ MODULE qmmm_init
                                              qs_env_release,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_main,                         ONLY: quickstep_create_force_env
   USE qs_parser,                       ONLY: finish_parser,&
                                              open_file,&
                                              read_object,&
