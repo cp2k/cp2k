@@ -161,7 +161,7 @@ CONTAINS
                     local_particles=local_particles ) 
 
     nkind=size(atomic_kind_set)
-    eps_rho_rspace = dft_control%kg_control%eps_rho_rspace
+    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
 !   *** Allocate work storage ***
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -362,7 +362,7 @@ CONTAINS
     call rs_grid_allocate(rs_rho)
     call rs_grid_zero(rs_rho)
 
-    eps_rho_rspace = dft_control%kg_control%eps_rho_rspace
+    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
     scale = -1.0_dbl
 
     DO ikind=1,SIZE(atomic_kind_set)
@@ -481,7 +481,7 @@ CONTAINS
                     particle_set=particle_set ) 
 
     nkind=SIZE(atomic_kind_set)
-    eps_rho_rspace = dft_control%kg_control%eps_rho_rspace
+    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
     IF(dyn_coeff_set%distribution_method/=dyn_coeff_distributed) THEN
       CALL stop_program ( 'kg_density','replicated coefs not yet implemented')
     END IF
@@ -663,7 +663,7 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
 
-    eps_rho_rspace = dft_control%kg_control%eps_rho_rspace
+    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
     ALLOCATE (atom_of_kind(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
@@ -821,7 +821,7 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
 
-    eps_gvg_rspace = dft_control%kg_control%eps_gvg_rspace
+    eps_gvg_rspace = dft_control%qs_control%eps_gvg_rspace
 
 !   *** Allocate work storage ***
 
@@ -1065,7 +1065,7 @@ CONTAINS
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
-    eps_gvg_rspace = dft_control%kg_control%eps_gvg_rspace
+    eps_gvg_rspace = dft_control%qs_control%eps_gvg_rspace
 
     IF(dyn_coeff_set%distribution_method/=dyn_coeff_distributed) THEN
       CALL stop_program ( 'kg_density','replicated coefs not yet implemented')

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000 - 2004 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/kg_environment [1.0] *
 !!
@@ -15,7 +15,7 @@
 !!     GT 11-13-2003 :            
 !!     moved the main driver to cp2k 
 !!     performs only the initialization of the environment
-!!   SOURCE
+!!*****
 !******************************************************************************
 
 MODULE kg_environment
@@ -30,9 +30,9 @@ MODULE kg_environment
   USE cp_control_types,                ONLY: dft_control_release,&
                                              dft_control_type
   USE cp_control_utils,                ONLY: read_dft_control,&
-                                             read_kg_control,&
+                                             read_qs_control,&
                                              write_dft_control,&
-                                             write_kg_control
+                                             write_qs_control
   USE cp_error_handling,               ONLY: cp_error_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
@@ -84,14 +84,12 @@ MODULE kg_environment
   CHARACTER(LEN=*), PARAMETER :: moduleN = "kg_environment"
   PUBLIC :: kg_init
   
-!!*****
 !-----------------------------------------------------------------------------!
 
 CONTAINS
 
 !-----------------------------------------------------------------------------!
-! KG KG KG                                                                    !
-!-----------------------------------------------------------------------------!
+!!****** kg_environment/kg_init [1.0] *
 !!
 !!   NAME
 !!     kg_init
@@ -105,14 +103,10 @@ CONTAINS
 !!
 !!   MODIFICATION HISTORY
 !!
-!!   USED BY
-!!     kg_main
-!!
-!!*** *************************************************************************
+!!****
+!!*****************************************************************************
 
 SUBROUTINE kg_init (kg_env,globenv,error)
-
-
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
@@ -161,59 +155,45 @@ SUBROUTINE kg_init (kg_env,globenv,error)
   NULLIFY ( cell )
   NULLIFY ( dft_control )
   NULLIFY ( dyn_coeff_set )
-  NULLIFY (energy)
-  NULLIFY (force)
-  NULLIFY (local_molecules)
-  NULLIFY (local_particles)
-  NULLIFY (molecule_set)
+  NULLIFY ( energy )
+  NULLIFY ( force )
+  NULLIFY ( local_molecules )
+  NULLIFY ( local_particles )
+  NULLIFY ( molecule_set )
   NULLIFY ( particle_set )
   NULLIFY ( scf_control )
 
   kgpol = .FALSE.
 
 ! Read the input section with the dft control parameters *
-  CALL read_dft_control ( dft_control, globenv )
-
-! Print the DFT  parameters 
+  CALL read_dft_control ( dft_control, globenv, error )
   CALL write_dft_control ( dft_control, globenv )
 
 ! Read the input section with the KG control parameters 
-  CALL read_kg_control ( dft_control % kg_control, globenv )
+  CALL read_qs_control ( dft_control % qs_control, globenv )
+  CALL write_qs_control ( dft_control % qs_control, globenv )
 
-! Print the kg parameters 
-  CALL write_kg_control ( dft_control % kg_control, globenv )
+  kgpol = dft_control % qs_control % polarization
 
-  kgpol = dft_control % kg_control % polarization
-
-! Read the input section with the cell parameters ***
+! Read/write the input section with the cell parameters
   CALL read_cell ( cell, globenv )
-
-! Print the cell parameters ***
   CALL write_cell ( cell, globenv )
 
-! CALL read_setup_section ( setup, globenv )
- 
 ! topology
   CALL topology_control (atomic_kind_set,particle_set,&
                          molecule_kind_set,molecule_set,&
                          globenv)
-! CALL xstring ( topology % coord_file_name, ia, ib )
-! project_name = topology % coord_file_name ( ia : ib )
-! topology%cell => cell
 
-
-! Read the atomic kind set
+! Read/write the atomic kind set
   CALL read_atomic_kind_set(atomic_kind_set,globenv)
-
-! Write the atomic kind set
   CALL write_gto_basis_sets(atomic_kind_set,globenv)
 
 ! Initialize the spherical harmonics
 ! the orbital transformation matrices
   CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxlgto=maxlgto,&
-                             maxlppl=maxlppl,&
-                             maxlppnl=maxlppnl)
+                           maxlgto=maxlgto,&
+                           maxlppl=maxlppl,&
+                           maxlppnl=maxlppnl)
 
   maxl = MAX(maxlgto,maxlppl,maxlppnl)
 
@@ -222,17 +202,11 @@ SUBROUTINE kg_init (kg_env,globenv,error)
   CALL init_orbital_pointers(maxl)
   CALL init_spherical_harmonics(maxl,globenv)
 
-! Initialise the atomic kind set
+! Initialise/print the atomic/molecular kind set
   CALL init_atomic_kind_set(atomic_kind_set,globenv)
-
-! Print the atomic kind set
   CALL write_atomic_kind_set(atomic_kind_set,globenv)
-
-! Print the molecule kind set
   CALL write_molecule_kind_set(molecule_kind_set,globenv)
-
-! Print the total number of kinds, atoms, basis functions etc.
-!  CALL write_total_numbers(atomic_kind_set,particle_set,globenv)
+! CALL write_total_numbers(atomic_kind_set,particle_set,globenv)
 
 ! Print the atomic coordinates 
 !   IF (globenv%print%atomic_coordinates) THEN
@@ -245,7 +219,7 @@ SUBROUTINE kg_init (kg_env,globenv,error)
 
 
 ! Initialize the atomic interaction radii 
-  CALL init_interaction_radii ( dft_control%kg_control, cell, &
+  CALL init_interaction_radii ( dft_control%qs_control, cell, &
                                 atomic_kind_set, globenv)
 
 ! Distribute molecules and atoms using the new data structures ***
@@ -329,7 +303,9 @@ SUBROUTINE kg_init (kg_env,globenv,error)
   CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
  END SUBROUTINE kg_init
+
 !***************************************************************************
+
 SUBROUTINE kg_env_setup(kg_env,error)
 
     TYPE(kg_environment_type), INTENT(inout) :: kg_env
@@ -352,9 +328,12 @@ SUBROUTINE kg_env_setup(kg_env,error)
   CALL kg_rho_setup(kg_rho=rho,kg_env=kg_env,error=error)
   CALL set_kg_env(kg_env,rho=rho)
   CALL kg_rho_release(kg_rho=rho,error=error)
-  END SUBROUTINE kg_env_setup
+
+END SUBROUTINE kg_env_setup
 
 !******************************************************************************
+
 END MODULE kg_environment
+
 !******************************************************************************
 

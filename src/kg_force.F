@@ -113,7 +113,7 @@ SUBROUTINE kg_force_control ( kg_env, globenv )
 
   kgpol = .FALSE.
   CALL get_kg_env( kg_env=kg_env, dft_control=dft_control)
-  kgpol = dft_control % kg_control % polarization
+  kgpol = dft_control % qs_control % polarization
  
   IF (kgpol) THEN
     CALL kgpol_calculate_forces (kg_env, globenv)

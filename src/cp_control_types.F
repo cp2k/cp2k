@@ -55,25 +55,6 @@ MODULE cp_control_types
   END TYPE pw_grid_option
 
 ! *** Control parameters for a KIM-GORDON calculation ***
-
-  TYPE kg_control_type
-    CHARACTER(LEN=10)               :: method
-    REAL(KIND = dp)                 :: eps_core_charge,&
-                                       eps_pgf_aux,&
-                                       eps_pgf_orb,&
-                                       eps_ppl,&
-                                       eps_rho_gspace,&
-                                       eps_rho_rspace,&
-                                       eps_gvg_rspace,&
-                                       progression_factor,&
-                                       relative_cutoff
-    LOGICAL                         :: polarization
-    REAL(KIND = dp)                        :: cutoff
-    REAL(KIND = dp), DIMENSION(:), POINTER :: e_cutoff
-    TYPE ( pw_grid_option )         :: pw_grid_opt
-    LOGICAL                         :: rs_distributed
-  END TYPE kg_control_type
-
 ! *** Control parameters for a QUICKSTEP calculation ***
 
 ! eps_pgf_orb: Cutoff value for the interaction of the primitive Gaussian-type
@@ -97,6 +78,7 @@ MODULE cp_control_types
     LOGICAL                         :: map_paa
     LOGICAL                         :: map_consistent
     LOGICAL                         :: gapw,gpw,pao
+    LOGICAL                         :: polarization
     REAL(KIND = dp)                        :: cutoff
     REAL(KIND = dp), DIMENSION(:), POINTER :: e_cutoff
     TYPE ( pw_grid_option )         :: pw_grid_opt
@@ -165,7 +147,6 @@ MODULE cp_control_types
 
   TYPE dft_control_type
      TYPE(band_structure_type)       :: band
-     TYPE(kg_control_type)           :: kg_control
      TYPE(qs_control_type)           :: qs_control
      TYPE(tddfpt_control_type)       :: tddfpt_control
      TYPE(wave_control_type)         :: wave_control
@@ -198,7 +179,7 @@ MODULE cp_control_types
 ! *** Public data types ***
 
   PUBLIC :: dft_control_type, xc_grid_type,&
-            kg_control_type, qs_control_type,&
+            qs_control_type,&
             wave_control_type, tddfpt_control_type, &
             pw_grid_option, xc_control_type
 
@@ -275,7 +256,6 @@ SUBROUTINE dft_control_create(dft_control, error)
      last_dft_control_id=last_dft_control_id+1
      dft_control%id_nr=last_dft_control_id
      CALL band_structure_preinit(dft_control%band,error=error)
-     CALL kg_control_init(dft_control%kg_control, error=error)
      CALL qs_control_init(dft_control%qs_control, error=error)
      CALL tddfpt_control_init(dft_control%tddfpt_control, error=error)
      CALL wave_control_init(dft_control%wave_control, error=error)
@@ -379,7 +359,6 @@ SUBROUTINE dft_control_release(dft_control,error)
      dft_control%ref_count=dft_control%ref_count-1
      IF (dft_control%ref_count==0) THEN
         CALL band_structure_dealloc_ref(dft_control%band,error=error)
-        CALL kg_control_dealloc_ref(dft_control%kg_control, error=error)
         CALL qs_control_dealloc_ref(dft_control%qs_control, error=error)
         CALL tddfpt_control_dealloc_ref(dft_control%tddfpt_control, error=error)
         CALL wave_control_dealloc_ref(dft_control%wave_control, error=error)
@@ -392,30 +371,6 @@ SUBROUTINE dft_control_release(dft_control,error)
   NULLIFY(dft_control)
 END SUBROUTINE dft_control_release
 !***************************************************************************
-
-SUBROUTINE kg_control_init(kg_control, error)
-    TYPE(kg_control_type), INTENT(out)       :: kg_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-  NULLIFY(kg_control%e_cutoff)
-END SUBROUTINE kg_control_init
-
-SUBROUTINE kg_control_dealloc_ref(kg_control, error)
-    TYPE(kg_control_type), INTENT(inout)     :: kg_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = "kg_control_dealloc_ref", &
-      routineP = moduleN//"/"//routineN
-
-    INTEGER                                  :: stat
-
-  IF (ASSOCIATED(kg_control%e_cutoff)) THEN
-     DEALLOCATE(kg_control%e_cutoff,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-  END IF
-END SUBROUTINE kg_control_dealloc_ref
 
 SUBROUTINE qs_control_init(qs_control, error)
     TYPE(qs_control_type), INTENT(out)       :: qs_control

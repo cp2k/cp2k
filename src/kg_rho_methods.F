@@ -157,9 +157,9 @@ END SUBROUTINE kg_rho_create
                     atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control)
 
-    kg_rho%kgpol = dft_control % kg_control % polarization
-    rel_cutoff = dft_control%kg_control%relative_cutoff
-    cutoff => dft_control%kg_control%e_cutoff
+    kg_rho%kgpol = dft_control % qs_control % polarization
+    rel_cutoff = dft_control%qs_control%relative_cutoff
+    cutoff => dft_control%qs_control%e_cutoff
     ngrid_level = SIZE(cutoff)
 
     CPPrecondition(ASSOCIATED(kg_rho),cp_failure_level,routineP,error,failure)
@@ -262,13 +262,13 @@ END SUBROUTINE kg_rho_create
       CALL get_kg_env(kg_env=kg_env,&
           dft_control=dft_control, cell=cell, para_env=para_env)    
 
-      cutoff => dft_control % kg_control % e_cutoff
+      cutoff => dft_control % qs_control % e_cutoff
 
     ! the density grid coincides with the multi-grid having the highest cutoff
     ! auxbas_grid is the index of the auxiliary (REFERENCE) grid
 
       DO i=1,ngrid_level
-        IF ( cutoff(i) == dft_control%kg_control%cutoff ) kg_rho % auxbas_grid = i
+        IF ( cutoff(i) == dft_control%qs_control%cutoff ) kg_rho % auxbas_grid = i
       END DO
 
 !   *** Allocate the multi-grid pointer pw_grid  ***
@@ -285,10 +285,10 @@ END SUBROUTINE kg_rho_create
          pw_grid(igrid_level)%para%rs_dims ( 1 ) = para_env % num_pe
          pw_grid(igrid_level)%para%rs_dims ( 2 ) = 1
 
-         IF ( dft_control % kg_control % pw_grid_opt % spherical ) THEN
+         IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
             cutilev = cutoff(igrid_level)
             pw_grid%grid_span = HALFSPACE
-         ELSE IF ( dft_control % kg_control % pw_grid_opt % fullspace ) THEN
+         ELSE IF ( dft_control % qs_control % pw_grid_opt % fullspace ) THEN
             cutilev = -cutoff(igrid_level)
             pw_grid%grid_span = FULLSPACE
          ELSE
