@@ -582,8 +582,7 @@ SUBROUTINE cp_ll_build_global_dist(local_lists,error)
            max_el=0
            !$omp parallel do private(i,max_loc) reduction(max:max_el)
            DO i=1,local_lists%n_el(ilist)
-              max_loc=local_lists%list(ilist)%array(i)
-              IF (max_el < max_loc) max_el=max_loc
+              max_el=MAX(max_el,local_lists%list(ilist)%array(i))
            END DO
            CALL mp_max(max_el, local_lists%para_env%group)
 
@@ -640,8 +639,7 @@ SUBROUTINE cp_ll_build_global_dist(local_lists,error)
            max_el1=0
            !$omp parallel do private(i,max_loc) reduction(max:max_el1)
            DO i=1,local_lists%n_el(ilist)
-              max_loc=local_lists%list(ilist)%array(i)
-              IF (max_el1 < max_loc) max_el1=max_loc
+              max_el1=MAX(max_el1,local_lists%list(ilist)%array(i))
            END DO
            IF (max_el < max_el1) max_el=max_el1
         END DO
