@@ -125,6 +125,7 @@
   energy_min % min_info %de = thermo % pot - eold
   energy_min % min_info %tol = tol                     
   energy_min % min_info %err = fconv                     
+  IF (ALLOCATED (cgrad)) DEALLOCATE (cgrad, STAT = isos)
 
   END SUBROUTINE optimize_ao
 !------------------------------------------------------------------------------!
@@ -266,6 +267,8 @@
   energy_min % min_info %de = thermo % pot - eold
   energy_min % min_info %tol = tol                     
   energy_min % min_info %err = fconv                     
+  IF (ALLOCATED (agrad)) DEALLOCATE (agrad, STAT = isos)
+  IF (ALLOCATED (bgrad)) DEALLOCATE (bgrad, STAT = isos)
 
   END SUBROUTINE optimize_pw
 !------------------------------------------------------------------------------!

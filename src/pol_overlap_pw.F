@@ -902,12 +902,13 @@ CONTAINS
       TYPE ( coeff_type ) :: rhob_r, rhob_g
 ! Sum to reference grid 
       DO igt = 1, SIZE ( grid_b )
+
+        IF ( ALL ( rho_rs ( igt ) % r == 0._dbl ) ) CYCLE
+
 ! Allocate large coefficient structure based on grid_b  
         CALL coeff_allocate ( rhob_r, grid_b ( igt ), use_data = PW_COMPLEXDATA3D )
         CALL coeff_allocate ( rhob_g, grid_b ( igt ), use_data = PW_COMPLEXDATA1D )
         rhob_r % pw % in_space = PW_REALSPACE
-         
-        IF ( ALL ( rho_rs ( igt ) % r == 0._dbl ) ) CYCLE
 
 ! Transfer from real-space -> coefficient_type
         CALL rs_pw_transfer ( rho_rs ( igt ), rhob_r % pw, "FORWARD" )

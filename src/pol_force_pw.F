@@ -158,7 +158,6 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
        CALL stop_memory ( 'force_control', 'f_nonbond', 3 * natoms )
   END IF
 
-
   IF ( first_time ) THEN
 !
 ! Setting up PLANEWAVES
@@ -204,15 +203,15 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
 !
 ! Initializing pw coefficients from scratch if needed
 !
-!     CALL initialize_coef_pw ( dg_proj, coef_pos % pw, part, box, small_grid,  &
-!                           big_grid, ewald_param )
+!!      CALL initialize_coef_pw ( dg_proj, coef_pos % pw, part, box, small_grid,  &
+!!                            big_grid, ewald_param )
 !dbg 
 ! initialize coeffs with a gaussian (for debugging purposes)
    DO i = 1, coef_pos % pw % pw_grid % ngpts_cut
-    e_gsq = exp ( .25 *  coef_pos % pw % pw_grid % gsq ( i ) )
-    coef_pos % pw % cc (i) = CMPLX ( e_gsq, 0 )
-!    coef_pos % pw % cc (1) = CMPLX ( 0.0, 0 )
-  ENDDO
+     e_gsq = exp ( .25 *  coef_pos % pw % pw_grid % gsq ( i ) )
+     coef_pos % pw % cc (i) = CMPLX ( e_gsq, 0 )
+     coef_pos % pw % cc (1) = CMPLX ( 0.0, 0 )
+   ENDDO
 !dbg 
 
 !
@@ -276,28 +275,27 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
          ALLOCATE ( fthk_coef ( ncoef ), STAT=isos )
   IF ( isos /= 0 ) &
     CALL stop_memory ( 'force_control', 'fthk_coef',  ncoef )
-
 ! get electrostatics forces   
 
-  CALL electrostatics ( dg_atom, coef_pos % pw, part, box, small_grid, big_grid,  &
-                        ewald_param, pot_electrostatics, fe_coef, fe_part )
+    CALL electrostatics ( dg_atom, coef_pos % pw, part, box, small_grid, big_grid,  &
+                          ewald_param, pot_electrostatics, fe_coef, fe_part )
  
 ! get projectors and projector forces
    
-  CALL projectors ( dg_proj, proj % ao, coef_pos % pw, part, box, small_grid,  &
-                    big_grid, fproj_part ) 
+    CALL projectors ( dg_proj, proj % ao, coef_pos % pw, part, box, small_grid,  &
+                      big_grid, fproj_part ) 
 
 ! get overlap forces
 
-  CALL force_overlap ( dg_proj, coef_pos % pw % pw_grid, proj % ao, drho_basis_info, &
-                       part, pnode, box, empparm, small_grid, big_grid, pot_overlap, &
-                       fo_coef, fo_part, fproj_part )
+     CALL force_overlap ( dg_proj, coef_pos % pw % pw_grid, proj % ao, drho_basis_info, &
+                          part, pnode, box, empparm, small_grid, big_grid, pot_overlap, &
+                         fo_coef, fo_part, fproj_part )
 
 ! get first order hk contribution
 
-  CALL force_thk ( dg_proj, proj % ao, coef_pos % pw % pw_grid, part, box,  &
-                   empparm, small_grid, big_grid, pot_thk, fthk_coef, fthk_part, &
-                   fproj_part ) 
+   CALL force_thk ( dg_proj, proj % ao, coef_pos % pw % pw_grid, part, box,  &
+                    empparm, small_grid, big_grid, pot_thk, fthk_coef, fthk_part, &
+                    fproj_part ) 
 
 ! get real-space non-bonded forces:
 !
@@ -364,10 +362,25 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
     part ( i ) % f ( 3 ) = f_total ( 3, i )
   END DO
 
-
 ! deallocating all local variables
   IF ( ALLOCATED ( f_total )  ) DEALLOCATE ( f_total, STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'f_total' )
+  IF ( ALLOCATED ( fe_coef )  ) DEALLOCATE ( fe_coef, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fe_coef' )
+  IF ( ALLOCATED ( fo_coef )  ) DEALLOCATE ( fo_coef, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fo_coef' )
+  IF ( ALLOCATED ( fe_part )  ) DEALLOCATE ( fe_part, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fe_part' )
+  IF ( ALLOCATED ( fo_part )  ) DEALLOCATE ( fo_part, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fo_part' )
+  IF ( ALLOCATED ( fthk_coef )  ) DEALLOCATE ( fthk_coef, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fthk_coef' )
+  IF ( ALLOCATED ( fthk_part )  ) DEALLOCATE ( fthk_part, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fthk_part' )
+  IF ( ALLOCATED ( fproj_part )  ) THEN 
+     DEALLOCATE  ( fproj_part, STAT = isos )
+     IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fproj_part' )
+  END IF
 
   CALL timestop ( zero, handle )
 

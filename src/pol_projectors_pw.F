@@ -186,6 +186,7 @@ SUBROUTINE projectors ( dg_proj, ao, pw, part, box, grid_s,  &
                CALL coeff_deallocate ( dphi1_g ( i ) )
                CALL rs_pw_transfer ( drpot1 ( i ), coeff_dummy % pw, "BACKWARD" )
             END DO
+            CALL coeff_deallocate ( coeff_dummy )
           ENDIF
           first_time = .FALSE. 
         ENDIF
