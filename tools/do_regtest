@@ -1,95 +1,170 @@
 #!/bin/bash
 
+###################################################################################
+# do_regtest some info [Joost VandeVondele, 2005-02-25]
 #
-# this script should perform a cvs update of qs sources and test directory,
-# a make realclean followed by make sdbg
-# execution of all files found by TEST_FILES in the directories given by cp2k/tests/TEST_DIRS
-# a new directory is automatically created containing the outputs (TEST-xxx)
-# and will be compared to the last succesful run made so far (LAST-xxx)
-# an error summary can be found in TEST-xxx
+# Regression testing cp2k ... 
+#    - maintain code quality
+#    - helps rapid developemnent and refactoring
 #
+# What does a regtest do
+#    - automatically update cp2k with the current CVS version (including new tests)
+#    - performs a realclean build of the source
+#    - executes a list of tests
+#    - compares the results (outputs) with those of the last known result (reference)
+#    - produces a summary
 #
-# prerequisites :
-# a clean directory with a copy of cp2k that can be compiled by doing make in cp2k/makefiles
-# this script in that directory
-# i.e. mkdir testing
-#      cvs co cp2k
-#      cp cp2k/tools/do_regtest .
-# (assuming that cp2k/arch/.. is fine for your machine)
-# install :
-# set the variables below to what they have to be for your compiler/machine/dir
+# How to set up a regtest
+#    - you must be able to build and run cp2k on the given machine, the rest should be 'easy'
+#    - decide on a directory for doing the regtest, there will be plenty of files in this dir
+#      (after a while) so make it something like $HOME/rt
+#    - checkout a version of cp2k into $HOME/rt. 
+#      If you set up your cvs account so that you don't need to provide
+#      a passwd for doing cvs update, things will be more convenient later on.
+#    - set up the arch files so that you can cleanly build cp2k (test this)
+#    - cp $HOME/rt/cp2k/tools/do_regtest $HOME/rt
+#    - modify the do_regtest script to match your local environment (e.g. specify 
+#      if you wish a sdbg or a sopt build, which compiler, gmake, ....) see below
+#    - execute './do_regtest' regularly (i.e. after comitting new code)
 #
-# modified version to do regtest without updating and no realclean
+# Interpretation of the results
+#  test can be:
+#    - 'OK' if the results match those of a previous run precisely. The execution time is also given.
+#    - 'NEW' if they have not been executed previously. The reference result is generated 
+#      automatically in this run. Tests can also be 'NEW' if they have been reset, i.e. been newly 
+#      added to the TEST_FILES_RESET files.
+#    - 'RUNTIME FAILURE' if they stopped unexpectedly (e.g. core dump, or stop)
+#    - 'WRONG RESULT' if they produce a result that deviates (even a tiny bit) from an old reference
+#  the last two options generally mean that a bug has been introduced, which requires investigation.
+#  since regtesting only yields information relative to a previously known result, it is most useful
+#  to do a regtest before and after you make changes.
 #
-# run :
-# simply
-#     do_regtest
+# Adding/resetting/creating tests to the testsuite
+#  these is fully controlled by the following files in the cp2k/tests directories
+#  -TEST_DIRS  : is just a list of directories that contain tests. You can add your directory here.
+#  -TEST_FILES : the list of input files that need to be executed. You can add your file name here.
+#                adding a comment about what it tests might help later debugging problems if a regtest
+#                fails
+#  -TEST_FILES_RESET : you can add files for which the reference output became invalid (e.g. bug fix)
+#                      to this list fo files. However be absolutely sure that the change is due to
+#                      a bug fix, do not reset these that fail because of unclear reasons. Try to add
+#                      a comment to the cvs message and/or the file itself
+#  -TEST_TYPES : this file allows you to create a new test type. I.e. to specify for which words should
+#                be grepped and what field should be used in the numerical comparison. 
 #
-# arguments : -nocvs -quick (skips realclean)
+# Command line switches to the do_regtest script (also configurable from within the script)
+#  -nocvs   : do not access the CVS for any updating, makes regtesting fully local
+#  -quick   : rebuild the code if needed, but do not perform a realclean before
+#  -noreset : do not reset the reference outputs automatically
+#  -cvsdate string : specify any string to cvs update (most likely used as "-D 2005-02-17")
+#  -skipdir string : this switch can repeat, exclude certain dirs from regtesting, useful to 
+#                    speed-up regtesting after very localised changes (e.g. -skipdir QS/regtest)
 #
-
-# *** defined variables, might need modification
-# *** e.g. dir_triplet should be the one of the current compiler
-# *** parallel runs might need an mpi_run prefix , or -llfile llfile postfix
-export FORT_C_NAME=intel
-dir_base=/data1/vondele/dev/
+# Script configuration. The value of the follow variables can be redefined, see below
+#   dir_base, FORT_C_NAME, cp2k_version, dir_triplet, cp2k_dir, cp2k_prefix, cp2k_postfix,
+#   make, awk, datum_full, datum_short,
+#   nocvs, quick, cvsdate, noreset, ndirtoskip, skip_dirs
+#
+########################################################################################################
+#
+# THESE VARIABLES WILL NEED CHANGING FOR YOUR LOCAL CONFIGURATION
+#
+# - dir_base: the base directory for testing (e.g. $HOME/rt)
+# - FORT_C_NAME: compiler selection (e.g. intel)
+# - cp2k_version: sopt,sdbg,popt....
+# - dir_triplet: the result of tools/get_arch_name, where the executable can be found 
+# - cp2k_dir: normally cp2k
+#
+export FORT_C_NAME=g95
+dir_base=/data1/vondele/rt/g95
+cp2k_version=sdbg
+dir_triplet=Linux-i686-g95
 cp2k_dir=cp2k
-cp2k_version=sopt
-dir_triplet=Linux-i686-intel
 
-#ulimit limits the cputime of a test to 30 seconds
-#cp2k_prefix="( ulimit -t 30; ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"
-#cp2k_postfix=" )"
+#
+# The following variables typically need no changes on Linux machine, but might need changes on
+# other an OS
+#
+
+# *** how to execute an input file [ cp2k_prefix input cp2k_postfix ]
 cp2k_prefix="${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"
 cp2k_postfix=
-
+#cp2k_prefix="( ulimit -t 60; ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"
+#cp2k_postfix=" )"
 #cp2k_prefix="poe ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"
 #cp2k_postfix="-llfile ${dir_base}/llfile"
 
-# use gmake 
-#make=gmake
+# *** make and awk
 make=make
-
-# use awk that takes -v
-#awk=nawk
+#make=gmake
 awk=awk
+#awk=nawk
 
-
-# use a specific date comment, might need a correction to the timezone if you care 
+# *** a short and long version of the data, in a format that CVS understands
 datum_full=`date --iso-8601="seconds"`
 datum_short=`date --iso-8601`
 #datum_full=`date '+%Y-%m-%dT%H:%M:%S+0100'`
 #datum_short=`date '+%Y-%m-%d'`
 
+# *** default settings for command line switches
+nocvs="cvs"
+quick="noquick"
+cvsdate="-D $datum_full"
+noreset="reset"
+ndirstoskip=0
+skip_dirs[1]=""
 
-# *** should be automatic
-#parse optional arguments
-# command line argument passing, a bit ugly...
-nocvs=""
-quick=""
-if [[ $1 == "-nocvs" ]]; then
- nocvs="nocvs"
-fi
-if [[ $1 == "-quick" ]]; then
- quick="quick"
-fi
-if [[ $2 == "-nocvs" ]]; then
- nocvs="nocvs"
-fi
-if [[ $2 == "-quick" ]]; then
- quick="quick"
-fi
+###################################################################################
+#
+# From here on no changes to the script should be needed
+#
+###################################################################################
+#
+# command line argument passing
+#
+###################################################################################
+while [ $# -ge 1 ]; do
+case $1 in
+  # build a list of directories to skip
+  -skipdir) let ndirstoskip=ndirstoskip+1;
+        skip_dirs[ndirstoskip]=$2;
+        shift;
+        ;;
+  # do not update the CVS
+  -nocvs) nocvs="nocvs";;
+  # do not reset reference outputs
+  -noreset) noreset="noreset";;
+  # do not do a realclean before building
+  -quick) quick="quick";;
+  # specify the full string "-D 2005-02-01" to get a check-out of a specific date
+  -cvsdate) cvsdate=$2; shift;;
+  *)  break;;
+esac
+shift
+done
 
+###################################################################################
+#
+# set up the initial directory structures
+#
+###################################################################################
+test_types_file=${dir_base}/${cp2k_dir}/tests/TEST_TYPES
 dir_last=${dir_base}/LAST-${dir_triplet}-${cp2k_version}
 dir_out=${dir_base}/TEST-${dir_triplet}-${cp2k_version}-${datum_short}
 changelog_diff=${dir_out}/ChangeLog.diff
+changelog_diff_tests=${dir_out}/ChangeLog-tests.diff
 error_description_file=${dir_out}/error_summary
 mkdir -p ${dir_out}
 mkdir -p ${dir_last}
 rm -fR ${error_description_file}
 touch  ${error_description_file}
+touch  ${dir_last}/ChangeLog-tests
 
-# *** defined functions
+###################################################################################
+#
+# simple function to end the tests all in the same way
+#
+###################################################################################
 function end_test() {
 echo "--------------------------------------------------------------------------"
 date
@@ -97,13 +172,19 @@ echo "*************************** testing ended ********************************
 exit $1
 }
 
-# *** a small error in the latest "Total Energy:"
-function do_test_1(){
+###################################################################################
+#
+# function to grep for changes in the output. Takes five arguments
+#
+###################################################################################
+function do_test_grep(){
  output_new=$1
  output_old=$2
  error_file=$3
- e1=`grep "Total energy:" ${output_old} | tail -1 | ${awk} '{print $3}'`
- e2=`grep "Total energy:" ${output_new} | tail -1 | ${awk} '{print $3}'`
+ grep_string=$4
+ grep_field=$5 
+ e1=`grep "${grep_string}" ${output_old} | tail -1 | ${awk} -v f=${grep_field} '{print $f}'`
+ e2=`grep "${grep_string}" ${output_new} | tail -1 | ${awk} -v f=${grep_field} '{print $f}'`
  big=`echo "${e1} ${e2}" | ${awk} '{v=sqrt((($1-$2)/$2)^2); if (v>1.0E-14) printf("%16.8e",v); else printf("0") ;}'`
  case ${big} in
  0)
@@ -112,33 +193,19 @@ function do_test_1(){
  *)
   # nope too large
   echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_file}
-  echo "${output_new} : energy difference too large ${e1} ${e2} ${big}" >> ${error_file}
-  echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_file}
-  return 1 ;;
- esac 
-}
-# *** a small error in the latest "POTENTIAL ENERGY"
-function do_test_2(){
- output_new=$1
- output_old=$2
- error_file=$3
- e1=`grep "POTENTIAL ENERGY" ${output_old} | tail -1 | ${awk} '{print $4}'`
- e2=`grep "POTENTIAL ENERGY" ${output_new} | tail -1 | ${awk} '{print $4}'`
- big=`echo "${e1} ${e2}" | ${awk} '{v=sqrt((($1-$2)/$2)^2); if (v>1.0E-14) printf("%16.8e",v); else printf("0") ;}'`
- case ${big} in
- 0)
-  # ok, same energy
-  return 0 ;;
- *)
-  # nope too large
-  echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_file}
-  echo "${output_new} : energy difference too large ${e1} ${e2} ${big}" >> ${error_file}
+  echo "${output_new} : " >> ${error_file}
+  echo " ${grep_string} : old = ${e1} new = ${e2} " >> ${error_file}
+  echo " relative error : ${big}  " >> ${error_file}
   echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_file}
   return 1 ;;
  esac 
 }
 
-# *** select which test to run
+###################################################################################
+#
+# function to select which test to run
+#
+###################################################################################
 function do_test() {
  which_test=$1
  output_new=$2
@@ -148,32 +215,22 @@ function do_test() {
  0) 
    #just be happy you executed
    return 0;;
- 1)
-   #test the last total energy
-   do_test_1 ${output_new} ${output_old} ${error_file}
-   return $? ;;
- 2)
-   #test the last potential energy
-   do_test_2 ${output_new} ${output_old} ${error_file}
-   return $? ;;
  *)
-   echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_file}
-   echo "${output_new} : Unknown Test" >> ${error_file}
-   echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_file}
-   return 112 ;;
+   do_test_grep ${output_new} ${output_old} ${error_file} "${test_grep[which_test]}" "${test_col[which_test]}"
+   return $? ;;
  esac
 }
 
 # *** start testing
 echo "*************************** testing started ******************************"
 echo " started on " `date`
-echo " checking version -D ${datum_full} "
-echo "--------------------------------------------------------------------------"
+echo " checking version ${cvsdate} "
+echo "--------------------------- CVS ------------------------------------------"
 
 if [[ ${nocvs} != "nocvs" ]]; then
   # *** cvs update src
   cd ${dir_base}/${cp2k_dir}/src
-  cvs update -d -D ${datum_full} &> out
+  cvs update -d -A ${cvsdate} &> out
   if (( $? )); then
   echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
   tail -20 out >> ${error_description_file}
@@ -184,18 +241,20 @@ if [[ ${nocvs} != "nocvs" ]]; then
   echo "cvs src update went fine"
   cp2k_lines=`wc *.F | tail -1 |  ${awk} '{print $1}'`
   echo "cp2k is now ${cp2k_lines} lines .F"
+  # *** looks like cvs2cl always generates the changelog for the latest version of the repo, not the current one?
   ${dir_base}/${cp2k_dir}/tools/cvs2cl.pl &> out
   diff ChangeLog ${dir_last}/ChangeLog > ${changelog_diff}
-  echo "       ------- differences -------   " >> ${changelog_diff}
-  cvs -n update | grep -v -i "changelog" >> ${changelog_diff}
-  echo "------------------------changelog diff------------------------------------"
-  cat ${changelog_diff}
-  echo "--------------------------------------------------------------------------"
+  echo "------- differences --------" >> ${changelog_diff}
+  cvs -n update ${cvsdate} &> out
+  cat out | grep -v -i "changelog" | grep -v '?' | grep -v 'cvs server: Updating' >> ${changelog_diff} 
+  echo "---  changelog diff src  ---"
+  cat ${changelog_diff} 
+  echo "----------------------------"
   cp ChangeLog ${dir_last}/ChangeLog
   
   # *** cvs update tests
   cd ${dir_base}/${cp2k_dir}/tests
-  cvs update -d -D ${datum_full} &> out
+  cvs update -d -A ${cvsdate} &> out
   if (( $? )); then
   echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
   tail -20 out >> ${error_description_file}
@@ -205,6 +264,15 @@ if [[ ${nocvs} != "nocvs" ]]; then
   else
   echo "cvs tests update went fine"
   fi
+  ${dir_base}/${cp2k_dir}/tools/cvs2cl.pl &> out
+  diff ChangeLog ${dir_last}/ChangeLog-tests > ${changelog_diff_tests}
+  echo "------- differences --------" >> ${changelog_diff_tests}
+  cvs -n update ${cvsdate} &> out
+  cat out | grep -v -i "changelog" | grep -v '?' |  grep -v 'cvs server: Updating' >> ${changelog_diff_tests}
+  echo "--- changelog diff tests ---"
+  cat ${changelog_diff_tests} 
+  echo "----------------------------"
+  cp ChangeLog ${dir_last}/ChangeLog-tests
 else
   echo "no cvs updating"
 fi
@@ -243,10 +311,41 @@ echo "make VERSION=${cp2k_version} went fine (${compile_warnings} warnings)"
 fi
 echo "-------------------------regtesting cp2k----------------------------------"
 
+###################################################################################
+#
+# parse the TEST_TYPES file to do different kinds of test (done after cvs update)
+#
+# tests grep for the last line in the file where a string matches (test_grep) 
+# and compares a numeric field at a given column (test_col)
+#
+# the format of the TEST_TYPES file is (notice the '!' as a field separator, to allow
+# for spaces in the test_grep)
+#
+# Ntest_types
+# test_grep_1 ! test_col_1
+# test_grep_2 ! test_col_2
+# ....
+# followed by comment lines
+#
+###################################################################################
+Ntest_types=`awk -v l=1 -v c=1 'BEGIN{FS="!"}{lr=lr+1;if (lr==l) print $c}' ${test_types_file}`
+test_grep[0]=""
+test_col[0]=1
+t=1
+while [ $t -le ${Ntest_types} ]; do
+test_grep[t]=`${awk} -v l=$t -v c=1 'BEGIN{FS="!"}{lr=lr+1;if (lr==l+1) print $c}' ${test_types_file}`
+test_col[t]=`${awk} -v l=$t -v c=2 'BEGIN{FS="!"}{lr=lr+1;if (lr==l+1) print $c}' ${test_types_file}`
+let t=t+1
+done
+
+###################################################################################
+#
 # *** now start testing 
 # *** for a given directory we do a run on all files in TEST_FILES and
 # *** do the test as indicated by the number
 # *** files are run in order so that they can e.g. restart
+#
+###################################################################################
 out_runtime_errors=""
 out_wrong_results=""
 n_runtime_error=0
@@ -255,13 +354,55 @@ n_correct=0
 n_tests=0
 n_new=0
 
+#
+# get a list of directories to be tested, taking care of the exclusions
+#
 dirs=`cat ${dir_base}/${cp2k_dir}/tests/TEST_DIRS | grep -v "#"`
+newdirs=""
+for dir in ${dirs}
+do
+  match="no"
+  t=1
+  # *** match to exclusion list
+  while [ $t -le ${ndirstoskip} ]; do
+     if [[ "${skip_dirs[t]}" == "${dir}" ]]; then
+        match="yes" 
+     fi
+     let t=t+1
+  done
+  # *** if not excluded add to list of dirs
+  if [[ "${match}" == "no" ]]; then
+     new_dirs="$new_dirs $dir"
+  fi
+done
+dirs=$new_dirs
+
+#
+# execute all regtests
+#
 for dir in ${dirs};
 do
   cd ${dir_base}/${cp2k_dir}/tests/${dir}
   mkdir -p ${dir_out}/${dir}
   mkdir -p ${dir_last}/${dir}
+  touch ${dir_last}/${dir}/TEST_FILES_RESET
 
+  # 
+  # first reset reference outputs that have become out-dated since the last run
+  #
+  diff TEST_FILES_RESET ${dir_last}/${dir}/TEST_FILES_RESET > ${dir_out}/${dir}/TEST_FILES_RESET.diff
+  cp TEST_FILES_RESET ${dir_last}/${dir}/TEST_FILES_RESET
+  nreset=`grep '<' ${dir_out}/${dir}/TEST_FILES_RESET.diff | grep -v '#' |  ${awk} '{c=c+1}END{print c}'`
+  if [[ ${noreset} != "noreset" ]]; then
+     for ((itest=1;itest<=nreset;itest++));
+     do
+        reset_file=`grep '<' ${dir_out}/${dir}/TEST_FILES_RESET.diff | grep -v '#' | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $2}'`
+        rm -f ${dir_last}/${dir}/${reset_file}.out
+     done
+  fi
+  #
+  # run the tests now
+  #
   echo "Running tests in ${dir_base}/${cp2k_dir}/tests/${dir}"
   ntest=`grep -v "#" TEST_FILES | ${awk} '{c=c+1}END{print c}'`
   for ((itest=1;itest<=ntest;itest++));
