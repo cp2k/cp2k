@@ -8,7 +8,7 @@ def compareNr(n1,n2):
 def diffEpsilon(str1, str2,incomparable_val=1):
     """retuns the difference between two strings, parsing numbers and confronting them."""
     import re
-    nrRe=re.compile("[-+]?[0-9]*\\.?[0-9]+([eEdD][-+]?[0-9]+)?")
+    nrRe=re.compile("[-+]?[0-9]*\\.?[0-9]+([eEdD][-+]?[0-9]+)?$")
     tokens1=str1.split()
     tokens2=str2.split()
     distance=0.0
