@@ -11,7 +11,7 @@ MODULE bfgs_optimizer
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
-  USE force_env_methods,               ONLY: force_env_calculate_force
+  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -28,12 +28,7 @@ MODULE bfgs_optimizer
                                              write_qs_particle_coordinates,&
                                              write_structure_data
   USE qs_parser,                       ONLY: close_file,&
-                                             finish_parser,&
-                                             open_file,&
-                                             read_object,&
-                                             start_parser,&
-                                             stop_parser,&
-                                             test_object
+                                             open_file
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -199,7 +194,7 @@ CONTAINS
 
 ! Calculate Energy & Gradients
 
-  CALL force_env_calculate_force(force_env,box_change=.FALSE.)
+  CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.)
 
 ! Copy forces to g, the gradients
 
@@ -357,7 +352,7 @@ CONTAINS
 
 !    ** Energy & Gradients at new step **
 
-     CALL force_env_calculate_force(force_env,box_change=.FALSE.)
+     CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.)
 
      indf = 0
      DO ikind=1,nkind

@@ -364,7 +364,6 @@ CONTAINS
                    phi*((d2cr*cr-dcr*dcr)/(cr*cr) - f76*or*or)
          dphigr = -dphig*(dcr/cr + f76*or)
          ep = EXP(-phi)
-         !FM to do: test e_rho_rho, my 
          e_rho_rho(ip) = e_rho_rho(ip) + x*or*ep*g*g*&
               (-f43*or*dcr+d2cr-dcr*dphir + &
               f43*or*cr*dphir-dcr*dphir-cr*d2phir+cr*dphir*dphir + &
