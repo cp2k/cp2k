@@ -11,3 +11,5 @@ h2o.inp 2
 nai-0.inp 0
 # then run md
 nai-1.inp 2
+# KG_GPW
+kg_gpw_1H2O_TF.inp 1
