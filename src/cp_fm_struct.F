@@ -714,6 +714,11 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_get',&
        routineP=moduleN//':'//routineN
+  INTEGER i,nprow,npcol,myprow,mypcol, stat
+#if defined(__SCALAPACK)
+  INTEGER , EXTERNAL :: indxl2g
+#endif
+
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(fmstruct),cp_failure_level,routineP,error,failure)
@@ -729,10 +734,58 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
      IF (PRESENT(id_nr)) id_nr=fmstruct%id_nr
      IF (PRESENT(ref_count)) ref_count=fmstruct%ref_count
      IF (PRESENT(first_p_pos)) first_p_pos=fmstruct%first_p_pos
-     IF (PRESENT(row_indices)) row_indices => fmstruct%row_indices
-     IF (PRESENT(col_indices)) col_indices => fmstruct%col_indices
-     IF (PRESENT(nrow_local)) nrow_local => nrow_local
-     IF (PRESENT(ncol_local)) ncol_local => ncol_local
+     IF (PRESENT(nrow_local)) nrow_local => fmstruct%nrow_local
+     IF (PRESENT(ncol_local)) ncol_local => fmstruct%ncol_local
+
+    myprow=fmstruct%context%mepos(1)
+    mypcol=fmstruct%context%mepos(2)
+    nprow=fmstruct%context%num_pe(1)
+    npcol=fmstruct%context%num_pe(2)
+
+    IF (PRESENT(row_indices)) THEN
+       row_indices => fmstruct%row_indices
+       IF (.NOT.ASSOCIATED(row_indices)) THEN
+          ! the max should go away
+          ALLOCATE(fmstruct%row_indices &
+               (MAX(fmstruct%nrow_local(myprow),1)),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          row_indices => fmstruct%row_indices
+#ifdef __SCALAPACK
+          DO i=1,SIZE(row_indices)
+          ! the max should go away
+             fmstruct%row_indices(i)=&
+                  indxl2g(i,fmstruct%nrow_block,myprow,&
+                  fmstruct%first_p_pos(1),nprow)
+          ENDDO
+#else
+          DO i=1,SIZE(row_indices)
+             row_indices(i)=i
+          ENDDO
+#endif
+       END IF
+    ENDIF
+
+    IF (PRESENT(col_indices)) THEN
+       col_indices => fmstruct%col_indices
+       IF (.NOT.ASSOCIATED(col_indices)) THEN
+          ALLOCATE(fmstruct%col_indices &
+               (MAX(fmstruct%ncol_local(mypcol),1)),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          col_indices => fmstruct%col_indices
+#ifdef __SCALAPACK
+          DO i=1,SIZE(col_indices)
+             col_indices(i)=&
+                  indxl2g(i,fmstruct%ncol_block,mypcol,&
+                  fmstruct%first_p_pos(2),npcol)
+          ENDDO
+#else
+          DO i=1,SIZE(col_indices)
+             col_indices(i)=i
+          ENDDO
+#endif
+       END IF
+
+    ENDIF
   END IF
 END SUBROUTINE cp_fm_struct_get
 !***************************************************************************
