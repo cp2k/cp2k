@@ -2,25 +2,49 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/atom_module [1.0] *
+
+!!****m* cp2k/atom_module [1.0] *
+!!
+!!   NAME
+!!     atom_module
 !!
 !!   FUNCTION
+!!     A module to compute the ground state energy of atoms. The atom
+!!     to be calculated must be specified in the input file. This
+!!     module uses the functionals defined in functionals.F.
+!!
+!!   SYNOPSIS
+!!     atomic_code ( globenv )
 !!
 !!   MODIFICATION HISTORY
 !!     JGH, 17-NOV-2000, began work
 !!     TCH, 21-DEC-2001, version 0.1 (Xa works)
+!!     TCH, 12-FEB-2002, working version
 !!
-!!   SOURCE
-!******************************************************************************
-
-
+!!   SEE ALSO
+!!     atom_calculations, atom_type, atom_parameters_type
+!!
+!!****
 MODULE atom_module
 
-  USE atom_type, ONLY : atom_info, atom_init, atom_destroy
+  USE atom_calculations, ONLY : &
+       calculate_electron_density, &
+       calculate_gs_energy, calculate_potential, &
+       count_nodes, initialize_eigenvalues, rg_normalize, signum
+  USE atom_parameters_type, ONLY : AM_PARAMETERS_INFO, am_init, am_dealloc_ref, &
+       am_get_dma, am_get_method, am_get_maxshoot, am_get_ncv, &
+       am_get_precision, am_get_maxiter, am_get_ldd_rescale_value
+  USE atom_type, ONLY : AM_ATOM_INFO, am_init, am_dealloc_ref, &
+       am_get_elec_conf, am_get_z
   USE global_types, ONLY : global_environment_type
   USE header, ONLY : atom_header
   USE kinds, ONLY : dbl
-  USE mathconstants, ONLY : zero
+  USE mathconstants, ONLY : zero, pi
+  USE qs_error_handling, ONLY : qs_assert, qs_error_type, qs_init, qs_dealloc_ref, &
+       qs_note_level, qs_warning_level, qs_failure_level, qs_fatal_level
+  USE qs_log_handling, ONLY : qs_init_default_loggers, qs_to_string
+  USE radial_util, ONLY : radial_integrate
+  USE termination, ONLY : stop_memory, stop_program
   USE timings, ONLY : timeset, timestop
 
   IMPLICIT NONE
@@ -28,143 +52,148 @@ MODULE atom_module
   PRIVATE
   PUBLIC :: atomic_code
 
-  !!*****
   !-----------------------------------------------------------------------------!
 
 CONTAINS
 
-  !-----------------------------------------------------------------------------!
-  !!****** atom_module/atomic_code [1.0] *
-  !!
-  !!   FUNCTION
-  !!
-  !!
-  !!   MODIFICATION HISTORY
-  !!     JGH, 17-NOV-2000, began work
-  !!
-  !!   SOURCE
-  !******************************************************************************
-
+!!****f* cp2k/atom_module/atomic_code [1.0] *
+!!
+!!   NAME
+!!     atomic_code
+!!
+!!   FUNCTION
+!!     This is the public subroutine of the atom_module module. It computes the
+!!     ground state energy and writes it on the screen. The main part of the work
+!!     is delegated to atom_do_calc.
+!!
+!!   ARGUMENTS
+!!     globenv - TYPE ( GLOBAL_ENVIRONMENT_TYPE ) - contains the environment
+!!
+!!   MODIFICATION HISTORY
+!!     JGH, 17-NOV-2000, began work
+!!     TCH, 02-FEB-2002, working version
+!!
+!!   SEE ALSO
+!!     atom_do_calc
+!!
+!!****
   SUBROUTINE atomic_code(globenv)
 
     IMPLICIT NONE
 
-    !Arguments
-    TYPE(global_environment_type), INTENT(INOUT) :: globenv
+    ! Arguments
+    TYPE (GLOBAL_ENVIRONMENT_TYPE), INTENT(INOUT) :: globenv
 
-    !Locals
-    TYPE(atom_info) :: this     ! the atom itself
+    ! Locals
+    TYPE (AM_ATOM_INFO) :: atom
+    TYPE (QS_ERROR_TYPE) :: error
+    TYPE (AM_PARAMETERS_INFO) :: parameters
 
-    INTEGER :: handle           ! a handle for the timer
+    INTEGER :: handle ! for the timer
+    LOGICAL :: condition, failure
 
     !------------------------------------------------------------------------------
-    CALL timeset ( 'ATOMIC_CODE', 'I', ' ', handle )
+    CALL timeset('ATOMIC_CODE', 'I', ' ', handle)
 
-    IF ( globenv % ionode ) CALL atom_header ( globenv % scr )
+    IF (globenv%ionode) CALL atom_header(globenv%scr)
 
-    CALL atom_init(this, globenv,.true.)
-    CALL atom_do_calc(this)
+    CALL am_init(parameters, globenv)
+    CALL am_init(atom, globenv)
+    CALL qs_init_default_loggers
+    CALL qs_init(error)
+    
+    CALL atom_do_calc ( atom, parameters )
+
     CALL timestop ( zero, handle )
-    CALL atom_destroy(this)
+
+    CALL qs_dealloc_ref ( error )
+    CALL am_dealloc_ref ( atom )
+    CALL am_dealloc_ref ( parameters )
 
   END SUBROUTINE atomic_code
 
   !-----------------------------------------------------------------------------!
-  !!****** atom_module/atom_do_calc [1.0] *
-  !!
-  !!   FUNCTION
-  !!     Does the actual computation
-  !!
-  !!   HISTORY
-  !!     TCH, 28-OCT-2001, began work
-  !!     TCH, 06-DEC-2001, V0.5: calculates Xa method
-  !!
-  !!   SOURCE
-  !******************************************************************************
-  SUBROUTINE atom_do_calc(this)
 
-    USE atom_calculations, ONLY : &
-         calculateElectronDensity, &
-         getGroundStateEnergy, calculatePotential, &
-         countNodes, initialEigenvalues, rgNormalize, signum
-    USE radial_util, ONLY : radial_integrate
-    USE termination, ONLY : stop_memory, stop_program
-    USE mathconstants, ONLY : pi
-
+!!****f* cp2k/atom_module/atom_do_calc [1.0] *
+!!
+!!   NAME
+!!     atom_do_calc
+!!
+!!   FUNCTION
+!!     Calculates the ground state electron density and energy.
+!!
+!!   ARGUMENTS
+!!     atom - TYPE ( AM_ATOM_INFO ) - the atom to compute
+!!     parameters - TYPE ( AM_PARAMETERS_INFO ) - an object holding program parameters
+!!
+!!   MODIFICATION HISTORY
+!!     08-FEB-2002, TCH, working version
+!!
+!!   SEE ALSO
+!!     AM_ATOM_INFO, AM_PARAMETERS_INFO
+!!
+!!****
+  SUBROUTINE atom_do_calc ( atom, parameters )
+    
     IMPLICIT NONE
     
-    ! arguments
-    TYPE(atom_info), INTENT(INOUT) :: this ! the atom_info record
+    ! Arguments
+    TYPE (AM_ATOM_INFO), INTENT (INOUT) :: atom
+    TYPE (AM_PARAMETERS_INFO), INTENT (IN) :: parameters
 
-    ! variables
-    INTEGER :: np            ! holds the number of interior grid points
-    
-    REAL(DBL), DIMENSION(1:this%rg%n) :: f, fprime
-    REAL(DBL), DIMENSION(0:this%rg%n+1) :: t1, t2
-    REAL(DBL), DIMENSION(1:this%rg%n) :: rho, new_rho  ! 4*pi*r^2 * electron density
-
-    REAL(DBL) :: a            ! parameter to squish the ldd to a useable number
-    REAL(DBL) :: h2           ! h**2 (square of the stepwidth in s-space)
-    REAL(DBL) :: etot         ! total computed energy from last iteration
-    REAL(DBL) :: ldd          ! logarhytmic derivative difference
-         
-    INTEGER :: l, n           ! angular and main quantum numbers
-    INTEGER :: orbit          ! orbital number orbit = (n*(n-1))/2 + l + 1
-    INTEGER :: nodes          ! number of nodes in the wavefunction
-
-    
-    INTEGER :: errno
-    INTEGER :: k              ! loop variables
-    INTEGER :: iteration      ! keep track of the number of iterations done
-    INTEGER :: matchp         ! matching point (the coordinate where the two shoots should meet)
+    ! Variables    
+    INTEGER :: errno        
+    INTEGER :: np
+    INTEGER :: l, n, orbit  ! orbit = (n*(n-1))/2 + l + 1
+    INTEGER :: nodes
+    INTEGER :: iteration
+    INTEGER :: k
+    INTEGER :: matchp       ! matching point (the coordinate where the two shoots should meet)
     INTEGER, DIMENSION(55) :: shoot_loop_counter, node_correction_counter
 
-    LOGICAL :: itermax        ! to tell if the maximum number of iterations were reached
+    LOGICAL :: itermax      ! to tell if the maximum number of iterations were reached
+
+    REAL(DBL) :: a          ! parameter to squish the ldd to a useable number
+    REAL(DBL) :: h2         ! h**2 (square of the stepwidth in s-space)
+    REAL(DBL) :: gse_li     ! ground state energy from last iteration
+    REAL(DBL) :: ldd        ! logarhytmic derivative difference
+
+    REAL(DBL), DIMENSION(1:atom%rg%n) :: f, fprime
+    REAL(DBL), DIMENSION(0:atom%rg%n+1) :: t1, t2
+    REAL(DBL), DIMENSION(1:atom%rg%n) :: rho, new_rho ! electron density
+    REAL(DBL), DIMENSION(1:atom%rg%n,55) :: wf
 
     ! ------------------------------------------------
 
-    IF (this%log_wf) THEN
-       OPEN (UNIT=10, FILE=this%wf_logfile, STATUS='REPLACE', ACTION='WRITE', IOSTAT=errno)
+    IF (atom%log_wf) THEN
+       OPEN (UNIT=10, FILE=atom%wf_logfile, STATUS='REPLACE', ACTION='WRITE', IOSTAT=errno)
     ENDIF
 
-    ! initialisations
-    a = this%lddrsv * (2.0_dbl/pi)
-    etot = 0.0_dbl
-    h2 = this%rg%h**2
-    iteration = 0
-    itermax = .FALSE.
-    np = this%rg%n
+    ! variable initialisations
+    np = atom%rg%n
+    gse_li = 0.0_dbl
+    t1 = 0.0_dbl; t2 = 0.0_dbl
+    a = am_get_ldd_rescale_value ( parameters ) * (2.0_dbl/pi)
+    h2 = atom%rg%h**2
+    iteration = 0 ; itermax = .FALSE.
     node_correction_counter = 0
     shoot_loop_counter = 0
-    t1 = 0.0_dbl; t2 = 0.0_dbl
 
-    ! construct the initial wavefunctions
-    this%orbitals = 0.0_dbl
-    DO orbit=1, 55
-       IF (this%elec_conf(orbit) /= 0) THEN
-          this%orbitals(:,orbit) = &
-               EXP(-1.0_dbl*(1.5_dbl*this%rg%r(1:np)/DBLE(orbit))**2) &
-               * (2.25_dbl/SQRT(4.0_dbl*pi)) * this%rg%r(1:np)**2 &
-               / DBLE(orbit)**2
-          CALL rgNormalize(this%orbitals(:,orbit), this%rg)
-       ENDIF
-    ENDDO
-    
-    IF (this%method == 'XA') THEN
-       CALL calculateElectronDensity( &
-            rho, &
-            this%orbitals(1:np,1:55), &
-            DBLE(this%elec_conf), &
-            1.0_dbl / this%rg%r(1:np) )
-    ENDIF
-    
+    IF (am_get_method(parameters) == 'XA') THEN
+       DO orbit=1, 55
+          IF (am_get_elec_conf(atom, orbit) /= 0) &
+               wf(1:np,orbit) = atom%orbitals(1:np,orbit) / atom%rg%r(1:np)
+       END DO
+       CALL calculate_electron_density(rho, wf, am_get_elec_conf(atom))
+    END IF
+
     ! approximations for the eigenvalues
-    CALL initialEigenvalues(this%eigenvalues, this)
+    CALL initialize_eigenvalues ( atom, parameters, atom%eigenvalues )
 
     ! self-consistency loop
     sc_loop: DO 
        
-       IF (iteration == this%maxiter) THEN
+       IF ( iteration == am_get_maxiter ( parameters ) ) THEN
           itermax = .TRUE.
           EXIT sc_loop
        END IF
@@ -173,26 +202,26 @@ CONTAINS
        WRITE (6,*)
        WRITE (6,"(2X,'Iteration ',I3)") iteration
 
-       SELECT CASE (this%method)
+       SELECT CASE (am_get_method(parameters))
 
        CASE DEFAULT
-          WRITE (6,'(1X,3A)') "Method (", TRIM(this%method), ") is not available."
+          WRITE (6,'(1X,3A)') "Method (", TRIM(am_get_method(parameters)), ") is not available."
           EXIT sc_loop
 
        CASE ('IPM')
-          WRITE (6,'(1X,3A)') "Method (", TRIM(this%method), ") not yet implemented."
+          WRITE (6,'(1X,3A)') "Method (", TRIM(am_get_method(parameters)), ") not yet implemented."
           EXIT sc_loop
 
        CASE ('SIMPLE')
           ! nothing to do here
 
        CASE ('XA')
-          CALL calculateElectronDensity( &
-               new_rho, &
-               this%orbitals(1:np,1:55), &
-               DBLE(this%elec_conf), &
-               1.0_dbl / this%rg%r(1:np) )
-          rho = this%dma*new_rho + (1.0_dbl - this%dma)*rho
+          DO orbit=1, 55
+             IF (am_get_elec_conf(atom,orbit) /= 0) &
+                  wf(1:np,orbit) = atom%orbitals(1:np,orbit) / atom%rg%r(1:np)
+          END DO
+          CALL calculate_electron_density(new_rho, wf, am_get_elec_conf(atom))
+          rho = am_get_dma(parameters) * new_rho + (1.0_dbl - am_get_dma(parameters))*rho
 
        ENDSELECT
        
@@ -201,32 +230,32 @@ CONTAINS
 
              orbit = (n*(n-1))/2 + l + 1
 
-             IF (this%elec_conf(orbit) == 0) CYCLE l_loop
+             IF (am_get_elec_conf(atom, orbit) == 0) CYCLE l_loop
 
              ! construct the model dependend part of the potential operator
-             CALL calculatePotential(f, n, l, this, rho)          
+             CALL calculate_potential(f, atom, parameters, n, l, rho)          
 
              ! to find best matching point: find point with
              ! v - e = 0
              DO k=2, np
-                IF ( signum(f(k)-this%eigenvalues(orbit)) /= &
-                     signum(f(k-1)-this%eigenvalues(orbit)) ) THEN
+                IF ( signum(f(k) - atom%eigenvalues(orbit)) /= &
+                     signum(f(k-1) - atom%eigenvalues(orbit))) THEN
                    matchp = k
                    EXIT
                 ENDIF
              ENDDO
              
              ! transform the potential to the function in s-space
-             f(1:np) = -(this%rg%wdd(1:np)) / this%rg%w(1:np) &
-                  - (2.0_dbl / (this%rg%w(1:np))**4) * f(1:np)
+             f(1:np) = - atom%rg%wdd(1:np) / atom%rg%w(1:np) &
+                  - (2.0_dbl / atom%rg%w(1:np)**4) * f(1:np)
     
              shoot_loop_counter(orbit) = 0
              shooting_loop: DO
 
                 shoot_loop_counter(orbit) = shoot_loop_counter(orbit) + 1
-                IF (shoot_loop_counter(orbit) > this%maxshoot) EXIT shooting_loop
+                IF (shoot_loop_counter(orbit) > am_get_maxshoot(parameters)) EXIT shooting_loop
 
-                fprime = -1.0_dbl *(f + 2.0_dbl*this%eigenvalues(orbit)/(this%rg%w(1:np)**4))
+                fprime = -1.0_dbl *(f + 2.0_dbl*atom%eigenvalues(orbit)/(atom%rg%w(1:np)**4))
                    
                 t1(0) = 0.0_dbl ; t1(1) = 1.0E-4_dbl
                 t2(np+1) = 0.0_dbl ; t2(np) = 0.5E-4_dbl
@@ -255,66 +284,68 @@ CONTAINS
                 t2 = (t1(matchp) / t2(matchp)) * t2
 
                 ! extract P (t contains wP)
-                t1(1:np) = t1(1:np) / this%rg%w(1:np)
-                t2(1:np) = t2(1:np) / this%rg%w(1:np)
+                t1(1:np) = t1(1:np) / atom%rg%w(1:np)
+                t2(1:np) = t2(1:np) / atom%rg%w(1:np)
 
                 ! compute the logarhitmic derivative difference
                 ldd = (t1(matchp+1) - t1(matchp-1)) / ABS(t1(matchp)) - &
                      (t2(matchp+1) - t2(matchp-1)) / ABS(t2(matchp))
-                ldd = ldd / ((this%rg%r(matchp+1)-this%rg%r(matchp-1))*2.0_dbl)
+                ldd = ldd / ((atom%rg%r(matchp+1)-atom%rg%r(matchp-1))*2.0_dbl)
 
-                this%orbitals(1:matchp,orbit) = t1(1:matchp)
-                this%orbitals(matchp+1:np,orbit) = t2(matchp+1:np)
-                CALL rgNormalize(this%orbitals(:,orbit), this%rg)
+                atom%orbitals(1:matchp,orbit) = t1(1:matchp)
+                atom%orbitals(matchp+1:np,orbit) = t2(matchp+1:np)
+                CALL rg_normalize(atom%orbitals(:,orbit), atom%rg)
 
-                IF (this%orbitals(1,orbit) < 0.0_dbl) &
-                     this%orbitals(:,orbit) = this%orbitals(:,orbit) * (-1.0_dbl)
+                IF (atom%orbitals(1,orbit) < 0.0_dbl) &
+                     atom%orbitals(:,orbit) = atom%orbitals(:,orbit) * (-1.0_dbl)
 
                 ! number of nodes in wavefunction should be n-(l+1)
-                CALL countNodes(nodes, this%orbitals(:,orbit))
+                CALL count_nodes(nodes, atom%orbitals(:,orbit))
                 IF (nodes /= n-(l+1)) THEN
                    IF (nodes > n-(l+1)) THEN
-                      this%eigenvalues(orbit) = this%eigenvalues(orbit) * (1.0_dbl + this%ncv)
+                      atom%eigenvalues(orbit) = atom%eigenvalues(orbit) &
+                           * (1.0_dbl + am_get_ncv(parameters))
                    ELSE
-                      this%eigenvalues(orbit) = this%eigenvalues(orbit) * (1.0_dbl - this%ncv)
+                      atom%eigenvalues(orbit) = atom%eigenvalues(orbit) &
+                           * (1.0_dbl - am_get_ncv(parameters))
                    END IF
                    node_correction_counter(orbit) = node_correction_counter(orbit) + 1
                    CYCLE shooting_loop
                 END IF
 
                 ! exit condition
-                IF (ABS(ldd) < this%precision**1.5) THEN
+                IF ( ABS ( ldd ) < am_get_precision ( parameters )**1.5 ) THEN
                    EXIT shooting_loop
                 ENDIF
                 
                 !! "crush" the logarhitmic derivative difference
                 ldd = a * ATAN(ldd/a)
 
-                this%eigenvalues(orbit) = this%eigenvalues(orbit) + &
-                     ldd * signum(this%orbitals(matchp,orbit)) * &
-                     ABS(this%eigenvalues(orbit)) * &
-                     (DBLE(orbit) / DBLE(this%z))**1.5 * & 
+                atom%eigenvalues(orbit) = atom%eigenvalues(orbit) + &
+                     ldd * signum(atom%orbitals(matchp,orbit)) * &
+                     ABS(atom%eigenvalues(orbit)) * &
+                     (DBLE(orbit) / DBLE(atom%z))**1.5 * & 
                      0.3_dbl
 
              END DO shooting_loop
              
              WRITE (6,"(2X,'n=',I1,' l=',I1,'  ',F15.9,' mp=',I4)") &
-                  n, l, this%eigenvalues(orbit), matchp
+                  n, l, atom%eigenvalues(orbit), matchp
 
           END DO l_loop
        END DO n_loop
 
-       CALL getGroundStateEnergy(this, rho)
+       CALL calculate_gs_energy ( atom, parameters, rho )
 
        ! these methods dont need the self consistency loop
-       IF (this%method == 'SIMPLE' .OR. this%method == 'IPM') EXIT
+       IF ( am_get_method ( parameters )  == 'SIMPLE' .OR. am_get_method ( parameters ) == 'IPM') EXIT
 
-       IF (iteration == 1) etot = 2.0_dbl * this%ground_state_energy
+       IF (iteration == 1) gse_li = 2.0_dbl * atom%ground_state_energy
 
        ! self consistency condition
-       IF ( ABS((this%ground_state_energy - etot) / this%ground_state_energy) < &
-            this%precision) EXIT sc_loop
-       etot = this%ground_state_energy
+       IF ( ABS((atom%ground_state_energy - gse_li) / atom%ground_state_energy) < &
+            am_get_precision ( parameters ) ) EXIT sc_loop
+       gse_li = atom%ground_state_energy
 
     END DO sc_loop
 
@@ -323,16 +354,16 @@ CONTAINS
     DO n=1, 9
        DO l=0, n-1
           orbit = (n*(n-1))/2 + 1 + l
-          IF (this%elec_conf(orbit) /= 0) THEN
+          IF ( am_get_elec_conf ( atom, orbit ) /= 0) THEN
              WRITE (6, "(' n = ',I1,' l = ',I1,' : ',F18.10,' lc = ',I5,' nc = ',I6)") &
-                  n, l, this%eigenvalues(orbit), &
+                  n, l, atom%eigenvalues(orbit), &
                   shoot_loop_counter(orbit), node_correction_counter(orbit)
           ENDIF
        ENDDO
     ENDDO
     WRITE (6,*)
     
-    WRITE (6,'(1X,A,F18.10)') "GSE: ", this%ground_state_energy
+    WRITE (6,'(1X,A,F18.10)') "GSE: ", atom%ground_state_energy
     WRITE (6,*)
     WRITE (6,'(1X,A,I3)') "Number of iterations needed: ", iteration
     IF (itermax) THEN
@@ -341,10 +372,10 @@ CONTAINS
     ENDIF
     WRITE (6,*)
 
-    IF (this%log_wf) THEN
+    IF (atom%log_wf) THEN
        DO k=1, np
-          WRITE (10,'(5(2X,F14.8))') this%rg%r(k), &
-               this%orbitals(k,3), this%orbitals(k,0), this%orbitals(k,0), this%orbitals(k,0)
+          WRITE (10,'(5(2X,F14.8))') atom%rg%r(k), &
+               atom%orbitals(k,3), atom%orbitals(k,0), atom%orbitals(k,0), atom%orbitals(k,0)
        ENDDO
        CLOSE (10)
    ENDIF
@@ -353,4 +384,3 @@ CONTAINS
   
 END MODULE atom_module
 
-!******************************************************************************
