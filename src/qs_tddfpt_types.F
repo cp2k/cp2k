@@ -54,12 +54,6 @@ MODULE qs_tddfpt_types
                                              stop_program
   IMPLICIT NONE
   
-  !---------------------------!
-  ! Is gonna hold eigenvalues !
-  !---------------------------!
-  TYPE real_2d_array_p_type
-     REAL(dbl), DIMENSION(:,:), POINTER :: values
-  END TYPE real_2d_array_p_type
 
   !----------------------------------------------!
   ! The type that will hold the X and Y matrices !
@@ -68,13 +62,17 @@ MODULE qs_tddfpt_types
      TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: spins
   END TYPE fm_p_spins_p_type
 
+
   !-----------------------------------!
   ! A type that holds some parameters !
   !-----------------------------------!
   TYPE tddfpt_control_type
      INTEGER :: n_ev    ! number of eigenvalues
      INTEGER :: n_spins ! number of spins used in the calculation (cached value)
+     INTEGER :: n_kv_fac 
+     INTEGER :: n_reortho
   END TYPE tddfpt_control_type
+
 
 !!****s* qs_tddfpt_types/qs_tddfpt_types
 !!
@@ -97,9 +95,7 @@ MODULE qs_tddfpt_types
      TYPE(tddfpt_control_type), POINTER                 :: control
      TYPE(fm_p_spins_p_type), DIMENSION(:), POINTER     :: X      ! right eigenvector     
      TYPE(fm_p_spins_p_type), DIMENSION(:), POINTER     :: Y      ! left eigenvector
-     REAL(DBL), DIMENSION(:,:), POINTER                 :: ev     ! eigenvalues
-     TYPE(real_2d_array_p_type), DIMENSION(:), POINTER  :: eval_X ! the eigenvalues       
-     TYPE(real_2d_array_p_type), DIMENSION(:), POINTER  :: eval_Y ! the eigenvalues       
+     REAL(DBL), DIMENSION(:), POINTER                   :: eigenvalues
      TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: invS   ! the inverse of the metric
   END TYPE tddfpt_env_type
     
@@ -109,13 +105,14 @@ MODULE qs_tddfpt_types
   PRIVATE
 
   ! TYPES
-  PUBLIC :: tddfpt_control_type, tddfpt_env_type
-  PUBLIC :: real_2d_array_p_type, fm_p_spins_p_type ! must be public so other modules
-                                                    ! can access their fields
+  PUBLIC :: tddfpt_control_type, &
+            tddfpt_env_type, &
+            fm_p_spins_p_type
 
   ! METHODS
-  PUBLIC :: tddfpt_env_allocate, tddfpt_env_deallocate, &
-            tddfpt_env_init, check_tddfpt_env
+  PUBLIC :: tddfpt_env_allocate, &
+            tddfpt_env_deallocate, &
+            tddfpt_env_init
   
 CONTAINS
 
@@ -156,41 +153,43 @@ CONTAINS
     n_ev    = t_control%n_ev
     n_spins = t_control%n_spins
 
-    ALLOCATE(t_env%x(n_ev), t_env%y(n_ev), stat=stat)
-    IF (stat/=0) CALL stop_memory(routineP, "t_env%x, t_env%y", n_ev)
-
-    ALLOCATE(t_env%eval_x(n_spins), t_env%eval_y(n_spins), stat=stat)
-    IF (stat /= 0) CALL stop_memory(routineP, "t_env%eval_x, t_env%eval_y", n_spins)
+    ALLOCATE(t_env%x(n_ev), t_env%y(n_ev), t_env%eigenvalues(n_ev), stat=stat)
+    IF (stat/=0) CALL stop_memory(routineP, "t_env : x, y, eigenvalues", n_ev)
 
     DO ev=1, n_ev
        ALLOCATE(t_env%x(ev)%spins(n_spins), t_env%y(ev)%spins(n_spins), stat=stat)
-       IF (stat/=0) CALL stop_memory(routineP, "t_env%x%spins, t_env%y%spins", n_spins)
+       IF (stat/=0) CALL stop_memory(routineP, "t_env : x%spins y%spins", n_spins)
     END DO
     
-    ALLOCATE(t_env%ev(n_ev,2), stat=stat)
-    IF (stat /= 0) CALL stop_memory(routineP, "t_env%ev", n_ev*2)
-
     DO spin=1, n_spins
 
-       ! arpack needs one field more, hence the +1
-       ! the 2 is because the eigenvalues can, in principle,  be complex
-       ALLOCATE(t_env%eval_x(spin)%values(n_ev+1, 2), &
-                t_env%eval_y(spin)%values(n_ev+1, 2), stat=stat)
-       IF (stat /= 0) CALL stop_memory(routineP, "t_env%eval_x%values, t_env%eval_y%values", &
-                                       2*n_ev*dp_size)
-       t_env%eval_x(spin)%values = 0.0_dbl
-       t_env%eval_y(spin)%values = 0.0_dbl
-
        DO ev=1, n_ev
-          CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, &
-               t_env%x(ev)%spins(spin)%matrix, &
-               name = "X ev = "//cp_to_string(ev)//" spin = "//cp_to_string(spin))
+          CALL cp_fm_struct_create(fm_struct, glob_env%para_env, glob_env%blacs_env, &
+                                   p_env%n_ao(spin), p_env%n_mo(spin), &
+                                   optimal_blacs_row_block_size, &
+                                   optimal_blacs_col_block_size)
+          CALL cp_fm_create(t_env%x(ev)%spins(spin)%matrix, fm_struct, &
+               routineP//"t_env%x-"//TRIM(cp_to_string(ev))//"-"//TRIM(cp_to_string(spin)))
           CALL cp_fm_set_all(t_env%x(ev)%spins(spin)%matrix, 0.0_dbl) ! fill with zeros
-          CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, &
-               t_env%y(ev)%spins(spin)%matrix, &
-               name = "Y ev = "//cp_to_string(ev)//" spin = "//cp_to_string(spin))
-          CALL cp_fm_set_all(t_env%y(ev)%spins(spin)%matrix, 0.0_dbl) ! fill with zeros
+!!!          CALL cp_fm_struct_create(fm_struct, glob_env%para_env, glob_env%blacs_env, &
+!!!                                   p_env%n_ao(spin), p_env%n_mo(spin), &
+!!!                                   optimal_blacs_row_block_size, &
+!!!                                   optimal_blacs_col_block_size)
+!!!          CALL cp_fm_create(t_env%y(ev)%spins(spin)%matrix, fm_struct, &
+!!!               routineP//"t_env%x-"//TRIM(cp_to_string(ev))//"-"//TRIM(cp_to_string(spin)))
+
+
+!!!          CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, &
+!!!               t_env%x(ev)%spins(spin)%matrix, &
+!!!               name = "X ev = "//cp_to_string(ev)//" spin = "//cp_to_string(spin))
+!!!          CALL cp_fm_set_all(t_env%x(ev)%spins(spin)%matrix, 0.0_dbl) ! fill with zeros
+!!!          CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, &
+!!!               t_env%y(ev)%spins(spin)%matrix, &
+!!!               name = "Y ev = "//cp_to_string(ev)//" spin = "//cp_to_string(spin))
+!!!          CALL cp_fm_set_all(t_env%y(ev)%spins(spin)%matrix, 0.0_dbl) ! fill with zeros
+
        END DO
+
     END DO
   
     ALLOCATE(t_env%invS(n_spins), stat=stat)
@@ -292,23 +291,9 @@ CONTAINS
   
     ! -------------------------------------------------------------------
 
-    CPAAssert(check_tddfpt_env(t_env))
-
     n_ev    = t_env%control%n_ev
     n_spins = t_env%control%n_spins
     
-    DO spin=1, n_spins
-       DEALLOCATE(t_env%eval_x(spin)%values, t_env%eval_y(spin)%values, stat=stat)
-       IF (stat /= 0) &
-            CALL stop_memory(routineP, "t_env%eval_x%values, t_env%eval_y%values")
-       NULLIFY(t_env%eval_x(spin)%values)
-       NULLIFY(t_env%eval_y(spin)%values)       
-    END DO
-    DEALLOCATE(t_env%eval_x, t_env%eval_y, stat=stat)
-    IF (stat /= 0) &
-         CALL stop_memory(routineP, "t_env%eval_x, t_env%eval_y")
-    NULLIFY(t_env%eval_x); NULLIFY(t_env%eval_y)
-
     DO ev=1, n_ev
        DO spin=1, n_spins
           CALL cp_fm_release(t_env%x(ev)%spins(spin)%matrix)
@@ -332,7 +317,7 @@ CONTAINS
        IF (stat/=0) CALL stop_memory(routineP, "t_env%control")
     END IF
 
-    DEALLOCATE(t_env%ev, stat=stat)
+    DEALLOCATE(t_env%eigenvalues, stat=stat)
     IF (stat /= 0) CALL stop_memory(routineP, "t_env%ev")
 
     DO spin=1, n_spins
@@ -344,55 +329,6 @@ CONTAINS
     IF (stat /= 0) CALL stop_memory(routineP, "t_env%invS")
  
   END SUBROUTINE tddfpt_env_deallocate
-
-! *****************************************************************************
-
-  FUNCTION check_tddfpt_env(t_env) RESULT (valid)
-    IMPLICIT NONE
-
-    ! ARGUMENTS
-    TYPE(tddfpt_env_type), INTENT(in) :: t_env
-    LOGICAL                           :: valid
-
-    ! LOCALS
-    INTEGER                           :: n_ev, n_spins
-    INTEGER                           :: ev, spin
-
-    CHARACTER(LEN=*), PARAMETER       :: routineN = 'check_tddfpt_env', &
-                                         routineP = moduleN//'/'//routineN
-
-    ! -------------------------------------------------------------------
-
-    IF (.NOT.ASSOCIATED(t_env%control)) &
-         CALL stop_program(routineP, "t_env%control is not associated")
-    n_ev    = t_env%control%n_ev
-    n_spins = t_env%control%n_spins
-
-    valid = .TRUE.
-    IF (.NOT.(n_ev>=1)) valid = .FALSE.
-    IF (.NOT.(ASSOCIATED(t_env%x))) valid = .FALSE.
-    IF (.NOT.(n_ev==SIZE(t_env%x))) valid = .FALSE.
-    IF (.NOT.(ASSOCIATED(t_env%y))) valid = .FALSE.
-    IF (.NOT.(n_ev==SIZE(t_env%y))) valid = .FALSE.
-
-    DO ev=1, n_ev
-       IF (.NOT.(ASSOCIATED(t_env%x(ev)%spins))) valid = .FALSE.
-       IF (.NOT.(SIZE(t_env%x(ev)%spins)==n_spins)) valid = .FALSE.
-       IF (.NOT.(ASSOCIATED(t_env%y(ev)%spins))) valid = .FALSE.
-       IF (.NOT.(SIZE(t_env%y(ev)%spins)==n_spins)) valid = .FALSE.
-    END DO
-
-    IF (.NOT.(ASSOCIATED(t_env%eval_x))) valid = .FALSE.
-    IF (.NOT.(SIZE(t_env%eval_x)==n_spins)) valid = .FALSE.
-    IF (.NOT.(ASSOCIATED(t_env%eval_y))) valid = .FALSE.
-    IF (.NOT.(SIZE(t_env%eval_y)==n_spins)) valid = .FALSE.
-
-    DO spin=1, n_spins
-       IF (.NOT.(ASSOCIATED(t_env%eval_x(spin)%values))) valid = .FALSE.
-       IF (.NOT.(ASSOCIATED(t_env%eval_y(spin)%values))) valid = .FALSE.
-    END DO
-
-  END FUNCTION check_tddfpt_env
 
 ! *****************************************************************************
 

@@ -103,10 +103,9 @@ CONTAINS
 
     CALL tddfpt_write_banner(glob_env)
 
-    CALL tddfpt_init(p_env, t_env, qs_env, DEFAULT_N_EV, glob_env)
+    CALL tddfpt_init(p_env, t_env, qs_env, glob_env)
 
     CALL tddfpt_es(t_env, p_env, qs_env, glob_env)
-    CALL tddfpt_report_results(t_env, glob_env)
 
     CALL tddfpt_cleanup(t_env, p_env, glob_env)
 
