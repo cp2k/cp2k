@@ -233,8 +233,8 @@ CONTAINS
 
     CALL write_forces(force,atomic_kind_set,globenv)
 
-    CALL get_qs_env(qs_env=qs_env,w=w)
     CALL deallocate_matrix_set(w)
+    CALL set_qs_env(qs_env=qs_env,w=w)
 
     DEALLOCATE (atom_of_kind,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
