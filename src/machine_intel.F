@@ -77,7 +77,7 @@ END FUNCTION m_cputime
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
     REAL(dbl)                                :: wt
-    INTEGER*8 :: count,count_rate
+    INTEGER :: count,count_rate
     CALL system_clock(count=count,count_rate=count_rate) 
     wt=DBLE(count)/DBLE(count_rate)
 
