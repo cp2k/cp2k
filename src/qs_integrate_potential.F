@@ -24,9 +24,10 @@
 !!           1) prelim. introduction of the real space grid type
 !!     JGH [30.08.02] multigrid arrays independent from potential
 !!     JGH [17.07.03] distributed real space code
+!!     JGH [23.11.03] refactoring and new loop ordering
 !!
 !!   SOURCE
-!******************************************************************************
+!***********************************************************************
 
 MODULE qs_integrate_potential
 
@@ -112,6 +113,7 @@ MODULE qs_integrate_potential
                                              next
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                              realspace_grid_p_type,&
+                                             rs_get_loop_vars,&
                                              rs_get_my_tasks,&
                                              rs_pw_transfer
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
@@ -151,11 +153,11 @@ MODULE qs_integrate_potential
             integrate_pgf_product_rspace
 
 !!***
-! *****************************************************************************
+! **********************************************************************
 
 CONTAINS
 
-! *****************************************************************************
+! **********************************************************************
 
   SUBROUTINE integrate_v_core_rspace(v_rspace,cube_info,l_info,qs_env)
 
@@ -167,7 +169,7 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE integrate_v_core_rspace (MODULE qs_integrate_potential)"
+    "SUBROUTINE integrate_v_core_rspace (MODULE qs_integrate_potential)"
 
 !   *** Local variables ***
 
@@ -176,9 +178,8 @@ CONTAINS
     TYPE(dft_control_type), POINTER :: dft_control
 
     TYPE(realspace_grid_type), POINTER :: rs_v
-    REAL(KIND = dp)                  :: alpha_core_charge,ccore_charge,eps_rho_rspace
-    INTEGER                   :: atom_a,handle,i,j,iatom,ikind,istat,&
-                                 natom_of_kind
+    REAL(KIND = dp) :: alpha_core_charge,ccore_charge,eps_rho_rspace
+    INTEGER         :: atom_a,handle,i,j,iatom,ikind,istat,natom_of_kind
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
@@ -189,16 +190,18 @@ CONTAINS
     INTEGER, DIMENSION(2)                         :: bo
     INTEGER                                       :: npme, dir, ierr
 
-    REAL(KIND = dp), DIMENSION(3)     :: force_a,force_b,ra
-    REAL(KIND = dp), DIMENSION(:,:), POINTER             :: hab,pab
+    REAL(KIND = dp), DIMENSION(3)                 :: force_a,force_b,ra
+    REAL(KIND = dp), DIMENSION(:,:), POINTER      :: hab,pab
     TYPE(pw_env_type), POINTER                    :: pw_env
     TYPE(cp_rs_pool_type), POINTER                :: auxbas_rs_pool
 
-!   ---------------------------------------------------------------------------
+!   --------------------------------------------------------------------
 
     CALL timeset("integrate_v_core_rspace","I","",handle)
-    NULLIFY(pw_env,auxbas_rs_pool)
-    ALLOCATE(hab(1,1),pab(1,1))
+
+    NULLIFY(pw_env,auxbas_rs_pool,hab,pab,tasks)
+    ALLOCATE(hab(1,1),pab(1,1),STAT=ierr)
+    IF(ierr/=0) CALL stop_memory("integrate_v_core_rspace","hab,pab",1)
 
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
     CALL pw_env_get(pw_env=pw_env,auxbas_rs_pool=auxbas_rs_pool)
@@ -216,20 +219,6 @@ CONTAINS
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
-!d  DO ikind=1,SIZE(atomic_kind_set)
-!d    atomic_kind => atomic_kind_set(ikind)
-!d    CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!d                         natom=natom_of_kind)
-!d    ! IF (.NOT.ASSOCIATED(force(ikind)%rho_core)) THEN
-!d    !   ALLOCATE (force(ikind)%rho_core(3,natom_of_kind),STAT=istat)
-!d    !   IF (istat /= 0) THEN
-!d    !     CALL stop_memory(routine,"force(ikind)%rho_core",&
-!d    !                      3*natom_of_kind*dp_size)
-!d    !   END IF
-!d    ! END IF
-!d    ! force(ikind)%rho_core(:,:) = 0.0_dp
-!d  END DO
-
     DO ikind=1,SIZE(atomic_kind_set)
 
       atomic_kind => atomic_kind_set(ikind)
@@ -245,10 +234,7 @@ CONTAINS
       bo = get_limit ( natom_of_kind, para_env%num_pe, para_env%mepos )
 
       npme = bo(2) - bo(1) + 1
-      ALLOCATE ( tasks ( 2, npme ), STAT=ierr )
-      IF ( ierr /= 0 ) &
-        CALL stop_memory ( "integrate_rho_core", "tasks", 2*npme )
-      tasks = 0
+      CALL reallocate(tasks,1,2,1,npme)
 
       dir = rs_v%direction
 
@@ -268,7 +254,7 @@ CONTAINS
 
       CALL rs_get_my_tasks ( rs_v, tasks, npme )
 
-     DO j=1,npme
+      DO j=1,npme
 
         iatom = tasks(1,j)
         atom_a = atom_list(iatom)
@@ -278,15 +264,11 @@ CONTAINS
         force_b(:) = 0.0_dp
 
         CALL integrate_pgf_product_rspace(0,alpha_core_charge,0,&
-                                          0,0.0_dp,0,&
-                                          ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,&
-                                          rs_v,cube_info,l_info,&
-                                          ! hab(1,1),pab=pab(1,1),&
-                                          hab,pab=pab,o1=0,o2=0,&
-                                          vratio=1.0_dp,&
-                                          eps_gvg_rspace=eps_rho_rspace,&
-                                          calculate_forces=.TRUE.,force_a=force_a,&
-                                          force_b=force_b)
+             0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,&
+             rs_v,cube_info,l_info,hab,pab=pab,o1=0,o2=0,&
+             vratio=1.0_dp,eps_gvg_rspace=eps_rho_rspace,&
+             calculate_forces=.TRUE.,force_a=force_a,&
+             force_b=force_b)
 
         force(ikind)%rho_core(:,iatom) =&
           force(ikind)%rho_core(:,iatom) + force_a(:)
@@ -297,18 +279,20 @@ CONTAINS
 
     CALL rs_pool_give_back_rs(auxbas_rs_pool,rs_v)
 
-    DEALLOCATE(hab,pab)
+    DEALLOCATE(hab,pab,tasks,STAT=ierr)
+    IF(ierr /= 0) CALL stop_memory("integrate_v_core_rspace",&
+                  "hab,pab,tasks")
 
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE integrate_v_core_rspace
 
-! **************************************************************************************************
+! **********************************************************************
 ! The simplest possible interface to integrate_v_rspace 
 ! real space pw object in, sparse matrix out
 ! gets all the needed info from qs_env
-! (I guess one could use this style for the more general function as well)
-! **************************************************************************************************
+! I guess one could use this style for the more general function as well
+! **********************************************************************
   SUBROUTINE integrate_v_rspace_light(v_rspace,matrix_v,qs_env)
 
     TYPE(coeff_type)                            :: v_rspace
@@ -350,18 +334,20 @@ CONTAINS
 
   END SUBROUTINE integrate_v_rspace_light
 
-! **************************************************************************************************
-! integrates a given potential (or other object on a real space grid) = v_rspace
-! using a multi grid technique (mgrid_*)
-! over the basis set producing a number for every element of h (should have the same sparsity structure of S)
+! **********************************************************************
+! integrates a given potential (or other object on a real 
+! space grid) = v_rspace using a multi grid technique (mgrid_*)
+! over the basis set producing a number for every element of h 
+! (should have the same sparsity structure of S)
 ! it is possible to rebuild h if only small changes happened in v_rspace
-! (using v_rpsace_old,rebuild, if not using this kind of trick v_rspace_old 
-! might be a nullified pointer)
-! additional screening is available using the magnitude of the elements in p 
-! (? I'm not sure this is a very good idea)
+! (using v_rpsace_old,rebuild, if not using this kind of trick 
+! v_rspace_old might be a nullified pointer)
+! additional screening is available using the magnitude of the 
+! elements in p (? I'm not sure this is a very good idea)
 ! this argument is optional
-! derivatives of these matrix elements with respect to the ionic coordinates can be computed as well
-! **************************************************************************************************
+! derivatives of these matrix elements with respect to the ionic 
+! coordinates can be computed as well
+! ***********************************************************************
  
   SUBROUTINE integrate_v_rspace_full(v_rspace,mgrid_rspace,mgrid_gspace,&
                                 auxbas_grid,gridlevel_info,&
@@ -369,16 +355,18 @@ CONTAINS
                                 p,h,qs_env,calculate_forces,error)
 
     TYPE(coeff_type)                            :: v_rspace
-    TYPE(coeff_type), DIMENSION(:), POINTER     :: mgrid_rspace,mgrid_gspace
+    TYPE(coeff_type), DIMENSION(:), POINTER     :: mgrid_rspace,&
+                                                   mgrid_gspace
     INTEGER, INTENT (IN)                        :: auxbas_grid
     TYPE(coeff_type), INTENT(INOUT), OPTIONAL   :: v_rspace_old
     TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
     TYPE(gridlevel_info_type), INTENT(IN)       :: gridlevel_info
     TYPE(l_info_type), INTENT(IN)               :: l_info
     TYPE(qs_environment_type), INTENT(IN)       :: qs_env
-    TYPE(real_matrix_p_type), INTENT(IN), OPTIONAL      :: p
+    TYPE(real_matrix_p_type), INTENT(IN), OPTIONAL :: p
     TYPE(real_matrix_p_type), INTENT(INOUT)     :: h
-    LOGICAL, INTENT(IN)                         :: calculate_forces,rebuild
+    LOGICAL, INTENT(IN)                         :: calculate_forces,&
+                                                   rebuild
     TYPE(cp_error_type),INTENT(inout),OPTIONAL  :: error
 
 !   *** Local parameters ***
@@ -429,13 +417,14 @@ CONTAINS
 
     INTEGER, DIMENSION(:,:,:), POINTER  :: tasks
     INTEGER, DIMENSION(:,:), POINTER    :: tasks_local, ival, latom
+    INTEGER, DIMENSION(:,:), POINTER    :: atasks, asets
     INTEGER, DIMENSION(:), POINTER      :: ntasks
     INTEGER, PARAMETER                  :: max_tasks = 3000, add_tasks = 1000
-    INTEGER                             :: curr_tasks
+    INTEGER                             :: curr_tasks, natom_pairs
 
     REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: dist_ab
     REAL(KIND = dp), DIMENSION(:,:), POINTER   :: dab_local, dp_block
-    INTEGER  :: dir, n, tp, itask, npme
+    INTEGER  :: dir, n, tp, itask, npme, brow, bcol, ijsets, ijatoms
     REAL(KIND = dp), DIMENSION(3) :: rp
     LOGICAL :: p_duplicated, h_duplicated
 
@@ -447,7 +436,9 @@ CONTAINS
       CALL timeset("integrate_v_rspace","I","",handle)
     END IF
 
-    NULLIFY(pw_env,rs_pools)
+    NULLIFY(pw_env,rs_pools,hab,pab,work,ntasks,tasks,dist_ab,tasks_local,&
+            ival,latom,dab_local,asets,atasks)
+
 !   *** Get difference potential ***
     IF (.NOT.PRESENT(v_rspace_old) .AND. .NOT.rebuild) THEN
        CALL stop_program("integrate_v_rspace","need v_rspace_old for rebuild")
@@ -564,38 +555,25 @@ CONTAINS
 
 !   *** Allocate work storage ***
 
-    ALLOCATE (hab(maxco,maxco),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"hab",maxco*maxco*dp_size)
+    CALL reallocate(hab,1,maxco,1,maxco)
     
     IF (PRESENT(p)) THEN
-      ALLOCATE (pab(maxco,maxco),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*maxco*dp_size)
+      CALL reallocate(pab,1,maxco,1,maxco)
     ELSE
       IF (calculate_forces) CALL stop_program("integrate_v_rspace",&
                                               "need p for forces")
     ENDIF
 
-    ALLOCATE (work(maxco,maxsgf_set),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*maxsgf_set*dp_size)
-
-    ALLOCATE (ntasks(gridlevel_info%ngrid_levels),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"ntasks",gridlevel_info%ngrid_levels)
-    ntasks = 0
-
-    ALLOCATE (tasks(8,max_tasks,gridlevel_info%ngrid_levels),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"tasks",&
-                                     8*max_tasks*gridlevel_info%ngrid_levels)
-    ALLOCATE (dist_ab(3,max_tasks,gridlevel_info%ngrid_levels),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"dist_ab",&
-                                     3*max_tasks*gridlevel_info%ngrid_levels)
-    ALLOCATE (tasks_local(2,max_tasks),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"tasks_local",2*max_tasks)
-    ALLOCATE (ival(6,max_tasks),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"ival",2*max_tasks)
-    ALLOCATE (latom(2,max_tasks),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"latom",2*max_tasks)
-    ALLOCATE (dab_local(3,max_tasks),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"dab_local",3*max_tasks)
+    CALL reallocate(work,1,maxco,1,maxsgf_set)
+    CALL reallocate(ntasks,1,gridlevel_info%ngrid_levels)
+    CALL reallocate(tasks,1,8,1,max_tasks,1,gridlevel_info%ngrid_levels)
+    CALL reallocate(dist_ab,1,3,1,max_tasks,1,gridlevel_info%ngrid_levels)
+    CALL reallocate(tasks_local,1,2,1,max_tasks)
+    CALL reallocate(ival,1,6,1,max_tasks)
+    CALL reallocate(latom,1,2,1,max_tasks)
+    CALL reallocate(dab_local,1,3,1,max_tasks)
+    CALL reallocate(atasks,1,2,1,max_tasks)
+    CALL reallocate(asets,1,2,1,max_tasks)
     curr_tasks = max_tasks
 
     DO ikind=1,nkind
@@ -751,9 +729,9 @@ CONTAINS
                      IF ( n > curr_tasks ) THEN
                        curr_tasks = curr_tasks + add_tasks
                        CALL reallocate ( tasks, 1, 8, 1, curr_tasks, &
-                                                1, gridlevel_info%ngrid_levels )
+                                         1, gridlevel_info%ngrid_levels )
                        CALL reallocate ( dist_ab, 1, 3, 1, curr_tasks, &
-                                                1, gridlevel_info%ngrid_levels )
+                                         1, gridlevel_info%ngrid_levels )
                      END IF
                      dir = rs_v(igrid_level)%rs_grid%direction
                      tasks (1,n,igrid_level) = n
@@ -762,7 +740,8 @@ CONTAINS
                        rp(:) = pbc(rp,cell)
                        tp = FLOOR(rp(dir)/rs_v(igrid_level)%rs_grid%dr(dir))
                        tp = MODULO ( tp, rs_v(igrid_level)%rs_grid%npts(dir) )
-                       tasks (2,n,igrid_level) = tp + rs_v(igrid_level)%rs_grid%lb(dir)
+                       tasks (2,n,igrid_level) = tp + &
+                          rs_v(igrid_level)%rs_grid%lb(dir)
                      END IF
                      tasks (3,n,igrid_level) = iatom
                      tasks (4,n,igrid_level) = jatom
@@ -787,24 +766,12 @@ CONTAINS
 
         DO igrid_level = 1, gridlevel_info%ngrid_levels
           n = ntasks ( igrid_level )
-          IF ( n > SIZE ( tasks_local, 2 ) ) THEN
-              DEALLOCATE (tasks_local,STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"tasks_local")
-              ALLOCATE (tasks_local(2,n),STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"tasks_local",2*n)
-          END IF
-          IF ( n > SIZE ( ival, 2 ) ) THEN
-              DEALLOCATE (ival,STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"ival")
-              ALLOCATE (ival(6,n),STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"ival",6*n)
-          END IF
-          IF ( n > SIZE ( dab_local, 2 ) ) THEN
-              DEALLOCATE (dab_local,STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"dab_local")
-              ALLOCATE (dab_local(3,n),STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"dab_local",3*n)
-          END IF
+          IF ( n > SIZE ( tasks_local, 2 ) ) &
+            CALL reallocate(tasks_local,1,2,1,n)
+          IF ( n > SIZE ( ival, 2 ) ) &
+            CALL reallocate(ival,1,6,1,n)
+          IF ( n > SIZE ( dab_local, 2 ) ) &
+            CALL reallocate(dab_local,1,3,1,n)
           tasks_local=0
           tasks_local(1:2,1:n) = tasks(1:2,1:n,igrid_level)
           ival(1:6,1:n) = tasks(3:8,1:n,igrid_level)
@@ -812,12 +779,7 @@ CONTAINS
 
           npme = 0
           IF (PRESENT(P)) THEN
-            IF ( n > SIZE ( latom, 2 ) ) THEN
-              DEALLOCATE (latom,STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"latom")
-              ALLOCATE (latom(2,n),STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"latom",2*n)
-            END IF
+            IF ( n > SIZE ( latom, 2 ) ) CALL reallocate(latom,1,2,1,n)
             latom(1:2,1:n) = tasks(3:4,1:n,igrid_level)
             CALL rs_get_my_tasks ( rs_v(igrid_level)%rs_grid, tasks_local, &
                                    npme, ival=ival, rval=dab_local, &
@@ -826,47 +788,50 @@ CONTAINS
             CALL rs_get_my_tasks ( rs_v(igrid_level)%rs_grid, tasks_local, &
                                    npme, ival=ival, rval=dab_local )
           END IF
+          CALL rs_get_loop_vars ( npme, ival, natom_pairs, asets, atasks )
 
-          DO itask = 1, npme
-             iatom  = ival (1,itask)
-             jatom  = ival (2,itask)
-             iset   = ival (3,itask)
-             jset   = ival (4,itask)
-             ipgf   = ival (5,itask)
-             jpgf   = ival (6,itask)
-             rab(:) = dab_local (:,itask)
-             rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-             ra(:) = pbc(particle_set(iatom)%r,cell)
-             rb(:) = ra(:) + rab(:)
-
-             na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
-             na2 = ipgf*ncoset(la_max(iset))
-             nb1 = (jpgf - 1)*ncoset(lb_max(jset)) + 1
-             nb2 = jpgf*ncoset(lb_max(jset))
-
-             ncoa = npgfa(iset)*ncoset(la_max(iset))
-             sgfa = first_sgfa(1,iset)
-             ncob = npgfb(jset)*ncoset(lb_max(jset))
-             sgfb = first_sgfb(1,jset)
-
-             IF (calculate_forces) THEN
+          DO ijatoms = 1,natom_pairs
+            itask = atasks(1,asets(1,ijatoms))
+            iatom  = ival (1,itask)
+            jatom  = ival (2,itask)
+            ra(:) = pbc(particle_set(iatom)%r,cell)
+            IF (iatom <= jatom) THEN
+              brow = iatom
+              bcol = jatom
+            ELSE
+              brow = jatom
+              bcol = iatom
+            END IF
+            CALL get_block_node(matrix=dh,&
+                                block_row=brow,&
+                                block_col=bcol,&
+                                block=h_block)
+            IF (.NOT.ASSOCIATED(h_block)) &
+               CALL add_block_node ( dh, brow, bcol, h_block )
+            IF (PRESENT(P)) THEN
+              CALL get_block_node(matrix=deltap,&
+                                  block_row=brow,&
+                                  block_col=bcol,&
+                                  BLOCK=p_block)
+              IF (.NOT.ASSOCIATED(p_block)) &
+                 CALL stop_program(routine,"p_block not associated in deltap")
+            END IF
+            IF (calculate_forces) THEN
                atom_a = atom_of_kind(iatom)
                atom_b = atom_of_kind(jatom)
                force_a(:) = 0.0_dp
                force_b(:) = 0.0_dp
-             END IF
-
-             hab = 0._dp
-
-             IF (PRESENT(P)) THEN
+            END IF
+            DO ijsets = asets(1,ijatoms), asets(2,ijatoms)
+              itask = atasks(1,ijsets)
+              iset   = ival (3,itask)
+              jset   = ival (4,itask)
+              ncoa = npgfa(iset)*ncoset(la_max(iset))
+              sgfa = first_sgfa(1,iset)
+              ncob = npgfb(jset)*ncoset(lb_max(jset))
+              sgfb = first_sgfb(1,jset)
+              IF (PRESENT(P)) THEN
                 IF (iatom <= jatom) THEN
-                  CALL get_block_node(matrix=deltap,&
-                                      block_row=iatom,&
-                                      block_col=jatom,&
-                                      block=p_block)
-                  IF (.NOT.ASSOCIATED(p_block)) &
-                     CALL stop_program(routine,"p_block not associated in deltap")
-
                   CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
                               1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                               p_block(sgfa,sgfb),SIZE(p_block,1),&
@@ -875,25 +840,7 @@ CONTAINS
                               1.0_dp,work(1,1),SIZE(work,1),&
                               sphi_b(1,sgfb),SIZE(sphi_b,1),&
                               0.0_dp,pab(1,1),SIZE(pab,1))
-
-                   CALL integrate_pgf_product_rspace(&
-                        la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                        lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                        ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
-                        cube_info(igrid_level),l_info,&
-                        ! hab(na1:na2,nb1:nb2),pab=pab(na1:na2,nb1:nb2),&
-                        hab,pab=pab,o1=na1-1,o2=nb1-1, &
-                        vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
-                        calculate_forces=calculate_forces,&
-                        force_a=force_a,force_b=force_b)
                 ELSE
-                  CALL get_block_node(matrix=deltap,&
-                                      block_row=jatom,&
-                                      block_col=iatom,&
-                                      block=p_block)
-                  IF (.NOT.ASSOCIATED(p_block)) &
-                     CALL stop_program(routine,"p_block not associated in deltap")
-
                   CALL dgemm("N","N",ncob,nsgfa(iset),nsgfb(jset),&
                              1.0_dp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
                              p_block(sgfb,sgfa),SIZE(p_block,1),&
@@ -902,51 +849,70 @@ CONTAINS
                              1.0_dp,work(1,1),SIZE(work,1),&
                              sphi_a(1,sgfa),SIZE(sphi_a,1),&
                              0.0_dp,pab(1,1),SIZE(pab,1))
+                END IF
+              END IF
+              hab = 0._dp
 
-                  CALL integrate_pgf_product_rspace(&
-                        lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                        la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                        rb,-rab,rab2,rs_v(igrid_level)%rs_grid,&
-                        cube_info(igrid_level),l_info,&
-                        !hab(nb1:nb2,na1:na2),pab=pab(nb1:nb2,na1:na2),&
-                        hab,pab=pab,o1=nb1-1,o2=na1-1, &
-                        vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
-                        calculate_forces=calculate_forces,&
-                        force_a=force_b,force_b=force_a)
-                END IF
-              ELSE
-                IF (iatom <= jatom) THEN
-                  CALL integrate_pgf_product_rspace(&
-                        la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                        lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                        ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
-                        cube_info(igrid_level),l_info,&
-                        !hab(na1:na2,nb1:nb2),&   
-                        hab,o1=na1-1,o2=nb1-1,&
-                        vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
-                        calculate_forces=calculate_forces,&
-                        force_a=force_a,force_b=force_b)
+              DO itask = atasks(1,ijsets),atasks(2,ijsets)
+
+                rab(:) = dab_local (:,itask)
+                rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                rb(:) = ra(:) + rab(:)
+                ipgf   = ival (5,itask)
+                jpgf   = ival (6,itask)
+                na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
+                na2 = ipgf*ncoset(la_max(iset))
+                nb1 = (jpgf - 1)*ncoset(lb_max(jset)) + 1
+                nb2 = jpgf*ncoset(lb_max(jset))
+                IF (PRESENT(P)) THEN
+                   IF (iatom <= jatom) THEN
+                     CALL integrate_pgf_product_rspace(&
+                          la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                          lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                          ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
+                          cube_info(igrid_level),l_info,&
+                          hab,pab=pab,o1=na1-1,o2=nb1-1, &
+                          vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
+                          calculate_forces=calculate_forces,&
+                          force_a=force_a,force_b=force_b)
+                   ELSE
+                     CALL integrate_pgf_product_rspace(&
+                          lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                          la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                          rb,-rab,rab2,rs_v(igrid_level)%rs_grid,&
+                          cube_info(igrid_level),l_info,&
+                          hab,pab=pab,o1=nb1-1,o2=na1-1, &
+                          vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
+                          calculate_forces=calculate_forces,&
+                          force_a=force_b,force_b=force_a)
+                   END IF
                 ELSE
-                  CALL integrate_pgf_product_rspace(&
-                        lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                        la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                        rb,-rab,rab2,rs_v(igrid_level)%rs_grid,&
-                        cube_info(igrid_level),l_info,&
-                        ! hab(nb1:nb2,na1:na2),&
-                        hab,o1=nb1-1,o2=na1-1,&
-                        vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
-                        calculate_forces=calculate_forces,&
-                        force_a=force_b,force_b=force_a)
+                   IF (iatom <= jatom) THEN
+                     CALL integrate_pgf_product_rspace(&
+                          la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                          lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                          ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
+                          cube_info(igrid_level),l_info,&
+                          hab,o1=na1-1,o2=nb1-1,&
+                          vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
+                          calculate_forces=calculate_forces,&
+                          force_a=force_a,force_b=force_b)
+                   ELSE
+                     CALL integrate_pgf_product_rspace(&
+                          lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                          la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                          rb,-rab,rab2,rs_v(igrid_level)%rs_grid,&
+                          cube_info(igrid_level),l_info,&
+                          hab,o1=nb1-1,o2=na1-1,&
+                          vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
+                          calculate_forces=calculate_forces,&
+                          force_a=force_b,force_b=force_a)
+                   END IF
                 END IF
-              ENDIF
+
+              END DO
 
               IF (iatom <= jatom) THEN
-                CALL get_block_node(matrix=dh,&
-                                    block_row=iatom,&
-                                    block_col=jatom,&
-                                    block=h_block)
-                IF (.NOT.ASSOCIATED(h_block)) &
-                   CALL add_block_node ( dh, iatom, jatom, h_block )
                 CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
                            1.0_dp,hab(1,1),SIZE(hab,1),&
                            sphi_b(1,sgfb),SIZE(sphi_b,1),&
@@ -956,12 +922,6 @@ CONTAINS
                            work(1,1),SIZE(work,1),&
                            1.0_dp,h_block(sgfa,sgfb),SIZE(h_block,1))
               ELSE
-                CALL get_block_node(matrix=dh,&
-                                    block_row=jatom,&
-                                    block_col=iatom,&
-                                    block=h_block)
-                IF (.NOT.ASSOCIATED(h_block)) &
-                   CALL add_block_node ( dh, jatom, iatom, h_block )
                 CALL dgemm("N","N",ncob,nsgfa(iset),ncoa,&
                            1.0_dp,hab(1,1),SIZE(hab,1),&
                            sphi_a(1,sgfa),SIZE(sphi_a,1),&
@@ -972,17 +932,20 @@ CONTAINS
                            1.0_dp,h_block(sgfb,sgfa),SIZE(h_block,1))
               END IF
 
-              IF (calculate_forces) THEN
-                force(ikind)%rho_elec(:,atom_a) =&
+            END DO
+
+            IF (calculate_forces) THEN
+               force(ikind)%rho_elec(:,atom_a) =&
                   force(ikind)%rho_elec(:,atom_a) + 2.0_dp*force_a(:)
-                IF (iatom /= jatom) THEN
+               IF (iatom /= jatom) THEN
                   force(jkind)%rho_elec(:,atom_b) =&
                     force(jkind)%rho_elec(:,atom_b) + 2.0_dp*force_b(:)
-                END IF
-              END IF
+               END IF
+            END IF
 
-           END DO
-         END DO
+          END DO
+
+        END DO
     
       END DO
 
@@ -1004,37 +967,15 @@ CONTAINS
       NULLIFY ( deltap )
     END IF
 
-    DEALLOCATE (hab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"hab")
+    DEALLOCATE (hab,work,ntasks,tasks,tasks_local,ival,latom,&
+                dist_ab,dab_local,asets,atasks,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"hab,work,ntasks,tasks,&
+       &tasks_local,ival,latom,dist_ab,dab_local,asets,atasks")
 
     IF (PRESENT(P)) THEN
-        DEALLOCATE (pab,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"pab")
+      DEALLOCATE (pab,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"pab")
     ENDIF
-
-    DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work")
-
-    DEALLOCATE (ntasks,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"ntasks")
-
-    DEALLOCATE (tasks,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"tasks")
-
-    DEALLOCATE (tasks_local,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"tasks_local")
-
-    DEALLOCATE (ival,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"ival")
-
-    DEALLOCATE (latom,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"latom")
-
-    DEALLOCATE (dist_ab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"dist_ab")
-
-    DEALLOCATE (dab_local,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"dab_local")
 
     CALL rs_pools_give_back_rs_vect(rs_pools, rs_v)
 
@@ -1064,17 +1005,16 @@ CONTAINS
                                             ra,rab,rab2,rsgrid,&
                                             cube_info,l_info,hab,pab,o1,o2,&
                                             vratio,eps_gvg_rspace,&
-                                            calculate_forces,force_a,force_b,ithread,mytimings)
+                                            calculate_forces,force_a,force_b,&
+                                            ithread,mytimings)
 
     TYPE(realspace_grid_type), POINTER    :: rsgrid
-    REAL(KIND = dp), INTENT(IN)                  :: eps_gvg_rspace,rab2,zeta,zetb,vratio
+    REAL(KIND = dp), INTENT(IN)           :: eps_gvg_rspace,rab2,zeta,zetb,vratio
     INTEGER, INTENT(IN)                   :: la_max,la_min,lb_max,lb_min
     REAL(KIND = dp), DIMENSION(3), INTENT(IN)    :: ra,rab
     TYPE(cube_info_type),INTENT(IN)       :: cube_info
     TYPE(l_info_type),INTENT(IN)          :: l_info
     REAL(KIND = dp), DIMENSION(3), INTENT(INOUT) :: force_a,force_b
-    ! REAL(KIND = dp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(INOUT) :: hab
-    ! REAL(KIND = dp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(IN), OPTIONAL :: pab
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: hab
     REAL(KIND = dp), DIMENSION(:,:), POINTER, OPTIONAL :: pab
     INTEGER                                     :: o1,o2
@@ -1151,7 +1091,7 @@ CONTAINS
                                     zetp,eps_gvg_rspace,prefactor*vratio,cutoff)
     ELSE
     radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,ra=ra,rb=rb,rp=rp,&
-                                    zetp=zetp,eps=eps_gvg_rspace,prefactor=prefactor*vratio,cutoff=cutoff)
+            zetp=zetp,eps=eps_gvg_rspace,prefactor=prefactor*vratio,cutoff=cutoff)
     ENDIF
 
     IF (radius == 0.0_dp) THEN
@@ -1397,6 +1337,7 @@ CONTAINS
   END SUBROUTINE integrate_pgf_product_rspace
 
 ! *****************************************************************************
+
   SUBROUTINE redistribute_matrix ( dh, h, para_env)
      TYPE(real_matrix_type), POINTER   :: dh, h
      TYPE(cp_para_env_type), POINTER   :: para_env

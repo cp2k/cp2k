@@ -28,6 +28,7 @@
 !!     - multigrid arrays independent from density (JGH 30.08.02)
 !!     - old density stored in g space (JGH 30.08.02)
 !!     - distributed real space code (JGH 17.07.03)
+!!     - refactoring and new loop ordering (JGH 23.11.03)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -123,6 +124,7 @@ MODULE qs_collocate_density
                                              next
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                              realspace_grid_type,&
+                                             rs_get_loop_vars,&
                                              rs_get_my_tasks,&
                                              rs_grid_zero,&
                                              rs_pw_transfer
@@ -183,8 +185,7 @@ CONTAINS
 
     REAL(KIND = dp) :: alpha,eps_rho_rspace
     INTEGER  :: atom_a,handle,iatom,ikind,natom,handled
-    INTEGER  :: bo(2), npme, dir, j, ierr
-!   INTEGER  :: bo(2), np, me, npme, dir, j, ierr
+    INTEGER  :: bo(2), npme, dir, j, ierr, ncurr
 
     REAL(KIND = dp), DIMENSION(3)   :: ra
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: pab
@@ -197,14 +198,15 @@ CONTAINS
     TYPE(coeff_type)                              :: rhoc_r
     TYPE(pw_env_type), POINTER                    :: pw_env
     TYPE(cp_rs_pool_type), POINTER                :: auxbas_rs_pool
-    TYPE(pw_pool_type), pointer                   :: auxbas_pw_pool
+    TYPE(pw_pool_type), POINTER                   :: auxbas_pw_pool
 
 !   ---------------------------------------------------------------------------
     CALL timeset("calculate_rho_core","I","",handle)
 
     NULLIFY(atomic_kind,cell,dft_control,pab,atomic_kind_set,particle_set,&
-         atom_list, pw_env, rs_rho,auxbas_rs_pool, auxbas_pw_pool)
-    ALLOCATE(pab(1,1))
+         atom_list,pw_env,rs_rho,auxbas_rs_pool,auxbas_pw_pool,tasks)
+    ALLOCATE(pab(1,1),STAT=ierr)
+    IF ( ierr /= 0 ) CALL stop_memory ( "calculate_rho_core", "pab", 1 )
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -218,6 +220,8 @@ CONTAINS
     ! be careful in parallel nsmax is choosen with multigrid in mind!
     CALL rs_pool_create_rs(auxbas_rs_pool,rs_rho)
     CALL rs_grid_zero(rs_rho)
+
+    ncurr = 0
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
@@ -234,10 +238,12 @@ CONTAINS
       bo = get_limit ( natom, para_env%num_pe, para_env%mepos )
 
       npme = bo(2) - bo(1) + 1
-      ALLOCATE ( tasks ( 2, npme ), STAT=ierr )
-      IF ( ierr /= 0 ) &
-        CALL stop_memory ( "calculate_rho_core", "tasks", 2*npme )
-      tasks = 0
+      IF ( ncurr < npme ) THEN
+        CALL reallocate ( tasks, 1, 2, 1, npme )
+        ncurr = npme
+      ELSE
+        tasks = 0
+      END IF
 
       dir = rs_rho%direction
 
@@ -270,10 +276,12 @@ CONTAINS
 
       END DO
     
-      DEALLOCATE ( tasks, STAT=ierr )
-      IF ( ierr /= 0 ) CALL stop_memory ( "calculate_rho_core", "tasks" )
-
     END DO
+
+    DEALLOCATE ( tasks, STAT=ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "calculate_rho_core", "tasks" )
+    DEALLOCATE ( pab, STAT=ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "calculate_rho_core", "pab" )
 
     CALL pw_pool_init_coeff(pool=auxbas_pw_pool, coeff=rhoc_r, &
          use_data=REALDATA3D,in_space=REALSPACE, error=error)
@@ -286,8 +294,6 @@ CONTAINS
     CALL coeff_transform_space(rhoc_r,rho_core)
 
     CALL pw_pool_give_back_coeff(auxbas_pw_pool, rhoc_r, error=error)
-
-    DEALLOCATE(pab)
 
     CALL timestop(0.0_dp,handle)
 
@@ -339,9 +345,9 @@ CONTAINS
     INTEGER  :: ab,first_pgfb,first_setb,handle,i,iatom,ico,igrid_level,ikind,&
                 ilist,ineighbor,inode,ipgf,iset,ishell,istat,j,jatom,jco,jkind,&
                 jpgf,jset,jshell,katom,maxco,maxsgf_set,na1,na2,nb1,nb2,ncoa,&
-                ncob,nkind,nlist,nneighbor,nnode,nseta,nsetb,sgfa,sgfb
-    INTEGER  :: handled,brow,bcol,pdim1,pdim2,n,dir,tp,itask,npme,&
-                ia_last,ja_last,is_last,js_last,nmax,maxsgf
+                ncob,nkind,nlist,nneighbor,nnode,nseta,nsetb,sgfa,sgfb,&
+                ijatoms,ijsets
+    INTEGER  :: handled,brow,bcol,pdim1,pdim2,n,dir,tp,itask,npme,nmax,maxsgf
     LOGICAL  :: reread
 
     REAL(KIND = dp), DIMENSION(3) :: ra,rab,rb,rp
@@ -361,17 +367,18 @@ CONTAINS
     INTEGER, DIMENSION(:,:), POINTER    :: tasks_local, ival, latom
     INTEGER, DIMENSION(:), POINTER      :: ntasks
     INTEGER, PARAMETER                  :: max_tasks = 2000, add_tasks = 1000
-    INTEGER                             :: curr_tasks
+    INTEGER                             :: curr_tasks, natom_pairs
+    INTEGER, DIMENSION(:,:), POINTER    :: asets, atasks
 !   ---------------------------------------------------------------------------
     CALL timeset("calculate_rho_elec","I","",handle)
 
-    NULLIFY(atomic_kind,cell,dft_control, orb_basis_set, sab_orb_neighbor_list,&
-         sab_orb_neighbor_node, deltap, atomic_kind_set, sab_orb, particle_set,&
-         rs_rho,pw_env,rs_pools,para_env, pab,work,pblock,dist_ab,dab_local,&
-         set_radius_a, set_radius_b, la_max, la_min,&
-         lb_max,lb_min, npgfa, npgfb, nsgfa, nsgfb, p_block, p_old_block,&
-         rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb, first_sgfa, first_sgfb,&
-         tasks, tasks_local, ival, latom,ntasks)
+    NULLIFY(atomic_kind,cell,dft_control,orb_basis_set,sab_orb_neighbor_list,&
+         sab_orb_neighbor_node,deltap,atomic_kind_set,sab_orb,particle_set,&
+         rs_rho,pw_env,rs_pools,para_env,pab,work,pblock,dist_ab,dab_local,&
+         set_radius_a,set_radius_b,la_max,la_min,&
+         lb_max,lb_min,npgfa,npgfb,nsgfa,nsgfb,p_block,p_old_block,&
+         rpgfa,rpgfb,sphi_a,sphi_b,zeta,zetb,first_sgfa,first_sgfb,&
+         tasks,tasks_local,ival,latom,ntasks,asets,atasks)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -399,30 +406,17 @@ CONTAINS
 
     nkind = SIZE(atomic_kind_set)
 
-    ALLOCATE (pab(maxco,maxco),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*maxco)
-
-    ALLOCATE (work(maxco,maxsgf_set),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*maxsgf_set)
-
-    ALLOCATE (ntasks(gridlevel_info%ngrid_levels),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"ntasks",gridlevel_info%ngrid_levels)
-    ntasks = 0
-
-    ALLOCATE (tasks(8,max_tasks,gridlevel_info%ngrid_levels),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"tasks",&
-                                     8*max_tasks*gridlevel_info%ngrid_levels)
-    ALLOCATE (dist_ab(3,max_tasks,gridlevel_info%ngrid_levels),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"dist_ab",&
-                                     3*max_tasks*gridlevel_info%ngrid_levels)
-    ALLOCATE (tasks_local(2,max_tasks),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"tasks_local",2*max_tasks)
-    ALLOCATE (ival(6,max_tasks),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"ival",2*max_tasks)
-    ALLOCATE (latom(2,max_tasks),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"latom",2*max_tasks)
-    ALLOCATE (dab_local(3,max_tasks),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"dab_local",3*max_tasks)
+    CALL reallocate(pab,1,maxco,1,maxco)
+    CALL reallocate(work,1,maxco,1,maxsgf_set)
+    CALL reallocate(ntasks,1,gridlevel_info%ngrid_levels)
+    CALL reallocate(tasks,1,8,1,max_tasks,1,gridlevel_info%ngrid_levels)
+    CALL reallocate(dist_ab,1,3,1,max_tasks,1,gridlevel_info%ngrid_levels)
+    CALL reallocate(tasks_local,1,2,1,max_tasks)
+    CALL reallocate(ival,1,6,1,max_tasks)
+    CALL reallocate(latom,1,2,1,max_tasks)
+    CALL reallocate(dab_local,1,3,1,max_tasks)
+    CALL reallocate(atasks,1,2,1,max_tasks)
+    CALL reallocate(asets,1,2,1,max_tasks)
     curr_tasks = max_tasks
 
 !   *** Initialize working density matrix ***
@@ -594,8 +588,10 @@ CONTAINS
                      n = ntasks(igrid_level)
                      IF ( n > curr_tasks ) THEN
                        curr_tasks = curr_tasks + add_tasks
-                       CALL reallocate ( tasks, 1, 8, 1, curr_tasks, 1, gridlevel_info%ngrid_levels )
-                       CALL reallocate ( dist_ab, 1, 3, 1, curr_tasks, 1, gridlevel_info%ngrid_levels )
+                       CALL reallocate(tasks,1,8,1,curr_tasks,&
+                                       1,gridlevel_info%ngrid_levels)
+                       CALL reallocate(dist_ab,1,3,1,curr_tasks,&
+                                       1,gridlevel_info%ngrid_levels)
                      END IF
                      dir = rs_rho(igrid_level)%rs_grid%direction
                      tasks (1,n,igrid_level) = n
@@ -631,38 +627,15 @@ CONTAINS
         END DO
 
         DO igrid_level = 1, gridlevel_info%ngrid_levels
-          ia_last = 0
-          ja_last = 0
-          is_last = 0
-          js_last = 0
           n = ntasks ( igrid_level )
-          IF ( n > SIZE ( tasks_local, 2 ) ) THEN
-              DEALLOCATE (tasks_local,STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"tasks_local")
-              ALLOCATE (tasks_local(2,n),STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"tasks_local",2*n)
-          END IF
-
-          IF ( n > SIZE ( ival, 2 ) ) THEN
-              DEALLOCATE (ival,STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"ival")
-              ALLOCATE (ival(6,n),STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"ival",6*n)
-          END IF
-
-          IF ( n > SIZE ( latom, 2 ) ) THEN
-              DEALLOCATE (latom,STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"latom")
-              ALLOCATE (latom(2,n),STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"latom",2*n)
-          END IF
-
-          IF ( n > SIZE ( dab_local, 2 ) ) THEN
-              DEALLOCATE (dab_local,STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"dab_local")
-              ALLOCATE (dab_local(3,n),STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"dab_local",3*n)
-          END IF
+          IF ( n > SIZE ( tasks_local, 2 ) ) &
+            CALL reallocate(tasks_local,1,2,1,n)
+          IF ( n > SIZE ( ival, 2 ) ) &
+            CALL reallocate(ival,1,6,1,n)
+          IF ( n > SIZE ( latom, 2 ) ) &
+            CALL reallocate(latom,1,2,1,n)
+          IF ( n > SIZE ( dab_local, 2 ) ) &
+            CALL reallocate(dab_local,1,3,1,n)
 
           tasks_local=0
           tasks_local(1:2,1:n) = tasks(1:2,1:n,igrid_level)
@@ -671,113 +644,95 @@ CONTAINS
           dab_local(1:3,1:n) = dist_ab(1:3,1:n,igrid_level)
           npme = 0
           CALL rs_get_my_tasks ( rs_rho(igrid_level)%rs_grid, tasks_local, &
-                                   npme, ival=ival, rval=dab_local, &
-                                   pmat=deltap, pcor=latom )
-          DO itask = 1, npme
-              iatom  = ival (1,itask)
-              jatom  = ival (2,itask)
+               npme, ival=ival, rval=dab_local, pmat=deltap, pcor=latom )
+          CALL rs_get_loop_vars ( npme, ival, natom_pairs, asets, atasks )
+ 
+          DO ijatoms = 1,natom_pairs
+            itask = atasks(1,asets(1,ijatoms))
+            iatom  = ival (1,itask)
+            jatom  = ival (2,itask)
+            ra(:) = pbc(particle_set(iatom)%r,cell)
+            IF (iatom <= jatom) THEN
+              brow = iatom
+              bcol = jatom
+            ELSE
+              brow = jatom
+              bcol = iatom
+            END IF
+            CALL get_block_node(matrix=deltap,&
+                                block_row=brow,&
+                                block_col=bcol,&
+                                BLOCK=p_block)
+            IF (.NOT.ASSOCIATED(p_block)) &
+               CALL stop_program(routine,"p_block not associated in deltap")
+            DO ijsets = asets(1,ijatoms), asets(2,ijatoms)
+              itask = atasks(1,ijsets)
               iset   = ival (3,itask)
               jset   = ival (4,itask)
-              ipgf   = ival (5,itask)
-              jpgf   = ival (6,itask)
-              rab(:) = dab_local (:,itask)
-              rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-              ra(:) = pbc(particle_set(iatom)%r,cell)
-              rb(:) = ra(:) + rab(:)
-
-              na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
-              na2 = ipgf*ncoset(la_max(iset))
-              nb1 = (jpgf - 1)*ncoset(lb_max(jset)) + 1
-              nb2 = jpgf*ncoset(lb_max(jset))
-
               ncoa = npgfa(iset)*ncoset(la_max(iset))
               sgfa = first_sgfa(1,iset)
               ncob = npgfb(jset)*ncoset(lb_max(jset))
               sgfb = first_sgfb(1,jset)
-
-              IF ((iatom == jatom).AND.&
-                  (iset == jset).AND.&
-                  (ipgf == jpgf)) THEN
-                scale = 1.0_dp
-              ELSE
-                scale = 2.0_dp
-              END IF
-
               IF (iatom <= jatom) THEN
-
-                IF ( ia_last /= iatom .OR. ja_last /= jatom ) THEN
-                  CALL get_block_node(matrix=deltap,&
-                                      block_row=iatom,&
-                                      block_col=jatom,&
-                                      BLOCK=p_block)
-                  IF (.NOT.ASSOCIATED(p_block)) &
-                     CALL stop_program(routine,"p_block not associated in deltap")
-                  ia_last = iatom
-                  ja_last = jatom
-                  reread = .TRUE.
-                ELSE
-                  reread = .FALSE.
-                END IF
-
-                IF ( reread .OR. is_last /= iset .OR. js_last /= jset ) THEN
-                  CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
-                             1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                             p_block(sgfa,sgfb),SIZE(p_block,1),&
-                             0.0_dp,work(1,1),maxco)
-                  CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
-                             1.0_dp,work(1,1),maxco,&
-                             sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                             0.0_dp,pab(1,1),maxco)
-                  is_last = iset
-                  js_last = jset
-                END IF
-
-                CALL collocate_pgf_product_rspace(&
-                  la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                  lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                  ra,rab,rab2,scale,pab,na1-1,nb1-1,&
-                  rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                  l_info,eps_rho_rspace)
-
+                CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
+                           1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                           p_block(sgfa,sgfb),SIZE(p_block,1),&
+                           0.0_dp,work(1,1),maxco)
+                CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
+                           1.0_dp,work(1,1),maxco,&
+                           sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                           0.0_dp,pab(1,1),maxco)
               ELSE
-
-                IF ( ia_last /= iatom .OR. ja_last /= jatom ) THEN
-                  CALL get_block_node(matrix=deltap,&
-                                      block_row=jatom,&
-                                      block_col=iatom,&
-                                      BLOCK=p_block)
-                  IF (.NOT.ASSOCIATED(p_block)) &
-                     CALL stop_program(routine,"p_block not associated in deltap")
-                  ia_last = iatom
-                  ja_last = jatom
-                  reread = .TRUE.
-                ELSE
-                  reread = .FALSE.
-                END IF
-
-                IF ( reread .OR. is_last /= iset .OR. js_last /= jset ) THEN
-                  CALL dgemm("N","N",ncob,nsgfa(iset),nsgfb(jset),&
-                             1.0_dp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                             p_block(sgfb,sgfa),SIZE(p_block,1),&
-                             0.0_dp,work(1,1),maxco)
-                  CALL dgemm("N","T",ncob,ncoa,nsgfa(iset),&
-                             1.0_dp,work(1,1),maxco,&
-                             sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                             0.0_dp,pab(1,1),maxco)
-                  is_last = iset
-                  js_last = jset
-                END IF
-
-                CALL collocate_pgf_product_rspace(&
-                  lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                  la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                  rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
-                  rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                  l_info,eps_rho_rspace)
-
+                CALL dgemm("N","N",ncob,nsgfa(iset),nsgfb(jset),&
+                           1.0_dp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                           p_block(sgfb,sgfa),SIZE(p_block,1),&
+                           0.0_dp,work(1,1),maxco)
+                CALL dgemm("N","T",ncob,ncoa,nsgfa(iset),&
+                           1.0_dp,work(1,1),maxco,&
+                           sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                           0.0_dp,pab(1,1),maxco)
               END IF
-
+              DO itask = atasks(1,ijsets),atasks(2,ijsets)
+                rab(:) = dab_local (:,itask)
+                rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                rb(:) = ra(:) + rab(:)
+                ipgf   = ival (5,itask)
+                jpgf   = ival (6,itask)
+                na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
+                na2 = ipgf*ncoset(la_max(iset))
+                nb1 = (jpgf - 1)*ncoset(lb_max(jset)) + 1
+                nb2 = jpgf*ncoset(lb_max(jset))
+ 
+                IF ((iatom == jatom).AND.&
+                    (iset == jset).AND.&
+                    (ipgf == jpgf)) THEN
+                  scale = 1.0_dp
+                ELSE
+                  scale = 2.0_dp
+                END IF
+ 
+                IF (iatom <= jatom) THEN
+                  CALL collocate_pgf_product_rspace(&
+                    la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                    lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                    ra,rab,rab2,scale,pab,na1-1,nb1-1,&
+                    rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                    l_info,eps_rho_rspace)
+                ELSE
+                  CALL collocate_pgf_product_rspace(&
+                    lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                    la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                    rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
+                    rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                    l_info,eps_rho_rspace)
+                END IF
+ 
+              END DO
+ 
+            END DO
+ 
           END DO
+
         END DO
 
       END DO
@@ -788,37 +743,14 @@ CONTAINS
 
     CALL deallocate_matrix ( deltap )
 
-    DEALLOCATE (pab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab")
-
-    DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work")
-
-    DEALLOCATE (ntasks,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"ntasks")
-
-    DEALLOCATE (tasks,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"tasks")
-
-    DEALLOCATE (tasks_local,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"tasks_local")
-
-    DEALLOCATE (ival,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"ival")
-
-    DEALLOCATE (latom,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"latom")
-
-    DEALLOCATE (dist_ab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"dist_ab")
-
-    DEALLOCATE (dab_local,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"dab_local")
+    DEALLOCATE (pab,work,ntasks,tasks,tasks_local,ival,latom,&
+        dist_ab,dab_local,asets,atasks,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"pab,work,ntasks,&
+        &tasks,tasks_local,ival,latom,dist_ab,dab_local,asets,atasks")
 
     IF (gridlevel_info%ngrid_levels==1 .AND. .NOT.rho%pw%pw_grid%spherical&
          .AND. rebuild) THEN
-       CALL rs_pw_transfer(rs_rho(1)%rs_grid,&
-            rho%pw,"FORWARD")
+       CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,"FORWARD")
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
 !FM copy also in mgrid_rspace?
        CALL coeff_transform_space(rho,rho_gspace)
@@ -834,7 +766,8 @@ CONTAINS
 
        CALL coeff_zero(rho_gspace)
        DO igrid_level=1,gridlevel_info%ngrid_levels
-          CALL coeff_transform_space(mgrid_rspace(igrid_level),mgrid_gspace(igrid_level))
+          CALL coeff_transform_space(mgrid_rspace(igrid_level),&
+               mgrid_gspace(igrid_level))
           CALL coeff_sumup(mgrid_gspace(igrid_level),rho_gspace)
        END DO
 
@@ -849,6 +782,7 @@ CONTAINS
     
     CALL coeff_copy(rho_gspace,rho_gspace_old)
     total_rho = calculate_total_rho(rho)
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_rho_elec
@@ -934,7 +868,7 @@ CONTAINS
     IF (istat.NE.0) THEN
        CALL stop_program("calculate_wavefunction","eigenvector")
     ENDIF
-    ! only some processors have non-zero elements. The sum of eigenvector on 
+    ! only some processors have non-zero elements. The sum of eigenvectors on 
     ! all cpus is the real eigenvector. combined with the rs->pw this will give the
     ! real density
     DO i=1,nao 
@@ -974,7 +908,6 @@ CONTAINS
 
     DO iatom=1,natom
 
-
       CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                                orb_basis_set=orb_basis_set)
 
@@ -992,9 +925,7 @@ CONTAINS
       rab2  = 0.0_dp
       dab   = 0.0_dp
 
-
       DO iset=1,nseta
-
 
          ncoa = npgfa(iset)*ncoset(la_max(iset))
          sgfa = first_sgfa(1,iset)
@@ -1010,10 +941,8 @@ CONTAINS
 
          DO ipgf=1,npgfa(iset)
 
-
             na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
             na2 = ipgf*ncoset(la_max(iset))
-
 
             scale = 1.0_dp
             zetp = zeta(ipgf,iset)
@@ -1042,7 +971,8 @@ CONTAINS
 
     CALL coeff_zero(rho_gspace)
     DO igrid_level=1,gridlevel_info%ngrid_levels
-      CALL coeff_transform_space(mgrid_rspace(igrid_level),mgrid_gspace(igrid_level))
+      CALL coeff_transform_space(mgrid_rspace(igrid_level),&
+           mgrid_gspace(igrid_level))
       CALL coeff_sumup(mgrid_gspace(igrid_level),rho_gspace)
     END DO
 
@@ -1100,6 +1030,7 @@ CONTAINS
     END IF
 
   END FUNCTION calculate_total_rho
+
 ! *****************************************************************************
 
   FUNCTION calculate_total_abs_rho(rho) RESULT(total_abs_rho)
@@ -1232,7 +1163,7 @@ CONTAINS
 
     cubecenter(:) = FLOOR(rp(:)/dr(:))
     roffset(:)    = rp(:) - REAL(cubecenter(:),dp)*dr(:)
-!   *** a mapping so that the ig corresponds to the right grid point, also with pbc
+!   *** a mapping so that the ig corresponds to the right grid point
     DO i=1,3
       IF ( rsgrid % perd ( i ) == 1 ) THEN
         start=lb_cube(i)
@@ -1273,7 +1204,6 @@ CONTAINS
        ENDDO
     ENDDO
     ENDDO
-
  
 !   *** initialise the pol x,y,z terms
     DO ig=lb_cube(3),ub_cube(3)
@@ -1332,7 +1262,6 @@ CONTAINS
       ENDDO
       ENDDO
     ENDDO
-
  
 !   *** make the alpha matrix ***
     alpha(:,:)=0.0_dp
@@ -1367,9 +1296,10 @@ CONTAINS
     ENDDO
 
 !   *** do the loop over the grid
-!   notice this is not the same as critical or so, since we may have several different
-!   rsgrids that all use the same function
-!   I guess we need a flush (of the grid) to guarantee that we're working on an uptodate copy of the grid
+!   notice this is not the same as critical or so, since we may have 
+!   several different rsgrids that all use the same function
+!   I guess we need a flush (of the grid) to guarantee that we are working 
+!   on an uptodate copy of the grid
 !$  CALL omp_set_lock(rsgrid%lock)
 !$OMP FLUSH(grid)                    
     CALL collocate_core(pzyx(1),polx(1,-cmax),poly(1,-cmax), &

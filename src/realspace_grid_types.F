@@ -19,6 +19,7 @@
 !!     JGH (22-May-2002) : New routine rs_grid_zero
 !!     JGH (12-Jun-2002) : Bug fix for mpi groups
 !!     JGH (19-Jun-2003) : Added routine for task distribution
+!!     JGH (23-Nov-2003) : Added routine for task loop separation
 !!
 !!   NOTES
 !!     Basic type for real space grid methods
@@ -85,7 +86,7 @@ MODULE realspace_grid_types
   PUBLIC :: rs_grid_allocate, rs_grid_deallocate, &
        rs_grid_setup, rs_pw_transfer, rs_grid_zero, rs_grid_to_cube, &
        rs_pw_to_cube, rs_grid_write
-  PUBLIC :: rs_get_my_tasks
+  PUBLIC :: rs_get_my_tasks, rs_get_loop_vars
   PUBLIC :: rs_grid_create, rs_grid_retain, rs_grid_release
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="realspace_grid_types"
@@ -1634,6 +1635,53 @@ SUBROUTINE unpack_matrix ( pmat, pcor, pls, ic, ppack )
   END DO
 
 END SUBROUTINE unpack_matrix
+
+!***************************************************************************
+
+SUBROUTINE rs_get_loop_vars ( npme, ival, natom_pairs, asets, atasks )
+
+     INTEGER, INTENT(IN) :: npme
+     INTEGER, INTENT(OUT) :: natom_pairs
+     INTEGER, DIMENSION(6,npme), INTENT(IN) :: ival
+     INTEGER, DIMENSION(:,:), POINTER :: asets, atasks
+
+     INTEGER :: itask, natom_pairs, iatom, jatom, iatom_old, jatom_old, &
+                nset_pairs, iset, jset, iset_old, jset_old
+
+     IF(SIZE(asets,2) < npme) CALL reallocate(asets,1,2,1,npme)
+     IF(SIZE(atasks,2) < npme) CALL reallocate(atasks,1,2,1,npme)
+     natom_pairs = 0
+     nset_pairs = 0
+     iatom_old = 0
+     jatom_old = 0
+     DO itask = 1, npme
+        iatom = ival(1,itask)
+        jatom = ival(2,itask)
+        iset = ival(3,itask)
+        jset = ival(4,itask)
+        IF ( iatom /= iatom_old .OR. jatom /= jatom_old ) THEN
+          IF(natom_pairs>0) asets(2,natom_pairs) = nset_pairs
+          natom_pairs = natom_pairs + 1
+          iatom_old = iatom
+          jatom_old = jatom
+          IF(nset_pairs>0) atasks(2,nset_pairs) = itask - 1
+          nset_pairs = nset_pairs + 1
+          asets(1,natom_pairs) = nset_pairs
+          atasks(1,nset_pairs) = itask
+          iset_old = iset
+          jset_old = jset
+        ELSE IF ( iset /= iset_old .OR. jset /= jset_old ) THEN
+          atasks(2,nset_pairs) = itask - 1
+          nset_pairs = nset_pairs + 1
+          atasks(1,nset_pairs) = itask
+          iset_old = iset
+          jset_old = jset
+        END IF
+     END DO
+     asets(2,natom_pairs) = nset_pairs
+     atasks(2,nset_pairs) = npme
+
+END SUBROUTINE rs_get_loop_vars
 
 !***************************************************************************
 
