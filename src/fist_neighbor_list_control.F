@@ -29,7 +29,7 @@ MODULE fist_neighbor_list_control
   USE fist_nonbond_env_types, ONLY : fist_nonbond_env_type, &
                                      fist_nonbond_env_get, &
                                      fist_nonbond_env_set
-  USE message_passing, ONLY : mp_max
+  USE message_passing, ONLY : mp_max, mp_sum
   USE particle_types, ONLY : particle_type
   USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
   USE simulation_cell, ONLY : cell_type, real_to_scaled, scaled_to_real
@@ -80,6 +80,8 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
                                                rlist_cutsq
   TYPE ( neighbor_list_set_p_type ),  &
                 POINTER, DIMENSION ( : ) :: nonbonded
+  REAL(KIND=dbl), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: work
   
 
 !------------------------------------------------------------------------------
@@ -96,6 +98,8 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
 
   nparticle_kind = SIZE ( atomic_kind_set )
   nparts = SIZE ( particle_set )
+
+  
   IF ( .NOT. ASSOCIATED (  r_last_update ) ) THEN
      ALLOCATE ( r_last_update ( 3, nparts ), STAT = isos )
      IF ( isos /= 0 ) CALL stop_memory ( 'fist_neighbor_list_control', &
@@ -123,14 +127,25 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
 
   IF ( max_displace >= 0.25_dbl * verlet_skin ** 2 ) THEN
      list_update_flag = .TRUE.
+     ALLOCATE ( work ( 3, nparts ), STAT = isos )
+     IF ( isos /= 0 ) CALL stop_memory ( 'fist_neighbor_list_control', &
+          'work', 3 * nparts )
+     work = 0._dbl
      DO iparticle_kind = 1, nparticle_kind
         nparticle_local = local_particles%n_el(iparticle_kind)
         DO iparticle_local=1,nparticle_local
            iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-           r_last_update ( :, iparticle ) =  &
+           work ( :, iparticle ) =  &
              real_to_scaled ( particle_set ( iparticle ) % r ( : ), cell )
         END DO
      END DO
+     CALL mp_sum( work,  globenv % group )
+     DO iparticle = 1, nparts
+       r_last_update ( :, iparticle ) = work ( :, iparticle )
+     END DO
+     DEALLOCATE ( work, STAT = isos )
+     IF ( isos /= 0 ) CALL stop_memory ( 'fist_neighbor_list_control', &
+          'work', 3 * nparts )
   ELSE
      list_update_flag = .FALSE.
   END IF

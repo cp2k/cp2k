@@ -58,7 +58,6 @@ MODULE ewald_environment_types
     INTEGER   :: gmax                   ! max Miller index
     INTEGER   :: ns_max                 ! # grid points for small grid (PME)
     INTEGER   :: o_spline               ! order of spline (SPME)
-    INTEGER   :: group                  ! parallel group
     TYPE ( cp_para_env_type ), POINTER :: para_env
   END TYPE ewald_environment_type
 
@@ -152,7 +151,7 @@ MODULE ewald_environment_types
     IF ( PRESENT ( gmax ) ) gmax = ewald_env % gmax
     IF ( PRESENT ( ns_max ) ) ns_max = ewald_env % ns_max
     IF ( PRESENT ( o_spline ) ) o_spline = ewald_env % o_spline
-    IF ( PRESENT ( group ) ) group = ewald_env % group
+    IF ( PRESENT ( group ) ) group = ewald_env % para_env % group
     IF ( PRESENT ( para_env ) ) para_env => ewald_env % para_env
 
   END SUBROUTINE ewald_env_get
@@ -187,7 +186,7 @@ MODULE ewald_environment_types
 ! *****************************************************************************
 
   SUBROUTINE ewald_env_set( ewald_env, ewald_type, unit_type, alpha, eps0, &
-                            epsilon, gmax, ns_max, o_spline, group,  &
+                            epsilon, gmax, ns_max, o_spline, &
                             para_env, id_nr, error )
     IMPLICIT NONE
 
@@ -205,7 +204,6 @@ MODULE ewald_environment_types
     INTEGER, OPTIONAL                              :: gmax
     INTEGER, OPTIONAL                              :: ns_max
     INTEGER, OPTIONAL                              :: o_spline
-    INTEGER, OPTIONAL                              :: group
     TYPE ( cp_para_env_type ), POINTER, OPTIONAL   :: para_env
     TYPE ( cp_error_type ), INTENT ( INOUT ), OPTIONAL :: error
 
@@ -226,7 +224,6 @@ MODULE ewald_environment_types
       IF ( PRESENT ( gmax ) ) ewald_env % gmax = gmax
       IF ( PRESENT ( ns_max ) ) ewald_env % ns_max = ns_max
       IF ( PRESENT ( o_spline ) ) ewald_env % o_spline = o_spline
-      IF ( PRESENT ( group ) ) ewald_env % group = group
       IF ( PRESENT ( para_env ) )ewald_env %  para_env => para_env
     ENDIF
 
@@ -396,7 +393,7 @@ SUBROUTINE read_ewald_section ( ewald_env, globenv )
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 ! locals
   LOGICAL :: found, setf, datf, topf
-  INTEGER :: ierror, ilen, ia, ie, i, j, n, iw, source, group
+  INTEGER :: ierror, ilen, ia, ie, i, j, n, iw, source
   CHARACTER ( len = default_string_length ) :: string, str2, label
                                              
   iw = globenv % scr
