@@ -120,7 +120,7 @@ CONTAINS
     tddfpt_control%sic_method_id = sic_none
     tddfpt_control%xc_control = qs_env%dft_control%xc_control
 
-    CALL read_tddfpt_control(tddfpt_control, glob_env)
+    CALL read_tddfpt_control(tddfpt_control, qs_env%dft_control, glob_env)
 
     IF (tddfpt_control%oe_corr /= oe_none) THEN
        CALL orbital_eigenvalue_correction(qs_env, glob_env, error)

@@ -26,6 +26,7 @@ MODULE constraint
                                              dp_size
   USE linear_systems,                  ONLY: solve_system
   USE md,                              ONLY: simulation_parameters_type
+  USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type,&
                                              g3x3_constraint_type, &
@@ -49,10 +50,10 @@ MODULE constraint
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: shake_control, rattle_control,  getold !CJM, pv_constraint
+  PUBLIC :: shake_control, rattle_control,  getold,  pv_constraint
+  PUBLIC :: shake_roll_control, rattle_roll_control
   CHARACTER(LEN=*), PARAMETER :: module_name = "constraint"
 
-!CJM  PUBLIC :: shake_roll_control, rattle_roll_control
 
 !!*****
 !******************************************************************************
@@ -61,15 +62,13 @@ CONTAINS
 
 !******************************************************************************
 
-SUBROUTINE shake_control( atomic_kind_set, local_particles, local_molecules, &
-                          molecule_set, molecule_kind_set, particle_set, pos, &
-                          vel, simpar )
+SUBROUTINE shake_control( local_molecules, molecule_set, molecule_kind_set, &
+                          particle_set, pos, vel, simpar )
 
-    TYPE ( atomic_kind_type ), POINTER       :: atomic_kind_set ( : )
-    TYPE(distribution_1d_type), POINTER      :: local_molecules, local_particles
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
-    TYPE ( particle_type ), POINTER           :: particle_set ( : )
+    TYPE ( particle_type ), POINTER          :: particle_set ( : )
     REAL ( dbl ), INTENT ( INOUT )           :: pos ( :, : ), vel ( :, : )
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
@@ -78,13 +77,10 @@ SUBROUTINE shake_control( atomic_kind_set, local_particles, local_molecules, &
     INTEGER                                  :: iconst, ikind, nkind, i, first_atom
     INTEGER                                  :: imol, n3x3con, n4x6con, ndcon
     INTEGER                                  :: handle, ishake, nmol_per_kind
-    INTEGER                                  :: isos, npart, iparticle_kind
-    INTEGER                                  :: nparticle_kind, nparticle_local
-    INTEGER                                  :: iparticle_local, iparticle
+    INTEGER                                  :: isos
     REAL(dbl)                                :: max_sigma
     TYPE ( molecule_type ), POINTER          :: molecule
     TYPE ( molecule_kind_type ), POINTER     :: molecule_kind
-    REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: work_pos, work_vel
     TYPE ( atomic_kind_type ), POINTER       :: atomic_kind
 
 !------------------------------------------------------------------------------
@@ -97,7 +93,8 @@ MOL:  DO ikind = 1, nkind
            i = local_molecules % list ( ikind ) % array ( imol )
            molecule => molecule_set ( i ) 
            molecule_kind => molecule % molecule_kind
-           CALL get_molecule_kind ( molecule_kind, ndist = ndcon, ng3x3 = n3x3con, ng4x6=n4x6con )
+           CALL get_molecule_kind ( molecule_kind, ndist = ndcon,  &
+                                    ng3x3 = n3x3con, ng4x6=n4x6con )
 
 ! 3x3
            IF ( n3x3con /= 0 ) CALL shake_3x3( molecule, particle_set,  &
@@ -128,14 +125,12 @@ END SUBROUTINE shake_control
 
 !******************************************************************************
 
-SUBROUTINE rattle_control( atomic_kind_set, local_particles, local_molecules,   &
-                           molecule_set, molecule_kind_set, particle_set,  &
-                           vel, simpar )
+SUBROUTINE rattle_control( local_molecules, molecule_set, molecule_kind_set,  &
+                           particle_set, vel, simpar )
 
 
     TYPE ( particle_type ), POINTER          :: particle_set ( : )
-    TYPE ( atomic_kind_type ), POINTER       :: atomic_kind_set ( : )
-    TYPE(distribution_1d_type), POINTER      :: local_molecules, local_particles
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     REAL ( dbl ), INTENT ( INOUT )           :: vel ( :, : )
@@ -146,14 +141,11 @@ SUBROUTINE rattle_control( atomic_kind_set, local_particles, local_molecules,   
     INTEGER                                  :: iconst, ikind, nkind, i, first_atom
     INTEGER                                  :: imol, irattle, n3x3con, n4x6con, ndcon
     INTEGER                                  :: handle, ishake, nmol_per_kind
-    INTEGER                                  :: isos, npart, iparticle_kind
-    INTEGER                                  :: nparticle_kind, nparticle_local
-    INTEGER                                  :: iparticle_local, iparticle
+    INTEGER                                  :: isos 
     REAL(dbl)                                :: max_sigma
     TYPE ( molecule_type ), POINTER          :: molecule
     TYPE ( molecule_kind_type ), POINTER     :: molecule_kind
     TYPE ( atomic_kind_type ), POINTER       :: atomic_kind
-    REAL ( dbl ),  DIMENSION ( :, : ), ALLOCATABLE :: work
 
 !------------------------------------------------------------------------------
      CALL timeset ( 'RATTLE_CONTROL', 'I', ' ', handle )
@@ -190,145 +182,177 @@ END SUBROUTINE rattle_control
 
 !******************************************************************************
 
-!SUBROUTINE shake_roll_control ( molecule, simpar, thermo, roll_tol, iroll, &
-!     vector_r, vector_v, group, u )
-!
-!
-!    TYPE(molecule_structure_type), &
-!      DIMENSION(:), INTENT(INOUT)            :: molecule
-!    TYPE(simulation_parameters_type), &
-!      INTENT(IN)                             :: simpar
-!    TYPE(virial_type), INTENT(INOUT), &
-!      OPTIONAL                               :: thermo
-!    REAL(dbl), INTENT(OUT)                   :: roll_tol
-!    INTEGER, INTENT(INOUT)                   :: iroll
-!    REAL(dbl), DIMENSION(:), INTENT(IN)      :: vector_r, vector_v
-!    INTEGER, INTENT(IN)                      :: group
-!    REAL(dbl), DIMENSION(:, :), INTENT(IN), &
-!      OPTIONAL                               :: u
-!
-!    INTEGER                                  :: handle, imol, ishake, nmol
-!    REAL(dbl)                                :: max_sigma
-!    REAL(dbl), DIMENSION(3, 3)               :: r_shake, v_shake
-!
-!!------------------------------------------------------------------------------
-!
-!  CALL timeset ( 'SHAKE_ROLL', 'I', ' ', handle )
-!
-!! setting up for roll
-!  IF ( simpar % ensemble == 'NPT_I' ) THEN
-!     CALL get_roll_matrix ('SHAKE', r_shake, v_shake, vector_r, vector_v )
-!  ELSE IF ( simpar % ensemble == 'NPT_F' ) THEN
-!     CALL get_roll_matrix ('SHAKE', r_shake, v_shake, vector_r, vector_v, u )
-!  END IF
-!
-!! initialize locals
-!  nmol = SIZE ( molecule )
-!  MOL: DO imol = 1, nmol
-!
-!! 3x3
-!     IF (molecule(imol)%ng3x3const_mol /= 0 ) THEN
-!        CALL shake_roll_3x3(molecule(imol),simpar,r_shake,v_shake,ishake)
-!     END IF
-!
-!! 4x6
-!     IF (molecule(imol)%ng4x6const_mol /= 0 ) THEN
-!        CALL shake_roll_4x6(molecule(imol),simpar,r_shake,v_shake,ishake)
-!     END IF
-!     ishake = 0
-!
-!! dist
-!     IF (molecule(imol)%ndistconst_mol /= 0 ) THEN
-!        max_sigma = -1.0E+10_dbl
-!        CONS: DO WHILE (abs(max_sigma)>=simpar%shake_tol)
-!           ishake = ishake + 1
-!           max_sigma = 0._dbl
-!           CALL shake_roll(molecule(imol),simpar,r_shake,v_shake,max_sigma,ishake)
-!        END DO CONS
-!     END IF
-!  END DO MOL
-!
-!  CALL check_tol ( roll_tol, iroll, 'SHAKE', r_shake )
-!
-!  CALL timestop ( 0.0_dbl, handle )
-!
-!END SUBROUTINE shake_roll_control
-!
+SUBROUTINE shake_roll_control( local_molecules, molecule_set, molecule_kind_set, &
+                               particle_set, pos, vel, simpar, roll_tol, iroll,  &
+                               vector_r, vector_v, group, u )
+
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE ( particle_type ), POINTER          :: particle_set ( : )
+    REAL ( dbl ), INTENT ( INOUT )           :: pos ( :, : ), vel ( :, : )
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    REAL(dbl), INTENT(OUT)                   :: roll_tol
+    INTEGER, INTENT(INOUT)                   :: iroll
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: vector_r, vector_v
+    INTEGER, INTENT(IN)                      :: group
+    REAL(dbl), DIMENSION(:, :), INTENT(IN), &
+      OPTIONAL                               :: u
+
+! locals
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "shake_roll_control"
+    INTEGER                                  :: iconst, ikind, nkind, i, first_atom
+    INTEGER                                  :: imol, n3x3con, n4x6con, ndcon
+    INTEGER                                  :: handle, ishake, nmol_per_kind
+    INTEGER                                  :: isos
+    REAL(dbl)                                :: max_sigma
+    REAL ( dbl ), DIMENSION ( 3, 3 )         :: r_shake, v_shake
+    TYPE ( molecule_type ), POINTER          :: molecule
+    TYPE ( molecule_kind_type ), POINTER     :: molecule_kind
+    TYPE ( atomic_kind_type ), POINTER       :: atomic_kind
+
+!------------------------------------------------------------------------------
+
+  CALL timeset ( 'SHAKE_ROLL_CONTROL', 'I', ' ', handle )
+  nkind = SIZE ( molecule_kind_set )
+! setting up for roll
+  IF ( simpar % ensemble == 'NPT_I' ) THEN
+     CALL get_roll_matrix ('SHAKE', r_shake, v_shake, vector_r, vector_v )
+  ELSE IF ( simpar % ensemble == 'NPT_F' ) THEN
+     CALL get_roll_matrix ('SHAKE', r_shake, v_shake, vector_r, vector_v, u )
+  END IF
+
+MOL:  DO ikind = 1, nkind
+         nmol_per_kind = local_molecules % n_el ( ikind )
+         DO imol = 1, nmol_per_kind
+           i = local_molecules % list ( ikind ) % array ( imol )
+           molecule => molecule_set ( i ) 
+           molecule_kind => molecule % molecule_kind
+           CALL get_molecule_kind ( molecule_kind, ndist = ndcon,  &
+                                    ng3x3 = n3x3con, ng4x6=n4x6con )
+
+! 3x3
+           IF ( n3x3con /= 0 ) CALL shake_roll_3x3( molecule, particle_set,  &
+                                               pos, vel, r_shake, v_shake, &
+                                               simpar, ishake )
+
+! 4x6
+           IF ( n4x6con /= 0 ) CALL shake_roll_4x6( molecule, particle_set, &
+                                               pos, vel, r_shake, v_shake, &
+                                               simpar, ishake )
+
+           ishake = 0
+
+! dist
+          IF ( ndcon /= 0 ) THEN
+            max_sigma = -1.0E+10_dbl
+            CONS: DO WHILE (abs(max_sigma)>=simpar%shake_tol)
+               max_sigma = 0._dbl
+               ishake = ishake + 1
+               CALL shake_roll( molecule, particle_set, pos, vel, &
+                                r_shake, v_shake, simpar, max_sigma,ishake )
+            END DO CONS
+         END IF
+       END DO
+     END DO MOL
+
+     CALL timestop ( 0.0_dbl, handle )
+
+     CALL check_tol ( roll_tol, iroll, 'SHAKE', r_shake )
+
+     CALL timestop ( 0.0_dbl, handle )
+
+END SUBROUTINE shake_roll_control
+
 !!******************************************************************************
 
-!SUBROUTINE rattle_roll_control ( molecule, simpar, thermo, veps, mass, &
-!     roll_tol, iroll, vector, group, u )
-!
-!
-!    TYPE(molecule_structure_type), &
-!      DIMENSION(:), INTENT(INOUT)            :: molecule
-!    TYPE(simulation_parameters_type), &
-!      INTENT(IN)                             :: simpar
-!    TYPE(virial_type), INTENT(INOUT)         :: thermo
-!    REAL(dbl), DIMENSION(:, :), &
-!      INTENT(INOUT)                          :: veps
-!    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: mass
-!    REAL(dbl), INTENT(OUT)                   :: roll_tol
-!    INTEGER, INTENT(INOUT)                   :: iroll
-!    REAL(dbl), DIMENSION(:), INTENT(IN)      :: vector
-!    INTEGER, INTENT(IN)                      :: group
-!    REAL(dbl), DIMENSION(:, :), INTENT(IN), &
-!      OPTIONAL                               :: u
-!
-!    INTEGER                                  :: handle, imol, irattle, nmol
-!    REAL(dbl)                                :: max_sigma
-!    REAL(dbl), DIMENSION(3, 3)               :: r_rattle
-!
-!!------------------------------------------------------------------------------
-!
-!  CALL timeset( 'RATTLE_ROLL','I',' ',handle)
-!
-!! setting up for roll
-!  IF ( simpar % ensemble == 'NPT_I' ) THEN
-!     CALL get_roll_matrix ('RATTLE', v_shake=r_rattle, vector_v=vector )
-!  ELSE IF ( simpar % ensemble == 'NPT_F' ) THEN
-!     CALL get_roll_matrix ('RATTLE', v_shake=r_rattle, vector_v=vector, u=u )
-!  END IF
-!
-!! initialize locals
-!  irattle = 0
-!  nmol = SIZE ( molecule )
-!  max_sigma = -1.0E+10_dbl
-!
-!
-!! Initialize scale and r_rattle
-!  CONS: DO WHILE (abs(max_sigma)>=simpar%shake_tol)
-!     irattle = irattle + 1
-!     max_sigma = 0._dbl
-!     MOL: DO imol = 1, nmol
-!        IF ( molecule ( imol ) % ndistconst_mol /= 0 ) THEN
-!
-!! dist
-!           CALL rattle_roll ( molecule ( imol ), simpar, r_rattle, veps, &
-!                             max_sigma, irattle )
-!        ELSE IF ( molecule ( imol ) % ng3x3const_mol /= 0 ) THEN
-!
-!! 3x3
-!           CALL rattle_roll_3x3 ( molecule ( imol ), simpar, r_rattle, veps, &
-!                                  max_sigma, irattle )
-!        ELSE IF ( molecule ( imol ) % ng4x6const_mol /= 0 ) THEN
-!
-!! 4x6
-!           CALL rattle_roll_4x6 ( molecule ( imol ), simpar, r_rattle, veps, &
-!                                  max_sigma, irattle )
-!        END IF
-!     END DO MOL
-!
-!! update veps
-!    IF ( irattle /= 1 ) CALL update_veps ( molecule, &
-!          veps, mass, thermo, simpar % ensemble, simpar % dt, group )
-! END DO CONS
+SUBROUTINE rattle_roll_control( local_molecules, molecule_set, molecule_kind_set, &
+                                particle_set, vel, simpar, virial, vector,   &
+                                veps, mass, roll_tol, iroll, group, u )
 
-! CALL check_tol ( roll_tol, iroll, 'RATTLE', veps = veps )
 
-! CALL timestop ( 0.0_dbl, handle )
+    TYPE ( particle_type ), POINTER          :: particle_set ( : )
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE ( virial_type ), POINTER            :: virial
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    REAL ( dbl ), INTENT ( INOUT )           :: vel ( :, : )
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: veps
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: mass
+    REAL(dbl), INTENT(OUT)                   :: roll_tol
+    INTEGER, INTENT(INOUT)                   :: iroll
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: vector
+    INTEGER, INTENT(IN)                      :: group
+    REAL(dbl), DIMENSION(:, :), INTENT(IN), &
+      OPTIONAL                               :: u
 
-!END SUBROUTINE rattle_roll_control
+! locals
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "rattle_roll_control"
+    INTEGER                                  :: iconst, ikind, nkind, i, first_atom
+    INTEGER                                  :: imol, irattle, n3x3con, n4x6con, ndcon
+    INTEGER                                  :: handle, ishake, nmol_per_kind
+    INTEGER                                  :: isos
+    REAL(dbl)                                :: max_sigma
+    REAL(dbl), DIMENSION(3, 3)               :: r_rattle
+    TYPE ( molecule_type ), POINTER          :: molecule
+    TYPE ( molecule_kind_type ), POINTER     :: molecule_kind
+    TYPE ( atomic_kind_type ), POINTER       :: atomic_kind
+
+!------------------------------------------------------------------------------
+     CALL timeset ( 'RATTLE_ROLL_CONTROL', 'I', ' ', handle )
+! initialize locals
+     irattle = 0
+     max_sigma = -1.0E+10_dbl
+     nkind = SIZE ( molecule_kind_set )
+! setting up for roll
+     IF ( simpar % ensemble == 'NPT_I' ) THEN
+        CALL get_roll_matrix ('RATTLE', v_shake=r_rattle, vector_v=vector )
+     ELSE IF ( simpar % ensemble == 'NPT_F' ) THEN
+        CALL get_roll_matrix ('RATTLE', v_shake=r_rattle, vector_v=vector, u=u )
+     END IF
+CONS: DO WHILE (abs(max_sigma)>=simpar%shake_tol)
+        irattle = irattle + 1
+        max_sigma = 0._dbl
+   MOL: DO ikind = 1, nkind
+         nmol_per_kind = local_molecules % n_el ( ikind )
+         DO imol = 1, nmol_per_kind
+           i = local_molecules % list ( ikind ) % array ( imol )
+           molecule => molecule_set ( i ) 
+           molecule_kind => molecule % molecule_kind
+           CALL get_molecule_kind ( molecule_kind, ndist = ndcon,  &
+                                    ng3x3 = n3x3con, ng4x6 = n4x6con )
+
+! 3x3
+           IF ( n3x3con /= 0 ) CALL rattle_roll_3x3 ( molecule, particle_set, vel, r_rattle, &
+                                               simpar, veps, max_sigma, irattle )
+
+! 4x6
+           IF ( n4x6con /= 0 ) CALL rattle_roll_4x6 ( molecule, particle_set, vel, r_rattle, &
+                                               simpar, veps, max_sigma, irattle )
+
+! dist
+           IF ( ndcon /= 0 )   CALL rattle_roll ( molecule, particle_set, vel, r_rattle, &
+                                           simpar, veps, max_sigma, irattle )
+        END DO
+     END DO MOL
+
+! update veps
+    IF ( irattle /= 1 ) CALL update_veps ( local_molecules, molecule_set, &
+                                           molecule_kind_set, particle_set, &
+                                           virial, veps, mass, &
+                                           simpar % ensemble, &
+                                           simpar % dt, group )
+ END DO CONS
+
+ CALL check_tol ( roll_tol, iroll, 'RATTLE', veps = veps )
+
+ CALL timestop ( 0.0_dbl, handle )
+
+END SUBROUTINE rattle_roll_control
 
 !******************************************************************************
 
@@ -354,9 +378,7 @@ SUBROUTINE shake_3x3( molecule, particle_set, pos, vel, simpar, ishake )
     REAL(dbl), DIMENSION(3, 3)               :: amat, atemp
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE ( molecule_kind_type ), POINTER     :: molecule_kind
-    TYPE ( local_dist_constraint_type ), POINTER   :: ldist ( : )
     TYPE ( local_g3x3_constraint_type ), POINTER   :: lg3x3 ( : )
-    TYPE ( dist_constraint_type ), POINTER   :: dist_list ( : )
     TYPE ( g3x3_constraint_type ), POINTER   :: g3x3_list ( : )
 
 !------------------------------------------------------------------------------
@@ -472,137 +494,150 @@ END SUBROUTINE shake_3x3
 
 !******************************************************************************
 
-!SUBROUTINE shake_roll_3x3(molecule,simpar,r_shake,v_shake,ishake)
+SUBROUTINE shake_roll_3x3( molecule, particle_set, pos, vel, r_shake,  &
+                          v_shake, simpar, ishake )
 
 
-!    TYPE(molecule_structure_type), &
-!      INTENT(INOUT)                          :: molecule
-!    TYPE(simulation_parameters_type), &
-!      INTENT(IN)                             :: simpar
-!    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: r_shake, v_shake
-!    INTEGER, INTENT(OUT)                     :: ishake
-!
-!    INTEGER                                  :: iconst
-!    REAL(dbl)                                :: dtby2, dtsqby2, idtsq, &
-!                                                imass1, imass2, imass3, mass, &
-!                                                max_sigma, sigma
-!    REAL(dbl), DIMENSION(3)                  :: f_roll1, f_roll2, f_roll3, &
-!                                                fc1, fc2, fc3, r0_12, r0_13, &
-!                                                r0_23, r1, r12, r13, r2, r23, &
-!                                                r3, v1, v2, v3, vec
-!    REAL(dbl), DIMENSION(3, 1)               :: bvec
-!    REAL(dbl), DIMENSION(3, 3)               :: amat, atemp
-!    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-!    TYPE(linklist_g3x3_constraints), POINTER :: llconst
-!
+    TYPE ( particle_type ), POINTER                   :: particle_set ( : )
+    REAL ( dbl ), INTENT ( INOUT )                    :: pos ( :, : ), vel ( :, : )
+    TYPE ( molecule_type ), POINTER                   :: molecule
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: r_shake, v_shake
+    INTEGER, INTENT(OUT)                     :: ishake
+
+! locals
+    INTEGER                                  :: iconst, index_a, index_b, index_c
+    INTEGER                                  :: first_atom, ng3x3
+    REAL(dbl)                                :: dtby2, dtsqby2, idtsq, &
+                                                imass1, imass2, imass3, mass, &
+                                                max_sigma, sigma
+    REAL(dbl), DIMENSION(3)                  :: fc1, fc2, fc3, r0_12, r0_13, &
+                                                r0_23, r1, r12, r13, r2, r23, &
+                                                r3, v1, v2, v3, vec
+    REAL(dbl), DIMENSION(3)                  :: f_roll1, f_roll2, f_roll3
+    REAL(dbl), DIMENSION(3, 1)               :: bvec
+    REAL(dbl), DIMENSION(3, 3)               :: amat, atemp
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE ( molecule_kind_type ), POINTER     :: molecule_kind
+    TYPE ( local_g3x3_constraint_type ), POINTER   :: lg3x3 ( : )
+    TYPE ( g3x3_constraint_type ), POINTER   :: g3x3_list ( : )
+
 !------------------------------------------------------------------------------
 ! define local variables
 
-!  dtsqby2 = simpar%dt*simpar%dt*.5_dbl
-!  idtsq = 1._dbl/simpar%dt/simpar%dt
-!  dtby2 = simpar%dt*.5_dbl
-!  llconst => molecule%ll_g3x3_const
-!
-!  DO iconst = 1, molecule%ng3x3const_mol
-!     ishake=0
-!     r0_12=llconst%p1%r-llconst%p2%r
-!     r0_13=llconst%p1%r-llconst%p3%r
-!     r0_23=llconst%p2%r-llconst%p3%r
-!     atomic_kind=>llconst%p1%atomic_kind
-!     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!     imass1 = 1._dbl/mass
-!     atomic_kind=>llconst%p2%atomic_kind
-!     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!     imass2 = 1._dbl/mass
-!     atomic_kind=>llconst%p3%atomic_kind
-!     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!     imass3 = 1._dbl/mass
-!     llconst%fc1 = -2._dbl*(llconst%rold1-llconst%rold2)
-!     llconst%fc2 = -2._dbl*(llconst%rold1-llconst%rold3)
-!     llconst%fc3 = -2._dbl*(llconst%rold2-llconst%rold3)
-!
-!! rotate fconst:
-!     f_roll1 = matvec_3x3 ( r_shake, llconst % fc1 )
-!     f_roll2 = matvec_3x3 ( r_shake, llconst % fc2 )
-!     f_roll3 = matvec_3x3 ( r_shake, llconst % fc3 )
-!
-!! construct matrix
-!     amat(1,1)=(imass1+imass2)*DOTPROD_3D(r0_12,f_roll1)
-!     amat(1,2)=imass1*DOTPROD_3D(r0_12,f_roll2)
-!     amat(1,3)=-imass2*DOTPROD_3D(r0_12,f_roll3)
-!     amat(2,1)=imass1*DOTPROD_3D(r0_13,f_roll1)
-!     amat(2,2)=(imass1+imass3)*DOTPROD_3D(r0_13,f_roll2)
-!     amat(2,3)=imass3*DOTPROD_3D(r0_13,f_roll3)
-!     amat(3,1)=-imass2*DOTPROD_3D(r0_23,f_roll1)
-!     amat(3,2)=imass3*DOTPROD_3D(r0_23,f_roll2)
-!     amat(3,3)=(imass3+imass2)*DOTPROD_3D(r0_23,f_roll3)
-!
-!! Iterate until convergence:
-!     max_sigma = -1.0E+10_dbl
-!     CONS: DO WHILE (abs(max_sigma)>=simpar%shake_tol)
-!        max_sigma=0._dbl
-!        ishake=ishake+1
-!        vec= llconst%lambda(1)*f_roll1*(imass1+imass2) + &
-!             llconst%lambda(2)*imass1*f_roll2 - &
-!             llconst%lambda(3)*imass2*f_roll3
-!        bvec(1,1)=llconst%d12*llconst%d12-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
-!             -DOTPROD_3D(r0_12,r0_12)
-!        vec= llconst%lambda(1)*f_roll1*imass1 + &
-!             llconst%lambda(2)*(imass1+imass3)*f_roll2 + &
-!             llconst%lambda(3)*imass3*f_roll3
-!        bvec(2,1)=llconst%d13*llconst%d13-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
-!             -DOTPROD_3D(r0_13,r0_13)
-!        vec= -llconst%lambda(1)*f_roll1*imass2 + &
-!             llconst%lambda(2)*imass3*f_roll2 + &
-!             llconst%lambda(3)*(imass2+imass3)*f_roll3
-!        bvec(3,1)=llconst%d23*llconst%d23-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
-!             -DOTPROD_3D(r0_23,r0_23)
-!        bvec=bvec*idtsq
-!
-!! get lambda
-!        atemp = amat
-!        CALL solve_system ( atemp, 3, bvec )
-!        llconst%lambda ( : ) = bvec ( :, 1 )
-!
-!        fc1=llconst%lambda(1)*llconst%fc1+ &
-!             llconst%lambda(2)*llconst%fc2
-!        fc2=-llconst%lambda(1)*llconst%fc1+ &
-!             llconst%lambda(3)*llconst%fc3
-!        fc3=-llconst%lambda(2)*llconst%fc2- &
-!             llconst%lambda(3)*llconst%fc3
-!        r1 = llconst%p1%r + imass1*dtsqby2*MATVEC_3X3 ( r_shake, fc1 )
-!        r2 = llconst%p2%r + imass2*dtsqby2*MATVEC_3X3 ( r_shake, fc2 )
-!        r3 = llconst%p3%r + imass3*dtsqby2*MATVEC_3X3 ( r_shake, fc3 )
-!        v1 = llconst%p1%v + imass1*dtby2*MATVEC_3X3 ( v_shake, fc1 )
-!        v2 = llconst%p2%v + imass2*dtby2*MATVEC_3X3 ( v_shake, fc2 )
-!        v3 = llconst%p3%v + imass3*dtby2*MATVEC_3X3 ( v_shake, fc3 )
-!        r12=r1-r2
-!        r13=r1-r3
-!        r23=r2-r3
-!
-!! compute the tolerance:
-!        sigma = dot_product(r12,r12) - llconst%d12*llconst%d12
-!        max_sigma=MAX(max_sigma,ABS(sigma))
-!        sigma = dot_product(r13,r13) - llconst%d13*llconst%d13
-!        max_sigma=MAX(max_sigma,ABS(sigma))
-!        sigma = dot_product(r23,r23) - llconst%d23*llconst%d23
-!        max_sigma=MAX(max_sigma,ABS(sigma))
-!     END DO CONS
-!
-!! update positions with full multiplier
-!     llconst%p1%r = r1
-!     llconst%p2%r = r2
-!     llconst%p3%r = r3
-!
-!! update velocites with full multiplier
-!     llconst%p1%v = v1
-!     llconst%p2%v = v2
-!     llconst%p3%v = v3
-!     llconst => llconst%next
-!
-!  END DO
-!
-!END SUBROUTINE shake_roll_3x3
+  dtsqby2 = simpar%dt*simpar%dt*.5_dbl
+  idtsq = 1._dbl/simpar%dt/simpar%dt
+  dtby2 = simpar%dt*.5_dbl
+  molecule_kind => molecule % molecule_kind
+  CALL get_molecule_kind ( molecule_kind, ng3x3 = ng3x3, g3x3_list = g3x3_list )
+  CALL get_molecule ( molecule, first_atom = first_atom, lg3x3=lg3x3 )
+  DO iconst = 1, ng3x3
+     ishake=0
+     index_a = g3x3_list ( iconst ) % a + first_atom -1
+     index_b = g3x3_list ( iconst ) % b + first_atom -1
+     index_c = g3x3_list ( iconst ) % c + first_atom -1
+     r0_12 ( : ) = pos ( :, index_a ) - pos ( :,index_b ) 
+     r0_13 ( : ) = pos ( :, index_a ) - pos ( :,index_c ) 
+     r0_23 ( : ) = pos ( :, index_b ) - pos ( :,index_c ) 
+     atomic_kind => particle_set ( index_a ) % atomic_kind
+     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+     imass1 = 1._dbl/mass
+     atomic_kind => particle_set ( index_b ) % atomic_kind
+     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+     imass2 = 1._dbl/mass
+     atomic_kind => particle_set ( index_c ) % atomic_kind
+     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+     imass3 = 1._dbl/mass
+     lg3x3 ( iconst ) % fa = -2._dbl*( lg3x3 ( iconst ) % ra_old - &
+                                       lg3x3 ( iconst ) % rb_old )
+     lg3x3 ( iconst ) % fb = -2._dbl*( lg3x3 ( iconst ) % ra_old - &
+                                       lg3x3 ( iconst ) % rc_old )
+     lg3x3 ( iconst ) % fc = -2._dbl*( lg3x3 ( iconst ) % rb_old - &
+                                       lg3x3 ( iconst ) % rc_old )
+! rotate fconst:
+     f_roll1 = matvec_3x3 ( r_shake, lg3x3 ( iconst ) % fa )
+     f_roll2 = matvec_3x3 ( r_shake, lg3x3 ( iconst ) % fb )
+     f_roll3 = matvec_3x3 ( r_shake, lg3x3 ( iconst ) % fc )
+
+! construct matrix
+     amat(1,1)=(imass1+imass2)*DOTPROD_3D(r0_12,f_roll1 )
+     amat(1,2)=imass1*DOTPROD_3D(r0_12, f_roll2 )
+     amat(1,3)=-imass2*DOTPROD_3D(r0_12, f_roll3 )
+     amat(2,1)=imass1*DOTPROD_3D(r0_13, f_roll1 )
+     amat(2,2)=(imass1+imass3)*DOTPROD_3D(r0_13,f_roll2 )
+     amat(2,3)=imass3*DOTPROD_3D(r0_13,f_roll3)
+     amat(3,1)=-imass2*DOTPROD_3D(r0_23, f_roll1 )
+     amat(3,2)=imass3*DOTPROD_3D(r0_23, f_roll2 )
+     amat(3,3)=(imass3+imass2)*DOTPROD_3D(r0_23,f_roll3)
+
+! Iterate until convergence:
+     max_sigma = -1.0E+10_dbl
+     CONS: DO WHILE (abs(max_sigma)>=simpar%shake_tol)
+        max_sigma=0._dbl
+        ishake=ishake+1
+        vec= lg3x3 ( iconst ) % lambda ( 1 ) * f_roll1 *(imass1+imass2) + &
+             lg3x3 ( iconst ) % lambda ( 2 ) * imass1* f_roll2 - &
+             lg3x3 ( iconst ) % lambda ( 3 ) * imass2* f_roll3
+        bvec(1,1)=g3x3_list ( iconst ) % dab * g3x3_list ( iconst) % dab &
+                 -dtsqby2*dtsqby2*DOTPROD_3D(vec,vec)-DOTPROD_3D(r0_12,r0_12)
+        vec= lg3x3 ( iconst ) % lambda ( 1 ) * f_roll1 * imass1 + &
+             lg3x3 ( iconst ) % lambda ( 2 ) * ( imass1 + imass3 ) * f_roll2 + &
+             lg3x3 ( iconst ) % lambda ( 3 ) * imass3 * f_roll3
+        bvec(2,1)=g3x3_list ( iconst ) % dac * g3x3_list ( iconst) % dac &
+                 -dtsqby2*dtsqby2*DOTPROD_3D(vec,vec)-DOTPROD_3D(r0_13,r0_13)
+        vec= -lg3x3 ( iconst ) % lambda ( 1 ) * f_roll1 * imass2 + &
+             lg3x3 ( iconst ) % lambda ( 2 ) * imass3 * f_roll2 + &
+             lg3x3 ( iconst ) % lambda ( 3 ) * ( imass2 + imass3 ) * f_roll3
+        bvec(3,1)=g3x3_list ( iconst ) % dbc * g3x3_list ( iconst) % dbc &
+                 -dtsqby2*dtsqby2*DOTPROD_3D(vec,vec)-DOTPROD_3D(r0_23,r0_23)
+        bvec = bvec * idtsq
+
+! get lambda
+        atemp = amat
+        CALL solve_system ( atemp, 3, bvec )
+        lg3x3 ( iconst ) % lambda ( : ) = bvec ( :, 1 )
+
+        fc1=lg3x3 ( iconst ) % lambda ( 1 ) * lg3x3 ( iconst ) % fa + &
+            lg3x3 ( iconst ) % lambda ( 2 ) * lg3x3 ( iconst ) % fb
+        fc2=-lg3x3 ( iconst ) % lambda ( 1 ) * lg3x3 ( iconst ) % fa + &
+            lg3x3 ( iconst ) % lambda ( 3 ) * lg3x3 ( iconst ) % fc
+        fc3=-lg3x3 ( iconst ) % lambda ( 2 ) * lg3x3 ( iconst ) % fb - &
+            lg3x3 ( iconst ) % lambda ( 3 ) * lg3x3 ( iconst ) % fc
+        r1 ( : ) = pos ( :, index_a ) + imass1*dtsqby2*MATVEC_3x3 ( r_shake, fc1 )
+        r2 ( : ) = pos ( :, index_b ) + imass2*dtsqby2*MATVEC_3x3 ( r_shake, fc2 )
+        r3 ( : ) = pos ( :, index_c ) + imass3*dtsqby2*MATVEC_3x3 ( r_shake, fc3 )
+        v1 ( : ) = vel ( :, index_a ) + imass1*dtby2*MATVEC_3x3 ( v_shake, fc1 )
+        v2 ( : ) = vel ( :, index_b ) + imass2*dtby2*MATVEC_3x3 ( v_shake, fc2 )
+        v3 ( : ) = vel ( :, index_c ) + imass3*dtby2*MATVEC_3x3 ( v_shake, fc3 )
+        r12=r1-r2
+        r13=r1-r3
+        r23=r2-r3
+
+! compute the tolerance:
+        sigma = dot_product(r12,r12) - g3x3_list ( iconst ) % dab *  &
+                                       g3x3_list ( iconst ) % dab
+        max_sigma=MAX(max_sigma,ABS(sigma))
+        sigma = dot_product(r13,r13) -  g3x3_list ( iconst ) % dac * & 
+                                        g3x3_list ( iconst ) % dac
+        max_sigma=MAX(max_sigma,ABS(sigma))
+        sigma = dot_product(r23,r23) - g3x3_list ( iconst ) % dbc *  &
+                                       g3x3_list ( iconst ) % dbc
+        max_sigma=MAX(max_sigma,ABS(sigma))
+     END DO CONS
+
+! update positions with full multiplier
+     pos ( :, index_a ) = r1 ( : )
+     pos ( :, index_b ) = r2 ( : )
+     pos ( :, index_c ) = r3 ( : )
+
+! update velocites with full multiplier
+     vel ( :, index_a ) = v1 ( : )
+     vel ( :, index_b ) = v2 ( : )
+     vel ( :, index_c ) = v3 ( : )
+  END DO
+
+END SUBROUTINE shake_roll_3x3
 !
 !!******************************************************************************
 
@@ -833,375 +868,398 @@ SUBROUTINE shake_4x6( molecule, particle_set, pos, vel, simpar, ishake )
   END DO
 
 END SUBROUTINE shake_4x6
-!******************************************************************************
 
-!SUBROUTINE shake_roll_4x6(molecule,simpar,r_shake,v_shake,ishake)
-!
-!
-!!    TYPE(molecule_structure_type), &
-!      INTENT(INOUT)                          :: molecule
-!    TYPE(simulation_parameters_type), &
-!      INTENT(IN)                             :: simpar
-!    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: r_shake, v_shake
-!    INTEGER, INTENT(OUT)                     :: ishake
-!
-!    INTEGER                                  :: iconst
-!    REAL(dbl)                                :: dtby2, dtsqby2, idtsq, &
-!                                                imass1, imass2, imass3, &
-!                                                imass4, mass, max_sigma, sigma
-!    REAL(dbl), DIMENSION(3) :: f_roll1, f_roll2, f_roll3, f_roll4, f_roll5, &
-!      f_roll6, fc1, fc2, fc3, fc4, r0_12, r0_13, r0_14, r0_23, r0_24, r0_34, &
-!      r1, r12, r13, r14, r2, r23, r24, r3, r34, r4, v1, v2, v3, v4, vec
-!    REAL(dbl), DIMENSION(6, 1)               :: bvec
-!    REAL(dbl), DIMENSION(6, 6)               :: amat, atemp
-!    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-!    TYPE(linklist_g4x6_constraints), POINTER :: llconst
-!
+!******************************************************************************
+SUBROUTINE shake_roll_4x6( molecule, particle_set, pos, vel, r_shake,  &
+                           v_shake, simpar, ishake )
+    TYPE ( particle_type ), POINTER                   :: particle_set ( : )
+    REAL ( dbl ), INTENT ( INOUT )                    :: pos ( :, : ), vel ( :, : )
+    TYPE ( molecule_type ), POINTER                   :: molecule
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)            :: r_shake, v_shake
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                                      :: simpar
+    INTEGER, INTENT(OUT)                              :: ishake
+
+! locals
+    INTEGER                                  :: iconst, index_a, index_b, index_c,  index_d
+    INTEGER                                  :: first_atom, ng4x6
+    REAL(dbl)                                :: dtby2, dtsqby2, idtsq, &
+                                                imass1, imass2, imass3, &
+                                                imass4, mass, max_sigma, sigma
+    REAL(dbl), DIMENSION(3) :: fc1, fc2, fc3, fc4, r0_12, r0_13, r0_14, &
+      r0_23, r0_24, r0_34, r1, r12, r13, r14, r2, r23, r24, r3, r34, r4, v1, &
+      v2, v3, v4, vec
+    REAL(dbl), DIMENSION(3) :: f_roll1, f_roll2, f_roll3, f_roll4, f_roll5, &
+                               f_roll6
+    REAL(dbl), DIMENSION(6, 1)               :: bvec
+    REAL(dbl), DIMENSION(6, 6)               :: amat, atemp
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE ( molecule_kind_type ), POINTER     :: molecule_kind
+    TYPE ( local_dist_constraint_type ), POINTER   :: ldist ( : )
+    TYPE ( local_g4x6_constraint_type ), POINTER   :: lg4x6 ( : )
+    TYPE ( dist_constraint_type ), POINTER   :: dist_list ( : )
+    TYPE ( g4x6_constraint_type ), POINTER   :: g4x6_list ( : )
 !!------------------------------------------------------------------------------
-!! define local variables
-!
-!  dtsqby2 = simpar%dt*simpar%dt*.5_dbl
-!  idtsq = 1._dbl/simpar%dt/simpar%dt
-!  dtby2 = simpar%dt*.5_dbl
-!  llconst => molecule%ll_g4x6_const
-!
-!  DO iconst = 1, molecule%ng4x6const_mol
-!     ishake=0
-!     r0_12=llconst%p1%r-llconst%p2%r
-!     r0_13=llconst%p1%r-llconst%p3%r
-!     r0_23=llconst%p2%r-llconst%p3%r
-!     r0_14=llconst%p1%r-llconst%p4%r
-!     r0_24=llconst%p2%r-llconst%p4%r
-!     r0_34=llconst%p3%r-llconst%p4%r
-!     atomic_kind=>llconst%p1%atomic_kind
-!     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!     imass1 = 1._dbl/mass
-!     atomic_kind=>llconst%p2%atomic_kind
-!     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!     imass2 = 1._dbl/mass
-!     atomic_kind=>llconst%p3%atomic_kind
-!     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!     imass3 = 1._dbl/mass
-!     atomic_kind=>llconst%p4%atomic_kind
-!     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!     imass4 = 1._dbl/mass
-!
-!     llconst%fc1 = -2._dbl*(llconst%rold1-llconst%rold2)
-!     llconst%fc2 = -2._dbl*(llconst%rold1-llconst%rold3)
-!     llconst%fc3 = -2._dbl*(llconst%rold1-llconst%rold4)
-!     llconst%fc4 = -2._dbl*(llconst%rold2-llconst%rold3)
-!     llconst%fc5 = -2._dbl*(llconst%rold2-llconst%rold4)
-!     llconst%fc6 = -2._dbl*(llconst%rold3-llconst%rold4)
-!
-!! rotate fconst:
-!     f_roll1 = matvec_3x3 ( r_shake, llconst % fc1 )
-!     f_roll2 = matvec_3x3 ( r_shake, llconst % fc2 )
-!     f_roll3 = matvec_3x3 ( r_shake, llconst % fc3 )
-!     f_roll4 = matvec_3x3 ( r_shake, llconst % fc4 )
-!     f_roll5 = matvec_3x3 ( r_shake, llconst % fc5 )
-!     f_roll6 = matvec_3x3 ( r_shake, llconst % fc6 )
-!
-!! construct matrix
-!     amat(1,1)=(imass1+imass2)*DOTPROD_3D(r0_12,f_roll1)
-!     amat(1,2)=imass1*DOTPROD_3D(r0_12,f_roll2)
-!     amat(1,3)=imass1*DOTPROD_3D(r0_12,f_roll3)
-!     amat(1,4)=-imass2*DOTPROD_3D(r0_12,f_roll4)
-!     amat(1,5)=-imass2*DOTPROD_3D(r0_12,f_roll5)
-!     amat(1,6)=0._dbl
-!
-!     amat(2,1)=imass1*DOTPROD_3D(r0_13,f_roll1)
-!     amat(2,2)=(imass1+imass3)*DOTPROD_3D(r0_13,f_roll2)
-!     amat(2,3)=imass1*DOTPROD_3D(r0_13,f_roll3)
-!     amat(2,4)=imass3*DOTPROD_3D(r0_13,f_roll4)
-!     amat(2,5)=0._dbl
-!     amat(2,6)=-imass3*DOTPROD_3D(r0_13,f_roll6)
-!
-!     amat(3,1)=-imass1*DOTPROD_3D(r0_14,f_roll1)
-!     amat(3,2)=imass1*DOTPROD_3D(r0_14,f_roll2)
-!     amat(3,3)=(imass1+imass4)*DOTPROD_3D(r0_14,f_roll3)
-!     amat(3,4)=0._dbl
-!     amat(3,5)=imass4*DOTPROD_3D(r0_14,f_roll5)
-!     amat(3,6)=imass4*DOTPROD_3D(r0_14,f_roll6)
-!
-!     amat(4,1)=-imass2*DOTPROD_3D(r0_23,f_roll1)
-!     amat(4,2)=imass3*DOTPROD_3D(r0_23,f_roll2)
-!     amat(4,3)=0._dbl
-!     amat(4,4)=(imass3+imass2)*DOTPROD_3D(r0_23,f_roll4)
-!     amat(4,5)=imass2*DOTPROD_3D(r0_23,f_roll5)
-!     amat(4,6)=-imass3*DOTPROD_3D(r0_23,f_roll6)
-!
-!     amat(5,1)=-imass2*DOTPROD_3D(r0_24,f_roll1)
-!     amat(5,2)=0._dbl
-!     amat(5,3)=imass4*DOTPROD_3D(r0_24,f_roll3)
-!     amat(5,4)=imass2*DOTPROD_3D(r0_24,f_roll4)
-!     amat(5,5)=(imass4+imass2)*DOTPROD_3D(r0_24,f_roll5)
-!     amat(5,6)=imass4*DOTPROD_3D(r0_24,f_roll6)
-!
-!     amat(6,1)=0._dbl
-!     amat(6,2)=-imass3*DOTPROD_3D(r0_34,f_roll2)
-!     amat(6,3)=imass4*DOTPROD_3D(r0_34,f_roll3)
-!     amat(6,4)=-imass3*DOTPROD_3D(r0_34,f_roll4)
-!     amat(6,5)=imass4*DOTPROD_3D(r0_34,f_roll5)
-!     amat(6,6)=(imass3+imass4)*DOTPROD_3D(r0_34,f_roll6)
-!
-!! Iterate until convergence:
-!     max_sigma = -1.0E+10_dbl
-!     CONS: DO WHILE (abs(max_sigma)>=simpar%shake_tol)
-!        max_sigma=0._dbl
-!        ishake=ishake+1
-!        vec= llconst%lambda(1)*f_roll1*(imass1+imass2) + &
-!             llconst%lambda(2)*imass1*f_roll2 + &
-!             llconst%lambda(3)*imass1*f_roll3 - &
-!             llconst%lambda(4)*imass2*f_roll4 - &
-!             llconst%lambda(5)*imass2*f_roll5 
-!        bvec(1,1)=llconst%d12*llconst%d12-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
-!             -DOTPROD_3D(r0_12,r0_12)
-!        vec= llconst%lambda(2)*f_roll2*(imass1+imass3) + &
-!             llconst%lambda(1)*imass1*f_roll1 + &
-!             llconst%lambda(3)*imass1*f_roll3 + &
-!             llconst%lambda(4)*imass3*f_roll4 - &
-!             llconst%lambda(6)*imass3*f_roll6 
-!        bvec(2,1)=llconst%d13*llconst%d13-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
-!             -DOTPROD_3D(r0_13,r0_13)
-!        vec= llconst%lambda(3)*f_roll3*(imass1+imass4) + &
-!             llconst%lambda(1)*imass1*f_roll1 + &
-!             llconst%lambda(2)*imass1*f_roll2 + &
-!             llconst%lambda(5)*imass4*f_roll5 + &
-!             llconst%lambda(6)*imass4*f_roll6 
-!        bvec(3,1)=llconst%d14*llconst%d14-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
-!             -DOTPROD_3D(r0_14,r0_14)
-!        vec= llconst%lambda(4)*f_roll4*(imass2+imass3) - &
-!             llconst%lambda(1)*imass2*f_roll1 + &
-!             llconst%lambda(2)*imass3*f_roll2 + &
-!             llconst%lambda(5)*imass2*f_roll5 - &
-!             llconst%lambda(6)*imass3*f_roll6 
-!        bvec(4,1)=llconst%d23*llconst%d23-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
-!             -DOTPROD_3D(r0_23,r0_23)
-!        vec= llconst%lambda(5)*f_roll5*(imass2+imass4) - &
-!             llconst%lambda(1)*imass2*f_roll1 + &
-!             llconst%lambda(3)*imass4*f_roll3 + &
-!             llconst%lambda(4)*imass2*f_roll4 + &
-!             llconst%lambda(6)*imass4*f_roll6 
-!        bvec(5,1)=llconst%d24*llconst%d24-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
-!             -DOTPROD_3D(r0_24,r0_24)
-!        vec= llconst%lambda(6)*f_roll6*(imass3+imass4) - &
-!             llconst%lambda(2)*imass3*f_roll2 + &
-!             llconst%lambda(3)*imass4*f_roll3 - &
-!             llconst%lambda(4)*imass3*f_roll4 + &
-!             llconst%lambda(5)*imass4*f_roll5
-!        bvec(6,1)=llconst%d34*llconst%d34-dtsqby2*dtsqby2*DOTPROD_3D(vec,vec) &
-!             -DOTPROD_3D(r0_34,r0_34)
-!
-!        bvec=bvec*idtsq
-!
-!! get lambda
-!        atemp = amat
-!        CALL solve_system ( atemp, 6, bvec )
-!        llconst%lambda ( : ) = bvec ( :, 1 )
-!
-!        fc1=llconst%lambda(1)*llconst%fc1+ &
-!             llconst%lambda(2)*llconst%fc2+ &
-!             llconst%lambda(3)*llconst%fc3
-!        fc2=-llconst%lambda(1)*llconst%fc1+ &
-!             llconst%lambda(4)*llconst%fc4+ &
-!             llconst%lambda(5)*llconst%fc5
-!        fc3=-llconst%lambda(2)*llconst%fc2- &
-!             llconst%lambda(4)*llconst%fc4+ &
-!             llconst%lambda(6)*llconst%fc6
-!        fc4=-llconst%lambda(3)*llconst%fc3- &
-!             llconst%lambda(5)*llconst%fc5- &
-!             llconst%lambda(6)*llconst%fc6
-!        r1 = llconst%p1%r + imass1*dtsqby2*MATVEC_3X3 ( r_shake, fc1 )
-!        r2 = llconst%p2%r + imass2*dtsqby2*MATVEC_3X3 ( r_shake, fc2 )
-!        r3 = llconst%p3%r + imass3*dtsqby2*MATVEC_3X3 ( r_shake, fc3 )
-!        r4 = llconst%p4%r + imass3*dtsqby2*MATVEC_3X3 ( r_shake, fc4 )
-!        v1 = llconst%p1%v + imass1*dtby2*MATVEC_3X3 ( v_shake, fc1 )
-!        v2 = llconst%p2%v + imass2*dtby2*MATVEC_3X3 ( v_shake, fc2 )
-!        v3 = llconst%p3%v + imass3*dtby2*MATVEC_3X3 ( v_shake, fc3 )
-!        v4 = llconst%p4%v + imass3*dtby2*MATVEC_3X3 ( v_shake, fc4 )
-!        r12=r1-r2
-!        r13=r1-r3
-!        r14=r1-r4
-!        r23=r2-r3
-!        r24=r2-r4
-!        r34=r3-r4
-!
-!! compute the tolerance:
-!        sigma = dot_product(r12,r12) - llconst%d12*llconst%d12
-!        max_sigma=MAX(max_sigma,ABS(sigma))
-!        sigma = dot_product(r13,r13) - llconst%d13*llconst%d13
-!        max_sigma=MAX(max_sigma,ABS(sigma))
-!        sigma = dot_product(r14,r14) - llconst%d14*llconst%d14
-!        max_sigma=MAX(max_sigma,ABS(sigma))
-!        sigma = dot_product(r23,r23) - llconst%d23*llconst%d23
-!        max_sigma=MAX(max_sigma,ABS(sigma))
-!        sigma = dot_product(r24,r24) - llconst%d24*llconst%d24
-!        max_sigma=MAX(max_sigma,ABS(sigma))
-!        sigma = dot_product(r34,r34) - llconst%d34*llconst%d34
-!        max_sigma=MAX(max_sigma,ABS(sigma))
-!     END DO CONS
-!
-!! update positions with full multiplier
-!     llconst%p1%r = r1
-!     llconst%p2%r = r2
-!     llconst%p3%r = r3
-!     llconst%p4%r = r4
-!
-!! update velocites with full multiplier
-!     llconst%p1%v = v1
-!     llconst%p2%v = v2
-!     llconst%p3%v = v3
-!     llconst%p4%v = v4
-!     llconst => llconst%next
-!
-!  END DO
-!
-!END SUBROUTINE shake_roll_4x6
-!
+
+  dtsqby2 = simpar%dt*simpar%dt*.5_dbl
+  idtsq = 1._dbl/simpar%dt/simpar%dt
+  dtby2 = simpar%dt*.5_dbl
+  molecule_kind => molecule % molecule_kind
+  CALL get_molecule_kind ( molecule_kind, ng4x6 = ng4x6, g4x6_list = g4x6_list )
+  CALL get_molecule ( molecule, first_atom = first_atom, lg4x6=lg4x6 )
+  DO iconst = 1, ng4x6
+     ishake=0
+     index_a = g4x6_list ( iconst ) % a + first_atom -1
+     index_b = g4x6_list ( iconst ) % b + first_atom -1
+     index_c = g4x6_list ( iconst ) % c + first_atom -1
+     index_d = g4x6_list ( iconst ) % d + first_atom -1
+     r0_12 ( : ) = pos ( :, index_a ) - pos ( :,index_b ) 
+     r0_13 ( : ) = pos ( :, index_a ) - pos ( :,index_c ) 
+     r0_23 ( : ) = pos ( :, index_b ) - pos ( :,index_c ) 
+     r0_14 ( : ) = pos ( :, index_a ) - pos ( :,index_d ) 
+     r0_24 ( : ) = pos ( :, index_b ) - pos ( :,index_d ) 
+     r0_34 ( : ) = pos ( :, index_c ) - pos ( :,index_d ) 
+     atomic_kind => particle_set ( index_a ) % atomic_kind
+     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+     imass1 = 1._dbl/mass
+     atomic_kind => particle_set ( index_b ) % atomic_kind
+     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+     imass2 = 1._dbl/mass
+     atomic_kind => particle_set ( index_c ) % atomic_kind
+     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+     imass3 = 1._dbl/mass
+     atomic_kind => particle_set ( index_d ) % atomic_kind
+     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+     imass4 = 1._dbl/mass
+     lg4x6 ( iconst ) % fa = -2._dbl*( lg4x6 ( iconst ) % ra_old - &
+                                       lg4x6 ( iconst ) % rb_old )
+     lg4x6 ( iconst ) % fb = -2._dbl*( lg4x6 ( iconst ) % ra_old - &
+                                       lg4x6 ( iconst ) % rc_old )
+     lg4x6 ( iconst ) % fc = -2._dbl*( lg4x6 ( iconst ) % ra_old - &
+                                       lg4x6 ( iconst ) % rd_old )
+     lg4x6 ( iconst ) % fd = -2._dbl*( lg4x6 ( iconst ) % rb_old - &
+                                       lg4x6 ( iconst ) % rc_old )
+     lg4x6 ( iconst ) % fe = -2._dbl*( lg4x6 ( iconst ) % rb_old - &
+                                       lg4x6 ( iconst ) % rd_old )
+     lg4x6 ( iconst ) % ff = -2._dbl*( lg4x6 ( iconst ) % rc_old - &
+                                       lg4x6 ( iconst ) % rd_old )
+! rotate fconst:
+     f_roll1 = matvec_3x3 ( r_shake, lg4x6 ( iconst ) % fa )
+     f_roll2 = matvec_3x3 ( r_shake, lg4x6 ( iconst ) % fb )
+     f_roll3 = matvec_3x3 ( r_shake, lg4x6 ( iconst ) % fc )
+     f_roll4 = matvec_3x3 ( r_shake, lg4x6 ( iconst ) % fd )
+     f_roll5 = matvec_3x3 ( r_shake, lg4x6 ( iconst ) % fe )
+     f_roll6 = matvec_3x3 ( r_shake, lg4x6 ( iconst ) % ff )
+
+! construct matrix
+     amat(1,1)=(imass1+imass2)*DOTPROD_3D(r0_12, f_roll1)
+     amat(1,2)=imass1*DOTPROD_3D(r0_12, f_roll2 )
+     amat(1,3)=imass1*DOTPROD_3D(r0_12, f_roll3 )
+     amat(1,4)=-imass2*DOTPROD_3D(r0_12, f_roll4 )
+     amat(1,5)=-imass2*DOTPROD_3D(r0_12, f_roll5 )
+     amat(1,6)=0._dbl
+
+     amat(2,1)=imass1*DOTPROD_3D(r0_13, f_roll1 )
+     amat(2,2)=(imass1+imass3)*DOTPROD_3D(r0_13, f_roll2 )
+     amat(2,3)=imass1*DOTPROD_3D(r0_13, f_roll3 )
+     amat(2,4)=imass3*DOTPROD_3D(r0_13, f_roll4 )
+     amat(2,5)=0._dbl
+     amat(2,6)=-imass3*DOTPROD_3D(r0_13, f_roll6 )
+
+     amat(3,1)=-imass1*DOTPROD_3D(r0_14, f_roll1 )
+     amat(3,2)=imass1*DOTPROD_3D(r0_14, f_roll2 )
+     amat(3,3)=(imass1+imass4)*DOTPROD_3D(r0_14, f_roll3 )
+     amat(3,4)=0._dbl
+     amat(3,5)=imass4*DOTPROD_3D(r0_14, f_roll5 )
+     amat(3,6)=imass4*DOTPROD_3D(r0_14, f_roll6 )
+
+     amat(4,1)=-imass2*DOTPROD_3D(r0_23, f_roll1 )
+     amat(4,2)=imass3*DOTPROD_3D(r0_23, f_roll2)
+     amat(4,3)=0._dbl
+     amat(4,4)=(imass3+imass2)*DOTPROD_3D(r0_23, f_roll4 )
+     amat(4,5)=imass2*DOTPROD_3D(r0_23, f_roll5 )
+     amat(4,6)=-imass3*DOTPROD_3D(r0_23, f_roll6 )
+
+     amat(5,1)=-imass2*DOTPROD_3D(r0_24, f_roll1 )
+     amat(5,2)=0._dbl
+     amat(5,3)=imass4*DOTPROD_3D(r0_24, f_roll3 )
+     amat(5,4)=imass2*DOTPROD_3D(r0_24, f_roll4 )
+     amat(5,5)=(imass4+imass2)*DOTPROD_3D(r0_24, f_roll5 )
+     amat(5,6)=imass4*DOTPROD_3D(r0_24, f_roll6 )
+
+     amat(6,1)=0._dbl
+     amat(6,2)=-imass3*DOTPROD_3D(r0_34, f_roll2 )
+     amat(6,3)=imass4*DOTPROD_3D(r0_34, f_roll3 )
+     amat(6,4)=-imass3*DOTPROD_3D(r0_34, f_roll4 )
+     amat(6,5)=imass4*DOTPROD_3D(r0_34, f_roll5 )
+     amat(6,6)=(imass3+imass4)*DOTPROD_3D(r0_34, f_roll6 )
+
+! Iterate until convergence:
+     max_sigma = -1.0E+10_dbl
+     CONS: DO WHILE (abs(max_sigma)>=simpar%shake_tol)
+        max_sigma=0._dbl
+        ishake=ishake+1
+        vec= lg4x6 ( iconst ) % lambda ( 1 ) * f_roll1*(imass1+imass2) + &
+             lg4x6 ( iconst ) % lambda ( 2 ) * imass1*f_roll2 + &
+             lg4x6 ( iconst ) % lambda ( 3 ) * imass1*f_roll3 - &
+             lg4x6 ( iconst ) % lambda ( 4 ) * imass2*f_roll4 - &
+             lg4x6 ( iconst ) % lambda ( 5 ) * imass2*f_roll5
+        bvec(1,1)=g4x6_list ( iconst ) % dab * g4x6_list ( iconst) % dab &
+                 -dtsqby2*dtsqby2*DOTPROD_3D(vec,vec)-DOTPROD_3D(r0_12,r0_12)
+        vec= lg4x6 ( iconst ) % lambda ( 2 ) * f_roll2 *(imass1+imass3) + &
+             lg4x6 ( iconst ) % lambda ( 1 ) * imass1*f_roll1 + &
+             lg4x6 ( iconst ) % lambda ( 3 ) * imass1*f_roll3 + &
+             lg4x6 ( iconst ) % lambda ( 4 ) * imass3*f_roll4 - &
+             lg4x6 ( iconst ) % lambda ( 6 ) * imass3*f_roll6
+        bvec(2,1)=g4x6_list ( iconst ) % dac * g4x6_list ( iconst) % dac &
+                 -dtsqby2*dtsqby2*DOTPROD_3D(vec,vec)-DOTPROD_3D(r0_13,r0_13)
+        vec= lg4x6 ( iconst ) % lambda ( 3 ) * f_roll3 *(imass1+imass4) + &
+             lg4x6 ( iconst ) % lambda ( 1 ) * imass1*f_roll1 + &
+             lg4x6 ( iconst ) % lambda ( 2 ) * imass1*f_roll2 + &
+             lg4x6 ( iconst ) % lambda ( 5 ) * imass4*f_roll5 + &
+             lg4x6 ( iconst ) % lambda ( 6 ) * imass4*f_roll6
+        bvec(3,1)=g4x6_list ( iconst ) % dad * g4x6_list ( iconst) % dad &
+                 -dtsqby2*dtsqby2*DOTPROD_3D(vec,vec)-DOTPROD_3D(r0_14,r0_14)
+        vec= lg4x6 ( iconst ) % lambda ( 4 ) * f_roll4 *(imass2+imass3) + &
+             lg4x6 ( iconst ) % lambda ( 1 ) * imass2*f_roll1 + &
+             lg4x6 ( iconst ) % lambda ( 2 ) * imass3*f_roll2 + &
+             lg4x6 ( iconst ) % lambda ( 5 ) * imass2*f_roll5 - &
+             lg4x6 ( iconst ) % lambda ( 6 ) * imass3*f_roll6
+        bvec(4,1)=g4x6_list ( iconst ) % dbc * g4x6_list ( iconst) % dbc &
+                 -dtsqby2*dtsqby2*DOTPROD_3D(vec,vec)-DOTPROD_3D(r0_23,r0_23)
+        vec= lg4x6 ( iconst ) % lambda ( 5 ) * f_roll5 *(imass2+imass4) - &
+             lg4x6 ( iconst ) % lambda ( 1 ) * imass2*f_roll1 + &
+             lg4x6 ( iconst ) % lambda ( 3 ) * imass4*f_roll3 + &
+             lg4x6 ( iconst ) % lambda ( 4 ) * imass2*f_roll4 + &
+             lg4x6 ( iconst ) % lambda ( 6 ) * imass4*f_roll6
+        bvec(5,1)=g4x6_list ( iconst ) % dbd * g4x6_list ( iconst) % dbd &
+                 -dtsqby2*dtsqby2*DOTPROD_3D(vec,vec)-DOTPROD_3D(r0_24,r0_24)
+        vec= lg4x6 ( iconst ) % lambda ( 6 ) * f_roll6 *(imass3+imass4) - &
+             lg4x6 ( iconst ) % lambda ( 2 ) * imass3*f_roll2 + &
+             lg4x6 ( iconst ) % lambda ( 3 ) * imass4*f_roll3 - &
+             lg4x6 ( iconst ) % lambda ( 4 ) * imass3*f_roll4 + &
+             lg4x6 ( iconst ) % lambda ( 5 ) * imass4*f_roll5
+        bvec(6,1)=g4x6_list ( iconst ) % dcd * g4x6_list ( iconst) % dcd &
+                 -dtsqby2*dtsqby2*DOTPROD_3D(vec,vec)-DOTPROD_3D(r0_34,r0_34)
+        bvec = bvec * idtsq
+
+! get lambda
+        atemp = amat
+        CALL solve_system ( atemp, 6, bvec )
+        lg4x6 ( iconst ) % lambda ( : ) = bvec ( :, 1 )
+
+        fc1=lg4x6 ( iconst ) % lambda ( 1 ) * lg4x6 ( iconst ) % fa + &
+            lg4x6 ( iconst ) % lambda ( 2 ) * lg4x6 ( iconst ) % fb + &
+            lg4x6 ( iconst ) % lambda ( 3 ) * lg4x6 ( iconst ) % fc 
+        fc2=-lg4x6 ( iconst ) % lambda ( 1 ) * lg4x6 ( iconst ) % fa + &
+            lg4x6 ( iconst ) % lambda ( 4 ) * lg4x6 ( iconst ) % fd + &
+            lg4x6 ( iconst ) % lambda ( 5 ) * lg4x6 ( iconst ) % fe 
+        fc3=-lg4x6 ( iconst ) % lambda ( 2 ) * lg4x6 ( iconst ) % fb - &
+            lg4x6 ( iconst ) % lambda ( 4 ) * lg4x6 ( iconst ) % fd + &
+            lg4x6 ( iconst ) % lambda ( 6 ) * lg4x6 ( iconst ) % ff 
+        fc4=-lg4x6 ( iconst ) % lambda ( 3 ) * lg4x6 ( iconst ) % fc - &
+            lg4x6 ( iconst ) % lambda ( 5 ) * lg4x6 ( iconst ) % fe - &
+            lg4x6 ( iconst ) % lambda ( 6 ) * lg4x6 ( iconst ) % ff 
+        r1 ( : ) = pos ( :, index_a ) + imass1*dtsqby2*MATVEC_3x3(r_shake,fc1)
+        r2 ( : ) = pos ( :, index_b ) + imass2*dtsqby2*MATVEC_3x3(r_shake,fc2)
+        r3 ( : ) = pos ( :, index_c ) + imass3*dtsqby2*MATVEC_3x3(r_shake,fc3)
+        r4 ( : ) = pos ( :, index_d ) + imass4*dtsqby2*MATVEC_3x3(r_shake,fc4)
+        v1 ( : ) = vel ( :, index_a ) + imass1*dtby2*MATVEC_3x3(r_shake,fc1)
+        v2 ( : ) = vel ( :, index_b ) + imass2*dtby2*MATVEC_3x3(r_shake,fc2)
+        v3 ( : ) = vel ( :, index_c ) + imass3*dtby2*MATVEC_3x3(r_shake,fc3)
+        v4 ( : ) = vel ( :, index_d ) + imass4*dtby2*MATVEC_3x3(r_shake,fc4)
+        r12=r1-r2
+        r13=r1-r3
+        r23=r2-r3
+        r14=r1-r4
+        r24=r2-r4
+        r34=r3-r4
+! compute the tolerance:
+        sigma = dot_product(r12,r12) - g4x6_list ( iconst ) % dab *  &
+                                       g4x6_list ( iconst ) % dab
+        max_sigma=MAX(max_sigma,ABS(sigma))
+        sigma = dot_product(r13,r13) - g4x6_list ( iconst ) % dac *  &
+                                       g4x6_list ( iconst ) % dac
+        max_sigma=MAX(max_sigma,ABS(sigma))
+        sigma = dot_product(r14,r14) - g4x6_list ( iconst ) % dad *  &
+                                       g4x6_list ( iconst ) % dad
+        max_sigma=MAX(max_sigma,ABS(sigma))
+        sigma = dot_product(r23,r23) - g4x6_list ( iconst ) % dbc *  &
+                                       g4x6_list ( iconst ) % dbc
+        max_sigma=MAX(max_sigma,ABS(sigma))
+        sigma = dot_product(r24,r24) - g4x6_list ( iconst ) % dbd *  &
+                                       g4x6_list ( iconst ) % dbd
+        max_sigma=MAX(max_sigma,ABS(sigma))
+        sigma = dot_product(r34,r34) - g4x6_list ( iconst ) % dcd *  &
+                                       g4x6_list ( iconst ) % dcd
+        max_sigma=MAX(max_sigma,ABS(sigma))
+     END DO CONS
+
+! update positions with full multiplier
+     pos ( :, index_a ) = r1 ( : )
+     pos ( :, index_b ) = r2 ( : )
+     pos ( :, index_c ) = r3 ( : )
+     pos ( :, index_d ) = r4 ( : )
+
+! update velocites with full multiplier
+     vel ( :, index_a ) = v1 ( : )
+     vel ( :, index_b ) = v2 ( : )
+     vel ( :, index_c ) = v3 ( : )
+     vel ( :, index_d ) = v4 ( : )
+  END DO
+
+END SUBROUTINE shake_roll_4x6
 !!******************************************************************************
 
-!SUBROUTINE rattle_roll_3x3(molecule,simpar,r_rattle,veps,max_sigma,irattle)
-!
-!
-!    TYPE(molecule_structure_type), &
-!      INTENT(INOUT)                          :: molecule
-!    TYPE(simulation_parameters_type), &
-!      INTENT(IN)                             :: simpar
-!    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: r_rattle, veps
-!    REAL(dbl), INTENT(INOUT)                 :: max_sigma
-!    INTEGER, INTENT(IN)                      :: irattle
-!
-!    INTEGER                                  :: iconst
-!    REAL(dbl)                                :: dtby2, idt, imass1, imass2, &
-!                                                imass3, mass, sigma_dot
-!    REAL(dbl), DIMENSION(3)                  :: f_roll1, f_roll2, f_roll3, &
-!                                                fc1, fc2, fc3, lambda, r12, &
-!                                                r13, r23, v12, v12_0, v13, &
-!                                                v13_0, v23, v23_0
-!    REAL(dbl), DIMENSION(3, 1)               :: bvec
-!    REAL(dbl), DIMENSION(3, 3)               :: amat
-!    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-!    TYPE(linklist_g3x3_constraints), POINTER :: llconst
-!
-!!------------------------------------------------------------------------------
-!! define local variables
-!
-!  idt = 1._dbl/simpar%dt
-!  dtby2 = simpar%dt*.5_dbl
-!  IF (irattle==1) THEN
-!     llconst => molecule % ll_g3x3_const
-!     DO iconst = 1, molecule % ng3x3const_mol
-!        llconst % vold1 = llconst % p1 % v
-!        llconst % vold2 = llconst % p2 % v
-!        llconst % vold3 = llconst % p3 % v
-!        atomic_kind=>llconst%p1%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!        imass1 = 1._dbl/mass
-!        atomic_kind=>llconst%p2%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!        imass2 = 1._dbl/mass
-!        atomic_kind=>llconst%p3%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!        imass3 = 1._dbl/mass
-!        llconst%fc1 = -2._dbl*(llconst%p1%r-llconst%p2%r)
-!        llconst%fc2 = -2._dbl*(llconst%p1%r-llconst%p3%r)
-!        llconst%fc3 = -2._dbl*(llconst%p2%r-llconst%p3%r)
-!        fc1=llconst%lambda(1)*llconst%fc1+ &
-!             llconst%lambda(2)*llconst%fc2
-!        fc2=-llconst%lambda(1)*llconst%fc1+ &
-!             llconst%lambda(3)*llconst%fc3
-!        fc3=-llconst%lambda(2)*llconst%fc2- &
-!             llconst%lambda(3)*llconst%fc3
-!        llconst%p1%v=llconst%p1%v+imass1*dtby2*MATVEC_3X3 ( r_rattle, fc1 )
-!        llconst%p2%v=llconst%p2%v+imass2*dtby2*MATVEC_3X3 ( r_rattle, fc2 )
-!        llconst%p3%v=llconst%p3%v+imass3*dtby2*MATVEC_3X3 ( r_rattle, fc3 )
-!        llconst => llconst%next
-!     END DO
-!     max_sigma = -1.0E+10_dbl
-!
-!  ELSE
-!
-!     llconst => molecule%ll_g3x3_const
-!     DO iconst = 1, molecule%ng3x3const_mol
-!        v12_0=llconst%vold1-llconst%vold2
-!        v13_0=llconst%vold1-llconst%vold3
-!        v23_0=llconst%vold2-llconst%vold3
-!        r12=llconst%p1%r-llconst%p2%r
-!        r13=llconst%p1%r-llconst%p3%r
-!        r23=llconst%p2%r-llconst%p3%r
-!        atomic_kind=>llconst%p1%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!        imass1 = 1._dbl/mass
-!        atomic_kind=>llconst%p2%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!        imass2 = 1._dbl/mass
-!        atomic_kind=>llconst%p3%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!        imass3 = 1._dbl/mass
-!        llconst%fc1 = -2._dbl*(llconst%p1%r-llconst%p2%r)
-!        llconst%fc2 = -2._dbl*(llconst%p1%r-llconst%p3%r)
-!        llconst%fc3 = -2._dbl*(llconst%p2%r-llconst%p3%r)
-!
-!! roll the fc
-!        f_roll1 = MATVEC_3x3 ( r_rattle, llconst % fc1 )
-!        f_roll2 = MATVEC_3x3 ( r_rattle, llconst % fc2 )
-!        f_roll3 = MATVEC_3x3 ( r_rattle, llconst % fc3 )
-!
-!! construct matrix
-!        amat(1,1)=(imass1+imass2)*DOTPROD_3D(r12,f_roll1)
-!        amat(1,2)=imass1*DOTPROD_3D(r12,f_roll2)
-!        amat(1,3)=-imass2*DOTPROD_3D(r12,f_roll3)
-!        amat(2,1)=imass1*DOTPROD_3D(r13,f_roll1)
-!        amat(2,2)=(imass1+imass3)*DOTPROD_3D(r13,f_roll2)
-!        amat(2,3)=imass3*DOTPROD_3D(r13,f_roll3)
-!        amat(3,1)=-imass2*DOTPROD_3D(r23,f_roll1)
-!        amat(3,2)=imass3*DOTPROD_3D(r23,f_roll2)
-!        amat(3,3)=(imass2+imass3)*DOTPROD_3D(r23,f_roll3)
-!
-!! construct solution vector
-!        bvec ( 1, 1 ) = DOTPROD_3D ( r12, v12_0 + MATVEC_3X3 ( veps, r12 ) )
-!        bvec ( 2, 1 ) = DOTPROD_3D ( r13, v13_0 + MATVEC_3X3 ( veps, r13 ) )
-!        bvec ( 3, 1 ) = DOTPROD_3D ( r23, v23_0 + MATVEC_3X3 ( veps, r23 ) )
-!        bvec = -bvec * 2.0_dbl * idt
-!
-!! get lambda
-!        CALL solve_system ( amat, 3, bvec )
-!        lambda ( : ) = bvec ( :, 1 )
-!        llconst % del_lam = lambda - llconst % lambda
-!
-!! update velocities
-!        fc1 = llconst % del_lam ( 1 ) * f_roll1 + &
-!              llconst % del_lam ( 2 ) * f_roll2
-!        fc2 = -llconst % del_lam ( 1 ) * f_roll1 + &
-!               llconst % del_lam ( 3 ) * f_roll3
-!        fc3 = -llconst % del_lam ( 2 ) * f_roll2 - &
-!               llconst % del_lam ( 3 ) * f_roll3
-!
-!        llconst % p1 % v = llconst % p1 % v + imass1 * dtby2 * fc1
-!        llconst % p2 % v = llconst % p2 % v + imass2 * dtby2 * fc2
-!        llconst % p3 % v = llconst % p3 % v + imass3 * dtby2 * fc3
-!
-!! computing the convergence of the sigma_dot
-!        v12 = llconst % p1 % v - llconst % p2 % v
-!        sigma_dot=2._dbl*DOTPROD_3D(r12,v12+MATVEC_3X3(veps,r12))
-!        max_sigma = MAX(ABS(sigma_dot),max_sigma)
-!
-!        v13=llconst%p1%v-llconst%p3%v
-!        sigma_dot=2._dbl*DOTPROD_3D(r13,v13+MATVEC_3X3(veps,r13))
-!        max_sigma = MAX(ABS(sigma_dot),max_sigma)
-!
-!        v23=llconst%p2%v-llconst%p3%v
-!        sigma_dot=2._dbl*DOTPROD_3D(r23,v23+MATVEC_3X3(veps,r23))
-!        max_sigma = MAX(ABS(sigma_dot),max_sigma)
-!
-!        llconst%lambda=lambda
-!        llconst => llconst%next
-!     END DO
-!
-!  END IF
-!
-!END SUBROUTINE rattle_roll_3x3
-!
+SUBROUTINE rattle_roll_3x3( molecule, particle_set, vel, r_rattle, simpar, &
+                            veps, max_sigma, irattle )
+    IMPLICIT NONE
+
+    TYPE ( molecule_type ), POINTER                   :: molecule
+    REAL ( dbl ), INTENT ( INOUT )                    :: vel ( :, : )
+    TYPE ( particle_type ), POINTER                   :: particle_set ( : )
+    TYPE(simulation_parameters_type), &
+    INTENT(IN)                             :: simpar
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: r_rattle, veps
+    REAL(dbl), INTENT(INOUT)                 :: max_sigma
+    INTEGER, INTENT(IN)                      :: irattle
+
+! locals
+    INTEGER                                  :: iconst, index_a, index_b, index_c
+    INTEGER                                  :: first_atom, ng3x3
+    REAL(dbl)                                :: dtby2, idt, imass1, imass2, &
+                                                imass3, mass, sigma_dot
+    REAL(dbl), DIMENSION(3)                  :: f_roll1, f_roll2, f_roll3
+    REAL(dbl), DIMENSION(3)                  :: fc1, fc2, fc3, r12, r13, r23, &
+                                                v12, v13, v23, &
+                                                v12_0, v13_0, v23_0, lambda
+    REAL(dbl), DIMENSION(3, 1)               :: bvec
+    REAL(dbl), DIMENSION(3, 3)               :: amat
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(molecule_kind_type ), POINTER       :: molecule_kind
+    TYPE ( local_g3x3_constraint_type ), POINTER   :: lg3x3 ( : )
+    TYPE ( g3x3_constraint_type ), POINTER   :: g3x3_list ( : )
+
+!------------------------------------------------------------------------------
+! define local variables
+
+  idt = 1._dbl/simpar%dt
+  dtby2 = simpar%dt*.5_dbl
+  molecule_kind => molecule % molecule_kind
+  CALL get_molecule_kind ( molecule_kind, ng3x3 = ng3x3, g3x3_list = g3x3_list )
+  CALL get_molecule ( molecule, first_atom = first_atom, lg3x3=lg3x3 )
+  IF (irattle==1) THEN
+    DO iconst = 1, SIZE ( g3x3_list )
+       index_a = g3x3_list ( iconst ) % a + first_atom - 1
+       index_b = g3x3_list ( iconst ) % b + first_atom - 1
+       index_c = g3x3_list ( iconst ) % c + first_atom - 1
+       lg3x3 ( iconst ) % va_old = vel ( :, index_a )
+       lg3x3 ( iconst ) % vb_old = vel ( :, index_b )
+       lg3x3 ( iconst ) % vc_old = vel ( :, index_c )
+       r12 ( : ) = particle_set ( index_a ) % r ( : ) - particle_set ( index_b ) % r ( : )
+       r13 ( : ) = particle_set ( index_a ) % r ( : ) - particle_set ( index_c ) % r ( : )
+       r23 ( : ) = particle_set ( index_b ) % r ( : ) - particle_set ( index_c ) % r ( : )
+       atomic_kind=>particle_set ( index_a ) % atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+       imass1 = 1._dbl/mass
+       atomic_kind=>particle_set ( index_b ) % atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+       imass2 = 1._dbl/mass
+       atomic_kind=>particle_set ( index_c ) % atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+       imass3 = 1._dbl/mass
+       lg3x3 ( iconst ) % fa = -2._dbl* r12
+       lg3x3 ( iconst ) % fb = -2._dbl* r13
+       lg3x3 ( iconst ) % fc = -2._dbl* r23
+       fc1=lg3x3 ( iconst ) % lambda ( 1 ) * lg3x3 ( iconst ) % fa + &
+           lg3x3 ( iconst ) % lambda ( 2 ) * lg3x3 ( iconst ) % fb
+       fc2=-lg3x3 ( iconst ) % lambda ( 1 ) * lg3x3 ( iconst ) % fa + &
+           lg3x3 ( iconst ) % lambda ( 3 ) * lg3x3 ( iconst ) % fc
+       fc3=-lg3x3 ( iconst ) % lambda ( 2 ) * lg3x3 ( iconst ) % fb - &
+           lg3x3 ( iconst ) % lambda ( 3 ) * lg3x3 ( iconst ) % fc
+       vel ( :, index_a ) = vel ( :, index_a ) + imass1 * dtby2 * MATVEC_3X3 ( r_rattle, fc1 )
+       vel ( :, index_b ) = vel ( :, index_b ) + imass2 * dtby2 * MATVEC_3X3 ( r_rattle, fc2 )
+       vel ( :, index_c ) = vel ( :, index_c ) + imass3 * dtby2 * MATVEC_3X3 ( r_rattle, fc3 )
+    END DO
+    max_sigma = -1.0E+10_dbl
+  ELSE
+    DO iconst = 1, SIZE ( g3x3_list )
+       index_a = g3x3_list ( iconst ) % a + first_atom - 1
+       index_b = g3x3_list ( iconst ) % b + first_atom - 1
+       index_c = g3x3_list ( iconst ) % c + first_atom - 1
+       v12_0=lg3x3 ( iconst ) % va_old - lg3x3 ( iconst ) % vb_old
+       v13_0=lg3x3 ( iconst ) % va_old - lg3x3 ( iconst ) % vc_old
+       v23_0=lg3x3 ( iconst ) % vb_old - lg3x3 ( iconst ) % vc_old
+       r12 ( : ) = particle_set ( index_a ) % r ( : ) - particle_set ( index_b ) % r ( : )
+       r13 ( : ) = particle_set ( index_a ) % r ( : ) - particle_set ( index_c ) % r ( : )
+       r23 ( : ) = particle_set ( index_b ) % r ( : ) - particle_set ( index_c ) % r ( : )
+       atomic_kind=>particle_set ( index_a ) % atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+       imass1 = 1._dbl/mass
+       atomic_kind=>particle_set ( index_b ) % atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+       imass2 = 1._dbl/mass
+       atomic_kind=>particle_set ( index_c ) % atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+       imass3 = 1._dbl/mass
+       lg3x3 ( iconst ) % fa = -2._dbl* r12
+       lg3x3 ( iconst ) % fb = -2._dbl* r13
+       lg3x3 ( iconst ) % fc = -2._dbl* r23
+
+! roll the fc
+       f_roll1 = MATVEC_3x3 ( r_rattle, lg3x3 ( iconst ) % fa )
+       f_roll2 = MATVEC_3x3 ( r_rattle, lg3x3 ( iconst ) % fb )
+       f_roll3 = MATVEC_3x3 ( r_rattle, lg3x3 ( iconst ) % fc )
+
+! construct matrix
+       amat(1,1)=(imass1+imass2)*DOTPROD_3D(r12, f_roll1 )
+       amat(1,2)=imass1*DOTPROD_3D(r12, f_roll2 )
+       amat(1,3)=-imass2*DOTPROD_3D(r12,f_roll3 )
+       amat(2,1)=imass1*DOTPROD_3D(r13, f_roll1 )
+       amat(2,2)=(imass1+imass3)*DOTPROD_3D(r13, f_roll2 )
+       amat(2,3)=imass3*DOTPROD_3D(r13, f_roll3 )
+       amat(3,1)=-imass2*DOTPROD_3D(r23,f_roll1 )
+       amat(3,2)=imass3*DOTPROD_3D(r23, f_roll2 )
+       amat(3,3)=(imass2+imass3)*DOTPROD_3D(r23, f_roll3 )
+
+! construct solution vector
+       bvec ( 1, 1 ) = DOTPROD_3D ( r12, v12_0 + MATVEC_3X3 ( veps, r12 ) )
+       bvec ( 2, 1 ) = DOTPROD_3D ( r13, v13_0 + MATVEC_3X3 ( veps, r13 ) )
+       bvec ( 3, 1 ) = DOTPROD_3D ( r23, v23_0 + MATVEC_3X3 ( veps, r23 ) )
+       bvec = -bvec * 2.0_dbl * idt
+
+! get lambda
+       CALL solve_system ( amat, 3, bvec )
+       lambda ( : ) = bvec ( :, 1 )
+       lg3x3 ( iconst ) % del_lam ( : )= lambda - lg3x3 ( iconst ) % lambda 
+
+       fc1=lg3x3 ( iconst ) % del_lam ( 1 ) * f_roll1 + &
+           lg3x3 ( iconst ) % del_lam ( 2 ) * f_roll2
+       fc2=-lg3x3 ( iconst ) % del_lam ( 1 ) * f_roll1 + &
+           lg3x3 ( iconst ) % del_lam ( 3 ) * f_roll3
+       fc3=-lg3x3 ( iconst ) % del_lam ( 2 ) * f_roll2 - &
+           lg3x3 ( iconst ) % del_lam ( 3 ) * f_roll3
+       vel ( :, index_a ) = vel ( :, index_a ) + imass1 * dtby2 * fc1 ( : )
+       vel ( :, index_b ) = vel ( :, index_b ) + imass2 * dtby2 * fc2 ( : )
+       vel ( :, index_c ) = vel ( :, index_c ) + imass3 * dtby2 * fc3 ( : )
+! computing the convergence of the sigma_dot
+       v12 = vel ( :, index_a ) - vel ( :, index_b ) 
+       sigma_dot=2._dbl*DOTPROD_3D(r12,v12+MATVEC_3X3(veps,r12))
+       max_sigma = MAX(ABS(sigma_dot),max_sigma)
+
+       v13 = vel ( :, index_a ) - vel ( :, index_c ) 
+       sigma_dot=2._dbl*DOTPROD_3D(r13,v13+MATVEC_3X3(veps,r13))
+       max_sigma = MAX(ABS(sigma_dot),max_sigma)
+
+       v23 = vel ( :, index_b ) - vel ( :, index_c ) 
+       sigma_dot=2._dbl*DOTPROD_3D(r23,v23+MATVEC_3X3(veps,r23))
+       max_sigma = MAX(ABS(sigma_dot),max_sigma)
+
+       lg3x3 ( iconst ) % lambda = lambda
+    END DO
+  END IF
+
+END SUBROUTINE rattle_roll_3x3
 !******************************************************************************
 
 SUBROUTINE rattle_3x3( molecule, particle_set, vel, simpar)
@@ -1315,9 +1373,7 @@ SUBROUTINE rattle_4x6( molecule, particle_set, vel, simpar)
     REAL(dbl), DIMENSION(6, 6)               :: amat
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type ), POINTER       :: molecule_kind
-    TYPE ( local_dist_constraint_type ), POINTER   :: ldist ( : )
     TYPE ( local_g4x6_constraint_type ), POINTER   :: lg4x6 ( : )
-    TYPE ( dist_constraint_type ), POINTER   :: dist_list ( : )
     TYPE ( g4x6_constraint_type ), POINTER   :: g4x6_list ( : )
 
 !------------------------------------------------------------------------------
@@ -1422,258 +1478,262 @@ SUBROUTINE rattle_4x6( molecule, particle_set, vel, simpar)
      lg4x6 ( iconst ) % lambda ( : )=bvec ( :, 1 )
 
      fc1=lg4x6 ( iconst ) % lambda ( 1 ) * lg4x6 ( iconst ) % fa + &
-          lg4x6 ( iconst ) % lambda ( 2 ) * lg4x6 ( iconst ) % fb + &
-          lg4x6 ( iconst ) % lambda ( 3 ) * lg4x6 ( iconst ) % fc 
-      fc2=-lg4x6 ( iconst ) % lambda ( 1 ) * lg4x6 ( iconst ) % fa + &
-          lg4x6 ( iconst ) % lambda ( 4 ) * lg4x6 ( iconst ) % fd + &
-          lg4x6 ( iconst ) % lambda ( 5 ) * lg4x6 ( iconst ) % fe 
-      fc3=-lg4x6 ( iconst ) % lambda ( 2 ) * lg4x6 ( iconst ) % fb - &
-          lg4x6 ( iconst ) % lambda ( 4 ) * lg4x6 ( iconst ) % fd + &
-          lg4x6 ( iconst ) % lambda ( 6 ) * lg4x6 ( iconst ) % ff 
-      fc4=-lg4x6 ( iconst ) % lambda ( 3 ) * lg4x6 ( iconst ) % fc - &
-          lg4x6 ( iconst ) % lambda ( 5 ) * lg4x6 ( iconst ) % fe - &
-          lg4x6 ( iconst ) % lambda ( 6 ) * lg4x6 ( iconst ) % ff 
-      vel ( :, index_a ) = vel ( :, index_a ) + imass1 * dtby2 * fc1 ( : )
-      vel ( :, index_b ) = vel ( :, index_b ) + imass2 * dtby2 * fc2 ( : )
-      vel ( :, index_c ) = vel ( :, index_c ) + imass3 * dtby2 * fc3 ( : )
-      vel ( :, index_d ) = vel ( :, index_d ) + imass3 * dtby2 * fc4 ( : )
+         lg4x6 ( iconst ) % lambda ( 2 ) * lg4x6 ( iconst ) % fb + &
+         lg4x6 ( iconst ) % lambda ( 3 ) * lg4x6 ( iconst ) % fc 
+     fc2=-lg4x6 ( iconst ) % lambda ( 1 ) * lg4x6 ( iconst ) % fa + &
+         lg4x6 ( iconst ) % lambda ( 4 ) * lg4x6 ( iconst ) % fd + &
+         lg4x6 ( iconst ) % lambda ( 5 ) * lg4x6 ( iconst ) % fe 
+     fc3=-lg4x6 ( iconst ) % lambda ( 2 ) * lg4x6 ( iconst ) % fb - &
+         lg4x6 ( iconst ) % lambda ( 4 ) * lg4x6 ( iconst ) % fd + &
+         lg4x6 ( iconst ) % lambda ( 6 ) * lg4x6 ( iconst ) % ff 
+     fc4=-lg4x6 ( iconst ) % lambda ( 3 ) * lg4x6 ( iconst ) % fc - &
+         lg4x6 ( iconst ) % lambda ( 5 ) * lg4x6 ( iconst ) % fe - &
+         lg4x6 ( iconst ) % lambda ( 6 ) * lg4x6 ( iconst ) % ff 
+     vel ( :, index_a ) = vel ( :, index_a ) + imass1 * dtby2 * fc1 ( : )
+     vel ( :, index_b ) = vel ( :, index_b ) + imass2 * dtby2 * fc2 ( : )
+     vel ( :, index_c ) = vel ( :, index_c ) + imass3 * dtby2 * fc3 ( : )
+     vel ( :, index_d ) = vel ( :, index_d ) + imass3 * dtby2 * fc4 ( : )
   END DO
 
 END SUBROUTINE rattle_4x6
 !!******************************************************************************
 !
-!!SUBROUTINE rattle_roll_4x6(molecule,simpar,r_rattle,veps,max_sigma,irattle)
-!
-!
-!    TYPE(molecule_structure_type), &
-!      INTENT(INOUT)                          :: molecule
-!    TYPE(simulation_parameters_type), &
-!      INTENT(IN)                             :: simpar
-!    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: r_rattle, veps
-!    REAL(dbl), INTENT(INOUT)                 :: max_sigma
-!    INTEGER, INTENT(IN)                      :: irattle
-!
-!    INTEGER                                  :: iconst
-!    REAL(dbl)                                :: dtby2, idt, imass1, imass2, &
-!                                                imass3, imass4, mass, &
-!                                                sigma_dot
-!    REAL(dbl), DIMENSION(3) :: f_roll1, f_roll2, f_roll3, f_roll4, f_roll5, &
-!      f_roll6, fc1, fc2, fc3, fc4, r12, r13, r14, r23, r24, r34, v12, v12_0, &
-!      v13, v13_0, v14, v14_0, v23, v23_0, v24, v24_0, v34, v34_0
-!    REAL(dbl), DIMENSION(6)                  :: lambda
-!    REAL(dbl), DIMENSION(6, 1)               :: bvec
-!    REAL(dbl), DIMENSION(6, 6)               :: amat
-!    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-!    TYPE(linklist_g4x6_constraints), POINTER :: llconst
-!
-!!------------------------------------------------------------------------------
-!! define local variables
-!
-!  idt = 1._dbl/simpar%dt
-!  dtby2 = simpar%dt*.5_dbl
-!  IF (irattle==1) THEN
-!     llconst => molecule % ll_g4x6_const
-!     DO iconst = 1, molecule % ng4x6const_mol
-!        llconst % vold1 = llconst % p1 % v
-!        llconst % vold2 = llconst % p2 % v
-!        llconst % vold3 = llconst % p3 % v
-!        llconst % vold4 = llconst % p4 % v
-!        atomic_kind=>llconst%p1%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!        imass1 = 1._dbl/mass
-!        atomic_kind=>llconst%p2%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!        imass2 = 1._dbl/mass
-!        atomic_kind=>llconst%p3%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!        imass3 = 1._dbl/mass
-!        atomic_kind=>llconst%p4%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!        imass4 = 1._dbl/mass
-!
-!        llconst%fc1 = -2._dbl*(llconst%p1%r-llconst%p2%r)
-!        llconst%fc2 = -2._dbl*(llconst%p1%r-llconst%p3%r)
-!        llconst%fc3 = -2._dbl*(llconst%p1%r-llconst%p4%r)
-!        llconst%fc4 = -2._dbl*(llconst%p2%r-llconst%p3%r)
-!        llconst%fc5 = -2._dbl*(llconst%p2%r-llconst%p4%r)
-!        llconst%fc6 = -2._dbl*(llconst%p3%r-llconst%p4%r)
-!
-!        fc1=llconst%lambda(1)*llconst%fc1+ &
-!             llconst%lambda(2)*llconst%fc2+ &
-!             llconst%lambda(3)*llconst%fc3
-!        fc2=-llconst%lambda(1)*llconst%fc1+ &
-!             llconst%lambda(4)*llconst%fc4+ &
-!             llconst%lambda(5)*llconst%fc5
-!        fc3=-llconst%lambda(2)*llconst%fc2- &
-!             llconst%lambda(4)*llconst%fc4+ &
-!             llconst%lambda(6)*llconst%fc6
-!        fc4=-llconst%lambda(3)*llconst%fc3- &
-!             llconst%lambda(5)*llconst%fc5- &
-!             llconst%lambda(6)*llconst%fc6
-!
-!        llconst%p1%v=llconst%p1%v+imass1*dtby2*MATVEC_3X3 ( r_rattle, fc1 )
-!        llconst%p2%v=llconst%p2%v+imass2*dtby2*MATVEC_3X3 ( r_rattle, fc2 )
-!        llconst%p3%v=llconst%p3%v+imass3*dtby2*MATVEC_3X3 ( r_rattle, fc3 )
-!        llconst%p4%v=llconst%p4%v+imass4*dtby2*MATVEC_3X3 ( r_rattle, fc4 )
-!        llconst => llconst%next
-!     END DO
-!     max_sigma = -1.0E+10_dbl
-!
-!  ELSE
-!
-!     llconst => molecule%ll_g4x6_const
-!     DO iconst = 1, molecule%ng4x6const_mol
-!        v12_0=llconst%vold1-llconst%vold2
-!        v13_0=llconst%vold1-llconst%vold3
-!        v23_0=llconst%vold2-llconst%vold3
-!        v14_0=llconst%vold1-llconst%vold4
-!        v24_0=llconst%vold2-llconst%vold4
-!        v34_0=llconst%vold3-llconst%vold4
-!
-!        r12=llconst%p1%r-llconst%p2%r
-!        r13=llconst%p1%r-llconst%p3%r
-!        r23=llconst%p2%r-llconst%p3%r
-!        r14=llconst%p1%r-llconst%p4%r
-!        r24=llconst%p2%r-llconst%p4%r
-!        r34=llconst%p3%r-llconst%p4%r
-!
-!        atomic_kind=>llconst%p1%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!        imass1 = 1._dbl/mass
-!        atomic_kind=>llconst%p2%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!        imass2 = 1._dbl/mass
-!        atomic_kind=>llconst%p3%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!        imass3 = 1._dbl/mass
-!        atomic_kind=>llconst%p4%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!        imass4 = 1._dbl/mass
-!
-!        llconst%fc1 = -2._dbl*(llconst%p1%r-llconst%p2%r)
-!        llconst%fc2 = -2._dbl*(llconst%p1%r-llconst%p3%r)
-!        llconst%fc3 = -2._dbl*(llconst%p1%r-llconst%p4%r)
-!        llconst%fc4 = -2._dbl*(llconst%p2%r-llconst%p3%r)
-!        llconst%fc5 = -2._dbl*(llconst%p2%r-llconst%p4%r)
-!        llconst%fc6 = -2._dbl*(llconst%p3%r-llconst%p4%r)
-!
-!! roll the fc
-!        f_roll1 = MATVEC_3x3 ( r_rattle, llconst % fc1 )
-!        f_roll2 = MATVEC_3x3 ( r_rattle, llconst % fc2 )
-!        f_roll3 = MATVEC_3x3 ( r_rattle, llconst % fc3 )
-!        f_roll4 = MATVEC_3x3 ( r_rattle, llconst % fc4 )
-!        f_roll5 = MATVEC_3x3 ( r_rattle, llconst % fc5 )
-!        f_roll6 = MATVEC_3x3 ( r_rattle, llconst % fc6 )
-!
-!! construct matrix
-!        amat(1,1)=(imass1+imass2)*DOTPROD_3D(r12,f_roll1)
-!        amat(1,2)=imass1*DOTPROD_3D(r12,f_roll2)
-!        amat(1,3)=imass1*DOTPROD_3D(r12,f_roll3)
-!        amat(1,4)=-imass2*DOTPROD_3D(r12,f_roll4)
-!        amat(1,5)=-imass2*DOTPROD_3D(r12,f_roll5)
-!        amat(1,6)=0._dbl
-!
-!        amat(2,1)=imass1*DOTPROD_3D(r13,f_roll1)
-!        amat(2,2)=(imass1+imass3)*DOTPROD_3D(r13,f_roll2)
-!        amat(2,3)=imass1*DOTPROD_3D(r13,f_roll3)
-!        amat(2,4)=imass3*DOTPROD_3D(r13,f_roll4)
-!        amat(2,5)=0._dbl
-!        amat(2,6)=imass3*DOTPROD_3D(r13,f_roll5)
-!
-!        amat(3,1)=imass1*DOTPROD_3D(r14,f_roll1)
-!        amat(3,2)=imass1*DOTPROD_3D(r14,f_roll2)
-!        amat(3,3)=(imass1+imass4)*DOTPROD_3D(r14,f_roll3)
-!        amat(3,4)=0._dbl
-!        amat(3,5)=imass4*DOTPROD_3D(r14,f_roll5)
-!        amat(3,6)=imass4*DOTPROD_3D(r14,f_roll6)
-!
-!        amat(4,1)=-imass2*DOTPROD_3D(r23,f_roll1)
-!        amat(4,2)=imass3*DOTPROD_3D(r23,f_roll2)
-!        amat(4,3)=0._dbl
-!        amat(4,4)=(imass2+imass3)*DOTPROD_3D(r23,f_roll4)
-!        amat(4,5)=imass2*DOTPROD_3D(r23,f_roll5)
-!        amat(4,6)=-imass3*DOTPROD_3D(r23,f_roll6)
-!
-!        amat(5,1)=-imass2*DOTPROD_3D(r24,f_roll1)
-!        amat(5,2)=0._dbl
-!        amat(5,3)=imass4*DOTPROD_3D(r24,f_roll3)
-!        amat(5,4)=imass2*DOTPROD_3D(r24,f_roll4)
-!        amat(5,5)=(imass2+imass4)*DOTPROD_3D(r24,f_roll5)
-!        amat(5,6)=imass4*DOTPROD_3D(r24,f_roll6)
-!
-!        amat(6,1)=0._dbl
-!        amat(6,2)=-imass3*DOTPROD_3D(r34,f_roll2)
-!        amat(6,3)=imass4*DOTPROD_3D(r34,f_roll3)
-!        amat(6,4)=-imass3*DOTPROD_3D(r34,f_roll4)
-!        amat(6,5)=imass4*DOTPROD_3D(r34,f_roll5)
-!        amat(6,6)=(imass3+imass4)*DOTPROD_3D(r34,f_roll6)
-!
-!! construct solution vector
-!        bvec ( 1, 1 ) = DOTPROD_3D ( r12, v12_0 + MATVEC_3X3 ( veps, r12 ) )
-!        bvec ( 2, 1 ) = DOTPROD_3D ( r13, v13_0 + MATVEC_3X3 ( veps, r13 ) )
-!        bvec ( 3, 1 ) = DOTPROD_3D ( r14, v14_0 + MATVEC_3X3 ( veps, r14 ) )
-!        bvec ( 4, 1 ) = DOTPROD_3D ( r23, v23_0 + MATVEC_3X3 ( veps, r23 ) )
-!        bvec ( 5, 1 ) = DOTPROD_3D ( r24, v24_0 + MATVEC_3X3 ( veps, r24 ) )
-!        bvec ( 6, 1 ) = DOTPROD_3D ( r34, v34_0 + MATVEC_3X3 ( veps, r34 ) )
-!        bvec = -bvec * 2.0_dbl * idt
-!
-!
-!! get lambda
-!        CALL solve_system ( amat, 6, bvec )
-!        lambda ( : ) = bvec ( :, 1 )
-!        llconst % del_lam = lambda - llconst % lambda
-!
-!! update velocities
-!        fc1=llconst%del_lam(1)*f_roll1+ &
-!             llconst%del_lam(2)*f_roll2+ &
-!             llconst%del_lam(3)*f_roll3
-!        fc2=-llconst%del_lam(1)*f_roll1+ &
-!             llconst%del_lam(4)*f_roll4+ &
-!             llconst%del_lam(5)*f_roll5
-!        fc3=-llconst%del_lam(2)*f_roll2- &
-!             llconst%del_lam(4)*f_roll4+ &
-!             llconst%del_lam(6)*f_roll6
-!        fc4=-llconst%del_lam(3)*f_roll3- &
-!             llconst%del_lam(5)*f_roll5- &
-!             llconst%del_lam(6)*f_roll6
-!
-!        llconst % p1 % v = llconst % p1 % v + imass1 * dtby2 * fc1
-!        llconst % p2 % v = llconst % p2 % v + imass2 * dtby2 * fc2
-!        llconst % p3 % v = llconst % p3 % v + imass3 * dtby2 * fc3
-!        llconst % p4 % v = llconst % p4 % v + imass4 * dtby2 * fc4
-!
-!! computing the convergence of the sigma_dot
-!        v12 = llconst % p1 % v - llconst % p2 % v
-!        sigma_dot=2._dbl*DOTPROD_3D(r12,v12+MATVEC_3X3(veps,r12))
-!        max_sigma = MAX(ABS(sigma_dot),max_sigma)
-!
-!        v13=llconst%p1%v-llconst%p3%v
-!        sigma_dot=2._dbl*DOTPROD_3D(r13,v13+MATVEC_3X3(veps,r13))
-!        max_sigma = MAX(ABS(sigma_dot),max_sigma)
-!
-!        v14=llconst%p1%v-llconst%p4%v
-!        sigma_dot=2._dbl*DOTPROD_3D(r14,v14+MATVEC_3X3(veps,r14))
-!        max_sigma = MAX(ABS(sigma_dot),max_sigma)
-!
-!        v23=llconst%p2%v-llconst%p3%v
-!        sigma_dot=2._dbl*DOTPROD_3D(r23,v23+MATVEC_3X3(veps,r23))
-!        max_sigma = MAX(ABS(sigma_dot),max_sigma)
-!
-!        v24=llconst%p2%v-llconst%p4%v
-!        sigma_dot=2._dbl*DOTPROD_3D(r24,v24+MATVEC_3X3(veps,r24))
-!        max_sigma = MAX(ABS(sigma_dot),max_sigma)
-!
-!        v34=llconst%p3%v-llconst%p4%v
-!        sigma_dot=2._dbl*DOTPROD_3D(r34,v34+MATVEC_3X3(veps,r34))
-!        max_sigma = MAX(ABS(sigma_dot),max_sigma)
-!
-!        llconst%lambda=lambda
-!        llconst => llconst%next
-!     END DO
-!
-!  END IF
-!
-!END SUBROUTINE rattle_roll_4x6
+SUBROUTINE rattle_roll_4x6( molecule, particle_set, vel, r_rattle, simpar, &
+                            veps, max_sigma, irattle )
+    IMPLICIT NONE
+    TYPE ( molecule_type ), POINTER                   :: molecule
+    REAL ( dbl ), INTENT ( INOUT )                    :: vel ( :, : )
+    TYPE ( particle_type ), POINTER                   :: particle_set ( : )
+    TYPE(simulation_parameters_type), &
+    INTENT(IN)                             :: simpar
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: r_rattle, veps
+    REAL(dbl), INTENT(INOUT)                 :: max_sigma
+    INTEGER, INTENT(IN)                      :: irattle
+
+! locals
+    INTEGER                                  :: iconst, index_a, index_b, index_c, index_d
+    INTEGER                                  :: first_atom, ng4x6
+    REAL(dbl)                                :: dtby2, idt, imass1, imass2, &
+                                                imass3, imass4, mass, sigma_dot
+    REAL(dbl), DIMENSION(3)                  :: fc1, fc2, fc3, fc4, r12, r13, &
+                                                r14, r23, r24, r34, v12, v13, &
+                                                v14, v23, v24, v34
+    REAL(dbl), DIMENSION(6, 1)               :: bvec
+    REAL(dbl), DIMENSION(3) :: f_roll1, f_roll2, f_roll3, f_roll4, f_roll5, &
+                               f_roll6, v12_0, v13_0, v14_0, v23_0, v24_0, v34_0
+    REAL(dbl), DIMENSION(6)                  :: lambda
+    REAL(dbl), DIMENSION(6, 6)               :: amat
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(molecule_kind_type ), POINTER       :: molecule_kind
+    TYPE ( local_g4x6_constraint_type ), POINTER   :: lg4x6 ( : )
+    TYPE ( g4x6_constraint_type ), POINTER   :: g4x6_list ( : )
+!------------------------------------------------------------------------------
+! define local variables
+    idt = 1._dbl/simpar%dt
+    dtby2 = simpar%dt*.5_dbl
+    molecule_kind => molecule % molecule_kind
+    CALL get_molecule_kind ( molecule_kind, ng4x6 = ng4x6, g4x6_list = g4x6_list )
+    CALL get_molecule ( molecule, first_atom = first_atom, lg4x6=lg4x6 )
+   IF (irattle==1) THEN
+     DO iconst = 1, SIZE ( g4x6_list )
+       index_a = g4x6_list ( iconst ) % a + first_atom -1
+       index_b = g4x6_list ( iconst ) % b + first_atom -1
+       index_c = g4x6_list ( iconst ) % c + first_atom -1
+       index_d = g4x6_list ( iconst ) % d + first_atom -1
+       lg4x6 ( iconst ) % va_old  = vel ( :, index_a )
+       lg4x6 ( iconst ) % vb_old  = vel ( :, index_b )
+       lg4x6 ( iconst ) % vc_old  = vel ( :, index_c )
+       lg4x6 ( iconst ) % vd_old  = vel ( :, index_d )
+       r12 ( : ) = particle_set ( index_a ) % r ( : ) - particle_set ( index_b ) % r ( : )
+       r13 ( : ) = particle_set ( index_a ) % r ( : ) - particle_set ( index_c ) % r ( : )
+       r23 ( : ) = particle_set ( index_b ) % r ( : ) - particle_set ( index_c ) % r ( : )
+       r14 ( : ) = particle_set ( index_a ) % r ( : ) - particle_set ( index_d ) % r ( : )
+       r24 ( : ) = particle_set ( index_b ) % r ( : ) - particle_set ( index_d ) % r ( : )
+       r34 ( : ) = particle_set ( index_c ) % r ( : ) - particle_set ( index_d ) % r ( : )
+       atomic_kind => particle_set ( index_a ) % atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+       imass1 = 1._dbl/mass
+       atomic_kind => particle_set ( index_b ) % atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+       imass2 = 1._dbl/mass
+       atomic_kind => particle_set ( index_c ) % atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+       imass3 = 1._dbl/mass
+       atomic_kind => particle_set ( index_d ) % atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+       imass4 = 1._dbl/mass
+       lg4x6 ( iconst ) % fa = -2._dbl* r12
+       lg4x6 ( iconst ) % fb = -2._dbl* r13
+       lg4x6 ( iconst ) % fc = -2._dbl* r24
+       lg4x6 ( iconst ) % fd = -2._dbl* r23
+       lg4x6 ( iconst ) % fe = -2._dbl* r24
+       lg4x6 ( iconst ) % ff = -2._dbl* r34
+       fc1=lg4x6 ( iconst ) % lambda ( 1 ) * lg4x6 ( iconst ) % fa + &
+           lg4x6 ( iconst ) % lambda ( 2 ) * lg4x6 ( iconst ) % fb + &
+           lg4x6 ( iconst ) % lambda ( 3 ) * lg4x6 ( iconst ) % fc 
+       fc2=-lg4x6 ( iconst ) % lambda ( 1 ) * lg4x6 ( iconst ) % fa + &
+           lg4x6 ( iconst ) % lambda ( 4 ) * lg4x6 ( iconst ) % fd + &
+           lg4x6 ( iconst ) % lambda ( 5 ) * lg4x6 ( iconst ) % fe 
+       fc3=-lg4x6 ( iconst ) % lambda ( 2 ) * lg4x6 ( iconst ) % fb - &
+           lg4x6 ( iconst ) % lambda ( 4 ) * lg4x6 ( iconst ) % fd + &
+           lg4x6 ( iconst ) % lambda ( 6 ) * lg4x6 ( iconst ) % ff 
+       fc4=-lg4x6 ( iconst ) % lambda ( 3 ) * lg4x6 ( iconst ) % fc - &
+           lg4x6 ( iconst ) % lambda ( 5 ) * lg4x6 ( iconst ) % fe - &
+           lg4x6 ( iconst ) % lambda ( 6 ) * lg4x6 ( iconst ) % ff 
+       vel ( :, index_a ) = vel ( :, index_a ) + imass1 * dtby2 * MATVEC_3X3 ( r_rattle, fc1 )
+       vel ( :, index_b ) = vel ( :, index_b ) + imass2 * dtby2 * MATVEC_3X3 ( r_rattle, fc2 )
+       vel ( :, index_c ) = vel ( :, index_c ) + imass3 * dtby2 * MATVEC_3X3 ( r_rattle, fc3 )
+       vel ( :, index_d ) = vel ( :, index_d ) + imass3 * dtby2 * MATVEC_3X3 ( r_rattle, fc4 )
+     END DO
+     max_sigma = -1.0E+10_dbl
+   ELSE
+     DO iconst = 1, SIZE ( g4x6_list )
+       index_a = g4x6_list ( iconst ) % a + first_atom -1
+       index_b = g4x6_list ( iconst ) % b + first_atom -1
+       index_c = g4x6_list ( iconst ) % c + first_atom -1
+       index_d = g4x6_list ( iconst ) % d + first_atom -1
+       v12_0 = lg4x6 ( iconst ) % va_old - lg4x6 ( iconst ) % vb_old
+       v13_0 = lg4x6 ( iconst ) % va_old - lg4x6 ( iconst ) % vc_old
+       v23_0 = lg4x6 ( iconst ) % vb_old - lg4x6 ( iconst ) % vc_old
+       v14_0 = lg4x6 ( iconst ) % va_old - lg4x6 ( iconst ) % vd_old
+       v24_0 = lg4x6 ( iconst ) % vb_old - lg4x6 ( iconst ) % vd_old
+       v34_0 = lg4x6 ( iconst ) % vc_old - lg4x6 ( iconst ) % vd_old
+
+       r12 ( : ) = particle_set ( index_a ) % r ( : ) - particle_set ( index_b ) % r ( : )
+       r13 ( : ) = particle_set ( index_a ) % r ( : ) - particle_set ( index_c ) % r ( : )
+       r23 ( : ) = particle_set ( index_b ) % r ( : ) - particle_set ( index_c ) % r ( : )
+       r14 ( : ) = particle_set ( index_a ) % r ( : ) - particle_set ( index_d ) % r ( : )
+       r24 ( : ) = particle_set ( index_b ) % r ( : ) - particle_set ( index_d ) % r ( : )
+       r34 ( : ) = particle_set ( index_c ) % r ( : ) - particle_set ( index_d ) % r ( : )
+       atomic_kind => particle_set ( index_a ) % atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+       imass1 = 1._dbl/mass
+       atomic_kind => particle_set ( index_b ) % atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+       imass2 = 1._dbl/mass
+       atomic_kind => particle_set ( index_c ) % atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+       imass3 = 1._dbl/mass
+       atomic_kind => particle_set ( index_d ) % atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+       imass4 = 1._dbl/mass
+       lg4x6 ( iconst ) % fa = -2._dbl* r12
+       lg4x6 ( iconst ) % fb = -2._dbl* r13
+       lg4x6 ( iconst ) % fc = -2._dbl* r24
+       lg4x6 ( iconst ) % fd = -2._dbl* r23
+       lg4x6 ( iconst ) % fe = -2._dbl* r24
+       lg4x6 ( iconst ) % ff = -2._dbl* r34
+! roll the fc
+       f_roll1 = MATVEC_3x3 ( r_rattle, lg4x6 ( iconst ) % fa )
+       f_roll2 = MATVEC_3x3 ( r_rattle, lg4x6 ( iconst ) % fb )
+       f_roll3 = MATVEC_3x3 ( r_rattle, lg4x6 ( iconst ) % fc )
+       f_roll4 = MATVEC_3x3 ( r_rattle, lg4x6 ( iconst ) % fd )
+       f_roll5 = MATVEC_3x3 ( r_rattle, lg4x6 ( iconst ) % fe )
+       f_roll6 = MATVEC_3x3 ( r_rattle, lg4x6 ( iconst ) % ff )
+! construct matrix
+       amat(1,1)=(imass1+imass2)*DOTPROD_3D(r12,f_roll1 )
+       amat(1,2)=imass1*DOTPROD_3D(r12, f_roll2 )
+       amat(1,3)=imass1*DOTPROD_3D(r12, f_roll3 )
+       amat(1,4)=-imass2*DOTPROD_3D(r12, f_roll4 )
+       amat(1,5)=-imass2*DOTPROD_3D(r12, f_roll5 )
+       amat(1,6)=0._dbl
+
+       amat(2,1)=imass1*DOTPROD_3D(r13,f_roll1 )
+       amat(2,2)=(imass1+imass3)*DOTPROD_3D(r13, f_roll2)
+       amat(2,3)=imass1*DOTPROD_3D(r13, f_roll3 )
+       amat(2,4)=imass3*DOTPROD_3D(r13, f_roll4 )
+       amat(2,5)=0._dbl
+       amat(2,6)=-imass3*DOTPROD_3D(r13, f_roll6 )
+
+       amat(3,1)=-imass1*DOTPROD_3D(r14,f_roll1 )
+       amat(3,2)=imass1*DOTPROD_3D(r14, f_roll2 )
+       amat(3,3)=(imass1+imass4)*DOTPROD_3D(r14, f_roll3 )
+       amat(3,4)=0._dbl
+       amat(3,5)=imass4*DOTPROD_3D(r14, f_roll5 )
+       amat(3,6)=imass4*DOTPROD_3D(r14, f_roll6 )
+
+       amat(4,1)=-imass2*DOTPROD_3D(r23,f_roll1 )
+       amat(4,2)=imass3*DOTPROD_3D(r23, f_roll2 )
+       amat(4,3)=0._dbl
+       amat(4,4)=(imass3+imass2)*DOTPROD_3D(r23, f_roll4 )
+       amat(4,5)=imass2*DOTPROD_3D(r23, f_roll5 )
+       amat(4,6)=-imass3*DOTPROD_3D(r23, f_roll6 )
+
+       amat(5,1)=-imass2*DOTPROD_3D(r24,f_roll1 )
+       amat(5,2)=0._dbl
+       amat(5,3)=imass4*DOTPROD_3D(r24, f_roll3)
+       amat(5,4)=imass2*DOTPROD_3D(r24, f_roll4 )
+       amat(5,5)=(imass4+imass2)*DOTPROD_3D(r24, f_roll5 )
+       amat(5,6)=imass4*DOTPROD_3D(r24, f_roll6 )
+
+       amat(6,1)=0._dbl
+       amat(6,2)=-imass3*DOTPROD_3D(r34,f_roll2 )
+       amat(6,3)=imass4*DOTPROD_3D(r34, f_roll3 )
+       amat(6,4)=-imass3*DOTPROD_3D(r34, f_roll4 )
+       amat(6,5)=imass4*DOTPROD_3D(r34, f_roll5 )
+       amat(6,6)=(imass3+imass4)*DOTPROD_3D(r34, f_roll6 )
+
+! construct solution vector
+       bvec ( 1, 1 ) = DOTPROD_3D ( r12, v12_0 + MATVEC_3X3 ( veps, r12 ) )
+       bvec ( 2, 1 ) = DOTPROD_3D ( r13, v13_0 + MATVEC_3X3 ( veps, r13 ) )
+       bvec ( 3, 1 ) = DOTPROD_3D ( r14, v14_0 + MATVEC_3X3 ( veps, r14 ) )
+       bvec ( 4, 1 ) = DOTPROD_3D ( r23, v23_0 + MATVEC_3X3 ( veps, r23 ) )
+       bvec ( 5, 1 ) = DOTPROD_3D ( r24, v24_0 + MATVEC_3X3 ( veps, r24 ) )
+       bvec ( 6, 1 ) = DOTPROD_3D ( r34, v34_0 + MATVEC_3X3 ( veps, r34 ) )
+       bvec=-bvec*2._dbl*idt
+
+
+! get lambda
+       CALL solve_system ( amat, 6, bvec )
+       lambda ( : ) = bvec ( :, 1 )
+       lg4x6 ( iconst ) % del_lam ( : )= lambda - lg4x6 ( iconst ) % lambda
+
+       fc1=lg4x6 ( iconst ) % lambda ( 1 ) * f_roll1 + &
+           lg4x6 ( iconst ) % lambda ( 2 ) * f_roll2 + &
+           lg4x6 ( iconst ) % lambda ( 3 ) * f_roll3 
+       fc2=-lg4x6 ( iconst ) % lambda ( 1 ) * f_roll1 + &
+           lg4x6 ( iconst ) % lambda ( 4 ) * f_roll4 + &
+           lg4x6 ( iconst ) % lambda ( 5 ) * f_roll5 
+       fc3=-lg4x6 ( iconst ) % lambda ( 2 ) * f_roll2 - &
+           lg4x6 ( iconst ) % lambda ( 4 ) * f_roll4 + &
+           lg4x6 ( iconst ) % lambda ( 6 ) * f_roll6 
+       fc4=-lg4x6 ( iconst ) % lambda ( 3 ) * f_roll3 - &
+           lg4x6 ( iconst ) % lambda ( 5 ) * f_roll5 - &
+           lg4x6 ( iconst ) % lambda ( 6 ) * f_roll6 
+       vel ( :, index_a ) = vel ( :, index_a ) + imass1 * dtby2 * fc1 ( : )
+       vel ( :, index_b ) = vel ( :, index_b ) + imass2 * dtby2 * fc2 ( : )
+       vel ( :, index_c ) = vel ( :, index_c ) + imass3 * dtby2 * fc3 ( : )
+       vel ( :, index_d ) = vel ( :, index_d ) + imass3 * dtby2 * fc4 ( : )
+! computing the convergence of the sigma_dot
+       v12 = vel ( :, index_a ) - vel ( :, index_b )
+       sigma_dot=2._dbl*DOTPROD_3D(r12,v12+MATVEC_3X3(veps,r12))
+       max_sigma = MAX(ABS(sigma_dot),max_sigma)
+
+       v13 = vel ( :, index_a ) - vel ( :, index_c )
+       sigma_dot=2._dbl*DOTPROD_3D(r13,v13+MATVEC_3X3(veps,r13))
+       max_sigma = MAX(ABS(sigma_dot),max_sigma)
+
+       v14 = vel ( :, index_a ) - vel ( :, index_d )
+       sigma_dot=2._dbl*DOTPROD_3D(r14,v14+MATVEC_3X3(veps,r14))
+       max_sigma = MAX(ABS(sigma_dot),max_sigma)
+
+       v23 = vel ( :, index_b ) - vel ( :, index_c )
+       sigma_dot=2._dbl*DOTPROD_3D(r23,v23+MATVEC_3X3(veps,r23))
+       max_sigma = MAX(ABS(sigma_dot),max_sigma)
+
+       v24 = vel ( :, index_b ) - vel ( :, index_d )
+       sigma_dot=2._dbl*DOTPROD_3D(r24,v24+MATVEC_3X3(veps,r24))
+       max_sigma = MAX(ABS(sigma_dot),max_sigma)
+
+       v34 = vel ( :, index_c ) - vel ( :, index_d )
+       sigma_dot=2._dbl*DOTPROD_3D(r34,v34+MATVEC_3X3(veps,r34))
+       max_sigma = MAX(ABS(sigma_dot),max_sigma)
+
+       lg4x6 ( iconst ) % lambda = lambda
+    END DO
+  END IF
+
+END SUBROUTINE rattle_roll_4x6
 
 !******************************************************************************
 SUBROUTINE shake( molecule, particle_set, pos, vel, simpar, max_sigma, ishake )
@@ -1783,7 +1843,7 @@ SUBROUTINE shake( molecule, particle_set, pos, vel, simpar, max_sigma, ishake )
 
 END SUBROUTINE shake
 
-!!******************************************************************************
+!******************************************************************************
 SUBROUTINE rattle ( molecule, particle_set, vel, simpar, max_sigma, irattle )
 ! updates the multiplier one molecule type at a time
     TYPE ( molecule_type ), POINTER                   :: molecule
@@ -1791,7 +1851,7 @@ SUBROUTINE rattle ( molecule, particle_set, vel, simpar, max_sigma, irattle )
     REAL ( dbl ), INTENT ( INOUT )                    :: vel ( :, : )
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
-    INTEGER, INTENT(INOUT)                     :: irattle
+    INTEGER, INTENT(INOUT)                   :: irattle
     REAL(dbl), INTENT(INOUT)                 :: max_sigma
 
     INTEGER                                  :: iconst, index_a, index_b
@@ -1803,9 +1863,7 @@ SUBROUTINE rattle ( molecule, particle_set, vel, simpar, max_sigma, irattle )
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type ), POINTER       :: molecule_kind
     TYPE ( local_dist_constraint_type ), POINTER   :: ldist ( : )
-    TYPE ( local_g3x3_constraint_type ), POINTER   :: lg3x3 ( : )
     TYPE ( dist_constraint_type ), POINTER   :: dist_list ( : )
-    TYPE ( g3x3_constraint_type ), POINTER   :: g3x3_list ( : )
 
 !------------------------------------------------------------------------------
 ! define local variables
@@ -1872,115 +1930,112 @@ SUBROUTINE rattle ( molecule, particle_set, vel, simpar, max_sigma, irattle )
      r12 = particle_set ( index_a ) % r -  particle_set ( index_b ) % r
      v12 = vel ( :, index_a ) -  vel ( :, index_b )
      ldist ( iconst ) % sigma = dot_product(r12,v12)
-     max_sigma = MAX(ABS(ldist ( iconst ) % sigma),max_sigma)
+     max_sigma = MAX ( ABS ( ldist ( iconst ) % sigma ), max_sigma )
   END DO
 
 END SUBROUTINE rattle
 
 !******************************************************************************
+SUBROUTINE rattle_roll ( molecule, particle_set, vel, r_rattle,  &
+                         simpar, veps, max_sigma, irattle )
+! updates the multiplier one molecule type at a time
+    TYPE ( molecule_type ), POINTER                   :: molecule
+    TYPE ( particle_type ), POINTER                   :: particle_set ( : )
+    REAL ( dbl ), INTENT ( INOUT )                    :: vel ( :, : )
+    REAL(dbl), INTENT ( IN )                          :: veps ( :, : )
+    REAL(dbl), INTENT ( IN )                          :: r_rattle ( :, : )
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    INTEGER, INTENT(INOUT)                   :: irattle
+    REAL(dbl), INTENT(INOUT)                 :: max_sigma
 
-!SUBROUTINE rattle_roll(molecule,simpar,r_rattle,veps,max_sigma,irattle)
-!
-!! updates the multiplier one molecule type at a time
-!
-!
-!    TYPE(molecule_structure_type), &
-!      INTENT(INOUT)                          :: molecule
-!    TYPE(simulation_parameters_type), &
-!      INTENT(IN)                             :: simpar
-!    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: r_rattle, veps
-!    REAL(dbl), INTENT(INOUT)                 :: max_sigma
-!    INTEGER, INTENT(IN)                      :: irattle
-!
-!    INTEGER                                  :: iconst
-!    REAL(dbl)                                :: del_lam, dtby2, fdotf, &
-!                                                fdotf_sum, imass1, imass2, &
-!                                                mass
-!    REAL(dbl), DIMENSION(3)                  :: f_roll, r12, v12
-!    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-!    TYPE(linklist_dist_constraints), POINTER :: llconst
-!
-!!------------------------------------------------------------------------------
-!! define local variables
-!
-!  dtby2 = simpar % dt * 0.5_dbl
-!  IF ( irattle == 1 ) THEN
-!     llconst => molecule % ll_dist_const
-!     DO iconst = 1, molecule % ndistconst_mol
-!
-!        atomic_kind=>llconst%p1%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!        imass1 = 1._dbl/mass
-!        atomic_kind=>llconst%p2%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!        imass2 = 1._dbl/mass
-!
-!        llconst % fc = -2._dbl * ( llconst % p1 % r - llconst % p2 % r )
-!
-!! update velocites with full multiplier
-!        llconst % p1 % v = llconst % p1 % v + imass1 * dtby2 *  &
-!                  llconst % lambda * MATVEC_3X3 ( r_rattle, llconst% fc )
-!        llconst % p2 % v = llconst % p2 % v - imass2 * dtby2 *  &
-!                  llconst % lambda * MATVEC_3X3 ( r_rattle, llconst% fc )
-!        llconst => llconst % next
-!     END DO
-!     max_sigma = -1.E+10_dbl
-!
-!  ELSE
-!     llconst => molecule % ll_dist_const
-!
-!     DO iconst = 1, molecule % ndistconst_mol
-!
-!! assign local variable
-!
-!        r12 = llconst % p1 % r - llconst % p2 % r
-!
-!! Roll fc
-!
-!        llconst % fc = -2._dbl * r12
-!        f_roll = MATVEC_3x3 ( r_rattle, llconst % fc )
-!
-!! computing sigma
-!        v12 ( : ) = llconst % p1 % v + MATVEC_3X3 ( veps, llconst % p1 % r ) &
-!             - llconst % p2 % v - MATVEC_3X3 ( veps, llconst % p2 % r )
-!        llconst % sigma = 2._dbl * DOTPROD_3D ( r12, v12 )
-!
-!        atomic_kind=>llconst%p1%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!        imass1 = 1._dbl/mass
-!        atomic_kind=>llconst%p2%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!        imass2 = 1._dbl/mass
-!
-!        fdotf = DOTPROD_3D (f_roll, llconst % fc )
-!        fdotf_sum = fdotf * imass1 + fdotf * imass2
-!        llconst % del_lam = 2._dbl * llconst % sigma / ( simpar % dt * fdotf_sum )
-!        llconst % lambda = llconst % lambda + llconst % del_lam
-!
-!!update true velocites with del_lam
-!        llconst % p1 % v = llconst % p1 % v + imass1 * dtby2 *  &
-!                           llconst % del_lam * f_roll
-!        llconst % p2 % v = llconst % p2 % v - imass2 * dtby2 *  &
-!                           llconst % del_lam * f_roll
-!        llconst => llconst % next
-!     END DO
-!
-!! computing the constraint and value of the tolerance
-!     llconst => molecule % ll_dist_const
-!     DO iconst = 1, molecule % ndistconst_mol
-!
-!! computing the updated constraint
-!        r12 = llconst % p1 % r - llconst % p2 % r
-!        v12 ( : ) = llconst % p1 % v + MATVEC_3X3 ( veps, llconst % p1 % r ) &
-!             - llconst % p2 % v - MATVEC_3X3 ( veps, llconst % p2 % r )
-!        llconst % sigma = 2._dbl * DOTPROD_3D ( r12, v12 )
-!        max_sigma = MAX ( ABS ( llconst % sigma ), max_sigma )
-!        llconst => llconst % next
-!     END DO
-!  END IF
-!
-!END SUBROUTINE rattle_roll
-!
+    INTEGER                                  :: iconst, index_a, index_b
+    INTEGER                                  :: first_atom, ndist
+    REAL(dbl)                                :: del_lam, dtby2, fdotf, &
+                                                fdotf_sum, imass1, imass2, &
+                                                mass
+    REAL(dbl), DIMENSION(3)                  :: r12, v12, r1, r2, f_roll
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(molecule_kind_type ), POINTER       :: molecule_kind
+    TYPE ( local_dist_constraint_type ), POINTER   :: ldist ( : )
+    TYPE ( dist_constraint_type ), POINTER   :: dist_list ( : )
+
+!------------------------------------------------------------------------------
+! define local variables
+
+   dtby2 = simpar%dt*.5_dbl
+   molecule_kind => molecule % molecule_kind
+   CALL get_molecule_kind ( molecule_kind, ndist = ndist, dist_list = dist_list )
+   CALL get_molecule ( molecule, first_atom = first_atom, ldist=ldist )
+   IF (irattle==1) THEN
+     DO iconst = 1, ndist
+        index_a = dist_list ( iconst ) % a + first_atom -1
+        index_b = dist_list ( iconst ) % b + first_atom -1
+        atomic_kind=>particle_set ( index_a ) % atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass1 = 1._dbl/mass
+        atomic_kind=>particle_set ( index_b ) % atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass2 = 1._dbl/mass
+        ldist ( iconst ) % f = -2._dbl * ( particle_set ( index_a ) % r - &
+                                           particle_set ( index_b ) % r )
+! update velocites with full multiplier
+         vel ( :, index_a ) = vel ( :, index_a ) + &
+             imass1*dtby2*ldist ( iconst ) % lambda * ldist ( iconst ) % f ( : )
+         vel ( :, index_b ) = vel ( :, index_b ) - &
+             imass2*dtby2*ldist ( iconst ) % lambda * ldist ( iconst ) % f ( : )
+     END DO
+     max_sigma = -1.E+10_dbl
+  ELSE
+     DO iconst = 1, ndist
+        index_a = dist_list ( iconst ) % a + first_atom -1
+        index_b = dist_list ( iconst ) % b + first_atom -1
+        r1 ( : ) = particle_set ( index_a ) % r ( : ) 
+        r2 ( : ) = particle_set ( index_b ) % r ( : ) 
+        r12 ( : ) = r1 ( : ) - r2 ( : )
+        v12 ( : ) = vel ( :, index_a ) -  vel ( :, index_b ) 
+
+!  rolling f(dt)
+        ldist ( iconst ) % f = -2._dbl * r12
+        f_roll = MATVEC_3x3 ( r_rattle, ldist ( iconst ) % f )
+
+! computing sigma
+        v12 ( : ) = vel ( :, index_a ) + MATVEC_3X3 ( veps, r1 ( : ) ) &
+             - vel ( :, index_b ) - MATVEC_3X3 ( veps, r2 ( : ) )
+        ldist ( iconst ) % sigma = 2._dbl * DOTPROD_3D ( r12, v12 )
+
+        atomic_kind=>particle_set ( index_a ) % atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass1 = 1._dbl/mass
+        atomic_kind=>particle_set ( index_b ) % atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass2 = 1._dbl/mass
+
+        fdotf = DOT_PRODUCT( f_roll , ldist ( iconst ) % f )
+        fdotf_sum = fdotf*imass1 + fdotf*imass2
+        del_lam = 2._dbl*ldist ( iconst ) % sigma/(simpar%dt*fdotf_sum)
+        ldist ( iconst ) % lambda = ldist ( iconst ) % lambda + del_lam
+
+!update velocites with del_lam
+         vel ( :, index_a ) = vel ( :, index_a ) + &
+             Imass1*dtby2*del_lam * f_roll ( : )
+         vel ( :, index_b ) = vel ( :, index_b ) - &
+             imass2*dtby2*del_lam * f_roll ( : )
+     END DO
+! computing the constraint and value of the tolerance
+     DO iconst = 1, ndist
+       index_a = dist_list ( iconst ) % a + first_atom -1
+       index_b = dist_list ( iconst ) % b + first_atom -1
+       r1 ( : ) = particle_set ( index_a ) % r ( : ) 
+       r2 ( : ) = particle_set ( index_b ) % r ( : ) 
+       r12 ( : ) = r1 ( : ) - r2 ( : )
+       v12 ( : ) = vel ( :, index_a ) + MATVEC_3X3 ( veps, r1 ( : ) ) &
+                 - vel ( :, index_b ) - MATVEC_3X3 ( veps, r2 ( : ) )
+       ldist ( iconst ) % sigma = 2._dbl * DOTPROD_3D ( r12, v12 )
+       max_sigma = MAX ( ABS ( ldist ( iconst ) % sigma ), max_sigma )
+     END DO
+  END IF
+END SUBROUTINE rattle_roll
 !!******************************************************************************
 
 SUBROUTINE getold( local_molecules, molecule_set, molecule_kind_set, particle_set )
@@ -2049,475 +2104,502 @@ END SUBROUTINE getold
 
 !******************************************************************************
 
-!SUBROUTINE pv_constraint ( molecule, thermo, char, group )
-!
-!
-!    TYPE(molecule_structure_type), &
-!      DIMENSION(:), INTENT(IN)               :: molecule
-!    TYPE(virial_type), INTENT(INOUT)         :: thermo
-!    CHARACTER(LEN=*), INTENT(IN)             :: char
-!    INTEGER, INTENT(IN)                      :: group
-!
-!    INTEGER                                  :: iconst, imol
-!    REAL(dbl) :: fc1( 3 ), fc2( 3 ), fc3( 3 ), fc4( 3 ), lambda, &
-!      lambda_3x3( 3 ), lambda_4x6( 6 ), pv( 3, 3 )
-!    TYPE(linklist_dist_constraints), POINTER :: llconst
-!    TYPE(linklist_g3x3_constraints), POINTER :: ll3x3
-!    TYPE(linklist_g4x6_constraints), POINTER :: ll4x6
-!
-!!------------------------------------------------------------------------------
-!
-!  pv = 0.0_dbl
-!  DO imol = 1, size(molecule)
-!
-!! dist
-!     llconst => molecule(imol) %ll_dist_const
-!     DO iconst = 1, molecule(imol) %ndistconst_mol
-!
-!        SELECT CASE (char)
-!        CASE ( 'FULL')
-!!  pv gets updated with FULL multiplier
-!           lambda = llconst%lambda
-!
-!        CASE ( 'DEL')
-!!  pv gets updated with del_lam
-!           lambda = llconst%del_lam
-!        END SELECT
-!
-!!pv(1,1)
-!        pv(1,1) = pv(1,1) + lambda*llconst%fc(1)*llconst%p1%r(1)
-!        pv(1,1) = pv(1,1) - lambda*llconst%fc(1)*llconst%p2%r(1)
-!!pv(1,2)
-!        pv(1,2) = pv(1,2) + lambda*llconst%fc(1)*llconst%p1%r(2)
-!        pv(1,2) = pv(1,2) - lambda*llconst%fc(1)*llconst%p2%r(2)
-!!pv(1,3)
-!        pv(1,3) = pv(1,3) + lambda*llconst%fc(1)*llconst%p1%r(3)
-!        pv(1,3) = pv(1,3) - lambda*llconst%fc(1)*llconst%p2%r(3)
-!!pv(2,1)
-!        pv(2,1) = pv(2,1) + lambda*llconst%fc(2)*llconst%p1%r(1)
-!        pv(2,1) = pv(2,1) - lambda*llconst%fc(2)*llconst%p2%r(1)
-!!pv(2,2)
-!        pv(2,2) = pv(2,2) + lambda*llconst%fc(2)*llconst%p1%r(2)
-!        pv(2,2) = pv(2,2) - lambda*llconst%fc(2)*llconst%p2%r(2)
-!!pv(2,3)
-!        pv(2,3) = pv(2,3) + lambda*llconst%fc(2)*llconst%p1%r(3)
-!        pv(2,3) = pv(2,3) - lambda*llconst%fc(2)*llconst%p2%r(3)
-!!pv(3,1)
-!        pv(3,1) = pv(3,1) + lambda*llconst%fc(3)*llconst%p1%r(1)
-!        pv(3,1) = pv(3,1) - lambda*llconst%fc(3)*llconst%p2%r(1)
-!!pv(3,2)
-!        pv(3,2) = pv(3,2) + lambda*llconst%fc(3)*llconst%p1%r(2)
-!        pv(3,2) = pv(3,2) - lambda*llconst%fc(3)*llconst%p2%r(2)
-!!pv(3,3)
-!        pv(3,3) = pv(3,3) + lambda*llconst%fc(3)*llconst%p1%r(3)
-!        pv(3,3) = pv(3,3) - lambda*llconst%fc(3)*llconst%p2%r(3)
-!        llconst => llconst%next
-!     END DO
-!
-!! 3x3
-!     ll3x3 => molecule(imol)%ll_g3x3_const
-!     DO iconst = 1, molecule(imol)%ng3x3const_mol
-!
-!        SELECT CASE (char)
-!        CASE ( 'FULL')
-!!  pv gets updated with FULL multiplier
-!           lambda_3x3 = ll3x3%lambda
-!
-!        CASE ( 'DEL')
-!!  pv gets updated with del_lam
-!           lambda_3x3 = ll3x3%del_lam
-!        END SELECT
-!
-!        fc1=lambda_3x3(1)*ll3x3%fc1+ &
-!             lambda_3x3(2)*ll3x3%fc2
-!        fc2=-lambda_3x3(1)*ll3x3%fc1+ &
-!             lambda_3x3(3)*ll3x3%fc3
-!        fc3=-lambda_3x3(2)*ll3x3%fc2- &
-!             lambda_3x3(3)*ll3x3%fc3
-!
-!!pv(1,1)
-!        pv(1,1) = pv(1,1) + fc1(1)*ll3x3%p1%r(1)
-!        pv(1,1) = pv(1,1) + fc2(1)*ll3x3%p2%r(1)
-!        pv(1,1) = pv(1,1) + fc3(1)*ll3x3%p3%r(1)
-!!pv(1,2)
-!        pv(1,2) = pv(1,2) + fc1(1)*ll3x3%p1%r(2)
-!        pv(1,2) = pv(1,2) + fc2(1)*ll3x3%p2%r(2)
-!        pv(1,2) = pv(1,2) + fc3(1)*ll3x3%p3%r(2)
-!!pv(1,3)
-!        pv(1,3) = pv(1,3) + fc1(1)*ll3x3%p1%r(3)
-!        pv(1,3) = pv(1,3) + fc2(1)*ll3x3%p2%r(3)
-!        pv(1,3) = pv(1,3) + fc3(1)*ll3x3%p3%r(3)
-!!pv(2,1)
-!        pv(2,1) = pv(2,1) + fc1(2)*ll3x3%p1%r(1)
-!        pv(2,1) = pv(2,1) + fc2(2)*ll3x3%p2%r(1)
-!        pv(2,1) = pv(2,1) + fc3(2)*ll3x3%p3%r(1)
-!!pv(2,2)
-!        pv(2,2) = pv(2,2) + fc1(2)*ll3x3%p1%r(2)
-!        pv(2,2) = pv(2,2) + fc2(2)*ll3x3%p2%r(2)
-!        pv(2,2) = pv(2,2) + fc3(2)*ll3x3%p3%r(2)
-!!pv(2,3)
-!        pv(2,3) = pv(2,3) + fc1(2)*ll3x3%p1%r(3)
-!        pv(2,3) = pv(2,3) + fc2(2)*ll3x3%p2%r(3)
-!        pv(2,3) = pv(2,3) + fc3(2)*ll3x3%p3%r(3)
-!!pv(3,1)
-!        pv(3,1) = pv(3,1) + fc1(3)*ll3x3%p1%r(1)
-!        pv(3,1) = pv(3,1) + fc2(3)*ll3x3%p2%r(1)
-!        pv(3,1) = pv(3,1) + fc3(3)*ll3x3%p3%r(1)
-!!pv(3,2)
-!        pv(3,2) = pv(3,2) + fc1(3)*ll3x3%p1%r(2)
-!        pv(3,2) = pv(3,2) + fc2(3)*ll3x3%p2%r(2)
-!        pv(3,2) = pv(3,2) + fc3(3)*ll3x3%p3%r(2)
-!!pv(3,3)
-!        pv(3,3) = pv(3,3) + fc1(3)*ll3x3%p1%r(3)
-!        pv(3,3) = pv(3,3) + fc2(3)*ll3x3%p2%r(3)
-!        pv(3,3) = pv(3,3) + fc3(3)*ll3x3%p3%r(3)
-!
-!        ll3x3 => ll3x3%next
-!     END DO
-!
-!! 4x6
-!     ll4x6 => molecule(imol)%ll_g4x6_const
-!     DO iconst = 1, molecule(imol)%ng4x6const_mol
-!
-!        SELECT CASE (char)
-!        CASE ( 'FULL')
-!!  pv gets updated with FULL multiplier
-!           lambda_4x6 = ll4x6%lambda
-!
-!        CASE ( 'DEL')
-!!  pv gets updated with del_lam
-!           lambda_4x6 = ll4x6%del_lam
-!        END SELECT
-!        fc1=lambda_4x6(1)*ll4x6%fc1+ &
-!             lambda_4x6(2)*ll4x6%fc2+ &
-!             lambda_4x6(3)*ll4x6%fc3
-!        fc2=-lambda_4x6(1)*ll4x6%fc1+ &
-!             lambda_4x6(4)*ll4x6%fc4+ &
-!             lambda_4x6(5)*ll4x6%fc5
-!        fc3=-lambda_4x6(2)*ll4x6%fc2- &
-!             lambda_4x6(4)*ll4x6%fc4+ &
-!             lambda_4x6(6)*ll4x6%fc6
-!        fc4=-lambda_4x6(3)*ll4x6%fc3- &
-!             lambda_4x6(5)*ll4x6%fc5- &
-!             lambda_4x6(6)*ll4x6%fc6
-!
-!!pv(1,1)
-!        pv(1,1) = pv(1,1) + fc1(1)*ll4x6%p1%r(1)
-!        pv(1,1) = pv(1,1) + fc2(1)*ll4x6%p2%r(1)
-!        pv(1,1) = pv(1,1) + fc3(1)*ll4x6%p3%r(1)
-!        pv(1,1) = pv(1,1) + fc4(1)*ll4x6%p4%r(1)
-!!pv(1,2)
-!        pv(1,2) = pv(1,2) + fc1(1)*ll4x6%p1%r(2)
-!        pv(1,2) = pv(1,2) + fc2(1)*ll4x6%p2%r(2)
-!        pv(1,2) = pv(1,2) + fc3(1)*ll4x6%p3%r(2)
-!        pv(1,2) = pv(1,2) + fc4(1)*ll4x6%p4%r(2)
-!!pv(1,3)
-!        pv(1,3) = pv(1,3) + fc1(1)*ll4x6%p1%r(3)
-!        pv(1,3) = pv(1,3) + fc2(1)*ll4x6%p2%r(3)
-!        pv(1,3) = pv(1,3) + fc3(1)*ll4x6%p3%r(3)
-!        pv(1,3) = pv(1,3) + fc4(1)*ll4x6%p4%r(3)
-!!pv(2,1)
-!        pv(2,1) = pv(2,1) + fc1(2)*ll4x6%p1%r(1)
-!        pv(2,1) = pv(2,1) + fc2(2)*ll4x6%p2%r(1)
-!        pv(2,1) = pv(2,1) + fc3(2)*ll4x6%p3%r(1)
-!        pv(2,1) = pv(2,1) + fc4(2)*ll4x6%p4%r(1)
-!!pv(2,2)
-!        pv(2,2) = pv(2,2) + fc1(2)*ll4x6%p1%r(2)
-!        pv(2,2) = pv(2,2) + fc2(2)*ll4x6%p2%r(2)
-!        pv(2,2) = pv(2,2) + fc3(2)*ll4x6%p3%r(2)
-!        pv(2,2) = pv(2,2) + fc4(2)*ll4x6%p4%r(2)
-!!pv(2,3)
-!        pv(2,3) = pv(2,3) + fc1(2)*ll4x6%p1%r(3)
-!        pv(2,3) = pv(2,3) + fc2(2)*ll4x6%p2%r(3)
-!        pv(2,3) = pv(2,3) + fc3(2)*ll4x6%p3%r(3)
-!        pv(2,3) = pv(2,3) + fc4(2)*ll4x6%p4%r(3)
-!!pv(3,1)
-!        pv(3,1) = pv(3,1) + fc1(3)*ll4x6%p1%r(1)
-!        pv(3,1) = pv(3,1) + fc2(3)*ll4x6%p2%r(1)
-!        pv(3,1) = pv(3,1) + fc3(3)*ll4x6%p3%r(1)
-!        pv(3,1) = pv(3,1) + fc4(3)*ll4x6%p4%r(1)
-!!pv(3,2)
-!        pv(3,2) = pv(3,2) + fc1(3)*ll4x6%p1%r(2)
-!        pv(3,2) = pv(3,2) + fc2(3)*ll4x6%p2%r(2)
-!        pv(3,2) = pv(3,2) + fc3(3)*ll4x6%p3%r(2)
-!        pv(3,2) = pv(3,2) + fc4(3)*ll4x6%p4%r(2)
-!!pv(3,3)
-!        pv(3,3) = pv(3,3) + fc1(3)*ll4x6%p1%r(3)
-!        pv(3,3) = pv(3,3) + fc2(3)*ll4x6%p2%r(3)
-!        pv(3,3) = pv(3,3) + fc3(3)*ll4x6%p3%r(3)
-!        pv(3,3) = pv(3,3) + fc4(3)*ll4x6%p4%r(3)
-!
-!        ll4x6 => ll4x6%next
-!     END DO
-!
-!  END DO
-!
-!#if defined(__parallel)
-!  CALL mp_sum ( pv, group )
-!#endif
-!
-!  thermo % pv_constraint = pv
-!
-!END SUBROUTINE pv_constraint
-!
-!!******************************************************************************
+SUBROUTINE pv_constraint ( local_molecules, molecule_set, molecule_kind_set, &
+                           particle_set, virial, char, group )
 
-!SUBROUTINE shake_roll(molecule,simpar,r_shake,v_shake,max_sigma,ishake)
-!
-!! updates the multiplier one molecule type at a time
-!
-!    TYPE(molecule_structure_type), &
-!      INTENT(INOUT)                          :: molecule
-!    TYPE(simulation_parameters_type), &
-!      INTENT(IN)                             :: simpar
-!    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: r_shake, v_shake
-!    REAL(dbl), INTENT(INOUT)                 :: max_sigma
-!    INTEGER, INTENT(IN)                      :: ishake
-!
-!    INTEGER                                  :: iconst
-!    REAL(dbl)                                :: dtby2, dtsqby2, fdotf, &
-!                                                fdotf_sum, imass1, imass2, &
-!                                                mass
-!    REAL(dbl), DIMENSION(3)                  :: f_roll_r, f_roll_v, fc_t, r12
-!    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-!    TYPE(linklist_dist_constraints), POINTER :: llconst
-!
-!!------------------------------------------------------------------------------
-!! define local variables
-!
-!  dtsqby2 = simpar%dt*simpar%dt*.5_dbl
-!  dtby2 = simpar%dt*.5_dbl
-!  IF (ishake==1) THEN
-!     llconst => molecule%ll_dist_const
-!     DO iconst = 1, molecule%ndistconst_mol
-!        atomic_kind=>llconst%p1%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!        imass1 = 1._dbl/mass
-!        atomic_kind=>llconst%p2%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!        imass2 = 1._dbl/mass
-!
-!        llconst%fc = -2._dbl*(llconst%rold1-llconst%rold2)
-!
-!! rotate fconst:
-!        f_roll_r = MATVEC_3X3 ( r_shake, llconst % fc )
-!        f_roll_v = MATVEC_3X3 ( v_shake, llconst % fc )
-!
-!! update positions with full multiplier
-!        llconst%p1%r = llconst%p1%r + imass1*dtsqby2*llconst%lambda*f_roll_r
-!        llconst%p2%r = llconst%p2%r - imass2*dtsqby2*llconst%lambda*f_roll_r
-!
-!! update velocites with full multiplier
-!        llconst%p1%v = llconst%p1%v + imass1*dtby2*llconst%lambda*f_roll_v
-!        llconst%p2%v = llconst%p2%v - imass2*dtby2*llconst%lambda*f_roll_v
-!        llconst => llconst%next
-!     END DO
-!
-!  ELSE
-!
-!     llconst => molecule%ll_dist_const
-!     DO iconst = 1, molecule%ndistconst_mol
-!
-!! computing the constraint
-!        r12 = llconst % p1 % r - llconst % p2 % r
-!        llconst%sigma = DOTPROD_3D ( r12, r12 ) - &
-!                       llconst % distance * llconst % distance
-!
-!! computing fc(dt)
-!        fc_t = -2._dbl*(llconst%p1%r-llconst%p2%r)
-!
-!        atomic_kind=>llconst%p1%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!        imass1 = 1._dbl/mass
-!        atomic_kind=>llconst%p2%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!        imass2 = 1._dbl/mass
-!
-!! rotate fc:
-!        f_roll_r = MATVEC_3X3 ( r_shake, llconst % fc )
-!        f_roll_v = MATVEC_3X3 ( v_shake, llconst % fc )
-!        fdotf = DOTPROD_3D ( f_roll_r, fc_t )
-!        fdotf_sum = fdotf * imass1 + fdotf * imass2
-!        llconst%del_lam = 2._dbl*llconst%sigma/(simpar%dt*simpar%dt* &
-!             fdotf_sum)
-!        llconst % lambda = llconst % lambda + llconst % del_lam
-!
-!! update positions by delta_lam
-!        llconst%p1%r = llconst%p1%r + imass1*dtsqby2*llconst%del_lam* &
-!             f_roll_r
-!        llconst%p2%r = llconst%p2%r - imass2*dtsqby2*llconst%del_lam* &
-!             f_roll_r
-!
-!! update velocites by delta_lam
-!        llconst%p1%v = llconst%p1%v + imass1*dtby2*llconst%del_lam*f_roll_v
-!        llconst%p2%v = llconst%p2%v - imass2*dtby2*llconst%del_lam*f_roll_v
-!
-!        llconst => llconst%next
-!     END DO
-!
-!  END IF
-!
-!! computing the constraint and value of tolerance
-!  llconst => molecule % ll_dist_const
-!  DO iconst = 1, molecule % ndistconst_mol
-!     r12 = llconst % p1 % r - llconst % p2 % r
-!     llconst%sigma = DOTPROD_3D ( r12, r12 ) -  &
-!                     llconst % distance * llconst % distance
-!     max_sigma = MAX ( ABS ( llconst % sigma ), max_sigma )
-!     llconst => llconst % next
-!  END DO
-!END SUBROUTINE shake_roll
-!
-!!******************************************************************************
-!
-!SUBROUTINE check_tol(roll_tol,iroll,char,matrix,veps)
+    IMPLICIT NONE
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE ( particle_type ), POINTER          :: particle_set ( : )
+    TYPE(virial_type), INTENT(INOUT)         :: virial
+    CHARACTER(LEN=*), INTENT(IN)             :: char
+    INTEGER, INTENT(IN)                      :: group
 
+    INTEGER                                  :: nkind, iconst, imol, ikind, nmol_per_kind, i
+    INTEGER                                  :: ndist, ng3x3, ng4x6
+    INTEGER                                  :: index_a, index_b, index_c, index_d
+    INTEGER                                  :: first_atom
+    REAL(dbl) :: fc1( 3 ), fc2( 3 ), fc3( 3 ), fc4( 3 ), lambda, &
+      lambda_3x3( 3 ), lambda_4x6( 6 ), pv( 3, 3 )
+    TYPE ( local_g3x3_constraint_type ), POINTER   :: lg3x3 ( : )
+    TYPE ( local_g4x6_constraint_type ), POINTER   :: lg4x6 ( : )
+    TYPE ( local_dist_constraint_type ), POINTER   :: ldist ( : )
+    TYPE ( g3x3_constraint_type )      , POINTER   :: g3x3_list ( : )
+    TYPE ( g4x6_constraint_type )      , POINTER   :: g4x6_list ( : )
+    TYPE ( dist_constraint_type )      , POINTER   :: dist_list ( : )
+    TYPE ( molecule_type ), POINTER          :: molecule
+    TYPE ( molecule_kind_type ), POINTER     :: molecule_kind
+!
+!------------------------------------------------------------------------------
+!
+   pv = 0.0_dbl
+   nkind = SIZE ( molecule_kind_set )
+   MOL: DO ikind = 1, nkind
+         nmol_per_kind = local_molecules % n_el ( ikind )
+         DO imol = 1, nmol_per_kind
+           i = local_molecules % list ( ikind ) % array ( imol )
+           molecule => molecule_set ( i ) 
+           molecule_kind => molecule % molecule_kind
+           CALL get_molecule_kind ( molecule_kind, ndist = ndist, ng3x3 = ng3x3, &
+                                    ng4x6 = ng4x6, g3x3_list=g3x3_list, g4x6_list=g4x6_list, &
+                                    dist_list = dist_list )
+           CALL get_molecule ( molecule, first_atom = first_atom, lg3x3=lg3x3, &
+                               lg4x6 = lg4x6, ldist = ldist )
+! dist
+           DO iconst = 1, ndist
+             SELECT CASE (char)
+             CASE ( 'FULL')
+!  pv gets updated with FULL multiplier
+               lambda = ldist ( iconst ) % lambda
 
-!    REAL(dbl), INTENT(OUT)                   :: roll_tol
-!    INTEGER, INTENT(INOUT)                   :: iroll
-!    CHARACTER(LEN=*), INTENT(IN)             :: char
-!    REAL(dbl), DIMENSION(:, :), INTENT(IN), &
-!      OPTIONAL                               :: matrix, veps
-!
-!    REAL(dbl)                                :: local_tol
-!    REAL(dbl), DIMENSION(3, 3)               :: diff_rattle, diff_shake
-!    REAL(dbl), DIMENSION(3, 3), SAVE         :: matrix_old, veps_old
-!
-!!------------------------------------------------------------------------------
-!
-!  SELECT CASE ( char )
-!  CASE ( 'SHAKE' )
-!     IF (iroll==1) THEN
-!        matrix_old = matrix
-!        roll_tol = -1.E10_dbl
-!     ELSE
-!        roll_tol = 0._dbl
-!        diff_shake = ABS ( matrix_old - matrix )
-!        local_tol = MAXVAL ( diff_shake )
-!        roll_tol = MAX ( roll_tol, local_tol )
-!        matrix_old = matrix
-!     END IF
-!     iroll = iroll + 1
-!
-!  CASE ( 'RATTLE' )
-!     IF (iroll==1) THEN
-!        veps_old = veps
-!        roll_tol = -1.E+10_dbl
-!     ELSE
-!        roll_tol = 0._dbl
-!
-!! compute tolerance on veps
-!
-!        diff_rattle = ABS ( veps - veps_old )
-!        local_tol = MAXVAL ( diff_rattle )
-!        roll_tol = MAX ( roll_tol, local_tol )
-!        veps_old = veps
-!
-!     END IF
-!     iroll = iroll + 1
-!
-!  END SELECT
-!
-!END SUBROUTINE check_tol
-!
-!!******************************************************************************
+             CASE ( 'DEL')
+!  pv gets updated with del_lam
+               lambda = ldist ( iconst ) % del_lam
+             END SELECT
 
-!SUBROUTINE get_roll_matrix(char,r_shake,v_shake,vector_r,vector_v,u)
-!
-!
-!    CHARACTER(len=*), INTENT(IN)             :: char
-!    REAL(dbl), DIMENSION(:, :), &
-!      INTENT(OUT), OPTIONAL                  :: r_shake, v_shake
-!    REAL(dbl), DIMENSION(:), INTENT(IN), &
-!      OPTIONAL                               :: vector_r, vector_v
-!    REAL(dbl), DIMENSION(:, :), INTENT(IN), &
-!      OPTIONAL                               :: u
-!
-!    INTEGER                                  :: i
-!    REAL(dbl), DIMENSION(3, 3)               :: diag
-!
-!!------------------------------------------------------------------------------
-!
-!  IF ( PRESENT ( r_shake ) ) r_shake = 0.0_dbl
-!  IF ( PRESENT ( v_shake ) ) v_shake = 0.0_dbl
-!  diag = 0.0_dbl
-!
-!  SELECT CASE ( char )
-!  CASE ( 'SHAKE' )
-!    IF ( PRESENT ( u ) .AND. PRESENT ( vector_v ) .AND.  &
-!                             PRESENT ( vector_r ) ) THEN
-!       diag ( 1, 1 ) = vector_r ( 1 )
-!       diag ( 2, 2 ) = vector_r ( 2 )
-!       diag ( 3, 3 ) = vector_r ( 3 )
-!       r_shake = MATMUL_3X3 ( MATMUL_3X3 ( u, diag ),TRANSPOSE_3D ( u ) )
-!       diag ( 1, 1 ) = vector_v ( 1 )
-!       diag ( 2, 2 ) = vector_v ( 2 )
-!       diag ( 3, 3 ) = vector_v ( 3 )
-!       v_shake = MATMUL_3X3 ( MATMUL_3X3 ( u, diag ), TRANSPOSE_3D ( u ) )
-!       diag = matmul_3x3 ( r_shake, v_shake )
-!       r_shake = diag
-!    ELSEIF ( .NOT. PRESENT ( u ) .AND. PRESENT ( vector_v ) .AND.  &
-!                             PRESENT ( vector_r ) ) THEN
-!       DO i = 1, 3
-!          r_shake ( i, i ) = vector_r ( i ) * vector_v ( i )
-!          v_shake ( i, i ) = vector_v ( i )
-!       END DO
-!    ELSE
-!       CALL stop_program ( "get_roll_matrix", "not sufficient parameters" )
-!    END IF
-!  CASE ( 'RATTLE' )
-!    IF ( PRESENT ( u ) .AND. PRESENT ( vector_v ) ) THEN
-!       diag ( 1, 1 ) = vector_v ( 1 )
-!       diag ( 2, 2 ) = vector_v ( 2 )
-!       diag ( 3, 3 ) = vector_v ( 3 )
-!       v_shake = MATMUL_3x3 ( MATMUL_3X3 ( u, diag ), TRANSPOSE_3D ( u ) )
-!    ELSEIF ( .NOT. PRESENT ( u ) .AND. PRESENT ( vector_v ) ) THEN
-!       DO i = 1, 3
-!          v_shake ( i, i ) = vector_v ( i )
-!       END DO
-!    ELSE
-!       CALL stop_program ( "get_roll_matrix", "not sufficient parameters" )
-!    END IF
-!  END SELECT
-!
-!END SUBROUTINE get_roll_matrix
-!
+            index_a = dist_list ( iconst ) % a + first_atom -1
+            index_b = dist_list ( iconst ) % b + first_atom -1
+!pv(1,1)
+            pv(1,1) = pv(1,1) + lambda*ldist ( iconst ) %f(1)*particle_set ( index_a ) % r ( 1 )
+            pv(1,1) = pv(1,1) - lambda*ldist ( iconst ) %f(1)*particle_set ( index_b ) % r ( 1 )
+!pv(1,2)
+            pv(1,2) = pv(1,2) + lambda*ldist ( iconst ) %f(1)*particle_set ( index_a ) % r ( 2 )
+            pv(1,2) = pv(1,2) - lambda*ldist ( iconst ) %f(1)*particle_set ( index_b ) % r ( 2 )
+!pv(1,3)
+            pv(1,3) = pv(1,3) + lambda*ldist ( iconst ) %f(1)*particle_set ( index_a ) % r ( 3 )
+            pv(1,3) = pv(1,3) - lambda*ldist ( iconst ) %f(1)*particle_set ( index_b ) % r ( 3 )
+!pv(2,1)
+            pv(2,1) = pv(2,1) + lambda*ldist ( iconst ) %f(2)*particle_set ( index_a ) % r ( 1 )
+            pv(2,1) = pv(2,1) - lambda*ldist ( iconst ) %f(2)*particle_set ( index_b ) % r ( 1 )
+!pv(2,2)
+            pv(2,2) = pv(2,2) + lambda*ldist ( iconst ) %f(2)*particle_set ( index_a ) % r ( 2 )
+            pv(2,2) = pv(2,2) - lambda*ldist ( iconst ) %f(2)*particle_set ( index_b ) % r ( 2 )
+!pv(2,3)
+            pv(2,3) = pv(2,3) + lambda*ldist ( iconst ) %f(2)*particle_set ( index_a ) % r ( 3 )
+            pv(2,3) = pv(2,3) - lambda*ldist ( iconst ) %f(2)*particle_set ( index_b ) % r ( 3 )
+!pv(3,1)
+            pv(3,1) = pv(3,1) + lambda*ldist ( iconst ) %f(3)*particle_set ( index_a ) % r ( 1 )
+            pv(3,1) = pv(3,1) - lambda*ldist ( iconst ) %f(3)*particle_set ( index_b ) % r ( 1 )
+!pv(3,2)
+            pv(3,2) = pv(3,2) + lambda*ldist ( iconst ) %f(3)*particle_set ( index_a ) % r ( 2 )
+            pv(3,2) = pv(3,2) - lambda*ldist ( iconst ) %f(3)*particle_set ( index_b ) % r ( 2 )
+!pv(3,3)
+            pv(3,3) = pv(3,3) + lambda*ldist ( iconst ) %f(3)*particle_set ( index_a ) % r ( 3 )
+            pv(3,3) = pv(3,3) - lambda*ldist ( iconst ) %f(3)*particle_set ( index_b ) % r ( 3 )
+          END DO
+! 3x3
+          DO iconst = 1, ng3x3
+
+           SELECT CASE (char)
+             CASE ( 'FULL')
+!  pv gets updated with FULL multiplier
+                lambda_3x3 = lg3x3 ( iconst ) % lambda
+
+             CASE ( 'DEL')
+!  pv gets updated with del_lam
+                lambda_3x3 = lg3x3 ( iconst ) % del_lam
+             END SELECT
+
+             fc1=lambda_3x3(1)*lg3x3 ( iconst ) %fa+ &
+                  lambda_3x3(2)*lg3x3 ( iconst ) %fb
+             fc2=-lambda_3x3(1)*lg3x3 ( iconst ) %fa+ &
+                  lambda_3x3(3)*lg3x3 ( iconst ) %fc
+             fc3=-lambda_3x3(2)*lg3x3 ( iconst ) %fb- &
+                  lambda_3x3(3)*lg3x3 ( iconst ) %fc
+             index_a = g3x3_list ( iconst ) % a + first_atom -1
+             index_b = g3x3_list ( iconst ) % b + first_atom -1
+             index_c = g3x3_list ( iconst ) % c + first_atom -1
+
+!pv(1,1)
+             pv(1,1) = pv(1,1) + fc1(1)*particle_set ( index_a ) % r ( 1 )
+             pv(1,1) = pv(1,1) + fc2(1)*particle_set ( index_b ) % r ( 1 )
+             pv(1,1) = pv(1,1) + fc3(1)*particle_set ( index_c ) % r ( 1 )
+!pv(1,2)
+             pv(1,2) = pv(1,2) + fc1(1)*particle_set ( index_a ) % r ( 2 )
+             pv(1,2) = pv(1,2) + fc2(1)*particle_set ( index_b ) % r ( 2 )
+             pv(1,2) = pv(1,2) + fc3(1)*particle_set ( index_c ) % r ( 2 )
+!pv(1,3)
+             pv(1,3) = pv(1,3) + fc1(1)*particle_set ( index_a ) % r ( 3 )
+             pv(1,3) = pv(1,3) + fc2(1)*particle_set ( index_b ) % r ( 3 )
+             pv(1,3) = pv(1,3) + fc3(1)*particle_set ( index_c ) % r ( 3 )
+!pv(2,1)
+             pv(2,1) = pv(2,1) + fc1(2)*particle_set ( index_a ) % r ( 1 )
+             pv(2,1) = pv(2,1) + fc2(2)*particle_set ( index_b ) % r ( 1 )
+             pv(2,1) = pv(2,1) + fc3(2)*particle_set ( index_c ) % r ( 1 )
+!pv(2,2)
+             pv(2,2) = pv(2,2) + fc1(2)*particle_set ( index_a ) % r ( 2 )
+             pv(2,2) = pv(2,2) + fc2(2)*particle_set ( index_b ) % r ( 2 )
+             pv(2,2) = pv(2,2) + fc3(2)*particle_set ( index_c ) % r ( 2 )
+!pv(2,3)
+             pv(2,3) = pv(2,3) + fc1(2)*particle_set ( index_a ) % r ( 3 )
+             pv(2,3) = pv(2,3) + fc2(2)*particle_set ( index_b ) % r ( 3 )
+             pv(2,3) = pv(2,3) + fc3(2)*particle_set ( index_c ) % r ( 3 )
+!pv(3,1)
+             pv(3,1) = pv(3,1) + fc1(3)*particle_set ( index_a ) % r ( 1 )
+             pv(3,1) = pv(3,1) + fc2(3)*particle_set ( index_b ) % r ( 1 )
+             pv(3,1) = pv(3,1) + fc3(3)*particle_set ( index_c ) % r ( 1 )
+!pv(3,2)
+             pv(3,2) = pv(3,2) + fc1(3)*particle_set ( index_a ) % r ( 2 )
+             pv(3,2) = pv(3,2) + fc2(3)*particle_set ( index_b ) % r ( 2 )
+             pv(3,2) = pv(3,2) + fc3(3)*particle_set ( index_c ) % r ( 2 )
+!pv(3,3)
+             pv(3,3) = pv(3,3) + fc1(3)*particle_set ( index_a ) % r ( 3 )
+             pv(3,3) = pv(3,3) + fc2(3)*particle_set ( index_b ) % r ( 3 )
+             pv(3,3) = pv(3,3) + fc3(3)*particle_set ( index_c ) % r ( 3 )
+           END DO
+
+! 4x6
+           DO iconst = 1, ng4x6
+
+            SELECT CASE (char)
+            CASE ( 'FULL')
+!  pv gets updated with FULL multiplier
+               lambda_4x6 = lg4x6 ( iconst ) % lambda
+
+            CASE ( 'DEL')
+!  pv gets updated with del_lam
+               lambda_4x6 = lg4x6 ( iconst ) % del_lam
+            END SELECT
+            fc1=lambda_4x6(1)*lg4x6 ( iconst ) %fa+ &
+                 lambda_4x6(2)*lg4x6 ( iconst ) %fb+ &
+                 lambda_4x6(3)*lg4x6 ( iconst ) %fc
+            fc2=-lambda_4x6(1)*lg4x6 ( iconst ) %fa+ &
+                 lambda_4x6(4)*lg4x6 ( iconst ) %fd+ &
+                 lambda_4x6(5)*lg4x6 ( iconst ) %fe
+            fc3=-lambda_4x6(2)*lg4x6 ( iconst ) %fb- &
+                 lambda_4x6(4)*lg4x6 ( iconst ) %fd+ &
+                 lambda_4x6(6)*lg4x6 ( iconst ) %ff
+            fc4=-lambda_4x6(3)*lg4x6 ( iconst ) %fc- &
+                 lambda_4x6(5)*lg4x6 ( iconst ) %fe- &
+                 lambda_4x6(6)*lg4x6 ( iconst ) %ff
+            index_a = g4x6_list ( iconst ) % a + first_atom -1
+            index_b = g4x6_list ( iconst ) % b + first_atom -1
+            index_c = g4x6_list ( iconst ) % c + first_atom -1
+            index_d = g4x6_list ( iconst ) % c + first_atom -1
+
+!pv(1,1)
+            pv(1,1) = pv(1,1) + fc1(1)*particle_set(index_a)%r(1)
+            pv(1,1) = pv(1,1) + fc2(1)*particle_set(index_b)%r(1)
+            pv(1,1) = pv(1,1) + fc3(1)*particle_set(index_c)%r(1)
+            pv(1,1) = pv(1,1) + fc4(1)*particle_set(index_d)%r(1)
+!pv(1,2)
+            pv(1,2) = pv(1,2) + fc1(1)*particle_set(index_a)%r(2)
+            pv(1,2) = pv(1,2) + fc2(1)*particle_set(index_b)%r(2)
+            pv(1,2) = pv(1,2) + fc3(1)*particle_set(index_c)%r(2)
+            pv(1,2) = pv(1,2) + fc4(1)*particle_set(index_d)%r(2)
+!pv(1,3)
+            pv(1,3) = pv(1,3) + fc1(1)*particle_set(index_a)%r(3)
+            pv(1,3) = pv(1,3) + fc2(1)*particle_set(index_b)%r(3)
+            pv(1,3) = pv(1,3) + fc3(1)*particle_set(index_c)%r(3)
+            pv(1,3) = pv(1,3) + fc4(1)*particle_set(index_d)%r(3)
+!pv(2,1)
+            pv(2,1) = pv(2,1) + fc1(2)*particle_set(index_a)%r(1)
+            pv(2,1) = pv(2,1) + fc2(2)*particle_set(index_b)%r(1)
+            pv(2,1) = pv(2,1) + fc3(2)*particle_set(index_c)%r(1)
+            pv(2,1) = pv(2,1) + fc4(2)*particle_set(index_d)%r(1)
+!pv(2,2)
+            pv(2,2) = pv(2,2) + fc1(2)*particle_set(index_a)%r(2)
+            pv(2,2) = pv(2,2) + fc2(2)*particle_set(index_b)%r(2)
+            pv(2,2) = pv(2,2) + fc3(2)*particle_set(index_c)%r(2)
+            pv(2,2) = pv(2,2) + fc4(2)*particle_set(index_d)%r(2)
+!pv(2,3)
+            pv(2,3) = pv(2,3) + fc1(2)*particle_set(index_a)%r(3)
+            pv(2,3) = pv(2,3) + fc2(2)*particle_set(index_b)%r(3)
+            pv(2,3) = pv(2,3) + fc3(2)*particle_set(index_c)%r(3)
+            pv(2,3) = pv(2,3) + fc4(2)*particle_set(index_d)%r(3)
+!pv(3,1)
+            pv(3,1) = pv(3,1) + fc1(3)*particle_set(index_a)%r(1)
+            pv(3,1) = pv(3,1) + fc2(3)*particle_set(index_b)%r(1)
+            pv(3,1) = pv(3,1) + fc3(3)*particle_set(index_c)%r(1)
+            pv(3,1) = pv(3,1) + fc4(3)*particle_set(index_d)%r(1)
+!pv(3,2)
+            pv(3,2) = pv(3,2) + fc1(3)*particle_set(index_a)%r(2)
+            pv(3,2) = pv(3,2) + fc2(3)*particle_set(index_b)%r(2)
+            pv(3,2) = pv(3,2) + fc3(3)*particle_set(index_c)%r(2)
+            pv(3,2) = pv(3,2) + fc4(3)*particle_set(index_d)%r(2)
+!pv(3,3)
+            pv(3,3) = pv(3,3) + fc1(3)*particle_set(index_a)%r(3)
+            pv(3,3) = pv(3,3) + fc2(3)*particle_set(index_b)%r(3)
+            pv(3,3) = pv(3,3) + fc3(3)*particle_set(index_c)%r(3)
+            pv(3,3) = pv(3,3) + fc4(3)*particle_set(index_d)%r(3)
+
+          END DO
+        END DO
+      END DO MOL
+      CALL mp_sum ( pv, group )
+
+      virial % pv_constraint = pv
+
+END SUBROUTINE pv_constraint
 !******************************************************************************
 
-!SUBROUTINE update_veps ( molecule, veps, mass, thermo, ensemble, dt, group )
+SUBROUTINE shake_roll( molecule, particle_set, pos, vel, r_shake, v_shake, &
+                       simpar, max_sigma, ishake )
+! updates the multiplier one molecule type at a time
+    TYPE ( molecule_type ), POINTER                   :: molecule
+    TYPE ( particle_type ), POINTER                   :: particle_set ( : )
+    REAL ( dbl ), INTENT ( INOUT )                    :: vel ( :, : ), pos ( :, : )
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)            :: r_shake, v_shake
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    INTEGER, INTENT(INOUT)                     :: ishake
+    REAL(dbl), INTENT(INOUT)                 :: max_sigma
+
+! locals
+
+    INTEGER                                  :: iconst, index_a, index_b, index_c
+    INTEGER                                  :: first_atom, ndist
+    REAL(dbl)                                :: del_lam, dtby2, dtsqby2, &
+                                                fdotf, fdotf_sum, imass1, &
+                                                imass2, mass
+    REAL(dbl), DIMENSION(3)                  :: f_roll_r, f_roll_v
+    REAL(dbl), DIMENSION(3)                  :: fc_t, r12
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(molecule_kind_type ), POINTER       :: molecule_kind
+    TYPE ( local_dist_constraint_type ), POINTER   :: ldist ( : )
+    TYPE ( dist_constraint_type ), POINTER   :: dist_list ( : )
 !
+!------------------------------------------------------------------------------
+! define local variables
+
+  dtsqby2 = simpar%dt*simpar%dt*.5_dbl
+  dtby2 = simpar%dt*.5_dbl
+  molecule_kind => molecule % molecule_kind
+  CALL get_molecule_kind ( molecule_kind, ndist = ndist, dist_list = dist_list )
+  CALL get_molecule ( molecule, first_atom = first_atom, ldist=ldist )
+  IF (ishake==1) THEN
+     DO iconst = 1, ndist
+        index_a = dist_list ( iconst ) % a + first_atom -1
+        index_b = dist_list ( iconst ) % b + first_atom -1
+        atomic_kind=>particle_set ( index_a ) % atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass1 = 1._dbl/mass
+        atomic_kind=>particle_set ( index_b ) % atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass2 = 1._dbl/mass
+        ldist ( iconst ) % f = -2._dbl * ( ldist ( iconst ) % ra_old - &
+                                           ldist ( iconst ) % rb_old )
+
+! rotate fconst:
+        f_roll_r = MATVEC_3X3 ( r_shake, ldist ( iconst ) % f )
+        f_roll_v = MATVEC_3X3 ( v_shake, ldist ( iconst ) % f )
+! update positions with full multiplier
+         pos ( :, index_a ) = pos ( :, index_a ) + &
+             imass1*dtsqby2*ldist ( iconst ) % lambda * f_roll_r
+         pos ( :, index_b ) = pos ( :, index_b ) - &
+             imass2*dtsqby2*ldist ( iconst ) % lambda * f_roll_r
+
+! update velocites with full multiplier
+         vel ( :, index_a ) = vel ( :, index_a ) + &
+             imass1*dtby2*ldist ( iconst ) % lambda * f_roll_v
+         vel ( :, index_b ) = vel ( :, index_b ) - &
+             imass2*dtby2*ldist ( iconst ) % lambda * f_roll_v
+     END DO
+
+  ELSE
+
+     DO iconst = 1, ndist
+! computing the constraint
+        index_a = dist_list ( iconst ) % a + first_atom -1
+        index_b = dist_list ( iconst ) % b + first_atom -1
+        r12 = particle_set ( index_a ) % r -  particle_set ( index_b ) % r
+        ldist ( iconst ) % sigma = DOT_PRODUCT(r12,r12) - dist_list ( iconst ) % dab * &
+                                                          dist_list ( iconst ) % dab
+! computing fc(dt)
+        fc_t = -2._dbl*r12
+        atomic_kind=>particle_set ( index_a ) % atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass1 = 1._dbl/mass
+        atomic_kind=>particle_set ( index_b ) % atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass2 = 1._dbl/mass
+! rotate fc:
+        f_roll_r = MATVEC_3X3 ( r_shake, ldist ( iconst ) % f )
+        f_roll_v = MATVEC_3X3 ( v_shake, ldist ( iconst ) % f )
+        fdotf = DOTPROD_3D ( f_roll_r, fc_t )
+        fdotf_sum = fdotf * imass1 + fdotf * imass2
+        del_lam = 2._dbl*ldist ( iconst ) % sigma/(simpar%dt*simpar%dt*fdotf_sum)
+        ldist ( iconst ) % lambda = ldist ( iconst ) % lambda + del_lam
+
+! update positions by delta_lam
+         pos ( :, index_a ) = pos ( :, index_a ) + &
+             imass1*dtsqby2*del_lam * f_roll_r
+         pos ( :, index_b ) = pos ( :, index_b ) - &
+             imass2*dtsqby2*del_lam * f_roll_r
+
+! update velocites by delta_lam
+         vel ( :, index_a ) = vel ( :, index_a ) + &
+             imass1*dtby2*del_lam * f_roll_v
+         vel ( :, index_b ) = vel ( :, index_b ) - &
+             imass2*dtby2*del_lam * f_roll_v
+     END DO
+  END IF
+
+! computing the constraint and value of tolerance
+  DO iconst = 1, ndist
+     index_a = dist_list ( iconst ) % a + first_atom -1
+     index_b = dist_list ( iconst ) % b + first_atom -1
+     r12 ( : ) = pos ( :, index_a ) -  pos ( :, index_b )
+     ldist ( iconst ) % sigma = dot_product(r12,r12) - dist_list ( iconst ) % dab * &
+                                                       dist_list ( iconst ) % dab
+     max_sigma = MAX(ABS(ldist ( iconst ) % sigma),max_sigma)
+  END DO
+
+END SUBROUTINE shake_roll
 !
-!    TYPE(molecule_structure_type), &
-!      DIMENSION(:), INTENT(IN)               :: molecule
-!    REAL(dbl), DIMENSION(:, :), &
-!      INTENT(INOUT)                          :: veps
-!    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: mass
-!    TYPE(virial_type), INTENT(INOUT)         :: thermo
-!    CHARACTER(LEN=*), INTENT(IN)             :: ensemble
-!    REAL(dbl), INTENT(IN)                    :: dt
-!    INTEGER, INTENT(IN)                      :: group
+!!******************************************************************************
 !
-!    REAL(dbl)                                :: feps
-!
-!!------------------------------------------------------------------------------
-!! increment pressure pv_const
-!
-!  CALL pv_constraint ( molecule, thermo, 'DEL', group )
-!
-!  IF ( ensemble == 'NPT_I' ) THEN
-!     feps = thermo%pv_constraint(1,1) &
-!          + thermo%pv_constraint(2,2) &
-!          + thermo%pv_constraint(3,3)
-!     veps(1,1) = veps(1,1) + feps * 0.5_dbl * dt / mass ( 1, 1 )
-!     veps(2,2) = veps(1,1)
-!     veps(3,3) = veps(1,1)
-!  ELSE IF ( ensemble == 'NPT_F' ) THEN
-!     veps ( :, : ) = veps ( :, : ) +  0.5_dbl *  dt *  &
-!                     thermo % pv_constraint ( :, : ) / mass ( :, : )
-!  END IF
-!
-!END SUBROUTINE update_veps
-!
+SUBROUTINE check_tol(roll_tol,iroll,char,matrix,veps)
+
+
+    REAL(dbl), INTENT(OUT)                   :: roll_tol
+    INTEGER, INTENT(INOUT)                   :: iroll
+    CHARACTER(LEN=*), INTENT(IN)             :: char
+    REAL(dbl), DIMENSION(:, :), INTENT(IN), &
+      OPTIONAL                               :: matrix, veps
+
+    REAL(dbl)                                :: local_tol
+    REAL(dbl), DIMENSION(3, 3)               :: diff_rattle, diff_shake
+    REAL(dbl), DIMENSION(3, 3), SAVE         :: matrix_old, veps_old
+
+!------------------------------------------------------------------------------
+
+  SELECT CASE ( char )
+  CASE ( 'SHAKE' )
+     IF (iroll==1) THEN
+        matrix_old = matrix
+        roll_tol = -1.E10_dbl
+     ELSE
+        roll_tol = 0._dbl
+        diff_shake = ABS ( matrix_old - matrix )
+        local_tol = MAXVAL ( diff_shake )
+        roll_tol = MAX ( roll_tol, local_tol )
+        matrix_old = matrix
+     END IF
+     iroll = iroll + 1
+
+  CASE ( 'RATTLE' )
+     IF (iroll==1) THEN
+        veps_old = veps
+        roll_tol = -1.E+10_dbl
+     ELSE
+        roll_tol = 0._dbl
+
+! compute tolerance on veps
+
+        diff_rattle = ABS ( veps - veps_old )
+        local_tol = MAXVAL ( diff_rattle )
+        roll_tol = MAX ( roll_tol, local_tol )
+        veps_old = veps
+
+     END IF
+     iroll = iroll + 1
+
+  END SELECT
+
+END SUBROUTINE check_tol
+
+!!******************************************************************************
+
+SUBROUTINE get_roll_matrix(char,r_shake,v_shake,vector_r,vector_v,u)
+
+
+    CHARACTER(len=*), INTENT(IN)             :: char
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(OUT), OPTIONAL                  :: r_shake, v_shake
+    REAL(dbl), DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: vector_r, vector_v
+    REAL(dbl), DIMENSION(:, :), INTENT(IN), &
+      OPTIONAL                               :: u
+
+    INTEGER                                  :: i
+    REAL(dbl), DIMENSION(3, 3)               :: diag
+
+!------------------------------------------------------------------------------
+
+  IF ( PRESENT ( r_shake ) ) r_shake = 0.0_dbl
+  IF ( PRESENT ( v_shake ) ) v_shake = 0.0_dbl
+  diag = 0.0_dbl
+
+  SELECT CASE ( char )
+  CASE ( 'SHAKE' )
+    IF ( PRESENT ( u ) .AND. PRESENT ( vector_v ) .AND.  &
+                             PRESENT ( vector_r ) ) THEN
+       diag ( 1, 1 ) = vector_r ( 1 )
+       diag ( 2, 2 ) = vector_r ( 2 )
+       diag ( 3, 3 ) = vector_r ( 3 )
+       r_shake = MATMUL_3X3 ( MATMUL_3X3 ( u, diag ),TRANSPOSE_3D ( u ) )
+       diag ( 1, 1 ) = vector_v ( 1 )
+       diag ( 2, 2 ) = vector_v ( 2 )
+       diag ( 3, 3 ) = vector_v ( 3 )
+       v_shake = MATMUL_3X3 ( MATMUL_3X3 ( u, diag ), TRANSPOSE_3D ( u ) )
+       diag = MATMUL_3x3 ( r_shake, v_shake )
+       r_shake = diag
+    ELSEIF ( .NOT. PRESENT ( u ) .AND. PRESENT ( vector_v ) .AND.  &
+                             PRESENT ( vector_r ) ) THEN
+       DO i = 1, 3
+          r_shake ( i, i ) = vector_r ( i ) * vector_v ( i )
+          v_shake ( i, i ) = vector_v ( i )
+       END DO
+    ELSE
+       CALL stop_program ( "get_roll_matrix", "not sufficient parameters" )
+    END IF
+  CASE ( 'RATTLE' )
+    IF ( PRESENT ( u ) .AND. PRESENT ( vector_v ) ) THEN
+       diag ( 1, 1 ) = vector_v ( 1 )
+       diag ( 2, 2 ) = vector_v ( 2 )
+       diag ( 3, 3 ) = vector_v ( 3 )
+       v_shake = MATMUL_3x3 ( MATMUL_3X3 ( u, diag ), TRANSPOSE_3D ( u ) )
+    ELSEIF ( .NOT. PRESENT ( u ) .AND. PRESENT ( vector_v ) ) THEN
+       DO i = 1, 3
+          v_shake ( i, i ) = vector_v ( i )
+       END DO
+    ELSE
+       CALL stop_program ( "get_roll_matrix", "not sufficient parameters" )
+    END IF
+  END SELECT
+
+END SUBROUTINE get_roll_matrix
+
+!******************************************************************************
+
+SUBROUTINE update_veps ( local_molecules, molecule_set, molecule_kind_set, &
+                         particle_set, virial, veps, mass, ensemble, dt, group )
+
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE ( particle_type ), POINTER          :: particle_set ( : )
+    TYPE(virial_type), POINTER               :: virial
+    INTEGER, INTENT(IN)                      :: group
+    REAL(dbl), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: veps
+    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: mass
+    CHARACTER(LEN=*), INTENT(IN)             :: ensemble
+    REAL(dbl), INTENT(IN)                    :: dt
+
+! locals
+    REAL(dbl)                                :: feps
+!------------------------------------------------------------------------------
+! increment pressure pv_const
+
+  CALL pv_constraint ( local_molecules, molecule_set, molecule_kind_set, &
+                       particle_set, virial, 'DEL', group )
+
+  IF ( ensemble == 'NPT_I' ) THEN
+     feps = virial%pv_constraint(1,1) &
+          + virial%pv_constraint(2,2) &
+          + virial%pv_constraint(3,3)
+     veps(1,1) = veps(1,1) + feps * 0.5_dbl * dt / mass ( 1, 1 )
+     veps(2,2) = veps(1,1)
+     veps(3,3) = veps(1,1)
+  ELSE IF ( ensemble == 'NPT_F' ) THEN
+     veps ( :, : ) = veps ( :, : ) +  0.5_dbl *  dt *  &
+                     virial % pv_constraint ( :, : ) / mass ( :, : )
+  END IF
+
+END SUBROUTINE update_veps
 !******************************************************************************
 
 END MODULE constraint
