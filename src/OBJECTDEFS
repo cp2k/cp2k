@@ -101,7 +101,7 @@ OBJECTS_GENERIC =\
  integrator.o\
  k290.o\
  kg_main.o\
- kg_environment_type.o\
+ kg_environment_types.o\
  kinds.o\
  kinetic.o\
  kpoint_initialization.o\
