@@ -520,7 +520,7 @@ CONTAINS
 
     group = globenv%group
     output_unit = globenv%scr
-
+    IF (.NOT.ASSOCIATED(blacs_matrix)) RETURN
     CALL cp_fm_get_info(blacs_matrix,name=matrix_name,nrow_global=nrow_global,ncol_global=ncol_global)
 
     ALLOCATE(matrix(nrow_global,ncol_global))

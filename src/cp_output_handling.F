@@ -633,7 +633,7 @@ FUNCTION cp_unitnr_for_output(logger, print_key, extension, middle_name,&
               IF (PRESENT(middle_name)) my_middle_name=middle_name
               CALL cp_logger_generate_filename(logger,res=filename,&
                    root=TRIM(logger%iter_info%project_name)//"-"//&
-                   TRIM(middle_name),&
+                   TRIM(my_middle_name),&
                    postfix="-"//TRIM(cp_iter_string(logger%iter_info,for_file=.TRUE.))//&
                    extension,local=my_local)
            ELSE
