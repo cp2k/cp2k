@@ -209,7 +209,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
        IF ( PRESENT ( f_ub ) ) THEN
            f_ub(:,index_a) = f_ub(:,index_a) - &
                 rij*fscalar
-           f_ub(:,index_b) = f_ub(:,index_c) + &
+           f_ub(:,index_b) = f_ub(:,index_b) + &
                 rij*fscalar
         END IF
 

@@ -196,6 +196,8 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 
   CALL cell_release(cell,error=error)
   CALL cell_release(cell_ref,error=error)
+  CALL ewald_env_release ( ewald_env, error )
+  CALL fist_nonbond_env_release ( fist_nonbond_env, error )
 
   CALL timestop(0.0_dbl,handle)
  
@@ -253,7 +255,6 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 ! Create the fist_energy_type
   ALLOCATE ( thermo )
 
-
 ! Print the atomic kind set
   CALL write_atomic_kind_set(atomic_kind_set,globenv)
 
@@ -296,9 +297,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
     
   CALL distribution_1d_release ( local_particles, error = error )
   CALL distribution_1d_release ( local_molecules, error = error )
-  CALL ewald_env_release ( ewald_env, error )
   CALL ewald_pw_release ( ewald_pw, error )
-  CALL fist_nonbond_env_release ( fist_nonbond_env, error )
 
   IF (globenv%ionode) CALL m_flush(globenv%scr)
 
