@@ -220,7 +220,8 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
   CALL xstring ( globenv % project_name, ia, ie )
   filen = globenv % project_name ( ia:ie ) // '.restart'
   ia = MIN ( LEN ( filen ), 20 )
-  WRITE ( iw, '( A, T61, A )' ) ' READ PIMD| Read pos/vel/eta from file ', &
+  IF (globenv % ionode) &
+    WRITE ( iw, '( A, T61, A )' ) ' READ PIMD| Read pos/vel/eta from file ', &
            ADJUSTR ( filen ( 1:ia ) )
 
   INQUIRE ( FILE = filen, EXIST = exists )
