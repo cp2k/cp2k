@@ -214,13 +214,12 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         DEALLOCATE(pw_env%cube_info,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
-     NULLIFY(pw_env%pw_pools, pw_env%gridlevel_info, &
-          pw_env%l_info, pw_env%cube_info)
+     NULLIFY(pw_env%pw_pools, pw_env%cube_info)
   END IF
   IF (.NOT.failure) THEN
      CALL get_qs_env(qs_env=qs_env,&
           dft_control=dft_control,atomic_kind_set=atomic_kind_set,&
-          cell=cell)
+          cell=cell, para_env=para_env)
      
      rel_cutoff = dft_control%qs_control%relative_cutoff
      cutoff => dft_control%qs_control%e_cutoff
