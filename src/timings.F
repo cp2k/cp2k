@@ -21,25 +21,20 @@
 
 MODULE timings
 
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE machine,                         ONLY: m_cputime,&
-                                             m_flush,&
-                                             m_getpid,&
                                              m_walltime,&
                                              print_memory
   USE mathconstants,                   ONLY: zero
   USE message_passing,                 ONLY: mp_abort,&
-                                             mp_sync,&
                                              mp_environ
-  USE string_utilities,                ONLY: compress,&
-                                             uppercase
+  USE string_utilities,                ONLY: uppercase
   USE util,                            ONLY: sort
 
   PRIVATE
 
   PUBLIC :: timeset, timestop, timeprint, trace_debug, print_stack,&
-            write_cputime, use_HPM
+            use_HPM
 
   ! used to create a fresh timer_env
   PUBLIC :: init_timer_env, destroy_timer_env
@@ -99,7 +94,7 @@ CONTAINS
 SUBROUTINE init_timer_env()
     stack_pointer=stack_pointer+1
     IF (stack_pointer>max_timer_env_stack) THEN
-      print*,'stack_pointer too large is init_timer_env'
+      PRINT*,'stack_pointer too large is init_timer_env'
       CALL mp_abort()
     ENDIF
     timer_env_stack(stack_pointer)%stack_size=0
@@ -129,7 +124,7 @@ SUBROUTINE destroy_timer_env()
     timer_env_stack(stack_pointer)%trace=.FALSE.
     stack_pointer=stack_pointer-1
     IF (stack_pointer<0) THEN
-      print*,'no timer env available in destroy_timer_env'
+      PRINT*,'no timer env available in destroy_timer_env'
       CALL mp_abort()
     ENDIF
 END SUBROUTINE
@@ -140,15 +135,6 @@ END SUBROUTINE
 !!
 !!   NAME
 !!     timeset
-!!
-!!   SYNOPSIS
-!!     Subroutine timeset(name, ct, pu, handle)
-!!       Implicit None
-!!       Character(Len=*), Intent (IN):: name
-!!       Character(Len=1), Intent (IN):: ct
-!!       Character(Len=*), Intent (IN):: pu
-!!       Integer, Intent (OUT):: handle
-!!     End Subroutine timeset
 !!
 !!   FUNCTION
 !!     Start timer
@@ -184,7 +170,7 @@ SUBROUTINE timeset ( name, ct, pu, handle )
 !------------------------------------------------------------------------------
 
    IF (stack_pointer<1) THEN
-      print*,'no timer env available in timeset'
+      PRINT*,'no timer env available in timeset'
       CALL mp_abort()
    ENDIF
 
@@ -259,15 +245,6 @@ END SUBROUTINE timeset
 !!   NAME
 !!     timeset
 !!
-!!   SYNOPSIS
-!!     Subroutine timeset(name, ct, pu, handle)
-!!       Implicit None
-!!       Character(Len=*), Intent (IN):: name
-!!       Character(Len=1), Intent (IN):: ct
-!!       Character(Len=*), Intent (IN):: pu
-!!       Integer, Intent (OUT):: handle
-!!     End Subroutine timeset
-!!
 !!   FUNCTION
 !!     End timer
 !!
@@ -300,13 +277,13 @@ SUBROUTINE timestop ( perf, handle )
 !------------------------------------------------------------------------------
 
    IF (stack_pointer<1) THEN
-      print*,'no timer env available in timestop'
+      PRINT*,'no timer env available in timestop'
       CALL mp_abort()
    ENDIF
 
 
   IF ( handle /= timer_env_stack(stack_pointer)%handle_stack (timer_env_stack(stack_pointer)%stack_size) ) THEN
-      print*,'mismatched timestop '&
+      PRINT*,'mismatched timestop '&
         //TRIM(timer_env_stack(stack_pointer)%routine_stack(timer_env_stack(stack_pointer)%stack_size))//&
              ' in routine timestop'
       CALL mp_abort()
@@ -316,7 +293,7 @@ SUBROUTINE timestop ( perf, handle )
   IF ( handle > timer_env_stack(stack_pointer)%num_timer ) THEN
 !    CALL stop_program ( 'timestop', 'handle > num_timer' )
 ! intermediate work-around
-     print*,'handle > num_timer in routine timestop'
+     PRINT*,'handle > num_timer in routine timestop'
      CALL mp_abort()
   ELSE
 #if defined(__HPM)
@@ -366,12 +343,6 @@ END SUBROUTINE timestop
 !!   NAME
 !!     timeprint
 !!
-!!   SYNOPSIS
-!!     Subroutine timeprint(iw, global_print_level)
-!!       Implicit None
-!!       Integer, Intent (IN):: global_print_level, iw
-!!     End Subroutine timeprint
-!!
 !!   FUNCTION
 !!     Print accumulated information on timers
 !!
@@ -397,7 +368,7 @@ SUBROUTINE timeprint(iw,global_print_level)
 !------------------------------------------------------------------------------
 
   IF (stack_pointer<1) THEN
-      print*,'no timer env available in time_set'
+      PRINT*,'no timer env available in time_set'
       CALL mp_abort()
   ENDIF
 
@@ -470,13 +441,6 @@ END SUBROUTINE timeprint
 !!   NAME
 !!     trace_debug
 !!
-!!   SYNOPSIS
-!!     Subroutine trace_debug(set, iw)
-!!       Implicit None
-!!       Character(Len=*):: set
-!!       Integer, Optional:: iw
-!!     End Subroutine trace_debug
-!!
 !!   FUNCTION
 !!     Set routine tracer
 !!
@@ -501,7 +465,7 @@ SUBROUTINE trace_debug ( set, groupid )
 ! this is needed on SUN if the trace_debug("start") is used in the call (i.e. explicit string)
 
    IF (stack_pointer<1) THEN
-      print*,'no timer env available in trace_debug'
+      PRINT*,'no timer env available in trace_debug'
       CALL mp_abort()
    ENDIF
  
@@ -516,7 +480,7 @@ SUBROUTINE trace_debug ( set, groupid )
   CASE DEFAULT
 !   CALL stop_program("trace_debug","unknown action")
 !   intermediate work-around
-    print*,'unknown action requested in routine trace_debug'
+    PRINT*,'unknown action requested in routine trace_debug'
     CALL mp_abort()
   END SELECT
 
@@ -539,12 +503,6 @@ END SUBROUTINE trace_debug
 !!   NAME
 !!     print_stack
 !!
-!!   SYNOPSIS
-!!     Subroutine print_stack(iw)
-!!       Implicit None
-!!       Integer, Optional:: iw
-!!     End Subroutine print_stack
-!!
 !!   FUNCTION
 !!     Print current routine stack
 !!
@@ -561,12 +519,13 @@ SUBROUTINE print_stack ( iw )
 
 
     INTEGER                                  :: iw
+
     INTEGER                                  :: i, io
 
   io = iw
 
   IF (stack_pointer<1) THEN
-      print*,'no timer env available in print_stack'
+      PRINT*,'no timer env available in print_stack'
       CALL mp_abort()
   ENDIF
 
@@ -579,53 +538,6 @@ SUBROUTINE print_stack ( iw )
 END SUBROUTINE print_stack
 
 ! *****************************************************************************
-
-  SUBROUTINE write_cputime(checkpoint,globenv)
-
-!   Purpose: Write the current CPU time of all processes in seconds.
-
-!   History: - Creation (25.09.2002,MK)
-
-!   ***************************************************************************
-
-    CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
-    TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
-
-    CHARACTER(LEN=LEN_TRIM(checkpoint)+55)   :: string2
-    CHARACTER(LEN=LEN_TRIM(checkpoint)+7)    :: string1
-    INTEGER                                  :: group, ipe, mype, npe, &
-                                                output_unit, pid
-
-!   ---------------------------------------------------------------------------
-
-    IF (.NOT.globenv%print%cputime) RETURN
-
-    group = globenv%group
-    npe = globenv%num_pe
-    mype = globenv%mepos
-    output_unit = globenv%scr
-
-    CALL m_getpid(pid)
-
-    DO ipe=0,npe-1
-      IF (ipe == mype) THEN
-        WRITE (UNIT=string1,FMT="(I6,A)") ipe,":"//TRIM(checkpoint)
-        string1 = ADJUSTL(string1)
-        WRITE (UNIT=string2,FMT="(A,I8,A,F12.3,A)")&
-          "CPU time of process",pid," <"//TRIM(string1)//">: ",m_cputime(),&
-          " sec"
-        CALL compress(string2)
-        WRITE (UNIT=output_unit,FMT="(/,T2,A)",ADVANCE="NO") TRIM(string2)
-      END IF
-      CALL m_flush(output_unit)
-      CALL mp_sync(group)
-    END DO
-
-  END SUBROUTINE write_cputime
-
-!!*****
-!******************************************************************************
 
 END MODULE timings
 
