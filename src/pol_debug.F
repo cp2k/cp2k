@@ -123,7 +123,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
 
   CALL get_pol_grids ( pw_big, pw_small, dg_part, dg_coef, iref ) 
   
-!	
+!
 ! Debug electrostatics on ions
 !
   WRITE ( iw, '(A)' ) &
@@ -193,7 +193,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
         f_part( :, dum ( 2 ) )
     ENDIF
   END IF
-!	
+!
 ! Debug electrostatics on coefficients
 ! 
   WRITE ( iw, '(A)' ) &
@@ -260,7 +260,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
         f_coef ( cdum )
     ENDIF
   END IF
-!	
+!
 ! Debug overlap forces on ions
 !
   WRITE ( iw, '(A)' ) &
@@ -329,7 +329,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
         f_part( :, dum ( 2 ) )
     ENDIF
   END IF
-!	
+!
 ! Debug Overlap contribution on coefficients
 ! 
   WRITE ( iw, '(A)' ) &
