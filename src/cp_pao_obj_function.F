@@ -696,7 +696,7 @@ contains
 
     CALL timeset("calculate_density_matrix","I","",handle)
 
-    CALL blacs_syrk("U","N",mo%homo,2.0_wp,mo%eigenvectors,0.0_wp,density,&
+    CALL blacs_syrk("U","N",mo%homo,2.0_wp,mo%eigenvectors,1,1,0.0_wp,density,&
                     context,globenv)
 
     CALL timestop(0.0_wp,handle)

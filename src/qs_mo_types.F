@@ -49,14 +49,16 @@ MODULE qs_mo_types
   USE orbital_pointers,     ONLY: nso
   USE qs_environment_types, ONLY: get_qs_env,&
                                   qs_environment_type
-  USE termination,          ONLY: stop_memory
+  USE termination,          ONLY: stop_memory,&
+                                  stop_program
 
   IMPLICIT NONE
 
   PRIVATE
 
   TYPE mo_set_type
-    INTEGER                         :: homo,lfomo
+    REAL(wp)                        :: maxocc
+    INTEGER                         :: homo,lfomo,nao,nelectron,nmo
     REAL(wp), DIMENSION(:), POINTER :: eigenvalues,occupation_numbers
     TYPE(blacs_matrix_type)         :: eigenvectors
   END TYPE mo_set_type
@@ -70,6 +72,7 @@ MODULE qs_mo_types
   PUBLIC :: allocate_mo_set,&
             deallocate_mo_set,&
             read_mo_set,&
+            set_mo_occupation,&
             write_mo_set
 
 ! *****************************************************************************
@@ -84,8 +87,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE allocate_mo_set(mo_set,nao,nmo,nrow_block,ncol_block,context,&
-                             globenv)
+  SUBROUTINE allocate_mo_set(mo_set,nao,nmo,nelectron,maxocc,nrow_block,&
+                             ncol_block,context,globenv)
 
 !   Purpose: Allocate a wavefunction data structure.
 
@@ -95,8 +98,9 @@ CONTAINS
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), INTENT(OUT)            :: mo_set
-    INTEGER, INTENT(IN)                       :: context,nao,ncol_block,nmo,&
-                                                 nrow_block
+    REAL(wp), INTENT(IN)                      :: maxocc
+    INTEGER, INTENT(IN)                       :: context,nao,ncol_block,&
+                                                 nelectron,nmo,nrow_block
 
 !   *** Local parameters ***
 
@@ -108,6 +112,21 @@ CONTAINS
     INTEGER :: istat
 
 !   ---------------------------------------------------------------------------
+
+    IF (maxocc == 2.0_wp) THEN
+      mo_set%maxocc = maxocc
+    ELSE
+      CALL stop_program(routine,"LSD not implemented yet")
+    END IF
+
+    IF (MODULO(nelectron,2) == 0) THEN
+      mo_set%nelectron = nelectron
+    ELSE
+      CALL stop_program(routine,"Odd number of electrons")
+    END IF
+
+    mo_set%nao = nao
+    mo_set%nmo = nmo
 
     mo_set%homo = 0
     mo_set%lfomo = 0
@@ -122,7 +141,7 @@ CONTAINS
     IF (istat /= 0) THEN
       CALL stop_memory(routine,"mo_set%occupation_numbers",nmo*wp_size)
     END IF
-    mo_set%occupation_numbers(:) = 0.0_wp
+    CALL set_mo_occupation(mo_set=mo_set,smear=0.0_wp)
 
     CALL allocate_blacs_matrix(new_matrix=mo_set%eigenvectors,&
                                nrow_global=nao,&
@@ -217,6 +236,94 @@ CONTAINS
     CALL close_file(unit_number=restart_unit)
 
   END SUBROUTINE read_mo_set
+
+! *****************************************************************************
+
+  SUBROUTINE set_mo_occupation(mo_set,smear)
+
+!   Purpose: Smearing of the MO occupation due to the given smear value.
+
+!   History: - Creation (17.04.2002, MK)
+
+!   ***************************************************************************
+
+    TYPE(mo_set_type), INTENT(INOUT) :: mo_set
+    REAL(wp), INTENT(IN)             :: smear
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE set_mo_occupation (MODULE qs_mo_types)"
+
+!   *** Local variables ***
+
+    REAL(wp) :: e1,e2,edelta,edist,nelec
+    INTEGER  :: imo,nomo
+
+!   ---------------------------------------------------------------------------
+
+    nomo = mo_set%nelectron/2
+
+    mo_set%occupation_numbers(:) = 0.0_wp
+    mo_set%occupation_numbers(1:nomo) = mo_set%maxocc
+
+    mo_set%homo = nomo
+    mo_set%lfomo = nomo + 1
+
+    IF (smear /= 0.0_wp) THEN
+
+!     *** Define the energy window for the eigenvalues ***
+
+      e1 = mo_set%eigenvalues(nomo) - 0.5_wp*smear
+      e2 = mo_set%eigenvalues(nomo) + 0.5_wp*smear
+
+!     *** Find the lowest fractional occupied MO ***
+
+      DO imo=1,nomo
+        IF (mo_set%eigenvalues(imo) > e1) THEN
+          mo_set%lfomo = imo
+          EXIT
+        END IF
+      END DO
+
+!     *** Find the highest fractional occupied MO which will be the HOMO ***
+
+      DO imo=mo_set%nmo,nomo,-1
+        IF (mo_set%eigenvalues(imo) < e2) THEN
+          mo_set%homo = imo
+          EXIT
+        END IF
+      END DO
+
+!     *** Get the number of electrons to be smeared ***
+
+      edist = 0.0_wp
+      nelec = 0.0_wp
+
+      DO imo=mo_set%lfomo,mo_set%homo
+        nelec = nelec + mo_set%occupation_numbers(imo)
+        edist = edist + ABS(e2 - mo_set%eigenvalues(imo))
+      END DO
+
+!     *** Smear electrons inside the window ***
+
+      DO imo=mo_set%lfomo,mo_set%homo
+        edelta = ABS(e2 - mo_set%eigenvalues(imo))
+        mo_set%occupation_numbers(imo) = MIN(mo_set%maxocc,nelec*edelta/edist)
+        nelec = nelec - mo_set%occupation_numbers(imo)
+        edist = edist - edelta
+      END DO
+
+!     *** Check, if the smearing involves more than one MO ***
+
+      IF (mo_set%lfomo == mo_set%homo) THEN
+        mo_set%homo = nomo
+        mo_set%lfomo = nomo + 1
+      END IF
+
+    END IF
+
+  END SUBROUTINE set_mo_occupation
 
 ! *****************************************************************************
 

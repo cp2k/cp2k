@@ -90,6 +90,7 @@ MODULE qs_blacs
 
   PUBLIC :: allocate_blacs_matrix,&
             blacs_add,&
+            blacs_add_to_element,&
             blacs_gemm,&
             blacs_get_element,&
             blacs_maxval,&
@@ -342,6 +343,59 @@ CONTAINS
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE blacs_add
+
+! *****************************************************************************
+
+  SUBROUTINE blacs_add_to_element(matrix,irow_global,icol_global,alpha,&
+                                  context,globenv)
+
+!   Purpose: Add alpha to the BLACS matrix element
+!            matrix(irow_global,icol_global).
+
+!   History: - Creation (08.06.2001, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(blacs_matrix_type), INTENT(INOUT)    :: matrix
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    REAL(wp), INTENT(IN)                      :: alpha
+    INTEGER, INTENT(IN)                       :: context,icol_global,&
+                                                 irow_global
+
+!   *** Local variables ***
+
+    INTEGER :: icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,nprow,&
+               source
+
+    INTEGER, DIMENSION(9) :: desca
+
+    REAL(wp), DIMENSION(:,:), POINTER :: a
+
+!   ---------------------------------------------------------------------------
+
+    source = globenv%source
+#if defined(__parallel)
+
+    CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
+
+    a => matrix%p(myprow,mypcol)%block
+    desca(:) = matrix%descriptor(:)
+
+    CALL infog2l(irow_global,icol_global,desca,nprow,npcol,myprow,mypcol,&
+                 irow_local,icol_local,iprow,ipcol)
+
+    IF ((iprow == myprow).AND.(ipcol == mypcol)) THEN
+      a(irow_local,icol_local) = a(irow_local,icol_local) + alpha
+    END IF
+
+#else
+
+    a => matrix%p(source,source)%block
+
+    a(irow_global,icol_global) = a(irow_global,icol_global) + alpha
+
+#endif
+  END SUBROUTINE blacs_add_to_element
 
 ! *****************************************************************************
 
@@ -838,8 +892,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE blacs_syrk(uplo,trans,k,alpha,matrix_a,beta,matrix_c,context,&
-                        globenv)
+  SUBROUTINE blacs_syrk(uplo,trans,k,alpha,matrix_a,ia,ja,beta,matrix_c,&
+                        context,globenv)
 
 !   Purpose: BLACS interface to the BLAS routine dsyrk.
 
@@ -852,7 +906,7 @@ CONTAINS
     TYPE(global_environment_type), INTENT(IN) :: globenv
     CHARACTER(LEN=1), INTENT(IN)              :: trans,uplo
     REAL(wp), INTENT(IN)                      :: alpha,beta
-    INTEGER, INTENT(IN)                       :: context,k
+    INTEGER, INTENT(IN)                       :: context,ia,ja,k
 
 !   *** Local variables ***
 
@@ -877,7 +931,7 @@ CONTAINS
     c => matrix_c%p(myprow,mypcol)%block
     descc(:) = matrix_c%descriptor(:)
 
-    CALL pdsyrk(uplo,trans,n,k,alpha,a,1,1,desca,beta,c,1,1,descc)
+    CALL pdsyrk(uplo,trans,n,k,alpha,a,ia,ja,desca,beta,c,1,1,descc)
 
 #else
 
@@ -887,7 +941,7 @@ CONTAINS
     lda = matrix_a%nrow_global
     ldc = matrix_c%nrow_global
 
-    CALL dsyrk(uplo,trans,n,k,alpha,a,lda,beta,c,ldc)
+    CALL dsyrk(uplo,trans,n,k,alpha,a(ia,ja),lda,beta,c,ldc)
 
 #endif
     CALL timestop(0.0_wp,handle)
@@ -1859,7 +1913,7 @@ CONTAINS
     END DO
 
 #endif
-    CALL blacs_syrk("U","N",ncol_global,1.0_wp,work,0.0_wp,matrix,context,&
+    CALL blacs_syrk("U","N",ncol_global,1.0_wp,work,1,1,0.0_wp,matrix,context,&
                     globenv)
 
     DEALLOCATE (eigenvalues,STAT=istat)
@@ -2290,57 +2344,57 @@ CONTAINS
             last_row=last_row,&
             last_col=last_col)
 #if (__parallel)
-       call blacs_pinfo(blacs_proc_nr, n_blacs_proc)
-       CPPrecondition(blacs_proc_nr==global_env%mepos,cp_failure_level,routineP,error,failure)
-       call blacs_gridinfo(source_m%context,nprow,npcol,myprow,mypcol)
-       start_proc_row=source_m%descriptor(7)
-       start_proc_col=source_m%descriptor(8)
-!    if ( (myprow >= n_proc_row) .or. (mypcol >= n_proc_col) ) then
-!       has_b_matrix=.false.
-!    else
-!       has_b_matrix=.true.
-!    end if
-
-       do sm_block_nr=1,ncols
-          CPPrecondition(first_row(sm_block_nr)==first_col(sm_block_nr),cp_warning_level,routineP,error,failure)
-! the processor that has the sm_block
-          sm_block_proc=d_struct(sm_block_nr)
-
-! 0 based indexing
-          b_block_row_start= (first_row(sm_block_nr)-1)/source_m%nrow_block
-          b_block_row_stop= (last_row(sm_block_nr)-1)/source_m%nrow_block
-          b_block_col_start= (first_col(sm_block_nr)-1)/source_m%ncol_block
-          b_block_col_stop= (last_col(sm_block_nr)-1)/source_m%ncol_block
-
-          do b_block_row= b_block_row_start,b_block_row_stop
-             do b_block_col= b_block_col_start,b_block_col_stop
-                blacs_block_proc_row= mod(b_block_row+start_proc_row,nprow)
-                blacs_block_proc_col= mod(b_block_col+start_proc_col,npcol)
-                blacs_proc_nr= blacs_pnum(source_matrix%context,&
-                     blacs_block_proc_row, blacs_block_proc_col)
-! the blacs proc nr should be just the mpi nr
-                if (blacs_block_proc_nr == sm_block_nr) then
-                   if (blacs_block_proc_nr == global_env%mepos) then
-                      start_row_of_b= first_col(sm_block_nr)-b_block_row*&
-                           source_m%nrow_block
-                      end_row_of_b= min(source_m%nrow_block,&
-                           last_col(sm_block_nr)-b_block_row*&
-                           source_m%nrow_block)
-                      start_row_of_sm=max(0,-start_row_of_sm)
-                      start_row_of_b=max(0,start_row_of_sm)
-                      end_row_of_sm=start_row_of_sm+end_row_of_b-&
-                           start_row_of_b
-! to do
-!source_m%p(blacs_block_proc_row,blacs_block_proc_col)&
-!     %block(start_row_of_b:end_row_of_b,&
-!     start_col_of_b,end_col_of_b)
-
-                   end if
-                end if
-             end do
-          end do
-       end do
-
+!MK       call blacs_pinfo(blacs_proc_nr, n_blacs_proc)
+!MK       CPPrecondition(blacs_proc_nr==global_env%mepos,cp_failure_level,routineP,error,failure)
+!MK       call blacs_gridinfo(source_m%context,nprow,npcol,myprow,mypcol)
+!MK       start_proc_row=source_m%descriptor(7)
+!MK       start_proc_col=source_m%descriptor(8)
+!MK!    if ( (myprow >= n_proc_row) .or. (mypcol >= n_proc_col) ) then
+!MK!       has_b_matrix=.false.
+!MK!    else
+!MK!       has_b_matrix=.true.
+!MK!    end if
+!MK
+!MK       do sm_block_nr=1,ncols
+!MK          CPPrecondition(first_row(sm_block_nr)==first_col(sm_block_nr),cp_warning_level,routineP,error,failure)
+!MK! the processor that has the sm_block
+!MK          sm_block_proc=d_struct(sm_block_nr)
+!MK
+!MK! 0 based indexing
+!MK          b_block_row_start= (first_row(sm_block_nr)-1)/source_m%nrow_block
+!MK          b_block_row_stop= (last_row(sm_block_nr)-1)/source_m%nrow_block
+!MK          b_block_col_start= (first_col(sm_block_nr)-1)/source_m%ncol_block
+!MK          b_block_col_stop= (last_col(sm_block_nr)-1)/source_m%ncol_block
+!MK
+!MK          do b_block_row= b_block_row_start,b_block_row_stop
+!MK             do b_block_col= b_block_col_start,b_block_col_stop
+!MK                blacs_block_proc_row= mod(b_block_row+start_proc_row,nprow)
+!MK                blacs_block_proc_col= mod(b_block_col+start_proc_col,npcol)
+!MK                blacs_proc_nr= blacs_pnum(source_matrix%context,&
+!MK                     blacs_block_proc_row, blacs_block_proc_col)
+!MK! the blacs proc nr should be just the mpi nr
+!MK                if (blacs_block_proc_nr == sm_block_nr) then
+!MK                   if (blacs_block_proc_nr == global_env%mepos) then
+!MK                      start_row_of_b= first_col(sm_block_nr)-b_block_row*&
+!MK                           source_m%nrow_block
+!MK                      end_row_of_b= min(source_m%nrow_block,&
+!MK                           last_col(sm_block_nr)-b_block_row*&
+!MK                           source_m%nrow_block)
+!MK                      start_row_of_sm=max(0,-start_row_of_sm)
+!MK                      start_row_of_b=max(0,start_row_of_sm)
+!MK                      end_row_of_sm=start_row_of_sm+end_row_of_b-&
+!MK                           start_row_of_b
+!MK! to do
+!MK!source_m%p(blacs_block_proc_row,blacs_block_proc_col)&
+!MK!     %block(start_row_of_b:end_row_of_b,&
+!MK!     start_col_of_b,end_col_of_b)
+!MK
+!MK                   end if
+!MK                end if
+!MK             end do
+!MK          end do
+!MK       end do
+!MK
 #else
        do sm_block_nr=1,ncols
           call get_block_node(target_ptr,sm_block_nr,sm_block_nr,&
@@ -2423,17 +2477,17 @@ CONTAINS
        size_diag=size(diagonal)
        if (alpha==1.0_wp .and. beta==0.0_wp) then ! make common case fast....
 #if (__parallel)
-! might be faster to do column by column (more contiguous)
-          do i=1,size_diag
-             global_row=indxl2g(i,descriptor(5),descriptor(my_p_row),&
-                  descriptor(7),n_p_rows)
-             if (global_row>size_diag) then
-                c%p(my_p_row,my_p_col)%block(i:,:)= 0.0_wp
-                exit
-             end if
-             c%p(my_p_row,my_p_col)%block(i,:)=&
-                  diagonal(global_row)*b%p(my_p_row,my_p_col)%block(i,:)
-          end do
+!MK! might be faster to do column by column (more contiguous)
+!MK          do i=1,size_diag
+!MK             global_row=indxl2g(i,descriptor(5),descriptor(my_p_row),&
+!MK                  descriptor(7),n_p_rows)
+!MK             if (global_row>size_diag) then
+!MK                c%p(my_p_row,my_p_col)%block(i:,:)= 0.0_wp
+!MK                exit
+!MK             end if
+!MK             c%p(my_p_row,my_p_col)%block(i,:)=&
+!MK                  diagonal(global_row)*b%p(my_p_row,my_p_col)%block(i,:)
+!MK          end do
 #else
           forall (j=1:size(b%p(my_p_row,my_p_col)%block,2))
              forall (i=1:min(size_diag,size(b%p(my_p_row,my_p_col)%block,1)))
@@ -2449,8 +2503,8 @@ CONTAINS
 ! might be faster to do column by column (more contiguous)
           do i=1,size_diag
 #if (__parallel)
-             global_row=indxl2g(i,descriptor(5),descriptor(my_p_row),&
-                  descriptor(7),n_p_rows)
+!MK             global_row=indxl2g(i,descriptor(5),descriptor(my_p_row),&
+!MK                  descriptor(7),n_p_rows)
 #else
              global_row=i
 #endif

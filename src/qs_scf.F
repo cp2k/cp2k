@@ -25,9 +25,10 @@
 !!          added multiple grid feature
 !!          changed to spherical cutoff consistently (?)
 !!          therefore removed the gradient correct functionals
-!!     - updated with the new QS data structures (10.04.02, MK)
-!!     - copy_matrix replaced by transfer_matrix (11.04.02, MK)
-!!     - nrebuild_rho and nrebuild_gvg unified (12.04.02, MK)
+!!     - updated with the new QS data structures (10.04.02,MK)
+!!     - copy_matrix replaced by transfer_matrix (11.04.02,MK)
+!!     - nrebuild_rho and nrebuild_gvg unified (12.04.02,MK)
+!!     - set_mo_occupation for smear (17.04.02,MK)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -111,6 +112,7 @@ MODULE qs_scf
   USE qs_mo_types,              ONLY: allocate_mo_set,&
                                       mo_set_type,&
                                       read_mo_set,&
+                                      set_mo_occupation,&
                                       write_mo_set
   USE qs_overlap,               ONLY: write_blacs_matrix,&
                                       write_sparse_matrix
@@ -165,11 +167,11 @@ MODULE qs_scf
   CHARACTER(LEN=60) :: c_fun,x_fun,xc_fun
   CHARACTER(LEN=10) :: density_guess
   REAL(wp)          :: rel_cutoff,ec,ecore,ecore_overlap,ecore_self,ehartree,&
-                       eps_eigval,eps_scf,etotal,ex,p_mix,&
+                       eps_eigval,eps_scf,etotal,ex,level_shift,p_mix,smear,&
                        total_rho_core_rspace,total_rho_elec_rspace,&
                        total_rho_gspace,total_rho_rspace,work_syevx
-  INTEGER           :: max_scf,nelectron,nrebuild,nrow_block,ncol_block,&
-                       nprow,npcol,maxl,ngrid_level,nkind
+  INTEGER           :: charge,max_scf,nelectron,nrebuild,nrow_block,&
+                       ncol_block,nprow,npcol,maxl,ngrid_level,nkind
   LOGICAL           :: gradient_functional,gth_potential_present,orthorhombic,&
                        rebuild
 
@@ -237,6 +239,8 @@ CONTAINS
                              gth_potential_present=gth_potential_present,&
                              maxl=maxl,&
                              nelectron=nelectron)
+
+    nelectron = nelectron - charge
 
     CALL get_cell(cell=cell,orthorhombic=orthorhombic)
 
@@ -646,7 +650,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: handle,homo,ikind,nao,ndep,nmo,output_unit
+    INTEGER :: handle,ikind,nao,ndep,nmo,output_unit
     LOGICAL :: ionode
 
     INTEGER, DIMENSION(0:globenv%num_pe-1) :: nblock_pe,nelement_pe
@@ -662,31 +666,23 @@ CONTAINS
 
     CALL start_blacs(nprow,npcol,context,globenv)
 
-!   *** Calculate the number of electrons ***
-
-    IF (MODULO(nelectron,2) == 0) THEN
-      homo = nelectron/2
-    ELSE
-      CALL stop_program(routine,"Odd number of electrons")
-    END IF
-
 !   *** Get the dimension of the full SCF matrices, ***
 !   *** i.e. the total number of atomic orbitals    ***
 
     CALL get_matrix_info(matrix=h%matrix,nrow=nao)
 
-    IF (globenv%print%mo_eigenvalues) THEN
+    IF (globenv%print%mo_eigenvalues.OR.&
+        (level_shift /= 0.0_wp).OR.&
+        (smear /= 0.0_wp)) THEN
       nmo = nao
     ELSE
-      nmo = homo
+      nmo = nelectron/2
     END IF
 
 !   *** Allocate the distributed MO eigenvectors ***
 
-    CALL allocate_mo_set(mo,nao,nmo,nrow_block,ncol_block,context,globenv)
-
-    mo%homo = homo
-    mo%occupation_numbers(1:homo) = 2.0_wp
+    CALL allocate_mo_set(mo,nao,nmo,nelectron,2.0_wp,nrow_block,ncol_block,&
+                         context,globenv)
 
 !   *** Get BLACS block size of the MO eigenvector matrix      ***
 !   *** which has to fit to the other distributed SCF matrices ***
@@ -752,7 +748,7 @@ CONTAINS
     IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,I10))")&
         "Number of electrons:                    ",nelectron,&
-        "Number of occupied orbitals:            ",homo,&
+        "Number of occupied orbitals:            ",mo%homo,&
         "Number of orbital functions:            ",nao,&
         "Number of independent orbital functions:",nao - ndep
     END IF
@@ -872,6 +868,10 @@ CONTAINS
     CALL blacs_symm("L","U",nao,nmo,1.0_wp,ortho,work,0.0_wp,mo%eigenvectors,&
                     context,globenv)
 
+!   *** Define the new MO occupation, if smear is requested ***
+
+    IF (smear/= 0.0_wp) CALL set_mo_occupation(mo,smear)
+
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE eigensolver
@@ -894,14 +894,21 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: handle
+    INTEGER :: handle,imo
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_density_matrix","I","",handle)
 
-    CALL blacs_syrk("U","N",mo%homo,2.0_wp,mo%eigenvectors,0.0_wp,density,&
-                    context,globenv)
+    CALL blacs_syrk("U","N",mo%lfomo-1,2.0_wp,mo%eigenvectors,1,1,0.0_wp,&
+                    density,context,globenv)
+
+!   *** Add the density contribution from the fractional occupied MOs ***
+
+    DO imo=mo%lfomo,mo%homo
+      CALL blacs_syrk("U","N",1,mo%occupation_numbers(imo),mo%eigenvectors,&
+                      1,imo,1.0_wp,density,context,globenv)
+    END DO
 
     CALL timestop(0.0_wp,handle)
 
@@ -1276,10 +1283,12 @@ CONTAINS
 
 !   *** Load the default values ***
 
+    charge = 0
     density_guess = "ATOMIC"
     eps_eigval = 1.0E-5_wp
     eps_scf = 1.0E-5_wp
     eps_diis = 0.1_wp
+    level_shift = 0.0_wp
     max_diis = 4
     max_scf = 50
     nprow = 0
@@ -1288,6 +1297,7 @@ CONTAINS
     nrow_block = 32
     ncol_block = 32
     p_mix = 0.4_wp
+    smear = 0.0_wp
     work_syevx = 1.0_wp
 
     CALL start_parser(file_name=globenv%input_file_name,&
@@ -1297,6 +1307,8 @@ CONTAINS
     DO WHILE (test_object(newline=.TRUE.) /= "EOS")
       CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
       SELECT CASE (TRIM(keyword))
+      CASE ("CHARGE")
+        CALL read_object(charge)
       CASE ("DENSITY_GUESS","SCF_GUESS","GUESS")
         CALL read_object(density_guess,lower_to_upper=.TRUE.)
       CASE ("DENSITY_MIXING","MIXING")
@@ -1307,6 +1319,8 @@ CONTAINS
         CALL read_object(eps_eigval)
       CASE ("EPS_SCF")
         CALL read_object(eps_scf)
+      CASE ("LEVEL_SHIFT")
+        CALL read_object(level_shift)
       CASE ("MAX_DIIS")
         CALL read_object(max_diis)
       CASE ("MAX_SCF")
@@ -1320,6 +1334,8 @@ CONTAINS
       CASE ("PROCESS_GRID")
         CALL read_object(nprow)
         CALL read_object(npcol)
+      CASE ("SMEAR")
+        CALL read_object(smear)
       CASE ("WORK_SYEVX")
         CALL read_object(work_syevx)
         work_syevx = MIN(MAX(0.0_wp,work_syevx),1.0_wp)
@@ -1354,19 +1370,19 @@ CONTAINS
       output_unit = globenv%scr
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/)") "SCF PARAMETERS"
       WRITE (UNIT=output_unit,&
-             FMT="(T3,A,2(/,T3,A,I5),2(/,T3,A,ES9.2),2(/,T3,A,F5.2))")&
-        "density guess: "//TRIM(density_guess),&
-        "max_scf:      ",max_scf,&
-        "nrebuild:     ",nrebuild,&
-        "eps_scf:      ",eps_scf,&
-        "eps_eigval:   ",eps_eigval,&
-        "p_mix:        ",p_mix,&
-        "work_syevx:   ",work_syevx
-      IF (max_diis > 0) THEN
-        WRITE (UNIT=output_unit,FMT="(T3,A,I5,/,T3,A,ES9.2)")&
-          "max_diis:     ",max_diis,&
-          "eps_diis:     ",eps_diis
-      END IF
+             FMT="(T3,A,/,4(/,T3,A,I5),3(/,T3,A,ES9.2),4(/,T3,A,F5.2))")&
+        "Density guess: "//TRIM(density_guess),&
+        "charge:            ",charge,&
+        "nrebuild:          ",nrebuild,&
+        "max_scf:           ",max_scf,&
+        "max_diis:          ",max_diis,&
+        "eps_scf:           ",eps_scf,&
+        "eps_diis:          ",eps_diis,&
+        "eps_eigval:        ",eps_eigval,&
+        "p_mix:             ",p_mix,&
+        "work_syevx:        ",work_syevx,&
+        "level_shift [a.u.]:",level_shift,&
+        "smear [a.u.]:      ",smear
     END IF
 
   END SUBROUTINE write_scf_parameters
