@@ -120,8 +120,6 @@ CONTAINS
     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
     force_env_p(1)%force_env => force_env
     CALL qs_mol_dyn2 ( force_env_p, globenv, error )
-    DEALLOCATE(force_env_p, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   
   END SUBROUTINE qs_mol_dyn1
 
