@@ -671,7 +671,7 @@ CONTAINS
     CHARACTER(LEN=240)                 :: line
     CHARACTER(LEN=LEN(element_symbol)) :: symbol
 
-    INTEGER :: i,ico,ipgf,iset,ishell,istat,lshell,m,maxco,maxl,maxlcgf,&
+    INTEGER :: i,ico,ipgf,iset,ishell,istat,lshell,m,maxco,maxl,&
                maxpgf,maxshell,ncgf,ncgf_set,nmin,nset,nsgf
     LOGICAL :: found
 
@@ -760,9 +760,7 @@ CONTAINS
 
 !         *** Maximum angular momentum quantum number of the atomic kind ***
 
-          maxlcgf = MAX(maxlcgf,maxl)
-
-          CALL init_orbital_pointers(maxlcgf+1)
+          CALL init_orbital_pointers(maxl+1)
 
 !         *** Allocate the global variables ***
 
