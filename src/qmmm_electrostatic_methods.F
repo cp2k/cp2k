@@ -602,16 +602,12 @@ CONTAINS
                                    error)
        END DO
     ELSE
-       ! Spline Interpolator - Still to be completed... 
-       ! Fawzi?!?! Yuuuuuhuuuuuu?!?! 
-       !
-       !DO Ilevel = coarser_grid, auxbas_grid+1, -1
-       !   CALL pw_inject_s3(tmp_grid(Ilevel  )%pw,&
-       !                     tmp_grid(Ilevel-1)%pw,&
-       !                     pw_pools(Ilevel-1)%pool,&
-       !                     aug_pools(Ilevel-1)%pool,&
-       !                     error)
-       !END DO       
+       DO Ilevel = coarser_grid, auxbas_grid+1, -1
+          CALL pw_inject_s3(tmp_grid(Ilevel  )%pw,&
+                            tmp_grid(Ilevel-1)%pw,&
+                            aug_pools(Ilevel)%pool,&
+                            error=error)
+       END DO
     ENDIF
     lb = v_qmmm%pw%pw_grid%bounds(1,:)
     ub = v_qmmm%pw%pw_grid%bounds(2,:)
