@@ -429,7 +429,7 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,globenv)
                              row_indices=qs_ot_env%row_indices, &
                              col_indices=qs_ot_env%col_indices)
 
-  ALLOCATE(qs_ot_env%local_block(qs_ot_env%nrow_local,qs_ot_env%ncol_local))
+  ALLOCATE(qs_ot_env%local_block(SIZE(qs_ot_env%matrix_cosp_b%local_data,1),SIZE(qs_ot_env%matrix_cosp_b%local_data,2)))
 
 END SUBROUTINE qs_ot_allocate
 

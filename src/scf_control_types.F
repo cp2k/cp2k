@@ -171,7 +171,7 @@ CONTAINS
        scf_control%eps_eigval = 1.0E-5_wp
        scf_control%eps_scf = 1.0E-5_wp
        scf_control%eps_lumos = 1.0E-5_wp
-       scf_control%max_iter_lumos = 3000
+       scf_control%max_iter_lumos = 2999
        scf_control%eps_diis = 0.1_wp
        scf_control%level_shift = 0.0_wp
        scf_control%max_diis = 4

@@ -182,7 +182,8 @@ CONTAINS
 ! *****************************************************************************
 
 
-
+! this routine will copy an array on to local data of a matrix
+! crucially, they have identical sizes
   SUBROUTINE blacs_set_local_block(matrix,BLOCK)
 ! *****************************************************************************
 
@@ -193,8 +194,7 @@ CONTAINS
     INTEGER :: nelements
 
     mblock => matrix%local_data
-    nelements = SIZE(mblock,1)*&
-         matrix%matrix_struct%ncol_local(matrix%matrix_struct%context%mepos(2))
+    nelements = SIZE(mblock,1)*SIZE(mblock,2)
 
     CALL DCOPY(nelements,BLOCK(1,1),1,mblock(1,1),1)
 
@@ -942,8 +942,8 @@ CONTAINS
     ! look here for a PDORMTR warning :-)
     ! this routine seems to need more workspace than reported
     ! (? lapack bug ...)
-    ! arbitrary additional memory  ... we give 1000 more words
-    lwork = NINT(work(1)+1000)
+    ! arbitrary additional memory  ... we give 100000 more words (it seems to depend on the block size used)
+    lwork = NINT(work(1)+100000)
     DEALLOCATE(work)
     ALLOCATE(work(lwork),STAT=istat)
     IF (istat.NE.0) CALL stop_memory("blacs_syevd","lwork")
