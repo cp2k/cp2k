@@ -197,6 +197,8 @@ subroutine qs_diis_b_release(diis_buffer,error)
                  call cp_fm_release(diis_buffer%error(i,j)%matrix,error=error)
               end do
            end do
+           deallocate(diis_buffer%error,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         end if
         if (associated(diis_buffer%parameter)) then
            do j=1,size(diis_buffer%parameter,2)
@@ -205,6 +207,8 @@ subroutine qs_diis_b_release(diis_buffer,error)
                       error=error)
               end do
            end do
+           deallocate(diis_buffer%parameter,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         end if
         deallocate(diis_buffer,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
