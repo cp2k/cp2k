@@ -14,7 +14,7 @@
 &FORCE_EVAL
         &QMMM
          ECOUPL GAUSS
-         ABC_QM  8.0 8.0 8.0
+         ABC_QM  7.0 7.0 7.0
          #
          # QM_KINDS
          #
@@ -73,9 +73,8 @@
 &END
  
 &QS
- CUTOFF       280
+ CUTOFF       50
  COMMENSURATE
- EPS_DEFAULT  1.0E-10
 &END
  
 &SCF
