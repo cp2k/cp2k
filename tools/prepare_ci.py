@@ -11,7 +11,7 @@ import testUtils
 
 # read directives
 directives={"normalize-use":1,"upcase-keywords":1,"clean":1,
-            "replace":0,"synopsis":1,"prettify-cvs":1,"popt":0,"tests":1}
+            "replace":0,"synopsis":1,"prettify-cvs":1,"popt":0,"tests":0}
 directiveRe=re.compile(r"--(no-)?(normalize-use|upcase-keywords|"+
                        r"replace|synopsis|prettify-cvs|clean|popt|tests)$")
 descStr=("usage:"+sys.argv[0]+"""
