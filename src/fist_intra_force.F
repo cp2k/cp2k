@@ -280,43 +280,43 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         iw1 = 1.0_dp/w1
         iw2 = 1.0_dp/w2
         DO imul = 1, torsion_list(itorsion) % torsion_kind % nmul
-          CALL force_torsions(is32,dist1,dist2,u1,u2,iw1,iw2, &
-                            torsion_list(itorsion)%torsion_kind%a, &
-                            torsion_list(itorsion)%torsion_kind%k(imul), &
-                            torsion_list(itorsion)%torsion_kind%cosphi0(imul), &
-                            torsion_list(itorsion)%torsion_kind%m(imul), &
-                            torsion_list(itorsion)%torsion_kind%name, &
-                            gt1,gt2,gt3,gt4,energy,fscalar)
-          pot_torsion = pot_torsion + energy
-          particle_set ( index_a )% f = particle_set ( index_a ) % f &
-                                        + gt1 * fscalar
-          particle_set ( index_b )% f = particle_set ( index_b ) % f &
-                                        + gt2 * fscalar
-          particle_set ( index_c )% f = particle_set ( index_c ) % f &
-                                        + gt3 * fscalar
-          particle_set ( index_d )% f = particle_set ( index_d ) % f &
-                                        + gt4 * fscalar
-        END DO
+            CALL force_torsions(is32,dist1,dist2,u1,u2,iw1,iw2, &
+                              torsion_list(itorsion)%torsion_kind%a, &
+                              torsion_list(itorsion)%torsion_kind%k(imul), &
+                              torsion_list(itorsion)%torsion_kind%cosphi0(imul), &
+                              torsion_list(itorsion)%torsion_kind%m(imul), &
+                              torsion_list(itorsion)%torsion_kind%name, &
+                              gt1,gt2,gt3,gt4,energy,fscalar)
+            pot_torsion = pot_torsion + energy
+            particle_set ( index_a )% f = particle_set ( index_a ) % f &
+                                          + gt1 * fscalar
+            particle_set ( index_b )% f = particle_set ( index_b ) % f &
+                                          + gt2 * fscalar
+            particle_set ( index_c )% f = particle_set ( index_c ) % f &
+                                          + gt3 * fscalar
+            particle_set ( index_d )% f = particle_set ( index_d ) % f &
+                                          + gt4 * fscalar
 
 ! computing the pressure tensor
-        CALL get_pv_torsion(fscalar*gt1,fscalar*gt2,fscalar*gt3,fscalar*gt4, &
-                         particle_set ( index_a ) % r,    & 
-                         particle_set ( index_b ) % r,    & 
-                         particle_set ( index_c ) % r,    & 
-                         particle_set ( index_d ) % r,    & 
-                         pv_torsion)
-
+          CALL get_pv_torsion(fscalar*gt1,fscalar*gt2,fscalar*gt3,fscalar*gt4, &
+                           particle_set ( index_a ) % r,    & 
+                           particle_set ( index_b ) % r,    & 
+                           particle_set ( index_c ) % r,    & 
+                           particle_set ( index_d ) % r,    & 
+                           pv_torsion)
+  
 ! the contribution from the torsions. ONLY FOR DEBUG
-       IF ( PRESENT ( f_torsion)) THEN
-           f_torsion(:,index_a) = f_torsion(:,index_a) + &
-                fscalar*gt1
-           f_torsion(:,index_b) = f_torsion(:,index_b) + &
-                fscalar*gt2
-           f_torsion(:,index_c) = f_torsion(:,index_c) + &
-                fscalar*gt3
-           f_torsion(:,index_d) = f_torsion(:,index_d) + &
-                fscalar*gt4
-        END IF
+         IF ( PRESENT ( f_torsion)) THEN
+             f_torsion(:,index_a) = f_torsion(:,index_a) + &
+                  fscalar*gt1
+             f_torsion(:,index_b) = f_torsion(:,index_b) + &
+                  fscalar*gt2
+             f_torsion(:,index_c) = f_torsion(:,index_c) + &
+                  fscalar*gt3
+             f_torsion(:,index_d) = f_torsion(:,index_d) + &
+                  fscalar*gt4
+          END IF
+        END DO
 
      END DO TORSION
 
