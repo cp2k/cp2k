@@ -95,7 +95,7 @@ MODULE qmmm_methods
   IMPLICIT NONE
   
   PRIVATE
-  LOGICAL,        PARAMETER, PRIVATE   :: debug_this_module=.TRUE.
+  LOGICAL,        PARAMETER, PRIVATE   :: debug_this_module=.FALSE.
   REAL(KIND=dp), PARAMETER, PRIVATE   :: Dx = 0.01_dp    ! Debug Variables
   REAL(KIND=dp), PARAMETER, PRIVATE   :: MaxErr = 1.0_dp ! Debug Variables
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qmmm_methods'
