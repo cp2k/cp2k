@@ -77,7 +77,6 @@ CONTAINS
 
     n = matrix%matrix_struct%nrow_global
     m => matrix%local_data
-    v => eigenvectors%local_data
     ALLOCATE(iwork(1),work(1),rwork(1),STAT=istat)
     IF (istat.NE.0) CALL stop_memory(routineN,"iwork")
 ! work space query
@@ -86,6 +85,7 @@ CONTAINS
     liwork = -1
 
 #if defined(__SCALAPACK)
+    v => eigenvectors%local_data
     descm(:) = matrix%matrix_struct%descriptor(:)
     descv(:) = eigenvectors%matrix_struct%descriptor(:)
     CALL PZHEEVD('V','U',n,m(1,1),1,1,descm,eigenvalues(1),v(1,1),1,1,descv, &

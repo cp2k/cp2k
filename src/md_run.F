@@ -133,7 +133,7 @@ CONTAINS
     TYPE(dyn_coeff_set_p_type), &
       DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(extended_system_type)               :: extended_type
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro, nhc_coef, nhc_part
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro, nhc_part
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(mdio_parameters_type)               :: mdio
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
@@ -154,7 +154,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY ( particles, local_molecules, cell, cell_ref, dyn_coeff_set,&
-              simpar,virial,itimes,used_time,subsys,nhc_part,nhc_baro,nhc_coef)
+              simpar,virial,itimes,used_time,subsys,nhc_part,nhc_baro)
     NULLIFY (md_env,molecule_kinds_new, molecules_new)
 
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)

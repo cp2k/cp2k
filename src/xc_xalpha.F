@@ -313,14 +313,13 @@ CONTAINS
     REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, rhob, r13a, r13b
     REAL(dbl), DIMENSION(*), INTENT(OUT)     :: pot
 
-    INTEGER                                  :: ip, npoints
+    INTEGER                                  :: ip
 
 ! number of points in array 
 !   ---------------------------------------------------------------------------
 
 !$omp parallel do private(ip)
-
-    DO ip = 1, npoints
+    DO ip = 1, n
 
       IF ( rhoa(ip) > eps_rho ) THEN
          pot(ip) = pot(ip) + flsd * r13a(ip) * rhoa(ip)

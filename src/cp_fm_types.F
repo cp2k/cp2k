@@ -727,8 +727,6 @@ CONTAINS
     LOGICAL                                  :: failure, tr_a
     REAL(KIND=dp)                            :: al, be
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: full_block
-    TYPE(cp_blacs_env_type), POINTER         :: context
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
     al=1.0_dp; be=0.0_dp; i0=1; j0=1; tr_a=.FALSE.
     ! can be called too many times, making it a bit useless
@@ -755,9 +753,6 @@ CONTAINS
        END IF
        IF (PRESENT(n_rows)) nrow=n_rows
        IF (PRESENT(n_cols)) ncol=n_cols
-
-       para_env => fm%matrix_struct%para_env
-       context => fm%matrix_struct%context
 
        full_block => fm%local_data
 
@@ -900,7 +895,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: failure, tr_a
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: full_block
-    TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_para_env_type), POINTER          :: para_env
 
     CALL timeset(routineN,"I","",handle)
@@ -927,7 +921,6 @@ CONTAINS
        IF (PRESENT(n_cols)) ncol=n_cols
 
        para_env => fm%matrix_struct%para_env
-       context => fm%matrix_struct%context
 
        full_block => fm%local_data
 #if defined(__SCALAPACK)

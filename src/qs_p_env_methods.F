@@ -177,12 +177,9 @@ CONTAINS
     INTEGER                                  :: handle, n_ao, n_mo, n_spins, &
                                                 spin, stat
     LOGICAL                                  :: failure
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools, mo_mo_fm_pools
     TYPE(cp_fm_type), POINTER                :: qs_env_c
-    TYPE(dft_control_type), POINTER          :: dft_control
 
 ! code
 
@@ -191,7 +188,7 @@ CONTAINS
     n_spins = qs_env%dft_control%nspins
 
     failure=.FALSE.
-    NULLIFY(atomic_kind_set, dft_control, ao_mo_fm_pools,&
+    NULLIFY( ao_mo_fm_pools,&
          mo_mo_fm_pools)
     
     ALLOCATE(p_env,stat=stat)
@@ -499,7 +496,6 @@ END SUBROUTINE p_env_did_change
       POINTER                                :: my_psi0
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
-    TYPE(cp_fm_type), POINTER                :: tmp
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
@@ -515,7 +511,7 @@ END SUBROUTINE p_env_did_change
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
-    NULLIFY(tmp, ao_mo_fm_pools,c,my_psi0,S,c, para_env,ks_env, rho, &
+    NULLIFY(ao_mo_fm_pools,c,my_psi0,S,c, para_env,ks_env, rho, &
          S_sm_pools)
     n_spins = qs_env%dft_control%nspins
 
@@ -821,15 +817,13 @@ END SUBROUTINE p_env_did_change
     TYPE(cp_fm_pool_type), POINTER           :: maxao_maxmo_fm_pool
     TYPE(cp_fm_type), POINTER                :: tmp
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
     TYPE(real_matrix_type), POINTER          :: k_p
 
 ! code
 
     CALL timeset(routineN,"I","",handle)
 
-    NULLIFY(tmp,mos)
+    NULLIFY(tmp)
     failure = .FALSE.
     
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
@@ -929,7 +923,7 @@ END SUBROUTINE p_env_did_change
     INTEGER, SAVE                            :: iter = 0
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_alpha, my_beta
-    TYPE(cp_logger_type), POINTER            :: logger
+!    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho
@@ -945,7 +939,7 @@ END SUBROUTINE p_env_did_change
 
     iter=iter+1
     NULLIFY(dft_control, para_env, rho)
-    logger => cp_error_get_logger(error)
+!    logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)

@@ -137,14 +137,12 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: c23, coeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosIVals, cosJVals, cosKVals
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     gbo = spline_g%pw_grid%bounds
-    logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,error,failure)
     CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,error,failure)
@@ -242,14 +240,12 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: c23, coeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosIVals, cosJVals, cosKVals
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     gbo = spline_g%pw_grid%bounds
-    logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,error,failure)
     CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,error,failure)

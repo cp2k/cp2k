@@ -750,20 +750,17 @@ SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
     INTEGER                                  :: handle, ispin
     LOGICAL                                  :: failure
     TYPE(cp_fm_type), POINTER                :: eigenvectors
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: c
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: h, k, s
+      POINTER                                :: k, s
 
   failure=.FALSE.
-  NULLIFY(ks_env, c, eigenvectors, para_env, dft_control,k,h,s)
+  NULLIFY(ks_env, c, eigenvectors, dft_control,k,s)
 
   CALL timeset(routineN,"I","",handle)
-
-  para_env => qs_env%para_env
 
   CALL build_qs_neighbor_lists(qs_env,globenv)
 

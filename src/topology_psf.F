@@ -269,13 +269,14 @@ SUBROUTINE read_topology_psf (topology,globenv)
 !------------------------------------------------------------------------------
   !----------------------------------------------------------------------------
   !----------------------------------------------------------------------------
+  ! XXXXXXXXXXXX Stil needed ?? Joost  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   !get the temporary memory
-  ALLOCATE (map_mol_typ(natom),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','map_mol_typ',nphi)
-  ALLOCATE (map_mol_num(natom),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','map_mol_num',nphi)
+  !ALLOCATE (map_mol_typ(natom),STAT=ierror)
+  !  IF(ierror/=0) CALL stop_memory &
+  !    ('read_topology_psf','map_mol_typ',nphi)
+  !ALLOCATE (map_mol_num(natom),STAT=ierror)
+  !  IF(ierror/=0) CALL stop_memory &
+  !    ('read_topology_psf','map_mol_num',nphi)
   !----------------------------------------------------------------------------
   !----------------------------------------------------------------------------
   !Sort the bonds, bends, and dihes

@@ -4493,7 +4493,10 @@ SUBROUTINE dtrsl (t, ldt, n, b, job, info)
   CASE = 1  
   IF (MOD (job, 10) .ne.0) CASE = 2  
   IF (MOD (job, 100) / 10.ne.0) CASE = CASE+2  
-  GOTO (20, 50, 80, 110), CASE  
+  IF (CASE.EQ.1) GOTO 20
+  IF (CASE.EQ.2) GOTO 50
+  IF (CASE.EQ.3) GOTO 80
+  IF (CASE.EQ.4) GOTO 110
   !
   !        solve t*x=b for t lower triangular
   !

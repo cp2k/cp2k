@@ -287,14 +287,12 @@ CONTAINS
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
-    TYPE(cp_blacs_env_type), POINTER         :: context
 
     failure=.FALSE.
 
     IF (ASSOCIATED(matrix)) THEN
        CPPrecondition(matrix%ref_count>0,cp_failure_level,routineP,error,failure)
        matrix%ref_count=matrix%ref_count-1
-       context=> matrix%matrix_struct%context
        IF (matrix%ref_count<1) THEN
           IF (ASSOCIATED(matrix%local_data)) THEN
              DEALLOCATE(matrix%local_data,stat=stat)

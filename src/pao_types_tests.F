@@ -180,7 +180,7 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_block_matrix_type), POINTER      :: u
 
-    NULLIFY(u)
+!!FM    NULLIFY(u)
     failure=.FALSE.
 
 !!FM    n_atom=3

@@ -501,10 +501,8 @@ CONTAINS
       routineP = 'pao_env_methods:pao_env_validate'
 
     LOGICAL                                  :: failure, test_pos
-    TYPE(cp_logger_type), POINTER            :: logger
 
     failure=.FALSE.
-    logger => cp_error_get_logger(error)
     IF (PRESENT(test_pos_att)) THEN
        test_pos=test_pos_att
     ELSE

@@ -113,7 +113,6 @@ SUBROUTINE ewald_evaluate (dg, ewald_param, fg_coulomb, vg_coulomb, &
     REAL(dbl), DIMENSION(3)                  :: vec
     REAL(dbl), DIMENSION(:, :, :), POINTER   :: rho0
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(coeff_type), POINTER                :: dg_rho0
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(structure_factor_type)              :: exp_igr
 
@@ -123,7 +122,6 @@ SUBROUTINE ewald_evaluate (dg, ewald_param, fg_coulomb, vg_coulomb, &
   flops = 0.0_dbl
 
 ! pointing
-  dg_rho0 => dg % dg_rho0 % density
   rho0 => dg % dg_rho0 % density % pw % cr3d
   pw_grid => dg % dg_rho0 % density % pw % pw_grid
   bds => dg % dg_rho0 % density % pw % pw_grid % bounds

@@ -102,12 +102,10 @@ CONTAINS
     INTEGER, DIMENSION(9)                    :: desca
     LOGICAL                                  :: failure, ionode
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
-    TYPE(cp_blacs_env_type), POINTER         :: context
 
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
-    context => matrix%matrix_struct%context
     my_n = MIN(matrix%matrix_struct%nrow_global,&
          matrix%matrix_struct%ncol_global)
     IF (PRESENT(n)) THEN
@@ -176,13 +174,11 @@ CONTAINS
     INTEGER                                   :: info,handle
     INTEGER                                   :: my_n
     INTEGER, DIMENSION(9)                     :: desca
-    TYPE(cp_blacs_env_type), POINTER          :: context
     LOGICAL                                   :: failure
 
     CALL timeset("cp_fm_cholesky_invert","I","",handle)
     failure=.FALSE.
 
-    context => matrix%matrix_struct%context
     my_n = MIN(matrix%matrix_struct%nrow_global,&
          matrix%matrix_struct%ncol_global)
     IF (PRESENT(n)) THEN
@@ -256,13 +252,11 @@ CONTAINS
     INTEGER                                   :: nprow,npcol,myprow,mypcol
     INTEGER, DIMENSION(9)                     :: desca,descb
     REAL(KIND = dp)                                  :: scale
-    TYPE(cp_blacs_env_type), POINTER          :: context
     LOGICAL                                   :: failure
 
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
-    context => matrix%matrix_struct%context
     n = matrix%matrix_struct%nrow_global
     itype =1
 

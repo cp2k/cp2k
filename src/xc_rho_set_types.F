@@ -1129,7 +1129,6 @@ CONTAINS
                                                 my_rho_g_local, &
                                                 my_rho_r_local, needs_rho_g
     REAL(kind=dp)                            :: rho_cutoff
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_p_type), DIMENSION(2)            :: my_rho_r
     TYPE(pw_p_type), DIMENSION(3)            :: drho_r_att
     TYPE(pw_p_type), DIMENSION(3, 2)         :: drho_r
@@ -1147,7 +1146,6 @@ CONTAINS
     END DO
     NULLIFY(tmp_g,my_rho_g)
     nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
-    logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)

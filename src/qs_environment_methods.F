@@ -252,7 +252,6 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
@@ -261,7 +260,6 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
   CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
   NULLIFY(para_env, dft_control,particle_set)
-  logger => cp_error_get_logger(error)
 
   CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 

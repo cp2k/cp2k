@@ -357,7 +357,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure=.FALSE.
-    logger=>cp_error_get_logger(error)
+!!FM    logger=>cp_error_get_logger(error)
 
 !!FM    call cp_init_test_pao_env(pao_env,glob_env,n_atom,error=error)
 !!FM    call cp_get(pao_env, angles_att=g_angles,error=error)
