@@ -13,12 +13,15 @@
 !!     CJM SEPT-01-02 
 !!
 !!   MODIFICATION HISTORY
+!!   gt sept-23-02 added atomic_kind_set to replica_environment_type
+!!   to allow use of kind_based neighbor list
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE fist_environment_types
 
+  USE atomic_kind_types, ONLY: atomic_kind_type
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE kinds, ONLY : dbl
   USE linklist_types, ONLY : linklist_internal_data_type
@@ -47,6 +50,7 @@ MODULE fist_environment_types
   END TYPE fist_thermodynamic_type
 
   TYPE replica_environment_type
+    TYPE ( atomic_kind_type ), POINTER :: atomic_kind_set ( : )
     TYPE ( cell_type ), POINTER :: box
     TYPE ( cell_type ), POINTER :: box_ref
     TYPE ( linklist_internal_data_type), POINTER :: ll_data ( : )
