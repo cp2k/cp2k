@@ -28,11 +28,15 @@
 !****************************************************************************
 module cp_array_logical_utils
   use kinds, only: wp=>dp
-  use cp_log_handling
-  use cp_error_handling
+  use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
+       cp_note_level, cp_log, cp_logger_type
+  use cp_error_handling, only: cp_debug, cp_error_type, cp_assert, &
+       cp_error_message,cp_assertion_failed, cp_internal_error,&
+       cp_error_init, cp_error_dealloc_ref
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
   use cp_output_handling
+  use qs_parser, only: open_file, close_file
   
   implicit none
   private
@@ -139,13 +143,12 @@ end subroutine cp_logical_write
 !!     End Subroutine cp_1d_logical_output
 !!
 !!   FUNCTION
-!!     writes a 1d array to the output
+!!     writes a 1d array to an aptly named file
 !!
 !!   NOTES
+!!     The filename is written as note to the log.
 !!     At the moment outputs the comment precede by a # and then the whole
 !!     with newlines between the entries, i.e. as a (n x 1) matrix.
-!!     Useful for matlab, maybe I will change it for Mathematica:
-!!     { array(1,1), array(1,2), ...}
 !!
 !!   INPUTS
 !!     logger: the logger that decides where the logging should go
@@ -167,6 +170,7 @@ end subroutine cp_logical_write
 !!     12.2001 first version [fawzi]
 !!     3.2002 templatized [fawzi]
 !!     4.2002 separated write routine [fawzi]
+!!     6.2002 write to a separate file [fawzi]
 !!
 !!*** **********************************************************************
   subroutine cp_1d_logical_output(logger, outputName,&
@@ -180,21 +184,34 @@ end subroutine cp_logical_write
     character(len=*), intent(in),optional :: comment, el_format
     type(cp_error_type), optional, intent(inout) :: error
 
-    logical :: failure
+    logical :: failure, exists
     character(len=*), parameter :: routineN='cp_1d_logical_output',&
          routineP=moduleN//':'//routineN
+    character(len=60) :: filename
     integer :: handle, unitNr, lenFormat, iostat, i
     failure=.false.
 
     call timeset(routineN//','//moduleN,'I',"",handle)
     if (cp_would_output(logger, outputName , fromWhere, iter)) then
-       unitNr=cp_unitnr_for_output(logger, outputName, fromWhere, iter)
+       filename=trim(outputName)//'_'//trim(adjustl(cp_to_string(iter)))//'.dat'
+       call cp_log(logger, cp_note_level, fromWhere, "writing output to file'"//&
+            trim(filename)) 
+       inquire (FILE=trim(filename),EXIST=exists)
+       call cp_assert(.not.exists, cp_warning_level,cp_assertion_failed,&
+            fromWhere=routineP,message=" overwriting file '"//filename//"'",&
+            error=error)
+       call open_file(trim(filename),file_status="unknown",&
+            file_action="write",&
+            unit_number=unitNr)
        if (present(comment)) then
           write(unit=unitNr,fmt='(" ",a,a)',iostat=iostat) '# ',comment
           CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
        end if
-       call cp_1d_logical_write(array,unit_nr=unitNr,&
-            el_format=el_format,error=error)
+       if (.not.failure) then
+          call cp_1d_logical_write(array,unit_nr=unitNr,&
+               el_format=el_format,error=error)
+       end if
+       call close_file(unitNr)
     end if
     call timestop(0.0_wp,handle)
   end subroutine cp_1d_logical_output
@@ -277,20 +294,17 @@ end subroutine cp_1d_logical_write
 !!     End Subroutine cp_2d_logical_output
 !!
 !!   FUNCTION
-!!     writes a 2d array to the output
+!!     writes a 2d array to an aptly named file
 !!
 !!   NOTES
+!!     The filename is written as note to the log.
 !!     At the moment outputs the comment precede by a # and then the whole
 !!     with spaces between the entries (with the default format) and newlines
 !!     between the rows of the matrix. 
-!!     Useful for matlab, maybe I will change it for Mathematica:
-!!     { { array(1,1), array(1,2), ...},
-!!       { array(2,1), array(2,2), ...},...}
 !!
 !!   INPUTS
 !!     logger: the logger that decides where the logging should go
 !!     outputName: the name of the output, for example 'hamiltonian'
-!!     fromWhere:
 !!     fromWhere: string of the form module:function or file:lineNr
 !!                that says where the error happend
 !!     iter: the iteration number, or some other number that permit to 
@@ -307,6 +321,7 @@ end subroutine cp_1d_logical_write
 !!     12.2001 first version [fawzi]
 !!     3.2002 templatized [fawzi]
 !!     4.2002 separated write routine [fawzi]
+!!     6.2002 write to a separate file [fawzi]
 !!
 !!*** **********************************************************************
   subroutine cp_2d_logical_output(logger, outputName, &
@@ -320,15 +335,25 @@ end subroutine cp_1d_logical_write
     character(len=*), intent(in),optional :: comment, el_format
     type(cp_error_type), optional, intent(inout) :: error
 
-    logical :: failure
+    logical :: failure, exists
     character(len=*), parameter :: routineN='cp_2d_logical_output',&
          routineP=moduleN//':'//routineN
+    character(len=60) :: filename
     integer :: handle, unitNr, lenFormat, iostat
     failure=.FALSE.
 
     call timeset(routineN//','//moduleN,'I',"",handle)
     if (cp_would_output(logger, outputName , fromWhere, iter)) then
-       unitNr=cp_unitnr_for_output(logger, outputName, fromWhere, iter)
+       filename=trim(outputName)//'_'//trim(adjustl(cp_to_string(iter)))//'.dat'
+       call cp_log(logger, cp_note_level, fromWhere, "writing output to file'"//&
+            trim(filename)) 
+       inquire (FILE=trim(filename),EXIST=exists)
+       call cp_assert(.not.exists, cp_warning_level,cp_assertion_failed,&
+            fromWhere=routineP,message=" overwriting file '"//filename//"'",&
+            error=error)
+       call open_file(trim(filename),file_status="unknown",&
+            file_action="write",&
+            unit_number=unitNr)
        if (present(comment)) then
           write(unit=unitNr,fmt='(" ",a,a)',iostat=iostat) '# ',comment
           CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
@@ -337,6 +362,7 @@ end subroutine cp_1d_logical_write
           call cp_2d_logical_write(array,unit_nr=unitNr,&
                el_format=el_format,error=error)
        end if
+       call close_file(unitNr)
     end if
     call timestop(0.0_wp,handle)
   end subroutine cp_2d_logical_output

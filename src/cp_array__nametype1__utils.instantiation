@@ -2,7 +2,7 @@
 {'nametype1':'r',
 'type1':'real(kind=wp)', 
 'use':'',
-'defaultFormatType1':'"(es10.3)"'},
+'defaultFormatType1':'"(es11.3)"'},
 {'nametype1':'i',
 'type1':'integer', 
 'use':'',
