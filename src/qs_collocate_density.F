@@ -1215,6 +1215,9 @@ CONTAINS
     CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
          error=error)
 
+    DEALLOCATE(mgrid_gspace, mgrid_rspace, stat=stat)
+    IF (istat /= 0) CALL stop_memory(routine,"mgrid_(r/g)space")
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_wavefunction
