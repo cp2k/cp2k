@@ -562,7 +562,7 @@ SUBROUTINE timeprint(iw,global_print_level)
      WRITE (UNIT=iw,FMT="(T2,A,T35,A,T80,A)") "-","T I M I N G","-"
      WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
      WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
-     WRITE (UNIT=iw,FMT="(T2,A,T32,A,T38,A,T43,A,T55,A,T69,A)")&
+     WRITE (UNIT=iw,FMT="(T2,A,T32,A,T38,A,T45,A,T57,A,T69,A)")&
        "SUBROUTINE","CALLS"," ASD","CPU TIME T","PERFORMANCE","ELAPSED TIME"
 
      DO i=timer_env%num_timer,1,-1
@@ -582,13 +582,13 @@ SUBROUTINE timeprint(iw,global_print_level)
 
          IF (LEN_TRIM(timer_env%perf_unit(j)) == 0) THEN
            WRITE (UNIT=iw,&
-                  FMT="(T2,A,T30,I7,T38,F4.1,T42,F9.2,T52,A,T60,A,T68,F13.2)")&
+                  FMT="(T2,A,T30,I7,T38,F4.1,T42,F11.2,T54,A,T62,A,T70,F11.2)")&
              TRIM(timer_env%clock_name(j)),timer_env%routine_calls(j), & 
              ASD,timer_env%clock_accu(j),&
              ct(timer_env%clock_type(j)),"---",timer_env%wallclock_accu(i)
          ELSE
            WRITE (UNIT=iw,&
-                  FMT="(T2,A,T30,I7,T38,F4.1,T42,F9.2,T52,A,T54,F5.1,T60,A,T68,F13.2)")&
+                  FMT="(T2,A,T30,I7,T38,F4.1,T42,F11.2,T54,A,T56,F5.1,T62,A,T70,F11.2)")&
              TRIM(timer_env%clock_name(j)),timer_env%routine_calls(j),&
              ASD,timer_env%clock_accu(j),&
              ct(timer_env%clock_type(j)),perf,TRIM(timer_env%perf_unit(j)),&
