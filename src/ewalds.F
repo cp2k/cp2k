@@ -26,6 +26,7 @@ MODULE ewalds
   USE dg_rho0s, ONLY : dg_rho0_setup
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE global_types, ONLY : global_environment_type
+  USE interactions, ONLY :  exp_radius
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : pi, zero
   USE md, ONLY : thermodynamic_type
@@ -438,7 +439,7 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
   
 ! Locals
   INTEGER ::  natoms, iat, jat, gmax, npts_s ( 3 ), iw
-  REAL ( dbl ) :: i, cutoff, ecut
+  REAL ( dbl ) :: i, cutoff, ecut, alphasq, norm, cutoff_radius
   TYPE ( realspace_grid_type ) :: rs
 
 !------------------------------------------------------------------------------
@@ -517,10 +518,15 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
         CALL pw_grid_construct( pme_big_grid )
 
         npts_s ( : ) = ewald_param % ns_max
+! compute cut-off radius
+        alphasq = ( ewald_param % alpha ) ** 2
+        norm = ( 2.0_dbl * alphasq / pi ) ** ( 1.5_dbl )
+        alphasq = ( ewald_param % alpha ) ** 2
+        norm = ( 2.0_dbl * alphasq / pi ) ** ( 1.5_dbl )
+        cutoff_radius = exp_radius ( 0, 2._dbl * alphasq, ewald_param % epsilon , norm )
 
-        CALL dg_pme_grid_setup ( box, npts_s, ewald_param % epsilon, &
-             ewald_param % alpha, pme_small_grid, &
-             pme_big_grid, ewald_param % ewald_type, pnode_grp )
+        CALL dg_pme_grid_setup ( box, npts_s, cutoff_radius, &
+                        pme_small_grid, pme_big_grid, pnode_grp )
 
         CALL rs_grid_setup ( rs, pme_big_grid, pme_small_grid % npts, &
              pnode_grp % scr )
