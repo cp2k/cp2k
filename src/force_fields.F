@@ -1299,7 +1299,7 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
     LOGICAL                                  :: PM1, PM2, PM3, PM4
     INTEGER                                  :: i, istat, ilen, iw
     INTEGER                                  :: nbond,nbend,nub,ntorsion,&
-                                                nimpr,nonfo,nnonbond
+                                                nimpr,nonfo,nnonbond,dummy
 
     CHARACTER(LEN=default_string_length)     :: label
     CHARACTER(LEN=default_string_length)     :: string,string2,string3,string4
@@ -1525,8 +1525,9 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
        chm_info%impr_c(nimpr) = string3
        chm_info%impr_d(nimpr) = string4
        CALL get_next(chm_info%impr_k(nimpr))
+       CALL get_next(dummy)
        CALL get_next(chm_info%impr_phi0(nimpr))
-       IF(PM2) WRITE(iw,*) "    CHM TORSION ",nimpr,&
+       IF(PM2) WRITE(iw,*) "    CHM IMPROPERS ",nimpr,&
                            TRIM(chm_info%impr_a(nimpr))," ",&
                            TRIM(chm_info%impr_b(nimpr))," ",&
                            TRIM(chm_info%impr_c(nimpr))," ",&

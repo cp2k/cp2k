@@ -2824,14 +2824,17 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   ! 7. Fill in some more infor for particle_set and lpi (local part info)
   !-----------------------------------------------------------------------------
   DO i=1,topology%natoms
-    ikind = kind_of(i)
-    particle_set(i)%atomic_kind => atomic_kind_set(ikind)
-    particle_set(i)%iatom = i
-    particle_set(i)%r(:) = atom_info%r(:,i)
-    NULLIFY(particle_set(i)%lpi)
-    ALLOCATE(particle_set(i)%lpi)
-    NULLIFY(particle_set(i)%lpi%exclusion)
-    ALLOCATE(particle_set(i)%lpi%exclusion(SIZE(atomic_kind_set)))
+     ikind = kind_of(i)
+     IF (PM2) THEN
+        WRITE(iw,*)"atom number :: ",i,"kind number ::",ikind
+     END IF
+     particle_set(i)%atomic_kind => atomic_kind_set(ikind)
+     particle_set(i)%iatom = i
+     particle_set(i)%r(:) = atom_info%r(:,i)
+     NULLIFY(particle_set(i)%lpi)
+     ALLOCATE(particle_set(i)%lpi)
+     NULLIFY(particle_set(i)%lpi%exclusion)
+     ALLOCATE(particle_set(i)%lpi%exclusion(SIZE(atomic_kind_set)))
   END DO
   DEALLOCATE(kind_of,STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','kind_of')
