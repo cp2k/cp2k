@@ -8,8 +8,10 @@
 !!     molecule_input
 !!
 !!   FUNCTION
+!!     Reads the input sections "setup" and "molecule"
 !!
 !!   AUTHOR
+!!     JGH
 !!
 !!   MODIFICATION HISTORY
 !!     none
@@ -27,6 +29,7 @@ MODULE molecule_input
   USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
        p_error, get_next, stop_parser
+  USE periodic_table, ONLY : ptable
   USE string_utilities, ONLY : uppercase, xstring, str_search, &
        str_comp, make_tuple
   USE termination, ONLY : stop_memory, stop_program
@@ -48,11 +51,17 @@ CONTAINS
 !!     read_setup_section
 !!
 !!   FUNCTION
+!!     reads the input section setup
 !!
 !!   AUTHOR
+!!     JGH
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (30.11.2001) : automatic detection of nmol_type
+!!                        first search on input file, then on set file
+!!                        added short form for molecule and atom
+!!                        additional input (charge, multiplicity etc)
+!!     JGH (01.12.2001) : new keyword to set default for thermostat option
 !!
 !!   NOTES
 !!I---------------------------------------------------------------------------I
@@ -66,7 +75,9 @@ CONTAINS
 !!I LSD              nspins=2                                                 I
 !!I etemp            etemp                                                    I
 !!I broadening       bmethod                                                  I
-!!I moltype          nmol_types                                               I
+!!I thermostats      default_thermostat                                       I
+!!I atom             name numat {nhcopt}                                      I
+!!I molecule         name numol {nhcopt}                                      I
 !!I molecule                                                                  I
 !!I    name          molname                                                  I
 !!I    nummol        nmol                                                     I
@@ -89,11 +100,14 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
 
 ! Locals
   INTEGER :: ierr1, ierr2, ilen, iw, source, group, icount, nmol_type, ios, i
+  INTEGER :: ierror
   CHARACTER ( LEN = 20 ) :: string, string2
   CHARACTER ( LEN = 6 ) :: label
+  CHARACTER ( LEN = 12 ) :: default_thermostat
 
 !------------------------------------------------------------------------------
 
+  default_thermostat = "GLOBAL"
   iw = globenv % scr
   icount = 0
   nmol_type = -1
@@ -109,10 +123,12 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
 !..parse the input section
   label = '&SETUP'
   ierr1 = 0
-  ierr2 = 0
+  ierr2 = 1
+! try to find the input section on the main input file
   CALL parser_init ( globenv % input_file_name, label, ierr1, globenv )
   IF ( ierr1 /= 0 ) THEN
      CALL parser_end
+!    try to find the input section on the default file
      CALL parser_init ( setup % set_file_name, label, ierr2, globenv )
   ENDIF
   IF ( ierr1 /= 0 .AND. ierr2 /= 0 ) THEN
@@ -122,6 +138,48 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
         WRITE ( iw, '( T2, A )' ) setup % set_file_name
      END IF
   ELSE
+!    count number of molecule entries
+     nmol_type = 0
+     CALL read_line
+     DO WHILE ( test_next() /= 'X' )
+        ilen = 8
+        CALL get_next ( string, ilen )
+        CALL uppercase ( string )
+        SELECT CASE (string)
+        CASE ( 'MOLECULE')
+           nmol_type = nmol_type + 1
+           IF ( test_next() /= 'C' ) THEN
+              DO
+                 CALL read_line
+                 ilen = 6
+                 CALL get_next ( string2, ilen )
+                 CALL uppercase ( string2 )
+                 IF ( string2 == "END" ) THEN
+                    ilen = 8
+                    CALL get_next(string2,ilen)
+                    EXIT
+                 END IF
+              END DO
+           END IF
+        CASE ( 'ATOM')
+           nmol_type = nmol_type + 1
+        END SELECT
+        CALL read_line
+     END DO
+!    allocate space for the molecules
+     ALLOCATE (mol_setup(nmol_type ),STAT=ios)
+     IF ( ios /= 0 ) CALL stop_memory ( 'read_setup_section', &
+        'mol_setup', nmol_type )
+!    reinitiate the parser at the beginning of the section
+     CALL parser_end
+     IF ( ierr1 == 0 ) CALL parser_init ( globenv % input_file_name, &
+                                          label, ierror, globenv )
+     IF ( ierr2 == 0 ) CALL parser_init ( setup % set_file_name, &
+                                          label, ierror, globenv )
+     IF ( ierror /= 0 ) CALL stop_parser ('read_setup_section','reinit failed')
+     IF ( .NOT. ASSOCIATED ( mol_setup ) ) &
+          CALL stop_program ( 'read_setup_section', &
+          'number of molecule types not yet specified')
      CALL read_line
      DO WHILE ( test_next() /= 'X' )
         ilen = 8
@@ -148,42 +206,63 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
         CASE ( 'BROADENI')
            ilen = 0
            CALL get_next(setup % broadening_method,ilen)
-        CASE ( 'MOLTYPE')
-           CALL get_next ( nmol_type )
-           ALLOCATE (mol_setup(nmol_type ),STAT=ios)
-           IF ( ios /= 0 ) CALL stop_memory ( 'read_setup_section', &
-                'mol_setup', nmol_type )
-        CASE ( 'MOLECULE')
-           IF ( .NOT. ASSOCIATED ( mol_setup ) ) &
-                CALL stop_program ( 'read_setup_section', &
-                'number of molecule types not yet specified')
+        CASE ( 'THERMOST')
+           ilen = 0
+           CALL get_next(default_thermostat,ilen)
+        CASE ( 'ATOM')
            icount = icount + 1
            IF (icount>nmol_type ) CALL stop_program ( 'read_setup_section', &
                 'too many molecule types specified')
-           DO
-              CALL read_line
-              ilen = 6
-              CALL get_next ( string2, ilen )
-              CALL uppercase ( string2 )
-              SELECT CASE ( string2 )
-              CASE DEFAULT
-                 CALL p_error()
-                 CALL stop_parser ( 'read_setup_section','unknown option')
-              CASE ( 'NAME')
-                 ilen = 0
-                 CALL get_next(mol_setup(icount) % molpar % name,ilen)
-              CASE ( 'NUMMOL')
-                 CALL get_next ( mol_setup(icount) % num_mol )
-              CASE ( 'NHCOPT')
+           ilen = 0
+           CALL get_next ( mol_setup(icount) % molpar % name, ilen )
+           CALL get_next ( mol_setup(icount) % num_mol )
+!          set default for thermostats
+           mol_setup(icount) % nhcopt = default_thermostat
+           IF ( test_next() == 'C' ) THEN
+              ilen = 0
+              CALL get_next(mol_setup(icount) % nhcopt,ilen)
+              CALL uppercase(mol_setup(icount) % nhcopt)
+           ENDIF
+        CASE ( 'MOLECULE')
+           icount = icount + 1
+           IF (icount>nmol_type ) CALL stop_program ( 'read_setup_section', &
+                'too many molecule types specified')
+!          set default for thermostats
+           mol_setup(icount) % nhcopt = default_thermostat
+           IF ( test_next() == 'C' ) THEN
+              CALL get_next ( mol_setup(icount) % molpar % name, ilen )
+              CALL get_next ( mol_setup(icount) % num_mol )
+              IF ( test_next() == 'C' ) THEN
                  ilen = 0
                  CALL get_next(mol_setup(icount) % nhcopt,ilen)
                  CALL uppercase(mol_setup(icount) % nhcopt)
-              CASE ( 'END')
-                 ilen = 8
-                 CALL get_next(string2,ilen)
-                 EXIT
-              END SELECT
-           END DO
+              ENDIF
+           ELSE
+              DO
+                 CALL read_line
+                 ilen = 6
+                 CALL get_next ( string2, ilen )
+                 CALL uppercase ( string2 )
+                 SELECT CASE ( string2 )
+                 CASE DEFAULT
+                    CALL p_error()
+                    CALL stop_parser ( 'read_setup_section','unknown option')
+                 CASE ( 'NAME')
+                    ilen = 0
+                    CALL get_next(mol_setup(icount) % molpar % name,ilen)
+                 CASE ( 'NUMMOL')
+                    CALL get_next ( mol_setup(icount) % num_mol )
+                 CASE ( 'NHCOPT')
+                    ilen = 0
+                    CALL get_next(mol_setup(icount) % nhcopt,ilen)
+                    CALL uppercase(mol_setup(icount) % nhcopt)
+                 CASE ( 'END')
+                    ilen = 8
+                    CALL get_next(string2,ilen)
+                    EXIT
+                 END SELECT
+              END DO
+           END IF
         END SELECT
         CALL read_line
      END DO
@@ -219,15 +298,23 @@ END SUBROUTINE read_setup_section
 !!     molecule_input
 !!
 !!   FUNCTION
+!!     Read input section molecule
 !!
 !!   AUTHOR
+!!     JGH
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (30.11.2001) : search on input file and set file for molecule section
+!!                        short form input
+!!                        default settings for non-specified molecules (mass<0)
+!!                        determine setup variables (nmol, natoms, natom_type)
+!!                        and atom_names (this was in force_fields before)
 !!
 !!   NOTES
 !!I---------------------------------------------------------------------------I
 !!I SECTION: &molecule ... &end                                               I
+!!I                                                                           I
+!!I moleculename name {mass charge}                                           I
 !!I                                                                           I
 !!I moleculename                                                              I
 !!I    numat         n                                                        I
@@ -258,12 +345,13 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
 ! Locals
   INTEGER :: ierr1,ierr2, ilen, iw, source, group, icount, nmol_type, ios
   INTEGER :: i, j, imol, na, nat, j1, j2, nf, nt, ie, ia, i1, i2, i3, i4
-  INTEGER :: isos, nbasis, ndrho, allgrp, npol, nrho0
+  INTEGER :: isos, nbasis, ndrho, allgrp, npol, nrho0, anum, n
   CHARACTER ( LEN = 20 ) :: libstring, string, string2, at1, at2, at3, at4
   CHARACTER ( LEN = 6 ) :: label
   CHARACTER ( LEN = 20 ), DIMENSION ( : ), ALLOCATABLE :: molname
   CHARACTER ( LEN = 20 ), DIMENSION ( : ), ALLOCATABLE :: tuple
   CHARACTER ( LEN = 80 ) :: bl = ' '
+  CHARACTER ( LEN = 2 ) :: pt,la
 
 !------------------------------------------------------------------------------
 
@@ -302,6 +390,7 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
         imol = str_search(molname,nmol_type,string)
         nat = -1
         IF (imol>0) THEN
+!          we have found a valid molecule description
            mol_setup(imol) %molpar%natom_type = 0
            mol_setup(imol) %molpar%nbonds = 0
            mol_setup(imol) %molpar%nbends = 0
@@ -311,166 +400,207 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
            mol_setup(imol) %molpar%nbasis_pol = 0
            mol_setup(imol) %molpar%nbasis_rho0 = 0
 
-           DO
-              CALL read_line
-              ilen = 8
-              CALL get_next(string2,ilen)
-              CALL uppercase ( string2 )
-
-              SELECT CASE (string2)
-              CASE DEFAULT
-                 CALL p_error()
-                 CALL stop_parser ( 'read_molecule_section','unknown option')
-
-              CASE ( 'NUMAT')
-                 CALL get_next ( na )
-                 mol_setup(imol) %molpar%natom = na
-                 ALLOCATE (mol_setup(imol)%molpar%aname(na),STAT=ios)
-                 IF ( ios /= 0 ) CALL stop_memory &
-                      ( 'read_molecule_section', 'aname', na )
-                 ALLOCATE (mol_setup(imol)%molpar%alabel(na),STAT=ios)
-                 IF ( ios /= 0 ) CALL stop_memory &
-                      ( 'read_molecule_section', 'alabel', na )
-                 ALLOCATE (mol_setup(imol)%molpar%aweight(na),STAT=ios)
-                 IF ( ios /= 0 ) CALL stop_memory &
-                      ( 'read_molecule_section', 'aweight', na )
-                 ALLOCATE (mol_setup(imol)%molpar%acharge(na),STAT=ios)
-                 IF ( ios /= 0 ) CALL stop_memory &
-                      ( 'read_molecule_section', 'acharge', na )
-                 nat = 0
-
-              CASE ( 'ATOM' )
-                 IF ( nat < 0 ) CALL stop_parser ( 'read_molecule_section', &
-                      'aweight' ) !TMPTMPTMP
-                 nat = nat + 1
-                 ilen = 0
-                 CALL get_next(mol_setup(imol)%molpar%aname(nat),ilen)
-                 ilen = 0
-                 CALL get_next(mol_setup(imol)%molpar%alabel(nat),ilen)
-                 CALL get_next ( mol_setup(imol) %molpar%aweight(nat) )
-                 CALL get_next ( mol_setup(imol) %molpar%acharge(nat) )
-
-              CASE ( 'BONDS')
-                 CALL get_next ( mol_setup(imol) %molpar%nbonds )
-                 na = mol_setup(imol) %molpar%nbonds
-                 IF (na>=0) THEN
-                    ALLOCATE (mol_setup(imol)%molpar%bonds(2,na),STAT=ios)
-                    IF (ios /= 0 ) CALL stop_memory &
-                         ( 'read_molecule_section', 'bonds', 2 * na )
-                    DO i = 1, na
-                       CALL get_next ( mol_setup(imol) %molpar%bonds(1,i) )
-                       CALL get_next ( mol_setup(imol) %molpar%bonds(2,i) )
-                    END DO
+           IF (test_next()=="C") THEN
+!             short form, single atom molecules
+              mol_setup(imol) %molpar%natom_type = 1
+              mol_setup(imol) %molpar%natom = 1
+              ALLOCATE (mol_setup(imol)%molpar%aname(1),STAT=ios)
+              IF ( ios /= 0 ) CALL stop_memory &
+                   ( 'read_molecule_section', 'aname', 1 )
+              ALLOCATE (mol_setup(imol)%molpar%alabel(1),STAT=ios)
+              IF ( ios /= 0 ) CALL stop_memory &
+                   ( 'read_molecule_section', 'alabel', 1 )
+              ALLOCATE (mol_setup(imol)%molpar%aweight(1),STAT=ios)
+              IF ( ios /= 0 ) CALL stop_memory &
+                   ( 'read_molecule_section', 'aweight', 1 )
+              ALLOCATE (mol_setup(imol)%molpar%acharge(1),STAT=ios)
+              IF ( ios /= 0 ) CALL stop_memory &
+                   ( 'read_molecule_section', 'acharge', 1 )
+              ilen = 0
+              CALL get_next(mol_setup(imol)%molpar%aname(1),ilen)
+              la = mol_setup(imol)%molpar%aname(1)
+              CALL uppercase ( la )
+              DO i = 0, SIZE ( ptable )
+                pt = ptable ( i ) % symbol
+                CALL uppercase ( pt )
+                IF ( pt == la ) THEN
+                  mol_setup(imol)%molpar%alabel(1) = ptable ( i ) % symbol
+                  anum = i
+                  EXIT
+                ENDIF
+              END DO
+              mol_setup(imol) %molpar%acharge(1) = 0._dbl
+              IF (test_next()=="N") THEN
+                 CALL get_next ( mol_setup(imol) %molpar%aweight(1) )
+                 IF (test_next()=="N") THEN
+                    CALL get_next ( mol_setup(imol) %molpar%acharge(1) )
                  END IF
-
-              CASE ( 'BENDS')
-                 CALL get_next ( mol_setup(imol) %molpar%nbends )
-                 na = mol_setup(imol) %molpar%nbends
-                 IF (na>=0) THEN
-                    ALLOCATE (mol_setup(imol)%molpar%bends(3,na),STAT=ios)
-                    IF (ios /= 0 ) CALL stop_memory &
-                         ( 'read_molecule_section', 'bends', 3 * na )
-                    DO i = 1, na
-                       CALL get_next ( mol_setup(imol) %molpar%bends(1,i) )
-                       CALL get_next ( mol_setup(imol) %molpar%bends(2,i) )
-                       CALL get_next ( mol_setup(imol) %molpar%bends(3,i) )
-                    END DO
-                 END IF
-
-              CASE ( 'TORSIO')
-                 CALL get_next ( mol_setup(imol) %molpar%ntorsions )
-                 na = mol_setup(imol) %molpar%ntorsions
-                 IF (na>=0) THEN
-                    ALLOCATE ( &
-                         mol_setup ( imol ) % molpar % torsions ( 4, na ), &
-                         STAT = ios )
-                    IF ( ios /= 0 ) CALL stop_memory &
-                         ( 'read_molecule_section', 'torsions', 4 * na )
-                    DO i = 1, na
-                       CALL get_next ( mol_setup(imol) %molpar%torsions(1,i) )
-                       CALL get_next ( mol_setup(imol) %molpar%torsions(2,i) )
-                       CALL get_next ( mol_setup(imol) %molpar%torsions(3,i) )
-                       CALL get_next ( mol_setup(imol) %molpar%torsions(4,i) )
-                    END DO
-                 END IF
-
-              CASE ( 'DISTCO')
-                 CALL get_next ( mol_setup(imol) %molpar%ndcon )
-                 na = mol_setup(imol) %molpar%ndcon
-                 IF (na>=0) THEN
-                    ALLOCATE (mol_setup(imol)%molpar%ndc(2,na),STAT=ios)
-                    IF ( ios /= 0 ) CALL stop_memory &
-                         ( 'read_molecule_section', 'ndc', 2 * na )
-                    DO i = 1, na
-                       CALL get_next ( mol_setup(imol) %molpar%ndc(1,i) )
-                       CALL get_next ( mol_setup(imol) %molpar%ndc(2,i) )
-                    END DO
-                 END IF
-
-              CASE ( '3X3CON')
-                 CALL get_next ( mol_setup(imol) %molpar%n3x3con )
-                 na = mol_setup(imol) %molpar%n3x3con
-                 IF (na>=0) THEN
-                    ALLOCATE (mol_setup(imol)%molpar%n3x3c(3,na),STAT=ios)
-                    IF (ios /= 0 ) CALL stop_memory &
-                         ( 'read_molecule_section', 'n3x3c', 3 * na )
-                    DO i = 1, na
-                       CALL get_next ( mol_setup(imol) %molpar%n3x3c(1,i) )
-                       CALL get_next ( mol_setup(imol) %molpar%n3x3c(2,i) )
-                       CALL get_next ( mol_setup(imol) %molpar%n3x3c(3,i) )
-                    END DO
-                 END IF
- 
-              CASE ('RHO0_SET')
-     
-                 na = mol_setup(imol) %molpar%natom  
-                 IF (.NOT. ASSOCIATED (mol_setup(imol)%molpar%rho0_basis)) THEN
-                   ALLOCATE (mol_setup(imol)%molpar%rho0_basis(na),STAT=ios)
-                   IF ( ios /= 0 ) CALL stop_memory &
-                         ( 'read_molecule_section', 'rho0_basis',  na )
-                 END IF
-                 nrho0 = mol_setup(imol)%molpar%nbasis_rho0  + 1     
-                 mol_setup(imol)%molpar%nbasis_rho0 = nrho0
-                 ilen=0
-                 CALL get_next(mol_setup(imol)%molpar%rho0_basis(nrho0)%aname,ilen)
-                 ilen=0
-                 CALL get_next(mol_setup(imol)%molpar%rho0_basis(nrho0)%libname,ilen)
-                 CALL get_next ( mol_setup(imol)%molpar%rho0_basis(nrho0)%nmax )
-                 CALL get_next ( mol_setup(imol)%molpar%rho0_basis(nrho0)%eps )
-
-              CASE ('POL_SET')
-                 na = mol_setup(imol) %molpar%natom  
-                 IF (.NOT. ASSOCIATED (mol_setup(imol)%molpar%pol_basis)) THEN
-                    ALLOCATE (mol_setup(imol)%molpar%pol_basis(na),STAT=ios)
-                    IF ( ios /= 0 ) CALL stop_memory &
-                         ( 'read_molecule_section', 'pol_basis',  na )
-                 END IF
-                 npol = mol_setup(imol)%molpar%nbasis_pol + 1     
-                 mol_setup(imol)%molpar%nbasis_pol = npol
-                 ilen=0
-                 CALL get_next(mol_setup(imol)%molpar%pol_basis(npol)%aname,ilen)
-                 ilen=0
-                 CALL get_next(mol_setup(imol)%molpar%pol_basis(npol)%libname,ilen)
-                 CALL get_next ( mol_setup(imol)%molpar%pol_basis(npol)%nmax )
-                 CALL get_next ( mol_setup(imol)%molpar%pol_basis(npol)%eps )
-
-              CASE ( 'END')
-                 ilen = 0
+              ELSE
+                 mol_setup(imol) % molpar%aweight(1) = ptable ( anum ) % amass
+              END IF
+           ELSE
+!             extended form
+              DO
+                 CALL read_line
+                 ilen = 8
                  CALL get_next(string2,ilen)
-                 EXIT
-              END SELECT
-
-           END DO
+                 CALL uppercase ( string2 )
+   
+                 SELECT CASE (string2)
+                 CASE DEFAULT
+                    CALL p_error()
+                    CALL stop_parser ( 'read_molecule_section','unknown option')
+   
+                 CASE ( 'NUMAT')
+                    CALL get_next ( na )
+                    mol_setup(imol) %molpar%natom = na
+                    ALLOCATE (mol_setup(imol)%molpar%aname(na),STAT=ios)
+                    IF ( ios /= 0 ) CALL stop_memory &
+                         ( 'read_molecule_section', 'aname', na )
+                    ALLOCATE (mol_setup(imol)%molpar%alabel(na),STAT=ios)
+                    IF ( ios /= 0 ) CALL stop_memory &
+                         ( 'read_molecule_section', 'alabel', na )
+                    ALLOCATE (mol_setup(imol)%molpar%aweight(na),STAT=ios)
+                    IF ( ios /= 0 ) CALL stop_memory &
+                         ( 'read_molecule_section', 'aweight', na )
+                    ALLOCATE (mol_setup(imol)%molpar%acharge(na),STAT=ios)
+                    IF ( ios /= 0 ) CALL stop_memory &
+                         ( 'read_molecule_section', 'acharge', na )
+                    nat = 0
+   
+                 CASE ( 'ATOM' )
+                    IF ( nat < 0 ) CALL stop_parser ( 'read_molecule_section', &
+                      'aweight' ) !TMPTMPTMP
+                    nat = nat + 1
+                    ilen = 0
+                    CALL get_next(mol_setup(imol)%molpar%aname(nat),ilen)
+                    ilen = 0
+                    CALL get_next(mol_setup(imol)%molpar%alabel(nat),ilen)
+                    CALL get_next ( mol_setup(imol) %molpar%aweight(nat) )
+                    CALL get_next ( mol_setup(imol) %molpar%acharge(nat) )
+   
+                 CASE ( 'BONDS')
+                    CALL get_next ( mol_setup(imol) %molpar%nbonds )
+                    na = mol_setup(imol) %molpar%nbonds
+                    IF (na>=0) THEN
+                       ALLOCATE (mol_setup(imol)%molpar%bonds(2,na),STAT=ios)
+                       IF (ios /= 0 ) CALL stop_memory &
+                            ( 'read_molecule_section', 'bonds', 2 * na )
+                       DO i = 1, na
+                          CALL get_next ( mol_setup(imol) %molpar%bonds(1,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%bonds(2,i) )
+                       END DO
+                    END IF
+   
+                 CASE ( 'BENDS')
+                    CALL get_next ( mol_setup(imol) %molpar%nbends )
+                    na = mol_setup(imol) %molpar%nbends
+                    IF (na>=0) THEN
+                       ALLOCATE (mol_setup(imol)%molpar%bends(3,na),STAT=ios)
+                       IF (ios /= 0 ) CALL stop_memory &
+                            ( 'read_molecule_section', 'bends', 3 * na )
+                       DO i = 1, na
+                          CALL get_next ( mol_setup(imol) %molpar%bends(1,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%bends(2,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%bends(3,i) )
+                       END DO
+                    END IF
+   
+                 CASE ( 'TORSIO')
+                    CALL get_next ( mol_setup(imol) %molpar%ntorsions )
+                    na = mol_setup(imol) %molpar%ntorsions
+                    IF (na>=0) THEN
+                       ALLOCATE ( &
+                            mol_setup ( imol ) % molpar % torsions ( 4, na ), &
+                            STAT = ios )
+                       IF ( ios /= 0 ) CALL stop_memory &
+                            ( 'read_molecule_section', 'torsions', 4 * na )
+                       DO i = 1, na
+                          CALL get_next ( mol_setup(imol) %molpar%torsions(1,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%torsions(2,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%torsions(3,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%torsions(4,i) )
+                       END DO
+                    END IF
+   
+                 CASE ( 'DISTCO')
+                    CALL get_next ( mol_setup(imol) %molpar%ndcon )
+                    na = mol_setup(imol) %molpar%ndcon
+                    IF (na>=0) THEN
+                       ALLOCATE (mol_setup(imol)%molpar%ndc(2,na),STAT=ios)
+                       IF ( ios /= 0 ) CALL stop_memory &
+                            ( 'read_molecule_section', 'ndc', 2 * na )
+                       DO i = 1, na
+                          CALL get_next ( mol_setup(imol) %molpar%ndc(1,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%ndc(2,i) )
+                       END DO
+                    END IF
+   
+                 CASE ( '3X3CON')
+                    CALL get_next ( mol_setup(imol) %molpar%n3x3con )
+                    na = mol_setup(imol) %molpar%n3x3con
+                    IF (na>=0) THEN
+                       ALLOCATE (mol_setup(imol)%molpar%n3x3c(3,na),STAT=ios)
+                       IF (ios /= 0 ) CALL stop_memory &
+                            ( 'read_molecule_section', 'n3x3c', 3 * na )
+                       DO i = 1, na
+                          CALL get_next ( mol_setup(imol) %molpar%n3x3c(1,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%n3x3c(2,i) )
+                          CALL get_next ( mol_setup(imol) %molpar%n3x3c(3,i) )
+                       END DO
+                    END IF
+    
+                 CASE ('RHO0_SET')
+        
+                    na = mol_setup(imol) %molpar%natom  
+                    IF (.NOT. ASSOCIATED (mol_setup(imol)%molpar%rho0_basis)) THEN
+                      ALLOCATE (mol_setup(imol)%molpar%rho0_basis(na),STAT=ios)
+                      IF ( ios /= 0 ) CALL stop_memory &
+                            ( 'read_molecule_section', 'rho0_basis',  na )
+                    END IF
+                    nrho0 = mol_setup(imol)%molpar%nbasis_rho0  + 1     
+                    mol_setup(imol)%molpar%nbasis_rho0 = nrho0
+                    ilen=0
+                    CALL get_next(mol_setup(imol)%molpar%rho0_basis(nrho0)%aname,ilen)
+                    ilen=0
+                    CALL get_next(mol_setup(imol)%molpar%rho0_basis(nrho0)%libname,ilen)
+                    CALL get_next ( mol_setup(imol)%molpar%rho0_basis(nrho0)%nmax )
+                    CALL get_next ( mol_setup(imol)%molpar%rho0_basis(nrho0)%eps )
+   
+                 CASE ('POL_SET')
+                    na = mol_setup(imol) %molpar%natom  
+                    IF (.NOT. ASSOCIATED (mol_setup(imol)%molpar%pol_basis)) THEN
+                       ALLOCATE (mol_setup(imol)%molpar%pol_basis(na),STAT=ios)
+                       IF ( ios /= 0 ) CALL stop_memory &
+                            ( 'read_molecule_section', 'pol_basis',  na )
+                    END IF
+                    npol = mol_setup(imol)%molpar%nbasis_pol + 1     
+                    mol_setup(imol)%molpar%nbasis_pol = npol
+                    ilen=0
+                    CALL get_next(mol_setup(imol)%molpar%pol_basis(npol)%aname,ilen)
+                    ilen=0
+                    CALL get_next(mol_setup(imol)%molpar%pol_basis(npol)%libname,ilen)
+                    CALL get_next ( mol_setup(imol)%molpar%pol_basis(npol)%nmax )
+                    CALL get_next ( mol_setup(imol)%molpar%pol_basis(npol)%eps )
+   
+                 CASE ( 'END')
+                    ilen = 0
+                    CALL get_next(string2,ilen)
+                    EXIT
+                 END SELECT
+   
+              END DO
 
 !..count number of atom types
-           mol_setup(imol) %molpar%natom_type = 1
-           DO i = 2, mol_setup(imol) %molpar%natom
-              j = str_search ( &
-                   mol_setup ( imol ) % molpar % aname ( 1:i-1 ), i-1, &
-                   mol_setup ( imol ) % molpar % aname ( i ) )
-              IF ( j == 0 ) mol_setup ( imol ) % molpar % natom_type &
-                   = mol_setup ( imol ) % molpar % natom_type + 1
-           END DO
+              mol_setup(imol) %molpar%natom_type = 1
+              DO i = 2, mol_setup(imol) %molpar%natom
+                 j = str_search ( &
+                      mol_setup ( imol ) % molpar % aname ( 1:i-1 ), i-1, &
+                      mol_setup ( imol ) % molpar % aname ( i ) )
+                 IF ( j == 0 ) mol_setup ( imol ) % molpar % natom_type &
+                      = mol_setup ( imol ) % molpar % natom_type + 1
+              END DO
+           END IF
         ELSE
            WRITE ( iw, '( A )' ) ' molecule type not found '
            WRITE ( iw, '( T2, A )' ) string
@@ -481,13 +611,75 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
   END IF
   CALL parser_end
 
+! add some defaults to the non specified molecules
+  DO imol = 1, nmol_type
+     IF ( mol_setup(imol) %molpar%natom == 0 ) THEN
+        mol_setup(imol) %molpar%natom_type = 1
+        mol_setup(imol) %molpar%natom = 1
+        ALLOCATE (mol_setup(imol)%molpar%aname(1),STAT=ios)
+        IF ( ios /= 0 ) CALL stop_memory &
+             ( 'read_molecule_section', 'aname', 1 )
+        ALLOCATE (mol_setup(imol)%molpar%alabel(1),STAT=ios)
+        IF ( ios /= 0 ) CALL stop_memory &
+             ( 'read_molecule_section', 'alabel', 1 )
+        ALLOCATE (mol_setup(imol)%molpar%aweight(1),STAT=ios)
+        IF ( ios /= 0 ) CALL stop_memory &
+             ( 'read_molecule_section', 'aweight', 1 )
+        ALLOCATE (mol_setup(imol)%molpar%acharge(1),STAT=ios)
+        IF ( ios /= 0 ) CALL stop_memory &
+             ( 'read_molecule_section', 'acharge', 1 )
+        mol_setup(imol) %molpar%aname(1) = molname(imol)
+        mol_setup(imol) %molpar%alabel(1) = ""
+        mol_setup(imol) %molpar%aweight(1) = -1._dbl
+        mol_setup(imol) %molpar%acharge(1) = 0._dbl
+        mol_setup(imol) %molpar%nbonds = 0
+        mol_setup(imol) %molpar%nbends = 0
+        mol_setup(imol) %molpar%ntorsions = 0
+        mol_setup(imol) %molpar%ndcon = 0
+        mol_setup(imol) %molpar%n3x3con = 0
+        mol_setup(imol) %molpar%nbasis_pol = 0
+        mol_setup(imol) %molpar%nbasis_rho0 = 0
+     END IF
+  END DO
+
   DEALLOCATE (molname,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'read_molecule_section', 'molname')
 
-! ..write some information to output
+!..count total number of molecules and atoms
+  setup % nmol = 0
+  setup % natoms = 0
+  setup % natom_type = 0
+  DO i = 1, nmol_type
+     setup % nmol = setup % nmol + mol_setup(i) % num_mol
+     setup % natoms = setup % natoms + mol_setup(i) % num_mol *  &
+          mol_setup(i) % molpar % natom
+     setup % natom_type = setup % natom_type +  &
+          mol_setup(i) % molpar % natom_type
+  END DO
+
+!..generate unique atom list
+  ALLOCATE ( setup % atom_names ( setup % natom_type ), STAT = ios )
+  IF ( ios /= 0 ) CALL stop_memory ( 'read_molecule_section', &
+       'setup % atom_names', setup % natom_type )
+
+  n = 0
+  DO i = 1, nmol_type
+     DO j = 1, mol_setup(i) % molpar % natom
+        IF (str_search(setup % atom_names,n,mol_setup(i) % molpar%aname(j))==0) THEN
+           n = n + 1
+           setup % atom_names(n) = mol_setup(i) % molpar%aname(j)
+        END IF
+     END DO
+  END DO
+
+  IF ( n /= setup % natom_type ) CALL stop_program ( 'read_molecule_section', &
+       'natom_type mismatch' )
+
+! write some information to output
   IF (globenv%ionode) THEN
      IF (globenv%print_level>=0) THEN
         DO imol = 1, nmol_type
+           IF ( mol_setup(imol) %molpar%aweight(1) < 0._dbl ) CYCLE
            WRITE ( iw,'( )' )
            WRITE ( iw, '( A,T61,A )' ) ' MOLECULE| Molecule name ', &
                 ADJUSTR ( mol_setup(imol)%molpar%name)

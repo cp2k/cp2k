@@ -41,7 +41,7 @@ MODULE tbmd_module
   USE fit_parameters_types, ONLY : fit_parameter_type
   USE fit_input, ONLY : read_fit_section
   USE fit_module, ONLY : control_fit
-  USE force_fields, ONLY : read_force_field_section, ATOMNAMESLENGTH
+  USE force_fields, ONLY : read_force_field_section
   USE global_types, ONLY : global_environment_type
   USE header, ONLY : fist_header, tbmd_header, wave_header
   USE initialize_extended_types, ONLY : initialize_nhc_part, initialize_nhc_baro,&
@@ -123,7 +123,6 @@ SUBROUTINE tbmd ( globenv )
   INTEGER :: ncoef, nll, nbasis_types, i
   INTEGER :: maxder
 
-  CHARACTER ( LEN = ATOMNAMESLENGTH ), DIMENSION ( : ), POINTER :: atom_names
   CHARACTER ( LEN = 40 ) :: set_fn, project_name
   CHARACTER ( LEN = 5 ) :: tag
   LOGICAL :: pimd
@@ -217,12 +216,12 @@ SUBROUTINE tbmd ( globenv )
 ! read pair potential information for TB
 
   CALL read_force_field_section ( setup, mol_setup, set_fn, &
-       intra_param, inter%potparm, atom_names, pstat, globenv )
+       intra_param, inter%potparm, pstat, globenv )
 
 !..read Hamiltonian section
 
-  CALL read_tb_hamiltonian ( setup, atom_names, inter%tbatom, globenv )
-  CALL read_tb_hopping_elements ( setup, atom_names, &
+  CALL read_tb_hamiltonian ( setup, setup % atom_names, inter%tbatom, globenv )
+  CALL read_tb_hopping_elements ( setup, setup % atom_names, &
        inter%tbatom, inter%tbhop, globenv )
   
  IF ( setup % run_type == 'ENERGY') THEN 
@@ -276,7 +275,7 @@ SUBROUTINE tbmd ( globenv )
     CALL allocmem ( ainp, mol_setup, struc ( ibead ), globenv )
 
 !..initialize particle_type
-    CALL initialize_particle_type ( atom_names, simpar, mol_setup, &
+    CALL initialize_particle_type ( setup % atom_names, simpar, mol_setup, &
        ainp, pstat, struc ( ibead ) % part )
 
 !..convert the units ( includes part and box ONLY when read_type is 'INIT' )

@@ -43,7 +43,7 @@ MODULE control_module
   USE fit_parameters_types, ONLY : fit_parameter_type
   USE fit_input, ONLY : read_fit_section
   USE fit_module, ONLY : control_fit
-  USE force_fields, ONLY : read_force_field_section, ATOMNAMESLENGTH
+  USE force_fields, ONLY : read_force_field_section
   USE global_types, ONLY : global_environment_type
   USE header, ONLY : fist_header, tbmd_header, wave_header
   USE initialize_extended_types, ONLY : initialize_nhc_part, initialize_nhc_baro,&
@@ -134,7 +134,6 @@ SUBROUTINE control ( globenv )
   INTEGER :: ncoef, nll, nbasis_types, i
   INTEGER :: maxder
 
-  CHARACTER ( LEN = ATOMNAMESLENGTH ), DIMENSION ( : ), POINTER :: atom_names
   CHARACTER ( LEN = 40 ) :: set_fn, project_name
   CHARACTER ( LEN = 5 ) :: tag
   LOGICAL :: tbmd, fist, dft, wave, quickstep, fit , pol, pimd
@@ -278,13 +277,13 @@ SUBROUTINE control ( globenv )
 ! read pair potential information for TB
 
   CALL read_force_field_section ( setup, mol_setup, set_fn, &
-       intra_param, inter%potparm, atom_names, pstat, globenv )
+       intra_param, inter%potparm, pstat, globenv )
 
 !..read Hamiltonian section
 
   IF ( tbmd ) THEN
-     CALL read_tb_hamiltonian ( setup, atom_names, inter%tbatom, globenv )
-     CALL read_tb_hopping_elements ( setup, atom_names, &
+     CALL read_tb_hamiltonian ( setup, setup % atom_names, inter%tbatom, globenv )
+     CALL read_tb_hopping_elements ( setup, setup % atom_names, &
           inter%tbatom, inter%tbhop, globenv )
   END IF
   
@@ -360,7 +359,7 @@ SUBROUTINE control ( globenv )
     CALL allocmem ( ainp, mol_setup, struc ( ibead ), globenv )
 
 !..initialize particle_type
-    CALL initialize_particle_type ( atom_names, simpar, mol_setup, &
+    CALL initialize_particle_type ( setup % atom_names, simpar, mol_setup, &
        ainp, pstat, struc ( ibead ) % part )
 
 !..convert the units ( includes part and box ONLY when read_type is 'INIT' )
@@ -454,12 +453,12 @@ SUBROUTINE control ( globenv )
      IF ( isos /=0 ) CALL stop_memory ( 'control', 'coef_force', 1 )
   
      CALL read_pol_basis_sets( struc ( 1 ) % rho0_basis_info, struc ( 1 ) % drho_basis_info, &
-                               mol_setup, struc ( 1 ) % part, atom_names, ncoef, globenv )
+                               mol_setup, struc ( 1 ) % part, setup % atom_names, ncoef, globenv )
 
      nbasis_types  = size ( struc ( 1 ) % drho_basis_info )
 
      CALL read_empirical_parameters ( struc (1) % drho_basis_info, set_fn, &
-                atom_names, inter%empparm, globenv )
+                setup % atom_names, inter%empparm, globenv )
      
      ALLOCATE (rcut_cgf ( nbasis_types, nbasis_types ), STAT = isos)
       IF ( isos /=0 ) CALL stop_memory ( 'control', 'rcut_cgf', 0 )
@@ -552,7 +551,7 @@ SUBROUTINE control ( globenv )
   IF ( fit ) then
 
     CALL control_fit( struc ( 1 ), inter % potparm, simpar, fit_param, pstat, &  
-        ewald_param, atom_names, globenv)             
+        ewald_param, setup % atom_names, globenv)             
 
   ELSE  
   

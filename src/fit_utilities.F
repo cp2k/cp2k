@@ -25,7 +25,6 @@
   USE termination, ONLY : stop_program, stop_memory
   USE fit_parameters_types, ONLY : fit_parameter_type, fit_averages_type, &
       linklist_parameters_type, fit_info_type, linklist_real_type
-  USE force_fields, ONLY : ATOMNAMESLENGTH
   USE simulation_cell, ONLY : get_hinv, cell_type
 
   IMPLICIT NONE
@@ -171,7 +170,7 @@
     TYPE (potentialparm_type), DIMENSION (:,:), INTENT (IN) :: potparm
     TYPE ( fit_parameter_type ), INTENT ( IN ) :: fit_param                
     REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: y
-    CHARACTER ( LEN = ATOMNAMESLENGTH ), DIMENSION ( : ), POINTER :: atom_names 
+    CHARACTER ( LEN = * ), DIMENSION ( : ), POINTER :: atom_names 
     TYPE (fit_averages_type) :: fit_ave
     TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
     INTEGER :: iter

@@ -37,7 +37,7 @@ MODULE wave_module
   USE extended_system_types, ONLY : extended_system_type
   USE fermi, ONLY : fermi_distribution_type
 ! USE force_control, ONLY : force
-! USE force_fields, ONLY : read_force_field_section, ATOMNAMESLENGTH
+! USE force_fields, ONLY : read_force_field_section
   USE global_types, ONLY : global_environment_type
   USE header, ONLY : wave_header
 ! USE initialize_extended_types, ONLY : initialize_nhc_part, initialize_nhc_baro,&
@@ -117,7 +117,6 @@ SUBROUTINE wave ( globenv )
 ! INTEGER :: ncoef, nbasis_types, i
 ! INTEGER :: maxder
 
-! CHARACTER ( LEN = ATOMNAMESLENGTH ), DIMENSION ( : ), POINTER :: atom_names
 ! CHARACTER ( LEN = 40 ) :: project_name
 ! CHARACTER ( LEN = 5 ) :: tag
   
@@ -219,7 +218,7 @@ SUBROUTINE wave ( globenv )
 !   CALL allocmem ( ainp, mol_setup, struc ( ibead ), globenv )
 
 !..initialize particle_type
-!   CALL initialize_particle_type ( atom_names, simpar, mol_setup, &
+!   CALL initialize_particle_type ( setup % atom_names, simpar, mol_setup, &
 !      ainp, pstat, struc ( ibead ) % part )
 
 !..convert the units ( includes part and box ONLY when read_type is 'INIT' )

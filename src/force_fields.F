@@ -67,13 +67,14 @@ CONTAINS
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (30.11.2001) : moved determination of setup variables to 
+!!                        molecule_input 
 !!
 !!   SOURCE
 !******************************************************************************
 
 SUBROUTINE read_force_field_section ( setup, mol_setup, set_fn, intra_param, &
-     potparm, atom_names, pstat, globenv_input )
+     potparm, pstat, globenv_input )
 
   IMPLICIT NONE
 
@@ -88,7 +89,7 @@ SUBROUTINE read_force_field_section ( setup, mol_setup, set_fn, intra_param, &
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv_input
 
 ! Locals
-  INTEGER :: i, j, n, natom_types, ios, nmol_type, iw
+  INTEGER :: i, j, n, natom_type, ios, nmol_type, iw
 
 !------------------------------------------------------------------------------
 
@@ -97,46 +98,18 @@ SUBROUTINE read_force_field_section ( setup, mol_setup, set_fn, intra_param, &
 
   iw = scr
 
-!..count total number of molecules and atoms
-  setup % nmol = 0
-  setup % natoms = 0
-  setup % natom_type = 0
   nmol_type = size(mol_setup)
-  DO i = 1, nmol_type
-     setup % nmol = setup % nmol + mol_setup(i) % num_mol
-     setup % natoms = setup % natoms + mol_setup(i) % num_mol *  &
-          mol_setup(i) % molpar % natom
-     setup % natom_type = setup % natom_type +  &
-          mol_setup(i) % molpar % natom_type
-  END DO
-
-!..generate unique atom list
-  ALLOCATE ( atom_names ( setup % natom_type ), STAT = ios )
-  IF ( ios /= 0 ) CALL stop_memory ( 'input_fist', &
-       'atom_names', setup % natom_type )
-
-  n = 0
-  DO i = 1, nmol_type
-     DO j = 1, mol_setup(i) % molpar % natom
-        IF (str_search(atom_names,n,mol_setup(i) % molpar%aname(j))==0) THEN
-           n = n + 1
-           atom_names(n) = mol_setup(i) % molpar%aname(j)
-        END IF
-     END DO
-  END DO
-
-  IF ( n /= setup % natom_type ) CALL stop_program ( 'input_fist', &
-       'natom_type mismatch' )
+  natom_type = setup % natom_type
 
 !..define pstat to hold all information (static) on different particle types
-  ALLOCATE ( pstat ( setup % natom_type ), STAT = ios )
-  IF ( ios /= 0 ) CALL stop_memory ( 'input_fist', &
-       'pstat', setup % natom_type )
-  natom_types = SIZE ( atom_names )
+  ALLOCATE ( pstat ( natom_type ), STAT = ios )
+  IF ( ios /= 0 ) CALL stop_memory ( 'input_fist', 'pstat', natom_type )
 
+!..this defines the order of the atoms!
   DO i = 1, nmol_type
      DO j = 1, mol_setup(i) % molpar % natom
-        n = str_search(atom_names,natom_types,mol_setup(i) % molpar % aname(j))
+        n = str_search ( setup % atom_names,natom_type, &
+                         mol_setup(i) % molpar % aname(j) )
         pstat(n) % charge = mol_setup(i) % molpar % acharge(j)
         pstat(n) % mass = mol_setup(i) % molpar % aweight(j)
         pstat(n) % ptype = n
@@ -144,24 +117,23 @@ SUBROUTINE read_force_field_section ( setup, mol_setup, set_fn, intra_param, &
   END DO
 
 !..read in non-bonded interaction information
-  natom_types = size(atom_names)
-  ALLOCATE (potparm(natom_types,natom_types),STAT=ios)
+  ALLOCATE (potparm(natom_type,natom_type),STAT=ios)
   IF ( ios /= 0 ) CALL stop_memory ( 'fist_input', &
-       'potparm', natom_types ** 2 )
-  CALL input_nonbonded(potparm,atom_names,set_fn)
+       'potparm', natom_type ** 2 )
+  CALL input_nonbonded(potparm,setup % atom_names,set_fn)
 
 !..read the bond parameters
-  CALL input_bonds(intra_param % bond_param,atom_names,set_fn)
+  CALL input_bonds(intra_param % bond_param,setup % atom_names,set_fn)
 
 !..read the bend parameters
-  CALL input_bends(intra_param % bend_param,atom_names,set_fn)
+  CALL input_bends(intra_param % bend_param,setup % atom_names,set_fn)
 
 !..read the torsion parameters
-  CALL input_torsions(intra_param % torsion_param,atom_names,set_fn)
+  CALL input_torsions(intra_param % torsion_param,setup % atom_names,set_fn)
 
 !..read the distance constraint parameters
   CALL input_distance_constraints ( intra_param % constraint_distance, &
-       atom_names, set_fn )
+       setup % atom_names, set_fn )
 
 END SUBROUTINE read_force_field_section
 

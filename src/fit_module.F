@@ -30,7 +30,6 @@
   USE fit_utilities, ONLY : force_ref, fit_print_info, get_will_params, &
                             get_lj_params, fit_read_restart, fit_write_restart
   USE fit_types, ONLY : copy_params, initialize_params
-  USE force_fields, ONLY : ATOMNAMESLENGTH
   USE simulation_cell, ONLY :  get_hinv, cell_type      
   USE fit_force_control, ONLY : fit_force
   USE ewald_parameters_types, ONLY : ewald_parameters_type
@@ -83,7 +82,7 @@
     TYPE (fit_parameter_type), INTENT(INOUT) :: fit_param
     TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param  
     TYPE ( global_environment_type ), INTENT ( IN ) :: globenv  
-    CHARACTER ( LEN = ATOMNAMESLENGTH ), DIMENSION ( : ), POINTER :: atom_names 
+    CHARACTER ( LEN = * ), DIMENSION ( : ), POINTER :: atom_names 
 
 !
     INTEGER :: isos
@@ -237,7 +236,7 @@
   TYPE (fit_averages_type) :: fit_ave
   TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param  
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv  
-  CHARACTER ( LEN = ATOMNAMESLENGTH ), DIMENSION ( : ), POINTER :: atom_names 
+  CHARACTER ( LEN = * ), DIMENSION ( : ), POINTER :: atom_names 
   LOGICAL, INTENT (INOUT) :: conv_flag
 
 ! locals

@@ -25,7 +25,6 @@ MODULE pol_setup
   USE atomic_kinds, ONLY :  kind_info_type
   USE basis_set_types, ONLY : read_basis_set, allocate_basis_set, &
                               deallocate_basis_set, gto_basis_set_type
-  USE force_fields, ONLY : ATOMNAMESLENGTH 
   USE global_types,             ONLY: global_environment_type
   USE kinds, ONLY : dbl
   USE interactions, ONLY :  exp_radius
@@ -54,7 +53,7 @@ MODULE pol_setup
     TYPE ( kind_info_type ), POINTER, DIMENSION(:) :: drho_basis_info
     TYPE ( molecule_type ), DIMENSION ( : ), POINTER :: mol_setup   
     TYPE ( particle_type ), POINTER, DIMENSION(:) :: part
-    CHARACTER ( LEN = ATOMNAMESLENGTH ), DIMENSION ( : ), POINTER :: atom_names
+    CHARACTER ( LEN = * ), DIMENSION ( : ), POINTER :: atom_names
     integer, intent (out) :: ncoef
     TYPE(global_environment_type), INTENT(IN) :: globenv
 !    TYPE (ao_type) :: ao
@@ -187,7 +186,7 @@ MODULE pol_setup
     INTEGER :: basis_size
     TYPE(particle_type), POINTER, DIMENSION(:) :: part
     TYPE(read_basis_type), DIMENSION(:), POINTER   :: molinfo
-    CHARACTER ( LEN = ATOMNAMESLENGTH ), DIMENSION ( : ), POINTER :: atom_names
+    CHARACTER ( LEN = * ), DIMENSION ( : ), POINTER :: atom_names
     LOGICAL, INTENT (IN) :: flag
     TYPE(global_environment_type), INTENT(IN) :: globenv
 

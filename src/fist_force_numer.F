@@ -624,9 +624,9 @@ SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
           
            IF ( MAXVAL ( n_images ) == 0 ) lat_vec = 0
 
-           DO kcell = -zz - lat_vec ( 3 ), zz - lat_vec ( 3 )
-              DO jcell = -yy - lat_vec ( 2 ), yy - lat_vec ( 2 )
-                 DO icell = -xx - lat_vec ( 1 ), xx - lat_vec ( 1 )
+           DO kcell = -zz - NINT(lat_vec ( 3 )), zz - NINT(lat_vec ( 3 ))
+              DO jcell = -yy - NINT(lat_vec ( 2 )), yy - NINT(lat_vec ( 2 ))
+                 DO icell = -xx - NINT(lat_vec ( 1 )), xx - NINT(lat_vec ( 1 ))
 
                     vec ( : ) = (/ icell, jcell, kcell /)
                     IF ( MAXVAL ( n_images ) == 0 ) CYCLE
