@@ -425,6 +425,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_atomic_kind_set"
 
+    INTEGER, DIMENSION(:), POINTER           :: n_ppl
     INTEGER :: atom_a, iatom, ikind, imax, n, nkind, p_excl_bas, &
       p_excl_bas_max, p_full_bas, p_full_bas_max, p_full_bas_tot, &
       p_l_angles_max, p_min_bas, p_min_bas_max, p_min_bas_tot, zeff
@@ -497,6 +498,11 @@ CONTAINS
         END IF
         IF (PRESENT(maxlppl).AND.ASSOCIATED(gth_potential)) THEN
           CALL get_potential(potential=gth_potential,nexp_ppl=n)
+          maxlppl = MAX(maxlppl,2*(n - 1))
+        END IF
+        IF (PRESENT(maxlppl).AND.ASSOCIATED(elp_potential)) THEN
+          CALL get_potential(potential=elp_potential,nexp_ppl=n_ppl)
+          n=MAXVAL(n_ppl)
           maxlppl = MAX(maxlppl,2*(n - 1))
         END IF
         IF (PRESENT(maxlppnl).AND.ASSOCIATED(gth_potential)) THEN
