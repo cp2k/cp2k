@@ -54,7 +54,6 @@ MODULE atomic_kind_types
   USE termination,              ONLY: stop_memory,&
                                       stop_program
   USE pao_bas_projection_types
-  USE cp_array_utils, only: cp_write
   use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
        cp_warning_level, cp_note_level, cp_to_string, cp_log,&
        cp_logger_get_default_unit_nr, cp_logger_type

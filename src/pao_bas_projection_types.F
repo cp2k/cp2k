@@ -26,7 +26,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE pao_bas_projection_types
-  USE cp_array_utils,                  ONLY: cp_write
+  USE cp_array_i_utils,                  ONLY: cp_1d_i_write
   USE cp_error_handling,               ONLY: cp_assert,&
                                              cp_debug,&
                                              cp_error_type
@@ -757,9 +757,9 @@ SUBROUTINE cp_proj_write(proj,unit_nr,error)
   CPPrecondition(proj%initialized,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      WRITE(unit=unit_nr,fmt="(t2,a)")'# projection indexes'
-     CALL cp_write(proj%proj_indexes,unit_nr=unit_nr,error=error)
+     CALL cp_1d_i_write(proj%proj_indexes,unit_nr=unit_nr,error=error)
      WRITE(unit=unit_nr,fmt="(t2,a)")'# non projection indexes'
-     CALL cp_write(proj%non_proj_indexes,unit_nr=unit_nr,error=error)
+     CALL cp_1d_i_write(proj%non_proj_indexes,unit_nr=unit_nr,error=error)
   END IF
 END SUBROUTINE cp_proj_write
 !***************************************************************************
