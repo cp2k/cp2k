@@ -388,7 +388,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         index_b = onef_list ( ionef ) % b + first_atom - 1
         atomic_kind => particle_set ( index_b ) % atomic_kind
         CALL get_atomic_kind ( atomic_kind, kind_number =  bkind )
-        rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
+        rij = particle_set ( index_b ) % r - particle_set ( index_a ) % r
         rab2 = DOT_PRODUCT ( rij, rij )
         spline_env => onef_list ( ionef ) % onfo_kind % spline_env
         spline_table => spline_env % spline_table
@@ -397,12 +397,12 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                            akind, bkind, energy, fscalar )
         pot_onef = pot_onef + energy
         particle_set ( index_a )% f = particle_set ( index_a ) % f &
-                                      +rij * fscalar
-        particle_set ( index_b )% f = particle_set ( index_b ) % f &
                                       -rij * fscalar
+        particle_set ( index_b )% f = particle_set ( index_b ) % f &
+                                      +rij * fscalar
 
 ! computing the pressure tensor
-        CALL get_pv_bond ( rij * fscalar, -rij * fscalar, &
+        CALL get_pv_bond ( -rij * fscalar, +rij * fscalar, &
                            particle_set ( index_a ) % r,  &
                            particle_set ( index_b ) % r,  &
                            pv_onef )
