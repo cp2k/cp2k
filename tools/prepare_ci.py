@@ -22,7 +22,7 @@ def buildCp2k(cp2kRoot,buildType="sopt",logFilePath=None,clean=None):
     os.chdir(join(cp2kRoot,"makefiles"))
     if os.access("/usr/bin/gnumake",os.X_OK): makeCmd="/usr/bin/gnumake"
     else: makeCmd="gmake"
-    pipe=os.popen("{ { "+makeCmd+" -f Makefile_cpp "+buildType+"; } 2>&1 ; } >>"+logFilePath)
+    pipe=os.popen("{ { "+makeCmd+" "+buildType+"; } 2>&1 ; } >>"+logFilePath)
     logFile=open(logFilePath,'a')
     if (pipe.close()):
         logFile.write("\n+++ ERROR, build "+buildType+" FAILED! +++\n")
