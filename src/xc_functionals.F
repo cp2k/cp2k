@@ -174,22 +174,26 @@ CONTAINS
 
 !******************************************************************************
 
-  SUBROUTINE xc_lda ( functional, gradient_functionals, crossterms, &
-                      rho, derivative_set, order, drho, error )
-     IMPLICIT NONE
-     CHARACTER (LEN=*), DIMENSION ( 3 ), INTENT(IN) :: functional
-     LOGICAL, DIMENSION ( 3 ), INTENT(IN) :: gradient_functionals, crossterms
-     REAL ( dbl ), DIMENSION (:), INTENT(in) :: rho
-     REAL ( dbl ), DIMENSION (:), INTENT(in), OPTIONAL :: drho
-     TYPE(xc_derivative_set_type), POINTER :: derivative_set
-     INTEGER, INTENT(IN) :: order
-     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+  SUBROUTINE xc_lda ( derivative_set, functional, gradient_functionals, crossterms, &
+                      rho, order, drho, error )
 
-     CHARACTER(len=*), PARAMETER :: routineN='xc_lda',&
-          routineP=moduleN//':'//routineN
+     IMPLICIT NONE
+
+     TYPE(xc_derivative_set_type), POINTER          :: derivative_set
+     CHARACTER (LEN=*), DIMENSION ( 3 ), INTENT(IN) :: functional
+     LOGICAL, DIMENSION ( 3 ), INTENT(IN)           :: gradient_functionals, crossterms
+     REAL(dbl), DIMENSION (:), INTENT(in)           :: rho
+     REAL(dbl), DIMENSION (:), INTENT(in), OPTIONAL :: drho
+     INTEGER, INTENT(IN)                            :: order
+     TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
+
      LOGICAL :: gradient_correction, cross_term, docalc ( 3 )
      REAL ( dbl ), DIMENSION (:,:), ALLOCATABLE :: locpot
-     INTEGER :: ifun, i, ierr, np, mp, lp, lpmax, ind ( 100 )
+     INTEGER :: ifun, i, ierr, lp, lpmax, ind ( 100 )
+     INTEGER :: npotentials, ngridpoints
+
+     CHARACTER(len=*), PARAMETER :: routineN = 'xc_lda',&
+                                    routineP = moduleN//':'//routineN
 
      gradient_correction = ANY(gradient_functionals)
      ! no crossterms in unpolarised spin calculations
@@ -199,57 +203,58 @@ CONTAINS
                 0.0_dbl, 0, derivative_set%data, 1)
 
      IF ( .NOT. gradient_correction ) THEN
-       IF (xc_get_pot_size(.FALSE., gradient_correction, cross_term, order) &
-            > SIZE ( derivative_set%data, 2 )) &
-          CALL stop_program ( "xc_lda", "Size of array DERIVATIVE_SET%DATA too small" )
-       CALL xc_calculate_lda ( functional=functional(1), rho=rho,&
-            pot=derivative_set%data, order=order, error=error )
-       CALL xc_calculate_lda ( functional=functional(2), rho=rho,&
-            pot=derivative_set%data, order=order, error=error )
-       CALL xc_calculate_lda ( functional=functional(3), rho=rho,&
-            pot=derivative_set%data, order=order, error=error )
+        npotentials = xc_get_pot_size(.FALSE., gradient_correction, cross_term, order)
+        IF (npotentials > SIZE ( derivative_set%data, 2 )) &
+             CALL stop_program ( "xc_lda", "Size of array DERIVATIVE_SET%DATA too small" )
+        CALL xc_calculate_lda ( derivative_set, functional=functional(1), rho=rho,&
+             pot=derivative_set%data, order=order, error=error )
+        CALL xc_calculate_lda ( derivative_set, functional=functional(2), rho=rho,&
+             pot=derivative_set%data, order=order, error=error )
+        CALL xc_calculate_lda ( derivative_set, functional=functional(3), rho=rho,&
+             pot=derivative_set%data, order=order, error=error )
+
      ELSE
-       CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
-       docalc ( : ) = ( INDEX ( functional(:), "NONE" ) == 0 )
-       np = SIZE ( derivative_set%data, 1 )
-       mp = SIZE ( derivative_set%data, 2 )
-       lpmax = xc_get_pot_size ( .FALSE., .TRUE., cross_term, order )
-       IF ( lpmax > mp ) CALL stop_program ( "xc_lda", &
-                                             "Size of array DERIVATIVE_SET%DATA too small" )
-       ALLOCATE ( locpot ( np, mp ), STAT = ierr )
-       IF ( ierr /= 0 ) CALL stop_memory ( "xc_lda", "locpot", np*mp )
-       DO ifun = 1, 3
-         IF ( docalc ( ifun ) ) THEN
-           lp = xc_get_pot_size ( .FALSE., gradient_functionals(ifun), .FALSE., order )
-           locpot(:,1:lp) = 0._dbl
-           CALL xc_calculate_lda ( functional=functional(ifun),&
-                rho=rho, drho=drho, pot=locpot, order=order, error=error )
-           CALL xc_get_order ( .FALSE., gradient_functionals(ifun), .FALSE., &
-                               gradient_correction, .FALSE., order, ind(1:lp) )
-           DO i = 1, lp
-             CALL daxpy ( np, 1._dbl, locpot(1,i), 1, derivative_set%data(1,ind(i)-1), 1 )
-           END DO
-         END IF
-       END DO
-       DEALLOCATE ( locpot, STAT = ierr )
-       IF ( ierr /= 0 ) CALL stop_memory ( "xc_lda", "locpot" )
+        CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
+        docalc ( : ) = ( INDEX ( functional(:), "NONE" ) == 0 )
+        ngridpoints = SIZE ( derivative_set%data, 1 )
+        npotentials = SIZE ( derivative_set%data, 2 )
+        lpmax = xc_get_pot_size ( .FALSE., .TRUE., cross_term, order )
+        IF ( lpmax > npotentials ) CALL stop_program ( "xc_lda", &
+             "Size of array DERIVATIVE_SET%DATA too small" )
+        ALLOCATE ( locpot ( ngridpoints, npotentials ), STAT = ierr )
+        IF ( ierr /= 0 ) CALL stop_memory ( "xc_lda", "locpot", ngridpoints*npotentials )
+        DO ifun = 1, 3
+           IF ( docalc ( ifun ) ) THEN
+              lp = xc_get_pot_size ( .FALSE., gradient_functionals(ifun), .FALSE., order )
+              CALL dcopy(SIZE(locpot,1)*SIZE(locpot,2), 0.0_dbl, 0, locpot, 1)
+              CALL xc_calculate_lda ( derivative_set, functional=functional(ifun),&
+                   rho=rho, drho=drho, pot=locpot, order=order, error=error )
+              CALL xc_get_order ( .FALSE., gradient_functionals(ifun), .FALSE., &
+                   gradient_correction, .FALSE., order, ind(1:lp) )
+              DO i = 1, lp
+                 CALL daxpy ( ngridpoints, 1._dbl, locpot(1,i), 1, derivative_set%data(1,ind(i)-1), 1 )
+              END DO
+           END IF
+        END DO
+        DEALLOCATE ( locpot, STAT = ierr )
+        IF ( ierr /= 0 ) CALL stop_memory ( "xc_lda", "locpot" )
      END IF
 
   END SUBROUTINE xc_lda
 
 !******************************************************************************
 
-  SUBROUTINE xc_lsd ( functional, gradient_functionals, crossterms, &
-                      rho_a, rho_b, derivative_set, order, &
+  SUBROUTINE xc_lsd ( derivative_set, functional, gradient_functionals, crossterms, &
+                      rho_a, rho_b, order, &
                       drho_a, drho_b, error )
 
      IMPLICIT NONE
 
      ! arguments
+     TYPE(xc_derivative_set_type), POINTER :: derivative_set
      CHARACTER (LEN=*), DIMENSION ( 3 ), INTENT(IN) :: functional
      LOGICAL, DIMENSION ( 3 ), INTENT(IN)           :: gradient_functionals, crossterms
      REAL ( dbl ), DIMENSION (:), INTENT(in)        :: rho_a, rho_b
-     TYPE(xc_derivative_set_type), POINTER          :: derivative_set
      REAL ( dbl ), DIMENSION (:), INTENT(in), OPTIONAL :: drho_a, drho_b
      INTEGER, INTENT(IN) :: order
      TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
@@ -274,9 +279,9 @@ CONTAINS
         IF (xc_get_pot_size(.TRUE., gradient_correction, cross_term, order) > SIZE(derivative_set%data,2)) &
              CALL stop_program ( routineP, "Size of array DERIVATIVE_SET%DATA too small" )
         
-        CALL xc_calculate_lsd ( functional(1), rho_a, rho_b, derivative_set%data, order, error=error )
-        CALL xc_calculate_lsd ( functional(2), rho_a, rho_b, derivative_set%data, order, error=error )
-        CALL xc_calculate_lsd ( functional(3), rho_a, rho_b, derivative_set%data, order, error=error )
+        CALL xc_calculate_lsd ( derivative_set, functional(1), rho_a, rho_b, derivative_set%data, order, error=error )
+        CALL xc_calculate_lsd ( derivative_set, functional(2), rho_a, rho_b, derivative_set%data, order, error=error )
+        CALL xc_calculate_lsd ( derivative_set, functional(3), rho_a, rho_b, derivative_set%data, order, error=error )
 
      ELSE
         CPPreconditionNoFail(PRESENT(drho_a),cp_failure_level,routineP,error)
@@ -297,7 +302,7 @@ CONTAINS
            IF ( docalc ( ifun ) ) THEN
               lp = xc_get_pot_size ( .TRUE., gradient_functionals(ifun), crossterms(ifun), order )
               locpot(:,1:lp) = 0._dbl
-              CALL xc_calculate_lsd ( functional(ifun),&
+              CALL xc_calculate_lsd ( derivative_set, functional(ifun),&
                    rho_a, rho_b, locpot, order, drhoa=drho_a, drhob=drho_b, error=error )
               CALL xc_get_order ( .TRUE., gradient_functionals(ifun), crossterms(ifun), &
                    gradient_correction, cross_term, order, ind(1:lp) )
@@ -314,8 +319,9 @@ CONTAINS
 
 !******************************************************************************
 
-  SUBROUTINE xc_calculate_lda ( functional, rho, pot, order, drho ,error )
+  SUBROUTINE xc_calculate_lda ( derivative_set, functional, rho, pot, order, drho ,error )
      IMPLICIT NONE
+     TYPE(xc_derivative_set_type), POINTER :: derivative_set
      CHARACTER (LEN=*), INTENT(IN) :: functional
      REAL ( dbl ), DIMENSION (:), INTENT(in) :: rho
      REAL ( dbl ), DIMENSION (:), INTENT(in), OPTIONAL :: drho
@@ -324,9 +330,8 @@ CONTAINS
      TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
      INTEGER :: i,ierr
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-     CHARACTER(len=*),PARAMETER :: routineN='xc_calculate_lda',&
-          routineP=moduleN//':'//routineN
+     CHARACTER(len=3),PARAMETER :: routineN = 'xc_calculate_lda',&
+                                   routineP = moduleN//':'//routineN
 
      ierr = 0
 
@@ -451,9 +456,12 @@ CONTAINS
 
 !******************************************************************************
 
-  SUBROUTINE xc_calculate_lsd ( functional, rhoa, rhob, pot, &
+  SUBROUTINE xc_calculate_lsd ( derivative_set, functional, rhoa, rhob, pot, &
        order, drhoa, drhob, error )
+
      IMPLICIT NONE
+
+     TYPE(xc_derivative_set_type), POINTER :: derivative_set
      CHARACTER (LEN=*), INTENT(IN) :: functional
      REAL ( dbl ), DIMENSION (:), INTENT(in) :: rhoa, rhob
      REAL ( dbl ), DIMENSION (:), INTENT(in), OPTIONAL :: drhoa, drhob
@@ -462,9 +470,8 @@ CONTAINS
      TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
      INTEGER :: ierr
-    TYPE(xc_derivative_set_type), POINTER :: derivative_set
-     CHARACTER(len=*),PARAMETER :: routineN='xc_calculate_lsd',&
-          routineP=moduleN//':'//routineN
+     CHARACTER(len=3),PARAMETER :: routineN = 'xc_calculate_lsd',&
+                                   routineP = moduleN//':'//routineN
 
      ierr = 0
 

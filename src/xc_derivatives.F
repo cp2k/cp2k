@@ -134,36 +134,40 @@ contains
        call xc_set(xc_control%density_cut, xc_control%gradient_cut)
        if (any(xc_control%gradient_functionals)) then
           if (do_lsd) then
-             call xc_lsd ( xc_control%functionals, &
+             call xc_lsd ( derivative_set, &
+                           xc_control%functionals, &
                            xc_control%gradient_functionals, &
                            xc_control%crossterms, &
                            rhoa(:), rhob(:), &
-                           derivative_set, order, &
+                           order, &
                            drho_a=drhoa(:), drho_b=drhob(:), &
                            error=error )
           else
-             call xc_lda ( xc_control%functionals,&
+             call xc_lda ( derivative_set, &
+                           xc_control%functionals,&
                            xc_control%gradient_functionals, &
                            xc_control%crossterms, &
                            rhoa(:),  &
-                           derivative_set, order=order, &
+                           order=order, &
                            drho=drhoa(:), &
                            error=error )
           end if
        else
           if (do_lsd) then
-             call xc_lsd ( xc_control%functionals, &
+             call xc_lsd ( derivative_set, &
+                           xc_control%functionals, &
                            xc_control%gradient_functionals, &
                            xc_control%crossterms, &
                            rhoa(:), rhob(:), &
-                           derivative_set, order, &
+                           order, &
                            error=error )
           else
-             call xc_lda ( xc_control%functionals,&
+             call xc_lda ( derivative_set, &
+                           xc_control%functionals,&
                            xc_control%gradient_functionals, &
                            xc_control%crossterms, &
                            rhoa(:), &
-                           derivative_set, order, &
+                           order, &
                            error=error )
           end if
        end if
