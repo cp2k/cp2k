@@ -1,5 +1,6 @@
 OBJECTS_GENERIC =\
  ai_coulomb.o\
+ ai_derivatives.o\
  ai_kinetic.o\
  ai_nuclear.o\
  ai_overlap.o\
@@ -39,6 +40,7 @@ OBJECTS_GENERIC =\
  diis.o\
  dump.o\
  eigenvalueproblems.o\
+ empirical_parameters.o\
  environment.o\
  erf_fn.o\
  ewald_parameters_types.o\
@@ -133,6 +135,7 @@ OBJECTS_GENERIC =\
  pol_electrostatics.o\
  pol_force.o\
  pol_grids.o\
+ pol_overlap.o\
  pol_setup.o\
  potential_types.o\
  potentials.o\
