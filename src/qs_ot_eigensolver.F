@@ -227,7 +227,7 @@ CONTAINS
        IF (preconditioner_in_use(preconditioner)) THEN
           CALL qs_ot_new_preconditioner(qs_ot_env,preconditioner) 
        ELSE
-	  ! we should presumably make one
+          ! we should presumably make one
        END IF
     ENDIF
 
@@ -262,7 +262,7 @@ CONTAINS
 
       IF (delta < eps_gradient) THEN
           if (globenv%ionode) THEN
-	     write(globenv%scr,*) " Reached convergence in ",ieigensolver, &
+             write(globenv%scr,*) " Reached convergence in ",ieigensolver, &
                                   " iterations "
           endif
           EXIT eigensolver_loop

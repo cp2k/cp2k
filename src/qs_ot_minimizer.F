@@ -84,7 +84,7 @@ SUBROUTINE ot_mini(qs_ot_env,globenv)
            qs_ot_env%OT_METHOD_FULL="OT DIIS"
            CALL ot_diis_step(qs_ot_env,globenv)
    CASE DEFAULT
-	CALL stop_program("ot_mini","OT_METHOD NYI")
+           CALL stop_program("ot_mini","OT_METHOD NYI")
    END SELECT
 
    CALL timestop(0.0_wp,handle)
@@ -234,7 +234,7 @@ SUBROUTINE do_line_search_gold(qs_ot_env,globenv)
              qs_ot_env%line_search_might_be_done=.true.
           ENDIF
           IF (count+1 .eq. size(qs_ot_env%OT_pos)) THEN
-	     if (globenv%ionode) write(globenv%scr,*) "WARNING : LS : MAX ITER REACHED"
+             if (globenv%ionode) write(globenv%scr,*) "WARNING : LS : MAX ITER REACHED"
              qs_ot_env%energy_only=.false.
              qs_ot_env%line_search_might_be_done=.true.
           ENDIF
