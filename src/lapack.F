@@ -126,6 +126,15 @@ MODULE lapack
      END SUBROUTINE ctrtri
   END INTERFACE
 
+  INTERFACE lapack_sgesv
+     SUBROUTINE sgesv ( n, nrhs, a, lda, ipiv, b, ldb, info )
+       USE kinds, ONLY : dbl
+       INTEGER :: INFO, LDA, LDB, N, NRHS
+       INTEGER :: IPIV (*)
+       REAL ( KIND = dbl ) :: A( LDA, * ), B( LDB, * )
+     END SUBROUTINE sgesv
+  END INTERFACE
+
 #else
 
   INTERFACE lapack_ssyev
@@ -228,6 +237,14 @@ MODULE lapack
      END SUBROUTINE ztrtri
   END INTERFACE
 
+  INTERFACE lapack_sgesv
+     SUBROUTINE dgesv ( n, nrhs, a, lda, ipiv, b, ldb, info )
+       USE kinds, ONLY : dbl
+       INTEGER :: INFO, LDA, LDB, N, NRHS
+       INTEGER :: IPIV (*)
+       REAL ( KIND = dbl ) :: A( LDA, * ), B( LDB, * )
+     END SUBROUTINE dgesv
+  END INTERFACE
 #endif
 
 END MODULE lapack
