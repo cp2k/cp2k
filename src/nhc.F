@@ -784,6 +784,7 @@ END SUBROUTINE nhc_particle_setup
     nhc % nc = 0
     nhc % nhc_len = 0
     nhc % num_nhc = 0
+    nhc % dis_type = ''
   CASE ( nvt_ensemble )
     call section_vals_val_get(nose_section,"yoshida",i_val=nhc % nyosh )
     call section_vals_val_get(nose_section,"mts",i_val=nhc % nc )
@@ -821,6 +822,9 @@ END SUBROUTINE nhc_particle_setup
 
 ! Now we can allocate the target array s_kin and p_kin
 
+    ALLOCATE ( nhc % index ( number ), STAT = isos )
+    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_coef_setup', &
+      'index', number )
     ALLOCATE ( nhc % s_kin ( number ), STAT = isos)
     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_coef_setup', &
       'nhc%s_kin', number  )
@@ -835,6 +839,7 @@ END SUBROUTINE nhc_particle_setup
       'nhc%p_scale', ncoef_local)
     nhc % num_nhc = number
 
+
 ! Begin the mapping loop
 
     i=0
@@ -846,12 +851,14 @@ END SUBROUTINE nhc_particle_setup
           nhc % p_scale ( j, i ) % point => nhc % v_scale ( 1 )
         END DO
       END DO
+      nhc % index ( 1 ) = 1
     ELSEIF (  kg_coeff_nhc == nhc_massive )  THEN
       DO i = 1, ncoef_local 
         DO j = 1, SIZE ( nhc % p_kin, 1 )
           number = number + 1
           nhc % p_kin ( j, i ) % point => nhc % s_kin ( number )
           nhc % p_scale ( j, i ) % point => nhc % v_scale ( number )
+          nhc % index ( number ) = number
         END DO
       END DO
     ENDIF

@@ -453,19 +453,23 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,globenv)
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     type(section_vals_type), pointer         :: coeff_section
 
-  coeff_section => section_vals_get_subs_vals(globenv%input_file,"MD_NEW")
-  coeff_section => section_vals_get_subs_vals(coeff_section,"KG_coeff")
-  call section_vals_val_get(coeff_section,"storage",i_val=dyn_coeff_set%mass_storage)
-  call section_vals_val_get(coeff_section,"mass",r_val=dyn_coeff_set%global_mass)
-  call section_vals_val_get(coeff_section,"restart",i_val=restart_coeff)
-  call section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp)
+!***************************************************************************
 
   group=globenv%group
   source=globenv%source
+
+! initialize to default values
+
+  dyn_coeff_set%mass_storage=dyn_coeff_mass_global
+  dyn_coeff_set%global_mass=100._dp              
+  
   nel_tot=0
   ncoef_tot=0
   ncoef_atom_max=0
 
+! get the kg coefficients' parameters from input structure
+
+  NULLIFY(coeff_section)
   coeff_section => section_vals_get_subs_vals(globenv%input_file,"MD_NEW")
   coeff_section => section_vals_get_subs_vals(coeff_section,"KG_coeff")
   call section_vals_val_get(coeff_section,"storage",i_val=dyn_coeff_set%mass_storage)

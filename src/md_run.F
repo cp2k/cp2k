@@ -212,15 +212,19 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (extended_type%nhc_baro(nbeads),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (extended_type%nhc_coef(nbeads),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ibead=1,nbeads
        CALL lnhc_init(extended_type%nhc_part(ibead))
        CALL lnhc_init(extended_type%nhc_baro(ibead))
+       CALL lnhc_init(extended_type%nhc_coef(ibead))
     ENDDO
 
 ! loop over number of beads
     DO ibead = 1, nbeads
 
       CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &
+                          dyn_coeff_set=dyn_coeff_set,&
                           cell=cell, cell_ref = cell_ref, error=error )
 
 ! Define a reference cell for compatibility with MD restarts
@@ -239,20 +243,16 @@ CONTAINS
                                   molecules_new%els, molecule_kinds_new%els,&
                                   globenv, extended_type%nhc_part(ibead))
          CALL initialize_nhc_baro(simpar,globenv, extended_type%nhc_baro(ibead))
+! initialize coef thermostats and setup coefficient forces, velocities and effective masses
+         IF (ASSOCIATED(dyn_coeff_set)) THEN
+            CALL initialize_nhc_coef(dyn_coeff_set(isubsys)%dyn_coeff_set,&
+                                   globenv,extended_type%nhc_coef(ibead))
+            CALL dyn_coeff_set_initialize(dyn_coeff_set(isubsys)%dyn_coeff_set,globenv) 
+            CALL initialize_nhc_forces (nhc_coef=extended_type% nhc_coef(ibead))
+          END IF
+
       END DO
       CALL initialize_npt_type(simpar,globenv,extended_type%npt_info,cell)
-
-! initialize coef thermostats and setup coefficient forces, velocities and effective masses
-    IF (ASSOCIATED(dyn_coeff_set)) THEN
-       ALLOCATE (extended_type%nhc_coef(SIZE(dyn_coeff_set)),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       DO iset=1,SIZE(dyn_coeff_set)
-          CALL initialize_nhc_coef(dyn_coeff_set(iset)%dyn_coeff_set,&
-                                   globenv,extended_type%nhc_coef(iset))
-          CALL dyn_coeff_set_initialize(dyn_coeff_set(iset)%dyn_coeff_set,globenv) 
-          CALL initialize_nhc_forces (nhc_coef=extended_type% nhc_coef(iset))
-       END DO
-    END IF
 
 ! Always initialize velocities (to be overwritten if needed)
       DO isubsys=1,SIZE(subsys)

@@ -242,7 +242,8 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
 !------------------------------------------------------------------------------
 
   CALL write_checkpoint_information("entering "//routine,globenv)
-  CALL timeset ( 'FORCE','I',' ',handle )
+  CALL timeset ( 'kgpol_calculate_forces','I',' ',handle )
+  failure=.FALSE.
   ionode=globenv%ionode
   output_unit=globenv%scr
   NULLIFY(force,energy,part,atomic_kind_set,atomic_kind,cell,dft_control,&
@@ -559,7 +560,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
 !------------------------------------------------------------------------------
 
   CALL write_checkpoint_information("entering "//routine,globenv)
-  CALL timeset ( 'FORCE','I',' ',handle )
+  CALL timeset ( 'kg_calculate_forces','I',' ',handle )
   failure=.FALSE.
   ionode=globenv%ionode
   output_unit=globenv%scr

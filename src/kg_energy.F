@@ -385,6 +385,7 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
 
   CALL write_checkpoint_information("entering "//routine,globenv)
   CALL timeset ( 'init_energy_calculation','I',' ',handle )
+  failure=.false.
   ionode=globenv%ionode
   output_unit=globenv%scr
   NULLIFY(auxbas_pw_pool,energy,atomic_kind_set,dft_control,&
