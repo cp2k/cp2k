@@ -48,7 +48,6 @@ MODULE cp_linked_list_3d_r
        cp_unitnr_for_output, cp_write_output
   USE kinds, ONLY: dp
   USE timings, ONLY: timeset, timestop
-  USE kinds, only: dp
 USE cp_array_r_utils, only: cp_3d_r_p_type, cp_3d_r_write
   IMPLICIT NONE
   PRIVATE
