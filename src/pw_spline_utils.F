@@ -405,7 +405,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_spline_scale_deriv(deriv_vals_r,cell,transpose,scale,error)
-    TYPE(pw_p_type), DIMENSION(3), INTENT(in) :: deriv_vals_r
+    TYPE(pw_p_type), DIMENSION(3) :: deriv_vals_r ! sun does not like that its components are modified
     TYPE(cell_type), POINTER :: cell
     LOGICAL, INTENT(in), OPTIONAL :: transpose
     REAL(kind=wp), INTENT(in), OPTIONAL :: scale
