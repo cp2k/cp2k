@@ -516,12 +516,6 @@ CONTAINS
           logger%close_local_unit_on_dealloc=.FALSE.
        ENDIF
     ENDIF
-    ! first global log to safely b-cast global unitnr
-    stat=cp_logger_get_default_unit_nr(logger, local=.FALSE.)
-    ! it would also be possible (if you don't care about printing a note)
-    ! CALL cp_logger_log(logger,level=cp_note_level,&
-    !      fromWhere=routineP, message="global logging activated",&
-    !      local=.FALSE.)
   END SUBROUTINE cp_logger_create
 !***************************************************************************
 
