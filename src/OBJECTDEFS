@@ -20,7 +20,6 @@ OBJECTS_GENERIC =\
  bfgs_optimizer.o\
  cg_test.o\
  checkpoint_handler.o\
- cntl_input.o\
  coefficient_lists.o\
  coefficient_types.o\
  coefficients.o\
@@ -328,7 +327,6 @@ OBJECTS_GENERIC =\
  semi_empirical_parameters.o\
  semi_empirical_types.o\
  semi_empirical_utils.o\
- setup_input.o\
  simulation_cell.o\
  slater_koster.o\
  slater_koster_matr.o\

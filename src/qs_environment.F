@@ -37,7 +37,6 @@ MODULE qs_environment
                                              write_atomic_kind_set,&
                                              write_gto_basis_sets
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE cntl_input,                      ONLY: read_cntl_section
   USE cp_control_types,                ONLY: dft_control_release,&
                                              dft_control_type,&
                                              gapw_control_type,&
@@ -108,7 +107,6 @@ MODULE qs_environment
                                              scf_c_release,&
                                              scf_c_write_parameters,&
                                              scf_control_type
-  USE setup_input,                     ONLY: read_setup_section
   USE simulation_cell,                 ONLY: cell_release,&
                                              cell_type,&
                                              read_cell,&
@@ -270,7 +268,6 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
-    TYPE(setup_parameters_type)              :: setup
 
 !   ---------------------------------------------------------------------------
 
@@ -315,14 +312,6 @@ CONTAINS
 !   *** Print the Quickstep control parameters ***
 
     CALL write_qs_control(dft_control%qs_control,globenv)
-
-!   *** Read the cntl section ***
-
-    CALL read_cntl_section(setup,globenv)
-
-!   *** Read the setup section ***
-
-    CALL read_setup_section(setup,globenv)
 
 !   *** Check basis and fill in missing parts ***
 
