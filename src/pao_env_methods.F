@@ -224,7 +224,7 @@ contains
           if (n_atoms>0) pao_env%angles_begin_at(1)=0
           do i=1,n_atoms
              pao_env%angles_begin_at(i+1)=pao_env%angles_begin_at(i)+&
-                  min_bas_sizes(i)*full_bas_sizes(i)
+                  min_bas_sizes(i)*(full_bas_sizes(i)-min_bas_sizes(i))
           end do
        end if
 

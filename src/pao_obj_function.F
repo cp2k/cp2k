@@ -65,6 +65,7 @@ module pao_obj_function
        get_matrix_info
   use atomic_kind_types, only: atomic_kind_type, get_atomic_kind_set
   use cp_array_utils, only: cp_1d_r_output
+  use qs_overlap, only: write_sparse_matrix
 !  use pao_utils
   implicit none
   private
@@ -153,7 +154,7 @@ module pao_obj_function
 !!   SOURCE
 !***************************************************************************
   type pao_gerd_functional_type
-     logical :: initialized, should_dealloc_mo
+     logical :: initialized, should_dealloc_mo, rebuild_rho
      integer :: n_eval
      type(qs_environment_type), pointer :: qs_env
      type(blacs_matrix_type), POINTER :: min_blacs_1, min_blacs_2,&
@@ -309,6 +310,7 @@ contains
             matrix_structure=min_bas_m_struct)
        call cp_create(gf_env%full_work_m,global_env=global_env,&
             matrix_structure=full_bas_m_struct)
+       gf_env%rebuild_rho=.true.
        gf_env%initialized=.true.
     end if
   end subroutine pao_gerd_f_init
@@ -502,8 +504,9 @@ contains
     type(cp_matrix_block_iterator) :: block_iterator
     !type(cp_sparse_matrix_type) :: full_pao_m, min_pao_m
 
-    type(real_matrix_p_type), pointer :: full_h_rmp, full_s_rmp
-    type(cp_sparse_matrix_p_type), dimension(:), pointer :: min_d_rmpv
+    type(real_matrix_p_type), pointer :: full_s_rmp
+    type(real_matrix_p_type), dimension(:), pointer :: full_h_rmpv
+    type(cp_sparse_matrix_p_type), dimension(:), pointer :: min_d_smpv
     type(real_matrix_type), pointer :: min_density_m
 
     type(pao_env_type), pointer :: pao_env
@@ -525,19 +528,24 @@ contains
        gf_env%n_eval = gf_env%n_eval+1
        ! get actual min_hamiltonian_m and min_overlap_m
        call get_qs_env(gf_env%qs_env,pao_env=pao_env,&
-            h=full_h_rmp, s=full_s_rmp, natoms=n_atom)
+            k=full_h_rmpv, s=full_s_rmp, natoms=n_atom)
        CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
+       if (cp_debug .and. debug_this_module) then
+          call cp_1d_r_output(logger=cp_error_get_logger(error),&
+               outputName='x',fromWhere=routineP, iter=gf_env%n_eval,&
+               array=x,error=error)
+       end if
     end if
     if (.not.failure) then
-       call pao_qs_env_get(gf_env%qs_env, global_env=g_env, pao_angles_att=angles,&
-            pao_min_density_m=min_d_rmpv,&
+       call pao_qs_env_get(gf_env%qs_env,global_env=g_env,pao_angles_att=angles,&
+            pao_min_density_m=min_d_smpv,&
             pao_tot_full_bas=full_bas_size,&
             pao_tot_min_bas=min_bas_size, error=error)
        CPPostcondition(associated(angles),cp_failure_level,routineP,error,failure)
-       CPPrecondition(size(min_d_rmpv)==1,cp_failure_level,routineP,error,failure)
+       CPPrecondition(size(min_d_smpv)==1,cp_failure_level,routineP,error,failure)
     end if
     if (.not.failure) then
-       min_density_m => min_d_rmpv(1)%matrix%matrix
+       min_density_m => min_d_smpv(1)%matrix%matrix
        call pao_g_ang_set(angles,qs_env=gf_env%qs_env,global_env=g_env,&
             angles=x,error=error)
        call pao_g_ang_did_change(angles, qs_env=gf_env%qs_env,&
@@ -549,6 +557,13 @@ contains
             error=error)
        h_matrix => h_matrixes(1)%matrix
        s_matrix => s_matrixes(1)%matrix
+       if (cp_debug .and. debug_this_module) then
+          print *, "min h"
+          call write_sparse_matrix(h_matrix%matrix,4,6,gf_env%qs_env,g_env)
+          print *, "min s"
+          call write_sparse_matrix(s_matrix%matrix,4,6,gf_env%qs_env,g_env)
+       end if
+
 
        ! calculates the new density matrix with diagonalization
        ! do not do it every time?
@@ -600,6 +615,7 @@ contains
 
        if (present(f)) then
           f=dot_product(mo_occupation_numbers,mo_eigenvalues)
+          print *, "f =", f
 ! good test: check if equal
 !!$          ! Tr[P (N U i)^* H (N U i)]
 !!$          call blacs_trace(gf_env%min_blacs_2,gf_env%min_hamiltonian_m,f1,&
@@ -621,7 +637,7 @@ contains
           ! ** gf_env%diag_matrix = df/du_{i,j}
                     
           ! N H B P i^*
-          call copy_sparse_to_blacs_matrix(full_h_rmp%matrix,&
+          call copy_sparse_to_blacs_matrix(full_h_rmpv(1)%matrix,&
                gf_env%scf_work1,gf_env%blacs_context,g_env)
           call cp_m2f_with_B_M_pi(min_density_m,cp_get_matrix(gf_env%full_work_m),&
                glob_angles=angles, qs_env=gf_env%qs_env, global_env=g_env,&
@@ -661,6 +677,11 @@ contains
           call add_blacs_to_block_diag_sm(gf_env%scf_work3,&
                diagMatrix,&
                global_env=g_env,d_struct=gf_env%d_struct, error=error)
+
+          if (cp_debug .and. debug_this_module) then
+             print *, "df/du_{i,j}"
+             call write_sparse_matrix(diagMatrix,4,6,gf_env%qs_env,g_env)
+          end if
           
           ! ** gradient = df/du_{i,j} du_{i,j}/dtheta_k
           gradient=0.0_wp

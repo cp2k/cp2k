@@ -41,6 +41,7 @@ module pao_unitary_t
        cp_get_non_p_index, cp_get_size_min_bas, cp_get_size_excl_bas,&
        cp_get_size_full_bas
   use cp_matrix_utils, only: cp_sup_norm_matrix
+  use cp_array_utils, only: cp_2d_r_output
   implicit none
   private
 
@@ -466,7 +467,9 @@ contains
     character(len=*), parameter :: routineP='pao_plain_rot:pao_calc_u_du_get'
     integer :: n_excl_bas, n_full_bas
     real(kind=wp) :: angle
+    integer, save, private :: iter=0
     failure=.false.
+    iter = iter+1
 
     CPPrecondition(c_env%initialized,cp_failure_level,routineP,error,failure)
     CPPrecondition(c_env%status==1,cp_failure_level,routineP,error,failure)
@@ -492,6 +495,12 @@ contains
                error=error),error=error)
           call dgemm('N','N',n_full_bas,n_full_bas,n_full_bas,1.0_wp,&
                c_env%tmp_m,n_full_bas,c_env%R,n_full_bas,0.0_wp,u,n_full_bas)
+          if (cp_debug .and. debug_this_module) then
+             call cp_2d_r_output(logger=cp_error_get_logger(error),&
+                  outputName='u',fromWhere=routineP, iter=iter,&
+                  array=u,comment=" min_bas="//cp_to_string(c_env%min_bas)//&
+                  " excl_bas="//cp_to_string(c_env%excl_bas),error=error)
+          end if
        end if
        if (present(du)) then
           CPPrecondition(size(du,1)==n_full_bas,cp_failure_level,routineP,error,failure)
@@ -504,6 +513,12 @@ contains
                error=error),error=error)
           call dgemm('N','N',n_full_bas,n_full_bas,n_full_bas,1.0_wp,&
                c_env%tmp_m,n_full_bas,c_env%R,n_full_bas,0.0_wp,du,n_full_bas)
+          if (cp_debug .and. debug_this_module) then
+             call cp_2d_r_output(logger=cp_error_get_logger(error),&
+               outputName='du',fromWhere=routineP, iter=iter,&
+               array=du,comment=" min_bas="//cp_to_string(c_env%min_bas)//&
+                  " excl_bas="//cp_to_string(c_env%excl_bas),error=error)
+          end if
        end if
        if (present(min_bas)) &
             min_bas=c_env%min_bas
