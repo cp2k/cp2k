@@ -1,3 +1,9 @@
+# The following settings worked for:
+# - AMD64 Opteron cluster
+# - SUSE Linux 9.1 (x86_64) including the precompiled FFTW library
+# - PGI CDK 5.2 (Cluster Development Kit) with PGI Fortran compiler
+#   version 5.2-2, ACML 2.0, ScaLAPACK 1.7, BLACS 1.1, MPICH 1.2.6
+#
 PERL     = perl
 CC       = cc
 CPP      = cpp
@@ -5,16 +11,19 @@ FC       = pgf90 -Mfree
 FC_fixed = pgf90 -Mfixed
 LD       = pgf90
 AR       = ar -r
-DFLAGS   = -D__PGI -D__FFTSG -D__FFTW -DFD_LONG_EXPANSIONS
-CPPFLAGS = -C $(DFLAGS) -traditional
-FCFLAGS  = -fast
-LDFLAGS  = $(FCFLAGS) \
-           -L${PGI}/libso \
-           -L${PGI}/lib \
-           -L/ext/software/64/acml/pgi64/lib \
-           -L/scratch/tchassai/lib
-LIBS     = -lfftw -lpgmp -lpgc -lacml 
-#LDFLAGS = -L/scratch/tchassai/lib
-#LIBS	= -llapack_x86-64 -lblas_x86-64
+DFLAGS   = -D__PGI -D__FFTSG\
+           -D__FFTW\
+           -Dfftwnd_f77=fftwnd_f77_\
+           -Dfftwnd_f77_one=fftwnd_f77_one_\
+           -Dfftw3d_f77_create_plan=fftw3d_f77_create_plan_\
+           -Dfftw2d_f77_create_plan=fftw2d_f77_create_plan_\
+           -Dfftwnd_f77_destroy_plan=fftwnd_f77_destroy_plan_\
+           -Dfftw_f77_create_plan=fftw_f77_create_plan_\
+           -Dfftw_f77=fftw_f77_\
+           -Dfftw_f77_destroy_plan=fftw_f77_destroy_plan_
+CPPFLAGS = -traditional -C $(DFLAGS) -P
+FCFLAGS  = -fastsse -tp amd64
+LDFLAGS  = $(FCFLAGS)
+LIBS     = -lacml -ldfftw
 
 OBJECTS_ARCHITECTURE = machine_pgi.o
