@@ -34,7 +34,8 @@ MODULE pol_debug
   USE pair_potential, ONLY : potentialparm_type
   USE particle_types, ONLY : particle_type
   USE pol_force, ONLY : force_control, debug_variables_type, get_pol_grids
-  USE pol_force_numer, ONLY : part_electrostatics_numer, coef_electrostatics_numer
+  USE pol_force_numer, ONLY : part_electrostatics_numer, coef_electrostatics_numer, &
+                              part_overlap_numer, coef_overlap_numer
   USE pw_grid_types, ONLY : pw_grid_type
   USE simulation_cell, ONLY : cell_type
   USE termination, ONLY : stop_memory, stop_program
@@ -85,6 +86,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
   INTEGER, DIMENSION ( 1 ) :: cdum
   REAL ( dbl ) :: delta, energy_numer
   REAL ( dbl ) :: pv_test ( 3, 3 )
+  LOGICAL :: box_change=.FALSE.
 
   iw = globenv % scr
   iwf = 7
@@ -108,12 +110,14 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
 
   ALLOCATE ( dbg % f_elec_part ( 3, natoms ), STAT = isos )
   ALLOCATE ( dbg % f_elec_coef ( ncoeff ), STAT = isos )
+  ALLOCATE ( dbg % f_ovlp_part ( 3, natoms ), STAT = isos )
+  ALLOCATE ( dbg % f_ovlp_coef ( ncoeff ), STAT = isos )
 
   IF (isos/=0) CALL stop_program ( 'debug', 'allocation failed' )
 
   CALL force_control ( molecule, pnode, part, box, box_ref, &
      drho_basis_info, rho0_basis_info, coef_pos, coef_vel, coef_force, &
-     thermo, potparm, empparm, ewald_param, globenv, ll_data, dbg)
+     thermo, potparm, empparm, ewald_param, box_change, globenv, ll_data, dbg)
 
 ! get local copies of the polarization grids
 
@@ -254,7 +258,140 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
         f_coef ( cdum )
     ENDIF
   END IF
+!	
+! Debug overlap forces on ions
+!
+  WRITE ( iw, '(A)' ) &
+    ' DO YOU WANT TO DEBUG OVERLAP FORCES ON IONS (1=yes)?'
+  READ ( ir, * ) iflag
+  IF ( iflag == 1 ) THEN
+! get numerical force for the overlap contribution on the ions
+    WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
+    READ ( ir, * ) delta
+    IF ( delta >= 1 .OR. delta <= 0 ) THEN
+      delta = 1.E-5
+      WRITE ( iw, '(A,T71,F10.6)' ) &
+        ' DELTA (changed to default) = ', delta
+    ELSE
+      WRITE ( iw, '(A,T71,F10.6)' ) ' DELTA = ', delta
+    END IF
+    CALL part_overlap_numer ( delta, coef_pos, drho_basis_info, part, pnode, &
+                              box, empparm, energy_numer, f_part )
+    WRITE ( iw, '(A,T61,E20.14)' ) ' OVERLAP NUMER ENER = ', &
+            energy_numer
+    WRITE ( iw, '(A,T61,E20.14)' ) ' OVERLAP ANAL ENER = ', &
+            dbg % pot_overlap
+! write out all particle numbers and forces
+    WRITE ( iw, '( /,A,A )' ) &
+          ' DO YOU WANT TO GET THE OVERLAP FORCES ON ALL PARTICLES ', &
+          '(FILE=part_overlap, 1=yes)?'
+     READ ( ir, * ) iflag
+     IF ( iflag == 1 ) THEN
+        OPEN (UNIT = iwf, &
+              FILE = 'part_overlap', STATUS = 'REPLACE', ACTION = 'WRITE')
+        DO iatom = 1, natoms
+        WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
+        WRITE ( iwf, '( A,T21,3G20.12 )' ) &
+             ' F ANA OVERLAP =', dbg % f_ovlp_part ( :, iatom )
+        WRITE ( iwf, '( A,T21,3G20.12,/ )' ) &
+             ' F NUM OVERLAP =', f_part ( :, iatom )
+        END DO
+        CLOSE (iwf)
+     END IF
+! computing the absolute value of the differences in the forces
+    diff_part = ABS ( dbg % f_ovlp_part - f_part )
+    IF ( ALL ( f_part ( :, : ) > 1.e-6_dbl ) ) rel_part = diff_part / dbg % f_ovlp_part
+! find the maximum difference and the relative and absolute errors.
+    WRITE ( iw, '(A,T61,E20.14)' ) ' MAXIMUM ABSOLUTE ERROR = ', &
+      MAXVAL ( diff_part )
+    IF ( ALL ( f_part ( :, : )  > 1.e-6_dbl ) )  THEN
+      WRITE ( iw,'(A,T61,E20.14)' ) ' MAXIMUM RELATIVE ERROR = ', &
+      MAXVAL ( rel_part )
+    ENDIF
+! write out the particle number and forces of the max absolute and relative error         
+    dum = MAXLOC ( diff_part )
+    WRITE ( iw, '(A,T71,I10)' ) &
+      ' PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum ( 2 )
+    WRITE ( iw, '(A,T21,3(2X,G20.14))' ) ' F ANAL ON IONS =', &
+      dbg % f_ovlp_part (:, dum ( 2 ) )
+    WRITE ( iw, '(A,T21,3(2X,G20.14))' ) ' F NUMR ON IONS =', &
+      f_part (:, dum ( 2 ) )
+    IF  ( ALL ( f_part ( :, : ) > 1.e-6_dbl ) ) THEN
+      dum = MAXLOC ( rel_part )
+      WRITE ( iw, '(A,T71,I10)' ) &
+        ' NON BOND PARTICLE WITH MAX RELATIVE ERROR IS ', dum ( 2 )
+      WRITE ( iw, '(A,T21,3G20.14)' ) ' F ANAL ON IONS =', &
+        dbg % f_ovlp_part (:, dum ( 2 ) )
+      WRITE ( iw, '(A,T21,3G20.14)' ) ' F NUMR ON IONS =', &
+        f_part( :, dum ( 2 ) )
+    ENDIF
+  END IF
+!	
+! Debug Overlap contribution on coefficients
+! 
+  WRITE ( iw, '(A)' ) &
+    ' DO YOU WANT TO DEBUG OVERLAP ON COEFFICENTS (1=yes)?'
+  READ ( ir, * ) iflag
+  IF ( iflag == 1 ) THEN
+! get numerical force for the overlap contribution on the Coefficents
+    WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
+    READ ( ir, * ) delta
+    IF ( delta >= 1 .OR. delta <= 0 ) THEN
+      delta = 1.E-5
+      WRITE ( iw, '(A,T71,F10.6)' ) &
+        ' DELTA ( changed to default ) = ', delta
+    ELSE
+      WRITE ( iw, '(A,T71,F10.6)' ) ' DELTA = ', delta
+    END IF
+    CALL coef_overlap_numer ( delta, coef_pos, drho_basis_info, part, pnode, &
+                              box, empparm, energy_numer, f_coef )
 
+! write out all particle numbers and forces
+    WRITE ( iw, '( /,A,A )' ) &
+          ' DO YOU WANT TO GET THE OVERLAP FORCES ON ALL COEFFICIENTS ', &
+          '(FILE=coef_overlap, 1=yes)?'
+     READ ( ir, * ) iflag
+     IF ( iflag == 1 ) THEN
+        OPEN (UNIT = iwf, &
+              FILE = 'coef_overlap', STATUS = 'REPLACE', ACTION = 'WRITE')
+        DO icoef = 1, ncoeff
+        WRITE ( iwf, '( A,T71,I10 )' ) ' COEFF NUMBER ', icoef
+        WRITE ( iwf, '( A,T21,3G20.12 )' ) &
+             ' F ANA OVERLAP =', dbg % f_ovlp_coef ( icoef )
+        WRITE ( iwf, '( A,T21,3G20.12,/ )' ) &
+             ' F NUM OVERLAP =', f_coef ( icoef )
+        END DO
+        CLOSE (iwf)
+     END IF
+! computing the absolute value of the differences in the forces
+    diff_coef = ABS ( dbg % f_ovlp_coef - f_coef )
+    IF ( ALL ( f_coef ( : ) > 1.e-6_dbl ) ) rel_coef = diff_coef / dbg % f_ovlp_coef
+! find the maximum difference and the relative and absolute errors.
+    WRITE ( iw, '(A,T61,E20.14)' ) ' MAXIMUM ABSOLUTE ERROR = ', &
+      MAXVAL ( diff_coef )
+    IF ( ALL ( f_coef ( : ) > 1.e-6_dbl ) ) THEN
+      WRITE ( iw,'(A,T61,E20.14)' ) ' MAXIMUM RELATIVE ERROR = ', &
+                                    MAXVAL ( rel_coef )
+    ENDIF
+! write out the particle number and forces of 
+! the max absolute and relative error         
+    cdum = MAXLOC ( diff_coef )
+    WRITE ( iw, '(A,T71,I10)' ) &
+      ' COEFFICENT WITH MAX ABSOLUTE ERROR IS ', cdum
+    WRITE ( iw, '(A,T21,3G20.14)' ) ' F ANAL ON COEF =', &
+      dbg % f_ovlp_coef ( cdum )
+    WRITE ( iw,'(A,T21,3G20.14)' ) ' F NUMR ON COEF =', &
+      f_coef ( cdum )
+    IF ( ALL ( f_coef ( : ) > 1.e-6_dbl ) ) THEN
+      cdum = MAXLOC ( rel_coef )
+      WRITE ( iw,'(A,T71,I10)' ) &
+        ' COEFFICENT WITH MAX RELATIVE ERROR IS ', cdum   
+      WRITE ( iw,'(A,T21,3G20.14)' ) ' F ANAL ON COEF =', &
+        dbg % f_ovlp_coef ( cdum )
+      WRITE ( iw,'(A,T21,3G20.14)' ) ' F NUMR ON COEF =', &
+        f_coef ( cdum )
+    ENDIF
+  END IF
   WRITE ( iw, * ) ' '
   WRITE ( iw, '(16x,A)' ) &
     '***************************************************'
