@@ -853,7 +853,7 @@ CONTAINS
                      file_form="UNFORMATTED",&
                      file_status="REPLACE",&
                      unit_number=restart_unit)
-
+ write(*,*) 'restart u ', restart_unit
 !     *** create some info about the molecules ***
 
 
@@ -938,7 +938,6 @@ CONTAINS
                   occ_buffer(imo,ispin) = occupation_numbers(imo)
                 END DO
              END DO
-             call mp_bcast (imol_proc , globenv%mepos, globenv%group )
            END IF
                       
         END DO  ! imol_local
@@ -961,10 +960,6 @@ CONTAINS
         CALL mp_sum(eig_buffer,group)
         CALL mp_sum(occ_buffer,group)
 
-!        CALL mp_sendrecv(mo_buffer,source,mo_buffer,imol_proc,group)
-!        CALL mp_sendrecv(eig_buffer,source,eig_buffer,imol_proc,group)
-!        CALL mp_sendrecv(occ_buffer,source,occ_buffer,imol_proc,group)
-
         DO ispin = 1,nspins
          IF(globenv%ionode.AND.(n_mo(ispin)>0)) THEN
            WRITE (restart_unit) imol_global , ispin
@@ -972,10 +967,10 @@ CONTAINS
                                 nelectron_spin(ispin)
            WRITE (restart_unit) eig_buffer(1:n_mo(ispin),ispin)
            WRITE (restart_unit) occ_buffer(1:n_mo(ispin),ispin)
-          DO imo = 1,n_mo(ispin)
-           WRITE (restart_unit) mo_buffer(1:n_ao,imo,ispin)
+           DO imo = 1,n_mo(ispin)
+             WRITE (restart_unit) mo_buffer(1:n_ao,imo,ispin)
           END DO
-                                
+
          END IF
         END DO
 
