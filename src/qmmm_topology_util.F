@@ -169,7 +169,7 @@ CONTAINS
        qm_atom_index => qmmm_env%qm_atom_index
        DO imolecule=1,SIZE(molecule_set)
           IF ((globenv%ionode).AND.(globenv%print%level>1))&
-               WRITE(*,*)"Entering molecule number ::",imolecule
+               WRITE(iw,*)"Entering molecule number ::",imolecule
           molecule => molecule_set(imolecule)
           CALL get_molecule(molecule,molecule_kind=molecule_kind,&
                first_atom=first_atom,last_atom=last_atom)
@@ -182,7 +182,7 @@ CONTAINS
        qm_mol_num    = 0
        DO imolecule=1,SIZE(molecule_set)
           IF ((globenv%ionode).AND.(globenv%print%level>1))&
-               WRITE(*,*)"Entering molecule number ::",imolecule
+               WRITE(iw,*)"Entering molecule number ::",imolecule
           molecule => molecule_set(imolecule)
           CALL get_molecule(molecule,molecule_kind=molecule_kind,&
                first_atom=first_atom,last_atom=last_atom)
