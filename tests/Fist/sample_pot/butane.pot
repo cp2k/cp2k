@@ -19,9 +19,16 @@ DIHEDRALS
 CTL3 CTL2 CTL2 CTL3     0.10    2   180.00 ! alkane, 4/98, adm jr., lower butane gauche conformer
 CTL3 CTL2 CTL2 CTL3     0.15    4     0.00 ! alkane, 4/98, adm jr.
 CTL3 CTL2 CTL2 CTL3     0.10    6   180.00 ! alkane, 4/98, adm jr.
+CTL2 CTL2 CTL2 CTL2     0.10    2   180.00 ! alkane, 4/98, adm jr., lower butane gauche conformer
+CTL2 CTL2 CTL2 CTL2     0.15    4     0.00 ! alkane, 4/98, adm jr.
+CTL2 CTL2 CTL2 CTL2     0.10    6   180.00 ! alkane, 4/98, adm jr.
+CTL3 CTL2 CTL2 CTL2     0.10    2   180.00 ! alkane, 4/98, adm jr., lower butane gauche conformer
+CTL3 CTL2 CTL2 CTL2     0.15    4     0.00 ! alkane, 4/98, adm jr.
+CTL3 CTL2 CTL2 CTL2     0.10    6   180.00 ! alkane, 4/98, adm jr.
 HAL2 CTL2 CTL3 HAL3     0.1600  3     0.00 ! alkane, 4/98, yin and mackerell
 CTL2 CTL2 CTL3 HAL3     0.1600  3     0.00 ! alkane, 4/98, yin and mackerell
 CTL3 CTL2 CTL2 HAL2     0.1900  3     0.00 ! alkane, 4/98, yin and mackerell
+CTL2 CTL2 CTL2 HAL2     0.1900  3     0.00 ! alkane, 4/98, yin and mackerell
 HAL2 CTL2 CTL2 HAL2     0.1900  3     0.00 ! alkane, 4/98, yin and mackerell
 
 IMPROPER
