@@ -85,7 +85,8 @@ outDir=join(cp2kRoot,"src","outDir")
 if os.access(outDir,os.W_OK): commands.getoutput('rm -rf "'+outDir+'"')
 os.mkdir(outDir)
 
-filesToSyn=glob.glob(os.path.join(cp2kRoot,"src","cp_*.F"))
+filesToSyn=(glob.glob(os.path.join(cp2kRoot,"src","cp_*.F"))+
+            glob.glob(os.path.join(cp2kRoot,"src","pao_*.F")))
 for fileToSyn in templateInstances:
     if not fileToSyn[0:2]=="cp_":
 	filesToSyn.append(fileToSyn)
