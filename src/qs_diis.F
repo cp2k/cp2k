@@ -61,9 +61,7 @@ MODULE qs_diis
                                              dp_size
   USE mathlib,                         ONLY: diagonalize_matrix,&
                                              symmetrize_matrix
-  USE qs_diis_types,                   ONLY: qs_diis_b_release,&
-                                             qs_diis_b_retain,&
-                                             qs_diis_buffer_type
+  USE qs_diis_types,                   ONLY: qs_diis_buffer_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_mo_types,                     ONLY: get_mo_set,&

@@ -53,17 +53,6 @@ MODULE qs_scf
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE coefficient_types,               ONLY: coeff_allocate,&
-                                             coeff_copy,&
-                                             coeff_reduce,&
-                                             coeff_sumup,&
-                                             coeff_transform_space,&
-                                             coeff_type,&
-                                             coeff_zero
-  USE cp_array_utils,                  ONLY: cp_1d_r_output
-  USE cp_block_matrix,                 ONLY: cp_block_matrix_p_type,&
-                                             cp_block_matrix_type,&
-                                             cp_sp_multiplies_blacs
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -75,9 +64,7 @@ MODULE qs_scf
                                              cp_error_type,&
                                              cp_internal_error
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale_and_add,&
                                              cp_fm_symm,&
-                                             cp_fm_trace,&
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_reduce,&
@@ -104,11 +91,6 @@ MODULE qs_scf
                                              cp_fm_to_fm,&
                                              cp_fm_type,&
                                              cp_fm_write
-  USE cp_lbfgs_optimizer_gerd_f,       ONLY: cp_lbfgs_opt_gerd_f_type,&
-                                             cp_opt_gerd_f_create,&
-                                             cp_opt_gerd_f_next,&
-                                             cp_opt_gerd_f_release,&
-                                             cp_opt_gerd_f_retain
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_log,&
                                              cp_logger_get_default_unit_nr,&
@@ -116,11 +98,9 @@ MODULE qs_scf
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_matrix_utils,                 ONLY: cp_sm_output
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: copy_fm_to_sm,&
-                                             copy_sm_to_fm,&
+  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              cp_sm_pool_type,&
@@ -129,8 +109,6 @@ MODULE qs_scf
                                              sm_pools_create_matrix_vect,&
                                              sm_pools_flush_cache,&
                                              sm_pools_give_back_matrix_vect
-  USE cube_utils,                      ONLY: destroy_cube_info,&
-                                             init_cube_info
   USE dft_types,                       ONLY: dft_control_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
@@ -138,38 +116,18 @@ MODULE qs_scf
   USE global_types,                    ONLY: DEBUG,&
                                              WANNIER_NONE, &
                                              global_environment_type
-  USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: int_size,&
                                              dp,&
                                              dp_size
-  USE l_utils,                         ONLY: destroy_l_info,&
-                                             init_l_info,&
-                                             l_info_type
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
-  USE mathconstants,                   ONLY: fourpi,&
-                                             twopi
-  USE message_passing,                 ONLY: mp_allgather,&
-                                             mp_bcast,&
+  USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
-                                             mp_range,&
-                                             mp_sum,&
-                                             mp_sync
+                                             mp_sum
   USE molecular_states,                ONLY: construct_molecular_states
   USE molecule_types_new,              ONLY: molecule_type
   USE mulliken,                        ONLY: mulliken_charges
-  USE pao_glob_angles_methods,         ONLY: pao_g_ang_get,&
-                                             pao_g_ang_set
-  USE pao_l_angles_methods,            ONLY: pao_guarantee_owned_NUi
-  USE pao_obj_function,                ONLY: pao_gerd_f_create,&
-                                             pao_gerd_f_release,&
-                                             pao_gerd_functional_type
-  USE pao_proj_methods,                ONLY: sm_matrix_transf_p_to_m,&
-                                             sm_matrix_transf_to_f
-  USE pao_qs_env_methods,              ONLY: pao_qs_env_did_change
-  USE pao_types,                       ONLY: pao_env_get,&
-                                             pao_env_type,&
-                                             pao_glob_angles_type
+  USE pao_types,                       ONLY: pao_env_type
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type 
   USE physcon,                         ONLY: angstrom
@@ -186,12 +144,7 @@ MODULE qs_scf
                                              pw_pool_type,&
                                              pw_pools_give_back_coeffs,&
                                              pw_pools_init_coeffs
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             COMPLEXDATA3D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_type
+  USE pw_types,                        ONLY: pw_type
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_total_abs_rho,&
                                              calculate_total_rho,&
@@ -199,12 +152,9 @@ MODULE qs_scf
   USE qs_conductivity,                 ONLY: optical_conductivity
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
-  USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_diis,                         ONLY: qs_diis_b_clear,&
                                              qs_diis_b_create,&
                                              qs_diis_b_step
-  USE qs_diis_types,                   ONLY: qs_diis_b_release,&
-                                             qs_diis_buffer_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_reorthogonalize_vectors,&
@@ -245,8 +195,6 @@ MODULE qs_scf
                                              ot_scf_read_input
   USE qs_overlap,                      ONLY: write_fm_with_basis_info,&
                                              write_sparse_matrix
-  USE qs_parser,                       ONLY: close_file,&
-                                             open_file
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_did_change,&
                                              qs_rho_get,&
@@ -271,10 +219,7 @@ MODULE qs_scf
   USE scf_control_types,               ONLY: scf_control_type
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell
-  USE sparse_matrix_types,             ONLY: add_all_real_matrix_blocks,&
-                                             add_matrices,&
-                                             cp_sm_scale_and_add,&
-                                             deallocate_matrix,&
+  USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
                                              first_block_node,&
                                              get_block_node,&
@@ -288,14 +233,11 @@ MODULE qs_scf
                                              replicate_matrix_structure,&
                                              set_matrix,&
                                              set_matrix_diagonal,&
-                                             symmetrise_diagonal_blocks,&
-                                             transfer_matrix,&
                                              write_blocks_maxabsval
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
-                                             timestop,&
-                                             trace_debug
+                                             timestop
   IMPLICIT NONE
 
   PRIVATE
