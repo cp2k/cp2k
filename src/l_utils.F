@@ -128,12 +128,11 @@ CONTAINS
       l_set_info%pzyx(l_set_info%lxyz_max),&
       l_set_info%ipzyx(0:la_max,0:la_max,0:la_max,&
                        0:lb_max,0:lb_max,0:lb_max),&
-      l_set_info%polz(l_set_info%lxyz_max,-cmax:cmax),&
-      l_set_info%poly(l_set_info%lxy_max,-cmax:cmax),&
+      l_set_info%polz(l_set_info%lxyz_max,-cmax:cmax))
+      allocate(l_set_info%poly(l_set_info%lxy_max,-cmax:cmax),&
       l_set_info%polx(coef_max,-cmax:cmax),&
-      l_set_info%alpha(coef_max,l_set_info%lx_max),&
-      l_set_info%dpy(0:lb_max,0:la_max),&
-      l_set_info%dpy(0:lb_max,0:la_max),&
+      l_set_info%alpha(coef_max,l_set_info%lx_max))
+      allocate(l_set_info%dpy(0:lb_max,0:la_max),&
       l_set_info%dpz(0:lb_max,0:la_max))
       l_set_info%ly_max(:)=0
       l_set_info%lz_max(:)=0
