@@ -132,6 +132,7 @@ MODULE qs_scf
   USE qs_arpack_full,                  ONLY: op_symv_type,&
                                              setup_op_symv
   USE qs_blacs,                        ONLY: blacs_add_to_element,&
+                                             blacs_block_jacobi_classic,&
                                              blacs_cholesky_decompose,&
                                              blacs_cholesky_reduce,&
                                              blacs_cholesky_restore,&
@@ -282,11 +283,12 @@ CONTAINS
 
     TYPE(mo_set_type), POINTER :: mo_set
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s
-    REAL(wp) :: delta,diis_error,t1,t2
+    REAL(wp) :: delta,diis_error,method_par,pmix,t1,t2
     INTEGER  :: handle,handle2,homo,igrid_level,imo,iscf,istat,&
                 output_unit,n,k,nrow_block,ncol_block, type_switch, &
                 fileunit
-    LOGICAL  :: diis_step,do_level_shift,ionode, gth_potential_present
+    LOGICAL  :: diis_step,do_level_shift,ionode, gth_potential_present,&
+                use_jacobi
     TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
 
     LOGICAL :: pao, failure
@@ -313,7 +315,7 @@ CONTAINS
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=200) :: file_name
     INTEGER            :: file_unit,ivector,nao,nlumos
-    CHARACTER(LEN=60)  :: filename
+    CHARACTER(LEN=60)  :: filename,method
     TYPE(preconditioner_type), TARGET :: ot_preconditioner
 
 
@@ -409,7 +411,7 @@ CONTAINS
 
     IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,&
-             FMT="(/,T3,A,T9,A,T34,A,T49,A,T68,A,/,T3,A)")&
+             FMT="(/,T3,A,T9,A,T36,A,T49,A,T68,A,/,T3,A)")&
         "Step","Update method","Time","Convergence","Total energy",&
         REPEAT("-",77)
     END IF
@@ -536,11 +538,15 @@ CONTAINS
 
         do_level_shift = ((scf_control%level_shift /= 0.0_wp).AND.&
              ((scf_control%density_guess == "CORE").OR.(iscf > 1)))
+        use_jacobi = ((iscf > 1).AND.(delta < scf_control%eps_jacobi))
         CALL eigensolver(scf_work1,mo_set,ortho,scf_work2,&
                          do_level_shift,scf_control%level_shift,globenv,&
                          use_arpack=scf_control%use_arpack,&
                          use_cholesky=scf_control%use_cholesky,&
-                         work_syevx=scf_control%work_syevx)
+                         work_syevx=scf_control%work_syevx,&
+                         use_jacobi=use_jacobi,&
+                         eps_jacobi=scf_control%eps_jacobi,&
+                         jacobi_threshold=scf_control%jacobi_threshold)
       
 !       *** Update the MO occupation numbers, if smearing is used ***
 
@@ -557,19 +563,29 @@ CONTAINS
         t2 = m_cputime()
 
         IF (diis_step) THEN
-          CALL density_mixing(p_new,p,1.0_wp,delta,globenv)
-          IF (ionode.AND.globenv%print%scf) THEN
-            WRITE (UNIT=output_unit,&
-                   FMT="(T2,I5,2X,A,T15,E10.2,T30,F8.2,T40,2F20.10)")&
-              iscf,"DIIS",diis_error,t2 - t1,delta,energy%total
+          pmix = 1.0_wp
+          method_par = diis_error
+          IF (use_jacobi) THEN
+            method = "DIIS/Jacobi"
+          ELSE
+            method = "DIIS/SYEVX"
           END IF
         ELSE
-          CALL density_mixing(p_new,p,scf_control%p_mix,delta,globenv)
-          IF (ionode.AND.globenv%print%scf) THEN
-             WRITE (UNIT=output_unit,&
-                    FMT="(T2,I5,2X,A,T15,F6.2,T30,F8.2,T40,2F20.10)")&
-               iscf,"Mixing",scf_control%p_mix,t2 - t1,delta,energy%total
+          pmix = scf_control%p_mix
+          method_par = pmix
+          IF (use_jacobi) THEN
+            method = "Mixing/Jacobi"
+          ELSE
+            method = "Mixing/SYEVX"
           END IF
+        END IF
+
+        CALL density_mixing(p_new,p,pmix,delta,globenv)
+
+        IF (ionode.AND.globenv%print%scf) THEN
+          WRITE (UNIT=output_unit,&
+                 FMT="(T2,I5,2X,A,T22,E10.2,T32,F8.2,T40,2F20.10)")&
+            iscf,TRIM(method),method_par,t2 - t1,delta,energy%total
         END IF
 
       CASE(2) ! orbital transforms
@@ -1062,7 +1078,8 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE eigensolver(ks,mo_set,ortho,work,do_level_shift,level_shift,&
-                         globenv,use_cholesky, use_arpack,work_syevx)
+                         globenv,use_cholesky, use_arpack,work_syevx,&
+                         use_jacobi,eps_jacobi,jacobi_threshold)
 
 !   Purpose: Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
 !            vectors and MO eigenvalues.
@@ -1076,8 +1093,9 @@ CONTAINS
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
     LOGICAL, INTENT(IN)                       :: do_level_shift,use_arpack,&
-         use_cholesky
-    REAL(WP), INTENT(IN)                      :: level_shift, work_syevx
+                                                 use_cholesky,use_jacobi
+    REAL(wp), INTENT(IN)                      :: level_shift,work_syevx,&
+                                                 eps_jacobi,jacobi_threshold
 
 !   *** Local variables ***
     INTEGER :: handle,imo,nao,nmo,homo,ncv,handle2
@@ -1098,12 +1116,11 @@ CONTAINS
                     eigenvalues=mo_eigenvalues,&
                     eigenvectors=mo_eigenvectors)
 
-     IF (do_level_shift) THEN
-        IF (use_cholesky .OR. use_arpack) THEN
-           CALL stop_program("eigensolver","level shift not implemented")
-        ENDIF
-     ENDIF
-
+    IF (do_level_shift) THEN
+      IF (use_cholesky .OR. use_arpack) THEN
+        CALL stop_program("eigensolver","level shift not implemented")
+      ENDIF
+    ENDIF
 
     IF (use_cholesky) THEN
 
@@ -1136,13 +1153,38 @@ CONTAINS
          END DO
        ENDIF
 
-       CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
+       IF (use_jacobi) THEN
+
+!        epsi =1e-11
+!        Anz_max=4
+!        N=ks%matrix_struct%nrow_global
+
+!        *** Scale the elements with the inverse ***
+!        *** difference of the old eigenvalues   ***
+
+!        CALL blacs_block_jacobi_scaled(ks,work,mo_eigenvalues,&
+!                                       jacobi_threshold,homo+1)
+
+!        *** Klassisches Jacobi-Block-Verfrahren ***
+!        *** Rotiere Elemente nur, wenn sie groesser als thresh sind ***
+
+         CALL blacs_block_jacobi_classic(ks,work,jacobi_threshold,homo+1)
+
+       ELSE
+
+         CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
+
+       END IF
+
        CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
                         mo_eigenvectors)
 
-       IF (do_level_shift) THEN
-          CALL correct_mo_eigenvalues(mo_set,level_shift)
-          CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
+       IF (do_level_shift) CALL correct_mo_eigenvalues(mo_set,level_shift)
+
+!      *** Use last MO set as orthogonalization matrix ***
+
+       IF ((do_level_shift).OR.(eps_jacobi /= 0.0_wp)) THEN
+         CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
        END IF
 
     ENDIF
@@ -1314,7 +1356,10 @@ CONTAINS
       CALL eigensolver(work1,mo_set,ortho,work2,.FALSE.,0.0_wp,globenv,&
            use_arpack=scf_control%use_arpack, &
            use_cholesky=scf_control%use_cholesky, &
-           work_syevx=scf_control%work_syevx)
+           work_syevx=scf_control%work_syevx,&
+           use_jacobi=.FALSE.,&
+           eps_jacobi=scf_control%eps_jacobi,&
+           jacobi_threshold=scf_control%jacobi_threshold)
       IF (scf_control%level_shift /= 0.0_wp) THEN
         CALL get_mo_set(mo_set=mo_set,&
                         eigenvectors=mo_eigenvectors)

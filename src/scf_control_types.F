@@ -94,7 +94,7 @@ MODULE scf_control_types
   TYPE scf_control_type
      CHARACTER(LEN=10) :: density_guess
      REAL(wp)          :: eps_eigval,eps_scf,level_shift,p_mix,smear,&
-          work_syevx,eps_lumos, eps_diis
+          work_syevx,eps_lumos, eps_diis,eps_jacobi,jacobi_threshold
      INTEGER           :: max_iter_lumos, max_diis
      INTEGER           :: max_scf,nrebuild,nrow_block,&
           ncol_block,maxl,nkind
@@ -169,6 +169,8 @@ CONTAINS
        scf_control%ref_count=1
        last_scf_c_id_nr=last_scf_c_id_nr+1
        scf_control%id_nr=last_scf_c_id_nr
+       scf_control%eps_jacobi = 0.0_wp
+       scf_control%jacobi_threshold = 1.0E-7_wp
     END IF
   END SUBROUTINE scf_c_create
 !***************************************************************************
@@ -314,6 +316,13 @@ CONTAINS
           CASE ("EPS_EIGVAL")
              CALL read_object(scf_control%eps_eigval)
              scf_control%use_cholesky = .FALSE.
+          CASE ("EPS_JACOBI")
+             CALL read_object(scf_control%eps_jacobi)
+             IF (scf_control%eps_jacobi /= 0.0_wp) THEN
+               scf_control%use_cholesky = .FALSE.
+             END IF
+          CASE ("JACOBI_THRESHOLD")
+             CALL read_object(scf_control%jacobi_threshold)
           CASE ("CHOLESKY_ON")
              scf_control%use_cholesky = .TRUE.
           CASE ("CHOLESKY_OFF")
@@ -397,7 +406,7 @@ CONTAINS
           output_unit = globenv%scr
           WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/)") "SCF PARAMETERS"
           WRITE (UNIT=output_unit,&
-               FMT="(T3,A,/,3(/,T3,A,I5),3(/,T3,A,ES9.2),4(/,T3,A,F5.2))")&
+               FMT="(T3,A,/,3(/,T3,A,I5),5(/,T3,A,ES9.2),4(/,T3,A,F5.2))")&
                "Density guess: "//TRIM(scf_control%density_guess),&
                "nrebuild:          ",scf_control%nrebuild,&
                "max_scf:           ",scf_control%max_scf,&
@@ -405,6 +414,8 @@ CONTAINS
                "eps_scf:           ",scf_control%eps_scf,&
                "eps_diis:          ",scf_control%eps_diis,&
                "eps_eigval:        ",scf_control%eps_eigval,&
+               "eps_jacobi:        ",scf_control%eps_jacobi,&
+               "jacobi_threshold:  ",scf_control%jacobi_threshold,&
                "p_mix:             ",scf_control%p_mix,&
                "work_syevx:        ",scf_control%work_syevx,&
                "level_shift [a.u.]:",scf_control%level_shift,&

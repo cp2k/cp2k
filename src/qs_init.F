@@ -310,7 +310,8 @@ CONTAINS
 
      IF (globenv%print%mo_eigenvalues.OR.&
          (scf_control%level_shift /= 0.0_wp).OR.&
-         (scf_control%smear /= 0.0_wp)) THEN
+         (scf_control%smear /= 0.0_wp).OR.&
+         (scf_control%eps_jacobi /= 0.0_wp)) THEN
        n_mo = n_ao
      ELSE
        n_mo = n_mo/2
