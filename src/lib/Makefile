@@ -14,7 +14,7 @@ $(LIB1): $(OBJECTS_fftsg)
 	$(AR) libfftsg.a $(OBJECTS_fftsg) 
 
 %.o : %.F
-	$(FC) -c $(FFLAGS) $*.F
+	$(FC) -c $(FCLAGS) $*.F
 
 clean:
 	rm -f *.o *.mod
