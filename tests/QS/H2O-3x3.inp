@@ -5,8 +5,10 @@
  RUN_TYPE     MD
 &END
 
-&TOPOLOGY
-  cong3x3 add 1 1 2 3 1.88 1.88 3.08
+&FORCE_FIELD
+  constraints
+    g3x3 add 1 1 2 3 1.88 1.88 3.08
+  end constraints
 &END
 
 
