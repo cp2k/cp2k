@@ -69,7 +69,7 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     ! executable
     CALL timeset("ot_scf_read_input","I","",handle)
     ! decide default settings
-    qs_ot_env%settings%ot_method="DIIS"
+    qs_ot_env%settings%ot_method="CG"
     qs_ot_env%settings%diis_m=7 
     qs_ot_env%settings%preconditioner_type="FULL_KINETIC"
     qs_ot_env%settings%line_search_method="2PNT"
@@ -143,8 +143,62 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
           END SELECT 
     ENDDO
     endif
-
     CALL finish_parser()
+    IF (globenv%ionode) THEN
+    write(6,*) ""
+    write(6,*) " ----------------------------------- OT --------------------------------------"
+    write(6,*) ""
+    write(6,*) " Orbital Transformations "
+    write(6,*) " Joost VandeVondele and Juerg Hutter"
+    write(6,*) ""
+    SELECT CASE (qs_ot_env%settings%OT_METHOD)
+    CASE ("SD")
+         write(6,*) " minimizer      : SD             : steepest descent"
+    CASE ("CG")
+         write(6,*) " minimizer      : CG             : conjugate gradient"
+    CASE ("DIIS")
+         write(6,*) " minimizer      : DIIS           : direct inversion in the iterative subspace"
+         write(6,*) "                           using : ",qs_ot_env%settings%diis_m," diis vectors"
+    CASE DEFAULT
+         write(6,*) " minimizer      :      ",qs_ot_env%settings%OT_METHOD," : UNKNOWN"
+    END SELECT
+    SELECT CASE (qs_ot_env%settings%preconditioner_type)
+    CASE ("FULL_SINGLE")
+         write(6,*) " preconditioner : FULL_SINGLE    : diagonalization based "
+    CASE ("FULL_KINETIC")
+         write(6,*) " preconditioner : FULL_KINETIC   : cholesky inversion of T + eS"
+    CASE ("FULL_S_INVERSE")
+         write(6,*) " preconditioner : FULL_S_INVERSE : cholesky inversion of S"
+    CASE ("SPARSE_DIAG")
+         write(6,*)  &
+           " preconditioner : SPARSE_DIAG    : diagonal atomic block diagonalization"
+    CASE ("NONE")
+         write(6,*) " preconditioner : NONE  "
+    CASE DEFAULT 
+         write(6,*) " preconditioner : ",qs_ot_env%settings%preconditioner_type," : UNKNOWN"
+    END SELECT
+    IF (qs_ot_env%settings%OT_METHOD .EQ."SD".OR.qs_ot_env%settings%OT_METHOD.EQ."CG") THEN
+       SELECT CASE (qs_ot_env%settings%line_search_method)
+         CASE ("2PNT")
+                    write(6,*) " line search    : 2PNT           : 2 energies, one gradient "
+         CASE ("3PNT")
+                    write(6,*) " line search    : 3PNT           : 3 energies "
+         CASE ("GOLD")
+                    write(6,*) " line search    : GOLD           : bracketing and golden section search "
+                    write(6,*) "                  target relative accuracy : ", &
+                               qs_ot_env%settings%gold_target
+         CASE ("NONE")
+                    write(6,*) " line search    : NONE "
+         CASE DEFAULT
+                    write(6,*) " line search : ", &
+                               qs_ot_env%settings%line_search_method," : UNKNOWN"
+       END SELECT
+    ENDIF
+    write(6,*) " stepsize       :",QS_ot_env%settings%ds_min
+    write(6,*) " "
+    write(6,*) " ----------------------------------- OT --------------------------------------"
+    ENDIF
+
 
     CALL timestop(0.0_wp,handle)
 
