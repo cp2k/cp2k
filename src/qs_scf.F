@@ -139,7 +139,8 @@ MODULE qs_scf
   USE pao_types,                       ONLY: pao_env_get,&
                                              pao_env_type,&
                                              pao_glob_angles_type
-  USE particle_types,                  ONLY: particle_type
+  USE particle_types,                  ONLY: particle_type, & 
+                                             write_particle_coordinates
   USE preconditioner,                  ONLY: destroy_preconditioner,&
                                              init_preconditioner,&
                                              make_preconditioner,&
@@ -528,12 +529,13 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: scf_work1
     TYPE(cp_full_matrix_type), POINTER  :: ortho,scf_work2
+    TYPE(cell_type), POINTER :: cell
 
 !   ---------------------------------------------------------------------------
 
     NULLIFY(dft_control,h,s,ks,p,rho,energy,scf_control,logger,&
          pw_env, qs_charges,ks_env,c,atomic_kind_set,particle_set,&
-         scf_work1,ortho,scf_work2)
+         scf_work1,ortho,scf_work2,cell)
     logger => cp_error_get_logger(error)
     t1 = m_walltime()
     failure=.FALSE.
@@ -574,6 +576,7 @@ CONTAINS
          h=h,&
          s=s,energy=energy,&
          particle_set=particle_set,&
+         cell=cell,&
          pw_env=pw_env,&
          qs_charges=qs_charges,&
          ks_env=ks_env)
@@ -590,6 +593,7 @@ CONTAINS
     rebuild = .TRUE.
     use_jacobi = .FALSE.
 
+    ! CALL write_particle_coordinates(particle_set,cell,globenv)
 
     IF (ionode.AND.logger%print_keys%scf) THEN
        WRITE (UNIT=output_unit,&
@@ -780,7 +784,7 @@ CONTAINS
             SUM(rho%tot_rho_r)+&
             qs_charges%total_rho_core_rspace,&
             "Total charge density (g-space):     ",qs_charges%total_rho_gspace
-       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
+       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.14))")&
             "Overlap energy of the core charge distribution:",energy%core_overlap,&
             "Self energy of the core charge distribution:   ",energy%core_self,&
             "Core Hamiltonian energy:                       ",energy%core,&
@@ -963,7 +967,7 @@ CONTAINS
 !   *** order to eliminate redundant atomic blocks  ***
 
     CALL copy_real_matrix_to_full_matrix(h(1)%matrix,scf_work1(1)%matrix)
-    IF ((qs_env%para_env%num_pe > 1).AND.gth_potential_present) THEN
+    IF (gth_potential_present) THEN
        CALL sm_pool_give_back_matrix(qs_env%H_redundant_sm_pools(1)%pool,&
             qs_env%h(1)%matrix,error=error)
        CALL sm_pool_create_matrix(qs_env%S_sm_pools(1)%pool,h(1)%matrix,&

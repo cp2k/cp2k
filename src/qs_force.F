@@ -148,7 +148,7 @@ CONTAINS
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          gth_potential_present=gth_potential_present)
-    IF ((qs_env%para_env%num_pe > 1).AND.gth_potential_present) THEN
+    IF (gth_potential_present) THEN
        ! to do calculate redundant density
        CALL sm_pools_create_matrix_vect(qs_env%H_redundant_sm_pools,p)
        DO ispin=1,SIZE(c)
@@ -191,7 +191,7 @@ CONTAINS
                                        p=p,&
                                        w=matrix_w)
     
-    IF ((qs_env%para_env%num_pe > 1).AND.gth_potential_present) THEN
+    IF (gth_potential_present) THEN
        CALL sm_pools_give_back_matrix_vect(qs_env%H_redundant_sm_pools,&
             p)
     ELSE

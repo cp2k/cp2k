@@ -829,7 +829,7 @@ SUBROUTINE qs_env_update_h_redundant_pools(qs_env,error)
      CALL get_atomic_kind_set(atomic_kind_set=qs_env%atomic_kind_set,&
           gth_potential_present=gth_potential_present)
 
-     IF ((qs_env%para_env%num_pe == 1).OR..NOT.gth_potential_present) THEN
+     IF (.NOT.gth_potential_present) THEN
         CALL sm_pools_copy(qs_env%S_sm_pools,qs_env%H_redundant_sm_pools,&
              error=error)
      ELSE

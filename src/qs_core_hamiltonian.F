@@ -1864,6 +1864,7 @@ CONTAINS
                                     block_row=iatom,&
                                     block_col=jatom,&
                                     BLOCK=tmp_block)
+                IF (.NOT.ASSOCIATED(tmp_block)) write(6,*) "BUG !"
                 ALLOCATE(p_block(size(tmp_block,1),size(tmp_block,2)))
                 p_block(:,:)=tmp_block(:,:)
                 DO ispin=2,size(p)

@@ -30,6 +30,7 @@ MODULE particle_types
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: wp => dp,&
                                              wp_size => dp_size
+  USE machine,                         ONLY: m_flush
   USE memory_utilities,                ONLY: reallocate
   USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: massunit
@@ -500,7 +501,8 @@ CONTAINS
         "Atom  Kind  Element","X","Y","Z","Z(eff)","Mass"
 
       natom = SIZE(particle_set)
-
+      WRITE (19,*) natom
+      WRITE (19,*) ""
       DO iatom=1,natom
         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                              kind_number=ikind,&
@@ -511,7 +513,9 @@ CONTAINS
         WRITE (output_unit,"(T2,I5,1X,I4,3X,A2,2X,I3,3F12.6,4X,I3,3X,F8.4)")&
           iatom,ikind,element_symbol,z,&
           particle_set(iatom)%r(1:3)/unit_of_length,zeff,mass/massunit
+        WRITE (19,"(T2,A2,3F22.18)") element_symbol,particle_set(iatom)%r(1:3)/unit_of_length
       END DO
+      CALL m_flush(19)
 
   END SUBROUTINE write_particle_coordinates
 
