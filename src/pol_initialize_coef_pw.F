@@ -121,7 +121,7 @@ SUBROUTINE initialize_coef_pw ( dg_proj, pw, part, box, grid_s,  &
 
   ngt = SIZE ( grid_b )
 
-!initialize the pw's
+!initialize the pws
   DO gt = 1, ngt
     first_time = .TRUE.
     igtot = SIZE ( dg_proj )
