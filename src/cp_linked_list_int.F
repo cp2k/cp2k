@@ -989,7 +989,7 @@ contains
 !!     cp_sll_int_insert_el_at
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_sll_int_insert_el_at(sll, index, element, error)
+!!     Subroutine cp_sll_int_insert_el_at(sll, element, index, error)
 !!       Integer, Intent (IN):: element
 !!       Integer, Intent (IN):: index
 !!       Type(cp_sll_int_type), Pointer:: sll
