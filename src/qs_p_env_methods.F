@@ -68,6 +68,7 @@ MODULE qs_p_env_methods
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
+  USE global_types,                    ONLY: global_environment_type
   USE hartree_local_types,             ONLY: hartree_local_create
   USE kinds,                           ONLY: dbl,&
                                              dp
@@ -86,6 +87,8 @@ MODULE qs_p_env_methods
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
+  USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals,&
+                                             calculate_rho_atom_coeff
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild,&
                                              qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_release,&
@@ -291,6 +294,7 @@ CONTAINS
           ALLOCATE(p_env%local_rho_set, stat=stat)
           IF (stat/=0) CALL stop_memory(routineP, "p_env%local_rho_set", 1)
           CALL local_rho_set_create(p_env%local_rho_set)
+          CALL allocate_rho_atom_internals(qs_env, p_env%local_rho_set%rho_atom_set)
           ALLOCATE(p_env%hartree_local, stat=stat)
           IF (stat/=0) CALL stop_memory(routineP, "p_env%hartree_local", 1)
           CALL hartree_local_create(p_env%hartree_local)
@@ -932,7 +936,7 @@ END SUBROUTINE p_env_did_change
 
     INTEGER                                  :: handle, ispin, n_spins
     INTEGER, SAVE                            :: iter = 0
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, gapw
     REAL(KIND=dp)                            :: my_alpha, my_beta
 !    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -943,6 +947,7 @@ END SUBROUTINE p_env_did_change
 
     failure=.FALSE.
 
+    gapw=qs_env%dft_control%qs_control%gapw    
     my_alpha=1.0_dp
     IF (PRESENT(alpha)) my_alpha=alpha
     my_beta=0.0_dp
@@ -968,14 +973,17 @@ END SUBROUTINE p_env_did_change
           CALL transfer_matrix(p1(ispin)%matrix,p_env%rho1%rho_ao(ispin)%matrix)
        ENDDO
        CALL qs_rho_update_rho(rho_struct=p_env%rho1, &
-            qs_env=qs_env, error=error)
+            qs_env=qs_env, gapw=gapw, error=error)
+       IF(gapw) THEN
+         CALL calculate_rho_atom_coeff(qs_env,p_env%rho1%rho_ao)
+       ENDIF
 
        IF (fdiff) THEN
           CALL kpp1_calc_k_p_p1_fdiff(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
                                       k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
                                       error=error)
        ELSE
-          CALL kpp1_calc_k_p_p1(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
+          CALL kpp1_calc_k_p_p1(kpp1_env=p_env%kpp1_env, p_env=p_env, qs_env=qs_env,&
                                 k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
                                 error=error)
        END IF

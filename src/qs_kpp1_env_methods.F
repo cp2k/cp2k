@@ -73,6 +73,7 @@ MODULE qs_kpp1_env_methods
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
   USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
   USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
+  USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
   USE simulation_cell,                 ONLY: cell_type
@@ -198,10 +199,11 @@ CONTAINS
 !!       see module cp_error_handling 
 !!
 !!*** **********************************************************************
-  SUBROUTINE kpp1_calc_k_p_p1(kpp1_env, qs_env, k_p_p1, rho, rho1, error)
+  SUBROUTINE kpp1_calc_k_p_p1(kpp1_env, p_env, qs_env, k_p_p1, rho, rho1, error)
     
 
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
+    TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: k_p_p1
@@ -303,6 +305,8 @@ CONTAINS
        DO ispin=2,nspins
           CALL coeff_sumup(rho1%rho_g(ispin), rho1_tot_gspace)
        END DO
+!       IF (qs_env%dft_control%qs_control%gapw) &
+!            CALL coeff_sumup(p_env%local_rho_set%rho0_mpole%rho0_s_gs, rho1_tot_gspace)
 
        CALL print_densities(kpp1_env, rho1, rho1_tot_gspace, error=error)
 

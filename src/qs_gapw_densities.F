@@ -133,9 +133,9 @@ CONTAINS
 !   Put the rho0_soft on the global grid
     CALL put_rho0_s_on_grid(qs_env,atomic_kind_set,rho0_mpole,tot_rs_int,error)
 
-    IF(ABS(tot_rs_int+rho0_s_tot).GT.1.0E-8_dp) THEN
+    IF(ABS(tot_rs_int+rho0_s_tot).GT.1.0E-6_dp) THEN
         WRITE(6,'(/,72("*"))')
-        WRITE(6,'(T2,A,T66,1E15.4)') & 
+        WRITE(6,'(T2,A,T66,1E20.8)') & 
           "WARNING: rho0_soft calculated on the local grid is  :", -rho0_s_tot,&
           "         rho0_soft calculated on the global grid is :", tot_rs_int
         WRITE(6,'(T2,A)') &

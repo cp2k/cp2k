@@ -691,7 +691,7 @@ CONTAINS
        CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=gapw, error=error)
        IF(gapw) THEN
 !         CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
-         CALL calculate_rho_atom_coeff(globenv,qs_env,rho%rho_ao)
+         CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
        ENDIF
 
        CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)      
@@ -791,7 +791,7 @@ CONTAINS
     CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw = gapw, error=error)
     IF(gapw) THEN
 !       CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
-       CALL calculate_rho_atom_coeff(globenv,qs_env,rho%rho_ao)
+       CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
     END IF
 
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
@@ -1864,7 +1864,7 @@ CONTAINS
           CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, gapw=gapw, error=error)
           IF(gapw) THEN
 !             CALL qs_rho_update_rho(qs_env%rho_soft, qs_env=qs_env, error=error)
-             CALL calculate_rho_atom_coeff(globenv,qs_env,qs_env%rho%rho_ao)
+             CALL calculate_rho_atom_coeff(qs_env,qs_env%rho%rho_ao)
           ENDIF
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
                error=error)

@@ -18,6 +18,10 @@ MODULE qs_rho0_types
 
   USE coefficient_types,               ONLY: coeff_deallocate,&
                                              coeff_type
+  USE cp_error_handling,               ONLY: cp_error_get_logger,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_logger_type, &
+                                             cp_logger_get_default_unit_nr 
   USE erf_fn,                          ONLY: erf
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
@@ -27,6 +31,7 @@ MODULE qs_rho0_types
   USE memory_utilities,                ONLY: reallocate
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
+  USE qs_util,                         ONLY: exp_radius
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell
   USE termination,                     ONLY: stop_memory,&
@@ -189,18 +194,21 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     ALLOCATE(rho0_atom%rho0_rad_h,STAT=istat)
+    NULLIFY(rho0_atom%rho0_rad_h%r_coef)
     ALLOCATE (rho0_atom%rho0_rad_h%r_coef(1:nr,1:nchannels),STAT=istat)
     rho0_atom%rho0_rad_h%r_coef = 0.0_dp
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                             "rho0_rad_h",int_size)
 
     ALLOCATE(rho0_atom%rho0_rad_s,STAT=istat)
+    NULLIFY(rho0_atom%rho0_rad_s%r_coef)
     ALLOCATE (rho0_atom%rho0_rad_s%r_coef(1:nr,1:nchannels),STAT=istat)
     rho0_atom%rho0_rad_s%r_coef = 0.0_dp
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                             "rho0_rad_s",int_size)
 
     ALLOCATE(rho0_atom%vrho0_rad_h,STAT=istat)
+    NULLIFY(rho0_atom%vrho0_rad_h%r_coef)
     ALLOCATE (rho0_atom%vrho0_rad_h%r_coef(1:nr,1:nchannels),STAT=istat)
     rho0_atom%vrho0_rad_h%r_coef = 0.0_dp
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -599,34 +607,43 @@ CONTAINS
   END SUBROUTINE initialize_mpole_rho
 ! ******************************************************************************
 
-  SUBROUTINE write_rho0_info(rho0_mpole,cell,globenv)
+  SUBROUTINE write_rho0_info(rho0_mpole,cell,error)
 
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_rho0_info"
 
     INTEGER                                  :: ikind,l,nkind,output_unit
     CHARACTER(LEN=8)                         :: unit_of_length_name
+    LOGICAL                                  :: ionode
     REAL(dp)                                 :: unit_of_length
+    TYPE(cp_logger_type), POINTER            :: logger
 
 !   ---------------------------------------------------------------------------
+    NULLIFY(logger)
 
-    IF (.NOT.globenv%ionode) RETURN
+    logger => cp_error_get_logger(error)
+    IF (.NOT.logger%print_keys%rho0_information) RETURN
+    ionode = logger%para_env%mepos==logger%para_env%source
+    
+    IF (.NOT.ionode) RETURN
+
+    output_unit = cp_logger_get_default_unit_nr(logger)
 
     CALL get_cell(cell=cell,&
                   unit_of_length=unit_of_length,&
                   unit_of_length_name=unit_of_length_name)
 
     IF (ASSOCIATED(rho0_mpole)) THEN
-      output_unit = globenv%scr
+
       WRITE (UNIT=output_unit,FMT="(/,T5,A,/)") &
                "*** Compensation density charges data set ***"
-      WRITE (UNIT=output_unit,FMT="(T2,A,T35,f8.3)")&
+      WRITE (UNIT=output_unit,FMT="(T2,A,T35,f16.10)")&
             "- Hard exponent :",rho0_mpole%zet0_h
-      WRITE (UNIT=output_unit,FMT="(T2,A,T35,f8.3)")&
+      WRITE (UNIT=output_unit,FMT="(T2,A,T35,f16.10)")&
             "- Soft exponent :",rho0_mpole%zet0_s
       WRITE (UNIT=output_unit,FMT="(T2,A,T35,I5)")&
             "- Global max l :",rho0_mpole%lmax_0
@@ -648,23 +665,23 @@ CONTAINS
         WRITE (UNIT=output_unit,FMT="(T2,T25,A,T55,I5)")&
             "=> l max  :",rho0_mpole%lmax0_kind(ikind)
 
-        WRITE (UNIT=output_unit,FMT="(T2,T25,A,T55,f12.6)")&
+        WRITE (UNIT=output_unit,FMT="(T2,T25,A,T55,f20.10)")&
             "=> radius of Vh(rho0_h-rho0_s): ",&
             rho0_mpole%mp_gau(ikind)%r_V0hmV0s/unit_of_length
 
-        WRITE (UNIT=output_unit,FMT="(T2,T25,A,T55,f12.6)")&
+        WRITE (UNIT=output_unit,FMT="(T2,T25,A,T55,f20.10)")&
             "=> max radius of g0 hard: ",&
             rho0_mpole%mp_gau(ikind)%rpgf0_h/unit_of_length
 
-        WRITE (UNIT=output_unit,FMT="(T2,T25,A,T55,f12.6)")&
+        WRITE (UNIT=output_unit,FMT="(T2,T25,A,T55,f20.10)")&
             "=> max radius of g0 soft: ",&
             rho0_mpole%mp_gau(ikind)%rpgf0_s/unit_of_length
       END DO  ! ikind
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
-        "The pointer rho0_mpole or rho0_atom_set is not associated",globenv)
+      WRITE(UNIT=output_unit,FMT="(T2,A)") 'WARNING: I cannot print rho0, it is not associated'
+
     END IF
 
   END SUBROUTINE write_rho0_info

@@ -974,7 +974,7 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
         CALL ep_env_localize_matrix(ep_env, ep_env%psi1, error=error)
         ! r=b-A x
         CALL p_op_ep(p_env=ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
-             v=ep_env%psi1, res=r,error=error)
+             v=ep_env%psi1, res=r, error=error)
         DO ispin=1,nspins
            CALL cp_fm_scale_and_add(alpha=-1.0_dp,matrix_a=r(ispin)%matrix,&
                 beta=1.0_dp,matrix_b=ep_env%m_pi_Hrho_psi0d(ispin)%matrix,&

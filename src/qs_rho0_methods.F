@@ -320,14 +320,13 @@ MODULE qs_rho0_methods
 
 ! *****************************************************************************
 
-  SUBROUTINE init_rho0(qs_env, gapw_control, cell, globenv, &
+  SUBROUTINE init_rho0(qs_env, gapw_control, cell,  &
                        tddft, tddft_local_rho_set, error)
 
     ! ARGUMENTS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(gapw_control_type), POINTER         :: gapw_control
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(global_environment_type)            :: globenv 
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
     TYPE(local_rho_type), POINTER, OPTIONAL  :: tddft_local_rho_set
     TYPE(cp_error_type), INTENT(inout), &
@@ -368,6 +367,7 @@ MODULE qs_rho0_methods
     NULLIFY(rho0_mpole)
     NULLIFY(rho0_atom_set)
     NULLIFY(qs_charges)
+    NULLIFY(rhoz_set)
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft
@@ -498,9 +498,11 @@ MODULE qs_rho0_methods
       atom_kind => atomic_kind_set(ikind)
       CALL get_atomic_kind(atomic_kind=atom_kind,&
                            grid_atom=grid_atom)
+
       CALL calculate_g0(rho0_mpole,grid_atom,ikind)
 
-      CALL interaction_radii_g0(rho0_mpole,grid_atom,ikind,eps_Vrho0,.true.)
+      CALL interaction_radii_g0(rho0_mpole,grid_atom,ikind,eps_Vrho0,.TRUE.)
+
     END DO
 
     rhoz_tot = qs_charges%total_rho_core_rspace
@@ -521,10 +523,7 @@ MODULE qs_rho0_methods
        CALL rho0_s_grid_create(qs_env, tddft_local_rho_set, error)
     END IF
 
-
-    IF(globenv%print%rho0_information) THEN
-      CALL write_rho0_info(rho0_mpole,cell,globenv)
-    END IF
+    CALL write_rho0_info(rho0_mpole,cell,error)
 
     END SUBROUTINE init_rho0
 
@@ -614,7 +613,6 @@ MODULE qs_rho0_methods
         END DO  ! ir
 
       END DO  ! l
-
       rho0_mpole%mp_gau(ik)%r_V0hmV0s = r_hms
 
     ELSE

@@ -163,22 +163,6 @@ CONTAINS
     CALL tddfpt_env_allocate(t_env, p_env, qs_env, glob_env)
     CALL tddfpt_env_init(t_env, p_env, qs_env, glob_env)
 
-    !------------!
-    ! GAPW stuff !
-    !------------!
-    IF(qs_env%dft_control%qs_control%method == "GAPW") THEN
-       CALL get_qs_env(qs_env, cell=cell)
-       
-       gapw_control => qs_env%dft_control%qs_control%gapw_control
-!      *** Allocate and initialize the set of atomic densities ***
-       CALL init_rho_atom(qs_env, gapw_control, glob_env)
-!      *** Allocate and initialize the compensation density rho0 ***
-       CALL init_rho0(qs_env, gapw_control, cell, glob_env)
-!      *** Allocate and Initialize the local coulomb terms (1,2 and 3 centers) ***
-       CALL init_coulomb_local(qs_env, gapw_control,glob_env)
-    ENDIF
-
-
     !----------!
     ! clean up !
     !----------!

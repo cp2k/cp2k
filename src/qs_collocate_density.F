@@ -1282,7 +1282,8 @@ CONTAINS
                                           ra,rab,rab2,scale,pab,o1,o2,&
                                           rsgrid,cube_info,l_info,&
                                           eps_rho_rspace,lgrid,ithread,&
-                                          compute_tau,map_consistent)
+                                          compute_tau,map_consistent,&
+                                          collocate_rho0,rpgf0_s)
 
     INTEGER, INTENT(IN)                      :: la_max
     REAL(KIND=dp), INTENT(IN)                :: zeta
@@ -1301,6 +1302,8 @@ CONTAINS
     TYPE(lgrid_type), OPTIONAL               :: lgrid
     INTEGER, INTENT(IN), OPTIONAL            :: ithread
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, map_consistent
+    LOGICAL, INTENT(IN), OPTIONAL            :: collocate_rho0
+    REAL(dp), INTENT(IN), OPTIONAL           :: rpgf0_s
 
     INTEGER :: cmax, coef_max, gridbounds(2,3), i, ico, ico_l, icoef, ig, &
       ithread_l, jco, jco_l, k, l, la_max_local, la_min_local, lb_max_local, &
@@ -1311,7 +1314,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: ly_max, lz_max, sphere_bounds
     INTEGER, DIMENSION(:, :), POINTER        :: map
     INTEGER, POINTER                         :: ipzyx(:,:,:,:,:,:)
-    LOGICAL                                  :: my_compute_tau, &
+    LOGICAL                                  :: my_collocate_rho0, &
+                                                my_compute_tau, &
                                                 my_map_consistent
     REAL(KIND=dp) :: a, b, binomial_k_lxa, binomial_l_lxb, cutoff, f, pg, &
       prefactor, radius, rpg, ya, yap, yb, ybp, za, zap, zb, zbp, zetp
@@ -1345,6 +1349,12 @@ CONTAINS
        my_compute_tau=.FALSE.
     ENDIF
 
+    IF (PRESENT(collocate_rho0).AND.PRESENT(rpgf0_s)) THEN
+       my_collocate_rho0=collocate_rho0
+    ELSE
+       my_collocate_rho0=.FALSE.
+    END IF
+
     zetp      = zeta + zetb
     f         = zetb/zetp
     rap(:)    = f*rab(:)
@@ -1358,6 +1368,12 @@ CONTAINS
        radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,ra=ra,rb=rb,rp=rp,&
                                        zetp=zetp,eps=eps_rho_rspace,prefactor=prefactor,cutoff=cutoff)
        prefactor = scale*EXP(-zeta*f*rab2)
+    ELSE IF (my_collocate_rho0) THEN
+       cutoff    = 0.0_dp
+       prefactor = 1.0_dp
+       radius = rpgf0_s
+       radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,ra=ra,rb=rb,rp=rp,&
+                                       zetp=zetp,eps=eps_rho_rspace,prefactor=prefactor,cutoff=cutoff)
     ELSE
        cutoff    = 0.0_dp
        prefactor = scale*EXP(-zeta*f*rab2)

@@ -137,7 +137,7 @@ MODULE qs_rho0_ggrid
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(realspace_grid_type), POINTER       :: rs_grid
-    REAL(KIND=dp)                            :: eps_rho_rspace,zet0_s
+    REAL(KIND=dp)                            :: eps_rho_rspace,r_V0,rpgf0_s,zet0_s
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Qlm_c
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
@@ -203,7 +203,8 @@ MODULE qs_rho0_ggrid
       atom_kind => atom_set(ikind)
       CALL get_atomic_kind(atomic_kind=atom_kind,atom_list=atom_list,natom=nat)
 
-      CALL get_rho0_mpole(rho0_mpole=rho0, ikind=ikind, l0_ikind=l0_ikind)
+      CALL get_rho0_mpole(rho0_mpole=rho0, ikind=ikind, l0_ikind=l0_ikind,&
+                           rpgf0_s=rpgf0_s,r_V0hmV0s=r_V0)
 
       nch_ik = ncoset(l0_ikind)
       pab = 0.0_dp
@@ -261,7 +262,8 @@ MODULE qs_rho0_ggrid
         CALL collocate_pgf_product_rspace(&
            l0_ikind,zet0_s,0,0,0.0_dp,0,&
            ra, (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp, 1.0_dp, pab,0,0,&
-           rs_grid, cube_info,l_info,eps_rho_rspace,ithread=ithread)
+           rs_grid, cube_info,l_info,eps_rho_rspace,&
+           ithread=ithread,collocate_rho0=.TRUE.,rpgf0_s=r_V0)!rpgf0_s)
 
       END DO  !  j
 

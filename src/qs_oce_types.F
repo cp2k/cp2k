@@ -116,7 +116,7 @@ CONTAINS
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: ho,so
-    INTEGER                                  :: ia, ik, iset, istat
+    INTEGER                                  :: ia, ik, iset, istat, ja
 
 !   ---------------------------------------------------------------------------
 
@@ -149,6 +149,11 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,"couple",natom*natom)
     oce_set%couple(1:natom,1:natom)%block_created = .FALSE.
     oce_set%couple(1:natom,1:natom)%ndist = 0
+    DO ia = 1,natom
+      DO ja = 1,natom
+        NULLIFY( oce_set%couple(ja,ia)%rdist_old )
+      END DO
+     END DO 
   
   END SUBROUTINE allocate_oce_set
 

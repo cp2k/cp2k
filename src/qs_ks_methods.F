@@ -479,7 +479,8 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
                "Core Hamiltonian energy:                       ",energy%core,&
                "Hartree energy:                                ",energy%hartree,&
-               "Exchange-correlation energy:                   ",energy%exc
+               "Exchange-correlation energy:                   ",energy%exc,&
+               "Overlap energy from nuclear core charge:       ",energy%core_overlap
           IF(gapw) THEN
              WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
                 "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&
@@ -532,6 +533,7 @@ CONTAINS
     IF(qs_env%dft_control%qs_control%gapw) THEN
        CPPrecondition(ASSOCIATED(rho0_s_gs), cp_failure_level, routineP, error, failure)
        CALL coeff_add(rho0_s_gs, rho%rho_g(1), rho_tot_gspace)
+       WRITE(*,*) ' rho0_soft ' ,calculate_total_rho(rho0_s_gs) 
     ELSE
        CALL coeff_add(rho_core, rho%rho_g(1), rho_tot_gspace)
     END IF

@@ -182,7 +182,7 @@ CONTAINS
        DO spin=1, n_spins
           CALL cp_fm_to_fm(b(i,spin)%matrix, X(spin)%matrix)
        END DO
-       CALL apply_op(X, Ab(i,:), t_env, p_env, qs_env)
+       CALL apply_op(X, Ab(i,:), t_env, p_env, qs_env, glob_env)
        DO spin=1, n_spins
           CALL cp_sm_fm_multiply(qs_env%matrix_s(spin)%matrix, &
                                  b(i,spin)%matrix, &
@@ -302,7 +302,7 @@ CONTAINS
           DO spin=1, n_spins
              CALL cp_fm_to_fm(b(i,spin)%matrix, X(spin)%matrix)
           END DO
-          CALL apply_op(X, Ab(i,:), t_env, p_env, qs_env)
+          CALL apply_op(X, Ab(i,:), t_env, p_env, qs_env, glob_env)
           DO spin=1, n_spins
              CALL cp_sm_fm_multiply(qs_env%matrix_s(spin)%matrix, &
                   b(i,spin)%matrix, &
@@ -369,13 +369,14 @@ CONTAINS
   !            both of these carry info for the tddfpt calculation
   ! qs_env   : info about a quickstep ground state calculation
 
-  SUBROUTINE apply_op(X, R, t_env, p_env, qs_env)
+  SUBROUTINE apply_op(X, R, t_env, p_env, qs_env, globenv)
 
 
     TYPE(cp_fm_p_type), DIMENSION(:)         :: X, R
     TYPE(tddfpt_env_type), INTENT(INOUT)     :: t_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), INTENT(IN):: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "apply_op", &
       routineP = moduleN//"/"//routineN
