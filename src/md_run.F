@@ -60,7 +60,6 @@ MODULE md_run
                                              initialize_nhc_forces,&
                                              initialize_nhc_part,&
                                              initialize_npt_type
-  USE integrator,                      ONLY: set_integrator
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
   USE md,                              ONLY: initialize_velocities,&
@@ -320,8 +319,6 @@ CONTAINS
     IF (ASSOCIATED(dyn_coeff_set)) THEN
        CALL set_md_env( md_env, nhc_coef=extended_type%nhc_coef)
     END IF
-
-    CALL set_integrator ( globenv )
 
     CALL set_energies ( globenv, mdio )
     ! the verlet integrator needs to be started with the correct forces alreay initialized

@@ -36,6 +36,7 @@ MODULE integrator
                                              pv_constraint
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_p_type,&
                                              dyn_coeff_set_p_type,&
@@ -58,8 +59,7 @@ MODULE integrator
   USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
-  USE message_passing,                 ONLY: mp_comm_dup,&
-                                             mp_sum
+  USE message_passing,                 ONLY: mp_sum
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -91,9 +91,7 @@ MODULE integrator
 
   TYPE ( old_variables_type ) :: old
 
-  INTEGER :: int_group
-
-  PUBLIC :: set_integrator, nve, nvt, isokin, npt_i, npt_f, nph_uniaxial
+  PUBLIC :: nve, nvt, isokin, npt_i, npt_f, nph_uniaxial
   PUBLIC :: nph_uniaxial_damped
 
   INTERFACE set
@@ -106,45 +104,6 @@ MODULE integrator
 !******************************************************************************
 
 CONTAINS
-
-!******************************************************************************
-!!****** integrator/set_integrator [1.0] *
-!!
-!!   NAME
-!!     set_integrator
-!!
-!!   FUNCTION
-!!     setup of parameters for integrator
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (29-Mar-2001) : duplicate communicator, instead of copy
-!!
-!!   NOTES
-!!     Call this subroutine before the first call to energy or velocity_verlet
-!!     or if you want to change ionode and/or output files
-!!
-!!   SOURCE
-!******************************************************************************
-
-
-SUBROUTINE set_integrator ( globenv )
-
-
-    TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
-
-!------------------------------------------------------------------------------
-
-  ! XXXXX
-  ! is this one ever freed ???
-  ! we should anyway use md_env % para_env % group in these routines
-
-  CALL mp_comm_dup ( globenv % group, int_group )
-
-END SUBROUTINE set_integrator
 
 !!*****
 !******************************************************************************
@@ -208,12 +167,13 @@ END SUBROUTINE set_integrator
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
 !   ---------------------------------------------------------------------------
 
-    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef)
+    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,para_env)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
-                    nhc_coef=nhc_coef)
+                    nhc_coef=nhc_coef, para_env = para_env)
     dt = simpar%dt
     IF (SIZE(force_env_p)/=1) THEN
        CALL stop_program("nve","integrator",__LINE__,&
@@ -279,7 +239,7 @@ END SUBROUTINE set_integrator
 
 !     *** Broadcast the new particle positions ***
 
-      CALL update_particle_set ( particle_set, int_group, pos = pos )
+      CALL update_particle_set ( particle_set, para_env % group, pos = pos )
 
       DEALLOCATE (pos,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"pos")
@@ -292,7 +252,7 @@ END SUBROUTINE set_integrator
                                mass_storage=mass_storage)
         IF(ASSOCIATED(nhc_coef))THEN
           CALL lnhc (nhc_coef(isubsys),dyn_coeff_set(isubsys)%dyn_coeff_set,&
-                      int_group)
+                      para_env % group)
         END IF
         IF(mass_storage==dyn_coeff_mass_global) dmcoef=0.5_dp*dt/global_mass
         DO iparticle_kind=1,nparticle_kind
@@ -341,7 +301,7 @@ END SUBROUTINE set_integrator
                                                  vel, simpar )
 
 !     *** Broadcast the new particle velocities ***
-      CALL update_particle_set ( particle_set, int_group, vel = vel )
+      CALL update_particle_set ( particle_set, para_env % group, vel = vel )
 
       DEALLOCATE (vel,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"vel")
@@ -373,7 +333,7 @@ END SUBROUTINE set_integrator
         END DO
         IF(ASSOCIATED(nhc_coef))THEN 
           CALL lnhc (nhc_coef(isubsys),dyn_coeff_set(isubsys)%dyn_coeff_set,&
-                     int_group)
+                     para_env % group)
         END IF
       END IF
 
@@ -384,10 +344,10 @@ END SUBROUTINE set_integrator
                                                       molecule_set,    & 
                                                       molecule_kind_set, &
                                                       particle_set, virial, &
-                                                      "FULL", int_group )
+                                                      "FULL", para_env % group )
 
       CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-                             local_particles, virial, int_group  )
+                             local_particles, virial, para_env % group  )
 
     END DO ! next subsys or sub-system
 
@@ -444,10 +404,12 @@ END SUBROUTINE set_integrator
       POINTER                                :: particle_set
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
 !   ---------------------------------------------------------------------------
 
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p)
+    CALL get_md_env(md_env=md_env,simpar=simpar, &
+                    force_env_p=force_env_p,para_env=para_env)
                     
     dt = simpar%dt
 
@@ -507,7 +469,7 @@ END SUBROUTINE set_integrator
 
 !     *** Broadcast the new particle positions ***
 
-      CALL mp_sum(work,int_group)
+      CALL mp_sum(work,para_env % group)
 
       DO iparticle=1,nparticle
         particle_set(iparticle)%r(:) = work(:,iparticle)
@@ -536,7 +498,7 @@ END SUBROUTINE set_integrator
 
 !     *** Broadcast the new particle velocities ***
 
-      CALL mp_sum(work,int_group)
+      CALL mp_sum(work,para_env % group)
 
       DO iparticle=1,nparticle
         particle_set(iparticle)%v(:) = work(:,iparticle)
@@ -562,9 +524,9 @@ END SUBROUTINE set_integrator
              b=b+(1.0_dp/mass)*DOT_PRODUCT(particle_set(iparticle)%f(:),particle_set(iparticle)%f(:))
            END DO
          END DO
-         CALL mp_sum(K,int_group)
-         CALL mp_sum(a,int_group)
-         CALL mp_sum(b,int_group)
+         CALL mp_sum(K,para_env % group)
+         CALL mp_sum(a,para_env % group)
+         CALL mp_sum(b,para_env % group)
          a=a/(2.0_dp*K)
          b=b/(2.0_dp*K)
          rb=SQRT(b)
@@ -636,12 +598,13 @@ END SUBROUTINE set_integrator
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE ( virial_type ), POINTER            :: virial
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
 !   ---------------------------------------------------------------------------
 
     NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
-                    nhc_part=nhc,nhc_coef=nhc_coef)
+                    nhc_part=nhc,nhc_coef=nhc_coef,para_env=para_env)
     dt = simpar%dt
     IF (SIZE(force_env_p)/=1) THEN
        CALL stop_program("nvt","integrator",__LINE__,&
@@ -684,7 +647,7 @@ END SUBROUTINE set_integrator
 
 ! perform Nose'-Hoover chain dynamimcs
       CALL lnhc ( nhc ( isubsys ), molecule_kind_set, molecule_set, &
-                  atomic_kind_set, particle_set, local_molecules, int_group )
+                  atomic_kind_set, particle_set, local_molecules, para_env % group )
 
       IF (simpar%constraint) CALL getold(local_molecules, molecule_set,  &
                                          molecule_kind_set, particle_set)
@@ -709,7 +672,7 @@ END SUBROUTINE set_integrator
                                                  pos, vel, simpar )
 
 !     *** Broadcast the new particle positions ***
-      CALL update_particle_set ( particle_set, int_group, pos = pos )
+      CALL update_particle_set ( particle_set, para_env % group, pos = pos )
 
       DEALLOCATE (pos,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"work")
@@ -722,7 +685,7 @@ END SUBROUTINE set_integrator
                                mass_storage=mass_storage)
         IF(ASSOCIATED(nhc_coef))THEN
           CALL lnhc (nhc_coef(isubsys),dyn_coeff_set(isubsys)%dyn_coeff_set,&
-                      int_group)
+                      para_env % group)
         END IF
         IF(mass_storage==dyn_coeff_mass_global) dmcoef=0.5_dp*dt/global_mass
         DO iparticle_kind=1,nparticle_kind
@@ -772,17 +735,17 @@ END SUBROUTINE set_integrator
 
 ! perform Nose'-Hoover chain dynamimcs
       CALL lnhc ( nhc ( isubsys ), molecule_kind_set, molecule_set, &
-                  atomic_kind_set, particle_set, local_molecules, vel, int_group )
+                  atomic_kind_set, particle_set, local_molecules, vel, para_env % group )
 
 !     *** Broadcast the new particle velocities ***
-      CALL update_particle_set ( particle_set, int_group, vel = vel )
+      CALL update_particle_set ( particle_set, para_env % group, vel = vel )
 
 !     *** Update constraint virial ***
       IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
                                                       molecule_set,    & 
                                                       molecule_kind_set, &
                                                       particle_set, virial, &
-                                                      "FULL", int_group )
+                                                      "FULL", para_env % group )
 
       DEALLOCATE (vel,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"vel")
@@ -814,12 +777,12 @@ END SUBROUTINE set_integrator
         END DO
         IF(ASSOCIATED(nhc_coef))THEN
           CALL lnhc (nhc_coef(isubsys),dyn_coeff_set(isubsys)%dyn_coeff_set,&
-                     int_group)
+                     para_env % group)
         END IF
       END IF
 
       CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-                             local_particles, virial, int_group  )
+                             local_particles, virial, para_env % group  )
 
     END DO ! next subsys or sub-system
 
@@ -901,11 +864,12 @@ END SUBROUTINE set_integrator
     INTEGER :: iroll
 ! dbg
     INTEGER :: ii,jj
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     nhc_part=nhc_part, nhc_baro=nhc_baro, npt = npt, &
-                    itimes = itimes )
+                    itimes = itimes, para_env=para_env )
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp) 
 
@@ -956,11 +920,11 @@ END SUBROUTINE set_integrator
       IF ( itimes == 1 ) eps_0 = npt (1,1) % eps
 
 ! perform Nose'-Hoover chains for barostat
-      CALL lnhc ( nhc_baro ( isubsys ), npt, int_group )
+      CALL lnhc ( nhc_baro ( isubsys ), npt, para_env % group )
 
 ! perform Nose'-Hoover chains for particles
       CALL lnhc ( nhc_part ( isubsys ), molecule_kind_set, molecule_set, &
-                  atomic_kind_set, particle_set, local_molecules, int_group )
+                  atomic_kind_set, particle_set, local_molecules, para_env % group )
 
 ! setting up for ROLL: saving old variables
       roll_tol = -1.0E+10_dp
@@ -979,7 +943,7 @@ END SUBROUTINE set_integrator
           END IF
           CALL get_veps ( cell, npt, simpar, atomic_kind_set, particle_set, &
                           local_molecules, molecule_set, molecule_kind_set, &
-                          local_particles, virial, infree, int_group )
+                          local_particles, virial, infree, para_env % group )
 
 !
 ! first half of velocity verlet
@@ -1018,7 +982,7 @@ END SUBROUTINE set_integrator
                                         molecule_set, molecule_kind_set, &
                                         particle_set, pos, vel, simpar,  &
                                         roll_tol, iroll, vector_r, vector_v,  &
-                                        int_group )
+                                        para_env % group )
   END DO SR
 
 ! Update eps:
@@ -1034,7 +998,7 @@ END SUBROUTINE set_integrator
       CALL get_hinv ( cell )
 
 !     *** Broadcast the new particle positions ***
-      CALL update_particle_set ( particle_set, int_group, pos = pos )
+      CALL update_particle_set ( particle_set, para_env % group, pos = pos )
 
       DEALLOCATE (pos,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"work")
@@ -1073,37 +1037,37 @@ END SUBROUTINE set_integrator
                                       molecule_kind_set, molecule_set,  &
                                       local_molecules, vel,  &
                                       cell, npt, simpar, virial, vector_v,  &
-                                      roll_tol, iroll, infree, first, int_group )
+                                      roll_tol, iroll, infree, first, para_env % group )
 
          CALL get_veps ( cell, npt, simpar, atomic_kind_set, vel, particle_set,&
                          local_molecules, molecule_set, molecule_kind_set, &
-                         local_particles, virial, infree, int_group )
+                         local_particles, virial, infree, para_env % group )
 
       END DO RR
 
 
 ! Nose-Hoover for the Particles
       CALL lnhc ( nhc_part ( isubsys ), molecule_kind_set, molecule_set, &
-                  atomic_kind_set, particle_set, local_molecules, vel, int_group )
+                  atomic_kind_set, particle_set, local_molecules, vel, para_env % group )
 
 ! Nose-Hoover for the Barostat
-      CALL lnhc ( nhc_baro ( isubsys ), npt, int_group )
+      CALL lnhc ( nhc_baro ( isubsys ), npt, para_env % group )
 
 !     *** Broadcast the new particle velocities ***
-      CALL update_particle_set ( particle_set, int_group, vel = vel )
+      CALL update_particle_set ( particle_set, para_env % group, vel = vel )
 
 !     *** Update constraint virial ***
       IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
                                                       molecule_set,    & 
                                                       molecule_kind_set, &
                                                       particle_set, virial, &
-                                                      "FULL", int_group )
+                                                      "FULL", para_env % group )
 
       DEALLOCATE (vel,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"vel")
 
       CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-                             local_particles, virial, int_group  )
+                             local_particles, virial, para_env % group  )
 
 ! Deallocate old variables
     CALL deallocate_old ( )
@@ -1183,10 +1147,11 @@ END SUBROUTINE set_integrator
     LOGICAL, PARAMETER :: box_change = .TRUE.
     LOGICAL :: first
     INTEGER :: iroll
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
-                    npt = npt )
+                    npt = npt, para_env=para_env)
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree, dp ) 
 
@@ -1250,7 +1215,7 @@ END SUBROUTINE set_integrator
           END IF
           CALL get_veps ( cell, npt, simpar, atomic_kind_set, particle_set, &
                           local_molecules, molecule_set, molecule_kind_set, &
-                          local_particles, virial, infree, int_group )
+                          local_particles, virial, infree, para_env % group )
 
 !
 ! first half of velocity verlet
@@ -1295,7 +1260,7 @@ END SUBROUTINE set_integrator
                                         molecule_set, molecule_kind_set, &
                                         particle_set, pos, vel, simpar,  &
                                         roll_tol, iroll, vector_r, vector_v,  &
-                                        int_group )
+                                        para_env % group )
   END DO SR
 
 ! Update h_mat
@@ -1306,7 +1271,7 @@ END SUBROUTINE set_integrator
       CALL get_hinv ( cell )
 
 !     *** Broadcast the new particle positions ***
-      CALL update_particle_set ( particle_set, int_group, pos = pos )
+      CALL update_particle_set ( particle_set, para_env % group, pos = pos )
 
       DEALLOCATE (pos,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"work")
@@ -1347,29 +1312,29 @@ END SUBROUTINE set_integrator
                                       molecule_kind_set, molecule_set,  &
                                       local_molecules, vel,  &
                                       cell, npt, simpar, virial, vector_v,  &
-                                      roll_tol, iroll, infree, first, int_group )
+                                      roll_tol, iroll, infree, first, para_env % group )
 
          CALL get_veps ( cell, npt, simpar, atomic_kind_set, vel, particle_set,&
                          local_molecules, molecule_set, molecule_kind_set, &
-                         local_particles, virial, infree, int_group )
+                         local_particles, virial, infree, para_env % group )
 
       END DO RR
 
 !     *** Broadcast the new particle velocities ***
-      CALL update_particle_set ( particle_set, int_group, vel = vel )
+      CALL update_particle_set ( particle_set, para_env % group, vel = vel )
 
 !     *** Update constraint virial ***
       IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
                                                       molecule_set,    & 
                                                       molecule_kind_set, &
                                                       particle_set, virial, &
-                                                      "FULL", int_group )
+                                                      "FULL", para_env % group )
 
       DEALLOCATE (vel,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"vel")
 
       CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-                             local_particles, virial, int_group  )
+                             local_particles, virial, para_env % group  )
 
 ! Deallocate old variables
     CALL deallocate_old ( )
@@ -1451,10 +1416,11 @@ END SUBROUTINE set_integrator
     LOGICAL, PARAMETER :: box_change = .TRUE.
     LOGICAL :: first
     INTEGER :: iroll
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
-                    npt = npt, nhc_baro=nhc_baro )
+                    npt = npt, nhc_baro=nhc_baro , para_env=para_env)
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree, dp ) 
 
@@ -1502,7 +1468,7 @@ END SUBROUTINE set_integrator
 !------------------------------------------------------------------------------
 
 ! perform Nose'-Hoover chains for barostat
-      CALL lnhc ( nhc_baro ( isubsys ), npt, int_group )
+      CALL lnhc ( nhc_baro ( isubsys ), npt, para_env % group )
 
 ! setting up for ROLL: saving old variables
       roll_tol = -1.0E+10_dp
@@ -1521,7 +1487,7 @@ END SUBROUTINE set_integrator
           END IF
           CALL get_veps ( cell, npt, simpar, atomic_kind_set, particle_set, &
                           local_molecules, molecule_set, molecule_kind_set, &
-                          local_particles, virial, infree, int_group )
+                          local_particles, virial, infree, para_env % group )
 
 !
 ! first half of velocity verlet
@@ -1566,7 +1532,7 @@ END SUBROUTINE set_integrator
                                         molecule_set, molecule_kind_set, &
                                         particle_set, pos, vel, simpar,  &
                                         roll_tol, iroll, vector_r, vector_v,  &
-                                        int_group )
+                                        para_env % group )
   END DO SR
 
 ! Update h_mat
@@ -1578,7 +1544,7 @@ END SUBROUTINE set_integrator
       CALL get_hinv ( cell )
 
 !     *** Broadcast the new particle positions ***
-      CALL update_particle_set ( particle_set, int_group, pos = pos )
+      CALL update_particle_set ( particle_set, para_env % group, pos = pos )
 
       DEALLOCATE (pos,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"work")
@@ -1619,32 +1585,32 @@ END SUBROUTINE set_integrator
                                       molecule_kind_set, molecule_set,  &
                                       local_molecules, vel,  &
                                       cell, npt, simpar, virial, vector_v,  &
-                                      roll_tol, iroll, infree, first, int_group )
+                                      roll_tol, iroll, infree, first, para_env % group )
 
          CALL get_veps ( cell, npt, simpar, atomic_kind_set, vel, particle_set,&
                          local_molecules, molecule_set, molecule_kind_set, &
-                         local_particles, virial, infree, int_group )
+                         local_particles, virial, infree, para_env % group )
 
       END DO RR
 
 ! Nose-Hoover for the Barostat
-      CALL lnhc ( nhc_baro ( isubsys ), npt, int_group )
+      CALL lnhc ( nhc_baro ( isubsys ), npt, para_env % group )
 
 !     *** Broadcast the new particle velocities ***
-      CALL update_particle_set ( particle_set, int_group, vel = vel )
+      CALL update_particle_set ( particle_set, para_env % group, vel = vel )
 
 !     *** Update constraint virial ***
       IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
                                                       molecule_set,    & 
                                                       molecule_kind_set, &
                                                       particle_set, virial, &
-                                                      "FULL", int_group )
+                                                      "FULL", para_env % group )
 
       DEALLOCATE (vel,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"vel")
 
       CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-                             local_particles, virial, int_group  )
+                             local_particles, virial, para_env % group  )
 
 ! Deallocate old variables
     CALL deallocate_old ( )
@@ -1972,10 +1938,11 @@ END SUBROUTINE deallocate_old
     REAL (KIND=dp), DIMENSION (3) :: vector_v
     LOGICAL, PARAMETER :: box_change = .TRUE.
     LOGICAL :: first
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     nhc_part=nhc_part, nhc_baro=nhc_baro, npt = npt, &
-                    itimes = itimes )
+                    itimes = itimes, para_env=para_env )
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp) 
 
@@ -2022,11 +1989,11 @@ END SUBROUTINE deallocate_old
 !------------------------------------------------------------------------------
 
 ! perform Nose'-Hoover chains for barostat
-      CALL lnhc ( nhc_baro ( isubsys ), npt, int_group )
+      CALL lnhc ( nhc_baro ( isubsys ), npt, para_env % group )
 
 ! perform Nose'-Hoover chains for particles
       CALL lnhc ( nhc_part ( isubsys ), molecule_kind_set, molecule_set, &
-                  atomic_kind_set, particle_set, local_molecules, int_group )
+                  atomic_kind_set, particle_set, local_molecules, para_env % group )
 
 ! setting up for ROLL: saving old variables
       roll_tol = -1.0E+10_dp
@@ -2045,7 +2012,7 @@ END SUBROUTINE deallocate_old
           END IF
           CALL get_veps ( cell, npt, simpar, atomic_kind_set, particle_set, &
                          local_molecules, molecule_set, molecule_kind_set, &
-                         local_particles, virial, infree, int_group )
+                         local_particles, virial, infree, para_env % group )
 
 
           trvg = npt ( 1, 1 ) % v  + npt ( 2, 2 ) % v + npt ( 3, 3 ) % v 
@@ -2102,7 +2069,7 @@ END SUBROUTINE deallocate_old
                                           molecule_set, molecule_kind_set, &
                                           particle_set, pos, vel, simpar,  &
                                           roll_tol, iroll, scale_r*poly_r, &
-                                          scale_v*poly_v, int_group, u )
+                                          scale_v*poly_v, para_env % group, u )
   END DO SR
 
 ! Update h_mat
@@ -2120,7 +2087,7 @@ END SUBROUTINE deallocate_old
        CALL get_hinv ( cell )
 
 !     *** Broadcast the new particle positions ***
-       CALL update_particle_set ( particle_set, int_group, pos = pos )
+       CALL update_particle_set ( particle_set, para_env % group, pos = pos )
 
        DEALLOCATE (pos,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"work")
@@ -2160,36 +2127,36 @@ END SUBROUTINE deallocate_old
                                      molecule_kind_set, molecule_set,  &
                                      local_molecules, vel, &
                                      cell, npt, simpar, virial, vector_v,  &
-                                     roll_tol, iroll, infree, first, int_group, u )
+                                     roll_tol, iroll, infree, first, para_env % group, u )
 
         CALL get_veps ( cell, npt, simpar, atomic_kind_set, vel, particle_set, &
                         local_molecules, molecule_set, molecule_kind_set, &
-                        local_particles, virial, infree, int_group )
+                        local_particles, virial, infree, para_env % group )
 
      END DO RR
 
 ! Nose-Hoover for the Particles
      CALL lnhc ( nhc_part ( isubsys ), molecule_kind_set, molecule_set, &
-                 atomic_kind_set, particle_set, local_molecules, vel, int_group )
+                 atomic_kind_set, particle_set, local_molecules, vel, para_env % group )
 
 ! Nose-Hoover for the Barostat
-     CALL lnhc ( nhc_baro ( isubsys ), npt, int_group )
+     CALL lnhc ( nhc_baro ( isubsys ), npt, para_env % group )
 
 
 !     *** Broadcast the new particle velocities ***
-     CALL update_particle_set ( particle_set, int_group, vel = vel )
+     CALL update_particle_set ( particle_set, para_env % group, vel = vel )
 
 !     *** Update constraint virial ***
      IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
                                                      molecule_set,    & 
                                                      molecule_kind_set, &
                                                      particle_set, virial, &
-                                                     "FULL", int_group )
+                                                     "FULL", para_env % group )
      DEALLOCATE (vel,STAT=istat)
      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"vel")
 
      CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-                            local_particles, virial, int_group  )
+                            local_particles, virial, para_env % group  )
 
 ! Deallocate old variables
     CALL deallocate_old ( )
