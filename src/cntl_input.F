@@ -151,8 +151,10 @@ SUBROUTINE read_cntl_section ( setup, globenv )
 !..write some information to output
   IF ( globenv % ionode ) THEN
      IF ( globenv % print_level >= 2 ) THEN
+        string=TRIM(setup % unit_type)
+        string=ADJUSTR(string)
         WRITE ( iw, '( A, T61, A )' ) &
-             ' CONTROL| Unit type ', ADJUSTR ( setup % unit_type )
+             ' CONTROL| Unit type ', string
         IF ( setup%symmetry ) THEN
            WRITE (iw,'(A,T78,A)') ' CONTROL| Use of symmetry ','Yes'
         ELSE
