@@ -1,25 +1,18 @@
 &CP2K
  PROGRAM      Quickstep
- IOLEVEL      10
+ IOLEVEL      0
  FFTLIB       FFTSG
 &END
 
 &CNTL
  SIMULATION     md
- UNITS          atomic
+&END
+
+&IO
+ BASIS_SET_FILE BASIS_SET
 &END
 
 &SETUP
-  molecule            
-    name     Oxygen
-    nummol   1
-  end molecule
-
-  molecule            
-    name     Hydrogen
-    nummol   2
-  end molecule
-
   cell
     parameter 10.000  0.000   0.000 &
               0.000   10.000   0.000 &
@@ -27,25 +20,11 @@
   end cell
 &END
 
-&MOLECULES
-
-  Oxygen
-    numat     1
-    atom     O 1 16.00 0.0
-  end Oxygen
-
-  Hydrogen
-    numat     1
-    atom     H 1 1.00 0.0
-  end Hydrogen
-
-&END
-
 &TOPOLOGY
 &END
 
 &DFT
- FUNCTIONAL   Pade
+ FUNCTIONAL   PADE
  EXCITATIONS  tddfpt
 &END
 
@@ -54,7 +33,7 @@
 &END
 
 &SCF
- GUESS        ATOMIC
+ GUESS        atomic
  MIXING       0.4
  EPS_SCF      1.0E-5
 &END
@@ -62,17 +41,19 @@
 &TDDFPT
  NEV        2
  REORTHO    2
- KERNEL     y
+ KERNEL     Y
  RES_E_TYPE singlets
+ FUNCTIONAL PADE
 &END
 
 &PRINT low
- LUMOS 2
+ LUMOS 1
+ HOMOS
  NO_CUBE
 &END
 
 &KIND H
- BASIS_SET    DZV-GTH-PADE
+ BASIS_SET    DZVP-GTH-PADE
  POTENTIAL    GTH
 &END
 
@@ -87,7 +68,7 @@
 &END
 
 &COORD
- O   0.000000    0.000000   -0.065587
- H   0.000000   -0.757136    0.520545
- H   0.000000    0.757136    0.520545
+ O   0.000000    0.000000    0.000000
+ H   0.000000   -0.757408    0.587080
+ H   0.000000    0.757408    0.527080
 &END
