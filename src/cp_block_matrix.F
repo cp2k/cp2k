@@ -57,9 +57,9 @@ MODULE cp_block_matrix
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: wp=>dp
   USE message_passing,                 ONLY: mp_sync
-  USE qs_blacs,                        ONLY: cp_fm_get_info,&
-                                             cp_full_matrix_type,&
-                                             cp_sm_fm_multiply
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_fm_type 
+  USE cp_fm_basic_linalg,              ONLY: cp_sm_fm_multiply
   USE sparse_matrix_types
   USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
@@ -1736,7 +1736,7 @@ END SUBROUTINE cp_sp_set_to
 !!     Subroutine cp_sp_multiplies_blacs(matrix_a, matrix_b, matrix_c,&
 !!         alpha, beta, error)
 !!       Type(cp_block_matrix_type), Pointer:: matrix_a
-!!       Type(cp_full_matrix_type), Pointer:: matrix_b, matrix_c
+!!       Type(cp_fm_type), Pointer:: matrix_b, matrix_c
 !!       Real(Kind=wp), Intent (IN), Optional:: alpha, beta
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_sp_multiplies_blacs
@@ -1779,7 +1779,7 @@ END SUBROUTINE cp_sp_set_to
 !!*** **********************************************************************
   SUBROUTINE cp_sp_multiplies_blacs(matrix_a,matrix_b,matrix_c,alpha,beta,error)
     TYPE(cp_block_matrix_type), POINTER :: matrix_a
-    TYPE(cp_full_matrix_type), POINTER :: matrix_b, matrix_c
+    TYPE(cp_fm_type), POINTER :: matrix_b, matrix_c
     REAL(kind=wp), INTENT(in), OPTIONAL :: alpha, beta
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 

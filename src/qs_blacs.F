@@ -34,17 +34,8 @@ MODULE qs_blacs
                                              cp_error_type,&
                                              cp_unimplemented_error
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale_and_add,&
-                                             cp_fm_schur_product,&
-                                             cp_fm_symm,&
-                                             cp_fm_syrk,&
-                                             cp_fm_trace,&
-                                             cp_fm_triangular_multiply,&
-                                             cp_sm_fm_multiply
-  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
-                                             cp_fm_cholesky_invert,&
-                                             cp_fm_cholesky_reduce,&
-                                             cp_fm_cholesky_restore
+                                             cp_fm_syrk
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_equivalent,&
                                              cp_fm_struct_release,&
@@ -54,16 +45,10 @@ MODULE qs_blacs
                                              optimal_blacs_row_block_size
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
-                                             cp_fm_get_submatrix,&
                                              cp_fm_init_random,&
-                                             cp_fm_maxval,&
                                              cp_fm_release,&
                                              cp_fm_retain,&
-                                             cp_fm_set_all,&
-                                             cp_fm_set_element,&
-                                             cp_fm_set_submatrix,&
-                                             cp_full_matrix_p_type,&
-                                             cp_full_matrix_type
+                                             cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_log,&
                                              cp_logger_get_unit_nr,&
@@ -84,7 +69,6 @@ MODULE qs_blacs
   USE kinds,                           ONLY: int_size,&
                                              wp => dp,&
                                              wp_size => dp_size
-  USE machine,                         ONLY: m_cputime
   USE mathlib,                         ONLY: symmetrize_matrix
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_gather,&
@@ -115,47 +99,29 @@ MODULE qs_blacs
   PUBLIC :: optimal_blacs_col_block_size,&
        optimal_blacs_row_block_size
 
-! *** Public data types ***
-
-  PUBLIC :: cp_full_matrix_p_type,&
-            cp_full_matrix_type
-
 ! *** Public subroutines ***
 ! at most 39 continuation lines :-)
-  PUBLIC :: cp_fm_release, &
-       cp_fm_init_random,&
-       copy_blacs_to_blacs_matrix, copy_blacs_to_full_matrix,&
-       copy_full_matrix_to_real_matrix, copy_real_matrix_to_full_matrix,&
+  PUBLIC :: copy_blacs_to_blacs_matrix, copy_blacs_to_ionode_matrix,&
+            copy_fm_to_real_matrix, copy_real_matrix_to_fm,&
        blacs_replicated_copy,&
        blacs_column_copy,&
-       cp_fm_get_info,&
        write_blacs_matrix, &
-       cp_fm_get_submatrix, &
-       cp_fm_set_submatrix, blacs_scale_and_d,&
+       blacs_scale_and_d,&
        copy_vector_to_blacs, &
        copy_blacs_to_vector, blacs_find_vector_distribution,&
        read_blacs_matrix, replicate_blacs_matrix,&
        blacs_set_local_block, &
        blacs_daxpy,  blacs_get_element
 
-  PUBLIC ::  cp_fm_scale_and_add,&
-            blacs_add_to_element, &
-            cp_fm_gemm,&
+  PUBLIC :: blacs_add_to_element, &
             blacs_vector_symv, &
-            cp_fm_maxval, cp_fm_set_all,&
-            cp_fm_set_element, blacs_syevd,&
-            blacs_syevx, cp_fm_symm,&
-            cp_fm_syrk, cp_fm_trace,&
+            blacs_syevd,&
+            blacs_syevx, & 
             power_blacs_matrix,&
             symmetrise_blacs_matrix,&
-            add_blacs_to_block_diag_sm,  cp_fm_cholesky_decompose, &
-            cp_fm_cholesky_invert,  cp_fm_cholesky_reduce, &
-            cp_fm_cholesky_restore,  &
+            add_blacs_to_block_diag_sm,  &
             blacs_make_basis, &
-            cp_fm_schur_product, &
-            blacs_transpose,  blacs_scale_matrix, &
-            cp_sm_fm_multiply, &
-            cp_fm_triangular_multiply
+            blacs_transpose,  blacs_scale_matrix
 
   PUBLIC :: blacs_jacobi,&
             blacs_block_jacobi_scaled,&
@@ -173,7 +139,7 @@ CONTAINS
   SUBROUTINE blacs_set_local_block(matrix,BLOCK)
 ! *****************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: matrix
+    TYPE(cp_fm_type), POINTER          :: matrix
     REAL(wp),DIMENSION(:,:), POINTER          :: BLOCK
 
     REAL(wp),DIMENSION(:,:), POINTER          :: mblock
@@ -190,7 +156,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE blacs_daxpy(matrix_a,c1,alpha,c2,error)
-    TYPE(cp_full_matrix_type), POINTER       :: matrix_a
+    TYPE(cp_fm_type), POINTER       :: matrix_a
     INTEGER, INTENT(IN)                    :: c1,c2
     REAL(wp), INTENT(IN)                   :: alpha
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
@@ -224,7 +190,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: matrix
+    TYPE(cp_fm_type), POINTER          :: matrix
     REAL(wp), INTENT(IN)                      :: alpha
     INTEGER, INTENT(IN)                       :: icol_global,&
                                                  irow_global
@@ -264,7 +230,7 @@ CONTAINS
 ! ugly routine to perform a scaling of every column in a matrix
 ! ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: matrixa
+    TYPE(cp_fm_type), POINTER          :: matrixa
     REAL(wp), DIMENSION(:), POINTER           :: scaling
     INTEGER, OPTIONAL :: kmax
 
@@ -314,7 +280,7 @@ CONTAINS
 ! and what element of the vector actually is where
 
   SUBROUTINE blacs_find_vector_distribution(matrix_a,nloc)
-    TYPE(cp_full_matrix_type), POINTER       :: matrix_a
+    TYPE(cp_fm_type), POINTER       :: matrix_a
     INTEGER, INTENT(OUT)                   :: nloc
 
     TYPE(cp_blacs_env_type), POINTER       :: context
@@ -343,7 +309,7 @@ CONTAINS
 ! this is the global col index
 !
   SUBROUTINE copy_blacs_to_vector(matrix_a,use_col_nr,v)
-    TYPE(cp_full_matrix_type), POINTER       :: matrix_a
+    TYPE(cp_fm_type), POINTER       :: matrix_a
     INTEGER, INTENT(IN)                    :: use_col_nr
     REAL(wp), POINTER, DIMENSION(:)        :: v
     INTEGER :: nprow,npcol,myprow,mypcol,n,nloc_blacs,source,nloc,nloc0,i
@@ -411,7 +377,7 @@ CONTAINS
 ! see notes at blacs_vector_symv
 !
   SUBROUTINE copy_vector_to_blacs(v,matrix_a,use_col_nr)
-    TYPE(cp_full_matrix_type), POINTER       :: matrix_a
+    TYPE(cp_fm_type), POINTER       :: matrix_a
     TYPE(global_environment_type)          :: globenv
     INTEGER, INTENT(IN)                    :: use_col_nr
     REAL(wp), POINTER, DIMENSION(:)        :: v
@@ -489,7 +455,7 @@ CONTAINS
   SUBROUTINE blacs_vector_symv(matrix_a,vin,vout,matrix_buf)
 ! *****************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: matrix_a,matrix_buf
+    TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_buf
     REAL(wp), DIMENSION(:), POINTER           :: vin,vout
 
 !   *** Local variables ***
@@ -552,8 +518,8 @@ CONTAINS
   SUBROUTINE blacs_make_basis(vmatrix,ncol,ortho,otype,pmatrix,work)
 ! *****************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER                   :: vmatrix
-    TYPE(cp_full_matrix_type), POINTER, OPTIONAL         :: pmatrix,work,ortho
+    TYPE(cp_fm_type), POINTER                   :: vmatrix
+    TYPE(cp_fm_type), POINTER, OPTIONAL         :: pmatrix,work,ortho
     INTEGER, INTENT(IN)                                :: ncol
     CHARACTER ( LEN = * ), INTENT ( IN ),OPTIONAL      :: otype
 
@@ -564,7 +530,7 @@ CONTAINS
     REAL(wp) :: rone,rzero
     INTEGER :: nprow,npcol,myprow,mypcol,nrow_block,ncol_block,i
     INTEGER, DIMENSION(9) :: desca,descb,descvv,descw,descp,desco
-    TYPE(cp_full_matrix_type), POINTER           :: overlap_vv
+    TYPE(cp_fm_type), POINTER           :: overlap_vv
     LOGICAL :: found_type,use_pmatrix,use_cholesky,use_sv,use_simple
     TYPE(cp_blacs_env_type), POINTER :: context
     TYPE(cp_fm_struct_type), POINTER :: fm_struct_tmp
@@ -721,7 +687,7 @@ CONTAINS
 !   History: - Creation (22.01.2002, Matthias Krack)
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: matrix
+    TYPE(cp_fm_type), POINTER          :: matrix
     REAL(wp), INTENT(OUT)                     :: alpha
     INTEGER, INTENT(IN)                       :: icol_global,&
                                                  irow_global
@@ -781,7 +747,7 @@ CONTAINS
 ! direction="B2R" .or. "R2B"  Blacs -> Replicated and ...
 !
   SUBROUTINE blacs_replicated_copy(matrix_v,rep_v,firstcol,ncol,nblock,direction)
-    TYPE(cp_full_matrix_type) , POINTER              :: matrix_v
+    TYPE(cp_fm_type) , POINTER              :: matrix_v
     REAL(wp), DIMENSION(:,:), POINTER              :: rep_v
     INTEGER, INTENT(IN)                            :: firstcol,ncol,nblock
     CHARACTER(LEN=3)                               :: direction
@@ -839,7 +805,7 @@ CONTAINS
   END SUBROUTINE blacs_replicated_copy
 
   SUBROUTINE blacs_column_copy(msource,mtarget,ncol,source_start,target_start)
-    TYPE(cp_full_matrix_type), POINTER          :: msource,mtarget
+    TYPE(cp_fm_type), POINTER          :: msource,mtarget
     INTEGER, INTENT(IN)                       :: ncol
     INTEGER, INTENT(IN), OPTIONAL             :: source_start,target_start
 
@@ -882,7 +848,7 @@ CONTAINS
 !*************************************************************************
   SUBROUTINE blacs_syevd(matrix,eigenvectors,eigenvalues,error)
 
-    TYPE(cp_full_matrix_type), POINTER          :: eigenvectors,matrix
+    TYPE(cp_fm_type), POINTER          :: eigenvectors,matrix
     REAL(wp), DIMENSION(:), INTENT(OUT)       :: eigenvalues
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
@@ -970,9 +936,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: eigenvectors,matrix
+    TYPE(cp_fm_type), POINTER          :: eigenvectors,matrix
 !    alternative needs dsygvx
-!    TYPE(cp_full_matrix_type), POINTER, OPTIONAL:: bmatrix
+!    TYPE(cp_fm_type), POINTER, OPTIONAL:: bmatrix
     REAL(wp), INTENT(IN)                      :: work_syevx
     INTEGER, INTENT(IN)                       :: neig
     REAL(wp), DIMENSION(:), INTENT(OUT)       :: eigenvalues
@@ -1185,7 +1151,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER :: source,TARGET
+    TYPE(cp_fm_type), POINTER :: source,TARGET
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local parameters ***
@@ -1244,23 +1210,23 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE copy_blacs_to_full_matrix(blacs_matrix,full_matrix,error)
+  SUBROUTINE copy_blacs_to_ionode_matrix(blacs_matrix,full_matrix,error)
 
-!   Purpose: Copy a BLACS matrix to a full matrix.
+!   Purpose: Copy a BLACS matrix to a full matrix on the ionode (does it work in parallel ? ? ? ? ? ? )
 
 !   History: - Creation (18.06.2001, Matthias Krack)
 !   - 08.2002 changed for the transition to local_data, unoptimized
 !     (but used for debugging only...) [fawzi]
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: blacs_matrix
+    TYPE(cp_fm_type), POINTER          :: blacs_matrix
     REAL(wp), DIMENSION(:,:), POINTER         :: full_matrix
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE copy_blacs_to_full_matrix (MODULE qs_blacs)"
+      "SUBROUTINE copy_blacs_to_ionode_matrix (MODULE qs_blacs)"
 
 !   *** Local variables ***
 
@@ -1279,7 +1245,7 @@ CONTAINS
 #endif
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("copy_blacs_to_full_matrix","I","",handle)
+    CALL timeset("copy_blacs_to_ionode_matrix","I","",handle)
 
     ! to do : use new io based on error
     source = blacs_matrix%matrix_struct%para_env%source
@@ -1373,11 +1339,11 @@ CONTAINS
 #endif
     CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE copy_blacs_to_full_matrix
+  END SUBROUTINE copy_blacs_to_ionode_matrix
 
 ! *****************************************************************************
 
-  SUBROUTINE copy_full_matrix_to_real_matrix(full_matrix,real_matrix)
+  SUBROUTINE copy_fm_to_real_matrix(fm,real_matrix)
 
 !   Purpose: Copy a BLACS matrix to a sparse matrix. The BLACS matrix blocks
 !            are deallocated during the copy procedure.
@@ -1386,13 +1352,13 @@ CONTAINS
 !   08.2002 adapted to local_data, could be optimized
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: full_matrix
+    TYPE(cp_fm_type), POINTER          :: fm
     TYPE(real_matrix_type), POINTER           :: real_matrix
 
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE copy_full_matrix_to_real_matrix (MODULE qs_blacs)"
+      "SUBROUTINE copy_fm_to_real_matrix (MODULE qs_blacs)"
 
 !   *** Local variables ***
 
@@ -1404,7 +1370,7 @@ CONTAINS
                ncol_local,npcol,npe,nprow,nrow_block,nrow_local
 
     INTEGER, DIMENSION(:), POINTER    :: first_col,first_row,last_col,last_row
-    REAL(wp), DIMENSION(:,:), POINTER :: full_matrix_block,real_matrix_block
+    REAL(wp), DIMENSION(:,:), POINTER :: fm_block,real_matrix_block
     TYPE(cp_blacs_env_type), POINTER  :: context
 
 #if defined(__SCALAPACK)
@@ -1413,10 +1379,10 @@ CONTAINS
 #endif
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("copy_full_matrix_to_real_matrix","I","",handle)
+    CALL timeset("copy_fm_to_real_matrix","I","",handle)
 
-    group = full_matrix%matrix_struct%para_env%group
-    context => full_matrix%matrix_struct%context
+    group = fm%matrix_struct%para_env%group
+    context => fm%matrix_struct%context
 
     CALL get_matrix_info(matrix=real_matrix,&
                          nblock_row=nblock_row,&
@@ -1430,8 +1396,8 @@ CONTAINS
     mypcol=context%mepos(2)
     nprow=context%num_pe(1)
     npcol=context%num_pe(2)
-    nrow_block = full_matrix%matrix_struct%nrow_block
-    ncol_block = full_matrix%matrix_struct%ncol_block
+    nrow_block = fm%matrix_struct%nrow_block
+    ncol_block = fm%matrix_struct%ncol_block
 
 #if defined(__SCALAPACK)
 
@@ -1441,20 +1407,20 @@ CONTAINS
         ipe = blacs_pnum(context%group,iprow,ipcol)
 
         IF (ipe /= mype) THEN
-          nrow_local = full_matrix%matrix_struct%nrow_locals(iprow)
-          ncol_local = full_matrix%matrix_struct%ncol_locals(ipcol)
-          ALLOCATE (full_matrix_block(nrow_local,ncol_local),&
+          nrow_local = fm%matrix_struct%nrow_locals(iprow)
+          ncol_local = fm%matrix_struct%ncol_locals(ipcol)
+          ALLOCATE (fm_block(nrow_local,ncol_local),&
                     STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"alloc full_matrix_block",&
+            CALL stop_memory(routine,"alloc fm_block",&
                              nrow_local*ncol_local*wp_size)
           END IF
         ELSE
-          full_matrix_block => full_matrix%local_data
+          fm_block => fm%local_data
         END IF
 
 
-        CALL mp_bcast(full_matrix_block,ipe,group)
+        CALL mp_bcast(fm_block,ipe,group)
 
         DO iblock_row=1,nblock_row
 
@@ -1472,26 +1438,26 @@ CONTAINS
             DO icol_global=first_col(iblock_col),last_col(iblock_col)
 
               jpcol = indxg2p(icol_global,ncol_block,mypcol,&
-                   full_matrix%matrix_struct%first_p_pos(2),npcol)
+                   fm%matrix_struct%first_p_pos(2),npcol)
 
               IF (jpcol == ipcol) THEN
 
                 icol_local = indxg2l(icol_global,ncol_block,mypcol,&
-                     full_matrix%matrix_struct%first_p_pos(2),npcol)
+                     fm%matrix_struct%first_p_pos(2),npcol)
 
                 irow = 1
 
                 DO irow_global=first_row(iblock_row),last_row(iblock_row)
 
                   jprow = indxg2p(irow_global,nrow_block,myprow,&
-                       full_matrix%matrix_struct%first_p_pos(1),nprow)
+                       fm%matrix_struct%first_p_pos(1),nprow)
 
                   IF (jprow == iprow) THEN
 
                      irow_local = indxg2l(irow_global,nrow_block,myprow,&
-                          full_matrix%matrix_struct%first_p_pos(1),nprow)
+                          fm%matrix_struct%first_p_pos(1),nprow)
 
-                    real_matrix_block(irow,icol) = full_matrix_block(irow_local,&
+                    real_matrix_block(irow,icol) = fm_block(irow_local,&
                                                           icol_local)
 
                   END IF
@@ -1513,9 +1479,9 @@ CONTAINS
         END DO
 
         IF (ipe /= mype) THEN
-          DEALLOCATE (full_matrix_block,STAT=istat)
+          DEALLOCATE (fm_block,STAT=istat)
           IF (istat /= 0) THEN
-             CALL stop_memory(routine,"dealloc full_matrix_block")
+             CALL stop_memory(routine,"dealloc fm_block")
           END IF
         END IF
 
@@ -1524,7 +1490,7 @@ CONTAINS
 
 #else
 
-    full_matrix_block => full_matrix%local_data
+    fm_block => fm%local_data
 
     DO iblock_row=1,nblock_row
 
@@ -1545,7 +1511,7 @@ CONTAINS
 
           DO irow_global=first_row(iblock_row),last_row(iblock_row)
 
-            real_matrix_block(irow,icol) = full_matrix_block(irow_global,icol_global)
+            real_matrix_block(irow,icol) = fm_block(irow_global,icol_global)
 
             irow = irow + 1
 
@@ -1564,26 +1530,26 @@ CONTAINS
 #endif
     CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE copy_full_matrix_to_real_matrix
+  END SUBROUTINE copy_fm_to_real_matrix
 
 #if 1
 ! *****************************************************************************
-  SUBROUTINE copy_real_matrix_to_full_matrix(real_matrix,full_matrix)
+  SUBROUTINE copy_real_matrix_to_fm(real_matrix,fm)
 
-!   Purpose: Copy a real_matrix to a full_matrix. It assumes that a block is at most
+!   Purpose: Copy a real_matrix to a fm. It assumes that a block is at most
 !   present once in the real_matrix. 
 !   Rewrite of the original routines for improved efficiency (Joost VandeVondele, 2003-08)
 
 !   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER    :: real_matrix ! the matrix to copy FROM
-    TYPE(cp_full_matrix_type), POINTER :: full_matrix ! the matrix to copy TO
+    TYPE(cp_fm_type), POINTER :: fm ! the matrix to copy TO
 
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE copy_real_matrix_to_full_matrix (MODULE qs_blacs)",&
-      routineN="copy_real_matrix_to_full_matrix"
+      "SUBROUTINE copy_real_matrix_to_fm (MODULE qs_blacs)",&
+      routineN="copy_real_matrix_to_fm"
 
 !   *** Local variables ***
 
@@ -1598,7 +1564,7 @@ CONTAINS
                iblock,jblock,boundary_sparse,boundary_full,isblock
 
     INTEGER, DIMENSION(:), POINTER    :: first_col,first_row, last_col, last_row
-    REAL(wp), DIMENSION(:,:), POINTER :: full_matrix_block, real_matrix_block
+    REAL(wp), DIMENSION(:,:), POINTER :: fm_block, real_matrix_block
     TYPE(cp_blacs_env_type), POINTER  :: context
 
     INTEGER :: i,j,k
@@ -1625,24 +1591,24 @@ CONTAINS
 #endif
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("copy_real_matrix_to_full_matrix","I","",handle)
+    CALL timeset("copy_real_matrix_to_fm","I","",handle)
     NULLIFY(number_of_blocks_row, cum_num_of_blocks_row,block_info_row,number_of_blocks_col,cum_num_of_blocks_col, &
             block_info_col,number_of_blocks,total_size_of_blocks,block_send,block_recv,data_send,data_recv,block_offset, &
             data_offset,send_offset,send_count,recv_offset,recv_count)
 
     ! info about the full matrix
-    group = full_matrix%matrix_struct%para_env%group
-    context => full_matrix%matrix_struct%context
+    group = fm%matrix_struct%para_env%group
+    context => fm%matrix_struct%context
     mype=context%my_pid
     npe=context%n_pid
     myprow=context%mepos(1)
     mypcol=context%mepos(2)
     nprow=context%num_pe(1)
     npcol=context%num_pe(2)
-    nrow_block = full_matrix%matrix_struct%nrow_block
-    ncol_block = full_matrix%matrix_struct%ncol_block
-    nrow_global = full_matrix%matrix_struct%nrow_global
-    ncol_global = full_matrix%matrix_struct%ncol_global
+    nrow_block = fm%matrix_struct%nrow_block
+    ncol_block = fm%matrix_struct%ncol_block
+    nrow_global = fm%matrix_struct%nrow_global
+    ncol_global = fm%matrix_struct%ncol_global
 
     ! info about the real matrix
     CALL get_matrix_info(matrix=real_matrix,&
@@ -1701,7 +1667,7 @@ CONTAINS
           boundary_full=boundary_full+nrow_block
        ENDIF
        block_info_row(3,isblock)= indxg2p(block_info_row(2,isblock),nrow_block,myprow,&
-                                          full_matrix%matrix_struct%first_p_pos(1),nprow)
+                                          fm%matrix_struct%first_p_pos(1),nprow)
        if (iblock.gt.nblock_row) EXIT
        boundary_sparse=last_row(iblock)
     ENDDO
@@ -1755,7 +1721,7 @@ CONTAINS
           boundary_full=boundary_full+ncol_block
        ENDIF
        block_info_col(3,isblock)= indxg2p(block_info_col(2,isblock),ncol_block,mypcol,&
-                                          full_matrix%matrix_struct%first_p_pos(2),npcol)
+                                          fm%matrix_struct%first_p_pos(2),npcol)
        if (iblock.gt.nblock_col) EXIT
        boundary_sparse=last_col(iblock)
     ENDDO
@@ -1885,20 +1851,20 @@ CONTAINS
     CALL mp_alltoall(data_send,send_count,send_offset,data_recv,recv_count,recv_offset,group)
     ! write(6,*) "OUT",mype,data_recv
 
-! Finally, unpack the data filling in the full_matrix%local_data
-    full_matrix%local_data=0.0_wp
+! Finally, unpack the data filling in the fm%local_data
+    fm%local_data=0.0_wp
     k=0
     DO iblock=1,total_recv_blocks
        smblock_row=block_recv((iblock-1)*2+1)
        smblock_col=block_recv((iblock-1)*2+2)
        sb_offset_i = indxg2l(block_info_row(1,smblock_row),nrow_block,myprow,&
-                     full_matrix%matrix_struct%first_p_pos(1),nprow)-1
+                     fm%matrix_struct%first_p_pos(1),nprow)-1
        sb_offset_j = indxg2l(block_info_col(1,smblock_col),ncol_block,mypcol,&
-                     full_matrix%matrix_struct%first_p_pos(2),npcol)-1
+                     fm%matrix_struct%first_p_pos(2),npcol)-1
        DO j=1,block_info_col(2,smblock_col)-block_info_col(1,smblock_col)+1
           DO i=1,block_info_row(2,smblock_row)-block_info_row(1,smblock_row)+1
              k=k+1
-             full_matrix%local_data(sb_offset_i+i,sb_offset_j+j)=data_recv(k)
+             fm%local_data(sb_offset_i+i,sb_offset_j+j)=data_recv(k)
           ENDDO
        ENDDO
     ENDDO
@@ -1911,12 +1877,12 @@ CONTAINS
 
 #else
 
-    IF (.NOT.ASSOCIATED(full_matrix%local_data)) &
+    IF (.NOT.ASSOCIATED(fm%local_data)) &
       CALL stop_program(routine,"full matrix not associated")
 
-    full_matrix_block => full_matrix%local_data
+    fm_block => fm%local_data
 
-    full_matrix_block(:,:) = 0.0_wp
+    fm_block(:,:) = 0.0_wp
 
     DO iblock_row=1,nblock_row
 
@@ -1937,7 +1903,7 @@ CONTAINS
 
           DO irow_global=first_row(iblock_row),last_row(iblock_row)
 
-            full_matrix_block(irow_global,icol_global) = real_matrix_block(irow,icol)
+            fm_block(irow_global,icol_global) = real_matrix_block(irow,icol)
 
             irow = irow + 1
 
@@ -1956,15 +1922,15 @@ CONTAINS
 #endif
     CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE copy_real_matrix_to_full_matrix
+  END SUBROUTINE copy_real_matrix_to_fm
 
 #endif
 
 #if 0
 ! *****************************************************************************
-  SUBROUTINE copy_real_matrix_to_full_matrix(real_matrix,full_matrix)
+  SUBROUTINE copy_real_matrix_to_fm(real_matrix,fm)
 
-!   Purpose: Copy a real_matrix to a full_matrix. The full_matrix blocks
+!   Purpose: Copy a real_matrix to a fm. The fm blocks
 !            are allocated during the copy procedure.
 
 !   temporary old version for reference only (2003-08-02)
@@ -1972,13 +1938,13 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER    :: real_matrix ! the matrix to copy FROM
-    TYPE(cp_full_matrix_type), POINTER :: full_matrix ! the matrix to copy TO
+    TYPE(cp_fm_type), POINTER :: fm ! the matrix to copy TO
 
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE copy_real_matrix_to_full_matrix (MODULE qs_blacs)",&
-      routineN="copy_real_matrix_to_full_matrix"
+      "SUBROUTINE copy_real_matrix_to_fm (MODULE qs_blacs)",&
+      routineN="copy_real_matrix_to_fm"
 
 !   *** Local variables ***
 
@@ -1990,7 +1956,7 @@ CONTAINS
                ncol_local,npcol,npe,nprow,nrow_block,nrow_local
 
     INTEGER, DIMENSION(:), POINTER    :: first_col,first_row, last_col, last_row
-    REAL(wp), DIMENSION(:,:), POINTER :: full_matrix_block, real_matrix_block
+    REAL(wp), DIMENSION(:,:), POINTER :: fm_block, real_matrix_block
     TYPE(cp_blacs_env_type), POINTER  :: context
 
 #if defined(__SCALAPACK)
@@ -1999,19 +1965,19 @@ CONTAINS
 #endif
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("copy_real_matrix_to_full_matrix_old","I","",handle)
+    CALL timeset("copy_real_matrix_to_fm_old","I","",handle)
 
     ! info about the full matrix
-    group = full_matrix%matrix_struct%para_env%group
-    context => full_matrix%matrix_struct%context
+    group = fm%matrix_struct%para_env%group
+    context => fm%matrix_struct%context
     mype=context%my_pid
     npe=context%n_pid
     myprow=context%mepos(1)
     mypcol=context%mepos(2)
     nprow=context%num_pe(1)
     npcol=context%num_pe(2)
-    nrow_block = full_matrix%matrix_struct%nrow_block
-    ncol_block = full_matrix%matrix_struct%ncol_block
+    nrow_block = fm%matrix_struct%nrow_block
+    ncol_block = fm%matrix_struct%ncol_block
 
     ! info about the real matrix
     CALL get_matrix_info(matrix=real_matrix,&
@@ -2028,19 +1994,19 @@ CONTAINS
         ipe = blacs_pnum(context%group,iprow,ipcol)
 
         IF (ipe /= mype) THEN
-          nrow_local = full_matrix%matrix_struct%nrow_locals(iprow)
-          ncol_local = full_matrix%matrix_struct%ncol_locals(ipcol)
-          ALLOCATE (full_matrix_block(nrow_local,ncol_local),&
+          nrow_local = fm%matrix_struct%nrow_locals(iprow)
+          ncol_local = fm%matrix_struct%ncol_locals(ipcol)
+          ALLOCATE (fm_block(nrow_local,ncol_local),&
                     STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"alloc full_matrix block",&
+            CALL stop_memory(routine,"alloc fm block",&
                              nrow_local*ncol_local*wp_size)
           END IF
         ELSE
-           full_matrix_block => full_matrix%local_data
+           fm_block => fm%local_data
         END IF
 
-        full_matrix_block(:,:) = 0.0_wp
+        fm_block(:,:) = 0.0_wp
 
         DO iblock_row=1,nblock_row
 
@@ -2058,26 +2024,26 @@ CONTAINS
             DO icol_global=first_col(iblock_col),last_col(iblock_col)
 
                jpcol = indxg2p(icol_global,ncol_block,mypcol,&
-                    full_matrix%matrix_struct%first_p_pos(2),npcol)
+                    fm%matrix_struct%first_p_pos(2),npcol)
 
               IF (jpcol == ipcol) THEN
 
                 icol_local = indxg2l(icol_global,ncol_block,mypcol,&
-                     full_matrix%matrix_struct%first_p_pos(2),npcol)
+                     fm%matrix_struct%first_p_pos(2),npcol)
 
                 irow = 1
 
                 DO irow_global=first_row(iblock_row),last_row(iblock_row)
 
                   jprow = indxg2p(irow_global,nrow_block,myprow,&
-                       full_matrix%matrix_struct%first_p_pos(1),nprow)
+                       fm%matrix_struct%first_p_pos(1),nprow)
 
                   IF (jprow == iprow) THEN
 
                     irow_local = indxg2l(irow_global,nrow_block,myprow,&
-                         full_matrix%matrix_struct%first_p_pos(1),nprow)
+                         fm%matrix_struct%first_p_pos(1),nprow)
 
-                    full_matrix_block(irow_local,icol_local) = real_matrix_block(irow,&
+                    fm_block(irow_local,icol_local) = real_matrix_block(irow,&
                                                                       icol)
 
                   END IF
@@ -2098,12 +2064,12 @@ CONTAINS
 
         END DO
 
-        CALL mp_sum(full_matrix_block,ipe,group)
+        CALL mp_sum(fm_block,ipe,group)
 
         IF (ipe /= mype) THEN
-          DEALLOCATE (full_matrix_block,STAT=istat)
+          DEALLOCATE (fm_block,STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"dealloc full_matrix block")
+            CALL stop_memory(routine,"dealloc fm block")
           END IF
         END IF
 
@@ -2112,12 +2078,12 @@ CONTAINS
 
 #else
 
-    IF (.NOT.ASSOCIATED(full_matrix%local_data)) &
+    IF (.NOT.ASSOCIATED(fm%local_data)) &
       CALL stop_program(routine,"full matrix not associated")
 
-    full_matrix_block => full_matrix%local_data
+    fm_block => fm%local_data
 
-    full_matrix_block(:,:) = 0.0_wp
+    fm_block(:,:) = 0.0_wp
 
     DO iblock_row=1,nblock_row
 
@@ -2138,7 +2104,7 @@ CONTAINS
 
           DO irow_global=first_row(iblock_row),last_row(iblock_row)
 
-            full_matrix_block(irow_global,icol_global) = real_matrix_block(irow,icol)
+            fm_block(irow_global,icol_global) = real_matrix_block(irow,icol)
 
             irow = irow + 1
 
@@ -2157,7 +2123,7 @@ CONTAINS
 #endif
     CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE copy_real_matrix_to_full_matrix
+  END SUBROUTINE copy_real_matrix_to_fm
 
 #endif
 
@@ -2176,7 +2142,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: matrix,work
+    TYPE(cp_fm_type), POINTER          :: matrix,work
     REAL(wp), INTENT(IN)                      :: exponent,threshold,work_syevx
     INTEGER, INTENT(OUT)                      :: n_dependent
 
@@ -2331,7 +2297,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: matrix
+    TYPE(cp_fm_type), POINTER          :: matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     INTEGER, INTENT(IN)                       :: lunit
 
@@ -2363,7 +2329,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER :: new_matrix,prototype_matrix
+    TYPE(cp_fm_type), POINTER :: new_matrix,prototype_matrix
     CHARACTER(LEN=*), INTENT(IN)     :: name
 
 !   *** Local parameters ***
@@ -2391,7 +2357,7 @@ CONTAINS
 ! matrixt=matrix^T ! assumes no symmetry
 !***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: matrix,matrixt
+    TYPE(cp_fm_type), POINTER          :: matrix,matrixt
 
 !   *** Local variables ***
 
@@ -2446,7 +2412,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: matrix,work
+    TYPE(cp_fm_type), POINTER          :: matrix,work
 
 !   *** Local variables ***
 
@@ -2528,7 +2494,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: matrix
+    TYPE(cp_fm_type), POINTER          :: matrix
     TYPE(global_environment_type), INTENT(IN), OPTIONAL :: globenv
     INTEGER, INTENT(IN)                       :: lunit
     LOGICAL, INTENT(IN), OPTIONAL             :: formatted
@@ -2581,7 +2547,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine add_blacs_to_block_diag_sm(source_m, target_m, para_env,&
 !!         d_struct, error)
-!!       Type(cp_full_matrix_type), Pointer:: source_m
+!!       Type(cp_fm_type), Pointer:: source_m
 !!       Type(real_matrix_type), Intent (INOUT), Target:: target_m
 !!       Type(cp_para_env_type), Pointer:: para_env
 !!       Integer, Dimension(:), Pointer, Optional:: d_struct
@@ -2617,7 +2583,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE add_blacs_to_block_diag_sm(source_m, target_m, para_env, &
        d_struct, error)
-    TYPE(cp_full_matrix_type), POINTER :: source_m
+    TYPE(cp_fm_type), POINTER :: source_m
     TYPE(real_matrix_type), INTENT(inout), TARGET :: target_m
     TYPE(cp_para_env_type), POINTER :: para_env
     INTEGER, DIMENSION(:), POINTER, OPTIONAL :: d_struct
@@ -2763,7 +2729,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine blacs_scale_and_d(blacs_matrix, scale, diagonal_add,&
 !!         error)
-!!       Type(cp_full_matrix_type), Pointer:: blacs_matrix
+!!       Type(cp_fm_type), Pointer:: blacs_matrix
 !!       Real(Kind=wp), Intent (IN), Optional:: scale, diagonal_add
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine blacs_scale_and_d
@@ -2791,7 +2757,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE blacs_scale_and_d(blacs_matrix,scale, diagonal_add,error)
-    TYPE(cp_full_matrix_type), POINTER :: blacs_matrix
+    TYPE(cp_fm_type), POINTER :: blacs_matrix
     TYPE(cp_para_env_type), POINTER :: para_env
     REAL(kind=wp), INTENT(in), OPTIONAL :: scale, diagonal_add
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
@@ -2862,7 +2828,7 @@ END SUBROUTINE blacs_scale_and_d
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER        :: eigenvectors,matrix
+    TYPE(cp_fm_type), POINTER        :: eigenvectors,matrix
     INTEGER, INTENT(IN),OPTIONAL              :: blocksize   ! Gibt an wieviele Eigenwerte/vektoren berechnet werden solln
     INTEGER, INTENT(IN)                       :: Anz_max     ! Gibt die maximal Anzahl an Jacobi-Iterationen an
     REAL(wp), INTENT(IN)                      :: epsi,thresh ! epsi: Abbruchkriterium, wenn epsi kleiner als die Quadratsumme
@@ -3072,7 +3038,7 @@ END SUBROUTINE blacs_scale_and_d
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER        :: eigenvectors,matrix
+    TYPE(cp_fm_type), POINTER        :: eigenvectors,matrix
     INTEGER, INTENT(IN)                       :: start_sec_block  ! Gibt an wo der zweite Block BEGINNT
     REAL(wp), INTENT(IN)                      :: thresh ! thresh: Ein SKALIERTES Element wird nur rotiert, wenn es grsser als thresh ist.
     REAL(wp), DIMENSION(:), INTENT(IN)        :: eigenvalues ! Enthaelt die Eigenwerte 1:N(vom kleinsten bis zum grssten)
@@ -3182,7 +3148,7 @@ END SUBROUTINE blacs_scale_and_d
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER        :: eigenvectors,matrix
+    TYPE(cp_fm_type), POINTER        :: eigenvectors,matrix
     REAL(wp), INTENT(IN)                      :: eigval(:)
     INTEGER, INTENT(IN)                       :: start_sec_block  ! Gibt an wo der zweite Block BEGINNT
     REAL(wp), INTENT(IN)                      :: thresh ! thresh: Ein Element wird nur rotiert, wenn es groesser als thresh ist.

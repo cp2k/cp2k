@@ -25,7 +25,17 @@ MODULE qs_ot_eigensolver
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_info,&
+                                             cp_fm_set_all,&
+                                             cp_fm_type,&
                                              cp_fm_release
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_invert
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                             cp_fm_scale_and_add,&
+                                             cp_fm_symm,&
+                                             cp_fm_trace,&
+                                             cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: wp => dp
   USE preconditioner,                  ONLY: preconditioner_in_use,&
@@ -33,16 +43,6 @@ MODULE qs_ot_eigensolver
   USE qs_blacs,                        ONLY: blacs_column_copy,&
                                              blacs_make_basis,&
                                              copy_blacs_to_blacs_matrix,&
-                                             cp_fm_cholesky_decompose,&
-                                             cp_fm_cholesky_invert,&
-                                             cp_fm_gemm,&
-                                             cp_fm_get_info,&
-                                             cp_fm_scale_and_add,&
-                                             cp_fm_set_all,&
-                                             cp_fm_symm,&
-                                             cp_fm_trace,&
-                                             cp_full_matrix_type,&
-                                             cp_sm_fm_multiply,&
                                              write_blacs_matrix
   USE qs_ot,                           ONLY: qs_ot_allocate,&
                                              qs_ot_destroy,&
@@ -79,8 +79,8 @@ CONTAINS
                             iter_max,globenv,size_ortho_space)
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(cp_full_matrix_type), POINTER          :: matrix_c
-    TYPE(cp_full_matrix_type), POINTER, OPTIONAL:: matrix_orthogonal_space
+    TYPE(cp_fm_type), POINTER          :: matrix_c
+    TYPE(cp_fm_type), POINTER, OPTIONAL:: matrix_orthogonal_space
     REAL(wp)                                  :: eps_gradient
     TYPE(real_matrix_type), POINTER           :: matrix_h,matrix_s
     INTEGER                                   :: iter_max
@@ -97,7 +97,7 @@ CONTAINS
     LOGICAL                                   :: ortho
     REAL(wp), PARAMETER :: rzero = 0.0_wp
     REAL(wp), PARAMETER :: rone  = 1.0_wp
-    TYPE(cp_full_matrix_type), POINTER          :: matrix_s_ortho, &
+    TYPE(cp_fm_type), POINTER          :: matrix_s_ortho, &
                                                  matrix_os_ortho, &
                                                  matrix_buf1_ortho, &
                                                  matrix_buf2_ortho

@@ -20,13 +20,28 @@ MODULE preconditioner
 ! *****************************************************************************
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain
-  
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
+                                             cp_fm_gemm,&
+                                             cp_fm_schur_product,&
+                                             cp_fm_symm,&
+                                             cp_fm_syrk,&
+                                             cp_fm_trace,&
+                                             cp_sm_fm_multiply
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_invert,&
+                                             cp_fm_cholesky_reduce,&
+                                             cp_fm_cholesky_restore
   USE cp_fm_struct,                    ONLY: cp_fm_struct_type, &
                                              cp_fm_struct_create, &
                                              cp_fm_struct_release
   
   USE cp_fm_types,                     ONLY: cp_fm_init_random, &
-                                             cp_fm_create
+                                             cp_fm_create,&
+                                             cp_fm_get_info,&
+                                             cp_fm_release,&
+                                             cp_fm_set_all,&
+                                             cp_fm_p_type,&
+                                             cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_from_globenv,&
                                              cp_para_env_release,&
                                              cp_para_env_retain
@@ -45,24 +60,8 @@ MODULE preconditioner
                                              blacs_syevx,&
                                              blacs_transpose,&
                                              copy_blacs_to_blacs_matrix,&
-                                             copy_full_matrix_to_real_matrix,&
-                                             copy_real_matrix_to_full_matrix,&
-                                             cp_fm_scale_and_add,&
-                                             cp_fm_cholesky_decompose,&
-                                             cp_fm_cholesky_invert,&
-                                             cp_fm_cholesky_reduce,&
-                                             cp_fm_cholesky_restore,&
-                                             cp_fm_gemm,&
-                                             cp_fm_get_info,&
-                                             cp_fm_release,&
-                                             cp_fm_schur_product,&
-                                             cp_fm_set_all,&
-                                             cp_fm_symm,&
-                                             cp_fm_syrk,&
-                                             cp_fm_trace,&
-                                             cp_full_matrix_p_type,&
-                                             cp_full_matrix_type,&
-                                             cp_sm_fm_multiply,&
+                                             copy_fm_to_real_matrix,&
+                                             copy_real_matrix_to_fm,&
                                              replicate_blacs_matrix,&
                                              write_blacs_matrix
   USE qs_mo_types,                     ONLY: calculate_subspace_eigenvalues
@@ -99,7 +98,7 @@ MODULE preconditioner
   TYPE preconditioner_type
     PRIVATE
        TYPE(real_matrix_type),    POINTER :: sparse_matrix
-       TYPE(cp_full_matrix_type), POINTER :: full_matrix
+       TYPE(cp_fm_type), POINTER :: fm
        TYPE(cp_para_env_type),  POINTER   :: para_env
        TYPE(cp_blacs_env_type), POINTER   :: ctxt
        INTEGER :: in_use
@@ -126,7 +125,7 @@ SUBROUTINE init_preconditioner(preconditioner_env,para_env,blacs_env)
    TYPE(cp_blacs_env_type), POINTER           :: blacs_env
 
    NULLIFY(preconditioner_env%sparse_matrix)
-   NULLIFY(preconditioner_env%full_matrix)
+   NULLIFY(preconditioner_env%fm)
    NULLIFY(preconditioner_env%subspace_evals)
    preconditioner_env%in_use=0
    preconditioner_env%para_env => para_env
@@ -145,8 +144,8 @@ SUBROUTINE destroy_preconditioner(preconditioner_env)
       NULLIFY(preconditioner_env%sparse_matrix)
    ENDIF
 
-   IF (ASSOCIATED(preconditioner_env%full_matrix)) THEN
-      CALL cp_fm_release(preconditioner_env%full_matrix)
+   IF (ASSOCIATED(preconditioner_env%fm)) THEN
+      CALL cp_fm_release(preconditioner_env%fm)
    ENDIF
    IF (ASSOCIATED(preconditioner_env%subspace_evals)) THEN
       DEALLOCATE(preconditioner_env%subspace_evals)
@@ -173,7 +172,7 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, USE, matrix_h, matrix_
   TYPE(preconditioner_type)               :: preconditioner_env
   CHARACTER(LEN=*)                                :: USE
   TYPE(real_matrix_type), POINTER            :: matrix_h,matrix_s,matrix_t
-  TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
+  TYPE(cp_fm_type), POINTER :: mo_eigenvectors
   REAL(wp), DIMENSION(:), POINTER :: eigenvalues_ot
   REAL(wp)                                   :: energy_gap
 
@@ -229,7 +228,7 @@ END SUBROUTINE make_preconditioner_single
 SUBROUTINE apply_preconditioner(preconditioner_env, matrix_in, matrix_out)
 
   TYPE(preconditioner_type)               :: preconditioner_env
-  TYPE(cp_full_matrix_type), POINTER            :: matrix_in,matrix_out
+  TYPE(cp_fm_type), POINTER            :: matrix_in,matrix_out
 !----
   INTEGER handle
 
@@ -259,7 +258,7 @@ END SUBROUTINE apply_preconditioner
 SUBROUTINE apply_sparse_diag(preconditioner_env, matrix_in, matrix_out)
 
   TYPE(preconditioner_type)               :: preconditioner_env
-  TYPE(cp_full_matrix_type), POINTER            :: matrix_in,matrix_out
+  TYPE(cp_fm_type), POINTER            :: matrix_in,matrix_out
 !----
   INTEGER k
   CALL cp_fm_get_info(matrix_in,ncol_global=k)
@@ -592,11 +591,11 @@ END SUBROUTINE make_sparse_first_order
 SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out)
 
   TYPE(preconditioner_type)               :: preconditioner_env
-  TYPE(cp_full_matrix_type), POINTER            :: matrix_in,matrix_out
+  TYPE(cp_fm_type), POINTER            :: matrix_in,matrix_out
 !----
   INTEGER n,k
   CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=k)
-  CALL cp_fm_gemm('N','N',n,k,n,1.0_wp,preconditioner_env%full_matrix, &
+  CALL cp_fm_gemm('N','N',n,k,n,1.0_wp,preconditioner_env%fm, &
                   matrix_in,0.0_wp,matrix_out)
 END SUBROUTINE apply_full_single
 
@@ -608,15 +607,15 @@ SUBROUTINE make_full_single(preconditioner_env, matrix_h, matrix_s, &
   REAL(wp)                                   :: energy_homo,energy_gap
 
 ! ---
-  TYPE(cp_full_matrix_type), POINTER :: fm_h,fm_s
+  TYPE(cp_fm_type), POINTER :: fm_h,fm_s
   TYPE(cp_fm_struct_type), POINTER        :: fm_struct_tmp
   REAL(wp), DIMENSION(:), POINTER :: evals
   INTEGER :: i,n
 ! ---
   NULLIFY(fm_h,fm_s,fm_struct_tmp,evals)
 
-  IF (ASSOCIATED(preconditioner_env%full_matrix)) THEN 
-     CALL cp_fm_release(preconditioner_env%full_matrix)
+  IF (ASSOCIATED(preconditioner_env%fm)) THEN 
+     CALL cp_fm_release(preconditioner_env%fm)
   ENDIF
   CALL get_matrix_info(matrix_h,nrow=n)
   ALLOCATE(evals(n))
@@ -624,24 +623,24 @@ SUBROUTINE make_full_single(preconditioner_env, matrix_h, matrix_s, &
   CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n,ncol_global=n,&
                              context=preconditioner_env%ctxt, &
                              para_env=preconditioner_env%para_env)
-  CALL cp_fm_create(preconditioner_env%full_matrix,fm_struct_tmp, name="preconditioner")
+  CALL cp_fm_create(preconditioner_env%fm,fm_struct_tmp, name="preconditioner")
   CALL cp_fm_create(fm_h,fm_struct_tmp, name="fm_h")
   CALL cp_fm_create(fm_s,fm_struct_tmp, name="fm_s")
   CALL cp_fm_struct_release(fm_struct_tmp)
 
-  CALL copy_real_matrix_to_full_matrix(matrix_h,fm_h)
-  CALL copy_real_matrix_to_full_matrix(matrix_s,fm_s)
+  CALL copy_real_matrix_to_fm(matrix_h,fm_h)
+  CALL copy_real_matrix_to_fm(matrix_s,fm_s)
   CALL cp_fm_cholesky_decompose(fm_s)
   CALL cp_fm_cholesky_reduce(fm_h,fm_s)
-  CALL blacs_syevd(fm_h,preconditioner_env%full_matrix,evals)
-  CALL cp_fm_cholesky_restore(preconditioner_env%full_matrix,n,fm_s,fm_h,"SOLVE") 
+  CALL blacs_syevd(fm_h,preconditioner_env%fm,evals)
+  CALL cp_fm_cholesky_restore(preconditioner_env%fm,n,fm_s,fm_h,"SOLVE") 
   DO i=1,n
         evals(i)=1.0_wp/MAX(evals(i)-energy_homo,energy_gap)
   ENDDO
-  CALL copy_blacs_to_blacs_matrix(fm_h,preconditioner_env%full_matrix)
-  CALL blacs_scale_matrix(preconditioner_env%full_matrix,evals,n)
-  CALL cp_fm_gemm('N','T',n,n,n,1.0_wp,preconditioner_env%full_matrix,fm_h,0.0_wp,fm_s)
-  CALL copy_blacs_to_blacs_matrix(fm_s,preconditioner_env%full_matrix)
+  CALL copy_blacs_to_blacs_matrix(fm_h,preconditioner_env%fm)
+  CALL blacs_scale_matrix(preconditioner_env%fm,evals,n)
+  CALL cp_fm_gemm('N','T',n,n,n,1.0_wp,preconditioner_env%fm,fm_h,0.0_wp,fm_s)
+  CALL copy_blacs_to_blacs_matrix(fm_s,preconditioner_env%fm)
 
   DEALLOCATE(evals)
   CALL cp_fm_release(fm_h)
@@ -657,11 +656,11 @@ END SUBROUTINE make_full_single
 SUBROUTINE apply_full_s_inverse(preconditioner_env, matrix_in, matrix_out)
 
   TYPE(preconditioner_type)               :: preconditioner_env
-  TYPE(cp_full_matrix_type), POINTER            :: matrix_in,matrix_out
+  TYPE(cp_fm_type), POINTER            :: matrix_in,matrix_out
 !----
   INTEGER n,k
   CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=k)
-  CALL cp_fm_symm('L','U',n,k,1.0_wp,preconditioner_env%full_matrix, &
+  CALL cp_fm_symm('L','U',n,k,1.0_wp,preconditioner_env%fm, &
                         matrix_in, &
                         0.0_wp,matrix_out)
 
@@ -679,20 +678,20 @@ SUBROUTINE make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
 ! ---
   NULLIFY(fm_struct_tmp)
 
-  IF (ASSOCIATED(preconditioner_env%full_matrix)) THEN
-     CALL cp_fm_release(preconditioner_env%full_matrix)
+  IF (ASSOCIATED(preconditioner_env%fm)) THEN
+     CALL cp_fm_release(preconditioner_env%fm)
   ENDIF
   CALL get_matrix_info(matrix_h,nrow=n)
 
   CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n,ncol_global=n,&
                              context=preconditioner_env%ctxt, &
                              para_env=preconditioner_env%para_env)
-  CALL cp_fm_create(preconditioner_env%full_matrix,fm_struct_tmp, name="preconditioner")
+  CALL cp_fm_create(preconditioner_env%fm,fm_struct_tmp, name="preconditioner")
   CALL cp_fm_struct_release(fm_struct_tmp)
 
-  CALL copy_real_matrix_to_full_matrix(matrix_s,preconditioner_env%full_matrix)
-  CALL cp_fm_cholesky_decompose(preconditioner_env%full_matrix)
-  CALL cp_fm_cholesky_invert(preconditioner_env%full_matrix)
+  CALL copy_real_matrix_to_fm(matrix_s,preconditioner_env%fm)
+  CALL cp_fm_cholesky_decompose(preconditioner_env%fm)
+  CALL cp_fm_cholesky_invert(preconditioner_env%fm)
 
 END SUBROUTINE make_full_s_inverse
 
@@ -711,23 +710,23 @@ SUBROUTINE make_full_kinetic(preconditioner_env, matrix_t, matrix_s, &
 ! ---
   NULLIFY(fm_struct_tmp)
 
-  IF (ASSOCIATED(preconditioner_env%full_matrix)) THEN
-     CALL cp_fm_release(preconditioner_env%full_matrix)
+  IF (ASSOCIATED(preconditioner_env%fm)) THEN
+     CALL cp_fm_release(preconditioner_env%fm)
   ENDIF
   CALL get_matrix_info(matrix_t,nrow=n)
 
   CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n,ncol_global=n,&
                              context=preconditioner_env%ctxt, &
                              para_env=preconditioner_env%para_env)
-  CALL cp_fm_create(preconditioner_env%full_matrix,fm_struct_tmp, name="preconditioner")
+  CALL cp_fm_create(preconditioner_env%fm,fm_struct_tmp, name="preconditioner")
   CALL cp_fm_struct_release(fm_struct_tmp)
 
   shift=MAX(-energy_homo,energy_gap)
   CALL add_matrices(matrix_t,1.0_wp,matrix_t,shift,matrix_s)
 
-  CALL copy_real_matrix_to_full_matrix(matrix_t,preconditioner_env%full_matrix)
-  CALL cp_fm_cholesky_decompose(preconditioner_env%full_matrix)
-  CALL cp_fm_cholesky_invert(preconditioner_env%full_matrix)
+  CALL copy_real_matrix_to_fm(matrix_t,preconditioner_env%fm)
+  CALL cp_fm_cholesky_decompose(preconditioner_env%fm)
+  CALL cp_fm_cholesky_invert(preconditioner_env%fm)
 
 END SUBROUTINE make_full_kinetic
 

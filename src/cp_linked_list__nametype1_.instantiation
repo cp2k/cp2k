@@ -60,11 +60,11 @@
 ,
 {
  'nametype1':'fm', 
- 'type1':'type(cp_full_matrix_type),pointer', 
- 'type1in':'type(cp_full_matrix_type), pointer',
- 'type1out':'type(cp_full_matrix_type), pointer',
+ 'type1':'type(cp_fm_type),pointer', 
+ 'type1in':'type(cp_fm_type), pointer',
+ 'type1out':'type(cp_fm_type), pointer',
  'USE':
-"""USE cp_fm_types, ONLY: cp_full_matrix_type, cp_full_matrix_p_type,&
+"""USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type,&
         cp_fm_write""",
  'defines':
 """! less not much meningful...
@@ -72,7 +72,7 @@
 #define CP_SLL_FM_EQUAL_Q(el1,el2) ( el1 %id_nr == el2 %id_nr )
 """,
  '=':'=>',
- 'type1arrayEl':'type(cp_full_matrix_p_type)',
+ 'type1arrayEl':'type(cp_fm_p_type)',
  'array=':'=>',
  'arrayEl':'%matrix',
  'lessQ':'CP_SLL_FM_LESS_Q',

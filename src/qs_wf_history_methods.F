@@ -46,8 +46,8 @@ MODULE qs_wf_history_methods
                                              cp_fm_pool_type,&
                                              fm_pools_create_fm_vect,&
                                              fm_pools_give_back_fm_vect
-  USE cp_fm_types,                     ONLY: cp_full_matrix_p_type,&
-                                             cp_full_matrix_type
+  USE cp_fm_types,                     ONLY: cp_fm_p_type,&
+                                             cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -218,7 +218,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
   TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_pools
   TYPE(dft_control_type), POINTER :: dft_control
   TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mos
-  TYPE(cp_full_matrix_type), POINTER :: eigenvectors
+  TYPE(cp_fm_type), POINTER :: eigenvectors
   TYPE(qs_rho_type), POINTER :: rho
   TYPE(coeff_type), DIMENSION(:), POINTER :: rho_r, rho_g
   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao, overlap
@@ -581,7 +581,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
   TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mos
   TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools
   TYPE(qs_wf_snapshot_type), POINTER :: t0_state, t1_state
-  TYPE(cp_full_matrix_type), POINTER :: eigenvectors
+  TYPE(cp_fm_type), POINTER :: eigenvectors
   TYPE(qs_rho_type), POINTER :: rho
   REAL(kind=wp) :: t0,t1,t2
   INTEGER :: ispin, actual_extrapolation_method_nr, nmo, handle

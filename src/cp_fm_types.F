@@ -84,7 +84,7 @@ MODULE cp_fm_types
   INTEGER,SAVE,PRIVATE :: last_fm_id_nr=0
 
 
-  PUBLIC :: cp_full_matrix_type, cp_full_matrix_p_type
+  PUBLIC :: cp_fm_type, cp_fm_p_type
   PUBLIC :: cp_fm_create, cp_fm_retain, cp_fm_release,&
        cp_fm_init_random, cp_fm_set_element, cp_fm_set_all,&
        cp_fm_set_submatrix, cp_fm_get_submatrix, cp_fm_get_info,&
@@ -92,10 +92,10 @@ MODULE cp_fm_types
 !***
 !****************************************************************************
 
-!!****s* cp_fm_types/cp_full_matrix_type [1.0] *
+!!****s* cp_fm_types/cp_fm_type [1.0] *
 !!
 !!   NAME
-!!     cp_full_matrix_type
+!!     cp_fm_type
 !!
 !!   FUNCTION
 !!     represent a full matrix
@@ -122,20 +122,20 @@ MODULE cp_fm_types
 !!
 !!   SOURCE
   !***************************************************************************
-  TYPE cp_full_matrix_type
+  TYPE cp_fm_type
 !    PRIVATE
      CHARACTER(LEN=60) :: name
      INTEGER :: id_nr, ref_count, print_count
      TYPE(cp_fm_struct_type), POINTER :: matrix_struct
      REAL(kind=wp), DIMENSION(:,:), POINTER :: local_data
-  END TYPE cp_full_matrix_type
+  END TYPE cp_fm_type
 !!***
   !****************************************************************************
 
-!!****s* cp_fm_types/cp_full_matrix_p_type [1.0] *
+!!****s* cp_fm_types/cp_fm_p_type [1.0] *
 !!
 !!   NAME
-!!     cp_full_matrix_p_type
+!!     cp_fm_p_type
 !!
 !!   FUNCTION
 !!     just to build arrays of pointers to matrixes
@@ -154,9 +154,9 @@ MODULE cp_fm_types
 !!
 !!   SOURCE
   !***************************************************************************
-  TYPE cp_full_matrix_p_type
-     TYPE(cp_full_matrix_type), POINTER :: matrix
-  END TYPE cp_full_matrix_p_type
+  TYPE cp_fm_p_type
+     TYPE(cp_fm_type), POINTER :: matrix
+  END TYPE cp_fm_p_type
 !!***
   !****************************************************************************
 
@@ -169,7 +169,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_fm_create(matrix, matrix_struct, name, error)
-!!       Type(cp_full_matrix_type), Pointer:: matrix
+!!       Type(cp_fm_type), Pointer:: matrix
 !!       Type(cp_fm_struct_type), Pointer:: matrix_struct
 !!       Character(Len=*), Intent (IN), Optional:: name
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -195,7 +195,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_fm_create(matrix,matrix_struct,name,error)
-    TYPE(cp_full_matrix_type), POINTER :: matrix
+    TYPE(cp_fm_type), POINTER :: matrix
     TYPE(cp_fm_struct_type), POINTER :: matrix_struct
     CHARACTER(len=*), INTENT(in), OPTIONAL :: name
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -258,7 +258,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_fm_retain(matrix, error)
-!!       Type(cp_full_matrix_type), Pointer:: matrix
+!!       Type(cp_fm_type), Pointer:: matrix
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_fm_retain
 !!
@@ -281,7 +281,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_fm_retain(matrix,error)
-    TYPE(cp_full_matrix_type), POINTER :: matrix
+    TYPE(cp_fm_type), POINTER :: matrix
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -306,7 +306,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_fm_release(matrix, error)
-!!       Type(cp_full_matrix_type), Pointer:: matrix
+!!       Type(cp_fm_type), Pointer:: matrix
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_fm_release
 !!
@@ -329,7 +329,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_fm_release(matrix,error)
-    TYPE(cp_full_matrix_type), POINTER :: matrix
+    TYPE(cp_fm_type), POINTER :: matrix
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -365,7 +365,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cp_fm_init_random(matrix,ncol,start_col,error)
 
-    TYPE(cp_full_matrix_type), POINTER           :: matrix
+    TYPE(cp_fm_type), POINTER           :: matrix
     INTEGER, INTENT(IN)                          :: ncol
     INTEGER, INTENT(IN), OPTIONAL                :: start_col
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
@@ -421,7 +421,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER           :: matrix
+    TYPE(cp_fm_type), POINTER           :: matrix
     REAL(wp), INTENT(IN)                         :: alpha
     REAL(wp), INTENT(IN), optional               :: beta
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
@@ -450,7 +450,7 @@ CONTAINS
 !!     cp_fm_get_element
 !!
 !!   FUNCTION
-!!     return an element of a full_matrix
+!!     return an element of a fm
 !!
 !!   ARGUMENTS
 !!     - matrix: the matrix to read
@@ -473,7 +473,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! arguments
-    TYPE(cp_full_matrix_type), POINTER          :: matrix
+    TYPE(cp_fm_type), POINTER          :: matrix
     REAL(wp), INTENT(OUT)                     :: alpha
     INTEGER, INTENT(IN)                       :: icol_global,&
                                                  irow_global
@@ -526,7 +526,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: matrix
+    TYPE(cp_fm_type), POINTER          :: matrix
     REAL(wp), INTENT(IN)                      :: alpha
     INTEGER, INTENT(IN)                       :: icol_global,&
          irow_global
@@ -576,10 +576,10 @@ CONTAINS
 !!     cp_fm_set_submatrix
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_fm_set_submatrix(full_matrix, new_values, start_row,&
+!!     Subroutine cp_fm_set_submatrix(fm, new_values, start_row,&
 !!         start_col, n_rows, n_cols, alpha, beta, transpose_new_val,&
 !!         error)
-!!       Type(cp_full_matrix_type), Pointer:: full_matrix
+!!       Type(cp_fm_type), Pointer:: fm
 !!       Real(Kind=wp), Dimension(:,:), Intent (IN):: new_values
 !!       Integer, Intent (IN), Optional:: start_row, start_col, n_rows,&
 !!         n_cols
@@ -590,16 +590,16 @@ CONTAINS
 !!
 !!   FUNCTION
 !!     sets a submatrix of a full matrix
-!!      full_matrix(start_row:start_row+n_rows,start_col:start_col+n_cols)
+!!      fm(start_row:start_row+n_rows,start_col:start_col+n_cols)
 !!      = alpha*op(new_values)(1:n_rows,1:n_cols)+ beta 
-!!      * full_matrix(start_row:start_row+n_rows,start_col:start_col+n_cols)
+!!      * fm(start_row:start_row+n_rows,start_col:start_col+n_cols)
 !!
 !!   NOTES
 !!     optimized for full column updates and alpha=1.0, beta=0.0
 !!
 !!   INPUTS
 !!     - new_values: a replicated full matrix with the new values
-!!     - full_matrix: the full to change
+!!     - fm: the full to change
 !!     - start_row: the starting row of b_matrix (defaults to 1)
 !!     - start_col: the starting col of b_matrix (defaults to 1)
 !!     - n_rows: the number of row to change in b (defaults to
@@ -621,9 +621,9 @@ CONTAINS
 !!     07.2002 created borrowing from Joost's blacs_replicated_copy [fawzi]
 !!
 !!*** *********************************************************************
-  SUBROUTINE cp_fm_set_submatrix(full_matrix,new_values,start_row,&
+  SUBROUTINE cp_fm_set_submatrix(fm,new_values,start_row,&
        start_col, n_rows, n_cols, alpha, beta, transpose_new_val, error)
-    TYPE(cp_full_matrix_type) , POINTER :: full_matrix
+    TYPE(cp_fm_type) , POINTER :: fm
     REAL(wp), DIMENSION(:,:), INTENT(in) :: new_values
     INTEGER, INTENT(in), OPTIONAL :: start_row, start_col,&
          n_rows, n_cols
@@ -647,9 +647,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(full_matrix),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(fm),cp_failure_level,routineP,error,failure)
     IF (.not.failure) THEN
-       CPPrecondition(full_matrix%ref_count>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(fm%ref_count>0,cp_failure_level,routineP,error,failure)
     END IF
     IF (.not.failure) THEN
        IF (PRESENT(alpha)) al=alpha
@@ -667,12 +667,12 @@ CONTAINS
        IF (PRESENT(n_rows)) nrow=n_rows
        IF (PRESENT(n_cols)) ncol=n_cols
 
-       para_env => full_matrix%matrix_struct%para_env
-       context => full_matrix%matrix_struct%context
+       para_env => fm%matrix_struct%para_env
+       context => fm%matrix_struct%context
 
-       full_block => full_matrix%local_data
+       full_block => fm%local_data
 
-       CALL cp_fm_get_info(matrix=full_matrix,&
+       CALL cp_fm_get_info(matrix=fm,&
             nrow_global=nrow_global,ncol_global=ncol_global,&
             nrow_block =nrow_block ,ncol_block =ncol_block ,&
             nrow_local =nrow_local ,ncol_local =ncol_local ,&
@@ -747,9 +747,9 @@ CONTAINS
 !!     cp_fm_get_submatrix
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_fm_get_submatrix(full_matrix, target_m, start_row,&
+!!     Subroutine cp_fm_get_submatrix(fm, target_m, start_row,&
 !!         start_col, n_rows, n_cols, transpose_target_m, error)
-!!       Type(cp_full_matrix_type), Pointer:: full_matrix
+!!       Type(cp_fm_type), Pointer:: fm
 !!       Real(Kind=wp), Dimension(:,:), Intent (OUT):: target_m
 !!       Integer, Intent (IN), Optional:: start_row, start_col, n_rows,&
 !!         n_cols
@@ -760,7 +760,7 @@ CONTAINS
 !!   FUNCTION
 !!     gets a submatrix of a full matrix
 !!      op(target_m)(1:n_rows,1:n_cols)
-!!      =full_matrix(start_row:start_row+n_rows,start_col:start_col+n_cols)
+!!      =fm(start_row:start_row+n_rows,start_col:start_col+n_cols)
 !!
 !!   NOTES
 !!     optimized for full column updates. Zeros out a little too much
@@ -768,7 +768,7 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - target_m: a replicated full matrix that will contain the result
-!!     - full_matrix: the full you want to get the info from
+!!     - fm: the full you want to get the info from
 !!     - start_row: the starting row of b_matrix (defaults to 1)
 !!     - start_col: the starting col of b_matrix (defaults to 1)
 !!     - n_rows: the number of row to change in b (defaults to
@@ -788,9 +788,9 @@ CONTAINS
 !!     07.2002 created borrowing from Joost's blacs_replicated_copy [fawzi]
 !!
 !!*** *********************************************************************
-  SUBROUTINE cp_fm_get_submatrix(full_matrix,target_m, start_row,&
+  SUBROUTINE cp_fm_get_submatrix(fm,target_m, start_row,&
        start_col, n_rows, n_cols, transpose_target_m, error)
-    TYPE(cp_full_matrix_type) , POINTER :: full_matrix
+    TYPE(cp_fm_type) , POINTER :: fm
     REAL(wp), DIMENSION(:,:), INTENT(out) :: target_m
     INTEGER, INTENT(in), OPTIONAL :: start_row, start_col,&
          n_rows, n_cols
@@ -812,9 +812,9 @@ CONTAINS
     i0=1; j0=1; tr_a=.FALSE.
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(full_matrix),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(fm),cp_failure_level,routineP,error,failure)
     IF (.not.failure) THEN
-       CPPrecondition(full_matrix%ref_count>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(fm%ref_count>0,cp_failure_level,routineP,error,failure)
     END IF
     IF (.not.failure) THEN
        IF (PRESENT(start_row)) i0=start_row
@@ -830,16 +830,16 @@ CONTAINS
        IF (PRESENT(n_rows)) nrow=n_rows
        IF (PRESENT(n_cols)) ncol=n_cols
 
-       para_env => full_matrix%matrix_struct%para_env
-       context => full_matrix%matrix_struct%context
+       para_env => fm%matrix_struct%para_env
+       context => fm%matrix_struct%context
 
-       full_block => full_matrix%local_data
+       full_block => fm%local_data
 #if defined(__SCALAPACK)
        ! zero-out whole target_m 
        CALL dcopy(SIZE(target_m,1)*SIZE(target_m,2),0.0_wp,0,target_m(1,1),1)
 #endif
 
-       CALL cp_fm_get_info(matrix=full_matrix, &
+       CALL cp_fm_get_info(matrix=fm, &
             nrow_global=nrow_global,ncol_global=ncol_global, &
             nrow_block =nrow_block ,ncol_block =ncol_block , &
             nrow_local =nrow_local ,ncol_local =ncol_local , &
@@ -901,7 +901,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER        :: matrix
+    TYPE(cp_fm_type), POINTER        :: matrix
     CHARACTER(LEN=*), OPTIONAL, INTENT(OUT) :: name
     INTEGER, OPTIONAL, INTENT(OUT)          :: ncol_block,ncol_global,&
          nrow_block,nrow_global,&
@@ -963,7 +963,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER        :: matrix
+    TYPE(cp_fm_type), POINTER        :: matrix
     REAL(wp), INTENT(OUT)                     :: a_max
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
@@ -995,7 +995,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine cp_fm_write(matrix, unit_nr, long_description, local,&
 !!         error)
-!!       Type(cp_full_matrix_type), Pointer:: matrix
+!!       Type(cp_fm_type), Pointer:: matrix
 !!       Integer, Intent (IN):: unit_nr
 !!       Logical, Optional, Intent (IN):: long_description, local
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -1026,7 +1026,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_fm_write(matrix, unit_nr, long_description, local, error)
-    TYPE(cp_full_matrix_type), POINTER :: matrix
+    TYPE(cp_fm_type), POINTER :: matrix
     INTEGER, INTENT(in) :: unit_nr
     LOGICAL, OPTIONAL, INTENT(in) :: long_description, local
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error

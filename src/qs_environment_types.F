@@ -54,7 +54,7 @@ MODULE qs_environment_types
                                              cp_fm_struct_retain,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                             cp_full_matrix_type
+                                             cp_fm_type
   USE cp_local_lists_types,            ONLY: cp_ll_create,&
                                              cp_ll_release,&
                                              cp_ll_retain,&
@@ -797,7 +797,7 @@ END SUBROUTINE qs_env_release
 !!     Subroutine qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin,&
 !!         n_col, error)
 !!       Type(qs_environment_type), Pointer:: qs_env
-!!       Type(cp_full_matrix_type), Pointer:: v_matrix
+!!       Type(cp_fm_type), Pointer:: v_matrix
 !!       Integer, Intent (IN):: ispin
 !!       Integer, Intent (IN), Optional:: n_col
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -828,7 +828,7 @@ END SUBROUTINE qs_env_release
 SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
      error)
   TYPE(qs_environment_type), POINTER :: qs_env
-  TYPE(cp_full_matrix_type), POINTER :: v_matrix
+  TYPE(cp_fm_type), POINTER :: v_matrix
   INTEGER, INTENT(in) :: ispin
   INTEGER, INTENT(in), OPTIONAL :: n_col
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -839,7 +839,7 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
   INTEGER :: my_n_col, nmo
   TYPE(qs_scf_env_type), POINTER :: scf_env
   TYPE(scf_control_type), POINTER :: scf_control
-  TYPE(cp_full_matrix_type), POINTER :: sv
+  TYPE(cp_fm_type), POINTER :: sv
   TYPE(cp_fm_pool_type), POINTER :: maxao_maxmo_fm_pool
   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
   TYPE(qs_matrix_pools_type), POINTER :: mpools

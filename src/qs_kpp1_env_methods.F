@@ -42,8 +42,6 @@ MODULE qs_kpp1_env_methods
                                              cp_error_type,&
                                              cp_unimplemented_error,&
                                              cp_unimplemented_error_nr
-  USE cp_fm_types,                     ONLY: cp_full_matrix_p_type,&
-                                             cp_full_matrix_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_log,&
                                              cp_logger_type,&

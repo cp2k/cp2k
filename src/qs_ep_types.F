@@ -38,8 +38,8 @@ MODULE qs_ep_types
                                              cp_unimplemented_error
   USE cp_fm_types,                     ONLY: cp_fm_release,&
                                              cp_fm_retain,&
-                                             cp_full_matrix_p_type,&
-                                             cp_full_matrix_type
+                                             cp_fm_p_type,&
+                                             cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
@@ -112,8 +112,8 @@ MODULE qs_ep_types
      TYPE(qs_p_projection_p_type), DIMENSION(:), POINTER :: sub_proj
      TYPE(qs_environment_type), POINTER :: main_qs_env
      TYPE(qs_p_env_type), POINTER :: main_p_env
-     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: m_pi_Hrho_psi0d
-     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: psi1
+     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: m_pi_Hrho_psi0d
+     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: psi1
      TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: precond
   END TYPE qs_ep_env_type
 !!***

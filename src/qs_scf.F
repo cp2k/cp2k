@@ -81,7 +81,35 @@ MODULE qs_scf
                                              cp_fm_struct_get,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_create
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_type,&
+                                             cp_fm_get_info,&
+                                             cp_fm_release,&
+                                             cp_fm_set_all,&
+                                             cp_fm_init_random,&
+                                             cp_fm_set_element,&
+                                             cp_fm_p_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                             cp_fm_scale_and_add,&
+                                             cp_fm_symm,&
+                                             cp_fm_trace,&
+                                             cp_sm_fm_multiply
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_reduce,&
+                                             cp_fm_cholesky_restore
+  USE qs_blacs,                        ONLY: blacs_add_to_element,&
+                                             blacs_block_jacobi_classic,&
+                                             blacs_get_element,&
+                                             blacs_make_basis,&
+                                             blacs_syevd,&
+                                             blacs_syevx,&
+                                             copy_blacs_to_blacs_matrix,&
+                                             copy_fm_to_real_matrix,&
+                                             copy_real_matrix_to_fm,&
+                                             power_blacs_matrix,&
+                                             replicate_blacs_matrix,&
+                                             symmetrise_blacs_matrix,&
+                                             w_blacs_matrix => write_blacs_matrix
   USE cp_lbfgs_optimizer_gerd_f,       ONLY: cp_lbfgs_opt_gerd_f_type,&
                                              cp_opt_gerd_f_dealloc_ref,&
                                              cp_opt_gerd_f_init,&
@@ -163,34 +191,6 @@ MODULE qs_scf
   USE qs_arpack,                       ONLY: arpack_diag_sy
   USE qs_arpack_full,                  ONLY: op_symv_type,&
                                              setup_op_symv
-  USE qs_blacs,                        ONLY: blacs_add_to_element,&
-                                             blacs_block_jacobi_classic,&
-                                             blacs_get_element,&
-                                             blacs_make_basis,&
-                                             blacs_syevd,&
-                                             blacs_syevx,&
-                                             copy_blacs_to_blacs_matrix,&
-                                             copy_full_matrix_to_real_matrix,&
-                                             copy_real_matrix_to_full_matrix,&
-                                             cp_fm_cholesky_decompose,&
-                                             cp_fm_cholesky_reduce,&
-                                             cp_fm_cholesky_restore,&
-                                             cp_fm_gemm,&
-                                             cp_fm_get_info,&
-                                             cp_fm_init_random,&
-                                             cp_fm_release,&
-                                             cp_fm_scale_and_add,&
-                                             cp_fm_set_all,&
-                                             cp_fm_set_element,&
-                                             cp_fm_symm,&
-                                             cp_fm_trace,&
-                                             cp_full_matrix_p_type,&
-                                             cp_full_matrix_type,&
-                                             cp_sm_fm_multiply,&
-                                             power_blacs_matrix,&
-                                             replicate_blacs_matrix,&
-                                             symmetrise_blacs_matrix,&
-                                             w_blacs_matrix => write_blacs_matrix
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_rho_core,&
                                              calculate_total_abs_rho,&
@@ -533,8 +533,8 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: scf_work1
-    TYPE(cp_full_matrix_type), POINTER  :: ortho,scf_work2
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: scf_work1
+    TYPE(cp_fm_type), POINTER  :: ortho,scf_work2
     TYPE(cell_type), POINTER :: cell
 
 !   ---------------------------------------------------------------------------
@@ -662,7 +662,7 @@ CONTAINS
        CASE(diagonalisation_method_nr) ! diagonalisation (default)
 
           DO ispin=1,dft_control%nspins 
-             CALL copy_real_matrix_to_full_matrix(ks(ispin)%matrix,scf_work1(ispin)%matrix)
+             CALL copy_real_matrix_to_fm(ks(ispin)%matrix,scf_work1(ispin)%matrix)
           ENDDO
 
           IF (scf_env%iter_count > 1) THEN
@@ -939,10 +939,10 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s,k
     TYPE(dft_control_type), POINTER   :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: scf_work1
-    TYPE(cp_full_matrix_type), POINTER  :: ortho,scf_work2
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: scf_work1
+    TYPE(cp_fm_type), POINTER  :: ortho,scf_work2
     TYPE(cp_logger_type), POINTER :: logger
-    TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
+    TYPE(cp_fm_type), POINTER :: mo_eigenvectors
 
 !   ---------------------------------------------------------------------------
 
@@ -1012,7 +1012,7 @@ CONTAINS
     ndep = 0
     IF (scf_env%method /= ot_method_nr) THEN
        IF (scf_control%use_cholesky .OR. scf_control%use_arpack) THEN
-          CALL copy_real_matrix_to_full_matrix(s(1)%matrix,ortho)
+          CALL copy_real_matrix_to_fm(s(1)%matrix,ortho)
           CALL cp_fm_cholesky_decompose(ortho)
        ELSE
           CALL calculate_ortho_matrix(ortho,s(1)%matrix,scf_work2,ndep,&
@@ -1130,7 +1130,7 @@ CONTAINS
     TYPE(cp_fm_pool_p_type),DIMENSION(:), POINTER :: ao_mo_fm_pools
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
     TYPE(cp_fm_struct_type), POINTER :: ao_mo_fmstruct, ao_ao_fmstruct
-    TYPE(cp_full_matrix_type), POINTER :: eigenvectors
+    TYPE(cp_fm_type), POINTER :: eigenvectors
     TYPE(dft_control_type), POINTER   :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
     TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER :: S_sm_pools
@@ -1268,7 +1268,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER        :: ortho,work
+    TYPE(cp_fm_type), POINTER        :: ortho,work
     TYPE(real_matrix_type), POINTER           :: s
     INTEGER, INTENT(OUT)                      :: ndep
     REAL(kind=wp), INTENT(in)                 :: eps_eigval,work_syevx
@@ -1281,7 +1281,7 @@ CONTAINS
 
     CALL timeset("calculate_ortho_matrix","I","",handle)
 
-    CALL copy_real_matrix_to_full_matrix(s,ortho)
+    CALL copy_real_matrix_to_fm(s,ortho)
     CALL power_blacs_matrix(ortho,work,-0.5_wp,eps_eigval,ndep,work_syevx)
     CALL symmetrise_blacs_matrix(ortho,work)
 
@@ -1304,7 +1304,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER        :: ks,ortho,work
+    TYPE(cp_fm_type), POINTER        :: ks,ortho,work
     TYPE(mo_set_type), POINTER                :: mo_set
     LOGICAL, INTENT(INOUT)                    :: use_cholesky
     LOGICAL, INTENT(IN)                       :: do_level_shift,use_arpack,&
@@ -1318,7 +1318,7 @@ CONTAINS
 
 !   *** Local variables ***
     INTEGER :: handle,imo,nao,nmo,homo,ncv
-    TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
+    TYPE(cp_fm_type), POINTER :: mo_eigenvectors
     REAL(wp), DIMENSION(:), POINTER    :: mo_eigenvalues
     TYPE(op_symv_type)                 :: arpack_op
 
@@ -1542,14 +1542,14 @@ CONTAINS
 
     TYPE(all_potential_type), POINTER :: all_potential
     TYPE(atomic_kind_type), POINTER   :: atomic_kind
-    TYPE(cp_full_matrix_type), POINTER  :: mo_eigenvectors,sv
+    TYPE(cp_fm_type), POINTER  :: mo_eigenvectors,sv
     TYPE(gth_potential_type), POINTER :: gth_potential
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
 
-    TYPE(cp_full_matrix_type), POINTER        :: ortho,work2
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER        :: work1
+    TYPE(cp_fm_type), POINTER        :: ortho,work2
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER        :: work1
     TYPE(mo_set_p_type),  DIMENSION(:), POINTER               :: mo_array
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER   :: s_sparse
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER   :: p_rmpv
@@ -1682,7 +1682,7 @@ CONTAINS
           ALLOCATE (econf(0:maxl),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineP,"econf",(maxl + 1)*int_size)
 
-          CALL copy_real_matrix_to_full_matrix(s_sparse(1)%matrix,work2)
+          CALL copy_real_matrix_to_fm(s_sparse(1)%matrix,work2)
 
           DO ikind=1,SIZE(atomic_kind_set)
 
@@ -1791,7 +1791,7 @@ CONTAINS
              END DO
           END DO
 
-          CALL copy_full_matrix_to_real_matrix(work1(ispin)%matrix,p_rmpv(ispin)%matrix)
+          CALL copy_fm_to_real_matrix(work1(ispin)%matrix,p_rmpv(ispin)%matrix)
 
        ENDDO
 
@@ -1841,7 +1841,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN='scf_env_initial_rho_setup',&
          routineP=moduleN//':'//routineN
     INTEGER :: handle, nmo, ispin, extrapolation_method_nr
-    TYPE(cp_full_matrix_type), POINTER :: eigenvectors
+    TYPE(cp_fm_type), POINTER :: eigenvectors
     TYPE(cp_logger_type), POINTER :: logger
 
     CALL timeset(routineN,"I","",handle)
@@ -1938,12 +1938,12 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
     TYPE(qs_rho_type), POINTER :: rho
     TYPE(cp_logger_type), POINTER :: logger
-    TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
+    TYPE(cp_fm_type), POINTER :: mo_eigenvectors
     REAL(wp), DIMENSION(:), POINTER :: mo_eigenvalues
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: ks_rmpv, s
     TYPE(qs_loc_env_type), POINTER :: qs_loc_env
     TYPE(scf_control_type), POINTER :: scf_control
-    TYPE(cp_full_matrix_p_type), POINTER, DIMENSION(:) :: unoccupied_orbs
+    TYPE(cp_fm_p_type), POINTER, DIMENSION(:) :: unoccupied_orbs
     TYPE(cp_fm_struct_type), POINTER :: fm_struct_tmp
     TYPE evals_p_type
          REAL(wp), DIMENSION(:), POINTER :: evals

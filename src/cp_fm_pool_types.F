@@ -46,8 +46,8 @@ MODULE cp_fm_pool_types
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_release,&
-                                             cp_full_matrix_p_type,&
-                                             cp_full_matrix_type
+                                             cp_fm_p_type,&
+                                             cp_fm_type
   USE cp_linked_list_fm,               ONLY: cp_sll_fm_dealloc,&
                                              cp_sll_fm_get_first_el,&
                                              cp_sll_fm_insert_el,&
@@ -280,7 +280,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN='fm_pool_flush_cache',&
          routineP=moduleN//':'//routineN
     TYPE(cp_sll_fm_type), POINTER :: iterator
-    TYPE(cp_full_matrix_type), POINTER :: el_att
+    TYPE(cp_fm_type), POINTER :: el_att
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
@@ -327,7 +327,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_pool_release',&
          routineP=moduleN//':'//routineN
     TYPE(cp_sll_fm_type), POINTER :: iterator
-    TYPE(cp_full_matrix_type), POINTER :: el_att
+    TYPE(cp_fm_type), POINTER :: el_att
     INTEGER :: stat
     failure=.FALSE.
 
@@ -356,7 +356,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine fm_pool_create_fm(pool, element, name, error)
 !!       Type(cp_fm_pool_type), Pointer:: pool
-!!       Type(cp_full_matrix_type), Pointer:: element
+!!       Type(cp_fm_type), Pointer:: element
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!       Character(Len=*), Intent (IN), Optional:: name
 !!     End Subroutine fm_pool_create_fm
@@ -384,7 +384,7 @@ CONTAINS
   SUBROUTINE fm_pool_create_fm(pool, element,&
        name, error)
     TYPE(cp_fm_pool_type), POINTER :: pool
-    TYPE(cp_full_matrix_type), POINTER :: element
+    TYPE(cp_fm_type), POINTER :: element
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
     CHARACTER(len=*), INTENT(in), OPTIONAL :: name
 
@@ -432,7 +432,7 @@ CONTAINS
 !!         error)
 !!       Type(cp_fm_pool_type), Pointer:: pool
 !!       Integer, Intent (IN):: n_elements
-!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: elements
+!!       Type(cp_fm_p_type), Dimension(:), Pointer:: elements
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!       Character(Len=*), Intent (IN), Optional:: name
 !!     End Subroutine fm_pool_create_fm_vect
@@ -463,7 +463,7 @@ CONTAINS
        elements, name, error)
     TYPE(cp_fm_pool_type), POINTER :: pool
     INTEGER, INTENT(in) :: n_elements
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: elements
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: elements
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
     CHARACTER(len=*),INTENT(in),OPTIONAL :: name
 
@@ -505,7 +505,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine fm_pool_give_back_fm(pool, element, error)
 !!       Type(cp_fm_pool_type), Pointer:: pool
-!!       Type(cp_full_matrix_type), Pointer:: element
+!!       Type(cp_fm_type), Pointer:: element
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine fm_pool_give_back_fm
 !!
@@ -532,7 +532,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE fm_pool_give_back_fm(pool, element, error)
     TYPE(cp_fm_pool_type), POINTER :: pool
-    TYPE(cp_full_matrix_type), POINTER :: element
+    TYPE(cp_fm_type), POINTER :: element
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure, did_insert
@@ -574,7 +574,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine fm_pool_give_back_fm_vect(pool, elements, error)
 !!       Type(cp_fm_pool_type), Pointer:: pool
-!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: elements
+!!       Type(cp_fm_p_type), Dimension(:), Pointer:: elements
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine fm_pool_give_back_fm_vect
 !!
@@ -602,7 +602,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE fm_pool_give_back_fm_vect(pool, elements, error)
     TYPE(cp_fm_pool_type), POINTER :: pool
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: elements
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: elements
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -842,7 +842,7 @@ END SUBROUTINE fm_pools_flush_cache
 !!   SYNOPSIS
 !!     Subroutine fm_pools_create_fm_vect(pools, elements, name, error)
 !!       Type(cp_fm_pool_p_type), Dimension(:), Pointer:: pools
-!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: elements
+!!       Type(cp_fm_p_type), Dimension(:), Pointer:: elements
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!       Character(Len=*), Intent (IN), Optional:: name
 !!     End Subroutine fm_pools_create_fm_vect
@@ -870,7 +870,7 @@ END SUBROUTINE fm_pools_flush_cache
 SUBROUTINE fm_pools_create_fm_vect(pools,elements,&
      name,error)
   TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: pools
-  TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: elements
+  TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: elements
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   CHARACTER(len=*),INTENT(in),OPTIONAL :: name
   
@@ -900,7 +900,7 @@ SUBROUTINE fm_pools_create_fm_vect(pools,elements,&
          CALL fm_pool_create_fm(pool,elements(i)%matrix,&
            error=error)
       END IF
-!           CALL fm_pool_create_type(cp_full_matrix_type)(pools(i)%pool,&
+!           CALL fm_pool_create_type(cp_fm_type)(pools(i)%pool,&
 !               elements(i)%matrix,error=error)
      END DO
      
@@ -916,7 +916,7 @@ END SUBROUTINE fm_pools_create_fm_vect
 !!   SYNOPSIS
 !!     Subroutine fm_pools_give_back_fm_vect(pools, elements, error)
 !!       Type(cp_fm_pool_p_type), Dimension(:), Pointer:: pools
-!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: elements
+!!       Type(cp_fm_p_type), Dimension(:), Pointer:: elements
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine fm_pools_give_back_fm_vect
 !!
@@ -942,7 +942,7 @@ END SUBROUTINE fm_pools_create_fm_vect
 !!*** **********************************************************************
 SUBROUTINE fm_pools_give_back_fm_vect(pools,elements,error)
   TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: pools
-  TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: elements
+  TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: elements
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure

@@ -27,14 +27,13 @@ MODULE qs_arpack_diag_n
   ! the operator environments and operators
   USE cp_error_handling,               ONLY: cp_simple_assert
   USE cp_fm_utils,                     ONLY: copy_rep_vec_to_fm_col
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_fm_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE qs_arpack_tddfpt,                ONLY: arpack_op_tddfpt,&
                                              op_tddfpt_type
   USE qs_arpack_utils,                 ONLY: arpack_confirm
-  USE qs_blacs,                        ONLY: blacs_find_vector_distribution,&
-                                             cp_fm_get_info,&
-                                             cp_full_matrix_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE termination,                     ONLY: stop_program
   IMPLICIT NONE
@@ -60,7 +59,7 @@ CONTAINS
 !!       Implicit None
 !!       Integer, Intent (IN):: n_ev
 !!       Real(Kind=dbl), Dimension(:,:), Pointer:: eval
-!!       Type(cp_full_matrix_type), Pointer:: evec
+!!       Type(cp_fm_type), Pointer:: evec
 !!       Type(global_environment_type), Intent (IN):: glob_env
 !!       Type(op_tddfpt_type), Intent (INOUT), Optional:: op_tddfpt
 !!     End Subroutine arpack_diag_n
@@ -94,7 +93,7 @@ CONTAINS
   ! arguments
     INTEGER, INTENT(in)                           :: n_ev
     REAL(dbl), DIMENSION(:,:), POINTER            :: eval
-    TYPE(cp_full_matrix_type), POINTER            :: evec
+    TYPE(cp_fm_type), POINTER            :: evec
     TYPE(global_environment_type), INTENT(in)     :: glob_env
     TYPE(op_tddfpt_type), INTENT(inout), OPTIONAL :: op_tddfpt
   
@@ -251,7 +250,7 @@ CONTAINS
     INTEGER, INTENT(in)                       :: n_ev
     INTEGER, INTENT(in)                       :: nrows
     REAL(dbl), DIMENSION(:,:), POINTER        :: eval
-    TYPE(cp_full_matrix_type), POINTER        :: evec
+    TYPE(cp_fm_type), POINTER        :: evec
     TYPE(global_environment_type), INTENT(in) :: glob_env
 
     ! locals

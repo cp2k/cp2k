@@ -47,18 +47,32 @@ MODULE qs_mo_types
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fm_basic_linalg,              ONLY: cp_sm_plus_fm_fm_t
+  USE cp_fm_basic_linalg,              ONLY: cp_sm_plus_fm_fm_t, &
+                                             cp_fm_gemm,&
+                                             cp_sm_fm_multiply,&
+                                             cp_fm_syrk
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create_fm,&
                                              fm_pool_give_back_fm
   USE cp_fm_types,                     ONLY: cp_fm_set_all, &
                                              cp_fm_get_element, &
+                                             cp_fm_get_info,&
+                                             cp_fm_p_type,&
+                                             cp_fm_type,&
                                              cp_fm_create, &
                                              cp_fm_release
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
+  USE qs_blacs,                        ONLY: blacs_replicated_copy,&
+                                             blacs_scale_matrix,&
+                                             blacs_syevd,&
+                                             copy_blacs_to_blacs_matrix,&
+                                             copy_blacs_to_ionode_matrix,&
+                                             read_blacs_matrix,&
+                                             replicate_blacs_matrix,&
+                                             write_blacs_matrix
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -79,20 +93,6 @@ MODULE qs_mo_types
   USE orbital_pointers,                ONLY: nso
   USE output_utilities,                ONLY: print_warning
   USE particle_types,                  ONLY: particle_type
-  USE qs_blacs,                        ONLY: blacs_replicated_copy,&
-                                             blacs_scale_matrix,&
-                                             blacs_syevd,&
-                                             copy_blacs_to_blacs_matrix,&
-                                             copy_blacs_to_full_matrix,&
-                                             cp_fm_gemm,&
-                                             cp_fm_get_info,&
-                                             cp_fm_syrk,&
-                                             cp_full_matrix_p_type,&
-                                             cp_full_matrix_type,&
-                                             cp_sm_fm_multiply,&
-                                             read_blacs_matrix,&
-                                             replicate_blacs_matrix,&
-                                             write_blacs_matrix
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
   USE sparse_matrix_types,             ONLY: add_matrices,&
@@ -116,7 +116,7 @@ MODULE qs_mo_types
     REAL(wp)                           :: maxocc
     INTEGER                            :: homo,lfomo,nao,nelectron,nmo
     REAL(wp), DIMENSION(:), POINTER    :: eigenvalues,occupation_numbers
-    TYPE(cp_full_matrix_type), POINTER :: eigenvectors
+    TYPE(cp_fm_type), POINTER :: eigenvectors
   END TYPE mo_set_type
 
   TYPE mo_set_p_type
@@ -338,7 +338,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER        :: density_matrix
+    TYPE(cp_fm_type), POINTER        :: density_matrix
     TYPE(mo_set_type), POINTER                :: mo_set
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
@@ -422,7 +422,7 @@ CONTAINS
 
     TYPE(real_matrix_type), POINTER           :: w_matrix
     TYPE(mo_set_type), POINTER                :: mo_set
-    TYPE(cp_full_matrix_type), POINTER        :: weighted_vectors
+    TYPE(cp_fm_type), POINTER        :: weighted_vectors
 
 !   *** Local variables ***
 
@@ -474,7 +474,7 @@ CONTAINS
 
     TYPE(real_matrix_type), POINTER           :: w_matrix,ks_matrix
     TYPE(mo_set_type), POINTER                :: mo_set
-    TYPE(cp_full_matrix_type), POINTER        :: weighted_vectors,h_block
+    TYPE(cp_fm_type), POINTER        :: weighted_vectors,h_block
     TYPE(cp_fm_struct_type), POINTER          :: fm_struct_tmp
 
 !   *** Local variables ***
@@ -541,7 +541,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER           :: ks_matrix
-    TYPE(cp_full_matrix_type), POINTER          :: orbitals
+    TYPE(cp_fm_type), POINTER          :: orbitals
     TYPE(cp_para_env_type),  POINTER   :: para_env
     TYPE(cp_blacs_env_type), POINTER   :: ctxt
     REAL(wp), DIMENSION(:),  POINTER, OPTIONAL :: evals_arg
@@ -550,7 +550,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    TYPE(cp_full_matrix_type), POINTER          :: weighted_vectors,h_block,e_vectors
+    TYPE(cp_fm_type), POINTER          :: weighted_vectors,h_block,e_vectors
     REAL(wp), DIMENSION(:), ALLOCATABLE       :: evals
     INTEGER  :: handle,imo,ncol_global,nrow_global,nrow_block,ncol_block,i,j
     TYPE(cp_fm_struct_type), POINTER :: fm_struct_tmp
@@ -637,7 +637,7 @@ CONTAINS
    INTEGER :: ispin,nspin,i,j,n,k,handle
    REAL(wp) :: alpha,max_alpha
    TYPE(cp_fm_struct_type), POINTER :: tmp_fm_struct
-   TYPE(cp_full_matrix_type), POINTER :: svec,overlap
+   TYPE(cp_fm_type), POINTER :: svec,overlap
    INTEGER :: nrow_local,ncol_local
    INTEGER, DIMENSION(:), POINTER :: row_indices,col_indices
    NULLIFY(tmp_fm_struct,svec,overlap)
@@ -774,7 +774,7 @@ CONTAINS
                                                     nmo
     REAL(wp), OPTIONAL, DIMENSION(:), POINTER    :: eigenvalues,&
                                                     occupation_numbers
-    TYPE(cp_full_matrix_type), OPTIONAL, POINTER :: eigenvectors
+    TYPE(cp_fm_type), OPTIONAL, POINTER :: eigenvectors
 
 !   *** Local variables ***
 
@@ -1356,7 +1356,7 @@ CONTAINS
 
     IF (globenv%print%mo_eigenvectors) THEN
       NULLIFY (matrix)
-      CALL copy_blacs_to_full_matrix(mo_set%eigenvectors,matrix)
+      CALL copy_blacs_to_ionode_matrix(mo_set%eigenvectors,matrix)
     END IF
 
     IF (.NOT.globenv%ionode) RETURN

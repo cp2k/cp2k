@@ -39,8 +39,8 @@ MODULE qs_tddfpt_eigensolver
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_set_element,&
-                                             cp_full_matrix_p_type,&
-                                             cp_full_matrix_type
+                                             cp_fm_p_type,&
+                                             cp_fm_type
   USE cp_fm_utils,                     ONLY: copy_fm_to_rep_vec,&
                                              copy_rep_vec_to_fm
   USE cp_log_handling,                 ONLY: cp_to_string
@@ -50,7 +50,7 @@ MODULE qs_tddfpt_eigensolver
   USE qs_arpack_utils,                 ONLY: arpack_confirm
   USE qs_blacs,                        ONLY: blacs_syevd,&
                                              copy_blacs_to_blacs_matrix,&
-                                             copy_real_matrix_to_full_matrix
+                                             copy_real_matrix_to_fm
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_matrix_pools,                 ONLY: mpools_get,&
@@ -131,10 +131,10 @@ CONTAINS
                                                             temp_orbitals
     REAL(kind=dbl), DIMENSION(:,:), ALLOCATABLE          :: sum_temp
     TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER       :: ao_mo_fm_pools
-    TYPE(cp_full_matrix_p_type)                          :: T, Tev           
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER   :: X, R
-    TYPE(cp_full_matrix_p_type), DIMENSION(:,:), POINTER :: kv, opkv
-    TYPE(cp_full_matrix_p_type), DIMENSION(:,:), POINTER :: residues
+    TYPE(cp_fm_p_type)                          :: T, Tev           
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: X, R
+    TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: kv, opkv
+    TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: residues
     TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER     :: kv_fm_struct
     TYPE(cp_fm_struct_type), POINTER                     :: T_fm_struct, &
                                                             Tev_fm_struct
@@ -440,8 +440,8 @@ CONTAINS
     IMPLICIT NONE
 
     ! ARGUMENTS
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: X 
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: R 
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: X 
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: R 
     TYPE(tddfpt_env_type), INTENT(INOUT)               :: t_env
     TYPE(qs_p_env_type), POINTER                       :: p_env
     TYPE(qs_environment_type)                          :: qs_env
@@ -536,7 +536,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! arguments
-    TYPE(cp_full_matrix_p_type), DIMENSION(:,:), POINTER :: vectors
+    TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: vectors
     CHARACTER(LEN=*), INTENT(IN)                         :: vectors_name
     INTEGER, INTENT(IN)                                  :: iteration, &
                                                             n_ev, &

@@ -37,7 +37,7 @@ MODULE dft_types
                                              cp_internal_error,&
                                              cp_unimplemented_error,&
                                              cp_unimplemented_error_nr
-  USE cp_fm_types,                     ONLY: cp_full_matrix_p_type
+  USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -152,7 +152,7 @@ MODULE dft_types
      LOGICAL :: do_kernel
      CHARACTER(LEN=7) :: restricted_excitations_type
      REAL(kind=wp), DIMENSION(:,:), POINTER               :: lumos_eigenvalues
-     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER   :: lumos
+     TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: lumos
   END TYPE tddfpt_control_type
 
 ! *** Control parameters for a DFT calculation ***

@@ -33,20 +33,20 @@ module qs_arpack_full
   use global_types, only : global_environment_type
   use kinds, only: wp => dp, wp_size => dp_size
   use termination,         only: stop_memory, stop_program
-  use qs_blacs,            only: cp_full_matrix_type, &
-                                 blacs_vector_symv, &
+  USE cp_fm_types,         ONLY: cp_fm_type, &
                                  cp_fm_get_info
+  use qs_blacs,            only: blacs_vector_symv
   USE cp_para_types, ONLY: cp_para_env_type, cp_blacs_env_type
   USE cp_error_handling, ONLY: cp_error_type
 
   implicit none
   
   type op_symv_type
-     type(cp_full_matrix_type), pointer :: a
+     type(cp_fm_type), pointer :: a
      integer                            :: a_size
      logical                            :: general
-     type(cp_full_matrix_type), pointer :: b
-     type(cp_full_matrix_type), pointer :: buffer
+     type(cp_fm_type), pointer :: b
+     type(cp_fm_type), pointer :: buffer
   end type op_symv_type
 
   character(len=*), parameter :: moduleN = "qs_arpack_full"
@@ -99,9 +99,9 @@ subroutine setup_op_symv(op, a, buffer, general, b)
   implicit none
   ! arguments
   type(op_symv_type), intent(out)              :: op
-  type(cp_full_matrix_type), pointer           :: a, buffer
+  type(cp_fm_type), pointer           :: a, buffer
   logical, intent(in)                          :: general
-  type(cp_full_matrix_type), pointer, optional :: b
+  type(cp_fm_type), pointer, optional :: b
 
   ! locals
   integer                     :: buffer_cols, buffer_rows

@@ -26,7 +26,7 @@ MODULE mulliken
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cp_fm_basic_linalg,              ONLY: cp_sm_fm_multiply, &
                                              cp_sm_plus_fm_fm_t
-  USE cp_fm_types,                     ONLY: cp_full_matrix_type, &
+  USE cp_fm_types,                     ONLY: cp_fm_type, &
                                              cp_fm_create, &
                                              cp_fm_release
   USE kinds,                           ONLY: wp => dp
@@ -74,7 +74,7 @@ CONTAINS
 
     INTEGER :: nspin,ispin,handle,homo
     TYPE(real_matrix_p_type), POINTER, DIMENSION(:)    :: charge_matrix
-    TYPE(cp_full_matrix_type), POINTER                 :: fm_temp,eigenvectors
+    TYPE(cp_fm_type), POINTER                 :: fm_temp,eigenvectors
     REAL(KIND=wp), DIMENSION(:,:), POINTER             :: block
     REAL(KIND=wp), DIMENSION(:,:), POINTER              :: charges
         CHARACTER(LEN=2) :: element_symbol

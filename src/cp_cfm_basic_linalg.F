@@ -49,8 +49,8 @@ MODULE cp_cfm_basic_linalg
                                              cp_cfm_set_all,&
                                              cp_cfm_set_element,&
                                              cp_cfm_get_element,&
-                                             cp_complex_full_matrix_p_type,&
-                                             cp_complex_full_matrix_type
+                                             cp_cfm_p_type,&
+                                             cp_cfm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -90,10 +90,10 @@ CONTAINS
 
     !   ***************************************************************************
 
-    TYPE(cp_complex_full_matrix_type), POINTER           :: matrix_a
+    TYPE(cp_cfm_type), POINTER           :: matrix_a
     COMPLEX(wp), INTENT(IN)                         :: alpha
     COMPLEX(wp), INTENT(in), OPTIONAL               :: beta
-    TYPE(cp_complex_full_matrix_type), POINTER, OPTIONAL :: matrix_b
+    TYPE(cp_cfm_type), POINTER, OPTIONAL :: matrix_b
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     !   *** Local variables ***
@@ -187,7 +187,7 @@ CONTAINS
 ! one should be able to find out if ipivot is an even or an odd permutation...
 ! *****************************************************************************
   SUBROUTINE cp_cfm_lu_decompose(matrix_a,almost_determinant)
-    TYPE(cp_complex_full_matrix_type), POINTER :: matrix_a
+    TYPE(cp_cfm_type), POINTER :: matrix_a
     COMPLEX(wp), INTENT(OUT)              :: almost_determinant
 
 ! *** locals ***
@@ -246,7 +246,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_complex_full_matrix_type), POINTER:: matrix_a,matrix_b,matrix_c
+    TYPE(cp_cfm_type), POINTER:: matrix_a,matrix_b,matrix_c
     CHARACTER(LEN=1), INTENT(IN)              :: transa,transb
     COMPLEX(wp), INTENT(IN)                      :: alpha,beta
     INTEGER, INTENT(IN)                       :: k,m,n

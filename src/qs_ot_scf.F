@@ -21,14 +21,14 @@
 MODULE qs_ot_scf
 ! *****************************************************************************
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                             cp_full_matrix_type
+                                             cp_fm_set_all,&
+                                             cp_fm_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
+                                             cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
                                              wp => dp
-  USE qs_blacs,                        ONLY: copy_blacs_to_blacs_matrix,&
-                                             cp_fm_scale_and_add,&
-                                             cp_fm_set_all,&
-                                             cp_sm_fm_multiply
+  USE qs_blacs,                        ONLY: copy_blacs_to_blacs_matrix
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_ot,                           ONLY: qs_ot_allocate,&
@@ -239,7 +239,7 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_ks,matrix_s,energy, &
     REAL(wp)                                        :: energy,delta
 
     INTEGER nspin,ispin,handle
-    TYPE(cp_full_matrix_type), POINTER        :: mo_eigenvectors
+    TYPE(cp_fm_type), POINTER        :: mo_eigenvectors
 
     CALL timeset("ot_scf_mini","I","",handle)
 
@@ -294,7 +294,7 @@ SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env)
 
     ! locals 
     INTEGER :: handle,nrow_block,ncol_block,n,k
-    TYPE(cp_full_matrix_type), POINTER              :: mo_eigenvectors
+    TYPE(cp_fm_type), POINTER              :: mo_eigenvectors
     INTEGER nspin,ispin
     ! executable
     CALL timeset("ot_scf_init","I","",handle)

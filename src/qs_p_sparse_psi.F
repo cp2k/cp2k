@@ -40,7 +40,7 @@ MODULE qs_p_sparse_psi
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
                                              cp_fm_set_submatrix,&
-                                             cp_full_matrix_type
+                                             cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -340,7 +340,7 @@ END SUBROUTINE p_proj_release
 !!     Subroutine p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
 !!         start_col_full, start_col_min, ncol, error)
 !!       Type(qs_p_projection_type), Pointer:: p_proj
-!!       Type(cp_full_matrix_type), Pointer:: min_m, full_m
+!!       Type(cp_fm_type), Pointer:: min_m, full_m
 !!       Integer, Intent (IN), Optional:: start_col_min, start_col_full,&
 !!         ncol
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -376,7 +376,7 @@ END SUBROUTINE p_proj_release
 SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
      start_col_full, start_col_min, ncol, error)
   TYPE(qs_p_projection_type), POINTER :: p_proj
-  TYPE(cp_full_matrix_type), POINTER :: min_m, full_m
+  TYPE(cp_fm_type), POINTER :: min_m, full_m
   INTEGER, INTENT(in), OPTIONAL :: start_col_min, start_col_full, ncol
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
@@ -454,7 +454,7 @@ END SUBROUTINE p_proj_transfer_blacs_to_f
 !!   SYNOPSIS
 !!     Subroutine p_proj_restrain_f(p_proj, full_m, start_col, ncol, error)
 !!       Type(qs_p_projection_type), Pointer:: p_proj
-!!       Type(cp_full_matrix_type), Pointer:: full_m
+!!       Type(cp_fm_type), Pointer:: full_m
 !!       Integer, Intent (IN), Optional:: start_col, ncol
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine p_proj_restrain_f
@@ -483,7 +483,7 @@ END SUBROUTINE p_proj_transfer_blacs_to_f
 !!*** **********************************************************************
 SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol, error)
   TYPE(qs_p_projection_type), POINTER :: p_proj
-  TYPE(cp_full_matrix_type), POINTER :: full_m
+  TYPE(cp_fm_type), POINTER :: full_m
   INTEGER, INTENT(in), OPTIONAL :: start_col, ncol
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   

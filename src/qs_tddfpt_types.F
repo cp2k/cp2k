@@ -29,8 +29,8 @@ MODULE qs_tddfpt_types
                                              cp_fm_struct_create, &
                                              optimal_blacs_col_block_size, &
                                              optimal_blacs_row_block_size
-  USE cp_fm_types,                     ONLY: cp_full_matrix_type, &
-                                             cp_full_matrix_p_type, &
+  USE cp_fm_types,                     ONLY: cp_fm_type, &
+                                             cp_fm_p_type, &
                                              cp_fm_create, &
                                              cp_fm_release,&
                                              cp_fm_set_all
@@ -105,14 +105,14 @@ MODULE qs_tddfpt_types
      TYPE(fm_p_spins_p_type), DIMENSION(:), POINTER     :: X      ! right eigenvector     
      TYPE(fm_p_spins_p_type), DIMENSION(:), POINTER     :: Y      ! left eigenvector
      REAL(DBL), DIMENSION(:), POINTER                   :: eigenvalues
-     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: invS   ! the inverse of the metric
+     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: invS   ! the inverse of the metric
   END TYPE tddfpt_env_type
     
   !----------------------------------------------!
   ! The type that will hold the X and Y matrices !
   !----------------------------------------------!
   TYPE fm_p_spins_p_type
-     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: spins
+     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: spins
   END TYPE fm_p_spins_p_type
 
 ! *****************************************************************************

@@ -37,8 +37,8 @@ MODULE cp_fm_cholesky
                                              cp_internal_error,&
                                              cp_unimplemented_error
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                             cp_full_matrix_p_type,&
-                                             cp_full_matrix_type
+                                             cp_fm_p_type,&
+                                             cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -70,7 +70,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_fm_cholesky_decompose(matrix, n, error)
-!!       Type(cp_full_matrix_type), Pointer:: matrix
+!!       Type(cp_fm_type), Pointer:: matrix
 !!       Integer, Intent (IN), Optional:: n
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_fm_cholesky_decompose
@@ -98,7 +98,7 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE cp_fm_cholesky_decompose(matrix,n,error)
-    TYPE(cp_full_matrix_type), POINTER           :: matrix
+    TYPE(cp_fm_type), POINTER           :: matrix
     INTEGER, INTENT(in), OPTIONAL                :: n
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
@@ -149,7 +149,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_fm_cholesky_invert(matrix, n, error)
-!!       Type(cp_full_matrix_type), Pointer:: matrix
+!!       Type(cp_fm_type), Pointer:: matrix
 !!       Integer, Intent (IN), Optional:: n
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_fm_cholesky_invert
@@ -174,7 +174,7 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE cp_fm_cholesky_invert(matrix,n, error)
-    TYPE(cp_full_matrix_type), POINTER           :: matrix
+    TYPE(cp_fm_type), POINTER           :: matrix
     INTEGER, INTENT(in), OPTIONAL                :: n
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
@@ -225,7 +225,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_fm_cholesky_reduce(matrix, matrixb, error)
-!!       Type(cp_full_matrix_type), Pointer:: matrix, matrixb
+!!       Type(cp_fm_type), Pointer:: matrix, matrixb
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_fm_cholesky_reduce
 !!
@@ -253,7 +253,7 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE cp_fm_cholesky_reduce(matrix,matrixb, error)
-   TYPE(cp_full_matrix_type), POINTER           :: matrix,matrixb
+   TYPE(cp_fm_type), POINTER           :: matrix,matrixb
    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_cholesky_reduce',&
@@ -313,7 +313,7 @@ CONTAINS
 !******************************************************************
   SUBROUTINE cp_fm_cholesky_restore(matrix,neig,matrixb,matrixout,op,pos,&
        error)
-    TYPE(cp_full_matrix_type), POINTER          :: matrix,matrixb,matrixout
+    TYPE(cp_fm_type), POINTER          :: matrix,matrixb,matrixout
     INTEGER, INTENT(IN)                         :: neig
     CHARACTER ( LEN = * ), INTENT ( IN )        :: op
     CHARACTER ( LEN = * ), INTENT ( IN ), OPTIONAL :: pos

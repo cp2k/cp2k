@@ -26,8 +26,8 @@ MODULE qs_tddfpt_utils
                                              cp_fm_trace
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose, &
                                              cp_fm_cholesky_invert
-  USE cp_fm_types,                     ONLY: cp_full_matrix_p_type, &
-                                             cp_full_matrix_type, &
+  USE cp_fm_types,                     ONLY: cp_fm_p_type, &
+                                             cp_fm_type, &
                                              cp_fm_get_element, &
                                              cp_fm_get_submatrix, &
                                              cp_fm_init_random, &
@@ -36,8 +36,8 @@ MODULE qs_tddfpt_utils
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE qs_blacs,                        ONLY: replicate_blacs_matrix, &
-                                             copy_full_matrix_to_real_matrix, &
-                                             copy_real_matrix_to_full_matrix
+                                             copy_fm_to_real_matrix, &
+                                             copy_real_matrix_to_fm
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kpp1_env_methods,             ONLY: kpp1_create
@@ -122,8 +122,8 @@ CONTAINS
 
     ! LOCALS
     TYPE(qs_kpp1_env_type), POINTER           :: kpp1_env
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: psi0d
-    TYPE(cp_full_matrix_type), POINTER        :: eigenvectors
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: psi0d
+    TYPE(cp_fm_type), POINTER        :: eigenvectors
     INTEGER                                   :: spin, n_spins, stat
     CHARACTER(LEN=*), PARAMETER               :: routineN = "tddfpt_init", &
                                                  routineP = moduleN//"/"//routineN
@@ -182,7 +182,7 @@ CONTAINS
   ! LOCALS
     INTEGER                            :: stat
     INTEGER                            :: ev, spin, n_spins
-    TYPE(cp_full_matrix_type), POINTER :: fm
+    TYPE(cp_fm_type), POINTER :: fm
     
 
     CHARACTER(len=*), PARAMETER        :: routineN = 'tddfpt_env_init', &
@@ -196,7 +196,7 @@ CONTAINS
     ! Compute the inverse of S using cholesky factorization !
     !-------------------------------------------------------!
     DO spin=1, n_spins
-       CALL copy_real_matrix_to_full_matrix(qs_env%s(spin)%matrix, t_env%invS(spin)%matrix)
+       CALL copy_real_matrix_to_fm(qs_env%s(spin)%matrix, t_env%invS(spin)%matrix)
        CALL cp_fm_cholesky_decompose(t_env%invS(spin)%matrix)
        CALL cp_fm_cholesky_invert(t_env%invS(spin)%matrix)
     END DO
@@ -254,7 +254,7 @@ CONTAINS
 
     IMPLICIT NONE
 
-    TYPE(cp_full_matrix_type), POINTER :: matrix
+    TYPE(cp_fm_type), POINTER :: matrix
     INTEGER, INTENT(IN)                :: imax, jmax
     CHARACTER(*), INTENT(IN)           :: name
     CHARACTER, OPTIONAL, INTENT(IN)    :: sym
@@ -295,7 +295,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! arguments
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER  :: matrices
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: matrices
     TYPE(qs_environment_type), INTENT(IN),TARGET        :: qs_env
     TYPE(qs_p_env_type), POINTER                        :: p_env
     REAL(kind=DBL), DIMENSION(:,0:), INTENT(OUT)         :: energies
@@ -417,7 +417,7 @@ CONTAINS
     IMPLICIT NONE
 
     REAL(KIND=dbl), INTENT(OUT)                        :: norm
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: x, tmp_vec
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: x, tmp_vec
     TYPE(qs_environment_type)                          :: qs_env
     TYPE(global_environment_type)                      :: glob_env
 
@@ -455,8 +455,8 @@ CONTAINS
     IMPLICIT NONE
 
     ! arguments
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER   :: X, tmp_mat
-    TYPE(cp_full_matrix_p_type), DIMENSION(:,:), POINTER :: kv
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: X, tmp_mat
+    TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: kv
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER      :: S
     INTEGER, INTENT(IN)                                  :: j
     TYPE(global_environment_type), INTENT(in)            :: glob_env

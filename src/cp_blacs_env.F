@@ -118,7 +118,7 @@ CONTAINS
 
   END SUBROUTINE get_blacs_info
 
-!!****f* qs_blacs/cp_blacs_env_create [1.0] *
+!!****f* cp_blacs_env/cp_blacs_env_create [1.0] *
 !!
 !!   NAME
 !!     cp_blacs_env_create
@@ -202,7 +202,7 @@ SUBROUTINE cp_blacs_env_create(blacs_env,group,owns_group,source,error)
 END SUBROUTINE cp_blacs_env_create
 !***************************************************************************
 
-!!****f* qs_blacs/cp_blacs_env_retain [1.0] *
+!!****f* cp_blacs_env/cp_blacs_env_retain [1.0] *
 !!
 !!   NAME
 !!     cp_blacs_env_retain
@@ -247,7 +247,7 @@ SUBROUTINE cp_blacs_env_retain(blacs_env,error)
 END SUBROUTINE cp_blacs_env_retain
 !***************************************************************************
 
-!!****f* qs_blacs/cp_blacs_env_release [1.0] *
+!!****f* cp_blacs_env/cp_blacs_env_release [1.0] *
 !!
 !!   NAME
 !!     cp_blacs_env_release
@@ -393,7 +393,7 @@ END SUBROUTINE cp_blacs_env_write
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE start_blacs (MODULE qs_blacs)"
+      "SUBROUTINE start_blacs (MODULE cp_blacs_env)"
 
 !   *** Local variables ***
 
@@ -519,7 +519,7 @@ END SUBROUTINE cp_blacs_env_write
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE end_blacs (MODULE qs_blacs)"
+      "SUBROUTINE end_blacs (MODULE cp_blacs_env)"
 
 !   *** Local variables ***
 

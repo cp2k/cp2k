@@ -53,8 +53,8 @@ MODULE cp_fm_vect
                                              cp_fm_set_element,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_write,&
-                                             cp_full_matrix_p_type,&
-                                             cp_full_matrix_type
+                                             cp_fm_p_type,&
+                                             cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -90,7 +90,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_fm_vect_dealloc(matrixes, error)
-!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: matrixes
+!!       Type(cp_fm_p_type), Dimension(:), Pointer:: matrixes
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_fm_vect_dealloc
 !!
@@ -113,7 +113,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_fm_vect_dealloc(matrixes, error)
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: matrixes
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: matrixes
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -139,9 +139,9 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_fm_vect_copy(matrixes, copy, error)
-!!       Type(cp_full_matrix_p_type), Dimension(:), Intent (IN):: matrixes
+!!       Type(cp_fm_p_type), Dimension(:), Intent (IN):: matrixes
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: copy
+!!       Type(cp_fm_p_type), Dimension(:), Pointer:: copy
 !!     End Subroutine cp_fm_vect_copy
 !!
 !!   FUNCTION
@@ -164,9 +164,9 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_fm_vect_copy(matrixes, copy, error)
-  TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(in) :: matrixes
+  TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in) :: matrixes
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: copy
+  TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: copy
   
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='cp_fm_vect_copy',&
@@ -193,7 +193,7 @@ END SUBROUTINE cp_fm_vect_copy
 !!   SYNOPSIS
 !!     Subroutine cp_fm_vect_write(matrixes, unit_nr, long_description,&
 !!         local, error)
-!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: matrixes
+!!       Type(cp_fm_p_type), Dimension(:), Pointer:: matrixes
 !!       Integer, Intent (IN):: unit_nr
 !!       Logical, Optional, Intent (IN):: long_description, local
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -224,7 +224,7 @@ END SUBROUTINE cp_fm_vect_copy
 !!*** **********************************************************************
   SUBROUTINE cp_fm_vect_write(matrixes, unit_nr, long_description,&
        local, error)
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: matrixes
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: matrixes
     INTEGER, INTENT(in) :: unit_nr
     LOGICAL, OPTIONAL, INTENT(in) :: long_description, local
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -254,7 +254,7 @@ END SUBROUTINE cp_fm_vect_copy
      IF (should_w) WRITE (unit=unit_nr,fmt="(a)") ')'
   ELSE
      IF (should_w) THEN
-        WRITE (unit=unit_nr,fmt="(a)") ' <cp_full_matrix_p array>:*null*'
+        WRITE (unit=unit_nr,fmt="(a)") ' <cp_fm_p array>:*null*'
      END IF
   END IF
 END SUBROUTINE cp_fm_vect_write
@@ -267,7 +267,7 @@ END SUBROUTINE cp_fm_vect_write
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_fm_vect_set_all(matrixes, value, error)
-!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: matrixes
+!!       Type(cp_fm_p_type), Dimension(:), Pointer:: matrixes
 !!       Real(Kind=wp), Intent (IN), Optional:: value
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_fm_vect_set_all
@@ -292,7 +292,7 @@ END SUBROUTINE cp_fm_vect_write
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_fm_vect_set_all(matrixes,value,error)
-  TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: matrixes
+  TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: matrixes
   REAL(kind=wp), INTENT(in), OPTIONAL :: value
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   

@@ -20,8 +20,9 @@ MODULE qs_ot_minimizer
   USE kinds, ONLY: wp => dp, wp_size => dp_size
   USE termination,         ONLY: stop_memory, stop_program
   USE timings,             ONLY: timeset, timestop
-  USE qs_blacs,            ONLY: cp_fm_trace, cp_fm_scale_and_add, & 
-                                 cp_fm_set_all, copy_blacs_to_blacs_matrix
+  USE cp_fm_types,         ONLY: cp_fm_set_all
+  USE cp_fm_basic_linalg,  ONLY: cp_fm_trace, cp_fm_scale_and_add
+  USE qs_blacs,            ONLY: copy_blacs_to_blacs_matrix
   USE global_types,        ONLY: global_environment_type
   USE preconditioner,      ONLY: preconditioner_type, & 
                                  apply_preconditioner

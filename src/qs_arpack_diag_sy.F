@@ -24,8 +24,9 @@ MODULE qs_arpack_diag_sy
   USE termination,         ONLY: stop_memory, stop_program
   USE timings,             ONLY: timeset, timestop
   USE qs_arpack_utils,     ONLY: arpack_confirm
-  USE qs_blacs,            ONLY: cp_full_matrix_type,cp_fm_get_info, &
-                                 blacs_vector_symv, &
+  USE cp_fm_types,         ONLY: cp_fm_type, &
+                                 cp_fm_get_info
+  USE qs_blacs,            ONLY: blacs_vector_symv, &
                                  blacs_find_vector_distribution, &
                                  copy_vector_to_blacs, &
                                  copy_blacs_to_vector,blacs_daxpy
@@ -89,7 +90,7 @@ SUBROUTINE arpack_diag_sy(vmatrix, &
   IMPLICIT NONE
 
   ! arguments
-  TYPE(cp_full_matrix_type), POINTER           :: vmatrix
+  TYPE(cp_fm_type), POINTER           :: vmatrix
   REAL(WP), DIMENSION(:), POINTER              :: eval
   INTEGER, INTENT(IN)                          :: nev
   INTEGER, INTENT(IN)                          :: ncv 

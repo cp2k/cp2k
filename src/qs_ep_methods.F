@@ -61,8 +61,8 @@ MODULE qs_ep_methods
                                              cp_fm_set_all,&
                                              cp_fm_set_element,&
                                              cp_fm_write,&
-                                             cp_full_matrix_p_type,&
-                                             cp_full_matrix_type
+                                             cp_fm_p_type,&
+                                             cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_set_all,&
                                              cp_fm_vect_write
   USE cp_log_handling,                 ONLY: cp_failure_level,&
@@ -492,7 +492,7 @@ END SUBROUTINE qs_ep_calculation
     TYPE(pw_env_type), POINTER :: pw_env
     TYPE(cell_type), POINTER :: sub_cell
     TYPE(cp_logger_type), POINTER :: logger
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: psi0
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: psi0
     TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools
     TYPE(qs_matrix_pools_type), POINTER :: mpools
 
@@ -771,7 +771,7 @@ SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
   INTEGER :: handle, stat, ispin
   TYPE(qs_ks_env_type), POINTER :: ks_env
   TYPE(mo_set_p_type), DIMENSION(:), POINTER :: c
-  TYPE(cp_full_matrix_type), POINTER :: eigenvectors
+  TYPE(cp_fm_type), POINTER :: eigenvectors
   TYPE(cp_para_env_type), POINTER :: para_env
   TYPE(dft_control_type), POINTER :: dft_control
   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,h,s
@@ -830,12 +830,12 @@ SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
 !FM!   *** Redistribute the core Hamiltonian matrix in ***
 !FM!   *** order to eliminate redundant atomic blocks ***
 !FM
-!FM    CALL copy_real_matrix_to_full_matrix(h(1)%matrix,scf_work1)
+!FM    CALL copy_real_matrix_to_fm(h(1)%matrix,scf_work1)
 !FM    IF ((globenv%num_pe > 1).AND.gth_potential_present) THEN
 !FM      CALL deallocate_matrix(h(1)%matrix)
 !FM      CALL replicate_matrix_structure(s(1)%matrix,h(1)%matrix,&
 !FM                                      "CORE HAMILTONIAN MATRIX")
-!FM      CALL copy_full_matrix_to_real_matrix(scf_work1,h(1)%matrix)
+!FM      CALL copy_fm_to_real_matrix(scf_work1,h(1)%matrix)
 !FM      CALL set_qs_env(qs_env,h=h)
 !FM    END IF
 
@@ -876,7 +876,7 @@ SUBROUTINE ep_env_transfer_psi0(ep_env, error)
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='ep_env_transfer_psi0',&
         routineP=moduleN//':'//routineN
-  TYPE(cp_full_matrix_type), POINTER :: orbitals, sub_orbitals
+  TYPE(cp_fm_type), POINTER :: orbitals, sub_orbitals
   TYPE(mo_set_p_type), DIMENSION(:), POINTER :: c, sub_c
   TYPE(qs_environment_type), POINTER :: main_qs_env
   TYPE(qs_environment_p_type), DIMENSION(:), POINTER :: sub_qs_env
@@ -975,7 +975,7 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='stupid_solve',&
         routineP=moduleN//':'//routineN
-  TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: p,p_ortho, Ap,r,z
+  TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: p,p_ortho, Ap,r,z
   TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools
   TYPE(dft_control_type), POINTER :: dft_control
   TYPE(cp_logger_type), POINTER :: logger
@@ -1227,8 +1227,8 @@ END SUBROUTINE stupid_solve
 SUBROUTINE p_op_ep(p_env, qs_env, v, res, error)
   TYPE(qs_p_env_type), POINTER                             :: p_env
   TYPE(qs_environment_type), INTENT(inout), TARGET            :: qs_env
-  TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(in)    :: v
-  TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(inout) :: res
+  TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)    :: v
+  TYPE(cp_fm_p_type), DIMENSION(:), INTENT(inout) :: res
   TYPE(cp_error_type), OPTIONAL, INTENT(inout)             :: error
   
   LOGICAL :: failure
@@ -1310,7 +1310,7 @@ SUBROUTINE p_env_write_ep_matrix(p_env, qs_env, name, error)
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='p_env_write_ep_matrix',&
         routineP=moduleN//':'//routineN
-  TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: res,v
+  TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: res,v
   TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools
   TYPE(dft_control_type), POINTER :: dft_control
   TYPE(cp_logger_type), POINTER :: logger
@@ -1404,7 +1404,7 @@ END SUBROUTINE p_env_write_ep_matrix
 !!*** **********************************************************************
 SUBROUTINE ep_env_localize_matrix(ep_env, wf_coeff, error)
   TYPE(qs_ep_env_type), POINTER :: ep_env
-  TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: wf_coeff
+  TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: wf_coeff
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure

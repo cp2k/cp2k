@@ -39,8 +39,8 @@ MODULE qs_wf_history_types
                                              cp_internal_error,&
                                              cp_unimplemented_error
   USE cp_fm_types,                     ONLY: cp_fm_release,&
-                                             cp_full_matrix_p_type,&
-                                             cp_full_matrix_type
+                                             cp_fm_p_type,&
+                                             cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -106,7 +106,7 @@ MODULE qs_wf_history_types
 !!   SOURCE
 !***************************************************************************
   TYPE qs_wf_snapshot_type
-     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: wf
+     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: wf
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_r
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao,overlap

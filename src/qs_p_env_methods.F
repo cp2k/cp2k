@@ -49,6 +49,7 @@ MODULE qs_p_env_methods
   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_multiply, &
                                              cp_sm_plus_fm_fm_t
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_restore,&
                                              cp_fm_cholesky_invert
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
@@ -63,8 +64,17 @@ MODULE qs_p_env_methods
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
-                                             cp_full_matrix_p_type,&
-                                             cp_full_matrix_type
+                                             cp_fm_release,&
+                                             cp_fm_p_type,&
+                                             cp_fm_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                             cp_fm_scale_and_add,&
+                                             cp_fm_symm,&
+                                             cp_fm_syrk,&
+                                             cp_sm_fm_multiply
+  USE qs_blacs,                        ONLY: blacs_scale_and_d,&
+                                             copy_blacs_to_blacs_matrix,&
+                                             replicate_blacs_matrix
   USE cp_fm_vect,                      ONLY: cp_fm_vect_copy,&
                                              cp_fm_vect_dealloc
   USE cp_log_handling,                 ONLY: cp_failure_level,&
@@ -87,18 +97,6 @@ MODULE qs_p_env_methods
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
                                              wp=>dp
-  USE qs_blacs,                        ONLY: blacs_scale_and_d,&
-                                             copy_blacs_to_blacs_matrix,&
-                                             cp_fm_cholesky_restore,&
-                                             cp_fm_gemm,&
-                                             cp_fm_release,&
-                                             cp_fm_scale_and_add,&
-                                             cp_fm_symm,&
-                                             cp_fm_syrk,&
-                                             cp_sm_fm_multiply,&
-                                             optimal_blacs_col_block_size,&
-                                             optimal_blacs_row_block_size,&
-                                             replicate_blacs_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kpp1_env_methods,             ONLY: kpp1_calc_k_p_p1,&
@@ -162,7 +160,7 @@ CONTAINS
 !!       Type(qs_kpp1_env_type), Intent (IN), Target, Optional:: kpp1_env
 !!       Type(real_matrix_p_type), Dimension(:), Pointer, Optional::&
 !!         p1_option
-!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer, Optional::&
+!!       Type(cp_fm_p_type), Dimension(:), Pointer, Optional::&
 !!         psi0d
 !!       Logical, Intent (IN), Optional:: orthogonal_orbitals
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -202,7 +200,7 @@ CONTAINS
          TARGET, OPTIONAL                            :: kpp1_env
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER, &
          OPTIONAL                                    :: p1_option
-    TYPE(cp_full_matrix_p_type), DIMENSION(:),&
+    TYPE(cp_fm_p_type), DIMENSION(:),&
          POINTER, OPTIONAL                           :: psi0d
     LOGICAL, INTENT(in), OPTIONAL                    :: orthogonal_orbitals
     TYPE(cp_error_type), OPTIONAL, INTENT(inout)     :: error
@@ -214,7 +212,7 @@ CONTAINS
     INTEGER                          :: n_ao, n_mo, n_spins, spin, stat,handle
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(dft_control_type), POINTER  :: dft_control
-    TYPE(cp_full_matrix_type), POINTER :: qs_env_c
+    TYPE(cp_fm_type), POINTER :: qs_env_c
     TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools,&
          mo_mo_fm_pools
 
@@ -475,9 +473,9 @@ END SUBROUTINE p_env_did_change
 !!       Implicit None
 !!       Type(qs_p_env_type), Pointer:: p_env
 !!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
-!!       Type(cp_full_matrix_p_type), Dimension(:), Intent (IN), Target,&
+!!       Type(cp_fm_p_type), Dimension(:), Intent (IN), Target,&
 !!         Optional:: psi0
-!!       Type(cp_full_matrix_p_type), Dimension(:), Intent (INOUT),&
+!!       Type(cp_fm_p_type), Dimension(:), Intent (INOUT),&
 !!         Optional:: hrho_psi0d
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine p_env_psi0_changed
@@ -512,9 +510,9 @@ END SUBROUTINE p_env_did_change
     TYPE(qs_p_env_type), POINTER                 :: p_env
     TYPE(qs_environment_type), INTENT(inout), &
          TARGET                                  :: qs_env
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), &
+    TYPE(cp_fm_p_type), DIMENSION(:), &
          INTENT(in), TARGET, OPTIONAL            :: psi0
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), &
+    TYPE(cp_fm_p_type), DIMENSION(:), &
          INTENT(inout), OPTIONAL                 :: Hrho_psi0d
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
@@ -525,9 +523,9 @@ END SUBROUTINE p_env_did_change
     CHARACTER(len=*), PARAMETER            :: routineN = 'p_env_psi0_changed',&
                                               routineP = moduleN//':'//routineN
     REAL(kind=wp) :: maxocc
-    TYPE(cp_full_matrix_type), POINTER                 :: tmp
+    TYPE(cp_fm_type), POINTER                 :: tmp
     TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: my_psi0
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: my_psi0
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER    :: S,p_new
     TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: c
     TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -733,8 +731,8 @@ END SUBROUTINE p_env_did_change
 !!       Implicit None
 !!       Type(qs_p_env_type), Pointer:: p_env
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
-!!       Type(cp_full_matrix_p_type), Dimension(:), Intent (IN):: v
-!!       Type(cp_full_matrix_p_type), Dimension(:), Intent (INOUT):: res
+!!       Type(cp_fm_p_type), Dimension(:), Intent (IN):: v
+!!       Type(cp_fm_p_type), Dimension(:), Intent (INOUT):: res
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine p_op_l1
 !!
@@ -765,8 +763,8 @@ END SUBROUTINE p_env_did_change
     ! argument
     TYPE(qs_p_env_type), POINTER                             :: p_env
     TYPE(qs_environment_type), INTENT(in), TARGET            :: qs_env
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(in)    :: v
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(inout) :: res
+    TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)    :: v
+    TYPE(cp_fm_p_type), DIMENSION(:), INTENT(inout) :: res
     TYPE(cp_error_type), OPTIONAL, INTENT(inout)             :: error
                                                            
     ! locals                                               
@@ -802,8 +800,8 @@ END SUBROUTINE p_env_did_change
 !!       Type(qs_p_env_type), Pointer:: p_env
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Integer, Intent (IN):: spin
-!!       Type(cp_full_matrix_type), Pointer:: v
-!!       Type(cp_full_matrix_type), Pointer:: res
+!!       Type(cp_fm_type), Pointer:: v
+!!       Type(cp_fm_type), Pointer:: res
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine p_op_l1_spin
 !!
@@ -837,15 +835,15 @@ END SUBROUTINE p_env_did_change
     TYPE(qs_p_env_type), POINTER                     :: p_env
     TYPE(qs_environment_type), INTENT(in), TARGET    :: qs_env
     INTEGER, INTENT(IN)                              :: spin
-    TYPE(cp_full_matrix_type), POINTER               :: v
-    TYPE(cp_full_matrix_type), POINTER               :: res
+    TYPE(cp_fm_type), POINTER               :: v
+    TYPE(cp_fm_type), POINTER               :: res
     TYPE(cp_error_type), OPTIONAL, INTENT(inout)     :: error
                                                            
     ! locals                                               
     LOGICAL                            :: failure
     INTEGER                            :: ncol, handle
     TYPE(real_matrix_type), POINTER    :: k_p
-    TYPE(cp_full_matrix_type), POINTER :: tmp
+    TYPE(cp_fm_type), POINTER :: tmp
     TYPE(cp_para_env_type), POINTER    :: para_env
     TYPE(cp_fm_pool_type),POINTER      :: maxao_maxmo_fm_pool
     TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mos
@@ -902,7 +900,7 @@ END SUBROUTINE p_env_did_change
 !!       Type(qs_p_env_type), Pointer:: p_env
 !!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
 !!       Type(real_matrix_p_type), Dimension(:), Pointer:: p1
-!!       Type(cp_full_matrix_p_type), Dimension(:), Intent (INOUT):: res
+!!       Type(cp_fm_p_type), Dimension(:), Intent (INOUT):: res
 !!       Real(Kind=dbl), Intent (IN), Optional:: alpha, beta
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine p_op_l2
@@ -940,7 +938,7 @@ END SUBROUTINE p_env_did_change
     TYPE(qs_p_env_type), POINTER                             :: p_env
     TYPE(qs_environment_type), INTENT(inout), TARGET         :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER          :: p1
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(INOUT) :: res
+    TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT) :: res
     REAL(kind=dbl), INTENT(in), OPTIONAL                     :: alpha, beta
     TYPE(cp_error_type), OPTIONAL, INTENT(INOUT)             :: error
 
@@ -1025,7 +1023,7 @@ END SUBROUTINE p_env_did_change
 !!       Implicit None
 !!       Type(qs_p_env_type), Pointer:: p_env
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
-!!       Type(cp_full_matrix_p_type), Dimension(:), Intent (INOUT):: v
+!!       Type(cp_fm_p_type), Dimension(:), Intent (INOUT):: v
 !!       Integer, Dimension(:), Intent (IN), Optional:: n_cols
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine p_preortho
@@ -1059,7 +1057,7 @@ END SUBROUTINE p_env_did_change
     ! arguments
     TYPE(qs_p_env_type), POINTER                             :: p_env
     TYPE(qs_environment_type), INTENT(in), TARGET            :: qs_env
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(inout) :: v
+    TYPE(cp_fm_p_type), DIMENSION(:), INTENT(inout) :: v
     INTEGER, DIMENSION(:), INTENT(in), OPTIONAL              :: n_cols
     TYPE(cp_error_type), OPTIONAL, INTENT(inout)             :: error
 
@@ -1069,7 +1067,7 @@ END SUBROUTINE p_env_did_change
          routineP = moduleN//':'//routineN
     INTEGER                            :: v_rows, v_cols, cols, handle
     INTEGER                            :: n_spins, spin, nmo2,maxnmo, max_cols
-    TYPE(cp_full_matrix_type), POINTER :: tmp_matrix
+    TYPE(cp_fm_type), POINTER :: tmp_matrix
     TYPE(cp_fm_pool_type), POINTER     :: maxmo_maxmo_fm_pool
     TYPE(cp_fm_struct_type), POINTER   :: maxmo_maxmo_fmstruct,&
          tmp_fmstruct
@@ -1168,7 +1166,7 @@ END SUBROUTINE p_env_did_change
 !!       Implicit None
 !!       Type(qs_p_env_type), Pointer:: p_env
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
-!!       Type(cp_full_matrix_p_type), Dimension(:), Intent (INOUT):: v
+!!       Type(cp_fm_p_type), Dimension(:), Intent (INOUT):: v
 !!       Integer, Dimension(:), Intent (IN), Optional:: n_cols
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine p_postortho
@@ -1203,7 +1201,7 @@ END SUBROUTINE p_env_did_change
     ! arguments
     TYPE(qs_p_env_type), POINTER                             :: p_env
     TYPE(qs_environment_type), INTENT(in), TARGET            :: qs_env
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(inout) :: v
+    TYPE(cp_fm_p_type), DIMENSION(:), INTENT(inout) :: v
     INTEGER, DIMENSION(:), INTENT(in), OPTIONAL              :: n_cols
     TYPE(cp_error_type), OPTIONAL, INTENT(inout)             :: error
 
@@ -1213,7 +1211,7 @@ END SUBROUTINE p_env_did_change
          routineP = moduleN//':'//routineN
     INTEGER                            :: v_rows, v_cols, cols, handle
     INTEGER                            :: n_spins, spin, nmo2,maxnmo, max_cols
-    TYPE(cp_full_matrix_type), POINTER :: tmp_matrix
+    TYPE(cp_fm_type), POINTER :: tmp_matrix
     TYPE(cp_fm_pool_type), POINTER     :: maxmo_maxmo_fm_pool
     TYPE(cp_fm_struct_type), POINTER :: maxmo_maxmo_fmstruct,&
          tmp_fmstruct
@@ -1312,7 +1310,7 @@ END SUBROUTINE p_env_did_change
 !!       Type(qs_p_env_type), Pointer:: p_env
 !!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
 !!       Type(real_matrix_p_type), Dimension(:), Pointer:: p1
-!!       Type(cp_full_matrix_p_type), Dimension(:), Intent (INOUT):: res
+!!       Type(cp_fm_p_type), Dimension(:), Intent (INOUT):: res
 !!       Real(Kind=dbl), Intent (IN), Optional:: alpha, beta
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine p_op_l2
@@ -1345,8 +1343,8 @@ END SUBROUTINE p_env_did_change
     ! arguments
     TYPE(qs_p_env_type), POINTER                             :: p_env
     TYPE(qs_environment_type), INTENT(inout), TARGET         :: qs_env
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(in)    :: v
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(inout) :: res
+    TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)    :: v
+    TYPE(cp_fm_p_type), DIMENSION(:), INTENT(inout) :: res
     REAL(kind=dbl), INTENT(in), OPTIONAL                     :: alpha, beta
     TYPE(cp_error_type), OPTIONAL, INTENT(inout)             :: error
 

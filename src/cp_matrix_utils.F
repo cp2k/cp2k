@@ -27,7 +27,6 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_matrix_utils
-  !use qs_blacs, only:
   USE cp_array_utils,                  ONLY: cp_2d_i_guarantee_size,&
                                              cp_2d_logical_guarantee_size,&
                                              cp_2d_r_output
@@ -61,7 +60,7 @@ MODULE cp_matrix_utils
   USE mathlib,                         ONLY: symmetrize_matrix
   USE message_passing,                 ONLY: mp_sum
   USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             copy_sparse_to_full_matrix,&
+                                             copy_sparse_to_fm,&
                                              find_block_node,&
                                              first_block_node,&
                                              get_block_node,&
@@ -1361,7 +1360,7 @@ SUBROUTINE cp_sm_output(logger, outputName, &
         routineP=moduleN//':'//routineN
   CHARACTER(len=40) :: symmetry
   CHARACTER(len=80) :: name
-  REAL(wp), DIMENSION(:,:), POINTER :: full_matrix
+  REAL(wp), DIMENSION(:,:), POINTER :: fm
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
@@ -1371,12 +1370,12 @@ SUBROUTINE cp_sm_output(logger, outputName, &
              matrix_name=name,&
              matrix_symmetry=symmetry)
         
-        NULLIFY (full_matrix)
-        CALL copy_sparse_to_full_matrix(matrix,full_matrix)
+        NULLIFY (fm)
+        CALL copy_sparse_to_fm(matrix,fm)
         IF (symmetry == "symmetric") THEN
-           CALL symmetrize_matrix(full_matrix,"upper_to_lower")
+           CALL symmetrize_matrix(fm,"upper_to_lower")
         ELSE IF (symmetry == "antisymmetric") THEN
-           CALL symmetrize_matrix(full_matrix,"anti_upper_to_lower")
+           CALL symmetrize_matrix(fm,"anti_upper_to_lower")
         ELSE IF (symmetry /= "NONE") THEN
            CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
                 fromWhere=routineP,message="Unknown matrix structure in"//&
@@ -1384,19 +1383,19 @@ SUBROUTINE cp_sm_output(logger, outputName, &
                 error=error)
         END IF
         
-        CALL mp_sum(full_matrix,para_env%group)
+        CALL mp_sum(fm,para_env%group)
         
         IF (PRESENT(comment)) THEN
            CALL cp_2d_r_output(logger=logger, outputName=outputName, &
-                fromWhere=fromWhere, iter=iter, array=full_matrix,&
+                fromWhere=fromWhere, iter=iter, array=fm,&
                 comment=comment, el_format=el_format, error=error)
         ELSE
            CALL cp_2d_r_output(logger=logger, outputName=outputName, &
-                fromWhere=fromWhere, iter=iter, array=full_matrix,&
+                fromWhere=fromWhere, iter=iter, array=fm,&
                 comment=name, el_format=el_format, error=error)
         END IF
-        IF (ASSOCIATED(full_matrix)) THEN
-           DEALLOCATE(full_matrix)
+        IF (ASSOCIATED(fm)) THEN
+           DEALLOCATE(fm)
         END IF
      END IF
   END IF

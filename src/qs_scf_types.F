@@ -39,8 +39,8 @@ MODULE qs_scf_types
                                              cp_unimplemented_error
   USE cp_fm_types,                     ONLY: cp_fm_release,&
                                              cp_fm_retain,&
-                                             cp_full_matrix_p_type,&
-                                             cp_full_matrix_type
+                                             cp_fm_p_type,&
+                                             cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
@@ -105,8 +105,8 @@ TYPE qs_scf_env_type
    REAL(kind=wp) :: iter_param, iter_delta, p_mix
    CHARACTER (len=15) :: iter_method
    LOGICAL :: print_iter_line
-   TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: scf_work1
-   TYPE(cp_full_matrix_type), POINTER  :: scf_work2, ortho
+   TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: scf_work1
+   TYPE(cp_fm_type), POINTER  :: scf_work2, ortho
    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p_new
    TYPE(preconditioner_type), POINTER :: ot_preconditioner
    TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env

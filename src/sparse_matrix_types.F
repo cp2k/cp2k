@@ -102,7 +102,7 @@ MODULE sparse_matrix_types
             allocate_matrix,&
             allocate_matrix_set,&
             copy_matrix,&
-            copy_sparse_to_full_matrix,&
+            copy_sparse_to_fm,&
             deallocate_matrix,&
             deallocate_matrix_row,&
             deallocate_matrix_set,&
@@ -831,7 +831,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
 ! *****************************************************************************
 
-  SUBROUTINE copy_sparse_to_full_matrix(sparse_matrix,full_matrix)
+  SUBROUTINE copy_sparse_to_fm(sparse_matrix,fm)
 
 !   Purpose: Copy the matrix blocks of a sparse matrix to the corresponding
 !            full matrix which is allocated in this routine.
@@ -841,12 +841,12 @@ END SUBROUTINE cp_sm_scale_and_add
 !   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
-    REAL(wp), DIMENSION(:,:), POINTER :: full_matrix
+    REAL(wp), DIMENSION(:,:), POINTER :: fm
 
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE copy_sparse_to_full_matrix (MODULE sparse_matrix_types)"
+      "SUBROUTINE copy_sparse_to_fm (MODULE sparse_matrix_types)"
 
 !   *** Local variables ***
 
@@ -865,14 +865,14 @@ END SUBROUTINE cp_sm_scale_and_add
       CALL stop_program(routine,"The input matrix pointer is not associated")
     END IF
 
-    IF (ASSOCIATED(full_matrix)) DEALLOCATE (full_matrix)
+    IF (ASSOCIATED(fm)) DEALLOCATE (fm)
 
     nrow = sparse_matrix%nrow
     ncol = sparse_matrix%ncol
 
-    ALLOCATE (full_matrix(nrow,ncol),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"full_matrix",nrow*ncol*wp_size)
-    full_matrix(:,:) = 0.0_wp
+    ALLOCATE (fm(nrow,ncol),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"fm",nrow*ncol*wp_size)
+    fm(:,:) = 0.0_wp
 
 !   *** Traverse all block nodes of the sparse matrix ***
 
@@ -896,7 +896,7 @@ END SUBROUTINE cp_sm_scale_and_add
           DO irow=sparse_matrix%first_row(iblock_row),&
                   sparse_matrix%last_row(iblock_row)
 
-            full_matrix(irow,icol) = sparse_block(irow_block,icol_block)
+            fm(irow,icol) = sparse_block(irow_block,icol_block)
 
             irow_block = irow_block + 1
 
@@ -912,7 +912,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     END DO
 
-  END SUBROUTINE copy_sparse_to_full_matrix
+  END SUBROUTINE copy_sparse_to_fm
 
 ! *****************************************************************************
 ! multiplies a sparse matrix times ncol local vectors, adding it the the output

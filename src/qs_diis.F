@@ -41,8 +41,12 @@ MODULE qs_diis
                                              cp_fm_get_info,&
                                              cp_fm_maxval,&
                                              cp_fm_set_all,&
-                                             cp_full_matrix_p_type,&
-                                             cp_full_matrix_type
+                                             cp_fm_p_type,&
+                                             cp_fm_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
+                                             cp_fm_gemm,&
+                                             cp_fm_symm,&
+                                             cp_fm_trace
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -56,11 +60,7 @@ MODULE qs_diis
   USE mathlib,                         ONLY: diagonalize_matrix,&
                                              symmetrize_matrix
   USE qs_blacs,                        ONLY: copy_blacs_to_blacs_matrix,&
-                                             copy_real_matrix_to_full_matrix,&
-                                             cp_fm_scale_and_add,&
-                                             cp_fm_gemm,&
-                                             cp_fm_symm,&
-                                             cp_fm_trace,&
+                                             copy_real_matrix_to_fm,&
                                              replicate_blacs_matrix
   USE qs_diis_types,                   ONLY: qs_diis_b_release,&
                                              qs_diis_b_retain,&
@@ -260,8 +260,8 @@ CONTAINS
 !!     Subroutine qs_diis_b_step(diis_buffer, mo_array, kc, sc, delta,&
 !!         error_max, diis_step, qs_env, error)
 !!       Type(qs_diis_buffer_type), Pointer:: diis_buffer
-!!       Type(cp_full_matrix_type), Pointer:: sc
-!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: kc
+!!       Type(cp_fm_type), Pointer:: sc
+!!       Type(cp_fm_p_type), Dimension(:), Pointer:: kc
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!       Type(mo_set_p_type), Dimension(:), Pointer:: mo_array
 !!       Type(qs_environment_type), Intent (IN):: qs_env
@@ -294,8 +294,8 @@ CONTAINS
        diis_step,qs_env,error)
 
     TYPE(qs_diis_buffer_type), POINTER                 :: diis_buffer
-    TYPE(cp_full_matrix_type), POINTER                 :: sc
-    TYPE(cp_full_matrix_p_type),DIMENSION(:), POINTER  :: kc
+    TYPE(cp_fm_type), POINTER                 :: sc
+    TYPE(cp_fm_p_type),DIMENSION(:), POINTER  :: kc
     TYPE(cp_error_type), INTENT(inout), OPTIONAL       :: error
     TYPE(mo_set_type), POINTER                         :: mo_set
     TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
@@ -311,7 +311,7 @@ CONTAINS
 
     !   *** Local variables ***
 
-    TYPE(cp_full_matrix_type), POINTER  :: c
+    TYPE(cp_fm_type), POINTER  :: c
     TYPE(scf_control_type), POINTER     :: scf_control
 
     INTEGER :: handle,ib,istat,jb,nao,nb,nb1,nmo,output_unit,&
@@ -320,7 +320,7 @@ CONTAINS
     REAL(wp) :: eps_diis,tmp
 
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
-    TYPE(cp_full_matrix_type), POINTER :: new_errors,old_errors,parameters
+    TYPE(cp_fm_type), POINTER :: new_errors,old_errors,parameters
     TYPE(cp_fm_struct_type), POINTER :: matrix_struct
     TYPE(cp_logger_type), POINTER :: logger
 
@@ -375,7 +375,7 @@ CONTAINS
 
        new_errors => diis_buffer%error(ib,ispin)%matrix
        ! I guess that this copy can be avoided for LSD
-       CALL copy_real_matrix_to_full_matrix(s(1)%matrix,new_errors)
+       CALL copy_real_matrix_to_fm(s(1)%matrix,new_errors)
        CALL cp_fm_symm("L","U",nao,nmo,2.0_wp,new_errors,c,0.0_wp,sc)
 
        CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_wp,sc,kc(ispin)%matrix, 0.0_wp,new_errors)

@@ -55,6 +55,8 @@ MODULE qs_collocate_density
                                              cp_error_message,&
                                              cp_error_type,&
                                              cp_internal_error
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_note_level,&
@@ -102,9 +104,7 @@ MODULE qs_collocate_density
                                              pw_copy,&
                                              pw_p_type,&
                                              pw_type
-  USE qs_blacs,                        ONLY: blacs_get_element,&
-                                             cp_fm_get_info,&
-                                             cp_full_matrix_type
+  USE qs_blacs,                        ONLY: blacs_get_element
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_interactions,                 ONLY: exp_radius_very_extended
@@ -126,7 +126,7 @@ MODULE qs_collocate_density
   USE simulation_cell,                 ONLY: cell_type,&
                                              pbc
   USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             copy_sparse_to_full_matrix,&
+                                             copy_sparse_to_fm,&
                                              deallocate_matrix,&
                                              get_block_node,&
                                              get_matrix_info,&
@@ -845,7 +845,7 @@ CONTAINS
                                     gridlevel_info,cube_info,l_info,&
                                     qs_env,error)
 
-    TYPE(cp_full_matrix_type), POINTER :: mo_vectors
+    TYPE(cp_fm_type), POINTER :: mo_vectors
     INTEGER :: ivector
 
     TYPE(coeff_type), INTENT(INOUT)              :: rho,rho_gspace

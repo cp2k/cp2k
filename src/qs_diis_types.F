@@ -31,7 +31,7 @@ module qs_diis_types
        cp_error_dealloc_ref, cp_error_message, cp_assert,&
        cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
        cp_error_get_logger, cp_a_l, cp_error_check
-  USE cp_fm_types, ONLY: cp_full_matrix_p_type, cp_full_matrix_type,&
+  USE cp_fm_types, ONLY: cp_fm_p_type, cp_fm_type,&
        cp_fm_release, cp_fm_retain
   use kinds, only: wp=>dp
   use cp_para_types, only: cp_para_env_type
@@ -72,7 +72,7 @@ module qs_diis_types
   TYPE qs_diis_buffer_type
     INTEGER                                          :: nbuffer,ncall,&
          id_nr,ref_count
-    TYPE(cp_full_matrix_p_type), DIMENSION(:,:), POINTER :: error,PARAMETER
+    TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: error,PARAMETER
     REAL(wp), DIMENSION(:,:), POINTER                :: b_matrix
   END TYPE qs_diis_buffer_type
   !!***

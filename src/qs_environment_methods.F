@@ -47,6 +47,13 @@ MODULE qs_environment_methods
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                             cp_fm_scale_and_add,&
+                                             cp_sm_fm_multiply
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_fm_release,&
+                                             cp_fm_p_type,&
+                                             cp_fm_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create,&
@@ -118,15 +125,6 @@ MODULE qs_environment_methods
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_type
-  USE qs_blacs,                        ONLY: cp_fm_gemm,&
-                                             cp_fm_get_info,&
-                                             cp_fm_release,&
-                                             cp_fm_scale_and_add,&
-                                             cp_full_matrix_p_type,&
-                                             cp_full_matrix_type,&
-                                             cp_sm_fm_multiply,&
-                                             optimal_blacs_col_block_size,&
-                                             optimal_blacs_row_block_size
   USE qs_charges_types,                ONLY: qs_charges_create,&
                                              qs_charges_release,&
                                              qs_charges_retain,&

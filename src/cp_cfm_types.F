@@ -78,17 +78,17 @@ MODULE cp_cfm_types
   INTEGER,SAVE,PRIVATE :: last_cfm_id_nr=0
 
 
-  PUBLIC :: cp_complex_full_matrix_type, cp_complex_full_matrix_p_type
+  PUBLIC :: cp_cfm_type, cp_cfm_p_type
   PUBLIC :: cp_cfm_create, cp_cfm_retain, cp_cfm_release,&
        cp_cfm_init_random, cp_cfm_set_element, cp_cfm_set_all,&
        cp_cfm_get_info, cp_cfm_get_element
 !***
 !****************************************************************************
 
-!!****s* cp_fm_types/cp_complex_full_matrix_type [1.0] *
+!!****s* cp_fm_types/cp_cfm_type [1.0] *
 !!
 !!   NAME
-!!     cp_complex_full_matrix_type
+!!     cp_cfm_type
 !!
 !!   FUNCTION
 !!     represent a complex full matrix
@@ -110,20 +110,20 @@ MODULE cp_cfm_types
 !!
 !!   SOURCE
   !***************************************************************************
-  TYPE cp_complex_full_matrix_type
+  TYPE cp_cfm_type
 !    PRIVATE
      CHARACTER(LEN=60) :: name
      INTEGER :: id_nr, ref_count, print_count
      TYPE(cp_fm_struct_type), POINTER :: matrix_struct
      COMPLEX(kind=wp), DIMENSION(:,:), POINTER :: local_data
-  END TYPE cp_complex_full_matrix_type
+  END TYPE cp_cfm_type
 !!***
   !****************************************************************************
 
-!!****s* cp_cfm_types/cp_complex_full_matrix_p_type [1.0] *
+!!****s* cp_cfm_types/cp_cfm_p_type [1.0] *
 !!
 !!   NAME
-!!     cp_complex_full_matrix_p_type
+!!     cp_cfm_p_type
 !!
 !!   FUNCTION
 !!     just to build arrays of pointers to matrixes
@@ -136,9 +136,9 @@ MODULE cp_cfm_types
 !!
 !!   SOURCE
   !***************************************************************************
-  TYPE cp_complex_full_matrix_p_type
-     TYPE(cp_complex_full_matrix_type), POINTER :: matrix
-  END TYPE cp_complex_full_matrix_p_type
+  TYPE cp_cfm_p_type
+     TYPE(cp_cfm_type), POINTER :: matrix
+  END TYPE cp_cfm_p_type
 !!***
   !****************************************************************************
 
@@ -151,7 +151,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_cfm_create(matrix, matrix_struct, name, error)
-!!       Type(cp_complex_full_matrix_type), Pointer:: matrix
+!!       Type(cp_cfm_type), Pointer:: matrix
 !!       Type(cp_fm_struct_type), Pointer:: matrix_struct
 !!       Character(Len=*), Intent (IN), Optional:: name
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -172,7 +172,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_cfm_create(matrix,matrix_struct,name,error)
-    TYPE(cp_complex_full_matrix_type), POINTER :: matrix
+    TYPE(cp_cfm_type), POINTER :: matrix
     TYPE(cp_fm_struct_type), POINTER :: matrix_struct
     CHARACTER(len=*), INTENT(in), OPTIONAL :: name
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -232,7 +232,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_cfm_retain(matrix, error)
-!!       Type(cp_complex_full_matrix_type), Pointer:: matrix
+!!       Type(cp_cfm_type), Pointer:: matrix
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_cfm_retain
 !!
@@ -249,7 +249,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_cfm_retain(matrix,error)
-    TYPE(cp_complex_full_matrix_type), POINTER :: matrix
+    TYPE(cp_cfm_type), POINTER :: matrix
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -272,7 +272,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_cfm_release(matrix, error)
-!!       Type(cp_full_matrix_type), Pointer:: matrix
+!!       Type(cp_fm_type), Pointer:: matrix
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_fm_release
 !!
@@ -290,7 +290,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_cfm_release(matrix,error)
-    TYPE(cp_complex_full_matrix_type), POINTER :: matrix
+    TYPE(cp_cfm_type), POINTER :: matrix
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -324,7 +324,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cp_cfm_init_random(matrix,ncol,error)
 
-    TYPE(cp_complex_full_matrix_type), POINTER           :: matrix
+    TYPE(cp_cfm_type), POINTER           :: matrix
     INTEGER, INTENT(IN)                          :: ncol
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
@@ -388,7 +388,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_complex_full_matrix_type), POINTER           :: matrix
+    TYPE(cp_cfm_type), POINTER           :: matrix
     COMPLEX(wp), INTENT(IN)                         :: alpha
     COMPLEX(wp), OPTIONAL, INTENT(IN)               :: beta
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
@@ -437,7 +437,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! arguments
-    TYPE(cp_complex_full_matrix_type), POINTER          :: matrix
+    TYPE(cp_cfm_type), POINTER          :: matrix
     COMPLEX(wp), INTENT(OUT)                     :: alpha
     INTEGER, INTENT(IN)                       :: icol_global,&
                                                  irow_global
@@ -485,7 +485,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_complex_full_matrix_type), POINTER          :: matrix
+    TYPE(cp_cfm_type), POINTER          :: matrix
     COMPLEX(wp), INTENT(IN)                      :: alpha
     INTEGER, INTENT(IN)                       :: icol_global,&
          irow_global
@@ -541,7 +541,7 @@ CONTAINS
 !   for efficient use
 !   ***************************************************************************
 
-    TYPE(cp_complex_full_matrix_type), POINTER        :: matrix
+    TYPE(cp_cfm_type), POINTER        :: matrix
     CHARACTER(LEN=*), OPTIONAL, INTENT(OUT) :: name
     INTEGER, OPTIONAL, INTENT(OUT)          :: ncol_block,ncol_global,&
          nrow_block,nrow_global,&

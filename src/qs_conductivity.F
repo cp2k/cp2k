@@ -30,8 +30,8 @@ MODULE qs_conductivity
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_release,&
-                                             cp_full_matrix_p_type,&
-                                             cp_full_matrix_type
+                                             cp_fm_p_type,&
+                                             cp_fm_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE kinds,                           ONLY: wp => dp
   USE mathconstants,                   ONLY: pi
@@ -51,14 +51,14 @@ CONTAINS
 SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
                                 unoccupied_orbs,unoccupied_evals,volume,ionode,scr)
    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_s
-   TYPE(cp_full_matrix_type), POINTER              :: occupied_orbs, unoccupied_orbs
+   TYPE(cp_fm_type), POINTER              :: occupied_orbs, unoccupied_orbs
    REAL(wp), DIMENSION(:), POINTER                 :: occupied_evals, unoccupied_evals
    REAL(wp)                                        :: volume
    LOGICAL                                         :: ionode
    INTEGER                                         :: scr
 
 
-   TYPE(cp_full_matrix_type), POINTER              :: buf,matrix_elements
+   TYPE(cp_fm_type), POINTER              :: buf,matrix_elements
    TYPE(cp_fm_struct_type), POINTER                :: me_struct,template
    INTEGER                                         :: component,nocc,nunocc,nao,i,j,nrow_local, &
                                                       ncol_local,index,handle

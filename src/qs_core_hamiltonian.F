@@ -127,7 +127,6 @@ MODULE qs_core_hamiltonian
                                              add_matrices,&
                                              allocate_matrix,&
                                              allocate_matrix_set,&
-                                             copy_sparse_to_full_matrix,&
                                              cp_sm_scale_and_add,&
                                              deallocate_matrix,&
                                              deallocate_matrix_row,&

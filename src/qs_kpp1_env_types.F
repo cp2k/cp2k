@@ -50,8 +50,6 @@ MODULE qs_kpp1_env_types
                                              cp_unimplemented_error
   USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
                                              cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_full_matrix_p_type,&
-                                             cp_full_matrix_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&

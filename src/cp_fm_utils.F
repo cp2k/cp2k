@@ -12,7 +12,7 @@
 !!
 !!   FUNCTION
 !!     A module to cure the fucked up naming conventions in the whole
-!!     blacs / full_matrix mess.
+!!     blacs / fm mess.
 !!
 !!
 !!   MODIFICATION HISTORY
@@ -49,7 +49,7 @@ CONTAINS
     IMPLICIT NONE
 
   ! arguments
-    TYPE(cp_full_matrix_type), POINTER :: mat_a
+    TYPE(cp_fm_type), POINTER :: mat_a
     INTEGER, INTENT(in)                :: col_a
     REAL(dbl), DIMENSION(:), POINTER   :: vec_b
   
@@ -111,7 +111,7 @@ CONTAINS
 
     ! arguments
     REAL(dbl), DIMENSION(:), POINTER   :: vec_a
-    TYPE(cp_full_matrix_type), POINTER :: mat_b
+    TYPE(cp_fm_type), POINTER :: mat_b
     INTEGER, INTENT(in)                :: col_b
 
     ! locals
@@ -165,7 +165,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! arguments
-    TYPE(cp_full_matrix_type), POINTER :: mat_a
+    TYPE(cp_fm_type), POINTER :: mat_a
     REAL(dbl), DIMENSION(:), POINTER   :: vec_b
 
     ! locals
@@ -226,7 +226,7 @@ CONTAINS
 
     ! arguments
     REAL(dbl), DIMENSION(:), POINTER   :: vec_a
-    TYPE(cp_full_matrix_type), POINTER :: mat_b
+    TYPE(cp_fm_type), POINTER :: mat_b
 
     ! locals
     INTEGER :: b_row_global, b_col_global, &
@@ -282,9 +282,9 @@ CONTAINS
     IMPLICIT NONE
 
     ! arguments
-    TYPE(cp_full_matrix_type), POINTER :: mat_a
+    TYPE(cp_fm_type), POINTER :: mat_a
     INTEGER, INTENT(in)                :: col_a
-    TYPE(cp_full_matrix_type), POINTER :: mat_b
+    TYPE(cp_fm_type), POINTER :: mat_b
 
     ! locals
     INTEGER :: a_row_global, stat

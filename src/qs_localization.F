@@ -30,7 +30,7 @@ MODULE qs_localization
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_lu_decompose
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&
-                                             cp_complex_full_matrix_type
+                                             cp_cfm_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -38,8 +38,8 @@ MODULE qs_localization
                                              cp_fm_get_element,&
                                              cp_fm_get_info,&
                                              cp_fm_release,&
-                                             cp_full_matrix_p_type,&
-                                             cp_full_matrix_type
+                                             cp_fm_p_type,&
+                                             cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -247,12 +247,12 @@ END SUBROUTINE get_pipek_menzy_operator
 SUBROUTINE qs_loc_compute_properties(qs_loc_env,vectors,ionode,iunit)
 
   TYPE(qs_loc_env_type), POINTER :: qs_loc_env
-  TYPE(cp_full_matrix_type), POINTER :: vectors
+  TYPE(cp_fm_type), POINTER :: vectors
   LOGICAL :: ionode
   INTEGER :: iunit
 ! locals
-  TYPE(cp_full_matrix_type), POINTER :: opvec
-  TYPE(cp_full_matrix_p_type), ALLOCATABLE :: ZIJ ( :, : )
+  TYPE(cp_fm_type), POINTER :: opvec
+  TYPE(cp_fm_p_type), ALLOCATABLE :: ZIJ ( :, : )
   TYPE(cp_fm_struct_type), POINTER :: tmp_fm_struct
 
   INTEGER :: n,k,natoms
@@ -335,12 +335,12 @@ SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij )
 ! globals
   INTEGER, INTENT ( IN ) :: iunit
   LOGICAL, INTENT ( IN ) :: ionode
-  TYPE ( cp_full_matrix_p_type ), INTENT ( INOUT ) :: zij ( :, : )
+  TYPE ( cp_fm_p_type ), INTENT ( INOUT ) :: zij ( :, : )
   TYPE(qs_loc_env_type), POINTER :: qs_loc_env
 
 ! locals
   TYPE ( cell_type ), POINTER :: cell
-  TYPE(cp_complex_full_matrix_type), POINTER :: complexresult
+  TYPE(cp_cfm_type), POINTER :: complexresult
   COMPLEX ( KIND = wp ) :: almost_determinant
   COMPLEX ( KIND = wp ) :: z
   REAL ( KIND = wp ) :: realpart, imagpart, center ( 3 ), spread ( 3 )

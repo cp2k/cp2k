@@ -23,8 +23,8 @@ MODULE qs_localization_methods
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&
-                                             cp_complex_full_matrix_type, &
-                                             cp_complex_full_matrix_p_type, &
+                                             cp_cfm_type, &
+                                             cp_cfm_p_type, &
                                              cp_cfm_get_info, &
                                              cp_cfm_set_all, &
                                              cp_cfm_get_element
@@ -34,8 +34,8 @@ MODULE qs_localization_methods
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_maxval,&
-                                             cp_full_matrix_p_type,&
-                                             cp_full_matrix_type
+                                             cp_fm_p_type,&
+                                             cp_fm_type
   USE kinds,                           ONLY: wp => dp
   USE mathconstants,                   ONLY: pi
   USE qs_blacs,                        ONLY: write_blacs_matrix
@@ -66,20 +66,20 @@ CONTAINS
   SUBROUTINE jacobi_rotations ( weights, zij, vectors, sweeps )
     IMPLICIT NONE
     REAL ( wp ), INTENT ( IN ) :: weights ( : )
-    TYPE ( cp_full_matrix_p_type ), INTENT ( INOUT ) :: ZIJ ( :, : )
-    TYPE ( cp_full_matrix_type ), POINTER :: vectors
+    TYPE ( cp_fm_p_type ), INTENT ( INOUT ) :: ZIJ ( :, : )
+    TYPE ( cp_fm_type ), POINTER :: vectors
     INTEGER :: sweeps
 ! Locals
-    TYPE ( cp_full_matrix_type ), POINTER :: rmat
-    TYPE ( cp_complex_full_matrix_type ), POINTER :: c_rmat
-    TYPE ( cp_complex_full_matrix_p_type ), POINTER, DIMENSION(:) :: c_zij
+    TYPE ( cp_fm_type ), POINTER :: rmat
+    TYPE ( cp_cfm_type ), POINTER :: c_rmat
+    TYPE ( cp_cfm_p_type ), POINTER, DIMENSION(:) :: c_zij
 
     REAL ( KIND = wp ) :: tolerance, st, ct 
     COMPLEX (KIND = wp ) :: mii ( 3 ), mjj ( 3 ), mij ( 3 )
     REAL ( KIND = wp ) :: theta
     INTEGER :: istate, jstate, idim, nstate, isos
     TYPE ( cp_error_type ) :: error
-    TYPE ( cp_full_matrix_type ), POINTER :: matrix_r, matrix_i
+    TYPE ( cp_fm_type ), POINTER :: matrix_r, matrix_i
     COMPLEX( KIND = wp ) :: dum
 
     NULLIFY(rmat,c_rmat,c_zij)
@@ -136,7 +136,7 @@ CONTAINS
   SUBROUTINE rotate_zij ( istate, jstate, st, ct, zij )
     IMPLICIT NONE
     INTEGER, INTENT ( IN ) :: istate, jstate
-    TYPE ( cp_complex_full_matrix_p_type ) :: zij ( : )
+    TYPE ( cp_cfm_p_type ) :: zij ( : )
     REAL ( KIND = wp ), INTENT ( IN ) :: st, ct
 ! Locals
     TYPE ( cp_error_type ) :: error
@@ -168,12 +168,12 @@ CONTAINS
   SUBROUTINE rotate_rmat ( istate, jstate, st, ct, rmat )
     IMPLICIT NONE
     INTEGER, INTENT ( IN ) :: istate, jstate
-    TYPE ( cp_complex_full_matrix_type ), POINTER :: rmat
+    TYPE ( cp_cfm_type ), POINTER :: rmat
     REAL ( KIND = wp ), INTENT ( IN ) :: ct, st
 ! Locals
     TYPE ( cp_error_type ) :: error
     INTEGER :: nstate
-    TYPE ( cp_complex_full_matrix_type ), POINTER :: rmat_cmplx
+    TYPE ( cp_cfm_type ), POINTER :: rmat_cmplx
     COMPLEX ( KIND = wp ) :: st_cmplx
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9) :: desc
@@ -225,12 +225,12 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE check_tolerance ( zij, weights, tolerance )
     IMPLICIT NONE
-    TYPE ( cp_complex_full_matrix_p_type ) :: zij ( : ) 
+    TYPE ( cp_cfm_p_type ) :: zij ( : ) 
     REAL ( wp ), INTENT ( OUT ) :: tolerance
     REAL ( wp ), INTENT ( IN ) :: weights ( : )
 ! locals
     TYPE ( cp_error_type ) :: error
-    TYPE ( cp_full_matrix_type ), POINTER :: force
+    TYPE ( cp_fm_type ), POINTER :: force
 ! compute gradient at t=0
     NULLIFY ( force )
     CALL cp_fm_create ( force, zij( 1 ) % matrix % matrix_struct, error = error  )
@@ -242,11 +242,11 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE rotate_orbitals ( rmat, vectors ) 
     IMPLICIT NONE
-    TYPE ( cp_full_matrix_type ), POINTER :: rmat
-    TYPE ( cp_full_matrix_type ), POINTER :: vectors
+    TYPE ( cp_fm_type ), POINTER :: rmat
+    TYPE ( cp_fm_type ), POINTER :: vectors
 !locals
     TYPE ( cp_error_type ) :: error
-    TYPE ( cp_full_matrix_type ), POINTER :: wf
+    TYPE ( cp_fm_type ), POINTER :: wf
     INTEGER :: n, k
     NULLIFY ( wf )
     CALL cp_fm_create ( wf, vectors % matrix_struct, error = error  )
@@ -257,8 +257,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE grad_at_0 ( matrix_p, weights, matrix )
     IMPLICIT NONE
-    TYPE ( cp_complex_full_matrix_p_type ) :: matrix_p ( : )
-    TYPE ( cp_full_matrix_type ), POINTER :: matrix
+    TYPE ( cp_cfm_p_type ) :: matrix_p ( : )
+    TYPE ( cp_fm_type ), POINTER :: matrix
     REAL ( KIND = wp ), INTENT ( IN ) :: weights ( : )
 ! Locals
     TYPE ( cp_error_type ) :: error

@@ -29,7 +29,24 @@ MODULE qs_ot
   USE cp_fm_struct,                    ONLY: cp_fm_struct_type, &
                                              cp_fm_struct_create, &
                                              cp_fm_struct_release
-  USE cp_fm_types,                     ONLY: cp_fm_create
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_p_type,&
+                                             cp_fm_get_info,&
+                                             cp_fm_release,&
+                                             cp_fm_set_all,&
+                                             cp_fm_maxval,&
+                                             cp_fm_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
+                                             cp_fm_gemm,&
+                                             cp_fm_schur_product,&
+                                             cp_fm_symm,&
+                                             cp_fm_syrk,&
+                                             cp_fm_trace,&
+                                             cp_sm_fm_multiply
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_invert,&
+                                             cp_fm_cholesky_reduce,&
+                                             cp_fm_cholesky_restore
   USE cp_para_types,                   ONLY: cp_para_env_type, &
                                              cp_blacs_env_type
   USE qs_blacs,                        ONLY: blacs_make_basis,&
@@ -39,23 +56,6 @@ MODULE qs_ot
                                              blacs_syevx,&
                                              blacs_transpose,&
                                              copy_blacs_to_blacs_matrix,&
-                                             cp_fm_scale_and_add,&
-                                             cp_fm_cholesky_decompose,&
-                                             cp_fm_cholesky_invert,&
-                                             cp_fm_cholesky_reduce,&
-                                             cp_fm_cholesky_restore,&
-                                             cp_fm_gemm,&
-                                             cp_fm_get_info,&
-                                             cp_fm_maxval,&
-                                             cp_fm_release,&
-                                             cp_fm_schur_product,&
-                                             cp_fm_set_all,&
-                                             cp_fm_symm,&
-                                             cp_fm_syrk,&
-                                             cp_fm_trace,&
-                                             cp_full_matrix_p_type,&
-                                             cp_full_matrix_type,&
-                                             cp_sm_fm_multiply,&
                                              replicate_blacs_matrix
   USE sparse_matrix_types,             ONLY: add_all_real_matrix_blocks,&
                                              add_block_node,&
@@ -107,18 +107,18 @@ MODULE qs_ot
      TYPE(preconditioner_type), POINTER :: preconditioner
 
      ! these will/might change during iterations
-     TYPE(cp_full_matrix_type), POINTER :: matrix_p
-     TYPE(cp_full_matrix_type), POINTER :: matrix_r
-     TYPE(cp_full_matrix_type), POINTER :: matrix_sinp
-     TYPE(cp_full_matrix_type), POINTER :: matrix_cosp
-     TYPE(cp_full_matrix_type), POINTER :: matrix_sinp_b
-     TYPE(cp_full_matrix_type), POINTER :: matrix_cosp_b
-     TYPE(cp_full_matrix_type), POINTER :: matrix_buf1
-     TYPE(cp_full_matrix_type), POINTER :: matrix_buf2
-     TYPE(cp_full_matrix_type), POINTER :: matrix_buf3
-     TYPE(cp_full_matrix_type), POINTER :: matrix_os
-     TYPE(cp_full_matrix_type), POINTER :: matrix_buf1_ortho
-     TYPE(cp_full_matrix_type), POINTER :: matrix_buf2_ortho
+     TYPE(cp_fm_type), POINTER :: matrix_p
+     TYPE(cp_fm_type), POINTER :: matrix_r
+     TYPE(cp_fm_type), POINTER :: matrix_sinp
+     TYPE(cp_fm_type), POINTER :: matrix_cosp
+     TYPE(cp_fm_type), POINTER :: matrix_sinp_b
+     TYPE(cp_fm_type), POINTER :: matrix_cosp_b
+     TYPE(cp_fm_type), POINTER :: matrix_buf1
+     TYPE(cp_fm_type), POINTER :: matrix_buf2
+     TYPE(cp_fm_type), POINTER :: matrix_buf3
+     TYPE(cp_fm_type), POINTER :: matrix_os
+     TYPE(cp_fm_type), POINTER :: matrix_buf1_ortho
+     TYPE(cp_fm_type), POINTER :: matrix_buf2_ortho
 
      REAL(wp),  DIMENSION(:), POINTER :: evals
      REAL(wp),  DIMENSION(:), POINTER :: dum
@@ -134,19 +134,19 @@ MODULE qs_ot
 
 
      ! mo-like vectors
-     TYPE(cp_full_matrix_type), POINTER :: matrix_c0,matrix_sc0,matrix_psc0
+     TYPE(cp_fm_type), POINTER :: matrix_c0,matrix_sc0,matrix_psc0
 
      ! only here for the ease of programming. These will have to be supplied
      ! explicitly at all times
-     TYPE(cp_full_matrix_type), POINTER :: matrix_hc,matrix_x,matrix_sx, & 
+     TYPE(cp_fm_type), POINTER :: matrix_hc,matrix_x,matrix_sx, & 
                                          matrix_gx
-     TYPE(cp_full_matrix_type), POINTER :: matrix_dx, matrix_gx_old
+     TYPE(cp_fm_type), POINTER :: matrix_dx, matrix_gx_old
 
 
      LOGICAL :: use_gx_old, use_dx
 
-     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: matrix_h_e
-     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: matrix_h_x
+     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: matrix_h_e
+     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: matrix_h_x
 
      REAL(wp), DIMENSION(:,:), POINTER  :: ls_diis
      REAL(wp), DIMENSION(:,:), POINTER  :: lss_diis
@@ -397,7 +397,7 @@ END SUBROUTINE qs_ot_destroy
 !*******************************************************************************
 SUBROUTINE qs_ot_get_p(matrix_x,matrix_sx,qs_ot_env)
 
-  TYPE(cp_full_matrix_type), POINTER          :: matrix_sx,matrix_x
+  TYPE(cp_fm_type), POINTER          :: matrix_sx,matrix_x
   TYPE(qs_ot_type)                          :: qs_ot_env
 
 
@@ -429,7 +429,7 @@ END SUBROUTINE qs_ot_get_p
 SUBROUTINE qs_ot_get_orbitals(matrix_c, matrix_x, qs_ot_env)
 
   TYPE(qs_ot_type)                          :: qs_ot_env
-  TYPE(cp_full_matrix_type), POINTER          :: matrix_c,matrix_x
+  TYPE(cp_fm_type), POINTER          :: matrix_c,matrix_x
 
 ! locals 
 
@@ -459,15 +459,15 @@ END SUBROUTINE qs_ot_get_orbitals
 SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
                                                qs_ot_env)
 
-  TYPE(cp_full_matrix_type), POINTER          :: matrix_hc,matrix_x
-  TYPE(cp_full_matrix_type), POINTER          :: matrix_sx,matrix_gx
+  TYPE(cp_fm_type), POINTER          :: matrix_hc,matrix_x
+  TYPE(cp_fm_type), POINTER          :: matrix_sx,matrix_gx
   TYPE(qs_ot_type)                          :: qs_ot_env
 
 ! locals 
 
   REAL(wp) , PARAMETER            :: rone=1.0_wp , rzero=0.0_wp
   INTEGER                         :: n,k,handle,ortho_k
-  TYPE(cp_full_matrix_type), POINTER :: matrix_target
+  TYPE(cp_fm_type), POINTER :: matrix_target
 
   CALL timeset("qs_ot_get_derivative","I","",handle)
 

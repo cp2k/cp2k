@@ -46,7 +46,7 @@ MODULE cp_linked_list_fm
        cp_unitnr_for_output, cp_write_output
   USE kinds, ONLY: wp=>dp
   USE timings, ONLY: timeset, timestop
-  USE cp_fm_types, ONLY: cp_full_matrix_type, cp_full_matrix_p_type,&
+  USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type,&
         cp_fm_write
   IMPLICIT NONE
   PRIVATE
@@ -204,7 +204,7 @@ MODULE cp_linked_list_fm
 !***************************************************************************
   TYPE cp_sll_fm_type
      LOGICAL :: initialized
-     type(cp_full_matrix_type),pointer :: first_el
+     type(cp_fm_type),pointer :: first_el
      TYPE(cp_sll_fm_type), POINTER :: rest
   END TYPE cp_sll_fm_type
 !!***
@@ -241,7 +241,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_sll_fm_create(sll,first_el,rest,error)
     TYPE(cp_sll_fm_type), POINTER :: sll
-    type(cp_full_matrix_type), pointer, OPTIONAL :: first_el
+    type(cp_fm_type), pointer, OPTIONAL :: first_el
     TYPE(cp_sll_fm_type), POINTER, OPTIONAL :: rest
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
@@ -375,7 +375,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_sll_fm_set(sll,first_el,rest,error)
     TYPE(cp_sll_fm_type), POINTER :: sll
-    type(cp_full_matrix_type), pointer, OPTIONAL :: first_el
+    type(cp_fm_type), pointer, OPTIONAL :: first_el
     TYPE(cp_sll_fm_type), POINTER, OPTIONAL :: rest
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
@@ -427,7 +427,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_sll_fm_get(sll,first_el,rest,empty,length,error)
     TYPE(cp_sll_fm_type), POINTER :: sll
-    type(cp_full_matrix_type), pointer, OPTIONAL :: first_el
+    type(cp_fm_type), pointer, OPTIONAL :: first_el
     TYPE(cp_sll_fm_type), OPTIONAL, POINTER :: rest
     LOGICAL, OPTIONAL, INTENT(out) :: empty
     INTEGER, INTENT(out), OPTIONAL :: length
@@ -481,7 +481,7 @@ CONTAINS
   FUNCTION cp_sll_fm_get_first_el(sll,error) RESULT(res)
     TYPE(cp_sll_fm_type), POINTER :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    type(cp_full_matrix_type),pointer :: res
+    type(cp_fm_type),pointer :: res
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_fm:cp_sll_fm_get_first'
@@ -682,7 +682,7 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   FUNCTION cp_sll_fm_get_el_at(sll,index,error) RESULT(res)
-    type(cp_full_matrix_type),pointer :: res
+    type(cp_fm_type),pointer :: res
     TYPE(cp_sll_fm_type), POINTER :: sll
     INTEGER, INTENT(in) :: index
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -734,7 +734,7 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_fm_set_el_at(sll,index,value,error)
-    type(cp_full_matrix_type), pointer :: value
+    type(cp_fm_type), pointer :: value
     TYPE(cp_sll_fm_type), POINTER :: sll
     INTEGER, INTENT(in) :: index
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -786,7 +786,7 @@ CPSourceFileRef,&
   FUNCTION cp_sll_fm_next(iterator,el_att,error) RESULT(res)
     TYPE(cp_sll_fm_type), POINTER :: iterator
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    type(cp_full_matrix_type), pointer, OPTIONAL :: el_att
+    type(cp_fm_type), pointer, OPTIONAL :: el_att
     LOGICAL :: res
 
     LOGICAL :: failure
@@ -835,7 +835,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   SUBROUTINE cp_sll_fm_insert_el(sll,el,error)
     TYPE(cp_sll_fm_type), POINTER :: sll
-    type(cp_full_matrix_type), pointer:: el
+    type(cp_fm_type), pointer:: el
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -923,7 +923,7 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_fm_insert_el_at(sll,el,index,error)
-    type(cp_full_matrix_type), pointer :: el
+    type(cp_fm_type), pointer :: el
     INTEGER, INTENT(in) :: index
     TYPE(cp_sll_fm_type), POINTER :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -1160,7 +1160,7 @@ CPSourceFileRef,&
     TYPE(cp_sll_fm_type), POINTER :: iterator
     CHARACTER(len=*), PARAMETER :: routineN='cp_sll_fm_write',&
          routineP=moduleN//':'//routineN
-    type(cp_full_matrix_type),pointer :: el
+    type(cp_fm_type),pointer :: el
     failure=.FALSE.
     iterator => sll
   
@@ -1198,7 +1198,7 @@ CPSourceFileRef,&
 FUNCTION cp_sll_fm_to_array(sll,error) RESULT(res)
   TYPE(cp_sll_fm_type), POINTER :: sll
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  type(cp_full_matrix_p_type), DIMENSION(:), POINTER :: res
+  type(cp_fm_p_type), DIMENSION(:), POINTER :: res
   
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='cp_sll_fm_to_array',&
@@ -1246,7 +1246,7 @@ END FUNCTION cp_sll_fm_to_array
 !!
 !!*** **********************************************************************
 FUNCTION cp_sll_fm_from_array(array,error) RESULT(res)
-  type(cp_full_matrix_p_type), DIMENSION(:), INTENT(in) :: array
+  type(cp_fm_p_type), DIMENSION(:), INTENT(in) :: array
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   TYPE(cp_sll_fm_type), POINTER :: res
   
@@ -1305,7 +1305,7 @@ END FUNCTION cp_sll_fm_from_array
 SUBROUTINE cp_sll_fm_insert_ordered(sll,el,insert_equals,&
      did_insert,pos,error)
   TYPE(cp_sll_fm_type), POINTER :: sll
-  type(cp_full_matrix_type), pointer :: el
+  type(cp_fm_type), pointer :: el
   LOGICAL, OPTIONAL, INTENT(in) :: insert_equals
   LOGICAL, OPTIONAL, INTENT(out) :: did_insert
   TYPE(cp_sll_fm_type), POINTER, OPTIONAL :: pos
@@ -1391,13 +1391,13 @@ END SUBROUTINE cp_sll_fm_insert_ordered
 SUBROUTINE cp_sll_fm_insert_ordered2(sll,el,compare_function,&
      insert_equals,did_insert,pos,error)
   TYPE(cp_sll_fm_type), POINTER :: sll
-  type(cp_full_matrix_type), pointer :: el
+  type(cp_fm_type), pointer :: el
   INTERFACE
      FUNCTION compare_function(el1,el2)
-       USE cp_fm_types, ONLY: cp_full_matrix_type, cp_full_matrix_p_type,&
+       USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type,&
         cp_fm_write
        INTEGER :: compare_function
-       type(cp_full_matrix_type), pointer :: el1,el2
+       type(cp_fm_type), pointer :: el1,el2
      END FUNCTION compare_function
   END INTERFACE
   LOGICAL, OPTIONAL, INTENT(in) :: insert_equals
@@ -1484,7 +1484,7 @@ END SUBROUTINE cp_sll_fm_insert_ordered2
 FUNCTION cp_sll_fm_contains(sll,el,ordered,error) RESULT(res)
   LOGICAL ::res
   TYPE(cp_sll_fm_type), POINTER :: sll
-  type(cp_full_matrix_type), pointer :: el
+  type(cp_fm_type), pointer :: el
   LOGICAL, INTENT(in), OPTIONAL :: ordered
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
@@ -1492,7 +1492,7 @@ FUNCTION cp_sll_fm_contains(sll,el,ordered,error) RESULT(res)
   CHARACTER(len=*), PARAMETER :: routineN='cp_sll_fm_contains',&
         routineP=moduleN//':'//routineN
   TYPE(cp_sll_fm_type), POINTER :: iter
-  type(cp_full_matrix_type),pointer :: el_att
+  type(cp_fm_type),pointer :: el_att
   failure=.FALSE.; ord=.FALSE.
   res=.FALSE.
   
@@ -1551,13 +1551,13 @@ FUNCTION cp_sll_fm_contains2(sll,el,compare_function,ordered,error)&
      RESULT(res)
   LOGICAL ::res
   TYPE(cp_sll_fm_type), POINTER :: sll
-  type(cp_full_matrix_type), pointer :: el
+  type(cp_fm_type), pointer :: el
   INTERFACE
      FUNCTION compare_function(el1,el2)
-       USE cp_fm_types, ONLY: cp_full_matrix_type, cp_full_matrix_p_type,&
+       USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type,&
         cp_fm_write
        INTEGER :: compare_function
-       type(cp_full_matrix_type), pointer :: el1,el2
+       type(cp_fm_type), pointer :: el1,el2
      END FUNCTION compare_function
   END INTERFACE
   LOGICAL, INTENT(in), OPTIONAL :: ordered
@@ -1568,7 +1568,7 @@ FUNCTION cp_sll_fm_contains2(sll,el,compare_function,ordered,error)&
   CHARACTER(len=*), PARAMETER :: routineN='cp_sll_fm_contains2',&
         routineP=moduleN//':'//routineN
   TYPE(cp_sll_fm_type), POINTER :: iter
-  type(cp_full_matrix_type),pointer :: el_att
+  type(cp_fm_type),pointer :: el_att
   failure=.FALSE.
   res=.FALSE.
   
@@ -1600,7 +1600,7 @@ END FUNCTION cp_sll_fm_contains2
 ! ARGS:
 !  = = "=>"
 !  USE = 
-!    "USE cp_fm_types, ONLY: cp_full_matrix_type, cp_full_matrix_p_type,&
+!    "USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type,&
 !             cp_fm_write"
 !  array= = "=>"
 !  arrayEl = "%matrix"
@@ -1612,10 +1612,10 @@ END FUNCTION cp_sll_fm_contains2
 !  equalQ = "CP_SLL_FM_EQUAL_Q"
 !  lessQ = "CP_SLL_FM_LESS_Q"
 !  nametype1 = "fm"
-!  type1 = "type(cp_full_matrix_type),pointer"
-!  type1arrayEl = "type(cp_full_matrix_p_type)"
-!  type1in = "type(cp_full_matrix_type), pointer"
-!  type1out = "type(cp_full_matrix_type), pointer"
+!  type1 = "type(cp_fm_type),pointer"
+!  type1arrayEl = "type(cp_fm_p_type)"
+!  type1in = "type(cp_fm_type), pointer"
+!  type1out = "type(cp_fm_type), pointer"
 !  write_el = "cp_fm_write"
 
 

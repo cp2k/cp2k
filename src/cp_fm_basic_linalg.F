@@ -51,8 +51,8 @@ MODULE cp_fm_basic_linalg
                                              cp_fm_set_all,&
                                              cp_fm_set_element,&
                                              cp_fm_set_submatrix,&
-                                             cp_full_matrix_p_type,&
-                                             cp_full_matrix_type
+                                             cp_fm_p_type,&
+                                             cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -115,10 +115,10 @@ CONTAINS
 !!     cp_fm_scale_and_add(alpha, matrix_a, beta, matrix_b, error)
 !!
 !!   ARGUMENTS
-!!      TYPE(cp_full_matrix_type), POINTER           :: matrix_a
+!!      TYPE(cp_fm_type), POINTER           :: matrix_a
 !!      REAL(wp), INTENT(IN)                         :: alpha
 !!      REAL(wp), INTENT(in), OPTIONAL               :: beta
-!!      TYPE(cp_full_matrix_type), POINTER, OPTIONAL :: matrix_b
+!!      TYPE(cp_fm_type), POINTER, OPTIONAL :: matrix_b
 !!      TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 !!
 !!****
@@ -126,10 +126,10 @@ CONTAINS
 
     IMPLICIT NONE
 
-    TYPE(cp_full_matrix_type), POINTER           :: matrix_a
+    TYPE(cp_fm_type), POINTER           :: matrix_a
     REAL(wp), INTENT(IN)                         :: alpha
     REAL(wp), INTENT(in), OPTIONAL               :: beta
-    TYPE(cp_full_matrix_type), POINTER, OPTIONAL :: matrix_b
+    TYPE(cp_fm_type), POINTER, OPTIONAL :: matrix_b
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     !   *** Local variables ***
@@ -217,8 +217,8 @@ CONTAINS
        alpha,beta,error)
 ! to do: better interface
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
-    TYPE(cp_full_matrix_type) , POINTER :: v_in
-    TYPE(cp_full_matrix_type) , POINTER :: v_out
+    TYPE(cp_fm_type) , POINTER :: v_in
+    TYPE(cp_fm_type) , POINTER :: v_out
     INTEGER, INTENT(IN)               :: ncol
     TYPE(cp_para_env_type), POINTER :: para_env ! of the sparse matrix
     REAL(kind=wp), INTENT(in), OPTIONAL :: alpha, beta
@@ -392,8 +392,8 @@ CONTAINS
   SUBROUTINE cp_sm_plus_fm_fm_t(sparse_matrix,matrix_v,matrix_g,last_col,&
        first_col,alpha,error)
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
-    TYPE(cp_full_matrix_type) , POINTER :: matrix_v
-    TYPE(cp_full_matrix_type) , POINTER, OPTIONAL :: matrix_g
+    TYPE(cp_fm_type) , POINTER :: matrix_v
+    TYPE(cp_fm_type) , POINTER, OPTIONAL :: matrix_g
     INTEGER, INTENT(IN)               :: last_col
     REAL(wp), OPTIONAL, INTENT(IN)    :: alpha
     INTEGER, OPTIONAL, INTENT(IN)     :: first_col
@@ -401,7 +401,7 @@ CONTAINS
 
 !   *** Local parameters ***
     CHARACTER(LEN=*), PARAMETER :: routine =&
-         "SUBROUTINE cp_sm_plus_fm_fm_t (MODULE qs_blacs)"
+         "SUBROUTINE cp_sm_plus_fm_fm_t (MODULE cp_fm_basic_linalg)"
 
 !   *** Local variables ***
     REAL(wp), DIMENSION(:,:), POINTER :: loc_v,loc_g,newdat
@@ -561,7 +561,7 @@ CONTAINS
 ! one should be able to find out if ipivot is an even or an odd permutation...
 ! *****************************************************************************
   SUBROUTINE cp_fm_lu_decompose(matrix_a,almost_determinant)
-    TYPE(cp_full_matrix_type), POINTER :: matrix_a
+    TYPE(cp_fm_type), POINTER :: matrix_a
     REAL(wp), INTENT(OUT)              :: almost_determinant
 
 ! *** locals ***
@@ -620,7 +620,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: matrix_a,matrix_b,matrix_c
+    TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_b,matrix_c
     CHARACTER(LEN=1), INTENT(IN)              :: transa,transb
     REAL(wp), INTENT(IN)                      :: alpha,beta
     INTEGER, INTENT(IN)                       :: k,m,n
@@ -683,7 +683,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: matrix_a,matrix_b,matrix_c
+    TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_b,matrix_c
     CHARACTER(LEN=1), INTENT(IN)              :: side,uplo
     REAL(wp), INTENT(IN)                      :: alpha,beta
     INTEGER, INTENT(IN)                       :: m,n
@@ -746,7 +746,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: matrix_a,matrix_c
+    TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_c
     CHARACTER(LEN=1), INTENT(IN)              :: trans,uplo
     REAL(wp), INTENT(IN)                      :: alpha,beta
     INTEGER, INTENT(IN)                       :: ia,ja,k
@@ -802,7 +802,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: matrix_a,matrix_b,matrix_c
+    TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_b,matrix_c
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local variables ***
@@ -848,7 +848,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_fm_trace(matrix_a, matrix_b, trace, error)
-!!       Type(cp_full_matrix_type), Pointer:: matrix_a, matrix_b
+!!       Type(cp_fm_type), Pointer:: matrix_a, matrix_b
 !!       Real(Kind=wp), Intent (OUT):: trace
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_fm_trace
@@ -876,7 +876,7 @@ CONTAINS
 !!*** *********************************************************************
   SUBROUTINE cp_fm_trace(matrix_a,matrix_b,trace,error)
 
-    TYPE(cp_full_matrix_type), POINTER           :: matrix_a,matrix_b
+    TYPE(cp_fm_type), POINTER           :: matrix_a,matrix_b
     REAL(wp), INTENT(OUT)                        :: trace
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
@@ -932,7 +932,7 @@ CONTAINS
 !!     Subroutine cp_fm_triangular_multiply(triangular_matrix, matrix_b,&
 !!         side, transpose_tr, invert_tr, uplo_tr, unit_diag_tr, n_rows,&
 !!         n_cols, alpha, error)
-!!       Type(cp_full_matrix_type), Pointer:: triangular_matrix, matrix_b
+!!       Type(cp_fm_type), Pointer:: triangular_matrix, matrix_b
 !!       Character, Intent (IN), Optional:: side, uplo_tr
 !!       Logical, Intent (IN), Optional:: transpose_tr, invert_tr,&
 !!         unit_diag_tr
@@ -985,7 +985,7 @@ CONTAINS
 SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
      transpose_tr, invert_tr, uplo_tr,unit_diag_tr, n_rows, n_cols, &
      alpha,error)
-  TYPE(cp_full_matrix_type), POINTER :: triangular_matrix, matrix_b
+  TYPE(cp_fm_type), POINTER :: triangular_matrix, matrix_b
   CHARACTER, INTENT(in), OPTIONAL :: side, uplo_tr
   LOGICAL, INTENT(in), OPTIONAL :: transpose_tr, invert_tr, unit_diag_tr
   INTEGER, INTENT(in), OPTIONAL :: n_rows, n_cols
@@ -1067,7 +1067,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
   SUBROUTINE cp_fm_scale(alpha, matrix_a, error)
 
-    TYPE(cp_full_matrix_type), POINTER           :: matrix_a
+    TYPE(cp_fm_type), POINTER           :: matrix_a
     REAL(wp), INTENT(IN)                         :: alpha
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 

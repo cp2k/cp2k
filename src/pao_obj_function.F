@@ -95,19 +95,19 @@ MODULE pao_obj_function
   USE cp_fm_struct,                    ONLY: cp_fm_struct_type, &
                                              cp_fm_struct_create, &
                                              cp_fm_struct_release
-  USE cp_fm_types,                     ONLY: cp_fm_create
+  USE cp_fm_types,                     ONLY: cp_fm_create, &
+                                             cp_fm_type, &
+                                             cp_fm_get_info, &
+                                             cp_fm_release
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm, &
+                                             cp_fm_symm, &
+                                             cp_fm_trace,&
+                                             cp_fm_syrk
   USE qs_blacs,                        ONLY: add_blacs_to_block_diag_sm,&
                                              blacs_syevx,&
                                              copy_blacs_to_blacs_matrix,&
-                                             copy_full_matrix_to_real_matrix,&
-                                             copy_real_matrix_to_full_matrix,&
-                                             cp_fm_gemm,&
-                                             cp_fm_get_info,&
-                                             cp_fm_release,&
-                                             cp_fm_symm,&
-                                             cp_fm_syrk,&
-                                             cp_fm_trace,&
-                                             cp_full_matrix_type,&
+                                             copy_fm_to_real_matrix,&
+                                             copy_real_matrix_to_fm,&
                                              power_blacs_matrix,&
                                              symmetrise_blacs_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -216,9 +216,9 @@ MODULE pao_obj_function
      LOGICAL :: initialized, should_dealloc_mo, rebuild_rho
      INTEGER :: n_eval
      TYPE(qs_environment_type), POINTER :: qs_env
-     TYPE(cp_full_matrix_type), POINTER :: min_blacs_1, min_blacs_2,&
+     TYPE(cp_fm_type), POINTER :: min_blacs_1, min_blacs_2,&
           min_blacs_3
-     TYPE(cp_full_matrix_type), POINTER :: scf_work1, scf_work2, scf_work3
+     TYPE(cp_fm_type), POINTER :: scf_work1, scf_work2, scf_work3
      TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mo_set
      TYPE(cp_block_matrix_type), POINTER :: diag_matrix, full_work_m,&
           min_work_m
@@ -240,7 +240,7 @@ CONTAINS
 !!       Type(pao_gerd_functional_type), Intent (OUT):: gf_env
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
-!!       Type(cp_full_matrix_type), Intent (IN), Target:: scf_work1,&
+!!       Type(cp_fm_type), Intent (IN), Target:: scf_work1,&
 !!         scf_work2, scf_work3
 !!       Type(mo_set_p_type), Dimension(:), Target, Intent (IN), Optional::&
 !!         mo_orbital
@@ -275,7 +275,7 @@ CONTAINS
     TYPE(pao_gerd_functional_type), INTENT(out) :: gf_env
     TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
     TYPE(global_environment_type), INTENT(in),TARGET :: global_env
-    TYPE(cp_full_matrix_type), INTENT(in), TARGET :: scf_work1, scf_work2,&
+    TYPE(cp_fm_type), INTENT(in), TARGET :: scf_work1, scf_work2,&
          scf_work3
     TYPE(mo_set_p_type), DIMENSION(:), TARGET, INTENT(in),OPTIONAL ::&
          mo_orbital
@@ -627,12 +627,12 @@ CONTAINS
 
        ! calculates the new density matrix with diagonalization
        ! do not do it every time?
-       CALL copy_real_matrix_to_full_matrix(real_matrix=cp_get_matrix(s_matrix),&
-            full_matrix=gf_env%min_blacs_1)
+       CALL copy_real_matrix_to_fm(real_matrix=cp_get_matrix(s_matrix),&
+            fm=gf_env%min_blacs_1)
        CALL calculate_ortho_matrix(ortho=gf_env%min_blacs_1,&
             work=gf_env%min_blacs_2,ndep=size_null_space, globenv=g_env)
-       CALL copy_real_matrix_to_full_matrix(real_matrix=cp_get_matrix(h_matrix),&
-            full_matrix=gf_env%min_blacs_2)
+       CALL copy_real_matrix_to_fm(real_matrix=cp_get_matrix(h_matrix),&
+            fm=gf_env%min_blacs_2)
        CALL orthogonalise_matrix(ortho=gf_env%min_blacs_1,&
             ks=gf_env%min_blacs_2,&
             work=gf_env%min_blacs_3,&
@@ -647,7 +647,7 @@ CONTAINS
        CALL calculate_density_matrix(mo_set=gf_env%mo_set(1)%mo_set,&
             density_matrix=gf_env%min_blacs_2)
        
-       CALL copy_full_matrix_to_real_matrix(gf_env%min_blacs_2,&
+       CALL copy_fm_to_real_matrix(gf_env%min_blacs_2,&
             min_density_m)
 
        CALL symmetrise_diagonal_blocks(min_density_m)
@@ -679,12 +679,12 @@ CONTAINS
           ! ** gf_env%diag_matrix = df/du_{i,j}
                     
           ! 2 H B P i^*
-          CALL copy_real_matrix_to_full_matrix(full_h_rmpv(1)%matrix,&
+          CALL copy_real_matrix_to_fm(full_h_rmpv(1)%matrix,&
                gf_env%scf_work1)
           CALL cp_m2f_with_B_M_pi(min_density_m,cp_get_matrix(gf_env%full_work_m),&
                glob_angles=angles, qs_env=gf_env%qs_env, global_env=g_env,&
                error=error)
-          CALL copy_real_matrix_to_full_matrix(cp_get_matrix(gf_env%full_work_m),&
+          CALL copy_real_matrix_to_fm(cp_get_matrix(gf_env%full_work_m),&
                gf_env%scf_work2)
           CALL cp_fm_symm(side="L",uplo="U",m=full_bas_size,n=full_bas_size,&
                alpha=1.0_wp,matrix_a=gf_env%scf_work1,&
@@ -706,10 +706,10 @@ CONTAINS
                para_env=g_env%para_env,error=error)
           END IF
           ! 2 S B P minH P i^*
-          CALL copy_real_matrix_to_full_matrix(h_matrix%sm,&
+          CALL copy_real_matrix_to_fm(h_matrix%sm,&
                gf_env%min_blacs_1)
           CALL symmetrise_blacs_matrix(gf_env%min_blacs_1,gf_env%min_blacs_2)
-          CALL copy_real_matrix_to_full_matrix(min_density_m,&
+          CALL copy_real_matrix_to_fm(min_density_m,&
                gf_env%min_blacs_2)
           CALL cp_fm_symm('R','U',min_bas_size,min_bas_size,&
                1.0_wp,gf_env%min_blacs_2,gf_env%min_blacs_1, 0.0_wp,&
@@ -717,15 +717,15 @@ CONTAINS
           CALL cp_fm_symm('L','U',min_bas_size,min_bas_size,&
                -0.5_wp,gf_env%min_blacs_2,gf_env%min_blacs_3, 0.0_wp,&
                gf_env%min_blacs_1)
-          CALL copy_full_matrix_to_real_matrix(gf_env%min_blacs_1,&
+          CALL copy_fm_to_real_matrix(gf_env%min_blacs_1,&
                cp_get_matrix(gf_env%min_work_m))
           CALL cp_m2f_with_B_M_pi(cp_get_matrix(gf_env%min_work_m),&
                cp_get_matrix(gf_env%full_work_m),glob_angles=angles,&
                qs_env=gf_env%qs_env, global_env=g_env,&
                error=error)
-          CALL copy_real_matrix_to_full_matrix(cp_get_matrix(gf_env%full_work_m),&
+          CALL copy_real_matrix_to_fm(cp_get_matrix(gf_env%full_work_m),&
                gf_env%scf_work2)
-          CALL copy_real_matrix_to_full_matrix(full_s_rmpv(1)%matrix,&
+          CALL copy_real_matrix_to_fm(full_s_rmpv(1)%matrix,&
                gf_env%scf_work1)
           CALL cp_fm_symm('L','U',full_bas_size,full_bas_size,&
                1.0_wp,gf_env%scf_work1,gf_env%scf_work2,0.0_wp,&
@@ -797,7 +797,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(cp_full_matrix_type), POINTER          :: ortho,work
+    TYPE(cp_fm_type), POINTER          :: ortho,work
     INTEGER, INTENT(OUT)                      :: ndep
 
 !   *** Local variables ***
@@ -825,7 +825,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: ks,ortho,work
+    TYPE(cp_fm_type), POINTER          :: ks,ortho,work
     TYPE(global_environment_type), INTENT(IN) :: globenv
 
 !   *** Local variables ***
@@ -855,7 +855,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: ks,ortho,work
+    TYPE(cp_fm_type), POINTER          :: ks,ortho,work
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
 
@@ -864,7 +864,7 @@ CONTAINS
     INTEGER :: handle,imo,nao,nmo
     INTEGER, SAVE :: iter=0
 
-    TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
+    TYPE(cp_fm_type), POINTER :: mo_eigenvectors
     REAL(wp), DIMENSION(:), POINTER  :: mo_eigenvalues
     CHARACTER(len=*), PARAMETER :: routineN="eigensolver",&
          routineP=moduleN//':'//routineN

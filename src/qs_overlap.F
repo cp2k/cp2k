@@ -43,9 +43,9 @@ MODULE qs_overlap
   USE orbital_pointers,       ONLY: indco,init_orbital_pointers,ncoset,nso
   USE orbital_symbols,        ONLY: cgf_symbol
   USE particle_types,         ONLY: particle_type
-  USE qs_blacs,               ONLY: cp_full_matrix_type,&
-                                    copy_blacs_to_full_matrix,&
+  USE cp_fm_types,            ONLY: cp_fm_type, &
                                     cp_fm_get_info
+  USE qs_blacs,               ONLY: copy_blacs_to_ionode_matrix
   USE qs_environment_types,   ONLY: get_qs_env,&
                                     qs_environment_type,&
                                     set_qs_env
@@ -62,7 +62,7 @@ MODULE qs_overlap
   USE sparse_matrix_types,    ONLY: add_block_node,&
                                     allocate_matrix,&
                                     allocate_matrix_set,&
-                                    copy_sparse_to_full_matrix,&
+                                    copy_sparse_to_fm,&
                                     deallocate_matrix,&
                                     get_block_node,&
                                     get_matrix_info,&
@@ -454,7 +454,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER        :: blacs_matrix
+    TYPE(cp_fm_type), POINTER        :: blacs_matrix
     INTEGER, INTENT(IN)                       :: after,before
     TYPE(qs_environment_type), INTENT(IN)     :: qs_env
     TYPE(global_environment_type), INTENT(IN) :: globenv
@@ -485,7 +485,7 @@ CONTAINS
 
     NULLIFY (matrix)
 
-    CALL copy_blacs_to_full_matrix(blacs_matrix,matrix)
+    CALL copy_blacs_to_ionode_matrix(blacs_matrix,matrix)
 
 !   *** Get the matrix dimension and check the optional arguments ***
 
@@ -805,7 +805,7 @@ CONTAINS
 
     NULLIFY (matrix)
 
-    CALL copy_sparse_to_full_matrix(sparse_matrix,matrix)
+    CALL copy_sparse_to_fm(sparse_matrix,matrix)
 
     IF (matrix_symmetry == "symmetric") THEN
       CALL symmetrize_matrix(matrix,"upper_to_lower")
