@@ -245,5 +245,6 @@ OBJECTS_GENERIC =\
  cp_array_i_utils.o\
  cp_array_logical_utils.o\
  cp_pao_projection.o\
- cp_array_utils.o
+ cp_array_utils.o\
+ cp_b_matrix_structure.o
 
