@@ -42,7 +42,6 @@ MODULE control_module
   USE force_control, ONLY : force
   USE fit_parameters_types, ONLY : fit_parameter_type
   USE fit_input, ONLY : read_fit_section
-  USE fit_module, ONLY : control_fit
   USE force_fields, ONLY : read_force_field_section
   USE global_types, ONLY : global_environment_type
   USE header, ONLY : fist_header, tbmd_header, wave_header
@@ -72,6 +71,7 @@ MODULE control_module
   USE pol_debug_ao, ONLY : debug_control_ao => debug_control
   USE pol_debug_pw, ONLY : debug_control_pw => debug_control
   USE pol_setup, ONLY : read_pol_basis_sets , get_rcutsq_cgf
+  USE pol_electrostatics_pw, ONLY : get_pol_charge           
   USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE, FULLSPACE
   USE pw_grids, ONLY : pw_grid_setup
   USE physcon, ONLY : boltzmann, h_planck
@@ -313,11 +313,12 @@ SUBROUTINE control ( globenv )
   END IF
 
 ! .. read the input of the FIT section
-  IF ( fit ) THEN
-    
-     CALL read_fit_section ( fit_param, globenv )       
-
-  END IF
+!  IF ( fit ) THEN
+!    
+!     CALL read_fit_section ( fit_param, globenv )       
+!
+!  END IF
+!dbg
 
  IF ( setup % run_type == 'ENERGY') THEN 
     CALL read_energy_section ( energy_min, globenv )
@@ -586,17 +587,19 @@ SUBROUTINE control ( globenv )
   
   CALL timestop ( zero, handle2 )
 
-  IF ( fit ) then
-
-    CALL control_fit( struc ( 1 ), inter % potparm, simpar, fit_param, pstat, &  
-        ewald_param, setup % atom_names, globenv)             
-
-  ELSE  
-  
-    CALL control_work ( globenv, units, simpar, struc, inter, extended_type, &
+!dbg
+!  IF ( fit ) then
+!
+!    CALL control_fit( struc ( 1 ), inter % potparm, simpar, fit_param, pstat, &  
+!        ewald_param, setup % atom_names, globenv)             
+!
+!  ELSE  
+! 
+     CALL control_work ( globenv, units, simpar, struc, inter, extended_type, &
                     ewald_param, dft_control, setup, mdio, tbmd, fist, pol, &
                     kp, energy_min )
-  END  IF
+! END  IF
+!dbg
 
 ! deallocate memory for atoms and molecules
   DO ibead = 1, beads
@@ -804,8 +807,10 @@ SUBROUTINE control_energy_work ( globenv, units, simpar, struc, inter, &
   TYPE ( energy_min_type ), INTENT ( INOUT ) :: energy_min
   
 ! Locals
-  INTEGER :: itimes
+  INTEGER :: itimes, IW
   LOGICAL, PARAMETER :: box_change = .FALSE.
+  REAL(dbl) :: pcharge
+  REAL(dbl) :: apcharge
   LOGICAL :: coef_flag 
   LOGICAL :: conv_flag 
   
@@ -814,6 +819,9 @@ SUBROUTINE control_energy_work ( globenv, units, simpar, struc, inter, &
 !------------------------------------------------------------------------------
   coef_flag = .FALSE.
   conv_flag = .FALSE.
+  pcharge = 0.0_dbl
+  apcharge = 0.0_dbl
+  iw = globenv % scr
 
   coef_flag = ( ASSOCIATED ( struc % coef_pos ) .AND.  &
                 ASSOCIATED ( struc % coef_vel ) .AND.  &
@@ -830,6 +838,16 @@ SUBROUTINE control_energy_work ( globenv, units, simpar, struc, inter, &
   END IF
 
   energy_min % min_info % e = thermo%pot
+  energy_min % min_info %e_class = thermo % e_class
+  energy_min % min_info %e_over = thermo % e_overlap
+  energy_min % min_info %e_electro = thermo % e_electro
+  energy_min % min_info %e_electro_0 = thermo % e_electro_0
+  energy_min % min_info %e_electro_1 = thermo % e_electro_1
+  energy_min % min_info %e_electro_2 = thermo % e_electro_2
+  energy_min % min_info %e_thk = thermo % e_thk
+  energy_min % min_info %de = 0.0_dbl
+  itimes = 0
+  CALL print_energy_info( itimes, energy_min % min_info, globenv )
 
   DO itimes = 1, energy_min % iter   
 
@@ -861,6 +879,14 @@ SUBROUTINE control_energy_work ( globenv, units, simpar, struc, inter, &
   CALL dump_pol_coefs (struc % coef_pos (1) , struc % coef_vel (1), &
                            struc % coef_force (1))
   CALL print_convergence ( conv_flag, globenv )
+
+  IF ( simpar % pol_basis == "PW" ) THEN
+    CALL get_pol_charge (struc % coef_pos (1) % pw, struc % box, pcharge, apcharge )
+           WRITE ( iw, '( A, T71, F18.10 )' ) &
+             ' POL| polarization charge', pcharge                
+           WRITE ( iw, '( A, T71, F18.10 )' ) &
+             ' POL| absolute polarization charge', apcharge                
+  END IF
   
 END SUBROUTINE control_energy_work
 
