@@ -298,22 +298,26 @@ CONTAINS
                   CALL open_file(file_name=TRIM(output_file),&
                         file_action="WRITE",&
                         file_status="UNKNOWN",&
+                        file_position="APPEND",&
                         unit_number=output_unit)
               ELSE
-                  write(output_file,'(A12,I5.5,A2,I5.5)') "FARMING_OUT_",i,"_P",new_rank
-                  CALL open_file(file_name=TRIM(output_file),&
-                        file_action="WRITE",&
-                        file_status="UNKNOWN",&
-                        unit_number=output_unit)
-                  write(output_unit,*) "--- this file should remain empty ---"
-                !output_unit=6 ! this should never be used by cp2k_run (-1 would be as good)
+                !  write(output_file,'(A12,I5.5,A2,I5.5)') "FARMING_OUT_",i,"_P",new_rank
+                !  CALL open_file(file_name=TRIM(output_file),&
+                !        file_action="WRITE",&
+                !        file_status="UNKNOWN",&
+                !        unit_number=output_unit)
+                !  write(output_unit,*) "--- this file should remain empty ---"
+                output_unit=-1 ! this should never be used by cp2k_run (-1 would be as good)
               ENDIF
           
               IF (globenv%ionode) write(globenv%scr,FMT="(T2,A,I5.5,A)") " Running Job ",i, &
                         " output to "//TRIM(farming_env%Job_cwd(i))//"/"//TRIM(output_file)
               run_OK=cp2k_run(TRIM(farming_env%Job_input(i)),output_unit,new_group)
-
-              CALL close_file(unit_number=output_unit)
+              
+              IF (new_rank == 0) THEN
+                  CALL close_file(unit_number=output_unit)
+              ELSE
+              ENDIF
 
           ELSE ! problem if just one node does not change...
               IF (globenv%ionode) write(globenv%scr,FMT="(T2,A,A)") &
