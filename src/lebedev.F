@@ -91,7 +91,7 @@ MODULE lebedev
     REAL(wp), DIMENSION(:,:), POINTER :: r
   END TYPE oh_grid
 
-  TYPE(oh_grid), DIMENSION(nlg) :: lebedev_grid
+  TYPE(oh_grid), DIMENSION(nlg), TARGET :: lebedev_grid
 
   REAL(wp) :: one,rs2,rs3,zero
   INTEGER  :: nlgp
