@@ -5,6 +5,11 @@
 #      for details see cp2k/tools/do_regtest
 #
 # CHARMM INTRA Forces Test
+pot_bond.inp             2
+pot_bend.inp             2
+pot_ub.inp               2
+pot_tor.inp              2
+pot_onfo.inp             2
 # EWALD test
 #
 #
