@@ -11,7 +11,7 @@
 !!     kg_gpw_fm_mol_methods
 !!
 !!   FUNCTION
-!!     Contruct, initialize and use the full matrix blocks for the KG_GPW method 
+!!     Construct, initialize and use the full matrix blocks for the KG_GPW method 
 !!     Using this method all the operations on the full matrixes can be
 !!     splitted inoperations on the single molecular blocks, because
 !!     each molecule is treated as independent, i.e. it does not interact
@@ -50,13 +50,20 @@ MODULE kg_gpw_fm_mol_methods
   USE distribution_1d_types,           ONLY: distribution_1d_type 
   USE kg_gpw_fm_mol_types,             ONLY: allocate_fm_mol_blocks,&
                                              allocate_mol_mo_set,&
+                                             get_fm_mol_block,&
+                                             get_mol_mo_set,&
                                              fm_mol_blocks_type,&
                                              init_mol_mo_set,&
-                                             kg_fm_mol_set_type, set_kg_fm_mol_set
+                                             kg_fm_mol_set_type, &
+                                             mol_mo_set_type,&
+                                             set_kg_fm_mol_set
   USE kinds,                           ONLY: dp,dp_size,int_size
   USE molecule_kind_types,             ONLY: get_molecule_kind,molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
+  USE sparse_matrix_types,             ONLY: get_block_node,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -72,9 +79,9 @@ MODULE kg_gpw_fm_mol_methods
 
 ! *** Public subroutines ***
 
-  PUBLIC ::  build_local_fm_mol, fm_mol_power
+  PUBLIC ::  build_local_fm_mol, calculate_mol_density_matrix,&
+             mol_make_basis, multiply_sparse_mol_mo
 
-!!***
 ! *****************************************************************************
 
 CONTAINS
@@ -224,13 +231,9 @@ CONTAINS
         IF(istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
              "index_atom,index_kind,ifirst_ao,ilast_ao",natom*4*int_size)
 
-        IF(.NOT. use_cholesky) THEN
-          ALLOCATE(fm_mol_block%work(n_ao,n_ao),STAT=istat)
-          IF(istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+        ALLOCATE(fm_mol_block%work(n_ao,n_ao),STAT=istat)
+        IF(istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                           "work",n_ao*n_ao*dp_size)
-        ELSE
-          NULLIFY(fm_mol_block%work)
-        END IF
 
         iao = 0
         DO iat = 1,natom
@@ -250,125 +253,325 @@ CONTAINS
 
 !***************************************************************************
 
-  SUBROUTINE fm_mol_power(matrix,eigenvectors,exponent,threshold,n_dependent)
+  SUBROUTINE mol_make_basis(matrix_mo, ncol, matrix_ortho, otype,&
+                            matrix_p, work, error)
 
-    REAL(dp), DIMENSION(:,:), POINTER            :: matrix, eigenvectors
-    REAL(dp), INTENT(IN)                         :: exponent,threshold
-    INTEGER , INTENT(OUT)                        :: n_dependent
+    REAL(dp), DIMENSION(:,:), POINTER            :: matrix_mo
+    INTEGER, INTENT(IN)                          :: ncol
+    REAL(dp), DIMENSION(:,:), POINTER, OPTIONAL  :: matrix_ortho
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL       :: otype
+    REAL(dp), DIMENSION(:,:), POINTER, OPTIONAL  :: matrix_p,work
+    TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                                  :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN ="fm_mol_power",&
+    CHARACTER(LEN=*), PARAMETER :: routineN ="mol_make_basis",&
          routineP = module_name//':'//routineN
 
-    INTEGER                                      :: handle, icol, istat,&
-                                                    ncol,nrow
-    REAL(dp)                                     :: f,p
-    REAL(dp), DIMENSION(:), ALLOCATABLE          :: eigenvalues
+    INTEGER :: i, info, istat, lda, ldb, ldc, nrow 
+    LOGICAL                                      :: failure, found_type, &
+                                                    use_cholesky, use_pmatrix, &
+                                                    use_simple, use_sv 
+    REAL(dp)                                     :: rone, rzero
+    REAL(dp), DIMENSION(:,:), ALLOCATABLE        :: matrix_cc
 
-    CALL timeset("fm_mol_power","I","",handle)
+!   ----------------------------------------------------------------------
 
-    nrow = SIZE(matrix,1)
-    ncol = SIZE(matrix,2)
+    failure = .FALSE. 
 
-    n_dependent = 0
+    nrow = SIZE(matrix_mo,1)
+    
+    rone = 1.0_dp
+    rzero = 0.0_dp
 
-    ALLOCATE(eigenvalues(ncol),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"eigenvalues",ncol*dp_size)
-    eigenvalues(:) = 0.0_dp
+    IF (PRESENT(matrix_ortho)) THEN
+       IF (.NOT. PRESENT(otype)) THEN
+           CALL stop_program("mo_make_basis","ortho needs type !?")
+       ENDIF
+       found_type=.FALSE.
+       use_sv=.FALSE.
+       use_cholesky=.FALSE.
+       IF (otype .EQ. "CHOLESKY") THEN
+          found_type=.TRUE.
+          use_cholesky=.TRUE.
+       ENDIF
+       IF (otype .EQ. "SV") THEN
+          found_type=.TRUE.
+          use_sv=.TRUE.
+       ENDIF
+       IF (.NOT. found_type) CALL stop_program("make_basis","sorry wrong type")
+    ELSE
+       use_simple=.TRUE.
+    ENDIF
 
-    CALL fm_mol_syevx(matrix,eigenvectors,eigenvalues,ncol)
+    ALLOCATE(matrix_cc(ncol,ncol) , STAT = istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"matrix_cc",ncol*ncol*dp_size)
 
-    p = 0.5_dp*exponent
+    lda = SIZE(matrix_mo,1)
+    ldb = SIZE(matrix_ortho,1)
+    ldc = SIZE(matrix_cc,1)
 
-    DO icol = 1,ncol
-       IF(eigenvalues(icol) < threshold) THEN 
-         n_dependent = n_dependent + 1
-         eigenvectors(1:nrow,icol) = 0.0_dp
-       ELSE
+    IF (use_pmatrix) THEN
 
-         f = eigenvalues(icol)**p
-         eigenvectors(1:nrow,icol) =&
-             f*eigenvectors(1:nrow,icol)
-       END IF
-    END DO
+    ELSE
 
-    CALL dsyrk("U","N",nrow,ncol,1.0_dp,eigenvectors(1,1),nrow,&
-                                 0.0_dp,matrix(1,1),nrow)
+    END IF
 
-    DEALLOCATE(eigenvalues, STAT = istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"eigenvalues")
+    IF (use_sv) THEN
+
+      CALL DGEMM('T','N',ncol,ncol,nrow,rone,matrix_mo(1,1),lda,&
+                 matrix_ortho(1,1),ldb,rzero,matrix_cc(1,1),ldc)
+
+      CALL DPOTRF('U',ncol,matrix_cc(1,1),ldc,info)
+      CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+
+    ELSE
+      write(*,*) 'make_basis, nosv option not checked' 
+      stop 'how am I suppose to know matrix_cc'
+      CALL DSYRK('U','T',ncol,nrow,rone,matrix_cc(1,1),lda,rzero,matrix_cc,ldc)
+      CALL DPOTRF('U',ncol,matrix_cc(1,1),ldc,info)
+      CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+
+    END IF
+
+    CALL DTRSM('R','U','N','N',nrow,ncol,rone,matrix_cc(1,1),ncol,&
+                 matrix_mo(1,1),nrow)
+
+
+    DEALLOCATE(matrix_cc, STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"matrix_cc")
+
+  END SUBROUTINE mol_make_basis
+
+!***************************************************************************
+
+  SUBROUTINE calculate_mol_density_matrix(mo_set,mol_block,natom,p_ispin,error)
+
+    TYPE(mol_mo_set_type), POINTER           :: mo_set 
+    TYPE(fm_mol_blocks_type), POINTER        :: mol_block
+    TYPE(real_matrix_type), POINTER          ::  p_ispin
+    INTEGER                                  ::  natom
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "calculate_mol_density_matrix",&
+      routineP = module_name//':'//routineN
+
+    INTEGER                                  :: col_first, col_last, &
+                                                handle, homo, i, iat, iatom,&
+                                                icol, icol_mol_p, irow, &
+                                                irow_mol_p, ispin, istat, & 
+                                                jat, jatom, lfomo, ncol, &
+                                                ncol_max, nrow, nspins, &
+                                                row_first, row_last
+
+    INTEGER, DIMENSION(:), POINTER           :: i_atom,ifirst_ao,ilast_ao
+    REAL(dp) :: alpha, maxocc
+    REAL(dp), DIMENSION(:),  POINTER         :: occupation
+    REAL(dp), DIMENSION(:,:),  POINTER       :: p_block
+    REAL(dp), DIMENSION(:,:), POINTER        :: mol_p
+    REAL(dp), DIMENSION(:,:), POINTER        :: mo_coeff
+    REAL(dp), DIMENSION(:,:), POINTER        :: fmo_coeff
+    LOGICAL :: failure, smear
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I"," ",handle)
+
+    failure = .FALSE.
+    smear = .FALSE.
+
+    NULLIFY(i_atom,ifirst_ao,ilast_ao,mol_p)
+
+    CALL get_fm_mol_block(fm_mol_block = mol_block,&
+                          index_atom = i_atom,&
+                          work = mol_p,&
+                          ifirst_ao = ifirst_ao,&
+                          ilast_ao = ilast_ao )
+
+    CPPrecondition(ASSOCIATED(mol_p),cp_failure_level,routineP,error,failure)
+    
+    NULLIFY(mo_coeff,occupation)
+    CALL get_mol_mo_set(mo_set=mo_set, mo = mo_coeff,&
+                        occupation_numbers = occupation,&
+                        maxocc = maxocc, &
+                        homo=homo, lfomo=lfomo, nmo=ncol)
+
+    CPPrecondition(ASSOCIATED(mo_coeff),cp_failure_level,routineP,error,failure)
+    nrow = SIZE(mo_coeff,1)
+
+    IF(lfomo .LE. homo) THEN 
+      smear = .TRUE.
+      NULLIFY(fmo_coeff)
+      ALLOCATE(fmo_coeff(nrow,ncol),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,"fmo_coeff",nrow*ncol*dp_size)
+
+      CALL DCOPY(nrow*ncol,mo_coeff,1,fmo_coeff,1) 
+      DO icol = 1,ncol
+        CALL DSCAL(nrow,occupation(icol),fmo_coeff(1,icol),1)
+      END DO
+      alpha = 1.0_dp
+      ncol_max = ncol
+    ELSE
+      alpha = maxocc
+      fmo_coeff => mo_coeff
+      ncol_max = homo
+    END IF
+
+    CALL DGEMM('N','T',nrow,nrow,ncol_max,alpha,mo_coeff,nrow,&
+               fmo_coeff,nrow,0.0_dp,mol_p,SIZE(mol_p,1))
+
+    IF(smear) THEN
+      DEALLOCATE(fmo_coeff,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,"fmo_coeff")
+    ELSE
+      NULLIFY(fmo_coeff)
+    END IF
+
+! Transfer the molecular block of the density matrix in the sparse matrix
+    DO iat = 1,natom
+      iatom = i_atom(iat)
+      row_first = ifirst_ao(iat)
+      row_last  = ilast_ao(iat)
+      DO jat = iat , natom
+        jatom = i_atom(jat)
+        col_first = ifirst_ao(jat)
+        col_last  = ilast_ao(jat)
+
+        NULLIFY(p_block)
+        IF (iatom <= jatom) THEN
+          CALL get_block_node(matrix=p_ispin,&
+                              block_row=iatom,&
+                              block_col=jatom,&
+                              BLOCK=p_block)
+          icol =  1 
+          DO icol_mol_p = col_first, col_last
+            irow = 1
+            DO irow_mol_p = row_first, row_last
+              p_block(irow,icol) = mol_p(irow_mol_p,icol_mol_p)
+              irow = irow + 1
+            END DO  ! irow_mol_p 
+            icol = icol + 1
+          END DO   ! icol_mol_p
+        ELSE
+          CALL get_block_node(matrix=p_ispin,&
+                              block_row=jatom,&
+                              block_col=iatom,&
+                              BLOCK=p_block)
+          icol =  1 
+          DO icol_mol_p = col_first, col_last
+          irow = 1
+            DO irow_mol_p = row_first, row_last
+              p_block(icol,irow) = mol_p(irow_mol_p,icol_mol_p)
+              irow = irow + 1
+            END DO  
+            icol = icol + 1
+          END DO  ! icol_mol_p
+        END IF      
+      END DO  ! jat
+    END DO  ! iat
 
     CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE fm_mol_power
+  END SUBROUTINE calculate_mol_density_matrix
 
 !***************************************************************************
 
-  SUBROUTINE fm_mol_syevx(matrix,eigenvetors,eigenvalues,ncol,error)
+  SUBROUTINE multiply_sparse_mol_mo(matrix,mol_block,natom,vectors,&
+                                    nmo,mat_x_vec,error)
 
-    REAL(dp), DIMENSION(:,:), POINTER            :: matrix, eigenvetors
-    REAL(dp), DIMENSION(:), INTENT(OUT)          :: eigenvalues
-    INTEGER, INTENT(IN)                          :: ncol
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(real_matrix_type), POINTER          :: matrix
+    TYPE(fm_mol_blocks_type), POINTER        :: mol_block
+    INTEGER, INTENT(IN)                      :: natom,nmo
+    REAL(dp), DIMENSION(:,:), POINTER        :: vectors
+    REAL(dp), DIMENSION(:,:), POINTER        :: mat_x_vec
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routineN = "multiply_sparse_mol_mo",&
+      routineP = module_name//":"//routineN
 
-    CHARACTER(LEN=*), PARAMETER :: routineN ="fm_mol_syevx",&
-         routineP = module_name//':'//routineN
+    INTEGER                                  :: col_first, col_last, &
+                                                handle, iat, iatom,&
+                                                icol, icol_mol_s, irow, &
+                                                irow_mol_s, istat, & 
+                                                jat, jatom, ldb, ldc, nrow, &
+                                                row_first, row_last , i
 
-    REAL(KIND = dp), PARAMETER                   :: vl = 0.0_dp,&
-                                                    vu = 0.0_dp 
+    INTEGER, DIMENSION(:), POINTER           :: i_atom,ifirst_ao,ilast_ao
+    REAL(dp), DIMENSION(:,:),  POINTER       :: s_block
+    REAL(dp), DIMENSION(:,:), POINTER        :: mol_s
+    LOGICAL :: failure
 
-!   *** Local variables ***
+!   ---------------------------------------------------------------------------
 
-    INTEGER  :: info, istat, liwork, lwork, m, nb, nrow
-    INTEGER,  DIMENSION(:), ALLOCATABLE          :: ifail,iwork
-    REAL(dp)                                     :: abstol
-    REAL(dp), DIMENSION(:), ALLOCATABLE          :: w, work
-    REAL(dp), DIMENSION(:,:), POINTER            :: a,z
+    failure = .FALSE.
 
-    REAL(KIND = dp), EXTERNAL                :: dlamch
-    INTEGER, EXTERNAL                        :: ilaenv
+    NULLIFY(i_atom,ifirst_ao,ilast_ao,mol_s)
 
+    CALL get_fm_mol_block(fm_mol_block = mol_block,&
+                          index_atom = i_atom,&
+                          work = mol_s,&
+                          ifirst_ao = ifirst_ao,&
+                          ilast_ao = ilast_ao )
 
-    abstol = 2.0_dp*dlamch("S")
-    nrow = SIZE(matrix,1)
+    CPPrecondition(ASSOCIATED(mol_s),cp_failure_level,routineP,error,failure)
 
-    ALLOCATE(w(nrow), STAT =istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"w",nrow*dp_size)
-    w(:) = 0.0_dp
+    mol_s = 0.0_dp 
+    nrow = SIZE(mol_s,1)
+    ldb  =  SIZE(vectors,1)
+    ldc  =  SIZE(mat_x_vec,1)
+    
+    CPPrecondition(ldc>=nrow,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ldb>=nrow,cp_failure_level,routineP,error,failure)
 
-    eigenvalues(:) = 0.0_dp
+ ! Transfer the sparse matrix in the molecular block
+    DO iat = 1,natom
+      iatom = i_atom(iat)
+      row_first = ifirst_ao(iat)
+      row_last  = ilast_ao(iat)
+      DO jat = 1 , natom
+        jatom = i_atom(jat)
+        col_first = ifirst_ao(jat)
+        col_last  = ilast_ao(jat)
 
-    nb = MAX(ilaenv(1,"DSYTRD","U",nrow,-1,-1,-1),&
-             ilaenv(1,"DORMTR","U",nrow,-1,-1,-1))
+        NULLIFY(s_block)
+        IF (iatom <= jatom) THEN
+          CALL get_block_node(matrix=matrix,&
+                              block_row=iatom,&
+                              block_col=jatom,&
+                              BLOCK=s_block)
+          icol =  1 
+          DO icol_mol_s = col_first, col_last
+            irow = 1
+            DO irow_mol_s = row_first, row_last
+              mol_s(irow_mol_s,icol_mol_s) = s_block(irow,icol)
+              irow = irow + 1
+            END DO  ! irow_mol_s 
+            icol = icol + 1
+          END DO   ! icol_mol_s
+        ELSE
+          CALL get_block_node(matrix=matrix,&
+                              block_row=jatom,&
+                              block_col=iatom,&
+                              BLOCK=s_block)
+          icol =  1 
+          DO icol_mol_s = col_first, col_last
+            irow = 1
+            DO irow_mol_s = row_first, row_last
+              mol_s(irow_mol_s,icol_mol_s) = s_block(icol,irow)
+              irow = irow + 1
+            END DO
+            icol = icol + 1
+          END DO
+        END IF      
+      END DO  ! jat
+    END DO  ! iat
+ 
+    CALL DGEMM('N','N',nrow,nmo,nrow,1.0_dp,mol_s,nrow,vectors,ldb,&
+                0.0_dp,mat_x_vec,ldc) 
 
-    lwork = MAX((nb + 3)*nrow,8*nrow)+nrow ! sun bug fix
-    liwork = 5*nrow
-
-    ALLOCATE (ifail(nrow),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"ifail",nrow*int_size)
-    ALLOCATE (iwork(liwork),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"iwork",liwork*int_size)
-    ALLOCATE (work(lwork),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"work",lwork*dp_size)
-
-    CALL dsyevx("V","I","U",nrow,matrix(1,1),nrow,vl,vu,1,ncol,abstol,&
-                m,w,eigenvetors(1,1),nrow,work(1),lwork,&
-                iwork(1),ifail(1),info)
-
-!   *** Error handling ***
-
-    IF (info /= 0) CALL stop_program(routineP,"Error in dsyevx")
-
-    eigenvalues(1:ncol) = w(1:ncol)
-
-!   *** Release work storage ***
-
-    DEALLOCATE(w,ifail,iwork,work,STAT =istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"w,ifail,iwork,work")
-
-  END SUBROUTINE fm_mol_syevx 
+  END SUBROUTINE multiply_sparse_mol_mo
 
 !***************************************************************************
-
 END MODULE  kg_gpw_fm_mol_methods
