@@ -1089,7 +1089,7 @@ CONTAINS
        ddata2 => deriv_vals_r(2)%pw%cr3d
        ddata3 => deriv_vals_r(3)%pw%cr3d
        !$omp parallel do default(none) private(k,j,i,dVal1,dVal2,dVal3) &
-       !$omp          shared(ddata,ddata2.ddata3,h_grid)
+       !$omp          shared(ddata,ddata2,ddata3,h_grid,bo)
        DO k = bo(1,3), bo(2,3)
           DO j = bo(1,2), bo(2,2)
              DO i = bo(1,1), bo(2,1)
@@ -2145,10 +2145,14 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
              gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
              pw_in%pw_grid%para%group)
         DEALLOCATE(tmp,stat=stat)
+
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
 
      IF (method_rs<3) THEN
+        !$omp parallel do default(none) private(k,kw,myk,j,jw,myj,in_val_f,&
+        !$omp     in_val_l) shared(zderiv,yderiv,bo,in_val,out_val,s,l_boundary,&
+        !$omp     u_boundary,weights,has_boundary)
         DO k=0,s(3)-1
            DO kw=0,2
               IF (zderiv.AND.kw==1) CYCLE
@@ -2173,6 +2177,9 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
            END DO
         END DO
      ELSE
+        !$omp parallel do default(none) private(k,kw,myk,j,myj,in_val_first,&
+        !$omp     in_val_last) shared(zderiv,yderiv,bo,in_val,out_val,s,&
+        !$omp     l_boundary, u_boundary,weights,has_boundary)
         DO k=0,s(3)-1
            DO j=0,s(2)-1
               DO kw=0,2
@@ -2187,9 +2194,9 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
                  ELSE
                     DO jw=0,2
                        myj=bo(1,2)+MODULO(j+jw-1,s(2))
-                       in_val_first(jw)=pw_in%cr3d(bo(2,1),&
+                       in_val_first(jw)=in_val(bo(2,1),&
                             myj,myk)
-                       in_val_last(jw)=pw_in%cr3d(bo(1,1),&
+                       in_val_last(jw)=in_val(bo(1,1),&
                             myj,myk)
                     END DO
                  END IF
