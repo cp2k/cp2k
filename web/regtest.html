@@ -20,16 +20,26 @@
 </tr>
 <H2> The automatic regression tester </H2>
 <H3> Goal </H3> 
-CP2K should be kept in good shape throughout its development. Bugs that are fixed should stay fixed, features that are working should remain in that state. In order to do so, an automated tester downloads/builds/tests CP2K every night. Results are shown on this page.
-<H3> Informational </H2> 
-These are serial runs using the NAG compiler with full error checking on a PC architecture. Even though we strive to reach the above goal, the rapid development of CP2K does imply that not all features are working or passing the high standard of Fortran conformance we require during this testing. Failing tests are an indication of possible problems, but as yet still quite common.
-<H3> Timeline and build report </H2> 
+CP2K should be kept in good shape throughout its development. 
+Bugs that are fixed should stay fixed, features that are working should remain in that state. 
+In order to do so, an automated tester downloads/builds/tests CP2K every night. 
+<A HREF="#correct">Correctness of results</A> and <A HREF="#leaks">memory leak tests</A> are reported. 
+Results are shown on this page check for the correctness of the computation and memory leak testing.
+<H3> Informational </H3> 
+Correctness runs are serial runs using the NAG compiler with full error checking on a PC architecture. Even though we strive to reach the above goal, the rapid development of CP2K does imply that not all features are working or passing the high standard of Fortran conformance we require during this testing. Failing tests are an indication of possible problems, but as yet still quite common.
+Memory leak checking is performed using the free fortran compiler g95 (<A HREF="http://www.g95.org/">www.g95.org</A>).
+<H3> <a NAME="correct">Correctness of results and Fortran conformance</a> </H3> 
 <CENTER>
 The <A HREF="regtest.txt">latest build report</A> is available.
 <H4> Long time summary </H4>
 <IMG SRC="timeline.png"><BR>
 <H4> Recent errors </H4>
 <IMG SRC="latest_errors.png"><BR>
+</CENTER>
+<H3> <a NAME="leaks">Memory leaks</A> </H3>
+<CENTER>
+The <A HREF="memory_leaks.txt">latest memory leak report</A> is available. <BR>
+<IMG SRC="latest_memory.png"><BR>
 </CENTER>
 <hr>
 Back to the <A HREF="index.html">CP2K homepage</A>
