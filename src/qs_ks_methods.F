@@ -638,16 +638,21 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
   TYPE(dft_control_type), POINTER :: dft_control
   TYPE(cp_para_env_type), POINTER :: para_env
 
-  CALL timeset(routineN,"I","",handle)
+  r_build=.FALSE.; c_forces=.FALSE.; energy_only = .FALSE.
+  IF (PRESENT(just_energy)) energy_only=just_energy
+  IF (PRESENT(calculate_forces)) c_forces=calculate_forces
+  IF (PRESENT(rebuild)) r_build=rebuild
+
+  IF (c_forces) THEN
+     CALL timeset(routineN//" (forces)","I","",handle)
+  ELSE 
+     CALL timeset(routineN,"I","",handle)
+  ENDIF
 
   failure=.FALSE.
   did_update=.FALSE.
   NULLIFY(ks,h,s,energy, logger, rho, dft_control, para_env)
   logger => cp_error_get_logger(error)
-  r_build=.FALSE.; c_forces=.FALSE.; energy_only = .FALSE.
-  IF (PRESENT(just_energy)) energy_only=just_energy
-  IF (PRESENT(calculate_forces)) c_forces=calculate_forces
-  IF (PRESENT(rebuild)) r_build=rebuild
 
   CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
