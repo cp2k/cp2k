@@ -28,4 +28,4 @@ H2O-32_ewald.inp          2
 H2O-32_PME.inp            2
 H2O-32_SPME.inp           2
 H2O-32_NPT.inp            2
-silicon_cluster.inp       1
+silicon_cluster.inp       2
