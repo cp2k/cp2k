@@ -109,7 +109,8 @@ MODULE qs_scf
                                       blacs_cholesky_restore, &
                                       deallocate_blacs_matrix, &
                                       blacs_init_random, &
-                                      sparse_times_blacs
+                                      sparse_times_blacs,&
+                                      w_blacs_matrix => write_blacs_matrix
   USE qs_core_hamiltonian,      ONLY: build_core_hamiltonian_matrix
   USE qs_diis,                  ONLY: eps_diis,max_diis,scf_diis
   USE qs_environment_types,     ONLY: get_qs_env,&
@@ -164,8 +165,8 @@ MODULE qs_scf
        cp_opt_gerd_f_init, cp_opt_gerd_f_dealloc_ref
   use pao_types,                only: pao_env_type, pao_env_get, &
        pao_glob_angles_type
-  use cp_sparse_matrix,         only: cp_sparse_matrix_type, &
-       cp_sparse_matrix_p_type
+  use cp_block_matrix,         only: cp_block_matrix_type, &
+       cp_block_matrix_p_type, cp_sp_multiplies_blacs
   use pao_proj_methods,         only: sm_matrix_transf_to_f,&
        sm_matrix_transf_p_to_m
   use pao_qs_env_methods,       only: pao_qs_env_did_change
@@ -175,6 +176,7 @@ MODULE qs_scf
   use cp_log_handling,          only: cp_failure_level, cp_warning_level,&
        cp_to_string
   use pao_glob_angles_methods,  only: pao_g_ang_get,pao_g_ang_set
+  use pao_l_angles_methods,     only: pao_guarantee_owned_NUi
   use qs_build_KS_matrix,       only: qs_ks_env_type, qs_ks_init, &
        qs_ks_dealloc_ref, qs_ks_did_change, qs_ks_update_qs_env
   use cp_matrix_utils,          only: cp_sm_output
@@ -192,6 +194,7 @@ MODULE qs_scf
                                       qs_ot_mini
   use qs_energy_types,          only: qs_energy_type
   use cp_array_utils, only: cp_1d_r_output
+  use cp_mpi_env, only: cp_mpi_env_type, cp_mpi_get_from_glob
 
   IMPLICIT NONE
 
@@ -261,7 +264,8 @@ CONTAINS
     type(cp_lbfgs_opt_gerd_f_type), pointer :: pao_optimizer
     type(cp_error_type) :: error
     type(pao_env_type),pointer :: pao_env
-    type(cp_sparse_matrix_p_type),dimension(:),pointer :: min_density_m
+    type(cp_block_matrix_p_type),dimension(:),pointer :: min_density_m
+    type(blacs_matrix_type), pointer :: min_mo,full_mo
     real(kind=wp)  ::pao_f,pao_last_f,pao_actual_grad
     
     type(real_matrix_p_type), pointer :: ks, p, p_old
@@ -335,12 +339,12 @@ CONTAINS
        call cp_sm_output(logger=cp_error_get_logger(error), &
             outputName="scf_s", &
             fromWhere=routine, iter=0, matrix=s(1)%matrix,&
-            global_env=globenv,error=error)
+            mpi_env=cp_mpi_get_from_glob(globenv),error=error)
        if (pao) then
           call cp_sm_output(logger=cp_error_get_logger(error), &
                outputName="scf_atomic_ortho",&
                fromWhere=routine, iter=0,matrix=pao_env%atomic_ortho%matrix,&
-               global_env=globenv, error=error)
+               mpi_env=cp_mpi_get_from_glob(globenv), error=error)
        end if
     end if
 
@@ -453,18 +457,23 @@ CONTAINS
       SELECT CASE (type_switch)
       CASE (0) ! pao
 
+        CALL copy_sparse_to_blacs_matrix(ks%matrix,scf_work1,globenv)
+        IF (iscf > 1) THEN
+          CALL scf_diis(mo_set,scf_work1,scf_work2,delta,diis_error,diis_step,&
+                        qs_env,globenv)
+        END IF
          if (cp_debug .and. debug_this_module) then
             call cp_sm_output(logger=cp_error_get_logger(error), &
                  outputName="scf_ks", &
                  fromWhere=routine, iter=iscf, matrix=ks%matrix,&
-                 global_env=globenv,error=error)
+                 mpi_env=cp_mpi_get_from_glob(globenv),error=error)
             call cp_sm_output(logger=cp_error_get_logger(error),&
                  outputName="scf_p", &
                  fromWhere=routine, iter=iscf, matrix=p%matrix,&
-                 global_env=globenv,error=error)
+                 mpi_env=cp_mpi_get_from_glob(globenv),error=error)
          end if
          call pao_qs_env_did_change(qs_env,global_env=globenv,h_changed=.true.)
-         do
+         do ! optimize angles
             if (.not.cp_opt_gerd_f_next(pao_optimizer,f=pao_f,&
                  last_f=pao_last_f,&
                  projected_gradient=pao_actual_grad, error=error)) then
@@ -480,34 +489,46 @@ CONTAINS
          end do
          call pao_env_get(pao_env, min_density_m=min_density_m,error=error)
          call sm_matrix_transf_to_f(source_m=min_density_m(1)%matrix%matrix,&
-              target_m=ks%matrix, glob_angles=pao_env%angles_att,&
+              target_m=p_new%matrix, glob_angles=pao_env%angles_att,&
               qs_env=qs_env, global_env=globenv,error=error)
+         call pao_guarantee_owned_NUi(pao_env%angles_att, qs_env=qs_env,&
+              global_env=globenv,error=error)
+         call get_mo_set(pao_obj_f%mo_set(1)%mo_set,eigenvectors=min_mo)
+         call get_mo_set(mo_set,eigenvectors=full_mo)
+         call cp_sp_multiplies_blacs(pao_env%angles_att%NUi_injection,&
+              min_mo,full_mo)
          if (cp_debug .and. debug_this_module) then
             call cp_1d_r_output(logger=cp_error_get_logger(error),&
                  outputName="scf_x",fromWhere=routine,&
                  iter=iscf,array=pao_env%angles_att%angles,&
                  error=error)
+            write (unit=output_unit, fmt='a') "min_mo"
+            call w_blacs_matrix(min_mo,output_unit,globenv,formatted=.true.)
+            write (unit=output_unit, fmt='a') "full_mo"
+            call w_blacs_matrix(full_mo,output_unit,globenv,formatted=.true.)
             call cp_sm_output(logger=cp_error_get_logger(error), &
                  outputName="scf_new_p", &
-                 fromWhere=routine, iter=iscf, matrix=ks%matrix,&
-                 global_env=globenv,error=error)
+                 fromWhere=routine, iter=iscf, matrix=p_new%matrix,&
+                 mpi_env=cp_mpi_get_from_glob(globenv),error=error)
          end if
 
          t2 = cputime()
 
          IF (diis_step) THEN
-           CALL density_mixing(ks,p,1.0_wp,delta,globenv)
+           CALL density_mixing(p_new,p,1.0_wp,delta,globenv)
            IF (ionode.AND.globenv%print%scf) THEN
               WRITE (UNIT=output_unit,&
                      FMT="(T2,I5,2X,A,T15,E10.2,T30,F8.2,T40,2F20.10)")&
                      iscf,"DIIS",diis_error,t2 - t1,delta,energy%total
            END IF
          ELSE
-           CALL density_mixing(ks,p,p_mix,delta,globenv)
+           CALL density_mixing(p_new,p,p_mix,delta,globenv)
            IF (ionode.AND.globenv%print%scf) THEN
              WRITE (UNIT=output_unit,&
                     FMT="(T2,I5,2X,A,T15,F6.2,T30,F8.2,T40,2F20.10)")&
                iscf,"Mixing",p_mix,t2 - t1,delta,energy%total
+             WRITE (UNIT=output_unit, FMT="(A,E10.2)") "diis error=",&
+                  diis_error 
            END IF
          END IF
 
@@ -634,9 +655,7 @@ CONTAINS
   
     SELECT CASE (type_switch)
     CASE (0) ! pao
-      CALL transfer_matrix(ks%matrix,p%matrix)
-      ! pao should keep ks and use p_new to store the new density matrix
-      CALL stop_program("qs_scf","if forces KS has to be ks and not P")
+      IF (.NOT.diis_step) CALL transfer_matrix(p_new%matrix,p%matrix)
     CASE (1) ! diagonalisation
       IF (.NOT.diis_step) CALL transfer_matrix(p_new%matrix,p%matrix)
     CASE (2)
