@@ -160,7 +160,7 @@ CONTAINS
         atom_a=atom_of_kind(i)
         ri ( : ) = particle_set ( i ) % r ( : )
         DO jkind = 1, nkind
-          list => particle_set ( i ) % lpi % exclusion ( jkind ) % list
+          list => particle_set ( i ) % lpi % exclusion ( jkind ) % list_ei
           IF (.NOT.ASSOCIATED(list)) CYCLE
           nexl = SIZE ( list )
           DO iexl = 1, nexl

@@ -112,6 +112,8 @@ MODULE topology_types
     LOGICAL                                   :: const_46
     LOGICAL                                   :: charge_occup
     LOGICAL                                   :: charge_beta
+    CHARACTER (LEN=default_string_length)     :: exclude_vdw
+    CHARACTER (LEN=default_string_length)     :: exclude_ei
   END TYPE topology_parameters_type
 
 
@@ -194,6 +196,8 @@ SUBROUTINE init_topology (topology)
   topology%const_46=.FALSE.
   topology%charge_occup=.FALSE.
   topology%charge_beta=.FALSE.
+  topology%exclude_vdw="1-4"
+  topology%exclude_ei="1-4"
 
 
   !-----------------------------------------------------------------------------

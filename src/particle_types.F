@@ -96,7 +96,8 @@ MODULE particle_types
 ! *** Data types ***
 
   TYPE exclusion_list_type
-    INTEGER, DIMENSION(:), POINTER :: list
+    INTEGER, DIMENSION(:), POINTER :: list_vdw
+    INTEGER, DIMENSION(:), POINTER :: list_ei
   END TYPE exclusion_list_type
 
   TYPE local_particle_type
@@ -276,11 +277,15 @@ END SUBROUTINE clone_particle
         IF (ASSOCIATED(particle_set(iparticle)%lpi)) THEN
           IF (ASSOCIATED(particle_set(iparticle)%lpi%exclusion)) THEN
             DO i=1,SIZE(particle_set(iparticle)%lpi%exclusion)
-              IF (ASSOCIATED(particle_set(iparticle)%lpi%exclusion(i)%list)) THEN
-
-                DEALLOCATE (particle_set(iparticle)%lpi%exclusion(i)%list,STAT=istat)
+              IF (ASSOCIATED(particle_set(iparticle)%lpi%exclusion(i)%list_vdw)) THEN
+                DEALLOCATE (particle_set(iparticle)%lpi%exclusion(i)%list_vdw,STAT=istat)
                 IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                                 "particle_set(iparticle)%exclusion(i)%list")
+                                                 "particle_set(iparticle)%exclusion(i)%list_vdw")
+              END IF
+              IF (ASSOCIATED(particle_set(iparticle)%lpi%exclusion(i)%list_ei)) THEN
+                DEALLOCATE (particle_set(iparticle)%lpi%exclusion(i)%list_ei,STAT=istat)
+                IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                                 "particle_set(iparticle)%exclusion(i)%list_ei")
               END IF
             END DO
             DEALLOCATE (particle_set(iparticle)%lpi%exclusion,STAT=istat)

@@ -1638,7 +1638,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   TYPE(onfo_type), DIMENSION(:), POINTER            :: onfo_list
   TYPE(ub_type), DIMENSION(:), POINTER              :: ub_list
   TYPE(impr_type), DIMENSION(:), POINTER            :: impr_list
-  LOGICAL                                  :: found
+  LOGICAL                                  :: found,found_a,found_b
   INTEGER                                  :: counter
   INTEGER,POINTER                          :: map_bond_kind(:)
   INTEGER,POINTER                          :: map_bend_kind(:)
@@ -1654,6 +1654,8 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   TYPE(torsion_kind_type), DIMENSION(:), POINTER    :: torsion_kind_set
 
   REAL(KIND=dp)                                :: rmin,epsilon, default_rcutsq
+  REAL(KIND=dp)                                :: rmin2_a,rmin2_b
+  REAL(KIND=dp)                                :: epsilon_a,epsilon_b
   INTEGER                                  :: ii, jj, imul
   LOGICAL :: only_qm, my_qmmm
 
@@ -2670,6 +2672,8 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       atomic_kind => atomic_kind_set(j)
       CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_b_local)
       found = .FALSE.
+      found_a = .FALSE.
+      found_b = .FALSE.
       name_atm_a = name_atm_a_local
       name_atm_b = name_atm_b_local
       only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
@@ -2686,18 +2690,45 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
         DO k=1,SIZE(chm_info%nonbond_a_14)
           IF(TRIM(name_atm_a)==TRIM(chm_info%nonbond_a_14(k))) THEN
             ii = k
+            rmin2_a = chm_info%nonbond_rmin2_14(k)
+            epsilon_a = chm_info%nonbond_eps_14(k)
+            found_a = .TRUE.
           END IF
         END DO
         DO k=1,SIZE(chm_info%nonbond_a_14)
           IF(TRIM(name_atm_b)==TRIM(chm_info%nonbond_a_14(k))) THEN
             jj = k
+            rmin2_b = chm_info%nonbond_rmin2_14(k)
+            epsilon_b = chm_info%nonbond_eps_14(k)
+            found_b = .TRUE.
           END IF
         END DO
 
+        IF(.NOT.found_a) THEN
+          DO k=1,SIZE(chm_info%nonbond_a)
+            IF(TRIM(name_atm_a)==TRIM(chm_info%nonbond_a(k))) THEN
+              ii = k
+              rmin2_a = chm_info%nonbond_rmin2(k)
+              epsilon_a = chm_info%nonbond_eps(k)
+            END IF
+          END DO
+        END IF
+        IF(.NOT.found_b) THEN
+          DO k=1,SIZE(chm_info%nonbond_a)
+            IF(TRIM(name_atm_b)==TRIM(chm_info%nonbond_a(k))) THEN
+              jj = k
+              rmin2_b = chm_info%nonbond_rmin2(k)
+              epsilon_b = chm_info%nonbond_eps(k)
+            END IF
+          END DO
+        END IF
+
         IF(ii/=0 .AND. jj/=0) THEN
-          rmin = chm_info%nonbond_rmin2_14(ii)+chm_info%nonbond_rmin2_14(jj)
-          epsilon = sqrt(chm_info%nonbond_eps_14(ii)*&
-                         chm_info%nonbond_eps_14(jj))
+          !rmin = chm_info%nonbond_rmin2_14(ii)+chm_info%nonbond_rmin2_14(jj)
+          !epsilon = sqrt(chm_info%nonbond_eps_14(ii)*&
+          !               chm_info%nonbond_eps_14(jj))
+          rmin = rmin2_a + rmin2_b
+          epsilon = sqrt(epsilon_a*epsilon_b)
           potparm_bond(i,j)%type       = 'LENNARD-JONES'
           potparm_bond(i,j)%at1        = name_atm_a
           potparm_bond(i,j)%at2        = name_atm_b
@@ -2739,7 +2770,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       END IF
 
       IF(.NOT.found) THEN
-        IF(PM1) WRITE(iw,*) "    spline_bond_env ",j," : ",&
+        IF(PM2) WRITE(iw,*) "    spline_bond_env ",j," : ",&
                             TRIM(name_atm_a)," ",&
                             TRIM(name_atm_b)
         potparm_bond(i,j)%type       = 'UNSET'
@@ -2987,7 +3018,6 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
 
           IF(found .AND. PM1) &
              WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
-             WRITE(iw,*) potparm_nonbond(i,j)%lj%epsilon,rmin
           found = .TRUE.
         END IF
       END IF
@@ -3108,7 +3138,7 @@ SUBROUTINE force_field_qeff_output (particle_set,atomic_kind_set,&
     IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
   END IF
 
-  IF(PM1) WRITE(iw,*) "  Entering force_field_pack"
+  IF(PM1) WRITE(iw,*) "  Entering force_field_qeff_output"
 
   qeff     = 0.0_dp
   qeff_mol = 0.0_dp

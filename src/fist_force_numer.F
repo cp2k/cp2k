@@ -3151,7 +3151,7 @@ END SUBROUTINE potential_nonbond
                           sab(:) = real_to_scaled(rab(:),cell)
                           exclude_flag = .FALSE.
                           exclusion_list =>  &
-                          particle_set ( atom_a ) % lpi % exclusion ( jkind ) % list 
+                          particle_set ( atom_a ) % lpi % exclusion ( jkind ) % list_vdw
                           IF ( ASSOCIATED ( exclusion_list ) ) THEN
                             DO iatom=1,SIZE(exclusion_list)
                               IF (exclusion_list(iatom) == 0) EXIT

@@ -1613,7 +1613,7 @@ CONTAINS
 
                     IF (PRESENT(particle_set)) THEN
                       loop_out1: DO jkind = 1, nkind
-                        list => particle_set(atom_a)%lpi%exclusion(jkind) % list
+                        list => particle_set(atom_a)%lpi%exclusion(jkind) % list_ei
                         IF (.NOT.ASSOCIATED(list)) CYCLE
                         nexl = SIZE ( list )
                         loop_in1: DO iexl = 1, nexl
@@ -1731,7 +1731,7 @@ CONTAINS
 
                           IF (PRESENT(particle_set)) THEN
                             loop_out2: DO jkind = 1, nkind
-                              list => particle_set(atom_a)%lpi%exclusion(jkind)%list
+                              list => particle_set(atom_a)%lpi%exclusion(jkind)%list_ei
                               IF (.NOT.ASSOCIATED(list)) CYCLE
                               nexl = SIZE (list)
                               loop_in2: DO iexl = 1, nexl

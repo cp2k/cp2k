@@ -137,7 +137,7 @@ SUBROUTINE read_topology_section ( topology, globenv )
   ELSE
      CALL read_line
      DO WHILE (test_next()/='X')
-        ilen = 8
+        ilen = 40
         CALL get_next(string,ilen)
         CALL uppercase ( string )
         SELECT CASE ( string )
@@ -149,7 +149,7 @@ SUBROUTINE read_topology_section ( topology, globenv )
            topology % dump_topology = .TRUE.
         CASE ('REORDER')
            topology % reorder_atom = .TRUE.
-        CASE ('COORD_FI','COORD_FILE')
+        CASE ('COORD_FI','COORD_FILE','COORD_FILE_NAME')
            ilen = 40
            CALL get_next(topology % coord_file_name,ilen)
         CASE ('COORDINA','COORDINATE')
@@ -199,6 +199,16 @@ SUBROUTINE read_topology_section ( topology, globenv )
               CALL stop_parser( 'read_topology_section', &
                                 'unknown option topology type' )
            END IF
+        CASE ('EXCLUDE_VDW')
+           ilen = 40
+           CALL get_next(str2,ilen)
+           CALL uppercase(str2)
+           topology % exclude_vdw = str2
+        CASE ('EXCLUDE_EI')
+           ilen = 40
+           CALL get_next(str2,ilen)
+           CALL uppercase(str2)
+           topology % exclude_ei = str2
         CASE ('BONDPARM')
            ilen = 40
            CALL get_next(str2,ilen)

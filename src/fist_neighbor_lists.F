@@ -448,7 +448,7 @@ CONTAINS
                           r=rab,&
                           s=sab,&
                           exclusion_list = particle_set(atom_a)%lpi%&
-                                           exclusion(jkind)%list)
+                                           exclusion(jkind)%list_vdw)
                       END IF
                     END IF
                   END DO
@@ -564,7 +564,7 @@ CONTAINS
                                 r=rab,&
                                 s=sab,&
                                 exclusion_list=particle_set(atom_a)%lpi%&
-                                               exclusion(jkind)%list)
+                                               exclusion(jkind)%list_vdw)
                             END IF
                           END IF
                         END DO

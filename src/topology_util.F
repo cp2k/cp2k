@@ -2574,7 +2574,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 8. Fill in the particle_set%lpi%exclusion list
+  ! 8. Fill in the particle_set%lpi%exclusion%list_vdw
   !-----------------------------------------------------------------------------
   ALLOCATE(atomkind(SIZE(particle_set)),STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomkind')
@@ -2599,45 +2599,49 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
       atomlist(:) = 1 
       atomlist(i) = 0    !exclude yourself???
 
-      CALL get_molecule_kind(molecule_kind,nbond=nbond,&
-                             bond_list=bond_list)
-         
-      DO j=1,nbond
-         IF (PM2) WRITE(iw,*)"bond_list ::",bond_list(j)%a,bond_list(j)%b
-         IF(  (bond_list(j)%a==i).OR. &
-              (bond_list(j)%b==i) ) THEN
-            atomlist(bond_list(j)%a) = 0
-            atomlist(bond_list(j)%b) = 0
-         END IF
-      END DO
-      CALL get_molecule_kind(molecule_kind,nbend=nbend,&
-                             bend_list=bend_list)
-      DO j=1,nbend
-         IF (PM2) WRITE(iw,*)"bend_list ::",bend_list(j)%a,bend_list(j)%b,&
-              bend_list(j)%c
-         IF(  (bend_list(j)%a==i).OR. &
-              (bend_list(j)%b==i).OR. &
-              (bend_list(j)%c==i) ) THEN
-            atomlist(bend_list(j)%a) = 0
-            atomlist(bend_list(j)%b) = 0
-            atomlist(bend_list(j)%c) = 0
-         END IF
-      END DO
-      CALL get_molecule_kind(molecule_kind,ntorsion=ntorsion,&
-                             torsion_list=torsion_list)
-      DO j=1,ntorsion
-         IF (PM2) WRITE(iw,*)"tors_list ::",torsion_list(j)%a,&
-              torsion_list(j)%b, torsion_list(j)%c, torsion_list(j)%d
-         IF(  (torsion_list(j)%a==i).OR. &
-              (torsion_list(j)%b==i).OR. &
-              (torsion_list(j)%c==i).OR. &
-              (torsion_list(j)%d==i) ) THEN
-            atomlist(torsion_list(j)%a) = 0
-            atomlist(torsion_list(j)%b) = 0
-            atomlist(torsion_list(j)%c) = 0
-            atomlist(torsion_list(j)%d) = 0
-         END IF
-      END DO
+      IF(topology%exclude_vdw=="1-2" .OR. &
+         topology%exclude_vdw=="1-3" .OR. &
+         topology%exclude_vdw=="1-4") THEN
+        CALL get_molecule_kind(molecule_kind,nbond=nbond,&
+                               bond_list=bond_list)
+        DO j=1,nbond
+           IF (PM2) WRITE(iw,*)"bond_list ::",bond_list(j)%a,bond_list(j)%b
+           IF(  (bond_list(j)%a==i).OR. &
+                (bond_list(j)%b==i) ) THEN
+              atomlist(bond_list(j)%a) = 0
+              atomlist(bond_list(j)%b) = 0
+           END IF
+        END DO
+      END IF
+
+      IF(topology%exclude_vdw=="1-3" .OR. &
+         topology%exclude_vdw=="1-4") THEN
+        CALL get_molecule_kind(molecule_kind,nbend=nbend,&
+                               bend_list=bend_list)
+        DO j=1,nbend
+           IF (PM2) WRITE(iw,*)"bend_list ::",bend_list(j)%a,bend_list(j)%b,&
+                bend_list(j)%c
+           IF(  (bend_list(j)%a==i).OR. &
+                (bend_list(j)%c==i) ) THEN
+              atomlist(bend_list(j)%a) = 0
+              atomlist(bend_list(j)%c) = 0
+           END IF
+        END DO
+      END IF
+
+      IF(topology%exclude_vdw=="1-4") THEN
+        CALL get_molecule_kind(molecule_kind,ntorsion=ntorsion,&
+                               torsion_list=torsion_list)
+        DO j=1,ntorsion
+           IF (PM2) WRITE(iw,*)"tors_list ::",torsion_list(j)%a,&
+                torsion_list(j)%b, torsion_list(j)%c, torsion_list(j)%d
+           IF(  (torsion_list(j)%a==i).OR. &
+                (torsion_list(j)%d==i) ) THEN
+              atomlist(torsion_list(j)%a) = 0
+              atomlist(torsion_list(j)%d) = 0
+           END IF
+        END DO
+      END IF
 
       IF (my_qmmm) THEN 
          !
@@ -2663,10 +2667,10 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
             list(counter) = k + first_atom - 1
           END IF
         END DO
-        particle_set(i+first_atom-1)%lpi%exclusion(j)%list => list
+        particle_set(i+first_atom-1)%lpi%exclusion(j)%list_vdw => list
         IF (PM2) THEN 
            IF (ASSOCIATED(list)) &
-           WRITE(iw,*)"exclusion list :: Mol. num :",imolecule,&
+           WRITE(iw,*)"exclusion list_vdw :: Mol. num :",imolecule,&
                      "atom num :",i,"kind num. :",j,"exclusion list ::",&
                      list
         END IF
@@ -2680,7 +2684,117 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 9. Set the atomic_kind_set()%elp_potentail%[qeff] (PART 1)
+  ! 9. Fill in the particle_set%lpi%exclusion%list_ei
+  !-----------------------------------------------------------------------------
+  ALLOCATE(atomkind(SIZE(particle_set)),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomkind')
+  DO i=1,SIZE(particle_set)
+    atomic_kind => particle_set(i)%atomic_kind
+    CALL get_atomic_kind(atomic_kind,kind_number=j)
+    atomkind(i) = j
+  END DO
+  DO imolecule=1,SIZE(molecule_set)
+    IF (PM2) WRITE(iw,*)"Entering molecule number ::",imolecule
+    molecule => molecule_set(imolecule)
+    CALL get_molecule(molecule,molecule_kind=molecule_kind,&
+         first_atom=first_atom,last_atom=last_atom)
+
+    natom = last_atom - first_atom + 1
+
+    ALLOCATE(atomlist(natom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomlist')
+
+    DO i=1,natom
+
+      atomlist(:) = 1 
+      atomlist(i) = 0    !exclude yourself???
+
+      IF(topology%exclude_ei=="1-2" .OR. &
+         topology%exclude_ei=="1-3" .OR. &
+         topology%exclude_ei=="1-4") THEN
+        CALL get_molecule_kind(molecule_kind,nbond=nbond,&
+                               bond_list=bond_list)
+        DO j=1,nbond
+           IF (PM2) WRITE(iw,*)"bond_list ::",bond_list(j)%a,bond_list(j)%b
+           IF(  (bond_list(j)%a==i).OR. &
+                (bond_list(j)%b==i) ) THEN
+              atomlist(bond_list(j)%a) = 0
+              atomlist(bond_list(j)%b) = 0
+           END IF
+        END DO
+      END IF
+
+      IF(topology%exclude_ei=="1-3" .OR. &
+         topology%exclude_ei=="1-4") THEN
+        CALL get_molecule_kind(molecule_kind,nbend=nbend,&
+                               bend_list=bend_list)
+        DO j=1,nbend
+           IF (PM2) WRITE(iw,*)"bend_list ::",bend_list(j)%a,bend_list(j)%b,&
+                bend_list(j)%c
+           IF(  (bend_list(j)%a==i).OR. &
+                (bend_list(j)%c==i) ) THEN
+              atomlist(bend_list(j)%a) = 0
+              atomlist(bend_list(j)%c) = 0
+           END IF
+        END DO
+      END IF
+
+      IF(topology%exclude_ei=="1-4") THEN
+        CALL get_molecule_kind(molecule_kind,ntorsion=ntorsion,&
+                               torsion_list=torsion_list)
+        DO j=1,ntorsion
+           IF (PM2) WRITE(iw,*)"tors_list ::",torsion_list(j)%a,&
+                torsion_list(j)%b, torsion_list(j)%c, torsion_list(j)%d
+           IF(  (torsion_list(j)%a==i).OR. &
+                (torsion_list(j)%d==i) ) THEN
+              atomlist(torsion_list(j)%a) = 0
+              atomlist(torsion_list(j)%d) = 0
+           END IF
+        END DO
+      END IF
+
+      IF (my_qmmm) THEN 
+         !
+         ! exclude all intramolecular interactions between QM atoms 
+         !
+         IF ((qmmm_env%qmmm_coupl_type == do_qmmm_none).AND.&
+              ANY(qmmm_env%qm_molecule_index == imolecule)) THEN
+            DO j = 1, SIZE(qmmm_env%qm_atom_index)
+               counter = qmmm_env%qm_atom_index(j)
+               IF ((counter >= first_atom).AND.(counter <= last_atom)) &
+                    atomlist(counter- first_atom + 1)= 0 
+            END DO
+         END IF
+      END IF
+
+      DO j=1,SIZE(atomic_kind_set)
+        counter = 0
+        NULLIFY(list)
+        DO k=1,natom
+          IF((atomkind(k+first_atom-1)==j).AND.(atomlist(k)==0)) THEN
+            counter = counter + 1
+            CALL reallocate(list,1,counter)
+            list(counter) = k + first_atom - 1
+          END IF
+        END DO
+        particle_set(i+first_atom-1)%lpi%exclusion(j)%list_ei => list
+        IF (PM2) THEN 
+           IF (ASSOCIATED(list)) &
+           WRITE(iw,*)"exclusion list_ei :: Mol. num :",imolecule,&
+                     "atom num :",i,"kind num. :",j,"exclusion list ::",&
+                     list
+        END IF
+      END DO
+    END DO
+    DEALLOCATE(atomlist,STAT=istat)
+  END DO
+  DEALLOCATE(atomkind,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomkind')
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 10. Set the atomic_kind_set()%elp_potentail%[qeff] (PART 1)
   !-----------------------------------------------------------------------------
   IF(globenv%program_name == "FIST") THEN
     DO i=1,SIZE(atomic_kind_set)
@@ -2711,7 +2825,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 10. Set the atom_list for molecule_kind in molecule_kind_set (PART 2)
+  ! 11. Set the atom_list for molecule_kind in molecule_kind_set (PART 2)
   !-----------------------------------------------------------------------------
     DO i=1,topology%nmol_type
     molecule_kind => molecule_kind_set(i)

@@ -536,6 +536,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_molecule_kind_set(molecule_kind_set,maxatom,natom,&
+                                   nbond,nbend,nub,ntorsion,nimpr,nonfo,&
                                    nconstraint,nmolecule)
 
 !   Purpose: Get informations about a molecule kind set.
@@ -548,11 +549,15 @@ CONTAINS
       POINTER                                :: molecule_kind_set
     INTEGER, INTENT(OUT), OPTIONAL           :: maxatom, natom, nconstraint, &
                                                 nmolecule
+    INTEGER, INTENT(OUT), OPTIONAL           :: nbond,nbend,nub,ntorsion
+    INTEGER, INTENT(OUT), OPTIONAL           :: nimpr,nonfo
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_molecule_kind_set"
 
-    INTEGER                                  :: imolecule_kind, na, nc, nm, &
-                                                nmolecule_kind
+    INTEGER                                  :: imolecule_kind, nmolecule_kind
+    INTEGER                                  :: na, nc, nm
+    INTEGER                                  :: ibond,ibend,iub,itorsion
+    INTEGER                                  :: iimpr,ionfo
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
 !   ---------------------------------------------------------------------------
@@ -561,6 +566,13 @@ CONTAINS
 
       IF (PRESENT(maxatom)) maxatom = 0
       IF (PRESENT(natom)) natom = 0
+      IF (PRESENT(nbond)) nbond = 0
+      IF (PRESENT(nbend)) nbend = 0
+      IF (PRESENT(nub)) nub = 0
+      IF (PRESENT(ntorsion)) ntorsion = 0
+      IF (PRESENT(nimpr)) nimpr = 0
+      IF (PRESENT(nimpr)) nimpr = 0
+      IF (PRESENT(nonfo)) nonfo = 0
       IF (PRESENT(nconstraint)) nconstraint = 0
       IF (PRESENT(nmolecule)) nmolecule = 0
 
@@ -572,11 +584,23 @@ CONTAINS
 
         CALL get_molecule_kind(molecule_kind=molecule_kind,&
                                natom=na,&
+                               nbond=ibond,&
+                               nbend=ibend,&
+                               nub=iub,&
+                               ntorsion=itorsion,&
+                               nimpr=iimpr,&
+                               nonfo=ionfo,&
                                nconstraint=nc,&
                                nmolecule=nm)
 
         IF (PRESENT(maxatom)) maxatom = MAX(maxatom,na)
         IF (PRESENT(natom)) natom = natom + na*nm
+        IF (PRESENT(nbond)) nbond = nbond + ibond*nm
+        IF (PRESENT(nbend)) nbend = nbend + ibend*nm
+        IF (PRESENT(nub)) nub = nub + iub*nm
+        IF (PRESENT(ntorsion)) ntorsion = ntorsion + itorsion*nm
+        IF (PRESENT(nimpr)) nimpr = nimpr + iimpr*nm
+        IF (PRESENT(nonfo)) nonfo = nonfo + ionfo*nm
         IF (PRESENT(nconstraint)) nconstraint = nconstraint + nc*nm
         IF (PRESENT(nmolecule)) nmolecule = nmolecule + nm
 
@@ -1112,11 +1136,18 @@ CONTAINS
         WRITE (UNIT=output_unit,FMT="(/,T9,A,I6,/,T9,A,(T30,10I5))")&
           "Number of molecules:",nmolecule,"Molecule list:",&
           (molecule_kind%molecule_list(imolecule),imolecule=1,nmolecule)
-
-!MK to be done
-!         "Number of bonds:    ",SIZE(molecule_kind%bond_list)
-!         "Number of bends:    ",SIZE(molecule_kind%bend_list)
-!         "Number of torsions: ",SIZE(molecule_kind%torsion_list)
+        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+          "Number of bonds:       ",molecule_kind%nbond
+        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+          "Number of bends:       ",molecule_kind%nbend
+        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+          "Number of Urey-Bradley:",molecule_kind%nub
+        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+          "Number of torsions:    ",molecule_kind%ntorsion
+        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+          "Number of improper:    ",molecule_kind%nimpr
+        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+          "Number of one-four:    ",molecule_kind%nonfo
 
       ELSE
 
@@ -1150,6 +1181,7 @@ CONTAINS
     INTEGER                                  :: imolecule_kind, &
                                                 nmolecule_kind, output_unit
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    INTEGER                                  :: nbond,nbend,nub,ntors,nimpr,nonfo
 
 !   ---------------------------------------------------------------------------
 
@@ -1170,6 +1202,33 @@ CONTAINS
           CALL write_molecule_kind(molecule_kind,globenv)
         END DO
 
+
+        WRITE(UNIT=output_unit,FMT="(/,/,T2,A)") "MOLECULE KIND SET INFORMATION"
+        CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
+                                   nbond=nbond,&
+                                   nbend=nbend,&
+                                   nub=nub,&
+                                   ntorsion=ntors,&
+                                   nimpr=nimpr,&
+                                   nonfo=nonfo)
+          !nbond    = nbond    + molecule_kind%nbond
+          !nbend    = nbend    + molecule_kind%nbend
+          !nub      = nub      + molecule_kind%nub
+          !ntorsion = ntorsion + molecule_kind%ntorsion
+          !nimpr    = nimpr    + molecule_kind%nimpr
+          !nonfo    = nonfo    + molecule_kind%nonfo
+        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+          "Total Number of bonds:       ",nbond
+        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+          "Total Number of bends:       ",nbend
+        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+          "Total Number of Urey-Bradley:",nub
+        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+          "Total Number of torsions:    ",ntors
+        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+          "Total Number of improper:    ",nimpr
+        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+          "Total Number of one-four:    ",nonfo
       ELSE
 
         CALL stop_program(routine_name,module_name,__LINE__,&
