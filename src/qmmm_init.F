@@ -300,7 +300,7 @@ CONTAINS
 
        IF (qmmm_link) THEN 
           CALL setup_qmmm_links(qmmm_section, qmmm_links, mm_el_pot_radius, mm_atom_index,&
-               qm_cell_small, error=error)
+               qm_cell_small, iw, error=error)
           qmmm_env_qm%qmmm_links    => qmmm_links
 
           CALL print_qmmm_links(globenv, qmmm_section, qmmm_links, error)
@@ -1364,7 +1364,7 @@ CONTAINS
   !!
   !!*************************************************************************
   SUBROUTINE  setup_qmmm_links(qmmm_section, qmmm_links, mm_el_pot_radius, mm_atom_index, &
-       qm_cell_small, error)
+       qm_cell_small, iw, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(section_vals_type), POINTER         :: qmmm_section, qmmm_link_section
@@ -1372,6 +1372,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     TYPE(cell_type), POINTER                 :: qm_cell_small
+    INTEGER, INTENT(IN) :: iw
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
     ! Local variables
@@ -1381,7 +1382,9 @@ CONTAINS
     INTEGER  :: n_rep_val
     LOGICAL  :: failure, charge_scale, explicit
     REAL(KIND=dp) :: alpha, scale_factor, my_radius
+    INTEGER, POINTER, DIMENSION(:) :: wrk_tmp
 
+    NULLIFY(wrk_tmp)
     failure = .FALSE.
     n_imomm = 0
     n_gho   = 0
@@ -1398,6 +1401,8 @@ CONTAINS
     CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
     IF ( n_imomm /= 0 ) THEN
        ALLOCATE(qmmm_links%imomm(n_imomm), stat=stat)
+       CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(wrk_tmp(n_imomm), stat=stat)
        CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
        DO ikind = 1, n_imomm
           NULLIFY(qmmm_links%imomm(ikind)%link)
@@ -1416,12 +1421,25 @@ CONTAINS
              qmmm_links%imomm(n_imomm)%link%qm_index = qm_index
              qmmm_links%imomm(n_imomm)%link%mm_index = mm_index
              qmmm_links%imomm(n_imomm)%link%alpha    = alpha
+             wrk_tmp(n_imomm) = mm_index
              IF (n_rep_val == 1) THEN
                 CALL section_vals_val_get(qmmm_link_section,"RADIUS",i_rep_section=ikind,r_val=my_radius,error=error)
                 WHERE ( mm_atom_index == mm_index ) mm_el_pot_radius = my_radius * qm_cell_small%unit_of_length
              END IF
           END IF
        END DO
+       !
+       ! Checking the link structure
+       !
+       DO ikind = 1, size(wrk_tmp)
+          IF (COUNT(wrk_tmp == wrk_tmp(ikind)) > 1) THEN
+             WRITE(iw,'(/A)')"In the IMOMM scheme no more than one QM atom can be bounded to the same MM atom."
+             WRITE(iw, '(A)')"Multiple link MM atom not allowed. Check your link sections."
+             CPPostcondition(.false.,cp_failure_level,routineP,error,failure)
+          END IF
+       END DO
+       DEALLOCATE(wrk_tmp, stat=stat)
+       CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
     END IF
     IF ( n_gho /= 0) THEN
        ! not yet implemented

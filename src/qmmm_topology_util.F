@@ -213,9 +213,7 @@ CONTAINS
              END DO
              IF (detected_link) THEN
                 WRITE(iw,fmt='(A)',ADVANCE="NO") " QM/MM link detected..."
-                IF (qmmm_env%qmmm_link) THEN 
-                   WRITE(iw,fmt='(A)')" link was properly set up in input file."
-                ELSE
+                IF (.NOT.qmmm_env%qmmm_link) THEN 
                    WRITE(iw,fmt='(A)')" Missing LINK section in input file!!"
                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
                 END IF
