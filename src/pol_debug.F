@@ -133,8 +133,8 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
 ! get numerical force for the electrostatic contribution on the ions
     WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
     READ ( ir, * ) delta
-    IF ( delta >= 1 .OR. delta <= 0 ) THEN
-      delta = 1.E-5
+    IF ( delta >= 1._dbl .OR. delta <= 0._dbl ) THEN
+      delta = 1.E-5_dbl
       WRITE ( iw, '(A,T71,F10.6)' ) &
         ' DELTA (changed to default) = ', delta
     ELSE
@@ -166,11 +166,12 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
      END IF
 ! computing the absolute value of the differences in the forces
     diff_part = ABS ( dbg % f_elec_part - f_part )
-    IF ( ALL ( f_part ( :, : ) > 1.e-6_dbl ) ) rel_part = diff_part / dbg % f_elec_part
+    IF ( .NOT. ANY ( dbg % f_elec_part == 0._dbl ) )  &
+    rel_part = diff_part / dbg % f_elec_part
 ! find the maximum difference and the relative and absolute errors.
     WRITE ( iw, '(A,T61,E20.14)' ) ' MAXIMUM ABSOLUTE ERROR = ', &
       MAXVAL ( diff_part )
-    IF ( ALL ( f_part ( :, : )  > 1.e-6_dbl ) )  THEN
+    IF ( .NOT. ANY ( dbg % f_elec_part == 0._dbl ) )  THEN
       WRITE ( iw,'(A,T61,E20.14)' ) ' MAXIMUM RELATIVE ERROR = ', &
       MAXVAL ( rel_part )
     ENDIF
@@ -182,7 +183,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
       dbg % f_elec_part (:, dum ( 2 ) )
     WRITE ( iw, '(A,T21,3(2X,G20.14))' ) ' F NUMR ON IONS =', &
       f_part (:, dum ( 2 ) )
-    IF  ( ALL ( f_part ( :, : ) > 1.e-6_dbl ) ) THEN
+    IF  ( .NOT. ANY ( dbg % f_elec_part == 0._dbl ) ) THEN
       dum = MAXLOC ( rel_part )
       WRITE ( iw, '(A,T71,I10)' ) &
         ' NON BOND PARTICLE WITH MAX RELATIVE ERROR IS ', dum ( 2 )
@@ -231,11 +232,12 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
      END IF
 ! computing the absolute value of the differences in the forces
     diff_coef = ABS ( dbg % f_elec_coef - f_coef )
-    IF ( ALL ( f_coef ( : ) > 1.e-6_dbl ) ) rel_coef = diff_coef / dbg % f_elec_coef
+    IF ( .NOT. ANY ( dbg % f_elec_coef == 0._dbl ) )  &
+    rel_coef = diff_coef / dbg % f_elec_coef
 ! find the maximum difference and the relative and absolute errors.
     WRITE ( iw, '(A,T61,E20.14)' ) ' MAXIMUM ABSOLUTE ERROR = ', &
       MAXVAL ( diff_coef )
-    IF ( ALL ( f_coef ( : ) > 1.e-6_dbl ) ) THEN
+    IF ( .NOT. ANY ( dbg % f_elec_coef == 0._dbl ) ) THEN
       WRITE ( iw,'(A,T61,E20.14)' ) ' MAXIMUM RELATIVE ERROR = ', &
                                     MAXVAL ( rel_coef )
     ENDIF
@@ -248,7 +250,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
       dbg % f_elec_coef ( cdum )
     WRITE ( iw,'(A,T21,3G20.14)' ) ' F NUMR ON COEF =', &
       f_coef ( cdum )
-    IF ( ALL ( f_coef ( : ) > 1.e-6_dbl ) ) THEN
+    IF ( .NOT. ANY ( dbg % f_elec_coef == 0._dbl ) ) THEN
       cdum = MAXLOC ( rel_coef )
       WRITE ( iw,'(A,T71,I10)' ) &
         ' COEFFICENT WITH MAX RELATIVE ERROR IS ', cdum   
@@ -300,11 +302,12 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
      END IF
 ! computing the absolute value of the differences in the forces
     diff_part = ABS ( dbg % f_ovlp_part - f_part )
-    IF ( ALL ( f_part ( :, : ) > 1.e-6_dbl ) ) rel_part = diff_part / dbg % f_ovlp_part
+    IF ( .NOT. ANY ( dbg % f_ovlp_part == 0._dbl ) ) &
+    rel_part = diff_part / dbg % f_ovlp_part
 ! find the maximum difference and the relative and absolute errors.
     WRITE ( iw, '(A,T61,E20.14)' ) ' MAXIMUM ABSOLUTE ERROR = ', &
       MAXVAL ( diff_part )
-    IF ( ALL ( f_part ( :, : )  > 1.e-6_dbl ) )  THEN
+    IF ( .NOT. ANY ( dbg % f_ovlp_part == 0._dbl ) ) THEN
       WRITE ( iw,'(A,T61,E20.14)' ) ' MAXIMUM RELATIVE ERROR = ', &
       MAXVAL ( rel_part )
     ENDIF
@@ -316,7 +319,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
       dbg % f_ovlp_part (:, dum ( 2 ) )
     WRITE ( iw, '(A,T21,3(2X,G20.14))' ) ' F NUMR ON IONS =', &
       f_part (:, dum ( 2 ) )
-    IF  ( ALL ( f_part ( :, : ) > 1.e-6_dbl ) ) THEN
+    IF ( .NOT. ANY ( dbg % f_ovlp_part == 0._dbl ) ) THEN
       dum = MAXLOC ( rel_part )
       WRITE ( iw, '(A,T71,I10)' ) &
         ' NON BOND PARTICLE WITH MAX RELATIVE ERROR IS ', dum ( 2 )
@@ -365,11 +368,12 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
      END IF
 ! computing the absolute value of the differences in the forces
     diff_coef = ABS ( dbg % f_ovlp_coef - f_coef )
-    IF ( ALL ( f_coef ( : ) > 1.e-6_dbl ) ) rel_coef = diff_coef / dbg % f_ovlp_coef
+    IF ( .NOT. ANY ( dbg % f_ovlp_coef == 0._dbl ) ) &
+    rel_coef = diff_coef / dbg % f_ovlp_coef
 ! find the maximum difference and the relative and absolute errors.
     WRITE ( iw, '(A,T61,E20.14)' ) ' MAXIMUM ABSOLUTE ERROR = ', &
       MAXVAL ( diff_coef )
-    IF ( ALL ( f_coef ( : ) > 1.e-6_dbl ) ) THEN
+    IF ( .NOT. ANY ( dbg % f_ovlp_coef == 0._dbl ) ) THEN
       WRITE ( iw,'(A,T61,E20.14)' ) ' MAXIMUM RELATIVE ERROR = ', &
                                     MAXVAL ( rel_coef )
     ENDIF
@@ -382,7 +386,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
       dbg % f_ovlp_coef ( cdum )
     WRITE ( iw,'(A,T21,3G20.14)' ) ' F NUMR ON COEF =', &
       f_coef ( cdum )
-    IF ( ALL ( f_coef ( : ) > 1.e-6_dbl ) ) THEN
+    IF ( .NOT. ANY ( dbg % f_ovlp_coef == 0._dbl ) ) THEN
       cdum = MAXLOC ( rel_coef )
       WRITE ( iw,'(A,T71,I10)' ) &
         ' COEFFICENT WITH MAX RELATIVE ERROR IS ', cdum   
