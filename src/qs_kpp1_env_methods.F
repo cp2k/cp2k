@@ -32,7 +32,8 @@ MODULE qs_kpp1_env_methods
                                              coeff_transform_space,&
                                              coeff_type,&
                                              coeff_zero
-  USE cp_control_types,                ONLY: dft_control_type
+  USE cp_control_types,                ONLY: dft_control_type, &
+                                             xc_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -45,6 +46,7 @@ MODULE qs_kpp1_env_methods
                                              cp_warning_level
   USE cp_output_handling,              ONLY: cp_finished_output,&
                                              cp_unitnr_for_output
+  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
   USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -56,7 +58,11 @@ MODULE qs_kpp1_env_methods
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE
+                                             RECIPROCALSPACE, &
+                                             pw_p_type,&
+                                             pw_create,&
+                                             pw_release,&
+                                             pw_transfer
   USE pws,                             ONLY: cleanup_pw_poisson_solver,&
                                              init_pw_poisson_solver
   USE qs_collocate_density,            ONLY: calculate_total_rho
@@ -80,8 +86,11 @@ MODULE qs_kpp1_env_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: xc_calc_2nd_deriv1,&
-                                             xc_prep_2nd_deriv1
-  USE xc_derivative_set_types,         ONLY: xc_dset_release
+                                             xc_prep_2nd_deriv1,&
+                                             xc_rho_set_and_dset_create
+  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type, &
+                                             xc_dset_release
+  USE xc_rho_set_types,                ONLY: xc_rho_set_type
 
   IMPLICIT NONE
 
@@ -185,8 +194,7 @@ CONTAINS
 !!       see module cp_error_handling 
 !!
 !!*** **********************************************************************
-  SUBROUTINE kpp1_calc_k_p_p1(kpp1_env,qs_env,k_p_p1,rho,rho1,&
-       error)
+  SUBROUTINE kpp1_calc_k_p_p1(kpp1_env, qs_env, k_p_p1, rho, rho1, error)
     
 
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
@@ -219,6 +227,14 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
+    ! NEW STUFF
+    LOGICAL                                  :: gradient_f
+    TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: atoms
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r_pw, rho_g_pw, tau_pw
+    TYPE(xc_control_type)                    :: xc_control
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     NULLIFY(dft_control,auxbas_pw_pool, pw_pools,&
@@ -245,6 +261,13 @@ CONTAINS
        CPPrecondition(SIZE(k_p_p1)>=nspins,cp_failure_level,routineP,error,failure)
        CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     END IF
+
+    ! NEW CODE BEGINS
+    xc_control = qs_env%dft_control%xc_control
+    IF (dft_control%do_tddfpt_calculation) &
+         xc_control = qs_env%dft_control%tddfpt_control%xc_control
+    ! NEW CODE ENDS
+
 
     IF (.NOT.failure) THEN
        kpp1_env%iter=kpp1_env%iter+1
@@ -322,7 +345,48 @@ CONTAINS
        END DO
 
        CALL qs_rho_get(rho,rho_r=rho_r,rho_g=rho_g,error=error)
+
+       ! NEW CODE BEGINS
+       IF (dft_control%do_tddfpt_calculation .AND. nspins == 1) THEN
+          ! In this case we need to do a unrestricted calculation to
+          ! differenciate beween singlets and triplets
+          ALLOCATE(rho_r_pw(2), rho_g_pw(2))
+          DO ispin=1, 2
+             CALL pw_create(rho_r_pw(ispin)%pw, rho_r(1)%pw%pw_grid, rho_r(1)%pw%in_use, rho_r(1)%pw%in_space)
+             CALL pw_transfer(rho_r(1)%pw, rho_r_pw(ispin)%pw)
+             CALL dscal(PRODUCT(rho_r_pw(ispin)%pw%pw_grid%npts_local), 0.5_dbl, rho_r_pw(ispin)%pw%cr3d, 1)
+             CALL pw_create(rho_g_pw(ispin)%pw, rho_g(1)%pw%pw_grid, rho_g(1)%pw%in_use, rho_g(1)%pw%in_space)
+             CALL pw_transfer(rho_g(1)%pw, rho_g_pw(ispin)%pw)
+             CALL dscal(PRODUCT(rho_g_pw(ispin)%pw%pw_grid%npts_local), 0.5_dbl, rho_g_pw(ispin)%pw%cr3d, 1)
+          END DO
+       ELSE
+          ALLOCATE(rho_r_pw(nspins), rho_g_pw(nspins))
+          DO ispin=1, nspins
+             rho_r_pw(ispin)%pw => rho_r(ispin)%pw
+             rho_g_pw(ispin)%pw => rho_g(ispin)%pw
+          END DO
+       END IF
+       NULLIFY(tau_pw)
+       ALLOCATE(atoms(1))
+       atoms(1)%subsys => qs_env%subsys
+       !CALL xc_rho_set_and_dset_create(rho_set, deriv_set, 2, rho_r_pw, rho_g_pw, tau_pw, &
+       !                                qs_env%dft_control, xc_control, &
+       !                                cell, auxbas_pw_pool, gradient_f, &
+       !                                atoms, .TRUE.)
+       IF (dft_control%do_tddfpt_calculation .AND. nspins == 1) THEN
+          DO ispin=1, 2
+             CALL pw_release(rho_r_pw(ispin)%pw)
+             CALL pw_release(rho_g_pw(ispin)%pw)
+          END DO
+       END IF
+       DEALLOCATE(rho_r_pw, rho_g_pw, atoms)
+       ! NEW CODE ENDS
+       
        CALL qs_rho_get(rho1,rho_r=rho1_r,rho_g=rho1_g,error=error)
+       
+       ! NEW CODE BEGINS
+       ! NEW CODE ENDS
+
        CALL xc_calc_2nd_deriv1(kpp1_env%derivative_set, &
                                rho_r=rho_r,drho_r=kpp1_env%drho_r,&
                                rho1_r=rho1_r,&

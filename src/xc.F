@@ -414,7 +414,7 @@ CONTAINS
        PRINT *, "did calculate xc (old)"
        PRINT *, "about to calculate xc (new)"
        CALL xc_rho_set_and_dset_create(rho_r=rho_r, rho_g=rho_g,&
-            tau=tau,dft_control=dft_control,&
+            tau=tau,dft_control=dft_control,xc_control=dft_control%xc_control,&
             cell=cell, pw_pool=pw_pool, rho_set=rho_set2,&
             deriv_set=dSet2,deriv_order=1,atoms=atoms,&
             needs_basic_components=.FALSE.,error=error)
@@ -647,7 +647,7 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
        
        PRINT *, "about to calculate xc (lda)"
        CALL xc_rho_set_and_dset_create(rho_r=rho_r, rho_g=rho_g,&
-            tau=tau,dft_control=dft_control,&
+            tau=tau,dft_control=dft_control,xc_control=dft_control%xc_control,&
             cell=cell, pw_pool=pw_pool,rho_set=rho_set1,&
             deriv_set=dSet1, deriv_order=1,atoms=atoms,&
             needs_basic_components=.FALSE.,error=error)
@@ -660,6 +660,7 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
        PRINT *, "about to calculate xc (lsd)"
        CALL xc_rho_set_and_dset_create(rho_set=rho_set2,deriv_set=dSet2,&
             rho_r=rho2_r, rho_g=rho2_g,tau=tau2, dft_control=dft_control,&
+            xc_control=dft_control%xc_control,&
             cell=cell, pw_pool=pw_pool, deriv_order=1,atoms=atoms,&
             needs_basic_components=.FALSE.,error=error)
        CALL xc_vxc_pw_create(rho_r=rho2_r, rho_g=rho2_g,tau=tau2,&
@@ -989,7 +990,7 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
      bo = rho_r(1)%pw%pw_grid%bounds_local
 
      CALL xc_rho_set_and_dset_create(rho_r=rho_r, rho_g=rho_g,&
-          tau=tau,dft_control=dft_control,&
+          tau=tau,dft_control=dft_control,xc_control=dft_control%xc_control,&
           cell=cell, pw_pool=pw_pool,rho_set=rho_set1,&
           deriv_set=dSet1, deriv_order=1,atoms=atoms,&
           needs_basic_components=.FALSE.,error=error)
@@ -2156,7 +2157,7 @@ END SUBROUTINE xc_vxc_pw_create_debug
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_rho_set_and_dset_create(rho_set,deriv_set,deriv_order,&
-       rho_r,rho_g,tau,dft_control,cell,pw_pool,gradient_f,atoms,&
+       rho_r,rho_g,tau,dft_control,xc_control,cell,pw_pool,gradient_f,atoms,&
        needs_basic_components,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -2165,6 +2166,7 @@ END SUBROUTINE xc_vxc_pw_create_debug
       INTENT(inout), TARGET                  :: rho_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(xc_control_type)                    :: xc_control
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     LOGICAL, INTENT(out), OPTIONAL           :: gradient_f
@@ -2179,12 +2181,10 @@ END SUBROUTINE xc_vxc_pw_create_debug
     INTEGER                                  :: handle, i, nspins
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure, lsd
-    TYPE(xc_control_type), POINTER           :: xc_control
     TYPE(xc_rho_cflags_type)                 :: needs
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    xc_control => dft_control%xc_control
 
     CPPrecondition(.NOT.ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
@@ -2595,7 +2595,8 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
      ! calculate the potential derivatives
      CALL xc_rho_set_and_dset_create(rho_set=rho_set,deriv_set=deriv_set,&
           deriv_order=1, rho_r=rho_r, rho_g=rho_g, tau=tau,&
-          dft_control=dft_control, cell=cell, pw_pool=pw_pool,&
+          dft_control=dft_control, xc_control=dft_control%xc_control,&
+          cell=cell, pw_pool=pw_pool,&
           gradient_f=gradient_f, atoms=atoms, needs_basic_components=.TRUE.,&
           error=error)
 
@@ -3307,6 +3308,7 @@ FUNCTION xc_exc_calc(rho_r,rho_g,tau,dft_control, cell,pw_pool,atoms,&
   CALL xc_rho_set_and_dset_create(rho_set=rho_set,&
        deriv_set=deriv_set,deriv_order=0,&
        rho_r=rho_r,rho_g=rho_g,tau=tau,dft_control=dft_control,&
+       xc_control=dft_control%xc_control,&
        cell=cell,pw_pool=pw_pool,atoms=atoms,&
        needs_basic_components=.FALSE.,error=error)
   deriv => xc_dset_get_derivative(deriv_set,"",error=error)
@@ -3925,11 +3927,9 @@ END FUNCTION xc_exc_calc
     CPPrecondition(ASSOCIATED(ndiag_term),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
 
-       IF (dft_control%do_tddfpt_calculation) THEN
-          xc_control = dft_control%tddfpt_control%xc_control
-       ELSE
-          xc_control = dft_control%xc_control
-       ENDIF
+       xc_control = dft_control%xc_control
+       IF (dft_control%do_tddfpt_calculation) &
+            xc_control = dft_control%tddfpt_control%xc_control
 
        nspins     = dft_control%nspins
        do_restricted_tddfpt  = (dft_control%do_tddfpt_calculation .AND. (nspins==1))
