@@ -1163,12 +1163,42 @@ CONTAINS
                       start_section_name=atomic_kind%name,&
                       section_found=section_found)
     IF (.NOT.section_found) THEN
-      CALL finish_parser()
-      CALL start_parser(file_name=globenv%input_file_name,&
-                        globenv=globenv,&
-                        start_section_label="KIND",&
-                        start_section_name="DEFAULT",&
-                        section_found=section_found)
+       CALL finish_parser()
+       IF (z == -1) THEN
+          ipos = INDEX(atomic_kind%name,"_")
+          IF ((ipos == 2).OR.(ipos == 3)) THEN
+             element_symbol = atomic_kind%name(1:ipos-1)
+          ELSE
+             element_symbol = atomic_kind%name
+          END IF
+          CALL uppercase(element_symbol)
+          DO i=LBOUND(ptable,1),UBOUND(ptable,1)
+             current_symbol = ptable(i)%symbol
+             CALL uppercase(current_symbol)
+             IF (current_symbol == element_symbol) THEN
+                atomic_kind%element_symbol = ptable(i)%symbol
+                IF (atomic_kind%mass==-1.0_dp) THEN
+                   atomic_kind%mass = ptable(i)%amass
+                END IF
+                z = i
+                EXIT
+             END IF
+          END DO
+       END IF
+       IF (z /= -1) THEN
+          CALL start_parser(file_name=globenv%input_file_name,&
+                            globenv=globenv,&
+                            start_section_label="KIND",&
+                            start_section_name=atomic_kind%element_symbol,&
+                            section_found=section_found)
+       END IF
+    END IF
+    IF (.NOT.section_found) THEN 
+       CALL start_parser(file_name=globenv%input_file_name,&
+                         globenv=globenv,&
+                         start_section_label="KIND",&
+                         start_section_name="DEFAULT",&
+                         section_found=section_found)
     END IF
 
     IF (section_found) THEN

@@ -936,7 +936,7 @@ CONTAINS
              qm_subsys_index(num_qm_atom_tot:num_qm_atom_tot) = qm_subsys_type
           END IF
           IF (PRESENT(qm_atom_type)) THEN
-             qm_atom_type (num_qm_atom_tot:num_qm_atom_tot)   = "H"
+             qm_atom_type (num_qm_atom_tot:num_qm_atom_tot)   = "H_LINK"
           END IF
           IF (PRESENT(qm_atom_index)) THEN
              CALL section_vals_val_get(qmmm_links,"MM_INDEX",i_rep_section=ikind,i_val=mm_index,&
