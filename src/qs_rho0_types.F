@@ -633,7 +633,7 @@ CONTAINS
    IF (.NOT.my_tddft) THEN
       mp_rho%Qlm_z = -2._dp*ROOTPI*Zeff
    ELSE
-      mp_rho%Qlm_z = 0.0
+      mp_rho%Qlm_z = 0.0_dp
    END IF
 
 
