@@ -78,6 +78,8 @@ OBJECTS_GENERIC =\
  cp_para_env.o\
  cp_para_types.o\
  cp_parser.o\
+ cp_random_methods.o\
+ cp_random_types.o\
  cp_rs_pool_types.o\
  cp_sll_int_tests.o\
  cp_sm_fm_interactions.o\
@@ -144,8 +146,8 @@ OBJECTS_GENERIC =\
  hartree_local_types.o\
  header.o\
  initialize_extended_types.o\
- input_enumeration_types.o\
  input_cp2k.o\
+ input_enumeration_types.o\
  input_file_types.o\
  input_keyword_types.o\
  input_parsing.o\
@@ -289,8 +291,8 @@ OBJECTS_GENERIC =\
  qs_kpp1_env_types.o\
  qs_ks_atom.o\
  qs_ks_methods.o\
- qs_ks_qmmm_types.o\
  qs_ks_qmmm_methods.o\
+ qs_ks_qmmm_types.o\
  qs_ks_types.o\
  qs_local_rho_types.o\
  qs_localization.o\
@@ -339,8 +341,8 @@ OBJECTS_GENERIC =\
  real_space_test.o\
  realspace_grid_types.o\
  scf_control_types.o\
- semi_empirical_types.o\
  semi_empirical_parameters.o\
+ semi_empirical_types.o\
  semi_empirical_utils.o\
  setup_input.o\
  simulation_cell.o\
@@ -393,6 +395,7 @@ OBJECTS_GENERIC =\
  xc_lyp_new.o\
  xc_optx.o\
  xc_pade.o\
+ xc_pbe.o\
  xc_perdew86.o\
  xc_perdew86_new.o\
  xc_perdew_wang.o\
@@ -412,6 +415,4 @@ OBJECTS_GENERIC =\
  xc_vwn_new.o\
  xc_xalpha.o\
  xc_xalpha_new.o\
- cp_random_types.o\
- cp_random_methods.o\
  xc_xbecke88.o

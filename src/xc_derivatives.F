@@ -42,7 +42,6 @@ MODULE xc_derivatives
                                              xgga_eval,&
                                              xgga_info,&
                                              xgga_opt,&
-                                             xgga_pbe,&
                                              xgga_pw86,&
                                              xgga_pw91,&
                                              xgga_revpbe
@@ -72,6 +71,10 @@ MODULE xc_derivatives
   USE xc_pade,                         ONLY: pade,&
                                              pade_lda_pw_eval,&
                                              pade_lsd_pw_eval
+  USE xc_pbe,                          ONLY: pbe_lda_eval,&
+                                             pbe_lda_info,&
+                                             pbe_lsd_eval,&
+                                             pbe_lsd_info
   USE xc_perdew86_new,                 ONLY: p86_lda_eval,&
                                              p86_lda_info
   USE xc_perdew_wang_new,              ONLY: perdew_wang_info,&
@@ -335,8 +338,8 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
         CALL xgga_info(xgga_pw86,lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("PW91X")
         CALL xgga_info(xgga_pw91,lsd,reference,shortform,needs,max_deriv,error=error)
-     CASE("PBEX")
-        CALL xgga_info(xgga_pbe,lsd,reference,shortform,needs,max_deriv,error=error)
+!     CASE("PBEX")
+!        CALL xgga_info(xgga_pbe,lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("REV_PBEX")
         CALL xgga_info(xgga_revpbe,lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("OPTX_2")
@@ -399,6 +402,16 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
            CALL my_tpss_lsd_info(reference,shortform,needs,max_deriv,error=error)
         ELSE
            CALL my_tpss_lda_info(reference,shortform,needs,max_deriv,error=error)
+        END IF
+     CASE("PBEX")
+        IF (PRESENT(reference)) reference=""
+        IF (PRESENT(shortform)) shortform=""
+        IF (PRESENT(max_deriv)) max_deriv=HUGE(0)
+     CASE("PBEC")
+        IF (lsd) THEN
+           CALL pbe_lsd_info(reference,shortform,needs,max_deriv,error=error)
+        ELSE
+           CALL pbe_lda_info(reference,shortform,needs,max_deriv,error=error)
         END IF
      CASE("NONE")
         IF (PRESENT(reference)) reference=""
@@ -524,8 +537,8 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         CALL xgga_eval(xgga_pw86,lsd,rho_set,deriv_set,deriv_order,error=error)
      CASE("PW91X")
         CALL xgga_eval(xgga_pw91,lsd,rho_set,deriv_set,deriv_order,error=error)
-     CASE("PBEX")
-        CALL xgga_eval(xgga_pbe,lsd,rho_set,deriv_set,deriv_order,error=error)
+!     CASE("PBEX")
+!        CALL xgga_eval(xgga_pbe,lsd,rho_set,deriv_set,deriv_order,error=error)
      CASE("REV_PBEX")
         CALL xgga_eval(xgga_revpbe,lsd,rho_set,deriv_set,deriv_order,error=error)
      CASE("OPTX_2")
@@ -649,6 +662,13 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
            CALL my_tpss_lsd_eval(rho_set,deriv_set,deriv_order,error=error)
         ELSE
            CALL my_tpss_lda_eval(rho_set,deriv_set,deriv_order,error=error)
+        END IF
+     CASE("PBEX")
+     CASE("PBEC")
+        IF (lsd) THEN
+           CALL pbe_lsd_eval(rho_set,deriv_set,deriv_order,error=error)
+        ELSE
+           CALL pbe_lda_eval(rho_set,deriv_set,deriv_order,error=error)
         END IF
      CASE("NONE")
         !
