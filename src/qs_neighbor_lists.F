@@ -96,9 +96,16 @@ MODULE qs_neighbor_lists
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "qs_neighbor_lists"
 
+! *** Public data types ***
+
+  PUBLIC :: atom_type,&
+            subcell_type
+
 ! *** Public subroutines ***
 
-  PUBLIC :: build_qs_neighbor_lists
+  PUBLIC :: allocate_subcell,&
+            build_qs_neighbor_lists,&
+            deallocate_subcell
 
 ! *****************************************************************************
 
@@ -228,13 +235,16 @@ CONTAINS
 
 !   *** Initialize the local data structures ***
 
-    maxatom_local = 0 
+    maxatom_local = 0
 
     DO ikind=1,nkind
 
       atomic_kind => atomic_kind_set(ikind)
 
       NULLIFY (atom(ikind)%list)
+      NULLIFY (atom(ikind)%list_local_index)
+      NULLIFY (atom(ikind)%r_pbc)
+      NULLIFY (atom(ikind)%s_pbc)
 
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            atom_list=atom(ikind)%list,&
@@ -297,9 +307,6 @@ CONTAINS
       ELSE
 
         orb_present(ikind) = .FALSE.
-
-        NULLIFY (atom(ikind)%r_pbc)
-        NULLIFY (atom(ikind)%s_pbc)
 
       END IF
 

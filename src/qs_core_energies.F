@@ -21,32 +21,17 @@
 
 MODULE qs_core_energies
 
+  USE kinds, ONLY: int_size,&
+                   wp => dp,&
+                   wp_size => dp_size
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
-                                             cp_error_get_logger,&
-                                             cp_error_init,&
-                                             cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_log,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
+  USE cp_local_lists_types,            ONLY: cp_local_lists_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: LOW,&
                                              global_environment_type
-  USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
   USE mathconstants,                   ONLY: oorootpi,&
                                              twopi
   USE message_passing,                 ONLY: mp_sum
@@ -55,6 +40,10 @@ MODULE qs_core_energies
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_neighbor_lists,               ONLY: allocate_subcell,&
+                                             atom_type,&
+                                             deallocate_subcell,&
+                                             subcell_type
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell,&
                                              pbc,&
@@ -195,50 +184,39 @@ CONTAINS
 
 !   *** Local parameters ***
 
-!   *** Local parameters ***
-
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_ecore_overlap"
     CHARACTER(LEN=*), PARAMETER :: routine =&
       "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
-!   *** Local data types ***
-
-    TYPE pbc_coord_type
-      REAL(wp), DIMENSION(:,:), POINTER :: r,s
-    END TYPE pbc_coord_type
-
 !   *** Local variables ***
 
-    TYPE(atomic_kind_type), POINTER :: atomic_kind
-    TYPE(cell_type), POINTER        :: cell
-    TYPE(qs_energy_type), POINTER   :: energy
-    CHARACTER(LEN=8)                :: unit_of_length_name
-    REAL(wp)                        :: a_max,a_min,aab,&
-                                       b_max,b_min,&
-                                       c_max,c_min,dab,eab,ecore_overlap,f0,&
-                                       rab_max,rab2,rab2_max,rootaab,subcells,&
-                                       unit_of_length,zab
-    INTEGER                         :: atom_a,handle,iatom,icell,igrid,iijk,&
-                                       ikind,istat,jatom,jcell,jgrid,jkind,&
-                                       kcell,kgrid,maxatom,natom_a,nkind,&
-                                       output_unit
-    LOGICAL                         :: equal_kinds,ionode
+    TYPE(atomic_kind_type), POINTER    :: atomic_kind
+    TYPE(cell_type), POINTER           :: cell
+    TYPE(cp_local_lists_type), POINTER :: local_particles
+    TYPE(qs_energy_type), POINTER      :: energy
 
-    REAL(wp), DIMENSION(3) :: deab,r,ra_pbc,rab,rb,sa_pbc,sab,sab_max,sb,&
+    CHARACTER(LEN=8) :: unit_of_length_name
+    REAL(wp)         :: a_max,a_min,aab,b_max,b_min,c_max,c_min,dab,eab,&
+                        ecore_overlap,f0,r_skin,rab_max,rab2,rab2_max,&
+                        rootaab,subcells,unit_of_length,zab
+    INTEGER          :: atom_a,atom_b,group,handle,i,iatom,iatom_local,&
+                        iatom_subcell,icell,ikind,istat,j,jatom,jcell,&
+                        jkind,k,kcell,maxatom_local,natom,natom_b,&
+                        natom_local_a,nkind,output_unit
+    LOGICAL          :: include_ab,ionode
+
+    REAL(wp), DIMENSION(3) :: deab,r,r_pbc,rab,rb,s,sab,sab_max,sb,&
                               sb_max,sb_min,sb_pbc
-    INTEGER, DIMENSION(3)  :: cell_b,ncell,ngrid,periodic
+    INTEGER, DIMENSION(3)  :: cell_b,ncell,nsubcell,periodic
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
     TYPE(qs_force_type), DIMENSION(:), POINTER    :: force
-    INTEGER, DIMENSION(:), POINTER                :: atom_list
+    TYPE(subcell_type), DIMENSION(:,:,:), POINTER :: subcell
 
-    TYPE(pbc_coord_type), DIMENSION(:), ALLOCATABLE :: pbc_coord
-    REAL(wp), DIMENSION(:), ALLOCATABLE             :: alpha,radius
-    INTEGER, DIMENSION(:), ALLOCATABLE              :: natom,zeff
-    REAL(wp), DIMENSION(:,:,:,:), ALLOCATABLE       :: grid_max,grid_min
-    INTEGER, DIMENSION(:,:,:), ALLOCATABLE          :: nijk
-    INTEGER, DIMENSION(:,:,:,:), ALLOCATABLE        :: ijk
+    TYPE(atom_type), DIMENSION(:), ALLOCATABLE :: atom
+    REAL(wp), DIMENSION(:), ALLOCATABLE        :: alpha,radius
+    INTEGER, DIMENSION(:), ALLOCATABLE         :: zeff
 
     REAL(wp), EXTERNAL :: erfc
 
@@ -246,18 +224,21 @@ CONTAINS
 
     CALL timeset(routine_name,"I","",handle)
 
+    group = globenv%group
     ionode = globenv%ionode
     output_unit = globenv%scr
+
+!   *** Set Verlet skin ***
+
+    r_skin = 0.0_wp
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
+                    local_particles=local_particles,&
                     particle_set=particle_set,&
                     energy=energy,&
                     force=force)
-
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxatom=maxatom)
 
     CALL get_cell(cell=cell,&
                   periodic=periodic,&
@@ -268,6 +249,9 @@ CONTAINS
 !   *** Allocate work storage ***
 
     nkind = SIZE(atomic_kind_set)
+
+    ALLOCATE (atom(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"atom",nkind*int_size)
 
     ALLOCATE (alpha(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"alpha",nkind*wp_size)
@@ -281,60 +265,72 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,"zeff",nkind*int_size)
     zeff(:) = 0
 
-    ALLOCATE (natom(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"natom",nkind*int_size)
+!   *** Initialize the local data structures ***
 
-    ALLOCATE (pbc_coord(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pbc_coord",nkind*int_size)
-
-!   *** Calculate PBC coordinates ***
+    maxatom_local = 0
 
     DO ikind=1,nkind
 
       atomic_kind => atomic_kind_set(ikind)
 
-      NULLIFY (atom_list)
+      NULLIFY (atom(ikind)%list)
+      NULLIFY (atom(ikind)%list_local_index)
+      NULLIFY (atom(ikind)%r_pbc)
+      NULLIFY (atom(ikind)%s_pbc)
 
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           natom=natom(ikind),&
-                           atom_list=atom_list,&
+                           atom_list=atom(ikind)%list,&
                            alpha_core_charge=alpha(ikind),&
                            core_charge_radius=radius(ikind),&
                            zeff=zeff(ikind))
 
-      IF (alpha(ikind) == 0.0_wp) THEN
+      natom = SIZE(atom(ikind)%list)
+      natom_local_a = local_particles%n_el(ikind)
 
-        NULLIFY (pbc_coord(ikind)%r)
-        NULLIFY (pbc_coord(ikind)%s)
+      maxatom_local = MAX(maxatom_local,natom_local_a)
 
-      ELSE
+      IF (alpha(ikind) /= 0.0_wp) THEN
 
-        ALLOCATE (pbc_coord(ikind)%r(3,natom(ikind)),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"pbc_coord(ikind)%r",&
-                                         3*natom(ikind)*wp_size)
+        IF (natom_local_a > 0) THEN
 
-        ALLOCATE (pbc_coord(ikind)%s(3,natom(ikind)),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"pbc_coord(ikind)%s",&
-                                         3*natom(ikind)*wp_size)
-
-
-        DO iatom=1,natom(ikind)
-          atom_a = atom_list(iatom)
-          ra_pbc(:) = pbc(particle_set(atom_a)%r(:),cell)
-          pbc_coord(ikind)%r(:,iatom) = ra_pbc(:)
-          pbc_coord(ikind)%s(:,iatom) = real_to_scaled(ra_pbc(:),cell)
-        END DO
-
-        IF (calculate_forces) THEN
-          IF (.NOT.ASSOCIATED(force(ikind)%core_overlap)) THEN
-            ALLOCATE (force(ikind)%core_overlap(3,natom(ikind)),STAT=istat)
-            IF (istat /= 0) THEN
-              CALL stop_memory(routine,"force(ikind)%core_overlap",&
-                               3*natom(ikind)*wp_size)
-            END IF
+          ALLOCATE (atom(ikind)%list_local_index(natom_local_a),STAT=istat)
+          IF (istat /= 0) THEN
+            CALL stop_memory(routine,"atoms_local(ikind)%list_local_index",&
+                             natom_local_a*int_size)
           END IF
-          force(ikind)%core_overlap(:,:) = 0.0_wp
+
+!         *** Build index vector for mapping ***
+
+          DO iatom_local=1,natom_local_a
+            atom_a = local_particles%list(ikind)%array(iatom_local)
+            DO iatom=1,natom
+              IF (atom_a == atom(ikind)%list(iatom)) THEN
+                atom(ikind)%list_local_index(iatom_local) = iatom
+                EXIT
+              END IF
+            END DO
+          END DO
+
         END IF
+
+        ALLOCATE (atom(ikind)%r_pbc(3,natom),STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routine,"atom(ikind)%r_pbc",3*natom*wp_size)
+        END IF
+
+        ALLOCATE (atom(ikind)%s_pbc(3,natom),STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routine,"atom(ikind)%s_pbc",3*natom*wp_size)
+        END IF
+
+!       *** Calculate PBC coordinates ***
+
+        DO iatom=1,natom
+          atom_a = atom(ikind)%list(iatom)
+          r_pbc(:) = pbc(particle_set(atom_a)%r(:),cell)
+          atom(ikind)%r_pbc(:,iatom) = r_pbc(:)
+          atom(ikind)%s_pbc(:,iatom) = real_to_scaled(r_pbc(:),cell)
+        END DO
 
       END IF
 
@@ -353,12 +349,18 @@ CONTAINS
     DO ikind=1,nkind
 
       IF (alpha(ikind) == 0.0_wp) CYCLE
+      IF (zeff(ikind) == 0.0_wp) CYCLE
 
-      DO jkind=ikind,nkind
+      IF (.NOT.ASSOCIATED(atom(ikind)%list_local_index)) CYCLE
+
+      natom_local_a = SIZE(atom(ikind)%list_local_index)
+
+      DO jkind=1,nkind
 
         IF (alpha(jkind) == 0.0_wp) CYCLE
+        IF (zeff(jkind) == 0.0_wp) CYCLE
 
-        equal_kinds = (ikind == jkind)
+        natom_b = SIZE(atom(jkind)%list)
 
         zab = REAL(zeff(ikind)*zeff(jkind),wp)
         aab = alpha(ikind)*alpha(jkind)/(alpha(ikind) + alpha(jkind))
@@ -367,205 +369,206 @@ CONTAINS
 
 !       *** Calculate the square of the maximum interaction distance ***
 
-        rab_max = radius(ikind) + radius(jkind)
+        rab_max = radius(ikind) + radius(jkind) + r_skin
         rab2_max = rab_max*rab_max
 
         r(:) = rab_max
         sab_max(:) = real_to_scaled(r(:),cell)
 
         ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
-        ngrid(:) = MAX(1,NINT(0.5_wp*subcells/sab_max(:)))
+        nsubcell(:) = MAX(1,NINT(0.5_wp*subcells/sab_max(:)))
 
 !       *** Print subcell information for the current atomic kind pair ***
 
         IF ((ionode.AND.globenv%print%cell_parameters).AND.&
             (globenv%print%level > LOW)) THEN
+          s(:) = 1.0_wp/REAL(nsubcell(:),wp)
+          r(:) = scaled_to_real(s(:),cell)
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
-            ikind,jkind,ngrid,&
-            scaled_to_real(1.0_wp/REAL(ngrid(:),wp),cell)/unit_of_length
+            ikind,jkind,nsubcell(1:3),r(1:3)/unit_of_length
         END IF
 
 !       *** Check, if we have to consider a subcell grid ***
 
-        IF (SUM(ngrid) == 3) THEN
+        IF (SUM(nsubcell) == 3) THEN
 
-          DO jatom=1,natom(jkind)
+!         *** Case 1: No subcell grid is needed ***
 
-            sb_pbc(:) = pbc_coord(jkind)%s(:,jatom)
+          DO jatom=1,natom_b
 
-            DO icell=-ncell(1),ncell(1)
-              cell_b(1) = icell
-              DO jcell=-ncell(2),ncell(2)
+            atom_b = atom(jkind)%list(jatom)
+            sb_pbc(:) = atom(jkind)%s_pbc(:,jatom)
+
+            loop1_kcell: DO kcell=-ncell(3),ncell(3)
+
+              sb(3) = sb_pbc(3) + REAL(kcell,wp)
+              sb_min(3) = sb(3) - sab_max(3)
+              IF (sb_min(3) >= 0.5_wp) EXIT loop1_kcell
+              sb_max(3) = sb(3) + sab_max(3)
+              IF (sb_max(3) < -0.5_wp) CYCLE loop1_kcell
+              cell_b(3) = kcell
+
+              loop1_jcell: DO jcell=-ncell(2),ncell(2)
+
+                sb(2) = sb_pbc(2) + REAL(jcell,wp)
+                sb_min(2) = sb(2) - sab_max(2)
+                IF (sb_min(2) >= 0.5_wp) EXIT loop1_jcell
+                sb_max(2) = sb(2) + sab_max(2)
+                IF (sb_max(2) < -0.5_wp) CYCLE loop1_jcell
                 cell_b(2) = jcell
-                DO kcell=-ncell(3),ncell(3)
-                  cell_b(3) = kcell
 
-                  sb(:) = sb_pbc(:) + REAL(cell_b(:),wp)
+                loop1_icell: DO icell=-ncell(1),ncell(1)
+
+                  sb(1) = sb_pbc(1) + REAL(icell,wp)
+                  sb_min(1) = sb(1) - sab_max(1)
+                  IF (sb_min(1) >= 0.5_wp) EXIT loop1_icell
+                  sb_max(1) = sb(1) + sab_max(1)
+                  IF (sb_max(1) < -0.5_wp) CYCLE loop1_icell
+                  cell_b(1) = icell
+
                   rb(:) = scaled_to_real(sb(:),cell)
 
-                  IF (equal_kinds) THEN
-                    natom_a = jatom - 1
-                  ELSE
-                    natom_a = natom(ikind)
-                  END IF
-
-                  DO iatom=1,natom_a
-                    rab(:) = rb(:) - pbc_coord(ikind)%r(:,iatom)
-                    rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                    IF (rab2 < rab2_max) THEN
-                      dab = SQRT(rab2)
-                      eab = zab*erfc(rootaab*dab)/dab
-                      ecore_overlap = ecore_overlap + eab
-                      IF (calculate_forces) THEN
-                        deab(:) = rab(:)*(eab + f0*EXP(-aab*rab2))/rab2
-                        force(ikind)%core_overlap(:,iatom) =&
-                          force(ikind)%core_overlap(:,iatom) - deab(:)
-                        force(jkind)%core_overlap(:,jatom) =&
-                          force(jkind)%core_overlap(:,jatom) + deab(:)
+                  DO iatom_local=1,natom_local_a
+                    iatom = atom(ikind)%list_local_index(iatom_local)
+                    atom_a = atom(ikind)%list(iatom)
+                    IF (atom_a == atom_b) THEN
+                      CYCLE
+                    ELSE IF (atom_a > atom_b) THEN
+                      include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                    ELSE
+                      include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                    END IF
+                    IF (include_ab) THEN
+                      rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
+                      rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                      IF (rab2 < rab2_max) THEN
+                        dab = SQRT(rab2)
+                        eab = zab*erfc(rootaab*dab)/dab
+                        ecore_overlap = ecore_overlap + eab
+                        IF (calculate_forces) THEN
+                          deab(:) = rab(:)*(eab + f0*EXP(-aab*rab2))/rab2
+                          force(ikind)%core_overlap(:,iatom) =&
+                            force(ikind)%core_overlap(:,iatom) - deab(:)
+                          force(jkind)%core_overlap(:,jatom) =&
+                            force(jkind)%core_overlap(:,jatom) + deab(:)
+                        END IF
                       END IF
                     END IF
                   END DO
 
-                END DO
-              END DO
-            END DO
+                END DO loop1_icell
+              END DO loop1_jcell
+            END DO loop1_kcell
 
           END DO
 
         ELSE
 
-          ALLOCATE (grid_min(3,ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
-          IF (istat /= 0) THEN
-            CALL stop_memory(routine,"grid_min",3*PRODUCT(ngrid)*wp_size)
-          END IF
+!         *** Case 2: A subcell grid is needed ***
 
-          ALLOCATE (grid_max(3,ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
-          IF (istat /= 0) THEN
-            CALL stop_memory(routine,"grid_max",3*PRODUCT(ngrid)*wp_size)
-          END IF
+          CALL allocate_subcell(subcell,nsubcell,maxatom_local)
 
-          ALLOCATE (nijk(ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
-          IF (istat /= 0) THEN
-            CALL stop_memory(routine,"nijk",PRODUCT(ngrid)*int_size)
-          END IF
-          nijk(:,:,:) = 0
-
-          ALLOCATE (ijk(natom(ikind),ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
-          IF (istat /= 0) THEN
-            CALL stop_memory(routine,"ijk",&
-                             natom(ikind)*PRODUCT(ngrid)*int_size)
-          END IF
-
-          DO igrid=1,ngrid(1)
-            a_min = REAL(igrid-1,wp)/REAL(ngrid(1),wp) - 0.5_wp
-            a_max = REAL(igrid,wp)/REAL(ngrid(1),wp) - 0.5_wp
-            DO jgrid=1,ngrid(2)
-              b_min = REAL(jgrid-1,wp)/REAL(ngrid(2),wp) - 0.5_wp
-               b_max = REAL(jgrid,wp)/REAL(ngrid(2),wp) - 0.5_wp
-              DO kgrid=1,ngrid(3)
-                c_min = REAL(kgrid-1,wp)/REAL(ngrid(3),wp) - 0.5_wp
-                c_max = REAL(kgrid,wp)/REAL(ngrid(3),wp) - 0.5_wp
-                grid_min(:,igrid,jgrid,kgrid) = (/a_min,b_min,c_min/)
-                grid_max(:,igrid,jgrid,kgrid) = (/a_max,b_max,c_max/)
-              END DO
-            END DO
+          DO iatom_local=1,natom_local_a
+            iatom = atom(ikind)%list_local_index(iatom_local)
+            atom_a = atom(ikind)%list(iatom)
+            s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_wp
+            i = INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp)
+            j = INT(s(2)*REAL(nsubcell(2),wp) + 1.0_wp)
+            k = INT(s(3)*REAL(nsubcell(3),wp) + 1.0_wp)
+            subcell(i,j,k)%natom =  subcell(i,j,k)%natom + 1
+            subcell(i,j,k)%atom_list(subcell(i,j,k)%natom) = iatom_local
           END DO
 
-          DO iatom=1,natom(ikind)
-            sa_pbc(:) = pbc_coord(ikind)%s(:,iatom)
-            igrid = MAX(1,CEILING((sa_pbc(1) + 0.5_wp)*ngrid(1)))
-            jgrid = MAX(1,CEILING((sa_pbc(2) + 0.5_wp)*ngrid(2)))
-            kgrid = MAX(1,CEILING((sa_pbc(3) + 0.5_wp)*ngrid(3)))
-            nijk(igrid,jgrid,kgrid) = nijk(igrid,jgrid,kgrid) + 1
-            ijk(nijk(igrid,jgrid,kgrid),igrid,jgrid,kgrid) = iatom
-          END DO
+          DO jatom=1,natom_b
 
-          DO jatom=1,natom(jkind)
+            atom_b = atom(jkind)%list(jatom)
+            sb_pbc(:) = atom(jkind)%s_pbc(:,jatom)
 
-            sb_pbc(:) = pbc_coord(jkind)%s(:,jatom)
+            loop2_kcell: DO kcell=-ncell(3),ncell(3)
 
-            DO icell=-ncell(1),ncell(1)
-              cell_b(1) = icell
-              DO jcell=-ncell(2),ncell(2)
+              sb(3) = sb_pbc(3) + REAL(kcell,wp)
+              sb_min(3) = sb(3) - sab_max(3)
+              IF (sb_min(3) >= 0.5_wp) EXIT loop2_kcell
+              sb_max(3) = sb(3) + sab_max(3)
+              IF (sb_max(3) < -0.5_wp) CYCLE loop2_kcell
+              cell_b(3) = kcell
+
+              loop2_jcell: DO jcell=-ncell(2),ncell(2)
+
+                sb(2) = sb_pbc(2) + REAL(jcell,wp)
+                sb_min(2) = sb(2) - sab_max(2)
+                IF (sb_min(2) >= 0.5_wp) EXIT loop2_jcell
+                sb_max(2) = sb(2) + sab_max(2)
+                IF (sb_max(2) < -0.5_wp) CYCLE loop2_jcell
                 cell_b(2) = jcell
-                DO kcell=-ncell(3),ncell(3)
-                  cell_b(3) = kcell
 
-                  sb(:) = sb_pbc(:) + REAL(cell_b(:),wp)
+                loop2_icell: DO icell=-ncell(1),ncell(1)
+
+                  sb(1) = sb_pbc(1) + REAL(icell,wp)
+                  sb_min(1) = sb(1) - sab_max(1)
+                  IF (sb_min(1) >= 0.5_wp) EXIT loop2_icell
+                  sb_max(1) = sb(1) + sab_max(1)
+                  IF (sb_max(1) < -0.5_wp) CYCLE loop2_icell
+                  cell_b(1) = icell
+
                   rb(:) = scaled_to_real(sb(:),cell)
-                  sb_min(:) = sb(:) - sab_max(:)
-                  sb_max(:) = sb(:) + sab_max(:)
 
-                  IF (sb_max(1) < grid_min(1,1,1,1)) CYCLE
-                  IF (sb_max(2) < grid_min(2,1,1,1)) CYCLE
-                  IF (sb_max(3) < grid_min(3,1,1,1)) CYCLE
+                  loop_k: DO k=1,nsubcell(3)
+                    loop_j: DO j=1,nsubcell(2)
+                      loop_i: DO i=1,nsubcell(1)
 
-                  igrid = ngrid(1)
-                  jgrid = ngrid(2)
-                  kgrid = ngrid(3)
+                        IF (subcell(i,j,k)%natom == 0) CYCLE
 
-                  IF (sb_min(1) >= grid_max(1,igrid,jgrid,kgrid)) CYCLE
-                  IF (sb_min(2) >= grid_max(2,igrid,jgrid,kgrid)) CYCLE
-                  IF (sb_min(3) >= grid_max(3,igrid,jgrid,kgrid)) CYCLE
+                        IF (sb_max(3) < subcell(i,j,k)%s_min(3)) EXIT loop_k
+                        IF (sb_min(3) >= subcell(i,j,k)%s_max(3)) CYCLE loop_k
 
-                  DO igrid=1,ngrid(1)
-                    DO jgrid=1,ngrid(2)
-                      DO kgrid=1,ngrid(3)
+                        IF (sb_max(2) < subcell(i,j,k)%s_min(2)) EXIT loop_j
+                        IF (sb_min(2) >= subcell(i,j,k)%s_max(2)) CYCLE loop_j
 
-                        IF (nijk(igrid,jgrid,kgrid) == 0) CYCLE
+                        IF (sb_max(1) < subcell(i,j,k)%s_min(1)) EXIT loop_i
+                        IF (sb_min(1) >= subcell(i,j,k)%s_max(1)) CYCLE loop_i
 
-                        IF (sb_max(1) < grid_min(1,igrid,jgrid,kgrid)) CYCLE
-                        IF (sb_max(2) < grid_min(2,igrid,jgrid,kgrid)) CYCLE
-                        IF (sb_max(3) < grid_min(3,igrid,jgrid,kgrid)) CYCLE
-
-                        IF (sb_min(1) >= grid_max(1,igrid,jgrid,kgrid)) CYCLE
-                        IF (sb_min(2) >= grid_max(2,igrid,jgrid,kgrid)) CYCLE
-                        IF (sb_min(3) >= grid_max(3,igrid,jgrid,kgrid)) CYCLE
-
-                        DO iijk=1,nijk(igrid,jgrid,kgrid)
-                          iatom = ijk(iijk,igrid,jgrid,kgrid)
-                          IF (equal_kinds) THEN
-                            IF (jatom <= iatom) CYCLE
+                        DO iatom_subcell=1,subcell(i,j,k)%natom
+                          iatom_local = subcell(i,j,k)%atom_list(iatom_subcell)
+                          iatom = atom(ikind)%list_local_index(iatom_local)
+                          atom_a = atom(ikind)%list(iatom)
+                          IF (atom_a == atom_b) THEN
+                            CYCLE
+                          ELSE IF (atom_a > atom_b) THEN
+                            include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                          ELSE
+                            include_ab = (MODULO(atom_a + atom_b,2) == 0)
                           END IF
-                          rab(:) = rb(:) - pbc_coord(ikind)%r(:,iatom)
-                          rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                          IF (rab2 < rab2_max) THEN
-                            dab = SQRT(rab2)
-                            ecore_overlap = ecore_overlap +&
-                                            zab*erfc(aab*dab)/dab
-                            eab = zab*erfc(rootaab*dab)/dab
-                            ecore_overlap = ecore_overlap + eab
-                            IF (calculate_forces) THEN
-                              deab(:) = rab(:)*(eab + f0*EXP(-aab*rab2))/rab2
-                              force(ikind)%core_overlap(:,iatom) =&
-                                force(ikind)%core_overlap(:,iatom) - deab(:)
-                              force(jkind)%core_overlap(:,jatom) =&
-                                force(jkind)%core_overlap(:,jatom) + deab(:)
+                          IF (include_ab) THEN
+                            rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
+                            rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                            IF (rab2 < rab2_max) THEN
+                              dab = SQRT(rab2)
+                              ecore_overlap = ecore_overlap + zab*erfc(aab*dab)/dab
+                              eab = zab*erfc(rootaab*dab)/dab
+                              ecore_overlap = ecore_overlap + eab
+                              IF (calculate_forces) THEN
+                                deab(:) = rab(:)*(eab + f0*EXP(-aab*rab2))/rab2
+                                force(ikind)%core_overlap(:,iatom) =&
+                                  force(ikind)%core_overlap(:,iatom) - deab(:)
+                                force(jkind)%core_overlap(:,jatom) =&
+                                  force(jkind)%core_overlap(:,jatom) + deab(:)
+                              END IF
                             END IF
                           END IF
                         END DO
 
-                      END DO
-                    END DO
-                  END DO
+                      END DO loop_i
+                    END DO loop_j
+                  END DO loop_k
 
-                END DO
-              END DO
-            END DO
+                END DO loop2_icell
+              END DO loop2_jcell
+            END DO loop2_kcell
 
           END DO
 
-          DEALLOCATE (grid_min,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"grid_min")
-
-          DEALLOCATE (grid_max,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"grid_max")
-
-          DEALLOCATE (nijk,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"nijk")
-
-          DEALLOCATE (ijk,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"ijk")
+          CALL deallocate_subcell(subcell)
 
         END IF
 
@@ -573,6 +576,25 @@ CONTAINS
     END DO
 
 !   *** Release work storage ***
+
+    DO ikind=1,nkind
+      NULLIFY (atom(ikind)%list)
+      IF (ASSOCIATED(atom(ikind)%list_local_index)) THEN
+        DEALLOCATE (atom(ikind)%list_local_index,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"atom(ikind)%list_local_index")
+      END IF
+      IF (ASSOCIATED(atom(ikind)%r_pbc)) THEN
+        DEALLOCATE (atom(ikind)%r_pbc,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"atom(ikind)%r_pbc")
+      END IF
+      IF (ASSOCIATED(atom(ikind)%s_pbc)) THEN
+        DEALLOCATE (atom(ikind)%s_pbc,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"atom(ikind)%s_pbc")
+      END IF
+    END DO
+
+    DEALLOCATE (atom,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"atom")
 
     DEALLOCATE (alpha,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"alpha")
@@ -583,22 +605,7 @@ CONTAINS
     DEALLOCATE (zeff,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"zeff")
 
-    DEALLOCATE (natom,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"natom")
-
-    DO ikind=1,nkind
-      IF (ASSOCIATED(pbc_coord(ikind)%r)) THEN
-        DEALLOCATE (pbc_coord(ikind)%r,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"pbc_coord(ikind)%r")
-      END IF
-      IF (ASSOCIATED(pbc_coord(ikind)%s)) THEN
-        DEALLOCATE (pbc_coord(ikind)%s,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"pbc_coord(ikind)%s")
-      END IF
-    END DO
-
-    DEALLOCATE (pbc_coord,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pbc_coord")
+    CALL mp_sum(ecore_overlap,group)
 
     energy%core_overlap = ecore_overlap
 

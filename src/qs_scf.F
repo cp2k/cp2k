@@ -198,8 +198,7 @@ MODULE qs_scf
                                              calculate_total_rho,&
                                              calculate_wavefunction
   USE qs_conductivity,                 ONLY: optical_conductivity
-  USE qs_core_energies,                ONLY: calculate_ecore,&
-                                             calculate_ecore_overlap,&
+  USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_diis,                         ONLY: qs_diis_b_clear,&
@@ -982,7 +981,7 @@ CONTAINS
 
 ! update ecore
     CALL calculate_ecore_self(qs_env)
-    CALL calculate_ecore_overlap(qs_env,globenv,.FALSE.)
+    CALL calculate_ecore_overlap(qs_env,globenv,dft_control%forces)
     IF (ionode.AND.logger%print_keys%scf_energies) THEN
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
             "Overlap energy of the core charge distribution:",&

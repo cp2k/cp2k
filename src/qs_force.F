@@ -137,20 +137,12 @@ CONTAINS
     NULLIFY (scf_control)
     NULLIFY (w)
 
-    CALL qs_energies(qs_env,globenv,&
-                     neighbor_lists_from_scratch=neighbor_lists_from_scratch)
-
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
-                    c=c,&
                     dft_control=dft_control,&
                     force=force,&
-                    k=k,&
-                    ks_env=ks_env,&
                     particle_set=particle_set,&
-                    s=s,&
-                    scf_control=scf_control,&
-                    w=w)
+                    scf_control=scf_control)
 
     natom = SIZE(particle_set)
 
@@ -166,11 +158,14 @@ CONTAINS
 
     CALL init_qs_force(force)
 
-!   *** Force component from the core charge distribution overlap ***
+    CALL qs_energies(qs_env,globenv,&
+                     neighbor_lists_from_scratch=neighbor_lists_from_scratch)
 
-    CALL calculate_ecore_overlap(qs_env=qs_env,&
-                                 globenv=globenv,&
-                                 calculate_forces=.TRUE.)
+    CALL get_qs_env(qs_env=qs_env,&
+                    c=c,&
+                    k=k,&
+                    ks_env=ks_env,&
+                    s=s)
 
 !   *** Build W matrix ***
 
@@ -204,10 +199,11 @@ CONTAINS
                              calculate_forces=.TRUE.)
 
     DO ikind=1,SIZE(force)
+      CALL mp_sum(force(ikind)%overlap,globenv%group)
+      CALL mp_sum(force(ikind)%kinetic,globenv%group)
       CALL mp_sum(force(ikind)%gth_ppl,globenv%group)
       CALL mp_sum(force(ikind)%gth_ppnl,globenv%group)
-      CALL mp_sum(force(ikind)%kinetic,globenv%group)
-      CALL mp_sum(force(ikind)%overlap,globenv%group)
+      CALL mp_sum(force(ikind)%core_overlap,globenv%group)
       CALL mp_sum(force(ikind)%rho_elec,globenv%group)
       force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
                                 force(ikind)%core_overlap(:,:) +&
