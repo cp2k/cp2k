@@ -83,18 +83,18 @@ MODULE cp_fm_basic_linalg
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_fm_basic_linalg'
 
-  PUBLIC :: cp_fm_scale, &
-            cp_fm_scale_and_add, &
-            cp_fm_column_scale, &
-            cp_fm_trace, &
-            cp_fm_schur_product, &
-            cp_fm_transpose, &
-            cp_fm_upper_to_full, &
-            cp_fm_syrk, &
-            cp_fm_triangular_multiply, &
-            cp_fm_symm, &
-            cp_fm_gemm, &
-            cp_fm_lu_decompose
+  PUBLIC :: cp_fm_scale, &                 ! scale a matrix
+            cp_fm_scale_and_add, &         ! scale and add two matrices
+            cp_fm_column_scale, &          ! scale colummns of a matrix
+            cp_fm_trace, &                 ! trace of the transpose(A)*B
+            cp_fm_schur_product, &         ! schur product 
+            cp_fm_transpose, &             ! transpose a matrix
+            cp_fm_upper_to_full, &         ! symmetrise an upper symmetric matrix
+            cp_fm_syrk, &                  ! rank k update
+            cp_fm_triangular_multiply, &   ! triangular matrix multiply / solve
+            cp_fm_symm, &                  ! multiply a symmetric with a non-symmetric matrix
+            cp_fm_gemm, &                  ! multiply two matrices
+            cp_fm_lu_decompose             ! computes determinant (and lu decomp)
 
 !****************************************************************************
 CONTAINS
@@ -204,13 +204,36 @@ CONTAINS
 
   END SUBROUTINE cp_fm_scale_and_add
 
-! *****************************************************************************
-! computes the LU decomposition of a given matrix
-! the actual purpose right now is to compute the determinant of a given matrix
-! which is most efficiently done this way, but, indeed, destroys the matrix
-! SERIOUS WARNING (KNOWN BUG) : the sign of the determinant depends on ipivot
-! one should be able to find out if ipivot is an even or an odd permutation...
-! *****************************************************************************
+!!****f* cp_fm_basic_linalg/cp_fm_decompose [1.0] *
+!!
+!!   NAME
+!!     cp_fm_lu_decompose
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_fm_lu_decompose(matrix_a,almost_determinant)
+!!         TYPE(cp_fm_type), POINTER :: matrix_a
+!!         REAL(wp), INTENT(OUT)     :: almost_determinant
+!!     End Subroutine
+!!
+!!   FUNCTION
+!!
+!!     Computes the LU-decomposition of the matrix, and the determinant of the matrix
+!!     IMPORTANT : the sign of the determinant is not defined correctly yet ....
+!!
+!!   NOTES
+!!     - matrix_a is overwritten
+!!     - the sign of the determinant might be wrong
+!!     - SERIOUS WARNING (KNOWN BUG) : the sign of the determinant depends on ipivot
+!!     - one should be able to find out if ipivot is an even or an odd permutation...
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!     Joost VandeVondele
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
   SUBROUTINE cp_fm_lu_decompose(matrix_a,almost_determinant)
     TYPE(cp_fm_type), POINTER :: matrix_a
     REAL(wp), INTENT(OUT)              :: almost_determinant
@@ -260,16 +283,44 @@ CONTAINS
   END SUBROUTINE
 
 
-! *****************************************************************************
-
+!!****f* cp_basic_linalg/cp_fm_gemm [1.0] *
+!!
+!!   NAME
+!!     cp_fm_gemm
+!!
+!!   SYNOPSIS
+!!     SUBROUTINE cp_fm_gemm(transa,transb,m,n,k,alpha,matrix_a,matrix_b,beta,&
+!!          matrix_c,error,b_first_col)
+!!       TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_b,matrix_c
+!!       CHARACTER(LEN=1), INTENT(IN)              :: transa,transb
+!!       REAL(wp), INTENT(IN)                      :: alpha,beta
+!!       INTEGER, INTENT(IN)                       :: k,m,n
+!!       INTEGER, OPTIONAL, INTENT(IN)             :: b_first_col
+!!       TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+!!     END SUBROUTINE
+!!
+!!   FUNCTION
+!!     computes matrix_c = beta * matrix_c + alpha * ( matrix_a  ** transa ) * ( matrix_b ** transb )
+!!
+!!   NOTES
+!!     matrix_c should have no overlap with matrix_a, matrix_b
+!!
+!!   INPUTS
+!!     matrix_a :: m x k matrix ( ! for transa = 'N')
+!!     matrix_b :: k x n matrix ( ! for transb = 'N')
+!!     matrix_c :: m x n matrix 
+!!     transa :: 'N' -> normal   'T' -> transpose
+!!     alpha,beta :: can be 0.0_dbl and 1.0_dbl  
+!!     b_first_col :: the k x n matrix starts at col b_first_col of matrix_b (avoid usage)
+!!
+!!   AUTHOR
+!!      Matthias Krack
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
   SUBROUTINE cp_fm_gemm(transa,transb,m,n,k,alpha,matrix_a,matrix_b,beta,&
        matrix_c,error,b_first_col)
-
-!   Purpose: BLACS interface to the BLAS routine dgemm.
-
-!   History: - Creation (07.06.2001, Matthias Krack)
-
-!   ***************************************************************************
 
     TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_b,matrix_c
     CHARACTER(LEN=1), INTENT(IN)              :: transa,transb
@@ -325,14 +376,47 @@ CONTAINS
 
   END SUBROUTINE cp_fm_gemm
 
+!!****f* cp_fm_basic_linalg/cp_fm_symm [1.0] *
+!!
+!!   NAME
+!!     cp_fm_symm
+!!
+!!   SYNOPSIS
+!!     SUBROUTINE cp_fm_symm(side,uplo,m,n,alpha,matrix_a,matrix_b,beta,matrix_c,error)
+!!       TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_b,matrix_c
+!!       CHARACTER(LEN=1), INTENT(IN)              :: side,uplo
+!!       REAL(wp), INTENT(IN)                      :: alpha,beta
+!!       INTEGER, INTENT(IN)                       :: m,n
+!!       TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+!!     END SUBROUTINE
+!!
+!!   FUNCTION
+!!     computes matrix_c = beta * matrix_c + alpha *  matrix_a  *  matrix_b 
+!!     OR
+!!     computes matrix_c = beta * matrix_c + alpha *  matrix_b  *  matrix_a 
+!!     where matrix_a is symmetric
+!!
+!!   NOTES
+!!     matrix_c should have no overlap with matrix_a, matrix_b
+!!     all matrices in QS are upper triangular, so uplo should be 'U' always
+!!     matrix_a is always an m x m matrix
+!!     it is typically slower to do cp_fm_symm than cp_fm_gemm (especially in parallel)
+!!
+!!   INPUTS
+!!     matrix_a :: m x m matrix 
+!!     matrix_b :: m x n matrix 
+!!     matrix_c :: m x n matrix
+!!     side     :: 'L' -> matrix_a is on the left 'R' -> matrix_a is on the right
+!!     alpha,beta :: can be 0.0_dbl and 1.0_dbl
+!!
+!!   AUTHOR
+!!      Matthias Krack
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
   SUBROUTINE cp_fm_symm(side,uplo,m,n,alpha,matrix_a,matrix_b,beta,matrix_c,&
        error)
-
-!   Purpose: BLACS interface to the BLAS routine dsymm.
-
-!   History: - Creation (07.06.2001, Matthias Krack)
-
-!   ***************************************************************************
 
     TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_b,matrix_c
     CHARACTER(LEN=1), INTENT(IN)              :: side,uplo
@@ -386,17 +470,43 @@ CONTAINS
 
   END SUBROUTINE cp_fm_symm
 
-! *****************************************************************************
 
-  SUBROUTINE cp_fm_syrk(uplo,trans,k,alpha,matrix_a,ia,ja,beta,matrix_c,&
-       error)
+!!****f* cp_fm_basic_linalg/cp_fm_syrk [1.0] *
+!!
+!!   NAME
+!!     cp_fm_syrk
+!!
+!!   SYNOPSIS
+!!     SUBROUTINE cp_fm_syrk(uplo,trans,k,alpha,matrix_a,ia,ja,beta,matrix_c,&
+!!          error)
+!!       TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_c
+!!       CHARACTER(LEN=1), INTENT(IN)              :: trans,uplo
+!!       REAL(wp), INTENT(IN)                      :: alpha,beta
+!!       INTEGER, INTENT(IN)                       :: ia,ja,k
+!!       TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+!!     END SUBROUTINE
+!!
+!!   FUNCTION
+!!     performs a rank-k update of a symmetric matrix_c
+!!        matrix_c = beta * matrix_c + alpha * matrix_a * transpose ( matrix_a )
+!!
+!!   NOTES
+!!     In QS uplo should 'U' (upper part updated)
+!!
+!!   INPUTS
+!!     uplo :: 'U'   ('L')
+!!     trans :: 'N'  ('T')
+!!     k :: number of cols to use in matrix_a
+!!     ia,ja ::  1,1 (could be used for selecting subblock of a)
+!!
+!!   AUTHOR
+!!     Matthias Krack
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
 
-!   Purpose: BLACS interface to the BLAS routine dsyrk.
-
-!   History: - Creation (07.06.2001, Matthias Krack)
-
-!   ***************************************************************************
-
+  SUBROUTINE cp_fm_syrk(uplo,trans,k,alpha,matrix_a,ia,ja,beta,matrix_c,error)
     TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_c
     CHARACTER(LEN=1), INTENT(IN)              :: trans,uplo
     REAL(wp), INTENT(IN)                      :: alpha,beta
@@ -445,13 +555,33 @@ CONTAINS
 
   END SUBROUTINE cp_fm_syrk
 
-! *****************************************************************************
 
+!!****f* cp_fm_basic_linalg/cp_fm_schur_product [1.0] *
+!!
+!!   NAME
+!!     cp_fm_schur_product
+!!
+!!   SYNOPSIS
+!!     SUBROUTINE cp_fm_schur_product(matrix_a,matrix_b,matrix_c,error)
+!!       TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_b,matrix_c
+!!       TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+!!     END SUBROUTINE
+!!
+!!   FUNCTION
+!!     computes the schur product of two matrices
+!!      c_ij = a_ij * b_ij
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!     Joost VandeVondele
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
   SUBROUTINE cp_fm_schur_product(matrix_a,matrix_b,matrix_c,error)
-
-!   Purpose: Calculate the schur product of two matrices
-
-!   ***************************************************************************
 
     TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_b,matrix_c
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
@@ -714,10 +844,36 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
   CALL timestop(0.0_wp,handle)     
   END SUBROUTINE cp_fm_triangular_multiply
-!***************************************************************************
+
+
+!!****f* cp_fm_basic_linalg/cp_fm_scale [1.0] *
+!!
+!!   NAME
+!!     cp_fm_scale
+!!
+!!   SYNOPSIS
+!!     SUBROUTINE cp_fm_scale(alpha, matrix_a, error)
+!!        TYPE(cp_fm_type), POINTER           :: matrix_a
+!!        REAL(wp), INTENT(IN)                         :: alpha
+!!        TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+!!     END SUBROUTINE
+!!
+!!   FUNCTION
+!!     scales a matrix
+!!     matrix_a = alpha * matrix_b
+!!
+!!   NOTES
+!!     use cp_fm_set_all to zero (avoids problems with nan)
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
 
   SUBROUTINE cp_fm_scale(alpha, matrix_a, error)
-
     TYPE(cp_fm_type), POINTER           :: matrix_a
     REAL(wp), INTENT(IN)                         :: alpha
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
@@ -750,13 +906,34 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
   END SUBROUTINE cp_fm_scale
 
-! *****************************************************************************
+!!****f* cp_fm_basic_linalg/cp_fm_transpose [1.0] *
+!!
+!!   NAME
+!!     cp_fm_transpose
+!!
+!!   SYNOPSIS
+!!     SUBROUTINE cp_fm_transpose(matrix,matrixt,error)
+!!       TYPE(cp_fm_type), POINTER          :: matrix,matrixt
+!!       TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+!!     END SUBROUTINE
+!!
+!!   FUNCTION
+!!     transposes a matrix
+!!     matrixt = matrix ^ T
+!!
+!!   NOTES
+!!     all matrix elements are transpose (see cp_fm_upper_to_half to symmetrise a matrix)
+!!     all matrix elements are transpose (see cp_fm_upper_to_half to symmetrize a matrix)
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
 
-! *****************************************************************************
   SUBROUTINE cp_fm_transpose(matrix,matrixt,error)
-! matrixt=matrix^T ! assumes no symmetry
-!***************************************************************************
-
     TYPE(cp_fm_type), POINTER          :: matrix,matrixt
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
@@ -812,15 +989,35 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
   END SUBROUTINE cp_fm_transpose
 
-! *****************************************************************************
 
+!!****f* cp_fm_basic_linalg/cp_fm_upper_to_full [1.0] *
+!!
+!!   NAME
+!!     cp_fm_upper_to_full
+!!
+!!   SYNOPSIS
+!!      SUBROUTINE cp_fm_upper_to_full(matrix,work,error)
+!!        TYPE(cp_fm_type), POINTER          :: matrix,work
+!!        TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+!!      END SUBROUTINE
+!!
+!!   FUNCTION
+!!      given an upper triangular matrix computes the corresponding full matrix
+!!
+!!   NOTES
+!!      the lower triangular part is irrelevant
+!!
+!!   INPUTS
+!!      matrix : the upper triangular matrix
+!!      work   : a matrix of the same size as matrix
+!!
+!!   AUTHOR
+!!      Matthias Krack
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
   SUBROUTINE cp_fm_upper_to_full(matrix,work,error)
-
-!   Purpose: given an upper triangular matrix computes the corresponding full matrix
-!            the lower triangular part is irrelevant
-!   History: - Creation (12.06.2001, Matthias Krack)
-
-!   ***************************************************************************
 
     TYPE(cp_fm_type), POINTER          :: matrix,work
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
@@ -911,11 +1108,35 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
   END SUBROUTINE cp_fm_upper_to_full
 
+!!****f* cp_fm_basic_linalg/cp_fm_column_scale [1.0] *
+!!
+!!   NAME
+!!     cp_fm_column_scale
+!!
+!!   SYNOPSIS
+!!     SUBROUTINE cp_fm_column_scale(matrixa,scaling)
+!!       TYPE(cp_fm_type), POINTER          :: matrixa
+!!       REAL(wp), DIMENSION(:), POINTER           :: scaling
+!!     END SUBROUTINE
+!!
+!!   FUNCTION
+!!     scales column i of matrix a with scaling(i)
+!!
+!!   NOTES
+!!     this is very useful as a first step in the computation of C = sum_i alpha_i A_i transpose (A_i)
+!!     that is a rank-k update (cp_fm_syrk , cp_sm_plus_fm_fm_t) where every vector has a different prefactor
+!!     this procedure can be up to 20 times faster than calling cp_fm_syrk n times
+!!
+!!   INPUTS
+!!     scaling :: an array used for scaling the columns, SIZE(scaling) determines the number of columns to be scaled
+!!
+!!   AUTHOR
+!!     Joost VandeVondele
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
   SUBROUTINE cp_fm_column_scale(matrixa,scaling)
-
-! routine to perform a scaling of every column in a matrix, using as many columns as elements in scaling
-! ***************************************************************************
-
     TYPE(cp_fm_type), POINTER          :: matrixa
     REAL(wp), DIMENSION(:), POINTER           :: scaling
 
