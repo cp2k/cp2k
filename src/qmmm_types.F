@@ -270,6 +270,8 @@ CONTAINS
              DEALLOCATE(qmmm_env%qm_molecule_index,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
+          DEALLOCATE(qmmm_env,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
     END IF
     NULLIFY(qmmm_env)
