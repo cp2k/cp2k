@@ -174,6 +174,8 @@ MODULE qs_environment_types
                                              get_matrix_info,&
                                              real_matrix_p_type,&
                                              real_matrix_type
+  USE cp_sm_pool_types,                ONLY: sm_pools_give_back_matrix_vect, &
+                                             cp_sm_pool_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -850,6 +852,9 @@ SUBROUTINE qs_env_release(qs_env,error)
   CHARACTER(len=*), PARAMETER :: routineN='qs_env_release',&
        routineP=moduleN//':'//routineN
   INTEGER :: i, stat
+  TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER :: S_sm_pools
+
+  NULLIFY(S_sm_pools)
   failure=.FALSE.
 
   IF (ASSOCIATED(qs_env)) THEN
@@ -911,7 +916,11 @@ SUBROUTINE qs_env_release(qs_env,error)
         IF (ASSOCIATED(qs_env%force))&
              CALL deallocate_qs_force(qs_env%force)
         IF (ASSOCIATED(qs_env%h)) CALL deallocate_matrix_set(qs_env%h)
-        IF (ASSOCIATED(qs_env%k)) CALL deallocate_matrix_set(qs_env%k)
+
+        IF (ASSOCIATED(qs_env%k)) THEN
+            CALL mpools_get(qs_env%mpools, S_sm_pools=S_sm_pools, error=error)
+            CALL sm_pools_give_back_matrix_vect(S_sm_pools,qs_env % k,error=error)
+        ENDIF 
         IF (ASSOCIATED(qs_env%s)) CALL deallocate_matrix_set(qs_env%s)
         IF (ASSOCIATED(qs_env%w)) CALL deallocate_matrix_set(qs_env%w)
         IF (ASSOCIATED(qs_env%kinetic))&

@@ -239,7 +239,10 @@ SUBROUTINE scf_env_release(scf_env,error)
         CALL cp_fm_vect_dealloc(scf_env%scf_work1,error=error)
         CALL cp_fm_release(scf_env%scf_work2,error=error)
         CALL cp_fm_release(scf_env%ortho,error=error)
-        CALL deallocate_matrix_set(scf_env%p_new)
+        IF (ASSOCIATED(scf_env%p_new)) THEN
+           CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error) ! we should not end up here, and give back using the pools
+           CALL deallocate_matrix_set(scf_env%p_new) 
+        ENDIF
         IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
            CALL destroy_preconditioner(scf_env%ot_preconditioner)
            DEALLOCATE(scf_env%ot_preconditioner,stat=stat)
