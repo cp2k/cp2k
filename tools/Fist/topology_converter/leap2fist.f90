@@ -93,13 +93,14 @@ PROGRAM leap2fist
   CHARACTER (LEN=default_string_length), POINTER, DIMENSION(:) :: command_line 
   CHARACTER (LEN=default_string_length) :: input_filename, output_filename, psf_filename
   INTEGER :: unit_o, unit_i, unit_p
-  LOGICAL :: verbose, dlpoly, fist, psf_xplor
+  LOGICAL :: verbose, dlpoly, fist, psf_xplor, amber_impropers
   LOGICAL, POINTER, DIMENSION(:) :: io_units
+  CHARACTER(LEN=5), POINTER, DIMENSION(:) :: molnames
 
   NULLIFY( command_line, IGRAPH, ISYMBL, LABRES, IAC, ICO, IPRES,IBH,JBH,ICBH,&
            IB,JB,ICB,ITH,JTH,KTH,ICTH,IT,JT,KT,ICT,IPH,JPH,KPH,LPH,ICPH,&
            IP,JP,KP,LP,ICP,CHRG,RK,REQ,TK,TEQ,PK,PN,PHASE,CN1,CN2,ASOL,BSOL,&
-           BOX, AMASS, io_units )
+           BOX, AMASS, io_units, molnames)
   CALL get_command_line(command_line)
   !
   ! Start conversion...
@@ -117,6 +118,7 @@ PROGRAM leap2fist
      !
      ! Generate the PSF file...
      !
+     CALL generate_molecules()
      CALL write_psf(unit_p)
      CALL close_file(unit_p)
   ELSEIF (dlpoly) THEN
@@ -199,6 +201,8 @@ CONTAINS
     WRITE(*,'(2X,A,T20,A)')"    ","Default is the top file's root name"
     WRITE(*,'(2X,A,T20,A)')"-xplor","Optional. PSF will be dumped out according the X-PLOR format"
     WRITE(*,'(2X,A,T20,A)')"    ","This format is also readable by VMD and can be used within NAMD."
+    WRITE(*,'(2X,A,T20,A)')"-impropers","Optional. Put impropers in a different section w.r.t. proper torsions."
+    WRITE(*,'(2X,A,T20,A)')"    ","Default = .FALSE., i.e. impropers and propers are in the same section (AMBER style)."
     WRITE(*,'(2X,A,T20,A)')"-verbose","Print verbose information during executions" 
     WRITE(*,'(2X,A,T20,A)')"-dlpoly","Converts parameter file into dlpoly format." 
     WRITE(*,'(2X,A,T20,A)')"    ","    "
@@ -220,6 +224,7 @@ CONTAINS
     dlpoly          = .FALSE.
     fist            = .TRUE.
     psf_xplor       = .FALSE.
+    amber_impropers = .TRUE.
     narg = iargc()
     IF (narg.LT.2) THEN
        CALL print_help_banner
@@ -238,8 +243,8 @@ CONTAINS
           psf_filename  = TRIM(command_line(i+1))
        CASE ("-verbose")
           verbose = .TRUE.
-       CASE ("-xplor")
-          psf_xplor = .TRUE.
+       CASE ("-impropers")
+          amber_impropers = .FALSE.
        CASE ("-dlpoly")
           dlpoly = .TRUE.
           fist   = .FALSE.
@@ -513,6 +518,203 @@ CONTAINS
   END FUNCTION check_amber_8_std
 
 
+  SUBROUTINE generate_molecules
+    IMPLICIT NONE
+    INTEGER, DIMENSION(:), POINTER :: my_i, my_j
+    INTEGER :: my_bonds, ibond, istart, jstart, imol, i, k
+    CHARACTER (LEN=10), POINTER, DIMENSION(:) :: map_mol_name
+    CHARACTER (LEN=10) :: MYNAME
+
+    NULLIFY(map_mol_name)
+    my_bonds = NBONH+MBONA
+    ALLOCATE(my_i(my_bonds), my_j(my_bonds))
+    my_i(1:NBONH) = IBH/3+1; my_i(NBONH+1:my_bonds) = IB/3+1
+    my_j(1:NBONH) = JBH/3+1; my_j(NBONH+1:my_bonds) = JB/3+1    
+    
+    !Zero the arrays
+    ALLOCATE(map_mol_name(NATOM))
+    map_mol_name(:) = "MOL0000000"
+    ibond = 0
+    imol  = 0
+    DO WHILE ((COUNT(MASK=my_i>0)+COUNT(MASK=my_j>0))>0)
+       ibond = ibond + 1
+       istart = my_i(ibond)
+       jstart = my_j(ibond)
+       if ((istart == 0).AND.(jstart==0)) CYCLE
+       imol = imol + 1
+       MYNAME = give_mol_name("MOL0000000",imol)
+       my_i(ibond) = 0
+       my_j(ibond) = 0
+       map_mol_name(istart) = MYNAME
+       map_mol_name(jstart) = MYNAME
+
+       CALL build_mol_low(map_mol_name, MYNAME, istart, my_i, my_j)
+       CALL build_mol_low(map_mol_name, MYNAME, jstart, my_i, my_j)
+    END DO
+    !
+    !  Identify atoms with no bonds...
+    !
+    my_i(1:NBONH) = IBH/3+1; my_i(NBONH+1:my_bonds) = IB/3+1
+    my_j(1:NBONH) = JBH/3+1; my_j(NBONH+1:my_bonds) = JB/3+1
+    DO i = 1, NATOM
+       IF ((COUNT(MASK=my_i==i)+COUNT(MASK=my_j==i)) == 0) THEN
+          imol = imol + 1
+          MYNAME = give_mol_name("MOL0000000",imol)
+          map_mol_name(i) = MYNAME
+       END IF
+    END DO
+    DEALLOCATE(my_i, my_j)
+    CALL clean_mol_name(map_mol_name,imol)
+    IF (verbose) WRITE(*,'(8A10)')map_mol_name
+    ALLOCATE(molnames(NATOM))
+    DO i=1, NATOM
+       molnames(i) = "MOL00"
+       DO k = 4, 10
+          IF (map_mol_name(i)(k:k) /= "0") THEN
+             IF (k==9) THEN
+                molnames(i)(4:5) = map_mol_name(i)(k:10)
+             ELSEIF (k == 10) THEN
+                molnames(i)(5:5) = map_mol_name(i)(k:10)
+             ELSE
+                WRITE(*,'(A)')"More than 99 different molecules.. Wee need to implement a special case for this!"
+                CALL stop_converter("Error in generate_molecules: More than 99 DIFFERENT molecules present!")
+             END IF
+             EXIT 
+          END IF
+       END DO
+    END DO
+    DEALLOCATE(map_mol_name)
+  END SUBROUTINE generate_molecules
+
+  RECURSIVE SUBROUTINE build_mol_low(map_mol_name, MYNAME, index, my_i, my_j)
+    IMPLICIT NONE
+    CHARACTER (LEN=10), POINTER, DIMENSION(:) :: map_mol_name
+    CHARACTER (LEN=10), INTENT(IN) :: MYNAME
+    INTEGER, DIMENSION(:), POINTER :: my_i, my_j
+    INTEGER, INTENT(IN) :: index
+    INTEGER :: istart, jstart, my_bond
+
+    DO WHILE (COUNT(MASK=my_i==index)>0)
+       my_bond = 1
+       DO WHILE (my_bond <= SIZE(my_i))
+          IF (my_i(my_bond) == index) THEN
+             istart = my_i(my_bond)
+             jstart = my_j(my_bond)
+             my_i(my_bond)  = 0
+             my_j(my_bond)  = 0
+             map_mol_name(istart) = MYNAME
+             map_mol_name(jstart) = MYNAME
+             CALL build_mol_low(map_mol_name, MYNAME, istart, my_i, my_j)
+             CALL build_mol_low(map_mol_name, MYNAME, jstart, my_i, my_j)          
+          END IF
+          my_bond = my_bond + 1
+       END DO
+    END DO
+
+    DO WHILE (COUNT(MASK=my_j==index)>0)
+       my_bond = 1
+       DO WHILE (my_bond <= SIZE(my_j))
+          IF (my_j(my_bond) == index) THEN
+             istart = my_i(my_bond)
+             jstart = my_j(my_bond)
+             my_i(my_bond)  = 0
+             my_j(my_bond)  = 0
+             map_mol_name(istart) = MYNAME
+             map_mol_name(jstart) = MYNAME
+             CALL build_mol_low(map_mol_name, MYNAME, istart, my_i, my_j)
+             CALL build_mol_low(map_mol_name, MYNAME, jstart, my_i, my_j)          
+          END IF
+          my_bond = my_bond + 1
+       END DO
+    END DO
+
+  END SUBROUTINE build_mol_low
+
+  FUNCTION give_mol_name(basename,imol) RESULT(my_name)
+    IMPLICIT NONE
+    CHARACTER (LEN=10), INTENT(IN)  :: basename
+    CHARACTER (LEN=10) :: my_name
+    INTEGER, INTENT(IN) :: imol
+    integer :: I
+   
+    my_name = basename
+    WRITE(my_name(4:10),'(I7)')imol
+    DO I = 4, 10
+       IF (my_name(I:I)==" ") my_name(I:I)="0"
+    END DO
+  END FUNCTION give_mol_name
+
+  SUBROUTINE clean_mol_name(map_mol_name, nmols)
+    IMPLICIT NONE
+    CHARACTER (LEN=10), POINTER, DIMENSION(:) :: map_mol_name
+    INTEGER, INTENT(IN) :: nmols
+    INTEGER, POINTER, DIMENSION(:) ::  ifirst, ilast, idim
+    INTEGER :: my_first, my_last, I, J, imol, my_dim, my_res
+    CHARACTER (LEN=10) :: MY_NAME    
+    CHARACTER (LEN=default_string_length), DIMENSION (:), POINTER :: MY_LABRES
+
+    ALLOCATE(ifirst(nmols), ilast(nmols), idim(nmols), MY_LABRES(NATOM))
+    !
+    DO my_res = 1, NRES
+       my_first = IPRES(my_res)
+       IF (my_res == NRES) THEN 
+          my_last = NATOM
+       ELSE
+          my_last = IPRES(my_res + 1) - 1
+       END IF
+       MY_LABRES(my_first:my_last) = LABRES(my_res)
+    END DO
+    !
+    my_first  = 1
+    ifirst(1) = 1
+    my_first  = 1
+    DO i = 1, nmols
+       DO j = my_first+1, NATOM
+          IF (map_mol_name(j) /= map_mol_name(my_first)) THEN
+             my_last  = j - 1
+             my_first = j
+             ilast(i) = my_last
+             idim(i)  = ilast(i) - ifirst(i) + 1
+             IF (i /=nmols) ifirst(i+1) = my_first
+             EXIT
+          END IF
+       END DO
+       IF (j == NATOM+1) THEN
+          IF (i /= nmols) CALL stop_converter("Error in clean_mol_name :: Something seems to be unlogical...")
+          ilast(i) = NATOM
+          idim(i)  = ilast(i) - ifirst(i) + 1
+       END IF
+    END DO
+    IF (verbose) WRITE(*,'(A)')"IFIRST ::"
+    IF (verbose) WRITE(*,*)ifirst
+    IF (verbose) WRITE(*,'(A)')"ILAST  ::"
+    IF (verbose) WRITE(*,*)ilast
+    imol = 0
+    DO j = 1, nmols
+       IF ( idim(j) == 0 ) CYCLE
+       imol = imol + 1
+       MY_NAME = give_mol_name("MOL0000000",imol)
+       map_mol_name(ifirst(j):ilast(j)) = MY_NAME
+       my_dim  = idim(j)
+       idim(j) = 0
+       DO i = 1, nmols
+          IF ( idim(i) == 0 ) CYCLE
+          IF ( idim(i) == my_dim ) THEN
+             ! check residues...
+             IF (ALL(MY_LABRES(ifirst(i):ilast(i)) == MY_LABRES(ifirst(j):ilast(j)))) THEN
+                ! Molecules are really the same
+                IF (verbose) WRITE(*,'(A)')"Find similar molecules",MY_LABRES(ifirst(i):ilast(i))
+                IF (verbose) WRITE(*,'(A)')"Find similar molecules",MY_LABRES(ifirst(j):ilast(j))
+                map_mol_name(ifirst(i):ilast(i)) = MY_NAME
+                idim(i) = 0
+             END IF
+          END IF
+       END DO
+    END DO
+
+    DEALLOCATE(ifirst, ilast, MY_LABRES)
+  END SUBROUTINE clean_mol_name
+
   SUBROUTINE write_psf(unit)
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: unit
@@ -549,7 +751,7 @@ CONTAINS
        DO my_atom = ifirst, ilast
           WRITE(unit,'(I7,1X,A5,I7,1X,A5,A5,A5,F10.5,F10.5,I7)') &
                my_atom,&
-               "MOL  ",&
+               molnames(my_atom),&
                my_res ,&
                LABRES(my_res) ,&
                IGRAPH(my_atom),&
@@ -586,61 +788,88 @@ CONTAINS
     !
     ! Section PHI
     !
-    my_phi = COUNT(MASK=LPH>=0) + COUNT(MASK=LP>=0)
-    ALLOCATE(my_i(my_phi), my_j(my_phi), my_k(my_phi), my_l(my_phi))
-    ind = 0
-    DO I = 1, NPHIH
-       IF (LPH(i) >= 0) THEN
+    IF (.NOT.amber_impropers) THEN
+       my_phi = COUNT(MASK=LPH>=0) + COUNT(MASK=LP>=0)
+       ALLOCATE(my_i(my_phi), my_j(my_phi), my_k(my_phi), my_l(my_phi))
+       ind = 0
+       DO I = 1, NPHIH
+          IF (LPH(i) >= 0) THEN
+             ind = ind + 1
+             my_i(ind) = IPH(i)/3+1
+             my_j(ind) = JPH(i)/3+1
+             my_k(ind) = ABS(KPH(i))/3+1
+             my_l(ind) = ABS(LPH(i))/3+1
+          END IF
+       END DO
+       DO I = 1, NPHIA
+          IF (LP(i) >= 0) THEN
+             ind = ind + 1
+             my_i(ind) = IP(i)/3+1
+             my_j(ind) = JP(i)/3+1
+             my_k(ind) = ABS(KP(i))/3+1
+             my_l(ind) = ABS(LP(i))/3+1
+          END IF
+       END DO
+       IF (ind .NE. my_phi) CALL stop_converter("Error in write_psf :: evaluation of proper torsion.")
+       WRITE(unit,*) " ",my_phi," !NPHI"
+       WRITE(unit,'(8'//int_format//')') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,my_phi)
+       WRITE(unit,*) ""
+       DEALLOCATE(my_i, my_j, my_k, my_l)
+       !
+       ! Section IMPHI
+       !
+       my_phi = COUNT(MASK=LPH<0) + COUNT(MASK=LP<0)
+       ALLOCATE(my_i(my_phi), my_j(my_phi), my_k(my_phi), my_l(my_phi))
+       ind = 0
+       DO I = 1, NPHIH
+          IF (LPH(i) < 0) THEN
+             ind = ind + 1
+             my_i(ind) = IPH(i)/3+1
+             my_j(ind) = JPH(i)/3+1
+             my_k(ind) = ABS(KPH(i))/3+1
+             my_l(ind) = ABS(LPH(i))/3+1
+          END IF
+       END DO
+       DO I = 1, NPHIA
+          IF (LP(i) < 0) THEN
+             ind = ind + 1
+             my_i(ind) = IP(i)/3+1
+             my_j(ind) = JP(i)/3+1
+             my_k(ind) = ABS(KP(i))/3+1
+             my_l(ind) = ABS(LP(i))/3+1
+          END IF
+       END DO
+       IF (ind .NE. my_phi) CALL stop_converter("Error in write_psf :: evaluation of improper torsion.")
+       WRITE(unit,*) " ",my_phi," !NIMPHI"
+       WRITE(unit,'(8'//int_format//')') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,my_phi)
+       WRITE(unit,*) ""
+       DEALLOCATE(my_i, my_j, my_k, my_l)
+    ELSE
+       my_phi = NPHIH + NPHIA
+       ALLOCATE(my_i(my_phi), my_j(my_phi), my_k(my_phi), my_l(my_phi))
+       ind = 0
+       DO I = 1, NPHIH
           ind = ind + 1
           my_i(ind) = IPH(i)/3+1
           my_j(ind) = JPH(i)/3+1
           my_k(ind) = ABS(KPH(i))/3+1
           my_l(ind) = ABS(LPH(i))/3+1
-       END IF
-    END DO
-    DO I = 1, NPHIA
-       IF (LP(i) >= 0) THEN
+       END DO
+       DO I = 1, NPHIA          
           ind = ind + 1
           my_i(ind) = IP(i)/3+1
           my_j(ind) = JP(i)/3+1
-          my_k(ind) = ABS(KP(i))/3+1
+          my_k(ind) = ABS(KP(i))/3+1 
           my_l(ind) = ABS(LP(i))/3+1
-       END IF
-    END DO
-    IF (ind .ne. my_phi) call stop_converter("Error in write_psf :: evaluation of proper torsion.")
-    WRITE(unit,*) " ",my_phi," !NPHI"
-    WRITE(unit,'(8'//int_format//')') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,my_phi)
-    WRITE(unit,*) ""
-    DEALLOCATE(my_i, my_j, my_k, my_l)
-    !
-    ! Section IMPHI
-    !
-    my_phi = COUNT(MASK=LPH<0) + COUNT(MASK=LP<0)
-    ALLOCATE(my_i(my_phi), my_j(my_phi), my_k(my_phi), my_l(my_phi))
-    ind = 0
-    DO I = 1, NPHIH
-       IF (LPH(i) < 0) THEN
-          ind = ind + 1
-          my_i(ind) = IPH(i)/3+1
-          my_j(ind) = JPH(i)/3+1
-          my_k(ind) = ABS(KPH(i))/3+1
-          my_l(ind) = ABS(LPH(i))/3+1
-       END IF
-    END DO
-    DO I = 1, NPHIA
-       IF (LP(i) < 0) THEN
-          ind = ind + 1
-          my_i(ind) = IP(i)/3+1
-          my_j(ind) = JP(i)/3+1
-          my_k(ind) = ABS(KP(i))/3+1
-          my_l(ind) = ABS(LP(i))/3+1
-       END IF
-    END DO
-    IF (ind .ne. my_phi) call stop_converter("Error in write_psf :: evaluation of improper torsion.")
-    WRITE(unit,*) " ",my_phi," !NIMPHI"
-    WRITE(unit,'(8'//int_format//')') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,my_phi)
-    WRITE(unit,*) ""
-    DEALLOCATE(my_i, my_j, my_k, my_l)
+       END DO
+       IF (ind .NE. my_phi) CALL stop_converter("Error in write_psf :: evaluation of proper torsion.")
+       WRITE(unit,*) " ",my_phi," !NPHI"
+       WRITE(unit,'(8'//int_format//')') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,my_phi)
+       WRITE(unit,*) ""
+       DEALLOCATE(my_i, my_j, my_k, my_l)
+       WRITE(unit,*) " ",0," !NIMPHI"
+       WRITE(unit,*) ""
+    END IF
     !
     ! Section NDON
     !
@@ -661,6 +890,7 @@ CONTAINS
     !
     WRITE(unit,*) " 0 !NGRP"
     WRITE(unit,*) ""    
+    DEALLOCATE(molnames)
   END SUBROUTINE write_psf
 
 
@@ -744,14 +974,9 @@ CONTAINS
                           give_back_type(my_l(my_torsion)),&
                           my_a(my_torsion),&
                           INT(my_m(my_torsion)),&
-                          my_delta(my_torsion)                          
+                          CONVERT_ANGLE(radiant=my_delta(my_torsion)) 
        END IF
     END DO
-    WRITE(unit,*)""
-    !
-    ! Impropers
-    !
-    WRITE(unit,1004)
     DO my_improper = 1, my_count
        IF (dihedral_type(my_improper) == 1) THEN
           WRITE(unit,2003)give_back_type(my_i(my_improper)),&
@@ -760,9 +985,16 @@ CONTAINS
                           give_back_type(my_l(my_improper)),&
                           my_a(my_improper),&
                           INT(my_m(my_improper)),&
-                          my_delta(my_improper)                          
+                          CONVERT_ANGLE(radiant=my_delta(my_improper))
        END IF
     END DO
+    WRITE(unit,*)""
+    !
+    ! Impropers.. The improper list is empty because AMBER treats impropers
+    !             in the same way as torsion (same potential). So all 
+    !             impropers have been added to the torsion list...
+    !
+    WRITE(unit,1004)
     WRITE(unit,*)""
     !
     ! Nonbonded
