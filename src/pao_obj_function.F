@@ -547,7 +547,7 @@ contains
        CPPrecondition(size(min_d_smpv)==1,cp_failure_level,routineP,error,failure)
     end if
     if (.not.failure) then
-       min_density_m => min_d_smpv(1)%matrix%matrix
+       min_density_m => min_d_smpv(1)%matrix%sm
        call pao_g_ang_set(angles,qs_env=gf_env%qs_env,global_env=g_env,&
             angles=x,error=error)
        call pao_g_ang_did_change(angles, qs_env=gf_env%qs_env,&
@@ -562,16 +562,16 @@ contains
        if (cp_debug .and. debug_this_module) then
           call cp_sm_output(logger=cp_error_get_logger(error), &
                outputName="obj_f_min_h", &
-               fromWhere=routineP, iter=gf_env%n_eval, matrix=h_matrix%matrix,&
+               fromWhere=routineP, iter=gf_env%n_eval, matrix=h_matrix%sm,&
                para_env=g_env%para_env,error=error)
           call cp_sm_output(logger=cp_error_get_logger(error), &
                outputName="obj_f_min_s", &
-               fromWhere=routineP, iter=gf_env%n_eval, matrix=s_matrix%matrix,&
+               fromWhere=routineP, iter=gf_env%n_eval, matrix=s_matrix%sm,&
                para_env=g_env%para_env,error=error)
           call cp_sm_output(logger=cp_error_get_logger(error), &
                outputName="obj_f_nui", &
                fromWhere=routineP, iter=gf_env%n_eval, &
-               matrix=pao_env%angles_att%NUi_injection%matrix,&
+               matrix=pao_env%angles_att%NUi_injection%sm,&
                para_env=g_env%para_env,error=error)
        end if
 
@@ -661,7 +661,7 @@ contains
                para_env=g_env%para_env,error=error)
           end if
           ! 2 S B P minH P i^*
-          call copy_sparse_to_blacs_matrix(h_matrix%matrix,&
+          call copy_sparse_to_blacs_matrix(h_matrix%sm,&
                gf_env%min_blacs_1,g_env)
           call symmetrise_blacs_matrix(gf_env%min_blacs_1,gf_env%min_blacs_2,&
                g_env)

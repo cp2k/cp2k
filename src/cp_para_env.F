@@ -269,8 +269,7 @@ contains
     integer :: stat
     failure=.false.
 
-    CPPrecondition(associated(para_env),cp_failure_level,routineP,error,failure)
-    if (.not.failure) then
+    if (associated(para_env)) then
       CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
       para_env%ref_count=para_env%ref_count-1
       if (para_env%ref_count<1) then
@@ -281,6 +280,7 @@ contains
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       end if
     end if
+    nullify(para_env)
   end subroutine cp_para_release
 !***************************************************************************
 

@@ -862,7 +862,7 @@ contains
                   error=iError)
           end if
           call sm_matrix_transf_to_m(source_m=full_s(1)%matrix, &
-               target_m=glob_angles%min_overlap_m(1)%matrix%matrix,&
+               target_m=glob_angles%min_overlap_m(1)%matrix%sm,&
                glob_angles=glob_angles,qs_env=qs_env,&
                global_env=global_env,error=error)
           glob_angles%m_s_m_valid=.true.
@@ -888,7 +888,7 @@ contains
              end if
              if (.not.failure) then
                 call sm_matrix_transf_to_m(source_m=full_h(1)%matrix,&
-                     target_m=glob_angles%min_hamiltonian_m(1)%matrix%matrix,&
+                     target_m=glob_angles%min_hamiltonian_m(1)%matrix%sm,&
                      glob_angles=glob_angles,qs_env=qs_env,&
                      global_env=global_env,error=error)
                 glob_angles%m_h_m_valid=.true.

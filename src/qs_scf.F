@@ -343,7 +343,7 @@ CONTAINS
        if (pao) then
           call cp_sm_output(logger=cp_error_get_logger(error), &
                outputName="scf_atomic_ortho",&
-               fromWhere=routine, iter=0,matrix=pao_env%atomic_ortho%matrix,&
+               fromWhere=routine, iter=0,matrix=pao_env%atomic_ortho%sm,&
                para_env=globenv%para_env, error=error)
        end if
     end if
@@ -488,7 +488,7 @@ CONTAINS
             end if
          end do
          call pao_env_get(pao_env, min_density_m=min_density_m,error=error)
-         call sm_matrix_transf_to_f(source_m=min_density_m(1)%matrix%matrix,&
+         call sm_matrix_transf_to_f(source_m=min_density_m(1)%matrix%sm,&
               target_m=p_new%matrix, glob_angles=pao_env%angles_att,&
               qs_env=qs_env, global_env=globenv,error=error)
          call pao_guarantee_owned_NUi(pao_env%angles_att, qs_env=qs_env,&
@@ -1533,7 +1533,7 @@ subroutine pao_opt_create(pao_optimizer,pao_obj_f,qs_env,global_env,&
              wanted_projected_gradient=0.0_wp,max_f_per_iter=5,error=error)        
         ! map first_density to min_bas (should be calculated in the min_bas)
         call sm_matrix_transf_p_to_m(source_m=p(1)%matrix, &
-             target_m=pao_env%min_density_m(1)%matrix%matrix,&
+             target_m=pao_env%min_density_m(1)%matrix%sm,&
              glob_angles=pao_env%angles_att,&
              qs_env=qs_env, global_env=global_env, error=error)
      end if     

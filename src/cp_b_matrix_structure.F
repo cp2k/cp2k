@@ -519,8 +519,8 @@ contains
              call cp_dstruct_dealloc(d_struct)
           end if
        end if
-       nullify(d_struct)
     end if
+    nullify(d_struct)
   end subroutine cp_dstruct_release
   !***************************************************************************
 
@@ -809,8 +809,8 @@ contains
              call cp_b_dims_dealloc(b_dims,error)
           end if
        end if
-       nullify(b_dims)
     end if
+    nullify(b_dims)
   end subroutine cp_b_dims_release
   !***************************************************************************
 
@@ -1322,8 +1322,8 @@ end subroutine cp_bmstruct_get
              call cp_dealloc(m_struct,error)
           end if
        end if
-       nullify(m_struct)
     end if
+    nullify(m_struct)
   end subroutine cp_bmstruct_release
   !***************************************************************************
 

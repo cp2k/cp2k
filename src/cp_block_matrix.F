@@ -133,7 +133,7 @@ module cp_block_matrix
 !!       can be safely deallocated
 !!     - id_nr: an identification number to ease equality tests between
 !!       matrices and for debugging
-!!     - matrix: the underlying real matrix (make more efficient?
+!!     - sm: the underlying real matrix (make more efficient?
 !!       direct implementation?)
 !!
 !!   AUTHOR
@@ -154,7 +154,7 @@ module cp_block_matrix
      logical :: cache_is_valid
      type(cp_b_matrix_struct_type), pointer :: matrix_struct
      integer :: ref_count, id_nr
-     type(real_matrix_type), pointer :: matrix
+     type(real_matrix_type), pointer :: sm
   end type cp_block_matrix_type
 !!***
 !****************************************************************************
@@ -302,10 +302,10 @@ contains
        matrix%matrix_struct => matrix_structure
        call cp_retain(matrix%matrix_struct,error=error)
        matrix%ref_count=1
-       nullify(matrix%matrix)
+       nullify(matrix%sm)
        matrix%initialized=.true.
        if (present(u_matrix)) then
-          matrix%matrix => u_matrix
+          matrix%sm => u_matrix
        else
           if (matrix%matrix_struct%symmetric) then
              m_symm='symmetric'
@@ -315,7 +315,7 @@ contains
           b_dims => matrix%matrix_struct%b_dims
           block_rows=size(b_dims%block_begins_at_row)-1
           block_cols=size(b_dims%block_begins_at_col)-1
-          call allocate_matrix(matrix%matrix,&
+          call allocate_matrix(matrix%sm,&
                nrow=b_dims%block_begins_at_row(block_rows+1)-1,&
                ncol=b_dims%block_begins_at_col(block_cols+1)-1,&
                nblock_row=block_rows,&
@@ -383,11 +383,11 @@ contains
           call cp_release(matrix%matrix_struct, error=error)
           nullify(matrix%matrix_struct)
           if (matrix%should_dealloc_matrix) then
-             if (associated(matrix%matrix)) then
-                call deallocate_matrix(matrix%matrix)
+             if (associated(matrix%sm)) then
+                call deallocate_matrix(matrix%sm)
              end if
           else
-             nullify(matrix%matrix)
+             nullify(matrix%sm)
           end if
           deallocate(matrix,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -491,8 +491,8 @@ contains
        if (matrix%ref_count==0) then
           call cp_sp_dealloc(matrix,error=error)
        end if
-       nullify(matrix)
     end if
+    nullify(matrix)
   end subroutine cp_sp_release
 !***************************************************************************
 
@@ -539,7 +539,7 @@ contains
     
     CPPrecondition(associated(matrix),cp_failure_level,routineP,error,failure)
     CPPrecondition(matrix%initialized,cp_failure_level,routineP,error,failure)
-    res => matrix%matrix
+    res => matrix%sm
   end function cp_sp_get_matrix
 !***************************************************************************
 
@@ -691,7 +691,7 @@ contains
 
     CPPrecondition(matrix%initialized,cp_failure_level,routineP,error,failure)
     if (.not. failure) then
-       call cp_sm_b_i_init(b_iterator,matrix=matrix%matrix,error=error)
+       call cp_sm_b_i_init(b_iterator,matrix=matrix%sm,error=error)
        distribution => matrix%matrix_struct%distribution
        mepos=matrix%matrix_struct%distribution%para_env%mepos
        CPPrecondition(associated(distribution),cp_failure_level,routineP,error,failure)
@@ -699,7 +699,7 @@ contains
           if (.not.cp_sm_b_i_next(b_iterator,block_row=brow,&
                block_col=bcol)) exit
           if (distribution%block_owner(brow,bcol) /= mepos) then
-             call remove_block_node(matrix=matrix%matrix, block_row=brow,&
+             call remove_block_node(matrix=matrix%sm, block_row=brow,&
                   block_col=bcol,error=error)
           end if
        end do
@@ -854,21 +854,21 @@ end subroutine cp_sp_block_handle_init
           else
              block_handle%trans_to_do='N'
           end if
-          call get_block_node(matrix%matrix, block_row=block_handle%block_col, &
+          call get_block_node(matrix%sm, block_row=block_handle%block_col, &
                block_col=block_handle%block_row, block=tmp_block)
           if (present(alloc_block)) then
              if (alloc_block .and. .not.associated(tmp_block)) then
-                call add_block_node(matrix%matrix,&
+                call add_block_node(matrix%sm,&
                      block_row=block_handle%block_col,&
                      block_col=block_handle%block_row, block=tmp_block)
              end if
           end if
        else
-          call get_block_node(matrix%matrix, block_row=block_handle%block_row, &
+          call get_block_node(matrix%sm, block_row=block_handle%block_row, &
                block_col=block_handle%block_col, block=tmp_block)
           if (present(alloc_block)) then
              if (alloc_block .and. .not.associated(tmp_block)) then
-                call add_block_node(matrix%matrix, block_row=block_handle%block_row,&
+                call add_block_node(matrix%sm, block_row=block_handle%block_row,&
                      block_col=block_handle%block_col, block=tmp_block)
              end if
           end if
@@ -1076,13 +1076,13 @@ end subroutine cp_sp_block_handle_init
           do i=1,size(block_val,2)
              tmp_block(i,:)=block_val(:,i)
           end do
-          call put_block_node(matrix%matrix, block_row=b_row,&
+          call put_block_node(matrix%sm, block_row=b_row,&
                block_col=b_col, block=tmp_block)
           deallocate(tmp_block,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        else
           tmp_block => block_val
-          call put_block_node(matrix%matrix, block_row=b_row,&
+          call put_block_node(matrix%sm, block_row=b_row,&
                block_col=b_col, block=tmp_block)     
        end if
     endif
@@ -1135,10 +1135,10 @@ end subroutine cp_sp_block_handle_init
     if (.not. failure) then
        CPAssert(.false.,cp_failure_level,routineP,error,failure)
        if (matrix%matrix_struct%symmetric.and.block_row > block_col) then
-          call remove_block_node(matrix%matrix,block_row=block_col,&
+          call remove_block_node(matrix%sm,block_row=block_col,&
                block_col=block_row, error=error)
        else
-          call remove_block_node(matrix%matrix,block_row=block_row,&
+          call remove_block_node(matrix%sm,block_row=block_row,&
                block_col=block_col, error=error)
        end if
     end if
@@ -1254,6 +1254,7 @@ end subroutine cp_sp_block_handle_init
        deallocate(m_array,stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     end if
+    nullify(m_array)
   end subroutine cp_sp_array_dealloc
 !***************************************************************************
 
@@ -1344,7 +1345,7 @@ subroutine cp_sp_alloc_nonsparse_blocks(matrix,error)
   
   CPPrecondition(matrix%initialized,cp_failure_level,routineP,error,failure)
   if (.not. failure) then
-     call cp_sm_alloc_nonsparse_blocks(matrix%matrix,&
+     call cp_sm_alloc_nonsparse_blocks(matrix%sm,&
           m_struct=matrix%matrix_struct,&
           para_env=matrix%matrix_struct%distribution%para_env,&
           error=error)
@@ -1700,7 +1701,7 @@ subroutine cp_sp_set_to(matrix, value, error)
   CPPrecondition(associated(matrix),cp_failure_level,routineP,error,failure)
   CPPrecondition(matrix%initialized,cp_failure_level,routineP,error,failure)
   if (.not. failure) then
-     call cp_sm_set_to(matrix%matrix, value=value, error=error)
+     call cp_sm_set_to(matrix%sm, value=value, error=error)
   end if
 end subroutine cp_sp_set_to
 !***************************************************************************
@@ -1764,7 +1765,7 @@ end subroutine cp_sp_set_to
     integer :: ncol
     
     call get_blacs_matrix_info(matrix_b,ncol_global=ncol)
-    call sparse_times_blacs(matrix_a%matrix, matrix_b, matrix_c,ncol,&
+    call sparse_times_blacs(matrix_a%sm, matrix_b, matrix_c,ncol,&
          para_env=matrix_a%matrix_struct%distribution%para_env,&
          alpha=alpha, beta=beta,&
          block_owner=matrix_a%matrix_struct%distribution%block_owner)

@@ -344,10 +344,10 @@ contains
        do i=1,size(p_env%P1)
           call cp_sp_set_to(p_env%P1(i)%matrix,value=0.0_wp,error=error)
        end do
-       call sparse_plus_blacs_blacst(p_env%P1(1)%matrix%matrix,&
+       call sparse_plus_blacs_blacst(p_env%P1(1)%matrix%sm,&
             p_env%c_ortho(1)%blacs_matrix,p_env%psi0d(1)%blacs_matrix,&
             ncol=p_env%n_mo, globenv=global_env)
-       call sparse_plus_blacs_blacst(p_env%P1(1)%matrix%matrix,&
+       call sparse_plus_blacs_blacst(p_env%P1(1)%matrix%sm,&
             p_env%psi0d(1)%blacs_matrix,p_env%c_ortho(1)%blacs_matrix,&
             ncol=p_env%n_mo, globenv=global_env)
        call kpp1_calculate(p_env%K_P_P1_env,p1=p_env%P1,&
@@ -574,7 +574,7 @@ contains
                p_env%r(1)%blacs_matrix,&
                transpose_tr=.false.,invert_tr=.true.)
        end if
-       call sparse_plus_blacs_blacst(p_env%P1(1)%matrix%matrix,p_env%r(1)%blacs_matrix,&
+       call sparse_plus_blacs_blacst(p_env%P1(1)%matrix%sm,p_env%r(1)%blacs_matrix,&
             p_env%psi0d(1)%blacs_matrix,p_env%n_mo, global_env)
 
        call qs_ks_did_change(p_env%ks_env,qs_env=p_env%qs_env,&
