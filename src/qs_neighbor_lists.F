@@ -23,6 +23,7 @@
 !******************************************************************************
 
 MODULE qs_neighbor_lists
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -76,6 +77,7 @@ MODULE qs_neighbor_lists
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -174,8 +176,17 @@ CONTAINS
 
     CALL timeset(routine_name,"I","",handle)
 
-    NULLIFY(atomic_kind, cell,distribution_2d, gth_potential, orb_basis_set,&
-         atomic_kind_set,sab_orb,sac_ppl,sac_ppnl,sbc_ppnl,particle_set)
+    NULLIFY (atomic_kind)
+    NULLIFY (atomic_kind_set)
+    NULLIFY (cell)
+    NULLIFY (distribution_2d)
+    NULLIFY (gth_potential)
+    NULLIFY (orb_basis_set)
+    NULLIFY (particle_set)
+    NULLIFY (sab_orb)
+    NULLIFY (sac_ppl)
+    NULLIFY (sac_ppnl)
+    NULLIFY (sbc_ppnl)
 
     output_unit = globenv%scr
 
@@ -246,6 +257,7 @@ CONTAINS
 !   *** Initialize the local data structures ***
 
     maxatom_local = 0
+
     DO ikind=1,nkind
 
       atomic_kind => atomic_kind_set(ikind)
@@ -709,9 +721,12 @@ CONTAINS
             iatom = atom(ikind)%list_local_a_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
             s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_wp
-            i = MIN(INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp),nsubcell(1))
-            j = MIN(INT(s(2)*REAL(nsubcell(2),wp) + 1.0_wp),nsubcell(2))
-            k = MIN(INT(s(3)*REAL(nsubcell(3),wp) + 1.0_wp),nsubcell(3))
+            i = INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp)
+            j = INT(s(2)*REAL(nsubcell(2),wp) + 1.0_wp)
+            k = INT(s(3)*REAL(nsubcell(3),wp) + 1.0_wp)
+            i = MIN(MAX(i,1),nsubcell(1))
+            j = MIN(MAX(j,1),nsubcell(2))
+            k = MIN(MAX(k,1),nsubcell(3))
             subcell(i,j,k)%natom =  subcell(i,j,k)%natom + 1
             subcell(i,j,k)%atom_list(subcell(i,j,k)%natom) = iatom_local
             CALL add_neighbor_list(neighbor_list_set=neighbor_list_set,&
@@ -1027,9 +1042,12 @@ CONTAINS
             iatom = atom(ikind)%list_local_a_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
             s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_wp
-            i = MIN(INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp),nsubcell(1))
-            j = MIN(INT(s(2)*REAL(nsubcell(2),wp) + 1.0_wp),nsubcell(2))
-            k = MIN(INT(s(3)*REAL(nsubcell(3),wp) + 1.0_wp),nsubcell(3))
+            i = INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp)
+            j = INT(s(2)*REAL(nsubcell(2),wp) + 1.0_wp)
+            k = INT(s(3)*REAL(nsubcell(3),wp) + 1.0_wp)
+            i = MIN(MAX(i,1),nsubcell(1))
+            j = MIN(MAX(j,1),nsubcell(2))
+            k = MIN(MAX(k,1),nsubcell(3))
             subcell(i,j,k)%natom =  subcell(i,j,k)%natom + 1
             subcell(i,j,k)%atom_list(subcell(i,j,k)%natom) = iatom_local
             CALL add_neighbor_list(neighbor_list_set=neighbor_list_set,&
@@ -1405,9 +1423,12 @@ CONTAINS
             iatom = atom(ikind)%list_local_a_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
             s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_wp
-            i = MIN(INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp),nsubcell(1))
-            j = MIN(INT(s(2)*REAL(nsubcell(2),wp) + 1.0_wp),nsubcell(2))
-            k = MIN(INT(s(3)*REAL(nsubcell(3),wp) + 1.0_wp),nsubcell(3))
+            i = INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp)
+            j = INT(s(2)*REAL(nsubcell(2),wp) + 1.0_wp)
+            k = INT(s(3)*REAL(nsubcell(3),wp) + 1.0_wp)
+            i = MIN(MAX(i,1),nsubcell(1))
+            j = MIN(MAX(j,1),nsubcell(2))
+            k = MIN(MAX(k,1),nsubcell(3))
             subcell_a(i,j,k)%natom =  subcell_a(i,j,k)%natom + 1
             subcell_a(i,j,k)%atom_list(subcell_a(i,j,k)%natom) = iatom_local
             CALL add_neighbor_list(neighbor_list_set=ac_neighbor_list_set,&
@@ -1422,9 +1443,12 @@ CONTAINS
             iatom = atom(ikind)%list_local_b_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
             s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_wp
-            i = MIN(INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp),nsubcell(1))
-            j = MIN(INT(s(2)*REAL(nsubcell(2),wp) + 1.0_wp),nsubcell(2))
-            k = MIN(INT(s(3)*REAL(nsubcell(3),wp) + 1.0_wp),nsubcell(3))
+            i = INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp)
+            j = INT(s(2)*REAL(nsubcell(2),wp) + 1.0_wp)
+            k = INT(s(3)*REAL(nsubcell(3),wp) + 1.0_wp)
+            i = MIN(MAX(i,1),nsubcell(1))
+            j = MIN(MAX(j,1),nsubcell(2))
+            k = MIN(MAX(k,1),nsubcell(3))
             subcell_b(i,j,k)%natom =  subcell_b(i,j,k)%natom + 1
             subcell_b(i,j,k)%atom_list(subcell_b(i,j,k)%natom) = iatom_local
             CALL add_neighbor_list(neighbor_list_set=bc_neighbor_list_set,&

@@ -20,6 +20,7 @@
 !******************************************************************************
 
 MODULE qs_core_energies
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -57,6 +58,7 @@ MODULE qs_core_energies
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -126,11 +128,11 @@ CONTAINS
 
         CALL get_block_node(block_node=h_block_node,&
                             block_col=iblock_col,&
-                            BLOCK=h_block)
+                            block=h_block)
 
         CALL get_block_node(block_node=p_block_node,&
                             block_col=jblock_col,&
-                            BLOCK=p_block)
+                            block=p_block)
 
         IF (jblock_col /= iblock_col) THEN
           CALL stop_program(routine,&
@@ -225,8 +227,14 @@ CONTAINS
 
     CALL timeset(routine_name,"I","",handle)
 
-    NULLIFY(atomic_kind, cell, distribution_2d, energy, atomic_kind_set,&
-         particle_set, force, subcell)
+    NULLIFY (atomic_kind)
+    NULLIFY (atomic_kind_set)
+    NULLIFY (cell)
+    NULLIFY (distribution_2d)
+    NULLIFY (energy)
+    NULLIFY (force)
+    NULLIFY (particle_set)
+    NULLIFY (subcell)
 
     group = globenv%group
     ionode = globenv%ionode
@@ -514,9 +522,12 @@ CONTAINS
             iatom = atom(ikind)%list_local_a_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
             s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_wp
-            i = MIN(INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp),nsubcell(1))
-            j = MIN(INT(s(2)*REAL(nsubcell(2),wp) + 1.0_wp),nsubcell(2))
-            k = MIN(INT(s(3)*REAL(nsubcell(3),wp) + 1.0_wp),nsubcell(3))
+            i = INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp)
+            j = INT(s(2)*REAL(nsubcell(2),wp) + 1.0_wp)
+            k = INT(s(3)*REAL(nsubcell(3),wp) + 1.0_wp)
+            i = MIN(MAX(i,1),nsubcell(1))
+            j = MIN(MAX(j,1),nsubcell(2))
+            k = MIN(MAX(k,1),nsubcell(3))
             subcell(i,j,k)%natom =  subcell(i,j,k)%natom + 1
             subcell(i,j,k)%atom_list(subcell(i,j,k)%natom) = iatom_local
           END DO
