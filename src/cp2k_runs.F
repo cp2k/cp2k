@@ -27,7 +27,6 @@ MODULE cp2k_runs
                                              force_env_release
   USE cp_log_handling,                 ONLY: cp_logger_type, &
                                              cp_failure_level, &
-                                             cp_logger_create, &
                                              cp_to_string
   USE cp_error_handling,               ONLY: cp_error_type, &
                                              cp_a_l, &
@@ -245,7 +244,7 @@ CONTAINS
         write(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Number of jobs found",farming_env%njobs
         write(globenv%scr,FMT="(T2,A)") "FARMING| List of jobs : "
         DO i=1,farming_env%njobs
-         write(globenv%scr,FMT=*) "Dir: ",TRIM(farming_env%Job_cwd(i))," Input: ", &
+         write(globenv%scr,FMT=*) "Job: ",i," Dir: ",TRIM(farming_env%Job_cwd(i))," Input: ", &
            TRIM(farming_env%Job_input(i))
         ENDDO
     ENDIF

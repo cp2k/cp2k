@@ -400,7 +400,7 @@ CONTAINS
 
     CALL cp_fm_syevx(matrix,work,eigenvalues,ncol_global,work_syevx)
     IF (matrix%matrix_struct%para_env%mepos.eq.0) &
-    write(cp_logger_get_default_unit_nr(NULL()),'(A,2E16.8)') &
+    write(cp_logger_get_default_unit_nr(),'(A,2E16.8)') &
                 "S inversion : smallest and largest evals",eigenvalues(1),eigenvalues(ncol_global)
 
 #if defined(__SCALAPACK)

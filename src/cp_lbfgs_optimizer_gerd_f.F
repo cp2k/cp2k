@@ -46,7 +46,6 @@ MODULE cp_lbfgs_optimizer_gerd_f
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
-                                             cp_std_out_unit_nr,&
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_env,                     ONLY: cp_para_env_release
@@ -453,7 +452,7 @@ SUBROUTINE cp_opt_gerd_f_release(optimizer,error)
      CPPreconditionNoFail(optimizer%ref_count>0,cp_failure_level,routineP,error)
      optimizer%ref_count=optimizer%ref_count-1
      IF (optimizer%ref_count==0) THEN
-        cp_lbfgs_unit_nr=cp_std_out_unit_nr
+        cp_lbfgs_unit_nr=cp_logger_get_default_unit_nr()
         optimizer%status=6
         IF (ASSOCIATED(optimizer%csave)) THEN
            DEALLOCATE(optimizer%csave, stat=stat)

@@ -49,6 +49,7 @@ MODULE qs_localization_methods
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE mathconstants,                   ONLY: pi
@@ -523,8 +524,9 @@ CONTAINS
       CALL cp_fm_to_fm(mat_t,mat_R)
 
       CALL check_tolerance_new ( weights, zij, tolerance, value )
-      IF (cmat_A%matrix_struct%para_env%mepos .EQ. 0 ) THEN 
-          WRITE(6,'(I4,1X,G20.15,E12.4,E12.4)') iterations,value,tolerance,maxeval
+      IF (cmat_A%matrix_struct%para_env%mepos .EQ. cmat_A%matrix_struct%para_env%source ) THEN 
+          WRITE(cp_logger_get_default_unit_nr(),'(I4,1X,G20.15,E12.4,E12.4)') &
+                 iterations,value,tolerance,maxeval
       ENDIF
       IF (tolerance .LT. 1.0E-4_dp .OR. iterations.gt.200) EXIT
     ENDDO
@@ -743,11 +745,13 @@ CONTAINS
             !   write(15,*) pos(i),energy(i)
             ! ENDDO
             ! write(15,*) ""
-            CALL m_flush(15)
+            ! CALL m_flush(15)
             !write(16,*) evals(:)
             !write(17,*) matrix_A%local_data(:,:)
             !write(18,*) matrix_G%local_data(:,:)
-            IF (matrix_A%matrix_struct%para_env%mepos .EQ. 0 ) WRITE(6,*) line_searches,Iterations,Omega,tol,ds_min
+            IF (matrix_A%matrix_struct%para_env%mepos .EQ. matrix_A%matrix_struct%para_env%source) THEN
+               WRITE(cp_logger_get_default_unit_nr(),*) line_searches,Iterations,Omega,tol,ds_min
+            ENDIF
             IF (tol.lt.1.0E-3_dp)  EXIT
 
             IF (.TRUE.) THEN ! do conjugate gradient CG
@@ -767,7 +771,10 @@ CONTAINS
                 CALL cp_fm_scale_and_add(beta_pr,matrix_G_search,-1.0_dp,matrix_G_old)
                 CALL cp_fm_trace(matrix_G_search,matrix_G_old,normg_cross)
                 IF (normg_cross .GE. 0) THEN ! back to SD 
-                   WRITE(6,*) "!" 
+                   IF (matrix_A%matrix_struct%para_env%mepos .EQ. &
+                       matrix_A%matrix_struct%para_env%source) THEN
+                      WRITE(cp_logger_get_default_unit_nr(),*) "!"
+                   ENDIF
                    beta_pr=0.0_dp
                    CALL cp_fm_scale_and_add(beta_pr,matrix_G_search,-1.0_dp,matrix_G_old)
                 ENDIF

@@ -41,14 +41,16 @@ PROGRAM cp2k
   USE machine,           ONLY : m_iargc,m_getarg
   USE message_passing,   ONLY : mp_world_init, &
                                 mp_world_finalize
-  USE kinds,             ONLY : default_string_length, &
-                                default_output_unit
+  USE kinds,             ONLY : default_string_length
   IMPLICIT NONE
 
   CHARACTER(LEN=default_string_length) :: input_file_name
   INTEGER                              :: output_unit
   INTEGER                              :: mpi_comm_default
   LOGICAL                              :: cp2k_run_OK
+  ! this is the only place that should need unit 6 all others will get 
+  ! something reasonable from the cp_logger
+  INTEGER, PARAMETER                   :: default_output_unit = 6 
 
   ! output goes to the screen by default
   output_unit=default_output_unit

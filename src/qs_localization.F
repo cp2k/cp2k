@@ -38,6 +38,7 @@ MODULE qs_localization
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_type
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -278,7 +279,7 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
     INTEGER                                  :: iunit
 
     INTEGER                                  :: handle, i, isos, j, k, n, &
-                                                natoms, sweeps
+                                                natoms, sweeps, scr
     TYPE(cp_fm_p_type), ALLOCATABLE          :: ZIJ( :, : )
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: opvec
@@ -337,9 +338,15 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
        CASE DEFAULT
           CALL stop_program("qs_localization","unknown localization method")
        END SELECT
-       IF (ionode) WRITE(6,'(A,I6,A)') " Wannier localization converged in ",sweeps," iterations"
+       IF (ionode) THEN
+           scr=cp_logger_get_default_unit_nr()
+           WRITE(scr,'(A,I6,A)') " Wannier localization converged in ",sweeps," iterations"
+       ENDIF
   ELSE
-       IF (ionode) WRITE(6,'(A,I6,A)') " No Wannier localization applied "
+       IF (ionode) THEN
+           scr=cp_logger_get_default_unit_nr()
+           WRITE(scr,'(A,I6,A)') " No Wannier localization applied "
+       ENDIF
   ENDIF
 
   IF ( qs_loc_env % operator_type == POSITION_OPERATOR )  THEN
@@ -379,7 +386,7 @@ SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center )
     REAL(KIND=dp), INTENT(OUT)               :: center( :, : )
 
     COMPLEX(KIND=dp)                         :: almost_determinant, z
-    INTEGER                                  :: i, l, nstates
+    INTEGER                                  :: i, l, nstates, scr
     REAL(KIND=dp)                            :: imagpart, realpart
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_cfm_type), POINTER               :: complexresult
@@ -411,7 +418,10 @@ SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center )
      complexresult%local_data ( :, : ) = CMPLX (ZIJ(1,i)%matrix%local_data(:,:), &
                                          ZIJ(2,i)%matrix%local_data(:,:),dp)
      CALL cp_cfm_lu_decompose ( complexresult, almost_determinant )
-     IF (ionode) WRITE(6,'(A,I6,F16.10)') " D Eq. 11 ",i,SQRT(-2.0*nstates*LOG(ABS(almost_determinant)))
+     IF (ionode) THEN
+         scr=cp_logger_get_default_unit_nr()
+         WRITE(scr,'(A,I6,F16.10)') " D Eq. 11 ",i,SQRT(-2.0*nstates*LOG(ABS(almost_determinant)))
+     ENDIF
   ENDDO
 
   CALL cp_cfm_release(complexresult)

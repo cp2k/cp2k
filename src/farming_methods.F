@@ -10,7 +10,6 @@ MODULE farming_methods
   USE kinds,                           ONLY: default_string_length
   USE cp_log_handling,                 ONLY: cp_logger_type, &
                                              cp_failure_level, &
-                                             cp_logger_create, &
                                              cp_to_string
   USE cp_error_handling,               ONLY: cp_error_type, &
                                              cp_a_l, &

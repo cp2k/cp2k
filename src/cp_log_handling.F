@@ -73,7 +73,7 @@ MODULE cp_log_handling
   PUBLIC :: cp_logger_type
 ! parameter vars
   PUBLIC :: cp_note_level, cp_warning_level, cp_failure_level,&
-       cp_fatal_level, cp_std_out_unit_nr
+       cp_fatal_level 
 ! default loggers
   PUBLIC :: cp_get_default_logger, cp_init_default_logger, cp_destroy_default_logger
 ! logger routines
@@ -87,9 +87,6 @@ MODULE cp_log_handling
 
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_log_handling'
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-
-! these should be avoided, nearly always wrong with farming
-  INTEGER, PARAMETER :: cp_std_out_unit_nr=6
 
 !! level of an error
   INTEGER, PARAMETER  :: cp_fatal_level=3
@@ -443,18 +440,17 @@ CONTAINS
       logger%para_env => template_logger%para_env
       logger%suffix=template_logger%suffix
    ELSE
-    logger%default_global_unit_nr=cp_std_out_unit_nr
+    ! create a file if nothing is specified, one can also get the unit from the default logger
+    ! which should have something reasonable as the argument is required in that case
+    logger%default_global_unit_nr=-1
+    logger%close_global_unit_on_dealloc=.TRUE.
     logger%local_filename="localLog"
     logger%global_filename="mainLog"
     logger%print_level=cp_note_level
-    logger%close_global_unit_on_dealloc=.FALSE.
-#ifdef __parallel
+    ! generate a file for default local logger
+    ! except the ionode that should write to the default global logger
     logger%default_local_unit_nr=-1
     logger%close_local_unit_on_dealloc=.TRUE.
-#else
-    logger%default_local_unit_nr=cp_std_out_unit_nr
-    logger%close_local_unit_on_dealloc=.FALSE.
-#endif
     logger%suffix=""
    END IF
     IF (PRESENT(para_env)) logger%para_env => para_env
@@ -510,6 +506,12 @@ CONTAINS
           CALL init_print_keys(logger%print_keys,level=3-logger%print_level)
        END IF
     END IF
+    IF (logger%default_local_unit_nr==-1) THEN
+       IF (logger%para_env%mepos==logger%para_env%source) THEN
+          logger%default_local_unit_nr=logger%default_global_unit_nr
+          logger%close_local_unit_on_dealloc=.FALSE.
+       ENDIF
+    ENDIF
     ! first global log to safely b-cast global unitnr
     stat=cp_logger_get_default_unit_nr(logger, local=.FALSE.)
     ! it would also be possible (if you don't care about printing a note)
@@ -930,7 +932,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Function cp_logger_get_default_unit_nr(logger, local) Result(res)
 !!       Integer:: res
-!!       Type(cp_logger_type), Pointer:: logger
+!!       Type(cp_logger_type), Optional, Pointer:: logger
 !!       Logical, Intent (IN), Optional:: local
 !!     End Function cp_logger_get_default_unit_nr
 !!
@@ -954,7 +956,7 @@ CONTAINS
 !!*** *********************************************************************
 !pure 
   FUNCTION cp_logger_get_default_unit_nr(logger, local) RESULT(res)
-    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_logger_type), OPTIONAL, POINTER  :: logger
     LOGICAL, INTENT(in), OPTIONAL            :: local
     INTEGER                                  :: res
 
@@ -968,8 +970,11 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: lggr
 
     loc=.FALSE.
-
-    lggr => logger
+    IF (PRESENT(logger)) THEN
+       lggr => logger
+    ELSE
+       NULLIFY(lggr)
+    ENDIF
     IF (.NOT.ASSOCIATED(lggr)) lggr => cp_get_default_logger()
     IF (lggr%ref_count<1) CALL stop_program(routineP,&
          "logger%ref_count<1")
@@ -1190,7 +1195,7 @@ CONTAINS
     END IF
     IF (iostat/=0) THEN
        PRINT *,"cp_int_to_string ioerror",iostat
-       CALL print_stack(cp_logger_get_default_unit_nr(NULL()))
+       CALL print_stack(cp_logger_get_default_unit_nr())
     END IF
   END FUNCTION cp_int_to_string
 
