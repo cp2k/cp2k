@@ -266,11 +266,11 @@ CONTAINS
             WRITE(diff(1),*) nnstep
             WRITE(diff(1),*) nunits_tot(1)
             DO iunit=1,nunits_tot(1),3
-               WRITE(diff(1),'(A,3X,3)F18.12,3X))') '  O  ',&
+               WRITE(diff(1),'(A,3X,3(F18.12,3X))') '  O  ',&
                   particles_1%els(iunit)%r(1:3)*angstrom
-               WRITE(diff(1),'(A,3X,3)F18.12,3X))') '  H  ',&
+               WRITE(diff(1),'(A,3X,3(F18.12,3X))') '  H  ',&
                   particles_1%els(iunit+1)%r(1:3)*angstrom
-               WRITE(diff(1),'(A,3X,3)F18.12,3X))') '  H  ',&
+               WRITE(diff(1),'(A,3X,3(F18.12,3X))') '  H  ',&
                   particles_1%els(iunit+2)%r(1:3)*angstrom
             ENDDO
          ENDIF
@@ -281,11 +281,11 @@ CONTAINS
             WRITE(diff(2),*) nnstep
             WRITE(diff(2),*) nunits_tot(2)
             DO iunit=1,nunits_tot(2),3
-               WRITE(diff(2),'(A,3X,3)F18.12,3X))') '  O  ',&
+               WRITE(diff(2),'(A,3X,3(F18.12,3X))') '  O  ',&
                   particles_2%els(iunit)%r(1:3)*angstrom
-               WRITE(diff(2),'(A,3X,3)F18.12,3X))') '  H  ',&
+               WRITE(diff(2),'(A,3X,3(F18.12,3X))') '  H  ',&
                   particles_2%els(iunit+1)%r(1:3)*angstrom
-               WRITE(diff(2),'(A,3X,3)F18.12,3X))') '  H  ',&
+               WRITE(diff(2),'(A,3X,3(F18.12,3X))') '  H  ',&
                   particles_2%els(iunit+2)%r(1:3)*angstrom
             ENDDO
          ENDIF
