@@ -27,7 +27,8 @@
 !****************************************************************************
 MODULE xc_tpss
   use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log
+       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
+       cp_logger_get_default_unit_nr, cp_logger_type
   use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
        cp_error_dealloc_ref, cp_error_message, cp_assert,&
        cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
@@ -144,7 +145,7 @@ contains
     REAL(kind=dp),DIMENSION(:,:,:), POINTER :: dummy,rho, norm_drho,&
          tau,e_0,e_rho,e_ndrho,e_tau
     TYPE(xc_derivative_type), POINTER :: deriv
-    REAL(kind=dp) :: epsilon_rho, epsilon_norm_drho
+    REAL(kind=dp) :: epsilon_rho, epsilon_norm_drho, epsilon_tau
     INTEGER :: stat
 
     call timeset(routineN,"I","",handle)
@@ -158,7 +159,8 @@ contains
     IF (.NOT. failure) THEN
        CALL xc_rho_set_get(rho_set,rho=rho,&
             norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,&
-            tau=tau,drho_cutoff=epsilon_norm_drho,error=error)
+            tau=tau,drho_cutoff=epsilon_norm_drho,tau_cutoff=epsilon_tau,&
+            error=error)
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
        ! meaningful default for the arrays we don't need: let us make compiler
@@ -200,7 +202,8 @@ contains
        CALL tpss_lda_calc(rho=rho, norm_drho=norm_drho,&
             tau=tau,e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,e_tau=e_tau,&
             grad_deriv=grad_deriv, npoints=npoints,epsilon_rho=epsilon_rho,&
-            epsilon_norm_drho=epsilon_norm_drho, error=error)
+            epsilon_norm_drho=epsilon_norm_drho,epsilon_tau=epsilon_tau,&
+            error=error)
 
        IF (cp_debug) THEN
           DEALLOCATE(dummy,stat=stat)
@@ -234,12 +237,13 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE tpss_lda_calc(rho,norm_drho,tau,e_0,e_rho,e_ndrho,e_tau,&
-       npoints,grad_deriv,epsilon_rho,epsilon_norm_drho,error)
+       npoints,grad_deriv,epsilon_rho,epsilon_norm_drho,epsilon_tau,error)
     REAL(kind=dp), DIMENSION(*), INTENT(in) :: rho, norm_drho, tau
     REAL(kind=dp), DIMENSION(*), &
          INTENT(inout)                          :: e_0, e_rho, e_ndrho, e_tau
     INTEGER, INTENT(in)                      :: npoints, grad_deriv
-    REAL(kind=dp), INTENT(in)               :: epsilon_rho, epsilon_norm_drho
+    REAL(kind=dp), INTENT(in)               :: epsilon_rho, epsilon_norm_drho,&
+         epsilon_tau
     type(cp_error_type), optional, intent(inout) :: error
 
     LOGICAL :: failure, t603, t535
@@ -267,7 +271,7 @@ contains
          e_var, t258, t259, t260, t261, t262, t263, t264, t267, p, t269, z, &
          t271, alpha, t273, t276, t277, t278, tildeq_b, t282, t283, t284, &
          t285, t288, t290, t293, t296, t303, t305, t306, t307, x, t309, Fx, &
-         ex_unif, t315, ex_lda, energy, t316, t319, t320, rsrho, t325, t334, &
+         ex_unif, t315, ex_lda, t316, t319, t320, rsrho, t325, t334, &
          e_c_u_0rho, epsilon_c_unifrho, t342, t343, k_frho, k_srho, t348, &
          trho, t355, t357, Arho, t362, t366, t367, t369, t374, t376, t380, &
          t381, t390, Hrho, epsilon_cGGArho, tau_wrho, prho, zrho, t401, &
@@ -280,28 +284,31 @@ contains
          k_f_s2rho, k_s_s2rho, t557, t_s2rho, t565, t567, A_s2rho, t573, &
          t577, t578, t580, t585, t587, t591, t592, t600, H_s2rho, &
          epsilon_cGGA_0_1rho, mbrho, t605, t609, epsilon_cRevPKZBrho, &
-         t623, ecrho, deriv_rho, tnorm_drho, Hnorm_drho, &
+         t623, ecrho, tnorm_drho, Hnorm_drho, &
          epsilon_cGGAnorm_drho, tau_wnorm_drho, pnorm_drho, znorm_drho, &
          alphanorm_drho, tildeq_bnorm_drho, t675, t677, xnorm_drho, &
          Fxnorm_drho, ex_ldanorm_drho, t_s1norm_drho, H_s1norm_drho, &
          epsilon_cGGA_1_0norm_drho, manorm_drho, t_s2norm_drho, &
          H_s2norm_drho, epsilon_cGGA_0_1norm_drho, mbnorm_drho, &
-         epsilon_cRevPKZBnorm_drho, ecnorm_drho, deriv_norm_drho, &
+         epsilon_cRevPKZBnorm_drho, ecnorm_drho, &
          epsilon_cRevPKZBtau, t763, ectau, ztau, alphatau, tildeq_btau, t790,&
-         xtau, Fxtau, ex_ldatau, deriv_tau
-    INTEGER :: ii, abs_grad_deriv
+         xtau, Fxtau, ex_ldatau,  m
+    INTEGER :: ii, abs_grad_deriv, non_coer
+    TYPE(cp_logger_type), pointer :: logger
 
     failure=.false.
+    logger => cp_error_get_logger(error)
 
     IF (.NOT. failure) THEN
        abs_grad_deriv=abs(grad_deriv)
+       non_coer=0
 
        DO ii=1,npoints
+          my_tau=tau(ii)
           my_rho=rho(ii)
-          IF (my_rho>epsilon_rho) THEN
+          IF (my_rho>epsilon_rho.and.my_tau>epsilon_tau) then
              my_ndrho=norm_drho(ii)
-             my_tau=tau(ii)
-
+             
              chi_s1 = 1.0_dp
              t1 = 3 ** (0.1e1_dp / 0.3e1_dp)
              t2 = 4 ** (0.1e1_dp / 0.3e1_dp)
@@ -310,6 +317,23 @@ contains
              t5 = 2 ** (0.1e1_dp / 0.3e1_dp)
              t6 = 0.1e1_dp / 0.3141592654e1_dp
              t7 = 0.1e1_dp / my_rho
+             t237 = my_ndrho ** 2
+             tau_w = t237 * t7 / 0.8e1_dp
+             
+             IF (my_tau<tau_w) THEN
+
+!FM                my_tau=tau_w
+
+                m=0.5_dp*t237+4.0_dp*my_rho*my_tau
+                my_tau=m/8._dp/my_rho
+                my_ndrho=sqrt(m)
+                t237=m
+                non_coer=non_coer+1
+!FM                
+!FM                t237=8._dp*my_rho*my_tau
+!FM                my_ndrho=sqrt(t237)
+             END IF
+
              t9 = (t6 * t7) ** (0.1e1_dp / 0.3e1_dp)
              rs_s1 = t4 * t5 * t9 / 0.4e1_dp
              t14 = sqrt(rs_s1)
@@ -463,8 +487,6 @@ contains
              epsilon_cGGA = e_c_u_0 + H
              d = 0.28e1_dp
              C_chi = 0.53e0_dp
-             t237 = my_ndrho ** 2
-             tau_w = t237 * t7 / 0.8e1_dp
              C_chi_eps = 0.53e0_dp
              ma = max(epsilon_cGGA_1_0, epsilon_cGGA)
              mb = max(epsilon_cGGA_0_1, epsilon_cGGA)
@@ -767,6 +789,10 @@ contains
              END IF
           END IF
        END DO
+       IF (cp_debug) THEN
+          WRITE(cp_logger_get_default_unit_nr(logger), "('non_coer=',f8.3,'%')")&
+               REAL(non_coer,dp)/REAL(npoints,dp)
+       END IF
     END IF
 
   end subroutine tpss_lda_calc
