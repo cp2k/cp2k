@@ -407,7 +407,7 @@ CONTAINS
 
     INTEGER                                  :: homo,istat,lfomo,nelectron
     REAL(dp)                                 :: maxocc
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, mo_uocc
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(mo_set),cp_failure_level,routineP,error,failure)
@@ -425,8 +425,10 @@ CONTAINS
 
     maxocc = mo_set%maxocc
     nelectron = mo_set%nelectron
+    mo_uocc = .TRUE.
     CALL set_mo_occupation(mo_set%occupation_numbers,mo_set%eigenvalues,&
-                           homo,lfomo,maxocc,nelectron,smear=0.0_dp)
+                           homo,lfomo,maxocc,nelectron,mo_uocc,&
+                           halfhole=-1,smear=0.0_dp)
     mo_set%homo = homo
     mo_set%lfomo = lfomo
 

@@ -1241,6 +1241,7 @@ CONTAINS
     INTEGER                                  :: handle, ispin, nao, &
                                                 nrow_block, stat
     LOGICAL                                  :: failure, gth_potential_present
+    LOGICAL                                  :: transition_potential
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
@@ -1264,6 +1265,9 @@ CONTAINS
     NULLIFY(matrix_ks,ao_mo_fm_pools, matrix_s, ao_mo_fmstruct, ao_ao_fmstruct,&
          dft_control, mos, S_sm_pools, ks_env)
     failure=.FALSE.
+    ! very first tests for xas
+    transition_potential = .FALSE.
+    !transition_potential = .TRUE.
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -1287,11 +1291,19 @@ CONTAINS
        DO ispin=1,SIZE(mos)
           CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
           IF (.NOT.ASSOCIATED(mo_coeff)) THEN
-             CALL init_mo_set(mos(ispin)%mo_set,&
+             IF(transition_potential .AND. ispin==1) THEN
+               CALL init_mo_set(mos(ispin)%mo_set,&
                   ao_mo_fm_pools(ispin)%pool,&
                   name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
                   "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-                  error=error)
+                  halfhole=1,error=error)
+             ELSE
+               CALL init_mo_set(mos(ispin)%mo_set,&
+                  ao_mo_fm_pools(ispin)%pool,&
+                  name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
+                  "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+                  halfhole=-1,error=error)
+             END IF
           END IF
        END DO
     END IF
@@ -1462,6 +1474,7 @@ CONTAINS
 
     INTEGER                                  :: handle, homo, imo, lfomo, &
                                                 nao, nelectron, nmo
+    LOGICAL                                  :: mo_uocc
     REAL(KIND=dp)                            :: alpha, maxocc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_occupation
@@ -1558,11 +1571,15 @@ CONTAINS
 
     END IF
 
+    mo_uocc = .TRUE.
     IF (smear /= 0.0_dp) THEN
       CALL set_mo_occupation(mo_occupation,mo_eigenvalues,&
-                             homo,lfomo,maxocc,nelectron,smear)
+                             homo,lfomo,maxocc,nelectron,&
+                             mo_uocc,&
+                             halfhole=-1,smear=smear)
       CALL set_mo_set(mo_set=mo_set,&
-                      homo=homo,lfomo=lfomo)
+                      homo=homo,lfomo=lfomo,&
+                      uniform_occupation=mo_uocc)
     END IF
 
     CALL timestop(0.0_dp,handle)
@@ -1584,6 +1601,7 @@ CONTAINS
 
     INTEGER                                  :: handle, homo, imo, lfomo, &
                                                 nao, nelectron, nmo
+    LOGICAL                                  :: mo_uocc
     REAL(KIND=dp)                            :: alpha, maxocc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_occupation
@@ -1620,11 +1638,14 @@ CONTAINS
       CALL correct_mo_eigenvalues(mo_set,level_shift)
     END IF
 
+    mo_uocc = .TRUE.
     IF (smear /= 0.0_dp) THEN
       CALL set_mo_occupation(mo_occupation,mo_eigenvalues,&
-                             homo,lfomo,maxocc,nelectron,smear)
+                             homo,lfomo,maxocc,nelectron,&
+                             mo_uocc, halfhole=-1,smear=smear)
       CALL set_mo_set(mo_set=mo_set,&
-                      homo=homo,lfomo=lfomo)
+                      homo=homo,lfomo=lfomo,&
+                      uniform_occupation=mo_uocc)
     END IF
 
     CALL timestop(0.0_dp,handle)

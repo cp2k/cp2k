@@ -767,7 +767,7 @@ SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
                 qs_env%mpools%ao_mo_fm_pools(ispin)%pool,&
                 name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
                 "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-                error=error)
+                halfhole=-1,error=error)
         END IF
      END DO
   END IF

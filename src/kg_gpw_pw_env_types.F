@@ -45,6 +45,7 @@ MODULE kg_gpw_pw_env_types
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE cube_utils,                      ONLY: destroy_cube_info
   USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type
   USE kinds,                           ONLY: dp,dp_size
   USE pw_env_types,                    ONLY: pw_env_release,&
@@ -252,7 +253,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_sub_pw_env_destroy',&
       routineP = module_name//':'//routineN
 
-    INTEGER                                    :: ikind, imol, istat, n, nmol
+    INTEGER                                    :: igrid_level, ikind, imol, istat, n, nmol
     LOGICAL                                    :: failure
     TYPE(rho_mol_blocks_type), POINTER         :: rho_mol_block
 
@@ -265,6 +266,21 @@ CONTAINS
       
       CALL pw_green_release(molbox_env_set(ikind)%green)
       CALL cell_release(molbox_env_set(ikind)%cell_mol)
+
+      IF (ASSOCIATED(molbox_env_set(ikind)%pw_env_mol%cube_info)) THEN
+
+         NULLIFY(molbox_env_set(ikind)%pw_env_mol%cube_info(1)%lb_cube)
+         NULLIFY(molbox_env_set(ikind)%pw_env_mol%cube_info(1)%ub_cube)
+         NULLIFY(molbox_env_set(ikind)%pw_env_mol%cube_info(1)%sphere_bounds)
+         NULLIFY(molbox_env_set(ikind)%pw_env_mol%cube_info(1)%sphere_bounds_count)
+
+         DO igrid_level=2,SIZE(molbox_env_set(ikind)%pw_env_mol%cube_info)
+            CALL destroy_cube_info(molbox_env_set(ikind)%pw_env_mol%cube_info(igrid_level))
+         END DO
+         DEALLOCATE(molbox_env_set(ikind)%pw_env_mol%cube_info,stat=istat)
+         CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+      END IF
+
       CALL pw_env_release(molbox_env_set(ikind)%pw_env_mol,error=error)
 
       CALL deallocate_rho_mol_blocks(molbox_env_set(ikind)%rho_mol_blocks,error=error)

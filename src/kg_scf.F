@@ -106,8 +106,6 @@ MODULE kg_scf
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release
   USE qs_matrix_pools,                 ONLY: mpools_get
-  USE qs_mo_types,                     ONLY: correct_mo_eigenvalues,&
-                                             set_mo_occupation
   USE qs_overlap,                      ONLY: write_fm_with_basis_info,&
                                              write_sparse_matrix
   USE qs_ot,                           ONLY: qs_ot_new_preconditioner, &

@@ -581,6 +581,7 @@ CONTAINS
                 npts_tmp(2)=npts_out(2)+1
              ENDIF
            ENDDO
+
            ! keep looping to find the right one
            DO
              CALL fft_radix_operations ( npts_tmp(3), npts_out(3), FFT_RADIX_NEXT )
@@ -593,6 +594,7 @@ CONTAINS
                 npts_tmp(3)=npts_out(3)+1
              ENDIF
            ENDDO
+
          END IF ! HLFSPACE symmetry
 
          DO i =1,3
@@ -623,6 +625,7 @@ CONTAINS
      ! reference grid for the other igrid levels
        ref_pw_grid_mol => pw_grid_mol
 
+
      ! init pw_pools
        NULLIFY(pw_pools_mol(1)%pool)
        CALL pw_pool_create(pw_pools_mol(1)%pool,pw_grid=pw_grid_mol,error=error)
@@ -634,6 +637,7 @@ CONTAINS
 !      ELSE
         nsmax = -1
 !      ENDIF
+
 
        NULLIFY(rs_pools_mol(1)%pool)
        CALL rs_pool_create(rs_pools_mol(1)%pool,&
@@ -718,11 +722,11 @@ CONTAINS
                CALL fft_radix_operations ( npts_tmp(2), npts_out(2), FFT_RADIX_NEXT_ODD )
                CALL fft_radix_operations ( npts_tmp(3), npts_out(3), FFT_RADIX_NEXT_ODD )
 
-            ELSE
+             ELSE
 
-            ! keep looping to find the right one
-              DO
-                CALL fft_radix_operations ( npts_tmp(1), npts_out(1), FFT_RADIX_NEXT )
+             ! keep looping to find the right one
+               DO
+                 CALL fft_radix_operations ( npts_tmp(1), npts_out(1), FFT_RADIX_NEXT )
                ! is also the lowest grid allowed (e.g could be 17, which is too large, but might be 5)
                  nlowest=npts_out(1)/2**(my_ncommensurate-my_icommensurate)
                  CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
@@ -731,95 +735,95 @@ CONTAINS
                  ELSE
                    npts_tmp(1)=npts_out(1)+1
                  ENDIF
-              ENDDO
-            ! keep looping to find the right one
-              DO
-                CALL fft_radix_operations ( npts_tmp(2), npts_out(2), FFT_RADIX_NEXT )
+               ENDDO
+            !  keep looping to find the right one
+               DO
+                 CALL fft_radix_operations ( npts_tmp(2), npts_out(2), FFT_RADIX_NEXT )
                ! is also the lowest grid allowed (e.g could be 17, which is too large, but might be 5)
-                nlowest=npts_out(2)/2**(my_ncommensurate-my_icommensurate)
-                CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
-                IF (nlowest==nlowest_new .AND. MODULO(npts_out(2),2**(my_ncommensurate-my_icommensurate)).EQ.0) THEN
-                  EXIT
-                ELSE
-                  npts_tmp(2)=npts_out(2)+1
-                ENDIF
-              ENDDO
-            ! keep looping to find the right one
-              DO
-                CALL fft_radix_operations ( npts_tmp(3), npts_out(3), FFT_RADIX_NEXT )
+                 nlowest=npts_out(2)/2**(my_ncommensurate-my_icommensurate)
+                 CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
+                 IF (nlowest==nlowest_new .AND. MODULO(npts_out(2),2**(my_ncommensurate-my_icommensurate)).EQ.0) THEN
+                   EXIT
+                 ELSE
+                   npts_tmp(2)=npts_out(2)+1
+                 ENDIF
+               ENDDO
+            !  keep looping to find the right one
+               DO
+                 CALL fft_radix_operations ( npts_tmp(3), npts_out(3), FFT_RADIX_NEXT )
                ! is also the lowest grid allowed (e.g could be 17, which is too large, but might be 5)
-                nlowest=npts_out(3)/2**(my_ncommensurate-my_icommensurate)
-                CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
-                IF (nlowest==nlowest_new .AND. MODULO(npts_out(3),2**(my_ncommensurate-my_icommensurate)).EQ.0) THEN
-                  EXIT
-                ELSE
-                  npts_tmp(3)=npts_out(3)+1
-                ENDIF
-              ENDDO
-            END IF ! HLFSPACE symmetry
-            DO i = 1,3
-              pw_grid_mol%bounds( 1, i ) = - npts_out(i) / 2
-              pw_grid_mol%bounds( 2, i ) = pw_grid_mol%bounds ( 1, i ) + npts_out(i) - 1
-            END DO
+                 nlowest=npts_out(3)/2**(my_ncommensurate-my_icommensurate)
+                 CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
+                 IF (nlowest==nlowest_new .AND. MODULO(npts_out(3),2**(my_ncommensurate-my_icommensurate)).EQ.0) THEN
+                   EXIT
+                 ELSE
+                   npts_tmp(3)=npts_out(3)+1
+                 ENDIF
+               ENDDO
+             END IF ! HLFSPACE symmetry
+             DO i = 1,3
+               pw_grid_mol%bounds( 1, i ) = - npts_out(i) / 2
+               pw_grid_mol%bounds( 2, i ) = pw_grid_mol%bounds ( 1, i ) + npts_out(i) - 1
+             END DO
 
-          END IF  ! NOT  spherical
+           END IF  ! NOT  spherical
 
-          pw_grid_mol%npts(:) = pw_grid_mol%bounds(2,:)-pw_grid_mol%bounds(1,:)+1
-
+           pw_grid_mol%npts(:) = pw_grid_mol%bounds(2,:)-pw_grid_mol%bounds(1,:)+1
+ 
         ! final check if all went fine 
-         IF ( ANY( MODULO(pw_grid_mol%npts,2**(my_ncommensurate-my_icommensurate)).NE.0 ) ) THEN ! nope, sorry
+           IF ( ANY( MODULO(pw_grid_mol%npts,2**(my_ncommensurate-my_icommensurate)).NE.0 ) ) THEN ! nope, sorry
              CALL stop_program ( "pw_env_mol_rebuild", &
                "commensurate option failed (I) ... maybe not yet programmed for this combination of options ?" )
-         END IF
-         IF ( ANY(pw_grid_mol%npts * 2 ** (igrid_level-1) .NE. ref_pw_grid_mol%npts ) ) THEN
+           END IF
+           IF ( ANY(pw_grid_mol%npts * 2 ** (igrid_level-1) .NE. ref_pw_grid_mol%npts ) ) THEN
              CALL stop_program ( "pw_env_mol_rebuild", &
               "commensurate option failed (II) ... maybe not yet programmed for this combination of options ?" )
-         ENDIF
+           ENDIF
 
-        ! Check if reference grid is compatible
-         IF ( pw_grid_mol%para%mode /= ref_pw_grid_mol%para%mode ) THEN
-            CALL stop_program ( "pw_env_mol_rebuild", "Incompatible parallelisation scheme" )
-         END IF
-         IF ( pw_grid_mol%para%mode == PW_MODE_DISTRIBUTED ) THEN
-            CALL stop_program ( "pw_env_mol_rebuild", "Incompatible MPI groups" )
-         END IF
-         IF ( pw_grid_mol%grid_span /= ref_pw_grid_mol%grid_span ) THEN
-            CALL stop_program ( "pw_env_mol_rebuild", "Incompatible grid types" )
-         END IF
-         IF ( pw_grid_mol%spherical .NEQV. ref_pw_grid_mol%spherical ) THEN
-            CALL stop_program ( "pw_env_mol_rebuild", "Incompatible cutoff schemes" )
-         END IF
+         ! Check if reference grid is compatible
+           IF ( pw_grid_mol%para%mode /= ref_pw_grid_mol%para%mode ) THEN
+             CALL stop_program ( "pw_env_mol_rebuild", "Incompatible parallelisation scheme" )
+           END IF
+           IF ( pw_grid_mol%para%mode == PW_MODE_DISTRIBUTED ) THEN
+             CALL stop_program ( "pw_env_mol_rebuild", "Incompatible MPI groups" )
+           END IF
+           IF ( pw_grid_mol%grid_span /= ref_pw_grid_mol%grid_span ) THEN
+             CALL stop_program ( "pw_env_mol_rebuild", "Incompatible grid types" )
+           END IF
+           IF ( pw_grid_mol%spherical .NEQV. ref_pw_grid_mol%spherical ) THEN
+             CALL stop_program ( "pw_env_mol_rebuild", "Incompatible cutoff schemes" )
+           END IF
 
-         CALL create_gvectors(pw_grid_mol,cell_mol,ecut,blocking,ref_grid=ref_pw_grid_mol)
- 
-         pw_grid_mol% vol = ABS ( cell_mol% deth )
-         pw_grid_mol% dvol = pw_grid_mol% vol / REAL ( pw_grid_mol% ngpts,KIND=dp)
-         pw_grid_mol% dr ( 1 ) = SQRT ( SUM ( cell_mol% hmat ( :, 1 ) ** 2 ) ) &
-              / REAL ( pw_grid_mol% npts ( 1 ),KIND=dp)
-         pw_grid_mol% dr ( 2 ) = SQRT ( SUM ( cell_mol% hmat ( :, 2 ) ** 2 ) ) &
-              / REAL ( pw_grid_mol% npts ( 2 ),KIND=dp)
-         pw_grid_mol% dr ( 3 ) = SQRT ( SUM ( cell_mol% hmat ( :, 3 ) ** 2 ) ) &
+           CALL create_gvectors(pw_grid_mol,cell_mol,ecut,blocking,ref_grid=ref_pw_grid_mol)
+  
+           pw_grid_mol% vol = ABS ( cell_mol% deth )
+           pw_grid_mol% dvol = pw_grid_mol% vol / REAL ( pw_grid_mol% ngpts,KIND=dp)
+           pw_grid_mol% dr ( 1 ) = SQRT ( SUM ( cell_mol% hmat ( :, 1 ) ** 2 ) ) &
+               / REAL ( pw_grid_mol% npts ( 1 ),KIND=dp)
+           pw_grid_mol% dr ( 2 ) = SQRT ( SUM ( cell_mol% hmat ( :, 2 ) ** 2 ) ) &
+               / REAL ( pw_grid_mol% npts ( 2 ),KIND=dp)
+           pw_grid_mol% dr ( 3 ) = SQRT ( SUM ( cell_mol% hmat ( :, 3 ) ** 2 ) ) &
               / REAL ( pw_grid_mol% npts ( 3 ),KIND=dp)
 
 
         ! init pw_pools
-         NULLIFY(pw_pools_mol(igrid_level)%pool)
-         CALL pw_pool_create(pw_pools_mol(igrid_level)%pool,pw_grid=pw_grid_mol,error=error)
+           NULLIFY(pw_pools_mol(igrid_level)%pool)
+           CALL pw_pool_create(pw_pools_mol(igrid_level)%pool,pw_grid=pw_grid_mol,error=error)
 
         ! init rs_pools
-          drmin = MINVAL ( pw_grid_mol%dr )
+           drmin = MINVAL ( pw_grid_mol%dr )
 !      IF ( dft_control % qs_control % rs_distributed ) THEN
 !        nsmax = 2*MAX(1,CEILING((radius(1)/drmin))+1
 !      ELSE
-          nsmax = -1
+           nsmax = -1
 !      ENDIF
 
-          NULLIFY(rs_pools_mol(igrid_level)%pool)
-          CALL rs_pool_create(rs_pools_mol(igrid_level)%pool,&
+           NULLIFY(rs_pools_mol(igrid_level)%pool)
+           CALL rs_pool_create(rs_pools_mol(igrid_level)%pool,&
                el_struct=pw_grid_mol,nsmax=nsmax,error=error)
-          CALL pw_grid_release(pw_grid_mol,error=error)
+           CALL pw_grid_release(pw_grid_mol,error=error)
 
-        END DO  ! igrid_level
+         END DO  ! igrid_level
 
       END IF  ! ngrid_level > 1
  
@@ -831,9 +835,22 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routineP,"cube_info",0)
 
       cmax = 0
-
-      DO igrid_level = 1,ngrid_level
       
+      pw_mol%cube_info(1)%max_radius =cube_info_g(1)%max_radius
+      pw_mol%cube_info(1)%drmin =cube_info_g(1)%drmin
+      pw_mol%cube_info(1)%max_rad_ga =cube_info_g(1)%max_rad_ga
+      pw_mol%cube_info(1)%drsafe =cube_info_g(1)%drsafe
+      pw_mol%cube_info(1)%dr(1:3) =cube_info_g(1)%dr(1:3)
+
+      pw_mol%cube_info(1)%ub_cube => cube_info_g(1)%ub_cube
+      pw_mol%cube_info(1)%lb_cube => cube_info_g(1)%lb_cube
+      pw_mol%cube_info(1)%sphere_bounds_count => cube_info_g(1)%sphere_bounds_count
+      nsmax = SIZE(cube_info_g(1)%sphere_bounds,1)
+      pw_mol%cube_info(1)%sphere_bounds =>  cube_info_g(1)%sphere_bounds
+      cmax=MAXVAL(cube_info_g(1)%ub_cube)
+
+      DO igrid_level = 2,ngrid_level
+
         maxradius = cube_info_g(igrid_level)%max_rad_ga
         pw_mol%cube_info(igrid_level)%max_rad_ga=maxradius
 
@@ -846,6 +863,7 @@ CONTAINS
 
 
       maxlgto = l_info_g%lmax
+
       CALL init_l_info(pw_mol%l_info,maxlgto,cmax)
 
     END IF  ! failure
@@ -933,11 +951,7 @@ CONTAINS
         DO i = 1,3
 !          Lo2(i) = cell_mol%hmat(i,i)/2.0_dp
           Lo2(i) = pw_grid_mol%dr(i)*FLOOR(pw_grid_mol%npts(i)/2.0_dp)
-!dbg
-!  write(*,*) 'side ', i, cell_mol%hmat(i,i)
-!  write(*,*) 'npt ', i, pw_grid_mol%npts(i), ' dr ',pw_grid_mol%dr(i) 
-!  write(*,*) 'center side ', i, Lo2(i), ' pt ', FLOOR(pw_grid_mol%npts(i)/2.0_dp)
-!dbg
+
         END DO
 
 
@@ -951,13 +965,7 @@ CONTAINS
           dref(1) = r_ref(1)-FLOOR(r_ref(1)/pw_grid_mol%dr(1))*pw_grid_mol%dr(1)
           dref(2) = r_ref(2)-FLOOR(r_ref(2)/pw_grid_mol%dr(2))*pw_grid_mol%dr(2)
           dref(3) = r_ref(3)-FLOOR(r_ref(3)/pw_grid_mol%dr(3))*pw_grid_mol%dr(3)
-!dbg
-!     write(*,'(A,3f16.8)') 'atom ref mol ', r_ref(1:3)
-!     write(*,'(A,3f16.8)') 'displ. wrt node ',dref(1) ,  dref(2), dref(3)
-!     write(*,'(A,3I6)') 'pt ', FLOOR(r_ref(1)/pw_grid_mol%dr(1)),&
-!                               FLOOR(r_ref(2)/pw_grid_mol%dr(2)),&
-!                               FLOOR(r_ref(3)/pw_grid_mol%dr(3))
-!dbg
+
           DO iat = 1,nat_mol
             iatom = index_atom(iat)
             rb(1:3) = particle_set( iatom ) %r(1:3)
@@ -974,13 +982,7 @@ CONTAINS
           dref(1) = r0(1)-FLOOR(r0(1)/pw_grid_mol%dr(1))*pw_grid_mol%dr(1)
           dref(2) = r0(2)-FLOOR(r0(2)/pw_grid_mol%dr(2))*pw_grid_mol%dr(2)
           dref(3) = r0(3)-FLOOR(r0(3)/pw_grid_mol%dr(3))*pw_grid_mol%dr(3)
-!dbg
-!     write(*,'(A,3f16.8)') 'atom center mol ', r0(1:3)
-!     write(*,'(A,3f16.8)') 'displ. wrt node ',dref(1) ,  dref(2), dref(3)
-!     write(*,'(A,3I6)') 'pt ', FLOOR(r0(1)/pw_grid_mol%dr(1)),&
-!                               FLOOR(r0(2)/pw_grid_mol%dr(2)),&
-!                               FLOOR(r0(3)/pw_grid_mol%dr(3))
-!dbg
+
           DO iat = 1,nat_mol
             rb(1:3) = r_tbox(1:3,iat) 
             rab_pbc(:) = pbc(r0(:),rb(:),cell)
@@ -992,14 +994,7 @@ CONTAINS
           dref(1) = r_mbox(1,1)-FLOOR(r_mbox(1,1)/pw_grid_mol%dr(1))*pw_grid_mol%dr(1)
           dref(2) = r_mbox(2,1)-FLOOR(r_mbox(2,1)/pw_grid_mol%dr(2))*pw_grid_mol%dr(2)
           dref(3) = r_mbox(3,1)-FLOOR(r_mbox(3,1)/pw_grid_mol%dr(3))*pw_grid_mol%dr(3)
-!dbg
-!     write(*,'(A,3f16.8)') 'atom 1 mol int ', r_mbox(1:3,1)
-!     write(*,'(A,3f16.8)') 'displ. wrt node ',dref(1) ,  dref(2), dref(3)
-!     write(*,'(A,3I6)') 'pt ', FLOOR(r_mbox(1,1)/pw_grid_mol%dr(1)),&
-!                               FLOOR(r_mbox(2,1)/pw_grid_mol%dr(2)),&
-!                               FLOOR(r_mbox(3,1)/pw_grid_mol%dr(3))
- !  stop
-!dbg
+
           IF (.NOT.ASSOCIATED(rho_mol)) THEN
             my_rebuild_grids=.TRUE.
             my_rebuild_ao=.FALSE.

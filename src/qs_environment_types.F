@@ -762,15 +762,15 @@ CONTAINS
       qs_env%rho => rho
     END IF
 
-    IF (PRESENT(pw_env)) THEN ! accept also null pointers?
-      CALL pw_env_retain(pw_env,error=error)
-      CALL pw_env_release(qs_env%pw_env,error=error)
-      qs_env%pw_env => pw_env
-    END IF
     IF(PRESENT(kg_sub_pw_env)) THEN
       CALL kg_sub_pw_env_retain(kg_sub_pw_env,error=error)
       CALL kg_sub_pw_env_release(qs_env%kg_sub_pw_env, error=error)
       qs_env%kg_sub_pw_env => kg_sub_pw_env
+    END IF
+    IF (PRESENT(pw_env)) THEN ! accept also null pointers?
+      CALL pw_env_retain(pw_env,error=error)
+      CALL pw_env_release(qs_env%pw_env,error=error)
+      qs_env%pw_env => pw_env
     END IF
     IF (PRESENT(scf_control)) THEN ! accept also null pointers?
        CALL scf_c_retain(scf_control,error=error)

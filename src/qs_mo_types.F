@@ -95,6 +95,8 @@ MODULE qs_mo_types
     INTEGER                                   :: homo 
     ! lowest non maxocc occupied orbital (e.g. fractional or zero)
     INTEGER                                   :: lfomo
+    ! flag that indicates if the MOS have the same occupation number
+    LOGICAL                                   :: uniform_occupation
   END TYPE mo_set_type
 
   TYPE mo_set_p_type
@@ -206,6 +208,7 @@ CONTAINS
     mo_set%nmo = nmo
     mo_set%homo = 0
     mo_set%lfomo = 0
+    mo_set%uniform_occupation = .TRUE.
 
     NULLIFY (mo_set%eigenvalues)
     NULLIFY (mo_set%occupation_numbers)
@@ -250,11 +253,12 @@ CONTAINS
 !!
 !!*** *********************************************************************
 
-  SUBROUTINE init_mo_set(mo_set, fm_pool, name, error)
+  SUBROUTINE init_mo_set(mo_set, fm_pool, name, halfhole, error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_pool_type), POINTER           :: fm_pool
     CHARACTER(len=*), INTENT(in)             :: name
+    INTEGER, INTENT(in)                      :: halfhole
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -279,7 +283,9 @@ CONTAINS
     END IF
     CALL set_mo_occupation(mo_set%occupation_numbers,&
                            mo_set%eigenvalues,mo_set%homo,mo_set%lfomo,&
-                           mo_set%maxocc,mo_set%nelectron,smear=0.0_dp)
+                           mo_set%maxocc,mo_set%nelectron,&
+                           mo_set%uniform_occupation,&
+                           halfhole=halfhole,smear=0.0_dp)
 
     CALL fm_pool_create_fm(fm_pool,mo_set%mo_coeff,&
          name=name,error=error)
@@ -440,7 +446,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_mo_occupation(occupation,eigenvalues,homo,lfomo,maxocc,nelectron,smear)
+  SUBROUTINE set_mo_occupation(occupation,eigenvalues,homo,lfomo,maxocc,nelectron,&
+                               uocc,halfhole,smear)
 
 !   Purpose: Smearing of the MO occupation due to the given smear value.
 
@@ -453,14 +460,20 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nelectron 
     INTEGER, INTENT(OUT)                     :: homo,lfomo
     REAL(KIND=dp), INTENT(IN)                :: maxocc,smear
+    INTEGER, INTENT(IN)                      :: halfhole
+    LOGICAL, INTENT(INOUT)                   :: uocc
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_mo_occupation", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
     INTEGER                                  :: imo, nmo, nomo
+    LOGICAL                                  :: tpot
     REAL(KIND=dp)                            :: e1, e2, edelta, edist, nelec
 
 !   ---------------------------------------------------------------------------
+
+    tpot = .FALSE.
+    IF(halfhole > 0 ) tpot = .TRUE.
 
     nomo = NINT(nelectron/maxocc)
     nmo  = SIZE(eigenvalues)
@@ -521,14 +534,21 @@ CONTAINS
         homo = nomo
         lfomo = nomo + 1
       END IF
+      uocc = .FALSE.
     END IF perform_smear
+
+    IF(tpot) THEN
+      uocc = .FALSE.
+      occupation(halfhole) = 0.5_dp
+    END IF
 
   END SUBROUTINE set_mo_occupation
 
 ! *****************************************************************************
 
   SUBROUTINE set_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,nmo,&
-                        eigenvalues,occupation_numbers,mo_coeff)
+                        eigenvalues,occupation_numbers,mo_coeff,&
+                        uniform_occupation)
 
 !   Purpose: Set the components of a MO set data structure.
 
@@ -544,6 +564,7 @@ CONTAINS
       POINTER                                :: eigenvalues, &
                                                 occupation_numbers
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: mo_coeff
+    LOGICAL,INTENT(IN), OPTIONAL             :: uniform_occupation
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_mo_set", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
@@ -569,6 +590,7 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine,"mo_set%occupation_numbers")
       mo_set%occupation_numbers => occupation_numbers
     END IF
+    IF(PRESENT(uniform_occupation)) mo_set%uniform_occupation=uniform_occupation
 
   END SUBROUTINE set_mo_set
 

@@ -447,7 +447,7 @@ CONTAINS
     INTEGER                                  :: handle, homo, info, imo, &
                                                 itype, istat, lfomo, &
                                                 mo_ncol, nao, nelectron, nmo, p, q
-    LOGICAL                                  :: failure, i
+    LOGICAL                                  :: failure,  mo_uocc
     REAL(KIND=dp)                            :: alpha, c, maxocc, tan_theta, tau, s
     REAL(dp), DIMENSION(:), POINTER          :: mo_eigenvalues,&
                                                 mo_occupation
@@ -579,11 +579,13 @@ CONTAINS
 
     END IF
 
+    mo_uocc = .TRUE.
     IF (smear /= 0.0_dp) THEN
      CALL get_mol_mo_set(mo_set=mo_set,lfomo=lfomo, homo=homo,&
                          maxocc=maxocc, nelectron=nelectron)
      CALL set_mo_occupation(mo_occupation,mo_eigenvalues,&
-                          homo,lfomo,maxocc,nelectron,smear)
+                          homo,lfomo,maxocc,nelectron,mo_uocc,&
+                          halfhole=-1,smear=smear)
      CALL  set_mol_mo_set(mo_set=mo_set,homo=homo,lfomo=lfomo)
     END IF
 
