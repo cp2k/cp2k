@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000 - 2002 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/qs_energy_types [1.0] *
 !!
@@ -13,7 +13,7 @@
 !!     MK (13.06.2002)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (11.08.2002) exchange and correlation energy now in exc
 !!
 !!   SOURCE
 !******************************************************************************
@@ -35,8 +35,7 @@ MODULE qs_energy_types
     REAL(wp) :: core,&
                 core_overlap,&
                 core_self,&
-                correlation,&
-                exchange,&
+                exc,&
                 hartree,&
                 total,&
                 total_old
@@ -148,8 +147,7 @@ CONTAINS
       qs_energy%core = 0.0_wp
       qs_energy%core_overlap = 0.0_wp
       qs_energy%core_self = 0.0_wp
-      qs_energy%correlation = 0.0_wp
-      qs_energy%exchange = 0.0_wp
+      qs_energy%exc = 0.0_wp
       qs_energy%hartree = 0.0_wp
       qs_energy%total = 0.0_wp
       qs_energy%total_old = 0.0_wp

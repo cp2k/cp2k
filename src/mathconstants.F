@@ -15,6 +15,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     Adapted for use in CP2K (JGH)
+!!     JGH (16-06-2002) : Added Gamma functions
 !!
 !!   SOURCE
 !******************************************************************************
@@ -28,7 +29,7 @@ MODULE mathconstants
   PRIVATE
   PUBLIC :: init_mathcon
   PUBLIC :: maxfac, pi, pio2, twopi, fourpi, root2, rootpi, oorootpi, &
-       zero, one, half, degree, radians, gaussi, fac, dfac
+       zero, one, half, degree, radians, gaussi, fac, dfac, gamma0, gamma1
 
   INTEGER, PARAMETER :: maxfac = 30
 
@@ -46,6 +47,7 @@ MODULE mathconstants
 
   REAL ( dbl ), DIMENSION (0:maxfac) :: fac
   REAL ( dbl ), DIMENSION (-1:2*maxfac+1) :: dfac
+  REAL ( dbl ), DIMENSION (0:maxfac) :: gamma0, gamma1
 
 !!*****
 !******************************************************************************
@@ -96,6 +98,17 @@ SUBROUTINE init_mathcon
   dfac (  1 ) = one
   DO i = 3, 2 * maxfac + 1
      dfac(i) = REAL ( i, dbl ) * dfac ( i - 2 )
+  END DO
+!
+! Gamma functions 
+! gamma ( n ) = gamma0 ( n ) = (n-1)!
+! gamma ( n + 1/2 ) = gamma1 ( n ) = SQRT(pi)/2^n (2n-1)!!
+!
+  gamma0 ( 0 ) = 0
+  gamma1 ( 0 ) = rootpi
+  DO i = 1, maxfac
+     gamma0 ( i ) = fac ( i-1 )
+     gamma1 ( i ) = rootpi / 2**i * dfac ( 2*i-1 )
   END DO
 
 END SUBROUTINE init_mathcon
