@@ -40,7 +40,7 @@ MODULE qs_main
   USE qs_overlap,           ONLY: distribute_overlap_matrix
   USE qs_p_types,           ONLY: qs_p_env_type
   USE qs_scf,               ONLY: scf
-  USE qs_tddfpt_module,     ONLY: qs_tddfpt_calculation
+  USE qs_tddfpt_module,     ONLY: tddfpt_calculation
   USE timings,              ONLY: timeset,&
                                   timestop
 
@@ -109,7 +109,7 @@ CONTAINS
 
 !   *** TD calculation ***
     
-    CALL qs_tddfpt_calculation(qs_p_env, ks_env, qs_env, globenv)
+    CALL tddfpt_calculation(qs_p_env, ks_env, qs_env, globenv)
 
 !   *** Calculate forces ***
 
