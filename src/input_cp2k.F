@@ -3809,7 +3809,7 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        CALL create_qs_md_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(nose_section,error=error)       
+       CALL section_release(subsection,error=error)       
 
        NULLIFY(print_key)
        CALL cp_print_key_section_create(print_key,"SCREEN",&
