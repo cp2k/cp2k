@@ -168,7 +168,7 @@ SUBROUTINE pw_allocate ( pw, pw_grid, use_data, mass_flag, cr3d_ptr, error )
 
     INTEGER                                  :: allocstat, handle
     INTEGER, DIMENSION(:, :), POINTER        :: bounds
-    LOGICAL                                  :: mass_flag_local
+    LOGICAL                                  :: mass_flag_local,cr3d_compatible
     TYPE(cp_logger_type), pointer :: logger
 
 !------------------------------------------------------------------------------
@@ -231,8 +231,10 @@ SUBROUTINE pw_allocate ( pw, pw_grid, use_data, mass_flag, cr3d_ptr, error )
   ELSE IF ( use_data == REALDATA3D ) THEN
      IF (PRESENT(cr3d_ptr)) THEN
         IF (ASSOCIATED(cr3d_ptr)) THEN
-           CPPreconditionNoFail(ALL(LBOUND(cr3d_ptr)==bounds(1,:)),cp_failure_level,routineP,error)
-           CPPreconditionNoFail(ALL(UBOUND(cr3d_ptr)==bounds(2,:)),cp_failure_level,routineP,error)
+           cr3d_compatible =  ALL( MERGE( bounds(1,:)==LBOUND(cr3d_ptr).AND.bounds(2,:)==UBOUND(cr3d_ptr), &
+                                   bounds(2,:)<bounds(1,:), &
+                                   UBOUND(cr3d_ptr)>=LBOUND(cr3d_ptr) ) ) 
+           CPPreconditionNoFail(cr3d_compatible,cp_failure_level,routineP,error)
            pw%cr3d => cr3d_ptr
         END IF
      END IF

@@ -952,8 +952,10 @@ SUBROUTINE pw_pool_give_back_cr3d(pw_pool,cr3d,accept_non_compatible,error)
                 pw_pool%id_nr, m_loc_r(cr3d)
            CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
         END IF
-        compatible=ALL(LBOUND(cr3d)==pw_pool%pw_grid%bounds_local(1,:)).AND.&
-             ALL(UBOUND(cr3d)==pw_pool%pw_grid%bounds_local(2,:))
+        compatible=ALL( MERGE( pw_pool%pw_grid%bounds_local(1,:)==LBOUND(cr3d).AND. &
+                               pw_pool%pw_grid%bounds_local(2,:)==UBOUND(cr3d), &
+                        pw_pool%pw_grid%bounds_local(2,:)<pw_pool%pw_grid%bounds_local(1,:), &
+                        UBOUND(cr3d)>=LBOUND(cr3d) ) ) 
         CPPrecondition(compatible.OR.my_accept_non_compatible,cp_failure_level,routineP,error,failure)
         IF (compatible) THEN
            IF (cp_sll_3d_r_get_length(pw_pool%real3d_array,error=error)<pw_pool%max_cache) THEN
