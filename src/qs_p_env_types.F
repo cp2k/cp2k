@@ -27,8 +27,6 @@
 MODULE qs_p_env_types
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE coefficient_types,               ONLY: coeff_deallocate,&
-                                             coeff_type
   USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type
   USE cp_block_matrix,                 ONLY: cp_block_matrix_p_type,&
                                              cp_block_matrix_type,&
