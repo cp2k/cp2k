@@ -405,7 +405,7 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, force_env )
 
 ! open the file and write some simulation parameters
   CALL open_file(file_name=mc_par%restart_file,unit_number=unit,&
-                 file_action='WRITE',file_status='OLD')
+                 file_action='WRITE',file_status='REPLACE')
   WRITE(unit,*) nnstep
   WRITE(unit,*) mc_par%temp,mc_par%nunits_tot
   WRITE(unit,*) mc_par%ensemble
@@ -460,9 +460,10 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
 
   CALL timeset(routineN,'I','',handle)
 
-! open the file and write some simulation parameters
-  CALL open_file(file_name=mc_par%restart_file,unit_number=unit)
-!  OPEN(UNIT=1,FILE=mc_par%restart_file)
+! open the file and read some simulation parameters
+  CALL open_file(file_name=mc_par%restart_file,unit_number=unit,&
+                 file_action='READ',file_status='OLD')
+
   READ(unit,*) mc_par%nstart
   READ(unit,*) temp,nunits_tot
   READ(unit,*) ensemble
