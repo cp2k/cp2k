@@ -232,7 +232,7 @@ SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'lyp_lda_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: npoints, stat
+    INTEGER                                  :: npoints, stat, handle
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_norm_drho, epsilon_rho
@@ -240,6 +240,8 @@ SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,error)
       e_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, e_ndrho_rho_rho, e_rho, &
       e_rho_rho, e_rho_rho_rho, norm_drho, rho, rho_1_3
     TYPE(xc_derivative_type), POINTER        :: deriv
+
+    CALL timeset(routineN,"I","",handle)
 
   failure=.FALSE.
   NULLIFY(bo)
@@ -334,6 +336,7 @@ SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,error)
         NULLIFY(dummy)
      END IF
   END IF
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE lyp_lda_eval
 !***************************************************************************
 
@@ -806,7 +809,7 @@ SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'lyp_lsd_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: npoints, stat
+    INTEGER                                  :: npoints, stat, handle
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_drho, epsilon_rho
@@ -816,6 +819,7 @@ SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,error)
       e_ra_rb, e_rb, e_rb_rb, norm_drho, norm_drhoa, norm_drhob, rhoa, rhob
     TYPE(xc_derivative_type), POINTER        :: deriv
 
+    call timeset(routineN,"I","",handle)
   failure=.FALSE.
   NULLIFY(deriv, bo)
 
@@ -935,7 +939,7 @@ SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,error)
         NULLIFY(dummy)
      END IF
   END IF
-
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE lyp_lsd_eval
 !***************************************************************************
 
@@ -1011,7 +1015,8 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
   DO ii=1,npoints
      my_rhoa=rhoa(ii)
      my_rhob=rhob(ii)
-     my_rho=MAX(my_rhoa+my_rhob,epsilon_rho)
+     IF (my_rhoa> epsilon_rho.AND.my_rhob> epsilon_rho) THEN
+     my_rho=my_rhoa+my_rhob
      my_ndrho=norm_drho(ii)
      my_ndrhoa=norm_drhoa(ii)
      my_ndrhob=norm_drhob(ii)
@@ -1315,6 +1320,7 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
              -t15 * t21 * (t7 * (-0.5e1_dp + t519 + t520 - 0.2e1_dp &
              &/ 0.9e1_dp * t194 * t8) + t515 - 0.2e1_dp * t25)
      END IF
+  END IF
   END DO
 
 END SUBROUTINE lyp_lsd_calc

@@ -74,8 +74,7 @@ MODULE xc_rho_set_types
                                              spline3_deriv_coeffs,&
                                              nn10_deriv_coeffs,&
                                              spline2_coeffs,&
-                                             spline3_coeffs,&
-                                             pw_derive_fd_mine
+                                             spline3_coeffs
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
@@ -1327,13 +1326,9 @@ CONTAINS
                 END DO
              CASE (xc_deriv_fd)
                 DO idir=1,3
-!FM                   CALL pw_derive_fd(my_rho_r(ispin)%pw,&
-!FM                        drho_r(idir,ispin)%pw,&
-!FM                        n=nd(:,idir))
-                   CALL pw_zero(drho_r(idir,ispin)%pw)
-                   CALL pw_derive_fd_mine(pw_in=my_rho_r(ispin)%pw,&
-                        pw_out=drho_r(idir,ispin)%pw,&
-                        idir=idir, error=error)
+                   CALL pw_derive_fd(my_rho_r(ispin)%pw,&
+                        drho_r(idir,ispin)%pw,&
+                        n=nd(:,idir))
                 END DO
              CASE default
                 CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -1341,7 +1336,7 @@ CONTAINS
           END IF
 
           IF (dft_control%xc_deriv_method_id/=xc_deriv_pw &
-               !FM .and.dft_control%xc_deriv_method_id/=xc_deriv_fd &
+               .AND.dft_control%xc_deriv_method_id/=xc_deriv_fd &
              ) THEN
              DO idir=1,3
                 drho_r_att(idir)%pw => drho_r(idir,ispin)%pw

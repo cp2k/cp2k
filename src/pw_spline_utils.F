@@ -79,7 +79,7 @@ MODULE pw_spline_utils
   PUBLIC :: pw_spline_scale_deriv, pw_nn_smear_g
   PUBLIC :: pw_spline2_interpolate_values_g, pw_spline2_evaluate_values_g,&
        pw_spline2_deriv_r, pw_spline2_deriv_g, pw_spline2_test_coeff
-  PUBLIC :: pw_nn_compose_r, pw_nn_smear_r, pw_nn_deriv_r, pw_derive_fd_mine
+  PUBLIC :: pw_nn_compose_r, pw_nn_smear_r, pw_nn_deriv_r
 
   INTEGER, PRIVATE, PARAMETER :: method_rs=2
 !***
@@ -201,7 +201,7 @@ CONTAINS
 !!     End Subroutine pw_spline3_interpolate_values_g
 !!
 !!   FUNCTION
-!!     calculates the FFT of the coefficents of the cubic spline that
+!!     calculates the FFT of the coefficents of the2 cubic spline that
 !!     interpolates the given values
 !!
 !!   NOTES
@@ -1022,20 +1022,20 @@ CONTAINS
     LOGICAL, INTENT(in), OPTIONAL            :: transpose
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: scale
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_scale_deriv', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, idir, j, k
+    INTEGER                                  :: handle, i, j, k, idir
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3)                    :: n_tot
-    LOGICAL                                  :: failure, my_transpose
-    REAL(KIND=dp)                            :: my_scale
-    REAL(KIND=dp), DIMENSION(3)              :: derivVal
+    LOGICAL                                  :: failure, my_transpose, diag
+    REAL(KIND=dp)                            :: my_scale, dVal1,dVal2,dVal3, scalef
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_grid
+    REAL(kind=dp), DIMENSION(:,:,:), POINTER :: ddata, ddata2,ddata3
 
-! sun does not like that its components are modified
+    ! sun does not like that its components are modified
 
     CALL timeset(routineN,"I","",handle)
 
@@ -1051,41 +1051,63 @@ CONTAINS
 !FM    CPPrecondition(ASSOCIATED(deriv_vals_r),cp_failure_level,routineP,error,failure)
 
     ! map grid to real derivative
+    diag=.true.
     IF (my_transpose) THEN
        DO j=1,3
           DO i=1,3
-             h_grid(j,i)=my_scale*REAL(n_tot(i),dp)*cell%h_inv(i,j)      
+             h_grid(j,i)=my_scale*REAL(n_tot(i),dp)*cell%h_inv(i,j)
+             IF (i/=j.AND.h_grid(j,i)/=0.0_dp) diag=.false.
           END DO
        END DO
     ELSE
        DO j=1,3
           DO i=1,3
              h_grid(i,j)=my_scale*REAL(n_tot(i),dp)*cell%h_inv(i,j)      
+             IF (i/=j.AND.h_grid(i,j)/=0.0_dp) diag=.FALSE.
           END DO
        END DO
     END IF
-    !$omp parallel do private(k,j,i,idir,derivVal)
-    DO k = bo(1,3), bo(2,3)
-       DO j = bo(1,2), bo(2,2)
-          DO i = bo(1,1), bo(2,1)
 
-             DO idir=1,3
-                derivVal(idir)= &
-                     h_grid(1,idir)*&
-                     deriv_vals_r(1)%pw%cr3d(i,j,k)&
-                     +h_grid(2,idir)*&
-                     deriv_vals_r(2)%pw%cr3d(i,j,k)&
-                     +h_grid(3,idir)*&
-                     deriv_vals_r(3)%pw%cr3d(i,j,k)
-             END DO
-             DO idir=1,3
-                deriv_vals_r(idir)%pw%cr3d(i,j,k)=&
-                     derivVal(idir)
-             END DO
+    IF (diag) THEN
+       DO idir=1,3
+          ddata => deriv_vals_r(idir)%pw%cr3d
+          scalef=h_grid(idir,idir)
+          CALL dscal((bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1),&
+               scalef,ddata,1)
+!FM          !$omp parallel do default(none) private(k,j,i) shared(ddata,scalef)
+!FM          DO k = bo(1,3), bo(2,3)
+!FM             DO j = bo(1,2), bo(2,2)
+!FM                DO i = bo(1,1), bo(2,1)
+!FM                   ddata(i,j,k)=scalef*ddata(i,j,k)
+!FM                END DO
+!FM             END DO
+!FM          END DO
+       END DO
+    ELSE
+       ddata => deriv_vals_r(1)%pw%cr3d
+       ddata2 => deriv_vals_r(2)%pw%cr3d
+       ddata3 => deriv_vals_r(3)%pw%cr3d
+       !$omp parallel do default(none) private(k,j,i,dVal1,dVal2,dVal3) &
+       !$omp          shared(ddata,ddata2.ddata3,h_grid)
+       DO k = bo(1,3), bo(2,3)
+          DO j = bo(1,2), bo(2,2)
+             DO i = bo(1,1), bo(2,1)
 
+                dVal1=ddata(i,j,k)
+                dVal2=ddata2(i,j,k)
+                dVal3=ddata3(i,j,k)
+
+                ddata(i,j,k)=h_grid(1,1)*dVal1+&
+                     h_grid(2,1)*dVal2+ h_grid(3,1)*dVal3
+                ddata2(i,j,k)=h_grid(1,2)*dVal1+&
+                     h_grid(2,2)*dVal2+ h_grid(3,2)*dVal3
+                ddata3(i,j,k)=h_grid(1,3)*dVal1+&
+                     h_grid(2,3)*dVal2+ h_grid(3,3)*dVal3
+
+             END DO
           END DO
        END DO
-    END DO
+    END IF
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE pw_spline_scale_deriv
@@ -1663,7 +1685,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_compose_stripe(weights,in_val,in_val_first,in_val_last,&
-     out_val,n_el,error)
+     out_val,n_el)
     REAL(kind=dp), DIMENSION(0:2), &
       INTENT(in)                             :: weights
     INTEGER                                  :: n_el
@@ -1672,67 +1694,93 @@ SUBROUTINE pw_compose_stripe(weights,in_val,in_val_first,in_val_last,&
     REAL(kind=dp), INTENT(in)                :: in_val_last, in_val_first
     REAL(kind=dp), DIMENSION(1:n_el), &
       INTENT(in)                             :: in_val
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+!FM    TYPE(cp_error_type), INTENT(inout), &
+!FM      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_compose_stripe', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
     LOGICAL                                  :: failure
-    REAL(kind=dp), DIMENSION(0:2)            :: v
+!    REAL(kind=dp), DIMENSION(0:2)            :: v
+    REAL(kind=dp) :: v0,v1, v2
 
   failure=.FALSE.
-  v(0)=in_val_first
-  v(1)=in_val(1)
+  v0=in_val_first
+  v1=in_val(1)
   IF (weights(1)==0.0_dp) THEN
      ! optimized version for x deriv
      DO i=1,n_el-3,3
-        v(2)=in_val(i+1)
+        v2=in_val(i+1)
         out_val(i)= out_val(i)+&
-             weights(0)*v(0)+&
-             weights(2)*v(2)
-        v(0)=in_val(i+2)
+             weights(0)*v0+&
+             weights(2)*v2
+        v0=in_val(i+2)
         out_val(i+1)= out_val(i+1)+&
-             weights(0)*v(1)+&
-             weights(2)*v(0)
-        v(1)=in_val(i+3)
+             weights(0)*v1+&
+             weights(2)*v0
+        v1=in_val(i+3)
         out_val(i+2)= out_val(i+2)+&
-             weights(0)*v(2)+&
-             weights(2)*v(1)
+             weights(0)*v2+&
+             weights(2)*v1
      END DO
   ELSE
      ! generic version
      DO i=1,n_el-3,3
-        v(2)=in_val(i+1)
+        v2=in_val(i+1)
         out_val(i)= out_val(i)+&
-             weights(0)*v(0)+&
-             weights(1)*v(1)+&
-             weights(2)*v(2)
-        v(0)=in_val(i+2)
+             weights(0)*v0+&
+             weights(1)*v1+&
+             weights(2)*v2
+        v0=in_val(i+2)
         out_val(i+1)= out_val(i+1)+&
-             weights(0)*v(1)+&
-             weights(1)*v(2)+&
-             weights(2)*v(0)
-        v(1)=in_val(i+3)
+             weights(0)*v1+&
+             weights(1)*v2+&
+             weights(2)*v0
+        v1=in_val(i+3)
         out_val(i+2)= out_val(i+2)+&
-             weights(0)*v(2)+&
-             weights(1)*v(0)+&
-             weights(2)*v(1)
+             weights(0)*v2+&
+             weights(1)*v0+&
+             weights(2)*v1
      END DO
   END IF
-  DO i=n_el-MODULO(n_el-1,3),n_el-1
-     v(MODULO(1+i,3))=in_val(i+1)
-     out_val(i)= out_val(i)+&
-          weights(0)*v(MODULO(i-1,3))+&
-          weights(1)*v(MODULO(i,3))+&
-          weights(2)*v(MODULO(i+1,3))
-  END DO
-  v (MODULO(n_el+1,3))=in_val_last
-  out_val(n_el)= out_val(n_el)+&
-       weights(0)*v(MODULO(n_el-1,3))+&
-       weights(1)*v(MODULO(n_el,3))+&
-       weights(2)*v(MODULO(n_el+1,3))
+  SELECT CASE(MODULO(n_el-1,3))
+  CASE(0)
+     IF (n_el>0) THEN
+        v2=in_val_last
+        out_val(n_el)= out_val(n_el)+&
+             weights(0)*v0+&
+             weights(1)*v1+&
+             weights(2)*v2
+     END IF
+  CASE(1)
+     v2=in_val(n_el)
+     out_val(n_el-1)= out_val(n_el-1)+&
+          weights(0)*v0+&
+          weights(1)*v1+&
+          weights(2)*v2
+     v0=in_val_last
+     out_val(n_el)= out_val(n_el)+&
+          weights(0)*v1+&
+          weights(1)*v2+&
+          weights(2)*v0
+  CASE(2)
+     v2=in_val(n_el-1)
+     out_val(n_el-2)= out_val(n_el-2)+&
+          weights(0)*v0+&
+          weights(1)*v1+&
+          weights(2)*v2
+     v0=in_val(n_el)
+     out_val(n_el-1)= out_val(n_el-1)+&
+          weights(0)*v1+&
+          weights(1)*v2+&
+          weights(2)*v0
+     v1=in_val_last
+     out_val(n_el)= out_val(n_el)+&
+          weights(0)*v2+&
+          weights(1)*v0+&
+          weights(2)*v1
+  END SELECT
   
 END SUBROUTINE pw_compose_stripe
 !***************************************************************************
@@ -1775,7 +1823,7 @@ END SUBROUTINE pw_compose_stripe
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_compose_stripe_r3(weights,in_val_0,in_val_1,in_val_2,&
-     in_val_first,in_val_last,out_val,n_el,error)
+     in_val_first,in_val_last,out_val,n_el)
     REAL(kind=dp), DIMENSION(0:2, 0:2), &
       INTENT(in)                             :: weights
     INTEGER                                  :: n_el
@@ -1785,149 +1833,234 @@ SUBROUTINE pw_compose_stripe_r3(weights,in_val_0,in_val_1,in_val_2,&
       INTENT(in)                             :: in_val_last, in_val_first
     REAL(kind=dp), DIMENSION(1:n_el), &
       INTENT(in)                             :: in_val_2, in_val_1, in_val_0
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+!FM    TYPE(cp_error_type), INTENT(inout), &
+!FM      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_compose_stripe_r3', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j
-    LOGICAL                                  :: failure, xderiv, yderiv
-    REAL(kind=dp), DIMENSION(0:2, 0:2)       :: v
+    INTEGER                                  :: i
+    LOGICAL                                  :: xderiv, yderiv
+    !REAL(kind=dp), DIMENSION(0:2, 0:2)       :: v
+    REAL(kind=dp) :: v_0_0,v_0_1,v_0_2,v_1_0,v_1_1,v_1_2,v_2_0,v_2_1,v_2_2
 
-  failure=.FALSE.
   yderiv=ALL(weights(:,1)==0.0_dp)
-  IF (method_rs<4) THEN
-     CALL pw_compose_stripe(weights=weights(:,0),in_val=in_val_0,&
-          in_val_first=in_val_first(0),in_val_last=in_val_last(0),out_val=out_val,&
-          n_el=n_el, error=error)
-     IF (.NOT.yderiv) THEN
-        CALL pw_compose_stripe(weights=weights(:,1),in_val=in_val_1,&
-             in_val_first=in_val_first(1),in_val_last=in_val_last(1),out_val=out_val,&
-             n_el=n_el, error=error)
-     END IF
-     CALL pw_compose_stripe(weights=weights(:,2),in_val=in_val_2,&
-          in_val_first=in_val_first(2),in_val_last=in_val_last(2),out_val=out_val,&
-          n_el=n_el, error=error)
-  ELSE
-     xderiv=ALL(weights(1,:)==0.0_dp)
-     DO j=0,2
-        v(0,j)=in_val_first(j)
-     END DO
-     v(1,0)=in_val_0(1)
-     v(1,1)=in_val_1(1)
-     v(1,2)=in_val_2(1)
+  xderiv=ALL(weights(1,:)==0.0_dp)
+!FM  IF (method_rs<3 .OR.((.NOT.yderiv).AND.method_rs<4)) THEN
+!FM     CALL pw_compose_stripe(weights=weights(:,0),in_val=in_val_0,&
+!FM          in_val_first=in_val_first(0),in_val_last=in_val_last(0),out_val=out_val,&
+!FM          n_el=n_el)
+!FM     IF (.NOT.yderiv) THEN
+!FM        CALL pw_compose_stripe(weights=weights(:,1),in_val=in_val_1,&
+!FM             in_val_first=in_val_first(1),in_val_last=in_val_last(1),out_val=out_val,&
+!FM             n_el=n_el)
+!FM     END IF
+!FM     CALL pw_compose_stripe(weights=weights(:,2),in_val=in_val_2,&
+!FM          in_val_first=in_val_first(2),in_val_last=in_val_last(2),out_val=out_val,&
+!FM          n_el=n_el)
+!FM  ELSE
+     v_0_0=in_val_first(0)
+     v_0_1=in_val_first(1)
+     v_0_2=in_val_first(2)
+     v_1_0=in_val_0(1)
+     v_1_1=in_val_1(1)
+     v_1_2=in_val_2(1)
 
      IF (xderiv) THEN
         ! optimized version
         DO i=1,n_el-3,3
-           v(2,0)=in_val_0(i+1)
-           v(2,1)=in_val_1(i+1)
-           v(2,2)=in_val_2(i+1)
-           DO j=0,2
-              out_val(i)= out_val(i)+&
-                   weights(0,j)*v(0,j)+&
-                   weights(2,j)*v(2,j)
-           END DO
-           v(0,0)=in_val_0(i+2)
-           v(0,1)=in_val_1(i+2)
-           v(0,2)=in_val_2(i+2)
-           DO j=0,2
-              out_val(i+1)= out_val(i+1)+&
-                   weights(0,j)*v(1,j)+&
-                   weights(2,j)*v(0,j)
-           END DO
-           v(1,0)=in_val_0(i+3)
-           v(1,1)=in_val_1(i+3)
-           v(1,2)=in_val_2(i+3)
-           DO j=0,2
-              out_val(i+2)= out_val(i+2)+&
-                   weights(0,j)*v(2,j)+&
-                   weights(2,j)*v(1,j)
-           END DO
+           v_2_0=in_val_0(i+1)
+           v_2_1=in_val_1(i+1)
+           v_2_2=in_val_2(i+1)
+           out_val(i)= out_val(i)+&
+                weights(0,0)*v_0_0+&
+                weights(2,0)*v_2_0+&
+                weights(0,1)*v_0_1+&
+                weights(2,1)*v_2_1+&
+                weights(0,2)*v_0_2+&
+                weights(2,2)*v_2_2
+           v_0_0=in_val_0(i+2)
+           v_0_1=in_val_1(i+2)
+           v_0_2=in_val_2(i+2)
+           out_val(i+1)= out_val(i+1)+&
+                   weights(0,0)*v_1_0+&
+                   weights(2,0)*v_0_0+&
+                   weights(0,1)*v_1_1+&
+                   weights(2,1)*v_0_1+&
+                   weights(0,2)*v_1_2+&
+                   weights(2,2)*v_0_2
+           v_1_0=in_val_0(i+3)
+           v_1_1=in_val_1(i+3)
+           v_1_2=in_val_2(i+3)
+           out_val(i+2)= out_val(i+2)+&
+                weights(0,0)*v_2_0+&
+                weights(2,0)*v_1_0+&
+                weights(0,1)*v_2_1+&
+                weights(2,1)*v_1_1+&
+                weights(0,2)*v_2_2+&
+                weights(2,2)*v_1_2
         END DO
      ELSEIF (yderiv) THEN
         ! optimized version
         DO i=1,n_el-3,3
-           v(2,0)=in_val_0(i+1)
-           v(2,2)=in_val_2(i+1)
-           DO j=0,2,2
-              out_val(i)= out_val(i)+&
-                   weights(0,j)*v(0,j)+&
-                   weights(1,j)*v(1,j)+&
-                   weights(2,j)*v(2,j)
-           END DO
-           v(0,0)=in_val_0(i+2)
-           v(0,2)=in_val_2(i+2)
-           DO j=0,2,2
-              out_val(i+1)= out_val(i+1)+&
-                   weights(0,j)*v(1,j)+&
-                   weights(1,j)*v(2,j)+&
-                   weights(2,j)*v(0,j)
-           END DO
-           v(1,0)=in_val_0(i+3)
-           v(1,2)=in_val_2(i+3)
-           DO j=0,2,2
-              out_val(i+2)= out_val(i+2)+&
-                   weights(0,j)*v(2,j)+&
-                   weights(1,j)*v(0,j)+&
-                   weights(2,j)*v(1,j)
-           END DO
+           v_2_0=in_val_0(i+1)
+           v_2_2=in_val_2(i+1)
+           out_val(i)= out_val(i)+&
+                weights(0,0)*v_0_0+&
+                weights(1,0)*v_1_0+&
+                weights(2,0)*v_2_0+&
+                weights(0,2)*v_0_2+&
+                weights(1,2)*v_1_2+&
+                weights(2,2)*v_2_2
+           v_0_0=in_val_0(i+2)
+           v_0_2=in_val_2(i+2)
+           out_val(i+1)= out_val(i+1)+&
+                weights(0,0)*v_1_0+&
+                weights(1,0)*v_2_0+&
+                weights(2,0)*v_0_0+&
+                weights(0,2)*v_1_2+&
+                weights(1,2)*v_2_2+&
+                weights(2,2)*v_0_2
+           v_1_0=in_val_0(i+3)
+           v_1_2=in_val_2(i+3)
+           out_val(i+2)= out_val(i+2)+&
+                weights(0,0)*v_2_0+&
+                weights(1,0)*v_0_0+&
+                weights(2,0)*v_1_0+&
+                weights(0,2)*v_2_2+&
+                weights(1,2)*v_0_2+&
+                weights(2,2)*v_1_2
         END DO
      ELSE
         ! generic version
         DO i=1,n_el-3,3
-           v(2,0)=in_val_0(i+1)
-           v(2,1)=in_val_1(i+1)
-           v(2,2)=in_val_2(i+1)
-           DO j=0,2
-              out_val(i)= out_val(i)+&
-                   weights(0,j)*v(0,j)+&
-                   weights(1,j)*v(1,j)+&
-                   weights(2,j)*v(2,j)
-           END DO
-           v(0,0)=in_val_0(i+2)
-           v(0,1)=in_val_1(i+2)
-           v(0,2)=in_val_2(i+2)
-           DO j=0,2
-              out_val(i+1)= out_val(i+1)+&
-                   weights(0,j)*v(1,j)+&
-                   weights(1,j)*v(2,j)+&
-                   weights(2,j)*v(0,j)
-           END DO
-           v(1,0)=in_val_0(i+3)
-           v(1,1)=in_val_1(i+3)
-           v(1,2)=in_val_2(i+3)
-           DO j=0,2
-              out_val(i+2)= out_val(i+2)+&
-                   weights(0,j)*v(2,j)+&
-                   weights(1,j)*v(0,j)+&
-                   weights(2,j)*v(1,j)
-           END DO
+           v_2_0=in_val_0(i+1)
+           v_2_1=in_val_1(i+1)
+           v_2_2=in_val_2(i+1)
+           out_val(i)= out_val(i)+&
+                weights(0,0)*v_0_0+&
+                weights(1,0)*v_1_0+&
+                weights(2,0)*v_2_0+&
+                weights(0,1)*v_0_1+&
+                weights(1,1)*v_1_1+&
+                weights(2,1)*v_2_1+&
+                weights(0,2)*v_0_2+&
+                weights(1,2)*v_1_2+&
+                weights(2,2)*v_2_2
+           v_0_0=in_val_0(i+2)
+           v_0_1=in_val_1(i+2)
+           v_0_2=in_val_2(i+2)
+           out_val(i+1)= out_val(i+1)+&
+                weights(0,0)*v_1_0+&
+                weights(1,0)*v_2_0+&
+                weights(2,0)*v_0_0+&
+                weights(0,1)*v_1_1+&
+                weights(1,1)*v_2_1+&
+                weights(2,1)*v_0_1+&
+                weights(0,2)*v_1_2+&
+                weights(1,2)*v_2_2+&
+                weights(2,2)*v_0_2
+           v_1_0=in_val_0(i+3)
+           v_1_1=in_val_1(i+3)
+           v_1_2=in_val_2(i+3)
+           out_val(i+2)= out_val(i+2)+&
+                weights(0,0)*v_2_0+&
+                weights(1,0)*v_0_0+&
+                weights(2,0)*v_1_0+&
+                weights(0,1)*v_2_1+&
+                weights(1,1)*v_0_1+&
+                weights(2,1)*v_1_1+&
+                weights(0,2)*v_2_2+&
+                weights(1,2)*v_0_2+&
+                weights(2,2)*v_1_2
         END DO
      END IF
-
-     DO i=n_el-MODULO(n_el-1,3),n_el-1
-        v(MODULO(1+i,3),0)=in_val_0(i+1)
-        v(MODULO(1+i,3),1)=in_val_1(i+1)
-        v(MODULO(1+i,3),2)=in_val_2(i+1)
-        DO j=0,2
-           out_val(i)= out_val(i)+&
-                weights(0,j)*v(MODULO(i-1,3),j)+&
-                weights(1,j)*v(MODULO(i,3),j)+&
-                weights(2,j)*v(MODULO(i+1,3),j)
-        END DO
-     END DO
-     DO j=0,2
-        v (MODULO(n_el+1,3),j)=in_val_last(j)
-     END DO
-     DO j=0,2
+     SELECT CASE(MODULO(n_el-1,3))
+     CASE(0)
+        IF (n_el>0) THEN
+           v_2_0=in_val_last(0)
+           v_2_1=in_val_last(1)
+           v_2_2=in_val_last(2)
+           out_val(n_el)= out_val(n_el)+&
+                weights(0,0)*v_0_0+&
+                weights(1,0)*v_1_0+&
+                weights(2,0)*v_2_0+&
+                weights(0,1)*v_0_1+&
+                weights(1,1)*v_1_1+&
+                weights(2,1)*v_2_1+&
+                weights(0,2)*v_0_2+&
+                weights(1,2)*v_1_2+&
+                weights(2,2)*v_2_2
+        END IF
+     CASE(1)
+        v_2_0=in_val_0(n_el)
+        v_2_1=in_val_1(n_el)
+        v_2_2=in_val_2(n_el)
+        out_val(n_el-1)= out_val(n_el-1)+&
+             weights(0,0)*v_0_0+&
+             weights(1,0)*v_1_0+&
+             weights(2,0)*v_2_0+&
+             weights(0,1)*v_0_1+&
+             weights(1,1)*v_1_1+&
+             weights(2,1)*v_2_1+&
+             weights(0,2)*v_0_2+&
+             weights(1,2)*v_1_2+&
+             weights(2,2)*v_2_2
+        v_0_0=in_val_last(0)
+        v_0_1=in_val_last(1)
+        v_0_2=in_val_last(2)
         out_val(n_el)= out_val(n_el)+&
-             weights(0,j)*v(MODULO(n_el-1,3),j)+&
-             weights(1,j)*v(MODULO(n_el,3),j)+&
-             weights(2,j)*v(MODULO(n_el+1,3),j)
-     END DO
-  END IF
+             weights(0,0)*v_1_0+&
+             weights(1,0)*v_2_0+&
+             weights(2,0)*v_0_0+&
+             weights(0,1)*v_1_1+&
+             weights(1,1)*v_2_1+&
+             weights(2,1)*v_0_1+&
+             weights(0,2)*v_1_2+&
+             weights(1,2)*v_2_2+&
+             weights(2,2)*v_0_2
+     CASE(2)
+        v_2_0=in_val_0(n_el-1)
+        v_2_1=in_val_1(n_el-1)
+        v_2_2=in_val_2(n_el-1)
+        out_val(n_el-2)= out_val(n_el-2)+&
+             weights(0,0)*v_0_0+&
+             weights(1,0)*v_1_0+&
+             weights(2,0)*v_2_0+&
+             weights(0,1)*v_0_1+&
+             weights(1,1)*v_1_1+&
+             weights(2,1)*v_2_1+&
+             weights(0,2)*v_0_2+&
+             weights(1,2)*v_1_2+&
+             weights(2,2)*v_2_2
+        v_0_0=in_val_0(n_el)
+        v_0_1=in_val_1(n_el)
+        v_0_2=in_val_2(n_el)
+        out_val(n_el-1)= out_val(n_el-1)+&
+             weights(0,0)*v_1_0+&
+             weights(1,0)*v_2_0+&
+             weights(2,0)*v_0_0+&
+             weights(0,1)*v_1_1+&
+             weights(1,1)*v_2_1+&
+             weights(2,1)*v_0_1+&
+             weights(0,2)*v_1_2+&
+             weights(1,2)*v_2_2+&
+             weights(2,2)*v_0_2
+        v_1_0=in_val_last(0)
+        v_1_1=in_val_last(1)
+        v_1_2=in_val_last(2)
+        out_val(n_el)= out_val(n_el)+&
+             weights(0,0)*v_2_0+&
+             weights(1,0)*v_0_0+&
+             weights(2,0)*v_1_0+&
+             weights(0,1)*v_2_1+&
+             weights(1,1)*v_0_1+&
+             weights(2,1)*v_1_1+&
+             weights(0,2)*v_2_2+&
+             weights(1,2)*v_0_2+&
+             weights(2,2)*v_1_2
+     END SELECT
+!FM  END IF
   
 END SUBROUTINE pw_compose_stripe_r3
 !***************************************************************************
@@ -1962,20 +2095,23 @@ END SUBROUTINE pw_compose_stripe_r3
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out, error)
-    REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)  :: weights
-    TYPE(pw_type), POINTER                   :: pw_in, pw_out
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+  REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)  :: weights
+  TYPE(pw_type), POINTER                   :: pw_in, pw_out
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_compose_r', &
-      routineP = moduleN//':'//routineN
+  CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_compose_r', &
+       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, j, jw, k, kw, stat
-    INTEGER, DIMENSION(2, 3)                 :: bo, gbo
-    INTEGER, DIMENSION(3)                    :: s
-    LOGICAL                                  :: failure, has_boundary, zderiv
-    REAL(kind=dp), DIMENSION(0:2)            :: in_val_first, in_val_last
-    REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
+  INTEGER                                  :: handle, i, j, jw, k, kw, stat,&
+       myj,myk
+  INTEGER, DIMENSION(2, 3)                 :: bo, gbo
+  INTEGER, DIMENSION(3)                    :: s
+  LOGICAL                                  :: failure, has_boundary, zderiv,&
+       yderiv
+  REAL(kind=dp), DIMENSION(0:2)            :: in_val_first, in_val_last
+  REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
+  REAL(kind=dp) :: in_val_f, in_val_l
 
   CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
@@ -1990,6 +2126,7 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out, error)
        "wrong pw distribution",error,failure)
   IF (.NOT. failure) THEN
      zderiv=ALL(weights(:,:,1)==0.0_dp)
+     yderiv=ALL(weights(:,1,:)==0.0_dp)
      bo=pw_in%pw_grid%bounds_local
      gbo=pw_in%pw_grid%bounds
      DO i=1,3
@@ -2018,42 +2155,65 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out, error)
         DEALLOCATE(tmp,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
-     DO k=0,s(3)-1
-        DO j=0,s(2)-1
-           DO kw=0,2
-              IF (zderiv.and.kw==1) CYCLE
-              IF (has_boundary) THEN
+     IF (method_rs<3) THEN
+          DO k=0,s(3)-1
+           DO j=0,s(2)-1
+              DO kw=0,2
+                 IF (zderiv.AND.kw==1) CYCLE
+                 myk=bo(1,3)+MODULO(k+kw-1,s(3))
                  DO jw=0,2
-                    in_val_first(jw)=l_boundary(bo(1,2)+MODULO(j+jw-1,s(2)),&
-                         bo(1,3)+MODULO(k+kw-1,s(3)))
-                    in_val_last(jw)=u_boundary(bo(1,2)+MODULO(j+jw-1,s(2)),&
-                         bo(1,3)+MODULO(k+kw-1,s(3)))
+                    IF (yderiv.AND.jw==1) CYCLE
+                    myj=bo(1,2)+MODULO(j+jw-1,s(2))
+                    IF (has_boundary) THEN
+                       in_val_f=l_boundary(myj,myk)
+                       in_val_l=u_boundary(myj,myk)
+                    ELSE
+                       in_val_f=pw_in%cr3d(bo(2,1),myj,myk)
+                       in_val_l=pw_in%cr3d(bo(1,1),myj,myk)
+                    END IF
+                    CALL pw_compose_stripe(weights=weights(:,jw,kw),&
+                         in_val=pw_in%cr3d(:,myj,myk),&
+                         in_val_first=in_val_f,in_val_last=in_val_l,&
+                         out_val=pw_out%cr3d(:,bo(1,2)+j,bo(1,3)+k),&
+                         n_el=s(1))
                  END DO
-              ELSE
-                 DO jw=0,2
-                    in_val_first(jw)=pw_in%cr3d(bo(2,1),&
-                         bo(1,2)+MODULO(j+jw-1,s(2)),&
-                         bo(1,3)+MODULO(k+kw-1,s(3)))
-                    in_val_last(jw)=pw_in%cr3d(bo(1,1),&
-                         bo(1,2)+MODULO(j+jw-1,s(2)),&
-                         bo(1,3)+MODULO(k+kw-1,s(3)))
-                 END DO
-              END IF
-              CALL pw_compose_stripe_r3(weights=weights(:,:,kw),&
-                   in_val_0=pw_in%cr3d(:,bo(1,2)+MODULO(j-1,s(2)),&
-                   bo(1,3)+MODULO(k+kw-1,s(3))),&
-                   in_val_1=pw_in%cr3d(:,bo(1,2)+j,&
-                   bo(1,3)+MODULO(k+kw-1,s(3))),&
-                   in_val_2=pw_in%cr3d(:,bo(1,2)+MODULO(j+1,s(2)),&
-                   bo(1,3)+MODULO(k+kw-1,s(3))),&
-                   in_val_first=in_val_first,&
-                   in_val_last=in_val_last,&
-                   out_val=pw_out%cr3d(:,bo(1,2)+j,&
-                   bo(1,3)+k),&
-                   n_el=s(1),error=error)
+
+              END DO
            END DO
         END DO
-     END DO
+     ELSE
+        DO k=0,s(3)-1
+           DO j=0,s(2)-1
+              DO kw=0,2
+                 myk=bo(1,3)+MODULO(k+kw-1,s(3))
+                 IF (zderiv.AND.kw==1) CYCLE
+                 IF (has_boundary) THEN
+                    DO jw=0,2
+                       myj=bo(1,2)+MODULO(j+jw-1,s(2))
+                       in_val_first(jw)=l_boundary(myj, myk)
+                       in_val_last(jw)=u_boundary(myj, myk)
+                    END DO
+                 ELSE
+                    DO jw=0,2
+                       myj=bo(1,2)+MODULO(j+jw-1,s(2))
+                       in_val_first(jw)=pw_in%cr3d(bo(2,1),&
+                            myj,myk)
+                       in_val_last(jw)=pw_in%cr3d(bo(1,1),&
+                            myj,myk)
+                    END DO
+                 END IF
+                 CALL pw_compose_stripe_r3(weights=weights(:,:,kw),&
+                      in_val_0=pw_in%cr3d(:,bo(1,2)+MODULO(j-1,s(2)), myk),&
+                      in_val_1=pw_in%cr3d(:,bo(1,2)+j, myk),&
+                      in_val_2=pw_in%cr3d(:,bo(1,2)+MODULO(j+1,s(2)), myk),&
+                      in_val_first=in_val_first,&
+                      in_val_last=in_val_last,&
+                      out_val=pw_out%cr3d(:,bo(1,2)+j, bo(1,3)+k),&
+                      n_el=s(1))
+              END DO
+           END DO
+        END DO
+     END IF
      IF (has_boundary) THEN
         DEALLOCATE(l_boundary,u_boundary,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -2061,186 +2221,6 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out, error)
   END IF
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE pw_nn_compose_r
-!***************************************************************************
-
-!!****f* pw_spline_utils/pw_derive_fd_mine [1.0] *
-!!
-!!   NAME
-!!     pw_derive_fd_mine
-!!
-!!   FUNCTION
-!!     calculates a finite difference central derivative
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - pw_in: the argument for the linear operator
-!!     - pw_out: place where the value of the linear oprator should be added
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
-SUBROUTINE pw_derive_fd_mine(pw_in, pw_out, idir, error)
-    TYPE(pw_type), POINTER                   :: pw_in, pw_out
-    INTEGER, intent(in)                      :: idir
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_derive_fd_mine', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, i, j, jw, k, kw, stat
-    INTEGER, DIMENSION(2, 3)                 :: bo, gbo
-    INTEGER, DIMENSION(3)                    :: s
-    LOGICAL                                  :: failure, has_boundary
-    REAL(kind=dp), DIMENSION(0:2)            :: in_val_first, in_val_last
-    REAL(kind=dp), DIMENSION(0:2,0:2)        :: weights
-    REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
-
-  CALL timeset(routineN,"I","",handle)
-  failure=.FALSE.
-  CPPrecondition(ASSOCIATED(pw_in),cp_failure_level,routineP,error,failure)
-  CPPrecondition(pw_in%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
-  CPPrecondition(pw_in%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(pw_out),cp_failure_level,routineP,error,failure)
-  CPPrecondition(pw_out%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
-  CPPrecondition(pw_out%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
-  CALL cp_assert(ALL(pw_in%pw_grid%bounds_local(:,2:3) == pw_in%pw_grid%bounds(:,2:3)),&
-       cp_failure_level,cp_assertion_failed,routineP,&
-       "wrong pw distribution",error,failure)
-  IF (.NOT. failure) THEN
-     bo=pw_in%pw_grid%bounds_local
-     gbo=pw_in%pw_grid%bounds
-     has_boundary= ANY(pw_in%pw_grid%bounds_local(:,1) /= &
-          pw_in%pw_grid%bounds(:,1))
-     DO i=1,3
-        s(i)=bo(2,i)-bo(1,i)+1
-     END DO
-     if (any(s<1)) return
-     IF (has_boundary) THEN
-        ALLOCATE(l_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
-             u_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
-             tmp(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        tmp(:,:)=pw_in%cr3d(bo(2,1),:,:)
-        CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
-             gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
-             l_boundary,pw_in%pw_grid%para%pos_of_x(&
-             gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
-             pw_in%pw_grid%para%group)
-        tmp(:,:)=pw_in%cr3d(bo(1,1),:,:)
-        CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
-             gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
-             u_boundary,pw_in%pw_grid%para%pos_of_x(&
-             gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
-             pw_in%pw_grid%para%group)
-        DEALLOCATE(tmp,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-     END IF
-     IF (idir==1) THEN
-        weights(0,:)=-0.5_dp
-        weights(1,:)=0._dp
-        weights(2,:)=0.5_dp
-     ELSE
-        weights(:,0)=-0.5_dp
-        weights(:,1)=0._dp
-        weights(:,2)=0.5_dp
-     END IF
-     in_val_last=0.0_dp
-     in_val_first=0.0_dp
-     SELECT CASE (idir)
-     CASE(1) ! x deriv
-     DO k=bo(1,3),bo(2,3)
-        DO j=0,s(2)-1
-           IF (has_boundary) THEN
-              DO jw=0,2,2
-                 in_val_first(jw)=l_boundary(bo(1,2)+MODULO(j+jw-1,s(2)),k)
-                 in_val_last(jw)=u_boundary(bo(1,2)+MODULO(j+jw-1,s(2)),k)
-              END DO
-           ELSE
-              DO jw=0,2,2
-                 in_val_first(jw)=pw_in%cr3d(bo(2,1),&
-                      bo(1,2)+MODULO(j+jw-1,s(2)),k)
-                 in_val_last(jw)=pw_in%cr3d(bo(1,1),&
-                      bo(1,2)+MODULO(j+jw-1,s(2)),k)
-              END DO
-           END IF
-           CALL pw_compose_stripe_r3(weights=weights(:,:),&
-                in_val_0=pw_in%cr3d(:,bo(1,2)+MODULO(j-1,s(2)),k),&
-                in_val_1=pw_in%cr3d(:,bo(1,2)+MODULO(j-1,s(2)),k),& ! not used
-                in_val_2=pw_in%cr3d(:,bo(1,2)+MODULO(j+1,s(2)),k),&
-                in_val_first=in_val_first,&
-                in_val_last=in_val_last,&
-                out_val=pw_out%cr3d(:,bo(1,2)+j,k),&
-                n_el=s(1),error=error)
-        END DO
-     END DO
-     CASE(2) ! y deriv
-        DO k=bo(1,3),bo(2,3)
-        DO j=0,s(2)-1
-           IF (has_boundary) THEN
-              DO jw=0,2,2
-                 in_val_first(jw)=l_boundary(bo(1,2)+MODULO(j+jw-1,s(2)),k)
-                 in_val_first(jw)=l_boundary(bo(1,2)+MODULO(j+jw-1,s(2)),k)
-              END DO
-           ELSE
-              DO jw=0,2,2
-                 in_val_first(jw)=pw_in%cr3d(bo(2,1),&
-                      bo(1,2)+MODULO(j+jw-1,s(2)),k)
-                 in_val_last(jw)=pw_in%cr3d(bo(1,1),&
-                      bo(1,2)+MODULO(j+jw-1,s(2)),k)
-              END DO
-           END IF
-           CALL pw_compose_stripe_r3(weights=weights(:,:),&
-                in_val_0=pw_in%cr3d(:,bo(1,2)+MODULO(j-1,s(2)),k),&
-                in_val_1=pw_in%cr3d(:,bo(1,2)+MODULO(j-1,s(2)),k),&! not used
-                in_val_2=pw_in%cr3d(:,bo(1,2)+MODULO(j+1,s(2)),k),&
-                in_val_first=in_val_first,&
-                in_val_last=in_val_last,&
-                out_val=pw_out%cr3d(:,bo(1,2)+j,k),&
-                n_el=s(1),error=error)
-        END DO
-     END DO
-     CASE(3) ! z deriv
-        DO k=0,s(3)-1
-           DO j=bo(1,2),bo(2,2)
-              IF (has_boundary) THEN
-                 DO kw=0,2,2
-                    in_val_first(kw)=l_boundary(j,bo(1,3)+MODULO(k+kw-1,s(3)))
-                    in_val_last(kw)=u_boundary(j,bo(1,3)+MODULO(k+kw-1,s(3)))
-                 END DO
-              ELSE
-                 DO kw=0,2,2
-                    in_val_first(jw)=pw_in%cr3d(bo(2,1),&
-                         j,bo(1,3)+MODULO(k+kw-1,s(3)))
-                    in_val_last(jw)=pw_in%cr3d(bo(1,1),&
-                         j,bo(1,3)+MODULO(k+kw-1,s(3)))
-                 END DO
-              END IF
-              CALL pw_compose_stripe_r3(weights=weights(:,:),&
-                   in_val_0=pw_in%cr3d(:,j,bo(1,3)+MODULO(k-1,s(3))),&
-                   in_val_1=pw_in%cr3d(:,j,bo(1,3)+MODULO(k-1,s(3))),&!not used
-                   in_val_2=pw_in%cr3d(:,j,bo(1,3)+MODULO(k+1,s(3))),&
-                   in_val_first=in_val_first,&
-                   in_val_last=in_val_last,&
-                   out_val=pw_out%cr3d(:,j,bo(1,3)+k),&
-                   n_el=s(1),error=error)
-           END DO
-        END DO
-     CASE default
-        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-     END SELECT
-     IF (has_boundary) THEN
-        DEALLOCATE(l_boundary,u_boundary,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-     END IF
-  END IF
-  CALL timestop(0.0_dp,handle)
-END SUBROUTINE pw_derive_fd_mine
 !***************************************************************************
 
 !!****f* pw_spline_utils/pw_nn_smear_r [1.0] *

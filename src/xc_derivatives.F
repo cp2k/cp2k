@@ -253,7 +253,6 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_get_info', &
       routineP = moduleN//':'//routineN
-
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -394,8 +393,10 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    integer :: handle
     REAL(KIND=dp)                            :: density_cut, gradient_cut
 
+    CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
   
   IF (.NOT. failure) THEN
@@ -487,6 +488,7 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
              error=error)
      END SELECT
   END IF
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE xc_functional_eval
 !***************************************************************************
 

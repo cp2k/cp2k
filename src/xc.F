@@ -83,8 +83,7 @@ MODULE xc
                                              spline3_coeffs,&
                                              spline2_deriv_coeffs,&
                                              spline3_deriv_coeffs,&
-                                             nn10_deriv_coeffs,&
-                                             pw_derive_fd_mine
+                                             nn10_deriv_coeffs
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
@@ -2315,7 +2314,7 @@ END SUBROUTINE xc_calculate_pw_test_lsd
              CALL pw_pool_give_back_pw(pw_pool,vxc_to_deriv(ispin)%pw,error=error)
 
              IF (dft_control%xc_deriv_method_id/=xc_deriv_pw&
-                  !FM .and. dft_control%xc_deriv_method_id/=xc_deriv_fd&
+                  .AND. dft_control%xc_deriv_method_id/=xc_deriv_fd&
                 ) THEN
                 CALL pw_spline_scale_deriv(pw_to_deriv, cell=cell,&
                      transpose=.TRUE.,&
@@ -2391,16 +2390,13 @@ END SUBROUTINE xc_calculate_pw_test_lsd
                            pw_out=vxc(ispin)%pw,coeffs=nn10_deriv_coeffs,&
                            idir=idir, error=error )
                    CASE (xc_deriv_fd)
-                      CALL pw_derive_fd_mine  ( pw_in=pw_to_deriv(idir)%pw,&
-                           pw_out=vxc(ispin)%pw,&
-                           idir=idir, error=error )
-!FM                      CALL pw_pool_create_pw(pw_pool, tmp_r,&
-!FM                           use_data=REALDATA3D, in_space=REALSPACE,&
-!FM                           error=error)
-!FM                      CALL pw_derive_fd(pw_to_deriv(idir)%pw,&
-!FM                           tmp_r,nd(:,idir))
-!FM                      CALL pw_sumup(tmp_r,vxc(ispin)%pw)
-!FM                      CALL pw_pool_give_back_pw(pw_pool,tmp_r,error=error)
+                      CALL pw_pool_create_pw(pw_pool, tmp_r,&
+                           use_data=REALDATA3D, in_space=REALSPACE,&
+                           error=error)
+                      CALL pw_derive_fd(pw_to_deriv(idir)%pw,&
+                           tmp_r,nd(:,idir))
+                      CALL pw_sumup(tmp_r,vxc(ispin)%pw)
+                      CALL pw_pool_give_back_pw(pw_pool,tmp_r,error=error)
                    CASE default
                       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
                    END SELECT

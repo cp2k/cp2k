@@ -205,7 +205,7 @@ contains
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='xb88_lda_eval',&
          routineP=moduleN//':'//routineN
-    INTEGER :: npoints
+    INTEGER :: npoints, handle
     integer, DIMENSION(:,:), pointer :: bo
     REAL(kind=dp),DIMENSION(:,:,:), POINTER :: dummy,rho, rho_1_3, norm_drho,&
          e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
@@ -215,6 +215,7 @@ contains
     REAL(kind=dp) :: epsilon_rho, epsilon_norm_drho
     INTEGER :: stat
 
+    call timeset(routineN,"I","",handle)
     failure=.false.
     nullify(bo)
 
@@ -309,6 +310,7 @@ contains
           nullify(dummy)
        END IF
     END IF
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE xb88_lda_eval
   !***************************************************************************
 
@@ -778,7 +780,7 @@ contains
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lsd_eval', &
          routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ispin, npoints, stat
+    INTEGER                                  :: i, ispin, npoints, stat, handle
     INTEGER, DIMENSION(:, :), pointer        :: bo
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_drho, epsilon_rho
@@ -789,6 +791,7 @@ contains
          e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho, rho_1_3
     TYPE(xc_derivative_type), POINTER        :: deriv
 
+    call timeset(routineN,"I","",handle)
     failure=.false.
     NULLIFY(deriv, bo)
     DO i=1,2
@@ -924,6 +927,7 @@ contains
           NULLIFY(dummy)
        END IF
     END IF
+    CALL timestop(0.0_dp,handle)
     
   END SUBROUTINE xb88_lsd_eval
   !***************************************************************************
