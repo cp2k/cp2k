@@ -882,10 +882,11 @@ END SUBROUTINE qs_ks_did_change
         IF (dft_control%use_kinetic_energy_density) THEN
             tau_xc_energy=0.0_dp
             DO i=1,SIZE(v_tau_rspace)
-               tau_xc_energy=tau_xc_energy+0.5_dp*1.0D-2*v_tau_rspace(i)%pw%pw_grid%dvol* &
+               tau_xc_energy=tau_xc_energy+0.5_dp*4.0D-2*v_tau_rspace(i)%pw%pw_grid%dvol* &
                                 SUM(rho_struct%tau_r(i)%pw%cr3d(:,:,:)**2)
-               v_tau_rspace(i)%pw%cr3d=1.0D-2*rho_struct%tau_r(i)%pw%cr3d 
+               v_tau_rspace(i)%pw%cr3d=4.0D-2*rho_struct%tau_r(i)%pw%cr3d 
             ENDDO
+            CALL mp_sum(tau_xc_energy,qs_env%para_env%group)
             write(6,*) "tau xc energy ",tau_xc_energy
             energy%exc=energy%exc+tau_xc_energy
         ENDIF
