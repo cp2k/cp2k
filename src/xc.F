@@ -31,6 +31,8 @@ MODULE xc
                                              coeff_type
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type,&
+                                             tddfpt_control_type,&
+                                             tddfpt_singlet,&
                                              xc_control_type,&
                                              xc_debug_new_routine,&
                                              xc_deriv_fd,&
@@ -2213,17 +2215,21 @@ END FUNCTION xc_exc_calc
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_p_type)                          :: tmp_t, v_drho
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: tmp_a, tmp_b, tmp_r, tmp_r2
+    TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
     TYPE(xc_control_type)                    :: xc_control
     TYPE(xc_derivative_type), POINTER        :: deriv_att
     TYPE(xc_rho_cflags_type)                 :: needs
+    
 
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
-    NULLIFY(tmp_r, tmp_r2, tmp_a, tmp_b, e_drhoa, e_drhob, e_norm_drho)
+    NULLIFY(tmp_r, tmp_r2, tmp_a, tmp_b, e_drhoa, e_drhob, e_norm_drho,&
+            tddfpt_control)
     logger => cp_error_get_logger(error)
     ionode = (logger%para_env%mepos==logger%para_env%source)
     output_unit = cp_logger_get_default_unit_nr(logger)
+    tddfpt_control => dft_control%tddfpt_control
 
     my_gapw = .FALSE.
     IF (PRESENT(gapw)) my_gapw = gapw
@@ -2244,7 +2250,7 @@ END FUNCTION xc_exc_calc
        lsd = (nspins /= 1)
        xc_control = dft_control%xc_control
        IF (dft_control%do_tddfpt_calculation) THEN
-          xc_control = dft_control%tddfpt_control%xc_control
+          xc_control = tddfpt_control%xc_control
           lsd = .TRUE.
        END IF
 
@@ -2362,7 +2368,7 @@ END FUNCTION xc_exc_calc
                            deriv_data(i,j,k) * rho1a(i,j,k) !##
                    ELSE
                       fac = 2.0_dp
-                      IF (dft_control%tddfpt_control%res_etype /= "SINGLET") fac = -2.0_dp
+                      IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -2.0_dp
                       v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
                            fac * deriv_data(i,j,k) * rho1b(i,j,k) !##
                    END IF
@@ -2444,7 +2450,7 @@ END FUNCTION xc_exc_calc
                            deriv_data(i,j,k) * rho1a(i,j,k) !##
                    ELSE
                       fac = 2.0_dp
-                      IF (dft_control%tddfpt_control%res_etype /= "SINGLET") fac = -2.0_dp
+                      IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -2.0_dp
                       v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
                            fac * deriv_data(i,j,k) * dr1dr !##
                    END IF
@@ -2473,7 +2479,7 @@ END FUNCTION xc_exc_calc
                            deriv_data(i,j,k) * rho1b(i,j,k) !##
                    ELSE
                       fac = 2.0_dp
-                      IF (dft_control%tddfpt_control%res_etype /= "SINGLET") fac = -2.0_dp
+                      IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -2.0_dp
                       tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
                            fac * deriv_data(i,j,k) * rho1b(i,j,k) !##
                    END IF
@@ -2510,7 +2516,7 @@ END FUNCTION xc_exc_calc
                            deriv_data(i,j,k) * rho1a(i,j,k) !##
                    ELSE
                       fac = 2.0_dp
-                      IF (dft_control%tddfpt_control%res_etype /= "SINGLET") fac = -2.0_dp
+                      IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -2.0_dp
                       dr1dr=0._dp
                       DO idir=1,3
                          dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
@@ -2566,7 +2572,7 @@ END FUNCTION xc_exc_calc
                            deriv_data(i,j,k) * dr1dr !##
                    ELSE
                       fac = 2.0_dp
-                      IF (dft_control%tddfpt_control%res_etype /= "SINGLET") fac = -2.0_dp
+                      IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -2.0_dp
                       dr1dr=0._dp
                       DO idir=1,3
                          dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
@@ -2618,7 +2624,7 @@ END FUNCTION xc_exc_calc
                            deriv_data(i,j,k) * rho1b(i,j,k) !##
                    ELSE
                       fac = 2.0_dp
-                      IF (dft_control%tddfpt_control%res_etype /= "SINGLET") fac = -2.0_dp
+                      IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -2.0_dp
                       tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
                            fac * deriv_data(i,j,k) * rho1b(i,j,k) !##
                    END IF
@@ -2663,7 +2669,7 @@ END FUNCTION xc_exc_calc
                            deriv_data(i,j,k) * dr1dr !##
                    ELSE
                       fac = 2.0_dp
-                      IF (dft_control%tddfpt_control%res_etype /= "SINGLET") fac = -2.0_dp
+                      IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -2.0_dp
                       dr1dr=0._dp
                       DO idir=1,3
                          dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
@@ -2747,7 +2753,7 @@ END FUNCTION xc_exc_calc
                            deriv_data(i,j,k) * dr1dr !##
                    ELSE
                       fac = 2.0_dp
-                      IF (dft_control%tddfpt_control%res_etype /= "SINGLET") fac = -2.0_dp
+                      IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -2.0_dp
                       tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
                            fac * deriv_data(i,j,k) * dr1dr !##
                    END IF
@@ -2835,7 +2841,7 @@ END FUNCTION xc_exc_calc
                            deriv_data(i,j,k) * dr1dr !##
                    ELSE
                       fac = 2.0_dp
-                      IF (dft_control%tddfpt_control%res_etype /= "SINGLET") fac = -2.0_dp
+                      IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -2.0_dp
                       dr1dr=0._dp
                       DO idir=1,3
                          dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
@@ -2894,7 +2900,7 @@ END FUNCTION xc_exc_calc
                               e_norm_drho(i,1,1) * drho1a(idir)%array(i,1,1)
                       ELSE
                          fac = 2.0_dp
-                         IF (dft_control%tddfpt_control%res_etype /= "SINGLET") fac = -2.0_dp
+                         IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -2.0_dp
                          vxg(idir,i,ir,1) = vxg(idir,i,ir,1) - &
                               fac * e_norm_drho(i,1,1) * drho1b(idir)%array(i,1,1)                         
                       END IF
@@ -2940,7 +2946,7 @@ END FUNCTION xc_exc_calc
                                     e_norm_drho(i,j,k) * drho1a(idir)%array(i,j,k)
                             ELSE
                                fac = 2.0_dp
-                               IF (dft_control%tddfpt_control%res_etype /= "SINGLET") fac = -2.0_dp
+                               IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -2.0_dp
                                tmp_r(1)%pw%cr3d(i,j,k) = tmp_r(1)%pw%cr3d(i,j,k) - &
                                     fac * e_norm_drho(i,j,k) * drho1b(idir)%array(i,j,k)                         
                             END IF

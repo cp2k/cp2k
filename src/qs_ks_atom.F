@@ -27,6 +27,7 @@ MODULE qs_ks_atom
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_control_types,                ONLY: tddfpt_singlet
   USE cp_error_handling,               ONLY: cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level
   USE hartree_local_types,             ONLY: ecoul_1center_type,&
@@ -140,7 +141,7 @@ CONTAINS
     factor = 1.0_dp
     IF (my_tddft) THEN
        IF (qs_env%dft_control%nspins == 1) THEN
-          IF (qs_env%dft_control%tddfpt_control%res_etype == "SINGLETS") THEN
+          IF (qs_env%dft_control%tddfpt_control%res_etype == tddfpt_singlet) THEN
              factor = 2.0_dp
           ELSE
              factor = 0.0_dp

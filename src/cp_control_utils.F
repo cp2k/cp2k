@@ -18,8 +18,15 @@ MODULE cp_control_utils
   USE cp_control_types,                ONLY: dft_control_create,&
                                              dft_control_type,&
                                              gapw_control_create,&
+                                             oe_none,&
+                                             oe_saop,&
+                                             oe_sic,&
                                              qs_control_type,&
                                              tddfpt_control_type,&
+                                             tddfpt_davidson,&
+                                             tddfpt_lanczos,&
+                                             tddfpt_singlet,&
+                                             tddfpt_triplet,&
                                              wave_control_type,&
                                              xc_debug_new_routine,&
                                              xc_deriv_fd,&
@@ -1107,16 +1114,11 @@ CONTAINS
     CHARACTER(LEN=60)                        :: field, keyword
     LOGICAL                                  :: section_found
 
-! -------------------------------------------------------------------
-!----------------!
-! do the parsing !
-!----------------!
-
     section_found = .FALSE.
         CALL start_parser(file_name=glob_env%input_file_name,&
-                      globenv=glob_env,&
-                      start_section_label="TDDFPT",&
-                      section_found=section_found)
+                          globenv=glob_env,&
+                          start_section_label="TDDFPT",&
+                          section_found=section_found)
 
     DO WHILE (section_found.AND.(test_object(newline=.TRUE.) /= "EOS"))
 
@@ -1143,7 +1145,8 @@ CONTAINS
           CASE ("N", "NO")
              t_control%do_kernel = .FALSE.
           CASE DEFAULT
-             t_control%do_kernel = .TRUE.
+               CALL stop_parser(routineP, "unknown option <"//TRIM(field)&
+                    &//"> for keyword KERNEL")
           END SELECT
 
        CASE ("INVERT_S", "INV_S", "S-1")
@@ -1154,7 +1157,8 @@ CONTAINS
           CASE ("N", "NO")
              t_control%invert_S = .FALSE.
           CASE DEFAULT
-             t_control%invert_S = .TRUE.
+               CALL stop_parser(routineP, "unknown option <"//TRIM(field)&
+                    &//"> for keyword INVERT_S")
           END SELECT
 
        CASE ("RES_ETYPE", &
@@ -1162,22 +1166,24 @@ CONTAINS
           CALL read_object(field, lower_to_upper=.TRUE.)
           SELECT CASE (TRIM(field))
           CASE ("SINGLET", "SINGLETS", "S")
-             t_control%res_etype = "SINGLET"
+             t_control%res_etype = tddfpt_singlet
           CASE ("TRIPLET", "TRIPLETS", "T")
-             t_control%res_etype = "TRIPLET"
+             t_control%res_etype = tddfpt_triplet
           CASE DEFAULT
-             t_control%res_etype = "SINGLET"
+               CALL stop_parser(routineP, "unknown option <"//TRIM(field)&
+                    &//"> for keyword RES_ETYPE")
           END SELECT
 
        CASE ("DIAG_METHOD")
           CALL read_object(field, lower_to_upper=.TRUE.)
           SELECT CASE (TRIM(field))
-          CASE ("DAVIDSON")
-             t_control%diag_method = "DAVIDSON"
           CASE ("LANCZOS")
-             t_control%diag_method = "LANCZOS"
+             t_control%diag_method = tddfpt_lanczos
+          CASE ("DAVIDSON")
+             t_control%diag_method = tddfpt_davidson
           CASE DEFAULT
-             t_control%diag_method = "LANCZOS"
+               CALL stop_parser(routineP, "unknown option <"//TRIM(field)&
+                    &//"> for keyword DIAG_METHOD")
           END SELECT
 
        CASE ("EXCHANGE-CORRELATION-FUNCTIONAL","XC-FUNCTIONAL","XC-FUN",&
@@ -1206,12 +1212,35 @@ CONTAINS
           CALL read_object(field, lower_to_upper=.TRUE.)
           SELECT CASE (TRIM(field))
           CASE ("NONE")
-             t_control%oe_corr = "NONE"
+             t_control%oe_corr = oe_none
           CASE ("SAOP")
-             t_control%oe_corr = "SAOP"
+             t_control%oe_corr = oe_saop
+          CASE ("SIC")
+             t_control%oe_corr = oe_sic
           CASE DEFAULT
-             t_control%oe_corr = "NONE"
+               CALL stop_parser(routineP, "unknown option <"//TRIM(field)&
+                    &//"> for keyword OE_CORR")
           END SELECT
+
+       CASE ("SIC")
+          CALL read_object(field,lower_to_upper=.TRUE.)
+          SELECT CASE (TRIM(field))
+          CASE ("NONE")
+             t_control%sic_method_id=sic_none
+          CASE ("MAURI_US")
+             t_control%sic_method_id=sic_mauri_us
+          CASE ("MAURI_SPZ")
+             t_control%sic_method_id=sic_mauri_spz
+          CASE ("AD")
+             t_control%sic_method_id=sic_ad
+          CASE DEFAULT
+               CALL stop_parser(routineP, "unknown option <"//TRIM(field)&
+                    &//"> for keyword SIC")
+          END SELECT
+       CASE ("SIC_SCALING_A")
+          CALL read_object(t_control%sic_scaling_a)
+       CASE ("SIC_SCALING_B")
+          CALL read_object(t_control%sic_scaling_b)
 
        CASE DEFAULT
           CALL stop_parser(routineP, "unrecognized option <"//TRIM(keyword)//">")

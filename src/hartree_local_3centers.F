@@ -22,6 +22,7 @@ MODULE  hartree_local_3centers
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_control_types,                ONLY: tddfpt_singlet
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_message,&
@@ -182,7 +183,7 @@ MODULE  hartree_local_3centers
     fac = 1.0_dp
     IF (my_tddft) THEN
        IF (qs_env%dft_control%nspins == 1) THEN
-          IF (qs_env%dft_control%tddfpt_control%res_etype == "SINGLETS") THEN
+          IF (qs_env%dft_control%tddfpt_control%res_etype == tddfpt_singlet) THEN
              fac = 2.0_dp
           ELSE
              fac = 0.0_dp

@@ -33,6 +33,7 @@ MODULE qs_kpp1_env_methods
                                              coeff_transform_space,&
                                              coeff_type
   USE cp_control_types,                ONLY: dft_control_type,&
+                                             tddfpt_singlet,&
                                              xc_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
@@ -328,7 +329,7 @@ CONTAINS
        CALL print_densities(kpp1_env, rho1, rho1_tot_gspace, error=error)
 
        IF (.NOT.(dft_control%do_tddfpt_calculation .AND. &
-           dft_control%tddfpt_control%res_etype == "TRIPLET" )) THEN
+           dft_control%tddfpt_control%res_etype /= tddfpt_singlet )) THEN
           CALL init_pw_poisson_solver(cell%green,error=error)
           CALL calculate_hartree(rho1_tot_gspace, &
                                  energy_hartree, & 
@@ -449,7 +450,7 @@ CONTAINS
                            v_rspace_new(ispin)%pw%cr3d,1)
 
           IF (dft_control%do_tddfpt_calculation .AND. nspins==1) THEN
-             IF (dft_control%tddfpt_control%res_etype == "SINGLET") THEN
+             IF (dft_control%tddfpt_control%res_etype == tddfpt_singlet) THEN
                 ! add 2 times the hartree term in the singlet case
                 CALL daxpy(ntot, 2.0_dp, &
                      v_hartree_rspace%pw%cr3d, 1, v_rspace_new(ispin)%pw%cr3d, 1)

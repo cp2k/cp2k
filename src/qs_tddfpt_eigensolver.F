@@ -18,6 +18,9 @@
 !!     
 !!****
 MODULE qs_tddfpt_eigensolver
+  USE cp_control_types,                ONLY: tddfpt_control_type,&
+                                             tddfpt_davidson,&
+                                             tddfpt_lanczos
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                              cp_fm_symm,&
                                              cp_fm_scale_and_add,&
@@ -43,7 +46,8 @@ MODULE qs_tddfpt_eigensolver
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE physcon,                         ONLY: evolt
-  USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_environment_types,            ONLY: qs_environment_type,&
+                                             get_qs_env
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_p_env_methods,                ONLY: p_op_l1,&
                                              p_op_l2,&
@@ -112,12 +116,14 @@ CONTAINS
       DIMENSION(:), POINTER                  :: kv_fm_struct
     TYPE(cp_fm_p_type)                       :: Atilde, Us
     TYPE(cp_fm_struct_type), POINTER         :: tilde_fm_struct, Us_fm_struct
+    TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
 
     CALL timeset(routineN,"I","",handle)
-    NULLIFY(ao_mo_fm_pools, X, R, b, Ab, Sb )
-    n_ev      = qs_env%dft_control%tddfpt_control%n_ev
+    NULLIFY(ao_mo_fm_pools, X, R, b, Ab, Sb, tddfpt_control)
+    CALL get_qs_env(qs_env, tddfpt_control=tddfpt_control)
+    n_ev      = tddfpt_control%n_ev
     n_spins   = qs_env%dft_control%nspins
-    n_reortho = qs_env%dft_control%tddfpt_control%n_reortho
+    n_reortho = tddfpt_control%n_reortho
     iter = 1
     DO spin=1, n_spins
        CALL get_matrix_info(qs_env%matrix_ks(spin)%matrix, nrow=K_rows)
@@ -258,7 +264,7 @@ CONTAINS
        CALL allocate_krylov_vectors(Ab, "Ab-", iter, n_kv, n_spins, kv_fm_struct)
        CALL allocate_krylov_vectors(Sb, "Sb-", iter, n_kv, n_spins, kv_fm_struct)
        DO i=(iter-1)*n_kv+1, iter*n_kv
-          IF (qs_env%dft_control%tddfpt_control%diag_method .EQ. "DAVIDSON") THEN
+          IF (tddfpt_control%diag_method .EQ. tddfpt_davidson) THEN
              DO spin=1, n_spins
                 CALL cp_fm_set_all(b(i,spin)%matrix, 0.0_dbl)
                 DO j=1, n_kv
@@ -275,16 +281,16 @@ CONTAINS
                       CALL cp_fm_set_element(b(i,spin)%matrix, row, col, tmp)
                    END DO
                 END DO
-                IF (qs_env%dft_control%tddfpt_control%invert_S) THEN
+                IF (tddfpt_control%invert_S) THEN
                    CALL cp_fm_to_fm(b(i,spin)%matrix, R(spin)%matrix)
                    CALL cp_fm_symm('L', 'U', p_env%n_ao(spin), p_env%n_mo(spin), &
                         1.0_dbl, t_env%invS(spin)%matrix, R(spin)%matrix, &
                         0.0_dbl, b(i,spin)%matrix)
                 END IF
              END DO
-          ELSE IF (qs_env%dft_control%tddfpt_control%diag_method .EQ. "LANCZOS") THEN
+          ELSE IF (tddfpt_control%diag_method .EQ. tddfpt_lanczos) THEN
              DO spin=1, n_spins
-                IF (qs_env%dft_control%tddfpt_control%invert_S) THEN
+                IF (tddfpt_control%invert_S) THEN
                    CALL cp_fm_symm('L', 'U', p_env%n_ao(spin), p_env%n_mo(spin), &
                         1.0_dbl, t_env%invS(spin)%matrix, Ab(i-n_kv,spin)%matrix, &
                         0.0_dbl, b(i,spin)%matrix)
@@ -292,8 +298,6 @@ CONTAINS
                    CALL cp_fm_to_fm(Ab(i-n_kv,spin)%matrix, b(i,spin)%matrix)
                 END IF
              END DO
-          ELSE
-             CALL stop_program(routineP, "Unknown method :"//TRIM(qs_env%dft_control%tddfpt_control%diag_method));
           END IF
           DO j=1, n_reortho
              CALL p_preortho(p_env, qs_env, b(i,:))

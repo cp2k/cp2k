@@ -21,7 +21,12 @@ MODULE qs_tddfpt_module
 
   USE cp_control_utils,                ONLY: read_tddfpt_control,&
                                              xc_get_functional
-  USE cp_control_types,                ONLY: tddfpt_control_type,&
+  USE cp_control_types,                ONLY: dft_control_type,&
+                                             oe_none,&
+                                             sic_none,&
+                                             tddfpt_control_type,&
+                                             tddfpt_singlet,&
+                                             tddfpt_lanczos,&
                                              xc_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
@@ -113,14 +118,15 @@ CONTAINS
     tddfpt_control%n_reortho = 2
     tddfpt_control%do_kernel = .TRUE.
     tddfpt_control%invert_S = .TRUE.
-    tddfpt_control%res_etype = "SINGLET"
-    tddfpt_control%diag_method = "DAVIDSON"
-    tddfpt_control%oe_corr = "NONE"
+    tddfpt_control%res_etype = tddfpt_singlet
+    tddfpt_control%diag_method = tddfpt_lanczos
+    tddfpt_control%oe_corr = oe_none
+    tddfpt_control%sic_method_id = sic_none
     tddfpt_control%xc_control = qs_env%dft_control%xc_control
 
     CALL read_tddfpt_control(tddfpt_control, glob_env)
 
-    IF (tddfpt_control%oe_corr /= "NONE") THEN
+    IF (tddfpt_control%oe_corr /= oe_none) THEN
        CALL orbital_eigenvalue_correction(qs_env, glob_env, error)
     END IF
     
@@ -163,6 +169,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(global_environment_type), POINTER   :: my_glob_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(xc_control_type), POINTER           :: xc_control
 
@@ -176,7 +183,8 @@ CONTAINS
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)    
     
     failure = .FALSE.
-    NULLIFY(logger, my_glob_env, scf_env, scf_control, xc_control)
+    NULLIFY(logger, my_glob_env, scf_env, &
+            dft_control, scf_control, xc_control)
     my_glob_env => glob_env
     logger => cp_error_get_logger(error)
     ionode = (logger%para_env%mepos==logger%para_env%source)
@@ -190,8 +198,9 @@ CONTAINS
        ""    
     END IF
 
-    CALL get_qs_env(qs_env, scf_env=scf_env, scf_control=scf_control)
-    xc_control => qs_env%dft_control%xc_control
+    CALL get_qs_env(qs_env, scf_env=scf_env, dft_control=dft_control, &
+                    scf_control=scf_control)
+    xc_control => dft_control%xc_control
 
     !-----------------------!
     ! set parameters for OE !

@@ -173,10 +173,12 @@ MODULE cp_control_types
      INTEGER                                   :: n_reortho
      LOGICAL                                   :: do_kernel
      LOGICAL                                   :: invert_S
-     CHARACTER(LEN=7)                          :: res_etype
-     CHARACTER(LEN=8)                          :: diag_method
-     CHARACTER(LEN=4)                          :: oe_corr
-     REAL(KIND = dp), DIMENSION(:,:), POINTER    :: lumos_eigenvalues
+     INTEGER                                   :: res_etype
+     INTEGER                                   :: diag_method
+     INTEGER                                   :: oe_corr
+     INTEGER                                   :: sic_method_id
+     REAL(KIND=dp)                             :: sic_scaling_a,sic_scaling_b
+     REAL(KIND = dp), DIMENSION(:,:), POINTER  :: lumos_eigenvalues
   END TYPE tddfpt_control_type
 
   ! *** Control parameters for a DFT calculation ***
@@ -228,6 +230,10 @@ MODULE cp_control_types
   INTEGER, PARAMETER, PUBLIC :: xc_old_f_routine=0, xc_new_f_routine=1,&
        xc_test_lsd_f_routine=3, xc_debug_new_routine=4
   INTEGER, PARAMETER, PUBLIC :: sic_none=0, sic_mauri_us=1, sic_mauri_spz=2, sic_ad=3
+  INTEGER, PARAMETER, PUBLIC :: tddfpt_singlet=0, tddfpt_triplet=1
+  INTEGER, PARAMETER, PUBLIC :: tddfpt_lanczos=0, tddfpt_davidson=1
+  INTEGER, PARAMETER, PUBLIC :: oe_none=0, oe_saop=1, oe_sic=2
+  
 
 ! *** Public subroutines ***
 
@@ -467,7 +473,7 @@ SUBROUTINE tddfpt_control_init(tddfpt_control, error)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-  NULLIFY(tddfpt_control%lumos,tddfpt_control%lumos_eigenvalues)
+    NULLIFY(tddfpt_control%lumos,tddfpt_control%lumos_eigenvalues)
 END SUBROUTINE tddfpt_control_init
 
 SUBROUTINE tddfpt_control_dealloc_ref(tddfpt_control, error)
