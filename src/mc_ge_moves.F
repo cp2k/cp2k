@@ -961,8 +961,6 @@ CONTAINS
                old_energy(ibox)=new_energy(ibox)
 
 ! if we're biasing classically, then we update the classical energy
-               WRITE(6,*) 'nvoie ',moves(ibox)%moves%classical_energy,&
-                  classical_energy_new(ibox)
                IF ( lclassical) &
                   moves(ibox)%moves%classical_energy=&
                   classical_energy_new(ibox)
