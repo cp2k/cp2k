@@ -1433,17 +1433,33 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
 END SUBROUTINE qs_vxc_create
 
 ! *****************************************************************************
-
+!!****f* qs_ks_methods/calculate_w_matrix_1 [1.0] *
+!!
+!!    NAME
+!!      calculate_w_matrix_1
+!!
+!!    FUNCTION
+!!      Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
+!!      and the MO occupation numbers. Only works if they are eigenstates
+!!
+!!    NOTE
+!!      -
+!!
+!!    INPUTS
+!!       mo_set : type containing the full matrix of the MO and the eigenvalues
+!!       w_matrix : sparse matrix 
+!!       error
+!!
+!!    AUTHOR
+!!       MK
+!!
+!!    MODIFICATION HISTORY
+!!        Creation (03.03.03,MK)
+!!        Modification that computes it as a full block, several times (e.g. 20) 
+!!              faster at the cost of some additional memory
+!!
+!!*** *************************************************************************
   SUBROUTINE calculate_w_matrix_1(mo_set,w_matrix,error)
-
-!   Purpose: Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
-!            and the MO occupation numbers. Only works if they are eigenstates
-
-!   History: - Creation (03.03.03,MK)
-!            - Modification that computes it as a full block, several times (e.g. 20) 
-!              faster at the cost of some additional memory
-
-!   ***************************************************************************
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(real_matrix_type), POINTER          :: w_matrix
@@ -1489,13 +1505,34 @@ END SUBROUTINE qs_vxc_create
   END SUBROUTINE calculate_w_matrix_1
 
 ! *****************************************************************************
-
+!!****f* qs_ks_methods/calculate_w_matrix_2 [1.0] *
+!!
+!!    NAME
+!!      calculate_w_matrix_2
+!!
+!!    FUNCTION
+!!      Calculate the W matrix from the MO coefs, MO derivs 
+!!       could overwrite the mo_derivs for increased memory efficiency
+!!
+!!    NOTE
+!!      -
+!!
+!!    INPUTS
+!!       mo_set : type containing the full matrix of the MO coefs
+!!       mo_deriv:
+!!       w_matrix : sparse matrix 
+!!       s_matrix: sparse matrix for the overlap
+!!       error
+!!
+!!    AUTHOR
+!!       MK
+!!
+!!    MODIFICATION HISTORY
+!!        Creation (JV)
+!!
+!!*** *************************************************************************
+  
   SUBROUTINE calculate_w_matrix_2(mo_set,mo_deriv,w_matrix,s_matrix,error)
-
-!   Purpose: Calculate the W matrix from the MO coefs, MO derivs [Joost VandeVondele]
-!   could overwrite the mo_derivs for increased memory efficiency
-
-!   ***************************************************************************
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(real_matrix_type), POINTER          :: w_matrix,s_matrix

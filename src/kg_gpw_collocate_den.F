@@ -754,7 +754,7 @@ CONTAINS
       routineP = module_name//':'//routineN
 
 
-    INTEGER :: auxbas_grid, bcol, brow, curr_tasks, first_pgfb, first_setb, &
+    INTEGER :: auxbas_grid, bcol, brow, curr_tasks,  &
                handle, i, iat, iatom, igrid_level,&
                ijsets, ikind, ikind_old, ipgf, iset, istat, itask, ithread, jat, jatom, &
                jkind, jkind_old, jpgf, jset, maxco, maxsgf, maxsgf_set,&
@@ -1038,13 +1038,8 @@ CONTAINS
 
             IF (set_radius_a(iset) + kind_radius_b < dab) CYCLE
 
-            IF (iatom == jatom) THEN
-               first_setb = iset
-            ELSE
-               first_setb = 1
-            END IF
 
-            DO jset=first_setb,nsetb
+            DO jset=1,nsetb
 
               IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
 
@@ -1052,13 +1047,8 @@ CONTAINS
 
                 IF (rpgfa(ipgf,iset) + set_radius_b(jset) < dab) CYCLE
 
-                IF ((iatom == jatom).AND.(iset == jset)) THEN
-                  first_pgfb = ipgf
-                ELSE
-                  first_pgfb = 1
-                END IF
 
-                DO jpgf=first_pgfb,npgfb(jset)
+                DO jpgf=1,npgfb(jset)
 
                   IF (rpgfa(ipgf,iset) + rpgfb(jpgf,jset) < dab) CYCLE
 
@@ -1249,7 +1239,7 @@ CONTAINS
                            sphi_b(1,sgfb),SIZE(sphi_b,1),&
                            0.0_dp,work(1,1),SIZE(work,1))
                 CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
-                           1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                           -1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                            work(1,1),SIZE(work,1),&
                            1.0_dp,h_block(sgfa,sgfb),SIZE(h_block,1))
               ELSE
@@ -1258,7 +1248,7 @@ CONTAINS
                            sphi_a(1,sgfa),SIZE(sphi_a,1),&
                            0.0_dp,work(1,1),SIZE(work,1))
                 CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncob,&
-                           1.0_dp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                           -1.0_dp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
                            work(1,1),SIZE(work,1),&
                            1.0_dp,h_block(sgfb,sgfa),SIZE(h_block,1))
               END IF

@@ -61,6 +61,8 @@ MODULE kg_force
                                              kg_environment_type
   USE kg_force_types,                  ONLY: init_kg_force,&
                                              kg_force_type
+  USE kg_gpw_fm_mol_types,             ONLY: kg_fm_p_type
+  USE kg_gpw_fm_mol_utils,             ONLY: calculate_w_matrix_per_molecule
   USE kg_intra,                        ONLY: calculate_ebond_corr
   USE kg_kxc,                          ONLY: calculate_kxc_derivatives
   USE kg_neighbor_lists,               ONLY: build_kg_neighbor_lists
@@ -824,6 +826,7 @@ END SUBROUTINE kg_calculate_forces
       POINTER                                :: atomic_kind_set
     TYPE(cp_error_type)                      :: error
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
@@ -844,8 +847,8 @@ END SUBROUTINE kg_calculate_forces
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(kg_env),cp_failure_level,routineP,error,failure)
 
-    NULLIFY( qs_env )
-    CALL get_kg_env(kg_env=kg_env, sub_qs_env=qs_env, error=error)
+    NULLIFY( qs_env , kg_fm )
+    CALL get_kg_env(kg_env=kg_env, sub_qs_env=qs_env, kg_fm_set=kg_fm, error=error)
 
     NULLIFY (atomic_kind_set)
     NULLIFY (dft_control)
@@ -909,6 +912,8 @@ END SUBROUTINE kg_calculate_forces
             CALL stop_program(routineP,"KG_GPW is not implemented with  OT method")
          ELSE
          ! Here I should construct the W matrix starting from the molecukar mos
+           CALL calculate_w_matrix_per_molecule(kg_fm%kg_fm_mol_set,&
+                                  matrix_w(ispin)%matrix,ispin,error=error)
          END IF
       END IF
       IF (globenv%print%w_matrix) THEN

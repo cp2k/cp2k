@@ -267,6 +267,8 @@ CONTAINS
              CALL force_env_release(force_env, error=error)
           ELSE IF(globenv%program_name=="KG") THEN
              SELECT CASE (globenv%run_type)
+             CASE ("GEOMETRY OPTIMIZATION")
+                CALL qs_geo_opt(force_env,globenv,error=error)
              CASE ("MOLECULAR DYNAMICS")
                 CALL qs_mol_dyn ( force_env, globenv, error=error )
              CASE ("WAVEFUNCTION OPTIMIZATION","ENERGY CALCULATION")

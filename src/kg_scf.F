@@ -171,6 +171,9 @@ CONTAINS
 !!   NAME
 !!     kg_scf_env_create
 !!
+!!   FUNCTION
+!!     create the scf environment for a KG GPW calculation
+!!
 !!   AUTHOR
 !!     fawzi/jgh
 !!
@@ -283,16 +286,34 @@ CONTAINS
      END IF
   END SUBROUTINE kg_qs_scf
 !***************************************************************************
-
 !!****f* kg_scf/scf_env_do_scf [1.0] *
 !!
 !!   NAME
 !!     scf_env_do_scf
 !!
+!!   FUNCTION
+!!     Driver for the scf iterations in a KG_GPW calculation
+!!     After the block diagonal density matrix has been constructed
+!!     the standard routines for a GPW calculation are called in order
+!!     to build the KS matrix (also block diagonal)
+!!     The Diagonalization is then performed block by block
+!! 
+!!   NOTE
+!!     Only the standard diagonalization is implemented (no OT or special_diago)
+!!     Read and write RESTART are not ready yet
+!!
+!!   INPUTS
+!!      scf_env : environment for a scf run
+!!      kg_env : kg environment wich contains the qs environment and
+!!               the block diagonal structires of the MO
+!!      globenv : contains i/o info and para info
+!!      error
+!!
 !!   AUTHOR
 !!     jgh (adapted from QS)
 !!
 !!   MODIFICATION HISTORY
+!!     fully activated 12-04 MI 
 !!
 !!*** **********************************************************************
   SUBROUTINE scf_env_do_scf(scf_env,kg_env,globenv,error)
@@ -763,21 +784,40 @@ CONTAINS
 
   END SUBROUTINE scf_env_do_scf
 !**************************************************************************
-
+!!****f* kg_scf/init_kgscf_run [1.0] *
+!!
+!!   NAME
+!!     init_kgscf_run
+!!
+!!   FUNCTION
+!!     Initialize the kg_env%scf_env
+!!     - allocate the ks_matrix and the ks environment
+!!                which are contained in kg_env%sub_qs_env
+!!              - allocate p_mix_new  if the ao_mixing is used (in kg_env%scf_env)
+!!              - calculate the self and overlap energies (in kg_env%sub_qs_env) 
+!!              - from the overlap matrix extract the molecular blocks and
+!!                construct the corresponding ortho matrix
+!!              - Initialize the separated blocks of the density matrix
+!!                calculated for each molecule separatedly, and
+!!                copy them in the corresponding blocks of the sparse matrix matrix_p
+!!
+!!   NOTE
+!!
+!!   INPUTS
+!!      scf_env : environment for a scf run
+!!      kg_env : kg environment wich contains the qs environment and
+!!               the block diagonal structires of the MO
+!!      globenv : contains i/o info and para info
+!!      error
+!!
+!!   AUTHOR
+!!     jgh (adapted from QS)
+!!
+!!   MODIFICATION HISTORY
+!!     fully activated 12-04 MI 
+!!*** **********************************************************************
+ 
   SUBROUTINE init_kgscf_run(scf_env,kg_env,globenv,error)
-
-!   Purpose : Initialize the kg_env%scf_env 
-!              - allocate the ks_matrix and the ks environment
-!                which are contained in kg_env%sub_qs_env
-!              - allocate p_mix_new  if the ao_mixing is used (in kg_env%scf_env)
-!              - calculate the self and overlap energies (in kg_env%sub_qs_env) 
-!              - from the overlap matrix extract the molecular blocks and
-!                construct the corresponding ortho matrix
-!              - Initialize the separated blocks of the density matrix
-!                calculated for each molecule separatedly, and
-!                copy them in the corresponding blocks of the sparse matrix matrix_p
-
-! ***************************************************************************
 
     TYPE(kg_scf_env_type), POINTER           :: scf_env
     TYPE(kg_environment_type), POINTER       :: kg_env
@@ -939,25 +979,43 @@ CONTAINS
   END SUBROUTINE init_kgscf_run
 
 !***************************************************************************
+!!****f* kg_scf/calculate_ortho_per_molecule [1.0] *
+!!
+!!   NAME
+!!     calculate_ortho_per_molecule
+!!
+!!   FUNCTION
+!!     Calculate the orthogonalization matrix for each molecule separatedly.
+!!            For a given molecule the corresponding portion of the overlap 
+!!            matrix is copied in the (n_ao x n_ao) ortho matrix , 
+!!            where n_ao is restricted to the number of  atomic orbitals 
+!!            centered on the atoms of the molecule. This matrix is then passed 
+!!            to the cholesky or the canonical orthogonalization routines. 
+!!            Each molecule, and cosequently each ortho matrix, is assigned 
+!!            to one single processor, therefore the orthogonalization operations 
+!!            are not distributed further. 
+!!   NOTE
+!!            I suppose omp can add further parallelization
+!!
+!!   INPUTS
+!!      kg_fm_mol_set: molecular blocks of the full MO matrix plus other
+!!                     useful information about each molecule
+!!                     (atoms kinds occupation numbers eigenvalues etc)
+!!      s: overlap sparse matrix
+!!      ndep : number of independent orbitas
+!!      scf_control : some parameter for the scf
+!!      do_orthogonalization: logical variable
+!!      error
+!!
+!!   AUTHOR
+!!     jgh (adapted from QS)
+!!
+!!   MODIFICATION HISTORY
+!!     fully activated 12-04 MI 
+!!*** **********************************************************************
 
   SUBROUTINE calculate_ortho_per_molecule(kg_fm_mol_set,s,ndep,scf_control,&
                                           do_orthogonalization,error)
-!
-!   Purpose: Calculate the orthogonalization matrix for each molecule
-!            separatedly.
-!            For a given molecule the corresponding portion of the overlap 
-!            matrix is copied in the (n_ao x n_ao) ortho matrix , 
-!            where n_ao is restricted to the number of  atomic orbitals 
-!            centered on the atoms of the molecule. This matrix is then passed 
-!            to the cholesky or the canonical orthogonalization routines. 
-!            Each molecule, and cosequently each ortho matrix, is assigned 
-!            to one single processor, therefore the orthogonalization operations 
-!            are not distributed further. 
-!            (I suppose omp can add further parallelization) 
-!
-!   History: - Creation (24.11.2004, MI)
-!
-!   ***************************************************************************
 
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: kg_fm_mol_set
@@ -1096,9 +1154,6 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_ortho_per_molecule
-!
-! *****************************************************************************
-!
 !! *****************************************************************************
 !
 !!!****f* qs_scf/cp_sm_mix [1.0] *
@@ -1195,6 +1250,31 @@ CONTAINS
 !  END SUBROUTINE cp_sm_mix
 !
 !! *****************************************************************************
+!!****f* kg_scf/kgscf_first_density_matrix [1.0] *
+!!
+!!   NAME
+!!     kgscf_first_density_matrix
+!!
+!!   FUNCTION
+!!     Calculate the very first density matrix 
+!!
+!!   NOTES
+!!     - RESTART and ATOMIC GUESS not yet implemented
+!!
+!!   INPUTS
+!!     - kg_fm_mol_set: the set of mos and ortho matrixes, one per each molecule 
+!!     - qs_env: the qs env that lives in kg_env
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!      MI
+!!
+!!   MODIFICATION HISTORY
+!!     11.2004 created 
+!!
+!!*************************************************************************
+
   SUBROUTINE kgscf_first_density_matrix(kg_fm_mol_set,qs_env,globenv,error)
 
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
@@ -1536,7 +1616,7 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE kgscf_first_density_matrix
-
+!!****************************************************************************
 !!****f* kg_scf/kgscf_initial_rho [1.0] *
 !!
 !!   NAME
@@ -1550,9 +1630,10 @@ CONTAINS
 !!     independently from the others.
 !!
 !!   NOTES
-!!     -
+!!     - RESTART and ATOMIC GUESS not yet implemented
+!!     - extrapolation from previous steps of MD or GEOPT not implemented yet
 !!
-!!   ARGUMENTS
+!!   INPUTS
 !!     - kg_fm_mol_set: the set of mos and ortho matrixes, one per each molecule 
 !!     - qs_env: the qs env that lives in kg_env
 !!     - error: variable to control error logging, stopping,... 
@@ -1647,7 +1728,7 @@ CONTAINS
 !!     perform cleanup operations (like releasing temporary storage)
 !!     at the end of the kg_scf
 !!
-!!   ARGUMENTS
+!!   INPUTS
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -1734,7 +1815,7 @@ CONTAINS
 !!   NOTES
 !!     -
 !!
-!!   ARGUMENTS
+!!   INPUTS
 !!     - scf_env: the scf env to inform
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 

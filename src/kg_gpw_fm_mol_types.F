@@ -55,28 +55,106 @@ MODULE kg_gpw_fm_mol_types
 
 ! *** Define the derived structure types ***
 
+!!****t* kg_gpw_fm_mol_types/mol_mo_set_type [1.0] *
+!!
+!!   NAME
+!!     mol_mo_set_type
+!!
+!!   FUNCTION
+!!     contains MO for one molecule, and relative informations
+!!     used in KG_GPW method to separate the block diagonal full matrix of MO
+!!     in molecular blocks. Here also eigenvalues and occupation numbers 
+!!     relative to one molecule are stored
+!!
+!!   NOTES
+!!      -
+!!   
+!!   ATTRIBUTES
+!!     - mo :  the actual MO coefficients as a matrix for one molecule
+!!     - nmo :  number of molecular orbitals (# cols in mo_coeff)
+!!     - nao : number of atomic orbitals (# rows in mo_coeff)
+!!     - eigenvalues : eigenvalues  of the nmo states 
+!!     - occupation_numbers : 
+!!     - maxocc : maximum allowed occupation number of an MO (1-2)
+!!     - nelectron : number of electrons (taking occupation into account)
+!!     - homo:  highest non-zero occupied orbital
+!!     - lfomo: lowest non maxocc occupied orbital (e.g. fractional or zero)
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     11.2004 created [MI]
+!!
+!!*** *********************************************************************
+
  TYPE mol_mo_set_type
-    ! the actual MO coefficients as a matrix
     REAL(dp), DIMENSION(:,:),  POINTER        :: mo
-    ! number of molecular orbitals (# cols in mo_coeff)
     INTEGER                                   :: nmo
-    ! number of atomic orbitals (# rows in mo_coeff)
     INTEGER                                   :: nao
-    ! occupation - eigenvalues  of the nmo states (if eigenstates)
     REAL(KIND = dp), DIMENSION(:), POINTER    :: eigenvalues,occupation_numbers
-    ! maximum allowed occupation number of an MO (1-2)
     REAL(KIND = dp)                           :: maxocc
-    ! number of electrons (taking occupation into account)
     INTEGER                                   :: nelectron
-    ! highest non-zero occupied orbital
     INTEGER                                   :: homo
-    ! lowest non maxocc occupied orbital (e.g. fractional or zero)
     INTEGER                                   :: lfomo
   END TYPE mol_mo_set_type
+
+!!****t* kg_gpw_fm_mol_types/mol_mo_set_p_type [1.0] *
+!!
+!!   NAME
+!!     mol_mo_set_p_type
+!!
+!!   FUNCTION
+!!     contains array of mol_mo_set_type, needed if nspins =/ 1
+!!
+!!   NOTES
+!!      -
+!!   
+!!   ATTRIBUTES
+!!      mo_set
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     11.2004 created [MI]
+!!
+!!*** *********************************************************************
 
   TYPE mol_mo_set_p_type
     TYPE(mol_mo_set_type), POINTER :: mo_set
   END TYPE mol_mo_set_p_type
+
+!!****t* kg_gpw_fm_mol_types/fm_mol_blocks_type [1.0] *
+!!
+!!   NAME
+!!     fm_mol_blocks_type
+!!
+!!   FUNCTION
+!!     contains the info relative to one molecule, which are  
+!!     needed to create the corresponding MO,  
+!!     in a block-like form. The index and kind of the  atoms are also stored
+!!
+!!   NOTES
+!!      -
+!!   
+!!   ATTRIBUTES
+!!     - mos:  MO orbitals
+!!     - ortho : scratch space for the orthogonalization
+!!     - work  : scratch space for operation with the MO matrix
+!!     - imol_global: index of the molecule
+!!     - index_atom: index of atoms belonging to the molecule
+!!     - index_kind: index of ithe kinds of the atoms belonging to the molecule
+!!     - ifirst_ao: index of the first ao for each atom
+!!     - ilast_ao: index of the last ao for each atom
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     11.2004 created [MI]
+!!
+!!*** *********************************************************************
 
   TYPE fm_mol_blocks_type
     TYPE(mol_mo_set_p_type), DIMENSION(:), &
@@ -90,6 +168,40 @@ MODULE kg_gpw_fm_mol_types
     INTEGER, DIMENSION(:), POINTER            :: ilast_ao
   END TYPE fm_mol_blocks_type
 
+!!****t* kg_gpw_fm_mol_types/kg_fm_mol_set_type [1.0] *
+!!
+!!   NAME
+!!     kg_fm_mol_set_type
+!!
+!!   FUNCTION
+!!     contains the info relative to one molecule kind, which are  
+!!     needed to create the corresponding MO,  
+!!     in a block-like form. 
+!!     The set of molecules that are handled locally by one processor
+!!     and the inro related to them are also given here
+!!
+!!   NOTES
+!!      -
+!!   
+!!   ATTRIBUTES
+!!     - multiplicity
+!!     - n_ao
+!!     - n_mo
+!!     - natom
+!!     - nelectron_spin
+!!     - nmol_kind_global
+!!     - nmolecule_local
+!!     - maxocc
+!!     - fm_mol_blocks
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     11.2004 created [MI]
+!!
+!!*** *********************************************************************
+
   TYPE kg_fm_mol_set_type
     INTEGER  :: multiplicity, &
                 n_ao, n_mo(2), natom, &
@@ -100,6 +212,22 @@ MODULE kg_gpw_fm_mol_types
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
        POINTER                                :: fm_mol_blocks
   END TYPE kg_fm_mol_set_type
+
+!!****t* kg_gpw_fm_mol_types/kg_fm_p_type [1.0] *
+!!
+!!   NAME
+!!     kg_fm_p_type
+!!
+!!   FUNCTION
+!!      global type that drives to  fm_mol_set_type for each molecule kind
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     11.2004 created [MI]
+!!
+!!*** *********************************************************************
 
   TYPE kg_fm_p_type
     TYPE(kg_fm_mol_set_type), DIMENSION(:),& 

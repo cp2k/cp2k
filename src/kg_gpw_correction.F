@@ -264,9 +264,10 @@ CONTAINS
     IF(PRESENT(just_energy)) my_just_energy = just_energy
     my_calculate_forces = .FALSE.
     IF(PRESENT(calculate_forces)) my_calculate_forces = calculate_forces
+
+    IF (my_calculate_forces) THEN
     ! Array of index within the kind 
     ! to associate the forces to the right position in forces array
-    IF (my_calculate_forces) THEN
 
       CALL get_qs_env(qs_env=qs_env,particle_set=particle_set)
       natom = SIZE(particle_set)
@@ -279,7 +280,6 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, force=force_global)
 
     END IF
-
 
     IF(.NOT. failure) THEN
 
@@ -315,6 +315,7 @@ CONTAINS
                                  r_in_molbox=r_mbox)
 
           NULLIFY(mol_block,i_atom,i_kind)
+          mol_block => fm_mol_blocks(imol)
           CALL get_fm_mol_block(fm_mol_block = mol_block,&
                                 index_atom = i_atom,&
                                 index_kind = i_kind)

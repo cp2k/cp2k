@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2004  CP2K developers group                          !
+!   Copyright (C) 2000 - 2005  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
@@ -10,12 +10,17 @@
 !!   NAME
 !!     kg_gpw_pw_env_methods
 !!
+!!   FUNCTION
+!!     Module used in a KF_GPW calculation to prepare the molecular
+!!     densities used to calculate the KE correction molecule by molecule.
+!!     Construction of cell  and pw_env for each molecule kind.
+!!     Collocation of the density of each single molecule on the grid.  
 !!     
 !!   AUTHOR
-!!     MI (20.12.2004)
+!!     MI 
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     Created (20.12.2004)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -134,9 +139,30 @@ MODULE kg_gpw_pw_env_methods
 CONTAINS
 
 ! *****************************************************************************
-
-! *****************************************************************************
-
+!!****f* kg_gpw_pw_env_methods/build_molbox_env
+!!
+!!    NAME
+!!      build_molbox_env
+!!
+!!    FUNCTION
+!!      Build the pw_env and cell box for each molecule kind
+!!      The internal coordinates of each molecule in the new box
+!!      are such that the molecule is centered in the middle of the box
+!!
+!!    NOTE
+!!      - Some shift should be added in the internal coordinates in order
+!!        with respect to the grid nodes
+!!
+!!    INPUTS
+!!
+!!    AUTHOR
+!!       MI
+!!
+!!    MODIFICATION HISTORY
+!!        Creation (MI)
+!!
+!!*** *************************************************************************
+ 
   SUBROUTINE build_molbox_env(molbox_env,fm_mol,qs_env,error)
 
     TYPE(kg_molbox_env_type), POINTER          :: molbox_env
@@ -311,6 +337,29 @@ CONTAINS
   END SUBROUTINE build_molbox_env
 
 ! *****************************************************************************
+!!****f* kg_gpw_pw_env_methods/pw_env_mol_rebuild
+!!
+!!    NAME
+!!       pw_env_mol_rebuild
+!!
+!!    FUNCTION
+!!      Build the pw_env and cell box for each molecule kind
+!!      Multigrids can be used
+!!
+!!    NOTE
+!!      - The densest grid of pw_env_mol has the same dr of the densest full grid
+!!        The box size is changed to match Npt*dr
+!!
+!!    INPUTS
+!!
+!!    AUTHOR
+!!       MI
+!!
+!!    MODIFICATION HISTORY
+!!        Creation (MI)
+!!
+!!*** *************************************************************************
+ 
 
   SUBROUTINE pw_env_mol_rebuild(pw_mol,cell_mol,pw_global,dft_control,side,num_pe,error)
 
@@ -781,6 +830,27 @@ CONTAINS
   END SUBROUTINE pw_env_mol_rebuild
 
 ! *****************************************************************************
+!!****f* kg_gpw_pw_env_methods/update_rho_mol_blocks(
+!!
+!!    NAME
+!!       update_rho_mol_blocks(
+!!
+!!    FUNCTION
+!!      Preparation of the structures for the collocation of the molecular
+!!      densities on the corresponding grids
+!!      Multigrids can be used
+!!
+!!    NOTE
+!!
+!!    INPUTS
+!!
+!!    AUTHOR
+!!       MI
+!!
+!!    MODIFICATION HISTORY
+!!        Creation (MI)
+!!
+!!*** *************************************************************************
 
   SUBROUTINE update_rho_mol_blocks(kg_sub_pw_env,particle_set,cell,nspins,use_tau,error)
 
@@ -807,10 +877,10 @@ CONTAINS
     TYPE(cell_type) , POINTER                   :: cell_mol
     TYPE(pw_env_type) , POINTER                 :: pw_env_mol
     TYPE(pw_pool_type), POINTER                 :: auxbas_pw_pool
+    TYPE(qs_rho_type), POINTER                  :: rho_mol
     TYPE(rho_mol_blocks_type), DIMENSION(:),&
       POINTER                                   :: rho_mol_blocks
     TYPE(rho_mol_blocks_type), POINTER          :: rho_block
-    TYPE(qs_rho_type), POINTER                  :: rho_mol
 
 !   ---------------------------------------------------------------------------
 
@@ -988,7 +1058,26 @@ CONTAINS
   END SUBROUTINE update_rho_mol_blocks
 
 ! *****************************************************************************
-
+!!****f* kg_gpw_pw_env_methods/kg_rho_update_rho_mol
+!!
+!!    NAME
+!!       kg_rho_update_rho_mol
+!!
+!!    FUNCTION
+!!      Collocation of the density of each molecule on the local
+!!      grid centered in the geometric center of the molecule itself
+!!
+!!    NOTE
+!!
+!!    INPUTS
+!!
+!!    AUTHOR
+!!       MI
+!!
+!!    MODIFICATION HISTORY
+!!        Creation (MI)
+!!
+!!*** *************************************************************************
   SUBROUTINE kg_rho_update_rho_mol(kg_sub_pw_env,qs_env,kg_env,error)
 
     TYPE(kg_sub_pw_env_type), POINTER            :: kg_sub_pw_env
@@ -1100,6 +1189,5 @@ CONTAINS
 
   END SUBROUTINE kg_rho_update_rho_mol
 
-! *****************************************************************************
 ! *****************************************************************************
 END MODULE kg_gpw_pw_env_methods
