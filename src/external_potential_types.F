@@ -89,8 +89,7 @@ MODULE external_potential_types
                                                   nexp_ppl,nppnl,&
                                                   nprj_ppnl_max,z,zeff
     REAL(KIND = dp), DIMENSION(:), POINTER     :: alpha_ppnl,cexp_ppl
-    INTEGER, DIMENSION(:), POINTER             :: all_elec_conf,&
-                                                  elec_conf,nprj_ppnl
+    INTEGER, DIMENSION(:), POINTER             :: elec_conf,nprj_ppnl
     REAL(KIND = dp), DIMENSION(:,:), POINTER   :: cprj,cprj_ppnl,vprj_ppnl
     REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: hprj_ppnl
   END TYPE gth_potential_type
@@ -276,7 +275,6 @@ CONTAINS
 
     NULLIFY (potential%alpha_ppnl)
     NULLIFY (potential%cexp_ppl)
-    NULLIFY (potential%all_elec_conf)
     NULLIFY (potential%elec_conf)
     NULLIFY (potential%nprj_ppnl)
     NULLIFY (potential%cprj)
@@ -414,10 +412,6 @@ CONTAINS
       DEALLOCATE (potential%elec_conf,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                        "potential%elec_conf")
-
-      DEALLOCATE (potential%all_elec_conf,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "potential%all_elec_conf")
 
 !     *** Deallocate the parameters of the local part ***
 
@@ -585,8 +579,8 @@ CONTAINS
                                core_charge_radius,ppl_radius,ppnl_radius,&
                                lppnl,lprj_ppnl_max,nexp_ppl,nppnl,&
                                nprj_ppnl_max,z,zeff,ppl_present,ppnl_present,&
-                               alpha_ppnl,cexp_ppl,all_elec_conf,elec_conf,&
-                               nprj_ppnl,cprj,cprj_ppnl,vprj_ppnl,hprj_ppnl)
+                               alpha_ppnl,cexp_ppl,elec_conf,nprj_ppnl,cprj,&
+                               cprj_ppnl,vprj_ppnl,hprj_ppnl)
 
 !   Purpose: Get informations about a GTH potential data set.
 
@@ -608,8 +602,7 @@ CONTAINS
     LOGICAL, OPTIONAL, INTENT(OUT)                :: ppl_present,ppnl_present
     REAL(KIND = dp), DIMENSION(:), OPTIONAL,&
       POINTER                                     :: alpha_ppnl,cexp_ppl
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER      :: all_elec_conf,&
-                                                     elec_conf,nprj_ppnl
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER      :: elec_conf,nprj_ppnl
     REAL(KIND = dp), DIMENSION(:,:), OPTIONAL,&
       POINTER                                     :: cprj,cprj_ppnl,vprj_ppnl
     REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL,&
@@ -644,7 +637,6 @@ CONTAINS
       IF (PRESENT(ppnl_present)) ppnl_present = (potential%nppnl > 0)
       IF (PRESENT(alpha_ppnl)) alpha_ppnl => potential%alpha_ppnl
       IF (PRESENT(cexp_ppl)) cexp_ppl => potential%cexp_ppl
-      IF (PRESENT(all_elec_conf)) all_elec_conf => potential%all_elec_conf
       IF (PRESENT(elec_conf)) elec_conf => potential%elec_conf
       IF (PRESENT(nprj_ppnl)) nprj_ppnl => potential%nprj_ppnl
       IF (PRESENT(cprj)) cprj => potential%cprj
@@ -1139,29 +1131,7 @@ CONTAINS
         IF ((INDEX(line2,symbol2(:strlen1)) > 0).AND.&
             (INDEX(line2,apname2(:strlen2)) > 0)) THEN
 
-!         *** Read the all-electron configuration ***
-
-          NULLIFY (elec_conf)
-
-          l = 0
-          CALL reallocate(elec_conf,0,l)
-          CALL read_object(elec_conf(l),newline=.TRUE.)
-          DO WHILE (test_object() == "INT")
-            l = l + 1
-            CALL reallocate(elec_conf,0,l)
-            CALL read_object(elec_conf(l))
-          END DO
-
-          CALL reallocate(potential%all_elec_conf,0,l)
-          potential%all_elec_conf(:) = elec_conf(:)
-
-          potential%z = SUM(elec_conf)
-
-          DEALLOCATE (elec_conf,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                           "elec_conf (1)")
-
-!         *** Read the electronic configuration of the GTH-pseudo atom ***
+!         *** Read the electronic configuration ***
 
           l = 0
           CALL reallocate(elec_conf,0,l)
@@ -1179,7 +1149,7 @@ CONTAINS
 
           DEALLOCATE (elec_conf,STAT=istat)
           IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                           "elec_conf (2)")
+                                           "elec_conf")
 
 !         *** Read r(loc) to define the exponent of the core charge    ***
 !         *** distribution and calculate the corresponding coefficient ***
@@ -1420,8 +1390,8 @@ CONTAINS
                                ccore_charge,cerf_ppl,core_charge_radius,&
                                ppl_radius,ppnl_radius,lppnl,lprj_ppnl_max,&
                                nexp_ppl,nppnl,nprj_ppnl_max,z,zeff,alpha_ppnl,&
-                               cexp_ppl,all_elec_conf,elec_conf,nprj_ppnl,&
-                               cprj,cprj_ppnl,vprj_ppnl,hprj_ppnl)
+                               cexp_ppl,elec_conf,nprj_ppnl,cprj,cprj_ppnl,&
+                               vprj_ppnl,hprj_ppnl)
 
 !   Purpose: Get the components of a GTH potential data set.
 
@@ -1442,8 +1412,7 @@ CONTAINS
                                                      nprj_ppnl_max,z,zeff
     REAL(KIND = dp), DIMENSION(:), OPTIONAL,&
       POINTER                                     :: alpha_ppnl,cexp_ppl
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER      :: all_elec_conf,&
-                                                     elec_conf,nprj_ppnl
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER      :: elec_conf,nprj_ppnl
     REAL(KIND = dp), DIMENSION(:,:), OPTIONAL,&
       POINTER                                     :: cprj,cprj_ppnl,vprj_ppnl
     REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL,&
@@ -1476,7 +1445,6 @@ CONTAINS
       IF (PRESENT(zeff)) potential%zeff = zeff
       IF (PRESENT(alpha_ppnl)) potential%alpha_ppnl => alpha_ppnl
       IF (PRESENT(cexp_ppl)) potential%cexp_ppl => cexp_ppl
-      IF (PRESENT(all_elec_conf)) potential%all_elec_conf => all_elec_conf
       IF (PRESENT(elec_conf)) potential%elec_conf => elec_conf
       IF (PRESENT(nprj_ppnl)) potential%nprj_ppnl => nprj_ppnl
       IF (PRESENT(cprj)) potential%cprj => cprj
