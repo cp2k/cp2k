@@ -86,6 +86,7 @@ OBJECTS_GENERIC =\
  distribution_2d_types.o\
  distribution_methods.o\
  dump.o\
+ dynamical_coeff_types.o\
  eigenvalueproblems.o\
  empirical_parameters.o\
  environment.o\
@@ -129,19 +130,17 @@ OBJECTS_GENERIC =\
  integrator.o\
  k290.o\
  kg_core.o\
- kg_debug.o\
  kg_density.o\
+ kg_energy.o\
  kg_energy_types.o\
  kg_energy_utils.o\
  kg_environment.o\
  kg_environment_types.o\
  kg_force.o\
- kg_force_numer.o\
  kg_force_types.o\
  kg_kxc.o\
  kg_main.o\
  kg_neighbor_lists.o\
- kg_pol_coefs.o\
  kg_ppl.o\
  kg_rho_methods.o\
  kg_rho_types.o\
