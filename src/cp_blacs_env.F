@@ -346,6 +346,7 @@ end function cp_blacs_env_from_globenv
     INTEGER :: context,group,ipe,istat,mypcol,mype,myprow,npcol,npe,nprow,&
                output_unit
     LOGICAL :: ionode
+    type(cp_error_type) :: error
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: pcol,pcon,prow
 
@@ -354,7 +355,7 @@ end function cp_blacs_env_from_globenv
 #ifdef __parallel
 #ifndef __BLACS
   call cp_assert(.false.,cp_failure_level, cp_assertion_failed,&
-       fromWhere=routineP,message="to use the blacs environment "//&
+       fromWhere=routine,message="to use the blacs environment "//&
        "(used by full matrices) you need the blacs library "//&
        CPSourceFileRef,&
        error=error)
