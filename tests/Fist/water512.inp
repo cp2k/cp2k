@@ -1,14 +1,14 @@
 &CP2K  
   PROGRAM   FIST
   PROJECT   water512
-  IOLEVEL   1
-  FFTLIB    FFTW
-  RUN_TYPE   md
+  IOLEVEL   100
+  FFTLIB    FFTSG
+  RUN_TYPE  md
 &END
 
 &MD
   ensemble:     nvt                    ensemble type (nve,nvt,npt_i,npt_f)
-  steps:        2                      total number of steps
+  steps:        20                      total number of steps
   timestep:     2.5 fs                 time step [fs]
   temperature:  298                    temperature [K]
   restart:      init                   start type (init,pos,posvel)
@@ -18,26 +18,25 @@
     Yoshida:   3        &
     timecon:   1000 fs  &
     mts:       2
-
   print  files        2
   print  screen       1
 &END
 
 &TOPOLOGY
- FORCEFIELD ON
  NHCOPT MOLECULE
 &END
-
+ 
 &EWALD
  units angstrom
  ewald_type spme
- ewald_param .44 21 6
+ ewald_param .44 25 4
+&END
+
+&CONSTRAINTS
+   g3x3 add 1 1 2 3 1.8897268 1.8897268 3.0859239
 &END
 
 &FORCE_FIELD
- constraints
-   g3x3 add 1 1 2 3 1.8897268 1.8897268 3.0859239
- end constraints
  charges
    O -0.8476
    H  0.4238
