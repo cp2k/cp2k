@@ -46,6 +46,7 @@ PROGRAM cp2k
   USE cp2k_input, ONLY : read_cp2k_section
   USE environment, ONLY : initialisation, trailer
   USE global_types, ONLY : global_environment_type
+  USE kg_main, ONLY : kg
   USE kinds, ONLY : dbl, print_kind_info
   USE library_tests,ONLY : lib_test
   USE parallel, ONLY : start_parallel, end_parallel
@@ -86,6 +87,10 @@ PROGRAM cp2k
   CASE ( "FIST" )
 
      CALL fist ( globenv )
+
+  CASE ( "KG" )
+
+     CALL kg ( globenv )
 
   CASE ( "QUICKSTEP", "QS" )
 
