@@ -11,9 +11,10 @@
 !!     Define the neighbor list data types and the corresponding functionality
 !!
 !!   AUTHOR
-!!     Matthias Krack (02.02.2005)
+!!     MK (02.02.2005)
 !!
 !!   MODIFICATION HISTORY
+!!     07.02.2005: scaled distance vector removed from neighbor_node_type (MK)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -34,15 +35,11 @@ MODULE fist_neighbor_list_types
 
 ! *** Definition of the data types for a linked list of neighbors ***
 
-  TYPE block_p_type
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: block
-  END TYPE block_p_type
-
   TYPE neighbor_node_type
     PRIVATE
     TYPE(neighbor_node_type), POINTER :: next_neighbor_node
     INTEGER                           :: neighbor
-    REAL(dp), DIMENSION(3)            :: r,s
+    REAL(dp), DIMENSION(3)            :: r
     INTEGER, DIMENSION(3)             :: cell
   END TYPE neighbor_node_type
 
@@ -77,8 +74,7 @@ MODULE fist_neighbor_list_types
             neighbor_list_set_type,&
             neighbor_list_set_p_type,&
             neighbor_list_type,&
-            neighbor_node_type,&
-            block_p_type
+            neighbor_node_type
 
 ! *** Public subroutines ***
 
@@ -225,7 +221,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE add_neighbor_node(neighbor_list,neighbor,cell,r,s,exclusion_list)
+  SUBROUTINE add_neighbor_node(neighbor_list,neighbor,cell,r,exclusion_list)
 
 !   Purpose: Add a new neighbor list node to a neighbor list.
 
@@ -238,8 +234,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: neighbor
     INTEGER, DIMENSION(3), INTENT(IN)        :: cell
     REAL(dp), DIMENSION(3), INTENT(IN)       :: r
-    REAL(dp), DIMENSION(3), INTENT(IN), &
-      OPTIONAL                               :: s
     INTEGER, DIMENSION(:), POINTER, &
       OPTIONAL                               :: exclusion_list
 
@@ -314,7 +308,6 @@ CONTAINS
       new_neighbor_node%neighbor = neighbor
       new_neighbor_node%cell(:) = cell(:)
       new_neighbor_node%r(:) = r(:)
-      IF (PRESENT(s)) new_neighbor_node%s(:) = s(:)
 
 !     *** Update the pointer to the last neighbor node of the neighbor list ***
 
@@ -797,7 +790,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_neighbor_node(neighbor_node,neighbor,cell,r,s)
+  SUBROUTINE get_neighbor_node(neighbor_node,neighbor,cell,r)
 
 !   Purpose: Return the reqested data of a neighbor node.
 
@@ -810,7 +803,7 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(OUT), &
       OPTIONAL                               :: cell
     REAL(dp), DIMENSION(3), INTENT(OUT), &
-      OPTIONAL                               :: r, s
+      OPTIONAL                               :: r
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_neighbor_node"
 
@@ -820,7 +813,6 @@ CONTAINS
 
       IF (PRESENT(neighbor)) neighbor = neighbor_node%neighbor
       IF (PRESENT(r)) r(:) = neighbor_node%r(:)
-      IF (PRESENT(s)) s(:) = neighbor_node%s(:)
       IF (PRESENT(cell)) cell(:) = neighbor_node%cell(:)
 
     ELSE
@@ -1013,7 +1005,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_neighbor_node(neighbor_node,neighbor,cell,r,s)
+  SUBROUTINE set_neighbor_node(neighbor_node,neighbor,cell,r)
 
 !   Purpose: Set the reqested data of a neighbor node.
 
@@ -1026,7 +1018,7 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(IN), &
       OPTIONAL                               :: cell
     REAL(dp), DIMENSION(3), INTENT(IN), &
-      OPTIONAL                               :: r, s
+      OPTIONAL                               :: r
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_neighbor_node"
 
@@ -1036,7 +1028,6 @@ CONTAINS
 
       IF (PRESENT(neighbor)) neighbor_node%neighbor = neighbor
       IF (PRESENT(r)) neighbor_node%r(:) = r(:)
-      IF (PRESENT(s)) neighbor_node%s(:) = s(:)
       IF (PRESENT(cell)) neighbor_node%cell(:) = cell(:)
 
     ELSE

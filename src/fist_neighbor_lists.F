@@ -460,7 +460,6 @@ CONTAINS
                           neighbor=atom_b,&
                           cell=cell_b,&
                           r=rab,&
-                          s=sab,&
                           exclusion_list = particle_set(atom_a)%lpi%&
                                            exclusion(jkind)%list_vdw)
                       END IF
@@ -576,7 +575,6 @@ CONTAINS
                                 neighbor=atom_b,&
                                 cell=cell_b,&
                                 r=rab,&
-                                s=sab,&
                                 exclusion_list=particle_set(atom_a)%lpi%&
                                                exclusion(jkind)%list_vdw)
                             END IF

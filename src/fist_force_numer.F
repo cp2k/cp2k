@@ -2809,8 +2809,7 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
                                  atom=atom_a,&
                                  nnode=nnode)
 
-          dra(:) = particle_set ( atom_a ) % r (:) - &
-                   MATMUL(cell % hmat,r_last_update ( :, atom_a ) )
+          dra(:) = particle_set(atom_a)%r(:) - r_last_update(:,atom_a)
 
           neighbor_node => first_node(neighbor_list)
 
@@ -2818,12 +2817,10 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
 
             CALL get_neighbor_node(neighbor_node=neighbor_node,&
                                    neighbor=atom_b,&
-                                   cell=cell_b,&
-                                   s=rab)
+                                   r=rab)
 
-            drb(:) = particle_set  ( atom_b ) % r ( : ) - &
-                     MATMUL(cell % hmat,r_last_update ( :, atom_b ) )
-            rab ( : ) =  MATMUL ( cell % hmat, rab ( : ) ) - dra(:) + drb(:)
+            drb(:) = particle_set(atom_b)%r(:) - r_last_update(:,atom_b)
+            rab(:) = rab(:) - dra(:) + drb(:)
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
 
             IF (rab2 <= rab2_max) THEN
