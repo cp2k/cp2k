@@ -19,29 +19,66 @@
 # install :
 # set the variables below to what they have to be for your compiler/machine/dir
 #
+# modified version to do regtest without updating and no realclean
+#
 # run :
 # simply
 #     do_regtest
+#
+# arguments : -nocvs -quick (skips realclean)
 #
 
 # *** defined variables, might need modification
 # *** e.g. dir_triplet should be the one of the current compiler
 # *** parallel runs might need an mpi_run prefix , or -llfile llfile postfix
-dir_base=/home/jv244/nightly_testing
-cp2k_version=sdbg
-dir_triplet=Linux-i686-nag
-cp2k_prefix=${dir_base}/cp2k/exe/${dir_triplet}/cp2k.${cp2k_version}
+export FORT_C_NAME=intel
+dir_base=/data1/vondele/dev/
+cp2k_version=sopt
+dir_triplet=Linux-i686-intel
+
+#ulimit limits the cputime of a test to 30 seconds
+#cp2k_prefix="( ulimit -t 30; ${dir_base}/cp2k/exe/${dir_triplet}/cp2k.${cp2k_version}"
+#cp2k_postfix=" )"
+cp2k_prefix="${dir_base}/cp2k/exe/${dir_triplet}/cp2k.${cp2k_version}"
 cp2k_postfix=
+
+#cp2k_prefix="poe ${dir_base}/cp2k/exe/${dir_triplet}/cp2k.${cp2k_version}"
+#cp2k_postfix="-llfile ${dir_base}/llfile"
+
+# use gmake 
+#make=gmake
 make=make
+
+# use awk that takes -v
+#awk=nawk
 awk=awk
+
+
+# use a specific date comment, might need a correction to the timezone if you care 
 datum_full=`date --iso-8601="seconds"`
 datum_short=`date --iso-8601`
-#make=gmake
-#awk=nawk
 #datum_full=`date '+%Y-%m-%dT%H:%M:%S+0100'`
 #datum_short=`date '+%Y-%m-%d'`
 
+
 # *** should be automatic
+#parse optional arguments
+# command line argument passing, a bit ugly...
+nocvs=""
+quick=""
+if [[ $1 == "-nocvs" ]]; then
+ nocvs="nocvs"
+fi
+if [[ $1 == "-quick" ]]; then
+ quick="quick"
+fi
+if [[ $2 == "-nocvs" ]]; then
+ nocvs="nocvs"
+fi
+if [[ $2 == "-quick" ]]; then
+ quick="quick"
+fi
+
 dir_last=${dir_base}/LAST-${dir_triplet}-${cp2k_version}
 dir_out=${dir_base}/TEST-${dir_triplet}-${cp2k_version}-${datum_short}
 changelog_diff=${dir_out}/ChangeLog.diff
@@ -79,6 +116,26 @@ function do_test_1(){
   return 1 ;;
  esac 
 }
+# *** a small error in the latest "POTENTIAL ENERGY[hartree]    ="
+function do_test_2(){
+ output_new=$1
+ output_old=$2
+ error_file=$3
+ e1=`grep "POTENTIAL ENERGY[hartree]    =" ${output_old} | tail -1 | ${awk} '{print $4}'`
+ e2=`grep "POTENTIAL ENERGY[hartree]    =" ${output_new} | tail -1 | ${awk} '{print $4}'`
+ big=`echo "${e1} ${e2}" | ${awk} '{v=sqrt((($1-$2)/$2)^2); if (v>1.0E-14) printf("%16.8e",v); else printf("0") ;}'`
+ case ${big} in
+ 0)
+  # ok, same energy
+  return 0 ;;
+ *)
+  # nope too large
+  echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_file}
+  echo "${output_new} : energy difference too large ${e1} ${e2} ${big}" >> ${error_file}
+  echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_file}
+  return 1 ;;
+ esac 
+}
 
 # *** select which test to run
 function do_test() {
@@ -94,6 +151,10 @@ function do_test() {
    #test the last total energy
    do_test_1 ${output_new} ${output_old} ${error_file}
    return $? ;;
+ 2)
+   #test the last potential energy
+   do_test_2 ${output_new} ${output_old} ${error_file}
+   return $? ;;
  *)
    echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_file}
    echo "${output_new} : Unknown Test" >> ${error_file}
@@ -108,52 +169,61 @@ echo " started on " `date`
 echo " checking version -D ${datum_full} "
 echo "--------------------------------------------------------------------------"
 
-
-# *** cvs update src
-cd ${dir_base}/cp2k/src
-cvs update -d -D ${datum_full} &> out
-if (( $? )); then
-echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-tail -20 out >> ${error_description_file}
-echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-echo "error happened : no cvs update ... bailing out"
-end_test 1
-fi
-echo "cvs src update went fine"
-cp2k_lines=`wc *.F | tail -1 |  ${awk} '{print $1}'`
-echo "cp2k is now ${cp2k_lines} lines .F"
-${dir_base}/cp2k/tools/cvs2cl.pl &> out
-diff ChangeLog ${dir_last}/ChangeLog > ${changelog_diff}
-echo "------------------------changelog diff------------------------------------"
-cat ${changelog_diff}
-echo "--------------------------------------------------------------------------"
-cp ChangeLog ${dir_last}/ChangeLog
-
-# *** cvs update tests
-cd ${dir_base}/cp2k/tests
-cvs update -d -D ${datum_full} &> out
-if (( $? )); then
-echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-tail -20 out >> ${error_description_file}
-echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-echo "error happened : no cvs update ... bailing out"
-end_test 2
+if [[ ${nocvs} != "nocvs" ]]; then
+  # *** cvs update src
+  cd ${dir_base}/cp2k/src
+  cvs update -d -D ${datum_full} &> out
+  if (( $? )); then
+  echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+  tail -20 out >> ${error_description_file}
+  echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+  echo "error happened : no cvs update ... bailing out"
+  end_test 1
+  fi
+  echo "cvs src update went fine"
+  cp2k_lines=`wc *.F | tail -1 |  ${awk} '{print $1}'`
+  echo "cp2k is now ${cp2k_lines} lines .F"
+  ${dir_base}/cp2k/tools/cvs2cl.pl &> out
+  diff ChangeLog ${dir_last}/ChangeLog > ${changelog_diff}
+  echo "       ------- differences -------   " >> ${changelog_diff}
+  cvs -n update | grep -v -i "changelog" >> ${changelog_diff}
+  echo "------------------------changelog diff------------------------------------"
+  cat ${changelog_diff}
+  echo "--------------------------------------------------------------------------"
+  cp ChangeLog ${dir_last}/ChangeLog
+  
+  # *** cvs update tests
+  cd ${dir_base}/cp2k/tests
+  cvs update -d -D ${datum_full} &> out
+  if (( $? )); then
+  echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+  tail -20 out >> ${error_description_file}
+  echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+  echo "error happened : no cvs update ... bailing out"
+  end_test 2
+  else
+  echo "cvs tests update went fine"
+  fi
 else
-echo "cvs tests update went fine"
+  echo "no cvs updating"
 fi
 
 # *** make realclean
-cd ${dir_base}/cp2k/makefiles
-${make} realclean VERSION=${cp2k_version} &> out
-if (( $? )); then
-echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-tail -20 out >> ${error_description_file}
-echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-echo "error happened : make realclean VERSION=${cp2k_version} ... bailing out"
-end_test 3
+if [[ ${quick} != "quick" ]]; then
+   cd ${dir_base}/cp2k/makefiles
+   ${make} realclean VERSION=${cp2k_version} &> out
+   if (( $? )); then
+      echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+      tail -20 out >> ${error_description_file}
+      echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
+      echo "error happened : make realclean VERSION=${cp2k_version} ... bailing out"
+      end_test 3
+   else
+      echo "make realclean VERSION=${cp2k_version} went fine"
+   fi
 else
-echo "make realclean VERSION=${cp2k_version} went fine"
-fi
+  echo "quick testing, no realclean"
+fi 
 
 # *** from here failures are likely to be bugs in cp2k
 echo "-------------------------compiling cp2k-----------------------------------"
@@ -215,7 +285,7 @@ do
         failed_tests="${failed_tests} ${output_file}"
      else 
         # *** but didn't end !?
-        grep "PROGRAM ENDED AT" ${output_file} &> /dev/null
+        grep "ENDED" ${output_file} &> /dev/null
         if (( $? )); then
            echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
            echo ${output_file} >> ${error_description_file}
