@@ -113,7 +113,9 @@ CONTAINS
 
     logger => cp_error_get_logger(error)
     ionode = (logger%para_env%mepos==logger%para_env%source)
-    output_unit = cp_logger_get_default_unit_nr(logger)
+    IF(ionode) THEN
+      output_unit = cp_logger_get_default_unit_nr(logger)
+    END IF
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft

@@ -143,7 +143,7 @@ CONTAINS
                iatom, igrid_level, ikind, ikind_old, ipgf, itask, ithread, iset, &
                j, jat, jatom, jkind, jkind_old, jpgf, jset, k, maxco, maxsgf, &
                maxsgf_set, n, na1, na2, nat_mol, nb1, nb2, ncoa, ncob, nthread,&
-               nseta, nsetb, num_tasks, sgfa, sgfb, stat, istat, igridlevel
+               nseta, nsetb, num_tasks, sgfa, sgfb, stat, igridlevel
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb, ntasks, ub
@@ -218,21 +218,21 @@ CONTAINS
     CALL pw_env_get(pw_env, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
 
     NULLIFY(mgrid_rspace, mgrid_temp_rspace)
-    ALLOCATE(mgrid_rspace(SIZE(pw_pools)) ,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(mgrid_rspace(SIZE(pw_pools)) ,STAT=stat)
+    CPPostcondition(STAT==0,cp_failure_level,routineP,error,failure)
     CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
                               use_data = REALDATA3D,&
                               in_space = REALSPACE, error=error)
 
     IF (dft_control % qs_control % realspace_mgrids) THEN
-        ALLOCATE(mgrid_temp_rspace(SIZE(pw_pools)) ,stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(mgrid_temp_rspace(SIZE(pw_pools)) ,STAT=stat)
+        CPPostcondition(STAT==0,cp_failure_level,routineP,error,failure)
         CALL pw_pools_init_coeffs(pw_pools,mgrid_temp_rspace,&
                                   use_data = REALDATA3D,&
                                   in_space = REALSPACE, error=error)
     ELSE
-        ALLOCATE(mgrid_gspace(SIZE(pw_pools)) ,stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(mgrid_gspace(SIZE(pw_pools)) ,STAT=stat)
+        CPPostcondition(STAt==0,cp_failure_level,routineP,error,failure)
         CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
                                   use_data = COMPLEXDATA1D,&
                                   in_space = RECIPROCALSPACE, error=error)
@@ -473,7 +473,7 @@ CONTAINS
 !$OMP parallel &
 !$OMP default(none) &
 !$OMP private(ithread,itask,iset,jset,ncoa,ncob,sgfa,sgfb) &
-!$OMP private(work,pab,istat,ipgf,jpgf,na1,na2,nb1,nb2,scale) &
+!$OMP private(work,pab,stat,ipgf,jpgf,na1,na2,nb1,nb2,scale) &
 !$OMP shared(iatom,jatom,ra,rb,rab,rab2,brow,bcol,p_block) &
 !$OMP shared(maxco,maxsgf_set,ival,num_tasks) &
 !$OMP shared(npgfa,npgfb,ncoset,la_max,lb_max,first_sgfa,first_sgfb) &
@@ -589,12 +589,12 @@ CONTAINS
     END DO  ! iat
 
     IF ( nthread > 1 ) THEN
-      DEALLOCATE (lgrid%r,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"lgrid%r")
+      DEALLOCATE (lgrid%r,STAT=stat)
+      IF (stat /= 0) CALL stop_memory(routineP,"lgrid%r")
     END IF
 
     DEALLOCATE (pabt,workt,ntasks,tasks,tasks_local,ival,latom,STAT=stat)
-    IF (istat /= 0) CALL stop_memory(routineP,"pabt,workt,ntasks,"//&
+    IF (stat /= 0) CALL stop_memory(routineP,"pabt,workt,ntasks,"//&
                                      "tasks,tasks_local,ival,latom")
 
     IF (gridlevel_info%ngrid_levels==1) THEN
@@ -639,18 +639,18 @@ CONTAINS
     IF (dft_control % qs_control % realspace_mgrids) THEN
        CALL pw_pools_give_back_coeffs(pw_pools,mgrid_temp_rspace,&
                                       error=error)
-       DEALLOCATE(mgrid_temp_rspace,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(mgrid_temp_rspace,STAT=stat)
+       CPPostcondition(STAT==0,cp_failure_level,routineP,error,failure)
     ELSE
        CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
                                       error=error)
-       DEALLOCATE(mgrid_gspace,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(mgrid_gspace,STAT=stat)
+       CPPostcondition(STAT==0,cp_failure_level,routineP,error,failure)
     ENDIF
     CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
          error=error)
-    DEALLOCATE(mgrid_rspace,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(mgrid_rspace,STAT=stat)
+    CPPostcondition(STAT==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(0.0_dp,handle)
 

@@ -982,8 +982,12 @@ MODULE  hartree_local_3centers
     DO ico = 1,nch0
        l = indco(1,ico)+indco(2,ico)+indco(3,ico)
 
-       Int_abc(1+m1:nco1+m1,1+m2:nco2+m2,ico) = &
-                     ng0_h(l) * int_tmp(1:nco1,1:nco2,ico)
+!       Int_abc(1+m1:nco1+m1,1+m2:nco2+m2,ico) = &
+!                     ng0_h(l) * int_tmp(1:nco1,1:nco2,ico)
+       DO ico1 = 1,nco2
+         CALL DSCAL(nco1,ng0_h(l),int_tmp(1,ico1,ico),1)
+         CALL DCOPY(nco1,int_tmp(1,ico1,ico),1,Int_abc(m1+1,m2+ico1,ico),1)
+       END DO
     END DO 
     
     IF(maxder > 0) THEN
@@ -1004,10 +1008,13 @@ MODULE  hartree_local_3centers
     DO ico = 1,nch0
        l = indco(1,ico)+indco(2,ico)+indco(3,ico)
 
-       Int_abc(1+m1:nco1+m1,1+m2:nco2+m2,ico) = &
-                    Int_abc(1+m1:nco1+m1,1+m2:nco2+m2,ico) - &
-                    ng0_s(l) * int_tmp(1:nco1,1:nco2,ico)
+!       Int_abc(1+m1:nco1+m1,1+m2:nco2+m2,ico) = &
+!                    Int_abc(1+m1:nco1+m1,1+m2:nco2+m2,ico) - &
+!                    ng0_s(l) * int_tmp(1:nco1,1:nco2,ico)
 
+       DO ico1 = 1,nco2
+         CALL DAXPY(nco1,-ng0_s(l),int_tmp(1,ico1,ico),1,Int_abc(m1+1,m2+ico1,ico),1)
+       END DO
     END DO
 
     IF(maxder > 0) THEN
