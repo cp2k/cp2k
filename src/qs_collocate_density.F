@@ -339,6 +339,7 @@ CONTAINS
       routine = "SUBROUTINE calculate_rho_elec (MODULE qs_collocate_density)"
     INTEGER, PARAMETER                       :: add_tasks = 1000, &
                                                 max_tasks = 2000
+    REAL(kind=dp), PARAMETER                 :: mult_tasks= 2.0_dp
 
     INTEGER :: ab, bcol, brow, curr_tasks, dir, first_pgfb, first_setb, &
       handle, i, iatom, igrid_level, ijatoms, ijsets, ikind, ilist, inode, &
@@ -668,7 +669,8 @@ CONTAINS
                      ntasks(igrid_level) = ntasks(igrid_level) + 1
                      n = ntasks(igrid_level)
                      IF ( n > curr_tasks ) THEN
-                       curr_tasks = curr_tasks + add_tasks
+                       ! curr_tasks = curr_tasks + add_tasks
+                       curr_tasks = curr_tasks*mult_tasks
                        CALL reallocate(tasks,1,8,1,curr_tasks,&
                                        1,gridlevel_info%ngrid_levels)
                        CALL reallocate(dist_ab,1,3,1,curr_tasks,&

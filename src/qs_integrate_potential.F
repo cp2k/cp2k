@@ -299,6 +299,7 @@ CONTAINS
       "SUBROUTINE integrate_v_rspace (MODULE qs_integrate_potential)"
     INTEGER, PARAMETER                       :: add_tasks = 1000, &
                                                 max_tasks = 3000
+    REAL(kind=dp), PARAMETER                 :: mult_tasks= 2.0_dp
 
     INTEGER :: ab, atom_a, atom_b, bcol, brow, curr_tasks, dir, handle, i, &
       iatom, igrid_level, ijatoms, ijsets, ikind, ilist, inode, ipgf, iset, &
@@ -718,7 +719,8 @@ CONTAINS
                      ntasks(igrid_level) = ntasks(igrid_level) + 1
                      n = ntasks(igrid_level)
                      IF ( n > curr_tasks ) THEN
-                       curr_tasks = curr_tasks + add_tasks
+                       ! curr_tasks = curr_tasks + add_tasks
+                       curr_tasks = curr_tasks*mult_tasks
                        CALL reallocate ( tasks, 1, 8, 1, curr_tasks, &
                                          1, gridlevel_info%ngrid_levels )
                        CALL reallocate ( dist_ab, 1, 3, 1, curr_tasks, &
