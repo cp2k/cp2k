@@ -229,7 +229,7 @@ CONTAINS
       ENDIF
 
 ! check for restart
-      IF ( mc_par % restart ) THEN
+      IF ( mc_par_2 % restart ) THEN
          CALL read_mc_restart(mc_par_2,force_env_2,iw)
       ENDIF
 

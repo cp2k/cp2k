@@ -43,7 +43,8 @@ MODULE mc_control
   USE physcon,                         ONLY: angstrom,&
                                              boltzmann,&
                                              joule
-  USE qs_parser,                       ONLY: open_file
+  USE qs_parser,                       ONLY: open_file,&
+                                             close_file
   USE simulation_cell,                 ONLY: cell_type
   USE string_utilities,                ONLY: uppercase,&
                                              xstring
@@ -437,7 +438,8 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, force_env )
       WRITE(unit,'(1X,A,1X,3(F15.10,3X),A)') &
                  'H ',particles%els(ipart+2)%r(1:3)*angstrom,' H2O'
   ENDDO
-  CLOSE(unit)
+  
+  CALL close_file(unit_number=unit)
 
 ! end the timing
   CALL timestop(0.0d0,handle)
@@ -471,7 +473,8 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(IN)                      :: iw
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "read_mc_restart"
+    CHARACTER(LEN=*), PARAMETER            &
+      :: routineN = "read_mc_restart"
 
     CHARACTER(LEN=20)                        :: chardum, ensemble
     INTEGER                                  :: handle, ipart, istat, &
@@ -497,11 +500,6 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
       READ(unit,*) mc_par%nstart
       READ(unit,*) temp,nunits_tot
       READ(unit,*) ensemble
-
-! allocate the array holding the coordiantes
-      ALLOCATE (r(3,nunits_tot),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-         "r",3*nunits_tot*dp_size)
 
 ! do some checking
       IF(ABS(temp - mc_par%temp) .GT. 0.01d0) THEN
@@ -552,18 +550,39 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
       ENDIF
       
       READ(unit,*)
-! read in the particle coordinates
-      DO ipart=1,mc_par%nunits_tot
-         READ(unit,*) chardum,r(1:3,ipart),chardum
-         r(1:3,ipart)=r(1:3,ipart)/angstrom
-      ENDDO
-      CLOSE(unit)
-      
-! write the dat file so we can make a new force_env
-      IF(mc_par%ionode) &
-         CALL mc_make_dat_file(r(:,:),mc_par%nunits_tot,&
-         box_length,mc_par%dat_file)
+! allocate the array holding the coordiantes, and read in the coordiantes,
+! and write the dat file so we can make a new force_env
+      IF(nunits_tot == 0) THEN
+         ALLOCATE (r(3,3),STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+            "r",3*3*dp_size)
+         r(1:3,1) = (/ 0.576135d0, 0.969636d0,1.0678366d0 /)
+         r(1:3,2) = (/ 0.178637d0, 1.613209d0, 0.426837d0 /)
+         r(1:3,3) = (/ 0.466322d0, 1.3840462d0, 1.96186d0 /)
 
+         CALL close_file(unit_number=unit)
+
+         IF(mc_par%ionode) &
+            CALL mc_make_dat_file(r(:,:),3,box_length,mc_par%dat_file)
+
+      ELSE
+         ALLOCATE (r(3,nunits_tot),STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+            "r",3*nunits_tot*dp_size)
+         DO ipart=1,mc_par%nunits_tot
+            READ(unit,*) chardum,r(1:3,ipart),chardum
+            r(1:3,ipart)=r(1:3,ipart)/angstrom
+         ENDDO
+
+         CALL close_file(unit_number=unit)
+
+         IF(mc_par%ionode) &
+            CALL mc_make_dat_file(r(:,:),mc_par%nunits_tot,&
+            box_length,mc_par%dat_file)
+
+      ENDIF
+
+      
 ! end the timing
       CALL timestop(0.0d0,handle)
 
