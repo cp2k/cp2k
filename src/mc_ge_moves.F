@@ -214,6 +214,7 @@ CONTAINS
          IF (mc_par_1%lclassical) THEN
             CALL mc_classical_energy(force_env_1,&
                classical_energy_new(1),&
+!               mc_par_1%nchain,1,mc_par_1%nchain,6.211D0/angstrom,loptional=.TRUE.)
                mc_par_1%nchain,1,mc_par_1%nchain,6.211D0/angstrom)
 !!!!!!!!!!!!
             new_energy(1)=classical_energy_new(1)
@@ -496,6 +497,9 @@ CONTAINS
       IF(ionode) THEN
 !     choose a direction to swap
          CALL RANDOM_NUMBER(rand)
+!!!!!!!!!!!!!!!!!!!!
+         rand=0.7d0
+!!!!!!!!!!!!!!!!!!!!
          IF ( rand .LE. 0.50D0 ) THEN
             remove_box=1
             insert_box=2
@@ -658,7 +662,7 @@ CONTAINS
       
       CALL mp_bcast(loverlap,source,group)
       
-      IF(loverlap) THEN
+      IF(loverlap .AND. nswapmoves .EQ. 1) THEN
 ! deallocate some stuff
          DEALLOCATE(r_cbmc,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,module_name,&
