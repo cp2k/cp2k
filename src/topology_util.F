@@ -2080,35 +2080,41 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomlist')
 
     DO i=1,natom
-      atomlist(i) = i 
-    END DO
 
-    DO i=1,natom
+      atomlist(:) = 1 
+      atomlist(i) = 0    !exclude yourself???
+
       CALL get_molecule_kind(molecule_kind,nbond=nbond,&
                              bond_list=bond_list)
       DO j=1,nbond
-        IF( (bond_list(j)%a/=atomlist(i)).OR. &
-            (bond_list(j)%b/=atomlist(i)) ) THEN
-          atomlist(i) = 0
+        IF( (bond_list(j)%a==i).OR. &
+            (bond_list(j)%b==i) ) THEN
+          atomlist(bond_list(j)%a) = 0
+          atomlist(bond_list(j)%b) = 0
         END IF
       END DO
       CALL get_molecule_kind(molecule_kind,nbend=nbend,&
                              bend_list=bend_list)
       DO j=1,nbend
-        IF( (bend_list(j)%a/=atomlist(i)).OR. &
-            (bend_list(j)%b/=atomlist(i)).OR. &
-            (bend_list(j)%c/=atomlist(i)) ) THEN
-          atomlist(i) = 0
+        IF( (bend_list(j)%a==i).OR. &
+            (bend_list(j)%b==i).OR. &
+            (bend_list(j)%c==i) ) THEN
+          atomlist(bend_list(j)%a) = 0
+          atomlist(bend_list(j)%b) = 0
+          atomlist(bend_list(j)%c) = 0
         END IF
       END DO
       CALL get_molecule_kind(molecule_kind,ntorsion=ntorsion,&
                              torsion_list=torsion_list)
       DO j=1,ntorsion
-        IF( (torsion_list(j)%a/=atomlist(i)).OR. &
-            (torsion_list(j)%b/=atomlist(i)).OR. &
-            (torsion_list(j)%c/=atomlist(i)).OR. &
-            (torsion_list(j)%d/=atomlist(i)) ) THEN
-          atomlist(i) = 0
+        IF( (torsion_list(j)%a==i).OR. &
+            (torsion_list(j)%b==i).OR. &
+            (torsion_list(j)%c==i).OR. &
+            (torsion_list(j)%d==i) ) THEN
+          atomlist(torsion_list(j)%a) = 0
+          atomlist(torsion_list(j)%b) = 0
+          atomlist(torsion_list(j)%c) = 0
+          atomlist(torsion_list(j)%d) = 0
         END IF
       END DO
 
@@ -2116,10 +2122,10 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
         counter = 0
         NULLIFY(list)
         DO k=1,natom
-          IF((atomkind(k+first_atom-1)==j).AND.(atomlist(k)/=0)) THEN
+          IF((atomkind(k+first_atom-1)==j).AND.(atomlist(k)==0)) THEN
             counter = counter + 1
             CALL reallocate(list,1,counter)
-            list(counter) = atomlist(k) + first_atom - 1
+            list(counter) = k + first_atom - 1
           END IF
         END DO
         particle_set(i+first_atom-1)%lpi%exclusion(j)%list => list

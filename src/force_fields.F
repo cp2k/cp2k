@@ -426,7 +426,7 @@ END SUBROUTINE input_bonds
 !!I SECTION: &force_field ... &end                                            I
 !!I                                                                           I
 !!I bends
-!!I    harmonic bp1 bp2                                                       I
+!!I    harmonic ATMNAE1 ATMNAME2 ATMNAE3 k theta
 !!I end bends                                                                 I
 !!I                                                                           I
 !!I---------------------------------------------------------------------------I
