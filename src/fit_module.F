@@ -270,7 +270,7 @@
       TYPE (thermodynamic_type), INTENT (INOUT) :: thermo
       TYPE (simulation_parameters_type), INTENT (IN) :: simpar
       REAL (dbl), INTENT (IN), DIMENSION (:) :: x
-      TYPE (fit_parameter_type), INTENT(IN) :: fit_param
+      TYPE (fit_parameter_type), INTENT(INOUT) :: fit_param
       TYPE (cell_type) , POINTER, DIMENSION (:) :: box_ref
       TYPE (fit_info_type), DIMENSION (:,:), POINTER :: finfo
       TYPE (linklist_parameters_type ), INTENT(INOUT), DIMENSION ( :, : ) :: param 
