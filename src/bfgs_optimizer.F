@@ -382,7 +382,7 @@ CONTAINS
 
     CALL update_trust_rad(rat,rad,step,ediff)
 
-    CALL check_converg(ndf,dr,g,ionode,output_unit,conv)
+    CALL check_converg(ndf,dr,g,ionode,output_unit,conv,gopt_param)
 
 
     IF(conv) EXIT
@@ -926,23 +926,30 @@ CONTAINS
 
 ! ***************************************************************************
 
-  SUBROUTINE check_converg(ndf,dr,g,ionode,output_unit,conv)
+  SUBROUTINE check_converg(ndf,dr,g,ionode,output_unit,conv,gopt_param)
 
     INTEGER, INTENT(IN)                      :: ndf
     REAL(KIND=dp), INTENT(IN)                :: dr(ndf), g(ndf)
     LOGICAL, INTENT(IN)                      :: ionode
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, INTENT(OUT)                     :: conv
+    TYPE(gopt_param_type), POINTER           :: gopt_param
 
-    REAL(KIND=dp), PARAMETER                 :: dxcon = 0.0030_dp, &
-                                                gcon = 0.00045_dp, &
-                                                rmsgcon = 0.00030_dp, &
-                                                rmsxcon = 0.0015_dp
+!    REAL(KIND=dp), PARAMETER                 :: dxcon = 0.0030_dp, &
+!                                                gcon = 0.00045_dp, &
+!                                                rmsgcon = 0.00030_dp, &
+!                                                rmsxcon = 0.0015_dp
 
     INTEGER                                  :: indf
     LOGICAL                                  :: conv_dx, conv_g, conv_rdx, &
                                                 conv_rg
     REAL(KIND=dp)                            :: dumm, maxdum(4)
+    REAL(KIND=dp)                            :: dxcon,gcon,rmsgcon,rmsxcon
+
+    dxcon = gopt_param%max_dr
+    gcon = gopt_param%max_force
+    rmsgcon = gopt_param%rms_force
+    rmsxcon = gopt_param%rms_dr
 
    conv     = .FALSE.
    conv_dx  = .TRUE.

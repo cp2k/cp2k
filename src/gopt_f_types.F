@@ -141,7 +141,8 @@ MODULE gopt_f_types
   !***************************************************************************
   TYPE gopt_param_type
      INTEGER :: id_nr,ref_count,method_id,max_h_rank, max_f_per_iter, max_iter
-     REAL(KIND = dp) :: wanted_proj_gradient, wanted_rel_f_error
+     REAL(KIND = dp) :: wanted_proj_gradient, wanted_rel_f_error,&
+                        max_dr,max_force,rms_dr,rms_force
      CHARACTER(LEN=4) :: method
      LOGICAL :: hesrest,atmfix
      LOGICAL, POINTER :: to_move(:)
@@ -573,6 +574,10 @@ SUBROUTINE gopt_param_create(gopt_param,error)
      gopt_param%method='BFGS'
      gopt_param%hesrest=.FALSE.
      gopt_param%atmfix = .FALSE.
+     gopt_param%max_dr = 0.0030_dp
+     gopt_param%max_force = 0.00045_dp
+     gopt_param%rms_dr = 0.0015_dp
+     gopt_param%rms_force = 0.00030_dp
   END IF
 END SUBROUTINE gopt_param_create
 !***************************************************************************
@@ -663,6 +668,14 @@ SUBROUTINE gopt_param_read(gopt_param, globenv, error)
               gopt_param%hesrest = .TRUE.
            CASE('ATMFIX')
               gopt_param%atmfix  = .TRUE.
+           CASE ("MAX_DR")
+              CALL read_object(gopt_param%max_dr)
+           CASE ("MAX_FORCE")
+              CALL read_object(gopt_param%max_force)
+           CASE ("RMS_DR")
+              CALL read_object(gopt_param%rms_dr)
+           CASE ("RMS_FORCE")
+              CALL read_object(gopt_param%rms_force)
            CASE DEFAULT
               CALL stop_parser(routine=routineP,message="INVALID_KEYWORD")
            END SELECT
