@@ -95,7 +95,7 @@ CONTAINS
           CALL mp_sum(element, mat_a%matrix_struct%para_env%group)
 #endif
           IF (element/=vec_b(row)) THEN
-             WRITE (*,*) routineP//': inconsistent data'
+             WRITE (*,*) routineP//': inconsistent DATA'
              STOP 1
           END IF
        END DO
@@ -150,7 +150,7 @@ CONTAINS
              CALL mp_sum(element, mat_b%matrix_struct%para_env%group)
 #endif
              IF (element/=vec_a(row)) THEN
-                WRITE (*,*) routineP//': Inconsistent data'
+                WRITE (*,*) routineP//': Inconsistent DATA'
                 STOP 1
              END IF
           END DO
@@ -209,7 +209,7 @@ CONTAINS
              CALL mp_sum(element, mat_a%matrix_struct%para_env%group)
 #endif
              IF (element/=vec_b(((col-1)*a_row_global)+row)) THEN
-                WRITE (*,*) routineP//': Inconsistent data'
+                WRITE (*,*) routineP//': Inconsistent DATA'
                 STOP 1
              END IF
           END DO
@@ -266,7 +266,7 @@ CONTAINS
              CALL mp_sum(element, mat_b%matrix_struct%para_env%group)
 #endif
              IF (element/=vec_a(((col-1)*b_row_global)+row)) THEN
-                WRITE (*,*) routineP//': Inconsistent data'
+                WRITE (*,*) routineP//': Inconsistent DATA'
                 STOP 1
              END IF
           END DO

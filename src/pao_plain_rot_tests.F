@@ -25,34 +25,48 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-module pao_plain_rot_tests
-  use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
-       cp_log, cp_logger_type, cp_note_level
-  use cp_error_handling, only: cp_error_type, cp_assert, cp_error_message,&
-       cp_assertion_failed, cp_debug, cp_precondition_failed, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_get_logger
-  use kinds, only: wp=>dp
-  use pao_utils, only:  cp_get_random_integer
-  use cp_matrix_utils, only: cp_sup_norm_matrix
-  use mathconstants, only: pi
-  use global_types, only: global_environment_type
-  use pao_plain_rot, only: cp_right_compose_p_rot, &
-       cp_right_compose_p_rot_deriv, cp_left_compose_p_rot,&
-       cp_left_compose_p_rot_deriv
-  use pao_types, only: pao_env_type, pao_glob_angles_type
-  use pao_types_tests, only: cp_init_test_pao_env
-  use pao_l_angles_methods, only: pao_local_angles_type, cp_init, &
-       cp_dealloc_ref, cp_get
-  use cp_array_utils, only: cp_2d_r_output
-  implicit none
-  private
+MODULE pao_plain_rot_tests
+  USE cp_array_utils,                  ONLY: cp_2d_r_output
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_precondition_failed
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_log,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_matrix_utils,                 ONLY: cp_sup_norm_matrix
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  USE mathconstants,                   ONLY: pi
+  USE pao_l_angles_methods,            ONLY: cp_dealloc_ref,&
+                                             cp_get,&
+                                             cp_init,&
+                                             pao_local_angles_type
+  USE pao_plain_rot,                   ONLY: cp_left_compose_p_rot,&
+                                             cp_left_compose_p_rot_deriv,&
+                                             cp_right_compose_p_rot,&
+                                             cp_right_compose_p_rot_deriv
+  USE pao_types,                       ONLY: pao_env_type,&
+                                             pao_glob_angles_type
+  USE pao_types_tests,                 ONLY: cp_init_test_pao_env
+  USE pao_utils,                       ONLY: cp_get_random_integer
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
 
-  public :: pao_test_plain_rot, pao_test_u_du
+  PUBLIC :: pao_test_plain_rot, pao_test_u_du
 !!***
 !******************************************************************************
-contains
+CONTAINS
 
 !!****f* pao_plain_rot_tests/pao_test_plain_rot [1.0] *
 !!
@@ -86,219 +100,219 @@ contains
 !!     none
 !!
 !!*** ************************************************************************
-  subroutine pao_test_plain_rot(g_env, failed, error)
-    type(global_environment_type), intent(in), target ::g_env
-    logical, intent(inout) :: failed
-    type(cp_error_type), optional, intent(inout):: error
+  SUBROUTINE pao_test_plain_rot(g_env, failed, error)
+    TYPE(global_environment_type), INTENT(in), TARGET ::g_env
+    LOGICAL, INTENT(inout) :: failed
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout):: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_plain_rot_tests:cp_test_plain_rot'
-    integer, parameter :: n=10
-    integer :: i,j
-    real(kind=wp) :: m1(n,n),m2(n,n),tmpV1(n), angle, err
-    type(cp_logger_type), pointer :: logger
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_plain_rot_tests:cp_test_plain_rot'
+    INTEGER, PARAMETER :: n=10
+    INTEGER :: i,j
+    REAL(kind=wp) :: m1(n,n),m2(n,n),tmpV1(n), angle, err
+    TYPE(cp_logger_type), POINTER :: logger
     failure=.FALSE.
     CPPrecondition(n>1,cp_failure_level,routineP,error,failure)
-    if (.NOT. failure) then
+    IF (.NOT. failure) THEN
        logger=>cp_error_get_logger(error)
 
        i=cp_get_random_integer(from=1,to=n)
        j=cp_get_random_integer(from=1,to=n)
-       if (i==j) then
-          if (i>1) then
+       IF (i==j) THEN
+          IF (i>1) THEN
              j=i-1
-          else
+          ELSE
              j=i+1
-          end if
-       end if
-       call random_number(m1)
+          END IF
+       END IF
+       CALL RANDOM_NUMBER(m1)
        m2=m1
 
        ! t1r
-       if (cp_debug.and.debug_this_module) then
-          call cp_log(logger,cp_note_level,routineP, &
+       IF (cp_debug.and.debug_this_module) THEN
+          CALL cp_log(logger,cp_note_level,routineP, &
                'test1r: rotation with pi/2 swaps columns and change sign of the second')
-       end if
+       END IF
        tmpV1=m2(:,i)
        m2(:,i)=m2(:,j)
        m2(:,j)=-tmpV1
-       call cp_right_compose_p_rot(m1,pi/2,i,j)
+       CALL cp_right_compose_p_rot(m1,pi/2,i,j)
        err=cp_sup_norm_matrix(m2-m1)
-       if (err>10*epsilon(0.0_wp)) then
-          failure=.true.
-          call cp_log(logger,cp_failure_level,routineP, &
+       IF (err>10*EPSILON(0.0_wp)) THEN
+          failure=.TRUE.
+          CALL cp_log(logger,cp_failure_level,routineP, &
                'test1r (right rot pi/2) with i='//cp_to_string(i)// &
                ' j='//cp_to_string(j)//' failed')
-       else if (cp_debug .and. debug_this_module) then
-          call cp_log(logger,cp_warning_level,routineP,&
+       ELSE IF (cp_debug .AND. debug_this_module) THEN
+          CALL cp_log(logger,cp_warning_level,routineP,&
                'test1r: SUCCESS')
-       end if
+       END IF
 
        ! t2r
-       if (cp_debug.and.debug_this_module) then
-          call cp_log(logger,cp_note_level,routineP, &
+       IF (cp_debug.and.debug_this_module) THEN
+          CALL cp_log(logger,cp_note_level,routineP, &
                'test2r: rotation with -angle restores the matrix')
-       end if
+       END IF
        m2=m1
-       call random_number(angle)
+       CALL RANDOM_NUMBER(angle)
        angle=4.0_wp*pi*angle
-       call cp_right_compose_p_rot(m1,angle,i,j)
-       call cp_right_compose_p_rot(m1,-angle,i,j)
+       CALL cp_right_compose_p_rot(m1,angle,i,j)
+       CALL cp_right_compose_p_rot(m1,-angle,i,j)
        err=cp_sup_norm_matrix(m2-m1)
-       if (err>2*n*epsilon(0.0_wp)) then
-          failure=.true.
-          call cp_log(logger,cp_failure_level,routineP, &
+       IF (err>2*n*EPSILON(0.0_wp)) THEN
+          failure=.TRUE.
+          CALL cp_log(logger,cp_failure_level,routineP, &
                'test2r (right -angle = rot^-1) with angle='//cp_to_string(angle)&
                //' i='//cp_to_string(i)// &
                ' j='//cp_to_string(j)//' failed')
-       else if (cp_debug .and. debug_this_module) then
-          call cp_log(logger,cp_warning_level,routineP,&
+       ELSE IF (cp_debug .AND. debug_this_module) THEN
+          CALL cp_log(logger,cp_warning_level,routineP,&
                'test2r: SUCCESS')
-       end if
+       END IF
 
        !t1l
-       if (cp_debug.and.debug_this_module) then
-          call cp_log(logger,cp_note_level,routineP, &
+       IF (cp_debug.and.debug_this_module) THEN
+          CALL cp_log(logger,cp_note_level,routineP, &
                'test1l: rotation with pi/2 swaps lines and change sign of the first')
-       end if
+       END IF
        tmpV1=m2(i,:)
        m2(i,:)=-m2(j,:)
        m2(j,:)=tmpV1
-       call cp_left_compose_p_rot(m1,pi/2,i,j)
+       CALL cp_left_compose_p_rot(m1,pi/2,i,j)
        err=cp_sup_norm_matrix(m2-m1)
-       if (err>2*n*epsilon(0.0_wp)) then
-          failure=.true.
-          call cp_log(logger,cp_failure_level,routineP, &
+       IF (err>2*n*EPSILON(0.0_wp)) THEN
+          failure=.TRUE.
+          CALL cp_log(logger,cp_failure_level,routineP, &
                'test1l (right rot pi/2) with i='//cp_to_string(i)// &
                ' j='//cp_to_string(j)//' failed')
-       else if (cp_debug .and. debug_this_module) then
-          call cp_log(logger,cp_warning_level,routineP,&
+       ELSE IF (cp_debug .AND. debug_this_module) THEN
+          CALL cp_log(logger,cp_warning_level,routineP,&
                'test1l: SUCCESS')
-       end if
+       END IF
 
        ! t2l
-       if (cp_debug.and.debug_this_module) then
-          call cp_log(logger,cp_note_level,routineP, &
+       IF (cp_debug.and.debug_this_module) THEN
+          CALL cp_log(logger,cp_note_level,routineP, &
                'test2l: rotation with -angle restores the matrix')
-       end if
+       END IF
        m2=m1
-       call random_number(angle)
+       CALL RANDOM_NUMBER(angle)
        angle=4.0_wp*pi*angle
-       call cp_left_compose_p_rot(m1,angle,i,j)
-       call cp_left_compose_p_rot(m1,-angle,i,j)
+       CALL cp_left_compose_p_rot(m1,angle,i,j)
+       CALL cp_left_compose_p_rot(m1,-angle,i,j)
        err=cp_sup_norm_matrix(m2-m1)
-       if (err>2*n*epsilon(0.0_wp)) then
-          failure=.true.
-          call cp_log(logger,cp_failure_level,routineP, &
+       IF (err>2*n*EPSILON(0.0_wp)) THEN
+          failure=.TRUE.
+          CALL cp_log(logger,cp_failure_level,routineP, &
                'test2l (right -angle = rot^-1) with angle='//cp_to_string(angle)&
                //' i='//cp_to_string(i)// &
                ' j='//cp_to_string(j)//' failed')
-       else if (cp_debug .and. debug_this_module) then
-          call cp_log(logger,cp_warning_level,routineP,&
+       ELSE IF (cp_debug .AND. debug_this_module) THEN
+          CALL cp_log(logger,cp_warning_level,routineP,&
                'test2l: SUCCESS')
-       end if
+       END IF
 
        ! t3 
-       if (cp_debug.and.debug_this_module) then
-          call cp_log(logger,cp_note_level,routineP, &
+       IF (cp_debug.and.debug_this_module) THEN
+          CALL cp_log(logger,cp_note_level,routineP, &
                'test3: the unit matrix is the same in all orthonormal basis')
-       end if
+       END IF
        m1=0
-       forall (i=1:n) m1(i,i)=1
+       FORALL (i=1:n) m1(i,i)=1
        m2=m1
-       call random_number(angle)
+       CALL RANDOM_NUMBER(angle)
        angle=4.0_wp*pi*angle
-       call cp_left_compose_p_rot(m1,angle,i,j)
-       call cp_right_compose_p_rot(m1,-angle,i,j)
+       CALL cp_left_compose_p_rot(m1,angle,i,j)
+       CALL cp_right_compose_p_rot(m1,-angle,i,j)
        err=cp_sup_norm_matrix(m2-m1)
-       if (err>2*n*epsilon(0.0_wp)) then
-          failure=.true.
-          call cp_log(logger,cp_failure_level,routineP, &
+       IF (err>2*n*EPSILON(0.0_wp)) THEN
+          failure=.TRUE.
+          CALL cp_log(logger,cp_failure_level,routineP, &
                'test3 (unity matrix same in all ONB) with angle='//cp_to_string(angle)&
                //' i='//cp_to_string(i)// &
                ' j='//cp_to_string(j)//' failed')
-          if (cp_debug .and. debug_this_module) then
-             call cp_2d_r_output(logger, 'identity_matrix', routineP,1,m1,'identity matrix')
-          end if
-       else if (cp_debug .and. debug_this_module) then
-          call cp_log(logger,cp_warning_level,routineP,&
+          IF (cp_debug .AND. debug_this_module) THEN
+             CALL cp_2d_r_output(logger, 'identity_matrix', routineP,1,m1,'identity matrix')
+          END IF
+       ELSE IF (cp_debug .AND. debug_this_module) THEN
+          CALL cp_log(logger,cp_warning_level,routineP,&
                'test3: SUCCESS')
-       end if
+       END IF
 
        ! t4
-       if (cp_debug.and.debug_this_module) then
-          call cp_log(logger,cp_note_level,routineP, &
+       IF (cp_debug.and.debug_this_module) THEN
+          CALL cp_log(logger,cp_note_level,routineP, &
                'test4: d/dt (J(t,i,j)J(-t,i,j)M)=0')
-       end if
+       END IF
        ! test m1 = identity
        !m1=0
        !forall (i=1:n) m1(i,i)=1
-       call random_number(m1)
+       CALL RANDOM_NUMBER(m1)
        m2=m1
-       call random_number(angle)
+       CALL RANDOM_NUMBER(angle)
        angle=4.0_wp*pi*angle
-       call cp_left_compose_p_rot(m1,-angle,i,j)
+       CALL cp_left_compose_p_rot(m1,-angle,i,j)
        !call cp_2d_r_output(logger, 'm1_1', routineP,1,m1,'m1.1')
-       call cp_left_compose_p_rot_deriv(m1,angle,i,j)
+       CALL cp_left_compose_p_rot_deriv(m1,angle,i,j)
        !call cp_2d_r_output(logger, 'm1_2', routineP,1,m1,'m1.2')
-       call cp_left_compose_p_rot_deriv(m2,-angle,i,j)
+       CALL cp_left_compose_p_rot_deriv(m2,-angle,i,j)
        !call cp_2d_r_output(logger, 'm2_1', routineP,1,m2,'m2.1')
-       call cp_left_compose_p_rot(m2,angle,i,j)
+       CALL cp_left_compose_p_rot(m2,angle,i,j)
        !call cp_2d_r_output(logger, 'm2_2', routineP,1,m2,'m2.2')
        err=cp_sup_norm_matrix(m1-m2)
-       if (err>2*n*epsilon(0.0_wp)) then
-          failure=.true.
-          call cp_log(logger,cp_failure_level,routineP, &
+       IF (err>2*n*EPSILON(0.0_wp)) THEN
+          failure=.TRUE.
+          CALL cp_log(logger,cp_failure_level,routineP, &
                'test4 d/dt (J(t,i,j)J(-t,i,j)M)=0 with angle='//cp_to_string(angle)&
                //' i='//cp_to_string(i)// &
                ' j='//cp_to_string(j)//' failed')
-          if (cp_debug .and. debug_this_module) then
-             call cp_2d_r_output(logger, 'zero_matrix', routineP,1,m1-m2,'zero matrix 1')
-          end if
-       else if (cp_debug .and. debug_this_module) then
-          call cp_log(logger,cp_warning_level,routineP,&
+          IF (cp_debug .AND. debug_this_module) THEN
+             CALL cp_2d_r_output(logger, 'zero_matrix', routineP,1,m1-m2,'zero matrix 1')
+          END IF
+       ELSE IF (cp_debug .AND. debug_this_module) THEN
+          CALL cp_log(logger,cp_warning_level,routineP,&
                'test4: SUCCESS')
-       end if
+       END IF
 
        ! t5
-       if (cp_debug.and.debug_this_module) then
-          call cp_log(logger,cp_note_level,routineP, &
+       IF (cp_debug.and.debug_this_module) THEN
+          CALL cp_log(logger,cp_note_level,routineP, &
                'test5: d/dt (MJ(t,i,j)J(-t,i,j))=0')
-       end if
-       call random_number(m1)
+       END IF
+       CALL RANDOM_NUMBER(m1)
        m2=m1
-       call random_number(angle)
+       CALL RANDOM_NUMBER(angle)
        angle=4.0_wp*pi*angle
-       call cp_right_compose_p_rot(m1,-angle,i,j)
-       call cp_right_compose_p_rot_deriv(m1,angle,i,j)
-       call cp_right_compose_p_rot_deriv(m2,-angle,i,j)
-       call cp_right_compose_p_rot(m2,angle,i,j)
+       CALL cp_right_compose_p_rot(m1,-angle,i,j)
+       CALL cp_right_compose_p_rot_deriv(m1,angle,i,j)
+       CALL cp_right_compose_p_rot_deriv(m2,-angle,i,j)
+       CALL cp_right_compose_p_rot(m2,angle,i,j)
        err=cp_sup_norm_matrix(m1-m2)
-       if (err>2*n*epsilon(0.0_wp)) then
-          failure=.true.
-          call cp_log(logger,cp_failure_level,routineP, &
+       IF (err>2*n*EPSILON(0.0_wp)) THEN
+          failure=.TRUE.
+          CALL cp_log(logger,cp_failure_level,routineP, &
                'test5 d/dt (M J(t,i,j)J(-t,i,j))=0 with angle='//cp_to_string(angle)&
                //' i='//cp_to_string(i)// &
                ' j='//cp_to_string(j)//' failed')
-          if (cp_debug .and. debug_this_module) then
-             call cp_2d_r_output(logger, 'zero_matrix', routineP,2,m1-m2,'zero matrix 2')
-          end if
-       else if (cp_debug .and. debug_this_module) then
-          call cp_log(logger,cp_warning_level,routineP,&
+          IF (cp_debug .AND. debug_this_module) THEN
+             CALL cp_2d_r_output(logger, 'zero_matrix', routineP,2,m1-m2,'zero matrix 2')
+          END IF
+       ELSE IF (cp_debug .AND. debug_this_module) THEN
+          CALL cp_log(logger,cp_warning_level,routineP,&
                'test5: SUCCESS')
-       end if
+       END IF
 
        ! u_du tests
-       if (.not.pao_test_u_du(g_env,error=error)) then
-          failure=.true.
-       end if
+       IF (.not.pao_test_u_du(g_env,error=error)) THEN
+          failure=.TRUE.
+       END IF
 
-       if (cp_debug .and. debug_this_module .and. .not.failure) then
-          call cp_log(logger,cp_warning_level,routineP,&
+       IF (cp_debug .AND. debug_this_module .AND. .not.failure) THEN
+          CALL cp_log(logger,cp_warning_level,routineP,&
                'cp_test_plain_rot: all tests succeded, SUCCESS')
-       end if
-    end if
-  end subroutine pao_test_plain_rot
+       END IF
+    END IF
+  END SUBROUTINE pao_test_plain_rot
   !******************************************************************************
 
 !!****f* pao_test_plain_rot/pao_test_u_du [1.0] *
@@ -332,23 +346,23 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function pao_test_u_du(glob_env,error) result(res)
-    logical ::res
-    type(global_environment_type), target :: glob_env
-    type(cp_error_type), optional, intent(inout) :: error
+  FUNCTION pao_test_u_du(glob_env,error) RESULT(res)
+    LOGICAL ::res
+    TYPE(global_environment_type), TARGET :: glob_env
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_plain_rot_tests:pao_test_u_du'
-    integer, parameter :: n_atom=3, atom_nr=1
-    type(pao_env_type) :: pao_env
-    type(pao_glob_angles_type), pointer :: g_angles
-    type(pao_local_angles_type) :: l_angles
-    real(kind=wp), dimension(:), pointer :: angles
-    real(kind=wp),dimension(:,:), allocatable :: m1,m2,m3
-    real(kind=wp) :: err
-    integer :: stat, full_bas_size, i
-    type(cp_logger_type), pointer :: logger
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_plain_rot_tests:pao_test_u_du'
+    INTEGER, PARAMETER :: n_atom=3, atom_nr=1
+    TYPE(pao_env_type) :: pao_env
+    TYPE(pao_glob_angles_type), POINTER :: g_angles
+    TYPE(pao_local_angles_type) :: l_angles
+    REAL(kind=wp), DIMENSION(:), POINTER :: angles
+    REAL(kind=wp),DIMENSION(:,:), ALLOCATABLE :: m1,m2,m3
+    REAL(kind=wp) :: err
+    INTEGER :: stat, full_bas_size, i
+    TYPE(cp_logger_type), POINTER :: logger
+    failure=.FALSE.
     logger=>cp_error_get_logger(error)
 
 !!FM    call cp_init_test_pao_env(pao_env,glob_env,n_atom,error=error)
@@ -396,8 +410,8 @@ contains
 !!FM    call cp_dealloc_ref(l_angles,error=error)
 !!FM    call cp_dealloc_ref(pao_env,error=error)
     res=failure
-  end function pao_test_u_du
+  END FUNCTION pao_test_u_du
   !***************************************************************************
 
-end module pao_plain_rot_tests
+END MODULE pao_plain_rot_tests
 

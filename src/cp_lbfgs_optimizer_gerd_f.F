@@ -32,16 +32,26 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_lbfgs_optimizer_gerd_f
-  USE cp_lbfgs, ONLY: setulb, cp_lbfgs_unit_nr
-  USE cp_error_handling, ONLY: cp_assert, cp_error_message, cp_error_type,&
-        cp_assertion_failed, cp_error_get_logger
-  USE cp_log_handling, ONLY: cp_to_string, cp_warning_level, cp_failure_level,&
-        cp_std_out_unit_nr, cp_logger_get_default_unit_nr, cp_logger_type
-  USE kinds, ONLY: wp=>dp
-  USE global_types, ONLY: global_environment_type
-  USE timings, ONLY: timeset, timestop
-  USE message_passing, ONLY: mp_bcast
-  USE pao_obj_function, ONLY: pao_gerd_functional_type, cp_eval_at
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_lbfgs,                        ONLY: cp_lbfgs_unit_nr,&
+                                             setulb
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_std_out_unit_nr,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  USE message_passing,                 ONLY: mp_bcast
+  USE pao_obj_function,                ONLY: cp_eval_at,&
+                                             pao_gerd_functional_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
   PRIVATE
 
@@ -180,7 +190,7 @@ MODULE cp_lbfgs_optimizer_gerd_f
      REAL(kind=wp), DIMENSION(:), POINTER :: x,lower_bound,upper_bound,&
           gradient,dsave,work_array
      TYPE(global_environment_type), POINTER :: global_env
-     type(pao_gerd_functional_type), POINTER :: obj_funct
+     TYPE(pao_gerd_functional_type), POINTER :: obj_funct
   END TYPE cp_lbfgs_opt_gerd_f_type
 !!***
   !****************************************************************************
@@ -236,7 +246,7 @@ CONTAINS
        lower_bound,upper_bound, kind_of_bound, master, max_f_per_iter, error)
     TYPE(cp_lbfgs_opt_gerd_f_type), INTENT(out) :: optimizer
     TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    type(pao_gerd_functional_type), INTENT(in), TARGET :: obj_funct
+    TYPE(pao_gerd_functional_type), INTENT(in), TARGET :: obj_funct
     REAL(kind=wp), DIMENSION(:), INTENT(in) :: x0
     INTEGER, INTENT(in), OPTIONAL :: m,print_every, master, max_f_per_iter
     REAL(kind=wp), INTENT(in), OPTIONAL ::wanted_projected_gradient,&
@@ -464,7 +474,7 @@ CONTAINS
        is_master, last_f, f, error)
     TYPE(cp_lbfgs_opt_gerd_f_type), INTENT(in) :: optimizer
     TYPE(global_environment_type), POINTER, OPTIONAL :: global_env
-    type(pao_gerd_functional_type), POINTER, OPTIONAL :: obj_funct
+    TYPE(pao_gerd_functional_type), POINTER, OPTIONAL :: obj_funct
     REAL(kind=wp), DIMENSION(:), POINTER, OPTIONAL :: x
     INTEGER, INTENT(out), OPTIONAL :: m, print_every, n_var, n_iter, master,&
          status, max_f_per_iter
@@ -657,7 +667,7 @@ CONTAINS
              ELSE IF (optimizer%task(1:4)=='STOP') THEN
                 optimizer%status=5
                 CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                     routineP,"task became stop in an unknown way in "//&
+                     routineP,"task became STOP in an unknown way in "//&
                      CPSourceFileRef,&
                      error)
              ELSE IF (optimizer%task(1:5)=='ERROR') THEN
@@ -928,9 +938,9 @@ CONTAINS
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,USE)]
 ! ARGS:
-!  type1 = "type(pao_gerd_functional_type)"
-!  nametype1 = "gerd_f"
 !  USE = "USE pao_obj_function, ONLY: pao_gerd_functional_type, cp_eval_at"
+!  nametype1 = "gerd_f"
+!  type1 = "type(pao_gerd_functional_type)"
 
 
 END MODULE cp_lbfgs_optimizer_gerd_f

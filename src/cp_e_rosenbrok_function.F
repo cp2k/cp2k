@@ -25,37 +25,49 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-module cp_e_rosenbrok_function
-  use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
-       cp_logger_get_default_unit_nr, cp_logger_type
-  use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger
-  use kinds, only: wp=>dp
-  use global_types, only: global_environment_type
-  use timings, only: timeset, timestop
-  implicit none
-  private
+MODULE cp_e_rosenbrok_function
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='cp_e_rosenbrok_function'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_e_rosenbrok_function'
 
-  public :: cp_e_rosenbrok_f_type
+  PUBLIC :: cp_e_rosenbrok_f_type
 
-  public :: cp_init, cp_dealloc_ref, cp_eval_at, cp_ros_f_init, &
+  PUBLIC :: cp_init, cp_dealloc_ref, cp_eval_at, cp_ros_f_init, &
        cp_ros_f_dealloc_ref, cp_ros_f_eval_at, cp_bounds_and_x_ros_f_init
 
-  interface cp_init
-     module procedure cp_ros_f_init
-  end interface
-  interface cp_dealloc_ref
-     module procedure cp_ros_f_dealloc_ref
-  end interface
-  interface cp_eval_at
-     module procedure cp_ros_f_eval_at
-  end interface
+  INTERFACE cp_init
+     MODULE PROCEDURE cp_ros_f_init
+  END INTERFACE
+  INTERFACE cp_dealloc_ref
+     MODULE PROCEDURE cp_ros_f_dealloc_ref
+  END INTERFACE
+  INTERFACE cp_eval_at
+     MODULE PROCEDURE cp_ros_f_eval_at
+  END INTERFACE
 
 !!***
 !****************************************************************************
@@ -83,14 +95,14 @@ module cp_e_rosenbrok_function
 !!
 !!   SOURCE
   !***************************************************************************
-  type cp_e_rosenbrok_f_type
-     logical :: initialized
-     integer :: n
-  end type cp_e_rosenbrok_f_type
+  TYPE cp_e_rosenbrok_f_type
+     LOGICAL :: initialized
+     INTEGER :: n
+  END TYPE cp_e_rosenbrok_f_type
 !!***
   !****************************************************************************
 
-contains
+CONTAINS
   
 
 !!****f* cp_e_rosenbrok_f_type/cp_ros_f_init [1.0] *
@@ -125,22 +137,22 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-subroutine cp_ros_f_init(rf_env, n, error)
-  type(cp_e_rosenbrok_f_type), intent(inout) :: rf_env
-  integer, intent(in) :: n
-  type(cp_error_type), optional, intent(inout) :: error
+SUBROUTINE cp_ros_f_init(rf_env, n, error)
+  TYPE(cp_e_rosenbrok_f_type), INTENT(inout) :: rf_env
+  INTEGER, INTENT(in) :: n
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  integer :: handle
-  character(len=*), parameter :: routineN='cp_ros_f_init',&
+  LOGICAL :: failure
+  INTEGER :: handle
+  CHARACTER(len=*), PARAMETER :: routineN='cp_ros_f_init',&
         routineP=moduleN//':'//routineN
-  failure=.false.
+  failure=.FALSE.
   
   !call timeset(routineN//','//moduleN,'I',"",handle)
-  rf_env%initialized=.true.
+  rf_env%initialized=.TRUE.
   rf_env%n=n
   !call timestop(0.0_wp,handle)
-end subroutine cp_ros_f_init
+END SUBROUTINE cp_ros_f_init
 !***************************************************************************
 
 !!****f* cp_e_rosenbrok_f_type/cp_ros_f_dealloc_ref [1.0] *
@@ -173,18 +185,18 @@ end subroutine cp_ros_f_init
 !!     none
 !!
 !!*** **********************************************************************
-subroutine cp_ros_f_dealloc_ref(rf_env, error)
-  type(cp_e_rosenbrok_f_type), intent(inout) :: rf_env
-  type(cp_error_type), optional, intent(inout) :: error
+SUBROUTINE cp_ros_f_dealloc_ref(rf_env, error)
+  TYPE(cp_e_rosenbrok_f_type), INTENT(inout) :: rf_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_ros_f_dealloc_ref',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_ros_f_dealloc_ref',&
        routineP=moduleN//':'//routineN
-  failure=.false.
+  failure=.FALSE.
   
   CPPrecondition(rf_env%initialized,cp_failure_level,routineP,error,failure)
-  rf_env%initialized=.false.
-end subroutine cp_ros_f_dealloc_ref
+  rf_env%initialized=.FALSE.
+END SUBROUTINE cp_ros_f_dealloc_ref
 !***************************************************************************
 
 !!****f* cp_e_rosenbrok_f_type/cp_ros_f_eval_at [1.0] *
@@ -223,45 +235,45 @@ end subroutine cp_ros_f_dealloc_ref
 !!     none
 !!
 !!*** **********************************************************************
-subroutine cp_ros_f_eval_at(rf_env, x, f, gradient, error)
-  type(cp_e_rosenbrok_f_type), intent(in) :: rf_env
-  real(kind=wp), dimension(:), intent(in) :: x
-  real(kind=wp), intent(out), optional :: f
-  real(kind=wp), intent(out), dimension(:), optional :: gradient
-  type(cp_error_type), optional, intent(inout) :: error
+SUBROUTINE cp_ros_f_eval_at(rf_env, x, f, gradient, error)
+  TYPE(cp_e_rosenbrok_f_type), INTENT(in) :: rf_env
+  REAL(kind=wp), DIMENSION(:), INTENT(in) :: x
+  REAL(kind=wp), INTENT(out), OPTIONAL :: f
+  REAL(kind=wp), INTENT(out), DIMENSION(:), OPTIONAL :: gradient
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  integer :: handle, i
-  character(len=*), parameter :: routineN='cp_ros_f_eval_at',&
+  LOGICAL :: failure
+  INTEGER :: handle, i
+  CHARACTER(len=*), PARAMETER :: routineN='cp_ros_f_eval_at',&
        routineP=moduleN//':'//routineN
-  real(kind=wp) :: t1,t2
-  failure=.false.
+  REAL(kind=wp) :: t1,t2
+  failure=.FALSE.
   
   CPPrecondition(rf_env%initialized,cp_failure_level,routineP,error,failure)
-  CPPrecondition(size(x)==rf_env%n,cp_warning_level,routineP,error,failure)
+  CPPrecondition(SIZE(x)==rf_env%n,cp_warning_level,routineP,error,failure)
   !call timeset(routineN//','//moduleN,'I',"",handle)
-  if (present(f)) then
+  IF (PRESENT(f)) THEN
      f = 0.25_wp * (x (1) - 1.0_wp) **2  
-     do i = 2, rf_env%n  
+     DO i = 2, rf_env%n  
         f = f + (x (i) - x (i - 1) **2) **2  
-     end do
+     END DO
      f = 4.0_wp * f  
-  end if
-  if (present(gradient)) then
+  END IF
+  IF (PRESENT(gradient)) THEN
      ! Compute gradient g for the sample problem.
      t1 = x (2) - x (1) **2  
-     if (rf_env%n>0) then ! right if n==1 ??
+     IF (rf_env%n>0) THEN ! right if n==1 ??
         gradient (1) = 2.0_wp * (x (1) - 1.0_wp) - 16_wp * x (1) * t1  
-        do i = 2, rf_env%n - 1  
+        DO i = 2, rf_env%n - 1  
            t2 = t1  
            t1 = x (i + 1) - x (i) **2  
            gradient(i) = 8.0_wp * t2 - 16_wp * x (i) * t1  
-        end do
+        END DO
         gradient (rf_env%n) = 8.0_wp * t1
-     end if
-  end if
+     END IF
+  END IF
   !call timestop(0.0_wp,handle)
-end subroutine cp_ros_f_eval_at
+END SUBROUTINE cp_ros_f_eval_at
 !***************************************************************************
 
 !!****f* cp_e_rosenbrok_function/cp_bounds_and_x_ros_f_init [1.0] *
@@ -304,42 +316,42 @@ end subroutine cp_ros_f_eval_at
 !!     none
 !!
 !!*** **********************************************************************
-subroutine cp_bounds_and_x_ros_f_init(lower_bound, upper_bound, kind_of_bound,&
+SUBROUTINE cp_bounds_and_x_ros_f_init(lower_bound, upper_bound, kind_of_bound,&
      x0,rf_env, error)
-  real(kind=wp), dimension(:), intent(out) :: lower_bound, upper_bound, x0
-  integer, dimension(:), intent(out) :: kind_of_bound
-  type(cp_e_rosenbrok_f_type), intent(in) :: rf_env
-  type(cp_error_type), optional, intent(inout) :: error
+  REAL(kind=wp), DIMENSION(:), INTENT(out) :: lower_bound, upper_bound, x0
+  INTEGER, DIMENSION(:), INTENT(out) :: kind_of_bound
+  TYPE(cp_e_rosenbrok_f_type), INTENT(in) :: rf_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  integer :: handle, i
-  character(len=*), parameter :: routineN='cp_bounds_ros_f_init',&
+  LOGICAL :: failure
+  INTEGER :: handle, i
+  CHARACTER(len=*), PARAMETER :: routineN='cp_bounds_ros_f_init',&
        routineP=moduleN//':'//routineN
-  failure=.false.
+  failure=.FALSE.
   
   !call timeset(routineN//','//moduleN,'I',"",handle)
   CPPrecondition(rf_env%initialized,cp_failure_level,routineP,error,failure)
-  CPPrecondition(size(lower_bound)==rf_env%n,cp_failure_level,routineP,error,failure)
-  CPPrecondition(size(upper_bound)==rf_env%n,cp_failure_level,routineP,error,failure)
-  CPPrecondition(size(kind_of_bound)==rf_env%n,cp_failure_level,routineP,error,failure)
-  CPPrecondition(size(x0)==rf_env%n,cp_failure_level,routineP,error,failure)
-  if (.not. failure) then
+  CPPrecondition(SIZE(lower_bound)==rf_env%n,cp_failure_level,routineP,error,failure)
+  CPPrecondition(SIZE(upper_bound)==rf_env%n,cp_failure_level,routineP,error,failure)
+  CPPrecondition(SIZE(kind_of_bound)==rf_env%n,cp_failure_level,routineP,error,failure)
+  CPPrecondition(SIZE(x0)==rf_env%n,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
      ! odd numbered variables
-     do i = 1, rf_env%n, 2  
+     DO i = 1, rf_env%n, 2  
         kind_of_bound=2
         lower_bound (i) = 1.0_wp  
         upper_bound (i) = 100.0_wp
-     end do
+     END DO
      ! even-numbered variables.
-     do i = 2, rf_env%n, 2
+     DO i = 2, rf_env%n, 2
         kind_of_bound=2
         lower_bound (i) = - 100.0_wp  
         upper_bound (i) = 100.0_wp
-     end do
+     END DO
      x0=3.0_wp
-  end if
+  END IF
   !call timestop(0.0_wp,handle)
-end subroutine cp_bounds_and_x_ros_f_init
+END SUBROUTINE cp_bounds_and_x_ros_f_init
 !***************************************************************************
 
-end module cp_e_rosenbrok_function
+END MODULE cp_e_rosenbrok_function

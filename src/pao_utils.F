@@ -25,24 +25,28 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-module pao_utils
-  use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level
-  use cp_error_handling, only: cp_error_type, cp_assert, cp_error_message,&
-       cp_assertion_failed
-  use kinds, only: wp => dp
-  use global_types, only: global_environment_type
-  use sparse_matrix_types
-  use message_passing, only: mp_sum
-  implicit none
-  private
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), parameter :: moduleN='pao_utils'
+MODULE pao_utils
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp => dp
+  USE message_passing,                 ONLY: mp_sum
+  USE sparse_matrix_types
+  IMPLICIT NONE
+  PRIVATE
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PARAMETER :: moduleN='pao_utils'
 
 ! =========== public objects ==========
 ! types
 
 ! procedures
-  public :: cp_get_random_integer
+  PUBLIC :: cp_get_random_integer
 
 
 ! ============== interfaces ===========
@@ -51,7 +55,7 @@ module pao_utils
 !****************************************************************************
 
 
-contains
+CONTAINS
 
 !!****f* pao_utils/cp_get_random_integer [1.0] *
 !!
@@ -88,45 +92,45 @@ contains
 !!   SOURCE
 !****************************************************************************
   !pure
-  function cp_get_random_integer(from,to,error) result(res)
-    integer :: res
-    integer, optional, intent(in) :: from, to
-    type(cp_error_type), optional, intent(in) :: error
+  FUNCTION cp_get_random_integer(from,to,error) RESULT(res)
+    INTEGER :: res
+    INTEGER, OPTIONAL, INTENT(in) :: from, to
+    TYPE(cp_error_type), OPTIONAL, INTENT(in) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='util:cp_get_random_integer'
-    real :: rand
-    integer :: fromi, toi
-    type(cp_error_type) :: iError
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='util:cp_get_random_integer'
+    REAL :: rand
+    INTEGER :: fromi, toi
+    TYPE(cp_error_type) :: iError
     failure=.FALSE.
 !call cp_init(iError,template_error=error)
-    if (.not. present(from)) then
+    IF (.NOT. PRESENT(from)) THEN
        fromi=1
-    else
+    ELSE
        fromi=from
-    end if
-    if (.not. present(to)) then
+    END IF
+    IF (.NOT. PRESENT(to)) THEN
        toi=100
-    else
+    ELSE
        toi=to
-    end if
+    END IF
 !CPPrecondition(fromi<=toi,cp_failure_level,routineP,iError,failure)
-    if (.not.fromi<=toi) failure=.true.
-    if (.NOT. failure) then
-       call random_number(rand)
-       res=fromi+floor(rand*real(toi-fromi+1))
+    IF (.not.fromi<=toi) failure=.TRUE.
+    IF (.NOT. failure) THEN
+       CALL RANDOM_NUMBER(rand)
+       res=fromi+FLOOR(rand*REAL(toi-fromi+1))
 !CPPostcondition(res<=toi.and.res>=fromi,cp_warning_level,routineP,iError,failure)
-       if (res>toi) res=toi
-       if (res<fromi) res=fromi
-    else
+       IF (res>toi) res=toi
+       IF (res<fromi) res=fromi
+    ELSE
        res=-1
-    end if
+    END IF
 !call cp_dealloc_ref(iError,error=error)
-  end function cp_get_random_integer
+  END FUNCTION cp_get_random_integer
 !!***
 !****************************************************************************
 
 
 
-end module pao_utils
+END MODULE pao_utils
 

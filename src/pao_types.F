@@ -28,48 +28,61 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-module pao_types
-  use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
-       cp_note_level
-  use cp_error_handling, only: cp_debug, cp_error_type, cp_assert, &
-       cp_error_message
-  use kinds, only: wp=>dp
-  use sparse_matrix_types, only: real_matrix_type, replicate_matrix, copy_matrix,&
-       allocate_matrix, deallocate_matrix, get_matrix_info, get_block_node,&
-       add_block_node, put_block_node
-  use global_types, only: global_environment_type
-  use cp_block_matrix, only: cp_block_matrix_type,cp_block_matrix_p_type,&
-       cp_sp_create
-  use cp_b_matrix_structure, only: cp_b_matrix_struct_type, cp_get
-  use pao_bas_projection_types, only: pao_bas_projection_type, cp_get
-  implicit none
-  private
+MODULE pao_types
+  USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type,&
+                                             cp_get
+  USE cp_block_matrix,                 ONLY: cp_block_matrix_p_type,&
+                                             cp_block_matrix_type,&
+                                             cp_sp_create
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_debug,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  USE pao_bas_projection_types,        ONLY: cp_get,&
+                                             pao_bas_projection_type
+  USE sparse_matrix_types,             ONLY: add_block_node,&
+                                             allocate_matrix,&
+                                             copy_matrix,&
+                                             deallocate_matrix,&
+                                             get_block_node,&
+                                             get_matrix_info,&
+                                             put_block_node,&
+                                             real_matrix_type,&
+                                             replicate_matrix
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='pao_types'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pao_types'
 
 ! =========== public objects ==========
 
 ! types
-  public :: pao_env_type, pao_glob_angles_type
+  PUBLIC :: pao_env_type, pao_glob_angles_type
 
 ! pao_env procedures
-  public :: cp_get, cp_valid
+  PUBLIC :: cp_get, cp_valid
 
 ! underlying functions
-  public :: pao_env_get, pao_env_valid
+  PUBLIC :: pao_env_get, pao_env_valid
 
 !! gets values from the first argument via optional keyword arguments
 !! that depend on the type of the first argument
-  interface cp_get
-     module procedure pao_env_get
-  end interface
+  INTERFACE cp_get
+     MODULE PROCEDURE pao_env_get
+  END INTERFACE
 
 !! returns true if the first argument is valid. Only a fast minimal 
 !! validation is performed (no dangling pointers)
-  interface cp_valid
-     module procedure pao_env_valid
-  end interface
+  INTERFACE cp_valid
+     MODULE PROCEDURE pao_env_valid
+  END INTERFACE
 
 !!***
 !****************************************************************************
@@ -122,15 +135,15 @@ module pao_types
 !!
 !!   SOURCE
 !***************************************************************************
-  type pao_glob_angles_type
+  TYPE pao_glob_angles_type
      !private
-     logical :: initialized, m_s_m_valid, m_h_m_valid
-     real(kind=wp), dimension(:), pointer :: angles
-     logical, dimension(:), pointer :: ut_calculated, NUi_injection_calculated
-     type(cp_block_matrix_type), pointer :: unitary_t, NUi_injection
-     type(cp_block_matrix_p_type), dimension(:), pointer :: min_overlap_m
-     type(cp_block_matrix_p_type), dimension(:), pointer :: min_hamiltonian_m
-  end type pao_glob_angles_type
+     LOGICAL :: initialized, m_s_m_valid, m_h_m_valid
+     REAL(kind=wp), DIMENSION(:), POINTER :: angles
+     LOGICAL, DIMENSION(:), POINTER :: ut_calculated, NUi_injection_calculated
+     TYPE(cp_block_matrix_type), POINTER :: unitary_t, NUi_injection
+     TYPE(cp_block_matrix_p_type), DIMENSION(:), POINTER :: min_overlap_m
+     TYPE(cp_block_matrix_p_type), DIMENSION(:), POINTER :: min_hamiltonian_m
+  END TYPE pao_glob_angles_type
 !!***
 !****************************************************************************
 
@@ -178,27 +191,27 @@ module pao_types
 !!
 !!   SOURCE
 !***************************************************************************
-  type pao_env_type
+  TYPE pao_env_type
      ! private
-     logical :: initialized ! =.false.
-     logical :: min_d_m_valid
-     logical, dimension(:), pointer :: atomic_ortho_valid
-     real(kind=wp) :: wanted_subspace_pos_precision
-     real(kind=wp) :: wanted_in_subspace_precision
-     integer, dimension(:), pointer :: angles_begin_at ! private
-     integer :: max_min_bas,max_full_bas,max_excl_bas,tot_min_bas,&
+     LOGICAL :: initialized ! =.false.
+     LOGICAL :: min_d_m_valid
+     LOGICAL, DIMENSION(:), POINTER :: atomic_ortho_valid
+     REAL(kind=wp) :: wanted_subspace_pos_precision
+     REAL(kind=wp) :: wanted_in_subspace_precision
+     INTEGER, DIMENSION(:), POINTER :: angles_begin_at ! private
+     INTEGER :: max_min_bas,max_full_bas,max_excl_bas,tot_min_bas,&
           tot_full_bas, tot_excl_bas, max_l_angles
-     type(pao_glob_angles_type), pointer :: angles_att
-     type(cp_block_matrix_p_type), dimension(:), pointer :: min_density_m
-     type(cp_b_matrix_struct_type), pointer :: min_bas_m_struct, &
+     TYPE(pao_glob_angles_type), POINTER :: angles_att
+     TYPE(cp_block_matrix_p_type), DIMENSION(:), POINTER :: min_density_m
+     TYPE(cp_b_matrix_struct_type), POINTER :: min_bas_m_struct, &
           full_bas_m_struct, full_min_bas_m_struct, min_full_bas_m_struct,&
           full_bas_diag_m_struct
-     type(cp_block_matrix_type), pointer :: atomic_ortho
-  end type pao_env_type
+     TYPE(cp_block_matrix_type), POINTER :: atomic_ortho
+  END TYPE pao_env_type
 !!***
 !***************************************************************************
 
-contains
+CONTAINS
 
 ! ================== pao_env_type === get methods ===================
 
@@ -253,46 +266,46 @@ contains
 !!
 !!   SOURCE
 !!*** **********************************************************************
-  subroutine pao_env_get(pao_env, wanted_subspace_pos_precision,&
+  SUBROUTINE pao_env_get(pao_env, wanted_subspace_pos_precision,&
        wanted_in_subspace_precision, angles_att,min_density_m, &
        min_bas_m_struct, full_bas_m_struct, full_min_bas_m_struct, &
        min_full_bas_m_struct, full_bas_diag_m_struct,error)
-    type(pao_env_type), target, intent(in) :: pao_env
-    real(kind=wp), optional, intent(out) :: wanted_subspace_pos_precision
-    real(kind=wp), optional, intent(out) :: wanted_in_subspace_precision
-    type(pao_glob_angles_type), optional, pointer :: angles_att
-    type(cp_block_matrix_p_type), dimension(:), optional, pointer ::&
+    TYPE(pao_env_type), TARGET, INTENT(in) :: pao_env
+    REAL(kind=wp), OPTIONAL, INTENT(out) :: wanted_subspace_pos_precision
+    REAL(kind=wp), OPTIONAL, INTENT(out) :: wanted_in_subspace_precision
+    TYPE(pao_glob_angles_type), OPTIONAL, POINTER :: angles_att
+    TYPE(cp_block_matrix_p_type), DIMENSION(:), OPTIONAL, POINTER ::&
          min_density_m
-    type(cp_b_matrix_struct_type), pointer, optional :: min_bas_m_struct, &
+    TYPE(cp_b_matrix_struct_type), POINTER, OPTIONAL :: min_bas_m_struct, &
          full_bas_m_struct, full_min_bas_m_struct, min_full_bas_m_struct,&
          full_bas_diag_m_struct
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='pao_env_get',&
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='pao_env_get',&
         routineP=moduleN//':'//routineN
-    failure=.false.
+    failure=.FALSE.
 
     CPPrecondition(pao_env%initialized, cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
-       if (present(wanted_subspace_pos_precision)) &
+    IF (.NOT. failure) THEN
+       IF (PRESENT(wanted_subspace_pos_precision)) &
             wanted_subspace_pos_precision=pao_env%wanted_subspace_pos_precision
-       if (present(wanted_in_subspace_precision)) &
+       IF (PRESENT(wanted_in_subspace_precision)) &
             wanted_in_subspace_precision=pao_env%wanted_in_subspace_precision
-       if (present(angles_att)) angles_att => pao_env%angles_att
-       if (present(min_density_m)) min_density_m => pao_env%min_density_m
-       if (present(min_bas_m_struct)) &
+       IF (PRESENT(angles_att)) angles_att => pao_env%angles_att
+       IF (PRESENT(min_density_m)) min_density_m => pao_env%min_density_m
+       IF (PRESENT(min_bas_m_struct)) &
             min_bas_m_struct => pao_env%min_bas_m_struct
-       if (present(full_bas_m_struct)) &
+       IF (PRESENT(full_bas_m_struct)) &
             full_bas_m_struct => pao_env%full_bas_m_struct
-       if (present(full_min_bas_m_struct)) &
+       IF (PRESENT(full_min_bas_m_struct)) &
             full_min_bas_m_struct => pao_env%full_min_bas_m_struct
-       if (present(min_full_bas_m_struct)) &
+       IF (PRESENT(min_full_bas_m_struct)) &
             min_full_bas_m_struct => pao_env%min_full_bas_m_struct
-       if (present(full_bas_diag_m_struct)) &
+       IF (PRESENT(full_bas_diag_m_struct)) &
             full_bas_diag_m_struct => pao_env%full_bas_diag_m_struct
-    end if
-  end subroutine pao_env_get
+    END IF
+  END SUBROUTINE pao_env_get
 !***************************************************************************
 
 !!****f* pao_env_methods/pao_env_valid [1.0] *
@@ -326,39 +339,39 @@ contains
 !!     1.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  function pao_env_valid(pao_env,error) result(res)
-    logical ::res
-    type(pao_env_type), intent(in) :: pao_env
-    type(cp_error_type), optional, intent(inout) :: error
+  FUNCTION pao_env_valid(pao_env,error) RESULT(res)
+    LOGICAL ::res
+    TYPE(pao_env_type), INTENT(in) :: pao_env
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='pao_env_valid',&
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='pao_env_valid',&
         routineP=moduleN//':'//routineN
-    failure=.false.
+    failure=.FALSE.
 
     CPPrecondition(pao_env%initialized,cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
-       if (.not.(associated(pao_env%angles_begin_at).and.&
-            associated(pao_env%full_min_bas_m_struct).and.&
-            associated(pao_env%full_bas_diag_m_struct).and.&
-            associated(pao_env%full_bas_m_struct).and.&
-            associated(pao_env%min_full_bas_m_struct).and.&
-            associated(pao_env%min_bas_m_struct).and.&
-            (.not.associated(pao_env%atomic_ortho).or.&
-            associated(pao_env%atomic_ortho_valid)))) then
-          CPAssert(associated(pao_env%angles_begin_at),cp_warning_level,routineP,error,failure)
-          CPAssert(associated(pao_env%full_min_bas_m_struct),cp_warning_level,routineP,error,failure)
-          CPAssert(associated(pao_env%full_bas_diag_m_struct),cp_warning_level,routineP,error,failure)
-          CPAssert(associated(pao_env%full_bas_m_struct),cp_warning_level,routineP,error,failure)
-          CPAssert(associated(pao_env%min_full_bas_m_struct),cp_warning_level,routineP,error,failure)
-          CPAssert(associated(pao_env%min_bas_m_struct),cp_warning_level,routineP,error,failure)
-          if (associated(pao_env%atomic_ortho)) then
-             CPAssert(associated(pao_env%atomic_ortho_valid),cp_warning_level,routineP,error,failure)
-          end if
-       end if
-    end if
+    IF (.NOT. failure) THEN
+       IF (.NOT.(ASSOCIATED(pao_env%angles_begin_at).AND.&
+            ASSOCIATED(pao_env%full_min_bas_m_struct).AND.&
+            ASSOCIATED(pao_env%full_bas_diag_m_struct).AND.&
+            ASSOCIATED(pao_env%full_bas_m_struct).AND.&
+            ASSOCIATED(pao_env%min_full_bas_m_struct).AND.&
+            ASSOCIATED(pao_env%min_bas_m_struct).AND.&
+            (.not.ASSOCIATED(pao_env%atomic_ortho).OR.&
+            ASSOCIATED(pao_env%atomic_ortho_valid)))) THEN
+          CPAssert(ASSOCIATED(pao_env%angles_begin_at),cp_warning_level,routineP,error,failure)
+          CPAssert(ASSOCIATED(pao_env%full_min_bas_m_struct),cp_warning_level,routineP,error,failure)
+          CPAssert(ASSOCIATED(pao_env%full_bas_diag_m_struct),cp_warning_level,routineP,error,failure)
+          CPAssert(ASSOCIATED(pao_env%full_bas_m_struct),cp_warning_level,routineP,error,failure)
+          CPAssert(ASSOCIATED(pao_env%min_full_bas_m_struct),cp_warning_level,routineP,error,failure)
+          CPAssert(ASSOCIATED(pao_env%min_bas_m_struct),cp_warning_level,routineP,error,failure)
+          IF (ASSOCIATED(pao_env%atomic_ortho)) THEN
+             CPAssert(ASSOCIATED(pao_env%atomic_ortho_valid),cp_warning_level,routineP,error,failure)
+          END IF
+       END IF
+    END IF
     res=.not.failure
-  end function pao_env_valid
+  END FUNCTION pao_env_valid
 !***************************************************************************
 
 ! ==================== pao_glob_angles_type ====================
@@ -367,5 +380,5 @@ contains
 
 ! ======================= pao_bas_proj =====================
 
-end module pao_types
+END MODULE pao_types
 

@@ -26,15 +26,15 @@
 !!
 !!   SOURCE
 !****************************************************************************
-module cp_para_types
-  use kinds, only: wp=>dp
-  implicit none
-  private
+MODULE cp_para_types
+  USE kinds,                           ONLY: wp=>dp
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='cp_para_types'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_para_types'
 
-  public :: cp_para_env_type, cp_blacs_env_type
+  PUBLIC :: cp_para_env_type, cp_blacs_env_type
 !***
 !****************************************************************************
 
@@ -68,10 +68,10 @@ module cp_para_types
 !!
 !!   SOURCE
   !***************************************************************************
-  type cp_para_env_type
-     logical :: owns_group
-     integer :: mepos, group, source, num_pe, ref_count
-  end type cp_para_env_type
+  TYPE cp_para_env_type
+     LOGICAL :: owns_group
+     INTEGER :: mepos, group, source, num_pe, ref_count
+  END TYPE cp_para_env_type
 !!***
 !****************************************************************************
 
@@ -105,11 +105,11 @@ module cp_para_types
 !!
 !!   SOURCE
   !***************************************************************************
-  type cp_para_cart_type
-     logical :: owns_group
-     integer, dimension(:), pointer :: mepos, source, num_pe
-     integer :: group, kind, ref_count
-  end type cp_para_cart_type
+  TYPE cp_para_cart_type
+     LOGICAL :: owns_group
+     INTEGER, DIMENSION(:), POINTER :: mepos, source, num_pe
+     INTEGER :: group, kind, ref_count
+  END TYPE cp_para_cart_type
 !!***
   !****************************************************************************
 
@@ -147,12 +147,12 @@ module cp_para_types
 !!
 !!   SOURCE
   !***************************************************************************
-  type cp_blacs_env_type
-     logical :: owns_group
-     integer, dimension(2) :: mepos, source, num_pe
-     integer :: group, my_pid, n_pid, ref_count
-  end type cp_blacs_env_type
+  TYPE cp_blacs_env_type
+     LOGICAL :: owns_group
+     INTEGER, DIMENSION(2) :: mepos, source, num_pe
+     INTEGER :: group, my_pid, n_pid, ref_count
+  END TYPE cp_blacs_env_type
 !!***
   !****************************************************************************
 
-end module cp_para_types
+END MODULE cp_para_types

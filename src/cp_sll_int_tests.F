@@ -26,29 +26,40 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-module cp_sll_int_tests
-  use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
-       cp_logger_get_default_unit_nr
-  use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger
-  use kinds, only: wp=>dp
-  use global_types, only: global_environment_type
-  use cp_array_utils, only: cp_output
-  use cp_linked_list_int
-  implicit none
-  private
+MODULE cp_sll_int_tests
+  USE cp_array_utils,                  ONLY: cp_output
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_linked_list_int
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character, private, parameter :: moduleN='cp_sll_int_tests'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER, PRIVATE, PARAMETER :: moduleN='cp_sll_int_tests'
 
-  public :: cp_test_int_sll
+  PUBLIC :: cp_test_int_sll
 
 !!***
 !****************************************************************************
-contains
+CONTAINS
 
 !!****f* cp_sll_int_tests/cp_test_int_sll [1.0] *
 !!
@@ -82,71 +93,71 @@ contains
 !!
 !!   SOURCE
 !***************************************************************************
-function cp_test_int_sll(glob_env, error) result(res)
-  logical :: res
-  type(global_environment_type), target :: glob_env
-  type(cp_error_type), optional, intent(inout) :: error
+FUNCTION cp_test_int_sll(glob_env, error) RESULT(res)
+  LOGICAL :: res
+  TYPE(global_environment_type), TARGET :: glob_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_test_int_sll',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_test_int_sll',&
        routineP=moduleN//routineN
-  integer, parameter :: n=6
-  integer, dimension(n) :: array
-  integer :: i
-  type(cp_sll_int_type), pointer :: reverseList, iterator
-  integer :: el
-  failure=.false.
-  nullify(reverseList,iterator)
+  INTEGER, PARAMETER :: n=6
+  INTEGER, DIMENSION(n) :: array
+  INTEGER :: i
+  TYPE(cp_sll_int_type), POINTER :: reverseList, iterator
+  INTEGER :: el
+  failure=.FALSE.
+  NULLIFY(reverseList,iterator)
   
-  forall (i=1:size(array)) array(i)=i*i
-  call cp_create(reverseList,error=error)
-  do i=1,size(array)
-     call cp_insert(reverseList,array(i),error=error)
-  end do
+  FORALL (i=1:SIZE(array)) array(i)=i*i
+  CALL cp_create(reverseList,error=error)
+  DO i=1,SIZE(array)
+     CALL cp_insert(reverseList,array(i),error=error)
+  END DO
   CPAssert(cp_get_length(reverseList)==n,cp_warning_level,routineP,error,failure)
-  if (.not. failure) then
+  IF (.NOT. failure) THEN
      iterator => reverseList
-     do i=1,size(array)
-        call cp_assert(cp_get_element_at(reverseList,i)==array(n-i+1),&
+     DO i=1,SIZE(array)
+        CALL cp_assert(cp_get_element_at(reverseList,i)==array(n-i+1),&
              cp_warning_level,cp_assertion_failed,routineP,&
              "reverse list ("//cp_to_string(i)//")="//cp_to_string(&
              cp_get_element_at(reverseList,i))//" /= "//cp_to_string(array(n-i+1))&
              //"array("//cp_to_string(n-i+1)//") in "//&
              CPSourceFileRef,&
              error,failure)
-        if (.not.cp_next(iterator,el_att=el,error=error)) then
-           CPPrecondition(.false.,cp_warning_level,routineP,error,failure)
-        end if
-        if (.not.failure) then
-           call cp_assert(el==array(n-i+1),&
+        IF (.not.cp_next(iterator,el_att=el,error=error)) THEN
+           CPPrecondition(.FALSE.,cp_warning_level,routineP,error,failure)
+        END IF
+        IF (.not.failure) THEN
+           CALL cp_assert(el==array(n-i+1),&
                 cp_warning_level,cp_assertion_failed,routineP,&
                 "iterator /= array(n-i+1) with i="//cp_to_string(i)//&
                 " in "//&
                 CPSourceFileRef,&
                 error,failure)
-        end if
-     end do
+        END IF
+     END DO
      CPAssert(.not.cp_next(iterator),cp_warning_level,routineP,error,failure)
-  end if
-  call cp_dealloc(reverseList,error=error)
-  if (debug_this_module.and.cp_debug) then
-     if (failure) then
-        call cp_error_message(cp_warning_level, routineP,&
+  END IF
+  CALL cp_dealloc(reverseList,error=error)
+  IF (debug_this_module.and.cp_debug) THEN
+     IF (failure) THEN
+        CALL cp_error_message(cp_warning_level, routineP,&
              "int single linked list tests: tests FAILED",error)
         iterator=>reverseList
-        print *,"list="
-        do
-           if (.not.cp_next(iterator,el_att=el,error=error)) exit
-           print *, "  ",el,","
-        end do
-        print *,"array=",array
-     else
-        call cp_error_message(cp_warning_level, routineP,&
+        PRINT *,"list="
+        DO
+           IF (.not.cp_next(iterator,el_att=el,error=error)) EXIT
+           PRINT *, "  ",el,","
+        END DO
+        PRINT *,"array=",array
+     ELSE
+        CALL cp_error_message(cp_warning_level, routineP,&
              "int single linked list tests: SUCESS",error)
-     end if
-  end if
+     END IF
+  END IF
   res=.not.failure
-end function cp_test_int_sll
+END FUNCTION cp_test_int_sll
 !!***
 !***************************************************************************
 
@@ -154,9 +165,9 @@ end function cp_test_int_sll
 ! files are almost the same
 ! [template(el_type,plain_el_type,name_el_type)]
 ! ARGS:
+!  el_type = "integer"
 !  name_el_type = "int"
 !  plain_el_type = "integer"
-!  el_type = "integer"
 
 
-end module cp_sll_int_tests
+END MODULE cp_sll_int_tests

@@ -289,7 +289,7 @@ CONTAINS
 
     IF (.NOT. default_logger_initialized) THEN
        CALL stop_program("cp_log_handling:cp_get_default_logger",&
-            "default logger not yet initialized (call cp_init_default_logger")
+            "default logger not yet initialized (CALL cp_init_default_logger")
     END IF
     IF (.NOT.ASSOCIATED(cp_default_logger)) THEN
        CALL stop_program("cp_log_handling:cp_get_default_logger",&
@@ -385,7 +385,7 @@ CONTAINS
     LOGICAL :: exists
 
     ALLOCATE(logger, stat=stat)
-    IF (stat/=0) CALL stop_program(routineP,"could not allocate a logger")
+    IF (stat/=0) CALL stop_program(routineP,"could not ALLOCATE a logger")
 
     NULLIFY(logger%para_env,logger%print_keys)
     logger%ref_count=1
@@ -483,7 +483,7 @@ CONTAINS
        END IF
     END IF
     ! first global log to safely b-cast global unitnr
-    stat=cp_logger_get_default_unit_nr(logger, local=.false.)
+    stat=cp_logger_get_default_unit_nr(logger, local=.FALSE.)
     ! it would also be possible (if you don't care about printing a note)
     ! CALL cp_logger_log(logger,level=cp_note_level,&
     !      fromWhere=routineP, message="global logging activated",&
@@ -949,7 +949,7 @@ CONTAINS
                 PRINT *," WARNING ", routineP, " overwriting file ",filename
              END IF
              CALL open_file(TRIM(filename),file_status="unknown",&
-                  file_action="write",&
+                  file_action="WRITE",&
                   unit_number=lggr%default_global_unit_nr)
           END IF
           ! bcast could be dangerous if called only in source processor
@@ -967,7 +967,7 @@ CONTAINS
              PRINT *," WARNING ", routineP, " overwriting file ",filename
           END IF
           CALL open_file(TRIM(filename),file_status="unknown",&
-               file_action="write",&
+               file_action="WRITE",&
                unit_number=lggr%default_local_unit_nr)
           CALL m_getpid(pid)
           CALL m_hostnm(host_name)
@@ -979,7 +979,7 @@ CONTAINS
                   ' **** pid=',pid,' host=',host_name
           END IF
           IF (iostat /= 0) THEN
-             PRINT *," Error trying to write to the local logger."
+             PRINT *," Error trying to WRITE to the local logger."
              PRINT *," mpi_id=",lggr%para_env%mepos,&
                   " mpi_communicator=",lggr%para_env%group,&
                   " pid=",pid,'host=',host_name
@@ -1030,7 +1030,7 @@ CONTAINS
              CALL mp_comm_free(para_env%group)
           END IF
           DEALLOCATE(para_env,stat=stat)
-          IF(stat/=0)PRINT *,routineP," WARNING para_env deallocate stat=",stat
+          IF(stat/=0)PRINT *,routineP," WARNING para_env DEALLOCATE stat=",stat
        END IF
     END IF
     NULLIFY(para_env)

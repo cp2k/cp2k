@@ -27,17 +27,28 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_array_logical_utils
-  USE kinds, ONLY: wp=>dp
-  USE cp_log_handling, ONLY: cp_to_string, cp_failure_level, cp_warning_level,&
-       cp_note_level, cp_log, cp_logger_type, cp_logger_generate_filename
-  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_assert, &
-       cp_error_message,cp_assertion_failed, cp_internal_error,&
-       cp_error_init, cp_error_dealloc_ref
-  USE global_types, ONLY: global_environment_type
-  USE timings, ONLY: timeset, timestop
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_log,&
+                                             cp_logger_generate_filename,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE cp_output_handling
-  USE qs_parser, ONLY: open_file, close_file
-  
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  USE qs_parser,                       ONLY: close_file,&
+                                             open_file
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
   PRIVATE
 
@@ -103,7 +114,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_logical_write(element, unit_nr, el_format, error)
-  logical, INTENT(in) :: element
+  LOGICAL, INTENT(in) :: element
   INTEGER, INTENT(in) :: unit_nr
   CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -184,7 +195,7 @@ SUBROUTINE cp_1d_logical_output(logger, outputName,&
   CHARACTER(len=*) , INTENT(in) :: outputName
   CHARACTER(len=*), INTENT(in):: fromWhere
   INTEGER, INTENT(in) :: iter
-  logical, INTENT(in), DIMENSION(:) :: array
+  LOGICAL, INTENT(in), DIMENSION(:) :: array
   CHARACTER(len=*), INTENT(in),OPTIONAL :: comment, el_format
   LOGICAL, INTENT(in), OPTIONAL :: local
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -212,7 +223,7 @@ SUBROUTINE cp_1d_logical_output(logger, outputName,&
              fromWhere=routineP,message=" overwriting file '"//filename//"'",&
              error=error)
         CALL open_file(TRIM(filename),file_status="unknown",&
-             file_action="write",&
+             file_action="WRITE",&
              unit_number=unitNr)
 
         IF (PRESENT(comment)) THEN
@@ -265,7 +276,7 @@ END SUBROUTINE cp_1d_logical_output
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_1d_logical_write(array, unit_nr, el_format, error)
-  logical, DIMENSION(:), INTENT(in) :: array
+  LOGICAL, DIMENSION(:), INTENT(in) :: array
   INTEGER, INTENT(in) :: unit_nr
   CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -349,7 +360,7 @@ SUBROUTINE cp_2d_logical_output(logger, outputName, &
   CHARACTER(len=*) , INTENT(in) :: outputName
   CHARACTER(len=*), INTENT(in):: fromWhere
   INTEGER, INTENT(in) :: iter
-  logical, INTENT(in), DIMENSION(:,:) :: array
+  LOGICAL, INTENT(in), DIMENSION(:,:) :: array
   CHARACTER(len=*), INTENT(in),OPTIONAL :: comment, el_format
   LOGICAL, INTENT(in), OPTIONAL :: local
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -377,7 +388,7 @@ SUBROUTINE cp_2d_logical_output(logger, outputName, &
              fromWhere=routineP,message=" overwriting file '"//filename//"'",&
              error=error)
         CALL open_file(TRIM(filename),file_status="unknown",&
-             file_action="write",&
+             file_action="WRITE",&
              unit_number=unitNr)
 
         IF (PRESENT(comment)) THEN
@@ -430,7 +441,7 @@ END SUBROUTINE cp_2d_logical_output
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_2d_logical_write(array, unit_nr, el_format, error)
-  logical, DIMENSION(:,:), INTENT(in) :: array
+  LOGICAL, DIMENSION(:,:), INTENT(in) :: array
   INTEGER, INTENT(in) :: unit_nr
   CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -499,9 +510,9 @@ END SUBROUTINE cp_2d_logical_write
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_1d_logical_guarantee_size(array, n, init, error)
-    logical, DIMENSION(:), POINTER :: array
+    LOGICAL, DIMENSION(:), POINTER :: array
     INTEGER, INTENT(in) :: n
-    logical, INTENT(in), OPTIONAL :: init
+    LOGICAL, INTENT(in), OPTIONAL :: init
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -571,9 +582,9 @@ END SUBROUTINE cp_2d_logical_write
 !!*** **********************************************************************
   SUBROUTINE cp_2d_logical_guarantee_size(array, n_rows, n_cols ,&
        init, error)
-    logical, DIMENSION(:,:), POINTER :: array
+    LOGICAL, DIMENSION(:,:), POINTER :: array
     INTEGER, INTENT(in) :: n_rows, n_cols
-    logical, INTENT(in), OPTIONAL :: init
+    LOGICAL, INTENT(in), OPTIONAL :: init
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -606,10 +617,10 @@ END SUBROUTINE cp_2d_logical_write
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,USE,defaultFormatType1)]
 ! ARGS:
-!  type1 = "logical"
-!  nametype1 = "logical"
 !  USE = ""
 !  defaultFormatType1 = ""(t1)""
+!  nametype1 = "logical"
+!  type1 = "logical"
 
 
 END MODULE cp_array_logical_utils

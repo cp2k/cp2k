@@ -996,25 +996,25 @@ END SUBROUTINE cp_unimplemented_error
 !!     
 !!
 !!****
-  subroutine cp_simple_assert(condition, routineP, line)
+  SUBROUTINE cp_simple_assert(condition, routineP, line)
   
-    implicit none
+    IMPLICIT NONE
 
   	! arguments
-    logical, intent(in)          :: condition
-    character(len=*), intent(in) :: routineP
-    integer, intent(in)          :: line
+    LOGICAL, INTENT(in)          :: condition
+    CHARACTER(len=*), INTENT(in) :: routineP
+    INTEGER, INTENT(in)          :: line
   
   	! locals
   
   	! code
-    IF (.NOT.condition) then
+    IF (.NOT.condition) THEN
        WRITE (*,*) "======== ASSERTION FAILED ========"
        WRITE (*,*) routineP, ": ", cp_to_string(line)
        STOP 1
     END IF
   
-  end subroutine cp_simple_assert
+  END SUBROUTINE cp_simple_assert
 
 ! *****************************************************************************
 

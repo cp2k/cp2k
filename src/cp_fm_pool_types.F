@@ -35,9 +35,9 @@ MODULE cp_fm_pool_types
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_type,&
-                                             cp_fm_struct_release,&
-                                             cp_fm_struct_retain
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_release,&
+                                             cp_fm_struct_retain,&
+                                             cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_release,&
                                              cp_full_matrix_p_type,&

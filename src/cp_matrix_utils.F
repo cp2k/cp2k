@@ -26,48 +26,64 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-module cp_matrix_utils
-  use cp_log_handling, only: cp_to_string, cp_note_level, cp_warning_level,&
-       cp_failure_level, cp_fatal_level, cp_logger_type
-  use cp_error_handling, only: cp_assert, cp_error_type, &
-       cp_error_dealloc_ref, cp_error_propagate_error, cp_debug,&
-       cp_assertion_failed, cp_error_message, cp_postcondition_failed,&
-       cp_error_init
-  use kinds, only: wp=>dp
-  use global_types, only: global_environment_type
-  use timings, only: timeset, timestop
-  use sparse_matrix_types, only: real_matrix_type, get_matrix_info,&
-       first_block_node, add_block_node, get_block_node, &
-       find_block_node, real_block_node_type, next_block_node,&
-       copy_sparse_to_full_matrix
-  use message_passing, only: mp_sum
-  use cp_b_matrix_structure, only: cp_b_matrix_struct_type,&
-       cp_b_distribution_type
-  use cp_array_utils, only: cp_2d_i_guarantee_size, &
-       cp_2d_logical_guarantee_size, cp_2d_r_output
-  use mathlib, only: symmetrize_matrix
-  use cp_output_handling, only: cp_would_output
-  use cp_para_types, only: cp_para_env_type
+MODULE cp_matrix_utils
   !use qs_blacs, only:
-  implicit none
-  private
+  USE cp_array_utils,                  ONLY: cp_2d_i_guarantee_size,&
+                                             cp_2d_logical_guarantee_size,&
+                                             cp_2d_r_output
+  USE cp_b_matrix_structure,           ONLY: cp_b_distribution_type,&
+                                             cp_b_matrix_struct_type
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_propagate_error,&
+                                             cp_error_type,&
+                                             cp_postcondition_failed
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_output_handling,              ONLY: cp_would_output
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  USE mathlib,                         ONLY: symmetrize_matrix
+  USE message_passing,                 ONLY: mp_sum
+  USE sparse_matrix_types,             ONLY: add_block_node,&
+                                             copy_sparse_to_full_matrix,&
+                                             find_block_node,&
+                                             first_block_node,&
+                                             get_block_node,&
+                                             get_matrix_info,&
+                                             next_block_node,&
+                                             real_block_node_type,&
+                                             real_matrix_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='cp_matrix_utils'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_matrix_utils'
 ! types
-  public :: cp_matrix_block_iterator
+  PUBLIC :: cp_matrix_block_iterator
 
 ! core methods
-  public :: cp_init, cp_dealloc_ref, cp_get, cp_next, cp_valid
+  PUBLIC :: cp_init, cp_dealloc_ref, cp_get, cp_next, cp_valid
 
-  public :: cp_trace
+  PUBLIC :: cp_trace
 
-  public :: cp_p_norm_matrix, cp_sup_norm_matrix,&
+  PUBLIC :: cp_p_norm_matrix, cp_sup_norm_matrix,&
        cp_is_block_diagonal, cp_init_diagonal_blocks,&
        cp_d_struct_create, cp_set_to
   
   ! underliying methods (try to use the generic interface)
-  public :: cp_sm_diag_trace, cp_sm_set_to, cp_sm_b_i_init,&
+  PUBLIC :: cp_sm_diag_trace, cp_sm_set_to, cp_sm_b_i_init,&
        cp_sm_b_i_dealloc_ref, cp_sm_b_i_get, &
        cp_sm_b_i_next, cp_sm_b_i_valid, &
        cp_sm_is_block_diagonal, cp_sm_init_diagonal_blocks,&
@@ -75,51 +91,51 @@ module cp_matrix_utils
        cp_sm_output
 
   ! return the trace of the given matrices
-  interface cp_trace
-     module procedure cp_sm_diag_trace
-  end interface
+  INTERFACE cp_trace
+     MODULE PROCEDURE cp_sm_diag_trace
+  END INTERFACE
 
 !! set all the values to a given value
-  interface cp_set_to
-     module procedure cp_sm_set_to
-  end interface
+  INTERFACE cp_set_to
+     MODULE PROCEDURE cp_sm_set_to
+  END INTERFACE
 
 ! = core methods =
 
 !! initializes the object
-  interface cp_init
-     module procedure cp_sm_b_i_init
-  end interface
+  INTERFACE cp_init
+     MODULE PROCEDURE cp_sm_b_i_init
+  END INTERFACE
 
 !! deallocates the memory allocated by the object
-  interface cp_dealloc_ref
-     module procedure cp_sm_b_i_dealloc_ref
-  end interface
+  INTERFACE cp_dealloc_ref
+     MODULE PROCEDURE cp_sm_b_i_dealloc_ref
+  END INTERFACE
 
 !! gets various attributes from the object
-  interface cp_get
-     module procedure cp_sm_b_i_get
-  end interface
+  INTERFACE cp_get
+     MODULE PROCEDURE cp_sm_b_i_get
+  END INTERFACE
 
 !! goes to the next element, returns true if valid
-  interface cp_next
-     module procedure cp_sm_b_i_next
-  end interface
+  INTERFACE cp_next
+     MODULE PROCEDURE cp_sm_b_i_next
+  END INTERFACE
 
 !! return true if it is valid (minimal testing)
-  interface cp_valid
-     module procedure cp_sm_b_i_valid
-  end interface
+  INTERFACE cp_valid
+     MODULE PROCEDURE cp_sm_b_i_valid
+  END INTERFACE
 
 !! returns true if the matrix is block diagonal
-  interface cp_is_block_diagonal
-     module procedure cp_sm_is_block_diagonal
-  end interface
+  INTERFACE cp_is_block_diagonal
+     MODULE PROCEDURE cp_sm_is_block_diagonal
+  END INTERFACE
 
 !! initializes the diagonal matrix blocks
-  interface cp_init_diagonal_blocks
-     module procedure cp_sm_init_diagonal_blocks
-  end interface
+  INTERFACE cp_init_diagonal_blocks
+     MODULE PROCEDURE cp_sm_init_diagonal_blocks
+  END INTERFACE
 
 !!***
 !****************************************************************************
@@ -151,17 +167,17 @@ module cp_matrix_utils
 !!
 !!   SOURCE
 !***************************************************************************
-  type cp_matrix_block_iterator
-     private
-     logical :: initialized
-     type(real_matrix_type), pointer :: matrix
-     integer :: block_row
-     type(real_block_node_type), pointer :: block_node
-  end type cp_matrix_block_iterator
+  TYPE cp_matrix_block_iterator
+     PRIVATE
+     LOGICAL :: initialized
+     TYPE(real_matrix_type), POINTER :: matrix
+     INTEGER :: block_row
+     TYPE(real_block_node_type), POINTER :: block_node
+  END TYPE cp_matrix_block_iterator
 !!***
 !****************************************************************************
 
-contains
+CONTAINS
 ! ============== real full matrix utilities ============
 
 !!****f* cp_matrix_utils/cp_p_norm_matrix [1.0] *
@@ -200,28 +216,28 @@ contains
 !!
 !!*** **********************************************************************
   !pure
-  function cp_p_norm_matrix(matrix, p) result(res)
-    real(kind=wp) :: res
-    real(kind=wp), intent(in), dimension(:,:) :: matrix
-    integer,optional, intent(in) :: p
+  FUNCTION cp_p_norm_matrix(matrix, p) RESULT(res)
+    REAL(kind=wp) :: res
+    REAL(kind=wp), INTENT(in), DIMENSION(:,:) :: matrix
+    INTEGER,OPTIONAL, INTENT(in) :: p
 !type(cp_error_type), optional, intent(inout) :: error ! removed to make it pure
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_matrix_utils:cp_froebnius_norm2'
-    integer :: i,j, pVal
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_matrix_utils:cp_froebnius_norm2'
+    INTEGER :: i,j, pVal
     failure=.FALSE.
 
     res=0
-    if (.NOT. failure) then
+    IF (.NOT. failure) THEN
        pVal=2
-       if (.not. present(p)) pVal=p
-       do i=1,size(matrix,1)
-          do j=1,size(matrix,2)
+       IF (.NOT. PRESENT(p)) pVal=p
+       DO i=1,SIZE(matrix,1)
+          DO j=1,SIZE(matrix,2)
              res=res+matrix(i,j)**pVal
-          end do
-       end do
-    end if
-  end function cp_p_norm_matrix
+          END DO
+       END DO
+    END IF
+  END FUNCTION cp_p_norm_matrix
 !***************************************************************************
 
 !!****f* cp_matrix_utils/cp_sup_norm_matrix [1.0] *
@@ -256,21 +272,21 @@ contains
 !!
 !!*** **********************************************************************
   !pure 
-  function cp_sup_norm_matrix(matrix) result(res)
-    real(kind=wp) :: res
-    real(kind=wp), dimension(:,:), intent(in) :: matrix
+  FUNCTION cp_sup_norm_matrix(matrix) RESULT(res)
+    REAL(kind=wp) :: res
+    REAL(kind=wp), DIMENSION(:,:), INTENT(in) :: matrix
 !type(cp_error_type), optional, intent(inout) :: error ! removed to make it pure
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_matrix_utils:cp_sup_norm_matrix'
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_matrix_utils:cp_sup_norm_matrix'
     failure=.FALSE.
 
-    if (.NOT. failure) then
-       res=maxval(abs(matrix))
-    else
+    IF (.NOT. failure) THEN
+       res=MAXVAL(ABS(matrix))
+    ELSE
        res=-1.0_wp
-    end if
-  end function cp_sup_norm_matrix
+    END IF
+  END FUNCTION cp_sup_norm_matrix
 !***************************************************************************
 
 ! ================== cp_matrix_block_iterator ================
@@ -312,28 +328,28 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_sm_b_i_init(block_iterator, matrix, block_row,&
+  SUBROUTINE cp_sm_b_i_init(block_iterator, matrix, block_row,&
        block_node, error)
-    type(cp_matrix_block_iterator), intent(out) :: block_iterator
-    type(real_matrix_type), target, intent(in) :: matrix
+    TYPE(cp_matrix_block_iterator), INTENT(out) :: block_iterator
+    TYPE(real_matrix_type), TARGET, INTENT(in) :: matrix
 ! well subsequent operations on the iterator could change tha data in the matrix
-    integer, intent(in), optional :: block_row
-    type(real_block_node_type), target, optional :: block_node
-    type(cp_error_type), optional, intent(inout) :: error
+    INTEGER, INTENT(in), OPTIONAL :: block_row
+    TYPE(real_block_node_type), TARGET, OPTIONAL :: block_node
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_matrix_utils:cp_sm_b_i_init'
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_matrix_utils:cp_sm_b_i_init'
+    failure=.FALSE.
 
     block_iterator%matrix => matrix
     block_iterator%block_row = 1
-    nullify(block_iterator%block_node)
-    block_iterator%initialized=.true.
-    if (present(block_node)) &
+    NULLIFY(block_iterator%block_node)
+    block_iterator%initialized=.TRUE.
+    IF (PRESENT(block_node)) &
          block_iterator%block_node => block_node
-    if (present(block_row)) &
+    IF (PRESENT(block_row)) &
          block_iterator%block_row = block_row
-  end subroutine cp_sm_b_i_init
+  END SUBROUTINE cp_sm_b_i_init
 !***************************************************************************
 
 !!****f* cp_matrix_utils/cp_sm_b_i_dealloc_ref [1.0] *
@@ -366,20 +382,20 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_sm_b_i_dealloc_ref(block_iterator, error)
-    type(cp_matrix_block_iterator), intent(inout) :: block_iterator
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE cp_sm_b_i_dealloc_ref(block_iterator, error)
+    TYPE(cp_matrix_block_iterator), INTENT(inout) :: block_iterator
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_matrix_utils:cp_sm_b_i_dealloc_ref'
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_matrix_utils:cp_sm_b_i_dealloc_ref'
+    failure=.FALSE.
 
     CPPrecondition(block_iterator%initialized,cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
-       nullify(block_iterator%matrix, block_iterator%block_node)
+    IF (.NOT. failure) THEN
+       NULLIFY(block_iterator%matrix, block_iterator%block_node)
        block_iterator%block_row=0
-    end if
-  end subroutine cp_sm_b_i_dealloc_ref
+    END IF
+  END SUBROUTINE cp_sm_b_i_dealloc_ref
 !***************************************************************************
 
 !!****f* cp_matrix_utils/cp_sm_b_i_get [1.0] *
@@ -425,52 +441,52 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_sm_b_i_get(block_iterator, block_row, block_col,&
+  SUBROUTINE cp_sm_b_i_get(block_iterator, block_row, block_col,&
        block_val, finished, matrix, block_node, error)
-    type(cp_matrix_block_iterator), intent(in) :: block_iterator
-    integer, optional, intent(out) :: block_row, block_col
-    real(kind=wp), dimension(:,:), pointer, optional :: block_val
-    logical, optional, intent(out) :: finished
-    type(real_matrix_type), optional, pointer :: matrix
-    type(real_block_node_type), optional, pointer :: block_node
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(cp_matrix_block_iterator), INTENT(in) :: block_iterator
+    INTEGER, OPTIONAL, INTENT(out) :: block_row, block_col
+    REAL(kind=wp), DIMENSION(:,:), POINTER, OPTIONAL :: block_val
+    LOGICAL, OPTIONAL, INTENT(out) :: finished
+    TYPE(real_matrix_type), OPTIONAL, POINTER :: matrix
+    TYPE(real_block_node_type), OPTIONAL, POINTER :: block_node
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_matrix_utils:cp_sm_b_i_get'
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_matrix_utils:cp_sm_b_i_get'
+    failure=.FALSE.
 
     CPPrecondition(block_iterator%initialized,cp_failure_level,routineP,error,failure)
-    CPPrecondition(associated(block_iterator%matrix),cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
-       if (present(block_row)) &
+    CPPrecondition(ASSOCIATED(block_iterator%matrix),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       IF (PRESENT(block_row)) &
             block_row=block_iterator%block_row
-       if (present(block_col)) then
-          if (associated(block_iterator%block_node)) then
-             call get_block_node(block_iterator%block_node, block_col=block_col)
-          else
-             CPAssert(.false.,cp_warning_level,routineP,error,failure)
+       IF (PRESENT(block_col)) THEN
+          IF (ASSOCIATED(block_iterator%block_node)) THEN
+             CALL get_block_node(block_iterator%block_node, block_col=block_col)
+          ELSE
+             CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)
              block_col=-1
-          end if
-       end if
-       if (present(block_val)) then
+          END IF
+       END IF
+       IF (PRESENT(block_val)) THEN
           CPPrecondition(block_iterator%block_row>0,cp_failure_level,routineP,error,failure)
-          if (.not.failure) then
-             if (associated(block_iterator%block_node)) then
-                call get_block_node(block_iterator%block_node,block=block_val)
-             else
-                nullify(block_val)
-                CPErrorMessage(cp_failure_level,routineP,"invalid block",error)
-             end if
-          end if
-       end if
-       if (present(finished)) &
+          IF (.not.failure) THEN
+             IF (ASSOCIATED(block_iterator%block_node)) THEN
+                CALL get_block_node(block_iterator%block_node,BLOCK=block_val)
+             ELSE
+                NULLIFY(block_val)
+                CPErrorMessage(cp_failure_level,routineP,"invalid BLOCK",error)
+             END IF
+          END IF
+       END IF
+       IF (PRESENT(finished)) &
             finished = block_iterator%block_row <= 0
-       if (present(matrix)) &
+       IF (PRESENT(matrix)) &
             matrix => block_iterator%matrix
-       if (present(block_node)) &
+       IF (PRESENT(block_node)) &
             block_node => block_iterator%block_node
-    end if
-  end subroutine cp_sm_b_i_get
+    END IF
+  END SUBROUTINE cp_sm_b_i_get
 !***************************************************************************
 
 !!****f* cp_matrix_utils/cp_sm_b_i_valid [1.0] *
@@ -505,24 +521,24 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_sm_b_i_valid(block_iterator,error) result(res)
-    logical ::res
-    type(cp_matrix_block_iterator), intent(in) :: block_iterator
-    type(cp_error_type), optional, intent(inout) :: error
+  FUNCTION cp_sm_b_i_valid(block_iterator,error) RESULT(res)
+    LOGICAL ::res
+    TYPE(cp_matrix_block_iterator), INTENT(in) :: block_iterator
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_matrix_utils:cp_sm_b_i_valid'
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_matrix_utils:cp_sm_b_i_valid'
+    failure=.FALSE.
 
     CPPrecondition(block_iterator%initialized,cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
-       if (.not.(associated(block_iterator%matrix).and. block_iterator%block_row>0 ))then
+    IF (.NOT. failure) THEN
+       IF (.NOT.(ASSOCIATED(block_iterator%matrix).AND. block_iterator%block_row>0 ))THEN
           CPAssert(block_iterator%block_row > 0,cp_warning_level,routineP,error,failure)
-          CPAssert(associated(block_iterator%matrix),cp_warning_level,routineP,error,failure)
-       end if
-    end if
+          CPAssert(ASSOCIATED(block_iterator%matrix),cp_warning_level,routineP,error,failure)
+       END IF
+    END IF
     res=.not.failure
-  end function cp_sm_b_i_valid
+  END FUNCTION cp_sm_b_i_valid
 !***************************************************************************
 
 !!****f* cp_matrix_utils/cp_sm_b_i_next [1.0] *
@@ -566,66 +582,66 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_sm_b_i_next(block_iterator, block_row, block_col,&
-       block_val, finished, matrix, block_node, error)result(res)
-    type(cp_matrix_block_iterator), intent(inout) :: block_iterator
-    integer, optional, intent(out) :: block_row, block_col
-    real(kind=wp), dimension(:,:), pointer, optional :: block_val
-    logical, optional, intent(out) :: finished
-    type(real_matrix_type), optional, pointer :: matrix
-    type(real_block_node_type), optional, pointer :: block_node
-    type(cp_error_type), optional, intent(inout) :: error
-    logical :: res
+  FUNCTION cp_sm_b_i_next(block_iterator, block_row, block_col,&
+       block_val, finished, matrix, block_node, error)RESULT(res)
+    TYPE(cp_matrix_block_iterator), INTENT(inout) :: block_iterator
+    INTEGER, OPTIONAL, INTENT(out) :: block_row, block_col
+    REAL(kind=wp), DIMENSION(:,:), POINTER, OPTIONAL :: block_val
+    LOGICAL, OPTIONAL, INTENT(out) :: finished
+    TYPE(real_matrix_type), OPTIONAL, POINTER :: matrix
+    TYPE(real_block_node_type), OPTIONAL, POINTER :: block_node
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    LOGICAL :: res
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_matrix_utils:cp_sm_b_i_next'
-    integer :: nblock_row,i
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_matrix_utils:cp_sm_b_i_next'
+    INTEGER :: nblock_row,i
+    failure=.FALSE.
 
     CPPrecondition(block_iterator%initialized,cp_failure_level,routineP,error,failure)
-    CPPrecondition(associated(block_iterator%matrix),cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
-       if (block_iterator%block_row > 0) then
-          if (associated(block_iterator%block_node)) then
+    CPPrecondition(ASSOCIATED(block_iterator%matrix),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       IF (block_iterator%block_row > 0) THEN
+          IF (ASSOCIATED(block_iterator%block_node)) THEN
              block_iterator%block_node => next_block_node(block_iterator%block_node)
-             if (.not.associated(block_iterator%block_node)) then
+             IF (.not.ASSOCIATED(block_iterator%block_node)) THEN
                 block_iterator%block_row= block_iterator%block_row+1
-             end if
-          end if
-          if (.not.associated(block_iterator%block_node)) then
-             call get_matrix_info(block_iterator%matrix,nblock_row=nblock_row)
-             do i=block_iterator%block_row,nblock_row
+             END IF
+          END IF
+          IF (.not.ASSOCIATED(block_iterator%block_node)) THEN
+             CALL get_matrix_info(block_iterator%matrix,nblock_row=nblock_row)
+             DO i=block_iterator%block_row,nblock_row
                 block_iterator%block_node => &
                      first_block_node(block_iterator%matrix,&
                      block_iterator%block_row)
-                if (associated(block_iterator%block_node)) then
+                IF (ASSOCIATED(block_iterator%block_node)) THEN
                    block_iterator%block_row=i
-                   exit
-                end if
-             end do
-          end if
-          if (.not.associated(block_iterator%block_node)) then
+                   EXIT
+                END IF
+             END DO
+          END IF
+          IF (.not.ASSOCIATED(block_iterator%block_node)) THEN
              block_iterator%block_row=-1
-          else
-             res=.true.
-             call cp_sm_b_i_get(block_iterator, block_row=block_row,&
+          ELSE
+             res=.TRUE.
+             CALL cp_sm_b_i_get(block_iterator, block_row=block_row,&
                   block_col=block_col, block_val=block_val,&
                   finished=finished, matrix=matrix, block_node=block_node,&
                   error=error)
-             return
-          end if
-       end if
-       CPPostcondition(.not.associated(block_iterator%block_node),cp_warning_level,routineP,error,failure)
-       if (.not. block_iterator%block_row <= 0) then
+             RETURN
+          END IF
+       END IF
+       CPPostcondition(.not.ASSOCIATED(block_iterator%block_node),cp_warning_level,routineP,error,failure)
+       IF (.NOT. block_iterator%block_row <= 0) THEN
           CPErrorMessage(cp_warning_level,routineP,"inconsistent state in iterator",error)
           block_iterator%block_row=-2
-       end if
-    else
+       END IF
+    ELSE
        block_iterator%block_row=-2
-       nullify(block_iterator%block_node)
-    end if
-    res=.false.
-  end function cp_sm_b_i_next
+       NULLIFY(block_iterator%block_node)
+    END IF
+    res=.FALSE.
+  END FUNCTION cp_sm_b_i_next
 !***************************************************************************
 
 ! ============ real block (sparse) matrix utils ===========
@@ -666,43 +682,43 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-function cp_sm_diag_trace(diagonal, matrix, para_env, error) result(res)
-  real(kind=wp) :: res
-  real(kind=wp), dimension(:), intent(in) :: diagonal
-  type(real_matrix_type), intent(in), target :: matrix
-  type(cp_para_env_type), pointer :: para_env
-  type(cp_error_type), optional, intent(inout) :: error
+FUNCTION cp_sm_diag_trace(diagonal, matrix, para_env, error) RESULT(res)
+  REAL(kind=wp) :: res
+  REAL(kind=wp), DIMENSION(:), INTENT(in) :: diagonal
+  TYPE(real_matrix_type), INTENT(in), TARGET :: matrix
+  TYPE(cp_para_env_type), POINTER :: para_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  integer :: handle, i, j
-  character(len=*), parameter :: routineN='cp_sm_diag_trace',&
+  LOGICAL :: failure
+  INTEGER :: handle, i, j
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sm_diag_trace',&
        routineP=moduleN//':'//routineN
-  type(cp_matrix_block_iterator) :: iterator
-  real(kind=wp), dimension(:,:), pointer :: block_val
-  integer, dimension(:), pointer :: first_row,first_col
-  type(real_matrix_type), pointer :: matrix_ptr
-  failure=.false.
+  TYPE(cp_matrix_block_iterator) :: iterator
+  REAL(kind=wp), DIMENSION(:,:), POINTER :: block_val
+  INTEGER, DIMENSION(:), POINTER :: first_row,first_col
+  TYPE(real_matrix_type), POINTER :: matrix_ptr
+  failure=.FALSE.
   matrix_ptr => matrix
   
-  call timeset(routineN//','//moduleN,'I',"",handle)
-  call cp_init(iterator, matrix=matrix)
-  call get_matrix_info(matrix_ptr, first_row=first_row, first_col=first_col)
+  CALL timeset(routineN//','//moduleN,'I',"",handle)
+  CALL cp_init(iterator, matrix=matrix)
+  CALL get_matrix_info(matrix_ptr, first_row=first_row, first_col=first_col)
   res=0.0_wp
-  do
-     if (.not.cp_next(iterator,error=error)) exit
-     call cp_get(iterator, block_row=i,block_col=j, block_val=block_val,&
+  DO
+     IF (.not.cp_next(iterator,error=error)) EXIT
+     CALL cp_get(iterator, block_row=i,block_col=j, block_val=block_val,&
           error=error)
-     if (i==j) then
-        CPPrecondition(size(block_val,1)==size(block_val,2),cp_failure_level,routineP,error,failure)
+     IF (i==j) THEN
+        CPPrecondition(SIZE(block_val,1)==SIZE(block_val,2),cp_failure_level,routineP,error,failure)
         CPPrecondition(first_col(i)==first_row(i),cp_failure_level,routineP,error,failure)
-        do i=1,min(size(block_val,1),size(block_val,2))
+        DO i=1,MIN(SIZE(block_val,1),SIZE(block_val,2))
            res=res+block_val(i,i)+diagonal(first_col(i)+i)
-        end do
-     end if
-  end do
-  call mp_sum(res,para_env%group)
-  call timestop(0.0_wp,handle)
-end function cp_sm_diag_trace
+        END DO
+     END IF
+  END DO
+  CALL mp_sum(res,para_env%group)
+  CALL timestop(0.0_wp,handle)
+END FUNCTION cp_sm_diag_trace
 !***************************************************************************
 
 !!****f* cp_matrix_utils/cp_sm_set_to [1.0] *
@@ -742,52 +758,52 @@ end function cp_sm_diag_trace
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_sm_set_to(matrix, value, error)
-    type(real_matrix_type), intent(inout), target :: matrix
-    real(kind=wp), optional, intent(in) :: value
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE cp_sm_set_to(matrix, value, error)
+    TYPE(real_matrix_type), INTENT(inout), TARGET :: matrix
+    REAL(kind=wp), OPTIONAL, INTENT(in) :: value
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_matrix_utils:cp_sm_set_to'
-    type(cp_matrix_block_iterator) :: iterator
-    real(kind=wp), dimension(:,:), pointer :: block_val
-    real(kind=wp) :: val
-    type(cp_error_type) :: iError
-    failure=.false.
-    call cp_error_init(iError,template_error=error)
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_matrix_utils:cp_sm_set_to'
+    TYPE(cp_matrix_block_iterator) :: iterator
+    REAL(kind=wp), DIMENSION(:,:), POINTER :: block_val
+    REAL(kind=wp) :: val
+    TYPE(cp_error_type) :: iError
+    failure=.FALSE.
+    CALL cp_error_init(iError,template_error=error)
     val=0.0_wp
 
-    if (.not. failure) then
-       call cp_init(iterator,matrix,error=iError)
-       call cp_error_propagate_error(iError,routineP,&
+    IF (.NOT. failure) THEN
+       CALL cp_init(iterator,matrix,error=iError)
+       CALL cp_error_propagate_error(iError,routineP,&
             CPSourceFileRef,&
             error,failure)
-    end if
-    if (.not.failure) then
-       if (present(value)) val=value
-       do
-          if (cp_next(iterator,error=iError)) then
-             call cp_get(iterator,block_val=block_val,error=iError)
-             call cp_error_propagate_error(iError,routineP,&
+    END IF
+    IF (.not.failure) THEN
+       IF (PRESENT(value)) val=value
+       DO
+          IF (cp_next(iterator,error=iError)) THEN
+             CALL cp_get(iterator,block_val=block_val,error=iError)
+             CALL cp_error_propagate_error(iError,routineP,&
                   CPSourceFileRef,&
                   error,failure)
-             CPPrecondition(associated(block_val),cp_failure_level,routineP,error,failure)
-             if (.not.failure) then
+             CPPrecondition(ASSOCIATED(block_val),cp_failure_level,routineP,error,failure)
+             IF (.not.failure) THEN
                 block_val=val
-             else
-                exit
-             end if
-          else
-             call cp_error_propagate_error(iError,routineP,&
+             ELSE
+                EXIT
+             END IF
+          ELSE
+             CALL cp_error_propagate_error(iError,routineP,&
                   CPSourceFileRef,&
                   error,failure)
-             exit
-          end if
-       end do
-       call cp_dealloc_ref(iterator,error=error)
-    end if
-    call cp_error_dealloc_ref(iError,error=error)
-  end subroutine cp_sm_set_to
+             EXIT
+          END IF
+       END DO
+       CALL cp_dealloc_ref(iterator,error=error)
+    END IF
+    CALL cp_error_dealloc_ref(iError,error=error)
+  END SUBROUTINE cp_sm_set_to
 !***************************************************************************
 
 !!****f* cp_matrix_utils/cp_build_d_struct [1.0] *
@@ -821,69 +837,69 @@ end function cp_sm_diag_trace
 !!     none
 !!
 !!*** **********************************************************************
-subroutine cp_d_struct_create(d_struct, matrix, n_blocks, para_env, error)
-  integer, dimension(:), pointer :: d_struct
-  type(cp_para_env_type), pointer :: para_env
-  type(real_matrix_type), intent(in), target, optional :: matrix
-  integer, optional, intent(in) :: n_blocks
-  type(cp_error_type), optional, intent(inout) :: error
+SUBROUTINE cp_d_struct_create(d_struct, matrix, n_blocks, para_env, error)
+  INTEGER, DIMENSION(:), POINTER :: d_struct
+  TYPE(cp_para_env_type), POINTER :: para_env
+  TYPE(real_matrix_type), INTENT(in), TARGET, OPTIONAL :: matrix
+  INTEGER, OPTIONAL, INTENT(in) :: n_blocks
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  integer :: handle, i, j, nrows, ncols, stat, rest, nmin
-  character(len=*), parameter :: routineN='cp_build_d_struct',&
+  LOGICAL :: failure
+  INTEGER :: handle, i, j, nrows, ncols, stat, rest, nmin
+  CHARACTER(len=*), PARAMETER :: routineN='cp_build_d_struct',&
        routineP=moduleN//':'//routineN
-  type(cp_matrix_block_iterator) :: iterator
-  type(real_matrix_type), pointer :: matrix_ptr
-  failure=.false.
+  TYPE(cp_matrix_block_iterator) :: iterator
+  TYPE(real_matrix_type), POINTER :: matrix_ptr
+  failure=.FALSE.
   
   !call timeset(routineN//','//moduleN,'I',"",handle)
-  if (present(matrix)) then
+  IF (PRESENT(matrix)) THEN
      matrix_ptr => matrix
-     call get_matrix_info(matrix_ptr, nblock_row=nrows, nblock_col=ncols)
+     CALL get_matrix_info(matrix_ptr, nblock_row=nrows, nblock_col=ncols)
      CPAssert(ncols==nrows,cp_warning_level,routineP,error,failure)
-     ncols=min(nrows,ncols)
-     if (present(n_blocks)) then
+     ncols=MIN(nrows,ncols)
+     IF (PRESENT(n_blocks)) THEN
         CPPrecondition(ncols==n_blocks,cp_warning_level,routineP,error,failure)
-     end if
-     if (.not.failure) then
+     END IF
+     IF (.not.failure) THEN
         ! assume every diagonal block is on one (and just one) proc
-        allocate(d_struct(ncols),stat=stat)
+        ALLOCATE(d_struct(ncols),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         d_struct=0
-        call cp_init(iterator, matrix=matrix_ptr, error=error)
-        do
-           if (.not.cp_next(iterator)) exit
-           call cp_get(iterator,block_row=i,block_col=j,error=error)
-           if (i==j) then
+        CALL cp_init(iterator, matrix=matrix_ptr, error=error)
+        DO
+           IF (.not.cp_next(iterator)) EXIT
+           CALL cp_get(iterator,block_row=i,block_col=j,error=error)
+           IF (i==j) THEN
               d_struct(i)=para_env%mepos
-           end if
-        end do
-        call cp_dealloc_ref(iterator,error=error)
-        call mp_sum(d_struct,para_env%group)
-     end if
-  else
-     CPPrecondition(present(n_blocks),cp_failure_level,routineP,error,failure)
-     if (.not.failure) then
-        allocate(d_struct(n_blocks),stat=stat)
+           END IF
+        END DO
+        CALL cp_dealloc_ref(iterator,error=error)
+        CALL mp_sum(d_struct,para_env%group)
+     END IF
+  ELSE
+     CPPrecondition(PRESENT(n_blocks),cp_failure_level,routineP,error,failure)
+     IF (.not.failure) THEN
+        ALLOCATE(d_struct(n_blocks),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     end if
-     if (.not.failure) then
+     END IF
+     IF (.not.failure) THEN
         nmin= n_blocks/para_env%num_pe
-        rest=mod(n_blocks,para_env%num_pe)
-        do j=0,(rest-1)
-           do i=1,nmin+1
+        rest=MOD(n_blocks,para_env%num_pe)
+        DO j=0,(rest-1)
+           DO i=1,nmin+1
               d_struct(j*(nmin+1)+i)=j
-           end do
-        end do
-        do j=rest,(para_env%num_pe-1)
-           do i=1,nmin+1
+           END DO
+        END DO
+        DO j=rest,(para_env%num_pe-1)
+           DO i=1,nmin+1
               d_struct(rest+j*nmin+i)=j
-           end do
-        end do
-     end if
-  end if
+           END DO
+        END DO
+     END IF
+  END IF
   !call timestop(0.0_wp,handle)
-end subroutine cp_d_struct_create
+END SUBROUTINE cp_d_struct_create
 !***************************************************************************
 
 
@@ -927,74 +943,74 @@ end subroutine cp_d_struct_create
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_sm_init_diagonal_blocks(matrix, para_env, d_struct, &
+  SUBROUTINE cp_sm_init_diagonal_blocks(matrix, para_env, d_struct, &
        default_value, diagonal_value, error)
-    type(real_matrix_type), intent(inout), target :: matrix
-    type(cp_para_env_type), pointer :: para_env
-    integer, optional, dimension(:), intent(in), target :: d_struct
-    real(kind=wp), intent(in), optional :: default_value, diagonal_value
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(real_matrix_type), INTENT(inout), TARGET :: matrix
+    TYPE(cp_para_env_type), POINTER :: para_env
+    INTEGER, OPTIONAL, DIMENSION(:), INTENT(in), TARGET :: d_struct
+    REAL(kind=wp), INTENT(in), OPTIONAL :: default_value, diagonal_value
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    integer :: handle, i, j, nrows, ncols, rest, nblocks, stat
-    integer, pointer, dimension(:) :: my_d_struct
-    type(real_block_node_type), pointer :: m_block
-    real(kind=wp), dimension(:,:), pointer :: block_val
-    character(len=*), parameter :: routineN='cp_sm_init_diagonal_blocks',&
+    LOGICAL :: failure
+    INTEGER :: handle, i, j, nrows, ncols, rest, nblocks, stat
+    INTEGER, POINTER, DIMENSION(:) :: my_d_struct
+    TYPE(real_block_node_type), POINTER :: m_block
+    REAL(kind=wp), DIMENSION(:,:), POINTER :: block_val
+    CHARACTER(len=*), PARAMETER :: routineN='cp_sm_init_diagonal_blocks',&
          routineP=moduleN//':'//routineN
-    type(real_matrix_type), pointer :: matrix_ptr
+    TYPE(real_matrix_type), POINTER :: matrix_ptr
     matrix_ptr => matrix
-    failure=.false.
+    failure=.FALSE.
 
-    CPPrecondition(associated(matrix_ptr),cp_failure_level,routineP,error,failure)
-    call timeset(routineN//','//moduleN,'I',"",handle)
-    if (.not.failure) then
-       call get_matrix_info(matrix_ptr, nblock_row=nrows, nblock_col=ncols)
+    CPPrecondition(ASSOCIATED(matrix_ptr),cp_failure_level,routineP,error,failure)
+    CALL timeset(routineN//','//moduleN,'I',"",handle)
+    IF (.not.failure) THEN
+       CALL get_matrix_info(matrix_ptr, nblock_row=nrows, nblock_col=ncols)
        CPPreconditionNoFail(nrows==ncols,cp_warning_level,routineP,error)
-       ncols=min(ncols,nrows)
-       if (present(d_struct)) then
-          CPPrecondition(ncols==size(d_struct),cp_failure_level,routineP,error,failure)
+       ncols=MIN(ncols,nrows)
+       IF (PRESENT(d_struct)) THEN
+          CPPrecondition(ncols==SIZE(d_struct),cp_failure_level,routineP,error,failure)
           my_d_struct => d_struct
-       else
-          call cp_d_struct_create(my_d_struct, n_blocks=ncols, &
+       ELSE
+          CALL cp_d_struct_create(my_d_struct, n_blocks=ncols, &
                para_env=para_env, error=error)
-       end if
-       CPPostcondition(associated(my_d_struct),cp_failure_level,routineP,error,failure)
-       if (.not.failure) then
-          do i=1,size(my_d_struct)
-             if (para_env%mepos==my_d_struct(i)) then
+       END IF
+       CPPostcondition(ASSOCIATED(my_d_struct),cp_failure_level,routineP,error,failure)
+       IF (.not.failure) THEN
+          DO i=1,SIZE(my_d_struct)
+             IF (para_env%mepos==my_d_struct(i)) THEN
                 m_block => find_block_node(matrix_ptr,i,i)
-                nullify(block_val)
-                if (.not.associated(m_block)) then
-                   call add_block_node(matrix_ptr,i,i,block_val)
-                else
-                   call get_block_node(m_block,block=block_val)
-                end if
-                if (present(default_value)) block_val=default_value
-                if (present(diagonal_value)) then
-                   forall (j=1:min(size(block_val,1),size(block_val,2)))
+                NULLIFY(block_val)
+                IF (.not.ASSOCIATED(m_block)) THEN
+                   CALL add_block_node(matrix_ptr,i,i,block_val)
+                ELSE
+                   CALL get_block_node(m_block,BLOCK=block_val)
+                END IF
+                IF (PRESENT(default_value)) block_val=default_value
+                IF (PRESENT(diagonal_value)) THEN
+                   FORALL (j=1:MIN(SIZE(block_val,1),SIZE(block_val,2)))
                       block_val(j,j)=diagonal_value
-                   end forall
-                end if
-             else
+                   END FORALL
+                END IF
+             ELSE
                 m_block => find_block_node(matrix_ptr,i,i)
-                if (associated(m_block)) then
-                   CPErrorMessage(cp_failure_level,routineP,"diag block on wrong processor",error)
+                IF (ASSOCIATED(m_block)) THEN
+                   CPErrorMessage(cp_failure_level,routineP,"diag BLOCK on wrong processor",error)
                    ! call remove_real_block_node(matrix_ptr,i,i) ! to do
-                end if
-             end if
-          end do
-       end if
-       if (cp_debug.and.debug_this_module) then ! test if diag
-          call cp_assert(cp_is_block_diagonal(matrix,para_env),&
+                END IF
+             END IF
+          END DO
+       END IF
+       IF (cp_debug.and.debug_this_module) THEN ! test if diag
+          CALL cp_assert(cp_is_block_diagonal(matrix,para_env),&
                cp_failure_level,&
                cp_assertion_failed,routineP, "matrix is not diagonal in "//&
                CPSourceFileRef,&
                error,failure)
-       end if
-    end if
-  call timestop(0.0_wp,handle)
-end subroutine cp_sm_init_diagonal_blocks
+       END IF
+    END IF
+  CALL timestop(0.0_wp,handle)
+END SUBROUTINE cp_sm_init_diagonal_blocks
 !***************************************************************************
 
 !!****f* cp_matrix_utils/cp_sm_is_block_diagonal [1.0] *
@@ -1030,59 +1046,59 @@ end subroutine cp_sm_init_diagonal_blocks
 !!     none
 !!
 !!*** **********************************************************************
-function cp_sm_is_block_diagonal(matrix, para_env, error) result(res)
-  logical :: res
-  type(real_matrix_type), intent(inout), target :: matrix
-  type(cp_para_env_type), pointer :: para_env
-  type(cp_error_type), optional, intent(inout) :: error
+FUNCTION cp_sm_is_block_diagonal(matrix, para_env, error) RESULT(res)
+  LOGICAL :: res
+  TYPE(real_matrix_type), INTENT(inout), TARGET :: matrix
+  TYPE(cp_para_env_type), POINTER :: para_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-  logical :: failure
-  integer, dimension(:), allocatable :: myDiag
-  integer :: handle, i,j, nrows,ncols, stat
-  character(len=*), parameter :: routineN='cp_sm_is_block_diagonal',&
+  LOGICAL :: failure
+  INTEGER, DIMENSION(:), ALLOCATABLE :: myDiag
+  INTEGER :: handle, i,j, nrows,ncols, stat
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sm_is_block_diagonal',&
        routineP=moduleN//':'//routineN
-  type(cp_matrix_block_iterator) :: iterator
-  type(real_matrix_type), pointer :: matrix_ptr
-  failure=.false.
+  TYPE(cp_matrix_block_iterator) :: iterator
+  TYPE(real_matrix_type), POINTER :: matrix_ptr
+  failure=.FALSE.
   matrix_ptr => matrix
 
   !call timeset(routineN//','//moduleN,'I',"",handle)
-  CPPrecondition(associated(matrix_ptr),cp_failure_level,routineP,error,failure)
-  if (.not. failure) then
-     call get_matrix_info(matrix_ptr, nblock_row=nrows, nblock_col=ncols)
+  CPPrecondition(ASSOCIATED(matrix_ptr),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL get_matrix_info(matrix_ptr, nblock_row=nrows, nblock_col=ncols)
      CPAssert(ncols==nrows,cp_warning_level,routineP,error,failure)
-     ncols=min(nrows,ncols)
-     allocate(myDiag(ncols),stat=stat)
+     ncols=MIN(nrows,ncols)
+     ALLOCATE(myDiag(ncols),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      myDiag=0
-     call cp_init(iterator, matrix=matrix, error=error)
-     do
-        if (.not.cp_next(iterator)) exit
-        call cp_get(iterator,block_row=i,block_col=j,error=error)
-        if (i==j) then
+     CALL cp_init(iterator, matrix=matrix, error=error)
+     DO
+        IF (.not.cp_next(iterator)) EXIT
+        CALL cp_get(iterator,block_row=i,block_col=j,error=error)
+        IF (i==j) THEN
            myDiag(i)=myDiag(i)+1
-        else
-           call cp_assert(.false.,cp_warning_level,cp_assertion_failed,&
-                routineP,"there is an off diagonal block! in "//&
+        ELSE
+           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
+                routineP,"there is an off diagonal BLOCK! in "//&
                 CPSourceFileRef,error)
            myDiag(i)=myDiag(i)+100
            myDiag(j)=myDiag(j)+100
-        end if
-     end do
-     call cp_dealloc_ref(iterator,error=error)
-     call mp_sum(myDiag,para_env%group)
+        END IF
+     END DO
+     CALL cp_dealloc_ref(iterator,error=error)
+     CALL mp_sum(myDiag,para_env%group)
      ! there are off diagonal blocks
-     CPAssertNoFail(all(myDiag<100),cp_warning_level,routineP,error)
-     do i=1,size(myDiag)
-        myDiag(i)= mod(myDiag(i),100)
-     end do
-     CPAssert(all(myDiag==1),cp_failure_level,routineP,error,failure)
-     deallocate(myDiag, stat=stat)
+     CPAssertNoFail(ALL(myDiag<100),cp_warning_level,routineP,error)
+     DO i=1,SIZE(myDiag)
+        myDiag(i)= MOD(myDiag(i),100)
+     END DO
+     CPAssert(ALL(myDiag==1),cp_failure_level,routineP,error,failure)
+     DEALLOCATE(myDiag, stat=stat)
      CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)     
-  end if
+  END IF
   res=.not.failure
   !call timestop(0.0_wp,handle)
-end function cp_sm_is_block_diagonal
+END FUNCTION cp_sm_is_block_diagonal
 !***************************************************************************
 
 !!****f* cp_matrix_utils/cp_sm_set_dist_sparsity_from_sm [1.0] *
@@ -1120,62 +1136,62 @@ end function cp_sm_is_block_diagonal
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_sm_set_dist_sparsity_from_sm(m_struct, para_env,&
+SUBROUTINE cp_sm_set_dist_sparsity_from_sm(m_struct, para_env,&
      sample_matrix,error)
-  type(cp_b_matrix_struct_type), intent(inout) :: m_struct
-  type(cp_para_env_type), pointer :: para_env
-  type(real_matrix_type), pointer :: sample_matrix
-  type(cp_error_type), optional, intent(inout) :: error
+  TYPE(cp_b_matrix_struct_type), INTENT(inout) :: m_struct
+  TYPE(cp_para_env_type), POINTER :: para_env
+  TYPE(real_matrix_type), POINTER :: sample_matrix
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_sm_set_dist_sparsity_from_sm',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sm_set_dist_sparsity_from_sm',&
         routineP=moduleN//':'//routineN
-  integer, dimension(:,:), pointer :: b_owner
-  integer :: nblock_cols, nblock_rows, block_row,block_col,i,j
-  type(cp_matrix_block_iterator) :: b_iterator
-  type(real_block_node_type), pointer :: block_node
-  failure=.false.
+  INTEGER, DIMENSION(:,:), POINTER :: b_owner
+  INTEGER :: nblock_cols, nblock_rows, block_row,block_col,i,j
+  TYPE(cp_matrix_block_iterator) :: b_iterator
+  TYPE(real_block_node_type), POINTER :: block_node
+  failure=.FALSE.
   
-  CPPrecondition(associated(sample_matrix),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(sample_matrix),cp_failure_level,routineP,error,failure)
   CPPrecondition(m_struct%initialized,cp_failure_level,routineP,error,failure)
-  if (.not.failure) then
-     call get_matrix_info(sample_matrix,nblock_row=nblock_rows, &
+  IF (.not.failure) THEN
+     CALL get_matrix_info(sample_matrix,nblock_row=nblock_rows, &
           nblock_col=nblock_cols)
-     call cp_2d_i_guarantee_size(m_struct%distribution%block_owner,&
+     CALL cp_2d_i_guarantee_size(m_struct%distribution%block_owner,&
           n_rows=nblock_rows, n_cols=nblock_cols, error=error)
-     call cp_2d_logical_guarantee_size(m_struct%sparsity,&
+     CALL cp_2d_logical_guarantee_size(m_struct%sparsity,&
           n_rows=nblock_rows, n_cols=nblock_cols, error=error)
      b_owner => m_struct%distribution%block_owner
      b_owner=0
-     m_struct%sparsity=.true.
-     call cp_sm_b_i_init(b_iterator, matrix=sample_matrix, error=error)
-     do
-        if (.not.cp_sm_b_i_next(b_iterator,block_row=block_row, &
-             block_col=block_col,error=error)) exit
+     m_struct%sparsity=.TRUE.
+     CALL cp_sm_b_i_init(b_iterator, matrix=sample_matrix, error=error)
+     DO
+        IF (.not.cp_sm_b_i_next(b_iterator,block_row=block_row, &
+             block_col=block_col,error=error)) EXIT
         b_owner(block_row,block_col)=para_env%mepos+1
-     end do
-     call cp_sm_b_i_dealloc_ref(b_iterator,error=error)
-     call mp_sum(b_owner,para_env%group)
-     do j=1,size(b_owner,2)
-      do i=1,size(b_owner,1)
-        if (b_owner(i,j)==0) then
-          b_owner(i,j)= mod(j,para_env%num_pe)
-          m_struct%sparsity(i,j)=.false.
-        else if (b_owner(i,j)==para_env%mepos+1) then
+     END DO
+     CALL cp_sm_b_i_dealloc_ref(b_iterator,error=error)
+     CALL mp_sum(b_owner,para_env%group)
+     DO j=1,SIZE(b_owner,2)
+      DO i=1,SIZE(b_owner,1)
+        IF (b_owner(i,j)==0) THEN
+          b_owner(i,j)= MOD(j,para_env%num_pe)
+          m_struct%sparsity(i,j)=.FALSE.
+        ELSE IF (b_owner(i,j)==para_env%mepos+1) THEN
           b_owner(i,j)=para_env%mepos
-          if (cp_debug .and. debug_this_module) then
-            call get_block_node(sample_matrix,block_row=i,&
+          IF (cp_debug .AND. debug_this_module) THEN
+            CALL get_block_node(sample_matrix,block_row=i,&
                 block_col=j,block_node=block_node)
-            CPPostcondition(associated(block_node),cp_failure_level,routineP,error,failure)
-          end if
-        else
+            CPPostcondition(ASSOCIATED(block_node),cp_failure_level,routineP,error,failure)
+          END IF
+        ELSE
           b_owner(i,j)=b_owner(i,j)-1
           CPPostcondition(b_owner(i,j)<para_env%num_pe,cp_failure_level,routineP,error,failure)
-        end if
-      end do
-     end do
-  end if
-end subroutine cp_sm_set_dist_sparsity_from_sm
+        END IF
+      END DO
+     END DO
+  END IF
+END SUBROUTINE cp_sm_set_dist_sparsity_from_sm
 !***************************************************************************
 
 !!****f* cp_matrix_utils/cp_sm_alloc_nonsparse_blocks [1.0] *
@@ -1212,69 +1228,69 @@ end subroutine cp_sm_set_dist_sparsity_from_sm
 !!     5.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_sm_alloc_nonsparse_blocks(matrix, m_struct, para_env,&
+SUBROUTINE cp_sm_alloc_nonsparse_blocks(matrix, m_struct, para_env,&
      error)
-  type(cp_b_matrix_struct_type), intent(inout) :: m_struct
-  type(cp_para_env_type), pointer :: para_env
-  type(real_matrix_type), pointer :: matrix
-  type(cp_error_type), optional, intent(inout) :: error
+  TYPE(cp_b_matrix_struct_type), INTENT(inout) :: m_struct
+  TYPE(cp_para_env_type), POINTER :: para_env
+  TYPE(real_matrix_type), POINTER :: matrix
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_sm_alloc_nonsparse_blocks',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sm_alloc_nonsparse_blocks',&
         routineP=moduleN//':'//routineN
-  logical, dimension(:,:), pointer :: sparsity
-  integer :: nblock_rows,nblock_cols,i,j
-  integer, dimension(:,:), pointer :: b_owner
-  real(kind=wp), dimension(:,:), pointer :: block_val
-  failure=.false.
+  LOGICAL, DIMENSION(:,:), POINTER :: sparsity
+  INTEGER :: nblock_rows,nblock_cols,i,j
+  INTEGER, DIMENSION(:,:), POINTER :: b_owner
+  REAL(kind=wp), DIMENSION(:,:), POINTER :: block_val
+  failure=.FALSE.
   
-  CPPrecondition(associated(matrix),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
   CPPrecondition(m_struct%initialized,cp_failure_level,routineP,error,failure)
-  if (.not.failure)then
-     CPPrecondition(associated(m_struct%distribution),cp_failure_level,routineP,error,failure)
+  IF (.not.failure)THEN
+     CPPrecondition(ASSOCIATED(m_struct%distribution),cp_failure_level,routineP,error,failure)
      CPPrecondition(m_struct%distribution%initialized,cp_failure_level,routineP,error,failure)
-  end if
-  if (.not.failure) then
+  END IF
+  IF (.not.failure) THEN
      sparsity => m_struct%sparsity
      b_owner => m_struct%distribution%block_owner
-     call get_matrix_info(matrix,nblock_row=nblock_rows, &
+     CALL get_matrix_info(matrix,nblock_row=nblock_rows, &
           nblock_col=nblock_cols)
-     if (.not.associated(sparsity)) then
-        call cp_assert(.false.,cp_warning_level,fromWhere=routineP,&
+     IF (.not.ASSOCIATED(sparsity)) THEN
+        CALL cp_assert(.FALSE.,cp_warning_level,fromWhere=routineP,&
              error_nr=cp_postcondition_failed,&
              message="no sparsity, allocating a full matrix "//&
              CPSourceFileRef,&
              error=error)
-        do i=1,nblock_rows
-           do j=1,nblock_cols
-              if (.not.associated(find_block_node(matrix,&
-                   block_row=i,block_col=j))) then
-                 nullify(block_val)
-                 call add_block_node(matrix,block_row=i,&
-                      block_col=j,block=block_val)
+        DO i=1,nblock_rows
+           DO j=1,nblock_cols
+              IF (.not.ASSOCIATED(find_block_node(matrix,&
+                   block_row=i,block_col=j))) THEN
+                 NULLIFY(block_val)
+                 CALL add_block_node(matrix,block_row=i,&
+                      block_col=j,BLOCK=block_val)
                  block_val=0.0_wp
-              end if
-           end do
-        end do
-        return
-     end if
-  end if
+              END IF
+           END DO
+        END DO
+        RETURN
+     END IF
+  END IF
 
-  if (.not.failure) then
-     do i=1,nblock_rows
-        do j=1,nblock_cols
-           if (sparsity(i,j).and.b_owner(i,j)==para_env%mepos.and.&
-                .not.associated(find_block_node(matrix,&
-                block_row=i,block_col=j))) then
-              nullify(block_val)
-              call add_block_node(matrix,block_row=i,&
-                   block_col=j,block=block_val)
+  IF (.not.failure) THEN
+     DO i=1,nblock_rows
+        DO j=1,nblock_cols
+           IF (sparsity(i,j).and.b_owner(i,j)==para_env%mepos.and.&
+                .not.ASSOCIATED(find_block_node(matrix,&
+                block_row=i,block_col=j))) THEN
+              NULLIFY(block_val)
+              CALL add_block_node(matrix,block_row=i,&
+                   block_col=j,BLOCK=block_val)
               block_val=0.0_wp
-           end if
-        end do
-     end do
-  end if
-end subroutine cp_sm_alloc_nonsparse_blocks
+           END IF
+        END DO
+     END DO
+  END IF
+END SUBROUTINE cp_sm_alloc_nonsparse_blocks
 !***************************************************************************
 
 !!****f* cp_matrix_utils/cp_sm_output [1.0] *
@@ -1323,63 +1339,63 @@ end subroutine cp_sm_alloc_nonsparse_blocks
 !!     06.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_sm_output(logger, outputName, &
+SUBROUTINE cp_sm_output(logger, outputName, &
        fromWhere, iter, matrix,para_env,&
        comment, el_format, error)
-    type(cp_logger_type), pointer ::logger
-    character(len=*) , intent(in) :: outputName
-    character(len=*), intent(in):: fromWhere
-    integer, intent(in) :: iter
-    type(real_matrix_type), pointer :: matrix
-    character(len=*), intent(in),optional :: comment, el_format
-    type(cp_para_env_type), pointer:: para_env
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(cp_logger_type), POINTER ::logger
+    CHARACTER(len=*) , INTENT(in) :: outputName
+    CHARACTER(len=*), INTENT(in):: fromWhere
+    INTEGER, INTENT(in) :: iter
+    TYPE(real_matrix_type), POINTER :: matrix
+    CHARACTER(len=*), INTENT(in),OPTIONAL :: comment, el_format
+    TYPE(cp_para_env_type), POINTER:: para_env
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_sm_output',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sm_output',&
         routineP=moduleN//':'//routineN
-  character(len=40) :: symmetry
-  character(len=60) :: name
-  real(wp), dimension(:,:), pointer :: full_matrix
-  failure=.false.
+  CHARACTER(len=40) :: symmetry
+  CHARACTER(len=60) :: name
+  REAL(wp), DIMENSION(:,:), POINTER :: full_matrix
+  failure=.FALSE.
 
-  CPPrecondition(associated(matrix),cp_failure_level,routineP,error,failure)
-  if (.not. failure) then
-     if (cp_would_output(logger, outputName , fromWhere, iter)) then
-        call get_matrix_info(matrix=matrix,&
+  CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     IF (cp_would_output(logger, outputName , fromWhere, iter)) THEN
+        CALL get_matrix_info(matrix=matrix,&
              matrix_name=name,&
              matrix_symmetry=symmetry)
         
-        nullify (full_matrix)
-        call copy_sparse_to_full_matrix(matrix,full_matrix)
-        if (symmetry == "symmetric") then
-           call symmetrize_matrix(full_matrix,"upper_to_lower")
-        else if (symmetry == "antisymmetric") then
-           call symmetrize_matrix(full_matrix,"anti_upper_to_lower")
-        else if (symmetry /= "none") then
-           call cp_assert(.false.,cp_warning_level,cp_assertion_failed,&
+        NULLIFY (full_matrix)
+        CALL copy_sparse_to_full_matrix(matrix,full_matrix)
+        IF (symmetry == "symmetric") THEN
+           CALL symmetrize_matrix(full_matrix,"upper_to_lower")
+        ELSE IF (symmetry == "antisymmetric") THEN
+           CALL symmetrize_matrix(full_matrix,"anti_upper_to_lower")
+        ELSE IF (symmetry /= "NONE") THEN
+           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
                 fromWhere=routineP,message="Unknown matrix structure in"//&
                 CPSourceFileRef,&
                 error=error)
-        end if
+        END IF
         
-        call mp_sum(full_matrix,para_env%group)
+        CALL mp_sum(full_matrix,para_env%group)
         
-        if (present(comment)) then
-           call cp_2d_r_output(logger=logger, outputName=outputName, &
+        IF (PRESENT(comment)) THEN
+           CALL cp_2d_r_output(logger=logger, outputName=outputName, &
                 fromWhere=fromWhere, iter=iter, array=full_matrix,&
                 comment=comment, el_format=el_format, error=error)
-        else
-           call cp_2d_r_output(logger=logger, outputName=outputName, &
+        ELSE
+           CALL cp_2d_r_output(logger=logger, outputName=outputName, &
                 fromWhere=fromWhere, iter=iter, array=full_matrix,&
                 comment=name, el_format=el_format, error=error)
-        end if
-        if (associated(full_matrix)) then
-           deallocate(full_matrix)
-        end if
-     end if
-  end if
-end subroutine cp_sm_output
+        END IF
+        IF (ASSOCIATED(full_matrix)) THEN
+           DEALLOCATE(full_matrix)
+        END IF
+     END IF
+  END IF
+END SUBROUTINE cp_sm_output
 !***************************************************************************
 
-end module cp_matrix_utils
+END MODULE cp_matrix_utils

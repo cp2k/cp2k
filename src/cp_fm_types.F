@@ -45,11 +45,11 @@ MODULE cp_fm_types
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_type,&
-                                             cp_fm_struct_create,&
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_equivalent,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_retain,&
+                                             cp_fm_struct_type,&
                                              cp_fm_struct_write
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
@@ -1072,7 +1072,7 @@ CONTAINS
           ELSE IF (loc) THEN
              IF (ASSOCIATED(matrix%local_data)) THEN
                 WRITE (unit=unit_nr,&
-                     fmt="(' local_data=(real(wp, dimension(',i8,', ',i8,'))')",&
+                     fmt="(' local_data=(REAL(wp, DIMENSION(',i8,', ',i8,'))')",&
                      iostat=iostat) SIZE(matrix%local_data,1), SIZE(matrix%local_data,2)
              END IF
           END IF

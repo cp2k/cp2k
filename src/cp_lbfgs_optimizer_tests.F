@@ -24,29 +24,46 @@
 !!     none
 !!
 !!*** ************************************************************************
-module cp_lbfgs_optimizer_tests
-  use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
-       cp_log, cp_logger_type, cp_note_level
-  use cp_error_handling, only: cp_error_type, cp_assert, cp_error_message,&
-       cp_assertion_failed, cp_debug, cp_precondition_failed, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_get_logger, cp_error_get_print_level
-  use kinds, only: wp=>dp
-  use global_types, only: global_environment_type
-  use timings, only: timeset, timestop
-  use cp_lbfgs_optimizer_e_rosen, only: cp_lbfgs_opt_e_rosen_type,&
-     cp_init, cp_dealloc_ref, cp_next, cp_get
-  use cp_e_rosenbrok_function, only: cp_e_rosenbrok_f_type,&
-       cp_ros_f_init, cp_bounds_and_x_ros_f_init, cp_dealloc_ref
-  implicit none
-  private
+MODULE cp_lbfgs_optimizer_tests
+  USE cp_e_rosenbrok_function,         ONLY: cp_bounds_and_x_ros_f_init,&
+                                             cp_dealloc_ref,&
+                                             cp_e_rosenbrok_f_type,&
+                                             cp_ros_f_init
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_get_print_level,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_precondition_failed
+  USE cp_lbfgs_optimizer_e_rosen,      ONLY: cp_dealloc_ref,&
+                                             cp_get,&
+                                             cp_init,&
+                                             cp_lbfgs_opt_e_rosen_type,&
+                                             cp_next
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_log,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='cp_lbfgs_optimizer_tests'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_lbfgs_optimizer_tests'
 
-  public :: cp_lbfgs_e_rosen_test
+  PUBLIC :: cp_lbfgs_e_rosen_test
 
 !****************************************************************************
-contains
+CONTAINS
 
 !!****f* cp_lbfgs_optimizer_tests/cp_lbfgs_e_rosen_test [1.0] *
 !!
@@ -79,54 +96,54 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-function cp_lbfgs_e_rosen_test(global_env,error) result(res)
-  type(global_environment_type), intent(in), target :: global_env
-  type(cp_error_type), optional, intent(inout) :: error
-  logical :: res
+FUNCTION cp_lbfgs_e_rosen_test(global_env,error) RESULT(res)
+  TYPE(global_environment_type), INTENT(in), TARGET :: global_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  LOGICAL :: res
   
-  logical :: failure, finished
-  integer :: handle, i, print_every
-  integer, parameter :: n=25
-  integer, dimension(n) :: kind_of_bound
-  real(kind=wp), dimension(n) :: lower_bound, upper_bound, x0
-  real(kind=wp) :: f
-  character(len=*), parameter :: routineN='cp_lbfgs_e_rosen_test',&
+  LOGICAL :: failure, finished
+  INTEGER :: handle, i, print_every
+  INTEGER, PARAMETER :: n=25
+  INTEGER, DIMENSION(n) :: kind_of_bound
+  REAL(kind=wp), DIMENSION(n) :: lower_bound, upper_bound, x0
+  REAL(kind=wp) :: f
+  CHARACTER(len=*), PARAMETER :: routineN='cp_lbfgs_e_rosen_test',&
        routineP=moduleN//':'//routineN
-  type(cp_lbfgs_opt_e_rosen_type) :: optimizer
-  type(cp_e_rosenbrok_f_type) :: obj_f
-  failure=.false.
+  TYPE(cp_lbfgs_opt_e_rosen_type) :: optimizer
+  TYPE(cp_e_rosenbrok_f_type) :: obj_f
+  failure=.FALSE.
   
-  call timeset(routineN//','//moduleN,'I',"",handle)
-  if (.not. failure) then
-     call cp_ros_f_init(obj_f, n=n, error=error)
-     call cp_bounds_and_x_ros_f_init(lower_bound=lower_bound,&
+  CALL timeset(routineN//','//moduleN,'I',"",handle)
+  IF (.NOT. failure) THEN
+     CALL cp_ros_f_init(obj_f, n=n, error=error)
+     CALL cp_bounds_and_x_ros_f_init(lower_bound=lower_bound,&
           upper_bound=upper_bound,kind_of_bound=kind_of_bound,&
           x0=x0,rf_env=obj_f,error=error)
      print_every=cp_error_get_print_level(error)
-     if (print_every < cp_warning_level) then
+     IF (print_every < cp_warning_level) THEN
         print_every=1
-     else if (print_every==cp_warning_level) then
+     ELSE IF (print_every==cp_warning_level) THEN
         print_every=0
-     else
+     ELSE
         print_every=-1
-     end if
-     call cp_init(optimizer, global_env, obj_f,x0,&
+     END IF
+     CALL cp_init(optimizer, global_env, obj_f,x0,&
           print_every=print_every, wanted_relative_f_delta=1.0e7_wp,&
           wanted_projected_gradient=1.0e-7_wp,lower_bound=lower_bound,&
           upper_bound=upper_bound, kind_of_bound=kind_of_bound,&
           m=5,error=error)
-     do i=1,100
-        if (.not.cp_next(optimizer)) exit
-     end do
-     call cp_get(optimizer, f=f, at_end=finished)
+     DO i=1,100
+        IF (.not.cp_next(optimizer)) EXIT
+     END DO
+     CALL cp_get(optimizer, f=f, at_end=finished)
      CPPostcondition(finished,cp_warning_level,routineP,error,failure)
-     CPPostcondition(f<2.0e7*epsilon(0.0_wp),cp_warning_level,routineP,error,failure)
-     call cp_dealloc_ref(optimizer,error=error)
-     call cp_dealloc_ref(obj_f,error=error)
-  end if
+     CPPostcondition(f<2.0e7*EPSILON(0.0_wp),cp_warning_level,routineP,error,failure)
+     CALL cp_dealloc_ref(optimizer,error=error)
+     CALL cp_dealloc_ref(obj_f,error=error)
+  END IF
   res=.not.failure
-  call timestop(0.0_wp,handle)
-end function cp_lbfgs_e_rosen_test
+  CALL timestop(0.0_wp,handle)
+END FUNCTION cp_lbfgs_e_rosen_test
 !***************************************************************************
 
-end module cp_lbfgs_optimizer_tests
+END MODULE cp_lbfgs_optimizer_tests

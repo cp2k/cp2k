@@ -24,39 +24,50 @@
 !!
 !!   SOURCE
 !****************************************************************************
-module cp_blacs_env
-  use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
-       cp_logger_type
-  use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger
-  use kinds, only: int_size,&
-                   wp => dp,&
-                   wp_size => dp_size
-  use cp_para_types, only: cp_blacs_env_type
-  USE message_passing,     ONLY: mp_bcast,&
-                                 mp_max,&
-                                 mp_sum,&
-                                 mp_sync
-  USE termination,         ONLY: stop_memory,&
-                                 stop_program
-  use timings, only: timeset, timestop
-  USE global_types,        ONLY: global_environment_type
-  implicit none
-  private
+MODULE cp_blacs_env
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_para_types,                   ONLY: cp_blacs_env_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: int_size,&
+                                             wp => dp,&
+                                             wp_size => dp_size
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_max,&
+                                             mp_sum,&
+                                             mp_sync
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='cp_blacs_env'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_blacs_env'
 
-  public :: cp_blacs_env_type ! make it accessible only through cp_para_types?
-  public :: cp_blacs_env_create, cp_blacs_env_retain, cp_blacs_env_release
-  public :: start_blacs, end_blacs, cp_blacs_env_write,&
+  PUBLIC :: cp_blacs_env_type ! make it accessible only through cp_para_types?
+  PUBLIC :: cp_blacs_env_create, cp_blacs_env_retain, cp_blacs_env_release
+  PUBLIC :: start_blacs, end_blacs, cp_blacs_env_write,&
        cp_blacs_env_from_globenv
 !***
 !****************************************************************************
-contains
+CONTAINS
 
 !!****f* qs_blacs/cp_blacs_env_create [1.0] *
 !!
@@ -95,51 +106,51 @@ contains
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_blacs_env_create(blacs_env,group,owns_group,source,error)
-  type(cp_blacs_env_type), pointer :: blacs_env
-  integer, intent(in) :: group
-  logical, intent(in), optional :: owns_group
-  integer, dimension(2), intent(in), optional :: source
-  type(cp_error_type), optional, intent(inout) :: error
+SUBROUTINE cp_blacs_env_create(blacs_env,group,owns_group,source,error)
+  TYPE(cp_blacs_env_type), POINTER :: blacs_env
+  INTEGER, INTENT(in) :: group
+  LOGICAL, INTENT(in), OPTIONAL :: owns_group
+  INTEGER, DIMENSION(2), INTENT(in), OPTIONAL :: source
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_blacs_env_create',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_blacs_env_create',&
         routineP=moduleN//':'//routineN
-  integer :: stat
-  failure=.false.
+  INTEGER :: stat
+  failure=.FALSE.
 
 #ifdef __parallel
 #ifndef __BLACS
-  call cp_assert(.false.,cp_failure_level, cp_assertion_failed,&
-       fromWhere=routineP,message="to use the blacs environment "//&
+  CALL cp_assert(.FALSE.,cp_failure_level, cp_assertion_failed,&
+       fromWhere=routineP,message="to USE the blacs environment "//&
        "(used by full matrices) you need the blacs library "//&
        CPSourceFileRef,&
        error=error)
 #endif
 #endif
 
-  allocate(blacs_env,stat=stat)
+  ALLOCATE(blacs_env,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  if (.not. failure) then
+  IF (.NOT. failure) THEN
      blacs_env%group=group
-     blacs_env%owns_group=.true.
+     blacs_env%owns_group=.TRUE.
      blacs_env%ref_count=1
      blacs_env%mepos=0
      blacs_env%num_pe=1
      blacs_env%source=0
      blacs_env%my_pid=0
      blacs_env%n_pid=1
-     if (present(owns_group)) blacs_env%owns_group=owns_group
-     if (present(source)) then
+     IF (PRESENT(owns_group)) blacs_env%owns_group=owns_group
+     IF (PRESENT(source)) THEN
         blacs_env%source=source
-     end if
+     END IF
 #ifdef __BLACS
-     call blacs_pinfo(blacs_env%my_pid,blacs_env%n_pid)
-     call blacs_gridinfo(blacs_env%group,blacs_env%num_pe(1),&
+     CALL blacs_pinfo(blacs_env%my_pid,blacs_env%n_pid)
+     CALL blacs_gridinfo(blacs_env%group,blacs_env%num_pe(1),&
           blacs_env%num_pe(2),blacs_env%mepos(1),blacs_env%mepos(2))
 #endif
-  end if
-end subroutine cp_blacs_env_create
+  END IF
+END SUBROUTINE cp_blacs_env_create
 !***************************************************************************
 
 !!****f* qs_blacs/cp_blacs_env_retain [1.0] *
@@ -171,20 +182,20 @@ end subroutine cp_blacs_env_create
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_blacs_env_retain(blacs_env,error)
-  type(cp_blacs_env_type), pointer :: blacs_env
-  type(cp_error_type), optional, intent(inout) :: error
+SUBROUTINE cp_blacs_env_retain(blacs_env,error)
+  TYPE(cp_blacs_env_type), POINTER :: blacs_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_blacs_env_retain',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_blacs_env_retain',&
         routineP=moduleN//':'//routineN
-  failure=.false.
-  CPPrecondition(associated(blacs_env),cp_failure_level,routineP,error,failure)
-  if (.not. failure) then
+  failure=.FALSE.
+  CPPrecondition(ASSOCIATED(blacs_env),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
      CPPrecondition(blacs_env%ref_count>0,cp_failure_level,routineP,error,failure)
      blacs_env%ref_count=blacs_env%ref_count+1
-  end if
-end subroutine cp_blacs_env_retain
+  END IF
+END SUBROUTINE cp_blacs_env_retain
 !***************************************************************************
 
 !!****f* qs_blacs/cp_blacs_env_release [1.0] *
@@ -216,31 +227,31 @@ end subroutine cp_blacs_env_retain
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_blacs_env_release(blacs_env,error)
-  type(cp_blacs_env_type), pointer :: blacs_env
-  type(cp_error_type), optional, intent(inout) :: error
+SUBROUTINE cp_blacs_env_release(blacs_env,error)
+  TYPE(cp_blacs_env_type), POINTER :: blacs_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_blacs_env_release',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_blacs_env_release',&
         routineP=moduleN//':'//routineN
-  integer :: stat
-  failure=.false.
+  INTEGER :: stat
+  failure=.FALSE.
   
-  if (associated(blacs_env)) then
+  IF (ASSOCIATED(blacs_env)) THEN
      CPPrecondition(blacs_env%ref_count>0,cp_failure_level,routineP,error,failure)
      blacs_env%ref_count=blacs_env%ref_count-1
-     if (blacs_env%ref_count<1) then
-        if (blacs_env%owns_group) then
+     IF (blacs_env%ref_count<1) THEN
+        IF (blacs_env%owns_group) THEN
 #ifdef __BLACS
-           call blacs_gridexit(blacs_env%group)
+           CALL blacs_gridexit(blacs_env%group)
 #endif
-        end if
-        deallocate(blacs_env,stat=stat)
+        END IF
+        DEALLOCATE(blacs_env,stat=stat)
         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-     end if
-  end if
-  nullify(blacs_env)
-end subroutine cp_blacs_env_release
+     END IF
+  END IF
+  NULLIFY(blacs_env)
+END SUBROUTINE cp_blacs_env_release
 !***************************************************************************
 
 !!****f* cp_blacs_env/cp_blacs_env_write [1.0] *
@@ -275,43 +286,43 @@ end subroutine cp_blacs_env_release
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_blacs_env_write(blacs_env, unit_nr, error)
-  type(cp_blacs_env_type), pointer :: blacs_env
-  integer, intent(in) :: unit_nr
-  type(cp_error_type), optional, intent(inout) :: error
+SUBROUTINE cp_blacs_env_write(blacs_env, unit_nr, error)
+  TYPE(cp_blacs_env_type), POINTER :: blacs_env
+  INTEGER, INTENT(in) :: unit_nr
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_blacs_env_write',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_blacs_env_write',&
         routineP=moduleN//':'//routineN
-  integer :: iostat
-  failure=.false.
+  INTEGER :: iostat
+  failure=.FALSE.
   
-  if (associated(blacs_env)) then
-     write (unit=unit_nr,&
+  IF (ASSOCIATED(blacs_env)) THEN
+     WRITE (unit=unit_nr,&
           fmt="(' <cp_blacs_env>:{ owns_group=',l1,',')",&
           iostat=iostat) blacs_env%owns_group
      CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-     write (unit=unit_nr,fmt="('  group=',i10,', ref_count=',i10,',')",&
+     WRITE (unit=unit_nr,fmt="('  group=',i10,', ref_count=',i10,',')",&
           iostat=iostat) blacs_env%group, blacs_env%ref_count
      CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-     write (unit=unit_nr,fmt="('  mepos=(',i8,',',i8,'),')",&
+     WRITE (unit=unit_nr,fmt="('  mepos=(',i8,',',i8,'),')",&
           iostat=iostat) blacs_env%mepos(1), blacs_env%mepos(2)
      CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-     write (unit=unit_nr,fmt="('  source=(',i8,',',i8,'),')",&
+     WRITE (unit=unit_nr,fmt="('  source=(',i8,',',i8,'),')",&
           iostat=iostat) blacs_env%source(1), blacs_env%source(2)
      CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-     write (unit=unit_nr,fmt="('  num_pe=(',i8,',',i8,'),')",&
+     WRITE (unit=unit_nr,fmt="('  num_pe=(',i8,',',i8,'),')",&
           iostat=iostat) blacs_env%num_pe(1), blacs_env%num_pe(2)
      CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-     write (unit=unit_nr,fmt="('  my_pid=',i10,', n_pid=',i10,' }')",&
+     WRITE (unit=unit_nr,fmt="('  my_pid=',i10,', n_pid=',i10,' }')",&
           iostat=iostat) blacs_env%my_pid, blacs_env%n_pid
      CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-  else
-     write (unit=unit_nr,&
+  ELSE
+     WRITE (unit=unit_nr,&
           fmt="(a)", iostat=iostat) ' <cp_blacs_env>:*null* '
      CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-  end if
-end subroutine cp_blacs_env_write
+  END IF
+END SUBROUTINE cp_blacs_env_write
 !***************************************************************************
 
 !!****f* cp_blacs_env/cp_blacs_env_from_globenv [1.0] *
@@ -345,22 +356,22 @@ end subroutine cp_blacs_env_write
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-function cp_blacs_env_from_globenv(global_env,error) result(res)
-  type(cp_blacs_env_type), pointer :: res
-  type(global_environment_type), intent(in),target :: global_env
-  type(cp_error_type), optional, intent(inout) :: error
+FUNCTION cp_blacs_env_from_globenv(global_env,error) RESULT(res)
+  TYPE(cp_blacs_env_type), POINTER :: res
+  TYPE(global_environment_type), INTENT(in),TARGET :: global_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_blacs_env_from_globenv',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_blacs_env_from_globenv',&
         routineP=moduleN//':'//routineN
-  failure=.false.
+  failure=.FALSE.
   
-  CPPrecondition(associated(global_env%blacs_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(global_env%blacs_env),cp_failure_level,routineP,error,failure)
   !if (failure) then
   !   call start_blacs(global_env) ! needs intent inout
   !end if
   res => global_env%blacs_env
-end function cp_blacs_env_from_globenv
+END FUNCTION cp_blacs_env_from_globenv
 !***************************************************************************
 
   SUBROUTINE start_blacs(globenv)
@@ -383,7 +394,7 @@ end function cp_blacs_env_from_globenv
     INTEGER :: context,group,ipe,istat,mypcol,mype,myprow,npcol,npe,nprow,&
                output_unit
     LOGICAL :: ionode
-    type(cp_error_type) :: error
+    TYPE(cp_error_type) :: error
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: pcol,pcon,prow
 
@@ -397,8 +408,8 @@ end function cp_blacs_env_from_globenv
 
 #ifdef __parallel
 #ifndef __BLACS
-  call cp_assert(.false.,cp_failure_level, cp_assertion_failed,&
-       fromWhere=routine,message="to use the blacs environment "//&
+  CALL cp_assert(.FALSE.,cp_failure_level, cp_assertion_failed,&
+       fromWhere=routine,message="to USE the blacs environment "//&
        "(used by full matrices) you need the blacs library "//&
        CPSourceFileRef,&
        error=error)
@@ -471,7 +482,7 @@ end function cp_blacs_env_from_globenv
     END IF
 
 #endif
-    call cp_blacs_env_create(globenv%blacs_env,group = context)
+    CALL cp_blacs_env_create(globenv%blacs_env,group = context)
 
   END SUBROUTINE start_blacs
 
@@ -498,7 +509,7 @@ end function cp_blacs_env_from_globenv
     LOGICAL :: ionode
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: pcon
-    type(cp_blacs_env_type), pointer :: context
+    TYPE(cp_blacs_env_type), POINTER :: context
 
 !   ---------------------------------------------------------------------------
 
@@ -537,7 +548,7 @@ end function cp_blacs_env_from_globenv
 
     CALL mp_sync(group)
 
-    call cp_blacs_env_release(globenv%blacs_env)
+    CALL cp_blacs_env_release(globenv%blacs_env)
     !    CALL blacs_gridexit(context)
 
     !globenv%context = 0
@@ -549,4 +560,4 @@ end function cp_blacs_env_from_globenv
 
 ! *****************************************************************************
 
-end module cp_blacs_env
+END MODULE cp_blacs_env

@@ -23,11 +23,10 @@
 !!
 !!   SOURCE
 !****************************************************************************
-module cp_array_utils
-use cp_array_logical_utils
-use cp_array_r_utils
-use cp_array_i_utils
+MODULE cp_array_utils
 !!***
 !****************************************************************************
-
-end module cp_array_utils
+  USE cp_array_i_utils
+  USE cp_array_logical_utils
+  USE cp_array_r_utils
+END MODULE cp_array_utils

@@ -243,12 +243,12 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
      IF (PRESENT(nrow_global)) fmstruct%nrow_global=nrow_global
      IF (PRESENT(ncol_global)) fmstruct%ncol_global=ncol_global
      ! checks for more processes than matrix elements
-     call cp_assert(fmstruct%context%num_pe(1)<=fmstruct%nrow_global,&
+     CALL cp_assert(fmstruct%context%num_pe(1)<=fmstruct%nrow_global,&
           cp_warning_level,cp_assertion_failed,routineP,&
           "context%num_pe(1)<=nrow_global"//&
           CPSourceFileRef,&
           error)
-     call cp_assert(fmstruct%context%num_pe(2)<=fmstruct%ncol_global,&
+     CALL cp_assert(fmstruct%context%num_pe(2)<=fmstruct%ncol_global,&
           cp_warning_level,cp_assertion_failed,routineP,&
           "context%num_pe(2)<=ncol_global"//&
           CPSourceFileRef,&
@@ -568,7 +568,7 @@ SUBROUTINE cp_fm_struct_write(fmstruct, unit_nr, long_description,error)
            WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) "),"
         ELSE
            WRITE (unit=unit_nr,&
-                fmt="(' row_indices=<integer,dimension(',i8,'),')",&
+                fmt="(' row_indices=<INTEGER,DIMENSION(',i8,'),')",&
                 iostat=iostat) SIZE(fmstruct%row_indices)
         END IF
      ELSE
@@ -581,7 +581,7 @@ SUBROUTINE cp_fm_struct_write(fmstruct, unit_nr, long_description,error)
            WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) "),"
         ELSE
            WRITE (unit=unit_nr,&
-                fmt="(' col_indices=<integer,dimension(',i8,'),')",&
+                fmt="(' col_indices=<INTEGER,DIMENSION(',i8,'),')",&
                 iostat=iostat) SIZE(fmstruct%col_indices)
         END IF
      ELSE

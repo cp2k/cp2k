@@ -25,57 +25,65 @@
 !!
 !!   SOURCE
 !****************************************************************************
-module pao_bas_projection_types
-  use cp_log_handling, only: cp_failure_level, cp_warning_level, cp_to_string
-  use cp_error_handling, only: cp_error_type, cp_assert, cp_debug
-  use kinds, only: wp=>dp
-  use global_types, only: global_environment_type
-  use timings, only: timeset, timestop
-  use cp_array_utils, only: cp_write
-  use cp_linked_list_int, only: cp_create, cp_insert, cp_dealloc,&
-       cp_sll_int_type, cp_next
-  implicit none
-  private
+MODULE pao_bas_projection_types
+  USE cp_array_utils,                  ONLY: cp_write
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_debug,&
+                                             cp_error_type
+  USE cp_linked_list_int,              ONLY: cp_create,&
+                                             cp_dealloc,&
+                                             cp_insert,&
+                                             cp_next,&
+                                             cp_sll_int_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='pao_bas_projection'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pao_bas_projection'
   
-  public :: pao_bas_projection_type
-  public :: cp_create, cp_dealloc, cp_init, cp_dealloc_ref,&
+  PUBLIC :: pao_bas_projection_type
+  PUBLIC :: cp_create, cp_dealloc, cp_init, cp_dealloc_ref,&
        cp_valid, cp_get, cp_get_proj_indexes, cp_get_non_proj_indexes,&
        cp_write
-  public :: cp_proj_create, cp_proj_dealloc, cp_proj_init,&
+  PUBLIC :: cp_proj_create, cp_proj_dealloc, cp_proj_init,&
        cp_proj_dealloc_ref, cp_proj_valid, cp_proj_get,&
        cp_proj_get_proj_indexes, cp_proj_get_non_proj_indexes,&
        cp_proj_write , cp_proj_init2, cp_proj_create2
 
-  interface cp_create
-     module procedure cp_proj_create , cp_proj_create2
-  end interface
-  interface cp_dealloc
-     module procedure cp_proj_dealloc
-  end interface
-  interface  cp_init
-     module procedure cp_proj_init , cp_proj_init2
-  end interface
-  interface cp_dealloc_ref
-     module procedure cp_proj_dealloc_ref
-  end interface
-  interface cp_valid
-     module procedure cp_proj_valid
-  end interface
-  interface cp_get
-     module procedure cp_proj_get
-  end interface
-  interface cp_get_proj_indexes
-     module procedure cp_proj_get_proj_indexes
-  end interface
-  interface cp_get_non_proj_indexes
-     module procedure cp_proj_get_non_proj_indexes
-  end interface
-  interface cp_write
-     module procedure cp_proj_write
-  end interface
+  INTERFACE cp_create
+     MODULE PROCEDURE cp_proj_create , cp_proj_create2
+  END INTERFACE
+  INTERFACE cp_dealloc
+     MODULE PROCEDURE cp_proj_dealloc
+  END INTERFACE
+  INTERFACE  cp_init
+     MODULE PROCEDURE cp_proj_init , cp_proj_init2
+  END INTERFACE
+  INTERFACE cp_dealloc_ref
+     MODULE PROCEDURE cp_proj_dealloc_ref
+  END INTERFACE
+  INTERFACE cp_valid
+     MODULE PROCEDURE cp_proj_valid
+  END INTERFACE
+  INTERFACE cp_get
+     MODULE PROCEDURE cp_proj_get
+  END INTERFACE
+  INTERFACE cp_get_proj_indexes
+     MODULE PROCEDURE cp_proj_get_proj_indexes
+  END INTERFACE
+  INTERFACE cp_get_non_proj_indexes
+     MODULE PROCEDURE cp_proj_get_non_proj_indexes
+  END INTERFACE
+  INTERFACE cp_write
+     MODULE PROCEDURE cp_proj_write
+  END INTERFACE
 
 !!***
 !****************************************************************************
@@ -107,16 +115,16 @@ module pao_bas_projection_types
 !!
 !!   SOURCE
   !***************************************************************************
-  type pao_bas_projection_type
-     private
-     logical :: initialized
-     integer, dimension(:), pointer :: proj_indexes
-     integer, dimension(:), pointer :: non_proj_indexes
-  end type pao_bas_projection_type
+  TYPE pao_bas_projection_type
+     PRIVATE
+     LOGICAL :: initialized
+     INTEGER, DIMENSION(:), POINTER :: proj_indexes
+     INTEGER, DIMENSION(:), POINTER :: non_proj_indexes
+  END TYPE pao_bas_projection_type
 !!***
   !****************************************************************************
 
-contains
+CONTAINS
 
 !!****f* pao_bas_projection/cp_proj_create [1.0] *
 !!
@@ -147,25 +155,25 @@ contains
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_proj_create(proj, proj_indexes, size_full_bas, &
+SUBROUTINE cp_proj_create(proj, proj_indexes, size_full_bas, &
      error)
-  type(pao_bas_projection_type), pointer :: proj
-  integer, dimension(:), intent(in) ::proj_indexes
-  integer, intent(in) :: size_full_bas
-  type(cp_error_type), optional, intent(inout) :: error
+  TYPE(pao_bas_projection_type), POINTER :: proj
+  INTEGER, DIMENSION(:), INTENT(in) ::proj_indexes
+  INTEGER, INTENT(in) :: size_full_bas
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  integer :: stat
-  character(len=*), parameter :: routineN='cp_proj_create',&
+  LOGICAL :: failure
+  INTEGER :: stat
+  CHARACTER(len=*), PARAMETER :: routineN='cp_proj_create',&
         routineP=moduleN//':'//routineN
-  failure=.false.
+  failure=.FALSE.
   
-  allocate(proj,stat=stat)
+  ALLOCATE(proj,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  if (.not.failure) then
-     call cp_proj_init(proj, proj_indexes, size_full_bas, error)
-  end if
-end subroutine cp_proj_create
+  IF (.not.failure) THEN
+     CALL cp_proj_init(proj, proj_indexes, size_full_bas, error)
+  END IF
+END SUBROUTINE cp_proj_create
 !***************************************************************************
 
 !!****f* pao_bas_projection/cp_proj_create2 [1.0] *
@@ -197,25 +205,25 @@ end subroutine cp_proj_create
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_proj_create2(proj, proj_indexes, size_full_bas, &
+SUBROUTINE cp_proj_create2(proj, proj_indexes, size_full_bas, &
      error)
-  type(pao_bas_projection_type), pointer :: proj
-  type(cp_sll_int_type), pointer ::proj_indexes
-  integer, intent(in) :: size_full_bas
-  type(cp_error_type), optional, intent(inout) :: error
+  TYPE(pao_bas_projection_type), POINTER :: proj
+  TYPE(cp_sll_int_type), POINTER ::proj_indexes
+  INTEGER, INTENT(in) :: size_full_bas
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  integer :: stat
-  character(len=*), parameter :: routineN='cp_proj_create2',&
+  LOGICAL :: failure
+  INTEGER :: stat
+  CHARACTER(len=*), PARAMETER :: routineN='cp_proj_create2',&
         routineP=moduleN//':'//routineN
-  failure=.false.
+  failure=.FALSE.
   
-  allocate(proj,stat=stat)
+  ALLOCATE(proj,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  if (.not.failure) then
-     call cp_proj_init2(proj, proj_indexes, size_full_bas, error)
-  end if
-end subroutine cp_proj_create2
+  IF (.not.failure) THEN
+     CALL cp_proj_init2(proj, proj_indexes, size_full_bas, error)
+  END IF
+END SUBROUTINE cp_proj_create2
 !***************************************************************************
 
 !!****f* pao_bas_projection/cp_proj_dealloc [1.0] *
@@ -247,22 +255,22 @@ end subroutine cp_proj_create2
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_proj_dealloc(proj,error)
-  type(pao_bas_projection_type), pointer :: proj
-  type(cp_error_type), optional, intent(inout) :: error
+SUBROUTINE cp_proj_dealloc(proj,error)
+  TYPE(pao_bas_projection_type), POINTER :: proj
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  integer :: stat
-  character(len=*), parameter :: routineN='cp_proj_dealloc',&
+  LOGICAL :: failure
+  INTEGER :: stat
+  CHARACTER(len=*), PARAMETER :: routineN='cp_proj_dealloc',&
         routineP=moduleN//':'//routineN
-  failure=.false.
+  failure=.FALSE.
   
-  if (associated(proj)) then
-     call cp_proj_dealloc_ref(proj,error=error)
-     deallocate(proj,stat=stat)
+  IF (ASSOCIATED(proj)) THEN
+     CALL cp_proj_dealloc_ref(proj,error=error)
+     DEALLOCATE(proj,stat=stat)
      CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-  end if
-end subroutine cp_proj_dealloc
+  END IF
+END SUBROUTINE cp_proj_dealloc
 !***************************************************************************
 
 !!****f* pao_bas_projection/cp_proj_init [1.0] *
@@ -300,49 +308,49 @@ end subroutine cp_proj_dealloc
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_proj_init(proj, proj_indexes, size_full_bas, &
+  SUBROUTINE cp_proj_init(proj, proj_indexes, size_full_bas, &
        error)
-    type(pao_bas_projection_type), intent(out) :: proj
-    integer, dimension(:), intent(in) ::proj_indexes
-    integer, intent(in) :: size_full_bas
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(pao_bas_projection_type), INTENT(out) :: proj
+    INTEGER, DIMENSION(:), INTENT(in) ::proj_indexes
+    INTEGER, INTENT(in) :: size_full_bas
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure,found
-    integer :: stat, i, j, exc_pos
-    character(len=*), parameter :: routineN='cp_proj_init',&
+    LOGICAL :: failure,found
+    INTEGER :: stat, i, j, exc_pos
+    CHARACTER(len=*), PARAMETER :: routineN='cp_proj_init',&
          routineP=moduleN//':'//routineN
-    failure=.false.
+    failure=.FALSE.
 
-    CPPrecondition(all(proj_indexes>0),cp_failure_level,routineP,error,failure)
-    CPPrecondition(size(proj_indexes)<=size_full_bas,cp_failure_level,routineP,error,failure)
-    allocate(proj%proj_indexes(size(proj_indexes)),&
-         proj%non_proj_indexes(size_full_bas-size(proj_indexes)), stat=stat)
+    CPPrecondition(ALL(proj_indexes>0),cp_failure_level,routineP,error,failure)
+    CPPrecondition(SIZE(proj_indexes)<=size_full_bas,cp_failure_level,routineP,error,failure)
+    ALLOCATE(proj%proj_indexes(SIZE(proj_indexes)),&
+         proj%non_proj_indexes(size_full_bas-SIZE(proj_indexes)), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     !do i=2,size(proj_indexes)
     !   CPPrecondition(proj_indexes(i-1)<proj_indexes(i),cp_failure_level,routineP,error,failure)
     !end do
-    if (.not.failure) then
+    IF (.not.failure) THEN
        proj%proj_indexes=proj_indexes
        exc_pos=0
-       do i=1,size_full_bas
-          found=.false.
-          do j=1,size(proj%proj_indexes)
-             if (i==proj%proj_indexes(j)) then
-                found=.true.
-                exit
-             end if
-          end do
-          if (.not.found) then
-             CPInvariant(exc_pos<size(proj%non_proj_indexes),cp_failure_level,routineP,error,failure)
-             if (.not.failure) then
+       DO i=1,size_full_bas
+          found=.FALSE.
+          DO j=1,SIZE(proj%proj_indexes)
+             IF (i==proj%proj_indexes(j)) THEN
+                found=.TRUE.
+                EXIT
+             END IF
+          END DO
+          IF (.not.found) THEN
+             CPInvariant(exc_pos<SIZE(proj%non_proj_indexes),cp_failure_level,routineP,error,failure)
+             IF (.not.failure) THEN
                 exc_pos=exc_pos+1
                 proj%non_proj_indexes(exc_pos)=i
-             end if
-          end if
-       end do
-       proj%initialized=.true.
-    end if
-  end subroutine cp_proj_init
+             END IF
+          END IF
+       END DO
+       proj%initialized=.TRUE.
+    END IF
+  END SUBROUTINE cp_proj_init
   !***************************************************************************
 
 !!****f* pao_bas_projection/cp_proj_init2 [1.0] *
@@ -380,58 +388,58 @@ end subroutine cp_proj_dealloc
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_proj_init2(proj, proj_indexes, size_full_bas, &
+  SUBROUTINE cp_proj_init2(proj, proj_indexes, size_full_bas, &
        error)
-    type(pao_bas_projection_type), intent(out) :: proj
-    type(cp_sll_int_type), pointer ::proj_indexes
-    integer, intent(in) :: size_full_bas
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(pao_bas_projection_type), INTENT(out) :: proj
+    TYPE(cp_sll_int_type), POINTER ::proj_indexes
+    INTEGER, INTENT(in) :: size_full_bas
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure,found
-    integer :: stat, size_min_bas, i, j, exc_pos, el_att
-    character(len=*), parameter :: routineN='cp_proj_init2',&
+    LOGICAL :: failure,found
+    INTEGER :: stat, size_min_bas, i, j, exc_pos, el_att
+    CHARACTER(len=*), PARAMETER :: routineN='cp_proj_init2',&
          routineP=moduleN//':'//routineN
-    type(cp_sll_int_type), pointer :: iterator
-    failure=.false.
+    TYPE(cp_sll_int_type), POINTER :: iterator
+    failure=.FALSE.
 
     iterator => proj_indexes
     size_min_bas=0
-    do
-       if (.not.cp_next(iterator, el_att=el_att, error=error)) exit
+    DO
+       IF (.not.cp_next(iterator, el_att=el_att, error=error)) EXIT
        size_min_bas=size_min_bas+1
        CPPrecondition(el_att>0,cp_failure_level,routineP,error,failure)
-    end do
+    END DO
     CPPrecondition(size_min_bas<=size_full_bas,cp_failure_level,routineP,error,failure)
     CPPreconditionNoFail(size_min_bas>0,cp_warning_level,routineP,error)
-    allocate(proj%proj_indexes(size_min_bas),&
+    ALLOCATE(proj%proj_indexes(size_min_bas),&
          proj%non_proj_indexes(size_full_bas-size_min_bas), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    if (.not.failure) then
+    IF (.not.failure) THEN
        iterator => proj_indexes
-       do i=1,size_min_bas
-          if (.not.cp_next(iterator, el_att=el_att, error=error)) exit
+       DO i=1,size_min_bas
+          IF (.not.cp_next(iterator, el_att=el_att, error=error)) EXIT
           proj%proj_indexes(i)=el_att
-       end do
+       END DO
        exc_pos=0
-       do i=1,size_full_bas
-          found=.false.
-          do j=1,size(proj%proj_indexes)
-             if (i==proj%proj_indexes(j)) then
-                found=.true.
-                exit
-             end if
-          end do
-          if (.not.found) then
-             CPInvariant(exc_pos<size(proj%non_proj_indexes),cp_failure_level,routineP,error,failure)
-             if (.not.failure) then
+       DO i=1,size_full_bas
+          found=.FALSE.
+          DO j=1,SIZE(proj%proj_indexes)
+             IF (i==proj%proj_indexes(j)) THEN
+                found=.TRUE.
+                EXIT
+             END IF
+          END DO
+          IF (.not.found) THEN
+             CPInvariant(exc_pos<SIZE(proj%non_proj_indexes),cp_failure_level,routineP,error,failure)
+             IF (.not.failure) THEN
                 exc_pos=exc_pos+1
                 proj%non_proj_indexes(exc_pos)=i
-             end if
-          end if
-       end do
-       proj%initialized=.true.
-    end if
-  end subroutine cp_proj_init2
+             END IF
+          END IF
+       END DO
+       proj%initialized=.TRUE.
+    END IF
+  END SUBROUTINE cp_proj_init2
   !***************************************************************************
 
 !!****f* pao_bas_projection/cp_proj_dealloc_ref [1.0] *
@@ -464,25 +472,25 @@ end subroutine cp_proj_dealloc
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_proj_dealloc_ref(proj, error)
-    type(pao_bas_projection_type), intent(inout) :: proj
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE cp_proj_dealloc_ref(proj, error)
+    TYPE(pao_bas_projection_type), INTENT(inout) :: proj
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    integer :: handle, stat
-    character(len=*), parameter :: routineN='cp_proj_dealloc_ref',&
+    LOGICAL :: failure
+    INTEGER :: handle, stat
+    CHARACTER(len=*), PARAMETER :: routineN='cp_proj_dealloc_ref',&
          routineP=moduleN//':'//routineN
-    failure=.false.
+    failure=.FALSE.
 
     !call timeset(routineN//','//moduleN,'I',"",handle)
     CPPrecondition(proj%initialized,cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
-       deallocate(proj%proj_indexes, proj%non_proj_indexes, stat=stat)
+    IF (.NOT. failure) THEN
+       DEALLOCATE(proj%proj_indexes, proj%non_proj_indexes, stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       proj%initialized=.false.
-    end if
-    call timestop(0.0_wp,handle)
-  end subroutine cp_proj_dealloc_ref
+       proj%initialized=.FALSE.
+    END IF
+    CALL timestop(0.0_wp,handle)
+  END SUBROUTINE cp_proj_dealloc_ref
   !***************************************************************************
 
 !!****f* pao_bas_projection/cp_proj_valid [1.0] *
@@ -516,21 +524,21 @@ end subroutine cp_proj_dealloc
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_proj_valid(proj,error) result(res)
-    type(pao_bas_projection_type), intent(in) :: proj
-    logical ::res
-    type(cp_error_type), optional, intent(inout) :: error
+  FUNCTION cp_proj_valid(proj,error) RESULT(res)
+    TYPE(pao_bas_projection_type), INTENT(in) :: proj
+    LOGICAL ::res
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='cp_proj_valid',&
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='cp_proj_valid',&
          routineP=moduleN//':'//routineN
-    failure=.false.
+    failure=.FALSE.
 
     CPPrecondition(proj%initialized,cp_failure_level,routineP,error,failure)
-    CPPrecondition(associated(proj%proj_indexes),cp_warning_level,routineP,error,failure)
-    CPPrecondition(associated(proj%non_proj_indexes),cp_warning_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(proj%proj_indexes),cp_warning_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(proj%non_proj_indexes),cp_warning_level,routineP,error,failure)
     res=.not.failure
-  end function cp_proj_valid
+  END FUNCTION cp_proj_valid
   !***************************************************************************
 
 !!****f* pao_bas_projection/cp_proj_get [1.0] *
@@ -575,30 +583,30 @@ end subroutine cp_proj_dealloc
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_proj_get(proj, size_min_bas, size_full_bas, &
+  SUBROUTINE cp_proj_get(proj, size_min_bas, size_full_bas, &
        size_excl_bas, proj_indexes, non_proj_indexes, error)
-    type(pao_bas_projection_type), intent(in) :: proj
-    integer, optional, intent(out) :: size_excl_bas,size_full_bas,&
+    TYPE(pao_bas_projection_type), INTENT(in) :: proj
+    INTEGER, OPTIONAL, INTENT(out) :: size_excl_bas,size_full_bas,&
          size_min_bas
-    integer, optional, dimension(:), pointer :: proj_indexes,&
+    INTEGER, OPTIONAL, DIMENSION(:), POINTER :: proj_indexes,&
          non_proj_indexes
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='',&
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='',&
          routineP=moduleN//':'//routineN
-    failure=.false.
+    failure=.FALSE.
 
     CPPrecondition(proj%initialized,cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
-       if (present(size_min_bas)) size_min_bas=size(proj%proj_indexes)
-       if (present(size_full_bas)) &
-            size_full_bas=size(proj%proj_indexes)+size(proj%non_proj_indexes)
-       if (present(size_excl_bas)) size_excl_bas=size(proj%non_proj_indexes)
-       if (present(proj_indexes)) proj_indexes => proj%proj_indexes
-       if (present(non_proj_indexes)) non_proj_indexes => proj%non_proj_indexes
-    end if
-  end subroutine cp_proj_get
+    IF (.NOT. failure) THEN
+       IF (PRESENT(size_min_bas)) size_min_bas=SIZE(proj%proj_indexes)
+       IF (PRESENT(size_full_bas)) &
+            size_full_bas=SIZE(proj%proj_indexes)+SIZE(proj%non_proj_indexes)
+       IF (PRESENT(size_excl_bas)) size_excl_bas=SIZE(proj%non_proj_indexes)
+       IF (PRESENT(proj_indexes)) proj_indexes => proj%proj_indexes
+       IF (PRESENT(non_proj_indexes)) non_proj_indexes => proj%non_proj_indexes
+    END IF
+  END SUBROUTINE cp_proj_get
   !***************************************************************************
 
 !!****f* pao_bas_projection/cp_proj_get_proj_indexes [1.0] *
@@ -632,25 +640,25 @@ end subroutine cp_proj_dealloc
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_proj_get_proj_indexes(proj, error) result(res)
-    type(pao_bas_projection_type), intent(in) :: proj
-    integer, dimension(:), pointer :: res
-    type(cp_error_type), optional, intent(inout) :: error
+  FUNCTION cp_proj_get_proj_indexes(proj, error) RESULT(res)
+    TYPE(pao_bas_projection_type), INTENT(in) :: proj
+    INTEGER, DIMENSION(:), POINTER :: res
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='cp_proj_get_proj_indexes',&
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='cp_proj_get_proj_indexes',&
          routineP=moduleN//':'//routineN
-    failure=.false.
+    failure=.FALSE.
 
-    if (cp_debug.and.debug_this_module) then
+    IF (cp_debug.and.debug_this_module) THEN
        CPPrecondition(cp_proj_valid(proj,error=error),cp_failure_level,routineP,error,failure)
-    end if
-    if (.not. failure) then
+    END IF
+    IF (.NOT. failure) THEN
        res => proj%proj_indexes
-    else
-       nullify(res)
-    end if
-  end function cp_proj_get_proj_indexes
+    ELSE
+       NULLIFY(res)
+    END IF
+  END FUNCTION cp_proj_get_proj_indexes
   !***************************************************************************
 
 !!****f* pao_bas_projection/cp_proj_get_non_proj_indexes [1.0] *
@@ -684,25 +692,25 @@ end subroutine cp_proj_dealloc
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_proj_get_non_proj_indexes(proj, error) result(res)
-    type(pao_bas_projection_type), intent(in) :: proj
-    integer, dimension(:), pointer :: res
-    type(cp_error_type), optional, intent(inout) :: error
+  FUNCTION cp_proj_get_non_proj_indexes(proj, error) RESULT(res)
+    TYPE(pao_bas_projection_type), INTENT(in) :: proj
+    INTEGER, DIMENSION(:), POINTER :: res
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='cp_proj_get_non_proj_indexes',&
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='cp_proj_get_non_proj_indexes',&
          routineP=moduleN//':'//routineN
-    failure=.false.
+    failure=.FALSE.
 
-    if (cp_debug.and.debug_this_module) then
+    IF (cp_debug.and.debug_this_module) THEN
        CPPrecondition(cp_proj_valid(proj,error=error),cp_failure_level,routineP,error,failure)
-    end if
-    if (.not. failure) then
+    END IF
+    IF (.NOT. failure) THEN
        res => proj%non_proj_indexes
-    else
-       nullify(res)
-    end if
-  end function cp_proj_get_non_proj_indexes
+    ELSE
+       NULLIFY(res)
+    END IF
+  END FUNCTION cp_proj_get_non_proj_indexes
   !***************************************************************************
 
 !!****f* pao_bas_projection/cp_proj_write [1.0] *
@@ -736,24 +744,24 @@ end subroutine cp_proj_dealloc
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_proj_write(proj,unit_nr,error)
-  type(pao_bas_projection_type), intent(in), target :: proj
-  integer, intent(in) :: unit_nr
-  type(cp_error_type), optional, intent(inout) :: error
+SUBROUTINE cp_proj_write(proj,unit_nr,error)
+  TYPE(pao_bas_projection_type), INTENT(in), TARGET :: proj
+  INTEGER, INTENT(in) :: unit_nr
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_proj_write',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_proj_write',&
         routineP=moduleN//':'//routineN
-  failure=.false.
+  failure=.FALSE.
   
   CPPrecondition(proj%initialized,cp_failure_level,routineP,error,failure)
-  if (.not. failure) then
-     write(unit=unit_nr,fmt="(t2,a)")'# projection indexes'
-     call cp_write(proj%proj_indexes,unit_nr=unit_nr,error=error)
-     write(unit=unit_nr,fmt="(t2,a)")'# non projection indexes'
-     call cp_write(proj%non_proj_indexes,unit_nr=unit_nr,error=error)
-  end if
-end subroutine cp_proj_write
+  IF (.NOT. failure) THEN
+     WRITE(unit=unit_nr,fmt="(t2,a)")'# projection indexes'
+     CALL cp_write(proj%proj_indexes,unit_nr=unit_nr,error=error)
+     WRITE(unit=unit_nr,fmt="(t2,a)")'# non projection indexes'
+     CALL cp_write(proj%non_proj_indexes,unit_nr=unit_nr,error=error)
+  END IF
+END SUBROUTINE cp_proj_write
 !***************************************************************************
 
-end module pao_bas_projection_types
+END MODULE pao_bas_projection_types

@@ -26,29 +26,40 @@
 !!   SOURCE
 !******************************************************************************
 
-module pao_plain_rot
-  use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
-       cp_logger_get_default_unit_nr, cp_logger_type
-  use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger
-  use kinds, only: wp=>dp
-  use cp_matrix_utils, only: cp_sup_norm_matrix
-  implicit none
-  private
+MODULE pao_plain_rot
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_matrix_utils,                 ONLY: cp_sup_norm_matrix
+  USE kinds,                           ONLY: wp=>dp
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, parameter, private :: debug_this_module=.true.
-  character(len=*), parameter, private :: moduleN='pao_plain_rot'
+  LOGICAL, PARAMETER, PRIVATE :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='pao_plain_rot'
 
-  public :: cp_left_compose_p_rot, cp_right_compose_p_rot,&
+  PUBLIC :: cp_left_compose_p_rot, cp_right_compose_p_rot,&
        cp_right_compose_p_rot_deriv, cp_left_compose_p_rot_deriv
 
 !!***
 !****************************************************************************
 
-contains
+CONTAINS
 
 
 !!****f* pao_plain_rot/cp_right_compose_p_rot [1.0] *
@@ -97,30 +108,30 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_right_compose_p_rot(matrix,angle,i,j,error)
-    real(kind=wp), dimension(:,:), intent(inout) :: matrix 
-    real(kind=wp), intent(in) :: angle
-    integer, intent(in) :: i,j
-    type(cp_error_type), intent(inout), optional :: error
+  SUBROUTINE cp_right_compose_p_rot(matrix,angle,i,j,error)
+    REAL(kind=wp), DIMENSION(:,:), INTENT(inout) :: matrix 
+    REAL(kind=wp), INTENT(in) :: angle
+    INTEGER, INTENT(in) :: i,j
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
-    logical :: failure
-    real(kind=wp) :: rcos,rsin
-    real(kind=wp), dimension(size(matrix,1)) :: tmpV1, tmpV2
-    character(len=*), parameter :: routineN='cp_right_compose_p_rot',&
+    LOGICAL :: failure
+    REAL(kind=wp) :: rcos,rsin
+    REAL(kind=wp), DIMENSION(SIZE(matrix,1)) :: tmpV1, tmpV2
+    CHARACTER(len=*), PARAMETER :: routineN='cp_right_compose_p_rot',&
          routineP=moduleN//':'//routineN
-    failure=.false.
-    if (cp_debug .and. debug_this_module) then ! this function must be fast
+    failure=.FALSE.
+    IF (cp_debug .AND. debug_this_module) THEN ! this function must be fast
        CPPrecondition(i /= j,cp_failure_level,routineP,error,failure)
-    end if
-    if (.not. failure) then
-       rcos=cos(angle)
-       rsin=sin(angle)
+    END IF
+    IF (.NOT. failure) THEN
+       rcos=COS(angle)
+       rsin=SIN(angle)
        tmpV1 = rcos*matrix(:,i)+rsin*matrix(:,j)
        tmpV2 = -rsin*matrix(:,i)+rcos*matrix(:,j)
        matrix(:,i)=tmpV1
        matrix(:,j)=tmpV2
-    end if
-  end subroutine cp_right_compose_p_rot
+    END IF
+  END SUBROUTINE cp_right_compose_p_rot
 !***************************************************************************
 
 
@@ -171,30 +182,30 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_left_compose_p_rot(matrix,angle,i,j, error)
-    real(kind=wp), dimension(:,:), intent(inout) :: matrix 
-    real(kind=wp), intent(in) :: angle
-    integer, intent(in) :: i,j
-    type(cp_error_type), intent(inout), optional :: error
+  SUBROUTINE cp_left_compose_p_rot(matrix,angle,i,j, error)
+    REAL(kind=wp), DIMENSION(:,:), INTENT(inout) :: matrix 
+    REAL(kind=wp), INTENT(in) :: angle
+    INTEGER, INTENT(in) :: i,j
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
-    logical :: failure
-    real(kind=wp) :: rcos,rsin
-    real(kind=wp), dimension(size(matrix,2)) :: tmpV1,tmpV2
-    character(len=*), parameter :: routineN='cp_left_compose_p_rot',&
+    LOGICAL :: failure
+    REAL(kind=wp) :: rcos,rsin
+    REAL(kind=wp), DIMENSION(SIZE(matrix,2)) :: tmpV1,tmpV2
+    CHARACTER(len=*), PARAMETER :: routineN='cp_left_compose_p_rot',&
          routineP=moduleN//':'//routineN
-    failure=.false.
-    if (debug_this_module) then ! this function must be fast
+    failure=.FALSE.
+    IF (debug_this_module) THEN ! this function must be fast
        CPPrecondition(i /= j,cp_failure_level,routineP,error,failure)
-    end if
-    if (.not. failure) then
-       rcos=cos(angle)
-       rsin=sin(angle)
+    END IF
+    IF (.NOT. failure) THEN
+       rcos=COS(angle)
+       rsin=SIN(angle)
        tmpV1 = rcos*matrix(i,:)-rsin*matrix(j,:)
        tmpV2 = rsin*matrix(i,:)+rcos*matrix(j,:)
        matrix(i,:)=tmpV1
        matrix(j,:)=tmpV2
-    end if
-  end subroutine cp_left_compose_p_rot
+    END IF
+  END SUBROUTINE cp_left_compose_p_rot
 !***************************************************************************
 
 !!****f* pao_plain_rot/cp_right_compose_p_rot_deriv [1.0] *
@@ -233,31 +244,31 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_right_compose_p_rot_deriv(matrix,angle,i,j,error)
-    real(kind=wp), dimension(:,:), intent(inout) :: matrix 
-    real(kind=wp), intent(in) :: angle
-    integer, intent(in) :: i,j
-    type(cp_error_type), intent(inout), optional :: error
+  SUBROUTINE cp_right_compose_p_rot_deriv(matrix,angle,i,j,error)
+    REAL(kind=wp), DIMENSION(:,:), INTENT(inout) :: matrix 
+    REAL(kind=wp), INTENT(in) :: angle
+    INTEGER, INTENT(in) :: i,j
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
-    logical :: failure
-    real(kind=wp) :: rcos,rsin
-    real(kind=wp), dimension(size(matrix,1)) :: tmpV1, tmpV2
-    character(len=*), parameter :: routineN='cp_right_compose_p_rot_deriv',&
+    LOGICAL :: failure
+    REAL(kind=wp) :: rcos,rsin
+    REAL(kind=wp), DIMENSION(SIZE(matrix,1)) :: tmpV1, tmpV2
+    CHARACTER(len=*), PARAMETER :: routineN='cp_right_compose_p_rot_deriv',&
          routineP=moduleN//':'//routineN
-    failure=.false.
-    if (cp_debug .and. debug_this_module) then ! this function must be fast
+    failure=.FALSE.
+    IF (cp_debug .AND. debug_this_module) THEN ! this function must be fast
        CPPrecondition(i /= j,cp_failure_level,routineP,error,failure)
-    end if
-    if (.not. failure) then
-       rcos=cos(angle)
-       rsin=sin(angle)
+    END IF
+    IF (.NOT. failure) THEN
+       rcos=COS(angle)
+       rsin=SIN(angle)
        tmpV1 = -rsin*matrix(:,i)+rcos*matrix(:,j)
        tmpV2 = -rcos*matrix(:,i)-rsin*matrix(:,j)
        matrix=0.0_wp
        matrix(:,i)=tmpV1
        matrix(:,j)=tmpV2
-    end if
-  end subroutine cp_right_compose_p_rot_deriv
+    END IF
+  END SUBROUTINE cp_right_compose_p_rot_deriv
 !***************************************************************************
 
 !!****f* pao_plain_rot/cp_left_compose_p_rot_deriv [1.0] *
@@ -296,34 +307,34 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_left_compose_p_rot_deriv(matrix,angle,i,j,error)
-    real(kind=wp), dimension(:,:), intent(inout) :: matrix 
-    real(kind=wp), intent(in) :: angle
-    integer, intent(in) :: i,j
-    type(cp_error_type), intent(inout), optional :: error
+  SUBROUTINE cp_left_compose_p_rot_deriv(matrix,angle,i,j,error)
+    REAL(kind=wp), DIMENSION(:,:), INTENT(inout) :: matrix 
+    REAL(kind=wp), INTENT(in) :: angle
+    INTEGER, INTENT(in) :: i,j
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
-    logical :: failure
-    real(kind=wp) :: rcos,rsin
-    real(kind=wp), dimension(size(matrix,2)) :: tmpV1, tmpV2
-    character(len=*), parameter :: routineN='cp_left_compose_p_rot_deriv',&
+    LOGICAL :: failure
+    REAL(kind=wp) :: rcos,rsin
+    REAL(kind=wp), DIMENSION(SIZE(matrix,2)) :: tmpV1, tmpV2
+    CHARACTER(len=*), PARAMETER :: routineN='cp_left_compose_p_rot_deriv',&
          routineP=moduleN//':'//routineN
-    failure=.false.
-    if (cp_debug .and. debug_this_module) then ! this function must be fast
+    failure=.FALSE.
+    IF (cp_debug .AND. debug_this_module) THEN ! this function must be fast
        CPPrecondition(i /= j,cp_failure_level,routineP,error,failure)
-    end if
-    if (.not. failure) then
-       rcos=cos(angle)
-       rsin=sin(angle)
+    END IF
+    IF (.NOT. failure) THEN
+       rcos=COS(angle)
+       rsin=SIN(angle)
        tmpV1 = -rsin*matrix(i,:)-rcos*matrix(j,:)
        tmpV2 = rcos*matrix(i,:)-rsin*matrix(j,:)
        matrix=0.0_wp
        matrix(i,:)=tmpV1
        matrix(j,:)=tmpV2
-    end if
-  end subroutine cp_left_compose_p_rot_deriv
+    END IF
+  END SUBROUTINE cp_left_compose_p_rot_deriv
 !***************************************************************************
 
-end module pao_plain_rot
+END MODULE pao_plain_rot
 
 
 

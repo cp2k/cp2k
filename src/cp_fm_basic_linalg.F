@@ -39,11 +39,11 @@ MODULE cp_fm_basic_linalg
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_type,&
-                                             cp_fm_struct_create,&
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_equivalent,&
                                              cp_fm_struct_release,&
-                                             cp_fm_struct_retain
+                                             cp_fm_struct_retain,&
+                                             cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_create2,&
                                              cp_fm_get_info,&
@@ -181,7 +181,7 @@ CONTAINS
     ELSE
 #ifdef __SCALAPACK
        CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="to do (pdscal,pdcopy,pdaxpy)", error=error)
+            message="to DO (pdscal,pdcopy,pdaxpy)", error=error)
 #else
        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
 #endif

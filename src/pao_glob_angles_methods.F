@@ -26,41 +26,59 @@
 !!
 !!   SOURCE
 !****************************************************************************
-module pao_glob_angles_methods
-  use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
-       cp_note_level
-  use cp_error_handling, only: cp_debug, cp_error_type, cp_assert, &
-       cp_error_message, cp_assertion_failed, cp_error_init,&
-       cp_error_get_print_level, cp_error_get_stop_level, cp_error_get_level,&
-       cp_error_set, cp_error_dealloc_ref, &
-       cp_error_propagate_error
-  use kinds, only: wp=>dp
-  use global_types, only: global_environment_type
-  use timings, only: timeset, timestop
-  use pao_types, only: pao_glob_angles_type, pao_env_type, cp_get
-  use cp_block_matrix, only: cp_block_matrix_type, cp_block_matrix_p_type,&
-       cp_sp_create, cp_dealloc, cp_get_matrix, cp_retain, cp_release
-  use cp_para_types, only: cp_para_env_type
-  use cp_b_matrix_structure, only: cp_b_matrix_struct_type
-  use pao_bas_projection_types, only: pao_bas_projection_type
-  use qs_environment_types, only: qs_environment_type, get_qs_env
-  use cp_array_utils, only: cp_1d_logical_guarantee_size,&
-       cp_1d_r_guarantee_size
-  implicit none
-  private
+MODULE pao_glob_angles_methods
+  USE cp_array_utils,                  ONLY: cp_1d_logical_guarantee_size,&
+                                             cp_1d_r_guarantee_size
+  USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type
+  USE cp_block_matrix,                 ONLY: cp_block_matrix_p_type,&
+                                             cp_block_matrix_type,&
+                                             cp_dealloc,&
+                                             cp_get_matrix,&
+                                             cp_release,&
+                                             cp_retain,&
+                                             cp_sp_create
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_level,&
+                                             cp_error_get_print_level,&
+                                             cp_error_get_stop_level,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_propagate_error,&
+                                             cp_error_set,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  USE pao_bas_projection_types,        ONLY: pao_bas_projection_type
+  USE pao_types,                       ONLY: cp_get,&
+                                             pao_env_type,&
+                                             pao_glob_angles_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='pao_glob_angles_methods'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pao_glob_angles_methods'
 
 ! core procedures
-  public :: cp_init, cp_dealloc_ref, cp_set, cp_get, cp_create, cp_dealloc,&
+  PUBLIC :: cp_init, cp_dealloc_ref, cp_set, cp_get, cp_create, cp_dealloc,&
        cp_did_change
 
 ! core functions
-  public :: cp_validate, cp_valid
+  PUBLIC :: cp_validate, cp_valid
 
 ! the underlying functions
-  public :: pao_g_ang_init, pao_g_ang_dealloc_ref, &
+  PUBLIC :: pao_g_ang_init, pao_g_ang_dealloc_ref, &
        pao_g_ang_create, pao_g_ang_dealloc,&
        pao_g_ang_validate, pao_g_ang_valid,&
        pao_g_ang_set, pao_g_ang_get, pao_g_ang_did_change
@@ -72,64 +90,64 @@ module pao_glob_angles_methods
 !! initializes the first, argument.
 !! Support optional initial values that depend on the 
 !! first argument 
-  interface cp_init
-     module procedure pao_g_ang_init
-  end interface
+  INTERFACE cp_init
+     MODULE PROCEDURE pao_g_ang_init
+  END INTERFACE
 
 !! Deallocates the memory allocated by the first argument.
 !! Supports error=error
-  interface cp_dealloc_ref
-     module procedure pao_g_ang_dealloc_ref
-  end interface
+  INTERFACE cp_dealloc_ref
+     MODULE PROCEDURE pao_g_ang_dealloc_ref
+  END INTERFACE
 
 !! Allocates and initialize a new object returning a pointer to it in 
 !! the first argument
-  interface cp_create
-     module procedure pao_g_ang_create
-  end interface
+  INTERFACE cp_create
+     MODULE PROCEDURE pao_g_ang_create
+  END INTERFACE
 
 !! Deallocates the memory used by the first argument, and the object
 !! itself
-  interface cp_dealloc
-     module procedure pao_g_ang_dealloc
-  end interface
+  INTERFACE cp_dealloc
+     MODULE PROCEDURE pao_g_ang_dealloc
+  END INTERFACE
 
 !! returns true if the content of the first argumenst is valid.
 !! writes the errors ar warnings, full validation (long)
-  interface cp_validate
-     module procedure pao_g_ang_validate
-  end interface
+  INTERFACE cp_validate
+     MODULE PROCEDURE pao_g_ang_validate
+  END INTERFACE
 
 !! returns true if the first argument is valid. Only a fast minimal 
 !! validation is performed (no dangling pointers)
-  interface cp_valid
-     module procedure pao_g_ang_valid
-  end interface
+  INTERFACE cp_valid
+     MODULE PROCEDURE pao_g_ang_valid
+  END INTERFACE
 
 !! sets the value of various optonal attributes of the firs argument.
 !! the optional attributes depend on the type of the first
-  interface cp_set
-     module procedure pao_g_ang_set
-  end interface
+  INTERFACE cp_set
+     MODULE PROCEDURE pao_g_ang_set
+  END INTERFACE
 
 !! gets values from the first argument via optional keyword arguments
 !! that depend on the type of the first argument
-  interface cp_get
-     module procedure pao_g_ang_get
-  end interface
+  INTERFACE cp_get
+     MODULE PROCEDURE pao_g_ang_get
+  END INTERFACE
 
 !! tells the object that its internal values have changes and its cached
 !! values may be invalid
-  interface cp_did_change
-     module procedure pao_g_ang_did_change
-  end interface
+  INTERFACE cp_did_change
+     MODULE PROCEDURE pao_g_ang_did_change
+  END INTERFACE
 
 ! +++ end of the core methods +++
 
 !!***
 !****************************************************************************
 
-contains
+CONTAINS
 
 ! ======= core methods ======
 
@@ -170,35 +188,35 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine pao_g_ang_init(glob_angles, qs_env, global_env, angles, source,&
+  SUBROUTINE pao_g_ang_init(glob_angles, qs_env, global_env, angles, source,&
        min_overlap_m, min_hamiltonian_m, error)
-    type(pao_glob_angles_type), intent(out) :: glob_angles
-    type(qs_environment_type), intent(in), target :: qs_env
-    type(global_environment_type), intent(in), target :: global_env
-    real(kind=wp), optional, dimension(:), intent(in) :: angles
-    type(pao_glob_angles_type), intent(in), optional :: source
-    type(cp_block_matrix_p_type), intent(in), optional, &
-         dimension(:) :: min_overlap_m, min_hamiltonian_m
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(pao_glob_angles_type), INTENT(out) :: glob_angles
+    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
+    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
+    REAL(kind=wp), OPTIONAL, DIMENSION(:), INTENT(in) :: angles
+    TYPE(pao_glob_angles_type), INTENT(in), OPTIONAL :: source
+    TYPE(cp_block_matrix_p_type), INTENT(in), OPTIONAL, &
+         DIMENSION(:) :: min_overlap_m, min_hamiltonian_m
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_ang_init'
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_glob_angles_methods:pao_g_ang_init'
+    failure=.FALSE.
 
-    nullify(glob_angles%angles, glob_angles%unitary_t,&
+    NULLIFY(glob_angles%angles, glob_angles%unitary_t,&
          glob_angles%ut_calculated, glob_angles%min_overlap_m, &
          glob_angles%min_hamiltonian_m, glob_angles%NUi_injection_calculated,&
          glob_angles%NUi_injection)
-    glob_angles%m_s_m_valid=.false.
-    glob_angles%m_h_m_valid=.false.
-    glob_angles%initialized = .true.
-    if (.not.failure) then
-       call pao_g_ang_set(glob_angles,qs_env=qs_env, global_env=global_env,&
+    glob_angles%m_s_m_valid=.FALSE.
+    glob_angles%m_h_m_valid=.FALSE.
+    glob_angles%initialized = .TRUE.
+    IF (.not.failure) THEN
+       CALL pao_g_ang_set(glob_angles,qs_env=qs_env, global_env=global_env,&
             angles=angles,&
             source=source, min_hamiltonian_m=min_hamiltonian_m,&
             min_overlap_m=min_overlap_m, error=error)
-    end if
-  end subroutine pao_g_ang_init
+    END IF
+  END SUBROUTINE pao_g_ang_init
 !***************************************************************************
 
 !!****f* pao_glob_angles_methods/pao_g_ang_dealloc_ref [1.0] *
@@ -233,36 +251,36 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine pao_g_ang_dealloc_ref(glob_angles,global_env, error)
-    type(pao_glob_angles_type), intent(inout) :: glob_angles
-    type(global_environment_type), intent(in), target :: global_env
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE pao_g_ang_dealloc_ref(glob_angles,global_env, error)
+    TYPE(pao_glob_angles_type), INTENT(inout) :: glob_angles
+    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_ang_dealloc_ref'
-    integer ::stat
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_glob_angles_methods:pao_g_ang_dealloc_ref'
+    INTEGER ::stat
+    failure=.FALSE.
 
     CPPrecondition(glob_angles%initialized, cp_failure_level,routineP,error,failure)
-    failureIf: if (.not. failure) then
-       if (associated(glob_angles%angles)) then
-          deallocate(glob_angles%angles, stat=stat)
+    failureIf: IF (.NOT. failure) THEN
+       IF (ASSOCIATED(glob_angles%angles)) THEN
+          DEALLOCATE(glob_angles%angles, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       end if
-       if (associated(glob_angles%ut_calculated)) then
-          deallocate(glob_angles%ut_calculated,stat=stat)
+       END IF
+       IF (ASSOCIATED(glob_angles%ut_calculated)) THEN
+          DEALLOCATE(glob_angles%ut_calculated,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       end if
-       if (associated(glob_angles%NUi_injection_calculated)) then
-          deallocate(glob_angles%NUi_injection_calculated)
+       END IF
+       IF (ASSOCIATED(glob_angles%NUi_injection_calculated)) THEN
+          DEALLOCATE(glob_angles%NUi_injection_calculated)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       end if
-       call cp_release(glob_angles%NUi_injection,error=error)
-       call cp_release(glob_angles%unitary_t,error=error)
-       call cp_dealloc(glob_angles%min_hamiltonian_m,error=error)
-       call cp_dealloc(glob_angles%min_overlap_m,error=error)
-    end if failureIf
-  end subroutine pao_g_ang_dealloc_ref
+       END IF
+       CALL cp_release(glob_angles%NUi_injection,error=error)
+       CALL cp_release(glob_angles%unitary_t,error=error)
+       CALL cp_dealloc(glob_angles%min_hamiltonian_m,error=error)
+       CALL cp_dealloc(glob_angles%min_overlap_m,error=error)
+    END IF failureIf
+  END SUBROUTINE pao_g_ang_dealloc_ref
 !***************************************************************************
 
 !!****f* pao_glob_angles_methods/pao_g_ang_dealloc [1.0] *
@@ -296,26 +314,26 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine pao_g_ang_dealloc(glob_angles,global_env,error)
-    type(pao_glob_angles_type), pointer :: glob_angles
-    type(global_environment_type), intent(in), target :: global_env
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE pao_g_ang_dealloc(glob_angles,global_env,error)
+    TYPE(pao_glob_angles_type), POINTER :: glob_angles
+    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_ang_dealloc'
-    integer :: stat
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_glob_angles_methods:pao_g_ang_dealloc'
+    INTEGER :: stat
+    failure=.FALSE.
 
-    if (associated(glob_angles)) then
+    IF (ASSOCIATED(glob_angles)) THEN
        CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
-       if (.not. failure) then
-          call pao_g_ang_dealloc_ref(glob_angles, global_env=global_env,&
+       IF (.NOT. failure) THEN
+          CALL pao_g_ang_dealloc_ref(glob_angles, global_env=global_env,&
                error=error)
-       end if
-       deallocate(glob_angles,stat=stat)
+       END IF
+       DEALLOCATE(glob_angles,stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-    end if
-  end subroutine pao_g_ang_dealloc
+    END IF
+  END SUBROUTINE pao_g_ang_dealloc
 !***************************************************************************
 
 !!****f* pao_glob_angles_methods/pao_g_ang_create [1.0] *
@@ -357,32 +375,32 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine pao_g_ang_create(glob_angles, qs_env, global_env, angles, source,&
+  SUBROUTINE pao_g_ang_create(glob_angles, qs_env, global_env, angles, source,&
        min_overlap_m, min_hamiltonian_m, error)
-    type(pao_glob_angles_type), pointer :: glob_angles
-    type(qs_environment_type), intent(in), target :: qs_env
-    type(global_environment_type), intent(in), target :: global_env
-    real(kind=wp), optional, dimension(:), intent(in) :: angles
-    type(pao_glob_angles_type), intent(in), optional :: source
+    TYPE(pao_glob_angles_type), POINTER :: glob_angles
+    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
+    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
+    REAL(kind=wp), OPTIONAL, DIMENSION(:), INTENT(in) :: angles
+    TYPE(pao_glob_angles_type), INTENT(in), OPTIONAL :: source
 
-    type(cp_block_matrix_p_type), intent(in), dimension(:), optional ::&
+    TYPE(cp_block_matrix_p_type), INTENT(in), DIMENSION(:), OPTIONAL ::&
          min_hamiltonian_m, min_overlap_m
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_ang_create'
-    integer :: stat
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_glob_angles_methods:pao_g_ang_create'
+    INTEGER :: stat
+    failure=.FALSE.
 
-    allocate(glob_angles, stat=stat)
+    ALLOCATE(glob_angles, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
-       call pao_g_ang_init(glob_angles, qs_env=qs_env, global_env=global_env,&
+    IF (.NOT. failure) THEN
+       CALL pao_g_ang_init(glob_angles, qs_env=qs_env, global_env=global_env,&
             angles=angles, source=source,&
             min_overlap_m=min_overlap_m, min_hamiltonian_m=min_hamiltonian_m,&
             error=error)
-    end if
-  end subroutine pao_g_ang_create
+    END IF
+  END SUBROUTINE pao_g_ang_create
 !***************************************************************************
 
 !!****f* pao_glob_angles_methods/pao_g_ang_validate [1.0] *
@@ -420,31 +438,31 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function pao_g_ang_validate(glob_angles,qs_env,global_env, error) result(res)
-    logical ::res
-    type(pao_glob_angles_type), intent(in) :: glob_angles
-    type(qs_environment_type), intent(in),target :: qs_env
-    type(global_environment_type), intent(in), target :: global_env
-    type(cp_error_type), optional, intent(inout) :: error
+  FUNCTION pao_g_ang_validate(glob_angles,qs_env,global_env, error) RESULT(res)
+    LOGICAL ::res
+    TYPE(pao_glob_angles_type), INTENT(in) :: glob_angles
+    TYPE(qs_environment_type), INTENT(in),TARGET :: qs_env
+    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_ang_validate'
-    type(pao_env_type), pointer :: pao_env
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_glob_angles_methods:pao_g_ang_validate'
+    TYPE(pao_env_type), POINTER :: pao_env
+    failure=.FALSE.
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
-    failureIf: if (.not. failure) then
-       CPAssert(associated(glob_angles%angles),cp_warning_level,routineP,error,failure)
-       call get_qs_env(qs_env,pao_env=pao_env)
-       CPAssert(associated(pao_env),cp_warning_level,routineP,error,failure)
-       if (.not.failure) then
-          call cp_assert(pao_env%angles_begin_at &
-               (size(pao_env%angles_begin_at))-1== &
-               size(glob_angles%angles),cp_warning_level,&
+    failureIf: IF (.NOT. failure) THEN
+       CPAssert(ASSOCIATED(glob_angles%angles),cp_warning_level,routineP,error,failure)
+       CALL get_qs_env(qs_env,pao_env=pao_env)
+       CPAssert(ASSOCIATED(pao_env),cp_warning_level,routineP,error,failure)
+       IF (.not.failure) THEN
+          CALL cp_assert(pao_env%angles_begin_at &
+               (SIZE(pao_env%angles_begin_at))-1== &
+               SIZE(glob_angles%angles),cp_warning_level,&
                cp_assertion_failed, routineP,&
                "number of angles different from last begin_at in "//&
                CPSourceFileRef,&
                error,failure)
-       end if
+       END IF
 !!FM       if (associated(glob_angles%ut_calculated)) then
 !!FM          call cp_assert(size(glob_angles%ut_calculated)==&
 !!FM               glob_angles%pao_env%n_atoms, cp_warning_level,&
@@ -462,29 +480,29 @@ contains
 !!FM               error,failure)
 !!FM          CPAssert(associated(glob_angles%ut_calculated),cp_warning_level,routineP,error,failure)
 !!FM       end if
-       if (associated(glob_angles%min_hamiltonian_m)) then
+       IF (ASSOCIATED(glob_angles%min_hamiltonian_m)) THEN
 !!FM          call cp_assert(cp_validate(glob_angles%min_hamiltonian_m,&
 !!FM               error=error), cp_warning_level,&
 !!FM               cp_assertion_failed, routineP,&
 !!FM               "cached invalid min_hamiltonian_m in "//&
 !!FM               CPSourceFileRef,&
 !!FM               error,failure)
-       else
+       ELSE
           CPAssert(.not.glob_angles%m_h_m_valid,cp_warning_level,routineP,error,failure)
-       end if
-       if (associated(glob_angles%min_overlap_m)) then
+       END IF
+       IF (ASSOCIATED(glob_angles%min_overlap_m)) THEN
 !!FM          call cp_assert(cp_validate(glob_angles%min_overlap_m,&
 !!FM               error=error), cp_warning_level,&
 !!FM               cp_assertion_failed, routineP,&
 !!FM               "cached invalid min_overlap_m in "//&
 !!FM               CPSourceFileRef,&
 !!FM               error,failure)
-       else
+       ELSE
           CPAssert(.not.glob_angles%m_s_m_valid,cp_warning_level,routineP,error,failure)
-       end if
-    end if failureIf
+       END IF
+    END IF failureIf
     res=.not.failure
-  end function pao_g_ang_validate
+  END FUNCTION pao_g_ang_validate
 !***************************************************************************
 
 !!****f* pao_glob_angles_methods/pao_g_ang_set [1.0] *
@@ -539,111 +557,111 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine pao_g_ang_set(glob_angles, qs_env, global_env, angles,source,&
+  SUBROUTINE pao_g_ang_set(glob_angles, qs_env, global_env, angles,source,&
        min_overlap_m, min_hamiltonian_m,&
        m_s_m_valid, m_h_m_valid, angles_val, error)
-    type(pao_glob_angles_type), intent(inout) :: glob_angles
-    type(qs_environment_type), intent(in), target :: qs_env
-    type(global_environment_type), intent(in), target :: global_env
-    real(kind=wp), optional, dimension(:), intent(in) :: angles
-    type(pao_glob_angles_type), optional, intent(in) :: source
-    type(cp_block_matrix_p_type), optional, intent(in), dimension(:) :: &
+    TYPE(pao_glob_angles_type), INTENT(inout) :: glob_angles
+    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
+    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
+    REAL(kind=wp), OPTIONAL, DIMENSION(:), INTENT(in) :: angles
+    TYPE(pao_glob_angles_type), OPTIONAL, INTENT(in) :: source
+    TYPE(cp_block_matrix_p_type), OPTIONAL, INTENT(in), DIMENSION(:) :: &
          min_overlap_m
-    type(cp_block_matrix_p_type), dimension(:), intent(in),&
-         optional :: min_hamiltonian_m
-    logical, intent(in), optional :: m_h_m_valid, m_s_m_valid
-    real(kind=wp), intent(in), optional :: angles_val
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(cp_block_matrix_p_type), DIMENSION(:), INTENT(in),&
+         OPTIONAL :: min_hamiltonian_m
+    LOGICAL, INTENT(in), OPTIONAL :: m_h_m_valid, m_s_m_valid
+    REAL(kind=wp), INTENT(in), OPTIONAL :: angles_val
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_ang_set'
-    type(pao_env_type), pointer :: pao_env
-    integer :: stat
-    type(cp_error_type) :: iError
-    call cp_error_init(iError,template_error=error)
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_glob_angles_methods:pao_g_ang_set'
+    TYPE(pao_env_type), POINTER :: pao_env
+    INTEGER :: stat
+    TYPE(cp_error_type) :: iError
+    CALL cp_error_init(iError,template_error=error)
+    failure=.FALSE.
 
-    call get_qs_env(qs_env, pao_env=pao_env)
+    CALL get_qs_env(qs_env, pao_env=pao_env)
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
-    CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
-    failureIf: if (.not. failure) then
-       if (present(source)) then
+    CPPrecondition(ASSOCIATED(pao_env),cp_failure_level,routineP,error,failure)
+    failureIf: IF (.NOT. failure) THEN
+       IF (PRESENT(source)) THEN
           CPPrecondition(source%initialized,cp_failure_level,routineP,error,failure)
-          if (.not.failure) then
-             call cp_error_set(iError, print_level=max(cp_failure_level,&
+          IF (.not.failure) THEN
+             CALL cp_error_set(iError, print_level=MAX(cp_failure_level,&
                   cp_error_get_print_level(iError)),&
-                  stop_level=max(cp_failure_level,&
+                  stop_level=MAX(cp_failure_level,&
                   cp_error_get_stop_level(iError)))
-             if (associated(source%angles)) then
-                call cp_1d_r_guarantee_size(glob_angles%angles,&
-                     size(source%angles),init=0.0_wp,&
+             IF (ASSOCIATED(source%angles)) THEN
+                CALL cp_1d_r_guarantee_size(glob_angles%angles,&
+                     SIZE(source%angles),init=0.0_wp,&
                      error=iError)
-                call cp_assert(cp_error_get_level(iError)<cp_failure_level,&
+                CALL cp_assert(cp_error_get_level(iError)<cp_failure_level,&
                      cp_error_get_level(iError),cp_assertion_failed,routineP,&
                      "sub routine cp_guarantee_size error in"//&
                      CPSourceFileRef,&
                      error,failure)
                 glob_angles%angles=source%angles
-             else if (associated(glob_angles%angles)) then
-                deallocate(glob_angles%angles, stat=stat)
+             ELSE IF (ASSOCIATED(glob_angles%angles)) THEN
+                DEALLOCATE(glob_angles%angles, stat=stat)
                 CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-             end if
-             call pao_g_angles_set_unitary_t(glob_angles,&
+             END IF
+             CALL pao_g_angles_set_unitary_t(glob_angles,&
                   ut_calculated=source%ut_calculated,&
                   new_value=source%unitary_t,&
                   error=error)
-             call pao_g_angles_set_min_s_m(glob_angles,&
+             CALL pao_g_angles_set_min_s_m(glob_angles,&
                   new_value=source%min_overlap_m,&
                   error=error)
-             call pao_g_angles_set_min_h_m(glob_angles,&
+             CALL pao_g_angles_set_min_h_m(glob_angles,&
                   new_value=source%min_hamiltonian_m,&
                   error=error)
              glob_angles%m_h_m_valid=source%m_h_m_valid
              glob_angles%m_s_m_valid=source%m_s_m_valid
-             call cp_error_dealloc_ref(iError,error)
-             call cp_error_init(iError, template_error=error)
-          end if
-       end if
-       if (present(angles)) then
-          call cp_1d_r_guarantee_size(glob_angles%angles,size(angles),&
+             CALL cp_error_dealloc_ref(iError,error)
+             CALL cp_error_init(iError, template_error=error)
+          END IF
+       END IF
+       IF (PRESENT(angles)) THEN
+          CALL cp_1d_r_guarantee_size(glob_angles%angles,SIZE(angles),&
                init=0.0_wp,error=iError)
-          call cp_assert(cp_error_get_level(iError)<cp_failure_level,&
+          CALL cp_assert(cp_error_get_level(iError)<cp_failure_level,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "error in cp_guarantee_size called in "//&
                CPSourceFileRef,&
                error,failure)
-          if (.not. failure) then
+          IF (.NOT. failure) THEN
              glob_angles%angles = angles
-          end if
-       end if
-       if (present(angles_val)) then
-          call cp_1d_r_guarantee_size(glob_angles%angles,&
-               pao_env%angles_begin_at(size(pao_env%angles_begin_at)),&
+          END IF
+       END IF
+       IF (PRESENT(angles_val)) THEN
+          CALL cp_1d_r_guarantee_size(glob_angles%angles,&
+               pao_env%angles_begin_at(SIZE(pao_env%angles_begin_at)),&
                init=0.0_wp,error=iError)
-          call cp_error_propagate_error(iError,routineP,&
+          CALL cp_error_propagate_error(iError,routineP,&
                message="error in cp_guarantee_size called in "//&
                CPSourceFileRef,&
                error=error,failure_level=cp_failure_level,failure=failure)
           glob_angles%angles(:)=angles_val
-       end if
-       if (present(min_overlap_m)) then
-          call pao_g_angles_set_min_s_m(glob_angles,&
+       END IF
+       IF (PRESENT(min_overlap_m)) THEN
+          CALL pao_g_angles_set_min_s_m(glob_angles,&
                new_value=min_overlap_m,&
                error=error)
-       end if
-       if (present(min_hamiltonian_m)) then
-          call pao_g_angles_set_min_h_m(glob_angles,&
+       END IF
+       IF (PRESENT(min_hamiltonian_m)) THEN
+          CALL pao_g_angles_set_min_h_m(glob_angles,&
                new_value=min_hamiltonian_m,&
                error=error)
-       end if
-       if (.not.failure) then
-          call cp_1d_r_guarantee_size(glob_angles%angles,&
-               pao_env%angles_begin_at(size(pao_env%angles_begin_at)),&
+       END IF
+       IF (.not.failure) THEN
+          CALL cp_1d_r_guarantee_size(glob_angles%angles,&
+               pao_env%angles_begin_at(SIZE(pao_env%angles_begin_at)),&
                init=0.0_wp,error=error)
-       end if
-    end if failureIf
-    call cp_error_dealloc_ref(iError,error=error)
-  end subroutine pao_g_ang_set
+       END IF
+    END IF failureIf
+    CALL cp_error_dealloc_ref(iError,error=error)
+  END SUBROUTINE pao_g_ang_set
 !***************************************************************************
 
 !!****f* pao_glob_angles_methods/pao_g_ang_get [1.0] *
@@ -699,85 +717,85 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine pao_g_ang_get(glob_angles, qs_env, global_env, angles,&
+  SUBROUTINE pao_g_ang_get(glob_angles, qs_env, global_env, angles,&
        m_s_m_valid, m_h_m_valid, ut_calculated, unitary_t, &
        NUi_injection_calculated, NUi_injection, error)
-    type(pao_glob_angles_type), intent(inout) :: glob_angles
-    type(qs_environment_type), intent(in), target :: qs_env
-    type(global_environment_type), intent(in), target :: global_env
-    real(kind=wp), optional, dimension(:), pointer :: angles
-    logical, intent(out), optional :: m_h_m_valid, m_s_m_valid
-    logical, dimension(:), pointer, optional :: ut_calculated, &
+    TYPE(pao_glob_angles_type), INTENT(inout) :: glob_angles
+    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
+    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
+    REAL(kind=wp), OPTIONAL, DIMENSION(:), POINTER :: angles
+    LOGICAL, INTENT(out), OPTIONAL :: m_h_m_valid, m_s_m_valid
+    LOGICAL, DIMENSION(:), POINTER, OPTIONAL :: ut_calculated, &
          NUi_injection_calculated
-    type(cp_block_matrix_type), pointer, optional :: unitary_t,&
+    TYPE(cp_block_matrix_type), POINTER, OPTIONAL :: unitary_t,&
          NUi_injection
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_ang_get'
-    type(cp_error_type) :: iError
-    type(pao_env_type), pointer :: pao_env
-    type(cp_b_matrix_struct_type), pointer :: m_struct
-    integer :: stat, n_atoms
-    call cp_error_init(iError,template_error=error)
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_glob_angles_methods:pao_g_ang_get'
+    TYPE(cp_error_type) :: iError
+    TYPE(pao_env_type), POINTER :: pao_env
+    TYPE(cp_b_matrix_struct_type), POINTER :: m_struct
+    INTEGER :: stat, n_atoms
+    CALL cp_error_init(iError,template_error=error)
+    failure=.FALSE.
 
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
-    n_atoms=size(qs_env%particle_set)
-    failureIf: if (.not. failure) then
-       if (present(angles)) angles => glob_angles%angles
-       if (present(m_s_m_valid)) m_s_m_valid = glob_angles%m_s_m_valid
-       if (present(m_h_m_valid)) m_h_m_valid=glob_angles%m_h_m_valid
-       if (present(unitary_t)) then
-          call get_qs_env(qs_env, pao_env=pao_env)
-          call cp_get(pao_env, full_bas_diag_m_struct=m_struct)
-          if (.not.associated(glob_angles%unitary_t)) then
-             call cp_sp_create(glob_angles%unitary_t,&
+    n_atoms=SIZE(qs_env%particle_set)
+    failureIf: IF (.NOT. failure) THEN
+       IF (PRESENT(angles)) angles => glob_angles%angles
+       IF (PRESENT(m_s_m_valid)) m_s_m_valid = glob_angles%m_s_m_valid
+       IF (PRESENT(m_h_m_valid)) m_h_m_valid=glob_angles%m_h_m_valid
+       IF (PRESENT(unitary_t)) THEN
+          CALL get_qs_env(qs_env, pao_env=pao_env)
+          CALL cp_get(pao_env, full_bas_diag_m_struct=m_struct)
+          IF (.not.ASSOCIATED(glob_angles%unitary_t)) THEN
+             CALL cp_sp_create(glob_angles%unitary_t,&
                   matrix_struct=m_struct,&
                   error=error)
-          end if
-          if (.not.associated(glob_angles%ut_calculated)) then
-             allocate(glob_angles%ut_calculated(n_atoms),&
+          END IF
+          IF (.not.ASSOCIATED(glob_angles%ut_calculated)) THEN
+             ALLOCATE(glob_angles%ut_calculated(n_atoms),&
                   stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             if (stat==0) glob_angles%ut_calculated=.false.
-          end if
+             IF (stat==0) glob_angles%ut_calculated=.FALSE.
+          END IF
           unitary_t => glob_angles%unitary_t
-       end if
-       if (present(ut_calculated).and.&
-            .not.associated(glob_angles%ut_calculated)) then
-          allocate(glob_angles%ut_calculated(n_atoms),&
+       END IF
+       IF (PRESENT(ut_calculated).AND.&
+            .not.ASSOCIATED(glob_angles%ut_calculated)) THEN
+          ALLOCATE(glob_angles%ut_calculated(n_atoms),&
                stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          if (stat==0) glob_angles%ut_calculated=.false.
+          IF (stat==0) glob_angles%ut_calculated=.FALSE.
           ut_calculated => glob_angles%ut_calculated
-       end if
-       if (present(NUi_injection)) then
-          call get_qs_env(qs_env, pao_env=pao_env)
-          call cp_get(pao_env, full_min_bas_m_struct=m_struct)
-          if (.not.associated(glob_angles%NUi_injection)) then
-             call cp_sp_create(glob_angles%NUi_injection,&
+       END IF
+       IF (PRESENT(NUi_injection)) THEN
+          CALL get_qs_env(qs_env, pao_env=pao_env)
+          CALL cp_get(pao_env, full_min_bas_m_struct=m_struct)
+          IF (.not.ASSOCIATED(glob_angles%NUi_injection)) THEN
+             CALL cp_sp_create(glob_angles%NUi_injection,&
                   matrix_struct=m_struct,&
                   error=error)
-          end if
-          if (.not.associated(glob_angles%NUi_injection_calculated)) then
-             allocate(glob_angles%NUi_injection_calculated(n_atoms),&
+          END IF
+          IF (.not.ASSOCIATED(glob_angles%NUi_injection_calculated)) THEN
+             ALLOCATE(glob_angles%NUi_injection_calculated(n_atoms),&
                   stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             if (stat==0) glob_angles%NUi_injection_calculated=.false.
-          end if
+             IF (stat==0) glob_angles%NUi_injection_calculated=.FALSE.
+          END IF
           NUi_injection => glob_angles%NUi_injection
-       end if
-       if (present(NUi_injection_calculated).and.&
-            .not.associated(glob_angles%NUi_injection_calculated)) then
-          allocate(glob_angles%NUi_injection_calculated(n_atoms),&
+       END IF
+       IF (PRESENT(NUi_injection_calculated).AND.&
+            .not.ASSOCIATED(glob_angles%NUi_injection_calculated)) THEN
+          ALLOCATE(glob_angles%NUi_injection_calculated(n_atoms),&
                stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          if (stat==0) glob_angles%NUi_injection_calculated=.false.
+          IF (stat==0) glob_angles%NUi_injection_calculated=.FALSE.
           NUi_injection_calculated => glob_angles%NUi_injection_calculated
-       end if
-    end if failureIf
-  end subroutine pao_g_ang_get
+       END IF
+    END IF failureIf
+  END SUBROUTINE pao_g_ang_get
 !***************************************************************************
 
 !!****f* pao_glob_angles_methods/pao_g_ang_valid [1.0] *
@@ -814,44 +832,44 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function pao_g_ang_valid(glob_angles, qs_env, global_env, error) result(res)
-    logical ::res
-    type(pao_glob_angles_type), intent(in) :: glob_angles
-    type(qs_environment_type), intent(in), target :: qs_env
-    type(global_environment_type), intent(in), target :: global_env
-    type(cp_error_type), optional, intent(inout) :: error
+  FUNCTION pao_g_ang_valid(glob_angles, qs_env, global_env, error) RESULT(res)
+    LOGICAL ::res
+    TYPE(pao_glob_angles_type), INTENT(in) :: glob_angles
+    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
+    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_ang_valid'
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_glob_angles_methods:pao_g_ang_valid'
+    failure=.FALSE.
 
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
-       if (.not.(associated(glob_angles%angles).and.&
-            (.not.associated(glob_angles%unitary_t).or.&
-            associated(glob_angles%ut_calculated)) .and.&
-            (.not.glob_angles%m_s_m_valid .or.&
-            associated(glob_angles%min_overlap_m)).and.&
-            (.not.glob_angles%m_h_m_valid .or.&
-            associated(glob_angles%min_hamiltonian_m))&
-            )) then
-          CPAssert(associated(glob_angles%angles),cp_warning_level,routineP,error,failure)
-          if (associated(glob_angles%unitary_t)) then
-             CPAssert(associated(glob_angles%ut_calculated),cp_warning_level,routineP,error,failure)
-          end if
-          if (associated(glob_angles%NUi_injection_calculated)) then
-             CPAssert(associated(glob_angles%NUi_injection),cp_warning_level,routineP,error,failure)
-          end if
-          if (glob_angles%m_s_m_valid) then
-             CPAssert(associated(glob_angles%min_overlap_m),cp_warning_level,routineP,error,failure)
-          end if
-          if (glob_angles%m_h_m_valid) then
-             CPAssert(associated(glob_angles%min_hamiltonian_m),cp_warning_level,routineP,error,failure)
-          end if
-       end if
-    end if
+    IF (.NOT. failure) THEN
+       IF (.NOT.(ASSOCIATED(glob_angles%angles).AND.&
+            (.not.ASSOCIATED(glob_angles%unitary_t).OR.&
+            ASSOCIATED(glob_angles%ut_calculated)) .AND.&
+            (.not.glob_angles%m_s_m_valid .OR.&
+            ASSOCIATED(glob_angles%min_overlap_m)).AND.&
+            (.not.glob_angles%m_h_m_valid .OR.&
+            ASSOCIATED(glob_angles%min_hamiltonian_m))&
+            )) THEN
+          CPAssert(ASSOCIATED(glob_angles%angles),cp_warning_level,routineP,error,failure)
+          IF (ASSOCIATED(glob_angles%unitary_t)) THEN
+             CPAssert(ASSOCIATED(glob_angles%ut_calculated),cp_warning_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(glob_angles%NUi_injection_calculated)) THEN
+             CPAssert(ASSOCIATED(glob_angles%NUi_injection),cp_warning_level,routineP,error,failure)
+          END IF
+          IF (glob_angles%m_s_m_valid) THEN
+             CPAssert(ASSOCIATED(glob_angles%min_overlap_m),cp_warning_level,routineP,error,failure)
+          END IF
+          IF (glob_angles%m_h_m_valid) THEN
+             CPAssert(ASSOCIATED(glob_angles%min_hamiltonian_m),cp_warning_level,routineP,error,failure)
+          END IF
+       END IF
+    END IF
     res=.not.failure
-  end function pao_g_ang_valid
+  END FUNCTION pao_g_ang_valid
 !***************************************************************************
 
 ! ===== special methods ====
@@ -882,47 +900,47 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine pao_g_angles_set_unitary_t(glob_angles,&
+  SUBROUTINE pao_g_angles_set_unitary_t(glob_angles,&
        new_value, ut_calculated,error)
-    type(pao_glob_angles_type), intent(inout) :: glob_angles
-    type(cp_block_matrix_type), target, optional, intent(in) :: new_value
-    logical, dimension(:), intent(in), optional, target :: ut_calculated
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(pao_glob_angles_type), INTENT(inout) :: glob_angles
+    TYPE(cp_block_matrix_type), TARGET, OPTIONAL, INTENT(in) :: new_value
+    LOGICAL, DIMENSION(:), INTENT(in), OPTIONAL, TARGET :: ut_calculated
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_angles_set_unitary_t'
-    logical, dimension(:),pointer :: ut_c
-    type(cp_block_matrix_type), pointer :: n_value
-    type (cp_error_type) :: iError
-    call cp_error_init(iError, template_error=error, &
-         print_level=max(cp_failure_level, cp_error_get_print_level(error)))
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_glob_angles_methods:pao_g_angles_set_unitary_t'
+    LOGICAL, DIMENSION(:),POINTER :: ut_c
+    TYPE(cp_block_matrix_type), POINTER :: n_value
+    TYPE (cp_error_type) :: iError
+    CALL cp_error_init(iError, template_error=error, &
+         print_level=MAX(cp_failure_level, cp_error_get_print_level(error)))
+    failure=.FALSE.
 
-    if (present(ut_calculated)) then
+    IF (PRESENT(ut_calculated)) THEN
        ut_c => ut_calculated
-       if (associated(ut_c)) then
-          call cp_1d_logical_guarantee_size(glob_angles%ut_calculated,&
-               size(ut_calculated),error=iError)
-          call cp_error_propagate_error(iError,routineP,&
+       IF (ASSOCIATED(ut_c)) THEN
+          CALL cp_1d_logical_guarantee_size(glob_angles%ut_calculated,&
+               SIZE(ut_calculated),error=iError)
+          CALL cp_error_propagate_error(iError,routineP,&
                CPSourceFileRef,&
                error,failure,cp_failure_level)
           glob_angles%ut_calculated=ut_calculated
-       else if (associated(glob_angles%ut_calculated)) then
-          deallocate(glob_angles%ut_calculated)
-       end if
-    end if
-    if (present(new_value)) then
+       ELSE IF (ASSOCIATED(glob_angles%ut_calculated)) THEN
+          DEALLOCATE(glob_angles%ut_calculated)
+       END IF
+    END IF
+    IF (PRESENT(new_value)) THEN
        n_value => new_value
-       if (associated(n_value)) then
-          call cp_retain(n_value,error=error)
-          call cp_release(glob_angles%unitary_t, error=error)
+       IF (ASSOCIATED(n_value)) THEN
+          CALL cp_retain(n_value,error=error)
+          CALL cp_release(glob_angles%unitary_t, error=error)
           glob_angles%unitary_t => new_value
-       else if (associated(glob_angles%unitary_t)) then
+       ELSE IF (ASSOCIATED(glob_angles%unitary_t)) THEN
 ! do not dealloc ??
-          call cp_release(glob_angles%unitary_t,error=error)
-       end if
-    end if
-  end subroutine pao_g_angles_set_unitary_t
+          CALL cp_release(glob_angles%unitary_t,error=error)
+       END IF
+    END IF
+  END SUBROUTINE pao_g_angles_set_unitary_t
 !***************************************************************************
 
 !!****f* pao_glob_angles_methods/pao_g_angles_set_min_s_m [1.0] *
@@ -950,36 +968,36 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine pao_g_angles_set_min_s_m(glob_angles, new_value,error)
-    type(pao_glob_angles_type), intent(inout) :: glob_angles
-    type(cp_block_matrix_p_type), dimension(:),optional, &
-         intent(in) :: new_value
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE pao_g_angles_set_min_s_m(glob_angles, new_value,error)
+    TYPE(pao_glob_angles_type), INTENT(inout) :: glob_angles
+    TYPE(cp_block_matrix_p_type), DIMENSION(:),OPTIONAL, &
+         INTENT(in) :: new_value
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_angles_set_min_s_m'
-    integer :: i, stat
-    type(cp_block_matrix_type), pointer :: n_val
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_glob_angles_methods:pao_g_angles_set_min_s_m'
+    INTEGER :: i, stat
+    TYPE(cp_block_matrix_type), POINTER :: n_val
+    failure=.FALSE.
 
-    if (present(new_value)) then
-       glob_angles%m_s_m_valid=.true.
-       do i=1,size(new_value)
+    IF (PRESENT(new_value)) THEN
+       glob_angles%m_s_m_valid=.TRUE.
+       DO i=1,SIZE(new_value)
           n_val => new_value(i)%matrix
-          call cp_retain(n_val, error=error)
-       end do
-       if (associated(glob_angles%min_overlap_m)) then
-          call cp_dealloc(glob_angles%min_overlap_m,error=error)
-       end if
-       allocate(glob_angles%min_overlap_m(size(new_value)),stat=stat)
-       do i=1,size(new_value)
+          CALL cp_retain(n_val, error=error)
+       END DO
+       IF (ASSOCIATED(glob_angles%min_overlap_m)) THEN
+          CALL cp_dealloc(glob_angles%min_overlap_m,error=error)
+       END IF
+       ALLOCATE(glob_angles%min_overlap_m(SIZE(new_value)),stat=stat)
+       DO i=1,SIZE(new_value)
           glob_angles%min_overlap_m(i)%matrix => new_value(i)%matrix
-       end do
-    else if (associated(glob_angles%min_overlap_m)) then
+       END DO
+    ELSE IF (ASSOCIATED(glob_angles%min_overlap_m)) THEN
 ! do not dealloc ??
-       call cp_dealloc(glob_angles%min_overlap_m,error=error)
-    end if
-  end subroutine pao_g_angles_set_min_s_m
+       CALL cp_dealloc(glob_angles%min_overlap_m,error=error)
+    END IF
+  END SUBROUTINE pao_g_angles_set_min_s_m
 !***************************************************************************
 
 !!****f* pao_glob_angles_methods/pao_g_angles_set_min_h_m [1.0] *
@@ -1007,37 +1025,37 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine pao_g_angles_set_min_h_m(glob_angles, new_value,error)
-    type(pao_glob_angles_type), intent(inout) :: glob_angles
-    type(cp_block_matrix_p_type), dimension(:), optional, &
-         intent(in) :: new_value
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE pao_g_angles_set_min_h_m(glob_angles, new_value,error)
+    TYPE(pao_glob_angles_type), INTENT(inout) :: glob_angles
+    TYPE(cp_block_matrix_p_type), DIMENSION(:), OPTIONAL, &
+         INTENT(in) :: new_value
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='pao_g_angles_set_min_h_m',&
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='pao_g_angles_set_min_h_m',&
          routineP=moduleN//':'//routineN
-    integer :: i, stat
-    type(cp_block_matrix_type), pointer :: n_val
-    failure=.false.
+    INTEGER :: i, stat
+    TYPE(cp_block_matrix_type), POINTER :: n_val
+    failure=.FALSE.
 
-    if (present(new_value)) then
-       glob_angles%m_s_m_valid=.true.
-       do i=1,size(new_value)
+    IF (PRESENT(new_value)) THEN
+       glob_angles%m_s_m_valid=.TRUE.
+       DO i=1,SIZE(new_value)
           n_val => new_value(i)%matrix
-          call cp_retain(n_val, error=error)
-       end do
-       if (associated(glob_angles%min_overlap_m)) then
-          call cp_dealloc(glob_angles%min_overlap_m,error=error)
-       end if
-       allocate(glob_angles%min_overlap_m(size(new_value)),stat=stat)
-       do i=1,size(new_value)
+          CALL cp_retain(n_val, error=error)
+       END DO
+       IF (ASSOCIATED(glob_angles%min_overlap_m)) THEN
+          CALL cp_dealloc(glob_angles%min_overlap_m,error=error)
+       END IF
+       ALLOCATE(glob_angles%min_overlap_m(SIZE(new_value)),stat=stat)
+       DO i=1,SIZE(new_value)
           glob_angles%min_overlap_m(i)%matrix => new_value(i)%matrix
-       end do
-    else if (associated(glob_angles%min_overlap_m)) then
+       END DO
+    ELSE IF (ASSOCIATED(glob_angles%min_overlap_m)) THEN
 ! do not dealloc ??
-       call cp_dealloc(glob_angles%min_overlap_m,error=error)
-    end if
-  end subroutine pao_g_angles_set_min_h_m
+       CALL cp_dealloc(glob_angles%min_overlap_m,error=error)
+    END IF
+  END SUBROUTINE pao_g_angles_set_min_h_m
 !***************************************************************************
 
 !!****f* pao_glob_angles_methods/pao_g_ang_did_change [1.0] *
@@ -1079,66 +1097,66 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine pao_g_ang_did_change(glob_angles,qs_env,global_env,&
+  SUBROUTINE pao_g_ang_did_change(glob_angles,qs_env,global_env,&
        h_changed, s_changed,&
        angles_changed, full_reset, error)
-    type(pao_glob_angles_type), intent(inout),target :: glob_angles
-    type(qs_environment_type), intent(in),target :: qs_env
-    type(global_environment_type), intent(in),target ::global_env
-    logical, intent(in), optional :: h_changed, s_changed, &
+    TYPE(pao_glob_angles_type), INTENT(inout),TARGET :: glob_angles
+    TYPE(qs_environment_type), INTENT(in),TARGET :: qs_env
+    TYPE(global_environment_type), INTENT(in),TARGET ::global_env
+    LOGICAL, INTENT(in), OPTIONAL :: h_changed, s_changed, &
          angles_changed, full_reset
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    integer :: handle, stat
-    character(len=*), parameter :: routineN='pao_g_ang_did_change',&
+    LOGICAL :: failure
+    INTEGER :: handle, stat
+    CHARACTER(len=*), PARAMETER :: routineN='pao_g_ang_did_change',&
          routineP=moduleN//':'//routineN
-    logical :: h_c,s_c, a_c, full_r
+    LOGICAL :: h_c,s_c, a_c, full_r
     !call timeset(routineN,'I',moduleN,handle)
-    failure=.false.
-    h_c=.true. ; s_c=.false. ; a_c=.true. ; full_r=.false.
+    failure=.FALSE.
+    h_c=.TRUE. ; s_c=.FALSE. ; a_c=.TRUE. ; full_r=.FALSE.
 
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
-       if (present(h_changed)) h_c=h_changed
-       if (present(s_changed)) s_c=s_changed
-       if (present(angles_changed)) a_c=angles_changed
-       if (present(full_reset)) full_r=full_reset
+    IF (.NOT. failure) THEN
+       IF (PRESENT(h_changed)) h_c=h_changed
+       IF (PRESENT(s_changed)) s_c=s_changed
+       IF (PRESENT(angles_changed)) a_c=angles_changed
+       IF (PRESENT(full_reset)) full_r=full_reset
        glob_angles%m_h_m_valid=glob_angles%m_h_m_valid.and.&
-            .not.(h_c.or.s_c.or.a_c.or.full_r)
+            .NOT.(h_c.or.s_c.or.a_c.or.full_r)
        glob_angles%m_s_m_valid=glob_angles%m_s_m_valid.and.&
-            .not.(s_c.or.a_c.or.full_r)
-       if (associated(glob_angles%ut_calculated).and.a_c) then
-          glob_angles%ut_calculated=.false.
-       end if
-       if (associated(glob_angles%NUi_injection_calculated).and.a_c) then
-          glob_angles%NUi_injection_calculated=.false.
-       end if
-       if (full_r.or.s_c) then
-          call cp_release(glob_angles%unitary_t,error=error)
-          call cp_release(glob_angles%NUi_injection,error=error)
-          call cp_dealloc(glob_angles%min_hamiltonian_m,error=error)
-          call cp_dealloc(glob_angles%min_overlap_m)
-          if (associated(glob_angles%ut_calculated)) then
-             if (full_r) then
-                deallocate(glob_angles%ut_calculated, stat=stat)
+            .NOT.(s_c.or.a_c.or.full_r)
+       IF (ASSOCIATED(glob_angles%ut_calculated).and.a_c) THEN
+          glob_angles%ut_calculated=.FALSE.
+       END IF
+       IF (ASSOCIATED(glob_angles%NUi_injection_calculated).and.a_c) THEN
+          glob_angles%NUi_injection_calculated=.FALSE.
+       END IF
+       IF (full_r.or.s_c) THEN
+          CALL cp_release(glob_angles%unitary_t,error=error)
+          CALL cp_release(glob_angles%NUi_injection,error=error)
+          CALL cp_dealloc(glob_angles%min_hamiltonian_m,error=error)
+          CALL cp_dealloc(glob_angles%min_overlap_m)
+          IF (ASSOCIATED(glob_angles%ut_calculated)) THEN
+             IF (full_r) THEN
+                DEALLOCATE(glob_angles%ut_calculated, stat=stat)
                 CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-             else
-                glob_angles%ut_calculated=.false.
-             end if
-          end if
-          if (associated(glob_angles%NUi_injection_calculated)) then
-             if (full_r) then
-                deallocate(glob_angles%NUi_injection_calculated,stat=stat)
+             ELSE
+                glob_angles%ut_calculated=.FALSE.
+             END IF
+          END IF
+          IF (ASSOCIATED(glob_angles%NUi_injection_calculated)) THEN
+             IF (full_r) THEN
+                DEALLOCATE(glob_angles%NUi_injection_calculated,stat=stat)
                 CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-             else
-                glob_angles%NUi_injection_calculated=.false.
-             end if
-          end if
-       end if
-    end if
+             ELSE
+                glob_angles%NUi_injection_calculated=.FALSE.
+             END IF
+          END IF
+       END IF
+    END IF
     !call timestop(0.0_wp,handle)
-  end subroutine pao_g_ang_did_change
+  END SUBROUTINE pao_g_ang_did_change
 !***************************************************************************
 
-end module pao_glob_angles_methods
+END MODULE pao_glob_angles_methods
