@@ -204,7 +204,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rho_r),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(vxc),cp_failure_level,routineP,error,failure)
 
-    IF (ANY(dft_control%ftags(1,:))) THEN
+    IF (ANY(dft_control%gradient_functionals)) THEN
        CPPrecondition(ASSOCIATED(rho_g),cp_failure_level,routineP,error,failure)
        ALLOCATE(my_rho_g(1), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -408,10 +408,10 @@ CONTAINS
     CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
 !FM    CPPrecondition(associated(vxc),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       gradient_f=ANY(dft_control%ftags(1,:))
+       gradient_f=ANY(dft_control%gradient_functionals)
        nspins=dft_control%nspins
        ngrad_spins=nspins
-       crossterms=ANY(dft_control%ftags(2,:)).and.nspins>1
+       crossterms=ANY(dft_control%crossterms).and.nspins>1
 
        IF (gradient_f) THEN
           IF (tot_grad) ngrad_spins=nspins+1
@@ -678,20 +678,22 @@ CONTAINS
        SELECT CASE ( nspins )
        CASE (1)
           IF (gradient_f) THEN
-             CALL xc_lda ( functional=dft_control%functional,&
-                  ftags=dft_control%ftags, &
-                  rho=rgrid(:,1), drho=drgrid(:,1), pot=pot, &
-                  order=1, error=error )
+             CALL xc_lda ( dft_control%functional,&
+                  dft_control%gradient_functionals, dft_control%crossterms, &
+                  rgrid(:,1), &
+                  pot=pot, order=1, &
+                  drho=drgrid(:,1), error=error )
           ELSE
-             CALL xc_lda ( functional=dft_control%functional,&
-                  ftags=dft_control%ftags, &
-                  rho=rgrid(:,1), pot=pot, &
-                  order=1, error=error )
+             CALL xc_lda ( dft_control%functional,&
+                  dft_control%gradient_functionals, dft_control%crossterms, &
+                  rgrid(:,1), &
+                  pot=pot, order=1, &
+                  error=error )
           END IF
        CASE (2)
           DO ifun = 1, SIZE(dft_control%functional)
              IF ( dft_control%functional(ifun)/="NONE" ) THEN
-                IF (dft_control%ftags(1,ifun)) THEN
+                IF (dft_control%gradient_functionals(ifun)) THEN
                    CALL xc_calculate_lsd(functional=dft_control%functional(ifun),&
                         rhoa=rgrid(:,1),&
                         rhob=rgrid(:,2), pot=pot, &
@@ -737,7 +739,7 @@ CONTAINS
           END DO
        END DO
 
-       IF ( ANY(dft_control%ftags(1,:)) .OR.&
+       IF ( ANY(dft_control%gradient_functionals) .OR.&
             rho_r(1)%pw%pw_grid%spherical.OR.&
             dft_control%xc_rho_smooth_id/=xc_rho_no_smooth) THEN
           CALL pw_pool_create_pw ( pw_pool, vxc_g, use_data=COMPLEXDATA1D,&
@@ -752,7 +754,7 @@ CONTAINS
                 CALL pw_zero(vxc_g)
              END IF
 
-             IF (ANY(dft_control%ftags(1,:))) THEN ! partial integration
+             IF (ANY(dft_control%gradient_functionals)) THEN ! partial integration
                 CALL pw_pool_create_pw ( pw_pool, tmp_g,&
                      use_data=COMPLEXDATA1D,&
                      in_space=RECIPROCALSPACE, error=error)
@@ -1170,13 +1172,13 @@ END SUBROUTINE xc_prep_2nd_deriv1
              CALL dscal (ntot, 0.5_wp, rgrid(:,1), 1)
              IF (gradient_f) THEN
                 CALL dscal (ntot, 0.5_wp, drgrid(:,1), 1)
-                CALL xc_lsd ( functional, ftags, &
+                CALL xc_lsd ( functional, ftags(1,:), ftags(2,:), &
                               rgrid(:,1), rgrid(:,1), &
                               pot, order, &
                               drho_a=drgrid(:,1), drho_b=drgrid(:,1), &
                               error=error )
              ELSE
-                CALL xc_lsd ( functional, ftags, &
+                CALL xc_lsd ( functional, ftags(1,:), ftags(2,:), &
                               rgrid(:,1), rgrid(:,1), &
                               pot, order, &
                               error=error )
@@ -1184,15 +1186,17 @@ END SUBROUTINE xc_prep_2nd_deriv1
              
           ELSE
              IF (gradient_f) THEN
-                CALL xc_lda ( functional=functional,&
-                              ftags=ftags, &
-                              rho=rgrid(:,1), drho=drgrid(:,1), pot=pot, &
-                              order=order, error=error )
+                CALL xc_lda ( functional,&
+                              ftags(1,:), ftags(2,:), &
+                              rgrid(:,1), &
+                              pot, order, &
+                              drho=drgrid(:,1), error=error )
              ELSE
-                CALL xc_lda ( functional=functional,&
-                              ftags=ftags, &
-                              rho=rgrid(:,1), pot=pot, &
-                              order=order, error=error )
+                CALL xc_lda ( functional,&
+                              ftags(1,:), ftags(2,:), &
+                              rgrid(:,1), &
+                              pot, order, &
+                              error=error )
              END IF
           END IF
        ELSE ! nspins == 2

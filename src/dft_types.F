@@ -193,7 +193,7 @@ MODULE dft_types
                                         do_tddfpt_calculation, &
                                         derive_function_rho
      LOGICAL, DIMENSION (2,3)        :: ftags
-     LOGICAL, DIMENSION(3)           :: grad_functional
+     LOGICAL, DIMENSION(3)           :: gradient_functionals, crossterms
   END TYPE dft_control_type
 
   CHARACTER(LEN=*), PARAMETER :: moduleN = "dft_types"
@@ -331,19 +331,23 @@ CONTAINS
                 "XCFUN","FUNCTIONAL","FUN")
             CALL read_object(string,lower_to_upper=.TRUE.)
             CALL xc_get_functional ( 0, string, dft_control % functional, &
-                                        dft_control % ftags )
+                                        dft_control % gradient_functionals, &
+                                        dft_control % crossterms )
           CASE ("EXCHANGE-FUNCTIONAL","X-FUNCTIONAL","X-FUN","XFUN")
             CALL read_object(string,lower_to_upper=.TRUE.)
             CALL xc_get_functional ( 1, string, dft_control % functional, &
-                                        dft_control % ftags )
+                                        dft_control % gradient_functionals, &
+                                        dft_control % crossterms )
           CASE ("CORRELATION-FUNCTIONAL","C-FUNCTIONAL","C-FUN","CFUN")
             CALL read_object(string,lower_to_upper=.TRUE.)
             CALL xc_get_functional ( 2, string, dft_control % functional, &
-                                        dft_control % ftags )
+                                        dft_control % gradient_functionals, &
+                                        dft_control % crossterms )
           CASE ("KINETIC-ENERGY-FUNCTIONAL","KE-FUNCTIONAL","KE-FUN","KEFUN")
             CALL read_object(string,lower_to_upper=.TRUE.)
             CALL xc_get_functional ( 3, string, dft_control % functional, &
-                                        dft_control % ftags )
+                                        dft_control % gradient_functionals, &
+                                        dft_control % crossterms )
           CASE ("DENSITY_CUTOFF")
             CALL read_object(dft_control%density_cut)
           CASE ("GRADIENT_CUTOFF")
@@ -417,6 +421,9 @@ CONTAINS
         END IF
       END DO
     END IF
+
+    dft_control % ftags ( 1, : ) = dft_control % gradient_functionals
+    dft_control % ftags ( 2, : ) = dft_control % crossterms
 
     CALL finish_parser()
 
@@ -1016,19 +1023,19 @@ CONTAINS
                 "XCFUN","FUNCTIONAL","FUN")
             CALL read_object(field, lower_to_upper=.TRUE.)
             CALL xc_get_functional (0, field, t_control%functional, &
-                                        t_control%ftags )
+                                        t_control%ftags(1,:), t_control%ftags(2,:) )
           CASE ("EXCHANGE-FUNCTIONAL","X-FUNCTIONAL","X-FUN","XFUN")
             CALL read_object(field, lower_to_upper=.TRUE.)
             CALL xc_get_functional (1, field, t_control%functional, &
-                                        t_control%ftags )
+                                        t_control%ftags(1,:), t_control%ftags(2,:) )
           CASE ("CORRELATION-FUNCTIONAL","C-FUNCTIONAL","C-FUN","CFUN")
             CALL read_object(field, lower_to_upper=.TRUE.)
             CALL xc_get_functional (2, field, t_control%functional, &
-                                        t_control%ftags )
+                                        t_control%ftags(1,:), t_control%ftags(2,:) )
           CASE ("KINETIC-ENERGY-FUNCTIONAL","KE-FUNCTIONAL","KE-FUN","KEFUN")
             CALL read_object(field, lower_to_upper=.TRUE.)
             CALL xc_get_functional (3, field, t_control%functional, &
-                                        t_control%ftags )
+                                        t_control%ftags(1,:), t_control%ftags(2,:) )
        CASE DEFAULT
           CALL stop_parser(routineP, "unrecognized option <"//TRIM(keyword)//">")
 

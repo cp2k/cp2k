@@ -55,7 +55,8 @@ contains
   !!   ARGUMENTS
   !!     - derivative_set : will store the derivatives
   !!     - functional     : strings describing the functionals
-  !!     - ftags          : tags describing the functionals
+  !!     - gradient_functionals:
+  !!     - crossterms     :
   !!     - order          : up to which order to derive
   !!     - density_cutoff :
   !!     - gradient_cutoff:
@@ -71,7 +72,7 @@ contains
   !!****
   subroutine xc_calc_derivatives(&
        derivative_set, &
-       functional, ftags, &
+       functional, gradient_functionals, crossterms, &
        order, &
        density_cutoff, gradient_cutoff, &
        rhoa, rhob, &
@@ -83,7 +84,7 @@ contains
     ! arguments
     type(xc_derivative_set_type), pointer        :: derivative_set
     character(len=40), dimension(3), intent(in)  :: functional
-    logical, dimension(2,3), intent(in)          :: ftags
+    logical, dimension(3), intent(in)            :: gradient_functionals, crossterms
     integer, intent(in)                          :: order
     real(kind=wp), intent(in)                    :: density_cutoff, gradient_cutoff
     real(kind=wp), dimension(:,:), intent(in)    :: rhoa
@@ -106,7 +107,7 @@ contains
     CPPrecondition(abs(order)<3,cp_failure_level,routineP,error,failure)
 
     if (present(rhob)) do_lsd = .true.
-    gradient_functional = ANY(ftags(1,:))
+    gradient_functional = ANY(gradient_functionals)
 
     if (gradient_functional) then
        CPPrecondition(present(drhoa),cp_failure_level,routineP,error,failure)
@@ -120,28 +121,29 @@ contains
        call xc_set(density_cutoff, gradient_cutoff)
        if (gradient_functional) then
           if (do_lsd) then
-             CALL xc_lsd ( functional, ftags, &
+             CALL xc_lsd ( functional, gradient_functionals, crossterms, &
                            rhoa(:,1), rhob(:,1), &
                            pot, order, &
                            drho_a=drhoa(:,1), drho_b=drhob(:,1), &
                            error=error )
           else
-             CALL xc_lsd ( functional, ftags, &
+             CALL xc_lsd ( functional, gradient_functionals, crossterms, &
                            rhoa(:,1), rhob(:,1), &
                            pot(:,1:npot), order, &
                            error=error )
           end if
        else
           if (gradient_functional) then
-             call xc_lda ( functional=functional,&
-                           ftags=ftags, &
-                           rho=rhoa(:,1), drho=drhoa(:,1), pot=pot, &
-                           order=order, error=error )
+             call xc_lda ( functional,&
+                           gradient_functionals, crossterms, &
+                           rhoa(:,1),  &
+                           pot, order=order, &
+                           drho=drhoa(:,1), error=error )
           else
-             call xc_lda ( functional=functional,&
-                           ftags=ftags, &
-                           rho=rhoa(:,1), pot=pot, &
-                           order=order, error=error )
+             call xc_lda ( functional,&
+                           gradient_functionals, crossterms, &
+                           rhoa(:,1), pot, &
+                           order, error=error )
           end if
        end if
 

@@ -173,10 +173,11 @@ CONTAINS
 
 !******************************************************************************
 
-  SUBROUTINE xc_lda ( functional, ftags, rho, pot, order, drho, error )
+  SUBROUTINE xc_lda ( functional, gradient_functionals, crossterms, &
+                      rho, pot, order, drho, error )
      IMPLICIT NONE
      CHARACTER (LEN=*), DIMENSION ( 3 ), INTENT(IN) :: functional
-     LOGICAL, DIMENSION ( 2, 3 ), INTENT(IN) :: ftags
+     LOGICAL, DIMENSION ( 3 ), INTENT(IN) :: gradient_functionals, crossterms
      REAL ( dbl ), DIMENSION (:), INTENT(in) :: rho
      REAL ( dbl ), DIMENSION (:), INTENT(in), OPTIONAL :: drho
      REAL ( dbl ), DIMENSION (:,:), INTENT(INOUT) :: pot
@@ -189,7 +190,7 @@ CONTAINS
      REAL ( dbl ), DIMENSION (:,:), ALLOCATABLE :: locpot
      INTEGER :: ifun, i, ierr, np, mp, lp, lpmax, ind ( 100 )
 
-     gradient_correction = ANY ( ftags ( 1, : ) )
+     gradient_correction = ANY(gradient_functionals)
      ! no crossterms in unpolarised spin calculations
      cross_term = .FALSE.
 
@@ -216,11 +217,11 @@ CONTAINS
        IF ( ierr /= 0 ) CALL stop_memory ( "xc_lda", "locpot", np*mp )
        DO ifun = 1, 3
          IF ( docalc ( ifun ) ) THEN
-           lp = xc_get_pot_size ( .FALSE., ftags(1,ifun), .FALSE., order )
+           lp = xc_get_pot_size ( .FALSE., gradient_functionals(ifun), .FALSE., order )
            locpot(:,1:lp) = 0._dbl
            CALL xc_calculate_lda ( functional=functional(ifun),&
                 rho=rho, drho=drho, pot=locpot, order=order, error=error )
-           CALL xc_get_order ( .FALSE., ftags(1,ifun), .FALSE., &
+           CALL xc_get_order ( .FALSE., gradient_functionals(ifun), .FALSE., &
                                gradient_correction, .FALSE., order, ind(1:lp) )
            DO i = 1, lp
              CALL daxpy ( np, 1._dbl, locpot(1,i), 1, pot(1,ind(i)), 1 )
@@ -235,7 +236,7 @@ CONTAINS
 
 !******************************************************************************
 
-  SUBROUTINE xc_lsd ( functional, ftags, &
+  SUBROUTINE xc_lsd ( functional, gradient_functionals, crossterms, &
                       rho_a, rho_b, pot, order, &
                       drho_a, drho_b, error )
 
@@ -243,7 +244,7 @@ CONTAINS
 
      ! arguments
      CHARACTER (LEN=*), DIMENSION ( 3 ), INTENT(IN) :: functional
-     LOGICAL, DIMENSION ( 2, 3 ), INTENT(IN) :: ftags
+     LOGICAL, DIMENSION ( 3 ), INTENT(IN) :: gradient_functionals, crossterms
      REAL ( dbl ), DIMENSION (:), INTENT(in) :: rho_a, rho_b
      REAL ( dbl ), DIMENSION (:,:), INTENT(INOUT) :: pot
      REAL ( dbl ), DIMENSION (:), INTENT(in), OPTIONAL :: drho_a, drho_b
@@ -260,8 +261,8 @@ CONTAINS
 
      ! ------------------------------------------------------------
 
-     gradient_correction = ANY ( ftags ( 1, : ) )
-     cross_term = ANY ( ftags ( 2, : ) )
+     gradient_correction = ANY ( gradient_functionals )
+     cross_term = ANY ( crossterms )
 
      CALL dcopy(SIZE(pot,1)*SIZE(pot,2), 0.0_dbl, 0, pot, 1)
 
@@ -291,11 +292,11 @@ CONTAINS
         IF ( ierr /= 0 ) CALL stop_memory ( routineP, "locpot", np*mp )
         DO ifun = 1, 3
            IF ( docalc ( ifun ) ) THEN
-              lp = xc_get_pot_size ( .TRUE., ftags(1,ifun), ftags(2,ifun), order )
+              lp = xc_get_pot_size ( .TRUE., gradient_functionals(ifun), crossterms(ifun), order )
               locpot(:,1:lp) = 0._dbl
               CALL xc_calculate_lsd ( functional(ifun),&
                    rho_a, rho_b, locpot, order, drhoa=drho_a, drhob=drho_b, error=error )
-              CALL xc_get_order ( .TRUE., ftags(1,ifun), ftags(2,ifun), &
+              CALL xc_get_order ( .TRUE., gradient_functionals(ifun), crossterms(ifun), &
                    gradient_correction, cross_term, order, ind(1:lp) )
               DO i = 1, lp
                  CALL daxpy ( np, 1._dbl, locpot(1,i), 1, pot(1,ind(i)), 1 )
@@ -577,13 +578,13 @@ CONTAINS
 
 !******************************************************************************
 
-  SUBROUTINE xc_get_functional ( tag, string, functional, ftags )
+  SUBROUTINE xc_get_functional ( tag, string, functional, gradient_functionals, crossterms )
 
      IMPLICIT NONE
      INTEGER, INTENT ( in ) :: tag
      CHARACTER (LEN=*), INTENT ( IN ) :: string
      CHARACTER (LEN=*), DIMENSION ( 3 ), INTENT ( INOUT ) :: functional
-     LOGICAL, DIMENSION ( 2, 3 ), INTENT ( INOUT) :: ftags
+     LOGICAL, DIMENSION ( 3 ), INTENT (OUT) :: gradient_functionals, crossterms
 
      INTEGER :: ierr
 
@@ -595,8 +596,8 @@ CONTAINS
 
      CASE ( 0 )
      ! combined functionals
-        ftags ( :, 1 ) = .FALSE.
-        ftags ( :, 2 ) = .FALSE.
+        gradient_functionals(1:2) = .FALSE.
+        crossterms(1:2) = .FALSE.
 
         SELECT CASE ( string )
         CASE DEFAULT
@@ -610,48 +611,49 @@ CONTAINS
         CASE ( "LDA", "PZ" )
            functional ( 1 ) = "SLATER"
            functional ( 2 ) = "PZ"
-           ftags ( 2, 2 ) = CROSS_TERM
+           crossterms ( 2 ) = CROSS_TERM
         CASE ( "PW", "PERDEW-WANG" )
            functional ( 1 ) = "SLATER"
            functional ( 2 ) = "PW"
-           ftags ( 2, 2 ) = CROSS_TERM
+           crossterms ( 2 ) = CROSS_TERM
         CASE ( "VWN" )
            functional ( 1 ) = "SLATER"
            functional ( 2 ) = "VWN"
-           ftags ( 2, 2 ) = CROSS_TERM
+           crossterms ( 2 ) = CROSS_TERM
         CASE ( "PADE" )
            functional ( 1 ) = "NONE"
            functional ( 2 ) = "PADE"
-           ftags ( 2, 2 ) = CROSS_TERM
+           crossterms ( 2 ) = CROSS_TERM
         CASE ( "BP", "BP86", "BECKE-PERDEW" )
            functional ( 1 ) = "BECKE88"
            functional ( 2 ) = "PERDEW86"
-           ftags ( 1, 1 ) = GRADIENT_FUNCTIONAL
-           ftags ( 1, 2 ) = GRADIENT_FUNCTIONAL
-           ftags ( 2, 2 ) = CROSS_TERM
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
+           gradient_functionals ( 2 ) = GRADIENT_FUNCTIONAL
+           crossterms ( 2 ) = CROSS_TERM
         CASE ( "BLYP", "BECKE-LEE-YANG-PARR" )
            functional ( 1 ) = "BECKE88"
            functional ( 2 ) = "LYP"
-           ftags ( 1, 1 ) = GRADIENT_FUNCTIONAL
-           ftags ( 1, 2 ) = GRADIENT_FUNCTIONAL
-           ftags ( 2, 2 ) = CROSS_TERM
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
+           gradient_functionals ( 2 ) = GRADIENT_FUNCTIONAL
+           crossterms ( 2 ) = CROSS_TERM
         CASE ( "PBE" )
            functional ( 1 ) = "PBEX"
            functional ( 2 ) = "PBEC"
-           ftags ( 1, 1 ) = GRADIENT_FUNCTIONAL
-           ftags ( 1, 2 ) = GRADIENT_FUNCTIONAL
-           ftags ( 2, 2 ) = CROSS_TERM
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
+           gradient_functionals ( 2 ) = GRADIENT_FUNCTIONAL
+           crossterms ( 2 ) = CROSS_TERM
         CASE ( "OLYP" )
            functional ( 1 ) = "OPTX"
            functional ( 2 ) = "LYP"
-           ftags ( 1, 1 ) = GRADIENT_FUNCTIONAL
-           ftags ( 1, 2 ) = GRADIENT_FUNCTIONAL
-           ftags ( 2, 2 ) = CROSS_TERM
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
+           gradient_functionals ( 2 ) = GRADIENT_FUNCTIONAL
+           crossterms ( 2 ) = CROSS_TERM
         END SELECT
 
      CASE ( 1 )
      ! exchange functionals
-        ftags ( :, 1 ) = .FALSE.
+        gradient_functionals(1) = .FALSE.
+        crossterms(1) = .FALSE.
 
         SELECT CASE ( string )
         CASE DEFAULT
@@ -662,27 +664,28 @@ CONTAINS
            functional ( 1 ) = "SLATER"
         CASE ( "BECKE", "BECKE88" )
            functional ( 1 ) = "BECKE88"
-           ftags ( 1, 1 ) = GRADIENT_FUNCTIONAL
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
         CASE ( "PW86", "PERDEW-WANG86" )
            functional ( 1 ) = "X_PW86"
-           ftags ( 1, 1 ) = GRADIENT_FUNCTIONAL
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
         CASE ( "PW91", "PERDEW-WANG91" )
            functional ( 1 ) = "X_PW91"
-           ftags ( 1, 1 ) = GRADIENT_FUNCTIONAL
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
         CASE ( "PBE" )
            functional ( 1 ) = "PBEX"
-           ftags ( 1, 1 ) = GRADIENT_FUNCTIONAL
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
         CASE ( "REVPBE" )
            functional ( 1 ) = "REVPBEX"
-           ftags ( 1, 1 ) = GRADIENT_FUNCTIONAL
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
         CASE ( "OPTX" )
            functional ( 1 ) = "OPTX"
-           ftags ( 1, 1 ) = GRADIENT_FUNCTIONAL
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
         END SELECT
 
      CASE ( 2 )
      ! correlation functionals
-        ftags ( :, 2 ) = .FALSE.
+        gradient_functionals(2) = .FALSE.
+        crossterms(2) = .FALSE.
 
         SELECT CASE ( string )
         CASE DEFAULT
@@ -691,38 +694,39 @@ CONTAINS
            functional ( 2 ) = "NONE"
         CASE ( "LDA", "PZ" )
            functional ( 2 ) = "PZ"
-           ftags ( 2, 2 ) = CROSS_TERM
+           crossterms ( 2 ) = CROSS_TERM
         CASE ( "PW", "PERDEW-WANG" )
            functional ( 2 ) = "PW"
-           ftags ( 2, 2 ) = CROSS_TERM
+           crossterms ( 2 ) = CROSS_TERM
         CASE ( "VWN" )
            functional ( 2 ) = "VWN"
-           ftags ( 2, 2 ) = CROSS_TERM
+           crossterms ( 2 ) = CROSS_TERM
         CASE ( "PADE" )
            functional ( 1 ) = "NONE"
            functional ( 2 ) = "PADE"
-           ftags ( 2, 2 ) = CROSS_TERM
+           crossterms ( 2 ) = CROSS_TERM
         CASE ( "PBE" )
            functional ( 2 ) = "PBEC"
-           ftags ( 1, 2 ) = GRADIENT_FUNCTIONAL
-           ftags ( 2, 2 ) = CROSS_TERM
+           gradient_functionals ( 2 ) = GRADIENT_FUNCTIONAL
+           crossterms ( 2 ) = CROSS_TERM
         CASE ( "CS1" )
            functional ( 2 ) = "CS1"
-           ftags ( 1, 2 ) = GRADIENT_FUNCTIONAL
-           ftags ( 2, 2 ) = CROSS_TERM
+           gradient_functionals ( 2 ) = GRADIENT_FUNCTIONAL
+           crossterms ( 2 ) = CROSS_TERM
         CASE ( "LYP", "LEE-YANG-PARR" )
            functional ( 2 ) = "LYP"
-           ftags ( 1, 2 ) = GRADIENT_FUNCTIONAL
-           ftags ( 2, 2 ) = CROSS_TERM
+           gradient_functionals ( 2 ) = GRADIENT_FUNCTIONAL
+           crossterms ( 2 ) = CROSS_TERM
         CASE ( "P86", "PERDEW86" )
            functional ( 2 ) = "PERDEW86"
-           ftags ( 1, 2 ) = GRADIENT_FUNCTIONAL
-           ftags ( 2, 2 ) = CROSS_TERM
+           gradient_functionals ( 2 ) = GRADIENT_FUNCTIONAL
+           crossterms ( 2 ) = CROSS_TERM
         END SELECT
 
      CASE ( 3 )
      ! kinetic energy functionals
-        ftags ( :, 3 ) = .FALSE.
+        gradient_functionals(3) = .FALSE.
+        crossterms(3) = .FALSE.
 
         SELECT CASE ( string )
         CASE DEFAULT
@@ -733,28 +737,28 @@ CONTAINS
            functional ( 3 ) = "TF"
         CASE ( "TFW", "THOMAS-FERMI-WEIZSAECKER", "WEIZSAECKER" )
            functional ( 3 ) = "TFW"
-           ftags ( 1, 3 ) = GRADIENT_FUNCTIONAL
+           gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
         CASE ( "PW86", "PERDEW-WANG86" )
            functional ( 3 ) = "KE_PW86"
-           ftags ( 1, 3 ) = GRADIENT_FUNCTIONAL
+           gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
         CASE ( "PW91", "PERDEW-WANG91" )
            functional ( 3 ) = "KE_PW91"
-           ftags ( 1, 3 ) = GRADIENT_FUNCTIONAL
+           gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
         CASE ( "OL1", "OU-YANG-LEVY-1" )
            functional ( 3 ) = "OL1"
-           ftags ( 1, 3 ) = GRADIENT_FUNCTIONAL
+           gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
         CASE ( "OL2", "OU-YANG-LEVY-2" )
            functional ( 3 ) = "OL2"
-           ftags ( 1, 3 ) = GRADIENT_FUNCTIONAL
+           gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
         CASE ( "LLP", "LEE-LEE-PARR" )
            functional ( 3 ) = "LLP"
-           ftags ( 1, 3 ) = GRADIENT_FUNCTIONAL
+           gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
         CASE ( "LC", "LEMBARKI-CHERMETTE" )
            functional ( 3 ) = "LC"
-           ftags ( 1, 3 ) = GRADIENT_FUNCTIONAL
+           gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
         CASE ( "T92", "THAKKAR" )
            functional ( 3 ) = "T92"
-           ftags ( 1, 3 ) = GRADIENT_FUNCTIONAL
+           gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
         END SELECT
 
      END SELECT
