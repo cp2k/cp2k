@@ -192,7 +192,7 @@ CONTAINS
     INTEGER :: jg2,kg2,i
     REAL(KIND=dp), POINTER, DIMENSION(:) :: buf
     buf(2)=(i*buf(2))**2
-    res = CEILING(-buf(1)*sqrt(max(buf(2)-kg2*buf(3)-jg2*buf(4),0.0_dp)))
+    res = CEILING(-0.1D-7-buf(1)*sqrt(max(buf(2)-kg2*buf(3)-jg2*buf(4),0.0_dp)))
   END FUNCTION do_and_hide_it_2
 END MODULE
 ! ***************************************************************
