@@ -20,8 +20,8 @@
   verlet_skin   1 angstroms
 
 &EWALD
- unit angstrom
- ewald_type ewald
+ units angstrom
+ ewald_type none
 &END
 
 &FORCE_FIELD
