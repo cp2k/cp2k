@@ -1217,7 +1217,6 @@ CONTAINS
              CASE default
                 CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
              END SELECT
-             NULLIFY(my_rho_g)
              CALL pw_pool_give_back_pw(pw_pool, tmp_g ,error=error)
           ELSE
              SELECT CASE(dft_control%xc_deriv_method_id)
@@ -1278,6 +1277,7 @@ CONTAINS
           my_rho_g_local=.FALSE.
           CALL pw_pool_give_back_pw(pw_pool, my_rho_g ,error=error)
        END IF
+       NULLIFY(my_rho_g)
 
     END DO
 
