@@ -284,8 +284,7 @@ SUBROUTINE electrostatics ( dg_part, dg_coef, part, coeff, box, grid_s,  &
 
   e_drho_rho0 = pw_integral_ab ( drho_ref % pw , phi1_r % pw )
 
-  energy = ( e_rho0_rho0 + e_drho_drho + &
-                                 e_drho_rho0 ) * inv_fourpi_eps0
+  energy = ( e_rho0_rho0 + e_drho_drho + e_drho_rho0 ) * inv_fourpi_eps0
 
   CALL coeff_deallocate ( phi2_r )
   CALL coeff_deallocate ( phi1_r )
@@ -379,6 +378,7 @@ SUBROUTINE electrostatics ( dg_part, dg_coef, part, coeff, box, grid_s,  &
       CALL structure_factor_deallocate ( exp_igr_coef ( ig ) )
     ENDDO
   ENDIF 
+
   IF ( PRESENT ( f_part ) ) THEN
     DO ig = 1, SIZE ( dg_part )  ! RHO0
       gt = dg_part ( ig ) % grid_index
@@ -459,84 +459,6 @@ SUBROUTINE electrostatics ( dg_part, dg_coef, part, coeff, box, grid_s,  &
 
 END SUBROUTINE electrostatics
 
-!******************************************************************************
-
-SUBROUTINE get_ref_density ( pw1, pw2 )
-  IMPLICIT NONE 
-  TYPE ( pw_type ), INTENT ( INOUT ), TARGET :: pw2
-  TYPE ( pw_type ), INTENT ( IN ), TARGET :: pw1
-! locals
-  INTEGER :: l, m, n, ngpts, gpt, l0, m0, n0
-  INTEGER, DIMENSION ( : ), POINTER :: mapl, mapm, mapn
-  INTEGER, DIMENSION ( :, : ), POINTER :: ghat, bds
-  INTEGER, PARAMETER :: IMPOSSIBLE = 10000
-
-  mapl => pw2 % pw_grid % mapl % pos
-  mapm => pw2 % pw_grid % mapm % pos
-  mapn => pw2 % pw_grid % mapn % pos
-  bds => pw2 % pw_grid % bounds
-
-  ghat => pw1 % pw_grid % g_hat
-
-  ngpts = SIZE ( pw1 % pw_grid % gsq ( : ) )
-
-  IF ( -bds ( 1, 1 ) == bds ( 2, 1 ) ) THEN
-    l0 = IMPOSSIBLE
-  ELSE
-    l0 = bds ( 1, 1 )
-  END IF
-
-  IF ( -bds ( 1, 2 ) == bds ( 2, 2 ) ) THEN
-    m0 = IMPOSSIBLE
-  ELSE
-    m0 = bds ( 1, 2 )
-  END IF
-
-  IF ( -bds ( 1, 3 ) == bds ( 2, 3 ) ) THEN
-    n0 = IMPOSSIBLE
-  ELSE
-    n0 = bds ( 1, 3 )
-  END IF
-
-  DO gpt = 1, ngpts
-
-    l = mapl ( ghat ( 1, gpt ) ) + bds ( 1, 1 )
-    m = mapm ( ghat ( 2, gpt ) ) + bds ( 1, 2 )
-    n = mapn ( ghat ( 3, gpt ) ) + bds ( 1, 3 )
-    pw2 % cc3d ( l, m, n ) = pw2 % cc3d ( l, m, n ) + pw1 % cc ( gpt ) 
-
-    IF ( ghat ( 1, gpt ) == l0 .OR. ghat ( 2, gpt ) == m0 .OR. ghat ( 3, gpt ) == n0 ) THEN
-      pw2 % cc3d ( l, m, n ) = 0.0_dbl
-    END IF
-
-  END DO
-
-
-  IF ( pw1 % pw_grid % grid_span == HALFSPACE ) THEN
-
-    mapl => pw2 % pw_grid % mapl % neg
-    mapm => pw2 % pw_grid % mapm % neg
-    mapn => pw2 % pw_grid % mapn % neg
-
-    DO gpt = 1, ngpts
-
-      l = mapl ( ghat ( 1, gpt ) ) + bds ( 1, 1 )
-      m = mapm ( ghat ( 2, gpt ) ) + bds ( 1, 2 )
-      n = mapn ( ghat ( 3, gpt ) ) + bds ( 1, 3 )
-      pw2 % cc3d ( l, m, n ) = pw2 % cc3d ( l, m, n ) +  &
-                               CONJG ( pw1 % cc ( gpt ) )
-
-      IF ( ghat ( 1, gpt ) == l0 .OR. ghat ( 2, gpt ) == m0 .OR. ghat ( 3, gpt ) == n0 ) THEN
-        pw2 % cc3d ( l, m, n ) = 0.0_dbl
-      END IF
-
-    END DO
-
-
-  END IF
-
-END SUBROUTINE get_ref_density 
-                             
 !******************************************************************************
 !!****** pol_electrostatics/drho_evaluate [1.0] *
 !!
