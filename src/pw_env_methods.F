@@ -316,9 +316,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         grid_span = HALFSPACE
      END IF
      CALL setup_MT_ref_grid(green, cutilev, grid_span, cell_ref, para_env, &
-          old_pw_grid, qs_env%input, error) 
+          old_pw_grid, qs_env%input, ngrid_level, error) 
      !
-     ! Setup od the multi-grid pw_grid and pw_pools
+     ! Setup of the multi-grid pw_grid and pw_pools
      !
      DO igrid_level=1,ngrid_level 
         ALLOCATE(pw_grid,stat=stat)

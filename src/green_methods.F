@@ -56,7 +56,10 @@ MODULE green_methods
                                              use_perd_xz,&
                                              use_perd_yz,&
                                              use_perd_xyz,&
-                                             use_perd_none                                             
+                                             use_perd_none         
+  USE fft_tools,                       ONLY: FFT_RADIX_NEXT,&
+                                             FFT_RADIX_NEXT_ODD,&
+                                             fft_radix_operations
   USE green_types,                     ONLY: greens_function_type,&
                                              influence_factor,&
                                              pw_green_create
@@ -78,7 +81,8 @@ MODULE green_methods
   USE input_cp2k,                      ONLY: parsed_cp2k_input
   USE simulation_cell,                 ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_grid_types,                   ONLY: pw_grid_type,&
+                                             HALFSPACE
   USE pw_grids,                        ONLY: pw_grid_construct,&
                                              pw_grid_find_bounds,&
                                              pw_grid_setup
@@ -319,13 +323,13 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE setup_MT_ref_grid(green, cutilev, grid_span, cell_ref, para_env, &
-          old_pw_grid, input, error)
+          old_pw_grid, input, my_ncommensurate, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(greens_function_type), POINTER       :: green
     TYPE(section_vals_type), POINTER          :: input
     REAL(KIND=dp), INTENT(IN) :: cutilev
-    INTEGER, INTENT(IN)       :: grid_span
+    INTEGER, INTENT(IN)       :: grid_span, my_ncommensurate
     TYPE(cell_type), pointer  :: cell_ref
     TYPE(cp_para_env_type), POINTER :: para_env
     TYPE(pw_grid_type), POINTER     :: old_pw_grid
@@ -335,7 +339,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = "setup_MT_ref_grid", &
       routineP = moduleN//':'//routineN
     TYPE(section_vals_type), POINTER          :: poisson_section
-    INTEGER :: my_val, stat
+    INTEGER :: my_val, stat,  n(3), nlowest, nlowest_new, ntest(3)
     INTEGER, DIMENSION(2, 3) :: bounds1, bounds2
     REAL(KIND=dp) :: my_cutilev
     LOGICAL :: failure
@@ -355,7 +359,49 @@ CONTAINS
                ABS(cutilev), fft=.TRUE. )
           CALL pw_grid_find_bounds ( bounds2, cell_ref % h_inv, &
                ABS(my_cutilev), fft=.TRUE. )
-          IF (ANY (bounds1 /= bounds2)) THEN 
+
+          ntest = bounds1 ( 2, : ) - bounds1 ( 1, : ) + 1
+          IF ( grid_span == HALFSPACE ) THEN
+  
+             CALL fft_radix_operations ( ntest(1), n(1), FFT_RADIX_NEXT_ODD )
+             CALL fft_radix_operations ( ntest(2), n(2), FFT_RADIX_NEXT_ODD )
+             CALL fft_radix_operations ( ntest(3), n(3), FFT_RADIX_NEXT_ODD )
+             
+          ELSE
+             DO
+                CALL fft_radix_operations ( ntest(1), n(1), FFT_RADIX_NEXT )
+                nlowest=n(1)/2**(my_ncommensurate-1)
+                CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
+                IF (nlowest==nlowest_new .AND. MODULO(n(1),2**(my_ncommensurate-1)).EQ.0) THEN
+                   EXIT
+                ELSE
+                   ntest(1)=n(1)+1
+                ENDIF
+             ENDDO
+             DO
+                CALL fft_radix_operations ( ntest(2), n(2), FFT_RADIX_NEXT )
+                nlowest=n(2)/2**(my_ncommensurate-1)
+                CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
+                IF (nlowest==nlowest_new .AND. MODULO(n(2),2**(my_ncommensurate-1)).EQ.0) THEN
+                   EXIT
+                ELSE
+                   ntest(2)=n(2)+1
+                ENDIF
+             ENDDO
+             DO
+                CALL fft_radix_operations ( ntest(3), n(3), FFT_RADIX_NEXT )
+                nlowest=n(3)/2**(my_ncommensurate-1)
+                CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
+                IF (nlowest==nlowest_new .AND. MODULO(n(3),2**(my_ncommensurate-1)).EQ.0) THEN
+                   EXIT
+                ELSE
+                   ntest(3)=n(3)+1
+                ENDIF
+             ENDDO
+          END IF
+          bounds1 ( 1, : ) = - n / 2
+          bounds1 ( 2, : ) = bounds1 ( 1, : ) + n - 1          
+          IF (ALL (ABS(bounds1) < ABS(bounds2))) THEN 
              ALLOCATE(green%super_ref_pw_grid,stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              CALL pw_grid_construct(green%super_ref_pw_grid)
