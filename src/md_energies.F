@@ -152,6 +152,7 @@ END SUBROUTINE set_qs_energies
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "md_energy_qs"
 
     CHARACTER(LEN=200)                       :: title
+    CHARACTER(len=50)                        :: filename
     INTEGER                                  :: handle, istat, isubsys, iw
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: file_exists, replace_file
@@ -192,7 +193,8 @@ END SUBROUTINE set_qs_energies
     IF (itimes == 0) THEN
       IF (ionode) THEN
         replace_file = (simpar%read_type == "INIT")
-        INQUIRE (FILE=TRIM(ener_file_name),EXIST=file_exists)
+        filename=ener_file_name
+        INQUIRE (FILE=filename,EXIST=file_exists)
         CALL open_md_file(ener_file_name,ene,replace_file)
         IF (.NOT.replace_file.AND.file_exists) THEN
           BACKSPACE (UNIT=ene,IOSTAT=istat)
@@ -332,7 +334,7 @@ END SUBROUTINE set_qs_energies
 
 !   ---------------------------------------------------------------------------
 
-    INQUIRE (FILE=TRIM(file_name),EXIST=file_exists)
+    INQUIRE (FILE=file_name,EXIST=file_exists)
 
     IF (PRESENT(replace_file)) THEN
       keep_file = (.NOT.replace_file.AND.file_exists)
