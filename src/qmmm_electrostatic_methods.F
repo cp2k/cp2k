@@ -255,10 +255,13 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
     REAL(dbl), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
     INTEGER, INTENT(IN) :: num_mm_atoms
+    INTEGER :: handle
 
+    CALL timeset(routineN,"I","",handle)
     CALL qmmm_electrostatic_on_grid_low(v_qmmm,v_qmmm%pw%cr3d,&
        mm_particles,mm_charges,&
        mm_el_pot_radius, mm_atom_index,num_mm_atoms,error)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_electrostatic_on_grid
 
 !!****f* qmmm_electrostatic_methods/qmmm_electrostatic_on_grid_low [1.0] *
@@ -409,7 +412,7 @@ CONTAINS
          DIMENSION(:), POINTER                   :: pgfs
     ! Local Variables
     LOGICAL :: failure
-    INTEGER :: ngrids,igrid,stat
+    INTEGER :: ngrids,igrid,stat, handle
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian', &
          routineP = moduleN//':'//routineN
     TYPE(realspace_grid_p_type), dimension(:), POINTER       :: tmp_grid
@@ -419,6 +422,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(mm_charges),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mm_atom_index),cp_failure_level,routineP,error,failure)
     !Statements
+    CALL timeset(routineN,"I","",handle)
     ngrids=size(rs_pools)
     ALLOCATE(tmp_grid(ngrids),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -438,6 +442,7 @@ CONTAINS
     END DO
     DEALLOCATE(tmp_grid,stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qmmm_elec_with_gaussian
 

@@ -370,7 +370,9 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
     REAL(dbl), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
     INTEGER, INTENT(IN) :: num_mm_atoms
-
+    INTEGER :: handle
+    
+    CALL timeset(routineN,"I","",handle)
     CALL qmmm_forces_on_grid_low(v_qmmm,&
                                  rho%cr3d,&
                                  mm_particles,&
@@ -380,6 +382,7 @@ CONTAINS
                                  num_mm_atoms,&
                                  dvol,&
                                  error)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qmmm_forces_on_grid
 
@@ -543,9 +546,10 @@ CONTAINS
          routineP = moduleN//':'//routineN
     TYPE(realspace_grid_p_type), POINTER, DIMENSION(:) :: tmp_grid
     REAL(KIND=dp) :: dvol
-    INTEGER :: ngrids, igrid, stat
+    INTEGER :: ngrids, igrid, stat, handle
     ! Statements
     failure=.FALSE.
+    CALL timeset(routineN,"I","",handle)
     NULLIFY(tmp_grid)
     CPPrecondition(ASSOCIATED(mm_particles),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mm_charges),cp_failure_level,routineP,error,failure)
@@ -579,6 +583,7 @@ CONTAINS
     END DO
     DEALLOCATE(tmp_grid,stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qmmm_forces_with_gaussian
 
