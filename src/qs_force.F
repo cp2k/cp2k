@@ -50,6 +50,7 @@ MODULE qs_force
   USE qs_overlap,                      ONLY: write_sparse_matrix
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf,                          ONLY: scf
+  USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
@@ -111,6 +112,7 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), POINTER      :: force
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,p,s
     TYPE(qs_ks_env_type), POINTER                   :: ks_env
+    TYPE(scf_control_type), POINTER                 :: scf_control
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: atom_of_kind,kind_of
 
@@ -131,7 +133,8 @@ CONTAINS
                     k=k,&
                     rho=rho,&
                     ks_env=ks_env,&
-                    force=force)
+                    force=force,&
+                    scf_control=scf_control)
 
     natom = SIZE(particle_set)
 
@@ -170,7 +173,12 @@ CONTAINS
     NULLIFY (w)
     CALL replicate_matrix_structure(s(1)%matrix,w,"W MATRIX")
 
-    CALL calculate_w_matrix(mo_set,k(1)%matrix,w,globenv)
+    IF (scf_control%use_ot) THEN
+      CALL calculate_w_matrix(mo_set,k(1)%matrix,w,globenv)
+    ELSE
+      CALL calculate_w_matrix(mo_set,w,globenv)
+    END IF
+
     IF (globenv%ionode.AND.globenv%print%w_matrix) THEN
       CALL write_sparse_matrix(w,4,6,qs_env,globenv)
     END IF

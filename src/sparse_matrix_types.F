@@ -70,7 +70,7 @@ MODULE sparse_matrix_types
   TYPE real_matrix_type
 !    PRIVATE
     TYPE(real_block_list_type), DIMENSION(:), POINTER :: block_list
-    CHARACTER(LEN=60)                                 :: name
+    CHARACTER(LEN=80)                                 :: name
     CHARACTER(LEN=40)                                 :: symmetry
     INTEGER                                           :: nblock_col,&
                                                          nblock_row,&
@@ -331,7 +331,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
   SUBROUTINE add_real_matrices(c,alpha,a,beta,b)
 
-!   Purpose: Calculate the sum of the  sparse matrices a and b which have the
+!   Purpose: Calculate the sum of the sparse matrices a and b which have the
 !            same structure.
 
 !            c = alpha*a + beta*b
@@ -361,78 +361,102 @@ END SUBROUTINE cp_sm_scale_and_add
 !   *** Check the association status of the matrices ***
 
     IF (.NOT.ASSOCIATED(a)) THEN
-       CALL stop_program(routine,"The matrix pointer a is not associated")
+      CALL stop_program(routine,"The matrix pointer a is not associated")
     END IF
 
     IF (.NOT.ASSOCIATED(b)) THEN
-       CALL stop_program(routine,"The matrix pointer b is not associated")
+      CALL stop_program(routine,"The matrix pointer b is not associated")
     END IF
 
     IF (.NOT.ASSOCIATED(c)) THEN
-       CALL stop_program(routine,"The matrix pointer c is not associated")
+      CALL stop_program(routine,"The matrix pointer c is not associated")
     END IF
 
 !   *** Add matrix elements ***
 
-    IF ((alpha == 1.0_wp).AND.(beta == 1.0_wp)) THEN ! make common case fast
+    IF ((alpha == 1.0_wp).AND.(beta == 1.0_wp)) THEN
 
-       DO iblock_row=1,c%nblock_row
+      DO iblock_row=1,c%nblock_row
 
-          block_node => first_block_node(c,iblock_row)
+        block_node => first_block_node(c,iblock_row)
 
-          DO WHILE (ASSOCIATED(block_node))
+        DO WHILE (ASSOCIATED(block_node))
 
-             CALL get_block_node(block_node=block_node,&
-                                 block_col=iblock_col,&
-                                 BLOCK=c_block)
+          CALL get_block_node(block_node=block_node,&
+                              block_col=iblock_col,&
+                              block=c_block)
 
-             CALL get_block_node(matrix=a,&
-                                 block_row=iblock_row,&
-                                 block_col=iblock_col,&
-                                 BLOCK=a_block)
+          CALL get_block_node(matrix=a,&
+                              block_row=iblock_row,&
+                              block_col=iblock_col,&
+                              block=a_block)
 
-             CALL get_block_node(matrix=b,&
-                                 block_row=iblock_row,&
-                                 block_col=iblock_col,&
-                                 BLOCK=b_block)
-             
-             c_block(:,:) = a_block(:,:) + b_block(:,:)
+          CALL get_block_node(matrix=b,&
+                              block_row=iblock_row,&
+                              block_col=iblock_col,&
+                              block=b_block)
 
-             block_node => block_node%next_block_node
+          IF (ASSOCIATED(a_block)) THEN
+            IF (ASSOCIATED(b_block)) THEN
+              c_block(:,:) = alpha*a_block(:,:) + beta*b_block(:,:)
+            ELSE
+              c_block(:,:) = alpha*a_block(:,:)
+            END IF
+          ELSE
+            IF (ASSOCIATED(b_block)) THEN
+              c_block(:,:) = beta*b_block(:,:)
+            ELSE
+              c_block(:,:) = 0.0_wp
+            END IF
+          END IF
 
-          END DO
+          block_node => block_node%next_block_node
 
-       END DO
+        END DO
+
+      END DO
 
     ELSE
 
-       DO iblock_row=1,c%nblock_row
+      DO iblock_row=1,c%nblock_row
 
-          block_node => first_block_node(c,iblock_row)
+        block_node => first_block_node(c,iblock_row)
 
-          DO WHILE (ASSOCIATED(block_node))
+        DO WHILE (ASSOCIATED(block_node))
 
-            CALL get_block_node(block_node=block_node,&
-                                block_col=iblock_col,&
-                                BLOCK=c_block)
+          CALL get_block_node(block_node=block_node,&
+                              block_col=iblock_col,&
+                              block=c_block)
 
-            CALL get_block_node(matrix=a,&
-                                block_row=iblock_row,&
-                                block_col=iblock_col,&
-                                BLOCK=a_block)
+          CALL get_block_node(matrix=a,&
+                              block_row=iblock_row,&
+                              block_col=iblock_col,&
+                              block=a_block)
 
-            CALL get_block_node(matrix=b,&
-                                block_row=iblock_row,&
-                                block_col=iblock_col,&
-                                BLOCK=b_block)
+          CALL get_block_node(matrix=b,&
+                              block_row=iblock_row,&
+                              block_col=iblock_col,&
+                              block=b_block)
 
-            c_block(:,:) = alpha*a_block(:,:) + beta*b_block(:,:)
+          IF (ASSOCIATED(a_block)) THEN
+            IF (ASSOCIATED(b_block)) THEN
+              c_block(:,:) = alpha*a_block(:,:) + beta*b_block(:,:)
+            ELSE
+              c_block(:,:) = alpha*a_block(:,:)
+            END IF
+          ELSE
+            IF (ASSOCIATED(b_block)) THEN
+              c_block(:,:) = beta*b_block(:,:)
+            ELSE
+              c_block(:,:) = 0.0_wp
+            END IF
+          END IF
 
-            block_node => block_node%next_block_node
+          block_node => block_node%next_block_node
 
-          END DO
+        END DO
 
-       END DO
+      END DO
 
     END IF
 
@@ -1408,7 +1432,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: matrix
-    CHARACTER(LEN=60), OPTIONAL, INTENT(OUT) :: matrix_name
+    CHARACTER(LEN=80), OPTIONAL, INTENT(OUT) :: matrix_name
     CHARACTER(LEN=40), OPTIONAL, INTENT(OUT) :: matrix_symmetry
     INTEGER, OPTIONAL, INTENT(OUT)           :: nblock_allocated,nblock_row,&
                                                 nblock_col,ncol,&

@@ -3436,7 +3436,7 @@ END SUBROUTINE blacs_scale_and_d
 
     ! Aufsetzen der Eigenvektorverteilung
     iam = mype
-    ev_row_block_size = 32
+    ev_row_block_size = n/(nprow*npcol)
     mynumrows = NUMROC(N,ev_row_block_size,iam,0,NPROW*NPCOL)
 
     ALLOCATE(EV_loc(mynumrows,N),c_ip(mynumrows))
@@ -3446,7 +3446,6 @@ END SUBROUTINE blacs_scale_and_d
 
     CALL pdgemr2d(N,N,EV,1,1,descz,EV_loc,1,1,desc_ev_loc,ictxt)
 
-!   *** START Diagonalising matrix ***
 !   *** START Diagonalising matrix ***
 
     ! Eigentliche Blockdiagonalisierung
@@ -3470,28 +3469,23 @@ END SUBROUTINE blacs_scale_and_d
           ! Und jetzt noch die Eigenvektoren produzieren:
           ! Q * J
           !  Verstaendliche Version (bevor die BLAS-Aufrufe sie ersetzt haben)
-          !  c_ip = c*EV_loc(:,p) - s*EV_loc(:,q);
-          !  c_iq = s*EV_loc(:,p) + c*EV_loc(:,q);
+          !  c_ip = c*EV_loc(:,p) - s*EV_loc(:,q)
+          !  c_iq = s*EV_loc(:,p) + c*EV_loc(:,q)
 
           !  EV(:,p)=c_ip;
           !  EV(:,q)=c_iq;
 
-          CALL dcopy(mynumrows,EV_loc(1,q),1,c_ip,1)
-          CALL dscal(mynumrows,-s,c_ip,1)
-          CALL daxpy(mynumrows,c,EV_loc(1,p),1,c_ip,1)
-
+          CALL dcopy(mynumrows,EV_loc(1,p),1,c_ip(1),1)
+          CALL dscal(mynumrows,c,EV_loc(1,p),1)
+          CALL daxpy(mynumrows,-s,EV_loc(1,q),1,EV_loc(1,p),1)
           CALL dscal(mynumrows,c,EV_loc(1,q),1)
-          CALL daxpy(mynumrows,s,EV_loc(1,p),1,EV_loc(1,q),1)
+          CALL daxpy(mynumrows,s,c_ip(1),1,EV_loc(1,q),1)
 
-          CALL dcopy(mynumrows,c_ip,1,EV_loc(1,p),1)
+         END IF
 
-         ENDIF
+      END DO
+    END DO
 
-
-      ENDDO  ! for-loop Innere
-    ENDDO   ! for-loop
-
-!   *** END Diagonalising matrix ***
 !   *** END Diagonalising matrix ***
 
     ! Nun muessen die Eigenvektoren wieder in die alte Verteilung zurueckverschickt werden.
@@ -3543,14 +3537,11 @@ END SUBROUTINE blacs_scale_and_d
           !  EV(:,p)=c_ip;
           !  EV(:,q)=c_iq;
 
-          CALL dcopy(N,EV(1,q),1,c_ip,1)
-          CALL dscal(N,-s,c_ip,1)
-          CALL daxpy(N,c,EV(1,p),1,c_ip,1)
-
-          CALL dscal(N,c,EV(1,q),1)
-          CALL daxpy(N,s,EV(1,p),1,EV(1,q),1)
-
-          CALL dcopy(N,c_ip,1,EV(1,p),1)
+          CALL dcopy(N,EV_loc(1,p),1,c_ip(1),1)
+          CALL dscal(N,c,EV_loc(1,p),1)
+          CALL daxpy(N,-s,EV_loc(1,q),1,EV_loc(1,p),1)
+          CALL dscal(N,c,EV_loc(1,q),1)
+          CALL daxpy(N,s,c_ip(1),1,EV_loc(1,q),1)
 
          ENDIF
 

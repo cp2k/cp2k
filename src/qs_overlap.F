@@ -49,6 +49,7 @@ MODULE qs_overlap
                                     set_qs_env
   USE qs_neighbor_list_types, ONLY: first_list,&
                                     first_node,&
+                                    get_neighbor_list_set,&
                                     get_neighbor_list,&
                                     get_neighbor_node,&
                                     neighbor_list_set_type,&
@@ -65,7 +66,8 @@ MODULE qs_overlap
                                     get_matrix_info,&
                                     real_matrix_p_type,&
                                     real_matrix_type,&
-                                    replicate_matrix_structure
+                                    replicate_matrix_structure,&
+                                    set_matrix
   USE string_utilities,       ONLY: compress,&
                                     uppercase
   USE termination,            ONLY: stop_memory,&
@@ -114,10 +116,11 @@ CONTAINS
 
 !   *** Local variables ***
 
-    TYPE(atomic_kind_type), POINTER   :: atomic_kind
-    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
-    TYPE(neighbor_list_type), POINTER :: sab_orb_neighbor_list
-    TYPE(neighbor_node_type), POINTER :: sab_orb_neighbor_node
+    TYPE(atomic_kind_type), POINTER       :: atomic_kind
+    TYPE(gto_basis_set_type), POINTER     :: orb_basis_set
+    TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
+    TYPE(neighbor_list_type), POINTER     :: neighbor_list
+    TYPE(neighbor_node_type), POINTER     :: neighbor_node
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
@@ -125,10 +128,11 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: s
 
     CHARACTER(LEN=12) :: cgfsym
-    CHARACTER(LEN=60) :: name
-    INTEGER           :: ab,group,handle,i,iatom,ij,ikind,ipe,istat,jatom,&
-                         jkind,jpe,mype,n,natom,nder,nkind,npack,npe,nsgf,&
-                         nsgfa,nsgfb,output_unit,sum_nblock_pe
+    CHARACTER(LEN=80) :: name
+    INTEGER           :: ab,group,handle,i,iatom,ij,ikind,ilist,inode,ipe,&
+                         istat,jatom,jkind,jpe,mype,n,natom,nder,nkind,nlist,&
+                         nnode,npack,npe,nsgf,nsgfa,nsgfb,output_unit,&
+                         sum_nblock_pe
     LOGICAL           :: ionode
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: nblock,nblock_pe,nelement,nelement_pe
@@ -175,7 +179,8 @@ CONTAINS
 
 !   *** Allocate the overlap matrix (we start always from scratch) ***
 
-    IF (globenv%print%overlap_matrix.AND.globenv%print%derivatives) THEN
+    IF ((globenv%print%overlap_matrix.AND.globenv%print%derivatives).OR.&
+        globenv%print%optical_conductivity) THEN
       nder = 1
     ELSE
       nder = 0
@@ -212,6 +217,8 @@ CONTAINS
 
         ab = ikind + jkind*(jkind - 1)/2
 
+        neighbor_list_set => sab_orb(ab)%neighbor_list_set
+
         IF (ikind == jkind) THEN
           nsgfb = nsgfa
         ELSE
@@ -225,18 +232,22 @@ CONTAINS
 
         n = nsgfa*nsgfb
 
-        sab_orb_neighbor_list => first_list(sab_orb(ab)%neighbor_list_set)
+        CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
+                                   nlist=nlist)
 
-        DO WHILE (ASSOCIATED(sab_orb_neighbor_list))
+        neighbor_list => first_list(neighbor_list_set)
 
-          CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list,&
-                                 atom=iatom)
+        DO ilist=1,nlist
 
-          sab_orb_neighbor_node => first_node(sab_orb_neighbor_list)
+          CALL get_neighbor_list(neighbor_list=neighbor_list,&
+                                 atom=iatom,&
+                                 nnode=nnode)
 
-          DO WHILE (ASSOCIATED(sab_orb_neighbor_node))
+          neighbor_node => first_node(neighbor_list)
 
-            CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
+          DO inode=1,nnode
+
+            CALL get_neighbor_node(neighbor_node=neighbor_node,&
                                    neighbor=jatom)
 
 !           *** Map lower triangle blocks to the upper triangle ***
@@ -250,11 +261,11 @@ CONTAINS
             nblock(ij) = nblock(ij) + 1
             nelement(ij) = nelement(ij) + n
 
-            sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+            neighbor_node => next(neighbor_node)
 
           END DO
 
-          sab_orb_neighbor_list => next(sab_orb_neighbor_list)
+          neighbor_list => next(neighbor_list)
 
         END DO
 
@@ -291,12 +302,13 @@ CONTAINS
 
     DO i=2,SIZE(s)
       cgfsym = cgf_symbol(1,indco(1:3,i))
-      name = cgfsym(4:)//" DERIVATIVE OF THE OVERLAP MATRIX"
+      name = TRIM(cgfsym(4:))//" DERIVATIVE OF THE OVERLAP MATRIX "//&
+             "W.R.T. THE NUCLEAR COORDINATES"
       CALL compress(name)
       CALL uppercase(name)
       CALL replicate_matrix_structure(source=s(1)%matrix,&
                                       target=s(i)%matrix,&
-                                      target_name=name,&
+                                      target_name=TRIM(name),&
                                       target_symmetry="antisymmetric")
     END DO
 
@@ -388,21 +400,22 @@ CONTAINS
 
 !   *** Local variables ***
 
-    TYPE(atomic_kind_type), POINTER   :: atomic_kind
-    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
-    TYPE(neighbor_list_type), POINTER :: sab_orb_neighbor_list
-    TYPE(neighbor_node_type), POINTER :: sab_orb_neighbor_node
+    TYPE(atomic_kind_type), POINTER       :: atomic_kind
+    TYPE(gto_basis_set_type), POINTER     :: orb_basis_set
+    TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
+    TYPE(neighbor_list_type), POINTER     :: neighbor_list
+    TYPE(neighbor_node_type), POINTER     :: neighbor_node
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: s
 
     REAL(wp) :: dab,rab2
-    INTEGER  :: ab,da_max,first_setb,handle,i,iatom,iblock,ikind,ineighbor,&
-                ipgf,iset,ishell,istat,jatom,jkind,jpgf,jset,jshell,katom,&
-                maxco,maxder,maxl,maxsgf,ncoa,ncob,nder,nkind,nneighbor,nseta,&
-                nsetb,sgfa,sgfb
-    LOGICAL  :: return_derivatives
+    INTEGER  :: ab,handle,i,iatom,iblock,ikind,ilist,ineighbor,inode,ipgf,&
+                iset,ishell,istat,jatom,jkind,jpgf,jset,jshell,katom,&
+                maxco,maxl,maxsgf,ncoa,ncob,nder,nkind,nlist,nneighbor,nnode,&
+                nseta,nsetb,sgfa,sgfb
+    LOGICAL  :: return_s_derivatives
 
     REAL(wp), DIMENSION(3)                :: rab
     REAL(wp), DIMENSION(:,:), ALLOCATABLE :: sab,work
@@ -430,16 +443,19 @@ CONTAINS
                     sab_orb=sab_orb,&
                     s=s)
 
-    return_derivatives = (globenv%print%overlap_matrix.AND.&
-                          globenv%print%derivatives)
+    return_s_derivatives = (SIZE(s) > 1)
 
-    IF (return_derivatives) THEN
+    IF (return_s_derivatives) THEN
       nder = 1
     ELSE
       nder = 0
     END IF
 
-    maxder = ncoset(nder)
+!   *** Initialise the overlap matrix and the derivative matrices ***
+
+    DO i=1,SIZE(s)
+      CALL set_matrix(s(i)%matrix,0.0_wp)
+    END DO
 
 !   *** Allocate work storage ***
 
@@ -450,8 +466,8 @@ CONTAINS
 
     CALL init_orbital_pointers(maxl+nder)
 
-    ALLOCATE (sab(maxco,maxco*maxder),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"sab",maxco*maxco*maxder*wp_size)
+    ALLOCATE (sab(maxco,maxco*SIZE(s)),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"sab",maxco*maxco*SIZE(s)*wp_size)
     sab(:,:) = 0.0_wp
 
     ALLOCATE (work(maxco,maxsgf),STAT=istat)
@@ -510,18 +526,24 @@ CONTAINS
 
         ab = ikind + jkind*(jkind - 1)/2
 
-        sab_orb_neighbor_list => first_list(sab_orb(ab)%neighbor_list_set)
+        neighbor_list_set => sab_orb(ab)%neighbor_list_set
 
-        DO WHILE (ASSOCIATED(sab_orb_neighbor_list))
+        CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
+                                   nlist=nlist)
 
-          CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list,&
-                                 atom=iatom)
+        neighbor_list => first_list(neighbor_list_set)
 
-          sab_orb_neighbor_node => first_node(sab_orb_neighbor_list)
+        DO ilist=1,nlist
 
-          DO WHILE (ASSOCIATED(sab_orb_neighbor_node))
+          CALL get_neighbor_list(neighbor_list=neighbor_list,&
+                                 atom=iatom,&
+                                 nnode=nnode)
 
-            CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
+          neighbor_node => first_node(neighbor_list)
+
+          DO inode=1,nnode
+
+            CALL get_neighbor_node(neighbor_node=neighbor_node,&
                                    neighbor=jatom,&
                                    r=rab(:))
 
@@ -538,10 +560,10 @@ CONTAINS
             END IF
 
 !           *** Check, if the atomic block has to be ***
-!           *** calculated by the current processor  ***
+!           *** calculated by the current process    ***
 
             IF (.NOT.ASSOCIATED(sint(1)%block)) THEN
-              sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+              neighbor_node => next(neighbor_node)
               CYCLE
             END IF
 
@@ -567,26 +589,12 @@ CONTAINS
               ncoa = npgfa(iset)*ncoset(la_max(iset))
               sgfa = first_sgfa(1,iset)
 
-              IF (iatom == jatom) THEN
-                first_setb = iset
-              ELSE
-                first_setb = 1
-              END IF
-
-              DO jset=first_setb,nsetb
+              DO jset=1,nsetb
 
                 IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
 
                 ncob = npgfb(jset)*ncoset(lb_max(jset))
                 sgfb = first_sgfb(1,jset)
-
-!               *** No derivatives are needed for the diagonal blocks ***
-
-                IF (iatom == jatom) THEN
-                  da_max = 0
-                ELSE
-                  da_max = nder
-                END IF
 
 !               *** Calculate the primitive overlap integrals ***
 
@@ -594,7 +602,7 @@ CONTAINS
                              rpgfa(1:npgfa(iset),iset),la_min(iset),&
                              lb_max(jset),zetb(1:npgfb(jset),jset),&
                              rpgfb(1:npgfb(jset),jset),lb_min(jset),&
-                             rab,rab2,dab,sab,da_max,return_derivatives)
+                             rab,rab2,dab,sab,nder,return_s_derivatives)
 
 !               *** Contraction step (overlap matrix) ***
 
@@ -618,46 +626,35 @@ CONTAINS
 
 !               *** Contraction step (derivatives of the overlap matrix) ***
 
-                IF (iatom /= jatom) THEN
-                  DO i=2,SIZE(s)
-                    iblock = (i - 1)*SIZE(sab,1) + 1
-                    CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
-                               1.0_wp,sab(1,iblock),SIZE(sab,1),&
-                               sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                               0.0_wp,work(1,1),SIZE(work,1))
-                    IF (iatom <= jatom) THEN
-                      CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
-                                 1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                 work(1,1),SIZE(work,1),&
-                                 1.0_wp,sint(i)%block(sgfa,sgfb),&
-                                 SIZE(sint(i)%block,1))
-                    ELSE
-                      CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
-                                 -1.0_wp,work(1,1),SIZE(work,1),&
-                                 sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                 1.0_wp,sint(i)%block(sgfb,sgfa),&
-                                 SIZE(sint(i)%block,1))
-                    END IF
-                  END DO
-                END IF
+                DO i=2,SIZE(s)
+                  iblock = (i - 1)*SIZE(sab,1) + 1
+                  CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
+                             1.0_wp,sab(1,iblock),SIZE(sab,1),&
+                             sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                             0.0_wp,work(1,1),SIZE(work,1))
+                  IF (iatom <= jatom) THEN
+                    CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
+                               1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                               work(1,1),SIZE(work,1),&
+                               1.0_wp,sint(i)%block(sgfa,sgfb),&
+                               SIZE(sint(i)%block,1))
+                  ELSE
+                    CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
+                               -1.0_wp,work(1,1),SIZE(work,1),&
+                               sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                               1.0_wp,sint(i)%block(sgfb,sgfa),&
+                               SIZE(sint(i)%block,1))
+                  END IF
+                END DO
 
               END DO
             END DO
 
-!           *** Symmetrize the diagonal blocks ***
-
-            IF (iatom == jatom) THEN
-              CALL symmetrize_matrix(sint(1)%block,"upper_to_lower")
-              DO i=2,SIZE(s)
-                sint(i)%block(:,:) = 0.0_wp
-              END DO
-            END IF
-
-            sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+            neighbor_node => next(neighbor_node)
 
           END DO
 
-          sab_orb_neighbor_list => next(sab_orb_neighbor_list)
+          neighbor_list => next(neighbor_list)
 
         END DO
 
@@ -844,7 +841,7 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
 
-    CHARACTER(LEN=60) :: name
+    CHARACTER(LEN=80) :: name
     CHARACTER(LEN=40) :: symmetry
     CHARACTER(LEN=25) :: fmtstr1
     CHARACTER(LEN=35) :: fmtstr2

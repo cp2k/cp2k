@@ -22,6 +22,7 @@
 !******************************************************************************
 
 MODULE global_types
+
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   IMPLICIT NONE
@@ -69,13 +70,15 @@ MODULE global_types
                mo_eigenvalues,&
                mo_eigenvectors,&
                mo_occupation_numbers
-    LOGICAL :: ortho_matrix,&
+    LOGICAL :: optical_conductivity,&
+               ortho_matrix,&
                overlap_matrix,&
                overlap_matrix_magnitude, &
                density_matrix_magnitude, &
                pgf_radii,&
                physcon,&
                potential,&
+               potential_energy_matrix,&
                ppl_radii,&
                ppnl_radii,&
                program_banner,&

@@ -345,6 +345,10 @@ CONTAINS
        DO WHILE (test_object(newline=.TRUE.) /= "EOS")
           CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
           SELECT CASE (TRIM(keyword))
+          CASE ("NROW_BLOCK")
+             CALL read_object(scf_control%nrow_block)
+          CASE ("NCOL_BLOCK")
+             CALL read_object(scf_control%ncol_block)
           CASE ("OT")
              scf_control%use_ot = .TRUE.
           CASE ("DENSITY_GUESS","SCF_GUESS","GUESS")
@@ -373,9 +377,9 @@ CONTAINS
              CALL read_object(scf_control%level_shift)
              IF (scf_control%level_shift /= 0.0_wp) &
                   scf_control%use_cholesky = .FALSE.
-          CASE ("MAX_DIIS")
+          CASE ("MAX_DIIS_BUFFER_SIZE","MAX_DIIS")
              CALL read_object(scf_control%max_diis)
-          CASE ("MAX_SCF")
+          CASE ("MAX_SCF_STEP_NUMBER","MAX_SCF")
              CALL read_object(scf_control%max_scf)
           CASE ("NREBUILD")
              CALL read_object(scf_control%nrebuild)

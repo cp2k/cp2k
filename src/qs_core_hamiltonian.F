@@ -73,7 +73,7 @@
 !******************************************************************************
 
 MODULE qs_core_hamiltonian
-! *****************************************************************************
+
   USE ai_kinetic,                      ONLY: kinetic
   USE ai_overlap_new,                  ONLY: overlap
   USE ai_overlap_ppl,                  ONLY: overlap_ppl
@@ -105,6 +105,7 @@ MODULE qs_core_hamiltonian
                                              first_list,&
                                              first_node,&
                                              get_neighbor_list,&
+                                             get_neighbor_list_set,&
                                              get_neighbor_node,&
                                              neighbor_list_set_p_type,&
                                              neighbor_list_set_type,&
@@ -114,7 +115,9 @@ MODULE qs_core_hamiltonian
   USE qs_overlap,                      ONLY: write_sparse_matrix
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
+  USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: add_block_node,&
+                                             add_matrices,&
                                              allocate_matrix,&
                                              allocate_matrix_set,&
                                              copy_sparse_to_full_matrix,&
@@ -158,7 +161,7 @@ MODULE qs_core_hamiltonian
   TYPE(gth_potential_type), POINTER :: gth_potential
   TYPE(gto_basis_set_type), POINTER :: orb_basis_set
   CHARACTER(LEN=12)                 :: cgfsym
-  CHARACTER(LEN=60)                 :: name
+  CHARACTER(LEN=80)                 :: name
   INTEGER                           :: ldsab,ldwork,maxder,maxl,maxsgf,nder,&
                                        nkind
 
@@ -168,7 +171,7 @@ MODULE qs_core_hamiltonian
                                                            sca_ppnl,scb_ppnl
   TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
   TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
-  TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: h,s,t
+  TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: h,s,t,v
 
   INTEGER, DIMENSION(:), ALLOCATABLE    :: atom_of_kind,kind_of
   REAL(wp), DIMENSION(:,:), ALLOCATABLE :: hab,pab,sab,vdab,vadb,work
@@ -219,12 +222,14 @@ CONTAINS
                                          sac_ppl_neighbor_list
     TYPE(neighbor_node_type), POINTER :: sab_orb_neighbor_node,&
                                          sac_ppl_neighbor_node
+    TYPE(scf_control_type), POINTER   :: scf_control
 
     REAL(wp) :: dab,dac,dbc,f,f0,rab2,rac2,rbc2
-    INTEGER  :: ab,ac,atom_a,atom_b,atom_c,da_max,db_max,first_col,handle,&
-                i,iatom,ikind,inode,ipgf,iset,ishell,istat,jatom,jkind,&
-                jpgf,jset,jshell,katom,kkind,maxco,maxdco,maxl,maxppnl,natom,&
-                natom_of_kind,ncoa,ncob,nneighbor,nnode,nseta,nsetb,sgfa,sgfb
+    INTEGER  :: ab,ac,atom_a,atom_b,atom_c,first_col,handle,&
+                i,iatom,ikind,ilist,inode,ipgf,iset,ishell,istat,jatom,jkind,&
+                jpgf,jset,jshell,katom,kkind,knode,maxco,maxdco,maxl,maxppnl,&
+                natom,natom_of_kind,ncoa,ncob,nlist,nneighbor,nnode,nseta,&
+                nsetb,sgfa,sgfb
     LOGICAL  :: gth_potential_present,ppnl_present,&
                 return_s_derivatives,return_t_derivatives
 
@@ -252,7 +257,7 @@ CONTAINS
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=200) :: file_name
     INTEGER            :: file_unit
-    LOGICAL            :: construct_kinetic_energy_matrix
+    LOGICAL            :: build_kinetic_energy_matrix
 
 !   ---------------------------------------------------------------------------
 
@@ -270,6 +275,7 @@ CONTAINS
                     sac_ppl=sac_ppl,&
                     sca_ppnl=sca_ppnl,&
                     scb_ppnl=scb_ppnl,&
+                    scf_control=scf_control,&
                     force=force)
 
     nkind = SIZE(atomic_kind_set)
@@ -337,39 +343,41 @@ CONTAINS
 
     maxder = ncoset(nder)
 
-    return_s_derivatives = (globenv%print%overlap_matrix.AND.&
-                            globenv%print%derivatives)
+    return_s_derivatives = (SIZE(s) > 1)
 
 !   *** Initialise the overlap matrix ***
 
-    CALL set_matrix(s(1)%matrix,0.0_wp)
+    DO i=1,SIZE(s)
+      CALL set_matrix(s(i)%matrix,0.0_wp)
+    END DO
 
 !   *** Allocate the kinetic energy integral ***
-!   *** matrix (only needed for printing)    ***
-!   *** also needed as an OT preconditioner  ***
+!   *** matrix (only needed for printing or  ***
+!   *** the OT preconditioner)               ***
 
-    construct_kinetic_energy_matrix = (.TRUE. .OR. globenv%print%kinetic_energy_matrix)
+    build_kinetic_energy_matrix = (scf_control%use_ot.OR.&
+                                   globenv%print%kinetic_energy_matrix.OR.&
+                                   globenv%print%potential_energy_matrix)
 
-    IF (construct_kinetic_energy_matrix) THEN
-      IF (globenv%print%derivatives.AND.&
-          globenv%print%kinetic_energy_matrix) THEN
+    IF (build_kinetic_energy_matrix) THEN
+      IF (globenv%print%derivatives) THEN
         CALL allocate_matrix_set(t,maxder)
         return_t_derivatives = .TRUE.
       ELSE
         CALL allocate_matrix_set(t,1)
+        return_t_derivatives = .FALSE.
       END IF
-
       CALL replicate_matrix_structure(source=s(1)%matrix,&
-                                      TARGET=t(1)%matrix,&
+                                      target=t(1)%matrix,&
                                       target_name="KINETIC ENERGY MATRIX")
-
       DO i=2,SIZE(t)
         cgfsym = cgf_symbol(1,indco(1:3,i))
-        name = cgfsym(4:)//" DERIVATIVE OF THE KINETIC ENERGY MATRIX"
+        name = TRIM(cgfsym(4:))//" DERIVATIVE OF THE KINETIC ENERGY MATRIX "//&
+               "W.R.T. THE NUCLEAR COORDINATES"
         CALL compress(name)
         CALL uppercase(name)
         CALL replicate_matrix_structure(source=t(1)%matrix,&
-                                        TARGET=t(i)%matrix,&
+                                        target=t(i)%matrix,&
                                         target_name=name,&
                                         target_symmetry="antisymmetric")
       END DO
@@ -380,7 +388,7 @@ CONTAINS
     CALL allocate_matrix_set(h,1)
 
     CALL replicate_matrix_structure(source=s(1)%matrix,&
-                                    TARGET=h(1)%matrix,&
+                                    target=h(1)%matrix,&
                                     target_name="CORE HAMILTONIAN MATRIX")
 
 !   *** Allocate work storage ***
@@ -441,7 +449,7 @@ CONTAINS
       NULLIFY (sint(i)%block)
     END DO
 
-    IF (construct_kinetic_energy_matrix) THEN
+    IF (build_kinetic_energy_matrix) THEN
       ALLOCATE (tint(SIZE(t)),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"tint",SIZE(t)*int_size)
       DO i=1,SIZE(tint)
@@ -530,7 +538,11 @@ CONTAINS
 
         sab_orb_neighbor_list => first_list(sab_orb(ab)%neighbor_list_set)
 
-        DO WHILE (ASSOCIATED(sab_orb_neighbor_list))
+        CALL get_neighbor_list_set(neighbor_list_set=&
+                                     sab_orb(ab)%neighbor_list_set,&
+                                   nlist=nlist)
+
+        DO ilist=1,nlist
 
           CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list,&
                                  atom=iatom)
@@ -573,19 +585,16 @@ CONTAINS
                 CALL stop_memory(routine,"vppl(kkind)%r",3*nnode*wp_size)
               END IF
 
-              inode = 0
-
               sac_ppl_neighbor_node => first_node(sac_ppl_neighbor_list)
 
-              DO WHILE (ASSOCIATED(sac_ppl_neighbor_node))
-                inode = inode + 1
+              DO knode=1,nnode
                 CALL get_neighbor_node(neighbor_node=sac_ppl_neighbor_node,&
-                                       neighbor=vppl(kkind)%neighbor(inode),&
-                                       r=vppl(kkind)%r(:,inode))
-                vppl(kkind)%r2(inode) =&
-                  vppl(kkind)%r(1,inode)*vppl(kkind)%r(1,inode) +&
-                  vppl(kkind)%r(2,inode)*vppl(kkind)%r(2,inode) +&
-                  vppl(kkind)%r(3,inode)*vppl(kkind)%r(3,inode)
+                                       neighbor=vppl(kkind)%neighbor(knode),&
+                                       r=vppl(kkind)%r(:,knode))
+                vppl(kkind)%r2(knode) =&
+                  vppl(kkind)%r(1,knode)*vppl(kkind)%r(1,knode) +&
+                  vppl(kkind)%r(2,knode)*vppl(kkind)%r(2,knode) +&
+                  vppl(kkind)%r(3,knode)*vppl(kkind)%r(3,knode)
                 sac_ppl_neighbor_node => next(sac_ppl_neighbor_node)
               END DO
 
@@ -593,9 +602,12 @@ CONTAINS
 
           END IF
 
+          CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list,&
+                                 nnode=nnode)
+
           sab_orb_neighbor_node => first_node(sab_orb_neighbor_list)
 
-          DO WHILE (ASSOCIATED(sab_orb_neighbor_node))
+          DO inode=1,nnode
 
             CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
                                    neighbor=jatom,&
@@ -615,12 +627,12 @@ CONTAINS
               CALL get_block_node(matrix=s(1)%matrix,&
                                   block_row=iatom,&
                                   block_col=jatom,&
-                                  BLOCK=sint(1)%block)
+                                  block=sint(1)%block)
             ELSE
               CALL get_block_node(matrix=s(1)%matrix,&
                                   block_row=jatom,&
                                   block_col=iatom,&
-                                  BLOCK=sint(1)%block)
+                                  block=sint(1)%block)
             END IF
 
 !           *** Check, if the atomic block has to be ***
@@ -635,27 +647,27 @@ CONTAINS
                   CALL get_block_node(matrix=s(i)%matrix,&
                                       block_row=iatom,&
                                       block_col=jatom,&
-                                      BLOCK=sint(i)%block)
+                                      block=sint(i)%block)
                 ELSE
                   CALL get_block_node(matrix=s(i)%matrix,&
                                       block_row=jatom,&
                                       block_col=iatom,&
-                                      BLOCK=sint(i)%block)
+                                      block=sint(i)%block)
                 END IF
               END DO
 
-              IF (construct_kinetic_energy_matrix) THEN
+              IF (build_kinetic_energy_matrix) THEN
                 DO i=1,SIZE(t)
                   IF (iatom <= jatom) THEN
                     CALL get_block_node(matrix=t(i)%matrix,&
                                         block_row=iatom,&
                                         block_col=jatom,&
-                                        BLOCK=tint(i)%block)
+                                        block=tint(i)%block)
                   ELSE
                     CALL get_block_node(matrix=t(i)%matrix,&
                                         block_row=jatom,&
                                         block_col=iatom,&
-                                        BLOCK=tint(i)%block)
+                                        block=tint(i)%block)
                   END IF
                 END DO
               END IF
@@ -664,31 +676,31 @@ CONTAINS
                 CALL get_block_node(matrix=h(1)%matrix,&
                                     block_row=iatom,&
                                     block_col=jatom,&
-                                    BLOCK=h_block)
+                                    block=h_block)
                 IF (calculate_forces) THEN
                   CALL get_block_node(matrix=p,&
                                       block_row=iatom,&
                                       block_col=jatom,&
-                                      BLOCK=p_block)
+                                      block=p_block)
                   CALL get_block_node(matrix=w,&
                                       block_row=iatom,&
                                       block_col=jatom,&
-                                      BLOCK=w_block)
+                                      block=w_block)
                 END IF
               ELSE
                 CALL get_block_node(matrix=h(1)%matrix,&
                                     block_row=jatom,&
                                     block_col=iatom,&
-                                    BLOCK=h_block)
+                                    block=h_block)
                 IF (calculate_forces) THEN
                   CALL get_block_node(matrix=p,&
                                       block_row=jatom,&
                                       block_col=iatom,&
-                                      BLOCK=p_block)
+                                      block=p_block)
                   CALL get_block_node(matrix=w,&
                                       block_row=jatom,&
                                       block_col=iatom,&
-                                      BLOCK=w_block)
+                                      block=w_block)
                 END IF
               END IF
 
@@ -706,17 +718,6 @@ CONTAINS
 
                   ncob = npgfb(jset)*ncoset(lb_max(jset))
                   sgfb = first_sgfb(1,jset)
-
-!                 *** No derivatives are needed for the diagonal blocks ***
-!                 *** of the two-center integrals except the overlap    ***
-!                 *** integrals which are needed for the calculation of ***
-!                 *** the kinetic energy integrals                      ***
-
-                  IF (iatom == jatom) THEN
-                    da_max = 0
-                  ELSE
-                    da_max = nder
-                  END IF
 
                   IF (calculate_forces.AND.(iatom /= jatom)) THEN
 
@@ -745,7 +746,7 @@ CONTAINS
                                  rpgfa(1:npgfa(iset),iset),la_min(iset),&
                                  lb_max(jset),zetb(1:npgfb(jset),jset),&
                                  rpgfb(1:npgfb(jset),jset),lb_min(jset),&
-                                 rab,rab2,dab,sab,da_max,return_s_derivatives,&
+                                 rab,rab2,dab,sab,nder,return_s_derivatives,&
                                  sdab,pab,force_a)
 
                     force(ikind)%overlap(:,atom_a) =&
@@ -761,7 +762,7 @@ CONTAINS
                                  rpgfa(1:npgfa(iset),iset),la_min(iset),&
                                  lb_max(jset),zetb(1:npgfb(jset),jset),&
                                  rpgfb(1:npgfb(jset),jset),lb_min(jset),&
-                                 rab,rab2,dab,sab,da_max,return_s_derivatives,&
+                                 rab,rab2,dab,sab,nder,return_s_derivatives,&
                                  sdab)
 
                   END IF
@@ -788,28 +789,26 @@ CONTAINS
 
 !                 *** Contraction step (derivatives of the overlap matrix) ***
 
-                  IF (iatom /= jatom) THEN
-                    DO i=2,SIZE(s)
-                      first_col = (i - 1)*SIZE(sab,1) + 1
-                      CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
-                                 1.0_wp,sab(1,first_col),SIZE(sab,1),&
-                                 sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                                 0.0_wp,work(1,1),SIZE(work,1))
-                      IF (iatom <= jatom) THEN
-                        CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
-                                   1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                   work(1,1),SIZE(work,1),&
-                                   1.0_wp,sint(i)%block(sgfa,sgfb),&
-                                   SIZE(sint(i)%block,1))
-                      ELSE
-                        CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
-                                   -1.0_wp,work(1,1),SIZE(work,1),&
-                                   sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                   1.0_wp,sint(i)%block(sgfb,sgfa),&
-                                   SIZE(sint(i)%block,1))
-                      END IF
-                    END DO
-                  END IF
+                  DO i=2,SIZE(s)
+                    first_col = (i - 1)*SIZE(sab,1) + 1
+                    CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
+                               1.0_wp,sab(1,first_col),SIZE(sab,1),&
+                               sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                               0.0_wp,work(1,1),SIZE(work,1))
+                    IF (iatom <= jatom) THEN
+                      CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
+                                 1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                 work(1,1),SIZE(work,1),&
+                                 1.0_wp,sint(i)%block(sgfa,sgfb),&
+                                 SIZE(sint(i)%block,1))
+                    ELSE
+                      CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
+                                 -1.0_wp,work(1,1),SIZE(work,1),&
+                                 sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                 1.0_wp,sint(i)%block(sgfb,sgfa),&
+                                 SIZE(sint(i)%block,1))
+                    END IF
+                  END DO
 
 !                 *** Decontract density matrix block ***
 
@@ -840,7 +839,7 @@ CONTAINS
                                  rpgfa(1:npgfa(iset),iset),la_min(iset),&
                                  lb_max(jset),zetb(1:npgfb(jset),jset),&
                                  rpgfb(1:npgfb(jset),jset),lb_min(jset),&
-                                 rab,rab2,dab,sdab,hab,da_max,&
+                                 rab,rab2,dab,sdab,hab,nder,&
                                  return_t_derivatives,pab,force_a)
 
                     force(ikind)%kinetic(:,atom_a) =&
@@ -856,15 +855,16 @@ CONTAINS
                                  rpgfa(1:npgfa(iset),iset),la_min(iset),&
                                  lb_max(jset),zetb(1:npgfb(jset),jset),&
                                  rpgfb(1:npgfb(jset),jset),lb_min(jset),&
-                                 rab,rab2,dab,sdab,hab,da_max,&
+                                 rab,rab2,dab,sdab,hab,nder,&
                                  return_t_derivatives)
 
                   END IF
 
-!                 *** Contraction step (kinetic energy integral matrix ***
-!                 *** and its derivatives (only needed for printing)   ***
+!                 *** Contraction step (kinetic energy integral ***
+!                 *** matrix and its derivatives)               ***
 
-                  IF (construct_kinetic_energy_matrix) THEN
+                  IF (build_kinetic_energy_matrix) THEN
+
                     CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
                                1.0_wp,hab(1,1),SIZE(hab,1),&
                                sphi_b(1,sgfb),SIZE(sphi_b,1),&
@@ -882,28 +882,28 @@ CONTAINS
                                  1.0_wp,tint(1)%block(sgfb,sgfa),&
                                  SIZE(tint(1)%block,1))
                     END IF
-                    IF (iatom /= jatom) THEN
-                      DO i=2,SIZE(t)
-                        first_col = (i - 1)*SIZE(hab,1) + 1
-                        CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
-                                   1.0_wp,hab(1,first_col),SIZE(hab,1),&
-                                   sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                                   0.0_wp,work(1,1),SIZE(work,1))
-                        IF (iatom <= jatom) THEN
-                          CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
-                                     1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                     work(1,1),SIZE(work,1),&
-                                     1.0_wp,tint(i)%block(sgfa,sgfb),&
-                                     SIZE(tint(i)%block,1))
-                        ELSE
-                          CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
-                                     -1.0_wp,work(1,1),SIZE(work,1),&
-                                     sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                     1.0_wp,tint(i)%block(sgfb,sgfa),&
-                                     SIZE(tint(i)%block,1))
-                        END IF
-                      END DO
-                    END IF
+
+                    DO i=2,SIZE(t)
+                      first_col = (i - 1)*SIZE(hab,1) + 1
+                      CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
+                                 1.0_wp,hab(1,first_col),SIZE(hab,1),&
+                                 sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                                 0.0_wp,work(1,1),SIZE(work,1))
+                      IF (iatom <= jatom) THEN
+                        CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
+                                   1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                   work(1,1),SIZE(work,1),&
+                                   1.0_wp,tint(i)%block(sgfa,sgfb),&
+                                   SIZE(tint(i)%block,1))
+                      ELSE
+                        CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
+                                   -1.0_wp,work(1,1),SIZE(work,1),&
+                                   sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                   1.0_wp,tint(i)%block(sgfb,sgfa),&
+                                   SIZE(tint(i)%block,1))
+                      END IF
+                    END DO
+
                   END IF
 
 !                 *** Loop over the GTH pseudo potential atoms (local part) ***
@@ -912,11 +912,11 @@ CONTAINS
 
                     IF (.NOT.ASSOCIATED(vppl(kkind)%neighbor)) CYCLE
 
-                    DO inode=1,SIZE(vppl(kkind)%neighbor)
+                    DO knode=1,SIZE(vppl(kkind)%neighbor)
 
-                      katom = vppl(kkind)%neighbor(inode)
-                      rac(:) = vppl(kkind)%r(:,inode)
-                      rac2 = vppl(kkind)%r2(inode)
+                      katom = vppl(kkind)%neighbor(knode)
+                      rac(:) = vppl(kkind)%r(:,knode)
+                      rac2 = vppl(kkind)%r2(knode)
                       dac = SQRT(rac2)
                       IF (set_radius_a(iset) + ppl_radius(kkind) < dac) CYCLE
 
@@ -1001,17 +1001,6 @@ CONTAINS
 
               END DO
 
-              IF (iatom == jatom) THEN
-                DO i=2,SIZE(s)
-                  sint(i)%block(:,:) = 0.0_wp
-                END DO
-                IF (construct_kinetic_energy_matrix) THEN
-                  DO i=2,SIZE(t)
-                    tint(i)%block(:,:) = 0.0_wp
-                  END DO
-                END IF
-              END IF
-
             END IF
 
             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
@@ -1043,11 +1032,16 @@ CONTAINS
 
 !   *** Add the V(non-local) contribution of the GTH pseudo potential ***
 
-    IF (gth_potential_present) CALL add_vppnl(calculate_forces,p)
+    IF (gth_potential_present) THEN
+      CALL add_vppnl(calculate_forces,p)
+    END IF
 
 !   *** Put the core Hamiltonian matrix in the QS environment ***
 
-    CALL set_qs_env(qs_env=qs_env,s=s,h=h,kinetic=t)
+    CALL set_qs_env(qs_env=qs_env,&
+                    s=s,&
+                    kinetic=t,&
+                    h=h)
 
 !   *** Release work storage ***
 
@@ -1100,11 +1094,10 @@ CONTAINS
     DEALLOCATE (sint,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"sint")
 
-    IF (construct_kinetic_energy_matrix) THEN
+    IF (build_kinetic_energy_matrix) THEN
       DEALLOCATE (tint,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"tint")
     END IF
-
 
 !   *** Print the overlap integral matrix, if requested ***
 
@@ -1136,9 +1129,24 @@ CONTAINS
 !   *** Print the kinetic energy integral matrix, if requested ***
 
     IF (globenv%print%kinetic_energy_matrix) THEN
-      DO i=1,SIZE(t)
-        CALL write_sparse_matrix(t(i)%matrix,4,6,qs_env,globenv)
-      END DO
+      CALL write_sparse_matrix(t(1)%matrix,4,6,qs_env,globenv)
+      IF (globenv%print%derivatives) THEN
+        DO i=2,SIZE(t)
+          CALL write_sparse_matrix(t(i)%matrix,4,6,qs_env,globenv)
+        END DO
+      END IF
+    END IF
+
+!   *** Print the potential energy matrix, if requested ***
+
+    IF (globenv%print%potential_energy_matrix) THEN
+      CALL allocate_matrix_set(v,1)
+      CALL replicate_matrix_structure(source=h(1)%matrix,&
+                                      target=v(1)%matrix,&
+                                      target_name="POTENTIAL ENERGY MATRIX")
+      CALL add_matrices(v(1)%matrix,1.0_wp,h(1)%matrix,-1.0_wp,t(1)%matrix)
+      CALL write_sparse_matrix(v(1)%matrix,4,6,qs_env,globenv)
+      CALL deallocate_matrix_set(v)
     END IF
 
 !   *** Print the core Hamiltonian matrix, if requested ***
@@ -1147,10 +1155,12 @@ CONTAINS
       CALL write_sparse_matrix(h(1)%matrix,4,6,qs_env,globenv)
     END IF
 
-!   *** Update the H_redundant matrix pools
+!   *** Update the H_redundant matrix pools ***
+
     CALL qs_env_update_h_redundant_pools(qs_env)
-    
+
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
+
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE build_core_hamiltonian_matrix
@@ -1308,7 +1318,7 @@ CONTAINS
         CALL compress(name)
         CALL uppercase(name)
         CALL replicate_matrix_structure(source=sca(1)%matrix,&
-                                        TARGET=sca(i)%matrix,&
+                                        target=sca(i)%matrix,&
                                         target_name=name,&
                                         target_symmetry="no symmetry")
       END DO
@@ -1333,7 +1343,7 @@ CONTAINS
         CALL compress(name)
         CALL uppercase(name)
         CALL replicate_matrix_structure(source=scb(1)%matrix,&
-                                        TARGET=scb(i)%matrix,&
+                                        target=scb(i)%matrix,&
                                         target_name=name,&
                                         target_symmetry="no symmetry")
       END DO
@@ -1394,7 +1404,7 @@ CONTAINS
             CALL add_block_node(matrix=sca(i)%matrix,&
                                 block_row=1,&
                                 block_col=iatom,&
-                                BLOCK=scaint(i)%block)
+                                block=scaint(i)%block)
           END DO
 
 !         *** Calculate the current overlap matrix block ***
@@ -1509,7 +1519,7 @@ CONTAINS
             CALL add_block_node(matrix=scb(i)%matrix,&
                                 block_row=1,&
                                 block_col=iatom,&
-                                BLOCK=scbint(i)%block)
+                                block=scbint(i)%block)
           END DO
 
 !         *** Calculate the current overlap matrix block ***
@@ -1592,11 +1602,11 @@ CONTAINS
           block_node_dum => ca(1)%block_node
           CALL get_block_node(block_node=block_node_dum,&
                               block_col=iatom,&
-                              BLOCK=scaint(1)%block)
+                              block=scaint(1)%block)
           DO i=2,maxder
             block_node_dum => ca(i)%block_node
             CALL get_block_node(block_node=block_node_dum,&
-                                BLOCK=scaint(i)%block)
+                                block=scaint(i)%block)
           END DO
 
           IF (calculate_forces) atom_a = atom_of_kind(iatom)
@@ -1617,15 +1627,15 @@ CONTAINS
           END DO
 
           DO WHILE (ASSOCIATED(cb(1)%block_node))
-            
+
             block_node_dum => cb(1)%block_node
             CALL get_block_node(block_node=block_node_dum,&
                                 block_col=jatom,&
-                                BLOCK=scbint(1)%block)
+                                block=scbint(1)%block)
             DO i=2,maxder
               block_node_dum => cb(i)%block_node
               CALL get_block_node(block_node=block_node_dum,&
-                                  BLOCK=scbint(i)%block)
+                                  block=scbint(i)%block)
             END DO
 
             IF (calculate_forces) atom_b = atom_of_kind(jatom)
@@ -1636,12 +1646,12 @@ CONTAINS
               CALL get_block_node(matrix=h(1)%matrix,&
                                   block_row=iatom,&
                                   block_col=jatom,&
-                                  BLOCK=h_block)
+                                  block=h_block)
               IF (.NOT.ASSOCIATED(h_block)) THEN
                 CALL add_block_node(matrix=h(1)%matrix,&
                                     block_row=iatom,&
                                     block_col=jatom,&
-                                    BLOCK=h_block)
+                                    block=h_block)
               END IF
               CALL dgemm("T","N",na,nb,nprjc,&
                          1.0_wp,work(1,1),SIZE(work,1),&
@@ -1651,7 +1661,7 @@ CONTAINS
                 CALL get_block_node(matrix=p,&
                                     block_row=iatom,&
                                     block_col=jatom,&
-                                    BLOCK=p_block)
+                                    block=p_block)
                 DO i=1,3
                   first_col = i*SIZE(work,1) + 1
                   CALL dgemm("T","N",na,nb,nprjc,&
@@ -1678,12 +1688,12 @@ CONTAINS
               CALL get_block_node(matrix=h(1)%matrix,&
                                   block_row=jatom,&
                                   block_col=iatom,&
-                                  BLOCK=h_block)
+                                  block=h_block)
               IF (.NOT.ASSOCIATED(h_block)) THEN
                 CALL add_block_node(matrix=h(1)%matrix,&
                                     block_row=jatom,&
                                     block_col=iatom,&
-                                    BLOCK=h_block)
+                                    block=h_block)
               END IF
               CALL dgemm("T","N",nb,na,nprjc,&
                          1.0_wp,scbint(1)%block(1,1),nprjc,&
@@ -1698,7 +1708,7 @@ CONTAINS
                 CALL get_block_node(matrix=p,&
                                     block_row=jatom,&
                                     block_col=iatom,&
-                                    BLOCK=p_block)
+                                    block=p_block)
                 DO i=1,3
                   first_col = i*SIZE(work,1) + 1
                   CALL dgemm("T","N",nb,na,nprjc,&
@@ -1739,11 +1749,11 @@ CONTAINS
             block_node_dum => cb(1)%block_node
             CALL get_block_node(block_node=block_node_dum,&
                                 block_col=jatom,&
-                                BLOCK=scbint(1)%block)
+                                block=scbint(1)%block)
             DO i=2,maxder
               block_node_dum => cb(i)%block_node
               CALL get_block_node(block_node=block_node_dum,&
-                                  BLOCK=scbint(i)%block)
+                                  block=scbint(i)%block)
             END DO
 
             IF (calculate_forces) atom_b = atom_of_kind(jatom)
@@ -1754,12 +1764,12 @@ CONTAINS
               CALL get_block_node(matrix=h(1)%matrix,&
                                   block_row=iatom,&
                                   block_col=jatom,&
-                                  BLOCK=h_block)
+                                  block=h_block)
               IF (.NOT.ASSOCIATED(h_block)) THEN
                 CALL add_block_node(matrix=h(1)%matrix,&
                                     block_row=iatom,&
                                     block_col=jatom,&
-                                    BLOCK=h_block)
+                                    block=h_block)
               END IF
               CALL dgemm("T","N",na,nb,nprjc,&
                          1.0_wp,work(1,1),SIZE(work,1),&
@@ -1774,7 +1784,7 @@ CONTAINS
                 CALL get_block_node(matrix=p,&
                                     block_row=iatom,&
                                     block_col=jatom,&
-                                    BLOCK=p_block)
+                                    block=p_block)
                 DO i=1,3
                   first_col = i*SIZE(work,1) + 1
                   CALL dgemm("T","N",na,nb,nprjc,&

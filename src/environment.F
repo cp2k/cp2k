@@ -348,7 +348,7 @@ CONTAINS
             globenv%print%cell_parameters = print_request
           CASE ("CHARGE_DENSITY_MATRIX","G_MATRIX")
             globenv%print%charge_density_matrix = print_request
-          CASE ("CORE_HAMILTONIAN_MATRIX","H_MATRIX")
+          CASE ("CORE_HAMILTONIAN_MATRIX","H_MATRIX","H-MATRIX")
             globenv%print%core_hamiltonian_matrix = print_request
           CASE ("CORE_CHARGE_RADII","CORE_RADII")
             globenv%print%core_charge_radii = print_request
@@ -379,7 +379,7 @@ CONTAINS
             globenv%print%potential = print_request
           CASE ("KIND_RADII")
             globenv%print%kind_radii = print_request
-          CASE ("KINETIC_ENERGY_MATRIX","KINETIC_ENERGY","KINETIC","T_MATRIX")
+          CASE ("KINETIC_ENERGY_MATRIX","T_MATRIX","T-MATRIX")
             globenv%print%kinetic_energy_matrix = print_request
           CASE ("KOHN_SHAM_MATRIX","KS_MATRIX")
             globenv%print%kohn_sham_matrix = print_request
@@ -399,9 +399,11 @@ CONTAINS
             globenv%print%sac_ppl_neighbor_lists = print_request
             globenv%print%sca_ppnl_neighbor_lists = print_request
             globenv%print%scb_ppnl_neighbor_lists = print_request
+          CASE ("OPTICAL_CONDUCTIVITY")
+            globenv%print%optical_conductivity = print_request
           CASE ("ORTHOGONALISATION_MATRIX","ORTHO_MATRIX")
             globenv%print%ortho_matrix = print_request
-          CASE ("OVERLAP_MATRIX","OVERLAP","S_MATRIX")
+          CASE ("OVERLAP_MATRIX","S_MATRIX","S-MATRIX")
             globenv%print%overlap_matrix = print_request
           CASE ("PGF_RADII")
             globenv%print%pgf_radii = print_request
@@ -409,6 +411,8 @@ CONTAINS
             globenv%print%physcon = print_request
           CASE ("POTENTIALS","POTENTIAL")
             globenv%print%potential = print_request
+          CASE ("POTENTIAL_ENERGY_MATRIX","V_MATRIX","V-MATRIX")
+            globenv%print%potential_energy_matrix = print_request
           CASE ("PPL_RADII")
             globenv%print%ppl_radii = print_request
           CASE ("PPNL_RADII")

@@ -1360,7 +1360,7 @@ SUBROUTINE cp_sm_output(logger, outputName, &
   CHARACTER(len=*), PARAMETER :: routineN='cp_sm_output',&
         routineP=moduleN//':'//routineN
   CHARACTER(len=40) :: symmetry
-  CHARACTER(len=60) :: name
+  CHARACTER(len=80) :: name
   REAL(wp), DIMENSION(:,:), POINTER :: full_matrix
   failure=.FALSE.
 
