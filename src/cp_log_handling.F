@@ -316,9 +316,13 @@ CONTAINS
 
     IF ( .NOT. stack_pointer>0 ) THEN
        CALL stop_program("cp_log_handling:cp_get_default_logger",&
-            "default logger not yet initialized (CALL cp_init_default_logger")
+            "default logger not yet initialized (CALL cp_init_default_logger)")
     END IF
     res => default_logger_stack(stack_pointer)%cp_default_logger
+    IF (.NOT.ASSOCIATED(res)) THEN
+       CALL stop_program("cp_log_handling:cp_get_default_logger",&
+            "default logger is null (released too much ?)")
+    END IF
   END FUNCTION cp_get_default_logger
 !***************************************************************************
 
@@ -955,7 +959,7 @@ CONTAINS
 !!
 !!*** *********************************************************************
 !pure 
-  FUNCTION cp_logger_get_default_unit_nr(logger, local) RESULT(res)
+  RECURSIVE FUNCTION cp_logger_get_default_unit_nr(logger, local) RESULT(res)
     TYPE(cp_logger_type), OPTIONAL, POINTER  :: logger
     LOGICAL, INTENT(in), OPTIONAL            :: local
     INTEGER                                  :: res
@@ -992,11 +996,25 @@ CONTAINS
              CALL open_file(TRIM(filename),file_status="unknown",&
                   file_action="WRITE",&
                   unit_number=lggr%default_global_unit_nr)
+          ELSE
+             lggr%default_global_unit_nr=cp_logger_get_default_unit_nr(lggr,.true.)
+             lggr%close_global_unit_on_dealloc=.false.
           END IF
-          ! bcast could be dangerous if called only in source processor
-          ! thus first global logging upon logger creation
-          CALL mp_bcast(lggr%default_global_unit_nr,lggr%para_env%source,&
-               lggr%para_env%group)
+       END IF
+       IF (lggr%para_env%mepos/=lggr%para_env%source) THEN
+          WRITE (unit=lggr%default_global_unit_nr,fmt='(a)',iostat=iostat)&
+               ' WARNING non ionode asked for global logger'
+          IF (iostat /= 0) THEN
+             CALL m_getpid(pid)
+             CALL m_hostnm(host_name)
+             PRINT *," Error trying to WRITE to the local logger."
+             PRINT *," mpi_id=",lggr%para_env%mepos,&
+                  " mpi_communicator=",lggr%para_env%group,&
+                  " pid=",pid,'host=',host_name
+             CALL print_stack(6)
+          ELSE
+             CALL print_stack(lggr%default_global_unit_nr)
+          END IF
        END IF
        res=lggr%default_global_unit_nr
     ELSE
@@ -1018,12 +1036,18 @@ CONTAINS
           IF (iostat==0) THEN
              WRITE (unit=lggr%default_local_unit_nr,fmt='(a,i8,a,a)',iostat=iostat)&
                   ' **** pid=',pid,' host=',host_name
+             WRITE (unit=lggr%default_local_unit_nr,fmt='(a)',iostat=iostat)&
+                  ' **** file created by ****'
+             CALL print_stack(lggr%default_local_unit_nr)
+             WRITE (unit=lggr%default_local_unit_nr,fmt='(a)',iostat=iostat)&
+                  ' **** file created by ****'
           END IF
           IF (iostat /= 0) THEN
              PRINT *," Error trying to WRITE to the local logger."
              PRINT *," mpi_id=",lggr%para_env%mepos,&
                   " mpi_communicator=",lggr%para_env%group,&
                   " pid=",pid,'host=',host_name
+             CALL print_stack(6)
           END IF
           
        END IF
