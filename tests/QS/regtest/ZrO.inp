@@ -15,6 +15,7 @@
 &SCF
  GUESS        atomic
  MIXING       0.2
+ MAX_SCF      1
 &END
 
 &PRINT medium
@@ -32,7 +33,7 @@
 
 &CELL
  UNIT         ANGSTROM
- ABC          10.0  10.0  10.0
+ ABC          5.0  5.0  5.0
 &END
 
 &COORD

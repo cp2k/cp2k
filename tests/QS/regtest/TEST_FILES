@@ -35,3 +35,5 @@ H2.inp             1
 H2O-2.inp          1
 H2O-3.inp          1
 H2O-4.inp          1
+# core ham bug
+ZrO.inp            1
