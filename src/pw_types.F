@@ -2084,7 +2084,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
       DIMENSION(:, :)                        :: grays
     COMPLEX(dbl), DIMENSION(:, :, :), &
       POINTER                                :: c_in, c_out
-    INTEGER                                  :: dir, handle, i, ierr, l1, l2, &
+    INTEGER                                  :: dir, handle, handle2, i, ierr, l1, l2, &
                                                 l3, my_pos, nloc( 3 ), nrays, &
                                                 nsize, out_space
     INTEGER, DIMENSION(:), POINTER           :: n
@@ -2093,7 +2093,8 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("fft_wrap_pw1pw2","I","",handle)
+  CALL timeset("fft_wrap_pw1pw2_all","I","",handle2)
+  CALL timeset("fft_wrap_pw1pw2_"//TRIM(ADJUSTL(cp_to_string(pw1%pw_grid%identifier))),"I","",handle)
 
   NULLIFY ( c_in )
   NULLIFY ( c_out )
@@ -2357,6 +2358,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
       WRITE ( *,'(A)') " End of FFT Protocol "
   END IF
   CALL timestop(0.0_dbl,handle) 
+  CALL timestop(0.0_dbl,handle2) 
 
 END SUBROUTINE fft_wrap_pw1pw2
 

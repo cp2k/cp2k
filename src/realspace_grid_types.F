@@ -518,7 +518,7 @@ CONTAINS
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
     CHARACTER(LEN=*), INTENT(IN)             :: dir
 
-    INTEGER                                  :: dest, group, handle, idir, &
+    INTEGER                                  :: dest, group, handle, handle2, idir, &
                                                 ierr, ii, ip, ix, iy, iz, &
                                                 mepos, nma, nn, np, source, &
                                                 subgroup
@@ -533,7 +533,8 @@ CONTAINS
 
 !-----------------------------------------------------------------------------!
 
-    CALL timeset("rs_pw_transfer",'I',' ',handle)
+    CALL timeset("rs_pw_transfer_all",'I',' ',handle2)
+    CALL timeset("rs_pw_transfer_"//TRIM(ADJUSTL(cp_to_string(pw%pw_grid%identifier))),'I',' ',handle)
     IF ( rs % identifier /= pw % pw_grid % identifier ) THEN
        CALL stop_program ( "rs_pw_transfer", &
             "Real space grid and pw type not compatible" )
@@ -765,6 +766,7 @@ CONTAINS
 
     END IF
     CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dbl,handle2)
 
   END SUBROUTINE rs_pw_transfer
 
