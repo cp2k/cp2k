@@ -129,7 +129,6 @@ SUBROUTINE topology_generate_molecule(topology,globenv)
   INTEGER :: a,b,iii
   INTEGER :: istat
   INTEGER :: iw,handle
-  CHARACTER (LEN=20) :: str1,str2
   CHARACTER(len=*), PARAMETER :: routineN='topology_generate_molecule',&
        routineP=moduleN//':'//routineN
 
@@ -719,6 +718,7 @@ SUBROUTINE topology_generate_bond(topology,globenv)
   INTEGER, POINTER :: tbond_a(:),tbond_b(:)
   REAL(dbl) :: dr(3),rr(3),r2,rbond,rbond2
   REAL(dbl), POINTER :: covalent_radius(:)
+  REAL(dbl), POINTER :: vdw_radius(:)
   CHARACTER (LEN = 2),POINTER :: atm_symbol(:)
   CHARACTER(len=*), PARAMETER :: routineN='topology_generate_bond',&
        routineP=moduleN//':'//routineN
@@ -750,6 +750,8 @@ SUBROUTINE topology_generate_bond(topology,globenv)
   IF(istat/=0) CALL stop_memory('generate_bond','atm_symbol',natom)
   ALLOCATE(covalent_radius(natom),STAT=istat)
   IF(istat/=0) CALL stop_memory('generate_bond','covalent_radius',natom)
+  ALLOCATE(vdw_radius(natom),STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bond','vdw_radius',natom)
 !------------------------------------------------------------------------------
   DO iatom=1,natom
     atm_symbol(iatom) = topology%label_atmname(iatom)
@@ -763,8 +765,13 @@ SUBROUTINE topology_generate_bond(topology,globenv)
     nelem = UBOUND(ptable,1)
     DO ielem=1,nelem 
       IF(ptable(ielem)%symbol==atm_symbol(iatom)) THEN
+
         covalent_radius(iatom) = ptable(ielem)%covalent_radius
         CALL convert_to_cp2k_units("ANGSTROM",length=covalent_radius(iatom))
+
+        vdw_radius(iatom) = ptable(ielem)%vdw_radius
+        CALL convert_to_cp2k_units("ANGSTROM",length=vdw_radius(iatom))
+
         topology%atm_mass(iatom) = ptable(ielem)% amass
         !Need to figure out the correct charge!!!
         topology%atm_charge(iatom) = 0.0
@@ -784,20 +791,25 @@ SUBROUTINE topology_generate_bond(topology,globenv)
 
       rr = pbc ( dr, topology%cell )
       r2 = DOT_PRODUCT(rr,rr)
-      rbond = covalent_radius(iatom)+covalent_radius(jatom)
+
+      IF(r2 <= 0.01) THEN
+        CALL stop_program ("topology_generate_bond",&
+                           "bond distance between atoms less then 0.1")
+      END IF
+
+      IF(topology%bondparm_type=="COVALENT") THEN
+        rbond = covalent_radius(iatom)+covalent_radius(jatom)
+      ELSE IF(topology%bondparm_type=="VDW") THEN
+        rbond = MAX(vdw_radius(iatom),vdw_radius(jatom))
+      ELSE
+        CALL stop_program ("topology_generate_bond",&
+                           "illegal bondparm_type")
+      END IF
       rbond2 = rbond*rbond
-      !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
       !Look for the right factor to use...
-      rbond2 = rbond2*1.1
-      !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      rbond2 = rbond2*(topology%bondparm_factor)
+
       !Test the distance to the sum of the covalent radius
       IF(r2 < rbond2) THEN
         nbond=nbond+1

@@ -147,7 +147,7 @@ SUBROUTINE init_periodic_table()
   ptable(6) % amass = 12.01115_dbl
   ptable(6) % mass = 12.0000_dbl
   ptable(6) % covalent_radius = 0.7700_dbl
-  ptable(6) % vdw_radius = z
+  ptable(6) % vdw_radius = 1.7_dbl           ! obtained from www.webelement.com
   ptable(6) % e_conv(0:3) = (/ 4, 2, 0, 0 /)
   ptable(6) % eht_param(0:3) = (/ -21.40_dbl, -11.40_dbl, z, z/)
 

@@ -15,20 +15,15 @@
 !!
 !!   MODIFICATION HISTORY
 !!     JGH (26-01-2002) Added read_topology_section
+!!  
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE topology_input
-  USE checkpoint_handler,               ONLY: write_checkpoint_information
-  USE convert_units,                   ONLY: convert_to_cp2k_units
+  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
-  USE mathconstants,                   ONLY: pi,&
-                                             zero
-  USE message_passing,                 ONLY: mp_bcast
-  USE molecule_types,                  ONLY: init_molecule_type,&
-                                             molecule_type
   USE parser,                          ONLY: get_next,&
                                              p_error,&
                                              parser_end,&
@@ -37,7 +32,6 @@ MODULE topology_input
                                              search_label,&
                                              stop_parser,&
                                              test_next
-  USE periodic_table,                  ONLY: ptable
   USE string_utilities,                ONLY: make_tuple,&
                                              str_comp,&
                                              str_search,&
@@ -157,7 +151,7 @@ SUBROUTINE read_topology_section ( topology, globenv )
               topology%coordinate = .FALSE.
            ELSE
               CALL p_error()
-              CALL stop_parser( 'read_cntl_section', &
+              CALL stop_parser( 'read_topology_section', &
                                 'unknown option coordinate type' )
            END IF
         CASE ( 'CONN_FIL')
@@ -185,6 +179,20 @@ SUBROUTINE read_topology_section ( topology, globenv )
               CALL stop_parser( 'read_topology_section', &
                                 'unknown option topology type' )
            END IF
+        CASE ( 'BONDPARM')
+           ilen = 40
+           CALL get_next(str2,ilen)
+           CALL uppercase(str2)
+           IF (str2 == "COVALENT") THEN
+              topology % bondparm_type = "COVALENT"
+           ELSE IF (str2 == "VDW") THEN
+              topology % bondparm_type = "VDW"
+           ELSE
+              CALL p_error()
+              CALL stop_parser( 'read_topology_section', &
+                                'unknown option bondparm type' )
+           END IF
+           CALL get_next(topology%bondparm_factor)
         CASE DEFAULT
            CALL stop_program ( "read_topology_section", &
                "Unknown option "//string )
