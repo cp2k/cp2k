@@ -51,7 +51,7 @@ MODULE qs_force_types
 
   PUBLIC :: allocate_qs_force,&
             deallocate_qs_force,&
-            write_qs_force
+            init_qs_force
 
 ! *****************************************************************************
 
@@ -59,7 +59,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE allocate_qs_force(qs_force,nkind)
+  SUBROUTINE allocate_qs_force(qs_force,natom_of_kind)
 
 !   Purpose: Allocate a Quickstep force data structure.
 
@@ -68,7 +68,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(qs_force_type), DIMENSION(:), POINTER :: qs_force
-    INTEGER, INTENT(IN)                        :: nkind
+    INTEGER, DIMENSION(:), INTENT(IN)          :: natom_of_kind
 
 !   *** Local parameters ***
 
@@ -77,7 +77,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: ikind,istat
+    INTEGER :: ikind,istat,n,nkind
 
 !   ---------------------------------------------------------------------------
 
@@ -85,18 +85,45 @@ CONTAINS
       CALL deallocate_qs_force(qs_force)
     END IF
 
+    nkind = SIZE(natom_of_kind)
+
     ALLOCATE (qs_force(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"qs_force",nkind*int_size)
 
     DO ikind=1,nkind
-      NULLIFY (qs_force(ikind)%core_overlap)
-      NULLIFY (qs_force(ikind)%gth_ppl)
-      NULLIFY (qs_force(ikind)%gth_ppnl)
-      NULLIFY (qs_force(ikind)%kinetic)
-      NULLIFY (qs_force(ikind)%overlap)
-      NULLIFY (qs_force(ikind)%rho_core)
-      NULLIFY (qs_force(ikind)%rho_elec)
-      NULLIFY (qs_force(ikind)%total)
+      n = natom_of_kind(ikind)
+      ALLOCATE (qs_force(ikind)%core_overlap(3,n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine,"qs_force(ikind)%core_overlap",3*n*wp_size)
+      END IF
+      ALLOCATE (qs_force(ikind)%gth_ppl(3,n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine,"qs_force(ikind)%gth_ppl",3*n*wp_size)
+      END IF
+      ALLOCATE (qs_force(ikind)%gth_ppnl(3,n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine,"qs_force(ikind)%gth_ppnl",3*n*wp_size)
+      END IF
+      ALLOCATE (qs_force(ikind)%kinetic(3,n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine,"qs_force(ikind)%kinetic",3*n*wp_size)
+      END IF
+      ALLOCATE (qs_force(ikind)%overlap(3,n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine,"qs_force(ikind)%overlap",3*n*wp_size)
+      END IF
+      ALLOCATE (qs_force(ikind)%rho_core(3,n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine,"qs_force(ikind)%rho_core",3*n*wp_size)
+      END IF
+      ALLOCATE (qs_force(ikind)%rho_elec(3,n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine,"qs_force(ikind)%rho_elec",3*n*wp_size)
+      END IF
+      ALLOCATE (qs_force(ikind)%total(3,n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine,"qs_force(ikind)%total",3*n*wp_size)
+      END IF
     END DO
 
   END SUBROUTINE allocate_qs_force
@@ -198,94 +225,44 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_qs_force(qs_force,globenv)
+  SUBROUTINE init_qs_force(qs_force)
 
-!   Purpose: Write a Quickstep force data structure to 
+!   Purpose: Initialize a Quickstep force data structure.
 
-!   History: - Creation (05.06.2002,MK)
+!   History: - Creation (15.07.2002,MK)
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN)  :: globenv
     TYPE(qs_force_type), DIMENSION(:), POINTER :: qs_force
 
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE write_qs_force (MODULE qs_force_types)"
+      "SUBROUTINE init_qs_force (MODULE qs_force_types)"
 
 !   *** Local variables ***
 
-    INTEGER :: iatom,ikind,istat,output_unit
+    INTEGER :: ikind,istat
 
 !   ---------------------------------------------------------------------------
 
-    IF (.NOT.globenv%ionode) RETURN
-
-    IF (.NOT.globenv%print%forces) RETURN
-
     IF (.NOT.ASSOCIATED(qs_force)) THEN
       CALL stop_program(routine,"The qs_force pointer is not associated "//&
-                                "and cannot be printed")
+                                "and cannot be initialized")
     END IF
 
-    output_unit = globenv%scr
-
-    WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") "FORCES"
-
     DO ikind=1,SIZE(qs_force)
-      WRITE (UNIT=output_unit,FMT="(/,T2,A,I5,/)") "ATOMIC KIND",ikind
-      IF (ASSOCIATED(qs_force(ikind)%core_overlap)) THEN
-        DO iatom=1,SIZE(qs_force(ikind)%core_overlap,2)
-          WRITE (UNIT=output_unit,FMT="(T2,A,T30,I6,3F12.6)")&
-            "core_overlap:",iatom,qs_force(ikind)%core_overlap(1:3,iatom)
-        END DO
-      END IF
-      IF (ASSOCIATED(qs_force(ikind)%gth_ppl)) THEN
-        DO iatom=1,SIZE(qs_force(ikind)%gth_ppl,2)
-          WRITE (UNIT=output_unit,FMT="(T2,A,T30,I6,3F12.6)")&
-            "gth_ppl:",iatom,qs_force(ikind)%gth_ppl(1:3,iatom)
-        END DO
-      END IF
-      IF (ASSOCIATED(qs_force(ikind)%gth_ppnl)) THEN
-        DO iatom=1,SIZE(qs_force(ikind)%gth_ppnl,2)
-          WRITE (UNIT=output_unit,FMT="(T2,A,T30,I6,3F12.6)")&
-            "gth_ppnl:",iatom,qs_force(ikind)%gth_ppnl(1:3,iatom)
-        END DO
-      END IF
-      IF (ASSOCIATED(qs_force(ikind)%kinetic)) THEN
-        DO iatom=1,SIZE(qs_force(ikind)%kinetic,2)
-          WRITE (UNIT=output_unit,FMT="(T2,A,T30,I6,3F12.6)")&
-            "kinetic:",iatom,qs_force(ikind)%kinetic(1:3,iatom)
-        END DO
-      END IF
-      IF (ASSOCIATED(qs_force(ikind)%overlap)) THEN
-        DO iatom=1,SIZE(qs_force(ikind)%overlap,2)
-          WRITE (UNIT=output_unit,FMT="(T2,A,T30,I6,3F12.6)")&
-            "overlap:",iatom,qs_force(ikind)%overlap(1:3,iatom)
-        END DO
-      END IF
-      IF (ASSOCIATED(qs_force(ikind)%rho_core)) THEN
-        DO iatom=1,SIZE(qs_force(ikind)%rho_core,2)
-          WRITE (UNIT=output_unit,FMT="(T2,A,T30,I6,3F12.6)")&
-            "rho_core:",iatom,qs_force(ikind)%rho_core(1:3,iatom)
-        END DO
-      END IF
-      IF (ASSOCIATED(qs_force(ikind)%rho_elec)) THEN
-        DO iatom=1,SIZE(qs_force(ikind)%rho_elec,2)
-          WRITE (UNIT=output_unit,FMT="(T2,A,T30,I6,3F12.6)")&
-            "rho_elec:",iatom,qs_force(ikind)%rho_elec(1:3,iatom)
-        END DO
-      END IF
-!      IF (ASSOCIATED(qs_force(ikind)%total)) THEN
-!        DO iatom=1,SIZE(qs_force(ikind)%total,2)
-!          WRITE (UNIT=output_unit,FMT="(T2,A,T30,I6,3F12.6)")&
-!            "total:",iatom,qs_force(ikind)%rho_total(1:3,iatom)
-!        END DO
-!      END IF
+      qs_force(ikind)%core_overlap(:,:) = 0.0_wp
+      qs_force(ikind)%gth_ppl(:,:) = 0.0_wp
+      qs_force(ikind)%gth_ppnl(:,:) = 0.0_wp
+      qs_force(ikind)%kinetic(:,:) = 0.0_wp
+      qs_force(ikind)%overlap(:,:) = 0.0_wp
+      qs_force(ikind)%rho_core(:,:) = 0.0_wp
+      qs_force(ikind)%rho_elec(:,:) = 0.0_wp
+      qs_force(ikind)%total(:,:) = 0.0_wp
     END DO
 
-  END SUBROUTINE write_qs_force
+  END SUBROUTINE init_qs_force
 
 ! *****************************************************************************
 

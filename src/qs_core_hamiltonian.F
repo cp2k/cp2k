@@ -95,7 +95,6 @@ MODULE qs_core_hamiltonian
   USE external_potential_types, ONLY: get_potential,&
                                       gth_potential_type
   USE global_types,             ONLY: global_environment_type
-  USE mathlib,                  ONLY: symmetrize_matrix
   USE message_passing,          ONLY: mp_sum
   USE orbital_pointers,         ONLY: indco,init_orbital_pointers,nco,ncoset
   USE orbital_symbols,          ONLY: cgf_symbol
@@ -129,8 +128,9 @@ MODULE qs_core_hamiltonian
                                       real_block_node_type,&
                                       real_matrix_p_type,&
                                       real_matrix_type,&
+                                      replicate_matrix,&
                                       replicate_matrix_structure,&
-                                      set_matrix, &
+                                      set_matrix,&
                                       write_blocks_maxabsval
   USE string_utilities,         ONLY: compress,&
                                       uppercase
@@ -213,8 +213,8 @@ CONTAINS
                                          sac_ppl_neighbor_node
 
     REAL(wp) :: dab,dac,dbc,f,f0,rab2,rac2,rbc2
-    INTEGER  :: ab,ac,atom_a,atom_b,atom_c,da_max,db_max,first_col,first_setb,&
-                handle,i,iatom,ikind,inode,ipgf,iset,ishell,istat,jatom,jkind,&
+    INTEGER  :: ab,ac,atom_a,atom_b,atom_c,da_max,db_max,first_col,handle,&
+                i,iatom,ikind,inode,ipgf,iset,ishell,istat,jatom,jkind,&
                 jpgf,jset,jshell,katom,kkind,maxco,maxdco,maxl,maxppnl,natom,&
                 natom_of_kind,ncoa,ncob,nneighbor,nnode,nseta,nsetb,sgfa,sgfb
     LOGICAL  :: gth_potential_present,ppnl_present,&
@@ -442,7 +442,7 @@ CONTAINS
       ALLOCATE (cexp_ppl(nkind),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"cexp_ppl",nkind*int_size)
       DO i=1,SIZE(cexp_ppl)
-         NULLIFY(cexp_ppl(i)%c)
+        NULLIFY(cexp_ppl(i)%c)
       END DO
 
       ALLOCATE (ppl_radius(nkind),STAT=istat)
@@ -685,13 +685,7 @@ CONTAINS
                 ncoa = npgfa(iset)*ncoset(la_max(iset))
                 sgfa = first_sgfa(1,iset)
 
-                IF (iatom == jatom) THEN
-                  first_setb = iset
-                ELSE
-                  first_setb = 1
-                END IF
-
-                DO jset=first_setb,nsetb
+                DO jset=1,nsetb
 
                   IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
 
@@ -740,9 +734,9 @@ CONTAINS
                                  sdab,pab,force_a)
 
                     force(ikind)%overlap(:,atom_a) =&
-                      force(ikind)%overlap(:,atom_a) - f0*force_a(:)
+                      force(ikind)%overlap(:,atom_a) - 2.0_wp*force_a(:)
                     force(jkind)%overlap(:,atom_b) =&
-                      force(jkind)%overlap(:,atom_b) + f0*force_a(:)
+                      force(jkind)%overlap(:,atom_b) + 2.0_wp*force_a(:)
 
                   ELSE
 
@@ -835,9 +829,9 @@ CONTAINS
                                  return_t_derivatives,pab,force_a)
 
                     force(ikind)%kinetic(:,atom_a) =&
-                      force(ikind)%kinetic(:,atom_a) + f0*force_a(:)
+                      force(ikind)%kinetic(:,atom_a) + 2.0_wp*force_a(:)
                     force(jkind)%kinetic(:,atom_b) =&
-                      force(jkind)%kinetic(:,atom_b) - f0*force_a(:)
+                      force(jkind)%kinetic(:,atom_b) - 2.0_wp*force_a(:)
 
                   ELSE
 
@@ -992,20 +986,15 @@ CONTAINS
 
               END DO
 
-!             *** Symmetrize the diagonal blocks ***
-
               IF (iatom == jatom) THEN
-                CALL symmetrize_matrix(sint(1)%block,"upper_to_lower")
                 DO i=2,SIZE(s)
                   sint(i)%block(:,:) = 0.0_wp
                 END DO
                 IF (globenv%print%kinetic_energy_matrix) THEN
-                  CALL symmetrize_matrix(tint(1)%block,"upper_to_lower")
                   DO i=2,SIZE(t)
                     tint(i)%block(:,:) = 0.0_wp
                   END DO
                 END IF
-                CALL symmetrize_matrix(h_block,"upper_to_lower")
               END IF
 
             END IF
@@ -1574,12 +1563,12 @@ CONTAINS
 
         DO WHILE (ASSOCIATED(ca(1)%block_node))
 
-          block_node_dum=>ca(1)%block_node
+          block_node_dum => ca(1)%block_node
           CALL get_block_node(block_node=block_node_dum,&
                               block_col=iatom,&
                               block=scaint(1)%block)
           DO i=2,maxder
-            block_node_dum=>ca(i)%block_node
+            block_node_dum => ca(i)%block_node
             CALL get_block_node(block_node=block_node_dum,&
                                 block=scaint(i)%block)
           END DO

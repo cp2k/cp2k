@@ -67,7 +67,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_ecore(h,p,ecore,globenv)
+  SUBROUTINE calculate_ecore(h,p,s,ecore,globenv)
 
 !   Purpose: Calculate the core Hamiltonian energy which includes the kinetic
 !            and the potential energy of the electrons.
@@ -77,12 +77,12 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(real_matrix_type), POINTER           :: h,p
+    TYPE(real_matrix_type), POINTER           :: h,p,s
     REAL(wp), INTENT(OUT)                     :: ecore
 
 !   *** Local variables ***
 
-    TYPE(real_block_node_type), POINTER :: h_block_node
+    TYPE(real_block_node_type), POINTER :: s_block_node
     REAL(wp)                            :: ecore_block
     INTEGER                             :: handle,i,iblock_col,iblock_row,j,&
                                            nblock_row
@@ -100,12 +100,16 @@ CONTAINS
 
     DO iblock_row=1,nblock_row
 
-      h_block_node => first_block_node(matrix=h,&
+      s_block_node => first_block_node(matrix=s,&
                                        block_row=iblock_row)
 
-      DO WHILE (ASSOCIATED(h_block_node))
+      DO WHILE (ASSOCIATED(s_block_node))
 
-        CALL get_block_node(block_node=h_block_node,&
+        CALL get_block_node(block_node=s_block_node,&
+                            block_col=iblock_col)
+
+        CALL get_block_node(matrix=h,&
+                            block_row=iblock_row,&
                             block_col=iblock_col,&
                             block=h_block)
 
@@ -128,7 +132,7 @@ CONTAINS
           ecore = ecore + 2.0_wp*ecore_block
         END IF
 
-        h_block_node => next_block_node(h_block_node)
+        s_block_node => next_block_node(s_block_node)
 
       END DO
 

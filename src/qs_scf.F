@@ -137,6 +137,7 @@ MODULE qs_scf
                                       get_cell
   USE sparse_matrix_types,      ONLY: add_matrices,&
                                       allocate_matrix,&
+                                      allocate_matrix_set,&
                                       deallocate_matrix,&
                                       first_block_node,&
                                       get_block_node,&
@@ -264,7 +265,7 @@ CONTAINS
     type(cp_sparse_matrix_p_type),dimension(:),pointer :: min_density_m
     real(kind=wp)  ::pao_f,pao_last_f,pao_actual_grad
     
-    type(real_matrix_p_type), pointer :: ks, p
+    type(real_matrix_p_type), pointer :: ks, p, p_old
     type(real_matrix_p_type), dimension(:), pointer :: ks_rmpv, p_rmpv,&
          p_old_rmpv
     type(real_matrix_type), POINTER :: pfull
@@ -344,8 +345,9 @@ CONTAINS
     end if
 
     CALL get_qs_env(qs_env,p=p_rmpv, k=ks_rmpv, p_old=p_old_rmpv)
-    p => p_rmpv(1)
     ks => ks_rmpv(1)
+    p => p_rmpv(1)
+    p_old => p_old_rmpv(1)
 
     iscf = 0
     diis_step = .FALSE.
@@ -542,19 +544,19 @@ CONTAINS
         t2 = cputime()
 
         IF (diis_step) THEN
-           CALL density_mixing(ks,p,1.0_wp,delta,globenv)
-           IF (ionode.AND.globenv%print%scf) THEN
-              WRITE (UNIT=output_unit,&
+          CALL density_mixing(ks,p,1.0_wp,delta,globenv)
+          IF (ionode.AND.globenv%print%scf) THEN
+            WRITE (UNIT=output_unit,&
                    FMT="(T2,I5,2X,A,T15,E10.2,T30,F8.2,T40,2F20.10)")&
-                   iscf,"DIIS",diis_error,t2 - t1,delta,energy%total
-           END IF
+              iscf,"DIIS",diis_error,t2 - t1,delta,energy%total
+          END IF
         ELSE
-           CALL density_mixing(ks,p,p_mix,delta,globenv)
-           IF (ionode.AND.globenv%print%scf) THEN
-              WRITE (UNIT=output_unit,&
-                 FMT="(T2,I5,2X,A,T15,F6.2,T30,F8.2,T40,2F20.10)")&
-              iscf,"Mixing",p_mix,t2 - t1,delta,energy%total
-           END IF
+          CALL density_mixing(ks,p,p_mix,delta,globenv)
+          IF (ionode.AND.globenv%print%scf) THEN
+             WRITE (UNIT=output_unit,&
+                    FMT="(T2,I5,2X,A,T15,F6.2,T30,F8.2,T40,2F20.10)")&
+               iscf,"Mixing",p_mix,t2 - t1,delta,energy%total
+          END IF
         END IF
 
       CASE(2) ! orbital transforms
@@ -638,6 +640,13 @@ CONTAINS
 !   *** Undo mixing of the density matrix (restore original density) ***
 
     IF (.NOT.diis_step) CALL transfer_matrix(ks%matrix,p%matrix)
+
+!   *** Save last density matrix in redundant form for the force calculation ***
+
+    CALL copy_blacs_to_sparse_matrix(scf_work1,p_old%matrix,globenv)
+    CALL symmetrise_diagonal_blocks(p_old%matrix)
+
+!   *** Write last wavefunction ***
 
     CALL write_mo_set(mo_set,atomic_kind_set,particle_set,4,6,globenv)
 
@@ -812,58 +821,64 @@ CONTAINS
                                ncol_global=nao,&
                                nrow_block=nrow_block,&
                                ncol_block=ncol_block,&
-                               name="SCF WORK MATRIX 1", &
+                               name="SCF WORK MATRIX 1",&
                                globenv=globenv)
 
-    IF (.not. use_ot) THEN
+    IF (.NOT.use_ot) THEN
+      CALL allocate_blacs_matrix(new_matrix=ortho,&
+                                 nrow_global=nao,&
+                                 ncol_global=nao,&
+                                 nrow_block=nrow_block,&
+                                 ncol_block=ncol_block,&
+                                 name="ORTHOGONALIZATION MATRIX",&
+                                 globenv=globenv)
+      CALL allocate_blacs_matrix(new_matrix=scf_work2,&
+                                 nrow_global=nao,&
+                                 ncol_global=nao,&
+                                 nrow_block=nrow_block,&
+                                 ncol_block=ncol_block,&
+                                 name="SCF WORK MATRIX 2",&
+                                 globenv=globenv)
+    END IF
 
-       CALL allocate_blacs_matrix(new_matrix=ortho,&
-                               nrow_global=nao,&
-                               ncol_global=nao,&
-                               nrow_block=nrow_block,&
-                               ncol_block=ncol_block,&
-                               name="ORTHOGONALIZATION MATRIX",&
-                               globenv=globenv)
+!   *** Allocate k and p and put them in the QS environment ***
 
-       CALL allocate_blacs_matrix(new_matrix=scf_work2,&
-                               nrow_global=nao,&
-                               ncol_global=nao,&
-                               nrow_block=nrow_block,&
-                               ncol_block=ncol_block,&
-                               name="SCF WORK MATRIX 2", &
-                               globenv=globenv)
-    ENDIF
+    NULLIFY (k_rmpv)
+    CALL allocate_matrix_set(k_rmpv,1)
+    NULLIFY (p_rmpv)
+    CALL allocate_matrix_set(p_rmpv,1)
+    NULLIFY (p_old_rmpv)
+    CALL allocate_matrix_set(p_old_rmpv,1)
 
+    CALL set_qs_env(qs_env=qs_env,&
+                    k=k_rmpv,&
+                    p=p_rmpv,&
+                    p_old=p_old_rmpv)
+
+    NULLIFY (k_rmpv(1)%matrix)
+    CALL replicate_matrix_structure(s(1)%matrix,k_rmpv(1)%matrix,&
+                                    "KOHN-SHAM MATRIX")
+    NULLIFY (p_rmpv(1)%matrix)
+    CALL replicate_matrix_structure(s(1)%matrix,p_rmpv(1)%matrix,&
+                                    "DENSITY MATRIX")
+    NULLIFY (p_old_rmpv(1)%matrix)
+    CALL replicate_matrix_structure(h(1)%matrix,p_old_rmpv(1)%matrix,&
+                                   "OLD DENSITY MATRIX (REDUNDANT)")
 
     CALL copy_sparse_to_blacs_matrix(h(1)%matrix,scf_work1,globenv)
 
 !   *** Redistribute the core Hamiltonian matrix in ***
-!   *** order to eliminate redundant atomic blocks  ***
+!   *** order to eliminate redundant atomic blocks  ***
 
     IF ((globenv%num_pe > 1).AND.gth_potential_present) THEN
       CALL deallocate_matrix(h(1)%matrix)
       CALL replicate_matrix_structure(s(1)%matrix,h(1)%matrix,&
                                       "CORE HAMILTONIAN MATRIX")
       CALL copy_blacs_to_sparse_matrix(scf_work1,h(1)%matrix,globenv)
-      call set_qs_env(qs_env,h=h)
+      CALL set_qs_env(qs_env,h=h)
     END IF
 
-    IF (use_ot) THEN
-       CALL deallocate_blacs_matrix(scf_work1)
-    ENDIF
-
-    ! allocate k and p  and puth them in the qs_environment
-    allocate(k_rmpv(1), p_rmpv(1), p_old_rmpv(1))
-    call set_qs_env(qs_env, p=p_rmpv, k=k_rmpv, p_old=p_old_rmpv)
-  
-    NULLIFY (k_rmpv(1)%matrix)
-    CALL replicate_matrix_structure(h(1)%matrix,k_rmpv(1)%matrix,"KOHN-SHAM MATRIX")
-
-    NULLIFY (p_rmpv(1)%matrix)
-    CALL replicate_matrix_structure(h(1)%matrix,p_rmpv(1)%matrix,"DENSITY MATRIX")
-
-    NULLIFY (p_old_rmpv(1)%matrix)
-    CALL replicate_matrix_structure(h(1)%matrix,p_old_rmpv(1)%matrix,"OLD DENSITY MATRIX")
+    IF (use_ot) CALL deallocate_blacs_matrix(scf_work1)
 
     CALL calculate_ecore_self(qs_env)
     CALL calculate_ecore_overlap(qs_env,globenv,.FALSE.)

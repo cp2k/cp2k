@@ -21,7 +21,8 @@
 
 MODULE qs_init
 
-  USE kinds, ONLY: wp => dp
+  USE kinds, ONLY: int_size,&
+                   wp => dp
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set,&
@@ -56,6 +57,7 @@ MODULE qs_init
   USE simulation_cell,                 ONLY: cell_type,&
                                              read_cell,&
                                              write_cell
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE pao_types,                       ONLY: pao_env_type
@@ -87,6 +89,11 @@ CONTAINS
     TYPE(qs_environment_type), INTENT(OUT)    :: qs_env
     TYPE(global_environment_type), INTENT(IN) :: globenv
 
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE read_qs_env (MODULE qs_init)"
+
 !   *** Local variables ***
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
@@ -97,8 +104,10 @@ CONTAINS
     TYPE(qs_energy_type), POINTER                 :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER    :: force
 
-    INTEGER :: handle,lmax,maxl,maxlppl,maxlppnl,nkind,output_unit
+    INTEGER :: handle,ikind,istat,lmax,maxl,maxlppl,maxlppnl,nkind,output_unit
     LOGICAL :: ionode
+
+    INTEGER, DIMENSION(:), ALLOCATABLE :: natom_of_kind
 
 !   ---------------------------------------------------------------------------
 
@@ -223,7 +232,13 @@ CONTAINS
 
     IF (dft_control%forces) THEN
       nkind = SIZE(atomic_kind_set)
-      CALL allocate_qs_force(force,nkind)
+      ALLOCATE (natom_of_kind(nkind),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"natom_of_kind",nkind*int_size)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                               natom_of_kind=natom_of_kind) 
+      CALL allocate_qs_force(force,natom_of_kind)
+      DEALLOCATE (natom_of_kind,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"natom_of_kind")
     END IF
 
 !   *** Get the current QUICKSTEP environment ***
@@ -238,6 +253,7 @@ CONTAINS
                     force=force)
 
 !   *** Read the pao section ***
+
     if (dft_control%qs_control%pao) then
        allocate(pao_env) ! check status ?
        call set_qs_env(qs_env=qs_env,pao_env=pao_env)

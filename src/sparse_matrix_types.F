@@ -92,6 +92,7 @@ MODULE sparse_matrix_types
             deallocate_matrix_set,&
             get_block_node,&
             get_matrix_info,&
+            merge_matrices,&
             put_block_node,&
             replicate_matrix,&
             replicate_matrix_structure,&
@@ -156,6 +157,10 @@ MODULE sparse_matrix_types
     MODULE PROCEDURE get_real_block_node,get_real_matrix_block
   END INTERFACE
 
+  INTERFACE merge_matrices
+    MODULE PROCEDURE merge_real_matrices
+  END INTERFACE
+
   INTERFACE next_block_node
     MODULE PROCEDURE next_real_block_node
   END INTERFACE
@@ -192,24 +197,24 @@ CONTAINS
 
   SUBROUTINE add_real_matrices(c,alpha,a,beta,b)
 
-    !   Purpose: Calculate the sum of the  sparse matrices a and b which have the
-    !            same structure.
+!   Purpose: Calculate the sum of the  sparse matrices a and b which have the
+!            same structure.
 
-    !            c = alpha*a + beta*b
+!            c = alpha*a + beta*b
 
-    !   History: - Creation (10.04.2002, MK)
+!   History: - Creation (10.04.2002, MK)
 
-    !   ***************************************************************************
+!   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER :: a,b,c
     REAL(wp), INTENT(IN)            :: alpha,beta
 
-    !   *** Local parameters ***
+!   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
          "SUBROUTINE add_real_matrices (MODULE sparse_matrix_types)"
 
-    !   *** Local variables ***
+!   *** Local variables ***
 
     TYPE(real_block_node_type), POINTER :: block_node
 
@@ -217,9 +222,9 @@ CONTAINS
 
     REAL(wp), DIMENSION(:,:), POINTER :: a_block,b_block,c_block
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
-    !   *** Check the association status of the matrices ***
+!   *** Check the association status of the matrices ***
 
     IF (.NOT.ASSOCIATED(a)) THEN
        CALL stop_program(routine,"The matrix pointer a is not associated")
@@ -233,9 +238,10 @@ CONTAINS
        CALL stop_program(routine,"The matrix pointer c is not associated")
     END IF
 
-    !   *** Add matrix elements ***
+!   *** Add matrix elements ***
 
-    if (alpha==1.0_wp .and. beta==1.0_wp) then ! make common case fast
+    IF ((alpha == 1.0_wp).AND.(beta == 1.0_wp)) THEN ! make common case fast
+
        DO iblock_row=1,c%nblock_row
 
           block_node => first_block_node(c,iblock_row)
@@ -243,18 +249,18 @@ CONTAINS
           DO WHILE (ASSOCIATED(block_node))
 
              CALL get_block_node(block_node=block_node,&
-                  block_col=iblock_col,&
-                  block=c_block)
+                                 block_col=iblock_col,&
+                                 block=c_block)
 
              CALL get_block_node(matrix=a,&
-                  block_row=iblock_row,&
-                  block_col=iblock_col,&
-                  block=a_block)
+                                 block_row=iblock_row,&
+                                 block_col=iblock_col,&
+                                 block=a_block)
 
              CALL get_block_node(matrix=b,&
-                  block_row=iblock_row,&
-                  block_col=iblock_col,&
-                  block=b_block)
+                                 block_row=iblock_row,&
+                                 block_col=iblock_col,&
+                                 block=b_block)
              
              c_block(:,:) = a_block(:,:) + b_block(:,:)
 
@@ -263,36 +269,38 @@ CONTAINS
           END DO
 
        END DO
-    else
+
+    ELSE
+
        DO iblock_row=1,c%nblock_row
 
           block_node => first_block_node(c,iblock_row)
 
           DO WHILE (ASSOCIATED(block_node))
 
-             CALL get_block_node(block_node=block_node,&
-                  block_col=iblock_col,&
-                  block=c_block)
+            CALL get_block_node(block_node=block_node,&
+                                block_col=iblock_col,&
+                                block=c_block)
 
-             CALL get_block_node(matrix=a,&
-                  block_row=iblock_row,&
-                  block_col=iblock_col,&
-                  block=a_block)
+            CALL get_block_node(matrix=a,&
+                                block_row=iblock_row,&
+                                block_col=iblock_col,&
+                                block=a_block)
 
-             CALL get_block_node(matrix=b,&
-                  block_row=iblock_row,&
-                  block_col=iblock_col,&
-                  block=b_block)
+            CALL get_block_node(matrix=b,&
+                                block_row=iblock_row,&
+                                block_col=iblock_col,&
+                                block=b_block)
 
-             c_block(:,:) = alpha*a_block(:,:) + beta*b_block(:,:)
+            c_block(:,:) = alpha*a_block(:,:) + beta*b_block(:,:)
 
-             block_node => block_node%next_block_node
+            block_node => block_node%next_block_node
 
           END DO
 
        END DO
 
-    end if
+    END IF
 
   END SUBROUTINE add_real_matrices
 
@@ -747,7 +755,7 @@ CONTAINS
     TYPE(real_block_node_type), POINTER :: block_node
 
     INTEGER :: iblock_col,iblock_row,icol,icol_block,irow,irow_block,istat,&
-               ncol,nrow,sbncol,sbnrow,  handle
+               nrow,sbncol,sbnrow,  handle
     REAL(wp) :: flops
 
     REAL(wp), DIMENSION(:,:), POINTER :: sparse_block
@@ -846,8 +854,8 @@ CONTAINS
 
     TYPE(real_block_node_type), POINTER :: block_node
 
-    INTEGER :: iblock_col,iblock_row,icol,irow,icol_block,irow,irow_block,istat,&
-               ncol,nrow,sbncol,sbnrow,  handle
+    INTEGER :: iblock_col,iblock_row,icol,icol_block,irow,irow_block,istat,&
+               nrow,sbncol,sbnrow,  handle
     REAL(wp) :: flops
 
     REAL(wp), DIMENSION(:,:), POINTER :: sparse_block
@@ -1028,38 +1036,6 @@ CONTAINS
 
   END SUBROUTINE copy_real_matrix
 
-! *****************************************************************************
-!MK
-!MK  SUBROUTINE deallocate_real_matrix1(matrix_set)
-!MK
-!MK!   Purpose: Deallocate a real matrix at the real_matrix_p_type level.
-!MK
-!MK!   History: - Creation (13.03.2002, MK)
-!MK
-!MK!   ***************************************************************************
-!MK
-!MK    TYPE(real_matrix_p_type), POINTER :: matrix_set
-!MK
-!MK!   *** Local parameters ***
-!MK
-!MK    CHARACTER(LEN=*), PARAMETER :: routine =&
-!MK      "SUBROUTINE deallocate_real_matrix1 (MODULE sparse_matrix_types)"
-!MK
-!MK!   *** Local variables ***
-!MK
-!MK    INTEGER :: istat
-!MK
-!MK!   ---------------------------------------------------------------------------
-!MK
-!MK    IF (.NOT.ASSOCIATED(matrix_set)) RETURN
-!MK
-!MK    CALL deallocate_matrix(matrix_set%matrix)
-!MK
-!MK    DEALLOCATE (matrix_set,STAT=istat)
-!MK    IF (istat /= 0) CALL stop_memory(routine,"matrix_set")
-!MK
-!MK  END SUBROUTINE deallocate_real_matrix1
-!MK
 ! *****************************************************************************
 
   SUBROUTINE deallocate_real_matrix(matrix)
@@ -1367,6 +1343,82 @@ CONTAINS
 
 ! *****************************************************************************
 
+  SUBROUTINE merge_real_matrices(a,b)
+
+!   Purpose: Merge two sparse matrices a and b which have the same structure,
+!            i.e. all blocks of b which are not present in a will be created
+!            and blocks which are present in both matrices will be added.
+!            b will be removed before exit.
+
+!   History: - Creation (16.07.2002,MK)
+
+!   ***************************************************************************
+
+    TYPE(real_matrix_type), POINTER :: a,b
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE merge_real_matrices (MODULE sparse_matrix_types)"
+
+!   *** Local variables ***
+
+    TYPE(real_block_node_type), POINTER :: block_node
+
+    INTEGER :: iblock_col,iblock_row
+
+    REAL(wp), DIMENSION(:,:), POINTER :: a_block,b_block
+
+!   ---------------------------------------------------------------------------
+
+!   *** Check the association status of the matrices ***
+
+    IF (.NOT.ASSOCIATED(a)) THEN
+       CALL stop_program(routine,"The matrix pointer a is not associated")
+    END IF
+
+    IF (.NOT.ASSOCIATED(b)) THEN
+       CALL stop_program(routine,"The matrix pointer b is not associated")
+    END IF
+
+    DO iblock_row=1,b%nblock_row
+
+      block_node => first_block_node(b,iblock_row)
+
+      DO WHILE (ASSOCIATED(block_node))
+
+        CALL get_block_node(block_node=block_node,&
+                            block_col=iblock_col,&
+                            block=b_block)
+
+        CALL get_block_node(matrix=a,&
+                            block_row=iblock_row,&
+                            block_col=iblock_col,&
+                            block=a_block)
+
+        IF (ASSOCIATED(a_block)) THEN
+          a_block(:,:) = a_block(:,:) + b_block(:,:)
+        ELSE
+          CALL add_real_matrix_block(matrix=a,&
+                                     block_row=iblock_row,&
+                                     block_col=iblock_col,&
+                                     block=b_block)
+        END IF
+
+        block_node => block_node%next_block_node
+
+      END DO
+
+      CALL deallocate_real_matrix_row(matrix=b,block_row=iblock_row)
+
+    END DO
+
+    CALL deallocate_real_matrix(b)
+
+  END SUBROUTINE merge_real_matrices
+
+! *****************************************************************************
+
   FUNCTION next_real_block_node(block_node) RESULT(next_block_node)
 
 !   Purpose: Return a pointer to the next block node of a block list.
@@ -1566,34 +1618,37 @@ CONTAINS
                          matrix_name=target_name,&
                          matrix_symmetry=source%symmetry)
 
-    make_data_blocks=.true.
     IF (PRESENT(allocate_blocks)) THEN
-       if (allocate_blocks) THEN 
-          make_data_blocks=.true.
-       ELSE
-          make_data_blocks=.false.
-       ENDIF
-    ENDIF
+      make_data_blocks = allocate_blocks
+    ELSE
+      make_data_blocks = .TRUE.
+    END IF
 
 !   *** Initialize all block nodes ***
+
     IF (make_data_blocks) THEN
-     DO iblock_row=1,source%nblock_row
-      block_node => first_block_node(source,iblock_row)
-      DO WHILE (ASSOCIATED(block_node))
 
-        CALL get_block_node(block_node=block_node,&
-                            block_col=iblock_col,&
-                            block=block)
+      DO iblock_row=1,source%nblock_row
 
-        CALL add_block_node(matrix=target,&
-                            block_row=iblock_row,&
-                            block_col=iblock_col,&
-                            block=block)
+        block_node => first_block_node(source,iblock_row)
 
-        block_node => next_block_node(block_node)
+        DO WHILE (ASSOCIATED(block_node))
+
+          CALL get_block_node(block_node=block_node,&
+                              block_col=iblock_col,&
+                              block=block)
+
+          CALL add_block_node(matrix=target,&
+                              block_row=iblock_row,&
+                              block_col=iblock_col,&
+                              block=block)
+
+          block_node => next_block_node(block_node)
+
+        END DO
 
       END DO
-     END DO
+
     ENDIF
 
   END SUBROUTINE replicate_real_matrix

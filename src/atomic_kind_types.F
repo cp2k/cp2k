@@ -306,7 +306,7 @@ CONTAINS
                                  pao_tot_excl_bas,pao_max_l_angles,&
                                  natom,nelectron,ncgf,npgf,nset,nsgf,nshell,&
                                  all_potential_present,gth_potential_present,&
-                                 atom_of_kind,kind_of,maxder)
+                                 atom_of_kind,kind_of,natom_of_kind,maxder)
 
 !   Purpose: Get informations about an atomic kind set.
 
@@ -330,7 +330,8 @@ CONTAINS
                                                      npgf,nset,nsgf,nshell
     LOGICAL, OPTIONAL, INTENT(OUT)                :: all_potential_present,&
                                                      gth_potential_present
-    INTEGER, DIMENSION(:), OPTIONAL, INTENT(OUT)  :: atom_of_kind,kind_of
+    INTEGER, DIMENSION(:), OPTIONAL, INTENT(OUT)  :: atom_of_kind,kind_of,&
+                                                     natom_of_kind
     INTEGER, OPTIONAL, INTENT(IN)                 :: maxder
 
 !   *** Local parameters ***
@@ -376,6 +377,9 @@ CONTAINS
       IF (PRESENT(nshell)) nshell = 0
       IF (PRESENT(all_potential_present)) all_potential_present = .FALSE.
       IF (PRESENT(gth_potential_present)) gth_potential_present = .FALSE.
+      IF (PRESENT(atom_of_kind)) atom_of_kind(:) = 0
+      IF (PRESENT(kind_of)) kind_of(:) = 0
+      IF (PRESENT(natom_of_kind)) natom_of_kind(:) = 0
       pao=.FALSE.
       IF (PRESENT(pao_max_excl_bas) .OR. PRESENT(pao_max_full_bas) .OR.&
            PRESENT(pao_max_min_bas).OR. PRESENT(pao_tot_min_bas).OR.&
@@ -562,6 +566,9 @@ CONTAINS
             atom_a = atomic_kind%atom_list(iatom)
             kind_of(atom_a) = ikind
           END DO
+        END IF
+        IF (PRESENT(natom_of_kind)) THEN
+          natom_of_kind(ikind) = atomic_kind_set(ikind)%natom
         END IF
         IF (pao) THEN
            CALL cp_proj_get(atomic_kind%pao_bas_proj,&

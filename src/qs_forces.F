@@ -24,20 +24,25 @@ MODULE qs_forces
                    wp => dp,&
                    wp_size => dp_size
 
+  USE atomic_kind_types,    ONLY: atomic_kind_type,&
+                                  get_atomic_kind_set
   USE dft_types,            ONLY: dft_control_type
   USE global_types,         ONLY: global_environment_type
+  USE message_passing,      ONLY: mp_sum
   USE qs_blacs,             ONLY: allocate_blacs_matrix,&
                                   blacs_matrix_type,&
                                   copy_blacs_to_sparse_matrix,&
                                   deallocate_blacs_matrix,&
                                   get_blacs_matrix_info
-  USE qs_build_ks_matrix,   ONLY: qs_ks_update_qs_env,qs_ks_env_type,&
-       qs_ks_did_change
+  USE qs_build_ks_matrix,   ONLY: qs_ks_update_qs_env,&
+                                  qs_ks_env_type,&
+                                  qs_ks_did_change
   USE qs_core_energies,     ONLY: calculate_ecore_overlap
   USE qs_core_hamiltonian,  ONLY: build_core_hamiltonian_matrix
   USE qs_environment_types, ONLY: get_qs_env,&
                                   qs_environment_type
-  USE qs_force_types,       ONLY: qs_force_type
+  USE qs_force_types,       ONLY: init_qs_force,&
+                                  qs_force_type
   USE qs_mo_types,          ONLY: allocate_mo_set,&
                                   calculate_w_matrix,&
                                   get_mo_set,&
@@ -94,24 +99,27 @@ CONTAINS
 
     INTEGER :: handle,iatom,ikind,istat,nao,ncol_block,nrow_block,output_unit
 
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
     TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: c
     TYPE(qs_force_type), DIMENSION(:), POINTER      :: force
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,p,p_old,s
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,p,s
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("update_forces","I","",handle)
-   
+
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
+                    atomic_kind_set=atomic_kind_set,&
                     s=s,&
                     c=c,&
                     k=k,&
-                    p=p,&
-                    p_old=p_old,&
+                    p_old=p,&
                     force=force)
 
     IF (.NOT.dft_control%forces) RETURN
+
+    CALL init_qs_force(force)
 
 !   *** Force component from the core charge distribution overlap ***
 
@@ -153,14 +161,30 @@ CONTAINS
                                        calculate_forces=.TRUE.,&
                                        p=p(1)%matrix,&
                                        w=w)
-    call qs_ks_did_change(ks_env,qs_env,globenv,p_changed=.true.)
+    CALL qs_ks_did_change(ks_env,qs_env,globenv,p_changed=.true.)
     CALL qs_ks_update_qs_env(ks_env=ks_env,&
-         qs_env=qs_env,&
-         global_env=globenv,&
-         rebuild=.TRUE.,&
-         calculate_forces=.TRUE.)
+                             qs_env=qs_env,&
+                             global_env=globenv,&
+                             rebuild=.TRUE.,&
+                             calculate_forces=.TRUE.)
 
-    CALL write_forces(force,globenv)
+    DO ikind=1,SIZE(force)
+      CALL mp_sum(force(ikind)%gth_ppl,globenv%group)
+      CALL mp_sum(force(ikind)%gth_ppnl,globenv%group)
+      CALL mp_sum(force(ikind)%kinetic,globenv%group)
+      CALL mp_sum(force(ikind)%overlap,globenv%group)
+      CALL mp_sum(force(ikind)%rho_elec,globenv%group)
+      force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
+                                force(ikind)%core_overlap(:,:) +&
+                                force(ikind)%gth_ppl(:,:) +&
+                                force(ikind)%gth_ppnl(:,:) +&
+                                force(ikind)%kinetic(:,:) +&
+                                force(ikind)%overlap(:,:) +&
+                                force(ikind)%rho_core(:,:) +&
+                                force(ikind)%rho_elec(:,:)
+    END DO
+
+    CALL write_forces(force,atomic_kind_set,globenv)
 
     CALL timestop(0.0_wp,handle)
 
@@ -168,7 +192,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_forces(qs_force,globenv)
+  SUBROUTINE write_forces(qs_force,atomic_kind_set,globenv)
 
 !   Purpose: Write a Quickstep force data structure to 
 
@@ -176,8 +200,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN)  :: globenv
-    TYPE(qs_force_type), DIMENSION(:), POINTER :: qs_force
+    TYPE(global_environment_type), INTENT(IN)     :: globenv
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(qs_force_type), DIMENSION(:), POINTER    :: qs_force
 
 !   *** Local parameters ***
 
@@ -186,7 +211,9 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: iatom,ikind,istat,output_unit
+    INTEGER :: i,iatom,ikind,istat,natom,output_unit
+
+    INTEGER, DIMENSION(:), ALLOCATABLE :: atom_of_kind,kind_of
 
 !   ---------------------------------------------------------------------------
 
@@ -201,58 +228,32 @@ CONTAINS
 
     output_unit = globenv%scr
 
-    WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") "FORCES"
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             natom=natom)
+    ALLOCATE (atom_of_kind(natom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
+    ALLOCATE (kind_of(natom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"kind_of",natom*int_size)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             atom_of_kind=atom_of_kind,&
+                             kind_of=kind_of)
 
-    DO ikind=1,SIZE(qs_force)
-      WRITE (UNIT=output_unit,FMT="(/,T2,A,I5,/)") "ATOMIC KIND",ikind
-      IF (ASSOCIATED(qs_force(ikind)%core_overlap)) THEN
-        DO iatom=1,SIZE(qs_force(ikind)%core_overlap,2)
-          WRITE (UNIT=output_unit,FMT="(T2,A,T30,I6,3F12.6)")&
-            "core_overlap:",iatom,qs_force(ikind)%core_overlap(1:3,iatom)
-        END DO
-      END IF
-      IF (ASSOCIATED(qs_force(ikind)%gth_ppl)) THEN
-        DO iatom=1,SIZE(qs_force(ikind)%gth_ppl,2)
-          WRITE (UNIT=output_unit,FMT="(T2,A,T30,I6,3F12.6)")&
-            "gth_ppl:",iatom,qs_force(ikind)%gth_ppl(1:3,iatom)
-        END DO
-      END IF
-      IF (ASSOCIATED(qs_force(ikind)%gth_ppnl)) THEN
-        DO iatom=1,SIZE(qs_force(ikind)%gth_ppnl,2)
-          WRITE (UNIT=output_unit,FMT="(T2,A,T30,I6,3F12.6)")&
-            "gth_ppnl:",iatom,qs_force(ikind)%gth_ppnl(1:3,iatom)
-        END DO
-      END IF
-      IF (ASSOCIATED(qs_force(ikind)%kinetic)) THEN
-        DO iatom=1,SIZE(qs_force(ikind)%kinetic,2)
-          WRITE (UNIT=output_unit,FMT="(T2,A,T30,I6,3F12.6)")&
-            "kinetic:",iatom,qs_force(ikind)%kinetic(1:3,iatom)
-        END DO
-      END IF
-      IF (ASSOCIATED(qs_force(ikind)%overlap)) THEN
-        DO iatom=1,SIZE(qs_force(ikind)%overlap,2)
-          WRITE (UNIT=output_unit,FMT="(T2,A,T30,I6,3F12.6)")&
-            "overlap:",iatom,qs_force(ikind)%overlap(1:3,iatom)
-        END DO
-      END IF
-      IF (ASSOCIATED(qs_force(ikind)%rho_core)) THEN
-        DO iatom=1,SIZE(qs_force(ikind)%rho_core,2)
-          WRITE (UNIT=output_unit,FMT="(T2,A,T30,I6,3F12.6)")&
-            "rho_core:",iatom,qs_force(ikind)%rho_core(1:3,iatom)
-        END DO
-      END IF
-      IF (ASSOCIATED(qs_force(ikind)%rho_elec)) THEN
-        DO iatom=1,SIZE(qs_force(ikind)%rho_elec,2)
-          WRITE (UNIT=output_unit,FMT="(T2,A,T30,I6,3F12.6)")&
-            "rho_elec:",iatom,qs_force(ikind)%rho_elec(1:3,iatom)
-        END DO
-      END IF
-!      IF (ASSOCIATED(qs_force(ikind)%total)) THEN
-!        DO iatom=1,SIZE(qs_force(ikind)%total,2)
-!          WRITE (UNIT=output_unit,FMT="(T2,A,T30,I6,3F12.6)")&
-!            "total:",iatom,qs_force(ikind)%rho_total(1:3,iatom)
-!        END DO
-!      END IF
+    WRITE (UNIT=output_unit,&
+           FMT="(/,/,T2,A,/,/,T3,A,T11,A,T23,A,T43,A1,2(13X,A1))")&
+      "FORCES","Atom","Kind","Component","X","Y","Z"
+
+    DO iatom=1,natom
+      ikind = kind_of(iatom)
+      i = atom_of_kind(iatom)
+      WRITE (UNIT=output_unit,FMT="(/,(T2,I5,4X,I4,T18,A,T34,3F14.6))")&
+        iatom,ikind,"       overlap",qs_force(ikind)%overlap(1:3,i),&
+        iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
+        iatom,ikind,"       gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
+        iatom,ikind,"      gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
+        iatom,ikind,"  core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
+        iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
+        iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+        iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
     END DO
 
   END SUBROUTINE write_forces
