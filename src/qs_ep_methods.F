@@ -618,7 +618,7 @@ END SUBROUTINE qs_ep_calculation
           CALL get_qs_env(sub_qs, cell=sub_cell, green=green, pw_env=pw_env,&
                rho_core=sub_rho_core, error=error)
           CALL pw_green_fn_rebuild(green,&
-               pw_env%pw_pools(pw_env%auxbas_grid)%pool, cell=sub_cell)
+               pw_env%pw_pools(pw_env%auxbas_grid)%pool, cell=sub_cell, para_env=para_env)
           ! reallocate rho_core
           IF (ASSOCIATED(sub_rho_core)) THEN
              CALL coeff_deallocate(sub_rho_core)

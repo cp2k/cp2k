@@ -337,10 +337,6 @@ CONTAINS
     IF (PRESENT(hmat)) cell%hmat(:,:) = hmat(:,:)
     IF (PRESENT(periodic)) cell%perd(:) = periodic(:)
 
-    last_cell_id=last_cell_id+1
-    cell%id_nr=last_cell_id
-    cell%ref_count=1
-
 !   *** Calculate the determinant of the matrix h ***
 
     cell%deth = det_3x3(cell%hmat)
@@ -590,13 +586,11 @@ CONTAINS
 
 !TODEL_START_TL
     IF (.NOT.ASSOCIATED(cell)) THEN
-      ALLOCATE (cell,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"cell",0)
+       CALL cell_create(cell)
     END IF
 
     IF (.NOT.ASSOCIATED(cell_ref)) THEN
-      ALLOCATE (cell_ref,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"cell_ref",0)
+       CALL cell_create(cell_ref)
     END IF
 
 !   *** Load the default values ***
@@ -697,8 +691,7 @@ CONTAINS
 ! First release the clone and then reallocate for safety
       CALL cell_release ( cell_ref, error )
       IF (.NOT.ASSOCIATED(cell_ref)) THEN
-         ALLOCATE (cell_ref,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routine,"cell_ref",0)
+         call cell_create(cell_ref)
       END IF
 !     trip a flag
       IF ( PRESENT ( use_ref_cell ) ) use_ref_cell = .TRUE.
@@ -823,13 +816,11 @@ CONTAINS
     IF (.NOT.failure) THEN
 
        IF (.NOT.ASSOCIATED(cell)) THEN
-          ALLOCATE (cell, STAT=istat)
-          CPPostcondition(istat == 0,cp_failure_level,routineP,error,failure)
+          CALL cell_create(cell)
        END IF
        
        IF (.NOT.ASSOCIATED(cell_ref)) THEN
-          ALLOCATE (cell_ref,STAT=istat)
-          CPPostcondition(istat == 0,cp_failure_level,routineP,error,failure)
+          call cell_create(cell_ref)
        END IF
        
        IF(PRESENT(use_ref_cell)  ) use_ref_cell = .FALSE.
@@ -1088,6 +1079,9 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
     ALLOCATE(cell,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    last_cell_id=last_cell_id+1
+    cell%id_nr=last_cell_id
+    cell%ref_count=1
     cell % perd = 1
     IF (.NOT. PRESENT(hmat)) RETURN
     IF (.NOT. failure) THEN

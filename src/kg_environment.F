@@ -212,7 +212,7 @@ CONTAINS
          cell_section=cell_section, error=error)
     CALL get_cell( cell, abc=abc)    
     CALL write_cell ( cell, globenv )
-    call pw_green_setup(green, poisson_section, cell%perd, abc, error )
+    call pw_green_setup(green, poisson_section, abc, error )
 
     ! topology
     CALL topology_control (atomic_kind_set,particle_set,&

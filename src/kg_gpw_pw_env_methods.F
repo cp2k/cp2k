@@ -114,6 +114,7 @@ MODULE kg_gpw_pw_env_methods
   USE simulation_cell,                 ONLY: cell_release,&
                                              cell_retain,&
                                              cell_type,&
+                                             cell_create,&
                                              init_cell,&
                                              pbc,&
                                              get_cell
@@ -286,8 +287,7 @@ CONTAINS
     NULLIFY(cell_mol,new_pw_mol)
 
 ! create the cell structure for the molecule
-    ALLOCATE (cell_mol,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"cell",0)
+    CALL cell_create(cell_mol)
     cell_mol%unit_of_length_name = "BOHR"
     cell_mol%deth = 0.0_dp
     cell_mol%unit_of_length = 1.0_dp
@@ -334,10 +334,10 @@ CONTAINS
    ! complete init of green's function
     CALL get_cell(cell_mol, abc=abc)
 
-    CALL pw_green_setup(green, poisson_section, cell_mol%perd, abc, error )
+    CALL pw_green_setup(green, poisson_section, abc, error )
 
     CALL pw_green_fn_rebuild(green,&
-            new_pw_mol%pw_pools(new_pw_mol%auxbas_grid)%pool,cell=cell_mol)
+            new_pw_mol%pw_pools(new_pw_mol%auxbas_grid)%pool,cell=cell_mol, para_env=para_env)
     CALL set_molbox_env(molbox_env=molbox_env_p,green=green)
     CALL pw_green_release(green, error=error)
     CALL cell_release(cell_mol,error=error)

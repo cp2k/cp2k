@@ -56,18 +56,25 @@ MODULE colvar
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get,&
+                                             section_vals_get
+  USE input_cp2k,                      ONLY: parsed_cp2k_input
 
   IMPLICIT NONE
   PRIVATE
 
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='colvar'
 
-  PUBLIC :: colvar_read
+  PUBLIC :: colvar_read, colvar_read_new
   PUBLIC :: colvar_eval_f
 
 !***
 !****************************************************************************
 CONTAINS
+
+!TODEL_START_TL
 
 !!****f* metadynamics/colvar_read *
 !!
@@ -98,26 +105,34 @@ CONTAINS
 !!     04.2004 created
 !!
 !!*** **********************************************************************
-  SUBROUTINE colvar_read(colvar,extended_lagrange, error)
+  SUBROUTINE colvar_read(colvar, extended_lagrange, error)
+    IMPLICIT NONE
+    ! Arguments
     TYPE(colvar_type), INTENT(inout)         :: colvar
     LOGICAL                                  :: extended_lagrange
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-
+    ! Variables
     CHARACTER(len=*), PARAMETER :: routinen = 'colvar_read', &
-      routinep = modulen//':'//routinen
-
+         routinep = modulen//':'//routinen
     CHARACTER(len=3)                         :: test_result
     CHARACTER(len=default_string_length)     :: colvar_type_name, keyword
     INTEGER                                  :: i, ii, n_opt, n_opt_cv, &
-                                                n_opt_var, ntemp, stat
+                                                n_opt_var, ntemp, stat, n_rep
     LOGICAL                                  :: failure, RECOGNIZED_KEYWORD, &
                                                 section_found
+    LOGICAL, DIMENSION(4)                    :: my_subsection
+    TYPE(section_vals_type), POINTER         :: distance_section, angle_section,&
+                                                torsion_section, coordination_section    
+    INTEGER, DIMENSION(:), POINTER           :: iatms
 
+    NULLIFY(iatms)
     failure=.FALSE.
     n_opt=0
     n_opt_cv=0
     n_opt_var=0
+    colvar%do_wall_p=.FALSE.
+    colvar%do_wall_m=.FALSE.
 
     CALL search_object("&COLVAR",ignore_case=.TRUE.,&
          found=section_found)
@@ -146,8 +161,6 @@ CONTAINS
           colvar%type_id=no_colvar_id
        END SELECT
     END IF
-    colvar%do_wall_p=.FALSE.
-    colvar%do_wall_m=.FALSE.
     IF (.NOT.failure) THEN
        DO
           test_result = test_object(newline=.TRUE.)
@@ -156,7 +169,7 @@ CONTAINS
           ELSE IF (test_result == "EOF") THEN
              CALL stop_parser(routinen,modulen,__LINE__,"EOF")
           END IF
-
+          
           CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
           SELECT CASE(keyword)
           CASE ("LAMBDA")
@@ -164,7 +177,7 @@ CONTAINS
              n_opt=n_opt+1
           CASE ("MASS","MASS_S")
              CALL read_object(colvar%mass)
-!             CALL convert_to_cp2k_units('u',mass=colvar%mass)
+             !             CALL convert_to_cp2k_units('u',mass=colvar%mass)
              colvar%mass=colvar%mass*massunit
              n_opt=n_opt+1
           CASE ("SCALE")
@@ -181,7 +194,7 @@ CONTAINS
           CASE default
              ! colvar type specific keyword
              recognized_keyword=.TRUE.
-
+             
              SELECT CASE(colvar%type_id)
              CASE(torsion_colvar_id)
                 SELECT CASE(keyword)
@@ -236,11 +249,11 @@ CONTAINS
              CASE default
                 CPAssert(.FALSE.,cp_failure_level,routinep,error,failure)
              END SELECT
-
+             
              CALL cp_assert(recognized_keyword,cp_failure_level,&
                   cp_assertion_failed,routinep,"unknown keyword '"//TRIM(keyword)//&
                   "' in section colvar", error,failure)
-
+             
           END SELECT
        END DO
     END IF
@@ -275,6 +288,7 @@ CONTAINS
             colvar%i_atom(ii)=colvar%torsion_param%i_at_tors(ii)
          ENDDO
     END SELECT
+
     IF(extended_lagrange)THEN
        CALL cp_assert(n_opt==3,cp_failure_level,cp_assertion_failed,routinep,&
          "mass, k or scaling factor missing from cv"//cp_to_string(colvar%index),error,failure)
@@ -289,6 +303,136 @@ CONTAINS
       error,failure)
   END SUBROUTINE colvar_read
 !***************************************************************************
+
+!TODEL_END_TL
+
+  SUBROUTINE colvar_read_new(colvar, extended_lagrange, icol, colvar_section,  error)
+    IMPLICIT NONE
+    ! Arguments
+    TYPE(colvar_type), INTENT(inout)         :: colvar
+    LOGICAL                                  :: extended_lagrange
+    TYPE(section_vals_type), POINTER, OPTIONAL :: colvar_section    
+    INTEGER, INTENT(IN)                        :: icol
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    ! Variables
+    CHARACTER(len=*), PARAMETER :: routinen = 'colvar_read', &
+         routinep = modulen//':'//routinen
+    CHARACTER(len=3)                         :: test_result
+    CHARACTER(len=default_string_length)     :: colvar_type_name, keyword
+    INTEGER                                  :: i, ii, n_opt, n_opt_cv, &
+                                                n_opt_var, ntemp, stat, n_rep
+    LOGICAL                                  :: failure, RECOGNIZED_KEYWORD, &
+                                                section_found
+    LOGICAL, DIMENSION(4)                    :: my_subsection
+    TYPE(section_vals_type), POINTER         :: distance_section, angle_section,&
+                                                torsion_section, coordination_section    
+    INTEGER, DIMENSION(:), POINTER           :: iatms
+
+    NULLIFY(iatms)
+    failure=.FALSE.
+    n_opt=0
+    n_opt_cv=0
+    n_opt_var=0
+    colvar%do_wall_p=.FALSE.
+    colvar%do_wall_m=.FALSE.
+
+    distance_section     => section_vals_get_subs_vals(colvar_section,"DISTANCE",i_rep_section=icol,error=error)
+    angle_section        => section_vals_get_subs_vals(colvar_section,"ANGLE",i_rep_section=icol,error=error)
+    torsion_section      => section_vals_get_subs_vals(colvar_section,"TORSION",i_rep_section=icol,error=error)
+    coordination_section => section_vals_get_subs_vals(colvar_section,"COORDINATION",i_rep_section=icol,error=error)
+    
+    CALL section_vals_get(distance_section,explicit=my_subsection(1),error=error)
+    CALL section_vals_get(angle_section,explicit=my_subsection(2),error=error)
+    CALL section_vals_get(torsion_section,explicit=my_subsection(3),error=error)
+    CALL section_vals_get(coordination_section,explicit=my_subsection(4),error=error)
+    
+    CPPostcondition(COUNT(my_subsection) == 1,cp_failure_level,routinep,error,failure)
+    CALL section_vals_val_get(colvar_section,"SUBSYS",i_rep_section=icol,i_val=colvar%i_subsys,error=error)
+    CALL section_vals_val_get(colvar_section,"MASS",i_rep_section=icol,r_val=colvar%mass,error=error)
+    CALL section_vals_val_get(colvar_section,"SCALE",i_rep_section=icol,r_val=colvar%delta_s,error=error)
+    CALL section_vals_val_get(colvar_section,"WALL+",i_rep_section=icol,r_val=colvar%wall_p,&
+         n_rep_val=n_rep,error=error)
+    IF (n_rep /= 0) colvar%do_wall_p=.TRUE.
+    CALL section_vals_val_get(colvar_section,"WALL-",i_rep_section=icol,r_val=colvar%wall_m,&
+         n_rep_val=n_rep,error=error)
+    IF (n_rep /= 0) colvar%do_wall_m=.TRUE.
+    CALL section_vals_val_get(colvar_section,"LAMBDA",i_rep_section=icol,r_val=colvar%lambda,error=error)
+    
+    IF      (my_subsection(1)) THEN
+       ! Distance
+       colvar%type_id=dist_colvar_id
+       CALL section_vals_val_get(distance_section,"ATOMS",i_vals=iatms,error=error)
+       colvar%dist_param%i_at = iatms(1)
+       colvar%dist_param%j_at = iatms(2)
+    ELSE IF (my_subsection(2)) THEN
+       ! Angle
+       WRITE(*,*)"Not implemented Yet!"
+       STOP
+    ELSE IF (my_subsection(3)) THEN
+       ! Torsion
+       colvar%type_id=torsion_colvar_id
+       CALL section_vals_val_get(torsion_section,"ATOMS",i_vals=iatms,error=error)
+       colvar%torsion_param%i_at_tors = iatms
+    ELSE IF (my_subsection(4)) THEN
+       ! Coordination
+       colvar%type_id=coord_colvar_id
+       CALL section_vals_val_get(coordination_section,"ATOMS_FROM",i_vals=colvar%coord_param%i_at_from,error=error)
+       colvar%coord_param%n_atoms_from = SIZE(colvar%coord_param%i_at_from)
+       CALL section_vals_val_get(coordination_section,"ATOMS_TO",i_vals=colvar%coord_param%i_at_to,error=error)
+       colvar%coord_param%n_atoms_to = SIZE(colvar%coord_param%i_at_to)
+       
+       CALL section_vals_val_get(coordination_section,"R0",r_val=colvar%coord_param%r_0,error=error)
+       CALL section_vals_val_get(coordination_section,"NN",i_val=colvar%coord_param%nncrd,error=error)
+       CALL section_vals_val_get(coordination_section,"ND",i_val=colvar%coord_param%ndcrd,error=error)          
+    END IF
+    
+    SELECT CASE(colvar%type_id)
+    CASE(dist_colvar_id)
+       colvar%n_atom_s=2
+       ALLOCATE(colvar%dsdr(3,colvar%n_atom_s), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       ALLOCATE(colvar%i_atom(colvar%n_atom_s), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       colvar%i_atom(1)=colvar%dist_param%i_at
+       colvar%i_atom(2)=colvar%dist_param%j_at
+    CASE(coord_colvar_id)
+       colvar%n_atom_s=colvar%coord_param%n_atoms_from+colvar%coord_param%n_atoms_to
+       ALLOCATE(colvar%dsdr(3,colvar%n_atom_s), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       ALLOCATE(colvar%i_atom(colvar%n_atom_s), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       DO ii=1,colvar%coord_param%n_atoms_from
+          colvar%i_atom(ii)=colvar%coord_param%i_at_from(ii)
+       ENDDO
+       DO ii=1,colvar%coord_param%n_atoms_to
+          colvar%i_atom(colvar%coord_param%n_atoms_from+ii)=colvar%coord_param%i_at_to(ii)
+       ENDDO
+    CASE(torsion_colvar_id)
+       colvar%n_atom_s=4
+       ALLOCATE(colvar%dsdr(3,colvar%n_atom_s), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       ALLOCATE(colvar%i_atom(colvar%n_atom_s), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       DO ii=1,4
+          colvar%i_atom(ii)=colvar%torsion_param%i_at_tors(ii)
+       ENDDO
+    END SELECT
+    !
+    ! Check Input Inconsistencies..
+    !
+
+    IF(extended_lagrange)THEN
+       CALL section_vals_val_get(colvar_section,"MASS",i_rep_section=icol,  n_rep_val=n_rep, error=error)
+       CPPostcondition(n_rep == 0,cp_failure_level,routinep,error,failure)
+       CALL section_vals_val_get(colvar_section,"SCALE",i_rep_section=icol, n_rep_val=n_rep, error=error)
+       CPPostcondition(n_rep == 0,cp_failure_level,routinep,error,failure)
+       CALL section_vals_val_get(colvar_section,"LAMBDA",i_rep_section=icol, n_rep_val=n_rep, error=error)
+       CPPostcondition(n_rep == 0,cp_failure_level,routinep,error,failure)
+    ENDIF
+
+  END SUBROUTINE colvar_read_new
+
 
 !!****f* colvar/colvar_eval_f [1.0] *
 !!

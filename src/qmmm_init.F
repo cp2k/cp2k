@@ -285,7 +285,7 @@ CONTAINS
        WRITE(iw,'(A)')" QM cell ::"
        CALL write_cell(qm_cell_small, globenv)
        CALL get_cell(qm_cell_small, abc=abc)
-       CALL pw_green_setup ( green, poisson_section, qm_cell_small%perd, abc, error )
+       CALL pw_green_setup ( green, poisson_section, abc, error )
        !
        ! Assign charges and mm_el_pot_radius from fist_topology
        !

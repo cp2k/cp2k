@@ -140,8 +140,8 @@ CONTAINS
     TYPE(cp_error_type) :: error
     TYPE(force_env_type), pointer :: force_env
     TYPE(meta_env_type), pointer :: meta_env
-    TYPE(section_type), pointer :: input_structure
-    TYPE(section_vals_type), POINTER :: input_file, glob_section
+    TYPE(section_type), POINTER :: input_structure
+    TYPE(section_vals_type), POINTER :: input_file, glob_section, metadyn_section
     TYPE(cp_parser_type), pointer :: parser
     TYPE(cp_para_env_type), pointer :: para_env
     LOGICAL :: failure, echo_input, I_was_ionode
@@ -149,7 +149,7 @@ CONTAINS
     ! -----------------------------------------------------------------------------
     cp2k_run_OK = .FALSE.
     failure=.false.
-    NULLIFY(para_env)
+    NULLIFY(para_env, metadyn_section)
     CALL cp_para_env_create(para_env, group=mpi_comm,&
          owns_group=.false.)
 
@@ -219,7 +219,8 @@ CONTAINS
 
        IF (ASSOCIATED(force_env)) THEN
           NULLIFY(meta_env)
-          CALL metadyn_read(meta_env, globenv, error=error)
+          metadyn_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%METADYN",error=error)
+          CALL metadyn_read(meta_env, globenv, metadyn_section, error=error)
           CALL force_env_set(force_env,meta_env=meta_env,error=error)
           CALL meta_env_release(meta_env,error=error)
        END IF

@@ -199,7 +199,7 @@ CONTAINS
          error=error)
     CALL get_cell ( cell, abc=abc)
 
-    CALL pw_green_setup ( green, poisson_section, cell%perd, abc, error )
+    CALL pw_green_setup ( green, poisson_section, abc, error )
 
 !   *** Print the cell parameters ***
 

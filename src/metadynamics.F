@@ -2,7 +2,7 @@
 
 MODULE metadynamics
   USE colvar,                          ONLY: colvar_eval_f,&
-                                             colvar_read
+                                             colvar_read, colvar_read_new
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
@@ -39,7 +39,12 @@ MODULE metadynamics
                                              start_parser,&
                                              stop_parser,&
                                              test_object
-
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get,&
+                                             section_vals_get
+  USE input_cp2k,                      ONLY: parsed_cp2k_input
+  
   IMPLICIT NONE
   PRIVATE 
 
@@ -129,9 +134,10 @@ SUBROUTINE metadyn_create(meta_env,n_colvar,dt,para_env,error)
 END SUBROUTINE metadyn_create
 !***************************************************************************
 
-SUBROUTINE metadyn_read(meta_env,globenv,error)
+SUBROUTINE metadyn_read(meta_env,globenv,metadyn_section,error)
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(global_environment_type)            :: globenv
+    TYPE(section_vals_type), POINTER, OPTIONAL :: metadyn_section    
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -145,7 +151,13 @@ SUBROUTINE metadyn_read(meta_env,globenv,error)
                                                 section_found
     REAL(kind=dp)                            :: dt
 
-  CPPreconditionNoFail(.NOT.ASSOCIATED(meta_env),cp_failure_level,routineP,error)
+    IF (parsed_cp2k_input(metadyn_section,check_this_section=.TRUE.,error=error)) THEN
+       CALL metadyn_read_new(meta_env, globenv, error=error, metadyn_section=metadyn_section)
+       RETURN
+    END IF
+
+!TODEL_START_TL
+  CPPreconditionNoFail(.NOT.ASSOCIATED(meta_env),cp_failure_level,routineP,error)  
   CALL start_parser(file_name=globenv%input_file_name,&
        globenv=globenv,&
        start_section_label="metadynamics",&
@@ -260,8 +272,86 @@ SUBROUTINE metadyn_read(meta_env,globenv,error)
   CALL cp_assert(.NOT.section_found,cp_failure_level,cp_assertion_failed,&
        routinep,"too many colvar sections",error,failure)
   CALL finish_parser()
-
+!TODEL_END_TL
 END SUBROUTINE metadyn_read
+
+!!****f* metadynamics/metadyn_read *
+!!
+!!   NAME
+!!     metadyn_read
+!!
+!!   FUNCTION
+!!     read the initialization environment for metadynamics with the 
+!!     new input style
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     03.2005 created [tlaino]
+!!
+!!*** **********************************************************************
+SUBROUTINE metadyn_read_new(meta_env,globenv,metadyn_section,error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(meta_env_type), POINTER             :: meta_env
+  TYPE(global_environment_type)            :: globenv
+  TYPE(section_vals_type), POINTER, OPTIONAL :: metadyn_section    
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+  ! Local Variables
+  CHARACTER(len=*), PARAMETER :: routinen = 'read_metadyn', &
+       routinep = modulen//':'//routinen  
+  CHARACTER(len=3)                         :: test_result
+  CHARACTER(len=default_string_length)     :: keyword, time_units
+  INTEGER                                  :: n_colvar, n_colvar_inp, i, n_rep
+  LOGICAL                                  :: do_hills, failure, &
+       section_found
+  REAL(kind=dp)                            :: dt
+  TYPE(section_vals_type), POINTER         :: md_section, colvar_section
+
+  meta_env%tempcontrol=.FALSE.
+  NULLIFY(md_section)
+  CPPreconditionNoFail(.NOT.ASSOCIATED(meta_env),cp_failure_level,routineP,error)  
+  CALL section_vals_val_get(metadyn_section,"NCOLVAR",i_val=n_colvar,error=error)
+  CALL section_vals_val_get(metadyn_section,"DO_HILLS",l_val=do_hills,error=error)
+  CALL section_vals_val_get(metadyn_section,"LAGRANGE",l_val=meta_env%extended_lagrange,error=error)
+  CALL section_vals_val_get(metadyn_section,"WW",r_val=meta_env%hills_env%ww,error=error)
+  CALL section_vals_val_get(metadyn_section,"NT_HILLS",i_val=meta_env%hills_env%nt_hills,error=error)
+  CALL section_vals_val_get(metadyn_section,"RESTART_HILLS",l_val=meta_env%hills_env%restart_hills,error=error)
+  CALL section_vals_val_get(metadyn_section,"TEMPERATURE",n_rep_val=n_rep,error=error)
+  IF (n_rep /=0) THEN
+     meta_env%tempcontrol=.TRUE.
+     CALL section_vals_val_get(metadyn_section,"TEMPERATURE",r_val=meta_env%temp_wanted,error=error)
+     meta_env%toll_temp=meta_env%temp_wanted/SQRT(REAL(meta_env%n_colvar,dp))
+  END IF
+
+  md_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD",error=error)
+  CALL section_vals_val_get(md_section,"TIMESTEP",r_val=dt,error=error)
+
+  CALL metadyn_create(meta_env,n_colvar=n_colvar,&
+       dt=dt,para_env=globenv%para_env,error=error)
+    
+  IF (globenv%project_name/="") THEN
+     meta_env%colvar_file_name='COLVAR-'//globenv%project_name
+     meta_env%hills_env%hills_file_name='HILLS-'//globenv%project_name
+  ELSE
+     meta_env%colvar_file_name='COLVAR'
+     meta_env%hills_env%hills_file_name="HILLS"
+  END IF
+  colvar_section => section_vals_get_subs_vals(metadyn_section,"COLVAR",error=error)
+  CALL section_vals_get(colvar_section,n_repetition=n_colvar_inp,error=error)
+  CPPreconditionNoFail((n_colvar == n_colvar_inp),cp_failure_level,routineP,error)
+  DO i= 1, n_colvar
+     CALL colvar_read_new(meta_env%colvars(i),meta_env%extended_lagrange,i,colvar_section,error=error)
+  END DO
+END SUBROUTINE metadyn_read_new
+
 
 SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
   !FM not safe with multiple non overlapping para_env for the subsys

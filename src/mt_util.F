@@ -37,6 +37,7 @@ MODULE mt_util
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE simulation_cell,                 ONLY: cell_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE pw_grids, ONLY: pw_grid_setup, pw_grid_construct, pw_grid_destruct
   USE pw_pool_types, ONLY: pw_pool_create, pw_pool_release
 
@@ -66,12 +67,13 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE MTin_create_screen_fn(screen_function, pw_pool, method, alpha, rel_cutoff, cell, &
-       special_dimension, slab_size, error)
+       special_dimension, slab_size, para_env, error)
     TYPE(pw_type), POINTER                   :: screen_function
     TYPE(pw_pool_type), POINTER              :: pw_pool
     INTEGER, INTENT(IN)                      :: method, special_dimension
     REAL(KIND=dp), INTENT(in)                :: alpha, rel_cutoff, slab_size
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -96,9 +98,14 @@ CONTAINS
     ecut = - pw_pool%pw_grid%cutoff * rel_cutoff
     ALLOCATE(pw_grid, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL pw_grid_construct(pw_grid)    
+    CALL pw_grid_construct(pw_grid)
+    pw_grid%para%rs_dims ( 1 ) = para_env%num_pe
+    pw_grid%para%rs_dims ( 2 ) = 1
+    pw_grid%grid_span = pw_pool%pw_grid%grid_span
+
     CALL pw_grid_setup ( cell, pw_grid, cutoff = ecut, &
-         ref_grid=pw_pool%pw_grid, fft_usage = .TRUE. )
+         ref_grid=pw_pool%pw_grid, pe_group= para_env % group, blocked=.FALSE., &
+         fft_usage = .TRUE. )
     CALL pw_pool_create ( pw_pool_aux, pw_grid = pw_grid )
     CALL pw_pool_create_pw(pw_pool, screen_function, use_data=COMPLEXDATA1D,&
          in_space=RECIPROCALSPACE,error=error)

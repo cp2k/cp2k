@@ -48,7 +48,15 @@ MODULE green_methods
                                              use_periodic,&
                                              use_analytic,&
                                              use_mt,&
-                                             use_hockney
+                                             use_hockney,&
+                                             use_perd_x,&
+                                             use_perd_y,&
+                                             use_perd_z,&
+                                             use_perd_xy,&
+                                             use_perd_xz,&
+                                             use_perd_yz,&
+                                             use_perd_xyz,&
+                                             use_perd_none                                             
   USE green_types,                     ONLY: greens_function_type,&
                                              influence_factor,&
                                              pw_green_create
@@ -69,6 +77,7 @@ MODULE green_methods
                                              section_vals_val_get
   USE input_cp2k,                      ONLY: parsed_cp2k_input
   USE simulation_cell,                 ONLY: cell_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
 
   IMPLICIT NONE
   PRIVATE
@@ -95,7 +104,7 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE pw_green_fn_rebuild ( gftype, pw_pool, p3m, alpha, cell, error )
+  SUBROUTINE pw_green_fn_rebuild ( gftype, pw_pool, p3m, alpha, cell, para_env, error )
     IMPLICIT NONE
     ! Arguments
     TYPE(greens_function_type), pointer      :: gftype
@@ -103,6 +112,7 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: p3m
     REAL(KIND=dp), INTENT(IN), OPTIONAL          :: alpha
     TYPE(cell_type), POINTER, OPTIONAL       :: cell
+    TYPE(cp_para_env_type), POINTER, OPTIONAL:: para_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     ! Local Variables
@@ -137,11 +147,12 @@ CONTAINS
           !
           SELECT CASE( gftype % method )
           CASE(MT0D,MT1D,MT2D)
-             CPPrecondition(PRESENT(cell),cp_failure_level,routineP,error,failure)          
+             CPPrecondition(PRESENT(cell),cp_failure_level,routineP,error,failure)
+             CPPrecondition(PRESENT(para_env),cp_failure_level,routineP,error,failure)
              CALL MTin_create_screen_fn(gftype%screen_function,pw_pool=pw_pool,method=gftype%method,&
                   alpha=gftype%MT_alpha, rel_cutoff=gftype%MT_rel_cutoff, cell=cell, &
                   special_dimension=gftype%special_dimension, slab_size=gftype%slab_size, &
-                  error=error)
+                  para_env=para_env,error=error)
           END SELECT
           !
        CASE ( HOCKNEY2D, HOCKNEY1D, HOCKNEY0D )
@@ -168,12 +179,11 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE pw_green_setup ( gftype, poisson_section, perd, abc, error )
+  SUBROUTINE pw_green_setup ( gftype, poisson_section, abc, error )
     IMPLICIT NONE
     ! Arguments
     TYPE(greens_function_type), POINTER       :: gftype
     TYPE(section_vals_type), POINTER          :: poisson_section
-    INTEGER, DIMENSION(3), INTENT(IN)         :: perd
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)   :: abc
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                :: error
@@ -183,92 +193,44 @@ CONTAINS
       routineP = moduleN//':'//routineN
     TYPE(section_vals_type), POINTER          :: mt_section
     LOGICAL :: failure
-    INTEGER :: dim, i, my_val
+    INTEGER :: dim, i, my_val, my_per
+    INTEGER, DIMENSION(3) :: perd
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.(ASSOCIATED(gftype)),cp_failure_level,routineP,error,failure)
        CALL pw_green_create(gftype, error=error)
+       CALL section_vals_val_get(poisson_section,"PERIODIC",i_val=my_per,error=error)
+       SELECT CASE(my_per)
+       CASE(use_perd_x)
+          perd = (/1,0,0/)
+       CASE(use_perd_y)
+          perd = (/0,1,0/)
+       CASE(use_perd_z)
+          perd = (/0,0,1/)
+       CASE(use_perd_xy)
+          perd = (/1,1,0/)
+       CASE(use_perd_xz)
+          perd = (/1,0,1/)
+       CASE(use_perd_yz)
+          perd = (/0,1,1/)
+       CASE(use_perd_xyz)
+          perd = (/1,1,1/)
+       CASE(use_perd_none)
+          perd = (/0,0,0/)
+       CASE DEFAULT
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
        dim = COUNT(perd == 1)
-       
-       IF (parsed_cp2k_input(poisson_section,check_this_section=.TRUE.,error=error)) THEN
-          CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=my_val,error=error)
-          SELECT CASE (my_val)
-          CASE (use_periodic)
-             gftype%method = PERIODIC3D
-             IF (dim /= 3) THEN
-                CALL stop_program(routineP,&
-                     "Illegal combination of periodicity and Poisson solver (perd)")
-             END IF
-          CASE (use_analytic)
-             SELECT CASE (dim)
-             CASE (0)
-                gftype%method = ANALYTIC0D
-                gftype%radius = 0.5_dp*MINVAL(abc)
-             CASE (1)
-                gftype%method = ANALYTIC1D
-                gftype%special_dimension = MAXLOC(perd,1)
-                gftype%radius = MAXVAL(abc)
-                DO i=1,3
-                   IF (i == gftype%special_dimension) CYCLE
-                   gftype%radius = MIN(gftype%radius,0.5_dp*abc(i))
-                END DO
-             CASE (2)
-                gftype%method = ANALYTIC2D
-                i = MINLOC(perd,1)
-                gftype%special_dimension = i
-                gftype%slab_size = abc(i)
-             CASE (3)
-                gftype%method = PERIODIC3D
-             CASE DEFAULT
-                CALL stop_program(routineP,"Illegal value for perd found")
-             END SELECT
-          CASE (use_hockney)
-             SELECT CASE (dim )
-             CASE (0)
-                gftype%method = HOCKNEY0D
-             CASE (1)
-                gftype%method = HOCKNEY1D
-             CASE (2)
-                gftype%method = HOCKNEY2D
-             CASE (3)
-                CALL stop_program(routineP,&
-                     "Illegal combination of periodicity and Poisson solver (HOCKNEY)")
-             CASE DEFAULT
-                CALL stop_program(routineP,"Illegal value for perd found")
-             END SELECT
-          CASE (use_mt)
-             mt_section => section_vals_get_subs_vals(poisson_section,"MT",error=error)
-             CALL section_vals_val_get(mt_section,"REL_CUTOFF",r_val=gftype%MT_rel_cutoff,error=error)
-             CALL section_vals_val_get(mt_section,"ALPHA",r_val=gftype%MT_alpha,error=error)
-             gftype%MT_alpha=gftype%MT_alpha/MINVAL(abc)
-             SELECT CASE (dim)
-             CASE (0)
-                gftype%method = MT0D
-                gftype%radius = 0.5_dp*MINVAL(abc)
-             CASE (1)
-                gftype%method = MT1D
-                gftype%special_dimension = MAXLOC(perd,1)
-                gftype%radius = MAXVAL(abc)
-                DO i=1,3
-                   IF (i == gftype%special_dimension) CYCLE
-                   gftype%radius = MIN(gftype%radius,0.5_dp*abc(i))
-                END DO
-             CASE (2)
-                gftype%method = MT2D
-                i = MINLOC(perd,1)
-                gftype%special_dimension = i
-                gftype%slab_size = abc(i)
-             CASE (3)
-                CALL stop_program(routineP,"Illegal combination of periodicity and Poisson solver (MT)")
-             CASE DEFAULT
-                CALL stop_program(routineP,"Illegal value for perd found")
-             END SELECT
-          CASE DEFAULT
-             CALL stop_program(routineP,"An unknown Poisson solver was specified")
-          END SELECT
-       ELSE
-
+       CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=my_val,error=error)
+       SELECT CASE (my_val)
+       CASE (use_periodic)
+          gftype%method = PERIODIC3D
+          IF (dim /= 3) THEN
+             CALL stop_program(routineP,&
+                  "Illegal combination of periodicity and Poisson solver (perd)")
+          END IF
+       CASE (use_analytic)
           SELECT CASE (dim)
           CASE (0)
              gftype%method = ANALYTIC0D
@@ -291,8 +253,50 @@ CONTAINS
           CASE DEFAULT
              CALL stop_program(routineP,"Illegal value for perd found")
           END SELECT
-       
-       END IF
+       CASE (use_hockney)
+          SELECT CASE (dim )
+          CASE (0)
+             gftype%method = HOCKNEY0D
+          CASE (1)
+             gftype%method = HOCKNEY1D
+          CASE (2)
+             gftype%method = HOCKNEY2D
+          CASE (3)
+             CALL stop_program(routineP,&
+                  "Illegal combination of periodicity and Poisson solver (HOCKNEY)")
+          CASE DEFAULT
+             CALL stop_program(routineP,"Illegal value for perd found")
+          END SELECT
+       CASE (use_mt)
+          mt_section => section_vals_get_subs_vals(poisson_section,"MT",error=error)
+          CALL section_vals_val_get(mt_section,"REL_CUTOFF",r_val=gftype%MT_rel_cutoff,error=error)
+          CALL section_vals_val_get(mt_section,"ALPHA",r_val=gftype%MT_alpha,error=error)
+          gftype%MT_alpha=gftype%MT_alpha/MINVAL(abc)
+          SELECT CASE (dim)
+          CASE (0)
+             gftype%method = MT0D
+             gftype%radius = 0.5_dp*MINVAL(abc)
+          CASE (1)
+             gftype%method = MT1D
+             gftype%special_dimension = MAXLOC(perd,1)
+             gftype%radius = MAXVAL(abc)
+             DO i=1,3
+                IF (i == gftype%special_dimension) CYCLE
+                gftype%radius = MIN(gftype%radius,0.5_dp*abc(i))
+             END DO
+          CASE (2)
+             gftype%method = MT2D
+             i = MINLOC(perd,1)
+             gftype%special_dimension = i
+             gftype%slab_size = abc(i)
+          CASE (3)
+             CALL stop_program(routineP,"Illegal combination of periodicity and Poisson solver (MT)")
+          CASE DEFAULT
+             CALL stop_program(routineP,"Illegal value for perd found")
+          END SELECT
+       CASE DEFAULT
+          CALL stop_program(routineP,"An unknown Poisson solver was specified")
+       END SELECT
 
     END IF
   END SUBROUTINE pw_green_setup

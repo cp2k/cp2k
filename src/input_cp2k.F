@@ -6070,7 +6070,7 @@ END SUBROUTINE create_ewald_section
     IF (.NOT. failure) THEN
        CALL section_create(section,name="poisson_mm",&
             description="Sets up the poisson resolutor.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        nullify(keyword)
@@ -6083,6 +6083,17 @@ END SUBROUTINE create_ewald_section
             default_i_val=use_periodic, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
+
+       CALL keyword_create(keyword, name="PERIODIC",&
+            description="Specify the directions on wich apply PBC ",&
+            usage="PERIODIC (x|y|z|xy|xz|yz|xyz|none)",&
+            enum_c_vals=s2a( "x","y","z","xy","xz","yz","xyz","none"),&
+            enum_i_vals=(/ use_perd_x,  use_perd_y,   use_perd_z,&
+                           use_perd_xy, use_perd_xz, use_perd_yz,&
+                           use_perd_xyz, use_perd_none /),&
+            default_i_val=use_perd_xyz, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)     
 
     END IF
   END SUBROUTINE create_poisson_mm_section
@@ -6125,7 +6136,7 @@ END SUBROUTINE create_ewald_section
     IF (.NOT. failure) THEN
        CALL section_create(section,name="poisson_dft",&
             description="Sets up the poisson resolutor.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword, subsection)
@@ -6138,6 +6149,17 @@ END SUBROUTINE create_ewald_section
             default_i_val=use_periodic, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
+
+       CALL keyword_create(keyword, name="PERIODIC",&
+            description="Specify the directions on wich apply PBC ",&
+            usage="PERIODIC (x|y|z|xy|xz|yz|xyz|none)",&
+            enum_c_vals=s2a( "x","y","z","xy","xz","yz","xyz","none"),&
+            enum_i_vals=(/ use_perd_x,  use_perd_y,   use_perd_z,&
+                           use_perd_xy, use_perd_xz, use_perd_yz,&
+                           use_perd_xyz, use_perd_none /),&
+            default_i_val=use_perd_xyz, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)     
 
        CALL create_mt_poisson_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
