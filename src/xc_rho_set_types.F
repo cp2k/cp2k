@@ -1649,7 +1649,7 @@ CONTAINS
     REAL(dp)                                 :: int_radius, r, r_n, r_n2, &
                                                 radius, radius_2, range_2
     REAL(dp), DIMENSION(2)                   :: ldaCoreRadius
-    REAL(dp), DIMENSION(3)                   :: dr, pos, posCorr
+    REAL(dp), DIMENSION(3)                   :: dr, pos, posCorr, rv
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1670,14 +1670,14 @@ CONTAINS
 
        IF (ldaCoreRadius(2)>0) THEN
           CPPrecondition(ASSOCIATED(atom_list),cp_failure_level,routineP,error,failure)
-          CPPrecondition(SIZE(atom_list)>natom,cp_failure_level,routineP,error,failure)
-          pos=particles%els(atom_list(iatom))%r
+          CPPrecondition(SIZE(atom_list)>=natom,cp_failure_level,routineP,error,failure)
           int_radius=ldaCoreRadius(1)
           radius=MAXVAL(dr)*ldaCoreRadius(2)
           range_2=(radius-int_radius)/2.0_dp
           radius_2=int_radius+range_2
           iRadius=CEILING(ldaCoreRadius(2))
           DO iatom=1,natom
+             pos=particles%els(atom_list(iatom))%r
              bo=deriv%pw_grid%bounds_local
              atBoundary=.FALSE.
              DO i=1,3
@@ -1687,13 +1687,13 @@ CONTAINS
                      npoints(i))-npoints(i)/2
                 IF (indexPos(i)-iRadius<-npoints(i)/2) THEN
                    atBoundary=.TRUE.
-                   bo=indexPos(i)-iRadius
+                   bo(1,i)=indexPos(i)-iRadius
                 ELSE
                    bo(1,i)=MAX(bo(1,i),indexPos(i)-iRadius)
                 END IF
                 IF (indexPos(i)+iRadius>(npoints(i)-1)/2) THEN
                    atBoundary=.TRUE.
-                   bo=indexPos(i)+iRadius
+                   bo(2,i)=indexPos(i)+iRadius
                 ELSE
                    bo(2,i)=MIN(bo(2,i),indexPos(i)+iRadius)
                 END IF
@@ -1712,21 +1712,21 @@ CONTAINS
 
              IF (atBoundary) THEN
                 DO k=bo(1,3),bo(2,3)
-                   myk=MODULO(i,npoints(3))-npoints(3)/2
+                   myk=MODULO(k+npoints(3)/2,npoints(3))-npoints(3)/2
                    IF (myk< deriv%pw_grid%bounds_local(1,3).OR.&
                         myk> deriv%pw_grid%bounds_local(2,3)) CYCLE
+                   rv(3)=REAL(k,dp)*dr(3)-posCorr(3)
                    DO j=bo(1,2),bo(2,2)
-                      myj=MODULO(i,npoints(2))-npoints(2)/2
+                      myj=MODULO(j+npoints(2)/2,npoints(2))-npoints(2)/2
                       IF (myj< deriv%pw_grid%bounds_local(1,2).OR.&
                            myj> deriv%pw_grid%bounds_local(2,2)) CYCLE
+                      rv(2)=REAL(j,dp)*dr(2)-posCorr(2)
                       DO i=bo(1,1),bo(2,1)
-                         myi=MODULO(i,npoints(1))-npoints(1)/2
+                         myi=MODULO(i+npoints(1)/2,npoints(1))-npoints(1)/2
                          IF (myi< deriv%pw_grid%bounds_local(1,1).OR.&
                               myj> deriv%pw_grid%bounds_local(2,1)) CYCLE
-
-                         r=SQRT((REAL(myi,dp)*dr(1)-posCorr(1))**2+&
-                              (REAL(myj,dp)*dr(2)-posCorr(2))**2+&
-                              (REAL(myk,dp)*dr(3)-posCorr(3))**2)
+                         rv(1)=REAL(i,dp)*dr(1)-posCorr(1)
+                         r=SQRT(rv(1)**2+rv(2)**2+rv(3)**2)
 
                          IF (r<radius) THEN
                             IF (r<int_radius) THEN
@@ -1750,11 +1750,12 @@ CONTAINS
                 END DO
              ELSE
                 DO k=bo(1,3),bo(2,3)
+                   rv(3)=REAL(k,dp)*dr(3)-posCorr(3)
                    DO j=bo(1,2),bo(2,2)
+                      rv(2)=REAL(j,dp)*dr(2)-posCorr(2)
                       DO i=bo(1,1),bo(2,1)
-                         r=SQRT((REAL(i,dp)*dr(1)-posCorr(1))**2+&
-                              (REAL(j,dp)*dr(2)-posCorr(2))**2+&
-                              (REAL(k,dp)*dr(3)-posCorr(3))**2)
+                         rv(1)=REAL(i,dp)*dr(1)-posCorr(1)
+                         r=SQRT(rv(1)**2+rv(2)**2+rv(3)**2)
 !FM                WRITE(cp_logger_get_default_unit_nr(logger),&
 !FM                     "('r=',f8.3)") r
 
@@ -1831,7 +1832,7 @@ CONTAINS
                                                 radius, radius_2, range_2, tmp
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: f
     REAL(dp), DIMENSION(2)                   :: ldaCoreRadius
-    REAL(dp), DIMENSION(3)                   :: dr, pos, posCorr
+    REAL(dp), DIMENSION(3)                   :: dr, pos, posCorr, rv
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1854,7 +1855,6 @@ CONTAINS
        IF (ldaCoreRadius(2)>0) THEN
           CPPrecondition(ASSOCIATED(atom_list),cp_failure_level,routineP,error,failure)
           CPPrecondition(SIZE(atom_list)>=natom,cp_failure_level,routineP,error,failure)
-          pos=particles%els(atom_list(iatom))%r
           int_radius=ldaCoreRadius(1)
           radius=MAXVAL(dr)*ldaCoreRadius(2)
           range_2=(radius-int_radius)/2.0_dp
@@ -1864,6 +1864,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           f=0.0_dp
           DO iatom=1,natom
+             pos=particles%els(atom_list(iatom))%r
              bo=energy%pw_grid%bounds_local
              atBoundary=.FALSE.
              DO i=1,3
@@ -1873,13 +1874,13 @@ CONTAINS
                      npoints(i))-npoints(i)/2
                 IF (indexPos(i)-iRadius<-npoints(i)/2) THEN
                    atBoundary=.TRUE.
-                   bo=indexPos(i)-iRadius
+                   bo(1,i)=indexPos(i)-iRadius
                 ELSE
                    bo(1,i)=MAX(bo(1,i),indexPos(i)-iRadius)
                 END IF
                 IF (indexPos(i)+iRadius>(npoints(i)-1)/2) THEN
                    atBoundary=.TRUE.
-                   bo=indexPos(i)+iRadius
+                   bo(2,i)=indexPos(i)+iRadius
                 ELSE
                    bo(2,i)=MIN(bo(2,i),indexPos(i)+iRadius)
                 END IF
@@ -1898,21 +1899,21 @@ CONTAINS
 
              IF (atBoundary) THEN
                 DO k=bo(1,3),bo(2,3)
-                   myk=MODULO(i,npoints(3))-npoints(3)/2
+                   myk=MODULO(k+npoints(3)/2,npoints(3))-npoints(3)/2
                    IF (myk< energy%pw_grid%bounds_local(1,3).OR.&
                         myk> energy%pw_grid%bounds_local(2,3)) CYCLE
+                   rv(3)=REAL(k,dp)*dr(3)-posCorr(3)
                    DO j=bo(1,2),bo(2,2)
-                      myj=MODULO(i,npoints(2))-npoints(2)/2
+                      myj=MODULO(j+npoints(2)/2,npoints(2))-npoints(2)/2
                       IF (myj< energy%pw_grid%bounds_local(1,2).OR.&
                            myj> energy%pw_grid%bounds_local(2,2)) CYCLE
+                      rv(2)=REAL(j,dp)*dr(2)-posCorr(2)
                       DO i=bo(1,1),bo(2,1)
-                         myi=MODULO(i,npoints(1))-npoints(1)/2
+                         myi=MODULO(i+npoints(1)/2,npoints(1))-npoints(1)/2
                          IF (myi< energy%pw_grid%bounds_local(1,1).OR.&
                               myj> energy%pw_grid%bounds_local(2,1)) CYCLE
-
-                         r=SQRT((REAL(myi,dp)*dr(1)-posCorr(1))**2+&
-                              (REAL(myj,dp)*dr(2)-posCorr(2))**2+&
-                              (REAL(myk,dp)*dr(3)-posCorr(3))**2)
+                         rv(1)=REAL(i,dp)*dr(1)-posCorr(1)
+                         r=SQRT(rv(1)**2+rv(2)**2+rv(3)**2)
 
                          IF (r<radius) THEN
                             IF (r<int_radius) THEN
@@ -1925,18 +1926,18 @@ CONTAINS
                                tmp=energy%cr3d(myi,myj,myk)*&
                                     r_n2*(3.0_dp-2.0_dp*r_n)&
                                     /range_2/r
-                               f(1,iatom)=f(1,iatom)+(REAL(myi,dp)*dr(1)-posCorr(1))*tmp
-                               f(2,iatom)=f(2,iatom)+(REAL(myj,dp)*dr(2)-posCorr(2))*tmp
-                               f(3,iatom)=f(3,iatom)+(REAL(myk,dp)*dr(3)-posCorr(3))*tmp
+                               f(1,iatom)=f(1,iatom)+rv(1)*tmp
+                               f(2,iatom)=f(2,iatom)+rv(2)*tmp
+                               f(3,iatom)=f(3,iatom)+rv(3)*tmp
                             ELSE
                                r_n=2.0_dp-(r-int_radius)/range_2
                                r_n2=r_n*r_n
                                tmp=energy%cr3d(myi,myj,myk)*&
                                     r_n2*(3.0_dp-2.0_dp*r_n)&
                                     /range_2/r
-                               f(1,iatom)=f(1,iatom)+(REAL(myi,dp)*dr(1)-posCorr(1))*tmp
-                               f(2,iatom)=f(2,iatom)+(REAL(myj,dp)*dr(2)-posCorr(2))*tmp
-                               f(3,iatom)=f(3,iatom)+(REAL(myk,dp)*dr(3)-posCorr(3))*tmp
+                               f(1,iatom)=f(1,iatom)+rv(1)*tmp
+                               f(2,iatom)=f(2,iatom)+rv(2)*tmp
+                               f(3,iatom)=f(3,iatom)+rv(3)*tmp
                             END IF
                          END IF
                       END DO
@@ -1944,11 +1945,12 @@ CONTAINS
                 END DO
              ELSE
                 DO k=bo(1,3),bo(2,3)
+                   rv(3)=REAL(k,dp)*dr(3)-posCorr(3)
                    DO j=bo(1,2),bo(2,2)
+                      rv(2)=REAL(j,dp)*dr(2)-posCorr(2)
                       DO i=bo(1,1),bo(2,1)
-                         r=SQRT((REAL(i,dp)*dr(1)-posCorr(1))**2+&
-                              (REAL(j,dp)*dr(2)-posCorr(2))**2+&
-                              (REAL(k,dp)*dr(3)-posCorr(3))**2)
+                         rv(1)=REAL(i,dp)*dr(1)-posCorr(1)
+                         r=SQRT(rv(1)**2+rv(2)**2+rv(3)**2)
 !FM                WRITE(cp_logger_get_default_unit_nr(logger),&
 !FM                     "('r=',f8.3)") r
 
@@ -1963,18 +1965,18 @@ CONTAINS
                                tmp=energy%cr3d(i,j,k)*&
                                     r_n2*(3.0_dp-2.0_dp*r_n)&
                                     /range_2/r
-                               f(1,iatom)=f(1,iatom)+(REAL(i,dp)*dr(1)-posCorr(1))*tmp
-                               f(2,iatom)=f(2,iatom)+(REAL(j,dp)*dr(2)-posCorr(2))*tmp
-                               f(3,iatom)=f(3,iatom)+(REAL(k,dp)*dr(3)-posCorr(3))*tmp
+                               f(1,iatom)=f(1,iatom)+rv(1)*tmp
+                               f(2,iatom)=f(2,iatom)+rv(2)*tmp
+                               f(3,iatom)=f(3,iatom)+rv(3)*tmp
                             ELSE
                                r_n=2.0_dp-(r-int_radius)/range_2
                                r_n2=r_n*r_n
                                tmp=energy%cr3d(i,j,k)*&
                                     r_n2*(3.0_dp-2.0_dp*r_n)&
                                     /range_2/r
-                               f(1,iatom)=f(1,iatom)+(REAL(i,dp)*dr(1)-posCorr(1))*tmp
-                               f(2,iatom)=f(2,iatom)+(REAL(j,dp)*dr(2)-posCorr(2))*tmp
-                               f(3,iatom)=f(3,iatom)+(REAL(k,dp)*dr(3)-posCorr(3))*tmp
+                               f(1,iatom)=f(1,iatom)+rv(1)*tmp
+                               f(2,iatom)=f(2,iatom)+rv(2)*tmp
+                               f(3,iatom)=f(3,iatom)+rv(3)*tmp
                             END IF
                          END IF
                       END DO

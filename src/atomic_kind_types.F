@@ -504,6 +504,9 @@ CONTAINS
          p_full_bas_tot=0
          p_l_angles_max=0
       END IF
+      IF (PRESENT(max_ldaCoreRadius)) THEN
+         max_ldaCoreRadius=0.0_dp
+      END IF
       nkind = SIZE(atomic_kind_set)
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)

@@ -929,17 +929,16 @@ SUBROUTINE xc_calculate_pw_debug(rho_r,rho_g,vxc,exc,dft_control,&
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(:, :, :), &
-      POINTER                                :: pot, pot3
+      POINTER                                :: pot
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sll_xc_deriv_type), POINTER      :: deriv_iter
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc2
-    TYPE(xc_derivative_set_type), POINTER    :: dSet1, dSet2
-    TYPE(xc_derivative_type), POINTER        :: deriv, deriv2, deriv3
-    TYPE(xc_rho_set_type), POINTER           :: rho_set1, rho_set2
+    TYPE(xc_derivative_set_type), POINTER    :: dSet1
+    TYPE(xc_derivative_type), POINTER        :: deriv
+    TYPE(xc_rho_set_type), POINTER           :: rho_set1
 
   failure=.FALSE.
-  NULLIFY(vxc2,dSet1,dSet2,rho_set1,rho_set2,split_desc,pot,pot3,pot3,&
-       deriv,deriv2,deriv3)
+  NULLIFY(dSet1,rho_set1,split_desc,pot,&
+       deriv)
   logger => cp_error_get_logger(error)
 
   IF (.NOT. failure) THEN
@@ -2018,7 +2017,6 @@ END SUBROUTINE xc_calculate_pw_debug
     INTEGER                                  :: handle, i, nspins
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure, lsd
-    REAL(KIND=dp)                            :: drho_cutoff, rho_cutoff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(xc_control_type), POINTER           :: xc_control
     TYPE(xc_rho_cflags_type)                 :: needs
@@ -2372,10 +2370,8 @@ SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
                                                 n_deriv, nspins, order
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3, 3)                 :: nd
-    LOGICAL                                  :: dealloc_pw_to_deriv, failure, &
-                                                gradient_f, lsd, &
-                                                my_calculate_forces, &
-                                                zero_result
+    LOGICAL :: dealloc_pw_to_deriv, failure, gradient_f, ldaCore, lsd, &
+      my_calculate_forces, zero_result
     REAL(KIND=dp)                            :: drho_cutoff, my_rho, ndr, &
                                                 rho_cutoff
     REAL(kind=dp), DIMENSION(2)              :: max_ldaCoreRadius
@@ -2389,7 +2385,7 @@ SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
     TYPE(pw_p_type), DIMENSION(2)            :: vxc_to_deriv
     TYPE(pw_p_type), DIMENSION(3)            :: pw_to_deriv, pw_to_deriv_rho
-    TYPE(pw_type), POINTER                   :: tmp_g, tmp_r, tmp_r2,vxc_g
+    TYPE(pw_type), POINTER                   :: tmp_g, tmp_r, tmp_r2, vxc_g
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_derivative_type), POINTER        :: deriv_att
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -2408,6 +2404,11 @@ SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
   END DO
   my_calculate_forces=.FALSE.
   IF (calculate_forces) my_calculate_forces=calculate_forces
+  ldaCore=.FALSE.
+  IF (ASSOCIATED(atoms)) THEN
+     CALL get_atomic_kind_set(atoms%atomic_kinds%els,max_ldaCoreRadius=max_ldaCoreRadius)
+     ldaCore=(max_ldaCoreRadius(2)>0.0_dbl)
+  END IF
 
   CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
@@ -2547,43 +2548,40 @@ SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
              drho=drho,drhoa=drhoa,drhob=drhob,rho_cutoff=rho_cutoff,&
              drho_cutoff=drho_cutoff,&
              can_return_null=.TRUE., error=error)
-        IF (my_calculate_forces.AND..NOT.lsd.and.ASSOCIATED(atoms)) THEN
-           CALL get_atomic_kind_set(atoms%atomic_kinds%els,max_ldaCoreRadius=max_ldaCoreRadius)
-           IF (max_ldaCoreRadius(2)>0.0_dbl) THEN
-              ! forces of zero core, implemented only for lda
-              CALL pw_pool_create_pw(pw_pool, tmp_r,&
-                   use_data=REALDATA3D, in_space=REALSPACE,&
-                   error=error)
-              IF (ASSOCIATED(norm_drho)) THEN
-                 !$omp parallel do default(none) shared(bo,deriv_data,norm_drho,&
-                 !$omp                 drho_cutoff, tmp_r)&
-                 !$omp             private(k,j,i)
-                 DO k = bo(1,3), bo(2,3)
-                    DO j = bo(1,2), bo(2,2)
-                       DO i = bo(1,1), bo(2,1)
-                          tmp_r%cr3d(i,j,k)=deriv_data(i,j,k)*&
-                               norm_drho(i,j,k)
-                       END DO
+        IF (my_calculate_forces.AND.ldaCore.AND..FALSE.) THEN
+           ! forces of zero core, implemented only for lda
+           CALL pw_pool_create_pw(pw_pool, tmp_r,&
+                use_data=REALDATA3D, in_space=REALSPACE,&
+                error=error)
+           IF (ASSOCIATED(norm_drho)) THEN
+              !$omp parallel do default(none) shared(bo,deriv_data,norm_drho,&
+              !$omp                 drho_cutoff, tmp_r)&
+              !$omp             private(k,j,i)
+              DO k = bo(1,3), bo(2,3)
+                 DO j = bo(1,2), bo(2,2)
+                    DO i = bo(1,1), bo(2,1)
+                       tmp_r%cr3d(i,j,k)=deriv_data(i,j,k)*&
+                            norm_drho(i,j,k)
                     END DO
                  END DO
-              ELSE IF (ASSOCIATED(drho)) THEN
-                 !$omp parallel do default(none) shared(bo,deriv_data,drho,&
-                 !$omp                  drho_cutoff,tmp_r)&
-                 !$omp             private(k,j,i,ndr)
-                 DO k = bo(1,3), bo(2,3)
-                    DO j = bo(1,2), bo(2,2)
-                       DO i = bo(1,1), bo(2,1)
-                          ndr=SQRT(drho(1)%array(i,j,k)**2+&
-                               drho(2)%array(i,j,k)**2+&
-                               drho(3)%array(i,j,k)**2)
-                          tmp_r%cr3d(i,j,k)=deriv_data(i,j,k)*ndr
-                       END DO
+              END DO
+           ELSE IF (ASSOCIATED(drho)) THEN
+              !$omp parallel do default(none) shared(bo,deriv_data,drho,&
+              !$omp                  drho_cutoff,tmp_r)&
+              !$omp             private(k,j,i,ndr)
+              DO k = bo(1,3), bo(2,3)
+                 DO j = bo(1,2), bo(2,2)
+                    DO i = bo(1,1), bo(2,1)
+                       ndr=SQRT(drho(1)%array(i,j,k)**2+&
+                            drho(2)%array(i,j,k)**2+&
+                            drho(3)%array(i,j,k)**2)
+                       tmp_r%cr3d(i,j,k)=deriv_data(i,j,k)*ndr
                     END DO
                  END DO
-              END IF
-              CALL zero_core_force(tmp_r,atoms,error=error)
-              CALL pw_pool_give_back_pw(pw_pool, tmp_r, error=error)
+              END DO
            END IF
+           CALL zero_core_force(tmp_r,atoms,error=error)
+           CALL pw_pool_give_back_pw(pw_pool, tmp_r, error=error)
         END IF
            
         IF (ASSOCIATED(norm_drho)) THEN
@@ -2862,10 +2860,14 @@ SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
               CALL pw_pool_give_back_pw(pw_pool, tmp_r, error=error)
               CALL pw_pool_give_back_pw(pw_pool,vxc_g,error=error)
            ELSE
-              CALL pw_pool_create_pw(pw_pool, tmp_r,&
-                   use_data=REALDATA3D, in_space=REALSPACE,&
-                   error=error)
-              CALL pw_zero(tmp_r)
+              IF (ldaCore) THEN
+                 CALL pw_pool_create_pw(pw_pool, tmp_r,&
+                      use_data=REALDATA3D, in_space=REALSPACE,&
+                      error=error)
+                 CALL pw_zero(tmp_r)
+              ELSE
+                 tmp_r => vxc(ispin)%pw
+              END IF
               DO idir=1,3
                  SELECT CASE(dft_control%xc_deriv_method_id)
                  CASE (xc_deriv_spline2_smooth)
@@ -2899,9 +2901,13 @@ SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
                     CALL pw_pool_give_back_pw(pw_pool,pw_to_deriv(idir)%pw,error=error)
                  END IF
               END DO
-              CALL zero_core(tmp_r,atoms,error=error)
-              CALL pw_sumup(tmp_r,vxc(ispin)%pw)
-              CALL pw_pool_give_back_pw(pw_pool,tmp_r,error=error)
+              IF (ldaCore) THEN
+                 CALL zero_core(tmp_r,atoms,error=error)
+                 CALL pw_sumup(tmp_r,vxc(ispin)%pw)
+                 CALL pw_pool_give_back_pw(pw_pool,tmp_r,error=error)
+              ELSE
+                 NULLIFY(tmp_r)
+              END IF
            END IF
         END IF
 
