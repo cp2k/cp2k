@@ -789,7 +789,7 @@ END SUBROUTINE parser_next_token
              !       *** Handle read errors ***
 
              IF (istat /= 0) THEN
-                IF (istat==-1) THEN
+                IF (istat<0) THEN ! EOF/EOR is negative other errors positive
                    CALL cp_assert(PRESENT(at_end),cp_failure_level,cp_assertion_failed,&
                         routineP,"Unexpected EOF "//TRIM(parser_location(parser,error=error)),&
                         error,failure)
