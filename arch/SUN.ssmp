@@ -17,6 +17,7 @@ FCFLAGS  = -O3 -xarch=v9b -dalign -fsimple=2 -fns -openmp
 # basis_set_types.F has to be compiled with this set of options
 # other files might need this as well
 # additionally, -O3 seems to have quite an impact on the numerics. This needs further investigation.
+# numerics are OK, physcon.F needs to be compiled with O2. can not see way.
 #
 LDFLAGS  = $(FCFLAGS) -openmp
 LIBS     = $(LIBDIRS) -xlic_lib=sunperf -lfftw -larpack_SUN 
