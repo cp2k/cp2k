@@ -322,7 +322,7 @@ END FUNCTION pw_grid_compare
 !!
 !!   SYNOPSIS
 !!     Subroutine pw_grid_setup(cell, pw_grid, cutoff, pe_group, info,&
-!!         fft_usage, symm_usage, blocked, ref_grid)
+!!         fft_usage, symm_usage, blocked, ref_grid, ncommensurate, icommensurate)
 !!       Implicit None
 !!       Type(cell_type), Intent (IN):: cell
 !!       Type(pw_grid_type), Intent (INOUT):: pw_grid
@@ -332,6 +332,7 @@ END FUNCTION pw_grid_compare
 !!       Logical, Optional, Intent (IN):: fft_usage
 !!       Logical, Optional, Intent (IN):: symm_usage
 !!       Logical, Optional, Intent (IN):: blocked
+!!       Integer, Optional, Intent (IN):: ncommensurate, icommensurate
 !!       Type(pw_grid_type), Optional, Intent (IN):: ref_grid
 !!     End Subroutine pw_grid_setup
 !!
@@ -350,23 +351,25 @@ END FUNCTION pw_grid_compare
 !!     JGH (22-Mar-2001) : Simplify group assignment (mp_comm_dup)
 !!     JGH (21-May-2002) : Remove orthorhombic keyword (code is fast enough)
 !!     JGH (19-Feb-2003) : Negative cutoff can be used for non-spheric grids
+!!     Joost VandeVondele (Feb-2004) : optionally generate pw grids that are commensurate in rs
 !!
 !!*** *************************************************************************
 
 SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
-                           symm_usage, blocked, ref_grid )
+                           symm_usage, blocked, ref_grid, ncommensurate, icommensurate )
 
 
     TYPE(cell_type), INTENT(IN)              :: cell
     TYPE(pw_grid_type), INTENT(INOUT)        :: pw_grid
-    REAL(dbl), INTENT(IN), OPTIONAL          :: cutoff
+    REAL(dbl), INTENT(IN), OPTIONAL          :: cutoff ! cutoff could be inout, and set to the effective cutoff of the given grid
     INTEGER, INTENT(IN), OPTIONAL            :: pe_group, info
     LOGICAL, INTENT(IN), OPTIONAL            :: fft_usage, symm_usage, blocked
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
+    INTEGER, INTENT(IN), OPTIONAL            :: ncommensurate, icommensurate  
 
     INTEGER                                  :: allocstat, group_size, &
                                                 handle, i, ires, my_pos, &
-                                                n(3), ntest(3)
+                                                my_ncommensurate, my_icommensurate, n(3), ntest(3) 
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
     LOGICAL                                  :: blocking, fft, symmetry
     REAL(dbl)                                :: ecut, rv(3,3)
@@ -403,6 +406,44 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
   ELSE
     blocking = .TRUE.
   END IF
+ 
+  ! ncommensurate is the number of commensurate grids 
+  ! in order to have non-commensurate grids ncommensurate must be 0
+  ! icommensurte  is the level number of communensurate grids
+  ! this implies that the number of grid points in each direction
+  ! is k*2**(ncommensurate-icommensurate) 
+  IF ( PRESENT ( ncommensurate ) .AND. PRESENT( icommensurate ) ) THEN
+     my_ncommensurate=ncommensurate
+     IF (my_ncommensurate .GT. 0 ) THEN
+         my_icommensurate=icommensurate
+     ELSE
+         my_icommensurate=0
+     ENDIF
+     IF (my_icommensurate > my_ncommensurate ) THEN
+        CALL stop_program ( "grid_setup", &
+                            "my_icommensurate > my_ncommensurate" )
+     ENDIF
+     IF (my_icommensurate<=0 .AND. my_ncommensurate > 1) THEN
+        CALL stop_program ( "grid_setup", &
+                            " my_incommensurate<=0 .AND. my_ncommensurate > 1 " )
+     ENDIF
+     IF (my_ncommensurate < 0 ) THEN
+        CALL stop_program ( "grid_setup", &
+                            "my_ncommensurate < 0 " )
+     ENDIF
+     IF (my_icommensurate > 1 .AND. .NOT. PRESENT(ref_grid)  ) THEN
+        CALL stop_program ( "grid_setup", &
+                            "my_icommensurate > 1 .AND. .NOT. PRESENT(ref_grid)" )
+     ENDIF
+  ELSE
+     IF (PRESENT( ncommensurate ) .OR. PRESENT( icommensurate ) ) THEN
+        CALL stop_program ( "grid_setup", &
+                            "both ncommensurate and icommensurate needed" )
+     ELSE
+        my_ncommensurate=0
+        my_icommensurate=0
+     ENDIF
+  ENDIF
 
   ! assign a unique tag to this grid
   grid_tag = grid_tag + 1
@@ -449,6 +490,13 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
      pw_grid % cutoff = 0._dbl
   END IF
 
+  IF ( my_ncommensurate > 0 ) THEN
+     IF (my_icommensurate > 1) THEN ! we should use the reference grid to find out the number of gridpoints
+         pw_grid % bounds ( 1, : ) = - ref_grid % npts  / 2**my_icommensurate
+         pw_grid % bounds ( 2, : ) = pw_grid % bounds ( 1, : ) +  ref_grid % npts / (2**(my_icommensurate-1)) - 1
+     ENDIF
+  ENDIF
+
   IF ( .NOT. pw_grid % spherical ) THEN
 
      IF ( SUM ( ABS ( pw_grid % bounds ( :, : ) ) ) == 0 ) THEN
@@ -456,33 +504,55 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
                             "provide initial values for bounds" )
      END IF
 
+     ntest = pw_grid % bounds ( 2, : ) - pw_grid % bounds ( 1, : ) + 1
+
      IF ( fft ) THEN
+ 
+         ! select FFT compatible bounds
+         ! without a cutoff and HALFSPACE we have to be sure that there is
+         ! a negative counterpart to every g vector (-> odd number of grid points)
+         IF ( pw_grid % grid_span == HALFSPACE .AND. symmetry ) THEN
+  
+           CALL fft_radix_operations ( ntest(1), n(1), FFT_RADIX_NEXT_ODD )
+           CALL fft_radix_operations ( ntest(2), n(2), FFT_RADIX_NEXT_ODD )
+           CALL fft_radix_operations ( ntest(3), n(3), FFT_RADIX_NEXT_ODD )
+  
+         ELSE
+           ! keep looping to find the right one
+           DO
+             CALL fft_radix_operations ( ntest(1), n(1), FFT_RADIX_NEXT )
+             ! we need an even lowest grid
+             IF (MODULO(n(1),2**(1+my_ncommensurate-my_icommensurate)).EQ.0) THEN
+                EXIT
+             ELSE
+                ntest(1)=n(1)+1
+             ENDIF
+           ENDDO
+           DO
+             CALL fft_radix_operations ( ntest(2), n(2), FFT_RADIX_NEXT )
+             IF (MODULO(n(2),2**(1+my_ncommensurate-my_icommensurate)).EQ.0) THEN
+                EXIT
+             ELSE
+                ntest(2)=n(2)+1
+             ENDIF
+           ENDDO
+           DO
+             CALL fft_radix_operations ( ntest(3), n(3), FFT_RADIX_NEXT )
+             IF (MODULO(n(3),2**(1+my_ncommensurate-my_icommensurate)).EQ.0) THEN
+                EXIT
+             ELSE
+                ntest(3)=n(3)+1
+             ENDIF
+           ENDDO
 
-       ! select FFT compatible bounds
-       ntest = pw_grid % bounds ( 2, : ) - pw_grid % bounds ( 1, : ) + 1
-       ! without a cutoff and HALFSPACE we have to be sure that there is
-       ! a negative counterpart to every g vector (-> odd number of grid points)
-       IF ( pw_grid % grid_span == HALFSPACE .AND. symmetry ) THEN
-
-         CALL fft_radix_operations ( ntest(1), n(1), FFT_RADIX_NEXT_ODD )
-         CALL fft_radix_operations ( ntest(2), n(2), FFT_RADIX_NEXT_ODD )
-         CALL fft_radix_operations ( ntest(3), n(3), FFT_RADIX_NEXT_ODD )
-
-       ELSE
-
-         CALL fft_radix_operations ( ntest(1), n(1), FFT_RADIX_NEXT )
-         CALL fft_radix_operations ( ntest(2), n(2), FFT_RADIX_NEXT )
-         CALL fft_radix_operations ( ntest(3), n(3), FFT_RADIX_NEXT )
-
-       END IF
+         END IF
 
      ELSE
 
-       n = pw_grid % bounds ( 2, : ) - pw_grid % bounds ( 1, : ) + 1
        ! without a cutoff and HALFSPACE we have to be sure that there is
        ! a negative counterpart to every g vector (-> odd number of grid points)
        IF ( pw_grid % grid_span == HALFSPACE .AND. symmetry ) &
-          n = n + MOD ( n + 1, 2 )
+            n = ntest + MOD ( ntest + 1, 2 )
 
      END IF
 
@@ -493,6 +563,20 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
 
   pw_grid % npts ( : ) = &
        pw_grid % bounds ( 2, : ) - pw_grid % bounds ( 1, : ) + 1
+
+  ! final check if all went fine ...
+  IF (my_ncommensurate>0) THEN
+     IF ( ANY( MODULO(pw_grid % npts,2**(my_ncommensurate-my_icommensurate)).NE.0 ) ) THEN ! nope, sorry
+        CALL stop_program ( "grid_setup", &
+            "commensurate option failed (I) ... maybe not yet programmed for this combination of options ?" )
+     END IF
+     IF ( my_icommensurate > 1 ) THEN 
+        IF ( ANY(pw_grid % npts * 2 ** (my_icommensurate-1) .NE. ref_grid % npts ) ) THEN
+          CALL stop_program ( "grid_setup", &
+              "commensurate option failed (II) ... maybe not yet programmed for this combination of options ?" )
+        ENDIF
+     END IF
+  ENDIF
 
   n ( : )  = pw_grid % npts ( : )
 

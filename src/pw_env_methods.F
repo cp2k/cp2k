@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2002 -2003 CP2K developers group                            !
+!   Copyright (C) 2002 - 2004 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
@@ -23,6 +23,7 @@
 !!     10.2002 created [fawzi]
 !!     JGH (22-Feb-03) PW grid options added
 !!     04.2003 added rs grid pools [fawzi]
+!!     02.2004 added commensurate grids
 !!
 !!   SOURCE
 !****************************************************************************
@@ -216,6 +217,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(pw_grid_type), POINTER              :: old_pw_grid, pw_grid
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
+    INTEGER                                  :: ncommensurate
 
 ! should be be avoided (see later)
 
@@ -262,9 +264,14 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      cutoff => dft_control%qs_control%e_cutoff
      ngrid_level = SIZE(cutoff)
      
-     ! init gridlevel_info
+     ! init gridlevel_info XXXXXXXXX setup mapping to the effective cutoff ?
+     !                     XXXXXXXXX the cutoff array here is more a 'wish-list'
+     !                     XXXXXXXXX same holds for radius
      CALL init_gaussian_gridlevel(pw_env%gridlevel_info,&
           ngrid_levels=ngrid_level,cutoff=cutoff,rel_cutoff=rel_cutoff)
+     ALLOCATE(radius(ngrid_level),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CALL get_subgrid_size ( qs_env, cutoff, radius ) 
 
      ! init pw_grids and pools
      ALLOCATE(pw_pools(ngrid_level),stat=stat)
@@ -272,10 +279,11 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      ALLOCATE(rs_pools(ngrid_level),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-     ALLOCATE(radius(ngrid_level),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-     CALL get_subgrid_size ( qs_env, cutoff, radius ) 
+     IF (dft_control % qs_control % commensurate_mgrids) THEN
+        ncommensurate=ngrid_level 
+     ELSE 
+        ncommensurate=0
+     ENDIF
 
      DO igrid_level=1,ngrid_level ! keep the pw_grids in a separate array?
         ALLOCATE(pw_grid,stat=stat)
@@ -300,10 +308,10 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
               CALL pw_grid_setup(cell,pw_grid,cutilev,&
                    pe_group=para_env%group,&
                    info= cp_logger_get_default_unit_nr(logger,&
-                   local=.FALSE.), blocked=.FALSE.)
+                   local=.FALSE.), blocked=.FALSE.,ncommensurate=ncommensurate,icommensurate=igrid_level)
            ELSE
               CALL pw_grid_setup(cell,pw_grid,cutilev,&
-                   pe_group=para_env%group, blocked=.FALSE.)
+                   pe_group=para_env%group, blocked=.FALSE.,ncommensurate=ncommensurate,icommensurate=igrid_level)
            END IF
            old_pw_grid => pw_grid
         ELSE
@@ -312,11 +320,11 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                    pe_group=para_env%group,&
                    info=cp_logger_get_default_unit_nr(logger,&
                    local=.FALSE.), blocked=.FALSE., &
-                   ref_grid=old_pw_grid)
+                   ref_grid=old_pw_grid,ncommensurate=ncommensurate,icommensurate=igrid_level)
            ELSE
               CALL pw_grid_setup(cell,pw_grid,cutilev,&
                    pe_group=para_env%group, blocked=.FALSE., &
-                   ref_grid=old_pw_grid)
+                   ref_grid=old_pw_grid,ncommensurate=ncommensurate,icommensurate=igrid_level)
            END IF
         END IF
         
@@ -355,6 +363,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      nkind=SIZE(atomic_kind_set)
 
      cmax = 0
+     ! XXXXXXXXXXXXXX this duplicates the functionality of get_subgrid_size  XXXXXXXXXXXXXXXXXX
      ! try to predict the maximum radius of the gaussians to be mapped on the grid
      ! up to now, it is not yet very good 
      DO igrid_level=1,ngrid_level

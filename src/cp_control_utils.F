@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2003  CP2K developers group                          !
+!   Copyright (C) 2000 - 2004  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 #include "cp_prep_globals.h"
 !!****s* cp2k/cp_control_utils [1.0] *
@@ -518,6 +518,7 @@ CONTAINS
 !!                                                                            !
 !!  CUTOFF                 : ecut                                             !
 !!  MULTI-GRID             : ngrid e1 e2 e3 ...                               !
+!!  COMMENSURATE           : grids are commensurate in realspace              !
 !!  EPS_DEFAULT            : eps                                              !
 !!  EPS_CORE_CHARGE        : eps                                              !
 !!  EPS_GVG_RSPACE         : eps                                              !
@@ -558,7 +559,8 @@ CONTAINS
     INTEGER                                  :: igrid_level, istat, &
                                                 ngrid_level
     LOGICAL                                  :: cutoff_set, multgrid_set, &
-                                                ngrid_set, section_found
+                                                ngrid_set, section_found, &
+                                                progression_set
     REAL(KIND=dp)                            :: value
 
 !   ---------------------------------------------------------------------------
@@ -583,10 +585,12 @@ CONTAINS
     qs_control%pw_grid_opt%fullspace = .TRUE.
     qs_control%rs_distributed = .FALSE.
     qs_control%wf_interpolation_method_nr = wfi_linear_p_method_nr
+    qs_control%commensurate_mgrids = .FALSE.
 !
     cutoff_set = .FALSE.
     multgrid_set = .FALSE.
     ngrid_set = .FALSE.
+    progression_set = .FALSE.
 
 !   *** Read the input section ***
 
@@ -614,6 +618,8 @@ CONTAINS
             CALL read_object(value)
             qs_control%cutoff = MAX(0.01_dp,0.5_dp*value) ! ok input is in Ry, value is in a.u.
             cutoff_set = .TRUE.
+          CASE ("COMMENSURATE")
+            qs_control%commensurate_mgrids = .TRUE.
           CASE ("MULTI_GRID","MULTGRID","MGRID")
             CALL read_object(igrid_level)
             IF ( ngrid_set ) THEN
@@ -669,6 +675,7 @@ CONTAINS
             CALL read_object(qs_control%eps_rho_rspace)
           CASE ("PROGRESSION_FACTOR","PROFAC")
             CALL read_object(value)
+            progression_set=.TRUE.
             qs_control%progression_factor = MAX(0.01_dp,value)
           CASE ("RELATIVE_CUTOFF","REL_CUTOFF")
             CALL read_object(value)
@@ -767,6 +774,11 @@ CONTAINS
 
     CALL finish_parser()
 
+    IF (qs_control%commensurate_mgrids) THEN
+      IF (progression_set) CALL stop_program(routine,"Do not specify a progression factor for commensurate grids (NYI)")
+      qs_control%progression_factor=4.0_dp ! this will result in approx. correct cutoffs for the multigrids
+    ENDIF
+
 !   set defaults for cutoff and multigrids if not yet done
     IF ( .NOT. cutoff_set ) THEN
       IF ( .NOT. multgrid_set ) THEN
@@ -786,6 +798,9 @@ CONTAINS
             / qs_control%progression_factor
       END DO
     ELSE
+      IF (qs_control%commensurate_mgrids) THEN
+          CALL stop_program(routine,"Do not specify cutoffs for the commensurate grids (NYI)")
+      ENDIF
       ! set cutoff to smallest value in multgrid available with >= cutoff
       DO igrid_level=ngrid_level,1,-1
         IF ( qs_control%cutoff <= qs_control%e_cutoff(igrid_level) ) THEN
@@ -1161,12 +1176,13 @@ CONTAINS
       ELSE
         WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
           "QS| Density cutoff [a.u.]:",qs_control%cutoff
+        WRITE (UNIT=output_unit,FMT="(T2,A)") "QS| Using commensurate multigrids"
         WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
-          "QS| Multi grid cutoff [a.u.]: 1) grid level",qs_control%e_cutoff(1)
+             "QS| Multi grid cutoff [a.u.]: 1) grid level",qs_control%e_cutoff(1)
         WRITE (UNIT=output_unit,FMT="(T2,A,I3,A,T71,F10.1)")&
-          ("QS|                         ",igrid_level,") grid level",&
-           qs_control%e_cutoff(igrid_level),&
-           igrid_level=2,SIZE(qs_control%e_cutoff))
+                ("QS|                         ",igrid_level,") grid level",&
+              qs_control%e_cutoff(igrid_level),&
+              igrid_level=2,SIZE(qs_control%e_cutoff))
       END IF
       IF (qs_control%pao) THEN
          WRITE (UNIT=output_unit,FMT="(T2,A)") "QS| PAO active"
