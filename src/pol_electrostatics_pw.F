@@ -73,7 +73,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s, grid_b, ewald_param, &
+SUBROUTINE electrostatics ( dg_part, pw, rho0, part, box, grid_s, grid_b, ewald_param, &
                             energy, e0, e1, e2, f_coef, f_part )
 
   IMPLICIT NONE
@@ -81,6 +81,7 @@ SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s, grid_b, ewald_param,
 ! Arguments
   TYPE ( dg_type ), INTENT ( IN ), DIMENSION ( : ) :: dg_part
   TYPE ( pw_type ), INTENT ( INOUT ) :: pw
+  TYPE ( coeff_type), INTENT ( OUT ) :: rho0
   TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ) :: part
   TYPE ( cell_type ), INTENT ( IN ) :: box
   TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: grid_s
@@ -102,7 +103,7 @@ SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s, grid_b, ewald_param,
   TYPE ( realspace_grid_type ) :: phi1_rs, phi2_rs
   TYPE ( coeff_type ) :: rhos1, rhos2
   TYPE ( coeff_type ) :: rho0b_g, rho0b_r, phi1_r, phi2_r, dphi1_g ( 3 ), dphi2_g ( 3 )
-  TYPE ( coeff_type ) :: rho0, drho, coeff_dummy 
+  TYPE ( coeff_type ) :: drho, coeff_dummy 
   REAL ( dbl ) :: inv_fourpi_eps0
   REAL ( dbl ) :: e_rho0_rho0, e_drho_drho, e_rho0_drho
   REAL ( dbl ) :: ivol, vol
@@ -134,16 +135,12 @@ SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s, grid_b, ewald_param,
 
 ! Allocate reference coefficient types ( e.g. with largest cut-off )
 
-  CALL coeff_allocate ( drho , pw % pw_grid, use_data = PW_COMPLEXDATA1D )
+  CALL coeff_allocate ( drho, pw % pw_grid, use_data = PW_COMPLEXDATA1D )
   drho % pw % in_space = RECIPROCALSPACE
-
-  CALL coeff_allocate ( rho0 , pw % pw_grid, use_data = PW_COMPLEXDATA1D )
-  rho0 % pw % in_space = RECIPROCALSPACE
 
   CALL coeff_allocate ( coeff_dummy , pw % pw_grid, use_data = PW_COMPLEXDATA1D )
   coeff_dummy % pw % in_space = RECIPROCALSPACE
  
-  CALL coeff_zero ( rho0 )
   CALL coeff_zero ( drho )
   CALL coeff_zero ( coeff_dummy )
 
@@ -246,14 +243,14 @@ SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s, grid_b, ewald_param,
   CASE ( "NONE" )
     energy =  ( e_rho0_rho0 +  ivol * ivol * e_drho_drho + e_rho0_drho )  &
               * inv_fourpi_eps0
-    e0 = e_rho0_rho0 * inv_fourpi_eps0
-    e1 = e_rho0_drho * inv_fourpi_eps0
-    e2 = ivol * ivol * e_drho_drho * inv_fourpi_eps0
+    IF ( PRESENT ( e0 ) )  e0 = e_rho0_rho0 * inv_fourpi_eps0
+    IF ( PRESENT ( e1 ) )  e1 = e_rho0_drho * inv_fourpi_eps0
+    IF ( PRESENT ( e2 ) )  e2 = ivol * ivol * e_drho_drho * inv_fourpi_eps0
   CASE DEFAULT
     energy =  ( ivol * ivol * e_drho_drho + e_rho0_drho ) * inv_fourpi_eps0
-    e0 = 0._dbl
-    e1 = e_rho0_drho * inv_fourpi_eps0
-    e2 = ivol * ivol * e_drho_drho * inv_fourpi_eps0
+    IF ( PRESENT ( e0 ) )  e0 = 0._dbl
+    IF ( PRESENT ( e1 ) )  e1 = e_rho0_drho * inv_fourpi_eps0
+    IF ( PRESENT ( e2 ) )  e2 = ivol * ivol * e_drho_drho * inv_fourpi_eps0
   END SELECT 
 
 !-------------- ELECTROSTATIC CALCULATION DONE -----------
@@ -375,7 +372,6 @@ SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s, grid_b, ewald_param,
   ENDIF
 
 ! clean up
-  CALL coeff_deallocate ( rho0 )
   CALL coeff_deallocate ( drho )
 
   DEALLOCATE ( exp_igr_part, STAT=allocstat )
