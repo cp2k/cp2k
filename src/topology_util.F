@@ -3318,12 +3318,12 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
 !    molecule_kind => molecule_kind_set(i)
 !    CALL get_molecule_kind(molecule_kind=molecule_kind,&
 !                           natom=natom,atom_list=atom_list,&
-!                           nimpr=nimpr,impr_list=impr_list)
-!    IF(nimpr>0) THEN
-!      ALLOCATE(map_impr_kind(nimpr),STAT=istat)
-!      IF (istat /= 0) CALL stop_memory('force_field_pack','map_impr_kind')
+!                           nonfo=nonfo,onfo_list=onfo_list)
+!    IF(nonfo>0) THEN
+!      ALLOCATE(map_onfo_kind(nonfo),STAT=istat)
+!      IF (istat /= 0) CALL stop_memory('force_field_pack','map_onfo_kind')
 !      counter=0
-!      DO j=1,nimpr
+!      DO j=1,nonfo
 !        name_atm_a = ''
 !        name_atm_b = ''
 !        name_atm_c = ''
@@ -3332,37 +3332,37 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
 !        name_atm_b2 = ''
 !        name_atm_c2 = ''
 !        name_atm_d2 = ''
-!        atm_a = impr_list(j)%a
+!        atm_a = onfo_list(j)%a
 !        atomic_kind => atom_list(atm_a)%atomic_kind
 !        CALL get_atomic_kind(atomic_kind=atomic_kind,&
 !                             name=name_atm_a)
-!        atm_b = impr_list(j)%b
+!        atm_b = onfo_list(j)%b
 !        atomic_kind => atom_list(atm_b)%atomic_kind
 !        CALL get_atomic_kind(atomic_kind=atomic_kind,&
 !                             name=name_atm_b)
-!        atm_c = impr_list(j)%c
+!        atm_c = onfo_list(j)%c
 !        atomic_kind => atom_list(atm_c)%atomic_kind
 !        CALL get_atomic_kind(atomic_kind=atomic_kind,&
 !                             name=name_atm_c)
-!        atm_d = impr_list(j)%d
+!        atm_d = onfo_list(j)%d
 !        atomic_kind => atom_list(atm_d)%atomic_kind
 !        CALL get_atomic_kind(atomic_kind=atomic_kind,&
 !                             name=name_atm_d)
 !        found = .FALSE.
 !        DO k=1,j-1
-!          atm_a = impr_list(k)%a
+!          atm_a = onfo_list(k)%a
 !          atomic_kind => atom_list(atm_a)%atomic_kind
 !          CALL get_atomic_kind(atomic_kind=atomic_kind,&
 !                               name=name_atm_a2)
-!          atm_b = impr_list(k)%b
+!          atm_b = onfo_list(k)%b
 !          atomic_kind => atom_list(atm_b)%atomic_kind
 !          CALL get_atomic_kind(atomic_kind=atomic_kind,&
 !                               name=name_atm_b2)
-!          atm_c = impr_list(k)%c
+!          atm_c = onfo_list(k)%c
 !          atomic_kind => atom_list(atm_c)%atomic_kind
 !          CALL get_atomic_kind(atomic_kind=atomic_kind,&
 !                               name=name_atm_c2)
-!          atm_d = impr_list(k)%d
+!          atm_d = onfo_list(k)%d
 !          atomic_kind => atom_list(atm_d)%atomic_kind
 !          CALL get_atomic_kind(atomic_kind=atomic_kind,&
 !                               name=name_atm_d2)
@@ -3375,23 +3375,23 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
 !               (TRIM(name_atm_c)==TRIM(name_atm_b2)) .AND. &
 !               (TRIM(name_atm_d)==TRIM(name_atm_a2))) ) THEN
 !            found = .TRUE.
-!            map_impr_kind(j) = map_impr_kind(k)
+!            map_onfo_kind(j) = map_onfo_kind(k)
 !            EXIT
 !          END IF
 !        END DO
 !        IF(.NOT.found) THEN
 !          counter=counter+1
-!          map_impr_kind(j) = counter
+!          map_onfo_kind(j) = counter
 !        END IF
 !      END DO
-!      CALL allocate_impr_kind_set(impr_kind_set,counter)
-!      DO j=1,nimpr
-!        impr_list(j)%impr_kind => impr_kind_set(map_impr_kind(j))
+!      CALL allocate_onfo_kind_set(onfo_kind_set,counter)
+!      DO j=1,nonfo
+!        onfo_list(j)%onfo_kind => onfo_kind_set(map_onfo_kind(j))
 !      END DO
 !      CALL set_molecule_kind(molecule_kind=molecule_kind,&
-!                             impr_kind_set=impr_kind_set,impr_list=impr_list)
-!      DEALLOCATE(map_impr_kind,STAT=istat)
-!      IF (istat /= 0) CALL stop_memory('force_field_pack','map_impr_kind')
+!                             onfo_kind_set=onfo_kind_set,onfo_list=onfo_list)
+!      DEALLOCATE(map_onfo_kind,STAT=istat)
+!      IF (istat /= 0) CALL stop_memory('force_field_pack','map_onfo_kind')
 !    END IF
 !  END DO
 
@@ -3577,7 +3577,102 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  !  9. TORSION
+  ! 9. Urey-Bradley
+  !-----------------------------------------------------------------------------
+!  DO i=1,SIZE(molecule_kind_set)
+!    molecule_kind => molecule_kind_set(i)
+!    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+!                           natom=natom,atom_list=atom_list,&
+!                           nub=nub,ub_list=ub_list)
+!    DO j=1,nub
+!      atm_a = ub_list(j)%a
+!      atomic_kind => atom_list(atm_a)%atomic_kind
+!      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                           name=name_atm_a)
+!      atm_b = ub_list(j)%b
+!      atomic_kind => atom_list(atm_b)%atomic_kind
+!      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                           name=name_atm_b)
+!      atm_c = ub_list(j)%c
+!      atomic_kind => atom_list(atm_c)%atomic_kind
+!      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                           name=name_atm_c)
+!      found = .FALSE.
+!
+!      ! loop over params from amber
+!!     IF(ASSOCIATED(ffam_info%ff_ub_a)) THEN
+!!       DO k=1,SIZE(ffam_info%ff_ub_a)
+!!         IF( ((TRIM(ffam_info%ff_ub_a(k))==TRIM(name_atm_a)) .AND. &
+!!              (TRIM(ffam_info%ff_ub_b(k))==TRIM(name_atm_b)) .AND. &
+!!              (TRIM(ffam_info%ff_ub_c(k))==TRIM(name_atm_c))) .OR. &
+!!             ((TRIM(ffam_info%ff_ub_a(k))==TRIM(name_atm_c)) .AND. &
+!!              (TRIM(ffam_info%ff_ub_b(k))==TRIM(name_atm_b)) .AND. &
+!!              (TRIM(ffam_info%ff_ub_c(k))==TRIM(name_atm_a))) ) THEN
+!!           ub_list(j)%ub_kind%k      = ffam_info%ff_ub_k(k)
+!!           ub_list(j)%ub_kind%theta0 = ffam_info%ff_ub_theta0(k)
+!!           IF(found .AND. PM1) &
+!!              WRITE(iw,*) "    Multiple Bend declarations: overwriting"
+!!           found = .TRUE.
+!!           EXIT
+!!         END IF
+!!       END DO
+!!     END IF
+!
+!      ! loop over params from charmm
+!      IF(ASSOCIATED(ffch_info%ff_ub_a)) THEN
+!        DO k=1,SIZE(ffch_info%ff_ub_a)
+!          IF( ((TRIM(ffch_info%ff_ub_a(k))==TRIM(name_atm_a)) .AND. &
+!               (TRIM(ffch_info%ff_ub_b(k))==TRIM(name_atm_b)) .AND. &
+!               (TRIM(ffch_info%ff_ub_c(k))==TRIM(name_atm_c))) .OR. &
+!              ((TRIM(ffch_info%ff_ub_a(k))==TRIM(name_atm_c)) .AND. &
+!               (TRIM(ffch_info%ff_ub_b(k))==TRIM(name_atm_b)) .AND. &
+!               (TRIM(ffch_info%ff_ub_c(k))==TRIM(name_atm_a))) ) THEN
+!            ub_list(j)%ub_kind%k      = ffch_info%ff_ub_k(k)
+!            ub_list(j)%ub_kind%theta0 = ffch_info%ff_ub_theta0(k)
+!            IF(found .AND. PM1) &
+!               WRITE(iw,*) "    Multiple Bend declarations: overwriting"
+!            found = .TRUE.
+!            EXIT
+!          END IF
+!        END DO
+!      END IF
+!
+!      ! always have the input param last to overwrite all the other ones
+!      IF(ASSOCIATED(ffin_info%ff_ub_a)) THEN
+!        DO k=1,SIZE(ffin_info%ff_ub_a)
+!          IF( ((TRIM(ffin_info%ff_ub_a(k))==TRIM(name_atm_a)) .AND. &
+!               (TRIM(ffin_info%ff_ub_b(k))==TRIM(name_atm_b)) .AND. &
+!               (TRIM(ffin_info%ff_ub_c(k))==TRIM(name_atm_c))) .OR. &
+!              ((TRIM(ffin_info%ff_ub_a(k))==TRIM(name_atm_c)) .AND. &
+!               (TRIM(ffin_info%ff_ub_b(k))==TRIM(name_atm_b)) .AND. &
+!               (TRIM(ffin_info%ff_ub_c(k))==TRIM(name_atm_a))) ) THEN
+!            ub_list(j)%ub_kind%k      = ffin_info%ff_ub_k(k)
+!            ub_list(j)%ub_kind%theta0 = ffin_info%ff_ub_theta0(k)
+!            IF(found .AND. PM1) &
+!               WRITE(iw,*) "    Multiple Bend declarations: overwriting"
+!            found = .TRUE.
+!            EXIT
+!          END IF
+!        END DO
+!      END IF
+!
+!      IF(.NOT.found) THEN
+!        IF(PM1) WRITE(iw,*) "    Bend ",j," : ",&
+!                            TRIM(name_atm_a)," ",&
+!                            TRIM(name_atm_b)," ",&
+!                            TRIM(name_atm_c)
+!        CALL stop_program("FF_pack","missing ub parm")
+!      END IF
+!
+!    END DO
+!    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+!                           ub_list=ub_list)
+!  END DO
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 10. TORSION
   !-----------------------------------------------------------------------------
   DO i=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(i)
@@ -3683,7 +3778,219 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 10. PARAMETERS ON POT
+  ! 11. IMPROPERS
+  !-----------------------------------------------------------------------------
+!  DO i=1,SIZE(molecule_kind_set)
+!    molecule_kind => molecule_kind_set(i)
+!    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+!                           natom=natom,atom_list=atom_list,&
+!                           nimpr=nimpr,impr_list=impr_list)
+!    DO j=1,nimpr
+!      atm_a = impr_list(j)%a
+!      atomic_kind => atom_list(atm_a)%atomic_kind
+!      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                           name=name_atm_a)
+!      atm_b = impr_list(j)%b
+!      atomic_kind => atom_list(atm_b)%atomic_kind
+!      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                           name=name_atm_b)
+!      atm_c = impr_list(j)%c
+!      atomic_kind => atom_list(atm_c)%atomic_kind
+!      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                           name=name_atm_c)
+!      atm_d = impr_list(j)%d
+!      atomic_kind => atom_list(atm_d)%atomic_kind
+!      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                           name=name_atm_d)
+!      found = .FALSE.
+!
+!      ! loop over params from amber
+!!     IF(ASSOCIATED(ffch_info%ff_impr_a)) THEN
+!!       DO k=1,SIZE(ffch_info%ff_impr_a)
+!!         IF( ((TRIM(ffch_info%ff_impr_a(k))==TRIM(name_atm_a)) .AND. &
+!!              (TRIM(ffch_info%ff_impr_b(k))==TRIM(name_atm_b)) .AND. &
+!!              (TRIM(ffch_info%ff_impr_c(k))==TRIM(name_atm_c)) .AND. &
+!!              (TRIM(ffch_info%ff_impr_d(k))==TRIM(name_atm_d))) .OR. &
+!!             ((TRIM(ffch_info%ff_impr_a(k))==TRIM(name_atm_d)) .AND. &
+!!              (TRIM(ffch_info%ff_impr_b(k))==TRIM(name_atm_c)) .AND. &
+!!              (TRIM(ffch_info%ff_impr_c(k))==TRIM(name_atm_b)) .AND. &
+!!              (TRIM(ffch_info%ff_impr_d(k))==TRIM(name_atm_a))) ) THEN
+!!           impr_list(j)%impr_kind%k      = ffch_info%ff_impr_k(k)
+!!           impr_list(j)%impr_kind%phi0 = ffch_info%ff_impr_phi0(k)
+!!           IF(found .AND. PM1) &
+!!              WRITE(iw,*) "    Multiple Impropers declarations: overwriting"
+!!           found = .TRUE.
+!!           EXIT
+!!         END IF
+!!       END DO
+!!     END IF
+!
+!      ! loop over params from charmm
+!      IF(ASSOCIATED(ffch_info%ff_impr_a)) THEN
+!        DO k=1,SIZE(ffch_info%ff_impr_a)
+!          IF( ((TRIM(ffch_info%ff_impr_a(k))==TRIM(name_atm_a)) .AND. &
+!               (TRIM(ffch_info%ff_impr_b(k))==TRIM(name_atm_b)) .AND. &
+!               (TRIM(ffch_info%ff_impr_c(k))==TRIM(name_atm_c)) .AND. &
+!               (TRIM(ffch_info%ff_impr_d(k))==TRIM(name_atm_d))) .OR. &
+!              ((TRIM(ffch_info%ff_impr_a(k))==TRIM(name_atm_d)) .AND. &
+!               (TRIM(ffch_info%ff_impr_b(k))==TRIM(name_atm_c)) .AND. &
+!               (TRIM(ffch_info%ff_impr_c(k))==TRIM(name_atm_b)) .AND. &
+!               (TRIM(ffch_info%ff_impr_d(k))==TRIM(name_atm_a))) ) THEN
+!            impr_list(j)%impr_kind%k      = ffch_info%ff_impr_k(k)
+!            impr_list(j)%impr_kind%phi0 = ffch_info%ff_impr_phi0(k)
+!            IF(found .AND. PM1) &
+!               WRITE(iw,*) "    Multiple Torsion declarations: overwriting"
+!            found = .TRUE.
+!            EXIT
+!          END IF
+!        END DO
+!      END IF
+!
+!      ! always have the input param last to overwrite all the other ones
+!      IF(ASSOCIATED(ffin_info%ff_impr_a)) THEN
+!        DO k=1,SIZE(ffin_info%ff_impr_a)
+!          IF( ((TRIM(ffin_info%ff_impr_a(k))==TRIM(name_atm_a)) .AND. &
+!               (TRIM(ffin_info%ff_impr_b(k))==TRIM(name_atm_b)) .AND. &
+!               (TRIM(ffin_info%ff_impr_c(k))==TRIM(name_atm_c)) .AND. &
+!               (TRIM(ffin_info%ff_impr_d(k))==TRIM(name_atm_d))) .OR. &
+!              ((TRIM(ffin_info%ff_impr_a(k))==TRIM(name_atm_d)) .AND. &
+!               (TRIM(ffin_info%ff_impr_b(k))==TRIM(name_atm_c)) .AND. &
+!               (TRIM(ffin_info%ff_impr_c(k))==TRIM(name_atm_b)) .AND. &
+!               (TRIM(ffin_info%ff_impr_d(k))==TRIM(name_atm_a))) ) THEN
+!            impr_list(j)%impr_kind%k      = ffin_info%ff_impr_k(k)
+!            impr_list(j)%impr_kind%phi0 = ffin_info%ff_impr_phi0(k)
+!            IF(found .AND. PM1) &
+!               WRITE(iw,*) "    Multiple Torsion declarations: overwriting"
+!            found = .TRUE.
+!            EXIT
+!          END IF
+!        END DO
+!      END IF
+!
+!      IF(.NOT.found) THEN
+!        IF(PM1) WRITE(iw,*) "    Torsion ",j," : ",&
+!                            TRIM(name_atm_a)," ",&
+!                            TRIM(name_atm_b)," ",&
+!                            TRIM(name_atm_c)," ",&
+!                            TRIM(name_atm_d)
+!        CALL stop_program("FF_pack","missing impr parm")
+!
+!      END IF
+!    END DO
+!    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+!                           impr_list=impr_list)
+!  END DO
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 12. ONFO
+  !-----------------------------------------------------------------------------
+!  DO i=1,SIZE(molecule_kind_set)
+!    molecule_kind => molecule_kind_set(i)
+!    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+!                           natom=natom,atom_list=atom_list,&
+!                           nonfo=nonfo,onfo_list=onfo_list)
+!    DO j=1,nonfo
+!      atm_a = onfo_list(j)%a
+!      atomic_kind => atom_list(atm_a)%atomic_kind
+!      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                           name=name_atm_a)
+!      atm_b = onfo_list(j)%b
+!      atomic_kind => atom_list(atm_b)%atomic_kind
+!      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                           name=name_atm_b)
+!      atm_c = onfo_list(j)%c
+!      atomic_kind => atom_list(atm_c)%atomic_kind
+!      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                           name=name_atm_c)
+!      atm_d = onfo_list(j)%d
+!      atomic_kind => atom_list(atm_d)%atomic_kind
+!      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                           name=name_atm_d)
+!      found = .FALSE.
+!
+!      ! loop over params from amber
+!!     IF(ASSOCIATED(ffch_info%ff_onfo_a)) THEN
+!!       DO k=1,SIZE(ffch_info%ff_onfo_a)
+!!         IF( ((TRIM(ffch_info%ff_onfo_a(k))==TRIM(name_atm_a)) .AND. &
+!!              (TRIM(ffch_info%ff_onfo_b(k))==TRIM(name_atm_b)) .AND. &
+!!              (TRIM(ffch_info%ff_onfo_c(k))==TRIM(name_atm_c)) .AND. &
+!!              (TRIM(ffch_info%ff_onfo_d(k))==TRIM(name_atm_d))) .OR. &
+!!             ((TRIM(ffch_info%ff_onfo_a(k))==TRIM(name_atm_d)) .AND. &
+!!              (TRIM(ffch_info%ff_onfo_b(k))==TRIM(name_atm_c)) .AND. &
+!!              (TRIM(ffch_info%ff_onfo_c(k))==TRIM(name_atm_b)) .AND. &
+!!              (TRIM(ffch_info%ff_onfo_d(k))==TRIM(name_atm_a))) ) THEN
+!!           onfo_list(j)%onfo_kind%k      = ffch_info%ff_onfo_k(k)
+!!           onfo_list(j)%onfo_kind%phi0 = ffch_info%ff_onfo_phi0(k)
+!!           IF(found .AND. PM1) &
+!!              WRITE(iw,*) "    Multiple Impropers declarations: overwriting"
+!!           found = .TRUE.
+!!           EXIT
+!!         END IF
+!!       END DO
+!!     END IF
+!
+!      ! loop over params from charmm
+!      IF(ASSOCIATED(ffch_info%ff_onfo_a)) THEN
+!        DO k=1,SIZE(ffch_info%ff_onfo_a)
+!          IF( ((TRIM(ffch_info%ff_onfo_a(k))==TRIM(name_atm_a)) .AND. &
+!               (TRIM(ffch_info%ff_onfo_b(k))==TRIM(name_atm_b)) .AND. &
+!               (TRIM(ffch_info%ff_onfo_c(k))==TRIM(name_atm_c)) .AND. &
+!               (TRIM(ffch_info%ff_onfo_d(k))==TRIM(name_atm_d))) .OR. &
+!              ((TRIM(ffch_info%ff_onfo_a(k))==TRIM(name_atm_d)) .AND. &
+!               (TRIM(ffch_info%ff_onfo_b(k))==TRIM(name_atm_c)) .AND. &
+!               (TRIM(ffch_info%ff_onfo_c(k))==TRIM(name_atm_b)) .AND. &
+!               (TRIM(ffch_info%ff_onfo_d(k))==TRIM(name_atm_a))) ) THEN
+!            onfo_list(j)%onfo_kind%k      = ffch_info%ff_onfo_k(k)
+!            onfo_list(j)%onfo_kind%phi0 = ffch_info%ff_onfo_phi0(k)
+!            IF(found .AND. PM1) &
+!               WRITE(iw,*) "    Multiple Torsion declarations: overwriting"
+!            found = .TRUE.
+!            EXIT
+!          END IF
+!        END DO
+!      END IF
+!
+!      ! always have the input param last to overwrite all the other ones
+!      IF(ASSOCIATED(ffin_info%ff_onfo_a)) THEN
+!        DO k=1,SIZE(ffin_info%ff_onfo_a)
+!          IF( ((TRIM(ffin_info%ff_onfo_a(k))==TRIM(name_atm_a)) .AND. &
+!               (TRIM(ffin_info%ff_onfo_b(k))==TRIM(name_atm_b)) .AND. &
+!               (TRIM(ffin_info%ff_onfo_c(k))==TRIM(name_atm_c)) .AND. &
+!               (TRIM(ffin_info%ff_onfo_d(k))==TRIM(name_atm_d))) .OR. &
+!              ((TRIM(ffin_info%ff_onfo_a(k))==TRIM(name_atm_d)) .AND. &
+!               (TRIM(ffin_info%ff_onfo_b(k))==TRIM(name_atm_c)) .AND. &
+!               (TRIM(ffin_info%ff_onfo_c(k))==TRIM(name_atm_b)) .AND. &
+!               (TRIM(ffin_info%ff_onfo_d(k))==TRIM(name_atm_a))) ) THEN
+!            onfo_list(j)%onfo_kind%k      = ffin_info%ff_onfo_k(k)
+!            onfo_list(j)%onfo_kind%phi0 = ffin_info%ff_onfo_phi0(k)
+!            IF(found .AND. PM1) &
+!               WRITE(iw,*) "    Multiple Torsion declarations: overwriting"
+!            found = .TRUE.
+!            EXIT
+!          END IF
+!        END DO
+!      END IF
+!
+!      IF(.NOT.found) THEN
+!        IF(PM1) WRITE(iw,*) "    Torsion ",j," : ",&
+!                            TRIM(name_atm_a)," ",&
+!                            TRIM(name_atm_b)," ",&
+!                            TRIM(name_atm_c)," ",&
+!                            TRIM(name_atm_d)
+!        CALL stop_program("FF_pack","missing onfo parm")
+!
+!      END IF
+!    END DO
+!    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+!                           onfo_list=onfo_list)
+!  END DO
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 13. PARAMETERS ON POT
   !-----------------------------------------------------------------------------
   ALLOCATE(potparm(SIZE(atomic_kind_set),SIZE(atomic_kind_set)),STAT=istat)
   IF (istat /= 0) CALL stop_memory('ff_pack','potparm')
