@@ -1167,6 +1167,8 @@ CONTAINS
         dPof1 = 15.0_dbl
       CASE ( 6 ) 
         dPof1 = 21.0_dbl
+      CASE ( 7 :  )
+        call stop_program("dPof1","Not implemented")
       END SELECT
     ELSE
       SELECT CASE ( l )
@@ -1186,6 +1188,8 @@ CONTAINS
         dPof1 = 15.0_dbl
       CASE ( 6 ) 
         dPof1 = -21.0_dbl
+      CASE ( 7 :  )
+        call stop_program("dPof1","Not implemented")
       END SELECT
     END IF
 
