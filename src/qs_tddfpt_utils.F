@@ -21,29 +21,20 @@
 
 MODULE qs_tddfpt_utils
 
-  USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type
-  USE cp_block_matrix,                 ONLY: cp_block_matrix_type,&
-                                             cp_sp_create
-  USE cp_error_handling,               ONLY: cp_error_init,&
-                                             cp_error_type
+  USE cp_fm_basic_linalg,              ONLY: cp_sm_fm_multiply, &
+                                             cp_fm_scale_and_add,&
+                                             cp_fm_trace
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose, &
                                              cp_fm_cholesky_invert
-  USE cp_log_handling,                 ONLY: cp_failure_level
-  USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
-  USE parser,                          ONLY: get_next,&
-                                             p_error,&
-                                             parser_end,&
-                                             parser_init,&
-                                             read_line,&
-                                             search_label,&
-                                             stop_parser,&
-                                             test_next
   USE cp_fm_types,                     ONLY: cp_full_matrix_p_type, &
                                              cp_full_matrix_type, &
                                              cp_fm_get_element, &
+                                             cp_fm_get_submatrix, &
                                              cp_fm_init_random, &
-                                             cp_fm_set_all
+                                             cp_fm_set_all, &
+                                             cp_fm_set_submatrix
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
   USE qs_blacs,                        ONLY: replicate_blacs_matrix, &
                                              copy_full_matrix_to_real_matrix, &
                                              copy_real_matrix_to_full_matrix
@@ -53,11 +44,15 @@ MODULE qs_tddfpt_utils
   USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
   USE qs_mo_types,                     ONLY: get_mo_set
   USE qs_p_env_methods,                ONLY: p_env_create, &
-                                             p_env_psi0_changed, p_preortho
-  USE qs_p_env_types,                  ONLY: qs_p_env_type, p_env_release
+                                             p_preortho, &
+                                             p_env_psi0_changed
+  USE qs_p_env_types,                  ONLY: qs_p_env_type, &
+                                             p_env_release
   USE qs_tddfpt_types
-  USE string_utilities,                ONLY: uppercase
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_memory, stop_program
+  USE timings,                         ONLY: timeset, timestop
+
   IMPLICIT NONE
 
   CHARACTER(LEN=*), PARAMETER :: moduleN="qs_tddfpt_utils"
@@ -71,7 +66,10 @@ MODULE qs_tddfpt_utils
             tddfpt_init, &
             tddfpt_write_banner, &
             print_fm_matrix, &
-            tddfpt_env_init
+            tddfpt_env_init, &
+            calc_initial_guess, &
+            calc_norm, &
+            reorthogonalize
 
 CONTAINS
 
@@ -223,9 +221,6 @@ CONTAINS
 
 ! *****************************************************************************
 
-
-! *****************************************************************************
-
   SUBROUTINE tddfpt_cleanup(t_env, p_env, glob_env)
 
     IMPLICIT NONE
@@ -285,6 +280,168 @@ CONTAINS
     CLOSE(8)
 
   END SUBROUTINE print_fm_matrix
+
+! *****************************************************************************
+
+  SUBROUTINE calc_initial_guess(matrices, qs_env, p_env, n_kv)
+
+    IMPLICIT NONE
+
+    ! arguments
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER  :: matrices
+    TYPE(qs_environment_type), INTENT(IN)               :: qs_env
+    TYPE(qs_p_env_type), POINTER                        :: p_env
+    INTEGER, INTENT(IN)                                 :: n_kv
+
+    ! locals
+    TYPE(tddfpt_control_type), POINTER          :: tddfpt_control
+    REAL(KIND=DBL), DIMENSION(:,:), ALLOCATABLE :: lumos, one_lumo
+    REAL(KIND=DBL)                              :: scale_factor
+    INTEGER                                     :: spin, n_spins
+    INTEGER                                     :: n_rows, n_cols ! of the matrices
+    INTEGER                                     :: n_ev, n_lumos
+    INTEGER                                     :: stat           ! error flags and such
+    INTEGER                                     :: i, j           ! loop indices
+
+    CHARACTER(len=*), PARAMETER :: routineN="calc_initial_guess", &
+                                   routineP=moduleN//"/"//routineN
+
+
+    tddfpt_control => qs_env%dft_control%tddfpt_control
+    n_spins = qs_env%dft_control%nspins
+    n_ev    = tddfpt_control%n_ev
+
+    DO spin=1, n_spins
+
+       n_cols = matrices(spin)%matrix%matrix_struct%ncol_global
+       n_rows = matrices(spin)%matrix%matrix_struct%nrow_global
+
+       CALL cp_fm_set_all(matrices(spin)%matrix, 0.0_dbl)
+
+       IF (ASSOCIATED(tddfpt_control%lumos)) THEN       
+
+          n_lumos = tddfpt_control%lumos(spin)%matrix%matrix_struct%ncol_global
+
+          ALLOCATE(lumos(n_rows, n_lumos), one_lumo(n_rows, 1), stat=stat)
+
+          CALL cp_fm_get_submatrix(tddfpt_control%lumos(spin)%matrix, lumos, &
+                                   start_col=1, n_cols=n_lumos)
+
+          DO i=1, n_ev
+             CALL dcopy(n_rows, 0.0_dbl, 0, one_lumo(:,1), 1)
+             DO j=1, n_lumos
+                scale_factor = 0.8_dbl
+                IF (j==i) scale_factor = REAL(n_ev,dbl)
+                scale_factor = scale_factor/(REAL(i,dbl)**2)
+                CALL daxpy(n_rows, scale_factor, lumos(:,j), 1, one_lumo(:,1), 1)
+             END DO
+             CALL cp_fm_set_submatrix(matrices(spin)%matrix, &
+                                      one_lumo(:,1:1), &
+                                      start_col=(n_cols-i+1))
+          END DO
+
+          DEALLOCATE(lumos, one_lumo)
+
+       ELSE
+
+          CALL cp_fm_init_random(matrices(spin)%matrix,  n_kv, start_col=n_cols-n_kv+1)
+
+       END IF
+
+    END DO
+    CALL p_preortho(p_env, qs_env, matrices)
+    ! normalization not necessary since it is done in the krylov routine
+
+  END SUBROUTINE calc_initial_guess
+
+! *****************************************************************************
+
+  !---------------------------------------!
+  ! x must not be changed in this routine !
+  ! tmp_vec may be changed                !
+  !---------------------------------------!
+  SUBROUTINE calc_norm(norm, x, tmp_vec, qs_env, glob_env)
+
+    IMPLICIT NONE
+
+    REAL(KIND=dbl), INTENT(OUT)                        :: norm
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: x, tmp_vec
+    TYPE(qs_environment_type)                          :: qs_env
+    TYPE(global_environment_type)                      :: glob_env
+
+    INTEGER        :: spin, n_spins
+    REAL(KIND=dbl) :: spin_norm
+
+    n_spins = SIZE(x)
+
+    !-------------------------!
+    ! calc beta=transp(X)*S*X !
+    !-------------------------!
+    norm = 0.0_dbl
+    DO spin=1, n_spins
+       CALL cp_sm_fm_multiply(qs_env%S(spin)%matrix, x(spin)%matrix, &
+            tmp_vec(spin)%matrix, &
+            x(spin)%matrix%matrix_struct%ncol_global, &
+            glob_env%para_env, 1.0_dbl, 0.0_dbl)
+       CALL cp_fm_trace(tmp_vec(spin)%matrix, x(spin)%matrix, spin_norm)
+       norm = norm + spin_norm
+    END DO
+
+  END SUBROUTINE calc_norm
+
+! *****************************************************************************
+
+  ! X        : the vector to reorthogonalize
+  ! kv       : set of vectors to which to reorthogonalize
+  ! S        : metric of the vectorspaceA
+  ! tmp_mat    : temporary matrix
+  ! j        : up to which vector of kv to reorthogonalize
+  ! glob_env : for communication
+
+  SUBROUTINE reorthogonalize(X, kv, S, tmp_mat, j, glob_env)
+
+    IMPLICIT NONE
+
+    ! arguments
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER   :: X, tmp_mat
+    TYPE(cp_full_matrix_p_type), DIMENSION(:,:), POINTER :: kv
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER      :: S
+    INTEGER, INTENT(IN)                                  :: j
+    TYPE(global_environment_type), INTENT(in)            :: glob_env
+
+    ! locals
+    INTEGER :: i, index, spin, time_handle, n_spins
+    REAL(DBL) :: tmp, dot_product
+
+    ! parameters
+    CHARACTER(LEN=*), PARAMETER :: routineN = "reorthogonalize", &
+                                   routineP = moduleN//"/"//routineN
+
+    CALL timeset(routineN,"I","",time_handle)
+
+    n_spins = SIZE(X)
+
+    IF (j > 1) THEN
+       DO i=1, j
+          dot_product = 0.0_dbl
+          DO spin=1, n_spins
+             CALL cp_sm_fm_multiply(S(spin)%matrix, X(spin)%matrix, &
+                                    tmp_mat(spin)%matrix, &
+                                    X(spin)%matrix%matrix_struct%ncol_global, &
+                                    glob_env%para_env, 1.0_dbl, 0.0_dbl)
+             CALL cp_fm_trace(tmp_mat(spin)%matrix, kv(i,spin)%matrix, tmp)
+             dot_product = dot_product + tmp
+          END DO
+          DO spin=1, n_spins
+             CALL cp_fm_scale_and_add(1.0_dbl, X(spin)%matrix, &
+                                      -1.0_dbl*dot_product, kv(i,spin)%matrix)
+          END DO
+       END DO
+    END IF
+
+    CALL timestop(0.0_dbl, time_handle)
+
+  END SUBROUTINE reorthogonalize
 
 ! *****************************************************************************
 
