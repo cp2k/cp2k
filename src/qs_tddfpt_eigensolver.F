@@ -18,47 +18,53 @@
 !!     
 !!****
 MODULE qs_tddfpt_eigensolver
-
-  USE cp_error_handling,    ONLY : cp_simple_assert
-  USE cp_fm_basic_linalg,   ONLY : cp_fm_gemm, cp_fm_symm, cp_fm_scale_and_add
-  USE cp_fm_cholesky,       ONLY : cp_fm_cholesky_decompose, cp_fm_cholesky_invert
-  USE cp_fm_pool_types,     ONLY : cp_fm_pool_p_type,&
-                                   cp_fm_pool_type,&
-                                   fm_pool_create_matrix_vect,&
-                                   fm_pools_create_matrix_vect,&
-                                   fm_pools_give_back_matrix_vect
-  USE cp_fm_struct,         ONLY : cp_fm_struct_type, &
-                                   cp_fm_struct_create, &
-                                   optimal_blacs_col_block_size, &
-                                   optimal_blacs_row_block_size
-  USE cp_fm_basic_linalg,   ONLY : cp_sm_fm_multiply, &
-                                   cp_fm_trace, cp_fm_scale
-  USE cp_fm_types,          ONLY : cp_full_matrix_p_type, &
-                                   cp_full_matrix_type, &
-                                   cp_fm_create, &
-                                   cp_fm_release, &
-                                   cp_fm_get_element, &
-                                   cp_fm_set_element
-  USE cp_fm_utils,          ONLY : copy_rep_vec_to_fm, &
-                                   copy_fm_to_rep_vec
-  USE cp_log_handling,      ONLY : cp_to_string
-  USE global_types,         ONLY : global_environment_type
-  USE kinds,                ONLY : dbl
-  USE qs_arpack_utils,      ONLY : arpack_confirm
-  USE qs_blacs,             ONLY : cp_sm_plus_fm_fm_t, &
-                                   copy_real_matrix_to_full_matrix, &
-                                   copy_blacs_to_blacs_matrix, &
-                                   blacs_syevd
-  USE qs_environment_types, ONLY : qs_environment_type, get_qs_env
-  USE qs_p_env_methods,     ONLY : p_op_l1, p_op_l2, p_preortho, p_postortho
-  USE qs_p_env_types,       ONLY : qs_p_env_type
+  USE cp_error_handling,               ONLY: cp_simple_assert
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                             cp_fm_scale,&
+                                             cp_fm_scale_and_add,&
+                                             cp_fm_symm,&
+                                             cp_fm_trace,&
+                                             cp_sm_fm_multiply
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_invert
+  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
+                                             cp_fm_pool_type,&
+                                             fm_pool_create_fm_vect,&
+                                             fm_pools_create_fm_vect,&
+                                             fm_pools_give_back_fm_vect
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_type,&
+                                             optimal_blacs_col_block_size,&
+                                             optimal_blacs_row_block_size
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_element,&
+                                             cp_fm_release,&
+                                             cp_fm_set_element,&
+                                             cp_full_matrix_p_type,&
+                                             cp_full_matrix_type
+  USE cp_fm_utils,                     ONLY: copy_fm_to_rep_vec,&
+                                             copy_rep_vec_to_fm
+  USE cp_log_handling,                 ONLY: cp_to_string
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE qs_arpack_utils,                 ONLY: arpack_confirm
+  USE qs_blacs,                        ONLY: blacs_syevd,&
+                                             copy_blacs_to_blacs_matrix,&
+                                             copy_real_matrix_to_full_matrix,&
+                                             cp_sm_plus_fm_fm_t
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
+  USE qs_p_env_methods,                ONLY: p_op_l1,&
+                                             p_op_l2,&
+                                             p_postortho,&
+                                             p_preortho
+  USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_tddfpt_types
   USE qs_tddfpt_utils
-  USE sparse_matrix_types,  ONLY : set_matrix, &
-                                   replicate_matrix_structure, &
-                                   real_matrix_p_type
-  USE termination,          ONLY : stop_program
-
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
+                                             replicate_matrix_structure,&
+                                             set_matrix
+  USE termination,                     ONLY: stop_program
   IMPLICIT NONE
 
   INTERFACE tddfpt_es
@@ -129,9 +135,9 @@ CONTAINS
     !----------------------!
     ALLOCATE(eigenvals(n_kv))
     CALL get_qs_env(qs_env, ao_mo_fm_pools=ao_mo_fm_pools)
-    CALL fm_pools_create_matrix_vect(ao_mo_fm_pools, X, &
+    CALL fm_pools_create_fm_vect(ao_mo_fm_pools, X, &
                                      name=routineP//":X")
-    CALL fm_pools_create_matrix_vect(ao_mo_fm_pools, R, &
+    CALL fm_pools_create_fm_vect(ao_mo_fm_pools, R, &
                                      name=routineP//":R")
 
     ALLOCATE(kv(n_spins*n_kv), stat=stat)
@@ -177,7 +183,7 @@ CONTAINS
        END DO
     ELSE
        CALL stop_program(routineP, "The norm of the provided start vector is smaller than " &
-                         //trim(cp_to_string(tol)))
+                         //TRIM(cp_to_string(tol)))
     END IF
 
 
@@ -386,8 +392,8 @@ CONTAINS
     !----------!
     ! clean up !
     !----------!
-    CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools, X)
-    CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools, R)
+    CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, X)
+    CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, R)
     DO i=1, n_spins*n_kv
        CALL cp_fm_release(kv(i)%matrix)
        CALL cp_fm_release(opkv(i)%matrix)

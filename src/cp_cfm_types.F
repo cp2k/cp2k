@@ -201,12 +201,12 @@ CONTAINS
 !!     cp_cfm_create
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_fm_create(matrix, matrix_struct, name, error)
-!!       Type(cp_full_matrix_type), Pointer:: matrix
+!!     Subroutine cp_cfm_create(matrix, matrix_struct, name, error)
+!!       Type(cp_complex_full_matrix_type), Pointer:: matrix
 !!       Type(cp_fm_struct_type), Pointer:: matrix_struct
 !!       Character(Len=*), Intent (IN), Optional:: name
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_fm_create
+!!     End Subroutine cp_cfm_create
 !!
 !!   FUNCTION
 !!     creates a new full matrix with the given structure
@@ -260,8 +260,8 @@ CONTAINS
        npcol=context%num_pe(2)
        NULLIFY(matrix%local_data)
 
-       nrow_local=matrix_struct%nrow_local(context%mepos(1))
-       ncol_local=matrix_struct%ncol_local(context%mepos(2))
+       nrow_local=matrix_struct%nrow_locals(context%mepos(1))
+       ncol_local=matrix_struct%ncol_locals(context%mepos(2))
        ALLOCATE(matrix%local_data(nrow_local,ncol_local),stat=stat)
 
        CALL dcopy(2*nrow_local*ncol_local,0.0_wp,0,matrix%local_data,1)
@@ -628,18 +628,18 @@ CONTAINS
     npcol=ctxt%num_pe(2)
 
     IF (PRESENT(nrow_local)) THEN
-       nrow_local = matrix%matrix_struct%nrow_local(myprow)
+       nrow_local = matrix%matrix_struct%nrow_locals(myprow)
     ENDIF
 
     IF (PRESENT(ncol_local)) THEN
-       ncol_local = matrix%matrix_struct%ncol_local(mypcol)
+       ncol_local = matrix%matrix_struct%ncol_locals(mypcol)
     ENDIF
 
     IF (PRESENT(row_indices)) THEN
        row_indices => matrix%matrix_struct%row_indices
        IF (.NOT.ASSOCIATED(row_indices)) THEN
           ALLOCATE(matrix%matrix_struct%row_indices &
-               (matrix%matrix_struct%nrow_local(myprow)),stat=stat)
+               (matrix%matrix_struct%nrow_locals(myprow)),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           row_indices => matrix%matrix_struct%row_indices
 #ifdef __SCALAPACK
@@ -660,7 +660,7 @@ CONTAINS
        col_indices => matrix%matrix_struct%col_indices
        IF (.NOT.ASSOCIATED(col_indices)) THEN
           ALLOCATE(matrix%matrix_struct%col_indices &
-               (matrix%matrix_struct%ncol_local(mypcol)),stat=stat)
+               (matrix%matrix_struct%ncol_locals(mypcol)),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           col_indices => matrix%matrix_struct%col_indices
 #ifdef __SCALAPACK

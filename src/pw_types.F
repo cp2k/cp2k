@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2003  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
+#include "cp_prep_globals.h"
 !!***** cp2k/pw_types [1.0] *
 !!
 !!   NAME
@@ -79,6 +80,7 @@ MODULE pw_types
      INTEGER :: in_use              ! Which data is used [r1d/c1d/r3d/c3d]
      INTEGER :: in_space            ! Real/Reciprocal space
      INTEGER :: id_nr               ! unique identifier
+     INTEGER :: ref_count           ! reference count
 
      TYPE ( pw_grid_type ), POINTER :: pw_grid
   END TYPE pw_type
@@ -167,6 +169,7 @@ SUBROUTINE pw_allocate ( pw, pw_grid, use_data, mass_flag )
 
   last_pw_id_nr=last_pw_id_nr+1
   pw % id_nr = last_pw_id_nr
+  pw % ref_count = 1
   NULLIFY ( pw % pw_grid )
   pw % in_use = use_data
   pw % pw_grid => pw_grid
@@ -1943,7 +1946,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         IF (.NOT. ASSOCIATED (c_out)) ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out", &
             pw1 % pw_grid % ngpts )
-        nsize=size(pw1 % cr3d,1)*size(pw1 % cr3d,2)*size(pw1 % cr3d,3)
+        nsize=SIZE(pw1 % cr3d,1)*SIZE(pw1 % cr3d,2)*SIZE(pw1 % cr3d,3)
         l1 = LBOUND(pw1%cr3d,1)
         l2 = LBOUND(pw1%cr3d,2)
         l3 = LBOUND(pw1%cr3d,3)
@@ -2011,7 +2014,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         !     use real part only
         IF ( test ) WRITE ( *,'(A)') "  REAL part "
         ! pw2 % cr3d = REAL ( c_out, dbl )
-        nsize=size(pw2 % cr3d,1)*size(pw2 % cr3d,2)*size(pw2 % cr3d,3)
+        nsize=SIZE(pw2 % cr3d,1)*SIZE(pw2 % cr3d,2)*SIZE(pw2 % cr3d,3)
         l1 = LBOUND(pw2%cr3d,1)
         l2 = LBOUND(pw2%cr3d,2)
         l3 = LBOUND(pw2%cr3d,3)
@@ -2276,6 +2279,96 @@ FUNCTION pw_compatible ( grida, gridb ) RESULT ( compat )
    
 END FUNCTION pw_compatible
 
+!***************************************************************************
+
+!!****f* pw_types/pw_retain [1.0] *
+!!
+!!   NAME
+!!     pw_retain
+!!
+!!   FUNCTION
+!!     retains a pw type
+!!
+!!   NOTES
+!!     see doc/ReferenceCounting.html
+!!
+!!   ARGUMENTS
+!!     - pw: the pw to retain
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     03.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_retain(pw, error)
+  TYPE(pw_type), POINTER :: pw
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='pw_retain',&
+        routineP=moduleN//':'//routineN
+
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(pw),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CPPreconditionNoFail(pw%ref_count>0,cp_failure_level,routineP,error)
+     pw%ref_count=pw%ref_count+1
+  END IF
+END SUBROUTINE pw_retain
+!***************************************************************************
+
+!!****f* pw_types/pw_release [1.0] *
+!!
+!!   NAME
+!!     pw_release
+!!
+!!   FUNCTION
+!!     releases the given pw
+!!
+!!   NOTES
+!!     see doc/ReferenceCounting.html
+!!
+!!   ARGUMENTS
+!!     - pw: the pw to release
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     04.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_release(pw, error)
+  TYPE(pw_type), POINTER :: pw
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='pw_release',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: stat
+
+  failure=.FALSE.
+  
+  IF (ASSOCIATED(pw)) THEN
+     CPPreconditionNoFail(pw%ref_count>0,cp_failure_level,routineP,error)
+     pw%ref_count=pw%ref_count-1
+     IF (pw%ref_count==0) THEN
+        pw%ref_count=1
+        CALL pw_deallocate(pw)
+        pw%ref_count=0
+        DEALLOCATE(pw, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+  END IF
+  NULLIFY(pw)
+END SUBROUTINE pw_release
 !***************************************************************************
 
 END MODULE pw_types

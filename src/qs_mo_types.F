@@ -49,8 +49,8 @@ MODULE qs_mo_types
                                              cp_unimplemented_error
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
-                                             fm_pool_create_matrix,&
-                                             fm_pool_give_back_matrix
+                                             fm_pool_create_fm,&
+                                             fm_pool_give_back_fm
   USE cp_fm_types,                     ONLY: cp_fm_set_all
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
@@ -314,7 +314,7 @@ CONTAINS
     END IF
     CALL set_mo_occupation(mo_set=mo_set,smear=0.0_wp)
 
-    CALL fm_pool_create_matrix(fm_pool,mo_set%eigenvectors,&
+    CALL fm_pool_create_fm(fm_pool,mo_set%eigenvectors,&
          name=name,error=error)
     CALL cp_fm_get_info(mo_set%eigenvectors, nrow_global=nao, &
          ncol_global=nmo,error=error)

@@ -39,8 +39,8 @@ MODULE qs_blacs
                                              cp_error_message,&
                                              cp_error_type,&
                                              cp_unimplemented_error
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
-                                             cp_fm_gemm,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                             cp_fm_scale_and_add,&
                                              cp_fm_schur_product,&
                                              cp_fm_symm,&
                                              cp_fm_syrk,&
@@ -338,7 +338,7 @@ CONTAINS
     context => matrix_a%matrix_struct%context
 
 !!FM#if defined(__SCALAPACK)
-    nloc_blacs = matrix_a%matrix_struct%nrow_local(context%mepos(1))
+    nloc_blacs = matrix_a%matrix_struct%nrow_locals(context%mepos(1))
     nloc = nloc_blacs / context%num_pe(2)
     IF (context%mepos(2).EQ.0) THEN
          nloc = nloc_blacs - (context%num_pe(2) - 1) * nloc
@@ -380,7 +380,7 @@ CONTAINS
     CALL infog2l(irow_global,icol_global,desca,nprow,npcol,myprow,mypcol,&
          irow_local,icol_local,iprow,ipcol)
 
-    nloc_blacs = matrix_a%matrix_struct%nrow_local(context%mepos(1))
+    nloc_blacs = matrix_a%matrix_struct%nrow_locals(context%mepos(1))
     nloc  = nloc_blacs / npcol                  ! all cols
     nloc0 = nloc_blacs - (npcol - 1) * nloc     ! col zero
 
@@ -411,7 +411,7 @@ CONTAINS
     ENDDO
 #else
     nloc = n
-    IF (matrix_a%matrix_struct%nrow_local(myprow).LT.use_col_nr) THEN
+    IF (matrix_a%matrix_struct%nrow_locals(myprow).LT.use_col_nr) THEN
        CALL stop_program("copy_blacs_to_vector","hmm")
     ENDIF
     CALL DCOPY(nloc,matrix_a%local_data(1,use_col_nr),1,v,1)
@@ -449,7 +449,7 @@ CONTAINS
     CALL infog2l(irow_global,icol_global,desca,nprow,npcol,myprow,mypcol,&
          irow_local,icol_local,iprow,ipcol)
 
-    nloc_blacs = matrix_a%matrix_struct%nrow_local(myprow)
+    nloc_blacs = matrix_a%matrix_struct%nrow_locals(myprow)
     nloc  = nloc_blacs / npcol                ! all cols
     nloc0 = nloc_blacs - (npcol - 1) * nloc   ! col zero
 
@@ -479,7 +479,7 @@ CONTAINS
     ENDDO
 #else
     nloc = n
-    IF (matrix_a%matrix_struct%ncol_local(mypcol).LT.use_col_nr) THEN
+    IF (matrix_a%matrix_struct%ncol_locals(mypcol).LT.use_col_nr) THEN
        CALL stop_program("copy_vector_to_blacs","hmm")
     ENDIF
     CALL DCOPY(nloc,v,1,matrix_a%local_data(1,use_col_nr),1)
@@ -1330,8 +1330,8 @@ CONTAINS
 
         ipe = blacs_pnum(context%group,iprow,ipcol)
 
-        nrow_local = blacs_matrix%matrix_struct%nrow_local(iprow)
-        ncol_local = blacs_matrix%matrix_struct%ncol_local(ipcol)
+        nrow_local = blacs_matrix%matrix_struct%nrow_locals(iprow)
+        ncol_local = blacs_matrix%matrix_struct%ncol_locals(ipcol)
 
         IF (ionode) THEN
 
@@ -1458,8 +1458,8 @@ CONTAINS
         ipe = blacs_pnum(context%group,iprow,ipcol)
 
         IF (ipe /= mype) THEN
-          nrow_local = full_matrix%matrix_struct%nrow_local(iprow)
-          ncol_local = full_matrix%matrix_struct%ncol_local(ipcol)
+          nrow_local = full_matrix%matrix_struct%nrow_locals(iprow)
+          ncol_local = full_matrix%matrix_struct%ncol_locals(ipcol)
           ALLOCATE (full_matrix_block(nrow_local,ncol_local),&
                     STAT=istat)
           IF (istat /= 0) THEN
@@ -1648,8 +1648,8 @@ CONTAINS
         ipe = blacs_pnum(context%group,iprow,ipcol)
 
         IF (ipe /= mype) THEN
-          nrow_local = full_matrix%matrix_struct%nrow_local(iprow)
-          ncol_local = full_matrix%matrix_struct%ncol_local(ipcol)
+          nrow_local = full_matrix%matrix_struct%nrow_locals(iprow)
+          ncol_local = full_matrix%matrix_struct%ncol_locals(ipcol)
           ALLOCATE (full_matrix_block(nrow_local,ncol_local),&
                     STAT=istat)
           IF (istat /= 0) THEN
@@ -1733,8 +1733,8 @@ CONTAINS
 #else
 
     IF (.NOT.ASSOCIATED(full_matrix%local_data)) THEN
-      nrow_local = full_matrix%matrix_struct%nrow_local(myprow)
-      ncol_local = full_matrix%matrix_struct%ncol_local(mypcol)
+      nrow_local = full_matrix%matrix_struct%nrow_locals(myprow)
+      ncol_local = full_matrix%matrix_struct%ncol_locals(mypcol)
       ALLOCATE (full_matrix%local_data(nrow_local,ncol_local),&
                 STAT=istat)
       IF (istat /= 0) THEN
@@ -2015,8 +2015,8 @@ CONTAINS
     myprow=context%mepos(1)
     mypcol=context%mepos(2)
 
-    nrow_local = matrix%matrix_struct%nrow_local(myprow)
-    ncol_local = matrix%matrix_struct%ncol_local(mypcol)
+    nrow_local = matrix%matrix_struct%nrow_locals(myprow)
+    ncol_local = matrix%matrix_struct%ncol_locals(mypcol)
 
     READ (UNIT=lunit) ((matrix%local_data(i,j),i=1,nrow_local),&
                                                            j=1,ncol_local)
@@ -2151,8 +2151,8 @@ CONTAINS
     nrow_block = matrix%matrix_struct%nrow_block
     ncol_block = matrix%matrix_struct%ncol_block
 
-    nrow_local = matrix%matrix_struct%nrow_local(myprow)
-    ncol_local = matrix%matrix_struct%ncol_local(mypcol)
+    nrow_local = matrix%matrix_struct%nrow_locals(myprow)
+    ncol_local = matrix%matrix_struct%ncol_locals(mypcol)
 
     a => work%local_data
     desca(:) = work%matrix_struct%descriptor(:)
@@ -2216,8 +2216,8 @@ CONTAINS
     nprow=context%num_pe(1)
     npcol=context%num_pe(2)
 
-    nrow_local = matrix%matrix_struct%nrow_local(myprow)
-    ncol_local = matrix%matrix_struct%ncol_local(mypcol)
+    nrow_local = matrix%matrix_struct%nrow_locals(myprow)
+    ncol_local = matrix%matrix_struct%ncol_locals(mypcol)
 
     IF (PRESENT(formatted)) THEN
        IF (formatted) THEN

@@ -44,8 +44,8 @@ MODULE qs_wf_history_methods
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
-                                             fm_pools_create_matrix_vect,&
-                                             fm_pools_give_back_matrix_vect
+                                             fm_pools_create_fm_vect,&
+                                             fm_pools_give_back_fm_vect
   USE cp_fm_types,                     ONLY: cp_full_matrix_p_type,&
                                              cp_full_matrix_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
@@ -248,7 +248,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
      IF (wf_history%store_wf) THEN
         CALL get_qs_env(qs_env,c=mos,error=error)
         IF (.NOT.ASSOCIATED(snapshot%wf)) THEN
-           CALL fm_pools_create_matrix_vect(ao_mo_pools,snapshot%wf,&
+           CALL fm_pools_create_fm_vect(ao_mo_pools,snapshot%wf,&
                 name="ws_snap"//TRIM(ADJUSTL(cp_to_string(snapshot%id_nr)))//&
                 "ws",error=error)
            CPPostcondition(nspins==SIZE(snapshot%wf),cp_failure_level,routineP,error,failure)
@@ -260,7 +260,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
                 matrix_b=eigenvectors,error=error)
         END DO
      ELSE IF (ASSOCIATED(snapshot%wf)) THEN
-        CALL fm_pools_give_back_matrix_vect(ao_mo_pools,snapshot%wf,&
+        CALL fm_pools_give_back_fm_vect(ao_mo_pools,snapshot%wf,&
              error=error)
      END IF
 

@@ -90,7 +90,8 @@ MODULE xc
   USE xc_functionals,                  ONLY: xc_calculate_lsd,&
                                              xc_create_2nd_deriv_info,&
                                              xc_get_pot_size,&
-                                             xc_lda, xc_lsd, &
+                                             xc_lda,&
+                                             xc_lsd,&
                                              xc_set
   PRIVATE
   PUBLIC :: xc_calculate_pw_new, xc_calculate_pw1, xc_calculate_pw2, &
@@ -688,6 +689,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
 !!   SYNOPSIS
 !!     Subroutine xc_prep_2nd_deriv(rho_r, rho_g, dft_control, pw_pool,&
 !!         drho_r, pot, spin_pot, grad_pot, ndiag_term, error)
+!!       Implicit None
 !!       Type(pw_p_type), Dimension(:), Pointer:: rho_r, rho_g
 !!       Type(dft_control_type), Pointer:: dft_control
 !!       Type(pw_p_type), Dimension(:,:), Pointer:: drho_r
@@ -1179,6 +1181,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
 !!     Subroutine xc_calc_2nd_deriv(rho_r, drho_r, rho1_r, rho1_g, pot,&
 !!         spin_pot, grad_pot, ndiag_term, dft_control, v_rspace_new,&
 !!         pw_pool, error)
+!!       Implicit None
 !!       Type(pw_p_type), Dimension(:), Pointer:: rho_r, rho1_r, rho1_g
 !!       Type(pw_p_type), Dimension(:,:), Pointer:: drho_r
 !!       Real(Kind=wp), Dimension(:,:), Pointer:: pot
@@ -1252,7 +1255,8 @@ END SUBROUTINE xc_calc_2nd_deriv1
 
     ! locals
     LOGICAL                                      :: failure, gradient_f, &
-                                                    crossterms, do_tddfpt
+                                                    crossterms, do_tddfpt,&
+                                                    do_lsd
     INTEGER                                      :: handle, &
                                                     nspins, spin, &
                                                     ii, i,j,k, &

@@ -88,24 +88,36 @@ MODULE cp_fm_struct
 !!     keeps the information about the structure of a full matrix
 !!
 !!   NOTES
-!!     -
+!!     use cp_fm_struct_get to extract information from this structure
 !!
 !!   ATTRIBUTES
-!!     - para_env:
-!!     - context:
-!!     - descriptor:
-!!     - ncol_block:
-!!     - nrow_block:
-!!     - nrow_global:
-!!     - ncol_block
-!!     - ncol_global
-!!     - first_p_pos
-!!     - row_indices
-!!     - col_indices
-!!     - nrow_local
-!!     - ncol_local
-!!     - id_nr
-!!     - ref_count
+!!     - para_env: the parallel environment of the matrixes with this structure
+!!     - context: the blacs context (parallel environment for scalapack),
+!!       should be compatible wih para_env
+!!     - descriptor: the scalapack descriptor of the matrixes, when using
+!!       scalapack (ncol_block=descriptor(6), ncol_global=descriptor(4),
+!!       nrow_block=descriptor(5), nrow_global=descriptor(3))
+!!     - ncol_block: number of columns of a scalapack block
+!!     - nrow_block: number of rows of a scalapack block
+!!     - nrow_global: number of rows of the matrix
+!!     - ncol_global: number of rows
+!!     - first_p_pos: position of the first processor (for scalapack)
+!!     - row_indices: real (global) indexes of the rows (defined only for
+!!       the local rows really used)
+!!     - col_indices: real (global) indexes of the cols (defined only for
+!!       the local cols really used)
+!!     - nrow_locals: nrow_locals(i) number of local rows of the matrix really
+!!       used on the processors with context%mepos(1)==i
+!!     - ncol_locals: ncol_locals(i) number of local rows of the matrix really
+!!       used on the processors with context%mepos(2)==i
+!!     - id_nr: an identification number (guaranteed to be unique)
+!!     - ref_count: reference count (see doc/ReferenceCounting.html)
+!!     - local_leading_dimension: leading dimension of the data that is
+!!       stored on this processor
+!!     
+!!     readonly attributes:
+!!     - nrow_local: number of local rows really used on the actual processor
+!!     - ncol_local: number of local cols really used on the actual processor
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -119,16 +131,11 @@ MODULE cp_fm_struct
      TYPE(cp_para_env_type), POINTER :: para_env
      TYPE(cp_blacs_env_type), POINTER :: context
      INTEGER, DIMENSION(9) :: descriptor
-     ! when using blacs
-     ! ncol_block=descriptor(6)
-     ! ncol_global=descriptor(4)
-     ! nrow_block=descriptor(5)
-     ! nrow_global=descriptor(3)
      INTEGER :: nrow_block, ncol_block, nrow_global, ncol_global
      INTEGER, DIMENSION(2) :: first_p_pos
      INTEGER, DIMENSION(:), POINTER :: row_indices, col_indices,&
-          nrow_local, ncol_local
-     INTEGER :: id_nr, ref_count
+          nrow_locals, ncol_locals
+     INTEGER :: id_nr, ref_count, local_leading_dimension
   END TYPE cp_fm_struct_type
 !!***
 !****************************************************************************
@@ -143,11 +150,13 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine cp_fm_struct_create(fmstruct, para_env, context,&
 !!         nrow_global, ncol_global, nrow_block, ncol_block, descriptor,&
-!!         first_p_pos, template_fmstruct, square_blocks, error)
+!!         first_p_pos, local_leading_dimension, template_fmstruct,&
+!!         square_blocks, error)
 !!       Type(cp_fm_struct_type), Pointer:: fmstruct
 !!       Type(cp_para_env_type), Pointer, Optional:: para_env
 !!       Integer, Intent (IN), Optional:: nrow_global, ncol_global
 !!       Integer, Intent (IN), Optional:: nrow_block, ncol_block
+!!       Integer, Intent (IN), Optional:: local_leading_dimension
 !!       Type(cp_blacs_env_type), Pointer, Optional:: context
 !!       Integer, Dimension(9), Intent (IN), Optional:: descriptor
 !!       Integer, Optional, Dimension(2):: first_p_pos
@@ -170,6 +179,8 @@ CONTAINS
 !!     - nrow_block: the number of rows of a block of the matrix
 !!     - ncol_block: the number of colums of a block of the matrix
 !!     - context: the blacs context of this matrix
+!!     - local_leading_dimension: the leading dimension of the locally stored
+!!       data block
 !!     - descriptor: the scalapack descriptor of the matrix (if not given
 !!       a new one is allocated
 !!     - template_fmstruct: a matrix structure where to take the default values
@@ -185,11 +196,12 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
      ncol_global, nrow_block, ncol_block, descriptor, first_p_pos, &
-     template_fmstruct, square_blocks, error)
+     local_leading_dimension, template_fmstruct, square_blocks, error)
   TYPE(cp_fm_struct_type), POINTER       :: fmstruct
   TYPE(cp_para_env_type), POINTER, OPTIONAL    :: para_env
   INTEGER, INTENT(in), OPTIONAL                :: nrow_global,ncol_global
   INTEGER, INTENT(in), OPTIONAL                :: nrow_block,ncol_block
+  INTEGER, INTENT(in), OPTIONAL                :: local_leading_dimension
   TYPE(cp_blacs_env_type), POINTER, OPTIONAL   :: context
   INTEGER, DIMENSION(9), INTENT(in), OPTIONAL  :: descriptor
   INTEGER,OPTIONAL, DIMENSION(2)               :: first_p_pos
@@ -227,6 +239,7 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
         CPPrecondition(PRESENT(context),cp_failure_level,routineP,error,failure)
         CPPrecondition(PRESENT(nrow_global),cp_failure_level,routineP,error,failure)
         CPPrecondition(PRESENT(ncol_global),cp_failure_level,routineP,error,failure)
+        fmstruct %local_leading_dimension = 1
      ELSE
         fmstruct%context => template_fmstruct%context
         fmstruct%para_env => template_fmstruct%para_env
@@ -236,6 +249,8 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
         fmstruct %ncol_block = template_fmstruct %ncol_block
         fmstruct %ncol_global = template_fmstruct %ncol_global
         fmstruct %first_p_pos = template_fmstruct %first_p_pos
+        fmstruct %local_leading_dimension = &
+             template_fmstruct %local_leading_dimension
      END IF
 
   END IF
@@ -248,25 +263,13 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
      
      IF (PRESENT(nrow_global)) fmstruct%nrow_global=nrow_global
      IF (PRESENT(ncol_global)) fmstruct%ncol_global=ncol_global
-     ! checks for more processes than matrix elements
-     ! this shouldn't even be a warning anymore .... we hope
-     ! CALL cp_assert(fmstruct%context%num_pe(1)<=fmstruct%nrow_global,&
-     !     cp_warning_level,cp_assertion_failed,routineP,&
-     !     "context%num_pe(1)<=nrow_global"//&
-     !     CPSourceFileRef,&
-     !     error)
-     !CALL cp_assert(fmstruct%context%num_pe(2)<=fmstruct%ncol_global,&
-     !     cp_warning_level,cp_assertion_failed,routineP,&
-     !     "context%num_pe(2)<=ncol_global"//&
-     !     CPSourceFileRef,&
-     !     error)
      IF (PRESENT(nrow_block)) fmstruct%nrow_block=nrow_block
      IF (PRESENT(ncol_block)) fmstruct%ncol_block=ncol_block
 
      ! try to avoid small left-over blocks (anyway naive)
-     dumblock = CEILING(dble(fmstruct%nrow_global)/dble(fmstruct%context%num_pe(1)))
+     dumblock = CEILING(DBLE(fmstruct%nrow_global)/DBLE(fmstruct%context%num_pe(1)))
      fmstruct%nrow_block=MAX(1, MIN(fmstruct%nrow_block, dumblock))
-     dumblock = CEILING(dble(fmstruct%ncol_global)/dble(fmstruct%context%num_pe(2)))
+     dumblock = CEILING(DBLE(fmstruct%ncol_global)/DBLE(fmstruct%context%num_pe(2)))
      fmstruct%ncol_block=MAX(1, MIN(fmstruct%ncol_block, dumblock))
 
      ! square matrix -> square blocks (otherwise some op fail)
@@ -277,8 +280,8 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
         fmstruct%ncol_block=fmstruct%nrow_block
      END IF
 
-     ALLOCATE(fmstruct%nrow_local(0:(fmstruct%context%num_pe(1)-1)),&
-          fmstruct%ncol_local(0:(fmstruct%context%num_pe(2)-1)),stat=stat)
+     ALLOCATE(fmstruct%nrow_locals(0:(fmstruct%context%num_pe(1)-1)),&
+          fmstruct%ncol_locals(0:(fmstruct%context%num_pe(2)-1)),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
   IF (.NOT.failure) THEN
@@ -286,38 +289,27 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
           fmstruct%first_p_pos=fmstruct%context%source
      IF (PRESENT(first_p_pos)) fmstruct%first_p_pos=first_p_pos
 
-     fmstruct%nrow_local=0
-     fmstruct%ncol_local=0
+     fmstruct%nrow_locals=0
+     fmstruct%ncol_locals=0
 #ifdef __SCALAPACK
-     fmstruct%nrow_local(fmstruct%context%mepos(1))= &
+     fmstruct%nrow_locals(fmstruct%context%mepos(1))= &
           numroc(fmstruct%nrow_global,fmstruct%nrow_block,&
           fmstruct%context%mepos(1),fmstruct%first_p_pos(1),&
           fmstruct%context%num_pe(1))
-     fmstruct%ncol_local(fmstruct%context%mepos(2))= &
+     fmstruct%ncol_locals(fmstruct%context%mepos(2))= &
           numroc(fmstruct%ncol_global,fmstruct%ncol_block,&
           fmstruct%context%mepos(2),fmstruct%first_p_pos(2),&
           fmstruct%context%num_pe(2))
-     CALL mp_sum(fmstruct%nrow_local,fmstruct%para_env%group)
-     CALL mp_sum(fmstruct%ncol_local,fmstruct%para_env%group)
-     fmstruct%nrow_local(:)=fmstruct%nrow_local(:)/fmstruct%context%num_pe(2)
-     fmstruct%ncol_local(:)=fmstruct%ncol_local(:)/fmstruct%context%num_pe(1)
-     ! We will try to make nrow_local / ncol_local really the right number of cols
-     ! zero if there is no data for that cpu
-     ! still the local data will need to be allocated correctly (at least 1 element)
-     ! XXXXXXXXXXX it seems to be a little dangerous to compute the local sizes this way
-     ! XXXXXXXXXXX it results in a sum of ncol_local that is not equal to the global matrix size
-     !DO i=0,(SIZE(fmstruct%nrow_local)-1)
-     !   fmstruct%nrow_local(i)=MAX(1,fmstruct%nrow_local(i))
-     !END DO
-     !DO i=0,(SIZE(fmstruct%ncol_local)-1)
-     !   fmstruct%ncol_local(i)=MAX(1,fmstruct%ncol_local(i))
-     !END DO
-     CALL cp_assert(SUM(fmstruct%ncol_local).EQ.fmstruct%ncol_global,&
+     CALL mp_sum(fmstruct%nrow_locals,fmstruct%para_env%group)
+     CALL mp_sum(fmstruct%ncol_locals,fmstruct%para_env%group)
+     fmstruct%nrow_locals(:)=fmstruct%nrow_locals(:)/fmstruct%context%num_pe(2)
+     fmstruct%ncol_locals(:)=fmstruct%ncol_locals(:)/fmstruct%context%num_pe(1)
+     CALL cp_assert(SUM(fmstruct%ncol_locals).EQ.fmstruct%ncol_global,&
           cp_warning_level,cp_assertion_failed,routineP,&
           "sum of local cols not equal global cols"//&
           CPSourceFileRef,&
           error)
-     CALL cp_assert(SUM(fmstruct%nrow_local).EQ.fmstruct%nrow_global,&
+     CALL cp_assert(SUM(fmstruct%nrow_locals).EQ.fmstruct%nrow_global,&
           cp_warning_level,cp_assertion_failed,routineP,&
           "sum of local row not equal global rows"//&
           CPSourceFileRef,&
@@ -326,9 +318,22 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
      ! block = full matrix
      fmstruct%nrow_block=fmstruct%nrow_global
      fmstruct%ncol_block=fmstruct%ncol_global
-     fmstruct%nrow_local(fmstruct%context%mepos(1))=fmstruct%nrow_global
-     fmstruct%ncol_local(fmstruct%context%mepos(2))=fmstruct%ncol_global
+     fmstruct%nrow_locals(fmstruct%context%mepos(1))=fmstruct%nrow_global
+     fmstruct%ncol_locals(fmstruct%context%mepos(2))=fmstruct%ncol_global
 #endif
+
+     fmstruct%local_leading_dimension = MAX(fmstruct%local_leading_dimension,&
+          fmstruct%nrow_locals(fmstruct%context%mepos(1)))
+     IF (PRESENT(local_leading_dimension)) THEN
+        CALL cp_assert(fmstruct%local_leading_dimension <= &
+             local_leading_dimension,cp_failure_level,cp_assertion_failed,&
+             routineP,"local_leading_dimension too small ("//&
+             cp_to_string(local_leading_dimension)//"<"//&
+             cp_to_string(fmstruct%local_leading_dimension)//")"//&
+             CPSourceFileRef,&
+             error=error,failure=failure)
+        fmstruct%local_leading_dimension=local_leading_dimension
+     END IF
 
      NULLIFY(fmstruct%row_indices, fmstruct%col_indices)
      last_fmstruct_id_nr=last_fmstruct_id_nr+1
@@ -341,12 +346,11 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
         fmstruct%descriptor=0
 #if defined(__SCALAPACK)
         ! local leading dimension needs to be at least 1
-        lld=MAX(fmstruct%nrow_local(fmstruct%context%mepos(1)),1)
         CALL descinit(fmstruct%descriptor,fmstruct%nrow_global,&
              fmstruct%ncol_global,fmstruct%nrow_block,&
              fmstruct%ncol_block,fmstruct%first_p_pos(1),&
              fmstruct%first_p_pos(2),fmstruct%context%group,&
-             lld,stat)
+             fmstruct%local_leading_dimension,stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 #endif
      END IF
@@ -580,19 +584,21 @@ SUBROUTINE cp_fm_struct_write(fmstruct, unit_nr, long_description,error)
           iostat=iostat) fmstruct%nrow_global, fmstruct%ncol_global
      WRITE (unit=unit_nr,fmt="(' nrow_block=',i8,', ncol_block=',i8,',')",&
           iostat=iostat) fmstruct%nrow_block, fmstruct%ncol_block
-     IF (ASSOCIATED(fmstruct%nrow_local)) THEN
-        WRITE (fmtstring,'(A,i6,A)') "(' nrow_local=(',",&
-             SIZE(fmstruct%nrow_local),"(i8),'),')"
-        WRITE (unit=unit_nr,fmt=fmtstring,iostat=iostat) fmstruct%nrow_local
+     WRITE (unit=unit_nr,fmt="(' local_leading_dimension=',i8,',')",&
+          iostat=iostat) fmstruct%local_leading_dimension
+     IF (ASSOCIATED(fmstruct%nrow_locals)) THEN
+        WRITE (fmtstring,'(A,i6,A)') "(' nrow_locals=(',",&
+             SIZE(fmstruct%nrow_locals),"(i8),'),')"
+        WRITE (unit=unit_nr,fmt=fmtstring,iostat=iostat) fmstruct%nrow_locals
      ELSE
-        WRITE (unit=unit_nr,fmt="(a)") " nrow_local=*null*,"
+        WRITE (unit=unit_nr,fmt="(a)") " nrow_locals=*null*,"
      END IF
-     IF (ASSOCIATED(fmstruct%ncol_local)) THEN
-        WRITE (fmtstring,'(A,i6,A)') "(' ncol_local=(',",SIZE(fmstruct%ncol_local),&
+     IF (ASSOCIATED(fmstruct%ncol_locals)) THEN
+        WRITE (fmtstring,'(A,i6,A)') "(' ncol_locals=(',",SIZE(fmstruct%ncol_locals),&
              "(i8),'),')"
-        WRITE (unit=unit_nr,fmt=fmtstring,iostat=iostat) fmstruct%ncol_local
+        WRITE (unit=unit_nr,fmt=fmtstring,iostat=iostat) fmstruct%ncol_locals
      ELSE
-        WRITE (unit=unit_nr,fmt="(a)") " ncol_local=*null*,"
+        WRITE (unit=unit_nr,fmt="(a)") " ncol_locals=*null*,"
      END IF
      WRITE (unit=unit_nr,fmt="(' first_p_pos=(',i8,', ',i8,'),')",&
           iostat=iostat) fmstruct%first_p_pos(1), fmstruct%first_p_pos(2)
@@ -665,14 +671,15 @@ END SUBROUTINE cp_fm_struct_write
 !!     Subroutine cp_fm_struct_get(fmstruct, para_env, context, descriptor,&
 !!         ncol_block, nrow_block, nrow_global, ncol_global, id_nr,&
 !!         ref_count, first_p_pos, row_indices, col_indices, nrow_local,&
-!!         ncol_local, nrow_locals, ncol_locals, error)
+!!         ncol_local, nrow_locals, ncol_locals, local_leading_dimension,&
+!!         error)
 !!       Type(cp_fm_struct_type), Pointer:: fmstruct
 !!       Type(cp_para_env_type), Pointer, Optional:: para_env
 !!       Type(cp_blacs_env_type), Pointer, Optional:: context
 !!       Integer, Dimension(9), Intent (OUT), Optional:: descriptor
 !!       Integer, Intent (OUT), Optional:: ncol_block, nrow_block,&
 !!         nrow_global, ncol_global, id_nr, ref_count, nrow_local,&
-!!         ncol_local
+!!         ncol_local, local_leading_dimension
 !!       Integer, Dimension(2), Intent (OUT), Optional:: first_p_pos
 !!       Integer, Dimension(:), Pointer, Optional:: row_indices,&
 !!         col_indices, nrow_locals, ncol_locals
@@ -686,10 +693,10 @@ END SUBROUTINE cp_fm_struct_write
 !!     -
 !!
 !!   INPUTS
-!!     - fmstruct: the stru
-!!     - unit_nr: the number of the unit where to write the descr
+!!     - fmstruct: the structure you whant info about
 !!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
+!!     see cp_fm_struct_type attributes for the other arguments
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -701,13 +708,15 @@ END SUBROUTINE cp_fm_struct_write
 SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
      descriptor, ncol_block, nrow_block, nrow_global,&
      ncol_global, id_nr, ref_count, first_p_pos, row_indices,&
-     col_indices, nrow_local, ncol_local, nrow_locals, ncol_locals, error)
+     col_indices, nrow_local, ncol_local, nrow_locals, ncol_locals,&
+     local_leading_dimension, error)
   TYPE(cp_fm_struct_type), POINTER :: fmstruct
   TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
   TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
   INTEGER, DIMENSION(9), INTENT(OUT), OPTIONAL :: descriptor
   INTEGER, INTENT(out), OPTIONAL :: ncol_block, nrow_block, nrow_global,&
-       ncol_global, id_nr, ref_count, nrow_local, ncol_local
+       ncol_global, id_nr, ref_count, nrow_local, ncol_local,&
+       local_leading_dimension
   INTEGER, DIMENSION(2), INTENT(out), OPTIONAL :: first_p_pos
   INTEGER, DIMENSION(:), POINTER, OPTIONAL :: row_indices, col_indices,&
        nrow_locals, ncol_locals
@@ -736,23 +745,25 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
      IF (PRESENT(id_nr)) id_nr=fmstruct%id_nr
      IF (PRESENT(ref_count)) ref_count=fmstruct%ref_count
      IF (PRESENT(first_p_pos)) first_p_pos=fmstruct%first_p_pos
-     IF (PRESENT(nrow_locals)) nrow_locals => fmstruct%nrow_local
-     IF (PRESENT(ncol_locals)) ncol_locals => fmstruct%ncol_local
+     IF (PRESENT(nrow_locals)) nrow_locals => fmstruct%nrow_locals
+     IF (PRESENT(ncol_locals)) ncol_locals => fmstruct%ncol_locals
+     IF (PRESENT(local_leading_dimension)) local_leading_dimension =&
+          fmstruct%local_leading_dimension
 
     myprow=fmstruct%context%mepos(1)
     mypcol=fmstruct%context%mepos(2)
     nprow=fmstruct%context%num_pe(1)
     npcol=fmstruct%context%num_pe(2)
 
-    IF (PRESENT(nrow_local)) nrow_local=fmstruct%nrow_local(myprow)
-    IF (PRESENT(ncol_local)) ncol_local=fmstruct%ncol_local(mypcol)
+    IF (PRESENT(nrow_local)) nrow_local=fmstruct%nrow_locals(myprow)
+    IF (PRESENT(ncol_local)) ncol_local=fmstruct%ncol_locals(mypcol)
 
     IF (PRESENT(row_indices)) THEN
        row_indices => fmstruct%row_indices
        IF (.NOT.ASSOCIATED(row_indices)) THEN
           ! the max should go away
           ALLOCATE(fmstruct%row_indices &
-               (MAX(fmstruct%nrow_local(myprow),1)),stat=stat)
+               (MAX(fmstruct%nrow_locals(myprow),1)),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           row_indices => fmstruct%row_indices
 #ifdef __SCALAPACK
@@ -774,7 +785,7 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
        col_indices => fmstruct%col_indices
        IF (.NOT.ASSOCIATED(col_indices)) THEN
           ALLOCATE(fmstruct%col_indices &
-               (MAX(fmstruct%ncol_local(mypcol),1)),stat=stat)
+               (MAX(fmstruct%ncol_locals(mypcol),1)),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           col_indices => fmstruct%col_indices
 #ifdef __SCALAPACK

@@ -52,9 +52,9 @@ MODULE qs_ep_methods
                                              cp_sm_fm_multiply
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
-                                             fm_pool_get_mstruct,&
-                                             fm_pools_create_matrix_vect,&
-                                             fm_pools_give_back_matrix_vect
+                                             fm_pool_get_el_struct,&
+                                             fm_pools_create_fm_vect,&
+                                             fm_pools_give_back_fm_vect
   USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
@@ -151,7 +151,7 @@ MODULE qs_ep_methods
   USE qs_p_env_methods,                ONLY: p_env_create,&
                                              p_env_psi0_changed,&
                                              p_op_l1,&
-                                             p_op_l2,&
+                                             p_op_l2_fawzi,&
                                              p_postortho,&
                                              p_preortho
   USE qs_p_env_types,                  ONLY: p_env_write,&
@@ -678,11 +678,11 @@ END SUBROUTINE qs_ep_calculation
        ! alloc m_pi_Hrho_psi0d
        CALL get_qs_env(ep_env%main_qs_env, ao_mo_fm_pools=ao_mo_fm_pools,&
             error=error)
-       CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,ep_env%m_pi_Hrho_psi0d,&
+       CALL fm_pools_create_fm_vect(ao_mo_fm_pools,ep_env%m_pi_Hrho_psi0d,&
             name="ep_env"//TRIM(ADJUSTL(cp_to_string(ep_env%id_nr)))//&
             "%m_pi_Hrho_psi0d",error=error)
        ! alloc psi1
-       CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,ep_env%psi1,&
+       CALL fm_pools_create_fm_vect(ao_mo_fm_pools,ep_env%psi1,&
             name="ep_env"//TRIM(ADJUSTL(cp_to_string(ep_env%id_nr)))//"%psi1",&
             error=error)
 
@@ -989,16 +989,16 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
           dft_control=dft_control,s=s,error=error)
      nspins=dft_control%nspins
 
-     CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,p,name="ep_CG_p",&
+     CALL fm_pools_create_fm_vect(ao_mo_fm_pools,p,name="ep_CG_p",&
           error=error)
-     CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,p_ortho,&
+     CALL fm_pools_create_fm_vect(ao_mo_fm_pools,p_ortho,&
           name="ep_CG_p_ortho",&
           error=error)
-     CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,Ap,name="ep_CG_Ap",&
+     CALL fm_pools_create_fm_vect(ao_mo_fm_pools,Ap,name="ep_CG_Ap",&
           error=error)
-     CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,r,name="ep_CG_r",&
+     CALL fm_pools_create_fm_vect(ao_mo_fm_pools,r,name="ep_CG_r",&
           error=error)
-     CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,z,name="ep_CG_z",&
+     CALL fm_pools_create_fm_vect(ao_mo_fm_pools,z,name="ep_CG_z",&
           error=error)
      CALL cp_error_check(error,failure)
   END IF
@@ -1182,10 +1182,10 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
           "solve finished, r_norm2="//cp_to_string(r_norm2))
      CPPostcondition(r_norm2<eps_r**2,cp_warning_level,routineP,error,failure)
      
-     CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools,p,error=error)
-     CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools,Ap,error=error)
-     CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools,r,error=error)
-     CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools,z,error=error)
+     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools,p,error=error)
+     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools,Ap,error=error)
+     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools,r,error=error)
+     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools,z,error=error)
   END IF
            
 END SUBROUTINE stupid_solve
@@ -1250,7 +1250,7 @@ SUBROUTINE p_op_ep(p_env, qs_env, v, res, error)
                 nmo=nmo, maxocc=maxocc)
            CPAssert(scale_factor==maxocc,cp_failure_level,routineP,error,failure)
         END DO
-        CALL p_op_l2(p_env=p_env, qs_env=qs_env,&
+        CALL p_op_l2_fawzi(p_env=p_env, qs_env=qs_env,&
              v=v, res=res,&
              alpha=scale_factor,beta=scale_factor,error=error)
      ELSE
@@ -1319,8 +1319,8 @@ SUBROUTINE p_env_write_ep_matrix(p_env, qs_env, name, error)
   IF (.NOT. failure) THEN
      CALL get_qs_env(qs_env,ao_mo_fm_pools=ao_mo_fm_pools,&
           dft_control=dft_control,s=s,error=error)
-     CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,v,error=error)
-     CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,res,name=name,&
+     CALL fm_pools_create_fm_vect(ao_mo_fm_pools,v,error=error)
+     CALL fm_pools_create_fm_vect(ao_mo_fm_pools,res,name=name,&
           error=error)
      
      DO ispin=1,dft_control%nspins
@@ -1364,8 +1364,8 @@ SUBROUTINE p_env_write_ep_matrix(p_env, qs_env, name, error)
         END DO
      END DO
 
-     CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools, v, error=error)
-     CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools, res, error=error)
+     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, v, error=error)
+     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, res, error=error)
   END IF
 END SUBROUTINE p_env_write_ep_matrix
 !***************************************************************************

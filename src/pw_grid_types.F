@@ -19,9 +19,7 @@
 !******************************************************************************
 
 MODULE pw_grid_types
-  
-  USE kinds, ONLY : dbl
-  
+  USE kinds,                           ONLY: dbl
   IMPLICIT NONE
   
   PRIVATE
@@ -77,7 +75,8 @@ MODULE pw_grid_types
      INTEGER :: nglengths                         ! # different lengths/shells
      INTEGER :: identifier                        ! tag of this grid
      INTEGER :: reference                         ! reference grid identifier
-     INTEGER, DIMENSION ( : ), POINTER :: gidx    ! ref grid index              
+     INTEGER, DIMENSION ( : ), POINTER :: gidx    ! ref grid index
+     INTEGER :: ref_count                         ! reference count
      LOGICAL :: spherical                         ! spherical cutoff?
   END TYPE pw_grid_type
   

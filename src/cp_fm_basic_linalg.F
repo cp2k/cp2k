@@ -47,6 +47,7 @@ MODULE cp_fm_basic_linalg
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_create2,&
+                                             cp_fm_get_element,&
                                              cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
                                              cp_fm_init_random,&
@@ -54,7 +55,6 @@ MODULE cp_fm_basic_linalg
                                              cp_fm_retain,&
                                              cp_fm_set_all,&
                                              cp_fm_set_element,&
-                                             cp_fm_get_element,&
                                              cp_fm_set_submatrix,&
                                              cp_full_matrix_p_type,&
                                              cp_full_matrix_type
@@ -79,9 +79,9 @@ MODULE cp_fm_basic_linalg
   USE mathlib,                         ONLY: symmetrize_matrix
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
+                                             mp_shift,&
                                              mp_sum,&
-                                             mp_sync, &
-                                             mp_shift
+                                             mp_sync
   USE parallel,                        ONLY: cp2k_is_parallel
   USE sparse_matrix_types,             ONLY: first_block_node,&
                                              get_block_node,&
@@ -309,7 +309,7 @@ CONTAINS
                                    routineP = moduleN//"/"//routineN
 
 !   ---------------------------------------------------------------------------
-    failure=.false.
+    failure=.FALSE.
 #if defined(__parallel) && ! defined(__SCALAPACK)
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
      routineP,"cp_sm_fm_multiply would be most happy to use scalapack libraries"//&
@@ -356,7 +356,7 @@ CONTAINS
     CPPostcondition(info==0,cp_failure_level,routine,error,failure)
     in=numroc(ncol,cb,mypcol,0,npcol)
 
-    allocate(newdat(im,MAX(1,in)))
+    ALLOCATE(newdat(im,MAX(1,in)))
 
     ! do the actual scalapack to cols reordering
     CALL pdgemr2d(nrow_global,ncol,v_in%local_data(1,1),1,1,&
@@ -417,12 +417,12 @@ CONTAINS
     ! now we shift around the data in a ring, multiplying the v_in with the local sparse matrix
     ! adding the results to v_out, we need to do num_pe shifts
 
-    do ishift=0,num_pe-1
+    DO ishift=0,num_pe-1
        CALL sparse_times_local(sparse_matrix,local_v_in,local_v_out,&
             ncol_loc(MOD(mepos-ishift+num_pe,num_pe)), ncol_max, para_env=para_env,alpha=alpha_l)
        CALL mp_shift(local_v_in,para_env%group)
        CALL mp_shift(local_v_out,para_env%group)
-    enddo
+    ENDDO
 
 #if defined(__SCALAPACK)
     ! copy the result back into the scalapack data structure
@@ -624,7 +624,7 @@ CONTAINS
     CALL descinit(desc,nrow_global,ncol,rb,cb,0,0,ictxt_loc,nrow_global,info)
     CPPostcondition(info==0,cp_failure_level,routine,error,failure)
     in=numroc(ncol,cb,mypcol,0,npcol)
-    allocate(newdat(im,MAX(1,in)))
+    ALLOCATE(newdat(im,MAX(1,in)))
     ncol_loc=0
     ncol_loc(mepos)=in
     CALL mp_sum(ncol_loc,matrix_v%matrix_struct%para_env%group)
@@ -749,17 +749,17 @@ CONTAINS
     ENDDO
     CALL mp_sum(diag,matrix_a%matrix_struct%para_env%group)
     determinant=1.0_wp
-    do i=1,n
+    DO i=1,n
        determinant=determinant*diag(i)
-    enddo
+    ENDDO
     DEALLOCATE(diag)
 #else
-    lda=size(a,1)
+    lda=SIZE(a,1)
     CALL dgetrf(n,n,a(1,1),lda,ipivot,info)
     determinant=1.0_wp
-    do i=1,n
+    DO i=1,n
        determinant=determinant*a(i,i)
-    enddo
+    ENDDO
 #endif
     ! info is allowed to be zero
     ! this does just signal a zero diagonal element
@@ -987,8 +987,8 @@ CONTAINS
     b => matrix_b%local_data
     c => matrix_c%local_data
 
-    nrow_local = matrix_a%matrix_struct%nrow_local(myprow)
-    ncol_local = matrix_a%matrix_struct%ncol_local(mypcol)
+    nrow_local = matrix_a%matrix_struct%nrow_locals(myprow)
+    ncol_local = matrix_a%matrix_struct%ncol_locals(mypcol)
 
     DO icol_local=1,ncol_local
        DO irow_local=1,nrow_local
@@ -1063,8 +1063,8 @@ CONTAINS
     a => matrix_a%local_data
     b => matrix_b%local_data
 
-    nrow_local = matrix_a%matrix_struct%nrow_local(myprow)
-    ncol_local = matrix_b%matrix_struct%ncol_local(mypcol)
+    nrow_local = matrix_a%matrix_struct%nrow_locals(myprow)
+    ncol_local = matrix_b%matrix_struct%ncol_locals(mypcol)
 
     trace = 0.0_wp
 
@@ -1251,7 +1251,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     CPPrecondition(matrix_a%ref_count>0,cp_failure_level,routineP,error,failure)
 
     a => matrix_a%local_data
-    size_a = size(a,1)*size(a,2)
+    size_a = SIZE(a,1)*SIZE(a,2)
 
     CALL DSCAL(size_a, alpha, a, 1)
 

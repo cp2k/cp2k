@@ -76,7 +76,7 @@ MODULE qs_scf
                                              cp_internal_error
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
-                                             fm_pool_get_mstruct
+                                             fm_pool_get_el_struct
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_get,&
                                              cp_fm_struct_release,&
@@ -1180,7 +1180,7 @@ CONTAINS
          .not.ASSOCIATED(scf_env%scf_work2).OR.&
          .not.ASSOCIATED(scf_env%ortho)) THEN
 
-       ao_mo_fmstruct => fm_pool_get_mstruct(ao_mo_fm_pools(1)%pool,&
+       ao_mo_fmstruct => fm_pool_get_el_struct(ao_mo_fm_pools(1)%pool,&
             error=error)
        CALL cp_fm_struct_get(ao_mo_fmstruct, nrow_block=nrow_block,&
             error=error)

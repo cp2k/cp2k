@@ -1063,10 +1063,9 @@ END SUBROUTINE rs_grid_write
 !!     rs_grid_create
 !!
 !!   SYNOPSIS
-!!     Subroutine rs_grid_create(rs_grid, pw_grid, nsmax, error)
+!!     Subroutine rs_grid_create(rs_grid, pw_grid, error)
 !!       Type(realspace_grid_type), Pointer:: rs_grid
 !!       Type(pw_grid_type), Pointer:: pw_grid
-!!       Integer, Dimension(3), Intent (IN):: nsmax
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine rs_grid_create
 !!
@@ -1074,13 +1073,11 @@ END SUBROUTINE rs_grid_write
 !!     allocates and initialize an rs grid
 !!
 !!   NOTES
-!!     -
+!!     nsmax removed
 !!
 !!   ARGUMENTS
 !!     - rs_grid: the rs grid that is created
 !!     - pw_grid: the corresponding pw_grid
-!!     - nsmax: maximum boxsize of nonzero values ? still relevant with 
-!!       multigrids?
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -1091,10 +1088,9 @@ END SUBROUTINE rs_grid_write
 !!     03.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE rs_grid_create(rs_grid, pw_grid, nsmax, error)
+SUBROUTINE rs_grid_create(rs_grid, pw_grid, error)
   TYPE(realspace_grid_type), POINTER :: rs_grid
   TYPE ( pw_grid_type ), POINTER :: pw_grid
-  INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: nsmax 
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -1113,10 +1109,10 @@ SUBROUTINE rs_grid_create(rs_grid, pw_grid, nsmax, error)
 
   IF (.NOT. failure) THEN
      IF (logger%print_keys%pw_grid_information) THEN
-        CALL rs_grid_setup(rs_grid, pw_grid, nsmax, &
+        CALL rs_grid_setup(rs_grid, pw_grid, pw_grid%npts, &
              iounit=cp_logger_get_default_unit_nr(logger,local=.FALSE.))
      ELSE
-        CALL rs_grid_setup(rs_grid, pw_grid, nsmax)
+        CALL rs_grid_setup(rs_grid, pw_grid, pw_grid%npts)
      END IF
      CALL rs_grid_allocate(rs_grid)
   END IF

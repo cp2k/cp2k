@@ -290,8 +290,8 @@ CONTAINS
        ! OK, we allocate here at least a 1 x 1 matrix 
        ! this must (and is) compatible with the descinit call
        ! in cp_fm_struct
-       nrow_local=MAX(1,matrix_struct%nrow_local(context%mepos(1)))
-       ncol_local=MAX(1,matrix_struct%ncol_local(context%mepos(2)))
+       nrow_local=matrix_struct%local_leading_dimension
+       ncol_local=MAX(1,matrix_struct%ncol_locals(context%mepos(2)))
        ALLOCATE(matrix%local_data(nrow_local,ncol_local),stat=stat)
 
        CALL dcopy(nrow_local*ncol_local,0.0_wp,0,matrix%local_data,1)
@@ -342,6 +342,7 @@ CONTAINS
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_retain',&
          routineP=moduleN//':'//routineN
+
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
@@ -349,6 +350,7 @@ CONTAINS
        CPPrecondition(matrix%ref_count>0,cp_failure_level,routineP,error,failure)
        matrix%ref_count=matrix%ref_count+1
     END IF
+
   END SUBROUTINE cp_fm_retain
 !***************************************************************************
 
@@ -390,6 +392,7 @@ CONTAINS
          routineP=moduleN//':'//routineN
     INTEGER :: iprow,ipcol, stat
     TYPE(cp_blacs_env_type), POINTER :: context
+
     failure=.FALSE.
 
     IF (ASSOCIATED(matrix)) THEN
@@ -408,6 +411,7 @@ CONTAINS
        END IF
     END IF
     NULLIFY(matrix)
+
   END SUBROUTINE cp_fm_release
 !***************************************************************************
 
@@ -972,10 +976,10 @@ CONTAINS
             error=error)
     ENDIF
     IF (PRESENT(nrow_locals)) THEN
-       nrow_locals => matrix%matrix_struct%nrow_local
+       nrow_locals => matrix%matrix_struct%nrow_locals
     END IF
     IF (PRESENT(ncol_locals)) THEN
-       nrow_locals => matrix%matrix_struct%ncol_local
+       nrow_locals => matrix%matrix_struct%ncol_locals
     END IF
 
     CALL cp_fm_struct_get(matrix%matrix_struct, nrow_local=nrow_local,&

@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2003  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
+#include "cp_prep_globals.h"
 !!****** cp2k/pw_grids [1.1] *
 !!
 !!   NAME
@@ -43,29 +44,64 @@
 !******************************************************************************
 
 MODULE pw_grids
-
-  USE kinds, ONLY : dbl
-  USE mathconstants, ONLY : twopi
-  USE message_passing, ONLY : mp_environ, mp_sum, mp_cart_create, mp_group, &
-                              mp_max, mp_min, mp_cart_coords, mp_dims_create, &
-                              mp_cart_rank, mp_sync, mp_comm_free, mp_comm_dup, &
-                              mp_comm_compare
-  USE pw_grid_types, ONLY : pw_grid_type, map_pn, HALFSPACE, FULLSPACE
-  USE output_utilities, ONLY : print_warning
-  USE simulation_cell, ONLY : cell_type
-  USE termination, ONLY : stop_memory, stop_program
-  USE util, ONLY : matvec_3x3, dotprod_3d, sort, get_limit
-  USE fft_tools, ONLY : fft_radix_operations, FFT_RADIX_NEXT, &
-                        FFT_RADIX_NEXT_ODD
-  USE timings, ONLY: timeset, timestop
-  
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_log,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE fft_tools,                       ONLY: FFT_RADIX_NEXT,&
+                                             FFT_RADIX_NEXT_ODD,&
+                                             fft_radix_operations
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: twopi
+  USE message_passing,                 ONLY: mp_cart_coords,&
+                                             mp_cart_create,&
+                                             mp_cart_rank,&
+                                             mp_comm_compare,&
+                                             mp_comm_dup,&
+                                             mp_comm_free,&
+                                             mp_dims_create,&
+                                             mp_environ,&
+                                             mp_group,&
+                                             mp_max,&
+                                             mp_min,&
+                                             mp_sum,&
+                                             mp_sync
+  USE output_utilities,                ONLY: print_warning
+  USE pw_grid_types,                   ONLY: FULLSPACE,&
+                                             HALFSPACE,&
+                                             map_pn,&
+                                             pw_grid_type
+  USE simulation_cell,                 ONLY: cell_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE util,                            ONLY: dotprod_3d,&
+                                             get_limit,&
+                                             matvec_3x3,&
+                                             sort
   IMPLICIT NONE
 
   PRIVATE
   PUBLIC :: pw_grid_construct, pw_grid_destruct, pw_grid_compare
   PUBLIC :: pw_grid_setup, pw_grid_change, pw_find_cutoff
+  PUBLIC :: pw_grid_retain, pw_grid_release
 
   INTEGER :: grid_tag = 0
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pw_grids'
 !!***
 !******************************************************************************
 
@@ -76,6 +112,12 @@ CONTAINS
 !!
 !!   NAME
 !!     pw_grid_construct
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_grid_construct(pw_grid)
+!!       Implicit None
+!!       Type(pw_grid_type), Intent (INOUT):: pw_grid
+!!     End Subroutine pw_grid_construct
 !!
 !!   FUNCTION
 !!     Initialize a PW grid with all defaults
@@ -100,6 +142,7 @@ SUBROUTINE pw_grid_construct ( pw_grid )
   pw_grid % grid_span = FULLSPACE
   pw_grid % para % rs_dims = 0
   pw_grid % reference = 0
+  pw_grid % ref_count = 1
 
 END SUBROUTINE pw_grid_construct
 
@@ -108,6 +151,12 @@ END SUBROUTINE pw_grid_construct
 !!
 !!   NAME
 !!     pw_grid_destruct
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_grid_destruct(pw_grid)
+!!       Implicit None
+!!       Type(pw_grid_type), Intent (INOUT):: pw_grid
+!!     End Subroutine pw_grid_destruct
 !!
 !!   FUNCTION
 !!     Deallocate all pointers within a pw_grid_type
@@ -209,6 +258,14 @@ END SUBROUTINE pw_grid_destruct
 !!   NAME
 !!     pw_grid_compare
 !!
+!!   SYNOPSIS
+!!     Function pw_grid_compare(grida, gridb) Result(equal)
+!!       Implicit None
+!!       Type(pw_grid_type), Intent (IN):: grida
+!!       Type(pw_grid_type), Intent (IN):: gridb
+!!       Logical:: equal
+!!     End Function pw_grid_compare
+!!
 !!   FUNCTION
 !!     Check if two pw_grids are equal
 !!
@@ -239,13 +296,28 @@ FUNCTION pw_grid_compare ( grida, gridb ) RESULT ( equal )
     equal = .FALSE.
   END IF
 
-END function pw_grid_compare
+END FUNCTION pw_grid_compare
 
 !******************************************************************************
 !!****** pw_grids/pw_grid_setup [1.1] *
 !!
 !!   NAME
 !!     pw_grid_setup
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_grid_setup(cell, pw_grid, cutoff, pe_group, info,&
+!!         fft_usage, symm_usage, blocked, ref_grid)
+!!       Implicit None
+!!       Type(cell_type), Intent (IN):: cell
+!!       Type(pw_grid_type), Intent (INOUT):: pw_grid
+!!       Real(Kind=dbl), Intent (IN), Optional:: cutoff
+!!       Integer, Optional, Intent (IN):: pe_group
+!!       Integer, Optional, Intent (IN):: info
+!!       Logical, Optional, Intent (IN):: fft_usage
+!!       Logical, Optional, Intent (IN):: symm_usage
+!!       Logical, Optional, Intent (IN):: blocked
+!!       Type(pw_grid_type), Optional, Intent (IN):: ref_grid
+!!     End Subroutine pw_grid_setup
 !!
 !!   FUNCTION
 !!     Defines the PW grid
@@ -413,7 +485,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
   ! the indices in yz_mask are from -n/2 .. n/2 shifted by n/2 + 1
   ! these are not mapped indices !
   ALLOCATE ( yz_mask ( n(2), n(3) ), STAT = allocstat )
-  IF ( allocstat /= 0 ) call stop_memory ( "pw_grid_setup", "yz_mask", 0 )
+  IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_setup", "yz_mask", 0 )
   CALL pw_grid_count ( cell % h_inv, pw_grid, ecut, yz_mask )
 
   ! Check if reference grid is compatible
@@ -450,7 +522,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
   CALL pw_grid_remap ( pw_grid, yz_mask )
 
   DEALLOCATE ( yz_mask )
-  IF ( allocstat /= 0 ) call stop_memory ( "pw_grid_setup", "yz_mask" )
+  IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_setup", "yz_mask" )
 
   pw_grid % vol = ABS ( cell % deth )
   pw_grid % dvol = pw_grid % vol / REAL ( pw_grid % ngpts, dbl )
@@ -531,7 +603,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
       n ( 1 ) = pw_grid % ngpts_cut_local
       n ( 2 ) = pw_grid % ngpts_local
       CALL mp_min ( n(1:2), pw_grid % para % group )
-      n ( 3 ) = MInVAL ( pw_grid % para % nyzray )
+      n ( 3 ) = MINVAL ( pw_grid % para % nyzray )
       rv ( :, 3 ) = REAL ( n, dbl )
       IF ( pw_grid % para % group_head ) THEN
         WRITE ( info, '(A,T48,A)' ) " PW_GRID:   Distribution", &
@@ -1676,9 +1748,9 @@ SUBROUTINE redist ( g_hat, idx, s1, s2 )
   IF ( s2 <= s1 ) RETURN
   ns = s2 - s1 + 1
   ALLOCATE ( indl ( ns ), STAT = info )
-  IF ( info /= 0 ) call stop_memory ( "redist", "indl", ns )
+  IF ( info /= 0 ) CALL stop_memory ( "redist", "indl", ns )
   ALLOCATE ( slen ( ns ), STAT = info )
-  IF ( info /= 0 ) call stop_memory ( "redist", "slen", ns )
+  IF ( info /= 0 ) CALL stop_memory ( "redist", "slen", ns )
 
   DO i = s1, s2
     ii = idx ( i )
@@ -1696,9 +1768,9 @@ SUBROUTINE redist ( g_hat, idx, s1, s2 )
   idx ( s1:s2 ) = indl ( 1:ns )
 
   DEALLOCATE ( indl, STAT = info )
-  IF ( info /= 0 ) call stop_memory ( "redist", "indl" )
+  IF ( info /= 0 ) CALL stop_memory ( "redist", "indl" )
   DEALLOCATE ( slen, STAT = info )
-  IF ( info /= 0 ) call stop_memory ( "redist", "slen" )
+  IF ( info /= 0 ) CALL stop_memory ( "redist", "slen" )
 
 END SUBROUTINE redist
 
@@ -1792,6 +1864,13 @@ END SUBROUTINE pw_grid_remap
 !!   NAME
 !!     pw_grid_change
 !!
+!!   SYNOPSIS
+!!     Subroutine pw_grid_change(cell, pw_grid)
+!!       Implicit None
+!!       Type(cell_type), Intent (IN), Target:: cell
+!!       Type(pw_grid_type), Intent (INOUT), Target:: pw_grid
+!!     End Subroutine pw_grid_change
+!!
 !!   FUNCTION
 !!     Recalculate the g-vectors after a change of the box
 !!
@@ -1859,6 +1938,14 @@ END SUBROUTINE pw_grid_change
 !!   NAME
 !!     pw_find_cutoff
 !!
+!!   SYNOPSIS
+!!     Subroutine pw_find_cutoff(npts, box, cutoff)
+!!       Implicit None
+!!       Integer, Dimension(:), Intent (IN):: npts
+!!       Type(cell_type), Intent (IN):: box
+!!       Real(Kind=dbl), Intent (OUT):: cutoff
+!!     End Subroutine pw_find_cutoff
+!!
 !!   FUNCTION
 !!     Given a grid and a box, calculate the corresponding cutoff
 !!     This routine calculates the cutoff in momentum units!
@@ -1915,6 +2002,108 @@ SUBROUTINE pw_find_cutoff ( npts, box, cutoff )
 END SUBROUTINE pw_find_cutoff
 
 !******************************************************************************
+
+!!****f* pw_grids/pw_grid_retain [1.0] *
+!!
+!!   NAME
+!!     pw_grid_retain
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_grid_retain(pw_grid, error)
+!!       Type(pw_grid_type), Pointer:: pw_grid
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_grid_retain
+!!
+!!   FUNCTION
+!!     retains the given pw grid
+!!
+!!   NOTES
+!!     see doc/ReferenceCounting.html
+!!
+!!   ARGUMENTS
+!!     - pw_grid: the pw grid to retain
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     04.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_grid_retain(pw_grid, error)
+  TYPE(pw_grid_type), POINTER :: pw_grid
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='pw_grid_retain',&
+        routineP=moduleN//':'//routineN
+
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CPPreconditionNoFail(pw_grid%ref_count>0,cp_failure_level,routineP,error)
+     pw_grid%ref_count=pw_grid%ref_count+1
+  END IF
+END SUBROUTINE pw_grid_retain
+!***************************************************************************
+
+!!****f* pw_grids/pw_grid_release [1.0] *
+!!
+!!   NAME
+!!     pw_grid_release
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_grid_release(pw_grid, error)
+!!       Type(pw_grid_type), Pointer:: pw_grid
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_grid_release
+!!
+!!   FUNCTION
+!!     releases the given pw grid
+!!
+!!   NOTES
+!!     see doc/ReferenceCounting.html
+!!
+!!   ARGUMENTS
+!!     - pw_grid: the pw grid to release
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     04.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_grid_release(pw_grid, error)
+  TYPE(pw_grid_type), POINTER :: pw_grid
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='pw_grid_release',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: stat
+
+  failure=.FALSE.
+  
+  IF (ASSOCIATED(pw_grid)) THEN
+     CPPreconditionNoFail(pw_grid%ref_count>0,cp_failure_level,routineP,error)
+     pw_grid%ref_count=pw_grid%ref_count-1
+     IF (pw_grid%ref_count==0) THEN
+        pw_grid%ref_count=1
+        CALL pw_grid_destruct(pw_grid)
+        pw_grid%ref_count=0
+        DEALLOCATE(pw_grid, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+  END IF
+  NULLIFY(pw_grid)
+END SUBROUTINE pw_grid_release
+!***************************************************************************
 
 END MODULE pw_grids
 
