@@ -40,6 +40,7 @@ MODULE qs_mo_types
                                   gto_basis_set_type
   USE qs_blacs,             ONLY: cp_fm_create2,&
                                   cp_full_matrix_type,&
+                                  cp_full_matrix_p_type,&
                                   cp_fm_set_all,&
                                   cp_fm_syrk, &
                                   blacs_syevd, &
@@ -108,6 +109,9 @@ MODULE qs_mo_types
             set_mo_occupation,&
             write_mo_set, &
             calculate_subspace_eigenvalues
+  INTERFACE calculate_subspace_eigenvalues
+    MODULE PROCEDURE  subspace_eigenvalues_ks, subspace_eigenvalues_vec
+  END INTERFACE
 
 ! *****************************************************************************
 
@@ -359,20 +363,22 @@ CONTAINS
 
   END SUBROUTINE calculate_w_matrix_sparse
 ! *****************************************************************************
-  SUBROUTINE calculate_subspace_eigenvalues(orbitals,ks_matrix,globenv)
+  SUBROUTINE subspace_eigenvalues_ks(orbitals,ks_matrix,evals_arg,globenv)
 
 !   Purpose: Calculates the eigenvalues (ritz values) for a set of orbitals
 !            and rotates them to make them eigenvectors
+!            if evals_arg is present its filled
+!            if not, the eigenvalues go to the screen
 !   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER           :: ks_matrix
     TYPE(cp_full_matrix_type), POINTER          :: orbitals
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(cp_full_matrix_type), POINTER          :: weighted_vectors,h_block,e_vectors
-    REAL(wp), DIMENSION(:), ALLOCATABLE       :: evals
+    REAL(wp), DIMENSION(:),  POINTER, OPTIONAL :: evals_arg
 
 !   *** Local variables ***
-
+    TYPE(cp_full_matrix_type), POINTER          :: weighted_vectors,h_block,e_vectors
+    REAL(wp), DIMENSION(:), ALLOCATABLE       :: evals
     INTEGER  :: handle,imo,ncol_global,nrow_global,nrow_block,ncol_block,i,j
 
 !   ---------------------------------------------------------------------------
@@ -412,6 +418,7 @@ CONTAINS
                                  name="e_vectors", &
                                  globenv=globenv)
 
+    ! h subblock and diag
     CALL cp_sm_fm_multiply(ks_matrix,orbitals,weighted_vectors, &
                                        ncol_global,para_env=globenv%para_env)
 
@@ -421,25 +428,35 @@ CONTAINS
 
     CALL blacs_syevd(h_block,e_vectors,evals)
 
+    ! rotate the orbitals
     CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_wp, &
                     orbitals,e_vectors,0.0_wp,weighted_vectors)
     CALL copy_blacs_to_blacs_matrix(weighted_vectors,orbitals)
 
-    if (globenv%ionode) then
-       do i=1,ncol_global,4
-          j=MIN(3,ncol_global-i)
-          select case (j)
-          case(3)
-           write(globenv%scr,'(1X,4F12.8)') evals(i:i+j)
-          case(2)
-           write(globenv%scr,'(1X,3F12.8)') evals(i:i+j)
-          case(1)
-           write(globenv%scr,'(1X,2F12.8)') evals(i:i+j)
-          case(0)
-           write(globenv%scr,'(1X,1F12.8)') evals(i:i+j)
-          end select
-       enddo
-    endif
+    ! give output
+    IF (present(evals_arg)) THEN
+
+	evals_arg(:)=evals(:)
+
+    ELSE
+
+      if (globenv%ionode) then
+         do i=1,ncol_global,4
+            j=MIN(3,ncol_global-i)
+            select case (j)
+            case(3)
+             write(globenv%scr,'(1X,4F12.8)') evals(i:i+j)
+            case(2)
+             write(globenv%scr,'(1X,3F12.8)') evals(i:i+j)
+            case(1)
+             write(globenv%scr,'(1X,2F12.8)') evals(i:i+j)
+            case(0)
+             write(globenv%scr,'(1X,1F12.8)') evals(i:i+j)
+            end select
+         enddo
+      endif
+
+    ENDIF
 
     CALL cp_fm_release(weighted_vectors)
     CALL cp_fm_release(h_block)
@@ -448,7 +465,116 @@ CONTAINS
     deallocate(evals)
     CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE calculate_subspace_eigenvalues
+  END SUBROUTINE subspace_eigenvalues_ks
+! *****************************************************************************
+! *****************************************************************************
+  SUBROUTINE subspace_eigenvalues_vec(orbitals_p,evals_arg,globenv)
+!   here orbitals is the array of orbitals 1,2 are V and HV respectively,
+!   all other orbitals are rotated as we
+!   Purpose: Calculates the eigenvalues (ritz values) for a set of orbitals
+!            and rotates them to make them eigenvectors
+!            if evals_arg is present its filled
+!            if not, the eigenvalues go to the screen
+!   ***************************************************************************
+
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER          :: orbitals_p
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    REAL(wp), DIMENSION(:),  POINTER, OPTIONAL :: evals_arg
+
+!   *** Local variables ***
+    TYPE(cp_full_matrix_type), POINTER          :: weighted_vectors,h_block,e_vectors
+    REAL(wp), DIMENSION(:), ALLOCATABLE       :: evals
+    INTEGER  :: handle,imo,ncol_global,nrow_global,nrow_block,ncol_block,i,j
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("calculate_subspace_eigenvalues","I","",handle)
+
+    if (size(orbitals_p).lt.2)  &
+       CALL stop_program("subspace_eigenvalues_vec","size orb_p")
+
+    NULLIFY(weighted_vectors,h_block,e_vectors)
+    CALL cp_fm_get_info(matrix=orbitals_p(1)%matrix, &
+                                 ncol_global=ncol_global, &
+                                 nrow_global=nrow_global, &
+                                 nrow_block=nrow_block, &
+                                 ncol_block=ncol_block)
+
+    allocate(evals(ncol_global))
+
+    CALL cp_fm_create2(new_matrix=weighted_vectors,&
+                                 nrow_global=nrow_global, &
+                                 ncol_global=ncol_global, &
+                                 nrow_block=nrow_block, &
+                                 ncol_block=ncol_block, &
+                                 name="weighted_vectors", & 
+                                 globenv=globenv)
+
+    CALL cp_fm_create2(new_matrix=h_block,&
+                                 nrow_global=ncol_global, &
+                                 ncol_global=ncol_global, &
+                                 nrow_block=nrow_block, &
+                                 ncol_block=ncol_block, &
+                                 name="h block", &
+                                 globenv=globenv)
+
+    CALL cp_fm_create2(new_matrix=e_vectors,&
+                                 nrow_global=ncol_global, &
+                                 ncol_global=ncol_global, &
+                                 nrow_block=nrow_block, &
+                                 ncol_block=ncol_block, &
+                                 name="e_vectors", &
+                                 globenv=globenv)
+
+    ! h subblock and diag
+
+
+    CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_wp, &
+                    orbitals_p(1)%matrix,orbitals_p(2)%matrix,0.0_wp,h_block)
+
+    CALL blacs_syevd(h_block,e_vectors,evals)
+
+    ! rotate the orbitals
+
+    do i=1,size(orbitals_p)
+      CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_wp, &
+                      orbitals_p(i)%matrix,e_vectors,0.0_wp,weighted_vectors)
+      CALL copy_blacs_to_blacs_matrix(weighted_vectors,orbitals_p(i)%matrix)
+    enddo
+
+    ! give output
+    IF (present(evals_arg)) THEN
+
+	evals_arg(:)=evals(:)
+
+    ELSE
+
+      if (globenv%ionode) then
+         do i=1,ncol_global,4
+            j=MIN(3,ncol_global-i)
+            select case (j)
+            case(3)
+             write(globenv%scr,'(1X,4F12.8)') evals(i:i+j)
+            case(2)
+             write(globenv%scr,'(1X,3F12.8)') evals(i:i+j)
+            case(1)
+             write(globenv%scr,'(1X,2F12.8)') evals(i:i+j)
+            case(0)
+             write(globenv%scr,'(1X,1F12.8)') evals(i:i+j)
+            end select
+         enddo
+      endif
+
+    ENDIF
+
+    CALL cp_fm_release(weighted_vectors)
+    CALL cp_fm_release(h_block)
+    CALL cp_fm_release(e_vectors)
+
+    deallocate(evals)
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE subspace_eigenvalues_vec
 ! *****************************************************************************
 
 ! *****************************************************************************
