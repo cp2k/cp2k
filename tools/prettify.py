@@ -3,7 +3,7 @@
 import sys
 import re
 import os, os.path
-import normalizeUse
+import normalizeFortranFile
 import replacer
 import addSynopsis
 from sys import argv
@@ -64,7 +64,7 @@ def prettifyFile(infile,outfile,normalize_use=1, upcase_keywords=1,
     try:
         if normalize_use:
             tmpfile=os.tmpfile()
-            normalizeUse.rewriteUse(ifile,tmpfile,logFile)
+            normalizeFortranFile.rewriteFortranFile(ifile,tmpfile,logFile)
             tmpfile.seek(0)
             ifile.close()
             ifile=tmpfile
