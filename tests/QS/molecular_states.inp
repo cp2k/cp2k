@@ -2,7 +2,11 @@
  PROGRAM      Quickstep
  PROJECT      molecular_states
  IOLEVEL      10
- FFTLIB       FFTSG
+ FFTLIB       FFTESSL
+&END
+
+&IO
+ COORD_FILE sample_pdb/water_32.pdb
 &END
 
 &CNTL
@@ -15,8 +19,8 @@
 &SETUP
   cell
     parameter 9.865  0.000   0.000 &
-              0.000   9.865   0.000 &
-              0.000   0.000   9.865
+              0.000  9.865   0.000 &
+              0.000  0.000   9.865
   end cell
 &END
 
@@ -37,6 +41,14 @@
 &PRINT low
  LOCALIZATION
  MOLECULAR_STATES
+&END
+
+&MOLECULE TIP3
+ ATOMS
+ O O
+ H H
+ H H
+ END
 &END
 
 &KIND H
