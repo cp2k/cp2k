@@ -35,6 +35,7 @@ MODULE pol_force_pw
        linklist_bends, linklist_torsions
   USE message_passing, ONLY : mp_sum
   USE pair_potential, ONLY : potentialparm_type
+  USE pol_initialize_coef_pw, ONLY : initialize_coef_pw
   USE pol_electrostatics_pw, ONLY : electrostatics
   USE pol_overlap_pw, ONLY : force_overlap
   USE pol_projectors_pw, ONLY : projectors, pol_projector_type
@@ -50,8 +51,6 @@ MODULE pol_force_pw
   USE termination, ONLY : stop_program, stop_memory
   USE timings, ONLY : timeset, timestop
   USE linklist_types, ONLY : linklist_internal_data_type
-
-
 
   PRIVATE
   PUBLIC :: force_control, debug_variables_type, get_pol_grids
@@ -193,7 +192,6 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
      CALL pol_grids_initialize ( dg_proj, dg_atom, part, pnode, proj % ao, &
             drho_basis_info, rho0_basis_info, fc_global,  box, &
             small_grid, big_grid, iref, npts_max, cutoff_radius_max, pw_grid )    
-     
 !
 ! Initializing green function to PW grid
 !
@@ -203,16 +201,20 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
        CALL stop_program ( 'pol_force_pw', 'PW cutoff too small' )
      ENDIF
      CALL pw_green_fn_init ( box % green, pw_grid )
-
+!
+! Initializing pw coefficients from scratch if needed
+!
+     CALL initialize_coef_pw ( dg_proj, coef_pos % pw, part, box, small_grid,  &
+                           big_grid, ewald_param )
   END IF
 
 !dbg 
 ! initialize coeffs with a gaussian (for debugging purposes)
-  DO i = 1, coef_pos % pw % pw_grid % ngpts_cut
-    e_gsq = exp ( .25 *  coef_pos % pw % pw_grid % gsq ( i ) )
-    coef_pos % pw % cc (i) = CMPLX ( e_gsq, 0 )
-    coef_pos % pw % cc (1) = CMPLX ( 0.0, 0 )
-  ENDDO
+!  DO i = 1, coef_pos % pw % pw_grid % ngpts_cut
+!    e_gsq = exp ( .25 *  coef_pos % pw % pw_grid % gsq ( i ) )
+!    coef_pos % pw % cc (i) = CMPLX ( e_gsq, 0 )
+!    coef_pos % pw % cc (1) = CMPLX ( 0.0, 0 )
+!  ENDDO
 !dbg 
 
 !
