@@ -32,8 +32,6 @@ MODULE cp2k_units
                                              massunit,&
                                              permittivity,&
                                              wavenum
-  USE termination,                     ONLY: stop_memory
-
   PRIVATE
 
   TYPE unit_convert_type
@@ -44,7 +42,7 @@ MODULE cp2k_units
                                angl_label
   END TYPE unit_convert_type
   
-  TYPE ( unit_convert_type ), POINTER :: units
+  TYPE ( unit_convert_type ), TARGET, SAVE :: units
   PUBLIC :: unit_convert_type, get_cp2k_units, init_cp2k_units
 
 !!*****
@@ -72,14 +70,6 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE init_cp2k_units ()
-
-    INTEGER                                  :: isos
-
-!------------------------------------------------------------------------------
-
-  ALLOCATE ( units, stat = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'cp2k_units', &
-       'units', 1 )
 
   units % temp_label = '[K]'
   units % pres_label = '[bar]'
