@@ -50,6 +50,7 @@ MODULE cp_error_handling
                                              cp_logger_type,&
                                              cp_to_string
   USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: print_stack
   IMPLICIT NONE
   PRIVATE
 
@@ -672,6 +673,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_error_common_stop(fromWhere,message)
     CHARACTER(len=*), INTENT(in) :: fromWhere, message 
+
+    CALL print_stack() ! remove?
     CALL stop_program(fromWhere,message)
     STOP ! just to be sure...
   END SUBROUTINE cp_error_common_stop
@@ -717,7 +720,12 @@ CONTAINS
     TYPE(cp_logger_type), POINTER :: logger
 
 
+    logger => cp_error_get_logger(error)
     IF (debug_this_module) PRINT *, "entred in cp_error_handle_error"
+    
+    ! print stack only when stopping? print to stdout?
+    CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
+
     CALL cp_error_message(error%level, fromWhere, &
          'err='//ADJUSTL(cp_to_string(error%error_nr))//message, error)
 

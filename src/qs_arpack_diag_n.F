@@ -123,7 +123,7 @@ CONTAINS
     REAL(dbl), DIMENSION(:), POINTER   :: resid, workev, workd, workl, vin, vout
     REAL(dbl), DIMENSION(:,:), POINTER :: v
     
-    CALL arpack_confirm(glob_env)
+    CALL arpack_confirm()
     
     ! check if an operator has been specified
     op_present = 0

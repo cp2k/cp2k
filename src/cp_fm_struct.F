@@ -519,7 +519,9 @@ FUNCTION cp_fm_struct_equivalent(fmstruct1,fmstruct2,error) RESULT(res)
      ELSE
         res= (fmstruct1%context%group==fmstruct2%context%group).AND.&
              (fmstruct1%nrow_global==fmstruct2%nrow_global).AND.&
-             (fmstruct1%ncol_global==fmstruct2%ncol_global)
+             (fmstruct1%ncol_global==fmstruct2%ncol_global).AND.&
+             (fmstruct1%local_leading_dimension==&
+             fmstruct2%local_leading_dimension)
         DO i=1,9
            res=res.AND.(fmstruct1%descriptor(i)==fmstruct1%descriptor(i))
         END DO

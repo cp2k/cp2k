@@ -36,6 +36,8 @@ module qs_arpack_full
   use qs_blacs,            only: cp_full_matrix_type, &
                                  blacs_vector_symv, &
                                  cp_fm_get_info
+  USE cp_para_types, ONLY: cp_para_env_type, cp_blacs_env_type
+  USE cp_error_handling, ONLY: cp_error_type
 
   implicit none
   
@@ -56,12 +58,14 @@ contains
 
 ! *****************************************************************************
 
-subroutine arpack_op_symv(op, vin, vout, glob_env)
+SUBROUTINE arpack_op_symv(op, vin, vout, blacs_env, para_env, error)
   implicit none
   ! arguments
   type(op_symv_type), intent(in)            :: op
   real(wp), dimension(:), pointer           :: vin, vout
-  type(global_environment_type), intent(in) :: glob_env
+  TYPE(cp_blacs_env_type), pointer          :: blacs_env
+  TYPE(cp_para_env_type), pointer           :: para_env
+  TYPE(cp_error_type), INTENT(inout), optional :: error
   ! code
   call blacs_vector_symv(op%a, vin, vout, op%buffer)
 end subroutine arpack_op_symv

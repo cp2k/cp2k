@@ -74,7 +74,8 @@ MODULE qs_md
                                              molecule_type,&
                                              particle_node_type,&
                                              topology_type
-  USE particle_types,                  ONLY: particle_type
+  USE particle_types,                  ONLY: particle_type,&
+                                             write_particle_coordinates
   USE qs_energy,                       ONLY: qs_energies
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -267,7 +268,7 @@ CONTAINS
     itimes => md_env%itimes
     itimes = 0
 
-    CALL qs_forces(qs_env,globenv)
+!FM    CALL qs_forces(qs_env,globenv)
 
     DO itimes=1,md_env%simpar%nsteps
       PRINT*,"Step: :",itimes," of ",md_env%simpar%nsteps
@@ -284,6 +285,7 @@ CONTAINS
 !!           pnode(i)%p%v(2)+pnode(i)%p%v(3)*pnode(i)%p%v(3))
 !!      END DO
 !!    write(6,'(A,3F20.12)') "XXXXXXXXXXXXXXXX EKIN,EPOT,TOTAL ",ekin,energy%total,energy%total+ekin
+      CALL write_particle_coordinates(qs_env%particle_set,qs_env%cell,globenv)
     END DO
 
     CALL timestop(0.0_wp,handle)

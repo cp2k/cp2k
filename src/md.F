@@ -38,7 +38,8 @@ MODULE md
                                              wfi_linear_wf_method_nr,&
                                              wfi_use_guess_method_nr,&
                                              wfi_use_prev_p_method_nr,&
-                                             wfi_use_prev_rho_r_method_nr
+                                             wfi_use_prev_rho_r_method_nr,&
+                                             wfi_use_prev_wf_method_nr
   USE read_pimd,                       ONLY: pimd_parameters_type
   USE string_utilities,                ONLY: uppercase,&
                                              xstring
@@ -191,9 +192,9 @@ CONTAINS
 !!I Barostat_parameter                      parameter of barostat             I
 !!I   pressure: P         &                 pressure [bar]                    I
 !!I   timecon:  tau_cell  &                 barostat time constant            I
-!!I qs_parameter &                                                            I
+!!I qs_md_parameter &                                                         I
 !!I   wf_interpolation: [use_guess,use_prev_p,use_prev_rho_r,linear_wf,       I
-!!I                      linear_p,linear_ps]                                  I
+!!I                      linear_p,linear_ps, use_prev_wf]                     I
 !!I FILES                           &                                         I
 !!I   filebody    "filename"        &                                         I
 !!I   coordinates "filename.crd"    &                                         I
@@ -561,6 +562,9 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  CASE ( 'USE_PREV_P')
                     simpar % qs_md_param % wf_interpolation_method_nr = &
                          wfi_use_prev_p_method_nr
+                 CASE ( 'USE_PREV_WF')
+                    simpar % qs_md_param % wf_interpolation_method_nr = &
+                         wfi_use_prev_wf_method_nr
                  CASE ( 'USE_PREV_RHO_R')
                     simpar % qs_md_param % wf_interpolation_method_nr = &
                          wfi_use_prev_rho_r_method_nr

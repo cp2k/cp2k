@@ -53,12 +53,11 @@ contains
 !!
 !!
 !!****
-  subroutine arpack_confirm(globenv,is_present)
+  subroutine arpack_confirm(is_present)
     
     implicit none
     
     ! arguments
-    type(global_environment_type), intent(IN) :: globenv
     logical, optional, intent(INOUT)          :: is_present
 
 #if defined(__ARPACK)
@@ -70,7 +69,7 @@ contains
        is_present=.false.
     else
        call stop_program("arpack_confirm",& 
-            "(p)arpack library not present but needed",globenv)
+            "(p)arpack library not present but needed")
     endif
 #endif
     

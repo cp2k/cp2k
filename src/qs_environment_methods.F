@@ -643,7 +643,6 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rho_ao_with_h_mstruct,&
 END SUBROUTINE qs_env_rebuild_rho
 !***************************************************************************
 
-
 !!****f* qs_environment_methods/qs_env_update_rho_core [1.0] *
 !!
 !!   NAME

@@ -94,7 +94,8 @@ MODULE qs_scf
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_matrix_utils,                 ONLY: cp_sm_output
-  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type,&
+       cp_blacs_env_type
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              cp_sm_pool_type,&
                                              sm_pool_create_matrix,&
@@ -139,7 +140,7 @@ MODULE qs_scf
   USE pao_types,                       ONLY: pao_env_get,&
                                              pao_env_type,&
                                              pao_glob_angles_type
-  USE particle_types,                  ONLY: particle_type, & 
+  USE particle_types,                  ONLY: particle_type,&
                                              write_particle_coordinates
   USE preconditioner,                  ONLY: destroy_preconditioner,&
                                              init_preconditioner,&
@@ -209,6 +210,7 @@ MODULE qs_scf
                                              qs_diis_buffer_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_env_reorthogonalize_vectors,&
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_ks_methods,                   ONLY: qs_ks_create,&
@@ -248,14 +250,21 @@ MODULE qs_scf
   USE qs_rho_types,                    ONLY: qs_rho_did_change,&
                                              qs_rho_get,&
                                              qs_rho_type
-  USE qs_scf_types,                    ONLY: qs_scf_env_type,&
+  USE qs_scf_types,                    ONLY: ao_mixing_nr,&
+                                             diagonalisation_method_nr,&
+                                             no_mixing_nr,&
+                                             ot_method_nr,&
+                                             pao_mehod_nr,&
+                                             qs_scf_env_type,&
                                              scf_env_release,&
                                              scf_env_retain
   USE qs_wf_history_methods,           ONLY: wfi_extrapolate,&
-                                             wfi_update
+                                             wfi_update,&
+                                             wfi_get_method_label
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
                                              qs_wf_snapshot_p_type,&
-                                             qs_wf_snapshot_type
+                                             qs_wf_snapshot_type,&
+                                             wfi_use_guess_method_nr
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
   USE scf_control_types,               ONLY: scf_control_type
   USE simulation_cell,                 ONLY: cell_type,&
@@ -292,9 +301,6 @@ MODULE qs_scf
 ! *** Global parameters ***
 
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "qs_scf"
-  INTEGER, PARAMETER :: pao_mehod_nr=0, diagonalisation_method_nr=1,&
-       ot_method_nr=2
-  INTEGER, PARAMETER :: no_mixing_nr=0, ao_mixing_nr=1
 
   LOGICAL, PARAMETER, PRIVATE :: debug_this_module=.FALSE.
 
@@ -690,14 +696,16 @@ CONTAINS
           DO ispin=1,dft_control%nspins
 
              CALL eigensolver(scf_work1(ispin)%matrix,c(ispin)%mo_set,ortho,scf_work2,&
-                  do_level_shift,scf_control%level_shift,globenv,&
+                  do_level_shift,scf_control%level_shift,&
                   use_arpack=scf_control%use_arpack,&
                   use_cholesky=use_cholesky,&
                   work_syevx=scf_control%work_syevx,&
                   use_jacobi=use_jacobi,&
                   eps_jacobi=scf_control%eps_jacobi,&
                   jacobi_threshold=scf_control%jacobi_threshold,&
-                  smear=scf_control%smear)
+                  smear=scf_control%smear, para_env=qs_env%para_env,&
+                  blacs_env=qs_env%blacs_env,&
+                  error=error)
 
              IF (logger%print_keys%each_scf_step) THEN
                 CALL write_mo_set(c(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
@@ -1294,8 +1302,9 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE eigensolver(ks,mo_set,ortho,work,do_level_shift,level_shift,&
-       globenv,use_cholesky, use_arpack,work_syevx,&
-       use_jacobi,eps_jacobi,jacobi_threshold,smear)
+       use_cholesky, use_arpack,work_syevx,&
+       use_jacobi,eps_jacobi,jacobi_threshold,smear,&
+       blacs_env, para_env,error)
 
 !   Purpose: Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
 !            vectors and MO eigenvalues.
@@ -1306,7 +1315,6 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cp_full_matrix_type), POINTER        :: ks,ortho,work
-    TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
     LOGICAL, INTENT(INOUT)                    :: use_cholesky
     LOGICAL, INTENT(IN)                       :: do_level_shift,use_arpack,&
@@ -1314,6 +1322,9 @@ CONTAINS
     REAL(wp), INTENT(IN)                      :: level_shift,work_syevx,&
          eps_jacobi,jacobi_threshold,&
          smear
+    TYPE(cp_para_env_type), pointer :: para_env
+    TYPE(cp_blacs_env_type), pointer :: blacs_env
+    TYPE(cp_error_type), INTENT(inout), optional :: error
 
 !   *** Local variables ***
     INTEGER :: handle,imo,nao,nmo,homo,ncv
@@ -1364,8 +1375,9 @@ CONTAINS
        CALL cp_fm_cholesky_reduce(ks,ortho)
 
        CALL setup_op_symv(arpack_op, ks, work, .FALSE.)
-       CALL arpack_diag_sy(work,mo_eigenvalues,nmo,ncv,.FALSE.,globenv, &
-            op_symv=arpack_op)
+       CALL arpack_diag_sy(work,mo_eigenvalues,nmo,ncv,.FALSE.,&
+            blacs_env=blacs_env,para_env=para_env, &
+            op_symv=arpack_op, error=error)
 
        CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
 
@@ -1648,14 +1660,16 @@ CONTAINS
        ENDIF
        DO ispin=1,nspin
           CALL eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,ortho,work2, &
-               .FALSE.,0.0_wp,globenv,&
+               .FALSE.,0.0_wp,&
                use_arpack=scf_control%use_arpack, &
                use_cholesky=scf_control%use_cholesky, &
                work_syevx=scf_control%work_syevx,&
                use_jacobi=.FALSE.,&
                eps_jacobi=scf_control%eps_jacobi,&
                jacobi_threshold=scf_control%jacobi_threshold,&
-               smear=0.0_wp)
+               smear=0.0_wp, para_env=qs_env%para_env,&
+               blacs_env=qs_env%blacs_env,&
+               error=error)
           IF (scf_control%level_shift /= 0.0_wp) THEN
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                   eigenvectors=mo_eigenvectors)
@@ -1825,24 +1839,41 @@ CONTAINS
     TYPE(global_environment_type), INTENT(in), TARGET :: globenv
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    LOGICAL :: failure, extrapolated
+    LOGICAL :: failure, orthogonal_wf
     CHARACTER(len=*), PARAMETER :: routineN='scf_env_initial_rho_setup',&
          routineP=moduleN//':'//routineN
-    INTEGER :: handle
+    INTEGER :: handle, nmo, ispin, extrapolation_method_nr
+    TYPE(cp_full_matrix_type), POINTER :: eigenvectors
+    TYPE(cp_logger_type), pointer :: logger
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
+    NULLIFY(eigenvectors)
+    logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       extrapolated=.FALSE.
+       extrapolation_method_nr=wfi_use_guess_method_nr
        IF (ASSOCIATED(qs_env%wf_history)) THEN
           CALL wfi_extrapolate(qs_env%wf_history, &
-               qs_env=qs_env, dt=1.0_wp, extrapolated=extrapolated,&
-               error=error)
+               qs_env=qs_env, dt=1.0_wp, &
+               extrapolation_method_nr=extrapolation_method_nr,&
+               orthogonal_wf=orthogonal_wf, error=error)
+          IF (.NOT.orthogonal_wf.AND.scf_env%method==ot_method_nr) THEN
+             DO ispin=1,SIZE(qs_env%c)
+                CALL get_mo_set(qs_env%c(ispin)%mo_set, &
+                     eigenvectors=eigenvectors, nmo=nmo)
+                CALL qs_env_reorthogonalize_vectors(qs_env, &
+                     v_matrix=eigenvectors, ispin=ispin, n_col=nmo,&
+                     error=error)
+             END DO
+          END IF
        END IF
-       IF (.NOT.extrapolated) THEN
+       WRITE (unit=cp_logger_get_default_unit_nr(logger),&
+            fmt="(t3,'extrapolation method:',a)")&
+            wfi_get_method_label(extrapolation_method_nr,error=error)
+       IF (extrapolation_method_nr==wfi_use_guess_method_nr) THEN
           CALL calculate_first_density_matrix(scf_env=scf_env,qs_env=qs_env,&
                globenv=globenv, error=error)
 ! update qs_env%rho
@@ -1851,7 +1882,6 @@ CONTAINS
                rebuild=.TRUE., error=error)
           CALL qs_ks_did_change(qs_env%ks_env,qs_env,rho_changed=.TRUE.,&
                error=error)
-
        END IF
     END IF
     CALL timestop(0.0_wp,handle)
@@ -2239,11 +2269,11 @@ CONTAINS
 
        IF (globenv%print%lumos) THEN
         DO ispin=1,dft_control%nspins
-           deallocate(unoccupied_evals(ispin)%evals)
+           DEALLOCATE(unoccupied_evals(ispin)%evals)
            CALL cp_fm_release(unoccupied_orbs(ispin)%matrix)
         ENDDO
-        deallocate(unoccupied_evals)
-        deallocate(unoccupied_orbs)
+        DEALLOCATE(unoccupied_evals)
+        DEALLOCATE(unoccupied_orbs)
        ENDIF
 
     END IF

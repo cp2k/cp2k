@@ -235,9 +235,10 @@ CONTAINS
 !!   FUNCTION
 !!     scales the matrix and add another matrix
 !!     matrix_a=alpha*matrix_a+beta*matrix_b
+!!     filters the result with the structure (sparsity) of matrix_a
 !!
 !!   NOTES
-!!     at the moment only for matrixes with the same structure
+!!     -
 !!
 !!   INPUTS
 !!     - matrix_a: a sparse matrix (inout)
@@ -298,9 +299,11 @@ SUBROUTINE cp_sm_scale_and_add(matrix_a,alpha,matrix_b,beta,error)
                                  block_col=iblock_col,&
                                  BLOCK=b_block)
 
-             CALL daxpy(SIZE(a_block,1)*SIZE(a_block,2),&
-                  my_beta, b_block(1,1),1,&
-                  a_block(1,1),1)
+             IF (ASSOCIATED(b_block)) THEN
+                CALL daxpy(SIZE(a_block,1)*SIZE(a_block,2),&
+                     my_beta, b_block(1,1),1,&
+                     a_block(1,1),1)
+             END IF
 
              block_node => block_node%next_block_node
           END DO
@@ -317,8 +320,13 @@ SUBROUTINE cp_sm_scale_and_add(matrix_a,alpha,matrix_b,beta,error)
                                  block_col=iblock_col,&
                                  BLOCK=b_block)
 
-             a_block(:,:) = my_alpha*a_block(:,:) + my_beta*b_block(:,:)
-
+             IF (ASSOCIATED(b_block)) THEN
+                a_block(:,:) = my_alpha*a_block(:,:) + my_beta*b_block(:,:)
+             ELSE
+                CALL dscal(SIZE(a_block,1)*SIZE(a_block,2),&
+                     my_alpha,a_block(1,1),1)
+             END IF
+             
              block_node => block_node%next_block_node
           END DO
        END DO
@@ -958,7 +966,7 @@ END SUBROUTINE cp_sm_scale_and_add
        ! nothing
     CASE DEFAULT
        ! possibly just OK (i.e. general matrix) just provide an empty slot
-       write(6,*) sparse_matrix%symmetry
+       WRITE(6,*) sparse_matrix%symmetry
        CALL stop_program(routine,"wrong matrix symmetry specification")
     END SELECT
 
@@ -1015,7 +1023,7 @@ END SUBROUTINE cp_sm_scale_and_add
                          nblock)
            ENDIF
            
-           IF (iblock_col .NE. iblock_row .AND. (symmetric .or. antisymmetric)) THEN
+           IF (iblock_col .NE. iblock_row .AND. (symmetric .OR. antisymmetric)) THEN
               IF (MOD(iblock_col,nthread).eq.ithread) THEN 
                  flops=flops+2.0_wp*sbnrow*sbncol*ncol
                  CALL DGEMM('N','N',ncol,sbncol,sbnrow,alpha_l_ji, &
@@ -2140,27 +2148,48 @@ END SUBROUTINE cp_sm_scale_and_add
 
 ! *****************************************************************************
 
-  SUBROUTINE transfer_real_matrix(source,TARGET)
+  !!****f* sparse_matrix_types/transfer_real_matrix [1.0] *
+  !!
+  !!   NAME
+  !!     transfer_real_matrix
+  !!
+  !!   FUNCTION
+  !!   Transfers source matrix to target matrix (copies the values) 
+  !!   filtering the result trough the structure (sparsity) of target matrix
+  !!
+  !!   NOTES
+  !!     assumes that both matrixes have the same distribution
+  !!
+  !!   INPUTS
+  !!     source_matrix: the matrix to copy
+  !!     target_matrix: the matrix that will contain the copy
+  !!     error: variable to control error logging, stopping,... 
+  !!            see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     Matthias Krack
+  !!
+  !!   MODIFICATION HISTORY
+  !!     - 10.04.2002 Creation [MK]
+  !!     - 4.2003 extended for matrixes with different structures [fawzi]
+  !!
+  !!*** *********************************************************************
+  SUBROUTINE transfer_real_matrix(source_matrix,target_matrix ,error)
 
-!   Purpose: Transfer source matrix to target matrix. Both matrices have the
-!            same structure.
-
-!   History: - Creation (10.04.2002, MK)
-
-!   ***************************************************************************
-
-    TYPE(real_matrix_type), POINTER :: source,TARGET
+    TYPE(real_matrix_type), POINTER :: source_matrix,target_matrix
+    TYPE(cp_error_type), INTENT(inout), optional :: error
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE transfer_real_matrix (MODULE sparse_matrix_types)"
+    CHARACTER(LEN=*), PARAMETER :: routineN ='transfer_real_matrix',&
+      routineP=moduleN//':'//routineN
 
 !   *** Local variables ***
 
+    logical :: failure
     TYPE(real_block_node_type), POINTER :: block_node
 
-    INTEGER :: iblock_col,iblock_row
+    INTEGER :: iblock_col,iblock_row, handle
 
     REAL(wp), DIMENSION(:,:), POINTER :: source_block,target_block
 
@@ -2168,38 +2197,46 @@ END SUBROUTINE cp_sm_scale_and_add
 
 !   *** Check the association status of the source matrix ***
 
-    IF (.NOT.ASSOCIATED(source)) THEN
-      CALL stop_program(routine,"The source matrix pointer is not associated")
-    END IF
-
-    IF (.NOT.ASSOCIATED(TARGET)) THEN
-      CALL stop_program(routine,"The target matrix pointer is not associated")
-    END IF
+    CALL timeset(routineN,"I","",handle)
+    failure=.false.
+    CPPrecondition(ASSOCIATED(source_matrix),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(target_matrix),cp_failure_level,routineP,error,failure)
 
 !   *** Copy matrix elements ***
 
-    DO iblock_row=1,source%nblock_row
+    DO iblock_row=1,source_matrix%nblock_row
 
-      block_node => first_block_node(source,iblock_row)
+      block_node => first_block_node(target_matrix,iblock_row)
 
       DO WHILE (ASSOCIATED(block_node))
 
         CALL get_block_node(block_node=block_node,&
                             block_col=iblock_col,&
-                            BLOCK=source_block)
-
-        CALL get_block_node(matrix=TARGET,&
-                            block_row=iblock_row,&
-                            block_col=iblock_col,&
                             BLOCK=target_block)
 
-        target_block(:,:) = source_block(:,:)
-
+        IF (ASSOCIATED(target_block)) THEN
+           CALL get_block_node(matrix=source_matrix,&
+                block_row=iblock_row,&
+                block_col=iblock_col,&
+                BLOCK=source_block)
+           
+           IF (ASSOCIATED(source_block)) THEN
+              CPPrecondition(SIZE(target_block,1)==SIZE(source_block,1),cp_failure_level,routineP,error,failure)
+              CPPrecondition(SIZE(target_block,2)==SIZE(source_block,2),cp_failure_level,routineP,error,failure)
+              CALL dcopy(SIZE(target_block,1)*SIZE(target_block,2),&
+                   source_block(1,1),1,target_block(1,1),1)
+           ELSE
+              CALL dcopy(SIZE(target_block,1)*SIZE(target_block,2),&
+                   0,0,target_block(1,1),1)
+           END IF
+        END IF
+        
         block_node => block_node%next_block_node
 
       END DO
 
     END DO
+    CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE transfer_real_matrix
 

@@ -29,6 +29,8 @@ MODULE qs_arpack_diag_sy
                                  blacs_find_vector_distribution, &
                                  copy_vector_to_blacs, &
                                  copy_blacs_to_vector,blacs_daxpy
+  USE cp_para_types, ONLY: cp_para_env_type, cp_blacs_env_type
+  USE cp_error_handling, only: cp_error_type
 
   ! the operators
   USE qs_arpack_full,      ONLY: arpack_op_symv, op_symv_type
@@ -81,8 +83,8 @@ CONTAINS
 !!
 !!****
 SUBROUTINE arpack_diag_sy(vmatrix, &
-                          eval, nev, ncv, use_vectors, globenv, &
-                          op_symv)
+                          eval, nev, ncv, use_vectors, blacs_env,para_env, &
+                          op_symv, error)
 
   IMPLICIT NONE
 
@@ -92,8 +94,10 @@ SUBROUTINE arpack_diag_sy(vmatrix, &
   INTEGER, INTENT(IN)                          :: nev
   INTEGER, INTENT(IN)                          :: ncv 
   LOGICAL, INTENT(IN)                          :: use_vectors
-  TYPE(global_environment_type), INTENT(IN)    :: globenv
+  TYPE(cp_blacs_env_type), POINTER             :: blacs_env
+  TYPE(cp_para_env_type), POINTER              :: para_env
   TYPE(op_symv_type), INTENT(in), OPTIONAL     :: op_symv
+  TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
   ! locals
   INTEGER                           :: op_present
@@ -125,26 +129,26 @@ SUBROUTINE arpack_diag_sy(vmatrix, &
      op_present = op_present + 1
   END IF
   IF (op_present /= 1) THEN
-     CALL stop_program(routineP, "An operation must be specified", globenv)
+     CALL stop_program(routineP, "An operation must be specified")
   END IF
 
-  context = globenv%blacs_env%group
-  CALL arpack_confirm(globenv)
+  context = blacs_env%group
+  CALL arpack_confirm()
 
   CALL cp_fm_get_info(vmatrix, ncol_global=vmatrix_cols)
   IF (vmatrix_cols < nev) THEN
-     CALL stop_program(routineP, "vmatrix should have at least nev columns", globenv)
+     CALL stop_program(routineP, "vmatrix should have at least nev columns")
   END IF
 
   IF (nev .LT. 1) THEN
-     CALL stop_program(routineP,"nev too small",globenv)
+     CALL stop_program(routineP,"nev too small")
   ENDIF
   IF (ncv .LT. nev+1) THEN
-     CALL stop_program(routineP,"ncv to small",globenv)
+     CALL stop_program(routineP,"ncv to small")
   ENDIF
 ! limitation of arpack ... no way to get all eigenvectors (well, wouldn't make sence anyway)
   IF (ncv .GT. n) THEN
-     CALL stop_program(routineP,"ncv to large",globenv)
+     CALL stop_program(routineP,"ncv to large")
   ENDIF
 
   ! here we learn how big nloc has to be
@@ -197,7 +201,7 @@ SUBROUTINE arpack_diag_sy(vmatrix, &
 
 #if defined(__parallel)
   ! arpack_comm = context       ! use BLACS / seems to be a bug on SUN
-  arpack_comm = globenv%group   ! use MPI / needs renaming of pxlamch
+  arpack_comm = para_env%group  ! use MPI / needs renaming of pxlamch
                                 ! conflicts with scalapack
 #endif
   
@@ -237,7 +241,7 @@ SUBROUTINE arpack_diag_sy(vmatrix, &
    
   !  the famous reverse communication let dsaupd 'call' arpack_op_blacs
   DO
-     !write(6,*) "in the loop",globenv%mepos
+     !write(6,*) "in the loop",para_env%mepos
 
 #if defined(__ARPACK)
 #if defined(__parallel)
@@ -252,14 +256,14 @@ SUBROUTINE arpack_diag_sy(vmatrix, &
 #endif
 
      IF (info.LT.0) THEN
-        CALL stop_program(routineP,"error in dsaupd",globenv) 
+        CALL stop_program(routineP,"error in dsaupd") 
      ENDIF
 
      IF (ido .EQ. -1 .OR. ido .EQ. 1) THEN
        vin =>workd(ipntr(1):)
        vout=>workd(ipntr(2):)
        IF (PRESENT(op_symv)) THEN
-          CALL arpack_op_symv(op_symv, vin, vout, globenv)
+          CALL arpack_op_symv(op_symv, vin, vout, blacs_env, para_env, error)
        END IF
      ELSE
        EXIT
@@ -282,15 +286,15 @@ SUBROUTINE arpack_diag_sy(vmatrix, &
 #endif
 
   IF ( ierr .NE. 0) THEN
-     CALL stop_program(routineP,"dseupd error",globenv)
+     CALL stop_program(routineP,"dseupd error")
   ENDIF
 
   IF ( iparam(5) .NE. nev) THEN
-     CALL stop_program(routineP,"dseupd not all converged",globenv)
+     CALL stop_program(routineP,"dseupd not all converged")
   ENDIF
 
   IF ( info .EQ. 1) THEN
-     CALL stop_program(routineP,"max number of iterations reached",globenv)
+     CALL stop_program(routineP,"max number of iterations reached")
   ENDIF
 
   ! copy eigenvalues

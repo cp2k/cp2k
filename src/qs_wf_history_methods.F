@@ -78,6 +78,7 @@ MODULE qs_wf_history_methods
                                              pw_p_type,&
                                              pw_type
   USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_env_reorthogonalize_vectors,&
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change
   USE qs_mo_types,                     ONLY: calculate_density_matrix,&
@@ -96,12 +97,14 @@ MODULE qs_wf_history_methods
                                              wfi_linear_wf_method_nr,&
                                              wfi_use_guess_method_nr,&
                                              wfi_use_prev_p_method_nr,&
-                                             wfi_use_prev_rho_r_method_nr
+                                             wfi_use_prev_rho_r_method_nr,&
+                                             wfi_use_prev_wf_method_nr
   USE sparse_matrix_types,             ONLY: copy_matrix,&
                                              cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&
-                                             real_matrix_type
+                                             real_matrix_type,&
+                                             transfer_matrix
   USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -344,6 +347,8 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
      END IF
 
   END IF
+  CALL timestop(0.0_wp,handle)
+
 END SUBROUTINE wfs_update
 !***************************************************************************
 
@@ -411,10 +416,14 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, error)
      SELECT CASE(wf_history%interpolation_method_nr)
      CASE(wfi_use_guess_method_nr)
         wf_history%memory_depth=0
+     CASE(wfi_use_prev_wf_method_nr)
+        wf_history%memory_depth=0
      CASE(wfi_use_prev_p_method_nr)
-        wf_history%memory_depth=0
+        wf_history%memory_depth=1
+        wf_history%store_rho_ao=.TRUE.
      CASE(wfi_use_prev_rho_r_method_nr)
-        wf_history%memory_depth=0
+        wf_history%memory_depth=1
+        wf_history%store_rho_ao=.TRUE.
      CASE(wfi_linear_wf_method_nr)
         wf_history%memory_depth=2
         wf_history%store_wf=.TRUE.
@@ -474,8 +483,8 @@ END SUBROUTINE wfi_create
 !!     02.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-FUNCTION wfi_get_method_label(wf_history,error) RESULT(res)
-  TYPE(qs_wf_history_type), POINTER :: wf_history
+FUNCTION wfi_get_method_label(method_nr,error) RESULT(res)
+  INTEGER, INTENT(in) :: method_nr
   CHARACTER(len=30) ::res
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
@@ -485,13 +494,13 @@ FUNCTION wfi_get_method_label(wf_history,error) RESULT(res)
 
   failure=.FALSE.
   
-  CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,error,failure)
-  CPPrecondition(wf_history%ref_count>0,cp_failure_level,routineP,error,failure)
   res="unknown"
   IF (.NOT. failure) THEN
-     SELECT CASE(wf_history%interpolation_method_nr)
+     SELECT CASE(method_nr)
      CASE(wfi_use_prev_p_method_nr)
         res="previous_p"
+     CASE(wfi_use_prev_wf_method_nr)
+        res="previous_wf"
      CASE(wfi_use_prev_rho_r_method_nr)
         res="previous_rho_r"
      CASE(wfi_use_guess_method_nr)
@@ -505,7 +514,7 @@ FUNCTION wfi_get_method_label(wf_history,error) RESULT(res)
     CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"Unknown interpolation method: "//&
-             TRIM(ADJUSTL(cp_to_string(wf_history%interpolation_method_nr)))//&
+             TRIM(ADJUSTL(cp_to_string(method_nr)))//&
              " in "//&
              CPSourceFileRef,&
              error, failure)
@@ -521,11 +530,12 @@ END FUNCTION wfi_get_method_label
 !!
 !!   SYNOPSIS
 !!     Subroutine wfi_extrapolate(wf_history, qs_env, dt, extrapolated,&
-!!         error)
+!!         orthogonal_wf, error)
 !!       Type(qs_wf_history_type), Pointer:: wf_history
-!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
+!!       Type(qs_environment_type), Pointer:: qs_env
 !!       Real(Kind=wp), Intent (IN):: dt
 !!       Logical, Intent (OUT):: extrapolated
+!!       Logical, Intent (OUT), Optional:: orthogonal_wf
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine wfi_extrapolate
 !!
@@ -541,7 +551,7 @@ END FUNCTION wfi_get_method_label
 !!     - qs_env: the qs env with the latest result, and that will contain
 !!       the new starting state
 !!     - dt: the time at which to extrapolate (wrt. to the last snapshot)
-!!     - extrapolated: true if the extrapolation was performed
+!!     - extrapolation_method_nr: returns the extrapolation method used
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -552,14 +562,16 @@ END FUNCTION wfi_get_method_label
 !!     02.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolated, error)
+SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
+     orthogonal_wf, error)
   TYPE(qs_wf_history_type), POINTER :: wf_history
-  TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
+  TYPE(qs_environment_type), POINTER :: qs_env
   REAL(kind=wp), INTENT(in) :: dt
-  LOGICAL, INTENT(out) :: extrapolated
+  INTEGER, INTENT(out), OPTIONAL :: extrapolation_method_nr
+  LOGICAL, INTENT(out), OPTIONAL :: orthogonal_wf
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  LOGICAL :: failure
+  LOGICAL :: failure, my_orthogonal_wf
   CHARACTER(len=*), PARAMETER :: routineN='wfi_extrapolate',&
         routineP=moduleN//':'//routineN
   TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mos
@@ -567,14 +579,16 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolated, error)
   TYPE(qs_wf_snapshot_type), POINTER :: t0_state, t1_state
   TYPE(cp_full_matrix_type), POINTER :: eigenvectors
   TYPE(qs_rho_type), POINTER :: rho
-  REAL(kind=wp) :: t1,t2,t3
-  INTEGER :: ispin, actual_extrapolation_method_nr
+  REAL(kind=wp) :: t0,t1,t2
+  INTEGER :: ispin, actual_extrapolation_method_nr, nmo
 
   NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, eigenvectors, rho)
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,error,failure)
   CPPrecondition(wf_history%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)  
   IF (.NOT. failure) THEN
      CALL get_qs_env(qs_env,ao_mo_fm_pools=ao_mo_fm_pools, c=mos,&
           rho=rho,error=error)
@@ -588,31 +602,68 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolated, error)
      SELECT CASE(actual_extrapolation_method_nr)
       CASE(wfi_linear_wf_method_nr)
          IF (wf_history%snapshot_count<2) THEN
-           actual_extrapolation_method_nr=wfi_use_prev_p_method_nr
+           actual_extrapolation_method_nr=wfi_use_prev_wf_method_nr
         END IF
      CASE(wfi_linear_p_method_nr)
         IF (wf_history%snapshot_count<2) THEN
-           actual_extrapolation_method_nr=wfi_use_prev_p_method_nr
+           actual_extrapolation_method_nr=wfi_use_prev_wf_method_nr
         END IF
      CASE(wfi_linear_ps_method_nr)
         IF (wf_history%snapshot_count<2) THEN
-           actual_extrapolation_method_nr=wfi_use_prev_p_method_nr
+           actual_extrapolation_method_nr=wfi_use_prev_wf_method_nr
         END IF
      END SELECT
 
-     extrapolated=.TRUE.
+     if (present(extrapolation_method_nr)) &
+          extrapolation_method_nr=actual_extrapolation_method_nr
+     my_orthogonal_wf=.FALSE.
 
      SELECT CASE (actual_extrapolation_method_nr)
      CASE(wfi_use_prev_rho_r_method_nr)
+        t0_state => wfi_get_snapshot(wf_history, index=1, error=error)
+        CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_failure_level,routineP,error,failure)
+        DO ispin=1,SIZE(t0_state%rho_ao)
+           CALL transfer_matrix(source_matrix=t0_state%rho_ao(ispin)%matrix,&
+                target_matrix=rho%rho_ao(ispin)%matrix, error=error)
+        END DO
+        rho%rho_ao_valid=.FALSE.
+        rho%rho_g_valid=.TRUE.
+        rho%rho_ao_valid=.TRUE.
         ! does nothing
+     CASE(wfi_use_prev_wf_method_nr)
+        my_orthogonal_wf=.TRUE.
+        DO ispin=1,SIZE(mos)
+           CALL get_mo_set(mos(ispin)%mo_set,eigenvectors=eigenvectors,&
+                nmo=nmo)
+           CALL qs_env_reorthogonalize_vectors(qs_env,&
+                v_matrix=eigenvectors,ispin=ispin,&
+                n_col=nmo, error=error)
+           CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
+                density_matrix=rho%rho_ao(ispin)%matrix,error=error)
+        END DO
+        CALL qs_rho_update_rho(rho, rho_ao_new=rho%rho_ao,&
+             qs_env=qs_env, error=error)
+        CALL qs_ks_did_change(qs_env%ks_env,qs_env=qs_env,&
+             rho_changed=.TRUE., error=error)
      CASE(wfi_use_prev_p_method_nr)
-        ! reorthogonalize mos?
+        t0_state => wfi_get_snapshot(wf_history, index=1, error=error)
+        CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_failure_level,routineP,error,failure)
+        DO ispin=1,SIZE(t0_state%rho_ao)
+           CALL transfer_matrix(source_matrix=t0_state%rho_ao(ispin)%matrix,&
+                target_matrix=rho%rho_ao(ispin)%matrix, error=error)
+        END DO
+        !FM updating rho_ao directly with t0_state%rho_ao would have the
+        !FM wrong matrix structure
         CALL qs_rho_update_rho(rho, rho_ao_new=rho%rho_ao,&
              qs_env=qs_env, error=error)
         CALL qs_ks_did_change(qs_env%ks_env,qs_env=qs_env,&
              rho_changed=.TRUE., error=error)
      CASE(wfi_use_guess_method_nr)
-        extrapolated=.FALSE.
+        !FM more clean to do it here, but it
+        !FM might need to read a file (restart) and thus globenv
+        !FM I do not want globenv here, thus done by the caller
+        !FM (btw. it also needs the eigensolver, and unless you relocate it
+        !FM gives circular dependencies)
      CASE(wfi_linear_wf_method_nr)
         t0_state => wfi_get_snapshot(wf_history, index=2, error=error)
         t1_state => wfi_get_snapshot(wf_history, index=1, error=error)
@@ -623,27 +674,32 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolated, error)
            CPPrecondition(ASSOCIATED(t1_state%wf),cp_warning_level,routineP,error,failure)           
         END IF
         IF (.NOT.failure) THEN
-           t1=0.0_wp
-           t2=t1_state%dt
-           t3=t2+dt
+           my_orthogonal_wf=.TRUE.
+           t0=0.0_wp
+           t1=t1_state%dt
+           t2=t1+dt
            DO ispin=1,SIZE(mos)
-              CALL get_mo_set(mos(ispin)%mo_set,eigenvectors=eigenvectors)
+              CALL get_mo_set(mos(ispin)%mo_set,eigenvectors=eigenvectors,&
+                   nmo=nmo)
               CALL cp_fm_scale_and_add(alpha=0.0_wp,&
                    matrix_a=eigenvectors,&
                    matrix_b=t1_state%wf(ispin)%matrix,&
+                   beta=(t2-t0)/(t1-t0),&
                    error=error) ! this copy should be unnecessary
-              CALL cp_fm_scale_and_add(alpha=(t2-t3)/(t2-t1),&
+              CALL cp_fm_scale_and_add(alpha=1.0_wp,&
                    matrix_a=eigenvectors,&
-                   beta=(t3-t1)/(t2-t1), matrix_b=t0_state%wf(ispin)%matrix,&
+                   beta=(t1-t2)/(t1-t0), matrix_b=t0_state%wf(ispin)%matrix,&
                    error=error)
-              ! reorthogonalize ?
+              CALL qs_env_reorthogonalize_vectors(qs_env,&
+                   v_matrix=eigenvectors,ispin=ispin,&
+                   n_col=nmo, error=error)
               CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
                    density_matrix=rho%rho_ao(ispin)%matrix,error=error)
            END DO
-              CALL qs_rho_update_rho(rho, rho_ao_new=rho%rho_ao,&
-                   qs_env=qs_env, error=error)
-              CALL qs_ks_did_change(qs_env%ks_env,qs_env=qs_env,&
-                   rho_changed=.TRUE., error=error)
+           CALL qs_rho_update_rho(rho, rho_ao_new=rho%rho_ao,&
+                qs_env=qs_env, error=error)
+           CALL qs_ks_did_change(qs_env%ks_env,qs_env=qs_env,&
+                rho_changed=.TRUE., error=error)
            END IF
      CASE(wfi_linear_p_method_nr)
         t0_state => wfi_get_snapshot(wf_history, index=2, error=error)
@@ -655,18 +711,19 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolated, error)
            CPPrecondition(ASSOCIATED(t1_state%rho_ao),cp_warning_level,routineP,error,failure)           
         END IF
         IF (.not.failure) THEN
-           t1=0.0_wp
-           t2=t1_state%dt
-           t3=t2+dt
+           t0=0.0_wp
+           t1=t1_state%dt
+           t2=t1+dt
            DO ispin=1,SIZE(mos)
               CALL get_mo_set(mos(ispin)%mo_set,eigenvectors=eigenvectors)
               CALL cp_sm_scale_and_add(alpha=0.0_wp,&
                    matrix_a=rho%rho_ao(ispin)%matrix,&
                    matrix_b=t1_state%rho_ao(ispin)%matrix,&
+                   beta=(t2-t0)/(t1-t0),&
                    error=error) ! this copy should be unnecessary
-              CALL cp_sm_scale_and_add(alpha=(t2-t3)/(t2-t1),&
+              CALL cp_sm_scale_and_add(alpha=1.0_wp,&
                    matrix_a=rho%rho_ao(ispin)%matrix,&
-                   beta=(t3-t1)/(t2-t1), &
+                   beta=(t1-t2)/(t1-t0), &
                    matrix_b=t0_state%rho_ao(ispin)%matrix,&
                    error=error)
               ! purify ?
@@ -690,13 +747,15 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolated, error)
            CPPrecondition(ASSOCIATED(t1_state%overlap),cp_warning_level,routineP,error,failure)           
         END IF
         IF (.not.failure) THEN
-           t1=0.0_wp
-           t2=t1_state%dt
-           t3=t2+dt
+           t0=0.0_wp
+           t1=t1_state%dt
+           t2=t2+dt
            CALL cp_unimplemented_error(fromWhere=routineP, &
-                message="sparse time sparse: aoxao full matrix needed?"//&
+                message="sparse time sparse: aoxao full matrix needed!"//&
 CPSourceFileRef,&
                 error=error)
+           ! try to blindly use scf_env aoxao matrixes?
+           ! add pool of aoxao full matrixes?
         END IF
     CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -706,6 +765,7 @@ CPSourceFileRef,&
              CPSourceFileRef,&
              error, failure)
      END SELECT
+     IF (PRESENT(orthogonal_wf)) orthogonal_wf=my_orthogonal_wf
   END IF
 END SUBROUTINE wfi_extrapolate
 !***************************************************************************
@@ -762,7 +822,7 @@ SUBROUTINE wfi_update(wf_history, qs_env, dt, error)
   IF (.NOT. failure) THEN
      wf_history%snapshot_count=wf_history%snapshot_count+1
      IF (wf_history%memory_depth>0) THEN
-        wf_history%last_state_index=MOD(wf_history%last_state_index+1,&
+        wf_history%last_state_index=MODULO(wf_history%last_state_index,&
              wf_history%memory_depth)+1
         CALL wfs_update(snapshot=wf_history%past_states &
              (wf_history%last_state_index)%snapshot,wf_history=wf_history,&

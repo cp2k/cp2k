@@ -43,9 +43,12 @@ MODULE qs_environment_types
                                              cp_internal_error,&
                                              cp_unimplemented_error,&
                                              cp_unimplemented_error_nr
+  USE cp_fm_basic_linalg,              ONLY: cp_sm_fm_multiply
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create,&
+                                             fm_pool_create_fm,&
+                                             fm_pool_give_back_fm,&
                                              fm_pool_release,&
                                              fm_pool_retain,&
                                              fm_pools_copy,&
@@ -54,6 +57,8 @@ MODULE qs_environment_types
                                              cp_fm_struct_release,&
                                              cp_fm_struct_retain,&
                                              cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_full_matrix_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -89,6 +94,7 @@ MODULE qs_environment_types
   USE pw_env_types,                    ONLY: pw_env_release,&
                                              pw_env_retain,&
                                              pw_env_type
+  USE qs_blacs,                        ONLY: blacs_make_basis
   USE qs_charges_types,                ONLY: qs_charges_create,&
                                              qs_charges_release,&
                                              qs_charges_retain,&
@@ -107,7 +113,8 @@ MODULE qs_environment_types
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_retain,&
                                              qs_rho_type
-  USE qs_scf_types,                    ONLY: qs_scf_env_type,&
+  USE qs_scf_types,                    ONLY: ot_method_nr,&
+                                             qs_scf_env_type,&
                                              scf_env_release,&
                                              scf_env_retain
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
@@ -140,7 +147,8 @@ MODULE qs_environment_types
             init_qs_env,&
             set_qs_env,&
             qs_env_create, qs_env_retain, qs_env_release,&
-            qs_env_update_h_redundant_pools
+            qs_env_update_h_redundant_pools,&
+            qs_env_reorthogonalize_vectors
 
 !!***
 !****************************************************************************
@@ -867,6 +875,100 @@ SUBROUTINE qs_env_update_h_redundant_pools(qs_env,error)
   CALL timestop(0.0_wp,handle)
 
 END SUBROUTINE qs_env_update_h_redundant_pools
+!***************************************************************************
+
+!!****f* qs_environment_types/qs_env_reorthogonalize_vectors [1.0] *
+!!
+!!   NAME
+!!     qs_env_reorthogonalize_vectors
+!!
+!!   SYNOPSIS
+!!     Subroutine qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin,&
+!!         n_col, error)
+!!       Type(qs_environment_type), Pointer:: qs_env
+!!       Type(cp_full_matrix_type), Pointer:: v_matrix
+!!       Integer, Intent (IN):: ispin
+!!       Integer, Intent (IN), Optional:: n_col
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine qs_env_reorthogonalize_vectors
+!!
+!!   FUNCTION
+!!     reorthogonalizes the mos
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - qs_env: the qs_env in which to orthogonalize
+!!     - v: the vectors to orthogonalize
+!!     - ispin: the spin of the vector to orthogonalize (unused at the 
+!!       moment)
+!!     - n_col: number of column of v to orthogonalize
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     04.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
+     error)
+  TYPE(qs_environment_type), POINTER :: qs_env
+  TYPE(cp_full_matrix_type), POINTER :: v_matrix
+  INTEGER, INTENT(in) :: ispin
+  INTEGER, INTENT(in), OPTIONAL :: n_col
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure, ortho_contains_cholesky
+  CHARACTER(len=*), PARAMETER :: routineN='qs_env_reorthogonalize_vectors',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: my_n_col, nmo
+  TYPE(qs_scf_env_type), POINTER :: scf_env
+  TYPE(scf_control_type), POINTER :: scf_control
+  TYPE(cp_full_matrix_type), POINTER :: sv
+  TYPE(cp_fm_pool_type), POINTER :: ao_maxmo_fm_pool
+  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
+  
+  failure=.FALSE.
+  NULLIFY(scf_env,scf_control,sv,ao_maxmo_fm_pool,s)
+  
+  CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(v_matrix),cp_failure_level,routineP,error,failure)
+  
+  IF (.NOT. failure) THEN
+
+     CALL cp_fm_get_info(v_matrix,ncol_global=my_n_col,error=error)
+     IF (PRESENT(n_col)) my_n_col=n_col
+     CALL get_qs_env(qs_env,ao_maxmo_fm_pool=ao_maxmo_fm_pool,&
+          scf_env=scf_env,&
+          scf_control=scf_control,&
+          s=s,&
+          error=error)
+     IF (ASSOCIATED(scf_env)) THEN
+        ortho_contains_cholesky=(scf_env%method /= ot_method_nr).AND.&
+             (scf_control%use_cholesky .OR. scf_control%use_arpack).AND.&
+             ASSOCIATED(scf_env%ortho)
+     ELSE
+        ortho_contains_cholesky=.FALSE.
+     END IF
+
+     IF (ortho_contains_cholesky) THEN
+        CALL blacs_make_basis(vmatrix=v_matrix,ncol=my_n_col,&
+             ortho=scf_env%ortho,otype='CHOLESKY')
+     ELSE
+        CALL fm_pool_create_fm(ao_maxmo_fm_pool,sv,error=error)
+        CALL cp_sm_fm_multiply(sparse_matrix=s(1)%matrix,v_in=v_matrix,&
+             v_out=sv,ncol=my_n_col,para_env=qs_env%para_env, &
+             error=error)
+        CALL blacs_make_basis(vmatrix=v_matrix,ncol=my_n_col,&
+             ortho=sv,otype='SV')
+        CALL fm_pool_give_back_fm(ao_maxmo_fm_pool,sv,error=error)
+     END IF
+  END IF
+END SUBROUTINE qs_env_reorthogonalize_vectors
 !***************************************************************************
 
 END MODULE qs_environment_types

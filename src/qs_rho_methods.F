@@ -351,6 +351,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
         ! assumes that equality is valid for all the spins
         my_rebuild=.TRUE.
         update_rho_ao_local=.FALSE.
+        rho_struct%rho_ao_valid=.TRUE.
         DO ispin=2,nspins
            CALL cp_assert(rho_ao_new(1)%matrix%id_nr==&
                 rho_struct%rho_ao(1)%matrix%id_nr,cp_failure_level,&
@@ -360,6 +361,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
                 error=error,failure=failure)
         END DO
      ELSE
+        rho_struct%rho_ao_valid=.FALSE.
         DO ispin=2,nspins
            CALL cp_assert(rho_ao_new(1)%matrix%id_nr /= &
                 rho_struct%rho_ao(1)%matrix%id_nr,cp_failure_level,&
@@ -412,7 +414,6 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
      CALL pw_pools_give_back_coeffs(pw_pools, mgrid_gspace, error=error)
      DEALLOCATE(mgrid_gspace, mgrid_rspace,stat=stat)
      
-     rho_struct%rho_ao_valid=.FALSE.
      rho_struct%rho_r_valid=.TRUE.
      rho_struct%rho_g_valid=.TRUE.
      IF (update_rho_ao_local) THEN
