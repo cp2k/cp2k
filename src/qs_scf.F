@@ -92,8 +92,10 @@ MODULE qs_scf
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
-                                             cp_fm_trace,&
-                                             cp_sm_fm_multiply
+                                             cp_fm_trace
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply, &
+                                             copy_fm_to_sm,&
+                                             copy_sm_to_fm
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
@@ -104,8 +106,6 @@ MODULE qs_scf
                                              blacs_syevd,&
                                              blacs_syevx,&
                                              copy_blacs_to_blacs_matrix,&
-                                             copy_fm_to_real_matrix,&
-                                             copy_real_matrix_to_fm,&
                                              power_blacs_matrix,&
                                              replicate_blacs_matrix,&
                                              symmetrise_blacs_matrix,&
@@ -662,7 +662,7 @@ CONTAINS
        CASE(diagonalisation_method_nr) ! diagonalisation (default)
 
           DO ispin=1,dft_control%nspins 
-             CALL copy_real_matrix_to_fm(ks(ispin)%matrix,scf_work1(ispin)%matrix)
+             CALL copy_sm_to_fm(ks(ispin)%matrix,scf_work1(ispin)%matrix)
           ENDDO
 
           IF (scf_env%iter_count > 1) THEN
@@ -1012,7 +1012,7 @@ CONTAINS
     ndep = 0
     IF (scf_env%method /= ot_method_nr) THEN
        IF (scf_control%use_cholesky .OR. scf_control%use_arpack) THEN
-          CALL copy_real_matrix_to_fm(s(1)%matrix,ortho)
+          CALL copy_sm_to_fm(s(1)%matrix,ortho)
           CALL cp_fm_cholesky_decompose(ortho)
        ELSE
           CALL calculate_ortho_matrix(ortho,s(1)%matrix,scf_work2,ndep,&
@@ -1281,7 +1281,7 @@ CONTAINS
 
     CALL timeset("calculate_ortho_matrix","I","",handle)
 
-    CALL copy_real_matrix_to_fm(s,ortho)
+    CALL copy_sm_to_fm(s,ortho)
     CALL power_blacs_matrix(ortho,work,-0.5_wp,eps_eigval,ndep,work_syevx)
     CALL symmetrise_blacs_matrix(ortho,work)
 
@@ -1682,7 +1682,7 @@ CONTAINS
           ALLOCATE (econf(0:maxl),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineP,"econf",(maxl + 1)*int_size)
 
-          CALL copy_real_matrix_to_fm(s_sparse(1)%matrix,work2)
+          CALL copy_sm_to_fm(s_sparse(1)%matrix,work2)
 
           DO ikind=1,SIZE(atomic_kind_set)
 
@@ -1791,7 +1791,7 @@ CONTAINS
              END DO
           END DO
 
-          CALL copy_fm_to_real_matrix(work1(ispin)%matrix,p_rmpv(ispin)%matrix)
+          CALL copy_fm_to_sm(work1(ispin)%matrix,p_rmpv(ispin)%matrix)
 
        ENDDO
 

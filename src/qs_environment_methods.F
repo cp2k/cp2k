@@ -48,8 +48,8 @@ MODULE qs_environment_methods
                                              cp_internal_error,&
                                              cp_unimplemented_error
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale_and_add,&
-                                             cp_sm_fm_multiply
+                                             cp_fm_scale_and_add
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_release,&
                                              cp_fm_p_type,&

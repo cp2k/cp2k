@@ -26,9 +26,7 @@
 MODULE qs_tddfpt_types
   USE cp_error_handling,               ONLY: cp_simple_assert
   USE cp_fm_struct,                    ONLY: cp_fm_struct_type, &
-                                             cp_fm_struct_create, &
-                                             optimal_blacs_col_block_size, &
-                                             optimal_blacs_row_block_size
+                                             cp_fm_struct_create
   USE cp_fm_types,                     ONLY: cp_fm_type, &
                                              cp_fm_p_type, &
                                              cp_fm_create, &
@@ -177,9 +175,7 @@ CONTAINS
 
        DO ev=1, n_ev
           CALL cp_fm_struct_create(fm_struct, qs_env%para_env, qs_env%blacs_env, &
-                                   p_env%n_ao(spin), p_env%n_mo(spin), &
-                                   optimal_blacs_row_block_size, &
-                                   optimal_blacs_col_block_size)
+                                   p_env%n_ao(spin), p_env%n_mo(spin))
           CALL cp_fm_create(t_env%x(ev)%spins(spin)%matrix, fm_struct, &
                routineP//"t_env%x-"//TRIM(cp_to_string(ev))//"-"//TRIM(cp_to_string(spin)))
           CALL cp_fm_set_all(t_env%x(ev)%spins(spin)%matrix, 0.0_dbl) ! fill with zeros
@@ -193,8 +189,8 @@ CONTAINS
     DO spin=1, n_spins
        NULLIFY(fm_struct)
        CALL cp_fm_struct_create(fm_struct, qs_env%para_env, qs_env%blacs_env, &
-                                p_env%n_ao(spin), p_env%n_ao(spin), &
-                                optimal_blacs_row_block_size, optimal_blacs_col_block_size)
+                                p_env%n_ao(spin), p_env%n_ao(spin))
+                                
        CALL cp_fm_create(t_env%invS(spin)%matrix, fm_struct, routineP//"invS")
     END DO
 

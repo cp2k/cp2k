@@ -25,8 +25,9 @@ MODULE preconditioner
                                              cp_fm_schur_product,&
                                              cp_fm_symm,&
                                              cp_fm_syrk,&
-                                             cp_fm_trace,&
-                                             cp_sm_fm_multiply
+                                             cp_fm_trace
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
+                                             copy_sm_to_fm
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert,&
                                              cp_fm_cholesky_reduce,&
@@ -60,8 +61,6 @@ MODULE preconditioner
                                              blacs_syevx,&
                                              blacs_transpose,&
                                              copy_blacs_to_blacs_matrix,&
-                                             copy_fm_to_real_matrix,&
-                                             copy_real_matrix_to_fm,&
                                              replicate_blacs_matrix,&
                                              write_blacs_matrix
   USE qs_mo_types,                     ONLY: calculate_subspace_eigenvalues
@@ -628,8 +627,8 @@ SUBROUTINE make_full_single(preconditioner_env, matrix_h, matrix_s, &
   CALL cp_fm_create(fm_s,fm_struct_tmp, name="fm_s")
   CALL cp_fm_struct_release(fm_struct_tmp)
 
-  CALL copy_real_matrix_to_fm(matrix_h,fm_h)
-  CALL copy_real_matrix_to_fm(matrix_s,fm_s)
+  CALL copy_sm_to_fm(matrix_h,fm_h)
+  CALL copy_sm_to_fm(matrix_s,fm_s)
   CALL cp_fm_cholesky_decompose(fm_s)
   CALL cp_fm_cholesky_reduce(fm_h,fm_s)
   CALL blacs_syevd(fm_h,preconditioner_env%fm,evals)
@@ -689,7 +688,7 @@ SUBROUTINE make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
   CALL cp_fm_create(preconditioner_env%fm,fm_struct_tmp, name="preconditioner")
   CALL cp_fm_struct_release(fm_struct_tmp)
 
-  CALL copy_real_matrix_to_fm(matrix_s,preconditioner_env%fm)
+  CALL copy_sm_to_fm(matrix_s,preconditioner_env%fm)
   CALL cp_fm_cholesky_decompose(preconditioner_env%fm)
   CALL cp_fm_cholesky_invert(preconditioner_env%fm)
 
@@ -724,7 +723,7 @@ SUBROUTINE make_full_kinetic(preconditioner_env, matrix_t, matrix_s, &
   shift=MAX(-energy_homo,energy_gap)
   CALL add_matrices(matrix_t,1.0_wp,matrix_t,shift,matrix_s)
 
-  CALL copy_real_matrix_to_fm(matrix_t,preconditioner_env%fm)
+  CALL copy_sm_to_fm(matrix_t,preconditioner_env%fm)
   CALL cp_fm_cholesky_decompose(preconditioner_env%fm)
   CALL cp_fm_cholesky_invert(preconditioner_env%fm)
 

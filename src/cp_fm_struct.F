@@ -69,6 +69,7 @@ MODULE cp_fm_struct
 ! the default blacs block sizes
 ! consider using #ifdefs to give them the optimal values
 ! these can be changed using scf_control 
+! *** these are used by default
   INTEGER :: optimal_blacs_col_block_size=32
   INTEGER :: optimal_blacs_row_block_size=32
 
@@ -176,8 +177,8 @@ CONTAINS
 !!     - para_env: the parallel environment
 !!     - nrow_global: the number of row of the full matrix
 !!     - ncol_global: the number of colums of the full matrix
-!!     - nrow_block: the number of rows of a block of the matrix
-!!     - ncol_block: the number of colums of a block of the matrix
+!!     - nrow_block: the number of rows of a block of the matrix ! useful defaults are in, do not specify
+!!     - ncol_block: the number of colums of a block of the matrix ! useful defaults are in, do not specify
 !!     - context: the blacs context of this matrix
 !!     - local_leading_dimension: the leading dimension of the locally stored
 !!       data block

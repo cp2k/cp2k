@@ -34,8 +34,8 @@ MODULE qs_ot_eigensolver
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
-                                             cp_fm_trace,&
-                                             cp_sm_fm_multiply
+                                             cp_fm_trace
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: wp => dp
   USE preconditioner,                  ONLY: preconditioner_in_use,&

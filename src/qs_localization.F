@@ -25,8 +25,8 @@ MODULE qs_localization
   USE coefficient_types,               ONLY: coeff_type,&
                                              coeff_zero
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_sm_fm_multiply, &
                                              cp_fm_lu_decompose
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_lu_decompose
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&

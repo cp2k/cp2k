@@ -22,8 +22,8 @@
 
 MODULE qs_conductivity
 ! *****************************************************************************
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_sm_fm_multiply
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type

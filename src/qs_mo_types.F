@@ -47,10 +47,10 @@ MODULE qs_mo_types
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fm_basic_linalg,              ONLY: cp_sm_plus_fm_fm_t, &
-                                             cp_fm_gemm,&
-                                             cp_sm_fm_multiply,&
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_plus_fm_fm_t
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm, &
                                              cp_fm_syrk
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create_fm,&

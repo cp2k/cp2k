@@ -67,6 +67,7 @@ OBJECTS_GENERIC =\
  cp_sll_int_tests.o\
  cp_sm_pool_types.o\
  cp_sm_struct.o\
+ cp_sm_fm_interactions.o\
  cube_utils.o\
  densities.o\
  density_types.o\

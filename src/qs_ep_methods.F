@@ -48,8 +48,8 @@ MODULE qs_ep_methods
                                              cp_internal_error,&
                                              cp_unimplemented_error
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
-                                             cp_fm_trace,&
-                                             cp_sm_fm_multiply
+                                             cp_fm_trace
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_get_el_struct,&
@@ -830,12 +830,12 @@ SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
 !FM!   *** Redistribute the core Hamiltonian matrix in ***
 !FM!   *** order to eliminate redundant atomic blocks ***
 !FM
-!FM    CALL copy_real_matrix_to_fm(h(1)%matrix,scf_work1)
+!FM    CALL copy_sm_to_fm(h(1)%matrix,scf_work1)
 !FM    IF ((globenv%num_pe > 1).AND.gth_potential_present) THEN
 !FM      CALL deallocate_matrix(h(1)%matrix)
 !FM      CALL replicate_matrix_structure(s(1)%matrix,h(1)%matrix,&
 !FM                                      "CORE HAMILTONIAN MATRIX")
-!FM      CALL copy_fm_to_real_matrix(scf_work1,h(1)%matrix)
+!FM      CALL copy_fm_to_sm(scf_work1,h(1)%matrix)
 !FM      CALL set_qs_env(qs_env,h=h)
 !FM    END IF
 

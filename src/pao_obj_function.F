@@ -50,6 +50,8 @@ MODULE pao_obj_function
                                              cp_precondition_failed
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type
+  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm, &
+                                             copy_fm_to_sm
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_get_default_logger,&
                                              cp_log,&
@@ -106,8 +108,6 @@ MODULE pao_obj_function
   USE qs_blacs,                        ONLY: add_blacs_to_block_diag_sm,&
                                              blacs_syevx,&
                                              copy_blacs_to_blacs_matrix,&
-                                             copy_fm_to_real_matrix,&
-                                             copy_real_matrix_to_fm,&
                                              power_blacs_matrix,&
                                              symmetrise_blacs_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -131,7 +131,6 @@ MODULE pao_obj_function
   
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN="pao_obj_function"
-  INTEGER, PARAMETER :: cp_optimal_blacs_block_size=32
   
   ! type
   PUBLIC :: pao_gerd_functional_type
@@ -627,11 +626,11 @@ CONTAINS
 
        ! calculates the new density matrix with diagonalization
        ! do not do it every time?
-       CALL copy_real_matrix_to_fm(real_matrix=cp_get_matrix(s_matrix),&
+       CALL copy_sm_to_fm(real_matrix=cp_get_matrix(s_matrix),&
             fm=gf_env%min_blacs_1)
        CALL calculate_ortho_matrix(ortho=gf_env%min_blacs_1,&
             work=gf_env%min_blacs_2,ndep=size_null_space, globenv=g_env)
-       CALL copy_real_matrix_to_fm(real_matrix=cp_get_matrix(h_matrix),&
+       CALL copy_sm_to_fm(real_matrix=cp_get_matrix(h_matrix),&
             fm=gf_env%min_blacs_2)
        CALL orthogonalise_matrix(ortho=gf_env%min_blacs_1,&
             ks=gf_env%min_blacs_2,&
@@ -647,7 +646,7 @@ CONTAINS
        CALL calculate_density_matrix(mo_set=gf_env%mo_set(1)%mo_set,&
             density_matrix=gf_env%min_blacs_2)
        
-       CALL copy_fm_to_real_matrix(gf_env%min_blacs_2,&
+       CALL copy_fm_to_sm(gf_env%min_blacs_2,&
             min_density_m)
 
        CALL symmetrise_diagonal_blocks(min_density_m)
@@ -679,12 +678,12 @@ CONTAINS
           ! ** gf_env%diag_matrix = df/du_{i,j}
                     
           ! 2 H B P i^*
-          CALL copy_real_matrix_to_fm(full_h_rmpv(1)%matrix,&
+          CALL copy_sm_to_fm(full_h_rmpv(1)%matrix,&
                gf_env%scf_work1)
           CALL cp_m2f_with_B_M_pi(min_density_m,cp_get_matrix(gf_env%full_work_m),&
                glob_angles=angles, qs_env=gf_env%qs_env, global_env=g_env,&
                error=error)
-          CALL copy_real_matrix_to_fm(cp_get_matrix(gf_env%full_work_m),&
+          CALL copy_sm_to_fm(cp_get_matrix(gf_env%full_work_m),&
                gf_env%scf_work2)
           CALL cp_fm_symm(side="L",uplo="U",m=full_bas_size,n=full_bas_size,&
                alpha=1.0_wp,matrix_a=gf_env%scf_work1,&
@@ -706,10 +705,10 @@ CONTAINS
                para_env=g_env%para_env,error=error)
           END IF
           ! 2 S B P minH P i^*
-          CALL copy_real_matrix_to_fm(h_matrix%sm,&
+          CALL copy_sm_to_fm(h_matrix%sm,&
                gf_env%min_blacs_1)
           CALL symmetrise_blacs_matrix(gf_env%min_blacs_1,gf_env%min_blacs_2)
-          CALL copy_real_matrix_to_fm(min_density_m,&
+          CALL copy_sm_to_fm(min_density_m,&
                gf_env%min_blacs_2)
           CALL cp_fm_symm('R','U',min_bas_size,min_bas_size,&
                1.0_wp,gf_env%min_blacs_2,gf_env%min_blacs_1, 0.0_wp,&
@@ -717,15 +716,15 @@ CONTAINS
           CALL cp_fm_symm('L','U',min_bas_size,min_bas_size,&
                -0.5_wp,gf_env%min_blacs_2,gf_env%min_blacs_3, 0.0_wp,&
                gf_env%min_blacs_1)
-          CALL copy_fm_to_real_matrix(gf_env%min_blacs_1,&
+          CALL copy_fm_to_sm(gf_env%min_blacs_1,&
                cp_get_matrix(gf_env%min_work_m))
           CALL cp_m2f_with_B_M_pi(cp_get_matrix(gf_env%min_work_m),&
                cp_get_matrix(gf_env%full_work_m),glob_angles=angles,&
                qs_env=gf_env%qs_env, global_env=g_env,&
                error=error)
-          CALL copy_real_matrix_to_fm(cp_get_matrix(gf_env%full_work_m),&
+          CALL copy_sm_to_fm(cp_get_matrix(gf_env%full_work_m),&
                gf_env%scf_work2)
-          CALL copy_real_matrix_to_fm(full_s_rmpv(1)%matrix,&
+          CALL copy_sm_to_fm(full_s_rmpv(1)%matrix,&
                gf_env%scf_work1)
           CALL cp_fm_symm('L','U',full_bas_size,full_bas_size,&
                1.0_wp,gf_env%scf_work1,gf_env%scf_work2,0.0_wp,&

@@ -24,7 +24,7 @@
 MODULE mulliken
 
   USE atomic_kind_types,               ONLY: get_atomic_kind
-  USE cp_fm_basic_linalg,              ONLY: cp_sm_fm_multiply, &
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply, &
                                              cp_sm_plus_fm_fm_t
   USE cp_fm_types,                     ONLY: cp_fm_type, &
                                              cp_fm_create, &

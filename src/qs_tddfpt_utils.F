@@ -21,9 +21,11 @@
 
 MODULE qs_tddfpt_utils
 
-  USE cp_fm_basic_linalg,              ONLY: cp_sm_fm_multiply, &
-                                             cp_fm_scale_and_add,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_trace
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply, &
+                                             copy_fm_to_sm, &
+                                             copy_sm_to_fm
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose, &
                                              cp_fm_cholesky_invert
   USE cp_fm_types,                     ONLY: cp_fm_p_type, &
@@ -35,9 +37,7 @@ MODULE qs_tddfpt_utils
                                              cp_fm_set_submatrix
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
-  USE qs_blacs,                        ONLY: replicate_blacs_matrix, &
-                                             copy_fm_to_real_matrix, &
-                                             copy_real_matrix_to_fm
+  USE qs_blacs,                        ONLY: replicate_blacs_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kpp1_env_methods,             ONLY: kpp1_create
@@ -196,7 +196,7 @@ CONTAINS
     ! Compute the inverse of S using cholesky factorization !
     !-------------------------------------------------------!
     DO spin=1, n_spins
-       CALL copy_real_matrix_to_fm(qs_env%s(spin)%matrix, t_env%invS(spin)%matrix)
+       CALL copy_sm_to_fm(qs_env%s(spin)%matrix, t_env%invS(spin)%matrix)
        CALL cp_fm_cholesky_decompose(t_env%invS(spin)%matrix)
        CALL cp_fm_cholesky_invert(t_env%invS(spin)%matrix)
     END DO

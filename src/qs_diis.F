@@ -47,6 +47,8 @@ MODULE qs_diis
                                              cp_fm_gemm,&
                                              cp_fm_symm,&
                                              cp_fm_trace
+  USE cp_sm_fm_interactions,           ONLY: copy_fm_to_sm, &
+                                             copy_sm_to_fm
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -60,7 +62,6 @@ MODULE qs_diis
   USE mathlib,                         ONLY: diagonalize_matrix,&
                                              symmetrize_matrix
   USE qs_blacs,                        ONLY: copy_blacs_to_blacs_matrix,&
-                                             copy_real_matrix_to_fm,&
                                              replicate_blacs_matrix
   USE qs_diis_types,                   ONLY: qs_diis_b_release,&
                                              qs_diis_b_retain,&
@@ -375,7 +376,7 @@ CONTAINS
 
        new_errors => diis_buffer%error(ib,ispin)%matrix
        ! I guess that this copy can be avoided for LSD
-       CALL copy_real_matrix_to_fm(s(1)%matrix,new_errors)
+       CALL copy_sm_to_fm(s(1)%matrix,new_errors)
        CALL cp_fm_symm("L","U",nao,nmo,2.0_wp,new_errors,c,0.0_wp,sc)
 
        CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_wp,sc,kc(ispin)%matrix, 0.0_wp,new_errors)

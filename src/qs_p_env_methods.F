@@ -46,8 +46,8 @@ MODULE qs_p_env_methods
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_multiply, &
-                                             cp_sm_plus_fm_fm_t
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_multiply
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_plus_fm_fm_t
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_restore,&
                                              cp_fm_cholesky_invert
@@ -70,8 +70,8 @@ MODULE qs_p_env_methods
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
-                                             cp_fm_syrk,&
-                                             cp_sm_fm_multiply
+                                             cp_fm_syrk
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE qs_blacs,                        ONLY: blacs_scale_and_d,&
                                              copy_blacs_to_blacs_matrix,&
                                              replicate_blacs_matrix

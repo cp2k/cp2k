@@ -18,9 +18,7 @@
 MODULE qs_tddfpt_module
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
-                                             cp_fm_struct_type,&
-                                             optimal_blacs_col_block_size,&
-                                             optimal_blacs_row_block_size
+                                             cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_release,&
                                              cp_fm_p_type,&

@@ -44,7 +44,7 @@ MODULE qs_environment_types
                                              cp_internal_error,&
                                              cp_unimplemented_error,&
                                              cp_unimplemented_error_nr
-  USE cp_fm_basic_linalg,              ONLY: cp_sm_fm_multiply
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create_fm,&

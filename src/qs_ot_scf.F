@@ -23,8 +23,8 @@ MODULE qs_ot_scf
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_set_all,&
                                              cp_fm_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
-                                             cp_sm_fm_multiply
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
                                              wp => dp

@@ -59,7 +59,7 @@ MODULE cp_block_matrix
   USE message_passing,                 ONLY: mp_sync
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_type 
-  USE cp_fm_basic_linalg,              ONLY: cp_sm_fm_multiply
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE sparse_matrix_types
   USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&

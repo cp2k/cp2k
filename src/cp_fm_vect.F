@@ -40,9 +40,7 @@ MODULE cp_fm_vect
                                              cp_fm_struct_equivalent,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_retain,&
-                                             cp_fm_struct_type,&
-                                             optimal_blacs_col_block_size,&
-                                             optimal_blacs_row_block_size
+                                             cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_get_submatrix,&

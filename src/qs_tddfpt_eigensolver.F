@@ -21,8 +21,8 @@ MODULE qs_tddfpt_eigensolver
 
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                              cp_fm_symm,&
-                                             cp_fm_trace,&
-                                             cp_sm_fm_multiply, &
+                                             cp_fm_trace
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply, &
                                              cp_sm_plus_fm_fm_t
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
@@ -30,9 +30,7 @@ MODULE qs_tddfpt_eigensolver
                                              fm_pools_create_fm_vect,&
                                              fm_pools_give_back_fm_vect
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                             cp_fm_struct_type,&
-                                             optimal_blacs_col_block_size,&
-                                             optimal_blacs_row_block_size
+                                             cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_element,&
                                              cp_fm_init_random, &
@@ -49,8 +47,7 @@ MODULE qs_tddfpt_eigensolver
   USE kinds,                           ONLY: dbl
   USE qs_arpack_utils,                 ONLY: arpack_confirm
   USE qs_blacs,                        ONLY: blacs_syevd,&
-                                             copy_blacs_to_blacs_matrix,&
-                                             copy_real_matrix_to_fm
+                                             copy_blacs_to_blacs_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_matrix_pools,                 ONLY: mpools_get,&
@@ -197,9 +194,7 @@ CONTAINS
        NULLIFY (kv_fm_struct(spin)%struct)
        CALL cp_fm_struct_create(kv_fm_struct(spin)%struct, qs_env%para_env, &
                                 qs_env%blacs_env, &
-                                p_env%n_ao(spin), p_env%n_mo(spin), &
-                                optimal_blacs_row_block_size, &
-                                optimal_blacs_col_block_size)
+                                p_env%n_ao(spin), p_env%n_mo(spin))
     END DO
     CALL allocate_krylov_vectors(kv, "kv-", iteration, n_kv, n_spins, kv_fm_struct)
     CALL allocate_krylov_vectors(opkv, "opkv-", iteration, n_kv, n_spins, kv_fm_struct)
@@ -302,9 +297,7 @@ CONTAINS
        CALL cp_fm_struct_create(T_fm_struct, &
                                 qs_env%para_env, &
                                 qs_env%blacs_env, &
-                                index, index, &
-                                optimal_blacs_row_block_size, &
-                                optimal_blacs_col_block_size)
+                                index, index)
        CALL cp_fm_create(T%matrix, &
                          T_fm_struct, &
                          routineP//"T")
@@ -315,9 +308,7 @@ CONTAINS
        CALL cp_fm_struct_create(Tev_fm_struct, &
                                 qs_env%para_env, &
                                 qs_env%blacs_env, &
-                                index, index, &
-                                optimal_blacs_row_block_size, &
-                                optimal_blacs_col_block_size)
+                                index, index)
        CALL cp_fm_create(Tev%matrix, &
                          Tev_fm_struct, &
                          routineP//"Tev")
