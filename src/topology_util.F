@@ -2647,7 +2647,8 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(torsion_type), DIMENSION(:), &
       POINTER                                :: torsion_list
-    INTEGER, DIMENSION(:), POINTER :: list,list2
+    !INTEGER, DIMENSION(:), POINTER :: list,list2
+    INTEGER, DIMENSION(:), POINTER :: list
     INTEGER                                  :: imolecule,first_atom,last_atom,&
                                                 nbond,nbend,ntorsion
 
@@ -2928,12 +2929,6 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
         END IF
       END DO
       particle_set(iatom)%lpi%exclusion(j)%list_vdw => list
-      IF(topology%exclude_vdw==topology%exclude_ei) THEN
-        NULLIFY(list2)
-        CALL reallocate(list2,1,counter)
-        list(:) = list2(:)
-        particle_set(iatom)%lpi%exclusion(j)%list_ei => list2
-      END IF
       IF (PM2) THEN 
          IF (ASSOCIATED(list)) &
          WRITE(iw,*)"exclusion list_vdw :: ",&
@@ -2952,7 +2947,6 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   !-----------------------------------------------------------------------------
   ! 9. Fill in the particle_set%lpi%exclusion%list_ei
   !-----------------------------------------------------------------------------
-  IF(topology%exclude_vdw/=topology%exclude_ei) THEN
     ALLOCATE(atomlist(SIZE(particle_set)),STAT=istat)
     IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomlist')
     ALLOCATE(atomkind(SIZE(particle_set)),STAT=istat)
@@ -3061,7 +3055,6 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomlist')
     DEALLOCATE(atomkind,STAT=istat)
     IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomkind')
-  END IF
 
 
   !-----------------------------------------------------------------------------
